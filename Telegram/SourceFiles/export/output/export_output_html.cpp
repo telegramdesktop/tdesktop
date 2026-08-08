@@ -11,12 +11,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "countries/countries_instance.h"
 #include "export/data/export_data_types.h"
 #include "export/output/export_output_result.h"
+#include "ui/grouped_layout_geometry.h"
 #include "ui/text/format_values.h"
 
 #include <cmath>
 
 #include <QtCore/QDateTime>
 #include <QtCore/QFile>
+#include <QtCore/QRect>
 #include <QtCore/QSize>
 #include <QtCore/QUrl>
 #include <QtGui/QImageReader>
@@ -42,6 +44,9 @@ constexpr auto kStickerMinWidth = 80;
 constexpr auto kStickerMinHeight = 80;
 constexpr auto kStoryThumbWidth = 45;
 constexpr auto kStoryThumbHeight = 80;
+constexpr auto kGroupWidthMax = 430;
+constexpr auto kGroupWidthMin = 100;
+constexpr auto kGroupSkip = 4;
 
 constexpr auto kChatsPriority = 0;
 constexpr auto kContactsPriority = 2;
@@ -601,6 +606,10 @@ public:
 private:
 	[[nodiscard]] const Data::Photo *findPhoto(uint64 id) const;
 	[[nodiscard]] const Data::Document *findDocument(uint64 id) const;
+	[[nodiscard]] std::optional<QSize> mediaItemSize(
+		const Data::RichBlock &block) const;
+	[[nodiscard]] std::vector<QSize> mediaGroupSizes(
+		const std::vector<Data::RichBlock> &blocks) const;
 	[[nodiscard]] RichTailState tailState(
 		const Data::RichBlock &block) const;
 	[[nodiscard]] RichTailState tailState(
@@ -626,6 +635,8 @@ private:
 		const Data::RichBlock &block,
 		const QByteArray &kind,
 		bool renderGroupCaption);
+	[[nodiscard]] QByteArray renderCollage(const Data::RichBlock &block);
+	[[nodiscard]] QByteArray renderSlideshow(const Data::RichBlock &block);
 	[[nodiscard]] QByteArray renderEmbed(const Data::RichBlock &block);
 	[[nodiscard]] QByteArray renderEmbedPost(const Data::RichBlock &block);
 	[[nodiscard]] QByteArray renderChannel(const Data::RichBlock &block);
@@ -715,6 +726,17 @@ QByteArray RichHeadingTag(int level) {
 
 QByteArray RichBoolAttribute(bool value) {
 	return value ? QByteArray("true") : QByteArray("false");
+}
+
+QByteArray RichPercentValue(int value, int total) {
+	return QByteArray::number(value * 100. / total, 'f', 3) + '%';
+}
+
+QByteArray RichAspectRatioStyle(QSize size) {
+	return "aspect-ratio: "
+		+ Data::NumberToString(size.width())
+		+ " / "
+		+ Data::NumberToString(size.height());
 }
 
 bool RichTextHasOutput(const Data::RichText &text) {
@@ -1265,6 +1287,50 @@ const Data::Document *RichHtmlRenderer::findDocument(uint64 id) const {
 	return (i != end(_message.documents)) ? &i->second : nullptr;
 }
 
+std::optional<QSize> RichHtmlRenderer::mediaItemSize(
+		const Data::RichBlock &block) const {
+	using Kind = Data::RichBlock::Kind;
+
+	const auto valid = [](QSize size) {
+		return !size.isEmpty()
+			? std::make_optional(size)
+			: std::nullopt;
+	};
+	if (block.kind == Kind::Photo) {
+		const auto photo = findPhoto(block.photoId);
+		return (photo && !photo->image.file.relativePath.isEmpty())
+			? valid(QSize(photo->image.width, photo->image.height))
+			: std::nullopt;
+	} else if (block.kind == Kind::Video) {
+		const auto document = findDocument(block.documentId);
+		return (document
+			&& !document->file.relativePath.isEmpty()
+			&& !document->thumb.file.relativePath.isEmpty())
+			? valid(QSize(document->width, document->height))
+			: std::nullopt;
+	}
+	return std::nullopt;
+}
+
+std::vector<QSize> RichHtmlRenderer::mediaGroupSizes(
+		const std::vector<Data::RichBlock> &blocks) const {
+	if (blocks.empty()) {
+		return {};
+	}
+	auto result = std::vector<QSize>();
+	result.reserve(blocks.size());
+	for (const auto &block : blocks) {
+		const auto size = mediaItemSize(block);
+		if (!size
+			|| RichCaptionHasOutput(block.caption)
+			|| (block.optionalUrl && !block.optionalUrl->isEmpty())) {
+			return {};
+		}
+		result.push_back(*size);
+	}
+	return result;
+}
+
 RichTailState RichHtmlRenderer::tailState(
 		const std::vector<Data::RichBlock> &blocks) const {
 	for (auto i = blocks.rbegin(); i != blocks.rend(); ++i) {
@@ -1558,6 +1624,118 @@ QByteArray RichHtmlRenderer::renderMediaGroup(
 	if (renderGroupCaption) {
 		result += renderCaption(block.caption);
 	}
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderCollage(const Data::RichBlock &block) {
+	const auto sizes = mediaGroupSizes(block.blocks);
+	if (sizes.empty()) {
+		return renderMediaGroup(block, "collage", true);
+	}
+	const auto layout = Ui::LayoutMediaGroupGeometry(
+		sizes,
+		kGroupWidthMax,
+		kGroupWidthMin,
+		kGroupSkip);
+	auto full = QRect();
+	for (const auto &part : layout) {
+		full = full.united(part);
+	}
+	if (layout.size() != sizes.size() || full.isEmpty()) {
+		return renderMediaGroup(block, "collage", true);
+	}
+	auto attributes = RichBlockAttributes("rich_media_group", "collage");
+	attributes.emplace("data-rich-has-items", RichBoolAttribute(true));
+	attributes.emplace("data-rich-items-end-media", RichBoolAttribute(true));
+	auto result = _context.pushTag("section", std::move(attributes));
+	result += _context.pushTag("div", {
+		{ "class", "rich_collage_box" },
+		{ "style", RichAspectRatioStyle(full.size()) },
+	});
+	for (auto i = 0, count = int(block.blocks.size()); i != count; ++i) {
+		const auto &geometry = layout[i];
+		result += _context.pushTag("div", {
+			{ "class", "rich_collage_item" },
+			{ "style", "left: "
+				+ RichPercentValue(geometry.x() - full.x(), full.width())
+				+ "; top: "
+				+ RichPercentValue(geometry.y() - full.y(), full.height())
+				+ "; width: "
+				+ RichPercentValue(geometry.width(), full.width())
+				+ "; height: "
+				+ RichPercentValue(geometry.height(), full.height()) },
+		});
+		result += renderBlock(block.blocks[i]);
+		result += _context.popTag();
+	}
+	result += _context.popTag();
+	result += renderCaption(block.caption);
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderSlideshow(const Data::RichBlock &block) {
+	const auto sizes = mediaGroupSizes(block.blocks);
+	if (sizes.empty()) {
+		return renderMediaGroup(block, "slideshow", true);
+	}
+	auto widest = sizes.front();
+	for (const auto &size : sizes) {
+		if (int64(size.width()) * widest.height()
+			> int64(widest.width()) * size.height()) {
+			widest = size;
+		}
+	}
+	const auto count = int(block.blocks.size());
+	const auto controls = (count > 1);
+	auto attributes = RichBlockAttributes("rich_media_group", "slideshow");
+	attributes.emplace("data-rich-has-items", RichBoolAttribute(true));
+	attributes.emplace("data-rich-items-end-media", RichBoolAttribute(true));
+	auto result = _context.pushTag("section", std::move(attributes));
+	result += _context.pushTag("div", {
+		{ "class", "rich_slideshow_box" },
+		{ "style", RichAspectRatioStyle(widest) },
+	});
+	result += _context.pushTag("div", {
+		{ "class", "rich_slideshow_track" },
+	});
+	for (const auto &item : block.blocks) {
+		result += _context.pushTag("div", { { "class", "rich_slide" } });
+		result += renderBlock(item);
+		result += _context.popTag();
+	}
+	result += _context.popTag();
+	if (controls) {
+		result += _context.pushTag("button", {
+			{ "class", "rich_slideshow_prev" },
+			{ "type", "button" },
+			{ "inline", QByteArray() },
+		});
+		result += "&#8592;";
+		result += _context.popTag();
+		result += _context.pushTag("button", {
+			{ "class", "rich_slideshow_next" },
+			{ "type", "button" },
+			{ "inline", QByteArray() },
+		});
+		result += "&#8594;";
+		result += _context.popTag();
+		result += _context.pushTag("div", {
+			{ "class", "rich_slideshow_dots" },
+		});
+		for (auto i = 0; i != count; ++i) {
+			result += _context.pushTag("button", {
+				{ "class", "rich_slideshow_dot" },
+				{ "type", "button" },
+				{ "inline", QByteArray() },
+			});
+			result += _context.popTag();
+		}
+		result += _context.popTag();
+	}
+	result += _context.popTag();
+	result += renderCaption(block.caption);
 	result += _context.popTag();
 	return result;
 }
@@ -2789,9 +2967,9 @@ QByteArray RichHtmlRenderer::renderBlock(const Data::RichBlock &block) {
 	case Kind::EmbedPost:
 		return renderEmbedPost(block);
 	case Kind::Collage:
-		return renderMediaGroup(block, "collage", true);
+		return renderCollage(block);
 	case Kind::Slideshow:
-		return renderMediaGroup(block, "slideshow", true);
+		return renderSlideshow(block);
 	case Kind::Channel:
 		return renderChannel(block);
 	case Kind::Audio:

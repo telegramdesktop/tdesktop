@@ -1174,6 +1174,123 @@ div.toast_shown {
 .default .rich_message .rich_media_group[data-rich-has-items="true"][data-rich-items-end-media="true"] > .rich_media_group_items:not(:last-child) {
     margin-bottom: 0;
 }
+.default .rich_message .rich_collage_box,
+.default .rich_message .rich_slideshow_box {
+    box-sizing: border-box;
+    display: block;
+    position: relative;
+    width: 260px;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    border-radius: 8px;
+}
+.default .rich_message .rich_media_group > .rich_collage_box + .rich_media_caption,
+.default .rich_message .rich_media_group > .rich_slideshow_box + .rich_media_caption {
+    margin-top: 0;
+}
+.default .rich_message .rich_collage_item {
+    position: absolute;
+    overflow: hidden;
+}
+.default .rich_message .rich_slideshow_box {
+    direction: ltr;
+    background: #000000;
+}
+.default .rich_message .rich_slideshow_track {
+    display: flex;
+    height: 100%;
+    transition: transform 0.25s ease;
+}
+.default .rich_message .rich_slide {
+    flex: 0 0 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+.default .rich_message .rich_collage_item > .rich_media_item,
+.default .rich_message .rich_slide > .rich_media_item,
+.default .rich_message .rich_collage_item .media_wrap,
+.default .rich_message .rich_slide .media_wrap,
+.default .rich_message .rich_collage_item .photo_wrap,
+.default .rich_message .rich_slide .photo_wrap,
+.default .rich_message .rich_collage_item .video_file_wrap,
+.default .rich_message .rich_slide .video_file_wrap {
+    display: block;
+    float: none;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+.default .rich_message .rich_collage_item .photo,
+.default .rich_message .rich_collage_item .video_file {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover;
+    border-radius: 0;
+}
+.default .rich_message .rich_slide .photo,
+.default .rich_message .rich_slide .video_file {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain;
+    border-radius: 0;
+}
+.default .rich_message .rich_slideshow_prev,
+.default .rich_message .rich_slideshow_next {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: #ffffff;
+    color: #333333;
+    font-size: 16px;
+    line-height: 36px;
+    text-align: center;
+    opacity: 0.9;
+    cursor: pointer;
+    z-index: 3;
+}
+.default .rich_message .rich_slideshow_prev {
+    left: 12px;
+}
+.default .rich_message .rich_slideshow_next {
+    right: 12px;
+}
+.default .rich_message .rich_slideshow_prev:hover,
+.default .rich_message .rich_slideshow_next:hover {
+    opacity: 1;
+}
+.default .rich_message .rich_slideshow_dots {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 10px;
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    z-index: 3;
+}
+.default .rich_message .rich_slideshow_dot {
+    width: 8px;
+    height: 8px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+}
+.default .rich_message .rich_slideshow_dot.active {
+    background: #ffffff;
+}
 .default .rich_message .rich_embed_post[data-rich-has-items="true"][data-rich-has-meta="false"] > .rich_embed_post_author + .rich_embed_post_blocks {
     margin-top: 3px;
 }
