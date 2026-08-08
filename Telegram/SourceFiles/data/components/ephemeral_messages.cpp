@@ -147,7 +147,6 @@ void EphemeralMessages::clear() {
 	base::take(_anchored);
 	base::take(_pending);
 	base::take(_callbackTopicHints);
-	base::take(_callbackQueries);
 }
 
 void EphemeralMessages::apply(const MTPDupdateNewEphemeralMessage &update) {
@@ -312,17 +311,6 @@ void EphemeralMessages::apply(
 			}
 		}
 	}
-}
-
-void EphemeralMessages::apply(
-		const MTPDupdateEphemeralBotCallbackQuery &update) {
-	const auto peer = update.vpeer();
-	if (!peer) {
-		return;
-	}
-	const auto history = _session->data().history(peerFromMTP(*peer));
-	const auto userId = peerFromUser(UserId(update.vuser_id()));
-	_callbackQueries[history][userId] = update.vquery_id().v;
 }
 
 HistoryItem *EphemeralMessages::applyNew(const MTPDephemeralMessage &data) {
@@ -736,8 +724,7 @@ void EphemeralMessages::send(
 		MsgId topicRootId,
 		FullReplyTo realReply,
 		Data::WebPageDraft webPage,
-		bool invertCaption,
-		uint64 anchorQueryId) {
+		bool invertCaption) {
 	const auto exactWebPage = !webPage.url.isEmpty() && !webPage.removed;
 	const auto manualWebPage = exactWebPage && webPage.manual;
 	const auto invertMedia = (exactWebPage && webPage.invert)
@@ -756,30 +743,7 @@ void EphemeralMessages::send(
 		FullMsgId(),
 		Data::FileOrigin(),
 		nullptr,
-		invertMedia,
-		std::nullopt,
-		nullptr,
-		anchorQueryId);
-}
-
-void EphemeralMessages::sendAnchored(
-		not_null<History*> history,
-		not_null<UserData*> receiver,
-		TextWithEntities text) {
-	const auto anchorQueryId = takeCallbackQueryId(history, receiver->id);
-	if (!anchorQueryId) {
-		return;
-	}
-	send(
-		history,
-		receiver,
-		std::move(text),
-		0,
-		MsgId(),
-		FullReplyTo(),
-		Data::WebPageDraft(),
-		false,
-		anchorQueryId);
+		invertMedia);
 }
 
 bool EphemeralMessages::sendMedia(
@@ -983,8 +947,7 @@ void EphemeralMessages::request(
 		Fn<MTPInputMedia()> rebuildMedia,
 		bool invertMedia,
 		std::optional<MTPInputRichMessage> richMessage,
-		Fn<std::optional<MTPInputRichMessage>()> rebuildRich,
-		uint64 anchorQueryId) {
+		Fn<std::optional<MTPInputRichMessage>()> rebuildRich) {
 	const auto session = _session;
 	const auto destroyLocal = [=] {
 		if (destroyOnResult) {
@@ -1019,8 +982,7 @@ void EphemeralMessages::request(
 		| (hasMedia ? Flag::f_media : Flag(0))
 		| (hasReplyTo ? Flag::f_reply_to : Flag(0))
 		| (invertMedia ? Flag::f_invert_media : Flag(0))
-		| (richMessage ? Flag::f_rich_message : Flag(0))
-		| (anchorQueryId ? (Flag::f_query_id | Flag::f_anchor) : Flag(0));
+		| (richMessage ? Flag::f_rich_message : Flag(0));
 	const auto randomId = base::RandomValue<uint64>();
 	const auto send = [=](
 			const auto &send,
@@ -1031,7 +993,7 @@ void EphemeralMessages::request(
 			MTP_flags(flags),
 			history->peer->input(),
 			bot->inputUser(),
-			MTP_long(anchorQueryId),
+			MTPlong(), // query_id
 			MTP_string(text.text),
 			entities,
 			media,
@@ -1118,12 +1080,6 @@ MsgId EphemeralMessages::takeCallbackTopic(
 		not_null<History*> history,
 		PeerId botId) {
 	return TakeHint(_callbackTopicHints, history, botId);
-}
-
-uint64 EphemeralMessages::takeCallbackQueryId(
-		not_null<History*> history,
-		PeerId userId) {
-	return TakeHint(_callbackQueries, history, userId);
 }
 
 UserData *EphemeralMessages::botForSending(const Entry &entry) const {

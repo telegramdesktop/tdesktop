@@ -1900,11 +1900,6 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		session().ephemeralMessages().apply(d);
 	} break;
 
-	case mtpc_updateEphemeralBotCallbackQuery: {
-		const auto &d = update.c_updateEphemeralBotCallbackQuery();
-		session().ephemeralMessages().apply(d);
-	} break;
-
 	case mtpc_updateQuickReplies: {
 		const auto &d = update.c_updateQuickReplies();
 		session().data().shortcutMessages().apply(d);

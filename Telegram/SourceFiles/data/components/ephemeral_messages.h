@@ -42,7 +42,6 @@ public:
 	void apply(const MTPDupdateNewEphemeralMessage &update);
 	void apply(const MTPDupdateEditEphemeralMessage &update);
 	void apply(const MTPDupdateDeleteEphemeralMessages &update);
-	void apply(const MTPDupdateEphemeralBotCallbackQuery &update);
 
 	[[nodiscard]] HistoryItem *lookupItem(
 		not_null<PeerData*> peer,
@@ -72,12 +71,7 @@ public:
 		MsgId topicRootId = 0,
 		FullReplyTo realReply = {},
 		Data::WebPageDraft webPage = {},
-		bool invertCaption = false,
-		uint64 anchorQueryId = 0);
-	void sendAnchored(
-		not_null<History*> history,
-		not_null<UserData*> receiver,
-		TextWithEntities text);
+		bool invertCaption = false);
 	[[nodiscard]] bool sendMedia(
 		not_null<HistoryItem*> item,
 		const MTPInputMedia &media,
@@ -139,8 +133,7 @@ private:
 		Fn<MTPInputMedia()> rebuildMedia = nullptr,
 		bool invertMedia = false,
 		std::optional<MTPInputRichMessage> richMessage = {},
-		Fn<std::optional<MTPInputRichMessage>()> rebuildRich = nullptr,
-		uint64 anchorQueryId = 0);
+		Fn<std::optional<MTPInputRichMessage>()> rebuildRich = nullptr);
 	[[nodiscard]] bool replyTargetMissing(
 		const MTPDephemeralMessage &data) const;
 	[[nodiscard]] bool mentionsMe(
@@ -152,9 +145,6 @@ private:
 	[[nodiscard]] MsgId takeCallbackTopic(
 		not_null<History*> history,
 		PeerId botId);
-	[[nodiscard]] uint64 takeCallbackQueryId(
-		not_null<History*> history,
-		PeerId userId);
 	[[nodiscard]] UserData *botForSending(const Entry &entry) const;
 	void reportDroppedReply() const;
 	void itemRemoved(not_null<const HistoryItem*> item);
@@ -171,9 +161,6 @@ private:
 	base::flat_map<
 		not_null<History*>,
 		base::flat_map<PeerId, MsgId>> _callbackTopicHints;
-	base::flat_map<
-		not_null<History*>,
-		base::flat_map<PeerId, uint64>> _callbackQueries;
 
 	rpl::lifetime _lifetime;
 
