@@ -4301,6 +4301,8 @@ bool ComposeControls::canShowRichEditor() const {
 		&& _wrap->isVisible()
 		&& !_recording.current()
 		&& _field->isVisible()
+		&& (isEditingMessage()
+			|| Data::CanSendTexts(_history->peer, !_topicRootId))
 		&& (composeEligible || isEditingMessage())
 		&& !textExceedsMaxSize()
 		&& !(media && !media->webpage())

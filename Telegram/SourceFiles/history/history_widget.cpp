@@ -7077,6 +7077,7 @@ bool HistoryWidget::canShowRichEditor() const {
 		&& _send->isVisible()
 		&& _field->isVisible()
 		&& !_voiceRecordBar->isActive()
+		&& (editingMessage() || _canSendTexts)
 		&& (!textExceedsMaxSize() || editingMessage())
 		&& !(_editMsgId
 			&& _replyEditMsg
