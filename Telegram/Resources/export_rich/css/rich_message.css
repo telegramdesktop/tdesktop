@@ -263,7 +263,7 @@ span.anchor { display: inline; }
 @media (prefers-color-scheme: dark) {
 	body { background: #1a2026; color: #ffffff; }
 	a { color: #4db8ff; }
-	.byline, .footer, figcaption, blockquote cite, .audio-meta,
+	.byline, footer, figcaption, blockquote cite, .audio-meta,
 	.related-desc, .related-meta { color: #91979e; }
 	hr { border-top-color: #2c333d; }
 	code { color: #ff8aac; background: #2c333d; }
