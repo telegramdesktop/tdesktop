@@ -1421,36 +1421,40 @@ void HistoryWidget::initExpandButton() {
 	_expand->hide();
 	_expand->setAccessibleName(tr::lng_article_menu_item(tr::now));
 	_expand->setClickedCallback([=] {
-		if (!_history) {
-			return;
-		}
-		const auto window = controller();
-		if (editingMessage()) {
-			const auto item = session().data().message(
-				_history->peer,
-				_editMsgId);
-			if (item) {
-				Iv::Editor::ShowEditFromFieldBox(
-					window,
-					item,
-					prepareSendAction({}),
-					_field->getTextWithAppliedMarkdown(),
-					crl::guard(this, [=] {
-						cancelEdit();
-					}));
-			}
-			return;
-		}
-		Iv::Editor::ShowComposeBox(
-			window,
-			_history->peer,
-			prepareSendAction({}),
-			sendMenuDetails(),
-			_field->getTextWithAppliedMarkdown(),
-			crl::guard(this, [=] {
-				migrateFieldToRichEditor();
-			}));
+		showRichEditor();
 	});
+}
+
+void HistoryWidget::showRichEditor() {
+	if (!_history) {
+		return;
+	}
+	const auto window = controller();
+	if (editingMessage()) {
+		const auto item = session().data().message(
+			_history->peer,
+			_editMsgId);
+		if (item) {
+			Iv::Editor::ShowEditFromFieldBox(
+				window,
+				item,
+				prepareSendAction({}),
+				_field->getTextWithAppliedMarkdown(),
+				crl::guard(this, [=] {
+					cancelEdit();
+				}));
+		}
+		return;
+	}
+	Iv::Editor::ShowComposeBox(
+		window,
+		_history->peer,
+		prepareSendAction({}),
+		sendMenuDetails(),
+		_field->getTextWithAppliedMarkdown(),
+		crl::guard(this, [=] {
+			migrateFieldToRichEditor();
+		}));
 }
 
 void HistoryWidget::sendTextAsFile(
@@ -2539,6 +2543,12 @@ void HistoryWidget::setupShortcuts() {
 			&& request->check(Command::ComposeAiApplyInPlace, 1)
 			&& request->handle([=] {
 				triggerAiApplyInPlace();
+				return true;
+			});
+		canShowRichEditor()
+			&& request->check(Command::ShowRichEditor, 1)
+			&& request->handle([=] {
+				showRichEditor();
 				return true;
 			});
 		_preview
@@ -7062,17 +7072,21 @@ void HistoryWidget::updateAiButtonVisibility() {
 	}
 }
 
-void HistoryWidget::updateExpandButtonVisibility() {
-	const auto hidden = !_send->isVisible()
-		|| !_field->isVisible()
-		|| _voiceRecordBar->isActive()
-		|| !hasEnoughLinesForExpand()
-		|| (textExceedsMaxSize() && !editingMessage())
-		|| (_editMsgId
+bool HistoryWidget::canShowRichEditor() const {
+	return _history
+		&& _send->isVisible()
+		&& _field->isVisible()
+		&& !_voiceRecordBar->isActive()
+		&& (!textExceedsMaxSize() || editingMessage())
+		&& !(_editMsgId
 			&& _replyEditMsg
 			&& _replyEditMsg->media()
 			&& !_replyEditMsg->media()->webpage())
-		|| !Iv::Editor::CanAuthorRichMessages(&session());
+		&& Iv::Editor::CanAuthorRichMessages(&session());
+}
+
+void HistoryWidget::updateExpandButtonVisibility() {
+	const auto hidden = !canShowRichEditor() || !hasEnoughLinesForExpand();
 	if (_expand->isHidden() != hidden) {
 		_expand->setVisible(!hidden);
 	}
