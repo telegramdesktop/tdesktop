@@ -550,13 +550,17 @@ void AddDetailsAmountHeader(
 	minor->setMarkedText(std::move(minorText), helper.context());
 	const auto pending
 		= (item.status == Gram::TransferItem::Status::Pending);
-	const auto color = pending
-		? st::windowSubTextFg->c
+	const auto &color = pending
+		? st::windowSubTextFg
 		: item.incoming
-		? st::boxTextFgGood->c
-		: st::windowFg->c;
-	major->setTextColorOverride(color);
-	minor->setTextColorOverride(color);
+		? st::boxTextFgGood
+		: st::windowFg;
+	rpl::single(rpl::empty) | rpl::then(
+		style::PaletteChanged()
+	) | rpl::on_next([=] {
+		major->setTextColorOverride(color->c);
+		minor->setTextColorOverride(color->c);
+	}, container->lifetime());
 	const auto amountNano = item.amountNano;
 	const auto fiat = rate
 		? Ui::CreateChild<Ui::FlatLabel>(
