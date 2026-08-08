@@ -159,6 +159,7 @@ private:
 		bool child,
 		QWidget *mediaPreviewParent);
 
+	void showEvent(QShowEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
@@ -242,6 +243,7 @@ private:
 	int _skipx = 0;
 	int _skipy = 0;
 	int _pressed = -1;
+	crl::time _shownAt = 0;
 	bool _useTransparency = false;
 	bool _appearing = false;
 	bool _toggling = false;
