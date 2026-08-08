@@ -128,6 +128,9 @@ void TabsHost::syncBodyNow() {
 	const auto widget = active->widget();
 	if (!widget->isHidden() && _body->height() != widget->height()) {
 		_body->resize(_body->width(), widget->height());
+		// setVisibleTopBottom clamps to the page height, so a page that
+		// grew after the last push keeps a stale short visible bottom.
+		pushViewportToActive();
 	}
 }
 
