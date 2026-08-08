@@ -55,6 +55,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
+#include "mainwindow.h"
 #include "menu/menu_send.h"
 #include "settings/sections/settings_premium.h"
 #include "storage/file_upload.h"
@@ -1730,6 +1731,12 @@ private:
 			.state = _state,
 			.title = windowTitle(),
 			.submitType = _submitType,
+			.centerOver = [&] {
+				const auto controller = _controller.get();
+				return controller
+					? controller->widget()->geometry()
+					: QRect();
+			}(),
 			.discarded = _composeAction
 				? Fn<bool()>([session = shared_from_this()] {
 					return session->discardRequested();

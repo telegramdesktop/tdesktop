@@ -358,7 +358,7 @@ private:
 
 };
 
-[[nodiscard]] QRect DefaultWindowGeometry() {
+[[nodiscard]] QRect DefaultWindowGeometry(QRect centerOver) {
 	const auto padding = st::ivEditorBodyPadding;
 	const auto size = QSize(
 		std::max(
@@ -368,8 +368,31 @@ private:
 				+ padding.right()),
 		st::ivEditorWindowDefaultSize.height());
 	auto result = QRect(QPoint(), size);
-	if (const auto screen = QGuiApplication::primaryScreen()) {
-		result.moveCenter(screen->availableGeometry().center());
+	const auto over = centerOver.isEmpty()
+		? nullptr
+		: QGuiApplication::screenAt(centerOver.center());
+	if (over) {
+		result.moveCenter(centerOver.center());
+	}
+	const auto screen = over ? over : QGuiApplication::primaryScreen();
+	if (!screen) {
+		return result;
+	}
+	const auto available = screen->availableGeometry();
+	if (!over) {
+		result.moveCenter(available.center());
+	}
+	if (result.right() > available.right()) {
+		result.moveRight(available.right());
+	}
+	if (result.bottom() > available.bottom()) {
+		result.moveBottom(available.bottom());
+	}
+	if (result.left() < available.left()) {
+		result.moveLeft(available.left());
+	}
+	if (result.top() < available.top()) {
+		result.moveTop(available.top());
 	}
 	return result;
 }
@@ -1594,7 +1617,7 @@ void WindowHost::Impl::setupWindow(ShowWindowDescriptor &&descriptor) {
 	}
 	window->setTitle(title);
 	window->setMinimumSize(st::ivEditorWindowMinSize);
-	window->setGeometry(DefaultWindowGeometry());
+	window->setGeometry(DefaultWindowGeometry(descriptor.centerOver));
 
 	window->body()->paintRequest() | rpl::on_next([=](QRect clip) {
 		QPainter(window->body().get()).fillRect(clip, st::windowBg);
