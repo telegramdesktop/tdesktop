@@ -636,6 +636,8 @@ PRIVATE
     ui/empty_userpic.h
     ui/grouped_layout.cpp
     ui/grouped_layout.h
+    ui/grouped_layout_geometry.cpp
+    ui/grouped_layout_geometry.h
     ui/new_badges.cpp
     ui/new_badges.h
     ui/peer/color_sample.cpp
