@@ -3737,6 +3737,12 @@ void ComposeControls::initVoiceRecordBar() {
 				triggerAiApplyInPlace();
 				return true;
 			});
+		canShowRichEditor()
+			&& request->check(Command::ShowRichEditor, 1)
+			&& request->handle([=] {
+				showRichEditor();
+				return true;
+			});
 		_preview
 			&& (_previewShown || _preview->draft().removed)
 			&& request->check(Command::ToggleWebPagePreview, 1)
@@ -3821,84 +3827,30 @@ void ComposeControls::initExpandButton() {
 	_expand->hide();
 	_expand->setAccessibleName(tr::lng_article_menu_item(tr::now));
 	_expand->setClickedCallback([=] {
-		if (!_regularWindow || !_history || !_sendActionFactory) {
-			return;
-		}
-		if (isEditingMessage()) {
-			const auto item = _history->owner().message(
-				_header->editMsgId());
-			if (item) {
-				Iv::Editor::ShowEditFromFieldBox(
-					_regularWindow,
-					item,
-					_sendActionFactory(),
-					getTextWithAppliedMarkdown(),
-					crl::guard(_wrap.get(), [=] {
-						cancelEditMessage();
-					}));
-			}
-			return;
-		}
-		if (_mode == Mode::Scheduled) {
-			Iv::Editor::ShowComposeBox(
+		showRichEditor();
+	});
+}
+
+void ComposeControls::showRichEditor() {
+	if (!_regularWindow || !_history || !_sendActionFactory) {
+		return;
+	}
+	if (isEditingMessage()) {
+		const auto item = _history->owner().message(_header->editMsgId());
+		if (item) {
+			Iv::Editor::ShowEditFromFieldBox(
 				_regularWindow,
-				_history->peer,
+				item,
 				_sendActionFactory(),
-				sendMenuDetails(),
 				getTextWithAppliedMarkdown(),
 				crl::guard(_wrap.get(), [=] {
-					migrateScheduledFieldToRichEditor();
-				}),
-				Iv::Editor::ComposeBoxOptions{
-					.scope = Iv::Editor::ComposeBoxOptions::Scope::Detached,
-					.submitPolicy = Iv::Editor::ComposeBoxOptions::SubmitPolicy::Schedule,
-					.returnText = crl::guard(
-						_wrap.get(),
-						[=](TextWithTags text) {
-							setText(text);
-						}),
-				});
-			return;
+					cancelEditMessage();
+				}));
 		}
-		if (_currentDialogsEntryState.section
-				== Dialogs::EntryState::Section::ShortcutMessages) {
-			if (!isShortcutComposeEligible()) {
-				return;
-			}
-			const auto expectedShortcutId = _shortcutId;
-			auto action = _sendActionFactory();
-			if (!isShortcutComposeEligible()
-				|| _shortcutId != expectedShortcutId
-				|| action.options.shortcutId != expectedShortcutId) {
-				return;
-			}
-			auto fieldText = getTextWithAppliedMarkdown();
-			Iv::Editor::ShowComposeBox(
-				_regularWindow,
-				_history->peer,
-				std::move(action),
-				sendMenuDetails(),
-				std::move(fieldText),
-				crl::guard(_wrap.get(), [=] {
-					migrateShortcutFieldToRichEditor(
-						expectedShortcutId);
-				}),
-				Iv::Editor::ComposeBoxOptions{
-					.scope = Iv::Editor::ComposeBoxOptions::Scope::Detached,
-					.returnText = crl::guard(
-						_wrap.get(),
-						[=](TextWithTags text) {
-							if (isShortcutComposeEligible()
-								&& _shortcutId == expectedShortcutId) {
-								setText(text);
-							}
-						}),
-				});
-			return;
-		}
-		if (_mode != Mode::Normal || !hasRichDraftThreadScope()) {
-			return;
-		}
+		return;
+	}
+	if (_mode == Mode::Scheduled) {
+		using Options = Iv::Editor::ComposeBoxOptions;
 		Iv::Editor::ShowComposeBox(
 			_regularWindow,
 			_history->peer,
@@ -3906,9 +3858,67 @@ void ComposeControls::initExpandButton() {
 			sendMenuDetails(),
 			getTextWithAppliedMarkdown(),
 			crl::guard(_wrap.get(), [=] {
-				migrateFieldToRichEditor();
-			}));
-	});
+				migrateScheduledFieldToRichEditor();
+			}),
+			Options{
+				.scope = Options::Scope::Detached,
+				.submitPolicy = Options::SubmitPolicy::Schedule,
+				.returnText = crl::guard(
+					_wrap.get(),
+					[=](TextWithTags text) {
+						setText(text);
+					}),
+			});
+		return;
+	}
+	if (_currentDialogsEntryState.section
+			== Dialogs::EntryState::Section::ShortcutMessages) {
+		if (!isShortcutComposeEligible()) {
+			return;
+		}
+		const auto expectedShortcutId = _shortcutId;
+		auto action = _sendActionFactory();
+		if (!isShortcutComposeEligible()
+			|| _shortcutId != expectedShortcutId
+			|| action.options.shortcutId != expectedShortcutId) {
+			return;
+		}
+		auto fieldText = getTextWithAppliedMarkdown();
+		using Options = Iv::Editor::ComposeBoxOptions;
+		Iv::Editor::ShowComposeBox(
+			_regularWindow,
+			_history->peer,
+			std::move(action),
+			sendMenuDetails(),
+			std::move(fieldText),
+			crl::guard(_wrap.get(), [=] {
+				migrateShortcutFieldToRichEditor(expectedShortcutId);
+			}),
+			Options{
+				.scope = Options::Scope::Detached,
+				.returnText = crl::guard(
+					_wrap.get(),
+					[=](TextWithTags text) {
+						if (isShortcutComposeEligible()
+							&& _shortcutId == expectedShortcutId) {
+							setText(text);
+						}
+					}),
+			});
+		return;
+	}
+	if (_mode != Mode::Normal || !hasRichDraftThreadScope()) {
+		return;
+	}
+	Iv::Editor::ShowComposeBox(
+		_regularWindow,
+		_history->peer,
+		_sendActionFactory(),
+		sendMenuDetails(),
+		getTextWithAppliedMarkdown(),
+		crl::guard(_wrap.get(), [=] {
+			migrateFieldToRichEditor();
+		}));
 }
 
 void ComposeControls::setSendAsFileConfirmed(
@@ -4277,7 +4287,7 @@ void ComposeControls::updateAiButtonVisibility() {
 	}
 }
 
-void ComposeControls::updateExpandButtonVisibility() {
+bool ComposeControls::canShowRichEditor() const {
 	const auto item = (_history && isEditingMessage())
 		? _history->owner().message(_header->editMsgId())
 		: nullptr;
@@ -4285,14 +4295,20 @@ void ComposeControls::updateExpandButtonVisibility() {
 	const auto composeEligible = (_mode == Mode::Scheduled)
 		|| ((_mode == Mode::Normal) && hasRichDraftThreadScope())
 		|| isShortcutComposeEligible();
-	const auto hidden = !_wrap->isVisible()
-		|| _recording.current()
-		|| !_field->isVisible()
-		|| (!composeEligible && !isEditingMessage())
-		|| !hasEnoughLinesForExpand()
-		|| textExceedsMaxSize()
-		|| (media && !media->webpage())
-		|| !Iv::Editor::CanAuthorRichMessages(&_show->session());
+	return _history
+		&& _regularWindow
+		&& _sendActionFactory
+		&& _wrap->isVisible()
+		&& !_recording.current()
+		&& _field->isVisible()
+		&& (composeEligible || isEditingMessage())
+		&& !textExceedsMaxSize()
+		&& !(media && !media->webpage())
+		&& Iv::Editor::CanAuthorRichMessages(&_show->session());
+}
+
+void ComposeControls::updateExpandButtonVisibility() {
+	const auto hidden = !canShowRichEditor() || !hasEnoughLinesForExpand();
 	if (_expand->isHidden() != hidden) {
 		_expand->setVisible(!hidden);
 	}

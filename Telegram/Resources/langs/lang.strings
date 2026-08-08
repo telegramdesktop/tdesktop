@@ -743,6 +743,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_shortcuts_silent_send" = "Silent send";
 "lng_shortcuts_schedule" = "Schedule";
 "lng_shortcuts_ai_compose_apply" = "Apply AI style to text";
+"lng_shortcuts_rich_editor" = "Open article editor";
 "lng_shortcuts_toggle_link_preview" = "Toggle link preview";
 "lng_shortcuts_read_chat" = "Mark chat as read";
 "lng_shortcuts_archive_chat" = "Archive chat";
