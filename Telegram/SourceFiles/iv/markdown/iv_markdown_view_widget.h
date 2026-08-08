@@ -135,8 +135,10 @@ private:
 	void copyCodeBlock(const MarkdownArticleHitTestResult &state);
 
 	void syncArticleVisibleTopBottom();
-	void relayoutCurrentWidth(bool clearSelection);
+	int relayoutCurrentWidth(bool clearSelection);
 	void forceRelayoutCurrentWidth();
+	void scheduleFormattedDateRefresh();
+	void refreshFormattedDates();
 	void retryMissingMediaBlocks();
 	void updateHover(const MarkdownArticleHitTestResult &state);
 	void updateHoverAtCursor();
@@ -186,6 +188,7 @@ private:
 	TextSelection _dragExpandedSelection;
 	QPoint _tripleClickPoint;
 	base::Timer _tripleClickTimer;
+	base::Timer _formattedDateTimer;
 	std::optional<PreparedLink> _selectionClickPreparedLink;
 	PreparedPlaceholderBlockId _pressedPlaceholderId;
 	MarkdownArticleButtonRowHit _pressedButtonRow;

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/qt/qt_common_adapters.h"
 #include "base/algorithm.h"
+#include "base/unixtime.h"
 #include "base/weak_ptr.h"
 #include "core/click_handler_types.h"
 #include "core/credits_amount.h"
@@ -194,7 +195,8 @@ void ReleaseArticlePress(MarkdownArticle *article) {
 MarkdownDocumentWidget::MarkdownDocumentWidget(QWidget *parent)
 : Ui::RpWidget(parent)
 , _theme(CreateStandaloneChatTheme())
-, _style(std::make_unique<Ui::ChatStyle>(style::main_palette::get())) {
+, _style(std::make_unique<Ui::ChatStyle>(style::main_palette::get()))
+, _formattedDateTimer([=] { refreshFormattedDates(); }) {
 	_style->apply(_theme.get());
 	_highlightColors = HighlightColors(_style.get());
 
@@ -432,6 +434,7 @@ int MarkdownDocumentWidget::resizeGetHeight(int newWidth) {
 	applyCursor(style::cur_default);
 	clearSelection();
 	if (!_article) {
+		scheduleFormattedDateRefresh();
 		return 1;
 	}
 	const auto scale = zoomScale();
@@ -443,6 +446,7 @@ int MarkdownDocumentWidget::resizeGetHeight(int newWidth) {
 	syncArticleVisibleTopBottom();
 	_lastRelayoutMs = int(timer.elapsed());
 	retryMissingMediaBlocks();
+	scheduleFormattedDateRefresh();
 	return std::max(int(std::ceil(layoutHeight * scale)), 1);
 }
 
@@ -466,15 +470,7 @@ void MarkdownDocumentWidget::requestRelayout(QRect articleRect) {
 		}
 		_article->invalidateLayout();
 		const auto previousHeight = height();
-		const auto scale = zoomScale();
-		const auto layoutWidth = articleLayoutWidth(width());
-		_article->setMediaPixelScale(scale);
-		auto timer = QElapsedTimer();
-		timer.start();
-		const auto articleHeight = _article->resizeGetHeight(layoutWidth);
-		syncArticleVisibleTopBottom();
-		_lastRelayoutMs = int(timer.elapsed());
-		const auto newHeight = std::max(int(std::ceil(articleHeight * scale)), 1);
+		const auto newHeight = relayoutCurrentWidth(false);
 		if (previousHeight != newHeight) {
 			resize(width(), newHeight);
 			update();
@@ -1123,28 +1119,63 @@ void MarkdownDocumentWidget::syncArticleVisibleTopBottom() {
 		int(std::ceil(_visibleRange.bottom / scale)));
 }
 
-void MarkdownDocumentWidget::relayoutCurrentWidth(bool clearSelection) {
+int MarkdownDocumentWidget::relayoutCurrentWidth(bool clearSelection) {
 	if (clearSelection) {
 		this->clearSelection();
 	}
+	auto result = 1;
 	if (!_article) {
 		_lastRelayoutMs = 0;
-		return;
+	} else {
+		const auto scale = zoomScale();
+		const auto layoutWidth = articleLayoutWidth(width());
+		_article->setMediaPixelScale(scale);
+		auto timer = QElapsedTimer();
+		timer.start();
+		const auto articleHeight = _article->resizeGetHeight(layoutWidth);
+		syncArticleVisibleTopBottom();
+		_lastRelayoutMs = int(timer.elapsed());
+		result = std::max(int(std::ceil(articleHeight * scale)), 1);
 	}
-	const auto scale = zoomScale();
-	const auto layoutWidth = articleLayoutWidth(width());
-	_article->setMediaPixelScale(scale);
-	auto timer = QElapsedTimer();
-	timer.start();
-	const auto articleHeight = _article->resizeGetHeight(layoutWidth);
-	syncArticleVisibleTopBottom();
-	(void)articleHeight;
-	_lastRelayoutMs = int(timer.elapsed());
+	scheduleFormattedDateRefresh();
+	return result;
 }
 
 void MarkdownDocumentWidget::forceRelayoutCurrentWidth() {
 	resizeToWidth(width());
 	update();
+}
+
+void MarkdownDocumentWidget::scheduleFormattedDateRefresh() {
+	const auto nearest = _article
+		? _article->nextFormattedDateUpdate()
+		: TimeId(0);
+	if (!nearest) {
+		_formattedDateTimer.cancel();
+		return;
+	}
+	const auto now = base::unixtime::now();
+	const auto maxTimeout = TimeId(86400);
+	const auto timeout = std::min(
+		std::max(now, nearest) - now,
+		maxTimeout);
+	_formattedDateTimer.callOnce(timeout * crl::time(1000));
+}
+
+void MarkdownDocumentWidget::refreshFormattedDates() {
+	if (!_article) {
+		return;
+	}
+	_article->refreshFormattedDates(base::unixtime::now());
+	const auto previousHeight = height();
+	const auto newHeight = relayoutCurrentWidth(false);
+	if (previousHeight != newHeight) {
+		resize(width(), newHeight);
+	}
+	update();
+	if (underMouse()) {
+		updateHoverAtCursor();
+	}
 }
 
 void MarkdownDocumentWidget::updateHover(
