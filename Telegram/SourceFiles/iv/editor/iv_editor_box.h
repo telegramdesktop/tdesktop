@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/producer.h>
 
 #include <QtCore/QPointer>
+#include <QtCore/QRect>
 #include <QtCore/QString>
 #include <QtGui/QImage>
 
@@ -70,6 +71,7 @@ struct ShowWindowDescriptor {
 	QString title;
 	QString submitLabel;
 	SubmitType submitType = SubmitType::Send;
+	QRect centerOver;
 	Fn<bool()> discarded;
 	Fn<void(std::shared_ptr<ChatHelpers::Show>)> showCreated;
 	Fn<void(not_null<Widget*>)> editorCreated;
