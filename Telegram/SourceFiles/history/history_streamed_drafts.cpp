@@ -34,6 +34,24 @@ constexpr auto kClearTimeout = 30 * crl::time(1000);
 	return i;
 }
 
+[[nodiscard]] MsgId ThreadRootId(not_null<HistoryItem*> item) {
+	const auto top = item->replyToTop();
+	return top ? top : Data::ForumTopic::kGeneralId;
+}
+
+[[nodiscard]] MsgId ThreadRootId(const MTPDmessage &data) {
+	auto result = MsgId(0);
+	if (const auto reply = data.vreply_to()) {
+		reply->match([&](const MTPDmessageReplyHeader &d) {
+			result = d.vreply_to_top_id().value_or_empty();
+			if (!result && d.is_forum_topic()) {
+				result = d.vreply_to_msg_id().value_or_empty();
+			}
+		}, [](const MTPDmessageReplyStoryHeader &) {});
+	}
+	return result ? result : Data::ForumTopic::kGeneralId;
+}
+
 } // namespace
 
 HistoryStreamedDrafts::HistoryStreamedDrafts(not_null<History*> history)
@@ -139,6 +157,7 @@ void HistoryStreamedDrafts::applyPrepared(
 		.flags = (MessageFlag::Local
 			| MessageFlag::HasReplyInfo
 			| MessageFlag::TextAppearing
+			| (fromId ? MessageFlag::HasFromId : MessageFlag())
 			| (previousId
 				? MessageFlag::TextAppearingStarted
 				: MessageFlag())),
@@ -304,14 +323,11 @@ void HistoryStreamedDrafts::applyStop(uint64 randomId) {
 }
 
 bool HistoryStreamedDrafts::hasFor(not_null<HistoryItem*> item) const {
-	const auto rootId = item->topicRootId();
-	const auto from = item->from();
-	for (const auto &[randomId, draft] : _drafts) {
-		if (draft.rootId == rootId && draft.message->from() == from) {
-			return true;
-		}
+	if (!item->textAppearing()) {
+		return false;
 	}
-	return false;
+	const auto rootId = ThreadRootId(item);
+	return previousRandomId(rootId, item->from()->id).has_value();
 }
 
 void HistoryStreamedDrafts::applyItemRemoved(not_null<HistoryItem*> item) {
@@ -338,20 +354,7 @@ HistoryItem *HistoryStreamedDrafts::adoptIncoming(
 	const auto fromId = data.vfrom_id()
 		? peerFromMTP(*data.vfrom_id())
 		: _history->peer->id;
-	auto rootId = MsgId(0);
-	if (const auto reply = data.vreply_to()) {
-		reply->match([&](const MTPDmessageReplyHeader &d) {
-			if (d.is_forum_topic()) {
-				rootId = d.vreply_to_top_id().value_or_empty();
-				if (!rootId) {
-					rootId = d.vreply_to_msg_id().value_or_empty();
-				}
-			}
-		}, [](const MTPDmessageReplyStoryHeader &) {});
-	}
-	if (!rootId) {
-		rootId = Data::ForumTopic::kGeneralId;
-	}
+	const auto rootId = ThreadRootId(data);
 	auto incomingKind = DraftKind::Text;
 	auto incomingText = qs(data.vmessage());
 	if (const auto richMessage = data.vrich_message()) {
@@ -366,7 +369,7 @@ HistoryItem *HistoryStreamedDrafts::adoptIncoming(
 			if (draft.rootId != rootId) {
 				continue;
 			}
-			if (draft.message->from()->id != fromId) {
+			if (draft.fromId != fromId) {
 				continue;
 			}
 			if (draft.kind != DraftKind::Rich) {
@@ -387,7 +390,7 @@ HistoryItem *HistoryStreamedDrafts::adoptIncoming(
 			if (draft.rootId != rootId) {
 				continue;
 			}
-			if (draft.message->from()->id != fromId) {
+			if (draft.fromId != fromId) {
 				continue;
 			}
 			if (incomingKind == DraftKind::Rich
