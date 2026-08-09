@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/multi_select.h"
+#include "ui/widgets/selecting_scroll.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/basic_click_handlers.h"
@@ -176,6 +177,9 @@ void SetupRichArticleBody(
 	style::PaletteChanged() | rpl::on_next([=] {
 		body->refreshPalette();
 	}, body->lifetime());
+	SetupSelectingScroll(body, [=](int pixels) {
+		box->scrollToY(box->scrollTop() + pixels);
+	});
 }
 
 [[nodiscard]] bool ShowRichArticlePage(
