@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <optional>
 
+class DocumentData;
+class PhotoData;
 class QMimeData;
 
 namespace Main {
@@ -68,6 +70,13 @@ struct BlocksImportResult {
 	not_null<const QMimeData*> data,
 	const RichMessageLimits &limits,
 	int usedBlocks);
+
+[[nodiscard]] PhotoData *UsablePhoto(
+	not_null<Main::Session*> session,
+	uint64 id);
+[[nodiscard]] DocumentData *UsableDocument(
+	not_null<Main::Session*> session,
+	uint64 id);
 
 [[nodiscard]] bool MimeDataLooksLikeExportedHtml(
 	not_null<const QMimeData*> data);
