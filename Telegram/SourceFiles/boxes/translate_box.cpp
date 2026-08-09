@@ -319,7 +319,7 @@ void SetupRichArticleBody(
 	Ui::AddDivider(container);
 	Ui::AddSkip(container);
 
-	{
+	const auto setCopyText = [&] {
 		const auto padding = st::defaultSubsectionTitlePadding;
 		const auto subtitle = Ui::AddSubsectionTitle(container, std::move(toTitle));
 
@@ -328,7 +328,8 @@ void SetupRichArticleBody(
 				- padding.left()
 				- padding.right());
 		}, subtitle->lifetime());
-	}
+		return AddTranslateCopyButton(container, subtitle, hasCopyRestriction);
+	}();
 
 	const auto translated = box->addRow(
 		object_ptr<SlideWrap<Iv::Markdown::MarkdownDocumentWidget>>(
@@ -358,6 +359,7 @@ void SetupRichArticleBody(
 			textContext);
 		error->show(anim::type::instant);
 		loading->hide(anim::type::instant);
+		setCopyText({});
 	};
 	const auto showResult = [=](std::shared_ptr<const Iv::RichPage> result) {
 		if (result
@@ -369,6 +371,7 @@ void SetupRichArticleBody(
 				result)) {
 			translated->show(anim::type::instant);
 			loading->hide(anim::type::instant);
+			setCopyText(Iv::FlattenRichPageToSimpleText(*result));
 		} else {
 			showError();
 		}
@@ -378,6 +381,7 @@ void SetupRichArticleBody(
 		loading->show(anim::type::instant);
 		translated->hide(anim::type::instant);
 		error->hide(anim::type::instant);
+		setCopyText({});
 		using Flag = MTPmessages_TranslateRichMessage::Flag;
 		state->requestId = state->api.request(
 			MTPmessages_TranslateRichMessage(

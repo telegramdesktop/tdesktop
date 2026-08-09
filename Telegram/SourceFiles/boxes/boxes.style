@@ -595,3 +595,15 @@ aiComposeBoxClose: IconButton(boxTitleClose) {
 }
 
 createAiSelectorArrowsIcon: icon{{ "arrows_select", windowSubTextFg }};
+
+translateBoxCopyIcon: icon{{ "menu/copy", windowActiveTextFg }};
+translateBoxCopy: IconButton {
+	width: 32px;
+	height: 32px;
+	icon: translateBoxCopyIcon;
+	iconOver: translateBoxCopyIcon;
+	iconPosition: point(4px, 4px);
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 32px;
+	ripple: defaultRippleAnimationBgOver;
+}
