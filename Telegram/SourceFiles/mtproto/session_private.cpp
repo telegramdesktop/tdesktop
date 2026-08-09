@@ -687,7 +687,8 @@ void SessionPrivate::tryToSend() {
 			: _instance->systemVersion();
 		const auto appVersion = ComputeAppVersion();
 		const auto proxyType = _options->proxy.type;
-		const auto mtprotoProxy = (proxyType == ProxyData::Type::Mtproto);
+		const auto mtprotoProxy = (proxyType == ProxyData::Type::Mtproto)
+			|| (proxyType == ProxyData::Type::Web);
 		const auto clientProxyFields = mtprotoProxy
 			? MTP_inputClientProxy(
 				MTP_string(_options->proxy.host),
@@ -1034,7 +1035,8 @@ void SessionPrivate::connectToServer(bool afterConfig) {
 			return;
 		}
 	}
-	if (_options->proxy.type == ProxyData::Type::Mtproto) {
+	if (_options->proxy.type == ProxyData::Type::Mtproto
+		|| _options->proxy.type == ProxyData::Type::Web) {
 		// host, port, secret for mtproto proxy are taken from proxy.
 		appendTestConnection(DcOptions::Variants::Tcp, {}, 0, {});
 	} else {

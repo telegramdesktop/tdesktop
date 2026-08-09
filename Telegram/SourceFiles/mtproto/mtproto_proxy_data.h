@@ -22,6 +22,7 @@ struct ProxyData {
 		Socks5,
 		Http,
 		Mtproto,
+		Web,
 	};
 	enum class Status {
 		Valid,
@@ -53,6 +54,8 @@ struct ProxyData {
 
 };
 
+[[nodiscard]] QString NormalizeWebProxyHost(const QString &value);
+[[nodiscard]] QString WebProxyBridgeCapability(const ProxyData &proxy);
 [[nodiscard]] ProxyData ToDirectIpProxy(
 	const ProxyData &proxy,
 	int ipIndex = 0);

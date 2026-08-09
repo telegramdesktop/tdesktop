@@ -1599,6 +1599,8 @@ PRIVATE
     mtproto/core_types.h
     mtproto/dedicated_file_loader.cpp
     mtproto/dedicated_file_loader.h
+    mtproto/details/mtproto_web_proxy_socket.cpp
+    mtproto/details/mtproto_web_proxy_socket.h
     mtproto/facade.cpp
     mtproto/facade.h
     mtproto/mtp_instance.cpp
@@ -1613,6 +1615,10 @@ PRIVATE
     mtproto/special_config_request.cpp
     mtproto/special_config_request.h
     mtproto/type_utils.h
+    mtproto/web_proxy/web_proxy_frame.cpp
+    mtproto/web_proxy/web_proxy_frame.h
+    mtproto/web_proxy/web_proxy_transport.cpp
+    mtproto/web_proxy/web_proxy_transport.h
     overview/overview_checkbox.cpp
     overview/overview_checkbox.h
     overview/overview_layout.cpp
