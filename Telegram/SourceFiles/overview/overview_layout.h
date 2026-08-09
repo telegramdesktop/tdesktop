@@ -191,7 +191,7 @@ private:
 
 };
 
-struct Info : RuntimeComponent<Info, LayoutItemBase> {
+struct Info : RuntimeComponent<Info, AbstractLayoutItem> {
 	int top = 0;
 };
 
