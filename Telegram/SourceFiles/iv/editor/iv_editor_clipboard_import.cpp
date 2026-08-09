@@ -17,11 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QMimeData>
 #include <QtCore/QUrlQuery>
 
-#include "data/data_document.h"
-#include "data/data_photo.h"
-#include "data/data_session.h"
-#include "main/main_session.h"
-
 #include <array>
 
 namespace Iv::Editor {
@@ -200,42 +195,6 @@ constexpr auto kMaxCellLength = 4096;
 	return (root.isEmpty() || !canonical.startsWith(root))
 		? QString()
 		: canonical;
-}
-
-[[nodiscard]] PhotoData *UsablePhoto(
-		not_null<Main::Session*> session,
-		uint64 id) {
-	if (!id) {
-		return nullptr;
-	}
-	const auto photo = session->data().photo(PhotoId(id));
-	if (photo->isNull() || photo->fileReference().isEmpty()) {
-		return nullptr;
-	}
-	const auto input = photo->mtpInput();
-	return (input.type() == mtpc_inputPhoto
-		&& input.c_inputPhoto().vaccess_hash().v)
-		? photo.get()
-		: nullptr;
-}
-
-[[nodiscard]] DocumentData *UsableDocument(
-		not_null<Main::Session*> session,
-		uint64 id) {
-	if (!id) {
-		return nullptr;
-	}
-	const auto document = session->data().document(DocumentId(id));
-	if (document->isNull()
-		|| !document->hasRemoteLocation()
-		|| document->fileReference().isEmpty()) {
-		return nullptr;
-	}
-	const auto input = document->mtpInput();
-	return (input.type() == mtpc_inputDocument
-		&& input.c_inputDocument().vaccess_hash().v)
-		? document.get()
-		: nullptr;
 }
 
 [[nodiscard]] bool FillImportedMedia(

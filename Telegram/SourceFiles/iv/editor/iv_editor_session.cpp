@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h"
 #include "iv/iv_cached_media.h"
 #include "iv/editor/iv_editor_box.h"
+#include "iv/editor/iv_editor_clipboard_import.h"
 #include "iv/editor/iv_editor_state.h"
 #include "iv/editor/iv_editor_widget.h"
 #include "iv/iv_instance.h"
@@ -4650,6 +4651,38 @@ void OfferRichMessagePremiumChoice(
 
 bool CanAuthorRichMessages(not_null<Main::Session*> session) {
 	return RichMessagePostingMode(session) != RichMessagePosting::Disabled;
+}
+
+PhotoData *UsablePhoto(not_null<Main::Session*> session, uint64 id) {
+	if (!id) {
+		return nullptr;
+	}
+	const auto photo = session->data().photo(PhotoId(id));
+	if (photo->isNull() || photo->fileReference().isEmpty()) {
+		return nullptr;
+	}
+	const auto input = photo->mtpInput();
+	return (input.type() == mtpc_inputPhoto
+		&& input.c_inputPhoto().vaccess_hash().v)
+		? photo.get()
+		: nullptr;
+}
+
+DocumentData *UsableDocument(not_null<Main::Session*> session, uint64 id) {
+	if (!id) {
+		return nullptr;
+	}
+	const auto document = session->data().document(DocumentId(id));
+	if (document->isNull()
+		|| !document->hasRemoteLocation()
+		|| document->fileReference().isEmpty()) {
+		return nullptr;
+	}
+	const auto input = document->mtpInput();
+	return (input.type() == mtpc_inputDocument
+		&& input.c_inputDocument().vaccess_hash().v)
+		? document.get()
+		: nullptr;
 }
 
 void ShowComposeBox(
