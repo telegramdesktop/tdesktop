@@ -121,6 +121,7 @@ struct UniqueGiftCoverWidget::PatternView {
 };
 
 struct UniqueGiftCoverWidget::ModelView {
+	uint64 setupId = 0;
 	std::shared_ptr<Data::DocumentMedia> media;
 	std::unique_ptr<Lottie::SinglePlayer> lottie;
 	rpl::lifetime lifetime;
@@ -148,6 +149,7 @@ struct UniqueGiftCoverWidget::State {
 	AttributeSpin patternSpin = kPatternSpinDuration;
 	AttributeSpin modelSpin = kModelSpinDuration;
 	crl::time spinStarted = 0;
+	uint64 modelSetupId = 0;
 	int heightFinal = 0;
 	bool crossfading = false;
 	bool updateAttributesPending = false;
@@ -172,6 +174,20 @@ struct UniqueGiftCoverWidget::State {
 	rpl::variable<CreditsAmount> resaleAmount;
 	Fn<void()> resaleClick;
 
+	[[nodiscard]] ModelView *modelBySetupId(uint64 setupId) {
+		if (now.model.setupId == setupId) {
+			return &now.model;
+		} else if (next.model.setupId == setupId) {
+			return &next.model;
+		}
+		for (auto &model : spinnerModels) {
+			if (model.setupId == setupId) {
+				return &model;
+			}
+		}
+		return nullptr;
+	}
+
 };
 
 UniqueGiftCoverWidget::UniqueGiftCoverWidget(
@@ -192,20 +208,32 @@ UniqueGiftCoverWidget::UniqueGiftCoverWidget(
 		const auto document = model.document;
 		to.media = document->createMediaView();
 		to.media->automaticLoad(document->stickerSetOrigin(), nullptr);
+		to.setupId = ++_state->modelSetupId;
+
+		// ModelView-s are moved around (now = base::take(next), taking
+		// from spinnerModels), moving `lifetime` (and the subscription
+		// below) with them, so the handlers can't capture `&to` - they
+		// find the view by `setupId` at each event instead.
+		const auto id = to.setupId;
+		const auto media = to.media;
 		rpl::single() | rpl::then(
 			document->session().downloaderTaskFinished()
-		) | rpl::filter([&to] {
-			return to.media->loaded();
-		}) | rpl::on_next([this, &to] {
+		) | rpl::filter([media] {
+			return media->loaded();
+		}) | rpl::on_next([this, id, media] {
+			const auto view = _state->modelBySetupId(id);
+			if (!view || view->media != media) {
+				return;
+			}
 			const auto lottieSize = st::creditsHistoryEntryStarGiftSize;
-			to.lottie = ChatHelpers::LottiePlayerFromDocument(
-				to.media.get(),
+			view->lottie = ChatHelpers::LottiePlayerFromDocument(
+				media.get(),
 				ChatHelpers::StickerLottieSize::MessageHistory,
 				QSize(lottieSize, lottieSize),
 				Lottie::Quality::High);
 
-			to.lifetime.destroy();
-			const auto lottie = to.lottie.get();
+			view->lifetime.destroy();
+			const auto lottie = view->lottie.get();
 			lottie->updates() | rpl::on_next([this, lottie] {
 				if (_state->now.model.lottie.get() == lottie
 					|| _state->crossfade.animating()) {
@@ -214,7 +242,7 @@ UniqueGiftCoverWidget::UniqueGiftCoverWidget(
 				if (const auto onstack = _state->checkSpinnerStart) {
 					onstack();
 				}
-			}, to.lifetime);
+			}, view->lifetime);
 		}, to.lifetime);
 	};
 
