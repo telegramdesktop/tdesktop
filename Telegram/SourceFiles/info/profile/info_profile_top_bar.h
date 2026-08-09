@@ -61,6 +61,7 @@ class FlatLabel;
 class IconButton;
 class InputField;
 class LabelWithNumbers;
+class MarqueeLabel;
 class PopupMenu;
 class RoundButton;
 class StarsRating;
@@ -264,7 +265,7 @@ private:
 	std::vector<std::unique_ptr<BadgeTooltip>> _badgeOldTooltips;
 	uint64 _badgeCollectibleId = 0;
 
-	object_ptr<Ui::FlatLabel> _title;
+	object_ptr<Ui::MarqueeLabel> _title;
 	std::unique_ptr<Ui::StarsRating> _starsRating;
 	std::unique_ptr<Ui::AnimatedString> _tabSubtitle;
 	QString _tabSubtitleText;
