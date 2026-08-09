@@ -575,6 +575,7 @@ auctionBidUserpic: UserpicButton(defaultUserpicButton) {
 }
 auctionBidName: FlatLabel(defaultFlatLabel) {
 	style: semiboldTextStyle;
+	maxHeight: 20px;
 }
 auctionBidStars: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;

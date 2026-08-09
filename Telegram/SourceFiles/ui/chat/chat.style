@@ -1007,6 +1007,7 @@ previewName: FlatLabel(defaultFlatLabel) {
 }
 previewStatus: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
+	maxHeight: 20px;
 }
 previewUserpic: UserpicButton(defaultUserpicButton) {
 	size: size(40px, 40px);

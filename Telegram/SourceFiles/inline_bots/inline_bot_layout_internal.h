@@ -429,6 +429,7 @@ private:
 	QString _thumbLetter, _urlText;
 	int32 _urlWidth;
 
+	[[nodiscard]] int countHeight(int textWidth) const;
 	void prepareThumbnail(int width, int height) const;
 	void prepareMediaThumbnail(int width, int height) const;
 
@@ -443,6 +444,7 @@ public:
 
 	void setPosition(int32 position) override;
 	void initDimensions() override;
+	int resizeGetHeight(int width) override;
 
 	void paint(Painter &p, const QRect &clip, const PaintContext *context) const override;
 	TextState getState(
@@ -455,6 +457,7 @@ private:
 	void ensureDataMediaCreated(not_null<PhotoData*> photo) const;
 	void ensureDataMediaCreated(not_null<DocumentData*> document) const;
 	void countFrameSize();
+	[[nodiscard]] int countHeight(int textWidth) const;
 
 	void prepareThumbnail(QSize size) const;
 	void validateThumbnail(Image *image, QSize size, bool good) const;

@@ -372,6 +372,7 @@ sessionBigName: FlatLabel(defaultFlatLabel) {
 sessionDateLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 	align: align(top);
+	maxHeight: 20px;
 }
 sessionDateSkip: 19px;
 sessionValuePadding: margins(37px, 5px, 0px, 0px);

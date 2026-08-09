@@ -815,7 +815,7 @@ void Photo::prepareThumbnail(QSize size, QSize frame) const {
 Video::Video(not_null<Context*> context, std::shared_ptr<Result> result)
 : FileBase(context, std::move(result))
 , _link(getResultPreviewHandler())
-, _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
+, _title(1)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
 	if (int duration = content_duration()) {
 		_duration = Ui::FormatDurationText(duration);
@@ -1459,8 +1459,8 @@ Article::Article(
 , _url(getResultUrlHandler())
 , _link(getResultPreviewHandler())
 , _withThumb(withThumb)
-, _title(st::emojiPanWidth / 2)
-, _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
+, _title(1)
+, _description(1) {
 	if (!_link) {
 		if (const auto point = _result->getLocationPoint()) {
 			_link = std::make_shared<LocationClickHandler>(*point);
@@ -1469,37 +1469,42 @@ Article::Article(
 	_thumbLetter = getResultThumbLetter();
 }
 
+int Article::countHeight(int textWidth) const {
+	int32 titleHeight = qMin(_title.countHeight(textWidth), 2 * st::semiboldFont->height);
+
+	int32 descriptionLines = (_withThumb || _url) ? 2 : 3;
+	int32 descriptionHeight = qMin(_description.countHeight(textWidth), descriptionLines * st::normalFont->height);
+
+	int32 result = titleHeight + descriptionHeight;
+	if (_url) result += st::normalFont->height;
+	if (_withThumb) result = qMax(result, int32(st::inlineThumbSize));
+	return result + st::inlineRowMargin * 2 + st::inlineRowBorder;
+}
+
 void Article::initDimensions() {
 	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
 	int32 textWidth = _maxw - (_withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : (st::defaultEmojiPan.headerLeft - st::inlineResultsLeft));
 	TextParseOptions titleOpts = { 0, textWidth, 2 * st::semiboldFont->height, Qt::LayoutDirectionAuto };
 	_title.setText(st::semiboldTextStyle, TextUtilities::SingleLine(_result->getLayoutTitle()), titleOpts);
-	int32 titleHeight = qMin(_title.countHeight(textWidth), 2 * st::semiboldFont->height);
 
 	int32 descriptionLines = (_withThumb || _url) ? 2 : 3;
 	QString description = _result->getLayoutDescription();
 	TextParseOptions descriptionOpts = { TextParseMultiline, textWidth, descriptionLines * st::normalFont->height, Qt::LayoutDirectionAuto };
 	_description.setText(st::defaultTextStyle, description, descriptionOpts);
-	int32 descriptionHeight = qMin(_description.countHeight(textWidth), descriptionLines * st::normalFont->height);
-
-	_minh = titleHeight + descriptionHeight;
-	if (_url) _minh += st::normalFont->height;
-	if (_withThumb) _minh = qMax(_minh, int32(st::inlineThumbSize));
-	_minh += st::inlineRowMargin * 2 + st::inlineRowBorder;
 }
 
 int Article::resizeGetHeight(int width) {
 	_width = qMin(width, _maxw);
+	int32 textWidth = _width - (_withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : (st::defaultEmojiPan.headerLeft - st::inlineResultsLeft));
 	if (_url) {
 		_urlText = getResultUrl();
 		_urlWidth = st::normalFont->width(_urlText);
-		int32 textWidth = _width - (_withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : (st::defaultEmojiPan.headerLeft - st::inlineResultsLeft));
 		if (_urlWidth > textWidth) {
 			_urlText = st::normalFont->elided(_urlText, textWidth);
 			_urlWidth = st::normalFont->width(_urlText);
 		}
 	}
-	_height = _minh;
+	_height = countHeight(textWidth);
 	return _height;
 }
 
@@ -1662,8 +1667,8 @@ void Article::unloadHeavyPart() {
 
 Game::Game(not_null<Context*> context, std::shared_ptr<Result> result)
 : ItemBase(context, std::move(result))
-, _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
-, _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
+, _title(1)
+, _description(1) {
 	countFrameSize();
 }
 
@@ -1695,21 +1700,32 @@ void Game::countFrameSize() {
 	}
 }
 
+int Game::countHeight(int textWidth) const {
+	int32 titleHeight = qMin(_title.countHeight(textWidth), 2 * st::semiboldFont->height);
+
+	int32 descriptionLines = 2;
+	int32 descriptionHeight = qMin(_description.countHeight(textWidth), descriptionLines * st::normalFont->height);
+
+	int32 result = titleHeight + descriptionHeight;
+	accumulate_max(result, st::inlineThumbSize);
+	return result + st::inlineRowMargin * 2 + st::inlineRowBorder;
+}
+
 void Game::initDimensions() {
 	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
 	TextParseOptions titleOpts = { 0, _maxw, 2 * st::semiboldFont->height, Qt::LayoutDirectionAuto };
 	_title.setText(st::semiboldTextStyle, TextUtilities::SingleLine(_result->getLayoutTitle()), titleOpts);
-	int32 titleHeight = qMin(_title.countHeight(_maxw), 2 * st::semiboldFont->height);
 
 	int32 descriptionLines = 2;
 	QString description = _result->getLayoutDescription();
 	TextParseOptions descriptionOpts = { TextParseMultiline, _maxw, descriptionLines * st::normalFont->height, Qt::LayoutDirectionAuto };
 	_description.setText(st::defaultTextStyle, description, descriptionOpts);
-	int32 descriptionHeight = qMin(_description.countHeight(_maxw), descriptionLines * st::normalFont->height);
+}
 
-	_minh = titleHeight + descriptionHeight;
-	accumulate_max(_minh, st::inlineThumbSize);
-	_minh += st::inlineRowMargin * 2 + st::inlineRowBorder;
+int Game::resizeGetHeight(int width) {
+	_width = qMin(width, _maxw);
+	_height = countHeight(_width - (st::inlineThumbSize + st::inlineThumbSkip));
+	return _height;
 }
 
 void Game::setPosition(int32 position) {

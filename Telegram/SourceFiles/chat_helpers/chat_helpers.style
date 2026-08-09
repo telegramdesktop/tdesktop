@@ -1084,6 +1084,7 @@ historyBusinessBotPhoto: UserpicButton(defaultUserpicButton) {
 }
 historyBusinessBotName: FlatLabel(defaultFlatLabel) {
 	style: semiboldTextStyle;
+	maxHeight: 20px;
 }
 historyBusinessBotStatus: FlatLabel(historyContactStatusLabel) {
 	textFg: windowSubTextFg;

@@ -25,7 +25,9 @@ InviteLinkLabel::InviteLinkLabel(
 	const auto label = CreateChild<FlatLabel>(
 		_outer.get(),
 		std::move(text),
-		createMenu ? st::defaultFlatLabel : st::inviteLinkFieldLabel);
+		createMenu
+			? st::inviteLinkFieldLabelLeft
+			: st::inviteLinkFieldLabel);
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	const auto button = createMenu
