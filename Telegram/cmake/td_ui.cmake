@@ -42,6 +42,7 @@ set(style_files
     ui/boxes/country_select_box.style
     ui/controls/labeled_emoji_tabs.style
     ui/widgets/color_editor.style
+    ui/widgets/marquee_label.style
     window/window_lock_widgets.style
     boxes/compose_ai_box.style
     boxes/connection_box.style
@@ -612,6 +613,8 @@ PRIVATE
     ui/widgets/horizontal_fit_container.h
     ui/widgets/level_meter.cpp
     ui/widgets/level_meter.h
+    ui/widgets/marquee_label.cpp
+    ui/widgets/marquee_label.h
     ui/widgets/middle_click_autoscroll.cpp
     ui/widgets/middle_click_autoscroll.h
     ui/widgets/multi_select.cpp
