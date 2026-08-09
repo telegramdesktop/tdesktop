@@ -1717,8 +1717,8 @@ bool Application::minimizeActiveWindow() {
 		|| Iv::Editor::MinimizeActiveWindow()
 		|| calls().minimizeCurrentActiveCall()) {
 		return true;
-	} else {
-		if (const auto window = activeWindow()) {
+	} else if (const auto window = activeWindow()) {
+		if (window->widget()->isActive()) {
 			window->minimize();
 			return true;
 		}
