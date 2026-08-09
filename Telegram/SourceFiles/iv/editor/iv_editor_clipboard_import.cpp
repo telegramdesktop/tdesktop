@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/editor/iv_editor_clipboard_import.h"
 
+#include "iv/editor/iv_editor_session.h"
 #include "iv/editor/iv_editor_text_entities.h"
 #include "ui/text/text_entity.h"
 #include "ui/text/text_html_tags.h"

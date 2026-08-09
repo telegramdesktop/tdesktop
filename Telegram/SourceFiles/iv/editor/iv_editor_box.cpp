@@ -18,21 +18,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/create_ai_box.h"
 #include "boxes/premium_preview_box.h"
 #include "chat_helpers/compose/compose_show.h"
-#include "data/data_changes.h"
 #include "data/data_file_origin.h"
 #include "data/data_msg_id.h"
 #include "data/data_types.h"
-#include "data/data_emoji_statuses.h"
 #include "dialogs/ui/dialogs_pill.h"
-#include "history/history_item.h"
 #include "history/view/controls/history_view_compose_ai_button.h"
 #include "boxes/compose_ai_box.h"
-#include "main/main_session.h"
 #include "ui/emoji_config.h"
 #include "ui/painter.h"
-#include "data/data_document.h"
-#include "data/stickers/data_custom_emoji.h"
-#include "data/stickers/data_stickers.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "iv/editor/iv_editor_session.h"
 #include "iv/editor/iv_editor_state.h"
@@ -51,7 +44,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/layers/generic_box.h"
 #include "ui/rp_widget.h"
-#include "data/data_peer_values.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/input_field.h"
@@ -457,11 +449,6 @@ int TryToExtendWidthBy(not_null<Window*> window, int addToWidth) {
 	return tr::lng_send_button(tr::now);
 }
 
-[[nodiscard]] bool IsEmojiDocument(not_null<DocumentData*> document) {
-	const auto info = document->sticker();
-	return info && (info->setType == Data::StickersType::Emoji);
-}
-
 class WindowContext final : public ChatHelpers::Show {
 public:
 	WindowContext(
@@ -570,7 +557,7 @@ ToolbarStarButton::ToolbarStarButton(
 : RippleButton(parent, st.ripple)
 , _st(st) {
 	resize(_st.width, _st.height);
-	Data::AmPremiumValue(session) | rpl::on_next([=](bool premium) {
+	AmPremiumValue(session) | rpl::on_next([=](bool premium) {
 		_premium = premium;
 		_frame = QImage();
 		update();
@@ -919,7 +906,7 @@ void Toolbar::buildPills() {
 }
 
 void Toolbar::fillHeadingMenu(not_null<Ui::PopupMenu*> menu) {
-	const auto starSize = _session->premium()
+	const auto starSize = SessionPremium(_session)
 		? 0
 		: st::ivEditorStyleMenuPremiumStarSize;
 	for (const auto level : std::array{ 1, 2, 3, 4, 5, 6 }) {
@@ -957,7 +944,7 @@ void Toolbar::fillBlockStyleMenu(not_null<Ui::PopupMenu*> menu) {
 			_editor->insertBlock({ .type = type });
 		}
 	};
-	const auto premium = _session->premium();
+	const auto premium = SessionPremium(_session);
 	const auto starSize = premium
 		? 0
 		: st::ivEditorStyleMenuPremiumStarSize;
@@ -1058,7 +1045,7 @@ void Toolbar::showBlockStyleMenu(not_null<Ui::IconButton*> button) {
 
 void Toolbar::fillTextStyleMenu(not_null<Ui::PopupMenu*> menu) {
 	using Action = Widget::ToolbarFormatAction;
-	const auto premium = _session->premium();
+	const auto premium = SessionPremium(_session);
 	const auto starSize = premium
 		? 0
 		: st::ivEditorStyleMenuPremiumStarSize;
@@ -1139,7 +1126,7 @@ void Toolbar::showTextStyleMenu(not_null<Ui::IconButton*> button) {
 }
 
 void Toolbar::fillAttachMenu(not_null<Ui::PopupMenu*> menu) {
-	const auto starSize = _session->premium()
+	const auto starSize = SessionPremium(_session)
 		? 0
 		: st::ivEditorStyleMenuPremiumStarSize;
 	Menu::AddActiveColorAction(
@@ -1209,7 +1196,7 @@ void Toolbar::fillListStyleMenu(not_null<Ui::PopupMenu*> menu) {
 			_editor->insertBlock({ .type = type });
 		}
 	};
-	const auto starSize = _session->premium()
+	const auto starSize = SessionPremium(_session)
 		? 0
 		: st::ivEditorStyleMenuPremiumStarSize;
 	const auto addInserts = [=](not_null<Ui::PopupMenu*> target) {
@@ -1748,7 +1735,7 @@ void WindowHost::Impl::setupWindow(ShowWindowDescriptor &&descriptor) {
 		button->setAccessibleName(tr::lng_ai_compose_title(tr::now));
 		button->setClickedCallback([=] {
 			const auto premiumRequired = [=] {
-				if (session->premium()) {
+				if (SessionPremium(session)) {
 					return false;
 				}
 				ShowRichMessagesPremiumToast(_show);
@@ -1822,12 +1809,12 @@ void WindowHost::Impl::setupWindow(ShowWindowDescriptor &&descriptor) {
 	if (!save) {
 		const auto session = descriptor.session;
 		const auto peer = descriptor.peer;
-		session->changes().peerFlagsValue(
-			peer,
-			Data::PeerUpdate::Flag::StarsPerMessage
-		) | rpl::on_next([=] {
+		StarsPerMessageValue(
+			session,
+			peer
+		) | rpl::on_next([=](int stars) {
 			raw->setState({
-				.starsToSend = peer->starsPerMessageChecked(),
+				.starsToSend = stars,
 			});
 		}, raw->lifetime());
 		raw->finishAnimating();
@@ -1877,7 +1864,7 @@ void WindowHost::Impl::setupWindow(ShowWindowDescriptor &&descriptor) {
 			}
 			updateBottomMask();
 		};
-		Data::AmPremiumValue(
+		AmPremiumValue(
 			session
 		) | rpl::on_next([=](bool value) {
 			*premium = value;
@@ -1965,7 +1952,7 @@ void WindowHost::Impl::setupBottomAiStar(
 		}
 	};
 	rpl::combine(
-		Data::AmPremiumValue(session),
+		AmPremiumValue(session),
 		editor->hasSelectionValue()
 	) | rpl::on_next([=](bool premium, bool selection) {
 		*locked = (selection && !premium);
@@ -2028,9 +2015,10 @@ void WindowHost::Impl::setupEmojiColumn(const ShowWindowDescriptor &descriptor) 
 		if (!IsEmojiDocument(document)) {
 			return;
 		}
-		if (document->isPremiumEmoji()
-			&& !descriptor.session->premium()
-			&& !Data::AllowEmojiWithoutPremium(descriptor.peer, document)) {
+		if (PremiumEmojiForbidden(
+				descriptor.session,
+				descriptor.peer,
+				document)) {
 			ShowPremiumPreviewBox(
 				_show,
 				PremiumFeature::AnimatedEmoji);

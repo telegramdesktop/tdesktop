@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <crl/crl_on_main.h>
 #include <rpl/variable.h>
 
+#include "api/api_common.h"
 #include "api/api_sending.h"
 #include "api/api_editing.h"
 #include "apiwrap.h"
@@ -29,16 +30,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "core/shortcuts.h"
 #include "data/components/ephemeral_messages.h"
+#include "data/data_changes.h"
 #include "data/data_drafts.h"
 #include "data/data_document.h"
 #include "data/data_forum_topic.h"
 #include "data/data_location.h"
+#include "data/data_peer_values.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_premium_limits.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "data/stickers/data_custom_emoji.h"
+#include "data/stickers/data_stickers.h"
 #include "history/view/history_view_schedule_box.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -4651,6 +4656,51 @@ void OfferRichMessagePremiumChoice(
 
 bool CanAuthorRichMessages(not_null<Main::Session*> session) {
 	return RichMessagePostingMode(session) != RichMessagePosting::Disabled;
+}
+
+bool SessionPremium(not_null<Main::Session*> session) {
+	return session->premium();
+}
+
+rpl::producer<bool> AmPremiumValue(not_null<Main::Session*> session) {
+	return ::Data::AmPremiumValue(session);
+}
+
+rpl::producer<int> StarsPerMessageValue(
+		not_null<Main::Session*> session,
+		not_null<PeerData*> peer) {
+	return session->changes().peerFlagsValue(
+		peer,
+		::Data::PeerUpdate::Flag::StarsPerMessage
+	) | rpl::map([=] {
+		return peer->starsPerMessageChecked();
+	});
+}
+
+bool IsEmojiDocument(not_null<DocumentData*> document) {
+	const auto info = document->sticker();
+	return info && (info->setType == ::Data::StickersType::Emoji);
+}
+
+bool PremiumEmojiForbidden(
+		not_null<Main::Session*> session,
+		not_null<PeerData*> peer,
+		not_null<DocumentData*> document) {
+	return document->isPremiumEmoji()
+		&& !session->premium()
+		&& !::Data::AllowEmojiWithoutPremium(peer, document);
+}
+
+bool AllowEmojiWithoutPremium(
+		not_null<PeerData*> peer,
+		DocumentData *exactEmoji) {
+	return ::Data::AllowEmojiWithoutPremium(peer, exactEmoji);
+}
+
+void InsertCustomEmoji(
+		not_null<Ui::InputField*> field,
+		not_null<DocumentData*> document) {
+	::Data::InsertCustomEmoji(field, document);
 }
 
 PhotoData *UsablePhoto(not_null<Main::Session*> session, uint64 id) {

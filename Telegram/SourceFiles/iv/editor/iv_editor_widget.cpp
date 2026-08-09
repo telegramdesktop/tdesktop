@@ -17,11 +17,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h"
 #include "data/data_msg_id.h"
 #include "data/data_types.h"
-#include "data/stickers/data_custom_emoji.h"
 #include "editor/editor_layer_widget.h"
 #include "editor/photo_editor.h"
 #include "editor/photo_editor_common.h"
 #include "iv/editor/iv_editor_clipboard_import.h"
+#include "iv/editor/iv_editor_session.h"
 #include "iv/editor/iv_editor_text_entities.h"
 #include "iv/editor/iv_editor_window.h"
 #include "iv/markdown/iv_markdown_article_paint.h"
@@ -31,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/iv_search_bar.h"
 #include "iv/iv_search_controller.h"
 #include "lang/lang_keys.h"
-#include "main/main_session.h"
 #include "main/session/session_show.h"
 #include "menu/menu_checked_action.h"
 #include "platform/platform_file_utilities.h"
@@ -3834,7 +3833,7 @@ void Widget::resolveImportedLocalMedia(BlocksImportResult &&imported) {
 			auto single = Storage::PrepareMediaList(
 				QStringList{ paths[i] },
 				st::sendMediaPreviewSize,
-				_session->premium());
+				SessionPremium(_session));
 			if (single.error != Ui::PreparedList::Error::None
 				|| single.files.size() != 1) {
 				continue;
@@ -4305,7 +4304,7 @@ bool Widget::handleClipboardKey(QKeyEvent *e) {
 		if (mimeData && _applyPreparedMedia) {
 			if (auto list = PreparedMediaFromClipboard(
 					not_null<const QMimeData*>(mimeData),
-					_session->premium())) {
+					SessionPremium(_session))) {
 				_applyPreparedMedia(
 					not_null<Widget*>(this),
 					std::move(*list),
@@ -4934,7 +4933,7 @@ void Widget::insertCustomEmoji(not_null<DocumentData*> document) {
 		return;
 	}
 	_field->setFocusFast();
-	Data::InsertCustomEmoji(_field.get(), document);
+	InsertCustomEmoji(_field.get(), document);
 }
 
 Widget::ToolbarState Widget::toolbarStateValue() const {
@@ -8092,7 +8091,7 @@ void Widget::setupInlineField() {
 	if (_fieldMode == State::FieldMode::Rich) {
 		const auto allowPremiumEmoji = [peer = _peer](
 				not_null<DocumentData*> emoji) {
-			return Data::AllowEmojiWithoutPremium(peer, emoji);
+			return AllowEmojiWithoutPremium(peer, emoji);
 		};
 		_field->setInstantViewEditorTagsEnabled(true);
 		InitMessageFieldHandlers({
@@ -8939,7 +8938,7 @@ bool Widget::handleIvClipboardMime(
 		return CanPrepareMediaFromClipboard(data);
 	} else if (auto list = PreparedMediaFromClipboard(
 			data,
-			_session->premium())) {
+			SessionPremium(_session))) {
 		if (_applyPreparedMedia) {
 			auto target = preparedMediaPasteTarget();
 			crl::on_main(this, [=, list = std::move(*list)]() mutable {
@@ -11622,7 +11621,9 @@ void Widget::dropEvent(QDropEvent *e) {
 	if (!target) {
 		return;
 	}
-	auto list = PreparedMediaFromClipboard(e->mimeData(), _session->premium());
+	auto list = PreparedMediaFromClipboard(
+		e->mimeData(),
+		SessionPremium(_session));
 	if (!list) {
 		return;
 	}
