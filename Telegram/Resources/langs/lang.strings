@@ -4748,6 +4748,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stickers_share_pack" = "Share Stickers";
 "lng_stickers_share_masks" = "Share Masks";
 "lng_stickers_share_emoji" = "Share Emoji";
+"lng_stickers_remove_pack_button" = "Remove Stickers";
+"lng_masks_remove_pack_button" = "Remove Masks";
 "lng_stickers_not_found" = "Sticker set not found.";
 "lng_stickers_packs_archived" = "Some of your unused stickers were archived to make room for the sets you activated.";
 "lng_stickers_copied" = "Link copied to clipboard.";

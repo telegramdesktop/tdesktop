@@ -452,6 +452,26 @@ stickersScroll: ScrollArea(boxScroll) {
 	deltat: 19px;
 	deltab: 9px;
 }
+stickerSetBox: Box(defaultBox) {
+	buttonPadding: margins(16px, 12px, 16px, 12px);
+	buttonHeight: 42px;
+	buttonWide: true;
+	button: RoundButton(defaultActiveButton) {
+		height: 42px;
+		textTop: 12px;
+		style: semiboldTextStyle;
+	}
+}
+stickerSetBoxRemoveButton: RoundButton(attentionBoxButton) {
+	height: 42px;
+	textTop: 12px;
+	style: semiboldTextStyle;
+}
+stickerSetBoxMenu: IconButton(boxTitleClose) {
+	icon: icon {{ "title_menu_dots", boxTitleCloseFg }};
+	iconOver: icon {{ "title_menu_dots", boxTitleCloseFgOver }};
+}
+stickerSetBoxBadgeSkip: 6px;
 stickersRowDisabledOpacity: 0.4;
 stickersRowDuration: 200;
 
