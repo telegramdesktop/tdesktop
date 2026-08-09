@@ -3530,6 +3530,8 @@ public:
 	[[nodiscard]] std::vector<RichPage::Block> richPageSliceForSelection(
 		MarkdownArticleSelection selection) const;
 
+	[[nodiscard]] bool richPageRtl() const;
+
 	[[nodiscard]] bool highlightProcessDone(
 		Spellchecker::HighlightProcessId processId);
 
@@ -4731,6 +4733,10 @@ std::vector<RichPage::Block> MarkdownArticle::Impl::richPageSliceForSelection(
 		*_content.richPage,
 		_segments,
 		selection);
+}
+
+bool MarkdownArticle::Impl::richPageRtl() const {
+	return _content.richPage && _content.richPage->rtl;
 }
 
 bool MarkdownArticle::Impl::highlightProcessDone(
@@ -6451,6 +6457,10 @@ TextForMimeData MarkdownArticle::textForSelection(
 std::vector<RichPage::Block> MarkdownArticle::richPageSliceForSelection(
 		MarkdownArticleSelection selection) const {
 	return _impl->richPageSliceForSelection(selection);
+}
+
+bool MarkdownArticle::richPageRtl() const {
+	return _impl->richPageRtl();
 }
 
 bool MarkdownArticle::highlightProcessDone(

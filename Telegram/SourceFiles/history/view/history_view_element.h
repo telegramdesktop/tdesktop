@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/runtime_composer.h"
 #include "base/flags.h"
 #include "base/weak_ptr.h"
+#include "iv/iv_rich_page.h"
 #include "ui/userpic_view.h"
 
 class History;
@@ -570,6 +571,8 @@ public:
 		TextSelectType type) const;
 	virtual TextForMimeData selectedText(TextSelection selection) const = 0;
 	virtual TextForMimeData selectedText(
+		const MessageSelection &selection) const;
+	[[nodiscard]] Iv::RichPageBlocksSlice selectedRichBlocks(
 		const MessageSelection &selection) const;
 	virtual SelectedQuote selectedQuote(
 		TextSelection selection) const = 0;

@@ -120,6 +120,15 @@ private:
 
 };
 
+[[nodiscard]] QByteArray RichBlocksClipboardHtml(
+	const RichPageBlocksSlice &slice,
+	Main::Session *session = nullptr);
+
+void SetRichBlocksClipboard(
+	const TextForMimeData &text,
+	RichPageBlocksSlice slice,
+	Main::Session *session = nullptr);
+
 void AddSaveRichMessageHtmlAction(
 	not_null<Ui::PopupMenu*> menu,
 	not_null<Window::SessionController*> controller,

@@ -159,6 +159,7 @@ public:
 		const QVector<MTPMessage> &messages);
 
 	[[nodiscard]] TextForMimeData getSelectedText() const;
+	[[nodiscard]] Iv::RichPageBlocksSlice getSelectedRichBlocks() const;
 
 	void touchScrollUpdated(const QPoint &screenPos);
 

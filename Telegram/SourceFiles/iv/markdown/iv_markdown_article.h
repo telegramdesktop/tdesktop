@@ -482,6 +482,7 @@ public:
 		const PreparedEditSelection *structuralSelection = nullptr) const;
 	[[nodiscard]] std::vector<RichPage::Block> richPageSliceForSelection(
 		MarkdownArticleSelection selection) const;
+	[[nodiscard]] bool richPageRtl() const;
 	[[nodiscard]] bool highlightProcessDone(
 		Spellchecker::HighlightProcessId processId);
 	void invalidatePaletteCache();

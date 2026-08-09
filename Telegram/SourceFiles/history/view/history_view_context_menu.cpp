@@ -1529,9 +1529,7 @@ void FillContextMenuItems(
 			? tr::lng_context_copy_selected(tr::now)
 			: tr::lng_context_copy_selected_items(tr::now);
 		result->addAction(text, [=] {
-			if (!list->showCopyRestrictionForSelected()) {
-				TextUtilities::SetClipboardText(list->getSelectedText());
-			}
+			list->copySelectedText();
 		}, &st::menuIconCopy);
 	}
 	if (request.overSelection
@@ -1582,7 +1580,10 @@ void FillContextMenuItems(
 									return;
 								}
 							}
-							TextUtilities::SetClipboardText(HistoryItemText(item));
+							Iv::SetRichBlocksClipboard(
+								HistoryItemText(item),
+								HistoryItemRichBlocks(item),
+								&item->history()->session());
 						}
 					}
 				}, &st::menuIconCopy);

@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_poll.h"
 #include "history/view/history_view_top_peers_selector.h"
 #include "history/view/history_view_quick_action.h"
+#include "iv/iv_rich_message_html_export.h"
 #include "chat_helpers/message_field.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -2999,6 +3000,41 @@ TextForMimeData ListWidget::getSelectedText() const {
 	return HistorySelectedItemsText(entries, richContext);
 }
 
+Iv::RichPageBlocksSlice ListWidget::getSelectedRichBlocks() const {
+	auto selected = _selected;
+
+	if (_mouseAction == MouseAction::Selecting && !_dragSelected.empty()) {
+		applyDragSelection(selected);
+	}
+
+	if (selected.empty()) {
+		const auto view = viewForItem(_selectedTextItem);
+		return view
+			? view->selectedRichBlocks(_selectedTextSelection)
+			: Iv::RichPageBlocksSlice();
+	} else if (selected.size() != 1) {
+		return {};
+	}
+	const auto item = session().data().message(selected.front().first);
+	return (!item || session().data().groups().find(item))
+		? Iv::RichPageBlocksSlice()
+		: HistoryItemRichBlocks(item);
+}
+
+void ListWidget::copySelectedText() {
+	if (showCopyRestrictionForSelected()) {
+		return;
+	}
+	const auto text = getSelectedText();
+	if (text.empty()) {
+		return;
+	}
+	Iv::SetRichBlocksClipboard(
+		text,
+		getSelectedRichBlocks(),
+		&session());
+}
+
 MessageIdsList ListWidget::getSelectedIds() const {
 	return collectSelectedIds();
 }
@@ -3264,7 +3300,7 @@ void ListWidget::keyPressEvent(QKeyEvent *e) {
 		&& (hasSelectedText() || hasSelectedItems())
 		&& !showCopyRestriction()
 		&& !hasCopyRestrictionForSelected()) {
-		TextUtilities::SetClipboardText(getSelectedText());
+		copySelectedText();
 #ifdef Q_OS_MAC
 	} else if (key == Qt::Key_E
 		&& e->modifiers().testFlag(Qt::ControlModifier)
