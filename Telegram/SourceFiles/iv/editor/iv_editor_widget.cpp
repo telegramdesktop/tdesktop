@@ -3810,7 +3810,7 @@ std::optional<BlocksImportResult> Widget::importBlocksFromMimeData(
 }
 
 void Widget::pasteImportedBlocks(BlocksImportResult &&imported) {
-	if (!imported.localMediaPaths.isEmpty()) {
+	if (!imported.localMedia.empty()) {
 		resolveImportedLocalMedia(std::move(imported));
 		return;
 	}
@@ -3825,15 +3825,26 @@ void Widget::pasteImportedBlocks(BlocksImportResult &&imported) {
 }
 
 void Widget::resolveImportedLocalMedia(BlocksImportResult &&imported) {
-	auto paths = base::take(imported.localMediaPaths);
+	auto media = base::take(imported.localMedia);
 	auto list = Ui::PreparedList();
 	auto order = std::vector<int>();
 	if (_prepareDeferredMedia) {
-		for (auto i = 0; i != int(paths.size()); ++i) {
-			auto single = Storage::PrepareMediaList(
-				QStringList{ paths[i] },
-				st::sendMediaPreviewSize,
-				SessionPremium(_session));
+		for (auto i = 0; i != int(media.size()); ++i) {
+			auto content = base::take(media[i].content);
+			auto image = content.isEmpty()
+				? QImage()
+				: QImage::fromData(content);
+			auto single = content.isEmpty()
+				? Storage::PrepareMediaList(
+					QStringList{ media[i].path },
+					st::sendMediaPreviewSize,
+					SessionPremium(_session))
+				: image.isNull()
+				? Ui::PreparedList()
+				: Storage::PrepareMediaFromImage(
+					std::move(image),
+					std::move(content),
+					st::sendMediaPreviewSize);
 			if (single.error != Ui::PreparedList::Error::None
 				|| single.files.size() != 1) {
 				continue;
@@ -3849,7 +3860,7 @@ void Widget::resolveImportedLocalMedia(BlocksImportResult &&imported) {
 		pasteImportedBlocks(std::move(imported));
 		return;
 	}
-	const auto total = int(paths.size());
+	const auto total = int(media.size());
 	_prepareDeferredMedia(
 		not_null<Widget*>(this),
 		std::move(list),
