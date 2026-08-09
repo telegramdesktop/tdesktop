@@ -3943,9 +3943,17 @@ bool HistoryInner::showCopyRestrictionForSelected() {
 }
 
 void HistoryInner::copySelectedText() {
-	if (!showCopyRestrictionForSelected()) {
-		TextUtilities::SetClipboardText(getSelectedText());
+	if (showCopyRestrictionForSelected()) {
+		return;
 	}
+	const auto text = getSelectedText();
+	if (text.empty()) {
+		return;
+	}
+	Iv::SetRichBlocksClipboard(
+		text,
+		getSelectedRichBlocks(),
+		&session());
 }
 
 void HistoryInner::editCaptionUploadLayer(not_null<HistoryItem*> item) {
@@ -4046,7 +4054,10 @@ void HistoryInner::copyContextText(FullMsgId itemId) {
 			if (const auto group = session().data().groups().find(item)) {
 				TextUtilities::SetClipboardText(HistoryGroupText(group));
 			} else {
-				TextUtilities::SetClipboardText(HistoryItemText(item));
+				Iv::SetRichBlocksClipboard(
+					HistoryItemText(item),
+					HistoryItemRichBlocks(item),
+					&session());
 			}
 		}
 	}
@@ -4126,6 +4137,27 @@ TextForMimeData HistoryInner::getSelectedText() const {
 		entries.push_back(entry.second);
 	}
 	return HistorySelectedItemsText(entries, richContext);
+}
+
+Iv::RichPageBlocksSlice HistoryInner::getSelectedRichBlocks() const {
+	auto selected = _selected;
+
+	if (_mouseAction == MouseAction::Selecting && _dragSelFrom && _dragSelTo) {
+		applyDragSelection(&selected);
+	}
+
+	if (selected.empty()) {
+		const auto view = viewByItem(_selectedTextItem);
+		return view
+			? view->selectedRichBlocks(_selectedTextSelection)
+			: Iv::RichPageBlocksSlice();
+	} else if (selected.size() != 1) {
+		return {};
+	}
+	const auto item = selected.front();
+	return session().data().groups().find(item)
+		? Iv::RichPageBlocksSlice()
+		: HistoryItemRichBlocks(item);
 }
 
 void HistoryInner::keyPressEvent(QKeyEvent *e) {

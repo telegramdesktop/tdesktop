@@ -243,6 +243,15 @@ struct RichPage {
 		const RichPage &) = default;
 };
 
+struct RichPageBlocksSlice {
+	std::vector<RichPage::Block> blocks;
+	bool rtl = false;
+
+	[[nodiscard]] bool empty() const {
+		return blocks.empty();
+	}
+};
+
 struct RichMessageLimits {
 	int lengthLimit = 32768;
 	int maxBlocks = 500;

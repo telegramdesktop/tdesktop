@@ -344,6 +344,8 @@ public:
 	void overrideInitialScroll(Fn<bool()> callback);
 
 	[[nodiscard]] TextForMimeData getSelectedText() const;
+	[[nodiscard]] Iv::RichPageBlocksSlice getSelectedRichBlocks() const;
+	void copySelectedText();
 	[[nodiscard]] MessageIdsList getSelectedIds() const;
 	[[nodiscard]] SelectedItems getSelectedItems() const;
 	[[nodiscard]] TextSelection getSelectedTextRange(

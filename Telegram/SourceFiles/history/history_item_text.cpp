@@ -446,6 +446,13 @@ TextForMimeData HistoryItemText(not_null<HistoryItem*> item) {
 	return AppendExtraCopyText(item, HistoryItemMainText(item));
 }
 
+Iv::RichPageBlocksSlice HistoryItemRichBlocks(not_null<HistoryItem*> item) {
+	const auto page = item->richPage();
+	return page
+		? Iv::RichPageBlocksSlice{ .blocks = page->blocks, .rtl = page->rtl }
+		: Iv::RichPageBlocksSlice();
+}
+
 TextForMimeData HistoryGroupText(not_null<const Data::Group*> group) {
 	Expects(!group->items.empty());
 

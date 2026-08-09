@@ -15,8 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h"
 #include "data/data_cloud_file.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_download_manager.h"
 #include "data/data_file_origin.h"
+#include "data/data_peer.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/stickers/data_custom_emoji.h"
@@ -25,11 +27,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_inner_widget.h"
 #include "history/history_item.h"
+#include "iv/editor/iv_editor_clipboard.h"
 #include "iv/markdown/iv_markdown_prepare_links.h"
 #include "iv/markdown/iv_markdown_prepare_serialize.h"
 #include "iv/iv_instance.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "ui/image/image.h"
 #include "ui/style/style_core.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/popup_menu.h"
@@ -41,11 +45,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_widgets.h"
 
+#include <QtCore/QBuffer>
 #include <QtCore/QDir>
 #include <QtCore/QFile>
 #include <QtCore/QFileInfo>
 #include <QtCore/QLocale>
+#include <QtCore/QMimeData>
 #include <QtCore/QUrl>
+#include <QtGui/QClipboard>
+#include <QtGui/QGuiApplication>
 
 namespace Iv {
 namespace {
@@ -53,6 +61,8 @@ namespace {
 constexpr auto kProgressInterval = crl::time(300);
 constexpr auto kMaxFolderNameLength = 48;
 constexpr auto kMinBytesForDownloadsEntry = int64(10) * 1024 * 1024;
+constexpr auto kClipboardMediaLimit = int64(4) * 1024 * 1024;
+constexpr auto kClipboardFormulaLimit = int64(2) * 1024 * 1024;
 
 [[nodiscard]] QString TgMediaSource(
 		RichPage::BlockKind kind,
@@ -79,10 +89,12 @@ struct RenderedFormulaImage {
 struct HtmlContext {
 	const base::flat_map<uint64, QString> *photoPaths = nullptr;
 	const base::flat_map<uint64, QString> *documentPaths = nullptr;
+	const base::flat_map<uint64, QString> *documentPosters = nullptr;
 	Fn<std::optional<RenderedFormulaImage>(
 		const QString &tex,
 		bool display)> renderFormula;
 	bool *slideshowUsed = nullptr;
+	bool clipboard = false;
 };
 
 void SerializeBlocks(
@@ -196,6 +208,9 @@ void AppendEscaped(QString *out, QStringView value, bool lineBreaks) {
 }
 
 [[nodiscard]] QString MediaHref(const QString &relative) {
+	if (relative.startsWith(u"data:"_q)) {
+		return EscapeHtml(relative);
+	}
 	return EscapeHtml(QString::fromLatin1(
 		QUrl::toPercentEncoding(relative, "/")));
 }
@@ -498,7 +513,11 @@ void SerializeMediaItem(
 	if (kind == RichPage::BlockKind::Photo) {
 		const auto i = context.photoPaths->find(photoId);
 		if (i == context.photoPaths->end()) {
-			AppendMissingMedia(out);
+			if (!context.clipboard) {
+				AppendMissingMedia(out);
+			} else if (!identity.isEmpty()) {
+				*out += u"<img%1%2%3>"_q.arg(dimensions, identity, hidden);
+			}
 			return;
 		}
 		*out += u"<img src=\"%1\" loading=\"lazy\"%2%3%4>"_q.arg(
@@ -507,18 +526,37 @@ void SerializeMediaItem(
 			identity,
 			hidden);
 	} else {
-		const auto i = context.documentPaths->find(documentId);
-		if (i == context.documentPaths->end()) {
-			AppendMissingMedia(out);
-			return;
-		}
 		const auto flags = autoplay
 			? u" autoplay muted loop playsinline"_q
 			: (loop
 				? u" controls loop preload=\"metadata\""_q
 				: u" controls preload=\"metadata\""_q);
-		*out += u"<video src=\"%1\"%2%3%4%5></video>"_q.arg(
+		const auto poster = [&] {
+			if (!context.documentPosters) {
+				return QString();
+			}
+			const auto i = context.documentPosters->find(documentId);
+			return (i == context.documentPosters->end())
+				? QString()
+				: u" poster=\"%1\""_q.arg(MediaHref(i->second));
+		}();
+		const auto i = context.documentPaths->find(documentId);
+		if (i == context.documentPaths->end()) {
+			if (!context.clipboard) {
+				AppendMissingMedia(out);
+			} else if (!identity.isEmpty()) {
+				*out += u"<video%1%2%3%4%5></video>"_q.arg(
+					poster,
+					flags,
+					dimensions,
+					identity,
+					hidden);
+			}
+			return;
+		}
+		*out += u"<video src=\"%1\"%2%3%4%5%6></video>"_q.arg(
 			MediaHref(i->second),
+			poster,
 			flags,
 			dimensions,
 			identity,
@@ -938,12 +976,15 @@ void SerializeBlock(
 		*out += u"<figure class=\"audio\"%1>"_q.arg(
 			IdAttribute(block.anchorId));
 		const auto i = context.documentPaths->find(block.documentId);
+		const auto identity = TgMediaSource(Kind::Audio, 0, block.documentId);
 		if (i != context.documentPaths->end()) {
 			*out += u"<audio controls src=\"%1\"%2></audio>"_q.arg(
 				MediaHref(i->second),
-				TgMediaSource(Kind::Audio, 0, block.documentId));
-		} else {
+				identity);
+		} else if (!context.clipboard) {
 			AppendMissingMedia(out, block.audioFileName);
+		} else if (!identity.isEmpty()) {
+			*out += u"<audio controls%1></audio>"_q.arg(identity);
 		}
 		auto meta = QStringList();
 		if (!block.audioPerformer.isEmpty()) {
@@ -1103,7 +1144,7 @@ void SerializeBlocks(
 	result += u"</head>\n<body>\n<article>\n"_q;
 	result += body;
 	result += u"</article>\n"_q;
-	if (slideshowUsed) {
+	if (slideshowUsed && !context.clipboard) {
 		result += u"<script>\n"_q
 			+ ReadHtmlResource(u"js/rich_message.js"_q)
 			+ u"</script>\n"_q;
@@ -1175,7 +1216,376 @@ void SerializeBlocks(
 	return u".bin"_q;
 }
 
+struct ClipboardMedia {
+	base::flat_map<uint64, QString> photoPaths;
+	base::flat_map<uint64, QString> documentPaths;
+	base::flat_map<uint64, QString> documentPosters;
+	int64 budget = kClipboardMediaLimit;
+};
+
+[[nodiscard]] QString DataUri(const QByteArray &bytes, const QString &mime) {
+	return u"data:%1;base64,%2"_q.arg(
+		mime,
+		QString::fromLatin1(bytes.toBase64()));
+}
+
+[[nodiscard]] QString BytesDataUri(
+		const QByteArray &bytes,
+		const QString &mime,
+		not_null<int64*> budget) {
+	if (bytes.isEmpty() || mime.isEmpty() || bytes.size() > *budget) {
+		return QString();
+	}
+	*budget -= bytes.size();
+	return DataUri(bytes, mime);
+}
+
+[[nodiscard]] QString ImageDataUri(
+		const QImage &image,
+		not_null<int64*> budget) {
+	if (image.isNull()) {
+		return QString();
+	}
+	auto bytes = QByteArray();
+	auto buffer = QBuffer(&bytes);
+	if (!buffer.open(QIODevice::WriteOnly)
+		|| !image.save(&buffer, "JPG", 87)) {
+		return QString();
+	}
+	buffer.close();
+	return BytesDataUri(bytes, u"image/jpeg"_q, budget);
+}
+
+[[nodiscard]] QString PhotoDataUri(
+		PhotoData *photo,
+		not_null<int64*> budget) {
+	const auto media = photo ? photo->activeMediaView() : nullptr;
+	if (!media) {
+		return QString();
+	}
+	const auto sizes = {
+		::Data::PhotoSize::Large,
+		::Data::PhotoSize::Thumbnail,
+		::Data::PhotoSize::Small,
+	};
+	for (const auto size : sizes) {
+		const auto bytes = media->imageBytes(size);
+		if (!bytes.isEmpty()) {
+			return BytesDataUri(bytes, u"image/jpeg"_q, budget);
+		}
+	}
+	for (const auto size : sizes) {
+		if (const auto image = media->image(size)) {
+			return ImageDataUri(image->original(), budget);
+		}
+	}
+	return QString();
+}
+
+[[nodiscard]] bool EmbeddableMime(const QString &mime) {
+	return mime.startsWith(u"image/"_q)
+		|| mime.startsWith(u"video/"_q)
+		|| mime.startsWith(u"audio/"_q);
+}
+
+[[nodiscard]] QString DocumentDataUri(
+		DocumentData *document,
+		not_null<int64*> budget) {
+	if (!document || document->isNull()) {
+		return QString();
+	}
+	const auto mime = document->mimeString();
+	if (!EmbeddableMime(mime) || document->size > *budget) {
+		return QString();
+	}
+	const auto media = document->activeMediaView();
+	if (media) {
+		const auto bytes = media->bytes();
+		if (!bytes.isEmpty()) {
+			return BytesDataUri(bytes, mime, budget);
+		}
+	}
+	const auto path = document->filepath(true);
+	if (path.isEmpty()) {
+		return QString();
+	}
+	auto file = QFile(path);
+	if (!file.open(QIODevice::ReadOnly) || file.size() > *budget) {
+		return QString();
+	}
+	return BytesDataUri(file.readAll(), mime, budget);
+}
+
+[[nodiscard]] QString DocumentPosterDataUri(
+		DocumentData *document,
+		not_null<int64*> budget) {
+	const auto media = document ? document->activeMediaView() : nullptr;
+	if (!media) {
+		return QString();
+	}
+	const auto thumbnail = media->thumbnail();
+	return thumbnail
+		? ImageDataUri(thumbnail->original(), budget)
+		: QString();
+}
+
+void CollectClipboardPhoto(
+		ClipboardMedia &media,
+		PhotoData *photo,
+		uint64 photoId) {
+	if (!photo || !photoId || media.photoPaths.contains(photoId)) {
+		return;
+	}
+	const auto uri = PhotoDataUri(photo, &media.budget);
+	if (!uri.isEmpty()) {
+		media.photoPaths.emplace(photoId, uri);
+	}
+}
+
+void CollectClipboardDocument(
+		ClipboardMedia &media,
+		DocumentData *document,
+		uint64 documentId) {
+	if (!document
+		|| !documentId
+		|| media.documentPaths.contains(documentId)) {
+		return;
+	}
+	const auto uri = DocumentDataUri(document, &media.budget);
+	if (!uri.isEmpty()) {
+		media.documentPaths.emplace(documentId, uri);
+		return;
+	} else if (media.documentPosters.contains(documentId)) {
+		return;
+	}
+	const auto poster = DocumentPosterDataUri(document, &media.budget);
+	if (!poster.isEmpty()) {
+		media.documentPosters.emplace(documentId, poster);
+	}
+}
+
+void CollectClipboardMediaFromText(
+		ClipboardMedia &media,
+		Main::Session *session,
+		const TextWithEntities &text) {
+	if (!session) {
+		return;
+	}
+	for (const auto &entity : text.entities) {
+		if (entity.type() != EntityType::CustomEmoji) {
+			continue;
+		}
+		const auto object = Markdown::ParseInlineTextObjectEntity(
+			entity.data());
+		if (!object
+			|| object->kind != Markdown::InlineTextObjectKind::IvImage) {
+			continue;
+		}
+		const auto data = std::get_if<Markdown::InlineTextObjectIvImageData>(
+			&object->data);
+		if (!data || !data->documentId) {
+			continue;
+		}
+		const auto document = session->data().document(data->documentId);
+		if (!document->isNull()) {
+			CollectClipboardDocument(media, document, data->documentId);
+		}
+	}
+}
+
+[[nodiscard]] Main::Session *SessionFromBlocks(
+		const std::vector<RichPage::Block> &blocks) {
+	for (const auto &block : blocks) {
+		if (block.photo) {
+			return &block.photo->session();
+		} else if (block.document) {
+			return &block.document->session();
+		} else if (block.peer) {
+			return &block.peer->session();
+		}
+		for (const auto &item : block.mediaItems) {
+			if (item.photo) {
+				return &item.photo->session();
+			} else if (item.document) {
+				return &item.document->session();
+			}
+		}
+		for (const auto &article : block.relatedArticles) {
+			if (article.photo) {
+				return &article.photo->session();
+			}
+		}
+		for (const auto &item : block.listItems) {
+			if (const auto session = SessionFromBlocks(item.blocks)) {
+				return session;
+			}
+		}
+		if (const auto session = SessionFromBlocks(block.blocks)) {
+			return session;
+		}
+	}
+	return nullptr;
+}
+
+void CollectClipboardMedia(
+		ClipboardMedia &media,
+		Main::Session *session,
+		const std::vector<RichPage::Block> &blocks) {
+	using Kind = RichPage::BlockKind;
+	for (const auto &block : blocks) {
+		CollectClipboardMediaFromText(media, session, block.text.text);
+		CollectClipboardMediaFromText(media, session, block.caption.text);
+		switch (block.kind) {
+		case Kind::Photo:
+		case Kind::EmbedPost:
+			CollectClipboardPhoto(media, block.photo, block.photoId);
+			break;
+		case Kind::Video:
+		case Kind::Audio:
+			CollectClipboardDocument(media, block.document, block.documentId);
+			break;
+		case Kind::GroupedMedia:
+			for (const auto &item : block.mediaItems) {
+				if (item.kind == Kind::Photo) {
+					CollectClipboardPhoto(media, item.photo, item.photoId);
+				} else {
+					CollectClipboardDocument(
+						media,
+						item.document,
+						item.documentId);
+				}
+			}
+			break;
+		case Kind::RelatedArticles:
+			for (const auto &article : block.relatedArticles) {
+				CollectClipboardPhoto(media, article.photo, article.photoId);
+			}
+			break;
+		default:
+			break;
+		}
+		for (const auto &item : block.listItems) {
+			CollectClipboardMediaFromText(media, session, item.text.text);
+			CollectClipboardMedia(media, session, item.blocks);
+		}
+		for (const auto &row : block.tableRows) {
+			for (const auto &cell : row.cells) {
+				CollectClipboardMediaFromText(media, session, cell.text.text);
+			}
+		}
+		CollectClipboardMedia(media, session, block.blocks);
+	}
+}
+
 } // namespace
+
+QByteArray RichBlocksClipboardHtml(
+		const RichPageBlocksSlice &slice,
+		Main::Session *session) {
+	if (slice.empty()) {
+		return QByteArray();
+	}
+	auto media = ClipboardMedia();
+	CollectClipboardMedia(
+		media,
+		session ? session : SessionFromBlocks(slice.blocks),
+		slice.blocks);
+
+	auto page = RichPage();
+	page.blocks = slice.blocks;
+	page.rtl = slice.rtl;
+
+	auto renderer = Markdown::MathRenderer();
+	auto formulaBudget = kClipboardFormulaLimit;
+	auto formulaCache = base::flat_map<
+		QString,
+		std::optional<RenderedFormulaImage>>();
+	const auto dimensions = Markdown::CaptureMarkdownPrepareDimensions();
+	const auto renderFormulaImage = [&](const QString &tex, bool display)
+	-> std::optional<RenderedFormulaImage> {
+		const auto key = (display ? u"d:"_q : u"i:"_q) + tex;
+		const auto cached = formulaCache.find(key);
+		if (cached != formulaCache.end()) {
+			return cached->second;
+		}
+		const auto render = [&]() -> std::optional<RenderedFormulaImage> {
+			const auto rendered = renderer.renderFormula({
+				.trimmedTex = tex,
+				.kind = (display
+					? Markdown::MathKind::Display
+					: Markdown::MathKind::Inline),
+				.textSize = (display
+					? dimensions.displayMathTextSize
+					: dimensions.bodyTextSize),
+				.renderWidthCap = dimensions.displayMathMaxRenderWidth,
+				.renderHeightCap = dimensions.displayMathMaxRenderHeight,
+				.devicePixelRatio = 2,
+			});
+			if (!rendered.success || rendered.image.isNull()) {
+				return std::nullopt;
+			}
+			const auto colorized = style::colorizeImage(
+				rendered.image,
+				QColor(0, 0, 0));
+			auto bytes = QByteArray();
+			auto buffer = QBuffer(&bytes);
+			if (!buffer.open(QIODevice::WriteOnly)
+				|| !colorized.save(&buffer, "PNG")) {
+				return std::nullopt;
+			}
+			buffer.close();
+			const auto uri = BytesDataUri(
+				bytes,
+				u"image/png"_q,
+				&formulaBudget);
+			if (uri.isEmpty()) {
+				return std::nullopt;
+			}
+			const auto logical = rendered.logicalSize.isEmpty()
+				? (rendered.image.size() / 2)
+				: rendered.logicalSize;
+			return RenderedFormulaImage{
+				.relative = uri,
+				.logicalSize = logical,
+				.logicalDepth = rendered.logicalDepth,
+			};
+		};
+		const auto result = render();
+		formulaCache.emplace(key, result);
+		return result;
+	};
+	return GenerateHtml(page, TitleFromPage(page), {
+		.photoPaths = &media.photoPaths,
+		.documentPaths = &media.documentPaths,
+		.documentPosters = &media.documentPosters,
+		.renderFormula = renderFormulaImage,
+		.clipboard = true,
+	});
+}
+
+void SetRichBlocksClipboard(
+		const TextForMimeData &text,
+		RichPageBlocksSlice slice,
+		Main::Session *session) {
+	if (slice.empty()) {
+		TextUtilities::SetClipboardText(text);
+		return;
+	}
+	const auto html = RichBlocksClipboardHtml(slice, session);
+	auto data = Editor::ClipboardBlockData();
+	data.blocks = std::move(slice.blocks);
+	auto mimeData = Editor::MimeDataFromClipboardData(
+		Editor::ClipboardData(std::move(data)));
+	if (const auto textMimeData = TextUtilities::MimeDataFromText(text)) {
+		for (const auto &format : textMimeData->formats()) {
+			mimeData->setData(format, textMimeData->data(format));
+		}
+	}
+	if (!html.isEmpty()) {
+		mimeData->setHtml(QString::fromUtf8(html));
+	}
+	QGuiApplication::clipboard()->setMimeData(mimeData.release());
+}
 
 RichMessageHtmlExport::RichMessageHtmlExport(
 	not_null<HistoryItem*> item,

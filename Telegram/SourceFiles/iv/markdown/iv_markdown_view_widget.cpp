@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "core/credits_amount.h"
 #include "core/file_utilities.h"
-#include "iv/editor/iv_editor_clipboard.h"
+#include "iv/iv_rich_message_html_export.h"
 #include "iv/markdown/iv_markdown_article_text.h"
 #include "iv/markdown/iv_markdown_prepare_native_richtext.h"
 #include "lang/lang_keys.h"
@@ -1060,23 +1060,12 @@ void MarkdownDocumentWidget::copySelectedText() {
 	if (text.empty()) {
 		return;
 	}
-	auto blocks = _article
-		? _article->richPageSliceForSelection(selectionForCopy())
-		: std::vector<RichPage::Block>();
-	if (blocks.empty()) {
-		TextUtilities::SetClipboardText(text);
-	} else {
-		auto data = Editor::ClipboardBlockData();
-		data.blocks = std::move(blocks);
-		auto mimeData = Editor::MimeDataFromClipboardData(
-			Editor::ClipboardData(std::move(data)));
-		if (const auto textMimeData = TextUtilities::MimeDataFromText(text)) {
-			for (const auto &format : textMimeData->formats()) {
-				mimeData->setData(format, textMimeData->data(format));
-			}
-		}
-		QGuiApplication::clipboard()->setMimeData(mimeData.release());
-	}
+	SetRichBlocksClipboard(text, {
+		.blocks = (_article
+			? _article->richPageSliceForSelection(selectionForCopy())
+			: std::vector<RichPage::Block>()),
+		.rtl = (_article && _article->richPageRtl()),
+	});
 	showToast(tr::lng_text_copied(tr::now));
 }
 

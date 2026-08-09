@@ -2973,6 +2973,19 @@ TextForMimeData Element::selectedText(
 	return {};
 }
 
+Iv::RichPageBlocksSlice Element::selectedRichBlocks(
+		const MessageSelection &selection) const {
+	const auto rich = richpage();
+	if (!rich || !selection.isRichPage()) {
+		return {};
+	}
+	return {
+		.blocks = rich->article.richPageSliceForSelection(
+			selection.richPage.selection),
+		.rtl = (rich->page && rich->page->rtl),
+	};
+}
+
 SelectedQuote Element::selectedQuote(
 		const MessageSelection &selection) const {
 	if (const auto flat = selection.flatSelection(); !flat.empty()) {
