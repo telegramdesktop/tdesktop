@@ -101,7 +101,11 @@ private:
 
 	// FileDelegate methods are called only from the File thread.
 	Mode fileOpenMode() override;
-	bool fileReady(int headerSize, Stream &&video, Stream &&audio) override;
+	bool fileReady(
+		int headerSize,
+		Stream &&video,
+		Stream &&audio,
+		std::vector<AudioTrackInfo> audioTracks) override;
 	void fileError(Error error) override;
 	void fileWaitingForData() override;
 	void fileFullInCache(bool fullInCache) override;
@@ -184,6 +188,11 @@ private:
 	bool _waitingForData = false;
 
 	std::atomic<bool> _pauseReading = false;
+
+	// Set on the File thread inside fileReady(), read on the main thread
+	// after the streamReady() dispatch (same pattern as _totalDuration).
+	std::vector<AudioTrackInfo> _audioTracks;
+	int _audioTrackIndex = -1;
 
 	// Belongs to the main thread.
 	Information _information;

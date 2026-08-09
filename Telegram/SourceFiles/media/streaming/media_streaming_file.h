@@ -24,6 +24,7 @@ class FileDelegate;
 struct StartOptions {
 	crl::time position = 0;
 	crl::time durationOverride = 0;
+	int audioStreamIndex = -1; // -1 means automatic best-audio selection.
 	bool seekable = true;
 	bool hwAllow = false;
 };

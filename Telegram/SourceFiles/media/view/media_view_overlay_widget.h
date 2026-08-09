@@ -608,6 +608,7 @@ private:
 	[[nodiscard]] bool canInitStreaming() const;
 	[[nodiscard]] bool saveControlLocked() const;
 	void applyVideoQuality(VideoQuality value);
+	void applyAudioTrack(int index);
 
 	[[nodiscard]] bool topShadowOnTheRight() const;
 	void applyHideWindowWorkaround();
@@ -636,6 +637,7 @@ private:
 	PhotoData *_photo = nullptr;
 	DocumentData *_document = nullptr;
 	DocumentData *_chosenQuality = nullptr;
+	int _chosenAudioTrack = -1; // -1 means automatic best-audio selection.
 	PhotoData *_videoCover = nullptr;
 	Media::VideoQuality _quality;
 	QString _documentLoadingTo;

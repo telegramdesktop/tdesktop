@@ -241,8 +241,13 @@ Mode Player::fileOpenMode() {
 	return _options.mode;
 }
 
-bool Player::fileReady(int headerSize, Stream &&video, Stream &&audio) {
+bool Player::fileReady(
+		int headerSize,
+		Stream &&video,
+		Stream &&audio,
+		std::vector<AudioTrackInfo> audioTracks) {
 	_waitingForData = false;
+	_audioTracks = std::move(audioTracks);
 
 	const auto weak = base::make_weak(&_sessionGuard);
 	const auto ready = [=](const Information &data) {
@@ -268,6 +273,7 @@ bool Player::fileReady(int headerSize, Stream &&video, Stream &&audio) {
 		LOG(("Streaming Error: Audio stream with unknown duration."));
 		return false;
 	} else if (audio.codec) {
+		_audioTrackIndex = audio.index;
 		if (_options.audioId.audio() != nullptr) {
 			_audioId = AudioMsgId(
 				_options.audioId.audio(),
@@ -450,6 +456,8 @@ bool Player::fileReadMore() {
 
 void Player::streamReady(Information &&information) {
 	SaveValidStartInformation(_information, std::move(information));
+	_information.audio.tracks = _audioTracks;
+	_information.audio.currentIndex = _audioTrackIndex;
 	provideStartInformation();
 }
 
@@ -553,6 +561,7 @@ void Player::play(const PlaybackOptions &options) {
 	_file->start(delegate(), {
 		.position = _options.position,
 		.durationOverride = options.durationOverride,
+		.audioStreamIndex = _options.audioStreamIndex,
 		.seekable = _options.seekable,
 		.hwAllow = _options.hwAllowed,
 	});
@@ -808,6 +817,8 @@ void Player::stop(bool stillActive) {
 	_durationByPackets = 0;
 	_durationByLastAudioPacket = 0;
 	_durationByLastVideoPacket = 0;
+	_audioTracks.clear();
+	_audioTrackIndex = -1;
 	const auto header = _information.headerSize;
 	_information = Information();
 	_information.headerSize = header;

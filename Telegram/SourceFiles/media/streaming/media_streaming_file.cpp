@@ -32,6 +32,37 @@ constexpr auto kMaxQueuedPackets = 1024;
 		).split(QChar(',')).contains(u"webm");
 }
 
+// Collects every audio stream in the file together with its language / title
+// metadata, so the player can expose them and let the user switch tracks.
+[[nodiscard]] std::vector<AudioTrackInfo> EnumerateAudioTracks(
+		not_null<AVFormatContext*> format) {
+	auto result = std::vector<AudioTrackInfo>();
+	for (auto i = 0; i != int(format->nb_streams); ++i) {
+		const auto stream = format->streams[i];
+		if (!stream->codecpar
+			|| stream->codecpar->codec_type != AVMEDIA_TYPE_AUDIO) {
+			continue;
+		}
+		auto info = AudioTrackInfo{ .index = i };
+		if (const auto entry = av_dict_get(
+				stream->metadata,
+				"language",
+				nullptr,
+				0)) {
+			info.language = QString::fromUtf8(entry->value).trimmed();
+		}
+		if (const auto entry = av_dict_get(
+				stream->metadata,
+				"title",
+				nullptr,
+				0)) {
+			info.title = QString::fromUtf8(entry->value).trimmed();
+		}
+		result.push_back(std::move(info));
+	}
+	return result;
+}
+
 } // namespace
 
 File::Context::Context(
@@ -152,10 +183,23 @@ Stream File::Context::initStream(
 		Mode mode,
 		StartOptions options) {
 	auto result = Stream();
+
+	// For audio we allow the caller to request a specific stream (for
+	// example when the user picked a different track in the UI). We only
+	// honor it when it really points at an audio stream, otherwise we fall
+	// back to the automatic "best stream" selection.
+	const auto wanted = (type == AVMEDIA_TYPE_AUDIO
+		&& options.audioStreamIndex >= 0
+		&& options.audioStreamIndex < int(format->nb_streams)
+		&& format->streams[options.audioStreamIndex]->codecpar
+		&& (format->streams[options.audioStreamIndex]->codecpar->codec_type
+			== AVMEDIA_TYPE_AUDIO))
+		? options.audioStreamIndex
+		: -1;
 	const auto index = result.index = av_find_best_stream(
 		format,
 		type,
-		-1,
+		wanted,
 		-1,
 		nullptr,
 		0);
@@ -316,6 +360,8 @@ void File::Context::start(StartOptions options) {
 		return;
 	}
 
+	auto audioTracks = EnumerateAudioTracks(format.get());
+
 	_reader->headerDone();
 	if (_reader->isRemoteLoader()) {
 		sendFullInCache(true);
@@ -338,7 +384,11 @@ void File::Context::start(StartOptions options) {
 	}
 
 	const auto header = _reader->headerSize();
-	if (!_delegate->fileReady(header, std::move(video), std::move(audio))) {
+	if (!_delegate->fileReady(
+			header,
+			std::move(video),
+			std::move(audio),
+			std::move(audioTracks))) {
 		return fail(Error::OpenFailed);
 	}
 	_format = std::move(format);

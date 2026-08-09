@@ -2078,6 +2078,35 @@ void OverlayWidget::fillContextMenuActions(
 			[=] { saveCancel(); },
 			&st::mediaMenuIconCancel);
 	}
+	if (_streamed && _streamed->withSound) {
+		const auto &audio = _streamed->instance.info().audio;
+		if (audio.tracks.size() > 1) {
+			const auto current = audio.currentIndex;
+			auto number = 0;
+			for (const auto &track : audio.tracks) {
+				++number;
+				// TODO: use a proper tr:: key for the fallback label once
+				// audio-track switching lands (needs a new lang string).
+				auto text = track.title;
+				if (!track.language.isEmpty()) {
+					text = text.isEmpty()
+						? track.language
+						: (text
+							+ QString::fromUtf8(" (")
+							+ track.language
+							+ QString::fromUtf8(")"));
+				}
+				text = text.isEmpty()
+					? QString::fromUtf8("Audio track %1").arg(number)
+					: (QString::fromUtf8("Audio: ") + text);
+				if (track.index == current) {
+					text = QString::fromUtf8("\xE2\x9C\x93 ") + text;
+				}
+				const auto index = track.index;
+				addAction(text, [=] { applyAudioTrack(index); }, nullptr);
+			}
+		}
+	}
 	if (_message && _message->isRegular()) {
 		addAction(
 			tr::lng_context_to_msg(tr::now),
@@ -2856,6 +2885,7 @@ void OverlayWidget::assignMediaPointer(DocumentData *document) {
 	if (_document != document) {
 		_streamedQualityChangeFrame = QImage();
 		_streamedQualityChangeFinished = false;
+		_chosenAudioTrack = -1;
 		if ((_document = document)) {
 			_quality = _document->initialPlaybackVideoQuality(
 				Core::App().settings().videoQuality());
@@ -5415,6 +5445,7 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 		Assert(_document != nullptr);
 		const auto messageId = _message ? _message->fullId() : FullMsgId();
 		options.audioId = AudioMsgId(_document, messageId);
+		options.audioStreamIndex = _chosenAudioTrack;
 		options.speed = _stories
 			? 1.
 			: Core::App().settings().videoPlaybackSpeed();
@@ -5432,6 +5463,22 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 	_streamed->pausedBySeek = false;
 
 	updatePlaybackState();
+}
+
+void OverlayWidget::applyAudioTrack(int index) {
+	Expects(_streamed != nullptr);
+
+	if (_chosenAudioTrack == index) {
+		return;
+	}
+	_chosenAudioTrack = index;
+
+	// Reopen the stream at the current position with the newly chosen audio
+	// track, preserving the current play / pause state across the switch.
+	_streamingStartPaused = _streamed->instance.player().paused()
+		&& !_streamed->instance.player().finished();
+	restartAtSeekPosition(_streamedPosition);
+	activateControls();
 }
 
 void OverlayWidget::playbackControlsSeekProgress(crl::time position) {

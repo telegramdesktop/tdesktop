@@ -39,12 +39,22 @@ enum class Mode {
 	Inspection,
 };
 
+// Describes one selectable audio stream inside a media file. Filled in for
+// every audio stream that libavformat reports, so the UI can offer a way to
+// switch between them (for example multi-language tracks).
+struct AudioTrackInfo {
+	int index = -1; // AVStream index inside the format context.
+	QString language; // ISO code from the "language" metadata, if any.
+	QString title; // "title" metadata, if any.
+};
+
 struct PlaybackOptions {
 	Mode mode = Mode::Both;
 	crl::time position = 0;
 	crl::time durationOverride = 0;
 	float64 speed = 1.; // Valid values between 0.5 and 2.
 	AudioMsgId audioId;
+	int audioStreamIndex = -1; // -1 means automatic best-audio selection.
 	bool syncVideoByAudio = true;
 	bool waitForMarkAsShown = false;
 	bool hwAllowed = false;
@@ -70,6 +80,8 @@ struct VideoInformation {
 
 struct AudioInformation {
 	TrackState state;
+	std::vector<AudioTrackInfo> tracks; // All selectable audio streams.
+	int currentIndex = -1; // Index (in the file) of the playing audio stream.
 };
 
 struct Information {
