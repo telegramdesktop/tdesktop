@@ -47,9 +47,14 @@ inline constexpr auto kImportedMediaPlaceholderLimit = 4096;
 		: std::nullopt;
 }
 
+struct ImportedLocalMedia {
+	QString path;
+	QByteArray content;
+};
+
 struct BlocksImportResult {
 	std::vector<RichPage::Block> blocks;
-	QStringList localMediaPaths;
+	std::vector<ImportedLocalMedia> localMedia;
 	bool truncated = false;
 };
 

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QFileInfo>
 #include <QtCore/QMimeData>
 #include <QtCore/QUrlQuery>
+#include <QtGui/QImage>
 
 #include <array>
 
@@ -24,6 +25,8 @@ namespace Iv::Editor {
 namespace {
 
 constexpr auto kMaxCellLength = 4096;
+constexpr auto kMaxDataUriLength = 24 * 1024 * 1024;
+constexpr auto kMaxDataUriHeaderLength = 256;
 
 [[nodiscard]] QString QtWindowsMimeName(const QString &name) {
 	return u"application/x-qt-windows-mime;value=\"%1\""_q.arg(name);
@@ -166,6 +169,26 @@ constexpr auto kMaxCellLength = 4096;
 	return false;
 }
 
+[[nodiscard]] QByteArray DataUriImageContent(const QString &source) {
+	const auto comma = source.indexOf(QChar(','));
+	if (comma < 0
+		|| comma > kMaxDataUriHeaderLength
+		|| source.size() > kMaxDataUriLength
+		|| !source.startsWith(u"data:image/"_q, Qt::CaseInsensitive)) {
+		return QByteArray();
+	}
+	auto header = source.mid(5, comma - 5);
+	header.remove(QChar(' '));
+	if (!header.endsWith(u";base64"_q, Qt::CaseInsensitive)) {
+		return QByteArray();
+	}
+	const auto decoded = QByteArray::fromBase64(
+		QStringView(source).mid(comma + 1).toLatin1());
+	return (decoded.isEmpty() || QImage::fromData(decoded).isNull())
+		? QByteArray()
+		: decoded;
+}
+
 [[nodiscard]] QString LocalMediaPath(
 		const QString &source,
 		const QString &basePath) {
@@ -236,8 +259,32 @@ constexpr auto kMaxCellLength = 4096;
 struct ImportContext {
 	Main::Session *session = nullptr;
 	QString basePath;
-	QStringList localMediaPaths;
+	std::vector<ImportedLocalMedia> localMedia;
 };
+
+[[nodiscard]] std::optional<uint64> AddImportedLocalMedia(
+		ImportContext &context,
+		const QString &source) {
+	if (int(context.localMedia.size()) >= kImportedMediaPlaceholderLimit) {
+		return std::nullopt;
+	}
+	auto media = ImportedLocalMedia();
+	if (source.startsWith(u"data:"_q, Qt::CaseInsensitive)) {
+		media.content = DataUriImageContent(source);
+		if (media.content.isEmpty()) {
+			return std::nullopt;
+		}
+	} else {
+		media.path = LocalMediaPath(source, context.basePath);
+		if (media.path.isEmpty()) {
+			return std::nullopt;
+		}
+	}
+	const auto placeholder = ImportedMediaPlaceholderId(
+		int(context.localMedia.size()));
+	context.localMedia.push_back(std::move(media));
+	return placeholder;
+}
 
 [[nodiscard]] std::vector<RichPage::Block> ConvertImportedBlocks(
 	std::vector<TextUtilities::HtmlBlock> blocks,
@@ -337,19 +384,15 @@ struct ImportContext {
 				result,
 				block.media,
 				block.kind)) {
-			const auto local = LocalMediaPath(
-				block.media.source,
-				context.basePath);
-			if (local.isEmpty()) {
+			const auto placeholder = AddImportedLocalMedia(
+				context,
+				block.media.source);
+			if (!placeholder) {
 				return RichPage::Block();
-			}
-			const auto placeholder = ImportedMediaPlaceholderId(
-				int(context.localMediaPaths.size()));
-			context.localMediaPaths.push_back(local);
-			if (result.kind == RichPage::BlockKind::Photo) {
-				result.photoId = placeholder;
+			} else if (result.kind == RichPage::BlockKind::Photo) {
+				result.photoId = *placeholder;
 			} else {
-				result.documentId = placeholder;
+				result.documentId = *placeholder;
 			}
 		}
 		result.caption.text = ConvertImportedText(std::move(block.caption));
@@ -367,19 +410,15 @@ struct ImportContext {
 					media,
 					child.media,
 					child.kind)) {
-				const auto local = LocalMediaPath(
-					child.media.source,
-					context.basePath);
-				if (local.isEmpty()) {
+				const auto placeholder = AddImportedLocalMedia(
+					context,
+					child.media.source);
+				if (!placeholder) {
 					continue;
-				}
-				const auto placeholder = ImportedMediaPlaceholderId(
-					int(context.localMediaPaths.size()));
-				context.localMediaPaths.push_back(local);
-				if (media.kind == RichPage::BlockKind::Photo) {
-					media.photoId = placeholder;
+				} else if (media.kind == RichPage::BlockKind::Photo) {
+					media.photoId = *placeholder;
 				} else {
-					media.documentId = placeholder;
+					media.documentId = *placeholder;
 				}
 			}
 			result.mediaItems.push_back({
@@ -618,12 +657,12 @@ std::vector<RichPage::Block> ConvertImportedBlocks(
 		.basePath = basePath,
 	};
 	auto blocks = ConvertImportedBlocks(std::move(parsed->blocks), context);
-	if (blocks.empty() && context.localMediaPaths.isEmpty()) {
+	if (blocks.empty() && context.localMedia.empty()) {
 		return std::nullopt;
 	}
 	return BlocksImportResult{
 		.blocks = std::move(blocks),
-		.localMediaPaths = std::move(context.localMediaPaths),
+		.localMedia = std::move(context.localMedia),
 		.truncated = parsed->truncated,
 	};
 }
