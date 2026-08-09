@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/selecting_scroll.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_boxes.h"
@@ -152,6 +153,11 @@ void TranslateBoxContent(
 		object_ptr<FlatLabel>(box, stLabel)));
 	translated->entity()->setSelectable(!hasCopyRestriction);
 	translated->entity()->setAnimationsPausedCallback(animationsPaused);
+	if (!hasCopyRestriction) {
+		SetupSelectingScroll(translated->entity(), [=](int pixels) {
+			box->scrollToY(box->scrollTop() + pixels);
+		});
+	}
 
 	constexpr auto kMaxLines = 3;
 	container->resizeToWidth(box->width());
