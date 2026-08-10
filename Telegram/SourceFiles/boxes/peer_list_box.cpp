@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "base/qt/qt_key_modifiers.h"
 #include "base/unixtime.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -371,7 +372,7 @@ void PeerListBox::peerListSetRowChecked(
 		peerListUpdateRow(row);
 
 		// This call deletes row from _searchRows.
-		if (_select && trackSelected) {
+		if (_select && trackSelected && !base::IsShiftPressed()) {
 			_select->entity()->clearQuery();
 		}
 	} else {
