@@ -302,7 +302,7 @@ void Application::run() {
 	Ui::InitTextOptions();
 	Ui::StartCachedCorners();
 	Ui::Emoji::Init();
-	Ui::PreloadTextSpoilerMask();
+	Ui::PreloadTextSpoilerMask(_lifetime);
 	startShortcuts();
 	startEmojiImageLoader();
 	startSystemDarkModeViewer();
