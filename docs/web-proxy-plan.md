@@ -54,8 +54,10 @@ The initial draft left several architectural choices open. They are now fixed:
 7. The loopback parent is one inline, dependency-free HTML response. A qrc asset
    adds no value for this small page and would create another generated-resource
    dependency.
-8. RTC keepalive is not part of v1. Browser/tab loss is an ordinary transport loss;
-   Telegram's existing reconnect machinery handles it.
+8. While the authenticated loopback WebSocket is open, the local parent maintains
+   an empty `RTCDataChannel` between two same-page `RTCPeerConnection`s. This is a
+   best-effort Chrome background-lifecycle guard: it uses no media, STUN, TURN, or
+   remote signaling, and failure to establish it never fails the carrier.
 
 ## 3. Data model and persistence
 
@@ -292,6 +294,18 @@ The local parent reads and scrubs its independent one-shot loopback capability,
 connects the local WebSocket, derives the bridge URL, creates an iframe with limited
 `sandbox` flags, and establishes a `MessageChannel`.
 
+The parent also creates two same-page `RTCPeerConnection`s with an empty ICE-server
+list, exchanges their descriptions only in local JavaScript, rewrites exchanged host
+candidates to `127.0.0.1`, and retains an open, otherwise idle `RTCDataChannel`.
+This avoids mDNS/interface-dependent self-connect behavior and keeps RTC packets on
+loopback. No RTC state is exposed to the hosted iframe. The guard starts with the
+authenticated loopback WebSocket, closes with it or on `pagehide`, and is recreated
+on `pageshow` or with bounded backoff if the local RTC connection fails. Browsers
+without usable WebRTC continue with the ordinary carrier. The guard reduces Chrome
+background freezing, intensive timer throttling, and normal automatic discard risk,
+but it is not a correctness dependency: manual tab closure, browser or OS
+termination, and urgent discard remain ordinary transport loss.
+
 For a canonical hostname `H` and decoded WEB secret bytes `S`, including the leading
 `dd` byte when present, it computes:
 
@@ -414,6 +428,5 @@ browser matrix in `docs/web-proxy-test-plan.md`, followed by other platform buil
 - checking inactive WEB proxies and auto-rotation into them;
 - cross-tab or cross-process relay-session resume;
 - relay-auth v2;
-- RTC/background-tab keepalive tricks;
 - alternate bridge paths, ports, or non-HTTPS relay origins;
 - expanding `AbstractSocket` with true uplink writable backpressure.

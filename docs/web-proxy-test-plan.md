@@ -238,10 +238,17 @@ Execute each case from a connected baseline:
 | Edit WEB hostname or secret | old transport closes; new settings take effect; no old relay traffic remains |
 | System sleep 5 minutes | reconnect after wake without corruption or permanent spinner |
 | Network down/up | browser carrier and MTProto recover within normal retry bounds |
+| RTC unavailable or disabled by browser policy | carrier remains usable; lifecycle guard failure is silent and bounded |
 
-Record whether the browser freezes/discards the active tab under battery/energy
-saving. This is evidence for or against a future keepalive feature, not a v1 pass
-condition if explicit `Open browser` recovers correctly.
+For Chromium browsers, confirm the page has one open `RTCDataChannel` between two
+same-page peer connections in `chrome://webrtc-internals`, with the selected ICE
+pair confined to `127.0.0.1` and no STUN or TURN server. In `chrome://discards`,
+record the tab's automatic freeze/discard eligibility and reasons; active WebRTC
+should protect it from normal automatic freezing. Then leave the tab hidden for at
+least 15 minutes with developer tools closed while continuously exchanging Telegram
+traffic. Carrier traffic must continue without minute-scale stalls. Repeat once
+with browser energy saving enabled. Manual or urgent discard may still terminate
+the carrier and must recover through `Open browser` as described above.
 
 ## 10. Carrier reliability and server faults (P1)
 
