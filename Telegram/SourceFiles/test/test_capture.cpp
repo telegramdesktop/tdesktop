@@ -19,6 +19,9 @@ namespace {
 
 constexpr auto kBlankSpreadThreshold = 6;
 constexpr auto kContactSheetGap = 8;
+constexpr auto kCoverageSamples = 32;
+constexpr auto kUnpaintedMinPermille = 100;
+constexpr auto kBackgroundOwnerHops = 6;
 
 [[nodiscard]] QString WithPngExtension(const QString &name) {
 	return name.endsWith(u".png"_q, Qt::CaseInsensitive)
@@ -49,6 +52,142 @@ constexpr auto kContactSheetGap = 8;
 		.arg(logicalRect.height())
 		.arg(inside.width())
 		.arg(logicalRect.width());
+}
+
+[[nodiscard]] std::vector<QPoint> SamplePoints(const QSize &size) {
+	auto result = std::vector<QPoint>();
+	const auto columns = std::min(size.width(), kCoverageSamples);
+	const auto rows = std::min(size.height(), kCoverageSamples);
+	if (columns < 1 || rows < 1) {
+		return result;
+	}
+	result.reserve(columns * rows);
+	for (auto y = 0; y != rows; ++y) {
+		for (auto x = 0; x != columns; ++x) {
+			result.push_back(QPoint(
+				((2 * x + 1) * size.width()) / (2 * columns),
+				((2 * y + 1) * size.height()) / (2 * rows)));
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] int SampledMatchPermille(
+		const QImage &image,
+		const QColor &color) {
+	const auto points = SamplePoints(image.size());
+	if (points.empty()) {
+		return 0;
+	}
+	const auto reference = color.rgb();
+	auto matched = 0;
+	for (const auto &point : points) {
+		if (image.pixelColor(point).rgb() == reference) {
+			++matched;
+		}
+	}
+	return (1000 * matched) / int(points.size());
+}
+
+[[nodiscard]] int UnpaintedPermille(
+		not_null<QWidget*> widget,
+		const QRect &logicalRect) {
+	if (widget->testAttribute(Qt::WA_OpaquePaintEvent)) {
+		return 0;
+	}
+	const auto rect = logicalRect.isEmpty()
+		? widget->rect()
+		: logicalRect.intersected(widget->rect());
+	if (rect.isEmpty()) {
+		return 0;
+	}
+	const auto firstSentinel = QColor(255, 0, 255);
+	const auto secondSentinel = QColor(0, 255, 0);
+	const auto first = Ui::GrabWidgetToImage(widget, rect, firstSentinel);
+	const auto second = Ui::GrabWidgetToImage(widget, rect, secondSentinel);
+	if (first.isNull() || first.size() != second.size()) {
+		return 0;
+	}
+	const auto points = SamplePoints(first.size());
+	if (points.empty()) {
+		return 0;
+	}
+	const auto firstRgb = firstSentinel.rgb();
+	const auto secondRgb = secondSentinel.rgb();
+	auto unpainted = 0;
+	for (const auto &point : points) {
+		if (first.pixelColor(point).rgb() == firstRgb
+			&& second.pixelColor(point).rgb() == secondRgb) {
+			++unpainted;
+		}
+	}
+	return (1000 * unpainted) / int(points.size());
+}
+
+[[nodiscard]] QString WidgetDescription(not_null<QWidget*> widget) {
+	const auto &instance = *widget;
+	return u"%1 %2"_q.arg(
+		QString::fromUtf8(typeid(instance).name()),
+		RectText(widget->geometry()));
+}
+
+[[nodiscard]] QString BackgroundOwnerDetails(
+		not_null<QWidget*> widget,
+		const QRect &logicalRect) {
+	const auto rect = logicalRect.isEmpty() ? widget->rect() : logicalRect;
+	const auto top = widget->window();
+	auto ancestor = (widget.get() == top) ? nullptr : widget->parentWidget();
+	for (auto hop = 0; ancestor && (hop != kBackgroundOwnerHops); ++hop) {
+		const auto mapped = Ui::MapFrom(ancestor, widget, rect)
+			.intersected(ancestor->rect());
+		if (!mapped.isEmpty()) {
+			const auto unpainted = UnpaintedPermille(ancestor, mapped);
+			if (unpainted < kUnpaintedMinPermille) {
+				return u"grab %1 instead (unpainted %2/1000)"_q
+					.arg(WidgetDescription(ancestor))
+					.arg(unpainted);
+			}
+		}
+		ancestor = (ancestor == top) ? nullptr : ancestor->parentWidget();
+	}
+	return u"no ancestor within %1 parents paints a background"_q
+		.arg(kBackgroundOwnerHops);
+}
+
+[[nodiscard]] QString BlankRootDetails(
+		not_null<QWidget*> widget,
+		const QImage &image,
+		const QRect &logicalRect) {
+	if (image.isNull()
+		|| widget->testAttribute(Qt::WA_OpaquePaintEvent)
+		|| widget->testAttribute(Qt::WA_NoSystemBackground)) {
+		return QString();
+	}
+	const auto windowColor = widget->palette().color(QPalette::Window);
+	const auto matched = SampledMatchPermille(image, windowColor);
+	if (!matched) {
+		return QString();
+	}
+	const auto unpainted = UnpaintedPermille(widget, logicalRect);
+	Note(u"capture coverage: windowBrush=%1/1000 unpainted=%2/1000 "
+		u"(threshold %3/1000)"_q
+		.arg(matched)
+		.arg(unpainted)
+		.arg(kUnpaintedMinPermille));
+	if (unpainted < kUnpaintedMinPermille) {
+		return QString();
+	}
+	return u"render root paints no background of its own: %1 has neither "
+		u"Qt::WA_OpaquePaintEvent nor Qt::WA_NoSystemBackground, and %2/1000 "
+		u"sampled points were painted by neither the widget nor its "
+		u"children, so QWidget::grab() filled them with the default "
+		u"QPalette::Window brush %3 (%4/1000 of the grab reads that colour) "
+		u"- %5"_q
+		.arg(WidgetDescription(widget))
+		.arg(unpainted)
+		.arg(windowColor.name())
+		.arg(matched)
+		.arg(BackgroundOwnerDetails(widget, logicalRect));
 }
 
 } // namespace
@@ -110,6 +249,11 @@ bool CaptureWidget(not_null<QWidget*> widget, const QString &name) {
 		Fail(u"capture %1"_q.arg(name), u"grabbed image looks blank"_q);
 		return false;
 	}
+	const auto blankRoot = BlankRootDetails(widget, image, QRect());
+	if (!blankRoot.isEmpty()) {
+		Fail(u"capture %1"_q.arg(name), blankRoot);
+		return false;
+	}
 	return !SaveImage(image, name).isEmpty();
 }
 
@@ -130,6 +274,11 @@ bool CaptureRect(
 	const auto image = GrabRect(widget, logicalRect);
 	if (LooksBlank(image)) {
 		Fail(u"capture %1"_q.arg(name), u"grabbed image looks blank"_q);
+		return false;
+	}
+	const auto blankRoot = BlankRootDetails(widget, image, logicalRect);
+	if (!blankRoot.isEmpty()) {
+		Fail(u"capture %1"_q.arg(name), blankRoot);
 		return false;
 	}
 	return !SaveImage(image, name).isEmpty();
