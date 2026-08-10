@@ -26,6 +26,7 @@ struct ReactionId;
 namespace Ui {
 struct BubbleRounding;
 class RoundCheckbox;
+struct TornEdgeCache;
 } // namespace Ui
 
 namespace HistoryView {
@@ -100,9 +101,11 @@ struct HistoryMessageRichPage
 
 	Iv::Markdown::MarkdownArticle article;
 	Iv::Markdown::MarkdownArticleThinkingPaintCache thinkingPaintCache;
+	std::unique_ptr<Ui::TornEdgeCache> tornEdges;
 	rpl::lifetime highlightReadyLifetime;
 	int paletteVersion = -1;
 	TimeId registeredFormattedDateUpdate = 0;
+	bool hasUnsupportedBlocks = false;
 	mutable ClickHandlerPtr handler;
 	mutable std::optional<Iv::Markdown::MarkdownArticleHorizontalScrollHit> handlerHorizontalScrollHit;
 	mutable QPoint handlerHorizontalScrollPoint;

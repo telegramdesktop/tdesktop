@@ -456,6 +456,10 @@ PRIVATE
     ui/chat/pinned_bar.h
     ui/chat/requests_bar.cpp
     ui/chat/requests_bar.h
+    ui/chat/torn_edge.cpp
+    ui/chat/torn_edge.h
+    ui/chat/unsupported_notice.cpp
+    ui/chat/unsupported_notice.h
     ui/controls/button_labels.cpp
     ui/controls/button_labels.h
     ui/controls/call_button.cpp

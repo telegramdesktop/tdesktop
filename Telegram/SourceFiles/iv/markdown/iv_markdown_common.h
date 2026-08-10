@@ -222,6 +222,7 @@ enum class MediaActivationKind {
 	Document,
 	OpenChannel,
 	JoinChannel,
+	UnsupportedBlock,
 };
 
 struct EmbedRequest {

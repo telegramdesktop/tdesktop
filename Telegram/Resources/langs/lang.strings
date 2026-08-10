@@ -2531,6 +2531,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_message_empty" = "Empty Message";
 "lng_message_unsupported" = "This message is not supported by your version of Telegram. Please update to the latest version in Settings > Advanced, or install it from {link}. If you are already using the latest version, this message might depend on a feature that is not yet implemented.";
+"lng_unsupported_message_title" = "Unsupported Message";
+"lng_unsupported_message_text" = "Update Telegram to view this message";
+"lng_unsupported_message_update" = "Update";
+"lng_unsupported_block_title" = "Unsupported Block";
+"lng_unsupported_block_text" = "Update Telegram to view this part of the message";
 "lng_message_not_found" = "Message doesn't exist.";
 
 "lng_duration_minsec_minutes#one" = "{count} min";

@@ -1227,6 +1227,19 @@ void ClearPreparedEditSources(std::vector<PreparedBlock> *blocks) {
 	return true;
 }
 
+[[nodiscard]] bool AppendNativeIvUnsupportedNoticeBlock(
+		std::vector<PreparedBlock> *result,
+		NativeIvPrepareState *state) {
+	auto block = PreparedBlock();
+	block.kind = PreparedBlockKind::Placeholder;
+	block.placeholder.intent = PlaceholderIntent::UnsupportedBlock;
+	block.placeholder.label = tr::lng_unsupported_block_title(tr::now);
+	block.placeholder.copyText = block.placeholder.label;
+	block.placeholder.id = { .value = uint64(++state->nextGeneratedId) };
+	result->push_back(std::move(block));
+	return true;
+}
+
 [[nodiscard]] auto EmbedRequestFromCanonicalBlock(
 		const RichPageBlock &block) -> std::optional<EmbedRequest> {
 	auto request = EmbedRequest{
@@ -1819,7 +1832,10 @@ void ClearPreparedEditSources(std::vector<PreparedBlock> *blocks) {
 	}
 	switch (block.kind) {
 	case RichPageBlockKind::Unsupported:
-		return true;
+		if (!state->unsupportedBlockNotices) {
+			return true;
+		}
+		return AppendNativeIvUnsupportedNoticeBlock(result, state);
 	case RichPageBlockKind::Heading:
 		return AppendNativeIvFlowBlock(
 			result,

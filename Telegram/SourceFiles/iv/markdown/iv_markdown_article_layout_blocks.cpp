@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "spellcheck/spellcheck_highlight_syntax.h"
 
 #include "lang/lang_keys.h"
+
+#include "styles/style_chat.h"
 #include "styles/style_iv.h"
 
 #include <algorithm>
@@ -3519,19 +3521,33 @@ LaidOutBlock LayoutPlaceholderBlock(
 	}
 	block.supplementary = prepared.supplementary;
 
-	const auto &style = st.placeholder;
-	BuildOrReusePlainTextLeaf(
-		&block.labelLeaf,
-		CachedTextLeafSlot::Label,
-		prepared,
-		style.labelStyle,
-		block.labelText,
-		PlainTextMinResizeWidth(style.labelStyle),
-		context);
-	if (prepared.placeholder.embed) {
-		block.activation.kind = MediaActivationKind::Embed;
-		block.activation.embed = *prepared.placeholder.embed;
+	if (prepared.placeholder.intent == PlaceholderIntent::UnsupportedBlock) {
+		block.activation.kind = MediaActivationKind::UnsupportedBlock;
 		block.activation.placeholderId = block.placeholderId;
+		if (block.placeholderRuntime
+			&& !block.placeholderRuntime->unsupportedCard) {
+			auto card = std::make_unique<Ui::UnsupportedNoticeCard>();
+			card->setTexts(
+				tr::lng_unsupported_block_title(tr::now),
+				tr::lng_unsupported_block_text(tr::now),
+				tr::lng_unsupported_message_update(tr::now));
+			block.placeholderRuntime->unsupportedCard = std::move(card);
+		}
+	} else {
+		const auto &style = st.placeholder;
+		BuildOrReusePlainTextLeaf(
+			&block.labelLeaf,
+			CachedTextLeafSlot::Label,
+			prepared,
+			style.labelStyle,
+			block.labelText,
+			PlainTextMinResizeWidth(style.labelStyle),
+			context);
+		if (prepared.placeholder.embed) {
+			block.activation.kind = MediaActivationKind::Embed;
+			block.activation.embed = *prepared.placeholder.embed;
+			block.activation.placeholderId = block.placeholderId;
+		}
 	}
 	FillMediaCaption(
 		&block,
@@ -4648,6 +4664,41 @@ LaidOutBlock LayoutGroupedMediaBlock(
 	return block->outer.y() + block->outer.height();
 }
 
+[[nodiscard]] int LayoutUnsupportedNoticeBlockGeometry(
+		LaidOutBlock *block,
+		int left,
+		int top,
+		int width) {
+	Expects(block->placeholderRuntime != nullptr);
+	Expects(block->placeholderRuntime->unsupportedCard != nullptr);
+
+	const auto &runtime = block->placeholderRuntime;
+	const auto card = runtime->unsupportedCard.get();
+	ClearBlockGeometry(block);
+	const auto blockWidth = std::max(width, 1);
+	const auto inset = st::msgServicePadding.left();
+	const auto cardHeight = card->resizeGetHeight(
+		std::max(blockWidth - 2 * inset, 1));
+	const auto height = 2 * st::unsupportedTearAmplitude
+		+ 2 * st::unsupportedGapSkip
+		+ cardHeight;
+	const auto cardLeft = left + (blockWidth - card->width()) / 2;
+	const auto cardTop = top
+		+ st::unsupportedTearAmplitude
+		+ st::unsupportedGapSkip;
+	block->mediaRect = card->buttonRect().translated(cardLeft, cardTop);
+	block->visibleMediaRect = block->mediaRect;
+	if (runtime->ripple
+		&& runtime->rippleSize != block->mediaRect.size()) {
+		runtime->ripple = nullptr;
+		runtime->rippleSize = QSize();
+	}
+	block->contentRect = QRect(left, top, blockWidth, height);
+	block->outer = block->contentRect;
+	FinishBlockGeometry(block);
+	return block->outer.y() + block->outer.height();
+}
+
 [[nodiscard]] std::optional<int> LayoutPlaceholderBlockGeometry(
 		const PreparedBlock &prepared,
 		LaidOutBlock *block,
@@ -4656,8 +4707,13 @@ LaidOutBlock LayoutGroupedMediaBlock(
 		int top,
 		int width,
 		LayoutContext context) {
-	if (!block
-		|| MissingRetainedLeaf(prepared.placeholder.label, block->labelLeaf)) {
+	if (!block) {
+		return std::nullopt;
+	}
+	if (prepared.placeholder.intent == PlaceholderIntent::UnsupportedBlock) {
+		return LayoutUnsupportedNoticeBlockGeometry(block, left, top, width);
+	}
+	if (MissingRetainedLeaf(prepared.placeholder.label, block->labelLeaf)) {
 		return std::nullopt;
 	}
 	ClearBlockGeometry(block);

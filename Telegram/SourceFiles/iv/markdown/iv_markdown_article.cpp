@@ -1494,8 +1494,14 @@ void RebuildVisibleSegmentLookup(
 				applyActivation(segment.block->mediaBlock->activationAt(point));
 			}
 		} else {
-			applyActivation(segment.block->activation);
-			if (result.mediaActivation.kind == MediaActivationKind::Embed
+			const auto unsupported = (segment.block->activation.kind
+				== MediaActivationKind::UnsupportedBlock);
+			if (!unsupported || segment.block->mediaRect.contains(point)) {
+				applyActivation(segment.block->activation);
+			}
+			const auto kind = result.mediaActivation.kind;
+			if ((kind == MediaActivationKind::Embed
+				|| kind == MediaActivationKind::UnsupportedBlock)
 				&& segment.block->placeholderRuntime) {
 				result.state.link = segment.block->placeholderRuntime->clickHandler;
 				result.placeholderLocalPoint = point
@@ -2058,6 +2064,28 @@ void CollectButtonRowControlRects(
 			CollectButtonRowControlRects(out, block.children);
 		}
 	}
+}
+
+void CollectUnsupportedNoticeRects(
+		std::vector<QRect> *out,
+		const std::vector<LaidOutBlock> &blocks) {
+	for (const auto &block : blocks) {
+		if (block.activation.kind == MediaActivationKind::UnsupportedBlock) {
+			out->push_back(block.outer);
+		}
+	}
+}
+
+[[nodiscard]] bool PreparedBlocksHaveUnsupportedNotices(
+		const std::vector<PreparedBlock> &blocks) {
+	for (const auto &block : blocks) {
+		if ((block.kind == PreparedBlockKind::Placeholder)
+			&& (block.placeholder.intent
+				== PlaceholderIntent::UnsupportedBlock)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 [[nodiscard]] PreparedEditHit EditFallbackHitForBlock(
@@ -3830,6 +3858,8 @@ public:
 	[[nodiscard]] std::vector<MarkdownArticleMediaGeometry>
 		mediaBlockGeometries() const;
 	[[nodiscard]] std::vector<QRect> buttonRowControlRects() const;
+	[[nodiscard]] std::vector<QRect> unsupportedNoticeRects() const;
+	[[nodiscard]] bool hasUnsupportedNotices() const;
 	void setGroupedActiveIndex(
 		const PreparedEditBlockSource &source,
 		int index);
@@ -4708,6 +4738,16 @@ std::vector<QRect> MarkdownArticle::Impl::buttonRowControlRects() const {
 	return result;
 }
 
+std::vector<QRect> MarkdownArticle::Impl::unsupportedNoticeRects() const {
+	auto result = std::vector<QRect>();
+	CollectUnsupportedNoticeRects(&result, _blocks);
+	return result;
+}
+
+bool MarkdownArticle::Impl::hasUnsupportedNotices() const {
+	return PreparedBlocksHaveUnsupportedNotices(_content.blocks.blocks);
+}
+
 void MarkdownArticle::Impl::setGroupedActiveIndex(
 		const PreparedEditBlockSource &source,
 		int index) {
@@ -5454,12 +5494,14 @@ void MarkdownArticle::Impl::addPlaceholderRipple(
 	}
 	block->placeholderRuntime = runtime;
 	const auto size = block->mediaRect.size();
+	const auto radius = (block->activation.kind
+		== MediaActivationKind::UnsupportedBlock)
+		? (block->mediaRect.height() / 2)
+		: layoutStyle().placeholder.radius;
 	if (!runtime->ripple || runtime->rippleSize != size) {
 		runtime->ripple = std::make_unique<Ui::RippleAnimation>(
 			st::defaultRippleAnimation,
-			Ui::RippleAnimation::RoundRectMask(
-				size,
-				layoutStyle().placeholder.radius),
+			Ui::RippleAnimation::RoundRectMask(size, radius),
 			[=] {
 				requestPlaceholderRepaint(id);
 			});
@@ -7084,6 +7126,14 @@ MarkdownArticle::mediaBlockGeometries() const {
 
 std::vector<QRect> MarkdownArticle::buttonRowControlRects() const {
 	return _impl->buttonRowControlRects();
+}
+
+std::vector<QRect> MarkdownArticle::unsupportedNoticeRects() const {
+	return _impl->unsupportedNoticeRects();
+}
+
+bool MarkdownArticle::hasUnsupportedNotices() const {
+	return _impl->hasUnsupportedNotices();
 }
 
 void MarkdownArticle::setGroupedActiveIndex(

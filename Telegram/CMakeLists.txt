@@ -988,6 +988,8 @@ PRIVATE
     history/view/media/history_view_todo_list.h
     history/view/media/history_view_unique_gift.cpp
     history/view/media/history_view_unique_gift.h
+    history/view/media/history_view_unsupported_notice.cpp
+    history/view/media/history_view_unsupported_notice.h
     history/view/media/history_view_userpic_suggestion.cpp
     history/view/media/history_view_userpic_suggestion.h
     history/view/media/history_view_web_page.cpp

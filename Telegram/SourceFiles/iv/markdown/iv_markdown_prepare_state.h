@@ -55,6 +55,7 @@ struct NativeIvPrepareState {
 	MarkdownPrepareDimensions dimensions;
 	MarkdownPrepareTableRenderLimits tableRenderLimits;
 	bool editMode = false;
+	bool unsupportedBlockNotices = false;
 	int nextGeneratedId = 0;
 	int nextFormulaIndex = 0;
 

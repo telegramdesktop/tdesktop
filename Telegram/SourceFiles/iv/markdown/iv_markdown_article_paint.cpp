@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 
 #include "styles/palette.h"
+#include "styles/style_chat.h"
 #include "styles/style_iv.h"
 #include "styles/style_window.h"
 #include "styles/style_widgets.h"
@@ -2140,12 +2141,34 @@ void PaintCodeBlock(
 	PaintHorizontalScrollbar(p, block, st, context);
 }
 
+bool PaintUnsupportedNoticeBlock(
+		Painter &p,
+		const LaidOutBlock &block,
+		const MarkdownArticlePaintContext &context) {
+	if (block.activation.kind != MediaActivationKind::UnsupportedBlock) {
+		return false;
+	}
+	const auto &runtime = block.placeholderRuntime;
+	Assert(runtime != nullptr);
+	Assert(runtime->unsupportedCard != nullptr);
+
+	const auto card = runtime->unsupportedCard.get();
+	const auto cardRect = QRect(
+		block.mediaRect.topLeft() - card->buttonRect().topLeft(),
+		QSize(card->width(), card->height()));
+	card->paint(p, context, cardRect, runtime->ripple.get());
+	return true;
+}
+
 void PaintPlaceholderBlock(
 		Painter &p,
 		const LaidOutBlock &block,
 		int outerWidth,
 		const style::Markdown &st,
 		const MarkdownArticlePaintContext &context) {
+	if (PaintUnsupportedNoticeBlock(p, block, context)) {
+		return;
+	}
 	const auto &paintSt = PaintStyle(context, st);
 	PaintRevealBand(
 		p,

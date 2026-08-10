@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_custom_emoji.h"
 #include "history/view/media/history_view_no_forwards_request.h"
 #include "history/view/media/history_view_suggest_decision.h"
+#include "history/view/media/history_view_unsupported_notice.h"
 #include "history/view/reactions/history_view_reactions_button.h"
 #include "history/view/history_view_reply_button.h"
 #include "history/view/reactions/history_view_reactions.h"
@@ -47,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/section_widget.h"
 #include "ui/chat/chat_style.h"
+#include "ui/chat/torn_edge.h"
 #include "ui/effects/glare.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/effects/reaction_fly_animation.h"
@@ -1693,6 +1695,8 @@ void Element::refreshMedia(Element *replacing) {
 		} else {
 			_media = nullptr;
 		}
+	} else if (item->isLegacyMessage() && !item->richPage()) {
+		_media = std::make_unique<UnsupportedNotice>(this);
 	} else {
 		_media = nullptr;
 	}
@@ -2024,13 +2028,22 @@ void Element::validateText() {
 				layoutSt),
 			.tableRenderLimits = Iv::Markdown::PrepareTableRenderLimitsForRichMessage(
 				richLimits),
+			.unsupportedBlockNotices = true,
 		});
 		if (!prepared.supported()) {
 			clearRichPage();
+			if (data()->isLegacyMessage() && !_media) {
+				_media = std::make_unique<UnsupportedNotice>(this);
+			}
 			return;
 		}
 		ClickHandler::clearActive(this);
 		runtime->article.setContent(std::move(prepared.content));
+		runtime->hasUnsupportedBlocks
+			= runtime->article.hasUnsupportedNotices();
+		if (!runtime->hasUnsupportedBlocks) {
+			runtime->tornEdges = nullptr;
+		}
 		runtime->handler = nullptr;
 		runtime->handlerPreparedLink = std::nullopt;
 		runtime->handlerMediaActivation = {};

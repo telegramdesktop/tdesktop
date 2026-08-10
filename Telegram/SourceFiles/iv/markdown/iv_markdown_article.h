@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_map.h"
 #include "spellcheck/spellcheck_highlight_syntax.h"
 #include "ui/chat/chat_style.h"
+#include "ui/chat/unsupported_notice.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/style/style_core_types.h"
@@ -48,6 +49,7 @@ struct PlaceholderBlockRuntime {
 	Ui::InfiniteRadialAnimation loadingAnimation;
 	std::unique_ptr<Ui::RippleAnimation> ripple;
 	QSize rippleSize;
+	std::unique_ptr<Ui::UnsupportedNoticeCard> unsupportedCard;
 };
 
 struct TaskMarkerRippleRuntime {
@@ -484,6 +486,8 @@ public:
 	[[nodiscard]] std::vector<MarkdownArticleMediaGeometry>
 		mediaBlockGeometries() const;
 	[[nodiscard]] std::vector<QRect> buttonRowControlRects() const;
+	[[nodiscard]] std::vector<QRect> unsupportedNoticeRects() const;
+	[[nodiscard]] bool hasUnsupportedNotices() const;
 	void setGroupedActiveIndex(
 		const PreparedEditBlockSource &source,
 		int index);

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/cached_round_corners.h"
 #include "ui/image/image_prepare.h"
 #include "ui/chat/chat_style.h"
+#include "ui/chat/torn_edge.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_style.h"
 
@@ -17,6 +18,54 @@ namespace Ui {
 namespace {
 
 using Corner = BubbleCornerRounding;
+
+[[nodiscard]] bool UsePatternBubble(const SimpleBubble &args) {
+	return !args.selected
+		&& args.outbg
+		&& args.pattern
+		&& !args.patternViewport.isEmpty()
+		&& !args.pattern->pixmap.size().isEmpty();
+}
+
+[[nodiscard]] float64 PatternBubbleOpacity(
+		const SimpleBubble &args,
+		float64 wasOpacity) {
+	return args.st->msgOutBg()->c.alphaF() * wasOpacity;
+}
+
+void PaintBubblePiece(
+		QPainter &p,
+		const SimpleBubble &args,
+		QRect geometry,
+		bool fromTop,
+		bool tillBottom) {
+	auto simple = args;
+	simple.geometry = geometry;
+	if (!fromTop) {
+		simple.rounding.topLeft
+			= simple.rounding.topRight
+			= Corner::None;
+	}
+	if (!tillBottom) {
+		simple.rounding.bottomLeft
+			= simple.rounding.bottomRight
+			= Corner::None;
+		simple.shadowed = false;
+	}
+	PaintBubble(p, simple);
+}
+
+void PaintBubblePiece(
+		QPainter &p,
+		const SimpleBubble &args,
+		QRect geometry,
+		bool selected,
+		bool fromTop,
+		bool tillBottom) {
+	auto simple = args;
+	simple.selected = selected;
+	PaintBubblePiece(p, simple, geometry, fromTop, tillBottom);
+}
 
 template <
 	typename FillBg, // fillBg(QRect rect)
@@ -158,7 +207,7 @@ void PaintBubbleGeneric(
 
 void PaintPatternBubble(QPainter &p, const SimpleBubble &args) {
 	const auto wasOpacity = p.opacity();
-	const auto opacity = args.st->msgOutBg()->c.alphaF() * wasOpacity;
+	const auto opacity = PatternBubbleOpacity(args, wasOpacity);
 	const auto shadowOpacity = opacity * args.st->msgOutShadow()->c.alphaF();
 	const auto pattern = args.pattern;
 	const auto &tail = (args.rounding.bottomRight == Corner::Tail)
@@ -297,11 +346,7 @@ void FinishBubblePatternOnMain(not_null<BubblePattern*> pattern) {
 }
 
 void PaintBubble(QPainter &p, const SimpleBubble &args) {
-	if (!args.selected
-		&& args.outbg
-		&& args.pattern
-		&& !args.patternViewport.isEmpty()
-		&& !args.pattern->pixmap.size().isEmpty()) {
+	if (UsePatternBubble(args)) {
 		PaintPatternBubble(p, args);
 	} else {
 		PaintSolidBubble(p, args);
@@ -318,37 +363,20 @@ void PaintBubble(QPainter &p, const ComplexBubble &args) {
 	const auto width = rect.width();
 	const auto top = rect.y();
 	const auto bottom = top + rect.height();
-	const auto paintOne = [&](
-			QRect geometry,
-			bool selected,
-			bool fromTop,
-			bool tillBottom) {
-		auto simple = args.simple;
-		simple.geometry = geometry;
-		simple.selected = selected;
-		if (!fromTop) {
-			simple.rounding.topLeft
-				= simple.rounding.topRight
-				= Corner::None;
-		}
-		if (!tillBottom) {
-			simple.rounding.bottomLeft
-				= simple.rounding.bottomRight
-				= Corner::None;
-			simple.shadowed = false;
-		}
-		PaintBubble(p, simple);
-	};
 	auto from = top;
 	for (const auto &selected : args.selection) {
 		if (selected.top > from) {
-			paintOne(
+			PaintBubblePiece(
+				p,
+				args.simple,
 				QRect(left, from, width, selected.top - from),
 				false,
 				(from <= top),
 				false);
 		}
-		paintOne(
+		PaintBubblePiece(
+			p,
+			args.simple,
 			QRect(left, selected.top, width, selected.height),
 			true,
 			(selected.top <= top),
@@ -356,9 +384,103 @@ void PaintBubble(QPainter &p, const ComplexBubble &args) {
 		from = selected.top + selected.height;
 	}
 	if (from < bottom) {
-		paintOne(
+		PaintBubblePiece(
+			p,
+			args.simple,
 			QRect(left, from, width, bottom - from),
 			false,
+			false,
+			true);
+	}
+}
+
+void PaintBubble(QPainter &p, const BubbleWithGaps &args) {
+	if (args.gaps.empty()) {
+		PaintBubble(p, args.simple);
+		return;
+	}
+	const auto rect = args.simple.geometry;
+	const auto left = rect.x();
+	const auto width = rect.width();
+	const auto top = rect.y();
+	const auto bottom = top + rect.height();
+	const auto pattern = UsePatternBubble(args.simple);
+	const auto paintStrip = [&](
+			const QImage &mask,
+			QImage &patternCache,
+			QImage &solidCache,
+			QColor &solidColor,
+			int y) {
+		const auto target = QRect(
+			left,
+			y,
+			width,
+			mask.height() / int(mask.devicePixelRatio()));
+		if (pattern) {
+			const auto wasOpacity = p.opacity();
+			p.setOpacity(PatternBubbleOpacity(args.simple, wasOpacity));
+			PaintPatternBubblePart(
+				p,
+				args.simple.patternViewport,
+				args.simple.pattern->pixmap,
+				target,
+				mask,
+				patternCache);
+			p.setOpacity(wasOpacity);
+		} else {
+			const auto &st = args.simple.st->messageStyle(
+				args.simple.outbg,
+				args.simple.selected);
+			const auto color = st.msgBg->c;
+			if (solidCache.size() != mask.size() || solidColor != color) {
+				if (solidCache.size() != mask.size()) {
+					solidCache = QImage(
+						mask.size(),
+						QImage::Format_ARGB32_Premultiplied);
+					solidCache.setDevicePixelRatio(mask.devicePixelRatio());
+				}
+				style::colorizeImage(mask, color, &solidCache);
+				solidColor = color;
+			}
+			p.drawImage(target, solidCache);
+		}
+	};
+	const auto torn = args.torn;
+	const auto stripHeight = torn->maskTop.height()
+		/ int(torn->maskTop.devicePixelRatio());
+	auto from = top;
+	for (const auto &gap : args.gaps) {
+		const auto gapTop = gap.top;
+		const auto gapBottom = gap.top + gap.height;
+		if (gapTop > from) {
+			PaintBubblePiece(
+				p,
+				args.simple,
+				QRect(left, from, width, gapTop - from),
+				(from <= top),
+				false);
+			paintStrip(
+				torn->maskBottom,
+				torn->patternCacheBottom,
+				torn->solidCacheBottom,
+				torn->solidColorBottom,
+				gapTop);
+		}
+		if (gapBottom < bottom) {
+			paintStrip(
+				torn->maskTop,
+				torn->patternCacheTop,
+				torn->solidCacheTop,
+				torn->solidColorTop,
+				gapBottom - stripHeight);
+		}
+		from = gapBottom;
+	}
+	if (from < bottom) {
+		PaintBubblePiece(
+			p,
+			args.simple,
+			QRect(left, from, width, bottom - from),
 			false,
 			true);
 	}

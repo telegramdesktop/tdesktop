@@ -661,8 +661,14 @@ struct PreparedGroupedMediaBlockData {
 	bool editMode = false;
 };
 
+enum class PlaceholderIntent : uchar {
+	EmbedView,
+	UnsupportedBlock,
+};
+
 struct PreparedPlaceholderBlockData {
 	PreparedPlaceholderBlockId id;
+	PlaceholderIntent intent = PlaceholderIntent::EmbedView;
 	QString label;
 	QString copyText;
 	std::optional<EmbedRequest> embed;
@@ -838,6 +844,7 @@ struct NativeInstantViewPrepareRequest {
 	std::optional<MarkdownPrepareDimensions> dimensionsOverride;
 	std::optional<MarkdownPrepareTableRenderLimits> tableRenderLimits;
 	bool editMode = false;
+	bool unsupportedBlockNotices = false;
 };
 
 struct MarkdownArticleContent {

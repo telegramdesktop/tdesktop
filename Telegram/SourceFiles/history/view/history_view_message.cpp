@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/click_handler_types.h" // ClickHandlerContext
 #include "core/ui_integration.h"
+#include "core/update_checker.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
@@ -37,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_preview_box.h"
 #include "boxes/share_box.h"
 #include "boxes/peers/tag_info_box.h"
+#include "ui/chat/torn_edge.h"
 #include "ui/effects/reaction_fly_animation.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text_utilities.h"
@@ -919,6 +921,9 @@ void Message::activateRichPageMedia(
 		if (activation.channel) {
 			activation.channel->join(context.button);
 		}
+		break;
+	case MediaActivationKind::UnsupportedBlock:
+		Core::UpdateApplication();
 		break;
 	}
 }
@@ -1876,21 +1881,53 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		if (from && (_fromNameVersion < from->nameVersion())) {
 			fromNameUpdated(g.width());
 		}
-		Ui::PaintBubble(
-			p,
-			Ui::ComplexBubble{
-				.simple = Ui::SimpleBubble{
-					.st = context.st,
-					.geometry = g,
-					.pattern = context.bubblesPattern,
-					.patternViewport = context.viewport,
-					.outerWidth = width(),
-					.selected = context.selected(),
-					.outbg = context.outbg,
-					.rounding = countBubbleRounding(messageRounding),
-				},
-				.selection = mediaSelectionIntervals,
-			});
+		const auto simple = Ui::SimpleBubble{
+			.st = context.st,
+			.geometry = g,
+			.pattern = context.bubblesPattern,
+			.patternViewport = context.viewport,
+			.outerWidth = width(),
+			.selected = context.selected(),
+			.outbg = context.outbg,
+			.rounding = countBubbleRounding(messageRounding),
+		};
+		const auto rich = const_cast<Message*>(this)->richpage();
+		auto richPageGaps = std::vector<Ui::BubbleSelectionInterval>();
+		if (rich && rich->hasUnsupportedBlocks) {
+			auto richTrect = QRect();
+			if (prepareRichPageTextRect(richTrect)) {
+				const auto origin = richPageRect(richTrect).topLeft();
+				const auto rects = rich->article.unsupportedNoticeRects();
+				richPageGaps.reserve(rects.size());
+				for (const auto &notice : rects) {
+					const auto mapped = notice.translated(origin);
+					richPageGaps.push_back({
+						mapped.y(),
+						mapped.height(),
+					});
+				}
+			}
+		}
+		if (!richPageGaps.empty()) {
+			if (!rich->tornEdges) {
+				rich->tornEdges = std::make_unique<Ui::TornEdgeCache>();
+			}
+			Ui::ValidateTornEdges(*rich->tornEdges, g.width());
+			Ui::PaintBubble(
+				p,
+				Ui::BubbleWithGaps{
+					.simple = simple,
+					.gaps = richPageGaps,
+					.torn = rich->tornEdges.get(),
+				});
+		} else {
+			Ui::PaintBubble(
+				p,
+				Ui::ComplexBubble{
+					.simple = simple,
+					.selection = mediaSelectionIntervals,
+				});
+		}
 
 		auto inner = g;
 		paintCommentsButton(p, inner, context);

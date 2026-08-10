@@ -772,6 +772,18 @@ msgServiceGiftThemeStickerSize: 64px;
 msgServiceGiftThemeStickerPadding: margins(18px, 18px, 18px, 18px);
 msgServiceCommunityAddedPhoto: 66px; // About 2/3 of msgServicePhotoWidth.
 
+unsupportedNoticePadding: margins(12px, 7px, 12px, 7px);
+unsupportedNoticeBadgeSize: 44px;
+unsupportedNoticeBadgeSkip: 10px;
+unsupportedNoticeButtonHeight: 30px;
+unsupportedNoticeButtonPadding: margins(12px, 0px, 12px, 0px);
+unsupportedNoticeRadius: 10px;
+unsupportedNoticeMaxWidth: 430px;
+unsupportedGapSkip: 10px;
+unsupportedTearAmplitude: 5px;
+unsupportedTearPeriod: 20px;
+unsupportedNoticePlane: icon{{ "chat/unsupported_plane", msgServiceFg }};
+
 historySponsorInfoItem: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
 		font: font(12px);
