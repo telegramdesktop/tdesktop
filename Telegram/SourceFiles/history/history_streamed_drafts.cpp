@@ -39,17 +39,34 @@ constexpr auto kClearTimeout = 30 * crl::time(1000);
 	return top ? top : Data::ForumTopic::kGeneralId;
 }
 
-[[nodiscard]] MsgId ThreadRootId(const MTPDmessage &data) {
-	auto result = MsgId(0);
+struct ThreadKeys {
+	MsgId primary = 0;
+	MsgId secondary = 0;
+};
+
+[[nodiscard]] ThreadKeys ThreadRootIds(const MTPDmessage &data) {
+	auto result = ThreadKeys();
 	if (const auto reply = data.vreply_to()) {
 		reply->match([&](const MTPDmessageReplyHeader &d) {
-			result = d.vreply_to_top_id().value_or_empty();
-			if (!result && d.is_forum_topic()) {
-				result = d.vreply_to_msg_id().value_or_empty();
+			const auto replyToMsgId = d.vreply_to_msg_id().value_or_empty();
+			result.primary = d.vreply_to_top_id().value_or_empty();
+			if (!d.vreply_to_peer_id()
+				&& !d.is_reply_to_scheduled()
+				&& !d.is_reply_to_ephemeral()) {
+				result.secondary = replyToMsgId;
+			}
+			if (!result.primary && d.is_forum_topic()) {
+				result.primary = replyToMsgId;
 			}
 		}, [](const MTPDmessageReplyStoryHeader &) {});
 	}
-	return result ? result : Data::ForumTopic::kGeneralId;
+	if (!result.primary) {
+		result.primary = Data::ForumTopic::kGeneralId;
+	}
+	if (result.secondary == result.primary) {
+		result.secondary = 0;
+	}
+	return result;
 }
 
 } // namespace
@@ -354,7 +371,7 @@ HistoryItem *HistoryStreamedDrafts::adoptIncoming(
 	const auto fromId = data.vfrom_id()
 		? peerFromMTP(*data.vfrom_id())
 		: _history->peer->id;
-	const auto rootId = ThreadRootId(data);
+	const auto keys = ThreadRootIds(data);
 	auto incomingKind = DraftKind::Text;
 	auto incomingText = qs(data.vmessage());
 	if (const auto richMessage = data.vrich_message()) {
@@ -363,63 +380,73 @@ HistoryItem *HistoryStreamedDrafts::adoptIncoming(
 			Iv::ParseRichPage(&_history->session(), *richMessage)).text;
 	}
 	auto best = end(_drafts);
-	if (incomingKind == DraftKind::Rich && incomingText.isEmpty()) {
-		for (auto i = begin(_drafts); i != end(_drafts); ++i) {
-			const auto &draft = i->second;
-			if (draft.rootId != rootId) {
-				continue;
-			}
-			if (draft.fromId != fromId) {
-				continue;
-			}
-			if (draft.kind != DraftKind::Rich) {
-				continue;
-			}
-			if (best == end(_drafts) || draft.updated > best->second.updated) {
-				best = i;
-			}
+	for (const auto rootId : { keys.primary, keys.secondary }) {
+		if (!rootId) {
+			break;
 		}
-	} else {
-		auto bestSameKind = end(_drafts);
-		auto bestSameKindPrefix = 0;
-		auto bestOtherKind = end(_drafts);
-		auto bestOtherKindPrefix = 0;
-		auto newestSameThreadRich = end(_drafts);
-		for (auto i = begin(_drafts); i != end(_drafts); ++i) {
-			const auto &draft = i->second;
-			if (draft.rootId != rootId) {
-				continue;
-			}
-			if (draft.fromId != fromId) {
-				continue;
-			}
-			if (incomingKind == DraftKind::Rich
-				&& draft.kind == DraftKind::Rich
-				&& (newestSameThreadRich == end(_drafts)
-					|| draft.updated > newestSameThreadRich->second.updated)) {
-				newestSameThreadRich = i;
-			}
-			const auto prefix = CommonPrefixLength(
-				draft.matchText,
-				incomingText);
-			if (prefix <= 0) {
-				continue;
-			}
-			if (draft.kind == incomingKind) {
-				if (prefix > bestSameKindPrefix) {
-					bestSameKindPrefix = prefix;
-					bestSameKind = i;
+		if (incomingKind == DraftKind::Rich && incomingText.isEmpty()) {
+			for (auto i = begin(_drafts); i != end(_drafts); ++i) {
+				const auto &draft = i->second;
+				if (draft.rootId != rootId) {
+					continue;
 				}
-			} else if (prefix > bestOtherKindPrefix) {
-				bestOtherKindPrefix = prefix;
-				bestOtherKind = i;
+				if (draft.fromId != fromId) {
+					continue;
+				}
+				if (draft.kind != DraftKind::Rich) {
+					continue;
+				}
+				if (best == end(_drafts)
+					|| draft.updated > best->second.updated) {
+					best = i;
+				}
 			}
+		} else {
+			auto bestSameKind = end(_drafts);
+			auto bestSameKindPrefix = 0;
+			auto bestOtherKind = end(_drafts);
+			auto bestOtherKindPrefix = 0;
+			auto newestSameThreadRich = end(_drafts);
+			for (auto i = begin(_drafts); i != end(_drafts); ++i) {
+				const auto &draft = i->second;
+				if (draft.rootId != rootId) {
+					continue;
+				}
+				if (draft.fromId != fromId) {
+					continue;
+				}
+				if (incomingKind == DraftKind::Rich
+					&& draft.kind == DraftKind::Rich
+					&& (newestSameThreadRich == end(_drafts)
+						|| draft.updated
+							> newestSameThreadRich->second.updated)) {
+					newestSameThreadRich = i;
+				}
+				const auto prefix = CommonPrefixLength(
+					draft.matchText,
+					incomingText);
+				if (prefix <= 0) {
+					continue;
+				}
+				if (draft.kind == incomingKind) {
+					if (prefix > bestSameKindPrefix) {
+						bestSameKindPrefix = prefix;
+						bestSameKind = i;
+					}
+				} else if (prefix > bestOtherKindPrefix) {
+					bestOtherKindPrefix = prefix;
+					bestOtherKind = i;
+				}
+			}
+			best = (bestSameKind != end(_drafts))
+				? bestSameKind
+				: (bestOtherKind != end(_drafts))
+				? bestOtherKind
+				: newestSameThreadRich;
 		}
-		best = (bestSameKind != end(_drafts))
-			? bestSameKind
-			: (bestOtherKind != end(_drafts))
-			? bestOtherKind
-			: newestSameThreadRich;
+		if (best != end(_drafts)) {
+			break;
+		}
 	}
 	if (best == end(_drafts)) {
 		return nullptr;

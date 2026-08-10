@@ -772,7 +772,8 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 		: std::min(addedToEndCount, int(_items.size()));
 	for (auto e = end(_items), i = e - revealCount; i != e; ++i) {
 		const auto item = (*i)->data();
-		if (!item->history()->streamedDrafts().hasFor(item)) {
+		const auto streamed = item->history()->streamedDraftsIfExists();
+		if (!streamed || !streamed->hasFor(item)) {
 			_itemRevealPending.emplace(*i);
 		}
 	}

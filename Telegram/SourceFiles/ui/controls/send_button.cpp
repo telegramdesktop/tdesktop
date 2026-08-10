@@ -348,9 +348,7 @@ void SendButton::paintStop(QPainter &p, bool over) {
 			(height() - size.height()) / 2),
 		size);
 	p.setPen(Qt::NoPen);
-	p.setBrush((isDisabled() || !over)
-		? st::historyRecordVoiceFg
-		: st::historyRecordVoiceFgOver);
+	p.setBrush(over ? st::historySendIconFgOver : st::historySendIconFg);
 	p.drawRoundedRect(inner, _st.stopRadius, _st.stopRadius);
 }
 

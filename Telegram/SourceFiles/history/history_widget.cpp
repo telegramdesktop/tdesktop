@@ -4380,7 +4380,8 @@ void HistoryWidget::newItemAdded(not_null<HistoryItem*> item) {
 		}
 		return;
 	}
-	if (!item->history()->streamedDrafts().hasFor(item)) {
+	const auto streamed = item->history()->streamedDraftsIfExists();
+	if (!streamed || !streamed->hasFor(item)) {
 		_itemRevealPending.emplace(item);
 	}
 }
