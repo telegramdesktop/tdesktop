@@ -822,6 +822,7 @@ private:
 		bool timerFolded = false;
 		bool timerSeparate = false;
 		int topSkip = 0;
+		int dateInfoSkip = 0;
 		int textY = 0;
 		int timerY = 0;
 		int totalHeight = 0;
@@ -938,7 +939,7 @@ auto Poll::Footer::computeLayout(int innerWidth) const -> Layout {
 			break;
 		}
 	}
-	const auto dateInfoPad = (bottomW > 0
+	result.dateInfoSkip = (bottomW > 0
 		&& centeredOverlapsInfo(bottomW, innerWidth))
 		? lineHeight
 		: 0;
@@ -947,7 +948,7 @@ auto Poll::Footer::computeLayout(int innerWidth) const -> Layout {
 		+ buttonSkip
 		+ lineHeight
 		+ (result.timerSeparate ? lineHeight : 0)
-		+ dateInfoPad
+		+ result.dateInfoSkip
 		+ st::msgPadding.bottom();
 
 	return result;
@@ -1114,7 +1115,7 @@ TextState Poll::Footer::textState(
 		return result;
 	}
 	if (point.y() < layout.topSkip
-		|| point.y() >= layout.totalHeight) {
+		|| point.y() >= layout.totalHeight - layout.dateInfoSkip) {
 		return result;
 	}
 	_owner->_lastLinkPoint = point;
@@ -1142,9 +1143,14 @@ void Poll::Footer::toggleLinkRipple(bool pressed) {
 			- st::msgPadding.right();
 		const auto layout = computeLayout(innerWidth);
 		const auto rippleTop = layout.topSkip;
-		const auto linkHeight = layout.totalHeight - rippleTop;
+		const auto linkHeight = layout.totalHeight
+			- rippleTop
+			- (layout.dateInfoSkip
+				? (layout.dateInfoSkip + st::historyPollRippleDateInfoSkip)
+				: 0);
 		if (!_linkRipple) {
-			auto mask = _owner->isRoundedInBubbleBottom()
+			auto mask = (_owner->isRoundedInBubbleBottom()
+				&& !layout.dateInfoSkip)
 				? static_cast<Message*>(_owner->_parent.get())
 					->bottomRippleMask(linkHeight)
 				: BottomRippleMask{
