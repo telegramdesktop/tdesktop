@@ -1720,6 +1720,12 @@ ProxiesBoxController::ProxiesBoxController(not_null<Main::Account*> account)
 	}
 }
 
+ProxyData ProxiesBoxController::ProxyFromLink(const QString &link) {
+	const auto trimmed = link.trimmed();
+	const auto converted = Core::TryConvertUrlToLocal(trimmed);
+	return ProxyDataFromLocalUrl(converted.isEmpty() ? trimmed : converted);
+}
+
 void ProxiesBoxController::ShowApplyConfirmation(
 		Window::SessionController *controller,
 		Type type,

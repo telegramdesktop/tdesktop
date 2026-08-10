@@ -46,6 +46,8 @@ public:
 		Type type,
 		const QMap<QString, QString> &fields);
 
+	[[nodiscard]] static ProxyData ProxyFromLink(const QString &link);
+
 	static object_ptr<Ui::BoxContent> CreateOwningBox(
 		not_null<Main::Account*> account,
 		const QString &highlightId = QString());
