@@ -312,13 +312,17 @@ void SetRowAmount(
 		.margin = st::walletRowIconMargin,
 	}));
 	minor->setMarkedText(std::move(minorText), helper.context());
-	const auto color = pending
-		? st::windowSubTextFg->c
+	const auto &color = pending
+		? st::windowSubTextFg
 		: incoming
-		? st::boxTextFgGood->c
-		: st::windowBoldFg->c;
-	major->setTextColorOverride(color);
-	minor->setTextColorOverride(color);
+		? st::boxTextFgGood
+		: st::windowBoldFg;
+	rpl::single(rpl::empty) | rpl::then(
+		style::PaletteChanged()
+	) | rpl::on_next([=] {
+		major->setTextColorOverride(color->c);
+		minor->setTextColorOverride(color->c);
+	}, major->lifetime());
 }
 
 void AddHistoryRow(
