@@ -74,6 +74,9 @@ public:
 	explicit SavedWindows(not_null<Core::Application*> app);
 	~SavedWindows();
 
+	[[nodiscard]] bool enabled() const;
+	void setEnabled(bool enabled);
+
 	void attachToWindow(not_null<Controller*> window);
 	void scheduleSave();
 	void writeNow();

@@ -65,6 +65,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_controller.h"
+#include "window/window_saved_windows.h"
 #include "window/window_session_controller.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -743,6 +744,28 @@ void BuildSystemIntegrationSection(SectionBuilder &builder) {
 				minimized->setChecked(minimizedToggled());
 			}, minimized->lifetime());
 		}
+	}
+
+	const auto restoreWindows = builder.addCheckbox({
+		.id = u"advanced/restore_windows"_q,
+		.title = tr::lng_settings_restore_windows(),
+		.checked = Core::App().savedWindows()->enabled(),
+		.keywords = {
+			u"restore"_q,
+			u"windows"_q,
+			u"launch"_q,
+			u"startup"_q,
+			u"reopen"_q,
+			u"session"_q,
+		},
+	});
+	if (restoreWindows) {
+		restoreWindows->checkedChanges(
+		) | rpl::filter([=](bool checked) {
+			return (checked != Core::App().savedWindows()->enabled());
+		}) | rpl::on_next([=](bool checked) {
+			Core::App().savedWindows()->setEnabled(checked);
+		}, restoreWindows->lifetime());
 	}
 
 	if (Platform::IsWindows() && !Platform::IsWindowsStoreBuild()) {

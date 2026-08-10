@@ -45,6 +45,7 @@ constexpr auto kMaxSavedWindows = 64;
 constexpr auto kMaxSavedChats = 64;
 constexpr auto kVersion = 3;
 constexpr auto kPrefKey = std::string_view("windows_state");
+constexpr auto kEnabledKey = std::string_view("windows_state.enabled");
 
 [[nodiscard]] bool ValidType(int type) {
 	switch (SeparateType(type)) {
@@ -318,10 +319,31 @@ struct SavedWindows::BatchResolve {
 SavedWindows::SavedWindows(not_null<Core::Application*> app)
 : _app(app)
 , _saveTimer([=] { save(); }) {
-	_toRestore = Deserialize(app->settings().readPref<QByteArray>(kPrefKey));
+	if (enabled()) {
+		_toRestore = Deserialize(
+			app->settings().readPref<QByteArray>(kPrefKey));
+	}
 }
 
 SavedWindows::~SavedWindows() = default;
+
+bool SavedWindows::enabled() const {
+	return _app->settings().readPref<bool>(kEnabledKey, true);
+}
+
+void SavedWindows::setEnabled(bool enabled) {
+	if (this->enabled() == enabled) {
+		return;
+	}
+	_app->settings().writePref<bool>(kEnabledKey, enabled);
+	if (enabled) {
+		scheduleSave();
+	} else {
+		_saveTimer.cancel();
+		_toRestore.clear();
+		_app->settings().writePref<QByteArray>(kPrefKey, QByteArray());
+	}
+}
 
 void SavedWindows::attachToWindow(not_null<Controller*> window) {
 	scheduleSave();
@@ -338,7 +360,7 @@ void SavedWindows::attachToWindow(not_null<Controller*> window) {
 }
 
 void SavedWindows::scheduleSave() {
-	if (Core::Quitting()) {
+	if (Core::Quitting() || !enabled()) {
 		return;
 	}
 	_saveTimer.callOnce(kSaveDelay);
@@ -350,6 +372,9 @@ void SavedWindows::writeNow() {
 }
 
 void SavedWindows::save() {
+	if (!enabled()) {
+		return;
+	}
 	_app->settings().writePref<QByteArray>(kPrefKey, collect());
 }
 
@@ -441,7 +466,7 @@ std::optional<SavedWindow> SavedWindows::serializeWindow(
 }
 
 void SavedWindows::startRestore() {
-	if (_toRestore.empty()) {
+	if (!enabled() || _toRestore.empty()) {
 		_restoreFinished = true;
 		return;
 	}
