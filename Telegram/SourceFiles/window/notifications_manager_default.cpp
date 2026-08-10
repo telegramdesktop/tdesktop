@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "core/application.h"
 #include "core/ui_integration.h"
+#include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/message_field.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
@@ -1119,10 +1120,23 @@ void Notification::showReplyField() {
 	_replyArea->setMaxLength(
 		Data::PremiumLimits(&_item->history()->session()).messageLengthCurrent());
 	_replyArea->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
+	const auto session = &_item->history()->session();
 	InitMessageFieldHandlers({
-		.session = &_item->history()->session(),
+		.session = session,
 		.field = _replyArea.data(),
 	});
+	const auto peer = _item->history()->peer;
+	Ui::Emoji::SuggestionsController::Init(
+		this,
+		_replyArea.data(),
+		session,
+		{
+			.suggestCustomEmoji = true,
+			.allowCustomWithoutPremium = [=](
+					not_null<DocumentData*> emoji) {
+				return Data::AllowEmojiWithoutPremium(peer, emoji);
+			},
+		});
 
 	// Catch mouse press event to activate the window.
 	QCoreApplication::instance()->installEventFilter(this);
