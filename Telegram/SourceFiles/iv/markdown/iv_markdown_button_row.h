@@ -68,6 +68,11 @@ struct RichButtonPillColors {
 	float64 tintBgOpacity,
 	bool primary);
 
+[[nodiscard]] RichButtonPillColors PrimaryPillColors(
+	const style::Markdown &st,
+	QColor bg,
+	QColor ripple);
+
 [[nodiscard]] int ButtonRowMinWidth(
 	int count,
 	const style::MarkdownButtonRow &st);

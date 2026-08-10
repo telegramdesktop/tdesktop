@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animation_value.h"
 #include "ui/style/style_core_scale.h"
 
+#include "styles/palette.h"
 #include "styles/style_chat.h"
 #include "styles/style_iv.h"
 #include "styles/style_widgets.h"
@@ -236,13 +237,10 @@ void ApplyButtonFallbackLadder(
 	const auto &st = markdownSt.buttonRow;
 	switch (color) {
 	case ButtonColor::Primary:
-		return (st.primaryBg->c == markdownSt.textColor->c)
-			? BubbleGradientPillColors(markdownSt, st.tintBgOpacity, true)
-			: RichButtonPillColors{
-				.bg = st.primaryBg->c,
-				.ripple = st.primaryRipple->c,
-				.fg = markdownSt.textColor->c,
-			};
+		return PrimaryPillColors(
+			markdownSt,
+			st.primaryBg->c,
+			st.primaryRipple->c);
 	case ButtonColor::Success:
 		return {
 			.bg = anim::with_alpha(st.successFg->c, st.tintBgOpacity),
@@ -615,6 +613,20 @@ RichButtonPillColors BubbleGradientPillColors(
 			.bg = anim::with_alpha(foreground, tintBgOpacity),
 			.ripple = ripple,
 			.fg = foreground,
+		};
+}
+
+RichButtonPillColors PrimaryPillColors(
+		const style::Markdown &st,
+		QColor bg,
+		QColor ripple) {
+	const auto fg = st::activeButtonFg->c;
+	return (bg == fg)
+		? BubbleGradientPillColors(st, 0., true)
+		: RichButtonPillColors{
+			.bg = bg,
+			.ripple = ripple,
+			.fg = fg,
 		};
 }
 

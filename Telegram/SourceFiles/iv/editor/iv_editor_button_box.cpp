@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_iv.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
+#include "styles/style_widgets.h"
 
 #include <QtGui/QMouseEvent>
 #include <QtGui/QPaintEvent>
@@ -297,7 +298,7 @@ void EditRichButtonBox(
 	const auto label = box->addRow(
 		object_ptr<Ui::InputField>(
 			box,
-			st::ivEditorInputField,
+			st::ivFormulaSourceField,
 			Ui::InputField::Mode::SingleLine,
 			nullptr,
 			ConvertRichTextToEditorTags(args.data.label).text),
@@ -306,14 +307,14 @@ void EditRichButtonBox(
 		.session = &show->session(),
 		.show = show,
 		.field = label,
-		.fieldStyle = &st::ivEditorInputField,
+		.fieldStyle = &st::ivFormulaSourceField,
 		.allowMarkdownTags = NoMarkdownTags(),
 		.allowTypedMarkdown = false,
 	});
 	const auto date = DefaultEditLinkCallback(
 		show,
 		label,
-		&st::ivEditorInputField);
+		&st::ivFormulaSourceField);
 	label->setEditLinkCallback([=](
 			Ui::InputField::EditLinkSelection selection,
 			TextWithTags text,
@@ -321,7 +322,7 @@ void EditRichButtonBox(
 			Ui::InputField::EditLinkAction action) {
 		return Ui::InputField::IsCustomDateLink(link)
 			&& date(selection, std::move(text), link, action);
-	});
+	}, Ui::InputField::EditLinkItems::DateOnly);
 
 	const auto separateLineField = args.separateLine
 		? box->addRow(
@@ -369,7 +370,7 @@ void EditRichButtonBox(
 			payloadHost,
 			object_ptr<Ui::InputField>(
 				payloadHost,
-				st::ivEditorInputField,
+				st::defaultInputField,
 				tr::lng_formatting_link_url(),
 				(args.data.type == ButtonType::Url
 					? QString::fromUtf8(args.data.payload)
@@ -381,7 +382,7 @@ void EditRichButtonBox(
 			payloadHost,
 			object_ptr<Ui::InputField>(
 				payloadHost,
-				st::ivEditorInputField,
+				st::defaultInputField,
 				tr::lng_formatting_button_copy_text(),
 				(args.data.type == ButtonType::CopyText
 					? QString::fromUtf8(args.data.payload)
