@@ -778,6 +778,9 @@ void SerializeTable(
 	if (block.striped) {
 		classes.push_back(u"striped"_q);
 	}
+	if (block.compact) {
+		classes.push_back(u"compact"_q);
+	}
 	*out += classes.isEmpty()
 		? u"<table>\n"_q
 		: u"<table class=\"%1\">\n"_q.arg(classes.join(QChar(' ')));

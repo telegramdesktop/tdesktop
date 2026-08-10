@@ -7549,6 +7549,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_article_table_delete_table" = "Delete Table";
 "lng_article_table_borderless" = "Borderless Table";
 "lng_article_table_striped" = "Striped Table";
+"lng_article_table_compact" = "Compact Table";
 "lng_article_button_edit" = "Edit";
 "lng_article_button_row_add" = "Add Button";
 "lng_article_button_row_stretch" = "Full Width";

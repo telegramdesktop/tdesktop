@@ -170,6 +170,7 @@ table { border-collapse: collapse; margin: 0 0 4px; }
 td, th { padding: 6px 10px; text-align: start; }
 table.bordered td, table.bordered th { border: 1px solid #e3e6e8; }
 table.striped tr:nth-child(even) { background: #f5f7f8; }
+table.compact td, table.compact th { padding-top: 3px; padding-bottom: 3px; }
 details {
 	margin: 0 0 12px;
 	border: 1px solid #e3e6e8;

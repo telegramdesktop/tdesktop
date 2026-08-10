@@ -1508,6 +1508,7 @@ void ClearPreparedEditSources(std::vector<PreparedBlock> *blocks) {
 	block.kind = PreparedBlockKind::Table;
 	block.tableBordered = data.bordered;
 	block.tableStriped = data.striped;
+	block.tableCompact = data.compact;
 	block.editBlock = BlockSource(path);
 	auto title = PreparedIvRichText();
 	block.anchorId = data.anchorId;

@@ -325,6 +325,7 @@ struct RichBlock {
 	bool open : 1 = false;
 	bool bordered : 1 = false;
 	bool striped : 1 = false;
+	bool compact : 1 = false;
 	bool pullquote : 1 = false;
 };
 

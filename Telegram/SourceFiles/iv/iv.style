@@ -289,6 +289,7 @@ ivEditorTableHeaderIcon: icon {{ "menu/rich/table_highlight-24x24", menuIconColo
 ivEditorTableHeaderOffIcon: icon {{ "menu/rich/table_highlight_off-24x24", menuIconColor }};
 ivEditorTableBorderlessIcon: icon {{ "menu/rich/table_borderless-24x24", menuIconColor }};
 ivEditorTableStripedIcon: icon {{ "menu/rich/table_striped-24x24", menuIconColor }};
+ivEditorTableCompactIcon: icon {{ "menu/rich/table_compact-24x24", menuIconColor }};
 ivEditorTableAlignmentIcon: icon {{ "menu/rich/table_alignment-24x24", menuIconColor }};
 ivEditorTableAlignLeftIcon: icon {{ "menu/rich/align_left-24x24", menuIconColor }};
 ivEditorTableAlignCenterIcon: icon {{ "menu/rich/align_center-24x24", menuIconColor }};

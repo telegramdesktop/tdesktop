@@ -214,6 +214,7 @@ public:
 		int totalColumns = 0;
 		bool bordered = false;
 		bool striped = false;
+		bool compact = false;
 	};
 
 	struct ListSelectionInfo {
@@ -405,6 +406,9 @@ public:
 	[[nodiscard]] bool setTableStriped(
 		const Markdown::PreparedEditTableCellRange &range,
 		bool striped);
+	[[nodiscard]] bool setTableCompact(
+		const Markdown::PreparedEditTableCellRange &range,
+		bool compact);
 	[[nodiscard]] std::optional<int> ensureTrailingParagraphActive();
 
 	// Inserts an empty paragraph at the very start of the top-level blocks

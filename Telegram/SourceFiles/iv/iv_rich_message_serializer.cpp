@@ -1659,6 +1659,9 @@ void TrimEmptyParagraphEdges(std::vector<Block> *blocks) {
 		if (block.striped) {
 			flags |= Flag::f_striped;
 		}
+		if (block.compact) {
+			flags |= Flag::f_compact;
+		}
 		auto rows = QVector<MTPPageTableRow>();
 		rows.reserve(block.tableRows.size());
 		for (const auto &row : block.tableRows) {

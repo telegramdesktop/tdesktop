@@ -492,6 +492,19 @@ void DistributeSpanDelta(
 	}
 }
 
+[[nodiscard]] QMargins TableCellPadding(
+		bool compact,
+		const style::Markdown &st) {
+	const auto &padding = st.table.cellPadding;
+	return compact
+		? QMargins(
+			padding.left(),
+			padding.top() / 2,
+			padding.right(),
+			padding.bottom() / 2)
+		: padding;
+}
+
 [[nodiscard]] int TableCellConstraintWidth(
 		int minimumWidth,
 		int preferredWidth,
@@ -4436,7 +4449,7 @@ LaidOutBlock LayoutGroupedMediaBlock(
 		st,
 		block->tableBordered,
 		&block->overflowed);
-	const auto &padding = st.table.cellPadding;
+	const auto padding = TableCellPadding(prepared.tableCompact, st);
 	const auto border = TableBorder(block->tableBordered, st);
 	block->tableBorder = border;
 	auto tableWidth = border;

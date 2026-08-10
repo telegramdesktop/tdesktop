@@ -2823,6 +2823,9 @@ QByteArray RichHtmlRenderer::renderTable(const Data::RichBlock &block) {
 	if (block.striped) {
 		classes += " striped";
 	}
+	if (block.compact) {
+		classes += " compact";
+	}
 	result += _context.pushTag("table", {
 		{ "class", std::move(classes) },
 	});

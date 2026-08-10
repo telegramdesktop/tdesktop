@@ -740,6 +740,7 @@ struct PreparedBlock {
 	int tableColumnCount = 0;
 	bool tableBordered = true;
 	bool tableStriped = false;
+	bool tableCompact = false;
 	bool collapsed = false;
 	bool detailsOpen = false;
 	bool depthClamped = false;

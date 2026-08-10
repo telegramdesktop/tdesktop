@@ -892,6 +892,10 @@ div.toast_shown {
 .default .rich_message .rich_table.bordered td {
     border: 1px solid #e3e6e8;
 }
+.default .rich_message .rich_table.compact th,
+.default .rich_message .rich_table.compact td {
+    padding-block: 2px;
+}
 .default .rich_message .rich_table.striped tbody > tr:nth-child(even) > td,
 .default .rich_message .rich_table th {
     background-color: #f5f7f8;

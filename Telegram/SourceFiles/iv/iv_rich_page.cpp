@@ -1557,6 +1557,7 @@ void AppendBlock(
 		auto parsed = MakeBlock(BlockKind::Table);
 		parsed.bordered = data.is_bordered();
 		parsed.striped = data.is_striped();
+		parsed.compact = data.is_compact();
 		parsed.text = ParseRichText(data.vtitle(), context);
 		AdoptAnchor(&parsed.anchorId, &parsed.text);
 		parsed.tableRows.reserve(data.vrows().v.size());

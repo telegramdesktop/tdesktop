@@ -232,6 +232,7 @@ struct RichPage {
 		bool open = false;
 		bool bordered = false;
 		bool striped = false;
+		bool compact = false;
 		bool pullquote = false;
 		bool collapsed = false;
 		ListKind listKind = ListKind::Bullet;

@@ -861,6 +861,7 @@ RichBlock ParseRichBlock(const MTPPageBlock &block) {
 		auto result = ParseRichTextBlock(Kind::Table, data.vtitle());
 		result.bordered = data.is_bordered();
 		result.striped = data.is_striped();
+		result.compact = data.is_compact();
 		const auto &rows = data.vrows().v;
 		result.tableRows.reserve(rows.size());
 		for (const auto &row : rows) {

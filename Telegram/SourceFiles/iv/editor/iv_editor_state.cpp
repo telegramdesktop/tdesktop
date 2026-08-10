@@ -3043,6 +3043,7 @@ State::TableSelectionInfo State::tableSelectionInfo(
 		.totalColumns = grid.columnCount,
 		.bordered = owner->bordered,
 		.striped = owner->striped,
+		.compact = owner->compact,
 	};
 	for (const auto &reference : selected) {
 		const auto &cell = owner->tableRows[reference.rowIndex].cells[
@@ -3298,6 +3299,7 @@ std::shared_ptr<const RichPage> State::richPageForTableSelection(
 	table.kind = BlockKind::Table;
 	table.bordered = owner->bordered;
 	table.striped = owner->striped;
+	table.compact = owner->compact;
 	table.tableRows.resize(rowTill - rowFrom);
 	for (const auto &reference : references) {
 		auto cell = owner->tableRows[reference.rowIndex]
@@ -3933,6 +3935,24 @@ bool State::setTableStriped(
 	}
 	if (owner->striped != striped) {
 		owner->striped = striped;
+		rebuild();
+	}
+	return true;
+}
+
+bool State::setTableCompact(
+		const Markdown::PreparedEditTableCellRange &range,
+		bool compact) {
+	const auto validated = validateTableCellRange(range);
+	if (!validated) {
+		return false;
+	}
+	auto owner = block(validated->block);
+	if (!owner || owner->kind != BlockKind::Table) {
+		return false;
+	}
+	if (owner->compact != compact) {
+		owner->compact = compact;
 		rebuild();
 	}
 	return true;

@@ -1288,6 +1288,9 @@ QByteArray SerializeRichBlock(
 				"striped",
 				SerializeRichBool(data.striped));
 			values.emplace_back(
+				"compact",
+				SerializeRichBool(data.compact));
+			values.emplace_back(
 				"rows",
 				SerializeRichTableRows(context, data.tableRows));
 			break;

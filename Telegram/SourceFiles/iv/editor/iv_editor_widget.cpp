@@ -6354,6 +6354,16 @@ void Widget::fillTableChangeMenu(
 		},
 		&st::ivEditorTableStripedIcon,
 		info.striped);
+	Menu::AddCheckedAction(
+		menu,
+		tr::lng_article_table_compact(tr::now),
+		[=] {
+			applyTableChange([=] {
+				return _state->setTableCompact(range, !info.compact);
+			});
+		},
+		&st::ivEditorTableCompactIcon,
+		info.compact);
 }
 
 void Widget::applyTableChange(Fn<bool()> change) {
