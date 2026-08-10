@@ -1602,6 +1602,9 @@ void Application::setLastActiveWindow(Window::Controller *window) {
 }
 
 void Application::closeWindow(not_null<Window::Controller*> window) {
+	if (_savedWindows) {
+		_savedWindows->windowClosed(window);
+	}
 	const auto stackIt = ranges::find(_windowStack, window);
 	const auto nextFromStack = _windowStack.empty()
 		? nullptr
@@ -1711,6 +1714,25 @@ void Application::windowActivated(not_null<Window::Controller*> window) {
 	if (_mediaView && _mediaView->takeFocusFrom(now->widget())) {
 		_mediaView->activate();
 	}
+}
+
+bool Application::closeOtherWindows() {
+	const auto keep = _lastActivePrimaryWindow
+		? _lastActivePrimaryWindow
+		: activeWindow();
+	auto toClose = std::vector<not_null<Window::Controller*>>();
+	for (const auto &[id, window] : _windows) {
+		if (window.get() != keep) {
+			toClose.push_back(window.get());
+		}
+	}
+	for (const auto &window : toClose) {
+		window->close();
+	}
+	if (keep && !toClose.empty()) {
+		keep->activate();
+	}
+	return !toClose.empty();
 }
 
 bool Application::closeActiveWindow() {
@@ -1946,6 +1968,12 @@ void Application::startShortcuts() {
 		});
 		request->check(Command::Close) && request->handle([=] {
 			return closeActiveWindow();
+		});
+		request->check(Command::ReopenClosedWindow) && request->handle([=] {
+			return _savedWindows && _savedWindows->reopenLastClosed();
+		});
+		request->check(Command::CloseOtherWindows) && request->handle([=] {
+			return closeOtherWindows();
 		});
 	}, _lifetime);
 }

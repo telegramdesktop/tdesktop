@@ -43,6 +43,7 @@ constexpr auto kResolveTimeout = 20 * crl::time(1000);
 constexpr auto kBatchResolveFallback = 10 * crl::time(1000);
 constexpr auto kMaxSavedWindows = 64;
 constexpr auto kMaxSavedChats = 64;
+constexpr auto kMaxClosedWindows = 16;
 constexpr auto kVersion = 3;
 constexpr auto kPrefKey = std::string_view("windows_state");
 constexpr auto kEnabledKey = std::string_view("windows_state.enabled");
@@ -489,6 +490,35 @@ void SavedWindows::windowActivated() {
 		_activatedOnce = true;
 		maybeBeginRestore();
 	}
+}
+
+void SavedWindows::windowClosed(not_null<Controller*> window) {
+	if (Core::Quitting()) {
+		return;
+	}
+	const auto id = window->id();
+	if (!id || id.type == SeparateType::Primary) {
+		return;
+	}
+	if (auto serialized = serializeWindow(window)) {
+		while (_closed.size() >= kMaxClosedWindows) {
+			_closed.erase(begin(_closed));
+		}
+		_closed.push_back(std::move(*serialized));
+	}
+}
+
+bool SavedWindows::reopenLastClosed() {
+	if (_closed.empty() || Core::Quitting()) {
+		return false;
+	}
+	_toRestore.push_back(std::move(_closed.back()));
+	_closed.pop_back();
+	if (!_restoring) {
+		_restoring = true;
+		processNext();
+	}
+	return true;
 }
 
 void SavedWindows::maybeBeginRestore() {

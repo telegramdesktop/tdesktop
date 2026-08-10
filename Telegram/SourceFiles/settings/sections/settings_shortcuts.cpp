@@ -62,6 +62,7 @@ struct Labeled {
 		{ C::Lock, tr::lng_shortcuts_lock() },
 		{ C::Minimize, tr::lng_shortcuts_minimize() },
 		{ C::Quit, tr::lng_shortcuts_quit() },
+		{ C::ReopenClosedWindow, tr::lng_shortcuts_reopen_closed_window() },
 		separator,
 		{ C::Search, tr::lng_shortcuts_search() },
 		separator,

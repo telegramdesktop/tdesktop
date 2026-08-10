@@ -17,6 +17,8 @@ enum class Command {
 	Lock,
 	Minimize,
 	Quit,
+	ReopenClosedWindow,
+	CloseOtherWindows,
 
 	MediaPlay,
 	MediaPause,

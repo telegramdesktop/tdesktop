@@ -189,6 +189,7 @@ public:
 	void closeWindow(not_null<Window::Controller*> window);
 	void windowActivated(not_null<Window::Controller*> window);
 	bool closeActiveWindow();
+	bool closeOtherWindows();
 	bool minimizeActiveWindow();
 	bool toggleActiveWindowFullScreen();
 	[[nodiscard]] QWidget *getFileDialogParent();

@@ -83,6 +83,8 @@ public:
 
 	void startRestore();
 	void windowActivated();
+	void windowClosed(not_null<Controller*> window);
+	bool reopenLastClosed();
 
 	[[nodiscard]] auto restorePositionFor(SeparateId id)
 	-> std::optional<Core::WindowPosition>;
@@ -123,6 +125,7 @@ private:
 	base::Timer _saveTimer;
 
 	std::vector<SavedWindow> _toRestore;
+	std::vector<SavedWindow> _closed;
 	std::unique_ptr<Step> _step;
 	base::flat_map<
 		Main::Session*,

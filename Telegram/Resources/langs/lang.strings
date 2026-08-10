@@ -720,6 +720,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_shortcuts_lock" = "Lock the application";
 "lng_shortcuts_minimize" = "Minimize the window";
 "lng_shortcuts_quit" = "Quit the application";
+"lng_shortcuts_reopen_closed_window" = "Reopen closed window";
 "lng_shortcuts_media_play" = "Play the media";
 "lng_shortcuts_media_pause" = "Pause the media";
 "lng_shortcuts_media_play_pause" = "Toggle media playback";
