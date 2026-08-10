@@ -3880,6 +3880,65 @@ void ToggleMessagePinned(
 	}
 }
 
+MessageIdsList MessagesToUnpin(
+		not_null<Main::Session*> session,
+		const MessageIdsList &items) {
+	auto result = MessageIdsList();
+	for (const auto &itemId : items) {
+		const auto item = session->data().message(itemId);
+		if (item && item->canPin() && item->isPinned()) {
+			result.push_back(itemId);
+		}
+	}
+	return result;
+}
+
+void UnpinMessages(
+		not_null<Window::SessionNavigation*> navigation,
+		MessageIdsList items,
+		Fn<void()> onConfirmed) {
+	const auto count = int(items.size());
+	if (!count) {
+		return;
+	}
+	const auto session = &navigation->session();
+	const auto callback = crl::guard(session, [=](Fn<void()> &&close) {
+		close();
+		const auto api = &session->api();
+		const auto sendRequest = [=](auto self, int index) -> void {
+			while (index < count) {
+				const auto item = session->data().message(items[index]);
+				if (!item || !item->canPin() || !item->isPinned()) {
+					++index;
+					continue;
+				}
+				api->request(MTPmessages_UpdatePinnedMessage(
+					MTP_flags(MTPmessages_UpdatePinnedMessage::Flag::f_unpin),
+					item->history()->peer->input(),
+					MTP_int(item->id)
+				)).done([=](const MTPUpdates &result) {
+					session->api().applyUpdates(result);
+					self(self, index + 1);
+				}).send();
+				return;
+			}
+		};
+		sendRequest(sendRequest, 0);
+		if (onConfirmed) {
+			onConfirmed();
+		}
+	});
+	navigation->parentController()->show(
+		Ui::MakeConfirmBox({
+			.text = ((count > 1)
+				? tr::lng_pinned_unpin_many_sure(tr::now, lt_count, count)
+				: tr::lng_pinned_unpin_sure(tr::now)),
+			.confirmed = callback,
+			.confirmText = tr::lng_pinned_unpin(),
+		}),
+		Ui::LayerOption::CloseOther);
+}
+
 void HidePinnedBar(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,

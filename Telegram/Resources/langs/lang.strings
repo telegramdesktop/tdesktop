@@ -354,6 +354,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_pinned_message" = "Pinned message";
 "lng_pinned_previous" = "Previous message";
 "lng_pinned_unpin_sure" = "Would you like to unpin this message?";
+"lng_pinned_unpin_many_sure#one" = "Would you like to unpin {count} message?";
+"lng_pinned_unpin_many_sure#other" = "Would you like to unpin {count} messages?";
 "lng_pinned_pin_sure" = "Would you like to pin this message?";
 "lng_pinned_pin_sure_group" = "Pin this message in the group?";
 "lng_pinned_pin_old_sure" = "Do you want to pin an older message while leaving a more recent one pinned?";
@@ -5415,6 +5417,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_send_now_selected" = "Send selected now";
 "lng_context_reschedule_selected" = "Reschedule Selected";
 "lng_context_delete_selected" = "Delete Selected";
+"lng_context_unpin_selected" = "Unpin Selected";
 "lng_context_save_images_selected" = "Save Selected";
 "lng_context_save_documents_selected" = "Download Selected";
 "lng_context_save_html" = "Save as HTML";

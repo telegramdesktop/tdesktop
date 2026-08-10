@@ -3331,6 +3331,21 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	};
 
+	const auto addUnpinSelectedAction = [&] {
+		auto ids = Window::MessagesToUnpin(session, getSelectedItems());
+		if (ids.empty()) {
+			return;
+		}
+		_menu->addAction(
+			tr::lng_context_unpin_selected(tr::now),
+			crl::guard(this, [=] {
+				Window::UnpinMessages(controller, ids, crl::guard(this, [=] {
+					_widget->clearSelected();
+				}));
+			}),
+			&st::menuIconUnpin);
+	};
+
 	const auto addTodoListAction = [&](HistoryItem *item) {
 		if (!item || !Window::PeerMenuShowAddTodoListTasks(item)) {
 			return;
@@ -3409,6 +3424,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_widget->confirmDeleteSelected();
 				}, &st::menuIconDelete);
 			}
+			addUnpinSelectedAction();
 			if (selectedState.count > 0 && !hasCopyRestrictionForSelected()) {
 				Menu::AddDownloadFilesAction(
 					_menu,
@@ -3722,6 +3738,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_widget->confirmDeleteSelected();
 				}, &st::menuIconDelete);
 			}
+			addUnpinSelectedAction();
 			if (selectedState.count > 0 && !hasCopyRestrictionForSelected()) {
 				Menu::AddDownloadFilesAction(
 					_menu,

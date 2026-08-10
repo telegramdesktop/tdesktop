@@ -988,6 +988,24 @@ bool AddPinMessageAction(
 			return false;
 		}
 	}
+	const auto controller = list->controller();
+	if (request.overSelection && !request.selectedItems.empty()) {
+		auto ids = Window::MessagesToUnpin(
+			&item->history()->session(),
+			ExtractIdsList(request.selectedItems));
+		if (!ids.empty()) {
+			menu->addAction(
+				tr::lng_context_unpin_selected(tr::now),
+				crl::guard(controller, [=] {
+					const auto clear = crl::guard(list, [=] {
+						list->cancelSelection();
+					});
+					Window::UnpinMessages(controller, ids, clear);
+				}),
+				&st::menuIconUnpin);
+			return true;
+		}
+	}
 	const auto group = item->history()->owner().groups().find(item);
 	const auto pinItem = ((item->canPin() && item->isPinned()) || !group)
 		? item
@@ -997,7 +1015,6 @@ bool AddPinMessageAction(
 	}
 	const auto pinItemId = pinItem->fullId();
 	const auto isPinned = pinItem->isPinned();
-	const auto controller = list->controller();
 	menu->addAction(isPinned ? tr::lng_context_unpin_msg(tr::now) : tr::lng_context_pin_msg(tr::now), crl::guard(controller, [=] {
 		Window::ToggleMessagePinned(controller, pinItemId, !isPinned);
 	}), isPinned ? &st::menuIconUnpin : &st::menuIconPin);
