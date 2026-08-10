@@ -482,7 +482,6 @@ updateDeleteEphemeralMessages#56dbfcf8 peer:Peer ids:Vector<int> = Update;
 updateEditEphemeralMessage#4bbb8f01 message:EphemeralMessage = Update;
 updateEphemeralBotCallbackQuery#7c1079d6 flags:# query_id:long user_id:long peer:flags.0?Peer msg_id:int data:bytes chat_instance:flags.1?long message:EphemeralMessage = Update;
 updateBotStarsSubscription#6c0d8e23 flags:# canceled:flags.0?true payment_failed:flags.1?true restored:flags.2?true user_id:long payload:bytes qts:int = Update;
-updateBotStopDraft#c02cd2a6 user_id:long = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -956,7 +955,7 @@ pageBlockSlideshow#31f9590 items:Vector<PageBlock> caption:PageCaption = PageBlo
 pageBlockChannel#ef1751b5 channel:Chat = PageBlock;
 pageBlockAudio#804361ea audio_id:long caption:PageCaption = PageBlock;
 pageBlockKicker#1e148390 text:RichText = PageBlock;
-pageBlockTable#bf4dea82 flags:# bordered:flags.0?true striped:flags.1?true title:RichText rows:Vector<PageTableRow> = PageBlock;
+pageBlockTable#bf4dea82 flags:# bordered:flags.0?true striped:flags.1?true compact:flags.2?true title:RichText rows:Vector<PageTableRow> = PageBlock;
 pageBlockOrderedList#1fd6f6c1 flags:# reversed:flags.2?true items:Vector<PageListOrderedItem> start:flags.0?int type:flags.1?string = PageBlock;
 pageBlockDetails#76768bed flags:# open:flags.0?true blocks:Vector<PageBlock> title:RichText = PageBlock;
 pageBlockRelatedArticles#16115a96 title:RichText articles:Vector<PageRelatedArticle> = PageBlock;
