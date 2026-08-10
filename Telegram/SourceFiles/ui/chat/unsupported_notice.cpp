@@ -44,7 +44,11 @@ void UnsupportedNoticeCard::setTexts(
 		const QString &text,
 		const QString &button) {
 	_title = Text::String(st::serviceTextStyle, title);
-	_text = Text::String(st::defaultTextStyle, text);
+	_text = Text::String(
+		st::defaultTextStyle,
+		text,
+		kDefaultTextOptions,
+		st::msgMinWidth);
 	_button = Text::String(st::semiboldTextStyle, button);
 	_buttonSize = QSize(
 		(_button.maxWidth()
