@@ -141,6 +141,7 @@ private:
 	int contentHeight() const override;
 
 	void prepare();
+	[[nodiscard]] int countAboutWidth(int outerWidth) const;
 	void resizeToMenuWidth(int width);
 	void paint(Painter &p);
 
@@ -150,6 +151,7 @@ private:
 	Ui::Text::String _text;
 	Ui::Text::String _about = { 1 };
 	int _textWidth = 0;
+	int _aboutWidth = 0;
 	int _height = 0;
 
 };
@@ -194,19 +196,30 @@ void RevertAction::prepare() {
 	const auto &padding = _st.itemPadding;
 	const auto added = padding.left() + padding.right();
 	const auto goodWidth = added
-		+ std::max(_text.maxWidth(), _about.maxWidth());
+		+ std::max(_text.maxWidth(), countAboutWidth(_st.widthMax));
 	const auto w = std::clamp(goodWidth, _st.widthMin, _st.widthMax);
 	setMinWidth(w);
 	resizeToMenuWidth(w);
+}
+
+int RevertAction::countAboutWidth(int outerWidth) const {
+	const auto &padding = _st.itemPadding;
+	const auto added = padding.left() + padding.right();
+	const auto available = std::max(outerWidth - added, 1);
+	return Ui::Text::CountOptimalTextSize(
+		_about,
+		std::min(std::max(_st.widthMin - added, 1), available),
+		available).width();
 }
 
 void RevertAction::resizeToMenuWidth(int width) {
 	const auto &padding = _st.itemPadding;
 	const auto added = padding.left() + padding.right();
 	_textWidth = std::max(width - added, 1);
+	_aboutWidth = countAboutWidth(width);
 	_height = st::ttlItemPadding.top()
 		+ _st.itemStyle.font->height
-		+ _about.countHeight(_textWidth)
+		+ _about.countHeight(_aboutWidth)
 		+ st::ttlItemPadding.bottom();
 	resize(width, contentHeight());
 	update();
@@ -242,7 +255,7 @@ void RevertAction::paint(Painter &p) {
 		p,
 		_st.itemPadding.left(),
 		st::ttlItemPadding.top() + _st.itemStyle.font->height,
-		_textWidth,
+		_aboutWidth,
 		width());
 }
 
@@ -514,6 +527,7 @@ void AddPostLinkAction(
 	const auto item = request.item;
 	if (!item
 		|| !item->hasDirectLink()
+		|| IsAnchoredEphemeral(item)
 		|| request.pointState == PointState::Outside) {
 		return;
 	} else if (request.link
@@ -574,7 +588,9 @@ bool AddForwardMessageAction(
 	const auto item = request.item;
 	if (!request.selectedItems.empty()) {
 		return false;
-	} else if (!item || !item->allowsForward()) {
+	} else if (!item
+		|| !item->allowsForward()
+		|| IsAnchoredEphemeral(item)) {
 		return false;
 	}
 	const auto owner = &item->history()->owner();
@@ -796,6 +812,7 @@ bool AddReplyToMessageAction(
 	const auto peer = item ? item->history()->peer.get() : nullptr;
 	if (!item
 		|| (!item->isRegular() && !CanReplyToEphemeral(item))
+		|| IsAnchoredEphemeral(item)
 		|| (context != Context::History
 			&& context != Context::Replies
 			&& context != Context::Monoforum)) {
@@ -1226,6 +1243,7 @@ bool AddSelectMessageAction(
 	} else if (!item
 		|| (item->isLocal() && !item->isEphemeral())
 		|| item->isService()
+		|| IsAnchoredEphemeral(item)
 		|| list->hasSelectRestriction()) {
 		return false;
 	}
@@ -1263,6 +1281,9 @@ void AddTopMessageActions(
 		not_null<Ui::PopupMenu*> menu,
 		const ContextMenuRequest &request,
 		not_null<ListWidget*> list) {
+	if (request.item && IsAnchoredEphemeral(request.item)) {
+		return;
+	}
 	AddGoToMessageAction(menu, request, list);
 	AddViewRepliesAction(menu, request, list);
 	AddEditMessageAction(menu, request, list);
@@ -2835,7 +2856,18 @@ void AddEphemeralMessageActions(
 	const auto owner = &item->history()->owner();
 	const auto session = &item->history()->session();
 	const auto itemId = item->fullId();
-	if (IsAnchoredEphemeral(item)) {
+	const auto anchored = IsAnchoredEphemeral(item);
+	if (!anchored && !item->isEphemeral()) {
+		return;
+	}
+	if (!item->out()) {
+		menu->addAction(tr::lng_context_report_msg(tr::now), [=] {
+			if (const auto item = owner->message(itemId)) {
+				ShowReportEphemeralBox(show, item);
+			}
+		}, &st::menuIconReport);
+	}
+	if (anchored) {
 		menu->addAction(base::make_unique_q<RevertAction>(
 			menu->menu(),
 			st::menuWithIconsAttention,
@@ -2845,15 +2877,6 @@ void AddEphemeralMessageActions(
 				}
 			}));
 		return;
-	} else if (!item->isEphemeral()) {
-		return;
-	}
-	if (!item->out()) {
-		menu->addAction(tr::lng_context_report_msg(tr::now), [=] {
-			if (const auto item = owner->message(itemId)) {
-				ShowReportEphemeralBox(show, item);
-			}
-		}, &st::menuIconReport);
 	}
 	menu->addAction(tr::lng_context_delete_msg(tr::now), [=] {
 		show->show(Ui::MakeConfirmBox({

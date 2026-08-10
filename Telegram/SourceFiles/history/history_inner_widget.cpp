@@ -2966,6 +2966,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			HistoryItem *albumPartItem) {
 		if (!item
 			|| !item->isRegular()
+			|| IsAnchoredEphemeral(item)
 			|| isUponSelected == 2
 			|| isUponSelected == -2) {
 			return;
@@ -3280,7 +3281,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 
 	const auto addReplyAction = [&](HistoryItem *item) {
 		if (!item
-			|| (!item->isRegular() && !CanReplyToEphemeral(item))) {
+			|| (!item->isRegular() && !CanReplyToEphemeral(item))
+			|| IsAnchoredEphemeral(item)) {
 			return;
 		}
 		const auto canSendReply = CanSendReply(item);
@@ -3387,7 +3389,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				addDocumentActions(lnkDocument, item);
 			}
 		}
-		if (item && item->hasDirectLink() && isUponSelected != 2 && isUponSelected != -2) {
+		if (item
+			&& item->hasDirectLink()
+			&& isUponSelected != 2
+			&& isUponSelected != -2
+			&& !IsAnchoredEphemeral(item)) {
 			_menu->addAction(item->history()->peer->isMegagroup() ? tr::lng_context_copy_message_link(tr::now) : tr::lng_context_copy_post_link(tr::now), [=] {
 				HistoryView::CopyPostLink(controller, itemId, HistoryView::Context::History);
 			}, &st::menuIconLink);
@@ -3422,7 +3428,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			const auto itemId = item->fullId();
 			const auto blockSender = item->history()->peer->isRepliesChat();
 			if (isUponSelected != -2) {
-				if (item->allowsForward()) {
+				if (item->allowsForward() && !IsAnchoredEphemeral(item)) {
 					_menu->addAction(tr::lng_context_forward_msg(tr::now), [=] {
 						forwardItem(itemId);
 					}, &st::menuIconForward);
@@ -3492,7 +3498,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		const auto canDelete = item
 			&& item->canDelete()
 			&& (item->isRegular() || !item->isService());
-		const auto canForward = item && item->allowsForward();
+		const auto canForward = item
+			&& item->allowsForward()
+			&& !IsAnchoredEphemeral(item);
 		const auto canReport = item && item->suggestReport();
 		const auto canBlockSender = item && item->history()->peer->isRepliesChat();
 		const auto view = viewByItem(item);
@@ -3669,7 +3677,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					QGuiApplication::clipboard()->setText(text);
 				},
 				&st::menuIconCopy);
-		} else if (item && item->hasDirectLink() && isUponSelected != 2 && isUponSelected != -2) {
+		} else if (item
+			&& item->hasDirectLink()
+			&& isUponSelected != 2
+			&& isUponSelected != -2
+			&& !IsAnchoredEphemeral(item)) {
 			_menu->addAction(item->history()->peer->isMegagroup() ? tr::lng_context_copy_message_link(tr::now) : tr::lng_context_copy_post_link(tr::now), [=] {
 				HistoryView::CopyPostLink(controller, itemId, HistoryView::Context::History);
 			}, &st::menuIconLink);

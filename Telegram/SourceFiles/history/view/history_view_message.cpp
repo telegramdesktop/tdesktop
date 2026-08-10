@@ -3799,6 +3799,11 @@ bool Message::hasFromPhoto() const {
 			|| isCommentsRootView()) {
 			return false;
 		}
+		if (item->isEphemeral() && !item->from()->isUser()) {
+			if (const auto channel = item->history()->peer->asBroadcast()) {
+				return channel->signatureProfiles();
+			}
+		}
 		const auto mode = delegate()->elementChatMode();
 		if (mode != ElementChatMode::Default) {
 			return (mode == ElementChatMode::Wide);

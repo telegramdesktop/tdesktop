@@ -3235,8 +3235,14 @@ bool HistoryItem::canDeleteForEveryone(TimeId now) const {
 	return true;
 }
 
+bool HistoryItem::canBeSelected() const {
+	return (isRegular() || isEphemeral())
+		&& !isService()
+		&& !IsAnchoredEphemeral(this);
+}
+
 bool HistoryItem::suggestReport() const {
-	if (out() || isService() || !isRegular()) {
+	if (out() || isService() || !isRegular() || IsAnchoredEphemeral(this)) {
 		return false;
 	} else if (_history->peer->isChannel()) {
 		return true;

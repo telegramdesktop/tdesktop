@@ -1189,8 +1189,7 @@ void EphemeralBadge::init(not_null<const Element*> view) {
 		return;
 	}
 	const auto item = view->data();
-	const auto plain = (view->context() == Context::WelcomeMessages)
-		|| IsAnchoredEphemeral(item);
+	const auto plain = (view->context() == Context::WelcomeMessages);
 	receiver = (!plain && item->out())
 		? item->history()->session().ephemeralMessages().replyReceiver(item)
 		: nullptr;
@@ -2528,8 +2527,7 @@ void Element::setDisplayDate(bool displayDate) {
 
 void Element::refreshEphemeralBadge() {
 	const auto shown = (data()->isEphemeral()
-			|| _context == Context::WelcomeMessages
-			|| IsAnchoredEphemeral(data()))
+			|| _context == Context::WelcomeMessages)
 		&& !isAttachedToPrevious();
 	if (shown && !Has<EphemeralBadge>()) {
 		AddComponents(EphemeralBadge::Bit());
