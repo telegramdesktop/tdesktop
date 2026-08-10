@@ -1050,8 +1050,10 @@ void WalletReceiveBox(
 			? tr::lng_wallet_buy_title()
 			: tr::lng_wallet_add_funds();
 	}) | rpl::flatten_latest());
-	state->buying.value(
-	) | rpl::on_next([=](bool buying) {
+	rpl::combine(
+		state->buying.value(),
+		rpl::single(rpl::empty) | rpl::then(style::PaletteChanged())
+	) | rpl::on_next([=](bool buying, rpl::empty_value) {
 		bar.title->setTextColorOverride(buying
 			? std::optional<QColor>()
 			: st::activeButtonFg->c);
