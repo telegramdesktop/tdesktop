@@ -1565,11 +1565,24 @@ TextState Article::getState(
 	auto left = _withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : 0;
 	if (QRect(left, 0, _width - left, _height).contains(point)) {
 		if (_url) {
-			auto left = st::inlineThumbSize + st::inlineThumbSkip;
-			auto titleHeight = qMin(_title.countHeight(_width - left), st::semiboldFont->height * 2);
-			auto descriptionLines = 2;
-			auto descriptionHeight = qMin(_description.countHeight(_width - left), st::normalFont->height * descriptionLines);
-			if (style::rtlrect(left, st::inlineRowMargin + titleHeight + descriptionHeight, _urlWidth, st::normalFont->height, _width).contains(point)) {
+			const auto textLeft = _withThumb
+				? (st::inlineThumbSize + st::inlineThumbSkip)
+				: (st::defaultEmojiPan.headerLeft - st::inlineResultsLeft);
+			const auto textWidth = _width - textLeft;
+			const auto titleHeight = qMin(
+				_title.countHeight(textWidth),
+				st::semiboldFont->height * 2);
+			const auto descriptionLines = 2;
+			const auto descriptionHeight = qMin(
+				_description.countHeight(textWidth),
+				st::normalFont->height * descriptionLines);
+			const auto urlRect = style::rtlrect(
+				textLeft,
+				st::inlineRowMargin + titleHeight + descriptionHeight,
+				_urlWidth,
+				st::normalFont->height,
+				_width);
+			if (urlRect.contains(point)) {
 				return { nullptr, _url };
 			}
 		}
