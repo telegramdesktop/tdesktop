@@ -300,8 +300,7 @@ void EditRichButtonBox(
 			box,
 			st::ivFormulaSourceField,
 			Ui::InputField::Mode::SingleLine,
-			nullptr,
-			ConvertRichTextToEditorTags(args.data.label).text),
+			nullptr),
 		st::markdownLinkFieldPadding);
 	InitMessageFieldHandlers({
 		.session = &show->session(),
@@ -323,6 +322,9 @@ void EditRichButtonBox(
 		return Ui::InputField::IsCustomDateLink(link)
 			&& date(selection, std::move(text), link, action);
 	}, Ui::InputField::EditLinkItems::DateOnly);
+	label->setTextWithTags(
+		ConvertRichTextToEditorTags(args.data.label).text,
+		Ui::InputField::HistoryAction::Clear);
 
 	const auto separateLineField = args.separateLine
 		? box->addRow(
