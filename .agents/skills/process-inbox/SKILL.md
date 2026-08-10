@@ -194,7 +194,14 @@ implementation assumes its shipped changes. State that prerequisite in
 `status: todo` with `claimed_by`, `claimed_at`, and `claim_order` set to `null`.
 The checkout tag belongs in the receipt only.
 
-Inbox processing always writes `type: implement`. A human request is work to do,
+Inbox processing writes `type: implement` by default. Write `type: minimal`
+instead when the request meets every minimal bound in `ai_main/AGENTS.md` — a
+small mechanical change whose acceptance is provable by the diff, a Debug
+build of the touched targets, and the existing unit suite, with no runtime,
+visual, account, or network measurement — and give it acceptance criteria
+that match; a criterion demanding an instrumented run makes the task
+`implement`. When in doubt keep `implement`: a performer upgrades a misjudged
+minimal task in place, never the reverse. A human request is work to do,
 not a measurement of work already done. Only the `continue` scheduler's routing
 step creates `type: verify` tasks, when an approved result leaves an
 `Unverified:` gap the existing checkout could close; that step reuses these

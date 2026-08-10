@@ -185,8 +185,9 @@ unavailable.
 
 Before publishing any new canonical `Start` commit, require a startable
 environment: a clean Telegram source checkout with clean submodules and no
-unrelated untracked files, plus an existing
-`out/Debug/test_TelegramForcePortable` golden account. A failed check is a
+unrelated untracked files, plus — when the selected task's type runs the test
+loop — an existing `out/Debug/test_TelegramForcePortable` golden account. A
+`type: minimal` start does not require the account. A failed check is a
 global hard stop before claiming; never reserve shared work this checkout
 cannot immediately run. Resuming and retrying already-owned work keeps the
 performer's own preflight rules instead.
@@ -416,6 +417,17 @@ about whether it is worth verifying. That rule governs the choice between the tw
 dispositions; it does not override the scope filter above, which asks a different
 question — whether this task is the one that owes the measurement at all.
 
+Type each implementation follow-up `minimal` when it meets every minimal
+bound in the AI repository's `AGENTS.md` — a small mechanical change whose
+acceptance is provable by the diff, a Debug build of the touched targets, and
+the existing unit suite, with no runtime, visual, account, or network
+measurement. Write acceptance criteria that match: a criterion demanding an
+instrumented run or a rendered surface makes the task `implement`, not
+`minimal`. When in doubt keep `type: implement`; the performer can upgrade a
+misjudged minimal task in place, but nothing downgrades a full task, so the
+cost of over-typing is permanent while the cost of under-typing is one
+upgrade note.
+
 Write `type: verify` into that task's `state.yaml`. It is the only thing that
 selects the verification profile in `perform-task`, so a verification created
 without it silently runs the implementation pipeline against an empty diff.
@@ -429,7 +441,8 @@ one by being about testing. Its acceptance criteria must all pass the revert tes
 against the parent's diff, and it may not enumerate a parameter range the parent's
 acceptance never named.
 
-A `verify` task's own follow-ups are always `type: implement`. When a
+A `verify` task's own follow-ups are always implementation work — `type:
+implement`, or `type: minimal` when they meet the minimal bounds. When a
 verification reports `Finding: deviation`, route the repair as ordinary
 implementation work naming the measured expected and actual values, and cite the
 verification as its evidence. Never route a second verification for a gap the

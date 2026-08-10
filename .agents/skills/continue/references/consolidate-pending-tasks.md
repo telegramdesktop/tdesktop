@@ -38,7 +38,7 @@ project, dependencies, and tracked task-directory contents. Partition all
 mergeable work by this exact key:
 
 1. the same project slug, or `project: null` for every member;
-2. the same `type` (`implement` or `verify`);
+2. the same `type` (`implement`, `verify`, or `minimal`);
 3. the same scheduler membership: every member is in the current batch, or no
    member is in it.
 
@@ -98,6 +98,11 @@ test. A union of dependencies or paths is not a new scope boundary. Combining
 verification saves setup; it never widens what shipped behavior is owed and
 never permits a source change. Do not combine `verify` with `implement`; a
 verification finding routes its repair through the normal later pipeline.
+
+For `minimal` clusters, the replacement stays `minimal` only when the merged
+work still fits every minimal bound in the AI repository's `AGENTS.md`;
+otherwise type the replacement `implement`. The partition key already forbids
+merging `minimal` with `implement` or `verify`.
 
 ## Build replacement tasks
 

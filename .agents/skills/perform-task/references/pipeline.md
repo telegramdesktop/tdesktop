@@ -8,6 +8,7 @@
 - [Delegation](#delegation)
 - [Implementation phases](#implementation-phases)
 - [Verification tasks](#verification-tasks)
+- [Minimal tasks](#minimal-tasks)
 - [Telegram commits](#telegram-commits)
 - [Test loop adapter](#test-loop-adapter)
 - [Final AI state](#final-ai-state)
@@ -88,8 +89,9 @@ Before planning or editing:
 
    It reports source/submodule cleanliness, dirty paths outside the owned
    write set, and the golden test account and live marker state for `EXE`.
-4. Require the prepared portable test account (`golden_account_present`). Its
-   absence is a global hard stop before implementation.
+4. Require the prepared portable test account (`golden_account_present`). A
+   `type: minimal` task runs no test loop and starts without it; for every
+   other type its absence is a global hard stop before implementation.
 5. Verify a usable Debug executable/build tree, safe path-scoped process
    control, safe portable-folder operations, and the ability to launch and
    render the in-binary test flow. A locked macOS session disables Computer Use
@@ -343,6 +345,23 @@ Skip these phases outright rather than running them against an empty diff:
    implementation commit, and `overlay-apply` is never needed because no
    implementation-fix commit ever moves `RUN_REF`.
 
+Choose the cheapest instrument that genuinely decides the claim. A
+verification is not obliged to launch the client: when the claim is decidable
+by the unit suite, a standalone probe program, or a scripted reading — with
+the falsifiability assessment confirming that instrument can detect the
+negative — take the measurement there, and reserve the full app, account, and
+overlay loop for claims that live in the running client. The instrument may
+be cheap; the falsifiability bar never is.
+
+The claim itself may be about the code rather than a running process: a
+pattern present or absent across the tree, a comment agreeing with measured
+behavior, a vendored or submodule library carrying an expected change. Such a
+verification runs this same profile with the reading as its instrument and
+normally costs minutes. Its readings quote the literal sites and bytes, never
+just a hit count, and a reading that reports absence must also demonstrate
+its pattern on a known-present control in the same run — a mistyped pattern
+that matches nothing must fail the run rather than verify the claim.
+
 `source-begin` still runs in preflight and still sets `BASE_REF` and `RUN_REF`;
 they stay equal for the whole task, which is exactly what makes `overlay-save
 --restore run` restore the checkout to its untouched baseline. `work/owned-paths.txt`
@@ -364,6 +383,67 @@ this checkout does not have. A negative result is never a block.
 
 A verification also never widens its own scope. If the run reveals a second
 untested behavior, that is another discovered follow-up, not another check.
+
+## Minimal tasks
+
+A task whose `state.yaml` carries `type: minimal` is a small mechanical change
+executed end to end in one performer session. Read the type from the `resolve`
+output before planning; it selects this profile the same way `verify` selects
+its own. The bounds that make a task minimal are defined in the AI
+repository's `AGENTS.md`, read in preflight; this section is the operative
+profile.
+
+A minimal task keeps the implement commit contract — it retains exactly one
+Telegram commit through `source-commit --mark-green`, with the same three-line
+message and conditional `[ai] ` prefix — and skips the test loop entirely: no
+overlay, no portable account, no `test-run`, no Computer Use, and no
+`work/test.md`. The preflight's golden-account and test-launch requirements
+(steps 4 and 5) do not apply; every other preflight rule, including
+`source-begin` and the clean-checkout gate, is unchanged.
+
+Run these phases in the performer itself, with exactly one leaf:
+
+1. **Inspect and confirm.** Read the spec, project context, and the code.
+   Write `work/minimal.md` recording each eligibility bound confirmed against
+   the actual code rather than the spec's hope, the exact planned change —
+   files, sites, before and after — and which acceptance criterion each part
+   satisfies. Update `work/owned-paths.txt`. If any bound fails, upgrade now.
+2. **Edit and build.** Make the change directly in the performer. Run the
+   resolved Debug build for the touched targets, and the existing unit suite
+   when the touched code has one (for `Telegram/SourceFiles/gram/`,
+   `td_gram_test`). Quote the passing output in `work/minimal.md`.
+3. **Review.** Spawn one fresh review leaf over the diff carrying a combined
+   correctness, lifetime, reuse, and structure checklist built from the phase
+   prompts' lens rules; the Delegation section's host rules apply, and the
+   same-session fallback is allowed when nested delegation is unavailable.
+   Confirm each finding against the code, fix what survives, rebuild, and
+   record the verdict in `work/minimal.md`. One iteration is the norm; run a
+   second only after substantive fixes.
+4. **Commit and finish.** `source-commit --mark-green`, then write
+   `work/result.md` with `Test-Report: not-applicable`, `Test-Runs: 0`,
+   `UI-Driver: not-applicable`, and `Evidence:` naming `work/minimal.md`.
+   `Unverified:` must be `none` — a minimal task that would publish a
+   non-`none` value has failed its eligibility and upgrades instead.
+   `Discovered:` follows the ordinary rules. Then `finish --status approved`.
+   No `test-cleanup` is needed: no overlay existed, so the built executable
+   is clean and stays for the next task.
+
+The implementation profile's Normalize step applies unchanged on hosts that
+run it; host adapters that remove it remove it here too. `checkpoint` after
+each phase with `minimal-inspect`, `minimal-edit`, `minimal-review`, or
+`minimal-commit`.
+
+**Upgrade instead of struggling.** The eligibility bounds are part of the
+task. The moment any phase shows one failing — runtime behavior to measure, a
+wider diff than the bounds allow, a design question, a review finding that
+needs a runtime answer — upgrade in place: rewrite `type:` in `state.yaml` to
+`implement`, or to `verify` when the remaining deliverable is purely a
+measurement of shipped behavior; append a dated `Upgraded from minimal:
+<reason>` note to `task.md`; checkpoint; then continue the full selected
+profile in the same run, reusing the inspection notes as Phase 1 input. The
+upgrade is local state until `Approve` or `Block` publishes it. Upgrading is
+an expected outcome, never a failure, and `blocked` keeps its ordinary
+meaning — it is never a substitute for upgrading.
 
 ## Telegram commits
 
@@ -409,7 +489,8 @@ notes, reports, chat, or commit messages.
 
 Read `.agents/shared/test-loop.md` completely and apply it after the first green
 implementation commit, or — for a `type: verify` task, which never has one —
-immediately after Phase 3V. Read `references/computer-use-testing.md` when choosing
+immediately after Phase 3V. A `type: minimal` task never enters this adapter
+at all; its profile ends at commit and publication. Read `references/computer-use-testing.md` when choosing
 or operating a UI driver. Retain all task-derived oracle, layout measurement,
 overlay, watchdog, crash/assertion, hang, account, attempt, report, and evidence
 rules, with these external-task safety adaptations:

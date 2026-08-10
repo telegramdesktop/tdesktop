@@ -108,6 +108,15 @@ behavior held or a `Finding: deviation` recording the exact disagreement plus
 follow-up tasks that repair it; both finish `approved`. Never repair what a
 verification measured, and never let one commit source.
 
+A `type: minimal` task is a small mechanical change with the bounds defined
+in the AI repository's `AGENTS.md`. It keeps the implement commit contract —
+one retained Telegram commit — but runs the pipeline's Minimal tasks profile
+instead: inspect and confirm eligibility, edit, build the touched targets,
+one fresh review leaf, commit, publish. No test loop, no golden account, no
+overlay. If any bound fails mid-run, the performer upgrades the task in place
+to `implement` or `verify` and continues under the full profile in the same
+run.
+
 Only a genuine exhausted implementation or verification blocker produces a
 canonical `Block <full-task-id>` commit. Agent interruption, tool loss, and
 global environment stops leave the task `in-progress` with its task-scoped
