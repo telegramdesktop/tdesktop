@@ -56,6 +56,7 @@ OVERLAY_SUBMODULES_DIR = "test-overlay-submodules"
 TEST_LOG_FILE = "test_log.txt"
 TEST_COMPLETE_MARKER = "TEST_COMPLETE"
 STALE_CRASH_DIR = "stale-crash"
+CRASHPAD_COMPLETED_DIR = "completed"
 BUILD_LOCK_PROCESS_NAMES = {
 	"cl.exe",
 	"cmake.exe",
@@ -1816,6 +1817,8 @@ def command_test_run(args):
 	stderr_path = run_dir / "app_stderr.txt"
 	working = portable / PORTABLE_LIVE / "tdata" / "working"
 	dumps_dir = portable / PORTABLE_LIVE / "tdata" / "dumps"
+	completed_dir = dumps_dir / CRASHPAD_COMPLETED_DIR
+	completed_before = set(completed_dir.glob("*.dmp"))
 
 	launched_at = time.time()
 	with stdout_path.open("wb") as out, stderr_path.open("wb") as err:
@@ -1880,15 +1883,27 @@ def command_test_run(args):
 		str(path) for path in dumps_dir.glob("*.dmp")
 		if path.stat().st_mtime >= launched_at
 	) if dumps_dir.is_dir() else []
+	crashpad_dumps_added = sorted(
+		str(path)
+		for path in set(completed_dir.glob("*.dmp")) - completed_before
+	)
+	death_signals = []
+	if dumps:
+		death_signals.append("breakpad_dump")
+	if crashpad_dumps_added:
+		death_signals.append("crashpad_dump")
+	if outcome == "exited" and exit_code:
+		death_signals.append("exit_code")
+	after_complete = "died-after-complete" if death_signals else "complete"
 	if outcome == "exited":
 		if test_complete:
-			verdict_hint = "complete"
+			verdict_hint = after_complete
 		elif crash_report_fresh or dumps:
 			verdict_hint = "crash"
 		else:
 			verdict_hint = "died-without-complete"
 	elif outcome == "killed-after-complete":
-		verdict_hint = "complete"
+		verdict_hint = after_complete
 	else:
 		verdict_hint = "hang"
 
@@ -1901,6 +1916,8 @@ def command_test_run(args):
 			else None
 		),
 		"crash_report_fresh": crash_report_fresh,
+		"crashpad_dumps_added": crashpad_dumps_added,
+		"death_signals": death_signals,
 		"dumps": dumps,
 		"duration_seconds": round(ended_at - launched_at, 1),
 		"exe": str(exe),

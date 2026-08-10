@@ -191,9 +191,10 @@ handles that unmarked live folder by step 3.
 
 Deletion guard — the only folder the flow may ever delete is a live `TelegramForcePortable` that
 either carries the `testing` marker or coexists with `real_...` (step 3). If the test account
-breaks mid-loop (login screen, `AUTH_KEY_DUPLICATED`), delete the MARKED live folder, re-run SETUP
-for a fresh golden copy, and retry once; if it is still broken the run is UNRECOVERABLE. Never
-delete or alter `test_...` or `real_...` under any circumstances.
+breaks mid-loop (login screen, `AUTH_KEY_DUPLICATED`), delete the MARKED live folder (that deletion
+takes the Crashpad database under `tdata/dumps/completed/` with it, so copy out any dump worth
+keeping first), re-run SETUP for a fresh golden copy, and retry once; if it is still broken the run
+is UNRECOVERABLE. Never delete or alter `test_...` or `real_...` under any circumstances.
 
 **Serialize app runs.** Never have two `Telegram.exe` instances alive against this account at once —
 concurrent reuse of one auth key can trigger a server-side session reset. Before SETUP, launching, or
@@ -519,9 +520,16 @@ bypass it with hand-built relative paths.
   `<EVIDENCE_DIR>/app_stdout.txt` and stderr to `<EVIDENCE_DIR>/app_stderr.txt` (the flag prevents
   modal crash hangs, and stderr captures assertion text), enforces **a hard wall-clock deadline
   from launch** and a quiet-log watchdog while polling `<EVIDENCE_DIR>/test_log.txt`, detects
-  `TEST_COMPLETE` (success) versus process death (crash) versus the caps elapsing (hang), kills any
+  `TEST_COMPLETE` versus process death (crash) versus the caps elapsing (hang), kills any
   straggler, and returns one JSON report with the parsed markers, stderr tail, fresh crash
-  diagnostics, and `stale_crash_cleared`. That field is an ordered list of `{from, kind, to}`
+  diagnostics, `crashpad_dumps_added`, `death_signals`, and `stale_crash_cleared`.
+  `TEST_COMPLETE` alone is not success: when the process writes it and then dies, the verdict is
+  `died-after-complete`, not `complete`, on any of three independent signals — a non-zero
+  `exit_code`, a new `.dmp` in the live `tdata/dumps/completed/` Crashpad database across the run,
+  or a fresh top-level `tdata/dumps/*.dmp` from a Breakpad build. `crashpad_dumps_added` is that
+  before/after delta, listed in full because `test-run` never clears `completed/` between runs;
+  `death_signals` names which of `"breakpad_dump"`, `"crashpad_dump"` and `"exit_code"` fired, and
+  is `[]` for a healthy run. `stale_crash_cleared` is an ordered list of `{from, kind, to}`
   entries whose `kind` is `"report"` or `"dump"`, and is `[]` when nothing was cleared. If the
   stale report cannot be moved, `test-run` refuses before launch, prints the helper error on stderr,
   exits non-zero, and emits no JSON. If a dump cannot be moved, `test-run` leaves it in place,
@@ -545,11 +553,15 @@ set, the binary:
   `<EVIDENCE_DIR>/app_stderr.txt`, tagged `[testagent]`;
 - also turns on debug logging (`-testagent` implies `-debug`).
 
-**Do NOT key the crash decision on exit code.** Breakpad handles the crash and the process usually
-exits **0** — exactly as tdesktop's own crash detection assumes. The reliable crash signals are: the
-process is gone WITHOUT a `TEST_COMPLETE` marker, AND a fresh non-empty
-`<workdir>/tdata/working` exists. On macOS, a fresh matching system `.ips`
-report is also sufficient when Telegram's reporter wrote nothing. So **always
+**Do NOT key a pre-`TEST_COMPLETE` crash decision on exit code.** Breakpad handles the crash and
+the process usually exits **0** — exactly as tdesktop's own crash detection assumes. The reliable
+crash signals before `TEST_COMPLETE` are: the process is gone WITHOUT a `TEST_COMPLETE` marker,
+AND a fresh non-empty `<workdir>/tdata/working` exists. On macOS, a fresh matching system `.ips`
+report is also sufficient when Telegram's reporter wrote nothing. **After** `TEST_COMPLETE` the
+opposite holds: `CrashReports::Finish()` unlinks `tdata/working` during the clean shutdown that
+precedes a teardown fault, so the only signals left are a non-zero `exit_code`, a new
+`tdata/dumps/completed/*.dmp` on the macOS Crashpad build, and a new top-level `tdata/dumps/*.dmp`
+on the Breakpad builds — `test-run` reads all three and reports `died-after-complete`. So **always
 pass `-testagent`**, and on a crash gather diagnostics in this order before
 deciding the verdict:
 
@@ -559,8 +571,12 @@ deciding the verdict:
    `CrtAssert:` annotations, the failed `file:line`, and `Caught signal …` / minidump id. Plain text;
    read it directly. `<workdir>` is the launch `-workdir` (in portable test runs,
    `out/Debug/TelegramForcePortable/`).
-3. **`<workdir>/tdata/dumps/*.dmp`** — the minidump (full stack, needs symbols to read; note its path
-   in `test.md`, don't try to symbolize inline).
+3. **`<workdir>/tdata/dumps/`** — the minidump (full stack, needs symbols to read; note its path in
+   `test.md`, don't try to symbolize inline). Breakpad writes `*.dmp` at that top level; the macOS
+   Crashpad build keeps its database one directory below, in `<workdir>/tdata/dumps/completed/`, so
+   a top-level listing can be empty while a real dump exists. `test-run` reports this run's fresh
+   top-level dumps in `dumps` and its new `completed/` entries in `crashpad_dumps_added`, so on a
+   Breakpad build the first is the field to read and the second is always `[]`.
 4. **macOS `~/Library/Logs/DiagnosticReports/Telegram-*.ips`** — when the preceding files are empty,
    inspect reports created after the exact process launch and match the app UUID/start time. These
    reports can contain a fully symbolicated stack even when Telegram's reporter wrote nothing.

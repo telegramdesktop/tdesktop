@@ -575,19 +575,30 @@ rules, with these external-task safety adaptations:
   wall-clock deadline and quiet-log watchdog and returns one JSON report:
   outcome, `TEST_COMPLETE` state, parsed
   `TEST_STEP`/`TEST_RESULT`/`SCREENSHOT` markers, stderr tail, fresh
-  `tdata/working` crash excerpt, minidump paths, and
-  `stale_crash_cleared`. That field is an ordered list of
-  `{from, kind, to}` entries whose `kind` is `"report"` or `"dump"`, and is
-  `[]` when nothing was cleared. If a stale report cannot be moved, `test-run`
-  refuses before launch, prints the helper error on stderr, exits non-zero,
-  and emits no JSON. If a dump cannot be moved, the run leaves it in place,
-  records its entry with `"to": null` (a null destination), and continues to
-  launch. The performer then judges the evidence itself — the runner gathers,
-  it never assesses. Crash detection keys on process death without
-  `TEST_COMPLETE` plus a fresh `tdata/working`, not exit code.
+  `tdata/working` crash excerpt, minidump paths, `crashpad_dumps_added`,
+  `death_signals`, and `stale_crash_cleared`. `crashpad_dumps_added` is the
+  before/after delta of the live `tdata/dumps/completed/` Crashpad database
+  across the run — a delta because `test-run` never clears that directory
+  between runs — and `death_signals` names which of `"breakpad_dump"` /
+  `"crashpad_dump"` / `"exit_code"` fired. A run that writes `TEST_COMPLETE`
+  and then dies on any of those signals reports `died-after-complete`, not
+  `complete`. `stale_crash_cleared` is an ordered list of `{from, kind, to}`
+  entries whose `kind` is `"report"` or `"dump"`, and is `[]` when nothing
+  was cleared. If a stale report cannot be moved, `test-run` refuses before
+  launch, prints the helper error on stderr, exits non-zero, and emits no
+  JSON. If a dump cannot be moved, the run leaves it in place, records its
+  entry with `"to": null` (a null destination), and continues to launch. The
+  performer then judges the evidence itself — the runner gathers, it never
+  assesses. Pre-`TEST_COMPLETE` crash detection keys on process death
+  without `TEST_COMPLETE` plus a fresh `tdata/working`, not exit code;
+  post-`TEST_COMPLETE` death keys on `exit_code`, the `completed/` delta and
+  a fresh top-level `tdata/dumps/*.dmp`, because the clean shutdown unlinks
+  `tdata/working` before the fault.
 - If the account breaks mid-loop (login screen, `AUTH_KEY_DUPLICATED`), run
   `test-account-reset --exe EXE` — it deletes only a marked live copy and
-  re-copies golden — then retry once.
+  re-copies golden — then retry once. That deletion takes the Crashpad
+  database under `tdata/dumps/completed/` with it, so copy out any dump
+  worth keeping first.
 - Enforce the in-app watchdog too. Count test runs independently from
   implementation attempts and stop at `MAX_TEST_RUNS`.
 - A repeated setup failure is not a reason to stop below that cap. Apply the
