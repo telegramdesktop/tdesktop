@@ -2323,9 +2323,16 @@ bool Poll::showVotersCount() const {
 		: !(_flags & PollData::Flag::MultiChoice);
 }
 
+bool Poll::canShowAuthorResults() const {
+	return isAuthorNotVoted()
+		&& !canSendVotes()
+		&& (_totalVotes > 0);
+}
+
 bool Poll::inlineFooter() const {
 	return !(_flags
-		& (PollData::Flag::PublicVotes | PollData::Flag::MultiChoice));
+		& (PollData::Flag::PublicVotes | PollData::Flag::MultiChoice))
+		&& !canShowAuthorResults();
 }
 
 bool Poll::canAddOption() const {

@@ -104,6 +104,7 @@ private:
 	void updateTexts();
 	void updateVotes();
 	bool showVotersCount() const;
+	[[nodiscard]] bool canShowAuthorResults() const;
 	bool inlineFooter() const;
 
 	[[nodiscard]] bool canAddOption() const;
