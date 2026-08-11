@@ -732,7 +732,9 @@ ivFormulaSourceField: InputField(defaultInputField) {
 	heightMin: 33px;
 }
 ivButtonPreviewMargin: margins(22px, 4px, 22px, 10px);
-ivButtonPreviewUnselectedOpacity: 0.5;
+ivButtonPreviewOutlineSkip: 2px;
+ivButtonPreviewOutlineStroke: 2px;
+ivButtonPreviewOutlineFg: activeLineFg;
 ivButtonRadioPadding: margins(22px, 5px, 22px, 5px);
 ivButtonPeerRowMargin: margins(0px, 0px, 0px, 10px);
 defaultMarkdownTable: MarkdownTable {

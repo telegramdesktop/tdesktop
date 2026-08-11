@@ -69,6 +69,11 @@ constexpr auto kColors = std::array{
 	return { QString() };
 }
 
+[[nodiscard]] int RichButtonOutlineExtend() {
+	return st::ivButtonPreviewOutlineSkip
+		+ st::ivButtonPreviewOutlineStroke;
+}
+
 class RichButtonPreviewRow final : public Ui::RpWidget {
 public:
 	explicit RichButtonPreviewRow(QWidget *parent);
@@ -84,6 +89,8 @@ protected:
 	void mouseReleaseEvent(QMouseEvent *e) override;
 
 private:
+	void paintSelectionOutline(QPainter &p);
+
 	std::vector<Markdown::LaidOutButton> _buttons;
 	Fn<void(int)> _selectedChanged;
 	int _selected = 0;
@@ -144,12 +151,18 @@ void RichButtonPreviewRow::setSelectedChanged(Fn<void(int)> callback) {
 }
 
 int RichButtonPreviewRow::resizeGetHeight(int newWidth) {
+	const auto extend = RichButtonOutlineExtend();
 	Markdown::LayoutButtonRowButtons(
 		&_buttons,
 		Markdown::TableAlignment::None,
-		newWidth,
+		newWidth - 2 * extend,
 		st::messageMarkdown.buttonRow);
-	return st::messageMarkdown.buttonRow.height;
+	for (auto &button : _buttons) {
+		button.rect.translate(extend, extend);
+		button.labelRect.translate(extend, extend);
+		button.iconRect.translate(extend, extend);
+	}
+	return st::messageMarkdown.buttonRow.height + 2 * extend;
 }
 
 void RichButtonPreviewRow::paintEvent(QPaintEvent *e) {
@@ -157,19 +170,32 @@ void RichButtonPreviewRow::paintEvent(QPaintEvent *e) {
 	p.setTextPalette(st::messageMarkdown.textPalette);
 	const auto clip = e->rect();
 	const auto now = crl::now();
-	const auto count = int(_buttons.size());
-	for (auto i = 0; i != count; ++i) {
-		p.setOpacity((i == _selected)
-			? 1.
-			: st::ivButtonPreviewUnselectedOpacity);
+	for (const auto &button : _buttons) {
 		Markdown::PaintRichButtonPreview(
 			p,
-			_buttons[i],
+			button,
 			st::messageMarkdown,
 			clip,
 			now,
 			width());
 	}
+	paintSelectionOutline(p);
+}
+
+void RichButtonPreviewRow::paintSelectionOutline(QPainter &p) {
+	const auto stroke = st::ivButtonPreviewOutlineStroke;
+	const auto shift = st::ivButtonPreviewOutlineSkip + (stroke / 2.);
+	const auto radius = (st::messageMarkdown.buttonRow.height / 2) + shift;
+	auto hq = PainterHighQualityEnabler(p);
+	auto pen = st::ivButtonPreviewOutlineFg->p;
+	pen.setWidthF(stroke);
+	p.setPen(pen);
+	p.setBrush(Qt::NoBrush);
+	p.drawRoundedRect(
+		QRectF(_buttons[_selected].rect).marginsAdded(
+			{ shift, shift, shift, shift }),
+		radius,
+		radius);
 }
 
 void RichButtonPreviewRow::mouseMoveEvent(QMouseEvent *e) {
@@ -336,9 +362,14 @@ void EditRichButtonBox(
 			st::markdownMathCheckboxMargin)
 		: nullptr;
 
+	const auto extend = RichButtonOutlineExtend();
 	const auto preview = box->addRow(
 		object_ptr<RichButtonPreviewRow>(box),
-		st::ivButtonPreviewMargin);
+		st::ivButtonPreviewMargin - style::margins(
+			extend,
+			extend,
+			extend,
+			extend));
 	preview->setSelected(RichButtonColorIndex(args.data.color));
 	preview->setSelectedChanged([=](int index) {
 		state->color = kColors[index];
