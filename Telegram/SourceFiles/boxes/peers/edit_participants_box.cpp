@@ -1647,7 +1647,7 @@ void ParticipantsBoxController::rebuildChatParticipants(
 		return;
 	}
 
-	auto &participants = chat->participants;
+	const auto &participants = chat->participants;
 	auto count = delegate()->peerListFullRowsCount();
 	for (auto i = 0; i != count;) {
 		auto row = delegate()->peerListRowAt(i);

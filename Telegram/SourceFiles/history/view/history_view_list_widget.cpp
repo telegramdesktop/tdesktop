@@ -5965,7 +5965,7 @@ void ConfirmSendNowSelectedItems(not_null<ListWidget*> widget) {
 	const auto navigation = widget->controller();
 	const auto history = [&]() -> History* {
 		auto result = (History*)nullptr;
-		auto &data = navigation->session().data();
+		const auto &data = navigation->session().data();
 		for (const auto &item : items) {
 			if (!item.canSendNow) {
 				return nullptr;

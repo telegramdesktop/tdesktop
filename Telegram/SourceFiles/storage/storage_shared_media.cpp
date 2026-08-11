@@ -19,7 +19,7 @@ auto SharedMedia::enforceLists(Key key)
 	}
 	result = _lists.emplace(key, Lists {}).first;
 	for (auto index = 0; index != kSharedMediaTypeCount; ++index) {
-		auto &list = result->second[index];
+		const auto &list = result->second[index];
 		auto type = static_cast<SharedMediaType>(index);
 
 		list.sliceUpdated(

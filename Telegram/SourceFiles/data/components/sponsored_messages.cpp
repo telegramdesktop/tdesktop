@@ -272,7 +272,7 @@ void SponsoredMessages::request(not_null<History*> history, Fn<void()> done) {
 	{
 		const auto it = _data.find(history);
 		if (it != end(_data)) {
-			auto &list = it->second;
+			const auto &list = it->second;
 			// Don't rebuild currently displayed messages.
 			const auto proj = [](const Entry &e) {
 				return e.item != nullptr;
@@ -324,7 +324,7 @@ void SponsoredMessages::requestForVideo(
 	{
 		const auto it = _dataForVideo.find(peer);
 		if (it != end(_dataForVideo)) {
-			auto &list = it->second;
+			const auto &list = it->second;
 			// Don't rebuild currently displayed messages.
 			const auto proj = [](const Entry &e) {
 				return e.item != nullptr;
@@ -455,7 +455,7 @@ FullMsgId SponsoredMessages::fillTopBar(
 		not_null<Ui::RpWidget*> widget) {
 	const auto it = _data.find(history);
 	if (it != end(_data)) {
-		auto &list = it->second;
+		const auto &list = it->second;
 		if (!list.entries.empty()) {
 			const auto &entry = list.entries.front();
 			const auto fullId = entry.itemFullId;
@@ -646,7 +646,7 @@ const SponsoredMessages::Entry *SponsoredMessages::find(
 	if (it == end(_data)) {
 		return nullptr;
 	}
-	auto &list = it->second;
+	const auto &list = it->second;
 	const auto entryIt = ranges::find_if(list.entries, [&](const Entry &e) {
 		return e.itemFullId == fullId;
 	});

@@ -1074,7 +1074,7 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 
 		if (radial) {
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
-			auto &bg = selected ? st::historyFileInRadialFgSelected : st::historyFileInRadialFg;
+			const auto &bg = selected ? st::historyFileInRadialFgSelected : st::historyFileInRadialFg;
 			_radial->draw(p, rinner, st::msgFileRadialLine, bg);
 		}
 
@@ -1490,7 +1490,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 
 			if (radial && !cornerDownload) {
 				auto rinner = inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine));
-				auto &bg = selected ? st::historyFileInRadialFgSelected : st::historyFileInRadialFg;
+				const auto &bg = selected ? st::historyFileInRadialFgSelected : st::historyFileInRadialFg;
 				_radial->draw(p, rinner, st::msgFileRadialLine, bg);
 			}
 
@@ -1994,7 +1994,7 @@ Link::Link(
 	}
 	while (lnk > 0 && till > from) {
 		--lnk;
-		auto &entity = entities.at(lnk);
+		const auto &entity = entities.at(lnk);
 		auto type = entity.type();
 		if (type != EntityType::Url && type != EntityType::CustomUrl && type != EntityType::Email) {
 			++lnk;
@@ -2705,7 +2705,7 @@ void Gif::paint(
 			const auto margin = st::msgFileRadialLine;
 			const auto rinner = inner
 				- QMargins(margin, margin, margin, margin);
-			auto &bg = selected
+			const auto &bg = selected
 				? st::historyFileInRadialFgSelected
 				: st::historyFileInRadialFg;
 			_radial->draw(p, rinner, st::msgFileRadialLine, bg);

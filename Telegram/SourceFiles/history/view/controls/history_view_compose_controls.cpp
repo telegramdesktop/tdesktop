@@ -2826,7 +2826,7 @@ bool ComposeControls::suppressSendAction() const {
 	if (!_history) {
 		return false;
 	}
-	auto &ephemeral = session().ephemeralMessages();
+	const auto &ephemeral = session().ephemeralMessages();
 	return ephemeral.isEphemeralBotReply(replyingToMessage().messageId)
 		|| ephemeral.hasEphemeralCommand(
 			_history->peer,

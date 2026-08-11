@@ -3306,9 +3306,9 @@ struct UpgradeArgs : StarGiftUpgradeArgs {
 				}
 				return result;
 			};
-			auto &models = state->data.models;
-			auto &patterns = state->data.patterns;
-			auto &backdrops = state->data.backdrops;
+			const auto &models = state->data.models;
+			const auto &patterns = state->data.patterns;
+			const auto &backdrops = state->data.backdrops;
 			consumer.put_next(UniqueGiftCover{ Data::UniqueGift{
 				.title = (state->data.savedId
 					? tr::lng_gift_upgrade_title(tr::now)
@@ -4642,7 +4642,7 @@ object_ptr<RpWidget> MakeGiftsList(GiftsListArgs &&args) {
 			DefaultGiftHandler(window, &state->handlerState, descriptor);
 		});
 
-	auto &packs = session->giftBoxStickersPacks();
+	const auto &packs = session->giftBoxStickersPacks();
 	packs.updated() | rpl::on_next([=] {
 		for (const auto &button : state->buttons) {
 			if (const auto raw = button.get()) {

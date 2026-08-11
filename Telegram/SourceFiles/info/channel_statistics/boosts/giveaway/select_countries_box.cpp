@@ -209,7 +209,7 @@ void SelectCountriesBox(
 	});
 	multiSelect->setItemRemovedCallback([=](uint64 itemId) {
 		auto &list = state->resultList;
-		auto &button = buttons[itemId];
+		const auto &button = buttons[itemId];
 		const auto it = ranges::find(list, button.iso2);
 		if (it != end(list)) {
 			list.erase(it);

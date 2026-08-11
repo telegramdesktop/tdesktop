@@ -139,7 +139,7 @@ ComposedBadge::ComposedBadge(
 		) | rpl::then(
 			session->data().unreadBadgeChanges()
 		) | rpl::map([=] {
-			auto &owner = session->data();
+			const auto &owner = session->data();
 			return Badge::UnreadBadge{
 				owner.unreadWithMentionsBadge(),
 				owner.unreadWithMentionsBadgeMuted(),

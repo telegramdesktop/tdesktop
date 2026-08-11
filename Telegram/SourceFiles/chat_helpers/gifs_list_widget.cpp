@@ -79,7 +79,7 @@ void AddGifAction(
 			Data::FileOriginSavedGifs(),
 			!saved);
 
-		auto &data = document->owner();
+		const auto &data = document->owner();
 		if (saved) {
 			data.stickers().savedGifsRef().remove(index);
 			document->session().local().writeSavedGifs();

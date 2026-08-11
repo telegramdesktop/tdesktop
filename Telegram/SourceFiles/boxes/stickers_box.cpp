@@ -527,7 +527,7 @@ void StickersBox::getArchivedDone(
 		return;
 	}
 
-	auto &stickers = result.c_messages_archivedStickers();
+	const auto &stickers = result.c_messages_archivedStickers();
 	auto &archived = archivedSetsOrderRef();
 	if (offsetId) {
 		auto index = archived.indexOf(offsetId);
@@ -735,7 +735,7 @@ void StickersBox::refreshTabs() {
 		return;
 	}
 
-	auto &stickers = session().data().stickers();
+	const auto &stickers = session().data().stickers();
 
 	_tabIndices.clear();
 	auto sections = std::vector<QString>();
@@ -1678,7 +1678,7 @@ void StickersBox::Inner::paintFakeButton(Painter &p, not_null<Row*> row, int ind
 					row->ripple.reset();
 				}
 			}
-			auto &icon = selected ? st::stickersRemove.iconOver : st::stickersRemove.icon;
+			const auto &icon = selected ? st::stickersRemove.iconOver : st::stickersRemove.icon;
 			auto position = st::stickersRemove.iconPosition;
 			if (position.x() < 0) position.setX((rect.width() - icon.width()) / 2);
 			if (position.y() < 0) position.setY((rect.height() - icon.height()) / 2);
@@ -1822,7 +1822,7 @@ void StickersBox::Inner::setPressed(SelectedRow pressed) {
 	pressedIndex = countPressedIndex();
 	if (_megagroupSet && pressedIndex >= 0 && pressedIndex < _rows.size()) {
 		update(0, _itemsTop + pressedIndex * _rowHeight, width(), _rowHeight);
-		auto &set = _rows[pressedIndex];
+		const auto &set = _rows[pressedIndex];
 		if (!set->ripple) {
 			auto rippleMask = Ui::RippleAnimation::RectMask(QSize(width(), _rowHeight));
 			set->ripple = std::make_unique<Ui::RippleAnimation>(st::defaultRippleAnimation, std::move(rippleMask), [this, pressedIndex] {
@@ -2081,7 +2081,7 @@ void StickersBox::Inner::setRowRemovedBySetId(uint64 setId, bool removed) {
 }
 
 void StickersBox::Inner::setRowRemoved(int index, bool removed) {
-	auto &row = _rows[index];
+	const auto &row = _rows[index];
 	if (row->removed != removed) {
 		row->removed = removed;
 		row->ripple.reset();
@@ -2315,7 +2315,7 @@ void StickersBox::Inner::rebuild(bool masks) {
 	clear();
 	const auto &order = ([&]() -> const StickersSetsOrder & {
 		if (_section == Section::Installed) {
-			auto &result = _megagroupSetEmoji
+			const auto &result = _megagroupSetEmoji
 				? session().data().stickers().emojiSetsOrder()
 				: session().data().stickers().setsOrder();
 			if (_megagroupSet && result.empty()) {
@@ -2600,7 +2600,7 @@ int StickersBox::Inner::fillSetCount(not_null<StickersSet*> set) const {
 		const auto &recent = session().data().stickers().getRecentPack();
 		auto customIt = sets.find(Data::Stickers::CustomSetId);
 		if (customIt != sets.cend()) {
-			auto &custom = customIt->second->stickers;
+			const auto &custom = customIt->second->stickers;
 			added = custom.size();
 			if (skipPremium) {
 				added -= ranges::count(
@@ -2662,7 +2662,7 @@ StickersSetsOrder StickersBox::Inner::removedSets() const {
 
 int StickersBox::Inner::getRowIndex(uint64 setId) const {
 	for (auto i = 0, count = int(_rows.size()); i != count; ++i) {
-		auto &row = _rows[i];
+		const auto &row = _rows[i];
 		if (row->set->id == setId) {
 			return i;
 		}

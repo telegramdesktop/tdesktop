@@ -90,7 +90,7 @@ namespace {
 			: nullptr;
 		auto previous = base::take(raw->images);
 		if (!topicRootId || topic) {
-			auto &scheduled = session->scheduledMessages();
+			const auto &scheduled = session->scheduledMessages();
 			const auto list = topic
 				? scheduled.list(topic)
 				: scheduled.list(history);

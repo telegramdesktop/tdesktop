@@ -415,7 +415,7 @@ bool SendDice(MessageToSend &message) {
 		|| !message.textWithTags.tags.isEmpty()) {
 		return false;
 	}
-	auto &config = message.action.history->session().appConfig();
+	const auto &config = message.action.history->session().appConfig();
 	static const auto hardcoded = std::vector<QString>{
 		Stickers::DicePacks::kDiceString,
 		Stickers::DicePacks::kDartString,

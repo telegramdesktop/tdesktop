@@ -6473,7 +6473,7 @@ Fn<HistoryView::ElementDelegate*()> HistoryInner::elementDelegateFactory(
 	const auto weak = base::make_weak(_controller);
 	return [=]() -> HistoryView::ElementDelegate* {
 		if (const auto strong = weak.get()) {
-			auto &data = strong->session().data();
+			const auto &data = strong->session().data();
 			if (const auto item = data.message(itemId)) {
 				const auto history = item->history();
 				return history->delegateMixin()->delegate();

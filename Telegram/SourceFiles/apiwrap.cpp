@@ -1682,7 +1682,7 @@ void ApiWrap::saveStickerSets(
 	auto &recent = _session->data().stickers().getRecentPack();
 	auto &sets = _session->data().stickers().setsRef();
 
-	auto &order = (type == Data::StickersType::Emoji)
+	const auto &order = (type == Data::StickersType::Emoji)
 		? _session->data().stickers().emojiSetsOrder()
 		: (type == Data::StickersType::Masks)
 		? _session->data().stickers().maskSetsOrder()
@@ -3257,7 +3257,7 @@ void ApiWrap::requestRecentStickers(
 		switch (result.type()) {
 		case mtpc_messages_recentStickersNotModified: return;
 		case mtpc_messages_recentStickers: {
-			auto &d = result.c_messages_recentStickers();
+			const auto &d = result.c_messages_recentStickers();
 			_session->data().stickers().specialSetReceived(
 				attached
 					? Data::Stickers::CloudRecentAttachedSetId
@@ -3293,7 +3293,7 @@ void ApiWrap::requestFavedStickers(std::optional<TimeId> now) {
 		switch (result.type()) {
 		case mtpc_messages_favedStickersNotModified: return;
 		case mtpc_messages_favedStickers: {
-			auto &d = result.c_messages_favedStickers();
+			const auto &d = result.c_messages_favedStickers();
 			_session->data().stickers().specialSetReceived(
 				Data::Stickers::FavedSetId,
 				Lang::Hard::FavedSetTitle(),
@@ -3360,7 +3360,7 @@ void ApiWrap::requestSavedGifs(TimeId now) {
 		switch (result.type()) {
 		case mtpc_messages_savedGifsNotModified: return;
 		case mtpc_messages_savedGifs: {
-			auto &d = result.c_messages_savedGifs();
+			const auto &d = result.c_messages_savedGifs();
 			_session->data().stickers().gifsReceived(
 				d.vgifs().v,
 				d.vhash().v);
@@ -4207,7 +4207,7 @@ void ApiWrap::sendFiles(
 		SendMediaType type,
 		std::shared_ptr<SendingAlbum> album,
 		SendAction action) {
-	auto &ephemeral = _session->ephemeralMessages();
+	const auto &ephemeral = _session->ephemeralMessages();
 	if (album && !ephemeral.isEphemeralBotReply(action.replyTo.messageId)) {
 		const auto peer = action.history->peer;
 		for (const auto &file : list.files) {
@@ -4618,7 +4618,7 @@ void ApiWrap::sendMessage(
 		std::optional<MsgId> localMessageId) {
 	const auto history = message.action.history;
 	const auto peer = history->peer;
-	auto &textWithTags = message.textWithTags;
+	const auto &textWithTags = message.textWithTags;
 
 	auto action = message.action;
 	action.generateLocal = true;
@@ -4935,7 +4935,7 @@ void ApiWrap::sendBotStart(
 		return;
 	}
 
-	auto &info = bot->botInfo;
+	const auto &info = bot->botInfo;
 	const auto token = chat ? startTokenForChat : info->startToken;
 	if (token.isEmpty()) {
 		auto message = MessageToSend(

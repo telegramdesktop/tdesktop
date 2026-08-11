@@ -1162,7 +1162,7 @@ bool LocationPicker::venuesFromCache(
 		Core::GeoLocation location,
 		QString query) {
 	const auto normalized = NormalizeVenuesQuery(query);
-	auto &cache = _venuesCache[normalized];
+	const auto &cache = _venuesCache[normalized];
 	const auto i = ranges::find_if(cache, [&](const VenuesCacheEntry &v) {
 		return AreTheSame(v.location, location);
 	});
@@ -1201,7 +1201,7 @@ void LocationPicker::venuesRequest(
 		MTP_string(username),
 		MTP_string()
 	)).done([=](const MTPcontacts_ResolvedPeer &result) {
-		auto &data = result.data();
+		const auto &data = result.data();
 		_session->data().processUsers(data.vusers());
 		_session->data().processChats(data.vchats());
 		const auto peer = _session->data().peerLoaded(

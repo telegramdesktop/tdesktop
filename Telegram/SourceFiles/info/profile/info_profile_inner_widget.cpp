@@ -199,7 +199,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 			user,
 			Data::PeerUpdate::Flag::FullInfo
 		) | rpl::on_next([=] {
-			auto &photos = user->session().api().peerPhoto();
+			const auto &photos = user->session().api().peerPhoto();
 			if (const auto original = photos.nonPersonalPhoto(user)) {
 				// Preload it for the edit contact box.
 				_nonPersonalView = original->createMediaView();

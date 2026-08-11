@@ -1126,7 +1126,7 @@ void Instance::openWithIvPreferred(
 	trackSession(session);
 	const auto hash = (parts.size() > 1) ? parts[1] : u""_q;
 	const auto url = parts[0];
-	auto &cache = _ivCache[session];
+	const auto &cache = _ivCache[session];
 	if (const auto i = cache.find(url); i != end(cache)) {
 		const auto page = i->second;
 		if (page && page->iv) {

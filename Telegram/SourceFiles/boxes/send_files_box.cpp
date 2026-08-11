@@ -1605,7 +1605,7 @@ void SendFilesBox::pushBlock(int from, int till) {
 			state->menu->addAction(
 				tr::lng_context_upload_edit_caption(tr::now),
 				[=] {
-					auto &file = _list.files[fileIndex];
+					const auto &file = _list.files[fileIndex];
 					const auto count = int(_list.files.size());
 					const auto sync = (fileIndex + 1 == count);
 					_show->show(Box(
@@ -1852,7 +1852,7 @@ bool SendFilesBox::checkWith(
 		return true;
 	}
 	const auto compress = way.sendImagesAsPhotos();
-	auto &already = _list.files;
+	const auto &already = _list.files;
 	for (const auto &file : ranges::views::concat(already, added.files)) {
 		if (!_check(file, compress, silent)) {
 			return false;

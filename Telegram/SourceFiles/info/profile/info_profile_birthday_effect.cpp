@@ -192,7 +192,7 @@ void BirthdayEffect::resolveSet(
 		}
 		return byEmoji;
 	};
-	auto &stickers = _session->data().stickers();
+	const auto &stickers = _session->data().stickers();
 	for (const auto &[id, set] : stickers.sets()) {
 		if (!set->emoji.empty()
 			&& !set->shortName.compare(shortName, Qt::CaseInsensitive)) {
@@ -428,7 +428,7 @@ void BirthdayEffect::paintDigits(QPainter &p) {
 	const auto t = _progress;
 
 	for (auto i = count - 1; i >= 0; --i) {
-		auto &digit = _digits[i];
+		const auto &digit = _digits[i];
 		if (!digit.player || !digit.player->ready()) {
 			continue;
 		}

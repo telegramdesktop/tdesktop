@@ -1208,7 +1208,7 @@ void DocumentData::save(
 		bool autoLoading) {
 	Test::NotifyDocumentSave(this, toFile, autoLoading);
 	if (const auto media = activeMediaView(); media && media->loaded(true)) {
-		auto &l = location(true);
+		const auto &l = location(true);
 		if (!toFile.isEmpty()) {
 			if (!media->bytes().isEmpty()) {
 				QFile f(toFile);

@@ -150,7 +150,7 @@ PeerPhoto::PeerPhoto(not_null<ApiWrap*> api)
 : _session(&api->session())
 , _api(&api->instance()) {
 	crl::on_main(_session, [=] {
-		auto &uploader = _session->uploader();
+		const auto &uploader = _session->uploader();
 
 		// You can't use _session->lifetime() in the constructor,
 		// only queued, because it is not constructed yet.
@@ -656,7 +656,7 @@ void PeerPhoto::requestEmojiList(EmojiListType type) {
 
 rpl::producer<PeerPhoto::EmojiList> PeerPhoto::emojiListValue(
 		EmojiListType type) {
-	auto &list = emojiList(type);
+	const auto &list = emojiList(type);
 	if (list.list.current().empty() && !list.requestId) {
 		requestEmojiList(type);
 	}

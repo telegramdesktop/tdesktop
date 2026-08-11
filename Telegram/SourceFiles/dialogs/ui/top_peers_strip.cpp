@@ -397,7 +397,7 @@ int TopPeersStrip::clearPressed() {
 	const auto pressed = std::exchange(_pressed, -1);
 	if (pressed >= 0) {
 		Assert(pressed < _entries.size());
-		auto &entry = _entries[pressed];
+		const auto &entry = _entries[pressed];
 		if (entry.ripple) {
 			entry.ripple->lastStop();
 		}

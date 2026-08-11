@@ -5743,7 +5743,7 @@ void HistoryItem::applyServiceDateEdition(const MTPDmessageService &data) {
 void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 	auto prepareChatAddUserText = [this](const MTPDmessageActionChatAddUser &action) {
 		auto result = PreparedServiceText();
-		auto &users = action.vusers().v;
+		const auto &users = action.vusers().v;
 		if (users.size() == 1) {
 			auto u = _history->owner().user(users[0].v);
 			if (u == _from) {

@@ -125,7 +125,7 @@ void SignupWidget::nameSubmitFail(const MTP::Error &error) {
 		return;
 	}
 
-	auto &err = error.type();
+	const auto &err = error.type();
 	if (err == u"PHONE_NUMBER_FLOOD"_q) {
 		Ui::show(Ui::MakeInformBox(tr::lng_error_phone_flood()));
 	} else if (err == u"PHONE_NUMBER_INVALID"_q

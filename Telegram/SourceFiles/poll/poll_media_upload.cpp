@@ -452,7 +452,7 @@ PollMediaUploader::PollMediaUploader(Args &&args)
 PollMediaUploader::~PollMediaUploader() = default;
 
 void PollMediaUploader::subscribeToUploader() {
-	auto &uploader = _session->uploader();
+	const auto &uploader = _session->uploader();
 
 	uploader.photoReady(
 	) | rpl::on_next([=](const Storage::UploadedMedia &data) {

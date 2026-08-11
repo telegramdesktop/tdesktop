@@ -799,7 +799,7 @@ void EditorBlock::addRowRipple(int index) {
 }
 
 void EditorBlock::stopLastRipple(int index) {
-	auto &row = rowAtIndex(index);
+	const auto &row = rowAtIndex(index);
 	if (row.ripple()) {
 		row.ripple()->lastStop();
 	}

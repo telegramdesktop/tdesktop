@@ -4963,7 +4963,7 @@ TextForMimeData Message::selectedText(TextSelection selection) const {
 			: skipTextSelection(selection);
 		logEntryOriginalResult = entry->selectedText(originalSelection);
 	}
-	auto &first = mediaBefore ? mediaResult : textResult;
+	const auto &first = mediaBefore ? mediaResult : textResult;
 	auto &second = mediaBefore ? textResult : mediaResult;
 	auto result = first;
 	if (result.empty()) {

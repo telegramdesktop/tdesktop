@@ -1219,7 +1219,7 @@ void InnerWidget::showGift(int index) {
 	Expects(index >= 0 && index < _list->size());
 
 	if (const auto id = _addingToCollectionId) {
-		auto &gift = (*_list)[index].gift;
+		const auto &gift = (*_list)[index].gift;
 		auto changes = _collectionChanges.current();
 		const auto selected = _inCollection.contains(gift.manageId);
 		if (selected) {

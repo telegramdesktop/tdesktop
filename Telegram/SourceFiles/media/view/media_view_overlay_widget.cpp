@@ -7545,7 +7545,7 @@ void OverlayWidget::setContext(
 		_history = nullptr;
 		_peer = nullptr;
 		setStoriesPeer(story->peer);
-		auto &stories = story->peer->owner().stories();
+		const auto &stories = story->peer->owner().stories();
 		const auto maybeStory = stories.lookup(
 			{ story->peer->id, story->id });
 		if (maybeStory) {

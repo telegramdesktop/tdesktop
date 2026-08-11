@@ -387,7 +387,7 @@ void StickersListFooter::enumerateIcons(
 	const auto emojiId = AllEmojiSectionSetId();
 	const auto right = width();
 	for (auto i = 0, count = int(_icons.size()); i != count; ++i) {
-		auto &icon = _icons[i];
+		const auto &icon = _icons[i];
 		const auto width = (icon.setId == emojiId)
 			? _subiconsWidthAnimation.value(_subiconsExpanded
 				? _subiconsWidth

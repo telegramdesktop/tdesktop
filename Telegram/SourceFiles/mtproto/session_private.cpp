@@ -275,7 +275,7 @@ void SessionPrivate::checkSentRequests() {
 	auto nextTimeout = kCheckSentRequestTimeout;
 	{
 		QReadLocker locker(_sessionData->haveSentMutex());
-		auto &haveSent = _sessionData->haveSentMap();
+		const auto &haveSent = _sessionData->haveSentMap();
 		for (const auto &[msgId, request] : haveSent) {
 			if (request->lastSentTime <= checkTime) {
 				// Need to check state.

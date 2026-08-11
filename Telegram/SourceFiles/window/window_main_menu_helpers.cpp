@@ -298,7 +298,7 @@ void SetupMenuBots(
 				continue;
 			} else if (const auto media = bot.media; !media->loaded()) {
 				if (!*iconLoadLifetime) {
-					auto &session = user->session();
+					const auto &session = user->session();
 					*iconLoadLifetime = session.downloaderTaskFinished(
 					) | rpl::on_next([=] {
 						if (media->loaded()) {

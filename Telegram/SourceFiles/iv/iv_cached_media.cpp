@@ -691,7 +691,7 @@ QImage CachedPageInlineDocumentImage::resolvedDocumentImage() {
 	}
 	_documentImageRead = true;
 	_document->saveFromDataSilent();
-	auto &location = _document->location(true);
+	const auto &location = _document->location(true);
 	if (location.accessEnable()) {
 		_documentImage = Images::Read({
 			.path = location.name(),

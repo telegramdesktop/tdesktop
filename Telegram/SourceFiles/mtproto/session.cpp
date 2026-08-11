@@ -237,7 +237,7 @@ void Session::restart() {
 }
 
 void Session::refreshOptions() {
-	auto &settings = Core::App().settings().proxy();
+	const auto &settings = Core::App().settings().proxy();
 	const auto &proxy = settings.selected();
 	const auto isEnabled = settings.isEnabled();
 	const auto proxyType = (isEnabled ? proxy.type : ProxyData::Type::None);

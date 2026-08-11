@@ -447,7 +447,7 @@ QByteArray Uploader::readDocPart(not_null<Entry*> entry) {
 		}
 		return result;
 	};
-	auto &content = entry->file->content;
+	const auto &content = entry->file->content;
 	if (!content.isEmpty()) {
 		const auto offset = entry->docPartsSent * entry->docPartSize;
 		return checked(content.mid(offset, entry->docPartSize));

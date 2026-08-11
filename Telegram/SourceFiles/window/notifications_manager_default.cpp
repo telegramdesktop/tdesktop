@@ -135,7 +135,7 @@ void Manager::settingsChanged(ChangeType change) {
 	} else if (change == ChangeType::MaxCount) {
 		int allow = Core::App().settings().notificationsCount();
 		for (int i = _notifications.size(); i != 0;) {
-			auto &notification = _notifications[--i];
+			const auto &notification = _notifications[--i];
 			if (notification->isUnlinked()) continue;
 			if (--allow < 0) {
 				notification->unlinkHistory();
@@ -285,7 +285,7 @@ void Manager::moveWidgets() {
 	auto shift = st::notifyDeltaY;
 	int lastShift = 0, lastShiftCurrent = 0, count = 0;
 	for (int i = _notifications.size(); i != 0;) {
-		auto &notification = _notifications[--i];
+		const auto &notification = _notifications[--i];
 		if (notification->isUnlinked()) continue;
 
 		notification->changeShift(shift);

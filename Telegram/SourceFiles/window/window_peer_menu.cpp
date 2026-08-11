@@ -3200,7 +3200,7 @@ base::weak_qptr<Ui::BoxContent> ShowForwardMessagesBox(
 
 	const auto applyFilter = [=](not_null<ListBox*> box, FilterId id) {
 		box->scrollToY(0);
-		auto &filters = session->data().chatsFilters();
+		const auto &filters = session->data().chatsFilters();
 		const auto &list = filters.list();
 		if (list.size() <= 1) {
 			return;

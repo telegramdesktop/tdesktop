@@ -274,7 +274,7 @@ void PeerListGlobalSearchController::searchDone(
 		mtpRequestId requestId) {
 	Expects(result.type() == mtpc_contacts_found);
 
-	auto &contacts = result.c_contacts_found();
+	const auto &contacts = result.c_contacts_found();
 	auto query = _query;
 	if (requestId) {
 		_session->data().processUsers(contacts.vusers());

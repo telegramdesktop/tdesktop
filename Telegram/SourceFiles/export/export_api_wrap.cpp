@@ -2337,7 +2337,7 @@ void ApiWrap::resumeMessagesSlice() {
 		: static_cast<AbstractMessagesProcess*>(_chatProcess.get());
 	Expects(process->slice.has_value());
 
-	auto &list = process->slice->list;
+	const auto &list = process->slice->list;
 	while (process->hydrationIndex < list.size()) {
 		const auto index = process->hydrationIndex;
 		const auto &message = list[index];
@@ -2397,12 +2397,12 @@ void ApiWrap::hydrateMessageDone(
 		error("Unexpected rich message hydration result.");
 		return;
 	}
-	auto &list = process->slice->list;
+	const auto &list = process->slice->list;
 	if (index < 0 || index >= list.size()) {
 		error("Unexpected rich message hydration result.");
 		return;
 	}
-	auto &message = list[index];
+	const auto &message = list[index];
 	if (message.id != rawId
 		|| !message.richMessage
 		|| !message.richMessage->part) {

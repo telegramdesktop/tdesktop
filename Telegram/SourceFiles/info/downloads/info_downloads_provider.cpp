@@ -443,7 +443,7 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 	};
 
 	using namespace Overview::Layout;
-	auto &songSt = st::overviewFileLayout;
+	const auto &songSt = st::overviewFileLayout;
 	if (const auto file = getFile()) {
 		auto fields = DocumentFields{
 			.document = file,

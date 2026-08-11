@@ -161,7 +161,7 @@ void AbstractSingleFilePreview::paintEvent(QPaintEvent *e) {
 			PainterHighQualityEnabler hq(p);
 			p.drawEllipse(inner);
 		}
-		auto &icon = _data.fileIsAudio
+		const auto &icon = _data.fileIsAudio
 			? (_data.fileThumb.isNull()
 				? _st.files.iconPlay
 				: st::historyFileThumbPlay)

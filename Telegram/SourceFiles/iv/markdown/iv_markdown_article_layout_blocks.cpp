@@ -4550,7 +4550,7 @@ LaidOutBlock LayoutGroupedMediaBlock(
 		for (auto cellIndex = 0, cellCount = int(rowData.cells.size());
 				cellIndex != cellCount;
 				++cellIndex) {
-			auto &cellData = rowData.cells[cellIndex];
+			const auto &cellData = rowData.cells[cellIndex];
 			if (!cellData.cell) {
 				continue;
 			}
@@ -4655,7 +4655,7 @@ LaidOutBlock LayoutGroupedMediaBlock(
 		for (auto cellIndex = 0, cellCount = int(prepared.tableRows[rowIndex].cells.size());
 				cellIndex != cellCount;
 				++cellIndex) {
-			auto &cell = block->tableRows[rowIndex].cells[cellIndex];
+			const auto &cell = block->tableRows[rowIndex].cells[cellIndex];
 			const auto &preparedCell = prepared.tableRows[rowIndex].cells[cellIndex];
 			const auto usePlaceholder = preparedCell.text.text.isEmpty()
 				&& !preparedCell.editPlaceholderText.isEmpty();

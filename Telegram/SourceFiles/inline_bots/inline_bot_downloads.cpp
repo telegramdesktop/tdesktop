@@ -100,7 +100,7 @@ void Downloads::progress(PeerId botId, DownloadId id) {
 	const auto total = loader->fullSize();
 	const auto ready = loader->currentOffset();
 
-	auto &list = _lists[botId].list;
+	const auto &list = _lists[botId].list;
 	const auto j = ranges::find(
 		list,
 		id,

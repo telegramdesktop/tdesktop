@@ -37,7 +37,7 @@ void AppendClientSideMessages(
 		ranges::sort(slice.ids);
 		return;
 	}
-	auto &owner = history->owner();
+	const auto &owner = history->owner();
 	auto dates = std::vector<TimeId>();
 	dates.reserve(slice.ids.size());
 	for (const auto &id : slice.ids) {

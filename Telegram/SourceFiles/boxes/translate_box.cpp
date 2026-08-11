@@ -557,7 +557,7 @@ object_ptr<BoxContent> EditSkipTranslationLanguages() {
 object_ptr<BoxContent> ChooseTranslateToBox(
 		LanguageId bringUp,
 		Fn<void(LanguageId)> callback) {
-	auto &settings = Core::App().settings();
+	const auto &settings = Core::App().settings();
 	auto selected = std::vector<LanguageId>{
 		settings.translateTo(),
 	};
@@ -585,7 +585,7 @@ LanguageId ChooseTranslateTo(not_null<History*> history) {
 }
 
 LanguageId ChooseTranslateTo(LanguageId offeredFrom) {
-	auto &settings = Core::App().settings();
+	const auto &settings = Core::App().settings();
 	return ChooseTranslateTo(
 		offeredFrom,
 		settings.translateTo(),

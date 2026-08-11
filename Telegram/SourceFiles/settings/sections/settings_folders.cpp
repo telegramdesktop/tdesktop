@@ -634,7 +634,7 @@ not_null<Ui::VerticalLayout*> SetupFoldersList(
 		auto removeRequests = std::vector<MTPmessages_UpdateDialogFilter>();
 		auto removeChatlistRequests = std::vector<MTPchatlists_LeaveChatlist>();
 
-		auto &realFilters = session->data().chatsFilters();
+		const auto &realFilters = session->data().chatsFilters();
 		const auto &list = realFilters.list();
 		order.reserve(state->rows.size());
 		for (auto &row : state->rows) {

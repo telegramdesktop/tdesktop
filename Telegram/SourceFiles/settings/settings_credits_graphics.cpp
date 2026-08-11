@@ -1470,7 +1470,7 @@ void GenericCreditsEntryCover(
 			? st::creditsHistoryEntryStarGiftSize
 			: st::creditsHistoryEntryGiftStickerSize));
 		const auto state = icon->lifetime().make_state<State>();
-		auto &packs = session->giftBoxStickersPacks();
+		const auto &packs = session->giftBoxStickersPacks();
 		const auto document = starGiftSticker
 			? starGiftSticker
 			: e.credits.ton()

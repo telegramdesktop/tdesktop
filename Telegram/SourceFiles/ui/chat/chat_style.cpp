@@ -178,7 +178,7 @@ int ColorPatternIndex(
 		return 0;
 	}
 	auto &data = (*indices.colors)[colorIndex];
-	auto &colors = dark ? data.dark : data.light;
+	const auto &colors = dark ? data.dark : data.light;
 	return colors[2] ? 2 : colors[1] ? 1 : 0;
 }
 
@@ -818,7 +818,7 @@ int ChatStyle::colorPatternIndex(uint8 colorIndex) const {
 		return 0;
 	}
 	auto &data = (*_colorIndices.colors)[colorIndex];
-	auto &colors = _dark ? data.dark : data.light;
+	const auto &colors = _dark ? data.dark : data.light;
 	return colors[2] ? 2 : colors[1] ? 1 : 0;
 }
 
@@ -869,7 +869,7 @@ ColorIndexValues ChatStyle::computeColorIndexValues(
 		return result;
 	}
 	auto &data = (*_colorIndices.colors)[colorIndex];
-	auto &colors = _dark ? data.dark : data.light;
+	const auto &colors = _dark ? data.dark : data.light;
 	if (!colors[0]) {
 		return computeColorIndexValues(
 			selected,

@@ -742,7 +742,7 @@ void Reactions::preloadImageFor(const ReactionId &id) {
 		loadImage(set, lookupPaid()->centerIcon, true);
 		return;
 	}
-	auto &list = set.effect ? _effects : _available;
+	const auto &list = set.effect ? _effects : _available;
 	const auto i = ranges::find(list, id, &Reaction::id);
 	const auto document = (i == end(list))
 		? nullptr

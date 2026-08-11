@@ -2325,7 +2325,7 @@ void Widget::collectStoriesUserpicsViews(Data::StorySourcesList list) {
 		? _storiesUserpicsViewsHidden
 		: _storiesUserpicsViewsShown;
 	map.clear();
-	auto &owner = session().data();
+	const auto &owner = session().data();
 	for (const auto &source : owner.stories().sources(list)) {
 		if (const auto peer = owner.peerLoaded(source.id)) {
 			if (auto view = peer->activeUserpicView(); view.cloud) {

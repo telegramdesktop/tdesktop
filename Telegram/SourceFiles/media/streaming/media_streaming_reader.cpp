@@ -699,7 +699,7 @@ bool Reader::Slices::readCacheForDownloaderRequired(uint32 offset) {
 		return false;
 	}
 	const auto index = offset / kInSlice;
-	auto &slice = _data[index];
+	const auto &slice = _data[index];
 	return !(slice.flags & Slice::Flag::LoadedFromCache);
 }
 

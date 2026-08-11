@@ -820,7 +820,7 @@ void DownloadManager::resolve(
 		uint64 peerAccessHash = 0;
 		QVector<MTPInputMessage> ids;
 	};
-	auto &owner = session->data();
+	const auto &owner = session->data();
 	auto prepared = base::flat_map<PeerId, Prepared>();
 	auto last = begin(data.downloaded);
 	auto from = last + (data.resolveNeeded - data.resolveSentTotal);
@@ -884,7 +884,7 @@ void DownloadManager::resolve(
 void DownloadManager::resolveRequestsFinished(
 		not_null<Main::Session*> session,
 		SessionData &data) {
-	auto &owner = session->data();
+	const auto &owner = session->data();
 	for (; data.resolveSentTotal > 0; --data.resolveSentTotal) {
 		const auto i = begin(data.downloaded) + (--data.resolveNeeded);
 		if (i->path.isEmpty()) {

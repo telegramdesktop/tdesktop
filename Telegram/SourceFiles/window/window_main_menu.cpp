@@ -939,7 +939,7 @@ void MainMenu::initResetScaleButton() {
 
 OthersUnreadState OtherAccountsUnreadStateCurrent(
 		not_null<Main::Account*> current) {
-	auto &domain = Core::App().domain();
+	const auto &domain = Core::App().domain();
 	auto counter = 0;
 	auto allMuted = true;
 	for (const auto &[index, account] : domain.accounts()) {

@@ -672,7 +672,7 @@ std::vector<Result> EmojiKeywords::PrioritizeRecent(
 }
 
 std::vector<Result> EmojiKeywords::ApplyVariants(std::vector<Result> list) {
-	auto &settings = Core::App().settings();
+	const auto &settings = Core::App().settings();
 	for (auto &item : list) {
 		item.emoji = settings.lookupEmojiVariant(item.emoji);
 	}

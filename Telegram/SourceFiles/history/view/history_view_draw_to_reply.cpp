@@ -37,7 +37,7 @@ QImage ResolveDrawToReplyImage(
 		}
 		const auto media = document->createMediaView();
 		document->saveFromDataSilent();
-		auto &location = document->location(true);
+		const auto &location = document->location(true);
 		if (location.accessEnable()) {
 			image = Images::Read({ .path = location.name() }).image;
 		} else {

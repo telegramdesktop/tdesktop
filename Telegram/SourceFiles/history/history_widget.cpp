@@ -2119,7 +2119,7 @@ bool HistoryWidget::suppressSendAction() const {
 	if (!_history) {
 		return false;
 	}
-	auto &ephemeral = session().ephemeralMessages();
+	const auto &ephemeral = session().ephemeralMessages();
 	return ephemeral.isEphemeralBotReply(replyTo().messageId)
 		|| (_peer && ephemeral.hasEphemeralCommand(
 			_peer,
@@ -6421,7 +6421,7 @@ bool HistoryWidget::insertBotCommand(const QString &cmd) {
 	toInsert += ' ';
 
 	if (!insertingInlineBot) {
-		auto &textWithTags = _field->getTextWithTags();
+		const auto &textWithTags = _field->getTextWithTags();
 		auto textWithTagsToSet = TextWithTags();
 		const auto m = QRegularExpression(
 			u"^/[A-Za-z_0-9]{0,64}(@[A-Za-z_0-9]{0,32})?(\\s|$)"_q).match(

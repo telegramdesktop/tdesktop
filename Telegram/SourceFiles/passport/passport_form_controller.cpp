@@ -1240,7 +1240,7 @@ rpl::producer<EditDocumentCountry> FormController::preferredLanguage(
 		if (countryCode.isEmpty()) {
 			return QString();
 		}
-		auto &langs = _passportConfig.languagesByCountryCode;
+		const auto &langs = _passportConfig.languagesByCountryCode;
 		const auto i = langs.find(countryCode);
 		return (i == end(langs)) ? QString() : i->second;
 	};

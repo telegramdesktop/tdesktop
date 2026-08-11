@@ -1283,7 +1283,7 @@ void SessionNavigation::showRepliesForMessage(
 			if (comments && !item) {
 				return;
 			}
-			auto &groups = _session->data().groups();
+			const auto &groups = _session->data().groups();
 			if (const auto group = item ? groups.find(item) : nullptr) {
 				item = group->items.front();
 			}

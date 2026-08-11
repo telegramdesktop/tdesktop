@@ -136,7 +136,7 @@ void SaveLastPlaybackPosition(
 		: (state.length >= limit * state.frequency)
 		? (state.position / state.frequency) * crl::time(1000)
 		: TimeId(0);
-	auto &session = document->session();
+	const auto &session = document->session();
 	if (session.local().mediaLastPlaybackPosition(document->id) != time) {
 		session.local().setMediaLastPlaybackPosition(document->id, time);
 	}

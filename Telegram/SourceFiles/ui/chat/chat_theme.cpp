@@ -315,7 +315,7 @@ ChatTheme::ChatTheme(ChatThemeDescriptor &&descriptor)
 ChatTheme::~ChatTheme() = default;
 
 void ChatTheme::adjustPalette(const ChatThemeDescriptor &descriptor) {
-	auto &p = *_palette;
+	const auto &p = *_palette;
 	const auto overrideOutBg = (descriptor.bubblesData.colors.size() == 1);
 	if (overrideOutBg) {
 		set(p.msgOutBg(), descriptor.bubblesData.colors.front());

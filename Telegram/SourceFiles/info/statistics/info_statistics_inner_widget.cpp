@@ -924,7 +924,7 @@ void InnerWidget::fillRecentPosts(not_null<Ui::VerticalLayout*> container) {
 			const auto &recent = stats.recentMessageInteractions[i];
 			const auto messageWrap = content->add(
 				object_ptr<Ui::VerticalLayout>(content));
-			auto &data = _peer->owner();
+			const auto &data = _peer->owner();
 			if (recent.messageId) {
 				const auto fullId = FullMsgId(_peer->id, recent.messageId);
 				if (const auto item = data.message(fullId)) {

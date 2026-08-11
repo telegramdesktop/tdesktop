@@ -142,7 +142,7 @@ void BuildNotificationsReactionsContent(SectionBuilder &builder) {
 
 	builder.add([](const WidgetContext &ctx) {
 		const auto session = &ctx.controller->session();
-		auto &rs = session->api().reactionsNotifySettings();
+		const auto &rs = session->api().reactionsNotifySettings();
 
 		AddToggleRow(
 			ctx.container,
@@ -193,7 +193,7 @@ void BuildNotificationsReactionsContent(SectionBuilder &builder) {
 
 	builder.add([](const WidgetContext &ctx) {
 		const auto session = &ctx.controller->session();
-		auto &rs = session->api().reactionsNotifySettings();
+		const auto &rs = session->api().reactionsNotifySettings();
 
 		const auto showSender = AddButtonWithIcon(
 			ctx.container,
