@@ -189,6 +189,7 @@ enum class OrderedMarkerType {
 const auto PhotoLargeLevels = u"ydxcwmbsa"_q;
 constexpr auto kDefaultMapWidth = 400;
 constexpr auto kDefaultMapHeight = 200;
+constexpr auto kMaxParsedBlockDepth = 64;
 
 [[nodiscard]] int NonZeroMapWidth(int width) {
 	return (width > 0) ? width : kDefaultMapWidth;
@@ -242,6 +243,7 @@ struct ParseContext {
 	bool dropRichTextClickHandlers = false;
 	bool keepRichTextFormattedDates = false;
 	bool displayTextDiff = false;
+	int blockDepth = 0;
 };
 
 struct RichMessageMetrics {
@@ -1313,7 +1315,14 @@ void AppendBlocks(
 void AppendBlock(
 		const MTPPageBlock &block,
 		std::vector<Block> *result,
-	ParseContext *context) {
+		ParseContext *context) {
+	if (context->blockDepth >= kMaxParsedBlockDepth) {
+		result->push_back(MakeBlock(BlockKind::Unsupported));
+		return;
+	}
+	++context->blockDepth;
+	const auto depthGuard = gsl::finally([&] { --context->blockDepth; });
+
 	block.match([&](const MTPDpageBlockUnsupported &) {
 		result->push_back(MakeBlock(BlockKind::Unsupported));
 	}, [&](const MTPDpageBlockTitle &data) {
