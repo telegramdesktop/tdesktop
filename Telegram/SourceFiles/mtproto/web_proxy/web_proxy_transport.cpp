@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/invoke_queued.h"
 #include "core/file_utilities.h"
 #include "mtproto/web_proxy/web_proxy_frame.h"
+#include "mtproto/web_proxy/web_proxy_webview.h"
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QCryptographicHash>
@@ -56,16 +57,21 @@ constexpr auto kCapabilityLifetime = crl::time(5 * 60 * 1000);
 constexpr auto kLocalClientHandshakeTimeout = crl::time(10 * 1000);
 constexpr auto kWelcomeTimeout = crl::time(30 * 1000);
 constexpr auto kWriteProgressTimeout = crl::time(30 * 1000);
+constexpr auto kWebviewRetryTimeout = crl::time(30 * 1000);
 constexpr auto kWebSocketGuid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
 struct Globals {
 	std::unique_ptr<QThread> thread;
 	QPointer<Transport> transport;
 	std::atomic<Transport*> available = nullptr;
+	std::unique_ptr<WebviewCarrier> webview;
 	ProxyData active;
 	Transport::State state = Transport::State::Idle;
 	QString browser;
 	rpl::event_stream<Transport::StateChange> changes;
+	uint64 webviewGeneration = 0;
+	bool webviewRetryScheduled = false;
+	bool webviewDisabled = false;
 };
 
 [[nodiscard]] Globals &Global() {
@@ -112,49 +118,6 @@ struct Globals {
 
 [[nodiscard]] int WebSocketHeaderSize(int payloadSize) {
 	return (payloadSize < 126) ? 2 : (payloadSize <= 0xFFFF) ? 4 : 10;
-}
-
-[[nodiscard]] QByteArray RelayWebSocketFrame(
-		FrameType type,
-		uint32 streamId,
-		const char *payload,
-		int payloadSize) {
-	Expects(streamId <= 0x00FFFFFF);
-	Expects(payloadSize >= 0 && payloadSize <= kMaxFramePayload);
-
-	const auto relaySize = kFrameHeaderSize + payloadSize;
-	const auto webSocketHeader = WebSocketHeaderSize(relaySize);
-	auto result = QByteArray(
-		webSocketHeader + relaySize,
-		Qt::Uninitialized);
-	auto data = reinterpret_cast<uchar*>(result.data());
-	data[0] = 0x82;
-	if (webSocketHeader == 2) {
-		data[1] = uchar(relaySize);
-	} else if (webSocketHeader == 4) {
-		data[1] = 126;
-		data[2] = uchar(relaySize >> 8);
-		data[3] = uchar(relaySize);
-	} else {
-		data[1] = 127;
-		const auto size = uint64(relaySize);
-		for (auto i = 0; i != 8; ++i) {
-			data[2 + i] = uchar(size >> (56 - 8 * i));
-		}
-	}
-	data += webSocketHeader;
-	data[0] = uchar(type);
-	data[1] = uchar(streamId >> 16);
-	data[2] = uchar(streamId >> 8);
-	data[3] = uchar(streamId);
-	data[4] = uchar(payloadSize >> 24);
-	data[5] = uchar(payloadSize >> 16);
-	data[6] = uchar(payloadSize >> 8);
-	data[7] = uchar(payloadSize);
-	if (payloadSize) {
-		memcpy(data + kFrameHeaderSize, payload, payloadSize);
-	}
-	return result;
 }
 
 [[nodiscard]] bool HeaderHasToken(
@@ -219,6 +182,11 @@ public:
 	void sendData(uint32 streamId, QByteArray data);
 	void grantWindow(uint32 streamId, uint32 amount);
 	void failStream(uint32 streamId);
+	void webviewStarting(uint64 generation);
+	void webviewReady(uint64 generation);
+	void webviewPayload(uint64 generation, const QByteArray &payload);
+	void webviewWritten(uint64 generation, int bytes);
+	void webviewFailed(uint64 generation);
 
 private:
 	struct Client {
@@ -300,6 +268,10 @@ private:
 	void flushControlFrames();
 	void ensureWriteProgressCheck();
 	void browserBytesWritten();
+	void writeCarrierFrame(QByteArray frame);
+	[[nodiscard]] bool carrierAvailable() const;
+	[[nodiscard]] int carrierPendingBytes() const;
+	[[nodiscard]] int carrierFrameSize(int payloadSize) const;
 	void markStreamReady(uint32 streamId);
 	void unmarkStreamReady(uint32 streamId);
 	void flushStreams();
@@ -332,6 +304,9 @@ private:
 	crl::time _pendingTokenExpiresAt = 0;
 	QString _browser;
 	State _state = State::Idle;
+	uint64 _webviewCandidateGeneration = 0;
+	uint64 _webviewGeneration = 0;
+	int _webviewPendingBytes = 0;
 	bool _welcomed = false;
 	bool _browserWriteFailed = false;
 	bool _writeProgressCheckScheduled = false;
@@ -375,6 +350,9 @@ void Transport::Private::deactivate() {
 	_pendingToken.clear();
 	_pendingTokenExpiresAt = 0;
 	_browser.clear();
+	_webviewCandidateGeneration = 0;
+	_webviewGeneration = 0;
+	_webviewPendingBytes = 0;
 	_welcomed = false;
 	_browserWriteFailed = false;
 	_writeProgressCheckScheduled = false;
@@ -415,7 +393,7 @@ void Transport::Private::startServer() {
 		setState(State::Failed);
 		return;
 	}
-	setState(State::WaitingForBrowser);
+	setState(State::Connecting);
 }
 
 void Transport::Private::acceptClients() {
@@ -760,6 +738,7 @@ void Transport::Private::processBrowserControl(
 	const auto state = object.value(u"state"_q).toString();
 	if (state == u"failed"_q) {
 		loseBrowser(true);
+		closeWebSocket(socket, 1000);
 	} else if (state == u"connecting"_q
 		|| state == u"reconnecting"_q) {
 		setState(State::Connecting, _browser);
@@ -780,6 +759,10 @@ void Transport::Private::authenticateBrowser(
 	}
 	if (_pendingToken.isEmpty() || token != _pendingToken) {
 		closeWebSocket(socket, 1008);
+		return;
+	}
+	if (_webviewGeneration) {
+		closeWebSocket(socket, 1000);
 		return;
 	}
 	_pendingToken.clear();
@@ -813,6 +796,94 @@ void Transport::Private::authenticateBrowser(
 			protocolError();
 		}
 	});
+}
+
+void Transport::Private::webviewStarting(uint64 generation) {
+	if (!_proxy || !generation) {
+		return;
+	}
+	_webviewCandidateGeneration = generation;
+	if (!carrierAvailable() && _state != State::WaitingForBrowser) {
+		setState(State::Connecting);
+	}
+}
+
+void Transport::Private::webviewReady(uint64 generation) {
+	if (_webviewCandidateGeneration != generation || _webviewGeneration) {
+		return;
+	}
+	_webviewCandidateGeneration = 0;
+	const auto replaceConnectedBrowser = _browserSocket && _welcomed;
+	if (replaceConnectedBrowser) {
+		closeAllStreams(false);
+	}
+	const auto browser = _browserSocket;
+	_browserSocket = nullptr;
+	_browserWriteFailed = false;
+	_controlFrames.clear();
+	_controlBytes = 0;
+	_writeProgressCheckScheduled = false;
+	_lastWriteProgress = crl::now();
+	_welcomed = false;
+	if (browser) {
+		if (const auto i = _clients.find(browser.data()); i != end(_clients)) {
+			i->second.authenticated = false;
+		}
+		closeWebSocket(browser.data(), 1000);
+	}
+	_webviewGeneration = generation;
+	_webviewPendingBytes = 0;
+	_browser = u"WebView"_q;
+	welcome();
+}
+
+void Transport::Private::webviewPayload(
+		uint64 generation,
+		const QByteArray &payload) {
+	if (_webviewGeneration == generation) {
+		processRelayPayload(payload);
+	}
+}
+
+void Transport::Private::webviewWritten(uint64 generation, int bytes) {
+	if (_webviewGeneration != generation
+		|| bytes <= 0
+		|| bytes > _webviewPendingBytes) {
+		return;
+	}
+	_webviewPendingBytes -= bytes;
+	_lastWriteProgress = crl::now();
+	flushControlFrames();
+	flushStreams();
+}
+
+void Transport::Private::webviewFailed(uint64 generation) {
+	const auto candidate = (_webviewCandidateGeneration == generation);
+	const auto active = (_webviewGeneration == generation);
+	if (!candidate && !active) {
+		return;
+	}
+	if (candidate) {
+		_webviewCandidateGeneration = 0;
+	}
+	if (active) {
+		_webviewGeneration = 0;
+		_webviewPendingBytes = 0;
+		_welcomed = false;
+		closeAllStreams(false);
+		_readyStreams.clear();
+		_readySet.clear();
+		_controlFrames.clear();
+		_controlBytes = 0;
+		_browserWriteFailed = false;
+		_writeProgressCheckScheduled = false;
+		_lastWriteProgress = 0;
+		_closedStreams.clear();
+		_closedStreamOrder.clear();
+	}
+	if (!_browserSocket) {
+		setState(State::WaitingForBrowser);
+	}
 }
 
 void Transport::Private::processRelayPayload(const QByteArray &payload) {
@@ -850,7 +921,13 @@ bool Transport::Private::processRelayFrame(const Frame &frame) {
 			sendFrame(FrameType::Pong, 0, frame.payload);
 			return true;
 		case FrameType::Bye:
-			loseBrowser(true);
+			if (_webviewGeneration) {
+				const auto generation = _webviewGeneration;
+				webviewFailed(generation);
+				_owner->FinishWebview(generation);
+			} else {
+				loseBrowser(true);
+			}
 			if (_browserSocket) {
 				closeWebSocket(_browserSocket.data(), 1000);
 			}
@@ -1005,24 +1082,20 @@ void Transport::Private::sendFrame(
 		FrameType type,
 		uint32 streamId,
 		const QByteArray &payload) {
-	if (!_browserSocket) {
+	if (!carrierAvailable()) {
 		return;
 	}
-	queueControlFrame(RelayWebSocketFrame(
-		type,
-		streamId,
-		payload.constData(),
-		payload.size()));
+	queueControlFrame(SerializeFrame(type, streamId, payload));
 }
 
 void Transport::Private::queueControlFrame(QByteArray frame) {
-	if (!_browserSocket || _browserWriteFailed) {
+	if (!carrierAvailable() || _browserWriteFailed) {
 		return;
 	}
 	if (_controlFrames.empty()
-		&& _browserSocket->bytesToWrite()
-			<= kMaxLocalSocketPendingBytes - frame.size()) {
-		_browserSocket->write(frame);
+		&& carrierPendingBytes()
+			<= kMaxLocalSocketPendingBytes - carrierFrameSize(frame.size())) {
+		writeCarrierFrame(std::move(frame));
 		ensureWriteProgressCheck();
 		return;
 	}
@@ -1031,7 +1104,7 @@ void Transport::Private::queueControlFrame(QByteArray frame) {
 		|| _controlBytes > kMaxPendingControlBytes - frame.size()) {
 		_browserWriteFailed = true;
 		InvokeQueued(_owner, [=] {
-			if (_browserSocket) {
+			if (carrierAvailable()) {
 				protocolError();
 			}
 		});
@@ -1043,34 +1116,37 @@ void Transport::Private::queueControlFrame(QByteArray frame) {
 }
 
 void Transport::Private::flushControlFrames() {
-	while (_browserSocket && !_controlFrames.empty()) {
+	while (carrierAvailable() && !_controlFrames.empty()) {
 		auto &frame = _controlFrames.front();
-		if (_browserSocket->bytesToWrite()
-			> kMaxLocalSocketPendingBytes - frame.size()) {
+		if (carrierPendingBytes()
+			> kMaxLocalSocketPendingBytes - carrierFrameSize(frame.size())) {
 			break;
 		}
-		_browserSocket->write(frame);
-		_controlBytes -= frame.size();
+		const auto size = frame.size();
+		writeCarrierFrame(std::move(frame));
+		_controlBytes -= size;
 		_controlFrames.pop_front();
 	}
-	if (_browserSocket
-		&& (!_controlFrames.empty() || _browserSocket->bytesToWrite() > 0)) {
+	if (carrierAvailable()
+		&& (!_controlFrames.empty() || carrierPendingBytes() > 0)) {
 		ensureWriteProgressCheck();
 	}
 }
 
 void Transport::Private::ensureWriteProgressCheck() {
-	if (_writeProgressCheckScheduled || !_browserSocket) {
+	if (_writeProgressCheckScheduled || !carrierAvailable()) {
 		return;
 	}
 	_writeProgressCheckScheduled = true;
 	const auto socket = QPointer<QTcpSocket>(_browserSocket);
+	const auto generation = _webviewGeneration;
 	QTimer::singleShot(int(kWriteProgressTimeout), _owner, [=] {
 		_writeProgressCheckScheduled = false;
-		if (!socket || _browserSocket != socket) {
+		if ((generation && _webviewGeneration != generation)
+			|| (!generation && (!socket || _browserSocket != socket))) {
 			return;
 		}
-		if (socket->bytesToWrite() == 0 && _controlFrames.empty()) {
+		if (carrierPendingBytes() == 0 && _controlFrames.empty()) {
 			return;
 		}
 		if (crl::now() - _lastWriteProgress >= kWriteProgressTimeout) {
@@ -1085,6 +1161,33 @@ void Transport::Private::browserBytesWritten() {
 	_lastWriteProgress = crl::now();
 	flushControlFrames();
 	flushStreams();
+}
+
+void Transport::Private::writeCarrierFrame(QByteArray frame) {
+	if (_webviewGeneration) {
+		_webviewPendingBytes += frame.size();
+		_owner->sendWebviewFrame(_webviewGeneration, std::move(frame));
+	} else if (_browserSocket) {
+		_browserSocket->write(WebSocketFrame(0x02, frame));
+	}
+}
+
+bool Transport::Private::carrierAvailable() const {
+	return _webviewGeneration || _browserSocket;
+}
+
+int Transport::Private::carrierPendingBytes() const {
+	return _webviewGeneration
+		? _webviewPendingBytes
+		: _browserSocket
+		? int(_browserSocket->bytesToWrite())
+		: 0;
+}
+
+int Transport::Private::carrierFrameSize(int payloadSize) const {
+	return payloadSize + (_webviewGeneration
+		? 0
+		: WebSocketHeaderSize(payloadSize));
 }
 
 void Transport::Private::markStreamReady(uint32 streamId) {
@@ -1105,7 +1208,7 @@ void Transport::Private::unmarkStreamReady(uint32 streamId) {
 }
 
 void Transport::Private::flushStreams() {
-	if (!_browserSocket || _browserWriteFailed) {
+	if (!carrierAvailable() || _browserWriteFailed) {
 		return;
 	}
 	flushControlFrames();
@@ -1115,7 +1218,7 @@ void Transport::Private::flushStreams() {
 	auto processed = 0;
 	while (!_readyStreams.empty()
 		&& processed != kMaxFlushFramesPerTurn
-		&& _browserSocket->bytesToWrite()
+		&& carrierPendingBytes()
 			< kMaxLocalSocketPendingBytes - kLocalSocketControlReserve) {
 		const auto streamId = _readyStreams.front();
 		_readyStreams.pop_front();
@@ -1127,14 +1230,14 @@ void Transport::Private::flushStreams() {
 		markStreamReady(streamId);
 		++processed;
 	}
-	if (_browserSocket->bytesToWrite() > 0) {
+	if (carrierPendingBytes() > 0) {
 		ensureWriteProgressCheck();
 	}
 }
 
 bool Transport::Private::flushStream(uint32 streamId) {
 	const auto i = _streams.find(streamId);
-	if (i == end(_streams) || !i->second.opened || !_browserSocket) {
+	if (i == end(_streams) || !i->second.opened || !carrierAvailable()) {
 		return false;
 	}
 	auto &stream = i->second;
@@ -1143,7 +1246,7 @@ bool Transport::Private::flushStream(uint32 streamId) {
 		&& !_browserWriteFailed) {
 		const auto localAllowance = kMaxLocalSocketPendingBytes
 			- kLocalSocketControlReserve
-			- _browserSocket->bytesToWrite();
+			- carrierPendingBytes();
 		if (localAllowance <= kFrameHeaderSize + 10) {
 			return false;
 		}
@@ -1155,12 +1258,11 @@ bool Transport::Private::flushStream(uint32 streamId) {
 			uint64(kDataFrameSize),
 			uint64(localAllowance - kFrameHeaderSize - 10),
 		}));
-		const auto frame = RelayWebSocketFrame(
+		auto frame = SerializeFrame(
 			FrameType::Data,
 			streamId,
-			front.data.constData() + front.offset,
-			take);
-		_browserSocket->write(frame);
+			front.data.mid(front.offset, take));
+		writeCarrierFrame(std::move(frame));
 		front.offset += take;
 		stream.pendingBytes -= take;
 		stream.sendWindow -= take;
@@ -1240,7 +1342,7 @@ void Transport::Private::notifyFailed(const Stream &stream) {
 }
 
 void Transport::Private::welcome() {
-	if (_welcomed || !_browserSocket) {
+	if (_welcomed || !carrierAvailable()) {
 		protocolError();
 		return;
 	}
@@ -1265,7 +1367,11 @@ void Transport::Private::loseBrowser(bool failed) {
 	_closedStreams.clear();
 	_closedStreamOrder.clear();
 	setState(
-		failed ? State::Failed : State::WaitingForBrowser,
+		_webviewCandidateGeneration
+			? State::Connecting
+			: failed
+			? State::Failed
+			: State::WaitingForBrowser,
 		_browser);
 }
 
@@ -1286,6 +1392,13 @@ void Transport::Private::closeAllStreams(bool failed) {
 }
 
 void Transport::Private::protocolError() {
+	if (_webviewGeneration) {
+		const auto generation = _webviewGeneration;
+		closeAllStreams(true);
+		webviewFailed(generation);
+		_owner->FinishWebview(generation);
+		return;
+	}
 	closeAllStreams(true);
 	_readyStreams.clear();
 	_readySet.clear();
@@ -1459,7 +1572,78 @@ Transport::Transport()
 
 Transport::~Transport() = default;
 
-void Transport::Activate(const ProxyData &proxy, bool openBrowser) {
+void Transport::StartWebview(const ProxyData &proxy) {
+	Expects(QThread::currentThread() == QCoreApplication::instance()->thread());
+
+	auto &global = Global();
+	if (!global.transport || global.active != proxy || global.webview) {
+		return;
+	}
+	const auto generation = ++global.webviewGeneration;
+	const auto transport = global.transport;
+	transport->webviewStarting(generation);
+	if (global.webviewDisabled) {
+		transport->webviewFailed(generation);
+		return;
+	}
+	global.webview = std::make_unique<WebviewCarrier>(
+		proxy,
+		generation,
+		WebviewCarrier::Callbacks{
+			.ready = [=](uint64 readyGeneration) {
+				if (transport) {
+					transport->webviewReady(readyGeneration);
+				}
+			},
+			.payload = [=](uint64 payloadGeneration, QByteArray payload) {
+				if (transport) {
+					transport->webviewPayload(
+						payloadGeneration,
+						std::move(payload));
+				}
+			},
+			.written = [=](uint64 writtenGeneration, int bytes) {
+				if (transport) {
+					transport->webviewWritten(writtenGeneration, bytes);
+				}
+			},
+			.failed = [=](uint64 failedGeneration) {
+				if (transport) {
+					transport->webviewFailed(failedGeneration);
+				}
+			},
+		});
+}
+
+void Transport::FinishWebview(uint64 generation) {
+	InvokeQueued(QCoreApplication::instance(), [=] {
+		auto &global = Global();
+		if (global.webviewGeneration != generation) {
+			return;
+		}
+		global.webview = nullptr;
+		if (!global.active
+			|| global.webviewRetryScheduled
+			|| global.webviewDisabled) {
+			return;
+		}
+		global.webviewRetryScheduled = true;
+		const auto proxy = global.active;
+		QTimer::singleShot(
+			int(kWebviewRetryTimeout),
+			QCoreApplication::instance(),
+			[=] {
+				auto &global = Global();
+				if (global.active != proxy) {
+					return;
+				}
+				global.webviewRetryScheduled = false;
+				StartWebview(proxy);
+			});
+	});
+}
+
+void Transport::Activate(const ProxyData &proxy) {
 	Expects(QThread::currentThread() == QCoreApplication::instance()->thread());
 	Expects(proxy.type == ProxyData::Type::Web);
 	Expects(proxy.valid());
@@ -1480,16 +1664,17 @@ void Transport::Activate(const ProxyData &proxy, bool openBrowser) {
 	}
 	global.active = proxy;
 	if (changed) {
-		global.state = State::WaitingForBrowser;
+		global.webview = nullptr;
+		++global.webviewGeneration;
+		global.webviewRetryScheduled = false;
+		global.state = State::Connecting;
 		global.browser.clear();
 		const auto transport = global.transport.data();
 		QMetaObject::invokeMethod(transport, [=] {
 			transport->_private->configure(proxy);
 		}, Qt::BlockingQueuedConnection);
-		global.changes.fire({ proxy, global.state, QString() });
-	}
-	if (changed && openBrowser) {
-		OpenBrowser(proxy);
+		global.changes.fire({ proxy, State::Connecting, QString() });
+		StartWebview(proxy);
 	}
 }
 
@@ -1497,6 +1682,9 @@ void Transport::Deactivate() {
 	Expects(QThread::currentThread() == QCoreApplication::instance()->thread());
 
 	auto &global = Global();
+	global.webview = nullptr;
+	++global.webviewGeneration;
+	global.webviewRetryScheduled = false;
 	if (global.transport && global.active) {
 		const auto transport = global.transport.data();
 		QMetaObject::invokeMethod(transport, [=] {
@@ -1526,6 +1714,7 @@ void Transport::Shutdown() {
 	global.thread->quit();
 	global.thread->wait();
 	global.available = nullptr;
+	global.webview = nullptr;
 	global.transport = nullptr;
 	global.thread = nullptr;
 }
@@ -1541,6 +1730,24 @@ Transport::State Transport::CurrentState(const ProxyData &proxy) {
 
 rpl::producer<Transport::StateChange> Transport::StateChanges() {
 	return Global().changes.events();
+}
+
+bool Transport::ToggleWebviewDisabled() {
+	Expects(QThread::currentThread() == QCoreApplication::instance()->thread());
+
+	auto &global = Global();
+	global.webviewDisabled = !global.webviewDisabled;
+	if (global.webviewDisabled) {
+		const auto generation = global.webviewGeneration;
+		global.webview = nullptr;
+		++global.webviewGeneration;
+		if (global.transport && global.active && generation) {
+			global.transport->webviewFailed(generation);
+		}
+	} else if (global.transport && global.active) {
+		StartWebview(global.active);
+	}
+	return global.webviewDisabled;
 }
 
 void Transport::OpenBrowser(const ProxyData &proxy) {
@@ -1602,6 +1809,47 @@ void Transport::sendData(uint32 streamId, QByteArray data) {
 
 void Transport::grantWindow(uint32 streamId, uint32 amount) {
 	InvokeQueued(this, [=] { _private->grantWindow(streamId, amount); });
+}
+
+void Transport::webviewStarting(uint64 generation) {
+	InvokeQueued(this, [=] { _private->webviewStarting(generation); });
+}
+
+void Transport::webviewReady(uint64 generation) {
+	InvokeQueued(this, [=] { _private->webviewReady(generation); });
+}
+
+void Transport::webviewPayload(uint64 generation, QByteArray payload) {
+	if (payload.isEmpty() || !reservePending(payload.size())) {
+		webviewFailed(generation);
+		return;
+	}
+	InvokeQueued(this, [=, payload = std::move(payload)]() mutable {
+		const auto size = payload.size();
+		_private->webviewPayload(generation, payload);
+		releasePending(size, 1);
+	});
+}
+
+void Transport::webviewWritten(uint64 generation, int bytes) {
+	InvokeQueued(this, [=] { _private->webviewWritten(generation, bytes); });
+}
+
+void Transport::webviewFailed(uint64 generation) {
+	FinishWebview(generation);
+	InvokeQueued(this, [=] { _private->webviewFailed(generation); });
+}
+
+void Transport::sendWebviewFrame(uint64 generation, QByteArray frame) {
+	const auto guard = QPointer<Transport>(this);
+	InvokeQueued(QCoreApplication::instance(), [=, frame = std::move(frame)]() mutable {
+		auto &global = Global();
+		if (global.webviewGeneration == generation && global.webview) {
+			global.webview->send(std::move(frame));
+		} else if (guard) {
+			guard->webviewFailed(generation);
+		}
+	});
 }
 
 bool Transport::reservePending(int bytes) {

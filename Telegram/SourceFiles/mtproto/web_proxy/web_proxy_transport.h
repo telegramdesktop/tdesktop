@@ -42,12 +42,13 @@ public:
 		Fn<void()> failed;
 	};
 
-	static void Activate(const ProxyData &proxy, bool openBrowser = true);
+	static void Activate(const ProxyData &proxy);
 	static void Deactivate();
 	static void Shutdown();
 	[[nodiscard]] static Transport *Instance();
 	[[nodiscard]] static State CurrentState(const ProxyData &proxy);
 	[[nodiscard]] static rpl::producer<StateChange> StateChanges();
+	[[nodiscard]] static bool ToggleWebviewDisabled();
 	static void OpenBrowser(const ProxyData &proxy);
 	[[nodiscard]] static uint32 NextStreamId();
 
@@ -60,6 +61,14 @@ public:
 
 private:
 	Transport();
+	static void StartWebview(const ProxyData &proxy);
+	static void FinishWebview(uint64 generation);
+	void webviewStarting(uint64 generation);
+	void webviewReady(uint64 generation);
+	void webviewPayload(uint64 generation, QByteArray payload);
+	void webviewWritten(uint64 generation, int bytes);
+	void webviewFailed(uint64 generation);
+	void sendWebviewFrame(uint64 generation, QByteArray frame);
 	[[nodiscard]] bool reservePending(int bytes);
 	void releasePending(int bytes, int items);
 

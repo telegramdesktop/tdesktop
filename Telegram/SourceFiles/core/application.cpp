@@ -209,6 +209,36 @@ Application::Application()
 			UpdateChecker().setMtproto(session);
 		}
 	}, _lifetime);
+
+	MTP::WebProxy::Transport::StateChanges(
+	) | rpl::on_next([=](
+			const MTP::WebProxy::Transport::StateChange &change) {
+		using State = MTP::WebProxy::Transport::State;
+		if (change.state != State::WaitingForBrowser) {
+			if (_webProxyFallbackBox) {
+				_webProxyFallbackBox->closeBox();
+			}
+			return;
+		}
+		const auto &proxy = settings().proxy();
+		if (_webProxyFallbackBox
+			|| !proxy.isEnabled()
+			|| proxy.selected() != change.proxy) {
+			return;
+		}
+		_webProxyFallbackBox = Ui::show(Ui::MakeConfirmBox({
+			.text = tr::lng_proxy_web_fallback(tr::now),
+			.confirmed = [=] {
+				const auto &current = settings().proxy();
+				if (current.isEnabled()
+					&& current.selected() == change.proxy) {
+					MTP::WebProxy::Transport::OpenBrowser(change.proxy);
+				}
+			},
+			.confirmText = tr::lng_proxy_web_open(tr::now),
+			.cancelText = tr::lng_cancel(tr::now),
+		}));
+	}, _lifetime);
 }
 
 void Application::closeAdditionalWindows() {

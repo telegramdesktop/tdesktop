@@ -1619,6 +1619,8 @@ PRIVATE
     mtproto/web_proxy/web_proxy_frame.h
     mtproto/web_proxy/web_proxy_transport.cpp
     mtproto/web_proxy/web_proxy_transport.h
+    mtproto/web_proxy/web_proxy_webview.cpp
+    mtproto/web_proxy/web_proxy_webview.h
     overview/overview_checkbox.cpp
     overview/overview_checkbox.h
     overview/overview_layout.cpp

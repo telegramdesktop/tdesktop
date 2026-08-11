@@ -455,6 +455,7 @@ private:
 	const std::unique_ptr<ChatHelpers::EmojiKeywords> _emojiKeywords;
 	std::unique_ptr<Lang::Translator> _translator;
 	base::weak_qptr<Ui::BoxContent> _badProxyDisableBox;
+	base::weak_qptr<Ui::BoxContent> _webProxyFallbackBox;
 
 	const std::unique_ptr<Tray> _tray;
 

@@ -1291,7 +1291,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_proxy_online" = "online";
 "lng_proxy_checking" = "checking…";
 "lng_proxy_connecting" = "connecting…";
-"lng_proxy_web_waiting" = "waiting for browser…";
+"lng_proxy_web_waiting" = "retrying built-in web transport…";
 "lng_proxy_available" = "available (ping: {ping} ms)";
 "lng_proxy_unavailable" = "not available";
 "lng_proxy_edit" = "Edit proxy";
@@ -1299,6 +1299,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_proxy_menu_delete" = "Delete";
 "lng_proxy_menu_restore" = "Restore";
 "lng_proxy_web_open" = "Open browser";
+"lng_proxy_web_fallback" = "The built-in web transport couldn't connect. Telegram will keep retrying it in the background. You can open the proxy page in your browser instead.";
 "lng_proxy_edit_share" = "Share";
 "lng_proxy_edit_share_qr_box_title" = "Share proxy with QR code";
 "lng_proxy_edit_share_list_button" = "Share Proxy List";

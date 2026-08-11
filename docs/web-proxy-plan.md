@@ -8,17 +8,16 @@ The server-dependent execution procedure is intentionally separate in
 
 ## 1. Scope and invariant
 
-WEB is an MTProxy whose carrier is the user's real browser:
+WEB is an MTProxy whose primary carrier is one process-wide hidden native WebView:
 
 ```text
 MTProto session threads
   -> TcpConnection (existing MTProxy obfuscation and AES-CTR)
   -> WebProxySocket (one logical stream)
   -> process-wide WebProxy::Transport (one worker thread)
-  -> authenticated ws://127.0.0.1:<random>/transport
-  -> loopback parent page
-  -> MessageChannel
-  -> https://relay.example/?bridge=<derived-capability> iframe
+  -> one hidden platform WebView
+  -> injected exact-origin TelegramWebProxy bridge
+  -> https://relay.example/?bridge=<derived-capability>#android=<nonce>
   -> HTTPS carrier
   -> hosted relay
   -> stock MTProxy
@@ -26,20 +25,25 @@ MTProto session threads
 ```
 
 The central invariant is that Telegram Desktop opens no external MTProto socket
-while WEB is active. The only external connection in this path is made by the real
-browser. The browser and hosted relay see only bytes already transformed by the
+while WEB is active. The hidden WebView's platform web engine makes the external
+HTTPS connection. The hosted relay sees only bytes already transformed by the
 existing MTProxy protocol layer; the MTProxy secret is never placed in HTML or
 JavaScript.
+
+The previous local-page/system-browser path remains a fallback. Telegram offers it
+only after the hidden WebView is unavailable or has failed its ten-second startup or
+health deadline. It never opens a browser automatically.
 
 ## 2. Design decisions
 
 The initial draft left several architectural choices open. They are now fixed:
 
-1. There is one transport per process, not per account. Proxy selection is already
-   process-wide, so all accounts using the selected WEB proxy share one browser tab
-   and one multiplexed browser carrier.
-2. The transport owns a dedicated `QThread`. `QTcpServer`, accepted loopback
-   sockets, WebSocket framing, mux state, queues, and windows live only there.
+1. There is one transport and one hidden WebView per process, not per account. Proxy
+   selection is already process-wide, so all accounts using the selected WEB proxy
+   share one multiplexed carrier.
+2. The transport owns a dedicated `QThread`. `QTcpServer`, accepted fallback
+   sockets, WebSocket framing, mux state, and queues live there. The native WebView
+   stays on the application thread and exchanges bounded messages with the worker.
 3. `WebProxySocket` and the transport are compiled in the main `Telegram` target.
    `connection_tcp.cpp`, the only factory site retaining the full `ProxyData`, is
    already in that target. No reverse dependency from `td_mtproto` is introduced.
@@ -49,12 +53,13 @@ The initial draft left several architectural choices open. They are now fixed:
    the MTProxy secret.
 5. WEB is manual-entry-only in v1. It has no `tg://proxy` share/import format.
 6. Inactive WEB entries are not checked and are removed from proxy rotation's
-   candidate order in v1. Checking would require activating a browser sidecar and
-   must never open tabs for every saved proxy.
+   candidate order in v1. Checking would require activating a WebView carrier and
+   must not create background carriers for every saved proxy.
 7. The loopback parent is one inline, dependency-free HTML response. A qrc asset
    adds no value for this small page and would create another generated-resource
    dependency.
-8. While the authenticated loopback WebSocket is open, the local parent maintains
+8. While an explicitly opened fallback page's authenticated loopback WebSocket is
+   open, the local parent maintains
    an empty `RTCDataChannel` between two same-page `RTCPeerConnection`s. This is a
    best-effort Chrome background-lifecycle guard: it uses no media, STUN, TURN, or
    remote signaling, and failure to establish it never fails the carrier.
@@ -89,8 +94,8 @@ WEB behaves like MTProxy throughout the existing model:
 - `secretFromMtprotoPassword()` accepts WEB.
 - Qt's application proxy is `NoProxy`; WEB does not affect update or generic HTTP
   traffic.
-- custom DC/proxy DNS resolution is disabled because the browser resolves the relay
-  hostname.
+- custom DC/proxy DNS resolution is disabled because the WebView engine, or the
+  explicitly selected browser fallback, resolves the relay hostname.
 - calls remain unsupported.
 - TCP MTProto is enabled and the plain MTProto HTTP connection is disabled.
 - DC endpoints are ignored; the hosted relay chooses its fixed stock-MTProxy target.
@@ -102,7 +107,7 @@ WEB behaves like MTProxy throughout the existing model:
 logical byte stream over the shared transport.
 
 On `connectToHost`, it registers a new 24-bit stream id. The address and port
-arguments are intentionally ignored. It emits `connected` after the browser carrier
+arguments are intentionally ignored. It emits `connected` after the active carrier
 has completed the relay `WELCOME` handshake and the transport has sent `OPEN` for
 that stream.
 
@@ -124,13 +129,20 @@ runs all I/O state on its worker thread.
 Main-thread lifecycle:
 
 - `Activate(proxy)` creates the worker on first use, synchronously installs the
-  selected valid proxy, binds the loopback listener, and auto-opens one browser tab
-  when the selected WEB proxy changes.
+  selected valid proxy, binds the dormant fallback listener, and creates one hidden
+  WebView when the selected WEB proxy changes.
 - `OpenBrowser(proxy)` mints a fresh one-shot capability and opens a new tab on
-  explicit user request.
+  explicit user request after fallback has been offered.
 - `Deactivate()` closes streams, accepted clients, and the listener when the app
-  changes away from WEB.
+  changes away from WEB, and destroys the hidden WebView.
 - `Shutdown()` runs after MTP accounts have stopped and joins the worker thread.
+
+The WebView candidate performs its own `HELLO` / `WELCOME` handshake before the
+worker adopts it. Startup, bridge initialization, write acknowledgement, and health
+are each bounded. A failed candidate is destroyed, fallback is offered, and another
+candidate is tried after 30 seconds. If a retry succeeds while the browser fallback
+is connected, logical streams reconnect through the WebView and the fallback socket
+is closed; no relay session is migrated across carriers.
 
 Session-thread interaction uses queued calls into the worker. Each stream stores its
 socket context, and worker-to-socket delivery is queued to that socket's owning
@@ -141,15 +153,18 @@ with the QObject, while the worker cannot inspect or post through the context af
 unregistration returns. The global transport pointer is atomic and remains alive
 until all MTP sessions have been destroyed.
 
-The state surfaced to settings is:
+The principal state transitions surfaced to settings are:
 
 ```text
 Idle
-  -> WaitingForBrowser
   -> Connecting
   -> Connected
-  -> WaitingForBrowser  (tab/local WS lost)
-  -> Failed             (protocol/relay failure)
+  -> WaitingForBrowser  (WebView unavailable, unhealthy, or failed)
+  -> Connecting         (user confirmed the browser fallback)
+  -> Connected
+
+WaitingForBrowser
+  -> Connected          (a 30-second WebView retry succeeds)
 ```
 
 ## 6. Shared relay frames
@@ -160,7 +175,7 @@ All integers are big-endian. The implementation mirrors server plan section 7:
 type:u8 | stream_id:u24 | length:u32 | payload:length
 ```
 
-Each browser carrier message must contain one or more complete frames. The parser
+Each carrier message must contain one or more complete frames. The parser
 accepts concatenated frames and rejects an empty message or trailing partial frame.
 A payload is capped at 1 MiB. Known types are:
 
@@ -209,7 +224,7 @@ caller and resume later. The client therefore:
   64 KiB / 1024-frame control queue; and
 - schedules ready streams round-robin, with at most 256 frames per worker turn.
 
-If the browser socket makes no write progress for 30 seconds, the carrier fails and
+If the active carrier makes no write progress for 30 seconds, the carrier fails and
 normal MTProto reconnect logic replaces it. Exhausting a stream or transport budget
 also fails promptly rather than allowing unbounded queued worker events. If
 measurements show sustained multi-megabyte uploads can exhaust these bounds, a
@@ -220,22 +235,52 @@ than silently growing memory.
 
 The hosted bridge batches up to 2 MiB and runs uplink and downlink concurrently.
 Each direction is sequenced stop-and-wait in v1, giving an RTT-only busy-direction
-bound of 40, 20, 10, and 4 MiB/s at 50, 100, 200, and 500 ms browser-to-relay RTT,
+bound of 40, 20, 10, and 4 MiB/s at 50, 100, 200, and 500 ms web-engine-to-relay RTT,
 respectively. Actual results include transfer time, the relay-to-MTProxy leg, and
-browser scheduling. The 4 MiB stream window is two carrier batches so returned
+web-engine scheduling. The 4 MiB stream window is two carrier batches so returned
 credit does not reproduce the former 256 KiB bottleneck.
 
 The built-in MTProto HTTP transport also copies request/response bodies and uses an
 HTTP wait request, but `QNetworkAccessManager` may keep several POSTs active. WEB is
 therefore more RTT-sensitive today. That serialization, fixed batch size, and most
 buffer copies are implementation choices; a bounded ordered pipeline or compatible
-streaming carrier can narrow them. Inherent WEB cost remains one browser process,
-an extra relay/TLS path, MessageChannel/loopback crossings, and shared-carrier
-head-of-line exposure. With a well-placed relay, ordinary messaging and moderate
-media should be in the same practical class as the built-in HTTP transport, while
-direct TCP/MTProxy remains the latency and peak-throughput reference.
+streaming carrier can narrow them. Inherent WEB cost remains one platform web
+engine, an extra relay/TLS path, a native JavaScript boundary, and shared-carrier
+head-of-line exposure. The explicit browser fallback adds MessageChannel and
+loopback crossings. With a well-placed relay, ordinary messaging and moderate media
+should be in the same practical class as the built-in HTTP transport, while direct
+TCP/MTProxy remains the latency and peak-throughput reference.
 
-## 8. Loopback HTTP and WebSocket boundary
+## 8. Hidden WebView boundary
+
+`lib_webview` exposes `WindowMode::Hidden`, `HiddenSupported()`, and `Window::valid()`.
+Hidden mode creates the platform web engine without a Telegram window or embedded
+Qt widget:
+
+- macOS retains a native `WKWebView` without wrapping it in a `QWindow` or widget;
+- Windows uses modern WebView2 with an invisible controller and no widget container;
+- all-other platforms keep WebKitGTK in the existing helper process and attach it to
+  an unmapped native GTK toplevel, without creating an embed/compositor widget.
+
+Hidden mode does not install the normal WebView dialog UI. New-window navigation is
+rejected. The transport allows only the exact canonical HTTPS bridge navigation.
+The bridge is injected only into the top-level document, and native messages are
+accepted only from the configured HTTPS origin; the scrubbed `https://host/` history
+URL is accepted for messages but not as a fresh navigation.
+
+The page receives an exact-origin `TelegramWebProxy` object at document start. This
+uses the same deployed bridge contract as Android: a fresh 32-byte URL-safe nonce in
+`#android=`, `tproxy-android-init` version 1, and raw relay frames. Since the common
+desktop WebView API carries strings, binary frames cross the native boundary as
+strict base64 and are acknowledged by monotonically increasing write sequence. The
+native queue is bounded to 8 MiB / 1024 items.
+
+The candidate must receive exactly one valid `WELCOME` within ten seconds. Once
+adopted, the main thread probes JavaScript every three seconds; ten seconds without a
+valid bridge message, or ten seconds without the acknowledgement for a native write,
+fails the carrier.
+
+## 9. Explicit system-browser fallback boundary
 
 The worker binds `QHostAddress::LocalHost` on an ephemeral port and advertises the
 numeric origin `http://127.0.0.1:<port>`.
@@ -288,7 +333,7 @@ wrong bridge capability, iframe load failure, or ordinary public response into a
 recoverable `unavailable` state instead of leaving the settings row connecting
 forever.
 
-## 9. Parent page and hosted iframe contract
+## 10. Parent page and hosted iframe contract
 
 The local parent reads and scrubs its independent one-shot loopback capability,
 connects the local WebSocket, derives the bridge URL, creates an iframe with limited
@@ -342,13 +387,13 @@ closes the carrier instead of growing browser memory without limit.
 
 The iframe's status objects update the visible tab and are forwarded to tdesktop.
 When the local WebSocket closes, the parent sends `{t:'close'}` so the bridge can
-delete its relay session. Closing the tab drops the local WebSocket, disconnects all
-logical sockets, and leaves the settings row in `waiting for browser…`. Telegram
-Desktop does not reopen a tab automatically after a user closes it. Reloading cannot
-reuse the scrubbed, one-shot loopback capability either. In both cases the row menu
-provides `Open browser`, which mints a fresh loopback capability and opens a new tab.
+delete its relay session. Closing the fallback tab drops the local WebSocket and
+disconnects its logical sockets. Telegram Desktop does not reopen a tab
+automatically. It keeps trying the hidden WebView every 30 seconds. Reloading cannot
+reuse the scrubbed, one-shot loopback capability; after another failure, the
+confirmation or row menu can mint a fresh capability and open a new tab.
 
-## 10. Settings and app integration
+## 11. Settings and app integration
 
 Proxy settings expose a fourth `WEB` radio option. The editor shows:
 
@@ -356,18 +401,18 @@ Proxy settings expose a fourth `WEB` radio option. The editor shows:
 - one MTProxy secret field;
 - no socket host/port pair and no username/password controls.
 
-Rows display only the hostname. The selected row
-shows the transport lifecycle, and its menu has `Open browser`. WEB remains
+Rows display only the hostname. The selected row shows the transport lifecycle.
+`Open browser` is offered only after the built-in carrier has failed. WEB remains
 non-shareable and unsupported for calls. Because the backend is still MTProxy, WEB
 keeps the existing sponsored-proxy disclosure and promotion refresh behavior.
 
-Application proxy changes configure/deconfigure the browser transport before MTP
+Application proxy changes configure/deconfigure the web transport before MTP
 sessions restart. WEB follows the MTProxy path in `Session`, `SessionPrivate`, and
 `TcpConnection`; the global Qt proxy remains disabled for it. Proxy rotation and the
 settings availability checker deliberately treat inactive WEB entries as unavailable
 instead of opening a browser.
 
-## 11. Constraints and boundaries
+## 12. Constraints and boundaries
 
 - The listener is IPv4 loopback-only and validates peer, host, and origin.
 - Local authentication requires the minted fragment capability.
@@ -385,7 +430,7 @@ instead of opening a browser.
   it requires a fully specified challenge context and server test vectors; it must be
   computed in tdesktop without passing the secret to JavaScript.
 
-## 12. Hosted-server requirements before execution testing
+## 13. Hosted-server requirements before execution testing
 
 The server must provide all of these before the separate test plan can pass:
 
@@ -402,13 +447,20 @@ The server must provide all of these before the separate test plan can pass:
 7. The v1 HTTPS long-poll carrier is operational; the deployed bridge does not
    require a public WebSocket or another carrier.
 
-## 13. Implementation inventory
+## 14. Implementation inventory
 
 Core transport:
 
 - `Telegram/SourceFiles/mtproto/web_proxy/web_proxy_frame.{h,cpp}`
 - `Telegram/SourceFiles/mtproto/web_proxy/web_proxy_transport.{h,cpp}`
+- `Telegram/SourceFiles/mtproto/web_proxy/web_proxy_webview.{h,cpp}`
 - `Telegram/SourceFiles/mtproto/details/mtproto_web_proxy_socket.{h,cpp}`
+
+Native WebView support:
+
+- `Telegram/lib_webview/webview/webview_common.h`
+- `Telegram/lib_webview/webview/webview_embed.{h,cpp}`
+- the macOS, Windows WebView2, and WebKitGTK platform backends
 
 Integration:
 
@@ -418,11 +470,11 @@ Integration:
 - `boxes/connection_box.{h,cpp}`, `lang.strings`
 - `Telegram/CMakeLists.txt`
 
-The client-side implementation is complete without the hosted server. The arm64
-Debug build passes; remaining verification is the hosted protocol/loopback and
-browser matrix in `docs/web-proxy-test-plan.md`, followed by other platform builds.
+The client-side implementation is complete without the hosted server. Remaining
+verification is the hosted protocol, native-WebView/platform matrix, and explicit
+browser-fallback matrix in `docs/web-proxy-test-plan.md`.
 
-## 14. Explicitly deferred
+## 15. Explicitly deferred
 
 - public deep-link/share format;
 - checking inactive WEB proxies and auto-rotation into them;

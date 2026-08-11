@@ -2519,7 +2519,9 @@ void ProxiesBoxController::updateView(const Item &item) {
 		!deleted
 			&& selected
 			&& _settings.isEnabled()
-			&& item.data.type == Type::Web,
+			&& item.data.type == Type::Web
+			&& (state == ItemState::WaitingForBrowser
+				|| state == ItemState::Unavailable),
 		state,
 	});
 }
