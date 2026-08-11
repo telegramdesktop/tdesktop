@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h" // Account::sessionChanges.
 #include "main/main_session.h" // Session::account.
 #include "core/application.h"
+#include "base/base_file_utilities.h"
 #include "base/call_delayed.h"
 
 namespace MTP {
@@ -303,7 +304,9 @@ DedicatedLoader::DedicatedLoader(
 	base::weak_ptr<Main::Session> session,
 	const QString &folder,
 	const File &file)
-: AbstractDedicatedLoader(folder + '/' + file.name, kChunkSize)
+: AbstractDedicatedLoader(
+	folder + '/' + base::FileNameFromUserString(file.name),
+	kChunkSize)
 , _size(file.size)
 , _dcId(file.dcId)
 , _location(file.location)
