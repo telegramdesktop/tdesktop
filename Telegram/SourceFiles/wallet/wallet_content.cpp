@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/channel_statistics/earn/earn_icons.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
 #include "main/session/session_show.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
@@ -98,6 +99,8 @@ constexpr auto kMinus = QChar(0x2212);
 constexpr auto kImportWordCountShort = 12;
 constexpr auto kImportWordCountLong = 24;
 constexpr auto kImportSuggestionsLimit = 3;
+constexpr auto kCoverBodyPart = 0.90;
+constexpr auto kCoverTitleScale = 0.05;
 constexpr auto kIntroTooltipShownPref = "wallet_intro_tooltip_shown"_cs;
 constexpr auto kIntroToastShownPref = "wallet_intro_toast_shown"_cs;
 constexpr auto kIntroToastDuration = 4 * crl::time(1000);
@@ -2190,20 +2193,34 @@ void WalletSendBox(
 void AddPhraseBoxHeader(
 		not_null<Ui::GenericBox*> box,
 		rpl::producer<QString> title,
-		rpl::producer<QString> text) {
+		rpl::producer<QString> text,
+		int lottieSize,
+		const style::margins &lottieMargin,
+		const style::margins &textMargin) {
+	auto icon = Settings::CreateLottieIcon(
+		box->verticalLayout(),
+		{
+			.name = u"wallet/paper"_q,
+			.sizeOverride = { lottieSize, lottieSize },
+		},
+		lottieMargin);
+	box->verticalLayout()->add(std::move(icon.widget));
+	box->showFinishes() | rpl::on_next([animate = std::move(icon.animate)] {
+		animate(anim::repeat::once);
+	}, box->lifetime());
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,
 			std::move(title),
 			st::walletPhraseTitleLabel),
-		st::walletPhraseTitleMargin,
+		st::boxRowPadding,
 		style::al_top);
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,
 			std::move(text),
 			st::walletPhraseTextLabel),
-		st::walletPhraseTextMargin,
+		textMargin,
 		style::al_top);
 }
 
@@ -2226,7 +2243,10 @@ void WalletPhraseBox(
 		tr::lng_wallet_phrase_title(),
 		tr::lng_wallet_phrase_text(
 			lt_count,
-			rpl::single(count * 1.) | tr::to_count()));
+			rpl::single(count * 1.) | tr::to_count()),
+		st::walletPhraseGridLottieSize,
+		st::walletPhraseGridLottieMargin,
+		st::walletPhraseGridTextMargin);
 
 	const auto grid = box->addRow(
 		object_ptr<Ui::RpWidget>(box),
@@ -2279,7 +2299,10 @@ void WalletPhraseWarningBox(
 	AddPhraseBoxHeader(
 		box,
 		tr::lng_wallet_phrase_intro_title(),
-		tr::lng_wallet_phrase_intro_text());
+		tr::lng_wallet_phrase_intro_text(),
+		st::walletCoverLottieSize,
+		st::walletCoverLottieMargin,
+		st::walletPhraseTextMargin);
 
 	const auto container = box->verticalLayout();
 	const auto addWarning = [&](
@@ -2402,6 +2425,173 @@ void WalletRevealFlow(std::shared_ptr<Main::SessionShow> show) {
 	return text.simplified().split(QChar(' '), Qt::SkipEmptyParts);
 }
 
+struct ImportCover {
+	not_null<Ui::RpWidget*> widget;
+	Fn<int()> height;
+	Fn<void()> updateScroll;
+};
+
+[[nodiscard]] ImportCover SetupImportCover(not_null<Ui::GenericBox*> box) {
+	const auto spacer = box->verticalLayout()->add(
+		object_ptr<Ui::RpWidget>(box));
+	const auto cover = Ui::CreateChild<Ui::RpWidget>(box.get());
+	cover->show();
+
+	struct State {
+		std::unique_ptr<Lottie::Icon> icon;
+		Ui::FlatLabel *about = nullptr;
+		QPainterPath titlePath;
+		int fullTitleTop = 0;
+		int maxHeight = 0;
+		float64 aboutOpacity = -1.;
+	};
+	const auto state = cover->lifetime().make_state<State>();
+	state->icon = Lottie::MakeIcon({
+		.name = u"wallet/paper"_q,
+		.sizeOverride = QSize(
+			st::walletCoverLottieSize,
+			st::walletCoverLottieSize),
+		.limitFps = true,
+	});
+	state->about = Ui::CreateChild<Ui::FlatLabel>(
+		cover,
+		tr::lng_wallet_import_text(),
+		st::walletPhraseTextLabel);
+	state->about->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	tr::lng_wallet_import_title() | rpl::on_next([=](const QString &text) {
+		state->titlePath = QPainterPath();
+		state->titlePath.addText(
+			0,
+			st::boxTitle.style.font->ascent,
+			st::boxTitle.style.font,
+			text);
+		cover->update();
+	}, cover->lifetime());
+
+	const auto countProgress = [=] {
+		return (state->maxHeight > st::boxTitleHeight)
+			? std::clamp(
+				(cover->height() - st::boxTitleHeight)
+					/ float64(state->maxHeight - st::boxTitleHeight),
+				0.,
+				1.)
+			: 1.;
+	};
+	const auto countBodyOpacity = [](float64 progress) {
+		return 1. - std::clamp((1. - progress) / kCoverBodyPart, 0., 1.);
+	};
+	const auto countArtRect = [=](float64 opacity) {
+		const auto side = st::walletCoverLottieSize * opacity;
+		return QRectF(
+			(cover->width() - side) / 2.,
+			st::walletCoverLottieMargin.top() * opacity,
+			side,
+			side);
+	};
+	const auto updateScroll = [=] {
+		if (state->maxHeight <= st::boxTitleHeight) {
+			return;
+		}
+		const auto height = std::clamp(
+			state->maxHeight - box->scrollTop(),
+			st::boxTitleHeight,
+			state->maxHeight);
+		cover->setGeometry(0, 0, box->width(), height);
+		const auto opacity = countBodyOpacity(countProgress());
+		if (state->aboutOpacity != opacity) {
+			state->aboutOpacity = opacity;
+			state->about->setOpacity(opacity);
+			state->about->moveToLeft(
+				st::boxRowPadding.left(),
+				int(countArtRect(opacity).bottom())
+					+ st::walletCoverLottieMargin.bottom()
+					+ st::boxTitleFont->height
+					+ st::walletPhraseTextMargin.top());
+		}
+	};
+
+	const auto relayout = [=] {
+		const auto width = box->width();
+		if (width <= 0) {
+			return;
+		}
+		state->about->resizeToWidth(width
+			- st::boxRowPadding.left()
+			- st::boxRowPadding.right());
+		state->fullTitleTop = st::walletCoverLottieMargin.top()
+			+ st::walletCoverLottieSize
+			+ st::walletCoverLottieMargin.bottom();
+		state->maxHeight = state->fullTitleTop
+			+ st::boxTitleFont->height
+			+ st::walletPhraseTextMargin.top()
+			+ state->about->height()
+			+ st::walletPhraseTextMargin.bottom();
+		spacer->resize(width, state->maxHeight);
+		updateScroll();
+	};
+	rpl::combine(
+		box->widthValue(),
+		state->about->heightValue()
+	) | rpl::on_next(relayout, cover->lifetime());
+
+	cover->paintRequest() | rpl::on_next([=] {
+		auto p = QPainter(cover);
+		p.fillRect(cover->rect(), st::boxBg);
+		auto hq = PainterHighQualityEnabler(p);
+		const auto progress = countProgress();
+		const auto opacity = countBodyOpacity(progress);
+		if (opacity > 0.) {
+			const auto artRect = countArtRect(opacity);
+			const auto frame = state->icon->frame(
+				QSize(int(artRect.width()), int(artRect.height())),
+				[=] { cover->update(); });
+			p.setOpacity(opacity);
+			p.drawImage(artRect, frame.image);
+		}
+		p.setOpacity(1.);
+		const auto titleRect = state->titlePath.boundingRect();
+		p.translate(
+			anim::interpolate(
+				(cover->width() - titleRect.width()) / 2,
+				st::boxTitlePosition.x(),
+				1. - progress),
+			anim::interpolate(
+				state->fullTitleTop,
+				st::boxTitlePosition.y(),
+				1. - progress));
+		p.translate(titleRect.center());
+		const auto scale = 1. + kCoverTitleScale * progress;
+		p.scale(scale, scale);
+		p.translate(-titleRect.center());
+		p.fillPath(state->titlePath, st::boxTitleFg);
+	}, cover->lifetime());
+
+	base::install_event_filter(cover, [=](not_null<QEvent*> event) {
+		if (event->type() == QEvent::Wheel) {
+			box->sendScrollViewportEvent(event);
+			return base::EventFilterResult::Cancel;
+		}
+		return base::EventFilterResult::Continue;
+	});
+
+	box->showFinishes() | rpl::on_next([=] {
+		const auto icon = state->icon.get();
+		const auto update = [=] { cover->update(); };
+		if (anim::Disabled()) {
+			icon->jumpTo(icon->framesCount() - 1, update);
+		} else {
+			icon->animate(update, 0, icon->framesCount() - 1);
+		}
+	}, cover->lifetime());
+
+	return {
+		.widget = cover,
+		.height = [=] { return cover->height(); },
+		.updateScroll = updateScroll,
+	};
+}
+
 void WalletImportBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show) {
@@ -2423,10 +2613,7 @@ void WalletImportBox(
 	};
 	const auto state = box->lifetime().make_state<State>();
 
-	AddPhraseBoxHeader(
-		box,
-		tr::lng_wallet_import_title(),
-		tr::lng_wallet_import_text());
+	const auto cover = SetupImportCover(box);
 
 	const auto toggle = box->addRow(
 		object_ptr<Ui::SettingsSlider>(box, st::settingsSlider),
@@ -2603,12 +2790,12 @@ void WalletImportBox(
 		auto p = QPainter(suggestions);
 		auto hq = PainterHighQualityEnabler(p);
 		const auto inner = suggestions->rect().marginsRemoved(
-			st::defaultRoundShadow.extend);
+			st::boxRoundShadow.extend);
 		Ui::Shadow::paint(
 			p,
 			inner,
 			suggestions->width(),
-			st::defaultRoundShadow);
+			st::boxRoundShadow);
 		p.setPen(Qt::NoPen);
 		p.setBrush(st::windowBg);
 		p.drawRoundedRect(inner, st::boxRadius, st::boxRadius);
@@ -2625,7 +2812,7 @@ void WalletImportBox(
 			return;
 		}
 		const auto field = state->fields[index];
-		const auto &extend = st::defaultRoundShadow.extend;
+		const auto &extend = st::boxRoundShadow.extend;
 		const auto &padding = st::walletImportSuggestionsPadding;
 		const auto &rowPadding = st::walletImportSuggestionRowPadding;
 		auto textWidth = 0;
@@ -2670,7 +2857,8 @@ void WalletImportBox(
 				- extend.top())
 			: (below - extend.top());
 		suggestions->move(fieldTopLeft.x() - extend.left(), top);
-		if (fieldTop + field->height() <= 0 || fieldTop >= box->height()) {
+		if (fieldTop + field->height() <= cover.height()
+			|| fieldTop >= box->height()) {
 			suggestions->hide();
 		} else {
 			suggestions->show();
@@ -2757,9 +2945,9 @@ void WalletImportBox(
 			const auto left = st::walletImportSuggestionRowPadding.left();
 			const auto baseline = (row->height() - font->height) / 2
 				+ font->ascent;
-			p.setPen(st::windowSubTextFg);
-			p.drawText(left, baseline, prefix);
 			p.setPen(st::windowFg);
+			p.drawText(left, baseline, prefix);
+			p.setPen(st::windowSubTextFg);
 			p.drawText(
 				left + font->width(prefix),
 				baseline,
@@ -2878,6 +3066,11 @@ void WalletImportBox(
 			refreshAccessories(i);
 			if (focused) {
 				refreshSuggestions(i);
+				const auto top = field->mapTo(box, QPoint()).y();
+				if (top < cover.height()) {
+					box->scrollToY(
+						box->scrollTop() - (cover.height() - top));
+				}
 			} else if (state->suggestionField == i) {
 				hideSuggestions();
 			}
@@ -2885,12 +3078,17 @@ void WalletImportBox(
 		refreshAccessories(i);
 	}
 
-	rpl::merge(
-		box->scrolls(),
-		box->widthValue() | rpl::to_empty
-	) | rpl::on_next([=] {
+	box->widthValue() | rpl::skip(1) | rpl::on_next([=] {
 		repositionSuggestions();
 	}, box->lifetime());
+	box->setInitScrollCallback([=] {
+		cover.widget->raise();
+		cover.updateScroll();
+		box->scrolls() | rpl::on_next([=] {
+			cover.updateScroll();
+			repositionSuggestions();
+		}, box->lifetime());
+	});
 }
 
 void WalletReplaceBox(
