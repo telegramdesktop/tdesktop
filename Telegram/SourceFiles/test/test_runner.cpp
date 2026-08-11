@@ -26,7 +26,7 @@ namespace {
 
 constexpr auto kTickInterval = crl::time(50);
 constexpr auto kDefaultWatchdogSeconds = 120;
-constexpr auto kAbortAfterQuitSeconds = 10;
+constexpr auto kAbortAfterQuit = 10 * crl::time(1000);
 
 // The fuse records a blocked launch inside the fused
 // Platform::File::Unsafe* wrapper, which a click reaches only across at
@@ -160,6 +160,26 @@ void ObserveChatsLoadedDeadline(
 	return state->outcome == ChatsLoadedWaitOutcome::Loaded;
 }
 
+// A main-thread timer that came due while the thread was blocked is
+// delivered on the first event-loop pass after it is free again, so this
+// fuse can arrive arbitrarily late and cannot tell a slow teardown from a
+// run that wedged after recording its result. Once the completion marker
+// exists it therefore reports the overrun instead of aborting, and leaves
+// a post-marker wedge to the parent's grace kill and to
+// Core::DeadlockDetector. A run with no marker still aborts.
+void ResolveQuitFuse(crl::time deadline) {
+	const auto completedAt = CompletedAt();
+	if (!completedAt) {
+		std::abort();
+	}
+	const auto now = crl::now();
+	LogRaw(u"TEARDOWN_SLOW: the completion marker is already written, not "
+		"aborting; fuseMs=%1 overdueMs=%2 sinceCompleteMs=%3"_q
+			.arg(qint64(kAbortAfterQuit))
+			.arg(qint64(std::max(crl::time(0), now - deadline)))
+			.arg(qint64(now - completedAt)));
+}
+
 } // namespace
 
 void Runner::add(Stage stage) {
@@ -277,8 +297,9 @@ void Runner::finish() {
 	_finished = true;
 	_ticker.cancel();
 	_watchdog.cancel();
-	QTimer::singleShot(kAbortAfterQuitSeconds * 1000, [] {
-		std::abort();
+	const auto fuseDeadline = crl::now() + kAbortAfterQuit;
+	QTimer::singleShot(int(kAbortAfterQuit), [=] {
+		ResolveQuitFuse(fuseDeadline);
 	});
 	base::call_delayed(kFinishDrainDelay, [] {
 		const auto failures = FailureCount();

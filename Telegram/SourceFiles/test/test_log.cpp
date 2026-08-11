@@ -15,6 +15,7 @@ namespace Test {
 namespace {
 
 auto FailuresCount = 0;
+auto CompletedAtValue = crl::time(0);
 
 [[nodiscard]] QString EnsuredDir(const QString &path) {
 	QDir().mkpath(path);
@@ -104,7 +105,12 @@ int FailureCount() {
 }
 
 void Complete() {
+	CompletedAtValue = crl::now();
 	LogRaw(u"TEST_COMPLETE"_q);
+}
+
+crl::time CompletedAt() {
+	return CompletedAtValue;
 }
 
 } // namespace Test

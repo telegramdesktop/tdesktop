@@ -37,7 +37,10 @@ void LogGeometry(const QString &name, const QRect &rect);
 
 [[nodiscard]] int FailureCount();
 
-// Writes the TEST_COMPLETE marker the external runner waits for.
+// Writes the TEST_COMPLETE marker the external runner waits for, and
+// records when it was written. CompletedAt() is crl::now() at that
+// moment and 0 before it.
 void Complete();
+[[nodiscard]] crl::time CompletedAt();
 
 } // namespace Test
