@@ -226,12 +226,17 @@ uint64 MediaId(const MTPMessage &message) {
 	if (!MediaCanHaveCaption(message)) {
 		return 0;
 	}
-	const auto &media = message.c_message().vmedia();
-	return media
-		? v::match(
-			Data::GetFileReferences(*media).data.begin()->first,
-			[](const auto &d) { return d.id; })
-		: 0;
+	const auto media = message.c_message().vmedia();
+	if (!media) {
+		return 0;
+	}
+	const auto references = Data::GetFileReferences(*media);
+	if (references.data.empty()) {
+		return 0;
+	}
+	return v::match(
+		references.data.begin()->first,
+		[](const auto &data) { return data.id; });
 }
 
 TextWithEntities ExtractEditedText(
