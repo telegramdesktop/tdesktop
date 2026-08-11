@@ -1031,6 +1031,16 @@ void StickerSetBox::updateButtons() {
 					st::activeButtonBg,
 					st::activeButtonFg);
 			}
+		} else if (_inner->amSetCreator()) {
+			auto editText = ((type == Data::StickersType::Emoji)
+				? tr::lng_custom_emoji_edit_pack_button
+				: (type == Data::StickersType::Masks)
+				? tr::lng_masks_edit_pack_button
+				: tr::lng_stickers_edit_pack_button)();
+			addButton(std::move(editText), [=] {
+				_inner->setReorderState(true);
+				updateButtons();
+			})->setFullRadius(true);
 		} else if (_inner->official()) {
 			addButton(
 				tr::lng_about_done(),
