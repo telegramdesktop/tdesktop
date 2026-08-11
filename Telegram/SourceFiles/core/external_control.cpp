@@ -10,7 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "boxes/connection_box.h"
+#include "main/main_domain.h"
 #include "storage/localstorage.h"
+#include "storage/storage_domain.h"
 #include "window/window_controller.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
@@ -213,6 +215,21 @@ void RequestEnableAutomation() {
 	auto object = QJsonObject();
 	object.insert(u"ok"_q, true);
 	object.insert(u"activated"_q, next);
+	return Pack(object);
+}
+
+[[nodiscard]] QByteArray HandleLock() {
+	if (!App().domain().local().hasLocalPasscode()) {
+		return Error(u"no local passcode set"_q);
+	}
+	const auto already = App().passcodeLocked();
+	if (!already) {
+		App().lockByPasscode();
+	}
+	auto object = QJsonObject();
+	object.insert(u"ok"_q, true);
+	object.insert(u"locked"_q, true);
+	object.insert(u"changed"_q, !already);
 	return Pack(object);
 }
 
@@ -459,6 +476,8 @@ QByteArray HandleExternalControl(const QString &command) {
 		return HandleActivate(command.mid(9).toInt());
 	} else if (command == u"cycle"_q) {
 		return HandleCycle();
+	} else if (command == u"lock"_q) {
+		return HandleLock();
 	} else if (command == u"proxies"_q) {
 		return HandleProxyList();
 	} else if (command.startsWith(u"proxy-add:"_q)) {
