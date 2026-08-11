@@ -7,8 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "wallet/wallet_panel.h"
 
+#include "core/application.h"
 #include "lang/lang_keys.h"
 #include "main/session/session_show.h"
+#include "main/main_account.h"
+#include "main/main_domain.h"
 #include "main/main_session.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/separate_panel.h"
@@ -64,6 +67,20 @@ not_null<Ui::SeparatePanel*> ShowWallet(not_null<Main::Session*> session) {
 
 void CloseWallet(not_null<Main::Session*> session) {
 	session->wallet().setPanel(nullptr);
+}
+
+bool CloseActiveWindow() {
+	for (const auto &[index, account] : Core::App().domain().accounts()) {
+		if (!account->sessionExists()) {
+			continue;
+		}
+		const auto panel = account->session().wallet().panel();
+		if (panel && panel->isActiveWindow()) {
+			panel->close();
+			return true;
+		}
+	}
+	return false;
 }
 
 void OpenTransferLink(

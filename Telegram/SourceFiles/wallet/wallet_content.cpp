@@ -51,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/tooltip.h"
+#include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/table_layout.h"
@@ -906,13 +907,14 @@ void AddBoxCloseButton(not_null<Ui::GenericBox*> box) {
 
 struct WalletBoxTitleBar {
 	not_null<Ui::FlatLabel*> title;
-	not_null<Ui::IconButton*> back;
+	not_null<Ui::FadeWrapScaled<Ui::IconButton>*> back;
 	not_null<Ui::IconButton*> close;
 };
 
 [[nodiscard]] WalletBoxTitleBar AddWalletBoxTitleBar(
 		not_null<Ui::GenericBox*> box,
-		rpl::producer<QString> title) {
+		rpl::producer<QString> title,
+		rpl::producer<bool> backShown) {
 	const auto row = box->addRow(
 		object_ptr<Ui::FixedHeightWidget>(
 			box,
@@ -924,13 +926,38 @@ struct WalletBoxTitleBar {
 		std::move(title),
 		st::boxTitle);
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
-	const auto back = Ui::CreateChild<Ui::IconButton>(
+	const auto back = Ui::CreateChild<Ui::FadeWrapScaled<Ui::IconButton>>(
 		row,
-		st::walletReceiveTitleBack);
+		object_ptr<Ui::IconButton>(row, st::walletReceiveTitleBack));
 	const auto close = Ui::CreateChild<Ui::IconButton>(
 		row,
 		st::boxTitleClose);
+	struct State {
+		Ui::Animations::Simple titleLeft;
+	};
+	const auto state = row->lifetime().make_state<State>();
+	const auto updateTitleLeft = [=] {
+		const auto progress = state->titleLeft.value(
+			back->toggled() ? 1. : 0.);
+		label->moveToLeft(
+			anim::interpolate(
+				st::boxTitlePosition.x(),
+				st::walletReceiveTitleLeft,
+				progress),
+			st::boxTitlePosition.y(),
+			row->width());
+	};
+	back->toggledValue(
+	) | rpl::on_next([=](bool toggled) {
+		state->titleLeft.start(
+			updateTitleLeft,
+			toggled ? 0. : 1.,
+			toggled ? 1. : 0.,
+			st::fadeWrapDuration);
+	}, back->lifetime());
 	Ui::ToggleChildrenVisibility(row, true);
+	back->toggleOn(std::move(backShown));
+	state->titleLeft.stop();
 	row->sizeValue(
 	) | rpl::on_next([=](QSize size) {
 		back->moveToLeft(st::walletReceiveTitleButtonSkip, 0, size.width());
@@ -938,10 +965,7 @@ struct WalletBoxTitleBar {
 			st::walletReceiveTitleButtonSkip,
 			0,
 			size.width());
-		label->moveToLeft(
-			st::walletReceiveTitleLeft,
-			st::boxTitlePosition.y(),
-			size.width());
+		updateTitleLeft();
 	}, row->lifetime());
 	return { label, back, close };
 }
@@ -1016,7 +1040,7 @@ void WalletReceiveBox(
 		not_null<Main::Session*> session,
 		const QString &address) {
 	box->setWidth(st::boxWideWidth);
-	box->setStyle(st::walletSendBox);
+	box->setStyle(st::walletReceiveBox);
 	box->setNoContentMargin(true);
 	box->setCustomCornersFilling(RectPart::FullTop | RectPart::FullBottom);
 
@@ -1044,12 +1068,15 @@ void WalletReceiveBox(
 		}, buying ? 0. : 1., buying ? 1. : 0., st::slideWrapDuration);
 	}, box->lifetime());
 
-	const auto bar = AddWalletBoxTitleBar(box, state->buying.value(
-	) | rpl::map([](bool buying) {
-		return buying
-			? tr::lng_wallet_buy_title()
-			: tr::lng_wallet_add_funds();
-	}) | rpl::flatten_latest());
+	const auto bar = AddWalletBoxTitleBar(
+		box,
+		state->buying.value(
+		) | rpl::map([](bool buying) {
+			return buying
+				? tr::lng_wallet_buy_title()
+				: tr::lng_wallet_add_funds();
+		}) | rpl::flatten_latest(),
+		state->buying.value());
 	rpl::combine(
 		state->buying.value(),
 		rpl::single(rpl::empty) | rpl::then(style::PaletteChanged())
@@ -1057,25 +1084,17 @@ void WalletReceiveBox(
 		bar.title->setTextColorOverride(buying
 			? std::optional<QColor>()
 			: st::activeButtonFg->c);
-		bar.back->setIconOverride(
-			buying ? nullptr : &st::walletReceiveBackIconActive,
-			buying ? nullptr : &st::walletReceiveBackIconActiveOver);
 		bar.close->setIconOverride(
 			buying ? nullptr : &st::walletReceiveCloseIconActive,
 			buying ? nullptr : &st::walletReceiveCloseIconActiveOver);
 		const auto ripple = buying ? nullptr : &st::activeButtonBgRipple;
-		bar.back->setRippleColorOverride(ripple);
 		bar.close->setRippleColorOverride(ripple);
 	}, box->lifetime());
 	bar.close->setClickedCallback([=] {
 		box->closeBox();
 	});
-	bar.back->setClickedCallback([=] {
-		if (state->buying.current()) {
-			state->buying = false;
-		} else {
-			box->closeBox();
-		}
+	bar.back->entity()->setClickedCallback([=] {
+		state->buying = false;
 	});
 
 	const auto addFunds = box->addRow(
@@ -1818,7 +1837,7 @@ void WalletSendBox(
 		std::shared_ptr<Main::SessionShow> show,
 		std::optional<SendFlow> initial) {
 	box->setWidth(st::boxWideWidth);
-	box->setStyle(st::walletSendBox);
+	box->setStyle(st::giveawayGiftCodeBox);
 	box->setTitle(tr::lng_wallet_send_title());
 	AddBoxCloseButton(box);
 
@@ -2106,18 +2125,11 @@ void WalletSendBox(
 			next,
 			setComment));
 	};
-	const auto button = inner->add(
-		object_ptr<Ui::RoundButton>(
-			inner,
-			tr::lng_wallet_send_continue(),
-			st::giveawayGiftCodeBoxButton),
-		st::walletSendContinueMargin,
-		style::al_justify);
-	button->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
-	button->setClickedCallback(submit);
-	button->widthValue(
-	) | rpl::on_next([=](int width) {
-		button->setFullWidth(width);
+	const auto button = box->addButton(
+		tr::lng_wallet_send_continue(),
+		submit).data();
+	state->expanded.value() | rpl::on_next([=](bool expanded) {
+		button->setVisible(expanded);
 	}, button->lifetime());
 	state->canSend.value() | rpl::on_next([=](bool canSend) {
 		SetButtonDisabledLook(button, !canSend);

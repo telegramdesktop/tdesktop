@@ -25,6 +25,8 @@ not_null<Ui::SeparatePanel*> ShowWallet(not_null<Main::Session*> session);
 
 void CloseWallet(not_null<Main::Session*> session);
 
+bool CloseActiveWindow();
+
 void OpenTransferLink(
 	not_null<Window::SessionController*> controller,
 	const QString &url);

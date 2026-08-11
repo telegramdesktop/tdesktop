@@ -147,7 +147,7 @@ walletDetailsBox: Box(giveawayGiftCodeBox) {
 	bg: windowBgOver;
 	buttonPadding: margins(24px, 11px, 24px, 22px);
 }
-walletSendBox: Box(giveawayGiftCodeBox) {
+walletReceiveBox: Box(giveawayGiftCodeBox) {
 	buttonPadding: margins(0px, 0px, 0px, 0px);
 	buttonHeight: 0px;
 }
@@ -250,7 +250,6 @@ walletSendMarkSize: 15px;
 walletSendMarkPosition: point(0px, 31px);
 walletSendFiatTop: 29px;
 walletSendBalancePadding: margins(24px, 7px, 24px, 27px);
-walletSendContinueMargin: margins(16px, 12px, 16px, 12px);
 walletCommentField: InputField(walletSendAddressField) {
 	textMargins: margins(0px, 10px, 0px, 2px);
 }
@@ -337,8 +336,6 @@ walletReceiveTitleBack: IconButton(boxTitleClose) {
 	icon: icon {{ "box_button_back", boxTitleCloseFg }};
 	iconOver: icon {{ "box_button_back", boxTitleCloseFgOver }};
 }
-walletReceiveBackIconActive: icon {{ "box_button_back", activeButtonSecondaryFg }};
-walletReceiveBackIconActiveOver: icon {{ "box_button_back", activeButtonSecondaryFgOver }};
 walletReceiveCloseIconActive: icon {{ "box_button_close", activeButtonSecondaryFg }};
 walletReceiveCloseIconActiveOver: icon {{ "box_button_close", activeButtonSecondaryFgOver }};
 walletReceivePlateMargin: margins(0px, 18px, 0px, 0px);

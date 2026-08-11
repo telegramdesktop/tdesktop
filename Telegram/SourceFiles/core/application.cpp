@@ -1804,7 +1804,8 @@ bool Application::closeActiveWindow() {
 	} else if (_iv->closeActive()
 		|| Iv::Editor::CloseActiveWindow()
 		|| calls().closeCurrentActiveCall()
-		|| (_savedWindows && _savedWindows->closeActiveShell())) {
+		|| (_savedWindows && _savedWindows->closeActiveShell())
+		|| Wallet::CloseActiveWindow()) {
 		return true;
 	} else if (const auto window = activeWindow()) {
 		if (window->widget()->isActive()) {
