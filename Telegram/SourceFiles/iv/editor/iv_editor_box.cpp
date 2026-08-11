@@ -1689,7 +1689,9 @@ void WindowHost::Impl::setupWindow(ShowWindowDescriptor &&descriptor) {
 	_bottom = object_ptr<Ui::RpWidget>(window->body().get());
 
 	const auto hasRequestMedia = static_cast<bool>(descriptor.requestMedia);
-	_scroll = object_ptr<Ui::ElasticScroll>(window->body().get(), st::boxScroll);
+	_scroll = object_ptr<Ui::ElasticScroll>(
+		window->body().get(),
+		st::ivEditorScroll);
 	using OverscrollType = Ui::ElasticScroll::OverscrollType;
 	_scroll->setOverscrollTypes(OverscrollType::Real, OverscrollType::Real);
 	const auto scroll = _scroll.data();

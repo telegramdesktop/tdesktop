@@ -95,6 +95,10 @@ ivEditorToolbarGroupsSkip: 6px;
 ivEditorBottomControlsPadding: margins(9px, 10px, 9px, 10px);
 ivEditorPillPadding: 2px;
 ivEditorPillButtonSkip: 6px;
+ivEditorScroll: ScrollArea(boxScroll) {
+	width: ivEditorToolbarPadding.left;
+	deltax: 3px;
+}
 ivEditorBottomCircleSize: 40px;
 ivEditorSendLockBadgeShift: point(-5px, -5px);
 ivComposeSendLockBadgePosition: point(1px, 2px);
