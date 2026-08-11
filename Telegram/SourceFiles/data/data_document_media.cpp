@@ -275,7 +275,6 @@ void DocumentMedia::videoThumbnailWanted(Data::FileOrigin origin) {
 
 void DocumentMedia::setVideoThumbnail(QByteArray content) {
 	_videoThumbnailBytes = std::move(content);
-	_videoThumbnailBytes.detach();
 }
 
 void DocumentMedia::checkStickerLarge() {
