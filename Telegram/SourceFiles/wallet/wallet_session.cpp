@@ -25,6 +25,7 @@ constexpr auto kPollInterval = 5 * crl::time(1000);
 constexpr auto kHistoryPageLimit = 20;
 constexpr auto kCollectiblesPageLimit = 50;
 constexpr auto kCollectiblesPollInterval = 60 * crl::time(1000);
+constexpr auto kEmptyProofFreshness = 60 * crl::time(1000);
 constexpr auto kSendValidUntilOffset = TimeId(300);
 constexpr auto kSendRetryClockMargin = TimeId(60);
 
@@ -194,6 +195,23 @@ void Session::remove() {
 	clearNetworkState();
 }
 
+bool Session::provenEmpty() const {
+	const auto now = crl::now();
+	const auto fresh = [&](crl::time completed) {
+		return completed && (now - completed <= kEmptyProofFreshness);
+	};
+	return _stateKnown.current()
+		&& (_balanceNano.current() == 0)
+		&& _history.empty()
+		&& !_historyHasNext
+		&& _collectibles.empty()
+		&& !_pending
+		&& (_sendState.current() != SendState::Sending)
+		&& fresh(_stateRefreshedAt)
+		&& fresh(_historyRefreshedAt)
+		&& fresh(_collectiblesCompletedAt);
+}
+
 bool Session::phraseUnviewed() {
 	ensureLoaded();
 	return _phraseUnviewed.current();
@@ -215,18 +233,22 @@ void Session::markPhraseViewed() {
 }
 
 void Session::clearNetworkState() {
+	++_networkGeneration;
 	_balanceNano = 0;
 	_lastState = Gram::AccountState();
 	_stateKnown = false;
+	_stateRefreshedAt = 0;
 	_history.clear();
 	_historyUpdates.fire({});
 	_historyErrorLogged = false;
 	_historyHasNext = false;
 	_historyLoadedOffset = 0;
+	_historyRefreshedAt = 0;
 	_collectibles.clear();
 	_collectiblesLoading.clear();
 	_collectiblesTab = false;
 	_collectiblesRefreshedAt = 0;
+	_collectiblesCompletedAt = 0;
 	_collectiblesRequestPending = false;
 #ifdef _DEBUG
 	_collectiblesInjected = false;
@@ -264,15 +286,14 @@ void Session::refreshState(
 		return;
 	}
 	_stateRequestPending = true;
+	const auto generation = _networkGeneration;
 	_api.request(
 		Gram::AddressInformationRequest(addressFriendly(false)),
 		[=](const QByteArray &json) {
-			_stateRequestPending = false;
-			if (_keyState.current() == KeyState::None) {
-				_stateDone.clear();
-				_stateFail.clear();
+			if (generation != _networkGeneration) {
 				return;
 			}
+			_stateRequestPending = false;
 			const auto stateDone = base::take(_stateDone);
 			const auto stateFail = base::take(_stateFail);
 			const auto state = Gram::ParseAccountState(json);
@@ -293,12 +314,10 @@ void Session::refreshState(
 			}
 		},
 		[=](const Gram::ApiError &error) {
-			_stateRequestPending = false;
-			if (_keyState.current() == KeyState::None) {
-				_stateDone.clear();
-				_stateFail.clear();
+			if (generation != _networkGeneration) {
 				return;
 			}
+			_stateRequestPending = false;
 			const auto stateFail = base::take(_stateFail);
 			_stateDone.clear();
 			LOG(("Wallet Error: addressInformation: %1").arg(error.message));
@@ -312,6 +331,7 @@ void Session::applyAccountState(const Gram::AccountState &state) {
 	_lastState = state;
 	_balanceNano = state.balanceNano;
 	_stateKnown = true;
+	_stateRefreshedAt = crl::now();
 }
 
 void Session::refreshHistory(Fn<void()> done) {
@@ -333,17 +353,17 @@ void Session::refreshHistory(Fn<void()> done) {
 
 void Session::requestHistory(int offset) {
 	_historyRequestPending = true;
+	const auto generation = _networkGeneration;
 	_api.request(
 		Gram::TracesRequest(
 			addressFriendly(false),
 			kHistoryPageLimit,
 			offset),
 		[=](const QByteArray &json) {
-			_historyRequestPending = false;
-			if (_keyState.current() == KeyState::None) {
-				_historyDone.clear();
+			if (generation != _networkGeneration) {
 				return;
 			}
+			_historyRequestPending = false;
 			auto page = Gram::ParseTraces(json, _address, kHistoryPageLimit);
 			if (!page) {
 				if (!_historyErrorLogged) {
@@ -361,11 +381,10 @@ void Session::requestHistory(int offset) {
 			}
 		},
 		[=](const Gram::ApiError &error) {
-			_historyRequestPending = false;
-			if (_keyState.current() == KeyState::None) {
-				_historyDone.clear();
+			if (generation != _networkGeneration) {
 				return;
 			}
+			_historyRequestPending = false;
 			if (!_historyErrorLogged) {
 				_historyErrorLogged = true;
 				LOG(("Wallet: traces unavailable (%1), "
@@ -377,17 +396,17 @@ void Session::requestHistory(int offset) {
 
 void Session::requestHistoryFallback(int offset) {
 	_historyRequestPending = true;
+	const auto generation = _networkGeneration;
 	_api.request(
 		Gram::TransactionsRequest(
 			addressFriendly(false),
 			kHistoryPageLimit,
 			offset),
 		[=](const QByteArray &json) {
-			_historyRequestPending = false;
-			if (_keyState.current() == KeyState::None) {
-				_historyDone.clear();
+			if (generation != _networkGeneration) {
 				return;
 			}
+			_historyRequestPending = false;
 			if (auto page = Gram::ParseTransactions(
 					json,
 					_address,
@@ -399,11 +418,10 @@ void Session::requestHistoryFallback(int offset) {
 			}
 		},
 		[=](const Gram::ApiError &) {
-			_historyRequestPending = false;
-			if (_keyState.current() == KeyState::None) {
-				_historyDone.clear();
+			if (generation != _networkGeneration) {
 				return;
 			}
+			_historyRequestPending = false;
 			for (const auto &callback : base::take(_historyDone)) {
 				callback();
 			}
@@ -457,6 +475,7 @@ void Session::applyHistoryPage(int offset, Gram::HistoryPage &&page) {
 		}
 	}
 	mergeHistory(std::move(page.list));
+	_historyRefreshedAt = crl::now();
 }
 
 bool Session::historyHasNext() const {
@@ -493,17 +512,17 @@ void Session::refreshCollectibles() {
 
 void Session::requestCollectibles(int offset) {
 	_collectiblesRequestPending = true;
+	const auto generation = _networkGeneration;
 	_api.request(
 		Gram::NftItemsByOwnerRequest(
 			addressFriendly(false),
 			kCollectiblesPageLimit,
 			offset),
 		[=](const QByteArray &json) {
-			_collectiblesRequestPending = false;
-			if (_keyState.current() == KeyState::None) {
-				_collectiblesLoading.clear();
+			if (generation != _networkGeneration) {
 				return;
 			}
+			_collectiblesRequestPending = false;
 			auto page = Gram::ParseNftItems(json, kCollectiblesPageLimit);
 			if (!page) {
 				_collectiblesLoading.clear();
@@ -512,6 +531,9 @@ void Session::requestCollectibles(int offset) {
 			applyCollectiblesPage(offset, std::move(*page));
 		},
 		[=](const Gram::ApiError &) {
+			if (generation != _networkGeneration) {
+				return;
+			}
 			_collectiblesRequestPending = false;
 			_collectiblesLoading.clear();
 		});
@@ -535,6 +557,7 @@ void Session::applyCollectiblesPage(int offset, Gram::NftPage &&page) {
 		requestCollectibles(offset + kCollectiblesPageLimit);
 		return;
 	}
+	_collectiblesCompletedAt = crl::now();
 	auto loaded = base::take(_collectiblesLoading);
 	if (SameCollectibles(_collectibles, loaded)) {
 		return;
@@ -642,6 +665,18 @@ void Session::debugClearNetworkState() {
 void Session::debugRestoreNetworkState() {
 	_pollingCount += base::take(_debugClearedPollingCount);
 	updatePollingState();
+}
+
+void Session::debugSetRefreshAges(crl::time age) {
+	const auto stamp = crl::now() - age;
+	const auto set = [&](crl::time &field) {
+		if (field) {
+			field = stamp;
+		}
+	};
+	set(_stateRefreshedAt);
+	set(_historyRefreshedAt);
+	set(_collectiblesCompletedAt);
 }
 
 int Session::debugPendingCount() const {
@@ -875,10 +910,11 @@ void Session::sendWithState(
 			done(QString());
 		}
 	};
+	const auto generation = _networkGeneration;
 	_api.request(
 		Gram::SendMessageRequest(boc.toBase64()),
 		[=](const QByteArray &json) {
-			if (_keyState.current() == KeyState::None) {
+			if (generation != _networkGeneration) {
 				return;
 			}
 			if (const auto sent = Gram::ParseSendResult(json)) {
@@ -889,7 +925,7 @@ void Session::sendWithState(
 			keepPending(u"transfer posted"_q);
 		},
 		[=](const Gram::ApiError &error) {
-			if (_keyState.current() == KeyState::None) {
+			if (generation != _networkGeneration) {
 				return;
 			}
 			if (Api::IsTimeoutError(error)) {
@@ -911,11 +947,15 @@ void Session::checkPendingByMessage() {
 		return;
 	}
 	_pendingCheckPending = true;
+	const auto generation = _networkGeneration;
 	_api.request(
 		Gram::TransactionsByMessageRequest(_pending->messageHashNorm),
 		[=](const QByteArray &json) {
+			if (generation != _networkGeneration) {
+				return;
+			}
 			_pendingCheckPending = false;
-			if (!_pending || _keyState.current() == KeyState::None) {
+			if (!_pending) {
 				return;
 			}
 			if (const auto found = Gram::ParseTransactionsByMessageFound(
@@ -926,6 +966,9 @@ void Session::checkPendingByMessage() {
 			}
 		},
 		[=](const Gram::ApiError &) {
+			if (generation != _networkGeneration) {
+				return;
+			}
 			_pendingCheckPending = false;
 		});
 }

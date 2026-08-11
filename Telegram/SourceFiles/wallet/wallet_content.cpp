@@ -2956,18 +2956,29 @@ void WalletKeysBackupBox(
 			lt_count,
 			rpl::single(count * 1.) | tr::to_count()));
 	Ui::AddSkip(container);
+	const auto deleteAndChoose = [=] {
+		auto &wallet = show->session().wallet();
+		if (wallet.keyState() == KeyState::None) {
+			return;
+		}
+		show->hideLayer();
+		wallet.remove();
+		show->showBox(Box(WalletReplaceBox, show));
+	};
 	Settings::AddButtonWithIcon(
 		container,
 		tr::lng_wallet_keys_delete(),
 		st::settingsAttentionButton
 	)->addClickHandler([=] {
+		if (show->session().wallet().provenEmpty()) {
+			deleteAndChoose();
+			return;
+		}
 		show->showBox(Ui::MakeConfirmBox({
 			.text = tr::lng_wallet_delete_text(tr::now, lt_count, count),
 			.confirmed = [=](Fn<void()> close) {
 				close();
-				show->hideLayer();
-				show->session().wallet().remove();
-				show->showBox(Box(WalletReplaceBox, show));
+				deleteAndChoose();
 			},
 			.confirmText = tr::lng_wallet_delete_confirm(),
 			.confirmStyle = &st::attentionBoxButton,
@@ -3626,11 +3637,11 @@ void FillWalletPage(
 	addAction(
 		Ui::Text::FixAmpersandInAction(tr::lng_wallet_keys_title(tr::now)),
 		[=] {
-			const auto stored = show->session().local().readWallet();
-			if (!stored || stored->words.empty()) {
-				return;
+			if (show->session().wallet().keyState() == KeyState::None) {
+				show->showBox(Box(WalletReplaceBox, show));
+			} else {
+				show->showBox(Box(WalletKeysBackupBox, show));
 			}
-			show->showBox(Box(WalletKeysBackupBox, show));
 		},
 		&st::menuIconPermissions);
 	addAction({ .isSeparator = true });

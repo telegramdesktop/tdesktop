@@ -75,6 +75,7 @@ public:
 	bool create();
 	bool import(std::vector<QString> words);
 	void remove();
+	[[nodiscard]] bool provenEmpty() const;
 
 	[[nodiscard]] bool phraseUnviewed();
 	[[nodiscard]] rpl::producer<bool> phraseUnviewedValue();
@@ -119,6 +120,7 @@ public:
 	void debugReleaseStalledAnswer();
 	void debugClearNetworkState();
 	void debugRestoreNetworkState();
+	void debugSetRefreshAges(crl::time age);
 	[[nodiscard]] int debugPendingCount() const;
 #endif
 
@@ -184,17 +186,20 @@ private:
 	rpl::variable<int64> _balanceNano = 0;
 	rpl::variable<bool> _stateKnown = false;
 	Gram::AccountState _lastState;
+	crl::time _stateRefreshedAt = 0;
 	std::vector<Gram::TransferItem> _history;
 	rpl::event_stream<> _historyUpdates;
 	bool _historyErrorLogged = false;
 	bool _historyHasNext = false;
 	int _historyLoadedOffset = 0;
+	crl::time _historyRefreshedAt = 0;
 
 	std::vector<Gram::NftItem> _collectibles;
 	std::vector<Gram::NftItem> _collectiblesLoading;
 	rpl::event_stream<> _collectiblesUpdates;
 	rpl::variable<bool> _collectiblesTab = false;
 	crl::time _collectiblesRefreshedAt = 0;
+	crl::time _collectiblesCompletedAt = 0;
 	bool _collectiblesRequestPending = false;
 	base::flat_map<QString, Gram::NftItem> _collectibleInfo;
 	base::flat_map<
@@ -206,6 +211,7 @@ private:
 #endif // _DEBUG
 
 	int _pollingCount = 0;
+	int _networkGeneration = 0;
 	bool _stateRequestPending = false;
 	bool _historyRequestPending = false;
 	bool _pendingCheckPending = false;

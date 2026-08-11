@@ -1053,6 +1053,18 @@ auto GenerateCodes() {
 		}
 		RunWalletBurst(window);
 	});
+	codes.emplace(u"walletagerefresh"_q, [](SessionController *window) {
+		if (!window) {
+			return;
+		}
+		auto &wallet = window->session().wallet();
+		if (wallet.keyState() == Wallet::KeyState::None) {
+			Ui::Toast::Show(u"No wallet."_q);
+			return;
+		}
+		wallet.debugSetRefreshAges(61 * crl::time(1000));
+		Ui::Toast::Show(u"Wallet refresh stamps aged to 61s."_q);
+	});
 #endif
 	codes.emplace(u"loadcolors"_q, [](SessionController *window) {
 		FileDialog::GetOpenPath(Core::App().getFileDialogParent(), "Open palette file", "Palette (*.tdesktop-palette)", [](const FileDialog::OpenResult &result) {
