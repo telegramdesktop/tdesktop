@@ -25,6 +25,7 @@ namespace Ui {
 namespace {
 
 constexpr auto kDigitNone = int(-1);
+constexpr auto kMaxDigitsCount = 32;
 
 [[nodiscard]] int Circular(int left, int right) {
 	return ((left % right) + right) % right;
@@ -178,6 +179,7 @@ QString CodeInput::accessibilityValue() const {
 }
 
 void CodeInput::setDigitsCountMax(int digitsCount) {
+	digitsCount = std::clamp(digitsCount, 1, kMaxDigitsCount);
 	_digitsCountMax = digitsCount;
 
 	_digits.clear();
