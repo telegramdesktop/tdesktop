@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
 
+#include "styles/style_basic.h"
+
 namespace Ui::Premium {
 namespace {
 
@@ -145,7 +147,7 @@ void CollectibleEmoji::refill(
 }
 
 int CollectibleEmoji::width() {
-	return _inner->width();
+	return st::emojiSize + 2 * st::emojiPadding;
 }
 
 QString CollectibleEmoji::entityData() {
