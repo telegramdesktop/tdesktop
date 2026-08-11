@@ -217,6 +217,9 @@ HiddenSenderInfo::HiddenSenderInfo(
 	Expects(!name.isEmpty());
 
 	const auto parts = name.trimmed().split(' ', Qt::SkipEmptyParts);
+	if (parts.isEmpty()) {
+		return;
+	}
 	firstName = parts[0];
 	for (const auto &part : parts.mid(1)) {
 		if (!lastName.isEmpty()) {
