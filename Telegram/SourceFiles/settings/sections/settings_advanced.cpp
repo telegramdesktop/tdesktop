@@ -749,7 +749,7 @@ void BuildSystemIntegrationSection(SectionBuilder &builder) {
 	const auto restoreWindows = builder.addCheckbox({
 		.id = u"advanced/restore_windows"_q,
 		.title = tr::lng_settings_restore_windows(),
-		.checked = Core::App().savedWindows()->enabled(),
+		.checked = Core::App().savedWindows()->restoreOnLaunch(),
 		.keywords = {
 			u"restore"_q,
 			u"windows"_q,
@@ -762,9 +762,9 @@ void BuildSystemIntegrationSection(SectionBuilder &builder) {
 	if (restoreWindows) {
 		restoreWindows->checkedChanges(
 		) | rpl::filter([=](bool checked) {
-			return (checked != Core::App().savedWindows()->enabled());
+			return (checked != Core::App().savedWindows()->restoreOnLaunch());
 		}) | rpl::on_next([=](bool checked) {
-			Core::App().savedWindows()->setEnabled(checked);
+			Core::App().savedWindows()->setRestoreOnLaunch(checked);
 		}, restoreWindows->lifetime());
 	}
 

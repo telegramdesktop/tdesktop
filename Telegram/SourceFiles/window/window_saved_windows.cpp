@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_saved_windows.h"
 
 #include "apiwrap.h"
+#include "base/call_delayed.h"
 #include "core/application.h"
 #include "data/data_channel.h"
 #include "data/data_community.h"
@@ -19,11 +20,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_thread.h"
 #include "data/data_user.h"
+#include "dialogs/ui/restore_windows_offer.h"
 #include "history/history.h"
 #include "history/admin_log/history_admin_log_section.h"
 #include "history/view/history_view_chat_section.h"
 #include "history/view/history_view_pinned_section.h"
 #include "history/view/history_view_scheduled_section.h"
+#include "lang/lang_keys.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
@@ -32,8 +35,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings.h"
 #include "storage/storage_account.h"
 #include "storage/storage_shared_media.h"
+#include "ui/layers/layer_widget.h"
+#include "ui/ui_utility.h"
+#include "ui/wrap/fade_wrap.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
+#include "styles/style_basic.h"
+#include "styles/style_dialogs.h"
 
 namespace Window {
 namespace {
@@ -46,7 +54,8 @@ constexpr auto kMaxSavedChats = 64;
 constexpr auto kMaxClosedWindows = 16;
 constexpr auto kVersion = 3;
 constexpr auto kPrefKey = std::string_view("windows_state");
-constexpr auto kEnabledKey = std::string_view("windows_state.enabled");
+constexpr auto kRestoreKey = std::string_view("windows_state.restore");
+constexpr auto kAskedKey = std::string_view("windows_state.asked");
 
 [[nodiscard]] bool ValidType(int type) {
 	switch (SeparateType(type)) {
@@ -320,7 +329,8 @@ struct SavedWindows::BatchResolve {
 SavedWindows::SavedWindows(not_null<Core::Application*> app)
 : _app(app)
 , _saveTimer([=] { save(); }) {
-	if (enabled()) {
+	const auto asked = app->settings().readPref<bool>(kAskedKey, false);
+	if (!asked || app->settings().readPref<bool>(kRestoreKey, false)) {
 		_toRestore = Deserialize(
 			app->settings().readPref<QByteArray>(kPrefKey));
 	}
@@ -328,22 +338,26 @@ SavedWindows::SavedWindows(not_null<Core::Application*> app)
 
 SavedWindows::~SavedWindows() = default;
 
-bool SavedWindows::enabled() const {
-	return _app->settings().readPref<bool>(kEnabledKey, true);
+bool SavedWindows::restoreOnLaunch() const {
+	return _app->settings().readPref<bool>(kRestoreKey, false);
 }
 
-void SavedWindows::setEnabled(bool enabled) {
-	if (this->enabled() == enabled) {
+void SavedWindows::setRestoreOnLaunch(bool restore) {
+	const auto asked = _app->settings().readPref<bool>(kAskedKey, false);
+	if (asked && restoreOnLaunch() == restore) {
 		return;
 	}
-	_app->settings().writePref<bool>(kEnabledKey, enabled);
-	if (enabled) {
-		scheduleSave();
+	markAsked(restore);
+	if (restore) {
+		maybeBeginRestore();
 	} else {
-		_saveTimer.cancel();
-		_toRestore.clear();
-		_app->settings().writePref<QByteArray>(kPrefKey, QByteArray());
+		discardRestore();
 	}
+}
+
+void SavedWindows::markAsked(bool restore) {
+	_app->settings().writePref<bool>(kAskedKey, true);
+	_app->settings().writePref<bool>(kRestoreKey, restore);
 }
 
 void SavedWindows::attachToWindow(not_null<Controller*> window) {
@@ -361,7 +375,7 @@ void SavedWindows::attachToWindow(not_null<Controller*> window) {
 }
 
 void SavedWindows::scheduleSave() {
-	if (Core::Quitting() || !enabled()) {
+	if (Core::Quitting()) {
 		return;
 	}
 	_saveTimer.callOnce(kSaveDelay);
@@ -373,9 +387,6 @@ void SavedWindows::writeNow() {
 }
 
 void SavedWindows::save() {
-	if (!enabled()) {
-		return;
-	}
 	_app->settings().writePref<QByteArray>(kPrefKey, collect());
 }
 
@@ -419,6 +430,9 @@ QByteArray SavedWindows::collect() const {
 		appendPending(_step->data);
 	}
 	for (const auto &window : _toRestore) {
+		appendPending(window);
+	}
+	for (const auto &window : _undecided) {
 		appendPending(window);
 	}
 	if (list.size() > kMaxSavedWindows) {
@@ -466,8 +480,106 @@ std::optional<SavedWindow> SavedWindows::serializeWindow(
 	return result;
 }
 
+namespace {
+
+using OfferChoice = Dialogs::RestoreWindowsChoice;
+using OfferCard = Dialogs::RestoreWindowsOffer;
+
+void RaiseAboveSiblings(not_null<QWidget*> card) {
+	card->raise();
+	const auto parent = card->parentWidget();
+	if (!parent) {
+		return;
+	}
+	for (const auto child : parent->children()) {
+		if (const auto layer = dynamic_cast<Ui::LayerStackWidget*>(child)) {
+			layer->raise();
+			return;
+		}
+	}
+}
+
+OfferCard *ShowRestoreOffer(
+		not_null<Controller*> window,
+		Fn<void(OfferChoice)> chosen) {
+	const auto controller = window->sessionController();
+	Expects(controller != nullptr);
+
+	const auto body = window->widget()->bodyWidget();
+	const auto notified = std::make_shared<bool>(false);
+	const auto notify = [=, chosen = std::move(chosen)](OfferChoice choice) {
+		if (!std::exchange(*notified, true)) {
+			chosen(choice);
+		}
+	};
+	const auto wrap = Ui::CreateChild<Ui::FadeWrap<OfferCard>>(
+		body,
+		object_ptr<OfferCard>(body));
+	const auto card = wrap->entity();
+	card->chosen(
+	) | rpl::on_next([=](OfferChoice choice) {
+		wrap->hide(anim::type::normal);
+		base::call_delayed(st::fadeWrapDuration, wrap, [=] {
+			wrap->deleteLater();
+		});
+		notify(choice);
+	}, wrap->lifetime());
+	rpl::combine(
+		body->sizeValue(),
+		card->sizeValue()
+	) | rpl::on_next([=](QSize outer, QSize size) {
+		const auto &position = st::restoreWindowsOfferPosition;
+		const auto &margins = st::dialogsTopBarSuggestionMargins;
+		card->setAvailableWidth(outer.width() - 2 * position.x());
+		wrap->moveToRight(
+			position.x() - margins.right(),
+			position.y() - margins.top(),
+			outer.width());
+	}, wrap->lifetime());
+	wrap->hide(anim::type::instant);
+	RaiseAboveSiblings(wrap);
+	controller->lifetime().add(crl::guard(wrap, [=] {
+		wrap->hide(anim::type::instant);
+		wrap->deleteLater();
+		notify(OfferChoice::Detached);
+	}));
+	const auto desired = std::make_shared<bool>(false);
+	auto loaded = rpl::single(
+		controller->session().data().chatsListLoaded()
+	) | rpl::then(controller->session().data().chatsListLoadedEvents(
+	) | rpl::map([](Data::Folder *folder) {
+		return !folder;
+	}) | rpl::filter([](bool mainList) {
+		return mainList;
+	}));
+	rpl::combine(
+		controller->activeChatValue(),
+		rpl::single(
+			controller->mainSectionShown()
+		) | rpl::then(controller->mainSectionShownChanges()),
+		std::move(loaded)
+	) | rpl::map([](Dialogs::Key key, bool section, bool loaded) {
+		return loaded && !key && !section;
+	}) | rpl::distinct_until_changed(
+	) | rpl::on_next([=](bool show) {
+		*desired = show;
+		if (!show) {
+			wrap->hide(anim::type::normal);
+		} else {
+			base::call_delayed(st::slideDuration, wrap, [=] {
+				if (*desired) {
+					wrap->show(anim::type::normal);
+				}
+			});
+		}
+	}, wrap->lifetime());
+	return card;
+}
+
+} // namespace
+
 void SavedWindows::startRestore() {
-	if (!enabled() || _toRestore.empty()) {
+	if (_toRestore.empty()) {
 		_restoreFinished = true;
 		return;
 	}
@@ -482,14 +594,21 @@ void SavedWindows::startRestore() {
 		_domainReady = true;
 		maybeBeginRestore();
 	}, _lifetime);
+
+	_app->domain().activeSessionChanges(
+	) | rpl::on_next([=](Main::Session *session) {
+		if (session) {
+			crl::on_main(this, [=] {
+				maybeBeginRestore();
+			});
+		}
+	}, _lifetime);
 }
 
 void SavedWindows::windowActivated() {
 	scheduleSave();
-	if (!_activatedOnce) {
-		_activatedOnce = true;
-		maybeBeginRestore();
-	}
+	_activatedOnce = true;
+	maybeBeginRestore();
 }
 
 void SavedWindows::windowClosed(not_null<Controller*> window) {
@@ -512,6 +631,9 @@ bool SavedWindows::reopenLastClosed() {
 	if (_closed.empty() || Core::Quitting()) {
 		return false;
 	}
+	if (!_restoring) {
+		stashUndecided();
+	}
 	_toRestore.push_back(std::move(_closed.back()));
 	_closed.pop_back();
 	if (!_restoring) {
@@ -528,8 +650,89 @@ void SavedWindows::maybeBeginRestore() {
 		|| (_deferUntilActivated && !_activatedOnce)) {
 		return;
 	}
+	if (!_app->settings().readPref<bool>(kAskedKey, false)) {
+		maybeOfferRestore();
+	} else if (_app->settings().readPref<bool>(kRestoreKey, false)) {
+		beginRestore();
+	} else {
+		discardRestore();
+	}
+}
+
+void SavedWindows::maybeOfferRestore() {
+	if (_offered) {
+		return;
+	} else if (!worthOffering()) {
+		discardRestore();
+		return;
+	}
+	const auto window = _app->activePrimaryWindow();
+	if (!window || !window->sessionController()) {
+		return;
+	}
+	_offered = true;
+	ShowRestoreOffer(window, crl::guard(this, [=](OfferChoice choice) {
+		switch (choice) {
+		case OfferChoice::Always:
+			markAsked(true);
+			_announceOnFinish = true;
+			beginRestore();
+			break;
+		case OfferChoice::Once:
+			beginRestore();
+			break;
+		case OfferChoice::Never:
+			markAsked(false);
+			discardRestore();
+			if (const auto window = _app->activeWindow()) {
+				window->showToast(
+					tr::lng_restore_windows_disabled_toast(tr::now));
+			}
+			break;
+		case OfferChoice::Dismiss:
+			stashUndecided();
+			break;
+		case OfferChoice::Detached:
+			_offered = false;
+			break;
+		}
+	}));
+}
+
+bool SavedWindows::worthOffering() const {
+	return (_toRestore.size() > 1);
+}
+
+void SavedWindows::beginRestore() {
+	if (_restoring || Core::Quitting()) {
+		return;
+	}
 	_restoring = true;
+	if (!_undecided.empty()) {
+		_toRestore.insert(
+			begin(_toRestore),
+			std::make_move_iterator(begin(_undecided)),
+			std::make_move_iterator(end(_undecided)));
+		_undecided.clear();
+	}
 	processNext();
+}
+
+void SavedWindows::discardRestore() {
+	_toRestore.clear();
+	_undecided.clear();
+	_restoreFinished = true;
+}
+
+void SavedWindows::stashUndecided() {
+	if (_toRestore.empty()) {
+		return;
+	}
+	_undecided.insert(
+		end(_undecided),
+		std::make_move_iterator(begin(_toRestore)),
+		std::make_move_iterator(end(_toRestore)));
+	_toRestore.clear();
 }
 
 void SavedWindows::processNext() {
@@ -634,6 +837,13 @@ void SavedWindows::finishRestore() {
 	_restoring = false;
 	_restoreFinished = true;
 	scheduleSave();
+	if (_announceOnFinish) {
+		_announceOnFinish = false;
+		if (const auto window = _app->activeWindow()) {
+			window->showToast(
+				tr::lng_restore_windows_enabled_toast(tr::now));
+		}
+	}
 }
 
 void SavedWindows::resolveSlot(int index) {
@@ -1107,18 +1317,27 @@ auto SavedWindows::restorePositionFor(SeparateId id)
 	const auto thread = id.thread
 		? SavedChatFromThread(id.thread)
 		: SavedChat();
-	for (const auto &window : _toRestore) {
-		if (window.accountIndex == accountIndex
-			&& (!window.userPeer || !userPeer || window.userPeer == userPeer)
-			&& window.type == id.type
-			&& window.sharedMediaType == int(id.sharedMediaType)
-			&& SameChat(window.thread, thread)) {
-			return (window.position.w > 0 && window.position.h > 0)
-				? std::make_optional(window.position)
-				: std::nullopt;
+	const auto find = [&](const std::vector<SavedWindow> &list)
+	-> std::optional<Core::WindowPosition> {
+		for (const auto &window : list) {
+			if (window.accountIndex == accountIndex
+				&& (!window.userPeer
+					|| !userPeer
+					|| window.userPeer == userPeer)
+				&& window.type == id.type
+				&& window.sharedMediaType == int(id.sharedMediaType)
+				&& SameChat(window.thread, thread)) {
+				return (window.position.w > 0 && window.position.h > 0)
+					? std::make_optional(window.position)
+					: std::nullopt;
+			}
 		}
+		return std::nullopt;
+	};
+	if (auto position = find(_toRestore)) {
+		return position;
 	}
-	return std::nullopt;
+	return find(_undecided);
 }
 
 } // namespace Window

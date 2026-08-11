@@ -74,8 +74,8 @@ public:
 	explicit SavedWindows(not_null<Core::Application*> app);
 	~SavedWindows();
 
-	[[nodiscard]] bool enabled() const;
-	void setEnabled(bool enabled);
+	[[nodiscard]] bool restoreOnLaunch() const;
+	void setRestoreOnLaunch(bool restore);
 
 	void attachToWindow(not_null<Controller*> window);
 	void scheduleSave();
@@ -99,6 +99,12 @@ private:
 		not_null<Controller*> window) const;
 
 	void maybeBeginRestore();
+	void maybeOfferRestore();
+	[[nodiscard]] bool worthOffering() const;
+	void markAsked(bool restore);
+	void beginRestore();
+	void discardRestore();
+	void stashUndecided();
 	void processNext();
 	bool startStep(SavedWindow &&data);
 	void queueFinishStep();
@@ -125,6 +131,7 @@ private:
 	base::Timer _saveTimer;
 
 	std::vector<SavedWindow> _toRestore;
+	std::vector<SavedWindow> _undecided;
 	std::vector<SavedWindow> _closed;
 	std::unique_ptr<Step> _step;
 	base::flat_map<
@@ -133,6 +140,8 @@ private:
 	std::optional<Core::WindowPosition> _restorePosition;
 	int _generation = 0;
 	bool _domainReady = false;
+	bool _offered = false;
+	bool _announceOnFinish = false;
 	bool _activatedOnce = false;
 	bool _deferUntilActivated = false;
 	bool _restoring = false;

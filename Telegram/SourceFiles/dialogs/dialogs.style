@@ -923,3 +923,22 @@ dialogsUnconfirmedAuthButtonNo: RoundButton(dialogsUnconfirmedAuthButton) {
 		color: attentionButtonBgRipple;
 	}
 }
+
+restoreWindowsOfferPadding: margins(
+	dialogsTopBarLeftPadding,
+	6px,
+	dialogsTopBarLeftPadding,
+	8px);
+restoreWindowsOfferPosition: point(10px, 10px);
+restoreWindowsOfferSkip: 2px;
+restoreWindowsOfferButtonSkip: 6px;
+restoreWindowsOfferQuestionStyle: TextStyle(defaultTextStyle) {
+	font: font(12px semibold);
+}
+restoreWindowsOfferClose: IconButton(dialogsCancelSearchInPeer) {
+	width: 28px;
+	height: 28px;
+	iconPosition: point(5px, 5px);
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 28px;
+}

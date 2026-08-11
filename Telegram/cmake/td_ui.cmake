@@ -165,6 +165,8 @@ PRIVATE
     dialogs/ui/dialogs_top_bar_suggestion_content.h
     dialogs/ui/posts_search_intro.cpp
     dialogs/ui/posts_search_intro.h
+    dialogs/ui/restore_windows_offer.cpp
+    dialogs/ui/restore_windows_offer.h
     dialogs/ui/top_peers_strip.cpp
     dialogs/ui/top_peers_strip.h
 
