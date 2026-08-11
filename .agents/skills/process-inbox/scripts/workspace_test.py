@@ -1241,7 +1241,9 @@ def run_test_run(exe, run_dir, **overrides):
 
 class MechanicsTest(unittest.TestCase):
 	def test_build_lock_recovery_selects_only_exact_owned_processes(self):
-		build = Path("C:/Telegram/twin/out")
+		build = Path(
+			"C:/Telegram/twin/out" if os.name == "nt" else "/Telegram/twin/out"
+		)
 		exe = build / "Debug/Telegram.exe"
 		records = [
 			{
@@ -1249,7 +1251,7 @@ class MechanicsTest(unittest.TestCase):
 				"parent_pid": 1,
 				"name": "cmake.exe",
 				"executable": "C:/Tools/cmake.exe",
-				"command_line": "cmake --build C:/Telegram/twin/out",
+				"command_line": f"cmake --build {build.as_posix()}",
 			},
 			{
 				"pid": 11,
@@ -1300,7 +1302,7 @@ class MechanicsTest(unittest.TestCase):
 
 	def test_build_lock_recovery_deletes_only_named_build_artifacts(self):
 		with tempfile.TemporaryDirectory() as temporary:
-			root = Path(temporary)
+			root = Path(temporary).resolve()
 			source, _, _, _ = source_repo_with_task(root)
 			build = source / "out"
 			debug = build / "Debug"
@@ -2008,7 +2010,10 @@ class MechanicsTest(unittest.TestCase):
 			with mock.patch.object(
 				workspace, "task_action_config", return_value=(config, slot),
 			):
-				with self.assertRaisesRegex(workspace.WorkspaceError, "untracked"):
+				with self.assertRaisesRegex(
+					workspace.WorkspaceError,
+					r"outside the overlay inventory: stray\.txt",
+				):
 					run_command(
 						workspace.command_overlay_save,
 						task=TASK_ID,
