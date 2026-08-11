@@ -281,6 +281,17 @@ QByteArray JoinList(
 	return result;
 }
 
+std::optional<QByteArray> SafeMessageHref(const QByteArray &value);
+
+QByteArray FormatTextLink(
+		const QByteArray &text,
+		const QByteArray &target) {
+	const auto href = SafeMessageHref(target);
+	return href
+		? "<a href=\"" + SerializeString(*href) + "\">" + text + "</a>"
+		: text;
+}
+
 QByteArray FormatCustomEmoji(
 		const Data::Utf8String &custom_emoji,
 		const QByteArray &text,
@@ -321,9 +332,7 @@ QByteArray FormatText(
 			"onclick=\"return ShowBotCommand("
 			+ SerializeString('"' + text.mid(1) + '"')
 			+ ")\">" + text + "</a>";
-		case Type::Url: return "<a href=\""
-			+ text
-			+ "\">" + text + "</a>";
+		case Type::Url: return FormatTextLink(text, part.text);
 		case Type::Email: return "<a href=\"mailto:"
 			+ text
 			+ "\">" + text + "</a>";
@@ -331,9 +340,7 @@ QByteArray FormatText(
 		case Type::Italic: return "<em>" + text + "</em>";
 		case Type::Code: return "<code>" + text + "</code>";
 		case Type::Pre: return "<pre>" + text + "</pre>";
-		case Type::TextUrl: return "<a href=\""
-			+ SerializeString(part.additional)
-			+ "\">" + text + "</a>";
+		case Type::TextUrl: return FormatTextLink(text, part.additional);
 		case Type::MentionName: return "<a href=\"\" "
 			"onclick=\"return ShowMentionName()\">" + text + "</a>";
 		case Type::Phone: return "<a href=\"tel:"
@@ -854,6 +861,43 @@ bool IsStrictTarget(const QByteArray &value) {
 		}
 	}
 	return true;
+}
+
+std::optional<QByteArray> SafeMessageHref(const QByteArray &value) {
+	if (!IsStrictTarget(value)
+		|| value.startsWith("//")
+		|| HasEncodedControl(value)) {
+		return std::nullopt;
+	}
+	auto source = value;
+	auto url = QUrl::fromEncoded(source, QUrl::StrictMode);
+	if (url.scheme().isEmpty()) {
+		source.prepend("https://");
+		url = QUrl::fromEncoded(source, QUrl::StrictMode);
+	}
+	const auto scheme = url.scheme().toLower();
+	static const auto kAllowedSchemes = std::array{
+		u"http"_q,
+		u"https"_q,
+		u"mailto"_q,
+		u"tel"_q,
+		u"tg"_q,
+	};
+	static const auto kHostSchemes = std::array{
+		u"http"_q,
+		u"https"_q,
+	};
+	if (!url.isValid()
+		|| url.isRelative()
+		|| !ranges::contains(kAllowedSchemes, scheme)
+		|| (ranges::contains(kHostSchemes, scheme)
+			&& url.host().isEmpty())) {
+		return std::nullopt;
+	}
+	const auto result = url.toEncoded(QUrl::FullyEncoded);
+	return (IsStrictTarget(result) && !HasEncodedControl(result))
+		? std::make_optional(result)
+		: std::nullopt;
 }
 
 std::optional<QByteArray> SafeHttpHref(const QByteArray &value) {
