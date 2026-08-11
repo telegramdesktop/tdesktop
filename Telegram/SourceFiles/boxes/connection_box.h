@@ -60,6 +60,7 @@ public:
 		Connecting,
 		Online,
 		Checking,
+		NotTested,
 		Available,
 		Unavailable,
 		WaitingForBrowser,

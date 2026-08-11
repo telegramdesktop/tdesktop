@@ -401,16 +401,31 @@ Proxy settings expose a fourth `WEB` radio option. The editor shows:
 - one MTProxy secret field;
 - no socket host/port pair and no username/password controls.
 
-Rows display only the hostname. The selected row shows the transport lifecycle.
-`Open browser` is offered only after the built-in carrier has failed. WEB remains
-non-shareable and unsupported for calls. Because the backend is still MTProxy, WEB
-keeps the existing sponsored-proxy disclosure and promotion refresh behavior.
+Rows display only the hostname. Inactive WEB rows show `not tested` without creating
+a checker, WebView, or browser tab. Only the exact active WEB row shows the live
+transport lifecycle. `Open browser` is offered only after the built-in carrier has
+failed. WEB remains unsupported for calls. Because the backend is still MTProxy,
+WEB keeps the existing sponsored-proxy disclosure and promotion refresh behavior.
+
+WEB links use `webproxy`, a canonical hostname, and the MTProxy secret. Port 443 is
+implicit and is neither accepted from the link nor displayed in its confirmation:
+
+```text
+https://t.me/webproxy?server=<hostname>&secret=<secret>
+tg://webproxy?server=<hostname>&secret=<secret>
+```
+
+The parser also accepts `host` when `server` is absent for compatibility with the
+Android fork. Generated public links always use `server`. Following either link
+shows the hostname and secret with one connect action. It does not check status or
+enable the proxy until that action is invoked. Saved WEB entries can be shared as a
+public link or a direct-scheme QR link.
 
 Application proxy changes configure/deconfigure the web transport before MTP
 sessions restart. WEB follows the MTProxy path in `Session`, `SessionPrivate`, and
 `TcpConnection`; the global Qt proxy remains disabled for it. Proxy rotation and the
-settings availability checker deliberately treat inactive WEB entries as unavailable
-instead of opening a browser.
+settings availability checker deliberately skip inactive WEB entries instead of
+opening a WebView or browser.
 
 ## 12. Constraints and boundaries
 
@@ -476,7 +491,6 @@ browser-fallback matrix in `docs/web-proxy-test-plan.md`.
 
 ## 15. Explicitly deferred
 
-- public deep-link/share format;
 - checking inactive WEB proxies and auto-rotation into them;
 - cross-tab or cross-process relay-session resume;
 - relay-auth v2;

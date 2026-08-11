@@ -1290,6 +1290,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_proxy_share" = "Share";
 "lng_proxy_online" = "online";
 "lng_proxy_checking" = "checking…";
+"lng_proxy_not_tested" = "not tested";
 "lng_proxy_connecting" = "connecting…";
 "lng_proxy_web_waiting" = "retrying built-in web transport…";
 "lng_proxy_available" = "available (ping: {ping} ms)";

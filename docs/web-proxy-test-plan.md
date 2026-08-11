@@ -131,6 +131,20 @@ Pass conditions:
   MTProxy secret;
 - closing proxy settings does not affect the connection.
 
+Verify both canonical link forms with the same hostname and secret:
+
+```text
+https://t.me/webproxy?server=proxy.example.com&secret=000102030405060708090a0b0c0d0e0f
+tg://webproxy?server=proxy.example.com&secret=000102030405060708090a0b0c0d0e0f
+```
+
+Each must show a confirmation containing the canonical hostname and secret, no port
+or status row, and one connect action. Dismissing it must not save or enable the
+proxy. Sharing a saved WEB entry must reproduce the public form with `server` and
+`secret`, without `port`. After disabling the saved proxy, its row must show
+`not tested`; re-enabling that exact entry must replace it with the live transport
+state. Inactive WEB rows must never start a proxy checker, WebView, or browser tab.
+
 Repeat once with a profile secret that is valid MTProxy syntax but is not configured
 on staging. The ordinary-site fallback must match other root responses. Within ten
 seconds the client must stop showing only `connecting…`, offer to open the proxy page
@@ -347,8 +361,9 @@ Then verify:
 4. Launch an older binary against a disposable copy of settings containing WEB and
    document its behavior. The new binary handles unknown types; old binary
    behavior may still require a release-note warning.
-5. Confirm WEB cannot be shared/copied as a `tg://proxy` link and inactive WEB rows do
-   not create a WebView or open a browser during availability checks or proxy rotation.
+5. Confirm WEB shares as `t.me/webproxy` or `tg://webproxy`, never as `tg://proxy`,
+   and inactive WEB rows show `not tested` without creating a checker, WebView, or
+   browser during availability checks or proxy rotation.
 6. Confirm a saved and enabled WEB proxy creates one hidden WebView at application
    startup and opens no browser tab. Force the WebView to fail, cancel the offer, and
    confirm restart/retry still never opens a tab without confirmation.
