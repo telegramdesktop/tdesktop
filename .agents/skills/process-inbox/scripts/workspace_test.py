@@ -1296,8 +1296,13 @@ class MechanicsTest(unittest.TestCase):
 			{12, 13},
 		)
 		self.assertEqual(
-			{process["pid"] for process in selected},
-			{10, 11, 12, 14},
+			{process["pid"]: process["reason"] for process in selected},
+			{
+				10: "exact-build-tree-command",
+				11: "verified-build-process-descendant",
+				12: "direct-build-artifact-holder",
+				14: "exact-checkout-executable",
+			},
 		)
 
 	def test_build_lock_recovery_deletes_only_named_build_artifacts(self):
