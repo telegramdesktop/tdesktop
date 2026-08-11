@@ -28,6 +28,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
+constexpr auto kMaxStatusLines = 2;
+
 struct State final {
 	State(not_null<Main::Session*> session) : sender(&session->mtp()) {
 	}
@@ -134,8 +136,10 @@ void ResolveBankCardAction::resizeToMenuWidth(int width) {
 	}
 	const auto &padding = st::groupCallJoinAsPadding;
 	_textWidth = std::max(width - padding.left() - padding.right(), 1);
-	_textHeight = _text.countHeight(_textWidth);
 	const auto lineHeight = _st.itemStyle.font->height;
+	_textHeight = std::min(
+		_text.countHeight(_textWidth),
+		lineHeight * kMaxStatusLines);
 	_height = st::groupCallJoinAsPhotoSize
 		+ std::max(_textHeight, lineHeight)
 		- lineHeight;
@@ -162,7 +166,7 @@ void ResolveBankCardAction::paintEvent(QPaintEvent *e) {
 			.outerWidth = _textWidth,
 			.availableWidth = _textWidth,
 			.align = style::al_center,
-			.elisionLines = 2,
+			.elisionLines = kMaxStatusLines,
 		});
 	}
 }
