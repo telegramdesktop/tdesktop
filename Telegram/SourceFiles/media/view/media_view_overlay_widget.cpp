@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_attached_stickers.h"
 #include "api/api_peer_photo.h"
 #include "api/api_polls.h"
+#include "base/base_file_utilities.h"
 #include "base/qt/qt_common_adapters.h"
 #include "base/timer_rpl.h"
 #include "lang/lang_keys.h"
@@ -3449,7 +3450,7 @@ void OverlayWidget::downloadMedia() {
 		if (location.accessEnable()) {
 			if (!QDir().exists(path)) QDir().mkpath(path);
 			toName = filedialogNextFilename(
-				_document->filename(),
+				base::FileNameFromUserString(_document->filename()),
 				location.name(),
 				path);
 			if (!toName.isEmpty() && toName != location.name()) {
