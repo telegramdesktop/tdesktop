@@ -61,6 +61,7 @@ optionsList = [
     'qt6',
     'skip-release',
     'build-stackwalk',
+    'qt-asserts',
 ]
 options = []
 runCommand = []
@@ -253,6 +254,8 @@ def filterByPlatform(commands):
                     inscope = False
                 elif len(scopes) == 1:
                     continue
+            if 'asserts' in scopes:
+                inscope = inscope and 'qt-asserts' in options
             skip = inscope if m.group(1) == '!' else not inscope
         elif not skip and not re.match(r'\s*#', command):
             if m and m.group(2) == 'version':
@@ -1599,11 +1602,15 @@ mac:
     sed -i.bak 's/tqtc-//' {qtimageformats,qtsvg}/dependencies.yaml
 
     CONFIGURATIONS=-debug
+    ASSERTS=
 release:
     CONFIGURATIONS=-debug-and-release
+mac_asserts:
+    ASSERTS=-force-asserts
 mac:
     ./configure -prefix "$USED_PREFIX/Qt-$QT" \
         $CONFIGURATIONS \
+        $ASSERTS \
         -force-debug-info \
         -opensource \
         -confirm-license \
@@ -1638,8 +1645,11 @@ win:
     cd ..
 
     SET CONFIGURATIONS=-debug
+    SET ASSERTS=
 release:
     SET CONFIGURATIONS=-debug-and-release
+win_asserts:
+    SET ASSERTS=-force-asserts
 win:
     """ + removeDir('"%LIBS_DIR%\\Qt' + qt + '"') + """
     SET MOZJPEG_DIR=%LIBS_DIR%\\mozjpeg
@@ -1650,6 +1660,7 @@ win:
     SET LCMS2_DIR=%LIBS_DIR%\\liblcms2
     configure -prefix "%LIBS_DIR%\\Qt-%QT%" ^
         %CONFIGURATIONS% ^
+        %ASSERTS% ^
         -force-debug-info ^
         -opensource ^
         -confirm-license ^
