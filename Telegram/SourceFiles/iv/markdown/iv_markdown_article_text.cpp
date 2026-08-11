@@ -558,6 +558,7 @@ public:
 	std::optional<Ui::Text::CustomEmojiVerticalMetrics> vertical(
 		const style::TextStyle &textStyle) override;
 	QString replacementText() override;
+	EntitiesInText replacementEntities() override;
 	Ui::Text::CustomEmojiSemantics semantics() override;
 	void paint(QPainter &p, const Context &context) override;
 	void unload() override;
@@ -575,6 +576,7 @@ private:
 
 	const QString _entityData;
 	const QString _replacementText;
+	const EntitiesInText _labelEntities;
 	const style::Markdown *_st = nullptr;
 	const std::shared_ptr<InlineButtonPaintState> _paintState;
 	Ui::Text::String _label;
@@ -1980,10 +1982,18 @@ auto InlineButtonScaledEmoji::vertical(const style::TextStyle &textStyle)
 
 void InlineButtonScaledEmoji::paint(QPainter &p, const Context &context) {
 	const auto ratio = style::DevicePixelRatio();
-	const auto natural = std::max(_wrapped->width(), 1);
-	const auto adjusted = Ui::Text::AdjustCustomEmojiSize(natural);
-	const auto skip = (natural - adjusted) / 2;
-	const auto full = QSize(adjusted, adjusted) * ratio;
+
+	// A normal-size custom emoji advances by st::emojiSize plus twice
+	// st::emojiPadding, but it draws AdjustCustomEmojiSize(st::emojiSize)
+	// with its top-left exactly at the position it is handed, so its drawn
+	// box is not its advance and a frame sized from the advance would wrap
+	// the glyph in a transparent border. This wrapper reports both width()
+	// and vertical()->height() as _size, so the renderer paints the wrapped
+	// object at the advance box's own top-left instead of at the padded
+	// position, and rasterizing exactly the drawn box and stretching it
+	// across that whole box is what lets neighbouring pieces tile.
+	const auto drawn = Ui::Text::AdjustCustomEmojiSize(st::emojiSize);
+	const auto full = QSize(drawn, drawn) * ratio;
 	if (_frame.size() != full) {
 		_frame = QImage(full, QImage::Format_ARGB32_Premultiplied);
 		_frame.setDevicePixelRatio(ratio);
@@ -1991,7 +2001,7 @@ void InlineButtonScaledEmoji::paint(QPainter &p, const Context &context) {
 	_frame.fill(Qt::transparent);
 	{
 		auto q = QPainter(&_frame);
-		q.translate(-context.position - QPoint(skip, skip));
+		q.translate(-context.position);
 		_wrapped->paint(q, context);
 	}
 	auto hq = PainterHighQualityEnabler(p);
@@ -2023,6 +2033,9 @@ InlineButtonObject::InlineButtonObject(
 	.data = data,
 }))
 , _replacementText(data.label.text)
+, _labelEntities(Ui::Text::Filtered(
+	data.label,
+	{ EntityType::CustomEmoji }).entities)
 , _st(&st)
 , _paintState(std::move(paintState))
 , _label(MakeBoundedInlineButtonLabel(
@@ -2077,6 +2090,10 @@ auto InlineButtonObject::vertical(const style::TextStyle &)
 
 QString InlineButtonObject::replacementText() {
 	return _replacementText;
+}
+
+EntitiesInText InlineButtonObject::replacementEntities() {
+	return _labelEntities;
 }
 
 Ui::Text::CustomEmojiSemantics InlineButtonObject::semantics() {
