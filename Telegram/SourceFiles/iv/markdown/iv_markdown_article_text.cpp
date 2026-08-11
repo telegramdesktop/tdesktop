@@ -55,6 +55,8 @@ constexpr auto kInlineButtonLabelProbeStart = 32;
 constexpr auto kInlineButtonLabelSpanCutsMax
 	= 2 * kInlineButtonLabelProbeStart;
 
+using ButtonColor = HistoryMessageMarkupButton::Color;
+
 struct PreparedLinkExternalData {
 	ClickHandler::TextEntity entity;
 	QString copyText;
@@ -124,6 +126,7 @@ struct PreparedLinkExternalData {
 	case PreparedLinkKind::RejectedRelative:
 	case PreparedLinkKind::ToggleDetails:
 	case PreparedLinkKind::ToggleBlockquote:
+	case PreparedLinkKind::RichPageButton:
 		return QString();
 	}
 	return QString();
@@ -137,6 +140,7 @@ struct PreparedLinkExternalData {
 	case PreparedLinkKind::RejectedRelative:
 	case PreparedLinkKind::ToggleDetails:
 	case PreparedLinkKind::ToggleBlockquote:
+	case PreparedLinkKind::RichPageButton:
 		return QString();
 	case PreparedLinkKind::External:
 	case PreparedLinkKind::InstantViewPage:
@@ -493,14 +497,6 @@ private:
 
 };
 
-enum class InlineButtonPresentation : uchar {
-	Default,
-	Primary,
-	Success,
-	Danger,
-	Link,
-};
-
 class InlineButtonPlainEmoji final : public Ui::Text::CustomEmoji {
 public:
 	InlineButtonPlainEmoji(EmojiPtr emoji, int size);
@@ -588,7 +584,7 @@ private:
 	int _labelTop = 0;
 	int _lineTopSkip = 0;
 	int _lineHeight = 0;
-	InlineButtonPresentation _presentation = InlineButtonPresentation::Default;
+	ButtonColor _color = ButtonColor::Normal;
 	bool _disabled = false;
 
 };
@@ -656,33 +652,10 @@ FindInlineFormulaMeasuredData(
 		1);
 }
 
-[[nodiscard]] InlineButtonPresentation InlineButtonPresentationFor(
-		const InlineTextObjectButtonData &data) {
-	using Color = HistoryMessageMarkupButton::Color;
-	if (data.link) {
-		return InlineButtonPresentation::Link;
-	}
-	switch (data.color) {
-	case Color::Primary: return InlineButtonPresentation::Primary;
-	case Color::Success: return InlineButtonPresentation::Success;
-	case Color::Danger: return InlineButtonPresentation::Danger;
-	}
-	return InlineButtonPresentation::Default;
-}
-
-[[nodiscard]] int InlineButtonPadding(
-		InlineButtonPresentation presentation,
-		const style::MarkdownInlineButton &st) {
-	return (presentation == InlineButtonPresentation::Link) ? 0 : st.padding;
-}
-
 [[nodiscard]] int InlineButtonLabelWidthCap(
-		InlineButtonPresentation presentation,
 		const style::MarkdownInlineButton &st,
 		int buttonWidthCap) {
-	return std::max(
-		buttonWidthCap - 2 * InlineButtonPadding(presentation, st),
-		0);
+	return std::max(buttonWidthCap - 2 * st.padding, 0);
 }
 
 [[nodiscard]] int InlineButtonWidthCap(
@@ -696,7 +669,7 @@ FindInlineFormulaMeasuredData(
 }
 
 [[nodiscard]] RichButtonPillColors ResolveInlineButtonColors(
-		InlineButtonPresentation presentation,
+		ButtonColor color,
 		const style::Markdown &st) {
 	const auto &inlineSt = st.inlineButton;
 	const auto tint = [&](const style::color &fg) {
@@ -708,15 +681,15 @@ FindInlineFormulaMeasuredData(
 			.fg = fg->c,
 		};
 	};
-	switch (presentation) {
-	case InlineButtonPresentation::Primary:
+	switch (color) {
+	case ButtonColor::Primary:
 		return PrimaryPillColors(
 			st,
 			inlineSt.primaryBg->c,
 			st.buttonRow.primaryRipple->c);
-	case InlineButtonPresentation::Success:
+	case ButtonColor::Success:
 		return tint(inlineSt.successFg);
-	case InlineButtonPresentation::Danger:
+	case ButtonColor::Danger:
 		return tint(inlineSt.dangerFg);
 	}
 	return tint(inlineSt.defaultFg);
@@ -953,66 +926,6 @@ struct InlineButtonLabelCodePoint {
 			emojiSize);
 	};
 	return result;
-}
-
-[[nodiscard]] TextWithEntities ResolveRichButtonLabelDates(
-		TextWithEntities label,
-		const Ui::Text::MarkedContext &context) {
-	// BlockParser::checkEntities hands a FormattedDate entity its own internal
-	// index, createBlock promotes that index to the block's link index, and
-	// the renderer then paints such a block with the link pen and with an
-	// underlined font, and publishes a FormattedDateClickHandler for it. None
-	// of that belongs to a button label, which reads as one label in one font,
-	// one pen and one click target, so the date is resolved here exactly the
-	// way the parser would resolve it and the entity is dropped before layout.
-	// The list is searched from the front again after every replacement,
-	// because a normalized label orders its entities as a laminar family in
-	// post-order rather than by offset, and a textDate may itself contain a
-	// textCustomEmoji, whose entry the rewrite drops together with the text it
-	// covered — which is what the parser does today when it jumps past the
-	// date it substituted.
-	while (true) {
-		const auto i = ranges::find_if(label.entities, [](
-				const EntityInText &entity) {
-			return (entity.type() == EntityType::FormattedDate);
-		});
-		if (i == label.entities.end()) {
-			return label;
-		}
-		const auto offset = i->offset();
-		const auto length = i->length();
-		const auto till = offset + length;
-		const auto [date, flags] = DeserializeFormattedDateData(i->data());
-		if ((flags == FormattedDateFlags())
-			|| !context.formattedDateFactory) {
-			label.entities.erase(i);
-			continue;
-		}
-		const auto replacement = context.formattedDateFactory(
-			date,
-			flags).text;
-		const auto delta = int(replacement.size()) - length;
-		label.text.replace(offset, length, replacement);
-		auto entities = EntitiesInText();
-		entities.reserve(label.entities.size());
-		for (const auto &entity : label.entities) {
-			if (&entity == &*i) {
-				continue;
-			}
-			auto updated = entity;
-			if (entity.offset() >= till) {
-				updated.shiftRight(delta);
-			} else if (entity.offset() + entity.length() <= offset) {
-			} else if ((entity.offset() <= offset)
-				&& (entity.offset() + entity.length() >= till)) {
-				updated.shrinkFromRight(-delta);
-			} else {
-				continue;
-			}
-			entities.push_back(updated);
-		}
-		label.entities = std::move(entities);
-	}
 }
 
 [[nodiscard]] Ui::Text::String MakeInlineButtonLabel(
@@ -1356,7 +1269,9 @@ struct InlineButtonLabelSpanCut {
 	// pixel-identical to the whole-label build: the dropped object lies
 	// past everything the renderer reaches, behind the first half that
 	// already measured wider than the pill can draw.
-	const auto resolved = ResolveRichButtonLabelDates(label, context);
+	const auto resolved = ResolveRichButtonLabelDates(
+		label,
+		context.formattedDateFactory);
 	const auto nested = InlineButtonLabelContext(context, emojiSize);
 	const auto shortened = ShortenInlineButtonLabelSpans(resolved, nested);
 	const auto available = std::max(widthCap, 1);
@@ -1385,6 +1300,17 @@ struct InlineButtonLabelSpanCut {
 } // namespace
 
 ClickHandlerPtr CreatePreparedLinkHandler(PreparedLink link) {
+	// A rich-page button link is deliberately not a PreparedLinkClickHandler:
+	// ExtractPreparedLink therefore refuses it, a hit carries only
+	// state.link, and both hosts activate that through the generic
+	// ActivateClickHandler arm the inline pill already uses. That is why this
+	// one kind gets no arm in the three prepared-link routers.
+	if (link.kind == PreparedLinkKind::RichPageButton) {
+		return std::make_shared<LambdaClickHandler>(
+			[data = std::move(link.target)](ClickContext context) {
+				ActivateInlineButton(data, std::move(context));
+			});
+	}
 	return std::make_shared<PreparedLinkClickHandler>(std::move(link));
 }
 
@@ -2044,27 +1970,21 @@ InlineButtonObject::InlineButtonObject(
 	context,
 	InlineButtonEmojiSize(textStyle, st.inlineButton),
 	InlineButtonLabelWidthCap(
-		InlineButtonPresentationFor(data),
 		st.inlineButton,
 		st.inlineButton.maxWidth)))
-, _presentation(InlineButtonPresentationFor(data))
+, _color(data.color)
 , _disabled(data.type == HistoryMessageMarkupButton::Type::Disabled) {
 	const auto &inlineSt = st.inlineButton;
-	const auto link = (_presentation == InlineButtonPresentation::Link);
-	const auto padding = InlineButtonPadding(_presentation, inlineSt);
-	_height = link
-		? textStyle.font->height
-		: InlineButtonPillHeight(textStyle, inlineSt);
+	const auto padding = inlineSt.padding;
+	_height = InlineButtonPillHeight(textStyle, inlineSt);
 	const auto buttonWidthCap = InlineButtonWidthCap(
 		inlineSt,
 		_paintState,
 		widthCap);
 	_labelWidth = std::min(
 		_label.maxWidth(),
-		InlineButtonLabelWidthCap(_presentation, inlineSt, buttonWidthCap));
-	_width = link
-		? std::max(_labelWidth, 1)
-		: std::max(_height, _labelWidth + 2 * padding);
+		InlineButtonLabelWidthCap(inlineSt, buttonWidthCap));
+	_width = std::max(_height, _labelWidth + 2 * padding);
 	_vertical = CenteredVerticalMetrics(textStyle, _height);
 	_lineTopSkip = TextLineAscent(textStyle) - _vertical.ascent;
 	_lineHeight = TextLineHeight(textStyle);
@@ -2148,8 +2068,7 @@ void InlineButtonObject::paint(QPainter &p, const Context &context) {
 		&& state->pressPending
 		&& lineRect.contains(state->pressPoint)) {
 		state->pressPending = false;
-		if (!_disabled
-			&& _presentation != InlineButtonPresentation::Link) {
+		if (!_disabled) {
 			state->rippleRect = rect;
 			AddPillRipple(
 				&state->ripple,
@@ -2188,43 +2107,32 @@ void InlineButtonObject::paint(QPainter &p, const Context &context) {
 		}
 	};
 	p.save();
-	if (_presentation == InlineButtonPresentation::Link) {
-		const auto color = (state && state->bubbleGradient)
-			? *context.textColor
-			: markdownSt.textPalette.linkFg->c;
-		if (_disabled) {
-			p.setOpacity(p.opacity() * st.disabledOpacity);
-		}
-		paintLabel(p, position, color, markdownSt, context);
+	const auto colors = (state && state->bubbleGradient)
+		? BubbleGradientPillColors(
+			markdownSt,
+			st.tintBgOpacity,
+			(_color == ButtonColor::Primary))
+		: ResolveInlineButtonColors(_color, markdownSt);
+	if (colors.punchOut) {
+		PaintPunchedOutPill(
+			p,
+			rect,
+			_disabled ? st.disabledPrimaryOpacity : 1.,
+			[&](QPainter &q) {
+				fillPill(q, colors, colors.punchOut);
+			},
+			[&](QPainter &q, QColor fg) {
+				paintLabel(q, position, fg, markdownSt, context);
+			});
 	} else {
-		const auto colors = (state && state->bubbleGradient)
-			? BubbleGradientPillColors(
-				markdownSt,
-				st.tintBgOpacity,
-				(_presentation == InlineButtonPresentation::Primary))
-			: ResolveInlineButtonColors(_presentation, markdownSt);
-		if (colors.punchOut) {
-			PaintPunchedOutPill(
-				p,
-				rect,
-				_disabled ? st.disabledPrimaryOpacity : 1.,
-				[&](QPainter &q) {
-					fillPill(q, colors, colors.punchOut);
-				},
-				[&](QPainter &q, QColor fg) {
-					paintLabel(q, position, fg, markdownSt, context);
-				});
-		} else {
-			const auto primary
-				= (_presentation == InlineButtonPresentation::Primary);
-			fillPill(p, colors, false);
-			if (_disabled) {
-				p.setOpacity(p.opacity() * (primary
-					? st.disabledPrimaryOpacity
-					: st.disabledOpacity));
-			}
-			paintLabel(p, position, colors.fg, markdownSt, context);
+		const auto primary = (_color == ButtonColor::Primary);
+		fillPill(p, colors, false);
+		if (_disabled) {
+			p.setOpacity(p.opacity() * (primary
+				? st.disabledPrimaryOpacity
+				: st.disabledOpacity));
 		}
+		paintLabel(p, position, colors.fg, markdownSt, context);
 	}
 	p.restore();
 }
@@ -2453,7 +2361,7 @@ void SetTextLeaf(
 		return std::unique_ptr<Ui::Text::CustomEmoji>();
 	};
 	const auto resolved = richButtonLabel
-		? ResolveRichButtonLabelDates(text, context)
+		? ResolveRichButtonLabelDates(text, context.formattedDateFactory)
 		: TextWithEntities();
 	leaf->setMarkedText(
 		textStyle,

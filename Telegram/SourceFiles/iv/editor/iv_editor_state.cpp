@@ -10672,6 +10672,13 @@ bool State::DegradeEditModeButton(HistoryMessageMarkupButton &button) {
 bool State::DegradeEditModeInlineButtons(TextWithEntities &text) {
 	using Type = HistoryMessageMarkupButton::Type;
 	auto result = false;
+	if (Markdown::TextHasInlineLinkButton(text)) {
+		(void)Markdown::ExpandInlineLinkButtons(
+			&text,
+			Markdown::RichButtonLabelDates::Keep,
+			nullptr);
+		result = true;
+	}
 	for (auto &entity : text.entities) {
 		if (entity.type() != EntityType::CustomEmoji) {
 			continue;
@@ -10691,7 +10698,6 @@ bool State::DegradeEditModeInlineButtons(TextWithEntities &text) {
 			.label = std::move(button->label),
 			.type = Type::Disabled,
 			.color = button->color,
-			.link = button->link,
 		};
 		entity = EntityInText(
 			EntityType::CustomEmoji,

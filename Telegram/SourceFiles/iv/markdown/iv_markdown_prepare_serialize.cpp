@@ -108,6 +108,57 @@ namespace {
 	return result;
 }
 
+[[nodiscard]] std::optional<InlineTextObjectButtonData> InlineLinkButtonFor(
+		const EntityInText &entity) {
+	if (entity.type() != EntityType::CustomEmoji) {
+		return std::nullopt;
+	}
+	const auto parsed = ParseInlineTextObjectEntity(entity.data());
+	if (!parsed) {
+		return std::nullopt;
+	}
+	const auto button = std::get_if<InlineTextObjectButtonData>(&parsed->data);
+	return (button && button->link)
+		? std::make_optional(*button)
+		: std::nullopt;
+}
+
+void ReplaceInlineObjectText(
+		TextWithEntities *text,
+		const EntityInText &object,
+		const QString &replacement) {
+	const auto offset = object.offset();
+	const auto delta = int(replacement.size()) - object.length();
+	text->text.replace(offset, object.length(), replacement);
+	for (auto &entity : text->entities) {
+		if (&entity == &object) {
+			continue;
+		} else if (entity.offset() > offset) {
+			entity.shiftRight(delta);
+		} else if (entity.offset() + entity.length() > offset) {
+			entity.shrinkFromRight(-delta);
+		}
+	}
+}
+
+[[nodiscard]] EntitiesInText::iterator ExpandInlineObjectEntities(
+		TextWithEntities *text,
+		EntitiesInText::iterator i,
+		const EntitiesInText &nested) {
+	auto &entities = text->entities;
+	const auto offset = i->offset();
+	auto at = int(i - entities.begin());
+	entities.erase(i);
+	for (const auto &entity : nested) {
+		entities.insert(at++, EntityInText(
+			entity.type(),
+			entity.offset() + offset,
+			entity.length(),
+			entity.data()));
+	}
+	return entities.begin() + at;
+}
+
 [[nodiscard]] int TextSizeForFormula(const style::TextStyle &textStyle) {
 	return std::max(textStyle.font->height, 1);
 }
@@ -249,6 +300,63 @@ std::optional<InlineTextObjectEntity> ParseInlineTextObjectEntity(
 	return std::nullopt;
 }
 
+TextWithEntities ResolveRichButtonLabelDates(
+		TextWithEntities label,
+		const Ui::Text::FormattedDateFactory &dates) {
+	// BlockParser::checkEntities hands a FormattedDate entity its own internal
+	// index, createBlock promotes that index to the block's link index, and
+	// the renderer then paints such a block with the link pen and with an
+	// underlined font, and publishes a FormattedDateClickHandler for it. None
+	// of that belongs to a button label, which reads as one label in one font,
+	// one pen and one click target, so the date is resolved here exactly the
+	// way the parser would resolve it and the entity is dropped before layout.
+	// The list is searched from the front again after every replacement,
+	// because a normalized label orders its entities as a laminar family in
+	// post-order rather than by offset, and a textDate may itself contain a
+	// textCustomEmoji, whose entry the rewrite drops together with the text it
+	// covered — which is what the parser does today when it jumps past the
+	// date it substituted.
+	while (true) {
+		const auto i = ranges::find_if(label.entities, [](
+				const EntityInText &entity) {
+			return (entity.type() == EntityType::FormattedDate);
+		});
+		if (i == label.entities.end()) {
+			return label;
+		}
+		const auto offset = i->offset();
+		const auto length = i->length();
+		const auto till = offset + length;
+		const auto [date, flags] = DeserializeFormattedDateData(i->data());
+		if ((flags == FormattedDateFlags()) || !dates) {
+			label.entities.erase(i);
+			continue;
+		}
+		const auto replacement = dates(date, flags).text;
+		const auto delta = int(replacement.size()) - length;
+		label.text.replace(offset, length, replacement);
+		auto entities = EntitiesInText();
+		entities.reserve(label.entities.size());
+		for (const auto &entity : label.entities) {
+			if (&entity == &*i) {
+				continue;
+			}
+			auto updated = entity;
+			if (entity.offset() >= till) {
+				updated.shiftRight(delta);
+			} else if (entity.offset() + entity.length() <= offset) {
+			} else if ((entity.offset() <= offset)
+				&& (entity.offset() + entity.length() >= till)) {
+				updated.shrinkFromRight(-delta);
+			} else {
+				continue;
+			}
+			entities.push_back(updated);
+		}
+		label.entities = std::move(entities);
+	}
+}
+
 void ExpandInlineTextObjects(TextWithEntities *text, bool withIcons) {
 	auto &entities = text->entities;
 	for (auto i = entities.begin(); i != entities.end();) {
@@ -272,18 +380,7 @@ void ExpandInlineTextObjects(TextWithEntities *text, bool withIcons) {
 			return data.label.text;
 		});
 		const auto offset = i->offset();
-		const auto length = i->length();
-		const auto delta = int(replacement.size()) - length;
-		text->text.replace(offset, length, replacement);
-		for (auto &entity : entities) {
-			if (&entity == &*i) {
-				continue;
-			} else if (entity.offset() > offset) {
-				entity.shiftRight(delta);
-			} else if (entity.offset() + entity.length() > offset) {
-				entity.shrinkFromRight(-delta);
-			}
-		}
+		ReplaceInlineObjectText(text, *i, replacement);
 		const auto formula = (object->kind
 			== InlineTextObjectKind::Formula);
 		if (withIcons && formula && !replacement.isEmpty()) {
@@ -297,18 +394,47 @@ void ExpandInlineTextObjects(TextWithEntities *text, bool withIcons) {
 				icon.entities.front().data());
 			++i;
 		} else {
-			auto at = int(i - entities.begin());
-			i = entities.erase(i);
-			for (const auto &entity : nested) {
-				entities.insert(at++, EntityInText(
-					entity.type(),
-					entity.offset() + offset,
-					entity.length(),
-					entity.data()));
-			}
-			i = entities.begin() + at;
+			i = ExpandInlineObjectEntities(text, i, nested);
 		}
 	}
+}
+
+bool TextHasInlineLinkButton(const TextWithEntities &text) {
+	return ranges::any_of(text.entities, [](const EntityInText &entity) {
+		return InlineLinkButtonFor(entity).has_value();
+	});
+}
+
+std::vector<InlineLinkButtonSpan> ExpandInlineLinkButtons(
+		TextWithEntities *text,
+		RichButtonLabelDates dates,
+		const Ui::Text::FormattedDateFactory &factory) {
+	auto result = std::vector<InlineLinkButtonSpan>();
+	auto &entities = text->entities;
+	for (auto i = entities.begin(); i != entities.end();) {
+		const auto button = InlineLinkButtonFor(*i);
+		if (!button) {
+			++i;
+			continue;
+		}
+		auto label = (dates == RichButtonLabelDates::Resolve)
+			? ResolveRichButtonLabelDates(button->label, factory)
+			: button->label;
+		const auto actionable = (button->type
+			!= HistoryMessageMarkupButton::Type::Disabled);
+		auto data = actionable ? i->data() : QString();
+		const auto offset = i->offset();
+		ReplaceInlineObjectText(text, *i, label.text);
+		i = ExpandInlineObjectEntities(text, i, label.entities);
+		if (actionable && !label.text.isEmpty()) {
+			result.push_back({
+				.offset = offset,
+				.length = int(label.text.size()),
+				.data = std::move(data),
+			});
+		}
+	}
+	return result;
 }
 
 TextWithEntities NormalizeRichButtonLabel(TextWithEntities text) {

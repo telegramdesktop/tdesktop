@@ -64,6 +64,7 @@ enum class PreparedLinkKind {
 	RejectedRelative,
 	ToggleDetails,
 	ToggleBlockquote,
+	RichPageButton,
 };
 
 struct PreparedLink {
