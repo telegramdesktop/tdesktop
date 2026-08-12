@@ -1744,6 +1744,9 @@ void OverlayWidget::updateControls() {
 	_drawVisible = _drawButtonEnabled
 		&& !_themePreviewShown
 		&& !story
+		&& !(_message
+			&& _message->media()
+			&& _message->media()->ttlSeconds())
 		&& (_photo || (_document && _document->isImage()));
 	_recognizeVisible = _recognitionResult.success
 		&& !_recognitionResult.items.empty();
