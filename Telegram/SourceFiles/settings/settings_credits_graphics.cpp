@@ -322,7 +322,7 @@ void AddViewMediaHandler(
 			fake.push_back(std::make_unique<Data::MediaPhoto>(
 				state->item,
 				owner->photo(item.id),
-				false)); // spoiler
+				Data::MediaPhoto::Args()));
 		} else {
 			const auto document = owner->document(item.id);
 			const auto item = state->item;

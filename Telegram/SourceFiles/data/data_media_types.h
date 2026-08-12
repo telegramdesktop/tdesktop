@@ -300,10 +300,15 @@ private:
 
 class MediaPhoto final : public Media {
 public:
+	struct Args {
+		crl::time ttlSeconds = 0;
+		bool spoiler = false;
+	};
+
 	MediaPhoto(
 		not_null<HistoryItem*> parent,
 		not_null<PhotoData*> photo,
-		bool spoiler);
+		Args &&args);
 	MediaPhoto(
 		not_null<HistoryItem*> parent,
 		not_null<PeerData*> chat,
@@ -327,6 +332,8 @@ public:
 	bool allowsEditCaption() const override;
 	bool allowsEditMedia() const override;
 	bool hasSpoiler() const override;
+	crl::time ttlSeconds() const override;
+	bool allowsForward() const override;
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
@@ -338,6 +345,7 @@ public:
 private:
 	not_null<PhotoData*> _photo;
 	PeerData *_chat = nullptr;
+	crl::time _ttlSeconds = 0;
 	bool _spoiler = false;
 
 };
@@ -395,7 +403,7 @@ private:
 	not_null<DocumentData*> _document;
 	PhotoData *_videoCover = nullptr;
 
-	// Video (unsupported) / Voice / Round.
+	// Video / Voice / Round.
 	crl::time _ttlSeconds = 0;
 
 	QString _emoji;

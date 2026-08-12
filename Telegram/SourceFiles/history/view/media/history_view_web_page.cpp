@@ -86,7 +86,7 @@ constexpr auto kLogEntryPreviewLines = 2;
 			result.push_back(std::make_unique<Data::MediaPhoto>(
 				parent,
 				*photo,
-				spoiler));
+				Data::MediaPhoto::Args{ .spoiler = spoiler }));
 		} else {
 			return {};
 		}

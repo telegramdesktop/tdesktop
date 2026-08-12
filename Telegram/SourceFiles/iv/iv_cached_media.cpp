@@ -1525,7 +1525,9 @@ auto CachedPageMediaRuntime::hostedMediaBlockFactory() const
 					medias->push_back(std::make_unique<::Data::MediaPhoto>(
 						host->item(),
 						photo,
-						item.media.spoiler));
+						::Data::MediaPhoto::Args{
+							.spoiler = item.media.spoiler,
+						}));
 					auto runtime = std::make_shared<CachedPagePhotoRuntime>(
 						session,
 						photo,

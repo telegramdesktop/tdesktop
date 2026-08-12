@@ -92,6 +92,21 @@ template <typename T>
 	return PreparedServiceText();
 };
 
+[[nodiscard]] bool ShowTtlMediaAsExpired(
+		not_null<HistoryItem*> item,
+		const MTPMessageMedia &media) {
+	if (item->out() || item->hasUnreadMediaFlag()) {
+		return false;
+	}
+	return media.match([](const MTPDmessageMediaPhoto &data) {
+		return data.vttl_seconds().has_value();
+	}, [](const MTPDmessageMediaDocument &data) {
+		return data.vttl_seconds().has_value();
+	}, [](const auto &) {
+		return false;
+	});
+}
+
 template <typename T>
 [[nodiscard]] PreparedServiceText PrepareErrorText(const T &data) {
 	if constexpr (!std::is_same_v<T, MTPDmessageActionEmpty>) {
@@ -331,33 +346,28 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 		});
 	}, [&](const MTPDmessageMediaPhoto &media) -> Result {
 		const auto photo = media.vphoto();
-		if (media.vttl_seconds()) {
-			LOG(("App Error: "
-				"Unexpected MTPMessageMediaPhoto "
-				"with ttl_seconds in CreateMedia."));
-			return nullptr;
-		} else if (!photo) {
+		if (!photo) {
 			LOG(("API Error: "
 				"Got MTPMessageMediaPhoto "
 				"without photo and without ttl_seconds."));
 			return nullptr;
 		}
 		return photo->match([&](const MTPDphoto &photo) -> Result {
+			using Args = Data::MediaPhoto::Args;
 			return std::make_unique<Data::MediaPhoto>(
 				item,
 				item->history()->owner().processPhoto(photo),
-				media.is_spoiler());
+				Args{
+					.ttlSeconds = media.vttl_seconds().value_or_empty(),
+					.spoiler = (media.is_spoiler()
+						|| media.vttl_seconds().has_value()),
+				});
 		}, [](const MTPDphotoEmpty &) -> Result {
 			return nullptr;
 		});
 	}, [&](const MTPDmessageMediaDocument &media) -> Result {
 		const auto document = media.vdocument();
-		if (media.vttl_seconds() && media.is_video()) {
-			LOG(("App Error: "
-				"Unexpected MTPMessageMediaDocument "
-				"with ttl_seconds in CreateMedia."));
-			return nullptr;
-		} else if (!document) {
+		if (!document) {
 			LOG(("API Error: "
 				"Got MTPMessageMediaDocument "
 				"without document and without ttl_seconds."));
@@ -376,7 +386,9 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 				.videoTimestamp = media.vvideo_timestamp().value_or_empty(),
 				.hasQualitiesList = list && !list->v.isEmpty(),
 				.skipPremiumEffect = media.is_nopremium(),
-				.spoiler = media.is_spoiler(),
+				.spoiler = (media.is_spoiler()
+					|| (media.vttl_seconds().has_value()
+						&& media.is_video())),
 			});
 		}, [](const MTPDdocumentEmpty &) -> Result {
 			return nullptr;
@@ -507,8 +519,10 @@ HistoryItem::HistoryItem(
 		setServiceText({
 			tr::lng_message_empty(tr::now, tr::marked)
 		});
-	} else if ((checked == MediaCheckResult::HasUnsupportedTimeToLive)
-			|| (checked == MediaCheckResult::HasExpiredMediaTimeToLive)) {
+	} else if ((checked == MediaCheckResult::HasExpiredMediaTimeToLive)
+			|| (checked == MediaCheckResult::Good
+				&& media
+				&& ShowTtlMediaAsExpired(this, *media))) {
 		createServiceFromMtp(data);
 		setReactions(data.vreactions());
 		applyTTL(data);
@@ -804,8 +818,10 @@ HistoryItem::HistoryItem(
 : HistoryItem(history, fields) {
 	createComponentsHelper(std::move(fields));
 
-	const auto spoiler = fields.mediaSpoiler;
-	_media = std::make_unique<Data::MediaPhoto>(this, photo, spoiler);
+	_media = std::make_unique<Data::MediaPhoto>(
+		this,
+		photo,
+		Data::MediaPhoto::Args{ .spoiler = fields.mediaSpoiler });
 	setText(caption);
 }
 
@@ -1755,7 +1771,9 @@ bool HistoryItem::isUnreadMedia() const {
 	if (!hasUnreadMediaFlag()) {
 		return false;
 	} else if (const auto media = this->media()) {
-		if (const auto document = media->document()) {
+		if (media->ttlSeconds()) {
+			return true;
+		} else if (const auto document = media->document()) {
 			if (document->isVoiceMessage() || document->isVideoMessage()) {
 				return (media->webpage() == nullptr);
 			}
@@ -2437,8 +2455,10 @@ void HistoryItem::applyChanges(not_null<Data::Story*> story) {
 
 void HistoryItem::setStoryFields(not_null<Data::Story*> story) {
 	if (const auto photo = story->photo()) {
-		const auto spoiler = false;
-		_media = std::make_unique<Data::MediaPhoto>(this, photo, spoiler);
+		_media = std::make_unique<Data::MediaPhoto>(
+			this,
+			photo,
+			Data::MediaPhoto::Args());
 	} else if (const auto document = story->document()) {
 		using Args = Data::MediaFile::Args;
 		_media = std::make_unique<Data::MediaFile>(this, document, Args{});

@@ -364,7 +364,10 @@ bool UpdateExtendedMedia(
 			photo->setExtendedMediaPreview(size, thumbnail, videoDuration);
 		}
 		if (!media) {
-			media = std::make_unique<MediaPhoto>(item, photo, true);
+			media = std::make_unique<MediaPhoto>(
+				item,
+				photo,
+				MediaPhoto::Args{ .spoiler = true });
 		}
 		return changed;
 	}, [&](const MTPDmessageExtendedMedia &data) {
@@ -842,10 +845,11 @@ ItemPreview Media::toGroupPreview(
 MediaPhoto::MediaPhoto(
 	not_null<HistoryItem*> parent,
 	not_null<PhotoData*> photo,
-	bool spoiler)
+	Args &&args)
 : Media(parent)
 , _photo(photo)
-, _spoiler(spoiler) {
+, _ttlSeconds(args.ttlSeconds)
+, _spoiler(args.spoiler) {
 	parent->history()->owner().registerPhotoItem(_photo, parent);
 
 	if (_spoiler) {
@@ -873,7 +877,10 @@ MediaPhoto::~MediaPhoto() {
 std::unique_ptr<Media> MediaPhoto::clone(not_null<HistoryItem*> parent) {
 	return _chat
 		? std::make_unique<MediaPhoto>(parent, _chat, _photo)
-		: std::make_unique<MediaPhoto>(parent, _photo, _spoiler);
+		: std::make_unique<MediaPhoto>(parent, _photo, Args{
+			.ttlSeconds = _ttlSeconds,
+			.spoiler = _spoiler,
+		});
 }
 
 PhotoData *MediaPhoto::photo() const {
@@ -888,6 +895,8 @@ Storage::SharedMediaTypesMask MediaPhoto::sharedMediaTypes() const {
 	using Type = Storage::SharedMediaType;
 	if (_chat) {
 		return Type::ChatPhoto;
+	} else if (ttlSeconds()) {
+		return {};
 	}
 	return Storage::SharedMediaTypesMask{}
 		.added(Type::Photo)
@@ -983,13 +992,21 @@ bool MediaPhoto::hasSpoiler() const {
 	return _spoiler;
 }
 
+crl::time MediaPhoto::ttlSeconds() const {
+	return _ttlSeconds;
+}
+
+bool MediaPhoto::allowsForward() const {
+	return !ttlSeconds();
+}
+
 bool MediaPhoto::updateInlineResultMedia(const MTPMessageMedia &media) {
 	if (media.type() != mtpc_messageMediaPhoto) {
 		return false;
 	}
 	const auto &data = media.c_messageMediaPhoto();
 	const auto content = data.vphoto();
-	if (content && !data.vttl_seconds()) {
+	if (content) {
 		const auto photo = parent()->history()->owner().processPhoto(
 			*content);
 		if (photo == _photo) {
@@ -1000,7 +1017,7 @@ bool MediaPhoto::updateInlineResultMedia(const MTPMessageMedia &media) {
 	} else {
 		LOG(("API Error: "
 			"Got MTPMessageMediaPhoto without photo "
-			"or with ttl_seconds in updateInlineResultMedia()"));
+			"in updateInlineResultMedia()"));
 	}
 	return false;
 }
@@ -1011,10 +1028,10 @@ bool MediaPhoto::updateSentMedia(const MTPMessageMedia &media) {
 	}
 	const auto &mediaPhoto = media.c_messageMediaPhoto();
 	const auto content = mediaPhoto.vphoto();
-	if (!content || mediaPhoto.vttl_seconds()) {
+	if (!content) {
 		LOG(("Api Error: "
 			"Got MTPMessageMediaPhoto without photo "
-			"or with ttl_seconds in updateSentMedia()"));
+			"in updateSentMedia()"));
 		return false;
 	}
 	parent()->history()->owner().photoConvert(_photo, *content);
@@ -1392,7 +1409,7 @@ bool MediaFile::updateInlineResultMedia(const MTPMessageMedia &media) {
 	}
 	const auto &data = media.c_messageMediaDocument();
 	const auto content = data.vdocument();
-	if (content && !data.vttl_seconds()) {
+	if (content) {
 		const auto document = parent()->history()->owner().processDocument(
 			*content);
 		if (document == _document) {
@@ -1403,7 +1420,7 @@ bool MediaFile::updateInlineResultMedia(const MTPMessageMedia &media) {
 	} else {
 		LOG(("API Error: "
 			"Got MTPMessageMediaDocument without document "
-			"or with ttl_seconds in updateInlineResultMedia()"));
+			"in updateInlineResultMedia()"));
 	}
 	return false;
 }
@@ -1414,10 +1431,10 @@ bool MediaFile::updateSentMedia(const MTPMessageMedia &media) {
 	}
 	const auto &data = media.c_messageMediaDocument();
 	const auto content = data.vdocument();
-	if (!content || data.vttl_seconds()) {
+	if (!content) {
 		LOG(("Api Error: "
 			"Got MTPMessageMediaDocument without document "
-			"or with ttl_seconds in updateSentMedia()"));
+			"in updateSentMedia()"));
 		return false;
 	}
 	const auto owner = &parent()->history()->owner();
