@@ -6737,12 +6737,28 @@ std::optional<int> State::handleActiveListEnterUnchecked(
 			};
 		}
 	} else {
-		const auto trailingEmpty = (surface->itemIndex + 1
-				== int(owner->listItems.size()))
-			&& (item->blocks.size() == 1)
+		const auto itemEmpty = (item->blocks.size() == 1)
 			&& (item->blocks.front().kind == BlockKind::Paragraph)
 			&& ListItemIsEmpty(*item);
-		if (trailingEmpty) {
+		const auto trailingEmpty = itemEmpty
+			&& (surface->itemIndex + 1 == int(owner->listItems.size()));
+		const auto &steps = surface->path.container.steps;
+		const auto nested = !steps.empty()
+			&& (steps.back().kind == BlockContainerKind::ListItemChildren);
+		if (itemEmpty && nested) {
+			return liftActiveListItemUnchecked();
+		} else if (itemEmpty && !trailingEmpty) {
+			clearTemporaryDownParagraph();
+			if (!unwrapListItemIntoParent(
+					surface->path,
+					surface->itemIndex,
+					true)) {
+				return std::nullopt;
+			}
+			return (_activeTextOrdinal >= 0)
+				? std::make_optional(_activeTextOrdinal)
+				: std::nullopt;
+		} else if (trailingEmpty) {
 			clearTemporaryDownParagraph();
 			owner->listItems.erase(
 				owner->listItems.begin() + surface->itemIndex);
