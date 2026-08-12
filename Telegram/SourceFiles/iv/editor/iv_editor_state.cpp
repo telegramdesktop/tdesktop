@@ -4368,6 +4368,23 @@ bool State::joinActiveListItemBoundaryUnchecked(
 	if (!owner || owner->kind != BlockKind::List || !item) {
 		return false;
 	}
+	const auto &steps = surface->path.container.steps;
+	if (!steps.empty()
+		&& steps.back().kind == BlockContainerKind::ListItemChildren) {
+		if (!liftActiveListItemUnchecked()) {
+			return false;
+		}
+		const auto lifted = textNode(_activeTextOrdinal);
+		if (!lifted) {
+			return false;
+		}
+		*target = {
+			.leaf = lifted->leaf,
+			.selectionFrom = 0,
+			.selectionTo = 0,
+		};
+		return true;
+	}
 	clearTemporaryDownParagraph();
 	if (surface->itemIndex > 0) {
 		const auto previousIndex = surface->itemIndex - 1;
