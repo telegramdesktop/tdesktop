@@ -9941,7 +9941,7 @@ bool Widget::handleTabNavigation(QKeyEvent *e) {
 	}
 	const auto forward = (key != Qt::Key_Backtab)
 		&& (modifiers != Qt::ShiftModifier);
-	if (!moveTabBoundary(forward)) {
+	if (!moveListItemDepth(forward) && !moveTabBoundary(forward)) {
 		return false;
 	}
 	e->accept();
@@ -10224,6 +10224,56 @@ bool Widget::moveTabBoundary(bool forward) {
 		}
 		refreshPreparedContent();
 		activateTextOrdinalAtEnd(*ordinal);
+		handled = true;
+		return MutationTransactionResult{
+			.committed = committed,
+			.changed = true,
+		};
+	});
+	return handled;
+}
+
+bool Widget::moveListItemDepth(bool deeper) {
+	if (_field->isHidden()
+		|| (_state->activeFieldMode() != State::FieldMode::Rich)
+		|| !_state->hasActiveListItemSurface()) {
+		return false;
+	}
+	const auto text = ConvertEditorTagsToRichText(
+		_field->getTextWithAppliedMarkdown());
+	const auto cursorOffset = std::clamp(
+		richOffsetForFieldOffset(text, _field->textCursor().position()),
+		0,
+		int(text.text.size()));
+	auto handled = false;
+	beginArticleRelayoutDeferral();
+	const auto relayoutGuard = gsl::finally([&] {
+		endArticleRelayoutDeferral();
+	});
+	recordMutationTransaction([&] {
+		const auto committed = commitInlineField();
+		if (committed == ApplyResult::Failed) {
+			handled = true;
+			return MutationTransactionResult{
+				.committed = committed,
+				.failed = true,
+			};
+		}
+		const auto target = deeper
+			? _state->sinkActiveListItem()
+			: _state->liftActiveListItem();
+		if (!target) {
+			if (_state->lastLimitError()) {
+				showLastLimitToast();
+				handled = true;
+			}
+			return MutationTransactionResult{
+				.committed = committed,
+				.changed = (committed == ApplyResult::Changed),
+			};
+		}
+		refreshPreparedContent();
+		activateTextOrdinal(*target, cursorOffset);
 		handled = true;
 		return MutationTransactionResult{
 			.committed = committed,
