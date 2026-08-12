@@ -545,6 +545,10 @@ void DropOrderedItemNumbers(std::vector<ListItem> &items) {
 		&& (ListIsTaskList(first) == ListIsTaskList(second));
 }
 
+[[nodiscard]] TaskState SplitTaskState(TaskState state) {
+	return (state == TaskState::Checked) ? TaskState::Unchecked : state;
+}
+
 [[nodiscard]] bool ClearOrderedListRawMarkers(
 		Block *block,
 		int from,
@@ -7178,7 +7182,7 @@ std::optional<int> State::handleActiveListEnterUnchecked(
 				== blocks[paragraphIndex].text.text.text.size());
 		clearTemporaryDownParagraph();
 		auto next = ListItem();
-		next.taskState = item->taskState;
+		next.taskState = SplitTaskState(item->taskState);
 		if (split) {
 			blocks[paragraphIndex].text.text = context.head;
 			auto paragraph = MakeParagraphBlock();
@@ -7228,7 +7232,7 @@ std::optional<int> State::handleActiveListEnterUnchecked(
 		} else {
 			owner->listItems.insert(
 				owner->listItems.begin() + surface->itemIndex,
-				MakeParagraphListItem(item->taskState));
+				MakeParagraphListItem(SplitTaskState(item->taskState)));
 			target = LeafPath{
 				.kind = LeafKind::BlockText,
 				.block = {
@@ -7290,7 +7294,7 @@ std::optional<int> State::handleActiveListEnterUnchecked(
 			clearTemporaryDownParagraph();
 			owner->listItems.insert(
 				owner->listItems.begin() + surface->itemIndex + 1,
-				MakeParagraphListItem(item->taskState));
+				MakeParagraphListItem(SplitTaskState(item->taskState)));
 			target = LeafPath{
 				.kind = LeafKind::BlockText,
 				.block = {
