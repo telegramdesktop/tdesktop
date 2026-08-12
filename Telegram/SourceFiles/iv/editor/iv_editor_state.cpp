@@ -10698,12 +10698,19 @@ Block State::makeBlock(InsertAction action) const {
 		return MakeDividerBlock();
 	case InsertBlockType::Anchor:
 		return MakeAnchorBlock(nextAnchorId());
-	case InsertBlockType::OrderedList:
-		return MakeListBlock(ListKind::Ordered);
+	case InsertBlockType::OrderedList: {
+		auto result = MakeListBlock(ListKind::Ordered);
+		if (action.orderedStart != 1) {
+			result.orderedList.start = action.orderedStart;
+		}
+		return result;
+	}
 	case InsertBlockType::BulletList:
 		return MakeListBlock(ListKind::Bullet);
 	case InsertBlockType::TaskList:
-		return MakeListBlock(ListKind::Bullet, TaskState::Unchecked);
+		return MakeListBlock(
+			ListKind::Bullet,
+			action.taskChecked ? TaskState::Checked : TaskState::Unchecked);
 	case InsertBlockType::Pullquote:
 		return MakeQuoteBlock(true);
 	case InsertBlockType::Photo:
