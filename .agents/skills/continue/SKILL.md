@@ -119,6 +119,45 @@ Do not write a batch file, claim the whole batch, or publish reservations.
 Queue refreshes update task state but never add ordinary task ids to the
 frozen batch.
 
+### Source-lineage gate
+
+Before freezing the batch, inspect every prospective initial task's `task.md`
+and dependencies. For every approved non-verification task whose shipped code
+is a prerequisite, run:
+
+```bash
+python3 .agents/skills/process-inbox/scripts/workspace.py source-lineage \
+  --task <task-id> [--require <explicit-source-task-id> ...]
+```
+
+`depends_on` requirements are included automatically. Pass `--require` for an
+explicit source prerequisite named in `task.md` that old routing failed to put
+in `depends_on`. Unfinished dependencies remain a readiness concern and appear
+separately; this gate checks the history of approved source work.
+
+If any prospective task reports `current_satisfies: false` at this startup
+gate, pause before freezing, starting, retrying, resuming, or switching
+branches. Report the current branch, missing source task ids, unavailable
+commits, and compatible local branches, then ask the human whether to rebase,
+bring the commit, switch the checkout, or change scope. Never create or route
+an integration task, and never cherry-pick, rebase, merge, or switch branches
+at this startup boundary. The exception is an already-active task whose saved
+artifacts prove Phase 1 completed: it has crossed the task boundary, so resume
+the performer and let the after-Phase-1 rule publish the task-local Block.
+
+After the batch is frozen, rerun the same gate immediately before each Start,
+Retry, or pre-Phase-1 resume. A mismatch first found here is recoverable queue
+routing, not a task blocker: while the selected task has not completed Phase 1,
+switch this checkout to a compatible existing local branch and continue the
+same frozen batch. Require a clean source checkout and submodules, no owned or
+disposable task overlay, no exact checkout executable, no source recovery refs
+for work already begun, and verify with `git worktree list --porcelain` that the
+branch is not checked out elsewhere. Prefer a compatible branch appearing for
+the most remaining batch tasks; preserve recorded batch order. Do not create a
+branch or cherry-pick, rebase, or merge. After `git switch`, refresh `queue`,
+rerun `source-lineage` and `source-preflight`, then Start/Retry or resume. If no
+safe compatible local branch exists, stop and ask the human.
+
 ### Mode 1: resume active work, then drain the selected snapshot
 
 If `own_in_progress` contains this checkout's active task, choose `active`
@@ -211,7 +250,7 @@ dependency is `approved`. Add its id to the set, then reopen it locally:
 
 ```bash
 python3 .agents/skills/process-inbox/scripts/workspace.py retry \
-  --task <YYYY/MM/DD/slug>
+  --task <YYYY/MM/DD/slug> [--require <explicit-source-task-id> ...]
 ```
 
 This preserves its ownership, source recovery refs, plans, reviews, tests,
@@ -230,7 +269,7 @@ checkout whose id is in `batch_task_ids`, and start it:
 
 ```bash
 python3 .agents/skills/process-inbox/scripts/workspace.py start \
-  --task <YYYY/MM/DD/slug>
+  --task <YYYY/MM/DD/slug> [--require <explicit-source-task-id> ...]
 ```
 
 The resulting canonical `Start` commit changes it to `in-progress`. Leave
@@ -309,7 +348,11 @@ After it returns, require one of:
 
 An interruption or environment stop never becomes a convenience `Block`.
 After a genuine `Block`, add the task id to `attempted_blocked` and continue
-with independent work. A dirty source checkout, a file-lock build failure that
+with independent work. A source-lineage mismatch first proven after Phase 1 is
+such a genuine task-local Block: continue with batch tasks that do not depend
+on it and whose own lineage gates pass. A pre-Phase-1 lineage stop is not a
+Block or global hard stop; apply the safe mid-queue branch-switch rule above and
+resume the same performer. A dirty source checkout, a file-lock build failure that
 remains after `perform-task` exhausts the shared exact-checkout recovery,
 missing test account, unsafe publication conflict, or comparable global safety
 failure stops the loop. The first lock signature never stops the batch.
@@ -351,6 +394,13 @@ those paths, commits
 `Route follow-ups from <source-task-id>`, and publishes with the workspace
 helper. Retry ordinary concurrent-master races; preserve a semantic conflict
 or unavailable-remote slot commit and stop.
+
+Never route discovered work whose sole purpose is moving an existing commit to
+another branch: no backport, forward-port, cherry-pick, rebase, merge, or
+branch-sync task. Record that request or observation in the discovery receipt
+only, naming the source task and desired branch when known. A real product
+follow-up may depend on the source task, but `depends_on` carries that lineage;
+do not create an integration companion task.
 
 Use this stable marker shape so a context-free worker can recover it:
 

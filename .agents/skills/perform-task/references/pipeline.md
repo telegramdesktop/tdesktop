@@ -79,7 +79,19 @@ Before planning or editing:
 1. Read `SOURCE_ROOT/AGENTS.md`, `REVIEW.md`, `AI_SLOT/AGENTS.md`, `TASK_SPEC`,
    every referenced input, and relevant project context.
 2. Verify `state.yaml` is `in-progress` and owned by this checkout tag.
-3. Run the scripted preflight report and act on its JSON instead of composing
+3. Inspect `TASK_SPEC` for approved source-task prerequisites beyond
+   `depends_on`, then run the source-lineage gate before Phase 1:
+
+   ```bash
+   python3 SOURCE_ROOT/.agents/skills/process-inbox/scripts/workspace.py \
+     source-lineage --source-root SOURCE_ROOT --task TASK_ID \
+     [--require EXPLICIT_SOURCE_TASK_ID ...]
+   ```
+
+   Require `current_satisfies: true`. A mismatch before Phase 1 returns the
+   clean pre-phase routing stop defined below; a mismatch first established
+   after Phase 1 follows the task-local Block rule.
+4. Run the scripted preflight report and act on its JSON instead of composing
    the equivalent shell checks by hand:
 
    ```bash
@@ -89,15 +101,15 @@ Before planning or editing:
 
    It reports source/submodule cleanliness, dirty paths outside the owned
    write set, and the golden test account and live marker state for `EXE`.
-4. Require the prepared portable test account (`golden_account_present`). A
+5. Require the prepared portable test account (`golden_account_present`). A
    `type: minimal` task runs no test loop and starts without it; for every
    other type its absence is a global hard stop before implementation.
-5. Verify a usable Debug executable/build tree, safe path-scoped process
+6. Verify a usable Debug executable/build tree, safe path-scoped process
    control, safe portable-folder operations, and the ability to launch and
    render the in-binary test flow. A locked macOS session disables Computer Use
    only; it does not fail this preflight or block testing, even when policy was
    `required`.
-6. For a new run require a clean tracked Telegram worktree, clean submodules,
+7. For a new run require a clean tracked Telegram worktree, clean submodules,
    and no unrelated untracked files, then initialize local recovery state:
 
    ```bash
@@ -788,6 +800,14 @@ delays finishing the work actually in hand.
 
 ## Failure handling
 
+- Source lineage has a strict timing boundary. Before Phase 1, a missing
+  approved prerequisite is a clean pre-phase routing stop: do not publish
+  `blocked`, edit source, or create a backport/cherry-pick/rebase/merge task.
+  The scheduler may switch to a compatible existing branch and resume. If the
+  missing prerequisite is first established after Phase 1 completed, restore
+  owned and disposable changes, publish a clean task-local `blocked` boundary
+  naming the missing source task and branch evidence, and let `continue` run
+  non-dependent batch work. Never perform branch integration inside the task.
 - A disposable phase may be retried once through the wait ladder. Never fresh
   retry the performer within the same attempt. An interruption leaves local
   task state `in-progress`; a later `continue` invocation resumes it. A later

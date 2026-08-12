@@ -76,6 +76,17 @@ inbox into requests, then decide for each request whether to:
 - add one or more tasks to an existing project;
 - create a new project when durable shared context is useful.
 
+Never create a task whose work is to move an existing source commit between
+branches: no backport, forward-port, cherry-pick, rebase, merge, branch sync,
+or equivalent integration task. Branch placement is human release/history
+coordination, not product work for the autonomous queue. When a request only
+asks for that operation, record a receipt-only disposition naming the existing
+source task or commit description and the requested target branch, then leave
+the operation to the human. When new product work requires code shipped by an
+earlier task, route only the product work and express the source task as a
+dependency; do not create a companion task to bring that dependency onto a
+branch.
+
 Bias project assignment toward continuity. When a request follows from an
 existing task, begin with that task's project and keep it unless independence
 is affirmatively established. A task belongs to the existing project when it
@@ -193,7 +204,9 @@ Use a project slug instead of `null` when routed to a project. Use a YAML list
 of task identifiers for dependencies. Dependencies record code lineage as well
 as readiness: keep an approved source task in `depends_on` when the new task's
 implementation assumes its shipped changes. State that prerequisite in
-`task.md`. Inbox processing never reserves work: new tasks always remain
+`task.md`. This dependency is sufficient; never add a separate backport,
+cherry-pick, rebase, merge, or branch-sync task to make it reachable. Inbox
+processing never reserves work: new tasks always remain
 `status: todo` with `claimed_by`, `claimed_at`, and `claim_order` set to `null`.
 The checkout tag belongs in the receipt only.
 

@@ -64,6 +64,11 @@ Inspect the resolved task, readiness, `other_active_task`, status, and owner.
 - If it is owned by another checkout, stop. Cross-checkout restart is a rare
   explicit human reassignment, never an implicit steal.
 - If its dependencies are unfinished, report them and stop without starting.
+- Inspect `task.md` for approved source-task prerequisites in addition to
+  `depends_on`, then run `workspace.py source-lineage --task <full-task-id>`
+  with one `--require <source-task-id>` for each explicit prerequisite. Require
+  `current_satisfies: true` before Phase 1. For `start` or `retry`, pass the same
+  `--require` arguments so claiming is machine-gated too.
 - If it is `todo` and either unclaimed or owned by this checkout, atomically
   assign and activate it:
 
@@ -88,6 +93,17 @@ Inspect the resolved task, readiness, `other_active_task`, status, and owner.
 Refresh with `resolve` after each mutation. The source pipeline begins only
 after the slot state shows this task `in-progress` for this checkout. For a new
 task, canonical master must already contain its `Start` commit.
+
+A source-lineage mismatch found before Phase 1 is a pre-phase routing stop, not
+a task `Block`: create no phase artifacts, source edits, retained commit, or
+integration task. Return the lineage report to the `continue` scheduler, which
+may safely switch an existing local branch and resume. In a direct interactive
+invocation, report it and ask the human. If the mismatch is first discovered
+only after Phase 1 has completed, restore every owned/disposable source change
+to a clean boundary and publish a genuine `blocked` result naming the exact
+missing source task and appropriate branch evidence. Do not cherry-pick,
+rebase, merge, or manufacture the prerequisite. This blocker is task-local;
+the scheduler may continue work that does not depend on it.
 
 ## Run and publish
 

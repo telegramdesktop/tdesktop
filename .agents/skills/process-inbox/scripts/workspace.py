@@ -909,6 +909,24 @@ def command_start(args):
 		)
 	if not task_ready(task, states):
 		raise WorkspaceError(f"Task has unfinished dependencies: {args.task}")
+	lineage = source_lineage_report(
+		config,
+		slot,
+		args.task,
+		getattr(args, "require", []),
+	)
+	if lineage.get("unfinished_dependencies"):
+		raise WorkspaceError(
+			"Task has unfinished explicit source dependencies: "
+			+ ", ".join(lineage["unfinished_dependencies"])
+		)
+	if not lineage["current_satisfies"]:
+		branches = ", ".join(lineage["compatible_local_branches"]) or "none"
+		raise WorkspaceError(
+			"Task source dependencies are absent from the current branch: "
+			+ ", ".join(lineage["missing_source_tasks"])
+			+ f"; compatible local branches: {branches}"
+		)
 	active = [
 		value["id"] for value in states.values()
 		if value["claimed_by"] == config["checkout_tag"]
@@ -962,6 +980,20 @@ def command_start(args):
 	}, indent=2, sort_keys=True))
 
 
+def command_source_lineage(args):
+	config = worktree_config(args, create=True)
+	slot = Path(config["slot_worktree"])
+	states = load_states(slot)
+	task = resolve_task(slot, states, args.task)
+	report = source_lineage_report(
+		config,
+		slot,
+		task["id"],
+		args.require,
+	)
+	print(json.dumps(report, indent=2, sort_keys=True))
+
+
 def command_retry(args):
 	config = worktree_config(args, create=True)
 	sync_canonical(config)
@@ -979,6 +1011,24 @@ def command_retry(args):
 		)
 	if not task_ready(task, states):
 		raise WorkspaceError(f"Task has unfinished dependencies: {args.task}")
+	lineage = source_lineage_report(
+		config,
+		slot,
+		args.task,
+		getattr(args, "require", []),
+	)
+	if lineage.get("unfinished_dependencies"):
+		raise WorkspaceError(
+			"Task has unfinished explicit source dependencies: "
+			+ ", ".join(lineage["unfinished_dependencies"])
+		)
+	if not lineage["current_satisfies"]:
+		branches = ", ".join(lineage["compatible_local_branches"]) or "none"
+		raise WorkspaceError(
+			"Task source dependencies are absent from the current branch: "
+			+ ", ".join(lineage["missing_source_tasks"])
+			+ f"; compatible local branches: {branches}"
+		)
 	active = [
 		value["id"] for value in states.values()
 		if value["claimed_by"] == config["checkout_tag"]
@@ -1079,6 +1129,92 @@ def task_series_refs(source, task_id):
 				return parent, green
 			current = parent
 	return None
+
+
+def task_tip_commits(source, task_id):
+	commits = [
+		commit for commit in run_git(
+			source,
+			"log",
+			"--all",
+			"--format=%H",
+			"--fixed-strings",
+			f"--grep=Task: {task_id}",
+		).stdout.splitlines()
+		if task_commit_matches(source, commit, task_id)
+	]
+	return [
+		commit for commit in commits
+		if not any(
+			commit != other and is_ancestor(source, commit, other)
+			for other in commits
+		)
+	]
+
+
+def source_lineage_report(config, slot, task_id, extra_requirements=()):
+	states = load_states(slot)
+	task = states.get(task_id)
+	if task is None:
+		raise WorkspaceError(f"Task does not exist: {task_id}")
+	superseded = load_superseded(slot)
+	required = []
+	unfinished = []
+	for dependency in (*task["depends_on"], *extra_requirements):
+		resolved = resolve_task_id(states, superseded, dependency)["id"]
+		state = states[resolved]
+		if state["status"] != "approved":
+			if resolved not in unfinished:
+				unfinished.append(resolved)
+			continue
+		if state["type"] == "verify" or resolved in required:
+			continue
+		required.append(resolved)
+
+	source = Path(config["source_root"])
+	tips = {
+		dependency: task_tip_commits(source, dependency)
+		for dependency in required
+	}
+	missing_history = [
+		dependency for dependency, commits in tips.items()
+		if not commits
+	]
+	missing = [
+		dependency for dependency, commits in tips.items()
+		if not commits or not any(is_ancestor(source, commit) for commit in commits)
+	]
+	branches = run_git(
+		source,
+		"for-each-ref",
+		"--format=%(refname:short)",
+		"refs/heads",
+	).stdout.splitlines()
+	compatible = [
+		branch for branch in branches
+		if all(
+			commits and any(
+				is_ancestor(source, commit, branch)
+				for commit in commits
+			)
+			for commits in tips.values()
+		)
+	]
+	current_branch = run_git(
+		source,
+		"branch",
+		"--show-current",
+	).stdout.strip() or None
+	return {
+		"task": task_id,
+		"current_branch": current_branch,
+		"current_satisfies": not missing,
+		"unfinished_dependencies": unfinished,
+		"required_source_tasks": required,
+		"missing_source_tasks": missing,
+		"unavailable_source_tasks": missing_history,
+		"compatible_local_branches": compatible,
+	}
 
 
 def is_ancestor(source, older, newer="HEAD"):
@@ -3463,11 +3599,19 @@ def parse_args():
 	start = subparsers.add_parser("start")
 	add_common_arguments(start)
 	start.add_argument("--task", required=True)
+	start.add_argument("--require", action="append", default=[])
 	start.set_defaults(handler=command_start)
+
+	source_lineage = subparsers.add_parser("source-lineage")
+	add_common_arguments(source_lineage)
+	source_lineage.add_argument("--task", required=True)
+	source_lineage.add_argument("--require", action="append", default=[])
+	source_lineage.set_defaults(handler=command_source_lineage)
 
 	retry = subparsers.add_parser("retry")
 	add_common_arguments(retry)
 	retry.add_argument("--task", required=True)
+	retry.add_argument("--require", action="append", default=[])
 	retry.set_defaults(handler=command_retry)
 
 	checkpoint = subparsers.add_parser("checkpoint")

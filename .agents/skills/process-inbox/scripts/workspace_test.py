@@ -782,6 +782,11 @@ inbox_receipt: receipts/2026/07/20/race.md
 			with (
 				mock.patch.object(workspace, "worktree_config", return_value=config),
 				mock.patch.object(workspace, "sync_canonical"),
+				mock.patch.object(
+					workspace,
+					"source_lineage_report",
+					return_value={"current_satisfies": True},
+				),
 				mock.patch.object(workspace, "commit_paths") as commit,
 				contextlib.redirect_stdout(io.StringIO()),
 			):
@@ -806,6 +811,11 @@ inbox_receipt: receipts/2026/07/20/race.md
 			with (
 				mock.patch.object(workspace, "worktree_config", return_value=config),
 				mock.patch.object(workspace, "sync_canonical"),
+				mock.patch.object(
+					workspace,
+					"source_lineage_report",
+					return_value={"current_satisfies": True},
+				),
 				mock.patch.object(workspace, "commit_paths", return_value=True) as commit,
 				contextlib.redirect_stdout(io.StringIO()),
 			):
@@ -821,6 +831,124 @@ inbox_receipt: receipts/2026/07/20/race.md
 				commit.call_args.args[2],
 				f"Start {TASK_ID} on macbook-twork",
 			)
+
+	def test_start_refuses_source_dependency_absent_from_branch(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			slot = Path(temporary)
+			directory = write_task(slot, status="todo", claimed_by=None)
+			config = {
+				"checkout_tag": "macbook-twork",
+				"slot_worktree": str(slot),
+			}
+			report = {
+				"current_satisfies": False,
+				"missing_source_tasks": ["2026/07/18/source-task"],
+				"compatible_local_branches": ["layer229"],
+			}
+			with (
+				mock.patch.object(workspace, "worktree_config", return_value=config),
+				mock.patch.object(workspace, "sync_canonical"),
+				mock.patch.object(
+					workspace,
+					"source_lineage_report",
+					return_value=report,
+				) as lineage,
+				mock.patch.object(workspace, "commit_paths") as commit,
+			):
+				with self.assertRaisesRegex(
+					workspace.WorkspaceError,
+					"compatible local branches: layer229",
+				):
+					workspace.command_start(SimpleNamespace(
+						task=TASK_ID,
+						require=["2026/07/18/source-task"],
+					))
+
+			state = workspace.load_state(slot, directory / "state.yaml")
+			self.assertEqual(state["status"], "todo")
+			self.assertIsNone(state["claimed_by"])
+			lineage.assert_called_once_with(
+				config,
+				slot,
+				TASK_ID,
+				["2026/07/18/source-task"],
+			)
+			commit.assert_not_called()
+
+	def test_source_lineage_finds_compatible_local_branch(self):
+		dependency_id = "2026/07/18/source-task"
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			source = root / "source"
+			slot = root / "slot"
+			git_repo(source)
+			tracked = source / "tracked.txt"
+			tracked.write_text("base\n", encoding="utf-8")
+			git(source, "add", "tracked.txt")
+			git(source, "commit", "-m", "Create baseline")
+			git(source, "branch", "without-dependency")
+			tracked.write_text("source task\n", encoding="utf-8")
+			git(
+				source,
+				"commit",
+				"-am",
+				"Add source behavior",
+				"-m",
+				f"Task: {dependency_id}",
+			)
+			git(source, "branch", "with-dependency")
+			git(source, "switch", "without-dependency")
+
+			dependency = slot / "tasks" / dependency_id
+			dependency.mkdir(parents=True)
+			(dependency / "task.md").write_text(
+				"# Add source behavior\n",
+				encoding="utf-8",
+			)
+			(dependency / "state.yaml").write_text(
+				"""status: approved
+type: implement
+created: 2026-07-18
+project: null
+depends_on: []
+claimed_by: macbook-twork
+claimed_at: 2026-07-18T10:00:00+04:00
+claim_order: 1
+lease_until: null
+phase: complete
+inbox_receipt: receipts/2026/07/18/test.md
+""",
+				encoding="utf-8",
+			)
+			target = write_task(slot, status="todo", claimed_by=None)
+			state_path = target / "state.yaml"
+			state_path.write_text(
+				state_path.read_text(encoding="utf-8").replace(
+					"depends_on: []",
+					f"depends_on: [{dependency_id}]",
+				),
+				encoding="utf-8",
+			)
+
+			config = {"source_root": str(source)}
+			report = workspace.source_lineage_report(
+				config,
+				slot,
+				TASK_ID,
+			)
+			self.assertFalse(report["current_satisfies"])
+			self.assertEqual(report["missing_source_tasks"], [dependency_id])
+			self.assertEqual(report["unavailable_source_tasks"], [])
+			self.assertIn("with-dependency", report["compatible_local_branches"])
+
+			git(source, "switch", "with-dependency")
+			report = workspace.source_lineage_report(
+				config,
+				slot,
+				TASK_ID,
+			)
+			self.assertTrue(report["current_satisfies"])
+			self.assertEqual(report["missing_source_tasks"], [])
 
 	def test_checkpoint_updates_only_local_task_state(self):
 		with tempfile.TemporaryDirectory() as temporary:
@@ -866,6 +994,11 @@ inbox_receipt: receipts/2026/07/20/race.md
 			with (
 				mock.patch.object(workspace, "worktree_config", return_value=config),
 				mock.patch.object(workspace, "sync_canonical"),
+				mock.patch.object(
+					workspace,
+					"source_lineage_report",
+					return_value={"current_satisfies": True},
+				),
 				mock.patch.object(workspace, "commit_paths", side_effect=record_commit),
 				contextlib.redirect_stdout(io.StringIO()),
 			):
@@ -943,6 +1076,11 @@ inbox_receipt: receipts/2026/07/19/test.md
 			with (
 				mock.patch.object(workspace, "worktree_config", return_value=config),
 				mock.patch.object(workspace, "sync_canonical"),
+				mock.patch.object(
+					workspace,
+					"source_lineage_report",
+					return_value={"current_satisfies": True},
+				),
 			):
 				with self.assertRaisesRegex(workspace.WorkspaceError, "already in progress"):
 					workspace.command_retry(SimpleNamespace(task=TASK_ID))
