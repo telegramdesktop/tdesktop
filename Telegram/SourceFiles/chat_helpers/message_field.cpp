@@ -546,7 +546,8 @@ auto InitMessageFieldHandlers(MessageFieldHandlersArgs &&args)
 	field->setMarkdownReplacesEnabled(rpl::single(Ui::MarkdownEnabledState{
 		Ui::MarkdownEnabled{
 			std::move(args.allowMarkdownTags),
-			args.allowTypedMarkdown
+			args.allowTypedMarkdown,
+			args.instantMarkdown
 		}
 	}));
 	if (const auto &show = args.show) {

@@ -8221,6 +8221,7 @@ void Widget::setupInlineField() {
 				Ui::InputField::kTagIvMath,
 			},
 			.allowTypedMarkdown = false,
+			.instantMarkdown = true,
 		});
 		if (_show) {
 			const auto weak = QPointer<Widget>(this);
