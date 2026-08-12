@@ -427,8 +427,9 @@ private:
 	mutable QPixmap _thumb;
 	Ui::Text::String _title, _description;
 	QString _thumbLetter, _urlText;
-	int32 _urlWidth;
+	int32 _urlWidth = 0;
 
+	[[nodiscard]] int textLeft() const;
 	[[nodiscard]] int countHeight(int textWidth) const;
 	void prepareThumbnail(int width, int height) const;
 	void prepareMediaThumbnail(int width, int height) const;

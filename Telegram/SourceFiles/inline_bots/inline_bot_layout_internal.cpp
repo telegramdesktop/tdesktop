@@ -1469,6 +1469,12 @@ Article::Article(
 	_thumbLetter = getResultThumbLetter();
 }
 
+int Article::textLeft() const {
+	return _withThumb
+		? (st::inlineThumbSize + st::inlineThumbSkip)
+		: (st::defaultEmojiPan.headerLeft - st::inlineResultsLeft);
+}
+
 int Article::countHeight(int textWidth) const {
 	int32 titleHeight = qMin(_title.countHeight(textWidth), 2 * st::semiboldFont->height);
 
@@ -1483,7 +1489,7 @@ int Article::countHeight(int textWidth) const {
 
 void Article::initDimensions() {
 	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
-	int32 textWidth = _maxw - (_withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : (st::defaultEmojiPan.headerLeft - st::inlineResultsLeft));
+	const auto textWidth = _maxw - textLeft();
 	TextParseOptions titleOpts = { 0, textWidth, 2 * st::semiboldFont->height, Qt::LayoutDirectionAuto };
 	_title.setText(st::semiboldTextStyle, TextUtilities::SingleLine(_result->getLayoutTitle()), titleOpts);
 
@@ -1495,7 +1501,7 @@ void Article::initDimensions() {
 
 int Article::resizeGetHeight(int width) {
 	_width = qMin(width, _maxw);
-	int32 textWidth = _width - (_withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : (st::defaultEmojiPan.headerLeft - st::inlineResultsLeft));
+	const auto textWidth = _width - textLeft();
 	if (_url) {
 		_urlText = getResultUrl();
 		_urlWidth = st::normalFont->width(_urlText);
@@ -1509,9 +1515,8 @@ int Article::resizeGetHeight(int width) {
 }
 
 void Article::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
-	int32 left = st::defaultEmojiPan.headerLeft - st::inlineResultsLeft;
+	const auto left = textLeft();
 	if (_withThumb) {
-		left = st::inlineThumbSize + st::inlineThumbSkip;
 		prepareThumbnail(st::inlineThumbSize, st::inlineThumbSize);
 		QRect rthumb(style::rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width));
 		if (_thumb.isNull()) {
@@ -1565,10 +1570,7 @@ TextState Article::getState(
 	auto left = _withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : 0;
 	if (QRect(left, 0, _width - left, _height).contains(point)) {
 		if (_url) {
-			const auto textLeft = _withThumb
-				? (st::inlineThumbSize + st::inlineThumbSkip)
-				: (st::defaultEmojiPan.headerLeft - st::inlineResultsLeft);
-			const auto textWidth = _width - textLeft;
+			const auto textWidth = _width - textLeft();
 			const auto titleHeight = qMin(
 				_title.countHeight(textWidth),
 				st::semiboldFont->height * 2);
@@ -1577,7 +1579,7 @@ TextState Article::getState(
 				_description.countHeight(textWidth),
 				st::normalFont->height * descriptionLines);
 			const auto urlRect = style::rtlrect(
-				textLeft,
+				textLeft(),
 				st::inlineRowMargin + titleHeight + descriptionHeight,
 				_urlWidth,
 				st::normalFont->height,
