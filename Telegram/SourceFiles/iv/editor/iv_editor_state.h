@@ -792,6 +792,10 @@ private:
 		ActiveTextSelectionTarget *target);
 	[[nodiscard]] std::optional<int> resetActiveBlockToParagraphUnchecked();
 	[[nodiscard]] std::optional<int> escapeEmptyActiveBlockLineUnchecked();
+	[[nodiscard]] std::optional<BlockPath> activeLineContainerBlock() const;
+	[[nodiscard]] bool canLiftActiveLineOutOfContainer() const;
+	[[nodiscard]] bool liftActiveLineOutOfContainerUnchecked(
+		ActiveTextSelectionTarget *target);
 	[[nodiscard]] bool canRemoveEmptyBlockBeforeActive() const;
 	[[nodiscard]] bool removeEmptyBlockBeforeActiveUnchecked(
 		ActiveTextSelectionTarget *target);

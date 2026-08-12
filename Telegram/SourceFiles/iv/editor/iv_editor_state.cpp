@@ -4646,6 +4646,80 @@ std::optional<int> State::resetActiveBlockToParagraphUnchecked() {
 	return activateRebuiltLeaf(leaf);
 }
 
+std::optional<State::BlockPath> State::activeLineContainerBlock() const {
+	const auto descriptor = textNode(_activeTextOrdinal);
+	if (!descriptor || descriptor->leaf.kind != LeafKind::BlockText) {
+		return std::nullopt;
+	}
+	const auto &steps = descriptor->leaf.block.container.steps;
+	if (steps.empty()
+		|| steps.back().kind != BlockContainerKind::BlockChildren) {
+		return std::nullopt;
+	}
+	auto result = BlockPath{ .index = steps.back().blockIndex };
+	result.container.steps.assign(steps.begin(), steps.end() - 1);
+	return result;
+}
+
+bool State::canLiftActiveLineOutOfContainer() const {
+	const auto descriptor = textNode(_activeTextOrdinal);
+	const auto container = activeLineContainerBlock();
+	if (!descriptor || !container) {
+		return false;
+	}
+	const auto owner = block(descriptor->leaf.block);
+	return owner
+		&& JoinableTextBlockKind(owner->kind)
+		&& (descriptor->leaf.block.index == 0);
+}
+
+bool State::liftActiveLineOutOfContainerUnchecked(
+		ActiveTextSelectionTarget *target) {
+	if (!target || !canLiftActiveLineOutOfContainer()) {
+		return false;
+	}
+	const auto descriptor = textNode(_activeTextOrdinal);
+	const auto containerPath = activeLineContainerBlock();
+	if (!descriptor || !containerPath) {
+		return false;
+	}
+	const auto path = descriptor->leaf.block;
+	const auto blocks = blockContainer(path.container);
+	const auto parent = blockContainer(containerPath->container);
+	if (!blocks
+		|| !parent
+		|| blocks->empty()
+		|| containerPath->index < 0
+		|| containerPath->index >= int(parent->size())) {
+		return false;
+	}
+	clearTemporaryDownParagraph();
+	auto lifted = std::move((*blocks)[0]);
+	blocks->erase(blocks->begin());
+	if (blocks->empty()
+		&& BlockIsEmpty((*parent)[containerPath->index])) {
+		parent->erase(parent->begin() + containerPath->index);
+	}
+	parent->insert(parent->begin() + containerPath->index, std::move(lifted));
+	const auto destination = LeafPath{
+		.kind = LeafKind::BlockText,
+		.block = {
+			.container = containerPath->container,
+			.index = containerPath->index,
+		},
+	};
+	rebuild();
+	if (!activateRebuiltLeaf(destination)) {
+		return false;
+	}
+	*target = {
+		.leaf = destination,
+		.selectionFrom = 0,
+		.selectionTo = 0,
+	};
+	return true;
+}
+
 bool State::canRemoveEmptyBlockBeforeActive() const {
 	const auto descriptor = textNode(_activeTextOrdinal);
 	if (!descriptor
@@ -4914,7 +4988,17 @@ State::ParagraphBoundaryJoinResult State::joinActiveParagraphBoundary(
 			&& !listJoin
 			&& !forward
 			&& candidate.canJoinActiveParagraphIntoPreviousList();
-		if (!dropEmpty && !textJoin && !listJoin && !listAppend) {
+		const auto containerStep = !dropEmpty
+			&& !textJoin
+			&& !listJoin
+			&& !listAppend
+			&& !forward
+			&& candidate.canLiftActiveLineOutOfContainer();
+		if (!dropEmpty
+			&& !textJoin
+			&& !listJoin
+			&& !listAppend
+			&& !containerStep) {
 			return CheckedMutationResult<ParagraphBoundaryJoinResult>{
 				.result = { .result = ApplyResult::Unchanged },
 			};
@@ -4922,6 +5006,8 @@ State::ParagraphBoundaryJoinResult State::joinActiveParagraphBoundary(
 		auto target = ActiveTextSelectionTarget();
 		const auto joined = dropEmpty
 			? candidate.removeEmptyBlockBeforeActiveUnchecked(&target)
+			: containerStep
+			? candidate.liftActiveLineOutOfContainerUnchecked(&target)
 			: textJoin
 			? candidate.joinActiveParagraphBoundaryUnchecked(
 				forward,
