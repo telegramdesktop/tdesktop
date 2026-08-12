@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/rp_widget.h"
+#include "ui/widgets/labels.h"
 #include "styles/style_ttl_media.h"
 
 #include <QSvgRenderer>
@@ -160,6 +161,57 @@ std::unique_ptr<RpWidget> MakeTtlCountdownBadge(
 		TimeId destroyAt,
 		crl::time ttl) {
 	return std::make_unique<TtlCountdownBadge>(parent, destroyAt, ttl);
+}
+
+std::unique_ptr<RpWidget> MakeTtlOnceBadge(QWidget *parent) {
+	auto result = std::make_unique<RpWidget>(parent);
+	const auto raw = result.get();
+	const auto margin = st::ttlMediaBadgeMargin;
+	raw->resize(Size(st::ttlMediaBadgeSize + 2 * margin));
+	raw->paintRequest() | rpl::on_next([=] {
+		auto p = QPainter(raw);
+		st::ttlMediaOnceIcon.paintInCenter(
+			p,
+			raw->rect() - Margins(margin));
+	}, raw->lifetime());
+	raw->setAttribute(Qt::WA_TransparentForMouseEvents);
+	raw->show();
+	return result;
+}
+
+object_ptr<RpWidget> MakeTtlTooltipContent(
+		QWidget *parent,
+		rpl::producer<TextWithEntities> text) {
+	auto result = object_ptr<RpWidget>(parent);
+	const auto raw = result.data();
+	const auto label = CreateChild<FlatLabel>(
+		raw,
+		std::move(text),
+		st::ttlMediaTooltipLabel);
+	label->resizeToWidth(st::ttlMediaTooltipMaxWidth);
+	const auto icon = st::ttlMediaTooltipIconSize;
+	const auto skip = st::ttlMediaTooltipIconSkip;
+	const auto height = std::max(label->height(), icon);
+	label->move(icon + skip, (height - label->height()) / 2);
+	raw->resize(icon + skip + label->width(), height);
+	const auto cache = raw->lifetime().make_state<QImage>();
+	raw->paintRequest() | rpl::on_next([=] {
+		const auto ratio = style::DevicePixelRatio();
+		const auto size = Size(icon);
+		if (cache->size() != size * ratio) {
+			*cache = QImage(
+				size * ratio,
+				QImage::Format_ARGB32_Premultiplied);
+			cache->setDevicePixelRatio(ratio);
+			cache->fill(Qt::transparent);
+			auto q = QPainter(cache);
+			auto svg = QSvgRenderer(u":/gui/ttl/video_message_icon.svg"_q);
+			svg.render(&q, Rect(size));
+		}
+		auto p = QPainter(raw);
+		p.drawImage(QPoint(0, (raw->height() - icon) / 2), *cache);
+	}, raw->lifetime());
+	return result;
 }
 
 } // namespace Ui

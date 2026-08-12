@@ -30,6 +30,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/tooltip.h"
+#include "ui/wrap/padding_wrap.h"
 #include "ui/controls/swipe_handler.h"
 #include "ui/controls/swipe_handler_data.h"
 #include "ui/controls/ttl_media.h"
@@ -109,6 +111,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_calls.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_dialogs.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_ttl_media.h"
 #include "platform/platform_text_recognition.h"
@@ -1267,7 +1270,11 @@ void OverlayWidget::updateControlsGeometry() {
 }
 
 void OverlayWidget::refreshTtlBadge(TimeId destroyAt) {
-	const auto item = (destroyAt > 0 && _message)
+	const auto media = _message ? _message->media() : nullptr;
+	const auto singleView = media
+		&& media->ttlSecondsSingleView()
+		&& _message->isTtlCoveredMedia();
+	const auto item = ((destroyAt > 0 || singleView) && _message)
 		? _message->fullId()
 		: FullMsgId();
 	if (_ttlBadgeItem == item && _ttlBadgeDestroyAt == destroyAt) {
@@ -1275,15 +1282,38 @@ void OverlayWidget::refreshTtlBadge(TimeId destroyAt) {
 	}
 	_ttlBadgeItem = item;
 	_ttlBadgeDestroyAt = destroyAt;
+	_ttlTooltip = nullptr;
 	if (!item) {
 		_ttlBadge = nullptr;
 		return;
 	}
-	const auto media = _message->media();
-	const auto ttl = (media && !media->ttlSecondsSingleView())
-		? media->ttlSeconds()
-		: crl::time();
-	_ttlBadge = Ui::MakeTtlCountdownBadge(_body, destroyAt, ttl);
+	if (singleView) {
+		_ttlBadge = Ui::MakeTtlOnceBadge(_body);
+		const auto isVideo = (media->document() != nullptr);
+		auto text = _message->out()
+			? (isVideo
+				? tr::lng_ttl_video_tooltip_out
+				: tr::lng_ttl_photo_tooltip_out)(
+					lt_user,
+					rpl::single(
+						_message->history()->peer->shortName()
+					) | rpl::map(tr::rich),
+					tr::rich)
+			: (isVideo
+				? tr::lng_ttl_video_tooltip_in
+				: tr::lng_ttl_photo_tooltip_in)(tr::rich);
+		_ttlTooltip = std::make_unique<Ui::ImportantTooltip>(
+			_body,
+			object_ptr<Ui::PaddingWrap<Ui::RpWidget>>(
+				_body,
+				Ui::MakeTtlTooltipContent(_body, std::move(text)),
+				st::defaultImportantTooltip.padding),
+			st::dialogsStoriesTooltip);
+		_ttlTooltip->toggleFast(true);
+	} else {
+		const auto ttl = media ? media->ttlSeconds() : crl::time();
+		_ttlBadge = Ui::MakeTtlCountdownBadge(_body, destroyAt, ttl);
+	}
 	updateTtlBadgePosition();
 }
 
@@ -1298,6 +1328,22 @@ void OverlayWidget::updateTtlBadgePosition() {
 		: (width() - _ttlBadge->width() - skip + margin);
 	_ttlBadge->move(left, _minUsedTop + skip - margin);
 	_ttlBadge->raise();
+	if (_ttlTooltip) {
+		const auto badge = QRect(
+			_ttlBadge->pos() + QPoint(margin, margin),
+			Size(st::ttlMediaBadgeSize));
+		const auto tooltipSkip = st::mediaviewTtlTooltipSkip;
+		_ttlTooltip->pointAt(badge, RectPart::Bottom, [=](QSize size) {
+			return QPoint(
+				std::max(
+					std::min(
+						rect::right(badge) - size.width(),
+						width() - skip - size.width()),
+					skip),
+				rect::bottom(badge) + tooltipSkip);
+		});
+		_ttlTooltip->raise();
+	}
 }
 
 void OverlayWidget::markTimedMediaRead() {
@@ -8784,6 +8830,7 @@ void OverlayWidget::clearAfterHide() {
 	_recognitionPendingDocumentId = 0;
 	_recognitionRetryOnLarge = false;
 	clearRecognitionSelection();
+	_ttlTooltip = nullptr;
 	_ttlBadge = nullptr;
 	_ttlBadgeItem = FullMsgId();
 	_ttlBadgeDestroyAt = 0;
@@ -8903,7 +8950,12 @@ void OverlayWidget::updateHeader() {
 		}
 	} else {
 		const auto channel = _peer ? _peer->asChannel() : nullptr;
-		if (_document) {
+		const auto media = _message ? _message->media() : nullptr;
+		if (media && media->ttlSeconds()) {
+			_headerText = _document
+				? tr::lng_mediaview_disappearing_video(tr::now)
+				: tr::lng_mediaview_disappearing_photo(tr::now);
+		} else if (_document) {
 			_headerText = _document->filename().isEmpty()
 				? tr::lng_mediaview_doc_image(tr::now)
 				: _document->filename();

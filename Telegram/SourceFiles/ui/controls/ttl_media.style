@@ -11,3 +11,12 @@ using "ui/widgets/widgets.style";
 ttlMediaBadgeSize: 44px;
 ttlMediaBadgeMargin: 20px;
 ttlMediaBadgeLine: 2px;
+ttlMediaOnceIcon: icon {{ "chat/audio_once", mediaviewControlFg }};
+ttlMediaTooltipIconSize: 26px;
+ttlMediaTooltipIconSkip: 8px;
+ttlMediaTooltipMaxWidth: 200px;
+ttlMediaTooltipLabel: FlatLabel(defaultImportantTooltipLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px);
+	}
+}

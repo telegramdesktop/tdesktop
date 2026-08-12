@@ -49,6 +49,7 @@ class LinkButton;
 class RoundButton;
 class RpWindow;
 class LayerManager;
+class ImportantTooltip;
 } // namespace Ui
 
 namespace Ui::GL {
@@ -840,6 +841,7 @@ private:
 	base::Timer _saveMsgTimer;
 	base::Timer _ttlTimer;
 	std::unique_ptr<Ui::RpWidget> _ttlBadge;
+	std::unique_ptr<Ui::ImportantTooltip> _ttlTooltip;
 	FullMsgId _ttlBadgeItem;
 	TimeId _ttlBadgeDestroyAt = 0;
 	bool _ttlDeferredClose = false;

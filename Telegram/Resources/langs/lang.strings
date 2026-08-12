@@ -2940,6 +2940,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_ttl_voice_close_in" = "Delete and close";
 "lng_ttl_round_tooltip_in" = "This video message can only be played once.";
 "lng_ttl_round_tooltip_out" = "This message will disappear after **{user}** plays it once.";
+"lng_ttl_photo_tooltip_in" = "This photo can only be viewed once.";
+"lng_ttl_photo_tooltip_out" = "This message will disappear after **{user}** views it once.";
+"lng_ttl_video_tooltip_in" = "This video can only be viewed once.";
+"lng_ttl_video_tooltip_out" = "This message will disappear after **{user}** views it once.";
 "lng_ttl_period_menu" = "Self-Destruct Timer";
 "lng_ttl_period_once" = "View Once";
 "lng_ttl_period_keep" = "Do Not Delete";
@@ -6101,6 +6105,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mediaview_hours_ago#other" = "{count} hours ago";
 "lng_mediaview_date_time" = "{date} at {time}";
 "lng_mediaview_ttl_in" = "Disappears in {time}";
+"lng_mediaview_disappearing_photo" = "Disappearing Photo";
+"lng_mediaview_disappearing_video" = "Disappearing Video";
 "lng_mediaview_set_userpic" = "Set as Main";
 "lng_mediaview_report_profile_photo" = "Report";
 

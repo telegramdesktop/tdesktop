@@ -270,10 +270,8 @@ mediaviewControlSize: 90px;
 mediaviewIconSize: size(46px, 54px);
 mediaviewIconOver: 36px;
 
-mediaviewTtlSize: 44px;
 mediaviewTtlSkip: 16px;
-mediaviewTtlLine: 2px;
-mediaviewTtlMargin: 20px;
+mediaviewTtlTooltipSkip: 8px;
 
 mediaviewWaitHide: 1100;
 mediaviewHideDuration: 600;

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/object_ptr.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/voice_once_particles.h"
 
@@ -43,5 +44,11 @@ void PaintTtlFireIcon(QPainter &p, QRect inner, QImage &cache);
 	QWidget *parent,
 	TimeId destroyAt,
 	crl::time ttl);
+
+[[nodiscard]] std::unique_ptr<RpWidget> MakeTtlOnceBadge(QWidget *parent);
+
+[[nodiscard]] object_ptr<RpWidget> MakeTtlTooltipContent(
+	QWidget *parent,
+	rpl::producer<TextWithEntities> text);
 
 } // namespace Ui
