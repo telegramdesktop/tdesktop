@@ -7994,12 +7994,37 @@ bool State::wrapStructuralBlockSelection(
 		break;
 	case InsertBlockType::OrderedList:
 	case InsertBlockType::BulletList:
+	case InsertBlockType::TaskList: {
 		if (wrapper.kind != BlockKind::List || wrapper.listItems.empty()) {
 			return false;
 		}
-		wrapper.listItems.front().blocks = std::move(data->blocks);
-		adoptLeadingParagraphListItemText(&wrapper.listItems.front());
+		const auto taskState = wrapper.listItems.front().taskState;
+		auto items = std::vector<ListItem>();
+		items.reserve(data->blocks.size());
+		for (auto &block : data->blocks) {
+			if (block.kind == BlockKind::List) {
+				for (auto &item : block.listItems) {
+					item.number = {};
+					if (taskState == TaskState::None) {
+						item.taskState = TaskState::None;
+					} else if (item.taskState == TaskState::None) {
+						item.taskState = TaskState::Unchecked;
+					}
+					items.push_back(std::move(item));
+				}
+				continue;
+			}
+			auto item = ListItem();
+			item.taskState = taskState;
+			item.blocks.push_back(std::move(block));
+			adoptLeadingParagraphListItemText(&item);
+			items.push_back(std::move(item));
+		}
+		if (!items.empty()) {
+			wrapper.listItems = std::move(items);
+		}
 		break;
+	}
 	default:
 		return false;
 	}
@@ -8361,6 +8386,7 @@ bool State::replaceStructuralSelectionWithBlock(
 		break;
 	case InsertBlockType::OrderedList:
 	case InsertBlockType::BulletList:
+	case InsertBlockType::TaskList:
 		if (selection.kind == PreparedEditSelectionKind::TableRows
 			|| selection.kind == PreparedEditSelectionKind::TableCells) {
 			return false;
@@ -8376,6 +8402,34 @@ bool State::replaceStructuralSelectionWithBlock(
 				*destination = target;
 			}
 			return true;
+		}
+		if (selection.kind == PreparedEditSelectionKind::ListItems) {
+			const auto style = (action.type == InsertBlockType::OrderedList)
+				? ListStyle::Ordered
+				: (action.type == InsertBlockType::TaskList)
+				? ListStyle::Task
+				: ListStyle::Bullet;
+			const auto validated = candidate.validateListItemRange(
+				selection.listItems);
+			const auto owner = validated
+				? candidate.block(validated->block)
+				: nullptr;
+			if (!owner || (owner->kind != BlockKind::List)) {
+				return false;
+			}
+			if (destination) {
+				*destination = {
+					.action = BoundaryTarget::Action::StructuralSelection,
+					.structuralSelection = selection,
+				};
+			}
+			if (CurrentListStyle(*owner) == style) {
+				return true;
+			}
+			if (!candidate.setListStyle(selection.listItems, style)) {
+				return false;
+			}
+			return commitValidatedCandidate(std::move(candidate));
 		}
 		if (selection.kind == PreparedEditSelectionKind::Blocks) {
 			if (!candidate.wrapStructuralBlockSelection(
