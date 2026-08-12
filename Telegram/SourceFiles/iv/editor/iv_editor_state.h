@@ -790,6 +790,9 @@ private:
 	[[nodiscard]] bool joinActiveListItemForwardUnchecked(
 		ActiveTextSelectionTarget *target);
 	[[nodiscard]] std::optional<int> resetActiveBlockToParagraphUnchecked();
+	[[nodiscard]] bool canRemoveEmptyBlockBeforeActive() const;
+	[[nodiscard]] bool removeEmptyBlockBeforeActiveUnchecked(
+		ActiveTextSelectionTarget *target);
 	[[nodiscard]] std::optional<BlockPath> listBeforeActiveParagraph() const;
 	[[nodiscard]] std::optional<NextListItem> deepestLastItem(
 		BlockPath list) const;

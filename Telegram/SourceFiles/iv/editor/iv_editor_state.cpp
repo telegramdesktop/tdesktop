@@ -4584,6 +4584,52 @@ std::optional<int> State::resetActiveBlockToParagraphUnchecked() {
 	return activateRebuiltLeaf(leaf);
 }
 
+bool State::canRemoveEmptyBlockBeforeActive() const {
+	const auto descriptor = textNode(_activeTextOrdinal);
+	if (!descriptor
+		|| descriptor->leaf.kind != LeafKind::BlockText
+		|| descriptor->leaf.block.index < 1) {
+		return false;
+	}
+	auto path = descriptor->leaf.block;
+	--path.index;
+	const auto previous = block(path);
+	return previous
+		&& JoinableTextBlockKind(previous->kind)
+		&& previous->blocks.empty()
+		&& previous->anchorId.isEmpty()
+		&& RichTextIsEmpty(previous->text);
+}
+
+bool State::removeEmptyBlockBeforeActiveUnchecked(
+		ActiveTextSelectionTarget *target) {
+	if (!target || !canRemoveEmptyBlockBeforeActive()) {
+		return false;
+	}
+	const auto descriptor = textNode(_activeTextOrdinal);
+	if (!descriptor) {
+		return false;
+	}
+	auto destination = descriptor->leaf;
+	const auto blocks = blockContainer(destination.block.container);
+	if (!blocks || destination.block.index >= int(blocks->size())) {
+		return false;
+	}
+	clearTemporaryDownParagraph();
+	blocks->erase(blocks->begin() + destination.block.index - 1);
+	--destination.block.index;
+	rebuild();
+	if (!activateRebuiltLeaf(destination)) {
+		return false;
+	}
+	*target = {
+		.leaf = destination,
+		.selectionFrom = 0,
+		.selectionTo = 0,
+	};
+	return true;
+}
+
 std::optional<State::BlockPath> State::listBeforeActiveParagraph() const {
 	const auto descriptor = textNode(_activeTextOrdinal);
 	if (!descriptor || descriptor->leaf.kind != LeafKind::BlockText) {
@@ -4792,23 +4838,29 @@ State::ParagraphBoundaryJoinResult State::joinActiveParagraphBoundary(
 		.result = ApplyResult::Failed,
 	};
 	return applyCheckedMutation(failure, [forward](State &candidate) {
-		const auto textJoin = candidate.canJoinActiveTextBlockBoundary(
-			forward);
-		const auto listJoin = !textJoin
+		const auto dropEmpty = !forward
+			&& candidate.canRemoveEmptyBlockBeforeActive();
+		const auto textJoin = !dropEmpty
+			&& candidate.canJoinActiveTextBlockBoundary(forward);
+		const auto listJoin = !dropEmpty
+			&& !textJoin
 			&& (forward
 				? candidate.canJoinActiveListItemForward()
 				: candidate.canJoinActiveListItemBoundary());
-		const auto listAppend = !textJoin
+		const auto listAppend = !dropEmpty
+			&& !textJoin
 			&& !listJoin
 			&& !forward
 			&& candidate.canJoinActiveParagraphIntoPreviousList();
-		if (!textJoin && !listJoin && !listAppend) {
+		if (!dropEmpty && !textJoin && !listJoin && !listAppend) {
 			return CheckedMutationResult<ParagraphBoundaryJoinResult>{
 				.result = { .result = ApplyResult::Unchanged },
 			};
 		}
 		auto target = ActiveTextSelectionTarget();
-		const auto joined = textJoin
+		const auto joined = dropEmpty
+			? candidate.removeEmptyBlockBeforeActiveUnchecked(&target)
+			: textJoin
 			? candidate.joinActiveParagraphBoundaryUnchecked(
 				forward,
 				&target)
