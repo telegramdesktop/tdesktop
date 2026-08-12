@@ -318,6 +318,7 @@ public:
 	[[nodiscard]] std::optional<int> liftActiveListItem();
 	[[nodiscard]] std::optional<int> appendActiveParagraphToPreviousList();
 	[[nodiscard]] std::optional<int> resetActiveBlockToParagraph();
+	[[nodiscard]] std::optional<int> escapeEmptyActiveBlockLine();
 	[[nodiscard]] std::optional<int> handleActiveParagraphEnter(
 		const ActiveEnterContext &context);
 	[[nodiscard]] std::optional<int> handleActiveQuoteEnter(
@@ -827,6 +828,7 @@ private:
 	[[nodiscard]] bool joinActiveListItemForwardUnchecked(
 		ActiveTextSelectionTarget *target);
 	[[nodiscard]] std::optional<int> resetActiveBlockToParagraphUnchecked();
+	[[nodiscard]] std::optional<int> escapeEmptyActiveBlockLineUnchecked();
 	[[nodiscard]] bool canRemoveEmptyBlockBeforeActive() const;
 	[[nodiscard]] bool removeEmptyBlockBeforeActiveUnchecked(
 		ActiveTextSelectionTarget *target);

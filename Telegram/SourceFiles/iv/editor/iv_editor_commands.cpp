@@ -39,6 +39,10 @@ using Command = bool(*)(CommandContext&);
 		context.state->handleActiveListEnter(context.enter));
 }
 
+[[nodiscard]] bool EscapeEmptyLine(CommandContext &context) {
+	return Applied(context, context.state->escapeEmptyActiveBlockLine());
+}
+
 [[nodiscard]] bool HeadingEnter(CommandContext &context) {
 	return Applied(
 		context,
@@ -72,6 +76,7 @@ using Command = bool(*)(CommandContext&);
 const Command kEnterChain[] = {
 	InsertLeadingParagraph,
 	ListEnter,
+	EscapeEmptyLine,
 	HeadingEnter,
 	FooterEnter,
 	ParagraphEnter,

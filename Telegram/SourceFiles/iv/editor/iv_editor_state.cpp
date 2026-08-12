@@ -4636,6 +4636,68 @@ bool State::joinActiveListItemForwardUnchecked(
 	return true;
 }
 
+std::optional<int> State::escapeEmptyActiveBlockLine() {
+	return applyCheckedMutation(std::optional<int>(), [](State &candidate) {
+		const auto result = candidate.escapeEmptyActiveBlockLineUnchecked();
+		return CheckedMutationResult<std::optional<int>>{
+			.apply = result.has_value(),
+			.result = result,
+		};
+	});
+}
+
+std::optional<int> State::escapeEmptyActiveBlockLineUnchecked() {
+	const auto descriptor = textNode(_activeTextOrdinal);
+	if (!descriptor || descriptor->leaf.kind != LeafKind::BlockText) {
+		return std::nullopt;
+	}
+	const auto path = descriptor->leaf.block;
+	const auto &steps = path.container.steps;
+	if (steps.empty()
+		|| steps.back().kind != BlockContainerKind::BlockChildren) {
+		return std::nullopt;
+	}
+	const auto owner = block(path);
+	if (!owner
+		|| owner->kind != BlockKind::Paragraph
+		|| !owner->blocks.empty()
+		|| !owner->anchorId.isEmpty()
+		|| !RichTextIsEmpty(owner->text)) {
+		return std::nullopt;
+	}
+	const auto blocks = blockContainer(path.container);
+	if (!blocks
+		|| path.index < 0
+		|| path.index + 1 != int(blocks->size())) {
+		return std::nullopt;
+	}
+	auto parentPath = BlockPath{ .index = steps.back().blockIndex };
+	parentPath.container.steps.assign(steps.begin(), steps.end() - 1);
+	clearTemporaryDownParagraph();
+	blocks->erase(blocks->begin() + path.index);
+	auto removed = false;
+	if (blocks->empty()) {
+		const auto parent = blockContainer(parentPath.container);
+		if (!parent
+			|| parentPath.index < 0
+			|| parentPath.index >= int(parent->size())) {
+			return std::nullopt;
+		}
+		if (BlockIsEmpty((*parent)[parentPath.index])) {
+			parent->erase(parent->begin() + parentPath.index);
+			removed = true;
+		}
+	}
+	const auto paragraph = reuseOrInsertParagraph(
+		parentPath.container,
+		parentPath.index + (removed ? 0 : 1));
+	if (!paragraph) {
+		return std::nullopt;
+	}
+	rebuild();
+	return activateRebuiltLeaf(paragraph->leaf);
+}
+
 std::optional<int> State::resetActiveBlockToParagraph() {
 	return applyCheckedMutation(std::optional<int>(), [](State &candidate) {
 		const auto result = candidate.resetActiveBlockToParagraphUnchecked();
