@@ -4636,6 +4636,35 @@ bool State::joinActiveListItemForwardUnchecked(
 	return true;
 }
 
+std::optional<int> State::resetActiveBlockToParagraph() {
+	return applyCheckedMutation(std::optional<int>(), [](State &candidate) {
+		const auto result = candidate.resetActiveBlockToParagraphUnchecked();
+		return CheckedMutationResult<std::optional<int>>{
+			.apply = result.has_value(),
+			.result = result,
+		};
+	});
+}
+
+std::optional<int> State::resetActiveBlockToParagraphUnchecked() {
+	const auto descriptor = textNode(_activeTextOrdinal);
+	if (!descriptor || descriptor->leaf.kind != LeafKind::BlockText) {
+		return std::nullopt;
+	}
+	const auto leaf = descriptor->leaf;
+	const auto owner = block(leaf.block);
+	if (!owner
+		|| ((owner->kind != BlockKind::Heading)
+			&& (owner->kind != BlockKind::Footer))) {
+		return std::nullopt;
+	}
+	clearTemporaryDownParagraph();
+	owner->kind = BlockKind::Paragraph;
+	owner->headingLevel = 0;
+	rebuild();
+	return activateRebuiltLeaf(leaf);
+}
+
 std::optional<State::BlockPath> State::listBeforeActiveParagraph() const {
 	const auto descriptor = textNode(_activeTextOrdinal);
 	if (!descriptor || descriptor->leaf.kind != LeafKind::BlockText) {

@@ -10590,7 +10590,9 @@ bool Widget::handleFieldKey(QKeyEvent *e) {
 			};
 		});
 	} else if (atStart && key == Qt::Key_Backspace) {
-		handled = undoLastInputRule() || removeBoundaryOwner(false);
+		handled = undoLastInputRule()
+			|| resetActiveBlockType()
+			|| removeBoundaryOwner(false);
 	} else if (atEnd && key == Qt::Key_Delete) {
 		handled = removeBoundaryOwner(true);
 	}
@@ -10895,6 +10897,48 @@ bool Widget::moveTabBoundary(bool forward) {
 		}
 		refreshPreparedContent();
 		activateTextOrdinalAtEnd(*ordinal);
+		handled = true;
+		return MutationTransactionResult{
+			.committed = committed,
+			.changed = true,
+		};
+	});
+	return handled;
+}
+
+bool Widget::resetActiveBlockType() {
+	if (_field->isHidden()
+		|| (_state->activeFieldMode() != State::FieldMode::Rich)) {
+		return false;
+	}
+	const auto info = activeBlockInfo();
+	if ((info.kind != RichPage::BlockKind::Heading)
+		&& (info.kind != RichPage::BlockKind::Footer)) {
+		return false;
+	}
+	auto handled = false;
+	beginArticleRelayoutDeferral();
+	const auto relayoutGuard = gsl::finally([&] {
+		endArticleRelayoutDeferral();
+	});
+	recordMutationTransaction([&] {
+		const auto committed = commitInlineField();
+		if (committed == ApplyResult::Failed) {
+			handled = true;
+			return MutationTransactionResult{
+				.committed = committed,
+				.failed = true,
+			};
+		}
+		const auto target = _state->resetActiveBlockToParagraph();
+		if (!target) {
+			return MutationTransactionResult{
+				.committed = committed,
+				.changed = (committed == ApplyResult::Changed),
+			};
+		}
+		refreshPreparedContent();
+		activateTextOrdinal(*target, 0);
 		handled = true;
 		return MutationTransactionResult{
 			.committed = committed,
