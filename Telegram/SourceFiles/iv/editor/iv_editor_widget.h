@@ -635,6 +635,7 @@ private:
 		bool *mutated = nullptr);
 	[[nodiscard]] bool moveTabBoundary(bool forward);
 	[[nodiscard]] bool moveListItemDepth(bool deeper);
+	[[nodiscard]] bool resetActiveBlockType();
 	[[nodiscard]] bool removeBoundaryOwner(bool forward);
 	void ensurePendingActivation();
 	void updateInlineFieldHeightOverride();
