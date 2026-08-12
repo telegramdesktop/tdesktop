@@ -48,7 +48,7 @@ jobs:
 
     strategy:
       matrix:
-        arch: [x64_x86, x64, arm64]
+        arch: ${{ github.ref == 'refs/heads/nightly' && fromJSON('["x64_x86", "x64"]') || fromJSON('["x64_x86", "x64", "arm64"]') }}
         qt: ["", qt6]
         generator: ["", "Ninja Multi-Config"]
         exclude:
@@ -61,6 +61,11 @@ jobs:
       UPLOAD_ARTIFACT: "true"
       ONLY_CACHE: "false"
       PREPARE_PATH: "Telegram/build/prepare/prepare.py"
+      BUILD_CONFIG: ${{ github.ref == 'refs/heads/nightly' && 'Release' || 'Debug' }}
+      DISABLE_AUTOUPDATE: ${{ github.ref == 'refs/heads/nightly' && 'ON' || 'OFF' }}
+      DISABLE_CRASH_REPORTS: ${{ github.ref == 'refs/heads/nightly' && 'ON' || 'OFF' }}
+      SKIP_RELEASE_LIBS: ${{ github.ref != 'refs/heads/nightly' && 'skip-release' || '' }}
+      CACHE_CONFIG: ${{ github.ref == 'refs/heads/nightly' && 'rel' || '' }}
 
     defaults:
       run:
@@ -145,8 +150,8 @@ jobs:
             !${{ env.LibrariesPath }}\[qQ]t[_-]*
             ${{ env.LibrariesPath }}\cache_keys\*
             !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
-          key: ${{ runner.OS }}-${{ matrix.arch }}-libs-v2-${{ env.CACHE_KEY }}
-          restore-keys: ${{ runner.OS }}-${{ matrix.arch }}-libs-v2-
+          key: ${{ runner.OS }}-${{ matrix.arch }}-libs-v2${{ env.CACHE_CONFIG }}-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-${{ matrix.arch }}-libs-v2${{ env.CACHE_CONFIG }}-
 
       - name: Qt cache.
         id: cache-qt
@@ -155,12 +160,12 @@ jobs:
           path: |
             ${{ env.LibrariesPath }}\[qQ]t[_-]*
             ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
-          key: ${{ runner.OS }}-${{ matrix.arch }}-${{ matrix.qt || 'qt' }}-${{ env.CACHE_KEY }}
-          restore-keys: ${{ runner.OS }}-${{ matrix.arch }}-${{ matrix.qt || 'qt' }}-
+          key: ${{ runner.OS }}-${{ matrix.arch }}-${{ matrix.qt || 'qt' }}${{ env.CACHE_CONFIG }}-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-${{ matrix.arch }}-${{ matrix.qt || 'qt' }}${{ env.CACHE_CONFIG }}-
 
       - name: Libraries.
         run: |
-          %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent ${{ matrix.qt }}
+          %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat %SKIP_RELEASE_LIBS% silent ${{ matrix.qt }}
 
       - name: Read configuration matrix.
         shell: bash
@@ -224,22 +229,22 @@ jobs:
           %TDESKTOP_BUILD_ARCH% ^
           ${{ matrix.qt }} ^
           %TDESKTOP_BUILD_API% ^
-          -D CMAKE_CONFIGURATION_TYPES=Debug ^
+          -D CMAKE_CONFIGURATION_TYPES=%BUILD_CONFIG% ^
           -D CMAKE_COMPILE_WARNING_AS_ERROR=ON ^
           -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT= ^
-          -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF ^
-          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF ^
+          -D DESKTOP_APP_DISABLE_AUTOUPDATE=%DISABLE_AUTOUPDATE% ^
+          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=%DISABLE_CRASH_REPORTS% ^
           %TDESKTOP_BUILD_DEFINE%
 
-          cmake --build ..\out --config Debug --parallel
+          cmake --build ..\out --config %BUILD_CONFIG% --parallel
 
       - name: Move artifact.
         if: (env.UPLOAD_ARTIFACT == 'true') || (github.ref == 'refs/heads/nightly')
         run: |
-          set OUT=%TBUILD%\%REPO_NAME%\out\Debug
+          set OUT=%TBUILD%\%REPO_NAME%\out\%BUILD_CONFIG%
           mkdir artifact
           move %OUT%\Telegram.exe artifact/
-          move %OUT%\Updater.exe artifact/
+          if "%DISABLE_AUTOUPDATE%"=="OFF" move %OUT%\Updater.exe artifact/
       - uses: actions/upload-artifact@v7
         name: Upload artifact.
         if: (env.UPLOAD_ARTIFACT == 'true') || (github.ref == 'refs/heads/nightly')

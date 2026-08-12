@@ -8,11 +8,14 @@ add_library(td_iv OBJECT)
 init_non_host_target(td_iv)
 add_library(tdesktop::td_iv ALIAS td_iv)
 
-add_library(td_iv_reorder_warning_off INTERFACE)
-target_compile_options(td_iv_reorder_warning_off
+add_library(td_iv_microtex_warnings_off INTERFACE)
+target_compile_options(td_iv_microtex_warnings_off
 INTERFACE
     $<$<CXX_COMPILER_ID:Clang,AppleClang>:-Wno-reorder-ctor>
     $<$<CXX_COMPILER_ID:GNU>:-Wno-reorder>
+    $<$<CXX_COMPILER_ID:MSVC>:/wd5038>
+    $<$<CXX_COMPILER_ID:MSVC>:/wd4265>
+    $<$<CXX_COMPILER_ID:MSVC>:/wd4005>
 )
 
 if (MSVC AND CMAKE_GENERATOR MATCHES "^Visual Studio ")
@@ -128,7 +131,7 @@ target_link_libraries(td_iv
 PRIVATE
     desktop-app::external_cmark_gfm
     desktop-app::external_microtex
-    td_iv_reorder_warning_off
+    td_iv_microtex_warnings_off
     desktop-app::lib_spellcheck
 )
 
