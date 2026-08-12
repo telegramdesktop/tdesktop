@@ -11,14 +11,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Test {
 
-// In-process render of the widget itself — immune to occlusion by floating
-// elements, other windows, or a locked desktop session.
+// In-process renders of the widget itself are immune to occlusion by floating
+// elements, other windows, or a locked desktop session. GrabWidget uses the
+// full bounds; GrabRect renders |logicalRect| in widget-local coordinates,
+// clamped to the bounds, while handling device pixel ratio. A rect outside the
+// visible area is still produced. Both initialize non-opaque grabs with active
+// st::windowBg; uncovered pixels measure that harness base rather than widget
+// paint, while the blank-root refusal probes paint coverage separately.
 [[nodiscard]] QImage GrabWidget(not_null<QWidget*> widget);
 
-// Renders only |logicalRect| (widget-local logical coordinates) out of the
-// widget, clamped to its bounds, handling device pixel ratio. The grab
-// renders the widget itself, so a rect outside the visible area is still
-// produced.
 [[nodiscard]] QImage GrabRect(
 	not_null<QWidget*> widget,
 	const QRect &logicalRect);

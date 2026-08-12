@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_log.h"
 #include "ui/ui_utility.h"
 
+#include "styles/palette.h"
+
 #include <QtGui/QPainter>
 
 namespace Test {
@@ -163,15 +165,15 @@ constexpr auto kBackgroundOwnerHops = 6;
 		|| widget->testAttribute(Qt::WA_NoSystemBackground)) {
 		return QString();
 	}
-	const auto windowColor = widget->palette().color(QPalette::Window);
-	const auto matched = SampledMatchPermille(image, windowColor);
-	if (!matched) {
+	const auto harnessThemeBase = st::windowBg->c;
+	const auto baseMatched = SampledMatchPermille(image, harnessThemeBase);
+	if (!baseMatched) {
 		return QString();
 	}
 	const auto unpainted = UnpaintedPermille(widget, logicalRect);
-	Note(u"capture coverage: windowBrush=%1/1000 unpainted=%2/1000 "
+	Note(u"capture coverage: harnessThemeBase=%1/1000 unpainted=%2/1000 "
 		u"(threshold %3/1000)"_q
-		.arg(matched)
+		.arg(baseMatched)
 		.arg(unpainted)
 		.arg(kUnpaintedMinPermille));
 	if (unpainted < kUnpaintedMinPermille) {
@@ -180,20 +182,20 @@ constexpr auto kBackgroundOwnerHops = 6;
 	return u"render root paints no background of its own: %1 has neither "
 		u"Qt::WA_OpaquePaintEvent nor Qt::WA_NoSystemBackground, and %2/1000 "
 		u"sampled points were painted by neither the widget nor its "
-		u"children, so QWidget::grab() filled them with the default "
-		u"QPalette::Window brush %3 (%4/1000 of the grab reads that colour) "
+		u"children; the harness theme base is active st::windowBg %3 "
+		u"(%4/1000 of the grab matches that base) "
 		u"- %5"_q
 		.arg(WidgetDescription(widget))
 		.arg(unpainted)
-		.arg(windowColor.name())
-		.arg(matched)
+		.arg(harnessThemeBase.name())
+		.arg(baseMatched)
 		.arg(BackgroundOwnerDetails(widget, logicalRect));
 }
 
 } // namespace
 
 QImage GrabWidget(not_null<QWidget*> widget) {
-	return widget->grab().toImage();
+	return Ui::GrabWidgetToImage(widget, QRect(), st::windowBg->c);
 }
 
 QImage GrabRect(
@@ -202,7 +204,7 @@ QImage GrabRect(
 	const auto bounded = logicalRect.intersected(widget->rect());
 	return bounded.isEmpty()
 		? QImage()
-		: widget->grab(bounded).toImage();
+		: Ui::GrabWidgetToImage(widget, bounded, st::windowBg->c);
 }
 
 bool LooksBlank(const QImage &image) {
