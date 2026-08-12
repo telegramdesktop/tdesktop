@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor.h"
 #include "editor/photo_editor_common.h"
 #include "iv/editor/iv_editor_clipboard_import.h"
+#include "iv/editor/iv_editor_commands.h"
 #include "iv/editor/iv_editor_session.h"
 #include "iv/editor/iv_editor_text_entities.h"
 #include "iv/editor/iv_editor_window.h"
@@ -10456,80 +10457,20 @@ bool Widget::handleFieldKey(QKeyEvent *e) {
 			return false;
 		}
 		recordMutationTransaction([&] {
-			const auto enter = MakeActiveEnterContext(
-				activeTextInsertContext());
+			auto context = CommandContext{
+				.state = _state.get(),
+				.enter = MakeActiveEnterContext(activeTextInsertContext()),
+				.caretAtStart = atStart,
+			};
 			const auto committed = commitInlineField();
-			// At the very start of the very first text node of a block that
-			// is not a top-level paragraph or heading (a table, a details
-			// block, ...) Enter inserts a paragraph above everything, so
-			// content can always be added at the very top of the article.
-			// The focus stays in the initially edited node. List items are
-			// excluded: the list Enter handler inserts an item above and
-			// escapes into a leading paragraph on the second press.
-			const auto insertLeading = (committed != ApplyResult::Failed)
-				&& atStart
-				&& !_state->previousEditableOrdinal().has_value()
-				&& !_state->isActiveTopLevelParagraphOrHeading()
-				&& !_state->hasActiveListItemSurface();
-			const auto leadingTarget = insertLeading
-				? _state->insertLeadingParagraphActive(false)
-				: std::optional<int>();
 			if (committed == ApplyResult::Failed) {
 				handled = true;
 				return MutationTransactionResult{
 					.committed = committed,
 					.failed = true,
 				};
-			} else if (leadingTarget) {
-				refreshPreparedContentAndActivate(*leadingTarget, 0);
-				handled = true;
-				return MutationTransactionResult{
-					.committed = committed,
-					.changed = true,
-				};
-			} else if (const auto target
-				= _state->handleActiveListEnter(enter)) {
-				refreshPreparedContentAndActivate(*target, 0);
-				handled = true;
-				return MutationTransactionResult{
-					.committed = committed,
-					.changed = true,
-				};
-			} else if (const auto target
-				= _state->handleActiveHeadingEnter(enter)) {
-				refreshPreparedContentAndActivate(*target, 0);
-				handled = true;
-				return MutationTransactionResult{
-					.committed = committed,
-					.changed = true,
-				};
-			} else if (const auto target
-				= _state->handleActiveFooterEnter(enter)) {
-				refreshPreparedContentAndActivate(*target, 0);
-				handled = true;
-				return MutationTransactionResult{
-					.committed = committed,
-					.changed = true,
-				};
-			} else if (const auto target
-				= _state->handleActiveParagraphEnter(enter)) {
-				refreshPreparedContentAndActivate(*target, 0);
-				handled = true;
-				return MutationTransactionResult{
-					.committed = committed,
-					.changed = true,
-				};
-			} else if (const auto target
-				= _state->handleActiveQuoteEnter(enter)) {
-				refreshPreparedContentAndActivate(*target, 0);
-				handled = true;
-				return MutationTransactionResult{
-					.committed = committed,
-					.changed = true,
-				};
-			} else if (const auto target
-				= _state->submitActiveSingleLineField(enter)) {
-				refreshPreparedContentAndActivate(*target, 0);
+			} else if (RunEnterChain(context)) {
+				refreshPreparedContentAndActivate(context.targetOrdinal, 0);
 				handled = true;
 				return MutationTransactionResult{
 					.committed = committed,
