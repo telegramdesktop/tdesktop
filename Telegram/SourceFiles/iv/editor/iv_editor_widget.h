@@ -614,6 +614,10 @@ private:
 	void pasteImportedTable(TableImportResult &&imported);
 	[[nodiscard]] std::optional<BlocksImportResult> importBlocksFromMimeData(
 		not_null<const QMimeData*> data) const;
+	[[nodiscard]] auto markdownForLiteralHtmlImport(
+		const BlocksImportResult &imported,
+		not_null<const QMimeData*> data) const
+	-> std::optional<BlocksImportResult>;
 	void pasteImportedBlocks(BlocksImportResult &&imported);
 	void resolveImportedLocalMedia(BlocksImportResult &&imported);
 	[[nodiscard]] bool handleIvClipboardMime(

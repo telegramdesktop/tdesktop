@@ -74,6 +74,11 @@ struct BlocksImportResult {
 	const RichMessageLimits &limits,
 	int usedBlocks);
 
+[[nodiscard]] std::optional<BlocksImportResult> BlocksFromMarkdown(
+	const QString &text,
+	const RichMessageLimits &limits,
+	int usedBlocks);
+
 [[nodiscard]] bool MimeDataLooksLikeExportedHtml(
 	not_null<const QMimeData*> data);
 

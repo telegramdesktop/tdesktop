@@ -761,4 +761,736 @@ std::optional<BlocksImportResult> BlocksFromMimeData(
 		usedBlocks);
 }
 
+namespace {
+
+constexpr auto kMaxMarkdownImportLength = 256 * 1024;
+constexpr auto kMaxMarkdownQuoteDepth = 8;
+
+struct MarkdownInlineState {
+	TextWithTags text;
+	bool marked = false;
+};
+
+[[nodiscard]] QString WithMarkdownTag(const QString &tag, QStringView added) {
+	return TextUtilities::TagWithAdded(tag, added.toString());
+}
+
+void AppendMarkdownRun(
+		MarkdownInlineState &state,
+		QStringView text,
+		const QString &tag) {
+	if (text.isEmpty()) {
+		return;
+	}
+	const auto offset = int(state.text.text.size());
+	state.text.text.append(text);
+	if (!tag.isEmpty()) {
+		state.text.tags.push_back({ offset, int(text.size()), tag });
+	}
+}
+
+[[nodiscard]] bool MarkdownEscapable(QChar ch) {
+	switch (ch.unicode()) {
+	case '\\':
+	case '*':
+	case '_':
+	case '~':
+	case '|':
+	case '`':
+	case '[':
+	case ']':
+	case '(':
+	case ')':
+	case '#':
+	case '!':
+	case '-':
+	case '.':
+	case '>':
+		return true;
+	default:
+		return false;
+	}
+}
+
+[[nodiscard]] QString MarkdownLinkUrl(QStringView inside) {
+	auto url = inside.trimmed();
+	const auto space = url.indexOf(u' ');
+	if (space >= 0) {
+		url = url.mid(0, space);
+	}
+	if (url.isEmpty()) {
+		return QString();
+	} else if (url.startsWith(u"www.")) {
+		return u"https://"_q + url.toString();
+	}
+	const auto scheme = url.indexOf(u"://");
+	return (scheme > 0 || url.startsWith(u"mailto:"))
+		? url.toString()
+		: QString();
+}
+
+[[nodiscard]] int FindMarkdownLinkClose(QStringView text, int from) {
+	auto depth = 0;
+	for (auto i = from; i < text.size(); ++i) {
+		const auto ch = text[i];
+		if (ch == u'\\') {
+			++i;
+		} else if (ch == u'(') {
+			++depth;
+		} else if (ch == u')') {
+			if (!depth) {
+				return i;
+			}
+			--depth;
+		}
+	}
+	return -1;
+}
+
+[[nodiscard]] int FindMarkdownCloser(
+		QStringView text,
+		int from,
+		QStringView marker,
+		bool wordBounded) {
+	for (auto i = from; i + marker.size() <= text.size(); ++i) {
+		if (text.mid(i, marker.size()) != marker
+			|| text[i - 1].isSpace()) {
+			continue;
+		} else if (wordBounded
+			&& (i + marker.size() < text.size())
+			&& text[i + marker.size()].isLetterOrNumber()) {
+			continue;
+		}
+		return i;
+	}
+	return -1;
+}
+
+void ParseMarkdownInline(
+		MarkdownInlineState &state,
+		QStringView text,
+		const QString &tag) {
+	struct Marker {
+		QStringView marker;
+		QStringView applied;
+		bool wordBounded = false;
+		QStringView appliedNested;
+	};
+	static const auto kMarkers = std::array{
+		Marker{ u"***", u"**", false, u"__" },
+		Marker{ u"___", u"**", true, u"__" },
+		Marker{ u"**", u"**" },
+		Marker{ u"__", u"**", true },
+		Marker{ u"~~", u"~~" },
+		Marker{ u"||", u"||" },
+		Marker{ u"*", u"__", true },
+		Marker{ u"_", u"__", true },
+	};
+	auto literalFrom = 0;
+	auto i = 0;
+	const auto flush = [&](int till) {
+		AppendMarkdownRun(
+			state,
+			text.mid(literalFrom, till - literalFrom),
+			tag);
+	};
+	while (i < text.size()) {
+		const auto ch = text[i];
+		if (ch == u'\\'
+			&& (i + 1 < text.size())
+			&& MarkdownEscapable(text[i + 1])) {
+			flush(i);
+			AppendMarkdownRun(state, text.mid(i + 1, 1), tag);
+			state.marked = true;
+			i += 2;
+			literalFrom = i;
+			continue;
+		} else if (ch == u'`') {
+			const auto closer = text.indexOf(u'`', i + 1);
+			if (closer > i + 1) {
+				flush(i);
+				AppendMarkdownRun(
+					state,
+					text.mid(i + 1, closer - i - 1),
+					WithMarkdownTag(tag, u"`"));
+				state.marked = true;
+				i = closer + 1;
+				literalFrom = i;
+				continue;
+			}
+		} else if ((ch == u'<')
+			&& (text.mid(i + 1).indexOf(u'>') > 0)) {
+			const auto closer = text.indexOf(u'>', i + 1);
+			const auto url = MarkdownLinkUrl(text.mid(i + 1, closer - i - 1));
+			if (!url.isEmpty()) {
+				flush(i);
+				AppendMarkdownRun(
+					state,
+					text.mid(i + 1, closer - i - 1),
+					WithMarkdownTag(tag, url));
+				state.marked = true;
+				i = closer + 1;
+				literalFrom = i;
+				continue;
+			}
+		} else if ((ch == u'[')
+			|| ((ch == u'!')
+				&& (i + 1 < text.size())
+				&& (text[i + 1] == u'['))) {
+			const auto open = (ch == u'!') ? (i + 1) : i;
+			const auto closeBracket = text.indexOf(u"](", open + 1);
+			const auto closeParen = (closeBracket > open)
+				? FindMarkdownLinkClose(text, closeBracket + 2)
+				: -1;
+			if (closeParen > closeBracket + 2) {
+				const auto url = MarkdownLinkUrl(text.mid(
+					closeBracket + 2,
+					closeParen - closeBracket - 2));
+				const auto inner = text.mid(
+					open + 1,
+					closeBracket - open - 1);
+				if (!url.isEmpty() && !inner.isEmpty()) {
+					flush(i);
+					ParseMarkdownInline(
+						state,
+						inner,
+						WithMarkdownTag(tag, url));
+					state.marked = true;
+					i = closeParen + 1;
+					literalFrom = i;
+					continue;
+				}
+			}
+		} else {
+			auto matched = false;
+			for (const auto &marker : kMarkers) {
+				if (text.mid(i, marker.marker.size()) != marker.marker) {
+					continue;
+				} else if (marker.wordBounded
+					&& (i > 0)
+					&& text[i - 1].isLetterOrNumber()) {
+					continue;
+				}
+				const auto contentFrom = i + int(marker.marker.size());
+				if (contentFrom >= text.size()
+					|| text[contentFrom].isSpace()) {
+					continue;
+				}
+				const auto closer = FindMarkdownCloser(
+					text,
+					contentFrom + 1,
+					marker.marker,
+					marker.wordBounded);
+				if (closer < 0) {
+					continue;
+				}
+				auto applied = WithMarkdownTag(tag, marker.applied);
+				if (!marker.appliedNested.isEmpty()) {
+					applied = WithMarkdownTag(applied, marker.appliedNested);
+				}
+				flush(i);
+				ParseMarkdownInline(
+					state,
+					text.mid(contentFrom, closer - contentFrom),
+					applied);
+				state.marked = true;
+				i = closer + int(marker.marker.size());
+				literalFrom = i;
+				matched = true;
+				break;
+			}
+			if (matched) {
+				continue;
+			}
+		}
+		++i;
+	}
+	flush(int(text.size()));
+}
+
+[[nodiscard]] TextWithTags MarkdownInlineText(
+		QStringView line,
+		bool *marked) {
+	auto state = MarkdownInlineState();
+	ParseMarkdownInline(state, line, QString());
+	if (state.marked && marked) {
+		*marked = true;
+	}
+	return std::move(state.text);
+}
+
+struct MarkdownListMarker {
+	int indent = 0;
+	bool ordered = false;
+	int number = 1;
+	RichPage::TaskState task = RichPage::TaskState::None;
+	int contentFrom = 0;
+};
+
+[[nodiscard]] std::optional<MarkdownListMarker> ParseMarkdownListMarker(
+		QStringView line) {
+	auto result = MarkdownListMarker();
+	auto i = 0;
+	while (i < line.size() && (line[i] == u' ' || line[i] == u'\t')) {
+		result.indent += (line[i] == u'\t') ? 4 : 1;
+		++i;
+	}
+	if (i >= line.size()) {
+		return std::nullopt;
+	}
+	const auto ch = line[i];
+	if (ch == u'-' || ch == u'*' || ch == u'+') {
+		++i;
+	} else if (ch.isDigit()) {
+		auto digits = 0;
+		auto value = 0;
+		while (i < line.size() && line[i].isDigit() && digits < 9) {
+			value = value * 10 + line[i].digitValue();
+			++i;
+			++digits;
+		}
+		if (i >= line.size() || (line[i] != u'.' && line[i] != u')')) {
+			return std::nullopt;
+		}
+		++i;
+		result.ordered = true;
+		result.number = value;
+	} else {
+		return std::nullopt;
+	}
+	if (i >= line.size() || line[i] != u' ') {
+		return std::nullopt;
+	}
+	while (i < line.size() && line[i] == u' ') {
+		++i;
+	}
+	if ((i + 2 < line.size())
+		&& (line[i] == u'[')
+		&& (line[i + 2] == u']')
+		&& ((i + 3 == line.size()) || (line[i + 3] == u' '))) {
+		const auto mark = line[i + 1];
+		if (mark == u' ' || mark == u'x' || mark == u'X') {
+			result.task = (mark == u' ')
+				? RichPage::TaskState::Unchecked
+				: RichPage::TaskState::Checked;
+			i += 3;
+			while (i < line.size() && line[i] == u' ') {
+				++i;
+			}
+		}
+	}
+	result.contentFrom = i;
+	return result;
+}
+
+[[nodiscard]] bool MarkdownDividerLine(QStringView trimmed) {
+	if (trimmed.size() < 3) {
+		return false;
+	}
+	const auto ch = trimmed[0];
+	if (ch != u'-' && ch != u'*' && ch != u'_') {
+		return false;
+	}
+	auto count = 0;
+	for (const auto c : trimmed) {
+		if (c == ch) {
+			++count;
+		} else if (c != u' ') {
+			return false;
+		}
+	}
+	return count >= 3;
+}
+
+[[nodiscard]] bool MarkdownSetextH1Line(QStringView trimmed) {
+	if (trimmed.isEmpty()) {
+		return false;
+	}
+	for (const auto ch : trimmed) {
+		if (ch != u'=') {
+			return false;
+		}
+	}
+	return true;
+}
+
+[[nodiscard]] bool MarkdownTableSeparatorLine(QStringView trimmed) {
+	if (!trimmed.contains(u'-') || !trimmed.contains(u'|')) {
+		return false;
+	}
+	for (const auto ch : trimmed) {
+		if (ch != u'-' && ch != u'|' && ch != u':' && ch != u' ') {
+			return false;
+		}
+	}
+	return true;
+}
+
+[[nodiscard]] QList<QStringView> SplitMarkdownTableRow(QStringView line) {
+	auto trimmed = line.trimmed();
+	if (trimmed.startsWith(u'|')) {
+		trimmed = trimmed.mid(1);
+	}
+	if (trimmed.endsWith(u'|') && !trimmed.endsWith(u"\\|")) {
+		trimmed = trimmed.mid(0, trimmed.size() - 1);
+	}
+	auto result = QList<QStringView>();
+	auto from = 0;
+	for (auto i = 0; i <= trimmed.size(); ++i) {
+		if (i == trimmed.size()
+			|| (trimmed[i] == u'|' && (i == 0 || trimmed[i - 1] != u'\\'))) {
+			result.push_back(trimmed.mid(from, i - from).trimmed());
+			from = i + 1;
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] RichPage::TableAlignment MarkdownCellAlignment(
+		QStringView separator) {
+	const auto left = separator.startsWith(u':');
+	const auto right = separator.endsWith(u':');
+	return (left && right)
+		? RichPage::TableAlignment::Center
+		: right
+		? RichPage::TableAlignment::Right
+		: RichPage::TableAlignment::Left;
+}
+
+struct MarkdownBlocksBuilder {
+	int budget = 0;
+	bool truncated = false;
+	bool marked = false;
+
+	[[nodiscard]] bool allot() {
+		if (budget > 0) {
+			--budget;
+			return true;
+		}
+		truncated = true;
+		return false;
+	}
+};
+
+void ParseMarkdownBlocks(
+	MarkdownBlocksBuilder &builder,
+	std::vector<RichPage::Block> &out,
+	QStringView text,
+	int depth);
+
+[[nodiscard]] RichPage::Block MarkdownParagraph(
+		MarkdownBlocksBuilder &builder,
+		QStringView line) {
+	auto block = RichPage::Block();
+	block.kind = RichPage::BlockKind::Paragraph;
+	block.text.text = ConvertImportedText(
+		MarkdownInlineText(line, &builder.marked));
+	return block;
+}
+
+void ParseMarkdownBlocks(
+		MarkdownBlocksBuilder &builder,
+		std::vector<RichPage::Block> &out,
+		QStringView text,
+		int depth) {
+	auto lines = QList<QStringView>();
+	auto from = 0;
+	for (auto i = 0; i <= text.size(); ++i) {
+		if (i == text.size() || text[i] == u'\n') {
+			auto line = text.mid(from, i - from);
+			if (line.endsWith(u'\r')) {
+				line = line.mid(0, line.size() - 1);
+			}
+			lines.push_back(line);
+			from = i + 1;
+		}
+	}
+	auto index = 0;
+	const auto count = int(lines.size());
+	while (index != count) {
+		if (builder.truncated) {
+			return;
+		}
+		const auto line = lines[index];
+		const auto trimmed = line.trimmed();
+		if (trimmed.isEmpty()) {
+			++index;
+			continue;
+		}
+		const auto fence = trimmed.startsWith(u"```");
+		if (fence) {
+			const auto language = trimmed.mid(3).trimmed().toString();
+			auto content = QStringList();
+			++index;
+			while (index != count
+				&& !lines[index].trimmed().startsWith(u"```")) {
+				content.push_back(lines[index].toString());
+				++index;
+			}
+			if (index != count) {
+				++index;
+			}
+			if (!builder.allot()) {
+				return;
+			}
+			auto block = RichPage::Block();
+			block.kind = RichPage::BlockKind::Code;
+			block.language = language;
+			block.text.text.text = content.join(u'\n');
+			out.push_back(std::move(block));
+			builder.marked = true;
+			continue;
+		}
+		auto headingLevel = 0;
+		while (headingLevel < trimmed.size()
+			&& (headingLevel < 6)
+			&& (trimmed[headingLevel] == u'#')) {
+			++headingLevel;
+		}
+		if (headingLevel > 0
+			&& headingLevel < trimmed.size()
+			&& trimmed[headingLevel] == u' ') {
+			if (!builder.allot()) {
+				return;
+			}
+			auto block = RichPage::Block();
+			block.kind = RichPage::BlockKind::Heading;
+			block.headingLevel = headingLevel;
+			block.text.text = ConvertImportedText(MarkdownInlineText(
+				trimmed.mid(headingLevel + 1).trimmed(),
+				&builder.marked));
+			out.push_back(std::move(block));
+			builder.marked = true;
+			++index;
+			continue;
+		}
+		if (MarkdownDividerLine(trimmed)) {
+			if (!builder.allot()) {
+				return;
+			}
+			auto block = RichPage::Block();
+			block.kind = RichPage::BlockKind::Divider;
+			out.push_back(std::move(block));
+			builder.marked = true;
+			++index;
+			continue;
+		}
+		if (trimmed.startsWith(u'>') && depth < kMaxMarkdownQuoteDepth) {
+			auto inner = QStringList();
+			while (index != count) {
+				const auto quoteLine = lines[index].trimmed();
+				if (!quoteLine.startsWith(u'>')) {
+					break;
+				}
+				auto stripped = quoteLine.mid(1);
+				if (stripped.startsWith(u' ')) {
+					stripped = stripped.mid(1);
+				}
+				inner.push_back(stripped.toString());
+				++index;
+			}
+			if (!builder.allot()) {
+				return;
+			}
+			auto blocks = std::vector<RichPage::Block>();
+			ParseMarkdownBlocks(
+				builder,
+				blocks,
+				inner.join(u'\n'),
+				depth + 1);
+			auto block = RichPage::Block();
+			block.kind = RichPage::BlockKind::Quote;
+			if ((blocks.size() == 1)
+				&& (blocks.front().kind == RichPage::BlockKind::Paragraph)) {
+				block.text = std::move(blocks.front().text);
+			} else {
+				block.blocks = std::move(blocks);
+			}
+			out.push_back(std::move(block));
+			builder.marked = true;
+			continue;
+		}
+		if (trimmed.contains(u'|')
+			&& (index + 1 != count)
+			&& MarkdownTableSeparatorLine(lines[index + 1].trimmed())) {
+			const auto header = SplitMarkdownTableRow(line);
+			const auto separators = SplitMarkdownTableRow(lines[index + 1]);
+			if (!header.isEmpty()
+				&& (separators.size() == header.size())) {
+				if (!builder.allot()) {
+					return;
+				}
+				auto block = RichPage::Block();
+				block.kind = RichPage::BlockKind::Table;
+				block.bordered = true;
+				const auto appendRow = [&](
+						const QList<QStringView> &cells,
+						bool isHeader) {
+					auto row = RichPage::TableRow();
+					row.cells.reserve(cells.size());
+					for (auto i = 0; i != cells.size(); ++i) {
+						const auto full = cells[i].toString().replace(
+							u"\\|"_q,
+							u"|"_q);
+						row.cells.push_back({
+							.text = {
+								.text = ConvertImportedText(
+									MarkdownInlineText(
+										QStringView(full)
+											.left(kMaxCellLength),
+										&builder.marked)),
+							},
+							.header = isHeader,
+							.alignment = (i < separators.size())
+								? MarkdownCellAlignment(separators[i])
+								: RichPage::TableAlignment::Left,
+						});
+					}
+					block.tableRows.push_back(std::move(row));
+				};
+				appendRow(header, true);
+				index += 2;
+				while (index != count) {
+					const auto rowLine = lines[index].trimmed();
+					if (!rowLine.contains(u'|')) {
+						break;
+					}
+					auto cells = SplitMarkdownTableRow(lines[index]);
+					while (cells.size() > header.size()) {
+						cells.removeLast();
+					}
+					while (cells.size() < header.size()) {
+						cells.push_back(QStringView());
+					}
+					appendRow(cells, false);
+					++index;
+				}
+				out.push_back(std::move(block));
+				builder.marked = true;
+				continue;
+			}
+		}
+		if (ParseMarkdownListMarker(line)) {
+			auto stack = std::vector<std::pair<int, RichPage::Block*>>();
+			const auto startList = [&](
+					const MarkdownListMarker &item)
+			-> RichPage::Block* {
+				auto block = RichPage::Block();
+				block.kind = RichPage::BlockKind::List;
+				block.listKind = item.ordered
+					? RichPage::ListKind::Ordered
+					: RichPage::ListKind::Bullet;
+				if (item.ordered && item.number != 1) {
+					block.orderedList.start = item.number;
+				}
+				if (stack.empty()) {
+					out.push_back(std::move(block));
+					return &out.back();
+				}
+				auto &parent = *stack.back().second;
+				auto &owner = parent.listItems.back();
+				if (!owner.text.text.text.isEmpty()) {
+					auto paragraph = RichPage::Block();
+					paragraph.kind = RichPage::BlockKind::Paragraph;
+					paragraph.text = std::move(owner.text);
+					owner.text = RichPage::RichText();
+					owner.blocks.push_back(std::move(paragraph));
+				}
+				owner.blocks.push_back(std::move(block));
+				return &owner.blocks.back();
+			};
+			while (index != count) {
+				const auto itemLine = lines[index];
+				const auto item = ParseMarkdownListMarker(itemLine);
+				if (!item) {
+					break;
+				}
+				while (!stack.empty()
+					&& (item->indent < stack.back().first)) {
+					stack.pop_back();
+				}
+				const auto sameLevel = !stack.empty()
+					&& (item->indent == stack.back().first);
+				if (sameLevel) {
+					const auto list = stack.back().second;
+					const auto ordered = (list->listKind
+						== RichPage::ListKind::Ordered);
+					if (ordered != item->ordered) {
+						if (stack.size() > 1) {
+							stack.pop_back();
+						} else {
+							break;
+						}
+					}
+				}
+				if (stack.empty()
+					|| (item->indent > stack.back().first)) {
+					if (!builder.allot()) {
+						return;
+					}
+					const auto list = startList(*item);
+					stack.push_back({ item->indent, list });
+				}
+				auto &list = *stack.back().second;
+				auto entry = RichPage::ListItem();
+				entry.taskState = item->task;
+				entry.text.text = ConvertImportedText(MarkdownInlineText(
+					itemLine.mid(item->contentFrom),
+					&builder.marked));
+				list.listItems.push_back(std::move(entry));
+				builder.marked = true;
+				++index;
+			}
+			continue;
+		}
+		if ((index + 1 != count)
+			&& MarkdownSetextH1Line(lines[index + 1].trimmed())) {
+			if (!builder.allot()) {
+				return;
+			}
+			auto block = RichPage::Block();
+			block.kind = RichPage::BlockKind::Heading;
+			block.headingLevel = 1;
+			block.text.text = ConvertImportedText(
+				MarkdownInlineText(trimmed, &builder.marked));
+			out.push_back(std::move(block));
+			builder.marked = true;
+			index += 2;
+			continue;
+		}
+		if (!builder.allot()) {
+			return;
+		}
+		out.push_back(MarkdownParagraph(builder, trimmed));
+		++index;
+	}
+}
+
+} // namespace
+
+std::optional<BlocksImportResult> BlocksFromMarkdown(
+		const QString &text,
+		const RichMessageLimits &limits,
+		int usedBlocks) {
+	const auto budget = limits.maxBlocks - usedBlocks - 1;
+	if (text.isEmpty()
+		|| (text.size() > kMaxMarkdownImportLength)
+		|| (text.size() > limits.lengthLimit)
+		|| (budget <= 0)) {
+		return std::nullopt;
+	}
+	auto builder = MarkdownBlocksBuilder{
+		.budget = budget,
+	};
+	auto blocks = std::vector<RichPage::Block>();
+	ParseMarkdownBlocks(builder, blocks, text, 0);
+	if (blocks.empty() || !builder.marked) {
+		return std::nullopt;
+	}
+	return BlocksImportResult{
+		.blocks = std::move(blocks),
+		.truncated = builder.truncated,
+	};
+}
+
 } // namespace Iv::Editor
