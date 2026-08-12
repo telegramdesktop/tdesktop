@@ -768,6 +768,13 @@ Fn<SendMenu::Details()> SendFilesBox::prepareSendMenuDetails(
 	auto initial = descriptor.sendMenuDetails;
 	return crl::guard(this, [=] {
 		auto result = initial ? initial() : SendMenu::Details();
+		if ((result.type == SendMenu::Type::Scheduled
+			|| result.type == SendMenu::Type::ScheduledToUser)
+			&& ranges::any_of(
+				_list.files,
+				&Ui::PreparedFile::ttlSeconds)) {
+			result.type = SendMenu::Type::SilentOnly;
+		}
 		result.spoiler = !hasSpoilerMenu()
 			? SendMenu::SpoilerState::None
 			: allWithSpoilers()
@@ -2518,6 +2525,11 @@ bool SendFilesBox::validateLength(const QString &text) const {
 void SendFilesBox::send(
 		Api::SendOptions options,
 		bool ctrlShiftEnter) {
+	if (options.scheduled
+		&& ranges::any_of(_list.files, &Ui::PreparedFile::ttlSeconds)) {
+		showToast(tr::lng_ttl_no_schedule(tr::now));
+		return;
+	}
 	if ((_sendType == Api::SendType::Scheduled
 		|| _sendType == Api::SendType::ScheduledToUser)
 		&& !options.scheduled) {
@@ -2574,7 +2586,7 @@ void SendFilesBox::send(
 				file.caption = {};
 			}
 		}
-		if (options.scheduled || !way.sendImagesAsPhotos()) {
+		if (!way.sendImagesAsPhotos()) {
 			for (auto &file : _list.files) {
 				file.ttlSeconds = 0;
 			}

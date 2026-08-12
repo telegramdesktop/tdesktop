@@ -2950,6 +2950,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_ttl_period_custom" = "Custom Time...";
 "lng_ttl_period_custom_value" = "Custom Time ({time})";
 "lng_ttl_period_hint" = "Choose how long the media will be kept after opening.";
+"lng_ttl_no_schedule" = "Self-destructing media can't be scheduled.";
 
 "lng_profile_add_more_after_create" = "You will be able to add more members after you create the group.";
 "lng_profile_camera_title" = "Capture yourself";
