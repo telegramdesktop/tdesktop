@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/qt/qt_common_adapters.h"
 #include "base/algorithm.h"
+#include "base/event_filter.h"
 #include "base/unixtime.h"
 #include "base/weak_ptr.h"
 #include "core/click_handler_types.h"
@@ -210,6 +211,8 @@ MarkdownDocumentWidget::MarkdownDocumentWidget(QWidget *parent)
 			update();
 		}
 	}, _highlightReadyLifetime);
+
+	watchFormattedDateVisibility();
 }
 
 MarkdownDocumentWidget::~MarkdownDocumentWidget() {
@@ -881,6 +884,9 @@ void MarkdownDocumentWidget::focusInEvent(QFocusEvent *e) {
 }
 
 bool MarkdownDocumentWidget::eventHook(QEvent *e) {
+	if (e->type() == QEvent::ParentChange) {
+		watchFormattedDateVisibility();
+	}
 	if (e->type() == QEvent::TouchBegin
 		|| e->type() == QEvent::TouchUpdate
 		|| e->type() == QEvent::TouchEnd
@@ -1146,11 +1152,66 @@ void MarkdownDocumentWidget::forceRelayoutCurrentWidth() {
 	update();
 }
 
+bool MarkdownDocumentWidget::formattedDateRefreshVisible() const {
+	return isVisible() && !window()->isMinimized();
+}
+
+void MarkdownDocumentWidget::watchFormattedDateVisibility() {
+	_formattedDateVisibilityLifetime.destroy();
+	const auto handle = [=](not_null<QEvent*> e) {
+		const auto type = e->type();
+		if (type == QEvent::Show
+			|| type == QEvent::Hide
+			|| type == QEvent::WindowStateChange) {
+			applyFormattedDateVisibility();
+		}
+		return base::EventFilterResult::Continue;
+	};
+	for (auto widget = static_cast<QWidget*>(this)
+		; widget
+		; widget = widget->parentWidget()) {
+		base::install_event_filter(
+			widget,
+			handle,
+			_formattedDateVisibilityLifetime);
+		if (widget->isWindow()) {
+			break;
+		}
+	}
+	applyFormattedDateVisibility();
+}
+
+void MarkdownDocumentWidget::applyFormattedDateVisibility() {
+	const auto visible = formattedDateRefreshVisible();
+	if (visible == _formattedDateVisible) {
+		return;
+	}
+	_formattedDateVisible = visible;
+	if (!visible) {
+		_formattedDateTimer.cancel();
+		return;
+	}
+	if (_article) {
+		const auto next = _article->nextFormattedDateUpdate();
+		const auto now = base::unixtime::now();
+		if (next && next <= now) {
+			refreshFormattedDates();
+			return;
+		}
+	}
+	scheduleFormattedDateRefresh();
+}
+
 void MarkdownDocumentWidget::scheduleFormattedDateRefresh() {
 	const auto nearest = _article
 		? _article->nextFormattedDateUpdate()
 		: TimeId(0);
 	if (!nearest) {
+		_formattedDateTimer.cancel();
+		return;
+	}
+	if (!formattedDateRefreshVisible()) {
+		_formattedDateVisible = false;
 		_formattedDateTimer.cancel();
 		return;
 	}
@@ -1164,6 +1225,11 @@ void MarkdownDocumentWidget::scheduleFormattedDateRefresh() {
 
 void MarkdownDocumentWidget::refreshFormattedDates() {
 	if (!_article) {
+		return;
+	}
+	if (!formattedDateRefreshVisible()) {
+		_formattedDateVisible = false;
+		_formattedDateTimer.cancel();
 		return;
 	}
 	_article->refreshFormattedDates(base::unixtime::now());

@@ -139,6 +139,9 @@ private:
 	void forceRelayoutCurrentWidth();
 	void scheduleFormattedDateRefresh();
 	void refreshFormattedDates();
+	[[nodiscard]] bool formattedDateRefreshVisible() const;
+	void watchFormattedDateVisibility();
+	void applyFormattedDateVisibility();
 	void retryMissingMediaBlocks();
 	void updateHover(const MarkdownArticleHitTestResult &state);
 	void updateHoverAtCursor();
@@ -189,6 +192,8 @@ private:
 	QPoint _tripleClickPoint;
 	base::Timer _tripleClickTimer;
 	base::Timer _formattedDateTimer;
+	rpl::lifetime _formattedDateVisibilityLifetime;
+	bool _formattedDateVisible = false;
 	std::optional<PreparedLink> _selectionClickPreparedLink;
 	PreparedPlaceholderBlockId _pressedPlaceholderId;
 	MarkdownArticleButtonRowHit _pressedButtonRow;
