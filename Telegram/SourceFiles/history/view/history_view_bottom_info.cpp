@@ -437,7 +437,7 @@ void BottomInfo::paintEffect(
 		x += width + add;
 		widthLeft -= width + add;
 	}
-	if (!animations.empty()) {
+	if (!animations.empty() && context.reactionInfo) {
 		const auto now = context.now;
 		context.reactionInfo->effectPaint = [
 			now,
