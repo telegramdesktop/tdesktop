@@ -184,6 +184,31 @@ void PaintTtlLabel(
 	p.drawTextLeft(left, top, outerWidth, text, width - 2 * padding.x());
 }
 
+void PaintTtlSingleViewBadge(
+		QPainter &p,
+		QRect inner,
+		not_null<HistoryItem*> item,
+		const Ui::ChatPaintContext &context) {
+	const auto media = item->media();
+	if (!media || !media->ttlSecondsSingleView()) {
+		return;
+	}
+	const auto sti = context.imageStyle();
+	const auto &icon = sti->historyVideoMessageTtlIcon;
+	const auto rect = QRect(
+		rect::right(inner) - (icon.width() * 3 / 4),
+		rect::bottom(inner) - (icon.height() * 3 / 4),
+		icon.width(),
+		icon.height());
+	{
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(sti->msgDateImgBg);
+		p.drawEllipse(rect);
+	}
+	icon.paintInCenter(p, rect);
+}
+
 std::unique_ptr<Media> CreateAttach(
 		not_null<Element*> parent,
 		DocumentData *document,

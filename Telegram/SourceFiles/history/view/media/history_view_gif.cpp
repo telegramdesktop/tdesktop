@@ -805,6 +805,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 				st::msgFileRadialLine,
 				sti->historyFileThumbRadialFg,
 				context.paused);
+			PaintTtlSingleViewBadge(p, inner, _realParent, context);
 		} else if (icon) {
 			icon->paintInCenter(p, inner);
 		}

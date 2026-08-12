@@ -63,6 +63,12 @@ void PaintTtlLabel(
 	not_null<HistoryItem*> item,
 	const Ui::ChatPaintContext &context);
 
+void PaintTtlSingleViewBadge(
+	QPainter &p,
+	QRect inner,
+	not_null<HistoryItem*> item,
+	const Ui::ChatPaintContext &context);
+
 [[nodiscard]] std::unique_ptr<Media> CreateAttach(
 	not_null<Element*> parent,
 	DocumentData *document,

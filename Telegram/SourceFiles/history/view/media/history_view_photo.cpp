@@ -439,6 +439,7 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 			sti->historyFileThumbCancel.paintInCenter(p, inner);
 		} else if (ttlCovered) {
 			paintTtlFire(p, inner);
+			PaintTtlSingleViewBadge(p, inner, _realParent, context);
 		} else {
 			sti->historyFileThumbDownload.paintInCenter(p, inner);
 		}
@@ -919,6 +920,7 @@ void Photo::drawGrouped(
 			&& !_data->waitingForAlbum();
 		if (ttlIdle) {
 			paintTtlFire(p, inner);
+			PaintTtlSingleViewBadge(p, inner, _realParent, context);
 		} else if (previous && radialOpacity > 0. && radialOpacity < 1.) {
 			PaintInterpolatedIcon(p, icon, *previous, radialOpacity, inner);
 		} else {
