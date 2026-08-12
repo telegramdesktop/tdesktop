@@ -167,10 +167,14 @@ struct ParsedMicrotexFormula {
 }
 
 [[nodiscard]] int RoundedLogicalMetric(int scaledValue) {
-	return (scaledValue > 0)
-		? ((scaledValue + kFormulaExactMetricScale - 1)
-			/ kFormulaExactMetricScale)
-		: 0;
+	// int64: the library saturates absurd box sizes at INT_MAX, and adding
+	// the rounding term to that overflows a plain int.
+	const auto rounded = (std::max(scaledValue, 0)
+		+ int64(kFormulaExactMetricScale) - 1)
+		/ kFormulaExactMetricScale;
+	return (rounded > std::numeric_limits<int>::max())
+		? std::numeric_limits<int>::max()
+		: int(rounded);
 }
 
 [[nodiscard]] FormulaExactMetrics ExtractExactMetrics(
@@ -424,7 +428,7 @@ MicrotexRenderResult RenderWithMicrotex(const MicrotexRenderRequest &request) {
 	}
 	image.setDevicePixelRatio(request.devicePixelRatio);
 	image.fill(Qt::transparent);
-	{
+	try {
 		QPainter painter(&image);
 		painter.setRenderHint(QPainter::Antialiasing, true);
 		painter.setRenderHint(QPainter::TextAntialiasing, true);
@@ -433,6 +437,17 @@ MicrotexRenderResult RenderWithMicrotex(const MicrotexRenderRequest &request) {
 			1. / double(kFormulaExactMetricScale));
 		tex::Graphics2D_qt graphics(&painter);
 		parsed.render->draw(graphics, 0, 0);
+	} catch (const std::exception &exception) {
+		// The parse path is exception-safe, and a measured-good formula can
+		// still fail here (allocation pressure on ~100k glyph paths), so the
+		// draw gets the same containment as the parse.
+		result.measured.success = false;
+		result.measured.error = ExceptionText(exception);
+		return result;
+	} catch (...) {
+		result.measured.success = false;
+		result.measured.error = u"unknown-exception"_q;
+		return result;
 	}
 	result.image = std::move(image);
 	return result;
