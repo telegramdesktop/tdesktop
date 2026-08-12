@@ -891,6 +891,7 @@ void LocationPicker::setupWebview() {
 		Webview::WindowConfig{
 			.opaqueBg = st::windowBg->c,
 			.storageId = _webviewStorageId,
+			.dataRequestRedirectHost = u"api.mapbox.com"_q,
 			.safe = true,
 		});
 	const auto raw = _webview.get();
