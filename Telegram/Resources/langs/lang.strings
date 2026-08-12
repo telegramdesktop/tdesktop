@@ -6097,6 +6097,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mediaview_hours_ago#one" = "{count} hour ago";
 "lng_mediaview_hours_ago#other" = "{count} hours ago";
 "lng_mediaview_date_time" = "{date} at {time}";
+"lng_mediaview_ttl_in" = "Disappears in {time}";
 "lng_mediaview_set_userpic" = "Set as Main";
 "lng_mediaview_report_profile_photo" = "Report";
 

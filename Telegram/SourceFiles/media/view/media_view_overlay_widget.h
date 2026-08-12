@@ -420,6 +420,8 @@ private:
 	void updateControls();
 	void updateControlsGeometry();
 	void updateNavigationControlsGeometry();
+	void refreshTtlBadge(TimeId destroyAt);
+	void updateTtlBadgePosition();
 
 	void fillContextMenuActions(const Ui::Menu::MenuCallback &addAction);
 
@@ -703,6 +705,7 @@ private:
 	int _minUsedTop = 0; // Geometry without top notch on macOS.
 	int _maxUsedHeight = 0;
 	int _x = 0, _y = 0, _w = 0, _h = 0;
+	bool _photoRedisplayQueued = false;
 	int _xStart = 0, _yStart = 0;
 	int _zoom = 0; // < 0 - out, 0 - none, > 0 - in
 	float64 _zoomToScreen = 0.; // for documents
@@ -833,6 +836,11 @@ private:
 	// _saveMsgAnimation -> _saveMsgTimer -> _saveMsgAnimation.
 	Ui::Animations::Simple _saveMsgAnimation;
 	base::Timer _saveMsgTimer;
+	base::Timer _ttlTimer;
+	std::unique_ptr<Ui::RpWidget> _ttlBadge;
+	FullMsgId _ttlBadgeItem;
+	TimeId _ttlBadgeDestroyAt = 0;
+	bool _ttlDeferredClose = false;
 
 	QString _chapterText;
 	QRect _chapterRect;

@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
+class RpWidget;
+
 struct TtlCountdown {
 	explicit TtlCountdown(Fn<void()> repaint);
 
@@ -35,5 +37,10 @@ void PaintTtlCountdown(
 	bool paused);
 
 void PaintTtlFireIcon(QPainter &p, QRect inner, QImage &cache);
+
+[[nodiscard]] std::unique_ptr<RpWidget> MakeTtlCountdownBadge(
+	QWidget *parent,
+	TimeId destroyAt,
+	crl::time ttl);
 
 } // namespace Ui

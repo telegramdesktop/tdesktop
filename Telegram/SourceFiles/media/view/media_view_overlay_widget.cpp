@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/controls/swipe_handler.h"
 #include "ui/controls/swipe_handler_data.h"
+#include "ui/controls/ttl_media.h"
 #include "ui/layers/layer_manager.h"
 #include "ui/text/text_utilities.h"
 #include "ui/chat/chat_style.h"
@@ -68,6 +69,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item_helpers.h"
 #include "history/view/media/history_view_media.h"
+#include "history/view/media/history_view_media_common.h"
 #include "history/view/history_view_group_call_bar.h"
 #include "history/view/reactions/history_view_reactions_selector.h"
 #include "data/components/sponsored_messages.h"
@@ -108,6 +110,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_ttl_media.h"
 #include "platform/platform_text_recognition.h"
 
 #include <QGraphicsOpacityEffect>
@@ -691,6 +694,11 @@ OverlayWidget::OverlayWidget()
 		_saveMsgAnimation.start([=] { updateSaveMsg(); }, 1., 0., delay);
 	});
 
+	_ttlTimer.setCallback([=] {
+		updateControls();
+		_widget->update();
+	});
+
 	_chapterTimer.setCallback([=, delay = st::mediaviewChapterHiding] {
 		_chapterAnimation.start([=] { updateChapter(); }, 1., 0., delay);
 	});
@@ -1253,8 +1261,43 @@ void OverlayWidget::updateControlsGeometry() {
 	}
 
 	updateControls();
+	updateTtlBadgePosition();
 	resizeContentByScreenSize();
 	update();
+}
+
+void OverlayWidget::refreshTtlBadge(TimeId destroyAt) {
+	const auto item = (destroyAt > 0 && _message)
+		? _message->fullId()
+		: FullMsgId();
+	if (_ttlBadgeItem == item && _ttlBadgeDestroyAt == destroyAt) {
+		return;
+	}
+	_ttlBadgeItem = item;
+	_ttlBadgeDestroyAt = destroyAt;
+	if (!item) {
+		_ttlBadge = nullptr;
+		return;
+	}
+	const auto media = _message->media();
+	const auto ttl = (media && !media->ttlSecondsSingleView())
+		? media->ttlSeconds()
+		: crl::time();
+	_ttlBadge = Ui::MakeTtlCountdownBadge(_body, destroyAt, ttl);
+	updateTtlBadgePosition();
+}
+
+void OverlayWidget::updateTtlBadgePosition() {
+	if (!_ttlBadge) {
+		return;
+	}
+	const auto skip = st::mediaviewTtlSkip;
+	const auto margin = st::ttlMediaBadgeMargin;
+	const auto left = topShadowOnTheRight()
+		? (skip - margin)
+		: (width() - _ttlBadge->width() - skip + margin);
+	_ttlBadge->move(left, _minUsedTop + skip - margin);
+	_ttlBadge->raise();
 }
 
 void OverlayWidget::updateNavigationControlsGeometry() {
@@ -1441,7 +1484,11 @@ void OverlayWidget::documentUpdated(not_null<DocumentData*> document) {
 	if (_document != document) {
 		return;
 	} else if (documentBubbleShown()) {
-		if ((_document->loading() && _docCancel->isHidden())
+		if (_message
+			&& _message->forbidsSaving()
+			&& _documentMedia->loaded(true)) {
+			redisplayContent();
+		} else if ((_document->loading() && _docCancel->isHidden())
 			|| (!_document->loading() && !_docCancel->isHidden())) {
 			updateControls();
 		} else if (_document->loading()) {
@@ -1580,6 +1627,16 @@ void OverlayWidget::updateControls() {
 			_docSaveAs->hide();
 			_docCancel->moveToLeft(_docRect.x() + 2 * st::mediaviewFilePadding + st::mediaviewFileIconSize, _docRect.y() + st::mediaviewFilePadding + st::mediaviewFileLinksTop);
 			_docCancel->show();
+		} else if (_message && _message->forbidsSaving()) {
+			_docDownload->hide();
+			_docSaveAs->hide();
+			_docCancel->hide();
+			if (!_documentMedia->loaded(true)) {
+				DocumentSaveClickHandler::Save(
+					fileOrigin(),
+					_document,
+					DocumentSaveClickHandler::Mode::ToCacheOrFile);
+			}
 		} else {
 			if (_documentMedia->loaded(true)) {
 				_docDownload->hide();
@@ -1675,6 +1732,20 @@ void OverlayWidget::updateControls() {
 		return dNow;
 	}();
 	_dateText = d.isValid() ? Ui::FormatDateTime(d) : QString();
+	const auto destroyAt = _message ? _message->mediaDestroyAt() : TimeId();
+	if (destroyAt > 0) {
+		const auto left = std::max(
+			destroyAt - base::unixtime::now(),
+			TimeId(0));
+		_dateText += u" · %1"_q.arg(tr::lng_mediaview_ttl_in(
+			tr::now,
+			lt_time,
+			tr::lng_seconds_tiny(tr::now, lt_count, left)));
+		_ttlTimer.callOnce(crl::time(1000));
+	} else {
+		_ttlTimer.cancel();
+	}
+	refreshTtlBadge(destroyAt);
 	if (!_fromName.isEmpty()) {
 		_fromNameLabel.setText(
 			st::mediaviewTextStyle,
@@ -2115,7 +2186,8 @@ void OverlayWidget::fillContextMenuActions(
 	}
 	if ((!story || story->canDownloadChecked())
 		&& _document
-		&& !_document->filepath(true).isEmpty()) {
+		&& !_document->filepath(true).isEmpty()
+		&& !(_message && _message->forbidsSaving())) {
 		const auto text = Platform::IsMac()
 			? tr::lng_context_show_in_finder(tr::now)
 			: tr::lng_context_show_in_folder(tr::now);
@@ -4503,9 +4575,25 @@ void OverlayWidget::displayPhoto(
 		_w = size.width();
 		_h = size.height();
 	} else {
-		const auto size = style::ConvertScale(flipSizeByRotation(QSize(
-			photo->width(),
-			photo->height())));
+		auto dimensions = QSize(photo->width(), photo->height());
+		if (dimensions.isEmpty()) {
+			const auto best = [&]() -> Image* {
+				const auto large = _photoMedia->image(
+					Data::PhotoSize::Large);
+				const auto thumbnail = _photoMedia->image(
+					Data::PhotoSize::Thumbnail);
+				return large
+					? large
+					: thumbnail
+					? thumbnail
+					: _photoMedia->image(Data::PhotoSize::Small);
+			}();
+			if (best) {
+				dimensions = best->size();
+			}
+		}
+		const auto size = style::ConvertScale(
+			flipSizeByRotation(dimensions));
 		_w = size.width();
 		_h = size.height();
 	}
@@ -5105,6 +5193,9 @@ void OverlayWidget::handleStreamingUpdate(Streaming::Update &&update) {
 	}, [](MutedByOther) {
 	}, [&](Finished) {
 		updatePlaybackState();
+		if (base::take(_ttlDeferredClose)) {
+			close();
+		}
 	});
 }
 
@@ -6016,6 +6107,18 @@ void OverlayWidget::validatePhotoImage(Image *image, bool blurred) {
 void OverlayWidget::validatePhotoCurrentImage() {
 	if (!_photo) {
 		return;
+	}
+	if (_width <= 0 || _height <= 0) {
+		const auto hasImage = _photoMedia->image(Data::PhotoSize::Large)
+			|| _photoMedia->image(Data::PhotoSize::Thumbnail)
+			|| _photoMedia->image(Data::PhotoSize::Small);
+		if (hasImage && !_photoRedisplayQueued) {
+			_photoRedisplayQueued = true;
+			InvokeQueued(_widget, [=] {
+				_photoRedisplayQueued = false;
+				redisplayContent();
+			});
+		}
 	}
 	validatePhotoImage(_photoMedia->image(Data::PhotoSize::Large), false);
 	validatePhotoImage(_photoMedia->image(Data::PhotoSize::Thumbnail), true);
@@ -7631,8 +7734,38 @@ void OverlayWidget::setSession(not_null<Main::Session*> session) {
 	) | rpl::filter([=](not_null<const HistoryItem*> item) {
 		return (_message == item);
 	}) | rpl::on_next([=] {
-		close();
-		clearSession();
+		const auto media = _message->media();
+		if (media
+			&& media->ttlSecondsSingleView()
+			&& !isHidden()
+			&& (_photo || _document)) {
+			setContext(v::null);
+			updateControls();
+		} else {
+			close();
+			clearSession();
+		}
+	}, _sessionLifetime);
+
+	session->data().itemViewRefreshRequest(
+	) | rpl::filter([=](not_null<const HistoryItem*> item) {
+		return (_message == item) && !isHidden();
+	}) | rpl::on_next([=] {
+		const auto media = _message->media();
+		const auto same = media
+			&& ((_photo && media->photo() == _photo)
+				|| (_document && media->document() == _document));
+		if (same) {
+			return;
+		}
+		const auto playing = _streamed
+			&& _document
+			&& !_streamed->instance.player().finished();
+		if (playing) {
+			_ttlDeferredClose = true;
+		} else {
+			close();
+		}
 	}, _sessionLifetime);
 
 	session->account().sessionChanges(
@@ -8624,6 +8757,11 @@ void OverlayWidget::clearAfterHide() {
 	_recognitionPendingDocumentId = 0;
 	_recognitionRetryOnLarge = false;
 	clearRecognitionSelection();
+	_ttlBadge = nullptr;
+	_ttlBadgeItem = FullMsgId();
+	_ttlBadgeDestroyAt = 0;
+	_ttlDeferredClose = false;
+	_ttlTimer.cancel();
 	_body->hide();
 	clearStreaming();
 	destroyThemePreview();

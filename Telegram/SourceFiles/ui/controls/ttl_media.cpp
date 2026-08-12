@@ -8,13 +8,73 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/ttl_media.h"
 
 #include "base/unixtime.h"
+#include "lang/lang_keys.h"
 #include "ui/arc_angles.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/rp_widget.h"
+#include "styles/style_ttl_media.h"
 
 #include <QSvgRenderer>
 
 namespace Ui {
+namespace {
+
+class TtlCountdownBadge final : public RpWidget {
+public:
+	TtlCountdownBadge(QWidget *parent, TimeId destroyAt, crl::time ttl);
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+
+	TtlCountdown _countdown;
+
+};
+
+TtlCountdownBadge::TtlCountdownBadge(
+	QWidget *parent,
+	TimeId destroyAt,
+	crl::time ttl)
+: RpWidget(parent)
+, _countdown([=] { update(); }) {
+	_countdown.deadline = crl::now()
+		+ (destroyAt - base::unixtime::now()) * crl::time(1000);
+	_countdown.total = std::max(ttl, crl::time(1)) * crl::time(1000);
+	_countdown.animation.start();
+	const auto margin = st::ttlMediaBadgeMargin;
+	resize(Size(st::ttlMediaBadgeSize + 2 * margin));
+	setAttribute(Qt::WA_TransparentForMouseEvents);
+	show();
+}
+
+void TtlCountdownBadge::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+	auto hq = PainterHighQualityEnabler(p);
+	const auto circle = rect() - Margins(st::ttlMediaBadgeMargin);
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::radialBg);
+	p.drawEllipse(circle);
+	const auto line = st::ttlMediaBadgeLine;
+	PaintTtlCountdown(
+		p,
+		circle - Margins(2 * line),
+		line,
+		&_countdown,
+		st::radialFg,
+		!window()->isActiveWindow());
+	const auto left = std::max(
+		_countdown.deadline - crl::now(),
+		crl::time(0));
+	p.setPen(st::radialFg);
+	p.setFont(st::normalFont);
+	const auto seconds = int((left + 999) / 1000);
+	p.drawText(
+		circle,
+		Qt::AlignCenter,
+		tr::lng_seconds_tiny(tr::now, lt_count, seconds));
+}
+
+} // namespace
 
 TtlCountdown::TtlCountdown(Fn<void()> repaint)
 : animation(std::move(repaint)) {
@@ -92,6 +152,13 @@ void PaintTtlFireIcon(QPainter &p, QRect inner, QImage &cache) {
 		svg.render(&q, Rect(inner.size()) - Margins(inner.width() / 4));
 	}
 	p.drawImage(inner.topLeft(), cache);
+}
+
+std::unique_ptr<RpWidget> MakeTtlCountdownBadge(
+		QWidget *parent,
+		TimeId destroyAt,
+		crl::time ttl) {
+	return std::make_unique<TtlCountdownBadge>(parent, destroyAt, ttl);
 }
 
 } // namespace Ui

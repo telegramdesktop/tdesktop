@@ -22,6 +22,7 @@ set(style_files
     ui/effects/premium.style
     ui/effects/premium_limits.style
     ui/color_indices.style
+    ui/controls/ttl_media.style
     ui/controls/userpic_button.style
     boxes/boxes.style
     api/api_chat_invite.style
