@@ -58,6 +58,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/components/ephemeral_messages.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
+#include "data/data_media_types.h"
 #include "data/data_user.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
 #include "data/data_premium_limits.h"
@@ -1652,6 +1653,42 @@ void SendFilesBox::pushBlock(int from, int till) {
 				&icons.menuSpoiler,
 				spoilered);
 		}
+		const auto ttlUser = _toPeer->asUser();
+		const auto canSetTtl = !hasPrice()
+			&& (_sendType == Api::SendType::Normal)
+			&& _sendWay.current().sendImagesAsPhotos()
+			&& (file.type == Ui::PreparedFile::Type::Photo
+				|| file.type == Ui::PreparedFile::Type::Video)
+			&& ttlUser
+			&& !ttlUser->isSelf()
+			&& !ttlUser->isBot();
+		if (canSetTtl) {
+			auto submenu = std::make_unique<Ui::PopupMenu>(
+				state->menu.get(),
+				state->menu->st());
+			const auto current = file.ttlSeconds;
+			const auto choose = [=](crl::time ttl) {
+				applyBlockChanges();
+				_list.files[fileIndex].ttlSeconds = ttl;
+			};
+			const auto add = [&](const QString &label, crl::time value) {
+				Menu::AddCheckedAction(
+					submenu.get(),
+					label,
+					[=] { choose(value); },
+					nullptr,
+					(current == value));
+			};
+			add(tr::lng_ttl_period_once(tr::now), Data::kTimeToLiveSingleView);
+			add(tr::lng_seconds(tr::now, lt_count, 3), 3);
+			add(tr::lng_seconds(tr::now, lt_count, 10), 10);
+			add(tr::lng_seconds(tr::now, lt_count, 30), 30);
+			add(tr::lng_ttl_period_keep(tr::now), 0);
+			state->menu->addAction(
+				tr::lng_ttl_period_menu(tr::now),
+				std::move(submenu),
+				&st::menuIconTTL);
+		}
 		const auto canEditCover = file.isVideoFile()
 			&& (_toPeer->isBroadcast()
 				|| _toPeer->isSelf()
@@ -2478,12 +2515,21 @@ void SendFilesBox::send(
 				file.caption = {};
 			}
 		}
+		if (options.scheduled || !way.sendImagesAsPhotos()) {
+			for (auto &file : _list.files) {
+				file.ttlSeconds = 0;
+			}
+		}
 
 		Assert(_list.filesToProcess.empty());
 
+		auto groupsWay = way;
+		if (ranges::any_of(_list.files, &Ui::PreparedFile::ttlSeconds)) {
+			groupsWay.setGroupFiles(false);
+		}
 		auto groups = DivideByGroups(
 			std::move(_list),
-			way,
+			groupsWay,
 			(_limits & SendFilesAllow::OnlyOne));
 		auto bundle = PrepareFilesBundle(
 			std::move(groups),

@@ -96,6 +96,7 @@ struct PreparedFile {
 	QSize shownDimensions;
 	QSize originalDimensions;
 	Type type = Type::File;
+	crl::time ttlSeconds = 0;
 	bool spoiler = false;
 	bool sendLargePhotos = false;
 };
