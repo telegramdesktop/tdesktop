@@ -606,6 +606,9 @@ private:
 	void applyStructuralMonospaceAction();
 	void insertCodeBlock();
 	[[nodiscard]] bool handleFieldKey(QKeyEvent *e);
+
+	[[nodiscard]] bool handleFieldInputRule(QKeyEvent *e);
+	[[nodiscard]] bool undoLastInputRule();
 	struct VerticalNavigationTarget {
 		int ordinal = -1;
 		int offset = 0;
@@ -997,6 +1000,12 @@ private:
 	int _activeDisplayMathBaselineHeight = 0;
 	int _pendingOrdinal = -1;
 	int _pendingCursorOffset = 0;
+	struct InputRuleUndo {
+		int historyIndex = -1;
+		State::LeafPath leaf;
+		QString text;
+	};
+	std::optional<InputRuleUndo> _inputRuleUndo;
 	std::vector<HistoryEntry> _history;
 	int _historyIndex = -1;
 	std::vector<RetainedLeafField> _retainedLeafFields;

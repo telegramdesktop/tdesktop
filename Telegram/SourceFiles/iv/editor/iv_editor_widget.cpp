@@ -1428,6 +1428,35 @@ struct InlineFieldTrimResult {
 	return false;
 }
 
+struct InputRule {
+	State::InsertAction action;
+};
+
+[[nodiscard]] std::optional<InputRule> MatchInputRule(QString typed) {
+	using Type = State::InsertBlockType;
+	if (typed.startsWith(QChar(' '))) {
+		typed = typed.mid(1);
+	}
+	if (typed == u"-"_q || typed == u"*"_q || typed == u"+"_q) {
+		return InputRule{ { .type = Type::BulletList } };
+	} else if (typed == u"[]"_q || typed == u"[ ]"_q) {
+		return InputRule{ { .type = Type::TaskList } };
+	} else if (typed == u"[x]"_q || typed == u"[X]"_q) {
+		return InputRule{ { .type = Type::TaskList, .taskChecked = true } };
+	} else if (typed.size() > 1 && typed.endsWith(QChar('.'))) {
+		const auto digits = typed.left(typed.size() - 1);
+		auto ok = false;
+		const auto start = digits.toInt(&ok);
+		if (ok && (start >= 0) && (digits == QString::number(start))) {
+			return InputRule{ {
+				.type = Type::OrderedList,
+				.orderedStart = start,
+			} };
+		}
+	}
+	return std::nullopt;
+}
+
 [[nodiscard]] State::ActiveEnterContext MakeActiveEnterContext(
 		std::optional<State::ActiveTextInsertContext> context) {
 	if (!context || !HasRealEnterContent(context->after.text)) {
@@ -10262,11 +10291,86 @@ bool Widget::adjustStructuralSelectionFromKeyboard(bool forward, bool page) {
 	return true;
 }
 
+bool Widget::handleFieldInputRule(QKeyEvent *e) {
+	const auto modifiers = e->modifiers()
+		& ~(Qt::KeypadModifier | Qt::GroupSwitchModifier);
+	if ((e->key() != Qt::Key_Space)
+		|| (modifiers != Qt::NoModifier)
+		|| _field->isHidden()
+		|| (_fieldMode != State::FieldMode::Rich)
+		|| !_state->isActiveTopLevelParagraph()) {
+		return false;
+	}
+	const auto cursor = _field->textCursor();
+	const auto typed = _field->getLastText();
+	if (cursor.hasSelection() || (cursor.position() != int(typed.size()))) {
+		return false;
+	}
+	const auto rule = MatchInputRule(typed);
+	if (!rule) {
+		return false;
+	}
+	const auto leaf = _state->activeLeafPath();
+	if (!leaf) {
+		return false;
+	}
+	auto erase = _field->textCursor();
+	erase.movePosition(QTextCursor::Start);
+	erase.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
+	erase.removeSelectedText();
+	_field->setTextCursor(erase);
+	const auto historyIndexBefore = _historyIndex;
+	insertBlock(rule->action);
+	if (_historyIndex == historyIndexBefore) {
+		if (!_field->isHidden() && _field->getLastText().isEmpty()) {
+			auto restore = _field->textCursor();
+			restore.insertText(typed);
+			_field->setTextCursor(restore);
+		}
+		return false;
+	}
+	_inputRuleUndo = InputRuleUndo{
+		.historyIndex = _historyIndex,
+		.leaf = *leaf,
+		.text = typed + QChar(' '),
+	};
+	e->accept();
+	return true;
+}
+
+bool Widget::undoLastInputRule() {
+	if (!_inputRuleUndo
+		|| (_inputRuleUndo->historyIndex != _historyIndex)
+		|| _field->isHidden()
+		|| !_field->getLastText().isEmpty()) {
+		return false;
+	}
+	const auto undo = *base::take(_inputRuleUndo);
+	performUndoRedo(false, false);
+	const auto ordinal = _state->textOrdinalForLeafPath(undo.leaf);
+	if (ordinal >= 0) {
+		activateTextOrdinal(ordinal, 0);
+	}
+	if (_field->isHidden() || !_field->getLastText().isEmpty()) {
+		return true;
+	}
+	auto cursor = _field->textCursor();
+	cursor.insertText(undo.text);
+	_field->setTextCursor(cursor);
+	return true;
+}
+
 bool Widget::handleFieldKey(QKeyEvent *e) {
 	if (_field->isHidden()) {
 		return false;
 	}
 	const auto key = e->key();
+	if (key != Qt::Key_Backspace) {
+		_inputRuleUndo = std::nullopt;
+	}
+	if (handleFieldInputRule(e)) {
+		return true;
+	}
 	if (key == Qt::Key_Escape) {
 		hideInlineFieldAndRefresh();
 		e->accept();
@@ -10486,7 +10590,7 @@ bool Widget::handleFieldKey(QKeyEvent *e) {
 			};
 		});
 	} else if (atStart && key == Qt::Key_Backspace) {
-		handled = removeBoundaryOwner(false);
+		handled = undoLastInputRule() || removeBoundaryOwner(false);
 	} else if (atEnd && key == Qt::Key_Delete) {
 		handled = removeBoundaryOwner(true);
 	}
