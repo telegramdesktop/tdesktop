@@ -503,6 +503,31 @@ bool SetMediaBlockSpoiler(Block *block, bool enabled) {
 	return std::nullopt;
 }
 
+void DropOrderedItemNumber(ListItem *item) {
+	if (item) {
+		item->number = RichPage::OrderedListItemData();
+	}
+}
+
+void DropOrderedItemNumbers(std::vector<ListItem> &items) {
+	for (auto &item : items) {
+		DropOrderedItemNumber(&item);
+	}
+}
+
+[[nodiscard]] bool ListIsTaskList(const Block &block) {
+	return ranges::any_of(block.listItems, [](const ListItem &item) {
+		return (item.taskState != TaskState::None);
+	});
+}
+
+[[nodiscard]] bool ListsJoinable(const Block &first, const Block &second) {
+	return (first.kind == BlockKind::List)
+		&& (second.kind == BlockKind::List)
+		&& (first.listKind == second.listKind)
+		&& (ListIsTaskList(first) == ListIsTaskList(second));
+}
+
 [[nodiscard]] bool ClearOrderedListRawMarkers(
 		Block *block,
 		int from,
@@ -4624,6 +4649,27 @@ std::optional<int> State::appendActiveParagraphToPreviousListUnchecked() {
 	return activateRebuiltLeaf(target);
 }
 
+bool State::mergeListWithNextSibling(const BlockPath &list) {
+	const auto blocks = blockContainer(list.container);
+	if (!blocks
+		|| list.index < 0
+		|| list.index + 1 >= int(blocks->size())) {
+		return false;
+	}
+	auto &first = (*blocks)[list.index];
+	auto &second = (*blocks)[list.index + 1];
+	if (!ListsJoinable(first, second)) {
+		return false;
+	}
+	DropOrderedItemNumbers(second.listItems);
+	first.listItems.insert(
+		first.listItems.end(),
+		std::make_move_iterator(second.listItems.begin()),
+		std::make_move_iterator(second.listItems.end()));
+	blocks->erase(blocks->begin() + list.index + 1);
+	return true;
+}
+
 bool State::canJoinActiveParagraphIntoPreviousList() const {
 	const auto listPath = listBeforeActiveParagraph();
 	return listPath && deepestLastItem(*listPath).has_value();
@@ -4694,6 +4740,7 @@ bool State::joinActiveParagraphIntoPreviousListUnchecked(
 			};
 		}
 	}
+	static_cast<void>(mergeListWithNextSibling(*listPath));
 	rebuild();
 	if (!activateRebuiltLeaf(destination)) {
 		return false;
@@ -7204,6 +7251,7 @@ std::optional<int> State::sinkActiveListItemUnchecked() {
 		return std::nullopt;
 	}
 	auto moved = std::move(owner->listItems[itemIndex]);
+	DropOrderedItemNumber(&moved);
 	owner->listItems.erase(owner->listItems.begin() + itemIndex);
 	auto &previous = owner->listItems[itemIndex - 1];
 	if (previous.blocks.empty()) {
@@ -7304,6 +7352,7 @@ std::optional<int> State::liftActiveListItemUnchecked() {
 		sourceLeaf.block.index = 0;
 	}
 	auto moved = std::move(owner->listItems[itemIndex]);
+	DropOrderedItemNumber(&moved);
 	if (itemIndex + 1 < int(owner->listItems.size())) {
 		auto rest = Block();
 		rest.kind = BlockKind::List;
@@ -7315,6 +7364,7 @@ std::optional<int> State::liftActiveListItemUnchecked() {
 		owner->listItems.erase(
 			owner->listItems.begin() + itemIndex + 1,
 			owner->listItems.end());
+		DropOrderedItemNumbers(rest.listItems);
 		moved.blocks.push_back(std::move(rest));
 	}
 	owner->listItems.erase(owner->listItems.begin() + itemIndex);
