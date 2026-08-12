@@ -38,8 +38,6 @@ walletCardBalanceMinorLabel: FlatLabel(walletCardBalanceMajorLabel) {
 	}
 }
 walletCardBalanceMinorSkip: 6px;
-walletCardTickerLabel: FlatLabel(walletCardBalanceMajorLabel) {
-}
 walletCardTickerSkip: 7px;
 walletCardFiatLabel: FlatLabel(defaultFlatLabel) {
 	textFg: activeButtonFg;
@@ -48,6 +46,11 @@ walletCardFiatLabel: FlatLabel(defaultFlatLabel) {
 	}
 }
 walletCardFiatTop: 98px;
+walletCardCollapseScale: 0.80;
+walletBalanceHeaderMajorFont: font(15px semibold);
+walletBalanceHeaderFiatFont: font(12px semibold);
+walletBalanceHeaderSkip: 12px;
+walletBalanceHeaderLineSkip: 2px;
 walletCardNameFont: font(13px semibold);
 walletCardNameBottom: 17px;
 walletCardAddressFont: font(9px semibold);
@@ -88,6 +91,7 @@ walletAboutFeesIcon: icon{{ "menu/no_fees-24x24", windowBoldFg }};
 walletAboutChainIcon: icon{{ "menu/blockchain_verified-24x24", windowBoldFg }};
 
 walletRowsTopSkip: 16px;
+walletAboutBottomSkip: walletRowsTopSkip;
 walletRowPadding: margins(76px, 6px, 20px, 6px);
 walletRowIconSize: 46px;
 walletRowIconLeft: 20px;

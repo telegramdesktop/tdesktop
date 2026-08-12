@@ -100,6 +100,7 @@ constexpr auto kImportWordCountLong = 24;
 constexpr auto kImportSuggestionsLimit = 3;
 constexpr auto kCoverBodyPart = 0.90;
 constexpr auto kCoverTitleScale = 0.05;
+constexpr auto kCardFadePart = 0.45;
 constexpr auto kIntroTooltipShownPref = "wallet_intro_tooltip_shown"_cs;
 constexpr auto kIntroToastShownPref = "wallet_intro_toast_shown"_cs;
 constexpr auto kIntroToastDuration = 4 * crl::time(1000);
@@ -108,6 +109,7 @@ constexpr auto kFeeFiatDecimals = 5;
 constexpr auto kMaxFiatUnits = 999'999'999LL;
 constexpr auto kMaxAmountNano = 999'999'999'999'999'999LL;
 
+class BalanceInk;
 class Card;
 
 class Content final : public Ui::RpWidget {
@@ -124,22 +126,38 @@ protected:
 
 private:
 	void setupContent();
-	void setupHeader();
+	void setupPinned();
+	void setupBalance();
 	void setupTabs();
 	void setupStrip();
 	void updateRegions();
+	void updatePinned();
 	void checkLoadMore();
+	[[nodiscard]] int pinnedMax() const;
+	[[nodiscard]] int pinnedMin() const;
+	[[nodiscard]] float64 collapseProgress() const;
+	[[nodiscard]] QRect cardVisible();
 
 	const std::shared_ptr<Main::SessionShow> _show;
 	object_ptr<Ui::ScrollArea> _scroll;
+	std::unique_ptr<BalanceInk> _ink;
+	base::unique_qptr<Ui::RpWidget> _titleBalance;
 	Ui::RpWidget *_container = nullptr;
-	Ui::VerticalLayout *_header = nullptr;
+	Ui::PaddingWrap<Ui::VerticalLayout> *_column = nullptr;
+	Ui::RpWidget *_pinned = nullptr;
+	Ui::VerticalLayout *_pinnedInner = nullptr;
+	Ui::RpWidget *_pinnedBalance = nullptr;
 	Ui::PlainShadow *_headerShadow = nullptr;
-	Ui::SettingsSlider *_tabs = nullptr;
+	Ui::SlideWrap<Ui::SettingsSlider> *_tabsWrap = nullptr;
 	Ui::PlainShadow *_tabsShadow = nullptr;
 	Ui::PlainShadow *_stripShadow = nullptr;
 	Ui::RpWidget *_strip = nullptr;
 	Card *_card = nullptr;
+	QRect _paintedInk;
+	int _reserve = 0;
+	int _paintedHeight = -1;
+	int _paintedMin = -1;
+	int _titleRight = 0;
 	bool _tabsShown = false;
 	bool _stripShown = false;
 
@@ -151,25 +169,80 @@ public:
 		QWidget *parent,
 		std::shared_ptr<Main::SessionShow> show);
 
+	void setCollapseProgress(float64 progress);
+	[[nodiscard]] QRectF paintedRect() const;
+
 protected:
 	int resizeGetHeight(int newWidth) override;
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	[[nodiscard]] float64 collapseScale() const;
 	void refreshAddress();
-	void setupBalance();
 	void setupQr();
 	void updateLayout();
 
 	const std::shared_ptr<Main::SessionShow> _show;
-	Ui::FlatLabel *_major = nullptr;
-	Ui::FlatLabel *_minor = nullptr;
-	Ui::FlatLabel *_ticker = nullptr;
-	Ui::FlatLabel *_fiat = nullptr;
 	Ui::AbstractButton *_qr = nullptr;
 	QString _name;
 	QString _addressLine1;
 	QString _addressLine2;
+	float64 _progress = 0.;
+
+};
+
+struct BalancePalette {
+	QColor mark;
+	QColor amount;
+	QColor secondary;
+};
+
+class BalanceInk final {
+public:
+	void setContent(CreditsAmount amount, const QString &fiat);
+	void refresh();
+
+	void paint(
+		QPainter &p,
+		float64 progress,
+		int outerWidth,
+		int titleRight,
+		QRect card,
+		QRect clip) const;
+
+	[[nodiscard]] QRect boundingRect(
+		float64 progress,
+		int outerWidth,
+		int titleRight) const;
+
+private:
+	[[nodiscard]] QRectF amountRect(
+		float64 progress,
+		int outerWidth,
+		int titleRight) const;
+	[[nodiscard]] QRectF fiatRect(
+		float64 progress,
+		int outerWidth,
+		int titleRight) const;
+	void paintPass(
+		QPainter &p,
+		float64 progress,
+		int outerWidth,
+		int titleRight,
+		const BalancePalette &palette,
+		const QImage &mark,
+		float64 secondaryOpacity) const;
+
+	QPainterPath _amount;
+	QPainterPath _ticker;
+	QPainterPath _fiat;
+	QImage _markCard;
+	QImage _markSettled;
+	CreditsAmount _balance;
+	QString _fiatText;
+	float64 _tickerLeft = 0.;
+	float64 _amountWidth = 0.;
+	float64 _fiatWidth = 0.;
 
 };
 
@@ -251,21 +324,6 @@ private:
 		return false;
 	});
 	return result;
-}
-
-void SetBalanceText(not_null<Ui::FlatLabel*> label, CreditsAmount amount) {
-	auto helper = Ui::Text::CustomEmojiHelper();
-	auto icon = helper.paletteDependent({
-		.factory = [] {
-			return Ui::Earn::IconCurrencyColored(
-				st::walletCardMarkSize,
-				st::walletCardBalanceMajorLabel.textFg->c);
-		},
-		.margin = st::walletCardIconMargin
-	});
-	label->setMarkedText(
-		icon.append(Info::ChannelEarn::MajorPart(amount)),
-		helper.context());
 }
 
 struct HistoryRowContent {
@@ -1369,7 +1427,8 @@ void WalletHowItWorksBox(not_null<Ui::GenericBox*> box) {
 
 void SetupIntroTooltip(
 		not_null<Ui::RpWidget*> parent,
-		not_null<Ui::RpWidget*> card) {
+		not_null<Ui::RpWidget*> card,
+		rpl::producer<> moves) {
 	struct State {
 		Ui::ImportantTooltip *tooltip = nullptr;
 		bool dismissed = false;
@@ -1391,11 +1450,14 @@ void SetupIntroTooltip(
 		st::historyRecordTooltip);
 	state->tooltip->toggleFast(false);
 
-	rpl::combine(
-		card->geometryValue(),
-		parent->widthValue()
-	) | rpl::on_next([=](const QRect &geometry, int width) {
-		if (state->dismissed || geometry.isEmpty() || !width) {
+	rpl::merge(
+		card->geometryValue() | rpl::to_empty,
+		parent->widthValue() | rpl::to_empty,
+		std::move(moves)
+	) | rpl::on_next([=] {
+		if (state->dismissed
+			|| card->rect().isEmpty()
+			|| !parent->width()) {
 			return;
 		}
 		const auto area = Ui::MapFrom(parent, card, card->rect());
@@ -3198,6 +3260,237 @@ void WalletKeysBackupBox(
 	box->addButton(tr::lng_close(), [=] { box->closeBox(); });
 }
 
+[[nodiscard]] BalancePalette CardBalancePalette() {
+	return {
+		.mark = st::activeButtonFg->c,
+		.amount = st::activeButtonFg->c,
+		.secondary = st::activeButtonFg->c,
+	};
+}
+
+[[nodiscard]] BalancePalette SettledBalancePalette() {
+	return {
+		.mark = st::windowActiveTextFg->c,
+		.amount = st::windowBoldFg->c,
+		.secondary = st::windowSubTextFg->c,
+	};
+}
+
+[[nodiscard]] float64 BalanceAmountScale(float64 progress) {
+	const auto settled = st::walletBalanceHeaderMajorFont->height
+		/ float64(st::walletCardBalanceMajorLabel.style.font->height);
+	return 1. + (settled - 1.) * progress;
+}
+
+[[nodiscard]] float64 BalanceFiatScale(float64 progress) {
+	const auto settled = st::walletBalanceHeaderFiatFont->height
+		/ float64(st::walletCardFiatLabel.style.font->height);
+	return 1. + (settled - 1.) * progress;
+}
+
+[[nodiscard]] int BalanceSettledRight(int outerWidth) {
+	return outerWidth
+		- st::separatePanelClose.width
+		- st::separatePanelMenu.width
+		- st::walletBalanceHeaderSkip;
+}
+
+[[nodiscard]] float64 BalanceSettledLeft(
+		int outerWidth,
+		int titleRight,
+		float64 width) {
+	return std::max(
+		BalanceSettledRight(outerWidth) - width,
+		titleRight + float64(st::walletBalanceHeaderSkip));
+}
+
+[[nodiscard]] float64 BalanceSettledTop() {
+	const auto block = st::walletBalanceHeaderMajorFont->height
+		+ st::walletBalanceHeaderLineSkip
+		+ st::walletBalanceHeaderFiatFont->height;
+	return (st::separatePanelTitleHeight - block) / 2.
+		- st::separatePanelTitleHeight;
+}
+
+[[nodiscard]] float64 BalanceStartLeft() {
+	return st::walletCardMargin.left() + st::walletCardContentLeft;
+}
+
+void BalanceInk::setContent(CreditsAmount amount, const QString &fiat) {
+	_balance = amount;
+	_fiatText = fiat;
+	refresh();
+}
+
+void BalanceInk::refresh() {
+	const auto &majorFont = st::walletCardBalanceMajorLabel.style.font;
+	const auto &minorFont = st::walletCardBalanceMinorLabel.style.font;
+	const auto &fiatFont = st::walletCardFiatLabel.style.font;
+	const auto major = Info::ChannelEarn::MajorPart(_balance);
+	const auto minor = _balance.nano()
+		? Info::ChannelEarn::MinorPart(_balance)
+		: QString();
+	const auto ticker = tr::lng_wallet_card_ticker(tr::now);
+	const auto majorLeft = st::walletCardMarkSize
+		+ st::walletCardIconMargin.right();
+	const auto minorLeft = majorLeft + majorFont->width(major);
+
+	_amount = QPainterPath();
+	_amount.addText(majorLeft, majorFont->ascent, majorFont, major);
+	_amount.addText(
+		minorLeft,
+		st::walletCardBalanceMinorSkip + minorFont->ascent,
+		minorFont,
+		minor);
+
+	_tickerLeft = minorLeft
+		+ minorFont->width(minor)
+		+ st::walletCardTickerSkip;
+	_ticker = QPainterPath();
+	_ticker.addText(0, majorFont->ascent, majorFont, ticker);
+	_amountWidth = _tickerLeft + majorFont->width(ticker);
+
+	_fiat = QPainterPath();
+	_fiat.addText(0, fiatFont->ascent, fiatFont, _fiatText);
+	_fiatWidth = fiatFont->width(_fiatText);
+
+	_markCard = Ui::Earn::IconCurrencyColored(
+		st::walletCardMarkSize,
+		CardBalancePalette().mark);
+	_markSettled = Ui::Earn::IconCurrencyColored(
+		st::walletCardMarkSize,
+		SettledBalancePalette().mark);
+}
+
+QRectF BalanceInk::amountRect(
+		float64 progress,
+		int outerWidth,
+		int titleRight) const {
+	const auto scale = BalanceAmountScale(progress);
+	const auto width = _amountWidth * scale;
+	const auto height = st::walletCardBalanceMajorLabel.style.font->height
+		* scale;
+	const auto x0 = BalanceStartLeft();
+	const auto y0 = float64(st::walletCardTopSkip
+		+ st::walletCardBalanceTop);
+	const auto x1 = BalanceSettledLeft(
+		outerWidth,
+		titleRight,
+		_amountWidth * BalanceAmountScale(1.));
+	const auto y1 = BalanceSettledTop();
+	return QRectF(
+		x0 + (x1 - x0) * progress,
+		y0 + (y1 - y0) * progress,
+		width,
+		height);
+}
+
+QRectF BalanceInk::fiatRect(
+		float64 progress,
+		int outerWidth,
+		int titleRight) const {
+	const auto scale = BalanceFiatScale(progress);
+	const auto width = _fiatWidth * scale;
+	const auto height = st::walletCardFiatLabel.style.font->height * scale;
+	const auto x0 = BalanceStartLeft();
+	const auto y0 = float64(st::walletCardTopSkip + st::walletCardFiatTop);
+	const auto x1 = BalanceSettledLeft(
+		outerWidth,
+		titleRight,
+		_fiatWidth * BalanceFiatScale(1.));
+	const auto y1 = BalanceSettledTop()
+		+ st::walletBalanceHeaderMajorFont->height
+		+ st::walletBalanceHeaderLineSkip;
+	return QRectF(
+		x0 + (x1 - x0) * progress,
+		y0 + (y1 - y0) * progress,
+		width,
+		height);
+}
+
+void BalanceInk::paintPass(
+		QPainter &p,
+		float64 progress,
+		int outerWidth,
+		int titleRight,
+		const BalancePalette &palette,
+		const QImage &mark,
+		float64 secondaryOpacity) const {
+	const auto amount = amountRect(progress, outerWidth, titleRight);
+	const auto amountScale = BalanceAmountScale(progress);
+	p.save();
+	p.translate(amount.x(), amount.y());
+	p.scale(amountScale, amountScale);
+	p.drawImage(
+		QRectF(
+			0.,
+			st::walletCardIconMargin.top(),
+			st::walletCardMarkSize,
+			st::walletCardMarkSize),
+		mark);
+	p.fillPath(_amount, palette.amount);
+	p.setOpacity(p.opacity() * secondaryOpacity);
+	p.translate(_tickerLeft, 0.);
+	p.fillPath(_ticker, palette.secondary);
+	p.restore();
+
+	const auto fiat = fiatRect(progress, outerWidth, titleRight);
+	const auto fiatScale = BalanceFiatScale(progress);
+	p.save();
+	p.setOpacity(p.opacity() * secondaryOpacity);
+	p.translate(fiat.x(), fiat.y());
+	p.scale(fiatScale, fiatScale);
+	p.fillPath(_fiat, palette.secondary);
+	p.restore();
+}
+
+void BalanceInk::paint(
+		QPainter &p,
+		float64 progress,
+		int outerWidth,
+		int titleRight,
+		QRect card,
+		QRect clip) const {
+	const auto ink = boundingRect(progress, outerWidth, titleRight);
+	const auto inside = card.intersected(clip);
+	if (inside.intersects(ink)) {
+		p.save();
+		p.setClipRect(inside, Qt::IntersectClip);
+		paintPass(
+			p,
+			progress,
+			outerWidth,
+			titleRight,
+			CardBalancePalette(),
+			_markCard,
+			st::walletCardSecondaryOpacity);
+		p.restore();
+	}
+	const auto outside = QRegion(clip) - QRegion(inside);
+	if (outside.intersects(ink)) {
+		p.save();
+		p.setClipRegion(outside, Qt::IntersectClip);
+		paintPass(
+			p,
+			progress,
+			outerWidth,
+			titleRight,
+			SettledBalancePalette(),
+			_markSettled,
+			1.);
+		p.restore();
+	}
+}
+
+QRect BalanceInk::boundingRect(
+		float64 progress,
+		int outerWidth,
+		int titleRight) const {
+	const auto amount = amountRect(progress, outerWidth, titleRight);
+	const auto fiat = fiatRect(progress, outerWidth, titleRight);
+	return amount.united(fiat).toAlignedRect();
+}
+
 Card::Card(
 	QWidget *parent,
 	std::shared_ptr<Main::SessionShow> show)
@@ -3215,8 +3508,34 @@ Card::Card(
 		update();
 	}, lifetime());
 
-	setupBalance();
 	setupQr();
+
+	widthValue(
+	) | rpl::on_next([=] {
+		updateLayout();
+	}, lifetime());
+}
+
+void Card::setCollapseProgress(float64 progress) {
+	if (_progress == progress) {
+		return;
+	}
+	_progress = progress;
+	updateLayout();
+	update();
+}
+
+float64 Card::collapseScale() const {
+	return 1. - (1. - st::walletCardCollapseScale) * _progress;
+}
+
+QRectF Card::paintedRect() const {
+	const auto scale = collapseScale();
+	return QRectF(
+		width() * (1. - scale) / 2.,
+		0.,
+		width() * scale,
+		height() * scale);
 }
 
 void Card::refreshAddress() {
@@ -3234,76 +3553,9 @@ int Card::resizeGetHeight(int newWidth) {
 	return st::walletCardHeight;
 }
 
-void Card::setupBalance() {
-	_major = Ui::CreateChild<Ui::FlatLabel>(
-		this,
-		st::walletCardBalanceMajorLabel);
-	_minor = Ui::CreateChild<Ui::FlatLabel>(
-		this,
-		st::walletCardBalanceMinorLabel);
-	_ticker = Ui::CreateChild<Ui::FlatLabel>(
-		this,
-		tr::lng_wallet_card_ticker(),
-		st::walletCardTickerLabel);
-	_ticker->setOpacity(st::walletCardSecondaryOpacity);
-	_fiat = Ui::CreateChild<Ui::FlatLabel>(
-		this,
-		st::walletCardFiatLabel);
-	_fiat->setOpacity(st::walletCardSecondaryOpacity);
-	_major->setAttribute(Qt::WA_TransparentForMouseEvents);
-	_minor->setAttribute(Qt::WA_TransparentForMouseEvents);
-	_ticker->setAttribute(Qt::WA_TransparentForMouseEvents);
-	_fiat->setAttribute(Qt::WA_TransparentForMouseEvents);
-
-	_show->session().wallet().balanceNanoValue(
-	) | rpl::on_next([=](int64 nano) {
-		const auto fraction = nano % Ui::kNanosInOne;
-		const auto amount = CreditsAmount(
-			nano / Ui::kNanosInOne,
-			fraction,
-			CreditsType::Ton);
-		SetBalanceText(_major, amount);
-		_minor->setText(fraction
-			? Info::ChannelEarn::MinorPart(amount)
-			: QString());
-	}, lifetime());
-
-	rpl::combine(
-		_show->session().wallet().balanceNanoValue(),
-		FiatRateValue(&_show->session())
-	) | rpl::on_next([=](int64 nano, FiatRate rate) {
-		_fiat->setText(FormatFiat(nano, rate));
-	}, lifetime());
-
-	rpl::combine(
-		widthValue(),
-		_major->sizeValue(),
-		_major->naturalWidthValue(),
-		_minor->sizeValue(),
-		_ticker->sizeValue(),
-		_fiat->sizeValue()
-	) | rpl::on_next([=] {
-		updateLayout();
-	}, lifetime());
-}
-
 void Card::setupQr() {
 	_qr = Ui::CreateChild<Ui::AbstractButton>(this);
 	_qr->resize(st::walletCardQrSize);
-	_qr->paintRequest(
-	) | rpl::on_next([=] {
-		auto p = QPainter(_qr);
-		auto hq = PainterHighQualityEnabler(p);
-		p.setPen(QPen(st::windowActiveTextFg, st::lineWidth));
-		p.setBrush(st::windowBgOver);
-		const auto half = st::lineWidth / 2.;
-		p.drawRoundedRect(
-			QRectF(_qr->rect()).marginsRemoved({ half, half, half, half }),
-			st::walletCardQrRadius,
-			st::walletCardQrRadius);
-		st::walletCardQrIcon.paintInCenter(p, _qr->rect());
-	}, _qr->lifetime());
-
 	_qr->setClickedCallback([=] {
 		ShowWalletReceiveBox(&_show->session(), _show);
 	});
@@ -3313,43 +3565,49 @@ void Card::updateLayout() {
 	if (!_qr) {
 		return;
 	}
+	const auto painted = paintedRect();
+	const auto scale = collapseScale();
 	const auto qrLeft = width()
 		- st::walletCardQrRight
 		- st::walletCardQrSize.width();
-	const auto available = qrLeft
-		- st::walletCardContentSkip
-		- st::walletCardContentLeft
-		- _minor->width()
-		- st::walletCardTickerSkip
-		- _ticker->width();
-	if (available > 0) {
-		_major->resizeToNaturalWidth(available);
-	}
-	_major->moveToLeft(
-		st::walletCardContentLeft,
-		st::walletCardBalanceTop,
-		width());
-	auto left = st::walletCardContentLeft + _major->width();
-	_minor->moveToLeft(
-		left,
-		st::walletCardBalanceTop + st::walletCardBalanceMinorSkip,
-		width());
-	left += _minor->width() + st::walletCardTickerSkip;
-	_ticker->moveToLeft(left, st::walletCardBalanceTop, width());
-	_fiat->moveToLeft(
-		st::walletCardContentLeft,
-		st::walletCardFiatTop,
-		width());
-	_qr->moveToLeft(qrLeft, st::walletCardQrTop, width());
+	_qr->setGeometry(QRectF(
+		painted.x() + qrLeft * scale,
+		painted.y() + st::walletCardQrTop * scale,
+		st::walletCardQrSize.width() * scale,
+		st::walletCardQrSize.height() * scale).toRect());
+	_qr->setVisible(_progress < 1.);
 }
 
 void Card::paintEvent(QPaintEvent *e) {
+	const auto opacity = std::clamp((1. - _progress) / kCardFadePart, 0., 1.);
+	if (opacity <= 0.) {
+		return;
+	}
 	auto p = QPainter(this);
 	auto hq = PainterHighQualityEnabler(p);
+	p.setOpacity(opacity);
+	const auto scale = collapseScale();
+	p.translate(width() / 2., 0.);
+	p.scale(scale, scale);
+	p.translate(-width() / 2., 0.);
 
 	p.setPen(Qt::NoPen);
 	p.setBrush(st::activeButtonBg);
 	p.drawRoundedRect(rect(), st::walletCardRadius, st::walletCardRadius);
+
+	const auto qr = QRect(
+		width() - st::walletCardQrRight - st::walletCardQrSize.width(),
+		st::walletCardQrTop,
+		st::walletCardQrSize.width(),
+		st::walletCardQrSize.height());
+	const auto half = st::lineWidth / 2.;
+	p.setPen(QPen(st::windowActiveTextFg, st::lineWidth));
+	p.setBrush(st::windowBgOver);
+	p.drawRoundedRect(
+		QRectF(qr).marginsRemoved({ half, half, half, half }),
+		st::walletCardQrRadius,
+		st::walletCardQrRadius);
+	st::walletCardQrIcon.paintInCenter(p, qr);
 
 	const auto nameFont = st::walletCardNameFont->monospace();
 	const auto addressFont = st::walletCardAddressFont->monospace();
@@ -3422,13 +3680,31 @@ Content::~Content() {
 	}) | rpl::distinct_until_changed();
 }
 
+void PaintBottomRoundedPlate(
+		QPainter &p,
+		QRect rect,
+		const style::color &bg) {
+	auto hq = PainterHighQualityEnabler(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(bg);
+	p.drawRoundedRect(
+		rect.marginsAdded({ 0, 2 * st::callRadius, 0, 0 }),
+		st::callRadius,
+		st::callRadius);
+}
+
 void Content::setupContent() {
 	_container = _scroll->setOwnedWidget(
 		object_ptr<Ui::RpWidget>(_scroll.data()));
-	const auto column = Ui::CreateChild<Ui::VerticalLayout>(_container);
-	column->show();
+	_column = Ui::CreateChild<Ui::PaddingWrap<Ui::VerticalLayout>>(
+		_container,
+		object_ptr<Ui::VerticalLayout>(_container),
+		style::margins());
+	_column->show();
+	const auto column = _column->entity();
 
-	setupHeader();
+	setupPinned();
+	setupBalance();
 	setupTabs();
 	setupStrip();
 
@@ -3457,7 +3733,14 @@ void Content::setupContent() {
 			column,
 			object_ptr<Ui::VerticalLayout>(column)));
 	const auto about = wrap->entity();
-	Ui::AddSkip(about, st::walletAboutTopSkip);
+	Ui::AddSkip(about, st::walletBannerTopSkip);
+	about->add(Ui::CreateSlideSkipWidget(
+		about,
+		st::walletAboutTopSkip - st::walletBannerTopSkip)
+	)->toggleOn(wallet->phraseUnviewedValue(
+	) | rpl::map([](bool unviewed) {
+		return !unviewed;
+	}))->finishAnimating();
 	const auto addEntry = [&](
 			rpl::producer<QString> title,
 			rpl::producer<QString> text,
@@ -3503,6 +3786,7 @@ void Content::setupContent() {
 		tr::lng_wallet_about_chain_title(),
 		tr::lng_wallet_about_chain_text(),
 		st::walletAboutChainIcon);
+	Ui::AddSkip(about, st::walletAboutBottomSkip);
 
 	wrap->toggleOn(rpl::combine(
 		HistoryShownValue(&_show->session()),
@@ -3572,27 +3856,50 @@ void Content::setupContent() {
 		checkLoadMore();
 	}, lifetime());
 
-	Ui::ResizeFitChild(_container, column);
+	_scroll->scrollTopValue(
+	) | rpl::on_next([=](int) {
+		updatePinned();
+	}, lifetime());
+
+	Ui::ResizeFitChild(_container, _column);
+
+	_pinnedInner->heightValue(
+	) | rpl::on_next([=] {
+		updateRegions();
+	}, lifetime());
+
+	_column->entity()->heightValue(
+	) | rpl::on_next([=] {
+		updateRegions();
+	}, lifetime());
+
+	_pinned->raise();
+	_tabsShadow->raise();
+	_headerShadow->raise();
+	_stripShadow->raise();
+	_strip->raise();
 
 	const auto local = &_show->session().local();
 	if (!local->readPref<bool>(kIntroTooltipShownPref)) {
 		local->writePref<bool>(kIntroTooltipShownPref, true);
-		SetupIntroTooltip(this, _card);
+		SetupIntroTooltip(this, _card, _pinned->heightValue() | rpl::to_empty);
 	}
 }
 
-void Content::setupHeader() {
-	_header = Ui::CreateChild<Ui::VerticalLayout>(this);
-	_header->show();
+void Content::setupPinned() {
+	_pinned = Ui::CreateChild<Ui::RpWidget>(this);
+	_pinned->show();
+	_pinnedInner = Ui::CreateChild<Ui::VerticalLayout>(_pinned);
+	_pinnedInner->show();
 
-	Ui::AddSkip(_header, st::walletCardTopSkip);
-	_card = _header->add(
-		object_ptr<Card>(_header, _show),
+	Ui::AddSkip(_pinnedInner, st::walletCardTopSkip);
+	_card = _pinnedInner->add(
+		object_ptr<Card>(_pinnedInner, _show),
 		st::walletCardMargin);
 
-	const auto buttons = _header->add(
+	const auto buttons = _pinnedInner->add(
 		object_ptr<Ui::FixedHeightWidget>(
-			_header,
+			_pinnedInner,
 			st::walletSendButton.height),
 		st::walletSendButtonMargin,
 		style::al_justify);
@@ -3623,47 +3930,166 @@ void Content::setupHeader() {
 		send->setFullWidth(width - left);
 		send->moveToLeft(left, 0, width);
 	}, buttons->lifetime());
-	Ui::AddSkip(_header, st::walletHeaderBottomSkip);
 
 	_headerShadow = Ui::CreateChild<Ui::PlainShadow>(this);
-	_headerShadow->show();
 
-	_header->heightValue(
+	_pinned->paintRequest(
 	) | rpl::on_next([=] {
-		updateRegions();
+		auto p = QPainter(_pinned);
+		const auto height = _pinned->height();
+		const auto tabsTop = height - pinnedMin();
+		p.fillRect(0, 0, _pinned->width(), tabsTop, st::windowBgOver);
+		if (tabsTop < height) {
+			p.fillRect(
+				0,
+				tabsTop,
+				_pinned->width(),
+				height - tabsTop,
+				st::windowBg);
+		}
+	}, _pinned->lifetime());
+
+	base::install_event_filter(_pinned, [=](not_null<QEvent*> e) {
+		if (e->type() != QEvent::Wheel) {
+			return base::EventFilterResult::Continue;
+		}
+		_scroll->viewportEvent(e);
+		return base::EventFilterResult::Cancel;
+	});
+}
+
+void Content::setupBalance() {
+	_ink = std::make_unique<BalanceInk>();
+
+	_pinnedBalance = Ui::CreateChild<Ui::RpWidget>(_pinned);
+	_pinnedBalance->setAttribute(Qt::WA_TransparentForMouseEvents);
+	_pinnedBalance->show();
+	_pinnedBalance->raise();
+	_pinnedBalance->paintRequest(
+	) | rpl::on_next([=](QRect clip) {
+		const auto progress = collapseProgress();
+		const auto ink = _ink->boundingRect(progress, width(), _titleRight);
+		if (!clip.intersects(ink)) {
+			return;
+		}
+		auto p = QPainter(_pinnedBalance);
+		auto hq = PainterHighQualityEnabler(p);
+		_ink->paint(
+			p,
+			progress,
+			width(),
+			_titleRight,
+			cardVisible(),
+			clip);
+	}, _pinnedBalance->lifetime());
+
+	_titleBalance.reset(Ui::CreateChild<Ui::RpWidget>(window()));
+	_titleBalance->setAttribute(Qt::WA_TransparentForMouseEvents);
+	_titleBalance->show();
+	_titleBalance->paintRequest(
+	) | rpl::on_next([=] {
+		auto p = QPainter(_titleBalance.get());
+		auto hq = PainterHighQualityEnabler(p);
+		p.translate(0, st::separatePanelTitleHeight);
+		_ink->paint(
+			p,
+			collapseProgress(),
+			width(),
+			_titleRight,
+			QRect(),
+			QRect(
+				0,
+				-st::separatePanelTitleHeight,
+				_titleBalance->width(),
+				st::separatePanelTitleHeight));
+	}, _titleBalance->lifetime());
+
+	const auto repaintBalance = [=] {
+		_pinnedBalance->update();
+		_titleBalance->update();
+		_paintedInk = QRect(
+			0,
+			0,
+			_titleBalance->width(),
+			st::separatePanelTitleHeight);
+	};
+
+	rpl::combine(
+		_show->session().wallet().balanceNanoValue(),
+		FiatRateValue(&_show->session())
+	) | rpl::on_next([=](int64 nano, FiatRate rate) {
+		_ink->setContent(
+			CreditsAmount(
+				nano / Ui::kNanosInOne,
+				nano % Ui::kNanosInOne,
+				CreditsType::Ton),
+			FormatFiat(nano, rate));
+		repaintBalance();
+	}, lifetime());
+
+	style::PaletteChanged(
+	) | rpl::on_next([=] {
+		_ink->refresh();
+		repaintBalance();
+	}, lifetime());
+
+	rpl::combine(
+		tr::lng_wallet_title(),
+		tr::lng_wallet_card_ticker()
+	) | rpl::on_next([=](const QString &title, const QString &) {
+		_titleRight = st::separatePanelTitleLeft
+			+ st::separatePanelTitle.style.font->width(title);
+		_ink->refresh();
+		repaintBalance();
 	}, lifetime());
 }
 
+QRect Content::cardVisible() {
+	return Ui::MapFrom(
+		this,
+		_card,
+		_card->paintedRect().toAlignedRect()
+	).intersected(QRect(0, 0, width(), _pinned->height()));
+}
+
 void Content::setupTabs() {
-	_tabs = Ui::CreateChild<Ui::SettingsSlider>(this, st::walletTabsSlider);
-	_tabs->setSections({
+	_tabsWrap = _pinnedInner->add(
+		object_ptr<Ui::SlideWrap<Ui::SettingsSlider>>(
+			_pinnedInner,
+			object_ptr<Ui::SettingsSlider>(
+				_pinnedInner,
+				st::walletTabsSlider),
+			style::margins(0, st::walletHeaderBottomSkip, 0, 0)));
+	const auto tabs = _tabsWrap->entity();
+	tabs->setSections({
 		tr::lng_wallet_rows_title(tr::now),
 		tr::lng_wallet_rows_collectibles(tr::now),
 	});
-	_tabs->fitWidthToSections();
+	tabs->fitWidthToSections();
+	tabs->setNaturalWidth(tabs->width());
 	_tabsShadow = Ui::CreateChild<Ui::PlainShadow>(this);
 
 	const auto wallet = &_show->session().wallet();
-	_tabs->setActiveSectionFast(wallet->collectiblesTab() ? 1 : 0);
-	_tabs->sectionActivated(
+	tabs->setActiveSectionFast(wallet->collectiblesTab() ? 1 : 0);
+	tabs->sectionActivated(
 	) | rpl::on_next([=](int index) {
 		wallet->setCollectiblesTab(index == 1);
 		_scroll->scrollToY(0);
-	}, _tabs->lifetime());
+	}, tabs->lifetime());
 
 	wallet->collectiblesTabValue(
 	) | rpl::on_next([=](bool collectibles) {
 		const auto index = collectibles ? 1 : 0;
-		if (_tabs->activeSection() != index) {
-			_tabs->setActiveSectionFast(index);
+		if (tabs->activeSection() != index) {
+			tabs->setActiveSectionFast(index);
 		}
-	}, _tabs->lifetime());
+	}, tabs->lifetime());
 
 	CollectiblesShownValue(
 		&_show->session()
 	) | rpl::on_next([=](bool shown) {
 		_tabsShown = shown;
-		_tabs->setVisible(shown);
+		_tabsWrap->toggle(shown, anim::type::instant);
 		_tabsShadow->setVisible(shown);
 		updateRegions();
 	}, lifetime());
@@ -3675,13 +4101,7 @@ void Content::setupStrip() {
 	_strip->paintRequest(
 	) | rpl::on_next([=] {
 		auto p = QPainter(_strip);
-		auto hq = PainterHighQualityEnabler(p);
-		p.setPen(Qt::NoPen);
-		p.setBrush(st::windowBgOver);
-		p.drawRoundedRect(
-			_strip->rect().marginsAdded({ 0, 2 * st::callRadius, 0, 0 }),
-			st::callRadius,
-			st::callRadius);
+		PaintBottomRoundedPlate(p, _strip->rect(), st::windowBgOver);
 	}, _strip->lifetime());
 
 	const auto hint = Ui::CreateChild<Ui::FlatLabel>(
@@ -3710,31 +4130,53 @@ void Content::setupStrip() {
 	}, lifetime());
 }
 
+int Content::pinnedMax() const {
+	return _pinnedInner->height();
+}
+
+int Content::pinnedMin() const {
+	return _tabsShown ? st::walletTabsSlider.height : 0;
+}
+
+float64 Content::collapseProgress() const {
+	const auto max = pinnedMax();
+	const auto min = pinnedMin();
+	return (max > min)
+		? ((max - _pinned->height()) / float64(max - min))
+		: 1.;
+}
+
 void Content::updateRegions() {
 	if (!width() || !height()) {
 		return;
 	}
-	_header->resizeToWidth(width());
-	const auto headerBottom = _header->height();
-	_headerShadow->setGeometry(0, headerBottom, width(), st::lineWidth);
+	_container->resize(width(), _container->height());
+	if (_pinnedInner->widthNoMargins() != width()) {
+		_pinnedInner->resizeToWidth(width());
+	}
+	const auto max = pinnedMax();
+	const auto min = pinnedMin();
 	const auto stripHeight = _stripShown
 		? (st::walletRowsHintHeight + st::lineWidth)
 		: 0;
-	auto scrollTop = headerBottom + st::lineWidth;
-	if (_tabsShown) {
-		_tabs->moveToLeft(0, scrollTop, width());
-		_tabsShadow->setGeometry(
-			0,
-			scrollTop + _tabs->height(),
-			width(),
-			st::lineWidth);
-		scrollTop += _tabs->height() + st::lineWidth;
-	}
+	const auto open = height() - max - stripHeight;
+	_reserve = (_column->entity()->height() > open) ? (max - min) : 0;
+	_column->setPadding({ 0, _reserve, 0, 0 });
+	const auto scrollTop = max - _reserve;
 	_scroll->setGeometry(
 		0,
 		scrollTop,
 		width(),
 		std::max(0, height() - scrollTop - stripHeight));
+
+	const auto body = Ui::MapFrom(window(), this, rect());
+	_titleBalance->setGeometry(
+		body.x(),
+		body.y() - st::separatePanelTitleHeight,
+		BalanceSettledRight(width()),
+		st::separatePanelTitleHeight);
+
+	updatePinned();
 	if (_stripShown) {
 		const auto stripTop = std::max(
 			scrollTop,
@@ -3746,7 +4188,44 @@ void Content::updateRegions() {
 			st::lineWidth);
 		_strip->setGeometry(0, stripTop, width(), st::walletRowsHintHeight);
 	}
-	_container->resize(width(), _container->height());
+	_headerShadow->setGeometry(0, 0, width(), st::lineWidth);
+}
+
+void Content::updatePinned() {
+	if (!width() || !height()) {
+		return;
+	}
+	const auto max = pinnedMax();
+	const auto min = pinnedMin();
+	const auto top = std::clamp(_scroll->scrollTop(), 0, _reserve);
+	const auto height = max - top;
+	_pinnedInner->moveToLeft(0, height - max, width());
+	_pinned->setGeometry(0, 0, width(), height);
+	_scroll->setVerticalBarTopSkip(height - min);
+	_tabsShadow->setGeometry(0, height, width(), st::lineWidth);
+	_headerShadow->setVisible(height == min);
+	const auto progress = collapseProgress();
+	_card->setCollapseProgress(progress);
+	_pinnedBalance->setGeometry(_pinned->rect());
+	if (_paintedHeight == height && _paintedMin == min) {
+		return;
+	}
+	_paintedHeight = height;
+	_paintedMin = min;
+	_pinned->update();
+
+	const auto ink = _ink->boundingRect(
+		progress,
+		width(),
+		_titleRight
+	).translated(0, st::separatePanelTitleHeight);
+	const auto band = ink.intersected(
+		QRect(0, 0, _titleBalance->width(), st::separatePanelTitleHeight));
+	const auto repaint = band.united(_paintedInk);
+	_paintedInk = band;
+	if (!repaint.isEmpty()) {
+		_titleBalance->update(repaint);
+	}
 }
 
 void Content::checkLoadMore() {
@@ -3770,13 +4249,11 @@ void Content::resizeEvent(QResizeEvent *e) {
 
 void Content::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
-	p.fillRect(
-		0,
-		0,
-		width(),
-		_stripShown ? _strip->y() : height(),
-		st::windowBg);
-	p.fillRect(0, 0, width(), _header->height(), st::windowBgOver);
+	if (_stripShown) {
+		p.fillRect(0, 0, width(), _strip->y(), st::windowBg);
+		return;
+	}
+	PaintBottomRoundedPlate(p, rect(), st::windowBg);
 }
 
 class CurrencyListWidget final : public Ui::RpWidget {
