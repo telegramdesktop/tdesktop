@@ -61,6 +61,7 @@ public:
 		int headingLevel = 1;
 		int orderedStart = 1;
 		bool taskChecked = false;
+		QString codeLanguage;
 		double latitude = 0.;
 		double longitude = 0.;
 	};

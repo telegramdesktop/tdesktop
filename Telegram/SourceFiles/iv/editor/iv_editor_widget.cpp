@@ -1439,6 +1439,30 @@ struct InputRule {
 	}
 	if (typed == u"-"_q || typed == u"*"_q || typed == u"+"_q) {
 		return InputRule{ { .type = Type::BulletList } };
+	} else if (typed == u">"_q) {
+		return InputRule{ { .type = Type::Blockquote } };
+	} else if (typed.startsWith(u"```"_q)) {
+		const auto language = typed.mid(3);
+		const auto plain = ranges::all_of(language, [](QChar ch) {
+			return ch.isLetterOrNumber();
+		});
+		if (plain) {
+			return InputRule{ {
+				.type = Type::Code,
+				.codeLanguage = language,
+			} };
+		}
+	} else if (typed.startsWith(QChar('#'))) {
+		const auto level = int(typed.size());
+		const auto only = ranges::all_of(typed, [](QChar ch) {
+			return (ch == QChar('#'));
+		});
+		if (only && (level <= 6)) {
+			return InputRule{ {
+				.type = Type::Heading,
+				.headingLevel = level,
+			} };
+		}
 	} else if (typed == u"[]"_q || typed == u"[ ]"_q) {
 		return InputRule{ { .type = Type::TaskList } };
 	} else if (typed == u"[x]"_q || typed == u"[X]"_q) {

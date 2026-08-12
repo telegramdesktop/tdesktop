@@ -11297,8 +11297,11 @@ Block State::makeBlock(InsertAction action) const {
 		return MakeHeadingBlock(action.headingLevel);
 	case InsertBlockType::Blockquote:
 		return MakeQuoteBlock(false);
-	case InsertBlockType::Code:
-		return MakeCodeBlock();
+	case InsertBlockType::Code: {
+		auto result = MakeCodeBlock();
+		result.language = action.codeLanguage;
+		return result;
+	}
 	case InsertBlockType::Math:
 		return MakeMathBlock();
 	case InsertBlockType::Footer:
