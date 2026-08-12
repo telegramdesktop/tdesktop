@@ -70,6 +70,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_group_call.h" // Data::GroupCall::id().
 #include "data/data_poll.h" // PollData::publicVotes.
 #include "data/data_todo_list.h"
+#include "data/data_document.h"
+#include "data/data_document_media.h"
+#include "data/data_photo.h"
 #include "data/data_stories.h"
 #include "data/data_web_page.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
@@ -536,6 +539,17 @@ HistoryItem::HistoryItem(
 		if (const auto media = data.vmedia()) {
 			setMedia(*media);
 		}
+		if (const auto media = _media.get()) {
+			if (media->ttlSeconds()
+				&& hasUnreadMediaFlag()
+				&& isTtlCoveredMedia()) {
+				setSelfDestruct(
+					(media->photo()
+						? HistoryServiceSelfDestruct::Type::Photo
+						: HistoryServiceSelfDestruct::Type::Video),
+					TimeId(media->ttlSeconds()));
+			}
+		}
 		if (const auto richMessage = data.vrich_message()) {
 			const auto richPage = Iv::ParseRichPage(&history->session(), *richMessage);
 			setRichPage(richPage);
@@ -932,6 +946,7 @@ HistoryItem::~HistoryItem() {
 	}
 	clearDependencyMessage();
 	applyTTL(0);
+	unarmMediaDestroy();
 }
 
 TimeId HistoryItem::date() const {
@@ -1800,10 +1815,8 @@ bool HistoryItem::isTtlCoveredMedia() const {
 
 TimeId HistoryItem::mediaDestroyAt() const {
 	if (const auto selfdestruct = Get<HistoryServiceSelfDestruct>()) {
-		const auto at = std::get_if<crl::time>(&selfdestruct->destructAt);
-		if (at && *at) {
-			return base::unixtime::now()
-				+ TimeId((*at - crl::now()) / 1000);
+		if (const auto at = std::get_if<TimeId>(&selfdestruct->destructAt)) {
+			return *at;
 		}
 	}
 	return 0;
@@ -1827,12 +1840,11 @@ void HistoryItem::markMediaAndMentionRead() {
 	}
 
 	if (const auto selfdestruct = Get<HistoryServiceSelfDestruct>()) {
-		if (selfdestruct->destructAt == crl::time()) {
+		const auto at = std::get_if<TimeId>(&selfdestruct->destructAt);
+		if (at && !*at) {
 			const auto ttl = selfdestruct->timeToLive;
-			if (const auto maybeTime = std::get_if<crl::time>(&ttl)) {
-				const auto time = *maybeTime;
-				selfdestruct->destructAt = crl::now() + time;
-				_history->owner().selfDestructIn(this, time);
+			if (const auto seconds = std::get_if<TimeId>(&ttl)) {
+				armMediaDestroy(base::unixtime::now() + *seconds);
 			} else {
 				selfdestruct->destructAt = TimeToLiveSingleView();
 			}
@@ -2797,7 +2809,16 @@ void HistoryItem::clearMediaAsExpired() {
 	if (!media || !media->ttlSeconds()) {
 		return;
 	}
+	unarmMediaDestroy();
+	auto &owner = _history->owner();
 	if (const auto document = media->document()) {
+		document->cancel();
+		if (const auto active = document->activeMediaView()) {
+			active->setBytes(QByteArray());
+		}
+		owner.cache().remove(document->cacheKey());
+		owner.cache().remove(document->goodThumbnailCacheKey());
+
 		applyEditionToHistoryCleared();
 		auto text = (document->isVideoFile()
 			? tr::lng_ttl_video_expired
@@ -2808,7 +2829,20 @@ void HistoryItem::clearMediaAsExpired() {
 			: tr::lng_message_empty)(tr::now, tr::marked);
 		updateServiceText({ std::move(text) });
 		_flags |= MessageFlag::ReactionsAllowed;
-	} else if (media->photo()) {
+	} else if (const auto photo = media->photo()) {
+		photo->cancel();
+		const auto sizes = {
+			Data::PhotoSize::Small,
+			Data::PhotoSize::Thumbnail,
+			Data::PhotoSize::Large,
+		};
+		for (const auto size : sizes) {
+			const auto key = photo->location(size).file().cacheKey();
+			if (key.valid()) {
+				owner.cache().remove(key);
+			}
+		}
+
 		applyEditionToHistoryCleared();
 		updateServiceText({
 			tr::lng_ttl_photo_expired(tr::now, tr::marked)
@@ -5390,7 +5424,7 @@ void HistoryItem::createServiceFromMtp(const MTPDmessage &message) {
 			const auto ttl = data.vttl_seconds();
 			Assert(ttl != nullptr);
 
-			setSelfDestruct(HistoryServiceSelfDestruct::Type::Photo, *ttl);
+			setSelfDestruct(HistoryServiceSelfDestruct::Type::Photo, ttl->v);
 		}
 	}, [&](const MTPDmessageMediaDocument &data) {
 		if (unread) {
@@ -5400,7 +5434,7 @@ void HistoryItem::createServiceFromMtp(const MTPDmessage &message) {
 			if (data.is_video()) {
 				setSelfDestruct(
 					HistoryServiceSelfDestruct::Type::Video,
-					*ttl);
+					ttl->v);
 			}
 		}
 	}, [](const auto &) {});
@@ -7949,15 +7983,66 @@ void HistoryItem::processAction(const MTPMessageAction &action) {
 
 void HistoryItem::setSelfDestruct(
 		HistorySelfDestructType type,
-		MTPint mtpTTLvalue) {
+		TimeId ttlSeconds) {
 	UpdateComponents(HistoryServiceSelfDestruct::Bit());
 	const auto selfdestruct = Get<HistoryServiceSelfDestruct>();
-	if (mtpTTLvalue.v == TimeId(0x7FFFFFFF)) {
+	if (ttlSeconds == TimeId(0x7FFFFFFF)) {
 		selfdestruct->timeToLive = TimeToLiveSingleView();
 	} else {
-		selfdestruct->timeToLive = mtpTTLvalue.v * crl::time(1000);
+		selfdestruct->timeToLive = ttlSeconds;
 	}
 	selfdestruct->type = type;
+}
+
+void HistoryItem::armMediaDestroy(TimeId destroyAt) {
+	Expects(destroyAt > 0);
+
+	const auto selfdestruct = Get<HistoryServiceSelfDestruct>();
+	if (!selfdestruct) {
+		return;
+	}
+	const auto at = std::get_if<TimeId>(&selfdestruct->destructAt);
+	if (!at || *at == destroyAt) {
+		return;
+	} else if (*at > 0) {
+		_history->owner().unregisterMediaDestroy(*at, this);
+	}
+	selfdestruct->destructAt = destroyAt;
+	if (destroyAt <= base::unixtime::now()) {
+		clearMediaAsExpired();
+	} else {
+		_history->owner().registerMediaDestroy(destroyAt, this);
+		_history->owner().requestItemRepaint(this);
+	}
+}
+
+void HistoryItem::unarmMediaDestroy() {
+	if (const auto selfdestruct = Get<HistoryServiceSelfDestruct>()) {
+		const auto at = std::get_if<TimeId>(&selfdestruct->destructAt);
+		if (at && *at > 0) {
+			_history->owner().unregisterMediaDestroy(*at, this);
+		}
+	}
+}
+
+void HistoryItem::applyMediaContentsRead(TimeId readDate) {
+	const auto media = _media.get();
+	const auto ttl = media ? TimeId(media->ttlSeconds()) : TimeId();
+	if (ttl <= 0) {
+		return;
+	}
+	const auto now = base::unixtime::now();
+	if (media->ttlSecondsSingleView() || !readDate || readDate + ttl <= now) {
+		clearMediaAsExpired();
+	} else {
+		UpdateComponents(HistoryServiceSelfDestruct::Bit());
+		const auto selfdestruct = Get<HistoryServiceSelfDestruct>();
+		selfdestruct->timeToLive = ttl;
+		selfdestruct->type = media->document()
+			? HistoryServiceSelfDestruct::Type::Video
+			: HistoryServiceSelfDestruct::Type::Photo;
+		armMediaDestroy(readDate + ttl);
+	}
 }
 
 PreparedServiceText HistoryItem::prepareInvitedToCallText(
@@ -8479,30 +8564,6 @@ TextWithEntities HistoryItem::fromLinkText() const {
 
 ClickHandlerPtr HistoryItem::fromLink() const {
 	return _from->createOpenLink();
-}
-
-crl::time HistoryItem::getSelfDestructIn(crl::time now) {
-	if (const auto selfdestruct = Get<HistoryServiceSelfDestruct>()) {
-		const auto at = std::get_if<crl::time>(&selfdestruct->destructAt);
-		if (at && (*at) > 0) {
-			const auto destruct = *at;
-			if (destruct <= now) {
-				auto text = [&] {
-					switch (selfdestruct->type) {
-					case HistoryServiceSelfDestruct::Type::Photo:
-						return tr::lng_ttl_photo_expired(tr::now);
-					case HistoryServiceSelfDestruct::Type::Video:
-						return tr::lng_ttl_video_expired(tr::now);
-					}
-					Unexpected("Type in HistoryServiceSelfDestruct::Type");
-				};
-				setServiceText({ TextWithEntities{ .text = text() } });
-				return 0;
-			}
-			return destruct - now;
-		}
-	}
-	return 0;
 }
 
 void HistoryItem::cacheOnlyEmojiAndSpaces(bool only) {

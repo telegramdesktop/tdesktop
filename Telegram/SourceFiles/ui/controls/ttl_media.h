@@ -17,6 +17,7 @@ class RpWidget;
 struct TtlCountdown {
 	explicit TtlCountdown(Fn<void()> repaint);
 
+	TimeId destroyAt = 0;
 	crl::time deadline = 0;
 	crl::time total = 0;
 	TimerParticles particles;

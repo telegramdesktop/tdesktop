@@ -298,7 +298,7 @@ public:
 	void applyContent(HistoryMessageContent &&content);
 
 	// Zero result means this message is not self-destructing right now.
-	[[nodiscard]] crl::time getSelfDestructIn(crl::time now);
+	void applyMediaContentsRead(TimeId readDate);
 
 	[[nodiscard]] bool definesReplyKeyboard() const;
 	[[nodiscard]] ReplyMarkupFlags replyKeyboardFlags() const;
@@ -746,7 +746,9 @@ private:
 		LanguageId to,
 		TextWithEntities result,
 		std::shared_ptr<const Iv::RichPage> page);
-	void setSelfDestruct(HistorySelfDestructType type, MTPint mtpTTLvalue);
+	void setSelfDestruct(HistorySelfDestructType type, TimeId ttlSeconds);
+	void armMediaDestroy(TimeId destroyAt);
+	void unarmMediaDestroy();
 
 	void resolveDependent(not_null<HistoryServiceDependentData*> dependent);
 	void resolveDependent(not_null<HistoryMessageReply*> reply);

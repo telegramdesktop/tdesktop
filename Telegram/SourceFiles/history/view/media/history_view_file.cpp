@@ -118,6 +118,10 @@ void File::paintTtlCountdown(
 	if (!state) {
 		return;
 	}
+	if (state->countdown
+		&& state->countdown->destroyAt != _realParent->mediaDestroyAt()) {
+		state->countdown = nullptr;
+	}
 	if (!state->countdown) {
 		state->countdown = MakeTtlCountdown(
 			_realParent,

@@ -245,8 +245,8 @@ Session::Session(not_null<Main::Session*> session)
 , _contactsList(Dialogs::SortMode::Name)
 , _contactsNoChatsList(Dialogs::SortMode::Name)
 , _ttlCheckTimer([=] { checkTTLs(); })
+, _mediaDestroyCheckTimer([=] { checkMediaDestroys(); })
 , _formattedDateTimer([=] { checkFormattedDateUpdates(); })
-, _selfDestructTimer([=] { checkSelfDestructItems(); })
 , _pollsClosingTimer([=] { checkPollsClosings(); })
 , _watchForOfflineTimer([=] { checkLocalUsersWentOffline(); })
 , _groups(this)
@@ -3057,6 +3057,68 @@ void Session::checkTTLs() {
 	scheduleNextTTLs();
 }
 
+void Session::registerMediaDestroy(
+		TimeId when,
+		not_null<HistoryItem*> item) {
+	Expects(when > 0);
+
+	auto &list = _mediaDestroyMessages[when];
+	list.emplace(item);
+
+	const auto nearest = _mediaDestroyMessages.begin()->first;
+	if (nearest < when && _mediaDestroyCheckTimer.isActive()) {
+		return;
+	}
+	scheduleNextMediaDestroys();
+}
+
+void Session::scheduleNextMediaDestroys() {
+	if (_mediaDestroyMessages.empty()) {
+		return;
+	}
+	const auto nearest = _mediaDestroyMessages.begin()->first;
+	const auto now = base::unixtime::now();
+
+	// Set timer not more than for 24 hours.
+	constexpr auto maxTimeout = TimeId(86400);
+	const auto timeout = std::min(std::max(now, nearest) - now, maxTimeout);
+	_mediaDestroyCheckTimer.callOnce(timeout * crl::time(1000));
+}
+
+void Session::unregisterMediaDestroy(
+		TimeId when,
+		not_null<HistoryItem*> item) {
+	Expects(when > 0);
+
+	const auto i = _mediaDestroyMessages.find(when);
+	if (i == end(_mediaDestroyMessages)) {
+		return;
+	}
+	auto &list = i->second;
+	list.erase(item);
+	if (list.empty()) {
+		_mediaDestroyMessages.erase(i);
+	}
+}
+
+void Session::checkMediaDestroys() {
+	_mediaDestroyCheckTimer.cancel();
+	const auto now = base::unixtime::now();
+	auto expired = std::vector<not_null<HistoryItem*>>();
+	for (auto i = begin(_mediaDestroyMessages)
+		; i != end(_mediaDestroyMessages);) {
+		if (i->first > now) {
+			break;
+		}
+		expired.insert(expired.end(), i->second.begin(), i->second.end());
+		i = _mediaDestroyMessages.erase(i);
+	}
+	for (const auto &item : expired) {
+		item->clearMediaAsExpired();
+	}
+	scheduleNextMediaDestroys();
+}
+
 void Session::registerFormattedDateUpdate(
 		TimeId when,
 		not_null<HistoryView::Element*> view) {
@@ -3469,38 +3531,6 @@ bool Session::computeUnreadBadgeMuted(
 		&& (Core::App().settings().countUnreadMessages()
 			? (state.messagesMuted >= state.messages)
 			: (state.chatsMuted >= state.chats));
-}
-
-void Session::selfDestructIn(not_null<HistoryItem*> item, crl::time delay) {
-	_selfDestructItems.push_back(item->fullId());
-	if (!_selfDestructTimer.isActive()
-		|| _selfDestructTimer.remainingTime() > delay) {
-		_selfDestructTimer.callOnce(delay);
-	}
-}
-
-void Session::checkSelfDestructItems() {
-	const auto now = crl::now();
-	auto nextDestructIn = crl::time(0);
-	for (auto i = _selfDestructItems.begin(); i != _selfDestructItems.cend();) {
-		if (const auto item = message(*i)) {
-			if (const auto destructIn = item->getSelfDestructIn(now)) {
-				if (nextDestructIn > 0) {
-					accumulate_min(nextDestructIn, destructIn);
-				} else {
-					nextDestructIn = destructIn;
-				}
-				++i;
-			} else {
-				i = _selfDestructItems.erase(i);
-			}
-		} else {
-			i = _selfDestructItems.erase(i);
-		}
-	}
-	if (nextDestructIn > 0) {
-		_selfDestructTimer.callOnce(nextDestructIn);
-	}
 }
 
 not_null<PhotoData*> Session::photo(PhotoId id) {

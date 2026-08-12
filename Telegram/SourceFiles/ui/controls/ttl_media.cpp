@@ -88,6 +88,7 @@ std::unique_ptr<TtlCountdown> MakeTtlCountdown(
 		return nullptr;
 	}
 	auto result = std::make_unique<TtlCountdown>(std::move(repaint));
+	result->destroyAt = destroyAt;
 	result->deadline = crl::now()
 		+ (destroyAt - base::unixtime::now()) * crl::time(1000);
 	result->total = std::max(ttl, crl::time(1)) * crl::time(1000);

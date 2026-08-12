@@ -1331,6 +1331,7 @@ void Updates::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 
 	case mtpc_updateReadMessagesContents: {
 		const auto &d = update.c_updateReadMessagesContents();
+		const auto readDate = d.vdate().value_or_empty();
 		auto unknownReadIds = base::flat_set<MsgId>();
 		for (const auto &msgId : d.vmessages().v) {
 			if (const auto item = _session->data().nonChannelMessage(msgId.v)) {
@@ -1344,7 +1345,7 @@ void Updates::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 							user->madeAction(base::unixtime::now());
 						}
 					}
-					item->clearMediaAsExpired();
+					item->applyMediaContentsRead(readDate);
 				}
 			} else {
 				// Perhaps it was an unread mention!
@@ -1711,6 +1712,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 				if (item->isUnreadMedia() || item->isUnreadMention()) {
 					item->markMediaAndMentionRead();
 					session().data().requestItemRepaint(item);
+					item->applyMediaContentsRead(TimeId(0));
 				}
 			} else {
 				// Perhaps it was an unread mention!

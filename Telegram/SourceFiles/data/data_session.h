@@ -573,6 +573,9 @@ public:
 	void registerMessageTTL(TimeId when, not_null<HistoryItem*> item);
 	void unregisterMessageTTL(TimeId when, not_null<HistoryItem*> item);
 
+	void registerMediaDestroy(TimeId when, not_null<HistoryItem*> item);
+	void unregisterMediaDestroy(TimeId when, not_null<HistoryItem*> item);
+
 	void registerFormattedDateUpdate(
 		TimeId when,
 		not_null<HistoryView::Element*> view);
@@ -688,8 +691,6 @@ public:
 	void updateSublistReadTill(SublistReadTillUpdate update);
 	[[nodiscard]] auto sublistReadTillUpdates() const
 		-> rpl::producer<SublistReadTillUpdate>;
-
-	void selfDestructIn(not_null<HistoryItem*> item, crl::time delay);
 
 	[[nodiscard]] not_null<PhotoData*> photo(PhotoId id);
 	not_null<PhotoData*> processPhoto(const MTPPhoto &data);
@@ -1030,11 +1031,13 @@ private:
 	void setupPeerNameViewer();
 	void setupUserIsContactViewer();
 
-	void checkSelfDestructItems();
 	void checkLocalUsersWentOffline();
 
 	void scheduleNextTTLs();
 	void checkTTLs();
+
+	void scheduleNextMediaDestroys();
+	void checkMediaDestroys();
 
 	void scheduleNextFormattedDateUpdate();
 	void checkFormattedDateUpdates();
@@ -1239,6 +1242,11 @@ private:
 	std::map<TimeId, base::flat_set<not_null<HistoryItem*>>> _ttlMessages;
 	base::Timer _ttlCheckTimer;
 
+	std::map<
+		TimeId,
+		base::flat_set<not_null<HistoryItem*>>> _mediaDestroyMessages;
+	base::Timer _mediaDestroyCheckTimer;
+
 	std::map<TimeId, std::vector<base::weak_ptr<HistoryView::Element>>> _formattedDateUpdates;
 	base::Timer _formattedDateTimer;
 
@@ -1246,9 +1254,6 @@ private:
 
 	base::flat_map<uint64, FullMsgId> _messageByRandomId;
 	base::flat_map<uint64, SentData> _sentMessagesData;
-
-	base::Timer _selfDestructTimer;
-	std::vector<FullMsgId> _selfDestructItems;
 
 	std::unordered_map<
 		PhotoId,
