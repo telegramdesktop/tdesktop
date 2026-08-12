@@ -4218,6 +4218,10 @@ void ApiWrap::sendFiles(
 			}
 		}
 	}
+	if (album
+		&& ranges::any_of(list.files, &Ui::PreparedFile::ttlSeconds)) {
+		album = nullptr;
+	}
 	const auto to = FileLoadTaskOptions(action);
 	if (album) {
 		album->options = to.options;
@@ -4233,6 +4237,10 @@ void ApiWrap::sendFiles(
 			: SendMediaType::File;
 		const auto forceFile = (type == SendMediaType::File)
 			&& (file.type == Ui::PreparedFile::Type::Video);
+		auto fileTo = to;
+		if (file.ttlSeconds && !fileTo.options.scheduled) {
+			fileTo.options.ttlSeconds = file.ttlSeconds;
+		}
 		tasks.push_back(std::make_unique<FileLoadTask>(FileLoadTask::Args{
 			.session = &session(),
 			.filepath = file.path,
@@ -4256,7 +4264,7 @@ void ApiWrap::sendFiles(
 				})
 				: nullptr),
 			.type = uploadWithType,
-			.to = to,
+			.to = fileTo,
 			.caption = std::move(file.caption),
 			.spoiler = file.spoiler,
 			.album = album,

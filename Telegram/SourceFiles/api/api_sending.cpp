@@ -693,8 +693,14 @@ void SendConfirmedFile(
 		// Shortcut messages have no 'edited' badge.
 		flags |= MessageFlag::HideEdited;
 	}
+	const auto mediaTtlSeconds = (file->to.options.scheduled
+		|| (file->type != SendMediaType::Photo
+			&& file->type != SendMediaType::File))
+		? crl::time()
+		: file->to.options.ttlSeconds;
 	if (file->type == SendMediaType::Audio
-		|| file->type == SendMediaType::Round) {
+		|| file->type == SendMediaType::Round
+		|| mediaTtlSeconds) {
 		if (!peer->isChannel() || peer->isMegagroup()) {
 			flags |= MessageFlag::MediaIsUnread;
 		}
@@ -707,21 +713,23 @@ void SendConfirmedFile(
 			using Flag = MTPDmessageMediaPhoto::Flag;
 			return MTP_messageMediaPhoto(
 				MTP_flags(Flag::f_photo
-					| (file->spoiler ? Flag::f_spoiler : Flag())),
+					| (file->spoiler ? Flag::f_spoiler : Flag())
+					| (mediaTtlSeconds ? Flag::f_ttl_seconds : Flag())),
 				file->photo,
-				MTPint(), // ttl_seconds
+				MTP_int(mediaTtlSeconds),
 				MTPDocument()); // video
 		} else if (file->type == SendMediaType::File) {
 			using Flag = MTPDmessageMediaDocument::Flag;
 			return MTP_messageMediaDocument(
 				MTP_flags(Flag::f_document
 					| (file->spoiler ? Flag::f_spoiler : Flag())
-					| (file->videoCover ? Flag::f_video_cover : Flag())),
+					| (file->videoCover ? Flag::f_video_cover : Flag())
+					| (mediaTtlSeconds ? Flag::f_ttl_seconds : Flag())),
 				file->document,
 				MTPVector<MTPDocument>(), // alt_documents
 				file->videoCover ? file->videoCover->photo : MTPPhoto(),
 				MTPint(), // video_timestamp
-				MTPint());
+				MTP_int(mediaTtlSeconds));
 		} else if (file->type == SendMediaType::Audio) {
 			const auto ttlSeconds = file->to.options.ttlSeconds;
 			using Flag = MTPDmessageMediaDocument::Flag;
