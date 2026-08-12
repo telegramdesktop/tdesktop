@@ -32,6 +32,8 @@ PRIVATE
     iv/editor/iv_editor_clipboard.h
     iv/editor/iv_editor_clipboard_import.cpp
     iv/editor/iv_editor_clipboard_import.h
+    iv/editor/iv_editor_commands.cpp
+    iv/editor/iv_editor_commands.h
     iv/editor/iv_editor_state.cpp
     iv/editor/iv_editor_state.h
     iv/editor/iv_editor_text_entities.cpp
