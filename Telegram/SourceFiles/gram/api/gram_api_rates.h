@@ -29,9 +29,9 @@ struct CurrencyRateEntry {
 [[nodiscard]] std::optional<CurrencyRates> MakeCurrencyRates(
 	const std::vector<CurrencyRateEntry> &entries);
 
-[[nodiscard]] std::optional<float64> ComputeRate(
+[[nodiscard]] std::optional<float64> ComputePerGram(
 	const CurrencyRates &rates,
 	const QString &code,
-	const QString &base);
+	float64 usdPerGram);
 
 } // namespace Gram

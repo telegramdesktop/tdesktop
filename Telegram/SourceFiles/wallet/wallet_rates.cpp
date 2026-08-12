@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "wallet/wallet_rates.h"
 
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "storage/storage_account.h"
 #include "ui/text/format_values.h"
@@ -18,6 +19,10 @@ constexpr auto kRefreshTimeout = 5 * 60 * crl::time(1000);
 constexpr auto kRetryTimeout = 30 * crl::time(1000);
 constexpr auto kFiatCurrencyPref = "wallet_fiat_currency"_cs;
 constexpr auto kDefaultFiatCurrency = "USD"_cs;
+
+[[nodiscard]] float64 UsdPerGram(not_null<Main::Session*> session) {
+	return session->appConfig().get<float64>(u"ton_usd_rate"_q, 0.);
+}
 
 } // namespace
 
@@ -69,7 +74,7 @@ void Rates::setCurrency(const QString &code) {
 	}
 	_session->local().writePref<QString>(kFiatCurrencyPref, normalized);
 	_value = _rates
-		? ComputeFiatRate(normalized, *_rates)
+		? ComputeFiatRate(normalized, *_rates, UsdPerGram(_session))
 		: FiatRate{ normalized, 0. };
 }
 
@@ -117,7 +122,10 @@ void Rates::applyRates(const MTPpayments_CurrencyRates &result) {
 		return;
 	}
 	_rates = std::move(*parsed);
-	_value = ComputeFiatRate(_value.current().currency, *_rates);
+	_value = ComputeFiatRate(
+		_value.current().currency,
+		*_rates,
+		UsdPerGram(_session));
 	scheduleRefresh(false);
 }
 

@@ -30,7 +30,8 @@ struct FiatRate {
 
 [[nodiscard]] FiatRate ComputeFiatRate(
 	const QString &currency,
-	const Gram::CurrencyRates &rates);
+	const Gram::CurrencyRates &rates,
+	float64 usdPerGram);
 
 [[nodiscard]] QString FormatFiat(
 	int64 nanoAmount,

@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Gram {
 namespace {
 
+[[nodiscard]] bool Usable(float64 value) {
+	return std::isfinite(value) && (value > 0.);
+}
+
 [[nodiscard]] std::optional<float64> LookupRate(
 		const CurrencyRates &rates,
 		const QString &code) {
@@ -24,17 +28,16 @@ namespace {
 
 } // namespace
 
-std::optional<float64> ComputeRate(
+std::optional<float64> ComputePerGram(
 		const CurrencyRates &rates,
 		const QString &code,
-		const QString &base) {
+		float64 usdPerGram) {
 	const auto value = LookupRate(rates, code);
-	const auto divider = LookupRate(rates, base);
-	if (!value || !divider || !(*divider > 0.)) {
+	if (!value || !Usable(usdPerGram)) {
 		return std::nullopt;
 	}
-	const auto result = *value / *divider;
-	if (!std::isfinite(result)) {
+	const auto result = *value * usdPerGram;
+	if (!Usable(result)) {
 		return std::nullopt;
 	}
 	return result;
@@ -44,7 +47,7 @@ std::optional<CurrencyRates> MakeCurrencyRates(
 		const std::vector<CurrencyRateEntry> &entries) {
 	auto result = CurrencyRates();
 	for (const auto &entry : entries) {
-		if (std::isfinite(entry.value) && entry.value > 0.) {
+		if (Usable(entry.value)) {
 			result.values.emplace(entry.code.toUpper(), entry.value);
 		}
 	}

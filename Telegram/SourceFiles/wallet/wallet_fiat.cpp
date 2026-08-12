@@ -38,8 +38,9 @@ namespace {
 
 FiatRate ComputeFiatRate(
 		const QString &currency,
-		const Gram::CurrencyRates &rates) {
-	const auto perGram = Gram::ComputeRate(rates, currency, u"TON"_q);
+		const Gram::CurrencyRates &rates,
+		float64 usdPerGram) {
+	const auto perGram = Gram::ComputePerGram(rates, currency, usdPerGram);
 	return { currency, perGram.value_or(0.) };
 }
 
