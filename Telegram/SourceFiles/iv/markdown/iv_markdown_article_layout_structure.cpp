@@ -651,10 +651,14 @@ void FinalizeOwnerSelection(
 				- st.table.cellPadding.right()
 				- 2 * TableBorder(block.tableBordered, st),
 			1);
+	case PreparedBlockKind::CodeBlock:
+		return std::max(
+			TextBandWidth(st, width, bands)
+				- HorizontalMarginsWidth(BlockquotePadding(st.code.pre)),
+			1);
 	case PreparedBlockKind::Paragraph:
 	case PreparedBlockKind::Thinking:
 	case PreparedBlockKind::Heading:
-	case PreparedBlockKind::CodeBlock:
 	case PreparedBlockKind::Rule:
 	case PreparedBlockKind::ButtonRow:
 	case PreparedBlockKind::List:
