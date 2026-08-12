@@ -312,6 +312,8 @@ public:
 		const ActiveEnterContext &context);
 	[[nodiscard]] std::optional<int> handleActiveListEnter(
 		const ActiveEnterContext &context);
+	[[nodiscard]] std::optional<int> sinkActiveListItem();
+	[[nodiscard]] std::optional<int> liftActiveListItem();
 	[[nodiscard]] std::optional<int> handleActiveParagraphEnter(
 		const ActiveEnterContext &context);
 	[[nodiscard]] std::optional<int> handleActiveQuoteEnter(
@@ -859,6 +861,15 @@ private:
 		const ActiveEnterContext &context);
 	[[nodiscard]] std::optional<int> handleActiveListEnterUnchecked(
 		const ActiveEnterContext &context);
+	[[nodiscard]] std::optional<int> sinkActiveListItemUnchecked();
+	[[nodiscard]] std::optional<int> liftActiveListItemUnchecked();
+	[[nodiscard]] std::optional<LeafPath> rebasedActiveListItemLeaf(
+		const BlockPath &list,
+		int itemIndex) const;
+	[[nodiscard]] std::optional<LeafPath> rebasedListItemLeaf(
+		const LeafPath &leaf,
+		const BlockPath &list,
+		int itemIndex) const;
 	[[nodiscard]] std::optional<int> handleActiveParagraphEnterUnchecked(
 		const ActiveEnterContext &context);
 	[[nodiscard]] std::optional<int> handleActiveQuoteEnterUnchecked(

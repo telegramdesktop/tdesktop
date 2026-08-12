@@ -6882,6 +6882,208 @@ std::optional<int> State::handleActiveListEnterUnchecked(
 	return activateRebuiltLeaf(*target);
 }
 
+std::optional<int> State::sinkActiveListItem() {
+	return applyCheckedMutation(std::optional<int>(), [](State &candidate) {
+		const auto result = candidate.sinkActiveListItemUnchecked();
+		return CheckedMutationResult<std::optional<int>>{
+			.apply = result.has_value(),
+			.result = result,
+		};
+	});
+}
+
+std::optional<int> State::sinkActiveListItemUnchecked() {
+	const auto surface = activeListItemSurface();
+	if (!surface) {
+		return std::nullopt;
+	}
+	const auto itemIndex = surface->itemIndex;
+	if (itemIndex < 1) {
+		return std::nullopt;
+	}
+	auto *owner = block(surface->path);
+	if (!owner
+		|| owner->kind != BlockKind::List
+		|| itemIndex >= int(owner->listItems.size())) {
+		return std::nullopt;
+	}
+	const auto listKind = owner->listKind;
+	clearTemporaryDownParagraph();
+	static_cast<void>(normalizeTextOnlyListItemForInsertion(
+		ListItemChildrenContainer(surface->path, itemIndex - 1)));
+	owner = block(surface->path);
+	if (!owner || itemIndex >= int(owner->listItems.size())) {
+		return std::nullopt;
+	}
+	auto moved = std::move(owner->listItems[itemIndex]);
+	owner->listItems.erase(owner->listItems.begin() + itemIndex);
+	auto &previous = owner->listItems[itemIndex - 1];
+	if (previous.blocks.empty()) {
+		previous.blocks.push_back(MakeParagraphBlock());
+	}
+	auto nestedIndex = int(previous.blocks.size()) - 1;
+	if (nestedIndex < 0
+		|| previous.blocks[nestedIndex].kind != BlockKind::List
+		|| previous.blocks[nestedIndex].listKind != listKind) {
+		auto nested = Block();
+		nested.kind = BlockKind::List;
+		nested.listKind = listKind;
+		previous.blocks.push_back(std::move(nested));
+		nestedIndex = int(previous.blocks.size()) - 1;
+	}
+	auto &nested = previous.blocks[nestedIndex];
+	nested.listItems.push_back(std::move(moved));
+	const auto target = rebasedActiveListItemLeaf(
+		BlockPath{
+			.container = ListItemChildrenContainer(
+				surface->path,
+				itemIndex - 1),
+			.index = nestedIndex,
+		},
+		int(nested.listItems.size()) - 1);
+	if (!target) {
+		return std::nullopt;
+	}
+	rebuild();
+	return activateRebuiltLeaf(*target);
+}
+
+std::optional<int> State::liftActiveListItem() {
+	return applyCheckedMutation(std::optional<int>(), [](State &candidate) {
+		const auto result = candidate.liftActiveListItemUnchecked();
+		return CheckedMutationResult<std::optional<int>>{
+			.apply = result.has_value(),
+			.result = result,
+		};
+	});
+}
+
+std::optional<int> State::liftActiveListItemUnchecked() {
+	const auto surface = activeListItemSurface();
+	if (!surface) {
+		return std::nullopt;
+	}
+	auto *owner = block(surface->path);
+	const auto itemIndex = surface->itemIndex;
+	if (!owner
+		|| owner->kind != BlockKind::List
+		|| itemIndex < 0
+		|| itemIndex >= int(owner->listItems.size())) {
+		return std::nullopt;
+	}
+	const auto &steps = surface->path.container.steps;
+	if (steps.empty()
+		|| steps.back().kind != BlockContainerKind::ListItemChildren) {
+		clearTemporaryDownParagraph();
+		if (!unwrapListItemIntoParent(surface->path, itemIndex, true)) {
+			return std::nullopt;
+		}
+		return (_activeTextOrdinal >= 0)
+			? std::make_optional(_activeTextOrdinal)
+			: std::nullopt;
+	}
+	auto parentPath = BlockPath{ .index = steps.back().blockIndex };
+	parentPath.container.steps.assign(steps.begin(), steps.end() - 1);
+	const auto parentItemIndex = steps.back().listItemIndex;
+	const auto parentList = block(parentPath);
+	if (!parentList
+		|| parentList->kind != BlockKind::List
+		|| parentItemIndex < 0
+		|| parentItemIndex >= int(parentList->listItems.size())) {
+		return std::nullopt;
+	}
+	clearTemporaryDownParagraph();
+	auto sourceLeaf = LeafPath();
+	if (const auto descriptor = textNode(_activeTextOrdinal)) {
+		sourceLeaf = descriptor->leaf;
+	}
+	if (itemIndex + 1 < int(owner->listItems.size())
+		&& (sourceLeaf.kind == LeafKind::ListItemText)) {
+		static_cast<void>(normalizeTextOnlyListItemForInsertion(
+			ListItemChildrenContainer(surface->path, itemIndex)));
+		owner = block(surface->path);
+		if (!owner || itemIndex >= int(owner->listItems.size())) {
+			return std::nullopt;
+		}
+		auto &item = owner->listItems[itemIndex];
+		if (item.blocks.empty()) {
+			item.blocks.push_back(MakeParagraphBlock());
+		}
+	}
+	if (!owner->listItems[itemIndex].blocks.empty()
+		&& (sourceLeaf.kind == LeafKind::ListItemText)) {
+		sourceLeaf = LeafPath{ .kind = LeafKind::BlockText };
+		sourceLeaf.block.index = 0;
+	}
+	auto moved = std::move(owner->listItems[itemIndex]);
+	if (itemIndex + 1 < int(owner->listItems.size())) {
+		auto rest = Block();
+		rest.kind = BlockKind::List;
+		rest.listKind = owner->listKind;
+		rest.listItems = std::vector<ListItem>(
+			std::make_move_iterator(
+				owner->listItems.begin() + itemIndex + 1),
+			std::make_move_iterator(owner->listItems.end()));
+		owner->listItems.erase(
+			owner->listItems.begin() + itemIndex + 1,
+			owner->listItems.end());
+		moved.blocks.push_back(std::move(rest));
+	}
+	owner->listItems.erase(owner->listItems.begin() + itemIndex);
+	if (owner->listItems.empty()) {
+		const auto blocks = blockContainer(surface->path.container);
+		if (!blocks
+			|| surface->path.index < 0
+			|| surface->path.index >= int(blocks->size())) {
+			return std::nullopt;
+		}
+		blocks->erase(blocks->begin() + surface->path.index);
+	}
+	parentList->listItems.insert(
+		parentList->listItems.begin() + parentItemIndex + 1,
+		std::move(moved));
+	const auto target = rebasedListItemLeaf(
+		sourceLeaf,
+		parentPath,
+		parentItemIndex + 1);
+	if (!target) {
+		return std::nullopt;
+	}
+	rebuild();
+	return activateRebuiltLeaf(*target);
+}
+
+std::optional<State::LeafPath> State::rebasedActiveListItemLeaf(
+		const BlockPath &list,
+		int itemIndex) const {
+	const auto descriptor = textNode(_activeTextOrdinal);
+	return descriptor
+		? rebasedListItemLeaf(descriptor->leaf, list, itemIndex)
+		: std::nullopt;
+}
+
+std::optional<State::LeafPath> State::rebasedListItemLeaf(
+		const LeafPath &leaf,
+		const BlockPath &list,
+		int itemIndex) const {
+	if (leaf.kind == LeafKind::ListItemText) {
+		return LeafPath{
+			.kind = LeafKind::ListItemText,
+			.block = list,
+			.listItemIndex = itemIndex,
+		};
+	} else if (leaf.kind == LeafKind::BlockText) {
+		return LeafPath{
+			.kind = LeafKind::BlockText,
+			.block = {
+				.container = ListItemChildrenContainer(list, itemIndex),
+				.index = leaf.block.index,
+			},
+		};
+	}
+	return std::nullopt;
+}
+
 std::optional<int> State::handleActiveQuoteEnter(
 		const ActiveEnterContext &context) {
 	return applyCheckedMutation(std::optional<int>(), [=](State &candidate) {

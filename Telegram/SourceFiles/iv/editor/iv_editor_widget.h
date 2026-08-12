@@ -673,6 +673,7 @@ private:
 		bool allowTrailing,
 		bool *mutated = nullptr);
 	[[nodiscard]] bool moveTabBoundary(bool forward);
+	[[nodiscard]] bool moveListItemDepth(bool deeper);
 	[[nodiscard]] bool removeBoundaryOwner(bool forward);
 	void ensurePendingActivation();
 	void updateInlineFieldHeightOverride();
