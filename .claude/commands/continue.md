@@ -19,6 +19,14 @@ follow-up requires its affirmative independence test. Continue until that
 frozen-and-derived batch reaches the scheduler's normal stop condition or a
 global hard stop.
 
+Apply the shared source-lineage gate in this parent scheduler. Before batch
+freeze, a missing approved prerequisite pauses through `AskUserQuestion` after
+the exact branch and compatible-branch report. After freeze but before Phase 1,
+the parent may make only the shared safe switch to an existing compatible local
+branch and then resume the returned performer. After Phase 1, let the performer
+publish a task-local Block and continue non-dependent batch work. Never create,
+route, or execute branch-integration work as a queue task.
+
 Apply the shared skill's pending-task consolidation phase too. At each eligible
 clean AI-slot boundary, recover an older `pending_consolidations` marker or
 consolidate newly routed tasks in one fresh foreground Agent. Give it the

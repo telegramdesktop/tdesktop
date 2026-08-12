@@ -16,6 +16,13 @@ Apply the shared pipeline's conditional `[ai] ` commit-subject rule exactly;
 the prefix is required for permanent test-helper or agent harness/documentation
 changes and forbidden for every other task.
 
+Apply the shared source-lineage gate before Phase 1 and pass explicit source
+task requirements to `start` or `retry`. A pre-Phase-1 mismatch returns the
+clean routing stop to the caller without integrating history or publishing a
+Block. A mismatch first established after Phase 1 publishes the shared clean
+task-local Block; it never becomes a cherry-pick, rebase, merge, backport, or
+branch-sync operation inside this command.
+
 Delegate phases with synchronous foreground Agent calls per the adapter; leaf
 phase agents receive self-contained prompts and are not told to read the
 adapter. Use the Agent tool for delegation; do not start Claude subprocesses

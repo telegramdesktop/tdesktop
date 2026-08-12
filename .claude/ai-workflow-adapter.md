@@ -70,6 +70,39 @@ Let normal Claude editing preserve the checkout's existing text convention.
 This exception removes only explicit line-ending work; it does not relax any
 content validation, owned-path rule, build, review, test, or publication gate.
 
+## Source lineage and branch routing
+
+The shared skills' source-lineage policy applies unchanged. Keep its timing
+boundaries in the Claude orchestrator rather than delegating the decision to a
+leaf:
+
+- The parent `continue` command runs the startup `source-lineage` scan before
+  freezing the batch. On a mismatch, report the lineage JSON and use
+  `AskUserQuestion` to pause for human direction. Do not start an Agent, switch
+  branches, or perform or route a cherry-pick, rebase, merge, backport,
+  forward-port, or branch-sync task at this boundary.
+- Once the batch is frozen, the parent scheduler owns the shared skill's safe
+  pre-Phase-1 branch switch. Use Bash only for the required cleanliness,
+  recovery-ref, process, and `git worktree list --porcelain` checks and for
+  `git switch` to an existing compatible local branch. Never ask a performer or
+  leaf Agent to integrate history.
+- When a synchronous performer returns the shared pre-Phase-1 lineage stop,
+  switch safely in the parent and resume that Agent id when Claude exposes one.
+  If it exposes no resumable id, start one replacement performer only after the
+  returned worker and repository checks prove there are no phase artifacts,
+  source refs, overlay, or writes. This is a clean setup retry, not a second
+  concurrent performer.
+- A lineage mismatch first established after Phase 1 stays inside the
+  performer: it restores owned/disposable state and publishes the shared
+  task-local `Block`. Once the foreground call returns, `continue` records the
+  attempt and proceeds with non-dependent batch work; it does not ask the human
+  merely because that one task blocked.
+
+`process-inbox` and discovered-routing Agents must use the shared receipt-only
+disposition for requests whose sole work is moving an existing commit between
+branches. Their initial prompts already require this adapter and the applicable
+shared skill, so do not restate or weaken that routing rule in a leaf prompt.
+
 ## UI-driver capability
 
 The shared Computer Use reference describes Codex's driver. In Claude Code,
