@@ -813,6 +813,15 @@ private:
 	[[nodiscard]] bool canJoinActiveListItemBoundary() const;
 	[[nodiscard]] bool joinActiveListItemBoundaryUnchecked(
 		ActiveTextSelectionTarget *target);
+	struct NextListItem {
+		BlockPath list;
+		int index = -1;
+	};
+	[[nodiscard]] std::optional<NextListItem> nextListItemAfterActive(
+		const ActiveListItemSurface &surface) const;
+	[[nodiscard]] bool canJoinActiveListItemForward() const;
+	[[nodiscard]] bool joinActiveListItemForwardUnchecked(
+		ActiveTextSelectionTarget *target);
 	[[nodiscard]] auto normalizeActiveListItemSurface()
 	-> std::optional<ActiveListItemSurface>;
 	[[nodiscard]] ApplyResult applyActiveTextUnchecked(TextWithEntities text);
