@@ -10802,8 +10802,14 @@ bool Widget::moveTabBoundary(bool forward) {
 
 bool Widget::moveListItemDepth(bool deeper) {
 	if (_field->isHidden()
-		|| (_state->activeFieldMode() != State::FieldMode::Rich)
-		|| !_state->hasActiveListItemSurface()) {
+		|| (_state->activeFieldMode() != State::FieldMode::Rich)) {
+		return false;
+	}
+	const auto inListItem = _state->hasActiveListItemSurface();
+	const auto intoPreviousList = !inListItem
+		&& deeper
+		&& _field->textCursor().atStart();
+	if (!inListItem && !intoPreviousList) {
 		return false;
 	}
 	const auto text = ConvertEditorTagsToRichText(
@@ -10826,7 +10832,9 @@ bool Widget::moveListItemDepth(bool deeper) {
 				.failed = true,
 			};
 		}
-		const auto target = deeper
+		const auto target = intoPreviousList
+			? _state->appendActiveParagraphToPreviousList()
+			: deeper
 			? _state->sinkActiveListItem()
 			: _state->liftActiveListItem();
 		if (!target) {
