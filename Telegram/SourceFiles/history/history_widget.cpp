@@ -1280,7 +1280,9 @@ void HistoryWidget::initVoiceRecordBar() {
 		return false;
 	});
 	_voiceRecordBar->setTTLFilter([=] {
-		if (const auto peer = _history ? _history->peer.get() : nullptr) {
+		if (_editMsgId) {
+			return false;
+		} else if (const auto peer = _history ? _history->peer.get() : nullptr) {
 			if (const auto user = peer->asUser()) {
 				if (!user->isSelf() && !user->isBot()) {
 					return true;
