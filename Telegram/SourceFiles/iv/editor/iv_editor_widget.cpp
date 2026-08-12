@@ -3355,6 +3355,48 @@ void Widget::syncInlineFieldGeometry() {
 
 void Widget::insertBlock(State::InsertAction action) {
 	recordMutationTransaction([&] {
+		auto committed = ApplyResult::Unchanged;
+		using InsertType = State::InsertBlockType;
+		const auto listAction = (action.type == InsertType::OrderedList)
+			|| (action.type == InsertType::BulletList)
+			|| (action.type == InsertType::TaskList);
+		const auto wrapAction = listAction
+			|| (action.type == InsertType::Blockquote)
+			|| (action.type == InsertType::Pullquote)
+			|| (action.type == InsertType::Details);
+		if (wrapAction && !hasStructuralSelection()) {
+			const auto converted = structuralSelectionForTextSelection();
+			const auto usable = (converted.kind
+				== PreparedEditSelectionKind::Blocks)
+				|| (listAction
+					&& (converted.kind
+						== PreparedEditSelectionKind::ListItems));
+			auto stale = false;
+			if (usable) {
+				if (!_field->isHidden()) {
+					const auto was = CountRichPageBlocks(_state->richPage());
+					committed = commitInlineField();
+					if (committed == ApplyResult::Failed) {
+						return MutationTransactionResult{
+							.committed = committed,
+							.failed = true,
+						};
+					}
+					_pendingOrdinal = -1;
+					_pendingCursorOffset = 0;
+					hideInlineField();
+					clearInlineFieldEditSession();
+					stale = (CountRichPageBlocks(_state->richPage()) != was);
+				}
+				if (!stale) {
+					_boundarySelectionOrigin = std::nullopt;
+					_selection = {};
+					_selectionEndpoints = {};
+					finishArticleSelection();
+					setStructuralSelection(converted);
+				}
+			}
+		}
 		const auto context = activeTextInsertContext();
 		const auto reversedFieldSelection = [&] {
 			if (!context) {
@@ -3375,7 +3417,6 @@ void Widget::insertBlock(State::InsertAction action) {
 		const auto restoreSelection = restoreField
 			? captureHistoryViewState().leafSelection
 			: std::optional<HistoryLeafSelection>();
-		auto committed = ApplyResult::Unchanged;
 		if (!context && !_field->isHidden()) {
 			committed = commitInlineField();
 			if (committed == ApplyResult::Failed) {
@@ -11824,6 +11865,52 @@ std::vector<State::BlockPath> Widget::broaderSelectionMediaBlocks() const {
 			}
 		});
 	return result;
+}
+
+PreparedEditSelection Widget::structuralSelectionForTextSelection() const {
+	if (_selection.empty()
+		|| !_selectionEndpoints.from.valid()
+		|| !_selectionEndpoints.to.valid()) {
+		return {};
+	}
+	const auto normalized = NormalizeSelection(_selection);
+	if (normalized.from.segment == normalized.to.segment) {
+		return {};
+	}
+	const auto fromOrdinal = editableOrdinalForSegment(
+		normalized.from.segment);
+	const auto toOrdinal = editableOrdinalForSegment(normalized.to.segment);
+	const auto count = _state->textNodeCount();
+	if (fromOrdinal < 0
+		|| toOrdinal < 0
+		|| fromOrdinal >= count
+		|| toOrdinal >= count) {
+		return {};
+	}
+	const auto &nodes = _state->textNodes();
+	const auto &from = nodes[fromOrdinal].leaf;
+	const auto &to = nodes[toOrdinal].leaf;
+	if ((from.kind == StateLeafKind::ListItemText)
+		&& (to.kind == StateLeafKind::ListItemText)
+		&& (from.block == to.block)) {
+		const auto range = NormalizeIntegerRange(
+			from.listItemIndex,
+			to.listItemIndex);
+		if (range.empty()) {
+			return {};
+		}
+		return {
+			.kind = PreparedEditSelectionKind::ListItems,
+			.listItems = {
+				.block = ToPreparedBlockPath(from.block),
+				.from = range.from,
+				.till = range.till,
+			},
+		};
+	}
+	return LiftedBlockSelection(
+		ToPreparedBlockPath(from.block),
+		ToPreparedBlockPath(to.block));
 }
 
 void Widget::clearSelection() {

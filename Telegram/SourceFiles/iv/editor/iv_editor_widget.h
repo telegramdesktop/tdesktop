@@ -791,6 +791,8 @@ private:
 	broaderSelectionTextSpans() const;
 	[[nodiscard]] std::vector<State::BlockPath>
 	broaderSelectionMediaBlocks() const;
+	[[nodiscard]] Markdown::PreparedEditSelection
+	structuralSelectionForTextSelection() const;
 	[[nodiscard]] bool hasStructuralSelection() const;
 	void startArticleSelection(
 		QPoint pressPoint,
