@@ -31,6 +31,8 @@ CountryCodeInput::CountryCodeInput(
 	QWidget *parent,
 	const style::InputField &st)
 : MaskedInputField(parent, st) {
+	setInputMethodHints(Qt::ImhDialableCharactersOnly
+		| Qt::ImhNoPredictiveText);
 }
 
 void CountryCodeInput::startErasing(QKeyEvent *e) {
@@ -111,6 +113,8 @@ PhonePartInput::PhonePartInput(
 	PhonePartInput::GroupsCallback groupsCallback)
 : MaskedInputField(parent, st/*, tr::lng_phone_ph(tr::now)*/)
 , _groupsCallback(std::move(groupsCallback)) {
+	setInputMethodHints(Qt::ImhDialableCharactersOnly
+		| Qt::ImhNoPredictiveText);
 }
 
 void PhonePartInput::paintAdditionalPlaceholder(QPainter &p) {
@@ -269,6 +273,9 @@ UsernameInput::UsernameInput(
 	const QString &val,
 	const QString &linkPlaceholder)
 : MaskedInputField(parent, st, std::move(placeholder), val) {
+	setInputMethodHints(Qt::ImhLatinOnly
+		| Qt::ImhNoAutoUppercase
+		| Qt::ImhNoPredictiveText);
 	setLinkPlaceholder(linkPlaceholder);
 }
 
@@ -332,6 +339,8 @@ PhoneInput::PhoneInput(
 : MaskedInputField(parent, st, std::move(placeholder), value)
 , _defaultValue(defaultValue)
 , _groupsCallback(std::move(groupsCallback)) {
+	setInputMethodHints(Qt::ImhDialableCharactersOnly
+		| Qt::ImhNoPredictiveText);
 	if (value.isEmpty()) {
 		clearText();
 	} else {

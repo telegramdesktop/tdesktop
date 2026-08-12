@@ -51,6 +51,7 @@ PostcodeInput::PostcodeInput(
 	rpl::producer<QString> placeholder,
 	const QString &val)
 : MaskedInputField(parent, st, std::move(placeholder), val) {
+	setInputMethodHints(Qt::ImhLatinOnly | Qt::ImhNoPredictiveText);
 	static const auto RegExp = QRegularExpression("^[a-zA-Z0-9\\-]+$");
 	if (!RegExp.match(val).hasMatch()) {
 		setText(QString());
@@ -137,7 +138,11 @@ private:
 
 class DateInput final : public MaskedInputField {
 public:
-	using MaskedInputField::MaskedInputField;
+	DateInput(
+		QWidget *parent,
+		const style::InputField &st,
+		rpl::producer<QString> placeholder,
+		const QString &val);
 
 	void setMaxValue(int value);
 
@@ -455,6 +460,15 @@ QString GetYear(const QString &value) {
 		return QString("%1").arg(date.year(), 4, 10, QChar('0'));
 	}
 	return QString();
+}
+
+DateInput::DateInput(
+	QWidget *parent,
+	const style::InputField &st,
+	rpl::producer<QString> placeholder,
+	const QString &val)
+: MaskedInputField(parent, st, std::move(placeholder), val) {
+	setInputMethodHints(Qt::ImhDigitsOnly | Qt::ImhNoPredictiveText);
 }
 
 void DateInput::setMaxValue(int value) {
