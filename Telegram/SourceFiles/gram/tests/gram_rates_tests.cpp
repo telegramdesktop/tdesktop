@@ -39,40 +39,44 @@ namespace {
 
 std::vector<Check> RatesChecks() {
 	return {
-		{ u"rates_fixture_values"_q, [] {
-			const auto name = u"api-currency-rates.json"_q;
-			const auto bytes = ReadFixture(name);
-			if (bytes.isEmpty()) {
-				return u"fixture read failed: "_q + name;
-			}
-			const auto rates = ParseCurrencyRates(bytes);
-			if (!rates) {
-				return u"parse failed"_q;
-			}
-			struct Entry {
-				QString code;
-				float64 value = 0.;
-			};
-			const auto expected = std::vector<Entry>{
+		{ u"rates_fixture_conversion"_q, [] {
+			const auto rates = MakeCurrencyRates({
 				{ u"USD"_q, 1. },
+				{ u"TON"_q, 0.711227243 },
 				{ u"EUR"_q, 0.86686 },
 				{ u"RUB"_q, 79.306265 },
 				{ u"CNY"_q, 6.751304 },
-				{ u"BTC"_q, 0.000015689590375408 },
-				{ u"TON"_q, 0.711227243 },
-			};
-			if (int(rates->values.size()) != int(expected.size())) {
+				{ u"XXX"_q, 0. },
+			});
+			if (!rates) {
+				return u"make failed"_q;
+			} else if (int(rates->values.size()) != 5) {
 				return u"count: got "_q
 					+ QString::number(int(rates->values.size()));
+			} else if (rates->values.contains(u"XXX"_q)) {
+				return u"expected dropped: XXX"_q;
+			} else if (ComputeRate(*rates, u"XXX"_q, u"TON"_q)) {
+				return u"XXX ratio: expected nullopt"_q;
 			}
-			for (const auto &entry : expected) {
-				const auto i = rates->values.find(entry.code);
-				if (i == rates->values.end()) {
-					return u"missing: "_q + entry.code;
-				} else if (!Near(i->second, entry.value)) {
-					return entry.code
-						+ u": got "_q
-						+ Printed(i->second);
+			struct Entry {
+				QString code;
+				float64 expected = 0.;
+				float64 inverse = 0.;
+			};
+			const auto conversions = std::vector<Entry>{
+				{ u"USD"_q, 1.4060203821523187, 0.711227243 },
+				{ u"EUR"_q, 1.2188228284725591, 0.82046379230786981 },
+				{ u"RUB"_q, 111.50622502237306, 0.0089681091777553765 },
+				{ u"CNY"_q, 9.4924710301064792, 0.10534664755134711 },
+			};
+			for (const auto &entry : conversions) {
+				const auto got = ComputeRate(*rates, entry.code, u"TON"_q);
+				if (!got) {
+					return entry.code + u": expected a value"_q;
+				} else if (!Near(*got, entry.expected)) {
+					return entry.code + u": got "_q + Printed(*got);
+				} else if (Near(*got, entry.inverse)) {
+					return entry.code + u": got the inverse"_q;
 				}
 			}
 			return QString();
@@ -116,14 +120,12 @@ std::vector<Check> RatesChecks() {
 			return QString();
 		} },
 		{ u"rates_ratio_overflow"_q, [] {
-			const auto json = QByteArray(
-				"{\"rates\":{"
-					"\"USD\":\"1e300\","
-					"\"TON\":\"1e-30\""
-				"}}");
-			const auto rates = ParseCurrencyRates(json);
+			const auto rates = MakeCurrencyRates({
+				{ u"USD"_q, 1e300 },
+				{ u"TON"_q, 1e-30 },
+			});
 			if (!rates) {
-				return u"parse failed"_q;
+				return u"make failed"_q;
 			} else if (int(rates->values.size()) != 2) {
 				return u"count: got "_q
 					+ QString::number(int(rates->values.size()));
@@ -132,28 +134,22 @@ std::vector<Check> RatesChecks() {
 			}
 			return QString();
 		} },
-		{ u"rates_entry_validation"_q, [] {
-			const auto json = QByteArray(
-				"{\"rates\":{"
-					"\"USD\":\"1\","
-					"\"EUR\":5,"
-					"\"RUB\":\"abc\","
-					"\"CNY\":\"0\","
-					"\"BTC\":\"-1\","
-					"\"JPY\":\"nan\","
-					"\"GBP\":\"inf\","
-					"\"TON\":\"0.5\""
-				"}}");
-			const auto rates = ParseCurrencyRates(json);
+		{ u"rates_entries_validation"_q, [] {
+			const auto rates = MakeCurrencyRates({
+				{ u"USD"_q, 1. },
+				{ u"CNY"_q, 0. },
+				{ u"BTC"_q, -1. },
+				{ u"JPY"_q, NAN },
+				{ u"GBP"_q, INFINITY },
+				{ u"TON"_q, 0.5 },
+			});
 			if (!rates) {
-				return u"parse failed"_q;
+				return u"make failed"_q;
 			} else if (int(rates->values.size()) != 2) {
 				return u"count: got "_q
 					+ QString::number(int(rates->values.size()));
 			}
 			const auto dropped = std::vector<QString>{
-				u"EUR"_q,
-				u"RUB"_q,
 				u"CNY"_q,
 				u"BTC"_q,
 				u"JPY"_q,
@@ -172,33 +168,26 @@ std::vector<Check> RatesChecks() {
 			}
 			return QString();
 		} },
-		{ u"rates_parse_negative"_q, [] {
-			const auto bad = std::vector<QByteArray>{
-				QByteArray(""),
-				QByteArray("{\"rates\":{\"USD\":\"1\""),
-				QByteArray("{not json}"),
-				QByteArray("null"),
-				QByteArray("42"),
-				QByteArray("[]"),
-				QByteArray("{}"),
-				QByteArray("{\"rates\":5}"),
-				QByteArray("{\"rates\":null}"),
-				QByteArray("{\"rates\":{}}"),
-				QByteArray("{\"rates\":{\"USD\":\"0\"}}"),
-			};
-			for (const auto &json : bad) {
-				if (ParseCurrencyRates(json)) {
-					return u"expected nullopt for: "_q
-						+ QString::fromUtf8(json);
-				}
+		{ u"rates_entries_empty"_q, [] {
+			if (MakeCurrencyRates({})) {
+				return u"empty entries: expected nullopt"_q;
+			} else if (MakeCurrencyRates({
+				{ u"USD"_q, 0. },
+				{ u"TON"_q, -2. },
+				{ u"EUR"_q, NAN },
+				{ u"RUB"_q, INFINITY },
+			})) {
+				return u"invalid entries: expected nullopt"_q;
 			}
 			return QString();
 		} },
 		{ u"rates_case_normalisation"_q, [] {
-			const auto rates = ParseCurrencyRates(
-				QByteArray("{\"rates\":{\"usd\":\"1\",\"ton\":\"0.5\"}}"));
+			const auto rates = MakeCurrencyRates({
+				{ u"usd"_q, 1. },
+				{ u"ton"_q, 0.5 },
+			});
 			if (!rates) {
-				return u"parse failed"_q;
+				return u"make failed"_q;
 			} else if (!rates->values.contains(u"USD"_q)) {
 				return u"expected an uppercased key"_q;
 			}

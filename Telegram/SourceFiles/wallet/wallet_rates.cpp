@@ -11,14 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "ui/text/format_values.h"
 
-#include <QtCore/QUrl>
-#include <QtNetwork/QNetworkReply>
-#include <QtNetwork/QNetworkRequest>
-
 namespace Wallet {
 namespace {
 
-constexpr auto kRatesUrl = "https://api.mywallet.io/currency-rates"_cs;
 constexpr auto kRefreshTimeout = 5 * 60 * crl::time(1000);
 constexpr auto kRetryTimeout = 30 * crl::time(1000);
 constexpr auto kFiatCurrencyPref = "wallet_fiat_currency"_cs;
@@ -28,11 +23,8 @@ constexpr auto kDefaultFiatCurrency = "USD"_cs;
 
 Rates::Rates(not_null<Main::Session*> session)
 : _session(session)
+, _api(&session->mtp())
 , _timer([=] { request(); }) {
-}
-
-Rates::~Rates() {
-	destroyReply();
 }
 
 FiatRate Rates::current() {
@@ -98,25 +90,28 @@ void Rates::ensureStarted() {
 }
 
 void Rates::request() {
-	destroyReply();
-	const auto request = QNetworkRequest(QUrl(kRatesUrl.utf16()));
-	_reply = _manager.get(request);
-	QObject::connect(_reply, &QNetworkReply::finished, &_manager, [=] {
-		if (!_reply) {
-			return;
-		}
-		const auto body = _reply->readAll();
-		destroyReply();
-		applyResponse(body);
-	});
-	QObject::connect(_reply, &QNetworkReply::errorOccurred, &_manager, [=] {
-		destroyReply();
+	if (_requestId) {
+		return;
+	}
+	_requestId = _api.request(MTPpayments_GetCurrencyRates(
+	)).done([=](const MTPpayments_CurrencyRates &result) {
+		_requestId = 0;
+		applyRates(result);
+	}).fail([=](const MTP::Error &error) {
+		_requestId = 0;
 		scheduleRefresh(true);
-	});
+	}).send();
 }
 
-void Rates::applyResponse(const QByteArray &body) {
-	auto parsed = Gram::ParseCurrencyRates(body);
+void Rates::applyRates(const MTPpayments_CurrencyRates &result) {
+	const auto &list = result.data().vrates().v;
+	auto entries = std::vector<Gram::CurrencyRateEntry>();
+	entries.reserve(list.size());
+	for (const auto &rate : list) {
+		const auto &data = rate.data();
+		entries.push_back({ qs(data.vcurrency()), data.vrate().v });
+	}
+	auto parsed = Gram::MakeCurrencyRates(entries);
 	if (!parsed) {
 		scheduleRefresh(true);
 		return;
@@ -128,17 +123,6 @@ void Rates::applyResponse(const QByteArray &body) {
 
 void Rates::scheduleRefresh(bool afterFailure) {
 	_timer.callOnce(afterFailure ? kRetryTimeout : kRefreshTimeout);
-}
-
-void Rates::destroyReply() {
-	const auto reply = base::take(_reply);
-	if (!reply) {
-		return;
-	}
-	reply->disconnect(reply, &QNetworkReply::finished, nullptr, nullptr);
-	reply->disconnect(reply, &QNetworkReply::errorOccurred, nullptr, nullptr);
-	reply->abort();
-	reply->deleteLater();
 }
 
 } // namespace Wallet

@@ -10,10 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/basic_types.h"
 #include "base/flat_map.h"
 
-#include <QtCore/QByteArray>
 #include <QtCore/QString>
 
 #include <optional>
+#include <vector>
 
 namespace Gram {
 
@@ -21,8 +21,13 @@ struct CurrencyRates {
 	base::flat_map<QString, float64> values;
 };
 
-[[nodiscard]] std::optional<CurrencyRates> ParseCurrencyRates(
-	const QByteArray &json);
+struct CurrencyRateEntry {
+	QString code;
+	float64 value = 0.;
+};
+
+[[nodiscard]] std::optional<CurrencyRates> MakeCurrencyRates(
+	const std::vector<CurrencyRateEntry> &entries);
 
 [[nodiscard]] std::optional<float64> ComputeRate(
 	const CurrencyRates &rates,

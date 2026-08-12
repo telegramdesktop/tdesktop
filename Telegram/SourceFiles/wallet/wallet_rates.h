@@ -9,19 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "gram/api/gram_api_rates.h"
+#include "mtproto/sender.h"
 #include "wallet/wallet_fiat.h"
-
-#include <QtCore/QPointer>
-#include <QtNetwork/QNetworkAccessManager>
-
-class QNetworkReply;
 
 namespace Wallet {
 
 class Rates final {
 public:
 	explicit Rates(not_null<Main::Session*> session);
-	~Rates();
 
 	[[nodiscard]] FiatRate current();
 	[[nodiscard]] rpl::producer<FiatRate> value();
@@ -32,13 +27,12 @@ public:
 private:
 	void ensureStarted();
 	void request();
-	void applyResponse(const QByteArray &body);
+	void applyRates(const MTPpayments_CurrencyRates &result);
 	void scheduleRefresh(bool afterFailure);
-	void destroyReply();
 
 	const not_null<Main::Session*> _session;
-	QNetworkAccessManager _manager;
-	QPointer<QNetworkReply> _reply;
+	MTP::Sender _api;
+	mtpRequestId _requestId = 0;
 	base::Timer _timer;
 	std::optional<Gram::CurrencyRates> _rates;
 	rpl::variable<FiatRate> _value;

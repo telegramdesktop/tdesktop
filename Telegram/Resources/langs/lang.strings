@@ -8765,6 +8765,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_how_button" = "Got it";
 "lng_wallet_how_menu" = "What is Wallet?";
 "lng_wallet_menu_currency" = "Currency";
+"lng_wallet_currency_title" = "Choose Currency";
+"lng_wallet_currency_none" = "No currencies found";
 "lng_wallet_intro_text" = "Gram — Digital currency for Telegram";
 "lng_wallet_row_incoming" = "Incoming transfer";
 "lng_wallet_row_outgoing" = "Outgoing transfer";

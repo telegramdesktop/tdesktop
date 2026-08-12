@@ -13,7 +13,6 @@ using "settings/settings.style";
 
 walletMenuIcon: icon{{ "menu/wallet-24x24", menuIconColor }};
 walletMenuCurrencyIcon: icon{{ "settings/language", menuIconColor }};
-walletMenuBackIcon: icon{{ "emoji/emoji_back", menuIconColor }};
 
 walletPanelSize: size(392px, 620px);
 walletCardHeight: 190px;
@@ -415,3 +414,12 @@ walletIntroEmoji: IconEmoji {
 }
 walletIntroTooltipMaxWidth: 236px;
 walletIntroTooltipSkip: 8px;
+
+walletCurrencyRowHeight: 36px;
+walletCurrencyRowPadding: margins(24px, 9px, 24px, 0px);
+walletCurrencyRowCodeFont: semiboldFont;
+walletCurrencyRowCodeFg: windowBoldFg;
+walletCurrencyRowNameFg: windowSubTextFg;
+walletCurrencyRowNameSkip: 8px;
+walletCurrencyListSkip: 12px;
+walletCurrencyCheckIcon: icon{{ "menu/select", windowActiveTextFg }};

@@ -7,10 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "gram/api/gram_api_rates.h"
 
-#include <QtCore/QJsonDocument>
-#include <QtCore/QJsonObject>
-#include <QtCore/QJsonValue>
-
 #include <cmath>
 
 namespace Gram {
@@ -44,26 +40,12 @@ std::optional<float64> ComputeRate(
 	return result;
 }
 
-std::optional<CurrencyRates> ParseCurrencyRates(const QByteArray &json) {
-	const auto document = QJsonDocument::fromJson(json);
-	if (document.isNull() || !document.isObject()) {
-		return std::nullopt;
-	}
-	const auto entry = document.object().value(u"rates"_q);
-	if (!entry.isObject()) {
-		return std::nullopt;
-	}
-	const auto object = entry.toObject();
+std::optional<CurrencyRates> MakeCurrencyRates(
+		const std::vector<CurrencyRateEntry> &entries) {
 	auto result = CurrencyRates();
-	for (auto i = object.begin(); i != object.end(); ++i) {
-		const auto value = i.value();
-		if (!value.isString()) {
-			continue;
-		}
-		auto ok = false;
-		const auto parsed = value.toString().toDouble(&ok);
-		if (ok && std::isfinite(parsed) && parsed > 0.) {
-			result.values.emplace(i.key().toUpper(), parsed);
+	for (const auto &entry : entries) {
+		if (std::isfinite(entry.value) && entry.value > 0.) {
+			result.values.emplace(entry.code.toUpper(), entry.value);
 		}
 	}
 	if (result.values.empty()) {
