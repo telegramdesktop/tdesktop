@@ -200,6 +200,7 @@ struct BalancePalette {
 class BalanceInk final {
 public:
 	void setContent(CreditsAmount amount, const QString &fiat);
+	void setOuterWidth(int outerWidth);
 	void refresh();
 
 	void paint(
@@ -243,6 +244,7 @@ private:
 	float64 _tickerLeft = 0.;
 	float64 _amountWidth = 0.;
 	float64 _fiatWidth = 0.;
+	int _outerWidth = 0;
 
 };
 
@@ -3322,17 +3324,40 @@ void BalanceInk::setContent(CreditsAmount amount, const QString &fiat) {
 	refresh();
 }
 
+void BalanceInk::setOuterWidth(int outerWidth) {
+	if (_outerWidth == outerWidth) {
+		return;
+	}
+	_outerWidth = outerWidth;
+	refresh();
+}
+
 void BalanceInk::refresh() {
 	const auto &majorFont = st::walletCardBalanceMajorLabel.style.font;
 	const auto &minorFont = st::walletCardBalanceMinorLabel.style.font;
 	const auto &fiatFont = st::walletCardFiatLabel.style.font;
-	const auto major = Info::ChannelEarn::MajorPart(_balance);
 	const auto minor = _balance.nano()
 		? Info::ChannelEarn::MinorPart(_balance)
 		: QString();
 	const auto ticker = tr::lng_wallet_card_ticker(tr::now);
 	const auto majorLeft = st::walletCardMarkSize
 		+ st::walletCardIconMargin.right();
+	const auto qrLeft = _outerWidth
+		- st::walletCardMargin.left()
+		- st::walletCardMargin.right()
+		- st::walletCardQrRight
+		- st::walletCardQrSize.width();
+	const auto available = qrLeft
+		- st::walletCardContentSkip
+		- st::walletCardContentLeft
+		- majorLeft
+		- minorFont->width(minor)
+		- st::walletCardTickerSkip
+		- majorFont->width(ticker);
+	const auto full = Info::ChannelEarn::MajorPart(_balance);
+	const auto major = (available > 0)
+		? majorFont->elided(full, available)
+		: full;
 	const auto minorLeft = majorLeft + majorFont->width(major);
 
 	_amount = QPainterPath();
@@ -4013,6 +4038,12 @@ void Content::setupBalance() {
 			_titleBalance->width(),
 			st::separatePanelTitleHeight);
 	};
+
+	widthValue(
+	) | rpl::on_next([=](int width) {
+		_ink->setOuterWidth(width);
+		repaintBalance();
+	}, lifetime());
 
 	rpl::combine(
 		_show->session().wallet().balanceNanoValue(),
