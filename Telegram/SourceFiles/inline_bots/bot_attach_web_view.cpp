@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/create_managed_bot_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/premium_preview_box.h"
+#include "boxes/report_messages_box.h"
 #include "boxes/share_box.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "chat_helpers/tabbed_panel.h"
@@ -1448,12 +1449,15 @@ void WebViewInstance::show(ShowArgs &&args) {
 		&& (v::is<WebViewSourceMainMenu>(_source)
 			|| v::is<WebViewSourceAttachMenu>(_source)
 			|| v::is<WebViewSourceLinkAttachMenu>(_source));
-	const auto buttons = (hasOpenBot ? Button::OpenBot : Button::None)
+	auto buttons = (hasOpenBot ? Button::OpenBot : Button::None)
 		| (!hasRemoveFromMenu
 			? Button::None
 			: attached->inMainMenu
 			? Button::RemoveFromMainMenu
 			: Button::RemoveFromMenu);
+	if (Info::Profile::CanReportBot(_bot)) {
+		buttons |= Button::Report;
+	}
 	const auto allowClipboardRead = v::is<WebViewSourceMainMenu>(_source)
 		|| v::is<WebViewSourceAttachMenu>(_source)
 		|| (attached != end(bots)
@@ -1740,6 +1744,24 @@ void WebViewInstance::botHandleMenuButton(
 		} else {
 			_panel->showToast({ tr::lng_message_not_found(tr::now) });
 		}
+	} break;
+	case Button::Report: {
+		const auto bot = _bot;
+		const auto weak = _context.controller;
+		auto resolveController = [=] {
+			const auto controller = weak.get();
+			if (controller && &controller->session() == &bot->session()) {
+				return controller;
+			}
+			return bot->session().tryResolveWindow(bot);
+		};
+		ShowReportMessageBox(
+			uiShow(),
+			bot,
+			{},
+			{},
+			nullptr,
+			std::move(resolveController));
 	} break;
 	}
 }

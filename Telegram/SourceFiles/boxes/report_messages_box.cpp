@@ -72,18 +72,26 @@ void ShowReportFlowBox(
 		not_null<PeerData*> peer,
 		Fn<void(Data::ReportInput, Fn<void(Api::ReportResult)>)> report,
 		Data::ReportInput initialInput,
-		const style::ReportBox *stOverride) {
+		const style::ReportBox *stOverride,
+		Fn<Window::SessionController*()> resolveController) {
 	auto performRequest = [=](
 			const auto &repeatRequest,
 			Data::ReportInput reportInput) -> void {
 		report(reportInput, [=](const Api::ReportResult &result) {
+			if (!show->valid()) {
+				return;
+			}
 			if (!result.error.isEmpty()) {
 				if (result.error == u"MESSAGE_ID_REQUIRED"_q) {
-					const auto widget = show->toastParent();
-					const auto window = Core::App().findWindow(widget);
-					const auto controller = window
-						? window->sessionController()
-						: nullptr;
+					auto controller = (Window::SessionController*)nullptr;
+					if (resolveController) {
+						controller = resolveController();
+					} else {
+						const auto widget = show->toastParent();
+						if (const auto window = Core::App().findWindow(widget)) {
+							controller = window->sessionController();
+						}
+					}
 					if (controller) {
 						const auto callback = [=](std::vector<MsgId> ids) {
 							auto copy = reportInput;
@@ -208,13 +216,15 @@ void ShowReportMessageBox(
 		not_null<PeerData*> peer,
 		const std::vector<MsgId> &ids,
 		const std::vector<StoryId> &stories,
-		const style::ReportBox *stOverride) {
+		const style::ReportBox *stOverride,
+		Fn<Window::SessionController*()> resolveController) {
 	ShowReportFlowBox(
 		show,
 		peer,
 		Api::CreateReportMessagesOrStoriesCallback(show, peer),
 		{ .ids = ids, .stories = stories },
-		stOverride);
+		stOverride,
+		std::move(resolveController));
 }
 
 void ShowReportEphemeralBox(
@@ -231,5 +241,6 @@ void ShowReportEphemeralBox(
 		peer,
 		Api::CreateReportEphemeralMessageCallback(show, peer, ephemeralId),
 		{},
+		nullptr,
 		nullptr);
 }

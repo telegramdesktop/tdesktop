@@ -61,6 +61,7 @@ enum class MenuButton {
 	RemoveFromMenu     = 0x02,
 	RemoveFromMainMenu = 0x04,
 	ShareGame          = 0x08,
+	Report             = 0x10,
 };
 inline constexpr bool is_flag_type(MenuButton) { return true; }
 using MenuButtons = base::flags<MenuButton>;

@@ -406,6 +406,7 @@ enum class SharedPanelMenuAction {
 	ShareGame,
 	Terms,
 	Privacy,
+	Report,
 	RemoveFromMenu,
 	RemoveFromMainMenu,
 	DownloadOpen,
@@ -455,6 +456,8 @@ struct SharedPanelMenuDispatchArgs {
 		return u"terms"_q;
 	case SharedPanelMenuAction::Privacy:
 		return u"privacy"_q;
+	case SharedPanelMenuAction::Report:
+		return u"report"_q;
 	case SharedPanelMenuAction::RemoveFromMenu:
 		return u"remove_from_menu"_q;
 	case SharedPanelMenuAction::RemoveFromMainMenu:
@@ -517,6 +520,8 @@ struct ParsedSharedPanelMenuAction {
 		return { SharedPanelMenuAction::Terms };
 	} else if (id == u"privacy"_q) {
 		return { SharedPanelMenuAction::Privacy };
+	} else if (id == u"report"_q) {
+		return { SharedPanelMenuAction::Report };
 	} else if (id == u"remove_from_menu"_q) {
 		return { SharedPanelMenuAction::RemoveFromMenu };
 	} else if (id == u"remove_from_main_menu"_q) {
@@ -569,6 +574,11 @@ void DispatchSharedPanelMenuAction(
 	case SharedPanelMenuAction::Privacy:
 		if (dispatch.privacy) {
 			dispatch.privacy();
+		}
+		break;
+	case SharedPanelMenuAction::Report:
+		if (dispatch.menuButton) {
+			dispatch.menuButton(MenuButton::Report);
 		}
 		break;
 	case SharedPanelMenuAction::RemoveFromMenu:
@@ -694,6 +704,14 @@ void DispatchSharedPanelMenuAction(
 			.iconKey = u"privacy"_q,
 			.icon = &st::menuIconAntispam,
 		});
+		if (args.buttons & MenuButton::Report) {
+			result.push_back({
+				.id = SharedPanelMenuActionId(SharedPanelMenuAction::Report),
+				.text = tr::lng_profile_report(tr::now),
+				.iconKey = u"report"_q,
+				.icon = &st::menuIconReport,
+			});
+		}
 	}
 	if (args.buttons & MenuButton::RemoveFromMainMenu) {
 		result.push_back({

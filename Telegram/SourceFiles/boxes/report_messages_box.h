@@ -19,6 +19,10 @@ namespace style {
 struct ReportBox;
 } // namespace style
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
 class HistoryItem;
 class PeerData;
 
@@ -31,7 +35,8 @@ void ShowReportMessageBox(
 	not_null<PeerData*> peer,
 	const std::vector<MsgId> &ids,
 	const std::vector<StoryId> &stories,
-	const style::ReportBox *stOverride = nullptr);
+	const style::ReportBox *stOverride = nullptr,
+	Fn<Window::SessionController*()> resolveController = nullptr);
 
 void ShowReportEphemeralBox(
 	std::shared_ptr<Ui::Show> show,
