@@ -206,6 +206,8 @@ struct GiftCode {
 	bool craft : 1 = false;
 };
 
+inline constexpr auto kTimeToLiveSingleView = crl::time(0x7FFFFFFF);
+
 class Media {
 public:
 	Media(not_null<HistoryItem*> parent);
@@ -266,6 +268,7 @@ public:
 	virtual bool forceForwardedInfo() const;
 	[[nodiscard]] virtual bool hasSpoiler() const;
 	[[nodiscard]] virtual crl::time ttlSeconds() const;
+	[[nodiscard]] bool ttlSecondsSingleView() const;
 
 	[[nodiscard]] virtual bool consumeMessageText(
 		const TextWithEntities &text);

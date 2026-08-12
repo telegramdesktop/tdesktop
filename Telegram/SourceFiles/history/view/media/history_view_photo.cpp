@@ -117,7 +117,8 @@ Photo::Photo(
 , _spoiler((spoiler || realParent->isMediaSensitive())
 	? std::make_unique<MediaSpoiler>()
 	: nullptr)
-, _sensitiveSpoiler(realParent->isMediaSensitive() ? 1 : 0) {
+, _sensitiveSpoiler(realParent->isMediaSensitive() ? 1 : 0)
+, _ttlCover(realParent->isTtlCoveredMedia() ? 1 : 0) {
 	create(realParent->fullId());
 }
 
@@ -399,8 +400,11 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 	}
 
 	const auto showEnlarge = loaded && _showEnlarge;
+	const auto ttlCovered = _ttlCover
+		&& _spoiler
+		&& !_spoiler->revealed;
 	const auto paintInCenter = !_sensitiveSpoiler
-		&& (radial || (!loaded && !_data->loading()));
+		&& (radial || (!loaded && !_data->loading()) || ttlCovered);
 	if (paintInCenter || showEnlarge) {
 		p.setPen(Qt::NoPen);
 		if (context.selected()) {
@@ -431,19 +435,37 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 		}
 
 		p.setOpacity(radialOpacity);
-		const auto &icon = (radial || _data->loading())
-			? sti->historyFileThumbCancel
-			: sti->historyFileThumbDownload;
-		icon.paintInCenter(p, inner);
+		if (radial || _data->loading()) {
+			sti->historyFileThumbCancel.paintInCenter(p, inner);
+		} else if (ttlCovered) {
+			paintTtlFire(p, inner);
+		} else {
+			sti->historyFileThumbDownload.paintInCenter(p, inner);
+		}
 		p.setOpacity(1);
 		if (radial) {
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
 			_animation->radial.draw(p, rinner, st::msgFileRadialLine, sti->historyFileThumbRadialFg);
+		} else if (ttlCovered && !_data->loading()) {
+			paintTtlCountdown(
+				p,
+				inner,
+				st::msgFileRadialLine,
+				sti->historyFileThumbRadialFg,
+				context.paused);
 		}
 	} else if (_sensitiveSpoiler || preview) {
 		drawSpoilerTag(p, rthumb, context, [&] {
 			return spoilerTagBackground();
 		});
+	}
+	if (ttlCovered) {
+		PaintTtlLabel(
+			p,
+			QPoint(paintx, painty),
+			width(),
+			_realParent,
+			context);
 	}
 	if (showEnlarge) {
 		auto hq = PainterHighQualityEnabler(p);
@@ -843,10 +865,14 @@ void Photo::drawGrouped(
 		p.setOpacity(1.);
 	}
 
+	const auto ttlCovered = _ttlCover
+		&& _spoiler
+		&& !_spoiler->revealed;
 	const auto paintInCenter = !_sensitiveSpoiler
 		&& (radial
 			|| (!loaded && !_data->loading())
-			|| _data->waitingForAlbum());
+			|| _data->waitingForAlbum()
+			|| ttlCovered);
 	if (paintInCenter) {
 		const auto radialOpacity = radial
 			? _animation->radial.opacity()
@@ -887,7 +913,13 @@ void Photo::drawGrouped(
 			? &sti->historyFileThumbCancel
 			: nullptr;
 		p.setOpacity(backOpacity);
-		if (previous && radialOpacity > 0. && radialOpacity < 1.) {
+		const auto ttlIdle = ttlCovered
+			&& !radial
+			&& !_data->loading()
+			&& !_data->waitingForAlbum();
+		if (ttlIdle) {
+			paintTtlFire(p, inner);
+		} else if (previous && radialOpacity > 0. && radialOpacity < 1.) {
 			PaintInterpolatedIcon(p, icon, *previous, radialOpacity, inner);
 		} else {
 			icon.paintInCenter(p, inner);
@@ -897,7 +929,22 @@ void Photo::drawGrouped(
 			const auto line = st::historyGroupRadialLine;
 			const auto rinner = inner.marginsRemoved({ line, line, line, line });
 			_animation->radial.draw(p, rinner, line, sti->historyFileThumbRadialFg);
+		} else if (ttlIdle) {
+			paintTtlCountdown(
+				p,
+				inner,
+				st::historyGroupRadialLine,
+				sti->historyFileThumbRadialFg,
+				context.paused);
 		}
+	}
+	if (ttlCovered) {
+		PaintTtlLabel(
+			p,
+			geometry.topLeft(),
+			width(),
+			_realParent,
+			context);
 	}
 }
 

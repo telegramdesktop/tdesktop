@@ -269,6 +269,7 @@ private:
 	mutable bool _seeking : 1 = false;
 	mutable bool _smallGroupPart : 1 = false;
 	const bool _sensitiveSpoiler : 1 = false;
+	const bool _ttlCover : 1 = false;
 	const bool _hasVideoCover : 1 = false;
 
 };

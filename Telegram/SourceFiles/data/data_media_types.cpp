@@ -774,6 +774,10 @@ crl::time Media::ttlSeconds() const {
 	return 0;
 }
 
+bool Media::ttlSecondsSingleView() const {
+	return (ttlSeconds() == kTimeToLiveSingleView);
+}
+
 bool Media::consumeMessageText(const TextWithEntities &text) {
 	return false;
 }
@@ -920,9 +924,12 @@ bool MediaPhoto::replyPreviewLoaded() const {
 }
 
 TextWithEntities MediaPhoto::notificationText() const {
+	const auto ttl = ttlSeconds();
 	return WithCaptionNotificationText(
-		tr::lng_in_dlg_photo(tr::now),
-		parent()->originalText());
+		(ttl
+			? tr::lng_in_dlg_photo_ttl
+			: tr::lng_in_dlg_photo)(tr::now),
+		ttl ? TextWithEntities() : parent()->originalText());
 }
 
 ItemPreview MediaPhoto::toPreview(ToPreviewOptions options) const {
@@ -958,8 +965,12 @@ ItemPreview MediaPhoto::toPreview(ToPreviewOptions options) const {
 			}
 		}
 	}
-	const auto type = tr::lng_in_dlg_photo(tr::now);
-	const auto caption = (options.hideCaption || options.ignoreMessageText)
+	const auto type = ttlSeconds()
+		? tr::lng_in_dlg_photo_ttl(tr::now)
+		: tr::lng_in_dlg_photo(tr::now);
+	const auto caption = (options.hideCaption
+		|| options.ignoreMessageText
+		|| ttlSeconds())
 		? TextWithEntities()
 		: Dialogs::Ui::DialogsPreviewText(options.translated
 			? parent()->translatedText()
@@ -1248,7 +1259,9 @@ ItemPreview MediaFile::toPreview(ToPreviewOptions options) const {
 		} else if (_document->isAnimation()) {
 			return WithEntities(u"GIF"_q);
 		} else if (_document->isVideoFile()) {
-			return WithEntities(tr::lng_in_dlg_video(tr::now));
+			return WithEntities((item->media() && item->media()->ttlSeconds())
+				? tr::lng_in_dlg_video_ttl(tr::now)
+				: tr::lng_in_dlg_video(tr::now));
 		} else if (_document->isVoiceMessage()) {
 			if (item->media() && item->media()->ttlSeconds()) {
 				return WithEntities(
@@ -1277,7 +1290,9 @@ ItemPreview MediaFile::toPreview(ToPreviewOptions options) const {
 	if (typeIcon && images.empty()) {
 		type = Ui::Text::IconEmoji(typeIcon).append(std::move(type));
 	}
-	const auto caption = (options.hideCaption || options.ignoreMessageText)
+	const auto caption = (options.hideCaption
+		|| options.ignoreMessageText
+		|| ttlSeconds())
 		? TextWithEntities()
 		: Dialogs::Ui::DialogsPreviewText(options.translated
 			? parent()->translatedText()
@@ -1306,7 +1321,10 @@ TextWithEntities MediaFile::notificationText() const {
 		} else if (_document->isAnimation()) {
 			return u"GIF"_q;
 		} else if (_document->isVideoFile()) {
-			return tr::lng_in_dlg_video(tr::now);
+			const auto media = parent()->media();
+			return (media && media->ttlSeconds())
+				? tr::lng_in_dlg_video_ttl(tr::now)
+				: tr::lng_in_dlg_video(tr::now);
 		} else if (_document->isVoiceMessage()) {
 			const auto media = parent()->media();
 			return (media && media->ttlSeconds())
@@ -1319,7 +1337,9 @@ TextWithEntities MediaFile::notificationText() const {
 		}
 		return tr::lng_in_dlg_file(tr::now);
 	}();
-	return WithCaptionNotificationText(type, parent()->originalText());
+	return WithCaptionNotificationText(
+		type,
+		ttlSeconds() ? TextWithEntities() : parent()->originalText());
 }
 
 QString MediaFile::pinnedTextSubstring() const {

@@ -516,6 +516,8 @@ PRIVATE
     ui/controls/tabbed_search.h
     ui/controls/ton_common.cpp
     ui/controls/ton_common.h
+    ui/controls/ttl_media.cpp
+    ui/controls/ttl_media.h
     ui/controls/who_reacted_context_action.cpp
     ui/controls/who_reacted_context_action.h
     ui/controls/window_outdated_bar.cpp

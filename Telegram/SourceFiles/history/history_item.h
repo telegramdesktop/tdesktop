@@ -279,6 +279,8 @@ public:
 	[[nodiscard]] bool isUnreadMedia() const;
 	[[nodiscard]] bool isIncomingUnreadMedia() const;
 	[[nodiscard]] bool hasUnreadMediaFlag() const;
+	[[nodiscard]] bool isTtlCoveredMedia() const;
+	[[nodiscard]] TimeId mediaDestroyAt() const;
 	void markReactionsRead();
 	void markPollVotesRead();
 	void markMediaAndMentionRead();

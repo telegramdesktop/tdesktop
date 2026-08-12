@@ -194,6 +194,7 @@ Gif::Gif(
 , _downloadSize(Ui::FormatSizeText(_data->size))
 , _videoTimestamp(::Media::View::ExtractVideoTimestamp(realParent))
 , _sensitiveSpoiler(realParent->isMediaSensitive())
+, _ttlCover(realParent->isTtlCoveredMedia())
 , _hasVideoCover(realParent->media() && realParent->media()->videoCover()) {
 	const auto media = _parent->data()->media();
 	if (_data->isVideoMessage() && media && media->ttlSeconds()) {
@@ -596,7 +597,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 
 	const auto inTTLViewer = _parent->delegate()->elementContext()
 		== Context::TTLViewer;
-	const auto revealed = (isRound
+	const auto revealed = ((isRound || _ttlCover)
 			&& item->media()
 			&& item->media()->ttlSeconds()
 			&& !inTTLViewer)
@@ -746,10 +747,12 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		}
 	}
 
+	const auto ttlCovered = _ttlCover && (revealed < 1.);
 	const auto paintInCenter = !_sensitiveSpoiler
 		&& (radial
 			|| (!streamingMode
-				&& ((!loaded && !_data->loading()) || !autoplay)));
+				&& ((!loaded && !_data->loading()) || !autoplay))
+			|| ttlCovered);
 	if (paintInCenter) {
 		const auto radialRevealed = 1.;
 		const auto opacity = (item->isSending() || _data->uploading())
@@ -794,7 +797,15 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			}
 			return &sti->historyFileThumbDownload;
 		}();
-		if (icon) {
+		if (ttlCovered && !radial && !_data->loading()) {
+			paintTtlFire(p, inner);
+			paintTtlCountdown(
+				p,
+				inner,
+				st::msgFileRadialLine,
+				sti->historyFileThumbRadialFg,
+				context.paused);
+		} else if (icon) {
 			icon->paintInCenter(p, inner);
 		}
 		p.setOpacity(radialRevealed);
@@ -843,7 +854,11 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		const auto sponsoredSkip = !_data->isVideoFile()
 			&& _realParent->isSponsored();
 		if ((!isRound || !inWebPage) && !sponsoredSkip) {
-			drawCornerStatus(p, context, QPoint());
+			if (ttlCovered) {
+				PaintTtlLabel(p, QPoint(), width(), _realParent, context);
+			} else {
+				drawCornerStatus(p, context, QPoint());
+			}
 		}
 	} else if (!skipDrawingSurrounding) {
 		if (isRound) {

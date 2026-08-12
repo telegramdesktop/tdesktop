@@ -4862,6 +4862,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_in_dlg_video_message" = "Video message";
 "lng_in_dlg_voice_message_ttl" = "One-time Voice Message";
 "lng_in_dlg_video_message_ttl" = "One-time Video Message";
+"lng_in_dlg_photo_ttl" = "Self-Destructing Photo";
+"lng_in_dlg_video_ttl" = "Self-Destructing Video";
 "lng_in_dlg_file" = "File";
 "lng_in_dlg_sticker" = "Sticker";
 "lng_in_dlg_sticker_emoji" = "{emoji} Sticker";

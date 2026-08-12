@@ -1786,6 +1786,29 @@ bool HistoryItem::isIncomingUnreadMedia() const {
 	return !out() && isUnreadMedia();
 }
 
+bool HistoryItem::isTtlCoveredMedia() const {
+	const auto media = _media.get();
+	if (!media || !media->ttlSeconds()) {
+		return false;
+	} else if (media->photo()) {
+		return true;
+	} else if (const auto document = media->document()) {
+		return document->isVideoFile();
+	}
+	return false;
+}
+
+TimeId HistoryItem::mediaDestroyAt() const {
+	if (const auto selfdestruct = Get<HistoryServiceSelfDestruct>()) {
+		const auto at = std::get_if<crl::time>(&selfdestruct->destructAt);
+		if (at && *at) {
+			return base::unixtime::now()
+				+ TimeId((*at - crl::now()) / 1000);
+		}
+	}
+	return 0;
+}
+
 void HistoryItem::markMediaAndMentionRead() {
 	const auto wasUnreadMedia = isUnreadMedia();
 	_flags &= ~MessageFlag::MediaIsUnread;
