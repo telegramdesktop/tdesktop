@@ -796,6 +796,9 @@ private:
 	[[nodiscard]] bool canLiftActiveLineOutOfContainer() const;
 	[[nodiscard]] bool liftActiveLineOutOfContainerUnchecked(
 		ActiveTextSelectionTarget *target);
+	[[nodiscard]] bool canJoinBlockAfterActiveContainer() const;
+	[[nodiscard]] bool joinBlockAfterActiveContainerUnchecked(
+		ActiveTextSelectionTarget *target);
 	[[nodiscard]] bool canRemoveEmptyBlockBeforeActive() const;
 	[[nodiscard]] bool removeEmptyBlockBeforeActiveUnchecked(
 		ActiveTextSelectionTarget *target);
