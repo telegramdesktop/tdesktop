@@ -4801,6 +4801,63 @@ bool State::liftActiveLineOutOfContainerUnchecked(
 	return true;
 }
 
+bool State::canJoinBlockAfterActiveContainer() const {
+	const auto descriptor = textNode(_activeTextOrdinal);
+	const auto containerPath = activeLineContainerBlock();
+	if (!descriptor || !containerPath) {
+		return false;
+	}
+	const auto owner = block(descriptor->leaf.block);
+	const auto blocks = blockContainer(descriptor->leaf.block.container);
+	if (!owner
+		|| !blocks
+		|| (owner->kind != BlockKind::Paragraph)
+		|| (descriptor->leaf.block.index + 1 != int(blocks->size()))) {
+		return false;
+	}
+	auto nextPath = *containerPath;
+	++nextPath.index;
+	const auto next = block(nextPath);
+	return next
+		&& JoinableTextBlockKind(next->kind)
+		&& next->blocks.empty();
+}
+
+bool State::joinBlockAfterActiveContainerUnchecked(
+		ActiveTextSelectionTarget *target) {
+	if (!target || !canJoinBlockAfterActiveContainer()) {
+		return false;
+	}
+	const auto descriptor = textNode(_activeTextOrdinal);
+	const auto containerPath = activeLineContainerBlock();
+	if (!descriptor || !containerPath) {
+		return false;
+	}
+	const auto destination = descriptor->leaf;
+	const auto parent = blockContainer(containerPath->container);
+	if (!parent || containerPath->index + 1 >= int(parent->size())) {
+		return false;
+	}
+	clearTemporaryDownParagraph();
+	auto taken = std::move((*parent)[containerPath->index + 1]);
+	parent->erase(parent->begin() + containerPath->index + 1);
+	const auto owner = block(destination.block);
+	if (!owner) {
+		return false;
+	}
+	const auto seamOffset = AppendParagraphSeam(owner, std::move(taken));
+	rebuild();
+	if (!activateRebuiltLeaf(destination)) {
+		return false;
+	}
+	*target = {
+		.leaf = destination,
+		.selectionFrom = seamOffset,
+		.selectionTo = seamOffset,
+	};
+	return true;
+}
+
 bool State::canRemoveEmptyBlockBeforeActive() const {
 	const auto descriptor = textNode(_activeTextOrdinal);
 	if (!descriptor
@@ -5073,8 +5130,9 @@ State::ParagraphBoundaryJoinResult State::joinActiveParagraphBoundary(
 			&& !textJoin
 			&& !listJoin
 			&& !listAppend
-			&& !forward
-			&& candidate.canLiftActiveLineOutOfContainer();
+			&& (forward
+				? candidate.canJoinBlockAfterActiveContainer()
+				: candidate.canLiftActiveLineOutOfContainer());
 		if (!dropEmpty
 			&& !textJoin
 			&& !listJoin
@@ -5088,7 +5146,9 @@ State::ParagraphBoundaryJoinResult State::joinActiveParagraphBoundary(
 		const auto joined = dropEmpty
 			? candidate.removeEmptyBlockBeforeActiveUnchecked(&target)
 			: containerStep
-			? candidate.liftActiveLineOutOfContainerUnchecked(&target)
+			? (forward
+				? candidate.joinBlockAfterActiveContainerUnchecked(&target)
+				: candidate.liftActiveLineOutOfContainerUnchecked(&target))
 			: textJoin
 			? candidate.joinActiveParagraphBoundaryUnchecked(
 				forward,
