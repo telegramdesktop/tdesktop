@@ -422,6 +422,8 @@ private:
 	void updateNavigationControlsGeometry();
 	void refreshTtlBadge(TimeId destroyAt);
 	void updateTtlBadgePosition();
+	void markTimedMediaRead();
+	void checkSingleViewMediaBurn();
 
 	void fillContextMenuActions(const Ui::Menu::MenuCallback &addAction);
 

@@ -1300,6 +1300,28 @@ void OverlayWidget::updateTtlBadgePosition() {
 	_ttlBadge->raise();
 }
 
+void OverlayWidget::markTimedMediaRead() {
+	const auto item = _message;
+	if (!item || !item->isTtlCoveredMedia()) {
+		return;
+	} else if (item->isIncomingUnreadMedia()) {
+		item->history()->session().api().markContentsRead(item);
+	}
+}
+
+void OverlayWidget::checkSingleViewMediaBurn() {
+	const auto item = _message;
+	if (!item || item->out()) {
+		return;
+	}
+	const auto media = item->media();
+	if (media
+		&& media->ttlSecondsSingleView()
+		&& item->isTtlCoveredMedia()) {
+		item->clearMediaAsExpired();
+	}
+}
+
 void OverlayWidget::updateNavigationControlsGeometry() {
 	_minUsedTop = topNotchSkip();
 	_maxUsedHeight = height() - _minUsedTop;
@@ -7626,9 +7648,13 @@ void OverlayWidget::setContext(
 		not_null<PeerData*>,
 		StoriesContext> context) {
 	if (const auto item = std::get_if<ItemContext>(&context)) {
+		if (_message != item->item) {
+			checkSingleViewMediaBurn();
+		}
 		_message = item->item;
 		_history = _message->history();
 		_peer = _history->peer;
+		markTimedMediaRead();
 		_topicRootId = _peer->isForum() ? item->topicRootId : MsgId();
 		_monoforumPeerId = _peer->amMonoforumAdmin()
 			? item->monoforumPeerId
@@ -8708,6 +8734,7 @@ Window::SessionController *OverlayWidget::findWindow(bool switchTo) const {
 
 // #TODO unite and check
 void OverlayWidget::clearBeforeHide() {
+	checkSingleViewMediaBurn();
 	_message = nullptr;
 	_sharedMedia = nullptr;
 	_sharedMediaData = std::nullopt;
