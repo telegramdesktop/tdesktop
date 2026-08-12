@@ -311,6 +311,9 @@ void PasscodeBox::prepare() {
 	) | rpl::on_next([=] {
 		newChanged();
 	}, _passwordHint->lifetime());
+	_recoverEmail->setInputMethodHints(Qt::ImhEmailCharactersOnly
+		| Qt::ImhNoAutoUppercase
+		| Qt::ImhNoPredictiveText);
 	_recoverEmail->changes(
 	) | rpl::on_next([=] {
 		if (!_emailError.isEmpty()) {

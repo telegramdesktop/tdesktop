@@ -200,6 +200,9 @@ SetupEmailLockWidget::SetupEmailLockWidget(
 				tr::lng_settings_cloud_login_email_placeholder()),
 			st::boxRowPadding,
 			style::al_top);
+		emailInput->setInputMethodHints(Qt::ImhEmailCharactersOnly
+			| Qt::ImhNoAutoUppercase
+			| Qt::ImhNoPredictiveText);
 
 		Ui::AddSkip(_layout);
 		Ui::AddSkip(_layout);

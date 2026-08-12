@@ -211,6 +211,8 @@ void EditMathBox(
 			tr::lng_formatting_math_source_placeholder(),
 			startSource),
 		st::markdownLinkFieldPadding);
+	source->setInputMethodHints(Qt::ImhNoAutoUppercase
+		| Qt::ImhNoPredictiveText);
 	source->setSubmitSettings(Ui::InputField::SubmitSettings::Enter);
 	source->setMinHeight(source->st().heightMin);
 	const auto separateLineField = separateLine

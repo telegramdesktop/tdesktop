@@ -66,6 +66,9 @@ void LoginEmail::setupContent() {
 		content,
 		tr::lng_settings_cloud_login_email_placeholder(),
 		QString());
+	newInput->setInputMethodHints(Qt::ImhEmailCharactersOnly
+		| Qt::ImhNoAutoUppercase
+		| Qt::ImhNoPredictiveText);
 	const auto error = AddError(content, nullptr);
 	newInput->changes() | rpl::on_next([=] {
 		error->hide();
