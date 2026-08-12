@@ -996,7 +996,7 @@ bool MediaPhoto::allowsEditCaption() const {
 }
 
 bool MediaPhoto::allowsEditMedia() const {
-	return true;
+	return !ttlSeconds();
 }
 
 bool MediaPhoto::hasSpoiler() const {
@@ -1398,7 +1398,8 @@ bool MediaFile::allowsEditCaption() const {
 bool MediaFile::allowsEditMedia() const {
 	return !_document->isVideoMessage()
 		&& !_document->sticker()
-		&& !_document->isVoiceMessage();
+		&& !_document->isVoiceMessage()
+		&& !ttlSeconds();
 }
 
 bool MediaFile::forwardedBecomesUnread() const {
