@@ -38,7 +38,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/send_gif_with_caption_box.h"
 #include "boxes/send_credits_box.h"
 #include "boxes/send_files_box_reply_header.h"
+#include "ui/boxes/time_picker_box.h"
 #include "ui/effects/scroll_content_shadow.h"
+#include "ui/text/format_values.h"
 #include "ui/widgets/fields/number_input.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/scroll_area.h"
@@ -1689,6 +1691,51 @@ void SendFilesBox::pushBlock(int from, int till) {
 			add(tr::lng_seconds(tr::now, lt_count, 10), 10);
 			add(tr::lng_seconds(tr::now, lt_count, 30), 30);
 			add(tr::lng_ttl_period_keep(tr::now), 0);
+			const auto custom = (current > 0)
+				&& (current != Data::kTimeToLiveSingleView)
+				&& (current != 3)
+				&& (current != 10)
+				&& (current != 30);
+			const auto chooseCustom = crl::guard(this, [=] {
+				auto values = std::vector<TimeId>();
+				auto phrases = std::vector<QString>();
+				values.reserve(60);
+				phrases.reserve(60);
+				for (auto i = 1; i != 61; ++i) {
+					values.push_back(i);
+					phrases.push_back(tr::lng_seconds(tr::now, lt_count, i));
+				}
+				const auto initial = custom ? int(current) : 10;
+				_show->show(Box([=](not_null<Ui::GenericBox*> box) {
+					box->setTitle(tr::lng_ttl_period_menu());
+					const auto take = Ui::TimePickerBox(
+						box,
+						values,
+						phrases,
+						initial);
+					box->addButton(
+						tr::lng_settings_save(),
+						crl::guard(this, [=] {
+							const auto value = take();
+							box->closeBox();
+							choose(value);
+						}));
+					box->addButton(tr::lng_cancel(), [=] {
+						box->closeBox();
+					});
+				}));
+			});
+			Menu::AddCheckedAction(
+				submenu.get(),
+				(custom
+					? tr::lng_ttl_period_custom_value(
+						tr::now,
+						lt_time,
+						tr::lng_seconds_tiny(tr::now, lt_count, current))
+					: tr::lng_ttl_period_custom(tr::now)),
+				chooseCustom,
+				nullptr,
+				custom);
 			submenu->addSeparator();
 			submenu->addAction(base::make_unique_q<Ui::Menu::MultilineAction>(
 				submenu->menu(),
