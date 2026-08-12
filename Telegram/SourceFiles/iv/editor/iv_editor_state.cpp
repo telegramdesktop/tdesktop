@@ -7821,9 +7821,6 @@ std::optional<int> State::handleActiveQuoteEnter(
 
 std::optional<int> State::handleActiveQuoteEnterUnchecked(
 		const ActiveEnterContext &context) {
-	if (context.position == EnterPosition::End) {
-		return std::nullopt;
-	}
 	const auto descriptor = textNode(_activeTextOrdinal);
 	if (!descriptor || descriptor->leaf.kind != LeafKind::BlockText) {
 		return std::nullopt;
