@@ -35,6 +35,8 @@ PRIVATE
     iv/editor/iv_editor_clipboard_import.h
     iv/editor/iv_editor_commands.cpp
     iv/editor/iv_editor_commands.h
+    iv/editor/iv_editor_insert_suggestions.cpp
+    iv/editor/iv_editor_insert_suggestions.h
     iv/editor/iv_editor_math_box.cpp
     iv/editor/iv_editor_math_box.h
     iv/editor/iv_editor_page_blocks.cpp

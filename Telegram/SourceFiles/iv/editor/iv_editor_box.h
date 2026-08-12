@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <optional>
 
 class PeerData;
+class QPainter;
 class QWidget;
 
 namespace ChatHelpers {
@@ -58,6 +59,11 @@ void SetupToolbarButton(
 	not_null<Ui::IconButton*> button,
 	ToolbarButtonState state,
 	anim::type animated = anim::type::normal);
+
+void PaintPremiumStar(
+	QPainter &p,
+	QRect inner,
+	std::optional<QColor> halo = std::nullopt);
 
 struct ShowWindowDescriptor {
 	enum class SubmitType {

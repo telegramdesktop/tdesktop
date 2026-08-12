@@ -55,6 +55,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/click_handler.h"
+#include "ui/delayed_activation.h"
 #include "ui/image/image.h"
 #include "ui/image/image_location.h"
 #include "ui/layers/generic_box.h"
@@ -960,6 +961,7 @@ Widget::Widget(
 , _outer(services.outer)
 , _customEmojiPaused(std::move(services.customEmojiPaused))
 , _requestMedia(std::move(services.requestMedia))
+, _requestMap(std::move(services.requestMap))
 , _applyPreparedMedia(std::move(services.applyPreparedMedia))
 , _prepareDeferredMedia(std::move(services.prepareDeferredMedia))
 , _requestPhotoEditSource(std::move(services.requestPhotoEditSource))
@@ -1040,6 +1042,20 @@ Widget::Widget(
 		*fieldStyle.style,
 		Ui::InputField::Mode::MultiLine,
 		rpl::single(QString()));
+	_insertSuggestions = std::make_unique<InsertSuggestionsController>(
+		InsertSuggestionsDescriptor{
+			.host = this,
+			.outer = _outer,
+			.field = [=] {
+				return _field->isHidden() ? nullptr : _field.get();
+			},
+			.premium = AmPremiumValue(_session),
+			.chosen = [=](InsertSuggestionCommand command) {
+				applyInsertSuggestion(command);
+			},
+			.media = static_cast<bool>(_requestMedia),
+			.map = static_cast<bool>(_requestMap),
+		});
 	setupInlineField();
 	refreshPreparedContent();
 	_history.push_back(captureHistoryEntry());
@@ -3687,6 +3703,7 @@ void Widget::visibleTopBottomUpdated(int visibleTop, int visibleBottom) {
 		.bottom = visibleBottom,
 	};
 	syncArticleVisibleTopBottom();
+	_insertSuggestions->updatePosition();
 }
 
 bool Widget::eventFilter(QObject *object, QEvent *event) {
@@ -6256,6 +6273,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 	p.restore();
 	paintMediaControls(p, topLeft);
 	paintButtonRowControls(p, topLeft);
+	_insertSuggestions->paintQuery(p);
 	if (!_articleSelectionDrag.indicatorRect.isEmpty()) {
 		auto color = st::windowActiveTextFg->c;
 		color.setAlphaF(color.alphaF() * 0.7);
@@ -7936,6 +7954,7 @@ void Widget::hideInlineField() {
 	const auto guard = gsl::finally([&] {
 		_settingField = wasSettingField;
 	});
+	_insertSuggestions->close();
 	_field->hide();
 }
 
@@ -8496,6 +8515,71 @@ bool Widget::adjustStructuralSelectionFromKeyboard(bool forward, bool page) {
 	return true;
 }
 
+bool Widget::handleInsertSuggestionsKey(QKeyEvent *e) {
+	if (_insertSuggestions->handleKeyPress(e)) {
+		e->accept();
+		return true;
+	}
+	const auto modifiers = e->modifiers()
+		& ~(Qt::KeypadModifier | Qt::GroupSwitchModifier | Qt::ShiftModifier);
+	if ((e->text() != u"/"_q)
+		|| (modifiers != Qt::NoModifier)
+		|| _field->isHidden()
+		|| (_fieldMode != State::FieldMode::Rich)
+		|| !_state->isActiveTopLevelParagraph()
+		|| !_field->getLastText().isEmpty()) {
+		return false;
+	}
+	_insertSuggestions->open();
+	return false;
+}
+
+void Widget::applyInsertSuggestion(InsertSuggestionCommand command) {
+	if (!_insertSuggestions->active() || _field->isHidden()) {
+		_insertSuggestions->close();
+		return;
+	}
+	_insertSuggestions->takeQuery();
+	_insertSuggestions->close();
+	if (const auto action = InsertSuggestionBlock(command)) {
+		insertBlock(*action);
+		return;
+	}
+	using Command = InsertSuggestionCommand;
+	switch (command) {
+	case Command::Button:
+		editButtonFromToolbar();
+		return;
+	case Command::Math:
+		editMathFromToolbar();
+		return;
+	case Command::Media:
+		requestMedia(std::nullopt, RequestMediaType::PhotoVideo);
+		return;
+	case Command::Audio:
+		requestMedia(std::nullopt, RequestMediaType::Audio);
+		return;
+	case Command::Map:
+		requestMapInsert();
+		return;
+	default:
+		break;
+	}
+	Unexpected("Command in Widget::applyInsertSuggestion.");
+}
+
+void Widget::requestMapInsert() {
+	if (!_requestMap) {
+		return;
+	}
+	const auto outer = static_cast<Ui::RpWidget*>(_outer.get());
+	Ui::PreventDelayedActivation();
+	_requestMap(
+		not_null<Widget*>(this),
+		QPointer<QWidget>(_outer.get()),
+		outer->death());
+}
+
 bool Widget::handleFieldInputRule(QKeyEvent *e) {
 	const auto modifiers = e->modifiers()
 		& ~(Qt::KeypadModifier | Qt::GroupSwitchModifier);
@@ -8573,6 +8657,10 @@ bool Widget::handleFieldKey(QKeyEvent *e) {
 	if (key != Qt::Key_Backspace) {
 		_inputRuleUndo = std::nullopt;
 	}
+	if (handleInsertSuggestionsKey(e)) {
+		return true;
+	}
+	_insertSuggestions->scheduleRefresh();
 	if (handleFieldInputRule(e)) {
 		return true;
 	}
