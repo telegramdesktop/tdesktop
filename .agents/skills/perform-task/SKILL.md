@@ -5,6 +5,9 @@ description: Resolve, start or resume, implement, commit, and verify exactly one
 
 # Perform One AI Task
 
+When running in Grok Build, read `.grok/ai-workflow-adapter.md` completely
+before any other host-specific delegation rule and apply its substitutions.
+
 Own exactly one task through a Telegram commit and a canonical AI `Approve` or
 exceptional `Block`. Do not process the inbox, split the task, drain the queue,
 select a follow-up, or consolidate pending tasks afterward. The `continue`

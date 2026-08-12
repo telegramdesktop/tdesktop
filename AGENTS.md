@@ -185,8 +185,9 @@ user to close that checkout's Telegram/debugger before rebuilding.
 - For an `ai-tdesktop` task, start the subject with exactly `[ai] ` when the
   retained task implementation changes permanent test-helper code, the agent
   harness, or agent documentation in any way. This includes
-  `Telegram/SourceFiles/test/`, `.agents/`, `.claude/`, `AGENTS.md`,
-  `CLAUDE.md`, and files whose sole role is supporting those systems. Do not
+  `Telegram/SourceFiles/test/`, `.agents/`, `.claude/`, `.grok/`,
+  `AGENTS.md`, `CLAUDE.md`, `GROK.md`, and files whose sole role is
+  supporting those systems. Do not
   count the disposable test overlay or external AI task artifacts. For every
   other task, the subject must not contain `[ai]` anywhere.
 - For ordinary work not associated with an AI task, add a short plain-language body only when the subject can't carry it (what was done, not the technical how) — a line or two at most.

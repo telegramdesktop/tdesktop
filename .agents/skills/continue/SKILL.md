@@ -5,6 +5,9 @@ description: Continue autonomous Telegram Desktop development from the shared ai
 
 # Continue AI Work
 
+When running in Grok Build, read `.grok/ai-workflow-adapter.md` completely
+before any other host-specific delegation rule and apply its substitutions.
+
 Act as the checkout-level scheduler. Choose one invocation mode at startup,
 freeze its task batch, and keep looping only through that batch and follow-ups
 discovered from its results. Do not drain unrelated tasks added while the run

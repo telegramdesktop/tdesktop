@@ -52,6 +52,23 @@ every applicable placeholder: `<TASK>`, `<TASK_ID>`, `<WORK_DIR>`,
   once in a fresh Agent with more specific instructions before stopping to
   ask the user.
 
+### Grok Build: blocking spawn, depth one
+
+- Follow `.grok/ai-workflow-adapter.md`. Its substitutions win over the
+  Codex wait ladder and over any prompt that assumes nested delegation.
+- When this session is a top-level `/perform-task`, run each leaf as one
+  blocking `spawn_subagent` (`background: false`). The call returning is
+  the completion signal; validate the artifact checks below on return.
+- Spawn the independent leaves of one step — the Phase 6a lenses plus the
+  iteration-1 Phase 6d test-design leaf, or assessed-disjoint Phase 4
+  units — as parallel `spawn_subagent` calls in a single message.
+- When this session is a `/continue` child, do not call `spawn_subagent`.
+  Run every phase as a same-session checklist. That is the supported
+  depth-1 fallback, not a retry.
+- If a returned leaf fails its completion check, retry that disposable
+  phase once in a fresh `spawn_subagent` with more specific instructions
+  before stopping to ask the user.
+
 ### Codex: asynchronous spawn and wait
 
 - Store the canonical target returned by `spawn_agent`.
@@ -1153,6 +1170,23 @@ For review iterations, include the iteration and the lens in the file name, for 
 3. When the calls return, validate the expected artifacts or code changes with
    small shell summaries and the completion checks above.
 4. Write the result log from the validated outcome and the compact reply block.
+
+## Subagent Pattern (Grok Build)
+
+1. Write the phase prompt file(s).
+2. From a top-level `/perform-task` session, make one blocking
+   `spawn_subagent` call per leaf — parallel calls in a single message
+   for independent leaves of the same step — with self-contained
+   prompts and `background: false`. From a `/continue` child, use the
+   same prompt files as same-session checklists and do not spawn.
+3. When a spawn returns, or when a same-session checklist finishes,
+   validate the expected artifacts or code changes with small shell
+   summaries and the completion checks above.
+4. Write the result log from the validated outcome and the compact
+   reply block.
+
+Do not replace this pattern with a shell-launched `grok` process, a
+workflow script, or the Codex wait ladder.
 
 ## Subagent Pattern (Codex)
 

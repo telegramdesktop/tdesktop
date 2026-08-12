@@ -213,11 +213,14 @@ Write the delegated prompt first. Require a final reply containing only
 status, artifact paths, touched paths, and blocker. On Claude Code, run each
 leaf as a synchronous foreground call and validate its artifacts when the call
 returns; run independent leaves of one step as parallel calls in a single
-message. On Codex, use the asynchronous wait ladder from the phase prompts:
-poll no longer than 60 seconds, treat a timeout as not-failure, use artifact
-mtimes and heartbeat counters, message the target after five minutes without
-movement, and interrupt and retry that disposable phase once after a second
-unchanged window. On either host, never replace a live stateful performer.
+message. On Grok Build, follow `.grok/ai-workflow-adapter.md`: blocking
+`spawn_subagent` leaves from a top-level performer, same-session checklists
+from a `/continue` child, no Codex wait ladder. On Codex, use the
+asynchronous wait ladder from the phase prompts: poll no longer than 60
+seconds, treat a timeout as not-failure, use artifact mtimes and heartbeat
+counters, message the target after five minutes without movement, and
+interrupt and retry that disposable phase once after a second unchanged
+window. On any host, never replace a live stateful performer.
 
 ## Implementation phases
 
@@ -468,8 +471,8 @@ Determine the prefix from the retained task implementation, not from the
 temporary test overlay. Start the subject with exactly `[ai] ` when the task
 changes permanent test-helper code, the agent harness, or agent documentation
 in any way. This includes `Telegram/SourceFiles/test/`, `.agents/`, `.claude/`,
-`AGENTS.md`, `CLAUDE.md`, and files whose sole role is supporting those
-systems. The disposable test overlay and external AI task artifacts do not
+`.grok/`, `AGENTS.md`, `CLAUDE.md`, `GROK.md`, and files whose sole role
+is supporting those systems. The disposable test overlay and external AI task artifacts do not
 count. For every other task, the subject must not contain `[ai]` anywhere. The
 prefix counts toward the subject length.
 
