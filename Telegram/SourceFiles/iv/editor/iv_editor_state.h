@@ -826,6 +826,7 @@ private:
 	[[nodiscard]] std::optional<BlockPath> listBeforeActiveParagraph() const;
 	[[nodiscard]] std::optional<NextListItem> deepestLastItem(
 		BlockPath list) const;
+	[[nodiscard]] bool mergeListWithNextSibling(const BlockPath &list);
 	[[nodiscard]] bool canJoinActiveParagraphIntoPreviousList() const;
 	[[nodiscard]] bool joinActiveParagraphIntoPreviousListUnchecked(
 		ActiveTextSelectionTarget *target);
