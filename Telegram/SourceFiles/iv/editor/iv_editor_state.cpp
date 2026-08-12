@@ -4368,6 +4368,160 @@ bool State::joinActiveListItemBoundaryUnchecked(
 	return true;
 }
 
+auto State::nextListItemAfterActive(
+		const ActiveListItemSurface &surface) const
+-> std::optional<NextListItem> {
+	const auto item = listItem(surface.path, surface.itemIndex);
+	if (!item) {
+		return std::nullopt;
+	} else if (!item->blocks.empty()
+		&& item->blocks.back().kind == BlockKind::List
+		&& !item->blocks.back().listItems.empty()) {
+		return NextListItem{
+			.list = {
+				.container = ListItemChildrenContainer(
+					surface.path,
+					surface.itemIndex),
+				.index = int(item->blocks.size()) - 1,
+			},
+			.index = 0,
+		};
+	}
+	auto path = surface.path;
+	auto index = surface.itemIndex;
+	while (true) {
+		const auto owner = block(path);
+		if (!owner || owner->kind != BlockKind::List) {
+			return std::nullopt;
+		} else if (index + 1 < int(owner->listItems.size())) {
+			return NextListItem{ .list = path, .index = index + 1 };
+		}
+		const auto &steps = path.container.steps;
+		if (steps.empty()
+			|| steps.back().kind != BlockContainerKind::ListItemChildren) {
+			return std::nullopt;
+		}
+		auto parent = BlockPath{ .index = steps.back().blockIndex };
+		parent.container.steps.assign(steps.begin(), steps.end() - 1);
+		const auto parentIndex = steps.back().listItemIndex;
+		const auto parentItem = listItem(parent, parentIndex);
+		if (!parentItem
+			|| path.index + 1 != int(parentItem->blocks.size())) {
+			return std::nullopt;
+		}
+		path = parent;
+		index = parentIndex;
+	}
+}
+
+bool State::canJoinActiveListItemForward() const {
+	const auto surface = activeListItemSurface();
+	if (!surface) {
+		return false;
+	}
+	const auto descriptor = textNode(_activeTextOrdinal);
+	const auto item = listItem(surface->path, surface->itemIndex);
+	if (!descriptor || !item) {
+		return false;
+	} else if (descriptor->leaf.kind == LeafKind::BlockText) {
+		const auto index = descriptor->leaf.block.index;
+		if (index < 0 || index >= int(item->blocks.size())) {
+			return false;
+		}
+		const auto trailing = int(item->blocks.size()) - 1 - index;
+		const auto nested = (trailing == 1)
+			&& (item->blocks.back().kind == BlockKind::List);
+		if (trailing != 0 && !nested) {
+			return false;
+		}
+	} else if (descriptor->leaf.kind != LeafKind::ListItemText) {
+		return false;
+	}
+	return nextListItemAfterActive(*surface).has_value();
+}
+
+bool State::joinActiveListItemForwardUnchecked(
+		ActiveTextSelectionTarget *target) {
+	if (!target || !canJoinActiveListItemForward()) {
+		return false;
+	}
+	const auto descriptor = textNode(_activeTextOrdinal);
+	if (!descriptor) {
+		return false;
+	}
+	auto destination = descriptor->leaf;
+	const auto surface = normalizeActiveListItemSurface();
+	if (!surface) {
+		return false;
+	}
+	if (destination.kind == LeafKind::ListItemText) {
+		destination = LeafPath{
+			.kind = LeafKind::BlockText,
+			.block = {
+				.container = ListItemChildrenContainer(
+					surface->path,
+					surface->itemIndex),
+				.index = 0,
+			},
+		};
+	} else if (destination.kind != LeafKind::BlockText) {
+		return false;
+	}
+	const auto index = destination.block.index;
+	const auto next = nextListItemAfterActive(*surface);
+	if (!next) {
+		return false;
+	}
+	const auto nextList = block(next->list);
+	if (!nextList
+		|| nextList->kind != BlockKind::List
+		|| next->index < 0
+		|| next->index >= int(nextList->listItems.size())) {
+		return false;
+	}
+	clearTemporaryDownParagraph();
+	auto taken = takeListItemBlocksForUnwrap(
+		&nextList->listItems[next->index]);
+	nextList->listItems.erase(nextList->listItems.begin() + next->index);
+	if (nextList->listItems.empty()) {
+		const auto blocks = blockContainer(next->list.container);
+		if (!blocks
+			|| next->list.index < 0
+			|| next->list.index >= int(blocks->size())) {
+			return false;
+		}
+		blocks->erase(blocks->begin() + next->list.index);
+	}
+	const auto item = listItem(surface->path, surface->itemIndex);
+	if (!item || index < 0 || index >= int(item->blocks.size())) {
+		return false;
+	}
+	auto &paragraph = item->blocks[index];
+	auto seamOffset = int(paragraph.text.text.text.size());
+	if (!taken.empty() && taken.front().kind == BlockKind::Paragraph) {
+		seamOffset = AppendParagraphSeam(
+			&paragraph,
+			std::move(taken.front()));
+		taken.erase(taken.begin());
+	}
+	if (!taken.empty()) {
+		item->blocks.insert(
+			item->blocks.begin() + index + 1,
+			std::make_move_iterator(taken.begin()),
+			std::make_move_iterator(taken.end()));
+	}
+	rebuild();
+	if (!activateRebuiltLeaf(destination)) {
+		return false;
+	}
+	*target = {
+		.leaf = destination,
+		.selectionFrom = seamOffset,
+		.selectionTo = seamOffset,
+	};
+	return true;
+}
+
 State::ParagraphBoundaryJoinResult State::joinActiveParagraphBoundary(
 		bool forward) {
 	auto failure = ParagraphBoundaryJoinResult{
@@ -4377,8 +4531,9 @@ State::ParagraphBoundaryJoinResult State::joinActiveParagraphBoundary(
 		const auto textJoin = candidate.canJoinActiveTextBlockBoundary(
 			forward);
 		const auto listJoin = !textJoin
-			&& !forward
-			&& candidate.canJoinActiveListItemBoundary();
+			&& (forward
+				? candidate.canJoinActiveListItemForward()
+				: candidate.canJoinActiveListItemBoundary());
 		if (!textJoin && !listJoin) {
 			return CheckedMutationResult<ParagraphBoundaryJoinResult>{
 				.result = { .result = ApplyResult::Unchanged },
@@ -4389,6 +4544,8 @@ State::ParagraphBoundaryJoinResult State::joinActiveParagraphBoundary(
 			? candidate.joinActiveParagraphBoundaryUnchecked(
 				forward,
 				&target)
+			: forward
+			? candidate.joinActiveListItemForwardUnchecked(&target)
 			: candidate.joinActiveListItemBoundaryUnchecked(&target);
 		if (!joined) {
 			return CheckedMutationResult<ParagraphBoundaryJoinResult>{
