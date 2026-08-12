@@ -3861,6 +3861,36 @@ std::optional<BlocksImportResult> Widget::importBlocksFromMimeData(
 		CountRichPageBlocks(_state->richPage()));
 }
 
+auto Widget::markdownForLiteralHtmlImport(
+		const BlocksImportResult &imported,
+		not_null<const QMimeData*> data) const
+-> std::optional<BlocksImportResult> {
+	if (!imported.localMedia.empty() || !data->hasText()) {
+		return std::nullopt;
+	}
+	auto lines = QStringList();
+	for (const auto &block : imported.blocks) {
+		switch (block.kind) {
+		case RichPage::BlockKind::Paragraph:
+		case RichPage::BlockKind::Heading:
+		case RichPage::BlockKind::Code:
+			if (!block.text.text.entities.isEmpty()) {
+				return std::nullopt;
+			}
+			lines.push_back(block.text.text.text);
+			break;
+		default:
+			return std::nullopt;
+		}
+	}
+	const auto limits = _state->limits();
+	const auto used = CountRichPageBlocks(_state->richPage());
+	if (!BlocksFromMarkdown(lines.join(QChar('\n')), limits, used)) {
+		return std::nullopt;
+	}
+	return BlocksFromMarkdown(data->text(), limits, used);
+}
+
 [[nodiscard]] std::vector<RichPage::Block> DropImportedMediaPlaceholders(
 		std::vector<RichPage::Block> blocks,
 		const std::vector<std::optional<RichPage::Block>> &prepared) {
@@ -9408,6 +9438,11 @@ bool Widget::handleIvClipboardMime(
 			if (action == Ui::InputField::MimeAction::Check) {
 				return true;
 			}
+			if (auto markdown = markdownForLiteralHtmlImport(
+					*imported,
+					data)) {
+				imported = std::move(markdown);
+			}
 			crl::on_main(this, [=, imported = std::move(*imported)]() mutable {
 				pasteImportedBlocks(std::move(imported));
 			});
@@ -9420,6 +9455,20 @@ bool Widget::handleIvClipboardMime(
 		} else if (auto imported = importTableFromMimeData(data)) {
 			crl::on_main(this, [=, imported = std::move(*imported)]() mutable {
 				pasteImportedTable(std::move(imported));
+			});
+			return true;
+		}
+	}
+	if (!blockData && insertContext && data->hasText()) {
+		if (auto imported = BlocksFromMarkdown(
+				data->text(),
+				_state->limits(),
+				CountRichPageBlocks(_state->richPage()))) {
+			if (action == Ui::InputField::MimeAction::Check) {
+				return true;
+			}
+			crl::on_main(this, [=, imported = std::move(*imported)]() mutable {
+				pasteImportedBlocks(std::move(imported));
 			});
 			return true;
 		}
