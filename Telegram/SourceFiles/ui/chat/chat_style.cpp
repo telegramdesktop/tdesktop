@@ -1349,6 +1349,7 @@ void ChatStyle::make(
 	make(my.defaultFg, original.defaultFg);
 	make(my.primaryBg, original.primaryBg);
 	make(my.primaryRipple, original.primaryRipple);
+	make(my.primaryFg, original.primaryFg);
 	make(my.successFg, original.successFg);
 	make(my.dangerFg, original.dangerFg);
 }

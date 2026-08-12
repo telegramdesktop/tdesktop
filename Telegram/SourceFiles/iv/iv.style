@@ -464,6 +464,7 @@ MarkdownButtonRow {
 	defaultFg: color;
 	primaryBg: color;
 	primaryRipple: color;
+	primaryFg: color;
 	successFg: color;
 	dangerFg: color;
 	tintBgOpacity: double;
@@ -960,6 +961,7 @@ defaultMarkdownButtonRow: MarkdownButtonRow {
 	defaultFg: windowBoldFg;
 	primaryBg: activeButtonBg;
 	primaryRipple: activeButtonBgRipple;
+	primaryFg: activeButtonFg;
 	successFg: historyPeer2NameFg;
 	dangerFg: historyPeer1NameFg;
 	tintBgOpacity: markdownButtonRowTintBgOpacity;

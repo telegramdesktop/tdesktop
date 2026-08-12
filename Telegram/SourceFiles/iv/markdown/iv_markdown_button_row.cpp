@@ -14,8 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/effects/animation_value.h"
 #include "ui/style/style_core_scale.h"
+#include "ui/color_contrast.h"
 
-#include "styles/palette.h"
 #include "styles/style_chat.h"
 #include "styles/style_iv.h"
 #include "styles/style_widgets.h"
@@ -27,6 +27,8 @@ namespace {
 
 using ButtonType = HistoryMessageMarkupButton::Type;
 using ButtonColor = HistoryMessageMarkupButton::Color;
+
+constexpr auto kMinPrimaryLabelContrast = 1.5;
 
 [[nodiscard]] const style::icon *ButtonRowIcon(ButtonType type) {
 	switch (type) {
@@ -620,8 +622,8 @@ RichButtonPillColors PrimaryPillColors(
 		const style::Markdown &st,
 		QColor bg,
 		QColor ripple) {
-	const auto fg = st::activeButtonFg->c;
-	return (bg == fg)
+	const auto fg = st.buttonRow.primaryFg->c;
+	return (Ui::CountContrast(bg, fg) < kMinPrimaryLabelContrast)
 		? BubbleGradientPillColors(st, 0., true)
 		: RichButtonPillColors{
 			.bg = bg,
