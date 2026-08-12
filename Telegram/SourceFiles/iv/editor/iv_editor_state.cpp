@@ -1417,18 +1417,22 @@ void MergeRichTextAnchors(RichText *target, RichText source) {
 		|| (kind == BlockKind::Footer);
 }
 
-[[nodiscard]] int AppendParagraphSeam(Block *destination, Block &&source) {
-	auto updated = std::move(destination->text.text);
+[[nodiscard]] int AppendRichTextSeam(RichText *destination, Block &&source) {
+	auto updated = std::move(destination->text);
 	const auto seamOffset = int(updated.text.size());
 	updated.append(std::move(source.text.text));
-	destination->text.text = std::move(updated);
-	MergeRichTextAnchors(&destination->text, std::move(source.text));
+	destination->text = std::move(updated);
+	MergeRichTextAnchors(destination, std::move(source.text));
 	if (!source.anchorId.isEmpty()) {
 		auto anchor = RichText();
 		anchor.anchorId = std::move(source.anchorId);
-		MergeRichTextAnchors(&destination->text, std::move(anchor));
+		MergeRichTextAnchors(destination, std::move(anchor));
 	}
 	return seamOffset;
+}
+
+[[nodiscard]] int AppendParagraphSeam(Block *destination, Block &&source) {
+	return AppendRichTextSeam(&destination->text, std::move(source));
 }
 
 [[nodiscard]] bool CanEditBlocks(const std::vector<Block> &blocks);
@@ -4522,6 +4526,186 @@ bool State::joinActiveListItemForwardUnchecked(
 	return true;
 }
 
+std::optional<State::BlockPath> State::listBeforeActiveParagraph() const {
+	const auto descriptor = textNode(_activeTextOrdinal);
+	if (!descriptor || descriptor->leaf.kind != LeafKind::BlockText) {
+		return std::nullopt;
+	}
+	const auto &path = descriptor->leaf.block;
+	const auto owner = block(path);
+	if (!owner || owner->kind != BlockKind::Paragraph || path.index < 1) {
+		return std::nullopt;
+	}
+	auto result = path;
+	--result.index;
+	const auto previous = block(result);
+	return (previous
+		&& previous->kind == BlockKind::List
+		&& !previous->listItems.empty())
+		? std::make_optional(result)
+		: std::nullopt;
+}
+
+auto State::deepestLastItem(BlockPath list) const
+-> std::optional<NextListItem> {
+	while (true) {
+		const auto owner = block(list);
+		if (!owner
+			|| owner->kind != BlockKind::List
+			|| owner->listItems.empty()) {
+			return std::nullopt;
+		}
+		const auto index = int(owner->listItems.size()) - 1;
+		const auto &item = owner->listItems[index];
+		if (!item.blocks.empty()
+			&& item.blocks.back().kind == BlockKind::List
+			&& !item.blocks.back().listItems.empty()) {
+			list = BlockPath{
+				.container = ListItemChildrenContainer(list, index),
+				.index = int(item.blocks.size()) - 1,
+			};
+			continue;
+		}
+		return NextListItem{ .list = list, .index = index };
+	}
+}
+
+std::optional<int> State::appendActiveParagraphToPreviousList() {
+	return applyCheckedMutation(std::optional<int>(), [](State &candidate) {
+		const auto result
+			= candidate.appendActiveParagraphToPreviousListUnchecked();
+		return CheckedMutationResult<std::optional<int>>{
+			.apply = result.has_value(),
+			.result = result,
+		};
+	});
+}
+
+std::optional<int> State::appendActiveParagraphToPreviousListUnchecked() {
+	const auto listPath = listBeforeActiveParagraph();
+	const auto descriptor = textNode(_activeTextOrdinal);
+	if (!listPath || !descriptor) {
+		return std::nullopt;
+	}
+	const auto paragraphPath = descriptor->leaf.block;
+	const auto blocks = blockContainer(paragraphPath.container);
+	if (!blocks
+		|| paragraphPath.index < 0
+		|| paragraphPath.index >= int(blocks->size())) {
+		return std::nullopt;
+	}
+	clearTemporaryDownParagraph();
+	auto paragraph = std::move((*blocks)[paragraphPath.index]);
+	blocks->erase(blocks->begin() + paragraphPath.index);
+	const auto list = block(*listPath);
+	if (!list || list->kind != BlockKind::List) {
+		return std::nullopt;
+	}
+	auto item = ListItem();
+	item.blocks.push_back(std::move(paragraph));
+	adoptLeadingParagraphListItemText(&item);
+	const auto itemIndex = int(list->listItems.size());
+	const auto inlineText = item.blocks.empty();
+	list->listItems.push_back(std::move(item));
+	const auto target = inlineText
+		? LeafPath{
+			.kind = LeafKind::ListItemText,
+			.block = *listPath,
+			.listItemIndex = itemIndex,
+		}
+		: LeafPath{
+			.kind = LeafKind::BlockText,
+			.block = {
+				.container = ListItemChildrenContainer(*listPath, itemIndex),
+				.index = 0,
+			},
+		};
+	rebuild();
+	return activateRebuiltLeaf(target);
+}
+
+bool State::canJoinActiveParagraphIntoPreviousList() const {
+	const auto listPath = listBeforeActiveParagraph();
+	return listPath && deepestLastItem(*listPath).has_value();
+}
+
+bool State::joinActiveParagraphIntoPreviousListUnchecked(
+		ActiveTextSelectionTarget *target) {
+	if (!target || !canJoinActiveParagraphIntoPreviousList()) {
+		return false;
+	}
+	const auto listPath = listBeforeActiveParagraph();
+	const auto descriptor = textNode(_activeTextOrdinal);
+	if (!listPath || !descriptor) {
+		return false;
+	}
+	const auto deepest = deepestLastItem(*listPath);
+	const auto paragraphPath = descriptor->leaf.block;
+	if (!deepest) {
+		return false;
+	}
+	clearTemporaryDownParagraph();
+	const auto blocks = blockContainer(paragraphPath.container);
+	if (!blocks
+		|| paragraphPath.index < 0
+		|| paragraphPath.index >= int(blocks->size())) {
+		return false;
+	}
+	auto paragraph = std::move((*blocks)[paragraphPath.index]);
+	blocks->erase(blocks->begin() + paragraphPath.index);
+	const auto item = listItem(deepest->list, deepest->index);
+	if (!item) {
+		return false;
+	}
+	auto destination = LeafPath();
+	auto seamOffset = 0;
+	if (item->blocks.empty()) {
+		seamOffset = AppendRichTextSeam(&item->text, std::move(paragraph));
+		destination = LeafPath{
+			.kind = LeafKind::ListItemText,
+			.block = deepest->list,
+			.listItemIndex = deepest->index,
+		};
+	} else {
+		const auto last = int(item->blocks.size()) - 1;
+		if (item->blocks[last].kind == BlockKind::Paragraph) {
+			seamOffset = AppendParagraphSeam(
+				&item->blocks[last],
+				std::move(paragraph));
+			destination = LeafPath{
+				.kind = LeafKind::BlockText,
+				.block = {
+					.container = ListItemChildrenContainer(
+						deepest->list,
+						deepest->index),
+					.index = last,
+				},
+			};
+		} else {
+			item->blocks.push_back(std::move(paragraph));
+			destination = LeafPath{
+				.kind = LeafKind::BlockText,
+				.block = {
+					.container = ListItemChildrenContainer(
+						deepest->list,
+						deepest->index),
+					.index = last + 1,
+				},
+			};
+		}
+	}
+	rebuild();
+	if (!activateRebuiltLeaf(destination)) {
+		return false;
+	}
+	*target = {
+		.leaf = destination,
+		.selectionFrom = seamOffset,
+		.selectionTo = seamOffset,
+	};
+	return true;
+}
+
 State::ParagraphBoundaryJoinResult State::joinActiveParagraphBoundary(
 		bool forward) {
 	auto failure = ParagraphBoundaryJoinResult{
@@ -4534,7 +4718,11 @@ State::ParagraphBoundaryJoinResult State::joinActiveParagraphBoundary(
 			&& (forward
 				? candidate.canJoinActiveListItemForward()
 				: candidate.canJoinActiveListItemBoundary());
-		if (!textJoin && !listJoin) {
+		const auto listAppend = !textJoin
+			&& !listJoin
+			&& !forward
+			&& candidate.canJoinActiveParagraphIntoPreviousList();
+		if (!textJoin && !listJoin && !listAppend) {
 			return CheckedMutationResult<ParagraphBoundaryJoinResult>{
 				.result = { .result = ApplyResult::Unchanged },
 			};
@@ -4544,6 +4732,8 @@ State::ParagraphBoundaryJoinResult State::joinActiveParagraphBoundary(
 			? candidate.joinActiveParagraphBoundaryUnchecked(
 				forward,
 				&target)
+			: listAppend
+			? candidate.joinActiveParagraphIntoPreviousListUnchecked(&target)
 			: forward
 			? candidate.joinActiveListItemForwardUnchecked(&target)
 			: candidate.joinActiveListItemBoundaryUnchecked(&target);
