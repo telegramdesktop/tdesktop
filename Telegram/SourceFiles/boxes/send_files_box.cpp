@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/menu/menu_multiline_action.h"
 #include "ui/chat/attach/attach_album_preview.h"
 #include "ui/chat/attach/attach_single_file_preview.h"
 #include "ui/chat/attach/attach_single_media_preview.h"
@@ -69,6 +70,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "styles/style_boxes.h"
+#include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
@@ -444,6 +446,7 @@ SendFilesBox::Block::Block(
 			_isSingleMedia = true;
 			media->setSendWay(way);
 			media->setCanShowHighQualityBadge(first.canUseHighQualityPhoto());
+			media->setTtlSeconds(first.ttlSeconds);
 			_preview.reset(media);
 		} else {
 			const auto single = Ui::CreateChild<Ui::SingleFilePreview>(
@@ -1669,7 +1672,9 @@ void SendFilesBox::pushBlock(int from, int till) {
 			const auto current = file.ttlSeconds;
 			const auto choose = [=](crl::time ttl) {
 				applyBlockChanges();
-				_list.files[fileIndex].ttlSeconds = ttl;
+				refreshAllAfterChanges(from, [&] {
+					_list.files[fileIndex].ttlSeconds = ttl;
+				});
 			};
 			const auto add = [&](const QString &label, crl::time value) {
 				Menu::AddCheckedAction(
@@ -1684,6 +1689,13 @@ void SendFilesBox::pushBlock(int from, int till) {
 			add(tr::lng_seconds(tr::now, lt_count, 10), 10);
 			add(tr::lng_seconds(tr::now, lt_count, 30), 30);
 			add(tr::lng_ttl_period_keep(tr::now), 0);
+			submenu->addSeparator();
+			submenu->addAction(base::make_unique_q<Ui::Menu::MultilineAction>(
+				submenu->menu(),
+				submenu->st().menu,
+				st::historyHasCustomEmoji,
+				st::historyHasCustomEmojiPosition,
+				TextWithEntities{ tr::lng_ttl_period_hint(tr::now) }));
 			state->menu->addAction(
 				tr::lng_ttl_period_menu(tr::now),
 				std::move(submenu),

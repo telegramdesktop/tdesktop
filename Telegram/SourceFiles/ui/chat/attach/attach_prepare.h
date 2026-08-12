@@ -187,4 +187,6 @@ void PaintHighQualityBadge(
 	QRect rect,
 	RectPart origin = RectPart::BottomLeft);
 
+void PaintMediaTtlBadge(QPainter &p, QRect preview, crl::time ttlSeconds);
+
 } // namespace Ui

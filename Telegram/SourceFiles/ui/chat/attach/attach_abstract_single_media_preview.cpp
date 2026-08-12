@@ -74,6 +74,11 @@ void AbstractSingleMediaPreview::setCanShowHighQualityBadge(bool value) {
 	update();
 }
 
+void AbstractSingleMediaPreview::setTtlSeconds(crl::time ttlSeconds) {
+	_ttlSeconds = ttlSeconds;
+	update();
+}
+
 bool AbstractSingleMediaPreview::hasSpoiler() const {
 	return _spoiler != nullptr;
 }
@@ -254,6 +259,12 @@ void AbstractSingleMediaPreview::paintEvent(QPaintEvent *e) {
 			p,
 			_st,
 			QRect(_previewLeft, _previewTop, _previewWidth, _previewHeight));
+	}
+	if (_ttlSeconds && _sendWay.sendImagesAsPhotos()) {
+		PaintMediaTtlBadge(
+			p,
+			QRect(_previewLeft, _previewTop, _previewWidth, _previewHeight),
+			_ttlSeconds);
 	}
 }
 

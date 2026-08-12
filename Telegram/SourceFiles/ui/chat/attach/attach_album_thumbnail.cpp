@@ -44,6 +44,7 @@ AlbumThumbnail::AlbumThumbnail(
 , _isPhoto(file.type == PreparedFile::Type::Photo)
 , _isVideo(file.type == PreparedFile::Type::Video)
 , _canShowHighQualityBadge(file.canUseHighQualityPhoto())
+, _ttlSeconds(file.ttlSeconds)
 , _isCompressedSticker(Core::IsMimeSticker(file.information->filemime))
 , _repaint(std::move(repaint))
 , _repaintRect(std::move(repaintRect)) {
@@ -319,6 +320,9 @@ void AlbumThumbnail::paintInAlbum(
 	_lastRectOfModify = geometry;
 	if (showHighQualityBadge && _canShowHighQualityBadge) {
 		PaintHighQualityBadge(p, _st, paintedTo);
+	}
+	if (_ttlSeconds && !shrinkProgress) {
+		PaintMediaTtlBadge(p, paintedTo, _ttlSeconds);
 	}
 }
 

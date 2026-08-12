@@ -13,8 +13,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/image/image_prepare.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/ui_utility.h"
+#include "lang/lang_keys.h"
 #include "core/mime_type.h"
+#include "styles/style_chat.h"
+#include "styles/style_chat_style.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_media_player.h"
 
@@ -517,6 +521,45 @@ void PaintHighQualityBadge(
 		? (rect.y() + outerSkip)
 		: (rect.y() + rect.height() - size.height() - outerSkip);
 	p.drawImage(QPointF(x, y), badge);
+}
+
+void PaintMediaTtlBadge(QPainter &p, QRect preview, crl::time ttlSeconds) {
+	if (!ttlSeconds) {
+		return;
+	}
+	const auto singleView = (ttlSeconds == crl::time(0x7FFFFFFF));
+	const auto delta = st::msgDateImgDelta;
+	const auto &padding = st::msgDateImgPadding;
+	const auto size = singleView
+		? QSize(
+			st::historyVideoMessageTtlIcon.width() + 2 * padding.y(),
+			st::historyVideoMessageTtlIcon.height() + 2 * padding.y())
+		: QSize(
+			(st::normalFont->width(
+				tr::lng_seconds_tiny(tr::now, lt_count, ttlSeconds))
+				+ 2 * padding.x()),
+			st::normalFont->height + 2 * padding.y());
+	if (preview.width() < 2 * size.width()
+		|| preview.height() < 2 * size.height()) {
+		return;
+	}
+	const auto rect = Rect(preview.x() + delta, preview.y() + delta, size);
+	auto hq = PainterHighQualityEnabler(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::msgDateImgBg);
+	if (singleView) {
+		p.drawEllipse(rect);
+		st::historyVideoMessageTtlIcon.paintInCenter(p, rect);
+	} else {
+		const auto radius = rect.height() / 2.;
+		p.drawRoundedRect(rect, radius, radius);
+		p.setFont(st::normalFont);
+		p.setPen(st::msgDateImgFg);
+		p.drawText(
+			rect,
+			Qt::AlignCenter,
+			tr::lng_seconds_tiny(tr::now, lt_count, ttlSeconds));
+	}
 }
 
 } // namespace Ui
