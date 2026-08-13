@@ -110,17 +110,6 @@ namespace {
 		ParseVisual(fields.vstyle()));
 }
 
-[[nodiscard]] QByteArray RichPageButtonKey(
-		const HistoryMessageMarkupButton &button) {
-	return QByteArray::number(int(button.type))
-		+ ";"
-		+ QByteArray::number(button.buttonId)
-		+ ";"
-		+ QByteArray::number(button.peerTypes.value())
-		+ ";"
-		+ button.data;
-}
-
 } // namespace
 
 HistoryMessageMarkupButton::Visual ParseRichButtonVisual(
@@ -307,6 +296,23 @@ HistoryMessageMarkupButton *HistoryMessageMarkupButton::Get(
 		}
 	}
 	return nullptr;
+}
+
+bool HistoryMessageMarkupButton::LoadsOnActivate(Type type) {
+	return (type == Type::Callback)
+		|| (type == Type::CallbackWithPassword)
+		|| (type == Type::Game);
+}
+
+QByteArray HistoryMessageMarkupButton::RichPageButtonKey(
+		const HistoryMessageMarkupButton &button) {
+	return QByteArray::number(int(button.type))
+		+ ";"
+		+ QByteArray::number(button.buttonId)
+		+ ";"
+		+ QByteArray::number(button.peerTypes.value())
+		+ ";"
+		+ button.data;
 }
 
 QByteArray HistoryMessageMarkupButton::RegisterRichPageButton(

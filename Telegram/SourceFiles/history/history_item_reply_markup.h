@@ -133,6 +133,9 @@ struct HistoryMessageMarkupButton {
 		FullMsgId itemId,
 		int row,
 		int column);
+	[[nodiscard]] static bool LoadsOnActivate(Type type);
+	[[nodiscard]] static QByteArray RichPageButtonKey(
+		const HistoryMessageMarkupButton &button);
 	[[nodiscard]] static QByteArray RegisterRichPageButton(
 		not_null<Data::Session*> owner,
 		FullMsgId itemId,

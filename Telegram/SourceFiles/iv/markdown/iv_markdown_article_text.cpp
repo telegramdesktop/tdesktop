@@ -573,6 +573,7 @@ private:
 	const QString _entityData;
 	const QString _replacementText;
 	const EntitiesInText _labelEntities;
+	const QByteArray _loadingKey;
 	const style::Markdown *_st = nullptr;
 	const std::shared_ptr<InlineButtonPaintState> _paintState;
 	Ui::Text::String _label;
@@ -721,19 +722,25 @@ FindInlineFormulaMeasuredData(
 	return ActionableInlineButtonDataFor(data).has_value();
 }
 
+[[nodiscard]] HistoryMessageMarkupButton InlineButtonRecord(
+		const InlineTextObjectButtonData &button) {
+	auto result = HistoryMessageMarkupButton(
+		button.type,
+		button.label.text,
+		HistoryMessageMarkupButton::Visual{ .color = button.color },
+		button.data,
+		QString(),
+		button.buttonId);
+	result.peerTypes = button.peerTypes;
+	return result;
+}
+
 void ActivateInlineButton(QStringView data, ClickContext context) {
 	const auto button = ActionableInlineButtonDataFor(data);
 	if (!button) {
 		return;
 	}
-	auto record = HistoryMessageMarkupButton(
-		button->type,
-		button->label.text,
-		HistoryMessageMarkupButton::Visual{ .color = button->color },
-		button->data,
-		QString(),
-		button->buttonId);
-	record.peerTypes = button->peerTypes;
+	const auto record = InlineButtonRecord(*button);
 	const auto my = context.other.value<ClickHandlerContext>();
 	Api::ActivateRichPageBotButton(my, record);
 }
@@ -1962,6 +1969,7 @@ InlineButtonObject::InlineButtonObject(
 , _labelEntities(Ui::Text::Filtered(
 	data.label,
 	{ EntityType::CustomEmoji }).entities)
+, _loadingKey(RichButtonLoadingKey(InlineButtonRecord(data)))
 , _st(&st)
 , _paintState(std::move(paintState))
 , _label(MakeBoundedInlineButtonLabel(
@@ -2083,6 +2091,9 @@ void InlineButtonObject::paint(QPainter &p, const Context &context) {
 		&& (state->rippleRect == rect))
 		? state->ripple.get()
 		: nullptr;
+	const auto loading = state
+		? RichButtonLoadingActive(state->buttonLoading, _loadingKey)
+		: nullptr;
 	const auto fillPill = [&](
 			QPainter &q,
 			const RichButtonPillColors &colors,
@@ -2120,6 +2131,9 @@ void InlineButtonObject::paint(QPainter &p, const Context &context) {
 			_disabled ? st.disabledPrimaryOpacity : 1.,
 			[&](QPainter &q) {
 				fillPill(q, colors, colors.punchOut);
+				if (loading) {
+					PaintRichButtonLoading(q, loading, colors, rect, radius);
+				}
 			},
 			[&](QPainter &q, QColor fg) {
 				paintLabel(q, position, fg, markdownSt, context);
@@ -2127,6 +2141,9 @@ void InlineButtonObject::paint(QPainter &p, const Context &context) {
 	} else {
 		const auto primary = (_color == ButtonColor::Primary);
 		fillPill(p, colors, false);
+		if (loading) {
+			PaintRichButtonLoading(p, loading, colors, rect, radius);
+		}
 		if (_disabled) {
 			p.setOpacity(p.opacity() * (primary
 				? st.disabledPrimaryOpacity

@@ -72,6 +72,7 @@ struct InlineButtonPaintState {
 	bool pressPending = false;
 	bool editMode = false;
 	bool bubbleGradient = false;
+	RichButtonLoading buttonLoading;
 };
 
 void SetTextLeaf(

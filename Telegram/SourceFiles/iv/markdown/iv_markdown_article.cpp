@@ -4177,6 +4177,7 @@ private:
 	std::shared_ptr<InlineFormulaObjectCache> _inlineFormulaObjects;
 	std::shared_ptr<InlineButtonPaintState> _inlineButtonPaintState
 		= std::make_shared<InlineButtonPaintState>();
+	RichButtonLoadingState _buttonLoading;
 	MediaBlockHost *_mediaBlockHost = nullptr;
 	Fn<void()> _textRepaint;
 	Fn<void(QRect)> _textRepaintRect;
@@ -4273,6 +4274,7 @@ void MarkdownArticle::Impl::setTextRepaintCallbacks(
 		Fn<void(QRect)> repaintRect,
 		Fn<bool(const ClickContext&)> spoilerLinkFilter) {
 	_textRepaint = std::move(repaint);
+	_buttonLoading.repaint = _textRepaint;
 	_textRepaintRect = std::move(repaintRect);
 	_textSpoilerLinkFilter = std::move(spoilerLinkFilter);
 }
@@ -4635,11 +4637,22 @@ void MarkdownArticle::Impl::paint(
 	local.searchState.matches = &_searchMatches;
 	local.searchState.current = _currentSearchMatch;
 	const auto &paintSt = local.paintMarkdownStyle(st);
+	local.buttonLoading.state = &_buttonLoading;
+	const auto laidOut = QRect(
+		0,
+		0,
+		std::max(_width, 1),
+		std::max(_height, 1));
+	if (context.clip.contains(laidOut)) {
+		_buttonLoading.lastFullPassAt = crl::now();
+	}
 	_inlineButtonPaintState->st = &paintSt;
 	_inlineButtonPaintState->bubbleGradient = local.bubbleGradient;
+	_inlineButtonPaintState->buttonLoading = local.buttonLoading;
 	const auto inlineButtonPaintGuard = gsl::finally([&] {
 		_inlineButtonPaintState->st = nullptr;
 		_inlineButtonPaintState->bubbleGradient = false;
+		_inlineButtonPaintState->buttonLoading = {};
 	});
 	auto textPalette = paintSt.textPalette;
 	auto markBg = MarkBgColorForStyle(paintSt);

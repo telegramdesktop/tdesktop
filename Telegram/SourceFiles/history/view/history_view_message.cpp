@@ -3154,6 +3154,8 @@ void Message::paintRichText(
 	}
 	articleContext.clip = articleClip;
 	articleContext.bubbleGradient = usesBubblePattern(context);
+	articleContext.buttonLoading.owner = &data()->history()->owner();
+	articleContext.buttonLoading.itemId = data()->fullId();
 	articleContext.caches = {
 		.pre = stm->preCache.get(),
 		.blockquote = context.quoteCache(

@@ -29,6 +29,13 @@ using ButtonType = HistoryMessageMarkupButton::Type;
 using ButtonColor = HistoryMessageMarkupButton::Color;
 
 constexpr auto kMinPrimaryLabelContrast = 1.5;
+constexpr auto kLoadingGlareOpacity = 0.2;
+constexpr auto kLoadingOutlineOpacity = 0.6;
+constexpr auto kLoadingHighlightOpacity = 0.8;
+constexpr auto kLoadingGlareTimeout = crl::time(0);
+constexpr auto kLoadingGlareDuration = crl::time(1100);
+constexpr auto kLoadingIdleTimeout = crl::time(500);
+constexpr auto kLoadingDisabledPollInterval = crl::time(300);
 
 [[nodiscard]] const style::icon *ButtonRowIcon(ButtonType type) {
 	switch (type) {
@@ -338,8 +345,12 @@ void PaintPlainButton(
 		QRect clip,
 		crl::time now,
 		int outerWidth,
-		bool disabled) {
+		bool disabled,
+		RichButtonLoadingState *loading) {
 	PaintButtonPill(p, button, colors, ripple, st, outerWidth, false);
+	if (loading) {
+		PaintRichButtonLoading(p, loading, colors, button.rect, st.height / 2);
+	}
 	const auto primary = (button.color == ButtonColor::Primary);
 	const auto was = p.opacity();
 	if (disabled) {
@@ -369,7 +380,8 @@ void PaintPrimaryButton(
 		QRect clip,
 		crl::time now,
 		int outerWidth,
-		bool disabled) {
+		bool disabled,
+		RichButtonLoadingState *loading) {
 	const auto palette = &p.textPalette();
 	PaintPunchedOutPill(
 		p,
@@ -384,6 +396,14 @@ void PaintPrimaryButton(
 				st,
 				outerWidth,
 				colors.punchOut);
+			if (loading) {
+				PaintRichButtonLoading(
+					q,
+					loading,
+					colors,
+					button.rect,
+					st.height / 2);
+			}
 		},
 		[&](QPainter &q, QColor fg) {
 			PaintButtonContent(
@@ -406,7 +426,8 @@ void PaintOneButton(
 		QRect clip,
 		crl::time now,
 		int outerWidth,
-		bool disabled) {
+		bool disabled,
+		RichButtonLoadingState *loading) {
 	if (colors.punchOut) {
 		PaintPrimaryButton(
 			p,
@@ -417,7 +438,8 @@ void PaintOneButton(
 			clip,
 			now,
 			outerWidth,
-			disabled);
+			disabled,
+			loading);
 	} else {
 		PaintPlainButton(
 			p,
@@ -428,7 +450,39 @@ void PaintOneButton(
 			clip,
 			now,
 			outerWidth,
-			disabled);
+			disabled,
+			loading);
+	}
+}
+
+void PaintRichButtonLoadingOutline(
+		QPainter &p,
+		QRect rect,
+		int radius,
+		const QBrush &brush) {
+	const auto pen = st::lineWidth;
+	const auto half = pen / 2.;
+	p.setBrush(Qt::NoBrush);
+	p.setPen(QPen(brush, pen));
+	p.drawRoundedRect(
+		QRectF(rect).adjusted(half, half, -half, -half),
+		radius - half,
+		radius - half);
+}
+
+[[nodiscard]] bool RichButtonLoadingIdle(
+		not_null<RichButtonLoadingState*> state,
+		crl::time now) {
+	return (state->lastFullPassAt > state->lastPaintedAt)
+		|| (now > state->lastPaintedAt + kLoadingIdleTimeout);
+}
+
+void RichButtonLoadingTick(not_null<RichButtonLoadingState*> state) {
+	if (RichButtonLoadingIdle(state, crl::now())) {
+		state->glare.animation.stop();
+		state->timer.cancel();
+	} else if (state->repaint) {
+		state->repaint();
 	}
 }
 
@@ -544,6 +598,10 @@ void RefreshButtonRowHandlers(
 	for (auto i = 0; i != count; ++i) {
 		runtime->buttons.push_back(list[i].button);
 	}
+	runtime->loadingKeys.resize(count);
+	for (auto i = 0; i != count; ++i) {
+		runtime->loadingKeys[i] = RichButtonLoadingKey(runtime->buttons[i]);
+	}
 	runtime->handlers.resize(count);
 	for (auto i = 0; i != count; ++i) {
 		if (buttons[i].type == ButtonType::Disabled) {
@@ -595,6 +653,105 @@ void PaintPunchedOutPill(
 	p.setOpacity(was * contentOpacity);
 	paintContent(p, QColor(Qt::transparent));
 	p.setOpacity(was);
+}
+
+QByteArray RichButtonLoadingKey(
+		const HistoryMessageMarkupButton &button) {
+	return HistoryMessageMarkupButton::LoadsOnActivate(button.type)
+		? HistoryMessageMarkupButton::RichPageButtonKey(button)
+		: QByteArray();
+}
+
+RichButtonLoadingState *RichButtonLoadingActive(
+		const RichButtonLoading &loading,
+		const QByteArray &key) {
+	if (!loading.state || !loading.owner || key.isEmpty()) {
+		return nullptr;
+	}
+	const auto record = HistoryMessageMarkupButton::GetRichPageButton(
+		loading.owner,
+		loading.itemId,
+		key);
+	return (record && record->requestId) ? loading.state : nullptr;
+}
+
+// Paints the three loading layers of a rich pill: a travelling band over the
+// fill, a static outline and a brighter outline segment travelling with the
+// band. Everything is confined to the pill by construction, so no offscreen
+// mask is needed. On a punched-out pill there is no resolved foreground to
+// borrow, so the same three layers erase out of the accent fill instead,
+// exactly as its label and its ripple already do.
+void PaintRichButtonLoading(
+		QPainter &p,
+		not_null<RichButtonLoadingState*> state,
+		const RichButtonPillColors &colors,
+		QRect rect,
+		int radius) {
+	state->lastPaintedAt = crl::now();
+	const auto erase = colors.punchOut;
+	const auto color = erase ? QColor(Qt::white) : colors.fg;
+	auto hq = PainterHighQualityEnabler(p);
+	const auto mode = p.compositionMode();
+	const auto guard = gsl::finally([&] {
+		p.setCompositionMode(mode);
+	});
+	if (erase) {
+		p.setCompositionMode(QPainter::CompositionMode_DestinationOut);
+	}
+	if (anim::Disabled()) {
+		state->glare.animation.stop();
+		if (!state->timer.isActive()) {
+			const auto raw = state.get();
+			state->timer.setCallback([raw] { RichButtonLoadingTick(raw); });
+			state->timer.callEach(kLoadingDisabledPollInterval);
+		}
+		PaintRichButtonLoadingOutline(
+			p,
+			rect,
+			radius,
+			anim::with_alpha(color, kLoadingOutlineOpacity));
+		return;
+	}
+	state->timer.cancel();
+	if (!state->glare.animation.animating()) {
+		const auto raw = state.get();
+		state->glare.glare = {};
+		state->glare.validate(
+			color,
+			[raw] { RichButtonLoadingTick(raw); },
+			kLoadingGlareTimeout,
+			kLoadingGlareDuration);
+		return;
+	} else if (!state->glare.glare.birthTime) {
+		return;
+	}
+	const auto progress = std::clamp(
+		state->glare.progress(crl::now()),
+		0.,
+		1.);
+	const auto band = rect.width();
+	const auto left = rect.x() - band + (band * 2) * progress;
+	const auto stops = state->glare.computeGradient(color).stops();
+	const auto sweep = [&](float64 opacity) {
+		auto result = QLinearGradient(left, 0, left + band, 0);
+		auto copy = stops;
+		copy[1].second = anim::with_alpha(color, opacity);
+		result.setStops(copy);
+		return result;
+	};
+	p.setPen(Qt::NoPen);
+	p.setBrush(QBrush(sweep(kLoadingGlareOpacity)));
+	p.drawRoundedRect(rect, radius, radius);
+	PaintRichButtonLoadingOutline(
+		p,
+		rect,
+		radius,
+		anim::with_alpha(color, kLoadingOutlineOpacity));
+	PaintRichButtonLoadingOutline(
+		p,
+		rect,
+		radius,
+		QBrush(sweep(kLoadingHighlightOpacity)));
 }
 
 RichButtonPillColors BubbleGradientPillColors(
@@ -661,6 +818,12 @@ void PaintButtonRow(
 			&& (runtime->rippleIndex == i))
 			? runtime->ripple.get()
 			: nullptr;
+		const auto loading = (runtime
+			&& (i < int(runtime->loadingKeys.size())))
+			? RichButtonLoadingActive(
+				context.buttonLoading,
+				runtime->loadingKeys[i])
+			: nullptr;
 		PaintOneButton(
 			p,
 			button,
@@ -670,7 +833,8 @@ void PaintButtonRow(
 			context.clip,
 			context.now,
 			outerWidth,
-			disabled);
+			disabled,
+			loading);
 	}
 }
 
@@ -691,7 +855,8 @@ void PaintRichButtonPreview(
 		clip,
 		now,
 		outerWidth,
-		false);
+		false,
+		nullptr);
 }
 
 void AddPillRipple(

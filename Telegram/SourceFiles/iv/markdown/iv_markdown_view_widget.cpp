@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/markdown/iv_markdown_article_text.h"
 #include "iv/markdown/iv_markdown_prepare_native_richtext.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
 #include "spellcheck/spellcheck_highlight_syntax.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
@@ -30,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/tooltip.h"
 #include "ui/color_contrast.h"
 #include "ui/integration.h"
+#include "window/window_session_controller.h"
 
 #include "styles/palette.h"
 #include "styles/style_chat.h"
@@ -1407,6 +1409,11 @@ MarkdownArticlePaintContext MarkdownDocumentWidget::textPaintContext(
 			});
 		},
 	};
+	const auto my = clickHandlerContext().value<ClickHandlerContext>();
+	if (const auto window = my.sessionWindow.get()) {
+		context.buttonLoading.owner = &window->session().data();
+		context.buttonLoading.itemId = my.itemId;
+	}
 	context.selectionState.selection = !_selection.empty()
 		? _selection
 		: _savedSelection;

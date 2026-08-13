@@ -9,6 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "iv/markdown/iv_markdown_prepare.h"
 
+#include "base/timer.h"
+#include "ui/effects/animations.h"
+#include "ui/effects/glare.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/style/style_core_types.h"
 #include "ui/text/text.h"
@@ -51,6 +54,7 @@ struct ButtonRowRuntime {
 	Fn<void()> repaint;
 	std::vector<HistoryMessageMarkupButton> buttons;
 	std::vector<ClickHandlerPtr> handlers;
+	std::vector<QByteArray> loadingKeys;
 	std::unique_ptr<Ui::RippleAnimation> ripple;
 	QSize rippleSize;
 	int rippleIndex = -1;
@@ -61,6 +65,20 @@ struct RichButtonPillColors {
 	QColor ripple;
 	QColor fg;
 	bool punchOut = false;
+};
+
+struct RichButtonLoadingState {
+	Ui::GlareEffect glare;
+	base::Timer timer;
+	Fn<void()> repaint;
+	crl::time lastPaintedAt = 0;
+	crl::time lastFullPassAt = 0;
+};
+
+struct RichButtonLoading {
+	RichButtonLoadingState *state = nullptr;
+	::Data::Session *owner = nullptr;
+	FullMsgId itemId;
 };
 
 [[nodiscard]] RichButtonPillColors BubbleGradientPillColors(
@@ -96,6 +114,17 @@ void PaintPunchedOutPill(
 	float64 contentOpacity,
 	const Fn<void(QPainter&)> &paintBackground,
 	const Fn<void(QPainter&, QColor)> &paintContent);
+[[nodiscard]] QByteArray RichButtonLoadingKey(
+	const HistoryMessageMarkupButton &button);
+[[nodiscard]] RichButtonLoadingState *RichButtonLoadingActive(
+	const RichButtonLoading &loading,
+	const QByteArray &key);
+void PaintRichButtonLoading(
+	QPainter &p,
+	not_null<RichButtonLoadingState*> state,
+	const RichButtonPillColors &colors,
+	QRect rect,
+	int radius);
 void PaintButtonRow(
 	Painter &p,
 	const LaidOutBlock &block,

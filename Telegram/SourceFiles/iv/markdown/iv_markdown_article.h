@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "iv/markdown/iv_markdown_button_row.h"
 #include "iv/markdown/iv_markdown_common.h"
 #include "iv/markdown/iv_markdown_media_block.h"
 #include "iv/markdown/iv_markdown_prepare.h"
@@ -211,6 +212,7 @@ struct MarkdownArticlePaintContext final : Ui::ChatPaintContext {
 	int hiddenSegmentIndex = -1;
 	bool debugBlockGeometry = false;
 	bool bubbleGradient = false;
+	RichButtonLoading buttonLoading;
 	double mediaPixelScale = 1.;
 
 	[[nodiscard]] MarkdownArticlePaintContext translated(int x, int y) const {
