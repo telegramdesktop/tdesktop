@@ -40,6 +40,8 @@ PRIVATE
     iv/editor/iv_editor_math_box.h
     iv/editor/iv_editor_page_blocks.cpp
     iv/editor/iv_editor_page_blocks.h
+    iv/editor/iv_editor_page_list.cpp
+    iv/editor/iv_editor_page_list.h
     iv/editor/iv_editor_prepared_selection.cpp
     iv/editor/iv_editor_prepared_selection.h
     iv/editor/iv_editor_structure_menu.cpp
