@@ -9321,7 +9321,7 @@ bool State::insertBlocksAfterActiveWithContextUnchecked(
 	return true;
 }
 
-bool State::BlockConversionExpandsToActiveLine(InsertBlockType type) {
+bool BlockConversionExpandsToActiveLine(InsertBlockType type) {
 	switch (type) {
 	case InsertBlockType::Heading:
 	case InsertBlockType::Blockquote:
