@@ -276,6 +276,7 @@ bool FFMpegReaderImplementation::start(Mode mode, crl::time &positionMs) {
 		return false;
 	}
 	_fmtContext->pb = _ioContext;
+	FFmpeg::RestrictToCustomIO(_fmtContext);
 
 	int res = 0;
 	char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };

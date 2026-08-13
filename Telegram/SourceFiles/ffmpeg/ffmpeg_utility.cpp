@@ -339,6 +339,14 @@ void IODeleter::operator()(AVIOContext *value) {
 	}
 }
 
+void RestrictToCustomIO(AVFormatContext *format) {
+	// We always read the media through custom IO callbacks, so ffmpeg must
+	// never resolve a protocol on its own. An empty whitelist makes demuxers
+	// like dash / hls refuse to open the external segment URLs they may
+	// reference, closing an IP-leak / local-file-read vector.
+	av_opt_set(format, "protocol_whitelist", "", 0);
+}
+
 FormatPointer MakeFormatPointer(
 		void *opaque,
 		int(*read)(void *opaque, uint8_t *buffer, int bufferSize),
@@ -360,6 +368,7 @@ FormatPointer MakeFormatPointer(
 	}
 	result->pb = io.get();
 	result->flags |= AVFMT_FLAG_CUSTOM_IO;
+	RestrictToCustomIO(result);
 
 	auto options = (AVDictionary*)nullptr;
 	const auto guard = gsl::finally([&] { av_dict_free(&options); });
