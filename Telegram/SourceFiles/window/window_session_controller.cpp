@@ -2816,7 +2816,8 @@ void SessionController::showPeer(not_null<PeerData*> peer, MsgId msgId) {
 		const auto clickedChannel = peer->asChannel();
 		if (!clickedChannel->isPublic()
 			&& !clickedChannel->amIn()
-			&& (!currentPeer->isChannel()
+			&& (!currentPeer
+				|| !currentPeer->isChannel()
 				|| currentPeer->asChannel()->discussionLink()
 					!= clickedChannel)) {
 			MainWindowShow(this).showToast(peer->isMegagroup()
