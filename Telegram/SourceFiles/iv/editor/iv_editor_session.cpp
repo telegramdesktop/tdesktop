@@ -2003,6 +2003,10 @@ public:
 		}
 	}
 
+	[[nodiscard]] static ArticleSession *FindEditWindow(
+		not_null<Main::Session*> session,
+		FullMsgId itemId);
+
 	[[nodiscard]] static bool ActivateEditWindow(
 		not_null<Main::Session*> session,
 		FullMsgId itemId);
@@ -4658,7 +4662,7 @@ void ArticleSession::showCloseDraftSaveFailedBox(
 	}));
 }
 
-bool ArticleSession::ActivateEditWindow(
+ArticleSession *ArticleSession::FindEditWindow(
 		not_null<Main::Session*> session,
 		FullMsgId itemId) {
 	for (const auto &weak : Live()) {
@@ -4670,7 +4674,16 @@ bool ArticleSession::ActivateEditWindow(
 			|| !strong->_windowHost) {
 			continue;
 		}
-		strong->focusWindow();
+		return strong.get();
+	}
+	return nullptr;
+}
+
+bool ArticleSession::ActivateEditWindow(
+		not_null<Main::Session*> session,
+		FullMsgId itemId) {
+	if (const auto found = FindEditWindow(session, itemId)) {
+		found->focusWindow();
 		return true;
 	}
 	return false;
@@ -5043,6 +5056,12 @@ bool IsComposeBoxOpen(
 	const auto entry = LookupComposeThreadEntry(
 		ComposeKey(session, peerId, topicRootId, monoforumPeerId));
 	return entry && !entry->articleSession.expired();
+}
+
+bool HasEditWindowFor(
+		not_null<Main::Session*> session,
+		FullMsgId itemId) {
+	return ArticleSession::FindEditWindow(session, itemId) != nullptr;
 }
 
 bool ActivateEditWindowFor(

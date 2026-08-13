@@ -117,6 +117,9 @@ void ShowEditFromFieldBox(
 	Api::SendAction action,
 	std::optional<TextWithTags> fieldTextOverride = std::nullopt,
 	Fn<void()> fieldMigratedOverride = nullptr);
+[[nodiscard]] bool HasEditWindowFor(
+	not_null<Main::Session*> session,
+	FullMsgId itemId);
 [[nodiscard]] bool ActivateEditWindowFor(
 	not_null<Main::Session*> session,
 	FullMsgId itemId);
