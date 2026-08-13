@@ -94,6 +94,32 @@ void ExpandInsertContextToActiveLine(State::ActiveTextInsertContext &context) {
 	context.after = std::move(newAfter);
 }
 
+[[nodiscard]] bool IsListInsertType(State::InsertBlockType type) {
+	return (type == State::InsertBlockType::OrderedList)
+		|| (type == State::InsertBlockType::BulletList)
+		|| (type == State::InsertBlockType::TaskList);
+}
+
+[[nodiscard]] std::vector<TextWithEntities> SplitTextIntoLines(
+		const TextWithEntities &text) {
+	auto result = std::vector<TextWithEntities>();
+	const auto size = int(text.text.size());
+	auto from = 0;
+	while (from <= size) {
+		const auto found = text.text.indexOf('\n', from);
+		const auto till = (found < 0) ? size : found;
+		auto part = Ui::Text::Mid(text, from, till - from);
+		if (!part.text.trimmed().isEmpty()) {
+			result.push_back(std::move(part));
+		}
+		if (found < 0) {
+			break;
+		}
+		from = found + 1;
+	}
+	return result;
+}
+
 [[nodiscard]] const QString *FormattingActionTag(
 		TextFormattingAction action) {
 	switch (action) {
@@ -8692,8 +8718,35 @@ State::ActiveTextBlockActionResult State::applyActiveTextBlockAction(
 		const auto cursorInLine = hadSelection
 			? 0
 			: (beforeSize - (lineStart + 1));
+		const auto selectedSize = int(context.selected.text.size());
 		auto blocks = std::vector<Block>();
-		blocks.push_back(candidate.makeBlock(action));
+		auto made = candidate.makeBlock(action);
+		auto lines = IsListInsertType(action.type)
+			? SplitTextIntoLines(context.selected)
+			: std::vector<TextWithEntities>();
+		if ((lines.size() > 1)
+			&& (made.kind == BlockKind::List)
+			&& (made.listItems.size() == 1)) {
+			const auto sample = made.listItems.front();
+			made.listItems.clear();
+			for (auto &line : lines) {
+				auto item = sample;
+				item.text.text = std::move(line);
+				made.listItems.push_back(std::move(item));
+			}
+			context.selected = TextWithEntities();
+
+			if (context.before.text.endsWith('\n')) {
+				context.before = Ui::Text::Mid(
+					context.before,
+					0,
+					int(context.before.text.size()) - 1);
+			}
+			if (context.after.text.startsWith('\n')) {
+				context.after = Ui::Text::Mid(context.after, 1);
+			}
+		}
+		blocks.push_back(std::move(made));
 		const auto applied = candidate.insertBlocksAfterActiveUnchecked(
 			std::move(blocks),
 			context);
@@ -8714,9 +8767,7 @@ State::ActiveTextBlockActionResult State::applyActiveTextBlockAction(
 				.result = ApplyResult::Changed,
 				.destinationLeaf = descriptor->leaf,
 				.selectionFrom = (hadSelection ? 0 : cursorInLine),
-				.selectionTo = (hadSelection
-					? int(context.selected.text.size())
-					: cursorInLine),
+				.selectionTo = (hadSelection ? selectedSize : cursorInLine),
 			},
 		};
 	});
