@@ -800,6 +800,10 @@ private:
 		const Markdown::PreparedEditSelection &selection,
 		InsertBlockType type,
 		BoundaryTarget *destination = nullptr);
+	[[nodiscard]] bool unwrapMatchingListBlockSelection(
+		const Markdown::PreparedEditSelection &selection,
+		InsertBlockType type,
+		BoundaryTarget *destination = nullptr);
 	[[nodiscard]] bool unwrapMatchingListItemWrapper(
 		const Markdown::PreparedEditSelection &selection,
 		InsertBlockType type,
