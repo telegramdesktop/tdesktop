@@ -740,6 +740,36 @@ bool MimeDataLooksLikeExportedHtml(not_null<const QMimeData*> data) {
 	return !ExportedHtmlFilePath(data).isEmpty();
 }
 
+bool RichBlocksCarryStructure(const std::vector<RichPage::Block> &blocks) {
+	if (blocks.size() > 1) {
+		return true;
+	}
+	for (const auto &block : blocks) {
+		if (block.kind != RichPage::BlockKind::Paragraph) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool MimeDataHasRichStructure(
+		not_null<Main::Session*> session,
+		not_null<const QMimeData*> data,
+		const RichMessageLimits &limits) {
+	if (data->hasFormat(ClipboardMimeType())) {
+		return true;
+	}
+	const auto imported = BlocksFromMimeData(session, data, limits, 0);
+	return imported && RichBlocksCarryStructure(imported->blocks);
+}
+
+bool TextHasMarkdownStructure(
+		const QString &text,
+		const RichMessageLimits &limits) {
+	const auto imported = BlocksFromMarkdown(text, limits, 0);
+	return imported && RichBlocksCarryStructure(imported->blocks);
+}
+
 std::optional<BlocksImportResult> BlocksFromMimeData(
 		not_null<Main::Session*> session,
 		not_null<const QMimeData*> data,
