@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "iv/editor/iv_editor_clipboard.h"
 #include "iv/editor/iv_editor_page_blocks.h"
+#include "iv/editor/iv_editor_page_list.h"
 #include "iv/iv_rich_page.h"
 #include "iv/markdown/iv_markdown_prepare.h"
 
@@ -206,11 +207,7 @@ public:
 		RichPage::ListKind listKind = RichPage::ListKind::Bullet;
 	};
 
-	enum class ListStyle : uchar {
-		Ordered,
-		Bullet,
-		Task,
-	};
+	using ListStyle = Editor::ListStyle;
 
 	State();
 	State(
