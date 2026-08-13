@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/editor/iv_editor_clipboard.h"
 #include "iv/editor/iv_editor_page_blocks.h"
 #include "iv/editor/iv_editor_page_list.h"
+#include "iv/editor/iv_editor_page_path.h"
 #include "iv/iv_rich_page.h"
 #include "iv/markdown/iv_markdown_prepare.h"
 
@@ -41,80 +42,13 @@ public:
 	using InsertBlockType = Editor::InsertBlockType;
 	using InsertAction = Editor::InsertAction;
 
-	enum class BlockContainerKind : uchar {
-		Root,
-		BlockChildren,
-		ListItemChildren,
-	};
-
-	struct BlockContainerStep {
-		BlockContainerKind kind = BlockContainerKind::BlockChildren;
-		int blockIndex = -1;
-		int listItemIndex = -1;
-
-		friend inline bool operator==(
-				const BlockContainerStep &a,
-				const BlockContainerStep &b) {
-			return (a.kind == b.kind)
-				&& (a.blockIndex == b.blockIndex)
-				&& (a.listItemIndex == b.listItemIndex);
-		}
-	};
-
-	struct BlockContainerPath {
-		std::vector<BlockContainerStep> steps;
-
-		friend inline bool operator==(
-				const BlockContainerPath &a,
-				const BlockContainerPath &b) {
-			return (a.steps == b.steps);
-		}
-	};
-
-	struct BlockPath {
-		BlockContainerPath container;
-		int index = -1;
-
-		friend inline bool operator==(
-				const BlockPath &a,
-				const BlockPath &b) {
-			return (a.container == b.container)
-				&& (a.index == b.index);
-		}
-	};
-
-	struct ReplaceTarget {
-		BlockPath path;
-		RichPage::BlockKind kind = RichPage::BlockKind::Unsupported;
-		uint64 mediaId = 0;
-		int itemIndex = -1;
-	};
-
-	enum class LeafKind : uchar {
-		BlockText,
-		BlockCaption,
-		ListItemText,
-		TableCellText,
-		MathFormula,
-	};
-
-	struct LeafPath {
-		LeafKind kind = LeafKind::BlockText;
-		BlockPath block;
-		int listItemIndex = -1;
-		int tableRowIndex = -1;
-		int tableCellIndex = -1;
-
-		friend inline bool operator==(
-				const LeafPath &a,
-				const LeafPath &b) {
-			return (a.kind == b.kind)
-				&& (a.block == b.block)
-				&& (a.listItemIndex == b.listItemIndex)
-				&& (a.tableRowIndex == b.tableRowIndex)
-				&& (a.tableCellIndex == b.tableCellIndex);
-		}
-	};
+	using BlockContainerKind = Editor::BlockContainerKind;
+	using BlockContainerStep = Editor::BlockContainerStep;
+	using BlockContainerPath = Editor::BlockContainerPath;
+	using BlockPath = Editor::BlockPath;
+	using ReplaceTarget = Editor::ReplaceTarget;
+	using LeafKind = Editor::LeafKind;
+	using LeafPath = Editor::LeafPath;
 
 	struct Snapshot {
 		RichPage richPage;
