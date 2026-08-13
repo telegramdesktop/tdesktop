@@ -724,6 +724,7 @@ private:
 	[[nodiscard]] bool shouldShowRichDraftPreview() const;
 	void clearRichDraft();
 	void migrateFieldToRichEditor();
+	void migrateSupportFieldToRichEditor();
 	void setHistory(History *history);
 	void setEditMsgId(MsgId msgId);
 

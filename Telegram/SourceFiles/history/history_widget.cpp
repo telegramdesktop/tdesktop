@@ -1450,6 +1450,15 @@ void HistoryWidget::showRichEditor() {
 		}
 		return;
 	}
+	using Options = Iv::Editor::ComposeBoxOptions;
+	const auto support = session().supportMode();
+	auto options = Options();
+	if (support) {
+		options.scope = Options::Scope::Detached;
+		options.returnText = crl::guard(this, [=](TextWithTags text) {
+			setFieldText(text);
+		});
+	}
 	Iv::Editor::ShowComposeBox(
 		window,
 		_history->peer,
@@ -1457,8 +1466,21 @@ void HistoryWidget::showRichEditor() {
 		sendMenuDetails(),
 		_field->getTextWithAppliedMarkdown(),
 		crl::guard(this, [=] {
-			migrateFieldToRichEditor();
-		}));
+			if (support) {
+				migrateSupportFieldToRichEditor();
+			} else {
+				migrateFieldToRichEditor();
+			}
+		}),
+		std::move(options));
+}
+
+void HistoryWidget::migrateSupportFieldToRichEditor() {
+	if (!_history) {
+		return;
+	}
+	clearFieldText();
+	_history->clearLocalDraft(MsgId(), PeerId());
 }
 
 void HistoryWidget::sendTextAsFile(

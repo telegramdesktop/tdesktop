@@ -599,7 +599,6 @@ public:
 		auto composeThreadKey = std::optional<ComposeThreadKey>();
 		auto page = std::make_shared<RichPage>();
 		auto hasRichDraft = false;
-		auto fieldTextAdopted = false;
 		if (options.scope == ComposeBoxOptions::Scope::Thread) {
 			const auto topicRootId = action.replyTo.topicRootId;
 			const auto monoforumPeerId = action.replyTo.monoforumPeerId;
@@ -634,15 +633,10 @@ public:
 				} else {
 					*page = std::move(migrated);
 				}
-				fieldTextAdopted = true;
 				if (onMigrated) {
 					onMigrated();
 				}
 			}
-		}
-		if (!fieldTextAdopted
-			&& options.scope == ComposeBoxOptions::Scope::Detached) {
-			(void)base::take(options.returnText);
 		}
 		auto articleSession = std::shared_ptr<ArticleSession>(new ArticleSession(
 			session,
@@ -985,7 +979,7 @@ private:
 			};
 		}
 		const auto callback = base::take(_composeOptions.returnText);
-		if (callback) {
+		if (callback && !result.empty()) {
 			callback(std::move(result));
 		}
 		return true;
