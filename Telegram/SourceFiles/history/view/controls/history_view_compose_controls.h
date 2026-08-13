@@ -229,6 +229,7 @@ public:
 		not_null<const QMimeData*> data,
 		Ui::InputField::MimeAction action)>;
 	void setMimeDataHook(MimeDataHook hook);
+	void setPasteToastParent(not_null<QWidget*> parent);
 	bool confirmMediaEdit(Ui::PreparedList &list);
 
 	bool pushTabbedSelectorToThirdSection(
@@ -356,6 +357,8 @@ private:
 	void updateExpandButtonGeometry();
 	[[nodiscard]] bool canShowRichEditor() const;
 	void showRichEditor();
+	void showRichEditorWithPaste(std::shared_ptr<QMimeData> data);
+	void offerRichPaste(not_null<const QMimeData*> data);
 	void initDiscardRichDraftButton();
 	void updateDiscardRichDraftVisibility();
 	void updateDiscardRichDraftGeometry();
@@ -515,6 +518,8 @@ private:
 	std::unique_ptr<Ui::IconButton> _replaceMedia;
 	const not_null<Ui::EmojiButton*> _tabbedSelectorToggle;
 	rpl::producer<QString> _fieldCustomPlaceholder;
+	QPointer<QWidget> _pasteToastParent;
+	std::shared_ptr<QMimeData> _pendingRichPaste;
 	const not_null<Ui::InputField*> _field;
 	std::unique_ptr<Controls::RichDraftPreview> _richDraftPreview;
 	Ui::IconButton * const _botCommandStart = nullptr;

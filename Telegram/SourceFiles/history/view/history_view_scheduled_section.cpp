@@ -483,6 +483,7 @@ void ScheduledWidget::setupComposeControls() {
 		}
 	}, lifetime());
 
+	_composeControls->setPasteToastParent(_scroll.data());
 	_composeControls->setMimeDataHook([=](
 		not_null<const QMimeData*> data,
 		Ui::InputField::MimeAction action) {
