@@ -1789,6 +1789,7 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 	struct State final {
 		base::flat_set<mtpRequestId> requests;
 		mtpRequestId nextRequestKey = 0;
+		bool failed = false;
 	};
 	const auto state = std::make_shared<State>();
 	return [=](
@@ -1800,6 +1801,7 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 		if (!state->requests.empty()) {
 			return; // Share clicked already.
 		}
+		state->failed = false;
 
 		const auto items = history->owner().idsToItems(msgIds);
 		const auto existingIds = history->owner().itemsToIds(items);
@@ -1895,16 +1897,19 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 				if (state->requests.empty()) {
 					if (show->valid()) {
 						show->hideLayer();
-						ShowForwardedMessageToast(
-							show,
-							&history->session(),
-							donePhraseArgs);
+						if (!state->failed) {
+							ShowForwardedMessageToast(
+								show,
+								&history->session(),
+								donePhraseArgs);
+						}
 					}
 				}
 			};
 			const auto requestFail = [=](
 					const MTP::Error &error,
 					mtpRequestId requestKey) {
+				state->failed = true;
 				const auto type = error.type();
 				if (type.startsWith(
 						u"ALLOW_PAYMENT_REQUIRED_"_q)) {
@@ -1926,7 +1931,6 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 					}
 				}
 			};
-			auto firstRange = true;
 			for (const auto &range : ranges) {
 				const auto mtpMsgIds = ForwardRangeIds(
 					&history->session(),
@@ -1935,15 +1939,12 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 					continue;
 				}
 				const auto msgCount = int(mtpMsgIds.size());
-				const auto starsPaid = firstRange
-					? std::min(
-						peer->starsPerMessageChecked(),
-						options.starsApproved)
-					: 0;
+				const auto starsPaid = std::min(
+					options.starsApproved,
+					msgCount * peer->starsPerMessageChecked());
 				if (starsPaid) {
 					options.starsApproved -= starsPaid;
 				}
-				firstRange = false;
 				const auto sendFlags = commonSendFlags
 					| (ShouldSendSilent(peer, options)
 						? Flag::f_silent

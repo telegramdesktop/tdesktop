@@ -1065,7 +1065,7 @@ bool AddDeleteSelectedAction(
 
 	menu->addAction(tr::lng_context_delete_selected(tr::now), [=] {
 		const auto clear = crl::guard(list, [=] { list->cancelSelection(); });
-		if (request.selectedItems.front().ephemeral) {
+		if (ranges::all_of(request.selectedItems, &SelectedItem::ephemeral)) {
 			const auto owner = &request.navigation->session().data();
 			auto items = std::vector<not_null<HistoryItem*>>();
 			items.reserve(request.selectedItems.size());

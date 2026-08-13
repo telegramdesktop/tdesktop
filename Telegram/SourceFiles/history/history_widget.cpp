@@ -10635,8 +10635,8 @@ void HistoryWidget::confirmDeleteSelected() {
 	if (!_list) return;
 
 	auto ids = _list->getSelectedItems();
+	auto ephemeral = _list->getSelectedEphemeral();
 	if (ids.empty()) {
-		auto ephemeral = _list->getSelectedEphemeral();
 		if (!ephemeral.empty()) {
 			ConfirmDeleteSelectedEphemeral(
 				controller()->uiShow(),
@@ -10645,8 +10645,11 @@ void HistoryWidget::confirmDeleteSelected() {
 		}
 		return;
 	}
+	for (const auto &item : ephemeral) {
+		ids.push_back(item->fullId());
+	}
 	const auto items = session().data().idsToItems(ids);
-	if (CanCreateModerateMessagesBox(items)) {
+	if (ephemeral.empty() && CanCreateModerateMessagesBox(items)) {
 		const auto opt = DefaultModerateMessagesBoxOptions();
 		controller()->show(Box(
 			CreateModerateMessagesBox,

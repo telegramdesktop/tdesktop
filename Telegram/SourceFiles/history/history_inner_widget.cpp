@@ -5250,25 +5250,14 @@ void HistoryInner::elementStartEffect(
 auto HistoryInner::getSelectionState() const
 -> HistoryView::TopBarWidget::SelectedState {
 	auto result = HistoryView::TopBarWidget::SelectedState {};
-	auto hasEphemeral = false;
-	auto hasOrdinary = false;
 	for (const auto &item : _selected) {
 		++result.count;
-		if (item->isEphemeral()) {
-			hasEphemeral = true;
+		if (item->isEphemeral() || item->canDelete()) {
 			++result.canDeleteCount;
-		} else {
-			hasOrdinary = true;
-			if (item->canDelete()) {
-				++result.canDeleteCount;
-			}
 		}
 		if (item->allowsForward()) {
 			++result.canForwardCount;
 		}
-	}
-	if (hasEphemeral && hasOrdinary) {
-		result.canDeleteCount = 0;
 	}
 	result.textSelected = hasSelectedText()
 		&& !_selectedTextSelection.empty();

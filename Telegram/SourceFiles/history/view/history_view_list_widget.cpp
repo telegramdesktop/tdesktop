@@ -5885,7 +5885,7 @@ void ConfirmDeleteSelectedItems(not_null<ListWidget*> widget) {
 	}
 	const auto controller = widget->controller();
 	const auto owner = &controller->session().data();
-	if (items.front().ephemeral) {
+	if (ranges::all_of(items, &SelectedItem::ephemeral)) {
 		auto ephemeralItems = std::vector<not_null<HistoryItem*>>();
 		ephemeralItems.reserve(items.size());
 		for (const auto &item : items) {
@@ -5911,7 +5911,8 @@ void ConfirmDeleteSelectedItems(not_null<ListWidget*> widget) {
 	const auto confirmed = crl::guard(widget, [=] {
 		widget->cancelSelection();
 	});
-	if (CanCreateModerateMessagesBox(historyItems)) {
+	const auto mixed = ranges::any_of(items, &SelectedItem::ephemeral);
+	if (!mixed && CanCreateModerateMessagesBox(historyItems)) {
 		const auto opt = DefaultModerateMessagesBoxOptions();
 		controller->show(Box(
 			CreateModerateMessagesBox,
