@@ -20,6 +20,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui::BotWebView::LinuxShell {
 namespace {
 
+constexpr auto kShellOriginCheck =
+	"window.location.protocol === 'https:'"
+	" && window.location.hostname === 'web.telegram.org'"
+	" && (!window.location.port || window.location.port === '443')";
+
 [[nodiscard]] QByteArray JsonValue(QJsonValue value) {
 	auto array = QJsonArray();
 	array.push_back(std::move(value));
@@ -68,8 +73,9 @@ QByteArray InstallScript(const QString &shellToken) {
 		JsonValue(shellToken));
 
 	auto script = QByteArray();
-	script += "if (window === window.top"
-		" && !window.TelegramDesktopShell"
+	script += "if (window === window.top && ";
+	script += kShellOriginCheck;
+	script += " && !window.TelegramDesktopShell"
 		" && !window.TelegramDesktopShellInstalling) {"
 		"window.TelegramDesktopShellInstalling = true;"
 		"try {"
@@ -114,8 +120,10 @@ QByteArray MethodCallScript(
 	const auto payload = JsonObject(data);
 	const auto token = JsonValue(shellToken);
 	auto script = QByteArray();
-	script.reserve(method.size() * 2 + payload.size() + token.size() + 98);
-	script += "if (window.TelegramDesktopShell"
+	script.reserve(method.size() * 2 + payload.size() + token.size() + 256);
+	script += "if (window === window.top && ";
+	script += kShellOriginCheck;
+	script += " && window.TelegramDesktopShell"
 		" && window.TelegramDesktopShell.";
 	script += method;
 	script += ") { window.TelegramDesktopShell.";
@@ -136,7 +144,9 @@ QByteArray EventScript(
 	const auto payload = JsonObject(data);
 	const auto token = JsonValue(shellToken);
 	auto script = QByteArray();
-	script += "if (window.TelegramDesktopShell) {"
+	script += "if (window === window.top && ";
+	script += kShellOriginCheck;
+	script += " && window.TelegramDesktopShell) {"
 		"window.TelegramDesktopShell.nativeEvent(";
 	script += eventValue;
 	script += ", ";

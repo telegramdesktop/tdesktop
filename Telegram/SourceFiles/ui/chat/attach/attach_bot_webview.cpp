@@ -285,6 +285,9 @@ void LogNativeMessageRejected(
 			LogNativeMessageRejected(reason, byteCount, command);
 			return std::optional<NativeMessage>();
 		};
+		if (!IsExternalShellOrigin(OriginFromUrl(sourceUrl))) {
+			return reject(u"bad external sender"_q);
+		}
 		if (object.value(u"type"_q).toString()
 			!= QString::fromLatin1(kExternalMessageType)) {
 			return reject(u"bad external type"_q);
@@ -310,6 +313,9 @@ void LogNativeMessageRejected(
 				|| !IsExternalShellOrigin(origin.toString())) {
 				return reject(u"bad shell origin"_q);
 			}
+		} else if (!origin.isString()
+			|| OriginFromUrl(origin.toString()).isEmpty()) {
+			return reject(u"bad webapp origin"_q);
 		}
 		if (!object.value(u"eventType"_q).isString() || command.isEmpty()) {
 			return reject(u"bad command"_q);
@@ -330,7 +336,7 @@ void LogNativeMessageRejected(
 		return NativeMessage{
 			.source = source,
 			.origin = (source == NativeMessageSource::ExternalWebApp)
-				? origin.toString()
+				? OriginFromUrl(origin.toString())
 				: QString(),
 			.command = command,
 			.arguments = arguments,

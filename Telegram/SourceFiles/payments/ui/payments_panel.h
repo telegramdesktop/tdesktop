@@ -40,6 +40,11 @@ struct PaymentMethodDetails;
 struct PaymentMethodAdditional;
 struct NativeMethodDetails;
 
+enum class WebviewMode {
+	PaymentMethod,
+	Verification,
+};
+
 class Panel final : public base::has_weak_ptr {
 public:
 	explicit Panel(not_null<PanelDelegate*> delegate);
@@ -86,7 +91,7 @@ public:
 
 	bool showWebview(
 		const QString &url,
-		bool allowBack,
+		WebviewMode mode,
 		rpl::producer<QString> bottomText);
 	void updateThemeParams(const Webview::ThemeParams &params);
 
@@ -129,6 +134,7 @@ private:
 	QPointer<EditInformation> _weakEditInformation;
 	QPointer<EditCard> _weakEditCard;
 	rpl::event_stream<QString> _savedMethodChosen;
+	WebviewMode _webviewMode = WebviewMode::Verification;
 	bool _themeUpdateScheduled = false;
 	bool _webviewProgress = false;
 	bool _testMode = false;

@@ -425,7 +425,10 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 			rpl::single(_form->invoice().provider));
 		_sendFormFailed = false;
 		_sendFormPending = true;
-		if (!_panel->showWebview(data.url, false, std::move(bottomText))) {
+		if (!_panel->showWebview(
+				data.url,
+				Ui::WebviewMode::Verification,
+				std::move(bottomText))) {
 			File::OpenUrl(data.url);
 			close();
 		}
@@ -698,7 +701,9 @@ void CheckoutProcess::panelAcceptTermsAndSubmit() {
 void CheckoutProcess::panelWebviewMessage(
 		const QJsonDocument &message,
 		bool saveInformation) {
-	if (!message.isArray()) {
+	if (_sendFormPending) {
+		return;
+	} else if (!message.isArray()) {
 		LOG(("Payments Error: "
 			"Not an array received in buy_callback arguments."));
 		return;
