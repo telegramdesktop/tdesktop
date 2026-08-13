@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/editor_layer_widget.h"
 #include "editor/photo_editor.h"
 #include "editor/photo_editor_common.h"
+#include "iv/editor/iv_editor_article_style.h"
 #include "iv/editor/iv_editor_clipboard_import.h"
 #include "iv/editor/iv_editor_commands.h"
 #include "iv/editor/iv_editor_session.h"
@@ -113,37 +114,6 @@ const auto kFormulaSamples = std::array{
 	u"\\sin^2\\alpha+\\cos^2\\alpha=1"_q,
 	u"x_{1,2}=\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}"_q,
 };
-
-[[nodiscard]] int MaxVisualLineWidth(
-		not_null<const QTextDocument*> document) {
-	auto result = 0.;
-	for (auto block = document->begin(); block.isValid(); block = block.next()) {
-		const auto layout = block.layout();
-		if (!layout) {
-			continue;
-		}
-		for (auto i = 0, count = layout->lineCount(); i != count; ++i) {
-			result = std::max(
-				result,
-				double(layout->lineAt(i).naturalTextWidth()));
-		}
-	}
-	return std::max(int(std::ceil(result)), 0);
-}
-
-[[nodiscard]] int MaxVisualLineWidthForWidth(
-		not_null<const QTextDocument*> document,
-		int width) {
-	width = std::max(width, 1);
-	const auto clone = std::unique_ptr<QTextDocument>(document->clone());
-	clone->setTextWidth(width);
-	clone->adjustSize();
-	return MaxVisualLineWidth(clone.get());
-}
-
-[[nodiscard]] const style::margins &EditorBodyPadding() {
-	return st::ivEditorBodyPadding;
-}
 
 [[nodiscard]] bool MatchesKeySequence(
 		QKeyEvent *e,
@@ -1229,44 +1199,6 @@ void EnumerateBlockPaths(
 				callback);
 		}
 	}
-}
-
-void EnableQTextEditLineMetrics(style::TextStyle &style) {
-	style.qtextEditLineMetrics = true;
-}
-
-void EnableQTextEditLineMetrics(style::Markdown &style) {
-	EnableQTextEditLineMetrics(style.body);
-	EnableQTextEditLineMetrics(style.heading1);
-	EnableQTextEditLineMetrics(style.heading2);
-	EnableQTextEditLineMetrics(style.heading3);
-	EnableQTextEditLineMetrics(style.heading4);
-	EnableQTextEditLineMetrics(style.heading5);
-	EnableQTextEditLineMetrics(style.heading6);
-	EnableQTextEditLineMetrics(style.footer);
-	EnableQTextEditLineMetrics(style.quoteAuthorStyle);
-	EnableQTextEditLineMetrics(style.code);
-	EnableQTextEditLineMetrics(style.displayMath.fallbackStyle);
-	EnableQTextEditLineMetrics(style.table.headerStyle);
-	EnableQTextEditLineMetrics(style.table.bodyStyle);
-	EnableQTextEditLineMetrics(style.details.summaryStyle);
-	EnableQTextEditLineMetrics(style.embedPost.authorStyle);
-	EnableQTextEditLineMetrics(style.embedPost.dateStyle);
-	EnableQTextEditLineMetrics(style.placeholder.labelStyle);
-	EnableQTextEditLineMetrics(style.audio.titleStyle);
-	EnableQTextEditLineMetrics(style.audio.subtitleStyle);
-	EnableQTextEditLineMetrics(style.channel.titleStyle);
-	EnableQTextEditLineMetrics(style.channel.subtitleStyle);
-	EnableQTextEditLineMetrics(style.channel.button.textStyle);
-	EnableQTextEditLineMetrics(style.relatedArticle.titleStyle);
-	EnableQTextEditLineMetrics(style.relatedArticle.subtitleStyle);
-	EnableQTextEditLineMetrics(style.relatedArticle.footerStyle);
-}
-
-[[nodiscard]] style::Markdown CreateEditorMarkdownStyle() {
-	auto result = st::messageMarkdown;
-	EnableQTextEditLineMetrics(result);
-	return result;
 }
 
 [[nodiscard]] bool RedirectTextToField(const QString &text) {

@@ -23,6 +23,8 @@ endif()
 target_precompile_headers(td_iv PRIVATE ${src_loc}/iv/iv_pch.h)
 nice_target_sources(td_iv ${src_loc}
 PRIVATE
+    iv/editor/iv_editor_article_style.cpp
+    iv/editor/iv_editor_article_style.h
     iv/editor/iv_editor_box.cpp
     iv/editor/iv_editor_box.h
     iv/editor/iv_editor_clipboard.cpp
