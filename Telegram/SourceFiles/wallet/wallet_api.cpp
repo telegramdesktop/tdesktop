@@ -18,6 +18,7 @@ constexpr auto kKillSessionTimeout = 10 * crl::time(1000);
 constexpr auto kRequestTimeout = 30 * crl::time(1000);
 
 const auto kTimeoutErrorMessage = u"TIMEOUT"_q;
+const auto kStreamingUrlEndpoint = u"getStreamingUrl"_q;
 
 [[nodiscard]] MTPtoncenter_PerformApiRequest ToncenterRequest(
 		const Gram::HttpRequest &request) {
@@ -109,6 +110,49 @@ void Api::request(
 		_debugSwallowedId = id;
 	}
 #endif // _DEBUG
+}
+
+mtpRequestId Api::requestStreamingUrl(
+		Fn<void(const QString &url, TimeId expires)> done,
+		Fn<void(const Gram::ApiError &)> fail) {
+	++_pendingCount;
+	_killSessionTimer.cancel();
+	const auto id = _api.request(
+		MTPtoncenter_GetStreamingUrl()
+	).toDC(shiftedDcId()).done([=](
+			const MTPtoncenter_StreamingUrl &result,
+			mtpRequestId requestId) {
+		if (!requestAnswered(requestId)) {
+			return;
+		} else if (done) {
+			const auto &data = result.data();
+			done(qs(data.vurl()), data.vexpires().v);
+		}
+	}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
+		if (!requestAnswered(requestId)) {
+			return;
+		} else if (fail) {
+			fail(Gram::ApiError{
+				.code = error.code(),
+				.message = error.type(),
+			});
+		}
+	}).send();
+	_sent.push_back({
+		.id = id,
+		.deadline = crl::now() + kRequestTimeout,
+		.endpoint = kStreamingUrlEndpoint,
+		.fail = fail,
+	});
+	scheduleTimeoutCheck();
+	return id;
+}
+
+void Api::cancelRequest(mtpRequestId requestId) {
+	_api.request(requestId).cancel();
+	if (requestAnswered(requestId)) {
+		scheduleTimeoutCheck();
+	}
 }
 
 #ifdef _DEBUG

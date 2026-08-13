@@ -280,12 +280,6 @@ bool RandomBytes(uint8_t *out, size_t size) {
 	return RAND_bytes(out, int(size)) == 1;
 }
 
-std::array<uint8_t, 20> Sha1Digest(ByteSpan data) {
-	auto result = std::array<uint8_t, 20>();
-	SHA1(data.data(), data.size(), result.data());
-	return result;
-}
-
 std::array<uint8_t, 32> Sha256Digest(ByteSpan data) {
 	auto result = std::array<uint8_t, 32>();
 	SHA256(data.data(), data.size(), result.data());

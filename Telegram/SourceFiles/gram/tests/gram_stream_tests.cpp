@@ -1,0 +1,426 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+#include "gram/tests/gram_tests.h"
+
+#include "gram/api/gram_api_stream.h"
+#include "gram/ton/gram_address.h"
+
+#include <QtCore/QJsonArray>
+#include <QtCore/QJsonDocument>
+#include <QtCore/QJsonObject>
+
+#include <vector>
+
+namespace Gram::Tests {
+namespace {
+
+const auto kAccountRaw = u"0:9DA971AF38D2F03ABDF308D5F91636A9"
+	u"7E5A2B07A66C39D71D7CBAE3B032EDDC"_q;
+const auto kOtherRaw = u"0:CA0CFD519F763102B5BEC9D9E3AF4359"
+	u"2EA362FB773FA319EA09C4F162C171E0"_q;
+const auto kTraceHash = u"HCSgz9CwJYQJXdDbo03QVft6KJ7RtG5js9Br8qPDCJ4="_q;
+const auto kSecret = u"f4ke-streaming-secret-0123456789"_q;
+
+[[nodiscard]] QString KindName(StreamEventKind kind) {
+	switch (kind) {
+	case StreamEventKind::Unknown: return u"Unknown"_q;
+	case StreamEventKind::AccountState: return u"AccountState"_q;
+	case StreamEventKind::Transactions: return u"Transactions"_q;
+	case StreamEventKind::TraceInvalidated: return u"TraceInvalidated"_q;
+	}
+	return u"Invalid"_q;
+}
+
+[[nodiscard]] QString Printed(const std::vector<Address> &accounts) {
+	auto result = QString();
+	for (const auto &address : accounts) {
+		if (!result.isEmpty()) {
+			result += u", "_q;
+		}
+		result += FormatRaw(address);
+	}
+	return result.isEmpty() ? u"none"_q : result;
+}
+
+[[nodiscard]] QString CheckEvent(
+		const StreamEvent &event,
+		StreamEventKind kind,
+		const std::vector<Address> &accounts) {
+	if (event.kind != kind) {
+		return u"kind: got "_q
+			+ KindName(event.kind)
+			+ u", expected "_q
+			+ KindName(kind);
+	} else if (event.accounts != accounts) {
+		return u"accounts: got "_q
+			+ Printed(event.accounts)
+			+ u", expected "_q
+			+ Printed(accounts);
+	}
+	return QString();
+}
+
+[[nodiscard]] QString CheckUnknown(const QByteArray &frame) {
+	const auto failure = CheckEvent(
+		ParseStreamEvent(frame),
+		StreamEventKind::Unknown,
+		{});
+	return failure.isEmpty()
+		? QString()
+		: (failure + u" for: "_q + QString::fromUtf8(frame));
+}
+
+[[nodiscard]] QString CheckEndpoint(
+		const QString &url,
+		const QString &host,
+		int port,
+		const QString &requestTarget) {
+	const auto parsed = ParseStreamEndpoint(url);
+	if (!parsed) {
+		return u"parse failed: "_q + url;
+	} else if (parsed->host != host) {
+		return u"host: got "_q + parsed->host + u", expected "_q + host;
+	} else if (parsed->port != port) {
+		return u"port: got "_q
+			+ QString::number(parsed->port)
+			+ u", expected "_q
+			+ QString::number(port);
+	} else if (parsed->requestTarget != requestTarget) {
+		return u"requestTarget: got "_q
+			+ parsed->requestTarget
+			+ u", expected "_q
+			+ requestTarget;
+	}
+	return QString();
+}
+
+[[nodiscard]] QByteArray AccountStateFrame(const QString &account) {
+	return (u"{\"type\":\"account_state_change\",\"account\":\""_q
+		+ account
+		+ u"\",\"state\":{\"balance\":\"1000000000\"}}"_q).toUtf8();
+}
+
+} // namespace
+
+std::vector<Check> StreamChecks() {
+	return {
+		{ u"stream_endpoint_valid"_q, [] {
+			const auto standard = CheckEndpoint(
+				u"wss://toncenter.com/api/streaming/v2/ws?token=abc"_q,
+				u"toncenter.com"_q,
+				443,
+				u"/api/streaming/v2/ws?token=abc"_q);
+			if (!standard.isEmpty()) {
+				return u"standard: "_q + standard;
+			}
+			const auto ported = CheckEndpoint(
+				u"wss://toncenter.com:8443/x"_q,
+				u"toncenter.com"_q,
+				8443,
+				u"/x"_q);
+			if (!ported.isEmpty()) {
+				return u"ported: "_q + ported;
+			}
+			const auto rootless = CheckEndpoint(
+				u"wss://toncenter.com"_q,
+				u"toncenter.com"_q,
+				443,
+				u"/"_q);
+			if (!rootless.isEmpty()) {
+				return u"rootless: "_q + rootless;
+			}
+			const auto cased = CheckEndpoint(
+				u"WSS://TonCenter.com/x"_q,
+				u"toncenter.com"_q,
+				443,
+				u"/x"_q);
+			if (!cased.isEmpty()) {
+				return u"cased: "_q + cased;
+			}
+			const auto multi = CheckEndpoint(
+				u"wss://testnet.toncenter.com:443/api/streaming/v2/ws"
+				u"?api_key=a&x=b"_q,
+				u"testnet.toncenter.com"_q,
+				443,
+				u"/api/streaming/v2/ws?api_key=a&x=b"_q);
+			return multi.isEmpty() ? QString() : (u"multi: "_q + multi);
+		} },
+		{ u"stream_endpoint_negative"_q, [] {
+			const auto bad = std::vector<QString>{
+				QString(),
+				u"ws://toncenter.com/x"_q,
+				u"https://toncenter.com/x"_q,
+				u"http://toncenter.com/x"_q,
+				u"wss:///x"_q,
+				u"wss://"_q,
+				u"toncenter.com/x"_q,
+				u"/api/streaming/v2/ws"_q,
+				u"not a url"_q,
+				u"wss://user:pass@toncenter.com/x"_q,
+				u"wss://toncenter.com:0/x"_q,
+				u"wss://toncenter.com:99999/x"_q,
+			};
+			for (const auto &url : bad) {
+				if (ParseStreamEndpoint(url)) {
+					return u"expected nullopt for: "_q + url;
+				}
+			}
+			return QString();
+		} },
+		{ u"stream_endpoint_label_redaction"_q, [] {
+			const auto url =
+				u"wss://toncenter.com/api/streaming/v2/ws?api_key="_q
+				+ kSecret;
+			const auto endpoint = ParseStreamEndpoint(url);
+			if (!endpoint) {
+				return u"parse failed for a secret carrying url"_q;
+			}
+			const auto label = StreamEndpointLabel(*endpoint);
+			if (label != u"toncenter.com:443"_q) {
+				return u"label: got "_q
+					+ label
+					+ u", expected toncenter.com:443"_q;
+			} else if (label.contains(QChar('?'))
+				|| label.contains(QChar('='))
+				|| label.contains(QChar('&'))) {
+				return u"label carries query punctuation: "_q + label;
+			} else if (label.contains(kSecret)) {
+				return u"label carries the secret"_q;
+			}
+			const auto expected =
+				u"/api/streaming/v2/ws?api_key="_q + kSecret;
+			if (endpoint->requestTarget != expected) {
+				return u"requestTarget must stay the verbatim path and "
+					u"query, because it is the only place the secret is "
+					u"allowed to reach"_q;
+			}
+			const auto ported = ParseStreamEndpoint(
+				u"wss://toncenter.com:8443/ws?api_key="_q + kSecret);
+			if (!ported) {
+				return u"parse failed for a ported secret carrying url"_q;
+			}
+			const auto portedLabel = StreamEndpointLabel(*ported);
+			if (portedLabel != u"toncenter.com:8443"_q) {
+				return u"ported label: got "_q
+					+ portedLabel
+					+ u", expected toncenter.com:8443"_q;
+			}
+			return QString();
+		} },
+		{ u"stream_event_account_state"_q, [] {
+			const auto parsed = ParseAddress(kAccountRaw);
+			if (!parsed) {
+				return u"address parse failed: "_q + kAccountRaw;
+			}
+			const auto raw = CheckEvent(
+				ParseStreamEvent(AccountStateFrame(kAccountRaw)),
+				StreamEventKind::AccountState,
+				{ parsed->address });
+			if (!raw.isEmpty()) {
+				return u"raw: "_q + raw;
+			}
+			const auto friendly = FormatFriendly(parsed->address, false);
+			const auto matched = CheckEvent(
+				ParseStreamEvent(AccountStateFrame(friendly)),
+				StreamEventKind::AccountState,
+				{ parsed->address });
+			if (!matched.isEmpty()) {
+				return u"friendly: "_q + matched;
+			}
+			const auto unresolved = CheckEvent(
+				ParseStreamEvent(AccountStateFrame(u"address"_q)),
+				StreamEventKind::AccountState,
+				{});
+			return unresolved.isEmpty()
+				? QString()
+				: (u"unresolved: "_q + unresolved);
+		} },
+		{ u"stream_event_transactions"_q, [] {
+			const auto first = ParseAddress(kAccountRaw);
+			const auto second = ParseAddress(kOtherRaw);
+			if (!first || !second) {
+				return u"address parse failed"_q;
+			}
+			const auto friendly = FormatFriendly(second->address, false);
+			const auto frame = (u"{\"type\":\"transactions\","
+				u"\"finality\":\"pending\","
+				u"\"trace_external_hash_norm\":\""_q
+				+ kTraceHash
+				+ u"\",\"transactions\":[{\"account\":\""_q
+				+ kAccountRaw
+				+ u"\"},{\"account\":\""_q
+				+ kAccountRaw
+				+ u"\"},{\"account\":\""_q
+				+ friendly
+				+ u"\"},{\"account\":\"nonsense\"},"
+				u"{\"account\":42},{}]}"_q).toUtf8();
+			const auto deduped = CheckEvent(
+				ParseStreamEvent(frame),
+				StreamEventKind::Transactions,
+				{ first->address, second->address });
+			if (!deduped.isEmpty()) {
+				return u"deduped: "_q + deduped;
+			}
+			const auto empty = CheckEvent(
+				ParseStreamEvent(
+					(u"{\"type\":\"transactions\","
+						u"\"trace_external_hash_norm\":\""_q
+						+ kTraceHash
+						+ u"\",\"transactions\":[]}"_q).toUtf8()),
+				StreamEventKind::Transactions,
+				{});
+			return empty.isEmpty() ? QString() : (u"empty: "_q + empty);
+		} },
+		{ u"stream_event_trace_invalidated"_q, [] {
+			const auto frame = (u"{\"type\":\"trace_invalidated\","
+				u"\"trace_external_hash_norm\":\""_q
+				+ kTraceHash
+				+ u"\"}"_q).toUtf8();
+			return CheckEvent(
+				ParseStreamEvent(frame),
+				StreamEventKind::TraceInvalidated,
+				{});
+		} },
+		{ u"stream_event_negative"_q, [] {
+			const auto bad = std::vector<QByteArray>{
+				QByteArray(""),
+				QByteArray("null"),
+				QByteArray("42"),
+				QByteArray("[]"),
+				QByteArray("{"),
+				QByteArray("{}"),
+				QByteArray("not json"),
+				QByteArray(R"("account_state_change")"),
+				QByteArray(R"({"status":"pong"})"),
+				QByteArray(R"({"status":"subscribed"})"),
+				QByteArray(R"({"type":"wrong"})"),
+				QByteArray(R"({"type":123})"),
+				QByteArray(R"({"type":"account_state_change"})"),
+				QByteArray(R"({"type":"account_state_change",)"
+					R"("account":123})"),
+				QByteArray(R"({"type":"account_state_change",)"
+					R"("account":"addr","state":null})"),
+				QByteArray(R"({"type":"account_state_change",)"
+					R"("account":"addr","state":{}})"),
+				QByteArray(R"({"type":"account_state_change",)"
+					R"("account":"addr","state":{"balance":100}})"),
+				QByteArray(R"({"type":"account_state_change",)"
+					R"("account":"addr","state":[{"balance":"1"}]})"),
+				QByteArray(R"({"type":"account_state_change",)"
+					R"("account":"","state":{"balance":"1"}})"),
+				QByteArray(R"({"type":"transactions"})"),
+				QByteArray(R"({"type":"transactions",)"
+					R"("trace_external_hash_norm":123})"),
+				QByteArray(R"({"type":"transactions",)"
+					R"("trace_external_hash_norm":"h","transactions":{}})"),
+				QByteArray(R"({"type":"transactions",)"
+					R"("trace_external_hash_norm":"h","transactions":[)"),
+				QByteArray(R"({"type":"trace_invalidated"})"),
+				QByteArray(R"({"type":"trace_invalidated",)"
+					R"("trace_external_hash_norm":123})"),
+				QByteArray(R"({"type":"jettons_change","jetton":)"
+					R"({"address":"0:jetton","owner":"0:owner"},)"
+					R"("jetton_wallets":[]})"),
+				QByteArray(R"({"type":"jettons_change","jetton":null})"),
+				QByteArray(R"({"type":"jettons_change","jetton":{}})"),
+				QByteArray(R"({"type":"jettons_change",)"
+					R"("jetton":{"address":"a"}})"),
+				QByteArray(R"({"type":"jettons_change",)"
+					R"("jetton":{"address":"a","owner":1}})"),
+			};
+			for (const auto &frame : bad) {
+				const auto failure = CheckUnknown(frame);
+				if (!failure.isEmpty()) {
+					return failure;
+				}
+			}
+			return QString();
+		} },
+		{ u"stream_subscribe_message"_q, [] {
+			const auto parsed = ParseAddress(kAccountRaw);
+			if (!parsed) {
+				return u"address parse failed: "_q + kAccountRaw;
+			}
+			const auto account = FormatFriendly(parsed->address, false);
+			const auto message = StreamSubscribeMessage(account, 7);
+			if (message.contains('\n')) {
+				return u"not compact: "_q + QString::fromUtf8(message);
+			}
+			const auto document = QJsonDocument::fromJson(message);
+			if (!document.isObject()) {
+				return u"not a json object: "_q
+					+ QString::fromUtf8(message);
+			}
+			const auto object = document.object();
+			if (object.value(u"operation"_q).toString() != u"subscribe"_q) {
+				return u"operation: got "_q
+					+ object.value(u"operation"_q).toString()
+					+ u", expected subscribe"_q;
+			} else if (object.value(u"id"_q).toString() != u"sub-7"_q) {
+				return u"id: got "_q
+					+ object.value(u"id"_q).toString()
+					+ u", expected sub-7"_q;
+			} else if (object.value(u"min_finality"_q).toString()
+				!= u"pending"_q) {
+				return u"min_finality: got "_q
+					+ object.value(u"min_finality"_q).toString()
+					+ u", expected pending, which is what makes an "
+					u"outgoing transfer visible before confirmation"_q;
+			}
+			const auto types = object.value(u"types"_q).toArray();
+			if (types.size() != 2
+				|| !types.contains(u"account_state_change"_q)
+				|| !types.contains(u"transactions"_q)) {
+				return u"types: got "_q + QString::fromUtf8(message);
+			}
+			const auto addresses = object.value(u"addresses"_q).toArray();
+			if (addresses.size() != 1
+				|| addresses.at(0).toString() != account) {
+				return u"addresses: got "_q + QString::fromUtf8(message);
+			} else if (object.contains(u"include_metadata"_q)) {
+				return u"include_metadata inflates every frame with detail "
+					u"the wallet never reads"_q;
+			} else if (object.size() != 5) {
+				return u"fields: got "_q
+					+ QString::number(object.size())
+					+ u", expected 5: "_q
+					+ QString::fromUtf8(message);
+			}
+			return QString();
+		} },
+		{ u"stream_ping_message"_q, [] {
+			const auto message = StreamPingMessage(3);
+			if (message.contains('\n')) {
+				return u"not compact: "_q + QString::fromUtf8(message);
+			}
+			const auto document = QJsonDocument::fromJson(message);
+			if (!document.isObject()) {
+				return u"not a json object: "_q
+					+ QString::fromUtf8(message);
+			}
+			const auto object = document.object();
+			if (object.value(u"operation"_q).toString() != u"ping"_q) {
+				return u"operation: got "_q
+					+ object.value(u"operation"_q).toString()
+					+ u", expected ping"_q;
+			} else if (object.value(u"id"_q).toString() != u"ping-3"_q) {
+				return u"id: got "_q
+					+ object.value(u"id"_q).toString()
+					+ u", expected ping-3"_q;
+			} else if (object.size() != 2) {
+				return u"fields: got "_q
+					+ QString::number(object.size())
+					+ u", expected 2: "_q
+					+ QString::fromUtf8(message);
+			}
+			return QString();
+		} },
+	};
+}
+
+} // namespace Gram::Tests

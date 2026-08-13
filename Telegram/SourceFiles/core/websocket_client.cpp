@@ -5,13 +5,13 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "webauthn/cable_tunnel.h"
+#include "core/websocket_client.h"
 
-#include "webauthn/cable_core.h"
+#include "base/random.h"
 
-#include <openssl/rand.h>
+#include <QtCore/QCryptographicHash>
 
-namespace Platform::WebAuthn::Cable {
+namespace Core {
 namespace {
 
 constexpr auto kOpcodeContinuation = quint8(0x0);
@@ -23,13 +23,12 @@ constexpr auto kOpcodePong = quint8(0xA);
 
 constexpr auto kMaxFramePayload = quint64(4 * 1024 * 1024);
 constexpr auto kMaxUpgradeResponse = 8 * 1024;
-constexpr auto kTunnelPort = 443;
 constexpr auto kAcceptGuid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-constexpr auto kSubprotocol = "fido.cable";
+constexpr auto kSecureDefaultPort = 443;
 
 } // namespace
 
-TunnelSocket::TunnelSocket(QObject *parent) : QObject(parent) {
+WebSocketClient::WebSocketClient(QObject *parent) : QObject(parent) {
 	connect(&_socket, &QSslSocket::encrypted, this, [=] {
 		onSslConnected();
 	});
@@ -46,23 +45,27 @@ TunnelSocket::TunnelSocket(QObject *parent) : QObject(parent) {
 		[=](QAbstractSocket::SocketError) { fail(); });
 }
 
-TunnelSocket::~TunnelSocket() {
+WebSocketClient::~WebSocketClient() {
 	_socket.abort();
 }
 
-void TunnelSocket::connectToTunnel(
-		const QString &domain,
-		const QString &path) {
+void WebSocketClient::connectTo(
+		const QString &host,
+		int port,
+		const QString &requestTarget,
+		const QString &subprotocol) {
 	if (_state != State::Idle) {
 		return;
 	}
-	_host = domain;
-	_path = path;
+	_host = host;
+	_port = port;
+	_target = requestTarget;
+	_subprotocol = subprotocol;
 	_state = State::Connecting;
-	_socket.connectToHostEncrypted(domain, kTunnelPort);
+	_socket.connectToHostEncrypted(host, quint16(port));
 }
 
-void TunnelSocket::onSslConnected() {
+void WebSocketClient::onSslConnected() {
 	if (_state != State::Connecting) {
 		return;
 	}
@@ -70,30 +73,30 @@ void TunnelSocket::onSslConnected() {
 	sendUpgradeRequest();
 }
 
-void TunnelSocket::sendUpgradeRequest() {
+void WebSocketClient::sendUpgradeRequest() {
 	auto keyBytes = std::array<uint8_t, 16>();
-	RAND_bytes(keyBytes.data(), int(keyBytes.size()));
+	base::RandomFill(keyBytes.data(), keyBytes.size());
 	_key = QByteArray(
 		reinterpret_cast<const char*>(keyBytes.data()),
 		int(keyBytes.size())).toBase64();
 
-	const auto request = QString::fromLatin1(
-		"GET %1 HTTP/1.1\r\n"
-		"Host: %2\r\n"
-		"Upgrade: websocket\r\n"
-		"Connection: Upgrade\r\n"
-		"Sec-WebSocket-Key: %3\r\n"
-		"Sec-WebSocket-Version: 13\r\n"
-		"Sec-WebSocket-Protocol: %4\r\n"
-		"\r\n")
-		.arg(_path)
-		.arg(_host)
-		.arg(QString::fromLatin1(_key))
-		.arg(QString::fromLatin1(kSubprotocol));
+	const auto host = (_port == kSecureDefaultPort)
+		? _host
+		: (_host + u":"_q + QString::number(_port));
+	auto request = u"GET "_q + _target + u" HTTP/1.1\r\n"_q
+		+ u"Host: "_q + host + u"\r\n"_q
+		+ u"Upgrade: websocket\r\n"_q
+		+ u"Connection: Upgrade\r\n"_q
+		+ u"Sec-WebSocket-Key: "_q + QString::fromLatin1(_key) + u"\r\n"_q
+		+ u"Sec-WebSocket-Version: 13\r\n"_q;
+	if (!_subprotocol.isEmpty()) {
+		request += u"Sec-WebSocket-Protocol: "_q + _subprotocol + u"\r\n"_q;
+	}
+	request += u"\r\n"_q;
 	_socket.write(request.toLatin1());
 }
 
-bool TunnelSocket::readUpgradeResponse() {
+bool WebSocketClient::readUpgradeResponse() {
 	const auto end = _incoming.indexOf("\r\n\r\n");
 	if (end < 0) {
 		return (_incoming.size() < kMaxUpgradeResponse);
@@ -107,12 +110,9 @@ bool TunnelSocket::readUpgradeResponse() {
 		return false;
 	}
 	const auto accept = _key + kAcceptGuid;
-	const auto digest = Sha1Digest(ByteSpan(
-		reinterpret_cast<const uint8_t*>(accept.constData()),
-		accept.size()));
-	const auto expected = QByteArray(
-		reinterpret_cast<const char*>(digest.data()),
-		int(digest.size())).toBase64();
+	const auto expected = QCryptographicHash::hash(
+		accept,
+		QCryptographicHash::Sha1).toBase64();
 	auto accepted = false;
 	for (const auto &line : lines) {
 		const auto colon = line.indexOf(':');
@@ -136,7 +136,7 @@ bool TunnelSocket::readUpgradeResponse() {
 	return true;
 }
 
-void TunnelSocket::onReadyRead() {
+void WebSocketClient::onReadyRead() {
 	if (_state == State::WaitingUpgrade) {
 		_incoming.append(_socket.readAll());
 		if (!readUpgradeResponse()) {
@@ -155,7 +155,7 @@ void TunnelSocket::onReadyRead() {
 	}
 }
 
-bool TunnelSocket::parseFrames() {
+bool WebSocketClient::parseFrames() {
 	auto offset = 0;
 	auto closed = false;
 	const auto size = _incoming.size();
@@ -206,6 +206,9 @@ bool TunnelSocket::parseFrames() {
 			}
 		}
 		offset += header + int(length);
+		if (const auto handler = onActivity) {
+			handler();
+		}
 
 		switch (opcode) {
 		case kOpcodeContinuation:
@@ -217,13 +220,20 @@ bool TunnelSocket::parseFrames() {
 				}
 			}
 			break;
+		case kOpcodeText:
+			if (!payload.isEmpty()) {
+				if (const auto handler = onText) {
+					handler(payload);
+					closed = (_state != State::Connected);
+				}
+			}
+			break;
 		case kOpcodeClose:
 			return false;
 		case kOpcodePing:
 			writeFrame(payload, kOpcodePong);
 			break;
 		case kOpcodePong:
-		case kOpcodeText:
 			break;
 		default:
 			return false;
@@ -235,7 +245,7 @@ bool TunnelSocket::parseFrames() {
 	return true;
 }
 
-void TunnelSocket::writeFrame(const QByteArray &payload, quint8 opcode) {
+void WebSocketClient::writeFrame(const QByteArray &payload, quint8 opcode) {
 	const auto length = quint64(payload.size());
 	auto frame = QByteArray();
 	frame.reserve(int(length) + 14);
@@ -253,7 +263,7 @@ void TunnelSocket::writeFrame(const QByteArray &payload, quint8 opcode) {
 		}
 	}
 	auto maskBytes = std::array<uint8_t, 4>();
-	RAND_bytes(maskBytes.data(), int(maskBytes.size()));
+	base::RandomFill(maskBytes.data(), maskBytes.size());
 	const auto mask = reinterpret_cast<const char*>(maskBytes.data());
 	frame.append(mask, 4);
 
@@ -264,14 +274,21 @@ void TunnelSocket::writeFrame(const QByteArray &payload, quint8 opcode) {
 	_socket.write(frame);
 }
 
-void TunnelSocket::sendBinary(const QByteArray &message) {
+void WebSocketClient::sendText(const QByteArray &message) {
+	if (_state != State::Connected) {
+		return;
+	}
+	writeFrame(message, kOpcodeText);
+}
+
+void WebSocketClient::sendBinary(const QByteArray &message) {
 	if (_state != State::Connected) {
 		return;
 	}
 	writeFrame(message, kOpcodeBinary);
 }
 
-void TunnelSocket::close() {
+void WebSocketClient::close() {
 	if (_state == State::Connected) {
 		writeFrame(QByteArray(), kOpcodeClose);
 	}
@@ -279,7 +296,7 @@ void TunnelSocket::close() {
 	_socket.abort();
 }
 
-void TunnelSocket::fail() {
+void WebSocketClient::fail() {
 	if (_failed || _state == State::Closed) {
 		return;
 	}
@@ -290,4 +307,4 @@ void TunnelSocket::fail() {
 	}
 }
 
-} // namespace Platform::WebAuthn::Cable
+} // namespace Core

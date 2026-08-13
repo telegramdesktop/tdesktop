@@ -619,6 +619,8 @@ PRIVATE
     core/utils.cpp
     core/utils.h
     core/version.h
+    core/websocket_client.cpp
+    core/websocket_client.h
     countries/countries_manager.cpp
     countries/countries_manager.h
     data/business/data_business_chatbots.cpp
@@ -2173,6 +2175,8 @@ PRIVATE
     wallet/wallet_rates.h
     wallet/wallet_session.cpp
     wallet/wallet_session.h
+    wallet/wallet_stream.cpp
+    wallet/wallet_stream.h
     webauthn/cable.h
     webauthn/cable_box.cpp
     webauthn/cable_box.h

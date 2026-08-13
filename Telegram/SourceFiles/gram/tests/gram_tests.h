@@ -79,5 +79,6 @@ struct Check {
 [[nodiscard]] std::vector<Check> ApiChecks();
 [[nodiscard]] std::vector<Check> RatesChecks();
 [[nodiscard]] std::vector<Check> NftChecks();
+[[nodiscard]] std::vector<Check> StreamChecks();
 
 } // namespace Gram::Tests

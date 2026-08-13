@@ -28,6 +28,7 @@ namespace {
 	append(ApiChecks());
 	append(RatesChecks());
 	append(NftChecks());
+	append(StreamChecks());
 	return result;
 }
 

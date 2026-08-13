@@ -25,7 +25,9 @@ constexpr auto kPollInterval = 5 * crl::time(1000);
 constexpr auto kHistoryPageLimit = 20;
 constexpr auto kCollectiblesPageLimit = 50;
 constexpr auto kCollectiblesPollInterval = 60 * crl::time(1000);
+constexpr auto kForcedCollectiblesInterval = 10 * crl::time(1000);
 constexpr auto kEmptyProofFreshness = 60 * crl::time(1000);
+constexpr auto kStreamResyncInterval = 30 * crl::time(1000);
 constexpr auto kSendValidUntilOffset = TimeId(300);
 constexpr auto kSendRetryClockMargin = TimeId(60);
 
@@ -50,6 +52,9 @@ Session::Session(not_null<Main::Session*> session)
 , _api(session)
 , _feeEstimator(MakeFeeEstimator(&_api))
 , _rates(std::make_unique<Rates>(session))
+, _stream(std::make_unique<Stream>(&_api, [=](StreamRefresh wanted) {
+	applyStreamRefresh(wanted);
+}))
 , _pollTimer([=] { pollTick(); }) {
 }
 
@@ -258,6 +263,7 @@ void Session::clearNetworkState() {
 	_sendState = SendState::Idle;
 	_pollingCount = 0;
 	_pollTimer.cancel();
+	_stream->stop();
 	_stateRequestPending = false;
 	_historyRequestPending = false;
 	_pendingCheckPending = false;
@@ -492,18 +498,20 @@ void Session::loadMoreHistory() {
 	requestHistory(_historyLoadedOffset);
 }
 
-void Session::refreshCollectibles() {
+void Session::refreshCollectibles(bool force) {
 	ensureLoaded();
 #ifdef _DEBUG
 	if (_collectiblesInjected) {
 		return;
 	}
 #endif // _DEBUG
+	const auto interval = force
+		? kForcedCollectiblesInterval
+		: kCollectiblesPollInterval;
 	if (_keyState.current() == KeyState::None
 		|| _collectiblesRequestPending
 		|| (_collectiblesRefreshedAt
-			&& (crl::now() - _collectiblesRefreshedAt
-				< kCollectiblesPollInterval))) {
+			&& (crl::now() - _collectiblesRefreshedAt < interval))) {
 		return;
 	}
 	_collectiblesRefreshedAt = crl::now();
@@ -682,6 +690,34 @@ void Session::debugSetRefreshAges(crl::time age) {
 int Session::debugPendingCount() const {
 	return _api.debugPendingCount();
 }
+
+void Session::debugStreamUseFakeEndpoint() {
+	_stream->debugUseFakeEndpoint();
+}
+
+void Session::debugStreamFailAcquires(bool fail) {
+	_stream->debugFailAcquires(fail);
+}
+
+void Session::debugStreamDeliverFrame(const QByteArray &frame) {
+	_stream->debugDeliverFrame(frame);
+}
+
+void Session::debugStreamDropConnection() {
+	_stream->debugDropConnection();
+}
+
+void Session::debugStreamExpireNow() {
+	_stream->debugExpireNow();
+}
+
+bool Session::debugStreamHealthy() const {
+	return _stream->healthy();
+}
+
+int Session::debugStreamAcquireCount() const {
+	return _stream->debugAcquireCount();
+}
 #endif
 
 void Session::startPolling() {
@@ -704,6 +740,11 @@ void Session::updatePollingState() {
 		_pollTimer.callEach(kPollInterval);
 		pollTick();
 	}
+	if (wanted && (_keyState.current() != KeyState::None)) {
+		_stream->start(_address);
+	} else {
+		_stream->stop();
+	}
 }
 
 bool Session::pollingRequested() const {
@@ -719,15 +760,32 @@ void Session::pollTick() {
 	if (!_pollTimer.isActive()) {
 		return;
 	}
-	if (!_stateRequestPending) {
+	const auto streaming = _stream->healthy();
+	const auto stale = [&](crl::time at) {
+		return !at || (crl::now() - at >= kStreamResyncInterval);
+	};
+	if ((!streaming || stale(_stateRefreshedAt)) && !_stateRequestPending) {
 		refreshState();
 	}
-	if (!_historyRequestPending) {
+	if ((!streaming || stale(_historyRefreshedAt))
+		&& !_historyRequestPending) {
 		refreshHistory();
 	}
 	refreshCollectibles();
 	if (_pending && !_pendingCheckPending) {
 		checkPendingByMessage();
+	}
+}
+
+void Session::applyStreamRefresh(StreamRefresh wanted) {
+	if (wanted.state) {
+		refreshState();
+	}
+	if (wanted.history) {
+		refreshHistory();
+	}
+	if (wanted.collectibles) {
+		refreshCollectibles(true);
 	}
 }
 

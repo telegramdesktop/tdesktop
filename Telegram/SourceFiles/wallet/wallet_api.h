@@ -26,6 +26,10 @@ public:
 		const Gram::HttpRequest &request,
 		Fn<void(const QByteArray &)> done,
 		Fn<void(const Gram::ApiError &)> fail);
+	[[nodiscard]] mtpRequestId requestStreamingUrl(
+		Fn<void(const QString &url, TimeId expires)> done,
+		Fn<void(const Gram::ApiError &)> fail);
+	void cancelRequest(mtpRequestId requestId);
 
 	[[nodiscard]] static bool IsTimeoutError(const Gram::ApiError &error);
 

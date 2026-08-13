@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "gram/wallet/gram_wallet_v5.h"
 #include "wallet/wallet_api.h"
 #include "wallet/wallet_fee_estimator.h"
+#include "wallet/wallet_stream.h"
 
 namespace Main {
 class Session;
@@ -122,6 +123,13 @@ public:
 	void debugRestoreNetworkState();
 	void debugSetRefreshAges(crl::time age);
 	[[nodiscard]] int debugPendingCount() const;
+	void debugStreamUseFakeEndpoint();
+	void debugStreamFailAcquires(bool fail);
+	void debugStreamDeliverFrame(const QByteArray &frame);
+	void debugStreamDropConnection();
+	void debugStreamExpireNow();
+	[[nodiscard]] bool debugStreamHealthy() const;
+	[[nodiscard]] int debugStreamAcquireCount() const;
 #endif
 
 	void startPolling();
@@ -149,12 +157,13 @@ private:
 	void clearNetworkState();
 	void pollTick();
 	void updatePollingState();
+	void applyStreamRefresh(StreamRefresh wanted);
 	void applyAccountState(const Gram::AccountState &state);
 	void mergeHistory(std::vector<Gram::TransferItem> &&items);
 	void requestHistory(int offset);
 	void requestHistoryFallback(int offset);
 	void applyHistoryPage(int offset, Gram::HistoryPage &&page);
-	void refreshCollectibles();
+	void refreshCollectibles(bool force = false);
 	void requestCollectibles(int offset);
 	void applyCollectiblesPage(int offset, Gram::NftPage &&page);
 	void setCollectibles(std::vector<Gram::NftItem> &&list);
@@ -174,6 +183,7 @@ private:
 	Api _api;
 	const std::unique_ptr<FeeEstimator> _feeEstimator;
 	const std::unique_ptr<Rates> _rates;
+	const std::unique_ptr<Stream> _stream;
 	base::Timer _pollTimer;
 
 	bool _loaded = false;

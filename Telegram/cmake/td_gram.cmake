@@ -23,6 +23,8 @@ PRIVATE
     gram/api/gram_api_request.h
     gram/api/gram_api_send.cpp
     gram/api/gram_api_send.h
+    gram/api/gram_api_stream.cpp
+    gram/api/gram_api_stream.h
     gram/crypto/gram_ed25519.cpp
     gram/crypto/gram_ed25519.h
     gram/crypto/gram_hmac.cpp
@@ -73,6 +75,7 @@ PRIVATE
     gram/tests/gram_mnemonic_tests.cpp
     gram/tests/gram_nft_tests.cpp
     gram/tests/gram_rates_tests.cpp
+    gram/tests/gram_stream_tests.cpp
     gram/tests/gram_tests.h
     gram/tests/gram_tests_main.cpp
     gram/tests/gram_ton_tests.cpp

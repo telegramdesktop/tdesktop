@@ -31,6 +31,17 @@ std::optional<ApiError> ParseApiError(const QByteArray &json) {
 
 namespace Gram::ApiDetails {
 
+std::optional<Address> ParseAddressValue(const QJsonValue &value) {
+	if (!value.isString()) {
+		return std::nullopt;
+	}
+	const auto parsed = ParseAddress(value.toString());
+	if (!parsed) {
+		return std::nullopt;
+	}
+	return parsed->address;
+}
+
 std::optional<int64> ParseInt64String(const QJsonValue &value) {
 	if (!value.isString()) {
 		return std::nullopt;

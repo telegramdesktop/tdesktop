@@ -13,20 +13,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <functional>
 
-namespace Platform::WebAuthn::Cable {
+namespace Core {
 
-class TunnelSocket final : public QObject {
+class WebSocketClient final : public QObject {
 public:
-	explicit TunnelSocket(QObject *parent = nullptr);
-	~TunnelSocket();
+	explicit WebSocketClient(QObject *parent = nullptr);
+	~WebSocketClient();
 
-	void connectToTunnel(const QString &domain, const QString &path);
+	void connectTo(
+		const QString &host,
+		int port,
+		const QString &requestTarget,
+		const QString &subprotocol);
+	void sendText(const QByteArray &message);
 	void sendBinary(const QByteArray &message);
 	void close();
 
 	std::function<void()> onConnected;
+	std::function<void(QByteArray)> onText;
 	std::function<void(QByteArray)> onBinary;
 	std::function<void()> onClosed;
+	std::function<void()> onActivity;
 
 private:
 	void onSslConnected();
@@ -47,12 +54,14 @@ private:
 
 	QSslSocket _socket;
 	QString _host;
-	QString _path;
+	QString _target;
+	QString _subprotocol;
 	QByteArray _key;
 	QByteArray _incoming;
 	State _state = State::Idle;
+	int _port = 0;
 	bool _failed = false;
 
 };
 
-} // namespace Platform::WebAuthn::Cable
+} // namespace Core

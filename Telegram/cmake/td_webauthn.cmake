@@ -13,8 +13,6 @@ PRIVATE
     webauthn/cable_core.cpp
     webauthn/cable_core.h
     webauthn/cable_scanner.h
-    webauthn/cable_tunnel.cpp
-    webauthn/cable_tunnel.h
 )
 
 target_include_directories(td_webauthn
