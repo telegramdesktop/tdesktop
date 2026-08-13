@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/markdown/iv_markdown_prepare_native_richtext.h"
 #include "iv/markdown/iv_markdown_prepare_serialize.h"
 #include "iv/markdown/iv_markdown_slideshow_chrome.h"
+#include "iv/markdown/iv_markdown_theme.h"
 #include "iv/iv_search_bar.h"
 #include "iv/iv_search_controller.h"
 #include "lang/lang_keys.h"
@@ -113,18 +114,6 @@ const auto kFormulaSamples = std::array{
 	u"x_{1,2}=\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}"_q,
 };
 
-[[nodiscard]] std::vector<Ui::Text::SpecialColor> HighlightColors(
-		not_null<const Ui::ChatStyle*> style) {
-	auto result = Ui::SyntaxHighlightColors(style);
-
-	const auto &fg = style->lightButtonFg();
-	const auto &bg = style->lightButtonBgOver();
-	result.push_back({ &fg->p, &fg->p, &bg->b, &bg->b });
-
-	Ensures(result.size() == Markdown::kNativeIvLinkSpecialColorIndex);
-	return result;
-}
-
 [[nodiscard]] int MaxVisualLineWidth(
 		not_null<const QTextDocument*> document) {
 	auto result = 0.;
@@ -150,18 +139,6 @@ const auto kFormulaSamples = std::array{
 	clone->setTextWidth(width);
 	clone->adjustSize();
 	return MaxVisualLineWidth(clone.get());
-}
-
-[[nodiscard]] std::unique_ptr<Ui::ChatTheme> CreateStandaloneChatTheme() {
-	const auto palette = style::main_palette::get();
-	return std::make_unique<Ui::ChatTheme>(Ui::ChatThemeDescriptor{
-		.preparePalette = [=](style::palette &copy) {
-			copy = *palette;
-		},
-		.backgroundData = {
-			.colors = { palette->windowBg()->c },
-		},
-	});
 }
 
 [[nodiscard]] const style::margins &EditorBodyPadding() {
@@ -2677,10 +2654,10 @@ Widget::Widget(
 , _articleStyle(std::make_shared<style::Markdown>(
 	CreateEditorMarkdownStyle()))
 , _article(std::make_shared<Markdown::MarkdownArticle>(*_articleStyle))
-, _theme(CreateStandaloneChatTheme())
+, _theme(Markdown::CreateStandaloneChatTheme())
 , _style(std::make_unique<Ui::ChatStyle>(style::main_palette::get())) {
 	_style->apply(_theme.get());
-	_highlightColors = HighlightColors(_style.get());
+	_highlightColors = Markdown::HighlightColors(_style.get());
 
 	setMouseTracking(true);
 	setAttribute(Qt::WA_AcceptTouchEvents);
@@ -8642,9 +8619,9 @@ void Widget::recreateInlineField(const style::InputField &st) {
 }
 
 void Widget::refreshPalette() {
-	_theme = CreateStandaloneChatTheme();
+	_theme = Markdown::CreateStandaloneChatTheme();
 	_style->apply(_theme.get());
-	_highlightColors = HighlightColors(_style.get());
+	_highlightColors = Markdown::HighlightColors(_style.get());
 	*_articleStyle = CreateEditorMarkdownStyle();
 	if (_article) {
 		_article->invalidatePaletteCache();
