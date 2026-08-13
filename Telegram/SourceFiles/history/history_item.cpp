@@ -5506,7 +5506,7 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 					Mode::Receipt,
 					crl::guard(weak, [=](auto) { weak->window().activate(); }),
 					Payments::ProcessNonPanelPaymentFormFactory(
-						weak.get(),
+						weak,
 						item));
 			}
 		});

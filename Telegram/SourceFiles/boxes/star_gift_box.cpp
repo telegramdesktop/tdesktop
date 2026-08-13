@@ -5077,15 +5077,18 @@ void SendGiftBox(
 		}
 		const auto copy = state->media; // Let media outlive the box.
 		const auto weak = base::make_weak(box);
+		const auto weakWindow = base::make_weak(window);
 		const auto done = [=](Payments::CheckoutResult result) {
 			if (result == Payments::CheckoutResult::Paid) {
-				if (details.byStars
-					|| v::is<GiftTypeStars>(details.descriptor)) {
-					window->session().credits().load(true);
+				if (const auto strongWindow = weakWindow.get()) {
+					if (details.byStars
+						|| v::is<GiftTypeStars>(details.descriptor)) {
+						strongWindow->session().credits().load(true);
+					}
+					const auto another = copy; // Let media outlive the box.
+					strongWindow->showPeerHistory(peer);
+					ShowSentToast(strongWindow, details.descriptor, details);
 				}
-				const auto another = copy; // Let media outlive the box.
-				window->showPeerHistory(peer);
-				ShowSentToast(window, details.descriptor, details);
 			}
 			if (const auto strong = weak.get()) {
 				strong->closeBox();
