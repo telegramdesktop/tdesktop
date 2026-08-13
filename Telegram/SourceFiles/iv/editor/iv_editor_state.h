@@ -809,6 +809,12 @@ private:
 		int itemIndex,
 		bool materializeEmptyItem,
 		BoundaryTarget *destination = nullptr);
+	[[nodiscard]] bool unwrapListItemRangeIntoParent(
+		const BlockPath &listPath,
+		int from,
+		int till,
+		bool materializeEmptyItem,
+		BoundaryTarget *destination = nullptr);
 	[[nodiscard]] std::vector<RichPage::Block> takeListItemBlocksForUnwrap(
 		RichPage::ListItem *item);
 	void adoptLeadingParagraphListItemText(RichPage::ListItem *item) const;
