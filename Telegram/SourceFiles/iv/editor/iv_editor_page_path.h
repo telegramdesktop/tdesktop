@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "iv/iv_rich_page.h"
+#include "iv/markdown/iv_markdown_prepare.h"
 
 #include <vector>
 
@@ -87,5 +88,19 @@ struct LeafPath {
 			&& (a.tableCellIndex == b.tableCellIndex);
 	}
 };
+
+[[nodiscard]] BlockContainerPath BlockChildrenContainer(BlockPath path);
+[[nodiscard]] BlockContainerPath ListItemChildrenContainer(
+	BlockPath path,
+	int itemIndex);
+[[nodiscard]] auto ToPreparedBlockContainerPath(
+	const BlockContainerPath &path)
+-> Markdown::PreparedEditBlockContainerPath;
+[[nodiscard]] Markdown::PreparedEditBlockPath ToPreparedBlockPath(
+	const BlockPath &path);
+[[nodiscard]] BlockContainerPath ToStateBlockContainerPath(
+	const Markdown::PreparedEditBlockContainerPath &path);
+[[nodiscard]] BlockPath ToStateBlockPath(
+	const Markdown::PreparedEditBlockPath &path);
 
 } // namespace Iv::Editor

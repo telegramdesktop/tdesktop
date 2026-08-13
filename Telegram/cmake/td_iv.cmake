@@ -41,6 +41,7 @@ PRIVATE
     iv/editor/iv_editor_page_list.h
     iv/editor/iv_editor_page_media.cpp
     iv/editor/iv_editor_page_media.h
+    iv/editor/iv_editor_page_path.cpp
     iv/editor/iv_editor_page_path.h
     iv/editor/iv_editor_prepared_selection.cpp
     iv/editor/iv_editor_prepared_selection.h

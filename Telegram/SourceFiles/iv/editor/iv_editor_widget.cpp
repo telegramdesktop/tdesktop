@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/editor/iv_editor_commands.h"
 #include "iv/editor/iv_editor_math_box.h"
 #include "iv/editor/iv_editor_page_media.h"
+#include "iv/editor/iv_editor_page_path.h"
 #include "iv/editor/iv_editor_prepared_selection.h"
 #include "iv/editor/iv_editor_session.h"
 #include "iv/editor/iv_editor_structure_menu.h"
@@ -163,12 +164,6 @@ using PreparedSelectionKind = Markdown::PreparedEditSelectionKind;
 [[nodiscard]] const RichPage::RichText *RichTextFromPath(
 	const RichPage &page,
 	const StateLeafPath &path);
-[[nodiscard]] StateBlockContainerPath BlockChildrenContainer(
-	StateBlockPath path);
-[[nodiscard]] StateBlockContainerPath ListItemChildrenContainer(
-	StateBlockPath path,
-	int itemIndex);
-
 struct CommittedFieldSelectionCapture {
 	StateLeafPath leaf;
 	TextWithEntities text;
@@ -371,68 +366,6 @@ MapCommittedFieldSelectionAfterCommit(
 		return std::nullopt;
 	}
 	return std::nullopt;
-}
-
-[[nodiscard]] PreparedBlockContainerPath ToPreparedBlockContainerPath(
-		const StateBlockContainerPath &path) {
-	auto result = PreparedBlockContainerPath();
-	result.steps.reserve(path.steps.size());
-	for (const auto &step : path.steps) {
-		auto converted = PreparedBlockContainerStep();
-		converted.blockIndex = step.blockIndex;
-		converted.listItemIndex = step.listItemIndex;
-		switch (step.kind) {
-		case StateBlockContainerKind::Root:
-			continue;
-		case StateBlockContainerKind::BlockChildren:
-			converted.kind = PreparedBlockContainerKind::BlockChildren;
-			break;
-		case StateBlockContainerKind::ListItemChildren:
-			converted.kind = PreparedBlockContainerKind::ListItemChildren;
-			break;
-		}
-		result.steps.push_back(converted);
-	}
-	return result;
-}
-
-[[nodiscard]] PreparedBlockPath ToPreparedBlockPath(
-		const StateBlockPath &path) {
-	return {
-		.container = ToPreparedBlockContainerPath(path.container),
-		.index = path.index,
-	};
-}
-
-[[nodiscard]] StateBlockContainerPath ToStateBlockContainerPath(
-		const PreparedBlockContainerPath &path) {
-	auto result = StateBlockContainerPath();
-	result.steps.reserve(path.steps.size());
-	for (const auto &step : path.steps) {
-		auto converted = State::BlockContainerStep();
-		converted.blockIndex = step.blockIndex;
-		converted.listItemIndex = step.listItemIndex;
-		switch (step.kind) {
-		case PreparedBlockContainerKind::Root:
-			continue;
-		case PreparedBlockContainerKind::BlockChildren:
-			converted.kind = StateBlockContainerKind::BlockChildren;
-			break;
-		case PreparedBlockContainerKind::ListItemChildren:
-			converted.kind = StateBlockContainerKind::ListItemChildren;
-			break;
-		}
-		result.steps.push_back(converted);
-	}
-	return result;
-}
-
-[[nodiscard]] StateBlockPath ToStateBlockPath(
-		const PreparedBlockPath &path) {
-	return {
-		.container = ToStateBlockContainerPath(path.container),
-		.index = path.index,
-	};
 }
 
 [[nodiscard]] const std::vector<RichPage::Block> *BlockContainer(
@@ -906,28 +839,6 @@ template <typename Range>
 		}
 	}
 	return any;
-}
-
-[[nodiscard]] StateBlockContainerPath BlockChildrenContainer(
-		StateBlockPath path) {
-	auto result = std::move(path.container);
-	result.steps.push_back({
-		.kind = StateBlockContainerKind::BlockChildren,
-		.blockIndex = path.index,
-	});
-	return result;
-}
-
-[[nodiscard]] StateBlockContainerPath ListItemChildrenContainer(
-		StateBlockPath path,
-		int itemIndex) {
-	auto result = std::move(path.container);
-	result.steps.push_back({
-		.kind = StateBlockContainerKind::ListItemChildren,
-		.blockIndex = path.index,
-		.listItemIndex = itemIndex,
-	});
-	return result;
 }
 
 template <typename Callback>
