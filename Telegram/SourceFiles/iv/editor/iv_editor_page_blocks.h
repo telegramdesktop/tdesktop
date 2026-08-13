@@ -7,7 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <QtCore/QString>
+#include "iv/iv_rich_page.h"
+
+#include <memory>
+#include <vector>
 
 namespace Iv::Editor {
 
@@ -41,6 +44,85 @@ struct InsertAction {
 	double longitude = 0.;
 };
 
+[[nodiscard]] bool BlockCanOwnChildContainer(const RichPage::Block &block);
+
+[[nodiscard]] bool BlockSupportsBlockText(const RichPage::Block &block);
+
+[[nodiscard]] bool BlockSupportsBlockCaption(const RichPage::Block &block);
+
+[[nodiscard]] bool StringIsEmpty(const QString &text);
+
+[[nodiscard]] bool RichTextHasVisibleText(const RichPage::RichText &text);
+
+void MergeRichTextAnchors(
+	RichPage::RichText *target,
+	RichPage::RichText source);
+
+[[nodiscard]] bool JoinableTextBlockKind(RichPage::BlockKind kind);
+
+[[nodiscard]] int AppendRichTextSeam(
+	RichPage::RichText *destination,
+	RichPage::Block &&source);
+
+[[nodiscard]] int AppendParagraphSeam(
+	RichPage::Block *destination,
+	RichPage::Block &&source);
+
+[[nodiscard]] bool CanEditBlock(const RichPage::Block &block);
+
+[[nodiscard]] bool CanEditBlocks(const std::vector<RichPage::Block> &blocks);
+
 [[nodiscard]] bool BlockConversionExpandsToActiveLine(InsertBlockType type);
+
+[[nodiscard]] TextWithEntities MakeText(QString text);
+
+RichPage::Block MakeParagraphBlock();
+
+RichPage::Block MakeFooterBlock();
+
+RichPage::Block MakeHeadingBlock(int level);
+
+RichPage::Block MakeQuoteBlock(bool pullquote);
+
+RichPage::Block MakeCodeBlock();
+
+RichPage::Block MakeMathBlock();
+
+RichPage::Block MakeDividerBlock();
+
+RichPage::Block MakeAnchorBlock(QString anchorId);
+
+[[nodiscard]] RichPage::Block MakeListBlock(
+	RichPage::ListKind kind,
+	RichPage::TaskState taskState = RichPage::TaskState::None);
+
+RichPage::ListItem MakeParagraphListItem(RichPage::TaskState taskState);
+
+RichPage::Block MakeDetailsBlock();
+
+RichPage::Block MakeTableBlock();
+
+RichPage::Block MakeMediaBlock(RichPage::BlockKind kind);
+
+RichPage::Block MakeMapBlock(double latitude, double longitude);
+
+[[nodiscard]] bool RichTextIsEmpty(const RichPage::RichText &text);
+
+[[nodiscard]] bool ListItemIsEmpty(const RichPage::ListItem &item);
+
+[[nodiscard]] bool BlockIsEmpty(const RichPage::Block &block);
+
+[[nodiscard]] TextWithEntities StripEditModeWrapperEntities(
+	TextWithEntities text);
+
+void StripEditModeWrapperEntities(RichPage::RichText &text);
+
+void StripEditModeWrapperEntities(
+	std::vector<RichPage::Block> &blocks);
+
+[[nodiscard]] bool CanEditRichPage(const RichPage &page);
+
+[[nodiscard]] bool CanEditRichPage(
+	const std::shared_ptr<const RichPage> &page);
 
 } // namespace Iv::Editor

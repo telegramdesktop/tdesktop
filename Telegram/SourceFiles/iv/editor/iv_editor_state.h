@@ -964,37 +964,7 @@ private:
 	[[nodiscard]] QString nextAnchorId() const;
 	[[nodiscard]] RichPage::Block makeBlock(InsertAction action) const;
 
-	[[nodiscard]] static TextWithEntities MakeText(QString text);
-	[[nodiscard]] static RichPage::Block MakeParagraphBlock();
-	[[nodiscard]] static RichPage::Block MakeFooterBlock();
-	[[nodiscard]] static RichPage::Block MakeHeadingBlock(int level);
-	[[nodiscard]] static RichPage::Block MakeQuoteBlock(bool pullquote);
-	[[nodiscard]] static RichPage::Block MakeCodeBlock();
-	[[nodiscard]] static RichPage::Block MakeMathBlock();
-	[[nodiscard]] static RichPage::Block MakeDividerBlock();
-	[[nodiscard]] static RichPage::Block MakeAnchorBlock(QString anchorId);
-	[[nodiscard]] static RichPage::Block MakeListBlock(
-		RichPage::ListKind kind,
-		RichPage::TaskState taskState = RichPage::TaskState::None);
-	[[nodiscard]] static RichPage::ListItem MakeParagraphListItem(
-		RichPage::TaskState taskState);
-	[[nodiscard]] static RichPage::Block MakeDetailsBlock();
-	[[nodiscard]] static RichPage::Block MakeTableBlock();
-	[[nodiscard]] static RichPage::Block MakeMediaBlock(
-		RichPage::BlockKind kind);
-	[[nodiscard]] static RichPage::Block MakeMapBlock(
-		double latitude,
-		double longitude);
-	[[nodiscard]] static bool RichTextIsEmpty(const RichPage::RichText &text);
-	[[nodiscard]] static bool ListItemIsEmpty(
-		const RichPage::ListItem &item);
-	[[nodiscard]] static bool BlockIsEmpty(const RichPage::Block &block);
-	[[nodiscard]] static bool StripWrapperEntityInEditMode(EntityType type);
-	[[nodiscard]] static TextWithEntities StripEditModeWrapperEntities(
-		TextWithEntities text);
-	static void StripEditModeWrapperEntities(RichPage::RichText &text);
-	static void StripEditModeWrapperEntities(
-		std::vector<RichPage::Block> &blocks);
+
 
 	std::shared_ptr<RichPage> _richPage;
 	std::shared_ptr<Markdown::MediaRuntime> _mediaRuntime;
@@ -1019,8 +989,5 @@ struct MediaUploadState {
 	bool uploading = false;
 };
 
-[[nodiscard]] bool CanEditRichPage(const RichPage &page);
-[[nodiscard]] bool CanEditRichPage(
-	const std::shared_ptr<const RichPage> &page);
 
 } // namespace Iv::Editor
