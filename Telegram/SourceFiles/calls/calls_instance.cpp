@@ -199,7 +199,8 @@ Instance::~Instance() {
 void Instance::startOutgoingCall(
 		not_null<UserData*> user,
 		StartOutgoingCallArgs args) {
-	if (activateCurrentCall()) {
+	if (activateCurrentCall()
+		|| (!args.isConfirmed && activateUnconfirmedCall(user))) {
 		return;
 	}
 	if (user->callsStatus() == UserData::CallsStatus::Private) {
@@ -212,6 +213,10 @@ void Instance::startOutgoingCall(
 		return;
 	}
 	requestPermissionsOrFail(crl::guard(this, [=] {
+		if (activateCurrentCall()
+			|| (!args.isConfirmed && activateUnconfirmedCall(user))) {
+			return;
+		}
 		createCall(user, Call::Type::Outgoing, args);
 	}), args.video);
 }
@@ -897,6 +902,16 @@ bool Instance::activateCurrentCall(const QString &joinHash) {
 			_currentGroupCall->rejoinWithHash(joinHash);
 		}
 		_currentGroupCallPanel->showAndActivate();
+		return true;
+	}
+	return false;
+}
+
+bool Instance::activateUnconfirmedCall(not_null<UserData*> user) {
+	if (_currentCall
+		&& _currentCall->user() == user
+		&& _currentCall->state() == Call::State::WaitingUserConfirmation) {
+		_currentCallPanel->showAndActivate();
 		return true;
 	}
 	return false;

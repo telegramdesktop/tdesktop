@@ -188,6 +188,7 @@ private:
 	void refreshDhConfig();
 	void refreshServerConfig(not_null<Main::Session*> session);
 	bytes::const_span updateDhConfig(const MTPmessages_DhConfig &data);
+	bool activateUnconfirmedCall(not_null<UserData*> user);
 
 	void destroyCurrentCall(
 		Data::GroupCall *migrateCall = nullptr,
