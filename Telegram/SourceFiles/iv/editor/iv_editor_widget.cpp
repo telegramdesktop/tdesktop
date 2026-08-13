@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/editor/iv_editor_clipboard_import.h"
 #include "iv/editor/iv_editor_commands.h"
 #include "iv/editor/iv_editor_math_box.h"
+#include "iv/editor/iv_editor_page_media.h"
 #include "iv/editor/iv_editor_prepared_selection.h"
 #include "iv/editor/iv_editor_session.h"
 #include "iv/editor/iv_editor_structure_menu.h"
@@ -844,28 +845,6 @@ template <typename Range>
 	return false;
 }
 
-[[nodiscard]] bool MediaBlockSupportsSpoiler(
-		const RichPage::Block &block) {
-	switch (block.kind) {
-	case RichPage::BlockKind::Photo:
-	case RichPage::BlockKind::Video:
-	case RichPage::BlockKind::Audio:
-	case RichPage::BlockKind::Map:
-		return true;
-	case RichPage::BlockKind::GroupedMedia:
-		return ranges::any_of(
-			block.mediaItems,
-			[](const RichPage::GroupedMediaItem &item) {
-				return (item.kind == RichPage::BlockKind::Photo)
-					|| (item.kind == RichPage::BlockKind::Video)
-					|| (item.kind == RichPage::BlockKind::Audio)
-					|| (item.kind == RichPage::BlockKind::Map);
-			});
-	default:
-		return false;
-	}
-}
-
 [[nodiscard]] bool IsSimpleMediaBlockKind(RichPage::BlockKind kind) {
 	switch (kind) {
 	case RichPage::BlockKind::Photo:
@@ -904,11 +883,6 @@ template <typename Range>
 	}
 }
 
-[[nodiscard]] bool IsPhotoVideoBlockKind(RichPage::BlockKind kind) {
-	return (kind == RichPage::BlockKind::Photo)
-		|| (kind == RichPage::BlockKind::Video);
-}
-
 [[nodiscard]] bool GroupedMediaHasPhotoVideoItems(
 		const RichPage::Block &block) {
 	return (block.kind == RichPage::BlockKind::GroupedMedia)
@@ -932,27 +906,6 @@ template <typename Range>
 		}
 	}
 	return any;
-}
-
-[[nodiscard]] bool MediaBlockHasSpoiler(
-		const RichPage::Block &block) {
-	if (block.kind == RichPage::BlockKind::GroupedMedia) {
-		auto any = false;
-		for (const auto &item : block.mediaItems) {
-			if ((item.kind != RichPage::BlockKind::Photo)
-				&& (item.kind != RichPage::BlockKind::Video)
-				&& (item.kind != RichPage::BlockKind::Audio)
-				&& (item.kind != RichPage::BlockKind::Map)) {
-				continue;
-			}
-			any = true;
-			if (!item.spoiler) {
-				return false;
-			}
-		}
-		return any;
-	}
-	return block.spoiler;
 }
 
 [[nodiscard]] StateBlockContainerPath BlockChildrenContainer(
