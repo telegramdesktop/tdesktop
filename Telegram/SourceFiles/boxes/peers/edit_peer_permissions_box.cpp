@@ -140,7 +140,7 @@ constexpr auto kDefaultChargeStars = 10;
 			{
 				Flag::ManageWelcomeMessages,
 				(options.isBot
-					? tr::lng_rights_send_welcome_messages
+					? tr::lng_rights_group_send_welcome_messages
 					: tr::lng_rights_manage_welcome_messages)(tr::now),
 			},
 			{ Flag::DeleteMessages, tr::lng_rights_group_delete(tr::now) },
