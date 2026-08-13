@@ -38,6 +38,8 @@ PRIVATE
     iv/editor/iv_editor_commands.h
     iv/editor/iv_editor_math_box.cpp
     iv/editor/iv_editor_math_box.h
+    iv/editor/iv_editor_prepared_selection.cpp
+    iv/editor/iv_editor_prepared_selection.h
     iv/editor/iv_editor_state.cpp
     iv/editor/iv_editor_state.h
     iv/editor/iv_editor_text_entities.cpp
