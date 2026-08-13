@@ -1584,8 +1584,8 @@ void Controller::fillManageSection() {
 	const auto canEditWelcomeMessages = isChannel
 		? ((channel->isMegagroup()
 			|| (channel->isBroadcast() && channel->amIn()))
-			&& channel->canEditInformation())
-		: chat->canEditInformation();
+			&& _peer->canManageWelcomeMessages())
+		: _peer->canManageWelcomeMessages();
 	const auto communityEligible = isChannel
 		&& (channel->isMegagroup() || channel->isBroadcast())
 		&& !channel->isMonoforum()

@@ -433,6 +433,7 @@ ChatAdminRightsInfo EditAdminBox::defaultRights() const {
 			| Flag::PinMessages
 			| Flag::ManageCall
 			| Flag::ManageRanks
+			| Flag::ManageWelcomeMessages
 			| (CanProcessJoinRequests(peer(), user())
 				? Flag::ProcessJoinRequests
 				: Flag())) }
@@ -446,6 +447,7 @@ ChatAdminRightsInfo EditAdminBox::defaultRights() const {
 			| Flag::InviteByLinkOrAdd
 			| Flag::ManageCall
 			| Flag::ManageDirect
+			| Flag::ManageWelcomeMessages
 			| Flag::BanUsers) };
 }
 
@@ -588,6 +590,7 @@ void EditAdminBox::prepare() {
 		.isCommunity = (channel && channel->isCommunity()),
 		.anyoneCanAddMembers = anyoneCanAddMembers,
 		.canProcessJoinRequests = canProcessJoinRequests,
+		.isBot = user()->isBot(),
 	};
 	Ui::AddSubsectionTitle(inner, tr::lng_rights_edit_admin_header());
 	auto [checkboxes, getChecked, changes, highlightWidget] = CreateEditAdminRights(

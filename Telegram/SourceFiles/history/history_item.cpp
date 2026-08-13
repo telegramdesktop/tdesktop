@@ -223,12 +223,7 @@ void UpdateInstantViewMediaCaption(
 }
 
 [[nodiscard]] bool CanEditPeerInfo(not_null<PeerData*> peer) {
-	if (const auto channel = peer->asChannel()) {
-		return channel->canEditInformation();
-	} else if (const auto chat = peer->asChat()) {
-		return chat->canEditInformation();
-	}
-	return false;
+	return peer->canManageWelcomeMessages();
 }
 
 } // namespace

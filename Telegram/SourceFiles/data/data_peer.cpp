@@ -1904,6 +1904,18 @@ bool PeerData::canManageRanks() const {
 	return false;
 }
 
+bool PeerData::canManageWelcomeMessages() const {
+	if (const auto chat = asChat()) {
+		return chat->amCreator()
+			|| (chat->adminRights() & ChatAdminRight::ManageWelcomeMessages);
+	} else if (const auto channel = asChannel()) {
+		return channel->amCreator()
+			|| (channel->adminRights()
+				& ChatAdminRight::ManageWelcomeMessages);
+	}
+	return false;
+}
+
 bool PeerData::amMonoforumAdmin() const {
 	if (const auto channel = asChannel()) {
 		return channel->flags() & ChannelDataFlag::MonoforumAdmin;

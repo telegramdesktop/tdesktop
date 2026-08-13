@@ -6833,6 +6833,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_group_manage_ranks" = "Edit member tags";
 "lng_rights_add_admins" = "Add new admins";
 "lng_rights_group_process_join_requests" = "Process join requests";
+"lng_rights_manage_welcome_messages" = "Manage Welcome Messages";
+"lng_rights_send_welcome_messages" = "Send Welcome Messages";
 "lng_rights_chat_send_text" = "Send messages";
 "lng_rights_chat_send_media" = "Send media";
 "lng_rights_chat_send_stickers" = "Send stickers & GIFs";
@@ -7160,6 +7162,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_admin_manage_calls_channel" = "Manage live streams";
 "lng_admin_log_admin_manage_direct" = "Manage direct messages";
 "lng_admin_log_admin_manage_ranks" = "Edit member tags";
+"lng_admin_log_admin_manage_welcome_messages" = "Manage Welcome Messages";
 "lng_admin_log_admin_add_admins" = "Add new admins";
 "lng_admin_log_subscription_extend" = "{name} renewed subscription until {date}";
 

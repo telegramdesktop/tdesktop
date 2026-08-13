@@ -413,7 +413,9 @@ bool WelcomeMessagesWidget::showSendingFilesError(
 bool WelcomeMessagesWidget::confirmSendingFiles(
 		Ui::PreparedList &&list,
 		const QString &insertTextOnCancel) {
-	if (!checkLimit() || showSendingFilesError(list)) {
+	if (!_history->peer->canManageWelcomeMessages()
+		|| !checkLimit()
+		|| showSendingFilesError(list)) {
 		return false;
 	}
 
@@ -466,7 +468,9 @@ bool WelcomeMessagesWidget::confirmSendingFiles(
 void WelcomeMessagesWidget::sendingFilesConfirmed(
 		std::shared_ptr<Ui::PreparedBundle> bundle,
 		Api::SendOptions options) {
-	if (!checkLimit() || showSendingFilesError(*bundle)) {
+	if (!_history->peer->canManageWelcomeMessages()
+		|| !checkLimit()
+		|| showSendingFilesError(*bundle)) {
 		return;
 	}
 	if (bundle->totalCount != 1
@@ -490,7 +494,7 @@ void WelcomeMessagesWidget::sendingFilesConfirmed(
 
 void WelcomeMessagesWidget::chooseAttach(
 		std::optional<bool> overrideSendImagesAsPhotos) {
-	if (!checkLimit()) {
+	if (!_history->peer->canManageWelcomeMessages() || !checkLimit()) {
 		return;
 	}
 	const auto filter = (overrideSendImagesAsPhotos == true)
@@ -557,7 +561,7 @@ bool WelcomeMessagesWidget::sendExistingDocument(
 		not_null<DocumentData*> document,
 		Api::SendOptions options,
 		TextWithTags caption) {
-	if (!checkLimit()) {
+	if (!_history->peer->canManageWelcomeMessages() || !checkLimit()) {
 		return false;
 	}
 	auto message = Api::MessageToSend(prepareSendAction(options));
@@ -570,7 +574,7 @@ bool WelcomeMessagesWidget::sendExistingDocument(
 bool WelcomeMessagesWidget::sendExistingPhoto(
 		not_null<PhotoData*> photo,
 		Api::SendOptions options) {
-	if (!checkLimit()) {
+	if (!_history->peer->canManageWelcomeMessages() || !checkLimit()) {
 		return false;
 	}
 	Api::SendExistingPhoto(
@@ -611,7 +615,7 @@ void WelcomeMessagesWidget::send() {
 	if (text.text.isEmpty()) {
 		return;
 	}
-	if (!checkLimit()) {
+	if (!_history->peer->canManageWelcomeMessages() || !checkLimit()) {
 		return;
 	}
 	session().welcomeMessages().send(_history, std::move(text));
@@ -620,6 +624,9 @@ void WelcomeMessagesWidget::send() {
 }
 
 void WelcomeMessagesWidget::edit(not_null<HistoryItem*> item) {
+	if (!_history->peer->canManageWelcomeMessages()) {
+		return;
+	}
 	auto sending = _composeControls->prepareTextForEditMsg();
 	TextUtilities::Trim(sending);
 	const auto hasMediaWithCaption = item->media()

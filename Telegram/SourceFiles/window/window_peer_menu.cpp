@@ -1938,7 +1938,7 @@ void Filler::fillScheduledActions() {
 
 void Filler::fillWelcomeMessagesActions() {
 	const auto peer = _peer;
-	if (!peer) {
+	if (!peer || !peer->canManageWelcomeMessages()) {
 		return;
 	}
 	const auto controller = _controller;

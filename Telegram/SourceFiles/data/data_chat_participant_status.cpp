@@ -55,6 +55,9 @@ namespace {
 				: Flag())
 			| (data.is_manage_linked_peers()
 				? Flag::ManageLinkedPeers
+				: Flag())
+			| (data.is_manage_welcome_messages()
+				? Flag::ManageWelcomeMessages
 				: Flag());
 	});
 }
@@ -130,6 +133,9 @@ MTPChatAdminRights AdminRightsToMTP(ChatAdminRightsInfo info) {
 			: Flag())
 		| ((flags & R::ManageLinkedPeers)
 			? Flag::f_manage_linked_peers
+			: Flag())
+		| ((flags & R::ManageWelcomeMessages)
+			? Flag::f_manage_welcome_messages
 			: Flag())));
 }
 

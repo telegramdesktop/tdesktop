@@ -332,6 +332,7 @@ public:
 	[[nodiscard]] int slowmodeSecondsLeft() const;
 	[[nodiscard]] bool canManageGroupCall() const;
 	[[nodiscard]] bool canManageRanks() const;
+	[[nodiscard]] bool canManageWelcomeMessages() const;
 	[[nodiscard]] bool amMonoforumAdmin() const;
 
 	[[nodiscard]] int starsPerMessage() const;

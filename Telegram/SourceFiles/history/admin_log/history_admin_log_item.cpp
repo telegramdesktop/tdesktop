@@ -304,6 +304,10 @@ TextWithEntities GenerateAdminChangeText(
 		{ Flag::ManageCall, tr::lng_admin_log_admin_manage_calls },
 		{ Flag::ManageDirect, tr::lng_admin_log_admin_manage_direct },
 		{ Flag::ManageRanks, tr::lng_admin_log_admin_manage_ranks },
+		{
+			Flag::ManageWelcomeMessages,
+			tr::lng_admin_log_admin_manage_welcome_messages,
+		},
 		{ Flag::AddAdmins, tr::lng_admin_log_admin_add_admins },
 		{ Flag::Anonymous, tr::lng_admin_log_admin_remain_anonymous },
 	};

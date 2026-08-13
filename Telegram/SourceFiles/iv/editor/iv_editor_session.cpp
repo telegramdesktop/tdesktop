@@ -1157,7 +1157,10 @@ private:
 				return false;
 			}
 			if (welcomeTemplatesCompose()) {
-				if (welcomeTemplatesLimitReached()) {
+				if (!_composeAction->history->peer
+						->canManageWelcomeMessages()) {
+					return false;
+				} else if (welcomeTemplatesLimitReached()) {
 					showWelcomeTemplatesLimitToast();
 					return false;
 				}
@@ -1598,7 +1601,11 @@ private:
 			return;
 		}
 		if (welcomeTemplatesCompose()) {
-			if (welcomeTemplatesLimitReached()) {
+			if (!_composeAction->history->peer
+					->canManageWelcomeMessages()) {
+				finishSubmittedWork();
+				return;
+			} else if (welcomeTemplatesLimitReached()) {
 				showWelcomeTemplatesLimitToast();
 				finishSubmittedWork();
 				restartRichDraftAutosave();
