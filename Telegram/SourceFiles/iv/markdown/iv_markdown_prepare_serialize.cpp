@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/variant.h"
 #include "ui/text/text_utilities.h"
+#include "ui/widgets/fields/input_field.h"
 
 #include "styles/style_iv.h"
 
@@ -319,6 +320,31 @@ TextWithEntities NormalizeRichButtonLabel(TextWithEntities text) {
 				&& (type != EntityType::FormattedDate);
 		}),
 		text.entities.end());
+	for (auto i = text.entities.begin(); i != text.entities.end();) {
+		if (i->type() != EntityType::FormattedDate) {
+			++i;
+			continue;
+		}
+		auto [date, flags] = DeserializeFormattedDateData(i->data());
+		if (date <= 0
+			&& i->data().startsWith(Ui::InputField::kCustomDateTagStart)) {
+			date = int32(i->data().mid(
+				Ui::InputField::kCustomDateTagStart.size()).toInt());
+		}
+		if (date <= 0) {
+			i = text.entities.erase(i);
+			continue;
+		}
+		if (!flags) {
+			flags |= FormattedDateFlag::ShortDate;
+		}
+		*i = EntityInText(
+			EntityType::FormattedDate,
+			i->offset(),
+			i->length(),
+			SerializeFormattedDateData(date, flags));
+		++i;
+	}
 	TextUtilities::Trim(text);
 	return text;
 }
