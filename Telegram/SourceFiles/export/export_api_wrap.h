@@ -40,6 +40,8 @@ class Stats;
 
 struct Settings;
 
+extern const char kOptionExportFasterDownload[];
+
 class ApiWrap {
 public:
 	ApiWrap(
@@ -289,9 +291,13 @@ private:
 		Fn<bool(FileProgress)> progress,
 		FnMut<void(QString)> done);
 	void loadFilePart();
+	void loadFilePartFast();
 	void filePartDone(int64 offset, const MTPupload_File &result);
+	void clearFileRequestId(int64 offset);
+	void cancelPendingFileRequests();
 	void filePartUnavailable();
 	[[nodiscard]] QString filePartMediaFolder() const;
+	void retryFilePartRequest(int64 offset);
 	void filePartRetryReference(
 		int64 offset,
 		Data::FileLocation location);
@@ -323,6 +329,9 @@ private:
 	[[nodiscard]] auto splitRequest(int index, Request &&request);
 
 	[[nodiscard]] auto fileRequest(
+		const Data::FileLocation &location,
+		int64 offset);
+	[[nodiscard]] auto fileRequestFast(
 		const Data::FileLocation &location,
 		int64 offset);
 
