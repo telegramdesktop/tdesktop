@@ -7409,6 +7409,66 @@ bool State::unwrapMatchingListItemWrapper(
 		destination);
 }
 
+bool State::unwrapMatchingListBlockSelection(
+		const Markdown::PreparedEditSelection &selection,
+		InsertBlockType type,
+		BoundaryTarget *destination) {
+	if (selection.kind != PreparedEditSelectionKind::Blocks) {
+		return false;
+	}
+	const auto range = validateBlockRange(selection.blocks);
+	if (!range) {
+		return false;
+	}
+	auto *parent = blockContainer(range->container);
+	if (!parent
+		|| range->from < 0
+		|| range->till > int(parent->size())
+		|| range->till <= range->from) {
+		return false;
+	}
+	const auto matches = [&](const Block &block) {
+		if (block.kind != BlockKind::List || block.listItems.empty()) {
+			return false;
+		}
+		const auto style = CurrentListStyle(block);
+		switch (type) {
+		case InsertBlockType::OrderedList:
+			return (style == ListStyle::Ordered);
+		case InsertBlockType::BulletList:
+			return (style == ListStyle::Bullet);
+		case InsertBlockType::TaskList:
+			return (style == ListStyle::Task);
+		default:
+			return false;
+		}
+	};
+	for (auto i = range->from; i != range->till; ++i) {
+		if (!matches((*parent)[i])) {
+			return false;
+		}
+	}
+	clearTemporaryDownParagraph();
+	auto target = BoundaryTarget();
+	for (auto i = range->till - 1; i >= range->from; --i) {
+		const auto path = BlockPath{ range->container, i };
+		const auto owner = block(path);
+		if (!owner
+			|| !unwrapListItemRangeIntoParent(
+				path,
+				0,
+				int(owner->listItems.size()),
+				false,
+				&target)) {
+			return false;
+		}
+	}
+	if (destination) {
+		*destination = target;
+	}
+	return true;
+}
+
 bool State::unwrapListItemIntoParent(
 		const BlockPath &listPath,
 		int itemIndex,
@@ -7640,6 +7700,10 @@ bool State::replaceStructuralSelectionWithBlock(
 			return false;
 		}
 		if (candidate.unwrapMatchingListItemWrapper(
+				selection,
+				action.type,
+				&target)
+			|| candidate.unwrapMatchingListBlockSelection(
 				selection,
 				action.type,
 				&target)) {
