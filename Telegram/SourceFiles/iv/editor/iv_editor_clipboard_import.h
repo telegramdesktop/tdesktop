@@ -70,6 +70,18 @@ struct BlocksImportResult {
 	not_null<const QMimeData*> data,
 	const TableImportLimits &limits);
 
+[[nodiscard]] bool RichBlocksCarryStructure(
+	const std::vector<RichPage::Block> &blocks);
+
+[[nodiscard]] bool MimeDataHasRichStructure(
+	not_null<Main::Session*> session,
+	not_null<const QMimeData*> data,
+	const RichMessageLimits &limits);
+
+[[nodiscard]] bool TextHasMarkdownStructure(
+	const QString &text,
+	const RichMessageLimits &limits);
+
 [[nodiscard]] std::optional<BlocksImportResult> BlocksFromMimeData(
 	not_null<Main::Session*> session,
 	not_null<const QMimeData*> data,
