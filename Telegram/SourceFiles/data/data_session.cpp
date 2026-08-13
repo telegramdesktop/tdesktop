@@ -1693,6 +1693,7 @@ void Session::suggestStartExport(TimeId availableAt) {
 
 void Session::clearExportSuggestion() {
 	_exportAvailableAt = 0;
+	_exportUnlockLifetime.destroy();
 	if (_exportSuggestion) {
 		_exportSuggestion->closeBox();
 	}
@@ -1712,6 +1713,12 @@ void Session::suggestStartExport() {
 			std::min(left + 5, 3600) * crl::time(1000),
 			_session,
 			[=] { suggestStartExport(); });
+	} else if (Core::App().passcodeLocked()) {
+		using namespace rpl::mappers;
+		_exportUnlockLifetime = Core::App().passcodeLockChanges(
+		) | rpl::filter(!_1) | rpl::take(1) | rpl::on_next([=] {
+			crl::on_main(_session, [=] { suggestStartExport(); });
+		});
 	} else if (Core::App().exportManager().inProgress()) {
 		Export::View::ClearSuggestStart(&session());
 	} else {

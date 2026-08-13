@@ -1183,6 +1183,7 @@ private:
 
 	TimeId _exportAvailableAt = 0;
 	base::weak_qptr<Ui::BoxContent> _exportSuggestion;
+	rpl::lifetime _exportUnlockLifetime;
 
 	rpl::variable<bool> _contactsLoaded = false;
 	rpl::variable<int> _groupFreeTranscribeLevel;

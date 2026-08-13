@@ -97,6 +97,9 @@ Environment PrepareEnvironment(not_null<Main::Session*> session) {
 }
 
 base::weak_qptr<Ui::BoxContent> SuggestStart(not_null<Main::Session*> session) {
+	if (Core::App().passcodeLocked()) {
+		return {};
+	}
 	ClearSuggestStart(session);
 	return Ui::show(
 		Box<SuggestBox>(session),
