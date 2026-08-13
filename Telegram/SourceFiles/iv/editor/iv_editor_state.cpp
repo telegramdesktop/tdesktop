@@ -7382,18 +7382,22 @@ bool State::unwrapMatchingListItemWrapper(
 	auto *owner = block(range->block);
 	auto *parent = blockContainer(range->block.container);
 	const auto matches = [&](const Block &block) {
+		if (block.kind != BlockKind::List) {
+			return false;
+		}
+		const auto style = CurrentListStyle(block);
 		switch (type) {
 		case InsertBlockType::OrderedList:
-			return (block.kind == BlockKind::List)
-				&& (block.listKind == ListKind::Ordered);
+			return (style == ListStyle::Ordered);
 		case InsertBlockType::BulletList:
-			return (block.kind == BlockKind::List)
-				&& (block.listKind == ListKind::Bullet);
+			return (style == ListStyle::Bullet);
+		case InsertBlockType::TaskList:
+			return (style == ListStyle::Task);
 		default:
 			return false;
 		}
 	};
-	if (!owner || !parent || !matches(*owner) || IsTaskList(owner->listItems)) {
+	if (!owner || !parent || !matches(*owner)) {
 		return false;
 	}
 	clearTemporaryDownParagraph();
