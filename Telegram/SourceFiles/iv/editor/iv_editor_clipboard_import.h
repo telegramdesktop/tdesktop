@@ -7,7 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "iv/editor/iv_editor_clipboard.h"
 #include "iv/iv_rich_page.h"
+#include "ui/chat/attach/attach_prepare.h"
 
 #include <optional>
 
@@ -80,6 +82,21 @@ struct BlocksImportResult {
 	int usedBlocks);
 
 [[nodiscard]] bool MimeDataLooksLikeExportedHtml(
+	not_null<const QMimeData*> data);
+
+[[nodiscard]] std::optional<ClipboardData> BlockClipboardDataFromRichText(
+	TextWithEntities text);
+
+[[nodiscard]] std::optional<ClipboardData> BlockClipboardDataFromFieldTags(
+	not_null<const QMimeData*> data);
+
+[[nodiscard]] std::optional<Ui::PreparedList> PreparedMediaFromClipboard(
+	not_null<const QMimeData*> data,
+	bool premium);
+
+[[nodiscard]] bool IsAcceptableDropMedia(not_null<const QMimeData*> data);
+
+[[nodiscard]] bool CanPrepareMediaFromClipboard(
 	not_null<const QMimeData*> data);
 
 } // namespace Iv::Editor
