@@ -196,6 +196,8 @@ PRIVATE
     api/api_suggest_post.h
     api/api_text_entities.cpp
     api/api_text_entities.h
+    api/api_rich_tasks.cpp
+    api/api_rich_tasks.h
     api/api_todo_lists.cpp
     api/api_todo_lists.h
     api/api_toggling_media.cpp
