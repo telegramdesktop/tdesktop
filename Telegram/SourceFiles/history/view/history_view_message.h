@@ -112,6 +112,8 @@ struct HistoryMessageRichPage
 	mutable Iv::Markdown::MediaActivation handlerMediaActivation;
 	mutable Iv::Markdown::PreparedPlaceholderBlockId handlerPlaceholderId;
 	mutable QPoint handlerPlaceholderPoint;
+	mutable std::optional<Iv::Markdown::PreparedEditListItemSource>
+		handlerTaskItem;
 };
 
 enum class BadgeRole : uchar {
