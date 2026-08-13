@@ -723,6 +723,9 @@ private:
 	void clearRichDraft();
 	void migrateFieldToRichEditor();
 	void migrateSupportFieldToRichEditor();
+	void offerRichPaste(not_null<const QMimeData*> data);
+	void showRichEditorWithPaste(std::shared_ptr<QMimeData> data);
+
 	void setHistory(History *history);
 	void setEditMsgId(MsgId msgId);
 
@@ -793,6 +796,7 @@ private:
 	FullReplyTo _processingReplyTo;
 	HistoryItem *_processingReplyItem = nullptr;
 
+	std::shared_ptr<QMimeData> _pendingRichPaste;
 	MsgId _editMsgId = 0;
 	std::shared_ptr<Data::PhotoMedia> _photoEditMedia;
 	bool _canReplaceMedia = false;

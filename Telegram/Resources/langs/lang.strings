@@ -8622,4 +8622,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sr_languages_column_native" = "Native name";
 "lng_sr_languages_column_name" = "Language name";
 
+"lng_rich_paste_toast" = "Pasted as plain text";
+"lng_rich_paste_toast_editor" = "Restore formatting in editor";
+"lng_rich_paste_toast_markdown" = "Pasted with Markdown formatting";
+"lng_rich_paste_toast_plain" = "Paste as plain text instead";
+"lng_rich_paste_toast_premium" = "{link} to preserve formatting when pasting.";
+"lng_rich_paste_toast_premium_link" = "Subscribe to Premium";
+"lng_rich_paste_toast_open" = "Open";
+"lng_rich_paste_toast_undo" = "Undo";
+
 // Keys finished

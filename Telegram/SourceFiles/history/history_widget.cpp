@@ -155,6 +155,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_section.h"
 #include "chat_helpers/bot_keyboard.h"
 #include "chat_helpers/message_field.h"
+#include "chat_helpers/rich_paste_toast.h"
 #include "menu/menu_send.h"
 #include "menu/menu_timecode_action.h"
 #include "mtproto/mtproto_config.h"
@@ -616,10 +617,14 @@ HistoryWidget::HistoryWidget(
 		if (action == Ui::InputField::MimeAction::Check) {
 			return canSendFiles(data);
 		} else if (action == Ui::InputField::MimeAction::Insert) {
-			return confirmSendingFiles(
-				data,
-				std::nullopt,
-				Core::ReadMimeText(data));
+			if (confirmSendingFiles(
+					data,
+					std::nullopt,
+					Core::ReadMimeText(data))) {
+				return true;
+			}
+			offerRichPaste(data);
+			return false;
 		}
 		Unexpected("action in MimeData hook.");
 	}, _field));
@@ -1425,6 +1430,50 @@ void HistoryWidget::initExpandButton() {
 	});
 }
 
+void HistoryWidget::offerRichPaste(not_null<const QMimeData*> data) {
+	if (!_history
+		|| !canShowRichEditor()
+		|| editingMessage()
+		|| !ChatHelpers::MimeDataLosesRichFormatting(&session(), data)) {
+		return;
+	}
+	const auto copy = ChatHelpers::CloneMimeData(data);
+	const auto was = _field->getTextWithTags();
+	const auto cursor = _field->textCursor();
+	const auto position = cursor.position();
+	const auto anchor = cursor.anchor();
+	crl::on_main(this, [=] {
+		const auto now = _field->getTextWithTags();
+		if (now == was) {
+			return;
+		}
+		ChatHelpers::ShowRichPasteToast({
+			.session = &session(),
+			.parent = _scroll.data(),
+			.cancel = _field->changes(),
+			.action = crl::guard(this, [=] {
+				if (_field->getTextWithTags() == now) {
+					_field->setTextWithTags(was);
+					auto cursor = _field->textCursor();
+					cursor.setPosition(anchor);
+					if (position != anchor) {
+						cursor.setPosition(position, QTextCursor::KeepAnchor);
+					}
+					_field->setTextCursor(cursor);
+				}
+				showRichEditorWithPaste(copy);
+			}),
+		});
+	});
+}
+
+void HistoryWidget::showRichEditorWithPaste(
+		std::shared_ptr<QMimeData> data) {
+	_pendingRichPaste = std::move(data);
+	showRichEditor();
+	_pendingRichPaste = nullptr;
+}
+
 void HistoryWidget::showRichEditor() {
 	if (!_history) {
 		return;
@@ -1456,6 +1505,7 @@ void HistoryWidget::showRichEditor() {
 	using Options = Iv::Editor::ComposeBoxOptions;
 	const auto support = session().supportMode();
 	auto options = Options();
+	options.initialPaste = _pendingRichPaste;
 	if (support) {
 		options.scope = Options::Scope::Detached;
 		options.returnText = crl::guard(this, [=](TextWithTags text) {
