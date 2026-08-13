@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_polls.h"
 #include "api/api_sending.h"
 #include "api/api_text_entities.h"
+#include "api/api_rich_tasks.h"
 #include "api/api_todo_lists.h"
 #include "api/api_self_destruct.h"
 #include "api/api_sensitive_content.h"
@@ -220,6 +221,7 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 , _peerPhoto(std::make_unique<Api::PeerPhoto>(this))
 , _polls(std::make_unique<Api::Polls>(this))
 , _todoLists(std::make_unique<Api::TodoLists>(this))
+, _richTasks(std::make_unique<Api::RichTasks>(this))
 , _chatParticipants(std::make_unique<Api::ChatParticipants>(this))
 , _communities(std::make_unique<Api::Communities>(this))
 , _unreadThings(std::make_unique<Api::UnreadThings>(this))
@@ -5778,6 +5780,10 @@ Api::Polls &ApiWrap::polls() {
 
 Api::TodoLists &ApiWrap::todoLists() {
 	return *_todoLists;
+}
+
+Api::RichTasks &ApiWrap::richTasks() {
+	return *_richTasks;
 }
 
 Api::ChatParticipants &ApiWrap::chatParticipants() {
