@@ -30,8 +30,8 @@ using ButtonColor = HistoryMessageMarkupButton::Color;
 
 constexpr auto kMinPrimaryLabelContrast = 1.5;
 constexpr auto kLoadingGlareOpacity = 0.2;
-constexpr auto kLoadingOutlineOpacity = 0.6;
-constexpr auto kLoadingHighlightOpacity = 0.8;
+constexpr auto kLoadingDisabledOutlineOpacity = 0.6;
+constexpr auto kLoadingHighlightOpacity = 1.;
 constexpr auto kLoadingGlareTimeout = crl::time(0);
 constexpr auto kLoadingGlareDuration = crl::time(1100);
 constexpr auto kLoadingIdleTimeout = crl::time(500);
@@ -675,12 +675,12 @@ RichButtonLoadingState *RichButtonLoadingActive(
 	return (record && record->requestId) ? loading.state : nullptr;
 }
 
-// Paints the three loading layers of a rich pill: a travelling band over the
-// fill, a static outline and a brighter outline segment travelling with the
-// band. Everything is confined to the pill by construction, so no offscreen
-// mask is needed. On a punched-out pill there is no resolved foreground to
-// borrow, so the same three layers erase out of the accent fill instead,
-// exactly as its label and its ripple already do.
+// While the glare runs, the outline's opacity is the travelling gradient's
+// own horizontal profile rather than a constant, so the border is bright
+// only where the band is. Everything is confined to the pill by
+// construction, so no offscreen mask is needed. On a punched-out pill there
+// is no resolved foreground to borrow, so the effect erases out of the
+// accent fill instead, exactly as its label and its ripple already do.
 void PaintRichButtonLoading(
 		QPainter &p,
 		not_null<RichButtonLoadingState*> state,
@@ -709,7 +709,7 @@ void PaintRichButtonLoading(
 			p,
 			rect,
 			radius,
-			anim::with_alpha(color, kLoadingOutlineOpacity));
+			anim::with_alpha(color, kLoadingDisabledOutlineOpacity));
 		return;
 	}
 	state->timer.cancel();
@@ -742,11 +742,6 @@ void PaintRichButtonLoading(
 	p.setPen(Qt::NoPen);
 	p.setBrush(QBrush(sweep(kLoadingGlareOpacity)));
 	p.drawRoundedRect(rect, radius, radius);
-	PaintRichButtonLoadingOutline(
-		p,
-		rect,
-		radius,
-		anim::with_alpha(color, kLoadingOutlineOpacity));
 	PaintRichButtonLoadingOutline(
 		p,
 		rect,
