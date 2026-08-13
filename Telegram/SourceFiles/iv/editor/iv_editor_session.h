@@ -41,6 +41,8 @@ class InputField;
 class SendButton;
 } // namespace Ui
 
+class QMimeData;
+
 namespace Iv {
 struct RichPage;
 } // namespace Iv
@@ -58,6 +60,7 @@ struct ComposeBoxOptions {
 	};
 
 	Scope scope = Scope::Thread;
+	std::shared_ptr<QMimeData> initialPaste;
 	SubmitPolicy submitPolicy = SubmitPolicy::Immediate;
 	Fn<void(TextWithTags)> returnText;
 	bool welcomeTemplates = false;

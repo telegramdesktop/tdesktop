@@ -3528,6 +3528,7 @@ private:
 		}
 	}
 	void editorCreated(not_null<Widget*> editor);
+	void applyInitialPaste();
 	void cancelRichDraftAutosave();
 	void restartRichDraftAutosave();
 	void handleRichDraftAutosave(Widget::AutosaveEvent event);
@@ -4319,6 +4320,7 @@ private:
 
 void ArticleSession::editorCreated(not_null<Widget*> editor) {
 	_editor = editor;
+	applyInitialPaste();
 	_editorAutosaveLifetime.destroy();
 	editor->autosaveEvents(
 	) | rpl::on_next([weak = weak_from_this()](Widget::AutosaveEvent event) {
@@ -4326,6 +4328,22 @@ void ArticleSession::editorCreated(not_null<Widget*> editor) {
 			session->handleRichDraftAutosave(event);
 		}
 	}, _editorAutosaveLifetime);
+}
+
+void ArticleSession::applyInitialPaste() {
+	const auto data = base::take(_composeOptions.initialPaste);
+	if (!data || !_editor) {
+		return;
+	}
+	const auto limits = _state->limits();
+	const auto used = CountRichPageBlocks(_state->richPage());
+	auto imported = BlocksFromMimeData(_session, data.get(), limits, used);
+	if (!imported && data->hasText()) {
+		imported = BlocksFromMarkdown(data->text(), limits, used);
+	}
+	if (imported && !imported->blocks.empty()) {
+		_editor->insertPreparedBlocks(std::move(imported->blocks));
+	}
 }
 
 void ArticleSession::cancelRichDraftAutosave() {
