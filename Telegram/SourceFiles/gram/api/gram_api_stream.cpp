@@ -85,8 +85,9 @@ void AppendAccount(std::vector<Address> &accounts, const QJsonValue &value) {
 
 std::optional<StreamEndpoint> ParseStreamEndpoint(const QString &url) {
 	const auto parsed = QUrl(url, QUrl::StrictMode);
+	const auto scheme = parsed.scheme();
 	if (!parsed.isValid()
-		|| parsed.scheme() != u"wss"_q
+		|| (scheme != u"wss"_q && scheme != u"https"_q)
 		|| parsed.host().isEmpty()
 		|| !parsed.userName().isEmpty()
 		|| !parsed.password().isEmpty()) {

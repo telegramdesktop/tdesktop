@@ -150,20 +150,76 @@ std::vector<Check> StreamChecks() {
 				u"/api/streaming/v2/ws?api_key=a&x=b"_q);
 			return multi.isEmpty() ? QString() : (u"multi: "_q + multi);
 		} },
+		{ u"stream_endpoint_https"_q, [] {
+			const auto issued = CheckEndpoint(
+				u"https://ton.example.com/s/api/streaming/?token="_q
+				+ kSecret,
+				u"ton.example.com"_q,
+				443,
+				u"/s/api/streaming/?token="_q + kSecret);
+			if (!issued.isEmpty()) {
+				return u"issued: "_q + issued;
+			}
+			const auto ported = CheckEndpoint(
+				u"https://ton.example.com:8443/x"_q,
+				u"ton.example.com"_q,
+				8443,
+				u"/x"_q);
+			if (!ported.isEmpty()) {
+				return u"ported: "_q + ported;
+			}
+			const auto cased = CheckEndpoint(
+				u"HTTPS://Ton.Example.com"_q,
+				u"ton.example.com"_q,
+				443,
+				u"/"_q);
+			if (!cased.isEmpty()) {
+				return u"cased: "_q + cased;
+			}
+			const auto tail = u"//ton.example.com/ws?token="_q + kSecret;
+			const auto secure = ParseStreamEndpoint(u"https:"_q + tail);
+			const auto socket = ParseStreamEndpoint(u"wss:"_q + tail);
+			if (!secure || !socket) {
+				return u"both secure schemes must parse"_q;
+			} else if (secure->host != socket->host
+				|| secure->port != socket->port
+				|| secure->requestTarget != socket->requestTarget) {
+				return u"https must map onto the same tls endpoint as wss, "
+					u"because a secure websocket upgrade is an https origin "
+					u"get request"_q;
+			}
+			const auto insecure = std::vector<QString>{
+				u"http://ton.example.com/x"_q,
+				u"http://ton.example.com:443/x"_q,
+				u"ws://ton.example.com/x"_q,
+				u"ws://ton.example.com:443/x"_q,
+			};
+			for (const auto &url : insecure) {
+				if (ParseStreamEndpoint(url)) {
+					return u"a plaintext scheme must stay rejected: "_q + url;
+				}
+			}
+			return QString();
+		} },
 		{ u"stream_endpoint_negative"_q, [] {
 			const auto bad = std::vector<QString>{
 				QString(),
 				u"ws://toncenter.com/x"_q,
-				u"https://toncenter.com/x"_q,
 				u"http://toncenter.com/x"_q,
+				u"ftp://toncenter.com/x"_q,
 				u"wss:///x"_q,
 				u"wss://"_q,
+				u"https:///x"_q,
+				u"https://"_q,
 				u"toncenter.com/x"_q,
 				u"/api/streaming/v2/ws"_q,
 				u"not a url"_q,
 				u"wss://user:pass@toncenter.com/x"_q,
+				u"https://user:pass@toncenter.com/x"_q,
 				u"wss://toncenter.com:0/x"_q,
 				u"wss://toncenter.com:99999/x"_q,
+				u"https://toncenter.com:0/x"_q,
+				u"https://toncenter.com:99999/x"_q,
 			};
 			for (const auto &url : bad) {
 				if (ParseStreamEndpoint(url)) {
@@ -209,6 +265,20 @@ std::vector<Check> StreamChecks() {
 				return u"ported label: got "_q
 					+ portedLabel
 					+ u", expected toncenter.com:8443"_q;
+			}
+			const auto secure = ParseStreamEndpoint(
+				u"https://ton.example.com/s/api/streaming/?token="_q
+				+ kSecret);
+			if (!secure) {
+				return u"parse failed for a secret carrying https url"_q;
+			}
+			const auto secureLabel = StreamEndpointLabel(*secure);
+			if (secureLabel != u"ton.example.com:443"_q) {
+				return u"https label: got "_q
+					+ secureLabel
+					+ u", expected ton.example.com:443"_q;
+			} else if (secureLabel.contains(kSecret)) {
+				return u"https label carries the secret"_q;
 			}
 			return QString();
 		} },
