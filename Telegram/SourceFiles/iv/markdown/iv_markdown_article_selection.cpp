@@ -1512,9 +1512,7 @@ std::vector<RichPage::Block> RichPageBlocksForSelectedSegments(
 	// past unresolvable segments; only directly addressable low-nesting
 	// text leaves get edge-trimmed.
 	selection = NormalizeSelection(selection);
-	if (selection.empty()
-		|| selection.from.segment == selection.to.segment
-		|| page.blocks.empty()) {
+	if (selection.empty() || page.blocks.empty()) {
 		return {};
 	}
 	auto start = std::optional<RichPageSliceEndpoint>();
