@@ -10621,11 +10621,14 @@ void HistoryWidget::forwardSelected() {
 		return;
 	}
 	const auto weak = base::make_weak(this);
-	Window::ShowForwardMessagesBox(controller(), getSelectedItems(), [=] {
-		if (const auto strong = weak.get()) {
-			strong->clearSelected();
-		}
-	});
+	Window::ShowForwardMessagesBox(
+		controller(),
+		_list->getSelectedForwardItems(),
+		[=] {
+			if (const auto strong = weak.get()) {
+				strong->clearSelected();
+			}
+		});
 }
 
 void HistoryWidget::confirmDeleteSelected() {

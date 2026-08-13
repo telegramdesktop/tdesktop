@@ -126,6 +126,16 @@ void RequestDependentMessageStory(
 [[nodiscard]] bool LookupReplyIsTopicPost(HistoryItem *replyTo);
 [[nodiscard]] bool CanReplyToEphemeral(not_null<const HistoryItem*> item);
 [[nodiscard]] bool IsAnchoredEphemeral(not_null<const HistoryItem*> item);
+
+struct ForwardRange {
+	std::vector<not_null<HistoryItem*>> items;
+	bool fromEphemeral = false;
+};
+[[nodiscard]] std::vector<ForwardRange> CollectForwardRanges(
+	const std::vector<not_null<HistoryItem*>> &items);
+[[nodiscard]] QVector<MTPint> ForwardRangeIds(
+	not_null<Main::Session*> session,
+	const ForwardRange &range);
 [[nodiscard]] bool ShowEphemeralReplyTextOnlyError(
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<Main::Session*> session,

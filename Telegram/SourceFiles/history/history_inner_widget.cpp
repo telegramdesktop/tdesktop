@@ -121,6 +121,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_message_reaction_id.h"
+#include "data/data_messages.h"
 #include "data/data_poll.h"
 #include "data/data_file_click_handler.h"
 #include "data/data_histories.h"
@@ -1272,12 +1273,7 @@ auto HistoryInner::itemRenderSelection(
 	const auto item = view->data();
 	const auto y = view->block()->y() + view->y();
 	if (y >= selfromy && y < seltoy) {
-		const auto reference = _selected.empty()
-			? _mouseActionItem
-			: _selected.begin()->get();
-		if (_dragSelecting
-			&& item->canBeSelected()
-			&& (!reference || reference->inSameSelectionGroup(item))) {
+		if (_dragSelecting && item->canBeSelected()) {
 			result.selection = FullSelection;
 			result.fullMessageSelected = true;
 		}
@@ -2376,7 +2372,7 @@ std::unique_ptr<QMimeData> HistoryInner::prepareDrag() {
 		if (uponSelected && !_controller->adaptive().isOneColumn()) {
 			auto selectedState = getSelectionState();
 			if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
-				session().data().setMimeForwardIds(getSelectedItems());
+				session().data().setMimeForwardIds(getSelectedForwardItems());
 				mimeData->setData(u"application/x-td-forward"_q, "1");
 			}
 		}
@@ -2391,7 +2387,7 @@ std::unique_ptr<QMimeData> HistoryInner::prepareDrag() {
 		if (forwardSelectionState.count > 0
 			&& (forwardSelectionState.count
 				== forwardSelectionState.canForwardCount)) {
-			forwardIds = getSelectedItems();
+			forwardIds = getSelectedForwardItems();
 		} else if (_mouseCursorState == CursorState::Date) {
 			const auto item = _mouseActionItem;
 			if (item && item->allowsForward()) {
@@ -3171,10 +3167,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				Element::Moused())
 		) != HistoryView::PointState::GroupPart);
 	const auto addSelectMessageAction = [&](not_null<HistoryItem*> item) {
-		if (item->canBeSelected()
-			&& !hasSelectRestriction()
-			&& (_selected.empty()
-				|| (*_selected.begin())->inSameSelectionGroup(item))) {
+		if (item->canBeSelected() && !hasSelectRestriction()) {
 			const auto itemId = item->fullId();
 			_menu->addAction(tr::lng_context_select_msg(tr::now), [=] {
 				if (const auto item = session->data().message(itemId)) {
@@ -5071,12 +5064,7 @@ HistoryView::SelectionModeResult HistoryInner::inSelectionMode() const {
 }
 
 HistoryView::SelectionModeResult HistoryInner::inSelectionMode(
-		const Element *view) const {
-	if (view
-		&& !_selected.empty()
-		&& !(*_selected.begin())->inSameSelectionGroup(view->data())) {
-		return {};
-	}
+		const Element *) const {
 	return inSelectionMode();
 }
 
@@ -5262,18 +5250,25 @@ void HistoryInner::elementStartEffect(
 auto HistoryInner::getSelectionState() const
 -> HistoryView::TopBarWidget::SelectedState {
 	auto result = HistoryView::TopBarWidget::SelectedState {};
+	auto hasEphemeral = false;
+	auto hasOrdinary = false;
 	for (const auto &item : _selected) {
 		++result.count;
 		if (item->isEphemeral()) {
+			hasEphemeral = true;
 			++result.canDeleteCount;
 		} else {
+			hasOrdinary = true;
 			if (item->canDelete()) {
 				++result.canDeleteCount;
 			}
-			if (item->allowsForward()) {
-				++result.canForwardCount;
-			}
 		}
+		if (item->allowsForward()) {
+			++result.canForwardCount;
+		}
+	}
+	if (hasEphemeral && hasOrdinary) {
+		result.canDeleteCount = 0;
 	}
 	result.textSelected = hasSelectedText()
 		&& !_selectedTextSelection.empty();
@@ -5323,6 +5318,22 @@ MessageIdsList HistoryInner::getSelectedItems() const {
 			: (msgId.msg - ServerMaxMsgId);
 	});
 	return result;
+}
+
+MessageIdsList HistoryInner::getSelectedForwardItems() const {
+	if (!hasSelectedItems()) {
+		return {};
+	}
+	auto items = HistoryItemsList();
+	items.reserve(_selected.size());
+	for (const auto &item : _selected) {
+		if (!item->isService()
+			&& (item->isRegular() || item->isEphemeral())) {
+			items.push_back(item);
+		}
+	}
+	ranges::sort(items, ranges::less(), &HistoryItem::position);
+	return session().data().itemsToIds(items);
 }
 
 std::vector<not_null<HistoryItem*>> HistoryInner::getSelectedEphemeral() const {
@@ -5988,9 +5999,6 @@ bool HistoryInner::goodForSelection(
 		not_null<HistoryItem*> item,
 		int &totalCount) const {
 	if (!item->canBeSelected()) {
-		return false;
-	} else if (!toItems->empty()
-		&& !(*toItems->begin())->inSameSelectionGroup(item)) {
 		return false;
 	} else if (toItems->find(item) == toItems->end()) {
 		++totalCount;

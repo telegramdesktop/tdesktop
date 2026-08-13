@@ -1265,12 +1265,6 @@ bool AddSelectMessageAction(
 		return false;
 	}
 	const auto owner = &item->history()->owner();
-	if (!request.selectedItems.empty()) {
-		const auto first = owner->message(request.selectedItems.front().msgId);
-		if (first && !first->inSameSelectionGroup(item)) {
-			return false;
-		}
-	}
 	const auto itemId = item->fullId();
 	const auto asGroup = (request.pointState != PointState::GroupPart);
 	menu->addAction(tr::lng_context_select_msg(tr::now), [=] {

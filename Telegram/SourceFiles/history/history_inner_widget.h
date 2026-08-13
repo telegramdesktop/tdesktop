@@ -185,6 +185,7 @@ public:
 		-> HistoryView::TopBarWidget::SelectedState;
 	void clearSelected(bool onlyTextSelection = false);
 	[[nodiscard]] MessageIdsList getSelectedItems() const;
+	[[nodiscard]] MessageIdsList getSelectedForwardItems() const;
 	[[nodiscard]] auto getSelectedEphemeral() const
 		-> std::vector<not_null<HistoryItem*>>;
 	[[nodiscard]] bool hasSelectedItems() const;

@@ -3136,7 +3136,7 @@ bool HistoryItem::allowsReschedule() const {
 
 bool HistoryItem::allowsForward() const {
 	return !isService()
-		&& isRegular()
+		&& (isRegular() || isEphemeral())
 		&& !forbidsForward()
 		&& history()->peer->allowsForwarding()
 		&& (!_media || _media->allowsForward());

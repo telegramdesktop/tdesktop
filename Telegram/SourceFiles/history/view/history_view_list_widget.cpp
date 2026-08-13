@@ -1510,12 +1510,6 @@ bool ListWidget::isGoodForSelection(
 	if (!_delegate->listIsItemGoodForSelection(item)) {
 		return false;
 	}
-	if (!applyTo.empty()) {
-		const auto first = session().data().message(applyTo.begin()->first);
-		if (first && !first->inSameSelectionGroup(item)) {
-			return false;
-		}
-	}
 	if (!applyTo.contains(item->fullId())) {
 		++totalCount;
 	}
@@ -2060,11 +2054,6 @@ SelectionModeResult ListWidget::elementInSelectionMode(
 		const HistoryView::Element *view) {
 	if (view && !_delegate->listIsItemGoodForSelection(view->data())) {
 		return {};
-	} else if (view && !_selected.empty()) {
-		const auto first = session().data().message(_selected.begin()->first);
-		if (first && !first->inSameSelectionGroup(view->data())) {
-			return {};
-		}
 	}
 	return inSelectionMode();
 }

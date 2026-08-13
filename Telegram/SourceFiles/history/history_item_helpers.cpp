@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
 #include "data/data_message_reactions.h"
+#include "data/data_messages.h"
 #include "data/data_poll.h"
 #include "data/data_premium_limits.h"
 #include "data/data_session.h"
@@ -30,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "history/view/controls/history_view_suggest_options.h"
 #include "history/history.h"
+#include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
@@ -659,6 +661,40 @@ bool CanReplyToEphemeral(not_null<const HistoryItem*> item) {
 bool IsAnchoredEphemeral(not_null<const HistoryItem*> item) {
 	const auto &session = item->history()->session();
 	return session.ephemeralMessages().anchored(item);
+}
+
+std::vector<ForwardRange> CollectForwardRanges(
+		const std::vector<not_null<HistoryItem*>> &items) {
+	auto ordered = items;
+	ranges::sort(ordered, ranges::less(), &HistoryItem::position);
+	auto result = std::vector<ForwardRange>();
+	for (const auto &item : ordered) {
+		const auto fromEphemeral = item->isEphemeral();
+		if (fromEphemeral
+			&& !item->history()->session().ephemeralMessages().lookupId(
+				item)) {
+			continue;
+		}
+		if (result.empty()
+			|| result.back().fromEphemeral != fromEphemeral) {
+			result.push_back({ .fromEphemeral = fromEphemeral });
+		}
+		result.back().items.push_back(item);
+	}
+	return result;
+}
+
+QVector<MTPint> ForwardRangeIds(
+		not_null<Main::Session*> session,
+		const ForwardRange &range) {
+	auto result = QVector<MTPint>();
+	result.reserve(int(range.items.size()));
+	for (const auto &item : range.items) {
+		result.push_back(range.fromEphemeral
+			? MTP_int(session->ephemeralMessages().lookupId(item))
+			: MTP_int(item->id));
+	}
+	return result;
 }
 
 bool ShowEphemeralReplyTextOnlyError(
