@@ -700,13 +700,36 @@ void ApplyRichPageSliceEndTrim(TextWithEntities *target, int offset) {
 	return false;
 }
 
+[[nodiscard]] bool LeafSourceInStructuralSelection(
+		const PreparedEditLeafSource &source,
+		const PreparedEditSelection &selection) {
+	switch (selection.kind) {
+	case PreparedEditSelectionKind::Blocks:
+		return PathInBlockRange(source.block, selection.blocks);
+	case PreparedEditSelectionKind::ListItems:
+		return (source.kind == PreparedEditLeafKind::ListItemText)
+			&& (source.block == selection.listItems.block)
+			&& IndexInRange(
+				source.listItemIndex,
+				selection.listItems.from,
+				selection.listItems.till);
+	case PreparedEditSelectionKind::TableRows:
+	case PreparedEditSelectionKind::TableCells:
+	case PreparedEditSelectionKind::None:
+		return false;
+	}
+	return false;
+}
+
 [[nodiscard]] bool BlockBelongsToStructuralSelection(
 		const LaidOutBlock &block,
 		const PreparedEditSelection &selection) {
 	return (block.editListItem
 		&& ListItemSourceInStructuralSelection(*block.editListItem, selection))
 		|| (block.editBlock
-			&& BlockSourceInStructuralSelection(*block.editBlock, selection));
+			&& BlockSourceInStructuralSelection(*block.editBlock, selection))
+		|| (block.editLeaf
+			&& LeafSourceInStructuralSelection(*block.editLeaf, selection));
 }
 
 [[nodiscard]] bool WholeSegmentStructurallySelected(
