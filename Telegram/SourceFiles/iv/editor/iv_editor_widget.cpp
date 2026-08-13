@@ -4554,6 +4554,40 @@ bool Widget::handleStructuralBlockInsertShortcut(QKeyEvent *e) {
 	return true;
 }
 
+bool Widget::handleBroaderFormatShortcut(QKeyEvent *e) {
+	if (inlineToolbarModeActive()) {
+		return false;
+	}
+	const auto type = e->type();
+	if (type != QEvent::ShortcutOverride && type != QEvent::KeyPress) {
+		return false;
+	}
+	const auto action = [&]() -> std::optional<ToolbarFormatAction> {
+		if (e == QKeySequence::Bold) {
+			return ToolbarFormatAction::Bold;
+		} else if (e == QKeySequence::Italic) {
+			return ToolbarFormatAction::Italic;
+		} else if (e == QKeySequence::Underline) {
+			return ToolbarFormatAction::Underline;
+		} else if (MatchesKeySequence(e, Ui::kStrikeOutSequence)) {
+			return ToolbarFormatAction::StrikeOut;
+		} else if (MatchesKeySequence(e, Ui::kSpoilerSequence)) {
+			return ToolbarFormatAction::Spoiler;
+		} else if (MatchesKeySequence(e, Ui::kClearFormatSequence)) {
+			return ToolbarFormatAction::PlainText;
+		}
+		return std::nullopt;
+	}();
+	if (!action || !toolbarActionState(*action).enabled) {
+		return false;
+	}
+	if (type == QEvent::KeyPress) {
+		applyToolbarFormatAction(*action);
+	}
+	e->accept();
+	return true;
+}
+
 bool Widget::fieldMonospaceShortcutUsesCodeBlock() const {
 	return (_fieldMode == State::FieldMode::Rich)
 		&& _field
@@ -5375,7 +5409,8 @@ bool Widget::eventFilter(QObject *object, QEvent *event) {
 			if (type == QEvent::ShortcutOverride || type == QEvent::KeyPress) {
 				const auto keyEvent = static_cast<QKeyEvent*>(event);
 				if (handleFieldBlockInsertShortcut(keyEvent)
-					|| handleStructuralBlockInsertShortcut(keyEvent)) {
+					|| handleStructuralBlockInsertShortcut(keyEvent)
+					|| handleBroaderFormatShortcut(keyEvent)) {
 					return true;
 				} else if (type == QEvent::KeyPress
 					&& (handleUndoRedoShortcut(keyEvent)
@@ -5425,7 +5460,8 @@ bool Widget::eventHook(QEvent *e) {
 		if (handleFieldBlockInsertShortcut(
 				static_cast<QKeyEvent*>(e))
 			|| handleStructuralBlockInsertShortcut(
-				static_cast<QKeyEvent*>(e))) {
+				static_cast<QKeyEvent*>(e))
+			|| handleBroaderFormatShortcut(static_cast<QKeyEvent*>(e))) {
 			return true;
 		}
 	}
@@ -5519,6 +5555,8 @@ void Widget::keyPressEvent(QKeyEvent *e) {
 	} else if (handleFieldBlockInsertShortcut(e)) {
 		return;
 	} else if (handleStructuralBlockInsertShortcut(e)) {
+		return;
+	} else if (handleBroaderFormatShortcut(e)) {
 		return;
 	} else if (handleStructuralSelectionKey(e)) {
 		return;
