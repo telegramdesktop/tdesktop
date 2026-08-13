@@ -315,27 +315,6 @@ bool SetMediaBlockSpoiler(Block *block, bool enabled) {
 		|| !block.anchorId.isEmpty();
 }
 
-[[nodiscard]] BlockContainerPath BlockChildrenContainer(BlockPath path) {
-	auto result = std::move(path.container);
-	result.steps.push_back({
-		.kind = BlockContainerKind::BlockChildren,
-		.blockIndex = path.index,
-	});
-	return result;
-}
-
-[[nodiscard]] BlockContainerPath ListItemChildrenContainer(
-		BlockPath path,
-		int itemIndex) {
-	auto result = std::move(path.container);
-	result.steps.push_back({
-		.kind = BlockContainerKind::ListItemChildren,
-		.blockIndex = path.index,
-		.listItemIndex = itemIndex,
-	});
-	return result;
-}
-
 [[nodiscard]] bool ContainerStartsWith(
 		const BlockContainerPath &container,
 		const BlockContainerPath &prefix) {
@@ -352,29 +331,6 @@ bool SetMediaBlockSpoiler(Block *block, bool enabled) {
 		}
 	}
 	return true;
-}
-
-[[nodiscard]] PreparedBlockContainerPath ToPreparedBlockContainerPath(
-		const BlockContainerPath &path) {
-	auto result = PreparedBlockContainerPath();
-	result.steps.reserve(path.steps.size());
-	for (const auto &step : path.steps) {
-		auto converted = PreparedBlockContainerStep();
-		converted.blockIndex = step.blockIndex;
-		converted.listItemIndex = step.listItemIndex;
-		switch (step.kind) {
-		case BlockContainerKind::Root:
-			continue;
-		case BlockContainerKind::BlockChildren:
-			converted.kind = PreparedBlockContainerKind::BlockChildren;
-			break;
-		case BlockContainerKind::ListItemChildren:
-			converted.kind = PreparedBlockContainerKind::ListItemChildren;
-			break;
-		}
-		result.steps.push_back(converted);
-	}
-	return result;
 }
 
 [[nodiscard]] bool ContainerHasPrefix(
