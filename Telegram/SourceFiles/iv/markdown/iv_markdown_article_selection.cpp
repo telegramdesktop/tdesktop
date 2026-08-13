@@ -330,29 +330,6 @@ void RefreshBlockSegmentRect(
 	return segment.index;
 }
 
-[[nodiscard]] int CompareSelectionPositions(
-		MarkdownArticleSelectionPosition a,
-		MarkdownArticleSelectionPosition b) {
-	if (a.segment != b.segment) {
-		return (a.segment < b.segment) ? -1 : 1;
-	}
-	if (a.offset != b.offset) {
-		return (a.offset < b.offset) ? -1 : 1;
-	}
-	return 0;
-}
-
-[[nodiscard]] MarkdownArticleSelection NormalizeSelection(
-		MarkdownArticleSelection selection) {
-	if (selection.empty()) {
-		return {};
-	}
-	if (CompareSelectionPositions(selection.from, selection.to) > 0) {
-		std::swap(selection.from, selection.to);
-	}
-	return selection;
-}
-
 [[nodiscard]] int LastTableCellSegmentIndex(
 		const std::vector<SelectableSegment> *segments,
 		int tableSegmentIndex) {
@@ -865,6 +842,37 @@ void ApplyRichPageSliceEndTrim(TextWithEntities *target, int offset) {
 }
 
 } // namespace
+
+int CompareSelectionPositions(
+		MarkdownArticleSelectionPosition a,
+		MarkdownArticleSelectionPosition b) {
+	if (a.segment != b.segment) {
+		return (a.segment < b.segment) ? -1 : 1;
+	}
+	if (a.offset != b.offset) {
+		return (a.offset < b.offset) ? -1 : 1;
+	}
+	return 0;
+}
+
+MarkdownArticleSelection NormalizeSelection(
+		MarkdownArticleSelection selection) {
+	if (selection.empty()) {
+		return {};
+	}
+	if (CompareSelectionPositions(selection.from, selection.to) > 0) {
+		std::swap(selection.from, selection.to);
+	}
+	return selection;
+}
+
+MarkdownArticleSelectionEndpoint MakeSelectionEndpoint(
+		const MarkdownArticleHitTestResult &result) {
+	return {
+		.segment = result.segmentIndex,
+		.direct = result.direct,
+	};
+}
 
 void CollectSelectableSegments(
 		std::vector<LaidOutBlock> *blocks,

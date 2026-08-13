@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/credits_amount.h"
 #include "core/file_utilities.h"
 #include "iv/iv_rich_message_html_export.h"
+#include "iv/markdown/iv_markdown_article_selection.h"
 #include "iv/markdown/iv_markdown_article_text.h"
 #include "iv/markdown/iv_markdown_prepare_native_richtext.h"
 #include "lang/lang_keys.h"
@@ -100,37 +101,6 @@ void EnsurePrePaintCache(
 	cache->header.setAlpha(Ui::kDefaultOutline2Opacity * 255);
 	cache->icon = color->c;
 	cache->icon.setAlpha(Ui::kDefaultOutline3Opacity * 255);
-}
-
-[[nodiscard]] int CompareSelectionPositions(
-		MarkdownArticleSelectionPosition a,
-		MarkdownArticleSelectionPosition b) {
-	if (a.segment != b.segment) {
-		return (a.segment < b.segment) ? -1 : 1;
-	}
-	if (a.offset != b.offset) {
-		return (a.offset < b.offset) ? -1 : 1;
-	}
-	return 0;
-}
-
-[[nodiscard]] MarkdownArticleSelection NormalizeSelection(
-		MarkdownArticleSelection selection) {
-	if (selection.empty()) {
-		return {};
-	}
-	if (CompareSelectionPositions(selection.from, selection.to) > 0) {
-		std::swap(selection.from, selection.to);
-	}
-	return selection;
-}
-
-[[nodiscard]] MarkdownArticleSelectionEndpoint MakeSelectionEndpoint(
-		const MarkdownArticleHitTestResult &result) {
-	return {
-		.segment = result.segmentIndex,
-		.direct = result.direct,
-	};
 }
 
 [[nodiscard]] std::vector<Ui::Text::SpecialColor> HighlightColors(

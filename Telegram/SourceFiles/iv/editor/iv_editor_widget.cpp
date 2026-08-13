@@ -26,6 +26,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/editor/iv_editor_text_entities.h"
 #include "iv/editor/iv_editor_window.h"
 #include "iv/markdown/iv_markdown_article_paint.h"
+#include "iv/markdown/iv_markdown_article_selection.h"
+#include "iv/markdown/iv_markdown_article_text.h"
 #include "iv/markdown/iv_markdown_microtex.h"
 #include "iv/markdown/iv_markdown_prepare_links.h"
 #include "iv/markdown/iv_markdown_prepare_native_richtext.h"
@@ -1284,37 +1286,6 @@ void EnableQTextEditLineMetrics(style::Markdown &style) {
 	auto result = st::messageMarkdown;
 	EnableQTextEditLineMetrics(result);
 	return result;
-}
-
-[[nodiscard]] int CompareSelectionPositions(
-		Markdown::MarkdownArticleSelectionPosition a,
-		Markdown::MarkdownArticleSelectionPosition b) {
-	if (a.segment != b.segment) {
-		return (a.segment < b.segment) ? -1 : 1;
-	}
-	if (a.offset != b.offset) {
-		return (a.offset < b.offset) ? -1 : 1;
-	}
-	return 0;
-}
-
-[[nodiscard]] Markdown::MarkdownArticleSelection NormalizeSelection(
-		Markdown::MarkdownArticleSelection selection) {
-	if (selection.empty()) {
-		return {};
-	}
-	if (CompareSelectionPositions(selection.from, selection.to) > 0) {
-		std::swap(selection.from, selection.to);
-	}
-	return selection;
-}
-
-[[nodiscard]] Markdown::MarkdownArticleSelectionEndpoint MakeSelectionEndpoint(
-		const Markdown::MarkdownArticleHitTestResult &hit) {
-	return {
-		.segment = hit.segmentIndex,
-		.direct = hit.direct,
-	};
 }
 
 [[nodiscard]] bool RedirectTextToField(const QString &text) {
@@ -11257,7 +11228,7 @@ bool Widget::broaderSelectionHasSelectedText() const {
 		&& _selectionEndpoints.from.valid()
 		&& _selectionEndpoints.to.valid();
 	const auto normalizedSelection = hasTextSelection
-		? NormalizeSelection(_selection)
+		? Markdown::NormalizeSelection(_selection)
 		: Markdown::MarkdownArticleSelection();
 	for (auto ordinal = 0, count = int(nodes.size()); ordinal != count;
 			++ordinal) {
@@ -11313,7 +11284,7 @@ std::vector<State::TextNodeSpan> Widget::broaderSelectionTextSpans() const {
 		&& _selectionEndpoints.from.valid()
 		&& _selectionEndpoints.to.valid();
 	const auto normalizedSelection = hasTextSelection
-		? NormalizeSelection(_selection)
+		? Markdown::NormalizeSelection(_selection)
 		: Markdown::MarkdownArticleSelection();
 	result.reserve(nodes.size());
 	for (auto ordinal = 0, count = int(nodes.size()); ordinal != count;
@@ -11394,7 +11365,7 @@ PreparedEditSelection Widget::structuralSelectionForTextSelection() const {
 		|| !_selectionEndpoints.to.valid()) {
 		return {};
 	}
-	const auto normalized = NormalizeSelection(_selection);
+	const auto normalized = Markdown::NormalizeSelection(_selection);
 	if (normalized.from.segment == normalized.to.segment) {
 		return {};
 	}
@@ -11540,8 +11511,8 @@ void Widget::startArticleSelection(
 		{ hit.segmentIndex, offset },
 	};
 	_selectionEndpoints = {
-		.from = MakeSelectionEndpoint(hit),
-		.to = MakeSelectionEndpoint(hit),
+		.from = Markdown::MakeSelectionEndpoint(hit),
+		.to = Markdown::MakeSelectionEndpoint(hit),
 	};
 	updateHasSelection();
 	update();
@@ -11618,7 +11589,7 @@ bool Widget::startSelectionDragFromExistingState(
 		_articleSelectionDrag = std::move(drag);
 		return true;
 	}
-	const auto selection = NormalizeSelection(_selection);
+	const auto selection = Markdown::NormalizeSelection(_selection);
 	if (selection.empty()
 		|| !_selectionEndpoints.from.valid()
 		|| !_selectionEndpoints.to.valid()
@@ -11696,7 +11667,7 @@ void Widget::updateArticleSelection(
 					0,
 					0xFFFF))),
 			TextSelectType::Letters);
-		const auto selection = NormalizeSelection({
+		const auto selection = Markdown::NormalizeSelection({
 			{ dragSegment, adjusted.from },
 			{ dragSegment, adjusted.to },
 		});
@@ -11706,7 +11677,7 @@ void Widget::updateArticleSelection(
 				: Markdown::MarkdownArticleSelectionEndpoint{
 					dragSegment,
 					false },
-			.to = MakeSelectionEndpoint(hit),
+			.to = Markdown::MakeSelectionEndpoint(hit),
 		};
 		const auto endpointsChanged
 			= (_selectionEndpoints.from.segment != endpoints.from.segment)
