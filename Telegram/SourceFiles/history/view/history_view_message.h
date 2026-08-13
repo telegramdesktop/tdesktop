@@ -120,6 +120,8 @@ struct HistoryMessageRichPage
 	mutable ClickHandlerPtr handlerButtonRowHandler;
 	mutable Iv::Markdown::MarkdownArticleButtonRowHit pressedButtonRow;
 	mutable ClickHandlerPtr pressedButtonRowHandler;
+	mutable std::optional<Iv::Markdown::PreparedEditListItemSource>
+		handlerTaskItem;
 	mutable std::optional<QPoint> handlerInlineButtonPoint;
 	mutable ClickHandlerPtr handlerInlineButtonHandler;
 	mutable ClickHandlerPtr pressedInlineButtonHandler;

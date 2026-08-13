@@ -64,6 +64,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h" // IsNightMode.
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
+#include "api/api_rich_tasks.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_chat_style.h"
@@ -289,6 +290,15 @@ void CopyRichPageCodeBlockText(TextForMimeData text, ClickContext context) {
 		&& (a.photo.get() == b.photo.get())
 		&& (a.document.get() == b.document.get())
 		&& (a.channel.get() == b.channel.get());
+}
+
+[[nodiscard]] std::optional<Iv::Markdown::PreparedEditListItemSource>
+RichPageTaskMarkerHit(
+		const Iv::Markdown::MarkdownArticle &article,
+		QPoint point) {
+	const auto hit = article.editControlHitTest(point);
+	using Kind = Iv::Markdown::MarkdownArticleEditControlHitKind;
+	return (hit.kind == Kind::TaskMarker) ? hit.listItem : std::nullopt;
 }
 
 class RichPageActionClickHandler final : public ClickHandler {
@@ -4610,6 +4620,29 @@ bool Message::getStateText(
 			rich->handlerInlineButtonPoint = std::nullopt;
 			rich->handlerInlineButtonHandler = nullptr;
 		};
+		if (const auto task = RichPageTaskMarkerHit(rich->article, local)
+			; task && item->history()->session().api().richTasks()
+				.togglingAllowed(item)) {
+			*outResult = TextState(item);
+			if (!rich->handlerTaskItem || (*rich->handlerTaskItem != *task)) {
+				rich->handlerTaskItem = task;
+				rich->handler = std::make_shared<RichPageActionClickHandler>(
+					[weak = base::make_weak(const_cast<Message*>(this)),
+						source = *task](ClickContext context) {
+						const auto owner = weak.get();
+						const auto item = owner
+							? owner->data().get()
+							: nullptr;
+						if (item) {
+							item->history()->session().api().richTasks()
+								.toggle(item, source);
+						}
+					});
+			}
+			outResult->link = rich->handler;
+			return true;
+		}
+		rich->handlerTaskItem = std::nullopt;
 		const auto horizontalScrollHit = rich->article.horizontalScrollHit(local);
 		*outResult = TextState(item);
 		outResult->horizontalScroll = horizontalScrollHit.scrollable;
