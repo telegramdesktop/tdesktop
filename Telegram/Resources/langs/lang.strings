@@ -8774,6 +8774,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_row_pending" = "Pending";
 "lng_wallet_rows_title" = "Transactions";
 "lng_wallet_rows_collectibles" = "Collectibles";
+"lng_wallet_collectible_username_about" = "The {username} username on Telegram.";
+"lng_wallet_collectible_number_about" = "The anonymous number {number} that can be used to create a Telegram account that is not tied to a SIM card.";
+"lng_wallet_collectible_nft_about" = "A collectible stored on The Open Network (TON) blockchain.";
 "lng_wallet_rows_hint" = "Tap on a transaction to view details.";
 "lng_wallet_details_title" = "Transaction";
 "lng_wallet_details_sender" = "Sender";

@@ -7,22 +7,32 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "wallet/wallet_collectibles.h"
 
+#include "chat_helpers/compose/compose_show.h"
 #include "core/local_url_handlers.h"
-#include "core/ton_explorer_url.h"
+#include "data/data_file_origin.h"
 #include "gram/api/gram_api_nft.h"
 #include "gram/ton/gram_address.h"
+#include "lang/lang_keys.h"
 #include "main/session/session_show.h"
 #include "main/main_session.h"
+#include "menu/menu_send_details.h"
+#include "ui/layers/generic_box.h"
+#include "ui/text/format_values.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
+#include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
-#include "ui/basic_click_handlers.h"
+#include "ui/delayed_activation.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
 #include "wallet/wallet_collectible_media.h"
 #include "wallet/wallet_session.h"
-#include "window/window_session_controller.h"
 
+#include "styles/style_giveaway.h"
+#include "styles/style_layers.h"
 #include "styles/style_wallet.h"
+
+#include <rpl/never.h>
 
 namespace Wallet {
 namespace {
@@ -48,6 +58,43 @@ protected:
 private:
 	Ui::Text::String _title;
 	Fn<void(Painter&, QRect)> _paintThumb;
+
+};
+
+class PanelChatShow final : public ChatHelpers::Show {
+public:
+	explicit PanelChatShow(std::shared_ptr<Main::SessionShow> show);
+
+	void showOrHideBoxOrLayer(
+		std::variant<
+			v::null_t,
+			object_ptr<Ui::BoxContent>,
+			std::unique_ptr<Ui::LayerWidget>> &&layer,
+		Ui::LayerOptions options,
+		anim::type animated) const override;
+	[[nodiscard]] not_null<QWidget*> toastParent() const override;
+	[[nodiscard]] bool valid() const override;
+	operator bool() const override;
+
+	[[nodiscard]] Main::Session &session() const override;
+	[[nodiscard]] Window::SessionController *resolveWindow() const override;
+
+	void activate() override;
+	[[nodiscard]] bool paused(
+		ChatHelpers::PauseReason reason) const override;
+	[[nodiscard]] rpl::producer<> pauseChanged() const override;
+	[[nodiscard]] SendMenu::Details sendMenuDetails() const override;
+	bool showMediaPreview(
+		Data::FileOrigin origin,
+		not_null<DocumentData*> document) const override;
+	bool showMediaPreview(
+		Data::FileOrigin origin,
+		not_null<PhotoData*> photo) const override;
+	void processChosenSticker(
+		ChatHelpers::FileChosen &&chosen) const override;
+
+private:
+	const std::shared_ptr<Main::SessionShow> _show;
 
 };
 
@@ -100,28 +147,164 @@ void CollectibleRow::paintEvent(QPaintEvent *e) {
 	});
 }
 
-void Activate(
-		std::shared_ptr<Main::SessionShow> show,
+PanelChatShow::PanelChatShow(std::shared_ptr<Main::SessionShow> show)
+: _show(std::move(show)) {
+}
+
+void PanelChatShow::showOrHideBoxOrLayer(
+		std::variant<
+			v::null_t,
+			object_ptr<Ui::BoxContent>,
+			std::unique_ptr<Ui::LayerWidget>> &&layer,
+		Ui::LayerOptions options,
+		anim::type animated) const {
+	_show->showOrHideBoxOrLayer(std::move(layer), options, animated);
+}
+
+not_null<QWidget*> PanelChatShow::toastParent() const {
+	return _show->toastParent();
+}
+
+bool PanelChatShow::valid() const {
+	return _show->valid();
+}
+
+PanelChatShow::operator bool() const {
+	return valid();
+}
+
+Main::Session &PanelChatShow::session() const {
+	return _show->session();
+}
+
+Window::SessionController *PanelChatShow::resolveWindow() const {
+	return nullptr;
+}
+
+void PanelChatShow::activate() {
+	if (_show->valid()) {
+		Ui::ActivateWindow(_show->toastParent());
+	}
+}
+
+bool PanelChatShow::paused(ChatHelpers::PauseReason) const {
+	return !_show->valid();
+}
+
+rpl::producer<> PanelChatShow::pauseChanged() const {
+	return rpl::never<>();
+}
+
+SendMenu::Details PanelChatShow::sendMenuDetails() const {
+	return { SendMenu::Type::Disabled };
+}
+
+bool PanelChatShow::showMediaPreview(
+		Data::FileOrigin,
+		not_null<DocumentData*>) const {
+	return false;
+}
+
+bool PanelChatShow::showMediaPreview(
+		Data::FileOrigin,
+		not_null<PhotoData*>) const {
+	return false;
+}
+
+void PanelChatShow::processChosenSticker(ChatHelpers::FileChosen &&) const {
+}
+
+[[nodiscard]] rpl::producer<QString> CollectibleAboutText(
 		const Gram::NftItem &item) {
-	const auto session = &show->session();
-	const auto window = session->tryResolveWindow();
-	if (window && !item.key.isEmpty()) {
-		if (item.kind == Gram::NftKind::TelegramGift) {
-			Core::ResolveAndShowUniqueGift(window->uiShow(), item.key);
-			return;
+	if (!item.key.isEmpty()) {
+		if (item.kind == Gram::NftKind::TelegramUsername) {
+			return tr::lng_wallet_collectible_username_about(
+				lt_username,
+				rpl::single('@' + item.key));
 		} else if (item.kind == Gram::NftKind::TelegramNumber) {
-			window->resolveCollectible(
-				session->userPeerId(),
-				'+' + item.key);
-			return;
-		} else if (item.kind == Gram::NftKind::TelegramUsername) {
-			window->resolveCollectible(session->userPeerId(), item.key);
-			return;
+			return tr::lng_wallet_collectible_number_about(
+				lt_number,
+				rpl::single(Ui::FormatPhone(item.key)));
 		}
 	}
-	UrlClickHandler::Open(Core::TonExplorerUrl(
-		session,
-		Gram::FormatFriendly(item.address, true)));
+	return tr::lng_wallet_collectible_nft_about();
+}
+
+void CollectiblePreviewBox(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<CollectibleMedia> media,
+		Gram::NftItem item) {
+	box->setWidth(st::boxWideWidth);
+	box->setStyle(st::giveawayGiftCodeBox);
+	box->setNoContentMargin(true);
+
+	const auto address = item.address;
+	const auto artwork = box->addRow(
+		object_ptr<Ui::FixedHeightWidget>(
+			box,
+			st::walletDetailsCollectibleSize),
+		style::margins(
+			0,
+			st::boxTitleHeight,
+			0,
+			st::walletDetailsCollectibleNameSkip));
+	artwork->setAttribute(Qt::WA_TransparentForMouseEvents);
+	artwork->paintRequest(
+	) | rpl::on_next([=] {
+		const auto side = st::walletDetailsCollectibleSize;
+		auto p = Painter(artwork);
+		media->paint(
+			p,
+			address,
+			QRect((artwork->width() - side) / 2, 0, side, side),
+			artwork->width(),
+			st::walletDetailsCollectibleRadius);
+	}, artwork->lifetime());
+
+	const auto title = box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			st::walletCollectiblePreviewTitle),
+		st::boxRowPadding,
+		style::al_top);
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			CollectibleAboutText(item),
+			st::walletCollectiblePreviewAbout),
+		st::walletPhraseTextMargin,
+		style::al_top);
+
+	const auto apply = [=] {
+		title->setMarkedText(CollectibleTitleText(media->view(address)));
+	};
+	apply();
+
+	const auto mine = [=](const Gram::Address &changed) {
+		return (changed == address);
+	};
+	media->changed(
+	) | rpl::filter(mine) | rpl::on_next(apply, box->lifetime());
+	media->repaint(
+	) | rpl::filter(mine) | rpl::on_next([=] {
+		artwork->update();
+	}, box->lifetime());
+
+	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
+	box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
+}
+
+void Activate(
+		std::shared_ptr<Main::SessionShow> show,
+		std::shared_ptr<CollectibleMedia> media,
+		const Gram::NftItem &item) {
+	if (item.kind == Gram::NftKind::TelegramGift && !item.key.isEmpty()) {
+		Core::ResolveAndShowUniqueGift(
+			std::make_shared<PanelChatShow>(std::move(show)),
+			item.key);
+		return;
+	}
+	show->showBox(Box(CollectiblePreviewBox, std::move(media), item));
 }
 
 void AddRow(
@@ -156,7 +339,7 @@ void AddRow(
 	}, row->lifetime());
 
 	row->setClickedCallback([=] {
-		Activate(show, item);
+		Activate(show, media, item);
 	});
 	media->resolve(address);
 }

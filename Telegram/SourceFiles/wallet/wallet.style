@@ -336,6 +336,13 @@ walletImportSuggestionsPadding: margins(4px, 4px, 4px, 4px);
 walletImportSuggestionRowHeight: 28px;
 walletImportSuggestionRowPadding: margins(8px, 0px, 8px, 0px);
 
+walletCollectiblePreviewTitle: FlatLabel(walletPhraseTitleLabel) {
+	palette: walletCollectibleTitlePalette;
+}
+walletCollectiblePreviewAbout: FlatLabel(walletPhraseTextLabel) {
+	textFg: windowSubTextFg;
+}
+
 walletReceiveTitleHeight: boxTitleHeight;
 walletReceiveTitleButtonSkip: 6px;
 walletReceiveTitleLeft: 60px;
