@@ -852,6 +852,7 @@ private:
 		const State::BlockPath &path,
 		Fn<bool()> change);
 	void requestReplaceMedia(State::BlockPath path);
+	void requestReplaceGroupedItem(State::BlockPath path, int itemIndex);
 	void editPhotoBlock(State::BlockPath path);
 	void editGroupedItemPhoto(State::BlockPath path, int itemIndex);
 	void openPhotoEditor(

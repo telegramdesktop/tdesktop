@@ -4480,6 +4480,23 @@ void Widget::showGroupedMediaMenu(
 	const auto currentSpoiler = hasItem
 		? block->mediaItems[itemIndex].spoiler
 		: GroupedPhotoVideoItemsHaveSpoiler(*block);
+	if (hasItem) {
+		menu->addAction(
+			tr::lng_attach_replace(tr::now),
+			[=] {
+				requestReplaceGroupedItem(path, itemIndex);
+			},
+			&st::menuIconReplace);
+		if (block->mediaItems[itemIndex].kind
+			== RichPage::BlockKind::Photo) {
+			menu->addAction(
+				tr::lng_context_draw(tr::now),
+				[=] {
+					editGroupedItemPhoto(path, itemIndex);
+				},
+				&st::menuIconPalette);
+		}
+	}
 	menu->addAction(
 		tr::lng_article_media_ungroup(tr::now),
 		[=] {
@@ -4766,6 +4783,19 @@ void Widget::requestReplaceMedia(State::BlockPath path) {
 		return;
 	}
 	requestMedia(std::move(target));
+}
+
+void Widget::requestReplaceGroupedItem(
+		State::BlockPath path,
+		int itemIndex) {
+	if (mediaUploadStateForGroupedItem(path, itemIndex).uploading) {
+		return;
+	}
+	auto target = _state->replaceTargetForGroupedItem(path, itemIndex);
+	if (!target) {
+		return;
+	}
+	requestMedia(std::move(target), RequestMediaType::PhotoVideoAudio);
 }
 
 void Widget::editPhotoBlock(State::BlockPath path) {
