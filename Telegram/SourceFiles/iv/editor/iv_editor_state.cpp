@@ -7376,7 +7376,7 @@ bool State::unwrapMatchingListItemWrapper(
 		return false;
 	}
 	const auto range = validateListItemRange(selection.listItems);
-	if (!range || (range->from + 1 != range->till)) {
+	if (!range) {
 		return false;
 	}
 	auto *owner = block(range->block);
@@ -7397,9 +7397,10 @@ bool State::unwrapMatchingListItemWrapper(
 		return false;
 	}
 	clearTemporaryDownParagraph();
-	return unwrapListItemIntoParent(
+	return unwrapListItemRangeIntoParent(
 		range->block,
 		range->from,
+		range->till,
 		false,
 		destination);
 }
@@ -7409,29 +7410,51 @@ bool State::unwrapListItemIntoParent(
 		int itemIndex,
 		bool materializeEmptyItem,
 		BoundaryTarget *destination) {
+	return unwrapListItemRangeIntoParent(
+		listPath,
+		itemIndex,
+		itemIndex + 1,
+		materializeEmptyItem,
+		destination);
+}
+
+bool State::unwrapListItemRangeIntoParent(
+		const BlockPath &listPath,
+		int from,
+		int till,
+		bool materializeEmptyItem,
+		BoundaryTarget *destination) {
 	auto *owner = block(listPath);
 	auto *parent = blockContainer(listPath.container);
 	if (!owner
 		|| !parent
-		|| itemIndex < 0
-		|| itemIndex >= int(owner->listItems.size())
+		|| from < 0
+		|| till <= from
+		|| till > int(owner->listItems.size())
 		|| listPath.index < 0
 		|| listPath.index >= int(parent->size())) {
 		return false;
 	}
-	const auto hasLeading = (itemIndex > 0);
-	const auto hasTrailing = (itemIndex + 1 < int(owner->listItems.size()));
+	const auto hasLeading = (from > 0);
+	const auto hasTrailing = (till < int(owner->listItems.size()));
 	const auto leadingStart = (owner->listKind == ListKind::Ordered
 		&& hasLeading)
 		? EffectiveOrderedItemValue(*owner, 0)
 		: std::optional<int>();
 	const auto trailingStart = (owner->listKind == ListKind::Ordered
 		&& hasTrailing)
-		? EffectiveOrderedItemValue(*owner, itemIndex + 1)
+		? EffectiveOrderedItemValue(*owner, till)
 		: std::optional<int>();
-	auto inserted = takeListItemBlocksForUnwrap(&owner->listItems[itemIndex]);
-	if (materializeEmptyItem && inserted.empty()) {
-		inserted.push_back(MakeParagraphBlock());
+	auto inserted = std::vector<Block>();
+	for (auto i = from; i != till; ++i) {
+		auto blocks = takeListItemBlocksForUnwrap(&owner->listItems[i]);
+		if (materializeEmptyItem && blocks.empty()) {
+			blocks.push_back(MakeParagraphBlock());
+		}
+		inserted.insert(
+			inserted.end(),
+			std::make_move_iterator(blocks.begin()),
+			std::make_move_iterator(blocks.end()));
 	}
 	auto trailing = std::optional<Block>();
 	if (hasTrailing) {
@@ -7443,13 +7466,12 @@ bool State::unwrapListItemIntoParent(
 			trailing->orderedList.start = trailingStart;
 		}
 		trailing->listItems = std::vector<ListItem>(
-			std::make_move_iterator(
-				owner->listItems.begin() + itemIndex + 1),
+			std::make_move_iterator(owner->listItems.begin() + till),
 			std::make_move_iterator(owner->listItems.end()));
 	}
 	if (hasLeading) {
 		owner->listItems.erase(
-			owner->listItems.begin() + itemIndex,
+			owner->listItems.begin() + from,
 			owner->listItems.end());
 		if (leadingStart.has_value()) {
 			owner->orderedList.start = leadingStart;
