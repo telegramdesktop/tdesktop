@@ -563,7 +563,9 @@ public:
 
 private:
 	[[nodiscard]] const style::Markdown &resolvedStyle() const;
-	void paintLabel(
+	[[nodiscard]] bool labelWouldOverflowIcon(
+		const style::Markdown &st) const;
+	void paintContent(
 		QPainter &p,
 		QPoint position,
 		QColor color,
@@ -575,6 +577,7 @@ private:
 	const EntitiesInText _labelEntities;
 	const QByteArray _loadingKey;
 	const style::Markdown *_st = nullptr;
+	const style::icon *_icon = nullptr;
 	const std::shared_ptr<InlineButtonPaintState> _paintState;
 	Ui::Text::String _label;
 	Ui::Text::CustomEmojiVerticalMetrics _vertical;
@@ -583,10 +586,12 @@ private:
 	int _labelWidth = 0;
 	int _labelLeft = 0;
 	int _labelTop = 0;
+	int _iconLeft = 0;
 	int _lineTopSkip = 0;
 	int _lineHeight = 0;
 	ButtonColor _color = ButtonColor::Normal;
 	bool _disabled = false;
+	bool _labelHasParagraphBreak = false;
 
 };
 
@@ -655,8 +660,9 @@ FindInlineFormulaMeasuredData(
 
 [[nodiscard]] int InlineButtonLabelWidthCap(
 		const style::MarkdownInlineButton &st,
-		int buttonWidthCap) {
-	return std::max(buttonWidthCap - 2 * st.padding, 0);
+		int buttonWidthCap,
+		int trailing) {
+	return std::max(buttonWidthCap - st.padding - trailing, 0);
 }
 
 [[nodiscard]] int InlineButtonWidthCap(
@@ -1971,6 +1977,7 @@ InlineButtonObject::InlineButtonObject(
 	{ EntityType::CustomEmoji }).entities)
 , _loadingKey(RichButtonLoadingKey(InlineButtonRecord(data)))
 , _st(&st)
+, _icon(RichButtonIcon(data.type))
 , _paintState(std::move(paintState))
 , _label(MakeBoundedInlineButtonLabel(
 	data.label,
@@ -1979,20 +1986,29 @@ InlineButtonObject::InlineButtonObject(
 	InlineButtonEmojiSize(textStyle, st.inlineButton),
 	InlineButtonLabelWidthCap(
 		st.inlineButton,
-		st.inlineButton.maxWidth)))
+		st.inlineButton.maxWidth,
+		st.inlineButton.padding)))
 , _color(data.color)
-, _disabled(data.type == HistoryMessageMarkupButton::Type::Disabled) {
+, _disabled(data.type == HistoryMessageMarkupButton::Type::Disabled)
+, _labelHasParagraphBreak(
+	ranges::any_of(data.label.text, Ui::Text::IsNewline)) {
 	const auto &inlineSt = st.inlineButton;
 	const auto padding = inlineSt.padding;
 	_height = InlineButtonPillHeight(textStyle, inlineSt);
+	const auto inset = _icon
+		? std::max((_height - _icon->height()) / 2, 0)
+		: 0;
+	const auto trailing = _icon
+		? (2 * inset + _icon->width())
+		: padding;
 	const auto buttonWidthCap = InlineButtonWidthCap(
 		inlineSt,
 		_paintState,
 		widthCap);
 	_labelWidth = std::min(
 		_label.maxWidth(),
-		InlineButtonLabelWidthCap(inlineSt, buttonWidthCap));
-	_width = std::max(_height, _labelWidth + 2 * padding);
+		InlineButtonLabelWidthCap(inlineSt, buttonWidthCap, trailing));
+	_width = std::max(_height, padding + _labelWidth + trailing);
 	_vertical = CenteredVerticalMetrics(textStyle, _height);
 	_lineTopSkip = TextLineAscent(textStyle) - _vertical.ascent;
 	_lineHeight = TextLineHeight(textStyle);
@@ -2001,6 +2017,7 @@ InlineButtonObject::InlineButtonObject(
 		_vertical.ascent - inlineSt.labelStyle.font->ascent,
 		0,
 		std::max(_height - inlineSt.labelStyle.font->height, 0));
+	_iconLeft = _icon ? (_width - inset - _icon->width()) : 0;
 }
 
 int InlineButtonObject::width() {
@@ -2038,13 +2055,30 @@ const style::Markdown &InlineButtonObject::resolvedStyle() const {
 	return (_paintState && _paintState->st) ? *_paintState->st : *_st;
 }
 
-void InlineButtonObject::paintLabel(
+bool InlineButtonObject::labelWouldOverflowIcon(
+		const style::Markdown &st) const {
+	return _icon
+		&& ((_labelWidth < _label.maxWidth()) || _labelHasParagraphBreak)
+		&& (_labelWidth < st.inlineButton.labelStyle.font->elidew);
+}
+
+void InlineButtonObject::paintContent(
 		QPainter &p,
 		QPoint position,
 		QColor color,
 		const style::Markdown &st,
 		const Context &context) const {
-	if (_label.isEmpty()) {
+	if (_icon) {
+		_icon->paintInCenter(
+			p,
+			QRect(
+				position.x() + _iconLeft,
+				position.y(),
+				_icon->width(),
+				_height),
+			color);
+	}
+	if (_label.isEmpty() || labelWouldOverflowIcon(st)) {
 		return;
 	}
 	const auto available = std::max(_labelWidth, 1);
@@ -2136,7 +2170,7 @@ void InlineButtonObject::paint(QPainter &p, const Context &context) {
 				}
 			},
 			[&](QPainter &q, QColor fg) {
-				paintLabel(q, position, fg, markdownSt, context);
+				paintContent(q, position, fg, markdownSt, context);
 			});
 	} else {
 		const auto primary = (_color == ButtonColor::Primary);
@@ -2149,7 +2183,7 @@ void InlineButtonObject::paint(QPainter &p, const Context &context) {
 				? st.disabledPrimaryOpacity
 				: st.disabledOpacity));
 		}
-		paintLabel(p, position, colors.fg, markdownSt, context);
+		paintContent(p, position, colors.fg, markdownSt, context);
 	}
 	p.restore();
 }

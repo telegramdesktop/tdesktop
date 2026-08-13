@@ -91,6 +91,9 @@ struct RichButtonLoading {
 	QColor bg,
 	QColor ripple);
 
+[[nodiscard]] const style::icon *RichButtonIcon(
+	HistoryMessageMarkupButton::Type type);
+
 [[nodiscard]] int ButtonRowMinWidth(
 	int count,
 	const style::MarkdownButtonRow &st);

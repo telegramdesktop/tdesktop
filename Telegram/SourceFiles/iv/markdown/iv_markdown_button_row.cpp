@@ -37,20 +37,6 @@ constexpr auto kLoadingGlareDuration = crl::time(1100);
 constexpr auto kLoadingIdleTimeout = crl::time(500);
 constexpr auto kLoadingDisabledPollInterval = crl::time(300);
 
-[[nodiscard]] const style::icon *ButtonRowIcon(ButtonType type) {
-	switch (type) {
-	case ButtonType::Url:
-	case ButtonType::Auth: return &st::msgBotKbUrlIcon;
-	case ButtonType::Buy: return &st::msgBotKbPaymentIcon;
-	case ButtonType::SwitchInline:
-	case ButtonType::SwitchInlineSame: return &st::msgBotKbSwitchPmIcon;
-	case ButtonType::WebView:
-	case ButtonType::SimpleWebView: return &st::msgBotKbWebviewIcon;
-	case ButtonType::CopyText: return &st::msgBotKbCopyIcon;
-	}
-	return nullptr;
-}
-
 [[nodiscard]] const HistoryMessageMarkupButton *LookupRuntimeButton(
 		const std::weak_ptr<ButtonRowRuntime> &weak,
 		int index) {
@@ -131,7 +117,7 @@ const HistoryMessageMarkupButton *RichPageButtonClickHandler::lookup() const {
 [[nodiscard]] int NaturalButtonWidth(
 		const LaidOutButton &button,
 		const style::MarkdownButtonRow &st) {
-	const auto icon = ButtonRowIcon(button.type);
+	const auto icon = RichButtonIcon(button.type);
 	const auto extra = icon ? st.iconExtra : 0;
 	return std::max(
 		st.height,
@@ -212,7 +198,7 @@ void ApplyButtonFallbackLadder(
 		int width,
 		const style::MarkdownButtonRow &st) {
 	const auto natural = button->label.maxWidth();
-	const auto icon = ButtonRowIcon(button->type);
+	const auto icon = RichButtonIcon(button->type);
 	const auto extra = icon ? st.iconExtra : 0;
 	const auto clearance = (width - natural) / 2;
 	const auto iconRoom = st.iconPosition.x() + (icon ? icon->width() : 0);
@@ -490,6 +476,20 @@ void RichButtonLoadingTick(not_null<RichButtonLoadingState*> state) {
 
 ButtonRowRuntime::ButtonRowRuntime(Fn<void()> repaint)
 : repaint(std::move(repaint)) {
+}
+
+const style::icon *RichButtonIcon(ButtonType type) {
+	switch (type) {
+	case ButtonType::Url:
+	case ButtonType::Auth: return &st::msgBotKbUrlIcon;
+	case ButtonType::Buy: return &st::msgBotKbPaymentIcon;
+	case ButtonType::SwitchInline:
+	case ButtonType::SwitchInlineSame: return &st::msgBotKbSwitchPmIcon;
+	case ButtonType::WebView:
+	case ButtonType::SimpleWebView: return &st::msgBotKbWebviewIcon;
+	case ButtonType::CopyText: return &st::msgBotKbCopyIcon;
+	}
+	return nullptr;
 }
 
 int ButtonRowMinWidth(int count, const style::MarkdownButtonRow &st) {
