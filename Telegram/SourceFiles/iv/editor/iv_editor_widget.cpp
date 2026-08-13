@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_qptr.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/message_field.h"
+#include "chat_helpers/rich_paste_toast.h"
 #include "core/mime_type.h"
 #include "data/data_msg_id.h"
 #include "data/data_types.h"
@@ -7357,8 +7358,10 @@ bool Widget::handleIvClipboardMime(
 			if (action == Ui::InputField::MimeAction::Check) {
 				return true;
 			}
+			const auto text = data->text();
 			crl::on_main(this, [=, imported = std::move(*imported)]() mutable {
 				pasteImportedBlocks(std::move(imported));
+				offerPlainMarkdownPaste(text);
 			});
 			return true;
 		}
@@ -7389,6 +7392,34 @@ bool Widget::handleIvClipboardMime(
 		}
 	}
 	return false;
+}
+
+void Widget::offerPlainMarkdownPaste(const QString &text) {
+	auto pasted = std::make_shared<RichPage>(_state->richPage());
+	ChatHelpers::ShowRichPasteToast({
+		.session = _session,
+		.parent = _outer,
+		.bottomOffset = rpl::single(_bottomContentPadding),
+		.cancel = autosaveEvents() | rpl::to_empty,
+		.offer = ChatHelpers::RichPasteOffer::Plain,
+		.action = crl::guard(this, [=] {
+			undoMarkdownPaste(text, *pasted);
+		}),
+	});
+}
+
+void Widget::undoMarkdownPaste(const QString &text, const RichPage &pasted) {
+	if (_state->richPage() != pasted) {
+		return;
+	}
+	performUndoRedo(false);
+	auto page = SplitTextIntoRichPage(TextWithEntities{ text });
+	if (page.blocks.empty()) {
+		return;
+	}
+	crl::on_main(this, [=, blocks = std::move(page.blocks)]() mutable {
+		pasteImportedBlocks({ .blocks = std::move(blocks) });
+	});
 }
 
 int Widget::richOffsetForFieldOffset(

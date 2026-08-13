@@ -666,6 +666,8 @@ private:
 	[[nodiscard]] bool handleIvClipboardMime(
 		not_null<const QMimeData*> data,
 		Ui::InputField::MimeAction action);
+	void offerPlainMarkdownPaste(const QString &text);
+	void undoMarkdownPaste(const QString &text, const RichPage &pasted);
 	[[nodiscard]] bool moveBoundary(bool forward, bool allowTrailing);
 
 	// At the very first text node with no editable node above, inserts an
