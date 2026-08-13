@@ -123,6 +123,8 @@ PRIVATE
     iv/markdown/iv_markdown_prepare_state.h
     iv/markdown/iv_markdown_slideshow_chrome.cpp
     iv/markdown/iv_markdown_slideshow_chrome.h
+    iv/markdown/iv_markdown_theme.cpp
+    iv/markdown/iv_markdown_theme.h
     iv/markdown/iv_markdown_view.cpp
     iv/markdown/iv_markdown_view.h
     iv/markdown/iv_markdown_view_widget.cpp

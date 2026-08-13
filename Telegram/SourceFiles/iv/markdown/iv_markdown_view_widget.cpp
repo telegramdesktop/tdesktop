@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/markdown/iv_markdown_article_selection.h"
 #include "iv/markdown/iv_markdown_article_text.h"
 #include "iv/markdown/iv_markdown_prepare_native_richtext.h"
+#include "iv/markdown/iv_markdown_theme.h"
 #include "lang/lang_keys.h"
 #include "spellcheck/spellcheck_highlight_syntax.h"
 #include "ui/chat/chat_style.h"
@@ -101,30 +102,6 @@ void EnsurePrePaintCache(
 	cache->header.setAlpha(Ui::kDefaultOutline2Opacity * 255);
 	cache->icon = color->c;
 	cache->icon.setAlpha(Ui::kDefaultOutline3Opacity * 255);
-}
-
-[[nodiscard]] std::vector<Ui::Text::SpecialColor> HighlightColors(
-		not_null<const Ui::ChatStyle*> style) {
-	auto result = Ui::SyntaxHighlightColors(style);
-
-	const auto &fg = style->lightButtonFg();
-	const auto &bg = style->lightButtonBgOver();
-	result.push_back({ &fg->p, &fg->p, &bg->b, &bg->b });
-
-	Ensures(result.size() == kNativeIvLinkSpecialColorIndex);
-	return result;
-}
-
-[[nodiscard]] std::unique_ptr<Ui::ChatTheme> CreateStandaloneChatTheme() {
-	const auto palette = style::main_palette::get();
-	return std::make_unique<Ui::ChatTheme>(Ui::ChatThemeDescriptor{
-		.preparePalette = [=](style::palette &copy) {
-			copy = *palette;
-		},
-		.backgroundData = {
-			.colors = { palette->windowBg()->c },
-		},
-	});
 }
 
 [[nodiscard]] QPoint LocalPosition(QWheelEvent *e) {
