@@ -993,6 +993,7 @@ void ChatWidget::setupComposeControls() {
 				: std::make_shared<HistoryView::ScheduledMemento>(_history));
 	}, lifetime());
 
+	_composeControls->setPasteToastParent(_scroll.get());
 	_composeControls->setMimeDataHook([=](
 			not_null<const QMimeData*> data,
 			Ui::InputField::MimeAction action) {

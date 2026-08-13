@@ -245,6 +245,7 @@ void WelcomeMessagesWidget::setupComposeControls() {
 			});
 		}
 	}, lifetime());
+	_composeControls->setPasteToastParent(_scroll.data());
 	_composeControls->setHistory({
 		.history = _history.get(),
 		.sendActionFactory = [=] { return Api::SendAction(_history); },

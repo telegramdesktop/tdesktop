@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/compose/compose_show.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/message_field.h"
+#include "chat_helpers/rich_paste_toast.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_section.h"
 #include "chat_helpers/tabbed_selector.h"
@@ -1933,23 +1934,72 @@ rpl::producer<std::optional<bool>> ComposeControls::attachRequests() const {
 }
 
 void ComposeControls::setMimeDataHook(MimeDataHook hook) {
-	if (_sendAsFile) {
-		_field->setMimeDataHook(
-			WrappedMessageFieldMimeHook(
-				[=, originalHook = std::move(hook)](
-						not_null<const QMimeData*> data,
-						Ui::InputField::MimeAction action) {
-					if (checkLargeTextPaste(data, action)) {
-						return true;
-					}
-					return originalHook
-						? originalHook(data, action)
-						: false;
-				}, _field));
-	} else {
-		_field->setMimeDataHook(
-			WrappedMessageFieldMimeHook(std::move(hook), _field));
+	const auto large = (_sendAsFile != nullptr);
+	_field->setMimeDataHook(
+		WrappedMessageFieldMimeHook(
+			[=, originalHook = std::move(hook)](
+					not_null<const QMimeData*> data,
+					Ui::InputField::MimeAction action) {
+				if (large && checkLargeTextPaste(data, action)) {
+					return true;
+				} else if (originalHook && originalHook(data, action)) {
+					return true;
+				} else if (action == Ui::InputField::MimeAction::Insert) {
+					offerRichPaste(data);
+				}
+				return false;
+			}, _field));
+}
+
+void ComposeControls::setPasteToastParent(not_null<QWidget*> parent) {
+	_pasteToastParent = parent.get();
+}
+
+void ComposeControls::offerRichPaste(not_null<const QMimeData*> data) {
+	const auto session = &_show->session();
+	if (!_history
+		|| !_pasteToastParent
+		|| !canShowRichEditor()
+		|| isEditingMessage()
+		|| !ChatHelpers::MimeDataLosesRichFormatting(session, data)) {
+		return;
 	}
+	const auto copy = ChatHelpers::CloneMimeData(data);
+	const auto was = _field->getTextWithTags();
+	const auto cursor = _field->textCursor();
+	const auto position = cursor.position();
+	const auto anchor = cursor.anchor();
+	crl::on_main(_wrap.get(), [=] {
+		const auto now = _field->getTextWithTags();
+		const auto parent = _pasteToastParent.data();
+		if ((now == was) || !parent) {
+			return;
+		}
+		ChatHelpers::ShowRichPasteToast({
+			.session = session,
+			.parent = parent,
+			.cancel = _field->changes(),
+			.action = crl::guard(_wrap.get(), [=] {
+				if (_field->getTextWithTags() == now) {
+					_field->setTextWithTags(was);
+					auto cursor = _field->textCursor();
+					cursor.setPosition(anchor);
+					if (position != anchor) {
+						cursor.setPosition(position, QTextCursor::KeepAnchor);
+					}
+					_field->setTextCursor(cursor);
+				}
+				showRichEditorWithPaste(copy);
+			}),
+		});
+	});
+}
+
+void ComposeControls::showRichEditorWithPaste(
+		std::shared_ptr<QMimeData> data) {
+	_pendingRichPaste = std::move(data);
+	showRichEditor();
+	_pendingRichPaste = nullptr;
 }
 
 bool ComposeControls::confirmMediaEdit(Ui::PreparedList &list) {
@@ -2363,6 +2413,7 @@ void ComposeControls::init() {
 		auto p = QPainter(_wrap.get());
 		paintBackground(p, _wrap->rect(), clip);
 	}, _wrap->lifetime());
+
 
 	_header->editMsgIdValue(
 	) | rpl::on_next([=](const auto &id) {
@@ -3928,6 +3979,7 @@ void ComposeControls::showRichEditor() {
 			}),
 			Options{
 				.scope = Options::Scope::Detached,
+				.initialPaste = _pendingRichPaste,
 				.submitPolicy = Options::SubmitPolicy::Schedule,
 				.returnText = crl::guard(
 					_wrap.get(),
@@ -3962,6 +4014,7 @@ void ComposeControls::showRichEditor() {
 			}),
 			Options{
 				.scope = Options::Scope::Detached,
+				.initialPaste = _pendingRichPaste,
 				.returnText = crl::guard(
 					_wrap.get(),
 					[=](TextWithTags text) {
@@ -3990,6 +4043,7 @@ void ComposeControls::showRichEditor() {
 			}),
 			Options{
 				.scope = Options::Scope::Detached,
+				.initialPaste = _pendingRichPaste,
 				.returnText = crl::guard(
 					_wrap.get(),
 					[=](TextWithTags text) {
@@ -4012,7 +4066,10 @@ void ComposeControls::showRichEditor() {
 		getTextWithAppliedMarkdown(),
 		crl::guard(_wrap.get(), [=] {
 			migrateFieldToRichEditor();
-		}));
+		}),
+		Iv::Editor::ComposeBoxOptions{
+			.initialPaste = _pendingRichPaste,
+		});
 }
 
 void ComposeControls::setSendAsFileConfirmed(
