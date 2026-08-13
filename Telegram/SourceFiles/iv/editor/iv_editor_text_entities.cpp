@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/editor/iv_editor_text_entities.h"
 
+#include "ui/text/text_utilities.h"
+
 #include "iv/markdown/iv_markdown_prepare_serialize.h"
 #include "iv/markdown/iv_markdown_prepare_links.h"
 #include "ui/widgets/fields/input_field.h"
@@ -23,21 +25,6 @@ struct FormulaReplacement {
 	int length = 0;
 	QString source;
 };
-
-struct TextRange {
-	int offset = 0;
-	int length = 0;
-};
-
-[[nodiscard]] bool RangeInsideText(
-		const QString &text,
-		int offset,
-		int length) {
-	return (offset >= 0)
-		&& (length >= 0)
-		&& (offset <= text.size())
-		&& (length <= text.size() - offset);
-}
 
 [[nodiscard]] bool IsInlineObjectSpan(
 		const QString &text,
@@ -433,10 +420,6 @@ void SortTags(TextWithTags::Tags *tags) {
 	});
 }
 
-[[nodiscard]] bool TagContains(QStringView tags, QStringView tagId) {
-	return TextUtilities::SplitTags(tags).contains(tagId);
-}
-
 [[nodiscard]] bool TagContainsOtherThan(QStringView tags, QStringView tagId) {
 	for (const auto &tag : TextUtilities::SplitTags(tags)) {
 		if (tag != tagId) {
@@ -631,6 +614,109 @@ void RemoveOrphanInlineObjects(QString *text, EntitiesInText *entities) {
 }
 
 } // namespace
+
+bool RangeInsideText(
+		const QString &text,
+		int offset,
+		int length) {
+	return (offset >= 0)
+		&& (length >= 0)
+		&& (offset <= text.size())
+		&& (length <= text.size() - offset);
+}
+
+bool TagContains(QStringView tags, QStringView tagId) {
+	return TextUtilities::SplitTags(tags).contains(tagId);
+}
+
+bool HasFullTextTag(
+		const TextWithTags &textWithTags,
+		const QString &tag) {
+	if (tag.isEmpty() || textWithTags.text.isEmpty()) {
+		return false;
+	}
+	auto ranges = std::vector<TextRange>();
+	ranges.reserve(textWithTags.tags.size());
+	for (const auto &existing : textWithTags.tags) {
+		if (existing.length <= 0
+			|| !RangeInsideText(
+				textWithTags.text,
+				existing.offset,
+				existing.length)
+			|| !TagContains(existing.id, tag)) {
+			continue;
+		}
+		ranges.push_back({
+			.offset = existing.offset,
+			.length = existing.length,
+		});
+	}
+	if (ranges.empty()) {
+		return false;
+	}
+	std::sort(ranges.begin(), ranges.end(), [](const auto &a, const auto &b) {
+		if (a.offset != b.offset) {
+			return a.offset < b.offset;
+		}
+		return a.length < b.length;
+	});
+	auto coveredTill = 0;
+	for (const auto &range : ranges) {
+		if (range.offset > coveredTill) {
+			return false;
+		}
+		coveredTill = std::max(coveredTill, range.offset + range.length);
+		if (coveredTill >= textWithTags.text.size()) {
+			return true;
+		}
+	}
+	return (coveredTill >= textWithTags.text.size());
+}
+
+bool SplitTextSpan(
+		const TextWithEntities &text,
+		int from,
+		int till,
+		TextWithEntities *before,
+		TextWithEntities *selected,
+		TextWithEntities *after) {
+	if (!before || !selected || !after) {
+		return false;
+	}
+	const auto textSize = int(text.text.size());
+	from = std::clamp(from, 0, textSize);
+	till = std::clamp(till, from, textSize);
+	if (from >= till) {
+		return false;
+	}
+	*before = Ui::Text::Mid(text, 0, from);
+	*selected = Ui::Text::Mid(text, from, till - from);
+	if (selected->text.isEmpty()) {
+		return false;
+	}
+	*after = Ui::Text::Mid(text, till);
+	return true;
+}
+
+std::vector<TextWithEntities> SplitFieldText(
+		TextWithEntities text) {
+	auto result = std::vector<TextWithEntities>();
+	auto left = std::move(text);
+	auto consumed = 0;
+	while (!left.text.isEmpty() && consumed < kMaxCommittedFieldLength) {
+		auto part = TextWithEntities();
+		const auto limit = std::min(
+			kMaxRichTextNodeLength,
+			kMaxCommittedFieldLength - consumed);
+		if (!TextUtilities::CutPart(part, left, limit)
+			|| part.text.isEmpty()) {
+			break;
+		}
+		consumed += part.text.size();
+		result.push_back(std::move(part));
+	}
+	return result;
+}
 
 RichTextEditorConversion ConvertRichTextToEditorTags(TextWithEntities text) {
 	auto formulas = std::vector<FormulaReplacement>();
