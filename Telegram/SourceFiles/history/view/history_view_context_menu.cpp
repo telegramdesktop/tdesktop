@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_web_page.h"
 #include "history/view/reactions/history_view_reactions_list.h"
 #include "info/info_memento.h"
+#include "iv/editor/iv_editor_session.h"
 #include "iv/iv_rich_message_html_export.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/menu/menu_action.h"
@@ -764,7 +765,8 @@ bool AddEditMessageAction(
 		if (!item) {
 			return;
 		}
-		if (item->richPage()) {
+		if (item->richPage()
+			|| Iv::Editor::HasEditWindowFor(&owner->session(), itemId)) {
 			Ui::PreventDelayedActivation();
 		}
 		list->editMessageRequestNotify(item->fullId());

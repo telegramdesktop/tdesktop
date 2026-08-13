@@ -90,6 +90,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "mainwidget.h"
+#include "iv/editor/iv_editor_session.h"
 #include "iv/iv_rich_message_html_export.h"
 #include "menu/menu_item_download_files.h"
 #include "menu/menu_item_rate_transcribe.h"
@@ -3013,7 +3014,10 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					if (!selection.empty()) {
 						clearSelected(true);
 					}
-					if (item->richPage()) {
+					if (item->richPage()
+						|| Iv::Editor::HasEditWindowFor(
+							session,
+							editItemId)) {
 						Ui::PreventDelayedActivation();
 					}
 					_widget->editMessage(item, selection);
