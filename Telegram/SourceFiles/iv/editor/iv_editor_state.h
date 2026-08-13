@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "iv/editor/iv_editor_clipboard.h"
+#include "iv/editor/iv_editor_page_blocks.h"
 #include "iv/iv_rich_page.h"
 #include "iv/markdown/iv_markdown_prepare.h"
 
@@ -36,38 +37,8 @@ public:
 		FullRebuild,
 	};
 
-	enum class InsertBlockType : uchar {
-		Heading,
-		Blockquote,
-		Code,
-		Math,
-		Footer,
-		Divider,
-		Anchor,
-		OrderedList,
-		BulletList,
-		TaskList,
-		Pullquote,
-		Photo,
-		Video,
-		Audio,
-		Details,
-		Table,
-		Map,
-	};
-
-	struct InsertAction {
-		InsertBlockType type;
-		int headingLevel = 1;
-		int orderedStart = 1;
-		bool taskChecked = false;
-		QString codeLanguage;
-		double latitude = 0.;
-		double longitude = 0.;
-	};
-
-	[[nodiscard]] static bool BlockConversionExpandsToActiveLine(
-		InsertBlockType type);
+	using InsertBlockType = Editor::InsertBlockType;
+	using InsertAction = Editor::InsertAction;
 
 	enum class BlockContainerKind : uchar {
 		Root,
