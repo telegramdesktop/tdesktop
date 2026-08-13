@@ -458,8 +458,22 @@ SendButton::RippleShape SendButton::currentRippleShape() const {
 QRect SendButton::sendEllipseRect() const {
 	const auto &sendIcon = _st.inner.icon;
 	const auto padding = _st.sendIconFillPadding;
-	return QRect(_st.sendIconPosition, sendIcon.size()).marginsAdded(
-		{ padding, padding, padding, padding });
+	const auto natural = QRect(
+		_st.sendIconPosition,
+		sendIcon.size()
+	).marginsAdded({ padding, padding, padding, padding });
+
+	const auto side = std::min({
+		natural.width(),
+		natural.height(),
+		width(),
+		height(),
+	});
+	return QRect(
+		(width() - side) / 2,
+		(height() - side) / 2,
+		side,
+		side);
 }
 
 QRect SendButton::scheduleEllipseRect() const {
