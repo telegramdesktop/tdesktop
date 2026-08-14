@@ -1280,8 +1280,6 @@ void TopBarWidget::setAnimatingMode(bool enabled) {
 	if (_animatingMode != enabled) {
 		_animatingMode = enabled;
 		setAttribute(Qt::WA_OpaquePaintEvent, !_animatingMode);
-	}
-	if (!_animatingMode) {
 		finishAnimating();
 	} else if (!enabled) {
 		finishAnimating();
