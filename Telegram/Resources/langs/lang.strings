@@ -5654,6 +5654,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_send_video" = "Send a video file";
 
 "lng_forward_choose" = "Forward to…";
+"lng_forward_your_channel" = "Your Channel";
+"lng_forward_your_chats" = "Your Chats";
 "lng_forward_cant" = "Sorry, no way to forward here :(";
 "lng_forward_share_contact" = "Share contact to {recipient}?";
 "lng_forward_share_cant" = "Sorry, no way to share contact here :(";
