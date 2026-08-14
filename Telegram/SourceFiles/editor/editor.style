@@ -203,7 +203,10 @@ photoEditorCropMinSize: 20px;
 
 photoEditorItemHandleSize: 10px;
 
-videoTimelineHeight: 54px;
+videoTimelineStripHeight: 54px;
+videoTimelineLabelHeight: 18px;
+videoTimelineLabelSkip: 5px;
+videoTimelineHeight: videoTimelineLabelHeight + videoTimelineLabelSkip + videoTimelineStripHeight;
 videoTimelineRadius: 6px;
 videoTimelineHandleWidth: 11px;
 videoTimelineHandleGripWidth: 2px;
@@ -219,25 +222,17 @@ videoTimelineDurationFg: mediaviewCaptionFg;
 videoTimelineDurationStyle: TextStyle(defaultTextStyle) {
 	font: font(12px semibold);
 }
-videoTimelineDurationPadding: margins(6px, 2px, 6px, 2px);
 
-videoEditorConfirmButton: RoundButton(defaultActiveButton) {
-	height: 36px;
-	textTop: 9px;
-	padding: margins(18px, 0px, 18px, 0px);
-	style: photoEditorButtonStyle;
-}
-videoEditorCancelButton: RoundButton(videoEditorConfirmButton) {
-	textFg: mediaviewCaptionFg;
-	textFgOver: mediaviewCaptionFg;
-	textBg: photoEditorEdgeButtonBg;
-	textBgOver: photoEditorEdgeButtonBg;
-}
-videoEditorControlsHeight: 128px;
-videoEditorTimelineTop: 12px;
-videoEditorButtonsTop: 78px;
-videoEditorButtonSkip: 10px;
-videoEditorContentMargins: margins(20px, 20px, 20px, 128px);
+// videoEditorTimelineTop + videoTimelineHeight + videoEditorBarSkip
+// + photoEditorButtonBarHeight + videoEditorBarBottomSkip
+videoEditorControlsHeight: 169px;
+videoEditorTimelineTop: 10px;
+videoEditorBarSkip: 14px;
+videoEditorBarBottomSkip: 20px;
+videoEditorContentMargins: margins(20px, 20px, 20px, 169px);
+videoEditorPlayIcon: icon {{ "player/player_play", mediaviewControlFg }};
+videoEditorPlayBadgeSize: 68px;
+videoEditorPlayBadgeBg: mediaviewCaptionBg;
 videoEditorAbout: FlatLabel(photoEditorAbout) {
 }
 videoEditorAboutMargin: margins(10px, 10px, 10px, 0px);

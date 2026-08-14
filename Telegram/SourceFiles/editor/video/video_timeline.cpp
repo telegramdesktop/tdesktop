@@ -58,7 +58,29 @@ int VideoTimeline::resizeGetHeight(int newWidth) {
 }
 
 QRect VideoTimeline::stripRect() const {
-	return rect();
+	const auto top = st::videoTimelineLabelHeight
+		+ st::videoTimelineLabelSkip;
+	return QRect(0, top, width(), st::videoTimelineStripHeight);
+}
+
+QRect VideoTimeline::labelRect() const {
+	return QRect(0, 0, width(), st::videoTimelineLabelHeight);
+}
+
+void VideoTimeline::moveWindowTo(crl::time center) {
+	const auto span = _till - _from;
+	const auto half = span / 2;
+	const auto from = std::clamp(
+		center - half,
+		crl::time(0),
+		std::max(_duration - span, crl::time(0)));
+	if (_from == from) {
+		return;
+	}
+	_from = from;
+	_till = from + span;
+	setCover(std::clamp(_cover, _from, _till), true);
+	_trimChanges.fire_copy(_from);
 }
 
 crl::time VideoTimeline::timeAt(int x) const {
@@ -164,8 +186,12 @@ VideoTimeline::Grab VideoTimeline::grabAt(QPoint position) const {
 	}
 	if (best != Grab::None) {
 		return best;
+	} else if (std::abs(x - xAt(_cover)) <= slop) {
+		return Grab::Head;
+	} else if (x >= xAt(_from) && x <= xAt(_till)) {
+		return Grab::Head;
 	}
-	return (std::abs(x - xAt(_cover)) <= slop) ? Grab::Head : Grab::None;
+	return Grab::Window;
 }
 
 crl::time VideoTimeline::minSelection() const {
@@ -192,16 +218,12 @@ void VideoTimeline::mousePressEvent(QMouseEvent *e) {
 	}
 	const auto position = e->pos();
 	_grab = grabAt(position);
-	if (_grab == Grab::None) {
-		_grab = Grab::Head;
-		_grabShift = 0;
+	if (_grab == Grab::Left) {
+		_grabShift = position.x() - xAt(_from);
+	} else if (_grab == Grab::Right) {
+		_grabShift = position.x() - xAt(_till);
 	} else {
-		const auto anchor = (_grab == Grab::Left)
-			? xAt(_from)
-			: (_grab == Grab::Right)
-			? xAt(_till)
-			: xAt(_cover);
-		_grabShift = position.x() - anchor;
+		_grabShift = 0;
 	}
 	updateCursor(_grab);
 	_draggingChanges.fire(true);
@@ -256,6 +278,9 @@ void VideoTimeline::applyGrab(QPoint position) {
 	} break;
 	case Grab::Head: {
 		setCover(std::clamp(at, _from, _till), true);
+	} break;
+	case Grab::Window: {
+		moveWindowTo(at);
 	} break;
 	case Grab::None: return;
 	}
@@ -385,31 +410,28 @@ void VideoTimeline::paintHead(QPainter &p, const QRect &strip) {
 }
 
 void VideoTimeline::paintDuration(QPainter &p, const QRect &strip) {
-	const auto span = _till - _from;
-	const auto text = (span < 60 * crl::time(1000))
-		? (Ui::FormatDurationText(int(span / 1000))
+	const auto stamp = [](crl::time value) {
+		return Ui::FormatDurationText(int(value / 1000))
 			+ '.'
-			+ QString::number((span % 1000) / 100))
-		: Ui::FormatDurationText(int(span / 1000));
+			+ QString::number((value % 1000) / 100);
+	};
+	const auto text = (_till - _from >= _duration)
+		? stamp(_till - _from)
+		: (stamp(_from) + QString::fromUtf8(" – ") + stamp(_till));
+	const auto label = labelRect();
 	const auto &font = st::videoTimelineDurationStyle.font;
-	const auto padding = st::videoTimelineDurationPadding;
-	const auto width = font->width(text)
-		+ padding.left()
-		+ padding.right();
-	const auto height = font->height + padding.top() + padding.bottom();
+	const auto width = font->width(text);
 	const auto center = (xAt(_from) + xAt(_till)) / 2;
 	const auto x = std::clamp(
 		center - width / 2,
-		strip.x(),
-		strip.x() + std::max(strip.width() - width, 0));
-	const auto y = strip.y() + (strip.height() - height) / 2;
-	const auto box = QRectF(x, y, width, height);
-	p.setPen(Qt::NoPen);
-	p.setBrush(st::videoTimelineDimBg);
-	p.drawRoundedRect(box, height / 2., height / 2.);
+		label.x(),
+		label.x() + std::max(label.width() - width, 0));
 	p.setPen(st::videoTimelineDurationFg);
 	p.setFont(font);
-	p.drawText(box, Qt::AlignCenter, text);
+	p.drawText(
+		QRect(x, label.y(), width, label.height()),
+		Qt::AlignVCenter | Qt::AlignLeft,
+		text);
 }
 
 } // namespace Editor

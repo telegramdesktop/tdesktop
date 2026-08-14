@@ -60,6 +60,8 @@ private:
 		Left,
 		Right,
 		Head,
+
+		Window,
 	};
 
 	void paintEvent(QPaintEvent *e) override;
@@ -69,7 +71,9 @@ private:
 	void leaveEventHook(QEvent *e) override;
 
 	[[nodiscard]] QRect stripRect() const;
+	[[nodiscard]] QRect labelRect() const;
 	[[nodiscard]] crl::time minSelection() const;
+	void moveWindowTo(crl::time center);
 	[[nodiscard]] crl::time timeAt(int x) const;
 	[[nodiscard]] int xAt(crl::time time) const;
 	[[nodiscard]] Grab grabAt(QPoint position) const;

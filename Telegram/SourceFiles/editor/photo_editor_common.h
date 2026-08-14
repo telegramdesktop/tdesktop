@@ -36,6 +36,8 @@ struct EditorData {
 
 	TextWithEntities about;
 	QString confirm;
+
+	QString confirmVideo;
 	QSize exactSize;
 	CropType cropType = CropType::Rect;
 	CropMode cropMode = CropMode::Hint;

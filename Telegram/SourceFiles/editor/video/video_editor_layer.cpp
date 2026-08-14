@@ -33,6 +33,9 @@ constexpr auto kMaxSideRatio = 10;
 
 VideoEditorData ProfileVideoEditorData(EditorData data) {
 	data.keepAspectRatio = true;
+	if (!data.confirmVideo.isEmpty()) {
+		data.confirm = data.confirmVideo;
+	}
 	return {
 		.editor = std::move(data),
 		.exactSize = QSize(kProfileVideoSide, kProfileVideoSide),

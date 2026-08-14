@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_loader_local.h"
 #include "media/streaming/media_streaming_player.h"
 #include "media/view/media_view_pip.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/layers/layer_widget.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -23,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_editor.h"
 
 #include <QtGui/QtEvents>
+#include <QtWidgets/QApplication>
 
 namespace Editor {
 namespace {
@@ -30,6 +32,103 @@ namespace {
 using Media::View::FlipSizeByRotation;
 
 constexpr auto kSeekThrottle = crl::time(120);
+
+class ControlsBar final : public Ui::RpWidget {
+public:
+	using RpWidget::RpWidget;
+
+	void layoutChildren();
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+
+};
+
+void ControlsBar::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+	auto hq = PainterHighQualityEnabler(p);
+	const auto radius = std::min(width(), height()) / 2.;
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::roundedBg);
+	p.drawRoundedRect(rect(), radius, radius);
+}
+
+void ControlsBar::layoutChildren() {
+	auto widgets = std::vector<QWidget*>();
+	for (const auto child : children()) {
+		if (child->isWidgetType()) {
+			widgets.push_back(static_cast<QWidget*>(child));
+		}
+	}
+	if (widgets.empty() || width() <= 0) {
+		return;
+	}
+	auto total = 0;
+	for (const auto widget : widgets) {
+		total += widget->width();
+	}
+	const auto count = int(widgets.size());
+	const auto step = (count > 1)
+		? ((width() - total) / float64(count - 1))
+		: 0.;
+	auto left = 0.;
+	for (const auto widget : widgets) {
+		widget->move(
+			int(base::SafeRound(left)),
+			(height() - widget->height()) / 2);
+		left += widget->width() + step;
+	}
+}
+
+class BarTextButton final : public Ui::RippleButton {
+public:
+	BarTextButton(
+		not_null<Ui::RpWidget*> parent,
+		const QString &text,
+		const style::color &fg);
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+	[[nodiscard]] QImage prepareRippleMask() const override;
+
+	const style::color &_fg;
+	const QString _text;
+
+};
+
+BarTextButton::BarTextButton(
+	not_null<Ui::RpWidget*> parent,
+	const QString &text,
+	const style::color &fg)
+: RippleButton(parent, st::photoEditorRotateButton.ripple)
+, _fg(fg)
+, _text(text) {
+	const auto &padding = st::photoEditorTextButtonPadding;
+	resize(
+		st::photoEditorButtonStyle.font->width(_text)
+			+ padding.left()
+			+ padding.right(),
+		st::photoEditorButtonBarHeight);
+}
+
+QImage BarTextButton::prepareRippleMask() const {
+	return Ui::RippleAnimation::RoundRectMask(size(), height() / 2);
+}
+
+void BarTextButton::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+	auto hq = PainterHighQualityEnabler(p);
+	if (isOver() || isDown()) {
+		const auto radius = height() / 2.;
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::photoEditorEdgeButtonBg);
+		p.drawRoundedRect(rect(), radius, radius);
+	}
+	paintRipple(p, 0, 0);
+	p.setPen(_fg);
+	p.setFont(st::photoEditorButtonStyle.font);
+	p.drawText(rect(), Qt::AlignCenter, _text);
+}
 
 [[nodiscard]] Media::Streaming::FrameRequest FrameRequestFor(QSize size) {
 	auto result = Media::Streaming::FrameRequest();
@@ -65,9 +164,10 @@ VideoEditor::VideoEditor(
 		_dimensions,
 		_data.editor);
 
-	setupTimeline();
 	setupControls();
+	setupTimeline();
 	setupStreaming();
+	setupTapToPause();
 
 	sizeValue(
 	) | rpl::filter([=](QSize size) {
@@ -86,8 +186,9 @@ VideoEditor::VideoEditor(
 VideoEditor::~VideoEditor() = default;
 
 void VideoEditor::setupTimeline() {
+	// A sibling of the controls container would never see a mouse press.
 	_timeline = base::make_unique_q<VideoTimeline>(
-		this,
+		_controls.get(),
 		VideoTimelineDescriptor{
 			.path = _path,
 			.dimensions = _dimensions,
@@ -132,8 +233,12 @@ void VideoEditor::setupTimeline() {
 
 	_timeline->draggingChanges(
 	) | rpl::on_next([=](bool dragging) {
-		_paused = dragging;
-		if (!dragging) {
+		_dragging = dragging;
+		if (dragging) {
+			if (_instance) {
+				_instance->pause();
+			}
+		} else {
 			seekTimer->cancel();
 			restart(_cover);
 		}
@@ -142,24 +247,25 @@ void VideoEditor::setupTimeline() {
 
 void VideoEditor::setupControls() {
 	_controls = base::make_unique_q<Ui::RpWidget>(this);
-	const auto controls = _controls.get();
+	_bar = base::make_unique_q<ControlsBar>(_controls.get());
+	const auto bar = _bar.get();
 
+	_cancelButton = base::make_unique_q<BarTextButton>(
+		bar,
+		tr::lng_cancel(tr::now),
+		st::mediaviewCaptionFg);
 	_rotate = base::make_unique_q<Ui::IconButton>(
-		controls,
+		bar,
 		st::photoEditorRotateButton);
 	_flip = base::make_unique_q<Ui::IconButton>(
-		controls,
+		bar,
 		st::photoEditorFlipButton);
-	_cancelButton = base::make_unique_q<Ui::RoundButton>(
-		controls,
-		tr::lng_cancel(),
-		st::videoEditorCancelButton);
-	_confirm = base::make_unique_q<Ui::RoundButton>(
-		controls,
+	_confirm = base::make_unique_q<BarTextButton>(
+		bar,
 		(_data.editor.confirm.isEmpty()
-			? tr::lng_settings_save()
-			: rpl::single(_data.editor.confirm)),
-		st::videoEditorConfirmButton);
+			? tr::lng_box_done(tr::now)
+			: _data.editor.confirm),
+		st::mediaviewTextLinkFg);
 
 	if (!_data.editor.about.text.isEmpty()) {
 		_about = base::make_unique_q<Ui::FlatLabel>(
@@ -214,6 +320,55 @@ void VideoEditor::setupStreaming() {
 	restart(_from);
 }
 
+bool VideoEditor::held() const {
+	return _dragging || _userPaused;
+}
+
+void VideoEditor::setupTapToPause() {
+	const auto pressed = lifetime().make_state<std::optional<QPoint>>();
+	const auto moved = lifetime().make_state<bool>(false);
+	_crop->events(
+	) | rpl::on_next([=](not_null<QEvent*> e) {
+		const auto type = e->type();
+		if (type == QEvent::MouseButtonPress) {
+			const auto mouse = static_cast<QMouseEvent*>(e.get());
+			if (mouse->button() == Qt::LeftButton) {
+				*pressed = mouse->pos();
+				*moved = false;
+			}
+		} else if (type == QEvent::MouseMove) {
+			if (pressed->has_value() && !*moved) {
+				const auto mouse = static_cast<QMouseEvent*>(e.get());
+				const auto shift = mouse->pos() - **pressed;
+				if (shift.manhattanLength()
+					>= QApplication::startDragDistance()) {
+					*moved = true;
+				}
+			}
+		} else if (type == QEvent::MouseButtonRelease) {
+			const auto tapped = pressed->has_value() && !*moved;
+			*pressed = std::nullopt;
+			*moved = false;
+			if (tapped) {
+				togglePause();
+			}
+		}
+	}, lifetime());
+}
+
+void VideoEditor::togglePause() {
+	if (!_instance) {
+		return;
+	}
+	_userPaused = !_userPaused;
+	if (_userPaused) {
+		_instance->pause();
+	} else {
+		_instance->resume();
+	}
+	update();
+}
+
 void VideoEditor::restart(crl::time position) {
 	if (!_instance) {
 		return;
@@ -231,6 +386,9 @@ void VideoEditor::restart(crl::time position) {
 	options.position = _position;
 	options.loop = false;
 	_instance->play(options);
+	if (held()) {
+		_instance->pause();
+	}
 	update();
 }
 
@@ -241,9 +399,17 @@ void VideoEditor::handleUpdate(Media::Streaming::Update &&update) {
 	}, [&](PreloadedVideo) {
 	}, [&](UpdateVideo &data) {
 		_position = data.position;
+		if (held()) {
+			_instance->pause();
+			this->update();
+			return;
+		}
 		if (_position >= _till) {
 			restart(_from);
 			return;
+		}
+		if (_timeline) {
+			_timeline->setPlaybackPosition(_position);
 		}
 		this->update();
 	}, [&](PreloadedAudio) {
@@ -309,28 +475,23 @@ void VideoEditor::applyGeometry() {
 	const auto controlsTop = size.height() - controlsHeight;
 	_controls->setGeometry(0, controlsTop, size.width(), controlsHeight);
 
-	const auto timelineWidth = std::max(
+	const auto available = std::max(
 		size.width() - st::videoEditorContentMargins.left() * 2,
 		1);
-	_timeline->resizeToWidth(timelineWidth);
-	_timeline->move(
-		st::videoEditorContentMargins.left(),
-		controlsTop + st::videoEditorTimelineTop);
+	const auto barWidth = std::min(
+		int(st::photoEditorButtonBarWidth),
+		available);
+	const auto barLeft = (size.width() - barWidth) / 2;
 
-	const auto buttonsTop = st::videoEditorButtonsTop;
-	const auto skip = st::videoEditorButtonSkip;
-	_cancelButton->moveToLeft(
-		st::videoEditorContentMargins.left(),
-		buttonsTop,
-		size.width());
-	_confirm->moveToRight(
-		st::videoEditorContentMargins.right(),
-		buttonsTop,
-		size.width());
-	const auto middle = size.width() / 2;
-	const auto pairWidth = _rotate->width() + skip + _flip->width();
-	_rotate->move(middle - pairWidth / 2, buttonsTop - 6);
-	_flip->move(_rotate->x() + _rotate->width() + skip, buttonsTop - 6);
+	_timeline->resizeToWidth(barWidth);
+	_timeline->move(barLeft, st::videoEditorTimelineTop);
+
+	_bar->setGeometry(
+		barLeft,
+		_timeline->y() + _timeline->height() + st::videoEditorBarSkip,
+		barWidth,
+		st::photoEditorButtonBarHeight);
+	static_cast<ControlsBar*>(_bar.get())->layoutChildren();
 
 	if (_about) {
 		const auto margin = st::videoEditorAboutMargin;
@@ -350,7 +511,8 @@ void VideoEditor::paint(QPainter &p) {
 		&& _instance->player().ready()
 		&& !_instance->player().videoSize().isEmpty()) {
 		frame = _instance->frame(FrameRequestFor(_frameRect.size()));
-		if (!_paused) {
+		if (!held()) {
+			// Marking a frame shown lets the player walk past a pause.
 			_instance->markFrameShown();
 		}
 	}
@@ -364,6 +526,28 @@ void VideoEditor::paint(QPainter &p) {
 	p.setTransform(_frameMatrix);
 	p.drawImage(_frameRect, frame);
 	p.resetTransform();
+
+	if (_userPaused) {
+		paintPlayBadge(p);
+	}
+}
+
+void VideoEditor::paintPlayBadge(QPainter &p) {
+	const auto side = st::videoEditorPlayBadgeSize;
+	const auto center = _innerRect.isEmpty()
+		? rect().center()
+		: _innerRect.center();
+	const auto badge = QRect(
+		center.x() - side / 2,
+		center.y() - side / 2,
+		side,
+		side);
+	auto hq = PainterHighQualityEnabler(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::videoEditorPlayBadgeBg);
+	p.drawEllipse(badge);
+	const auto &icon = st::videoEditorPlayIcon;
+	icon.paintInCenter(p, badge);
 }
 
 void VideoEditor::keyPressEvent(QKeyEvent *e) {

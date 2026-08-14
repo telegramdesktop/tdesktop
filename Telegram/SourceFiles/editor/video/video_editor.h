@@ -19,7 +19,7 @@ struct Update;
 namespace Ui {
 class IconButton;
 class LayerWidget;
-class RoundButton;
+class RippleButton;
 class FlatLabel;
 } // namespace Ui
 
@@ -57,6 +57,10 @@ private:
 	void setupTimeline();
 	void handleUpdate(Media::Streaming::Update &&update);
 	void restart(crl::time position);
+	void setupTapToPause();
+	void togglePause();
+	[[nodiscard]] bool held() const;
+	void paintPlayBadge(QPainter &p);
 	void applyGeometry();
 	void paint(QPainter &p);
 	void keyPressEvent(QKeyEvent *e) override;
@@ -76,17 +80,19 @@ private:
 	base::unique_qptr<Crop> _crop;
 	base::unique_qptr<VideoTimeline> _timeline;
 	base::unique_qptr<Ui::RpWidget> _controls;
+	base::unique_qptr<Ui::RpWidget> _bar;
 	base::unique_qptr<Ui::IconButton> _rotate;
 	base::unique_qptr<Ui::IconButton> _flip;
-	base::unique_qptr<Ui::RoundButton> _confirm;
-	base::unique_qptr<Ui::RoundButton> _cancelButton;
+	base::unique_qptr<Ui::RippleButton> _confirm;
+	base::unique_qptr<Ui::RippleButton> _cancelButton;
 	base::unique_qptr<Ui::FlatLabel> _about;
 
 	QRect _frameRect;
 	QTransform _frameMatrix;
 	QRect _innerRect;
 	QImage _lastFrame;
-	bool _paused = false;
+	bool _dragging = false;
+	bool _userPaused = false;
 
 	rpl::event_stream<VideoModifications> _done;
 	rpl::event_stream<> _cancel;
