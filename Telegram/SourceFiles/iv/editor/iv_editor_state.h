@@ -899,6 +899,10 @@ private:
 	[[nodiscard]] Markdown::PreparedEditSelection preparedSelectionForListItem(
 		const BlockPath &path,
 		int itemIndex) const;
+	[[nodiscard]] Markdown::PreparedEditSelection preparedSelectionForListItems(
+		const BlockPath &path,
+		int from,
+		int till) const;
 	[[nodiscard]] bool shouldRemoveActiveOwnerDirectly(
 		const TextNodeDescriptor &descriptor) const;
 	[[nodiscard]] bool descriptorBelongsToBlock(
