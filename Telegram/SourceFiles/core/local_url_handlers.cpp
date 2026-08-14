@@ -2178,7 +2178,8 @@ bool StartUrlRequiresActivate(const QString &url) {
 void ResolveAndShowUniqueGift(
 		std::shared_ptr<ChatHelpers::Show> show,
 		const QString &slug,
-		::Settings::CreditsEntryBoxStyleOverrides st) {
+		::Settings::CreditsEntryBoxStyleOverrides st,
+		Fn<void(QString)> fail) {
 	struct Request {
 		base::weak_ptr<Main::Session> weak;
 		QString slug;
@@ -2220,7 +2221,9 @@ void ResolveAndShowUniqueGift(
 		}
 	}).fail([=](const MTP::Error &error) {
 		clear();
-		if (!Ui::ShowGiftErrorToast(show, error)) {
+		if (fail) {
+			fail(error.type());
+		} else if (!Ui::ShowGiftErrorToast(show, error)) {
 			show->showToast(u"Error: "_q + error.type());
 		}
 	}).send();
@@ -2228,8 +2231,9 @@ void ResolveAndShowUniqueGift(
 
 void ResolveAndShowUniqueGift(
 		std::shared_ptr<ChatHelpers::Show> show,
-		const QString &slug) {
-	ResolveAndShowUniqueGift(std::move(show), slug, {});
+		const QString &slug,
+		Fn<void(QString)> fail) {
+	ResolveAndShowUniqueGift(std::move(show), slug, {}, std::move(fail));
 }
 
 TimeId ParseVideoTimestamp(QStringView value) {

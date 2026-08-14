@@ -1164,7 +1164,7 @@ void FillUniqueGiftMenu(
 	if (!unique) {
 		return;
 	}
-	if (unique->canBeTheme) {
+	if (unique->canBeTheme && show->canResolveWindow()) {
 		menu->addAction(tr::lng_gift_transfer_set_theme(tr::now), [=] {
 			if (const auto window = show->resolveWindow()) {
 				SetThemeFromUniqueGift(window, unique);
@@ -2690,7 +2690,8 @@ void UniqueGiftValueBox(
 			style::al_top);
 	};
 
-	if (const auto count = value->forSaleOnTelegram; count > 0) {
+	if (const auto count = value->forSaleOnTelegram
+		; count > 0 && show->canResolveWindow()) {
 		addAvailability(
 			count,
 			tr::lng_gift_value_telegram

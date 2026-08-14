@@ -78,6 +78,7 @@ public:
 
 	[[nodiscard]] Main::Session &session() const override;
 	[[nodiscard]] Window::SessionController *resolveWindow() const override;
+	[[nodiscard]] bool canResolveWindow() const override;
 
 	void activate() override;
 	[[nodiscard]] bool paused(
@@ -179,6 +180,10 @@ Main::Session &PanelChatShow::session() const {
 
 Window::SessionController *PanelChatShow::resolveWindow() const {
 	return nullptr;
+}
+
+bool PanelChatShow::canResolveWindow() const {
+	return false;
 }
 
 void PanelChatShow::activate() {
@@ -299,9 +304,17 @@ void Activate(
 		std::shared_ptr<CollectibleMedia> media,
 		const Gram::NftItem &item) {
 	if (item.kind == Gram::NftKind::TelegramGift && !item.key.isEmpty()) {
+		const auto weak = std::weak_ptr(media);
 		Core::ResolveAndShowUniqueGift(
-			std::make_shared<PanelChatShow>(std::move(show)),
-			item.key);
+			std::make_shared<PanelChatShow>(show),
+			item.key,
+			[=](const QString &) {
+				const auto strong = weak.lock();
+				if (strong && show->valid()) {
+					show->showBox(
+						Box(CollectiblePreviewBox, strong, item));
+				}
+			});
 		return;
 	}
 	show->showBox(Box(CollectiblePreviewBox, std::move(media), item));

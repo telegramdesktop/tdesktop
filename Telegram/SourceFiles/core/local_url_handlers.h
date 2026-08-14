@@ -51,10 +51,12 @@ struct LocalUrlHandler {
 void ResolveAndShowUniqueGift(
 	std::shared_ptr<ChatHelpers::Show> show,
 	const QString &slug,
-	::Settings::CreditsEntryBoxStyleOverrides st);
+	::Settings::CreditsEntryBoxStyleOverrides st,
+	Fn<void(QString)> fail = nullptr);
 void ResolveAndShowUniqueGift(
 	std::shared_ptr<ChatHelpers::Show> show,
-	const QString &slug);
+	const QString &slug,
+	Fn<void(QString)> fail = nullptr);
 
 [[nodiscard]] TimeId ParseVideoTimestamp(QStringView value);
 
