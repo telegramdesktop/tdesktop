@@ -623,7 +623,7 @@ void RequestUrl(
 				userIdHint);
 			box->verticalLayout()->widthValue(
 			) | rpl::on_next([=, w = (*accountResult).widget] {
-				w->moveToRight(st::lineWidth * 4, 0);
+				w->moveToRight(SwitchableUserpicButton::Skip(), 0);
 			}, (*accountResult).widget->lifetime());
 			state->anotherSession = (*accountResult).anotherSession;
 			(*accountResult).setOnUserChanged(reloadRequest);

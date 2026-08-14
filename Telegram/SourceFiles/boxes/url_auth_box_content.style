@@ -11,6 +11,11 @@ urlAuthBox: Box(defaultBox) {
 	buttonPadding: margins(0px, 0px, 0px, 12px);
 	buttonHeight: 0px;
 }
+urlAuthBoxTitle: FlatLabel(boxTitle) {
+	minWidth: 40px;
+	maxHeight: 0px;
+	align: align(top);
+}
 urlAuthCodesTitle: FlatLabel(defaultPeerListAbout) {
 	textFg: boxTitleFg;
 	style: TextStyle(defaultTextStyle) {
