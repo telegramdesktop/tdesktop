@@ -46,6 +46,11 @@ void DropOrderedItemNumbers(std::vector<RichPage::ListItem> &items);
 	const RichPage::Block &first,
 	const RichPage::Block &second);
 
+[[nodiscard]] bool ListsJoinSeamlessly(
+	const RichPage::Block &first,
+	const RichPage::Block &second,
+	bool secondStartExplicit);
+
 [[nodiscard]] RichPage::TaskState SplitTaskState(RichPage::TaskState state);
 
 [[nodiscard]] bool ClearOrderedListRawMarkers(

@@ -738,6 +738,7 @@ struct InputRule {
 			return InputRule{ {
 				.type = Type::OrderedList,
 				.orderedStart = start,
+				.orderedStartExplicit = true,
 			} };
 		}
 	}

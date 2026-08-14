@@ -4101,6 +4101,75 @@ bool State::mergeListWithNextSibling(const BlockPath &list) {
 	return true;
 }
 
+auto State::joinListWithSiblings(const BlockPath &list, bool startExplicit)
+-> std::optional<ListJoin> {
+	const auto blocks = blockContainer(list.container);
+	if (!blocks
+		|| list.index < 0
+		|| list.index >= int(blocks->size())
+		|| (*blocks)[list.index].kind != BlockKind::List) {
+		return std::nullopt;
+	}
+	const auto joinNext = (list.index + 1 < int(blocks->size()))
+		&& ListsJoinSeamlessly(
+			(*blocks)[list.index],
+			(*blocks)[list.index + 1],
+			false);
+	const auto joinPrevious = (list.index > 0)
+		&& ListsJoinSeamlessly(
+			(*blocks)[list.index - 1],
+			(*blocks)[list.index],
+			startExplicit);
+	if (!joinNext && !joinPrevious) {
+		return std::nullopt;
+	}
+	const auto join = [&](int index) {
+		auto &first = (*blocks)[index];
+		auto &second = (*blocks)[index + 1];
+		first.listItems.insert(
+			first.listItems.end(),
+			std::make_move_iterator(second.listItems.begin()),
+			std::make_move_iterator(second.listItems.end()));
+		blocks->erase(blocks->begin() + index + 1);
+	};
+	auto result = ListJoin{
+		.list = list,
+		.itemsCount = int((*blocks)[list.index].listItems.size()),
+	};
+	if (joinNext) {
+		join(list.index);
+	}
+	if (joinPrevious) {
+		result.itemsFrom = int((*blocks)[list.index - 1].listItems.size());
+		--result.list.index;
+		join(list.index - 1);
+	}
+	return result;
+}
+
+void State::joinInsertedListWithSiblings(const InsertAction &action) {
+	if (!IsListInsertType(action.type)) {
+		return;
+	}
+	const auto leaf = activeLeafPath();
+	if (!leaf || leaf->kind != LeafKind::ListItemText) {
+		return;
+	}
+	const auto joined = joinListWithSiblings(
+		leaf->block,
+		action.orderedStartExplicit);
+	if (!joined) {
+		return;
+	}
+	const auto target = LeafPath{
+		.kind = LeafKind::ListItemText,
+		.block = joined->list,
+		.listItemIndex = joined->itemsFrom + leaf->listItemIndex,
+	};
+	rebuild();
+	static_cast<void>(activateRebuiltLeaf(target));
+}
+
 bool State::canJoinActiveParagraphIntoPreviousList() const {
 	const auto listPath = listBeforeActiveParagraph();
 	return listPath && deepestLastItem(*listPath).has_value();
@@ -8760,6 +8829,9 @@ bool State::insertBlockAfterActive(
 		const auto applied = candidate.insertBlocksAfterActiveUnchecked(
 			std::move(blocks),
 			std::move(context));
+		if (applied) {
+			candidate.joinInsertedListWithSiblings(action);
+		}
 		return CheckedMutationResult<bool>{
 			.apply = applied,
 			.result = applied,

@@ -38,6 +38,7 @@ struct InsertAction {
 	InsertBlockType type;
 	int headingLevel = 1;
 	int orderedStart = 1;
+	bool orderedStartExplicit = false;
 	bool taskChecked = false;
 	QString codeLanguage;
 	double latitude = 0.;
