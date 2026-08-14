@@ -8892,6 +8892,14 @@ void Widget::finishMutationTransaction(
 	if (!snapshotChanged && (before.viewState == after.viewState)) {
 		return;
 	}
+	if ((beforeHistoryIndex >= 0)
+		&& (beforeHistoryIndex < int(_history.size()))
+		&& (before.viewState != HistoryViewState())
+		&& RichPagesEqual(
+			_history[beforeHistoryIndex].snapshot.richPage,
+			before.snapshot.richPage)) {
+		_history[beforeHistoryIndex].viewState = before.viewState;
+	}
 	truncateHistoryRedo();
 	_history.push_back(after);
 	_historyIndex = int(_history.size()) - 1;
