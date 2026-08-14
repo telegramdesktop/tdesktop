@@ -7601,7 +7601,8 @@ bool State::unwrapListItemRangeIntoParent(
 	const auto hasLeading = (from > 0);
 	const auto hasTrailing = (till < int(owner->listItems.size()));
 	const auto leadingStart = (owner->listKind == ListKind::Ordered
-		&& hasLeading)
+		&& hasLeading
+		&& owner->orderedList.reversed)
 		? EffectiveOrderedItemValue(*owner, 0)
 		: std::optional<int>();
 	const auto trailingStart = (owner->listKind == ListKind::Ordered
