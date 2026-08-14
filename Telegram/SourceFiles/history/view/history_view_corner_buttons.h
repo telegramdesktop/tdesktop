@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/effects/animations.h"
+#include "ui/rp_widget.h"
 #include "base/object_ptr.h"
 
 class History;
@@ -121,6 +122,13 @@ private:
 	const not_null<CornerButtonsDelegate*> _delegate;
 
 	rpl::lifetime _stLifetime;
+
+	// The buttons stack upwards from the corner, so they are created in the
+	// reverse of their visual order. Keeping them in a column of their own
+	// lets that column sort them by position, and lets the parent place the
+	// whole group after the list instead of before it.
+	Ui::RpWidget _column;
+	QRegion _columnMask;
 
 	CornerButton _down;
 	CornerButton _mentions;
