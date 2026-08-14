@@ -4147,6 +4147,17 @@ auto State::joinListWithSiblings(const BlockPath &list, bool startExplicit)
 	return result;
 }
 
+bool State::activeListItemIsEmpty() const {
+	const auto descriptor = textNode(_activeTextOrdinal);
+	if (!descriptor || descriptor->leaf.kind != LeafKind::ListItemText) {
+		return false;
+	}
+	const auto item = listItem(
+		descriptor->leaf.block,
+		descriptor->leaf.listItemIndex);
+	return item && ListItemIsEmpty(*item);
+}
+
 bool State::blockActionExpandsToActiveLine(InsertBlockType type) const {
 	if (!BlockConversionExpandsToActiveLine(type)) {
 		return false;

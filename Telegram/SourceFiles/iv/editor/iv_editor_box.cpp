@@ -1200,28 +1200,31 @@ void Toolbar::fillListStyleMenu(not_null<Ui::PopupMenu*> menu) {
 	const auto starSize = SessionPremium(_session)
 		? 0
 		: st::ivEditorStyleMenuPremiumStarSize;
+	const auto lists = !_editor || _editor->canInsertListAtCaret();
 	const auto addInserts = [=](not_null<Ui::PopupMenu*> target) {
-		Menu::AddActiveColorAction(
-			target,
-			tr::lng_article_insert_ordered_list(tr::now),
-			[=] { insertType(State::InsertBlockType::OrderedList); },
-			&st::ivEditorToolbarOrderedListIcon,
-			false,
-			starSize);
-		Menu::AddActiveColorAction(
-			target,
-			tr::lng_article_insert_bullet_list(tr::now),
-			[=] { insertType(State::InsertBlockType::BulletList); },
-			&st::ivEditorToolbarBulletListIcon,
-			false,
-			starSize);
-		Menu::AddActiveColorAction(
-			target,
-			tr::lng_article_insert_task_list(tr::now),
-			[=] { insertType(State::InsertBlockType::TaskList); },
-			&st::ivEditorToolbarTaskListIcon,
-			false,
-			starSize);
+		if (lists) {
+			Menu::AddActiveColorAction(
+				target,
+				tr::lng_article_insert_ordered_list(tr::now),
+				[=] { insertType(State::InsertBlockType::OrderedList); },
+				&st::ivEditorToolbarOrderedListIcon,
+				false,
+				starSize);
+			Menu::AddActiveColorAction(
+				target,
+				tr::lng_article_insert_bullet_list(tr::now),
+				[=] { insertType(State::InsertBlockType::BulletList); },
+				&st::ivEditorToolbarBulletListIcon,
+				false,
+				starSize);
+			Menu::AddActiveColorAction(
+				target,
+				tr::lng_article_insert_task_list(tr::now),
+				[=] { insertType(State::InsertBlockType::TaskList); },
+				&st::ivEditorToolbarTaskListIcon,
+				false,
+				starSize);
+		}
 		Menu::AddActiveColorAction(
 			target,
 			tr::lng_article_insert_details(tr::now),
