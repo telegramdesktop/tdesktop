@@ -870,7 +870,12 @@ private:
 		int from,
 		int till,
 		bool materializeEmptyItem,
-		BoundaryTarget *destination = nullptr);
+		BoundaryTarget *destination = nullptr,
+		StructuralBlockRange *unwrapped = nullptr);
+	[[nodiscard]] bool wrapStructuralListItemSelection(
+		const Markdown::PreparedEditSelection &selection,
+		InsertAction action,
+		BoundaryTarget *destination);
 	[[nodiscard]] std::vector<RichPage::Block> takeListItemBlocksForUnwrap(
 		RichPage::ListItem *item);
 	void adoptLeadingParagraphListItemText(RichPage::ListItem *item) const;
@@ -939,6 +944,9 @@ private:
 		const BlockPath &path,
 		int itemIndex,
 		std::vector<BoundaryTarget> *steps) const;
+	[[nodiscard]] auto preparedSelectionForBlockRange(
+		const StructuralBlockRange &range) const
+	-> Markdown::PreparedEditSelection;
 	[[nodiscard]] Markdown::PreparedEditSelection preparedSelectionForListItem(
 		const BlockPath &path,
 		int itemIndex) const;
