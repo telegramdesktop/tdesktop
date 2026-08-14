@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <cstdlib>
 #include <execinfo.h>
+#include <sys/sysctl.h>
 #include <sys/xattr.h>
 
 #include <Cocoa/Cocoa.h>
@@ -260,6 +261,24 @@ bool PreventsQuit(Core::QuitReason reason) {
 				tr::now,
 				lt_text,
 				ConfirmQuit::QuitKeysString()));
+}
+
+bool HasTouchBar() {
+#ifdef Q_PROCESSOR_ARM
+	// Apple Silicon Macs have no Touch Bar, except two models.
+	auto length = size_t();
+	if (sysctlbyname("hw.model", nullptr, &length, nullptr, 0) || !length) {
+		return false;
+	}
+	auto bytes = QByteArray(length, Qt::Uninitialized);
+	if (sysctlbyname("hw.model", bytes.data(), &length, nullptr, 0)) {
+		return false;
+	}
+	const auto model = QByteArray(bytes.constData()); // Cut the trailing zero.
+	return (model == "MacBookPro17,1") || (model == "Mac14,7");
+#else // Q_PROCESSOR_ARM
+	return true;
+#endif // !Q_PROCESSOR_ARM
 }
 
 void ActivateThisProcess() {
