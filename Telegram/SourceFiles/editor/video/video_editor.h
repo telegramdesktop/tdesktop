@@ -7,7 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/timer.h"
 #include "base/unique_qptr.h"
+#include "base/weak_ptr.h"
+#include "ui/effects/animations.h"
 #include "editor/video/video_editor_common.h"
 #include "ui/rp_widget.h"
 
@@ -35,7 +38,9 @@ struct VideoEditorDescriptor {
 	VideoEditorData data;
 };
 
-class VideoEditor final : public Ui::RpWidget {
+class VideoEditor final
+	: public Ui::RpWidget
+	, public base::has_weak_ptr {
 public:
 	VideoEditor(
 		not_null<QWidget*> parent,
@@ -58,6 +63,12 @@ private:
 	void handleUpdate(Media::Streaming::Update &&update);
 	void restart(crl::time position);
 	void setupTapToPause();
+	void updateBubble();
+	void startCapture();
+	[[nodiscard]] QRect captureFrom() const;
+	[[nodiscard]] QSize bubbleSize() const;
+	void refreshCoverPreview();
+	void invalidateCoverPreview();
 	void togglePause();
 	[[nodiscard]] bool held() const;
 	void paintPlayBadge(QPainter &p);
@@ -86,6 +97,11 @@ private:
 	base::unique_qptr<Ui::RippleButton> _confirm;
 	base::unique_qptr<Ui::RippleButton> _cancelButton;
 	base::unique_qptr<Ui::FlatLabel> _about;
+	base::unique_qptr<Ui::FlatLabel> _hint;
+	base::unique_qptr<Ui::RpWidget> _bubble;
+	base::unique_qptr<Ui::RpWidget> _capture;
+	Ui::Animations::Simple _captureShown;
+	QImage _bubblePreview;
 
 	QRect _frameRect;
 	QTransform _frameMatrix;
@@ -93,6 +109,13 @@ private:
 	QImage _lastFrame;
 	bool _dragging = false;
 	bool _userPaused = false;
+	crl::time _bubbleCover = -1;
+	bool _bubbleBusy = false;
+	bool _bubbleVisible = false;
+	bool _draggingHead = false;
+	crl::time _bubbleShownAt = 0;
+	base::Timer _bubbleHideTimer;
+	Ui::Animations::Simple _bubbleShown;
 
 	rpl::event_stream<VideoModifications> _done;
 	rpl::event_stream<> _cancel;

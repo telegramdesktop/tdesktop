@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/weak_ptr.h"
+#include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
 namespace Editor {
@@ -52,6 +53,10 @@ public:
 
 	void setPlaybackPosition(crl::time position);
 
+	[[nodiscard]] QPoint coverDot() const;
+
+	[[nodiscard]] bool draggingHead() const;
+
 	[[nodiscard]] int resizeGetHeight(int newWidth) override;
 
 private:
@@ -85,6 +90,7 @@ private:
 	void paintFrames(QPainter &p, const QRect &strip);
 	void paintSelection(QPainter &p, const QRect &strip);
 	void paintHead(QPainter &p, const QRect &strip);
+	void paintCoverDot(QPainter &p);
 	void paintDuration(QPainter &p, const QRect &strip);
 
 	const VideoTimelineDescriptor _descriptor;
@@ -95,7 +101,8 @@ private:
 	crl::time _from = 0;
 	crl::time _till = 0;
 	crl::time _cover = 0;
-	crl::time _playback = 0;
+	// Negative means nothing played yet; zero is a real position.
+	crl::time _playback = -1;
 
 	std::vector<QImage> _frames;
 	int _frameWidth = 0;
@@ -103,6 +110,7 @@ private:
 
 	Grab _grab = Grab::None;
 	int _grabShift = 0;
+	Ui::Animations::Simple _dotActive;
 
 	rpl::event_stream<crl::time> _trimChanges;
 	rpl::event_stream<crl::time> _coverChanges;

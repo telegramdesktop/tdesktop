@@ -36,7 +36,6 @@ struct EditorData {
 
 	TextWithEntities about;
 	QString confirm;
-
 	QString confirmVideo;
 	QSize exactSize;
 	CropType cropType = CropType::Rect;
@@ -44,6 +43,7 @@ struct EditorData {
 	float64 originalRatio = 0.;
 	bool keepAspectRatio = false;
 	bool fixedCrop = false;
+	bool forOtherUser = false;
 };
 
 struct PhotoModifications {

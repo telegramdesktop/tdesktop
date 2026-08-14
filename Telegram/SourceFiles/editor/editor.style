@@ -205,8 +205,13 @@ photoEditorItemHandleSize: 10px;
 
 videoTimelineStripHeight: 54px;
 videoTimelineLabelHeight: 18px;
-videoTimelineLabelSkip: 5px;
+// Wide enough to hold the cover dot without it touching either side.
+videoTimelineLabelSkip: 17px;
 videoTimelineHeight: videoTimelineLabelHeight + videoTimelineLabelSkip + videoTimelineStripHeight;
+videoTimelineDotSize: 5px;
+videoTimelineDotActiveSize: 9px;
+videoTimelineDotSkip: 2px;
+videoTimelineDotFg: callAnswerBg;
 videoTimelineRadius: 6px;
 videoTimelineHandleWidth: 11px;
 videoTimelineHandleGripWidth: 2px;
@@ -223,13 +228,29 @@ videoTimelineDurationStyle: TextStyle(defaultTextStyle) {
 	font: font(12px semibold);
 }
 
-// videoEditorTimelineTop + videoTimelineHeight + videoEditorBarSkip
-// + photoEditorButtonBarHeight + videoEditorBarBottomSkip
-videoEditorControlsHeight: 169px;
+// videoEditorTimelineTop + videoTimelineHeight + videoEditorHintSkip
+// + hint height + videoEditorBarSkip + photoEditorButtonBarHeight
+// + videoEditorBarBottomSkip
+videoEditorControlsHeight: 191px;
 videoEditorTimelineTop: 10px;
-videoEditorBarSkip: 14px;
-videoEditorBarBottomSkip: 20px;
-videoEditorContentMargins: margins(20px, 20px, 20px, 169px);
+videoEditorHintSkip: 8px;
+videoEditorBarSkip: 12px;
+videoEditorBarBottomSkip: 16px;
+videoEditorContentSkip: 20px;
+videoEditorContentMargins: margins(
+	videoEditorContentSkip,
+	videoEditorContentSkip,
+	videoEditorContentSkip,
+	videoEditorControlsHeight);
+videoEditorHint: FlatLabel(defaultFlatLabel) {
+	textFg: mediaviewCaptionFg;
+	align: align(top);
+}
+
+videoEditorBubbleSize: 62px;
+videoEditorBubbleSkip: 8px;
+videoEditorBubbleBorder: 2px;
+videoEditorFlashFg: mediaviewControlFg;
 videoEditorPlayIcon: icon {{ "player/player_play", mediaviewControlFg }};
 videoEditorPlayBadgeSize: 68px;
 videoEditorPlayBadgeBg: mediaviewCaptionBg;

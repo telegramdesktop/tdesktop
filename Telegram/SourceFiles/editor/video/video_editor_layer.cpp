@@ -36,8 +36,12 @@ VideoEditorData ProfileVideoEditorData(EditorData data) {
 	if (!data.confirmVideo.isEmpty()) {
 		data.confirm = data.confirmVideo;
 	}
+	auto hint = data.forOtherUser
+		? tr::lng_profile_choose_frame_other(tr::now)
+		: tr::lng_profile_choose_frame(tr::now);
 	return {
 		.editor = std::move(data),
+		.hint = std::move(hint),
 		.exactSize = QSize(kProfileVideoSide, kProfileVideoSide),
 		.maxDuration = kProfileVideoMaxDuration,
 		.minDuration = kProfileVideoMinDuration,

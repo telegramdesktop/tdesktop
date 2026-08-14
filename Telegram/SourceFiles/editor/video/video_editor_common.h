@@ -22,6 +22,8 @@ struct VideoModifications {
 struct VideoEditorData {
 	EditorData editor;
 
+	QString hint;
+
 	QSize exactSize;
 
 	crl::time maxDuration = 0;

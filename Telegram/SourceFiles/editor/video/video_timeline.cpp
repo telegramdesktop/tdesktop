@@ -19,6 +19,7 @@ namespace Editor {
 namespace {
 
 constexpr auto kMaxFrames = 24;
+constexpr auto kDotDuration = crl::time(500);
 
 } // namespace
 
@@ -60,7 +61,12 @@ int VideoTimeline::resizeGetHeight(int newWidth) {
 QRect VideoTimeline::stripRect() const {
 	const auto top = st::videoTimelineLabelHeight
 		+ st::videoTimelineLabelSkip;
-	return QRect(0, top, width(), st::videoTimelineStripHeight);
+	const auto handle = st::videoTimelineHandleWidth;
+	return QRect(
+		handle,
+		top,
+		std::max(width() - handle * 2, 1),
+		st::videoTimelineStripHeight);
 }
 
 QRect VideoTimeline::labelRect() const {
@@ -98,6 +104,20 @@ int VideoTimeline::xAt(crl::time time) const {
 	const auto clamped = std::clamp(time, crl::time(0), _duration);
 	return strip.x() + int(base::SafeRound(
 		clamped * float64(strip.width()) / _duration));
+}
+
+QPoint VideoTimeline::coverDot() const {
+	return QPoint(
+		xAt(_cover),
+		stripRect().y()
+			- st::videoTimelinePlayheadOverflow
+			- st::videoTimelinePlayheadOutline
+			- st::videoTimelineDotSkip
+			- st::videoTimelineDotActiveSize / 2);
+}
+
+bool VideoTimeline::draggingHead() const {
+	return (_grab == Grab::Head);
 }
 
 void VideoTimeline::setPlaybackPosition(crl::time position) {
@@ -171,24 +191,16 @@ VideoTimeline::Grab VideoTimeline::grabAt(QPoint position) const {
 	const auto slop = st::videoTimelineHandleHitSlop;
 	const auto handle = st::videoTimelineHandleWidth;
 	const auto x = position.x();
-	const auto reach = handle / 2 + slop;
-	const auto candidates = {
-		std::pair{ Grab::Left, std::abs(x - (xAt(_from) + handle / 2)) },
-		std::pair{ Grab::Right, std::abs(x - (xAt(_till) - handle / 2)) },
-	};
-	auto best = Grab::None;
-	auto bestDistance = reach + 1;
-	for (const auto &[grab, distance] : candidates) {
-		if (distance <= reach && distance < bestDistance) {
-			best = grab;
-			bestDistance = distance;
-		}
-	}
-	if (best != Grab::None) {
-		return best;
-	} else if (std::abs(x - xAt(_cover)) <= slop) {
-		return Grab::Head;
-	} else if (x >= xAt(_from) && x <= xAt(_till)) {
+	const auto left = xAt(_from);
+	const auto right = xAt(_till);
+
+	const auto span = std::max(right - left, 1);
+	const auto inside = std::min(int(slop), span / 3);
+	if (x >= left - handle - slop && x <= left + inside) {
+		return Grab::Left;
+	} else if (x <= right + handle + slop && x >= right - inside) {
+		return Grab::Right;
+	} else if (x > left && x < right) {
 		return Grab::Head;
 	}
 	return Grab::Window;
@@ -196,7 +208,8 @@ VideoTimeline::Grab VideoTimeline::grabAt(QPoint position) const {
 
 crl::time VideoTimeline::minSelection() const {
 	const auto strip = stripRect();
-	const auto pixels = st::videoTimelineHandleWidth * 2
+	// Keeps the head reachable when a long clip squeezes the window.
+	const auto pixels = st::videoTimelinePlayheadWidth
 		+ st::videoTimelineHandleHitSlop;
 	const auto byPixels = (strip.width() > pixels)
 		? crl::time(base::SafeRound(
@@ -226,6 +239,14 @@ void VideoTimeline::mousePressEvent(QMouseEvent *e) {
 		_grabShift = 0;
 	}
 	updateCursor(_grab);
+	if (_grab == Grab::Head) {
+		_dotActive.start(
+			[=] { update(); },
+			0.,
+			1.,
+			kDotDuration,
+			anim::easeOutQuint);
+	}
 	_draggingChanges.fire(true);
 	applyGrab(position);
 }
@@ -242,8 +263,17 @@ void VideoTimeline::mouseReleaseEvent(QMouseEvent *e) {
 	if (_grab == Grab::None) {
 		return;
 	}
+	const auto wasHead = (_grab == Grab::Head);
 	_grab = Grab::None;
 	_grabShift = 0;
+	if (wasHead) {
+		_dotActive.start(
+			[=] { update(); },
+			1.,
+			0.,
+			kDotDuration,
+			anim::easeOutQuint);
+	}
 	updateCursor(grabAt(e->pos()));
 	_draggingChanges.fire(false);
 }
@@ -316,6 +346,7 @@ void VideoTimeline::paintEvent(QPaintEvent *e) {
 	paintSelection(p, strip);
 	paintHead(p, strip);
 	paintDuration(p, strip);
+	paintCoverDot(p);
 }
 
 void VideoTimeline::paintFrames(QPainter &p, const QRect &strip) {
@@ -352,20 +383,20 @@ void VideoTimeline::paintSelection(QPainter &p, const QRect &strip) {
 	}
 
 	const auto handle = st::videoTimelineHandleWidth;
-	const auto grip = st::videoTimelineHandleGripWidth;
-	const auto selected = QRectF(
-		left,
+	const auto border = st::videoTimelineHandleGripWidth;
+	const auto outer = QRectF(
+		left - handle,
 		strip.y(),
-		std::max(right - left, handle * 2),
+		(right - left) + handle * 2,
 		strip.height());
 	auto frame = QPainterPath();
-	frame.addRoundedRect(selected, radius, radius);
+	frame.addRoundedRect(outer, radius, radius);
 	auto inner = QPainterPath();
 	inner.addRect(QRectF(
-		selected.x() + handle,
-		selected.y() + grip,
-		std::max(selected.width() - handle * 2, 0.),
-		std::max(selected.height() - grip * 2, 0.)));
+		left,
+		strip.y() + border,
+		std::max(right - left, 0),
+		std::max(strip.height() - border * 2, 0)));
 
 	p.setPen(Qt::NoPen);
 	p.setBrush(st::videoTimelineFg);
@@ -377,8 +408,8 @@ void VideoTimeline::paintSelection(QPainter &p, const QRect &strip) {
 		strip.height() / 2);
 	const auto gripY = strip.y() + (strip.height() - gripHeight) / 2;
 	p.setBrush(st::videoTimelineDimBg);
-	for (const auto x : { left + (handle - gripWidth) / 2,
-			right - handle + (handle - gripWidth) / 2 }) {
+	for (const auto x : { left - handle + (handle - gripWidth) / 2,
+			right + (handle - gripWidth) / 2 }) {
 		p.drawRoundedRect(
 			QRectF(x, gripY, gripWidth, gripHeight),
 			gripWidth / 2.,
@@ -390,11 +421,10 @@ void VideoTimeline::paintHead(QPainter &p, const QRect &strip) {
 	const auto width = st::videoTimelinePlayheadWidth;
 	const auto outline = st::videoTimelinePlayheadOutline;
 	const auto overflow = st::videoTimelinePlayheadOverflow;
-	const auto handle = st::videoTimelineHandleWidth;
 	const auto x = std::clamp(
-		xAt(_playback ? _playback : _cover) - width / 2.,
-		1. * (xAt(_from) + handle),
-		1. * std::max(xAt(_till) - handle - width, xAt(_from) + handle));
+		xAt((_playback >= 0) ? _playback : _cover) - width / 2.,
+		1. * xAt(_from),
+		1. * std::max(xAt(_till) - width, xAt(_from)));
 	const auto head = QRectF(
 		x,
 		strip.y() - overflow,
@@ -407,6 +437,21 @@ void VideoTimeline::paintHead(QPainter &p, const QRect &strip) {
 	p.drawRoundedRect(full, width / 2. + outline, width / 2. + outline);
 	p.setBrush(st::videoTimelineFg);
 	p.drawRoundedRect(head, width / 2., width / 2.);
+}
+
+void VideoTimeline::paintCoverDot(QPainter &p) {
+	const auto active = _dotActive.value((_grab == Grab::Head) ? 1. : 0.);
+	const auto size = st::videoTimelineDotSize
+		+ (st::videoTimelineDotActiveSize - st::videoTimelineDotSize)
+			* active;
+	const auto centre = coverDot();
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::videoTimelineDotFg);
+	p.drawEllipse(QRectF(
+		centre.x() - size / 2.,
+		centre.y() - size / 2.,
+		size,
+		size));
 }
 
 void VideoTimeline::paintDuration(QPainter &p, const QRect &strip) {

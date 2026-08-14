@@ -587,6 +587,10 @@ void Crop::setCornersLevel(RoundedCornersLevel level) {
 	update();
 }
 
+QRect Crop::paintRect() const {
+	return _cropPaint.toRect();
+}
+
 QRect Crop::saveCropRect() {
 	const auto savedCrop = _cropOriginal.toRect();
 	return (!savedCrop.topLeft().isNull() || (savedCrop.size() != _imageSize))
