@@ -30,8 +30,26 @@ struct StillSource {
 };
 
 struct VideoSource {
+	QString path;
 	QByteArray bytes;
+
+	// Output size: exactSize wins, otherwise the shorter side is capped.
 	int targetShorterSide = 0;
+	QSize exactSize;
+
+	// Applied like Editor::ImageModified: display matrix, then crop in those
+	// pixels, then flip, then rotation.
+	QRect crop;
+	int rotation = 0;
+	bool flipped = false;
+
+	crl::time from = 0;
+	crl::time till = 0;
+
+	bool removeAudio = false;
+	float64 fpsLimit = 0.;
+
+	crl::time coverPosition = -1;
 };
 
 struct Job {
@@ -52,7 +70,24 @@ struct Result {
 	}
 };
 
+struct TranscodeResult {
+	QString path;
+	QImage cover;
+	QSize dimensions;
+	crl::time duration = 0;
+	crl::time coverOffset = 0;
+
+	[[nodiscard]] bool empty() const {
+		return path.isEmpty();
+	}
+};
+
 [[nodiscard]] Result Run(Job &&job, Fn<bool(float64)> progress = nullptr);
+
+// Writes a temporary mp4 the caller owns and must remove.
+[[nodiscard]] TranscodeResult TranscodeVideo(
+	const VideoSource &source,
+	Fn<bool(float64)> progress = nullptr);
 
 [[nodiscard]] int CompressedShorterSide(QSize original, int64 size);
 

@@ -98,11 +98,32 @@ struct H264Encoder {
 	CodecPointer codec;
 };
 
+struct ColorDescription {
+	AVColorRange range = AVCOL_RANGE_MPEG;
+	AVColorPrimaries primaries = AVCOL_PRI_UNSPECIFIED;
+	AVColorTransferCharacteristic transfer = AVCOL_TRC_UNSPECIFIED;
+	AVColorSpace space = AVCOL_SPC_UNSPECIFIED;
+};
+
+[[nodiscard]] ColorDescription ReadColorDescription(
+		not_null<AVCodecParameters*> from,
+		bool baked) {
+	return {
+		.range = (!baked && from->color_range == AVCOL_RANGE_JPEG)
+			? AVCOL_RANGE_JPEG
+			: AVCOL_RANGE_MPEG,
+		.primaries = from->color_primaries,
+		.transfer = from->color_trc,
+		.space = from->color_space,
+	};
+}
+
 [[nodiscard]] H264Encoder CreateH264Encoder(
 		not_null<AVFormatContext*> output,
 		QSize size,
 		int64 bitrate,
-		int gopSize) {
+		int gopSize,
+		ColorDescription color) {
 	auto encoderCodec = avcodec_find_encoder_by_name("libopenh264");
 	if (!encoderCodec) {
 		encoderCodec = avcodec_find_encoder(AV_CODEC_ID_H264);
@@ -130,6 +151,10 @@ struct H264Encoder {
 	encoder->pix_fmt = AV_PIX_FMT_YUV420P;
 	encoder->bit_rate = bitrate;
 	encoder->gop_size = gopSize;
+	encoder->color_range = color.range;
+	encoder->color_primaries = color.primaries;
+	encoder->color_trc = color.transfer;
+	encoder->colorspace = color.space;
 	if (output->oformat->flags & AVFMT_GLOBALHEADER) {
 		encoder->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 	}
@@ -655,7 +680,8 @@ private:
 		output.get(),
 		target,
 		bitrate ? int64(bitrate) : int64(TargetBitrate(target, fps)),
-		int(base::SafeRound(fps)));
+		int(base::SafeRound(fps)),
+		ColorDescription());
 	if (!video.codec) {
 		return {};
 	}
@@ -788,6 +814,142 @@ private:
 	};
 }
 
+[[nodiscard]] int NormalizeAngle(int angle) {
+	auto result = angle % 360;
+	if (result < 0) {
+		result += 360;
+	}
+	return (result % 90) ? 0 : result;
+}
+
+[[nodiscard]] QSize EvenSize(QSize size) {
+	return QSize(
+		std::max(EvenDown(size.width()), 2),
+		std::max(EvenDown(size.height()), 2));
+}
+
+struct GeometryPlan {
+	QSize target;
+	QRect crop;
+	int fileRotation = 0;
+	int userRotation = 0;
+	bool flipped = false;
+	bool bake = false;
+};
+
+[[nodiscard]] GeometryPlan PlanGeometry(
+		const VideoSource &source,
+		QSize coded,
+		int fileRotation) {
+	auto plan = GeometryPlan();
+	plan.fileRotation = fileRotation;
+	plan.userRotation = NormalizeAngle(source.rotation);
+	plan.flipped = source.flipped;
+
+	const auto display = TransposeSizeByRotation(coded, fileRotation);
+	const auto full = QRect(QPoint(), display);
+	plan.crop = source.crop.isValid() ? (source.crop & full) : full;
+	if (plan.crop.isEmpty()) {
+		plan.crop = full;
+	}
+	plan.bake = (plan.crop != full)
+		|| plan.userRotation
+		|| plan.flipped
+		|| !source.exactSize.isEmpty()
+		|| (source.coverPosition >= 0);
+
+	auto oriented = plan.bake ? plan.crop.size() : coded;
+	if (plan.bake && RotationSwapWidthHeight(plan.userRotation)) {
+		oriented.transpose();
+	}
+	if (!source.exactSize.isEmpty()) {
+		plan.target = EvenSize(source.exactSize);
+	} else if (source.targetShorterSide > 0) {
+		const auto downscaled = DownscaledSize(
+			oriented,
+			source.targetShorterSide);
+		plan.target = downscaled.isEmpty()
+			? EvenSize(oriented)
+			: downscaled;
+	} else {
+		plan.target = EvenSize(oriented);
+	}
+	return plan;
+}
+
+[[nodiscard]] QImage ComposeFrame(
+		not_null<AVFrame*> frame,
+		const GeometryPlan &plan,
+		SwscalePointer &toRgb,
+		QImage &storage) {
+	const auto coded = QSize(frame->width, frame->height);
+	if (coded.isEmpty()) {
+		return {};
+	}
+	if (!GoodStorageForFrame(storage, coded)) {
+		storage = CreateFrameStorage(coded);
+		if (storage.isNull()) {
+			return {};
+		}
+	}
+	auto &rgb = storage;
+	const auto srcFormat = (frame->format == AV_PIX_FMT_NONE)
+		? AV_PIX_FMT_YUV420P
+		: AVPixelFormat(frame->format);
+	toRgb = MakeSwscalePointer(
+		coded,
+		srcFormat,
+		coded,
+		AV_PIX_FMT_BGRA,
+		&toRgb);
+	if (!toRgb) {
+		return {};
+	}
+	uint8_t *dstData[AV_NUM_DATA_POINTERS] = { rgb.bits(), nullptr };
+	int dstLinesize[AV_NUM_DATA_POINTERS] = { int(rgb.bytesPerLine()), 0 };
+	sws_scale(
+		toRgb.get(),
+		frame->data,
+		frame->linesize,
+		0,
+		frame->height,
+		dstData,
+		dstLinesize);
+
+	auto image = plan.fileRotation
+		? rgb.transformed(QTransform().rotate(plan.fileRotation))
+		: rgb;
+	if (plan.crop != QRect(QPoint(), image.size())) {
+		image = image.copy(plan.crop);
+	}
+	if (plan.flipped || plan.userRotation) {
+		auto transform = QTransform();
+		if (plan.flipped) {
+			transform.scale(-1, 1);
+		}
+		if (plan.userRotation) {
+			transform.rotate(plan.userRotation);
+		}
+		image = image.transformed(transform);
+	}
+	if (image.size() != plan.target) {
+		image = image.scaled(
+			plan.target,
+			Qt::KeepAspectRatioByExpanding,
+			Qt::SmoothTransformation);
+		if (image.size() != plan.target) {
+			const auto x = (image.width() - plan.target.width()) / 2;
+			const auto y = (image.height() - plan.target.height()) / 2;
+			image = image.copy(QRect(QPoint(x, y), plan.target));
+		}
+	}
+	if (image.format() != QImage::Format_ARGB32_Premultiplied) {
+		image = std::move(image).convertToFormat(
+			QImage::Format_ARGB32_Premultiplied);
+	}
+	return image;
+}
+
 } // namespace
 
 QSize DownscaledSize(QSize original, int targetShorterSide) {
@@ -820,34 +982,30 @@ int CompressedShorterSide(QSize original, int64 size) {
 	return shorter;
 }
 
-QString TranscodeVideoToMp4(
-		const QString &sourcePath,
-		const QByteArray &sourceContent,
-		int targetShorterSide,
+TranscodeResult TranscodeVideo(
+		const VideoSource &source,
 		Fn<bool(float64)> progress) {
-	const auto sourceSize = !sourceContent.isEmpty()
-		? int64(sourceContent.size())
-		: QFileInfo(sourcePath).size();
-	if (sourceSize <= 0
-		|| sourceSize >= kMaxSourceSize
-		|| targetShorterSide <= 0) {
+	const auto sourceSize = !source.bytes.isEmpty()
+		? int64(source.bytes.size())
+		: QFileInfo(source.path).size();
+	if (sourceSize <= 0 || sourceSize >= kMaxSourceSize) {
 		return {};
 	}
 
 	auto inBytesWrap = ReadBytesWrap{
-		.size = sourceContent.size(),
-		.data = reinterpret_cast<const uchar*>(sourceContent.constData()),
+		.size = int64(source.bytes.size()),
+		.data = reinterpret_cast<const uchar*>(source.bytes.constData()),
 	};
 	auto inFileWrap = ReadFileWrap();
 	auto input = FormatPointer();
-	if (!sourceContent.isEmpty()) {
+	if (!source.bytes.isEmpty()) {
 		input = MakeFormatPointer(
 			&inBytesWrap,
 			&ReadBytesWrap::Read,
 			nullptr,
 			&ReadBytesWrap::Seek);
 	} else {
-		inFileWrap.file.setFileName(sourcePath);
+		inFileWrap.file.setFileName(source.path);
 		if (!inFileWrap.file.open(QIODevice::ReadOnly)) {
 			return {};
 		}
@@ -877,34 +1035,54 @@ QString TranscodeVideoToMp4(
 	if (videoId < 0) {
 		return {};
 	}
-	const auto audioId = av_find_best_stream(
-		input.get(),
-		AVMEDIA_TYPE_AUDIO,
-		-1,
-		videoId,
-		nullptr,
-		0);
+	const auto audioId = source.removeAudio
+		? -1
+		: av_find_best_stream(
+			input.get(),
+			AVMEDIA_TYPE_AUDIO,
+			-1,
+			videoId,
+			nullptr,
+			0);
 
 	const auto inVideoStream = input->streams[videoId];
-	const auto original = QSize(
+	const auto coded = QSize(
 		inVideoStream->codecpar->width,
 		inVideoStream->codecpar->height);
-	auto target = DownscaledSize(original, targetShorterSide);
-	if (target.isEmpty()) {
-		target = QSize(
-			std::max(EvenDown(original.width()), 2),
-			std::max(EvenDown(original.height()), 2));
+	if (coded.isEmpty()) {
+		return {};
 	}
+	const auto fileRotation = ReadRotationFromMetadata(inVideoStream);
+	const auto plan = PlanGeometry(source, coded, fileRotation);
+	const auto target = plan.target;
+	if (target.isEmpty()) {
+		return {};
+	}
+
 	const auto guessed = av_guess_frame_rate(
 		input.get(),
 		inVideoStream,
 		nullptr);
-	const auto fps = (guessed.num > 0 && guessed.den > 0)
+	const auto sourceFps = (guessed.num > 0 && guessed.den > 0)
 		? av_q2d(guessed)
 		: 0.;
+	const auto limiting = (source.fpsLimit > 0.)
+		&& (sourceFps > source.fpsLimit * 1.05);
+	const auto minStep = limiting
+		? crl::time(base::SafeRound(1000. / source.fpsLimit))
+		: crl::time(0);
+	const auto fps = limiting ? source.fpsLimit : sourceFps;
 	const auto totalDuration = (input->duration > 0)
 		? PtsToTime(input->duration, kUniversalTimeBase)
 		: crl::time(0);
+
+	const auto from = std::max(source.from, crl::time(0));
+	const auto till = (source.till > from) ? source.till : crl::time(0);
+	const auto trimmed = (from > 0)
+		|| (till > 0 && (!totalDuration || till < totalDuration));
+	const auto span = till
+		? (till - from)
+		: ((totalDuration > from) ? (totalDuration - from) : crl::time(0));
 
 	auto decoder = MakeCodecPointer({ .stream = inVideoStream });
 	if (!decoder) {
@@ -918,6 +1096,12 @@ QString TranscodeVideoToMp4(
 	const auto path = temp.fileName();
 	temp.close();
 	const auto pathUtf8 = path.toUtf8();
+	auto succeeded = false;
+	const auto removeOnFailure = gsl::finally([&] {
+		if (!succeeded) {
+			QFile::remove(path);
+		}
+	});
 
 	auto rawOutput = (AVFormatContext*)nullptr;
 	if (AvErrorWrap(avformat_alloc_output_context2(
@@ -940,19 +1124,23 @@ QString TranscodeVideoToMp4(
 		? inVideoStream->codecpar->bit_rate
 		: input->bit_rate);
 	const auto targetBitrate = int64(TargetBitrate(target, fps));
+	const auto bitrate = (!plan.bake && sourceBitrate > 0)
+		? std::min(targetBitrate, sourceBitrate)
+		: targetBitrate;
 	auto video = CreateH264Encoder(
 		output.get(),
 		target,
-		(sourceBitrate > 0)
-			? std::min(targetBitrate, sourceBitrate)
-			: targetBitrate,
-		int(base::SafeRound((fps > 1. && fps < 121.) ? fps : 30.)));
+		bitrate,
+		int(base::SafeRound((fps > 1. && fps < 121.) ? fps : 30.)),
+		ReadColorDescription(inVideoStream->codecpar, plan.bake));
 	if (!video.codec) {
 		return {};
 	}
 	const auto outVideoStream = video.stream;
 	auto encoder = std::move(video.codec);
-	CopyDisplayMatrix(inVideoStream, outVideoStream);
+	if (!plan.bake) {
+		CopyDisplayMatrix(inVideoStream, outVideoStream);
+	}
 
 	const auto inAudioStream = (audioId >= 0)
 		? input->streams[audioId]
@@ -998,6 +1186,8 @@ QString TranscodeVideoToMp4(
 	}
 
 	auto swscale = SwscalePointer();
+	auto toRgb = SwscalePointer();
+	auto fromRgb = SwscalePointer();
 	auto encodeFrame = MakeFramePointer();
 	auto decodedFrame = MakeFramePointer();
 	if (!encodeFrame || !decodedFrame) {
@@ -1012,8 +1202,33 @@ QString TranscodeVideoToMp4(
 		return {};
 	}
 
+	if (from > 0) {
+		const auto seekTarget = TimeToPts(from, inVideoStream->time_base);
+		if (av_seek_frame(
+				input.get(),
+				videoId,
+				seekTarget,
+				AVSEEK_FLAG_BACKWARD) < 0) {
+			av_seek_frame(input.get(), videoId, 0, AVSEEK_FLAG_BACKWARD);
+		}
+		avcodec_flush_buffers(decoder.get());
+	}
+	const auto videoOrigin = TimeToPts(from, inVideoStream->time_base);
+	const auto audioOrigin = inAudioStream
+		? TimeToPts(from, inAudioStream->time_base)
+		: int64(0);
+
 	auto lastVideoPts = int64(-1);
+	auto lastEmittedOut = crl::time(-1);
+	auto emitted = 0;
 	auto failed = false;
+	auto reachedEnd = false;
+	auto cover = QImage();
+	auto coverOffset = crl::time(0);
+	auto needCover = (source.coverPosition >= 0);
+	auto lastComposed = QImage();
+	auto lastComposedPts = int64(AV_NOPTS_VALUE);
+	auto composeStorage = QImage();
 
 	auto packet = av_packet_alloc();
 	const auto packetGuard = gsl::finally([&] {
@@ -1040,16 +1255,55 @@ QString TranscodeVideoToMp4(
 				failed = true;
 				return false;
 			}
-			swscale = MakeSwscalePointer(
-				QSize(decodedFrame->width, decodedFrame->height),
-				decodedFrame->format,
-				target,
-				AV_PIX_FMT_YUV420P,
-				&swscale);
-			if (!swscale) {
-				failed = true;
-				return false;
+
+			const auto raw = (decodedFrame->best_effort_timestamp
+				!= AV_NOPTS_VALUE)
+				? decodedFrame->best_effort_timestamp
+				: decodedFrame->pts;
+			const auto position = (raw != AV_NOPTS_VALUE)
+				? PtsToTime(raw, inVideoStream->time_base)
+				: crl::time(-1);
+			if (position >= 0) {
+				if (position < from) {
+					continue;
+				} else if (till && position >= till) {
+					reachedEnd = true;
+					return true;
+				}
 			}
+			const auto outPosition = (position >= 0)
+				? (position - from)
+				: crl::time(-1);
+			if (minStep > 0
+				&& lastEmittedOut >= 0
+				&& outPosition >= 0
+				&& (outPosition - lastEmittedOut) < (minStep - minStep / 4)) {
+				continue;
+			}
+
+			auto composed = QImage();
+			if (plan.bake) {
+				composed = ComposeFrame(
+					decodedFrame.get(),
+					plan,
+					toRgb,
+					composeStorage);
+				if (composed.isNull()) {
+					failed = true;
+					return false;
+				}
+			}
+			auto capturedCover = false;
+			if (needCover && !composed.isNull()) {
+				lastComposed = composed;
+				lastComposedPts = raw;
+				if (position >= source.coverPosition) {
+					cover = composed.copy();
+					needCover = false;
+					capturedCover = true;
+				}
+			}
+
 			auto writable = AvErrorWrap(av_frame_make_writable(
 				encodeFrame.get()));
 			if (writable) {
@@ -1057,22 +1311,57 @@ QString TranscodeVideoToMp4(
 				failed = true;
 				return false;
 			}
-			sws_scale(
-				swscale.get(),
-				decodedFrame->data,
-				decodedFrame->linesize,
-				0,
-				decodedFrame->height,
-				encodeFrame->data,
-				encodeFrame->linesize);
+			if (plan.bake) {
+				fromRgb = MakeSwscalePointer(
+					target,
+					AV_PIX_FMT_BGRA,
+					target,
+					AV_PIX_FMT_YUV420P,
+					&fromRgb);
+				if (!fromRgb) {
+					failed = true;
+					return false;
+				}
+				const uint8_t *srcData[AV_NUM_DATA_POINTERS] = {
+					composed.constBits(),
+					nullptr,
+				};
+				int srcLinesize[AV_NUM_DATA_POINTERS] = {
+					int(composed.bytesPerLine()),
+					0,
+				};
+				sws_scale(
+					fromRgb.get(),
+					srcData,
+					srcLinesize,
+					0,
+					target.height(),
+					encodeFrame->data,
+					encodeFrame->linesize);
+			} else {
+				swscale = MakeSwscalePointer(
+					QSize(decodedFrame->width, decodedFrame->height),
+					decodedFrame->format,
+					target,
+					AV_PIX_FMT_YUV420P,
+					&swscale);
+				if (!swscale) {
+					failed = true;
+					return false;
+				}
+				sws_scale(
+					swscale.get(),
+					decodedFrame->data,
+					decodedFrame->linesize,
+					0,
+					decodedFrame->height,
+					encodeFrame->data,
+					encodeFrame->linesize);
+			}
 
-			const auto source = (decodedFrame->best_effort_timestamp
-				!= AV_NOPTS_VALUE)
-				? decodedFrame->best_effort_timestamp
-				: decodedFrame->pts;
-			auto pts = (source != AV_NOPTS_VALUE)
+			auto pts = (raw != AV_NOPTS_VALUE)
 				? av_rescale_q(
-					source,
+					raw - videoOrigin,
 					inVideoStream->time_base,
 					encoder->time_base)
 				: (lastVideoPts + 1);
@@ -1081,17 +1370,23 @@ QString TranscodeVideoToMp4(
 			}
 			lastVideoPts = pts;
 			encodeFrame->pts = pts;
+			if (outPosition >= 0) {
+				lastEmittedOut = outPosition;
+			}
+			if (capturedCover) {
+				coverOffset = std::max(
+					PtsToTime(pts, encoder->time_base),
+					crl::time(0));
+			}
+			++emitted;
 
 			if (!writeEncoded(encodeFrame.get())) {
 				failed = true;
 				return false;
 			}
-			if (progress && totalDuration > 0) {
+			if (progress && span > 0) {
 				const auto done = PtsToTime(pts, encoder->time_base);
-				const auto value = std::clamp(
-					done / float64(totalDuration),
-					0.,
-					1.);
+				const auto value = std::clamp(done / float64(span), 0., 1.);
 				if (!progress(value)) {
 					failed = true;
 					return false;
@@ -1100,11 +1395,7 @@ QString TranscodeVideoToMp4(
 		}
 	};
 
-	while (true) {
-		if (output->pb && avio_tell(output->pb) > sourceSize) {
-			LogError(u"transcode"_q, u"Output exceeded source size."_q);
-			return {};
-		}
+	while (!reachedEnd) {
 		auto read = AvErrorWrap(av_read_frame(input.get(), packet));
 		if (read.code() == AVERROR_EOF) {
 			break;
@@ -1128,6 +1419,29 @@ QString TranscodeVideoToMp4(
 				return {};
 			}
 		} else if (packet->stream_index == audioId) {
+			if (trimmed) {
+				const auto stamp = (packet->pts != AV_NOPTS_VALUE)
+					? packet->pts
+					: packet->dts;
+				if (stamp != AV_NOPTS_VALUE) {
+					const auto at = PtsToTime(
+						stamp,
+						inAudioStream->time_base);
+					if (at < from || (till && at >= till)) {
+						continue;
+					}
+				}
+				if (packet->pts != AV_NOPTS_VALUE) {
+					packet->pts = std::max(
+						packet->pts - audioOrigin,
+						int64(0));
+				}
+				if (packet->dts != AV_NOPTS_VALUE) {
+					packet->dts = std::max(
+						packet->dts - audioOrigin,
+						int64(0));
+				}
+			}
 			if (audioTranscoder) {
 				if (!audioTranscoder->process(output.get(), packet)) {
 					return {};
@@ -1150,10 +1464,10 @@ QString TranscodeVideoToMp4(
 		}
 	}
 
-	if (avcodec_send_packet(decoder.get(), nullptr) >= 0) {
+	if (!reachedEnd && avcodec_send_packet(decoder.get(), nullptr) >= 0) {
 		drainDecoder();
 	}
-	if (failed) {
+	if (failed || !emitted) {
 		return {};
 	}
 	if (!writeEncoded(nullptr)) {
@@ -1171,25 +1485,65 @@ QString TranscodeVideoToMp4(
 
 	avio_closep(&output->pb);
 
+	if (needCover && !lastComposed.isNull()) {
+		cover = lastComposed.copy();
+		coverOffset = (lastComposedPts != AV_NOPTS_VALUE)
+			? std::max(
+				PtsToTime(
+					lastComposedPts - videoOrigin,
+					inVideoStream->time_base),
+				crl::time(0))
+			: crl::time(0);
+	}
+	const auto step = (fps > 0.)
+		? crl::time(base::SafeRound(1000. / fps))
+		: crl::time(0);
+	// The size a player will show, which is not the encoder target when the
+	// geometry was not baked in: there the frames stay in the source's coded
+	// orientation and the source display matrix is copied across.
+	const auto shown = plan.bake
+		? target
+		: TransposeSizeByRotation(target, plan.fileRotation);
+	auto result = TranscodeResult{
+		.path = path,
+		.cover = std::move(cover),
+		.dimensions = shown,
+		.duration = PtsToTime(lastVideoPts, encoder->time_base) + step,
+	};
+	result.coverOffset = coverOffset;
 	temp.setAutoRemove(false);
-	return path;
+	succeeded = true;
+	return result;
+}
+
+QString TranscodeVideoToMp4(
+		const QString &sourcePath,
+		const QByteArray &sourceContent,
+		int targetShorterSide,
+		Fn<bool(float64)> progress) {
+	if (targetShorterSide <= 0) {
+		return {};
+	}
+	return TranscodeVideo({
+		.path = sourcePath,
+		.bytes = sourceContent,
+		.targetShorterSide = targetShorterSide,
+	}, std::move(progress)).path;
 }
 
 Result Run(Job &&job, Fn<bool(float64)> progress) {
 	return v::match(job.source, [&](VideoSource &data) {
 		auto result = Result();
-		const auto path = TranscodeVideoToMp4(
-			QString(),
-			data.bytes,
-			data.targetShorterSide,
-			std::move(progress));
-		if (!path.isEmpty()) {
-			auto file = QFile(path);
+		auto transcoded = TranscodeVideo(data, std::move(progress));
+		if (!transcoded.empty()) {
+			auto file = QFile(transcoded.path);
 			if (file.open(QIODevice::ReadOnly)) {
 				result.bytes = file.readAll();
 			}
 			file.close();
-			QFile::remove(path);
+			QFile::remove(transcoded.path);
+			result.dimensions = transcoded.dimensions;
+			result.duration = transcoded.duration;
 		}
 		return result;
 	}, [&](StillSource &data) {
