@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_choose_join_as.h"
 #include "calls/group/calls_group_call.h"
 #include "calls/group/calls_group_rtmp.h"
+#include "chat_helpers/compose/compose_show.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "mtproto/mtproto_dh_utils.h"
@@ -945,6 +946,15 @@ bool Instance::closeCurrentActiveCall() {
 		return true;
 	}
 	return false;
+}
+
+void Instance::hidePanelLayers() {
+	if (_currentCallPanel) {
+		_currentCallPanel->uiShow()->hideLayer();
+	}
+	if (_currentGroupCallPanel) {
+		_currentGroupCallPanel->uiShow()->hideLayer();
+	}
 }
 
 Call *Instance::currentCall() const {

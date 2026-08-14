@@ -166,6 +166,7 @@ private:
 	void showRemoteLowBattery();
 	void refreshAnswerHangupRedialLabel();
 
+	void addPeople();
 	void showDevicesMenu(
 		not_null<QWidget*> button,
 		std::vector<DeviceSelection> types);

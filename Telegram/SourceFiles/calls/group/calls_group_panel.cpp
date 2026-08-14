@@ -67,6 +67,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webrtc/webrtc_video_track.h"
 #include "webrtc/webrtc_audio_input_tester.h"
 #include "webrtc/webrtc_create_adm.h"
+#include "window/window_unlock_passcode_box.h"
 #include "styles/style_calls.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
@@ -849,6 +850,12 @@ void Panel::initShareAction() {
 		_peer,
 		uiShow());
 	_callShareLinkCallback = [=, callback = std::move(shareLinkCallback)] {
+		if (::Window::ShowUnlockPasscodeBox(
+				uiShow(),
+				DarkUnlockPasscodeBoxStyle(),
+				crl::guard(this, [=] { _callShareLinkCallback(); }))) {
+			return;
+		}
 		if (_call->lookupReal()) {
 			callback();
 		}
@@ -1074,13 +1081,21 @@ void Panel::setupMembers() {
 }
 
 Fn<void()> Panel::shareConferenceLinkCallback() {
-	return [=] {
-		Expects(_call->conference());
+	return crl::guard(this, [=] { shareConferenceLink(); });
+}
 
-		ShowConferenceCallLinkBox(uiShow(), _call->sharedCall(), {
-			.st = DarkConferenceCallLinkStyle(),
-		});
-	};
+void Panel::shareConferenceLink() {
+	Expects(_call->conference());
+
+	if (::Window::ShowUnlockPasscodeBox(
+			uiShow(),
+			DarkUnlockPasscodeBoxStyle(),
+			crl::guard(this, [=] { shareConferenceLink(); }))) {
+		return;
+	}
+	ShowConferenceCallLinkBox(uiShow(), _call->sharedCall(), {
+		.st = DarkConferenceCallLinkStyle(),
+	});
 }
 
 void Panel::migrationShowShareLink() {
@@ -1704,6 +1719,12 @@ void Panel::showMainMenu() {
 }
 
 void Panel::addMembers() {
+	if (::Window::ShowUnlockPasscodeBox(
+			uiShow(),
+			DarkUnlockPasscodeBoxStyle(),
+			crl::guard(this, [=] { addMembers(); }))) {
+		return;
+	}
 	const auto &appConfig = _call->peer()->session().appConfig();
 	const auto conferenceLimit = appConfig.confcallSizeLimit();
 	if (_call->conference()

@@ -36,5 +36,8 @@ passcodeSystemUnlockLater: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
 passcodeSystemUnlockSkip: 12px;
+unlockPasscodeIconPadding: margins(0px, 32px, 0px, 10px);
+unlockPasscodeTitlePadding: margins(0px, 0px, 0px, 12px);
+unlockPasscodeErrorPadding: margins(0px, 6px, 0px, 8px);
 termsPadding: margins(22px, 4px, 16px, 16px);
 termsAgePadding: margins(22px, 16px, 16px, 0px);

@@ -62,6 +62,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_utility.h"
 #include "window/main_window.h"
 #include "window/window_controller.h"
+#include "window/window_unlock_passcode_box.h"
 #include "webrtc/webrtc_create_adm.h"
 #include "webrtc/webrtc_environment.h"
 #include "webrtc/webrtc_video_track.h"
@@ -436,40 +437,7 @@ void Panel::initControls() {
 		}
 		_call->toggleCameraSharing(!_call->isSharingCamera());
 	});
-	_addPeople->entity()->setClickedCallback([=] {
-		if (!_call || _call->state() != Call::State::Established) {
-			uiShow()->showToast(tr::lng_call_error_add_not_started(tr::now));
-			return;
-		}
-		const auto call = _call;
-		const auto creating = std::make_shared<bool>();
-		const auto create = [=](std::vector<InviteRequest> users) {
-			if (*creating) {
-				return;
-			}
-			*creating = true;
-			const auto sharingLink = users.empty();
-			Core::App().calls().startOrJoinConferenceCall({
-				.show = sessionShow(),
-				.invite = std::move(users),
-				.sharingLink = sharingLink,
-				.migrating = true,
-				.muted = call->muted(),
-				.videoCapture = (call->isSharingVideo()
-					? call->peekVideoCapture()
-					: nullptr),
-				.videoCaptureScreenId = call->screenSharingDeviceId(),
-			});
-		};
-		const auto invite = crl::guard(call, [=](
-				std::vector<InviteRequest> users) {
-			create(std::move(users));
-		});
-		const auto share = crl::guard(call, [=] {
-			create({});
-		});
-		uiShow()->showBox(Group::PrepareInviteBox(call, invite, share));
-	});
+	_addPeople->entity()->setClickedCallback([=] { addPeople(); });
 
 	_updateDurationTimer.setCallback([this] {
 		if (_call) {
@@ -513,6 +481,47 @@ void Panel::initControls() {
 	_decline->finishAnimating();
 	_cancel->finishAnimating();
 	_screencast->finishAnimating();
+}
+
+void Panel::addPeople() {
+	if (::Window::ShowUnlockPasscodeBox(
+			uiShow(),
+			Group::DarkUnlockPasscodeBoxStyle(),
+			crl::guard(this, [=] { addPeople(); }))) {
+		return;
+	}
+	if (!_call || _call->state() != Call::State::Established) {
+		uiShow()->showToast(tr::lng_call_error_add_not_started(tr::now));
+		return;
+	}
+	const auto call = _call;
+	const auto creating = std::make_shared<bool>();
+	const auto create = [=](std::vector<InviteRequest> users) {
+		if (*creating) {
+			return;
+		}
+		*creating = true;
+		const auto sharingLink = users.empty();
+		Core::App().calls().startOrJoinConferenceCall({
+			.show = sessionShow(),
+			.invite = std::move(users),
+			.sharingLink = sharingLink,
+			.migrating = true,
+			.muted = call->muted(),
+			.videoCapture = (call->isSharingVideo()
+				? call->peekVideoCapture()
+				: nullptr),
+			.videoCaptureScreenId = call->screenSharingDeviceId(),
+		});
+	};
+	const auto invite = crl::guard(call, [=](
+			std::vector<InviteRequest> users) {
+		create(std::move(users));
+	});
+	const auto share = crl::guard(call, [=] {
+		create({});
+	});
+	uiShow()->showBox(Group::PrepareInviteBox(call, invite, share));
 }
 
 void Panel::initConferenceInvite() {

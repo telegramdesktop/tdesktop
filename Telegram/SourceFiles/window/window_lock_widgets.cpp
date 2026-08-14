@@ -38,6 +38,25 @@ constexpr auto kSystemUnlockDelay = crl::time(1000);
 
 } // namespace
 
+PasscodeAttempt TryPasscode(const QString &passcode) {
+	if (passcode.isEmpty()) {
+		return PasscodeAttempt::Empty;
+	} else if (!passcodeCanTry()) {
+		return PasscodeAttempt::Flood;
+	}
+	const auto utf8 = passcode.toUtf8();
+	auto &domain = Core::App().domain();
+	const auto correct = domain.started()
+		? domain.local().checkPasscode(utf8)
+		: (domain.start(utf8) == Storage::StartResult::Success);
+	if (!correct) {
+		cSetPasscodeBadTries(cPasscodeBadTries() + 1);
+		cSetPasscodeLastTry(crl::now());
+		return PasscodeAttempt::Wrong;
+	}
+	return PasscodeAttempt::Correct;
+}
+
 LockWidget::LockWidget(QWidget *parent, not_null<Controller*> window)
 : RpWidget(parent)
 , _window(window) {
@@ -258,29 +277,21 @@ void PasscodeLockWidget::paintContent(QPainter &p) {
 }
 
 void PasscodeLockWidget::submit() {
-	if (_passcode->text().isEmpty()) {
+	switch (TryPasscode(_passcode->text())) {
+	case PasscodeAttempt::Empty:
 		_passcode->showError();
 		return;
-	}
-	if (!passcodeCanTry()) {
+	case PasscodeAttempt::Flood:
 		_error = tr::lng_flood_error(tr::now);
 		_passcode->showError();
 		update();
 		return;
-	}
-
-	const auto passcode = _passcode->text().toUtf8();
-	auto &domain = Core::App().domain();
-	const auto correct = domain.started()
-		? domain.local().checkPasscode(passcode)
-		: (domain.start(passcode) == Storage::StartResult::Success);
-	if (!correct) {
-		cSetPasscodeBadTries(cPasscodeBadTries() + 1);
-		cSetPasscodeLastTry(crl::now());
+	case PasscodeAttempt::Wrong:
 		error();
 		return;
+	case PasscodeAttempt::Correct:
+		break;
 	}
-
 	Core::App().unlockPasscode(); // Destroys this widget.
 }
 

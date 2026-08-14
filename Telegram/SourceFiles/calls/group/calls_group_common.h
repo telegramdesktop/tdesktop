@@ -45,6 +45,7 @@ class VideoCaptureInterface;
 
 namespace Window {
 class SessionController;
+struct UnlockPasscodeBoxStyle;
 } // namespace Window
 
 namespace Calls {
@@ -190,6 +191,7 @@ struct ConferenceCallLinkStyleOverrides {
 	std::shared_ptr<ShareBoxStyleOverrides> shareBox;
 };
 [[nodiscard]] ConferenceCallLinkStyleOverrides DarkConferenceCallLinkStyle();
+[[nodiscard]] ::Window::UnlockPasscodeBoxStyle DarkUnlockPasscodeBoxStyle();
 
 struct ConferenceCallLinkArgs {
 	ConferenceCallLinkStyleOverrides st;

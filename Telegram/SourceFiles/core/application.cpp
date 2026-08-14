@@ -1284,6 +1284,7 @@ void Application::lockByPasscode() {
 	if (_mediaView) {
 		_mediaView->close();
 	}
+	_calls->hidePanelLayers();
 }
 
 void Application::maybeLockByPasscode() {

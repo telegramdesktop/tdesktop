@@ -173,6 +173,7 @@ private:
 	void updateWideControlsVisibility();
 	[[nodiscard]] bool videoButtonInNarrowMode() const;
 	[[nodiscard]] Fn<void()> shareConferenceLinkCallback();
+	void shareConferenceLink();
 	void toggleMessageTyping();
 	[[nodiscard]] rpl::producer<Ui::CallButtonColors> toggleableOverrides(
 		rpl::producer<bool> active);
