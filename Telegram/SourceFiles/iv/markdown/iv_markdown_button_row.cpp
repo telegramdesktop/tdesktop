@@ -459,7 +459,7 @@ void PaintRichButtonLoadingOutline(
 [[nodiscard]] bool RichButtonLoadingIdle(
 		not_null<RichButtonLoadingState*> state,
 		crl::time now) {
-	return (state->lastFullPassAt > state->lastPaintedAt)
+	return (state->lastCoveringPassAt > state->lastPaintedAt)
 		|| (now > state->lastPaintedAt + kLoadingIdleTimeout);
 }
 
@@ -653,6 +653,27 @@ void PaintPunchedOutPill(
 	p.setOpacity(was * contentOpacity);
 	paintContent(p, QColor(Qt::transparent));
 	p.setOpacity(was);
+}
+
+// A host that knows which part of the article was on screen states it as a
+// band in the article's own logical coordinates, derived from knowledge it
+// holds independently of the paint clip. The pass covered everything that
+// could have painted a loading pill when the clip contains that band across
+// the article's full laid-out width. A host that states no band is judged by
+// the whole laid-out rect instead, which is what a host that paints the
+// whole article it lays out means.
+bool RichButtonLoadingPassCovered(
+		RichButtonLoadingCoverage coverage,
+		QRect laidOut,
+		QRect clip) {
+	const auto covered = (coverage.bottom > coverage.top)
+		? laidOut.intersected(QRect(
+			laidOut.x(),
+			coverage.top,
+			laidOut.width(),
+			coverage.bottom - coverage.top))
+		: laidOut;
+	return !covered.isEmpty() && clip.contains(covered);
 }
 
 QByteArray RichButtonLoadingKey(

@@ -213,6 +213,7 @@ struct MarkdownArticlePaintContext final : Ui::ChatPaintContext {
 	bool debugBlockGeometry = false;
 	bool bubbleGradient = false;
 	RichButtonLoading buttonLoading;
+	RichButtonLoadingCoverage buttonLoadingCoverage;
 	double mediaPixelScale = 1.;
 
 	[[nodiscard]] MarkdownArticlePaintContext translated(int x, int y) const {

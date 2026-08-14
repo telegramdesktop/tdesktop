@@ -1117,14 +1117,20 @@ void MarkdownDocumentWidget::copyCodeBlock(
 	}
 }
 
+Ui::VisibleRange MarkdownDocumentWidget::articleVisibleBand() const {
+	const auto scale = zoomScale();
+	return {
+		.top = int(std::floor(_visibleRange.top / scale)),
+		.bottom = int(std::ceil(_visibleRange.bottom / scale)),
+	};
+}
+
 void MarkdownDocumentWidget::syncArticleVisibleTopBottom() {
 	if (!_article) {
 		return;
 	}
-	const auto scale = zoomScale();
-	_article->setVisibleTopBottom(
-		int(std::floor(_visibleRange.top / scale)),
-		int(std::ceil(_visibleRange.bottom / scale)));
+	const auto band = articleVisibleBand();
+	_article->setVisibleTopBottom(band.top, band.bottom);
 }
 
 int MarkdownDocumentWidget::relayoutCurrentWidth(bool clearSelection) {
@@ -1408,6 +1414,11 @@ MarkdownArticlePaintContext MarkdownDocumentWidget::textPaintContext(
 				}
 			});
 		},
+	};
+	const auto band = articleVisibleBand();
+	context.buttonLoadingCoverage = {
+		.top = band.top,
+		.bottom = band.bottom,
 	};
 	const auto my = clickHandlerContext().value<ClickHandlerContext>();
 	if (const auto window = my.sessionWindow.get()) {

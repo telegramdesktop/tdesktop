@@ -4643,8 +4643,11 @@ void MarkdownArticle::Impl::paint(
 		0,
 		std::max(_width, 1),
 		std::max(_height, 1));
-	if (context.clip.contains(laidOut)) {
-		_buttonLoading.lastFullPassAt = crl::now();
+	if (RichButtonLoadingPassCovered(
+			context.buttonLoadingCoverage,
+			laidOut,
+			context.clip)) {
+		_buttonLoading.lastCoveringPassAt = crl::now();
 	}
 	_inlineButtonPaintState->st = &paintSt;
 	_inlineButtonPaintState->bubbleGradient = local.bubbleGradient;

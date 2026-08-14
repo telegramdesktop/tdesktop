@@ -134,6 +134,7 @@ private:
 	void copySelectedText();
 	void copyCodeBlock(const MarkdownArticleHitTestResult &state);
 
+	[[nodiscard]] Ui::VisibleRange articleVisibleBand() const;
 	void syncArticleVisibleTopBottom();
 	int relayoutCurrentWidth(bool clearSelection);
 	void forceRelayoutCurrentWidth();

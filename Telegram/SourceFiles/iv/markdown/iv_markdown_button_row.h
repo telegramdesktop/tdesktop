@@ -72,13 +72,18 @@ struct RichButtonLoadingState {
 	base::Timer timer;
 	Fn<void()> repaint;
 	crl::time lastPaintedAt = 0;
-	crl::time lastFullPassAt = 0;
+	crl::time lastCoveringPassAt = 0;
 };
 
 struct RichButtonLoading {
 	RichButtonLoadingState *state = nullptr;
 	::Data::Session *owner = nullptr;
 	FullMsgId itemId;
+};
+
+struct RichButtonLoadingCoverage {
+	int top = 0;
+	int bottom = 0;
 };
 
 [[nodiscard]] RichButtonPillColors BubbleGradientPillColors(
@@ -117,6 +122,10 @@ void PaintPunchedOutPill(
 	float64 contentOpacity,
 	const Fn<void(QPainter&)> &paintBackground,
 	const Fn<void(QPainter&, QColor)> &paintContent);
+[[nodiscard]] bool RichButtonLoadingPassCovered(
+	RichButtonLoadingCoverage coverage,
+	QRect laidOut,
+	QRect clip);
 [[nodiscard]] QByteArray RichButtonLoadingKey(
 	const HistoryMessageMarkupButton &button);
 [[nodiscard]] RichButtonLoadingState *RichButtonLoadingActive(
