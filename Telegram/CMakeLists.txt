@@ -1916,6 +1916,8 @@ PRIVATE
     test/test_runner.cpp
     test/test_runner.h
     test/test_scenario.cpp
+    test/test_style.cpp
+    test/test_style.h
     test/test_transfer.cpp
     test/test_transfer.h
     test/test_widgets.cpp
