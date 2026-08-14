@@ -439,6 +439,9 @@ public:
 		Underline,
 		StrikeOut,
 		Spoiler,
+		Subscript,
+		Superscript,
+		Marked,
 		PlainText,
 	};
 	struct TextNodeSpan {

@@ -133,6 +133,12 @@ void ExpandInsertContextToActiveLine(State::ActiveTextInsertContext &context) {
 		return &Ui::InputField::kTagStrikeOut;
 	case TextFormattingAction::Spoiler:
 		return &Ui::InputField::kTagSpoiler;
+	case TextFormattingAction::Subscript:
+		return &Ui::InputField::kTagIvSubscript;
+	case TextFormattingAction::Superscript:
+		return &Ui::InputField::kTagIvSuperscript;
+	case TextFormattingAction::Marked:
+		return &Ui::InputField::kTagIvMarked;
 	case TextFormattingAction::PlainText:
 		return nullptr;
 	}

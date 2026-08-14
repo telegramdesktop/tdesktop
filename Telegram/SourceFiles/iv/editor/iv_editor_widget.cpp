@@ -355,13 +355,16 @@ MapCommittedFieldSelectionAfterCommit(
 		return TextFormattingAction::StrikeOut;
 	case ToolbarFormatAction::Spoiler:
 		return TextFormattingAction::Spoiler;
+	case ToolbarFormatAction::Subscript:
+		return TextFormattingAction::Subscript;
+	case ToolbarFormatAction::Superscript:
+		return TextFormattingAction::Superscript;
+	case ToolbarFormatAction::Marked:
+		return TextFormattingAction::Marked;
 	case ToolbarFormatAction::PlainText:
 		return TextFormattingAction::PlainText;
 	case ToolbarFormatAction::Undo:
 	case ToolbarFormatAction::Redo:
-	case ToolbarFormatAction::Subscript:
-	case ToolbarFormatAction::Superscript:
-	case ToolbarFormatAction::Marked:
 	case ToolbarFormatAction::Link:
 	case ToolbarFormatAction::Math:
 	case ToolbarFormatAction::Count:
@@ -3182,6 +3185,9 @@ Widget::ToolbarActionState Widget::toolbarActionState(
 	case ToolbarFormatAction::Italic:
 	case ToolbarFormatAction::Underline:
 	case ToolbarFormatAction::StrikeOut:
+	case ToolbarFormatAction::Subscript:
+	case ToolbarFormatAction::Superscript:
+	case ToolbarFormatAction::Marked:
 	case ToolbarFormatAction::PlainText:
 		return {
 			.shown = true,
@@ -3199,16 +3205,6 @@ Widget::ToolbarActionState Widget::toolbarActionState(
 				|| broaderMediaSelected,
 			.active = inlineActive
 				&& _field->isMarkdownTagActive(Ui::InputField::kTagSpoiler),
-		};
-	case ToolbarFormatAction::Subscript:
-	case ToolbarFormatAction::Superscript:
-	case ToolbarFormatAction::Marked:
-		return {
-			.shown = true,
-			.enabled = inlineActive,
-			.active = inlineActive
-				&& ToolbarActionTag(action)
-				&& _field->isMarkdownTagActive(*ToolbarActionTag(action)),
 		};
 	case ToolbarFormatAction::Math:
 		return {
@@ -3402,11 +3398,6 @@ void Widget::applyToolbarFormatAction(ToolbarFormatAction action) {
 			_field->toggleCurrentMarkdownTag(*tag);
 			notifyToolbarStateChanged();
 		}
-		return;
-	}
-	if (action == ToolbarFormatAction::Marked
-		|| action == ToolbarFormatAction::Subscript
-		|| action == ToolbarFormatAction::Superscript) {
 		return;
 	}
 	const auto textSpans = broaderSelectionTextSpans();
