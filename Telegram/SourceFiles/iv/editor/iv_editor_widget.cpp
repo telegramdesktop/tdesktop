@@ -7297,8 +7297,8 @@ bool Widget::fieldCursorLeavesVisibleRow(bool down) const {
 	const auto nextRect = raw->cursorRect(next);
 	return !nextRect.isValid()
 		|| nextRect.isEmpty()
-		|| (nextRect.top() < viewport.top())
-		|| (nextRect.bottom() > viewport.bottom());
+		|| (nextRect.bottom() < viewport.top())
+		|| (nextRect.top() > viewport.bottom());
 }
 
 int Widget::textEditableSegmentIndex(int ordinal) const {
