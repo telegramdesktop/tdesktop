@@ -220,3 +220,24 @@ videoTimelineDurationStyle: TextStyle(defaultTextStyle) {
 	font: font(12px semibold);
 }
 videoTimelineDurationPadding: margins(6px, 2px, 6px, 2px);
+
+videoEditorConfirmButton: RoundButton(defaultActiveButton) {
+	height: 36px;
+	textTop: 9px;
+	padding: margins(18px, 0px, 18px, 0px);
+	style: photoEditorButtonStyle;
+}
+videoEditorCancelButton: RoundButton(videoEditorConfirmButton) {
+	textFg: mediaviewCaptionFg;
+	textFgOver: mediaviewCaptionFg;
+	textBg: photoEditorEdgeButtonBg;
+	textBgOver: photoEditorEdgeButtonBg;
+}
+videoEditorControlsHeight: 128px;
+videoEditorTimelineTop: 12px;
+videoEditorButtonsTop: 78px;
+videoEditorButtonSkip: 10px;
+videoEditorContentMargins: margins(20px, 20px, 20px, 128px);
+videoEditorAbout: FlatLabel(photoEditorAbout) {
+}
+videoEditorAboutMargin: margins(10px, 10px, 10px, 0px);

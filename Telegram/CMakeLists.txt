@@ -872,6 +872,10 @@ PRIVATE
     editor/photo_editor_layer_widget.h
     editor/scene/scene_item_sticker.cpp
     editor/scene/scene_item_sticker.h
+    editor/video/video_editor.cpp
+    editor/video/video_editor.h
+    editor/video/video_editor_common.cpp
+    editor/video/video_editor_common.h
     editor/video/video_timeline.cpp
     editor/video/video_timeline.h
     export/export_manager.cpp
