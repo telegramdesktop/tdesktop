@@ -7354,11 +7354,16 @@ bool State::wrapStructuralBlockSelection(
 			&insertAt)) {
 		return false;
 	}
+	const auto joined = joinListWithSiblings(
+		BlockPath{ .container = container, .index = insertAt },
+		action.orderedStartExplicit);
 	rebuild();
-	const auto target = destinationTargetForInsertedBlocks(
-		container,
-		insertAt,
-		1);
+	const auto target = joined
+		? destinationTargetForInsertedListItems(
+			joined->list,
+			joined->itemsFrom,
+			joined->itemsCount)
+		: destinationTargetForInsertedBlocks(container, insertAt, 1);
 	if (destination) {
 		*destination = target;
 	}
@@ -7835,6 +7840,22 @@ bool State::replaceStructuralSelectionWithBlock(
 			}
 			if (!candidate.setListStyle(selection.listItems, style)) {
 				return false;
+			}
+			if (const auto joined = candidate.joinListWithSiblings(
+					validated->block,
+					false)) {
+				candidate.rebuild();
+				if (destination) {
+					const auto shift = joined->itemsFrom;
+					*destination = {
+						.action = BoundaryTarget::Action::StructuralSelection,
+						.structuralSelection
+							= candidate.preparedSelectionForListItems(
+								joined->list,
+								validated->from + shift,
+								validated->till + shift),
+					};
+				}
 			}
 			return commitValidatedCandidate(std::move(candidate));
 		}
@@ -10477,6 +10498,13 @@ PreparedEditSelection State::preparedSelectionForBlock(
 PreparedEditSelection State::preparedSelectionForListItem(
 		const BlockPath &path,
 		int itemIndex) const {
+	return preparedSelectionForListItems(path, itemIndex, itemIndex + 1);
+}
+
+PreparedEditSelection State::preparedSelectionForListItems(
+		const BlockPath &path,
+		int from,
+		int till) const {
 	return {
 		.kind = PreparedEditSelectionKind::ListItems,
 		.listItems = {
@@ -10484,8 +10512,8 @@ PreparedEditSelection State::preparedSelectionForListItem(
 				.container = ToPreparedBlockContainerPath(path.container),
 				.index = path.index,
 			},
-			.from = itemIndex,
-			.till = itemIndex + 1,
+			.from = from,
+			.till = till,
 		},
 	};
 }
