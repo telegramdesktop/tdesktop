@@ -153,8 +153,8 @@ void SetupHeader(
 not_null<Ui::PasswordInput*> AddPasswordField(
 		not_null<Ui::VerticalLayout*> content,
 		rpl::producer<QString> &&placeholder,
-		const QString &text) {
-	const auto &st = st::settingLocalPasscodeInputField;
+		const QString &text,
+		const style::InputField &st) {
 	auto container = object_ptr<Ui::RpWidget>(content);
 	container->resize(container->width(), st.heightMin);
 	const auto field = Ui::CreateChild<Ui::PasswordInput>(
@@ -206,13 +206,15 @@ not_null<Ui::LinkButton*> AddLinkButton(
 
 not_null<Ui::FlatLabel*> AddError(
 		not_null<Ui::VerticalLayout*> content,
-		Ui::PasswordInput *input) {
+		Ui::PasswordInput *input,
+		const style::FlatLabel &st,
+		const style::margins &padding) {
 	const auto error = content->add(
 		object_ptr<Ui::FlatLabel>(
 			content,
 			QString(),
-			st::settingLocalPasscodeError),
-		st::changePhoneDescriptionPadding,
+			st),
+		padding,
 		style::al_top);
 	error->hide();
 	if (input) {

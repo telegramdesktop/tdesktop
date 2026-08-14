@@ -10,12 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
+#include "settings/cloud_password/settings_cloud_password_common.h"
 #include "settings/settings_common.h"
 #include "ui/layers/generic_box.h"
 #include "ui/layers/show.h"
 #include "ui/widgets/fields/password_input.h"
 #include "ui/widgets/labels.h"
-#include "ui/rp_widget.h"
 #include "ui/vertical_list.h"
 #include "window/window_lock_widgets.h"
 
@@ -122,30 +122,16 @@ void UnlockPasscodeBox(
 
 	Ui::AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
 
-	const auto &fieldSt = *st.field;
-	auto container = object_ptr<Ui::RpWidget>(content);
-	container->resize(container->width(), fieldSt.heightMin);
-	const auto field = Ui::CreateChild<Ui::PasswordInput>(
-		container.data(),
-		fieldSt,
-		tr::lng_passcode_enter());
-	container->geometryValue(
-	) | rpl::on_next([=](const QRect &r) {
-		field->moveToLeft((r.width() - field->width()) / 2, 0);
-	}, container->lifetime());
-	content->add(std::move(container));
-
-	const auto error = box->addRow(
-		object_ptr<Ui::FlatLabel>(
-			box,
-			QString(),
-			*st.error),
-		st::boxRowPadding + st::unlockPasscodeErrorPadding,
-		style::al_top);
-	error->hide();
-	QObject::connect(field, &Ui::MaskedInputField::changed, [=] {
-		error->hide();
-	});
+	const auto field = Settings::CloudPassword::AddPasswordField(
+		content,
+		tr::lng_passcode_enter(),
+		QString(),
+		*st.field);
+	const auto error = Settings::CloudPassword::AddError(
+		content,
+		field,
+		*st.error,
+		st::boxRowPadding + st::unlockPasscodeErrorPadding);
 
 	const auto submit = [=] { Submit(box, field, error, finish); };
 	QObject::connect(field, &Ui::MaskedInputField::submitted, submit);
