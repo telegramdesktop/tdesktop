@@ -3842,7 +3842,7 @@ bool Message::hasFromPhoto() const {
 			|| isCommentsRootView()) {
 			return false;
 		}
-		if (item->isEphemeral() && !item->from()->isUser()) {
+		if (item->isEphemeral()) {
 			if (const auto channel = item->history()->peer->asBroadcast()) {
 				return channel->signatureProfiles();
 			}

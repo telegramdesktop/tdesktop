@@ -164,6 +164,7 @@ ListWidget::ListWidget(
 : RpWidget(parent)
 , _controller(controller)
 , _provider(MakeProvider(_controller))
+, _checkMoveToOtherViewer([=] { checkMoveToOtherViewer(); })
 , _rowsScrollCache([=] { update(); })
 , _dateBadge(std::make_unique<DateBadge>(
 	_provider->type(),
@@ -382,6 +383,10 @@ auto ListWidget::globalMediaSliceViewValue() const
 		_globalMediaSliceView);
 }
 
+rpl::producer<> ListWidget::globalMediaSliceRefreshStarts() const {
+	return _globalMediaSliceRefreshStarts.events();
+}
+
 bool ListWidget::globalMediaSliceRefreshInProgress() const {
 	return _globalMediaSliceRefreshInProgress;
 }
@@ -450,6 +455,10 @@ bool ListWidget::allRowsDisplayed() const {
 			return result + int(section.items().size());
 		});
 	return (displayed == *count);
+}
+
+bool ListWidget::hasRows() const {
+	return !_sections.empty();
 }
 
 void ListWidget::selectionAction(SelectionAction action) {
@@ -890,9 +899,12 @@ void ListWidget::refreshRows() {
 	const auto globalMedia = globalMediaProvider();
 	const auto globalMediaMusic = globalMedia
 		&& (globalMedia->type() == Type::MusicFile);
-	const auto embeddedGlobalMedia = globalMediaMusic
-		&& _globalMediaEmbeddedViewport;
+	const auto embedded = _globalMediaEmbeddedViewport;
+	const auto embeddedGlobalMedia = globalMediaMusic && embedded;
 	_globalMediaSliceRefreshInProgress = embeddedGlobalMedia;
+	if (embedded) {
+		_globalMediaSliceRefreshStarts.fire({});
+	}
 	saveScrollState();
 
 	_reorderState = {};
@@ -921,14 +933,14 @@ void ListWidget::refreshRows() {
 		: std::nullopt;
 	restoreScrollState();
 	if (embeddedGlobalMedia) {
-		_globalMediaSliceRefreshInProgress = false;
 		_fullCountUpdates.fire_copy(count);
 	}
 	if (globalMediaMusic) {
 		_globalMediaSliceViewChanges.fire_copy(_globalMediaSliceView);
 	}
 	if (embeddedGlobalMedia) {
-		checkMoveToOtherViewer();
+		_globalMediaSliceRefreshInProgress = false;
+		_checkMoveToOtherViewer.call();
 	}
 	mouseActionUpdate();
 	update();
@@ -1087,7 +1099,7 @@ void ListWidget::toggleScrollDateShown() {
 }
 
 void ListWidget::checkMoveToOtherViewer() {
-	if (!_preloadEnabled) {
+	if (!_preloadEnabled || _globalMediaSliceRefreshInProgress) {
 		return;
 	}
 	const auto visibleHeight = std::max(
@@ -1146,8 +1158,9 @@ ListScrollTopState ListWidget::countScrollState() const {
 }
 
 ListScrollTopState ListWidget::countScrollState(QPoint anchor) const {
-	const auto stickToTop = !_globalMediaEmbeddedViewport
-		&& (!_externalViewportHeight || !_provider->anchorWhileAtTop());
+	const auto stickToTop = _globalMediaEmbeddedViewport
+		|| !_externalViewportHeight
+		|| !_provider->anchorWhileAtTop();
 	if (_sections.empty() || (_visibleTop <= 0 && stickToTop)) {
 		return {};
 	}
@@ -3018,7 +3031,12 @@ void ListWidget::setTopOverlayHeight(int height) {
 }
 
 void ListWidget::setExternalViewportHeight(int height) {
+	height = std::max(height, 0);
+	if (_externalViewportHeight == height) {
+		return;
+	}
 	_externalViewportHeight = height;
+	checkMoveToOtherViewer();
 }
 
 } // namespace Media

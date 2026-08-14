@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/invoke_queued.h"
 #include "info/global_media/info_global_media_provider.h"
 #include "info/media/info_media_common.h"
 #include "info/media/info_media_widget.h"
@@ -89,6 +90,7 @@ public:
 		-> const std::optional<GlobalMediaSliceView> &;
 	[[nodiscard]] auto globalMediaSliceViewValue() const
 		-> rpl::producer<std::optional<GlobalMediaSliceView>>;
+	[[nodiscard]] rpl::producer<> globalMediaSliceRefreshStarts() const;
 	[[nodiscard]] bool globalMediaSliceRefreshInProgress() const;
 	void setGlobalMediaEmbeddedViewport();
 	void setGlobalMediaAccumulationEnabled(bool enabled);
@@ -97,6 +99,7 @@ public:
 	void setPreloadEnabled(bool enabled);
 	[[nodiscard]] int heightForFirstRows(int count) const;
 	[[nodiscard]] bool allRowsDisplayed() const;
+	[[nodiscard]] bool hasRows() const;
 	void selectionAction(SelectionAction action);
 	void setSelectOnClick(bool enabled);
 	void setSelectedLimit(int limit);
@@ -377,6 +380,7 @@ private:
 
 	const not_null<AbstractController*> _controller;
 	const std::unique_ptr<ListProvider> _provider;
+	SingleQueuedInvokation _checkMoveToOtherViewer;
 
 	base::flat_set<not_null<const BaseLayout*>> _heavyLayouts;
 	bool _heavyLayoutsInvalidated = false;
@@ -392,6 +396,7 @@ private:
 	std::optional<GlobalMediaSliceView> _globalMediaSliceView;
 	rpl::event_stream<std::optional<GlobalMediaSliceView>>
 		_globalMediaSliceViewChanges;
+	rpl::event_stream<> _globalMediaSliceRefreshStarts;
 	bool _globalMediaSliceRefreshInProgress = false;
 	bool _globalMediaEmbeddedViewport = false;
 
