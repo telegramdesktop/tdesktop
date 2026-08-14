@@ -109,6 +109,7 @@ constexpr auto kCommentMaxBytes = 960;
 constexpr auto kFeeFiatDecimals = 5;
 constexpr auto kMaxFiatUnits = 999'999'999LL;
 constexpr auto kMaxAmountNano = 999'999'999'999'999'999LL;
+constexpr auto kRowAmountPreciseBelowNano = Ui::kNanosInOne / 100;
 
 class BalanceInk;
 class Card;
@@ -389,7 +390,11 @@ void SetRowAmount(
 	major->setText((incoming ? QChar('+') : kMinus)
 		+ Info::ChannelEarn::MajorPart(amount));
 	auto helper = Ui::Text::CustomEmojiHelper();
-	auto minorText = tr::marked(Info::ChannelEarn::MinorPart(amount));
+	const auto precise = !amount.whole()
+		&& (amount.nano() < kRowAmountPreciseBelowNano);
+	auto minorText = tr::marked(precise
+		? Info::ChannelEarn::MinorPart(Data::EarnInt(amount.nano()))
+		: Info::ChannelEarn::MinorPart(amount));
 	minorText.append(helper.paletteDependent({
 		.factory = [] {
 			return Ui::Earn::IconCurrencyColored(
