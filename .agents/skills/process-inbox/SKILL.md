@@ -200,6 +200,10 @@ phase: null
 inbox_receipt: receipts/YYYY/MM/DD/<receipt>.md
 ```
 
+Do not write a `model` field. It records which model finished the task, so only
+`finish` writes it, at the canonical `Approve` or `Block` boundary; a task
+carrying one before it is claimed is malformed.
+
 Use a project slug instead of `null` when routed to a project. Use a YAML list
 of task identifiers for dependencies. Dependencies record code lineage as well
 as readiness: keep an approved source task in `depends_on` when the new task's

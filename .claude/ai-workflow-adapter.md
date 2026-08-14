@@ -55,6 +55,16 @@ This file adapts harness mechanics and removes unnecessary text normalization.
   leaf rules (no delegation, no commits, progress and reply contracts); an
   adapter read there is wasted context.
 
+## Model self-reporting
+
+`workspace.py finish` requires `--model` and records it in the task's
+`state.yaml`. In Claude Code, report the Claude model actually running the
+performer, lowercase, without a context-window or date suffix:
+`claude-opus-5`, `claude-sonnet-5`, `claude-fable-5`, `claude-haiku-4-5`. A
+model id such as `claude-opus-5[1m]` becomes `claude-opus-5`. Take the value
+from the model you are running as, never from the task, the queue, or another
+checkout's records.
+
 ## Text handling
 
 Do not run a dedicated line-ending or BOM check, normalization, repair, phase,

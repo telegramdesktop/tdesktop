@@ -22,6 +22,7 @@ SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 VALID_STATUSES = {"todo", "in-progress", "approved", "blocked"}
 DEFAULT_TASK_TYPE = "implement"
 VALID_TASK_TYPES = {DEFAULT_TASK_TYPE, "verify", "minimal"}
+MODEL_PATTERN = re.compile(r"[a-z0-9][a-z0-9.-]{0,39}")
 VALID_FINDINGS = {"confirmed", "deviation", "inconclusive"}
 CONSOLIDATION_PENDING = "work/consolidation-pending.md"
 CONSOLIDATION_COMPLETE = "work/consolidation-complete.md"
@@ -43,6 +44,7 @@ STATE_FIELD_ORDER = [
 	"claim_order",
 	"lease_until",
 	"phase",
+	"model",
 	"inbox_receipt",
 ]
 PORTABLE_GOLDEN = "test_TelegramForcePortable"
@@ -383,6 +385,9 @@ def load_state(root, path):
 			order = int(order)
 		except ValueError as error:
 			raise WorkspaceError(f"Invalid claim_order in {path}: {order!r}") from error
+	model = parse_scalar(values.get("model", "null"))
+	if model is not None and not MODEL_PATTERN.fullmatch(str(model)):
+		raise WorkspaceError(f"Invalid model name {model!r} in {path}")
 	task_id = task_id_for_state(root, path)
 	task_file = path.with_name("task.md")
 	title = task_id.rsplit("/", 1)[-1]
@@ -404,6 +409,7 @@ def load_state(root, path):
 		"claim_order": order,
 		"lease_until": parse_scalar(values.get("lease_until", "null")),
 		"phase": parse_scalar(values.get("phase", "null")),
+		"model": model,
 		"inbox_receipt": parse_scalar(values.get("inbox_receipt", "null")),
 		"state_path": str(path),
 	}
@@ -2658,6 +2664,13 @@ def validate_verify_result(lines, result_path, approved):
 
 
 def command_finish(args):
+	model = args.model.strip()
+	if not MODEL_PATTERN.fullmatch(model):
+		raise WorkspaceError(
+			f"Invalid --model short name {args.model!r}. Report the model you are "
+			"actually running as, lowercase, for example claude-opus-5, "
+			"gpt-5.6-sol, glm-5.3."
+		)
 	config, slot = task_action_config(args, allow_project=True)
 	ensure_clean(Path(config["source_root"]), "Telegram source checkout")
 	kind = task_type(slot, args.task)
@@ -2689,6 +2702,7 @@ def command_finish(args):
 		"status": args.status,
 		"phase": "complete" if args.status == "approved" else "blocked",
 		"lease_until": None,
+		"model": model,
 	})
 	verb = "Approve" if args.status == "approved" else "Block"
 	paths = [task_relative_dir(args.task)]
@@ -3707,6 +3721,7 @@ def parse_args():
 	add_common_arguments(finish)
 	finish.add_argument("--task", required=True)
 	finish.add_argument("--status", choices=("approved", "blocked"), required=True)
+	finish.add_argument("--model", required=True)
 	finish.set_defaults(handler=command_finish)
 
 	publish = subparsers.add_parser("publish")

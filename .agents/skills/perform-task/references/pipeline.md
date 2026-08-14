@@ -744,8 +744,18 @@ Publish final AI state only after the Telegram commit and result are final:
 ```bash
 python3 SOURCE_ROOT/.agents/skills/process-inbox/scripts/workspace.py \
   finish --source-root SOURCE_ROOT --task TASK_ID \
-  --status approved|blocked
+  --status approved|blocked --model MODEL_SHORT_NAME
 ```
+
+`--model` is required and records which model finished the task, into the
+`model` field of its `state.yaml`. Self-report the model you are actually
+running as, as a lowercase short name — `claude-opus-5`, `claude-fable-5`,
+`gpt-5.6-sol`, `glm-5.3`, `kimi-k3`, `grok-4.6`. Report the model running the
+performer that reaches this boundary, not a leaf's model and not whichever model
+happened to start the task: the field answers "who finished it", so a task
+resumed by a different model after an interruption records the model that
+actually completed it. Never guess or copy the value from another task; if you
+cannot tell what you are, say so and stop rather than recording a wrong name.
 
 The helper verifies a clean source checkout, local task refs, current `HEAD`,
 and the retained implementation's exact three-line commit message. It commits
