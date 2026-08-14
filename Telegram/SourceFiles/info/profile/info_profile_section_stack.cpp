@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/vertical_list.h"
 #include "ui/rect_part.h"
+#include "ui/ui_utility.h"
 
 #include "styles/style_info.h"
 
@@ -235,6 +236,13 @@ void SectionStack::finalize() {
 				return (i < int(v.size())) && v[i];
 			}) | rpl::distinct_until_changed());
 	}
+	visible->changes() | rpl::on_next([layout = _layout] {
+		// A toggle landing inside a layout resize pass is skipped there,
+		// leaving the rows below the separator overlapped by it.
+		InvokeQueued(layout, [=] {
+			layout->resizeToWidth(layout->width());
+		});
+	}, _layout->lifetime());
 }
 
 } // namespace Info::Profile
