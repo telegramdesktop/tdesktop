@@ -375,6 +375,11 @@ HistoryWidget::HistoryWidget(
 	setAcceptDrops(true);
 	setVisualTabOrder(true);
 
+	// The bars inside are raised over each other in the reverse of their
+	// visual order, so they need their own ordering - the outer one above
+	// sees them as a single child and keeps whatever order they have.
+	_topBars->setVisualTabOrder(true);
+
 	session().downloaderTaskFinished() | rpl::on_next([=] {
 		update();
 	}, lifetime());
