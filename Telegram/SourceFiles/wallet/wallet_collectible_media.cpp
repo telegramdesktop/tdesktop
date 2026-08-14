@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
 #include "data/data_star_gift.h"
-#include "gram/api/gram_api_nft.h"
 #include "lang/lang_tag.h"
 #include "main/main_session.h"
 #include "storage/file_download.h"
@@ -295,12 +294,24 @@ CollectibleView CollectibleMedia::view(const Gram::Address &item) const {
 		const auto title = SplitNumberTail(Gram::FormatFriendly(item, true));
 		return { title.first, title.second, QString() };
 	} else if (!entry->number.isEmpty()) {
-		return { entry->name, entry->number, entry->collectionName };
+		return {
+			entry->name,
+			entry->number,
+			entry->collectionName,
+			entry->record.kind,
+			entry->record.key,
+		};
 	}
 	const auto title = SplitNumberTail(entry->name.isEmpty()
 		? entry->fallback
 		: entry->name);
-	return { title.first, title.second, entry->collectionName };
+	return {
+		title.first,
+		title.second,
+		entry->collectionName,
+		entry->record.kind,
+		entry->record.key,
+	};
 }
 
 Gram::Address CollectibleMedia::collection(const Gram::Address &item) const {

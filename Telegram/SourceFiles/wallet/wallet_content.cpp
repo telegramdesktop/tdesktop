@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_common.h"
 #include "core/credits_amount.h"
 #include "core/ton_explorer_url.h"
+#include "data/data_session.h"
 #include "data/data_user.h"
 #include "gram/api/gram_api_history.h"
 #include "gram/crypto/gram_mnemonic.h"
@@ -328,6 +329,14 @@ private:
 	return result;
 }
 
+enum class RowAvatar {
+	Peer,
+	In,
+	Out,
+	Card,
+	Contract,
+};
+
 struct HistoryRowContent {
 	QString title;
 	QString subtitle;
@@ -335,6 +344,9 @@ struct HistoryRowContent {
 	int64 amountNano = 0;
 	bool incoming = false;
 	bool pending = false;
+	RowAvatar avatar = RowAvatar::Out;
+	PeerData *peer = nullptr;
+	bool itemAmount = false;
 	Gram::Address collectible;
 };
 
@@ -350,6 +362,18 @@ struct HistoryRowContent {
 	}
 	const auto full = Gram::FormatFriendly(address, true);
 	return ShortAddressForm(full);
+}
+
+void SetAmountColor(
+		not_null<Ui::FlatLabel*> major,
+		not_null<Ui::FlatLabel*> minor,
+		const style::color &color) {
+	rpl::single(rpl::empty) | rpl::then(
+		style::PaletteChanged()
+	) | rpl::on_next([=] {
+		major->setTextColorOverride(color->c);
+		minor->setTextColorOverride(color->c);
+	}, major->lifetime());
 }
 
 void SetRowAmount(
@@ -380,12 +404,169 @@ void SetRowAmount(
 		: incoming
 		? st::boxTextFgGood
 		: st::windowBoldFg;
-	rpl::single(rpl::empty) | rpl::then(
-		style::PaletteChanged()
+	SetAmountColor(major, minor, color);
+}
+
+void SetRowItemAmount(
+		not_null<Ui::FlatLabel*> major,
+		not_null<Ui::FlatLabel*> minor,
+		bool incoming) {
+	major->setText((incoming ? QChar('+') : kMinus)
+		+ tr::lng_wallet_row_items(tr::now, lt_count, 1));
+	minor->setMarkedText(Ui::Text::IconEmoji(incoming
+		? &st::walletRowItemMarkIn
+		: &st::walletRowItemMarkOut));
+	const auto &color = incoming ? st::boxTextFgGood : st::windowBoldFg;
+	SetAmountColor(major, minor, color);
+}
+
+void PaintRowAvatar(Painter &p, QRect rect, RowAvatar avatar) {
+	auto hq = PainterHighQualityEnabler(p);
+	const auto in = (avatar == RowAvatar::In);
+	if (avatar == RowAvatar::Contract) {
+		p.setBrush(st::historyPeerArchiveUserpicBg);
+	} else {
+		const auto &top = in
+			? st::historyPeer2UserpicBg
+			: st::historyPeer4UserpicBg;
+		const auto &bottom = in
+			? st::historyPeer2UserpicBg2
+			: st::historyPeer4UserpicBg2;
+		auto gradient = QLinearGradient(
+			rect.topLeft(),
+			rect.bottomLeft());
+		gradient.setStops({ { 0., top->c }, { 1., bottom->c } });
+		p.setBrush(gradient);
+	}
+	p.setPen(Qt::NoPen);
+	p.drawEllipse(rect);
+	const auto icon = in
+		? &st::walletRowArrowIn
+		: (avatar == RowAvatar::Card)
+		? &st::walletRowCardIcon
+		: (avatar == RowAvatar::Contract)
+		? &st::walletRowContractIcon
+		: &st::walletRowArrowOut;
+	icon->paintInCenter(p, rect);
+}
+
+void AddHistoryRowChip(
+		not_null<Ui::VerticalLayout*> inner,
+		std::shared_ptr<CollectibleMedia> media,
+		Gram::Address address) {
+	Ui::AddSkip(inner, st::walletChipTopSkip);
+	const auto chip = inner->add(object_ptr<Ui::FixedHeightWidget>(
+		inner,
+		st::walletRowIconSize));
+	chip->setAttribute(Qt::WA_TransparentForMouseEvents);
+	struct State {
+		Gram::NftKind kind = Gram::NftKind::Generic;
+		Ui::Text::String title;
+		Ui::Text::String subtitle;
+		int natural = 0;
+	};
+	const auto state = chip->lifetime().make_state<State>();
+	const auto refresh = [=] {
+		const auto view = media->view(address);
+		state->kind = view.kind;
+		using Kind = Gram::NftKind;
+		state->title.setMarkedText(
+			st::walletCollectibleTitleStyle,
+			((view.kind == Kind::TelegramUsername)
+				? Ui::Text::Semibold('@' + view.key)
+				: (view.kind == Kind::TelegramNumber)
+				? Ui::Text::Semibold(Ui::FormatPhone(view.key))
+				: CollectibleTitleText(view)));
+		state->subtitle.setText(
+			st::walletRowDateLabel.style,
+			((view.kind == Kind::TelegramGift)
+				? tr::lng_wallet_chip_gift(tr::now)
+				: (view.kind == Kind::TelegramUsername)
+				? tr::lng_wallet_chip_username(tr::now)
+				: (view.kind == Kind::TelegramNumber)
+				? tr::lng_wallet_chip_number(tr::now)
+				: tr::lng_wallet_chip_nft(tr::now)));
+		state->natural = st::walletRowIconSize
+			+ st::walletChipTextSkip
+			+ std::max(state->title.maxWidth(), state->subtitle.maxWidth())
+			+ st::walletChipPadding.right();
+		chip->update();
+	};
+	chip->paintRequest(
 	) | rpl::on_next([=] {
-		major->setTextColorOverride(color->c);
-		minor->setTextColorOverride(color->c);
-	}, major->lifetime());
+		auto p = Painter(chip);
+		const auto width = chip->width();
+		const auto side = st::walletRowIconSize;
+		const auto radius = st::walletCollectibleThumbRadius;
+		const auto plate = std::min(state->natural, width);
+		const auto rtl = style::RightToLeft();
+		const auto plateLeft = rtl ? (width - plate) : 0;
+		const auto square = QRect(rtl ? (width - side) : 0, 0, side, side);
+		const auto dark = (state->kind == Gram::NftKind::TelegramUsername)
+			|| (state->kind == Gram::NftKind::TelegramNumber);
+		{
+			auto hq = PainterHighQualityEnabler(p);
+			p.setPen(Qt::NoPen);
+			p.setBrush(st::windowBgOver);
+			p.drawRoundedRect(
+				QRect(plateLeft, 0, plate, side),
+				radius,
+				radius);
+			if (dark) {
+				p.setBrush(st::callBgOpaque);
+				p.drawRoundedRect(square, radius, radius);
+			}
+		}
+		if (state->kind == Gram::NftKind::TelegramUsername) {
+			st::walletChipUsernameIcon.paintInCenter(p, square);
+		} else if (state->kind == Gram::NftKind::TelegramNumber) {
+			st::walletChipNumberIcon.paintInCenter(p, square);
+		} else {
+			media->paint(p, address, square, width, radius);
+		}
+		const auto available = plate
+			- side
+			- st::walletChipTextSkip
+			- st::walletChipPadding.right();
+		if (available <= 0) {
+			return;
+		}
+		const auto textLeft = rtl
+			? (plateLeft + st::walletChipPadding.right())
+			: (side + st::walletChipTextSkip);
+		const auto titleHeight = st::walletCollectibleTitleStyle.font->height;
+		const auto subtitleHeight = st::walletRowDateLabel.style.font->height;
+		const auto top = (side
+			- titleHeight
+			- st::walletRowSkip
+			- subtitleHeight) / 2;
+		p.setPen(st::windowBoldFg);
+		state->title.draw(p, {
+			.position = { textLeft, top },
+			.outerWidth = width,
+			.availableWidth = available,
+			.palette = &st::walletCollectibleTitlePalette,
+			.elisionLines = 1,
+		});
+		p.setPen(st::windowSubTextFg);
+		state->subtitle.draw(p, {
+			.position = { textLeft, top + titleHeight + st::walletRowSkip },
+			.outerWidth = width,
+			.availableWidth = available,
+			.elisionLines = 1,
+		});
+	}, chip->lifetime());
+	const auto mine = [=](const Gram::Address &changed) {
+		return (changed == address);
+	};
+	media->changed(
+	) | rpl::filter(mine) | rpl::on_next(refresh, chip->lifetime());
+	media->repaint(
+	) | rpl::filter(mine) | rpl::on_next([=] {
+		chip->update();
+	}, chip->lifetime());
+	media->resolve(address);
+	refresh();
 }
 
 void AddHistoryRow(
@@ -393,8 +574,6 @@ void AddHistoryRow(
 		const HistoryRowContent &content,
 		Fn<void()> clicked,
 		std::shared_ptr<CollectibleMedia> media = nullptr) {
-	const auto address = content.collectible;
-	const auto collectible = media && !address.hash.isEmpty();
 	const auto wrap = list->add(
 		object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
 			list,
@@ -404,17 +583,8 @@ void AddHistoryRow(
 	inner->setAttribute(Qt::WA_TransparentForMouseEvents);
 	const auto title = inner->add(object_ptr<Ui::FlatLabel>(
 		inner,
-		(collectible
-			? st::walletCollectibleTitleLabel
-			: st::walletRowTitleLabel)));
-	const auto applyTitle = [=] {
-		title->setMarkedText(CollectibleTitleText(media->view(address)));
-	};
-	if (collectible) {
-		applyTitle();
-	} else {
-		title->setText(content.title);
-	}
+		content.title,
+		st::walletRowTitleLabel));
 	auto subtitle = (Ui::FlatLabel*)nullptr;
 	if (!content.subtitle.isEmpty()) {
 		Ui::AddSkip(inner, st::walletRowSkip);
@@ -428,18 +598,22 @@ void AddHistoryRow(
 		inner,
 		content.date,
 		st::walletRowDateLabel));
+	const auto hasChip = content.itemAmount && (media != nullptr);
+	if (hasChip) {
+		AddHistoryRowChip(inner, media, content.collectible);
+	}
 
-	auto major = (Ui::FlatLabel*)nullptr;
-	auto minor = (Ui::FlatLabel*)nullptr;
-	if (!collectible) {
-		major = Ui::CreateChild<Ui::FlatLabel>(
-			wrap,
-			st::walletRowAmountMajorLabel);
-		major->setAttribute(Qt::WA_TransparentForMouseEvents);
-		minor = Ui::CreateChild<Ui::FlatLabel>(
-			wrap,
-			st::walletRowAmountMinorLabel);
-		minor->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto major = Ui::CreateChild<Ui::FlatLabel>(
+		wrap,
+		st::walletRowAmountMajorLabel);
+	major->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto minor = Ui::CreateChild<Ui::FlatLabel>(
+		wrap,
+		st::walletRowAmountMinorLabel);
+	minor->setAttribute(Qt::WA_TransparentForMouseEvents);
+	if (content.itemAmount) {
+		SetRowItemAmount(major, minor, content.incoming);
+	} else {
 		SetRowAmount(
 			major,
 			minor,
@@ -450,27 +624,32 @@ void AddHistoryRow(
 	const auto circle = Ui::CreateChild<Ui::RpWidget>(wrap);
 	circle->resize(st::walletRowIconSize, st::walletRowIconSize);
 	circle->setAttribute(Qt::WA_TransparentForMouseEvents);
-	const auto icon = content.incoming
-		? &st::walletRowIconIn
-		: &st::walletRowIconOut;
-	circle->paintRequest(
-	) | rpl::on_next([=] {
-		auto p = Painter(circle);
-		if (collectible) {
-			media->paint(
+	if (const auto peer = content.peer) {
+		const auto userpic = circle->lifetime().make_state<
+			Ui::PeerUserpicView>(peer->createUserpicView());
+		peer->session().downloaderTaskFinished(
+		) | rpl::on_next([=] {
+			circle->update();
+		}, circle->lifetime());
+		circle->paintRequest(
+		) | rpl::on_next([=] {
+			auto p = Painter(circle);
+			peer->paintUserpicLeft(
 				p,
-				address,
-				circle->rect(),
+				*userpic,
+				0,
+				0,
 				circle->width(),
-				st::walletCollectibleThumbRadius);
-			return;
-		}
-		auto hq = PainterHighQualityEnabler(p);
-		p.setPen(Qt::NoPen);
-		p.setBrush(st::windowBgActive);
-		p.drawEllipse(circle->rect());
-		icon->paintInCenter(p, circle->rect());
-	}, circle->lifetime());
+				circle->width());
+		}, circle->lifetime());
+	} else {
+		const auto avatar = content.avatar;
+		circle->paintRequest(
+		) | rpl::on_next([=] {
+			auto p = Painter(circle);
+			PaintRowAvatar(p, circle->rect(), avatar);
+		}, circle->lifetime());
+	}
 	const auto button = Ui::CreateChild<Ui::SettingsButton>(
 		wrap,
 		rpl::single(QString()));
@@ -483,35 +662,25 @@ void AddHistoryRow(
 				+ (title->height()
 					+ st::walletRowSkip
 					+ subtitle->height()) / 2)
+			: hasChip
+			? ((g.height()
+				- st::walletChipTopSkip
+				- st::walletRowIconSize) / 2)
 			: (g.height() / 2);
 		circle->moveToLeft(
 			st::walletRowIconLeft,
 			center - circle->height() / 2);
-		if (major) {
-			const auto majorTop = st::walletRowPadding.top()
-				+ (title->height() - major->height()) / 2;
-			minor->moveToRight(
-				st::walletRowPadding.right(),
-				majorTop + st::walletRowAmountMinorSkip);
-			major->moveToRight(
-				st::walletRowPadding.right() + minor->width(),
-				majorTop);
-		}
+		const auto majorTop = st::walletRowPadding.top()
+			+ (title->height() - major->height()) / 2;
+		minor->moveToRight(
+			st::walletRowPadding.right(),
+			majorTop + st::walletRowAmountMinorSkip);
+		major->moveToRight(
+			st::walletRowPadding.right() + minor->width(),
+			majorTop);
 		button->resize(g.size());
 		button->lower();
 	}, wrap->lifetime());
-	if (collectible) {
-		const auto mine = [=](const Gram::Address &changed) {
-			return (changed == address);
-		};
-		media->changed(
-		) | rpl::filter(mine) | rpl::on_next(applyTitle, wrap->lifetime());
-		media->repaint(
-		) | rpl::filter(mine) | rpl::on_next([=] {
-			circle->update();
-		}, wrap->lifetime());
-		media->resolve(address);
-	}
 }
 
 [[nodiscard]] bool ShowsCollectible(const Gram::TransferItem &item) {
@@ -521,39 +690,94 @@ void AddHistoryRow(
 }
 
 [[nodiscard]] HistoryRowContent RowContentFromItem(
-		const Gram::TransferItem &item) {
+		const Gram::TransferItem &item,
+		not_null<Main::Session*> session) {
+	using Kind = Gram::TransferItem::Kind;
+	const auto date = langDateTime(base::unixtime::parse(item.date));
 	if (ShowsCollectible(item)) {
+		const auto hasCounterparty = !item.counterparty.hash.isEmpty();
+		const auto kindText = item.incoming
+			? tr::lng_wallet_row_collectible_in(tr::now)
+			: tr::lng_wallet_row_collectible_out(tr::now);
 		return {
-			.subtitle = (item.incoming
-				? tr::lng_wallet_row_incoming(tr::now)
-				: tr::lng_wallet_row_outgoing(tr::now)),
-			.date = langDateTime(base::unixtime::parse(item.date)),
+			.title = (hasCounterparty
+				? ShortAddress(item.counterparty)
+				: kindText),
+			.subtitle = (hasCounterparty ? kindText : QString()),
+			.date = date,
 			.incoming = item.incoming,
+			.avatar = (item.incoming ? RowAvatar::In : RowAvatar::Out),
+			.itemAmount = true,
 			.collectible = item.collectible,
 		};
 	}
 	const auto pending
 		= (item.status == Gram::TransferItem::Status::Pending);
+	if (item.kind == Kind::CardTopUp) {
+		return {
+			.title = tr::lng_wallet_row_card_topup(tr::now),
+			.subtitle = (pending
+				? tr::lng_wallet_row_pending(tr::now)
+				: item.provider),
+			.date = date,
+			.amountNano = item.amountNano,
+			.incoming = item.incoming,
+			.pending = pending,
+			.avatar = RowAvatar::Card,
+		};
+	}
+	if (item.kind == Kind::PeerTransfer && item.counterpartyPeer) {
+		const auto peer = session->data().peerLoaded(
+			PeerId(item.counterpartyPeer));
+		if (peer) {
+			return {
+				.title = peer->name(),
+				.subtitle = (pending
+					? tr::lng_wallet_row_pending(tr::now)
+					: item.incoming
+					? tr::lng_wallet_row_incoming(tr::now)
+					: tr::lng_wallet_row_outgoing(tr::now)),
+				.date = date,
+				.amountNano = item.amountNano,
+				.incoming = item.incoming,
+				.pending = pending,
+				.avatar = RowAvatar::Peer,
+				.peer = peer,
+			};
+		}
+	}
+	const auto contract = (item.kind == Kind::ContractInteraction);
+	const auto collectible = (item.kind == Kind::Collectible);
 	const auto hasCounterparty = !item.counterparty.hash.isEmpty();
-	const auto kindText = (item.kind
-		== Gram::TransferItem::Kind::ContractInteraction)
-		? tr::lng_wallet_row_contract(tr::now)
+	const auto kindText = contract
+		? tr::lng_wallet_row_smart_contract(tr::now)
+		: collectible
+		? (item.incoming
+			? tr::lng_wallet_row_collectible_in(tr::now)
+			: tr::lng_wallet_row_collectible_out(tr::now))
 		: item.incoming
-		? tr::lng_wallet_row_incoming(tr::now)
-		: tr::lng_wallet_row_outgoing(tr::now);
+		? tr::lng_wallet_row_deposit(tr::now)
+		: tr::lng_wallet_row_withdrawal(tr::now);
 	return {
 		.title = (hasCounterparty
 			? ShortAddress(item.counterparty)
+			: contract
+			? tr::lng_wallet_row_contract(tr::now)
 			: kindText),
 		.subtitle = (pending
 			? tr::lng_wallet_row_pending(tr::now)
 			: hasCounterparty
 			? kindText
 			: QString()),
-		.date = langDateTime(base::unixtime::parse(item.date)),
+		.date = date,
 		.amountNano = item.amountNano,
 		.incoming = item.incoming,
 		.pending = pending,
+		.avatar = (contract
+			? RowAvatar::Contract
+			: item.incoming
+			? RowAvatar::In
+			: RowAvatar::Out),
 	};
 }
 
@@ -566,6 +790,7 @@ void AddHistoryRow(
 		.amountNano = pending.amountNano,
 		.incoming = false,
 		.pending = true,
+		.avatar = RowAvatar::Out,
 	};
 }
 
@@ -3849,7 +4074,10 @@ void Content::setupContent() {
 				});
 			}
 			for (const auto &item : history) {
-				AddHistoryRow(list, RowContentFromItem(item), [=] {
+				const auto content = RowContentFromItem(
+					item,
+					&_show->session());
+				AddHistoryRow(list, content, [=] {
 					ShowWalletTransactionBox(_show, item, media);
 				}, media);
 			}

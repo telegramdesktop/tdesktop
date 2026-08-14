@@ -95,8 +95,10 @@ walletAboutBottomSkip: walletRowsTopSkip;
 walletRowPadding: margins(76px, 6px, 20px, 6px);
 walletRowIconSize: 46px;
 walletRowIconLeft: 20px;
-walletRowIconIn: icon{{ "calls/call_arrow_in", activeButtonFg }};
-walletRowIconOut: icon{{ "calls/call_arrow_out", activeButtonFg }};
+walletRowArrowIn: icon{{ "wallet/incoming_arrow", historyPeerUserpicFg }};
+walletRowArrowOut: icon{{ "wallet/outgoing_arrow", historyPeerUserpicFg }};
+walletRowCardIcon: icon{{ "wallet/card_topup", historyPeerUserpicFg }};
+walletRowContractIcon: icon{{ "wallet/smart_contract", historyPeerUserpicFg }};
 walletRowTitleLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowBoldFg;
 	style: TextStyle(defaultTextStyle) {
@@ -145,6 +147,19 @@ walletCollectibleTitleLabel: FlatLabel(walletRowTitleLabel) {
 	style: walletCollectibleTitleStyle;
 	palette: walletCollectibleTitlePalette;
 }
+walletChipUsernameIcon: icon{{ "wallet/chip_username", historyPeerUserpicFg }};
+walletChipNumberIcon: icon{{ "wallet/chip_number", historyPeerUserpicFg }};
+walletRowItemMarkIn: IconEmoji {
+	icon: icon{{ "profile/gift-15x15", boxTextFgGood }};
+	padding: margins(4px, 1px, 0px, 0px);
+	useIconColor: true;
+}
+walletRowItemMarkOut: IconEmoji(walletRowItemMarkIn) {
+	icon: icon{{ "profile/gift-15x15", windowSubTextFg }};
+}
+walletChipTopSkip: 12px;
+walletChipTextSkip: 12px;
+walletChipPadding: margins(0px, 0px, 12px, 0px);
 
 walletDetailsBox: Box(giveawayGiftCodeBox) {
 	bg: windowBgOver;

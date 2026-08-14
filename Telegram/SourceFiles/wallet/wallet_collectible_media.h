@@ -9,16 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/flat_map.h"
 #include "base/weak_ptr.h"
+#include "gram/api/gram_api_nft.h"
 #include "gram/ton/gram_address.h"
 
 #include <memory>
 
 class FileLoader;
 class Painter;
-
-namespace Gram {
-struct NftItem;
-} // namespace Gram
 
 namespace Main {
 class Session;
@@ -30,6 +27,8 @@ struct CollectibleView {
 	QString name;
 	QString number;
 	QString collectionName;
+	Gram::NftKind kind = Gram::NftKind::Generic;
+	QString key;
 };
 
 [[nodiscard]] TextWithEntities CollectibleTitleText(

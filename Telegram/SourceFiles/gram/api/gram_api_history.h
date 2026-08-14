@@ -26,15 +26,19 @@ struct TransferItem {
 		Transfer,
 		ContractInteraction,
 		Collectible,
+		CardTopUp,
+		PeerTransfer,
 	};
 
 	Kind kind = Kind::Transfer;
 	bool incoming = false;
 	Address counterparty;
 	QString counterpartyName;
+	quint64 counterpartyPeer = 0;
 	Address collectible;
 	QString collectibleName;
 	QString collectibleImageUrl;
+	QString provider;
 	int64 amountNano = 0;
 	int64 feeNano = 0;
 	QString comment;
