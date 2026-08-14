@@ -3818,7 +3818,6 @@ int Card::resizeGetHeight(int newWidth) {
 
 void Card::setupQr() {
 	_qr = Ui::CreateChild<Ui::AbstractButton>(this);
-	_qr->resize(CardQrRect(width()).size());
 	_qr->setClickedCallback([=] {
 		ShowWalletReceiveBox(&_show->session(), _show);
 	});
