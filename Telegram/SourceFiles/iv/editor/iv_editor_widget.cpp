@@ -4468,6 +4468,9 @@ void Widget::showSimpleMediaMenu(
 			requestReplaceMedia(path);
 		},
 		&st::menuIconReplace);
+	if (IsPhotoVideoBlockKind(block->kind)) {
+		addReplaceFromClipboardAction(menu, path, -1);
+	}
 	if (block->kind == RichPage::BlockKind::Photo) {
 		menu->addAction(
 			tr::lng_context_draw(tr::now),
@@ -4556,6 +4559,7 @@ void Widget::showGroupedMediaMenu(
 				requestReplaceGroupedItem(path, itemIndex);
 			},
 			&st::menuIconReplace);
+		addReplaceFromClipboardAction(menu, path, itemIndex);
 		if (block->mediaItems[itemIndex].kind
 			== RichPage::BlockKind::Photo) {
 			menu->addAction(
@@ -4964,8 +4968,19 @@ bool Widget::applyMediaBlockChange(Fn<bool()> change) {
 	return !result.failed && changed;
 }
 
+std::optional<State::ReplaceTarget> Widget::replaceTargetForMedia(
+		const State::BlockPath &path,
+		int itemIndex) const {
+	if (itemIndex < 0) {
+		return _state->replaceTargetForBlock(path);
+	} else if (mediaUploadStateForGroupedItem(path, itemIndex).uploading) {
+		return std::nullopt;
+	}
+	return _state->replaceTargetForGroupedItem(path, itemIndex);
+}
+
 void Widget::requestReplaceMedia(State::BlockPath path) {
-	const auto target = _state->replaceTargetForBlock(path);
+	auto target = replaceTargetForMedia(path, -1);
 	if (!target) {
 		return;
 	}
@@ -4978,14 +4993,50 @@ void Widget::requestReplaceMedia(State::BlockPath path) {
 void Widget::requestReplaceGroupedItem(
 		State::BlockPath path,
 		int itemIndex) {
-	if (mediaUploadStateForGroupedItem(path, itemIndex).uploading) {
-		return;
-	}
-	auto target = _state->replaceTargetForGroupedItem(path, itemIndex);
+	auto target = replaceTargetForMedia(path, itemIndex);
 	if (!target) {
 		return;
 	}
 	requestMedia(std::move(target), RequestMediaType::PhotoVideoAudio);
+}
+
+void Widget::addReplaceFromClipboardAction(
+		not_null<Ui::PopupMenu*> menu,
+		State::BlockPath path,
+		int itemIndex) {
+	const auto data = QApplication::clipboard()->mimeData();
+	if (!_replacePhotoWithList || !data || !data->hasImage()) {
+		return;
+	}
+	menu->addAction(
+		tr::lng_profile_photo_from_clipboard(tr::now),
+		[=] {
+			replaceMediaFromClipboard(path, itemIndex);
+		},
+		&st::menuIconPhoto);
+}
+
+void Widget::replaceMediaFromClipboard(
+		State::BlockPath path,
+		int itemIndex) {
+	const auto data = QApplication::clipboard()->mimeData();
+	if (!_replacePhotoWithList || !data) {
+		return;
+	}
+	auto list = PreparedMediaFromClipboard(
+		not_null<const QMimeData*>(data),
+		SessionPremium(_session));
+	if (!list) {
+		return;
+	}
+	auto target = replaceTargetForMedia(path, itemIndex);
+	if (!target) {
+		return;
+	}
+	_replacePhotoWithList(
+		not_null<Widget*>(this),
+		std::move(*list),
+		std::move(*target));
 }
 
 void Widget::editPhotoBlock(State::BlockPath path) {

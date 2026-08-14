@@ -911,8 +911,16 @@ private:
 	bool applyGroupedMediaChangePreservingActiveIndex(
 		const State::BlockPath &path,
 		Fn<bool()> change);
+	[[nodiscard]] std::optional<State::ReplaceTarget> replaceTargetForMedia(
+		const State::BlockPath &path,
+		int itemIndex) const;
 	void requestReplaceMedia(State::BlockPath path);
 	void requestReplaceGroupedItem(State::BlockPath path, int itemIndex);
+	void addReplaceFromClipboardAction(
+		not_null<Ui::PopupMenu*> menu,
+		State::BlockPath path,
+		int itemIndex);
+	void replaceMediaFromClipboard(State::BlockPath path, int itemIndex);
 	void editPhotoBlock(State::BlockPath path);
 	void editGroupedItemPhoto(State::BlockPath path, int itemIndex);
 	void openPhotoEditor(
