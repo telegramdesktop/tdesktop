@@ -67,7 +67,7 @@ private:
 	void startExpand(bool ready);
 	void pushIndicator();
 	void clearState();
-	void reset();
+	void reset(anim::type animated);
 	void jumpWhenReady(base::weak_ptr<History> next, crl::time waited);
 	void jumpTo(not_null<History*> history);
 	void jumpToTopic(
