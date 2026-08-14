@@ -342,7 +342,7 @@ QImage Extractor::take(crl::time position) {
 
 FileInfo ReadFileInfo(const QString &path, const QByteArray &content) {
 	auto source = Source();
-	if (!OpenSource(source, path, content, false)) {
+	if (!OpenSource(source, path, content, true)) {
 		return {};
 	}
 	const auto stream = source.videoStream;

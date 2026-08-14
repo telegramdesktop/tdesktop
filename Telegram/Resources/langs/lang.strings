@@ -431,6 +431,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bad_code" = "You have entered an invalid code.";
 "lng_bad_name" = "Enter your first and last name.";
 "lng_bad_photo" = "Sorry, Telegram can't process that type of image.";
+"lng_bad_video" = "Sorry, Telegram can't process that type of video.";
 
 "lng_signin_title" = "Cloud password check";
 "lng_signin_desc" = "Please enter your cloud password.";

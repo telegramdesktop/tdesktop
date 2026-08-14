@@ -876,6 +876,8 @@ PRIVATE
     editor/video/video_editor.h
     editor/video/video_editor_common.cpp
     editor/video/video_editor_common.h
+    editor/video/video_editor_layer.cpp
+    editor/video/video_editor_layer.h
     editor/video/video_timeline.cpp
     editor/video/video_timeline.h
     export/export_manager.cpp

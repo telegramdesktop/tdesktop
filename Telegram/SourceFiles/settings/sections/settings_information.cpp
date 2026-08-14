@@ -282,6 +282,7 @@ void SetupPhoto(
 		targets->uploadPhoto = upload;
 	}
 
+	upload->setVideoAllowed(true);
 	upload->chosenImages(
 	) | rpl::on_next([=](Ui::UserpicButton::ChosenImage &&chosen) {
 		auto &image = chosen.image;
@@ -291,9 +292,10 @@ void SetupPhoto(
 		self->session().api().peerPhoto().upload(
 			self,
 			{
-				std::move(image),
-				chosen.markup.documentId,
-				chosen.markup.colors,
+				.image = std::move(image),
+				.markupDocumentId = chosen.markup.documentId,
+				.markupColors = chosen.markup.colors,
+				.video = std::move(chosen.video),
 			});
 		if (!isMarkup) {
 			photo->showUploadProgress();

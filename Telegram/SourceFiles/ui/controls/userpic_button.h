@@ -28,6 +28,9 @@ struct Update;
 enum class Error;
 struct Information;
 } // namespace Streaming
+namespace Encode {
+struct VideoSource;
+} // namespace Encode
 } // namespace Media
 
 namespace style {
@@ -91,7 +94,11 @@ public:
 			DocumentId documentId = 0;
 			std::vector<QColor> colors;
 		} markup;
+
+		std::shared_ptr<Media::Encode::VideoSource> video;
 	};
+
+	void setVideoAllowed(bool allowed);
 
 	// Role::OpenPhoto
 	void switchChangePhotoOverlay(
@@ -195,6 +202,7 @@ private:
 	bool _showSavedMessagesOnSelf = false;
 	bool _showMyNotesOnSelf = false;
 	bool _canOpenPhoto = false;
+	bool _videoAllowed = false;
 	bool _cursorInChangeOverlay = false;
 	bool _changeOverlayEnabled = false;
 	Animations::Simple _changeOverlayShown;
