@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "base/flat_map.h"
 #include "base/options.h"
+#include "base/qt/qt_key_modifiers.h"
 #include "base/unique_qptr.h"
 #include "base/weak_qptr.h"
 #include "boxes/create_ai_box.h"
@@ -2434,7 +2435,7 @@ bool WindowHost::Impl::confirmCancel() {
 void WindowHost::Impl::discard() {
 	if (!_discard) {
 		return;
-	} else if (articleEmptyForDiscard()) {
+	} else if (articleEmptyForDiscard() || base::IsCtrlPressed()) {
 		if (!_discarded || _discarded()) {
 			finishClose();
 		}
