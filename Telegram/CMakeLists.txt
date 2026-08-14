@@ -1515,6 +1515,8 @@ PRIVATE
     media/streaming/media_streaming_native_frame_mac.h
     media/media_video_encode.cpp
     media/media_video_encode.h
+    media/media_video_frames.cpp
+    media/media_video_frames.h
     media/view/media_view_group_thumbs.cpp
     media/view/media_view_group_thumbs.h
     media/view/media_view_open_common.cpp

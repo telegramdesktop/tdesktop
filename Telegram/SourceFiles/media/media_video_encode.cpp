@@ -81,32 +81,6 @@ void CopyDisplayMatrix(not_null<AVStream*> from, not_null<AVStream*> to) {
 	}
 }
 
-struct ReadFileWrap {
-	QFile file;
-
-	static int Read(void *opaque, uint8_t *buf, int buf_size) {
-		auto wrap = static_cast<ReadFileWrap*>(opaque);
-		const auto read = wrap->file.read(
-			reinterpret_cast<char*>(buf),
-			buf_size);
-		return (read > 0) ? int(read) : AVERROR_EOF;
-	}
-	static int64_t Seek(void *opaque, int64_t offset, int whence) {
-		auto wrap = static_cast<ReadFileWrap*>(opaque);
-		auto position = int64(-1);
-		switch (whence) {
-		case SEEK_SET: position = offset; break;
-		case SEEK_CUR: position = wrap->file.pos() + offset; break;
-		case SEEK_END: position = wrap->file.size() + offset; break;
-		case AVSEEK_SIZE: return wrap->file.size();
-		}
-		if (position < 0 || position > wrap->file.size()) {
-			return -1;
-		}
-		return wrap->file.seek(position) ? position : -1;
-	}
-};
-
 struct FileFormatDeleter {
 	void operator()(AVFormatContext *value) {
 		if (value) {
