@@ -8600,7 +8600,7 @@ bool Widget::handleFieldKey(QKeyEvent *e) {
 		&& key == Qt::Key_Right) {
 		handled = moveBoundary(true, true);
 	} else if (key == Qt::Key_Return || key == Qt::Key_Enter) {
-		if (_fieldSuggestions && _fieldSuggestions->shown()) {
+		if (_fieldSuggestions && _fieldSuggestions->consumesEnter()) {
 			return false;
 		}
 		recordMutationTransaction([&] {
