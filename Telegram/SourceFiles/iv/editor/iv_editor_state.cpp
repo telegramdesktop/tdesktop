@@ -6336,13 +6336,10 @@ std::optional<int> State::submitActiveSingleLineFieldUnchecked(
 		}
 		return std::nullopt;
 	} else if (leaf.kind == LeafKind::TableCellText) {
-		const auto ordinal = textNodeOrdinal(leaf);
-		for (auto i = ordinal + 1, count = textNodeCount(); i != count; ++i) {
-			const auto &candidate = _textNodes[i].leaf;
-			if (candidate.block == leaf.block
-				&& candidate.kind == LeafKind::TableCellText) {
-				return activate(candidate);
-			}
+		if (const auto below = adjacentRowTableCellOrdinal(true)) {
+			return setActiveTextByOrdinal(*below)
+				? std::make_optional(_activeTextOrdinal)
+				: std::nullopt;
 		}
 		return paragraphAfterBlock();
 	}
