@@ -1913,6 +1913,8 @@ PRIVATE
     test/test_messages.h
     test/test_open_handoff.cpp
     test/test_open_handoff.h
+    test/test_panel.cpp
+    test/test_panel.h
     test/test_runner.cpp
     test/test_runner.h
     test/test_scenario.cpp
