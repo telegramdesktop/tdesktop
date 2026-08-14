@@ -7526,7 +7526,8 @@ bool State::unwrapListItemRangeIntoParent(
 		int from,
 		int till,
 		bool materializeEmptyItem,
-		BoundaryTarget *destination) {
+		BoundaryTarget *destination,
+		StructuralBlockRange *unwrapped) {
 	auto *owner = block(listPath);
 	auto *parent = blockContainer(listPath.container);
 	if (!owner
@@ -7585,6 +7586,13 @@ bool State::unwrapListItemRangeIntoParent(
 	}
 	auto insertAt = listPath.index + (hasLeading ? 1 : 0);
 	const auto insertedCount = int(inserted.size());
+	if (unwrapped) {
+		*unwrapped = StructuralBlockRange{
+			.container = listPath.container,
+			.from = insertAt,
+			.till = insertAt + insertedCount,
+		};
+	}
 	parent->insert(
 		parent->begin() + insertAt,
 		std::make_move_iterator(inserted.begin()),
@@ -7604,6 +7612,38 @@ bool State::unwrapListItemRangeIntoParent(
 		*destination = target;
 	}
 	return true;
+}
+
+bool State::wrapStructuralListItemSelection(
+		const Markdown::PreparedEditSelection &selection,
+		InsertAction action,
+		BoundaryTarget *destination) {
+	if (selection.kind != PreparedEditSelectionKind::ListItems) {
+		return false;
+	}
+	const auto range = validateListItemRange(selection.listItems);
+	if (!range) {
+		return false;
+	}
+	const auto owner = block(range->block);
+	if (!owner || owner->kind != BlockKind::List) {
+		return false;
+	}
+	clearTemporaryDownParagraph();
+	auto unwrapped = StructuralBlockRange();
+	if (!unwrapListItemRangeIntoParent(
+			range->block,
+			range->from,
+			range->till,
+			true,
+			nullptr,
+			&unwrapped)) {
+		return false;
+	}
+	return wrapStructuralBlockSelection(
+		preparedSelectionForBlockRange(unwrapped),
+		action,
+		destination);
 }
 
 bool State::replaceStructuralSelectionWithBlock(
@@ -7715,11 +7755,19 @@ bool State::replaceStructuralSelectionWithBlock(
 			}
 			return true;
 		}
-		if (selection.kind == PreparedEditSelectionKind::Blocks) {
-			if (!candidate.wrapStructuralBlockSelection(
+		if (selection.kind == PreparedEditSelectionKind::Blocks
+			|| selection.kind == PreparedEditSelectionKind::ListItems) {
+			const auto wrapped = (selection.kind
+				== PreparedEditSelectionKind::ListItems)
+				? candidate.wrapStructuralListItemSelection(
 					selection,
 					action,
-					&target)) {
+					&target)
+				: candidate.wrapStructuralBlockSelection(
+					selection,
+					action,
+					&target);
+			if (!wrapped) {
 				_lastLimitError = candidate._lastLimitError;
 				return false;
 			}
@@ -10208,6 +10256,18 @@ PreparedEditSelection State::preparedSelectionForBlock(
 			.container = ToPreparedBlockContainerPath(path.container),
 			.from = path.index,
 			.till = path.index + 1,
+		},
+	};
+}
+
+PreparedEditSelection State::preparedSelectionForBlockRange(
+		const StructuralBlockRange &range) const {
+	return {
+		.kind = PreparedEditSelectionKind::Blocks,
+		.blocks = {
+			.container = ToPreparedBlockContainerPath(range.container),
+			.from = range.from,
+			.till = range.till,
 		},
 	};
 }
