@@ -1090,6 +1090,26 @@ messageMarkdownNavNextIconOutSelected: icon{{
 	"box_button_back-flip_horizontal",
 	windowFg
 }};
+messageMarkdownTaskCheckIcon: icon{{
+	"default_checkbox_check",
+	historyFileInIconFg,
+	point(4px, 7px)
+}};
+messageMarkdownTaskCheckIconSelected: icon{{
+	"default_checkbox_check",
+	historyFileInIconFgSelected,
+	point(4px, 7px)
+}};
+messageMarkdownTaskCheckIconOut: icon{{
+	"default_checkbox_check",
+	historyFileOutIconFg,
+	point(4px, 7px)
+}};
+messageMarkdownTaskCheckIconOutSelected: icon{{
+	"default_checkbox_check",
+	historyFileOutIconFgSelected,
+	point(4px, 7px)
+}};
 messageMarkdownList: MarkdownList(defaultMarkdownList) {
 	bulletFg: historyTextInFg;
 }
@@ -1224,7 +1244,9 @@ messageMarkdown: Markdown(defaultMarkdown) {
 	blockSkips: messageMarkdownBlockSkips;
 	list: MarkdownList(messageMarkdownList) {
 		taskCheck: Check(defaultCheck) {
+			untoggledFg: msgInDateFg;
 			toggledFg: msgFileInBg;
+			icon: messageMarkdownTaskCheckIcon;
 		}
 	}
 	quoteIndent: 16px;
@@ -1250,7 +1272,9 @@ messageMarkdownOut: Markdown(messageMarkdown) {
 	list: MarkdownList(messageMarkdownList) {
 		bulletFg: historyTextOutFg;
 		taskCheck: Check(defaultCheck) {
+			untoggledFg: msgOutDateFg;
 			toggledFg: msgFileOutBg;
+			icon: messageMarkdownTaskCheckIconOut;
 		}
 	}
 	quotePaintColors: MarkdownQuotePaintColors(messageMarkdownQuotePaintColors) {
@@ -1311,7 +1335,9 @@ messageMarkdownSelected: Markdown(messageMarkdown) {
 	list: MarkdownList(messageMarkdownList) {
 		bulletFg: historyTextInFgSelected;
 		taskCheck: Check(defaultCheck) {
+			untoggledFg: msgInDateFgSelected;
 			toggledFg: msgFileInBgSelected;
+			icon: messageMarkdownTaskCheckIconSelected;
 		}
 	}
 	quotePaintColors: MarkdownQuotePaintColors(messageMarkdownQuotePaintColors) {
@@ -1372,7 +1398,9 @@ messageMarkdownOutSelected: Markdown(messageMarkdown) {
 	list: MarkdownList(messageMarkdownList) {
 		bulletFg: historyTextOutFgSelected;
 		taskCheck: Check(defaultCheck) {
+			untoggledFg: msgOutDateFgSelected;
 			toggledFg: msgFileOutBgSelected;
+			icon: messageMarkdownTaskCheckIconOutSelected;
 		}
 	}
 	quotePaintColors: MarkdownQuotePaintColors(messageMarkdownQuotePaintColors) {
