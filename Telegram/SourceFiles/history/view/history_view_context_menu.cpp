@@ -2610,13 +2610,6 @@ void ShowWhoReactedMenu(
 		}
 	};
 	const auto owner = &controller->session().data();
-	const auto reactions = &owner->reactions();
-	const auto &list = reactions->list(
-		Data::Reactions::Type::Active);
-	const auto activeNonQuick = !id.paid()
-		&& (id != reactions->favoriteId())
-		&& (ranges::contains(list, id, &Data::Reaction::id)
-			|| (controller->session().premium() && id.custom()));
 	const auto filler = lifetime.make_state<Ui::WhoReactedListMenu>(
 		Data::ReactedMenuFactory(&controller->session()),
 		participantChosen,
@@ -2632,14 +2625,6 @@ void ShowWhoReactedMenu(
 		return content.state != Ui::WhoReadState::Unknown;
 	}) | rpl::on_next([=, &lifetime](Ui::WhoReadContent &&content) {
 		const auto creating = !*menu;
-		const auto refillTop = [=] {
-			if (activeNonQuick) {
-				(*menu)->addAction(tr::lng_context_set_as_quick(tr::now), [=] {
-					reactions->setFavorite(id);
-				}, &st::menuIconFave);
-				(*menu)->addSeparator();
-			}
-		};
 		const auto appendBottom = [=] {
 			state->addedToBottom = 0;
 			if (const auto custom = id.custom()) {
@@ -2660,12 +2645,11 @@ void ShowWhoReactedMenu(
 				context,
 				st::whoReadMenu);
 			(*menu)->lifetime().add(base::take(lifetime));
-			refillTop();
 		}
 		filler->populate(
 			menu->get(),
 			content,
-			refillTop,
+			nullptr,
 			state->addedToBottom,
 			appendBottom);
 		if (creating) {
