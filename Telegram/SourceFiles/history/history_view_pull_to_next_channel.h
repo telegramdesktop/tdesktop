@@ -60,6 +60,7 @@ private:
 
 	[[nodiscard]] bool active() const;
 	[[nodiscard]] bool atBottom() const;
+	[[nodiscard]] bool hintVisible() const;
 	void handleOverscroll(
 		Ui::ElasticScrollPosition position,
 		Ui::ElasticScrollMovement movement);
@@ -89,6 +90,7 @@ private:
 	QString _topicCompleted;
 
 	bool _pulling = false;
+	bool _holding = false;
 	bool _committed = false;
 	bool _jumping = false;
 	bool _reached = false;

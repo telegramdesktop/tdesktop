@@ -924,6 +924,7 @@ void PullToNextChannel::handleOverscroll(
 		}
 	}
 	_pull = pull;
+	_holding = (movement == Phase::Progress);
 	const auto reached = (pull >= threshold);
 	if (_reached) {
 		// Collapse on a peak-relative reverse, not down to the threshold.
@@ -997,6 +998,7 @@ void PullToNextChannel::handleOverscroll(
 void PullToNextChannel::clearState() {
 	_dwellTimer.cancel();
 	_pulling = false;
+	_holding = false;
 	_committed = false;
 	_jumping = false;
 	_reached = false;
@@ -1044,7 +1046,7 @@ void PullToNextChannel::pushIndicator() {
 	if (_mode == Mode::History) {
 		const auto next = _next.get();
 		_indicator->setHistoryData(effective, _reached, next);
-		_hint->setData(_pull > 0., _reached, _mode, next != nullptr);
+		_hint->setData(hintVisible(), _reached, _mode, next != nullptr);
 	} else if (_mode == Mode::Topic) {
 		const auto next = _nextTopic.get();
 		_indicator->setTopicData(
@@ -1052,8 +1054,12 @@ void PullToNextChannel::pushIndicator() {
 			_reached,
 			next,
 			_topicCompleted);
-		_hint->setData(_pull > 0., _reached, _mode, next != nullptr);
+		_hint->setData(hintVisible(), _reached, _mode, next != nullptr);
 	}
+}
+
+bool PullToNextChannel::hintVisible() const {
+	return _holding && (_pull > 0.);
 }
 
 void PullToNextChannel::updateGeometry() {
