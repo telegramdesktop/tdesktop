@@ -266,6 +266,10 @@ void GroupCallBar::setupRightButton(not_null<RoundButton*> button) {
 	}, button->lifetime());
 
 	button->clicks() | rpl::start_to_stream(_joinClicks, button->lifetime());
+
+	// This button is created and replaced deeper in the tree than the bars
+	// container watches, so it wouldn't be placed in the visual Tab order.
+	RefreshVisualTabOrder(button);
 }
 
 void GroupCallBar::paint(Painter &p) {
