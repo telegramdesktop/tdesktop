@@ -151,14 +151,29 @@ void ExpandInsertContextToActiveLine(State::ActiveTextInsertContext &context) {
 		Ui::InputField::kTagIvMath);
 }
 
-[[nodiscard]] QString TagWithAddedDroppingMath(
+[[nodiscard]] QString TagWithoutOppositeScript(
+		const QString &tag,
+		const QString &added) {
+	if (added == Ui::InputField::kTagIvSubscript) {
+		return TextUtilities::TagWithRemoved(
+			tag,
+			Ui::InputField::kTagIvSuperscript);
+	} else if (added == Ui::InputField::kTagIvSuperscript) {
+		return TextUtilities::TagWithRemoved(
+			tag,
+			Ui::InputField::kTagIvSubscript);
+	}
+	return tag;
+}
+
+[[nodiscard]] QString TagWithAddedDroppingConflicts(
 		const QString &tag,
 		const QString &added) {
 	if (added == Ui::InputField::kTagIvMath) {
 		return Ui::InputField::kTagIvMath;
 	}
 	return TextUtilities::TagWithAdded(
-		TagWithoutInstantViewMath(tag),
+		TagWithoutOppositeScript(TagWithoutInstantViewMath(tag), added),
 		added);
 }
 
@@ -227,7 +242,7 @@ void OverlayTag(
 			result.push_back({
 				.offset = middleFrom,
 				.length = middleTill - middleFrom,
-				.id = TagWithAddedDroppingMath(tag.id, overlay.id),
+				.id = TagWithAddedDroppingConflicts(tag.id, overlay.id),
 			});
 			coveredTill = middleTill;
 		}
