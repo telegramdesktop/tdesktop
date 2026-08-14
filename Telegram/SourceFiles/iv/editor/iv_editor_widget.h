@@ -135,6 +135,7 @@ public:
 	void refreshPreparedLeafAtActiveSource();
 	void applyExternalRichPageMutation(Fn<bool(RichPage&)> mutation);
 	void syncInlineFieldGeometry();
+	[[nodiscard]] bool canInsertListAtCaret() const;
 	void insertBlock(State::InsertAction action);
 	void requestMedia(
 		std::optional<State::ReplaceTarget> replaceTarget,

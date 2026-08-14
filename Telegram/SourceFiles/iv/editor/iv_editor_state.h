@@ -189,6 +189,7 @@ public:
 	[[nodiscard]] BoundaryTarget activeBoundaryTarget(bool forward) const;
 	[[nodiscard]] std::vector<BoundaryTarget> boundarySteps(
 		bool forward) const;
+	[[nodiscard]] bool activeListItemIsEmpty() const;
 	[[nodiscard]] bool blockActionExpandsToActiveLine(
 		InsertBlockType type) const;
 	[[nodiscard]] bool isActiveTopLevelParagraph() const;

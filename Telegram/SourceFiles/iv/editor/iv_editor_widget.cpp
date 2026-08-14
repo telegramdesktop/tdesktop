@@ -1523,13 +1523,23 @@ void Widget::syncInlineFieldGeometry() {
 	syncInlineFieldGeometry(widthNoMargins());
 }
 
+bool Widget::canInsertListAtCaret() const {
+	if (!_state->activeListItemIsEmpty()) {
+		return true;
+	}
+	return !_field->isHidden() && !_field->getLastText().isEmpty();
+}
+
 void Widget::insertBlock(State::InsertAction action) {
+	using InsertType = State::InsertBlockType;
+	const auto listAction = (action.type == InsertType::OrderedList)
+		|| (action.type == InsertType::BulletList)
+		|| (action.type == InsertType::TaskList);
+	if (listAction && !canInsertListAtCaret()) {
+		return;
+	}
 	recordMutationTransaction([&] {
 		auto committed = ApplyResult::Unchanged;
-		using InsertType = State::InsertBlockType;
-		const auto listAction = (action.type == InsertType::OrderedList)
-			|| (action.type == InsertType::BulletList)
-			|| (action.type == InsertType::TaskList);
 		const auto wrapAction = listAction
 			|| (action.type == InsertType::Blockquote)
 			|| (action.type == InsertType::Pullquote)
