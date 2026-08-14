@@ -719,7 +719,7 @@ private:
 	[[nodiscard]] std::optional<ListJoin> joinListWithSiblings(
 		const BlockPath &list,
 		bool startExplicit);
-	void joinInsertedListWithSiblings(const InsertAction &action);
+	void joinInsertedListWithSiblings(bool startExplicit);
 	[[nodiscard]] bool canJoinActiveParagraphIntoPreviousList() const;
 	[[nodiscard]] bool joinActiveParagraphIntoPreviousListUnchecked(
 		ActiveTextSelectionTarget *target);

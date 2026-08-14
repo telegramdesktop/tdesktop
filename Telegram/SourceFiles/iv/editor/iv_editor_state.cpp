@@ -4157,17 +4157,12 @@ bool State::blockActionExpandsToActiveLine(InsertBlockType type) const {
 	return leaf && (leaf->kind != LeafKind::ListItemText);
 }
 
-void State::joinInsertedListWithSiblings(const InsertAction &action) {
-	if (!IsListInsertType(action.type)) {
-		return;
-	}
+void State::joinInsertedListWithSiblings(bool startExplicit) {
 	const auto leaf = activeLeafPath();
 	if (!leaf || leaf->kind != LeafKind::ListItemText) {
 		return;
 	}
-	const auto joined = joinListWithSiblings(
-		leaf->block,
-		action.orderedStartExplicit);
+	const auto joined = joinListWithSiblings(leaf->block, startExplicit);
 	if (!joined) {
 		return;
 	}
@@ -7176,11 +7171,15 @@ bool State::pasteClipboardListItemsAfterActive(
 			candidate.ensureActiveTextOrdinal();
 			return true;
 		}();
-		const auto applied = sameList
-			? true
-			: candidate.insertBlocksAfterActiveUnchecked(
+		auto applied = sameList;
+		if (!sameList) {
+			applied = candidate.insertBlocksAfterActiveUnchecked(
 				std::move(blocks),
 				std::move(context));
+			if (applied) {
+				candidate.joinInsertedListWithSiblings(false);
+			}
+		}
 		return CheckedMutationResult<bool>{
 			.apply = applied,
 			.result = applied,
@@ -8756,7 +8755,10 @@ State::ActiveTextBlockActionResult State::applyActiveTextBlockAction(
 				.result = result,
 			};
 		}
-		candidate.joinInsertedListWithSiblings(action);
+		if (IsListInsertType(action.type)) {
+			candidate.joinInsertedListWithSiblings(
+				action.orderedStartExplicit);
+		}
 		const auto descriptor = candidate.textNode(candidate._activeTextOrdinal);
 		if (!descriptor) {
 			return CheckedMutationResult<ActiveTextBlockActionResult>{
@@ -8851,8 +8853,9 @@ bool State::insertBlockAfterActive(
 		const auto applied = candidate.insertBlocksAfterActiveUnchecked(
 			std::move(blocks),
 			std::move(context));
-		if (applied) {
-			candidate.joinInsertedListWithSiblings(action);
+		if (applied && IsListInsertType(action.type)) {
+			candidate.joinInsertedListWithSiblings(
+				action.orderedStartExplicit);
 		}
 		return CheckedMutationResult<bool>{
 			.apply = applied,
