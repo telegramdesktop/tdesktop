@@ -46,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_custom_emoji.h"
 #include "editor/photo_editor_common.h"
 #include "editor/photo_editor_layer_widget.h"
+#include "editor/video/video_editor_layer.h"
 #include "history/history.h"
 #include "info/info_memento.h"
 #include "info/profile/info_profile_badge_tooltip.h"
@@ -1302,6 +1303,28 @@ void TopBar::setupUserpicButton(
 
 	using ChosenType = Ui::UserpicButton::ChosenType;
 
+	const auto chosenMediaCallback = [=](ChosenType type) {
+		return [=](Editor::ProfileMedia &&media) {
+			auto result = Api::PeerPhoto::UserPhoto{
+				.image = std::move(media.image),
+				.video = std::move(media.video),
+			};
+			switch (type) {
+			case ChosenType::Set:
+				_peer->session().api().peerPhoto().upload(
+					_peer,
+					std::move(result));
+				startUploadOverlay();
+				break;
+			case ChosenType::Suggest:
+				_peer->session().api().peerPhoto().suggest(
+					_peer,
+					std::move(result));
+				break;
+			}
+		};
+	};
+
 	const auto choosePhotoCallback = [=](ChosenType type) {
 		return [=](QImage &&image) {
 			auto result = Api::PeerPhoto::UserPhoto{
@@ -1359,11 +1382,11 @@ void TopBar::setupUserpicButton(
 		base::call_delayed(
 			st::defaultRippleAnimation.hideDuration,
 			crl::guard(this, [=] {
-				Editor::PrepareProfilePhotoFromFile(
+				Editor::PrepareProfileMediaFromFile(
 					this,
 					&controller->window(),
 					editorData(type),
-					choosePhotoCallback(type));
+					chosenMediaCallback(type));
 			}));
 	};
 

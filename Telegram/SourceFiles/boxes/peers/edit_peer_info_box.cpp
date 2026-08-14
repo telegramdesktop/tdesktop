@@ -725,6 +725,7 @@ object_ptr<Ui::RpWidget> Controller::createPhotoEdit() {
 			st::defaultUserpicButton),
 		st::editPeerPhotoMargins);
 	_controls.photo = photoWrap->entity();
+	_controls.photo->setVideoAllowed(true);
 	_controls.photo->showCustomOnChosen();
 
 	return photoWrap;
@@ -3050,10 +3051,14 @@ void Controller::savePhoto() {
 	auto image = _controls.photo
 		? _controls.photo->takeResultImage()
 		: QImage();
+	auto video = _controls.photo
+		? _controls.photo->takeResultVideo()
+		: nullptr;
 	if (!image.isNull()) {
-		_peer->session().api().peerPhoto().upload(
-			_peer,
-			{ std::move(image) });
+		_peer->session().api().peerPhoto().upload(_peer, {
+			.image = std::move(image),
+			.video = std::move(video),
+		});
 	}
 	_box->closeBox();
 }

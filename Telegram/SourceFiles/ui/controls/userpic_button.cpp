@@ -255,6 +255,8 @@ void UserpicButton::showCustomOnChosen() {
 	chosenImages(
 	) | rpl::on_next([=](ChosenImage &&chosen) {
 		showCustom(std::move(chosen.image));
+		// After showCustom, which clears any previously picked clip.
+		_resultVideo = std::move(chosen.video);
 	}, lifetime());
 }
 
@@ -1146,6 +1148,8 @@ void UserpicButton::showCustom(QImage &&image) {
 	_userpic.setDevicePixelRatio(style::DevicePixelRatio());
 	_userpicUniqueKey = {};
 	_result = std::move(image);
+	// A plain still replaces whatever clip was picked before it.
+	_resultVideo = nullptr;
 
 	startNewPhotoShowing();
 }
@@ -1163,6 +1167,7 @@ void UserpicButton::showSource(Source source) {
 	_source = source;
 
 	_result = QImage();
+	_resultVideo = nullptr;
 
 	processPeerPhoto();
 	setupPeerViewers();

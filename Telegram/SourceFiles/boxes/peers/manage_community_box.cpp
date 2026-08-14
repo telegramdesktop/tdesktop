@@ -141,6 +141,7 @@ void ManageCommunityBox(
 					Ui::PeerUserpicShape::Forum),
 				st::editPeerPhotoMargins));
 		photo = photoWrap->entity();
+		photo->setVideoAllowed(true);
 		photo->showCustomOnChosen();
 		const auto cache = row->lifetime().make_state<
 			Ui::CommunityUserpicEffect>();
@@ -323,10 +324,13 @@ void ManageCommunityBox(
 			if (onlyAdmins != wasOnlyAdmins) {
 				SaveCommunityWhoCanAddChats(community, onlyAdmins);
 			}
-			if (auto image = photo->takeResultImage(); !image.isNull()) {
-				community->session().api().peerPhoto().upload(
-					community,
-					{ std::move(image) });
+			auto image = photo->takeResultImage();
+			auto video = photo->takeResultVideo();
+			if (!image.isNull()) {
+				community->session().api().peerPhoto().upload(community, {
+					.image = std::move(image),
+					.video = std::move(video),
+				});
 			}
 			box->closeBox();
 		});
