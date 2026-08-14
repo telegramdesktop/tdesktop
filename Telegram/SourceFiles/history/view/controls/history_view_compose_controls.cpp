@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "base/options.h"
 #include "base/platform/base_platform_info.h"
+#include "base/qt/qt_key_modifiers.h"
 #include "base/qt_signal_producer.h"
 #include "base/random.h"
 #include "base/timer_rpl.h"
@@ -3861,6 +3862,9 @@ void ComposeControls::initDiscardRichDraftButton() {
 		tr::lng_record_lock_discard(tr::now));
 	_discardRichDraft->setClickedCallback([=] {
 		if (!shouldShowRichDraftPreview()) {
+			return;
+		} else if (base::IsCtrlPressed()) {
+			clearRichDraft();
 			return;
 		}
 		_show->show(Ui::MakeConfirmBox({
