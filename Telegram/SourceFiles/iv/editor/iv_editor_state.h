@@ -746,6 +746,15 @@ private:
 	[[nodiscard]] std::optional<NextListItem> deepestLastItem(
 		BlockPath list) const;
 	[[nodiscard]] bool mergeListWithNextSibling(const BlockPath &list);
+	struct ListJoin {
+		BlockPath list;
+		int itemsFrom = 0;
+		int itemsCount = 0;
+	};
+	[[nodiscard]] std::optional<ListJoin> joinListWithSiblings(
+		const BlockPath &list,
+		bool startExplicit);
+	void joinInsertedListWithSiblings(const InsertAction &action);
 	[[nodiscard]] bool canJoinActiveParagraphIntoPreviousList() const;
 	[[nodiscard]] bool joinActiveParagraphIntoPreviousListUnchecked(
 		ActiveTextSelectionTarget *target);

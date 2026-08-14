@@ -143,6 +143,37 @@ void DropOrderedItemNumbers(std::vector<ListItem> &items) {
 		&& (ListIsTaskList(first) == ListIsTaskList(second));
 }
 
+[[nodiscard]] bool ListsJoinSeamlessly(
+		const Block &first,
+		const Block &second,
+		bool secondStartExplicit) {
+	if (!ListsJoinable(first, second)
+		|| first.listItems.empty()
+		|| second.listItems.empty()) {
+		return false;
+	} else if (first.listKind != ListKind::Ordered) {
+		return true;
+	} else if (first.orderedList.reversed || second.orderedList.reversed) {
+		return false;
+	} else if (ResolvePreparedOrderedListType(first.orderedList.type)
+		!= ResolvePreparedOrderedListType(second.orderedList.type)) {
+		return false;
+	}
+	const auto ownNumbering = secondStartExplicit
+		|| second.orderedList.start.has_value()
+		|| ranges::any_of(second.listItems, [](const ListItem &item) {
+			return item.number != RichPage::OrderedListItemData();
+		});
+	if (!ownNumbering) {
+		return true;
+	}
+	const auto last = EffectiveOrderedItemValue(
+		first,
+		int(first.listItems.size()) - 1);
+	const auto next = EffectiveOrderedItemValue(second, 0);
+	return last && next && (*last + 1 == *next);
+}
+
 [[nodiscard]] TaskState SplitTaskState(TaskState state) {
 	return (state == TaskState::Checked) ? TaskState::Unchecked : state;
 }
