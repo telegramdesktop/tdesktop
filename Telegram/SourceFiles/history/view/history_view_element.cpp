@@ -421,7 +421,8 @@ int KeyboardStyle::minButtonWidth(
 		iconWidth = st::msgBotKbWebviewIcon.width();
 		break;
 	case TypeIcon::Copy:
-		return st::msgBotKbCopyIcon.width();
+		iconWidth = st::msgBotKbCopyIcon.width();
+		break;
 	case TypeIcon::None:
 		break;
 	default: Unexpected("TypeIcon in KeyboardStyle::minButtonWidth.");
