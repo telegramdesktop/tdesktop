@@ -7250,6 +7250,9 @@ void HistoryWidget::initDiscardRichDraftButton() {
 	_discardRichDraft->setClickedCallback([=] {
 		if (!shouldShowRichDraftPreview()) {
 			return;
+		} else if (base::IsCtrlPressed()) {
+			clearRichDraft();
+			return;
 		}
 		controller()->show(Ui::MakeConfirmBox({
 			.text = tr::lng_iv_editor_discard_draft_sure(tr::now),
