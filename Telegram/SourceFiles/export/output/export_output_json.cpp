@@ -1852,6 +1852,10 @@ QByteArray SerializeMessage(
 	}, [&](const ActionChatJoinedByRequest &data) {
 		pushActor();
 		pushAction("join_group_by_request");
+	}, [&](const ActionChatJoinedViaCommunity &data) {
+		pushActor();
+		pushAction("join_group_via_community");
+		push("community_id", data.communityId.bare);
 	}, [&](const ActionWebViewDataSent &data) {
 		pushAction("send_webview_data");
 		push("text", data.text);

@@ -5772,6 +5772,33 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 				}, added->lifetime);
 			}
 		}
+	} else if (type == mtpc_messageActionChatJoinedViaCommunity) {
+		const auto &data = action.c_messageActionChatJoinedViaCommunity();
+		const auto communityId = ChannelId(data.vcommunity_id().v);
+		const auto owner = &_history->owner();
+		UpdateComponents(HistoryServiceJoinedViaCommunity::Bit());
+		const auto joined = Get<HistoryServiceJoinedViaCommunity>();
+		joined->communityId = communityId;
+		joined->community = owner->channelLoaded(communityId);
+		joined->lifetime.destroy();
+		if (!joined->community || joined->community->name().isEmpty()) {
+			using Flag = Data::PeerUpdate::Flag;
+			owner->session().changes().peerUpdates(
+				owner->channel(communityId),
+				Flag::Name | Flag::Photo | Flag::Username | Flag::FullInfo
+			) | rpl::filter([=] {
+				const auto community = owner->channelLoaded(communityId);
+				return community && !community->name().isEmpty();
+			}) | rpl::take(1) | rpl::on_next([=] {
+				const auto joined = Get<HistoryServiceJoinedViaCommunity>();
+				if (!joined) {
+					return;
+				}
+				joined->community = owner->channelLoaded(communityId);
+				setServiceMessageByAction(action);
+				owner->requestItemViewRefresh(this);
+			}, joined->lifetime);
+		}
 	}
 	if (const auto replyTo = message.vreply_to()) {
 		replyTo->match([&](const MTPDmessageReplyHeader &data) {
@@ -6456,6 +6483,34 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 			lt_from,
 			fromLinkText(), // Link 1.
 			tr::marked);
+		return result;
+	};
+
+	auto prepareChatJoinedViaCommunity = [this](
+			const MTPDmessageActionChatJoinedViaCommunity &action) {
+		auto result = PreparedServiceText();
+		result.links.push_back(fromLink());
+		const auto joined = Get<HistoryServiceJoinedViaCommunity>();
+		const auto community = (joined && joined->community)
+			? joined->community
+			: _history->owner().channelLoaded(
+				ChannelId(action.vcommunity_id().v));
+		if (community && !community->name().isEmpty()) {
+			result.links.push_back(community->createOpenLink());
+			result.text = tr::lng_action_user_joined_via_community(
+				tr::now,
+				lt_from,
+				fromLinkText(),
+				lt_community,
+				tr::link(community->name(), 2),
+				tr::marked);
+		} else {
+			result.text = tr::lng_action_user_joined_via_community_unknown(
+				tr::now,
+				lt_from,
+				fromLinkText(),
+				tr::marked);
+		}
 		return result;
 	};
 
@@ -7662,6 +7717,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		prepareGroupCallScheduled,
 		prepareSetChatTheme,
 		prepareChatJoinedByRequest,
+		prepareChatJoinedViaCommunity,
 		prepareWebViewDataSent,
 		prepareGiftPremium,
 		prepareTopicCreate,
@@ -7742,6 +7798,12 @@ void HistoryItem::processAction(const MTPMessageAction &action) {
 	}, [&](const MTPDmessageActionContactSignUp &) {
 		_flags |= MessageFlag::IsContactSignUp;
 	}, [&](const MTPDmessageActionChatJoinedByRequest &data) {
+		if (_from->isSelf()) {
+			if (const auto channel = _history->peer->asMegagroup()) {
+				channel->mgInfo->joinedMessageFound = true;
+			}
+		}
+	}, [&](const MTPDmessageActionChatJoinedViaCommunity &data) {
 		if (_from->isSelf()) {
 			if (const auto channel = _history->peer->asMegagroup()) {
 				channel->mgInfo->joinedMessageFound = true;

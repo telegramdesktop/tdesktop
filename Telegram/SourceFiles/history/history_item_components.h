@@ -828,6 +828,13 @@ struct HistoryServiceCommunityAdded
 	rpl::lifetime lifetime;
 };
 
+struct HistoryServiceJoinedViaCommunity
+: RuntimeComponent<HistoryServiceJoinedViaCommunity, HistoryItem> {
+	ChannelId communityId = 0;
+	ChannelData *community = nullptr;
+	rpl::lifetime lifetime;
+};
+
 struct HistoryServiceGameScore
 : RuntimeComponent<HistoryServiceGameScore, HistoryItem>
 , HistoryServiceDependentData {

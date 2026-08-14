@@ -6172,6 +6172,10 @@ void Session::fillMessagePeers(PeerId peerId, const MTPMessage &message) {
 			}
 		}, [&](const MTPDmessageActionChatJoinedByLink &data) {
 			fillMessagePeer(fullId, peerFromUser(data.vinviter_id()));
+		}, [&](const MTPDmessageActionChatJoinedViaCommunity &data) {
+			fillMessagePeer(
+				fullId,
+				peerFromChannel(ChannelId(data.vcommunity_id().v)));
 		}, [&](const MTPDmessageActionChatDeleteUser &data) {
 			fillMessagePeer(fullId, peerFromUser(data.vuser_id()));
 		}, [](const auto &) {

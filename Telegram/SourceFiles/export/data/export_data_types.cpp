@@ -2788,6 +2788,10 @@ ServiceAction ParseServiceAction(
 		}, [](const auto &) {});
 		result.content = content;
 	}, [](const MTPDmessageActionChangeCommunity &) {
+	}, [&](const MTPDmessageActionChatJoinedViaCommunity &data) {
+		auto content = ActionChatJoinedViaCommunity();
+		content.communityId = ChannelId(data.vcommunity_id().v);
+		result.content = content;
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

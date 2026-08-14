@@ -944,6 +944,10 @@ struct ActionSetChatTheme {
 struct ActionChatJoinedByRequest {
 };
 
+struct ActionChatJoinedViaCommunity {
+	ChannelId communityId = 0;
+};
+
 struct ActionWebViewDataSent {
 	Utf8String text;
 };
@@ -1132,6 +1136,7 @@ struct ServiceAction {
 		ActionGroupCallScheduled,
 		ActionSetChatTheme,
 		ActionChatJoinedByRequest,
+		ActionChatJoinedViaCommunity,
 		ActionWebViewDataSent,
 		ActionGiftPremium,
 		ActionTopicCreate,

@@ -2591,6 +2591,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_user_joined_by_request" = "{from} was accepted to the group";
 "lng_action_you_joined_by_request" = "Your request to join the group was approved";
 "lng_action_you_joined_by_request_channel" = "Your request to join the channel was approved";
+"lng_action_user_joined_via_community" = "{from} joined the group via the {community} community";
+"lng_action_user_joined_via_community_unknown" = "{from} joined the group via a community";
 "lng_action_user_registered" = "{from} joined Telegram";
 "lng_action_removed_photo" = "{from} removed group photo";
 "lng_action_removed_photo_channel" = "Channel photo removed";

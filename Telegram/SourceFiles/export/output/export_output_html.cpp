@@ -4123,6 +4123,9 @@ auto HtmlWriter::Wrap::pushMessage(
 	}, [&](const ActionChatJoinedByRequest &data) {
 		return serviceFrom
 			+ " joined group by request";
+	}, [&](const ActionChatJoinedViaCommunity &data) {
+		return serviceFrom
+			+ " joined group via a community";
 	}, [&](const ActionWebViewDataSent &data) {
 		return "You have just successfully transferred data from the &laquo;"
 			+ SerializeString(data.text)
