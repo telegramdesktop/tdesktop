@@ -102,6 +102,17 @@ struct HistoryMessageMarkupButton {
 		SuggestAccept,
 		SuggestChange,
 		CreateBot,
+
+		kCount,
+	};
+
+	enum class TypeIcon : uchar {
+		None,
+		Url,
+		Payment,
+		SwitchPm,
+		Webview,
+		Copy,
 	};
 
 	enum class Color : uchar {
@@ -134,6 +145,7 @@ struct HistoryMessageMarkupButton {
 		int row,
 		int column);
 	[[nodiscard]] static bool LoadsOnActivate(Type type);
+	[[nodiscard]] static TypeIcon IconOfType(Type type);
 	[[nodiscard]] static QByteArray RichPageButtonKey(
 		const HistoryMessageMarkupButton &button);
 	[[nodiscard]] static QByteArray RegisterRichPageButton(

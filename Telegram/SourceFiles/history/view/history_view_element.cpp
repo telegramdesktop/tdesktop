@@ -306,19 +306,17 @@ void KeyboardStyle::paintButtonIcon(
 		HistoryMessageMarkupButton::Type type) const {
 	Expects(st != nullptr);
 
-	using Type = HistoryMessageMarkupButton::Type;
+	using TypeIcon = HistoryMessageMarkupButton::TypeIcon;
 	const auto icon = [&]() -> const style::icon* {
-		switch (type) {
-		case Type::Url:
-		case Type::Auth: return &st->msgBotKbUrlIcon();
-		case Type::Buy: return &st->msgBotKbPaymentIcon();
-		case Type::SwitchInlineSame:
-		case Type::SwitchInline: return &st->msgBotKbSwitchPmIcon();
-		case Type::WebView:
-		case Type::SimpleWebView: return &st->msgBotKbWebviewIcon();
-		case Type::CopyText: return &st->msgBotKbCopyIcon();
+		switch (HistoryMessageMarkupButton::IconOfType(type)) {
+		case TypeIcon::Url: return &st->msgBotKbUrlIcon();
+		case TypeIcon::Payment: return &st->msgBotKbPaymentIcon();
+		case TypeIcon::SwitchPm: return &st->msgBotKbSwitchPmIcon();
+		case TypeIcon::Webview: return &st->msgBotKbWebviewIcon();
+		case TypeIcon::Copy: return &st->msgBotKbCopyIcon();
+		case TypeIcon::None: return nullptr;
 		}
-		return nullptr;
+		Unexpected("TypeIcon in KeyboardStyle::paintButtonIcon.");
 	}();
 	if (icon) {
 		icon->paint(p, rect.x() + rect.width() - icon->width() - st::msgBotKbIconPadding, rect.y() + st::msgBotKbIconPadding, outerWidth);
@@ -406,23 +404,37 @@ void KeyboardStyle::paintButtonLoading(
 
 int KeyboardStyle::minButtonWidth(
 		HistoryMessageMarkupButton::Type type) const {
-	using Type = HistoryMessageMarkupButton::Type;
-	int result = 2 * buttonPadding(), iconWidth = 0;
-	switch (type) {
-	case Type::Url:
-	case Type::Auth: iconWidth = st::msgBotKbUrlIcon.width(); break;
-	case Type::Buy: iconWidth = st::msgBotKbPaymentIcon.width(); break;
-	case Type::SwitchInlineSame:
-	case Type::SwitchInline: iconWidth = st::msgBotKbSwitchPmIcon.width(); break;
-	case Type::Callback:
-	case Type::CallbackWithPassword:
-	case Type::Game: iconWidth = st::historySendingInvertedIcon.width(); break;
-	case Type::WebView:
-	case Type::SimpleWebView: iconWidth = st::msgBotKbWebviewIcon.width(); break;
-	case Type::CopyText: return st::msgBotKbCopyIcon.width(); break;
+	using TypeIcon = HistoryMessageMarkupButton::TypeIcon;
+	auto result = 2 * buttonPadding();
+	auto iconWidth = 0;
+	switch (HistoryMessageMarkupButton::IconOfType(type)) {
+	case TypeIcon::Url:
+		iconWidth = st::msgBotKbUrlIcon.width();
+		break;
+	case TypeIcon::Payment:
+		iconWidth = st::msgBotKbPaymentIcon.width();
+		break;
+	case TypeIcon::SwitchPm:
+		iconWidth = st::msgBotKbSwitchPmIcon.width();
+		break;
+	case TypeIcon::Webview:
+		iconWidth = st::msgBotKbWebviewIcon.width();
+		break;
+	case TypeIcon::Copy:
+		return st::msgBotKbCopyIcon.width();
+	case TypeIcon::None:
+		break;
+	default: Unexpected("TypeIcon in KeyboardStyle::minButtonWidth.");
+	}
+	if (HistoryMessageMarkupButton::LoadsOnActivate(type)) {
+		iconWidth = std::max(
+			iconWidth,
+			st::historySendingInvertedIcon.width());
 	}
 	if (iconWidth > 0) {
-		result = std::max(result, 2 * iconWidth + 4 * int(st::msgBotKbIconPadding));
+		result = std::max(
+			result,
+			2 * iconWidth + 4 * int(st::msgBotKbIconPadding));
 	}
 	return result;
 }

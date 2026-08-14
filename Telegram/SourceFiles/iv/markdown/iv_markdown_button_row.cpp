@@ -479,17 +479,16 @@ ButtonRowRuntime::ButtonRowRuntime(Fn<void()> repaint)
 }
 
 const style::icon *RichButtonIcon(ButtonType type) {
-	switch (type) {
-	case ButtonType::Url:
-	case ButtonType::Auth: return &st::msgBotKbUrlIcon;
-	case ButtonType::Buy: return &st::msgBotKbPaymentIcon;
-	case ButtonType::SwitchInline:
-	case ButtonType::SwitchInlineSame: return &st::msgBotKbSwitchPmIcon;
-	case ButtonType::WebView:
-	case ButtonType::SimpleWebView: return &st::msgBotKbWebviewIcon;
-	case ButtonType::CopyText: return &st::msgBotKbCopyIcon;
+	using TypeIcon = HistoryMessageMarkupButton::TypeIcon;
+	switch (HistoryMessageMarkupButton::IconOfType(type)) {
+	case TypeIcon::Url: return &st::msgBotKbUrlIcon;
+	case TypeIcon::Payment: return &st::msgBotKbPaymentIcon;
+	case TypeIcon::SwitchPm: return &st::msgBotKbSwitchPmIcon;
+	case TypeIcon::Webview: return &st::msgBotKbWebviewIcon;
+	case TypeIcon::Copy: return &st::msgBotKbCopyIcon;
+	case TypeIcon::None: return nullptr;
 	}
-	return nullptr;
+	Unexpected("TypeIcon in Iv::Markdown::RichButtonIcon.");
 }
 
 int ButtonRowMinWidth(int count, const style::MarkdownButtonRow &st) {

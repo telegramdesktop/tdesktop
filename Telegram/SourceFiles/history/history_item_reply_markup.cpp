@@ -16,6 +16,51 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
+using ButtonType = HistoryMessageMarkupButton::Type;
+using ButtonTypeIcon = HistoryMessageMarkupButton::TypeIcon;
+
+struct ButtonTypeIconRow {
+	ButtonType type = ButtonType::Default;
+	ButtonTypeIcon icon = ButtonTypeIcon::None;
+};
+
+constexpr auto kButtonTypeIcons = std::array{
+	ButtonTypeIconRow{ ButtonType::Default, ButtonTypeIcon::None },
+	ButtonTypeIconRow{ ButtonType::Url, ButtonTypeIcon::Url },
+	ButtonTypeIconRow{ ButtonType::Callback, ButtonTypeIcon::None },
+	ButtonTypeIconRow{ ButtonType::CallbackWithPassword, ButtonTypeIcon::None },
+	ButtonTypeIconRow{ ButtonType::RequestPhone, ButtonTypeIcon::None },
+	ButtonTypeIconRow{ ButtonType::RequestLocation, ButtonTypeIcon::None },
+	ButtonTypeIconRow{ ButtonType::RequestPoll, ButtonTypeIcon::None },
+	ButtonTypeIconRow{ ButtonType::RequestPeer, ButtonTypeIcon::None },
+	ButtonTypeIconRow{ ButtonType::SwitchInline, ButtonTypeIcon::SwitchPm },
+	ButtonTypeIconRow{ ButtonType::SwitchInlineSame, ButtonTypeIcon::SwitchPm },
+	ButtonTypeIconRow{ ButtonType::Game, ButtonTypeIcon::None },
+	ButtonTypeIconRow{ ButtonType::Buy, ButtonTypeIcon::Payment },
+	ButtonTypeIconRow{ ButtonType::Auth, ButtonTypeIcon::Url },
+	ButtonTypeIconRow{ ButtonType::UserProfile, ButtonTypeIcon::None },
+	ButtonTypeIconRow{ ButtonType::WebView, ButtonTypeIcon::Webview },
+	ButtonTypeIconRow{ ButtonType::SimpleWebView, ButtonTypeIcon::Webview },
+	ButtonTypeIconRow{ ButtonType::CopyText, ButtonTypeIcon::Copy },
+	ButtonTypeIconRow{ ButtonType::Disabled, ButtonTypeIcon::None },
+	ButtonTypeIconRow{ ButtonType::SuggestDecline, ButtonTypeIcon::None },
+	ButtonTypeIconRow{ ButtonType::SuggestAccept, ButtonTypeIcon::None },
+	ButtonTypeIconRow{ ButtonType::SuggestChange, ButtonTypeIcon::None },
+	ButtonTypeIconRow{ ButtonType::CreateBot, ButtonTypeIcon::None },
+};
+
+[[nodiscard]] constexpr bool ButtonTypeIconsIndexedByType() {
+	for (auto i = 0; i != int(kButtonTypeIcons.size()); ++i) {
+		if (int(kButtonTypeIcons[i].type) != i) {
+			return false;
+		}
+	}
+	return true;
+}
+
+static_assert(kButtonTypeIcons.size() == int(ButtonType::kCount));
+static_assert(ButtonTypeIconsIndexedByType());
+
 [[nodiscard]] HistoryMessageMarkupButton::Visual ParseVisual(
 		const tl::conditional<MTPKeyboardButtonStyle> &style) {
 	if (!style) {
@@ -302,6 +347,13 @@ bool HistoryMessageMarkupButton::LoadsOnActivate(Type type) {
 	return (type == Type::Callback)
 		|| (type == Type::CallbackWithPassword)
 		|| (type == Type::Game);
+}
+
+HistoryMessageMarkupButton::TypeIcon HistoryMessageMarkupButton::IconOfType(
+		Type type) {
+	Expects(int(type) < int(Type::kCount));
+
+	return kButtonTypeIcons[int(type)].icon;
 }
 
 QByteArray HistoryMessageMarkupButton::RichPageButtonKey(
