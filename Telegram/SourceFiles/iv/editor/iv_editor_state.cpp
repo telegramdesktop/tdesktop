@@ -2034,7 +2034,8 @@ bool State::setListStyle(
 		break;
 	case ListStyle::Bullet:
 		owner->listKind = ListKind::Bullet;
-		changed = ResetNonOrderedListMetadata(owner) || changed;
+		changed = true;
+		static_cast<void>(ResetNonOrderedListMetadata(owner));
 		for (auto &item : owner->listItems) {
 			if (item.taskState != TaskState::None) {
 				item.taskState = TaskState::None;
