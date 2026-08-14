@@ -4147,6 +4147,16 @@ auto State::joinListWithSiblings(const BlockPath &list, bool startExplicit)
 	return result;
 }
 
+bool State::blockActionExpandsToActiveLine(InsertBlockType type) const {
+	if (!BlockConversionExpandsToActiveLine(type)) {
+		return false;
+	} else if (!IsListInsertType(type)) {
+		return true;
+	}
+	const auto leaf = activeLeafPath();
+	return leaf && (leaf->kind != LeafKind::ListItemText);
+}
+
 void State::joinInsertedListWithSiblings(const InsertAction &action) {
 	if (!IsListInsertType(action.type)) {
 		return;
@@ -8756,6 +8766,7 @@ State::ActiveTextBlockActionResult State::applyActiveTextBlockAction(
 				.result = result,
 			};
 		}
+		candidate.joinInsertedListWithSiblings(action);
 		const auto descriptor = candidate.textNode(candidate._activeTextOrdinal);
 		if (!descriptor) {
 			return CheckedMutationResult<ActiveTextBlockActionResult>{
@@ -8825,7 +8836,7 @@ bool State::insertBlockAfterActive(
 		std::optional<ActiveTextInsertContext> context) {
 	return applyCheckedMutation(false, [action, context = std::move(context)](
 			State &candidate) mutable {
-		if (context && BlockConversionExpandsToActiveLine(action.type)) {
+		if (context && candidate.blockActionExpandsToActiveLine(action.type)) {
 			ExpandInsertContextToActiveLine(*context);
 		}
 		auto blocks = std::vector<Block>();

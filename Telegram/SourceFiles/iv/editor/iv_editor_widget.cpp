@@ -1629,7 +1629,7 @@ void Widget::insertBlock(State::InsertAction action) {
 				&destination);
 		} else if (restoreField
 			&& context
-			&& BlockConversionExpandsToActiveLine(action.type)) {
+			&& _state->blockActionExpandsToActiveLine(action.type)) {
 			activeBlockResult = _state->applyActiveTextBlockAction(
 				action,
 				*context);
