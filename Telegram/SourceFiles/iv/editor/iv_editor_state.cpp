@@ -5911,17 +5911,6 @@ bool State::appendInsertedTrailingText(
 		|| insertAt + count > int(blocks->size())) {
 		return false;
 	}
-	auto &last = (*blocks)[insertAt + count - 1];
-	if (last.kind == BlockKind::List) {
-		const auto taskState = last.listItems.empty()
-			? TaskState::None
-			: last.listItems.back().taskState;
-		auto item = MakeParagraphListItem(taskState);
-		Assert(!item.blocks.empty());
-		item.blocks.front().text.text = std::move(text);
-		last.listItems.push_back(std::move(item));
-		return true;
-	}
 	const auto paragraph = reuseOrInsertParagraph(container, insertAt + count);
 	if (!paragraph) {
 		return false;
