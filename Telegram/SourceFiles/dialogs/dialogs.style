@@ -937,8 +937,8 @@ restoreWindowsOfferQuestionStyle: TextStyle(defaultTextStyle) {
 }
 restoreWindowsOfferClose: IconButton(dialogsCancelSearchInPeer) {
 	width: 28px;
-	height: 28px;
-	iconPosition: point(5px, 5px);
-	rippleAreaPosition: point(0px, 0px);
+	height: 29px;
+	iconPosition: point(5px, 6px);
+	rippleAreaPosition: point(0px, 1px);
 	rippleAreaSize: 28px;
 }
