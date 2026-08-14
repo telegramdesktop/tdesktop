@@ -250,6 +250,14 @@ private:
 
 };
 
+[[nodiscard]] QRect CardQrRect(int cardWidth) {
+	return QRect(
+		cardWidth - st::walletCardQrRight - st::walletCardQrSize.width(),
+		st::walletCardQrTop,
+		st::walletCardQrSize.width(),
+		st::walletCardQrSize.height());
+}
+
 [[nodiscard]] QString GroupedAddressLine(
 		const QString &address,
 		int offset) {
@@ -1693,12 +1701,13 @@ void SetupIntroTooltip(
 			return;
 		}
 		const auto area = Ui::MapFrom(parent, card, card->rect());
+		const auto qr = CardQrRect(area.width());
 		const auto countPosition = [=](QSize size) {
 			return QPoint(
 				area.x() + (area.width() - size.width()) / 2,
 				area.y()
-					+ st::walletCardQrTop
-					+ st::walletCardQrSize.height()
+					+ qr.y()
+					+ qr.height()
 					+ st::walletIntroTooltipSkip);
 		};
 		state->tooltip->pointAt(area, RectPart::Bottom, countPosition);
@@ -3572,11 +3581,10 @@ void BalanceInk::refresh() {
 	const auto ticker = tr::lng_wallet_card_ticker(tr::now);
 	const auto majorLeft = st::walletCardMarkSize
 		+ st::walletCardIconMargin.right();
-	const auto qrLeft = _outerWidth
+	const auto cardWidth = _outerWidth
 		- st::walletCardMargin.left()
-		- st::walletCardMargin.right()
-		- st::walletCardQrRight
-		- st::walletCardQrSize.width();
+		- st::walletCardMargin.right();
+	const auto qrLeft = CardQrRect(cardWidth).x();
 	const auto available = qrLeft
 		- st::walletCardContentSkip
 		- st::walletCardContentLeft
@@ -3810,7 +3818,7 @@ int Card::resizeGetHeight(int newWidth) {
 
 void Card::setupQr() {
 	_qr = Ui::CreateChild<Ui::AbstractButton>(this);
-	_qr->resize(st::walletCardQrSize);
+	_qr->resize(CardQrRect(width()).size());
 	_qr->setClickedCallback([=] {
 		ShowWalletReceiveBox(&_show->session(), _show);
 	});
@@ -3822,14 +3830,12 @@ void Card::updateLayout() {
 	}
 	const auto painted = paintedRect();
 	const auto scale = collapseScale();
-	const auto qrLeft = width()
-		- st::walletCardQrRight
-		- st::walletCardQrSize.width();
+	const auto qr = CardQrRect(width());
 	_qr->setGeometry(QRectF(
-		painted.x() + qrLeft * scale,
-		painted.y() + st::walletCardQrTop * scale,
-		st::walletCardQrSize.width() * scale,
-		st::walletCardQrSize.height() * scale).toRect());
+		painted.x() + qr.x() * scale,
+		painted.y() + qr.y() * scale,
+		qr.width() * scale,
+		qr.height() * scale).toRect());
 	_qr->setVisible(_progress < 1.);
 }
 
@@ -3850,11 +3856,7 @@ void Card::paintEvent(QPaintEvent *e) {
 	p.setBrush(st::activeButtonBg);
 	p.drawRoundedRect(rect(), st::walletCardRadius, st::walletCardRadius);
 
-	const auto qr = QRect(
-		width() - st::walletCardQrRight - st::walletCardQrSize.width(),
-		st::walletCardQrTop,
-		st::walletCardQrSize.width(),
-		st::walletCardQrSize.height());
+	const auto qr = CardQrRect(width());
 	const auto half = st::lineWidth / 2.;
 	p.setPen(QPen(st::windowActiveTextFg, st::lineWidth));
 	p.setBrush(st::windowBgOver);
@@ -4255,21 +4257,15 @@ void Content::setupBalance() {
 			width(),
 			_titleRight,
 			QRect(),
-			QRect(
+			_titleBalance->rect().translated(
 				0,
-				-st::separatePanelTitleHeight,
-				_titleBalance->width(),
-				st::separatePanelTitleHeight));
+				-st::separatePanelTitleHeight));
 	}, _titleBalance->lifetime());
 
 	const auto repaintBalance = [=] {
 		_pinnedBalance->update();
 		_titleBalance->update();
-		_paintedInk = QRect(
-			0,
-			0,
-			_titleBalance->width(),
-			st::separatePanelTitleHeight);
+		_paintedInk = _titleBalance->rect();
 	};
 
 	widthValue(
@@ -4483,8 +4479,7 @@ void Content::updatePinned() {
 		width(),
 		_titleRight
 	).translated(0, st::separatePanelTitleHeight);
-	const auto band = ink.intersected(
-		QRect(0, 0, _titleBalance->width(), st::separatePanelTitleHeight));
+	const auto band = ink.intersected(_titleBalance->rect());
 	const auto repaint = band.united(_paintedInk);
 	_paintedInk = band;
 	if (!repaint.isEmpty()) {
