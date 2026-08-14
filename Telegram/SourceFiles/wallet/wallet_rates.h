@@ -28,6 +28,7 @@ private:
 	void ensureStarted();
 	void request();
 	void applyRates(const MTPpayments_CurrencyRates &result);
+	void recompute();
 	void scheduleRefresh(bool afterFailure);
 
 	const not_null<Main::Session*> _session;
@@ -37,6 +38,7 @@ private:
 	std::optional<Gram::CurrencyRates> _rates;
 	rpl::variable<FiatRate> _value;
 	bool _started = false;
+	rpl::lifetime _lifetime;
 
 };
 

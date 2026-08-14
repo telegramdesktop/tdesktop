@@ -91,6 +91,10 @@ void Rates::ensureStarted() {
 		code = kDefaultFiatCurrency.utf16();
 	}
 	_value = FiatRate{ code, 0. };
+	_session->appConfig().refreshed(
+	) | rpl::on_next([=] {
+		recompute();
+	}, _lifetime);
 	request();
 }
 
@@ -127,6 +131,19 @@ void Rates::applyRates(const MTPpayments_CurrencyRates &result) {
 		*_rates,
 		UsdPerGram(_session));
 	scheduleRefresh(false);
+}
+
+void Rates::recompute() {
+	if (!_rates) {
+		return;
+	}
+	const auto updated = ComputeFiatRate(
+		_value.current().currency,
+		*_rates,
+		UsdPerGram(_session));
+	if (updated.available()) {
+		_value = updated;
+	}
 }
 
 void Rates::scheduleRefresh(bool afterFailure) {
