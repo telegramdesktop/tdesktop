@@ -199,6 +199,9 @@ bool BlockConversionExpandsToActiveLine(InsertBlockType type) {
 	case InsertBlockType::Pullquote:
 	case InsertBlockType::Code:
 	case InsertBlockType::Footer:
+	case InsertBlockType::OrderedList:
+	case InsertBlockType::BulletList:
+	case InsertBlockType::TaskList:
 		return true;
 	default:
 		return false;
