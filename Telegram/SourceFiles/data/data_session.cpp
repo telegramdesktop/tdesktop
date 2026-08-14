@@ -224,6 +224,87 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 			double(std::numeric_limits<int>::max())));
 }
 
+template <typename Callback>
+void EnumerateWebPagePhotos(
+		const WebPageData *page,
+		const Callback &callback) {
+	if (!page) {
+		return;
+	}
+	if (page->photo) {
+		callback(page->photo);
+	}
+	for (const auto &entry : page->collage.items) {
+		if (const auto photo = std::get_if<PhotoData*>(&entry)) {
+			if (*photo) {
+				callback(*photo);
+			}
+		}
+	}
+}
+
+[[nodiscard]] base::flat_set<PhotoData*> CollectWebPagePhotos(
+		const WebPageData *page) {
+	auto result = base::flat_set<PhotoData*>();
+	EnumerateWebPagePhotos(page, [&](PhotoData *photo) {
+		result.emplace(photo);
+	});
+	return result;
+}
+
+[[nodiscard]] bool WebPagePhotoBelongsToExternalOwner(
+		const WebPageData *page) {
+	switch (page->type) {
+	case WebPageType::Group:
+	case WebPageType::GroupWithRequest:
+	case WebPageType::GroupBoost:
+	case WebPageType::Channel:
+	case WebPageType::ChannelWithRequest:
+	case WebPageType::ChannelBoost:
+	case WebPageType::User:
+	case WebPageType::Bot:
+	case WebPageType::Profile:
+	case WebPageType::BotApp:
+	case WebPageType::Story:
+	case WebPageType::StoryAlbum:
+	case WebPageType::NewBot:
+	case WebPageType::VoiceChat:
+	case WebPageType::Livestream:
+	case WebPageType::ConferenceCall: return true;
+	default: return false;
+	}
+}
+
+template <typename Callback>
+void EnumerateStaticMediaPhotos(
+		const Media *media,
+		const Callback &callback) {
+	if (!media) {
+		return;
+	}
+	const auto page = media->webpage();
+	if (page) {
+		if (!WebPagePhotoBelongsToExternalOwner(page)) {
+			EnumerateWebPagePhotos(page, [&](PhotoData *photo) {
+				if (!photo->hasVideo()) {
+					callback(photo);
+				}
+			});
+		}
+	} else {
+		const auto photo = media->photo();
+		if (photo && !photo->hasVideo()) {
+			callback(photo);
+		}
+	}
+	const auto invoice = media->invoice();
+	if (invoice) {
+		for (const auto &extended : invoice->extendedMedia) {
+			EnumerateStaticMediaPhotos(extended.get(), callback);
+		}
+	}
+}
+
 } // namespace
 
 Session::Session(not_null<Main::Session*> session)
@@ -247,6 +328,7 @@ Session::Session(not_null<Main::Session*> session)
 , _ttlCheckTimer([=] { checkTTLs(); })
 , _mediaDestroyCheckTimer([=] { checkMediaDestroys(); })
 , _formattedDateTimer([=] { checkFormattedDateUpdates(); })
+, _clearPhotoCacheDelayed([=] { clearScheduledPhotoCache(); })
 , _pollsClosingTimer([=] { checkPollsClosings(); })
 , _watchForOfflineTimer([=] { checkLocalUsersWentOffline(); })
 , _groups(this)
@@ -444,6 +526,7 @@ void Session::clear() {
 
 	_sendActionManager->clear();
 
+	clearScheduledPhotoCache();
 	_histories->unloadAll();
 	_shortcutMessages = nullptr;
 	_session->scheduledMessages().clear();
@@ -1866,8 +1949,8 @@ void Session::documentLoadSettingsChanged() {
 
 void Session::notifyPhotoLayoutChanged(not_null<const PhotoData*> photo) {
 	if (const auto i = _photoItems.find(photo); i != end(_photoItems)) {
-		for (const auto &item : i->second) {
-			notifyItemLayoutChange(item);
+		for (const auto &entry : i->second) {
+			notifyItemLayoutChange(entry.first);
 		}
 	}
 }
@@ -1875,8 +1958,8 @@ void Session::notifyPhotoLayoutChanged(not_null<const PhotoData*> photo) {
 void Session::requestPhotoViewRepaint(not_null<const PhotoData*> photo) {
 	const auto i = _photoItems.find(photo);
 	if (i != end(_photoItems)) {
-		for (const auto &item : i->second) {
-			requestItemRepaint(item);
+		for (const auto &entry : i->second) {
+			requestItemRepaint(entry.first);
 		}
 	}
 }
@@ -2319,7 +2402,79 @@ rpl::producer<> Session::sessionDataAboutToBeCleared() const {
 
 void Session::notifyItemsAboutToBeDestroyed(
 		const std::vector<not_null<HistoryItem*>> &items) {
+	schedulePhotoCacheClear(items);
 	_itemsAboutToBeDestroyed.fire_copy(items);
+}
+
+void Session::schedulePhotoCacheClear(
+		const std::vector<not_null<HistoryItem*>> &items) {
+	const auto schedule = [&](PhotoData *photo) {
+		if (photo) {
+			_photosScheduledForCacheClear.emplace(photo);
+		}
+	};
+	const auto scheduleMedia = [&](const Media *media) {
+		if (media
+			&& !media->sharedMediaTypes().test(
+				Storage::SharedMediaType::ChatPhoto)) {
+			EnumerateStaticMediaPhotos(media, schedule);
+		}
+	};
+	for (const auto &item : items) {
+		scheduleMedia(item->media());
+		scheduleMedia(item->savedMedia());
+		scheduleMedia(_session->ephemeralMessages().anchoredMedia(item));
+	}
+	if (!_photosScheduledForCacheClear.empty()) {
+		_clearPhotoCacheDelayed.call();
+	}
+}
+
+void Session::destroyMessagesWithCacheCleanup(
+		const std::vector<not_null<HistoryItem*>> &items) {
+	if (items.empty()) {
+		return;
+	}
+	auto ids = std::vector<FullMsgId>();
+	ids.reserve(items.size());
+	for (const auto item : items) {
+		ids.push_back(item->fullId());
+	}
+	notifyItemsAboutToBeDestroyed(items);
+	for (auto i = size_t(0); i != items.size(); ++i) {
+		if (message(ids[i]) == items[i]) {
+			items[i]->destroy();
+		}
+	}
+}
+
+void Session::destroyMessageWithCacheCleanup(
+		not_null<HistoryItem*> item) {
+	destroyMessagesWithCacheCleanup({ item });
+}
+
+void Session::scheduleItemPhotoCacheClear(
+		not_null<HistoryItem*> item) {
+	schedulePhotoCacheClear({ item });
+}
+
+bool Session::photoHasItemReferences(
+		not_null<const PhotoData*> photo) const {
+	return _photoItems.contains(photo);
+}
+
+void Session::clearPhotoCache(not_null<PhotoData*> photo) {
+	if (!photo->hasVideo()) {
+		photo->clearLocalCache();
+	}
+}
+
+void Session::clearScheduledPhotoCache() {
+	for (const auto photo : base::take(_photosScheduledForCacheClear)) {
+		if (!photoHasItemReferences(photo)) {
+			clearPhotoCache(photo);
+		}
+	}
 }
 
 auto Session::itemsAboutToBeDestroyed() const
@@ -4405,10 +4560,19 @@ void Session::webpageApplyFields(
 					stories().resolve(storyId, [=] {
 						if (const auto maybe = stories().lookup(storyId)) {
 							const auto story = *maybe;
+							const auto updatePhotoItems
+								= _webpageItems.contains(page)
+								&& (page->photo != story->photo());
+							const auto previous = updatePhotoItems
+								? CollectWebPagePhotos(page)
+								: base::flat_set<PhotoData*>();
 							page->document = story->document();
 							page->photo = story->photo();
 							page->description = story->caption();
 							page->type = WebPageType::Story;
+							if (updatePhotoItems) {
+								updateWebPagePhotoItems(page, previous);
+							}
 							notifyWebPageUpdateDelayed(page);
 						}
 					});
@@ -4488,6 +4652,11 @@ void Session::webpageApplyFields(
 		bool photoIsVideoCover,
 		TimeId pendingTill) {
 	const auto requestPending = (!page->pendingTill && pendingTill > 0);
+	const auto updatePhotoItems = _webpageItems.contains(page)
+		&& (page->photo != photo || page->collage.items != collage.items);
+	const auto previous = updatePhotoItems
+		? CollectWebPagePhotos(page)
+		: base::flat_set<PhotoData*>();
 	const auto changed = page->applyChanges(
 		type,
 		url,
@@ -4509,6 +4678,9 @@ void Session::webpageApplyFields(
 		hasLargeMedia,
 		photoIsVideoCover,
 		pendingTill);
+	if (changed && updatePhotoItems) {
+		updateWebPagePhotoItems(page, previous);
+	}
 	if (requestPending) {
 		_session->api().requestWebPageDelayed(page);
 	}
@@ -4914,7 +5086,7 @@ not_null<Data::CloudImage*> Session::location(const LocationPoint &point) {
 void Session::registerPhotoItem(
 		not_null<const PhotoData*> photo,
 		not_null<HistoryItem*> item) {
-	_photoItems[photo].insert(item);
+	++_photoItems[photo][item];
 }
 
 void Session::unregisterPhotoItem(
@@ -4923,8 +5095,14 @@ void Session::unregisterPhotoItem(
 	const auto i = _photoItems.find(photo);
 	if (i != _photoItems.end()) {
 		auto &items = i->second;
-		if (items.remove(item) && items.empty()) {
-			_photoItems.erase(i);
+		const auto j = items.find(item);
+		if (j != items.end()) {
+			if (!--j->second) {
+				items.erase(j);
+			}
+			if (items.empty()) {
+				_photoItems.erase(i);
+			}
 		}
 	}
 }
@@ -4971,7 +5149,37 @@ void Session::unregisterWebPageView(
 void Session::registerWebPageItem(
 		not_null<const WebPageData*> page,
 		not_null<HistoryItem*> item) {
-	_webpageItems[page].insert(item);
+	auto &count = _webpageItems[page][item];
+	if (!count) {
+		for (const auto photo : CollectWebPagePhotos(page)) {
+			registerPhotoItem(photo, item);
+		}
+	}
+	++count;
+}
+
+void Session::updateWebPagePhotoItems(
+		not_null<const WebPageData*> page,
+		const base::flat_set<PhotoData*> &previous) {
+	const auto i = _webpageItems.find(page);
+	if (i == end(_webpageItems)) {
+		return;
+	}
+	const auto current = CollectWebPagePhotos(page);
+	for (const auto photo : previous) {
+		if (!current.contains(photo)) {
+			for (const auto &entry : i->second) {
+				unregisterPhotoItem(photo, entry.first);
+			}
+		}
+	}
+	for (const auto photo : current) {
+		if (!previous.contains(photo)) {
+			for (const auto &entry : i->second) {
+				registerPhotoItem(photo, entry.first);
+			}
+		}
+	}
 }
 
 void Session::unregisterWebPageItem(
@@ -4980,8 +5188,15 @@ void Session::unregisterWebPageItem(
 	const auto i = _webpageItems.find(page);
 	if (i != _webpageItems.end()) {
 		auto &items = i->second;
-		if (items.remove(item) && items.empty()) {
-			_webpageItems.erase(i);
+		const auto j = items.find(item);
+		if (j != items.end() && !--j->second) {
+			items.erase(j);
+			for (const auto photo : CollectWebPagePhotos(page)) {
+				unregisterPhotoItem(photo, item);
+			}
+			if (items.empty()) {
+				_webpageItems.erase(i);
+			}
 		}
 	}
 }
@@ -5192,7 +5407,8 @@ void Session::checkPlayingAnimations() {
 HistoryItem *Session::findWebPageItem(not_null<WebPageData*> page) const {
 	const auto i = _webpageItems.find(page);
 	if (i != _webpageItems.end()) {
-		for (const auto &item : i->second) {
+		for (const auto &entry : i->second) {
+			const auto item = entry.first;
 			if (item->isRegular()) {
 				return item;
 			}

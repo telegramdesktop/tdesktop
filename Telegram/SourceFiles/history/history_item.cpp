@@ -2041,6 +2041,11 @@ bool HistoryItem::isEditingMedia() const {
 	return Has<HistoryMessageSavedMediaData>();
 }
 
+const Data::Media *HistoryItem::savedMedia() const {
+	const auto data = Get<HistoryMessageSavedMediaData>();
+	return data ? data->media.get() : nullptr;
+}
+
 PaidPostType HistoryItem::paidType() const {
 	return (_flags & MessageFlag::StarsPaidSuggested)
 		? PaidPostType::Stars
@@ -2514,7 +2519,13 @@ void HistoryItem::applyEdition(const MTPDmessageService &message) {
 		const auto wasGrouped = history()->owner().groups().isGrouped(this);
 		setReplyMarkup({}, true);
 		removeFromSharedMediaIndex();
-		refreshMedia(nullptr);
+		const auto hadMedia = (_media != nullptr);
+		_media = nullptr;
+		if (hadMedia) {
+			if (const auto views = Get<HistoryMessageViews>()) {
+				refreshRepliesText(views);
+			}
+		}
 		setTextValue({});
 		changeViewsCount(-1);
 		setForwardsCount(-1);
@@ -2825,20 +2836,8 @@ void HistoryItem::clearMediaAsExpired() {
 		updateServiceText({ std::move(text) });
 		_flags |= MessageFlag::ReactionsAllowed;
 	} else if (const auto photo = media->photo()) {
-		photo->cancel();
-		const auto sizes = {
-			Data::PhotoSize::Small,
-			Data::PhotoSize::Thumbnail,
-			Data::PhotoSize::Large,
-		};
-		for (const auto size : sizes) {
-			const auto key = photo->location(size).file().cacheKey();
-			if (key.valid()) {
-				owner.cache().remove(key);
-			}
-		}
-
 		applyEditionToHistoryCleared();
+		photo->clearLocalCache();
 		updateServiceText({
 			tr::lng_ttl_photo_expired(tr::now, tr::marked)
 		});
@@ -4164,7 +4163,7 @@ void HistoryItem::applyTTL(TimeId destroyAt) {
 		const auto session = &_history->session();
 		crl::on_main(session, [session, id = fullId()]{
 			if (const auto item = session->data().message(id)) {
-				item->destroy();
+				session->data().destroyMessageWithCacheCleanup(item);
 			}
 		});
 	} else {

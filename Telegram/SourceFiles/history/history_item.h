@@ -554,6 +554,7 @@ public:
 	[[nodiscard]] Data::Media *media() const {
 		return _media.get();
 	}
+	[[nodiscard]] const Data::Media *savedMedia() const;
 	[[nodiscard]] std::shared_ptr<const Iv::RichPage> richPage() const;
 	[[nodiscard]] auto translatedRichPage() const
 		-> std::shared_ptr<const Iv::RichPage>;

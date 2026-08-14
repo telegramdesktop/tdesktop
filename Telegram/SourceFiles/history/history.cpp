@@ -4389,6 +4389,7 @@ void History::clear(ClearType type, bool markEmpty) {
 			setLastServerMessage(nullptr);
 		} else if (_lastMessage && *_lastMessage) {
 			if ((*_lastMessage)->isRegular()) {
+				owner().scheduleItemPhotoCacheClear(*_lastMessage);
 				(*_lastMessage)->applyEditionToHistoryCleared();
 			} else {
 				_lastMessage = std::nullopt;
@@ -4430,6 +4431,7 @@ void History::clearUpTill(MsgId availableMinId) {
 		if (!item->isRegular()) {
 			continue;
 		} else if (itemId == availableMinId) {
+			owner().scheduleItemPhotoCacheClear(item.get());
 			item->applyEditionToHistoryCleared();
 		} else if (itemId < availableMinId) {
 			remove.push_back(item.get());

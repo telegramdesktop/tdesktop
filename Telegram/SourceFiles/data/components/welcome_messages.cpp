@@ -75,7 +75,7 @@ WelcomeMessages::WelcomeMessages(not_null<Main::Session*> session)
 	) | rpl::on_next([=](FullMsgId id) {
 		if (const auto item = _session->data().message(id)) {
 			if (owns(item)) {
-				item->destroy();
+				_session->data().destroyMessageWithCacheCleanup(item);
 			}
 		}
 	}, _lifetime);
@@ -167,7 +167,7 @@ void WelcomeMessages::removeSending(not_null<HistoryItem*> item) {
 	Expects(owns(item));
 	Expects(item->isSending() || item->hasFailed());
 
-	item->destroy();
+	_session->data().destroyMessageWithCacheCleanup(item);
 }
 
 void WelcomeMessages::applyNew(const MTPDephemeralMessage &data) {
@@ -195,7 +195,7 @@ void WelcomeMessages::applyNew(const MTPDephemeralMessage &data) {
 					applyEdition(existing, data);
 					existing->updateDate(data.vdate().v);
 					sort(list);
-					local->destroy();
+					_session->data().destroyMessageWithCacheCleanup(local);
 				} else {
 					applyEdition(local, data);
 					local->updateDate(data.vdate().v);
@@ -233,7 +233,7 @@ bool WelcomeMessages::applyDelete(
 		not_null<PeerData*> peer,
 		int32 ephemeralId) {
 	if (const auto item = lookupItem(peer, ephemeralId)) {
-		item->destroy();
+		_session->data().destroyMessageWithCacheCleanup(item);
 		return true;
 	}
 	return false;
@@ -297,7 +297,7 @@ void WelcomeMessages::sendMedia(
 	const auto destroyLocal = [=] {
 		if (const auto local = session->data().message(localId)) {
 			if (owns(local)) {
-				local->destroy();
+				session->data().destroyMessageWithCacheCleanup(local);
 			}
 		}
 	};
@@ -495,7 +495,7 @@ void WelcomeMessages::deleteTemplate(not_null<HistoryItem*> item) {
 		LOG(("API Error: delete welcome template - %1"
 			).arg(error.type()));
 	}).send();
-	item->destroy();
+	_session->data().destroyMessageWithCacheCleanup(item);
 }
 
 void WelcomeMessages::deleteAll(not_null<History*> history) {
@@ -514,9 +514,7 @@ void WelcomeMessages::deleteAll(not_null<History*> history) {
 	for (const auto &owned : i->second.items) {
 		items.push_back(owned.get());
 	}
-	for (const auto &item : items) {
-		item->destroy();
-	}
+	_session->data().destroyMessagesWithCacheCleanup(items);
 }
 
 rpl::producer<> WelcomeMessages::updates(not_null<History*> history) {
@@ -700,9 +698,12 @@ void WelcomeMessages::updated(
 		const base::flat_set<not_null<HistoryItem*>> &added,
 		const base::flat_set<not_null<HistoryItem*>> &clear) {
 	if (!clear.empty()) {
+		auto items = std::vector<not_null<HistoryItem*>>();
+		items.reserve(clear.size());
 		for (const auto &item : clear) {
-			item->destroy();
+			items.push_back(item);
 		}
+		_session->data().destroyMessagesWithCacheCleanup(items);
 	}
 	const auto i = _data.find(history);
 	if (i != end(_data)) {

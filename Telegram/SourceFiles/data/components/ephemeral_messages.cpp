@@ -299,6 +299,7 @@ void EphemeralMessages::apply(
 	if (!history) {
 		return;
 	}
+	auto items = std::vector<not_null<HistoryItem*>>();
 	for (const auto &id : update.vids().v) {
 		if (_session->welcomeMessages().applyDelete(history->peer, id.v)) {
 			continue;
@@ -307,10 +308,11 @@ void EphemeralMessages::apply(
 			if (anchored(item)) {
 				revertAnchored(item);
 			} else {
-				item->destroy();
+				items.push_back(item);
 			}
 		}
 	}
+	_session->data().destroyMessagesWithCacheCleanup(items);
 }
 
 HistoryItem *EphemeralMessages::applyNew(const MTPDephemeralMessage &data) {
@@ -542,6 +544,12 @@ UserId EphemeralMessages::receiverId(
 
 bool EphemeralMessages::anchored(not_null<const HistoryItem*> item) const {
 	return !_anchored.empty() && _anchored.contains(item->fullId());
+}
+
+const Media *EphemeralMessages::anchoredMedia(
+		not_null<const HistoryItem*> item) const {
+	const auto i = _anchored.find(item->fullId());
+	return (i != end(_anchored)) ? i->second.media.get() : nullptr;
 }
 
 UserData *EphemeralMessages::replyReceiver(
@@ -805,7 +813,7 @@ bool EphemeralMessages::sendMedia(
 		}
 		reportDroppedReply();
 	}
-	item->destroy();
+	_session->data().destroyMessageWithCacheCleanup(item);
 	return true;
 }
 
@@ -827,7 +835,7 @@ bool EphemeralMessages::sendRich(
 	} else if (action.options.scheduled || action.options.shortcutId) {
 		LOG(("API Error: "
 			"Dropping a scheduled ephemeral rich message send."));
-		item->destroy();
+		_session->data().destroyMessageWithCacheCleanup(item);
 		return true;
 	}
 	const auto session = _session;
@@ -905,7 +913,7 @@ bool EphemeralMessages::sendRich(
 		}
 		reportDroppedReply();
 	}
-	item->destroy();
+	_session->data().destroyMessageWithCacheCleanup(item);
 	return true;
 }
 
@@ -955,7 +963,7 @@ void EphemeralMessages::request(
 	const auto destroyLocal = [=] {
 		if (destroyOnResult) {
 			if (const auto local = session->data().message(destroyOnResult)) {
-				local->destroy();
+				session->data().destroyMessageWithCacheCleanup(local);
 			}
 		}
 	};
@@ -1010,7 +1018,7 @@ void EphemeralMessages::request(
 			if (destroyOnResult) {
 				const auto local = session->data().message(destroyOnResult);
 				if (local && !findByItem(local)) {
-					local->destroy();
+					session->data().destroyMessageWithCacheCleanup(local);
 				}
 			}
 		}).fail([=](const MTP::Error &error) {
@@ -1055,7 +1063,7 @@ void EphemeralMessages::deleteMessage(not_null<HistoryItem*> item) {
 	if (anchored(item)) {
 		revertAnchored(item);
 	} else if (item->isEphemeral()) {
-		item->destroy();
+		_session->data().destroyMessageWithCacheCleanup(item);
 	}
 }
 
@@ -1113,9 +1121,7 @@ void EphemeralMessages::pruneOld() {
 			}
 		}
 	}
-	for (const auto &item : old) {
-		item->destroy();
-	}
+	_session->data().destroyMessagesWithCacheCleanup(old);
 }
 
 } // namespace Data

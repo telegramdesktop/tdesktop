@@ -90,6 +90,8 @@ public:
 		PeerId botId,
 		MsgId topicRootId);
 	[[nodiscard]] bool anchored(not_null<const HistoryItem*> item) const;
+	[[nodiscard]] const Media *anchoredMedia(
+		not_null<const HistoryItem*> item) const;
 	void revertAnchored(not_null<HistoryItem*> item);
 	void deleteMessage(not_null<HistoryItem*> item);
 

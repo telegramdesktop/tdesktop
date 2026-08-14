@@ -58,6 +58,7 @@ public:
 	[[nodiscard]] bool loading() const;
 	[[nodiscard]] bool displayLoading() const;
 	void cancel();
+	void clearLocalCache();
 	[[nodiscard]] float64 progress() const;
 	[[nodiscard]] int32 loadOffset() const;
 	[[nodiscard]] bool uploading() const;

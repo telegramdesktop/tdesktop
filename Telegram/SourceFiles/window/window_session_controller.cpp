@@ -3177,7 +3177,7 @@ void SessionController::cancelUploadLayer(not_null<HistoryItem*> item) {
 		if (const auto item = data.message(itemId)) {
 			if (!item->isEditingMedia()) {
 				const auto history = item->history();
-				item->destroy();
+				data.destroyMessageWithCacheCleanup(item);
 				history->requestChatListMessage();
 			} else {
 				item->returnSavedMedia();

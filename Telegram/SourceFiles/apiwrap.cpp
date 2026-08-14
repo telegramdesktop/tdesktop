@@ -1488,11 +1488,14 @@ void ApiWrap::deleteAllFromParticipant(
 	const auto ids = history
 		? history->collectMessagesFromParticipantToDelete(from)
 		: std::vector<MsgId>();
+	auto items = std::vector<not_null<HistoryItem*>>();
+	items.reserve(ids.size());
 	for (const auto &msgId : ids) {
 		if (const auto item = _session->data().message(channel->id, msgId)) {
-			item->destroy();
+			items.push_back(item);
 		}
 	}
+	_session->data().destroyMessagesWithCacheCleanup(items);
 
 	_session->data().sendHistoryChangeNotifications();
 
@@ -2211,7 +2214,7 @@ void ApiWrap::deleteHistory(
 				return;
 			} else if (!last->isRegular()) {
 				// Destroy client-side message locally.
-				last->destroy();
+				history->owner().destroyMessageWithCacheCleanup(last);
 			} else {
 				break;
 			}
@@ -5408,11 +5411,14 @@ void ApiWrap::sendMultiPaidMedia(
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		if (const auto album = _sendingAlbums.take(groupId)) {
 			const auto copy = (*album)->items;
+			auto items = std::vector<not_null<HistoryItem*>>();
+			items.reserve(copy.size());
 			for (const auto &part : copy) {
 				if (const auto item = history->owner().message(part.msgId)) {
-					item->destroy();
+					items.push_back(item);
 				}
 			}
+			history->owner().destroyMessagesWithCacheCleanup(items);
 		}
 		if (done) done(true);
 	}, [=](const MTP::Error &error, const MTP::Response &response) {

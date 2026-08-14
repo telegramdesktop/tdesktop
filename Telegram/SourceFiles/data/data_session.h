@@ -7,13 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "storage/storage_databases.h"
-#include "dialogs/dialogs_main_list.h"
-#include "data/data_groups.h"
-#include "data/data_cloud_file.h"
-#include "data/data_star_gift.h"
-#include "history/history_location_manager.h"
+#include "base/invoke_queued.h"
 #include "base/timer.h"
+#include "data/data_cloud_file.h"
+#include "data/data_groups.h"
+#include "data/data_star_gift.h"
+#include "dialogs/dialogs_main_list.h"
+#include "history/history_location_manager.h"
+#include "storage/storage_databases.h"
 
 class Image;
 class HistoryItem;
@@ -435,6 +436,11 @@ public:
 	[[nodiscard]] rpl::producer<> sessionDataAboutToBeCleared() const;
 	void notifyItemsAboutToBeDestroyed(
 		const std::vector<not_null<HistoryItem*>> &items);
+	void destroyMessagesWithCacheCleanup(
+		const std::vector<not_null<HistoryItem*>> &items);
+	void destroyMessageWithCacheCleanup(not_null<HistoryItem*> item);
+	void scheduleItemPhotoCacheClear(not_null<HistoryItem*> item);
+	void clearPhotoCache(not_null<PhotoData*> photo);
 	[[nodiscard]] auto itemsAboutToBeDestroyed() const
 		-> rpl::producer<std::vector<not_null<HistoryItem*>>>;
 	void notifyViewAboutToBeRemoved(
@@ -1158,6 +1164,14 @@ private:
 		const MTPMessageMedia &media,
 		TimeId date,
 		bool invertMedia);
+	[[nodiscard]] bool photoHasItemReferences(
+		not_null<const PhotoData*> photo) const;
+	void schedulePhotoCacheClear(
+		const std::vector<not_null<HistoryItem*>> &items);
+	void updateWebPagePhotoItems(
+		not_null<const WebPageData*> page,
+		const base::flat_set<PhotoData*> &previous);
+	void clearScheduledPhotoCache();
 
 	void setWallpapers(const QVector<MTPWallPaper> &data, uint64 hash);
 	void highlightProcessDone(uint64 processId);
@@ -1261,7 +1275,9 @@ private:
 		std::unique_ptr<PhotoData>> _photos;
 	std::unordered_map<
 		not_null<const PhotoData*>,
-		base::flat_set<not_null<HistoryItem*>>> _photoItems;
+		base::flat_map<not_null<HistoryItem*>, int>> _photoItems;
+	SingleQueuedInvokation _clearPhotoCacheDelayed;
+	std::unordered_set<PhotoData*> _photosScheduledForCacheClear;
 	std::unordered_map<
 		DocumentId,
 		std::unique_ptr<DocumentData>> _documents;
@@ -1273,7 +1289,7 @@ private:
 		std::unique_ptr<WebPageData>> _webpages;
 	std::unordered_map<
 		not_null<const WebPageData*>,
-		base::flat_set<not_null<HistoryItem*>>> _webpageItems;
+		base::flat_map<not_null<HistoryItem*>, int>> _webpageItems;
 	std::unordered_map<
 		not_null<const WebPageData*>,
 		base::flat_set<not_null<ViewElement*>>> _webpageViews;
