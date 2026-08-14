@@ -209,11 +209,14 @@ void ShowMatchCodesBox(
 	}
 }
 
+int SwitchableUserpicButton::Size() {
+	return st::restoreUserpicIcon.photoSize + st::lineWidth * 8;
+}
+
 SwitchableUserpicButton::SwitchableUserpicButton(
-	not_null<Ui::RpWidget*> parent,
-	int size)
+	not_null<Ui::RpWidget*> parent)
 : RippleButton(parent, st::defaultRippleAnimation)
-, _size(size)
+, _size(Size())
 , _userpicSize(st::restoreUserpicIcon.photoSize)
 , _skip((_size - _userpicSize) / 2) {
 	resize(_size, _size);
@@ -442,9 +445,9 @@ void ShowDetails(
 
 	const auto content = box->verticalLayout();
 
-	Ui::AddSkip(content);
-	Ui::AddSkip(content);
 	if (userpicOwned) {
+		Ui::AddSkip(content);
+		Ui::AddSkip(content);
 		const auto userpic = content->add(
 			std::move(userpicOwned),
 			st::boxRowPadding,
@@ -452,15 +455,11 @@ void ShowDetails(
 		userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
 		Ui::AddSkip(content);
 		Ui::AddSkip(content);
+	} else {
+		Ui::AddSkip(content, SwitchableUserpicButton::Size());
 	}
 
 	const auto domainUrl = isApp ? QString() : qthelp::validate_url(domain);
-	const auto userpicButtonWidth = st::restoreUserpicIcon.photoSize;
-	const auto titlePadding = style::margins(
-		st::boxRowPadding.left(),
-		st::boxRowPadding.top(),
-		st::boxRowPadding.right() + userpicButtonWidth,
-		st::boxRowPadding.bottom());
 	content->add(
 		object_ptr<Ui::FlatLabel>(
 			content,
@@ -476,7 +475,7 @@ void ShowDetails(
 						rpl::single(Ui::Text::Link(domain, domainUrl)),
 						tr::marked)),
 			st::boxTitle),
-		titlePadding,
+		st::boxRowPadding,
 		style::al_top);
 	Ui::AddSkip(content);
 

@@ -87,9 +87,7 @@ struct SwitchAccountResult {
 		not_null<Ui::RpWidget*> parent,
 		UserId userIdHint = UserId()) {
 	const auto session = &Core::App().domain().active().session();
-	const auto widget = Ui::CreateChild<SwitchableUserpicButton>(
-		parent,
-		st::restoreUserpicIcon.photoSize + st::lineWidth * 8);
+	const auto widget = Ui::CreateChild<SwitchableUserpicButton>(parent);
 	struct State {
 		base::unique_qptr<Ui::PopupMenu> menu;
 		UserData *currentUser = nullptr;
