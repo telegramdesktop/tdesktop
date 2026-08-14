@@ -122,11 +122,13 @@ Uploader::Entry::Entry(
 : itemId(itemId)
 , file(file)
 , parts((file->type == SendMediaType::Photo
-	|| file->type == SendMediaType::Secure)
+	|| file->type == SendMediaType::Secure
+	|| file->type == SendMediaType::SecondaryFile)
 		? &file->fileparts
 		: &file->thumbparts)
 , partsOfId((file->type == SendMediaType::Photo
-	|| file->type == SendMediaType::Secure)
+	|| file->type == SendMediaType::Secure
+	|| file->type == SendMediaType::SecondaryFile)
 		? file->id
 		: file->thumbId) {
 	if (file->type == SendMediaType::File
@@ -583,6 +585,8 @@ void Uploader::notifyFailed(const Entry &entry) {
 			document->status = FileUploadFailed;
 		}
 		_documentFailed.fire_copy(entry.itemId);
+	} else if (type == SendMediaType::SecondaryFile) {
+		_secondaryFileFailed.fire_copy(entry.itemId);
 	} else if (type == SendMediaType::Secure) {
 		_secureFailed.fire_copy(entry.itemId);
 	} else {
@@ -996,6 +1000,12 @@ void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 				entry.docSentSize);
 		}
 		_documentProgress.fire_copy(itemId);
+	} else if (entry.file->type == SendMediaType::SecondaryFile) {
+		_secondaryFileProgress.fire_copy({
+			.fullId = itemId,
+			.offset = entry.sentSize,
+			.size = entry.file->partssize,
+		});
 	} else if (entry.file->type == SendMediaType::Secure) {
 		_secureProgress.fire_copy({
 			.fullId = itemId,
@@ -1093,6 +1103,19 @@ void Uploader::finishFront() {
 		} else {
 			_photoReady.fire(std::move(ready));
 		}
+	} else if (entry.file->type == SendMediaType::SecondaryFile) {
+		_secondaryFileReady.fire({
+			.id = entry.file->id,
+			.fullId = entry.itemId,
+			.info = {
+				.file = MTP_inputFile(
+					MTP_long(entry.file->id),
+					MTP_int(entry.parts->size()),
+					MTP_string(entry.file->filename),
+					MTP_bytes(entry.file->filemd5)),
+			},
+			.options = options,
+		});
 	} else if (entry.file->type == SendMediaType::File
 		|| entry.file->type == SendMediaType::ThemeFile
 		|| entry.file->type == SendMediaType::Audio

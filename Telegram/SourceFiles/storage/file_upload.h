@@ -42,6 +42,12 @@ struct UploadSecureProgress {
 	int64 size = 0;
 };
 
+struct UploadFileProgress {
+	FullMsgId fullId;
+	int64 offset = 0;
+	int64 size = 0;
+};
+
 struct UploadSecureDone {
 	FullMsgId fullId;
 	uint64 fileId = 0;
@@ -70,6 +76,9 @@ public:
 	[[nodiscard]] rpl::producer<UploadedMedia> documentReady() const {
 		return _documentReady.events();
 	}
+	[[nodiscard]] rpl::producer<UploadedMedia> secondaryFileReady() const {
+		return _secondaryFileReady.events();
+	}
 	[[nodiscard]] rpl::producer<UploadSecureDone> secureReady() const {
 		return _secureReady.events();
 	}
@@ -83,11 +92,18 @@ public:
 	-> rpl::producer<UploadSecureProgress> {
 		return _secureProgress.events();
 	}
+	[[nodiscard]] auto secondaryFileProgress() const
+	-> rpl::producer<UploadFileProgress> {
+		return _secondaryFileProgress.events();
+	}
 	[[nodiscard]] rpl::producer<FullMsgId> photoFailed() const {
 		return _photoFailed.events();
 	}
 	[[nodiscard]] rpl::producer<FullMsgId> documentFailed() const {
 		return _documentFailed.events();
+	}
+	[[nodiscard]] rpl::producer<FullMsgId> secondaryFileFailed() const {
+		return _secondaryFileFailed.events();
 	}
 	[[nodiscard]] rpl::producer<FullMsgId> secureFailed() const {
 		return _secureFailed.events();
@@ -187,12 +203,15 @@ private:
 
 	rpl::event_stream<UploadedMedia> _photoReady;
 	rpl::event_stream<UploadedMedia> _documentReady;
+	rpl::event_stream<UploadedMedia> _secondaryFileReady;
 	rpl::event_stream<UploadSecureDone> _secureReady;
 	rpl::event_stream<FullMsgId> _photoProgress;
 	rpl::event_stream<FullMsgId> _documentProgress;
+	rpl::event_stream<UploadFileProgress> _secondaryFileProgress;
 	rpl::event_stream<UploadSecureProgress> _secureProgress;
 	rpl::event_stream<FullMsgId> _photoFailed;
 	rpl::event_stream<FullMsgId> _documentFailed;
+	rpl::event_stream<FullMsgId> _secondaryFileFailed;
 	rpl::event_stream<FullMsgId> _secureFailed;
 	rpl::event_stream<FullMsgId> _nonPremiumDelays;
 

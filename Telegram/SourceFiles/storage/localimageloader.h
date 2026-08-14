@@ -42,6 +42,9 @@ enum class SendMediaType {
 	File,
 	ThemeFile,
 	Secure,
+
+	// Uploaded just to get an InputFile, without a document or a message.
+	SecondaryFile,
 };
 
 using TaskId = void*; // no interface, just id
