@@ -202,3 +202,21 @@ photoEditorCropPointSize: 10px;
 photoEditorCropMinSize: 20px;
 
 photoEditorItemHandleSize: 10px;
+
+videoTimelineHeight: 54px;
+videoTimelineRadius: 6px;
+videoTimelineHandleWidth: 11px;
+videoTimelineHandleGripWidth: 2px;
+videoTimelineHandleGripHeight: 16px;
+videoTimelineHandleHitSlop: 12px;
+videoTimelinePlayheadWidth: 3px;
+videoTimelinePlayheadOutline: 1px;
+videoTimelinePlayheadOverflow: 5px;
+videoTimelineFg: mediaviewControlFg;
+videoTimelineDimBg: mediaviewCaptionBg;
+videoTimelinePlaceholderBg: mediaviewPipPlaybackInactive;
+videoTimelineDurationFg: mediaviewCaptionFg;
+videoTimelineDurationStyle: TextStyle(defaultTextStyle) {
+	font: font(12px semibold);
+}
+videoTimelineDurationPadding: margins(6px, 2px, 6px, 2px);
