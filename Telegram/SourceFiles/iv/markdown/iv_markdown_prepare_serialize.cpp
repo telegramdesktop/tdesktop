@@ -276,7 +276,7 @@ std::optional<InlineTextObjectEntity> ParseInlineTextObjectEntity(
 			|| color > int(Color::Success)
 			|| !typeOk
 			|| type < 0
-			|| type > int(Type::CreateBot)
+			|| type >= int(Type::kCount)
 			|| !buttonIdOk
 			|| !peerTypesOk
 			|| peerTypes > uint(
