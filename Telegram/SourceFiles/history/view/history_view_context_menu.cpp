@@ -2907,7 +2907,13 @@ void AddEphemeralMessageActions(
 void AddEphemeralAboutAction(
 		not_null<Ui::PopupMenu*> menu,
 		not_null<HistoryItem*> item) {
-	if (!item->isEphemeral()) {
+	if (IsAnchoredEphemeral(item)) {
+		InsertPollMenuLabel(
+			menu,
+			tr::lng_ephemeral_anchored_visible_you(tr::now, tr::marked),
+			menu->st().menu.separator);
+		return;
+	} else if (!item->isEphemeral()) {
 		return;
 	}
 	if (!menu->empty()) {
