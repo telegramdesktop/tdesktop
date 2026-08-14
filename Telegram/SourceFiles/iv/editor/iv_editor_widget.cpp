@@ -7376,13 +7376,18 @@ std::optional<Widget::VerticalNavigationTarget> Widget::adjacentRowTarget(
 	if (!segmentRect.isValid() || segmentRect.isEmpty()) {
 		return std::nullopt;
 	}
+	const auto textRect = _article->textSegmentRect(segmentIndex);
+	const auto bounds = (textRect.isValid() && !textRect.isEmpty())
+		? textRect
+		: segmentRect;
 	const auto clampedY = down
-		? std::max(articlePoint.y(), segmentRect.top())
-		: std::min(articlePoint.y(), segmentRect.bottom());
-	articlePoint.setY(std::clamp(
-		clampedY,
-		segmentRect.top(),
-		segmentRect.bottom()));
+		? std::max(articlePoint.y(), bounds.top())
+		: std::min(articlePoint.y(), bounds.bottom());
+	articlePoint.setY(std::clamp(clampedY, bounds.top(), bounds.bottom()));
+	articlePoint.setX(std::clamp(
+		articlePoint.x(),
+		bounds.left(),
+		bounds.right()));
 	syncArticleVisibleTopBottom();
 	const auto hit = _article->hitTest(
 		articlePoint,
