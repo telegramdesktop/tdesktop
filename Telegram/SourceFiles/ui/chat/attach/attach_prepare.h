@@ -44,6 +44,7 @@ struct PreparedFileInformation {
 		bool isGifv = false;
 		bool isWebmSticker = false;
 		bool supportsStreaming = false;
+		bool hasAudio = false;
 		crl::time duration = -1;
 		// Always the raw frame at |modifications.cover|, never modified.
 		QImage thumbnail;
@@ -88,6 +89,7 @@ struct PreparedFile {
 	[[nodiscard]] bool isGifv() const;
 	[[nodiscard]] bool canUseHighQualityPhoto() const;
 	[[nodiscard]] bool hasAnimatedEditScene() const;
+	[[nodiscard]] bool sendsVideoAsGif() const;
 
 	[[nodiscard]] bool canEditVideo() const;
 

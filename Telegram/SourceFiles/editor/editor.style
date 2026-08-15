@@ -228,6 +228,14 @@ videoTimelineDurationStyle: TextStyle(defaultTextStyle) {
 	font: font(12px semibold);
 }
 
+videoEditorGifButton: IconButton(photoEditorRotateButton) {
+	icon: icon {{ "photo_editor/gif", photoEditorButtonIconFg }};
+	iconOver: icon {{ "photo_editor/gif", photoEditorButtonIconFgOver }};
+}
+videoEditorGifIconActive: icon {
+	{ "photo_editor/gif", photoEditorButtonIconFgActive }
+};
+
 videoQualitySliderDotSize: 7px;
 videoQualitySliderDotActiveSize: 11px;
 videoQualitySliderLineWidth: 2px;

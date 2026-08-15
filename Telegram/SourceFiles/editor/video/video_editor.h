@@ -93,6 +93,7 @@ private:
 	crl::time _till = 0;
 	crl::time _cover = 0;
 	crl::time _position = 0;
+	bool _gif = false;
 
 	std::unique_ptr<Media::Streaming::Instance> _instance;
 	base::unique_qptr<Crop> _crop;
@@ -102,6 +103,7 @@ private:
 	base::unique_qptr<Ui::RpWidget> _bar;
 	base::unique_qptr<Ui::IconButton> _rotate;
 	base::unique_qptr<Ui::IconButton> _flip;
+	base::unique_qptr<Ui::IconButton> _gifButton;
 	base::unique_qptr<Ui::RippleButton> _confirm;
 	base::unique_qptr<Ui::RippleButton> _cancelButton;
 	base::unique_qptr<Ui::FlatLabel> _about;

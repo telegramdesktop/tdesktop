@@ -31,6 +31,9 @@ MTPVector<MTPDocumentAttribute> ComposeSendingDocumentAttributes(
 			if (document->supportsStreaming()) {
 				flags |= VideoFlag::f_supports_streaming;
 			}
+			if (document->isSilentVideo()) {
+				flags |= VideoFlag::f_nosound;
+			}
 			const auto video = document->video();
 			const auto startTs = video ? video->startTs : crl::time(0);
 			if (startTs > 0) {
@@ -109,18 +112,19 @@ MTPInputMedia PrepareUploadedDocument(
 		return MTP_inputMediaEmpty();
 	}
 	using Flag = MTPDinputMediaUploadedDocument::Flag;
+	const auto document = item->media()->document();
 	const auto spoiler = item->media() && item->media()->hasSpoiler();
 	const auto ttlSeconds = item->media()
 		? item->media()->ttlSeconds()
 		: 0;
+	const auto silent = item->groupId() || document->isSilentVideo();
 	const auto flags = (spoiler ? Flag::f_spoiler : Flag())
 		| (info.thumb ? Flag::f_thumb : Flag())
-		| (item->groupId() ? Flag::f_nosound_video : Flag())
+		| (silent ? Flag::f_nosound_video : Flag())
 		| (info.forceFile ? Flag::f_force_file : Flag())
 		| (info.attachedStickers.empty() ? Flag() : Flag::f_stickers)
 		| (ttlSeconds ? Flag::f_ttl_seconds : Flag())
 		| (info.videoCover ? Flag::f_video_cover : Flag());
-	const auto document = item->media()->document();
 	return MTP_inputMediaUploadedDocument(
 		MTP_flags(flags),
 		info.file,

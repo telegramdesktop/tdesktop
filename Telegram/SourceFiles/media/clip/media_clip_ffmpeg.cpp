@@ -388,6 +388,10 @@ bool FFMpegReaderImplementation::inspectAt(crl::time &positionMs) {
 	return true;
 }
 
+bool FFMpegReaderImplementation::hasAudio() const {
+	return _hasAudioStream;
+}
+
 bool FFMpegReaderImplementation::isGifv() const {
 	if (_hasAudioStream) {
 		return false;

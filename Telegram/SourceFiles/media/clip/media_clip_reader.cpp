@@ -978,6 +978,7 @@ Ui::PreparedFileInformation PrepareForSending(
 		if (durationMs > 0) {
 			result.isGifv = reader->isGifv();
 			result.isWebmSticker = reader->isWebmSticker();
+			result.hasAudio = reader->hasAudio();
 			// Use first video frame as a thumbnail.
 			// All other apps and server do that way.
 			//if (!result.isGifv) {

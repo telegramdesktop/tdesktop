@@ -29,10 +29,14 @@ QSize EditedFrameSize(QSize dimensions, const PhotoModifications &geometry) {
 bool VideoEdited(
 		const VideoModifications &modifications,
 		QSize dimensions,
-		crl::time duration) {
+		crl::time duration,
+		bool hasAudio) {
 	const auto &geometry = modifications.geometry;
 	const auto full = QRect(QPoint(), dimensions);
+	// Either the audio has to be dropped, or an empty track has to be added.
+	const auto audioChanged = (modifications.gif == hasAudio);
 	return (modifications.quality > 0)
+		|| audioChanged
 		|| geometry.angle
 		|| geometry.flipped
 		|| (geometry.crop.isValid() && (geometry.crop != full))
@@ -57,7 +61,8 @@ Media::Encode::VideoSource ComposeVideoSource(
 		.flipped = geometry.flipped,
 		.from = modifications.from,
 		.till = modifications.till,
-		.removeAudio = data.removeAudio,
+		.removeAudio = (data.removeAudio || modifications.gif),
+		.silentAudio = (!data.removeAudio && !modifications.gif),
 		.fpsLimit = data.fpsLimit,
 		.coverPosition = (coverNeeded
 			? modifications.cover

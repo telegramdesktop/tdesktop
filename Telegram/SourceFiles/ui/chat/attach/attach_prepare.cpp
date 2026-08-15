@@ -166,7 +166,8 @@ void PaintMediaBadge(
 	auto from = 0;
 	auto groupType = AlbumType::None;
 	for (auto i = 0; i != int(files.size()); ++i) {
-		const auto fileGroupType = files[i].animationJob
+		const auto fileGroupType = (files[i].animationJob
+			|| files[i].sendsVideoAsGif())
 			? AlbumType::None
 			: GroupTypeForFile(
 				files[i].type,
@@ -255,6 +256,15 @@ bool PreparedFile::canEditVideo() const {
 		&& video
 		&& !video->isWebmSticker
 		&& !path.isEmpty();
+}
+
+bool PreparedFile::sendsVideoAsGif() const {
+	const auto video = information
+		? std::get_if<PreparedFileInformation::Video>(&information->media)
+		: nullptr;
+	// A source without audio already is a GIF and grouping it has always been
+	// allowed, so only a video turned into one has to leave the album.
+	return video && video->hasAudio && video->modifications.gif;
 }
 
 bool PreparedFile::hasAnimatedEditScene() const {

@@ -48,6 +48,7 @@ public:
 
 	bool isGifv() const;
 	bool isWebmSticker() const;
+	bool hasAudio() const;
 
 	~FFMpegReaderImplementation();
 

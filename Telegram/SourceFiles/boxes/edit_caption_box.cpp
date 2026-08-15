@@ -1095,6 +1095,7 @@ bool EditCaptionBox::setPreparedList(Ui::PreparedList &&list) {
 		if (const auto video = std::get_if<Video>(
 				&file->information->media)) {
 			video->isGifv = false;
+			video->modifications.gif = false;
 		}
 	}
 	if (invalidForAlbum) {

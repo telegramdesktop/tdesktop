@@ -189,6 +189,7 @@ VideoEditor::VideoEditor(
 , _data(descriptor.data)
 , _initial(descriptor.initial) {
 	_geometry = _initial.geometry;
+	_gif = _initial.gif;
 	_geometry.cropType = _data.editor.cropType;
 	_geometry.cropMode = _data.editor.cropMode;
 	if (!_geometry.crop.isValid() && !_data.exactSize.isEmpty()) {
@@ -356,6 +357,12 @@ void VideoEditor::setupControls() {
 	_flip = base::make_unique_q<Ui::IconButton>(
 		bar,
 		st::photoEditorFlipButton);
+	if (!_data.removeAudio) {
+		// When the audio is dropped anyway there is nothing to choose.
+		_gifButton = base::make_unique_q<Ui::IconButton>(
+			bar,
+			st::videoEditorGifButton);
+	}
 	_confirm = base::make_unique_q<BarTextButton>(
 		bar,
 		(_data.editor.confirm.isEmpty()
@@ -486,6 +493,19 @@ void VideoEditor::setupControls() {
 		applyGeometry();
 		invalidateCoverPreview();
 	});
+	if (_gifButton) {
+		const auto refresh = [=] {
+			const auto icon = _gif
+				? &st::videoEditorGifIconActive
+				: nullptr;
+			_gifButton->setIconOverride(icon, icon);
+		};
+		refresh();
+		_gifButton->setClickedCallback([=] {
+			_gif = !_gif;
+			refresh();
+		});
+	}
 	_cancelButton->setClickedCallback([=] {
 		_cancel.fire({});
 	});
@@ -949,6 +969,7 @@ VideoModifications VideoEditor::collect() const {
 		.till = _timeline->till(),
 		.cover = _timeline->cover(),
 		.quality = _quality ? _quality->value() : 0,
+		.gif = _gif,
 	};
 }
 

@@ -977,7 +977,8 @@ void FileLoadTask::process(ProcessArgs &&args) {
 					|| Editor::VideoEdited(
 						video->modifications,
 						video->thumbnail.size(),
-						video->duration))) {
+						video->duration,
+						video->hasAudio))) {
 				auto source = Editor::ComposeVideoSource(
 					_filepath,
 					video->modifications,
@@ -1027,13 +1028,18 @@ void FileLoadTask::process(ProcessArgs &&args) {
 					crl::time(0),
 					video->duration);
 			}
+			const auto gif = video->modifications.gif && !_forceFile;
 			if (!_forceFile) {
-				if (video->isGifv && !_album) {
+				// A video without sound is what the servers read as a GIF.
+				if (gif && !_album) {
 					attributes.push_back(MTP_documentAttributeAnimated());
 				}
 				auto flags = MTPDdocumentAttributeVideo::Flags(0);
 				if (video->supportsStreaming) {
 					flags |= MTPDdocumentAttributeVideo::Flag::f_supports_streaming;
+				}
+				if (gif) {
+					flags |= MTPDdocumentAttributeVideo::Flag::f_nosound;
 				}
 				const auto startTs = _result->videoCoverOffset;
 				if (startTs > 0) {

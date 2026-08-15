@@ -343,6 +343,7 @@ void PrepareDetails(PreparedFile &file, int previewWidth, int sideLimit) {
 	} else if (const auto video = std::get_if<Video>(
 			&file.information->media)) {
 		if (ValidVideoForAlbum(*video)) {
+			video->modifications.gif = !video->hasAudio;
 			UpdateVideoDetails(file, previewWidth, sideLimit);
 			file.type = PreparedFile::Type::Video;
 		}
