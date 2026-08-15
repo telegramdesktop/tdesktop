@@ -137,13 +137,6 @@ private:
 
 };
 
-[[nodiscard]] bool AllowsMediaDownloadControls(not_null<HistoryItem*> item) {
-	const auto media = item->media();
-	return !item->forbidsSaving()
-		&& item->history()->peer->allowsForwarding()
-		&& (!media || media->allowsForward());
-}
-
 [[nodiscard]] QImage CropMediaFrame(QImage image, int width, int height) {
 	const auto ratio = style::DevicePixelRatio();
 	width *= ratio;
@@ -1392,7 +1385,7 @@ Document::Document(
 
 bool Document::downloadInCorner() const {
 	return _data->isAudioFile()
-		&& AllowsMediaDownloadControls(parent())
+		&& parent()->allowsMediaDownloadControls()
 		&& _data->canBeStreamed()
 		&& !_data->inappPlaybackFailed();
 }

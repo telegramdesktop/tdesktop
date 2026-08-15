@@ -1124,9 +1124,9 @@ void FileLoadTask::removeFromAlbum() {
 	if (!_album) {
 		return;
 	}
+	const auto session = _session.get();
 	_album->removeTask(id());
-	if (const auto session = _session.get()
-		; _album->preparedMusicReady()) {
+	if (session && _album->preparedMusicReady()) {
 		if (const auto sample = _album->preparedMusicSample()) {
 			Api::SendConfirmedFile(session, sample);
 		}

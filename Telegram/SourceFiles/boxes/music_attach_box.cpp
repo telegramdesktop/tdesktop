@@ -12,8 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/algorithm.h"
 #include "base/unixtime.h"
-#include "boxes/sticker_set_box.h"
 #include "boxes/send_files_box.h"
+#include "boxes/sticker_set_box.h"
 #include "chat_helpers/message_field.h"
 #include "config.h"
 #include "core/application.h"
@@ -80,7 +80,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kSearchRequestDelay = 400;
+constexpr auto kSearchRequestDelay = crl::time(400);
 constexpr auto kFirstLimit = 10;
 
 class MusicSectionController final : public Info::AbstractController {
@@ -132,7 +132,6 @@ public:
 	void setQuery(QString query);
 	void setCollapsed(bool collapsed);
 	void setPagingEnabled(bool enabled);
-	void setGlobalMediaAccumulationEnabled(bool enabled);
 	void setExternalViewportHeight(int height);
 	void setTitleEligible(bool eligible);
 	void setTopSkip(int topSkip);
@@ -246,6 +245,7 @@ private:
 	void setPending(bool pending);
 	void setLoading(bool loading);
 	void resolveBot();
+	void applyResolvedBot();
 	void cancelActiveRequest();
 	void cancelSearch();
 	void sendInlineRequest();
@@ -282,7 +282,6 @@ private:
 	std::vector<Row> _rows;
 	std::map<QString, std::unique_ptr<CacheEntry>> _cache;
 	std::vector<const Overview::Layout::ItemBase*> _heavyLayouts;
-	QTimer _requestTimer;
 	std::unique_ptr<StickerPremiumMark> _hiddenMark;
 	UserData *_bot = nullptr;
 	QString _query;
@@ -433,10 +432,6 @@ void HistoryMusicSection::setPagingEnabled(bool enabled) {
 	updatePreloadEnabled();
 }
 
-void HistoryMusicSection::setGlobalMediaAccumulationEnabled(bool enabled) {
-	_list->setGlobalMediaAccumulationEnabled(enabled);
-}
-
 void HistoryMusicSection::setExternalViewportHeight(int height) {
 	_list->setExternalViewportHeight(height);
 }
@@ -545,13 +540,6 @@ GlobalMusicSearchSection::GlobalMusicSearchSection(
 		refreshHeight();
 	}, lifetime());
 
-	_requestTimer.setSingleShot(true);
-	connect(
-		&_requestTimer,
-		&QTimer::timeout,
-		this,
-		[this] { sendInlineRequest(); });
-
 	controller->session().data().itemRepaintRequest(
 	) | rpl::on_next([=](not_null<const HistoryItem*> item) {
 		const auto index = findRowByItem(item);
@@ -595,7 +583,6 @@ void GlobalMusicSearchSection::setQuery(QString query) {
 		_awayFromTop = false;
 		setLoading(false);
 		cancelActiveRequest();
-		_requestTimer.stop();
 		if (const auto i = _cache.find(query); i != end(_cache)) {
 			setPending(false);
 			_query = _nextQuery = std::move(query);
@@ -792,7 +779,7 @@ void GlobalMusicSearchSection::repaintItem(
 bool GlobalMusicSearchSection::itemVisible(
 		not_null<const Overview::Layout::ItemBase*> item) {
 	const auto index = findRowByLayout(item.get());
-	if (index < 0 || !isVisible()) {
+	if (index < 0 || isHidden()) {
 		return false;
 	}
 	const auto &row = _rows[index];
@@ -841,18 +828,7 @@ void GlobalMusicSearchSection::resolveBot() {
 	if (const auto peer = _controller->session().data().peerByUsername(
 			_botUsername)) {
 		_bot = peer->asUser();
-		if (_bot && !_nextQuery.isEmpty()
-			&& (_cache.find(_nextQuery) == end(_cache))) {
-			sendInlineRequest();
-		} else if (!_bot && _pending) {
-			setPending(false);
-			if (_query != _nextQuery) {
-				_query = _nextQuery;
-				rebuildRows();
-				return;
-			}
-		}
-		_stateChanged.fire({});
+		applyResolvedBot();
 		return;
 	}
 	_resolveRequestId = _api.request(MTPcontacts_ResolveUsername(
@@ -869,18 +845,7 @@ void GlobalMusicSearchSection::resolveBot() {
 				peerFromMTP(data.vpeer()));
 			_bot = peer ? peer->asUser() : nullptr;
 		});
-		if (_bot && !_nextQuery.isEmpty()
-			&& (_cache.find(_nextQuery) == end(_cache))) {
-			sendInlineRequest();
-		} else if (!_bot && _pending) {
-			setPending(false);
-			if (_query != _nextQuery) {
-				_query = _nextQuery;
-				rebuildRows();
-				return;
-			}
-		}
-		_stateChanged.fire({});
+		applyResolvedBot();
 	})).fail(crl::guard(this, [this](const MTP::Error &) {
 		_resolveRequestId = 0;
 		setPending(false);
@@ -890,6 +855,22 @@ void GlobalMusicSearchSection::resolveBot() {
 			rebuildRows();
 		}
 	})).send();
+}
+
+void GlobalMusicSearchSection::applyResolvedBot() {
+	if (_bot
+		&& !_nextQuery.isEmpty()
+		&& (_cache.find(_nextQuery) == end(_cache))) {
+		sendInlineRequest();
+	} else if (!_bot && _pending) {
+		setPending(false);
+		if (_query != _nextQuery) {
+			_query = _nextQuery;
+			rebuildRows();
+			return;
+		}
+	}
+	_stateChanged.fire({});
 }
 
 void GlobalMusicSearchSection::cancelActiveRequest() {
@@ -903,7 +884,6 @@ void GlobalMusicSearchSection::cancelSearch() {
 	setPending(false);
 	setLoading(false);
 	cancelActiveRequest();
-	_requestTimer.stop();
 	_query = QString();
 	_nextQuery = QString();
 	_nextOffset = QString();
@@ -914,7 +894,6 @@ void GlobalMusicSearchSection::sendInlineRequest() {
 	if (_requestId || !_bot || _nextQuery.isEmpty()) {
 		return;
 	}
-	_requestTimer.stop();
 	setPending(false);
 
 	const auto query = _nextQuery;
@@ -1242,10 +1221,6 @@ struct ResolvedHistorySelection {
 	not_null<DocumentData*> document;
 };
 
-struct NormalizedMusicSelection {
-	DocumentData *document = nullptr;
-};
-
 struct SelectionKey {
 	DocumentId documentId = 0;
 	DocumentData *document = nullptr;
@@ -1309,44 +1284,6 @@ bool GlobalMusicSearchSection::SameDocumentKey(
 		item,
 		document,
 	};
-}
-
-[[nodiscard]] std::vector<NormalizedMusicSelection> NormalizeSelections(
-		not_null<Main::Session*> session,
-		const Info::SelectedItems &savedMusic,
-		const Info::SelectedItems &yourChats,
-		const GlobalMusicSearchSection::SelectedDocuments &globalDocuments) {
-	auto result = std::vector<NormalizedMusicSelection>();
-	auto keys = std::vector<SelectionKey>();
-	const auto appendHistory = [&](const Info::SelectedItems &items) {
-		for (const auto &selected : items.list) {
-			const auto resolved = ResolveSelection(session, selected);
-			if (!resolved) {
-				continue;
-			}
-			const auto key = MakeSelectionKey(resolved->document);
-			if (HasSelectionKey(keys, key)) {
-				continue;
-			}
-			keys.push_back(key);
-			result.push_back({
-				.document = resolved->document,
-			});
-		}
-	};
-	appendHistory(savedMusic);
-	appendHistory(yourChats);
-	for (const auto document : globalDocuments) {
-		const auto key = MakeSelectionKey(document);
-		if (HasSelectionKey(keys, key)) {
-			continue;
-		}
-		keys.push_back(key);
-		result.push_back({
-			.document = document,
-		});
-	}
-	return result;
 }
 
 void ApplySendOptions(
@@ -1693,23 +1630,6 @@ void MusicAttachBox(
 	}
 	globalSearch->setSelectedLimit(MaxSelectedItems);
 
-	const auto savedSelection = box->lifetime().make_state<Info::SelectedItems>();
-	const auto yourChatsSelection = box->lifetime().make_state<
-		Info::SelectedItems>();
-	const auto globalSelection = box->lifetime().make_state<
-		GlobalMusicSearchSection::SelectedDocuments>();
-	const auto selection = box->lifetime().make_state<
-		std::vector<NormalizedMusicSelection>>();
-	const auto typedSearchQuery = box->lifetime().make_state<QString>();
-	const auto committedSearchQuery = box->lifetime().make_state<QString>();
-	const auto searchQueryCommitTimer = box->lifetime().make_state<QTimer>();
-	const auto savedMusicExpanded = box->lifetime().make_state<bool>(false);
-	const auto yourChatsExpanded = box->lifetime().make_state<bool>(false);
-	const auto yourChatsQuery = box->lifetime().make_state<QString>();
-	const auto yourChatsFullCount = box->lifetime().make_state<
-		std::optional<int>>();
-	const auto yourChatsFullCountQuery = box->lifetime().make_state<
-		std::optional<QString>>();
 	struct ViewportAnchor {
 		enum class Kind : uchar {
 			Raw,
@@ -1741,15 +1661,31 @@ void MusicAttachBox(
 		bool pending = false;
 		bool searchMode = false;
 	};
-	const auto geometryState = box->lifetime().make_state<GeometryState>();
-	const auto paymentHelper = box->lifetime().make_state<SendPaymentHelper>();
-	const auto sendPreparedMusic = box->lifetime().make_state<
-		Fn<void(std::shared_ptr<Ui::PreparedBundle>, Api::SendOptions, FullReplyTo)>>();
-	const auto sendSelected = box->lifetime().make_state<
-		Fn<void(Api::SendOptions)>>();
-	searchQueryCommitTimer->setSingleShot(true);
+	struct State {
+		Info::SelectedItems savedSelection;
+		Info::SelectedItems yourChatsSelection;
+		GlobalMusicSearchSection::SelectedDocuments globalSelection;
+		std::vector<Api::MusicSelectionItem> selection;
+		QString typedSearchQuery;
+		QString committedSearchQuery;
+		QTimer searchQueryCommitTimer;
+		QString yourChatsQuery;
+		std::optional<int> yourChatsFullCount;
+		std::optional<QString> yourChatsFullCountQuery;
+		GeometryState geometry;
+		SendPaymentHelper paymentHelper;
+		Fn<void(
+			std::shared_ptr<Ui::PreparedBundle>,
+			Api::SendOptions,
+			FullReplyTo)> sendPreparedMusic;
+		Fn<void(Api::SendOptions)> sendSelected;
+		bool savedMusicExpanded = false;
+		bool yourChatsExpanded = false;
+	};
+	const auto state = box->lifetime().make_state<State>();
+	state->searchQueryCommitTimer.setSingleShot(true);
 
-	*sendPreparedMusic = [=](
+	state->sendPreparedMusic = [=](
 			std::shared_ptr<Ui::PreparedBundle> bundle,
 			Api::SendOptions options,
 			FullReplyTo replyTo) {
@@ -1765,7 +1701,7 @@ void MusicAttachBox(
 		const auto resend = [=](int approved) {
 			auto copy = options;
 			copy.starsApproved = approved;
-			(*sendPreparedMusic)(bundle, copy, replyTo);
+			state->sendPreparedMusic(bundle, copy, replyTo);
 		};
 		const auto ephemeralReply = controller->session().ephemeralMessages()
 			.isEphemeralBotReply(replyTo.messageId);
@@ -1773,7 +1709,7 @@ void MusicAttachBox(
 			controller->showToast(
 				tr::lng_ephemeral_reply_single_message(tr::now));
 			return;
-		} else if (!ephemeralReply && !paymentHelper->check(
+		} else if (!ephemeralReply && !state->paymentHelper.check(
 				show,
 				peer,
 				action.options,
@@ -1801,16 +1737,16 @@ void MusicAttachBox(
 		}
 		box->closeBox();
 	};
-	*sendSelected = [=](Api::SendOptions options) {
+	state->sendSelected = [=](Api::SendOptions options) {
 		auto action = actionFactory();
 		ApplySendOptions(action.options, options);
 
 		auto text = caption->getTextWithAppliedMarkdown();
 		const auto items = MakeMusicSelectionItems(
 			&controller->session(),
-			*savedSelection,
-			*yourChatsSelection,
-			*globalSelection);
+			state->savedSelection,
+			state->yourChatsSelection,
+			state->globalSelection);
 		if (items.empty()) {
 			return;
 		}
@@ -1847,9 +1783,9 @@ void MusicAttachBox(
 		const auto resend = [=](int approved) {
 			auto copy = options;
 			copy.starsApproved = approved;
-			(*sendSelected)(copy);
+			state->sendSelected(copy);
 		};
-		if (!ephemeralReply && !paymentHelper->check(
+		if (!ephemeralReply && !state->paymentHelper.check(
 				show,
 				peer,
 				action.options,
@@ -1864,29 +1800,29 @@ void MusicAttachBox(
 		box->closeBox();
 	};
 	caption->submits() | rpl::on_next([=](Qt::KeyboardModifiers) {
-		if (!selection->empty()) {
-			(*sendSelected)({});
+		if (!state->selection.empty()) {
+			state->sendSelected({});
 		}
 	}, caption->lifetime());
 
 	const auto refreshFooter = [=] {
 		box->clearButtons();
-		if (!selection->empty()) {
+		if (!state->selection.empty()) {
 			const auto send = box->addButton(tr::lng_send_button(), [=] {
-				if (!selection->empty()) {
-					(*sendSelected)({});
+				if (!state->selection.empty()) {
+					state->sendSelected({});
 				}
 			});
 			SendMenu::SetupMenuAndShortcuts(
 				send.data(),
 				show,
 				[=] {
-					return selection->empty()
+					return state->selection.empty()
 						? SendMenu::Details()
 						: show->sendMenuDetails();
 				},
 				SendMenu::DefaultCallback(show, [=](Api::SendOptions options) {
-					(*sendSelected)(options);
+					state->sendSelected(options);
 				}));
 		}
 		box->addButton(tr::lng_cancel(), [=] {
@@ -1894,25 +1830,25 @@ void MusicAttachBox(
 		});
 	};
 	const auto refreshSelection = [=] {
-		const auto wasEmpty = selection->empty();
+		const auto wasEmpty = state->selection.empty();
 		const auto captionFocused = Ui::InFocusChain(caption);
 
-		*selection = NormalizeSelections(
+		state->selection = MakeMusicSelectionItems(
 			&controller->session(),
-			*savedSelection,
-			*yourChatsSelection,
-			*globalSelection);
+			state->savedSelection,
+			state->yourChatsSelection,
+			state->globalSelection);
 		const auto remaining = std::max(
 			0,
-			MaxSelectedItems - int(selection->size()));
+			MaxSelectedItems - int(state->selection.size()));
 		savedMusic->list()->setSelectedLimit(
-			int(savedSelection->list.size()) + remaining);
+			int(state->savedSelection.list.size()) + remaining);
 		yourChats->list()->setSelectedLimit(
-			int(yourChatsSelection->list.size()) + remaining);
+			int(state->yourChatsSelection.list.size()) + remaining);
 		globalSearch->setSelectedLimit(
-			int(globalSelection->size()) + remaining);
+			int(state->globalSelection.size()) + remaining);
 
-		if (selection->empty()) {
+		if (state->selection.empty()) {
 			caption->setText(QString());
 			if (bottom->toggled()) {
 				bottom->hide(anim::type::normal);
@@ -1952,7 +1888,7 @@ void MusicAttachBox(
 			result.inChatsList = (result.scrollTop >= listTop)
 				&& (int64(result.scrollTop) < int64(listTop) + list->height());
 			if (result.inChatsList) {
-				if (const auto &view = geometryState->acceptedView) {
+				if (const auto &view = state->geometry.acceptedView) {
 					for (const auto &row : view->rows) {
 						const auto rowTop = list->mapTo(
 							content,
@@ -2040,7 +1976,7 @@ void MusicAttachBox(
 			}
 		};
 		if (anchor.kind == ViewportAnchor::Kind::ChatsRow) {
-			const auto &view = geometryState->acceptedView;
+			const auto &view = state->geometry.acceptedView;
 			if (view && view->slice.query == anchor.query) {
 				const auto i = std::find_if(
 					begin(view->rows),
@@ -2086,41 +2022,40 @@ void MusicAttachBox(
 		}
 		scrollTo(anchor.scrollTop);
 	};
-	geometryState->update = [=] {
-		if (geometryState->updating) {
-			geometryState->pending = true;
+	state->geometry.update = [=] {
+		if (state->geometry.updating) {
+			state->geometry.pending = true;
 			return;
 		}
-		geometryState->updating = true;
-		auto anchor = geometryState->pendingViewportAnchor
-			? *base::take(geometryState->pendingViewportAnchor)
+		state->geometry.updating = true;
+		auto anchor = state->geometry.pendingViewportAnchor
+			? *base::take(state->geometry.pendingViewportAnchor)
 			: captureViewportAnchor();
 
 		do {
-			geometryState->pending = false;
-			const auto searching = !typedSearchQuery->isEmpty();
+			state->geometry.pending = false;
+			const auto searching = !state->typedSearchQuery.isEmpty();
 			const auto commitPending = (
-				*typedSearchQuery != *committedSearchQuery);
-			const auto committedQuery = *committedSearchQuery;
-			const auto queryChanged = (*yourChatsQuery != committedQuery);
+				state->typedSearchQuery != state->committedSearchQuery);
+			const auto committedQuery = state->committedSearchQuery;
+			const auto queryChanged = (state->yourChatsQuery != committedQuery);
 			const auto searchModeChanged = (
-				searching != geometryState->searchMode);
+				searching != state->geometry.searchMode);
 			if (queryChanged) {
-				*yourChatsQuery = committedQuery;
-				geometryState->topAuthority = true;
-				geometryState->authorityGenerationFloor = 0;
-				geometryState->acceptedView = std::nullopt;
-				*yourChatsFullCount = std::nullopt;
-				*yourChatsFullCountQuery = std::nullopt;
+				state->yourChatsQuery = committedQuery;
+				state->geometry.topAuthority = true;
+				state->geometry.authorityGenerationFloor = 0;
+				state->geometry.acceptedView = std::nullopt;
+				state->yourChatsFullCount = std::nullopt;
+				state->yourChatsFullCountQuery = std::nullopt;
 			}
 			if (queryChanged || searchModeChanged) {
-				geometryState->searchMode = searching;
-				geometryState->pendingViewportAnchor = std::nullopt;
-				geometryState->pendingChatsScrollTop = std::nullopt;
-				geometryState->pendingChatsScrollReady = false;
+				state->geometry.searchMode = searching;
+				state->geometry.pendingViewportAnchor = std::nullopt;
+				state->geometry.pendingChatsScrollTop = std::nullopt;
+				state->geometry.pendingChatsScrollReady = false;
 				anchor = ViewportAnchor{ .scrollTop = 0 };
 			}
-			yourChats->setGlobalMediaAccumulationEnabled(false);
 			yourChatsControllerRaw->setQuery(committedQuery);
 			globalSearch->setQuery(committedQuery);
 
@@ -2128,16 +2063,16 @@ void MusicAttachBox(
 			const auto savedMusicCollapsed = !searching
 				&& savedMusicCount.has_value()
 				&& (*savedMusicCount > kFirstLimit)
-				&& !*savedMusicExpanded;
+				&& !state->savedMusicExpanded;
 			const auto yourChatsCountMatchesQuery
-				= *yourChatsFullCountQuery
-				&& (**yourChatsFullCountQuery == committedQuery);
+				= state->yourChatsFullCountQuery
+				&& (*state->yourChatsFullCountQuery == committedQuery);
 			const auto yourChatsCollapsed = !committedQuery.isEmpty()
 				&& yourChatsCountMatchesQuery
-				&& yourChatsFullCount->has_value()
-				&& (**yourChatsFullCount > kFirstLimit)
-				&& !*yourChatsExpanded;
-			const auto &view = geometryState->acceptedView;
+				&& state->yourChatsFullCount.has_value()
+				&& (*state->yourChatsFullCount > kFirstLimit)
+				&& !state->yourChatsExpanded;
+			const auto &view = state->geometry.acceptedView;
 			const auto yourChatsFullyLoaded = view
 				&& (view->slice.query == committedQuery)
 				&& view->slice.fullyLoaded;
@@ -2189,7 +2124,7 @@ void MusicAttachBox(
 				savedMusicBlock->resizeToWidth(browseTopLayout->width());
 			}
 			const auto topAuthority = savedMusicLoading
-				|| geometryState->topAuthority;
+				|| state->geometry.topAuthority;
 			const auto savedDisplayEligible = !searching
 				&& savedMusic->hasResults();
 			const auto showBrowseTop = !searching
@@ -2203,7 +2138,7 @@ void MusicAttachBox(
 			yourChats->setTitleEligible(titleEligible);
 
 			searchEmpty->setQuery(
-				searching ? *typedSearchQuery : QString());
+				searching ? state->typedSearchQuery : QString());
 			const auto savedMusicCountKnown = controller->session()
 				.data()
 				.savedMusic()
@@ -2212,12 +2147,12 @@ void MusicAttachBox(
 			const auto yourChatsVisible = yourChatsSectionVisible
 				&& yourChatsHasResults
 				&& !commitPending;
-			const auto countMatchesQuery = *yourChatsFullCountQuery
-				&& (**yourChatsFullCountQuery == committedQuery);
+			const auto countMatchesQuery = state->yourChatsFullCountQuery
+				&& (*state->yourChatsFullCountQuery == committedQuery);
 			const auto yourChatsSettled = countMatchesQuery
-				&& yourChatsFullCount->has_value();
+				&& state->yourChatsFullCount.has_value();
 			const auto yourChatsKnownEmpty = yourChatsSettled
-				&& (**yourChatsFullCount == 0);
+				&& (*state->yourChatsFullCount == 0);
 			const auto globalSearchVisible = globalSearchSectionVisible
 				&& globalSearch->hasResults();
 			const auto globalSearchBusy = globalSearch->busy();
@@ -2253,25 +2188,25 @@ void MusicAttachBox(
 			if (content->width() > 0) {
 				content->resizeToWidth(content->width());
 			}
-		} while (geometryState->pending);
+		} while (state->geometry.pending);
 
-		if (geometryState->pendingChatsScrollTop
-			&& geometryState->pendingChatsScrollReady
+		if (state->geometry.pendingChatsScrollTop
+			&& state->geometry.pendingChatsScrollReady
 			&& anchor.inChatsList) {
 			const auto listTop = contentY(yourChats->list());
 			const auto desired = int(std::clamp<int64>(
-				int64(listTop) + *geometryState->pendingChatsScrollTop,
+				int64(listTop) + *state->geometry.pendingChatsScrollTop,
 				0,
 				QWIDGETSIZE_MAX));
-			geometryState->pendingChatsScrollTop = std::nullopt;
-			geometryState->pendingChatsScrollReady = false;
+			state->geometry.pendingChatsScrollTop = std::nullopt;
+			state->geometry.pendingChatsScrollReady = false;
 			if (box->scrollTop() != desired) {
 				box->scrollToY(desired);
 			}
 		} else {
-			geometryState->pendingChatsScrollReady = false;
+			state->geometry.pendingChatsScrollReady = false;
 			if (!anchor.inChatsList) {
-				geometryState->pendingChatsScrollTop = std::nullopt;
+				state->geometry.pendingChatsScrollTop = std::nullopt;
 			}
 			restoreViewportAnchor(anchor);
 		}
@@ -2279,54 +2214,54 @@ void MusicAttachBox(
 			int64(box->scrollTop()) + box->scrollHeight(),
 			QWIDGETSIZE_MAX));
 		content->setVisibleTopBottom(box->scrollTop(), visibleBottom);
-		geometryState->updating = false;
-		if (std::exchange(geometryState->pending, false)) {
-			geometryState->update();
+		state->geometry.updating = false;
+		if (std::exchange(state->geometry.pending, false)) {
+			state->geometry.update();
 		}
 	};
 	const auto updateSearchState = [=] {
-		geometryState->update();
+		state->geometry.update();
 	};
 	const auto schedulePendingChatsScroll = [=] {
-		if (geometryState->pendingChatsScrollScheduled) {
+		if (state->geometry.pendingChatsScrollScheduled) {
 			return;
 		}
-		geometryState->pendingChatsScrollScheduled = true;
+		state->geometry.pendingChatsScrollScheduled = true;
 		crl::on_main(box.get(), [=] {
-			geometryState->pendingChatsScrollScheduled = false;
-			geometryState->pendingChatsScrollReady
-				= geometryState->pendingChatsScrollTop.has_value();
+			state->geometry.pendingChatsScrollScheduled = false;
+			state->geometry.pendingChatsScrollReady
+				= state->geometry.pendingChatsScrollTop.has_value();
 			updateSearchState();
 		});
 	};
 	const auto commitSearchQuery = [=](QString query) {
-		if (*committedSearchQuery == query) {
+		if (state->committedSearchQuery == query) {
 			return;
 		}
-		*yourChatsExpanded = false;
-		*committedSearchQuery = std::move(query);
+		state->yourChatsExpanded = false;
+		state->committedSearchQuery = std::move(query);
 		updateSearchState();
 	};
 	QObject::connect(
-		searchQueryCommitTimer,
+		&state->searchQueryCommitTimer,
 		&QTimer::timeout,
 		box.get(),
-		[=] { commitSearchQuery(*typedSearchQuery); });
+		[=] { commitSearchQuery(state->typedSearchQuery); });
 	refreshFooter();
 
 	savedMusic->selectedListValue() | rpl::on_next([=](
 			const Info::SelectedItems &items) {
-		*savedSelection = items;
+		state->savedSelection = items;
 		refreshSelection();
 	}, box->lifetime());
 	yourChats->selectedListValue() | rpl::on_next([=](
 			const Info::SelectedItems &items) {
-		*yourChatsSelection = items;
+		state->yourChatsSelection = items;
 		refreshSelection();
 	}, box->lifetime());
 	globalSearch->selectedDocumentsValue() | rpl::on_next([=](
 			const GlobalMusicSearchSection::SelectedDocuments &items) {
-		*globalSelection = items;
+		state->globalSelection = items;
 		refreshSelection();
 	}, box->lifetime());
 	savedMusicBlockLayout->heightValue() | rpl::on_next([=] {
@@ -2337,13 +2272,13 @@ void MusicAttachBox(
 	}, box->lifetime());
 	yourChats->fullCountValue() | rpl::on_next([=](
 			std::optional<int> count) {
-		*yourChatsFullCount = count;
-		*yourChatsFullCountQuery = *committedSearchQuery;
+		state->yourChatsFullCount = count;
+		state->yourChatsFullCountQuery = state->committedSearchQuery;
 	}, box->lifetime());
 	const auto rememberViewportAnchor = [=] {
-		if (!geometryState->updating
-			&& !geometryState->pendingViewportAnchor) {
-			geometryState->pendingViewportAnchor = captureViewportAnchor();
+		if (!state->geometry.updating
+			&& !state->geometry.pendingViewportAnchor) {
+			state->geometry.pendingViewportAnchor = captureViewportAnchor();
 		}
 	};
 	savedMusic->list()->globalMediaSliceRefreshStarts(
@@ -2352,36 +2287,36 @@ void MusicAttachBox(
 	) | rpl::on_next(rememberViewportAnchor, box->lifetime());
 	yourChats->list()->scrollToRequests() | rpl::on_next([=](int top) {
 		if (!listOwnsScrollTop(yourChats->list())) {
-			geometryState->pendingChatsScrollTop = std::nullopt;
-			geometryState->pendingChatsScrollReady = false;
+			state->geometry.pendingChatsScrollTop = std::nullopt;
+			state->geometry.pendingChatsScrollReady = false;
 			return;
 		}
-		geometryState->pendingChatsScrollTop = top;
-		geometryState->pendingChatsScrollReady = false;
-		if (!geometryState->updating) {
+		state->geometry.pendingChatsScrollTop = top;
+		state->geometry.pendingChatsScrollReady = false;
+		if (!state->geometry.updating) {
 			schedulePendingChatsScroll();
 		}
 	}, box->lifetime());
 	yourChats->globalMediaSliceViewValue() | rpl::on_next([=](
 			std::optional<Info::Media::GlobalMediaSliceView> view) {
-		if (!view || view->slice.query != *committedSearchQuery) {
-			geometryState->pendingChatsScrollTop = std::nullopt;
-			geometryState->pendingChatsScrollReady = false;
-			if (geometryState->acceptedView) {
-				geometryState->acceptedView = std::nullopt;
+		if (!view || view->slice.query != state->committedSearchQuery) {
+			state->geometry.pendingChatsScrollTop = std::nullopt;
+			state->geometry.pendingChatsScrollReady = false;
+			if (state->geometry.acceptedView) {
+				state->geometry.acceptedView = std::nullopt;
 				updateSearchState();
 			}
 			return;
 		}
 		if (view->slice.generation
-			< geometryState->authorityGenerationFloor) {
+			< state->geometry.authorityGenerationFloor) {
 			return;
 		}
-		geometryState->authorityGenerationFloor = view->slice.generation;
-		geometryState->topAuthority = (view->slice.skippedAfter == 0);
-		geometryState->acceptedView = std::move(view);
-		if (geometryState->pendingChatsScrollTop) {
-			geometryState->pendingChatsScrollReady = true;
+		state->geometry.authorityGenerationFloor = view->slice.generation;
+		state->geometry.topAuthority = (view->slice.skippedAfter == 0);
+		state->geometry.acceptedView = std::move(view);
+		if (state->geometry.pendingChatsScrollTop) {
+			state->geometry.pendingChatsScrollReady = true;
 		}
 		updateSearchState();
 	}, box->lifetime());
@@ -2433,11 +2368,11 @@ void MusicAttachBox(
 		search->entity()->setInnerFocus();
 	});
 	savedMusicShowAllWrap->entity()->setClickedCallback([=] {
-		*savedMusicExpanded = true;
+		state->savedMusicExpanded = true;
 		updateSearchState();
 	});
 	yourChatsShowAllWrap->entity()->setClickedCallback([=] {
-		*yourChatsExpanded = true;
+		state->yourChatsExpanded = true;
 		updateSearchState();
 	});
 	chooseFromFiles->setClickedCallback([=] {
@@ -2482,7 +2417,7 @@ void MusicAttachBox(
 						std::shared_ptr<Ui::PreparedBundle> bundle,
 						Api::SendOptions options,
 						FullReplyTo currentReplyTo) {
-					(*sendPreparedMusic)(
+					state->sendPreparedMusic(
 						std::move(bundle),
 						options,
 						currentReplyTo);
@@ -2493,22 +2428,22 @@ void MusicAttachBox(
 	});
 
 	search->entity()->setQueryChangedCallback([=](const QString &query) {
-		if (*typedSearchQuery == query) {
+		if (state->typedSearchQuery == query) {
 			return;
 		}
-		*typedSearchQuery = query;
+		state->typedSearchQuery = query;
 		updateSearchState();
-		searchQueryCommitTimer->start(kSearchRequestDelay);
+		state->searchQueryCommitTimer.start(kSearchRequestDelay);
 	});
 	search->entity()->setSubmittedCallback([=](Qt::KeyboardModifiers) {
-		searchQueryCommitTimer->stop();
-		commitSearchQuery(*typedSearchQuery);
+		state->searchQueryCommitTimer.stop();
+		commitSearchQuery(state->typedSearchQuery);
 	});
 	search->entity()->setCancelledCallback([=] {
-		searchQueryCommitTimer->stop();
-		*typedSearchQuery = QString();
-		*committedSearchQuery = QString();
-		*yourChatsExpanded = false;
+		state->searchQueryCommitTimer.stop();
+		state->typedSearchQuery = QString();
+		state->committedSearchQuery = QString();
+		state->yourChatsExpanded = false;
 		if (!search->entity()->getQuery().isEmpty()) {
 			search->entity()->clearQuery();
 		}

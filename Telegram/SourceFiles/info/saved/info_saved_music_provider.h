@@ -38,7 +38,6 @@ public:
 	bool isPossiblyMyItem(not_null<const HistoryItem*> item) override;
 
 	std::optional<int> fullCount() override;
-	void setAccumulateFromTop(bool enabled);
 
 	void restart() override;
 	void checkPreload(
@@ -117,7 +116,6 @@ private:
 	HistoryItem *_aroundId = nullptr;
 	int _idsLimit = kMinimalIdsLimit;
 	Data::SavedMusicSlice _slice;
-	bool _accumulateFromTop = false;
 
 	std::unordered_map<
 		not_null<const HistoryItem*>,

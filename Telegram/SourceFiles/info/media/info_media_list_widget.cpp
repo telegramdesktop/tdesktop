@@ -395,19 +395,6 @@ void ListWidget::setGlobalMediaEmbeddedViewport() {
 	_globalMediaEmbeddedViewport = true;
 }
 
-void ListWidget::setGlobalMediaAccumulationEnabled(bool enabled) {
-	if (const auto provider = globalMediaProvider()) {
-		provider->setAccumulateFromTop(enabled);
-	}
-}
-
-void ListWidget::setSavedMusicAccumulationEnabled(bool enabled) {
-	if (const auto provider = dynamic_cast<Saved::MusicProvider*>(
-			_provider.get())) {
-		provider->setAccumulateFromTop(enabled);
-	}
-}
-
 rpl::producer<SelectedItems> ListWidget::selectedListValue() const {
 	return _selectedListStream.events_starting_with(
 		collectSelectedItems());

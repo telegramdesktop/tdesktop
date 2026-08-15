@@ -39,7 +39,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "data/data_document_resolver.h"
 #include "data/data_file_click_handler.h"
-#include "data/data_peer.h"
 #include "api/api_transcribes.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
@@ -83,13 +82,6 @@ constexpr auto kVoiceBlobIdleLevel = 0.45;
 
 [[nodiscard]] bool IsHostedInstantViewMedia(not_null<const Element*> parent) {
 	return parent->Get<InstantViewMediaRuntime>() != nullptr;
-}
-
-[[nodiscard]] bool AllowsMediaDownloadControls(not_null<HistoryItem*> item) {
-	const auto media = item->media();
-	return !item->forbidsSaving()
-		&& item->history()->peer->allowsForwarding()
-		&& (!media || media->allowsForward());
 }
 
 [[nodiscard]] QRect TTLRectFromInner(const QRect &inner) {
@@ -1213,7 +1205,7 @@ void Document::ensureDataMediaCreated() const {
 
 bool Document::downloadInCorner() const {
 	return _data->isAudioFile()
-		&& AllowsMediaDownloadControls(_realParent)
+		&& _realParent->allowsMediaDownloadControls()
 		&& _data->canBeStreamed()
 		&& !_data->inappPlaybackFailed();
 }

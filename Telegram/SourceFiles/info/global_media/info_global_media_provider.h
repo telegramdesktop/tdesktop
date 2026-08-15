@@ -96,9 +96,6 @@ public:
 
 	[[nodiscard]] auto sliceSnapshot() const
 		-> const std::optional<GlobalMediaSliceSnapshot> &;
-	[[nodiscard]] rpl::producer<GlobalMediaSliceSnapshot>
-		sliceSnapshotValue() const;
-	void setAccumulateFromTop(bool enabled);
 
 	std::vector<Media::ListSection> fillSections(
 		not_null<Overview::Layout::Delegate*> delegate) override;
@@ -238,13 +235,11 @@ private:
 	uint64 _generation = 0;
 	std::optional<EdgeRequestKey> _edgeRequest;
 	std::optional<GlobalMediaSliceSnapshot> _sliceSnapshot;
-	bool _accumulateFromTop = false;
 
 	base::flat_set<FullMsgId> _seenIds;
 	std::unordered_map<FullMsgId, Media::CachedItem> _layouts;
 	rpl::event_stream<not_null<BaseLayout*>> _layoutRemoved;
 	rpl::event_stream<> _refreshed;
-	rpl::event_stream<GlobalMediaSliceSnapshot> _sliceSnapshotChanges;
 
 	QString _totalListQuery;
 	base::flat_map<QString, List> _totalLists;

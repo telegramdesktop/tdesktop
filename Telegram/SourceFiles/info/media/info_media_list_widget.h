@@ -93,8 +93,6 @@ public:
 	[[nodiscard]] rpl::producer<> globalMediaSliceRefreshStarts() const;
 	[[nodiscard]] bool globalMediaSliceRefreshInProgress() const;
 	void setGlobalMediaEmbeddedViewport();
-	void setGlobalMediaAccumulationEnabled(bool enabled);
-	void setSavedMusicAccumulationEnabled(bool enabled);
 	rpl::producer<SelectedItems> selectedListValue() const;
 	void setPreloadEnabled(bool enabled);
 	[[nodiscard]] int heightForFirstRows(int count) const;

@@ -536,6 +536,33 @@ void SendMusicSelectionBatch(
 	const auto performRequest = [=](const auto &repeatRequest, bool refreshed)
 			-> void {
 		const auto sendAs = action.options.sendAs;
+		const auto retryOrFail = [=](
+				const MTP::Error &error,
+				const MTP::Response &response) {
+			if (refreshed
+				|| (error.code() != 400)
+				|| !error.type().startsWith(u"FILE_REFERENCE_"_q)
+				|| refreshItems.empty()) {
+				failRequest(error);
+				return;
+			}
+			const auto changed = std::make_shared<bool>(false);
+			const auto left = std::make_shared<int>(int(refreshItems.size()));
+			for (const auto &refresh : refreshItems) {
+				api->refreshFileReference(refresh.origin, [=](const auto &) {
+					*changed = *changed
+						|| (refresh.document->fileReference()
+							!= refresh.usedFileReference);
+					if (!--*left) {
+						if (*changed) {
+							repeatRequest(repeatRequest, true);
+						} else {
+							failRequest(error);
+						}
+					}
+				});
+			}
+		};
 		if (!multi) {
 			const auto &item = requests.front();
 			const auto inputMedia = PrepareMusicInputMedia(
@@ -612,31 +639,7 @@ void SendMusicSelectionBatch(
 				if (done) {
 					done();
 				}
-			}, [=](const MTP::Error &error, const MTP::Response &response) {
-				if (!refreshed
-					&& (error.code() == 400)
-					&& error.type().startsWith(u"FILE_REFERENCE_"_q)
-					&& !refreshItems.empty()) {
-					const auto changed = std::make_shared<bool>(false);
-					const auto left = std::make_shared<int>(int(refreshItems.size()));
-					for (const auto &refresh : refreshItems) {
-						api->refreshFileReference(refresh.origin, [=](const auto &) {
-							*changed = *changed
-								|| (refresh.document->fileReference()
-									!= refresh.usedFileReference);
-							if (!--*left) {
-								if (*changed) {
-									repeatRequest(repeatRequest, true);
-								} else {
-									failRequest(error);
-								}
-							}
-						});
-					}
-				} else {
-					failRequest(error);
-				}
-			});
+			}, retryOrFail);
 			return;
 		}
 
@@ -688,31 +691,7 @@ void SendMusicSelectionBatch(
 			if (done) {
 				done();
 			}
-		}, [=](const MTP::Error &error, const MTP::Response &response) {
-			if (!refreshed
-				&& (error.code() == 400)
-				&& error.type().startsWith(u"FILE_REFERENCE_"_q)
-				&& !refreshItems.empty()) {
-				const auto changed = std::make_shared<bool>(false);
-				const auto left = std::make_shared<int>(int(refreshItems.size()));
-				for (const auto &refresh : refreshItems) {
-					api->refreshFileReference(refresh.origin, [=](const auto &) {
-						*changed = *changed
-							|| (refresh.document->fileReference()
-								!= refresh.usedFileReference);
-						if (!--*left) {
-							if (*changed) {
-								repeatRequest(repeatRequest, true);
-							} else {
-								failRequest(error);
-							}
-						}
-					});
-				}
-			} else {
-				failRequest(error);
-			}
-		});
+		}, retryOrFail);
 	};
 	performRequest(performRequest, false);
 }

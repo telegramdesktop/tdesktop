@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/global_media/info_global_media_provider.h"
 
 #include "apiwrap.h"
+#include "base/algorithm.h"
 #include "info/media/info_media_widget.h"
 #include "info/media/info_media_list_section.h"
 #include "info/info_controller.h"
@@ -33,7 +34,6 @@ namespace {
 constexpr auto kPreloadedScreensCount = 4;
 constexpr auto kPreloadedScreensCountFull
 	= kPreloadedScreensCount + 1 + kPreloadedScreensCount;
-constexpr auto kAccumulatedPageSize = 50;
 
 } // namespace
 
@@ -189,9 +189,7 @@ void Provider::restart() {
 	_layouts.clear();
 	++_generation;
 	_aroundId = Data::MaxMessagePosition;
-	_idsLimit = _accumulateFromTop
-		? kAccumulatedPageSize
-		: kMinimalIdsLimit;
+	_idsLimit = kMinimalIdsLimit;
 	_slice = GlobalMediaSlice(sliceKey(_aroundId));
 	_sliceSnapshot = std::nullopt;
 	_edgeRequest = std::nullopt;
@@ -216,15 +214,6 @@ void Provider::checkPreload(
 	const auto topLoaded = after && (*after == 0);
 	const auto before = _slice.skippedBefore();
 	const auto bottomLoaded = before && (*before == 0);
-	if (_accumulateFromTop) {
-		if (preloadBottom
-			&& !bottomLoaded
-			&& (_slice.size() >= _idsLimit)) {
-			_idsLimit += kAccumulatedPageSize;
-			refreshViewer();
-		}
-		return;
-	}
 
 	const auto minScreenDelta = kPreloadedScreensCount
 		- Media::kPreloadIfLessThanScreens;
@@ -344,9 +333,7 @@ void Provider::requestMore(
 	if (ranges::contains(list->requestCursors, cursor)) {
 		list->loaded = true;
 		list->fullCount = int(list->list.size());
-		auto waiters = std::exchange(
-			list->requestWaiters,
-			std::vector<Fn<void()>>());
+		auto waiters = base::take(list->requestWaiters);
 		for (auto &callback : waiters) {
 			callback();
 		}
@@ -386,9 +373,7 @@ void Provider::requestMore(
 				result.fullCount - list->filteredCount,
 				int(list->list.size()));
 
-		auto waiters = std::exchange(
-			list->requestWaiters,
-			std::vector<Fn<void()>>());
+		auto waiters = base::take(list->requestWaiters);
 		for (auto &callback : waiters) {
 			callback();
 		}
@@ -507,7 +492,6 @@ void Provider::refreshViewer() {
 			_aroundId = *nearest;
 		}
 		_sliceSnapshot = std::move(snapshot);
-		_sliceSnapshotChanges.fire_copy(*_sliceSnapshot);
 		_refreshed.fire({});
 	}, _viewerLifetime);
 }
@@ -524,25 +508,6 @@ bool Provider::anchorWhileAtTop() {
 auto Provider::sliceSnapshot() const
 -> const std::optional<GlobalMediaSliceSnapshot> & {
 	return _sliceSnapshot;
-}
-
-rpl::producer<GlobalMediaSliceSnapshot> Provider::sliceSnapshotValue() const {
-	return _sliceSnapshot
-		? _sliceSnapshotChanges.events_starting_with_copy(*_sliceSnapshot)
-		: (_sliceSnapshotChanges.events() | rpl::type_erased);
-}
-
-void Provider::setAccumulateFromTop(bool enabled) {
-	if (_accumulateFromTop == enabled) {
-		return;
-	}
-	_accumulateFromTop = enabled;
-	_aroundId = Data::MaxMessagePosition;
-	_idsLimit = _accumulateFromTop
-		? kAccumulatedPageSize
-		: kMinimalIdsLimit;
-	_edgeRequest = std::nullopt;
-	refreshViewer();
 }
 
 std::vector<Media::ListSection> Provider::fillSections(

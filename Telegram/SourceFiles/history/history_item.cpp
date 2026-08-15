@@ -3239,6 +3239,12 @@ bool HistoryItem::forbidsSaving() const {
 	return false;
 }
 
+bool HistoryItem::allowsMediaDownloadControls() const {
+	return !forbidsSaving()
+		&& _history->peer->allowsForwarding()
+		&& (!_media || _media->allowsForward());
+}
+
 bool HistoryItem::canDelete() const {
 	if (isSponsored()) {
 		return false;
