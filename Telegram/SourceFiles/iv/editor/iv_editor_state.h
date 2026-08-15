@@ -220,6 +220,7 @@ public:
 	[[nodiscard]] std::optional<int> sinkActiveListItem();
 	[[nodiscard]] std::optional<int> liftActiveListItem();
 	[[nodiscard]] std::optional<int> appendActiveParagraphToPreviousList();
+	[[nodiscard]] std::optional<int> liftActiveListLineOrItem();
 	[[nodiscard]] std::optional<int> resetActiveBlockToParagraph();
 	[[nodiscard]] std::optional<int> escapeEmptyActiveBlockLine();
 	[[nodiscard]] std::optional<int> handleActiveParagraphEnter(
@@ -783,6 +784,8 @@ private:
 		const ActiveEnterContext &context);
 	[[nodiscard]] std::optional<int> sinkActiveListItemUnchecked();
 	[[nodiscard]] std::optional<int> liftActiveListItemUnchecked();
+	[[nodiscard]] std::optional<int> splitActiveLineIntoListItem();
+	[[nodiscard]] std::optional<int> splitActiveLineIntoListItemUnchecked();
 	[[nodiscard]] std::optional<LeafPath> rebasedActiveListItemLeaf(
 		const BlockPath &list,
 		int itemIndex) const;

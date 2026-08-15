@@ -8580,7 +8580,7 @@ bool Widget::moveListItemDepth(bool deeper) {
 			? _state->appendActiveParagraphToPreviousList()
 			: deeper
 			? _state->sinkActiveListItem()
-			: _state->liftActiveListItem();
+			: _state->liftActiveListLineOrItem();
 		if (!target) {
 			if (_state->lastLimitError()) {
 				showLastLimitToast();
