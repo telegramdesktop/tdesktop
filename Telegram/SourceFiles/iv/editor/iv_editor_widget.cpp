@@ -1524,6 +1524,9 @@ void Widget::insertBlock(State::InsertAction action) {
 		|| (action.type == InsertType::TaskList);
 	if (listAction && !canInsertListAtCaret()) {
 		return;
+	} else if (BlockConversionExpandsToActiveLine(action.type)
+		&& activeLeafIsTableCell()) {
+		return;
 	}
 	recordMutationTransaction([&] {
 		auto committed = ApplyResult::Unchanged;
@@ -2778,10 +2781,17 @@ bool Widget::handleBroaderFormatShortcut(QKeyEvent *e) {
 	return true;
 }
 
+bool Widget::activeLeafIsTableCell() const {
+	const auto leaf = _state->activeLeafPath();
+	return leaf && (leaf->kind == StateLeafKind::TableCellText);
+}
+
 bool Widget::fieldMonospaceShortcutUsesCodeBlock() const {
+	// A cell holds text, not blocks, so monospace there is the inline tag.
 	return (_fieldMode == State::FieldMode::Rich)
 		&& _field
 		&& _field->isVisible()
+		&& !activeLeafIsTableCell()
 		&& (_field->selectionMarkdownTagForToggle(
 			Ui::InputField::kTagCode) != Ui::InputField::kTagCode);
 }
@@ -2808,10 +2818,22 @@ void Widget::applyFieldMonospaceAction() {
 		return;
 	} else if (fieldMonospaceShortcutUsesCodeBlock()) {
 		insertCodeBlock();
-	} else {
-		_field->toggleCurrentMarkdownTag(Ui::InputField::kTagCode);
-		notifyToolbarStateChanged();
+		return;
 	}
+	const auto cursor = _field->textCursor();
+	const auto wholeCell = !cursor.hasSelection() && activeLeafIsTableCell();
+	if (wholeCell) {
+		auto selecting = cursor;
+		selecting.select(QTextCursor::Document);
+		if (selecting.hasSelection()) {
+			_field->setTextCursor(selecting);
+		}
+	}
+	_field->toggleCurrentMarkdownTag(Ui::InputField::kTagCode);
+	if (wholeCell) {
+		_field->setTextCursor(cursor);
+	}
+	notifyToolbarStateChanged();
 }
 
 void Widget::applyStructuralMonospaceAction() {
@@ -3863,15 +3885,17 @@ void Widget::addFieldBlockFormatActions(not_null<QMenu*> menu) {
 			submenu->addAction(action);
 		}
 	};
-	const auto blockquote = new QAction(
-		textWithShortcut(
-			tr::lng_menu_formatting_blockquote(tr::now),
-			Ui::kBlockquoteSequence),
-		submenu);
-	connect(blockquote, &QAction::triggered, this, [=] {
-		insertBlockquote();
-	});
-	add(blockquote);
+	if (!activeLeafIsTableCell()) {
+		const auto blockquote = new QAction(
+			textWithShortcut(
+				tr::lng_menu_formatting_blockquote(tr::now),
+				Ui::kBlockquoteSequence),
+			submenu);
+		connect(blockquote, &QAction::triggered, this, [=] {
+			insertBlockquote();
+		});
+		add(blockquote);
+	}
 
 	const auto monospace = new QAction(
 		textWithShortcut(monospaceText, Ui::kMonospaceSequence),
