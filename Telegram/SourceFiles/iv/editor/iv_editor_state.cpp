@@ -2098,15 +2098,12 @@ bool State::setListOrderedType(
 	const auto stored = StoredOrderedListType(type);
 	if (owner->orderedList.type != stored) {
 		owner->orderedList.type = stored;
-		for (auto &item : owner->listItems) {
-			if (!item.number.type.has_value()
-				&& item.number.num.has_value()) {
-				item.number.num = std::nullopt;
-			}
-		}
 		changed = true;
 	}
+	// Item overrides would shadow the new list type.
+	changed = ClearOrderedListItemTypes(owner) || changed;
 	if (changed) {
+		(void)ClearOrderedListRawMarkers(owner);
 		rebuild();
 	}
 	return true;

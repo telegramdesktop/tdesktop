@@ -220,6 +220,22 @@ void AdoptListItemMarkers(const Block &list, ListItem *item) {
 		: false;
 }
 
+[[nodiscard]] bool ClearOrderedListItemTypes(Block *block) {
+	if (!block
+		|| block->kind != BlockKind::List
+		|| block->listKind != ListKind::Ordered) {
+		return false;
+	}
+	auto changed = false;
+	for (auto &item : block->listItems) {
+		if (item.number.type.has_value()) {
+			item.number.type = std::nullopt;
+			changed = true;
+		}
+	}
+	return changed;
+}
+
 [[nodiscard]] bool ClearOrderedTaskStates(Block *block) {
 	if (!block || block->kind != BlockKind::List) {
 		return false;
