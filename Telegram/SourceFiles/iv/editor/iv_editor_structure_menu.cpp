@@ -130,7 +130,8 @@ void FillListChangeMenu(
 				});
 			},
 			OrderedListTypeIcon(type),
-			OrderedListTypeChecked(info, type));
+			// Checked when every item already renders with this type.
+			info.listOrderedUniform && (info.listOrderedType == type));
 	};
 	menu->addSeparator();
 	addOrderedTypeAction(PreparedOrderedListType::Decimal);
