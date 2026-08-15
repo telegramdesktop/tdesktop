@@ -2169,6 +2169,8 @@ PRIVATE
     wallet/wallet_fee_estimator.h
     wallet/wallet_fiat.cpp
     wallet/wallet_fiat.h
+    wallet/wallet_onramp.cpp
+    wallet/wallet_onramp.h
     wallet/wallet_panel.cpp
     wallet/wallet_panel.h
     wallet/wallet_rates.cpp

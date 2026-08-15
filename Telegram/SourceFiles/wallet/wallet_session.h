@@ -30,6 +30,7 @@ class SeparatePanel;
 
 namespace Wallet {
 
+class Onramp;
 class Rates;
 
 enum class KeyState {
@@ -136,6 +137,7 @@ public:
 	void stopPolling();
 	[[nodiscard]] bool pollingRequested() const;
 
+	[[nodiscard]] Onramp &onramp();
 	[[nodiscard]] Rates &rates();
 
 	[[nodiscard]] Ui::SeparatePanel *panel() const;
@@ -183,6 +185,7 @@ private:
 	Api _api;
 	const std::unique_ptr<FeeEstimator> _feeEstimator;
 	const std::unique_ptr<Rates> _rates;
+	const std::unique_ptr<Onramp> _onramp;
 	const std::unique_ptr<Stream> _stream;
 	base::Timer _pollTimer;
 

@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "storage/storage_account.h"
 #include "ui/widgets/separate_panel.h"
+#include "wallet/wallet_onramp.h"
 #include "wallet/wallet_rates.h"
 
 namespace Wallet {
@@ -52,6 +53,7 @@ Session::Session(not_null<Main::Session*> session)
 , _api(session)
 , _feeEstimator(MakeFeeEstimator(&_api))
 , _rates(std::make_unique<Rates>(session))
+, _onramp(std::make_unique<Onramp>(session))
 , _stream(std::make_unique<Stream>(&_api, [=](StreamRefresh wanted) {
 	applyStreamRefresh(wanted);
 }))
@@ -60,6 +62,10 @@ Session::Session(not_null<Main::Session*> session)
 
 Session::~Session() {
 	_panel = nullptr;
+}
+
+Onramp &Session::onramp() {
+	return *_onramp;
 }
 
 Rates &Session::rates() {
