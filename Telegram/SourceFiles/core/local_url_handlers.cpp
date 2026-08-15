@@ -2218,6 +2218,8 @@ void ResolveAndShowUniqueGift(
 				StarGiftResaleInfo(),
 				st));
 			show->activate();
+		} else if (fail) {
+			fail(u"RESPONSE_PARSE_FAILED"_q);
 		}
 	}).fail([=](const MTP::Error &error) {
 		clear();
