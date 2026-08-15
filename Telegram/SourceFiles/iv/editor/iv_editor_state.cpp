@@ -6960,6 +6960,76 @@ std::optional<int> State::liftActiveListItem() {
 	});
 }
 
+std::optional<int> State::liftActiveListLineOrItem() {
+	if (const auto line = splitActiveLineIntoListItem()) {
+		return line;
+	}
+	return liftActiveListItem();
+}
+
+std::optional<int> State::splitActiveLineIntoListItem() {
+	return applyCheckedMutation(std::optional<int>(), [](State &candidate) {
+		const auto result = candidate.splitActiveLineIntoListItemUnchecked();
+		return CheckedMutationResult<std::optional<int>>{
+			.apply = result.has_value(),
+			.result = result,
+		};
+	});
+}
+
+std::optional<int> State::splitActiveLineIntoListItemUnchecked() {
+	const auto descriptor = textNode(_activeTextOrdinal);
+	const auto surface = activeListItemSurface();
+	if (!descriptor
+		|| !surface
+		|| descriptor->leaf.kind != LeafKind::BlockText
+		|| descriptor->leaf.block.index < 1) {
+		return std::nullopt;
+	}
+	const auto index = descriptor->leaf.block.index;
+	auto *blocks = blockContainer(descriptor->leaf.block.container);
+	auto *owner = block(surface->path);
+	const auto item = listItem(surface->path, surface->itemIndex);
+	if (!blocks
+		|| !owner
+		|| !item
+		|| owner->kind != BlockKind::List
+		|| index >= int(blocks->size())) {
+		return std::nullopt;
+	}
+	clearTemporaryDownParagraph();
+	auto moved = ListItem();
+	moved.blocks.assign(
+		std::make_move_iterator(blocks->begin() + index),
+		std::make_move_iterator(blocks->end()));
+	blocks->erase(blocks->begin() + index, blocks->end());
+	adoptLeadingParagraphListItemText(item);
+	adoptLeadingParagraphListItemText(&moved);
+	AdoptListItemMarkers(*owner, &moved);
+	const auto movedIndex = surface->itemIndex + 1;
+	const auto inlineText = moved.blocks.empty();
+	owner->listItems.insert(
+		owner->listItems.begin() + movedIndex,
+		std::move(moved));
+	const auto target = inlineText
+		? LeafPath{
+			.kind = LeafKind::ListItemText,
+			.block = surface->path,
+			.listItemIndex = movedIndex,
+		}
+		: LeafPath{
+			.kind = LeafKind::BlockText,
+			.block = {
+				.container = ListItemChildrenContainer(
+					surface->path,
+					movedIndex),
+				.index = 0,
+			},
+		};
+	rebuild();
+	return activateRebuiltLeaf(target);
+}
+
 std::optional<int> State::liftActiveListItemUnchecked() {
 	const auto surface = activeListItemSurface();
 	if (!surface) {
