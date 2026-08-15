@@ -131,6 +131,8 @@ public:
 		bool wholeList = false;
 		bool singleItem = false;
 		bool reversed = false;
+		// Every item of the whole list renders with listOrderedType.
+		bool listOrderedUniform = false;
 		bool allOrderedDecimal = false;
 		bool allOrderedLowerAlpha = false;
 		bool allOrderedUpperAlpha = false;

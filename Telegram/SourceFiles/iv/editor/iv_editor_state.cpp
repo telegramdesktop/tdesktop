@@ -1956,6 +1956,12 @@ State::ListSelectionInfo State::listSelectionInfo(
 	}
 	result.listOrderedType = ResolvePreparedOrderedListType(
 		owner->orderedList.type);
+	result.listOrderedUniform = ranges::all_of(
+		owner->listItems,
+		[&](const ListItem &item) {
+			return EffectiveOrderedListType(*owner, item)
+				== result.listOrderedType;
+		});
 	result.allOrderedDecimal = true;
 	result.allOrderedLowerAlpha = true;
 	result.allOrderedUpperAlpha = true;
