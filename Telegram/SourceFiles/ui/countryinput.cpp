@@ -15,8 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "countries/countries_instance.h"
 #include "window/window_session_controller.h"
-#include "styles/style_layers.h"
-#include "styles/style_boxes.h"
 #include "styles/style_intro.h"
 #include "styles/style_widgets.h"
 

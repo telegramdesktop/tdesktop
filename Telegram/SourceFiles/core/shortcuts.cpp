@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "base/parse_helper.h"
 #include "core/application.h"
+#include "core/version.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "window/window_controller.h"

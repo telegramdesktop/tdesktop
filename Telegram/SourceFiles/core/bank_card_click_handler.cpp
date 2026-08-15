@@ -16,12 +16,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/toast/toast.h"
 #include "ui/widgets/menu/menu_multiline_action.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_calls.h"
 #include "styles/style_chat.h" // popupMenuExpandedSeparator.
+#include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
 
 namespace {
@@ -190,7 +192,11 @@ void BankCardClickHandler::onClick(ClickContext context) const {
 	const auto copy = [bankCard, show = controller->uiShow()] {
 		TextUtilities::SetClipboardText(
 			TextForMimeData::Simple(bankCard));
-		show->showToast(tr::lng_context_bank_card_copied(tr::now));
+		show->showToast({
+			.text = { tr::lng_context_bank_card_copied(tr::now) },
+			.iconLottie = u"toast/copy"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
 	};
 
 	menu->addAction(

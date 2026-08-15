@@ -12,6 +12,7 @@ namespace Data {
 struct BotCommand final {
 	QString command;
 	QString description;
+	bool ephemeral = false;
 
 	friend inline bool operator==(
 		const BotCommand &,

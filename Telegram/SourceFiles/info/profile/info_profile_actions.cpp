@@ -19,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt/qt_key_modifiers.h"
 #include "base/timer_rpl.h"
 #include "base/unixtime.h"
+#include "boxes/choose_filter_box.h"
+#include "boxes/peer_list_box.h"
 #include "boxes/peers/add_bot_to_chat_box.h"
 #include "boxes/peers/edit_contact_box.h"
 #include "boxes/peers/edit_participants_box.h"
@@ -37,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_chat_filters.h"
 #include "data/data_folder.h"
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
@@ -103,7 +106,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_channel_earn.h" // st::channelEarnCurrencyCommonMargins
+#include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
+#include "styles/style_info_profile_actions.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h" // settingsButtonRightSkip.
@@ -206,8 +211,13 @@ base::options::toggle ShowChannelJoinedBelowAbout({
 		if (!link.isEmpty()) {
 			TextUtilities::SetClipboardText({ link });
 			if (const auto strong = weak.get()) {
-				strong->showToast(
-					tr::lng_channel_public_link_copied(tr::now));
+				strong->showToast({
+					.text = {
+						tr::lng_channel_public_link_copied(tr::now),
+					},
+					.iconLottie = u"toast/voip_invite"_q,
+					.iconLottieSize = st::toastLottieIconSize,
+				});
 			}
 		}
 	};
@@ -1255,6 +1265,8 @@ private:
 	void addManagedBotFooter(not_null<UserData*> managerUser);
 	[[nodiscard]] Section makeReportOrDeleteReaction();
 	[[nodiscard]] Section makeViewChannel(not_null<ChannelData*> channel);
+	[[nodiscard]] Section makeCommunityLink(not_null<PeerData*> peer);
+	void addCommunityHiddenNote();
 	[[nodiscard]] Section makeTopicsList(not_null<Data::Forum*> forum);
 
 	[[nodiscard]] Section makeDeleteReactionSection(GroupReactionOrigin data);
@@ -1584,8 +1596,13 @@ Section DetailsFiller::makeInfo() {
 				[=] {
 					TextUtilities::SetClipboardText({ url });
 					if (const auto strong = weak.get()) {
-						strong->showToast(
-							tr::lng_channel_public_link_copied(tr::now));
+						strong->showToast({
+							.text = {
+								tr::lng_channel_public_link_copied(tr::now),
+							},
+							.iconLottie = u"toast/voip_invite"_q,
+							.iconLottieSize = st::toastLottieIconSize,
+						});
 					}
 				});
 			request.menu->addAction(
@@ -2527,6 +2544,140 @@ Section DetailsFiller::makeViewChannel(not_null<ChannelData*> channel) {
 	};
 }
 
+Section DetailsFiller::makeCommunityLink(not_null<PeerData*> peer) {
+	const auto parent = _stack->layout();
+	auto wrap = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+		parent,
+		object_ptr<Ui::VerticalLayout>(parent));
+	const auto raw = wrap.data();
+	const auto container = raw->entity();
+	const auto window = _controller->parentController();
+	const auto community = peer->owner().channel(
+		Data::PeerLinkedCommunityId(peer));
+
+	class Controller final : public PeerListController {
+	public:
+		Controller(
+			not_null<Window::SessionController*> window,
+			not_null<ChannelData*> community,
+			Fn<void()> open)
+		: _window(window)
+		, _community(community)
+		, _open(std::move(open)) {
+			setStyleOverrides(&st::peerListSingleRow);
+		}
+
+		Main::Session &session() const override {
+			return _community->session();
+		}
+		void prepare() override {
+			auto row = std::make_unique<PeerListRow>(_community);
+			const auto rawRow = row.get();
+			const auto updateStatus = [=] {
+				const auto info = _community->communityInfo();
+				const auto count = info
+					? int(info->linkedPeers().size())
+					: 0;
+				rawRow->setCustomStatus(count
+					? tr::lng_community_profile_status(
+						tr::now,
+						lt_count,
+						count)
+					: tr::lng_community_title(tr::now));
+			};
+			updateStatus();
+			delegate()->peerListAppendRow(std::move(row));
+			delegate()->peerListRefreshRows();
+			_community->session().changes().peerUpdates(
+				_community,
+				Data::PeerUpdate::Flag::FullInfo
+			) | rpl::on_next([=] {
+				updateStatus();
+				delegate()->peerListUpdateRow(rawRow);
+			}, lifetime());
+		}
+		void rowClicked(not_null<PeerListRow*> row) override {
+			_open();
+		}
+		base::unique_qptr<Ui::PopupMenu> rowContextMenu(
+				QWidget *parent,
+				not_null<PeerListRow*> row) override {
+			const auto history = _community->owner().history(_community);
+			if (!history->owner().chatsFilters().has()
+				|| !history->inChatList()
+				|| (_community->isCommunity()
+					&& !_community->collapsedInDialogs())) {
+				return nullptr;
+			}
+			auto result = base::make_unique_q<Ui::PopupMenu>(
+				parent,
+				st::popupMenuWithIcons);
+			Ui::Menu::CreateAddActionCallback(result.get())({
+				.text = tr::lng_filters_menu_add(tr::now),
+				.handler = nullptr,
+				.icon = &st::menuIconAddToFolder,
+				.fillSubmenu = [&](not_null<Ui::PopupMenu*> submenu) {
+					FillChooseFilterMenu(_window, submenu, history);
+				},
+				.submenuSt = &st::foldersMenu,
+			});
+			return result;
+		}
+
+	private:
+		const not_null<Window::SessionController*> _window;
+		const not_null<ChannelData*> _community;
+		Fn<void()> _open;
+
+	};
+
+	const auto delegate = container->lifetime().make_state<
+		PeerListContentDelegateSimple
+	>();
+	const auto controller = container->lifetime().make_state<Controller>(
+		window,
+		community,
+		[=] { window->showPeerInfo(community); });
+	const auto content = container->add(object_ptr<PeerListContent>(
+		container,
+		controller));
+	delegate->setContent(content);
+	controller->setDelegate(delegate);
+
+	if (!community->wasFullUpdated()) {
+		community->session().api().requestFullPeer(community);
+	}
+
+	raw->toggle(true, anim::type::instant);
+	return Section{
+		.widget = std::move(wrap),
+		.shown = raw->toggledValue(),
+	};
+}
+
+void DetailsFiller::addCommunityHiddenNote() {
+	const auto peer = _peer.get();
+	const auto community = peer->owner().channel(
+		Data::PeerLinkedCommunityId(peer));
+	auto shown = peer->session().changes().peerFlagsValue(
+		community,
+		Data::PeerUpdate::Flag::FullInfo
+	) | rpl::map([=] {
+		return community->communityInfo();
+	}) | rpl::map([=](Data::CommunityInfo *info) -> rpl::producer<bool> {
+		if (!info) {
+			return rpl::single(false);
+		}
+		return info->linkedPeersValue() | rpl::map([=] {
+			return info->isHidden(peer);
+		});
+	}) | rpl::flatten_latest() | rpl::distinct_until_changed();
+
+	_stack->addTextSeparator(
+		tr::lng_community_hidden_chat_about(tr::marked),
+		std::move(shown));
+}
+
 Section DetailsFiller::makeTopicsList(not_null<Data::Forum*> forum) {
 	using namespace rpl::mappers;
 
@@ -2571,6 +2722,11 @@ void DetailsFiller::buildSections() {
 
 	if (const auto user = _sublist ? nullptr : _peer->asUser()) {
 		_stack->add(makePersonalChannel(user));
+		_stack->addPlainSeparator();
+	}
+	if (Data::PeerLinkedCommunityId(_peer)) {
+		_stack->add(makeCommunityLink(_peer));
+		addCommunityHiddenNote();
 		_stack->addPlainSeparator();
 	}
 	_stack->add(makeInfo());

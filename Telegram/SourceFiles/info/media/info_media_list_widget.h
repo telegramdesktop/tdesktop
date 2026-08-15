@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/rows_scroll_cache.h"
 #include "ui/widgets/tooltip.h"
 #include "info/media/info_media_widget.h"
 #include "info/media/info_media_common.h"
@@ -52,6 +53,7 @@ struct ListFoundItemWithSection;
 struct ListContext;
 class ListSection;
 class ListProvider;
+class ListZoom;
 
 class ListWidget final
 	: public Ui::RpWidget
@@ -89,11 +91,22 @@ public:
 
 	void jumpToMessage(MsgId msgId);
 
+	void setTopOverlayHeight(int height);
+
+	void setExternalViewportHeight(int height);
+
+	bool processZoomWheel(not_null<QWheelEvent*> e);
+	void zoomIn();
+	void zoomOut();
+	[[nodiscard]] bool canZoomIn() const;
+	[[nodiscard]] bool canZoomOut() const;
+
 	// Overview::Layout::Delegate
 	void registerHeavyItem(not_null<const BaseLayout*> item) override;
 	void unregisterHeavyItem(not_null<const BaseLayout*> item) override;
 	void repaintItem(not_null<const BaseLayout*> item) override;
 	bool itemVisible(not_null<const BaseLayout*> item) override;
+	bool keepPhotoMediaLoaded() override;
 	not_null<StickerPremiumMark*> hiddenMark() override;
 
 	// AbstractTooltipShower interface
@@ -108,6 +121,8 @@ public:
 		bool showInMediaView = false) override;
 
 private:
+	friend class ListZoom;
+
 	struct DateBadge;
 	using Section = ListSection;
 	using FoundItem = ListFoundItem;
@@ -168,6 +183,7 @@ private:
 		int visibleTop,
 		int visibleBottom) override;
 
+	bool eventHook(QEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
@@ -274,6 +290,7 @@ private:
 		const Section &section) const;
 
 	[[nodiscard]] ListScrollTopState countScrollState() const;
+	[[nodiscard]] ListScrollTopState countScrollState(QPoint anchor) const;
 	void saveScrollState();
 	void restoreScrollState();
 
@@ -330,11 +347,14 @@ private:
 	base::flat_set<not_null<const BaseLayout*>> _heavyLayouts;
 	bool _heavyLayoutsInvalidated = false;
 	std::vector<Section> _sections;
+	Ui::RowsScrollCache _rowsScrollCache;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
 	ListScrollTopState _scrollTopState;
 	rpl::event_stream<int> _scrollToRequests;
+
+	std::unique_ptr<ListZoom> _zoom;
 
 	MouseAction _mouseAction = MouseAction::None;
 	TextSelectType _mouseSelectType = TextSelectType::Letters;
@@ -354,6 +374,8 @@ private:
 	bool _wasSelectedText = false; // was some text selected in current drag action
 
 	const std::unique_ptr<DateBadge> _dateBadge;
+	int _topOverlayHeight = 0;
+	int _externalViewportHeight = 0;
 
 	int _selectedLimit = 0;
 	int _storiesAddToAlbumId = 0;

@@ -86,7 +86,8 @@ public:
 		Fn<void(bool fast)> close,
 		IconFactory iconFactory = nullptr,
 		Fn<bool()> paused = nullptr,
-		bool child = false);
+		bool child = false,
+		QWidget *mediaPreviewParent = nullptr);
 #if 0 // not ready
 	Selector(
 		not_null<QWidget*> parent,
@@ -155,7 +156,8 @@ private:
 		IconFactory iconFactory,
 		Fn<bool()> paused,
 		Fn<void(bool fast)> close,
-		bool child);
+		bool child,
+		QWidget *mediaPreviewParent);
 
 	void paintEvent(QPaintEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
@@ -177,6 +179,7 @@ private:
 
 	[[nodiscard]] int recentCount() const;
 	[[nodiscard]] int countSkipLeft() const;
+	[[nodiscard]] bool inVisibleArea(QPoint position) const;
 	[[nodiscard]] int lookupSelectedIndex(QPoint position) const;
 	void setSelected(int index);
 
@@ -195,6 +198,7 @@ private:
 	const std::vector<DocumentId> _recent;
 	const ChatHelpers::EmojiListMode _listMode;
 	const Fn<bool()> _paused;
+	QWidget *_mediaPreviewParent = nullptr;
 	Fn<void()> _jumpedToPremium;
 	Ui::RoundAreaWithShadow _cachedRound;
 	std::unique_ptr<Strip> _strip;

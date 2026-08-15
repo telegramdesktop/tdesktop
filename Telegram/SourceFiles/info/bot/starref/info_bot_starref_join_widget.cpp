@@ -43,6 +43,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
+#include "styles/style_boxes.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_media_player.h"
@@ -634,7 +636,11 @@ base::unique_qptr<Ui::PopupMenu> ListController::rowContextMenu(
 	if (!state.link.isEmpty()) {
 		addAction(tr::lng_star_ref_list_my_copy(tr::now), [=] {
 			QApplication::clipboard()->setText(state.link);
-			_controller->showToast(tr::lng_username_copied(tr::now));
+			_controller->showToast({
+				.text = { tr::lng_username_copied(tr::now) },
+				.iconLottie = u"toast/voip_invite"_q,
+				.iconLottieSize = st::toastLottieIconSize,
+			});
 		}, &st::menuIconLinks);
 		const auto revoke = [=] {
 			const auto link = state.link;

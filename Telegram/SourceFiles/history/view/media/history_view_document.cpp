@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/chat/chat_style.h"
 #include "ui/effects/voice_once_particles.h"
+#include "ui/paint/blobs.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "ui/rect.h"
@@ -41,12 +42,43 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_transcribes.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_style.h"
 #include "styles/style_dialogs.h"
 
 namespace HistoryView {
 namespace {
 
 constexpr auto kAudioVoiceMsgUpdateView = crl::time(100);
+
+constexpr auto kVoiceBlobAlpha = 0.25;
+constexpr auto kVoiceBlobMaxSpeed = 2.5;
+constexpr auto kVoiceBlobLevelDuration = 100. + 500. * 0.33;
+constexpr auto kVoiceBlobMinorScale = 0.88;
+constexpr auto kVoiceBlobMajorScale = 0.85;
+constexpr auto kVoiceBlobIdleLevel = 0.45;
+
+[[nodiscard]] std::vector<Ui::Paint::Blobs::BlobData> VoicePlaybackBlobs() {
+	return {
+		{
+			.segmentsCount = 6,
+			.minScale = kVoiceBlobMinorScale,
+			.minRadius = float(st::msgVoicePlaybackMinorBlobMinRadius),
+			.maxRadius = float(st::msgVoicePlaybackMinorBlobMaxRadius),
+			.speedScale = 1.,
+			.alpha = kVoiceBlobAlpha,
+			.maxSpeed = kVoiceBlobMaxSpeed,
+		},
+		{
+			.segmentsCount = 8,
+			.minScale = kVoiceBlobMajorScale,
+			.minRadius = float(st::msgVoicePlaybackMajorBlobMinRadius),
+			.maxRadius = float(st::msgVoicePlaybackMajorBlobMaxRadius),
+			.speedScale = 1.,
+			.alpha = kVoiceBlobAlpha,
+			.maxSpeed = kVoiceBlobMaxSpeed,
+		},
+	};
+}
 
 [[nodiscard]] bool IsHostedInstantViewMedia(not_null<const Element*> parent) {
 	return parent->Get<InstantViewMediaRuntime>() != nullptr;
@@ -468,6 +500,7 @@ QSize Document::countOptimalSize() {
 		const auto transcribes = &session->api().transcribes();
 		const auto media = _parent->data()->media();
 		if ((media && media->ttlSeconds())
+			|| IsHostedInstantViewMedia(_parent)
 			|| _realParent->isScheduled()
 			|| _realParent->isAdminLogEntry()
 			|| (!session->premium()
@@ -788,6 +821,8 @@ void Document::draw(
 			&& _openl;
 		const auto ttlRect = hasTtlBadge ? TTLRectFromInner(inner) : QRect();
 
+		paintPlaybackBlobs(p, context, inner);
+
 		const auto coverDrawn = _data->isSongWithCover()
 			&& DrawThumbnailAsSongCover(
 				p,
@@ -976,6 +1011,10 @@ void Document::draw(
 		if (voice->seeking()) {
 			voiceStatusOverride = Ui::FormatPlayedText(
 				base::SafeRound(progress * voice->lastDurationMs) / 1000,
+				voice->lastDurationMs / 1000);
+		} else if (_voiceHoverProgress >= 0 && voice->lastDurationMs > 0) {
+			voiceStatusOverride = Ui::FormatPlayedText(
+				base::SafeRound(_voiceHoverProgress * voice->lastDurationMs) / 1000,
 				voice->lastDurationMs / 1000);
 		}
 		if (voice->transcribe) {
@@ -1799,6 +1838,64 @@ TextState Document::getStateGrouped(
 		LayoutMode::Grouped);
 }
 
+void Document::paintPlaybackBlobs(
+		Painter &p,
+		const PaintContext &context,
+		QRect inner) const {
+	if (anim::Disabled() || _drawTtl) {
+		return;
+	}
+	const auto voice = Get<HistoryDocumentVoice>();
+	if (!voice || !voice->playback) {
+		return;
+	}
+	const auto voiceData = _transcribedRound
+		? _data->round()
+		: _data->voice();
+	if (!voiceData) {
+		return;
+	}
+	auto &playback = *voice->playback;
+	if (!playback.blobs) {
+		playback.blobs = std::make_unique<Ui::Paint::Blobs>(
+			VoicePlaybackBlobs(),
+			kVoiceBlobLevelDuration,
+			1.);
+	}
+
+	const auto &waveform = voiceData->waveform;
+	auto loudness = 0.;
+	if (!waveform.isEmpty() && waveform.at(0) >= 0) {
+		const auto count = int(waveform.size());
+		const auto progress = std::clamp(playback.progress.current(), 0., 1.);
+		const auto center = std::clamp(int(progress * count), 0, count - 1);
+		auto peak = 0;
+		for (auto i = center - 1; i <= center + 1; ++i) {
+			if (i >= 0 && i < count) {
+				peak = std::max(peak, int(waveform.at(i)));
+			}
+		}
+		const auto maxValue = std::max(1, int(voiceData->wavemax));
+		loudness = std::sqrt(std::clamp(peak / float64(maxValue), 0., 1.));
+	}
+	const auto level = kVoiceBlobIdleLevel
+		+ (1. - kVoiceBlobIdleLevel) * loudness;
+	playback.blobs->setLevel(level);
+
+	const auto now = context.now;
+	if (!playback.blobsLastUpdate) {
+		playback.blobsLastUpdate = now;
+	}
+	playback.blobs->updateLevel(now - playback.blobsLastUpdate);
+	playback.blobsLastUpdate = now;
+
+	p.save();
+	p.translate(QRectF(inner).center());
+	auto hq = PainterHighQualityEnabler(p);
+	playback.blobs->paint(p, QBrush(context.messageStyle()->msgFileBg->c));
+	p.restore();
+}
+
 bool Document::voiceProgressAnimationCallback(crl::time now) {
 	if (anim::Disabled()) {
 		now += (2 * kAudioVoiceMsgUpdateView);
@@ -1818,6 +1915,17 @@ bool Document::voiceProgressAnimationCallback(crl::time now) {
 		}
 	}
 	return false;
+}
+
+void Document::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
+	if (!active && _voiceHoverProgress >= 0) {
+		if (const auto voice = Get<HistoryDocumentVoice>()) {
+			if (p == voice->seekl) {
+				_voiceHoverProgress = -1;
+				repaint();
+			}
+		}
+	}
 }
 
 void Document::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {

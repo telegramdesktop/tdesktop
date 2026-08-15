@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
+#include "core/deep_links/deep_links_settings.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_builder.h"
@@ -18,20 +19,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_recent_searches.h"
 #include "ui/painter.h"
 #include "ui/text/text_entity.h"
+#include "ui/toast/toast.h"
 #include "ui/search_field_controller.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/checkbox.h"
-#include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
-#include "ui/widgets/scroll_area.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
-#include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 #include "styles/style_widgets.h"
@@ -314,30 +314,6 @@ void Search::clearSelection() {
 	_selected = -1;
 }
 
-void Search::scrollToButton(not_null<Ui::SettingsButton*> button) {
-	const auto scrollIn = [&](auto &&scroll) {
-		if (const auto inner = scroll->widget()) {
-			const auto globalPos = button->mapToGlobal(QPoint(0, 0));
-			const auto localPos = inner->mapFromGlobal(globalPos);
-			scroll->scrollToY(
-				localPos.y(),
-				localPos.y() + button->height());
-		}
-	};
-	for (auto widget = button->parentWidget()
-		; widget
-		; widget = widget->parentWidget()) {
-		if (const auto scroll = dynamic_cast<Ui::ScrollArea*>(widget)) {
-			scrollIn(scroll);
-			return;
-		}
-		if (const auto scroll = dynamic_cast<Ui::ElasticScroll*>(widget)) {
-			scrollIn(scroll);
-			return;
-		}
-	}
-}
-
 void Search::selectByKeyboard(int newSelected) {
 	const auto count = int(_visibleButtons.size());
 	if (!count) {
@@ -357,7 +333,7 @@ void Search::selectByKeyboard(int newSelected) {
 		_visibleButtons[_selected]->setSynteticOver(true);
 	};
 	applySelection();
-	scrollToButton(_visibleButtons[_selected]);
+	RevealWidget(_visibleButtons[_selected]);
 	applySelection();
 }
 
@@ -444,9 +420,9 @@ not_null<Ui::SettingsButton*> Search::createEntryButton(
 	}
 
 	const auto controlId = entry.id;
-	if (!controlId.isEmpty()) {
-		const auto targetSection = entry.section;
-		const auto deeplink = entry.deeplink;
+	const auto targetSection = entry.section;
+	const auto deeplink = entry.deeplink;
+	if (!deeplink.isEmpty() || targetSection || !controlId.isEmpty()) {
 		button->addClickHandler([=] {
 			bumpRecentEntry(controlId);
 			if (!deeplink.isEmpty()) {
@@ -456,34 +432,60 @@ not_null<Ui::SettingsButton*> Search::createEntryButton(
 						.sessionWindow = base::make_weak(controller()),
 					}));
 			} else {
-				controller()->setHighlightControlId(controlId);
+				if (!controlId.isEmpty()) {
+					controller()->setHighlightControlId(controlId);
+				}
 				showOtherMethod()(targetSection);
 			}
 		});
-
+	}
+	const auto copyLink = !deeplink.isEmpty()
+		? deeplink
+		: Core::DeepLinks::SettingsDeepLink(targetSection, controlId);
+	if (!copyLink.isEmpty() || !controlId.isEmpty()) {
 		base::install_event_filter(button, [=](not_null<QEvent*> e) {
 			if (e->type() != QEvent::ContextMenu) {
 				return base::EventFilterResult::Continue;
 			}
-			const auto &recentIds
-				= controller()->session().recentSettingsSearches().list();
-			if (!ranges::contains(recentIds, controlId)) {
+			const auto inRecent = !controlId.isEmpty()
+				&& ranges::contains(
+					controller()->session().recentSettingsSearches().list(),
+					controlId);
+			if (copyLink.isEmpty() && !inRecent) {
 				return base::EventFilterResult::Continue;
 			}
 			_contextMenu = base::make_unique_q<Ui::PopupMenu>(
 				button,
 				st::popupMenuWithIcons);
-			_contextMenu->addAction(
-				tr::lng_recent_remove(tr::now),
-				[=] {
-					controller()->session().recentSettingsSearches().remove(
-						controlId);
-					const auto query = _searchController
-						? _searchController->query()
-						: QString();
-					rebuildResults(query);
-				},
-				&st::menuIconDelete);
+			if (!copyLink.isEmpty()) {
+				_contextMenu->addAction(
+					tr::lng_context_copy_link(tr::now),
+					[=] {
+						TextUtilities::SetClipboardText(
+							TextForMimeData::Simple(copyLink));
+						controller()->showToast({
+							.text = {
+								tr::lng_channel_public_link_copied(tr::now),
+							},
+							.iconLottie = u"toast/voip_invite"_q,
+							.iconLottieSize = st::toastLottieIconSize,
+						});
+					},
+					&st::menuIconLink);
+			}
+			if (inRecent) {
+				_contextMenu->addAction(
+					tr::lng_recent_remove(tr::now),
+					[=] {
+						controller()->session().recentSettingsSearches().remove(
+							controlId);
+						const auto query = _searchController
+							? _searchController->query()
+							: QString();
+						rebuildResults(query);
+					},
+					&st::menuIconDelete);
+			}
 			_contextMenu->popup(QCursor::pos());
 			return base::EventFilterResult::Cancel;
 		}, button->lifetime());
@@ -494,10 +496,7 @@ not_null<Ui::SettingsButton*> Search::createEntryButton(
 }
 
 void Search::rebuildResults(const QString &query) {
-	for (auto i = 0, count = _list->count(); i != count; ++i) {
-		_list->widgetAt(i)->hide();
-	}
-	_list->clear();
+	_list->detachRows();
 	clearSelection();
 	_visibleButtons.clear();
 

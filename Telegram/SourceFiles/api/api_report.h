@@ -53,6 +53,12 @@ void SendPhotoReport(
 	not_null<PeerData*> peer)
 -> Fn<void(Data::ReportInput, Fn<void(ReportResult)>)>;
 
+[[nodiscard]] auto CreateReportEphemeralMessageCallback(
+	std::shared_ptr<Ui::Show> show,
+	not_null<PeerData*> peer,
+	int32 ephemeralId)
+-> Fn<void(Data::ReportInput, Fn<void(ReportResult)>)>;
+
 struct ReactionReportCapabilities final {
 	bool canReport = false;
 	bool canBan = false;

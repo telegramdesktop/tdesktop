@@ -30,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_credits_graphics.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/text/text_utilities.h"
-#include "styles/style_calls.h"
 
 namespace Media::Stories {
 

@@ -77,6 +77,29 @@ TextState::TextState(std::nullptr_t, ClickHandlerPtr link)
 : link(link) {
 }
 
+void SyncFlatSelectionCursor(not_null<TextState*> state) {
+	if (!state->selectionCursor.isRichPage()) {
+		state->selectionCursor = MessageSelectionEndpoint::Flat({
+			state->symbol,
+			state->afterSymbol,
+		});
+	}
+}
+
+void SetTextStatePosition(
+		not_null<TextState*> state,
+		uint16 symbol,
+		bool afterSymbol) {
+	state->symbol = symbol;
+	state->afterSymbol = afterSymbol;
+	SyncFlatSelectionCursor(state);
+}
+
+void AddTextStateOffset(not_null<TextState*> state, uint16 offset) {
+	state->symbol = uint16(state->symbol + offset);
+	SyncFlatSelectionCursor(state);
+}
+
 not_null<HistoryItem*> LookupItemByPoint(
 		not_null<Element*> view,
 		QPoint itemPoint) {

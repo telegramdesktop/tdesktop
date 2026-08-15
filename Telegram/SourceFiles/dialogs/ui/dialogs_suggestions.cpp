@@ -75,7 +75,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
-#include "styles/style_settings.h"
 #include "styles/style_window.h"
 
 namespace Dialogs {
@@ -165,8 +164,9 @@ void FillEntryMenu(
 		EntryMenuDescriptor &&descriptor) {
 	const auto peer = descriptor.peer;
 	const auto controller = descriptor.controller;
-	const auto group = peer->isMegagroup();
-	const auto channel = peer->isChannel();
+	const auto channel = peer->asChannel();
+	const auto community = channel && channel->isCommunity();
+	const auto group = peer->isChat() || peer->isMegagroup();
 
 	add(tr::lng_context_new_window(tr::now), [=] {
 		Ui::PreventDelayedActivation();
@@ -177,14 +177,23 @@ void FillEntryMenu(
 	}, &st::menuIconNewWindow);
 	Window::AddSeparatorAndShiftUp(add);
 
-	const auto showHistoryText = group
+	const auto showHistoryText = community
+		? tr::lng_context_open_community(tr::now)
+		: group
 		? tr::lng_context_open_group(tr::now)
 		: channel
 		? tr::lng_context_open_channel(tr::now)
 		: tr::lng_profile_send_message(tr::now);
+	const auto showHistoryIcon = community
+		? &st::menuIconCommunity
+		: group
+		? &st::menuIconChatBubble
+		: channel
+		? &st::menuIconChannel
+		: &st::menuIconChatBubble;
 	add(showHistoryText, [=] {
 		controller->showPeerHistory(peer);
-	}, channel ? &st::menuIconChannel : &st::menuIconChatBubble);
+	}, showHistoryIcon);
 
 	const auto history = peer->owner().historyLoaded(peer);
 	if (history
@@ -200,14 +209,16 @@ void FillEntryMenu(
 			.submenuSt = &st::foldersMenu,
 		});
 	}
-	const auto viewProfileText = group
+	const auto viewProfileText = community
+		? tr::lng_context_view_community(tr::now)
+		: group
 		? tr::lng_context_view_group(tr::now)
 		: channel
 		? tr::lng_context_view_channel(tr::now)
 		: tr::lng_context_view_profile(tr::now);
 	add(viewProfileText, [=] {
 		controller->showPeerInfo(peer);
-	}, channel ? &st::menuIconInfo : &st::menuIconProfile);
+	}, peer->isUser() ? &st::menuIconProfile : &st::menuIconInfo);
 
 	add({ .separatorSt = &st::expandedMenuSeparator });
 
@@ -254,7 +265,7 @@ RecentRow::RecentRow(not_null<PeerData*> peer)
 					chat->count));
 		}
 	} else if (const auto channel = peer->asChannel()) {
-		if (channel->membersCountKnown()) {
+		if (!channel->isCommunity() && channel->membersCountKnown()) {
 			setCustomStatus((channel->isBroadcast()
 				? tr::lng_chat_status_subscribers
 				: tr::lng_chat_status_members)(
@@ -2376,6 +2387,7 @@ void Suggestions::updateControlsGeometry() {
 	}
 
 	const auto expanding = false;
+	const auto contentTillBottom = true;
 	for (const auto &[key, list] : _mediaLists) {
 		const auto full = !list.wrap->scrollBottomSkip();
 		const auto additionalScroll = (full ? st::boxRadius : 0);
@@ -2384,6 +2396,7 @@ void Suggestions::updateControlsGeometry() {
 		list.wrap->updateGeometry(
 			wrapGeometry,
 			expanding,
+			contentTillBottom,
 			additionalScroll,
 			content.height());
 	}

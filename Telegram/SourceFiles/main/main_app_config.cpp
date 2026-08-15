@@ -117,6 +117,10 @@ float64 AppConfig::currencySellRate() const {
 	return get<float64>(u"ton_usd_rate"_q, 1);
 }
 
+bool AppConfig::starsSpendTopupInvoiceDisabled() const {
+	return get<bool>(u"stars_spend_topup_invoice_disabled"_q, false);
+}
+
 bool AppConfig::paidMessagesAvailable() const {
 	return get<bool>(u"stars_paid_messages_available"_q, false);
 }

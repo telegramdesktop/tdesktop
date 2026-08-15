@@ -89,6 +89,319 @@ Settings::Type SettingsFromDialogsType(Data::DialogInfo::Type type) {
 	return Settings::Type(0);
 }
 
+MediaSettings::Type DocumentMediaType(const Data::Document &document) {
+	using Type = MediaSettings::Type;
+	if (document.isSticker) {
+		return Type::Sticker;
+	} else if (document.isVideoMessage) {
+		return Type::VideoMessage;
+	} else if (document.isVoiceMessage) {
+		return Type::VoiceMessage;
+	} else if (document.isAnimated) {
+		return Type::GIF;
+	} else if (document.isVideoFile) {
+		return Type::Video;
+	}
+	return Type::File;
+}
+
+MediaSettings::Type OrdinaryMediaType(const Data::Media &media) {
+	return v::match(media.content, [](const Data::Document &document) {
+		return DocumentMediaType(document);
+	}, [](const auto &) {
+		return MediaSettings::Type::Photo;
+	});
+}
+
+std::optional<MTPRichMessage> ExtractFullRichMessage(
+		const MTPmessages_Messages &result,
+		int32 messageId) {
+	auto matches = 0;
+	auto richMessage = std::optional<MTPRichMessage>();
+	result.match([&](const MTPDmessages_messagesNotModified &) {
+	}, [&](const auto &data) {
+		for (const auto &entry : data.vmessages().v) {
+			entry.match([&](const auto &message) {
+				if (message.vid().v != messageId) {
+					return;
+				}
+				++matches;
+				if constexpr (MTPDmessage::Is<decltype(message)>()) {
+					const auto candidate = message.vrich_message();
+					if (candidate && !candidate->data().is_part()) {
+						richMessage = *candidate;
+					}
+				}
+			});
+		}
+	});
+	if (matches != 1) {
+		return std::nullopt;
+	}
+	return richMessage;
+}
+
+std::optional<Data::FileLocation> RefreshRichMessageFileReference(
+		const Data::FileLocation &location,
+		const Data::RichMessage &message) {
+	auto refreshed = location;
+	for (const auto &entry : message.photos) {
+		if (Data::RefreshFileReference(
+				refreshed,
+				entry.second.image.file.location)) {
+			return refreshed;
+		}
+	}
+	for (const auto &entry : message.documents) {
+		const auto &document = entry.second;
+		if (Data::RefreshFileReference(
+				refreshed,
+				document.file.location)) {
+			return refreshed;
+		} else if (document.thumb.width > 0
+			&& Data::RefreshFileReference(
+				refreshed,
+				document.thumb.file.location)) {
+			return refreshed;
+		}
+	}
+	return std::nullopt;
+}
+
+template <
+	typename TextCallback,
+	typename PhotoCallback,
+	typename DocumentCallback>
+struct RichMessageCallbacks {
+	TextCallback &text;
+	PhotoCallback &photo;
+	DocumentCallback &document;
+};
+
+template <typename RichMessage, typename Callbacks>
+void VisitRichPhoto(
+		RichMessage &message,
+		uint64 id,
+		Callbacks &callbacks) {
+	const auto i = message.photos.find(id);
+	if (i != end(message.photos)) {
+		callbacks.photo(i->second);
+	}
+}
+
+template <typename RichMessage, typename Callbacks>
+void VisitRichDocument(
+		RichMessage &message,
+		uint64 id,
+		Callbacks &callbacks) {
+	const auto i = message.documents.find(id);
+	if (i != end(message.documents)) {
+		callbacks.document(i->second);
+	}
+}
+
+template <typename RichMessage, typename Text, typename Callbacks>
+void VisitRichText(
+		RichMessage &message,
+		Text &text,
+		Callbacks &callbacks) {
+	callbacks.text(text);
+	if (text.type == Data::RichText::Type::InlineImage) {
+		VisitRichDocument(message, text.id, callbacks);
+	}
+	for (auto &child : text.children) {
+		VisitRichText(message, child, callbacks);
+	}
+	for (auto &child : text.oldChildren) {
+		VisitRichText(message, child, callbacks);
+	}
+}
+
+template <typename RichMessage, typename Caption, typename Callbacks>
+void VisitRichCaption(
+		RichMessage &message,
+		Caption &caption,
+		Callbacks &callbacks) {
+	VisitRichText(message, caption.text, callbacks);
+	VisitRichText(message, caption.credit, callbacks);
+}
+
+template <typename RichMessage, typename Block, typename Callbacks>
+void VisitRichBlock(
+		RichMessage &message,
+		Block &block,
+		Callbacks &callbacks);
+
+template <typename RichMessage, typename Blocks, typename Callbacks>
+void VisitRichBlocks(
+		RichMessage &message,
+		Blocks &blocks,
+		Callbacks &callbacks) {
+	for (auto &block : blocks) {
+		VisitRichBlock(message, block, callbacks);
+	}
+}
+
+template <typename RichMessage, typename Block, typename Callbacks>
+void VisitRichBlock(
+		RichMessage &message,
+		Block &block,
+		Callbacks &callbacks) {
+	using Kind = Data::RichBlock::Kind;
+	using ListContent = Data::RichListItemContent;
+	using QuoteContent = Data::RichQuoteContent;
+	switch (block.kind) {
+	case Kind::Heading:
+	case Kind::Paragraph:
+	case Kind::Footer:
+	case Kind::Thinking:
+	case Kind::AuthorDate:
+	case Kind::Code:
+		VisitRichText(message, block.text, callbacks);
+		break;
+	case Kind::List:
+		for (auto &item : block.listItems) {
+			switch (item.content) {
+			case ListContent::Text:
+				if (item.text) {
+					VisitRichText(message, *item.text, callbacks);
+				}
+				break;
+			case ListContent::Blocks:
+				VisitRichBlocks(message, item.blocks, callbacks);
+				break;
+			}
+		}
+		break;
+	case Kind::Quote:
+		switch (block.quoteContent) {
+		case QuoteContent::Text:
+			VisitRichText(message, block.text, callbacks);
+			break;
+		case QuoteContent::Blocks:
+			VisitRichBlocks(message, block.blocks, callbacks);
+			break;
+		}
+		VisitRichText(message, block.quoteCaption, callbacks);
+		break;
+	case Kind::Photo:
+		VisitRichPhoto(message, block.photoId, callbacks);
+		VisitRichCaption(message, block.caption, callbacks);
+		break;
+	case Kind::Video:
+	case Kind::Audio:
+		VisitRichDocument(message, block.documentId, callbacks);
+		VisitRichCaption(message, block.caption, callbacks);
+		break;
+	case Kind::Cover:
+		Expects(block.blocks.size() == 1);
+		VisitRichBlock(message, block.blocks.front(), callbacks);
+		break;
+	case Kind::Embed:
+		if (block.posterPhotoId) {
+			VisitRichPhoto(message, *block.posterPhotoId, callbacks);
+		}
+		VisitRichCaption(message, block.caption, callbacks);
+		break;
+	case Kind::EmbedPost:
+		VisitRichPhoto(message, block.authorPhotoId, callbacks);
+		VisitRichBlocks(message, block.blocks, callbacks);
+		VisitRichCaption(message, block.caption, callbacks);
+		break;
+	case Kind::Collage:
+	case Kind::Slideshow:
+		VisitRichBlocks(message, block.blocks, callbacks);
+		VisitRichCaption(message, block.caption, callbacks);
+		break;
+	case Kind::Table:
+		VisitRichText(message, block.text, callbacks);
+		for (auto &row : block.tableRows) {
+			for (auto &cell : row.cells) {
+				if (cell.text) {
+					VisitRichText(message, *cell.text, callbacks);
+				}
+			}
+		}
+		break;
+	case Kind::Details:
+		VisitRichText(message, block.text, callbacks);
+		VisitRichBlocks(message, block.blocks, callbacks);
+		break;
+	case Kind::RelatedArticles:
+		VisitRichText(message, block.text, callbacks);
+		for (auto &article : block.relatedArticles) {
+			if (article.photoId) {
+				VisitRichPhoto(message, *article.photoId, callbacks);
+			}
+		}
+		break;
+	case Kind::Map:
+	case Kind::InputMap:
+		VisitRichCaption(message, block.caption, callbacks);
+		break;
+	case Kind::Unsupported:
+	case Kind::Divider:
+	case Kind::Anchor:
+	case Kind::Channel:
+	case Kind::Math:
+	case Kind::Unknown:
+		break;
+	}
+}
+
+template <
+	typename RichMessage,
+	typename TextCallback,
+	typename PhotoCallback,
+	typename DocumentCallback>
+void VisitRichMessageImpl(
+		RichMessage &message,
+		TextCallback &textCallback,
+		PhotoCallback &photoCallback,
+		DocumentCallback &documentCallback) {
+	auto callbacks = RichMessageCallbacks<
+		TextCallback,
+		PhotoCallback,
+		DocumentCallback>{
+		textCallback,
+		photoCallback,
+		documentCallback,
+	};
+	VisitRichBlocks(message, message.blocks, callbacks);
+}
+
+template <
+	typename TextCallback,
+	typename PhotoCallback,
+	typename DocumentCallback>
+void VisitRichMessage(
+		const Data::RichMessage &message,
+		TextCallback &&textCallback,
+		PhotoCallback &&photoCallback,
+		DocumentCallback &&documentCallback) {
+	VisitRichMessageImpl(
+		message,
+		textCallback,
+		photoCallback,
+		documentCallback);
+}
+
+template <
+	typename TextCallback,
+	typename PhotoCallback,
+	typename DocumentCallback>
+void VisitRichMessage(
+		Data::RichMessage &message,
+		TextCallback &&textCallback,
+		PhotoCallback &&photoCallback,
+		DocumentCallback &&documentCallback) {
+	VisitRichMessageImpl(
+		message,
+		textCallback,
+		photoCallback,
+		documentCallback);
+}
+
 } // namespace
 
 class ApiWrap::LoadedFileCache {
@@ -203,6 +516,19 @@ struct ApiWrap::FileProgress {
 	int64 total = 0;
 };
 
+struct ApiWrap::FilePolicy {
+	const Data::Message *message = nullptr;
+	MediaSettings::Type type = MediaSettings::Type();
+	int64 controllingSize = 0;
+};
+
+struct ApiWrap::MessageFileWork {
+	Data::File *file = nullptr;
+	int64 controllingSize = 0;
+	MediaSettings::Type type = MediaSettings::Type();
+	bool rich : 1 = false;
+};
+
 struct ApiWrap::ChatsProcess {
 	Fn<bool(int count)> progress;
 	FnMut<void(Data::DialogsInfo&&)> done;
@@ -234,8 +560,12 @@ struct ApiWrap::AbstractMessagesProcess {
 
 	Data::ParseMediaContext context;
 	std::optional<Data::MessagesSlice> slice;
+	std::vector<MessageFileWork> messageFileWork;
 	bool lastSlice = false;
+	int hydrationIndex = 0;
 	int fileIndex = 0;
+	int messageFileWorkIndex = 0;
+	int messageFileWorkMessageIndex = -1;
 };
 
 struct ApiWrap::ChatProcess : AbstractMessagesProcess {
@@ -1872,7 +2202,7 @@ void ApiWrap::requestMessagesSlice() {
 	const auto count = _chatProcess->info.messagesCountPerSplit[
 		_chatProcess->localSplitIndex];
 	if (!count) {
-		loadMessagesFiles({});
+		startMessagesSlice({});
 		return;
 	}
 	requestChatMessages(
@@ -1889,7 +2219,7 @@ void ApiWrap::requestMessagesSlice() {
 			if constexpr (MTPDmessages_messages::Is<decltype(data)>()) {
 				_chatProcess->lastSlice = true;
 			}
-			loadMessagesFiles(Data::ParseMessagesSlice(
+			startMessagesSlice(Data::ParseMessagesSlice(
 				_chatProcess->context,
 				data.vmessages(),
 				data.vusers(),
@@ -1976,40 +2306,166 @@ void ApiWrap::requestChatMessages(
 	}
 }
 
-void ApiWrap::loadMessagesFiles(Data::MessagesSlice &&slice) {
-	Expects(_chatProcess != nullptr);
-	Expects(!_chatProcess->slice.has_value());
+void ApiWrap::startMessagesSlice(Data::MessagesSlice &&slice) {
+	Expects(bool(_chatProcess) != bool(_topicProcess));
 
-	collectMessagesCustomEmoji(slice);
+	const auto process = _topicProcess
+		? static_cast<AbstractMessagesProcess*>(_topicProcess.get())
+		: static_cast<AbstractMessagesProcess*>(_chatProcess.get());
+	Expects(!process->slice.has_value());
 
 	if (slice.list.empty()) {
-		_chatProcess->lastSlice = true;
+		process->lastSlice = true;
 	}
-	_chatProcess->slice = std::move(slice);
-	_chatProcess->fileIndex = 0;
+	process->slice = std::move(slice);
+	process->hydrationIndex = 0;
+	process->fileIndex = 0;
+	process->messageFileWork.clear();
+	process->messageFileWorkIndex = 0;
+	process->messageFileWorkMessageIndex = -1;
 
-	resolveCustomEmoji();
+	resumeMessagesSlice();
+}
+
+void ApiWrap::resumeMessagesSlice() {
+	Expects(bool(_chatProcess) != bool(_topicProcess));
+
+	const auto topic = (_topicProcess != nullptr);
+	const auto process = topic
+		? static_cast<AbstractMessagesProcess*>(_topicProcess.get())
+		: static_cast<AbstractMessagesProcess*>(_chatProcess.get());
+	Expects(process->slice.has_value());
+
+	auto &list = process->slice->list;
+	while (process->hydrationIndex < list.size()) {
+		const auto index = process->hydrationIndex;
+		const auto &message = list[index];
+		if (Data::SkipMessageByDate(message, *_settings)) {
+			++process->hydrationIndex;
+			continue;
+		}
+		if (!message.richMessage || !message.richMessage->part) {
+			++process->hydrationIndex;
+			continue;
+		}
+		const auto rawId = message.id;
+		auto peer = topic
+			? _topicProcess->inputPeer
+			: _chatProcess->info.input;
+		if (!topic) {
+			const auto splitIndex = _chatProcess->info.splits[
+				_chatProcess->localSplitIndex];
+			if (splitIndex < 0) {
+				peer = _chatProcess->info.migratedFromInput;
+			}
+		}
+		mainRequest(MTPmessages_GetRichMessage(
+			peer,
+			MTP_int(rawId)
+		)).done([=](const MTPmessages_Messages &result) {
+			hydrateMessageDone(topic, index, rawId, result);
+		}).send();
+		return;
+	}
+
+	collectMessagesCustomEmoji(*process->slice);
+	if (topic) {
+		resolveTopicCustomEmoji();
+	} else {
+		resolveCustomEmoji();
+	}
+}
+
+void ApiWrap::hydrateMessageDone(
+		bool topic,
+		int index,
+		int32 rawId,
+		const MTPmessages_Messages &result) {
+	const auto richMessage = ExtractFullRichMessage(result, rawId);
+	const auto process = topic
+		? static_cast<AbstractMessagesProcess*>(_topicProcess.get())
+		: static_cast<AbstractMessagesProcess*>(_chatProcess.get());
+	const auto otherProcess = topic
+		? static_cast<AbstractMessagesProcess*>(_chatProcess.get())
+		: static_cast<AbstractMessagesProcess*>(_topicProcess.get());
+	if (!richMessage
+		|| !process
+		|| otherProcess
+		|| !process->slice
+		|| process->hydrationIndex != index) {
+		error("Unexpected rich message hydration result.");
+		return;
+	}
+	auto &list = process->slice->list;
+	if (index < 0 || index >= list.size()) {
+		error("Unexpected rich message hydration result.");
+		return;
+	}
+	auto &message = list[index];
+	if (message.id != rawId
+		|| !message.richMessage
+		|| !message.richMessage->part) {
+		error("Unexpected rich message hydration result.");
+		return;
+	}
+	const auto &relativePath = topic
+		? _topicProcess->relativePath
+		: _chatProcess->info.relativePath;
+	auto parsed = Data::ParseRichMessage(
+		process->context,
+		*richMessage,
+		relativePath,
+		message.date);
+	if (parsed.part
+		|| !process->slice
+		|| process->hydrationIndex != index
+		|| index < 0
+		|| index >= process->slice->list.size()) {
+		error("Unexpected rich message hydration result.");
+		return;
+	}
+	auto &stored = process->slice->list[index];
+	if (stored.id != rawId
+		|| !stored.richMessage
+		|| !stored.richMessage->part) {
+		error("Unexpected rich message hydration result.");
+		return;
+	}
+	stored.richMessage = std::move(parsed);
+	++process->hydrationIndex;
+	resumeMessagesSlice();
 }
 
 void ApiWrap::collectMessagesCustomEmoji(const Data::MessagesSlice &slice) {
+	const auto collect = [&](uint64 id) {
+		if (id && !_resolvedCustomEmoji.contains(id)) {
+			_unresolvedCustomEmoji.emplace(id);
+		}
+	};
 	for (const auto &message : slice.list) {
+		if (Data::SkipMessageByDate(message, *_settings)) {
+			continue;
+		}
 		for (const auto &part : message.text) {
 			if (part.type == Data::TextPart::Type::CustomEmoji) {
-				if (const auto id = part.additional.toULongLong()) {
-					if (!_resolvedCustomEmoji.contains(id)) {
-						_unresolvedCustomEmoji.emplace(id);
-					}
-				}
+				collect(part.additional.toULongLong());
 			}
 		}
 		for (const auto &reaction : message.reactions) {
 			if (reaction.type == Data::Reaction::Type::CustomEmoji) {
-				if (const auto id = reaction.documentId.toULongLong()) {
-					if (!_resolvedCustomEmoji.contains(id)) {
-						_unresolvedCustomEmoji.emplace(id);
-					}
-				}
+				collect(reaction.documentId.toULongLong());
 			}
+		}
+		if (message.richMessage) {
+			VisitRichMessage(
+				*message.richMessage,
+				[&](const Data::RichText &text) {
+					if (text.type == Data::RichText::Type::CustomEmoji) {
+						collect(text.id);
+					}
+				},
+				[](const Data::Photo &) {},
+				[](const Data::Document &) {});
 		}
 	}
 }
@@ -2088,13 +2544,16 @@ Data::FileOrigin ApiWrap::currentFileMessageOrigin() const {
 	return result;
 }
 
-std::optional<QByteArray> ApiWrap::getCustomEmoji(QByteArray &data) {
+std::optional<QByteArray> ApiWrap::getCustomEmoji(
+		Data::Message &message,
+		QByteArray &data) {
 	if (const auto id = data.toULongLong()) {
 		const auto i = _resolvedCustomEmoji.find(id);
 		if (i == end(_resolvedCustomEmoji)) {
 			return Data::TextPart::UnavailableEmoji();
 		}
-		auto &file = i->second.file;
+		auto &document = i->second;
+		auto &file = document.file;
 		const auto fileProgress = [=](FileProgress value) {
 			if (_chatProcess) {
 				return loadMessageEmojiProgress(value);
@@ -2103,11 +2562,17 @@ std::optional<QByteArray> ApiWrap::getCustomEmoji(QByteArray &data) {
 			}
 			return true;
 		};
+		const auto policy = FilePolicy{
+			.message = &message,
+			.type = DocumentMediaType(document),
+			.controllingSize = document.file.size,
+		};
 		const auto ready = processFileLoad(
 			file,
 			{ .customEmojiId = id },
 			fileProgress,
-			[=](const QString &path) { loadCustomEmojiDone(id, path); });
+			[=](const QString &path) { loadCustomEmojiDone(id, path); },
+			policy);
 		if (!ready) {
 			return std::nullopt;
 		}
@@ -2125,67 +2590,200 @@ std::optional<QByteArray> ApiWrap::getCustomEmoji(QByteArray &data) {
 }
 
 bool ApiWrap::messageCustomEmojiReady(Data::Message &message) {
+	const auto resolve = [&](QByteArray &data) {
+		auto result = getCustomEmoji(message, data);
+		if (!result.has_value()) {
+			return false;
+		}
+		data = base::take(*result);
+		return true;
+	};
 	for (auto &part : message.text) {
 		if (part.type == Data::TextPart::Type::CustomEmoji) {
-			auto data = getCustomEmoji(part.additional);
-			if (data.has_value()) {
-				part.additional = base::take(*data);
-			} else {
+			if (!resolve(part.additional)) {
 				return false;
 			}
 		}
 	}
 	for (auto &reaction : message.reactions) {
 		if (reaction.type == Data::Reaction::Type::CustomEmoji) {
-			auto data = getCustomEmoji(reaction.documentId);
-			if (data.has_value()) {
-				reaction.documentId = base::take(*data);
-			} else {
+			if (!resolve(reaction.documentId)) {
 				return false;
 			}
 		}
 	}
-	return true;
+	if (!message.richMessage) {
+		return true;
+	}
+	auto ready = true;
+	VisitRichMessage(
+		*message.richMessage,
+		[&](Data::RichText &text) {
+			if (ready
+				&& text.type == Data::RichText::Type::CustomEmoji) {
+				ready = resolve(text.customEmojiData);
+			}
+		},
+		[](Data::Photo &) {},
+		[](Data::Document &) {});
+	return ready;
+}
+
+void ApiWrap::buildMessageFileWork(
+		AbstractMessagesProcess &process,
+		Data::Message &message) {
+	Expects(process.messageFileWork.empty());
+	Expects(process.messageFileWorkIndex == 0);
+	Expects(process.messageFileWorkMessageIndex < 0);
+
+	const auto append = [&process](
+			Data::File *file,
+			MediaSettings::Type type,
+			int64 controllingSize,
+			bool rich) {
+		Expects(file != nullptr);
+		process.messageFileWork.push_back(MessageFileWork{
+			.file = file,
+			.controllingSize = controllingSize,
+			.type = type,
+			.rich = rich,
+		});
+	};
+
+	auto ordinaryMain = static_cast<Data::File*>(nullptr);
+	auto ordinaryDocument = static_cast<Data::Document*>(nullptr);
+	auto ordinaryType = MediaSettings::Type::Photo;
+	v::match(
+		message.action.content,
+		[&](Data::ActionChatEditPhoto &action) {
+			ordinaryMain = &action.photo.image.file;
+		},
+		[&](Data::ActionSuggestProfilePhoto &action) {
+			ordinaryMain = &action.photo.image.file;
+		},
+		[](auto &) {});
+	v::match(
+		message.media.content,
+		[&](Data::Photo &photo) {
+			if (!ordinaryMain) {
+				ordinaryMain = &photo.image.file;
+			}
+		},
+		[&](Data::Document &document) {
+			ordinaryDocument = &document;
+			if (!ordinaryMain) {
+				ordinaryMain = &document.file;
+				ordinaryType = DocumentMediaType(document);
+			}
+		},
+		[&](Data::SharedContact &contact) {
+			if (!ordinaryMain) {
+				ordinaryMain = &contact.vcard;
+			}
+		},
+		[](auto &) {});
+	const auto ordinarySize = ordinaryMain ? ordinaryMain->size : 0;
+	if (ordinaryMain) {
+		append(ordinaryMain, ordinaryType, ordinarySize, false);
+	}
+	if (ordinaryDocument && ordinaryDocument->thumb.width > 0) {
+		append(
+			&ordinaryDocument->thumb.file,
+			DocumentMediaType(*ordinaryDocument),
+			ordinarySize,
+			false);
+	}
+
+	if (message.richMessage) {
+		auto richFiles = std::set<Data::File*>();
+		const auto appendRich = [&richFiles, &append](
+				Data::File &file,
+				MediaSettings::Type type,
+				int64 controllingSize) {
+			if (richFiles.emplace(&file).second) {
+				append(&file, type, controllingSize, true);
+			}
+		};
+		VisitRichMessage(
+			*message.richMessage,
+			[](Data::RichText &) {},
+			[&](Data::Photo &photo) {
+				appendRich(
+					photo.image.file,
+					MediaSettings::Type::Photo,
+					photo.image.file.size);
+			},
+			[&](Data::Document &document) {
+				const auto type = DocumentMediaType(document);
+				const auto controllingSize = document.file.size;
+				appendRich(document.file, type, controllingSize);
+				if (document.thumb.width > 0) {
+					appendRich(document.thumb.file, type, controllingSize);
+				}
+			});
+	}
+
+	process.messageFileWorkMessageIndex = process.fileIndex;
 }
 
 void ApiWrap::loadNextMessageFile() {
 	Expects(_chatProcess != nullptr);
 	Expects(_chatProcess->slice.has_value());
+	Expects(_chatProcess->hydrationIndex
+		== _chatProcess->slice->list.size());
 
-	for (auto &list = _chatProcess->slice->list
-		; _chatProcess->fileIndex < list.size()
-		; ++_chatProcess->fileIndex) {
-		auto &message = list[_chatProcess->fileIndex];
+	auto &process = *_chatProcess;
+	auto &list = process.slice->list;
+	while (process.fileIndex < list.size()) {
+		const auto index = process.fileIndex;
+		auto &message = list[index];
 		if (Data::SkipMessageByDate(message, *_settings)) {
+			Expects(process.messageFileWork.empty());
+			Expects(process.messageFileWorkMessageIndex < 0);
+			++process.fileIndex;
 			continue;
 		}
 		if (!messageCustomEmojiReady(message)) {
 			return;
 		}
-		const auto fileProgress = [=](FileProgress value) {
-			return loadMessageFileProgress(value);
-		};
-		const auto ready = processFileLoad(
-			list[_chatProcess->fileIndex].file(),
-			currentFileMessageOrigin(),
-			fileProgress,
-			[=](const QString &path) { loadMessageFileDone(path); },
-			currentFileMessage());
-		if (!ready) {
-			return;
+		if (process.messageFileWorkMessageIndex < 0) {
+			buildMessageFileWork(process, message);
 		}
-		const auto thumbProgress = [=](FileProgress value) {
-			return loadMessageThumbProgress(value);
-		};
-		const auto thumbReady = processFileLoad(
-			list[_chatProcess->fileIndex].thumb().file,
-			currentFileMessageOrigin(),
-			thumbProgress,
-			[=](const QString &path) { loadMessageThumbDone(path); },
-			currentFileMessage());
-		if (!thumbReady) {
-			return;
+		Expects(process.messageFileWorkMessageIndex == index);
+		while (process.messageFileWorkIndex
+				< process.messageFileWork.size()) {
+			const auto work = process.messageFileWork[
+				process.messageFileWorkIndex];
+			const auto target = work.file;
+			Expects(target != nullptr);
+			auto origin = currentFileMessageOrigin();
+			origin.richMessage = work.rich;
+			const auto policy = FilePolicy{
+				.message = &message,
+				.type = work.type,
+				.controllingSize = work.controllingSize,
+			};
+			const auto ready = processFileLoad(
+				*target,
+				origin,
+				[=](FileProgress value) {
+					return loadMessageFileProgress(index, value);
+				},
+				[=](const QString &path) {
+					loadMessageFileDone(index, target, path);
+				},
+				policy);
+			if (!ready) {
+				return;
+			}
+			Expects(!target->relativePath.isEmpty()
+				|| target->skipReason != Data::File::SkipReason::None);
+			++process.messageFileWorkIndex;
 		}
+		process.messageFileWork.clear();
+		process.messageFileWorkIndex = 0;
+		process.messageFileWorkMessageIndex = -1;
+		++process.fileIndex;
 	}
 	finishMessagesSlice();
 }
@@ -2193,6 +2791,9 @@ void ApiWrap::loadNextMessageFile() {
 void ApiWrap::finishMessagesSlice() {
 	Expects(_chatProcess != nullptr);
 	Expects(_chatProcess->slice.has_value());
+	Expects(_chatProcess->messageFileWork.empty());
+	Expects(_chatProcess->messageFileWorkIndex == 0);
+	Expects(_chatProcess->messageFileWorkMessageIndex < 0);
 
 	auto slice = *base::take(_chatProcess->slice);
 	if (!slice.list.empty()) {
@@ -2219,57 +2820,48 @@ void ApiWrap::finishMessagesSlice() {
 	}
 }
 
-bool ApiWrap::loadMessageFileProgress(FileProgress progress) {
+bool ApiWrap::loadMessageFileProgress(int index, FileProgress progress) {
 	Expects(_fileProcess != nullptr);
 	Expects(_chatProcess != nullptr);
 	Expects(_chatProcess->slice.has_value());
-	Expects((_chatProcess->fileIndex >= 0)
-		&& (_chatProcess->fileIndex < _chatProcess->slice->list.size()));
+	Expects(index >= 0 && index < _chatProcess->slice->list.size());
+	Expects(_chatProcess->fileIndex == index);
 
 	return _chatProcess->fileProgress(DownloadProgress{
 		.randomId = _fileProcess->randomId,
 		.path = _fileProcess->relativePath,
-		.itemIndex = _chatProcess->fileIndex,
+		.itemIndex = index,
 		.ready = progress.ready,
 		.total = progress.total });
 }
 
-void ApiWrap::loadMessageFileDone(const QString &relativePath) {
+void ApiWrap::loadMessageFileDone(
+		int index,
+		Data::File *file,
+		const QString &relativePath) {
 	Expects(_chatProcess != nullptr);
 	Expects(_chatProcess->slice.has_value());
-	Expects((_chatProcess->fileIndex >= 0)
-		&& (_chatProcess->fileIndex < _chatProcess->slice->list.size()));
+	Expects(file != nullptr);
+	Expects(index >= 0 && index < _chatProcess->slice->list.size());
+	Expects(_chatProcess->fileIndex == index);
+	Expects(_chatProcess->messageFileWorkMessageIndex == index);
+	Expects(_chatProcess->messageFileWorkIndex >= 0);
+	Expects(_chatProcess->messageFileWorkIndex
+		< _chatProcess->messageFileWork.size());
+	Expects(_chatProcess->messageFileWork[
+		_chatProcess->messageFileWorkIndex].file == file);
 
-	const auto index = _chatProcess->fileIndex;
-	auto &file = _chatProcess->slice->list[index].file();
-	file.relativePath = relativePath;
+	file->relativePath = relativePath;
 	if (relativePath.isEmpty()) {
-		file.skipReason = Data::File::SkipReason::Unavailable;
-	}
-	loadNextMessageFile();
-}
-
-bool ApiWrap::loadMessageThumbProgress(FileProgress progress) {
-	return loadMessageFileProgress(progress);
-}
-
-void ApiWrap::loadMessageThumbDone(const QString &relativePath) {
-	Expects(_chatProcess != nullptr);
-	Expects(_chatProcess->slice.has_value());
-	Expects((_chatProcess->fileIndex >= 0)
-		&& (_chatProcess->fileIndex < _chatProcess->slice->list.size()));
-
-	const auto index = _chatProcess->fileIndex;
-	auto &file = _chatProcess->slice->list[index].thumb().file;
-	file.relativePath = relativePath;
-	if (relativePath.isEmpty()) {
-		file.skipReason = Data::File::SkipReason::Unavailable;
+		file->skipReason = Data::File::SkipReason::Unavailable;
 	}
 	loadNextMessageFile();
 }
 
 bool ApiWrap::loadMessageEmojiProgress(FileProgress progress) {
-	return loadMessageFileProgress(progress);
+	Expects(_chatProcess != nullptr);
+
+	return loadMessageFileProgress(_chatProcess->fileIndex, progress);
 }
 
 void ApiWrap::loadMessageEmojiDone(uint64 id, const QString &relativePath) {
@@ -2284,18 +2876,11 @@ void ApiWrap::loadMessageEmojiDone(uint64 id, const QString &relativePath) {
 }
 
 bool ApiWrap::loadTopicEmojiProgress(FileProgress progress) {
-	Expects(_fileProcess != nullptr);
 	Expects(_topicProcess != nullptr);
-	Expects(_topicProcess->slice.has_value());
-	Expects((_topicProcess->fileIndex >= 0)
-		&& (_topicProcess->fileIndex < _topicProcess->slice->list.size()));
 
-	return _topicProcess->fileProgress(DownloadProgress{
-		.randomId = _fileProcess->randomId,
-		.path = _fileProcess->relativePath,
-		.itemIndex = _topicProcess->fileIndex,
-		.ready = progress.ready,
-		.total = progress.total });
+	return loadTopicMessageFileProgress(
+		_topicProcess->fileIndex,
+		progress);
 }
 
 void ApiWrap::loadCustomEmojiDone(uint64 id, const QString &relativePath) {
@@ -2399,10 +2984,7 @@ void ApiWrap::requestTopicMessages(
 				}
 
 				if (!rootSlicePtr->list.empty()) {
-					collectMessagesCustomEmoji(*rootSlicePtr);
-					_topicProcess->slice = std::move(*rootSlicePtr);
-					_topicProcess->fileIndex = 0;
-					resolveTopicCustomEmoji();
+					startMessagesSlice(std::move(*rootSlicePtr));
 					return;
 				}
 
@@ -2474,18 +3056,15 @@ void ApiWrap::loadTopicMessagesFiles(Data::MessagesSlice &&slice) {
 	Expects(_topicProcess != nullptr);
 	Expects(!_topicProcess->slice.has_value());
 
-	collectMessagesCustomEmoji(slice);
-
-	if (slice.list.empty()) {
-		_topicProcess->lastSlice = true;
-	}
-	_topicProcess->slice = std::move(slice);
-	_topicProcess->fileIndex = 0;
-
-	resolveTopicCustomEmoji();
+	startMessagesSlice(std::move(slice));
 }
 
 void ApiWrap::resolveTopicCustomEmoji() {
+	Expects(_topicProcess != nullptr);
+	Expects(_topicProcess->slice.has_value());
+	Expects(_topicProcess->hydrationIndex
+		== _topicProcess->slice->list.size());
+
 	if (_unresolvedCustomEmoji.empty()) {
 		loadNextTopicMessageFile();
 		return;
@@ -2538,49 +3117,65 @@ void ApiWrap::resolveTopicCustomEmoji() {
 void ApiWrap::loadNextTopicMessageFile() {
 	Expects(_topicProcess != nullptr);
 	Expects(_topicProcess->slice.has_value());
+	Expects(_topicProcess->hydrationIndex
+		== _topicProcess->slice->list.size());
 
-	const auto makeProgress = [=](FileProgress progress) {
-		return _topicProcess->fileProgress(DownloadProgress{
-			.randomId = _fileProcess->randomId,
-			.path = _fileProcess->relativePath,
-			.itemIndex = _topicProcess->fileIndex,
-			.ready = progress.ready,
-			.total = progress.total,
-		});
-	};
-	for (auto &list = _topicProcess->slice->list
-		; _topicProcess->fileIndex < list.size()
-		; ++_topicProcess->fileIndex) {
-		auto &message = list[_topicProcess->fileIndex];
+	auto &process = *_topicProcess;
+	auto &list = process.slice->list;
+	while (process.fileIndex < list.size()) {
+		const auto index = process.fileIndex;
+		auto &message = list[index];
+		if (Data::SkipMessageByDate(message, *_settings)) {
+			Expects(process.messageFileWork.empty());
+			Expects(process.messageFileWorkIndex == 0);
+			Expects(process.messageFileWorkMessageIndex < 0);
+			++process.fileIndex;
+			continue;
+		}
 		if (!messageCustomEmojiReady(message)) {
 			return;
 		}
-		const auto origin = Data::FileOrigin{
-			.peer = _topicProcess->inputPeer,
-			.messageId = message.id
-		};
-		const auto ready = processFileLoad(
-			message.file(),
-			origin,
-			makeProgress,
-			[=, &message](const QString &path) {
-				loadTopicMessageFileOrThumbDone(message.file(), path);
-			},
-			&message);
-		if (!ready) {
-			return;
+		if (process.messageFileWorkMessageIndex < 0) {
+			buildMessageFileWork(process, message);
 		}
-		const auto thumbReady = processFileLoad(
-			message.thumb().file,
-			origin,
-			makeProgress,
-			[=, &message](const QString &path) {
-				loadTopicMessageFileOrThumbDone(message.thumb().file, path);
-			},
-			&message);
-		if (!thumbReady) {
-			return;
+		Expects(process.messageFileWorkMessageIndex == index);
+		while (process.messageFileWorkIndex
+				< process.messageFileWork.size()) {
+			const auto work = process.messageFileWork[
+				process.messageFileWorkIndex];
+			const auto target = work.file;
+			Expects(target != nullptr);
+			auto origin = Data::FileOrigin{
+				.peer = process.inputPeer,
+				.messageId = message.id,
+			};
+			origin.richMessage = work.rich;
+			const auto policy = FilePolicy{
+				.message = &message,
+				.type = work.type,
+				.controllingSize = work.controllingSize,
+			};
+			const auto ready = processFileLoad(
+				*target,
+				origin,
+				[=](FileProgress value) {
+					return loadTopicMessageFileProgress(index, value);
+				},
+				[=](const QString &path) {
+					loadTopicMessageFileDone(index, target, path);
+				},
+				policy);
+			if (!ready) {
+				return;
+			}
+			Expects(!target->relativePath.isEmpty()
+				|| target->skipReason != Data::File::SkipReason::None);
+			++process.messageFileWorkIndex;
 		}
+		process.messageFileWork.clear();
+		process.messageFileWorkIndex = 0;
+		process.messageFileWorkMessageIndex = -1;
+		++process.fileIndex;
 	}
 	finishTopicMessagesSlice();
 }
@@ -2588,6 +3183,11 @@ void ApiWrap::loadNextTopicMessageFile() {
 void ApiWrap::finishTopicMessagesSlice() {
 	Expects(_topicProcess != nullptr);
 	Expects(_topicProcess->slice.has_value());
+	Expects(_topicProcess->hydrationIndex
+		== _topicProcess->slice->list.size());
+	Expects(_topicProcess->messageFileWork.empty());
+	Expects(_topicProcess->messageFileWorkIndex == 0);
+	Expects(_topicProcess->messageFileWorkMessageIndex < 0);
 
 	auto slice = *base::take(_topicProcess->slice);
 	if (!slice.list.empty()) {
@@ -2608,17 +3208,42 @@ void ApiWrap::finishTopicMessagesSlice() {
 	}
 }
 
-void ApiWrap::loadTopicMessageFileOrThumbDone(
-		Data::File &file,
+bool ApiWrap::loadTopicMessageFileProgress(
+		int index,
+		FileProgress progress) {
+	Expects(_fileProcess != nullptr);
+	Expects(_topicProcess != nullptr);
+	Expects(_topicProcess->slice.has_value());
+	Expects(index >= 0 && index < _topicProcess->slice->list.size());
+	Expects(_topicProcess->fileIndex == index);
+
+	return _topicProcess->fileProgress(DownloadProgress{
+		.randomId = _fileProcess->randomId,
+		.path = _fileProcess->relativePath,
+		.itemIndex = index,
+		.ready = progress.ready,
+		.total = progress.total });
+}
+
+void ApiWrap::loadTopicMessageFileDone(
+		int index,
+		Data::File *file,
 		const QString &relativePath) {
 	Expects(_topicProcess != nullptr);
 	Expects(_topicProcess->slice.has_value());
-	Expects((_topicProcess->fileIndex >= 0)
-		&& (_topicProcess->fileIndex < _topicProcess->slice->list.size()));
+	Expects(file != nullptr);
+	Expects(index >= 0 && index < _topicProcess->slice->list.size());
+	Expects(_topicProcess->fileIndex == index);
+	Expects(_topicProcess->messageFileWorkMessageIndex == index);
+	Expects(_topicProcess->messageFileWorkIndex >= 0);
+	Expects(_topicProcess->messageFileWorkIndex
+		< _topicProcess->messageFileWork.size());
+	Expects(_topicProcess->messageFileWork[
+		_topicProcess->messageFileWorkIndex].file == file);
 
-	file.relativePath = relativePath;
+	file->relativePath = relativePath;
 	if (relativePath.isEmpty()) {
-		file.skipReason = Data::File::SkipReason::Unavailable;
+		file->skipReason = Data::File::SkipReason::Unavailable;
 	}
 	loadNextTopicMessageFile();
 }
@@ -2629,6 +3254,40 @@ void ApiWrap::finishTopicMessages() {
 
 	const auto process = base::take(_topicProcess);
 	process->done();
+}
+
+bool ApiWrap::processFileLoad(
+		Data::File &file,
+		const Data::FileOrigin &origin,
+		Fn<bool(FileProgress)> progress,
+		FnMut<void(QString)> done,
+		const FilePolicy &policy) {
+	using SkipReason = Data::File::SkipReason;
+
+	Expects(_settings != nullptr);
+	Expects(policy.message != nullptr);
+	Expects(policy.type != MediaSettings::Type());
+
+	if (!file.relativePath.isEmpty()
+		|| file.skipReason != SkipReason::None) {
+		return true;
+	} else if (Data::SkipMessageByDate(*policy.message, *_settings)) {
+		file.skipReason = SkipReason::DateLimits;
+		return true;
+	} else if (!file.location && file.content.isEmpty()) {
+		file.skipReason = SkipReason::Unavailable;
+		return true;
+	} else if ((_settings->media.types & policy.type) != policy.type) {
+		file.skipReason = SkipReason::FileType;
+		return true;
+	} else if (policy.controllingSize > _settings->media.sizeLimit) {
+		file.skipReason = SkipReason::FileSize;
+		return true;
+	} else if (writePreloadedFile(file, origin)) {
+		return !file.relativePath.isEmpty();
+	}
+	loadFile(file, origin, std::move(progress), std::move(done));
+	return false;
 }
 
 bool ApiWrap::processFileLoad(
@@ -2650,30 +3309,14 @@ bool ApiWrap::processFileLoad(
 		return !file.relativePath.isEmpty();
 	}
 
-	using Type = MediaSettings::Type;
 	const auto media = message
 		? &message->media
 		: story
 		? &story->media
 		: nullptr;
-	const auto type = media ? v::match(media->content, [&](
-			const Data::Document &data) {
-		if (data.isSticker) {
-			return Type::Sticker;
-		} else if (data.isVideoMessage) {
-			return Type::VideoMessage;
-		} else if (data.isVoiceMessage) {
-			return Type::VoiceMessage;
-		} else if (data.isAnimated) {
-			return Type::GIF;
-		} else if (data.isVideoFile) {
-			return Type::Video;
-		} else {
-			return Type::File;
-		}
-	}, [](const auto &data) {
-		return Type::Photo;
-	}) : Type(0);
+	const auto type = media
+		? OrdinaryMediaType(*media)
+		: MediaSettings::Type(0);
 
 	const auto fullSize = message
 		? message->file().size
@@ -2860,11 +3503,36 @@ void ApiWrap::filePartDone(int64 offset, const MTPupload_File &result) {
 	process->done(process->relativePath);
 }
 
+QString ApiWrap::filePartMediaFolder() const {
+	if (_chatProcess) {
+		return _chatProcess->info.relativePath;
+	} else if (_topicProcess) {
+		return _topicProcess->relativePath;
+	}
+	return QString();
+}
+
+void ApiWrap::filePartRetryReference(
+		int64 offset,
+		Data::FileLocation location) {
+	Expects(_fileProcess != nullptr);
+	Expects(_fileProcess->requestId == 0);
+
+	_fileProcess->location = std::move(location);
+	_fileProcess->requestId = fileRequest(
+		_fileProcess->location,
+		offset
+	).done([=](const MTPupload_File &result) {
+		_fileProcess->requestId = 0;
+		filePartDone(offset, result);
+	}).send();
+}
+
 void ApiWrap::filePartRefreshReference(int64 offset) {
 	Expects(_fileProcess != nullptr);
 	Expects(_fileProcess->requestId == 0);
 
-	const auto &origin = _fileProcess->origin;
+	const auto origin = _fileProcess->origin;
 	if (origin.storyId) {
 		_fileProcess->requestId = mainRequest(MTPstories_GetStoriesByID(
 			MTP_inputPeerSelf(),
@@ -2878,7 +3546,52 @@ void ApiWrap::filePartRefreshReference(int64 offset) {
 			filePartExtractReference(offset, result);
 		}).send();
 		return;
-	} else if (!origin.messageId) {
+	}
+	if (origin.customEmojiId) {
+		const auto folder = filePartMediaFolder();
+		_fileProcess->requestId = mainRequest(
+			MTPmessages_GetCustomEmojiDocuments(
+				MTP_vector<MTPlong>(
+					1,
+					MTP_long(origin.customEmojiId)))
+		).fail([=](const MTP::Error &) {
+			_fileProcess->requestId = 0;
+			filePartUnavailable();
+			return true;
+		}).done([=](const MTPVector<MTPDocument> &result) {
+			_fileProcess->requestId = 0;
+			filePartExtractCustomEmojiReference(
+				offset,
+				origin.customEmojiId,
+				folder,
+				result);
+		}).send();
+		return;
+	}
+	if (origin.richMessage) {
+		if (!origin.messageId) {
+			filePartUnavailable();
+			return;
+		}
+		const auto folder = filePartMediaFolder();
+		_fileProcess->requestId = mainRequest(MTPmessages_GetRichMessage(
+			origin.peer,
+			MTP_int(origin.messageId)
+		)).fail([=](const MTP::Error &) {
+			_fileProcess->requestId = 0;
+			filePartUnavailable();
+			return true;
+		}).done([=](const MTPmessages_Messages &result) {
+			_fileProcess->requestId = 0;
+			filePartExtractRichReference(
+				offset,
+				origin,
+				folder,
+				result);
+		}).send();
+		return;
+	}
+	if (!origin.messageId) {
 		error("FILE_REFERENCE error for non-message file.");
 		return;
 	}
@@ -2924,12 +3637,97 @@ void ApiWrap::filePartRefreshReference(int64 offset) {
 	}
 }
 
+void ApiWrap::filePartExtractCustomEmojiReference(
+		int64 offset,
+		uint64 customEmojiId,
+		const QString &folder,
+		const MTPVector<MTPDocument> &result) {
+	Expects(_fileProcess != nullptr);
+	Expects(_fileProcess->requestId == 0);
+	Expects(_selfId.has_value());
+
+	auto context = Data::ParseMediaContext();
+	context.selfPeerId = peerFromUser(*_selfId);
+	auto document = std::optional<Data::Document>();
+	auto matches = 0;
+	for (const auto &entry : result.v) {
+		auto parsed = Data::ParseDocument(
+			context,
+			entry,
+			folder,
+			TimeId());
+		if (parsed.id != customEmojiId) {
+			continue;
+		}
+		++matches;
+		if (matches == 1) {
+			document = std::move(parsed);
+		}
+	}
+	if (matches != 1 || !document) {
+		filePartUnavailable();
+		return;
+	}
+	auto refreshed = _fileProcess->location;
+	const auto mainRefreshed = Data::RefreshFileReference(
+		refreshed,
+		document->file.location);
+	const auto thumbRefreshed = !mainRefreshed
+		&& document->thumb.width > 0
+		&& Data::RefreshFileReference(
+			refreshed,
+			document->thumb.file.location);
+	if (!mainRefreshed && !thumbRefreshed) {
+		filePartUnavailable();
+		return;
+	}
+	filePartRetryReference(offset, std::move(refreshed));
+}
+
+void ApiWrap::filePartExtractRichReference(
+		int64 offset,
+		const Data::FileOrigin &origin,
+		const QString &folder,
+		const MTPmessages_Messages &result) {
+	Expects(_fileProcess != nullptr);
+	Expects(_fileProcess->requestId == 0);
+	Expects(_selfId.has_value());
+
+	const auto richMessage = ExtractFullRichMessage(
+		result,
+		origin.messageId);
+	if (!richMessage) {
+		filePartUnavailable();
+		return;
+	}
+	auto context = Data::ParseMediaContext();
+	context.selfPeerId = peerFromUser(*_selfId);
+	const auto parsed = Data::ParseRichMessage(
+		context,
+		*richMessage,
+		folder,
+		TimeId());
+	if (parsed.part) {
+		filePartUnavailable();
+		return;
+	}
+	const auto refreshed = RefreshRichMessageFileReference(
+		_fileProcess->location,
+		parsed);
+	if (!refreshed) {
+		filePartUnavailable();
+		return;
+	}
+	filePartRetryReference(offset, *refreshed);
+}
+
 void ApiWrap::filePartExtractReference(
 		int64 offset,
 		const MTPmessages_Messages &result) {
 	Expects(_fileProcess != nullptr);
 	Expects(_fileProcess->requestId == 0);
 
+	const auto folder = filePartMediaFolder();
 	result.match([&](const MTPDmessages_messagesNotModified &data) {
 		error("Unexpected messagesNotModified received.");
 	}, [&](const auto &data) {
@@ -2942,23 +3740,19 @@ void ApiWrap::filePartExtractReference(
 			data.vmessages(),
 			data.vusers(),
 			data.vchats(),
-			_chatProcess->info.relativePath);
+			folder);
 		for (const auto &message : messages.list) {
 			if (message.id == _fileProcess->origin.messageId) {
-				const auto refresh1 = Data::RefreshFileReference(
-					_fileProcess->location,
-					message.file().location);
-				const auto refresh2 = Data::RefreshFileReference(
-					_fileProcess->location,
-					message.thumb().file.location);
-				if (refresh1 || refresh2) {
-					_fileProcess->requestId = fileRequest(
-						_fileProcess->location,
-						offset
-					).done([=](const MTPupload_File &result) {
-						_fileProcess->requestId = 0;
-						filePartDone(offset, result);
-					}).send();
+				auto refreshed = _fileProcess->location;
+				if (Data::RefreshFileReference(
+						refreshed,
+						message.file().location)
+					|| Data::RefreshFileReference(
+						refreshed,
+						message.thumb().file.location)) {
+					filePartRetryReference(
+						offset,
+						std::move(refreshed));
 					return;
 				}
 			}
@@ -2978,20 +3772,16 @@ void ApiWrap::filePartExtractReference(
 		0);
 	for (const auto &story : stories.list) {
 		if (story.id == _fileProcess->origin.storyId) {
-			const auto refresh1 = Data::RefreshFileReference(
-				_fileProcess->location,
-				story.file().location);
-			const auto refresh2 = Data::RefreshFileReference(
-				_fileProcess->location,
-				story.thumb().file.location);
-			if (refresh1 || refresh2) {
-				_fileProcess->requestId = fileRequest(
-					_fileProcess->location,
-					offset
-				).done([=](const MTPupload_File &result) {
-					_fileProcess->requestId = 0;
-					filePartDone(offset, result);
-				}).send();
+			auto refreshed = _fileProcess->location;
+			if (Data::RefreshFileReference(
+					refreshed,
+					story.file().location)
+				|| Data::RefreshFileReference(
+					refreshed,
+					story.thumb().file.location)) {
+				filePartRetryReference(
+					offset,
+					std::move(refreshed));
 				return;
 			}
 		}

@@ -33,6 +33,8 @@ extern const char kOptionHideAiButton[];
 	not_null<Main::Session*> session,
 	not_null<Ui::InputField*> field);
 
+[[nodiscard]] bool HasEnoughLinesForExpand(not_null<Ui::InputField*> field);
+
 struct SetupCaptionAiButtonArgs {
 	not_null<QWidget*> parent;
 	not_null<Ui::InputField*> field;

@@ -48,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webrtc/webrtc_video_track.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_history_view_voice_record_bar.h"
 #include "styles/style_layers.h"
 #include "styles/style_media_player.h"
 

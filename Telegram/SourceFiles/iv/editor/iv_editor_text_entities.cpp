@@ -620,6 +620,20 @@ RichTextEditorConversion ConvertRichTextToEditorTags(TextWithEntities text) {
 	};
 }
 
+TextWithEntities FormulaSourceToRichText(QString source) {
+	const auto length = int(source.size());
+	return ConvertEditorTagsToRichText(TextWithTags{
+		.text = std::move(source),
+		.tags = (length > 0)
+			? TextWithTags::Tags{ TextWithTags::Tag{
+				.offset = 0,
+				.length = length,
+				.id = Ui::InputField::kTagIvMath,
+			} }
+			: TextWithTags::Tags(),
+	});
+}
+
 int MapRichTextOffsetToEditorOffset(
 		const std::vector<RichTextEditorOffsetReplacement> &replacements,
 		int offset) {

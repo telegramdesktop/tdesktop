@@ -54,6 +54,11 @@ class Instance;
 class MusicListenTracker;
 struct TrackState;
 
+struct PlaylistContext {
+	MsgId topicRootId = 0;
+	PeerId monoforumPeerId = 0;
+};
+
 void start(not_null<Audio::Instance*> instance);
 void finish(not_null<Audio::Instance*> instance);
 
@@ -101,9 +106,21 @@ public:
 
 	void playPauseCancelClicked(AudioMsgId::Type type);
 
-	void play(const AudioMsgId &audioId);
-	void playPause(const AudioMsgId &audioId);
+	void play(
+		const AudioMsgId &audioId,
+		std::optional<PlaylistContext> context = {});
+	void playPause(
+		const AudioMsgId &audioId,
+		std::optional<PlaylistContext> context = {});
 	[[nodiscard]] TrackState getState(AudioMsgId::Type type) const;
+
+	[[nodiscard]] PlaylistContext playlistContext(
+		AudioMsgId::Type type) const {
+		if (const auto data = getData(type)) {
+			return { data->topicRootId, data->monoforumPeerId };
+		}
+		return {};
+	}
 
 	[[nodiscard]] Streaming::Instance *roundVideoStreamed(
 		HistoryItem *item) const;
@@ -299,8 +316,13 @@ private:
 	void setHistory(
 		not_null<Data*> data,
 		History *history,
-		Main::Session *sessionFallback = nullptr);
+		Main::Session *sessionFallback = nullptr,
+		HistoryItem *item = nullptr,
+		std::optional<PlaylistContext> context = {});
 	void setSession(not_null<Data*> data, Main::Session *session);
+
+	std::optional<PlaylistContext> _pendingContext;
+	AudioMsgId _pendingContextFor;
 
 	Data _songData;
 	Data _voiceData;

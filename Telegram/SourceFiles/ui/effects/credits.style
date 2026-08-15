@@ -99,6 +99,10 @@ tonIconEmojiLarge: IconEmoji {
 tonIconEmojiInSmall: IconEmoji(tonIconEmoji) {
 	padding: margins(0px, 2px, 0px, 0px);
 }
+tonIconEmojiOnSale: IconEmoji(tonIconEmojiInSmall) {
+	icon: icon{{ "chat/mini_ton_bold-14x14", currencyFg }};
+	padding: margins(1px, 3px, 1px, 0px);
+}
 buttonTonIconEmoji: IconEmoji(tonIconEmoji) {
 	padding: margins(1px, 3px, 1px, 0px);
 }

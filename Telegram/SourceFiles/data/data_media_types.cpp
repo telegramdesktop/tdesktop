@@ -1139,9 +1139,9 @@ Storage::SharedMediaTypesMask MediaFile::sharedMediaTypes() const {
 }
 
 bool MediaFile::canBeGrouped() const {
-	if (_document->sticker() || _document->isAnimation()) {
+	if (_document->sticker() || _document->isVideoMessage()) {
 		return false;
-	} else if (_document->isVideoFile()) {
+	} else if (_document->isVideoFile() || _document->isAnimation()) {
 		return true;
 	} else if (_document->isTheme() && _document->hasThumbnail()) {
 		return false;
@@ -1221,7 +1221,8 @@ ItemPreview MediaFile::toPreview(ToPreviewOptions options) const {
 			}
 		}
 	}
-	const auto type = [&]() -> TextWithEntities {
+	auto typeIcon = (const style::IconEmoji*)nullptr;
+	auto type = [&]() -> TextWithEntities {
 		using namespace Ui::Text;
 		if (_document->isVideoMessage()) {
 			return WithEntities((item->media() && item->media()->ttlSeconds())
@@ -1245,12 +1246,20 @@ ItemPreview MediaFile::toPreview(ToPreviewOptions options) const {
 			return WithEntities(tr::lng_in_dlg_audio(tr::now));
 		} else if (const auto name = FormatSongNameFor(_document).string();
 				!name.isEmpty()) {
+			typeIcon = (_document->isSong() || _document->isAudioFile())
+				? &st::dialogsMiniAudioIcon
+				: &st::dialogsMiniFileIcon;
 			return WithEntities(name);
 		} else if (_document->isAudioFile()) {
+			typeIcon = &st::dialogsMiniAudioIcon;
 			return WithEntities(tr::lng_in_dlg_audio_file(tr::now));
 		}
+		typeIcon = &st::dialogsMiniFileIcon;
 		return WithEntities(tr::lng_in_dlg_file(tr::now));
 	}();
+	if (typeIcon && images.empty()) {
+		type = Ui::Text::IconEmoji(typeIcon).append(std::move(type));
+	}
 	const auto caption = (options.hideCaption || options.ignoreMessageText)
 		? TextWithEntities()
 		: Dialogs::Ui::DialogsPreviewText(options.translated
@@ -1590,6 +1599,14 @@ const SharedContact *MediaContact::sharedContact() const {
 	return &_contact;
 }
 
+ItemPreview MediaContact::toPreview(ToPreviewOptions options) const {
+	return {
+		.text = Ui::Text::Colorized(
+			Ui::Text::IconEmoji(&st::dialogsMiniContactIcon)
+		).append(notificationText()),
+	};
+}
+
 TextWithEntities MediaContact::notificationText() const {
 	return Ui::Text::Colorized(tr::lng_in_dlg_contact(tr::now));
 }
@@ -1602,12 +1619,7 @@ TextForMimeData MediaContact::clipboardText() const {
 	const auto text = u"[ "_q
 		+ tr::lng_in_dlg_contact(tr::now)
 		+ u" ]\n"_q
-		+ tr::lng_full_name(
-			tr::now,
-			lt_first_name,
-			_contact.firstName,
-			lt_last_name,
-			_contact.lastName).trimmed()
+		+ langFullName(_contact.firstName, _contact.lastName)
 		+ '\n'
 		+ _contact.phoneNumber;
 	return TextForMimeData::Simple(text);
@@ -1692,7 +1704,9 @@ QString MediaLocation::typeString() const {
 }
 
 ItemPreview MediaLocation::toPreview(ToPreviewOptions options) const {
-	const auto type = typeString();
+	const auto type = Ui::Text::IconEmoji(
+		&st::dialogsMiniLocationIcon
+	).append(typeString());
 	const auto hasMiniImages = false;
 	const auto text = TextWithEntities{ .text = _title };
 	return {
@@ -1787,6 +1801,14 @@ std::unique_ptr<Media> MediaCall::clone(not_null<HistoryItem*> parent) {
 
 const Call *MediaCall::call() const {
 	return &_call;
+}
+
+ItemPreview MediaCall::toPreview(ToPreviewOptions options) const {
+	return {
+		.text = Ui::Text::IconEmoji(
+			&st::dialogsMiniCallIcon
+		).append(notificationText()),
+	};
 }
 
 TextWithEntities MediaCall::notificationText() const {
@@ -2197,7 +2219,11 @@ TextWithEntities MediaInvoice::notificationText() const {
 
 ItemPreview MediaInvoice::toPreview(ToPreviewOptions options) const {
 	if (!_invoice.isPaidMedia || _invoice.extendedMedia.empty()) {
-		return Media::toPreview(options);
+		return {
+			.text = Ui::Text::IconEmoji(
+				&st::dialogsMiniInvoiceIcon
+			).append(notificationText()),
+		};
 	}
 	auto counts = AlbumCounts();
 	auto images = std::vector<ItemPreviewImage>();
@@ -2434,6 +2460,20 @@ std::unique_ptr<Media> MediaTodoList::clone(not_null<HistoryItem*> parent) {
 
 TodoListData *MediaTodoList::todolist() const {
 	return _todolist;
+}
+
+ItemPreview MediaTodoList::toPreview(ToPreviewOptions options) const {
+	const auto caption = (options.hideCaption || options.ignoreMessageText)
+		? TextWithEntities()
+		: Dialogs::Ui::DialogsPreviewText(options.translated
+			? parent()->translatedText()
+			: parent()->originalText());
+	const auto type = Ui::Text::IconEmoji(
+		&st::dialogsMiniTodoListIcon
+	).append(_todolist->title);
+	return {
+		.text = WithCaptionNotificationText(type, caption),
+	};
 }
 
 TextWithEntities MediaTodoList::notificationText() const {
@@ -2898,6 +2938,14 @@ bool MediaStory::storyMention() const {
 	return _mention;
 }
 
+ItemPreview MediaStory::toPreview(ToPreviewOptions options) const {
+	return {
+		.text = Ui::Text::Colorized(
+			Ui::Text::IconEmoji(&st::dialogsMiniStoryIcon)
+		).append(notificationText()),
+	};
+}
+
 TextWithEntities MediaStory::notificationText() const {
 	const auto stories = &parent()->history()->owner().stories();
 	const auto maybeStory = stories->lookup(_storyId);
@@ -3013,6 +3061,14 @@ const GiveawayStart *MediaGiveawayStart::giveawayStart() const {
 	return &_data;
 }
 
+ItemPreview MediaGiveawayStart::toPreview(ToPreviewOptions options) const {
+	return {
+		.text = Ui::Text::IconEmoji(
+			&st::dialogsMiniGiveawayIcon
+		).append(notificationText()),
+	};
+}
+
 TextWithEntities MediaGiveawayStart::notificationText() const {
 	return {
 		.text = tr::lng_prizes_title(tr::now, lt_count, _data.quantity),
@@ -3060,6 +3116,15 @@ std::unique_ptr<Media> MediaGiveawayResults::clone(
 
 const GiveawayResults *MediaGiveawayResults::giveawayResults() const {
 	return &_data;
+}
+
+ItemPreview MediaGiveawayResults::toPreview(
+		ToPreviewOptions options) const {
+	return {
+		.text = Ui::Text::Colorized(
+			Ui::Text::IconEmoji(&st::dialogsMiniGiveawayIcon)
+		).append(notificationText()),
+	};
 }
 
 TextWithEntities MediaGiveawayResults::notificationText() const {

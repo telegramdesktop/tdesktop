@@ -42,6 +42,8 @@ struct Descriptor {
 	not_null<Main::Session*> session,
 	Data::DefaultNotify type);
 
+bool ToggleMuteForever(not_null<Data::Thread*> thread);
+
 void FillMuteMenu(
 	not_null<Ui::PopupMenu*> menu,
 	Descriptor descriptor,

@@ -64,6 +64,13 @@ struct TextState {
 
 };
 
+void SyncFlatSelectionCursor(not_null<TextState*> state);
+void SetTextStatePosition(
+	not_null<TextState*> state,
+	uint16 symbol,
+	bool afterSymbol);
+void AddTextStateOffset(not_null<TextState*> state, uint16 offset);
+
 struct StateRequest {
 	Ui::Text::StateRequest::Flags flags = Ui::Text::StateRequest::Flag::LookupLink;
 	Ui::Text::StateRequest forText() const {

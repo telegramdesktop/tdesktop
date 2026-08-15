@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_lottie.h"
 #include "chat_helpers/stickers_list_footer.h"
 #include "ui/controls/tabbed_search.h"
+#include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/effects/animations.h"
@@ -919,6 +920,15 @@ bool StickersListWidget::searchShortcutsShown() const {
 	return (_section == Section::Search) && !_searchShortcutSets.empty();
 }
 
+bool StickersListWidget::canConsumeHorizontalScroll(QPoint position, int) {
+	if (!searchShortcutsShown() || (_searchShortcutsScrollMax <= 0)) {
+		return false;
+	}
+	const auto top = searchShortcutsTop();
+	return (position.y() >= top)
+		&& (position.y() < top + searchShortcutsHeight());
+}
+
 bool StickersListWidget::searchShortcutSelected() const {
 	return _searchSelectedSetId != 0;
 }
@@ -1114,16 +1124,14 @@ void StickersListWidget::toggleSearchLoading(bool loading) {
 void StickersListWidget::takeHeavyData(
 		std::vector<Set> &to,
 		std::vector<Set> &from) {
-	auto indices = base::flat_map<uint64, int>();
-	indices.reserve(from.size());
-	auto index = 0;
-	for (const auto &set : from) {
-		indices.emplace(set.id, index++);
-	}
+	auto used = std::vector<bool>(from.size(), false);
 	for (auto &toSet : to) {
-		const auto i = indices.find(toSet.id);
-		if (i != end(indices)) {
-			takeHeavyData(toSet, from[i->second]);
+		for (auto i = 0, count = int(from.size()); i != count; ++i) {
+			if (!used[i] && (from[i].id == toSet.id)) {
+				used[i] = true;
+				takeHeavyData(toSet, from[i]);
+				break;
+			}
 		}
 	}
 }
@@ -1740,8 +1748,8 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 
 				widthForTitle -= remove.width();
 			}
-			const auto amCreator
-				= (set.flags & Data::StickersSetFlag::AmCreator);
+			const auto amCreator = _features.openStickerSets
+				&& (set.flags & Data::StickersSetFlag::AmCreator);
 			if (amCreator) {
 				widthForTitle -= badgeWidth
 					+ st::stickersFeaturedUnreadSkip
@@ -2446,7 +2454,7 @@ StickersListWidget::createSearchShortcutRipple(int index) {
 		searchShortcutRect(index).size(),
 		st::roundRadiusLarge);
 	return std::make_unique<Ui::RippleAnimation>(
-		st::defaultRippleAnimation,
+		st().searchPackRipple,
 		std::move(mask),
 		[this, setId] {
 			const auto i = ranges::find(_searchShortcutSets, setId, &Set::id);
@@ -2637,7 +2645,8 @@ base::unique_qptr<Ui::PopupMenu> StickersListWidget::fillSetContextMenu(
 		_localSetsManager.get(),
 		crl::guard(this, [this](uint64 id) { removeSet(id); }),
 		crl::guard(this, [this] { update(); }),
-		st().menu);
+		st().menu,
+		st().icons);
 }
 
 base::unique_qptr<Ui::PopupMenu> FillStickerSetContextMenu(
@@ -2647,7 +2656,8 @@ base::unique_qptr<Ui::PopupMenu> FillStickerSetContextMenu(
 		not_null<LocalStickersManager*> localSetsManager,
 		Fn<void(uint64 setId)> remove,
 		Fn<void()> repaint,
-		const style::PopupMenu &menuSt) {
+		const style::PopupMenu &menuSt,
+		const style::ComposeIcons &icons) {
 	if (set->shortName.isEmpty()
 		|| (set->id == Data::Stickers::MegagroupSetId)
 		|| (set->id == Data::Stickers::CollectibleSetId)) {
@@ -2676,7 +2686,11 @@ base::unique_qptr<Ui::PopupMenu> FillStickerSetContextMenu(
 			[=] {
 				localSetsManager->install(setId);
 				if (isMasks) {
-					show->showToast(tr::lng_masks_installed(tr::now));
+					show->showToast({
+						.text = { tr::lng_masks_installed(tr::now) },
+						.iconLottie = u"toast/contact_check"_q,
+						.iconLottieSize = st::toastLottieIconSize,
+					});
 				} else if (isEmoji) {
 					session->data().stickers().notifyEmojiSetInstalled(
 						setId);
@@ -2688,27 +2702,31 @@ base::unique_qptr<Ui::PopupMenu> FillStickerSetContextMenu(
 					repaint();
 				}
 			},
-			&st::menuIconAdd);
+			&icons.menuSetAdd);
 	}
 	menu->addAction(
 		tr::lng_chat_link_share(tr::now),
 		[=] { FastShareLink(show, url); },
-		&st::menuIconShare);
+		&icons.menuSetShare);
 	menu->addAction(
 		tr::lng_context_copy_link(tr::now),
 		[=] {
 			TextUtilities::SetClipboardText(TextForMimeData::Simple(url));
-			show->showToast(isEmoji
-				? tr::lng_stickers_copied_emoji(tr::now)
-				: tr::lng_stickers_copied(tr::now));
+			show->showToast({
+				.text = { isEmoji
+					? tr::lng_stickers_copied_emoji(tr::now)
+					: tr::lng_stickers_copied(tr::now) },
+				.iconLottie = u"toast/voip_invite"_q,
+				.iconLottieSize = st::toastLottieIconSize,
+			});
 		},
-		&st::menuIconLink);
+		&icons.menuSetCopyLink);
 	if (installed) {
 		menu->addSeparator();
 		menu->addAction(
 			tr::lng_stickers_remove_pack_confirm(tr::now),
 			[=] { remove(setId); },
-			&st::menuIconDelete);
+			&icons.menuSetRemove);
 	}
 	return menu;
 }

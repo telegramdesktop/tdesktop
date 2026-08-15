@@ -223,6 +223,7 @@ void Polls::create(
 		SendAction action,
 		Fn<void()> done,
 		Fn<void(bool fileReferenceExpired)> fail) {
+	StripEphemeralReply(_session, action.replyTo);
 	_session->api().sendAction(action);
 
 	const auto history = action.history;

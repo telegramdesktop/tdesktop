@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/crash_reports.h"
 
+#include "core/version.h"
 #include "platform/platform_specific.h"
 #include "base/platform/base_platform_info.h"
 #include "core/launcher.h"

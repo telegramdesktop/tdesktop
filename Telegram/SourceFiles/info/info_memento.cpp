@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/similar_peers/info_similar_peers_widget.h"
 #include "info/reactions_list/info_reactions_list_widget.h"
 #include "info/requests_list/info_requests_list_widget.h"
+#include "info/community/info_community_widget.h"
+#include "info/community_requests/info_community_requests_widget.h"
 #include "info/peer_gifts/info_peer_gifts_widget.h"
 #include "info/polls/info_polls_list_widget.h"
 #include "info/polls/info_polls_results_widget.h"
@@ -35,7 +37,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Info {
 
 Memento::Memento(not_null<PeerData*> peer)
-: Memento(peer, Section::Type::Profile) {
+: Memento(peer, [&] {
+	const auto channel = peer->asChannel();
+	return (channel && channel->isCommunity())
+		? Section::Type::Community
+		: Section::Type::Profile;
+}()) {
 }
 
 Memento::Memento(not_null<PeerData*> peer, Section section)
@@ -217,6 +224,10 @@ std::shared_ptr<ContentMemento> Memento::DefaultContent(
 		return std::make_shared<SimilarPeers::Memento>(peer);
 	case Section::Type::RequestsList:
 		return std::make_shared<RequestsList::Memento>(peer);
+	case Section::Type::Community:
+		return std::make_shared<Community::Memento>(peer);
+	case Section::Type::CommunityRequests:
+		return std::make_shared<CommunityRequests::Memento>(peer);
 	case Section::Type::SavedSublists:
 		return std::make_shared<Saved::SublistsMemento>(&peer->session());
 	case Section::Type::Members:

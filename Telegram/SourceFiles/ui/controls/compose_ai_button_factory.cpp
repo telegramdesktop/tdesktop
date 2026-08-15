@@ -63,6 +63,27 @@ bool HasEnoughLinesForAi(
 	return false;
 }
 
+bool HasEnoughLinesForExpand(not_null<Ui::InputField*> field) {
+	const auto &style = field->st().style;
+	const auto lineHeight = style.lineHeight
+		? style.lineHeight
+		: style.font->height;
+	const auto margins = field->fullTextMargins();
+	const auto contentHeight = field->height()
+		- margins.top()
+		- margins.bottom();
+	if (contentHeight < (3 * lineHeight)) {
+		return false;
+	}
+	const auto &text = field->getLastText();
+	for (const auto &ch : text) {
+		if (!Text::IsTrimmed(ch) && !Text::IsReplacedBySpace(ch)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 PreparedList PrepareTextAsFile(const QString &text) {
 	auto content = text.toUtf8();
 	auto result = PreparedList();

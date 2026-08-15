@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/basic_types.h"
+#include "base/weak_ptr.h"
+#include "data/data_file_origin.h"
 #include "data/data_msg_id.h"
 
 #include <QtCore/QString>
@@ -28,6 +30,10 @@ namespace Iv::Markdown {
 class MediaRuntime;
 } // namespace Iv::Markdown
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
 namespace Iv {
 
 [[nodiscard]] auto CreateCachedPageMediaRuntime(
@@ -41,7 +47,9 @@ namespace Iv {
 	not_null<Main::Session*> session,
 	FullMsgId itemId,
 	Fn<void(QString)> openChannel,
-	Fn<void(QString)> joinChannel)
+	Fn<void(QString)> joinChannel,
+	::Data::FileOrigin draftOrigin = {},
+	base::weak_ptr<Window::SessionController> controller = {})
 -> std::shared_ptr<Markdown::MediaRuntime>;
 
 [[nodiscard]] auto CreateMessageMediaRuntime(

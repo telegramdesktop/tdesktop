@@ -79,6 +79,10 @@ private:
 		Unexpected("Type in Dialogs::TabLabel.");
 	case ChatSearchTab::PublicPosts:
 		return tr::lng_search_tab_public_posts(tr::now);
+	case ChatSearchTab::Archive:
+		return tr::lng_search_tab_archive(tr::now);
+	case ChatSearchTab::ThisCommunity:
+		return tr::lng_search_tab_this_community(tr::now);
 	}
 	Unexpected("Tab in Dialogs::TabLabel.");
 }

@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_peer.h"
-#include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 
 PeerListsBox::PeerListsBox(

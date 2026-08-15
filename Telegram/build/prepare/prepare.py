@@ -455,7 +455,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 3d675589b35f950cb0731c3c18d9e3f32c590131
+    git checkout a17d54b63128c83cb53bd71044119e77b3a2da02
 mac:
     git clone https://github.com/desktop-app/qt6_highsierra_patches.git qt6_highsierra
     cd qt6_highsierra
@@ -641,7 +641,7 @@ win32_release:
 win64_release:
     perl Configure no-shared no-tests VC-WIN64A /FS
 winarm_release:
-    perl Configure no-shared no-tests VC-WIN64-ARM /FS
+    perl Configure no-shared no-tests VC-WIN64-ARM /FS /Gs4096
 win_release:
     jom -j%NUMBER_OF_PROCESSORS% build_libs
     mkdir out
@@ -743,7 +743,7 @@ win:
 
 # Somehow in x86 Debug build dav1d crashes on AV1 10bpc videos.
 stage('dav1d', """
-    git clone -b 1.5.3 https://code.videolan.org/videolan/dav1d.git
+    git clone -b 1.5.4 https://code.videolan.org/videolan/dav1d.git
     cd dav1d
 win32:
     SET "TARGET=x86"
@@ -866,7 +866,7 @@ mac:
 """)
 
 stage('libavif', """
-    git clone -b v1.3.0 https://github.com/AOMediaCodec/libavif.git
+    git clone -b v1.4.2 https://github.com/AOMediaCodec/libavif.git
     cd libavif
 win:
     cmake . ^
@@ -895,7 +895,7 @@ mac:
 """)
 
 stage('libde265', """
-    git clone -b v1.0.16 https://github.com/strukturag/libde265.git
+    git clone -b v1.1.1 https://github.com/strukturag/libde265.git
     cd libde265
 win:
     cmake . ^
@@ -966,7 +966,7 @@ mac:
 """)
 
 stage('libheif', """
-    git clone -b v1.21.2 https://github.com/strukturag/libheif.git
+    git clone -b v1.23.1 https://github.com/strukturag/libheif.git
     cd libheif
 win:
     %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/LIBHEIF_EXPORTS/LIBDE265_STATIC_BUILD/g' libheif/CMakeLists.txt
@@ -977,7 +977,7 @@ win:
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DBUILD_SHARED_LIBS=OFF ^
-        -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON ^
+        -DBUILD_DOCUMENTATION=OFF ^
         -DBUILD_TESTING=OFF ^
         -DENABLE_PLUGIN_LOADING=OFF ^
         -DWITH_LIBDE265=ON ^
@@ -1002,7 +1002,7 @@ mac:
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
         -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX \\
         -D BUILD_SHARED_LIBS=OFF \\
-        -D CMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \\
+        -D BUILD_DOCUMENTATION=OFF \\
         -D BUILD_TESTING=OFF \\
         -D ENABLE_PLUGIN_LOADING=OFF \\
         -D WITH_AOM_ENCODER=OFF \\
@@ -1026,7 +1026,7 @@ mac:
 """)
 
 stage('libjxl', """
-    git clone -b v0.11.2 --recursive --shallow-submodules https://github.com/libjxl/libjxl.git
+    git clone -b v0.12.0 --recursive --shallow-submodules https://github.com/libjxl/libjxl.git
     cd libjxl
 """ + setVar("cmake_defines", """
     -DBUILD_SHARED_LIBS=OFF
@@ -1038,7 +1038,6 @@ stage('libjxl', """
     -DJPEGXL_ENABLE_MANPAGES=OFF
     -DJPEGXL_ENABLE_EXAMPLES=OFF
     -DJPEGXL_ENABLE_JNI=OFF
-    -DJPEGXL_ENABLE_JPEGLI_LIBJPEG=OFF
     -DJPEGXL_ENABLE_SJPEG=OFF
     -DJPEGXL_ENABLE_OPENEXR=OFF
     -DJPEGXL_ENABLE_SKCMS=ON
@@ -1175,7 +1174,7 @@ stage('regex', """
 """)
 
 stage('ffmpeg', """
-    git clone -b n6.1.1 https://github.com/FFmpeg/FFmpeg.git ffmpeg
+    git clone -b n6.1.6 https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
 win:
 depends:patches/ffmpeg.patch
@@ -1509,7 +1508,7 @@ if qt < '6':
 win:
     git clone https://github.com/desktop-app/tg_angle.git
     cd tg_angle
-    git checkout fedf9110db
+    git checkout d4c3606e47
     cmake -B out ^
         -DTG_ANGLE_SPECIAL_TARGET=%SPECIAL_TARGET% ^
         -DTG_ANGLE_ZLIB_INCLUDE_PATH=%LIBS_DIR%/zlib
@@ -1579,7 +1578,10 @@ win:
         -nomake tests ^
         -platform win32-msvc
 
-    jom -j%NUMBER_OF_PROCESSORS%
+    rem jom -jN occasionally fails to create the shared mkspecs\\modules-inst
+    rem directory due to a race in qmake's mkpath under parallel builds; the
+    rem build is incremental, so simply retrying picks up where it stopped.
+    jom -j%NUMBER_OF_PROCESSORS% || jom -j%NUMBER_OF_PROCESSORS%
     jom -j%NUMBER_OF_PROCESSORS% install
 """)
 else: # qt > '6'

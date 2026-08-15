@@ -808,8 +808,12 @@ void MainWidget::searchMessages(
 	const auto archiveWindow = (_controller->windowId().type
 		== Window::SeparateType::Archive);
 	if (_dialogs
-		&& !archiveWindow
-		&& (!ForceComposeSearchOneColumn.value() || !isOneColumn())) {
+		&& (!archiveWindow || inChat.folder())
+		&& (!ForceComposeSearchOneColumn.value()
+			|| !isOneColumn()
+			|| (inChat.peer()
+				&& inChat.peer()->isChannel()
+				&& inChat.peer()->asChannel()->isCommunity()))) {
 		auto state = Dialogs::SearchState{
 			.inChat = ((tags.empty() || inChat.sublist())
 				? inChat
@@ -1354,6 +1358,8 @@ bool MainWidget::showHistoryInDifferentWindow(
 		return true;
 	} else if (windowId().hasChatsList()) {
 		return false;
+	} else if (params.preferCurrentWindow) {
+		return false;
 	}
 	const auto account = not_null(&session().account());
 	auto primary = Core::App().separateWindowFor(account);
@@ -1483,6 +1489,9 @@ void MainWidget::showHistory(
 			|| (params.animated == anim::type::instant)) {
 			return false;
 		}
+		if (params.slideFromBottom) {
+			return !_history->isHidden();
+		}
 		if (!peerId) {
 			if (isOneColumn()) {
 				return _dialogs && _dialogs->isHidden();
@@ -1556,7 +1565,9 @@ void MainWidget::showHistory(
 		if (!_showAnimation) {
 			if (!animationParams.oldContentCache.isNull()) {
 				_history->showAnimated(
-					back
+					params.slideFromBottom
+						? Window::SlideDirection::FromBottom
+						: back
 						? Window::SlideDirection::FromLeft
 						: Window::SlideDirection::FromRight,
 					animationParams);
@@ -1756,7 +1767,8 @@ Window::SectionSlideParams MainWidget::prepareThirdSectionAnimation(Window::Sect
 }
 
 Window::SectionSlideParams MainWidget::prepareShowAnimation(
-		bool willHaveTopBarShadow) {
+		bool willHaveTopBarShadow,
+		bool fromBottom) {
 	Window::SectionSlideParams result;
 	result.withTopBarShadow = willHaveTopBarShadow;
 	if (_mainSection) {
@@ -1766,6 +1778,7 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(
 	} else if (!_history->peer()) {
 		result.withTopBarShadow = false;
 	}
+	result.fromBottom = fromBottom;
 
 	floatPlayerHideAll();
 	if (_player) {
@@ -1807,16 +1820,18 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(
 	return result;
 }
 
-Window::SectionSlideParams MainWidget::prepareMainSectionAnimation(Window::SectionWidget *section) {
-	return prepareShowAnimation(section->hasTopBarShadow());
+Window::SectionSlideParams MainWidget::prepareMainSectionAnimation(
+		Window::SectionWidget *section,
+		bool fromBottom) {
+	return prepareShowAnimation(section->hasTopBarShadow(), fromBottom);
 }
 
 Window::SectionSlideParams MainWidget::prepareHistoryAnimation(PeerId historyPeerId) {
-	return prepareShowAnimation(historyPeerId != 0);
+	return prepareShowAnimation(historyPeerId != 0, false);
 }
 
 Window::SectionSlideParams MainWidget::prepareDialogsAnimation() {
-	return prepareShowAnimation(false);
+	return prepareShowAnimation(false, false);
 }
 
 void MainWidget::showNewSection(
@@ -1830,9 +1845,9 @@ void MainWidget::showNewSection(
 	auto saveInStack = (params.way == SectionShow::Way::Forward);
 	const auto thirdSectionTop = getThirdSectionTop();
 	const auto newThirdGeometry = QRect(
-		width() - st::columnMinimalWidthThird,
+		width() - _thirdColumnWidth,
 		thirdSectionTop,
-		st::columnMinimalWidthThird,
+		_thirdColumnWidth,
 		height() - thirdSectionTop);
 	auto newThirdSection = (isThreeColumn() && params.thirdColumn)
 		? memento->createWidget(
@@ -1873,12 +1888,19 @@ void MainWidget::showNewSection(
 			newMainGeometry);
 	Assert(newMainSection || newThirdSection);
 
+	const auto fromBottom = params.slideFromBottom
+		&& !newThirdSection
+		&& (_mainSection != nullptr);
+
 	auto animatedShow = [&] {
 		if (_showAnimation
 			|| Core::App().passcodeLocked()
 			|| (params.animated == anim::type::instant)
 			|| memento->instant()) {
 			return false;
+		}
+		if (fromBottom) {
+			return true;
 		}
 		if (!isOneColumn() && params.way == SectionShow::Way::ClearStack) {
 			return false;
@@ -1892,7 +1914,7 @@ void MainWidget::showNewSection(
 	auto animationParams = animatedShow
 		? (newThirdSection
 			? prepareThirdSectionAnimation(newThirdSection)
-			: prepareMainSectionAnimation(newMainSection))
+			: prepareMainSectionAnimation(newMainSection, fromBottom))
 		: Window::SectionSlideParams();
 
 	setFocus(); // otherwise dialogs widget could be focused.
@@ -1944,7 +1966,9 @@ void MainWidget::showNewSection(
 
 	if (animationParams) {
 		auto back = (params.way == SectionShow::Way::Backward);
-		auto direction = (back || settingSection->forceAnimateBack())
+		auto direction = fromBottom
+			? Window::SlideDirection::FromBottom
+			: (back || settingSection->forceAnimateBack())
 			? Window::SlideDirection::FromLeft
 			: Window::SlideDirection::FromRight;
 		if (isOneColumn()) {

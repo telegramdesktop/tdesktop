@@ -1193,8 +1193,17 @@ bool Notification::unlinkHistory(
 bool Notification::unlinkSession(not_null<Main::Session*> session) {
 	const auto unlink = _history && (&_history->session() == session);
 	if (unlink) {
+		// Custom emoji in title and text caches are owned by the session,
+		// while the widget outlives it for the hide animation, so caches
+		// must be destroyed right here. The already rendered _cache image
+		// is still painted, so don't re-render it from the empty strings.
+		_titleCache = Ui::Text::String();
+		_textCache = Ui::Text::String();
+		_textsRepaintScheduled = false;
 		hideFast();
 		_history = nullptr;
+		_topic = nullptr;
+		_sublist = nullptr;
 		_item = nullptr;
 	}
 	return unlink;

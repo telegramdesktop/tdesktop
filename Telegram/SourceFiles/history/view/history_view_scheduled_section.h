@@ -36,7 +36,7 @@ struct SendAction;
 } // namespace Api
 
 namespace Ui {
-class ScrollArea;
+class ElasticScroll;
 class PlainShadow;
 class FlatButton;
 struct PreparedList;
@@ -179,7 +179,7 @@ public:
 	History *listTranslateHistory() override;
 	void listAddTranslatedItems(
 		not_null<TranslateTracker*> tracker) override;
-	Ui::ScrollArea *listScrollArea() const override;
+	Ui::ElasticScroll *listScrollArea() const override;
 	bool listThanosEffectEnabled() const override;
 
 	// CornerButtonsDelegate delegate.
@@ -286,7 +286,7 @@ private:
 	const not_null<History*> _history;
 	const Data::ForumTopic *_forumTopic;
 	std::shared_ptr<Ui::ChatTheme> _theme;
-	object_ptr<Ui::ScrollArea> _scroll;
+	object_ptr<Ui::ElasticScroll> _scroll;
 	QPointer<ListWidget> _inner;
 	object_ptr<TopBarWidget> _topBar;
 	object_ptr<Ui::PlainShadow> _topBarShadow;

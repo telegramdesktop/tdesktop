@@ -71,6 +71,12 @@ public:
 		const QRect &geometry,
 		const PaintContext &context) const;
 
+	[[nodiscard]] bool hasAnimatedContent() const;
+	[[nodiscard]] QRect lastPaintGeometry() const {
+		return _lastPaintGeometry;
+	}
+	void resetLastPaintGeometry();
+
 	[[nodiscard]] bool isInTopicJump(int x, int y) const;
 	void addTopicJumpRipple(
 		QPoint origin,
@@ -98,6 +104,7 @@ private:
 	mutable std::unique_ptr<LoadingContext> _loadingContext;
 	mutable const style::DialogsMiniIcon *_leftIcon = nullptr;
 	mutable QImage _cornersCache;
+	mutable QRect _lastPaintGeometry;
 	mutable bool _hasPlainLinkAtBegin = false;
 	mutable bool _unreadMedia = false;
 

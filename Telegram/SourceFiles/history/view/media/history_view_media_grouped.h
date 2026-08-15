@@ -98,6 +98,7 @@ public:
 		return true;
 	}
 	QRect groupItemRect(int index) const override;
+	[[nodiscard]] Media *partMediaAt(QPoint point) const;
 	bool enforceBubbleWidth() const override;
 	int contributedMaxMonospaceWidth() const override;
 

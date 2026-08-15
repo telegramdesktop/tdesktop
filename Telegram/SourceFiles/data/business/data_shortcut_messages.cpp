@@ -667,12 +667,7 @@ HistoryItem *ShortcutMessages::append(
 			if (data.is_edit_hide()) {
 				existing->applyEdition(HistoryMessageEdition(_session, data));
 			} else {
-				existing->updateSentContent({
-					qs(data.vmessage()),
-					Api::EntitiesFromMTP(
-						_session,
-						data.ventities().value_or_empty())
-				}, data.vmedia());
+				existing->updateSentContent(data);
 				existing->updateReplyMarkup(
 					HistoryMessageMarkupData(data.vreply_markup()));
 				existing->updateForwardedInfo(data.vfwd_from());

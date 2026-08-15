@@ -118,6 +118,9 @@ void PeerMenuShareContactBox(
 void PeerMenuAddChannelMembers(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<ChannelData*> channel);
+void PeerMenuUngroupCommunity(
+	not_null<Window::SessionController*> controller,
+	not_null<ChannelData*> channel);
 void PeerMenuCreatePoll(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
@@ -262,6 +265,7 @@ void UnpinAllMessages(
 
 [[nodiscard]] bool IsUnreadThread(not_null<Data::Thread*> thread);
 void MarkAsReadThread(not_null<Data::Thread*> thread);
+void MarkAsReadChatList(not_null<Dialogs::MainList*> list);
 
 void AddSeparatorAndShiftUp(const PeerMenuCallback &addAction);
 

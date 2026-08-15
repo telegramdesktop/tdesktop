@@ -58,6 +58,7 @@ public:
 	}
 
 	void addItem(ThanosItem item);
+	void finishAll();
 	[[nodiscard]] bool hasActiveItems() const;
 
 	rpl::producer<> allDone() const;
@@ -116,6 +117,7 @@ private:
 	crl::time _lastFrameTime = 0;
 	bool _initialized = false;
 	bool _creationFailed = false;
+	bool _finishRequested = false;
 	uint32_t _seedCounter = 0;
 
 	rpl::event_stream<> _allDone;

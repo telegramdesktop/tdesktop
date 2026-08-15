@@ -445,14 +445,34 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 	using namespace Overview::Layout;
 	auto &songSt = st::overviewFileLayout;
 	if (const auto file = getFile()) {
+		auto fields = DocumentFields{
+			.document = file,
+			.dateOverride = Data::DateFromDownloadDate(element.started),
+			.forceFileLayout = true,
+		};
+		const auto item = element.item;
+		auto &manager = Core::App().downloadManager();
+		if (manager.loadingExternalState(item).has_value()) {
+			fields.externalLoading = [item]()
+			-> std::optional<DocumentExternalLoading> {
+				auto &manager = Core::App().downloadManager();
+				const auto state = manager.loadingExternalState(item);
+				if (!state || state->done) {
+					return std::nullopt;
+				}
+				return DocumentExternalLoading{
+					.ready = state->ready,
+					.total = state->total,
+				};
+			};
+			fields.externalCancel = [item] {
+				Core::App().downloadManager().cancelLoadingExternal(item);
+			};
+		}
 		return std::make_unique<Document>(
 			delegate,
 			element.item,
-			DocumentFields{
-				.document = file,
-				.dateOverride = Data::DateFromDownloadDate(element.started),
-				.forceFileLayout = true,
-			},
+			std::move(fields),
 			songSt);
 	}
 	return nullptr;

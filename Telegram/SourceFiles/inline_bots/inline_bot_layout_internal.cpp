@@ -32,10 +32,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
+#include "styles/style_chat_style.h"
 #include "styles/style_overview.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_widgets.h"
 
 namespace InlineBots {
 namespace Layout {
@@ -319,6 +319,13 @@ void Gif::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 QSize Gif::countFrameSize() const {
 	bool animating = (_gif && _gif->ready());
 	int32 framew = animating ? _gif->width() : content_width(), frameh = animating ? _gif->height() : content_height(), height = st::inlineMediaHeight;
+	if (framew <= 0 || frameh <= 0) {
+		framew = content_width();
+		frameh = content_height();
+	}
+	if (framew <= 0 || frameh <= 0) {
+		return { _width, height };
+	}
 	if (framew * height > frameh * _width) {
 		if (framew < st::maxStickerSize || frameh > height) {
 			if (frameh > height || (framew * height / frameh) <= st::maxStickerSize) {

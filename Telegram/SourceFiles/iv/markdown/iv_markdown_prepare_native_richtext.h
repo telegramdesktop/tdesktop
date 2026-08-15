@@ -14,6 +14,9 @@ namespace Iv::Markdown {
 
 inline constexpr auto kNativeIvLinkSpecialColorIndex = 9;
 
+static_assert(Iv::kTextDiffInsertedColorIndex
+	== kNativeIvLinkSpecialColorIndex + 1);
+
 struct PreparedIvRichText {
 	TextWithEntities text;
 	std::vector<PreparedLink> links;

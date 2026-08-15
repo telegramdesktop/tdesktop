@@ -9,11 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "boxes/send_files_box.h"
+#include "data/components/ephemeral_messages.h"
 #include "data/data_forum_topic.h"
 #include "data/data_peer.h"
 #include "data/data_saved_sublist.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_item_helpers.h"
 #include "history/view/history_view_draw_to_reply.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -110,6 +112,11 @@ void SessionController::showDrawToReplyFilesBox(
 					options);
 			}
 		}),
+		.replyTo = FullReplyTo{
+			.messageId = replyTo,
+			.topicRootId = thread->topicRootId(),
+			.monoforumPeerId = thread->monoforumPeerId(),
+		},
 	}));
 }
 
@@ -120,6 +127,33 @@ void SessionController::sendDrawToReplyFiles(
 		Api::SendOptions options) {
 	if (!bundle) {
 		return;
+	}
+	const auto ephemeralReply = session().ephemeralMessages()
+		.isEphemeralBotReply(replyTo);
+	if (bundle->totalCount > 1 && ephemeralReply) {
+		showToast(tr::lng_ephemeral_reply_single_message(tr::now));
+		return;
+	}
+	if (!ephemeralReply) {
+		const auto payment = std::make_shared<SendPaymentHelper>();
+		const auto weak = base::make_weak(thread);
+		const auto withPaymentApproved = crl::guard(this, [=](int approved) {
+			payment->clear();
+			if (const auto thread = weak.get()) {
+				auto copy = options;
+				copy.starsApproved = approved;
+				sendDrawToReplyFiles(thread, replyTo, bundle, copy);
+			}
+		});
+		const auto checked = payment->check(
+			this,
+			thread->peer(),
+			options,
+			bundle->totalCount,
+			withPaymentApproved);
+		if (!checked) {
+			return;
+		}
 	}
 	const auto type = bundle->way.sendImagesAsPhotos()
 		? SendMediaType::Photo

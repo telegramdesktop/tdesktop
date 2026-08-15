@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class MainWidget;
 
+namespace Main {
+class Account;
+} // namespace Main
+
 namespace Intro {
 class Widget;
 enum class EnterPoint : uchar;
@@ -54,7 +58,10 @@ public:
 	void clearPasscodeLock();
 	void setupSetupEmailLock();
 	void clearSetupEmailLock();
-	void setupIntro(Intro::EnterPoint point, QPixmap oldContentCache);
+	void setupIntro(
+		Intro::EnterPoint point,
+		Main::Account *accountBeforeIntro,
+		QPixmap oldContentCache);
 	void setupMain(MsgId singlePeerShowAtMsgId, QPixmap oldContentCache);
 
 	void showSettings();

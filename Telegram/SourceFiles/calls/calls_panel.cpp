@@ -65,7 +65,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webrtc/webrtc_environment.h"
 #include "webrtc/webrtc_video_track.h"
 #include "styles/style_calls.h"
-#include "styles/style_chat.h"
 
 #include <QtWidgets/QApplication>
 #include <QtGui/QWindow>
@@ -1358,13 +1357,11 @@ bool Panel::handleClose() const {
 			_call->hangup();
 		} else {
 			window()->hide();
-#ifdef Q_OS_LINUX
 			if (Platform::IsWayland()) {
 				if (const auto handle = window()->windowHandle()) {
 					handle->destroy();
 				}
 			}
-#endif // Q_OS_LINUX
 		}
 		return true;
 	}

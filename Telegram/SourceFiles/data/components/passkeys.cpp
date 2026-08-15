@@ -11,12 +11,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_passkey_deserialize.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
+#include "mtproto/mtproto_auth_key.h"
 #include "platform/platform_webauthn.h"
 
 namespace Data {
 namespace {
 
-constexpr auto kTimeoutMs = 5000;
+constexpr auto kRequestTimeout = crl::time(5000);
 
 [[nodiscard]] PasskeyEntry FromTL(const MTPDpasskey &data) {
 	return PasskeyEntry{
@@ -38,11 +39,21 @@ Passkeys::~Passkeys() = default;
 
 void Passkeys::initRegistration(
 		Fn<void(const Data::Passkey::RegisterData&)> done) {
+	if (_pendingRegistration
+		&& (crl::now() - _pendingRegistrationTime
+			< crl::time(_pendingRegistration->timeout))) {
+		done(*_pendingRegistration);
+		return;
+	}
+	_pendingRegistration = nullptr;
 	_session->api().request(MTPaccount_InitPasskeyRegistration(
 	)).done([=](const MTPaccount_PasskeyRegistrationOptions &result) {
 		const auto &data = result.data();
 		const auto jsonData = data.voptions().data().vdata().v;
 		if (const auto p = Data::Passkey::DeserializeRegisterData(jsonData)) {
+			_pendingRegistration
+				= std::make_unique<Data::Passkey::RegisterData>(*p);
+			_pendingRegistrationTime = crl::now();
 			done(*p);
 		}
 	}).send();
@@ -61,9 +72,12 @@ void Passkeys::registerPasskey(
 				MTP_dataJSON(MTP_bytes(result.clientDataJSON)),
 				MTP_bytes(result.attestationObject)))
 	)).done([=](const MTPPasskey &result) {
+		_pendingRegistration = nullptr;
 		_passkeys.emplace_back(FromTL(result.data()));
 		_listUpdated.fire({});
 		done();
+	}).fail([=](const MTP::Error &) {
+		_pendingRegistration = nullptr;
 	}).send();
 }
 
@@ -84,7 +98,8 @@ void Passkeys::deletePasskey(
 }
 
 rpl::producer<> Passkeys::requestList() {
-	if (crl::now() - _lastRequestTime > kTimeoutMs) {
+	if (!_lastRequestTime
+		|| (crl::now() - _lastRequestTime > kRequestTimeout)) {
 		if (!_listRequestId) {
 			loadList();
 		}
@@ -152,10 +167,14 @@ void FinishPasskeyLogin(
 		Fn<void(QString)> fail) {
 	const auto userHandleStr = QString::fromUtf8(result.userHandle);
 	const auto parts = userHandleStr.split(':');
-	if (parts.size() != 2) {
+	auto userDcOk = false;
+	const auto userDc = (parts.size() == 2)
+		? parts[0].toInt(&userDcOk)
+		: 0;
+	if (!userDcOk || userDc <= 0 || userDc >= MTP::kDcShift) {
+		fail(u"PASSKEY_HANDLE_INVALID"_q);
 		return;
 	}
-	const auto userDc = parts[0].toInt();
 	const auto credentialIdBase64 = result.credentialId.toBase64(
 		QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
 	const auto credential = MTP_inputPasskeyCredentialPublicKey(
@@ -168,14 +187,19 @@ void FinishPasskeyLogin(
 			MTP_string(userHandleStr.toStdString())
 		)
 	);
-	const auto flags = (userDc != initialDc)
-		? MTPauth_finishPasskeyLogin::Flag::f_from_dc_id
-		: MTPauth_finishPasskeyLogin::Flags(0);
+	auto fromAuthKeyId = uint64(0);
+	for (const auto &key : api.instance().getKeysForWrite()) {
+		if (key && key->dcId() == MTP::BareDcId(initialDc)) {
+			fromAuthKeyId = key->keyId();
+			break;
+		}
+	}
+	api.instance().setMainDcId(userDc);
 	api.request(MTPauth_FinishPasskeyLogin(
-		MTP_flags(flags),
+		MTP_flags(MTPauth_finishPasskeyLogin::Flag::f_from_dc_id),
 		credential,
 		MTP_int(initialDc),
-		MTP_long(0)
+		MTP_long(int64(fromAuthKeyId))
 	)).toDC(
 		userDc
 	).done(done).fail([=](const MTP::Error &error) {

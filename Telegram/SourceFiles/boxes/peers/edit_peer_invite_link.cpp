@@ -55,6 +55,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_credits.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_giveaway.h"
@@ -1455,7 +1456,11 @@ void AddPermanentLinkBlock(
 
 void CopyInviteLink(std::shared_ptr<Ui::Show> show, const QString &link) {
 	QGuiApplication::clipboard()->setText(link);
-	show->showToast(tr::lng_group_invite_copied(tr::now));
+	show->showToast({
+		.text = { tr::lng_group_invite_copied(tr::now) },
+		.iconLottie = u"toast/voip_invite"_q,
+		.iconLottieSize = st::toastLottieIconSize,
+	});
 }
 
 object_ptr<Ui::BoxContent> ShareInviteLinkBox(
@@ -1480,9 +1485,15 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 
 	auto copyCallback = [=] {
 		QGuiApplication::clipboard()->setText(link);
-		showToast(copied.isEmpty()
-			? tr::lng_group_invite_copied(tr::now)
-			: copied);
+		if (*box) {
+			(*box)->showToast({
+				.text = { copied.isEmpty()
+					? tr::lng_group_invite_copied(tr::now)
+					: copied },
+				.iconLottie = u"toast/voip_invite"_q,
+				.iconLottieSize = st::toastLottieIconSize,
+			});
+		}
 	};
 	auto countMessagesCallback = [=](const TextWithTags &comment) {
 		return 1;

@@ -25,6 +25,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Iv {
+struct RichPage;
+} // namespace Iv
+
 namespace Data {
 struct ReactionId;
 struct UpdatedFileReferences;
@@ -82,6 +86,7 @@ class PeerColors;
 class Polls;
 class TodoLists;
 class ChatParticipants;
+class Communities;
 class UnreadThings;
 class Ringtones;
 class ComposeWithAi;
@@ -161,6 +166,11 @@ public:
 	void clearModifyRequest(const QString &key);
 
 	void saveCurrentDraftToCloud();
+	mtpRequestId saveDraftToCloud(
+		not_null<Data::Thread*> thread,
+		const Data::Draft &draft,
+		Fn<void()> done = nullptr,
+		Fn<void(const MTP::Error &)> fail = nullptr);
 
 	void savePinnedOrder(Data::Folder *folder);
 	void savePinnedOrder(not_null<Data::Forum*> forum);
@@ -181,6 +191,7 @@ public:
 	void requestContacts();
 	void requestDialogs(Data::Folder *folder = nullptr);
 	void requestPinnedDialogs(Data::Folder *folder = nullptr);
+	void reloadPinnedDialogs(Data::Folder *folder = nullptr);
 	void requestMoreBlockedByDateDialogs();
 	void requestMoreDialogsIfNeeded();
 	rpl::producer<bool> dialogsLoadMayBlockByDate() const;
@@ -192,6 +203,7 @@ public:
 		Fn<void()> fail);
 
 	void requestFullPeer(not_null<PeerData*> peer);
+	void reloadFullPeer(not_null<PeerData*> peer);
 	void requestPeerSettings(not_null<PeerData*> peer);
 
 	using UpdatedFileReferences = Data::UpdatedFileReferences;
@@ -353,7 +365,7 @@ public:
 		Ui::PreparedList &&list,
 		SendMediaType type,
 		std::shared_ptr<SendingAlbum> album,
-		const SendAction &action);
+		SendAction action);
 	void sendFile(
 		const QByteArray &fileContent,
 		SendMediaType type,
@@ -381,6 +393,10 @@ public:
 		BusinessShortcutId id);
 	void sendRichMessage(
 		not_null<HistoryItem*> item,
+		const MTPInputRichMessage &richMessage,
+		SendAction action);
+	void sendRichMessage(
+		std::shared_ptr<const Iv::RichPage> page,
 		const MTPInputRichMessage &richMessage,
 		SendAction action);
 	void sendMessage(
@@ -440,6 +456,7 @@ public:
 	[[nodiscard]] Api::Polls &polls();
 	[[nodiscard]] Api::TodoLists &todoLists();
 	[[nodiscard]] Api::ChatParticipants &chatParticipants();
+	[[nodiscard]] Api::Communities &communities();
 	[[nodiscard]] Api::UnreadThings &unreadThings();
 	[[nodiscard]] Api::Ringtones &ringtones();
 	[[nodiscard]] Api::ComposeWithAi &composeWithAi();
@@ -493,12 +510,21 @@ private:
 		const QVector<MTPDialog> &dialogs,
 		const QVector<MTPMessage> &messages);
 	void requestMoreDialogs(Data::Folder *folder);
+	mtpRequestId sendPinnedDialogsRequest(
+		Data::Folder *folder,
+		Fn<void()> finish);
 	DialogsLoadState *dialogsLoadState(Data::Folder *folder);
 	void dialogsLoadFinish(Data::Folder *folder);
 
 	void checkQuitPreventFinished();
 
 	void saveDraftsToCloud();
+	mtpRequestId savePreparedDraftToCloud(
+		not_null<Data::Thread*> thread,
+		const Data::Draft &draft,
+		bool clearOnFail,
+		Fn<void()> done = nullptr,
+		Fn<void(const MTP::Error &)> fail = nullptr);
 
 	void resolveMessageDatas();
 	void finalizeMessageDataRequest(
@@ -743,6 +769,7 @@ private:
 	base::flat_map<
 		not_null<Data::Folder*>,
 		DialogsLoadState> _foldersLoadState;
+	base::flat_set<Data::Folder*> _pinnedDialogsReloads;
 
 	rpl::event_stream<SendAction> _sendActions;
 
@@ -801,6 +828,7 @@ private:
 	const std::unique_ptr<Api::Polls> _polls;
 	const std::unique_ptr<Api::TodoLists> _todoLists;
 	const std::unique_ptr<Api::ChatParticipants> _chatParticipants;
+	const std::unique_ptr<Api::Communities> _communities;
 	const std::unique_ptr<Api::UnreadThings> _unreadThings;
 	const std::unique_ptr<Api::Ringtones> _ringtones;
 	const std::unique_ptr<Api::ComposeWithAi> _composeWithAi;

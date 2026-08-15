@@ -55,6 +55,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "ui/ui_utility.h"
 #include "lottie/lottie_single_player.h"
+#include "data/components/ephemeral_messages.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_user.h"
@@ -738,6 +739,9 @@ void SendFilesBox::setReplyTo(FullReplyTo replyTo) {
 		if (_replyHeader) {
 			_replyHeader->hideAnimated();
 		}
+		if (_send) {
+			refreshButtons();
+		}
 	}, _replyHeader->lifetime());
 	_replyHeader->hideFinished(
 	) | rpl::on_next([=] {
@@ -748,6 +752,9 @@ void SendFilesBox::setReplyTo(FullReplyTo replyTo) {
 			updateControlsGeometry();
 		});
 	}, _replyHeader->lifetime());
+	if (_send) {
+		refreshButtons();
+	}
 }
 
 Fn<SendMenu::Details()> SendFilesBox::prepareSendMenuDetails(
@@ -997,7 +1004,11 @@ void SendFilesBox::refreshButtons() {
 		[=] { send({}); });
 	refreshMessagesCount();
 
-	const auto perMessage = _toPeer->starsPerMessageChecked();
+	const auto ephemeralReply = _show->session().ephemeralMessages()
+		.isEphemeralBotReply(_replyTo.messageId);
+	const auto perMessage = ephemeralReply
+		? 0
+		: _toPeer->starsPerMessageChecked();
 	if (perMessage > 0) {
 		_send->setText(PaidSendButtonText(_messagesCount.value(
 		) | rpl::map(rpl::mappers::_1 * perMessage)));

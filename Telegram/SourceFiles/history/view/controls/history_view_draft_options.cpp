@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_drafts.h"
 #include "data/data_file_origin.h"
+#include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "data/data_thread.h"
 #include "data/data_user.h"
@@ -31,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "settings/sections/settings_premium.h"
 #include "settings/settings_common.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
@@ -729,6 +731,7 @@ void DraftOptionsBox(
 		rpl::lifetime resolveLifetime;
 
 		Fn<void()> rebuild;
+		bool rebuildScheduled = false;
 	};
 	const auto state = box->lifetime().make_state<State>();
 	state->link = args.usedLink;
@@ -976,11 +979,33 @@ void DraftOptionsBox(
 			items);
 		const auto canDropNames = canHideAuthor
 			&& HasDropForwardedInfoSetting(items);
+		const auto premiumRequiredHide = HideForwardAuthorPremiumRequired(
+			&show->session(),
+			items);
 		const auto dropCaptions = (now == Options::NoNamesAndCaptions);
 
 		AddFilledSkip(bottom);
 
-		if (canDropNames) {
+		if (premiumRequiredHide) {
+			Settings::AddButtonWithIcon(
+				bottom,
+				(sendersCount == 1
+					? tr::lng_forward_action_hide_sender
+					: tr::lng_forward_action_hide_senders)(),
+				st::settingsButtonDisabledWithIcon,
+				{ &st::menuIconUserHideDisabled }
+			)->setClickedCallback([=] {
+				Settings::ShowPremiumPromoToast(
+					show,
+					tr::lng_article_premium_required(
+						tr::now,
+						lt_link,
+						tr::link(tr::bold(
+							tr::lng_article_premium_required_link(tr::now))),
+						tr::marked),
+					u"rich_message"_q);
+			});
+		} else if (canDropNames) {
 			Settings::AddButtonWithIcon(
 				bottom,
 				(dropNames
@@ -1117,7 +1142,7 @@ void DraftOptionsBox(
 	}, state->wrap->lifetime());
 
 	const auto &linkRanges = args.links;
-	state->shown.value() | rpl::on_next([=](Section shown) {
+	const auto rebuildBottom = [=](Section shown) {
 		bottom->clear();
 		state->shownLifetime.destroy();
 		switch (shown) {
@@ -1141,6 +1166,17 @@ void DraftOptionsBox(
 				state->wrap->showForwardSelector(state->forward);
 				setupForwardActions();
 			} break;
+		}
+	};
+	state->shown.value() | rpl::on_next([=](Section shown) {
+		if (!bottom->count()) {
+			rebuildBottom(shown);
+		} else if (!state->rebuildScheduled) {
+			state->rebuildScheduled = true;
+			crl::on_main(bottom, [=] {
+				state->rebuildScheduled = false;
+				rebuildBottom(state->shown.current());
+			});
 		}
 	}, box->lifetime());
 
@@ -1202,6 +1238,12 @@ void DraftOptionsBox(
 		if (state->wrap->hasViewForItem(item)) {
 			state->rebuild();
 		}
+	}, box->lifetime());
+
+	Data::AmPremiumValue(
+		&args.show->session()
+	) | rpl::skip(1) | rpl::on_next([=] {
+		state->shown.force_assign(state->shown.current());
 	}, box->lifetime());
 
 }

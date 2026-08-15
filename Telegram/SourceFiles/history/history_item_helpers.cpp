@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "boxes/premium_preview_box.h"
 #include "calls/calls_instance.h"
+#include "data/components/ephemeral_messages.h"
 #include "data/components/sponsored_messages.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/notify/data_notify_settings.h"
@@ -53,6 +54,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/item_text_options.h"
 #include "lang/lang_keys.h"
 
+#include "styles/style_layers.h"
+
 namespace {
 
 bool PeerCallKnown(not_null<PeerData*> peer) {
@@ -72,7 +75,9 @@ int ComputeSendingMessagesCount(
 		not_null<History*> history,
 		const SendingErrorRequest &request) {
 	auto result = 0;
-	if (request.text && !request.text->empty()) {
+	if (request.richMessage) {
+		++result;
+	} else if (request.text && !request.text->empty()) {
 		auto sending = TextWithEntities();
 		auto left = TextWithEntities{
 			request.text->text,
@@ -123,8 +128,9 @@ Data::SendError GetErrorForSending(
 			}
 		}
 	}
-	const auto hasText = (request.text && !request.text->empty());
-	if (hasText) {
+	const auto hasText = request.richMessage
+		|| (request.text && !request.text->empty());
+	if (hasText && !request.ignoreRestrictions) {
 		const auto error = Data::RestrictionError(
 			peer,
 			ChatRestriction::SendOther);
@@ -134,7 +140,7 @@ Data::SendError GetErrorForSending(
 			return tr::lng_forward_cant(tr::now);
 		}
 	}
-	if (peer->slowmodeApplied()) {
+	if (peer->slowmodeApplied() && !request.ignoreRestrictions) {
 		const auto count = request.messagesCount
 			? request.messagesCount
 			: ComputeSendingMessagesCount(thread->owningHistory(), request);
@@ -168,7 +174,7 @@ Data::SendError GetErrorForSending(
 		}
 	}
 	if (const auto left = peer->slowmodeSecondsLeft()) {
-		if (!request.ignoreSlowmodeCountdown) {
+		if (!request.ignoreSlowmodeCountdown && !request.ignoreRestrictions) {
 			return tr::lng_slowmode_enabled(
 				tr::now,
 				lt_left,
@@ -643,6 +649,60 @@ MsgId LookupReplyToTop(not_null<History*> history, FullReplyTo replyTo) {
 bool LookupReplyIsTopicPost(HistoryItem *replyTo) {
 	return replyTo
 		&& (replyTo->topicRootId() != Data::ForumTopic::kGeneralId);
+}
+
+bool ShowEphemeralReplyTextOnlyError(
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<Main::Session*> session,
+		FullMsgId replyToId) {
+	const auto item = session->data().message(replyToId);
+	if (!item || !item->isEphemeral()) {
+		return false;
+	}
+	show->showToast(tr::lng_ephemeral_reply_text_only(tr::now));
+	return true;
+}
+
+void StripEphemeralReply(
+		not_null<Main::Session*> session,
+		FullReplyTo &replyTo) {
+	const auto item = session->data().message(replyTo.messageId);
+	if (item && item->isEphemeral()) {
+		replyTo.messageId = FullMsgId();
+	}
+}
+
+void ConfirmDeleteSelectedEphemeral(
+		std::shared_ptr<ChatHelpers::Show> show,
+		std::vector<not_null<HistoryItem*>> items,
+		Fn<void()> confirmed) {
+	if (items.empty()) {
+		return;
+	}
+	const auto session = &items.front()->history()->session();
+	auto ids = std::vector<FullMsgId>();
+	ids.reserve(items.size());
+	for (const auto &item : items) {
+		ids.push_back(item->fullId());
+	}
+	const auto count = int(ids.size());
+	show->show(Ui::MakeConfirmBox({
+		.text = tr::lng_selected_delete_sure(tr::now, lt_count, count),
+		.confirmed = [=](Fn<void()> &&close) {
+			close();
+			const auto owner = &session->data();
+			for (const auto &id : ids) {
+				if (const auto item = owner->message(id)) {
+					session->ephemeralMessages().deleteMessage(item);
+				}
+			}
+			if (const auto onstack = confirmed) {
+				onstack();
+			}
+		},
+		.confirmText = tr::lng_box_delete(),
+		.confirmStyle = &st::attentionBoxButton,
+	}));
 }
 
 TextWithEntities DropDisallowedCustomEmoji(

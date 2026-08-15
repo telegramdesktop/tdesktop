@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/options.h"
 #include "base/timer.h"
 #include "boxes/delete_messages_box.h"
+#include "boxes/peers/community_box.h"
 #include "boxes/peers/edit_peer_permissions_box.h"
 #include "core/application.h"
 #include "core/ui_integration.h"
@@ -53,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
+#include "styles/style_moderate_messages_box.h"
 #include "styles/style_window.h"
 
 #include "window/window_session_controller.h"
@@ -1395,6 +1397,74 @@ void CreateModerateMessagesBox(
 						lt_count,
 						rpl::single(participants.size()) | tr::to_count())));
 			container->add(std::move(checkboxes));
+		}
+
+		const auto communityBan = [&]() -> Ui::Checkbox* {
+			const auto channel = isSingle ? peer->asChannel() : nullptr;
+			const auto communityId = channel
+				? channel->linkedCommunityId()
+				: ChannelId();
+			const auto community = communityId
+				? channel->owner().channelLoaded(communityId)
+				: nullptr;
+			if (!community
+				|| !(community->amCreator()
+					|| (community->adminRights()
+						& ChatAdminRight::BanUsers))) {
+				return nullptr;
+			}
+			Ui::AddSkip(inner);
+			Ui::AddSkip(inner);
+			const auto result = inner->add(
+				object_ptr<Ui::Checkbox>(
+					box,
+					tr::lng_community_ban_toggle(tr::now),
+					false,
+					st::defaultBoxCheckbox),
+				st::boxRowPadding + buttonPadding);
+			Ui::AddSkip(inner);
+			Ui::AddSkip(inner);
+			const auto info = community->communityInfo();
+			const auto chatsCount = info
+				? int(info->linkedPeers().size())
+				: 0;
+			if (chatsCount > 0) {
+				const auto aboutWrap = inner->add(
+					object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+						inner,
+						object_ptr<Ui::VerticalLayout>(inner)));
+				aboutWrap->entity()->add(object_ptr<Ui::DividerLabel>(
+					aboutWrap->entity(),
+					object_ptr<Ui::FlatLabel>(
+						aboutWrap->entity(),
+						tr::lng_community_ban_about(
+							tr::now,
+							lt_count,
+							chatsCount),
+						st::moderateBoxDividerLabel),
+					st::defaultBoxDividerLabelPadding));
+				aboutWrap->toggleOn(result->checkedValue());
+				aboutWrap->finishAnimating();
+			}
+			return result;
+		}();
+		if (communityBan) {
+			confirms->events() | rpl::on_next([=] {
+				if (!communityBan->checked()) {
+					return;
+				}
+				const auto channel = peer->asChannel();
+				const auto community = channel
+					? channel->owner().channelLoaded(
+						channel->linkedCommunityId())
+					: nullptr;
+				if (community) {
+					BanFromCommunityWithWarning(
+						box->uiShow(),
+						community,
+						participants.front());
+				}
+			}, communityBan->lifetime());
 		}
 
 		// Handle confirmation manually.

@@ -59,6 +59,10 @@ public:
 		TextSelection selection,
 		const PaintContext *context) = 0;
 
+	[[nodiscard]] virtual bool elementsAnimating() const {
+		return false;
+	}
+
 	[[nodiscard]] QDateTime dateTime() const;
 
 	[[nodiscard]] not_null<HistoryItem*> getItem() const {
@@ -112,6 +116,10 @@ public:
 	RadialProgressItem(const RadialProgressItem &other) = delete;
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) override;
+
+	[[nodiscard]] bool elementsAnimating() const override {
+		return isRadialAnimation() || _a_iconOver.animating();
+	}
 
 	virtual void clearSpoiler() {
 	}
@@ -208,6 +216,7 @@ public:
 	void initDimensions() override;
 	int32 resizeGetHeight(int32 width) override;
 	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) override;
+	[[nodiscard]] bool elementsAnimating() const override;
 	TextState getState(
 		QPoint point,
 		StateRequest request) const override;
@@ -220,6 +229,8 @@ public:
 private:
 	void ensureDataMediaCreated() const;
 	void setPixFrom(not_null<Image*> image);
+	void requestGoodPix();
+	void goodPixReady(QImage image, uint32 id);
 	[[nodiscard]] ClickHandlerPtr makeOpenPhotoHandler();
 	void clearSpoiler();
 
@@ -227,9 +238,11 @@ private:
 	mutable std::shared_ptr<Data::PhotoMedia> _dataMedia;
 	std::unique_ptr<Ui::SpoilerAnimation> _spoiler;
 
+	uint32 _goodRequestId = 0;
 	QImage _pix;
 	QImage _hiddenBgCache;
 	bool _goodLoaded : 1 = false;
+	bool _goodRequested : 1 = false;
 	bool _sensitiveSpoiler : 1 = false;
 	bool _story : 1 = false;
 	bool _storyPinned : 1 = false;
@@ -256,6 +269,7 @@ public:
 		const QRect &clip,
 		TextSelection selection,
 		const PaintContext *context) override;
+	[[nodiscard]] bool elementsAnimating() const override;
 	TextState getState(
 		QPoint point,
 		StateRequest request) const override;
@@ -316,6 +330,7 @@ public:
 	void initDimensions() override;
 	int32 resizeGetHeight(int32 width) override;
 	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) override;
+	[[nodiscard]] bool elementsAnimating() const override;
 	TextState getState(
 		QPoint point,
 		StateRequest request) const override;
@@ -335,6 +350,8 @@ protected:
 private:
 	void ensureDataMediaCreated() const;
 	void updateStatusText();
+	void requestGoodPix(not_null<Image*> image);
+	void goodPixReady(QImage image, uint32 id);
 
 	const not_null<DocumentData*> _data;
 	PhotoData *_videoCover = nullptr;
@@ -343,11 +360,14 @@ private:
 	StatusText _status;
 
 	QString _duration;
+	int _durationw = 0;
 	std::unique_ptr<Ui::SpoilerAnimation> _spoiler;
 
+	uint32 _goodRequestId = 0;
 	QImage _pix;
 	QImage _hiddenBgCache;
 	bool _pixBlurred : 1 = true;
+	bool _goodRequested : 1 = false;
 	bool _sensitiveSpoiler : 1 = false;
 	bool _story : 1 = false;
 	bool _storyPinned : 1 = false;
@@ -367,6 +387,7 @@ public:
 
 	void initDimensions() override;
 	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) override;
+	[[nodiscard]] bool elementsAnimating() const override;
 	TextState getState(
 		QPoint point,
 		StateRequest request) const override;
@@ -400,10 +421,17 @@ private:
 
 };
 
+struct DocumentExternalLoading {
+	int64 ready = 0;
+	int64 total = 0;
+};
+
 struct DocumentFields {
 	not_null<DocumentData*> document;
 	TimeId dateOverride = 0;
 	bool forceFileLayout = false;
+	Fn<std::optional<DocumentExternalLoading>()> externalLoading;
+	Fn<void()> externalCancel;
 };
 
 class Document final : public RadialProgressItem {
@@ -416,11 +444,14 @@ public:
 
 	void initDimensions() override;
 	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) override;
+	[[nodiscard]] bool elementsAnimating() const override;
 	TextState getState(
 		QPoint point,
 		StateRequest request) const override;
 
 	void clearHeavyPart() override;
+
+	[[nodiscard]] QImage dragPreviewImage();
 
 protected:
 	float64 dataProgress() const override;
@@ -438,6 +469,10 @@ private:
 
 	[[nodiscard]] bool songLayout() const;
 	void ensureDataMediaCreated() const;
+	void paintThumbnail(Painter &p, QRect rthumb, bool wthumb, bool withExt);
+	[[nodiscard]] auto externalLoading() const
+	-> std::optional<DocumentExternalLoading>;
+	[[nodiscard]] bool activeLoading() const;
 
 	not_null<DocumentData*> _data;
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
@@ -446,6 +481,7 @@ private:
 
 	const style::OverviewFileLayout &_st;
 	const ::Layout::DocumentGenericPreview _generic;
+	const Fn<std::optional<DocumentExternalLoading>()> _externalLoading;
 
 	bool _thumbLoaded = false;
 	bool _forceFileLayout = false;
@@ -472,6 +508,7 @@ public:
 	void initDimensions() override;
 	int32 resizeGetHeight(int32 width) override;
 	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) override;
+	[[nodiscard]] bool elementsAnimating() const override;
 	TextState getState(
 		QPoint point,
 		StateRequest request) const override;

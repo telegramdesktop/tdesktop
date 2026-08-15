@@ -28,6 +28,10 @@ UniversalMsgId GetUniversalId(not_null<const BaseLayout*> layout) {
 	return GetUniversalId(layout->getItem()->fullId());
 }
 
+uint64 GetLayoutCacheKey(not_null<const BaseLayout*> layout) {
+	return uint64(reinterpret_cast<quintptr>(layout.get()));
+}
+
 bool ChangeItemSelection(
 		ListSelectedMap &selected,
 		not_null<const HistoryItem*> item,
@@ -62,6 +66,7 @@ int MinItemHeight(Type type, int width) {
 	case Type::Photo:
 	case Type::GIF:
 	case Type::Video:
+	case Type::PhotoVideo:
 	case Type::RoundFile: {
 		auto itemsLeft = st::infoMediaSkip;
 		auto itemsInRow = (width - itemsLeft)

@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
+#include "history/history_item_helpers.h"
 #include "history/history_item_text.h"
 #include "history/view/history_view_schedule_box.h"
 #include "history/view/media/history_view_media.h"
@@ -32,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_web_page.h"
 #include "history/view/reactions/history_view_reactions_list.h"
 #include "info/info_memento.h"
+#include "iv/iv_rich_message_html_export.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
@@ -45,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/controls/delete_message_context_action.h"
 #include "ui/controls/who_reacted_context_action.h"
+#include "ui/delayed_activation.h"
 #include "ui/dynamic_image.h"
 #include "ui/dynamic_thumbnails.h"
 #include "ui/boxes/edit_factcheck_box.h"
@@ -65,6 +68,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/delete_messages_box.h"
 #include "boxes/moderate_messages_box.h"
 #include "boxes/report_messages_box.h"
+#include "data/components/ephemeral_messages.h"
+#include "styles/style_layers.h"
 #include "boxes/sticker_set_box.h"
 #include "boxes/stickers_box.h"
 #include "boxes/translate_box.h"
@@ -291,13 +296,14 @@ void AddDocumentActions(
 			[=] { ShowStickerPackInfo(document, list); },
 			&st::menuIconStickers);
 	}
-	if (document->sticker() && !document->sticker()->set) {
+	const auto sending = item && item->isSending();
+	if (!sending && document->sticker() && !document->sticker()->set) {
 		Api::AddAddToOwnedSetAction(
 			Ui::Menu::CreateAddActionCallback(menu),
 			controller->uiShow(),
 			document);
 	}
-	if (document->sticker()) {
+	if (!sending && document->sticker()) {
 		const auto isFaved = document->owner().stickers().isFaved(document);
 		menu->addAction(
 			(isFaved
@@ -597,11 +603,17 @@ bool AddRescheduleAction(
 			: itemDate + (firstItem->isScheduled() ? 0 : crl::time(600));
 		const auto repeatPeriod = firstItem->scheduleRepeatPeriod();
 
+		const auto topic = firstItem->topic();
 		const auto box = request.navigation->parentController()->show(
 			HistoryView::PrepareScheduleBox(
 				&request.navigation->session(),
 				request.navigation->uiShow(),
-				{ .type = sendMenuType, .effectAllowed = false },
+				{
+					.type = sendMenuType,
+					.barePeerId = firstItem->history()->peer->id.value,
+					.bareTopicRootId = topic ? topic->rootId().bare : 0,
+					.effectAllowed = false,
+				},
 				callback,
 				{ .scheduleRepeatPeriod = repeatPeriod },
 				date));
@@ -627,7 +639,8 @@ bool AddReplyToMessageAction(
 	const auto topic = item ? item->topic() : nullptr;
 	const auto peer = item ? item->history()->peer.get() : nullptr;
 	if (!item
-		|| !item->isRegular()
+		|| (!item->isRegular()
+			&& (!item->isEphemeral() || item->out()))
 		|| (context != Context::History
 			&& context != Context::Replies
 			&& context != Context::Monoforum)) {
@@ -751,6 +764,9 @@ bool AddEditMessageAction(
 		if (!item) {
 			return;
 		}
+		if (item->richPage()) {
+			Ui::PreventDelayedActivation();
+		}
 		list->editMessageRequestNotify(item->fullId());
 	}, &st::menuIconEdit);
 	return true;
@@ -859,13 +875,27 @@ bool AddDeleteSelectedAction(
 	}
 
 	menu->addAction(tr::lng_context_delete_selected(tr::now), [=] {
+		const auto clear = crl::guard(list, [=] { list->cancelSelection(); });
+		if (request.selectedItems.front().ephemeral) {
+			const auto owner = &request.navigation->session().data();
+			auto items = std::vector<not_null<HistoryItem*>>();
+			items.reserve(request.selectedItems.size());
+			for (const auto &selected : request.selectedItems) {
+				if (const auto item = owner->message(selected.msgId)) {
+					items.push_back(item);
+				}
+			}
+			ConfirmDeleteSelectedEphemeral(
+				request.navigation->uiShow(),
+				std::move(items),
+				clear);
+			return;
+		}
 		auto items = ExtractIdsList(request.selectedItems);
 		auto box = Box<DeleteMessagesBox>(
 			&request.navigation->session(),
 			std::move(items));
-		box->setDeleteConfirmedCallback(crl::guard(list, [=] {
-			list->cancelSelection();
-		}));
+		box->setDeleteConfirmedCallback(clear);
 		request.navigation->parentController()->show(std::move(box));
 	}, &st::menuIconDelete);
 	return true;
@@ -922,6 +952,16 @@ bool AddDeleteMessageAction(
 		}
 	});
 	if (item->isUploading()) {
+		if (item->media() && item->media()->allowsEditCaption()) {
+			menu->addAction(
+				tr::lng_context_upload_edit_caption(tr::now),
+				crl::guard(controller, [=] {
+					if (const auto item = owner->message(itemId)) {
+						list->showEditCaptionUploadLayer(item);
+					}
+				}),
+				&st::menuIconEdit);
+		}
 		menu->addAction(
 			tr::lng_context_cancel_upload(tr::now),
 			callback,
@@ -955,6 +995,20 @@ void AddDownloadFilesAction(
 		return;
 	}
 	Menu::AddDownloadFilesAction(
+		menu,
+		request.navigation->parentController(),
+		request.selectedItems,
+		list);
+}
+
+void AddSaveRichHtmlAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	if (!request.overSelection || request.selectedItems.empty()) {
+		return;
+	}
+	Iv::AddSaveRichMessageHtmlAction(
 		menu,
 		request.navigation->parentController(),
 		request.selectedItems,
@@ -1015,12 +1069,18 @@ bool AddSelectMessageAction(
 	if (request.overSelection && !request.selectedItems.empty()) {
 		return false;
 	} else if (!item
-		|| item->isLocal()
+		|| (item->isLocal() && !item->isEphemeral())
 		|| item->isService()
 		|| list->hasSelectRestriction()) {
 		return false;
 	}
 	const auto owner = &item->history()->owner();
+	if (!request.selectedItems.empty()) {
+		const auto first = owner->message(request.selectedItems.front().msgId);
+		if (first && !first->inSameSelectionGroup(item)) {
+			return false;
+		}
+	}
 	const auto itemId = item->fullId();
 	const auto asGroup = (request.pointState != PointState::GroupPart);
 	menu->addAction(tr::lng_context_select_msg(tr::now), [=] {
@@ -1064,8 +1124,18 @@ void AddMessageActions(
 	AddSendNowAction(menu, request, list);
 	AddDeleteAction(menu, request, list);
 	AddDownloadFilesAction(menu, request, list);
+	AddSaveRichHtmlAction(menu, request, list);
 	AddReportAction(menu, request, list);
+	if (request.item && request.selectedItems.empty()) {
+		AddEphemeralMessageActions(
+			menu,
+			list->controller()->uiShow(),
+			request.item);
+	}
 	AddSelectionAction(menu, request, list);
+	if (request.item && request.selectedItems.empty()) {
+		AddEphemeralAboutAction(menu, request.item);
+	}
 	AddRescheduleAction(menu, request, list);
 }
 
@@ -1672,12 +1742,18 @@ void CopyPostLink(
 			).append('\n').append(Platform::IsMac()
 				? tr::lng_public_post_private_hint_cmd(tr::now)
 				: tr::lng_public_post_private_hint_ctrl(tr::now)),
+			.iconLottie = u"toast/voip_invite"_q,
+			.iconLottieSize = st::toastLottieIconSize,
 			.duration = kPublicPostLinkToastDuration,
 		});
+	} else if (isPublicLink) {
+		show->showToast({
+			.text = { tr::lng_channel_public_link_copied(tr::now) },
+			.iconLottie = u"toast/voip_invite"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
 	} else {
-		show->showToast(isPublicLink
-			? tr::lng_channel_public_link_copied(tr::now)
-			: tr::lng_context_about_private_link(tr::now));
+		show->showToast(tr::lng_context_about_private_link(tr::now));
 	}
 }
 
@@ -1692,7 +1768,11 @@ void CopyStoryLink(
 	const auto story = *maybeStory;
 	QGuiApplication::clipboard()->setText(
 		session->api().exportDirectStoryLink(story));
-	show->showToast(tr::lng_channel_public_link_copied(tr::now));
+	show->showToast({
+		.text = { tr::lng_channel_public_link_copied(tr::now) },
+		.iconLottie = u"toast/voip_invite"_q,
+		.iconLottieSize = st::toastLottieIconSize,
+	});
 }
 
 void FillPollOptionPage(
@@ -2048,9 +2128,26 @@ void AddWhenEditedForwardedAuthorActionHelper(
 			if (insertSeparator && !menu->empty()) {
 				menu->addSeparator(&st::expandedMenuSeparator);
 			}
-			menu->addAction(Ui::WhenReadContextAction(
-				menu.get(),
-				Api::WhenEdited(item->from(), edited->date)));
+			if (item->history()->session().messagePrimaryEditedDate()) {
+				const auto sent = base::unixtime::parse(item->date());
+				auto label = base::make_unique_q<Ui::Menu::MultilineAction>(
+					menu->menu(),
+					menu->st().menu,
+					st::historyHasCustomEmoji,
+					st::historyHasCustomEmojiPosition,
+					tr::marked(tr::lng_sent_on(
+						tr::now,
+						lt_date,
+						langDayOfMonthShort(sent.date()),
+						lt_time,
+						QLocale().toString(sent.time(), QLocale::ShortFormat))));
+				label->setAttribute(Qt::WA_TransparentForMouseEvents);
+				menu->addAction(std::move(label));
+			} else {
+				menu->addAction(Ui::WhenReadContextAction(
+					menu.get(),
+					Api::WhenEdited(item->from(), edited->date)));
+			}
 		}
 	}
 	if (item->canLookupMessageAuthor()) {
@@ -2570,6 +2667,57 @@ void AddSelectRestrictionAction(
 		(addIcon && !user) ? &st::menuIconCopyright : nullptr);
 	button->setAttribute(Qt::WA_TransparentForMouseEvents);
 	menu->addAction(std::move(button));
+}
+
+void AddEphemeralMessageActions(
+		not_null<Ui::PopupMenu*> menu,
+		std::shared_ptr<Ui::Show> show,
+		not_null<HistoryItem*> item) {
+	if (!item->isEphemeral()) {
+		return;
+	}
+	const auto owner = &item->history()->owner();
+	const auto session = &item->history()->session();
+	const auto itemId = item->fullId();
+	if (!item->out()) {
+		menu->addAction(tr::lng_context_report_msg(tr::now), [=] {
+			if (const auto item = owner->message(itemId)) {
+				ShowReportEphemeralBox(show, item);
+			}
+		}, &st::menuIconReport);
+	}
+	menu->addAction(tr::lng_context_delete_msg(tr::now), [=] {
+		show->show(Ui::MakeConfirmBox({
+			.text = tr::lng_selected_delete_sure_this(),
+			.confirmed = [=](Fn<void()> &&close) {
+				close();
+				if (const auto item = owner->message(itemId)) {
+					session->ephemeralMessages().deleteMessage(item);
+				}
+			},
+			.confirmText = tr::lng_box_delete(),
+			.confirmStyle = &st::attentionBoxButton,
+		}));
+	}, &st::menuIconDelete);
+}
+
+void AddEphemeralAboutAction(
+		not_null<Ui::PopupMenu*> menu,
+		not_null<HistoryItem*> item) {
+	if (!item->isEphemeral()) {
+		return;
+	}
+	if (!menu->empty()) {
+		menu->addSeparator();
+	}
+	auto label = base::make_unique_q<Ui::Menu::MultilineAction>(
+		menu->menu(),
+		menu->st().menu,
+		st::historyHasCustomEmoji,
+		st::historyHasCustomEmojiPosition,
+		tr::lng_ephemeral_about(tr::now, tr::rich));
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	menu->addAction(std::move(label));
 }
 
 TextWithEntities TransribedText(not_null<HistoryItem*> item) {

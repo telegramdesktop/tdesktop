@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
 #include "core/sandbox.h"
+#include "core/version.h"
 #include "base/concurrent_timer.h"
 #include "base/options.h"
 
@@ -380,8 +381,6 @@ int Launcher::exec() {
 
 	if (cLaunchMode() == LaunchModeFixPrevious) {
 		return psFixPrevious();
-	} else if (cLaunchMode() == LaunchModeCleanup) {
-		return psCleanup();
 	}
 
 	// Must be started before Platform is started.
@@ -549,6 +548,7 @@ void Launcher::processArguments() {
 	};
 	auto parseMap = std::map<QByteArray, KeyFormat> {
 		{ "-debug"          , KeyFormat::NoValues },
+		{ "-testagent"      , KeyFormat::NoValues },
 		{ "-key"            , KeyFormat::OneValue },
 		{ "-autostart"      , KeyFormat::NoValues },
 		{ "-fixprevious"    , KeyFormat::NoValues },
@@ -591,7 +591,8 @@ void Launcher::processArguments() {
 	}
 
 	static const auto RegExp = QRegularExpression("[^a-z0-9\\-_]");
-	gDebugMode = parseResult.contains("-debug");
+	gTestAgent = parseResult.contains("-testagent");
+	gDebugMode = parseResult.contains("-debug") || gTestAgent;
 	gKeyFile = parseResult
 		.value("-key", {})
 		.join(QString())

@@ -113,7 +113,7 @@ var ResultCode: Integer;
 begin
   if CurUninstallStep = usUninstall then
   begin
-    ShellExec('', ExpandConstant('{app}\{#MyAppExeName}'), '-cleanup', '', SW_SHOW, ewWaitUntilTerminated, ResultCode);
+    Exec(ExpandConstant('{app}\{#MyAppExeName}'), '-cleanup', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   end;
 end;
 

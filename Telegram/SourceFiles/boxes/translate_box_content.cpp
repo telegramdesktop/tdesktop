@@ -24,23 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 
 namespace Ui {
-namespace {
 
-class ShowButton final : public RpWidget {
-public:
-	ShowButton(not_null<Ui::RpWidget*> parent);
-
-	[[nodiscard]] rpl::producer<Qt::MouseButton> clicks() const;
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	LinkButton _button;
-
-};
-
-ShowButton::ShowButton(not_null<Ui::RpWidget*> parent)
+TranslateShowButton::TranslateShowButton(not_null<RpWidget*> parent)
 : RpWidget(parent)
 , _button(this, tr::lng_usernames_activate_confirm(tr::now)) {
 	_button.sizeValue(
@@ -53,7 +38,7 @@ ShowButton::ShowButton(not_null<Ui::RpWidget*> parent)
 	_button.show();
 }
 
-void ShowButton::paintEvent(QPaintEvent *e) {
+void TranslateShowButton::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 	const auto clip = e->rect();
 
@@ -69,11 +54,9 @@ void ShowButton::paintEvent(QPaintEvent *e) {
 	}
 }
 
-rpl::producer<Qt::MouseButton> ShowButton::clicks() const {
+rpl::producer<Qt::MouseButton> TranslateShowButton::clicks() const {
 	return _button.clicks();
 }
-
-} // namespace
 
 void TranslateBoxContent(
 		not_null<GenericBox*> box,
@@ -124,9 +107,9 @@ void TranslateBoxContent(
 		original->setMinimalHeight(lineHeight);
 		original->hide(anim::type::instant);
 
-		const auto show = Ui::CreateChild<FadeWrap<ShowButton>>(
+		const auto show = Ui::CreateChild<FadeWrap<TranslateShowButton>>(
 			container.get(),
-			object_ptr<ShowButton>(container));
+			object_ptr<TranslateShowButton>(container));
 		show->hide(anim::type::instant);
 		rpl::combine(
 			container->widthValue(),

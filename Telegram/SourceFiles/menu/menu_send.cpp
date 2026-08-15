@@ -628,7 +628,9 @@ FillMenuResult AttachSendMenuEffect(
 		? AttachSelectorToMenu(
 			menu,
 			position,
-			st::reactPanelEmojiPan,
+			(details.effectsPan
+				? *details.effectsPan
+				: st::reactPanelEmojiPan),
 			show,
 			LookupPossibleEffects(&show->session()),
 			{ tr::lng_effect_add_title(tr::now) },

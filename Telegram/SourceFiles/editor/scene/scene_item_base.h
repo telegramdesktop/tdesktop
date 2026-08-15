@@ -43,12 +43,16 @@ public:
 	[[nodiscard]] bool isUndidStatus() const;
 	[[nodiscard]] bool isRemovedStatus() const;
 
+	void setUndoable(bool undoable);
+	[[nodiscard]] bool undoable() const;
+
 	virtual void save(SaveState state);
 	virtual void restore(SaveState state);
 	virtual bool hasState(SaveState state) const;
 private:
 	int _number = 0;
 	Status _status = Status::Normal;
+	bool _undoable = true;
 };
 
 class ItemBase : public NumberedItem {
@@ -64,6 +68,22 @@ public:
 		bool flipped = false;
 		int rotation = 0;
 		QSize imageSize;
+		bool contentMargins = true;
+	};
+
+	struct Placement {
+		QPointF position;
+		float64 rotation = 0.;
+		float64 scale = 1.;
+		float64 zValue = 0.;
+		float64 size = 0.;
+		float64 aspectRatio = 1.;
+		float64 bend = 0.;
+		bool flipped = false;
+
+		friend inline bool operator==(
+			const Placement &,
+			const Placement &) = default;
 	};
 
 	ItemBase(Data data);
@@ -78,6 +98,9 @@ public:
 	void setFlip(bool value);
 
 	void updateZoom(float64 zoom);
+
+	[[nodiscard]] virtual Placement placement() const;
+	virtual void applyPlacement(const Placement &placement);
 
 	bool hasState(SaveState state) const override;
 	void save(SaveState state) override;
@@ -108,6 +131,18 @@ protected:
 	float64 horizontalSize() const;
 	float64 verticalSize() const;
 	void setAspectRatio(float64 aspectRatio);
+	void applyStretch(
+		float64 horizontal,
+		float64 vertical,
+		bool allowBelowMinimum = false);
+	[[nodiscard]] bool fitsMinimumSize() const;
+	void setVerticalMinimumEnabled(bool enabled);
+	[[nodiscard]] bool isHandling() const;
+	void resetDragging();
+	[[nodiscard]] bool dragThresholdPassed(
+		not_null<QGraphicsSceneMouseEvent*> event);
+	[[nodiscard]] float64 scaledHandleSize() const;
+	void paintHandle(QPainter *p, const QRectF &rect, bool hasFocus) const;
 
 	virtual void performFlip();
 	virtual std::shared_ptr<ItemBase> duplicate(Data data) const = 0;
@@ -115,7 +150,7 @@ private:
 	HandleType handleType(const QPointF &pos) const;
 	QRectF rightHandleRect() const;
 	QRectF leftHandleRect() const;
-	bool isHandling() const;
+	[[nodiscard]] float64 verticalMinimum() const;
 	void updateVerticalSize();
 	void updatePens(QPen pen);
 	void handleActionKey(not_null<QKeyEvent*> e);
@@ -125,6 +160,7 @@ private:
 
 	const std::shared_ptr<float64> _lastZ;
 	const QSize _imageSize;
+	const bool _contentMargins;
 
 	struct {
 		QPen select;
@@ -154,6 +190,8 @@ private:
 	HandleType _handle = HandleType::None;
 
 	bool _flipped = false;
+	bool _verticalMinimumEnabled = true;
+	bool _dragging = false;
 
 };
 

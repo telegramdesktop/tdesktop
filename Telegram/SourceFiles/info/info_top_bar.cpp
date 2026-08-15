@@ -241,6 +241,7 @@ void TopBar::createSearchView(
 	});
 
 	_searchField = field;
+	field->customUpDown(true);
 	auto fieldWrap = Ui::CreateChild<Ui::FadeWrap<Ui::InputField>>(
 		wrap,
 		object_ptr<Ui::InputField>::fromRaw(field),

@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_icon.h"
 #include "apiwrap.h"
 #include "styles/style_boxes.h"
+#include "styles/style_edit_peer_members.h"
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
 
@@ -1250,8 +1251,11 @@ void AddSpecialBoxController::prepare() {
 	setDescriptionText(tr::lng_contacts_loading(tr::now));
 	setSearchNoResultsText(tr::lng_blocked_list_not_found(tr::now));
 
+	const auto channel = _peer->asChannel();
 	if (const auto chat = _peer->asChat()) {
 		prepareChatRows(chat);
+	} else if (channel && channel->isCommunity()) {
+		prepareCommunityRows();
 	} else {
 		loadMoreRows();
 	}
@@ -1315,10 +1319,39 @@ void AddSpecialBoxController::rebuildChatRows(not_null<ChatData*> chat) {
 	setDescriptionText(QString());
 }
 
+void AddSpecialBoxController::prepareCommunityRows() {
+	// Communities have no participants list, suggest contacts instead.
+	session().data().contactsLoaded().value(
+	) | rpl::on_next([=] {
+		rebuildCommunityRows();
+	}, lifetime());
+}
+
+void AddSpecialBoxController::rebuildCommunityRows() {
+	for (const auto &row : session().data().contactsList()->all()) {
+		if (const auto history = row->history()) {
+			if (const auto user = history->peer->asUser()) {
+				appendRow(user);
+			}
+		}
+	}
+	sortByName();
+	setDescriptionText(delegate()->peerListFullRowsCount()
+		? QString()
+		: session().data().contactsLoaded().current()
+		? tr::lng_contacts_not_found(tr::now)
+		: tr::lng_contacts_loading(tr::now));
+	delegate()->peerListRefreshRows();
+}
+
 void AddSpecialBoxController::loadMoreRows() {
+	const auto channel = _peer->asChannel();
 	if (searchController() && searchController()->loadMoreRows()) {
 		return;
-	} else if (!_peer->isChannel() || _loadRequestId || _allLoaded) {
+	} else if (!channel
+		|| channel->isCommunity()
+		|| _loadRequestId
+		|| _allLoaded) {
 		return;
 	}
 
@@ -1327,7 +1360,6 @@ void AddSpecialBoxController::loadMoreRows() {
 		? kParticipantsPerPage
 		: kParticipantsFirstPageCount;
 	const auto participantsHash = uint64(0);
-	const auto channel = _peer->asChannel();
 
 	_loadRequestId = _api.request(MTPchannels_GetParticipants(
 		channel->inputChannel(),
@@ -1472,7 +1504,8 @@ void AddSpecialBoxController::showAdmin(
 			showBox(Ui::MakeInformBox(tr::lng_error_cant_add_admin_unban()));
 			return;
 		}
-	} else if (_additional.isExternal(user)) {
+	} else if (_additional.isExternal(user)
+		&& !(channel && channel->isCommunity())) {
 		// The user is not in the group yet.
 		if (canAddMembers) {
 			if (!sure) {
@@ -1778,6 +1811,11 @@ bool AddSpecialBoxSearchController::loadMoreRows() {
 	}
 	if (_globalLoaded) {
 		return true;
+	}
+	const auto channel = _peer->asChannel();
+	if (channel && channel->isCommunity()) {
+		// Communities have no participants list to search in.
+		_participantsLoaded = true;
 	}
 	if (_participantsLoaded || _chatMembersAdded) {
 		if (!_chatsContactsAdded) {

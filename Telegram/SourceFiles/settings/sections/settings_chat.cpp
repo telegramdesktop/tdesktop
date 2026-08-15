@@ -190,6 +190,7 @@ ColorsPalette::Button::Button(
 , _colors(std::move(colors))
 , _selected(selected) {
 	_widget.show();
+	_widget.setIsListItem(true);
 	_widget.resize(st::settingsAccentColorSize, st::settingsAccentColorSize);
 	_widget.paintRequest(
 	) | rpl::on_next([=] {
@@ -1801,6 +1802,19 @@ void SetupMessages(
 			{ .radius = st::boxRadius },
 		} });
 	}
+
+	const auto pullToNext = inner->add(
+		object_ptr<Ui::Checkbox>(
+			inner,
+			tr::lng_settings_pull_to_next_channel(tr::now),
+			Core::App().settings().pullToNextChannel(),
+			st::settingsCheckbox),
+		st::settingsCheckboxPadding);
+	pullToNext->checkedChanges(
+	) | rpl::on_next([=](bool checked) {
+		Core::App().settings().setPullToNextChannel(checked);
+		Core::App().saveSettingsDelayed();
+	}, inner->lifetime());
 
 	Ui::AddSkip(inner);
 }

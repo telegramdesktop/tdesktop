@@ -165,7 +165,7 @@ private:
 	};
 	explicit Controller(CreateArgs &&args);
 
-	void setupIntro(QPixmap oldContentCache);
+	void setupIntro(Main::Account *accountBeforeIntro, QPixmap oldContentCache);
 	void setupMain(MsgId singlePeerShowAtMsgId, QPixmap oldContentCache);
 
 	void showAccount(

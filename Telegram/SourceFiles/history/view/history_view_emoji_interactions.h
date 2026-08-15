@@ -37,6 +37,8 @@ namespace HistoryView {
 
 class Element;
 
+[[nodiscard]] bool CanPlayEmojiInteraction(not_null<const Element*> view);
+
 class EmojiInteractions final {
 public:
 	EmojiInteractions(

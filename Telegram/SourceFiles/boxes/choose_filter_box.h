@@ -41,6 +41,8 @@ public:
 	void remove(FilterId filterId) const;
 
 private:
+	[[nodiscard]] bool communityAddBlocked() const;
+
 	const not_null<History*> _history;
 
 };

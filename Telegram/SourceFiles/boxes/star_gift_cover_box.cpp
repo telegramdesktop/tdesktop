@@ -33,7 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/peer_gifts/info_peer_gifts_common.h"
 #include "styles/style_chat.h"
 #include "styles/style_credits.h"
-#include "styles/style_giveaway.h"
 #include "styles/style_layers.h"
 
 namespace Ui {
@@ -539,7 +538,7 @@ UniqueGiftCoverWidget::UniqueGiftCoverWidget(
 		const auto &gift = cover.values;
 		if (resalePrice && resalePrice.value() > 0) {
 			auto priceText = resalePrice.ton()
-				? Text::IconEmoji(&st::tonIconEmojiInSmall).append(
+				? Text::IconEmoji(&st::tonIconEmojiOnSale).append(
 					Lang::FormatCreditsAmountDecimal(resalePrice))
 				: Text::IconEmoji(&st::starIconEmojiSmall).append(
 					Lang::FormatCountDecimal(resalePrice.whole()));

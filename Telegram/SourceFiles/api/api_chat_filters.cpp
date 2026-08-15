@@ -39,7 +39,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "window/window_session_controller.h"
 #include "window/window_separate_id.h"
-#include "styles/style_filter_icons.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -386,7 +385,8 @@ void ToggleChatsController::prepare() {
 		return peer->isChat()
 			? peer->asChat()->isForbidden()
 			: peer->isChannel()
-			? peer->asChannel()->isForbidden()
+			? (peer->asChannel()->isForbidden()
+				|| peer->asChannel()->isCommunity())
 			: false;
 	};
 	const auto add = [&](not_null<PeerData*> peer, bool additional = false) {

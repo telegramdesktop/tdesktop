@@ -85,6 +85,7 @@ public:
 	void changeChosen(const QString &chosen);
 
 	Ui::ScrollToRequest rowScrollRequest(int index) const;
+	[[nodiscard]] rpl::producer<Ui::ScrollToRequest> mustScrollTo() const;
 
 	static int DefaultRowHeight();
 
@@ -99,6 +100,11 @@ public:
 	QAccessible::Role accessibilityChildSubItemRole() const override;
 	QString accessibilityChildSubItemName(int row, int column) const override;
 	QString accessibilityChildSubItemValue(int row, int column) const override;
+	bool accessibilityChildSupportsActions(int index) const override;
+	quintptr accessibilityChildIdentity(int index) const override;
+	int accessibilityChildIndexByIdentity(quintptr identity) const override;
+	void accessibilityChildSetFocus(quintptr identity) override;
+	void accessibilityChildActivate(quintptr identity) override;
 
 protected:
 	int resizeGetHeight(int newWidth) override;
@@ -206,6 +212,7 @@ private:
 	rpl::event_stream<bool> _hasSelection;
 	rpl::event_stream<Language> _activations;
 	rpl::event_stream<bool> _isEmpty;
+	rpl::event_stream<Ui::ScrollToRequest> _mustScrollTo;
 
 };
 
@@ -241,6 +248,7 @@ public:
 	rpl::producer<Language> activations() const;
 	void changeChosen(const QString &chosen);
 	void activateBySubmit();
+	[[nodiscard]] rpl::producer<Ui::ScrollToRequest> mustScrollTo() const;
 
 private:
 	void setupContent(
@@ -252,6 +260,7 @@ private:
 	Fn<rpl::producer<Language>()> _activations;
 	Fn<void(const QString &chosen)> _changeChosen;
 	Fn<void()> _activateBySubmit;
+	rpl::event_stream<Ui::ScrollToRequest> _mustScrollTo;
 
 };
 
@@ -339,9 +348,20 @@ Rows::Rows(
 }
 
 void Rows::focusInEvent(QFocusEvent *e) {
-	if (selected() < 0 && count() > 0) {
+	// On real Tab traversal always land on the checked row: the accessibility
+	// SetFocus / Invoke actions leave a selection behind, and keeping it here
+	// would move Tab focus to whatever row was last acted on instead. Those
+	// actions themselves come through with OtherFocusReason (plain setFocus())
+	// and must keep the selection they have just set.
+	const auto tab = (e->reason() == Qt::TabFocusReason)
+		|| (e->reason() == Qt::BacktabFocusReason);
+	if (count() > 0) {
 		const auto chosen = chosenIndex();
-		setSelected(chosen >= 0 ? chosen : 0, Announce::No);
+		if (tab && chosen >= 0) {
+			setSelected(chosen, Announce::No);
+		} else if (selected() < 0) {
+			setSelected(chosen >= 0 ? chosen : 0, Announce::No);
+		}
 	}
 	RpWidget::focusInEvent(e);
 	const auto index = selected();
@@ -514,7 +534,11 @@ bool Rows::hasMenu(not_null<const Row*> row) const {
 void Rows::share(not_null<const Row*> row) const {
 	const auto link = u"https://t.me/setlanguage/"_q + row->data.id;
 	QGuiApplication::clipboard()->setText(link);
-	Ui::Toast::Show(tr::lng_username_copied(tr::now));
+	Ui::Toast::Show({
+		.text = { tr::lng_username_copied(tr::now) },
+		.iconLottie = u"toast/voip_invite"_q,
+		.iconLottieSize = st::toastLottieIconSize,
+	});
 }
 
 void Rows::remove(not_null<Row*> row) {
@@ -902,6 +926,10 @@ Ui::ScrollToRequest Rows::rowScrollRequest(int index) const {
 	return Ui::ScrollToRequest(row.top, row.top + row.height);
 }
 
+rpl::producer<Ui::ScrollToRequest> Rows::mustScrollTo() const {
+	return _mustScrollTo.events();
+}
+
 int Rows::DefaultRowHeight() {
 	return st::passportRowPadding.top()
 		+ st::semiboldFont->height
@@ -1089,6 +1117,93 @@ QString Rows::accessibilityChildSubItemValue(int row, int column) const {
 		return data.name;
 	}
 	return {};
+}
+
+bool Rows::accessibilityChildSupportsActions(int index) const {
+	// Every row is a language that can be focused and activated, and each
+	// has a stable identity below. Tying the opt-in to a valid identity
+	// keeps the action interface off invalid indices.
+	return accessibilityChildIdentity(index) != 0;
+}
+
+quintptr Rows::accessibilityChildIdentity(int index) const {
+	// _filtered is rebuilt on every search keystroke, so row indices are
+	// not stable by the time a queued action runs. The language id uniquely
+	// names a row within this widget (PrepareLists keeps the recent and
+	// official lists disjoint by id), so derive the token from it; hash
+	// collisions are possible but acceptable, same as in the country box
+	// and the hashtag cohort in the chat list. Shift instead of masking so
+	// that small hash values keep their distinguishing low bits; the tag
+	// bit keeps the token non-zero.
+	if (index < 0 || index >= count()) {
+		return 0;
+	}
+	const auto value = quintptr(qHash(rowByIndex(index).data.id));
+	return value ? ((value << 3) | quintptr(1)) : quintptr(0);
+}
+
+int Rows::accessibilityChildIndexByIdentity(quintptr identity) const {
+	if (!identity) {
+		return -1;
+	}
+	const auto count = accessibilityChildCount();
+	for (auto i = 0; i != count; ++i) {
+		if (accessibilityChildIdentity(i) == identity) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+void Rows::accessibilityChildSetFocus(quintptr identity) {
+	// UIA invokes provider actions (SetFocus) on a background thread, so hop
+	// to the main thread before touching any widget state. Resolve the stable
+	// identity to its current index here (not on the background thread) so a
+	// filter rebuild does not move focus to another row.
+	crl::on_main(this, [=] {
+		// An explicit accessibility SetFocus is itself sufficient
+		// authorization, so we do not gate it on the screen-reader-mode
+		// detector: the UIA provider already reported success to the caller,
+		// and the detector may still be false during startup or for valid
+		// clients that are not on its allowlist.
+		const auto index = accessibilityChildIndexByIdentity(identity);
+		if (index < 0) {
+			return;
+		}
+		// The rows are virtual (no real QWidget), so the screen reader's
+		// SetFocus can't move real keyboard focus to a row. Translate it
+		// into our internal selection, then either announce it directly or
+		// grab keyboard focus (focusInEvent announces the selected row).
+		setSelected(index, hasFocus() ? Announce::Always : Announce::No);
+		_mustScrollTo.fire(rowScrollRequest(index));
+		if (!hasFocus()) {
+			setFocus();
+		}
+	});
+}
+
+void Rows::accessibilityChildActivate(quintptr identity) {
+	// UIA invokes the press action on a background thread too; resolve the
+	// identity, move the selection and activate the row on the main thread.
+	crl::on_main(this, [=] {
+		const auto index = accessibilityChildIndexByIdentity(identity);
+		if (index < 0) {
+			return;
+		}
+		// Unlike the country box, activation keeps the box open and toggles
+		// the row's checked state, and the screen reader only announces the
+		// state change of the element it considers focused. Take focus onto
+		// the row (as the SetFocus action does) before activating, so the
+		// "checked" announcement is heard from Invoke as well as from Space:
+		// focusInEvent announces the row when focus moves here, OnChange
+		// covers an invoke on a not-focused row of the focused list, and an
+		// invoke on the already-focused row announces the change alone.
+		setSelected(index, hasFocus() ? Announce::OnChange : Announce::No);
+		if (!hasFocus()) {
+			setFocus();
+		}
+		activateByIndex(index);
+	});
 }
 
 Content::Content(
@@ -1297,6 +1412,21 @@ void Content::setupContent(
 			other->activateSelected();
 		}
 	};
+	const auto forwardScrollRequests = [=](Rows *rows) {
+		if (!rows) {
+			return;
+		}
+		rows->mustScrollTo(
+		) | rpl::on_next([=](Ui::ScrollToRequest request) {
+			const auto shift = rows->mapToGlobal({ 0, 0 }).y()
+				- mapToGlobal({ 0, 0 }).y();
+			_mustScrollTo.fire(Ui::ScrollToRequest(
+				request.ymin + shift,
+				request.ymax + shift));
+		}, rows->lifetime());
+	};
+	forwardScrollRequests(main);
+	forwardScrollRequests(other);
 }
 
 void Content::filter(const QString &query) {
@@ -1317,6 +1447,10 @@ void Content::activateBySubmit() {
 
 Ui::ScrollToRequest Content::jump(int rows) {
 	return _jump(rows);
+}
+
+rpl::producer<Ui::ScrollToRequest> Content::mustScrollTo() const {
+	return _mustScrollTo.events();
 }
 
 } // namespace
@@ -1389,6 +1523,11 @@ void LanguageBox::prepare() {
 				inner->changeChosen(currentId());
 			}
 		}
+	}, inner->lifetime());
+
+	inner->mustScrollTo(
+	) | rpl::on_next([=](Ui::ScrollToRequest request) {
+		scrollToY(request.ymin, request.ymax);
 	}, inner->lifetime());
 
 	_setInnerFocus = [=] {
@@ -1466,6 +1605,7 @@ void LanguageBox::setupTop(not_null<Ui::VerticalLayout*> container) {
 			Ui::AddDividerText(
 				platformTranslateWrap->entity(),
 				tr::lng_translate_settings_use_platform_mac_about());
+			Ui::AddSkip(platformTranslateWrap->entity());
 		}
 	}
 

@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/stickers/data_stickers.h"
 
-#include <QtGui/QImage>
+class DocumentData;
 
 namespace ChatHelpers {
 class Show;
@@ -21,16 +21,20 @@ class GenericBox;
 
 namespace Api {
 
-void CreateStickerBox(
-	not_null<Ui::GenericBox*> box,
-	std::shared_ptr<ChatHelpers::Show> show,
-	StickerSetIdentifier set,
-	QImage image,
-	Fn<void(MTPmessages_StickerSet)> done);
-
 void OpenCreateStickerFlow(
 	std::shared_ptr<ChatHelpers::Show> show,
 	StickerSetIdentifier set,
+	Fn<void(MTPmessages_StickerSet)> done = nullptr);
+
+void OpenCreateEmojiFlow(
+	std::shared_ptr<ChatHelpers::Show> show,
+	StickerSetIdentifier set,
+	Fn<void(MTPmessages_StickerSet)> done = nullptr);
+
+[[nodiscard]] bool AdaptStickerToEmoji(
+	std::shared_ptr<ChatHelpers::Show> show,
+	StickerSetIdentifier set,
+	not_null<DocumentData*> document,
 	Fn<void(MTPmessages_StickerSet)> done = nullptr);
 
 } // namespace Api

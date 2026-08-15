@@ -64,21 +64,22 @@ jobs:
         run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
 
       - name: Clone.
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: recursive
           path: ${{ env.REPO_NAME }}
 
       - name: First set up.
         run: |
+          libs="ada-url ffmpeg@6 jpeg-xl libavif libheif minizip openal-soft openh264 openssl opus qtbase qtimageformats qtshadertools qtsvg xz"
           brew update
           brew upgrade || true
-          brew install ada-url autoconf automake boost cmake ffmpeg@6 jpeg-xl libavif libheif libtool minizip ninja openal-soft openh264 openssl opus pkg-config python qtbase qtimageformats qtshadertools qtsvg xz
+          brew install autoconf automake boost cmake libtool ninja pkg-config python $libs
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
           sudo sed -i '' '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/ -g//' /opt/homebrew/share/cmake/Modules/Compiler/GNU.cmake
 
           xcodebuild -version > CACHE_KEY.txt
-          brew list --versions >> CACHE_KEY.txt
+          brew list --versions $libs >> CACHE_KEY.txt
           echo $MANUAL_CACHING >> CACHE_KEY.txt
           echo "$GITHUB_WORKSPACE" >> CACHE_KEY.txt
           if [ "$AUTO_CACHING" = "1" ]; then
@@ -95,7 +96,7 @@ jobs:
 
       - name: RNNoise cache.
         id: cache-rnnoise
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ env.LibrariesPath }}/local/rnnoise
           key: ${{ runner.OS }}-rnnoise-${{ env.RNNOISE }}-${{ env.CACHE_KEY }}
@@ -113,7 +114,7 @@ jobs:
 
       - name: WebRTC cache.
         id: cache-webrtc
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ env.LibrariesPath }}/local/tg_owt
           key: ${{ runner.OS }}-webrtc-${{ env.WEBRTC }}-${{ env.CACHE_KEY }}
@@ -131,7 +132,7 @@ jobs:
 
       - name: TDE2E cache.
         id: cache-tde2e
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ env.LibrariesPath }}/local/tde2e
           key: ${{ runner.OS }}-tde2e-${{ env.TDE2E }}-${{ env.CACHE_KEY }}

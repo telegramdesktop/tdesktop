@@ -43,10 +43,12 @@ constexpr auto kEnableSearchMembersAfterCount = 20;
 
 Members::Members(
 	QWidget *parent,
-	not_null<Controller*> controller)
+	not_null<Controller*> controller,
+	bool skipHeader)
 : RpWidget(parent)
 , _show(controller->uiShow())
 , _controller(controller)
+, _skipHeader(skipHeader)
 , _peer(_controller->key().peer())
 , _listController(CreateMembersController(controller, _peer)) {
 	_listController->setStoriesShown(true);
@@ -70,16 +72,7 @@ Members::Members(
 
 int Members::desiredHeight() const {
 	auto desired = _header ? _header->height() : 0;
-	auto count = [this] {
-		if (auto chat = _peer->asChat()) {
-			return chat->count;
-		} else if (auto channel = _peer->asChannel()) {
-			return channel->membersCount();
-		}
-		return 0;
-	}();
-	desired += qMax(count, _list->fullRowsCount())
-		* st::infoMembersList.item.height;
+	desired += _list->fullRowsCount() * st::infoMembersList.item.height;
 	return qMax(height(), desired);
 }
 
@@ -93,6 +86,27 @@ rpl::producer<int> Members::fullCountValue() const {
 
 rpl::producer<Ui::ScrollToRequest> Members::scrollToRequests() const {
 	return _scrollToRequests.events();
+}
+
+void Members::applySearchQuery(const QString &query) {
+	peerListScrollToTop();
+	content()->searchQueryChanged(query);
+}
+
+void Members::setGroupByRole(bool grouped) {
+	_listController->setGroupByRole(grouped);
+}
+
+rpl::producer<bool> Members::groupByRoleValue() const {
+	return _listController->groupByRoleValue();
+}
+
+rpl::producer<bool> Members::groupByRoleAvailableValue() const {
+	return _listController->groupByRoleAvailableValue();
+}
+
+rpl::producer<bool> Members::rowsVisibleValue() const {
+	return _rowsVisible.value();
 }
 
 std::unique_ptr<MembersState> Members::saveState() {
@@ -120,7 +134,8 @@ void Members::restoreState(std::unique_ptr<MembersState> state) {
 }
 
 void Members::setupHeader() {
-	if (_controller->section().type() == Section::Type::Members) {
+	if (_skipHeader
+		|| (_controller->section().type() == Section::Type::Members)) {
 		return;
 	}
 	_header = object_ptr<Ui::FixedHeightWidget>(
@@ -434,6 +449,9 @@ void Members::visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) {
 	setChildVisibleTopBottom(_list, visibleTop, visibleBottom);
+	const auto top = _list->y();
+	_rowsVisible = (visibleBottom > top)
+		&& (visibleTop < top + _list->height());
 }
 
 void Members::peerListSetTitle(rpl::producer<QString> title) {

@@ -21,7 +21,7 @@ wsl.exe -d {distro} --cd /home/{user}/Telegram/tdesktop -- <command>
 - For WSL/Linux builds, use the Docker build entry point from the repository root: `Telegram/build/docker/centos_env/build_debug.sh`. The Docker daemon must be reachable from WSL; checking `docker info` is fine, but do not start a build unless the user asked for one.
 - Existing build outputs may be Linux binaries, for example `out/Debug/Telegram` as an ELF executable, not `Telegram.exe`. Verify the build tree before assuming which platform produced it.
 - Be careful with text file line endings. In a WSL/Linux checkout, files should remain LF-only unless the file already uses another convention. CRLF finishing applies only to native, non-WSL Windows runs/checkouts. Do not let PowerShell or Windows tools silently rewrite WSL files to CRLF. If a file becomes mixed, normalize it back to the convention appropriate for the current checkout, without adding a UTF-8 BOM.
-- When using the local `task-think` skill from this WSL checkout, keep `.ai/...` artifacts and edited project text files LF-only. Treat the skill's Windows text-normalization phase as not applicable to WSL, except to record that line endings were checked and kept LF/no-BOM. Run CRLF normalization for `task-think` only in a native, non-WSL Windows checkout.
+- When using the local `perform-task` skill from this WSL checkout, keep external AI task artifacts and edited project text files LF-only. Treat its Windows text-normalization phase as not applicable to WSL, except to record that line endings were checked and kept LF/no-BOM. Run CRLF normalization only in a native, non-WSL Windows checkout.
 
 ## Build System Structure
 
@@ -94,29 +94,67 @@ Ensure the repository is in `L:\Telegram\tdesktop`. The build system requires `.
 ### Build fails with "wrong command prompt"
 On Windows, use the correct Visual Studio Native Tools Command Prompt matching your target (x64/x86/ARM64).
 
-### Build fails with PDB or EXE access errors
+### macOS crashes while reading the cached language pack
 
-**âš ï¸ CRITICAL: DO NOT RETRY THE BUILD. STOP AND WAIT FOR USER.**
+After an incremental Xcode build that regenerated `lang.strings` outputs, the
+app can link a new generated key lookup with stale objects that still use an
+older `kKeysCount`. The characteristic failure is:
 
-If the build fails with ANY of these errors:
-- `fatal error C1041: cannot open program database`
-- `cannot open output file 'Telegram.exe'`
-- `LNK1104: cannot open file`
-- Any "access denied" or "file in use" error
+- the Debug log stops immediately after
+  `Lang Info: Loaded cached, keys: ...`;
+- stderr and `tdata/working` may be empty;
+- a fresh `~/Library/Logs/DiagnosticReports/Telegram-*.ips` shows `SIGABRT`
+  from `std::vector<unsigned char>::operator[]`, then
+  `Lang::Instance::applyValue()`, `fillFromSerialized()`, and
+  `Local::readLangPack()`.
 
-**STOP IMMEDIATELY.** These errors mean files are locked by a running process (Telegram.exe or debugger).
+If this exact startup failure repeats twice, do not change the implementation,
+test overlay, or portable account. Stop only this checkout's exact Telegram
+process. Because Xcode's `CONFIGURATION_BUILD_DIR` is `out/Debug`, make a
+safety copy of every existing portable folder outside `out/` before cleaning:
 
-**What to do:**
-1. Do NOT attempt another build - it will fail the same way
-2. Do NOT try to delete files - they are locked
-3. Do NOT try any workarounds or fixes
-4. IMMEDIATELY inform the user:
+```bash
+portable_backup_root="$(mktemp -d "${TMPDIR:-/tmp}/tdesktop-portable-clean.XXXXXX")"
+for portable_name in \
+  TelegramForcePortable \
+  test_TelegramForcePortable \
+  real_TelegramForcePortable; do
+  if [ -d "out/Debug/$portable_name" ]; then
+    ditto "out/Debug/$portable_name" "$portable_backup_root/$portable_name"
+  fi
+done
+```
 
-> "Build failed - files are locked. Please close Telegram.exe (and any debugger) so I can rebuild."
+Require every expected backup copy to exist before continuing. Then perform
+one full Xcode Debug clean and rebuild:
 
-**Then WAIT for user confirmation before attempting any build.**
+```bash
+cmake --build out --config Debug --target clean
+cmake --build out --config Debug --target Telegram
+```
 
-Retrying builds wastes time and context. The ONLY fix is for the user to close the running process.
+Afterward, restore a portable folder from the backup only when its original
+path is missing; never overwrite a folder that survived the clean. Verify all
+three original folder names that existed before the clean are present, keep
+the backup until the rebuilt app completes one successful launch, and record
+its path if the run stops before verification. Then rerun the same test once.
+If the signature persists after that clean rebuild, continue normal crash
+diagnosis or report the blocker. Do not loop clean rebuilds.
+
+### Build output locks
+
+For builds owned by the autonomous `continue` / `perform-task` workflow, read
+and follow `.agents/shared/build-lock-recovery.md`. PDB, EXE, OBJ, and other
+build-output lock errors are recoverable: stop only the exact checkout
+executable or verified build-tree holders, delete only exact named artifacts
+inside that checkout's build tree, and retry within the bounded recovery
+budget. Never stop an installed Telegram client, another checkout, an IDE, or
+an unknown process.
+
+Outside that autonomous workflow, an exact checkout executable may be running
+because the user is testing it. Do not terminate it or delete locked build
+outputs without explicit permission. Report the exact locked path and ask the
+user to close that checkout's Telegram/debugger before rebuilding.
 
 ## Best Practices
 
@@ -128,6 +166,25 @@ Retrying builds wastes time and context. The ONLY fix is for the user to close t
 - On Windows, keep project text files with CRLF line endings.
 - Do not save source, header, build/config, style, or localization files as UTF-8 with BOM. Use UTF-8 without BOM.
 - When rewriting project text files for normalization, preserve file content otherwise and do not introduce a BOM.
+
+## Commits
+
+- Subject: one concise, plain-language line summarizing the change, ~50-60 characters, matching the style of recent `git log` subjects. This is usually the entire message.
+- For an `ai-tdesktop` task, start the subject with exactly `[ai] ` when the
+  retained task implementation changes permanent test-helper code, the agent
+  harness, or agent documentation in any way. This includes
+  `Telegram/SourceFiles/test/`, `.agents/`, `.claude/`, `AGENTS.md`,
+  `CLAUDE.md`, and files whose sole role is supporting those systems. Do not
+  count the disposable test overlay or external AI task artifacts. For every
+  other task, the subject must not contain `[ai]` anywhere.
+- For ordinary work not associated with an AI task, add a short plain-language body only when the subject can't carry it (what was done, not the technical how) — a line or two at most.
+- Never add a `Co-Authored-By:` line or any tool/assistant attribution trailer.
+- Never add `Autotask:`/attempt or other internal run markers. A commit owned by
+  an `ai-tdesktop` task has exactly three lines: the concise subject, a blank
+  line, and `Task: <task-id>`. Do not add a body. Keep rationale and
+  implementation notes out of the commit message; put a short durable note
+  under `tasks/<task-id>.md` only when useful. Do not copy commit hashes into
+  that note or any AI task artifact; the task id is the cross-repository link.
 
 ## Local Storage Serialization
 
@@ -234,6 +291,99 @@ auto text = u"Settings"_q;
 auto text = QStringLiteral("Settings");
 ```
 
+**Never use `Q_OS_LINUX` for platform checks in new code:**
+
+Telegram Desktop distinguishes at most three platforms: Windows / macOS / all-other. The "all-other" branch covers Linux, the BSD variants and more — and this is almost always the branch you want. `Q_OS_LINUX` narrows it to Linux alone, silently excluding the non-Linux Unix platforms, which is almost never intended. For the all-other branch use `!defined Q_OS_WIN && !defined Q_OS_MAC` at compile time, or its runtime equivalent `Platform::IsLinux()` — which, despite the name, means exactly `!defined Q_OS_WIN && !defined Q_OS_MAC` ("everything except Windows and macOS"), not Linux specifically:
+
+```cpp
+// BAD - excludes FreeBSD and other non-Linux Unix:
+#ifdef Q_OS_LINUX
+UnixSpecificCode();
+#endif // Q_OS_LINUX
+
+// GOOD - the all-other branch, compile time:
+#if !defined Q_OS_WIN && !defined Q_OS_MAC
+UnixSpecificCode();
+#endif // !Q_OS_WIN && !Q_OS_MAC
+
+// GOOD - the all-other branch, runtime (same meaning, NOT Linux-only):
+if (Platform::IsLinux()) {
+	UnixSpecificCode();
+}
+```
+
+`Q_OS_LINUX` is only for the rare case where you genuinely want exactly Linux and not the other Unix-like systems — usually you don't. The few existing uses (`Telegram/SourceFiles/core/sandbox.cpp`, `Telegram/SourceFiles/platform/linux/specific_linux.cpp`) are such genuinely Linux-only code paths and stay as-is.
+
+**Treat CMake `LINUX` as the all-other platform:**
+
+In this project, `cmake/validate_special_target.cmake` sets `LINUX` in the
+final `else()` after checking `WIN32` and `APPLE`. It therefore means
+`NOT WIN32 AND NOT APPLE`, including non-Linux Unix platforms; it does not
+mean exactly Linux. For the usual three-way platform split, write:
+
+```cmake
+if (WIN32)
+    set(platform_source platform/win.cpp)
+elseif (APPLE)
+    set(platform_source platform/mac.mm)
+else()
+    set(platform_source platform/linux.cpp)
+endif()
+target_sources(my_target PRIVATE ${platform_source})
+```
+
+Do not add a separate fallback branch after `if (LINUX)` as though `LINUX`
+were one platform among several remaining platforms. There are no remaining
+platforms in this project's CMake platform model.
+
+**Prefer cppgir wrappers over the GLib C API:**
+
+When implementing all-other-platform code with GLib, GObject, or GIO, use the
+generated cppgir C++ bindings under `gi::repository` as much as possible.
+Prefer their `GLib`, `GObject`, and `Gio` types, ownership handling, results,
+and callbacks over raw `g_*`, `g_object_*`, and `g_io_*` APIs. Use the C API
+only when cppgir does not expose the required functionality or at a narrow
+interop boundary that genuinely requires raw GLib types, and keep that raw
+API surface as small as possible.
+
+**Generate typed D-Bus bindings from introspection XML:**
+
+For a D-Bus interface known at build time, prefer the CMake `generate_dbus`
+function from `cmake/external/glib/generate_dbus.cmake` over handwritten
+`GDBusProxy` calls, stringly typed method and signal names, or manually
+maintained C wrappers. Its signature is:
+
+```cmake
+generate_dbus(
+    target_name
+    interface_prefix
+    namespace
+    interface_file)
+```
+
+`target_name` is the existing target that will use the bindings,
+`interface_prefix` is the common D-Bus interface prefix passed to
+`gdbus-codegen`, `namespace` names the generated API, and `interface_file` is
+the D-Bus introspection XML file. Include the helper and call it inside the
+all-other-platform branch:
+
+```cmake
+include(${cmake_helpers_loc}/external/glib/generate_dbus.cmake)
+generate_dbus(
+    my_target
+    org.example.
+    Example
+    ${src_loc}/platform/linux/org.example.Service.xml)
+```
+
+The helper runs `gdbus-codegen`, generates proxy, skeleton, and object-manager
+types, produces GIR metadata, wraps that metadata with cppgir, and links the
+result into `target_name`. Consume the resulting typed API from
+`gi::repository::Example` (using the namespace argument from the example);
+do not edit or separately list files under the build `gen` directory. Use
+generic GLib D-Bus calls only when the interface is genuinely dynamic or
+cannot be represented by suitable introspection XML.
+
 ## API Usage
 
 ### API Schema Files
@@ -292,6 +442,77 @@ api().request(MTPnamespace_MethodName(
 - Include `.handleFloodErrors()` before `.send()` in rare cases where you want special case flood error handling
 - Silently ignore HTTP 406 errors in UI: the server uses 406 to mean "show nothing to the user". Guard toasts with `MTP::IgnoreError(error)` or use `MTP::ShowErrorFallback(show, error)` (both in `mtproto/mtproto_response.h`) which shows `error.type()` as a toast unless the error should be ignored.
 
+### API Request Callback Lifetime
+
+`api().request(...)` callbacks are owned by the session, not by whatever created
+them. A `.done()` / `.fail()` handler stays alive for the whole session lifetime,
+so a handler that captured a widget, a box, a controller, or any shorter-lived
+state still runs after that state is gone. A plain `[=]` capture warns about
+nothing, which makes this one of the easiest ways to write a use-after-free here.
+
+Capturing only plain values or session-owned objects is fine. When anything
+captured can die before the session does, pick one of three:
+
+**1. Guard the callback with `crl::guard`.** The request is always sent; the
+handler is skipped when the context is gone. Use when the call itself must reach
+the server and only the local reaction is optional.
+
+```cpp
+api().request(MTPmethod(
+	...
+)).done(crl::guard(this, [=](const MTPResult &result) {
+	// runs only while `this` is still alive
+})).send();
+```
+
+Accepted guards, in rough order of how often they are used: a raw pointer or
+`not_null` to any `QObject`-derived type — widgets, boxes, controllers — where the
+`QPointer` is created on the spot, so passing `this` is the normal case; a raw
+pointer or `not_null` to a `base::has_weak_ptr` type; `QPointer`, `QWeakPointer`,
+`QSharedPointer`; `base::weak_ptr`, `base::weak_qptr`; `std::weak_ptr`,
+`std::shared_ptr`; and `base::binary_guard`.
+
+**2. Remember the `mtpRequestId` and cancel it.** Cancel when the result stops
+being relevant, and in the destructor. The request may never reach the server —
+if it is still queued when cancelled, or connectivity dies first, it is simply
+dropped — so never use this when the call itself has to happen.
+
+```cpp
+_requestId = api().request(MTPmethod(
+	...
+)).done([=](const MTPResult &result) {
+	_requestId = 0;
+	...
+}).send();
+
+// when the result is no longer relevant, and in the destructor:
+api().request(base::take(_requestId)).cancel();
+```
+
+**3. Own an `MTP::Sender`.** Its destructor cancels everything it sent that is
+still in flight, so request lifetime follows the owner with no bookkeeping. Same
+delivery caveat as (2). Prefer this for a widget, box, or controller that issues
+more than a request or two.
+
+```cpp
+// header
+	MTP::Sender _api;
+
+// constructor initializer list
+, _api(&session->mtp())
+
+// requests sent through it die with the owner
+_api.request(MTPmethod(
+	...
+)).done([=](const MTPResult &result) {
+	...
+}).send();
+```
+
+Choosing between them: if the server must see the request, use (1). If it only
+matters while its owner is alive, use (3) — or (2) when a single request does not
+justify a `Sender` member.
+
 ## UI Styling
 
 ### Style Files
@@ -325,7 +546,7 @@ primaryButton: MyButtonStyle(defaultButton) {
 - `pixels` - Pixel values with `px` suffix (e.g., `10px`)
 - `color` - Named colors from `ui/colors.palette`
 - `icon` - Inline icon definition: `icon{{ "path/stem", color }}`
-- `margins` - Four values: `margins(top, right, bottom, left)`
+- `margins` - Four values: `margins(left, top, right, bottom)`
 - `size` - Two values: `size(width, height)`
 - `point` - Two values: `point(x, y)`
 - `align` - Alignment: `align(center)`, `align(left)`

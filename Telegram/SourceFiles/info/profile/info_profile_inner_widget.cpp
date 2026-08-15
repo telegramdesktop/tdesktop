@@ -9,13 +9,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "info/info_controller.h"
 #include "info/info_memento.h"
+#include "info/info_wrap_widget.h"
 #include "info/profile/info_profile_widget.h"
+#include "info/profile/tabs/adapters/info_profile_tab_media.h"
+#include "info/profile/tabs/adapters/info_profile_tab_members.h"
+#include "info/profile/tabs/adapters/info_profile_tab_peer_lists.h"
+#include "info/profile/tabs/adapters/info_profile_tab_polls.h"
+#include "info/profile/tabs/adapters/info_profile_tab_saved.h"
+#include "info/profile/tabs/adapters/info_profile_tab_stories.h"
+#include "info/profile/tabs/info_profile_tabs_host.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_members.h"
 #include "info/profile/info_profile_music_button.h"
+#include "info/profile/info_profile_shared_media_classic.h"
 #include "info/profile/info_profile_top_bar.h"
 #include "info/profile/info_profile_actions.h"
-#include "info/media/info_media_buttons.h"
+#include "info/profile/info_profile_values.h"
 #include "info/saved/info_saved_music_widget.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
@@ -52,6 +61,19 @@ namespace Info {
 namespace Profile {
 
 namespace {
+
+constexpr auto kMembersInlineMax = 5;
+
+[[nodiscard]] rpl::producer<bool> MembersInTabValue(not_null<PeerData*> peer) {
+	const auto channel = peer->asChannel();
+	return MembersCountValue(
+		peer
+	) | rpl::filter([=](int count) {
+		return (count > 0) && (!channel || channel->membersCountKnown());
+	}) | rpl::map([](int count) {
+		return (count > kMembersInlineMax);
+	}) | rpl::take(1);
+}
 
 void AddSavedMusic(
 		not_null<Ui::VerticalLayout*> layout,
@@ -214,10 +236,17 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		_sublist,
 		origin);
 
+	const auto thirdColumn = (_controller->wrap() == Wrap::Side);
+	const auto tabs = UseProfileMediaTabs() && !thirdColumn;
 	auto sharedTracker = Ui::MultiSlideTracker();
-	{
-		auto sharedMediaWidget = setupSharedMedia(
+	if (!tabs) {
+		auto sharedMediaWidget = SetupSharedMediaClassic(
 			result.data(),
+			_controller,
+			_peer,
+			_topic,
+			_sublist,
+			_migrated,
 			sharedTracker);
 		const auto raw = sharedMediaWidget.data();
 		_sharedMediaWrap = raw;
@@ -227,7 +256,124 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 			.shown = raw->toggledValue(),
 		});
 	}
+
+	const auto addTabsHost = [&] {
+		using namespace rpl::mappers;
+		const auto tabsPeer = _sublist ? _sublist->sublistPeer() : _peer;
+		const auto topicRootId = _topic ? _topic->rootId() : MsgId();
+		const auto monoforumPeerId = _sublist
+			? _sublist->sublistPeer()->id
+			: PeerId();
+		auto tabs = std::vector<MediaTabDescriptor>();
+		const auto countValue = [&](Storage::SharedMediaType type) {
+			return SharedMediaCountValue(
+				tabsPeer,
+				topicRootId,
+				monoforumPeerId,
+				_migrated,
+				type);
+		};
+		const auto addTab = [&](Storage::SharedMediaType type) {
+			tabs.push_back(MakeMediaTabDescriptor(
+				type,
+				countValue(type) | rpl::map(_1 > 0)));
+		};
+		const auto addMediaTabs = [&] {
+			using Type = Storage::SharedMediaType;
+			tabs.push_back(MakeMediaTabDescriptor(
+				Type::PhotoVideo,
+				rpl::combine(
+					MediaTabsExpandedValue(),
+					countValue(Type::Photo),
+					countValue(Type::Video)
+				) | rpl::map([](bool expanded, int photos, int videos) {
+					return !expanded && (photos + videos > 0);
+				})));
+			const auto addSplit = [&](Type type) {
+				tabs.push_back(MakeMediaTabDescriptor(
+					type,
+					rpl::combine(
+						MediaTabsExpandedValue(),
+						countValue(type)
+					) | rpl::map([](bool expanded, int count) {
+						return expanded && (count > 0);
+					})));
+			};
+			addSplit(Type::Photo);
+			addSplit(Type::Video);
+		};
+		if (!_topic) {
+			tabs.push_back(MakeStoriesTabDescriptor(tabsPeer));
+			if (!_sublist) {
+				tabs.push_back(MakeGiftsTabDescriptor(_peer));
+			}
+		}
+		if ((_peer->isChat() || _peer->isMegagroup())
+			&& !_peer->isMonoforum()
+			&& !_topic
+			&& !_sublist) {
+			tabs.push_back(MakeMembersTabDescriptor(
+				_peer,
+				MembersInTabValue(_peer)));
+		}
+		addMediaTabs();
+		if (!_topic) {
+			tabs.push_back(MakeSavedTabDescriptor(tabsPeer));
+		}
+		addTab(Storage::SharedMediaType::File);
+		addTab(Storage::SharedMediaType::Link);
+		addTab(Storage::SharedMediaType::MusicFile);
+		tabs.push_back(MakePollsTabDescriptor(SharedMediaCountValue(
+			tabsPeer,
+			topicRootId,
+			monoforumPeerId,
+			_migrated,
+			Storage::SharedMediaType::Poll) | rpl::map(_1 > 0)));
+		addTab(Storage::SharedMediaType::RoundVoiceFile);
+		addTab(Storage::SharedMediaType::GIF);
+		if (!_topic && !_sublist) {
+			if (const auto user = _peer->asUser()) {
+				tabs.push_back(MakeCommonGroupsTabDescriptor(user));
+			}
+			if (_peer->asBot() || _peer->asBroadcast()) {
+				tabs.push_back(MakeSimilarPeersTabDescriptor(_peer));
+			}
+		}
+		auto tabsHost = object_ptr<TabsHost>(
+			result.data(),
+			TabsHost::Descriptor{
+				.context = MediaTabContext{
+					.controller = _controller,
+					.peer = _peer,
+					.topic = _topic,
+					.sublist = _sublist,
+					.migrated = _migrated,
+					.onlineCountChanged = [this](int count) {
+						_onlineCount.fire_copy(count);
+					},
+				},
+				.tabs = std::move(tabs),
+			});
+		const auto raw = tabsHost.data();
+		_tabsHost = raw;
+		raw->scrollToRequests(
+		) | rpl::on_next([this, raw](Ui::ScrollToRequest request) {
+			const auto shift = MapFrom(this, raw, QPoint()).y();
+			_scrollToRequests.fire({
+				request.ymin + shift,
+				(request.ymax < 0) ? -1 : (request.ymax + shift),
+			});
+		}, raw->lifetime());
+		stack.addPlainSeparator();
+		stack.add(Section{
+			.widget = std::move(tabsHost),
+			.shown = raw->heightValue() | rpl::map(_1 > 0),
+		});
+	};
 	if (_topic || _sublist) {
+		if (tabs) {
+			addTabsHost();
+		}
 		stack.finalize();
 		return result;
 	}
@@ -252,180 +398,65 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	}
 	if ((_peer->isChat() || _peer->isMegagroup())
 		&& !_peer->isMonoforum()) {
+		auto shown = [&]() -> rpl::producer<bool> {
+			if (!tabs) {
+				return rpl::single(true);
+			}
+			return MembersInTabValue(_peer) | rpl::map([](bool inTab) {
+				return !inTab;
+			});
+		}();
 		stack.addPlainSeparator();
-		stack.add(makeMembersSection(result.data()));
+		stack.add(makeMembersSection(result.data(), std::move(shown)));
+	}
+	if (tabs) {
+		addTabsHost();
 	}
 	stack.finalize();
 	return result;
 }
 
-Section InnerWidget::makeMembersSection(not_null<QWidget*> parent) {
+Section InnerWidget::makeMembersSection(
+		not_null<QWidget*> parent,
+		rpl::producer<bool> shown) {
 	auto wrap = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		parent,
 		object_ptr<Ui::VerticalLayout>(parent));
 	const auto raw = wrap.data();
 	const auto inner = raw->entity();
-	_members = inner->add(object_ptr<Members>(inner, _controller));
-	_members->scrollToRequests(
-	) | rpl::on_next([this](Ui::ScrollToRequest request) {
-		auto min = (request.ymin < 0)
-			? request.ymin
-			: MapFrom(this, _members, QPoint(0, request.ymin)).y();
-		auto max = (request.ymin < 0)
-			? MapFrom(this, _members, QPoint()).y()
-			: (request.ymax < 0)
-			? request.ymax
-			: MapFrom(this, _members, QPoint(0, request.ymax)).y();
-		_scrollToRequests.fire({ min, max });
-	}, _members->lifetime());
-	_members->onlineCountValue(
-	) | rpl::on_next([=](int count) {
-		_onlineCount.fire_copy(count);
-	}, _members->lifetime());
+	const auto toggled = raw->lifetime().make_state<rpl::variable<bool>>();
+	raw->toggleOn(toggled->value(), anim::type::instant);
 
 	using namespace rpl::mappers;
-	raw->toggleOn(
-		_members->fullCountValue() | rpl::map(_1 > 0),
-		anim::type::instant);
+	std::move(
+		shown
+	) | rpl::filter(_1) | rpl::take(1) | rpl::on_next([=] {
+		_members = inner->add(object_ptr<Members>(inner, _controller));
+		_members->scrollToRequests(
+		) | rpl::on_next([this](Ui::ScrollToRequest request) {
+			auto min = (request.ymin < 0)
+				? request.ymin
+				: MapFrom(this, _members, QPoint(0, request.ymin)).y();
+			auto max = (request.ymin < 0)
+				? MapFrom(this, _members, QPoint()).y()
+				: (request.ymax < 0)
+				? request.ymax
+				: MapFrom(this, _members, QPoint(0, request.ymax)).y();
+			_scrollToRequests.fire({ min, max });
+		}, _members->lifetime());
+		_members->onlineCountValue(
+		) | rpl::on_next([=](int count) {
+			_onlineCount.fire_copy(count);
+		}, _members->lifetime());
+		_members->fullCountValue(
+		) | rpl::on_next([=](int count) {
+			*toggled = (count > 0);
+		}, _members->lifetime());
+	}, raw->lifetime());
 	return Section{
 		.widget = std::move(wrap),
 		.shown = raw->toggledValue(),
 	};
-}
-
-object_ptr<Ui::SlideWrap<Ui::RpWidget>> InnerWidget::setupSharedMedia(
-		not_null<RpWidget*> parent,
-		Ui::MultiSlideTracker &sharedTracker) {
-	using namespace rpl::mappers;
-	using MediaType = Media::Type;
-
-	const auto peer = _sublist ? _sublist->sublistPeer() : _peer;
-	auto content = object_ptr<Ui::VerticalLayout>(parent);
-	auto &tracker = sharedTracker;
-	auto addMediaButton = [&](
-			MediaType type,
-			const style::icon &icon) {
-		auto result = Media::AddButton(
-			content,
-			_controller,
-			peer,
-			_topic ? _topic->rootId() : MsgId(),
-			_sublist ? _sublist->sublistPeer()->id : PeerId(),
-			_migrated,
-			type,
-			tracker);
-		object_ptr<Profile::FloatingIcon>(
-			result,
-			icon,
-			st::infoSharedMediaButtonIconPosition);
-	};
-	auto addCommonGroupsButton = [&](
-			not_null<UserData*> user,
-			const style::icon &icon) {
-		auto result = Media::AddCommonGroupsButton(
-			content,
-			_controller,
-			user,
-			tracker);
-		object_ptr<Profile::FloatingIcon>(
-			result,
-			icon,
-			st::infoSharedMediaButtonIconPosition);
-	};
-	const auto addSimilarPeersButton = [&](
-			not_null<PeerData*> peer,
-			const style::icon &icon) {
-		auto result = Media::AddSimilarPeersButton(
-			content,
-			_controller,
-			peer,
-			tracker);
-		object_ptr<Profile::FloatingIcon>(
-			result,
-			icon,
-			st::infoSharedMediaButtonIconPosition);
-	};
-	auto addStoriesButton = [&](
-			not_null<PeerData*> peer,
-			const style::icon &icon) {
-		if (peer->isChat()) {
-			return;
-		}
-		auto result = Media::AddStoriesButton(
-			content,
-			_controller,
-			peer,
-			tracker);
-		object_ptr<Profile::FloatingIcon>(
-			result,
-			icon,
-			st::infoSharedMediaButtonIconPosition);
-	};
-	auto addSavedSublistButton = [&](
-			not_null<PeerData*> peer,
-			const style::icon &icon) {
-		auto result = Media::AddSavedSublistButton(
-			content,
-			_controller,
-			peer,
-			tracker);
-		object_ptr<Profile::FloatingIcon>(
-			result,
-			icon,
-			st::infoSharedMediaButtonIconPosition);
-	};
-	auto addPeerGiftsButton = [&](
-			not_null<PeerData*> peer,
-			const style::icon &icon) {
-		auto result = Media::AddPeerGiftsButton(
-			content,
-			_controller,
-			peer,
-			tracker);
-		object_ptr<Profile::FloatingIcon>(
-			result,
-			icon,
-			st::infoSharedMediaButtonIconPosition);
-	};
-
-	if (!_topic) {
-		addStoriesButton(peer, st::infoIconMediaStories);
-		addPeerGiftsButton(peer, st::infoIconMediaGifts);
-		addSavedSublistButton(peer, st::infoIconMediaSaved);
-	}
-	addMediaButton(MediaType::Photo, st::infoIconMediaPhoto);
-	addMediaButton(MediaType::Video, st::infoIconMediaVideo);
-	addMediaButton(MediaType::File, st::infoIconMediaFile);
-	addMediaButton(MediaType::MusicFile, st::infoIconMediaAudio);
-	addMediaButton(MediaType::Link, st::infoIconMediaLink);
-	addMediaButton(MediaType::Poll, st::infoIconMediaPoll);
-	addMediaButton(MediaType::RoundVoiceFile, st::infoIconMediaVoice);
-	addMediaButton(MediaType::GIF, st::infoIconMediaGif);
-	if (const auto bot = peer->asBot()) {
-		addCommonGroupsButton(bot, st::infoIconMediaGroup);
-		addSimilarPeersButton(bot, st::infoIconMediaBot);
-	} else if (const auto channel = peer->asBroadcast()) {
-		addSimilarPeersButton(channel, st::infoIconMediaChannel);
-	} else if (const auto user = peer->asUser()) {
-		addCommonGroupsButton(user, st::infoIconMediaGroup);
-	}
-
-	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-		parent,
-		object_ptr<Ui::VerticalLayout>(parent)
-	);
-
-	result->setDuration(
-		st::infoSlideDuration
-	)->toggleOn(
-		tracker.atLeastOneShownValue()
-	);
-
-	auto layout = result->entity();
-
-	layout->add(std::move(content));
-
-	return result;
 }
 
 int InnerWidget::countDesiredHeight() const {
@@ -438,11 +469,30 @@ void InnerWidget::visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) {
 	setChildVisibleTopBottom(_content, visibleTop, visibleBottom);
+	if (_tabsHost) {
+		const auto top = MapFrom(this, _tabsHost, QPoint()).y();
+		if (!_clampingTabsScroll && (top > 0) && _tabsHost->searching()) {
+			const auto offDock = _tabsHost->searchContentFits()
+				? (visibleTop != top)
+				: (visibleTop < top);
+			if (offDock) {
+				_clampingTabsScroll = true;
+				_scrollToRequests.fire({ top, -1 });
+				_clampingTabsScroll = false;
+				return;
+			}
+		}
+		_tabsHost->setVisibleRegion(visibleTop - top, visibleBottom - top);
+		_tabsDocked = (top > 0) && (visibleTop >= top);
+	}
 }
 
 void InnerWidget::saveState(not_null<Memento*> memento) {
 	if (_members) {
 		memento->setMembersState(_members->saveState());
+	}
+	if (_tabsHost) {
+		memento->setActiveTab(_tabsHost->activeId());
 	}
 }
 
@@ -453,6 +503,11 @@ void InnerWidget::restoreState(not_null<Memento*> memento) {
 	if (_sharedMediaWrap) {
 		_sharedMediaWrap->finishAnimating();
 	}
+	if (_tabsHost) {
+		if (const auto active = memento->activeTab(); !active.isEmpty()) {
+			_tabsHost->restoreActiveTab(active);
+		}
+	}
 }
 
 rpl::producer<Ui::ScrollToRequest> InnerWidget::scrollToRequests() const {
@@ -460,7 +515,7 @@ rpl::producer<Ui::ScrollToRequest> InnerWidget::scrollToRequests() const {
 }
 
 rpl::producer<int> InnerWidget::desiredHeightValue() const {
-	return _desiredHeight.events_starting_with(countDesiredHeight());
+	return _desiredHeight.value();
 }
 
 int InnerWidget::resizeGetHeight(int newWidth) {
@@ -479,6 +534,25 @@ void InnerWidget::enableBackButton() {
 
 void InnerWidget::showFinished() {
 	_showFinished.fire({});
+}
+
+void InnerWidget::checkBeforeCloseByEscape(Fn<void()> close) {
+	if (const auto top = _topBar.get()) {
+		top->checkBeforeCloseByEscape(std::move(close));
+	} else {
+		close();
+	}
+}
+
+bool InnerWidget::searchAvailable() const {
+	const auto top = _topBar.get();
+	return top && top->searchAvailable();
+}
+
+void InnerWidget::showSearch() {
+	if (const auto top = _topBar.get()) {
+		top->showSearch();
+	}
 }
 
 bool InnerWidget::hasFlexibleTopBar() const {
@@ -500,7 +574,24 @@ base::weak_qptr<Ui::RpWidget> InnerWidget::createPinnedToTop(
 	content->backRequest(
 	) | rpl::start_to_stream(_backClicks, content->lifetime());
 	content->setOnlineCount(_onlineCount.events());
+	if (_tabsHost) {
+		content->bindActiveTab(
+			_tabsHost->activeTabBindings(),
+			_tabsDocked.value());
+	} else if (_members
+		&& UseProfileMediaTabs()
+		&& (_controller->wrap() == Wrap::Side)) {
+		const auto members = _members;
+		content->setupStandaloneGroupControl(
+			members->groupByRoleValue(),
+			members->groupByRoleAvailableValue(),
+			members->rowsVisibleValue(),
+			crl::guard(members, [=](bool grouped) {
+				members->setGroupByRole(grouped);
+			}));
+	}
 	_topBarColor = content->edgeColor();
+	_topBar = content;
 	return base::make_weak(not_null<Ui::RpWidget*>{ content });
 }
 

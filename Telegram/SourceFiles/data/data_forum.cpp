@@ -32,7 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_shared_media.h"
 #include "window/window_session_controller.h"
 #include "window/notifications_manager.h"
-#include "styles/style_boxes.h"
 
 namespace Data {
 namespace {

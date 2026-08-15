@@ -246,8 +246,13 @@ void Instance::setCurrent(const AudioMsgId &audioId) {
 		const auto item = (audioId.audio() && audioId.contextId())
 			? audioId.audio()->owner().message(audioId.contextId())
 			: nullptr;
+		const auto samePending = (_pendingContextFor.audio() == audioId.audio())
+			&& (_pendingContextFor.contextId() == audioId.contextId());
+		const auto context = samePending
+			? _pendingContext
+			: std::optional<PlaylistContext>();
 		if (item) {
-			setHistory(data, item->history());
+			setHistory(data, item->history(), nullptr, item, context);
 		} else {
 			setHistory(
 				data,
@@ -262,15 +267,33 @@ void Instance::setCurrent(const AudioMsgId &audioId) {
 void Instance::setHistory(
 		not_null<Data*> data,
 		History *history,
-		Main::Session *sessionFallback) {
+		Main::Session *sessionFallback,
+		HistoryItem *item,
+		std::optional<PlaylistContext> context) {
 	if (history) {
 		data->history = history->migrateToOrMe();
-		data->topicRootId = 0;
-		data->monoforumPeerId = 0;
-		data->migrated = data->history->migrateFrom();
+		const auto peer = data->history->peer;
+		const auto sameHistory = item && (item->history() == data->history);
+		data->topicRootId = context
+			? context->topicRootId
+			: (sameHistory && peer->isForum())
+			? item->topicRootId()
+			: MsgId();
+		data->monoforumPeerId = context
+			? context->monoforumPeerId
+			: (!data->topicRootId
+				&& sameHistory
+				&& peer->amMonoforumAdmin())
+			? item->sublistPeerId()
+			: PeerId();
+		data->migrated = (data->topicRootId || data->monoforumPeerId)
+			? nullptr
+			: data->history->migrateFrom();
 		setSession(data, &history->session());
 	} else {
 		data->history = data->migrated = nullptr;
+		data->topicRootId = MsgId();
+		data->monoforumPeerId = PeerId();
 		setSession(data, sessionFallback);
 	}
 }
@@ -550,7 +573,12 @@ bool Instance::moveInPlaylist(
 				if (document->isAudioFile()
 					|| document->isVoiceMessage()
 					|| document->isVideoMessage()) {
-					play(AudioMsgId(document, item->fullId()));
+					play(
+						AudioMsgId(document, item->fullId()),
+						PlaylistContext{
+							data->topicRootId,
+							data->monoforumPeerId,
+						});
 				}
 				return true;
 			}
@@ -810,11 +838,15 @@ void Instance::play(AudioMsgId::Type type) {
 	}
 }
 
-void Instance::play(const AudioMsgId &audioId) {
+void Instance::play(
+		const AudioMsgId &audioId,
+		std::optional<PlaylistContext> context) {
 	const auto document = audioId.audio();
 	if (!document) {
 		return;
 	}
+	_pendingContext = context;
+	_pendingContextFor = audioId;
 	if (document->isAudioFile()
 		|| document->isVoiceMessage()
 		|| document->isVideoMessage()) {
@@ -832,13 +864,15 @@ void Instance::play(const AudioMsgId &audioId) {
 	_playerStartedPlay.fire_copy({audioId.type()});
 }
 
-void Instance::playPause(const AudioMsgId &audioId) {
+void Instance::playPause(
+		const AudioMsgId &audioId,
+		std::optional<PlaylistContext> context) {
 	const auto now = current(audioId.type());
 	if (now.audio() == audioId.audio()
 		&& now.contextId() == audioId.contextId()) {
 		playPause(audioId.type());
 	} else {
-		play(audioId);
+		play(audioId, context);
 	}
 }
 
@@ -943,6 +977,8 @@ void Instance::validateShuffleData(not_null<Data*> data) {
 		|| raw->scheduled != scheduled
 		|| raw->savedMusic != savedMusic) {
 		raw->history = data->history;
+		raw->topicRootId = data->topicRootId;
+		raw->monoforumPeerId = data->monoforumPeerId;
 		raw->migrated = data->migrated;
 		raw->scheduled = scheduled;
 		raw->savedMusic = savedMusic;

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "iv/markdown/iv_markdown_article_layout_blocks.h"
+#include "iv/iv_rich_page.h"
 
 namespace Iv::Markdown {
 
@@ -54,6 +55,15 @@ struct SegmentSpan {
 	}
 };
 
+struct PaintSearchSegmentRanges {
+	std::vector<TextSelection> other;
+	std::optional<TextSelection> current;
+
+	[[nodiscard]] bool empty() const {
+		return other.empty() && !current;
+	}
+};
+
 void CollectSelectableSegments(
 	std::vector<LaidOutBlock> *blocks,
 	std::vector<SelectableSegment> *segments);
@@ -81,6 +91,16 @@ void CollectAnchors(
 	const PaintSelectionState &selectionState);
 [[nodiscard]] std::optional<TextSelection> TextSelectionForSegmentIndex(
 	const PaintSelectionState &selectionState,
+	int index);
+[[nodiscard]] std::optional<TextSelection> PaintTextSelectionForSegment(
+	const SelectableSegment &segment,
+	const PaintSelectionState &selectionState);
+[[nodiscard]] std::optional<TextSelection> PaintTextSelectionForSegmentIndex(
+	const PaintSelectionState &selectionState,
+	int index);
+[[nodiscard]] PaintSearchSegmentRanges PaintSearchRangesForSegmentIndex(
+	const PaintSelectionState &selectionState,
+	const PaintSearchState &searchState,
 	int index);
 [[nodiscard]] bool WholeSegmentSelected(
 	const SelectableSegment &segment,
@@ -111,5 +131,9 @@ void CollectAnchors(
 	MarkdownArticleSelection selection,
 	const MarkdownArticleSelectionEndpoints *endpoints,
 	const PreparedEditSelection *structuralSelection = nullptr);
+[[nodiscard]] std::vector<RichPage::Block> RichPageBlocksForSelectedSegments(
+	const RichPage &page,
+	const std::vector<SelectableSegment> &segments,
+	MarkdownArticleSelection selection);
 
 } // namespace Iv::Markdown

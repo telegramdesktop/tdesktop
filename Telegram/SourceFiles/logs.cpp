@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "core/crash_reports.h"
 #include "core/launcher.h"
+#include "core/version.h"
 #include "mtproto/facade.h"
 
 namespace {

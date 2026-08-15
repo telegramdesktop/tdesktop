@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/power_saving.h"
 #include "ui/rp_widget.h"
 #include "ui/ui_utility.h"
+#include "base/event_filter.h"
 #include "base/qt_signal_producer.h"
 
 #include <QtGui/QWindow>
@@ -32,6 +33,14 @@ bool ThanosEffect::Supported() {
 #else
 	return false;
 #endif
+}
+
+bool ThanosEffect::WindowVisible(QWidget *window) {
+	if (!window || window->isHidden() || window->isMinimized()) {
+		return false;
+	}
+	const auto handle = window->windowHandle();
+	return handle && handle->isExposed();
 }
 
 void ThanosEffect::WarmUp() {
@@ -113,6 +122,15 @@ void ThanosEffect::ensureSurface() {
 		w->setGeometry(_parent->rect());
 		w->hide();
 	}
+
+	if (const auto handle = _parent->windowHandle()) {
+		base::install_event_filter(handle, [=](not_null<QEvent*> e) {
+			if (e->type() == QEvent::Expose && !handle->isExposed()) {
+				finishNow();
+			}
+			return base::EventFilterResult::Continue;
+		}, _lifetime);
+	}
 #endif
 }
 
@@ -124,7 +142,11 @@ void ThanosEffect::showSurface() {
 		// before the first render. Without this, w->show() triggers
 		// an immediate platform compositing pass with only the first
 		// item visible.
-		Ui::PostponeCall(w, [w] {
+		_shown = true;
+		Ui::PostponeCall(w, [=] {
+			if (!_shown) {
+				return;
+			}
 			w->show();
 			w->raise();
 		});
@@ -133,10 +155,21 @@ void ThanosEffect::showSurface() {
 }
 
 void ThanosEffect::hideSurface() {
+	_shown = false;
 	_animation.stop();
 	if (const auto w = surfaceWidget()) {
 		w->hide();
 	}
+}
+
+void ThanosEffect::finishNow() {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+	if (!_renderer || !_renderer->hasActiveItems()) {
+		return;
+	}
+	_renderer->finishAll();
+	hideSurface();
+#endif
 }
 
 void ThanosEffect::addItem(QImage snapshot, QRect rect) {
@@ -146,14 +179,12 @@ void ThanosEffect::addItem(QImage snapshot, QRect rect) {
 		return;
 	}
 
-	const auto wasAnimating = _renderer->hasActiveItems();
-
 	_renderer->addItem({
 		.snapshot = std::move(snapshot),
 		.rect = QRectF(rect),
 	});
 
-	if (!wasAnimating) {
+	if (!_shown) {
 		showSurface();
 	}
 #endif

@@ -8,9 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/unread_badge_paint.h"
+#include "ui/widgets/chat_filters_tabs_mode.h"
 #include "ui/widgets/discrete_sliders.h"
 
 namespace style {
+namespace internal {
+class Icon;
+} // namespace internal
 struct SettingsSlider;
 } // namespace style
 
@@ -34,6 +38,8 @@ public:
 
 	void fitWidthToSections() override;
 	void setUnreadCount(int index, int unreadCount, bool muted);
+	void setTabsMode(ChatsFiltersTabsMode mode);
+	void setSectionIcons(std::vector<const style::internal::Icon*> icons);
 	void setLockedFrom(int index);
 	[[nodiscard]] int lockedFrom() const {
 		return _lockedFrom;
@@ -71,6 +77,11 @@ protected:
 private:
 	[[nodiscard]] QImage cacheUnreadCount(int count, bool muted) const;
 	[[nodiscard]] int calculateLockedFromX() const;
+	[[nodiscard]] auto sectionIcon(int index) const
+	-> const style::internal::Icon*;
+	[[nodiscard]] int iconExtraWidth(const style::internal::Icon *icon) const;
+	[[nodiscard]] int badgeExtraWidth(int index) const;
+	void updateSectionsContentWidths();
 
 	using Index = int;
 	struct Unread final {
@@ -83,6 +94,9 @@ private:
 	const UnreadBadgeStyle _unreadSt;
 	const QString _unreadMaxString;
 	const int _unreadSkip;
+	const int _iconSkip;
+	ChatsFiltersTabsMode _tabsMode = ChatsFiltersTabsMode::TextOnly;
+	std::vector<const style::internal::Icon*> _sectionIcons;
 	std::vector<int> _cachedBadgeWidths;
 	int _cachedBadgeHeight = 0;
 	int _lockedFrom = 0;

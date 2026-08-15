@@ -11,9 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #if 0
 
 #include "data/data_passkey_deserialize.h"
-#include "base/options.h"
+#include "core/application.h"
+#include "window/window_controller.h"
+#include "window/main_window.h"
 
 #import <AuthenticationServices/AuthenticationServices.h>
+#import <AppKit/AppKit.h>
 #import <Foundation/Foundation.h>
 
 @interface WebAuthnDelegate : NSObject<
@@ -26,7 +29,45 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 @property (nonatomic, strong) ASAuthorizationController *controller API_AVAILABLE(macos(10.15));
 @property (nonatomic, strong)
 	ASAuthorizationPlatformPublicKeyCredentialProvider *provider API_AVAILABLE(macos(12.0));
+@property (nonatomic, strong) NSWindow *anchorWindow;
 @end
+
+namespace {
+
+// Strong owners of the in-flight controller flow; main thread only.
+NSMutableArray *WebAuthnAliveDelegates() {
+	static NSMutableArray *result = [[NSMutableArray alloc] init];
+	return result;
+}
+
+[[nodiscard]] NSWindow *ResolveAnchorWindow() {
+	if (Core::IsAppLaunched()) {
+		const auto controller = Core::App().activeWindow()
+			? Core::App().activeWindow()
+			: Core::App().activePrimaryWindow();
+		if (controller) {
+			const auto view = reinterpret_cast<NSView*>(
+				controller->widget()->winId());
+			if (NSWindow *window = [view window]) {
+				return window;
+			}
+		}
+	}
+	if (NSWindow *window = [NSApp keyWindow]) {
+		return window;
+	}
+	if (NSWindow *window = [NSApp mainWindow]) {
+		return window;
+	}
+	for (NSWindow *window in [NSApp windows]) {
+		if (window.isVisible) {
+			return window;
+		}
+	}
+	return nil;
+}
+
+} // namespace
 
 @implementation WebAuthnDelegate
 
@@ -34,12 +75,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 	didCompleteWithAuthorization:(ASAuthorization *)authorization
 		API_AVAILABLE(macos(12.0)) {
 	if (self.completionRegister) {
+		auto result = Platform::WebAuthn::RegisterResult();
 		if ([authorization.credential conformsToProtocol:
 				@protocol(ASAuthorizationPublicKeyCredentialRegistration)]) {
 			auto credential
 				= (id<ASAuthorizationPublicKeyCredentialRegistration>)
 					authorization.credential;
-			auto result = Platform::WebAuthn::RegisterResult();
 			result.success = true;
 			result.credentialId = QByteArray::fromNSData(
 				credential.credentialID);
@@ -47,20 +88,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 				credential.rawAttestationObject);
 			result.clientDataJSON = QByteArray::fromNSData(
 				credential.rawClientDataJSON);
-			self.completionRegister(result);
-			self.completionRegister = nil;
 		}
-		self.controller = nil;
-		if (@available(macOS 12.0, *)) {
-			self.provider = nil;
-		}
+		[self deliverRegister:result];
 	} else if (self.completionLogin) {
+		auto result = Platform::WebAuthn::LoginResult();
 		if ([authorization.credential conformsToProtocol:
 				@protocol(ASAuthorizationPublicKeyCredentialAssertion)]) {
 			auto credential
 				= (id<ASAuthorizationPublicKeyCredentialAssertion>)
 					authorization.credential;
-			auto result = Platform::WebAuthn::LoginResult();
 			result.credentialId = QByteArray::fromNSData(
 				credential.credentialID);
 			result.authenticatorData = QByteArray::fromNSData(
@@ -70,13 +106,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 			result.clientDataJSON = QByteArray::fromNSData(
 				credential.rawClientDataJSON);
 			result.userHandle = QByteArray::fromNSData(credential.userID);
-			self.completionLogin(result);
-			self.completionLogin = nil;
 		}
-		self.controller = nil;
-		if (@available(macOS 12.0, *)) {
-			self.provider = nil;
-		}
+		[self deliverLogin:result];
 	}
 }
 
@@ -89,58 +120,66 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 		NSLog(@"WebAuthn error: %@ (code: %ld)",
 			error.localizedDescription, (long)error.code);
 	}
+	const auto value = isUnsigned
+		? Platform::WebAuthn::Error::UnsignedBuild
+		: (isCancelled
+			? Platform::WebAuthn::Error::Cancelled
+			: Platform::WebAuthn::Error::Other);
 	if (self.completionRegister) {
 		auto result = Platform::WebAuthn::RegisterResult();
 		result.success = false;
-		result.error = isUnsigned
-			? Platform::WebAuthn::Error::UnsignedBuild
-			: (isCancelled
-				? Platform::WebAuthn::Error::Cancelled
-				: Platform::WebAuthn::Error::Other);
-		self.completionRegister(result);
-		self.completionRegister = nil;
+		result.error = value;
+		[self deliverRegister:result];
 	} else if (self.completionLogin) {
 		auto result = Platform::WebAuthn::LoginResult();
-		result.error = isUnsigned
-			? Platform::WebAuthn::Error::UnsignedBuild
-			: (isCancelled
-				? Platform::WebAuthn::Error::Cancelled
-				: Platform::WebAuthn::Error::Other);
-		self.completionLogin(result);
-		self.completionLogin = nil;
-	}
-	self.controller = nil;
-	if (@available(macOS 12.0, *)) {
-		self.provider = nil;
+		result.error = value;
+		[self deliverLogin:result];
 	}
 }
 
 - (ASPresentationAnchor)presentationAnchorForAuthorizationController:
 		(ASAuthorizationController *)controller
 		API_AVAILABLE(macos(10.15)) {
-	return [NSApp mainWindow];
+	return self.anchorWindow ? self.anchorWindow : ResolveAnchorWindow();
+}
+
+- (void)deliverRegister:(Platform::WebAuthn::RegisterResult)result {
+	crl::on_main([self, result] {
+		if (self.completionRegister) {
+			self.completionRegister(result);
+			self.completionRegister = nil;
+		}
+		[self finishAndRelease];
+	});
+}
+
+- (void)deliverLogin:(Platform::WebAuthn::LoginResult)result {
+	crl::on_main([self, result] {
+		if (self.completionLogin) {
+			self.completionLogin(result);
+			self.completionLogin = nil;
+		}
+		[self finishAndRelease];
+	});
+}
+
+- (void)finishAndRelease {
+	if (@available(macOS 10.15, *)) {
+		self.controller = nil;
+	}
+	if (@available(macOS 12.0, *)) {
+		self.provider = nil;
+	}
+	self.anchorWindow = nil;
+	// Last statement: releases the delegate's final owner; self may die on return.
+	[WebAuthnAliveDelegates() removeObject:self];
 }
 
 @end
 
-namespace {
-
-base::options::toggle WebAuthnMacOption({
-	.id = "webauthn-mac",
-	.name = "Enable Passkey on macOS",
-	.description = "Enable Passkey support on macOS 12.0+. Experimental feature that may cause crash.",
-	.defaultValue = false,
-	.scope = base::options::macos,
-});
-
-} // namespace
-
 namespace Platform::WebAuthn {
 
 bool IsSupported() {
-	if (!WebAuthnMacOption.value()) {
-		return false;
-	}
 	if (@available(macOS 12.0, *)) {
 		return true;
 	}
@@ -151,6 +190,15 @@ void RegisterKey(
 		const Data::Passkey::RegisterData &data,
 		Fn<void(RegisterResult result)> callback) {
 	if (@available(macOS 12.0, *)) {
+		NSWindow *anchor = ResolveAnchorWindow();
+		if (!anchor) {
+			auto result = RegisterResult();
+			result.success = false;
+			result.error = Error::Other;
+			callback(result);
+			return;
+		}
+
 		auto rpId = data.rp.id.toNSString();
 		auto userName = data.user.name.toNSString();
 		auto userDisplayName = data.user.displayName.toNSString();
@@ -187,18 +235,22 @@ void RegisterKey(
 			initWithAuthorizationRequests:@[request]];
 
 		auto delegate = [[WebAuthnDelegate alloc] init];
-		if (@available(macOS 12.0, *)) {
-			delegate.provider = provider;
-		}
+		delegate.provider = provider;
 		delegate.controller = controller;
+		delegate.anchorWindow = anchor;
 		delegate.completionRegister = ^(const RegisterResult &result) {
 			callback(result);
-			[delegate release];
 		};
 
 		controller.delegate = delegate;
 		controller.presentationContextProvider = delegate;
+
+		// Alive container becomes the delegate's sole owner; balance local +1s.
+		[WebAuthnAliveDelegates() addObject:delegate];
 		[controller performRequests];
+		[provider release];
+		[controller release];
+		[delegate release];
 	} else {
 		auto result = RegisterResult();
 		result.success = false;
@@ -210,6 +262,14 @@ void Login(
 		const Data::Passkey::LoginData &data,
 		Fn<void(LoginResult result)> callback) {
 	if (@available(macOS 12.0, *)) {
+		NSWindow *anchor = ResolveAnchorWindow();
+		if (!anchor) {
+			auto result = LoginResult();
+			result.error = Error::Other;
+			callback(result);
+			return;
+		}
+
 		auto challenge = [NSData dataWithBytes:data.challenge.constData()
 			length:data.challenge.size()];
 
@@ -254,18 +314,22 @@ void Login(
 			initWithAuthorizationRequests:@[request]];
 
 		auto delegate = [[WebAuthnDelegate alloc] init];
-		if (@available(macOS 12.0, *)) {
-			delegate.provider = provider;
-		}
+		delegate.provider = provider;
 		delegate.controller = controller;
+		delegate.anchorWindow = anchor;
 		delegate.completionLogin = ^(const LoginResult &result) {
 			callback(result);
-			[delegate release];
 		};
 
 		controller.delegate = delegate;
 		controller.presentationContextProvider = delegate;
+
+		// Alive container becomes the delegate's sole owner; balance local +1s.
+		[WebAuthnAliveDelegates() addObject:delegate];
 		[controller performRequests];
+		[provider release];
+		[controller release];
+		[delegate release];
 	} else {
 		auto result = LoginResult();
 		callback(result);
@@ -276,22 +340,40 @@ void Login(
 
 #endif
 
+#include "webauthn/webauthn_common.h"
+
 namespace Platform::WebAuthn {
 
-
 bool IsSupported() {
-	return false;
+	return true;
 }
-
 
 void RegisterKey(
 		const Data::Passkey::RegisterData &data,
 		Fn<void(RegisterResult result)> callback) {
+	RegisterViaCable(data, std::move(callback));
 }
 
 void Login(
 		const Data::Passkey::LoginData &data,
 		Fn<void(LoginResult result)> callback) {
+	LoginViaCable(data, std::move(callback));
+}
+
+bool SecurityKeyPresent() {
+	return Libfido2DevicePresent();
+}
+
+void RegisterViaSecurityKey(
+		const Data::Passkey::RegisterData &data,
+		Fn<void(RegisterResult)> callback) {
+	RegisterViaLibfido2(data, std::move(callback));
+}
+
+void LoginViaSecurityKey(
+		const Data::Passkey::LoginData &data,
+		Fn<void(LoginResult)> callback) {
+	LoginViaLibfido2(data, std::move(callback));
 }
 
 } // namespace Platform::WebAuthn

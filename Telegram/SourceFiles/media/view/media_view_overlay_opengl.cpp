@@ -1291,6 +1291,39 @@ void OverlayWidget::RendererGL::paintRecognitionOverlay(
 	_contentBuffer->write(0, darkRect, sizeof(darkRect));
 	FillRectangle(*_f, &*_fillProgram, 0, QColor(dark, dark, dark, 255));
 
+	const auto spans = _owner->_recognition.spans();
+	if (!spans.empty()) {
+		_f->glDisable(GL_STENCIL_TEST);
+		_f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		const auto alpha = int(128 * opacity);
+		for (const auto &span : spans) {
+			const auto band = _owner->_recognition.bandFor(
+				span.item,
+				span.from,
+				span.till);
+			if (band.isEmpty()) {
+				continue;
+			}
+			const auto selRect = QRectF(
+				imageTopLeft.x() + band.left() * _ifactor * scale,
+				imageTopLeft.y()
+					+ (image.height() - (band.y() + band.height()) * _ifactor)
+						* scale,
+				band.width() * _ifactor * scale,
+				band.height() * _ifactor * scale);
+			const auto stl = rotated(selRect.left(), selRect.top());
+			const auto str = rotated(selRect.right(), selRect.top());
+			const auto sbr = rotated(selRect.right(), selRect.bottom());
+			const auto sbl = rotated(selRect.left(), selRect.bottom());
+			const GLfloat selCoords[] = {
+				stl[0], stl[1], str[0], str[1],
+				sbr[0], sbr[1], sbl[0], sbl[1],
+			};
+			_contentBuffer->write(0, selCoords, sizeof(selCoords));
+			FillRectangle(*_f, &*_fillProgram, 0, QColor(48, 128, 255, alpha));
+		}
+	}
+
 	_f->glDisable(GL_BLEND);
 	_f->glDisable(GL_STENCIL_TEST);
 }

@@ -31,6 +31,7 @@ struct ClipboardBlockData {
 struct ClipboardListItemsData {
 	ClipboardOrigin origin;
 	RichPage::ListKind listKind = RichPage::ListKind::Bullet;
+	RichPage::OrderedListData orderedList;
 	bool taskList = false;
 	std::vector<RichPage::ListItem> items;
 };

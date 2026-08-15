@@ -27,10 +27,16 @@ class Session;
 namespace Iv {
 
 struct RichPage {
+	static constexpr auto kCollageMaxItems = 10;
+
 	struct RichText {
 		TextWithEntities text;
 		QString anchorId;
 		std::vector<QString> anchorIds;
+
+		friend inline bool operator==(
+			const RichText &,
+			const RichText &) = default;
 	};
 	enum class BlockKind : uchar {
 		Unsupported,
@@ -66,6 +72,37 @@ struct RichPage {
 		Unchecked,
 		Checked,
 	};
+	struct OrderedListData {
+		bool reversed = false;
+		std::optional<int> start;
+		std::optional<QString> type;
+
+		friend inline bool operator==(
+			const OrderedListData &,
+			const OrderedListData &) = default;
+	};
+	struct OrderedListItemData {
+		std::optional<QString> num;
+		std::optional<int> value;
+		std::optional<QString> type;
+
+		[[nodiscard]] bool isEmpty() const {
+			return !num.has_value() || num->isEmpty();
+		}
+		[[nodiscard]] bool hasRawText() const {
+			return num.has_value() && !num->isEmpty();
+		}
+		[[nodiscard]] QString rawText() const {
+			return num.value_or(QString());
+		}
+		operator QString() const {
+			return rawText();
+		}
+
+		friend inline bool operator==(
+			const OrderedListItemData &,
+			const OrderedListItemData &) = default;
+	};
 	enum class GroupedMediaIntent : uchar {
 		Collage,
 		Slideshow,
@@ -83,10 +120,14 @@ struct RichPage {
 	struct Block;
 	struct ListItem {
 		TaskState taskState = TaskState::None;
-		QString number;
+		OrderedListItemData number;
 		QString anchorId;
 		RichText text;
 		std::vector<Block> blocks;
+
+		friend inline bool operator==(
+			const ListItem &,
+			const ListItem &) = default;
 	};
 	struct GroupedMediaItem {
 		BlockKind kind = BlockKind::Unsupported;
@@ -99,6 +140,10 @@ struct RichPage {
 		bool autoplay = false;
 		bool loop = false;
 		bool spoiler = false;
+
+		friend inline bool operator==(
+			const GroupedMediaItem &,
+			const GroupedMediaItem &) = default;
 	};
 	struct TableCell {
 		RichText text;
@@ -108,9 +153,17 @@ struct RichPage {
 		TableAlignment alignment = TableAlignment::Left;
 		TableVerticalAlignment verticalAlignment
 			= TableVerticalAlignment::Top;
+
+		friend inline bool operator==(
+			const TableCell &,
+			const TableCell &) = default;
 	};
 	struct TableRow {
 		std::vector<TableCell> cells;
+
+		friend inline bool operator==(
+			const TableRow &,
+			const TableRow &) = default;
 	};
 	struct RelatedArticle {
 		QString url;
@@ -121,6 +174,10 @@ struct RichPage {
 		QString description;
 		QString author;
 		TimeId publishedDate = 0;
+
+		friend inline bool operator==(
+			const RelatedArticle &,
+			const RelatedArticle &) = default;
 	};
 	struct Block {
 		BlockKind kind = BlockKind::Unsupported;
@@ -157,6 +214,7 @@ struct RichPage {
 		bool striped = false;
 		bool pullquote = false;
 		ListKind listKind = ListKind::Bullet;
+		OrderedListData orderedList;
 		GroupedMediaIntent mediaIntent = GroupedMediaIntent::Collage;
 		PhotoData *photo = nullptr;
 		DocumentData *document = nullptr;
@@ -169,12 +227,20 @@ struct RichPage {
 		std::vector<GroupedMediaItem> mediaItems;
 		std::vector<TableRow> tableRows;
 		std::vector<RelatedArticle> relatedArticles;
+
+		friend inline bool operator==(
+			const Block &,
+			const Block &) = default;
 	};
 	QString url;
 	bool rtl = false;
 	bool part = false;
 	int views = 0;
 	std::vector<Block> blocks;
+
+	friend inline bool operator==(
+		const RichPage &,
+		const RichPage &) = default;
 };
 
 struct RichMessageLimits {
@@ -198,11 +264,31 @@ struct RichPageLinkUrl {
 	uint64 webpageId = 0;
 };
 
+enum class RichParseMode : uchar {
+	Normal, // textDiff is resolved to the updated text.
+	DisplayTextDiff, // textDiff shows old and new text with highlights.
+};
+
+// Special text color indices used for textDiff display, right after
+// the eight syntax highlight colors and the native IV link color.
+inline constexpr auto kTextDiffInsertedColorIndex = 10;
+inline constexpr auto kTextDiffDeletedColorIndex = 11;
+
+[[nodiscard]] inline QString RichExportGeneratorMarker() {
+	return u"Telegram Desktop rich message export"_q;
+}
+
 [[nodiscard]] RichMessageLimits ResolveRichMessageLimits(
 	not_null<Main::Session*> session);
+[[nodiscard]] std::vector<RichPage::Block> SplitGroupedMediaBlock(
+	RichPage::Block block);
+[[nodiscard]] bool RichPagesEqual(
+	const RichPage &a,
+	const RichPage &b);
 [[nodiscard]] std::optional<RichMessageLimitError> ValidateRichMessage(
 	const RichPage &page,
 	const RichMessageLimits &limits);
+[[nodiscard]] int CountRichPageBlocks(const RichPage &page);
 [[nodiscard]] QString EncodeRichPageLinkUrl(
 	const QString &url,
 	uint64 webpageId);
@@ -210,16 +296,32 @@ struct RichPageLinkUrl {
 	const QString &data);
 [[nodiscard]] std::shared_ptr<const RichPage> ParseRichPage(
 	not_null<Main::Session*> session,
-	const MTPRichMessage &message);
+	const MTPRichMessage &message,
+	RichParseMode mode = RichParseMode::Normal);
 [[nodiscard]] std::shared_ptr<const RichPage> ParseRichPage(
 	not_null<Main::Session*> session,
 	const MTPPage &page);
 [[nodiscard]] std::shared_ptr<const RichPage> ParseRichPage(
 	not_null<Main::Session*> session,
 	const MTPDwebPage &webpage);
+[[nodiscard]] std::optional<TextWithEntities> SerializeAsSimple(
+	const RichPage &page,
+	not_null<Main::Session*> session);
+[[nodiscard]] bool CanSerializeAsSimple(
+	const RichPage &page,
+	not_null<Main::Session*> session);
+[[nodiscard]] bool RichPageUsesPremiumFormatting(const RichPage &page);
+[[nodiscard]] bool RichPageIsFlattenSafe(const RichPage &page);
+[[nodiscard]] RichPage SplitTextIntoRichPage(TextWithEntities text);
+[[nodiscard]] RichPage SplitTextIntoRichPage(const TextWithTags &text);
 [[nodiscard]] TextWithEntities FlattenRichPageSummary(
+	const RichPage &page,
+	bool emptyFallback = true);
+[[nodiscard]] TextWithEntities FlattenRichPageSummary(
+	const std::shared_ptr<const RichPage> &page,
+	bool emptyFallback = true);
+[[nodiscard]] TextWithEntities FlattenRichPageToSimpleText(
 	const RichPage &page);
-[[nodiscard]] TextWithEntities FlattenRichPageSummary(
-	const std::shared_ptr<const RichPage> &page);
+[[nodiscard]] bool DetermineRichPageRtl(const RichPage &page);
 
 } // namespace Iv

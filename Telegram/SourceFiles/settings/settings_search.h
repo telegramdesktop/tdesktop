@@ -70,7 +70,6 @@ private:
 	void selectByKeyboard(int newSelected);
 	void clearSelection();
 	void handleKeyNavigation(int key);
-	void scrollToButton(not_null<Ui::SettingsButton*> button);
 	void setupButtonMouseTracking(not_null<Ui::SettingsButton*> button);
 	void addButton(not_null<Ui::SettingsButton*> button);
 

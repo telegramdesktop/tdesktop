@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalOptions>%(AdditionalOptions) /wd5038 /wd4265 /wd4005</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+</Project>

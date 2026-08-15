@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_credits.h"
 #include "api/api_filter_updates.h"
+#include "base/invoke_queued.h"
 #include "base/unixtime.h"
 #include "core/ui_integration.h"
 #include "data/data_channel_earn.h"
@@ -37,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/slider_natural_width.h"
+#include "ui/widgets/sliding_tabs.h"
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_boxes.h"
 #include "styles/style_channel_earn.h"
@@ -283,7 +285,6 @@ void InnerWidget::fillHistory() {
 	const auto sectionIndex = history->lifetime().make_state<int>(0);
 
 	const auto fill = [=, peer = peer()](
-			not_null<PeerData*> premiumBot,
 			const Data::CreditsStatusSlice &fullSlice,
 			const Data::CreditsStatusSlice &inSlice,
 			const Data::CreditsStatusSlice &outSlice) {
@@ -320,15 +321,20 @@ void InnerWidget::fillHistory() {
 			st::boxRowPadding);
 		slider->toggle(!hasOneTab, anim::type::instant);
 
+		auto tabBySection = std::vector<int>{ 0 };
 		slider->entity()->addSection(fullTabText);
 		if (hasIn) {
 			slider->entity()->addSection(inTabText);
+			tabBySection.push_back(1);
 		}
 		if (hasOut) {
 			slider->entity()->addSection(outTabText);
+			tabBySection.push_back(2);
 		}
 
-		slider->entity()->setActiveSectionFast(*sectionIndex);
+		slider->entity()->setActiveSectionFast(std::min(
+			*sectionIndex,
+			int(tabBySection.size()) - 1));
 
 		{
 			const auto &st = st::defaultTabsSlider;
@@ -339,35 +345,21 @@ void InnerWidget::fillHistory() {
 				+ rect::m::sum::h(st::boxRowPadding));
 		}
 
-		const auto fullWrap = inner->add(
-			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+		const auto tabs = inner->add(
+			object_ptr<Ui::SlidingTabs>(
 				inner,
-				object_ptr<Ui::VerticalLayout>(inner)));
-		const auto inWrap = inner->add(
-			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-				inner,
-				object_ptr<Ui::VerticalLayout>(inner)));
-		const auto outWrap = inner->add(
-			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-				inner,
-				object_ptr<Ui::VerticalLayout>(inner)));
+				3,
+				_controller->listBackground()));
+		const auto fullTab = tabs->tab(0);
+		const auto inTab = tabs->tab(1);
+		const auto outTab = tabs->tab(2);
 
-		rpl::single(slider->entity()->activeSection()) | rpl::then(
-			slider->entity()->sectionActivated()
+		tabs->showTab(
+			tabBySection[slider->entity()->activeSection()],
+			anim::type::instant);
+		slider->entity()->sectionActivated(
 		) | rpl::on_next([=](int index) {
-			if (index == 0) {
-				fullWrap->toggle(true, anim::type::instant);
-				inWrap->toggle(false, anim::type::instant);
-				outWrap->toggle(false, anim::type::instant);
-			} else if (index == 1) {
-				inWrap->toggle(true, anim::type::instant);
-				fullWrap->toggle(false, anim::type::instant);
-				outWrap->toggle(false, anim::type::instant);
-			} else {
-				outWrap->toggle(true, anim::type::instant);
-				fullWrap->toggle(false, anim::type::instant);
-				inWrap->toggle(false, anim::type::instant);
-			}
+			tabs->showTab(tabBySection[index]);
 			*sectionIndex = index;
 		}, inner->lifetime());
 
@@ -385,7 +377,7 @@ void InnerWidget::fillHistory() {
 		Info::Statistics::AddCreditsHistoryList(
 			controller->uiShow(),
 			fullSlice,
-			fullWrap->entity(),
+			fullTab,
 			entryClicked,
 			peer,
 			true,
@@ -393,7 +385,7 @@ void InnerWidget::fillHistory() {
 		Info::Statistics::AddCreditsHistoryList(
 			controller->uiShow(),
 			inSlice,
-			inWrap->entity(),
+			inTab,
 			entryClicked,
 			peer,
 			true,
@@ -401,7 +393,7 @@ void InnerWidget::fillHistory() {
 		Info::Statistics::AddCreditsHistoryList(
 			controller->uiShow(),
 			outSlice,
-			outWrap->entity(),
+			outTab,
 			std::move(entryClicked),
 			peer,
 			false,
@@ -422,16 +414,12 @@ void InnerWidget::fillHistory() {
 		apiFull->request({}, [=](Data::CreditsStatusSlice fullSlice) {
 			apiIn->request({}, [=](Data::CreditsStatusSlice inSlice) {
 				apiOut->request({}, [=](Data::CreditsStatusSlice outSlice) {
-					::Api::PremiumPeerBot(
-						&_controller->session()
-					) | rpl::on_next([=](not_null<PeerData*> bot) {
-						fill(bot, fullSlice, inSlice, outSlice);
-						container->resizeToWidth(container->width());
-						while (history->count() > 1) {
-							delete history->widgetAt(0);
-						}
-						apiLifetime->destroy();
-					}, *apiLifetime);
+					fill(fullSlice, inSlice, outSlice);
+					container->resizeToWidth(container->width());
+					while (history->count() > 1) {
+						delete history->widgetAt(0);
+					}
+					InvokeQueued(container, [=] { apiLifetime->destroy(); });
 				});
 			});
 		});

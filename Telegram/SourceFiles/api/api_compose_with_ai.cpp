@@ -43,6 +43,21 @@ ComposeWithAi::ComposeWithAi(not_null<ApiWrap*> api)
 , _api(&api->instance()) {
 }
 
+MTPInputAiComposeTone ComposeWithAi::SerializeTone(
+		const std::optional<ToneRef> &tone) {
+	if (!tone) {
+		return MTPInputAiComposeTone();
+	} else if (tone->id) {
+		return MTP_inputAiComposeToneID(
+			MTP_long(tone->id),
+			MTP_long(tone->accessHash));
+	} else if (!tone->customPrompt.isEmpty()) {
+		return MTP_inputAiComposeToneSingleUse(
+			MTP_string(tone->customPrompt));
+	}
+	return MTP_inputAiComposeToneDefault(MTP_string(tone->defaultTone));
+}
+
 mtpRequestId ComposeWithAi::request(
 		Request request,
 		Fn<void(Result &&)> done,
@@ -68,14 +83,7 @@ mtpRequestId ComposeWithAi::request(
 		request.translateToLang.isEmpty()
 			? MTPstring()
 			: MTP_string(request.translateToLang),
-		request.tone
-			? (request.tone->id
-				? MTP_inputAiComposeToneID(
-					MTP_long(request.tone->id),
-					MTP_long(request.tone->accessHash))
-				: MTP_inputAiComposeToneDefault(
-					MTP_string(request.tone->defaultTone)))
-			: MTPInputAiComposeTone()
+		SerializeTone(request.tone)
 	)).done([=, done = std::move(done)](
 			const MTPmessages_ComposedMessageWithAI &result) mutable {
 		const auto &data = result.data();

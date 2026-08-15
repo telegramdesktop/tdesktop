@@ -25,9 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
-#include "styles/style_boxes.h"
 #include "styles/style_info.h"
-#include "styles/style_settings.h"
 
 namespace {
 

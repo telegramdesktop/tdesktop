@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/table_layout.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/new_badges.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
@@ -459,7 +460,11 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 		const auto copy = [=](bool close) {
 			return [=] {
 				QApplication::clipboard()->setText(row.state.link);
-				box->uiShow()->showToast(tr::lng_username_copied(tr::now));
+				box->uiShow()->showToast({
+					.text = { tr::lng_username_copied(tr::now) },
+					.iconLottie = u"toast/voip_invite"_q,
+					.iconLottieSize = st::toastLottieIconSize,
+				});
 				if (close) {
 					box->closeBox();
 				}

@@ -8,9 +8,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/markdown/iv_markdown_common.h"
 #include "base/basic_types.h"
 
+#include <QtCore/QFileInfo>
+
 #include <array>
 
 namespace Iv::Markdown {
+
+bool IsReadableLocalFile(const QFileInfo &info) {
+	return info.exists() && info.isFile() && info.isReadable();
+}
 
 bool LooksLikeMarkdownFile(const QString &fileName, const QString &mimeType) {
 	const auto suffixes = std::array{

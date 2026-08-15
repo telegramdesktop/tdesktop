@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/bot_command.h"
 #include "core/core_cloud_password.h"
 #include "core/click_handler_types.h"
+#include "data/components/ephemeral_messages.h"
 #include "data/data_changes.h"
 #include "data/data_peer.h"
 #include "data/data_poll.h"
@@ -41,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 
 #include <QtCore/QDataStream>
 #include <QtGui/QGuiApplication>
@@ -57,7 +59,7 @@ void SendBotCallbackData(
 		std::optional<Core::CloudPasswordResult> password,
 		Fn<void()> done = nullptr,
 		Fn<void(const QString &)> handleError = nullptr) {
-	if (!item->isRegular()) {
+	if (!item->isRegular() && !item->isEphemeral()) {
 		return;
 	}
 	const auto history = item->history();
@@ -90,15 +92,22 @@ void SendBotCallbackData(
 	if (withPassword) {
 		flags |= MTPmessages_GetBotCallbackAnswer::Flag::f_password;
 	}
+	const auto ephemeralId = item->isEphemeral()
+		? session->ephemeralMessages().lookupId(item)
+		: 0;
+	if (item->isEphemeral() && (!ephemeralId || isGame || withPassword)) {
+		return;
+	}
+	if (ephemeralId) {
+		session->ephemeralMessages().noteCallbackTopic(
+			history,
+			item->from()->id,
+			item->topicRootId());
+	}
 	const auto weak = base::make_weak(controller);
 	const auto show = controller->uiShow();
-	button->requestId = api->request(MTPmessages_GetBotCallbackAnswer(
-		MTP_flags(flags),
-		history->peer->input(),
-		MTP_int(item->id),
-		MTP_bytes(sendData),
-		password ? password->result : MTP_inputCheckPasswordEmpty()
-	)).done([=](const MTPmessages_BotCallbackAnswer &result) {
+	const auto handleDone = [=](
+			const MTPmessages_BotCallbackAnswer &result) {
 		const auto guard = gsl::finally([&] {
 			if (done) {
 				done();
@@ -148,7 +157,8 @@ void SendBotCallbackData(
 		} else if (withPassword) {
 			show->hideLayer();
 		}
-	}).fail([=](const MTP::Error &error) {
+	};
+	const auto handleFail = [=](const MTP::Error &error) {
 		const auto guard = gsl::finally([&] {
 			if (handleError) {
 				handleError(error.type());
@@ -163,7 +173,23 @@ void SendBotCallbackData(
 			button->requestId = 0;
 			owner->requestItemRepaint(item);
 		}
-	}).send();
+	};
+	button->requestId = ephemeralId
+		? api->request(MTPephemeral_GetCallbackAnswer(
+			MTP_flags(sendData.isEmpty()
+				? MTPephemeral_GetCallbackAnswer::Flag(0)
+				: MTPephemeral_GetCallbackAnswer::Flag::f_data),
+			history->peer->input(),
+			MTP_int(ephemeralId),
+			MTP_bytes(sendData)
+		)).done(handleDone).fail(handleFail).send()
+		: api->request(MTPmessages_GetBotCallbackAnswer(
+			MTP_flags(flags),
+			history->peer->input(),
+			MTP_int(item->id),
+			MTP_bytes(sendData),
+			password ? password->result : MTP_inputCheckPasswordEmpty()
+		)).done(handleDone).fail(handleFail).send();
 
 	session->changes().messageUpdated(
 		item,
@@ -525,7 +551,11 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 		const auto text = QString::fromUtf8(button->data);
 		if (!text.isEmpty()) {
 			QGuiApplication::clipboard()->setText(text);
-			controller->showToast(tr::lng_text_copied(tr::now));
+			controller->showToast({
+				.text = { tr::lng_text_copied(tr::now) },
+				.iconLottie = u"toast/copy"_q,
+				.iconLottieSize = st::toastLottieIconSize,
+			});
 		}
 	} break;
 

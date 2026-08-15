@@ -33,10 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/shadow.h"
-#include "styles/style_layers.h"
-#include "styles/style_boxes.h"
-#include "styles/style_settings.h"
-#include "styles/style_premium.h"
+#include "styles/style_userpic_button.h"
 #include "styles/style_window.h"
 
 namespace UrlAuthBox {

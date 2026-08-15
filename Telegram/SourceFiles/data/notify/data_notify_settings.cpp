@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_community.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
 #include "data/data_peer.h"
@@ -48,9 +49,21 @@ constexpr auto kMaxNotifyCheckDelay = 24 * 3600 * crl::time(1000);
 	} else if (const auto chat = peer->asChat()) {
 		return chat->isDeactivated() || chat->isForbidden();
 	} else if (const auto channel = peer->asChannel()) {
-		return channel->isForbidden();
+		return channel->isForbidden() || channel->isCommunity();
 	}
 	return false;
+}
+
+[[nodiscard]] ChannelData *CommunityFallback(
+		not_null<const PeerData*> peer) {
+	if (const auto channel = peer->asChannel()) {
+		if (!channel->isCommunity()) {
+			if (const auto communityId = channel->linkedCommunityId()) {
+				return channel->owner().channelLoaded(communityId);
+			}
+		}
+	}
+	return nullptr;
 }
 
 } // namespace
@@ -79,8 +92,11 @@ NotifySettings::NotifySettings(not_null<Session*> owner)
 
 void NotifySettings::request(not_null<PeerData*> peer) {
 	if (peer->notify().settingsUnknown()) {
+		const auto channel = peer->asChannel();
 		peer->session().api().requestNotifySettings(
-			MTP_inputNotifyPeer(peer->input()));
+			(channel && channel->isCommunity())
+				? MTP_inputNotifyCommunity(channel->inputChannel())
+				: MTP_inputNotifyPeer(peer->input()));
 	}
 	if (defaultSettings(peer).settingsUnknown()) {
 		peer->session().api().requestNotifySettings(peer->isUser()
@@ -116,6 +132,8 @@ void NotifySettings::apply(
 		apply(peerFromMTP(data.vpeer()), settings);
 	}, [&](const MTPDnotifyForumTopic &data) {
 		apply(peerFromMTP(data.vpeer()), data.vtop_msg_id().v, settings);
+	}, [&](const MTPDnotifyCommunity &data) {
+		apply(peerFromChannel(data.vcommunity_id().v), settings);
 	});
 }
 
@@ -149,6 +167,15 @@ void NotifySettings::apply(
 		apply(peerFromInput(data.vpeer()), settings);
 	}, [&](const MTPDinputNotifyForumTopic &data) {
 		apply(peerFromInput(data.vpeer()), data.vtop_msg_id().v, settings);
+	}, [&](const MTPDinputNotifyCommunity &data) {
+		apply(peerFromChannel(data.vcommunity().match(
+			[](const MTPDinputChannel &d) {
+				return d.vchannel_id().v;
+			}, [](const MTPDinputChannelFromMessage &d) {
+				return d.vchannel_id().v;
+			}, [](const MTPDinputChannelEmpty &) {
+				return uint64(0);
+			})), settings);
 	});
 }
 
@@ -261,6 +288,15 @@ void NotifySettings::forumParentMuteUpdated(not_null<Forum*> forum) {
 	forum->enumerateTopics([&](not_null<ForumTopic*> topic) {
 		updateLocal(topic);
 	});
+}
+
+void NotifySettings::communityParentMuteUpdated(
+		not_null<ChannelData*> community) {
+	if (const auto info = community->communityInfo()) {
+		for (const auto &history : info->histories()) {
+			updateLocal(history->peer);
+		}
+	}
 }
 
 auto NotifySettings::defaultValue(DefaultNotify type)
@@ -513,7 +549,12 @@ bool NotifySettings::isMuted(
 		crl::time *changesIn) const {
 	if (const auto until = peer->notify().muteUntil()) {
 		return MutedFromUntil(*until, changesIn);
-	} else if (const auto until = defaultSettings(peer).muteUntil()) {
+	} else if (const auto community = CommunityFallback(peer)) {
+		if (const auto until = community->notify().muteUntil()) {
+			return MutedFromUntil(*until, changesIn);
+		}
+	}
+	if (const auto until = defaultSettings(peer).muteUntil()) {
 		return MutedFromUntil(*until, changesIn);
 	}
 	return true;
@@ -526,7 +567,12 @@ bool NotifySettings::isMuted(not_null<const PeerData*> peer) const {
 bool NotifySettings::silentPosts(not_null<const PeerData*> peer) const {
 	if (const auto silent = peer->notify().silentPosts()) {
 		return *silent;
-	} else if (const auto silent = defaultSettings(peer).silentPosts()) {
+	} else if (const auto community = CommunityFallback(peer)) {
+		if (const auto silent = community->notify().silentPosts()) {
+			return *silent;
+		}
+	}
+	if (const auto silent = defaultSettings(peer).silentPosts()) {
 		return *silent;
 	}
 	return false;
@@ -537,29 +583,55 @@ NotifySound NotifySettings::sound(not_null<const PeerData*> peer) const {
 	// to follow the global notify sound.
 	if (const auto sound = peer->notify().sound(); !peer->isSelf() && sound) {
 		return *sound;
-	} else if (const auto sound = defaultSettings(peer).sound()) {
+	} else if (const auto community = CommunityFallback(peer)) {
+		if (const auto sound = community->notify().sound()) {
+			return *sound;
+		}
+	}
+	if (const auto sound = defaultSettings(peer).sound()) {
 		return *sound;
 	}
 	return {};
 }
 
 bool NotifySettings::muteUnknown(not_null<const PeerData*> peer) const {
-	return peer->notify().settingsUnknown()
-		|| (!peer->notify().muteUntil().has_value()
-			&& defaultSettings(peer).settingsUnknown());
+	if (peer->notify().settingsUnknown()) {
+		return true;
+	} else if (peer->notify().muteUntil().has_value()) {
+		return false;
+	} else if (const auto community = CommunityFallback(peer)) {
+		return community->notify().settingsUnknown()
+			|| (!community->notify().muteUntil().has_value()
+				&& defaultSettings(peer).settingsUnknown());
+	}
+	return defaultSettings(peer).settingsUnknown();
 }
 
 bool NotifySettings::silentPostsUnknown(
 		not_null<const PeerData*> peer) const {
-	return peer->notify().settingsUnknown()
-		|| (!peer->notify().silentPosts().has_value()
-			&& defaultSettings(peer).settingsUnknown());
+	if (peer->notify().settingsUnknown()) {
+		return true;
+	} else if (peer->notify().silentPosts().has_value()) {
+		return false;
+	} else if (const auto community = CommunityFallback(peer)) {
+		return community->notify().settingsUnknown()
+			|| (!community->notify().silentPosts().has_value()
+				&& defaultSettings(peer).settingsUnknown());
+	}
+	return defaultSettings(peer).settingsUnknown();
 }
 
 bool NotifySettings::soundUnknown(not_null<const PeerData*> peer) const {
-	return peer->notify().settingsUnknown()
-		|| (!peer->notify().sound().has_value()
-			&& defaultSettings(peer).settingsUnknown());
+	if (peer->notify().settingsUnknown()) {
+		return true;
+	} else if (peer->notify().sound().has_value()) {
+		return false;
+	} else if (const auto community = CommunityFallback(peer)) {
+		return community->notify().settingsUnknown()
+			|| (!community->notify().sound().has_value()
+				&& defaultSettings(peer).settingsUnknown());
+	}
+	return defaultSettings(peer).settingsUnknown();
 }
 
 bool NotifySettings::settingsUnknown(not_null<const PeerData*> peer) const {

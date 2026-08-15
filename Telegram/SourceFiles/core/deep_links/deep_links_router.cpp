@@ -78,6 +78,20 @@ void Router::add(const QString &section, Entry entry) {
 	_handlers[section].push_back(std::move(entry));
 }
 
+std::optional<QString> Router::findPath(
+		const QString &section,
+		Fn<bool(const Action &)> matches) const {
+	const auto i = _handlers.find(section);
+	if (i != _handlers.end()) {
+		for (const auto &entry : i->second) {
+			if (matches(entry.action)) {
+				return entry.path;
+			}
+		}
+	}
+	return std::nullopt;
+}
+
 bool Router::tryHandle(
 		Window::SessionController *controller,
 		const QString &command) {
@@ -150,6 +164,10 @@ Result Router::executeAction(const Action &action, const Context &ctx) {
 	return v::match(action, [&](const SettingsSection &s) {
 		if (!ctx.controller) {
 			return Result::NeedsAuth;
+		}
+		const auto highlight = ctx.params.value(u"highlight"_q);
+		if (!highlight.isEmpty()) {
+			ctx.controller->setHighlightControlId(highlight);
 		}
 		ctx.controller->showSettings(s.sectionId);
 		return Result::Handled;

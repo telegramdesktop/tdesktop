@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/file_location.h"
+#include "core/version.h"
 #include "data/components/recent_inline_bots.h"
 #include "data/components/recent_peers.h"
 #include "settings/settings_recent_searches.h"
@@ -1220,7 +1221,9 @@ void EnumerateDrafts(
 		const base::flat_map<Data::DraftKey, MessageDraftSource> &sources,
 		Callback &&callback) {
 	for (const auto &[key, draft] : map) {
-		if (key.isCloud() || sources.contains(key)) {
+		if (draft->hasRichMessage()) {
+			continue;
+		} else if (key.isCloud() || sources.contains(key)) {
 			continue;
 		} else if (key.isLocal()
 			&& (!supportMode || key.topicRootId())) {

@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_document.h"
 #include "data/data_peer.h"
+#include "data/data_session.h"
+#include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_element.h"
@@ -20,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/power_saving.h"
 #include "ui/rect.h"
 #include "ui/round_rect.h"
+#include "ui/userpic_view.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {
@@ -655,6 +658,86 @@ void StickerInBubblePart::ensureCreated(Element *replacing) const {
 			_sticker->setCustomCachingTag(data.cacheTag);
 		}
 	}
+}
+
+DynamicImagePart::DynamicImagePart(
+	not_null<Element*> parent,
+	std::shared_ptr<Ui::DynamicImage> image,
+	int size,
+	QMargins margins,
+	ClickHandlerPtr link,
+	bool communityEffect)
+: _parent(parent)
+, _image(std::move(image))
+, _link(std::move(link))
+, _margins(margins)
+, _size(size)
+, _communityEffect(communityEffect) {
+}
+
+DynamicImagePart::~DynamicImagePart() = default;
+
+void DynamicImagePart::draw(
+		Painter &p,
+		not_null<const MediaGeneric*> owner,
+		const PaintContext &context,
+		int outerWidth) const {
+	if (!_subscribed) {
+		_subscribed = true;
+		const auto raw = _parent;
+		_image->subscribeToUpdates([raw] { raw->repaint(); });
+		raw->history()->owner().registerHeavyViewPart(raw);
+	}
+	const auto left = (outerWidth - _size) / 2;
+	const auto top = _margins.top();
+	if (_communityEffect) {
+		if (!_communityCache) {
+			_communityCache = std::make_unique<Ui::CommunityUserpicEffect>();
+		}
+		Ui::PaintCommunityUserpicEffect(
+			p,
+			*_communityCache,
+			left,
+			top,
+			_size,
+			context.st->msgServiceBg()->c);
+	}
+	p.drawImage(QPoint(left, top), _image->image(_size));
+}
+
+TextState DynamicImagePart::textState(
+		QPoint point,
+		StateRequest request,
+		int outerWidth) const {
+	auto result = TextState(_parent);
+	const auto left = (outerWidth - _size) / 2;
+	if (_link && QRect(left, _margins.top(), _size, _size).contains(point)) {
+		result.link = _link;
+	}
+	return result;
+}
+
+bool DynamicImagePart::hasHeavyPart() {
+	return _subscribed;
+}
+
+void DynamicImagePart::unloadHeavyPart() {
+	if (_subscribed) {
+		_subscribed = false;
+		_image->subscribeToUpdates(nullptr);
+	}
+	_communityCache = nullptr;
+}
+
+QSize DynamicImagePart::countOptimalSize() {
+	return {
+		_margins.left() + _size + _margins.right(),
+		_margins.top() + _size + _margins.bottom(),
+	};
+}
+
+QSize DynamicImagePart::countCurrentSize(int newWidth) {
+	return { newWidth, minHeight() };
 }
 
 StickerWithBadgePart::StickerWithBadgePart(

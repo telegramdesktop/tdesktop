@@ -55,78 +55,35 @@ using SearchRequest = Api::MessagesSearchMerged::Request;
 
 class Row final : public PeerListRow {
 public:
-	explicit Row(
-		std::unique_ptr<Dialogs::FakeRow> fakeRow,
-		not_null<QString*> query);
+	explicit Row(std::unique_ptr<Dialogs::FakeRow> fakeRow);
 
 	[[nodiscard]] FullMsgId fullId() const;
+	[[nodiscard]] not_null<Dialogs::FakeRow*> fakeRow() const;
 
-	QRect elementGeometry(int element, int outerWidth) const override;
-	void elementAddRipple(
-		int element,
-		QPoint point,
-		Fn<void()> updateCallback) override;
 	void elementsStopLastRipple() override;
-	void elementsPaint(
-		Painter &p,
-		int outerWidth,
-		bool selected,
-		int selectedElement) override;
 
 private:
 	const std::unique_ptr<Dialogs::FakeRow> _fakeRow;
 
-	not_null<QString*> _query;
-	int _outerWidth = 0;
-
 };
 
-Row::Row(std::unique_ptr<Dialogs::FakeRow> fakeRow, not_null<QString*> query)
+Row::Row(std::unique_ptr<Dialogs::FakeRow> fakeRow)
 : PeerListRow(
 	fakeRow->searchInChat().history()->peer,
 	fakeRow->item()->fullId().msg.bare)
-, _fakeRow(std::move(fakeRow))
-, _query(query) {
+, _fakeRow(std::move(fakeRow)) {
 }
 
 FullMsgId Row::fullId() const {
 	return _fakeRow->item()->fullId();
 }
 
-QRect Row::elementGeometry(int element, int outerWidth) const {
-	return QRect(0, 0, outerWidth, st::dialogsRowHeight);
-}
-
-void Row::elementAddRipple(
-		int element,
-		QPoint point,
-		Fn<void()> updateCallback) {
-	_fakeRow->addRipple(
-		point,
-		{ _outerWidth, st::dialogsRowHeight },
-		std::move(updateCallback));
+not_null<Dialogs::FakeRow*> Row::fakeRow() const {
+	return _fakeRow.get();
 }
 
 void Row::elementsStopLastRipple() {
 	_fakeRow->stopLastRipple();
-}
-
-void Row::elementsPaint(
-		Painter &p,
-		int outerWidth,
-		bool selected,
-		int selectedElement) {
-	_outerWidth = outerWidth;
-	Dialogs::Ui::RowPainter::Paint(p, _fakeRow.get(), {
-		.st = &st::defaultDialogRow,
-		.currentBg = st::dialogsBg,
-		.now = crl::now(),
-		.searchLowerText = QStringView(*_query),
-		.width = outerWidth,
-		.selected = selected,
-		.paused = p.inactive(),
-		.search = true,
-	});
 }
 
 class ListController final : public PeerListController {
@@ -136,10 +93,25 @@ public:
 	Main::Session &session() const override;
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
-	void rowElementClicked(not_null<PeerListRow*> row, int element) override;
+
+	int customRowHeight() override;
+	void customRowPaint(
+		Painter &p,
+		crl::time now,
+		not_null<PeerListRow*> row,
+		bool selected) override;
+	bool customRowSelectionPoint(
+		not_null<PeerListRow*> row,
+		int x,
+		int y) override;
+	void customRowAddRipple(
+		not_null<PeerListRow*> row,
+		QPoint point,
+		Fn<void()> updateCallback) override;
 
 	void loadMoreRows() override;
 
+	void setContent(PeerListContent *content);
 	void addItems(const MessageIdsList &ids, bool clear);
 	void setQuery(const QString &query);
 
@@ -149,6 +121,7 @@ public:
 
 private:
 	const not_null<History*> _history;
+	PeerListContent *_content = nullptr;
 	rpl::event_stream<FullMsgId> _showItemRequests;
 	rpl::event_stream<> _searchMoreRequests;
 	rpl::event_stream<> _resetScrollRequests;
@@ -172,14 +145,52 @@ void ListController::rowClicked(not_null<PeerListRow*> row) {
 	_showItemRequests.fire_copy(static_cast<Row*>(row.get())->fullId());
 }
 
-void ListController::rowElementClicked(
+int ListController::customRowHeight() {
+	return st::dialogsRowHeight;
+}
+
+void ListController::customRowPaint(
+		Painter &p,
+		crl::time now,
 		not_null<PeerListRow*> row,
-		int element) {
-	ListController::rowClicked(row);
+		bool selected) {
+	const auto outerWidth = _content->width();
+	const auto fakeRow = static_cast<Row*>(row.get())->fakeRow();
+	Dialogs::Ui::RowPainter::Paint(p, fakeRow, {
+		.st = &st::defaultDialogRow,
+		.currentBg = st::dialogsBg,
+		.now = now,
+		.searchLowerText = QStringView(_query),
+		.width = outerWidth,
+		.selected = selected,
+		.paused = p.inactive(),
+		.search = true,
+	});
+}
+
+bool ListController::customRowSelectionPoint(
+		not_null<PeerListRow*> row,
+		int x,
+		int y) {
+	return true;
+}
+
+void ListController::customRowAddRipple(
+		not_null<PeerListRow*> row,
+		QPoint point,
+		Fn<void()> updateCallback) {
+	static_cast<Row*>(row.get())->fakeRow()->addRipple(
+		point,
+		QSize(_content->width(), st::dialogsRowHeight),
+		std::move(updateCallback));
 }
 
 void ListController::loadMoreRows() {
 	_searchMoreRequests.fire({});
+}
+
+void ListController::setContent(PeerListContent *content) {
+	_content = content;
 }
 
 rpl::producer<FullMsgId> ListController::showItemRequests() const {
@@ -211,8 +222,7 @@ void ListController::addItems(const MessageIdsList &ids, bool clear) {
 				std::make_unique<Dialogs::FakeRow>(
 					key,
 					item,
-					[=] { delegate()->peerListUpdateRow(*shared); }),
-				&_query);
+					[=] { delegate()->peerListUpdateRow(*shared); }));
 			*shared = row.get();
 			delegate()->peerListAppendRow(std::move(row));
 		}
@@ -264,6 +274,8 @@ List CreateList(
 
 	delegate->setContent(content);
 	list.controller->setDelegate(delegate);
+	list.controller->setContent(content);
+	content->setMode(PeerListContent::Mode::Custom);
 
 	list.container->sizeValue(
 	) | rpl::on_next([=](const QSize &size) {

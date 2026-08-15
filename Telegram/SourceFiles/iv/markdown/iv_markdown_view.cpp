@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/markdown/iv_markdown_view.h"
 #include "base/algorithm.h"
 #include "base/weak_ptr.h"
+#include "base/platform/base_platform_info.h"
 #include "core/click_handler_types.h"
 #include "core/credits_amount.h"
 #include "core/file_utilities.h"
@@ -25,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
-#include "ui/widgets/scroll_area.h"
+#include "ui/widgets/elastic_scroll.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/integration.h"
 #include "ui/rect.h"
@@ -48,6 +49,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Iv::Markdown {
 namespace {
+
+constexpr auto kZoomStep = 10;
 
 #ifndef NDEBUG
 [[nodiscard]] QString PrepareTerminalFailureName(
@@ -122,26 +125,6 @@ namespace {
 	return large;
 }
 
-[[nodiscard]] std::optional<EntityLinkData> ExternalEntityLinkData(
-		const PreparedLink &link) {
-	if (link.kind != PreparedLinkKind::External || link.target.isEmpty()) {
-		return std::nullopt;
-	}
-	switch (link.entityType) {
-	case EntityType::Url:
-	case EntityType::CustomUrl:
-	case EntityType::Email:
-		return EntityLinkData{
-			.text = !link.copyText.isEmpty() ? link.copyText : link.target,
-			.data = link.target,
-			.type = link.entityType,
-			.shown = link.shown,
-		};
-	default:
-		return std::nullopt;
-	}
-}
-
 [[nodiscard]] bool ActivateExternalLink(
 		const PreparedLink &link,
 		Qt::MouseButton button,
@@ -209,6 +192,13 @@ public:
 	[[nodiscard]] int scrollTop() const;
 	[[nodiscard]] rpl::producer<int> scrollTopValue() const;
 	bool updateContent(MarkdownArticleContent prepared, OpenOptions options);
+	[[nodiscard]] auto searchSources() const
+	-> std::vector<MarkdownArticleSearchSource>;
+	void setSearchMatches(
+		std::vector<MarkdownArticleSearchMatch> matches,
+		int current);
+	bool expandDetails(const QString &anchorId);
+	void scrollToSegment(int segmentIndex, int topMargin);
 
 private:
 	struct PendingEmbedState {
@@ -249,7 +239,7 @@ private:
 	std::vector<PreparedFootnote> _footnotes;
 	std::unique_ptr<Ui::LayerManager> _footnoteLayerManager;
 	EmbedOverlay *_embedOverlay = nullptr;
-	Ui::ScrollArea *_scroll = nullptr;
+	Ui::ElasticScroll *_scroll = nullptr;
 	Ui::RpWidget *_scrollContent = nullptr;
 	Ui::JumpDownButton *_scrollToTop = nullptr;
 	MarkdownDocumentWidget *_body = nullptr;
@@ -301,8 +291,10 @@ void MarkdownPreviewRoot::setup() {
 	_footnoteLayerManager = std::make_unique<Ui::LayerManager>(not_null{ this });
 	_footnoteLayerManager->setHideByBackgroundClick(true);
 
-	_scroll = Ui::CreateChild<Ui::ScrollArea>(this, st::boxScroll);
-	_scroll->setAlignment(Qt::AlignHCenter | Qt::AlignTop);
+	_scroll = Ui::CreateChild<Ui::ElasticScroll>(this, st::boxScroll);
+	using OverscrollType = Ui::ElasticScroll::OverscrollType;
+	_scroll->setOverscrollTypes(OverscrollType::Real, OverscrollType::Real);
+	_scroll->setOverscrollBg(st::windowBg->c);
 	_scrollContent = _scroll->setOwnedWidget(object_ptr<Ui::RpWidget>(_scroll));
 	_body = Ui::CreateChild<MarkdownDocumentWidget>(_scrollContent);
 	_scrollToTop = Ui::CreateChild<Ui::JumpDownButton>(_scroll, st::dialogsToUp);
@@ -367,7 +359,14 @@ void MarkdownPreviewRoot::setup() {
 				: false;
 		});
 		if (_options.delegate) {
-			_body->setZoom(_options.delegate->ivZoom());
+			const auto delegate = _options.delegate;
+			_body->setZoom(delegate->ivZoom());
+			_body->setZoomStepCallback([=](int steps) {
+				delegate->ivSetZoom(delegate->ivZoom() + steps * kZoomStep);
+				if (_options.zoomActivated) {
+					_options.zoomActivated();
+				}
+			});
 		}
 		_body->heightValue(
 		) | rpl::on_next([=](int) {
@@ -396,6 +395,7 @@ void MarkdownPreviewRoot::setup() {
 	}, lifetime());
 
 	style::PaletteChanged() | rpl::on_next([=] {
+		_scroll->setOverscrollBg(st::windowBg->c);
 		if (_body && !_body->isHidden()) {
 			_body->refreshPalette();
 		}
@@ -415,9 +415,20 @@ void MarkdownPreviewRoot::setup() {
 	if (_options.delegate) {
 		_options.delegate->ivZoomValue(
 		) | rpl::on_next([=](int value) {
-			if (_body) {
-				_body->setZoom(value);
-				updateChildrenGeometry(size());
+			if (!_body) {
+				return;
+			}
+			const auto scrollTop = _scroll ? _scroll->scrollTop() : 0;
+			const auto anchor = (scrollTop > 0)
+				? _body->scrollAnchorForTop(scrollTop)
+				: std::nullopt;
+			_body->setZoom(value);
+			updateChildrenGeometry(size());
+			if (anchor) {
+				const auto top = _body->scrollTopForAnchor(*anchor);
+				if (top >= 0) {
+					scrollToY(top, MarkdownPreviewScrollMode::Instant);
+				}
 			}
 		}, lifetime());
 	}
@@ -597,12 +608,12 @@ bool MarkdownPreviewRoot::showEmbed(const MediaActivation &activation) {
 		|| !activation.placeholderId) {
 		return false;
 	}
-#ifdef Q_OS_LINUX
-	closeEmbed();
-	return _embedOverlay
-		? _embedOverlay->showExternalEmbed(activation.embed)
-		: false;
-#else // Q_OS_LINUX
+	if (Platform::IsLinux()) {
+		closeEmbed();
+		return _embedOverlay
+			? _embedOverlay->showExternalEmbed(activation.embed)
+			: false;
+	}
 	const auto placeholderId = activation.placeholderId;
 	const auto generation = ++_pendingEmbed.generation;
 	if (_body && _pendingEmbed.placeholderId) {
@@ -637,7 +648,6 @@ bool MarkdownPreviewRoot::showEmbed(const MediaActivation &activation) {
 		finishPending();
 	}
 	return started;
-#endif // !Q_OS_LINUX
 }
 
 void MarkdownPreviewRoot::fillFootnoteBox(
@@ -808,6 +818,48 @@ rpl::producer<int> MarkdownPreviewRoot::scrollTopValue() const {
 		: rpl::single(0) | rpl::type_erased;
 }
 
+auto MarkdownPreviewRoot::searchSources() const
+-> std::vector<MarkdownArticleSearchSource> {
+	return _article
+		? _article->searchSources()
+		: std::vector<MarkdownArticleSearchSource>();
+}
+
+void MarkdownPreviewRoot::setSearchMatches(
+		std::vector<MarkdownArticleSearchMatch> matches,
+		int current) {
+	if (_body) {
+		_body->setSearchMatches(std::move(matches), current);
+	}
+}
+
+bool MarkdownPreviewRoot::expandDetails(const QString &anchorId) {
+	return _body ? _body->expandDetailsBlock(anchorId) : false;
+}
+
+void MarkdownPreviewRoot::scrollToSegment(
+		int segmentIndex,
+		int topMargin) {
+	if (!_body || !_scroll) {
+		return;
+	}
+	const auto rect = _body->segmentRect(segmentIndex);
+	if (rect.isEmpty()) {
+		return;
+	}
+	const auto current = _scroll->scrollTop();
+	const auto height = _scroll->height();
+	const auto from = rect.y() - topMargin;
+	const auto till = rect.y() + rect.height();
+	auto target = current;
+	if (from < current) {
+		target = from;
+	} else if (till > current + height) {
+		target = std::min(till - height, from);
+	}
+	scrollToYAnimated(target);
+}
+
 bool ScrollMarkdownPreviewToAnchor(
 		Ui::RpWidget *preview,
 		const QString &anchorId,
@@ -835,6 +887,39 @@ rpl::producer<int> MarkdownPreviewScrollTopValue(Ui::RpWidget *preview) {
 	return root ? root->scrollTopValue() : rpl::single(0);
 }
 
+auto MarkdownPreviewSearchSources(Ui::RpWidget *preview)
+-> std::vector<MarkdownArticleSearchSource> {
+	const auto root = dynamic_cast<MarkdownPreviewRoot*>(preview);
+	return root
+		? root->searchSources()
+		: std::vector<MarkdownArticleSearchSource>();
+}
+
+bool ExpandMarkdownPreviewDetails(
+		Ui::RpWidget *preview,
+		const QString &anchorId) {
+	const auto root = dynamic_cast<MarkdownPreviewRoot*>(preview);
+	return root ? root->expandDetails(anchorId) : false;
+}
+
+void ScrollMarkdownPreviewToSegment(
+		Ui::RpWidget *preview,
+		int segmentIndex,
+		int topMargin) {
+	if (const auto root = dynamic_cast<MarkdownPreviewRoot*>(preview)) {
+		root->scrollToSegment(segmentIndex, topMargin);
+	}
+}
+
+void SetMarkdownPreviewSearchMatches(
+		Ui::RpWidget *preview,
+		std::vector<MarkdownArticleSearchMatch> matches,
+		int current) {
+	if (const auto root = dynamic_cast<MarkdownPreviewRoot*>(preview)) {
+		root->setSearchMatches(std::move(matches), current);
+	}
+}
+
 void MarkdownPreviewRoot::scrollToTop() {
 	if (!_scroll || _scrollToAnimation.animating()) {
 		return;
@@ -849,7 +934,7 @@ void MarkdownPreviewRoot::scrollToYAnimated(int top) {
 	if (!_scroll) {
 		return;
 	}
-	const auto scrollTo = _scroll->computeScrollToY(top, -1);
+	const auto scrollTo = std::clamp(top, 0, _scroll->scrollTopMax());
 	_scrollToAnimation.stop();
 	auto scrollTop = _scroll->scrollTop();
 	if (scrollTop == scrollTo) {
@@ -900,9 +985,14 @@ void MarkdownPreviewRoot::updateScrollToTopVisibility() {
 	if (_scrollToAnimation.animating()) {
 		return;
 	}
+	const auto scrollTop = _scroll->scrollTop();
+	const auto scrollTopMax = _scroll->scrollTopMax();
+	const auto nearBottom = (scrollTop + st::historyToDownShownAfter / 2)
+		>= scrollTopMax;
 	startScrollToTopButtonAnimation(
 		!_scroll->isHidden()
-		&& (_scroll->scrollTop() > (st::historyToDownShownAfter / 2)));
+		&& (scrollTop > (st::historyToDownShownAfter / 2))
+		&& !nearBottom);
 }
 
 void MarkdownPreviewRoot::startScrollToTopButtonAnimation(bool shown) {

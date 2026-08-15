@@ -129,6 +129,9 @@ private:
 	void prepareChatRows(not_null<ChatData*> chat);
 	void rebuildChatRows(not_null<ChatData*> chat);
 
+	void prepareCommunityRows();
+	void rebuildCommunityRows();
+
 	void showAdmin(not_null<UserData*> user, bool sure = false);
 	void editAdminDone(
 		not_null<UserData*> user,

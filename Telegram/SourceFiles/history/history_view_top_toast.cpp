@@ -7,14 +7,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_view_top_toast.h"
 
+#include "ui/rect.h"
 #include "ui/toast/toast.h"
+#include "ui/widgets/labels.h"
+#include "ui/widgets/scroll_area.h"
+#include "ui/widgets/tooltip.h"
 #include "core/ui_integration.h"
 #include "styles/style_chat.h"
+#include "styles/style_layers.h"
 #include "styles/style_widgets.h"
 
 namespace HistoryView {
 
 namespace {
+
+constexpr auto kAnchoredTooltipDuration = 4 * crl::time(1000);
 
 [[nodiscard]] crl::time CountToastDuration(const TextWithEntities &text) {
 	return std::clamp(
@@ -60,6 +67,43 @@ void InfoTooltip::hide(anim::type animated) {
 		} else {
 			strong->hide();
 		}
+	}
+}
+
+void AnchoredTooltip::show(
+		not_null<QWidget*> scroll,
+		rpl::producer<> scrolls,
+		QRect globalArea,
+		TextWithEntities text) {
+	if (globalArea.isEmpty()) {
+		globalArea = QRect(QCursor::pos(), Size(1));
+	}
+	_tooltip = base::make_unique_q<Ui::ImportantTooltip>(
+		scroll,
+		Ui::MakeNiceTooltipLabel(
+			scroll,
+			rpl::single(std::move(text)),
+			st::boxWideWidth,
+			st::defaultImportantTooltipLabel),
+		st::defaultImportantTooltip);
+	const auto raw = _tooltip.get();
+	raw->toggleFast(false);
+
+	const auto local = QRect(
+		scroll->mapFromGlobal(globalArea.topLeft()),
+		globalArea.size());
+	raw->pointAt(local, RectPart::Top | RectPart::Center);
+	raw->toggleAnimated(true);
+	raw->hideAfter(kAnchoredTooltipDuration);
+
+	std::move(scrolls) | rpl::on_next([=] {
+		raw->toggleAnimated(false);
+	}, raw->lifetime());
+}
+
+void AnchoredTooltip::hide() {
+	if (const auto raw = _tooltip.get()) {
+		raw->toggleAnimated(false);
 	}
 }
 

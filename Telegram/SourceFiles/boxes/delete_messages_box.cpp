@@ -25,13 +25,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "ui/rect.h"
 #include "ui/wrap/slide_wrap.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
-#include "styles/style_boxes.h"
 
 namespace {
 
@@ -514,7 +515,11 @@ void DeleteMessagesBox::deleteAndClear() {
 		// which will cause this box to be destroyed.
 		const auto weak = base::make_weak(this);
 		if (hasSavedMusicMessages()) {
-			uiShow()->showToast(tr::lng_saved_music_removed(tr::now));
+			uiShow()->showToast({
+				.text = { tr::lng_saved_music_removed(tr::now) },
+				.iconLottie = u"toast/delete"_q,
+				.iconLottieSize = st::toastLottieIconSize,
+			});
 		}
 		if (const auto callback = _deleteConfirmedCallback) {
 			callback();

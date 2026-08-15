@@ -38,6 +38,24 @@ struct Brush {
 	Tool tool = Tool::Pen;
 };
 
+enum class ShapeType : uchar {
+	Circle,
+	Rectangle,
+	Star,
+	Bubble,
+	Arrow,
+};
+
+struct ShapeRequest {
+	enum class Action : uchar {
+		Arm,
+		Immediate,
+		Cancel,
+	};
+	ShapeType shape = ShapeType::Circle;
+	Action action = Action::Arm;
+};
+
 enum class SaveState {
 	Save,
 	Keep,

@@ -68,7 +68,6 @@ private:
 
 	QColor _bgColor;
 	std::optional<QColor> _fgColor;
-	std::optional<QColor> _shadowColor;
 
 };
 

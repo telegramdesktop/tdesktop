@@ -145,10 +145,16 @@ void Controller::showAccount(
 		MsgId singlePeerShowAtMsgId) {
 	Expects(isPrimary() || _id.account == account);
 
+	const auto prevAccount = _id.account;
 	const auto prevSession = maybeSession();
 	const auto prevSessionUniqueId = prevSession
 		? prevSession->uniqueId()
 		: 0;
+	const auto accountBeforeIntro = (prevAccount
+		&& prevAccount != account
+		&& prevAccount->sessionExists())
+		? prevAccount
+		: nullptr;
 	_accountLifetime.destroy();
 	_id.account = account;
 	Core::App().checkWindowId(this);
@@ -217,7 +223,7 @@ void Controller::showAccount(
 			session->updates().updateOnline(crl::now());
 		} else {
 			sideBarChanged();
-			setupIntro(std::move(oldContentCache));
+			setupIntro(accountBeforeIntro, std::move(oldContentCache));
 			_widget.updateGlobalMenu();
 		}
 
@@ -394,11 +400,13 @@ void Controller::clearSetupEmailLock() {
 	_widget.clearSetupEmailLock();
 }
 
-void Controller::setupIntro(QPixmap oldContentCache) {
+void Controller::setupIntro(
+		Main::Account *accountBeforeIntro,
+		QPixmap oldContentCache) {
 	const auto point = Core::App().domain().maybeLastOrSomeAuthedAccount()
 		? Intro::EnterPoint::Qr
 		: Intro::EnterPoint::Start;
-	_widget.setupIntro(point, std::move(oldContentCache));
+	_widget.setupIntro(point, accountBeforeIntro, std::move(oldContentCache));
 }
 
 void Controller::setupMain(

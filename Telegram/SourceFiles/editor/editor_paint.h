@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 
 #include "editor/photo_editor_common.h"
 #include "editor/photo_editor_inner_common.h"
@@ -15,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class QGraphicsItem;
 class QGraphicsView;
+class QKeyEvent;
 
 namespace Editor {
 
@@ -43,26 +45,39 @@ public:
 	void updateUndoState();
 
 	void createTextItem();
+	void createShapeItem(ShapeType shape, const Brush &brush, bool fill);
+	void armShapeTool(ShapeType shape, const Brush &brush, bool fill);
+	void disarmShapeTool();
 	void clearSelection();
 	void setTextColor(const QColor &color);
 	void setSelectedTextColor(const QColor &color);
+	void applyBrushToSelectedShape(const Brush &brush);
+
+	[[nodiscard]] bool handleKeyPress(not_null<QKeyEvent*> e);
 
 	[[nodiscard]] rpl::producer<QColor> textColorRequests() const;
 	[[nodiscard]] rpl::producer<QColor> textItemSelections() const;
 	[[nodiscard]] rpl::producer<> textItemDeselections() const;
 	[[nodiscard]] rpl::producer<bool> textEditStates() const;
+	[[nodiscard]] rpl::producer<QColor> shapeItemSelections() const;
+	[[nodiscard]] rpl::producer<> shapeItemDeselections() const;
+	[[nodiscard]] rpl::producer<bool> shapeToolStates() const;
 
 	void handleMimeData(const QMimeData *data);
 	void paintImage(QPainter &p, const QPixmap &image) const;
 	void resetView();
 
 	bool zoomSceneItems(float64 wheelDelta, bool fine = false);
+	bool zoomSceneItemsByFactor(float64 factor);
 	void panSceneItems(QPointF sceneDelta);
 	[[nodiscard]] QPointF mapWidgetDeltaToScene(QPoint delta) const;
 
 private:
 	bool eventFilter(QObject *obj, QEvent *e) override;
 	void updateViewGeometry();
+	void zoomCanvas(float64 factor, QPoint viewportPoint, bool animated);
+	void applyCanvasZoom(float64 zoom, bool subpixel);
+	bool zoomAnimationStep(crl::time now);
 
 	struct SavedItem {
 		std::shared_ptr<QGraphicsItem> item;
@@ -97,6 +112,13 @@ private:
 		bool active = false;
 		QPoint point;
 	} _pan;
+
+	bool _zoomAtLimit = false;
+	float64 _zoomTarget = 1.;
+	QPoint _zoomFocus;
+	QPointF _zoomAnchorScene;
+	crl::time _zoomLastFrame = 0;
+	Ui::Animations::Basic _zoomAnimation;
 
 	rpl::variable<bool> _hasUndo = true;
 	rpl::variable<bool> _hasRedo = true;

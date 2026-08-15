@@ -51,7 +51,8 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args);
 	not_null<Ui::RpWidget*> widget,
 	Fn<std::pair<QColor, QColor>()> colors,
 	bool mirrored = false,
-	bool iconMirrored = false);
+	bool iconMirrored = false,
+	Fn<int()> centerY = nullptr);
 
 [[nodiscard]] SwipeHandlerFinishData DefaultSwipeBackHandlerFinishData(
 	Fn<void(void)> callback);

@@ -17,10 +17,20 @@ class Session;
 
 namespace Ui {
 class AbstractButton;
+class FlatLabel;
 class GenericBox;
+class InputField;
 class Show;
 class VerticalLayout;
 } // namespace Ui
+
+// Turns an Ui::InputField into a tone-style island: a rounded opaque
+// background painted behind the field plus a gray placeholder label that
+// fades and shifts on typing. Returns the placeholder label so callers can
+// observe its height (e.g. for auto-grow min-height computations).
+not_null<Ui::FlatLabel*> AddAiComposeFieldDecor(
+	not_null<Ui::InputField*> field,
+	rpl::producer<QString> placeholder);
 
 not_null<Ui::AbstractButton*> AddAiToneIconPreview(
 	not_null<Ui::VerticalLayout*> container,

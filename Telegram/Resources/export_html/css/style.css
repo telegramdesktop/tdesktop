@@ -566,6 +566,666 @@ div.toast_shown {
 }
 }
 
+.default .rich_message {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 150%;
+    unicode-bidi: plaintext;
+    text-align: start;
+}
+.default .rich_message,
+.default .rich_message * {
+    box-sizing: border-box;
+}
+.default .rich_message .rich_block {
+    min-width: 0;
+    max-width: 100%;
+    font-size: 12px;
+    line-height: 18px;
+}
+.default .rich_message .rich_list_content,
+.default .rich_message .rich_quote_body,
+.default .rich_message .rich_quote_caption,
+.default .rich_message .rich_details_body,
+.default .rich_message .rich_deferred_label {
+    min-width: 0;
+    max-width: 100%;
+}
+.default .rich_message > .rich_block:first-child {
+    margin-top: 0;
+}
+.default .rich_message > .rich_block:last-child {
+    margin-bottom: 0;
+}
+.default .rich_message .rich_list_content > .rich_block:not(.rich_list):first-child,
+.default .rich_message .rich_quote_body > .rich_block:not(.rich_list):first-child,
+.default .rich_message .rich_details_body > .rich_block:not(.rich_list):first-child,
+.default .rich_message .rich_deferred_label + .rich_block:not(.rich_list) {
+    margin-top: 0;
+}
+.default .rich_message .rich_list_content > .rich_block:not(.rich_list):last-child,
+.default .rich_message .rich_quote_body > .rich_block:not(.rich_list):last-child,
+.default .rich_message .rich_details_body > .rich_block:not(.rich_list):last-child,
+.default .rich_message .rich_deferred > .rich_block:not(.rich_list):last-child {
+    margin-bottom: 0;
+}
+.default .rich_message .rich_heading {
+    margin: 12px 0 6px;
+    font-weight: 700;
+    text-align: start;
+    overflow-wrap: anywhere;
+}
+.default .rich_message h1.rich_heading {
+    font-size: 20px;
+    line-height: 26px;
+}
+.default .rich_message h2.rich_heading {
+    font-size: 18px;
+    line-height: 24px;
+}
+.default .rich_message h3.rich_heading {
+    font-size: 16px;
+    line-height: 22px;
+}
+.default .rich_message h4.rich_heading {
+    font-size: 15px;
+    line-height: 21px;
+}
+.default .rich_message h5.rich_heading {
+    font-size: 14px;
+    line-height: 20px;
+}
+.default .rich_message h6.rich_heading {
+    font-size: 13px;
+    line-height: 19px;
+}
+.default .rich_message .rich_paragraph {
+    margin: 0 0 8px;
+    font-size: 12px;
+    line-height: 18px;
+}
+.default .rich_message .rich_author_date {
+    margin: 0 0 8px;
+    color: #70777b;
+    font-size: 12px;
+    line-height: 18px;
+    font-style: normal;
+}
+.default .rich_message .rich_author_date time {
+    direction: ltr;
+    unicode-bidi: isolate;
+    white-space: nowrap;
+}
+.default .rich_message .rich_formatted_date {
+    direction: ltr;
+    unicode-bidi: isolate;
+}
+.default .rich_message .rich_footer,
+.default .rich_message .rich_thinking {
+    margin: 0 0 8px;
+    color: #70777b;
+    font-size: 11px;
+    line-height: 17px;
+}
+.default .rich_message .rich_quote_caption,
+.default .rich_message .rich_table caption {
+    color: #70777b;
+    font-size: 11px;
+    line-height: 17px;
+    font-style: normal;
+}
+.default .rich_message .rich_divider {
+    width: 50%;
+    height: 0;
+    margin: 12px auto;
+    padding: 0;
+    border: 0;
+    border-top: 1px solid #e3e6e8;
+}
+.default .rich_message .rich_anchor {
+    display: block;
+    width: 0;
+    height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+.default .rich_message mark {
+    padding: 0 2px;
+    color: inherit;
+    background-color: #f5f7f8;
+    border-radius: 2px;
+}
+.default .rich_message sub,
+.default .rich_message sup {
+    font-size: 75%;
+    line-height: 1;
+}
+.default .rich_message .rich_inline_code {
+    display: inline;
+    max-width: 100%;
+    padding: 2px 4px;
+    font-size: 90%;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    border-radius: 4px;
+}
+.default .rich_message .rich_code {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    max-height: none;
+    margin: 8px 0;
+    padding: 6px;
+    border: 1px solid #eeeeee;
+    border-radius: 4px;
+    font-size: inherit;
+    line-height: 1.42857143;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    overflow-x: auto;
+}
+.default .rich_message .rich_code_content {
+    display: inline;
+    padding: 0;
+    color: inherit;
+    background-color: transparent;
+    border: 0;
+    border-radius: 0;
+    font-size: inherit;
+    line-height: inherit;
+    white-space: inherit;
+    overflow-wrap: inherit;
+    word-break: inherit;
+}
+.default .rich_message .rich_list {
+    margin: 0 0 8px;
+    padding: 0;
+    padding-inline-start: 20px;
+}
+.default .rich_message .rich_list .rich_list {
+    margin: 4px 0;
+    padding: 0;
+    padding-inline-start: 20px;
+}
+.default .rich_message .rich_list_item + .rich_list_item {
+    margin-top: 4px;
+}
+.default .rich_message .rich_task_item,
+.default .rich_message .rich_order_item {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 6px;
+    list-style: none;
+}
+.default .rich_message .rich_task_marker {
+    display: inline-flex;
+    flex: 0 0 14px;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    min-width: 14px;
+    max-width: 14px;
+    height: 14px;
+    margin-block-start: 2px;
+    line-height: 14px;
+}
+.default .rich_message .rich_order_marker {
+    display: inline-flex;
+    flex: 0 1 auto;
+    min-inline-size: 14px;
+    max-inline-size: 84px;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.default .rich_message .rich_list_content {
+    display: block;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+}
+.default .rich_message .rich_quote {
+    margin: 8px 0;
+    padding: 0;
+    padding-inline-start: 12px;
+    border: 0;
+    border-inline-start: 3px solid #3892db;
+    overflow-wrap: anywhere;
+}
+.default .rich_message .rich_quote_body {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+.default .rich_message .rich_quote_caption {
+    display: block;
+    margin: 4px 0 0;
+    font-style: normal;
+}
+.default .rich_message .rich_pullquote {
+    padding-inline-start: 12px;
+    padding-inline-end: 12px;
+    border-inline-start: 0;
+    font-size: 14px;
+    line-height: 20px;
+    text-align: center;
+}
+.default .rich_message .rich_math_inline {
+    display: inline-block;
+    min-width: 0;
+    max-width: 100%;
+    padding: 0 3px;
+    color: #c7254e;
+    background-color: #f9f2f4;
+    border-radius: 2px;
+    font-family: Menlo,Monaco,Consolas,"Courier New",monospace;
+    font-size: 12px;
+    line-height: 18px;
+    direction: ltr;
+    unicode-bidi: isolate;
+    vertical-align: baseline;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    overflow-x: auto;
+}
+.default .rich_message .rich_math_display {
+    min-width: 0;
+    max-width: 100%;
+    margin: 8px 0;
+    padding: 6px;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    font-family: Menlo,Monaco,Consolas,"Courier New",monospace;
+    font-size: 12px;
+    line-height: 18px;
+    direction: ltr;
+    unicode-bidi: isolate;
+    text-align: center;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    overflow-x: auto;
+}
+.default .rich_message .rich_table_wrap {
+    display: block;
+    width: auto;
+    min-width: 0;
+    max-width: 100%;
+    margin: 8px 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+}
+.default .rich_message .rich_table {
+    min-width: 100%;
+    width: max-content;
+    max-width: none;
+    border-collapse: collapse;
+}
+.default .rich_message .rich_table caption {
+    margin: 0;
+    padding: 0 0 5px;
+    caption-side: top;
+    text-align: start;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+.default .rich_message .rich_table th,
+.default .rich_message .rich_table td {
+    min-width: 0;
+    max-width: none;
+    padding: 5px 6px;
+    font-size: 12px;
+    line-height: 18px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.default .rich_message .rich_table.bordered,
+.default .rich_message .rich_table.bordered th,
+.default .rich_message .rich_table.bordered td {
+    border: 1px solid #e3e6e8;
+}
+.default .rich_message .rich_table.striped tbody > tr:nth-child(even) > td,
+.default .rich_message .rich_table th {
+    background-color: #f5f7f8;
+}
+.default .rich_message .rich_table th {
+    font-weight: 700;
+}
+.default .rich_message .rich_align_left {
+    text-align: left;
+}
+.default .rich_message .rich_align_center {
+    text-align: center;
+}
+.default .rich_message .rich_align_right {
+    text-align: right;
+}
+.default .rich_message .rich_valign_top {
+    vertical-align: top;
+}
+.default .rich_message .rich_valign_middle {
+    vertical-align: middle;
+}
+.default .rich_message .rich_valign_bottom {
+    vertical-align: bottom;
+}
+.default .rich_message .rich_details {
+    max-width: 100%;
+    margin: 0 0 8px;
+    padding: 6px 0;
+    border: 0;
+    border-bottom: 1px solid #e3e6e8;
+}
+.default .rich_message .rich_details summary {
+    padding-block: 0;
+    padding-inline: 6px;
+    font-size: 12px;
+    line-height: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.default .rich_message .rich_details_body {
+    min-width: 0;
+    max-width: 100%;
+    padding-block-start: 6px;
+    padding-block-end: 0;
+    padding-inline-start: 12px;
+    padding-inline-end: 0;
+}
+.default .rich_message .rich_fallback,
+.default .rich_message .rich_deferred {
+    min-width: 0;
+    max-width: 100%;
+    min-height: 0;
+    margin: 0 0 8px;
+    padding: 6px;
+    color: #70777b;
+    background-color: #f5f7f8;
+    border: 1px solid #e3e6e8;
+    border-radius: 4px;
+    font-size: 11px;
+    line-height: 17px;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.default .rich_message .rich_inline_fallback,
+.default .rich_message .rich_diff,
+.default .rich_message .rich_custom_emoji,
+.default .rich_message .rich_inert_link,
+.default .rich_message .rich_bank_card,
+.default .rich_message .rich_reference,
+.default .rich_message .spoiler {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.default .rich_message .rich_inline_fallback {
+    margin: 0;
+    padding: 0 2px;
+    color: #70777b;
+    background-color: #f5f7f8;
+    border: 0;
+    border-radius: 2px;
+}
+.default .rich_message .rich_media_item,
+.default .rich_message .rich_media_group,
+.default .rich_message .rich_media_group_items,
+.default .rich_message .rich_embed_post,
+.default .rich_message .rich_embed_post_author,
+.default .rich_message .rich_embed_post_meta,
+.default .rich_message .rich_embed_post_blocks,
+.default .rich_message .rich_reference_block,
+.default .rich_message .rich_related_articles,
+.default .rich_message .rich_related_title,
+.default .rich_message .rich_related_items,
+.default .rich_message .rich_related_article,
+.default .rich_message .rich_media_caption,
+.default .rich_message .rich_caption_text,
+.default .rich_message .rich_caption_credit,
+.default .rich_message .rich_source_meta,
+.default .rich_message .rich_article_description {
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100%;
+}
+.default .rich_message .rich_media_item,
+.default .rich_message .rich_media_group,
+.default .rich_message .rich_embed_post,
+.default .rich_message .rich_reference_block,
+.default .rich_message .rich_related_articles {
+    display: block;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    margin: 0 0 8px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    position: static;
+    overflow: visible;
+}
+.default .rich_message .rich_media_group_items,
+.default .rich_message .rich_embed_post_author,
+.default .rich_message .rich_embed_post_blocks,
+.default .rich_message .rich_related_items,
+.default .rich_message .rich_related_article {
+    display: block;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    position: static;
+    overflow-x: visible;
+    overflow-y: visible;
+}
+.default .rich_message .rich_media_group_items > .rich_block,
+.default .rich_message .rich_embed_post_blocks > .rich_block {
+    margin: 0;
+}
+.default .rich_message .rich_media_group_items > .rich_block + .rich_block,
+.default .rich_message .rich_embed_post_blocks > .rich_block + .rich_block,
+.default .rich_message .rich_related_article + .rich_related_article {
+    margin-top: 8px;
+}
+.default .rich_message .rich_media_item::after,
+.default .rich_message .rich_media_group_items::after,
+.default .rich_message .rich_embed_post_author::after,
+.default .rich_message .rich_embed_post_blocks::after,
+.default .rich_message .rich_reference_block::after,
+.default .rich_message .rich_related_article::after {
+    content: "";
+    visibility: hidden;
+    display: block;
+    height: 0;
+    clear: both;
+}
+.default .rich_message .media_wrap {
+    display: block;
+    float: none;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+}
+.default .rich_message .media {
+    display: block;
+    float: none;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.default .rich_message .media > .body,
+.default .rich_message .media .title,
+.default .rich_message .media .description,
+.default .rich_message .media .status {
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.default .rich_message .media > .fill,
+.default .rich_message .media > .thumb {
+    max-width: 100%;
+}
+.default .rich_message .photo_wrap,
+.default .rich_message .video_file_wrap {
+    display: block;
+    width: auto;
+    min-width: 0;
+    max-width: 100%;
+}
+.default .rich_message .photo,
+.default .rich_message .video_file {
+    max-width: 100%;
+    height: auto !important;
+}
+.default .rich_message .video_play_bg {
+    max-width: 100%;
+}
+.default .rich_message .video_duration {
+    max-width: calc(100% - 6px);
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.default .rich_message[dir="rtl"] .photo_wrap,
+.default .rich_message[dir="rtl"] .video_file_wrap {
+    float: right;
+}
+.default .rich_message .rich_media_caption,
+.default .rich_message .rich_caption_text,
+.default .rich_message .rich_caption_credit,
+.default .rich_message .rich_source_meta,
+.default .rich_message .rich_embed_post_meta {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    color: #70777b;
+    font-size: 11px;
+    line-height: 17px;
+    text-align: start;
+    unicode-bidi: plaintext;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.default .rich_message .rich_media_caption,
+.default .rich_message .rich_caption_text,
+.default .rich_message .rich_caption_credit,
+.default .rich_message .rich_source_link,
+.default .rich_message .rich_source_text {
+    display: block;
+}
+.default .rich_message .rich_caption_credit {
+    font-style: normal;
+}
+.default .rich_message .rich_source_link,
+.default .rich_message .rich_source_text {
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    font-size: inherit;
+    line-height: inherit;
+    text-align: inherit;
+    unicode-bidi: plaintext;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.default .rich_message .rich_source_link {
+    color: #168acd;
+}
+.default .rich_message .rich_media_item > .media_wrap + .rich_source_meta,
+.default .rich_message .rich_media_item > .media_wrap + .rich_media_caption,
+.default .rich_message .rich_media_item > .rich_source_meta + .rich_media_caption,
+.default .rich_message .rich_reference_block > .media_wrap + .rich_media_caption {
+    margin-top: 0;
+}
+.default .rich_message .rich_media_group[data-rich-has-items="false"] > .rich_media_group_items + .rich_media_caption,
+.default .rich_message .rich_media_group[data-rich-has-items="true"] > .rich_media_group_items + .rich_media_caption {
+    margin-top: 0;
+}
+.default .rich_message .rich_media_group[data-rich-has-items="true"] > .rich_media_group_items:not(:last-child) {
+    margin-bottom: 5px;
+}
+.default .rich_message .rich_media_group[data-rich-has-items="true"][data-rich-items-end-media="true"] > .rich_media_group_items:not(:last-child) {
+    margin-bottom: 0;
+}
+.default .rich_message .rich_embed_post[data-rich-has-items="true"][data-rich-has-meta="false"] > .rich_embed_post_author + .rich_embed_post_blocks {
+    margin-top: 3px;
+}
+.default .rich_message .rich_embed_post[data-rich-has-items="true"][data-rich-has-meta="true"] > .rich_embed_post_meta + .rich_embed_post_blocks {
+    margin-top: 8px;
+}
+.default .rich_message .rich_embed_post[data-rich-has-items="false"][data-rich-has-meta="false"] > .rich_embed_post_blocks + .rich_media_caption,
+.default .rich_message .rich_embed_post[data-rich-has-items="true"] > .rich_embed_post_blocks + .rich_media_caption {
+    margin-top: 0;
+}
+.default .rich_message .rich_embed_post[data-rich-has-items="false"][data-rich-has-meta="true"] > .rich_embed_post_blocks:not(:last-child),
+.default .rich_message .rich_embed_post[data-rich-has-items="true"] > .rich_embed_post_blocks:not(:last-child) {
+    margin-bottom: 5px;
+}
+.default .rich_message .rich_embed_post[data-rich-has-items="true"][data-rich-items-end-media="true"] > .rich_embed_post_blocks:not(:last-child) {
+    margin-bottom: 0;
+}
+.default .rich_message .rich_related_title {
+    width: 100%;
+    margin: 0 0 8px;
+    padding: 0;
+    color: #000000;
+    font-size: 14px;
+    line-height: 18px;
+    font-weight: 700;
+    text-align: start;
+    unicode-bidi: plaintext;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.default .rich_message .rich_article_description {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    color: #000000;
+    font-size: 13px;
+    line-height: 18px;
+    text-align: start;
+    unicode-bidi: plaintext;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.default .rich_message .rich_related_article > .rich_source_meta {
+    font-size: 13px;
+    line-height: 18px;
+}
+.default .rich_message .rich_article_description + .rich_source_meta {
+    margin-top: 4px;
+}
+
 .spoiler {
     background: #e8e8e8;
 }
@@ -710,6 +1370,73 @@ div.selected {
 }
 .default .media .description {
     color: #ffffff; /* groupCallMembersFg */
+}
+.default .rich_message .rich_heading {
+    color: #ffffff;
+}
+.default .rich_message .rich_author_date,
+.default .rich_message .rich_footer,
+.default .rich_message .rich_thinking,
+.default .rich_message .rich_quote_caption,
+.default .rich_message .rich_table caption,
+.default .rich_message .rich_fallback,
+.default .rich_message .rich_deferred,
+.default .rich_message .rich_inline_fallback {
+    color: #91979e;
+}
+.default .rich_message .rich_quote {
+    border-inline-start-color: #4db8ff;
+}
+.default .rich_message .rich_divider {
+    border-top-color: #2c333d;
+}
+.default .rich_message .rich_details {
+    border-bottom-color: #2c333d;
+}
+.default .rich_message .rich_fallback,
+.default .rich_message .rich_deferred {
+    background-color: #323a45;
+    border-color: #2c333d;
+}
+.default .rich_message mark,
+.default .rich_message .rich_inline_fallback,
+.default .rich_message .rich_table th,
+.default .rich_message .rich_table.striped tbody > tr:nth-child(even) > td {
+    background-color: #323a45;
+}
+.default .rich_message .rich_code {
+    color: #ffffff;
+    background-color: #2c333d;
+    border-color: #323a45;
+}
+.default .rich_message .rich_inline_code,
+.default .rich_message .rich_math_inline {
+    color: #ff8aac;
+    background-color: #2c333d;
+}
+.default .rich_message .rich_math_display {
+    color: #ffffff;
+    background-color: #2c333d;
+}
+.default .rich_message .rich_table.bordered,
+.default .rich_message .rich_table.bordered th,
+.default .rich_message .rich_table.bordered td {
+    border-color: #2c333d;
+}
+.default .rich_message .rich_media_caption,
+.default .rich_message .rich_caption_text,
+.default .rich_message .rich_caption_credit,
+.default .rich_message .rich_source_meta,
+.default .rich_message .rich_embed_post_meta,
+.default .rich_message .rich_source_text {
+    color: #91979e;
+}
+.default .rich_message .rich_related_title,
+.default .rich_message .rich_article_description {
+    color: #ffffff;
+}
+.default .rich_message .rich_source_link {
+    color: #4db8ff;
 }
 msgInBg,
 .historyComposeAreaBg {

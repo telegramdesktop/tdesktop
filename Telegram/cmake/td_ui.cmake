@@ -16,16 +16,48 @@ set(style_files
     ui/filter_icons.style
     ui/menu_icons.style
     ui/chat/chat.style
+    ui/chat/chat_style.style
+    history/view/history_view_about_view.style
     ui/effects/credits.style
     ui/effects/premium.style
+    ui/effects/premium_limits.style
     ui/color_indices.style
+    ui/controls/userpic_button.style
     boxes/boxes.style
+    api/api_chat_invite.style
+    boxes/add_contact_box.style
+    boxes/background_preview_box.style
+    boxes/moderate_messages_box.style
+    boxes/passcode_box.style
+    boxes/peer_list_section_index.style
+    boxes/peers/edit_peer_members.style
+    boxes/share_box.style
+    boxes/stickers_box.style
+    boxes/url_auth_box_content.style
+    info/community_requests/info_community_requests_widget.style
+    settings/sections/settings_notifications.style
+    ui/boxes/calendar_box.style
+    ui/boxes/choose_date_time.style
+    ui/boxes/collectible_info_box.style
+    ui/boxes/country_select_box.style
+    ui/controls/labeled_emoji_tabs.style
+    ui/widgets/color_editor.style
+    window/window_lock_widgets.style
+    boxes/compose_ai_box.style
+    boxes/connection_box.style
     boxes/polls.style
     dialogs/dialogs.style
+    dialogs/dialogs_widget.style
+    dialogs/ui/dialogs_layout.style
     chat_helpers/chat_helpers.style
+    chat_helpers/emoji_picker_overlay.style
+    history/view/controls/history_view_voice_record_bar.style
+    ui/controls/location_picker.style
     calls/calls.style
     export/view/export.style
     info/info.style
+    info/profile/info_profile_actions.style
+    info/profile/info_profile_top_bar.style
     info/channel_statistics/boosts/giveaway/giveaway.style
     info/channel_statistics/earn/channel_earn.style
     info/profile/info_levels.style
@@ -38,9 +70,14 @@ set(style_files
     payments/ui/payments.style
     profile/profile.style
     settings/settings.style
+    settings/sections/settings_local_storage.style
+    settings/sections/settings_active_sessions.style
+    settings/sections/settings_premium.style
+    ui/controls/filter_link_header.style
     media/view/media_view.style
     overview/overview.style
     window/window.style
+    window/window_main_menu.style
     editor/editor.style
     statistics/statistics.style
 )
@@ -117,6 +154,8 @@ PRIVATE
     dialogs/ui/chat_search_empty.h
     dialogs/ui/chat_search_in.cpp
     dialogs/ui/chat_search_in.h
+    dialogs/ui/dialogs_pill.cpp
+    dialogs/ui/dialogs_pill.h
     dialogs/ui/dialogs_quick_action_context.h
     dialogs/ui/dialogs_quick_action.h
     dialogs/ui/dialogs_stories_list.cpp
@@ -147,6 +186,8 @@ PRIVATE
     editor/scene/scene_item_image.h
     editor/scene/scene_item_line.cpp
     editor/scene/scene_item_line.h
+    editor/scene/scene_item_shape.cpp
+    editor/scene/scene_item_shape.h
     editor/scene/scene_item_text.cpp
     editor/scene/scene_item_text.h
     editor/scene/scene_emoji_document.cpp
@@ -278,6 +319,8 @@ PRIVATE
 
     settings/settings_common.cpp
     settings/settings_common.h
+    settings/settings_key_navigation.cpp
+    settings/settings_key_navigation.h
     settings/cloud_password/settings_cloud_password_common.cpp
     settings/cloud_password/settings_cloud_password_common.h
 
@@ -396,8 +439,6 @@ PRIVATE
     ui/chat/chat_theme.h
     ui/chat/chats_filter_tag.cpp
     ui/chat/chats_filter_tag.h
-    ui/chat/continuous_scroll.cpp
-    ui/chat/continuous_scroll.h
     ui/chat/forward_options_box.cpp
     ui/chat/forward_options_box.h
     ui/chat/group_call_bar.cpp
@@ -550,6 +591,7 @@ PRIVATE
     ui/widgets/fields/time_part_input_with_placeholder.cpp
     ui/widgets/fields/time_part_input_with_placeholder.h
 
+    ui/widgets/chat_filters_tabs_mode.h
     ui/widgets/chat_filters_tabs_slider.cpp
     ui/widgets/chat_filters_tabs_slider.h
     ui/widgets/chat_filters_tabs_slider_reorder.cpp
@@ -577,6 +619,8 @@ PRIVATE
     ui/widgets/participants_check_view.cpp
     ui/widgets/participants_check_view.h
     ui/widgets/slider_natural_width.h
+    ui/widgets/sliding_tabs.cpp
+    ui/widgets/sliding_tabs.h
     ui/widgets/vertical_drum_picker.cpp
     ui/widgets/vertical_drum_picker.h
 

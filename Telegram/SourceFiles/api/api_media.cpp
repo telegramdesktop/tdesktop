@@ -112,7 +112,7 @@ MTPInputMedia PrepareUploadedDocument(
 		| (info.thumb ? Flag::f_thumb : Flag())
 		| (item->groupId() ? Flag::f_nosound_video : Flag())
 		| (info.forceFile ? Flag::f_force_file : Flag())
-		| (info.attachedStickers.empty() ? Flag::f_stickers : Flag())
+		| (info.attachedStickers.empty() ? Flag() : Flag::f_stickers)
 		| (ttlSeconds ? Flag::f_ttl_seconds : Flag())
 		| (info.videoCover ? Flag::f_video_cover : Flag());
 	const auto document = item->media()->document();

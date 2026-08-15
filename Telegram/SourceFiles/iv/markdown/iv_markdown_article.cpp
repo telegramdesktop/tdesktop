@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/markdown/iv_markdown_article.h"
 
 #include "base/algorithm.h"
+#include "data/data_file_click_handler.h"
 #include "iv/markdown/iv_markdown_article_layout_structure.h"
 #include "iv/markdown/iv_markdown_article_paint.h"
 #include "iv/markdown/iv_markdown_article_selection.h"
@@ -157,23 +158,27 @@ struct MarkdownArticleHorizontalScrollLookup {
 [[nodiscard]] CachedTextLeafSourceSignature MarkedTextLeafSourceSignature(
 		TextWithEntities text,
 		const style::TextStyle &textStyle,
-		int minResizeWidth) {
+		int minResizeWidth,
+		bool rtl) {
 	auto result = CachedTextLeafSourceSignature();
 	result.dependsOnMediaRuntime = TextDependsOnMediaRuntime(text);
 	result.text = std::move(text);
 	result.minResizeWidth = minResizeWidth;
 	result.styleKey = TextStyleKey(textStyle);
+	result.rtl = rtl;
 	return result;
 }
 
 [[nodiscard]] CachedTextLeafSourceSignature PlainTextLeafSourceSignature(
 		const QString &text,
 		const style::TextStyle &textStyle,
-		int minResizeWidth) {
+		int minResizeWidth,
+		bool rtl) {
 	return MarkedTextLeafSourceSignature(
 		TextWithEntities::Simple(text),
 		textStyle,
-		minResizeWidth);
+		minResizeWidth,
+		rtl);
 }
 
 [[nodiscard]] CachedTextLeafSourceSignature CodeTextLeafSourceSignature(
@@ -182,7 +187,8 @@ struct MarkdownArticleHorizontalScrollLookup {
 	auto result = MarkedTextLeafSourceSignature(
 		CodeBlockDisplayText(prepared.text),
 		st.code,
-		CodeTextMinResizeWidth(st));
+		CodeTextMinResizeWidth(st),
+		false);
 	result.codeLanguage = prepared.codeLanguage;
 	return result;
 }
@@ -286,13 +292,15 @@ void HarvestCachedTextLeafs(
 	std::vector<LaidOutBlock> *blocks,
 	const style::Markdown &st,
 	CachedTextLeafPool *pool,
-	std::vector<int> *preparedPath);
+	std::vector<int> *preparedPath,
+	bool rtl);
 
 void RebuildCachedTextLeafs(
 		const std::vector<PreparedBlock> &preparedBlocks,
 		std::vector<LaidOutBlock> *blocks,
 		const style::Markdown &st,
-		CachedTextLeafPool *pool) {
+		CachedTextLeafPool *pool,
+		bool rtl) {
 	if (!pool) {
 		return;
 	}
@@ -303,7 +311,8 @@ void RebuildCachedTextLeafs(
 		blocks,
 		st,
 		pool,
-		&preparedPath);
+		&preparedPath,
+		rtl);
 }
 
 void HarvestCachedTextLeafs(
@@ -311,7 +320,8 @@ void HarvestCachedTextLeafs(
 		LaidOutBlock *block,
 		const style::Markdown &st,
 		CachedTextLeafPool *pool,
-		const std::vector<int> &preparedPath) {
+		const std::vector<int> &preparedPath,
+		bool rtl) {
 	const auto storeBlockLeaf = [&](CachedTextLeafSlot slot,
 			CachedTextLeafSourceSignature source,
 			Ui::Text::String *leaf) {
@@ -346,7 +356,8 @@ void HarvestCachedTextLeafs(
 			PlainTextLeafSourceSignature(
 				ListMarkerText(prepared),
 				st.body,
-				PlainTextMinResizeWidth(st.body)),
+				PlainTextMinResizeWidth(st.body),
+				false),
 			&block->marker);
 	}
 
@@ -356,19 +367,26 @@ void HarvestCachedTextLeafs(
 	case PreparedBlockKind::Heading:
 	{
 		const auto &textStyle = TextStyleFor(prepared, st);
+		const auto &placeholderStyle = EditPlaceholderTextStyleFor(
+			prepared,
+			st);
 		storeBlockLeaf(
 			CachedTextLeafSlot::Leaf,
 			MarkedTextLeafSourceSignature(
 				prepared.text,
 				textStyle,
-				FlowBlockMinimumWidth(prepared, st)),
+				FlowBlockMinimumWidth(prepared, st),
+				rtl),
 			&block->leaf);
 		storeBlockLeaf(
 			CachedTextLeafSlot::Placeholder,
-			PlainTextLeafSourceSignature(
-				prepared.editPlaceholderText,
-				textStyle,
-				PlainTextMinResizeWidth(textStyle)),
+			MarkedTextLeafSourceSignature(
+				EditPlaceholderTextValue(
+					prepared,
+					prepared.editPlaceholderText),
+				placeholderStyle,
+				PlainTextMinResizeWidth(placeholderStyle),
+				rtl),
 			&block->placeholderLeaf);
 	} break;
 	case PreparedBlockKind::CodeBlock:
@@ -387,7 +405,8 @@ void HarvestCachedTextLeafs(
 			PlainTextLeafSourceSignature(
 				prepared.editPlaceholderText,
 				st.code,
-				PlainTextMinResizeWidth(st.code)),
+				PlainTextMinResizeWidth(st.code),
+				rtl),
 			&block->placeholderLeaf);
 		break;
 	case PreparedBlockKind::DisplayMath:
@@ -396,14 +415,16 @@ void HarvestCachedTextLeafs(
 			PlainTextLeafSourceSignature(
 				prepared.editPlaceholderText,
 				st.displayMath.fallbackStyle,
-				DisplayMathFallbackTextMinResizeWidth(st)),
+				DisplayMathFallbackTextMinResizeWidth(st),
+				rtl),
 			&block->placeholderLeaf);
 		storeBlockLeaf(
 			CachedTextLeafSlot::Fallback,
 			MarkedTextLeafSourceSignature(
 				DisplayMathFallbackText(),
 				st.displayMath.fallbackStyle,
-				DisplayMathFallbackTextMinResizeWidth(st)),
+				DisplayMathFallbackTextMinResizeWidth(st),
+				false),
 			&block->fallbackLeaf);
 		break;
 	case PreparedBlockKind::Table: {
@@ -412,14 +433,16 @@ void HarvestCachedTextLeafs(
 			MarkedTextLeafSourceSignature(
 				prepared.text,
 				st.body,
-				FlowTextMinResizeWidth(st.body)),
+				FlowTextMinResizeWidth(st.body),
+				rtl),
 			&block->leaf);
 		storeBlockLeaf(
 			CachedTextLeafSlot::Placeholder,
 			PlainTextLeafSourceSignature(
 				prepared.editPlaceholderText,
 				st.body,
-				PlainTextMinResizeWidth(st.body)),
+				PlainTextMinResizeWidth(st.body),
+				rtl),
 			&block->placeholderLeaf);
 		const auto rowCount = std::min(
 			int(prepared.tableRows.size()),
@@ -446,7 +469,8 @@ void HarvestCachedTextLeafs(
 					MarkedTextLeafSourceSignature(
 						preparedCell.text,
 						textStyle,
-						minResizeWidth),
+						minResizeWidth,
+						rtl),
 					&cell.leaf);
 				storeTableCellLeaf(
 					CachedTextLeafSlot::TableCellPlaceholder,
@@ -456,7 +480,8 @@ void HarvestCachedTextLeafs(
 					PlainTextLeafSourceSignature(
 						preparedCell.editPlaceholderText,
 						textStyle,
-						minResizeWidth),
+						minResizeWidth,
+						rtl),
 					&cell.placeholderLeaf);
 			}
 		}
@@ -467,21 +492,24 @@ void HarvestCachedTextLeafs(
 			MarkedTextLeafSourceSignature(
 				prepared.text,
 				st.details.summaryStyle,
-				FlowTextMinResizeWidth(st.details.summaryStyle)),
+				FlowTextMinResizeWidth(st.details.summaryStyle),
+				rtl),
 			&block->leaf);
 		storeBlockLeaf(
 			CachedTextLeafSlot::Placeholder,
 			PlainTextLeafSourceSignature(
 				prepared.editPlaceholderText,
 				st.details.summaryStyle,
-				PlainTextMinResizeWidth(st.details.summaryStyle)),
+				PlainTextMinResizeWidth(st.details.summaryStyle),
+				rtl),
 			&block->placeholderLeaf);
 		storeBlockLeaf(
 			CachedTextLeafSlot::Action,
 			PlainTextLeafSourceSignature(
 				DetailsStateText(prepared.detailsOpen),
 				st.details.summaryStyle,
-				PlainTextMinResizeWidth(st.details.summaryStyle)),
+				PlainTextMinResizeWidth(st.details.summaryStyle),
+				false),
 			&block->actionLeaf);
 		break;
 	case PreparedBlockKind::Placeholder:
@@ -490,21 +518,24 @@ void HarvestCachedTextLeafs(
 			PlainTextLeafSourceSignature(
 				prepared.placeholder.label,
 				st.placeholder.labelStyle,
-				PlainTextMinResizeWidth(st.placeholder.labelStyle)),
+				PlainTextMinResizeWidth(st.placeholder.labelStyle),
+				rtl),
 			&block->labelLeaf);
 		storeBlockLeaf(
 			CachedTextLeafSlot::Leaf,
 			MarkedTextLeafSourceSignature(
 				prepared.text,
 				st.body,
-				FlowTextMinResizeWidth(st.body)),
+				FlowTextMinResizeWidth(st.body),
+				rtl),
 			&block->leaf);
 		storeBlockLeaf(
 			CachedTextLeafSlot::Placeholder,
 			PlainTextLeafSourceSignature(
 				prepared.editPlaceholderText,
 				st.body,
-				PlainTextMinResizeWidth(st.body)),
+				PlainTextMinResizeWidth(st.body),
+				rtl),
 			&block->placeholderLeaf);
 		break;
 	case PreparedBlockKind::RelatedArticle:
@@ -513,21 +544,24 @@ void HarvestCachedTextLeafs(
 			PlainTextLeafSourceSignature(
 				prepared.relatedArticle.title,
 				st.relatedArticle.titleStyle,
-				PlainTextMinResizeWidth(st.relatedArticle.titleStyle)),
+				PlainTextMinResizeWidth(st.relatedArticle.titleStyle),
+				rtl),
 			&block->labelLeaf);
 		storeBlockLeaf(
 			CachedTextLeafSlot::Subtitle,
 			PlainTextLeafSourceSignature(
 				prepared.relatedArticle.description,
 				st.relatedArticle.subtitleStyle,
-				PlainTextMinResizeWidth(st.relatedArticle.subtitleStyle)),
+				PlainTextMinResizeWidth(st.relatedArticle.subtitleStyle),
+				rtl),
 			&block->subtitleLeaf);
 		storeBlockLeaf(
 			CachedTextLeafSlot::Action,
 			PlainTextLeafSourceSignature(
 				prepared.relatedArticle.footer,
 				st.relatedArticle.footerStyle,
-				PlainTextMinResizeWidth(st.relatedArticle.footerStyle)),
+				PlainTextMinResizeWidth(st.relatedArticle.footerStyle),
+				rtl),
 			&block->actionLeaf);
 		break;
 	case PreparedBlockKind::EmbedPost:
@@ -536,14 +570,16 @@ void HarvestCachedTextLeafs(
 			PlainTextLeafSourceSignature(
 				prepared.embedPost.author,
 				st.embedPost.authorStyle,
-				PlainTextMinResizeWidth(st.embedPost.authorStyle)),
+				PlainTextMinResizeWidth(st.embedPost.authorStyle),
+				rtl),
 			&block->labelLeaf);
 		storeBlockLeaf(
 			CachedTextLeafSlot::Subtitle,
 			PlainTextLeafSourceSignature(
 				prepared.embedPost.dateText,
 				st.embedPost.dateStyle,
-				PlainTextMinResizeWidth(st.embedPost.dateStyle)),
+				PlainTextMinResizeWidth(st.embedPost.dateStyle),
+				rtl),
 			&block->subtitleLeaf);
 		break;
 	case PreparedBlockKind::Photo:
@@ -557,14 +593,16 @@ void HarvestCachedTextLeafs(
 			MarkedTextLeafSourceSignature(
 				prepared.text,
 				st.body,
-				FlowTextMinResizeWidth(st.body)),
+				FlowTextMinResizeWidth(st.body),
+				rtl),
 			&block->leaf);
 		storeBlockLeaf(
 			CachedTextLeafSlot::Placeholder,
 			PlainTextLeafSourceSignature(
 				prepared.editPlaceholderText,
 				st.body,
-				PlainTextMinResizeWidth(st.body)),
+				PlainTextMinResizeWidth(st.body),
+				rtl),
 			&block->placeholderLeaf);
 		break;
 	case PreparedBlockKind::Rule:
@@ -575,7 +613,7 @@ void HarvestCachedTextLeafs(
 	}
 
 	auto childPath = preparedPath;
-	HarvestCachedTextLeafs(prepared.children, &block->children, st, pool, &childPath);
+	HarvestCachedTextLeafs(prepared.children, &block->children, st, pool, &childPath, rtl);
 }
 
 void HarvestCachedTextLeafs(
@@ -583,7 +621,8 @@ void HarvestCachedTextLeafs(
 		std::vector<LaidOutBlock> *blocks,
 		const style::Markdown &st,
 		CachedTextLeafPool *pool,
-		std::vector<int> *preparedPath) {
+		std::vector<int> *preparedPath,
+		bool rtl) {
 	if (!blocks || !pool || !preparedPath) {
 		return;
 	}
@@ -595,7 +634,8 @@ void HarvestCachedTextLeafs(
 			&(*blocks)[i],
 			st,
 			pool,
-			*preparedPath);
+			*preparedPath,
+			rtl);
 		preparedPath->pop_back();
 	}
 }
@@ -908,7 +948,7 @@ void AppendTextRevealLines(
 	if (textRect.isEmpty() || visibleRect.isEmpty() || (textWidth <= 0)) {
 		return;
 	}
-	const auto geometry = leaf.countLinesGeometry(textWidth, true);
+	const auto geometry = leaf.countLinesGeometry(textWidth);
 	const auto viewportLeft = visibleRect.x();
 	const auto viewportRight = visibleRect.x() + visibleRect.width();
 	for (const auto &line : geometry) {
@@ -1125,7 +1165,7 @@ void AppendBlocksRevealLines(
 	}
 	auto request = Ui::Text::StateRequest();
 	request.align = align;
-	request.flags = flags | Ui::Text::StateRequest::Flag::BreakEverywhere;
+	request.flags = flags;
 	const auto availableWidth = std::max(width, 1);
 	return leaf.getState(
 		point - rect.topLeft(),
@@ -1840,6 +1880,39 @@ void ApplyOwnerContentGeometry(
 	return fallback;
 }
 
+void CollectMediaBlockGeometries(
+		std::vector<MarkdownArticleMediaGeometry> *out,
+		const std::vector<LaidOutBlock> &blocks) {
+	for (const auto &block : blocks) {
+		const auto media = (block.kind == PreparedBlockKind::Photo)
+			|| (block.kind == PreparedBlockKind::Video)
+			|| (block.kind == PreparedBlockKind::Audio)
+			|| (block.kind == PreparedBlockKind::Map)
+			|| (block.kind == PreparedBlockKind::GroupedMedia);
+		if (media && block.editBlock) {
+			const auto grouped
+				= (block.kind == PreparedBlockKind::GroupedMedia);
+			auto itemRects = std::vector<QRect>();
+			auto activeItemIndex = -1;
+			if (grouped && block.mediaBlock) {
+				itemRects = block.mediaBlock->itemRects();
+				activeItemIndex = block.mediaBlock->activeItemIndex();
+			}
+			out->push_back({
+				.block = *block.editBlock,
+				.mediaRect = block.mediaRect,
+				.visibleMediaRect = block.visibleMediaRect,
+				.grouped = grouped,
+				.itemRects = std::move(itemRects),
+				.activeItemIndex = activeItemIndex,
+			});
+		}
+		if (!block.children.empty()) {
+			CollectMediaBlockGeometries(out, block.children);
+		}
+	}
+}
+
 [[nodiscard]] PreparedEditHit EditFallbackHitForBlock(
 		const LaidOutBlock &block) {
 	if (block.editListItem) {
@@ -1910,7 +1983,7 @@ void ApplyOwnerContentGeometry(
 	}
 	for (const auto &row : block.tableRows) {
 		for (const auto &cell : row.cells) {
-			if (ContainsPoint(cell.outer, point)) {
+			if (ContainsPoint(TableCellHitRect(block, cell), point)) {
 				if (const auto result = EditHitForTableCell(cell, point);
 					result.valid()) {
 					return result;
@@ -2015,15 +2088,20 @@ void ApplyOwnerContentGeometry(
 		const LaidOutBlock &block,
 		QPoint point) {
 	if (ContainsPoint(block.headerRect, point) && block.editBlock) {
-		const auto leftWidth = std::max(
-			block.textRect.left() - block.headerRect.left(),
+		const auto textRight = block.textRect.left() + block.textRect.width();
+		const auto toggleWidth = std::max(
+			block.rtl
+				? (block.headerRect.left()
+					+ block.headerRect.width()
+					- textRight)
+				: (block.textRect.left() - block.headerRect.left()),
 			0);
-		const auto leftToggleRect = QRect(
-			block.headerRect.left(),
+		const auto toggleRect = QRect(
+			block.rtl ? textRight : block.headerRect.left(),
 			block.headerRect.top(),
-			leftWidth,
+			toggleWidth,
 			block.headerRect.height());
-		if (ContainsPoint(leftToggleRect, point)
+		if (ContainsPoint(toggleRect, point)
 			|| (!block.actionRect.isEmpty()
 				&& ContainsPoint(block.actionRect, point))) {
 			return {
@@ -2108,6 +2186,713 @@ void ApplyOwnerContentGeometry(
 	return EditFallbackHitForBlock(block);
 }
 
+[[nodiscard]] std::optional<PreparedEditLeafSource> EditableLeafForSegment(
+		const SelectableSegment &segment) {
+	if (segment.cell) {
+		return segment.cell->editLeaf;
+	} else if (IsDisplayMathSegment(segment) && segment.block) {
+		return segment.block->editLeaf;
+	} else if (segment.block && (segment.leaf == &segment.block->leaf)) {
+		return segment.block->editLeaf;
+	}
+	return std::nullopt;
+}
+
+[[nodiscard]] PreparedEditBlockContainerPath BlockChildContainer(
+		const PreparedEditBlockSource &source) {
+	auto result = source.path.container;
+	result.steps.push_back({
+		.kind = PreparedEditBlockContainerKind::BlockChildren,
+		.blockIndex = source.path.index,
+	});
+	return result;
+}
+
+[[nodiscard]] std::optional<PreparedEditBlockContainerPath> ContainerPathForChildBlock(
+		const LaidOutBlock &block) {
+	if (block.editBlock && ValidBlockPath(block.editBlock->path)) {
+		return block.editBlock->path.container;
+	} else if (block.editListItem && ValidBlockPath(block.editListItem->block)) {
+		return block.editListItem->block.container;
+	} else if (block.editLeaf && ValidBlockPath(block.editLeaf->block)) {
+		return block.editLeaf->block.container;
+	}
+	return std::nullopt;
+}
+
+[[nodiscard]] std::optional<PreparedEditBlockContainerPath> ContainerPathForBlocks(
+		const std::vector<LaidOutBlock> &blocks) {
+	for (const auto &block : blocks) {
+		if (const auto result = ContainerPathForChildBlock(block)) {
+			return result;
+		}
+	}
+	return std::nullopt;
+}
+
+[[nodiscard]] std::optional<PreparedEditBlockContainerPath> BlockChildrenContainerPath(
+		const LaidOutBlock &block) {
+	if (block.editBlock && ValidBlockPath(block.editBlock->path)) {
+		return BlockChildContainer(*block.editBlock);
+	}
+	return ContainerPathForBlocks(block.children);
+}
+
+[[nodiscard]] std::optional<PreparedEditBlockContainerPath> ListItemChildrenContainerPath(
+		const LaidOutBlock &block) {
+	if (block.editListItem && ValidBlockPath(block.editListItem->block)) {
+		return ListItemChildContainer(*block.editListItem);
+	}
+	return ContainerPathForBlocks(block.children);
+}
+
+[[nodiscard]] std::optional<PreparedEditBlockPath> ListBlockPath(
+		const LaidOutBlock &block) {
+	if (block.editBlock && ValidBlockPath(block.editBlock->path)) {
+		return block.editBlock->path;
+	}
+	for (const auto &child : block.children) {
+		if (child.editListItem && ValidBlockPath(child.editListItem->block)) {
+			return child.editListItem->block;
+		}
+	}
+	return std::nullopt;
+}
+
+[[nodiscard]] int DistanceToRect(QPoint point, QRect rect) {
+	if (rect.isEmpty()) {
+		return std::numeric_limits<int>::max();
+	}
+	auto dx = 0;
+	if (point.x() < rect.left()) {
+		dx = rect.left() - point.x();
+	} else if (point.x() > rect.right()) {
+		dx = point.x() - rect.right();
+	}
+	auto dy = 0;
+	if (point.y() < rect.top()) {
+		dy = rect.top() - point.y();
+	} else if (point.y() > rect.bottom()) {
+		dy = point.y() - rect.bottom();
+	}
+	return dx + dy;
+}
+
+[[nodiscard]] int GapIndicatorY(
+		QRect before,
+		QRect after,
+		QRect containerRect) {
+	auto result = 0;
+	if (!before.isEmpty() && !after.isEmpty()) {
+		const auto top = before.y() + before.height();
+		const auto bottom = after.y();
+		result = (top <= bottom) ? ((top + bottom) / 2) : top;
+	} else if (!before.isEmpty()) {
+		result = before.y() + before.height();
+	} else if (!after.isEmpty()) {
+		result = after.y();
+	} else if (!containerRect.isEmpty()) {
+		result = containerRect.y();
+	}
+	if (!containerRect.isEmpty()) {
+		result = std::clamp(
+			result,
+			containerRect.y(),
+			containerRect.y() + containerRect.height());
+	}
+	return result;
+}
+
+[[nodiscard]] QRect GapIndicatorRect(
+		QRect before,
+		QRect after,
+		QRect containerRect) {
+	auto span = QRect();
+	if (!before.isEmpty()) {
+		span = before;
+	}
+	if (!after.isEmpty()) {
+		span = span.isEmpty() ? after : span.united(after);
+	}
+	if (span.isEmpty()) {
+		span = containerRect;
+	}
+	if (span.isEmpty()) {
+		return QRect();
+	}
+	auto left = span.x();
+	auto right = span.x() + span.width();
+	if (!containerRect.isEmpty()) {
+		const auto containerLeft = containerRect.x();
+		const auto containerRight = containerRect.x() + containerRect.width();
+		left = std::clamp(left, containerLeft, containerRight);
+		right = std::clamp(right, containerLeft, containerRight);
+		if (right <= left) {
+			left = containerLeft;
+			right = containerRight;
+		}
+	}
+	if (right <= left) {
+		return QRect();
+	}
+	return QRect(
+		left,
+		GapIndicatorY(before, after, containerRect),
+		right - left,
+		1);
+}
+
+[[nodiscard]] QRect ListItemGapSpanRect(const LaidOutBlock &block) {
+	return block.contentRect.isEmpty() ? block.outer : block.contentRect;
+}
+
+[[nodiscard]] MarkdownArticleDropLocation EditDropLocationForBlock(
+		const LaidOutBlock &block,
+		QPoint point);
+
+struct DropGapCandidate {
+	MarkdownArticleDropLocation location;
+	int distance = std::numeric_limits<int>::max();
+};
+
+[[nodiscard]] bool PreparedEditContainerHasPrefix(
+		const PreparedEditBlockContainerPath &path,
+		const PreparedEditBlockContainerPath &prefix) {
+	if (path.steps.size() < prefix.steps.size()) {
+		return false;
+	}
+	return std::equal(
+		prefix.steps.begin(),
+		prefix.steps.end(),
+		path.steps.begin());
+}
+
+[[nodiscard]] bool PreparedEditIndexInRange(int index, int from, int till) {
+	return (index >= from) && (index < till);
+}
+
+[[nodiscard]] bool PreparedEditPathInBlockRange(
+		const PreparedEditBlockPath &path,
+		const PreparedEditBlockRange &range) {
+	if (path.container == range.container) {
+		return PreparedEditIndexInRange(path.index, range.from, range.till);
+	}
+	if (!PreparedEditContainerHasPrefix(path.container, range.container)
+		|| (path.container.steps.size() <= range.container.steps.size())) {
+		return false;
+	}
+	const auto &step = path.container.steps[range.container.steps.size()];
+	return PreparedEditIndexInRange(step.blockIndex, range.from, range.till);
+}
+
+[[nodiscard]] bool PreparedEditPathInListItemRange(
+		const PreparedEditBlockPath &path,
+		const PreparedEditListItemRange &range) {
+	if (!PreparedEditContainerHasPrefix(path.container, range.block.container)
+		|| (path.container.steps.size() <= range.block.container.steps.size())) {
+		return false;
+	}
+	const auto &step = path.container.steps[range.block.container.steps.size()];
+	return (step.kind == PreparedEditBlockContainerKind::ListItemChildren)
+		&& (step.blockIndex == range.block.index)
+		&& PreparedEditIndexInRange(step.listItemIndex, range.from, range.till);
+}
+
+[[nodiscard]] bool PreparedEditContainerNestedInSelection(
+		const PreparedEditBlockContainerPath &container,
+		const PreparedEditSelection &selection) {
+	const auto marker = PreparedEditBlockPath{
+		.container = container,
+		.index = 0,
+	};
+	switch (selection.kind) {
+	case PreparedEditSelectionKind::Blocks:
+		return (container.steps.size() > selection.blocks.container.steps.size())
+			&& PreparedEditPathInBlockRange(marker, selection.blocks);
+	case PreparedEditSelectionKind::ListItems:
+		return (container.steps.size()
+			> selection.listItems.block.container.steps.size())
+			&& PreparedEditPathInListItemRange(marker, selection.listItems);
+	case PreparedEditSelectionKind::TableRows:
+	case PreparedEditSelectionKind::TableCells:
+	case PreparedEditSelectionKind::None:
+		return false;
+	}
+	return false;
+}
+
+[[nodiscard]] bool PreparedEditBlockPathInSelection(
+		const PreparedEditBlockPath &path,
+		const PreparedEditSelection &selection) {
+	switch (selection.kind) {
+	case PreparedEditSelectionKind::Blocks:
+		return PreparedEditPathInBlockRange(path, selection.blocks);
+	case PreparedEditSelectionKind::ListItems:
+		return PreparedEditPathInListItemRange(path, selection.listItems);
+	case PreparedEditSelectionKind::TableRows:
+	case PreparedEditSelectionKind::TableCells:
+	case PreparedEditSelectionKind::None:
+		return false;
+	}
+	return false;
+}
+
+[[nodiscard]] bool StructuralDropTargetSupported(
+		const PreparedEditBlockDropTarget &target,
+		const PreparedEditSelection &selection) {
+	if ((selection.kind != PreparedEditSelectionKind::Blocks)
+		|| selection.blocks.empty()) {
+		return false;
+	}
+	if ((target.container == selection.blocks.container)
+		&& (target.insertIndex >= selection.blocks.from)
+		&& (target.insertIndex <= selection.blocks.till)) {
+		return false;
+	}
+	return !PreparedEditContainerNestedInSelection(
+		target.container,
+		selection);
+}
+
+[[nodiscard]] bool StructuralDropTargetSupported(
+		const PreparedEditListItemDropTarget &target,
+		const PreparedEditSelection &selection) {
+	if ((selection.kind != PreparedEditSelectionKind::ListItems)
+		|| selection.listItems.empty()) {
+		return false;
+	}
+	if ((target.block == selection.listItems.block)
+		&& (target.insertIndex >= selection.listItems.from)
+		&& (target.insertIndex <= selection.listItems.till)) {
+		return false;
+	}
+	return !PreparedEditBlockPathInSelection(target.block, selection);
+}
+
+void UniteNonEmptyRect(QRect *result, QRect rect) {
+	if (!result || rect.isEmpty()) {
+		return;
+	}
+	*result = result->isEmpty() ? rect : result->united(rect);
+}
+
+void AddSelectedBlockRects(
+		QRect *result,
+		const std::vector<LaidOutBlock> &blocks,
+		const PreparedEditBlockRange &range) {
+	for (const auto &block : blocks) {
+		if (block.editBlock
+			&& (block.editBlock->path.container == range.container)
+			&& PreparedEditIndexInRange(
+				block.editBlock->path.index,
+				range.from,
+				range.till)) {
+			UniteNonEmptyRect(result, block.outer);
+		}
+		AddSelectedBlockRects(result, block.children, range);
+	}
+}
+
+[[nodiscard]] bool AddSelectedListItemRects(
+		QRect *result,
+		const std::vector<LaidOutBlock> &blocks,
+		const PreparedEditListItemRange &range) {
+	for (const auto &block : blocks) {
+		if (block.kind == PreparedBlockKind::List) {
+			if (const auto listBlock = ListBlockPath(block);
+				listBlock && (*listBlock == range.block)) {
+				const auto count = int(block.children.size());
+				const auto from = std::clamp(range.from, 0, count);
+				const auto till = std::clamp(range.till, from, count);
+				for (auto i = from; i != till; ++i) {
+					UniteNonEmptyRect(
+						result,
+						ListItemGapSpanRect(block.children[i]));
+				}
+				return true;
+			}
+		}
+		if (AddSelectedListItemRects(result, block.children, range)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+[[nodiscard]] QRect StructuralSelectionRect(
+		const std::vector<LaidOutBlock> &blocks,
+		const PreparedEditSelection &selection) {
+	auto result = QRect();
+	switch (selection.kind) {
+	case PreparedEditSelectionKind::Blocks:
+		AddSelectedBlockRects(&result, blocks, selection.blocks);
+		return result;
+	case PreparedEditSelectionKind::ListItems:
+		static_cast<void>(AddSelectedListItemRects(
+			&result,
+			blocks,
+			selection.listItems));
+		return result;
+	case PreparedEditSelectionKind::TableRows:
+	case PreparedEditSelectionKind::TableCells:
+	case PreparedEditSelectionKind::None:
+		return {};
+	}
+	return {};
+}
+
+[[nodiscard]] bool PointInsideSelectionVerticalSpan(
+		QPoint point,
+		const std::vector<LaidOutBlock> &blocks,
+		const PreparedEditSelection &selection) {
+	const auto rect = StructuralSelectionRect(blocks, selection);
+	return !rect.isEmpty()
+		&& (point.y() >= rect.top())
+		&& (point.y() <= rect.bottom());
+}
+
+template <typename Target>
+void ConsiderGapCandidate(
+		DropGapCandidate *best,
+		Target target,
+		QRect before,
+		QRect after,
+		QRect containerRect,
+		QPoint point,
+		const PreparedEditSelection *selection = nullptr) {
+	if (!best) {
+		return;
+	}
+	if (selection && !StructuralDropTargetSupported(target, *selection)) {
+		return;
+	}
+	const auto indicatorRect = GapIndicatorRect(before, after, containerRect);
+	if (indicatorRect.isEmpty()) {
+		return;
+	}
+	const auto distance = DistanceToRect(point, indicatorRect);
+	if (distance >= best->distance) {
+		return;
+	}
+	best->distance = distance;
+	best->location.target = PreparedEditDropTarget(std::move(target));
+	best->location.indicatorRect = indicatorRect;
+}
+
+void ConsiderBlockContainerGapCandidates(
+		DropGapCandidate *best,
+		const std::vector<LaidOutBlock> &blocks,
+		QPoint point,
+		std::optional<PreparedEditBlockContainerPath> container,
+		QRect containerRect,
+		const PreparedEditSelection *selection = nullptr) {
+	if (!container) {
+		return;
+	}
+	const auto count = int(blocks.size());
+	for (auto i = 0; i != count + 1; ++i) {
+		ConsiderGapCandidate(
+			best,
+			PreparedEditBlockDropTarget{
+				.container = *container,
+				.insertIndex = i,
+			},
+			(i > 0) ? blocks[i - 1].outer : QRect(),
+			(i < count) ? blocks[i].outer : QRect(),
+			containerRect,
+			point,
+			selection);
+	}
+}
+
+void ConsiderListItemGapCandidates(
+		DropGapCandidate *best,
+		const std::vector<LaidOutBlock> &blocks,
+		QPoint point,
+		std::optional<PreparedEditBlockPath> listBlock,
+		QRect containerRect,
+		const PreparedEditSelection *selection = nullptr) {
+	if (!(listBlock && ValidBlockPath(*listBlock))) {
+		return;
+	}
+	const auto count = int(blocks.size());
+	for (auto i = 0; i != count + 1; ++i) {
+		ConsiderGapCandidate(
+			best,
+			PreparedEditListItemDropTarget{
+				.block = *listBlock,
+				.insertIndex = i,
+			},
+			(i > 0) ? ListItemGapSpanRect(blocks[i - 1]) : QRect(),
+			(i < count) ? ListItemGapSpanRect(blocks[i]) : QRect(),
+			containerRect,
+			point,
+			selection);
+	}
+}
+
+[[nodiscard]] MarkdownArticleDropLocation EditDropLocationForBlockContainer(
+		const std::vector<LaidOutBlock> &blocks,
+		QPoint point,
+		std::optional<PreparedEditBlockContainerPath> container,
+		QRect containerRect) {
+	for (const auto &block : blocks) {
+		if (ContainsPoint(block.outer, point)) {
+			if (const auto nested = EditDropLocationForBlock(block, point);
+				nested.valid()) {
+				return nested;
+			}
+			break;
+		}
+	}
+	auto best = DropGapCandidate();
+	ConsiderBlockContainerGapCandidates(
+		&best,
+		blocks,
+		point,
+		std::move(container),
+		containerRect);
+	return best.location;
+}
+
+[[nodiscard]] MarkdownArticleDropLocation EditDropLocationForListItems(
+		const std::vector<LaidOutBlock> &blocks,
+		QPoint point,
+		std::optional<PreparedEditBlockPath> listBlock,
+		QRect containerRect) {
+	for (const auto &block : blocks) {
+		if (ContainsPoint(block.outer, point)) {
+			if (const auto nested = EditDropLocationForBlock(block, point);
+				nested.valid()) {
+				return nested;
+			}
+			break;
+		}
+	}
+	auto best = DropGapCandidate();
+	ConsiderListItemGapCandidates(
+		&best,
+		blocks,
+		point,
+		std::move(listBlock),
+		containerRect);
+	return best.location;
+}
+
+void ConsiderStructuralBlockDropTargets(
+		DropGapCandidate *best,
+		const std::vector<LaidOutBlock> &blocks,
+		QPoint point,
+		std::optional<PreparedEditBlockContainerPath> container,
+		QRect containerRect,
+		const PreparedEditSelection &selection) {
+	ConsiderBlockContainerGapCandidates(
+		best,
+		blocks,
+		point,
+		std::move(container),
+		containerRect,
+		&selection);
+	for (const auto &block : blocks) {
+		switch (block.kind) {
+		case PreparedBlockKind::List:
+			for (const auto &child : block.children) {
+				if ((child.kind == PreparedBlockKind::ListItem)
+					&& ContainsPoint(child.contentRect, point)) {
+					ConsiderStructuralBlockDropTargets(
+						best,
+						child.children,
+						point,
+						ListItemChildrenContainerPath(child),
+						child.contentRect,
+						selection);
+				}
+			}
+			break;
+		case PreparedBlockKind::ListItem:
+			if (ContainsPoint(block.contentRect, point)) {
+				ConsiderStructuralBlockDropTargets(
+					best,
+					block.children,
+					point,
+					ListItemChildrenContainerPath(block),
+					block.contentRect,
+					selection);
+			}
+			break;
+		case PreparedBlockKind::Quote:
+		case PreparedBlockKind::Details:
+			if (ContainsPoint(block.contentRect, point)) {
+				ConsiderStructuralBlockDropTargets(
+					best,
+					block.children,
+					point,
+					BlockChildrenContainerPath(block),
+					block.contentRect,
+					selection);
+			}
+			break;
+		case PreparedBlockKind::Table:
+		case PreparedBlockKind::Paragraph:
+		case PreparedBlockKind::Thinking:
+		case PreparedBlockKind::Heading:
+		case PreparedBlockKind::CodeBlock:
+		case PreparedBlockKind::Rule:
+		case PreparedBlockKind::DisplayMath:
+		case PreparedBlockKind::Photo:
+		case PreparedBlockKind::Video:
+		case PreparedBlockKind::Audio:
+		case PreparedBlockKind::Map:
+		case PreparedBlockKind::Channel:
+		case PreparedBlockKind::GroupedMedia:
+		case PreparedBlockKind::RelatedArticle:
+		case PreparedBlockKind::EmbedPost:
+		case PreparedBlockKind::Placeholder:
+			break;
+		}
+	}
+}
+
+void ConsiderStructuralListItemDropTargets(
+		DropGapCandidate *best,
+		const std::vector<LaidOutBlock> &blocks,
+		QPoint point,
+		const PreparedEditBlockPath &sourceListBlock,
+		const PreparedEditSelection &selection) {
+	for (const auto &block : blocks) {
+		switch (block.kind) {
+		case PreparedBlockKind::List:
+			if (const auto listBlock = ListBlockPath(block);
+				listBlock && (*listBlock == sourceListBlock)) {
+				ConsiderListItemGapCandidates(
+					best,
+					block.children,
+					point,
+					sourceListBlock,
+					block.contentRect.isEmpty()
+						? block.outer
+						: block.contentRect,
+					&selection);
+			}
+			for (const auto &child : block.children) {
+				if (child.kind == PreparedBlockKind::ListItem) {
+					ConsiderStructuralListItemDropTargets(
+						best,
+						child.children,
+						point,
+						sourceListBlock,
+						selection);
+				}
+			}
+			break;
+		case PreparedBlockKind::ListItem:
+		case PreparedBlockKind::Quote:
+		case PreparedBlockKind::Details:
+			ConsiderStructuralListItemDropTargets(
+				best,
+				block.children,
+				point,
+				sourceListBlock,
+				selection);
+			break;
+		case PreparedBlockKind::Table:
+		case PreparedBlockKind::Paragraph:
+		case PreparedBlockKind::Thinking:
+		case PreparedBlockKind::Heading:
+		case PreparedBlockKind::CodeBlock:
+		case PreparedBlockKind::Rule:
+		case PreparedBlockKind::DisplayMath:
+		case PreparedBlockKind::Photo:
+		case PreparedBlockKind::Video:
+		case PreparedBlockKind::Audio:
+		case PreparedBlockKind::Map:
+		case PreparedBlockKind::Channel:
+		case PreparedBlockKind::GroupedMedia:
+		case PreparedBlockKind::RelatedArticle:
+		case PreparedBlockKind::EmbedPost:
+		case PreparedBlockKind::Placeholder:
+			break;
+		}
+	}
+}
+
+[[nodiscard]] MarkdownArticleDropLocation EditDropLocationForTableCell(
+		const LaidOutTableCell &cell,
+		QPoint point) {
+	return ContainsPoint(cell.outer, point)
+		? MarkdownArticleDropLocation()
+		: MarkdownArticleDropLocation();
+}
+
+[[nodiscard]] MarkdownArticleDropLocation EditDropLocationForTableRow(
+		const LaidOutTableRow &row,
+		QPoint point) {
+	for (const auto &cell : row.cells) {
+		if (ContainsPoint(cell.outer, point)) {
+			return EditDropLocationForTableCell(cell, point);
+		}
+	}
+	return ContainsPoint(row.outer, point)
+		? MarkdownArticleDropLocation()
+		: MarkdownArticleDropLocation();
+}
+
+[[nodiscard]] MarkdownArticleDropLocation EditDropLocationForBlock(
+		const LaidOutBlock &block,
+		QPoint point) {
+	switch (block.kind) {
+	case PreparedBlockKind::List:
+		return EditDropLocationForListItems(
+			block.children,
+			point,
+			ListBlockPath(block),
+			block.contentRect.isEmpty() ? block.outer : block.contentRect);
+	case PreparedBlockKind::ListItem:
+		if (ContainsPoint(block.contentRect, point)) {
+			return EditDropLocationForBlockContainer(
+				block.children,
+				point,
+				ListItemChildrenContainerPath(block),
+				block.contentRect);
+		}
+		return {};
+	case PreparedBlockKind::Quote:
+	case PreparedBlockKind::Details:
+		if (ContainsPoint(block.contentRect, point)) {
+			return EditDropLocationForBlockContainer(
+				block.children,
+				point,
+				BlockChildrenContainerPath(block),
+				block.contentRect);
+		}
+		return {};
+	case PreparedBlockKind::Table:
+		for (const auto &row : block.tableRows) {
+			if (ContainsPoint(row.outer, point)) {
+				return EditDropLocationForTableRow(row, point);
+			}
+		}
+		return {};
+	case PreparedBlockKind::Paragraph:
+	case PreparedBlockKind::Thinking:
+	case PreparedBlockKind::Heading:
+	case PreparedBlockKind::CodeBlock:
+	case PreparedBlockKind::Rule:
+	case PreparedBlockKind::DisplayMath:
+	case PreparedBlockKind::Photo:
+	case PreparedBlockKind::Video:
+	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::Map:
+	case PreparedBlockKind::Channel:
+	case PreparedBlockKind::GroupedMedia:
+	case PreparedBlockKind::RelatedArticle:
+	case PreparedBlockKind::EmbedPost:
+	case PreparedBlockKind::Placeholder:
+		return {};
+	}
+	return {};
+}
+
 [[nodiscard]] bool ToggleDetailsBlock(
 		std::vector<PreparedBlock> *blocks,
 		const QString &anchorId) {
@@ -2136,15 +2921,24 @@ void ApplyOwnerContentGeometry(
 
 [[nodiscard]] MarkdownArticleAnchorExpansion ExpandDetailsToAnchor(
 		std::vector<PreparedBlock> *blocks,
-		const QString &anchorId) {
+		const QString &anchorId,
+		bool expandTarget) {
 	if (!blocks || anchorId.isEmpty()) {
 		return {};
 	}
 	for (auto &block : *blocks) {
+		auto result = MarkdownArticleAnchorExpansion();
 		if (PreparedBlockHasAnchor(block, anchorId)) {
-			return { true, false };
+			result.found = true;
+			if (!expandTarget) {
+				return result;
+			}
+		} else {
+			result = ExpandDetailsToAnchor(
+				&block.children,
+				anchorId,
+				expandTarget);
 		}
-		auto result = ExpandDetailsToAnchor(&block.children, anchorId);
 		if (result.found) {
 			if (block.kind == PreparedBlockKind::Details
 				&& block.collapsed) {
@@ -2155,6 +2949,46 @@ void ApplyOwnerContentGeometry(
 		}
 	}
 	return {};
+}
+
+[[nodiscard]] const PreparedBlock *FindPreparedDetailsBlock(
+		const std::vector<PreparedBlock> &blocks,
+		const QString &anchorId) {
+	for (const auto &block : blocks) {
+		if (block.kind == PreparedBlockKind::Details
+			&& block.anchorId == anchorId) {
+			return &block;
+		}
+		if (const auto nested = FindPreparedDetailsBlock(
+				block.children,
+				anchorId)) {
+			return nested;
+		}
+	}
+	return nullptr;
+}
+
+void AppendPreparedBlocksText(
+		const std::vector<PreparedBlock> &blocks,
+		QString *to) {
+	const auto append = [&](const QString &text) {
+		if (text.isEmpty()) {
+			return;
+		}
+		if (!to->isEmpty()) {
+			to->append('\n');
+		}
+		to->append(text);
+	};
+	for (const auto &block : blocks) {
+		append(block.text.text);
+		for (const auto &row : block.tableRows) {
+			for (const auto &cell : row.cells) {
+				append(cell.text.text);
+			}
+		}
+		AppendPreparedBlocksText(block.children, to);
+	}
 }
 
 void ClearColorizedFormulaImages(std::vector<LaidOutBlock> *blocks) {
@@ -2473,6 +3307,25 @@ void CollectCodeBlockHighlightKeys(
 	}
 }
 
+[[nodiscard]] bool ExpectsMediaBlock(const PreparedBlock &prepared) {
+	switch (prepared.kind) {
+	case PreparedBlockKind::Photo:
+		return prepared.photo.id
+			&& prepared.photo.viewerOpen
+			&& prepared.photo.urlOverride.isEmpty();
+	case PreparedBlockKind::Video:
+		return bool(prepared.video.id);
+	case PreparedBlockKind::Map:
+		return bool(prepared.map.id);
+	case PreparedBlockKind::Audio:
+		return bool(prepared.audio.id);
+	case PreparedBlockKind::GroupedMedia:
+		return bool(prepared.groupedMedia.id);
+	default:
+		return false;
+	}
+}
+
 } // namespace
 
 PlaceholderBlockRuntime::PlaceholderBlockRuntime(Fn<void()> repaint)
@@ -2496,10 +3349,13 @@ public:
 	Impl(
 		const style::Markdown &st,
 		std::shared_ptr<MathRenderer> renderer);
+	~Impl();
 
 	void setRenderer(std::shared_ptr<MathRenderer> renderer);
 
 	void setMediaBlockHost(MediaBlockHost *host);
+
+	void setMediaPixelScale(double scale);
 
 	void setTextRepaintCallbacks(
 		Fn<void()> repaint,
@@ -2507,13 +3363,29 @@ public:
 		Fn<bool(const ClickContext&)> spoilerLinkFilter);
 
 	void setContent(MarkdownArticleContent content);
+	void setSearchMatches(
+		std::vector<MarkdownArticleSearchMatch> matches,
+		int current);
+	[[nodiscard]] auto searchSources() const
+	-> std::vector<MarkdownArticleSearchSource>;
 	void updatePreparedLeaf(
 		const PreparedEditLeafSource &source,
 		const MarkdownArticleContent &prepared);
+	void setEditableMaxLineWidthOverride(
+		const PreparedEditLeafSource &source,
+		int width);
+
+	void setEditableTextEmptyOverride(
+		const PreparedEditLeafSource &source,
+		bool empty);
 
 	void setEditableHeightOverride(int editableIndex, int height);
 
 	void setEditableHeightOverrideForSegment(int segmentIndex, int height);
+
+	void clearEditableMaxLineWidthOverride();
+
+	void clearEditableTextEmptyOverride();
 
 	void clearEditableHeightOverride();
 
@@ -2523,6 +3395,7 @@ public:
 
 	[[nodiscard]] int maxWidth();
 	[[nodiscard]] int lastLayoutWidth() const;
+	[[nodiscard]] bool hasMissingMediaBlocks() const;
 
 	[[nodiscard]] int resizeGetHeight(int width);
 
@@ -2538,22 +3411,54 @@ public:
 		Ui::Text::StateRequest::Flags flags) const;
 
 	[[nodiscard]] PreparedEditHit editHitTest(QPoint point) const;
+	[[nodiscard]] std::vector<MarkdownArticleMediaGeometry>
+		mediaBlockGeometries() const;
+	void setGroupedActiveIndex(
+		const PreparedEditBlockSource &source,
+		int index);
+	[[nodiscard]] MarkdownArticleDropLocation editDropTarget(
+		QPoint point) const;
+	[[nodiscard]] MarkdownArticleDropLocation editBlockDropTarget(
+		QPoint point) const;
+	[[nodiscard]] MarkdownArticleDropLocation editStructuralDropTarget(
+		QPoint point,
+		const PreparedEditSelection &selection) const;
 	[[nodiscard]] MarkdownArticleEditControlHit editControlHitTest(
 		QPoint point) const;
+
+	void clickHandlerActiveChanged(
+		const ClickHandlerPtr &handler,
+		bool active);
+	void clickHandlerPressedChanged(
+		const ClickHandlerPtr &handler,
+		bool pressed);
+	void updatePressed(QPoint point);
 
 	[[nodiscard]] MarkdownArticleHorizontalScrollHit horizontalScrollHit(
 		QPoint point) const;
 	[[nodiscard]] bool canConsumeHorizontalScroll(
 		QPoint point,
 		int delta) const;
-	[[nodiscard]] bool consumeHorizontalScroll(QPoint point, int delta);
+	[[nodiscard]] bool consumeHorizontalScroll(
+		QPoint point,
+		int delta,
+		Qt::ScrollPhase phase);
 	[[nodiscard]] bool beginHorizontalScroll(QPoint point, bool fromTouch);
 	[[nodiscard]] bool updateHorizontalScroll(QPoint point);
 	void endHorizontalScroll();
 
 	[[nodiscard]] int anchorTop(const QString &anchorId) const;
 
+	[[nodiscard]] auto scrollAnchorForTop(int top) const
+	-> std::optional<MarkdownArticleScrollAnchor>;
+
+	[[nodiscard]] int scrollTopForAnchor(
+		const MarkdownArticleScrollAnchor &anchor) const;
+
 	[[nodiscard]] MarkdownArticleAnchorExpansion expandDetailsToAnchor(
+		const QString &anchorId);
+
+	[[nodiscard]] MarkdownArticleAnchorExpansion expandDetailsBlock(
 		const QString &anchorId);
 
 	[[nodiscard]] bool toggleDetails(const QString &anchorId);
@@ -2578,12 +3483,20 @@ public:
 
 	[[nodiscard]] int segmentIndexForEditableIndex(int editableIndex) const;
 
+	[[nodiscard]] auto editableLeafForSegment(int segmentIndex) const
+	-> std::optional<PreparedEditLeafSource>;
+
+	[[nodiscard]] int segmentIndexForEditableLeaf(
+		const PreparedEditLeafSource &source) const;
+
 	[[nodiscard]] QRect textSegmentRect(int segmentIndex) const;
 	[[nodiscard]] QRect logicalSegmentRect(int segmentIndex) const;
 
 	[[nodiscard]] QRect segmentRect(int segmentIndex) const;
 	[[nodiscard]] QRect displayMathEditRect(int segmentIndex) const;
 	[[nodiscard]] QRect displayMathBlockRect(int segmentIndex) const;
+	[[nodiscard]] int pullquoteAvailableTextWidthForEditableLeaf(
+		const PreparedEditLeafSource &source) const;
 	[[nodiscard]] bool revealSegment(int segmentIndex);
 
 	[[nodiscard]] MarkdownArticleTextLeafStyle textLeafStyleForSegment(
@@ -2613,6 +3526,9 @@ public:
 		MarkdownArticleSelection selection,
 		const MarkdownArticleSelectionEndpoints *endpoints,
 		const PreparedEditSelection *structuralSelection) const;
+
+	[[nodiscard]] std::vector<RichPage::Block> richPageSliceForSelection(
+		MarkdownArticleSelection selection) const;
 
 	[[nodiscard]] bool highlightProcessDone(
 		Spellchecker::HighlightProcessId processId);
@@ -2656,6 +3572,7 @@ private:
 	void refreshVisibleSegmentSpan();
 
 	void clearMediaBlocks();
+	void releasePressedHandler();
 
 	void refreshMediaBlockHosts();
 
@@ -2714,6 +3631,7 @@ private:
 	void invalidateGeometry();
 
 	[[nodiscard]] const style::Markdown &layoutStyle() const;
+	[[nodiscard]] bool contentRtl() const;
 	[[nodiscard]] MarkdownArticleScrollOwnerIdentity scrollOwnerIdentity(
 		const LaidOutBlock &block,
 		const std::vector<int> &preparedPath) const;
@@ -2769,6 +3687,8 @@ private:
 	void relayout(int width);
 	void relayoutRetained(int width);
 	void retainBlocks();
+	[[nodiscard]] const LaidOutBlock *pullquoteBlockForEditableLeaf(
+		const PreparedEditLeafSource &source) const;
 
 	mutable MarkdownArticleContent _content;
 	style::Markdown _style;
@@ -2783,11 +3703,13 @@ private:
 	int _laidOutWidth = 0;
 	int _height = 0;
 	int _layoutGeneration = 0;
+	double _mediaPixelScale = 1.;
 	MarkdownArticleRevealLineCountsCache _revealLineCounts;
 	CachedTextLeafPool _cachedTextLeafs;
 	std::vector<LaidOutBlock> _blocks;
 	std::vector<LaidOutBlock> _retainedBlocks;
 	MediaBlockStorage _mediaBlocks;
+	int _missingMediaBlocks = 0;
 	std::unordered_map<uint64, std::shared_ptr<PlaceholderBlockRuntime>>
 		_placeholderRuntimes;
 	TaskMarkerRippleRuntimeMap _taskMarkerRippleRuntimes;
@@ -2803,6 +3725,8 @@ private:
 		PendingHighlightEntry> _pendingHighlightEntries;
 	std::vector<std::pair<QString, int>> _anchors;
 	std::vector<SelectableSegment> _segments;
+	std::vector<MarkdownArticleSearchMatch> _searchMatches;
+	int _currentSearchMatch = -1;
 	std::optional<LogicalVisibleRange> _visibleRange;
 	SegmentSpan _visibleSegmentSpan;
 	std::vector<int> _segmentTops;
@@ -2812,6 +3736,10 @@ private:
 		int,
 		MarkdownArticleScrollOwnerIdentityHasher> _capturedScrollLefts;
 	std::optional<ActiveHorizontalScrollDrag> _activeHorizontalScrollDrag;
+	std::optional<PreparedEditLeafSource> _editableMaxLineWidthOverrideLeaf;
+	int _editableMaxLineWidthOverride = 0;
+	std::optional<PreparedEditLeafSource> _editableTextEmptyOverrideLeaf;
+	bool _editableTextEmptyOverride = true;
 	int _editableHeightOverrideIndex = -1;
 	int _editableHeightOverride = 0;
 	bool _blocksPainted = false;
@@ -2825,6 +3753,10 @@ MarkdownArticle::Impl::Impl(
 , _renderer(std::move(renderer))
 , _inlineFormulaObjects(CreateInlineFormulaObjectCache(_renderer)) {
 	_style.code.font = _style.code.font->monospace();
+}
+
+MarkdownArticle::Impl::~Impl() {
+	releasePressedHandler();
 }
 
 void MarkdownArticle::Impl::setRenderer(std::shared_ptr<MathRenderer> renderer) {
@@ -2842,6 +3774,14 @@ void MarkdownArticle::Impl::setMediaBlockHost(MediaBlockHost *host) {
 	refreshMediaBlockHosts();
 }
 
+void MarkdownArticle::Impl::setMediaPixelScale(double scale) {
+	if (_mediaPixelScale == scale) {
+		return;
+	}
+	_mediaPixelScale = scale;
+	invalidateLayout();
+}
+
 void MarkdownArticle::Impl::setTextRepaintCallbacks(
 		Fn<void()> repaint,
 		Fn<void(QRect)> repaintRect,
@@ -2852,6 +3792,7 @@ void MarkdownArticle::Impl::setTextRepaintCallbacks(
 }
 
 void MarkdownArticle::Impl::setContent(MarkdownArticleContent content) {
+	releasePressedHandler();
 	if (hasHeavyPart()) {
 		unloadHeavyPart();
 	}
@@ -2861,7 +3802,8 @@ void MarkdownArticle::Impl::setContent(MarkdownArticleContent content) {
 		_content.blocks.blocks,
 		&_blocks,
 		layoutStyle(),
-		&_cachedTextLeafs);
+		&_cachedTextLeafs,
+		contentRtl());
 	if (!reuseMediaBlocks) {
 		PruneMediaRuntimeBoundCachedTextLeafs(&_cachedTextLeafs);
 	}
@@ -2884,7 +3826,47 @@ void MarkdownArticle::Impl::setContent(MarkdownArticleContent content) {
 	prunePendingHighlightProcessesForContent();
 	ClearInlineFormulaObjectCache(_inlineFormulaObjects);
 	resetFormulaRasterCache();
+	_searchMatches.clear();
+	_currentSearchMatch = -1;
 	invalidateLayout(false);
+}
+
+void MarkdownArticle::Impl::setSearchMatches(
+		std::vector<MarkdownArticleSearchMatch> matches,
+		int current) {
+	_searchMatches = std::move(matches);
+	_currentSearchMatch = (current >= 0
+		&& current < int(_searchMatches.size()))
+		? current
+		: -1;
+}
+
+auto MarkdownArticle::Impl::searchSources() const
+-> std::vector<MarkdownArticleSearchSource> {
+	auto result = std::vector<MarkdownArticleSearchSource>();
+	result.reserve(_segments.size());
+	for (const auto &segment : _segments) {
+		auto source = MarkdownArticleSearchSource();
+		if (segment.isTextLeaf()) {
+			source.text = segment.leaf->toString();
+		}
+		const auto block = segment.block;
+		if (block && block->kind == PreparedBlockKind::Details) {
+			source.detailsAnchorId = block->anchorId;
+			if (block->collapsed) {
+				const auto prepared = FindPreparedDetailsBlock(
+					_content.blocks.blocks,
+					block->anchorId);
+				if (prepared) {
+					AppendPreparedBlocksText(
+						prepared->children,
+						&source.hiddenText);
+				}
+			}
+		}
+		result.push_back(std::move(source));
+	}
+	return result;
 }
 
 void MarkdownArticle::Impl::updatePreparedLeaf(
@@ -2967,6 +3949,7 @@ void MarkdownArticle::Impl::updatePreparedLeaf(
 	}
 
 	auto context = LayoutContext();
+	context.rtl = contentRtl();
 	context.syntaxHighlightTracker = this;
 	context.repaint = _textRepaint;
 	context.repaintRect = _textRepaintRect;
@@ -3004,6 +3987,33 @@ void MarkdownArticle::Impl::updatePreparedLeaf(
 	}
 }
 
+void MarkdownArticle::Impl::setEditableMaxLineWidthOverride(
+		const PreparedEditLeafSource &source,
+		int width) {
+	width = std::max(width, 0);
+	if (_editableMaxLineWidthOverrideLeaf
+		&& (*_editableMaxLineWidthOverrideLeaf == source)
+		&& (_editableMaxLineWidthOverride == width)) {
+		return;
+	}
+	_editableMaxLineWidthOverrideLeaf = source;
+	_editableMaxLineWidthOverride = width;
+	invalidateGeometry();
+}
+
+void MarkdownArticle::Impl::setEditableTextEmptyOverride(
+		const PreparedEditLeafSource &source,
+		bool empty) {
+	if (_editableTextEmptyOverrideLeaf
+		&& (*_editableTextEmptyOverrideLeaf == source)
+		&& (_editableTextEmptyOverride == empty)) {
+		return;
+	}
+	_editableTextEmptyOverrideLeaf = source;
+	_editableTextEmptyOverride = empty;
+	invalidateGeometry();
+}
+
 void MarkdownArticle::Impl::setEditableHeightOverride(
 		int editableIndex,
 		int height) {
@@ -3022,6 +4032,25 @@ void MarkdownArticle::Impl::setEditableHeightOverrideForSegment(
 		int segmentIndex,
 		int height) {
 	setEditableHeightOverride(editableIndexForSegment(segmentIndex), height);
+}
+
+void MarkdownArticle::Impl::clearEditableMaxLineWidthOverride() {
+	if (!_editableMaxLineWidthOverrideLeaf
+		&& (_editableMaxLineWidthOverride == 0)) {
+		return;
+	}
+	_editableMaxLineWidthOverrideLeaf = std::nullopt;
+	_editableMaxLineWidthOverride = 0;
+	invalidateGeometry();
+}
+
+void MarkdownArticle::Impl::clearEditableTextEmptyOverride() {
+	if (!_editableTextEmptyOverrideLeaf) {
+		return;
+	}
+	_editableTextEmptyOverrideLeaf = std::nullopt;
+	_editableTextEmptyOverride = true;
+	invalidateGeometry();
 }
 
 void MarkdownArticle::Impl::clearEditableHeightOverride() {
@@ -3051,6 +4080,10 @@ int MarkdownArticle::Impl::maxWidth() {
 
 int MarkdownArticle::Impl::lastLayoutWidth() const {
 	return _laidOutWidth;
+}
+
+bool MarkdownArticle::Impl::hasMissingMediaBlocks() const {
+	return _missingMediaBlocks > 0;
 }
 
 int MarkdownArticle::Impl::resizeGetHeight(int width) {
@@ -3097,6 +4130,8 @@ void MarkdownArticle::Impl::paint(
 	const auto &st = layoutStyle();
 	auto local = context;
 	local.selectionState.segments = &_segments;
+	local.searchState.matches = &_searchMatches;
+	local.searchState.current = _currentSearchMatch;
 	const auto &paintSt = local.paintMarkdownStyle(st);
 	auto textPalette = paintSt.textPalette;
 	auto markBg = MarkBgColorForStyle(paintSt);
@@ -3163,6 +4198,102 @@ PreparedEditHit MarkdownArticle::Impl::editHitTest(QPoint point) const {
 	return EditHitForBlocks(_blocks, point);
 }
 
+std::vector<MarkdownArticleMediaGeometry>
+MarkdownArticle::Impl::mediaBlockGeometries() const {
+	auto result = std::vector<MarkdownArticleMediaGeometry>();
+	CollectMediaBlockGeometries(&result, _blocks);
+	return result;
+}
+
+void MarkdownArticle::Impl::setGroupedActiveIndex(
+		const PreparedEditBlockSource &source,
+		int index) {
+	const auto block = FindLaidOutArticleBlockByPath(&_blocks, source.path);
+	if (block && block->mediaBlock) {
+		block->mediaBlock->setActiveItemIndex(index);
+	}
+}
+
+MarkdownArticleDropLocation MarkdownArticle::Impl::editDropTarget(
+		QPoint point) const {
+	if (const auto result = hitTest(
+			point,
+			Ui::Text::StateRequest::Flag::LookupSymbol);
+		result.valid() && result.direct && !result.codeHeaderCopy) {
+		if (const auto segment = FindSegment(&_segments, result.segmentIndex)) {
+			if (const auto leaf = EditableLeafForSegment(*segment)) {
+				if (leaf->kind != PreparedEditLeafKind::MathFormula) {
+					auto location = MarkdownArticleDropLocation();
+					location.target = PreparedEditDropTarget(
+						PreparedEditTextDropTarget{
+							.leaf = *leaf,
+							.offset = selectionOffsetFromHit(
+								result,
+								TextSelectType::Letters),
+						});
+					return location;
+				}
+			}
+		}
+	}
+	return EditDropLocationForBlockContainer(
+		_blocks,
+		point,
+		PreparedEditBlockContainerPath(),
+		QRect());
+}
+
+MarkdownArticleDropLocation MarkdownArticle::Impl::editBlockDropTarget(
+		QPoint point) const {
+	return EditDropLocationForBlockContainer(
+		_blocks,
+		point,
+		PreparedEditBlockContainerPath(),
+		QRect());
+}
+
+MarkdownArticleDropLocation MarkdownArticle::Impl::editStructuralDropTarget(
+		QPoint point,
+		const PreparedEditSelection &selection) const {
+	if (PointInsideSelectionVerticalSpan(point, _blocks, selection)) {
+		return {};
+	}
+	switch (selection.kind) {
+	case PreparedEditSelectionKind::Blocks: {
+		if (selection.blocks.empty()) {
+			return {};
+		}
+		auto best = DropGapCandidate();
+		ConsiderStructuralBlockDropTargets(
+			&best,
+			_blocks,
+			point,
+			PreparedEditBlockContainerPath(),
+			QRect(),
+			selection);
+		return best.location;
+	}
+	case PreparedEditSelectionKind::ListItems: {
+		if (selection.listItems.empty()) {
+			return {};
+		}
+		auto best = DropGapCandidate();
+		ConsiderStructuralListItemDropTargets(
+			&best,
+			_blocks,
+			point,
+			selection.listItems.block,
+			selection);
+		return best.location;
+	}
+	case PreparedEditSelectionKind::TableRows:
+	case PreparedEditSelectionKind::TableCells:
+	case PreparedEditSelectionKind::None:
+		return {};
+	}
+	return {};
+}
+
 MarkdownArticleEditControlHit MarkdownArticle::Impl::editControlHitTest(
 		QPoint point) const {
 	return EditControlHitForBlocks(_blocks, point);
@@ -3177,11 +4308,77 @@ int MarkdownArticle::Impl::anchorTop(const QString &anchorId) const {
 	return -1;
 }
 
+auto MarkdownArticle::Impl::scrollAnchorForTop(int top) const
+-> std::optional<MarkdownArticleScrollAnchor> {
+	if (_segments.empty()) {
+		return std::nullopt;
+	}
+	const auto make = [&](const SelectableSegment &segment) {
+		const auto rect = segment.outerRect;
+		const auto height = std::max(rect.height(), 1);
+		const auto fraction = std::clamp(
+			(top - rect.top()) / double(height),
+			0.,
+			1.);
+		return MarkdownArticleScrollAnchor{ segment.index, fraction };
+	};
+	const auto span = LookupVisibleSegmentSpan(
+		_segmentTops,
+		_segmentBottoms,
+		{ top, top + 1 });
+	const auto containsVertically = [&](const SelectableSegment &segment) {
+		const auto rect = segment.outerRect;
+		return (rect.top() <= top) && (top < rect.top() + rect.height());
+	};
+	auto found = (const SelectableSegment*)nullptr;
+	for (auto i = span.from; i != span.till; ++i) {
+		const auto &segment = _segments[i];
+		if (!containsVertically(segment)) {
+			continue;
+		} else if (!found || (segment.isTextLeaf() && !found->isTextLeaf())) {
+			found = &segment;
+		}
+	}
+	if (found) {
+		return make(*found);
+	}
+	for (const auto &segment : _segments) {
+		if (segment.outerRect.top() >= top) {
+			return MarkdownArticleScrollAnchor{ segment.index, 0. };
+		}
+	}
+	return make(_segments.back());
+}
+
+int MarkdownArticle::Impl::scrollTopForAnchor(
+		const MarkdownArticleScrollAnchor &anchor) const {
+	const auto segment = FindSegment(&_segments, anchor.segmentIndex);
+	if (!segment) {
+		return -1;
+	}
+	const auto rect = segment->outerRect;
+	const auto fraction = std::clamp(anchor.fraction, 0., 1.);
+	return rect.top() + int(std::round(fraction * rect.height()));
+}
+
 MarkdownArticleAnchorExpansion MarkdownArticle::Impl::expandDetailsToAnchor(
 		const QString &anchorId) {
 	const auto result = ExpandDetailsToAnchor(
 		&_content.blocks.blocks,
-		anchorId);
+		anchorId,
+		false);
+	if (result.changed) {
+		invalidateLayout();
+	}
+	return result;
+}
+
+MarkdownArticleAnchorExpansion MarkdownArticle::Impl::expandDetailsBlock(
+		const QString &anchorId) {
+	const auto result = ExpandDetailsToAnchor(
+		&_content.blocks.blocks,
+		anchorId,
+		true);
 	if (result.changed) {
 		invalidateLayout();
 	}
@@ -3294,6 +4491,28 @@ int MarkdownArticle::Impl::segmentIndexForEditableIndex(
 	return -1;
 }
 
+std::optional<PreparedEditLeafSource>
+MarkdownArticle::Impl::editableLeafForSegment(int segmentIndex) const {
+	const auto segment = FindSegment(&_segments, segmentIndex);
+	return (segment && IsEditableSegment(*segment))
+		? EditableLeafForSegment(*segment)
+		: std::nullopt;
+}
+
+int MarkdownArticle::Impl::segmentIndexForEditableLeaf(
+		const PreparedEditLeafSource &source) const {
+	for (const auto &segment : _segments) {
+		if (!IsEditableSegment(segment)) {
+			continue;
+		}
+		const auto leaf = EditableLeafForSegment(segment);
+		if (leaf && (*leaf == source)) {
+			return segment.index;
+		}
+	}
+	return -1;
+}
+
 QRect MarkdownArticle::Impl::textSegmentRect(int segmentIndex) const {
 	const auto segment = FindSegment(&_segments, segmentIndex);
 	return (segment && segment->isTextLeaf()) ? segment->textRect : QRect();
@@ -3352,6 +4571,37 @@ QRect MarkdownArticle::Impl::displayMathBlockRect(int segmentIndex) const {
 	return displayMathEditRect(segmentIndex);
 }
 
+const LaidOutBlock *MarkdownArticle::Impl::pullquoteBlockForEditableLeaf(
+		const PreparedEditLeafSource &source) const {
+	const auto find = [&](const auto &self,
+			const std::vector<LaidOutBlock> &blocks,
+			const LaidOutBlock *activePullquote) -> const LaidOutBlock * {
+		for (const auto &block : blocks) {
+			const auto nextPullquote = (block.kind == PreparedBlockKind::Quote)
+				&& block.pullquote
+				? &block
+				: activePullquote;
+			if (block.editLeaf && (*block.editLeaf == source) && nextPullquote) {
+				return nextPullquote;
+			}
+			if (const auto nested = self(self, block.children, nextPullquote)) {
+				return nested;
+			}
+		}
+		return nullptr;
+	};
+	return find(find, _blocks, nullptr);
+}
+
+int MarkdownArticle::Impl::pullquoteAvailableTextWidthForEditableLeaf(
+		const PreparedEditLeafSource &source) const {
+	const auto block = pullquoteBlockForEditableLeaf(source);
+	if (block) {
+		return block->textWidth;
+	}
+	return 0;
+}
+
 MarkdownArticleTextLeafStyle MarkdownArticle::Impl::textLeafStyleForSegment(
 		int segmentIndex) const {
 	const auto segment = FindSegment(&_segments, segmentIndex);
@@ -3366,7 +4616,9 @@ MarkdownArticleTextLeafStyle MarkdownArticle::Impl::textLeafStyleForSegment(
 		.markBg = MarkBgColorForStyle(st),
 		.lineHeight = TextLineHeight(textStyle),
 		.align = segment->align,
-		.italic = segment->block && segment->block->pullquote,
+		.italic = segment->block
+			&& segment->block->pullquote
+			&& !segment->block->quoteAuthor,
 	};
 }
 
@@ -3468,6 +4720,17 @@ TextForMimeData MarkdownArticle::Impl::textForSelection(
 		selection,
 		endpoints,
 		structuralSelection);
+}
+
+std::vector<RichPage::Block> MarkdownArticle::Impl::richPageSliceForSelection(
+		MarkdownArticleSelection selection) const {
+	if (!_content.richPage) {
+		return {};
+	}
+	return RichPageBlocksForSelectedSegments(
+		*_content.richPage,
+		_segments,
+		selection);
 }
 
 bool MarkdownArticle::Impl::highlightProcessDone(
@@ -3685,7 +4948,8 @@ void MarkdownArticle::Impl::invalidateLayout(bool harvestCurrentBlocks) {
 			_content.blocks.blocks,
 			&_blocks,
 			layoutStyle(),
-			&_cachedTextLeafs);
+			&_cachedTextLeafs,
+			contentRtl());
 	}
 	retainBlocks();
 }
@@ -3725,6 +4989,12 @@ void MarkdownArticle::Impl::refreshVisibleSegmentSpan() {
 
 void MarkdownArticle::Impl::clearMediaBlocks() {
 	ClearMediaBlockStorage(&_mediaBlocks);
+}
+
+void MarkdownArticle::Impl::releasePressedHandler() {
+	if (const auto handler = ClickHandler::getPressed()) {
+		clickHandlerPressedChanged(handler, false);
+	}
 }
 
 void MarkdownArticle::Impl::clearPlaceholderRuntimes() {
@@ -3894,18 +5164,23 @@ std::shared_ptr<MediaBlock> MarkdownArticle::Impl::getOrCreateMediaBlock(
 	}
 	if (const auto i = _mediaBlocks.find(id.value);
 		i != end(_mediaBlocks)) {
-		if (i->second) {
-			i->second->setLayoutStyle(layoutStyle());
-			i->second->setHost(_mediaBlockHost);
+		if (i->second && !i->second->alive()) {
+			i->second->setHost(nullptr);
+			_mediaBlocks.erase(i);
+		} else {
+			if (i->second) {
+				i->second->setLayoutStyle(layoutStyle());
+				i->second->setHost(_mediaBlockHost);
+			}
+			return i->second;
 		}
-		return i->second;
 	}
 	auto block = factory();
 	if (block) {
 		block->setLayoutStyle(layoutStyle());
 		block->setHost(_mediaBlockHost);
+		_mediaBlocks.emplace(id.value, block);
 	}
-	_mediaBlocks.emplace(id.value, block);
 	return block;
 }
 
@@ -4028,6 +5303,10 @@ const style::Markdown &MarkdownArticle::Impl::layoutStyle() const {
 	return _style;
 }
 
+bool MarkdownArticle::Impl::contentRtl() const {
+	return _content.richPage && _content.richPage->rtl;
+}
+
 MarkdownArticleScrollOwnerIdentity MarkdownArticle::Impl::scrollOwnerIdentity(
 		const LaidOutBlock &block,
 		const std::vector<int> &preparedPath) const {
@@ -4087,6 +5366,15 @@ MarkdownArticle::Impl::findHorizontalScrollOwner(
 					.block = &block,
 				};
 			}
+		}
+		if (block.mediaBlock
+			&& block.mediaBlock->canHandleHorizontalScroll()
+			&& ContainsPoint(block.mediaBlock->geometry(), point)) {
+			return {
+				.hit = { .scrollable = true, .overViewport = true },
+				.identity = scrollOwnerIdentity(block, *preparedPath),
+				.block = &block,
+			};
 		}
 		preparedPath->pop_back();
 	}
@@ -4411,6 +5699,38 @@ bool MarkdownArticle::Impl::revealSegment(int segmentIndex) {
 	return false;
 }
 
+void MarkdownArticle::Impl::clickHandlerActiveChanged(
+		const ClickHandlerPtr &handler,
+		bool active) {
+	for (const auto &entry : _mediaBlocks) {
+		if (const auto &block = entry.second) {
+			block->clickHandlerActiveChanged(handler, active);
+		}
+	}
+}
+
+void MarkdownArticle::Impl::clickHandlerPressedChanged(
+		const ClickHandlerPtr &handler,
+		bool pressed) {
+	for (const auto &entry : _mediaBlocks) {
+		if (const auto &block = entry.second) {
+			block->clickHandlerPressedChanged(handler, pressed);
+		}
+	}
+}
+
+void MarkdownArticle::Impl::updatePressed(QPoint point) {
+	if (!std::dynamic_pointer_cast<VoiceSeekClickHandler>(
+			ClickHandler::getPressed())) {
+		return;
+	}
+	for (const auto &entry : _mediaBlocks) {
+		if (const auto &block = entry.second) {
+			block->updatePressed(point);
+		}
+	}
+}
+
 MarkdownArticleHorizontalScrollHit MarkdownArticle::Impl::horizontalScrollHit(
 		QPoint point) const {
 	return findHorizontalScrollOwner(point).hit;
@@ -4421,6 +5741,10 @@ bool MarkdownArticle::Impl::canConsumeHorizontalScroll(
 		int delta) const {
 	if (const auto lookup = findHorizontalScrollOwner(point);
 		lookup.block) {
+		if (lookup.block->mediaBlock
+			&& lookup.block->mediaBlock->canHandleHorizontalScroll()) {
+			return true;
+		}
 		const auto left = std::clamp(
 			lookup.block->horizontalScrollLeft - delta,
 			0,
@@ -4430,15 +5754,24 @@ bool MarkdownArticle::Impl::canConsumeHorizontalScroll(
 	return false;
 }
 
-bool MarkdownArticle::Impl::consumeHorizontalScroll(QPoint point, int delta) {
-	if (const auto lookup = findHorizontalScrollOwner(point);
-		lookup.block) {
-		if (const auto block = findScrollOwnerByIdentity(lookup.identity)) {
-			return setScrollLeft(
-				*block,
-				lookup.identity,
-				block->horizontalScrollLeft - delta);
+bool MarkdownArticle::Impl::consumeHorizontalScroll(
+		QPoint point,
+		int delta,
+		Qt::ScrollPhase phase) {
+	const auto lookup = findHorizontalScrollOwner(point);
+	if (!lookup.block) {
+		return false;
+	}
+	if (const auto &media = lookup.block->mediaBlock) {
+		if (media->canHandleHorizontalScroll()) {
+			return media->handleHorizontalScroll(delta, phase);
 		}
+	}
+	if (const auto block = findScrollOwnerByIdentity(lookup.identity)) {
+		return setScrollLeft(
+			*block,
+			lookup.identity,
+			block->horizontalScrollLeft - delta);
 	}
 	return false;
 }
@@ -4448,6 +5781,9 @@ bool MarkdownArticle::Impl::beginHorizontalScroll(
 		bool fromTouch) {
 	const auto lookup = findHorizontalScrollOwner(point);
 	if (!lookup.block) {
+		return false;
+	}
+	if (lookup.block->scrollViewportRect.isEmpty()) {
 		return false;
 	}
 	if (fromTouch) {
@@ -4533,7 +5869,7 @@ void MarkdownArticle::Impl::finalizeRelayout(int heightBottom) {
 	_laidOutWidth = std::min(
 		_width,
 		std::max(
-			ArticleContentMaxRight(_blocks, layoutStyle()) + page.right(),
+			ArticleContentMaxRight(_blocks, layoutStyle(), contentRtl()) + page.right(),
 			page.left() + page.right() + 1));
 	pruneTaskMarkerRuntimes();
 	prunePlaceholderRuntimes();
@@ -4568,8 +5904,10 @@ void MarkdownArticle::Impl::relayout(int width) {
 		_content.blocks.blocks,
 		&_blocks,
 		layoutStyle(),
-		&_cachedTextLeafs);
+		&_cachedTextLeafs,
+		contentRtl());
 	retainBlocks();
+	_missingMediaBlocks = 0;
 
 	const auto &st = layoutStyle();
 	const auto &page = st.pagePadding;
@@ -4577,14 +5915,33 @@ void MarkdownArticle::Impl::relayout(int width) {
 	auto context = LayoutContext{
 		.articleLeft = page.left(),
 		.articleWidth = innerWidth,
+		.mediaPixelScale = _mediaPixelScale,
 		.useArticleBands = true,
 		.editMode = _content.editMode,
+		.rtl = contentRtl(),
 		.syntaxHighlightTracker = this,
 		.cachedTextLeafs = &_cachedTextLeafs,
 		.repaint = _textRepaint,
 		.repaintRect = _textRepaintRect,
 		.spoilerLinkFilter = _textSpoilerLinkFilter,
 	};
+	if (_editableMaxLineWidthOverrideLeaf
+		&& (_editableMaxLineWidthOverride > 0)) {
+		context.editableMaxLineWidthOverride
+			= std::make_shared<EditableMaxLineWidthOverride>(
+				EditableMaxLineWidthOverride{
+					.leaf = *_editableMaxLineWidthOverrideLeaf,
+					.width = _editableMaxLineWidthOverride,
+				});
+	}
+	if (_editableTextEmptyOverrideLeaf) {
+		context.editableTextEmptyOverride
+			= std::make_shared<EditableTextEmptyOverride>(
+				EditableTextEmptyOverride{
+					.leaf = *_editableTextEmptyOverrideLeaf,
+					.empty = _editableTextEmptyOverride,
+				});
+	}
 	if (_editableHeightOverrideIndex >= 0 && _editableHeightOverride > 0) {
 		context.editableHeightOverride
 			= std::make_shared<EditableHeightOverride>(
@@ -4594,7 +5951,13 @@ void MarkdownArticle::Impl::relayout(int width) {
 				});
 	}
 	context.mediaBlockFactory = [=](const PreparedBlock &prepared) {
-		return getOrCreateMediaBlock(prepared);
+		auto block = getOrCreateMediaBlock(prepared);
+		if (!block
+			&& _content.mediaRuntime
+			&& ExpectsMediaBlock(prepared)) {
+			++_missingMediaBlocks;
+		}
+		return block;
 	};
 	context.placeholderRuntimeFactory = [=](PreparedPlaceholderBlockId id) {
 		return getOrCreatePlaceholderRuntime(id);
@@ -4641,14 +6004,33 @@ void MarkdownArticle::Impl::relayoutRetained(int width) {
 	auto context = LayoutContext{
 		.articleLeft = page.left(),
 		.articleWidth = innerWidth,
+		.mediaPixelScale = _mediaPixelScale,
 		.useArticleBands = true,
 		.editMode = _content.editMode,
+		.rtl = contentRtl(),
 		.syntaxHighlightTracker = this,
 		.cachedTextLeafs = &_cachedTextLeafs,
 		.repaint = _textRepaint,
 		.repaintRect = _textRepaintRect,
 		.spoilerLinkFilter = _textSpoilerLinkFilter,
 	};
+	if (_editableMaxLineWidthOverrideLeaf
+		&& (_editableMaxLineWidthOverride > 0)) {
+		context.editableMaxLineWidthOverride
+			= std::make_shared<EditableMaxLineWidthOverride>(
+				EditableMaxLineWidthOverride{
+					.leaf = *_editableMaxLineWidthOverrideLeaf,
+					.width = _editableMaxLineWidthOverride,
+				});
+	}
+	if (_editableTextEmptyOverrideLeaf) {
+		context.editableTextEmptyOverride
+			= std::make_shared<EditableTextEmptyOverride>(
+				EditableTextEmptyOverride{
+					.leaf = *_editableTextEmptyOverrideLeaf,
+					.empty = _editableTextEmptyOverride,
+				});
+	}
 	if (_editableHeightOverrideIndex >= 0 && _editableHeightOverride > 0) {
 		context.editableHeightOverride
 			= std::make_shared<EditableHeightOverride>(
@@ -4704,6 +6086,10 @@ void MarkdownArticle::setMediaBlockHost(MediaBlockHost *host) {
 	_impl->setMediaBlockHost(host);
 }
 
+void MarkdownArticle::setMediaPixelScale(double scale) {
+	_impl->setMediaPixelScale(scale);
+}
+
 void MarkdownArticle::setTextRepaintCallbacks(
 		Fn<void()> repaint,
 		Fn<void(QRect)> repaintRect,
@@ -4718,10 +6104,33 @@ void MarkdownArticle::setContent(MarkdownArticleContent content) {
 	_impl->setContent(std::move(content));
 }
 
+void MarkdownArticle::setSearchMatches(
+		std::vector<MarkdownArticleSearchMatch> matches,
+		int current) {
+	_impl->setSearchMatches(std::move(matches), current);
+}
+
+auto MarkdownArticle::searchSources() const
+-> std::vector<MarkdownArticleSearchSource> {
+	return _impl->searchSources();
+}
+
 void MarkdownArticle::updatePreparedLeaf(
 		const PreparedEditLeafSource &source,
 		const MarkdownArticleContent &prepared) {
 	_impl->updatePreparedLeaf(source, prepared);
+}
+
+void MarkdownArticle::setEditableMaxLineWidthOverride(
+		const PreparedEditLeafSource &source,
+		int width) {
+	_impl->setEditableMaxLineWidthOverride(source, width);
+}
+
+void MarkdownArticle::setEditableTextEmptyOverride(
+		const PreparedEditLeafSource &source,
+		bool empty) {
+	_impl->setEditableTextEmptyOverride(source, empty);
 }
 
 void MarkdownArticle::setEditableHeightOverride(
@@ -4734,6 +6143,14 @@ void MarkdownArticle::setEditableHeightOverrideForSegment(
 		int segmentIndex,
 		int height) {
 	_impl->setEditableHeightOverrideForSegment(segmentIndex, height);
+}
+
+void MarkdownArticle::clearEditableMaxLineWidthOverride() {
+	_impl->clearEditableMaxLineWidthOverride();
+}
+
+void MarkdownArticle::clearEditableTextEmptyOverride() {
+	_impl->clearEditableTextEmptyOverride();
 }
 
 void MarkdownArticle::clearEditableHeightOverride() {
@@ -4760,6 +6177,10 @@ int MarkdownArticle::maxWidth() const {
 
 int MarkdownArticle::lastLayoutWidth() const {
 	return _impl->lastLayoutWidth();
+}
+
+bool MarkdownArticle::hasMissingMediaBlocks() const {
+	return _impl->hasMissingMediaBlocks();
 }
 
 int MarkdownArticle::resizeGetHeight(int width) {
@@ -4791,6 +6212,22 @@ PreparedEditHit MarkdownArticle::editHitTest(QPoint point) const {
 	return _impl->editHitTest(point);
 }
 
+MarkdownArticleDropLocation MarkdownArticle::editDropTarget(
+		QPoint point) const {
+	return _impl->editDropTarget(point);
+}
+
+MarkdownArticleDropLocation MarkdownArticle::editBlockDropTarget(
+		QPoint point) const {
+	return _impl->editBlockDropTarget(point);
+}
+
+MarkdownArticleDropLocation MarkdownArticle::editStructuralDropTarget(
+		QPoint point,
+		const PreparedEditSelection &selection) const {
+	return _impl->editStructuralDropTarget(point, selection);
+}
+
 MarkdownArticleEditControlHit MarkdownArticle::editControlHitTest(
 		QPoint point) const {
 	return _impl->editControlHitTest(point);
@@ -4800,6 +6237,22 @@ void MarkdownArticle::addTaskMarkerRipple(
 		const PreparedEditListItemSource &source,
 		QPoint point) {
 	_impl->addTaskMarkerRipple(source, point);
+}
+
+void MarkdownArticle::clickHandlerActiveChanged(
+		const ClickHandlerPtr &handler,
+		bool active) {
+	_impl->clickHandlerActiveChanged(handler, active);
+}
+
+void MarkdownArticle::clickHandlerPressedChanged(
+		const ClickHandlerPtr &handler,
+		bool pressed) {
+	_impl->clickHandlerPressedChanged(handler, pressed);
+}
+
+void MarkdownArticle::updatePressed(QPoint point) {
+	_impl->updatePressed(point);
 }
 
 MarkdownArticleHorizontalScrollHit MarkdownArticle::horizontalScrollHit(
@@ -4813,8 +6266,11 @@ bool MarkdownArticle::canConsumeHorizontalScroll(
 	return _impl->canConsumeHorizontalScroll(point, delta);
 }
 
-bool MarkdownArticle::consumeHorizontalScroll(QPoint point, int delta) {
-	return _impl->consumeHorizontalScroll(point, delta);
+bool MarkdownArticle::consumeHorizontalScroll(
+		QPoint point,
+		int delta,
+		Qt::ScrollPhase phase) {
+	return _impl->consumeHorizontalScroll(point, delta, phase);
 }
 
 bool MarkdownArticle::beginHorizontalScroll(QPoint point, bool fromTouch) {
@@ -4833,9 +6289,24 @@ int MarkdownArticle::anchorTop(const QString &anchorId) const {
 	return _impl->anchorTop(anchorId);
 }
 
+auto MarkdownArticle::scrollAnchorForTop(int top) const
+-> std::optional<MarkdownArticleScrollAnchor> {
+	return _impl->scrollAnchorForTop(top);
+}
+
+int MarkdownArticle::scrollTopForAnchor(
+		const MarkdownArticleScrollAnchor &anchor) const {
+	return _impl->scrollTopForAnchor(anchor);
+}
+
 MarkdownArticleAnchorExpansion MarkdownArticle::expandDetailsToAnchor(
 		const QString &anchorId) {
 	return _impl->expandDetailsToAnchor(anchorId);
+}
+
+MarkdownArticleAnchorExpansion MarkdownArticle::expandDetailsBlock(
+		const QString &anchorId) {
+	return _impl->expandDetailsBlock(anchorId);
 }
 
 bool MarkdownArticle::toggleDetails(const QString &anchorId) {
@@ -4882,6 +6353,16 @@ int MarkdownArticle::segmentIndexForEditableIndex(int editableIndex) const {
 	return _impl->segmentIndexForEditableIndex(editableIndex);
 }
 
+std::optional<PreparedEditLeafSource> MarkdownArticle::editableLeafForSegment(
+		int segmentIndex) const {
+	return _impl->editableLeafForSegment(segmentIndex);
+}
+
+int MarkdownArticle::segmentIndexForEditableLeaf(
+		const PreparedEditLeafSource &source) const {
+	return _impl->segmentIndexForEditableLeaf(source);
+}
+
 QRect MarkdownArticle::textSegmentRect(int segmentIndex) const {
 	return _impl->textSegmentRect(segmentIndex);
 }
@@ -4894,12 +6375,28 @@ QRect MarkdownArticle::segmentRect(int segmentIndex) const {
 	return _impl->segmentRect(segmentIndex);
 }
 
+std::vector<MarkdownArticleMediaGeometry>
+MarkdownArticle::mediaBlockGeometries() const {
+	return _impl->mediaBlockGeometries();
+}
+
+void MarkdownArticle::setGroupedActiveIndex(
+		const PreparedEditBlockSource &source,
+		int index) {
+	_impl->setGroupedActiveIndex(source, index);
+}
+
 QRect MarkdownArticle::displayMathEditRect(int segmentIndex) const {
 	return _impl->displayMathEditRect(segmentIndex);
 }
 
 QRect MarkdownArticle::displayMathBlockRect(int segmentIndex) const {
 	return _impl->displayMathBlockRect(segmentIndex);
+}
+
+int MarkdownArticle::pullquoteAvailableTextWidthForEditableLeaf(
+		const PreparedEditLeafSource &source) const {
+	return _impl->pullquoteAvailableTextWidthForEditableLeaf(source);
 }
 
 bool MarkdownArticle::revealSegment(int segmentIndex) {
@@ -4949,6 +6446,11 @@ TextForMimeData MarkdownArticle::textForSelection(
 		selection,
 		endpoints,
 		structuralSelection);
+}
+
+std::vector<RichPage::Block> MarkdownArticle::richPageSliceForSelection(
+		MarkdownArticleSelection selection) const {
+	return _impl->richPageSliceForSelection(selection);
 }
 
 bool MarkdownArticle::highlightProcessDone(

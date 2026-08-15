@@ -54,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info_levels.h"
 #include "styles/style_media_view.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_premium.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QWindow>
@@ -65,6 +66,102 @@ constexpr auto kMessageBgOpacity = 0.8;
 constexpr auto kDarkOverOpacity = 0.25;
 constexpr auto kColoredMessageBgOpacity = 0.65;
 constexpr auto kAdminBadgeTextOpacity = 0.6;
+
+class TransparentMessagesEventFilter final : public QObject {
+public:
+	explicit TransparentMessagesEventFilter(
+		not_null<Ui::ElasticScroll*> scroll,
+		Fn<bool(QPoint)> inputReserved,
+		Fn<bool(QPoint)> handleClick);
+
+private:
+	bool eventFilter(QObject *watched, QEvent *event) override;
+	bool mousePressFilter(
+		QObject *watched,
+		not_null<QMouseEvent*> event);
+	bool wheelFilter(QObject *watched, not_null<QWheelEvent*> event);
+
+	Fn<bool(QPoint)> _inputReserved;
+	Fn<bool(QPoint)> _handleClick;
+
+};
+
+TransparentMessagesEventFilter::TransparentMessagesEventFilter(
+	not_null<Ui::ElasticScroll*> scroll,
+	Fn<bool(QPoint)> inputReserved,
+	Fn<bool(QPoint)> handleClick)
+: QObject(scroll)
+, _inputReserved(std::move(inputReserved))
+, _handleClick(std::move(handleClick)) {
+}
+
+bool TransparentMessagesEventFilter::eventFilter(
+		QObject *watched,
+		QEvent *event) {
+	if (event->type() == QEvent::MouseButtonPress) {
+		return mousePressFilter(
+			watched,
+			static_cast<QMouseEvent*>(event));
+	} else if (event->type() == QEvent::Wheel) {
+		return wheelFilter(
+			watched,
+			static_cast<QWheelEvent*>(event));
+	}
+	return false;
+}
+
+bool TransparentMessagesEventFilter::mousePressFilter(
+		QObject *watched,
+		not_null<QMouseEvent*> event) {
+	Expects(parent()->isWidgetType());
+
+	const auto scroll = static_cast<Ui::ElasticScroll*>(parent());
+	if (watched != scroll->window()->windowHandle()) {
+		return false;
+	}
+	const auto global = event->globalPos();
+	const auto local = scroll->mapFromGlobal(global);
+	if (!scroll->rect().contains(local)) {
+		return false;
+	}
+	if (_inputReserved && _inputReserved(global)) {
+		return false;
+	}
+	return _handleClick(local + QPoint(0, scroll->scrollTop()));
+}
+
+bool TransparentMessagesEventFilter::wheelFilter(
+		QObject *watched,
+		not_null<QWheelEvent*> event) {
+	Expects(parent()->isWidgetType());
+
+	const auto scroll = static_cast<Ui::ElasticScroll*>(parent());
+	if (watched != scroll->window()->windowHandle()
+		|| !scroll->scrollTopMax()) {
+		return false;
+	}
+	const auto global = event->globalPosition().toPoint();
+	const auto local = scroll->mapFromGlobal(global);
+	if (!scroll->rect().contains(local)) {
+		return false;
+	}
+	if (_inputReserved && _inputReserved(global)) {
+		return false;
+	}
+	auto e = QWheelEvent(
+		event->position(),
+		event->globalPosition(),
+		event->pixelDelta(),
+		event->angleDelta(),
+		event->buttons(),
+		event->modifiers(),
+		event->phase(),
+		event->inverted(),
+		event->source());
+	e.setTimestamp(crl::now());
+	QGuiApplication::sendEvent(scroll, &e);
+	return true;
+}
 
 [[nodiscard]] int CountMessageRadius() {
 	const auto minHeight = st::groupCallMessagePadding.top()
@@ -94,82 +191,13 @@ constexpr auto kAdminBadgeTextOpacity = 0.6;
 
 void ReceiveSomeMouseEvents(
 		not_null<Ui::ElasticScroll*> scroll,
+		Fn<bool(QPoint)> inputReserved,
 		Fn<bool(QPoint)> handleClick) {
-	class EventFilter final : public QObject {
-	public:
-		explicit EventFilter(
-			not_null<Ui::ElasticScroll*> scroll,
-			Fn<bool(QPoint)> handleClick)
-		: QObject(scroll)
-		, _handleClick(std::move(handleClick)) {
-		}
-
-		bool eventFilter(QObject *watched, QEvent *event) {
-			if (event->type() == QEvent::MouseButtonPress) {
-				return mousePressFilter(
-					watched,
-					static_cast<QMouseEvent*>(event));
-			} else if (event->type() == QEvent::Wheel) {
-				return wheelFilter(
-					watched,
-					static_cast<QWheelEvent*>(event));
-			}
-			return false;
-		}
-
-		bool mousePressFilter(
-				QObject *watched,
-				not_null<QMouseEvent*> event) {
-			Expects(parent()->isWidgetType());
-
-			const auto scroll = static_cast<Ui::ElasticScroll*>(parent());
-			if (watched != scroll->window()->windowHandle()) {
-				return false;
-			}
-			const auto global = event->globalPos();
-			const auto local = scroll->mapFromGlobal(global);
-			if (!scroll->rect().contains(local)) {
-				return false;
-			}
-			return _handleClick(local + QPoint(0, scroll->scrollTop()));
-		}
-
-		bool wheelFilter(QObject *watched, not_null<QWheelEvent*> event) {
-			Expects(parent()->isWidgetType());
-
-			const auto scroll = static_cast<Ui::ElasticScroll*>(parent());
-			if (watched != scroll->window()->windowHandle()
-				|| !scroll->scrollTopMax()) {
-				return false;
-			}
-			const auto global = event->globalPosition().toPoint();
-			const auto local = scroll->mapFromGlobal(global);
-			if (!scroll->rect().contains(local)) {
-				return false;
-			}
-			auto e = QWheelEvent(
-				event->position(),
-				event->globalPosition(),
-				event->pixelDelta(),
-				event->angleDelta(),
-				event->buttons(),
-				event->modifiers(),
-				event->phase(),
-				event->inverted(),
-				event->source());
-			e.setTimestamp(crl::now());
-			QGuiApplication::sendEvent(scroll, &e);
-			return true;
-		}
-
-	private:
-		Fn<bool(QPoint)> _handleClick;
-
-	};
-
 	scroll->setAttribute(Qt::WA_TransparentForMouseEvents);
-	qApp->installEventFilter(
-		new EventFilter(scroll, std::move(handleClick)));
+	qApp->installEventFilter(new TransparentMessagesEventFilter(
+		scroll,
+		std::move(inputReserved),
+		std::move(handleClick)));
 }
 
 [[nodiscard]] base::unique_qptr<Ui::Menu::ItemBase> MakeMessageDateAction(
@@ -353,10 +381,12 @@ MessagesUi::MessagesUi(
 	rpl::producer<std::vector<not_null<PeerData*>>> topDonorsValue,
 	rpl::producer<MessageIdUpdate> idUpdates,
 	rpl::producer<bool> canManageValue,
-	rpl::producer<bool> shown)
+	rpl::producer<bool> shown,
+	Fn<bool(QPoint)> inputReserved)
 : _parent(parent)
 , _show(std::move(show))
 , _mode(mode)
+, _inputReserved(std::move(inputReserved))
 , _canManage(std::move(canManageValue))
 , _messageBg([] {
 	auto result = st::groupCallBg->c;
@@ -1412,7 +1442,7 @@ void MessagesUi::setupMessagesWidget() {
 }
 
 void MessagesUi::receiveSomeMouseEvents() {
-	ReceiveSomeMouseEvents(_scroll.get(), [=](QPoint point) {
+	ReceiveSomeMouseEvents(_scroll.get(), _inputReserved, [=](QPoint point) {
 		for (const auto &entry : _views) {
 			if (entry.failed || entry.top + entry.height <= point.y()) {
 				continue;

@@ -90,6 +90,7 @@ public:
 
 	bool voiceProgressAnimationCallback(crl::time now);
 
+	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
@@ -148,6 +149,10 @@ private:
 		Painter &p,
 		const PaintContext &context,
 		LayoutMode mode) const;
+	void paintPlaybackBlobs(
+		Painter &p,
+		const PaintContext &context,
+		QRect inner) const;
 	[[nodiscard]] TextState cornerDownloadTextState(
 		QPoint point,
 		StateRequest request,

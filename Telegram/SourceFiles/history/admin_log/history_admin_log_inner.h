@@ -96,6 +96,14 @@ public:
 	void saveState(not_null<SectionMemento*> memento);
 	void restoreState(not_null<SectionMemento*> memento);
 
+	// Whether the top / bottom edge has no more events to page in.
+	[[nodiscard]] bool loadedAtTop() const {
+		return _upLoaded;
+	}
+	[[nodiscard]] bool loadedAtBottom() const {
+		return _downLoaded;
+	}
+
 	// Empty "flags" means all events.
 	void applyFilter(FilterValue &&value);
 	void applySearch(const QString &query);
@@ -141,6 +149,9 @@ public:
 	void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) override;
+	void elementShowHiddenSenderTooltip(
+		FullMsgId itemId,
+		const TextWithEntities &text) override;
 	bool elementAnimationsPaused() override;
 	bool elementHideReply(
 		not_null<const HistoryView::Element*> view) override;
@@ -386,6 +397,7 @@ private:
 	Ui::Animations::Simple _scrollToAnimation;
 	bool _skipScrollRestore = false;
 	bool _skipUnreadEventPrune = false;
+	bool _beingDestroyed = false;
 
 	int _itemsTop = 0;
 	int _itemsWidth = 0;

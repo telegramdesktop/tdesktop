@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/win/base_windows_shlobj_h.h"
 #include "base/platform/win/base_windows_winrt.h"
 #include "base/call_delayed.h"
+#include "core/version.h"
 #include "ui/boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -26,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "window/window_controller.h"
 #include "core/crash_reports.h"
+#include "core/version.h"
 
 #include <QtCore/QOperatingSystemVersion>
 #include <QtWidgets/QApplication>
@@ -536,6 +538,18 @@ void ActivateOtherProcess(uint64 processId, uint64 windowId) {
 		::SetForegroundWindow(hwnd);
 		::SetFocus(hwnd);
 	}
+}
+
+bool WaitForProcessExit(uint64 processId, crl::time timeout) {
+	const auto process = ::OpenProcess(
+		SYNCHRONIZE,
+		FALSE,
+		DWORD(processId));
+	if (!process) {
+		return (::GetLastError() == ERROR_INVALID_PARAMETER);
+	}
+	const auto guard = gsl::finally([&] { ::CloseHandle(process); });
+	return (::WaitForSingleObject(process, DWORD(timeout)) == WAIT_OBJECT_0);
 }
 
 } // namespace Platform

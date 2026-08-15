@@ -21,8 +21,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/time_input.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
+#include "styles/style_choose_date_time.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
+#include "styles/style_passcode_box.h"
 
 #include <QtWidgets/QTextEdit>
 
@@ -235,6 +237,7 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 	const auto calendar
 		= content->lifetime().make_state<base::weak_qptr<CalendarBox>>();
 	const auto calendarStyle = args.style.calendarStyle;
+	const auto dynamicImageForDate = std::move(args.dynamicImageForDate);
 	state->day->focusedChanges(
 	) | rpl::on_next([=](bool focused) {
 		if (*calendar || !focused) {
@@ -253,6 +256,7 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 				.minDate = minDate(),
 				.maxDate = maxDate(),
 				.stColors = *calendarStyle,
+				.dynamicImageForDate = dynamicImageForDate,
 			}));
 		(*calendar)->boxClosing(
 		) | rpl::on_next(crl::guard(state->time, [=] {

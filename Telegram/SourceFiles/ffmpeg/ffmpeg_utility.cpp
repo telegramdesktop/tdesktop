@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ffmpeg/ffmpeg_utility.h"
 
 #include "base/algorithm.h"
+#include "base/options.h"
 #include "logs.h"
 
 #if !defined Q_OS_WIN && !defined Q_OS_MAC
@@ -16,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #endif // !Q_OS_WIN && !Q_OS_MAC
 
 #include <QImage>
+#include <cmath>
 #include <limits>
 #include <new>
 
@@ -52,9 +54,31 @@ constexpr auto kMaxPixelsFixedPadding = 64 * 1024;
 constexpr auto kTimeUnknown = std::numeric_limits<crl::time>::min();
 constexpr auto kDurationMax = crl::time(std::numeric_limits<int>::max());
 
+base::options::toggle OptionFFmpegMultiThread({
+	.id = kOptionFFmpegMultiThread,
+	.name = "Multi-thread video decoding",
+	.description = "Allow FFmpeg to use a thread pool for decoding,"
+		" typically a thread per CPU thread.",
+	.defaultValue = true,
+});
+
+base::options::option<int> OptionFFmpegThreadCount({
+	.id = kOptionFFmpegThreadCount,
+	.name = "Video decoding thread count",
+	.description = "Override FFmpeg's thread pool thread count.",
+});
+
 using GetFormatMethod = enum AVPixelFormat(*)(
 	struct AVCodecContext *s,
 	const enum AVPixelFormat *fmt);
+
+[[nodiscard]] int NormalizeRotation(int rotation) {
+	auto result = rotation % 360;
+	if (result < 0) {
+		result += 360;
+	}
+	return (result == 90 || result == 180 || result == 270) ? result : 0;
+}
 
 struct HwAccelDescriptor {
 	GetFormatMethod getFormat = nullptr;
@@ -275,6 +299,9 @@ enum AVPixelFormat GetFormatImplementation(
 
 } // namespace
 
+const char kOptionFFmpegMultiThread[] = "ffmpeg-multithread";
+const char kOptionFFmpegThreadCount[] = "ffmpeg-thread-count";
+
 IOPointer MakeIOPointer(
 		void *opaque,
 		int(*read)(void *opaque, uint8_t *buffer, int bufferSize),
@@ -446,7 +473,13 @@ CodecPointer MakeCodecPointer(CodecDescriptor descriptor) {
 		context->max_pixels = MaxPixelsForAreaLimit(
 			descriptor.videoMaxArea);
 	}
-	av_opt_set(context, "threads", "auto", 0);
+	if (OptionFFmpegMultiThread.value()) {
+		av_opt_set_int(
+			context,
+			"threads",
+			OptionFFmpegThreadCount.value(),
+			0);
+	}
 	av_opt_set_int(context, "refcounted_frames", 1, 0);
 
 	const auto codec = FindDecoder(context);
@@ -698,14 +731,29 @@ int ReadRotationFromMetadata(not_null<AVStream*> stream) {
 		stream->codecpar->coded_side_data,
 		stream->codecpar->nb_coded_side_data,
 		AV_PKT_DATA_DISPLAYMATRIX);
-	auto theta = 0;
 	if (displaymatrix) {
 		const auto matrix = (int32_t*)displaymatrix->data;
-		theta = -round(av_display_rotation_get(matrix));
+		const auto angle = av_display_rotation_get(matrix);
+		if (std::isfinite(angle)) {
+			if (const auto result = NormalizeRotation(
+					-base::SafeRound(angle))) {
+				return result;
+			}
+		}
 	}
-	theta -= 360 * floor(theta / 360 + 0.9 / 360);
-	const auto result = int(base::SafeRound(theta));
-	return (result == 90 || result == 180 || result == 270) ? result : 0;
+	const auto rotateTag = av_dict_get(
+		stream->metadata,
+		"rotate",
+		nullptr,
+		0);
+	if (rotateTag && *rotateTag->value) {
+		auto ok = false;
+		const auto rotation = QString::fromUtf8(rotateTag->value).toInt(&ok);
+		if (ok) {
+			return NormalizeRotation(rotation);
+		}
+	}
+	return 0;
 }
 
 AVRational ValidateAspectRatio(AVRational aspect) {

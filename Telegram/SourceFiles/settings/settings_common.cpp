@@ -10,18 +10,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "lottie/lottie_icon.h"
 #include "menu/menu_send_details.h"
+#include "settings/settings_key_navigation.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_top_bar.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/vertical_layout.h"
-#include "styles/style_layers.h"
+#include "styles/style_edit_peer_members.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 #include "styles/style_widgets.h"
@@ -256,6 +258,14 @@ void HighlightWidget(QWidget *target, HighlightArgs &&args) {
 	if (args.scroll) {
 		ScrollToWidget(target);
 	}
+	for (auto parent = target->parentWidget()
+		; parent
+		; parent = parent->parentWidget()) {
+		if (const auto section = dynamic_cast<AbstractSection*>(parent)) {
+			section->setNavigationAnchor(target);
+			break;
+		}
+	}
 	new HighlightOverlay(target, std::move(args));
 }
 
@@ -286,6 +296,30 @@ void ScrollToWidget(not_null<QWidget*> target) {
 	}
 }
 
+void RevealWidget(not_null<QWidget*> target, int margin) {
+	const auto scrollIn = [&](auto &&scroll) {
+		if (const auto inner = scroll->widget()) {
+			const auto globalPosition = target->mapToGlobal(QPoint(0, 0));
+			const auto localTop = inner->mapFromGlobal(globalPosition).y();
+			scroll->scrollToY(
+				localTop - margin,
+				localTop + target->height() + margin);
+		}
+	};
+	for (auto parent = target->parentWidget()
+		; parent
+		; parent = parent->parentWidget()) {
+		if (const auto scroll = dynamic_cast<Ui::ScrollArea*>(parent)) {
+			scrollIn(scroll);
+			return;
+		}
+		if (const auto scroll = dynamic_cast<Ui::ElasticScroll*>(parent)) {
+			scrollIn(scroll);
+			return;
+		}
+	}
+}
+
 HighlightArgs SubsectionTitleHighlight() {
 	const auto radius = st::roundRadiusSmall;
 	return { .margin = { -radius, 0, -radius, 0 }, .radius = radius };
@@ -296,6 +330,8 @@ AbstractSection::AbstractSection(
 	not_null<Window::SessionController*> controller)
 : _controller(controller) {
 }
+
+AbstractSection::~AbstractSection() = default;
 
 SendMenu::Details AbstractSection::sendMenuDetails() const {
 	return {};
@@ -313,6 +349,22 @@ void AbstractSection::build(
 		_controller,
 		showOtherMethod(),
 		_showFinished.events());
+}
+
+void AbstractSection::keyPressEvent(QKeyEvent *e) {
+	if (!_keyNavigation) {
+		_keyNavigation = std::make_unique<KeyNavigation>(this);
+	}
+	if (!_keyNavigation->handle(e)) {
+		RpWidget::keyPressEvent(e);
+	}
+}
+
+void AbstractSection::setNavigationAnchor(not_null<QWidget*> widget) {
+	if (!_keyNavigation) {
+		_keyNavigation = std::make_unique<KeyNavigation>(this);
+	}
+	_keyNavigation->anchorTo(widget);
 }
 
 Icon::Icon(IconDescriptor descriptor) : _icon(descriptor.icon) {
@@ -474,6 +526,60 @@ void CreateRightLabel(
 		}, name->lifetime());
 	}
 	name->setAttribute(Qt::WA_TransparentForMouseEvents);
+}
+
+SeparatedToggle AddSeparatedToggle(
+		not_null<Button*> button,
+		const style::SettingsButton &st,
+		bool checked) {
+	const auto container = button->parentWidget();
+	const auto toggle = Ui::CreateChild<Button>(container, nullptr, st);
+	const auto checkView = button->lifetime().make_state<Ui::ToggleView>(
+		st.toggle,
+		checked,
+		[=] { toggle->update(); });
+
+	const auto separator = Ui::CreateChild<Ui::RpWidget>(container);
+	separator->paintRequest(
+	) | rpl::on_next([=, bg = st.textBgOver] {
+		auto p = QPainter(separator);
+		p.fillRect(separator->rect(), bg);
+	}, separator->lifetime());
+	const auto separatorHeight = 2 * st.toggle.border + st.toggle.diameter;
+	button->geometryValue(
+	) | rpl::on_next([=](const QRect &r) {
+		const auto width = st::rightsButtonToggleWidth;
+		toggle->setGeometry(
+			r.x() + r.width() - width,
+			r.y(),
+			width,
+			r.height());
+		separator->setGeometry(
+			toggle->x() - st::lineWidth,
+			r.y() + (r.height() - separatorHeight) / 2,
+			st::lineWidth,
+			separatorHeight);
+	}, toggle->lifetime());
+
+	const auto checkWidget = Ui::CreateChild<Ui::RpWidget>(toggle);
+	checkWidget->resize(checkView->getSize());
+	checkWidget->paintRequest(
+	) | rpl::on_next([=] {
+		auto p = QPainter(checkWidget);
+		checkView->paint(p, 0, 0, checkWidget->width());
+	}, checkWidget->lifetime());
+	toggle->sizeValue(
+	) | rpl::on_next([=, &st](const QSize &s) {
+		checkWidget->moveToRight(
+			st.toggleSkip,
+			(s.height() - checkWidget->height()) / 2);
+	}, toggle->lifetime());
+
+	separator->show();
+	checkWidget->show();
+	toggle->show();
+
+	return { toggle, checkView };
 }
 
 not_null<Button*> AddButtonWithLabel(

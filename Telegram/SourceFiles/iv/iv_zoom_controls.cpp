@@ -12,8 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/menu/menu.h"
 #include "ui/widgets/menu/menu_action.h"
-#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/rect.h"
 #include "styles/style_iv.h"
@@ -36,7 +36,7 @@ class ZoomMenuAction final
 	, public Ui::AbstractTooltipShower {
 public:
 	ZoomMenuAction(
-		not_null<Ui::PopupMenu*> parent,
+		not_null<Ui::Menu::Menu*> menu,
 		not_null<Delegate*> delegate,
 		const style::Menu &st);
 
@@ -58,13 +58,13 @@ private:
 };
 
 ZoomMenuAction::ZoomMenuAction(
-	not_null<Ui::PopupMenu*> parent,
+	not_null<Ui::Menu::Menu*> menu,
 	not_null<Delegate*> delegate,
 	const style::Menu &st)
 : Ui::Menu::Action(
-	parent->menu(),
+	menu,
 	st,
-	Ui::CreateChild<QAction>(parent),
+	Ui::CreateChild<QAction>(menu.get()),
 	nullptr,
 	nullptr)
 , _delegate(delegate)
@@ -214,12 +214,9 @@ bool ZoomMenuAction::tooltipWindowActive() const {
 } // namespace
 
 base::unique_qptr<Ui::Menu::ItemBase> CreateZoomMenuAction(
-		not_null<Ui::PopupMenu*> parent,
+		not_null<Ui::Menu::Menu*> menu,
 		not_null<Delegate*> delegate) {
-	return base::make_unique_q<ZoomMenuAction>(
-		parent,
-		delegate,
-		parent->menu()->st());
+	return base::make_unique_q<ZoomMenuAction>(menu, delegate, menu->st());
 }
 
 } // namespace Iv

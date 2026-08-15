@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_widgets.h"
 
@@ -109,6 +110,8 @@ void AddAction(
 							"internal:show_saved_message"),
 						tr::marked),
 					.filter = filter,
+					.iconLottie = u"toast/save_to_gallery"_q,
+					.iconLottieSize = st::toastLottieIconSize,
 					.st = &st::defaultToast,
 				});
 			};

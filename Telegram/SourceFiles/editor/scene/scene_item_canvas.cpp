@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QGraphicsScene>
 #include <QGraphicsSceneMouseEvent>
+#include <QtWidgets/QApplication>
 #include <QtMath>
 
 namespace Editor {
@@ -78,6 +79,8 @@ void ItemCanvas::computeContentRect(const QPointF &p) {
 	const auto sceneSize = scene()->sceneRect().size();
 	const auto contentLeft = std::max(0., _contentRect.x());
 	const auto contentTop = std::max(0., _contentRect.y());
+	const auto contentRight = contentLeft + _contentRect.width();
+	const auto contentBottom = contentTop + _contentRect.height();
 	_contentRect = QRectF(
 		QPointF(
 			std::clamp(p.x() - _brushMargins.left(), 0., contentLeft),
@@ -85,11 +88,11 @@ void ItemCanvas::computeContentRect(const QPointF &p) {
 		QPointF(
 			std::clamp(
 				p.x() + _brushMargins.right(),
-				contentLeft + _contentRect.width(),
+				std::min(contentRight, sceneSize.width()),
 				sceneSize.width()),
 			std::clamp(
 				p.y() + _brushMargins.bottom(),
-				contentTop + _contentRect.height(),
+				std::min(contentBottom, sceneSize.height()),
 				sceneSize.height())));
 }
 
@@ -362,12 +365,21 @@ void ItemCanvas::handleMousePressEvent(
 	addStrokePoint(_lastPoint, now);
 	_contentRect = QRectF(_lastPoint, _lastPoint) + _brushMargins;
 	_drawing = true;
+	_dragging = false;
 }
 
 void ItemCanvas::handleMouseMoveEvent(
 		not_null<QGraphicsSceneMouseEvent*> e) {
 	if (!_drawing) {
 		return;
+	}
+	if (!_dragging) {
+		const auto delta = e->screenPos()
+			- e->buttonDownScreenPos(Qt::LeftButton);
+		if (delta.manhattanLength() < QApplication::startDragDistance()) {
+			return;
+		}
+		_dragging = true;
 	}
 	const auto scenePos = e->scenePos();
 	if (!IsValidPoint(scenePos)) {
@@ -391,7 +403,7 @@ void ItemCanvas::handleMouseReleaseEvent(
 	drawIncrementalStroke();
 	drawArrowHead();
 	update(_rectToUpdate);
-	if (_contentRect.isValid()) {
+	if ((_currentStroke.size() >= 2) && _contentRect.isValid()) {
 		const auto scaledContentRect = QRectF(
 			_contentRect.x() * style::DevicePixelRatio(),
 			_contentRect.y() * style::DevicePixelRatio(),
@@ -451,6 +463,7 @@ bool ItemCanvas::collidesWithPath(
 
 void ItemCanvas::cancelDrawing() {
 	_drawing = false;
+	_dragging = false;
 	_currentStroke.clear();
 	_lastRenderedIndex = 0;
 	_lastPointTime = 0;

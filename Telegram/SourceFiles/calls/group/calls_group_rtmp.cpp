@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "styles/style_boxes.h"
 #include "styles/style_calls.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -245,9 +246,6 @@ void StartRtmpProcess::FillRtmpRows(
 		data
 	) | rpl::map([=](const auto &d) { return d.url; });
 
-	const auto showToast = [=](const QString &text) {
-		show->showToast(text);
-	};
 	const auto addButton = [&](
 			bool key,
 			rpl::producer<QString> &&text) {
@@ -259,11 +257,19 @@ void StartRtmpProcess::FillRtmpRows(
 		button->setClickedCallback(key
 			? Fn<void()>([=] {
 				QGuiApplication::clipboard()->setText(state->key.current());
-				showToast(tr::lng_group_call_rtmp_key_copied(tr::now));
+				show->showToast({
+					.text = { tr::lng_group_call_rtmp_key_copied(tr::now) },
+					.iconLottie = u"toast/copy"_q,
+					.iconLottieSize = st::toastLottieIconSize,
+				});
 			})
 			: Fn<void()>([=] {
 				QGuiApplication::clipboard()->setText(state->url.current());
-				showToast(tr::lng_group_call_rtmp_url_copied(tr::now));
+				show->showToast({
+					.text = { tr::lng_group_call_rtmp_url_copied(tr::now) },
+					.iconLottie = u"toast/voip_invite"_q,
+					.iconLottieSize = st::toastLottieIconSize,
+				});
 			}));
 		Ui::AddSkip(container, st::groupCallRtmpCopyButtonTopSkip);
 		const auto weak = container->add(std::move(wrap), rowPadding);

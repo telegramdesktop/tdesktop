@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "apiwrap.h"
 #include "main/main_session.h"
+#include "styles/style_edit_peer_members.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
@@ -415,8 +416,11 @@ EditAdminBox::EditAdminBox(
 ChatAdminRightsInfo EditAdminBox::defaultRights() const {
 	using Flag = ChatAdminRight;
 
+	const auto channel = peer()->asChannel();
 	return peer()->isChat()
 		? peer()->asChat()->defaultAdminRights(user())
+		: (channel && channel->isCommunity())
+		? ChatAdminRightsInfo{ Flag::BanUsers }
 		: peer()->isMegagroup()
 		? ChatAdminRightsInfo{ (Flag::ChangeInfo
 			| Flag::DeleteMessages
@@ -581,6 +585,7 @@ void EditAdminBox::prepare() {
 	const auto options = Data::AdminRightsSetOptions{
 		.isGroup = isGroup,
 		.isForum = peer()->isForum(),
+		.isCommunity = (channel && channel->isCommunity()),
 		.anyoneCanAddMembers = anyoneCanAddMembers,
 		.canProcessJoinRequests = canProcessJoinRequests,
 	};
@@ -683,13 +688,25 @@ void EditAdminBox::prepare() {
 		}
 		if (_oldRights.flags && !_addingBot) {
 			const auto isTargetCreator = (LookupBadgeRole(peer(), user())
-				== HistoryView::BadgeRole::Creator);
+				== HistoryView::BadgeRole::Creator)
+				|| (amCreator() && user()->isSelf());
 			if (!isTargetCreator) {
-				if (!_tagControl) {
-					Ui::AddSkip(inner);
-					inner->add(
-						object_ptr<Ui::BoxContentDivider>(inner),
+				if (!_tagControl && canTransferOwnership()) {
+					const auto allFlags = AdminRightsForOwnershipTransfer(
+						options);
+					const auto wrap = inner->add(
+						object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+							inner,
+							object_ptr<Ui::VerticalLayout>(inner)));
+					Ui::AddSkip(wrap->entity());
+					wrap->entity()->add(
+						object_ptr<Ui::BoxContentDivider>(wrap->entity()),
 						{ 0, st::infoProfileSkip, 0, st::infoProfileSkip });
+					wrap->toggleOn(rpl::duplicate(
+						selectedFlags
+					) | rpl::map(
+						(_1 & allFlags) == allFlags
+					))->setDuration(0);
 				}
 				Ui::AddSkip(inner);
 				const auto dismissButton = Settings::AddButtonWithIcon(
@@ -825,7 +842,7 @@ bool EditAdminBox::canTransferOwnership() const {
 	} else if (const auto chat = peer()->asChat()) {
 		return chat->amCreator();
 	} else if (const auto channel = peer()->asChannel()) {
-		return channel->amCreator();
+		return channel->amCreator() && !channel->isCommunity();
 	}
 	Unexpected("Chat type in EditAdminBox::canTransferOwnership.");
 }

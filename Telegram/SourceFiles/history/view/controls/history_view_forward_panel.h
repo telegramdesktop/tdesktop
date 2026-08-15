@@ -96,6 +96,9 @@ void EditWebPageOptions(
 [[nodiscard]] bool CanHideForwardAuthor(
 	not_null<Main::Session*> session,
 	const HistoryItemsList &list);
+[[nodiscard]] bool HideForwardAuthorPremiumRequired(
+	not_null<Main::Session*> session,
+	const HistoryItemsList &list);
 [[nodiscard]] Data::ForwardOptions NormalizeForwardOptions(
 	not_null<Main::Session*> session,
 	const HistoryItemsList &list,

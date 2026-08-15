@@ -290,6 +290,7 @@ private:
 	void replyCustomMethod(QJsonValue requestId, QJsonObject response);
 	void requestClipboardText(const QJsonObject &args);
 	void setupClosingBehaviour(const QJsonObject &args);
+	void requestClose();
 	void replyDeviceStorage(
 		const QJsonObject &args,
 		const QString &event,
@@ -369,6 +370,7 @@ private:
 	bool _allowClipboardRead : 1 = false;
 	bool _sameOrigin : 1 = false;
 	bool _inBlockingRequest : 1 = false;
+	bool _closeRequested : 1 = false;
 	bool _headerColorReceived : 1 = false;
 	bool _bodyColorReceived : 1 = false;
 	bool _bottomColorReceived : 1 = false;

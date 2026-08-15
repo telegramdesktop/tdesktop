@@ -65,7 +65,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/random.h"
 #include "styles/style_chat.h" // popupMenuExpandedSeparator
-#include "styles/style_dialogs.h" // dialogsPremiumIcon
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 #include "styles/style_menu_icons.h"
@@ -1072,6 +1071,7 @@ not_null<Ui::SlideWrap<Ui::SettingsButton>*> AccountsList::setupAdd() {
 			domain.addActivated(environment, true);
 		} else {
 			_controller->window().preventOrInvoke([=] {
+				Core::App().setActivePrimaryWindow(&_controller->window());
 				_controller->session().domain().addActivated(environment);
 			});
 		}

@@ -6,14 +6,19 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/dialogs_widget.h"
+#include "styles/style_userpic_button.h"
 
 #ifdef _DEBUG
 
+#include "api/api_authorizations.h"
+#include "apiwrap.h"
 #include "base/call_delayed.h"
-#include "data/data_authorization.h"
+#include "base/random.h"
+#include "base/unixtime.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "dialogs/dialogs_inner_widget.h"
+#include "dialogs/dialogs_top_bar_suggestion.h"
 #include "dialogs/ui/dialogs_top_bar_suggestion_content.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -23,8 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/elastic_scroll.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
-#include "styles/style_boxes.h"
-#include "styles/style_dialogs.h"
 
 #include <QShortcut>
 
@@ -39,39 +42,17 @@ void Widget::setupTopBarSuggestionTestHotkeys() {
 			_topBarSuggestionHeightChanged.fire(0);
 			return;
 		}
-		_topBarSuggestionPlaceholder.reset(_innerList->insert(
-			0,
-			object_ptr<Ui::RpWidget>(_innerList)));
-		_topBarSuggestionPlaceholder->paintOn([
-			ph = _topBarSuggestionPlaceholder.get()
-		](QPainter &p) {
-			p.fillRect(ph->rect(), st::dialogsBg);
-		});
 		_topBarSuggestion.reset(wrap);
-		_topBarSuggestion->setParent(_scroll);
-		_topBarSuggestion->raise();
 		_topBarSuggestion->toggle(false, anim::type::instant);
-		_topBarSuggestion->heightValue(
-		) | rpl::on_next([=, this](int h) {
-			if (_topBarSuggestionPlaceholder) {
-				_topBarSuggestionPlaceholder->resize(
-					_topBarSuggestionPlaceholder->width(),
-					h);
-			}
-			_scroll->setBarTopInset(h);
-			_topBarSuggestionHeightChanged.fire_copy(h);
-		}, _topBarSuggestion->entity()->lifetime());
-		const auto pinToScroll = [this] {
-			if (_topBarSuggestion) {
-				_topBarSuggestion->resizeToWidth(_scroll->width());
-				_topBarSuggestion->moveToLeft(0, 0);
-			}
-		};
-		_scroll->sizeValue(
-		) | rpl::to_empty | rpl::on_next(
-			pinToScroll,
-			_topBarSuggestion->entity()->lifetime());
-		pinToScroll();
+		MountTopBarSuggestion({
+			.scroll = _scroll,
+			.innerList = _innerList,
+			.wrap = _topBarSuggestion.get(),
+			.placeholder = &_topBarSuggestionPlaceholder,
+			.heightChanged = [this](int h) {
+				_topBarSuggestionHeightChanged.fire_copy(h);
+			},
+		});
 		_topBarSuggestion->toggle(true, anim::type::normal);
 	};
 
@@ -89,6 +70,50 @@ void Widget::setupTopBarSuggestionTestHotkeys() {
 		});
 	};
 
+	const auto injectTestAuth = [this] {
+		using Flag = MTPDupdateNewAuthorization::Flag;
+		session().api().authorizations().apply(
+			MTP_updateNewAuthorization(
+				MTP_flags(Flag::f_unconfirmed),
+				MTP_long(base::RandomValue<uint64>()),
+				MTP_int(base::unixtime::now()),
+				MTP_string("Test Device"),
+				MTP_string("Test Location")));
+	};
+
+	const auto installBirthdayTest = [=, this] {
+		using RightIcon = TopBarSuggestionContent::RightIcon;
+		const auto content = Ui::CreateChild<TopBarSuggestionContent>(
+			this);
+		content->setRightIcon(RightIcon::Close);
+		const auto user = session().user();
+		content->setContent(
+			tr::lng_dialogs_suggestions_birthday_contact_title(
+				tr::now,
+				lt_text,
+				{ user->shortName() },
+				tr::rich),
+			tr::lng_dialogs_suggestions_birthday_contact_about(
+				tr::now,
+				TextWithEntities::Simple));
+		content->setLeadingWidget(Ui::CreateChild<Ui::UserpicButton>(
+			content,
+			user,
+			st::uploadUserpicButton));
+		content->setHideCallback(hideAndCleanup);
+		content->setNarrowExpandCallback(ExpandChatsListCallback(this));
+		content->setCollapseProgress(_childListShown.value());
+		_prepareTopBarSnapshot.events(
+		) | rpl::on_next([content] {
+			content->prepareCollapseSnapshot();
+		}, content->lifetime());
+		const auto wrap = Ui::CreateChild<
+			Ui::SlideWrap<Ui::RpWidget>>(
+				this,
+				object_ptr<Ui::RpWidget>::fromRaw(content));
+		install(wrap);
+	};
+
 	const auto regularShortcut = new QShortcut(
 		QKeySequence(u"Ctrl+Shift+T"_q),
 		this);
@@ -96,37 +121,7 @@ void Widget::setupTopBarSuggestionTestHotkeys() {
 		regularShortcut,
 		&QShortcut::activated,
 		this,
-		[=, this] {
-			using RightIcon = TopBarSuggestionContent::RightIcon;
-			const auto content = Ui::CreateChild<TopBarSuggestionContent>(
-				this);
-			content->setRightIcon(RightIcon::Close);
-			const auto user = session().user();
-			content->setContent(
-				tr::lng_dialogs_suggestions_birthday_contact_title(
-					tr::now,
-					lt_text,
-					{ user->shortName() },
-					tr::rich),
-				tr::lng_dialogs_suggestions_birthday_contact_about(
-					tr::now,
-					TextWithEntities::Simple));
-			content->setLeadingWidget(Ui::CreateChild<Ui::UserpicButton>(
-				content,
-				user,
-				st::uploadUserpicButton));
-			content->setHideCallback(hideAndCleanup);
-			content->setCollapseProgress(_childListShown.value());
-			_prepareTopBarSnapshot.events(
-			) | rpl::on_next([content] {
-				content->prepareCollapseSnapshot();
-			}, content->lifetime());
-			const auto wrap = Ui::CreateChild<
-				Ui::SlideWrap<Ui::RpWidget>>(
-					this,
-					object_ptr<Ui::RpWidget>::fromRaw(content));
-			install(wrap);
-		});
+		installBirthdayTest);
 
 	const auto authShortcut = new QShortcut(
 		QKeySequence(u"Ctrl+Shift+A"_q),
@@ -135,29 +130,7 @@ void Widget::setupTopBarSuggestionTestHotkeys() {
 		authShortcut,
 		&QShortcut::activated,
 		this,
-		[=, this] {
-			auto fake = std::vector<Data::UnreviewedAuth>();
-			fake.push_back({
-				.hash = 0,
-				.unconfirmed = true,
-				.device = u"Test Device"_q,
-				.location = u"Test Location"_q,
-			});
-			const auto auth = CreateUnconfirmedAuthContent(
-				this,
-				rpl::single(std::move(fake)),
-				[=](bool) { hideAndCleanup(); },
-				_childListShown.value());
-			_prepareTopBarSnapshot.events(
-			) | rpl::on_next([auth] {
-				auth->prepareCollapseSnapshot();
-			}, auth->lifetime());
-			const auto wrap = Ui::CreateChild<
-				Ui::SlideWrap<Ui::RpWidget>>(
-					this,
-					object_ptr<Ui::RpWidget>::fromRaw(auth));
-			install(wrap);
-		});
+		injectTestAuth);
 }
 
 } // namespace Dialogs

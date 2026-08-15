@@ -199,13 +199,9 @@ QString MessageAccessibilityName(
 				lt_count,
 				poll->totalVoters));
 		} else if (const auto contact = media->sharedContact()) {
-			auto contactName = contact->firstName;
-			if (!contact->lastName.isEmpty()) {
-				if (!contactName.isEmpty()) {
-					contactName += u" "_q;
-				}
-				contactName += contact->lastName;
-			}
+			const auto contactName = langFullName(
+				contact->firstName,
+				contact->lastName);
 			if (!contactName.isEmpty()) {
 				mediaParts.push_back(contactName);
 			}
@@ -883,14 +879,7 @@ QString MessageSubItemValue(
 		if (!contact) {
 			return {};
 		}
-		auto name = contact->firstName;
-		if (!contact->lastName.isEmpty()) {
-			if (!name.isEmpty()) {
-				name += u" "_q;
-			}
-			name += contact->lastName;
-		}
-		return name;
+		return langFullName(contact->firstName, contact->lastName);
 	}
 	case MessageSubItem::ContactPhone: {
 		const auto media = data->media();

@@ -1,0 +1,127 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "boxes/boxes.style";
+
+localStorageLimitSlider: MediaSlider(defaultContinuousSlider) {
+	seekSize: size(15px, 15px);
+}
+usernameDefaultFg: windowSubTextFg;
+rightsCheckbox: Checkbox(defaultCheckbox) {
+	textPosition: point(10px, 1px);
+	rippleBg: attentionButtonBgOver;
+}
+rightsToggle: Toggle(defaultToggle) {
+	toggledFg: windowBgActive;
+	untoggledFg: attentionButtonFg;
+	lockIcon: icon {{ "info/info_rights_lock", windowBgActive }};
+	xsize: 8px;
+	vsize: 5px;
+	vshift: 1px;
+	stroke: 2px;
+	duration: universalDuration;
+}
+rightsButton: SettingsButton(defaultSettingsButton) {
+	padding: margins(22px, 8px, 22px, 8px);
+
+	toggle: rightsToggle;
+	toggleOver: rightsToggle;
+	toggleSkip: 20px;
+}
+rightsButtonToggleWidth: 70px;
+rightsButtonArrowSkip: 5px;
+rightsDividerMargin: margins(0px, 0px, 0px, 20px);
+rightsHeaderMargin: margins(22px, 13px, 22px, 7px);
+rightsToggleMargin: margins(22px, 8px, 22px, 8px);
+rightsPhotoButton: UserpicButton(defaultUserpicButton) {
+	size: size(60px, 60px);
+	photoSize: 60px;
+}
+rightsPhotoMargin: margins(20px, 0px, 15px, 18px);
+rightsNameStyle: TextStyle(semiboldTextStyle) {
+	font: font(15px semibold);
+}
+rightsNameTop: 8px;
+rightsStatusTop: 32px;
+rightsHeaderLabel: FlatLabel(boxLabel) {
+	style: TextStyle(semiboldTextStyle) {
+		font: font(boxFontSize semibold);
+	}
+	textFg: windowActiveTextFg;
+}
+sendGifWithCaptionEmojiPosition: point(-30px, 23px);
+notesFieldWithEmoji: InputField(defaultInputField) {
+	textMargins: margins(0px, 28px, 30px, 4px);
+//	border: 0px;
+//	borderActive: 0px;
+}
+addContactFieldMargin: margins(19px, 0px, 19px, 10px);
+addContactWarningMargin: margins(19px, 10px, 19px, 5px);
+editContactSuggestBirthday: icon{{ "settings/birthday_add-22x22", lightButtonFg }};
+slowmodeLabelsMargin: margins(0px, 5px, 0px, 0px);
+slowmodeLabel: LabelSimple(defaultLabelSimple) {
+	textFg: windowSubTextFg;
+}
+boostsUnrestrictLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
+inviteViaLinkIcon: icon {{ "info/edit/group_manage_links", lightButtonFg }};
+inviteViaLinkIconPosition: point(23px, 2px);
+peerListWithInviteViaLink: PeerList(peerListBox) {
+	padding: margins(
+		0px,
+		0px,
+		0px,
+		membersMarginBottom);
+}
+requestPeerRestriction: FlatLabel(defaultFlatLabel) {
+	minWidth: 240px;
+	textFg: membersAboutLimitFg;
+	style: TextStyle(boxTextStyle) {
+		lineHeight: 22px;
+	}
+}
+inviteForbiddenUserpicsPadding: margins(10px, 10px, 10px, 0px);
+inviteForbiddenInfo: FlatLabel(defaultFlatLabel) {
+	minWidth: 240px;
+	align: align(top);
+}
+inviteForbiddenInfoPadding: margins(32px, 10px, 32px, 4px);
+inviteForbiddenSubscribePadding: margins(16px, 12px, 16px, 16px);
+inviteForbiddenOrLabelPadding: margins(32px, 0px, 32px, 0px);
+inviteForbiddenTitle: FlatLabel(boxTitle) {
+	minWidth: 120px;
+	align: align(top);
+}
+inviteForbiddenTitlePadding: margins(32px, 4px, 32px, 0px);
+inviteForbiddenLockBg: dialogsUnreadBgMuted;
+inviteForbiddenLockIcon: icon {{ "emoji/premium_lock", dialogsUnreadFg }};
+guardBotReplaceBox: Box(futureOwnerBox) {
+}
+createBotBox: Box(defaultBox) {
+	shadowIgnoreTopSkip: true;
+}
+createBotUserpicPadding: margins(0px, 16px, 0px, 10px);
+createBotTitlePadding: margins(0px, 0px, 0px, 8px);
+createBotSubtitlePadding: margins(0px, 0px, 0px, 4px);
+createBotCenteredText: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	minWidth: 40px;
+}
+createBotFieldSpacing: 8px;
+createBotUsernameField: InputField(defaultInputField) {
+	textMargins: margins(0px, 28px, 0px, 4px);
+}
+createBotUsernamePrefix: FlatLabel(defaultFlatLabel) {
+	style: boxTextStyle;
+}
+createBotUsernameSuffix: FlatLabel(createBotUsernamePrefix) {
+	textFg: windowSubTextFg;
+}
+createBotStatusLabel: FlatLabel(aboutRevokePublicLabel) {
+	maxHeight: 20px;
+}

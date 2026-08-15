@@ -278,6 +278,9 @@ public:
 	[[nodiscard]] virtual bool unwrapped() const {
 		return false;
 	}
+	[[nodiscard]] virtual bool drawsOwnEphemeralBadge() const {
+		return false;
+	}
 	[[nodiscard]] virtual bool customInfoLayout() const = 0;
 	[[nodiscard]] virtual QRect contentRectForReactions() const {
 		return QRect(0, 0, width(), height());
@@ -338,6 +341,10 @@ public:
 	// allowing message text to be as wide as possible (like wallpapers).
 	[[nodiscard]] virtual bool enforceBubbleWidth() const {
 		return false;
+	}
+
+	[[nodiscard]] virtual int bubbleWidthLimit() const {
+		return 0;
 	}
 	[[nodiscard]] virtual bool allowsNarrowBubble() const {
 		return false;

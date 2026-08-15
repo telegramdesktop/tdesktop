@@ -11,10 +11,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QStringView>
 
+#include <optional>
+
 namespace Iv::Markdown {
 
 [[nodiscard]] QString InternalLinkData(uint16 index);
 [[nodiscard]] QString NormalizeFragmentId(QString fragment);
+[[nodiscard]] QString ExternalLinkDisplayText(const PreparedLink &link);
+[[nodiscard]] std::optional<EntityLinkData> ExternalEntityLinkData(
+	const PreparedLink &link);
+[[nodiscard]] QString TooltipForPreparedLink(const PreparedLink &link);
 void NormalizePreparedUrlLink(PreparedLink *result, const QString &target);
 void FinalizePreparedUrlLink(PreparedLink *link, QStringView renderedText);
 [[nodiscard]] PreparedLink ClassifiedLink(

@@ -67,7 +67,9 @@ Fn<bool(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::InputField*> field,
 		const style::InputField *fieldStyle = nullptr,
-		Fn<QString(QString)> linkValidator = nullptr);
+		Fn<QString(QString)> linkValidator = nullptr,
+		Fn<void(bool)> interactionActive = nullptr,
+		Fn<void()> restoreFocus = nullptr);
 Fn<void(QString now, Fn<void(QString)> save)> DefaultEditLanguageCallback(
 	std::shared_ptr<Ui::Show> show);
 
@@ -80,6 +82,7 @@ struct MessageFieldHandlersArgs {
 	const style::InputField *fieldStyle = nullptr;
 	Fn<QString(QString)> linkValidator;
 	base::flat_set<QString> allowMarkdownTags;
+	bool allowTypedMarkdown = true;
 };
 auto InitMessageFieldHandlers(MessageFieldHandlersArgs &&args)
 -> std::shared_ptr<Ui::ChatStyle>;

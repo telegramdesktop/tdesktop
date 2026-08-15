@@ -26,6 +26,7 @@ struct RichTextEditorConversion {
 
 [[nodiscard]] RichTextEditorConversion ConvertRichTextToEditorTags(
 	TextWithEntities text);
+[[nodiscard]] TextWithEntities FormulaSourceToRichText(QString source);
 [[nodiscard]] int MapRichTextOffsetToEditorOffset(
 	const std::vector<RichTextEditorOffsetReplacement> &replacements,
 	int offset);

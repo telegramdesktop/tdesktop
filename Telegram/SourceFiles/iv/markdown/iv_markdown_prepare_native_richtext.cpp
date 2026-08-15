@@ -13,6 +13,7 @@ struct GeoPointLocation;
 #include "data/data_location.h"
 #include "iv/markdown/iv_markdown_prepare_links.h"
 #include "iv/markdown/iv_markdown_prepare_serialize.h"
+#include "lang/lang_keys.h"
 #include "ui/basic_click_handlers.h"
 #include "history/history_location_manager.h"
 
@@ -353,7 +354,7 @@ void ApplyEmptyMediaCaptionPlaceholder(
 	if (!state->editMode || !block->text.text.isEmpty()) {
 		return;
 	}
-	block->editPlaceholderText = u"Caption"_q;
+	block->editPlaceholderText = tr::lng_photo_caption(tr::now);
 }
 
 } // namespace
@@ -451,6 +452,7 @@ bool PrepareNativeIvPhotoBlock(
 	block.photo.caption = block.text;
 	block.photo.spoiler = data.spoiler;
 	block.photo.viewerOpen = true;
+	block.photo.editMode = state->editMode;
 	result->push_back(std::move(block));
 	return true;
 }
@@ -493,6 +495,7 @@ bool PrepareNativeIvVideoBlock(
 	block.video.media.height = CanonicalHeight(data);
 	block.video.media.spoiler = data.spoiler;
 	block.video.caption = block.text;
+	block.video.editMode = state->editMode;
 	result->push_back(std::move(block));
 	return true;
 }
@@ -639,7 +642,10 @@ bool PrepareNativeIvGroupedMediaBlock(
 	block.anchorId = data.anchorId.isEmpty() ? std::move(anchorId) : data.anchorId;
 	block.anchorIds = std::move(preparedCaption.anchorIds);
 	block.supplementary = true;
+	block.forceTextSegment = state->editMode;
+	ApplyEmptyMediaCaptionPlaceholder(&block, state);
 	block.groupedMedia.caption = block.text;
+	block.groupedMedia.editMode = state->editMode;
 	result->push_back(std::move(block));
 	return true;
 }

@@ -50,6 +50,7 @@ void SectionWidget::init() {
 		return (_content != nullptr);
 	}) | rpl::on_next([=](QSize size, int) {
 		const auto expanding = false;
+		const auto contentTillBottom = true;
 		const auto full = !_content->scrollBottomSkip();
 		const auto additionalScroll = (full ? st::boxRadius : 0);
 		const auto height = size.height() - (full ? 0 : st::boxRadius);
@@ -57,6 +58,7 @@ void SectionWidget::init() {
 		_content->updateGeometry(
 			wrapGeometry,
 			expanding,
+			contentTillBottom,
 			additionalScroll,
 			size.height());
 	}, lifetime());

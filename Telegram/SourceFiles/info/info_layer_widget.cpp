@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "core/application.h"
 #include "styles/style_info.h"
-#include "styles/style_window.h"
 #include "styles/style_layers.h"
 
 namespace Info {
@@ -131,7 +130,11 @@ void LayerWidget::setupHeightConsumers() {
 			_heightAnimation.start([=] {
 				setContentHeight(_heightAnimation.value(_desiredHeight));
 			}, _contentWrapHeight, _desiredHeight, st::slideDuration);
-			resizeToWidth(width());
+			if (_inResize) {
+				_pendingResize = true;
+			} else {
+				resizeToWidth(width());
+			}
 		}
 	}, lifetime());
 }
@@ -331,7 +334,7 @@ QRect LayerWidget::countGeometry(int newWidth) {
 		contentTop,
 		contentWidth,
 		contentHeight,
-	}, expanding, additionalScroll, maxVisibleHeight);
+	}, expanding, _contentTillBottom, additionalScroll, maxVisibleHeight);
 
 	return QRect(newLeft, newTop, newWidth, desiredHeight);
 }

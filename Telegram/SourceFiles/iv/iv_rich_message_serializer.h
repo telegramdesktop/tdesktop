@@ -17,8 +17,26 @@ class Session;
 
 namespace Iv {
 
-[[nodiscard]] std::optional<MTPInputRichMessage> SerializeInputRichMessage(
+enum class SerializeInputRichMessageMode : uchar {
+	Draft,
+	FinalSubmit,
+};
+
+enum class SerializeInputRichMessageStatus : uchar {
+	Success,
+	EmptyContent,
+	Failed,
+};
+
+struct SerializeInputRichMessageResult {
+	SerializeInputRichMessageStatus status
+		= SerializeInputRichMessageStatus::Failed;
+	std::optional<MTPInputRichMessage> value;
+};
+
+[[nodiscard]] SerializeInputRichMessageResult SerializeInputRichMessage(
 	not_null<Main::Session*> session,
-	const RichPage &page);
+	const RichPage &page,
+	SerializeInputRichMessageMode mode);
 
 } // namespace Iv

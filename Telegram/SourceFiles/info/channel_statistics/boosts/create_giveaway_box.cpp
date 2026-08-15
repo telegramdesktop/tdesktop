@@ -50,9 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_giveaway.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
-#include "styles/style_premium.h"
 #include "styles/style_settings.h"
-#include "styles/style_statistics.h"
 
 #include <xxhash.h> // XXH64.
 
@@ -469,6 +467,33 @@ void CreateGiveawayBox(
 			return w.users;
 		}) | ranges::to_vector;
 	};
+	const auto creditsIndexValue = [=] {
+		return rpl::single(
+			creditsGroup->current()
+		) | rpl::then(creditsGroup->changes());
+	};
+	const auto boostsValue = [=]() -> rpl::producer<int> {
+		if (prepaid && prepaid->boosts) {
+			return rpl::single(prepaid->boosts);
+		}
+		return rpl::combine(
+			state->typeValue.value(),
+			hideSpecificUsersOn(),
+			state->sliderValue.value(),
+			creditsIndexValue()
+		) | rpl::map([=](
+				GiveawayType type,
+				bool random,
+				int quantity,
+				int creditsIndex) {
+			return (type == GiveawayType::Credits)
+				? creditsOption(creditsIndex).yearlyBoosts
+				: (state->apiOptions.giveawayBoostsPerPremium()
+					* (random
+						? quantity
+						: int(state->selectedToAward.size())));
+		});
+	};
 	const auto creditsTypeWrap = contentWrap->entity()->add(
 		object_ptr<Ui::VerticalLayout>(contentWrap->entity()));
 	const auto fillCreditsTypeWrap = [=] {
@@ -535,11 +560,7 @@ void CreateGiveawayBox(
 		rightLabel->show();
 
 		rpl::combine(
-			tr::lng_giveaway_quantity(
-				lt_count,
-				creditsGroup->value() | rpl::map([=](int i) -> float64 {
-					return creditsOption(i).yearlyBoosts;
-				})),
+			tr::lng_giveaway_quantity(lt_count, boostsValue() | tr::to_count()),
 			title->positionValue(),
 			content->geometryValue()
 		) | rpl::on_next([=](QString s, const QPoint &p, QRect) {
@@ -743,12 +764,7 @@ void CreateGiveawayBox(
 		floatLabel->show();
 
 		rpl::combine(
-			tr::lng_giveaway_quantity(
-				lt_count,
-				state->sliderValue.value(
-				) | rpl::map([=](int v) -> float64 {
-					return state->apiOptions.giveawayBoostsPerPremium() * v;
-				})),
+			tr::lng_giveaway_quantity(lt_count, boostsValue() | tr::to_count()),
 			title->positionValue(),
 			sliderContainer->geometryValue()
 		) | rpl::on_next([=](QString s, const QPoint &p, QRect) {
@@ -889,12 +905,7 @@ void CreateGiveawayBox(
 			? tr::lng_giveaway_channels_this_group
 			: tr::lng_giveaway_channels_this)(
 				lt_count,
-				state->sliderValue.value(
-				) | rpl::map([=](int v) -> float64 {
-					return (prepaid && prepaid->boosts)
-						? prepaid->boosts
-						: (state->apiOptions.giveawayBoostsPerPremium() * v);
-				})));
+				boostsValue() | tr::to_count()));
 
 		using IconType = Settings::IconType;
 		Settings::AddButtonWithIcon(
@@ -1353,23 +1364,7 @@ void CreateGiveawayBox(
 				hideSpecificUsersOn(),
 				tr::lng_giveaway_start(),
 				tr::lng_giveaway_award()),
-			(prepaid && prepaid->boosts)
-				? rpl::single(prepaid->boosts) | rpl::type_erased
-				: rpl::conditional(
-					state->typeValue.value(
-					) | rpl::map(rpl::mappers::_1 == GiveawayType::Credits),
-					creditsGroup->value() | rpl::map([=](int v) {
-						return creditsOption(v).yearlyBoosts;
-					}),
-					rpl::combine(
-						state->sliderValue.value(),
-						hideSpecificUsersOn()
-					) | rpl::map([=](int value, bool random) -> int {
-						return state->apiOptions.giveawayBoostsPerPremium()
-							* (random
-								? value
-								: int(state->selectedToAward.size()));
-					})),
+			boostsValue(),
 			state->confirmButtonBusy.value() | rpl::map(!rpl::mappers::_1));
 
 		{

@@ -9,14 +9,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_webauthn.h"
 
 #include "base/platform/win/base_windows_safe_library.h"
+#include "core/application.h"
 #include "data/data_passkey_deserialize.h"
+#include "lang/lang_keys.h"
+#include "webauthn/webauthn_common.h"
+#include "window/window_controller.h"
 
 #include <windows.h>
 #include <combaseapi.h>
 #include <webauthn.h>
-
-#include <QWindow>
-#include <QGuiApplication>
 
 namespace Platform::WebAuthn {
 namespace {
@@ -69,9 +70,7 @@ void(__stdcall *WebAuthNFreeAssertion)(
 	return Result;
 }
 
-} // namespace
-
-bool IsSupported() {
+[[nodiscard]] bool NativeAuthenticatorAvailable() {
 	if (!Supported()) {
 		return false;
 	}
@@ -81,7 +80,38 @@ bool IsSupported() {
 			&& available;
 }
 
-void RegisterKey(
+[[nodiscard]] bool NativeCancelled(HRESULT hr) {
+	return (hr == NTE_USER_CANCELLED)
+		|| (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED));
+}
+
+[[nodiscard]] Window::Controller *ActiveController() {
+	if (const auto active = Core::App().activeWindow()) {
+		return active;
+	}
+	return Core::App().activePrimaryWindow();
+}
+
+void ShowNativeError(const QString &text) {
+	if (const auto controller = ActiveController()) {
+		controller->showToast(text);
+	}
+}
+
+[[nodiscard]] HWND NativeParentWindow() {
+	const auto controller = ActiveController();
+	if (!controller) {
+		return nullptr;
+	}
+	const auto result = HWND(controller->widget()->winId());
+	if (result) {
+		SetForegroundWindow(result);
+		SetFocus(result);
+	}
+	return result;
+}
+
+void RegisterViaNative(
 		const Data::Passkey::RegisterData &data,
 		Fn<void(RegisterResult result)> callback) {
 	if (!Supported()) {
@@ -163,14 +193,7 @@ void RegisterKey(
 	options.bPreferResidentKey = TRUE;
 #endif
 
-	auto hwnd = (HWND)(nullptr);
-	if (auto window = QGuiApplication::topLevelWindows().value(0)) {
-		hwnd = (HWND)window->winId();
-		if (hwnd) {
-			SetForegroundWindow(hwnd);
-			SetFocus(hwnd);
-		}
-	}
+	const auto hwnd = NativeParentWindow();
 
 	auto attestation = (PWEBAUTHN_CREDENTIAL_ATTESTATION)(nullptr);
 	auto hr = (HRESULT)(WebAuthNAuthenticatorMakeCredential)(
@@ -195,11 +218,20 @@ void RegisterKey(
 		WebAuthNFreeCredentialAttestation(attestation);
 		callback(result);
 	} else {
-		callback({});
+		auto result = RegisterResult();
+		if (NativeCancelled(hr)) {
+			result.error = Error::Cancelled;
+		} else {
+			LOG(("Passkey Error: MakeCredential failed, hr 0x%1."
+				).arg(ulong(hr), 0, 16));
+			result.error = Error::Other;
+			ShowNativeError(tr::lng_passkey_error_register(tr::now));
+		}
+		callback(result);
 	}
 }
 
-void Login(
+void LoginViaNative(
 		const Data::Passkey::LoginData &data,
 		Fn<void(LoginResult result)> callback) {
 	if (!Supported()) {
@@ -255,14 +287,7 @@ void Login(
 			WEBAUTHN_USER_VERIFICATION_REQUIREMENT_DISCOURAGED;
 	}
 
-	auto hwnd = (HWND)(nullptr);
-	if (auto window = QGuiApplication::topLevelWindows().value(0)) {
-		hwnd = (HWND)window->winId();
-		if (hwnd) {
-			SetForegroundWindow(hwnd);
-			SetFocus(hwnd);
-		}
-	}
+	const auto hwnd = NativeParentWindow();
 
 	auto assertion = (PWEBAUTHN_ASSERTION)(nullptr);
 	auto hr = (HRESULT)(WebAuthNAuthenticatorGetAssertion)(
@@ -290,7 +315,66 @@ void Login(
 		WebAuthNFreeAssertion(assertion);
 		callback(result);
 	} else {
-		callback({});
+		auto result = LoginResult();
+		if (NativeCancelled(hr)) {
+			result.error = Error::Cancelled;
+		} else {
+			LOG(("Passkey Error: GetAssertion failed, hr 0x%1."
+				).arg(ulong(hr), 0, 16));
+			result.error = Error::Other;
+			ShowNativeError(tr::lng_passkey_error_login(tr::now));
+		}
+		callback(result);
+	}
+}
+
+} // namespace
+
+bool IsSupported() {
+	return true;
+}
+
+bool SecurityKeyPresent() {
+	return Supported() || Libfido2DevicePresent();
+}
+
+void RegisterViaSecurityKey(
+		const Data::Passkey::RegisterData &data,
+		Fn<void(RegisterResult)> callback) {
+	if (Supported()) {
+		RegisterViaNative(data, std::move(callback));
+	} else {
+		RegisterViaLibfido2(data, std::move(callback));
+	}
+}
+
+void LoginViaSecurityKey(
+		const Data::Passkey::LoginData &data,
+		Fn<void(LoginResult)> callback) {
+	if (Supported()) {
+		LoginViaNative(data, std::move(callback));
+	} else {
+		LoginViaLibfido2(data, std::move(callback));
+	}
+}
+
+void RegisterKey(
+		const Data::Passkey::RegisterData &data,
+		Fn<void(RegisterResult result)> callback) {
+	if (NativeAuthenticatorAvailable()) {
+		RegisterViaNative(data, std::move(callback));
+	} else {
+		RegisterViaCable(data, std::move(callback));
+	}
+}
+
+void Login(
+		const Data::Passkey::LoginData &data,
+		Fn<void(LoginResult result)> callback) {
+	if (NativeAuthenticatorAvailable()) {
+		LoginViaNative(data, std::move(callback));
+	} else {
+		LoginViaCable(data, std::move(callback));
 	}
 }
 

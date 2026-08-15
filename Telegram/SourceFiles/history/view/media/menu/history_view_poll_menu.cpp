@@ -56,6 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_chat_style.h"
 #include "styles/style_layers.h"
 #include "styles/style_media_view.h"
 #include "styles/style_menu_icons.h"
@@ -286,12 +287,11 @@ void ShowPollStatsBox(
 			loading,
 			{ .name = u"stats"_q, .sizeOverride = st::normalBoxLottieSize },
 			st::settingsBlockedListIconPadding);
-		loading->add(std::move(icon.widget));
-		auto startAnimation = std::move(icon.animate);
 		box->showFinishes(
-		) | rpl::take(1) | rpl::on_next([=]() mutable {
-			startAnimation(anim::repeat::loop);
-		}, loading->lifetime());
+		) | rpl::take(1) | rpl::on_next([animate = std::move(icon.animate)] {
+			animate(anim::repeat::loop);
+		}, icon.widget->lifetime());
+		loading->add(std::move(icon.widget));
 		loading->add(
 			object_ptr<Ui::FlatLabel>(
 				loading,

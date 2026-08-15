@@ -1,3 +1,79 @@
+7.0.9 (05.08.26)
+
+- Add saving rich messages to HTML and importing them back.
+- Add custom prompt tab to AI editing in the article editor.
+- Add experimental Vulkan rendering option on Linux.
+- Crash fixes.
+
+7.0.8 (03.08.26)
+
+- Fix launch on some Windows 7 machines.
+
+7.0.7 (31.07.26)
+
+- Add geometric shapes to the image editor.
+- Add better passkeys support on Windows, macOS and Linux.
+- Add undo for moving and resizing items in the image editor.
+- Extend chats list pull gesture to unread forum topics.
+- Fix Mini App cookies on Linux.
+- Crash fixes.
+
+7.0.6 (27.07.26)
+
+- Allow muting forever by left click on the profile mute button.
+- Improve tables, tasks and titles in rich message previews.
+- Fix adding admins in communities.
+- Crash fixes.
+
+7.0.5 (23.07.26)
+
+- Improve slideshow preload / animation / swipes in rich messages.
+- Fix stories leaving empty space on chats list top.
+- Fix custom emoji frame size in favorite reactions.
+- Crash fixes.
+
+7.0.4 (20.07.26)
+
+- Enable rich text editor for scheduled messages and quick replies.
+- Upload rich message photos in high quality.
+- Fix crash in some video files viewer.
+- Fix crash in shared files section.
+
+7.0.3 (17.07.26)
+
+- Fix media viewer freezes on macOS.
+
+7.0.2 (17.07.26)
+
+- Fix editing existing rich messages.
+- Fix editing scheduled rich messages.
+- Improve rich messages editor (drag-n-drop, changing tables).
+- Allow forwarding to chats hidden inside a community.
+
+7.0.1 (14.07.26)
+
+- Rich Text Editor.
+- Telegram Communities.
+- Invisible Bot Messages.
+
+7.0 (11.07.26)
+
+- Rich messages editor.
+- Ephemeral messages in groups.
+- Communities of chats.
+
+6.9.4 beta (02.07.26)
+
+- Add rich message editor with media, tables and math formulas.
+- Show rich message drafts with full formatting in chat compose area.
+- Add text recognition with selection and copying to media viewer images.
+- Add swipe navigation and pinch zoom gestures to media viewer.
+- Support zoom and dragging files out in shared media photos.
+- Allow adapting existing stickers into custom emoji.
+- Add media viewer video playback to system media controls.
+- Add alphabetical fast-scroll index to contacts box.
+- Improve screen reader accessibility for chats list and folders.
+
 6.9.3 (12.06.26)
 
 - Fix possible crash in formula parsing.

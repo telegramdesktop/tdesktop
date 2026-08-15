@@ -6,6 +6,7 @@ layout(location = 2) in vec2 b_texcoordIn;
 
 layout(location = 0) out vec2 v_texcoord;
 layout(location = 1) out vec2 b_texcoord;
+layout(location = 2) out vec2 v_position;
 
 layout(std140, binding = 0) uniform Params {
 	vec2 viewport;
@@ -21,6 +22,7 @@ layout(std140, binding = 0) uniform Params {
 void main() {
 	v_texcoord = v_texcoordIn;
 	b_texcoord = b_texcoordIn;
+	v_position = position;
 	gl_Position = vec4(
 		vec2(-1.0, -1.0) + 2.0 * position / viewport,
 		0.0,

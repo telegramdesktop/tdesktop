@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/markdown/iv_markdown_prepare_serialize.h"
 
 #include "styles/style_iv.h"
-#include "styles/style_widgets.h"
 
 #include <QtCore/QByteArray>
 

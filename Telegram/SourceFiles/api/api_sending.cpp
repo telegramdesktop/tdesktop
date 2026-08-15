@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
 #include "data/data_changes.h"
+#include "data/components/ephemeral_messages.h"
 #include "data/stickers/data_stickers.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -74,6 +75,28 @@ void SendSimpleMedia(SendAction action, MTPInputMedia inputMedia) {
 	action.clearDraft = false;
 	action.generateLocal = false;
 	api->sendAction(action);
+
+	if (!action.options.scheduled
+		&& !action.options.shortcutId
+		&& session->ephemeralMessages().sendSimpleMedia(
+			history,
+			action.replyTo,
+			inputMedia)) {
+		api->finishForwarding(action);
+		return;
+	}
+
+	if (action.replyTo.messageId
+		&& !IsServerMsgId(action.replyTo.messageId.msg)
+		&& !session->data().message(action.replyTo.messageId)) {
+		action.replyTo = {
+			.messageId = (action.replyTo.topicRootId
+				? FullMsgId(peer->id, action.replyTo.topicRootId)
+				: FullMsgId()),
+			.topicRootId = action.replyTo.topicRootId,
+			.monoforumPeerId = action.replyTo.monoforumPeerId,
+		};
+	}
 
 	const auto randomId = base::RandomValue<uint64>();
 
@@ -183,6 +206,14 @@ void SendExistingMedia(
 		flags |= MessageFlag::HasReplyInfo;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to;
 	}
+	if (!action.options.scheduled
+		&& !action.options.shortcutId
+		&& session->ephemeralMessages().wouldSendMedia(
+			peer,
+			action.replyTo,
+			message.textWithTags.text)) {
+		flags |= MessageFlag::Ephemeral;
+	}
 	const auto silentPost = ShouldSendSilent(peer, action.options);
 	InnerFillMessagePostFlags(action.options, peer, flags);
 	if (silentPost) {
@@ -236,7 +267,7 @@ void SendExistingMedia(
 
 	session->data().registerMessageRandomId(randomId, newId);
 
-	history->addNewLocalMessage({
+	const auto item = history->addNewLocalMessage({
 		.id = newId.msg,
 		.flags = flags,
 		.from = NewMessageFromId(action),
@@ -250,6 +281,15 @@ void SendExistingMedia(
 		.suggest = HistoryMessageSuggestInfo(action.options),
 		.mediaSpoiler = action.options.mediaSpoiler,
 	}, media, caption);
+
+	if (session->ephemeralMessages().sendMedia(
+			item,
+			inputMedia(),
+			origin,
+			inputMedia)) {
+		api->finishForwarding(action);
+		return;
+	}
 
 	const auto performRequest = [=](const auto &repeatRequest) -> void {
 		auto &histories = history->owner().histories();
@@ -586,6 +626,16 @@ void SendConfirmedFile(
 	auto flags = isEditing ? MessageFlags() : NewMessageFlags(peer);
 	if (file->to.replyTo) {
 		flags |= MessageFlag::HasReplyInfo;
+	}
+	if (!isEditing
+		&& !groupId
+		&& !file->to.options.scheduled
+		&& !file->to.options.shortcutId
+		&& session->ephemeralMessages().wouldSendMedia(
+			peer,
+			file->to.replyTo,
+			caption.text)) {
+		flags |= MessageFlag::Ephemeral;
 	}
 	FillMessagePostFlags(action, peer, flags);
 	if (file->to.options.scheduled) {

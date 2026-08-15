@@ -70,6 +70,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/sections/settings_premium.h"
 #include "ui/power_saving.h"
 #include "settings/sections/settings_privacy_security.h"
+#include "settings/sections/settings_shortcuts.h"
 #include "settings/sections/settings_websites.h"
 #include "boxes/connection_box.h"
 #include "mainwindow.h"
@@ -2138,6 +2139,49 @@ void RegisterSettingsHandlers(Router &router) {
 		.path = u"login_email"_q,
 		.action = CodeBlock{ ShowLoginEmail },
 	});
+
+	router.add(u"settings"_q, {
+		.path = u"advanced"_q,
+		.action = SettingsSection{ ::Settings::AdvancedId() },
+	});
+
+	router.add(u"settings"_q, {
+		.path = u"appearance/shortcuts"_q,
+		.action = SettingsSection{ ::Settings::ShortcutsId() },
+	});
+}
+
+QString SettingsDeepLink(
+		::Settings::Type section,
+		const QString &controlId) {
+	const auto &router = Router::Instance();
+	const auto sectionPath = [&] {
+		return router.findPath(u"settings"_q, [&](const Action &action) {
+			const auto target = std::get_if<SettingsSection>(&action);
+			return target && (target->sectionId == section);
+		});
+	};
+	const auto url = [](const QString &path) {
+		return path.isEmpty()
+			? u"tg://settings"_q
+			: (u"tg://settings/"_q + path);
+	};
+	if (!controlId.isEmpty()) {
+		const auto control = router.findPath(u"settings"_q, [&](
+				const Action &action) {
+			const auto entry = std::get_if<SettingsControl>(&action);
+			return entry && (entry->controlId == controlId);
+		});
+		if (control) {
+			return url(*control);
+		} else if (const auto path = sectionPath()) {
+			return url(*path) + u"?highlight="_q + controlId;
+		}
+		return QString();
+	} else if (const auto path = sectionPath()) {
+		return url(*path);
+	}
+	return QString();
 }
 
 } // namespace Core::DeepLinks

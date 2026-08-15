@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/launcher.h"
 #include "core/update_checker.h"
 #include "data/data_auto_download.h"
+#include "data/data_session.h"
 #include "export/export_manager.h"
 #include "info/downloads/info_downloads_widget.h"
 #include "info/info_memento.h"
@@ -32,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "mtproto/facade.h"
 #include "mtproto/mtp_instance.h"
 #include "platform/platform_specific.h"
@@ -213,6 +215,7 @@ void BuildDataStorageSection(SectionBuilder &builder) {
 
 void BuildAutoDownloadSection(SectionBuilder &builder) {
 	const auto controller = builder.controller();
+	const auto container = builder.container();
 	const auto session = builder.session();
 	builder.addDivider();
 	builder.addSkip();
@@ -224,35 +227,78 @@ void BuildAutoDownloadSection(SectionBuilder &builder) {
 
 	using Source = Data::AutoDownload::Source;
 
-	builder.addButton({
-		.id = u"advanced/auto_download_private"_q,
-		.title = tr::lng_media_auto_in_private(),
-		.icon = { &st::menuIconProfile },
-		.onClick = [=] {
-			controller->show(Box<AutoDownloadBox>(session, Source::User));
-		},
-		.keywords = { u"auto"_q, u"download"_q, u"private"_q, u"media"_q },
-	});
+	struct State {
+		rpl::event_stream<> changes;
+	};
+	const auto state = container
+		? container->lifetime().make_state<State>()
+		: nullptr;
+	const auto shouldBeChecked = [=](Source source) {
+		return HasEnabledTypes(session->settings().autoDownload(), source);
+	};
+	const auto add = [&](
+			QString id,
+			rpl::producer<QString> title,
+			const style::icon *icon,
+			Source source,
+			QStringList keywords) {
+		const auto row = builder.addButton({
+			.id = std::move(id),
+			.title = std::move(title),
+			.icon = { icon },
+			.onClick = [=] {
+				auto box = Box<AutoDownloadBox>(session, source);
+				box->boxClosing() | rpl::on_next(crl::guard(container, [=] {
+					state->changes.fire({});
+				}), box->lifetime());
+				controller->show(std::move(box));
+			},
+			.keywords = std::move(keywords),
+		});
+		if (!row) {
+			return;
+		}
+		const auto [toggle, checkView] = AddSeparatedToggle(
+			row,
+			st::settingsButton,
+			shouldBeChecked(source));
+		state->changes.events() | rpl::on_next([=] {
+			checkView->setChecked(shouldBeChecked(source), anim::type::normal);
+		}, row->lifetime());
+		toggle->clicks() | rpl::on_next([=] {
+			auto &data = session->settings().autoDownload();
+			const auto enable = !checkView->checked();
+			if (enable) {
+				SetDefaultsForSource(data, source);
+				session->data().photoLoadSettingsChanged();
+				session->data().documentLoadSettingsChanged();
+			} else {
+				SetDisabledForSource(data, source);
+				session->data().checkPlayingAnimations();
+			}
+			session->saveSettingsDelayed();
+			state->changes.fire({});
+		}, toggle->lifetime());
+	};
 
-	builder.addButton({
-		.id = u"advanced/auto_download_groups"_q,
-		.title = tr::lng_media_auto_in_groups(),
-		.icon = { &st::menuIconGroups },
-		.onClick = [=] {
-			controller->show(Box<AutoDownloadBox>(session, Source::Group));
-		},
-		.keywords = { u"auto"_q, u"download"_q, u"groups"_q, u"media"_q },
-	});
-
-	builder.addButton({
-		.id = u"advanced/auto_download_channels"_q,
-		.title = tr::lng_media_auto_in_channels(),
-		.icon = { &st::menuIconChannel },
-		.onClick = [=] {
-			controller->show(Box<AutoDownloadBox>(session, Source::Channel));
-		},
-		.keywords = { u"auto"_q, u"download"_q, u"channels"_q, u"media"_q },
-	});
+	add(
+		u"advanced/auto_download_private"_q,
+		tr::lng_media_auto_in_private(),
+		&st::menuIconProfile,
+		Source::User,
+		{ u"auto"_q, u"download"_q, u"private"_q, u"media"_q });
+	add(
+		u"advanced/auto_download_groups"_q,
+		tr::lng_media_auto_in_groups(),
+		&st::menuIconGroups,
+		Source::Group,
+		{ u"auto"_q, u"download"_q, u"groups"_q, u"media"_q });
+	add(
+		u"advanced/auto_download_channels"_q,
+		tr::lng_media_auto_in_channels(),
+		&st::menuIconChannel,
+		Source::Channel,
+		{ u"auto"_q, u"download"_q, u"channels"_q, u"media"_q });
 
 	builder.addSkip(st::settingsCheckboxesSkip);
 }

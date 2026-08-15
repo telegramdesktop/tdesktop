@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
+#include "styles/style_add_contact_box.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"

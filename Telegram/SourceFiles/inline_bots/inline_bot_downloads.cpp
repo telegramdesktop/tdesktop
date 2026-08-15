@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "inline_bots/inline_bot_downloads.h"
 
+#include "base/weak_qptr.h"
 #include "core/file_utilities.h"
 #include "data/data_document.h"
 #include "data/data_peer_id.h"
@@ -393,6 +394,7 @@ void DownloadFileBox(not_null<Ui::GenericBox*> box, DownloadBoxArgs args) {
 	const auto name = args.name;
 	const auto session = args.session;
 	const auto chosen = std::make_shared<bool>();
+	const auto weak = base::make_weak(box);
 	box->addButton(tr::lng_bot_download_file_button(), [=] {
 		const auto path = FileNameForSave(
 			session,
@@ -402,11 +404,17 @@ void DownloadFileBox(not_null<Ui::GenericBox*> box, DownloadBoxArgs args) {
 			name,
 			false,
 			QDir());
-		if (!path.isEmpty()) {
-			*chosen = true;
-			box->closeBox();
-			done(path);
+
+		// The native save dialog runs a nested event loop, which may have
+		// closed the Mini App that owns this box, and with it everything
+		// that `done` refers to.
+		const auto strong = weak.get();
+		if (!strong || path.isEmpty()) {
+			return;
 		}
+		*chosen = true;
+		strong->closeBox();
+		done(path);
 	});
 	box->addButton(tr::lng_cancel(), [=] {
 		box->closeBox();

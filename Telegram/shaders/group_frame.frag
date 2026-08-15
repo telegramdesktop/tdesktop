@@ -2,6 +2,7 @@
 
 layout(location = 0) in vec2 v_texcoord;
 layout(location = 1) in vec2 b_texcoord;
+layout(location = 2) in vec2 v_position;
 layout(location = 0) out vec4 fragColor;
 
 layout(binding = 1) uniform sampler2D s_texture;
@@ -48,7 +49,7 @@ vec4 background() {
 }
 
 void main() {
-	vec2 fc = vec2(gl_FragCoord.x, viewport.y - gl_FragCoord.y);
+	vec2 fc = v_position;
 
 	float inside = insideTexture() * (1.0 - paused);
 	vec4 result;

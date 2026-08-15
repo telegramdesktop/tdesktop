@@ -28,7 +28,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "main/main_domain.h"
 #include "styles/style_layers.h"
-#include "styles/style_boxes.h"
+#include "styles/style_passcode_box.h"
+#include "styles/style_window_lock_widgets.h"
 
 namespace Window {
 namespace {

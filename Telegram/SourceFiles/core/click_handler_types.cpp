@@ -590,7 +590,11 @@ void MonospaceClickHandler::onClick(ClickContext context) const {
 	}
 	const auto my = context.other.value<ClickHandlerContext>();
 	if (const auto controller = my.sessionWindow.get()) {
-		controller->showToast(tr::lng_text_copied(tr::now));
+		controller->showToast({
+			.text = { tr::lng_text_copied(tr::now) },
+			.iconLottie = u"toast/copy"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
 	}
 	TextUtilities::SetClipboardText(TextForMimeData::Simple(_text.trimmed()));
 }
@@ -633,7 +637,11 @@ void FormattedDateClickHandler::onClick(ClickContext context) const {
 				base::unixtime::parse(date),
 				QLocale::LongFormat);
 			TextUtilities::SetClipboardText(TextForMimeData::Simple(text));
-			show->showToast(tr::lng_date_copied(tr::now));
+			show->showToast({
+				.text = { tr::lng_date_copied(tr::now) },
+				.iconLottie = u"toast/copy"_q,
+				.iconLottieSize = st::toastLottieIconSize,
+			});
 		},
 		&st::menuIconCopy);
 

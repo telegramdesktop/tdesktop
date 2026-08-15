@@ -441,10 +441,7 @@ void SearchWithGroups::initEdges() {
 		if (left) {
 			edge->move(0, 0);
 		} else {
-			widthValue(
-			) | rpl::on_next([=](int width) {
-				edge->move(width - edge->width(), 0);
-			}, edge->lifetime());
+			_rightEdge = edge;
 		}
 		edge->paintRequest(
 		) | rpl::on_next([=] {
@@ -580,6 +577,9 @@ int SearchWithGroups::resizeGetHeight(int newWidth) {
 	_back->moveToLeft(0, 0, newWidth);
 	_search->moveToLeft(0, 0, newWidth);
 	_cancel->moveToRight(0, 0, newWidth);
+	if (_rightEdge) {
+		_rightEdge->move(newWidth - _rightEdge->width(), 0);
+	}
 
 	moveGroupsBy(newWidth, 0);
 
@@ -648,8 +648,16 @@ TabbedSearch::TabbedSearch(
 
 	parent->widthValue(
 	) | rpl::on_next([=](int width) {
-		_search.resizeToWidth(width - rect::m::sum::h(_st.searchMargin));
+		_outerWidth = width;
+		updateSearchGeometry();
 	}, _search.lifetime());
+}
+
+void TabbedSearch::updateSearchGeometry() {
+	const auto inner = _outerWidth
+		- rect::m::sum::h(_st.searchMargin)
+		- _rightReserved;
+	_search.resizeToWidth(std::max(inner, 0));
 }
 
 int TabbedSearch::height() const {
@@ -674,6 +682,14 @@ void TabbedSearch::stealFocus() {
 
 void TabbedSearch::returnFocus() {
 	_search.returnFocus();
+}
+
+void TabbedSearch::setRightReserved(int value) {
+	if (_rightReserved == value) {
+		return;
+	}
+	_rightReserved = value;
+	updateSearchGeometry();
 }
 
 rpl::producer<> TabbedSearch::escapes() const {

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/markdown/iv_markdown_article_text.h"
 #include "iv/markdown/iv_markdown_article_layout_blocks.h"
+#include "iv/markdown/iv_markdown_prepare_links.h"
 #include "iv/markdown/iv_markdown_prepare_serialize.h"
 #include "lang/lang_keys.h"
 #include "ui/style/style_core.h"
@@ -33,6 +34,13 @@ constexpr auto kIvMarkedTextOptions = TextParseOptions{
 	0,
 	0,
 	Qt::LayoutDirectionAuto,
+};
+
+constexpr auto kIvMarkedTextOptionsRtl = TextParseOptions{
+	TextParseMultiline,
+	0,
+	0,
+	Qt::RightToLeft,
 };
 
 struct PreparedLinkExternalData {
@@ -143,6 +151,8 @@ public:
 
 	TextEntity getTextEntity() const override;
 
+	QString tooltip() const override;
+
 private:
 	PreparedLink _link;
 
@@ -152,7 +162,20 @@ PreparedLinkClickHandler::PreparedLinkClickHandler(PreparedLink link)
 : _link(std::move(link)) {
 }
 
-void PreparedLinkClickHandler::onClick(ClickContext) const {
+void PreparedLinkClickHandler::onClick(ClickContext context) const {
+	if (context.button != Qt::LeftButton
+		&& context.button != Qt::MiddleButton) {
+		return;
+	}
+	const auto data = ExternalEntityLinkData(_link);
+	if (!data) {
+		return;
+	}
+	if (const auto handler = Ui::Integration::Instance().createLinkHandler(
+			*data,
+			Ui::Text::MarkedContext())) {
+		handler->onClick(std::move(context));
+	}
 }
 
 const PreparedLink &PreparedLinkClickHandler::link() const {
@@ -175,6 +198,10 @@ QString PreparedLinkClickHandler::copyToClipboardContextItemText() const {
 
 ClickHandler::TextEntity PreparedLinkClickHandler::getTextEntity() const {
 	return TextEntityForLink(_link);
+}
+
+QString PreparedLinkClickHandler::tooltip() const {
+	return TooltipForPreparedLink(_link);
 }
 
 [[nodiscard]] int FormulaTextSize(const style::TextStyle &textStyle) {
@@ -395,6 +422,7 @@ void NormalizeInlineFormulaRasterMetrics(Formula *formula) {
 class InlineFormulaObject final : public Ui::Text::CustomEmoji {
 public:
 	InlineFormulaObject(
+		QString entityData,
 		QString replacementText,
 		int fallbackWidth,
 		std::shared_ptr<InlineFormulaSharedState> state);
@@ -411,6 +439,7 @@ public:
 	bool readyInDefaultState() override;
 
 private:
+	QString _entityData;
 	QString _replacementText;
 	int _fallbackWidth = 1;
 	const std::shared_ptr<InlineFormulaSharedState> _state;
@@ -818,10 +847,12 @@ const QImage *InlineFormulaSharedState::colorizedImage(
 }
 
 InlineFormulaObject::InlineFormulaObject(
+	QString entityData,
 	QString replacementText,
 	int fallbackWidth,
 	std::shared_ptr<InlineFormulaSharedState> state)
-: _replacementText(std::move(replacementText))
+: _entityData(std::move(entityData))
+, _replacementText(std::move(replacementText))
 , _fallbackWidth(std::max(fallbackWidth, 1))
 , _state(std::move(state)) {
 }
@@ -834,7 +865,7 @@ int InlineFormulaObject::width() {
 }
 
 QString InlineFormulaObject::entityData() {
-	return QString();
+	return _entityData;
 }
 
 auto InlineFormulaObject::vertical(const style::TextStyle &textStyle)
@@ -1031,7 +1062,12 @@ std::unique_ptr<Ui::Text::CustomEmoji> InlineFormulaObjectCache::create(
 	const auto fallbackWidth = std::max(
 		textStyle.font->width(replacementText),
 		1);
+	const auto entityData = SerializeInlineTextObjectEntity({
+		.kind = InlineTextObjectKind::Formula,
+		.data = data,
+	});
 	return std::make_unique<InlineFormulaObject>(
+		std::move(entityData),
 		std::move(replacementText),
 		fallbackWidth,
 		std::move(state));
@@ -1124,6 +1160,7 @@ void SetTextLeaf(
 		InlineFormulaObjectCache *inlineFormulaObjects,
 		const std::shared_ptr<MediaRuntime> &mediaRuntime,
 		int minResizeWidth,
+		bool rtl,
 		Fn<void()> repaint,
 		Fn<void(QRect)> repaintRect,
 		Fn<bool(const ClickContext&)> spoilerLinkFilter) {
@@ -1190,7 +1227,11 @@ void SetTextLeaf(
 		}
 		return std::unique_ptr<Ui::Text::CustomEmoji>();
 	};
-	leaf->setMarkedText(textStyle, text, kIvMarkedTextOptions, context);
+	leaf->setMarkedText(
+		textStyle,
+		text,
+		rtl ? kIvMarkedTextOptionsRtl : kIvMarkedTextOptions,
+		context);
 	SetTextLeafSpoilerLinkFilter(leaf, std::move(spoilerLinkFilter));
 }
 

@@ -1,0 +1,45 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "chat_helpers/chat_helpers.style";
+
+stickersEmojiPickerExpandedRadius: 20px;
+stickersEmojiPickerBg: emojiPanBg;
+stickersEmojiPickerPadding: margins(12px, 8px, 12px, 0px);
+stickersEmojiPickerItemSize: 30px;
+stickersEmojiPickerItemSkip: 4px;
+stickersEmojiPickerStripHeight: 40px;
+stickersEmojiPickerSearchSkip: 6px;
+stickersEmojiPickerExpandedHeight: 220px;
+stickersEmojiPickerStripBubble: icon{
+	{ "chat/reactions_bubble_shadow", windowShadowFg },
+	{ "chat/reactions_bubble", emojiPanBg },
+};
+stickersEmojiPickerStripBubbleRight: 20px;
+stickersEmojiPickerScroll: ScrollArea(boxScroll) {
+	width: 14px;
+	deltax: 5px;
+	deltat: 4px;
+	deltab: 18px;
+}
+stickersEmojiPickerAbout: FlatLabel(defaultFlatLabel) {
+	minWidth: 100px;
+	align: align(top);
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+	}
+}
+stickersEmojiPickerExpandIcon: icon {{ "intro_country_dropdown", windowSubTextFg }};
+stickersEmojiPickerCollapseIcon: icon {{ "intro_country_dropdown-flip_vertical", windowSubTextFg }};
+stickersEmojiPickerExpandSize: 24px;
+stickersEmojiPickerExpandBg: windowBgRipple;
+stickersEmojiPickerBoxShadow: BoxShadow {
+	blurRadius: 20px;
+	offset: point(0px, 6px);
+	opacity: 0.22;
+}

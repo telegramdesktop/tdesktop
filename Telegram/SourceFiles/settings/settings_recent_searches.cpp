@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_recent_searches.h"
 
+#include "core/version.h"
 #include "main/main_session.h"
 #include "storage/serialize_common.h"
 #include "storage/storage_account.h"

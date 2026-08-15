@@ -50,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "api/api_invite_links.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
 #include "styles/style_calls.h"
 #include "styles/style_settings.h"
@@ -158,7 +159,11 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 	};
 	auto copyCallback = [=] {
 		QGuiApplication::clipboard()->setText(currentLink());
-		show->showToast(tr::lng_group_invite_copied(tr::now));
+		show->showToast({
+			.text = { tr::lng_group_invite_copied(tr::now) },
+			.iconLottie = u"toast/voip_invite"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
 	};
 	auto countMessagesCallback = [=](const TextWithTags &comment) {
 		return 1;
@@ -655,8 +660,13 @@ void SettingsBox(
 				}
 				QGuiApplication::clipboard()->setText(link);
 				if (weakBox) {
-					box->showToast(
-						tr::lng_create_channel_link_copied(tr::now));
+					box->showToast({
+						.text = {
+							tr::lng_create_channel_link_copied(tr::now),
+						},
+						.iconLottie = u"toast/voip_invite"_q,
+						.iconLottieSize = st::toastLottieIconSize,
+					});
 				}
 				return true;
 			};

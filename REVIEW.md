@@ -553,3 +553,24 @@ Non-static member functions use camelCase (`startBatch`, `finalize`). Static mem
 // GOOD - PascalCase for static method:
 [[nodiscard]] static bool ShouldTrack(not_null<HistoryItem*> item);
 ```
+
+## No Q_OS_LINUX platform checks in new code
+
+Telegram Desktop distinguishes at most three platforms: Windows / macOS / all-other, where "all-other" covers Linux, the BSD variants and more — and this is almost always the branch that is wanted. A `Q_OS_LINUX` check narrows it to Linux alone, silently excluding the non-Linux Unix platforms, which is almost never intended. For the all-other branch use `!defined Q_OS_WIN && !defined Q_OS_MAC` at compile time, or its runtime equivalent `Platform::IsLinux()` — which, despite the name, means exactly `!defined Q_OS_WIN && !defined Q_OS_MAC` ("everything except Windows and macOS"), not Linux specifically. `Q_OS_LINUX` is only for the rare case where exactly Linux is meant and not the other Unix-like systems — usually it is not. The few existing uses (`Telegram/SourceFiles/core/sandbox.cpp`, `Telegram/SourceFiles/platform/linux/specific_linux.cpp`) are such genuinely Linux-only code paths and stay as-is.
+
+```cpp
+// BAD - excludes FreeBSD and other non-Linux Unix:
+#ifdef Q_OS_LINUX
+UnixSpecificCode();
+#endif // Q_OS_LINUX
+
+// GOOD - the all-other branch, compile time:
+#if !defined Q_OS_WIN && !defined Q_OS_MAC
+UnixSpecificCode();
+#endif // !Q_OS_WIN && !Q_OS_MAC
+
+// GOOD - the all-other branch, runtime (same meaning, NOT Linux-only):
+if (Platform::IsLinux()) {
+	UnixSpecificCode();
+}
+```

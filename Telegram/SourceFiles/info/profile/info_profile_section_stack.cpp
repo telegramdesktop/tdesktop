@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect_part.h"
 
 #include "styles/style_info.h"
-#include "styles/style_layers.h"
 
 namespace Info::Profile {
 namespace {

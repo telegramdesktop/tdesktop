@@ -7,15 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "export/output/export_output_html.h"
 
-#include "countries/countries_instance.h"
-#include "export/output/export_output_result.h"
-#include "export/data/export_data_types.h"
 #include "core/utils.h"
+#include "countries/countries_instance.h"
+#include "export/data/export_data_types.h"
+#include "export/output/export_output_result.h"
 #include "ui/text/format_values.h"
 
-#include <QtCore/QSize>
-#include <QtCore/QFile>
+#include <cmath>
+
 #include <QtCore/QDateTime>
+#include <QtCore/QFile>
+#include <QtCore/QSize>
+#include <QtCore/QUrl>
+#include <QtGui/QImageReader>
 
 namespace Export {
 namespace Output {
@@ -77,6 +81,46 @@ QByteArray NoFileDescription(Data::File::SkipReason reason) {
 		return "";
 	}
 	Unexpected("Skip reason in NoFileDescription.");
+}
+
+Data::File RichFilePresentation(const Data::File *file) {
+	using SkipReason = Data::File::SkipReason;
+
+	auto result = file ? *file : Data::File();
+	if (!result.relativePath.isEmpty()) {
+		result.skipReason = SkipReason::None;
+	} else {
+		switch (result.skipReason) {
+		case SkipReason::FileType:
+		case SkipReason::FileSize:
+			break;
+		case SkipReason::None:
+		case SkipReason::Unavailable:
+		case SkipReason::DateLimits:
+			result.skipReason = SkipReason::Unavailable;
+			break;
+		}
+	}
+	return result;
+}
+
+Data::Photo RichPhotoPresentation(const Data::Photo *photo) {
+	auto result = photo ? *photo : Data::Photo();
+	result.image.file = RichFilePresentation(
+		photo ? &photo->image.file : nullptr);
+	return result;
+}
+
+Data::Document RichDocumentPresentation(const Data::Document *document) {
+	auto result = document ? *document : Data::Document();
+	result.file = RichFilePresentation(document ? &document->file : nullptr);
+	result.thumb.file = RichFilePresentation(
+		document ? &document->thumb.file : nullptr);
+	return result;
+}
+
+QByteArray RichFileDescription(const Data::File *file) {
+	return NoFileDescription(RichFilePresentation(file).skipReason);
 }
 
 auto CalculateThumbSize(
@@ -491,6 +535,2310 @@ bool HtmlContext::empty() const {
 
 } // namespace details
 
+namespace {
+
+MediaData PrepareAudioMediaData(const Data::Document &data) {
+	const auto hasFile = !data.file.relativePath.isEmpty();
+	auto result = MediaData();
+	result.title = (!data.songPerformer.isEmpty()
+		&& !data.songTitle.isEmpty())
+		? (data.songPerformer + " \xe2\x80\x93 " + data.songTitle)
+		: !data.name.isEmpty()
+		? data.name
+		: QByteArray("Audio file");
+	result.status = Data::FormatDuration(data.duration);
+	if (!hasFile) {
+		result.status += ", " + Data::FormatFileSize(data.file.size);
+	}
+	result.classes = "media_audio_file";
+	result.link = data.file.relativePath;
+	result.description = NoFileDescription(data.file.skipReason);
+	return result;
+}
+
+struct RichMediaCallbacks {
+	Fn<QByteArray(const Data::Photo*)> photo = {};
+	Fn<QByteArray(const Data::Document*)> video = {};
+	Fn<QByteArray(const Data::Document*)> audio = {};
+	Fn<QByteArray(const MediaData&)> generic = {};
+	Fn<QByteArray(const MediaData&, const Data::Photo*)> photoCard = {};
+};
+
+enum class RichSourceMetaKind {
+	Source,
+	EmbedPost,
+};
+
+enum class RichTailState {
+	Empty,
+	Media,
+	Other,
+};
+
+constexpr auto kRichTargetMaxBytes = 4096;
+constexpr auto kRichAnchorDirectBytes = 72;
+constexpr auto kRichAnchorPrefixBytes = 48;
+constexpr auto kRichTableSpanMax = 1000;
+constexpr auto kRichHashtagMinLength = 2;
+constexpr auto kRichHashtagMaxLength = 64;
+constexpr auto kRichCommandMaxLength = 64;
+constexpr auto kRichCashtagMaxLength = 8;
+constexpr auto kRichUsernameMinLength = 5;
+constexpr auto kRichUsernameMaxLength = 32;
+
+class RichHtmlRenderer {
+public:
+	RichHtmlRenderer(
+		Context &context,
+		const Data::RichMessage &message,
+		int messageId,
+		const QString &internalLinksDomain,
+		const QByteArray &relativeBase,
+		const RichMediaCallbacks &media);
+
+	[[nodiscard]] QByteArray renderMessage();
+
+private:
+	[[nodiscard]] const Data::Photo *findPhoto(uint64 id) const;
+	[[nodiscard]] const Data::Document *findDocument(uint64 id) const;
+	[[nodiscard]] RichTailState tailState(
+		const Data::RichBlock &block) const;
+	[[nodiscard]] RichTailState tailState(
+		const std::vector<Data::RichBlock> &blocks) const;
+	[[nodiscard]] QByteArray renderTexts(
+		const std::vector<Data::RichText> &texts);
+	[[nodiscard]] QByteArray renderText(const Data::RichText &text);
+	[[nodiscard]] QByteArray renderTextChildren(const Data::RichText &text);
+	[[nodiscard]] QByteArray renderTextLink(
+		const Data::RichText &text,
+		const std::optional<QByteArray> &href,
+		std::map<QByteArray, QByteArray> attributes);
+	[[nodiscard]] QByteArray renderCustomEmojiLink(
+		const QByteArray &alt,
+		std::map<QByteArray, QByteArray> attributes);
+	[[nodiscard]] QByteArray renderBlocks(
+		const std::vector<Data::RichBlock> &blocks);
+	[[nodiscard]] QByteArray renderBlock(const Data::RichBlock &block);
+	[[nodiscard]] QByteArray renderPhoto(const Data::RichBlock &block);
+	[[nodiscard]] QByteArray renderVideo(const Data::RichBlock &block);
+	[[nodiscard]] QByteArray renderAudio(const Data::RichBlock &block);
+	[[nodiscard]] QByteArray renderMediaGroup(
+		const Data::RichBlock &block,
+		const QByteArray &kind,
+		bool renderGroupCaption);
+	[[nodiscard]] QByteArray renderEmbed(const Data::RichBlock &block);
+	[[nodiscard]] QByteArray renderEmbedPost(const Data::RichBlock &block);
+	[[nodiscard]] QByteArray renderChannel(const Data::RichBlock &block);
+	[[nodiscard]] QByteArray renderMap(
+		const Data::RichBlock &block,
+		const QByteArray &kind);
+	[[nodiscard]] QByteArray renderRelatedArticles(
+		const Data::RichBlock &block);
+	[[nodiscard]] QByteArray renderRelatedArticle(
+		const Data::RichRelatedArticle &article,
+		int index);
+	[[nodiscard]] QByteArray renderCaption(
+		const Data::RichCaption &caption);
+	[[nodiscard]] QByteArray renderSourceMeta(
+		const QByteArray &source,
+		RichSourceMetaKind kind);
+	[[nodiscard]] QByteArray renderTextBlock(
+		const QByteArray &tag,
+		std::map<QByteArray, QByteArray> attributes,
+		const Data::RichText &text);
+	[[nodiscard]] QByteArray renderAuthorDate(
+		const Data::RichBlock &block);
+	[[nodiscard]] QByteArray renderCode(const Data::RichBlock &block);
+	[[nodiscard]] QByteArray renderList(const Data::RichBlock &block);
+	[[nodiscard]] QByteArray renderListItem(
+		const Data::RichListItem &item,
+		bool ordered);
+	[[nodiscard]] QByteArray renderQuote(const Data::RichBlock &block);
+	[[nodiscard]] QByteArray renderDetails(const Data::RichBlock &block);
+	[[nodiscard]] QByteArray renderTable(const Data::RichBlock &block);
+	[[nodiscard]] QByteArray renderTableRow(
+		const Data::RichTableRow &row);
+	[[nodiscard]] QByteArray renderTableCell(
+		const Data::RichTableCell &cell);
+	[[nodiscard]] QByteArray renderFallback(
+		const QByteArray &kind,
+		const QByteArray &label);
+
+	void collectAnchors();
+	void collectTextAnchors(const Data::RichText &text);
+	void collectTextAnchors(const std::vector<Data::RichText> &texts);
+	void collectCaptionAnchors(const Data::RichCaption &caption);
+	void collectBlockAnchors(const Data::RichBlock &block);
+	void collectBlockAnchors(const std::vector<Data::RichBlock> &blocks);
+	[[nodiscard]] QByteArray registerAnchor(const QByteArray &name);
+	[[nodiscard]] std::optional<QByteArray> fragmentHref(
+		const QByteArray &target) const;
+	[[nodiscard]] std::optional<QByteArray> textAnchorId(
+		const Data::RichText &text) const;
+	[[nodiscard]] std::optional<QByteArray> blockAnchorId(
+		const Data::RichBlock &block) const;
+
+	Context &_context;
+	const Data::RichMessage &_message;
+	int _messageId = 0;
+	bool _linkActive = false;
+	const QString &_internalLinksDomain;
+	const QByteArray &_relativeBase;
+	const RichMediaCallbacks &_media;
+	std::map<QByteArray, QByteArray> _firstAnchorIds;
+	std::map<QByteArray, int> _anchorOccurrences;
+	std::map<const Data::RichText*, QByteArray> _textAnchorIds;
+	std::map<const Data::RichBlock*, QByteArray> _blockAnchorIds;
+
+};
+
+std::map<QByteArray, QByteArray> RichBlockAttributes(
+		const QByteArray &classes,
+		const QByteArray &kind) {
+	return {
+		{ "class", QByteArray("rich_block ") + classes },
+		{ "data-rich-kind", kind },
+	};
+}
+
+QByteArray RichHeadingTag(int level) {
+	switch (level) {
+	case 1: return "h1";
+	case 2: return "h2";
+	case 3: return "h3";
+	case 4: return "h4";
+	case 5: return "h5";
+	case 6: return "h6";
+	}
+	return "h6";
+}
+
+QByteArray RichBoolAttribute(bool value) {
+	return value ? QByteArray("true") : QByteArray("false");
+}
+
+bool RichTextHasOutput(const Data::RichText &text) {
+	using Type = Data::RichText::Type;
+	switch (text.type) {
+	case Type::Empty:
+		return false;
+	case Type::Plain:
+		return !text.text.isEmpty();
+	case Type::Concat:
+		for (const auto &child : text.children) {
+			if (RichTextHasOutput(child)) {
+				return true;
+			}
+		}
+		return false;
+	case Type::Bold:
+	case Type::Italic:
+	case Type::Underline:
+	case Type::Strike:
+	case Type::Fixed:
+	case Type::Url:
+	case Type::Email:
+	case Type::Phone:
+	case Type::Subscript:
+	case Type::Superscript:
+	case Type::Marked:
+	case Type::Anchor:
+	case Type::Math:
+	case Type::CustomEmoji:
+	case Type::Spoiler:
+	case Type::Mention:
+	case Type::Hashtag:
+	case Type::BotCommand:
+	case Type::Cashtag:
+	case Type::AutoUrl:
+	case Type::AutoEmail:
+	case Type::AutoPhone:
+	case Type::BankCard:
+	case Type::MentionName:
+	case Type::FormattedDate:
+	case Type::InlineImage:
+	case Type::Diff:
+		return true;
+	}
+	Unexpected("Type in RichTextHasOutput.");
+}
+
+bool RichCaptionHasOutput(const Data::RichCaption &caption) {
+	return RichTextHasOutput(caption.text)
+		|| RichTextHasOutput(caption.credit);
+}
+
+int HexValue(char value) {
+	if (value >= '0' && value <= '9') {
+		return value - '0';
+	} else if (value >= 'a' && value <= 'f') {
+		return value - 'a' + 10;
+	} else if (value >= 'A' && value <= 'F') {
+		return value - 'A' + 10;
+	}
+	return -1;
+}
+
+bool HasEncodedControl(const QByteArray &value) {
+	for (auto i = 0; i + 2 < value.size(); ++i) {
+		if (value[i] != '%') {
+			continue;
+		}
+		const auto high = HexValue(value[i + 1]);
+		const auto low = HexValue(value[i + 2]);
+		if (high < 0 || low < 0) {
+			continue;
+		}
+		const auto decoded = (high << 4) | low;
+		if (decoded < 32 || decoded == 127) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool IsStrictTarget(const QByteArray &value) {
+	if (value.isEmpty() || value.size() > kRichTargetMaxBytes) {
+		return false;
+	}
+	for (const auto character : value) {
+		const auto byte = static_cast<uchar>(character);
+		if (byte < 32 || byte == 127) {
+			return false;
+		}
+	}
+	const auto decoded = QString::fromUtf8(value);
+	if (decoded.toUtf8() != value || decoded.trimmed() != decoded) {
+		return false;
+	}
+	for (const auto character : decoded) {
+		const auto category = character.category();
+		if (category == QChar::Other_Control
+			|| category == QChar::Separator_Line
+			|| category == QChar::Separator_Paragraph) {
+			return false;
+		}
+	}
+	return true;
+}
+
+std::optional<QByteArray> SafeHttpHref(const QByteArray &value) {
+	if (!IsStrictTarget(value)
+		|| value.startsWith("//")
+		|| HasEncodedControl(value)) {
+		return std::nullopt;
+	}
+	const auto url = QUrl::fromEncoded(value, QUrl::StrictMode);
+	const auto scheme = url.scheme();
+	if (!url.isValid()
+		|| url.isRelative()
+		|| url.host().isEmpty()
+		|| (scheme.compare(u"http"_q, Qt::CaseInsensitive) != 0
+			&& scheme.compare(u"https"_q, Qt::CaseInsensitive) != 0)) {
+		return std::nullopt;
+	}
+	const auto result = url.toEncoded(QUrl::FullyEncoded);
+	return (IsStrictTarget(result) && !HasEncodedControl(result))
+		? std::make_optional(result)
+		: std::nullopt;
+}
+
+std::optional<QByteArray> SafeEmailHref(const QByteArray &address) {
+	if (!IsStrictTarget(address)) {
+		return std::nullopt;
+	}
+	const auto separator = address.indexOf('@');
+	if (separator <= 0
+		|| separator != address.lastIndexOf('@')
+		|| separator + 1 == address.size()) {
+		return std::nullopt;
+	}
+	for (const auto character : QString::fromUtf8(address)) {
+		if (character.isSpace()) {
+			return std::nullopt;
+		}
+	}
+	for (const auto forbidden : QByteArray("/\\:%?#&=")) {
+		if (address.contains(forbidden)) {
+			return std::nullopt;
+		}
+	}
+	const auto result = QByteArray("mailto:") + address;
+	return IsStrictTarget(result)
+		? std::make_optional(result)
+		: std::nullopt;
+}
+
+std::optional<QByteArray> SafePhoneHref(const QByteArray &phone) {
+	if (!IsStrictTarget(phone)) {
+		return std::nullopt;
+	}
+	auto hasDigit = false;
+	for (const auto character : phone) {
+		if (character >= '0' && character <= '9') {
+			hasDigit = true;
+		} else if (character != '+'
+			&& character != '-'
+			&& character != ' '
+			&& character != '.'
+			&& character != '('
+			&& character != ')') {
+			return std::nullopt;
+		}
+	}
+	const auto result = QByteArray("tel:") + phone;
+	return (hasDigit && IsStrictTarget(result))
+		? std::make_optional(result)
+		: std::nullopt;
+}
+
+std::optional<QByteArray> SafeMentionHref(
+		const QByteArray &mention,
+		const QString &internalLinksDomain) {
+	if (!IsStrictTarget(mention)
+		|| mention.size() < 2
+		|| mention.front() != '@') {
+		return std::nullopt;
+	}
+	const auto username = mention.mid(1);
+	for (const auto character : username) {
+		if ((character < 'a' || character > 'z')
+			&& (character < 'A' || character > 'Z')
+			&& (character < '0' || character > '9')
+			&& character != '_') {
+			return std::nullopt;
+		}
+	}
+	return SafeHttpHref(internalLinksDomain.toUtf8() + username);
+}
+
+bool IsAsciiWord(
+		const QByteArray &value,
+		int minimumLength,
+		int maximumLength) {
+	if (value.size() < minimumLength || value.size() > maximumLength) {
+		return false;
+	}
+	for (const auto character : value) {
+		if ((character < 'a' || character > 'z')
+			&& (character < 'A' || character > 'Z')
+			&& (character < '0' || character > '9')
+			&& character != '_') {
+			return false;
+		}
+	}
+	return true;
+}
+
+QByteArray RichChannelSourceName(Data::RichChannel::Source source) {
+	using Source = Data::RichChannel::Source;
+	switch (source) {
+	case Source::ChatEmpty: return "chat_empty";
+	case Source::Chat: return "chat";
+	case Source::ChatForbidden: return "chat_forbidden";
+	case Source::Channel: return "channel";
+	case Source::ChannelForbidden: return "channel_forbidden";
+	case Source::Community: return "community";
+	case Source::CommunityForbidden: return "community_forbidden";
+	}
+	Unexpected("Source in RichChannelSourceName.");
+}
+
+QByteArray RichChannelStatus(const Data::RichChannel &channel) {
+	using Source = Data::RichChannel::Source;
+	auto label = QByteArray();
+	switch (channel.source) {
+	case Source::ChatEmpty:
+	case Source::Chat:
+		label = "Chat";
+		break;
+	case Source::ChatForbidden:
+		label = "Chat unavailable";
+		break;
+	case Source::Channel:
+		label = "Channel";
+		break;
+	case Source::ChannelForbidden:
+		label = "Channel unavailable";
+		break;
+	case Source::Community:
+		label = "Community";
+		break;
+	case Source::CommunityForbidden:
+		label = "Community unavailable";
+		break;
+	}
+	if (label.isEmpty()) {
+		Unexpected("Source in RichChannelStatus.");
+	}
+	return (channel.username && !channel.username->isEmpty())
+		? ('@' + *channel.username + ", " + label)
+		: label;
+}
+
+QByteArray RichMapPointSourceName(Data::RichMapPoint::Source source) {
+	using Source = Data::RichMapPoint::Source;
+	switch (source) {
+	case Source::GeoPointEmpty: return "geo_point_empty";
+	case Source::GeoPoint: return "geo_point";
+	case Source::InputGeoPointEmpty: return "input_geo_point_empty";
+	case Source::InputGeoPoint: return "input_geo_point";
+	}
+	Unexpected("Source in RichMapPointSourceName.");
+}
+
+struct RichMapCoordinateValues {
+	QByteArray latitude;
+	QByteArray longitude;
+};
+
+std::optional<RichMapCoordinateValues> RichMapCoordinates(
+		const Data::RichMapPoint &point) {
+	using Source = Data::RichMapPoint::Source;
+	switch (point.source) {
+	case Source::GeoPointEmpty:
+	case Source::InputGeoPointEmpty:
+		return std::nullopt;
+	case Source::GeoPoint:
+	case Source::InputGeoPoint:
+		break;
+	}
+	if (!std::isfinite(point.latitude)
+		|| !std::isfinite(point.longitude)
+		|| point.latitude < -90.
+		|| point.latitude > 90.
+		|| point.longitude < -180.
+		|| point.longitude > 180.) {
+		return std::nullopt;
+	}
+	return RichMapCoordinateValues{
+		Data::NumberToString(point.latitude),
+		Data::NumberToString(point.longitude),
+	};
+}
+
+bool IsUnicodeHashtagWord(const QByteArray &value) {
+	const auto characters = QString::fromUtf8(value).toUcs4();
+	if (characters.size() < kRichHashtagMinLength
+		|| characters.size() > kRichHashtagMaxLength) {
+		return false;
+	}
+	auto allDecimalDigits = true;
+	for (const auto character : characters) {
+		const auto category = QChar::category(character);
+		const auto isMark = (category >= QChar::Mark_NonSpacing)
+			&& (category <= QChar::Mark_Enclosing);
+		if (!QChar::isLetterOrNumber(character)
+			&& category != QChar::Punctuation_Connector
+			&& !isMark) {
+			return false;
+		}
+		allDecimalDigits = allDecimalDigits && QChar::isDigit(character);
+	}
+	return !allDecimalDigits;
+}
+
+bool IsHashtagAction(const QByteArray &value) {
+	const auto separator = value.indexOf('@');
+	const auto hashtag = (separator < 0) ? value : value.left(separator);
+	if (!IsUnicodeHashtagWord(hashtag)) {
+		return false;
+	}
+	return (separator < 0)
+		|| (separator == value.lastIndexOf('@')
+			&& IsAsciiWord(
+				value.mid(separator + 1),
+				1,
+				kRichUsernameMaxLength));
+}
+
+bool IsBotCommandAction(const QByteArray &value) {
+	const auto separator = value.indexOf('@');
+	const auto command = (separator < 0) ? value : value.left(separator);
+	if (!IsAsciiWord(command, 1, kRichCommandMaxLength)) {
+		return false;
+	}
+	return (separator < 0)
+		|| (separator == value.lastIndexOf('@')
+			&& IsAsciiWord(
+				value.mid(separator + 1),
+				kRichUsernameMinLength,
+				kRichUsernameMaxLength));
+}
+
+bool IsCashtagAction(const QByteArray &value) {
+	if (value.isEmpty() || value.size() > kRichCashtagMaxLength) {
+		return false;
+	}
+	for (const auto character : value) {
+		if (character < 'A' || character > 'Z') {
+			return false;
+		}
+	}
+	return true;
+}
+
+bool IsValidActionValue(const QByteArray &value, char prefix) {
+	switch (prefix) {
+	case '#': return IsHashtagAction(value);
+	case '/': return IsBotCommandAction(value);
+	case '$': return IsCashtagAction(value);
+	}
+	return false;
+}
+
+std::optional<QByteArray> SafeActionData(
+		const QByteArray &target,
+		char prefix) {
+	if (!IsStrictTarget(target)
+		|| target.front() != prefix
+		|| target.size() < 2) {
+		return std::nullopt;
+	}
+	const auto result = target.mid(1);
+	return (IsValidActionValue(result, prefix) && IsStrictTarget(result))
+		? std::make_optional(result)
+		: std::nullopt;
+}
+
+bool IsAsciiDecimal(const QByteArray &value) {
+	if (value.isEmpty()) {
+		return false;
+	}
+	for (const auto character : value) {
+		if (character < '0' || character > '9') {
+			return false;
+		}
+	}
+	return true;
+}
+
+std::optional<QByteArray> SafeRelativeEmojiHref(
+		const QByteArray &path,
+		const QByteArray &relativeBase) {
+	if (!IsStrictTarget(path)
+		|| path.startsWith('/')
+		|| path.contains('\\')
+		|| path.contains(':')
+		|| path.contains('%')
+		|| path.contains('?')
+		|| path.contains('#')
+		|| path == Data::TextPart::UnavailableEmoji()
+		|| IsAsciiDecimal(path)) {
+		return std::nullopt;
+	}
+	for (const auto &component : path.split('/')) {
+		if (component.isEmpty() || component == "." || component == "..") {
+			return std::nullopt;
+		}
+	}
+	const auto result = relativeBase + path;
+	return IsStrictTarget(result)
+		? std::make_optional(result)
+		: std::nullopt;
+}
+
+bool AppendPlainTarget(
+		QByteArray &result,
+		const QByteArray &value) {
+	if (result.size() > kRichTargetMaxBytes
+		|| value.size() > kRichTargetMaxBytes - result.size()) {
+		return false;
+	}
+	result.append(value);
+	return true;
+}
+
+bool AppendPlainTarget(
+		QByteArray &result,
+		const std::vector<Data::RichText> &texts);
+
+bool AppendPlainTarget(
+		QByteArray &result,
+		const Data::RichText &text) {
+	using Type = Data::RichText::Type;
+	switch (text.type) {
+	case Type::Empty:
+		return true;
+	case Type::Plain:
+		return AppendPlainTarget(result, text.text);
+	case Type::Concat:
+	case Type::Bold:
+	case Type::Italic:
+	case Type::Underline:
+	case Type::Strike:
+	case Type::Fixed:
+	case Type::Url:
+	case Type::Email:
+	case Type::Phone:
+	case Type::Subscript:
+	case Type::Superscript:
+	case Type::Marked:
+	case Type::Anchor:
+	case Type::Spoiler:
+	case Type::Mention:
+	case Type::Hashtag:
+	case Type::BotCommand:
+	case Type::Cashtag:
+	case Type::AutoUrl:
+	case Type::AutoEmail:
+	case Type::AutoPhone:
+	case Type::BankCard:
+	case Type::MentionName:
+	case Type::FormattedDate:
+		return AppendPlainTarget(result, text.children);
+	case Type::CustomEmoji:
+		return AppendPlainTarget(result, text.text);
+	case Type::Diff:
+		return AppendPlainTarget(result, text.children);
+	case Type::Math:
+	case Type::InlineImage:
+		return false;
+	}
+	return false;
+}
+
+bool AppendPlainTarget(
+		QByteArray &result,
+		const std::vector<Data::RichText> &texts) {
+	for (const auto &text : texts) {
+		if (!AppendPlainTarget(result, text)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+std::optional<QByteArray> PlainTarget(const Data::RichText &text) {
+	auto result = QByteArray();
+	return AppendPlainTarget(result, text)
+		? std::make_optional(result)
+		: std::nullopt;
+}
+
+QByteArray AnchorToken(const QByteArray &name) {
+	if (name.isEmpty()) {
+		return "empty";
+	}
+	const auto encoded = [](const QByteArray &value) {
+		return value.toBase64(
+			QByteArray::Base64UrlEncoding
+			| QByteArray::OmitTrailingEquals);
+	};
+	if (name.size() <= kRichAnchorDirectBytes) {
+		return encoded(name);
+	}
+	const auto hash = hashSha256(name.data(), int(name.size()));
+	return encoded(name.left(kRichAnchorPrefixBytes))
+		+ '-'
+		+ QByteArray(hash.data(), int(hash.size())).toHex().left(16);
+}
+
+RichHtmlRenderer::RichHtmlRenderer(
+	Context &context,
+	const Data::RichMessage &message,
+	int messageId,
+	const QString &internalLinksDomain,
+	const QByteArray &relativeBase,
+	const RichMediaCallbacks &media)
+: _context(context)
+, _message(message)
+, _messageId(messageId)
+, _internalLinksDomain(internalLinksDomain)
+, _relativeBase(relativeBase)
+, _media(media) {
+}
+
+const Data::Photo *RichHtmlRenderer::findPhoto(uint64 id) const {
+	if (!id) {
+		return nullptr;
+	}
+	const auto i = _message.photos.find(id);
+	return (i != end(_message.photos)) ? &i->second : nullptr;
+}
+
+const Data::Document *RichHtmlRenderer::findDocument(uint64 id) const {
+	if (!id) {
+		return nullptr;
+	}
+	const auto i = _message.documents.find(id);
+	return (i != end(_message.documents)) ? &i->second : nullptr;
+}
+
+RichTailState RichHtmlRenderer::tailState(
+		const std::vector<Data::RichBlock> &blocks) const {
+	for (auto i = blocks.rbegin(); i != blocks.rend(); ++i) {
+		const auto state = tailState(*i);
+		if (state != RichTailState::Empty) {
+			return state;
+		}
+	}
+	return RichTailState::Empty;
+}
+
+RichTailState RichHtmlRenderer::tailState(
+		const Data::RichBlock &block) const {
+	using Content = Data::RichListItemContent;
+	using Kind = Data::RichBlock::Kind;
+	using QuoteContent = Data::RichQuoteContent;
+
+	switch (block.kind) {
+	case Kind::Unsupported:
+	case Kind::Heading:
+	case Kind::Paragraph:
+	case Kind::Footer:
+	case Kind::Thinking:
+	case Kind::AuthorDate:
+	case Kind::Code:
+	case Kind::Divider:
+	case Kind::Math:
+	case Kind::Table:
+	case Kind::Unknown:
+		return RichTailState::Other;
+	case Kind::Anchor:
+		return RichTailState::Empty;
+	case Kind::List: {
+		if (block.listItems.empty()) {
+			return RichTailState::Empty;
+		}
+		const auto &item = block.listItems.back();
+		if (item.content == Content::Blocks) {
+			const auto state = tailState(item.blocks);
+			if (state != RichTailState::Empty) {
+				return state;
+			}
+		}
+		return RichTailState::Other;
+	}
+	case Kind::Quote:
+		if (RichTextHasOutput(block.quoteCaption)) {
+			return RichTailState::Other;
+		}
+		if (block.quoteContent == QuoteContent::Blocks) {
+			const auto state = tailState(block.blocks);
+			if (state != RichTailState::Empty) {
+				return state;
+			}
+		}
+		return RichTailState::Other;
+	case Kind::Photo:
+		return (RichCaptionHasOutput(block.caption)
+			|| (block.optionalUrl && !block.optionalUrl->isEmpty()))
+			? RichTailState::Other
+			: RichTailState::Media;
+	case Kind::Video:
+	case Kind::Audio:
+	case Kind::Map:
+	case Kind::InputMap:
+		return RichCaptionHasOutput(block.caption)
+			? RichTailState::Other
+			: RichTailState::Media;
+	case Kind::Cover:
+		return tailState(block.blocks);
+	case Kind::Embed:
+		return (RichCaptionHasOutput(block.caption)
+			|| (block.posterPhotoId
+				&& block.optionalUrl
+				&& !block.optionalUrl->isEmpty()))
+			? RichTailState::Other
+			: RichTailState::Media;
+	case Kind::EmbedPost: {
+		if (RichCaptionHasOutput(block.caption)) {
+			return RichTailState::Other;
+		}
+		const auto state = tailState(block.blocks);
+		if (state != RichTailState::Empty) {
+			return state;
+		}
+		return block.url.isEmpty()
+			? RichTailState::Media
+			: RichTailState::Other;
+	}
+	case Kind::Collage:
+	case Kind::Slideshow:
+		return RichCaptionHasOutput(block.caption)
+			? RichTailState::Other
+			: tailState(block.blocks);
+	case Kind::Channel:
+		return RichTailState::Media;
+	case Kind::Details:
+		if (block.open) {
+			const auto state = tailState(block.blocks);
+			if (state != RichTailState::Empty) {
+				return state;
+			}
+		}
+		return RichTailState::Other;
+	case Kind::RelatedArticles:
+		if (block.relatedArticles.empty()) {
+			return RichTextHasOutput(block.text)
+				? RichTailState::Other
+				: RichTailState::Empty;
+		} else {
+			const auto &article = block.relatedArticles.back();
+			if (!article.url.isEmpty()) {
+				return RichTailState::Other;
+			}
+			const auto description = article.description
+				? *article.description
+				: QByteArray();
+			if (article.photoId && !description.isEmpty()) {
+				const auto photo = findPhoto(*article.photoId);
+				if (!RichFileDescription(
+						photo ? &photo->image.file : nullptr).isEmpty()) {
+					return RichTailState::Other;
+				}
+			}
+			return RichTailState::Media;
+		}
+	}
+	Unexpected("Kind in RichHtmlRenderer::tailState.");
+}
+
+QByteArray RichHtmlRenderer::renderMessage() {
+	collectAnchors();
+	auto result = _context.pushTag(
+		"div",
+		{
+			{ "class", "text rich_message" },
+			{ "data-rich-message", Data::NumberToString(_messageId) },
+			{ "data-rich-part", RichBoolAttribute(_message.part) },
+			{ "dir", _message.rtl
+				? QByteArray("rtl")
+				: QByteArray("auto") },
+			{ "inline", QByteArray() },
+		});
+	result += renderBlocks(_message.blocks);
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderCaption(
+		const Data::RichCaption &caption) {
+	const auto text = renderText(caption.text);
+	const auto credit = renderText(caption.credit);
+	if (text.isEmpty() && credit.isEmpty()) {
+		return QByteArray();
+	}
+	auto result = _context.pushTag("figcaption", {
+		{ "class", "rich_media_caption" },
+		{ "dir", "auto" },
+	});
+	if (!text.isEmpty()) {
+		result += _context.pushTag("div", {
+			{ "class", "rich_caption_text" },
+		});
+		result += text;
+		result += _context.popTag();
+	}
+	if (!credit.isEmpty()) {
+		result += _context.pushTag("cite", {
+			{ "class", "rich_caption_credit" },
+		});
+		result += credit;
+		result += _context.popTag();
+	}
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderSourceMeta(
+		const QByteArray &source,
+		RichSourceMetaKind kind) {
+	if (source.isEmpty()) {
+		return QByteArray();
+	}
+	const auto containerClass = [kind] {
+		switch (kind) {
+		case RichSourceMetaKind::Source:
+			return QByteArray("rich_source_meta");
+		case RichSourceMetaKind::EmbedPost:
+			return QByteArray("rich_embed_post_meta");
+		}
+		Unexpected("Kind in RichHtmlRenderer::renderSourceMeta.");
+	}();
+	auto result = _context.pushTag("div", {
+		{ "class", containerClass },
+	});
+	const auto href = SafeHttpHref(source);
+	if (href && !_linkActive) {
+		result += _context.pushTag("a", {
+			{ "class", "rich_source_link" },
+			{ "href", *href },
+			{ "inline", QByteArray() },
+		});
+		const auto previous = _linkActive;
+		_linkActive = true;
+		const auto guard = gsl::finally([&] { _linkActive = previous; });
+		result += SerializeString(source);
+		result += _context.popTag();
+	} else {
+		result += _context.pushTag("span", {
+			{ "class", "rich_source_text" },
+			{ "inline", QByteArray() },
+		});
+		result += SerializeString(source);
+		result += _context.popTag();
+	}
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderPhoto(
+		const Data::RichBlock &block) {
+	auto attributes = RichBlockAttributes("rich_media_item", "photo");
+	attributes.emplace(
+		"data-photo-id",
+		Data::NumberToString(block.photoId));
+	attributes.emplace("data-spoiler", RichBoolAttribute(block.spoiler));
+	if (block.optionalWebpageId) {
+		attributes.emplace(
+			"data-webpage-id",
+			Data::NumberToString(*block.optionalWebpageId));
+	}
+	auto result = _context.pushTag("figure", std::move(attributes));
+	result += _media.photo(findPhoto(block.photoId));
+	if (block.optionalUrl) {
+		result += renderSourceMeta(
+			*block.optionalUrl,
+			RichSourceMetaKind::Source);
+	}
+	result += renderCaption(block.caption);
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderVideo(
+		const Data::RichBlock &block) {
+	auto attributes = RichBlockAttributes("rich_media_item", "video");
+	attributes.emplace(
+		"data-document-id",
+		Data::NumberToString(block.documentId));
+	attributes.emplace("data-autoplay", RichBoolAttribute(block.autoplay));
+	attributes.emplace("data-loop", RichBoolAttribute(block.loop));
+	attributes.emplace("data-spoiler", RichBoolAttribute(block.spoiler));
+	auto result = _context.pushTag("figure", std::move(attributes));
+	result += _media.video(findDocument(block.documentId));
+	result += renderCaption(block.caption);
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderAudio(
+		const Data::RichBlock &block) {
+	auto attributes = RichBlockAttributes("rich_media_item", "audio");
+	attributes.emplace(
+		"data-document-id",
+		Data::NumberToString(block.documentId));
+	auto result = _context.pushTag("figure", std::move(attributes));
+	result += _media.audio(findDocument(block.documentId));
+	result += renderCaption(block.caption);
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderMediaGroup(
+		const Data::RichBlock &block,
+		const QByteArray &kind,
+		bool renderGroupCaption) {
+	auto attributes = RichBlockAttributes("rich_media_group", kind);
+	attributes.emplace(
+		"data-rich-has-items",
+		RichBoolAttribute(!block.blocks.empty()));
+	attributes.emplace(
+		"data-rich-items-end-media",
+		RichBoolAttribute(
+			tailState(block.blocks) == RichTailState::Media));
+	auto result = _context.pushTag("section", std::move(attributes));
+	result += _context.pushTag("div", {
+		{ "class", "rich_media_group_items" },
+	});
+	result += renderBlocks(block.blocks);
+	result += _context.popTag();
+	if (renderGroupCaption) {
+		result += renderCaption(block.caption);
+	}
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderEmbed(
+		const Data::RichBlock &block) {
+	const auto hasPoster = block.posterPhotoId.has_value();
+	const auto hasMeta = hasPoster
+		&& block.optionalUrl
+		&& !block.optionalUrl->isEmpty();
+	auto attributes = RichBlockAttributes(
+		"rich_media_item rich_embed",
+		"embed");
+	attributes.emplace(
+		"data-full-width",
+		RichBoolAttribute(block.fullWidth));
+	attributes.emplace(
+		"data-allow-scrolling",
+		RichBoolAttribute(block.allowScrolling));
+	attributes.emplace("data-rich-has-meta", RichBoolAttribute(hasMeta));
+	if (block.posterPhotoId) {
+		attributes.emplace(
+			"data-poster-photo-id",
+			Data::NumberToString(*block.posterPhotoId));
+	}
+	if (block.width) {
+		attributes.emplace(
+			"data-source-width",
+			Data::NumberToString(*block.width));
+	}
+	if (block.height) {
+		attributes.emplace(
+			"data-source-height",
+			Data::NumberToString(*block.height));
+	}
+	auto result = _context.pushTag("figure", std::move(attributes));
+	if (hasPoster) {
+		result += _media.photo(findPhoto(*block.posterPhotoId));
+		if (block.optionalUrl) {
+			result += renderSourceMeta(
+				*block.optionalUrl,
+				RichSourceMetaKind::Source);
+		}
+	} else {
+		auto media = MediaData();
+		media.title = "Embed";
+		media.classes = "media_file";
+		if (block.optionalUrl) {
+			media.status = *block.optionalUrl;
+			if (const auto href = SafeHttpHref(*block.optionalUrl)) {
+				media.link = QString::fromUtf8(*href);
+			}
+		}
+		result += _media.generic(media);
+	}
+	result += renderCaption(block.caption);
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderEmbedPost(
+		const Data::RichBlock &block) {
+	const auto photo = findPhoto(block.authorPhotoId);
+	const auto hasMeta = !block.url.isEmpty();
+	auto attributes = RichBlockAttributes("rich_embed_post", "embed-post");
+	attributes.emplace(
+		"data-webpage-id",
+		Data::NumberToString(block.webpageId));
+	attributes.emplace(
+		"data-author-photo-id",
+		Data::NumberToString(block.authorPhotoId));
+	attributes.emplace("data-date", Data::NumberToString(block.date));
+	attributes.emplace("data-rich-has-meta", RichBoolAttribute(hasMeta));
+	attributes.emplace(
+		"data-rich-has-items",
+		RichBoolAttribute(!block.blocks.empty()));
+	attributes.emplace(
+		"data-rich-items-end-media",
+		RichBoolAttribute(
+			tailState(block.blocks) == RichTailState::Media));
+	auto result = _context.pushTag("section", std::move(attributes));
+	result += _context.pushTag("div", {
+		{ "class", "rich_embed_post_author" },
+	});
+	auto media = MediaData();
+	media.title = block.author.isEmpty()
+		? QByteArray("Embed post")
+		: block.author;
+	media.description = RichFileDescription(
+		photo ? &photo->image.file : nullptr);
+	media.status = block.date
+		? Data::FormatDateTime(block.date)
+		: QByteArray();
+	media.classes = "media_contact";
+	result += _media.photoCard(media, photo);
+	result += _context.popTag();
+	result += renderSourceMeta(block.url, RichSourceMetaKind::EmbedPost);
+	result += _context.pushTag("div", {
+		{ "class", "rich_embed_post_blocks" },
+	});
+	result += renderBlocks(block.blocks);
+	result += _context.popTag();
+	result += renderCaption(block.caption);
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderChannel(
+		const Data::RichBlock &block) {
+	const auto &channel = block.channel;
+	auto attributes = RichBlockAttributes(
+		"rich_reference_block",
+		"channel");
+	attributes.emplace(
+		"data-channel-source",
+		RichChannelSourceName(channel.source));
+	attributes.emplace("data-channel-id", Data::NumberToString(channel.id));
+	attributes.emplace("data-broadcast", RichBoolAttribute(channel.broadcast));
+	attributes.emplace("data-megagroup", RichBoolAttribute(channel.megagroup));
+	attributes.emplace("data-monoforum", RichBoolAttribute(channel.monoforum));
+	if (channel.accessHash) {
+		attributes.emplace(
+			"data-access-hash",
+			Data::NumberToString(*channel.accessHash));
+	}
+	auto result = _context.pushTag("section", std::move(attributes));
+	auto media = MediaData();
+	media.title = (channel.title && !channel.title->isEmpty())
+		? *channel.title
+		: QByteArray("Channel");
+	media.status = RichChannelStatus(channel);
+	media.classes = "media_contact";
+	if (channel.username
+		&& IsAsciiWord(
+			*channel.username,
+			kRichUsernameMinLength,
+			kRichUsernameMaxLength)) {
+		const auto target = _internalLinksDomain.toUtf8() + *channel.username;
+		if (const auto href = SafeHttpHref(target)) {
+			media.link = QString::fromUtf8(*href);
+		}
+	}
+	result += _media.generic(media);
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderMap(
+		const Data::RichBlock &block,
+		const QByteArray &kind) {
+	const auto &point = block.mapPoint;
+	auto attributes = RichBlockAttributes("rich_reference_block", kind);
+	attributes.emplace(
+		"data-point-source",
+		RichMapPointSourceName(point.source));
+	attributes.emplace("data-zoom", Data::NumberToString(block.zoom));
+	attributes.emplace(
+		"data-source-width",
+		Data::NumberToString(block.mapWidth));
+	attributes.emplace(
+		"data-source-height",
+		Data::NumberToString(block.mapHeight));
+	if (point.accessHash) {
+		attributes.emplace(
+			"data-access-hash",
+			Data::NumberToString(*point.accessHash));
+	}
+	if (point.accuracyRadius) {
+		attributes.emplace(
+			"data-accuracy-radius",
+			Data::NumberToString(*point.accuracyRadius));
+	}
+	auto result = _context.pushTag("figure", std::move(attributes));
+	auto media = MediaData();
+	media.title = "Location";
+	media.classes = "media_location";
+	if (const auto coordinates = RichMapCoordinates(point)) {
+		const auto joined = coordinates->latitude
+			+ ','
+			+ coordinates->longitude;
+		media.status = coordinates->latitude
+			+ ", "
+			+ coordinates->longitude;
+		const auto target = QByteArray("https://maps.google.com/maps?q=")
+			+ joined
+			+ "&ll="
+			+ joined
+			+ "&z=16";
+		if (const auto href = SafeHttpHref(target)) {
+			media.link = QString::fromUtf8(*href);
+		}
+	}
+	result += _media.generic(media);
+	result += renderCaption(block.caption);
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderRelatedArticle(
+		const Data::RichRelatedArticle &article,
+		int index) {
+	auto attributes = std::map<QByteArray, QByteArray>{
+		{ "class", "rich_related_article" },
+		{ "data-rich-article-index", Data::NumberToString(index) },
+		{ "data-webpage-id", Data::NumberToString(article.webpageId) },
+	};
+	if (article.photoId) {
+		attributes.emplace(
+			"data-photo-id",
+			Data::NumberToString(*article.photoId));
+	}
+	if (article.publishedDate) {
+		attributes.emplace(
+			"data-published-date",
+			Data::NumberToString(*article.publishedDate));
+	}
+	auto result = _context.pushTag("article", std::move(attributes));
+	auto media = MediaData();
+	media.title = (article.title && !article.title->isEmpty())
+		? *article.title
+		: QByteArray("Related article");
+	if (article.author && !article.author->isEmpty()) {
+		media.status = *article.author;
+	}
+	const auto publishedDate = article.publishedDate
+		? Data::FormatDateTime(*article.publishedDate)
+		: QByteArray();
+	if (!publishedDate.isEmpty()) {
+		if (!media.status.isEmpty()) {
+			media.status += ", ";
+		}
+		media.status += publishedDate;
+	}
+	const auto description = article.description
+		? *article.description
+		: QByteArray();
+	auto displacedDescription = false;
+	if (article.photoId) {
+		const auto photo = findPhoto(*article.photoId);
+		const auto fileDescription = RichFileDescription(
+			photo ? &photo->image.file : nullptr);
+		media.classes = "media_photo";
+		media.description = fileDescription.isEmpty()
+			? description
+			: fileDescription;
+		displacedDescription = !fileDescription.isEmpty()
+			&& !description.isEmpty();
+		result += _media.photoCard(media, photo);
+	} else {
+		media.classes = "media_file";
+		media.description = description;
+		result += _media.generic(media);
+	}
+	if (displacedDescription) {
+		result += _context.pushTag("div", {
+			{ "class", "rich_article_description" },
+		});
+		result += SerializeString(description);
+		result += _context.popTag();
+	}
+	result += renderSourceMeta(article.url, RichSourceMetaKind::Source);
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderRelatedArticles(
+		const Data::RichBlock &block) {
+	const auto title = renderText(block.text);
+	auto result = _context.pushTag(
+		"section",
+		RichBlockAttributes(
+			"rich_related_articles",
+			"related-articles"));
+	if (!title.isEmpty()) {
+		result += _context.pushTag("div", {
+			{ "class", "rich_related_title" },
+			{ "dir", "auto" },
+		});
+		result += title;
+		result += _context.popTag();
+	}
+	result += _context.pushTag("div", {
+		{ "class", "rich_related_items" },
+	});
+	auto index = 0;
+	for (const auto &article : block.relatedArticles) {
+		result += renderRelatedArticle(article, index++);
+	}
+	result += _context.popTag();
+	result += _context.popTag();
+	return result;
+}
+
+void RichHtmlRenderer::collectAnchors() {
+	_firstAnchorIds.clear();
+	_anchorOccurrences.clear();
+	_textAnchorIds.clear();
+	_blockAnchorIds.clear();
+	collectBlockAnchors(_message.blocks);
+}
+
+QByteArray RichHtmlRenderer::registerAnchor(const QByteArray &name) {
+	const auto base = QByteArray("rich-message-")
+		+ Data::NumberToString(_messageId)
+		+ "-anchor-"
+		+ AnchorToken(name);
+	auto &occurrence = _anchorOccurrences[base];
+	++occurrence;
+	const auto result = base + ((occurrence > 1)
+		? ('-' + Data::NumberToString(occurrence))
+		: QByteArray());
+	_firstAnchorIds.emplace(name, result);
+	return result;
+}
+
+void RichHtmlRenderer::collectTextAnchors(const Data::RichText &text) {
+	using Type = Data::RichText::Type;
+	switch (text.type) {
+	case Type::Anchor:
+		_textAnchorIds.emplace(&text, registerAnchor(text.data));
+		collectTextAnchors(text.children);
+		break;
+	case Type::Concat:
+	case Type::Bold:
+	case Type::Italic:
+	case Type::Underline:
+	case Type::Strike:
+	case Type::Fixed:
+	case Type::Url:
+	case Type::Email:
+	case Type::Phone:
+	case Type::Subscript:
+	case Type::Superscript:
+	case Type::Marked:
+	case Type::Spoiler:
+	case Type::Mention:
+	case Type::Hashtag:
+	case Type::BotCommand:
+	case Type::Cashtag:
+	case Type::AutoUrl:
+	case Type::AutoEmail:
+	case Type::AutoPhone:
+	case Type::BankCard:
+	case Type::MentionName:
+	case Type::FormattedDate:
+		collectTextAnchors(text.children);
+		break;
+	case Type::Diff:
+		collectTextAnchors(text.children);
+		collectTextAnchors(text.oldChildren);
+		break;
+	case Type::Empty:
+	case Type::Plain:
+	case Type::Math:
+	case Type::CustomEmoji:
+	case Type::InlineImage:
+		break;
+	}
+}
+
+void RichHtmlRenderer::collectTextAnchors(
+		const std::vector<Data::RichText> &texts) {
+	for (const auto &text : texts) {
+		collectTextAnchors(text);
+	}
+}
+
+void RichHtmlRenderer::collectCaptionAnchors(
+		const Data::RichCaption &caption) {
+	collectTextAnchors(caption.text);
+	collectTextAnchors(caption.credit);
+}
+
+void RichHtmlRenderer::collectBlockAnchors(
+		const std::vector<Data::RichBlock> &blocks) {
+	for (const auto &block : blocks) {
+		collectBlockAnchors(block);
+	}
+}
+
+void RichHtmlRenderer::collectBlockAnchors(const Data::RichBlock &block) {
+	using Content = Data::RichListItemContent;
+	using Kind = Data::RichBlock::Kind;
+	using QuoteContent = Data::RichQuoteContent;
+	switch (block.kind) {
+	case Kind::Heading:
+	case Kind::Paragraph:
+	case Kind::Footer:
+	case Kind::Thinking:
+	case Kind::AuthorDate:
+	case Kind::Code:
+		collectTextAnchors(block.text);
+		break;
+	case Kind::Anchor:
+		_blockAnchorIds.emplace(&block, registerAnchor(block.name));
+		break;
+	case Kind::List:
+		for (const auto &item : block.listItems) {
+			switch (item.content) {
+			case Content::Text:
+				if (item.text) {
+					collectTextAnchors(*item.text);
+				}
+				break;
+			case Content::Blocks:
+				collectBlockAnchors(item.blocks);
+				break;
+			}
+		}
+		break;
+	case Kind::Quote:
+		switch (block.quoteContent) {
+		case QuoteContent::Text:
+			collectTextAnchors(block.text);
+			break;
+		case QuoteContent::Blocks:
+			collectBlockAnchors(block.blocks);
+			break;
+		}
+		collectTextAnchors(block.quoteCaption);
+		break;
+	case Kind::Photo:
+	case Kind::Video:
+	case Kind::Audio:
+	case Kind::Embed:
+	case Kind::Map:
+	case Kind::InputMap:
+		collectCaptionAnchors(block.caption);
+		break;
+	case Kind::EmbedPost:
+		collectBlockAnchors(block.blocks);
+		collectCaptionAnchors(block.caption);
+		break;
+	case Kind::Cover:
+		collectBlockAnchors(block.blocks);
+		break;
+	case Kind::Collage:
+	case Kind::Slideshow:
+		collectBlockAnchors(block.blocks);
+		collectCaptionAnchors(block.caption);
+		break;
+	case Kind::Table:
+		collectTextAnchors(block.text);
+		for (const auto &row : block.tableRows) {
+			for (const auto &cell : row.cells) {
+				if (cell.text) {
+					collectTextAnchors(*cell.text);
+				}
+			}
+		}
+		break;
+	case Kind::Details:
+		collectTextAnchors(block.text);
+		collectBlockAnchors(block.blocks);
+		break;
+	case Kind::RelatedArticles:
+		collectTextAnchors(block.text);
+		break;
+	case Kind::Unsupported:
+	case Kind::Divider:
+	case Kind::Channel:
+	case Kind::Math:
+	case Kind::Unknown:
+		break;
+	}
+}
+
+std::optional<QByteArray> RichHtmlRenderer::fragmentHref(
+		const QByteArray &target) const {
+	if (!IsStrictTarget(target) || target.front() != '#') {
+		return std::nullopt;
+	}
+	const auto i = _firstAnchorIds.find(target.mid(1));
+	return (i != end(_firstAnchorIds))
+		? std::make_optional('#' + i->second)
+		: std::nullopt;
+}
+
+std::optional<QByteArray> RichHtmlRenderer::textAnchorId(
+		const Data::RichText &text) const {
+	const auto i = _textAnchorIds.find(&text);
+	return (i != end(_textAnchorIds))
+		? std::make_optional(i->second)
+		: std::nullopt;
+}
+
+std::optional<QByteArray> RichHtmlRenderer::blockAnchorId(
+		const Data::RichBlock &block) const {
+	const auto i = _blockAnchorIds.find(&block);
+	return (i != end(_blockAnchorIds))
+		? std::make_optional(i->second)
+		: std::nullopt;
+}
+
+QByteArray RichHtmlRenderer::renderTexts(
+		const std::vector<Data::RichText> &texts) {
+	auto result = QByteArray();
+	for (const auto &text : texts) {
+		result += renderText(text);
+	}
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderTextChildren(
+		const Data::RichText &text) {
+	if (!text.children.empty()) {
+		return renderTexts(text.children);
+	}
+	auto result = _context.pushTag("span", {
+		{ "class", "rich_inline_fallback" },
+		{ "data-rich-kind", "unsupported-text" },
+		{ "inline", QByteArray() },
+	});
+	result += "Unsupported rich text";
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderTextLink(
+		const Data::RichText &text,
+		const std::optional<QByteArray> &href,
+		std::map<QByteArray, QByteArray> attributes) {
+	attributes.emplace("inline", QByteArray());
+	if (!href || _linkActive) {
+		attributes.erase("href");
+		attributes.erase("onclick");
+		attributes.emplace("class", "rich_inert_link");
+		auto result = _context.pushTag("span", std::move(attributes));
+		result += renderTextChildren(text);
+		result += _context.popTag();
+		return result;
+	}
+	attributes.emplace("href", *href);
+	auto result = _context.pushTag("a", std::move(attributes));
+	const auto previous = _linkActive;
+	_linkActive = true;
+	const auto guard = gsl::finally([&] { _linkActive = previous; });
+	result += renderTextChildren(text);
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderCustomEmojiLink(
+		const QByteArray &alt,
+		std::map<QByteArray, QByteArray> attributes) {
+	attributes.emplace("inline", QByteArray());
+	if (_linkActive) {
+		attributes.erase("href");
+		attributes.erase("onclick");
+		attributes.emplace("class", "rich_inert_link");
+		auto result = _context.pushTag("span", std::move(attributes));
+		result += alt;
+		result += _context.popTag();
+		return result;
+	}
+	auto result = _context.pushTag("a", std::move(attributes));
+	const auto previous = _linkActive;
+	_linkActive = true;
+	const auto guard = gsl::finally([&] { _linkActive = previous; });
+	result += alt;
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderText(const Data::RichText &text) {
+	using Attributes = std::map<QByteArray, QByteArray>;
+	using Type = Data::RichText::Type;
+
+	const auto wrapChildren = [this, &text](
+			const QByteArray &tag,
+			Attributes attributes) {
+		attributes.emplace("inline", QByteArray());
+		auto result = _context.pushTag(tag, std::move(attributes));
+		result += renderTextChildren(text);
+		result += _context.popTag();
+		return result;
+	};
+	switch (text.type) {
+	case Type::Empty:
+		return QByteArray();
+	case Type::Plain:
+		return SerializeString(text.text);
+	case Type::Concat:
+		return renderTexts(text.children);
+	case Type::Bold:
+		return wrapChildren("strong", {});
+	case Type::Italic:
+		return wrapChildren("em", {});
+	case Type::Underline:
+		return wrapChildren("u", {});
+	case Type::Strike:
+		return wrapChildren("s", {});
+	case Type::Fixed:
+		return wrapChildren("code", {
+			{ "class", "rich_inline_code" },
+		});
+	case Type::Url: {
+		const auto href = text.data.startsWith('#')
+			? fragmentHref(text.data)
+			: SafeHttpHref(text.data);
+		auto attributes = Attributes();
+		if (text.id) {
+			attributes.emplace(
+				"data-webpage-id",
+				Data::NumberToString(text.id));
+		}
+		return renderTextLink(text, href, std::move(attributes));
+	}
+	case Type::Email:
+		return renderTextLink(text, SafeEmailHref(text.data), {});
+	case Type::Phone:
+		return renderTextLink(text, SafePhoneHref(text.data), {});
+	case Type::Subscript:
+		return wrapChildren("sub", {});
+	case Type::Superscript:
+		return wrapChildren("sup", {});
+	case Type::Marked:
+		return wrapChildren("mark", {});
+	case Type::Anchor: {
+		auto attributes = Attributes{
+			{ "class", "rich_reference" },
+			{ "inline", QByteArray() },
+		};
+		if (const auto id = textAnchorId(text)) {
+			attributes.emplace("id", *id);
+		}
+		auto result = _context.pushTag("span", std::move(attributes));
+		result += renderTexts(text.children);
+		result += _context.popTag();
+		return result;
+	}
+	case Type::Math: {
+		auto result = _context.pushTag("span", {
+			{ "class", "rich_math_inline" },
+			{ "data-rich-kind", "inline-math" },
+			{ "dir", "ltr" },
+			{ "inline", QByteArray() },
+		});
+		result += SerializeString(text.data);
+		result += _context.popTag();
+		return result;
+	}
+	case Type::CustomEmoji: {
+		auto result = _context.pushTag("span", {
+			{ "class", "rich_custom_emoji" },
+			{ "data-document-id", Data::NumberToString(text.id) },
+			{ "inline", QByteArray() },
+		});
+		const auto alt = SerializeString(text.text);
+		const auto unavailable =
+			(text.customEmojiData == Data::TextPart::UnavailableEmoji());
+		const auto notLoaded = text.customEmojiData.isEmpty()
+			|| IsAsciiDecimal(text.customEmojiData);
+		const auto href = (unavailable || notLoaded)
+			? std::optional<QByteArray>()
+			: SafeRelativeEmojiHref(text.customEmojiData, _relativeBase);
+		if (href) {
+			result += renderCustomEmojiLink(alt, {
+				{ "href", *href },
+			});
+		} else if (unavailable || notLoaded) {
+			result += renderCustomEmojiLink(alt, {
+				{ "href", QByteArray() },
+				{ "onclick", unavailable
+					? QByteArray("return ShowNotAvailableEmoji()")
+					: QByteArray("return ShowNotLoadedEmoji()") },
+			});
+		} else {
+			result += alt;
+		}
+		result += _context.popTag();
+		return result;
+	}
+	case Type::Spoiler: {
+		auto result = _context.pushTag("span", {
+			{ "class", "spoiler hidden" },
+			{ "inline", QByteArray() },
+			{ "onclick", "ShowSpoiler(this)" },
+		});
+		result += _context.pushTag("span", {
+			{ "aria-hidden", "true" },
+			{ "inline", QByteArray() },
+		});
+		result += renderTextChildren(text);
+		result += _context.popTag();
+		result += _context.popTag();
+		return result;
+	}
+	case Type::Mention: {
+		const auto target = PlainTarget(text);
+		const auto href = target
+			? SafeMentionHref(*target, _internalLinksDomain)
+			: std::optional<QByteArray>();
+		return renderTextLink(text, href, {});
+	}
+	case Type::Hashtag:
+	case Type::BotCommand:
+	case Type::Cashtag: {
+		const auto target = PlainTarget(text);
+		const auto prefix = (text.type == Type::Hashtag)
+			? '#'
+			: (text.type == Type::BotCommand)
+			? '/'
+			: '$';
+		const auto action = target
+			? SafeActionData(*target, prefix)
+			: std::optional<QByteArray>();
+		if (!action) {
+			return renderTextLink(text, std::nullopt, {});
+		}
+		const auto attribute = (text.type == Type::BotCommand)
+			? QByteArray("data-command")
+			: QByteArray("data-tag");
+		const auto callback = (text.type == Type::Hashtag)
+			? QByteArray("return ShowHashtag(this.dataset.tag)")
+			: (text.type == Type::BotCommand)
+			? QByteArray("return ShowBotCommand(this.dataset.command)")
+			: QByteArray("return ShowCashtag(this.dataset.tag)");
+		return renderTextLink(text, QByteArray(), {
+			{ attribute, *action },
+			{ "onclick", callback },
+		});
+	}
+	case Type::AutoUrl: {
+		const auto target = PlainTarget(text);
+		const auto href = target
+			? SafeHttpHref(*target)
+			: std::optional<QByteArray>();
+		return renderTextLink(text, href, {});
+	}
+	case Type::AutoEmail: {
+		const auto target = PlainTarget(text);
+		const auto href = target
+			? SafeEmailHref(*target)
+			: std::optional<QByteArray>();
+		return renderTextLink(text, href, {});
+	}
+	case Type::AutoPhone: {
+		const auto target = PlainTarget(text);
+		const auto href = target
+			? SafePhoneHref(*target)
+			: std::optional<QByteArray>();
+		return renderTextLink(text, href, {});
+	}
+	case Type::BankCard:
+		return wrapChildren("span", {
+			{ "class", "rich_bank_card" },
+		});
+	case Type::MentionName:
+		return renderTextLink(text, QByteArray(), {
+			{ "data-user-id", Data::NumberToString(text.id) },
+			{ "onclick", "return ShowMentionName()" },
+		});
+	case Type::FormattedDate: {
+		const auto datetime = QDateTime::fromSecsSinceEpoch(text.date);
+		auto result = _context.pushTag("time", {
+			{ "class", "rich_formatted_date" },
+			{ "data-date", Data::NumberToString(text.date) },
+			{ "data-day-of-week", RichBoolAttribute(text.dayOfWeek) },
+			{ "data-long-date", RichBoolAttribute(text.longDate) },
+			{ "data-long-time", RichBoolAttribute(text.longTime) },
+			{ "data-relative", RichBoolAttribute(text.relative) },
+			{ "data-short-date", RichBoolAttribute(text.shortDate) },
+			{ "data-short-time", RichBoolAttribute(text.shortTime) },
+			{ "datetime", datetime.toString(Qt::ISODate).toUtf8() },
+			{ "dir", "ltr" },
+			{ "inline", QByteArray() },
+			{ "title", Data::FormatDateTime(text.date) },
+		});
+		result += renderTextChildren(text);
+		result += _context.popTag();
+		return result;
+	}
+	case Type::InlineImage: {
+		auto result = _context.pushTag("span", {
+			{ "class", "rich_inline_fallback" },
+			{ "data-document-id", Data::NumberToString(text.id) },
+			{ "data-rich-kind", "inline-image" },
+			{ "data-source-height", Data::NumberToString(text.height) },
+			{ "data-source-width", Data::NumberToString(text.width) },
+			{ "inline", QByteArray() },
+		});
+		result += "Inline image";
+		result += _context.popTag();
+		return result;
+	}
+	case Type::Diff: {
+		auto result = _context.pushTag("span", {
+			{ "class", "rich_diff" },
+			{ "data-rich-kind", "diff" },
+			{ "inline", QByteArray() },
+		});
+		result += renderTextChildren(text);
+		result += _context.pushTag("del", {
+			{ "class", "rich_diff_previous" },
+			{ "inline", QByteArray() },
+		});
+		result += "Previous: ";
+		if (text.oldChildren.empty()) {
+			result += _context.pushTag("span", {
+				{ "class", "rich_inline_fallback" },
+				{ "data-rich-kind", "unsupported-text" },
+				{ "inline", QByteArray() },
+			});
+			result += "Unsupported rich text";
+			result += _context.popTag();
+		} else {
+			result += renderTexts(text.oldChildren);
+		}
+		result += _context.popTag();
+		result += _context.popTag();
+		return result;
+	}
+	}
+	Unexpected("Type in RichHtmlRenderer::renderText.");
+}
+
+QByteArray RichHtmlRenderer::renderBlocks(
+		const std::vector<Data::RichBlock> &blocks) {
+	auto result = QByteArray();
+	for (const auto &block : blocks) {
+		result += renderBlock(block);
+	}
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderTextBlock(
+		const QByteArray &tag,
+		std::map<QByteArray, QByteArray> attributes,
+		const Data::RichText &text) {
+	auto result = _context.pushTag(tag, std::move(attributes));
+	result += renderText(text);
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderAuthorDate(
+		const Data::RichBlock &block) {
+	auto attributes = RichBlockAttributes("rich_author_date", "author-date");
+	attributes.emplace("dir", "auto");
+	auto result = _context.pushTag("address", std::move(attributes));
+	result += renderText(block.text);
+	if (block.date) {
+		const auto datetime = QDateTime::fromSecsSinceEpoch(block.date);
+		result += " \xE2\x80\xA2 ";
+		result += _context.pushTag("time", {
+			{ "data-date", Data::NumberToString(block.date) },
+			{ "datetime", datetime.toString(Qt::ISODate).toUtf8() },
+			{ "dir", "ltr" },
+			{ "inline", QByteArray() },
+		});
+		result += SerializeString(Data::FormatDateTime(block.date));
+		result += _context.popTag();
+	}
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderCode(const Data::RichBlock &block) {
+	auto attributes = RichBlockAttributes("rich_code", "code");
+	attributes.emplace("dir", "auto");
+	attributes.emplace("inline", QByteArray());
+	if (!block.language.isEmpty()) {
+		attributes.emplace("data-language", block.language);
+	}
+	auto result = _context.pushTag("pre", std::move(attributes));
+	result += _context.pushTag("code", {
+		{ "class", "rich_code_content" },
+		{ "inline", QByteArray() },
+	});
+	result += renderText(block.text);
+	result += _context.popTag();
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderList(const Data::RichBlock &block) {
+	using Kind = Data::RichListKind;
+
+	const auto ordered = (block.listKind == Kind::Ordered);
+	auto attributes = RichBlockAttributes(
+		"rich_list",
+		ordered ? QByteArray("ordered-list") : QByteArray("list"));
+	if (ordered) {
+		if (block.orderedList.reversed) {
+			attributes.emplace("reversed", QByteArray());
+		}
+		if (block.orderedList.start) {
+			attributes.emplace(
+				"start",
+				Data::NumberToString(*block.orderedList.start));
+		}
+		if (block.orderedList.type) {
+			const auto &type = *block.orderedList.type;
+			auto native = false;
+			if (type.size() == 1) {
+				switch (type[0]) {
+				case '1':
+				case 'a':
+				case 'A':
+				case 'i':
+				case 'I':
+					native = true;
+					break;
+				}
+			}
+			attributes.emplace(
+				native ? QByteArray("type") : QByteArray("data-list-type"),
+				type);
+		}
+	}
+	auto result = _context.pushTag(
+		ordered ? QByteArray("ol") : QByteArray("ul"),
+		std::move(attributes));
+	for (const auto &item : block.listItems) {
+		result += renderListItem(item, ordered);
+	}
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderListItem(
+		const Data::RichListItem &item,
+		bool ordered) {
+	using Content = Data::RichListItemContent;
+	using State = Data::RichTaskState;
+
+	const auto task = (item.taskState != State::None);
+	const auto checked = (item.taskState == State::Checked);
+	const auto customMarker = ordered
+		&& !task
+		&& item.num
+		&& !item.num->isEmpty();
+	auto classes = QByteArray("rich_list_item");
+	if (task) {
+		classes += " rich_task_item";
+	} else if (customMarker) {
+		classes += " rich_order_item";
+	}
+	auto attributes = std::map<QByteArray, QByteArray>{
+		{ "class", std::move(classes) },
+		{ "data-rich-content", (item.content == Content::Blocks)
+			? QByteArray("blocks")
+			: QByteArray("text") },
+	};
+	if (item.num) {
+		attributes.emplace("data-num", *item.num);
+	}
+	if (item.type) {
+		attributes.emplace("data-item-type", *item.type);
+	}
+	if (item.value) {
+		attributes.emplace("value", Data::NumberToString(*item.value));
+	}
+	auto result = _context.pushTag("li", std::move(attributes));
+	if (task) {
+		result += _context.pushTag("span", {
+			{ "aria-checked", RichBoolAttribute(checked) },
+			{ "class", "rich_task_marker" },
+			{ "inline", QByteArray() },
+			{ "role", "checkbox" },
+		});
+		result += checked ? "\xE2\x98\x91" : "\xE2\x98\x90";
+		result += _context.popTag();
+	} else if (customMarker) {
+		result += _context.pushTag("span", {
+			{ "class", "rich_order_marker" },
+			{ "inline", QByteArray() },
+		});
+		result += SerializeString(*item.num);
+		result += _context.popTag();
+	}
+	result += _context.pushTag(
+		(item.content == Content::Blocks) ? "div" : "span",
+		{
+			{ "class", "rich_list_content" },
+			{ "inline", QByteArray() },
+		});
+	switch (item.content) {
+	case Content::Text:
+		if (item.text) {
+			result += renderText(*item.text);
+		}
+		break;
+	case Content::Blocks:
+		result += renderBlocks(item.blocks);
+		break;
+	}
+	result += _context.popTag();
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderQuote(const Data::RichBlock &block) {
+	using Content = Data::RichQuoteContent;
+
+	const auto kind = block.pullquote
+		? QByteArray("pullquote")
+		: (block.quoteContent == Content::Blocks)
+		? QByteArray("quote-blocks")
+		: QByteArray("quote");
+	const auto classes = block.pullquote
+		? QByteArray("rich_quote rich_pullquote")
+		: QByteArray("rich_quote");
+	auto result = _context.pushTag(
+		block.pullquote ? QByteArray("aside") : QByteArray("blockquote"),
+		RichBlockAttributes(classes, kind));
+	result += _context.pushTag("div", {
+		{ "class", "rich_quote_body" },
+	});
+	switch (block.quoteContent) {
+	case Content::Text:
+		result += renderText(block.text);
+		break;
+	case Content::Blocks:
+		result += renderBlocks(block.blocks);
+		break;
+	}
+	result += _context.popTag();
+	const auto caption = renderText(block.quoteCaption);
+	if (!caption.isEmpty()) {
+		result += _context.pushTag("cite", {
+			{ "class", "rich_quote_caption" },
+		});
+		result += caption;
+		result += _context.popTag();
+	}
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderDetails(const Data::RichBlock &block) {
+	auto attributes = RichBlockAttributes("rich_details", "details");
+	if (block.open) {
+		attributes.emplace("open", QByteArray());
+	}
+	auto result = _context.pushTag("details", std::move(attributes));
+	result += _context.pushTag("summary", {});
+	result += renderText(block.text);
+	result += _context.popTag();
+	result += _context.pushTag("div", {
+		{ "class", "rich_details_body" },
+	});
+	result += renderBlocks(block.blocks);
+	result += _context.popTag();
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderTable(const Data::RichBlock &block) {
+	auto wrapperAttributes = RichBlockAttributes("rich_table_wrap", "table");
+	wrapperAttributes.emplace("tabindex", "0");
+	auto result = _context.pushTag("div", std::move(wrapperAttributes));
+	auto classes = QByteArray("rich_table");
+	if (block.bordered) {
+		classes += " bordered";
+	}
+	if (block.striped) {
+		classes += " striped";
+	}
+	result += _context.pushTag("table", {
+		{ "class", std::move(classes) },
+	});
+	const auto caption = renderText(block.text);
+	if (!caption.isEmpty()) {
+		result += _context.pushTag("caption", {});
+		result += caption;
+		result += _context.popTag();
+	}
+	result += _context.pushTag("tbody", {});
+	for (const auto &row : block.tableRows) {
+		result += renderTableRow(row);
+	}
+	result += _context.popTag();
+	result += _context.popTag();
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderTableRow(
+		const Data::RichTableRow &row) {
+	auto result = _context.pushTag("tr", {});
+	for (const auto &cell : row.cells) {
+		result += renderTableCell(cell);
+	}
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderTableCell(
+		const Data::RichTableCell &cell) {
+	using Alignment = Data::RichTableAlignment;
+	using VerticalAlignment = Data::RichTableVerticalAlignment;
+
+	auto horizontalClass = QByteArray("rich_align_left");
+	switch (cell.alignment) {
+	case Alignment::Left:
+		break;
+	case Alignment::Center:
+		horizontalClass = "rich_align_center";
+		break;
+	case Alignment::Right:
+		horizontalClass = "rich_align_right";
+		break;
+	}
+	auto verticalClass = QByteArray("rich_valign_top");
+	switch (cell.verticalAlignment) {
+	case VerticalAlignment::Top:
+		break;
+	case VerticalAlignment::Middle:
+		verticalClass = "rich_valign_middle";
+		break;
+	case VerticalAlignment::Bottom:
+		verticalClass = "rich_valign_bottom";
+		break;
+	}
+	auto attributes = std::map<QByteArray, QByteArray>{
+		{ "class", horizontalClass + ' ' + verticalClass },
+	};
+	if (cell.colspan && *cell.colspan > 0) {
+		const auto source = *cell.colspan;
+		const auto span = (source > kRichTableSpanMax)
+			? kRichTableSpanMax
+			: source;
+		attributes.emplace("colspan", Data::NumberToString(span));
+		if (span != source) {
+			attributes.emplace(
+				"data-source-colspan",
+				Data::NumberToString(source));
+		}
+	}
+	if (cell.rowspan && *cell.rowspan > 0) {
+		const auto source = *cell.rowspan;
+		const auto span = (source > kRichTableSpanMax)
+			? kRichTableSpanMax
+			: source;
+		attributes.emplace("rowspan", Data::NumberToString(span));
+		if (span != source) {
+			attributes.emplace(
+				"data-source-rowspan",
+				Data::NumberToString(source));
+		}
+	}
+	auto result = _context.pushTag(
+		cell.header ? QByteArray("th") : QByteArray("td"),
+		std::move(attributes));
+	if (cell.text) {
+		result += renderText(*cell.text);
+	}
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderFallback(
+		const QByteArray &kind,
+		const QByteArray &label) {
+	auto result = _context.pushTag(
+		"div",
+		RichBlockAttributes("rich_fallback", kind));
+	result += SerializeString(label);
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderBlock(const Data::RichBlock &block) {
+	using Kind = Data::RichBlock::Kind;
+
+	switch (block.kind) {
+	case Kind::Unsupported:
+		return renderFallback("unsupported", "Unsupported rich content");
+	case Kind::Heading: {
+		auto attributes = RichBlockAttributes("rich_heading", "heading");
+		attributes.emplace(
+			"data-level",
+			Data::NumberToString(block.headingLevel));
+		return renderTextBlock(
+			RichHeadingTag(block.headingLevel),
+			std::move(attributes),
+			block.text);
+	}
+	case Kind::Paragraph: {
+		auto attributes = RichBlockAttributes("rich_paragraph", "paragraph");
+		attributes.emplace("dir", "auto");
+		return renderTextBlock("p", std::move(attributes), block.text);
+	}
+	case Kind::Footer: {
+		auto attributes = RichBlockAttributes("rich_footer", "footer");
+		attributes.emplace("dir", "auto");
+		return renderTextBlock("footer", std::move(attributes), block.text);
+	}
+	case Kind::Thinking: {
+		auto attributes = RichBlockAttributes("rich_thinking", "thinking");
+		attributes.emplace("dir", "auto");
+		return renderTextBlock("p", std::move(attributes), block.text);
+	}
+	case Kind::AuthorDate:
+		return renderAuthorDate(block);
+	case Kind::Code:
+		return renderCode(block);
+	case Kind::Divider: {
+		auto attributes = RichBlockAttributes("rich_divider", "divider");
+		attributes.emplace("empty", QByteArray());
+		return _context.pushTag("hr", std::move(attributes));
+	}
+	case Kind::Anchor: {
+		const auto id = blockAnchorId(block);
+		if (!id) {
+			return renderFallback("malformed", "Malformed rich content");
+		}
+		auto attributes = RichBlockAttributes("rich_anchor", "anchor");
+		attributes.emplace("id", *id);
+		attributes.emplace("inline", QByteArray());
+		auto result = _context.pushTag("span", std::move(attributes));
+		result += _context.popTag();
+		return result;
+	}
+	case Kind::List:
+		return renderList(block);
+	case Kind::Quote:
+		return renderQuote(block);
+	case Kind::Photo:
+		return renderPhoto(block);
+	case Kind::Video:
+		return renderVideo(block);
+	case Kind::Cover:
+		return renderMediaGroup(block, "cover", false);
+	case Kind::Embed:
+		return renderEmbed(block);
+	case Kind::EmbedPost:
+		return renderEmbedPost(block);
+	case Kind::Collage:
+		return renderMediaGroup(block, "collage", true);
+	case Kind::Slideshow:
+		return renderMediaGroup(block, "slideshow", true);
+	case Kind::Channel:
+		return renderChannel(block);
+	case Kind::Audio:
+		return renderAudio(block);
+	case Kind::Math: {
+		auto attributes = RichBlockAttributes("rich_math_display", "math");
+		attributes.emplace("dir", "ltr");
+		attributes.emplace("inline", QByteArray());
+		auto result = _context.pushTag("div", std::move(attributes));
+		result += SerializeString(block.formula);
+		result += _context.popTag();
+		return result;
+	}
+	case Kind::Table:
+		return renderTable(block);
+	case Kind::Details:
+		return renderDetails(block);
+	case Kind::RelatedArticles:
+		return renderRelatedArticles(block);
+	case Kind::Map:
+		return renderMap(block, "map");
+	case Kind::InputMap:
+		return renderMap(block, "input-map");
+	case Kind::Unknown:
+		return renderFallback("unknown", "Unknown rich content");
+	}
+	Unexpected("Kind in RichHtmlRenderer::renderBlock.");
+}
+
+[[nodiscard]] QByteArray RenderRichMessage(
+		Context &context,
+		const Data::RichMessage &message,
+		int messageId,
+		const QString &internalLinksDomain,
+		const QByteArray &relativeBase,
+		const RichMediaCallbacks &media) {
+	return RichHtmlRenderer(
+		context,
+		message,
+		messageId,
+		internalLinksDomain,
+		relativeBase,
+		media).renderMessage();
+}
+
+} // namespace
+
 struct HtmlWriter::MessageInfo {
 	enum class Type {
 		Service,
@@ -616,6 +2964,18 @@ private:
 		const QString &internalLinksDomain,
 		Fn<QByteArray(int messageId, QByteArray text)> wrapMessageLink);
 	[[nodiscard]] QByteArray pushGenericMedia(const MediaData &data);
+	[[nodiscard]] QByteArray pushRichPhotoMedia(
+		const Data::Photo *data,
+		const QString &basePath);
+	[[nodiscard]] QByteArray pushRichVideoMedia(
+		const Data::Document *data,
+		const QString &basePath);
+	[[nodiscard]] QByteArray pushRichAudioMedia(
+		const Data::Document *data);
+	[[nodiscard]] QByteArray pushRichReferenceMedia(
+		MediaData data,
+		const Data::Photo *photo,
+		const QString &basePath);
 	[[nodiscard]] QByteArray pushStickerMedia(
 		const Data::Document &data,
 		const QString &basePath);
@@ -1711,11 +4071,40 @@ auto HtmlWriter::Wrap::pushMessage(
 			internalLinksDomain,
 			wrapMessageLink));
 
-	const auto text = FormatText(message.text, internalLinksDomain, _base);
-	if (!text.isEmpty()) {
-		block.append(pushDiv("text"));
-		block.append(text);
-		block.append(popTag());
+	if (message.richMessage) {
+		const auto callbacks = RichMediaCallbacks{
+			.photo = [this, basePath](const Data::Photo *photo) {
+				return pushRichPhotoMedia(photo, basePath);
+			},
+			.video = [this, basePath](const Data::Document *document) {
+				return pushRichVideoMedia(document, basePath);
+			},
+			.audio = [this](const Data::Document *document) {
+				return pushRichAudioMedia(document);
+			},
+			.generic = [this](const MediaData &data) {
+				return pushGenericMedia(data);
+			},
+			.photoCard = [this, basePath](
+					const MediaData &data,
+					const Data::Photo *photo) {
+				return pushRichReferenceMedia(data, photo, basePath);
+			},
+		};
+		block.append(RenderRichMessage(
+			_context,
+			*message.richMessage,
+			message.id,
+			internalLinksDomain,
+			_base,
+			callbacks));
+	} else {
+		const auto text = FormatText(message.text, internalLinksDomain, _base);
+		if (!text.isEmpty()) {
+			block.append(pushDiv("text"));
+			block.append(text);
+			block.append(popTag());
+		}
 	}
 	if (!message.inlineButtonRows.empty()) {
 		using Type = HistoryMessageMarkupButton::Type;
@@ -1739,7 +4128,11 @@ auto HtmlWriter::Wrap::pushMessage(
 					? button.data
 					: QByteArray();
 				const auto onclick = (button.type != Type::Url)
-					? ("return ShowTextCopied('" + content + "');").toUtf8()
+					? ("return ShowTextCopied('"
+							+ QString(content)
+								.replace('\\', u"\\\\"_q)
+								.replace('\'', u"\\'"_q)
+							+ "');").toUtf8()
 					: QByteArray();
 				block.append(pushTag("div", { { "class", "bot_button" } }));
 				block.append(pushTag("a", {
@@ -1749,7 +4142,7 @@ auto HtmlWriter::Wrap::pushMessage(
 						: Attribute{ "onclick", onclick },
 				}));
 				block.append(pushTag("div"));
-				block.append(button.text.toUtf8());
+				block.append(SerializeString(button.text.toUtf8()));
 				block.append(popTag());
 				block.append(popTag());
 				block.append(popTag());
@@ -2189,6 +4582,51 @@ QByteArray HtmlWriter::Wrap::pushPhotoMedia(
 	return result;
 }
 
+QByteArray HtmlWriter::Wrap::pushRichPhotoMedia(
+		const Data::Photo *data,
+		const QString &basePath) {
+	const auto presentation = RichPhotoPresentation(data);
+	return pushPhotoMedia(presentation, basePath);
+}
+
+QByteArray HtmlWriter::Wrap::pushRichVideoMedia(
+		const Data::Document *data,
+		const QString &basePath) {
+	auto presentation = RichDocumentPresentation(data);
+	const auto &thumbPath = presentation.thumb.file.relativePath;
+	if (!thumbPath.isEmpty()) {
+		QImageReader reader(basePath + thumbPath);
+		if (!reader.canRead() || reader.read().isNull()) {
+			presentation.thumb.file.relativePath.clear();
+		}
+	}
+	return pushVideoFileMedia(presentation, basePath);
+}
+
+QByteArray HtmlWriter::Wrap::pushRichAudioMedia(
+		const Data::Document *data) {
+	const auto presentation = RichDocumentPresentation(data);
+	return pushGenericMedia(PrepareAudioMediaData(presentation));
+}
+
+QByteArray HtmlWriter::Wrap::pushRichReferenceMedia(
+		MediaData data,
+		const Data::Photo *photo,
+		const QString &basePath) {
+	const auto presentation = RichPhotoPresentation(photo);
+	const auto &path = presentation.image.file.relativePath;
+	data.link = path;
+	data.thumb = path.isEmpty()
+		? QString()
+		: Data::WriteImageThumb(
+			basePath,
+			path,
+			kEntryUserpicSize * 2,
+			kEntryUserpicSize * 2,
+			u"_rich_card_thumb"_q);
+	return pushGenericMedia(data);
+}
+
 QByteArray HtmlWriter::Wrap::pushPoll(
 		const Data::Poll &data,
 		const QString &internalLinksDomain,
@@ -2585,17 +5023,7 @@ MediaData HtmlWriter::Wrap::prepareMediaData(
 		} else if (data.isVideoFile) {
 			// At least try to pushVideoFileMedia.
 		} else if (data.isAudioFile) {
-			result.title = (!data.songPerformer.isEmpty()
-				&& !data.songTitle.isEmpty())
-				? (data.songPerformer + " \xe2\x80\x93 " + data.songTitle)
-				: !data.name.isEmpty()
-				? data.name
-				: QByteArray("Audio file");
-			result.status = FormatDuration(data.duration);
-			if (!hasFile) {
-				result.status += ", " + FormatFileSize(data.file.size);
-			}
-			result.classes = "media_audio_file";
+			result = PrepareAudioMediaData(data);
 		} else {
 			result.title = data.name.isEmpty()
 				? QByteArray("File")

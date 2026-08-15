@@ -142,7 +142,9 @@ namespace {
 	return result.trimmed();
 }
 
-[[nodiscard]] QString ExternalLinkDisplayText(const PreparedLink &link) {
+} // namespace
+
+QString ExternalLinkDisplayText(const PreparedLink &link) {
 	if (link.entityType == EntityType::Email) {
 		return link.target;
 	}
@@ -153,7 +155,36 @@ namespace {
 	return good.isValid() ? good.toDisplayString() : link.target;
 }
 
-} // namespace
+std::optional<EntityLinkData> ExternalEntityLinkData(
+		const PreparedLink &link) {
+	if (link.kind != PreparedLinkKind::External || link.target.isEmpty()) {
+		return std::nullopt;
+	}
+	switch (link.entityType) {
+	case EntityType::Url:
+	case EntityType::CustomUrl:
+	case EntityType::Email:
+		return EntityLinkData{
+			.text = !link.copyText.isEmpty() ? link.copyText : link.target,
+			.data = link.target,
+			.type = link.entityType,
+			.shown = link.shown,
+		};
+	default:
+		return std::nullopt;
+	}
+}
+
+QString TooltipForPreparedLink(const PreparedLink &link) {
+	if (link.kind != PreparedLinkKind::External
+		&& link.kind != PreparedLinkKind::InstantViewPage) {
+		return QString();
+	} else if (link.entityType == EntityType::CustomUrl
+		|| link.shown == EntityLinkShown::Partial) {
+		return ExternalLinkDisplayText(link);
+	}
+	return QString();
+}
 
 void NormalizePreparedUrlLink(PreparedLink *result, const QString &target) {
 	if (!result) {
@@ -176,10 +207,16 @@ void NormalizePreparedUrlLink(PreparedLink *result, const QString &target) {
 void FinalizePreparedUrlLink(
 		PreparedLink *link,
 		QStringView renderedText) {
-	if (!link || link->entityType != EntityType::Url) {
+	if (!link
+		|| (link->entityType != EntityType::Url
+			&& link->entityType != EntityType::Email)) {
 		return;
 	}
 	if (renderedText == QStringView(ExternalLinkDisplayText(*link))) {
+		return;
+	}
+	if (link->entityType == EntityType::Email) {
+		link->shown = EntityLinkShown::Partial;
 		return;
 	}
 	if (UrlClickHandler::EncodeForOpening(renderedText.toString())

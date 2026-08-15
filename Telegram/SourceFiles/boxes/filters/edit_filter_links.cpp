@@ -154,16 +154,19 @@ void ChatFilterLinkBox(
 		labelField->setFocusFast();
 	});
 
-	const auto &saveLabel = link.isEmpty()
-		? tr::lng_formatting_link_create
-		: tr::lng_settings_save;
-	box->addButton(saveLabel(), [=] {
+	const auto save = [=] {
 		session->data().chatsFilters().edit(
 			data.id,
 			data.url,
 			labelField->getLastText().trimmed());
 		box->closeBox();
-	});
+	};
+	labelField->submits() | rpl::on_next(save, labelField->lifetime());
+
+	const auto &saveLabel = link.isEmpty()
+		? tr::lng_formatting_link_create
+		: tr::lng_settings_save;
+	box->addButton(saveLabel(), save);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 

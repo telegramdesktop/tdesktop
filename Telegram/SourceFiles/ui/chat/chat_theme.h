@@ -287,6 +287,8 @@ struct BackgroundImageFields {
 	int rotation);
 [[nodiscard]] ChatThemeBackground PrepareBackgroundImage(
 	const ChatThemeBackgroundData &data);
+[[nodiscard]] QImage PrepareBubblesBackground(
+	const ChatThemeBubblesData &data);
 [[nodiscard]] QImage PrepareGiftSymbol(
 	const std::unique_ptr<Text::CustomEmoji> &emoji);
 

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "data/business/data_shortcut_messages.h"
 #include "data/components/scheduled_messages.h"
+#include "data/notify/data_notify_settings.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_document.h"
@@ -377,6 +378,11 @@ void Histories::requestDialogEntry(not_null<Data::Folder*> folder) {
 void Histories::requestDialogEntry(
 		not_null<History*> history,
 		Fn<void()> callback) {
+	if (const auto channel = history->peer->asChannel()) {
+		if (channel->isCommunity()) {
+			return;
+		}
+	}
 	const auto i = _dialogRequests.find(history);
 	if (i != end(_dialogRequests)) {
 		if (callback) {
@@ -491,6 +497,15 @@ void Histories::applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs) {
 		}, [&](const MTPDdialogFolder &data) {
 			const auto folder = _owner->processFolder(data.vfolder());
 			folder->applyDialog(data);
+		}, [&](const MTPDdialogCommunity &data) {
+			const auto channelId = ChannelId(data.vcommunity_id().v);
+			if (const auto channel = _owner->channelLoaded(channelId)) {
+				if (channel->isCommunity()) {
+					_owner->notifySettings().apply(
+						peerFromChannel(channelId),
+						data.vnotify_settings());
+				}
+			}
 		});
 	}
 	_owner->sendHistoryChangeNotifications();

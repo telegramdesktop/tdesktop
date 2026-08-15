@@ -247,16 +247,15 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 	}
 }
 
-[[nodiscard]] QImage PrepareBubblesBackground(
-		const ChatThemeBubblesData &data) {
+} // namespace
+
+QImage PrepareBubblesBackground(const ChatThemeBubblesData &data) {
 	if (data.colors.size() < 2) {
 		return QImage();
 	}
 	constexpr auto kSize = 512;
 	return Images::GenerateLinearGradient(QSize(kSize, kSize), data.colors);
 }
-
-} // namespace
 
 bool operator==(const ChatThemeBackground &a, const ChatThemeBackground &b) {
 	return (a.key == b.key)
@@ -551,7 +550,10 @@ void ChatTheme::setBubblesBackground(QImage image) {
 			: _bubblesBackground.area),
 	});
 	if (!_bubblesBackgroundPattern) {
-		_bubblesBackgroundPattern = PrepareBubblePattern(palette());
+		const auto use = _palette
+			? _palette.get()
+			: style::main_palette::get().get();
+		_bubblesBackgroundPattern = PrepareBubblePattern(use);
 	}
 	_bubblesBackgroundPattern->pixmap = _bubblesBackground.pixmap;
 	// setBubblesBackground called only from background thread.

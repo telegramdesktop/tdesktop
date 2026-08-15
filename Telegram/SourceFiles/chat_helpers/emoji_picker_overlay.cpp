@@ -7,12 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/emoji_picker_overlay.h"
 
+#include "chat_helpers/emoji_keywords.h"
+#include "chat_helpers/stickers_list_footer.h"
+#include "core/application.h"
+#include "lang/lang_keys.h"
 #include "ui/abstract_button.h"
+#include "ui/controls/tabbed_search.h"
 #include "ui/emoji_config.h"
 #include "ui/painter.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/scroll_area.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_emoji_picker_overlay.h"
 
 #include <QtCore/QEvent>
 #include <QtGui/QMouseEvent>
@@ -442,6 +448,8 @@ EmojiPickerOverlay::EmojiPickerOverlay(
 			object_ptr<Grid>(_scroll.get(), this));
 		_grid = gridPtr.data();
 		_grid->setEmojis(_allForGrid);
+
+		setupSearch();
 	}
 
 	_selectedVar = _selectedList;
@@ -487,6 +495,58 @@ EmojiPickerOverlay::selectedValue() const {
 	return _selectedVar.value();
 }
 
+void EmojiPickerOverlay::setupSearch() {
+	_search = Ui::CreateChild<Ui::SearchWithGroups>(
+		this,
+		Ui::SearchDescriptor{
+			.st = st::defaultTabbedSearch,
+			.groups = rpl::single(std::vector<Ui::EmojiGroup>()),
+		});
+	_search->hide();
+
+	_notFound = Ui::CreateChild<Ui::FlatLabel>(
+		this,
+		tr::lng_emoji_nothing_found(tr::now),
+		st::stickersEmojiPickerAbout);
+	_notFound->hide();
+
+	_search->queryValue(
+	) | rpl::on_next([=](std::vector<QString> query) {
+		applySearchQuery(std::move(query));
+	}, _search->lifetime());
+
+	Core::App().emojiKeywords().refreshed(
+	) | rpl::on_next([=] {
+		if (!_query.empty()) {
+			refreshGridEmojis();
+		}
+	}, lifetime());
+}
+
+void EmojiPickerOverlay::applySearchQuery(std::vector<QString> query) {
+	if (_query == query) {
+		return;
+	}
+	_query = std::move(query);
+	refreshGridEmojis();
+}
+
+void EmojiPickerOverlay::refreshGridEmojis() {
+	if (!_grid) {
+		return;
+	}
+	auto found = base::flat_set<EmojiPtr>();
+	auto list = _query.empty()
+		? _allForGrid
+		: SearchEmoji(_query, found);
+	_nothingFound = list.empty() && !_query.empty();
+	_grid->setEmojis(std::move(list));
+	if (_scroll) {
+		_scroll->scrollToY(0);
+	}
+	relayout();
+}
+
 void EmojiPickerOverlay::setExpanded(bool expanded) {
 	if (!_allowExpand || _expanded.current() == expanded) {
 		return;
@@ -495,6 +555,10 @@ void EmojiPickerOverlay::setExpanded(bool expanded) {
 	_expanded = expanded;
 	if (_expandButton) {
 		_expandButton->update();
+	}
+	if (_search && !expanded) {
+		_search->cancel();
+		_search->returnFocus();
 	}
 }
 
@@ -597,6 +661,19 @@ void EmojiPickerOverlay::mousePressEvent(QMouseEvent *e) {
 	}
 }
 
+void EmojiPickerOverlay::keyPressEvent(QKeyEvent *e) {
+	if (e->key() == Qt::Key_Escape && _expanded.current()) {
+		if (!_query.empty()) {
+			_search->cancel();
+		} else {
+			setExpanded(false);
+		}
+		e->accept();
+		return;
+	}
+	RpWidget::keyPressEvent(e);
+}
+
 int EmojiPickerOverlay::tailHeight() const {
 	return st::stickersEmojiPickerStripBubble.height();
 }
@@ -635,24 +712,45 @@ void EmojiPickerOverlay::relayout() {
 		_expandButton->moveToLeft(bx, by);
 	}
 
+	const auto contentLeft = bubble.left() + pad.left();
+	const auto contentWidth = bubble.width() - pad.left() - pad.right();
+	const auto bubbleBottom = bubble.top() + bubbleShown;
+	auto contentTop = stripTop + stripH;
+	if (_search) {
+		const auto searchHeight = st::defaultTabbedSearch.height;
+		_search->resizeToWidth(contentWidth);
+		_search->moveToLeft(contentLeft, contentTop);
+		const auto fits = (contentTop + searchHeight + pad.bottom()
+			<= bubbleBottom);
+		if (_search->isHidden() == fits) {
+			_search->setVisible(fits);
+			if (fits && _expanded.current()) {
+				_search->stealFocus();
+			}
+		}
+		contentTop += searchHeight + st::stickersEmojiPickerSearchSkip;
+	}
+
 	if (_scroll) {
-		const auto scrollTop = stripTop + stripH;
-		const auto bubbleBottom = bubble.top() + bubbleShown;
+		const auto scrollTop = contentTop;
 		const auto scrollH = std::max(
 			0,
 			bubbleBottom - scrollTop - pad.bottom());
-		const auto scrollContentWidth = bubble.width()
-			- pad.left()
-			- pad.right();
-		const auto scrollAreaWidth = scrollContentWidth
-			+ pad.right();
+		const auto scrollAreaWidth = contentWidth + pad.right();
 		_scroll->setGeometry(
-			bubble.left() + pad.left(),
+			contentLeft,
 			scrollTop,
 			scrollAreaWidth,
 			scrollH);
 		if (_grid) {
-			_grid->resizeGetHeight(scrollContentWidth);
+			_grid->resizeGetHeight(contentWidth);
+		}
+		if (_notFound) {
+			_notFound->setVisible(_nothingFound && (scrollH > 0));
+			_notFound->resizeToWidth(contentWidth);
+			_notFound->moveToLeft(
+				contentLeft,
+				scrollTop + (scrollH - _notFound->height()) / 2);
 		}
 	}
 }
@@ -674,7 +772,7 @@ void EmojiPickerOverlay::toggleEmoji(EmojiPtr emoji, bool fromGrid) {
 		_selectedList.push_back(emoji);
 	}
 	notifySelectionChanged();
-	if (fromGrid) {
+	if (fromGrid && _query.empty()) {
 		setExpanded(false);
 	}
 }

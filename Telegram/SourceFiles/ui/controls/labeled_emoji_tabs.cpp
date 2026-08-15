@@ -14,7 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "styles/style_basic.h"
-#include "styles/style_boxes.h"
+#include "styles/style_compose_ai_box.h"
+#include "styles/style_labeled_emoji_tabs.h"
+#include "styles/style_widgets.h"
 
 #include <algorithm>
 #include <cmath>
@@ -526,9 +528,10 @@ LabeledEmojiScrollTabs::LabeledEmojiScrollTabs(
 			auto p = QPainter(corner);
 			PainterHighQualityEnabler hq(p);
 			const auto width = corner->width();
-			const auto height = corner->height();
+			const auto height = corner->height()
+				+ (_paintBottomOuterCorners ? 0 : width);
 			auto mask = QPainterPath();
-			mask.addRect(0, 0, width, height);
+			mask.addRect(0, 0, width, corner->height());
 			auto rounded = QPainterPath();
 			if (left) {
 				rounded.addRoundedRect(0, 0, width * 2, height, width, width);
@@ -582,6 +585,15 @@ void LabeledEmojiScrollTabs::setPaintOuterCorners(bool paint) {
 	_paintOuterCorners = paint;
 	_cornerLeft->setVisible(paint);
 	_cornerRight->setVisible(paint);
+}
+
+void LabeledEmojiScrollTabs::setPaintBottomOuterCorners(bool paint) {
+	if (_paintBottomOuterCorners == paint) {
+		return;
+	}
+	_paintBottomOuterCorners = paint;
+	_cornerLeft->update();
+	_cornerRight->update();
 }
 
 void LabeledEmojiScrollTabs::scrollToActive() {

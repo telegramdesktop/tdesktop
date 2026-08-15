@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 
 namespace Ui {
-class ScrollArea;
+class ElasticScroll;
 class PlainShadow;
 class FlatButton;
 class IconButton;
@@ -86,7 +86,7 @@ private:
 	void updateScrollDownPosition();
 	void startScrollDownButtonAnimation(bool shown);
 
-	object_ptr<Ui::ScrollArea> _scroll;
+	object_ptr<Ui::ElasticScroll> _scroll;
 	QPointer<InnerWidget> _inner;
 	object_ptr<FixedBar> _fixedBar;
 	object_ptr<Ui::PlainShadow> _fixedBarShadow;

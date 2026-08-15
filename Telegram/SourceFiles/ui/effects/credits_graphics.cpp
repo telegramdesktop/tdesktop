@@ -39,7 +39,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_intro.h" // introFragmentIcon.
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
-#include "styles/style_widgets.h"
 
 #include <QtSvg/QSvgRenderer>
 

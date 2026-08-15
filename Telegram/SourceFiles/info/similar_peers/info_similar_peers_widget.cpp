@@ -26,7 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/sections/settings_premium.h"
 #include "window/window_session_controller.h"
 #include "styles/style_info.h"
-#include "styles/style_widgets.h"
 
 namespace Info::SimilarPeers {
 namespace {
@@ -34,7 +33,7 @@ namespace {
 class ListController final : public PeerListController {
 public:
 	ListController(
-		not_null<Controller*> controller,
+		not_null<AbstractController*> controller,
 		not_null<PeerData*> peer);
 
 	Main::Session &session() const override;
@@ -60,7 +59,7 @@ private:
 
 	struct SavedState : SavedStateBase {
 	};
-	const not_null<Controller*> _controller;
+	const not_null<AbstractController*> _controller;
 	const not_null<PeerData*> _peer;
 	Ui::RpWidget *_content = nullptr;
 	Ui::RpWidget *_unlock = nullptr;
@@ -69,7 +68,7 @@ private:
 };
 
 ListController::ListController(
-	not_null<Controller*> controller,
+	not_null<AbstractController*> controller,
 	not_null<PeerData*> peer)
 : PeerListController()
 , _controller(controller)
@@ -273,7 +272,7 @@ class InnerWidget final
 public:
 	InnerWidget(
 		QWidget *parent,
-		not_null<Controller*> controller,
+		not_null<AbstractController*> controller,
 		not_null<PeerData*> peer);
 
 	[[nodiscard]] not_null<PeerData*> peer() const {
@@ -315,7 +314,7 @@ private:
 		not_null<ListController*> controller);
 
 	const std::shared_ptr<Main::SessionShow> _show;
-	not_null<Controller*> _controller;
+	not_null<AbstractController*> _controller;
 	const not_null<PeerData*> _peer;
 	std::unique_ptr<ListController> _listController;
 	object_ptr<ListWidget> _list;
@@ -326,7 +325,7 @@ private:
 
 InnerWidget::InnerWidget(
 	QWidget *parent,
-	not_null<Controller*> controller,
+	not_null<AbstractController*> controller,
 	not_null<PeerData*> peer)
 : RpWidget(parent)
 , _show(controller->uiShow())
@@ -437,6 +436,13 @@ void InnerWidget::peerListSetDescription(
 
 std::shared_ptr<Main::SessionShow> InnerWidget::peerListUiShow() {
 	return _show;
+}
+
+object_ptr<Ui::RpWidget> MakeSimilarPeersInner(
+		QWidget *parent,
+		not_null<AbstractController*> controller,
+		not_null<PeerData*> peer) {
+	return object_ptr<InnerWidget>(parent, controller, peer);
 }
 
 Memento::Memento(not_null<PeerData*> peer)

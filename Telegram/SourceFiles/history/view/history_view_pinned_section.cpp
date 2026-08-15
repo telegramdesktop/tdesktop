@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_view_swipe_back_session.h"
 #include "ui/boxes/confirm_box.h"
-#include "ui/widgets/scroll_area.h"
+#include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
 #include "ui/layers/generic_box.h"
@@ -55,8 +55,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
-#include "styles/style_info.h"
-#include "styles/style_boxes.h"
 
 #include <QtCore/QMimeData>
 
@@ -114,10 +112,9 @@ PinnedWidget::PinnedWidget(
 , _topBar(this, controller)
 , _topBarShadow(this)
 , _translateBar(std::make_unique<TranslateBar>(this, controller, _history))
-, _scroll(std::make_unique<Ui::ScrollArea>(
+, _scroll(std::make_unique<Ui::ElasticScroll>(
 	this,
-	controller->chatStyle()->value(lifetime(), st::historyScroll),
-	false))
+	controller->chatStyle()->value(lifetime(), st::historyScroll)))
 , _clearButton(std::make_unique<Ui::FlatButton>(
 	this,
 	QString(),
@@ -175,12 +172,20 @@ PinnedWidget::PinnedWidget(
 		updateAdaptiveLayout();
 	}, lifetime());
 
+	_scroll->setHandleTouch(false);
 	_inner = _scroll->setOwnedWidget(object_ptr<ListWidget>(
 		this,
 		&controller->session(),
 		static_cast<ListDelegate*>(this)));
+	_inner->lower();
 	_scroll->move(0, _topBar->height());
 	_scroll->show();
+	_scroll->setOverscrollBg(QColor(0, 0, 0, 0));
+	_scroll->setOverscrollEdges([=] {
+		return _inner->loadedAtTopKnown() && _inner->loadedAtTop();
+	}, [=] {
+		return _inner->loadedAtBottomKnown() && _inner->loadedAtBottom();
+	});
 	_scroll->scrolls(
 	) | rpl::on_next([=] {
 		onScroll();
@@ -508,7 +513,7 @@ void PinnedWidget::updateControlsGeometry() {
 
 	const auto newScrollTop = _scroll->isHidden()
 		? std::nullopt
-		: base::make_optional(_scroll->scrollTop() + topDelta());
+		: base::make_optional(_scroll->scrollTop() + takeTopDelta());
 	_topBar->resizeToWidth(contentWidth);
 	_topBarShadow->resize(contentWidth, st::lineWidth);
 
@@ -672,7 +677,7 @@ bool PinnedWidget::listAllowsMultiSelect() {
 
 bool PinnedWidget::listIsItemGoodForSelection(
 		not_null<HistoryItem*> item) {
-	return item->isRegular() && !item->isService();
+	return item->canBeSelected();
 }
 
 bool PinnedWidget::listIsLessInOrder(
@@ -820,7 +825,7 @@ void PinnedWidget::listAddTranslatedItems(
 	not_null<TranslateTracker*> tracker) {
 }
 
-Ui::ScrollArea *PinnedWidget::listScrollArea() const {
+Ui::ElasticScroll *PinnedWidget::listScrollArea() const {
 	return _scroll.get();
 }
 

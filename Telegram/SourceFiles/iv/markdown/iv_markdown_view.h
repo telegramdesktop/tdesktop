@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/markdown/iv_markdown_prepare.h"
 
 #include <memory>
+#include <vector>
 
 namespace Ui {
 class RpWidget;
@@ -48,5 +49,22 @@ void ScrollMarkdownPreviewToY(
 [[nodiscard]] int MarkdownPreviewScrollTop(Ui::RpWidget *preview);
 [[nodiscard]] rpl::producer<int> MarkdownPreviewScrollTopValue(
 	Ui::RpWidget *preview);
+
+struct MarkdownArticleSearchMatch;
+struct MarkdownArticleSearchSource;
+
+[[nodiscard]] auto MarkdownPreviewSearchSources(Ui::RpWidget *preview)
+-> std::vector<MarkdownArticleSearchSource>;
+bool ExpandMarkdownPreviewDetails(
+	Ui::RpWidget *preview,
+	const QString &anchorId);
+void ScrollMarkdownPreviewToSegment(
+	Ui::RpWidget *preview,
+	int segmentIndex,
+	int topMargin);
+void SetMarkdownPreviewSearchMatches(
+	Ui::RpWidget *preview,
+	std::vector<MarkdownArticleSearchMatch> matches,
+	int current);
 
 } // namespace Iv::Markdown

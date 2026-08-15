@@ -47,6 +47,8 @@ class Row;
 class IndexedList;
 class MainList;
 
+extern const char kOptionDialogsUnreadOnTop[];
+
 [[nodiscard]] BadgesState BadgesForUnread(
 	const UnreadState &state,
 	CountInBadge count = CountInBadge::Default,
@@ -200,6 +202,7 @@ private:
 	virtual void changedChatListPinHook();
 	void pinnedIndexChanged(FilterId filterId, int was, int now);
 	[[nodiscard]] uint64 computeSortPosition(FilterId filterId) const;
+	[[nodiscard]] bool hasUnreadUnmutedForSort() const;
 
 	void setChatListExistence(bool exists);
 	not_null<Row*> mainChatListLink(FilterId filterId) const;

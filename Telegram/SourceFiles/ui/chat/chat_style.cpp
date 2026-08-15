@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_style.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_polls.h"
 #include "styles/style_widgets.h"
@@ -224,6 +225,7 @@ ChatStyle::ChatStyle(rpl::producer<ColorIndicesCompressed> colorIndices) {
 		st::historyViewsSendingInvertedIcon);
 	make(_historyPinInvertedIcon, st::historyPinInvertedIcon);
 	make(_historySilentInvertedIcon, st::historySilentInvertedIcon);
+	make(_historyEphemeralInvertedIcon, st::historyEphemeralInvertedIcon);
 	make(_historySendingIcon, st::historySendingIcon);
 	make(_historySendingInvertedIcon, st::historySendingInvertedIcon);
 	make(_historySentInvertedIcon, st::historySentInvertedIcon);
@@ -408,6 +410,12 @@ ChatStyle::ChatStyle(rpl::producer<ColorIndicesCompressed> colorIndices) {
 		st::historyPsaIconInSelected,
 		st::historyPsaIconOut,
 		st::historyPsaIconOutSelected);
+	make(
+		&MessageStyle::historyEphemeralIcon,
+		st::historyEphemeralIconIn,
+		st::historyEphemeralIconInSelected,
+		st::historyEphemeralIconOut,
+		st::historyEphemeralIconOutSelected);
 	make(
 		&MessageStyle::historyCommentsOpen,
 		st::historyCommentsOpenIn,
@@ -1281,6 +1289,7 @@ void ChatStyle::make(
 	make(my.heading4, original.heading4);
 	make(my.heading5, original.heading5);
 	make(my.heading6, original.heading6);
+	make(my.footer, original.footer);
 	make(my.code, original.code);
 	make(my.list, original.list);
 	make(my.quotePaintColors, original.quotePaintColors);

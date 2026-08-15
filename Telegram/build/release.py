@@ -250,6 +250,7 @@ files.append({
 })
 
 r = requests.get(url + 'repos/telegramdesktop/tdesktop/releases/tags/v' + version)
+
 if r.status_code == 404:
   print('Release not found, creating.')
   if commit == '':

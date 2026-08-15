@@ -902,6 +902,9 @@ public:
 	void channelDifferenceTooLong(not_null<ChannelData*> channel);
 	[[nodiscard]] rpl::producer<not_null<ChannelData*>> channelDifferenceTooLong() const;
 
+	[[nodiscard]] auto communityAdminPromotions() const
+	-> rpl::producer<not_null<ChannelData*>>;
+
 	void registerItemView(not_null<ViewElement*> view);
 	void unregisterItemView(not_null<ViewElement*> view);
 
@@ -931,6 +934,7 @@ public:
 	};
 	void refreshChatListEntry(Dialogs::Key key);
 	void removeChatListEntry(Dialogs::Key key);
+	void refreshChatListUnreadOnTop();
 	[[nodiscard]] auto chatListEntryRefreshes() const
 		-> rpl::producer<ChatListEntryRefresh>;
 
@@ -1042,6 +1046,10 @@ private:
 	void applyDialog(
 		Folder *requestFolder,
 		const MTPDdialogFolder &data);
+	void applyDialog(
+		Folder *requestFolder,
+		const MTPDdialogCommunity &data);
+	void checkPinnedCommunityLoaded(not_null<ChannelData*> channel);
 
 	const Messages *messagesList(PeerId peerId) const;
 	not_null<Messages*> messagesListForInsert(PeerId peerId);
@@ -1308,6 +1316,7 @@ private:
 	rpl::event_stream<not_null<WebPageData*>> _webpageUpdates;
 	rpl::event_stream<not_null<PollData*>> _pollUpdates;
 	rpl::event_stream<not_null<ChannelData*>> _channelDifferenceTooLong;
+	rpl::event_stream<not_null<ChannelData*>> _communityAdminPromotions;
 	rpl::event_stream<not_null<PhotoData*>> _photoLoadProgress;
 	rpl::event_stream<not_null<DocumentData*>> _documentLoadProgress;
 	base::flat_set<not_null<ChannelData*>> _suggestToGigagroup;
@@ -1346,6 +1355,8 @@ private:
 	std::optional<base::flat_map<
 		not_null<ChannelData*>,
 		ChannelId>> _postponedMonoforumLinkedIds;
+
+	base::flat_set<ChannelId> _pinnedCommunitiesNotLoaded;
 
 	// This one from `channel`, not `channelFull`.
 	base::flat_map<not_null<const ChannelData*>, int> _commonStarsPerMessage;

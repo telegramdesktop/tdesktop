@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "main/main_app_config.h"
 #include "main/session/send_as_peers.h"
 #include "data/components/credits.h"
@@ -308,6 +309,19 @@ PossibleItemReactionsRef LookupPossibleReactions(
 				std::rotate(begin(result.recent), i, i + 1);
 			}
 		};
+		if (!limited) {
+			const auto &extra = session->settings().extraFavoriteReactions();
+			for (const auto &id : extra | ranges::views::reverse) {
+				if (id.custom()
+					&& result.customAllowed
+					&& !ranges::contains(result.recent, id, &Reaction::id)) {
+					if (const auto temp = reactions->lookupTemporary(id)) {
+						result.recent.insert(begin(result.recent), temp);
+					}
+				}
+				toFront(id);
+			}
+		}
 		toFront(reactions->favoriteId());
 		if (paidInFront) {
 			toFront(ReactionId::Paid());

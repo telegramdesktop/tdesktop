@@ -152,6 +152,12 @@ namespace {
 
 } // namespace
 
+QString CollapsedRowAccessibilityName(not_null<Data::Folder*> folder) {
+	return tr::lng_sr_chat_folder(tr::now)
+		+ u" "_q
+		+ folder->chatListName();
+}
+
 QString RowAccessibilityName(
 		not_null<const Row*> row,
 		FilterId filterId) {

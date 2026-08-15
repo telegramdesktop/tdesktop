@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/mac/touchbar/mac_touchbar_common.h"
 #include "styles/style_basic.h"
 #include "styles/style_settings.h"
+#include "styles/style_settings_premium.h"
 #include "ui/widgets/fields/input_field.h"
 #include "window/section_widget.h"
 #include "window/window_controller.h"

@@ -1,0 +1,37 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "settings/settings.style";
+
+filterInviteButtonStyle: TextStyle(defaultTextStyle) {
+	font: font(13px semibold);
+}
+filterInviteButtonBadgeStyle: TextStyle(defaultTextStyle) {
+	font: font(12px semibold);
+}
+filterInviteButtonBadgePadding: margins(5px, 0px, 5px, 2px);
+filterInviteButtonBadgeSkip: 5px;
+filterLinkTitlePadding: margins(0px, 15px, 0px, 17px);
+filterLinkAbout: FlatLabel(defaultFlatLabel) {
+	style: filterLinkAboutTextStyle;
+	align: align(top);
+	minWidth: 190px;
+}
+filterLinkAboutTop: 170px;
+filterLinkAboutBottom: 15px;
+filterLinkPreview: 96px;
+filterLinkPreviewRadius: 13px;
+filterLinkPreviewTop: 30px;
+filterLinkPreviewColumn: 65px;
+filterLinkPreviewAllBottom: 18px;
+filterLinkPreviewAllTop: 15px;
+filterLinkPreviewMyBottom: 74px;
+filterLinkPreviewMyTop: 71px;
+filterLinkPreviewChatSize: 36px;
+filterLinkPreviewChatSkip: 10px;
+filterLinkPreviewBadgeLeft: 40px;
+filterLinkPreviewBadgeTop: 38px;

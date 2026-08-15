@@ -298,15 +298,8 @@ bool FFMpegReaderImplementation::start(Mode mode, crl::time &positionMs) {
 		return false;
 	}
 
-	auto rotateTag = av_dict_get(_fmtContext->streams[_streamId]->metadata, "rotate", nullptr, 0);
-	if (rotateTag && *rotateTag->value) {
-		auto stringRotateTag = QString::fromUtf8(rotateTag->value);
-		auto toIntSucceeded = false;
-		auto rotateDegrees = stringRotateTag.toInt(&toIntSucceeded);
-		if (toIntSucceeded) {
-			_rotation = rotationFromDegrees(rotateDegrees);
-		}
-	}
+	_rotation = rotationFromDegrees(FFmpeg::ReadRotationFromMetadata(
+		_fmtContext->streams[_streamId]));
 
 	_codecContext = avcodec_alloc_context3(nullptr);
 	if (!_codecContext) {

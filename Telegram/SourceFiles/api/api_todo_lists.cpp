@@ -38,6 +38,7 @@ void TodoLists::create(
 		SendAction action,
 		Fn<void()> done,
 		Fn<void(QString)> fail) {
+	StripEphemeralReply(_session, action.replyTo);
 	_session->api().sendAction(action);
 
 	const auto history = action.history;

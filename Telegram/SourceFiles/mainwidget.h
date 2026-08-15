@@ -266,7 +266,8 @@ private:
 	void exportTopBarHeightUpdated();
 
 	Window::SectionSlideParams prepareShowAnimation(
-		bool willHaveTopBarShadow);
+		bool willHaveTopBarShadow,
+		bool fromBottom);
 	void showNewSection(
 		std::shared_ptr<Window::SectionMemento> memento,
 		const SectionShow &params);
@@ -275,7 +276,9 @@ private:
 	Window::SectionSlideParams prepareThirdSectionAnimation(Window::SectionWidget *section);
 
 	// All this methods use the prepareShowAnimation().
-	Window::SectionSlideParams prepareMainSectionAnimation(Window::SectionWidget *section);
+	Window::SectionSlideParams prepareMainSectionAnimation(
+		Window::SectionWidget *section,
+		bool fromBottom);
 	Window::SectionSlideParams prepareHistoryAnimation(PeerId historyPeerId);
 	Window::SectionSlideParams prepareDialogsAnimation();
 

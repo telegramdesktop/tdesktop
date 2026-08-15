@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/translate_url_provider.h"
 
 #include "spellcheck/platform/platform_language.h"
+#include "ui/text/text_html_tags.h"
 
 #include <QtCore/QJsonArray>
 #include <QtCore/QJsonDocument>
@@ -200,7 +201,8 @@ public:
 		url.replace(
 			u"%q"_q,
 			QString::fromLatin1(
-				QUrl::toPercentEncoding(request.text.text.toHtmlEscaped())));
+				QUrl::toPercentEncoding(
+					TextUtilities::EscapeForHtml(request.text.text))));
 		url.replace(
 			u"%f"_q,
 			QString::fromLatin1(QUrl::toPercentEncoding(from)));

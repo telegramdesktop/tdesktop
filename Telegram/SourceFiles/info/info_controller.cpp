@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
+#include "styles/style_profile.h"
 
 namespace Info {
 
@@ -385,12 +386,24 @@ void Controller::setupTopicViewer() {
 	}, _lifetime);
 }
 
+style::color AbstractController::listBackground() const {
+	return st::profileBg;
+}
+
 Wrap Controller::wrap() const {
 	return _widget->wrap();
 }
 
+style::color Controller::listBackground() const {
+	return (wrap() == Wrap::Layer) ? st::boxBg : st::profileBg;
+}
+
 rpl::producer<Wrap> Controller::wrapValue() const {
 	return _widget->wrapValue();
+}
+
+rpl::producer<bool> Controller::contentTillBottomValue() const {
+	return _widget->contentTillBottomValue();
 }
 
 not_null<Ui::RpWidget*> Controller::wrapWidget() const {

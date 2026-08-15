@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "window/window_session_controller.h"
-#include "styles/style_widgets.h"
 
 namespace {
 
@@ -53,6 +52,9 @@ namespace {
 				: Flag())
 			| (data.is_manage_ranks()
 				? Flag::ManageRanks
+				: Flag())
+			| (data.is_manage_linked_peers()
+				? Flag::ManageLinkedPeers
 				: Flag());
 	});
 }
@@ -80,7 +82,10 @@ namespace {
 			| (data.is_invite_users() ? Flag::AddParticipants : Flag())
 			| (data.is_pin_messages() ? Flag::PinMessages : Flag())
 			| (data.is_manage_topics() ? Flag::CreateTopics : Flag())
-			| (data.is_edit_rank() ? Flag::EditRank : Flag());
+			| (data.is_edit_rank() ? Flag::EditRank : Flag())
+			| (data.is_manage_linked_peers()
+				? Flag::ManageLinkedPeers
+				: Flag());
 	});
 }
 
@@ -122,6 +127,9 @@ MTPChatAdminRights AdminRightsToMTP(ChatAdminRightsInfo info) {
 			: Flag())
 		| ((flags & R::ManageRanks)
 			? Flag::f_manage_ranks
+			: Flag())
+		| ((flags & R::ManageLinkedPeers)
+			? Flag::f_manage_linked_peers
 			: Flag())));
 }
 
@@ -155,7 +163,10 @@ MTPChatBannedRights RestrictionsToMTP(ChatRestrictionsInfo info) {
 			| ((flags & R::AddParticipants) ? Flag::f_invite_users : Flag())
 			| ((flags & R::PinMessages) ? Flag::f_pin_messages : Flag())
 			| ((flags & R::CreateTopics) ? Flag::f_manage_topics : Flag())
-			| ((flags & R::EditRank) ? Flag::f_edit_rank : Flag())),
+			| ((flags & R::EditRank) ? Flag::f_edit_rank : Flag())
+			| ((flags & R::ManageLinkedPeers)
+				? Flag::f_manage_linked_peers
+				: Flag())),
 		MTP_int(info.until));
 }
 
@@ -544,17 +555,23 @@ bool ShowSendError(
 		not_null<PeerData*> peer,
 		const Ui::PreparedList &list,
 		std::optional<bool> compress,
-		bool ignoreSlowmodeLeft) {
+		bool ignoreSlowmodeLeft,
+		bool ignoreRestrictions) {
 	const auto error = [&]() -> Data::SendError {
-		const auto error = Data::FileRestrictionError(peer, list, compress);
-		if (error) {
-			return error;
-		} else if (const auto left = peer->slowmodeSecondsLeft()) {
-			if (!ignoreSlowmodeLeft) {
-				return tr::lng_slowmode_enabled(
-					tr::now,
-					lt_left,
-					Ui::FormatDurationWordsSlowmode(left));
+		if (!ignoreRestrictions) {
+			const auto error = Data::FileRestrictionError(
+				peer,
+				list,
+				compress);
+			if (error) {
+				return error;
+			} else if (const auto left = peer->slowmodeSecondsLeft()) {
+				if (!ignoreSlowmodeLeft) {
+					return tr::lng_slowmode_enabled(
+						tr::now,
+						lt_left,
+						Ui::FormatDurationWordsSlowmode(left));
+				}
 			}
 		}
 		using Error = Ui::PreparedList::Error;
@@ -589,8 +606,11 @@ bool ShowSendError(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<PeerData*> peer,
 		const Ui::PreparedBundle &bundle,
-		bool ignoreSlowmodeLeft) {
-	if (peer->slowmodeApplied() && bundle.groups.size() > 1) {
+		bool ignoreSlowmodeLeft,
+		bool ignoreRestrictions) {
+	if (!ignoreRestrictions
+		&& peer->slowmodeApplied()
+		&& bundle.groups.size() > 1) {
 		Data::ShowSendErrorToast(
 			show,
 			peer,
@@ -600,7 +620,13 @@ bool ShowSendError(
 	const auto ignore = ignoreSlowmodeLeft;
 	const auto compress = bundle.way.sendImagesAsPhotos();
 	for (const auto &group : bundle.groups) {
-		if (ShowSendError(show, peer, group.list, compress, ignore)) {
+		if (ShowSendError(
+				show,
+				peer,
+				group.list,
+				compress,
+				ignore,
+				ignoreRestrictions)) {
 			return true;
 		}
 	}

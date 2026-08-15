@@ -28,7 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
-#include "styles/style_boxes.h"
 #include "styles/style_menu_icons.h"
 
 namespace Ui {

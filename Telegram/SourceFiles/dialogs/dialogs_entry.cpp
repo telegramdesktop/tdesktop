@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_key.h"
 #include "dialogs/dialogs_indexed_list.h"
+#include "base/options.h"
 #include "base/unixtime.h"
 #include "data/data_changes.h"
 #include "data/data_session.h"
@@ -48,7 +49,24 @@ uint64 PinnedDialogPos(int pinnedIndex) {
 	return 0xFFFFFFFF000000FFULL - pinnedIndex;
 }
 
+uint64 UnreadOnTopDialogPos(uint64 sortKeyByDate) {
+	return sortKeyByDate | 0x8000000000000000ULL;
+}
+
+base::options::toggle OptionUnreadOnTop({
+	.id = kOptionDialogsUnreadOnTop,
+	.name = "Keep unmuted unread chats on top",
+	.description = "Sort chats with new unmuted messages right below the "
+		"pinned ones and keep them there until you read them.",
+});
+
+[[nodiscard]] bool UnreadOnTopEnabled() {
+	return OptionUnreadOnTop.value();
+}
+
 } // namespace
+
+const char kOptionDialogsUnreadOnTop[] = "dialogs-unread-on-top";
 
 BadgesState BadgesForUnread(
 		const UnreadState &state,
@@ -229,7 +247,20 @@ int Entry::lookupPinnedIndex(FilterId filterId) const {
 
 uint64 Entry::computeSortPosition(FilterId filterId) const {
 	const auto index = lookupPinnedIndex(filterId);
-	return index ? PinnedDialogPos(index) : _sortKeyByDate;
+	if (index) {
+		return PinnedDialogPos(index);
+	} else if (UnreadOnTopEnabled() && hasUnreadUnmutedForSort()) {
+		return UnreadOnTopDialogPos(_sortKeyByDate);
+	}
+	return _sortKeyByDate;
+}
+
+bool Entry::hasUnreadUnmutedForSort() const {
+	const auto state = chatListUnreadState();
+	return (state.messages > state.messagesMuted)
+		|| (state.marks > state.marksMuted)
+		|| (state.reactions > state.reactionsMuted)
+		|| (state.mentions > 0);
 }
 
 void Entry::updateChatListExistence() {
@@ -295,6 +326,9 @@ void Entry::notifyUnreadStateChange(const UnreadState &wasState) {
 		session().changes().sublistUpdated(
 			sublist,
 			Data::SublistUpdate::Flag::UnreadView);
+	}
+	if (UnreadOnTopEnabled()) {
+		updateChatListSortPosition();
 	}
 	updateChatListEntryPostponed();
 }
@@ -387,10 +421,15 @@ PositionChange Entry::adjustByPosInChatList(
 }
 
 void Entry::setChatListTimeId(TimeId date) {
-	_timeId = date;
+	const auto was = std::exchange(_timeId, date);
 	updateChatListSortPosition();
 	if (const auto folder = this->folder()) {
 		folder->updateChatListSortPosition();
+	}
+	if (was != date) {
+		if (const auto history = asHistory()) {
+			history->communityChatsListDateChanged(was);
+		}
 	}
 }
 
@@ -434,7 +473,8 @@ void Entry::removeFromChatList(
 		FilterId filterId,
 		not_null<MainList*> list) {
 	if (isPinnedDialog(filterId)) {
-		owner().setChatPinned(this, filterId, false);
+		list->pinned()->setPinned(this, false);
+		owner().notifyPinnedDialogsOrderUpdated();
 	}
 	if (filterId) {
 		const auto it = _tagColors.find(filterId);

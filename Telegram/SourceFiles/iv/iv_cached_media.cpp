@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_grouped.h"
 #include "history/view/media/history_view_photo.h"
 #include "info/profile/info_profile_values.h"
+#include "iv/iv_rich_page.h"
 #include "iv/markdown/iv_markdown_common.h"
 #include "iv/markdown/iv_markdown_history_view_media.h"
 #include "iv/markdown/iv_markdown_prepare.h"
@@ -58,6 +59,9 @@ namespace {
 
 constexpr auto kGeoPointScale = 1;
 constexpr auto kGeoPointZoomMin = 13;
+
+static_assert(
+	RichPage::kCollageMaxItems == HistoryView::GroupedMedia::kMaxSize);
 
 enum class CachedPagePhotoImageKind {
 	Thumbnail,
@@ -244,13 +248,17 @@ public:
 
 	void open(Qt::MouseButton button) const override;
 
+	void releaseHeavyData() override;
+
 private:
+	[[nodiscard]] std::shared_ptr<::Data::PhotoMedia> media() const;
+
 	const not_null<Main::Session*> _session;
 	const not_null<PhotoData*> _photo;
 	const ::Data::FileOrigin _origin;
 	const FullMsgId _itemId;
 	const Fn<FullMsgId()> _itemIdResolver;
-	const std::shared_ptr<::Data::PhotoMedia> _media;
+	mutable std::shared_ptr<::Data::PhotoMedia> _media;
 
 };
 
@@ -268,11 +276,18 @@ CachedPagePhotoRuntime::CachedPagePhotoRuntime(
 , _media(photo->createMediaView()) {
 }
 
+std::shared_ptr<::Data::PhotoMedia> CachedPagePhotoRuntime::media() const {
+	if (!_media) {
+		_media = _photo->createMediaView();
+	}
+	return _media;
+}
+
 std::shared_ptr<Ui::DynamicImage> CachedPagePhotoRuntime::thumbnail(
 		QSize size) const {
-	_media->wanted(::Data::PhotoSize::Small, _origin);
+	media()->wanted(::Data::PhotoSize::Small, _origin);
 	return std::make_shared<CachedPagePhotoDynamicImage>(
-		_media,
+		media(),
 		_photo,
 		_origin,
 		CachedPagePhotoImageKind::Thumbnail,
@@ -281,9 +296,9 @@ std::shared_ptr<Ui::DynamicImage> CachedPagePhotoRuntime::thumbnail(
 
 std::shared_ptr<Ui::DynamicImage> CachedPagePhotoRuntime::full(
 		QSize size) const {
-	_media->wanted(::Data::PhotoSize::Large, _origin);
+	media()->wanted(::Data::PhotoSize::Large, _origin);
 	return std::make_shared<CachedPagePhotoDynamicImage>(
-		_media,
+		media(),
 		_photo,
 		_origin,
 		CachedPagePhotoImageKind::Full,
@@ -291,18 +306,18 @@ std::shared_ptr<Ui::DynamicImage> CachedPagePhotoRuntime::full(
 }
 
 bool CachedPagePhotoRuntime::loaded() const {
-	_media->wanted(::Data::PhotoSize::Large, _origin);
-	return _media->loaded();
+	media()->wanted(::Data::PhotoSize::Large, _origin);
+	return media()->loaded();
 }
 
 bool CachedPagePhotoRuntime::loading() const {
-	_media->wanted(::Data::PhotoSize::Large, _origin);
+	media()->wanted(::Data::PhotoSize::Large, _origin);
 	return _photo->displayLoading();
 }
 
 double CachedPagePhotoRuntime::progress() const {
-	_media->wanted(::Data::PhotoSize::Large, _origin);
-	return _media->progress();
+	media()->wanted(::Data::PhotoSize::Large, _origin);
+	return media()->progress();
 }
 
 void CachedPagePhotoRuntime::open(Qt::MouseButton button) const {
@@ -320,6 +335,10 @@ void CachedPagePhotoRuntime::open(Qt::MouseButton button) const {
 			item ? item->sublistPeerId() : PeerId(),
 		});
 	}
+}
+
+void CachedPagePhotoRuntime::releaseHeavyData() {
+	_media = nullptr;
 }
 
 [[nodiscard]] ImageWithLocation CachedPageMapImageData(
@@ -453,13 +472,17 @@ public:
 
 	void open(Qt::MouseButton button) const override;
 
+	void releaseHeavyData() override;
+
 private:
+	[[nodiscard]] std::shared_ptr<::Data::DocumentMedia> media() const;
+
 	const not_null<Main::Session*> _session;
 	const not_null<DocumentData*> _document;
 	const ::Data::FileOrigin _origin;
 	const FullMsgId _itemId;
 	const Fn<FullMsgId()> _itemIdResolver;
-	const std::shared_ptr<::Data::DocumentMedia> _media;
+	mutable std::shared_ptr<::Data::DocumentMedia> _media;
 
 };
 
@@ -477,8 +500,16 @@ CachedPageDocumentRuntime::CachedPageDocumentRuntime(
 , _media(document->createMediaView()) {
 }
 
+auto CachedPageDocumentRuntime::media() const
+-> std::shared_ptr<::Data::DocumentMedia> {
+	if (!_media) {
+		_media = _document->createMediaView();
+	}
+	return _media;
+}
+
 bool CachedPageDocumentRuntime::loaded() const {
-	return _media->loaded();
+	return media()->loaded();
 }
 
 bool CachedPageDocumentRuntime::loading() const {
@@ -504,6 +535,10 @@ void CachedPageDocumentRuntime::open(Qt::MouseButton button) const {
 			item ? item->sublistPeerId() : PeerId(),
 		});
 	}
+}
+
+void CachedPageDocumentRuntime::releaseHeavyData() {
+	_media = nullptr;
 }
 
 class CachedPageInlineDocumentImage final : public Ui::DynamicImage {
@@ -982,7 +1017,9 @@ public:
 		not_null<Main::Session*> session,
 		FullMsgId itemId,
 		Fn<void(QString)> openChannel,
-		Fn<void(QString)> joinChannel);
+		Fn<void(QString)> joinChannel,
+		::Data::FileOrigin draftOrigin = {},
+		base::weak_ptr<Window::SessionController> controller = {});
 	CachedPageMediaRuntime(
 		not_null<Main::Session*> session,
 		not_null<HistoryView::Element*> view,
@@ -1036,6 +1073,7 @@ private:
 
 	[[nodiscard]] HistoryItem *directHostItem() const;
 	[[nodiscard]] HistoryItem *openContextItem() const;
+	[[nodiscard]] Window::SessionController *resolveController() const;
 	void queuePendingInstantViewItem(
 		PendingInstantViewMediaItem::Kind kind,
 		uint64 id,
@@ -1045,8 +1083,10 @@ private:
 	[[nodiscard]] ::Data::FileOrigin fileOrigin() const;
 
 	const not_null<Main::Session*> _session;
+	const base::weak_ptr<Window::SessionController> _controller;
 	const ::Data::FileOrigin _origin;
 	const FullMsgId _itemId;
+	const ::Data::FileOrigin _draftOrigin;
 	const QString _pageUrl;
 	const bool _useExistingView = false;
 	const base::weak_ptr<HistoryView::Element> _view;
@@ -1076,10 +1116,14 @@ CachedPageMediaRuntime::CachedPageMediaRuntime(
 	not_null<Main::Session*> session,
 	FullMsgId itemId,
 	Fn<void(QString)> openChannel,
-	Fn<void(QString)> joinChannel)
+	Fn<void(QString)> joinChannel,
+	::Data::FileOrigin draftOrigin,
+	base::weak_ptr<Window::SessionController> controller)
 : _session(session)
+, _controller(std::move(controller))
 , _origin(itemId)
 , _itemId(itemId)
+, _draftOrigin(std::move(draftOrigin))
 , _pageUrl()
 , _openChannel(std::move(openChannel))
 , _joinChannel(std::move(joinChannel)) {
@@ -1231,6 +1275,9 @@ QString CachedPageMediaRuntime::mentionNameEntityData(uint64 userId) const {
 auto CachedPageMediaRuntime::hostedMediaHost(
 		not_null<Window::SessionController*> controller) const
 -> std::shared_ptr<Markdown::IvHistoryViewMediaHost> {
+	if (_hostedMediaHost && !_hostedMediaHost->itemAlive()) {
+		_hostedMediaHost = nullptr;
+	}
 	if (_useExistingView) {
 		const auto view = _view.get();
 		if (!view) {
@@ -1256,27 +1303,24 @@ auto CachedPageMediaRuntime::hostedMediaHost(
 		}
 		return _hostedMediaHost;
 	}
-	if (!_session->data().peerLoaded(PeerData::kServiceNotificationsId)) {
-		return nullptr;
-	}
-	const auto history = _session->data().history(
-		PeerData::kServiceNotificationsId);
-	if (!history->peer->isUser()) {
-		return nullptr;
-	}
+	const auto history = _session->data().history(_session->user());
 	if (!_hostedMediaHost) {
 		_hostedMediaHost
 			= std::make_shared<Markdown::IvHistoryViewMediaHost>(
 				controller,
 				history,
 				_pageUrl);
+		if (const auto cloudDraft = std::get_if<::Data::FileOriginCloudDraft>(
+				&_draftOrigin.data)) {
+			_hostedMediaHost->item()->setRichDraftOrigin(*cloudDraft);
+		}
 	}
 	return _hostedMediaHost;
 }
 
 auto CachedPageMediaRuntime::hostedMediaBlockFactory() const
 -> std::shared_ptr<Markdown::HostedMediaBlockFactory> {
-	const auto controller = CurrentSessionController(_session);
+	const auto controller = resolveController();
 	if (!controller) {
 		return nullptr;
 	}
@@ -1289,8 +1333,7 @@ auto CachedPageMediaRuntime::hostedMediaBlockFactory() const
 		[session = _session, host, origin = fileOrigin()](
 				Window::SessionController *controller,
 				const Markdown::PreparedPhotoBlockData &prepared) {
-			if (!controller
-				|| !prepared.viewerOpen
+			if (!prepared.viewerOpen
 				|| !prepared.urlOverride.isEmpty()) {
 				return std::shared_ptr<Markdown::MediaBlock>();
 			}
@@ -1306,6 +1349,8 @@ auto CachedPageMediaRuntime::hostedMediaBlockFactory() const
 			descriptor.copyText = u"Photo"_q;
 			descriptor.layoutHint = QSize(prepared.width, prepared.height);
 			descriptor.host = host;
+			descriptor.spoiler = prepared.spoiler;
+			descriptor.editMode = prepared.editMode;
 			descriptor.mediaFactory = [photo, spoiler = prepared.spoiler](
 					not_null<HistoryView::Element*> view) {
 				return std::make_unique<HistoryView::Photo>(
@@ -1325,9 +1370,8 @@ auto CachedPageMediaRuntime::hostedMediaBlockFactory() const
 		[session = _session, host, origin = fileOrigin()](
 				Window::SessionController *controller,
 				const Markdown::PreparedVideoBlockData &prepared) {
-			if (!controller
-				|| prepared.media.kind
-					!= Markdown::PreparedMediaItemKind::Document) {
+			if (prepared.media.kind
+				!= Markdown::PreparedMediaItemKind::Document) {
 				return std::shared_ptr<Markdown::MediaBlock>();
 			}
 			const auto document = session->data().document(
@@ -1353,6 +1397,8 @@ auto CachedPageMediaRuntime::hostedMediaBlockFactory() const
 				prepared.media.width,
 				prepared.media.height);
 			descriptor.host = host;
+			descriptor.spoiler = prepared.media.spoiler;
+			descriptor.editMode = prepared.editMode;
 			descriptor.mediaFactory = [media](
 					not_null<HistoryView::Element*> view) {
 				return media->createView(
@@ -1371,9 +1417,6 @@ auto CachedPageMediaRuntime::hostedMediaBlockFactory() const
 		[session = _session, host, origin = fileOrigin()](
 				Window::SessionController *controller,
 				const Markdown::PreparedAudioBlockData &prepared) {
-			if (!controller) {
-				return std::shared_ptr<Markdown::MediaBlock>();
-			}
 			const auto document = session->data().document(
 				DocumentId(prepared.documentId));
 			if (document->isNull()
@@ -1409,9 +1452,6 @@ auto CachedPageMediaRuntime::hostedMediaBlockFactory() const
 		[session = _session, host](
 				Window::SessionController *controller,
 				const Markdown::PreparedMapBlockData &prepared) {
-			if (!controller) {
-				return std::shared_ptr<Markdown::MediaBlock>();
-			}
 			const auto mapSize = QSize(prepared.width, prepared.height);
 			const auto point = CachedPageMapPoint(
 				prepared.latitude,
@@ -1450,19 +1490,29 @@ auto CachedPageMediaRuntime::hostedMediaBlockFactory() const
 		[session = _session, host, origin = fileOrigin()](
 				Window::SessionController *controller,
 				const Markdown::PreparedGroupedMediaBlockData &prepared) {
-			if (!controller
-				|| (prepared.intent
-					!= Markdown::PreparedGroupedMediaIntent::Collage)
-				|| prepared.items.empty()
-				|| (int(prepared.items.size())
-					> HistoryView::GroupedMedia::kMaxSize)) {
+			const auto slideshow = (prepared.intent
+				== Markdown::PreparedGroupedMediaIntent::Slideshow);
+			if (prepared.items.empty()
+				|| (!slideshow
+					&& int(prepared.items.size())
+					> RichPage::kCollageMaxItems)) {
 				return std::shared_ptr<Markdown::MediaBlock>();
 			}
 			auto descriptor = Markdown::IvHistoryViewMediaDescriptor();
+			auto slideFactories = std::vector<
+				Markdown::IvHistoryViewMediaDescriptor::MediaFactory>();
+			auto slideSizes = std::vector<QSize>();
+			if (slideshow) {
+				slideFactories.reserve(prepared.items.size());
+				slideSizes.reserve(prepared.items.size());
+			}
 			const auto medias = std::make_shared<
 				std::vector<std::unique_ptr<::Data::Media>>>();
 			medias->reserve(prepared.items.size());
-			for (const auto &item : prepared.items) {
+			for (auto i = 0, count = int(prepared.items.size())
+					; i != count
+					; ++i) {
+				const auto &item = prepared.items[i];
 				const auto kind = item.media.kind;
 				if (kind == Markdown::PreparedMediaItemKind::Photo) {
 					const auto photo = session->data().photo(
@@ -1475,13 +1525,30 @@ auto CachedPageMediaRuntime::hostedMediaBlockFactory() const
 						host->item(),
 						photo,
 						item.media.spoiler));
-					descriptor.groupedPhotos.emplace(
-						photo->id,
-						std::make_shared<CachedPagePhotoRuntime>(
-							session,
-							photo,
-							origin,
-							host->item()->fullId()));
+					auto runtime = std::make_shared<CachedPagePhotoRuntime>(
+						session,
+						photo,
+						origin,
+						host->item()->fullId());
+					descriptor.groupedPhotos.emplace(photo->id, runtime);
+					descriptor.groupedItemIndices.emplace(photo->id, i);
+					if (item.media.spoiler) {
+						descriptor.groupedSpoileredIds.emplace(photo->id);
+					}
+					if (slideshow) {
+						slideSizes.push_back(QSize(
+							std::max(item.media.width, 1),
+							std::max(item.media.height, 1)));
+						const auto spoiler = item.media.spoiler;
+						slideFactories.push_back([photo, spoiler](
+								not_null<HistoryView::Element*> view) {
+							return std::make_unique<HistoryView::Photo>(
+								view,
+								view->data(),
+								photo,
+								spoiler);
+						});
+					}
 				} else {
 					const auto document = session->data().document(
 						DocumentId(item.media.id));
@@ -1497,29 +1564,51 @@ auto CachedPageMediaRuntime::hostedMediaBlockFactory() const
 							session,
 							document,
 							item.media.spoiler)));
-					descriptor.groupedDocuments.emplace(
-						document->id,
-						std::make_shared<CachedPageDocumentRuntime>(
-							session,
-							document,
-							origin,
-							host->item()->fullId()));
+					auto runtime = std::make_shared<CachedPageDocumentRuntime>(
+						session,
+						document,
+						origin,
+						host->item()->fullId());
+					descriptor.groupedDocuments.emplace(document->id, runtime);
+					descriptor.groupedItemIndices.emplace(document->id, i);
+					if (item.media.spoiler) {
+						descriptor.groupedSpoileredIds.emplace(document->id);
+					}
+					if (slideshow) {
+						const auto media = medias->back().get();
+						slideSizes.push_back(QSize(
+							std::max(item.media.width, 1),
+							std::max(item.media.height, 1)));
+						slideFactories.push_back([media](
+								not_null<HistoryView::Element*> view) {
+							return media->createView(view, view->data());
+						});
+					}
 				}
 				if (!medias->back()->canBeGrouped()) {
 					return std::shared_ptr<Markdown::MediaBlock>();
 				}
 			}
 			descriptor.stableId = prepared.id.value;
-			descriptor.kind = Markdown::IvHistoryViewMediaKind::GroupedMedia;
 			descriptor.copyText = CachedPageGroupedMediaCopyText(prepared);
-			descriptor.layoutHint = QSize(st::historyGroupWidthMax, 0);
 			descriptor.host = host;
-			descriptor.mediaFactory = [medias](
-					not_null<HistoryView::Element*> view) {
-				return std::make_unique<HistoryView::GroupedMedia>(
-					view,
-					*medias);
-			};
+			descriptor.editMode = prepared.editMode;
+			descriptor.fileOrigin = origin;
+			if (slideshow) {
+				descriptor.kind = Markdown::IvHistoryViewMediaKind::Slideshow;
+				descriptor.slideMediaFactories = std::move(slideFactories);
+				descriptor.slideOriginalSizes = std::move(slideSizes);
+			} else {
+				descriptor.kind
+					= Markdown::IvHistoryViewMediaKind::GroupedMedia;
+				descriptor.layoutHint = QSize(st::historyGroupWidthMax, 0);
+				descriptor.mediaFactory = [medias](
+						not_null<HistoryView::Element*> view) {
+					return std::make_unique<HistoryView::GroupedMedia>(
+						view,
+						*medias);
+				};
+			}
 			descriptor.keepAlive.push_back(medias);
 			return Markdown::CreateIvHistoryViewMediaBlock(
 				std::move(descriptor));
@@ -1545,12 +1634,19 @@ HistoryItem *CachedPageMediaRuntime::directHostItem() const {
 	return _itemId ? _session->data().message(_itemId) : nullptr;
 }
 
+Window::SessionController *CachedPageMediaRuntime::resolveController() const {
+	if (const auto strong = _controller.get()) {
+		return strong;
+	}
+	return _session->tryResolveWindow();
+}
+
 HistoryItem *CachedPageMediaRuntime::openContextItem() const {
 	if (const auto item = directHostItem()) {
 		flushPendingInstantViewItems(not_null{ item });
 		return item;
 	}
-	if (const auto controller = CurrentSessionController(_session)) {
+	if (const auto controller = resolveController()) {
 		if (const auto host = hostedMediaHost(not_null{ controller })) {
 			const auto item = host->item().get();
 			flushPendingInstantViewItems(not_null{ item });
@@ -1638,13 +1734,17 @@ auto CreateMessageMediaRuntime(
 	not_null<Main::Session*> session,
 	FullMsgId itemId,
 	Fn<void(QString)> openChannel,
-	Fn<void(QString)> joinChannel)
+	Fn<void(QString)> joinChannel,
+	::Data::FileOrigin draftOrigin,
+	base::weak_ptr<Window::SessionController> controller)
 -> std::shared_ptr<Markdown::MediaRuntime> {
 	return std::make_shared<CachedPageMediaRuntime>(
 		session,
 		itemId,
 		std::move(openChannel),
-		std::move(joinChannel));
+		std::move(joinChannel),
+		std::move(draftOrigin),
+		std::move(controller));
 }
 
 auto CreateMessageMediaRuntime(

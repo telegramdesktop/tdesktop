@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/reactions/history_view_reactions_button.h"
 #include "lottie/lottie_icon.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "lang/lang_keys.h"
@@ -55,7 +56,9 @@ class ListWidget::Inner final
 public:
 	Inner(
 		not_null<QWidget*> parent,
-		not_null<Controller*> controller);
+		not_null<AbstractController*> controller,
+		Fn<void(int top)> inlineScrollTo = nullptr);
+	~Inner();
 
 	[[nodiscard]] not_null<Ui::ElasticScroll*> scroll() const {
 		return _scroll.get();
@@ -65,10 +68,13 @@ public:
 	}
 
 	void updateGeometry(QRect rect);
+	void setInlineVisibleRegion(int top, int bottom);
 
 	[[nodiscard]] int scrollTop() const;
 	void setScrollTop(int top);
 	void setSearchQuery(const QString &query);
+	[[nodiscard]] bool canCreatePoll() const;
+	void createPoll();
 
 	[[nodiscard]] rpl::producer<SelectedItems> selectedItems() const;
 	void selectionAction(SelectionAction action);
@@ -101,6 +107,7 @@ private:
 	bool listIsLessInOrder(
 		not_null<HistoryItem*> first,
 		not_null<HistoryItem*> second) override;
+	bool listInvertedOrder() override;
 	void listSelectionChanged(
 		HistoryView::SelectedItems &&items) override;
 	void listMarkReadTill(not_null<HistoryItem*> item) override;
@@ -194,11 +201,14 @@ private:
 	bool cornerButtonsUnreadMayBeShown() override;
 	bool cornerButtonsHas(HistoryView::CornerButtonType type) override;
 
-	const not_null<Controller*> _controller;
+	const not_null<AbstractController*> _controller;
+	const not_null<QWidget*> _parent;
+	const Fn<void(int top)> _inlineScrollTo;
 	const not_null<Main::Session*> _session;
 	const not_null<History*> _history;
 	const MsgId _topicRootId = 0;
 	const PeerId _monoforumPeerId = 0;
+	rpl::lifetime _themeLifetime;
 	const std::shared_ptr<Ui::ChatTheme> _theme;
 	const std::unique_ptr<Ui::ChatStyle> _chatStyle;
 	const std::unique_ptr<Ui::ElasticScroll> _scroll;
@@ -206,6 +216,8 @@ private:
 	QPointer<HistoryView::ListWidget> _list;
 	std::unique_ptr<HistoryView::CornerButtons> _cornerButtons;
 	bool _viewerRefreshed = false;
+	int _inlineVisibleTop = 0;
+	int _inlineViewportHeight = 0;
 	QString _searchQuery;
 
 	object_ptr<Ui::RoundButton> _newPollButton = { nullptr };
@@ -224,8 +236,11 @@ private:
 
 ListWidget::Inner::Inner(
 	not_null<QWidget*> parent,
-	not_null<Controller*> controller)
+	not_null<AbstractController*> controller,
+	Fn<void(int top)> inlineScrollTo)
 : _controller(controller)
+, _parent(parent)
+, _inlineScrollTo(std::move(inlineScrollTo))
 , _session(&controller->session())
 , _history(_session->data().history(controller->key().peer()))
 , _topicRootId(controller->topic()
@@ -234,16 +249,31 @@ ListWidget::Inner::Inner(
 , _monoforumPeerId(controller->sublist()
 	? controller->sublist()->sublistPeer()->id
 	: PeerId())
-, _theme(Window::Theme::DefaultChatThemeOn(
-	_controller->parentController()->lifetime()))
+, _theme(Window::Theme::DefaultChatThemeOn(_themeLifetime))
 , _chatStyle(
 	std::make_unique<Ui::ChatStyle>(_session->colorIndicesValue()))
-, _scroll(std::make_unique<Ui::ElasticScroll>(parent)) {
+, _scroll(_inlineScrollTo
+	? nullptr
+	: std::make_unique<Ui::ElasticScroll>(parent)) {
 	_chatStyle->apply(_theme.get());
 	setupHistory();
 }
 
+ListWidget::Inner::~Inner() {
+	if (!_scroll && _list) {
+		delete _list.data();
+	}
+}
+
 void ListWidget::Inner::setupHistory() {
+	if (!_scroll) {
+		_list = Ui::CreateChild<HistoryView::ListWidget>(
+			_parent.get(),
+			_session,
+			static_cast<HistoryView::ListDelegate*>(this));
+		_list->show();
+		return;
+	}
 	_list = _scroll->setOwnedWidget(
 		object_ptr<HistoryView::ListWidget>(
 			_scroll.get(),
@@ -326,14 +356,17 @@ void ListWidget::Inner::updateNewPollButtonVisibility() {
 }
 
 void ListWidget::Inner::updateGeometry(QRect rect) {
-	_scroll->setGeometry(rect);
-	_cornerButtons->updatePositions();
-	updateNewPollButtonPosition();
+	if (_scroll) {
+		_scroll->setGeometry(rect);
+		_cornerButtons->updatePositions();
+		updateNewPollButtonPosition();
+	}
 
 	if (rect.isEmpty()) {
 		return;
 	}
-	_list->resizeToWidth(_scroll->width(), _scroll->height());
+	_inlineViewportHeight = rect.height();
+	_list->resizeToWidth(rect.width(), rect.height());
 	if (!_viewerRefreshed) {
 		_viewerRefreshed = true;
 		_list->refreshViewer();
@@ -342,6 +375,7 @@ void ListWidget::Inner::updateGeometry(QRect rect) {
 	_bg = QImage(
 		rect.size() * ratio,
 		QImage::Format_ARGB32_Premultiplied);
+	_bg.setDevicePixelRatio(ratio);
 	auto p = QPainter(&_bg);
 	Window::SectionWidget::PaintBackground(
 		p,
@@ -351,10 +385,18 @@ void ListWidget::Inner::updateGeometry(QRect rect) {
 }
 
 void ListWidget::Inner::paintBackground(QPainter &p, QRect clip) {
-	if (!_bg.isNull()) {
-		const auto scrollGeometry = _scroll->geometry();
-		p.drawImage(scrollGeometry.topLeft(), _bg);
+	if (_bg.isNull()) {
+		return;
 	}
+	const auto position = _scroll
+		? _scroll->geometry().topLeft()
+		: QPoint(0, std::max(_inlineVisibleTop, 0));
+	p.drawImage(position, _bg);
+}
+
+void ListWidget::Inner::setInlineVisibleRegion(int top, int bottom) {
+	_inlineVisibleTop = top;
+	_list->setVisibleTopBottom(top, bottom);
 }
 
 void ListWidget::Inner::updateInnerVisibleArea() {
@@ -365,11 +407,13 @@ void ListWidget::Inner::updateInnerVisibleArea() {
 }
 
 int ListWidget::Inner::scrollTop() const {
-	return _scroll->scrollTop();
+	return _scroll ? _scroll->scrollTop() : 0;
 }
 
 void ListWidget::Inner::setScrollTop(int top) {
-	_scroll->scrollToY(top);
+	if (_scroll) {
+		_scroll->scrollToY(top);
+	}
 }
 
 void ListWidget::Inner::setSearchQuery(const QString &query) {
@@ -384,6 +428,19 @@ void ListWidget::Inner::setSearchQuery(const QString &query) {
 	if (_viewerRefreshed) {
 		_list->refreshViewer();
 	}
+}
+
+bool ListWidget::Inner::canCreatePoll() const {
+	const auto topic = _controller->topic();
+	return topic
+		? Data::CanSend(topic, ChatRestriction::SendPolls)
+		: _history->peer->canCreatePolls();
+}
+
+void ListWidget::Inner::createPoll() {
+	Window::PeerMenuCreatePoll(
+		_controller->parentController(),
+		_history->peer);
 }
 
 rpl::producer<SelectedItems> ListWidget::Inner::selectedItems() const {
@@ -440,6 +497,18 @@ HistoryView::Context ListWidget::Inner::listContext() {
 }
 
 bool ListWidget::Inner::listScrollTo(int top, bool syntetic) {
+	if (!_scroll) {
+		if (syntetic) {
+			return true;
+		}
+		const auto max = _list
+			? std::max(_list->height() - _inlineViewportHeight, 0)
+			: 0;
+		if (_inlineScrollTo) {
+			_inlineScrollTo(std::clamp(top, 0, max));
+		}
+		return true;
+	}
 	top = std::clamp(top, 0, _scroll->scrollTopMax());
 	if (_scroll->scrollTop() == top) {
 		updateInnerVisibleArea();
@@ -492,20 +561,24 @@ bool ListWidget::Inner::listAllowsMultiSelect() {
 
 bool ListWidget::Inner::listIsItemGoodForSelection(
 		not_null<HistoryItem*> item) {
-	return item->isRegular() && !item->isService();
+	return item->canBeSelected();
 }
 
 bool ListWidget::Inner::listIsLessInOrder(
 		not_null<HistoryItem*> first,
 		not_null<HistoryItem*> second) {
 	if (first->isRegular() && second->isRegular()) {
-		return first->id < second->id;
+		return first->id > second->id;
 	} else if (first->isRegular()) {
-		return true;
-	} else if (second->isRegular()) {
 		return false;
+	} else if (second->isRegular()) {
+		return true;
 	}
-	return first->id < second->id;
+	return first->id > second->id;
+}
+
+bool ListWidget::Inner::listInvertedOrder() {
+	return true;
 }
 
 void ListWidget::Inner::listSelectionChanged(
@@ -627,7 +700,7 @@ void ListWidget::Inner::listPaintEmpty(
 	if (!_emptyAnimated) {
 		_emptyAnimated = true;
 		_emptyIcon->animate(
-			[=] { _scroll->update(); },
+			[=] { _scroll ? _scroll->update() : _list->update(); },
 			0,
 			_emptyIcon->framesCount() - 1);
 	}
@@ -641,9 +714,14 @@ void ListWidget::Inner::listPaintEmpty(
 		+ st::repliesEmptySkip
 		+ textHeight
 		+ padding.bottom();
+	const auto viewportWidth = _scroll ? _scroll->width() : _list->width();
+	const auto viewportHeight = _scroll
+		? _scroll->height()
+		: _inlineViewportHeight;
 	const auto r = QRect(
-		(_scroll->width() - width) / 2,
-		(_scroll->height() - height) / 3,
+		(viewportWidth - width) / 2,
+		std::max(_scroll ? 0 : _inlineVisibleTop, 0)
+			+ (viewportHeight - height) / 3,
 		width,
 		height);
 	HistoryView::ServiceMessagePainter::PaintBubble(
@@ -687,7 +765,7 @@ not_null<Window::SessionController*> ListWidget::Inner::listWindow() {
 }
 
 not_null<QWidget*> ListWidget::Inner::listEmojiInteractionsParent() {
-	return _scroll.get();
+	return _scroll ? not_null<QWidget*>(_scroll.get()) : _parent;
 }
 
 not_null<const Ui::ChatStyle*> ListWidget::Inner::listChatStyle() {
@@ -736,18 +814,27 @@ auto ListWidget::Inner::listSendingAnimation()
 
 Ui::ChatPaintContext ListWidget::Inner::listPreparePaintContext(
 		Ui::ChatPaintContextArgs &&args) {
-	const auto visibleAreaTopLocal = _scroll->mapFromGlobal(
-		args.visibleAreaPositionGlobal).y();
 	const auto area = QRect(
 		0,
 		args.visibleAreaTop,
 		args.visibleAreaWidth,
 		args.visibleAreaHeight);
-	const auto viewport = QRect(
-		0,
-		args.visibleAreaTop - visibleAreaTopLocal,
-		args.visibleAreaWidth,
-		_scroll->height());
+	const auto viewport = [&] {
+		if (!_scroll) {
+			return QRect(
+				0,
+				_inlineVisibleTop,
+				args.visibleAreaWidth,
+				std::max(_inlineViewportHeight, 1));
+		}
+		const auto visibleAreaTopLocal = _scroll->mapFromGlobal(
+			args.visibleAreaPositionGlobal).y();
+		return QRect(
+			0,
+			args.visibleAreaTop - visibleAreaTopLocal,
+			args.visibleAreaWidth,
+			_scroll->height());
+	}();
 	return args.theme->preparePaintContext(
 		_chatStyle.get(),
 		viewport,
@@ -814,11 +901,10 @@ bool ListWidget::Inner::cornerButtonsIgnoreVisibility() {
 }
 
 std::optional<bool> ListWidget::Inner::cornerButtonsDownShown() {
-	const auto top = _scroll->scrollTop() + st::historyToDownShownAfter;
-	if (top < _scroll->scrollTopMax()) {
+	if (_scroll->scrollTop() > st::historyToDownShownAfter) {
 		return true;
-	} else if (_list->loadedAtBottomKnown()) {
-		return !_list->loadedAtBottom();
+	} else if (_list->loadedAtTopKnown()) {
+		return !_list->loadedAtTop();
 	}
 	return std::nullopt;
 }
@@ -831,6 +917,41 @@ bool ListWidget::Inner::cornerButtonsHas(
 		HistoryView::CornerButtonType type) {
 	return (type == HistoryView::CornerButtonType::Down)
 		|| (type == HistoryView::CornerButtonType::PollVotes);
+}
+
+InlinePolls ListWidget::MakeInline(
+		not_null<Ui::RpWidget*> parent,
+		not_null<AbstractController*> controller,
+		Fn<void(int top)> scrollToRequest) {
+	auto inner = std::make_shared<Inner>(
+		parent,
+		controller,
+		std::move(scrollToRequest));
+	const auto raw = inner.get();
+	return {
+		.list = raw->list(),
+		.updateGeometry = [raw](int width, int viewportHeight) {
+			raw->updateGeometry(Rect(QSize(width, viewportHeight)));
+		},
+		.setVisibleRegion = [raw](int top, int bottom) {
+			raw->setInlineVisibleRegion(top, bottom);
+		},
+		.paintBackground = [raw](QPainter &p, QRect clip) {
+			raw->paintBackground(p, clip);
+		},
+		.selectedItems = raw->selectedItems(),
+		.selectionAction = [raw](SelectionAction action) {
+			raw->selectionAction(action);
+		},
+		.setSearchQuery = [raw](const QString &query) {
+			raw->setSearchQuery(query);
+		},
+		.canCreatePoll = raw->canCreatePoll(),
+		.createPoll = [raw] {
+			raw->createPoll();
+		},
+		.guard = std::move(inner),
+	};
 }
 
 // --- ListMemento ---

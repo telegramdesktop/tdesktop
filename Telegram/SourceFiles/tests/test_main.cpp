@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "tests/test_main.h"
 
+#include "base/base_file_utilities.h"
 #include "base/invoke_queued.h"
 #include "base/integration.h"
 #include "ui/effects/animations.h"
@@ -24,14 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <qpa/qplatformscreen.h>
 
 namespace Test {
-
-bool App::notifyOrInvoke(QObject *receiver, QEvent *e) {
-	if (e->type() == base::InvokeQueuedEvent::Type()) {
-		static_cast<base::InvokeQueuedEvent*>(e)->invoke();
-		return true;
-	}
-	return QApplication::notify(receiver, e);
-}
 
 bool App::nativeEventFilter(
 		const QByteArray &eventType,
@@ -109,7 +102,7 @@ void App::registerEnterFromEventLoop() {
 
 bool App::notify(QObject *receiver, QEvent *e) {
 	if (QThread::currentThreadId() != _mainThreadId) {
-		return notifyOrInvoke(receiver, e);
+		return QApplication::notify(receiver, e);
 	}
 
 	const auto wrap = createEventNestingLevel();
@@ -120,7 +113,7 @@ bool App::notify(QObject *receiver, QEvent *e) {
 			return true;
 		}
 	}
-	return notifyOrInvoke(receiver, e);
+	return QApplication::notify(receiver, e);
 }
 
 rpl::producer<> App::widgetUpdateRequests() const {
@@ -178,6 +171,10 @@ int main(int argc, char *argv[]) {
 
 	auto app = App(argc, argv);
 	app.installNativeEventFilter(&app);
+
+#ifdef Q_OS_MAC
+	base::RegisterBundledResources(u"test_text.rcc"_q);
+#endif // Q_OS_MAC
 
 	const auto ratio = app.devicePixelRatio();
 	const auto useRatio = std::clamp(qCeil(ratio), 1, 3);

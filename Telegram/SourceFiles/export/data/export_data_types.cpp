@@ -343,6 +343,686 @@ std::vector<TextPart> ParseText(const MTPTextWithEntities &text) {
 	return ParseText(text.data().vtext(), text.data().ventities().v);
 }
 
+Photo ParsePhoto(const MTPPhoto &data, const QString &suggestedPath);
+
+namespace {
+
+RichText ParseRichText(const MTPRichText &text);
+RichBlock ParseRichBlock(const MTPPageBlock &block);
+std::vector<RichBlock> ParseRichBlocks(
+		const QVector<MTPPageBlock> &blocks);
+
+RichText ParseRichTextWrapper(
+		RichText::Type type,
+		const MTPRichText &child) {
+	auto result = RichText();
+	result.type = type;
+	result.children.reserve(1);
+	result.children.push_back(ParseRichText(child));
+	return result;
+}
+
+RichText ParseRichText(const MTPRichText &text) {
+	using Type = RichText::Type;
+	return text.match(
+	[](const MTPDtextEmpty &) {
+		auto result = RichText();
+		result.type = Type::Empty;
+		return result;
+	}, [](const MTPDtextPlain &data) {
+		auto result = RichText();
+		result.type = Type::Plain;
+		result.text = ParseString(data.vtext());
+		return result;
+	}, [](const MTPDtextBold &data) {
+		return ParseRichTextWrapper(Type::Bold, data.vtext());
+	}, [](const MTPDtextItalic &data) {
+		return ParseRichTextWrapper(Type::Italic, data.vtext());
+	}, [](const MTPDtextUnderline &data) {
+		return ParseRichTextWrapper(Type::Underline, data.vtext());
+	}, [](const MTPDtextStrike &data) {
+		return ParseRichTextWrapper(Type::Strike, data.vtext());
+	}, [](const MTPDtextFixed &data) {
+		return ParseRichTextWrapper(Type::Fixed, data.vtext());
+	}, [](const MTPDtextUrl &data) {
+		auto result = ParseRichTextWrapper(Type::Url, data.vtext());
+		result.data = ParseString(data.vurl());
+		result.id = uint64(data.vwebpage_id().v);
+		return result;
+	}, [](const MTPDtextEmail &data) {
+		auto result = ParseRichTextWrapper(Type::Email, data.vtext());
+		result.data = ParseString(data.vemail());
+		return result;
+	}, [](const MTPDtextConcat &data) {
+		auto result = RichText();
+		result.type = Type::Concat;
+		const auto &texts = data.vtexts().v;
+		result.children.reserve(texts.size());
+		for (const auto &text : texts) {
+			result.children.push_back(ParseRichText(text));
+		}
+		return result;
+	}, [](const MTPDtextSubscript &data) {
+		return ParseRichTextWrapper(Type::Subscript, data.vtext());
+	}, [](const MTPDtextSuperscript &data) {
+		return ParseRichTextWrapper(Type::Superscript, data.vtext());
+	}, [](const MTPDtextMarked &data) {
+		return ParseRichTextWrapper(Type::Marked, data.vtext());
+	}, [](const MTPDtextPhone &data) {
+		auto result = ParseRichTextWrapper(Type::Phone, data.vtext());
+		result.data = ParseString(data.vphone());
+		return result;
+	}, [](const MTPDtextImage &data) {
+		auto result = RichText();
+		result.type = Type::InlineImage;
+		result.id = uint64(data.vdocument_id().v);
+		result.width = data.vw().v;
+		result.height = data.vh().v;
+		return result;
+	}, [](const MTPDtextAnchor &data) {
+		auto result = ParseRichTextWrapper(Type::Anchor, data.vtext());
+		result.data = ParseString(data.vname());
+		return result;
+	}, [](const MTPDtextMath &data) {
+		auto result = RichText();
+		result.type = Type::Math;
+		result.data = ParseString(data.vsource());
+		return result;
+	}, [](const MTPDtextCustomEmoji &data) {
+		auto result = RichText();
+		result.type = Type::CustomEmoji;
+		result.text = ParseString(data.valt());
+		result.id = uint64(data.vdocument_id().v);
+		result.customEmojiData = NumberToString(result.id);
+		return result;
+	}, [](const MTPDtextSpoiler &data) {
+		return ParseRichTextWrapper(Type::Spoiler, data.vtext());
+	}, [](const MTPDtextMention &data) {
+		return ParseRichTextWrapper(Type::Mention, data.vtext());
+	}, [](const MTPDtextHashtag &data) {
+		return ParseRichTextWrapper(Type::Hashtag, data.vtext());
+	}, [](const MTPDtextBotCommand &data) {
+		return ParseRichTextWrapper(Type::BotCommand, data.vtext());
+	}, [](const MTPDtextCashtag &data) {
+		return ParseRichTextWrapper(Type::Cashtag, data.vtext());
+	}, [](const MTPDtextAutoUrl &data) {
+		return ParseRichTextWrapper(Type::AutoUrl, data.vtext());
+	}, [](const MTPDtextAutoEmail &data) {
+		return ParseRichTextWrapper(Type::AutoEmail, data.vtext());
+	}, [](const MTPDtextAutoPhone &data) {
+		return ParseRichTextWrapper(Type::AutoPhone, data.vtext());
+	}, [](const MTPDtextBankCard &data) {
+		return ParseRichTextWrapper(Type::BankCard, data.vtext());
+	}, [](const MTPDtextMentionName &data) {
+		auto result = ParseRichTextWrapper(Type::MentionName, data.vtext());
+		result.id = uint64(data.vuser_id().v);
+		return result;
+	}, [](const MTPDtextDate &data) {
+		auto result = ParseRichTextWrapper(Type::FormattedDate, data.vtext());
+		result.date = data.vdate().v;
+		result.relative = data.is_relative();
+		result.shortTime = data.is_short_time();
+		result.longTime = data.is_long_time();
+		result.shortDate = data.is_short_date();
+		result.longDate = data.is_long_date();
+		result.dayOfWeek = data.is_day_of_week();
+		return result;
+	}, [](const MTPDtextDiff &data) {
+		auto result = RichText();
+		result.type = Type::Diff;
+		result.unsupported = true;
+		result.children.reserve(1);
+		result.children.push_back(ParseRichText(data.vtext()));
+		result.oldChildren.reserve(1);
+		result.oldChildren.push_back(ParseRichText(data.vold_text()));
+		return result;
+	});
+}
+
+RichCaption ParseRichCaption(const MTPPageCaption &caption) {
+	const auto &data = caption.data();
+	return {
+		.text = ParseRichText(data.vtext()),
+		.credit = ParseRichText(data.vcredit()),
+	};
+}
+
+RichTaskState ParseRichTaskState(bool checkbox, bool checked) {
+	if (!checkbox) {
+		return RichTaskState::None;
+	}
+	return checked ? RichTaskState::Checked : RichTaskState::Unchecked;
+}
+
+RichListItem ParseRichListItem(const MTPPageListItem &item) {
+	return item.match([](const MTPDpageListItemText &data) {
+		auto result = RichListItem();
+		result.content = RichListItemContent::Text;
+		result.taskState = ParseRichTaskState(
+			data.is_checkbox(),
+			data.is_checked());
+		result.text = ParseRichText(data.vtext());
+		return result;
+	}, [](const MTPDpageListItemBlocks &data) {
+		auto result = RichListItem();
+		result.content = RichListItemContent::Blocks;
+		result.taskState = ParseRichTaskState(
+			data.is_checkbox(),
+			data.is_checked());
+		result.blocks = ParseRichBlocks(data.vblocks().v);
+		return result;
+	});
+}
+
+template <typename Data>
+void FillRichOrderedListItem(
+		RichListItem &result,
+		const Data &data) {
+	result.taskState = ParseRichTaskState(
+		data.is_checkbox(),
+		data.is_checked());
+	if (const auto num = data.vnum()) {
+		result.num = ParseString(*num);
+	}
+	if (const auto value = data.vvalue()) {
+		result.value = value->v;
+	}
+	if (const auto type = data.vtype()) {
+		result.type = ParseString(*type);
+	}
+}
+
+RichListItem ParseRichOrderedListItem(
+		const MTPPageListOrderedItem &item) {
+	return item.match([](const MTPDpageListOrderedItemText &data) {
+		auto result = RichListItem();
+		result.content = RichListItemContent::Text;
+		FillRichOrderedListItem(result, data);
+		result.text = ParseRichText(data.vtext());
+		return result;
+	}, [](const MTPDpageListOrderedItemBlocks &data) {
+		auto result = RichListItem();
+		result.content = RichListItemContent::Blocks;
+		FillRichOrderedListItem(result, data);
+		result.blocks = ParseRichBlocks(data.vblocks().v);
+		return result;
+	});
+}
+
+RichTableAlignment ParseRichTableAlignment(
+		const MTPDpageTableCell &data) {
+	if (data.is_align_right()) {
+		return RichTableAlignment::Right;
+	} else if (data.is_align_center()) {
+		return RichTableAlignment::Center;
+	}
+	return RichTableAlignment::Left;
+}
+
+RichTableVerticalAlignment ParseRichTableVerticalAlignment(
+		const MTPDpageTableCell &data) {
+	if (data.is_valign_bottom()) {
+		return RichTableVerticalAlignment::Bottom;
+	} else if (data.is_valign_middle()) {
+		return RichTableVerticalAlignment::Middle;
+	}
+	return RichTableVerticalAlignment::Top;
+}
+
+RichTableCell ParseRichTableCell(const MTPPageTableCell &cell) {
+	const auto &data = cell.data();
+	auto result = RichTableCell();
+	result.header = data.is_header();
+	result.alignment = ParseRichTableAlignment(data);
+	result.verticalAlignment = ParseRichTableVerticalAlignment(data);
+	if (const auto text = data.vtext()) {
+		result.text = ParseRichText(*text);
+	}
+	if (const auto colspan = data.vcolspan()) {
+		result.colspan = colspan->v;
+	}
+	if (const auto rowspan = data.vrowspan()) {
+		result.rowspan = rowspan->v;
+	}
+	return result;
+}
+
+RichTableRow ParseRichTableRow(const MTPPageTableRow &row) {
+	const auto &cells = row.data().vcells().v;
+	auto result = RichTableRow();
+	result.cells.reserve(cells.size());
+	for (const auto &cell : cells) {
+		result.cells.push_back(ParseRichTableCell(cell));
+	}
+	return result;
+}
+
+RichRelatedArticle ParseRichRelatedArticle(
+		const MTPPageRelatedArticle &article) {
+	const auto &data = article.data();
+	auto result = RichRelatedArticle();
+	result.url = ParseString(data.vurl());
+	result.webpageId = uint64(data.vwebpage_id().v);
+	if (const auto title = data.vtitle()) {
+		result.title = ParseString(*title);
+	}
+	if (const auto description = data.vdescription()) {
+		result.description = ParseString(*description);
+	}
+	if (const auto photoId = data.vphoto_id()) {
+		result.photoId = uint64(photoId->v);
+	}
+	if (const auto author = data.vauthor()) {
+		result.author = ParseString(*author);
+	}
+	if (const auto publishedDate = data.vpublished_date()) {
+		result.publishedDate = publishedDate->v;
+	}
+	return result;
+}
+
+RichChannel ParseRichChannel(const MTPChat &chat) {
+	using Source = RichChannel::Source;
+	return chat.match([](const MTPDchatEmpty &data) {
+		auto result = RichChannel();
+		result.source = Source::ChatEmpty;
+		result.id = uint64(data.vid().v);
+		return result;
+	}, [](const MTPDchat &data) {
+		auto result = RichChannel();
+		result.source = Source::Chat;
+		result.id = uint64(data.vid().v);
+		result.title = ParseString(data.vtitle());
+		return result;
+	}, [](const MTPDchatForbidden &data) {
+		auto result = RichChannel();
+		result.source = Source::ChatForbidden;
+		result.id = uint64(data.vid().v);
+		result.title = ParseString(data.vtitle());
+		return result;
+	}, [](const MTPDchannel &data) {
+		auto result = RichChannel();
+		result.source = Source::Channel;
+		result.id = uint64(data.vid().v);
+		result.title = ParseString(data.vtitle());
+		result.broadcast = data.is_broadcast();
+		result.megagroup = data.is_megagroup();
+		result.monoforum = data.is_monoforum();
+		if (const auto accessHash = data.vaccess_hash()) {
+			result.accessHash = int64(accessHash->v);
+		}
+		if (const auto username = data.vusername()) {
+			result.username = ParseString(*username);
+		}
+		return result;
+	}, [](const MTPDchannelForbidden &data) {
+		auto result = RichChannel();
+		result.source = Source::ChannelForbidden;
+		result.id = uint64(data.vid().v);
+		result.title = ParseString(data.vtitle());
+		result.accessHash = int64(data.vaccess_hash().v);
+		result.broadcast = data.is_broadcast();
+		result.megagroup = data.is_megagroup();
+		result.monoforum = data.is_monoforum();
+		return result;
+	}, [](const MTPDcommunity &data) {
+		auto result = RichChannel();
+		result.source = Source::Community;
+		result.id = uint64(data.vid().v);
+		result.title = ParseString(data.vtitle());
+		if (const auto accessHash = data.vaccess_hash()) {
+			result.accessHash = int64(accessHash->v);
+		}
+		return result;
+	}, [](const MTPDcommunityForbidden &data) {
+		auto result = RichChannel();
+		result.source = Source::CommunityForbidden;
+		result.id = uint64(data.vid().v);
+		result.title = ParseString(data.vtitle());
+		if (const auto accessHash = data.vaccess_hash()) {
+			result.accessHash = int64(accessHash->v);
+		}
+		return result;
+	});
+}
+
+RichMapPoint ParseRichMapPoint(const MTPGeoPoint &point) {
+	using Source = RichMapPoint::Source;
+	return point.match([](const MTPDgeoPointEmpty &) {
+		auto result = RichMapPoint();
+		result.source = Source::GeoPointEmpty;
+		return result;
+	}, [](const MTPDgeoPoint &data) {
+		auto result = RichMapPoint();
+		result.source = Source::GeoPoint;
+		result.latitude = data.vlat().v;
+		result.longitude = data.vlong().v;
+		result.accessHash = int64(data.vaccess_hash().v);
+		if (const auto accuracyRadius = data.vaccuracy_radius()) {
+			result.accuracyRadius = accuracyRadius->v;
+		}
+		return result;
+	});
+}
+
+RichMapPoint ParseRichMapPoint(const MTPInputGeoPoint &point) {
+	using Source = RichMapPoint::Source;
+	return point.match([](const MTPDinputGeoPointEmpty &) {
+		auto result = RichMapPoint();
+		result.source = Source::InputGeoPointEmpty;
+		return result;
+	}, [](const MTPDinputGeoPoint &data) {
+		auto result = RichMapPoint();
+		result.source = Source::InputGeoPoint;
+		result.latitude = data.vlat().v;
+		result.longitude = data.vlong().v;
+		if (const auto accuracyRadius = data.vaccuracy_radius()) {
+			result.accuracyRadius = accuracyRadius->v;
+		}
+		return result;
+	});
+}
+
+RichBlock ParseRichSupportedBlock(RichBlock::Kind kind) {
+	auto result = RichBlock();
+	result.kind = kind;
+	return result;
+}
+
+RichBlock ParseRichTextBlock(
+		RichBlock::Kind kind,
+		const MTPRichText &text) {
+	auto result = RichBlock();
+	result.kind = kind;
+	result.text = ParseRichText(text);
+	return result;
+}
+
+RichBlock ParseRichHeadingBlock(
+		int level,
+		const MTPRichText &text) {
+	auto result = ParseRichTextBlock(RichBlock::Kind::Heading, text);
+	result.headingLevel = level;
+	return result;
+}
+
+RichBlock ParseRichUnsupportedBlock(RichBlock::Kind kind) {
+	auto result = ParseRichSupportedBlock(kind);
+	result.unsupported = true;
+	return result;
+}
+
+RichBlock ParseRichBlock(const MTPPageBlock &block) {
+	using Kind = RichBlock::Kind;
+	return block.match(
+	[](const MTPDpageBlockUnsupported &) {
+		return ParseRichUnsupportedBlock(Kind::Unsupported);
+	}, [](const MTPDpageBlockTitle &data) {
+		return ParseRichHeadingBlock(1, data.vtext());
+	}, [](const MTPDpageBlockSubtitle &data) {
+		return ParseRichHeadingBlock(2, data.vtext());
+	}, [](const MTPDpageBlockAuthorDate &data) {
+		auto result = ParseRichTextBlock(Kind::AuthorDate, data.vauthor());
+		result.date = data.vpublished_date().v;
+		return result;
+	}, [](const MTPDpageBlockHeader &data) {
+		return ParseRichHeadingBlock(3, data.vtext());
+	}, [](const MTPDpageBlockSubheader &data) {
+		return ParseRichHeadingBlock(4, data.vtext());
+	}, [](const MTPDpageBlockParagraph &data) {
+		return ParseRichTextBlock(Kind::Paragraph, data.vtext());
+	}, [](const MTPDpageBlockPreformatted &data) {
+		auto result = ParseRichTextBlock(Kind::Code, data.vtext());
+		result.language = ParseString(data.vlanguage());
+		return result;
+	}, [](const MTPDpageBlockFooter &data) {
+		return ParseRichTextBlock(Kind::Footer, data.vtext());
+	}, [](const MTPDpageBlockDivider &) {
+		auto result = RichBlock();
+		result.kind = Kind::Divider;
+		return result;
+	}, [](const MTPDpageBlockAnchor &data) {
+		auto result = RichBlock();
+		result.kind = Kind::Anchor;
+		result.name = ParseString(data.vname());
+		return result;
+	}, [](const MTPDpageBlockList &data) {
+		auto result = RichBlock();
+		result.kind = Kind::List;
+		result.listKind = RichListKind::Bullet;
+		const auto &items = data.vitems().v;
+		result.listItems.reserve(items.size());
+		for (const auto &item : items) {
+			result.listItems.push_back(ParseRichListItem(item));
+		}
+		return result;
+	}, [](const MTPDpageBlockBlockquote &data) {
+		auto result = ParseRichTextBlock(Kind::Quote, data.vtext());
+		result.quoteContent = RichQuoteContent::Text;
+		result.quoteCaption = ParseRichText(data.vcaption());
+		return result;
+	}, [](const MTPDpageBlockPullquote &data) {
+		auto result = ParseRichTextBlock(Kind::Quote, data.vtext());
+		result.quoteContent = RichQuoteContent::Text;
+		result.quoteCaption = ParseRichText(data.vcaption());
+		result.pullquote = true;
+		return result;
+	}, [](const MTPDpageBlockPhoto &data) {
+		auto result = ParseRichSupportedBlock(Kind::Photo);
+		result.photoId = uint64(data.vphoto_id().v);
+		result.caption = ParseRichCaption(data.vcaption());
+		result.spoiler = data.is_spoiler();
+		if (const auto url = data.vurl()) {
+			result.optionalUrl = ParseString(*url);
+		}
+		if (const auto webpageId = data.vwebpage_id()) {
+			result.optionalWebpageId = uint64(webpageId->v);
+		}
+		return result;
+	}, [](const MTPDpageBlockVideo &data) {
+		auto result = ParseRichSupportedBlock(Kind::Video);
+		result.documentId = uint64(data.vvideo_id().v);
+		result.caption = ParseRichCaption(data.vcaption());
+		result.autoplay = data.is_autoplay();
+		result.loop = data.is_loop();
+		result.spoiler = data.is_spoiler();
+		return result;
+	}, [](const MTPDpageBlockCover &data) {
+		auto result = ParseRichSupportedBlock(Kind::Cover);
+		result.blocks.reserve(1);
+		result.blocks.push_back(ParseRichBlock(data.vcover()));
+		return result;
+	}, [](const MTPDpageBlockEmbed &data) {
+		auto result = ParseRichSupportedBlock(Kind::Embed);
+		result.fullWidth = data.is_full_width();
+		result.allowScrolling = data.is_allow_scrolling();
+		result.caption = ParseRichCaption(data.vcaption());
+		if (const auto url = data.vurl()) {
+			result.optionalUrl = ParseString(*url);
+		}
+		if (const auto html = data.vhtml()) {
+			result.html = ParseString(*html);
+		}
+		if (const auto posterPhotoId = data.vposter_photo_id()) {
+			result.posterPhotoId = uint64(posterPhotoId->v);
+		}
+		if (const auto width = data.vw()) {
+			result.width = width->v;
+		}
+		if (const auto height = data.vh()) {
+			result.height = height->v;
+		}
+		return result;
+	}, [](const MTPDpageBlockEmbedPost &data) {
+		auto result = ParseRichSupportedBlock(Kind::EmbedPost);
+		result.url = ParseString(data.vurl());
+		result.webpageId = uint64(data.vwebpage_id().v);
+		result.authorPhotoId = uint64(data.vauthor_photo_id().v);
+		result.author = ParseString(data.vauthor());
+		result.date = data.vdate().v;
+		result.blocks = ParseRichBlocks(data.vblocks().v);
+		result.caption = ParseRichCaption(data.vcaption());
+		return result;
+	}, [](const MTPDpageBlockCollage &data) {
+		auto result = ParseRichSupportedBlock(Kind::Collage);
+		result.blocks = ParseRichBlocks(data.vitems().v);
+		result.caption = ParseRichCaption(data.vcaption());
+		return result;
+	}, [](const MTPDpageBlockSlideshow &data) {
+		auto result = ParseRichSupportedBlock(Kind::Slideshow);
+		result.blocks = ParseRichBlocks(data.vitems().v);
+		result.caption = ParseRichCaption(data.vcaption());
+		return result;
+	}, [](const MTPDpageBlockChannel &data) {
+		auto result = ParseRichSupportedBlock(Kind::Channel);
+		result.channel = ParseRichChannel(data.vchannel());
+		return result;
+	}, [](const MTPDpageBlockAudio &data) {
+		auto result = ParseRichSupportedBlock(Kind::Audio);
+		result.documentId = uint64(data.vaudio_id().v);
+		result.caption = ParseRichCaption(data.vcaption());
+		return result;
+	}, [](const MTPDpageBlockKicker &data) {
+		return ParseRichHeadingBlock(5, data.vtext());
+	}, [](const MTPDpageBlockTable &data) {
+		auto result = ParseRichTextBlock(Kind::Table, data.vtitle());
+		result.bordered = data.is_bordered();
+		result.striped = data.is_striped();
+		const auto &rows = data.vrows().v;
+		result.tableRows.reserve(rows.size());
+		for (const auto &row : rows) {
+			result.tableRows.push_back(ParseRichTableRow(row));
+		}
+		return result;
+	}, [](const MTPDpageBlockOrderedList &data) {
+		auto result = RichBlock();
+		result.kind = Kind::List;
+		result.listKind = RichListKind::Ordered;
+		result.orderedList.reversed = data.is_reversed();
+		if (const auto start = data.vstart()) {
+			result.orderedList.start = start->v;
+		}
+		if (const auto type = data.vtype()) {
+			result.orderedList.type = ParseString(*type);
+		}
+		const auto &items = data.vitems().v;
+		result.listItems.reserve(items.size());
+		for (const auto &item : items) {
+			result.listItems.push_back(ParseRichOrderedListItem(item));
+		}
+		return result;
+	}, [](const MTPDpageBlockDetails &data) {
+		auto result = ParseRichTextBlock(Kind::Details, data.vtitle());
+		result.open = data.is_open();
+		result.blocks = ParseRichBlocks(data.vblocks().v);
+		return result;
+	}, [](const MTPDpageBlockRelatedArticles &data) {
+		auto result = ParseRichSupportedBlock(Kind::RelatedArticles);
+		result.text = ParseRichText(data.vtitle());
+		const auto &articles = data.varticles().v;
+		result.relatedArticles.reserve(articles.size());
+		for (const auto &article : articles) {
+			result.relatedArticles.push_back(
+				ParseRichRelatedArticle(article));
+		}
+		return result;
+	}, [](const MTPDpageBlockMap &data) {
+		auto result = ParseRichSupportedBlock(Kind::Map);
+		result.mapPoint = ParseRichMapPoint(data.vgeo());
+		result.zoom = data.vzoom().v;
+		result.mapWidth = data.vw().v;
+		result.mapHeight = data.vh().v;
+		result.caption = ParseRichCaption(data.vcaption());
+		return result;
+	}, [](const MTPDpageBlockHeading1 &data) {
+		return ParseRichHeadingBlock(1, data.vtext());
+	}, [](const MTPDpageBlockHeading2 &data) {
+		return ParseRichHeadingBlock(2, data.vtext());
+	}, [](const MTPDpageBlockHeading3 &data) {
+		return ParseRichHeadingBlock(3, data.vtext());
+	}, [](const MTPDpageBlockHeading4 &data) {
+		return ParseRichHeadingBlock(4, data.vtext());
+	}, [](const MTPDpageBlockHeading5 &data) {
+		return ParseRichHeadingBlock(5, data.vtext());
+	}, [](const MTPDpageBlockHeading6 &data) {
+		return ParseRichHeadingBlock(6, data.vtext());
+	}, [](const MTPDpageBlockMath &data) {
+		auto result = RichBlock();
+		result.kind = Kind::Math;
+		result.formula = ParseString(data.vsource());
+		return result;
+	}, [](const MTPDpageBlockThinking &data) {
+		return ParseRichTextBlock(Kind::Thinking, data.vtext());
+	}, [](const MTPDinputPageBlockMap &data) {
+		auto result = ParseRichSupportedBlock(Kind::InputMap);
+		result.mapPoint = ParseRichMapPoint(data.vgeo());
+		result.zoom = data.vzoom().v;
+		result.mapWidth = data.vw().v;
+		result.mapHeight = data.vh().v;
+		result.caption = ParseRichCaption(data.vcaption());
+		return result;
+	}, [](const MTPDpageBlockBlockquoteBlocks &data) {
+		auto result = RichBlock();
+		result.kind = Kind::Quote;
+		result.quoteContent = RichQuoteContent::Blocks;
+		result.blocks = ParseRichBlocks(data.vblocks().v);
+		result.quoteCaption = ParseRichText(data.vcaption());
+		return result;
+	});
+}
+
+std::vector<RichBlock> ParseRichBlocks(
+		const QVector<MTPPageBlock> &blocks) {
+	auto result = std::vector<RichBlock>();
+	result.reserve(blocks.size());
+	for (const auto &block : blocks) {
+		result.push_back(ParseRichBlock(block));
+	}
+	return result;
+}
+
+RichMessage ParseRichMessageRoot(
+		ParseMediaContext &context,
+		const MTPRichMessage &message,
+		const QString &mediaFolder,
+		TimeId messageDate) {
+	const auto &data = message.data();
+	auto result = RichMessage();
+	result.rtl = data.is_rtl();
+	result.part = data.is_part();
+	for (const auto &photo : data.vphotos().v) {
+		++context.photos;
+		auto parsed = ParsePhoto(
+			photo,
+			mediaFolder
+				+ "photos/"
+				+ PreparePhotoFileName(context.photos, messageDate));
+		const auto id = parsed.id;
+		result.photos.insert_or_assign(id, std::move(parsed));
+	}
+	for (const auto &document : data.vdocuments().v) {
+		auto parsed = ParseDocument(
+			context,
+			document,
+			mediaFolder,
+			messageDate);
+		const auto id = parsed.id;
+		result.documents.insert_or_assign(id, std::move(parsed));
+	}
+	result.blocks = ParseRichBlocks(data.vblocks().v);
+	return result;
+}
+
+} // namespace
+
+RichMessage ParseRichMessage(
+		ParseMediaContext &context,
+		const MTPRichMessage &data,
+		const QString &folder,
+		TimeId date) {
+	return ParseRichMessageRoot(context, data, folder, date);
+}
+
 Utf8String Reaction::Id(const Reaction &reaction) {
 	auto id = Utf8String();
 	switch (reaction.type) {
@@ -1234,6 +1914,18 @@ Chat ParseChat(const MTPChat &data) {
 		result.input = MTP_inputPeerChannel(
 			MTP_long(result.bareId),
 			data.vaccess_hash());
+	}, [&](const MTPDcommunity &data) {
+		result.bareId = data.vid().v;
+		result.title = ParseString(data.vtitle());
+		result.input = MTP_inputPeerChannel(
+			MTP_long(result.bareId),
+			MTP_long(data.vaccess_hash().value_or_empty()));
+	}, [&](const MTPDcommunityForbidden &data) {
+		result.bareId = data.vid().v;
+		result.title = ParseString(data.vtitle());
+		result.input = MTP_inputPeerChannel(
+			MTP_long(result.bareId),
+			MTP_long(data.vaccess_hash().value_or_empty()));
 	});
 	return result;
 }
@@ -1898,6 +2590,7 @@ ServiceAction ParseServiceAction(
 				}));
 		}, [](const auto &) {});
 		result.content = content;
+	}, [](const MTPDmessageActionChangeCommunity &) {
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }
@@ -2060,6 +2753,13 @@ Message ParseMessage(
 			if (data.vreactions().has_value()) {
 				result.reactions = ParseReactions(*data.vreactions());
 			}
+		if (const auto richMessage = data.vrich_message()) {
+			result.richMessage = ParseRichMessage(
+				context,
+				*richMessage,
+				mediaFolder,
+				result.date);
+		}
 	}, [&](const MTPDmessageService &data) {
 		result.action = ParseServiceAction(
 			context,
@@ -2468,6 +3168,10 @@ DialogsInfo ParseDialogsInfo(
 			const auto peerId = single.match([](const MTPDchannel &data) {
 				return peerFromChannel(data.vid());
 			}, [](const MTPDchannelForbidden &data) {
+				return peerFromChannel(data.vid());
+			}, [](const MTPDcommunity &data) {
+				return peerFromChannel(data.vid());
+			}, [](const MTPDcommunityForbidden &data) {
 				return peerFromChannel(data.vid());
 			}, [](const auto &data) {
 				return peerFromChat(data.vid());

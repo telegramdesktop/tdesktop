@@ -24,8 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "storage/storage_media_prepare.h"
 #include "storage/file_upload.h" // For Storage::kUseBigFilesFrom.
-#include "styles/style_layers.h"
 #include "styles/style_passport.h"
+#include "styles/style_widgets.h"
 
 #include <QtCore/QBuffer>
 

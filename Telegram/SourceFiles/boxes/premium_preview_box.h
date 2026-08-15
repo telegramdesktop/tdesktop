@@ -77,6 +77,7 @@ enum class PremiumFeature {
 	Gifts,
 	NoForwards,
 	AiCompose,
+	RichFormatting,
 
 	// Business features.
 	BusinessLocation,
@@ -104,6 +105,11 @@ void ShowPremiumPreviewBox(
 
 void ShowPremiumPreviewToBuy(
 	not_null<Window::SessionController*> controller,
+	PremiumFeature section,
+	Fn<void()> hiddenCallback = nullptr);
+
+void ShowPremiumPreviewToBuy(
+	std::shared_ptr<ChatHelpers::Show> show,
 	PremiumFeature section,
 	Fn<void()> hiddenCallback = nullptr);
 

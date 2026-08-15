@@ -48,6 +48,8 @@ protected:
 	void leaveEventHook(QEvent *e) override;
 
 private:
+	style::color listBackground() const override;
+
 	// Info::AbstractController implementation.
 	Info::Key key() const override;
 	PeerData *migrated() const override;
@@ -63,6 +65,9 @@ private:
 
 	void ensureCreated();
 	void performDestroy();
+
+	[[nodiscard]] Data::ForumTopic *listTopic() const;
+	[[nodiscard]] Data::SavedSublist *listSublist() const;
 
 	void updateControlsGeometry();
 	void refreshList();
@@ -103,6 +108,8 @@ private:
 	PeerData *_listPeer = nullptr;
 	PeerData *_listMusicPeer = nullptr;
 	PeerData *_listMigratedPeer = nullptr;
+	MsgId _listTopicRootId = 0;
+	PeerId _listSublistPeerId = 0;
 
 };
 

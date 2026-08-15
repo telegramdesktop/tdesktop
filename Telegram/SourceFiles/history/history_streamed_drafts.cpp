@@ -95,7 +95,7 @@ HistoryStreamedDrafts::DraftContent HistoryStreamedDrafts::prepareContent(
 			data.vrich_message()),
 		.kind = DraftKind::Rich,
 	};
-	content.text = Iv::FlattenRichPageSummary(content.richPage);
+	content.text = Iv::FlattenRichPageSummary(content.richPage, false);
 	content.matchText = content.text.text;
 	if (content.text.empty()) {
 		content.text.append(loadingEmoji());

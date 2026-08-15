@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_cloud_file.h"
+#include "data/data_file_origin.h"
 #include "data/data_poll.h"
 #include "history/history_item.h"
 #include "spellcheck/spellcheck_types.h" // LanguageId.
@@ -22,6 +23,7 @@ struct WebPageData;
 struct TodoListItem;
 class DocumentData;
 class PhotoData;
+class ChannelData;
 class VoiceSeekClickHandler;
 class ReplyKeyboard;
 
@@ -31,6 +33,10 @@ class ChatStyle;
 struct PeerUserpicView;
 struct VoiceOnceParticles;
 } // namespace Ui
+
+namespace Ui::Paint {
+class Blobs;
+} // namespace Ui::Paint
 
 namespace Ui::Text {
 struct GeometryDescriptor;
@@ -151,6 +157,7 @@ struct HistoryMessageRichPageSource
 : RuntimeComponent<HistoryMessageRichPageSource, HistoryItem> {
 	std::shared_ptr<const Iv::RichPage> page;
 	std::shared_ptr<const Iv::RichPage> fullPage;
+	std::optional<Data::FileOriginCloudDraft> draftOrigin;
 	uint64 fullPageVersion = 0;
 	bool canEdit = false;
 };
@@ -432,6 +439,7 @@ private:
 struct HistoryMessageTranslation
 : RuntimeComponent<HistoryMessageTranslation, HistoryItem> {
 	TextWithEntities text;
+	std::shared_ptr<const Iv::RichPage> richPage;
 	LanguageId to;
 	bool requested = false;
 	bool failed = false;
@@ -624,20 +632,15 @@ private:
 		int j = 0;
 	};
 
-	void startAnimation(int i, int j, int direction);
 	[[nodiscard]] bool hasFastButtonMode() const;
 
 	ButtonCoords findButtonCoordsByClickHandler(const ClickHandlerPtr &p);
-
-	bool selectedAnimationCallback(crl::time now);
 
 	const not_null<const HistoryItem*> _item;
 	int _width = 0;
 
 	std::vector<std::vector<Button>> _rows;
 
-	base::flat_map<int, crl::time> _animations;
-	Ui::Animations::Basic _selectedAnimation;
 	std::unique_ptr<Style> _st;
 
 	ClickHandlerPtr _savedPressed;
@@ -817,6 +820,13 @@ struct HistoryServiceNoForwardsToggle
 : RuntimeComponent<HistoryServiceNoForwardsToggle, HistoryItem> {
 };
 
+struct HistoryServiceCommunityAdded
+: RuntimeComponent<HistoryServiceCommunityAdded, HistoryItem> {
+	ChannelId communityId = 0;
+	ChannelData *community = nullptr;
+	rpl::lifetime lifetime;
+};
+
 struct HistoryServiceGameScore
 : RuntimeComponent<HistoryServiceGameScore, HistoryItem>
 , HistoryServiceDependentData {
@@ -926,10 +936,14 @@ struct HistoryDocumentNamed
 
 struct HistoryDocumentVoicePlayback {
 	HistoryDocumentVoicePlayback(const HistoryView::Document *that);
+	~HistoryDocumentVoicePlayback();
 
 	int32 position = 0;
 	anim::value progress;
 	Ui::Animations::Basic progressAnimation;
+
+	std::unique_ptr<Ui::Paint::Blobs> blobs;
+	crl::time blobsLastUpdate = 0;
 };
 
 class HistoryDocumentVoice
@@ -938,6 +952,9 @@ class HistoryDocumentVoice
 	static constexpr float64 kFloatToIntMultiplier = 65536.;
 
 public:
+	HistoryDocumentVoice &operator=(HistoryDocumentVoice &&other);
+	~HistoryDocumentVoice();
+
 	void ensurePlayback(const HistoryView::Document *interfaces) const;
 	void checkPlaybackFinished() const;
 

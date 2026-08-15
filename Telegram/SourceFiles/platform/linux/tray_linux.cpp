@@ -12,11 +12,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/linux/base_linux_dbus_utilities.h"
 #include "core/application.h"
 #include "core/sandbox.h"
+#include "core/version.h"
 #include "platform/platform_specific.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
-#include "styles/style_window.h"
 
 #include <QtCore/QCoreApplication>
 #include <QtWidgets/QMenu>

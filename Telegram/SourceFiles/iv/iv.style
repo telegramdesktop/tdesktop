@@ -23,6 +23,7 @@ ivMenuToggle: IconButton(defaultIconButton) {
 	ripple: defaultRippleAnimationBgOver;
 }
 ivMenuPosition: point(-2px, 40px);
+ivZoomDropdownPosition: point(-2px, 0px);
 ivBackIcon: icon {{ "box_button_back", menuIconColor }};
 ivBack: IconButton(ivMenuToggle) {
 	width: 60px;
@@ -73,27 +74,64 @@ ivSubtitleHeight: 48px;
 ivSubtitleTop: 12px;
 ivSubtitleLeft: 22px;
 ivSubtitleSkip: 0px;
+ivSearchBarHeight: ivSubtitleHeight;
+ivSearchBarCounterSkip: 10px;
+ivSearchCounterLabel: FlatLabel(defaultSettingsRightLabel) {
+	textFg: windowFg;
+}
 ivWrongLayoutBarHeight: 32px;
 ivWrongLayoutLink: LinkButton(defaultLinkButton) {
 	color: windowSubTextFg;
 	overColor: windowSubTextFg;
 	padding: margins(5px, 5px, 5px, 5px);
 }
-/*
 ivEditorWindowMinSize: size(384px, 480px);
 ivEditorWindowDefaultSize: size(800px, 600px);
 ivEditorBodyPadding: margins(0px, 8px, 0px, 8px);
 ivEditorToolbarButtonSize: 36px;
-ivEditorTopControlsPadding: margins(8px, defaultVerticalListSkip, 8px, defaultVerticalListSkip);
-ivEditorTopControlsButtonSkip: 6px;
-ivEditorTopControlsContentSkip: 8px;
-ivEditorSubmitButton: RoundButton(defaultActiveButton) {
-	height: ivEditorToolbarButtonSize;
+ivEditorEmojiColumnCloseSize: 30px;
+ivEditorToolbarPadding: margins(9px, 10px, 9px, 10px);
+ivEditorToolbarGroupsSkip: 6px;
+ivEditorBottomControlsPadding: margins(9px, 10px, 9px, 10px);
+ivEditorPillPadding: 2px;
+ivEditorPillButtonSkip: 6px;
+ivEditorBottomCircleSize: 40px;
+ivEditorSendLockBadgeShift: point(-5px, -5px);
+ivComposeSendLockBadgePosition: point(1px, 2px);
+ivEditorSendLockBadgePadding: 3px;
+ivEditorSendLockBadgeStroke: 2px;
+ivEditorPremiumChoiceAboutSkip: 10px;
+ivEditorPremiumChoiceBox: Box(defaultBox) {
+	buttonHeight: 0px;
 }
-ivEditorCancelButton: RoundButton(defaultLightButton) {
-	height: ivEditorToolbarButtonSize;
+ivEditorSendLockIcon: icon{{ "chat/mini_lock", windowFgActive }};
+ivEditorToolbarPremiumStarSize: 11px;
+ivEditorToolbarPremiumStarSkip: point(5px, 7px);
+ivEditorToolbarPremiumStarOutline: 2px;
+ivEditorStyleMenuPremiumStarSize: 16px;
+ivEditorPillShadow: BoxShadow {
+	blurRadius: 3px;
+	offset: point(0px, 1px);
+	opacity: 0.09;
 }
-ivEditorToolbarPadding: margins(8px, defaultVerticalListSkip, 8px, defaultVerticalListSkip);
+ivEditorEmojiColumnCloseScrollSkip: 4px;
+ivEditorToolbarUndoIcon: icon {{ "menu/tabs_undo-24x24", menuIconColor }};
+ivEditorToolbarRedoIcon: icon {{ "menu/tabs_redo-24x24", menuIconColor }};
+ivEditorToolbarBoldIcon: icon {{ "menu/rich/bold-24x24", menuIconColor }};
+ivEditorToolbarItalicIcon: icon {{ "menu/rich/italic-24x24", menuIconColor }};
+ivEditorToolbarUnderlineIcon: icon {{ "menu/rich/underline-24x24", menuIconColor }};
+ivEditorToolbarStrikeOutIcon: icon {{ "menu/rich/strikeout-24x24", menuIconColor }};
+ivEditorToolbarSpoilerIcon: icon {{ "menu/rich/spoiler-24x24", menuIconColor }};
+ivEditorToolbarSubscriptIcon: icon {{ "menu/rich/subscript-24x24", menuIconColor }};
+ivEditorToolbarSuperscriptIcon: icon {{ "menu/rich/superscript-24x24", menuIconColor }};
+ivEditorToolbarMarkedIcon: icon {{ "menu/rich/marked-24x24", menuIconColor }};
+ivEditorToolbarPlainTextIcon: icon {{ "menu/rich/plain_text-24x24", menuIconColor }};
+ivEditorToolbarLinkIcon: icon {{ "menu/rich/link-24x24", menuIconColor }};
+ivEditorBottomDiscardIcon: icon {{ "menu/rich/discard-24x24", menuIconColor }};
+ivEditorBottomCancelIcon: icon {{ "menu/rich/cancel-24x24", menuIconColor }};
+ivEditorPremiumChoiceIcon: icon {{ "menu/article_rich-24x24", windowFgActive }};
+ivEditorPremiumChoiceIconCircle: 64px;
+ivEditorPremiumChoiceIconPadding: margins(0px, 8px, 0px, 12px);
 ivEditorToolbarButton: IconButton(defaultIconButton) {
 	width: ivEditorToolbarButtonSize;
 	height: ivEditorToolbarButtonSize;
@@ -102,22 +140,164 @@ ivEditorToolbarButton: IconButton(defaultIconButton) {
 	rippleAreaSize: ivEditorToolbarButtonSize;
 	ripple: defaultRippleAnimationBgOver;
 }
-ivEditorToolbarButtonSkip: 6px;
-ivEditorToolbarRowSkip: 0px;
+ivEditorSearchMultiSelect: MultiSelect(searchInChatMultiSelect) {
+	bg: transparent;
+	padding: margins(8px, 4px, 8px, 4px);
+}
+ivEditorSearchPrevious: IconButton(ivEditorToolbarButton) {
+	icon: icon {{ "calendar_down-flip_vertical", boxTitleFg }};
+}
+ivEditorSearchNext: IconButton(ivEditorSearchPrevious) {
+	icon: icon {{ "calendar_down", boxTitleFg }};
+}
+ivEditorSearchCancel: CrossButton(defaultMultiSelectSearchCancel) {
+	width: ivEditorToolbarButtonSize;
+	height: ivEditorToolbarButtonSize;
+	crossPosition: point(0px, 0px);
+}
+ivEditorBottomDiscardButton: IconButton(ivEditorToolbarButton) {
+	icon: ivEditorBottomDiscardIcon;
+	iconOver: ivEditorBottomDiscardIcon;
+}
+ivEditorBottomCancelButton: IconButton(ivEditorToolbarButton) {
+	icon: ivEditorBottomCancelIcon;
+	iconOver: ivEditorBottomCancelIcon;
+}
+ivEditorBottomAiIcon: icon {{ "chat/ai_letters-24x24", menuIconColor }};
+ivEditorBottomAiStar1: icon {{ "chat/ai_star1-24x24", menuIconColor }};
+ivEditorBottomAiStar2: icon {{ "chat/ai_star2-24x24", menuIconColor }};
+ivEditorBottomSend: SendButton(historySend) {
+	sendIconPosition: point(8px, 8px);
+	sendIconFillPadding: 8px;
+	inner: IconButton(historyAttach) {
+		width: ivEditorBottomCircleSize;
+		height: ivEditorBottomCircleSize;
+		icon: icon {{ "menu/rich/send-24x24", windowFgActive }};
+		iconOver: icon {{ "menu/rich/send-24x24", windowFgActive }};
+		rippleAreaSize: ivEditorBottomCircleSize;
+		rippleAreaPosition: point(0px, 0px);
+	}
+	stars: RoundButton(defaultActiveButton) {
+		height: ivEditorBottomCircleSize;
+		padding: margins(6px, 0px, 10px, 0px);
+		textTop: 11px;
+		width: -8px;
+	}
+	sendIconFg: windowFgActive;
+}
+ivEditorBottomSaveSend: SendButton(historySend) {
+	sendIconPosition: point(8px, 8px);
+	sendIconFillPadding: 8px;
+	inner: IconButton(historyAttach) {
+		width: ivEditorBottomCircleSize;
+		height: ivEditorBottomCircleSize;
+		icon: icon {{ "menu/rich/save-24x24", windowFgActive }};
+		iconOver: icon {{ "menu/rich/save-24x24", windowFgActive }};
+		rippleAreaSize: ivEditorBottomCircleSize;
+		rippleAreaPosition: point(0px, 0px);
+	}
+	sendIconFg: windowFgActive;
+}
+ivEditorEmojiColumnCloseIcon: icon {{ "simple_close", menuIconColor }};
+ivEditorEmojiColumnCloseIconOver: icon {{ "simple_close", menuIconColor }};
+ivEditorEmojiColumnClose: IconButton(ivEditorToolbarButton) {
+	width: ivEditorEmojiColumnCloseSize;
+	height: ivEditorEmojiColumnCloseSize;
+	rippleAreaSize: ivEditorEmojiColumnCloseSize;
+	rippleAreaPosition: point(0px, 0px);
+	icon: ivEditorEmojiColumnCloseIcon;
+	iconOver: ivEditorEmojiColumnCloseIconOver;
+}
 ivEditorToolbarHeadingIcon: icon {{ "menu/rich/heading-24x24", menuIconColor }};
-ivEditorToolbarEmojiIcon: icon {{ "chat/input_smile_face", menuIconColor }};
+ivEditorToolbarHeading1Icon: icon {{ "menu/rich/heading1-24x24", menuIconColor }};
+ivEditorToolbarHeading2Icon: icon {{ "menu/rich/heading2-24x24", menuIconColor }};
+ivEditorToolbarHeading3Icon: icon {{ "menu/rich/heading3-24x24", menuIconColor }};
+ivEditorToolbarHeading4Icon: icon {{ "menu/rich/heading4-24x24", menuIconColor }};
+ivEditorToolbarHeading5Icon: icon {{ "menu/rich/heading5-24x24", menuIconColor }};
+ivEditorToolbarHeading6Icon: icon {{ "menu/rich/heading6-24x24", menuIconColor }};
+ivEditorToolbarTextStyleIcon: icon {{ "menu/rich/text_style-24x24", menuIconColor }};
+ivEditorToolbarEmojiIcon: icon {{ "menu/rich/emoji-24x24", menuIconColor }};
 ivEditorToolbarBlockquoteIcon: icon {{ "menu/rich/blockquote-24x24", menuIconColor }};
-ivEditorToolbarCodeIcon: icon {{ "chat/code_tags", menuIconColor }};
+ivEditorToolbarCodeIcon: icon {{ "menu/rich/code-24x24", menuIconColor }};
 ivEditorToolbarMathIcon: icon {{ "menu/rich/math-24x24", menuIconColor }};
 ivEditorToolbarDividerIcon: icon {{ "menu/rich/divider-24x24", menuIconColor }};
+ivEditorToolbarFooterIcon: icon {{ "menu/rich/footer-24x24", menuIconColor }};
 ivEditorToolbarOrderedListIcon: icon {{ "menu/rich/ordered_list-24x24", menuIconColor }};
 ivEditorToolbarBulletListIcon: icon {{ "menu/rich/bullet_list-24x24", menuIconColor }};
 ivEditorToolbarTaskListIcon: icon {{ "menu/rich/task_list-24x24", menuIconColor }};
+ivEditorToolbarOrderedListAlphaLowerIcon: icon {{ "menu/rich/page_numbered1-24x24", menuIconColor }};
+ivEditorToolbarOrderedListAlphaUpperIcon: icon {{ "menu/rich/page_numbered2-24x24", menuIconColor }};
+ivEditorToolbarOrderedListRomanLowerIcon: icon {{ "menu/rich/page_numbered3-24x24", menuIconColor }};
+ivEditorToolbarOrderedListRomanUpperIcon: icon {{ "menu/rich/page_numbered4-24x24", menuIconColor }};
 ivEditorToolbarPullquoteIcon: icon {{ "menu/rich/pullquote-24x24", menuIconColor }};
-ivEditorToolbarAttachIcon: icon {{ "chat/input_attach", menuIconColor }};
+ivEditorToolbarAttachIcon: icon {{ "menu/rich/attach-24x24", menuIconColor }};
 ivEditorToolbarDetailsIcon: icon {{ "menu/rich/details-24x24", menuIconColor }};
 ivEditorToolbarTableIcon: icon {{ "menu/rich/table-24x24", menuIconColor }};
-ivEditorInlineFieldMargins: margins(4px, 0px, 6px, 0px);
+ivEditorToolbarLocationIcon: icon {{ "menu/rich/location-24x24", menuIconColor }};
+ivEditorToolbarAudioIcon: icon {{ "menu/rich/audio-24x24", menuIconColor }};
+ivSummaryTableIcon: IconEmoji {
+	icon: icon {{ "menu/rich/table-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 3px, 0px);
+}
+ivSummaryMediaIcon: IconEmoji {
+	icon: icon {{ "menu/rich/attach-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 3px, 0px);
+}
+ivSummaryAudioIcon: IconEmoji {
+	icon: icon {{ "menu/rich/audio-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 3px, 0px);
+}
+ivSummaryTaskCheckedIcon: IconEmoji {
+	icon: icon {{ "menu/rich/task_checked-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 1px, 0px);
+}
+ivSummaryTaskUncheckedIcon: IconEmoji {
+	icon: icon {{ "menu/rich/task_unchecked-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 1px, 0px);
+}
+ivSummaryLocationIcon: IconEmoji {
+	icon: icon {{ "menu/rich/location-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 3px, 0px);
+}
+ivSummaryPullquoteIcon: IconEmoji {
+	icon: icon {{ "menu/rich/pullquote-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 3px, 0px);
+}
+ivSummaryBlockquoteIcon: IconEmoji {
+	icon: icon {{ "menu/rich/blockquote-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 3px, 0px);
+}
+ivSummaryMathIcon: IconEmoji {
+	icon: icon {{ "menu/rich/math-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 3px, 0px);
+}
+ivEditorMediaCornerSize: 27px;
+ivEditorMediaCornerSkip: 6px;
+ivEditorMediaAddIcon: icon {{ "menu/rich/media_add-20x20", windowFgActive }};
+ivEditorMediaUploadRadialSize: 44px;
+ivEditorMediaToCollageIcon: icon {{ "menu/rich/to_collage-20x20", windowFgActive }};
+ivEditorMediaToSlideshowIcon: icon {{ "menu/rich/to_slideshow-20x20", windowFgActive }};
+ivEditorTableAddCellsIcon: icon {{ "menu/rich/table_add_cells-24x24", menuIconColor }};
+ivEditorTableAddRowAboveIcon: icon {{ "menu/rich/table_add_row_above-24x24", menuIconColor }};
+ivEditorTableAddRowBelowIcon: icon {{ "menu/rich/table_add_row_below-24x24", menuIconColor }};
+ivEditorTableAddColumnLeftIcon: icon {{ "menu/rich/table_add_column_left-24x24", menuIconColor }};
+ivEditorTableAddColumnRightIcon: icon {{ "menu/rich/table_add_column_right-24x24", menuIconColor }};
+ivEditorTableHeaderIcon: icon {{ "menu/rich/table_highlight-24x24", menuIconColor }};
+ivEditorTableHeaderOffIcon: icon {{ "menu/rich/table_highlight_off-24x24", menuIconColor }};
+ivEditorTableBorderlessIcon: icon {{ "menu/rich/table_borderless-24x24", menuIconColor }};
+ivEditorTableStripedIcon: icon {{ "menu/rich/table_striped-24x24", menuIconColor }};
+ivEditorTableAlignmentIcon: icon {{ "menu/rich/table_alignment-24x24", menuIconColor }};
+ivEditorTableAlignLeftIcon: icon {{ "menu/rich/align_left-24x24", menuIconColor }};
+ivEditorTableAlignCenterIcon: icon {{ "menu/rich/align_center-24x24", menuIconColor }};
+ivEditorTableAlignRightIcon: icon {{ "menu/rich/align_right-24x24", menuIconColor }};
+ivEditorTableAlignTopIcon: icon {{ "menu/rich/align_top-24x24", menuIconColor }};
+ivEditorTableAlignMiddleIcon: icon {{ "menu/rich/align_middle-24x24", menuIconColor }};
+ivEditorTableAlignBottomIcon: icon {{ "menu/rich/align_bottom-24x24", menuIconColor }};
+ivEditorTableDeleteCellsIcon: icon {{ "menu/rich/table_delete_cells-24x24", menuIconColor }};
+ivEditorTableDeleteRowsIcon: icon {{ "menu/rich/table_delete_row-24x24", menuIconColor }};
+ivEditorTableDeleteColumnsIcon: icon {{ "menu/rich/table_delete_column-24x24", menuIconColor }};
+ivEditorTableMergeIcon: icon {{ "menu/rich/table_merge-24x24", menuIconColor }};
+ivEditorTableSplitIcon: icon {{ "menu/rich/table_split-24x24", menuIconColor }};
 ivEditorMinHeight: boxWidth;
 ivEditorInputField: InputField(defaultInputField) {
 	style: historyTextStyle;
@@ -140,7 +320,6 @@ ivEditorInputField: InputField(defaultInputField) {
 	borderActive: 0px;
 	duration: 100;
 }
-*/
 
 MarkdownBlockSkips {
 	paragraph: pixels;
@@ -348,6 +527,10 @@ MarkdownGroupedMedia {
 	navPreviousIconOver: icon;
 	navNextIcon: icon;
 	navNextIconOver: icon;
+	dotSize: pixels;
+	dotSkip: pixels;
+	dotsBottomSkip: pixels;
+	dotsBgOpacity: double;
 }
 MarkdownFailure {
 	label: FlatLabel;
@@ -376,6 +559,7 @@ Markdown {
 	heading4: TextStyle;
 	heading5: TextStyle;
 	heading6: TextStyle;
+	footer: TextStyle;
 	code: TextStyle;
 	pagePadding: margins;
 	pageMaxWidth: pixels;
@@ -387,6 +571,7 @@ Markdown {
 	quoteReadableMinWidth: pixels;
 	quotePaintColors: MarkdownQuotePaintColors;
 	pullquote: MarkdownPullquote;
+	quoteAuthorStyle: TextStyle;
 	rule: MarkdownRule;
 	displayMath: MarkdownDisplayMath;
 	table: MarkdownTable;
@@ -415,6 +600,10 @@ defaultMarkdownDisplayMathFallbackStyle: TextStyle(defaultMarkdownCodeStyle) {
 }
 defaultMarkdownTableHeaderStyle: TextStyle(defaultMarkdownBodyStyle) {
 	font: font(16px semibold);
+	lineHeight: 24px;
+}
+defaultMarkdownQuoteAuthorStyle: TextStyle(defaultMarkdownBodyStyle) {
+	font: semiboldFont;
 	lineHeight: 24px;
 }
 defaultMarkdownBlockSkips: MarkdownBlockSkips {
@@ -471,6 +660,28 @@ defaultMarkdownDisplayMath: MarkdownDisplayMath {
 	fallbackPadding: margins(10px, 12px, 10px, 12px);
 	overflowWidth: 4px;
 	overflowFg: windowSubTextFg;
+}
+ivFormulaPreviewScroll: ScrollArea(defaultScrollArea) {
+	barHidden: true;
+}
+ivFormulaSectionTitle: FlatLabel(defaultSubsectionTitle) {
+	minWidth: 0px;
+}
+ivFormulaPreviewLabelMargin: margins(22px, 4px, 22px, 4px);
+ivFormulaPreviewMargin: margins(22px, 0px, 22px, 10px);
+ivFormulaPreviewPadding: margins(10px, 10px, 10px, 10px);
+ivFormulaPreviewMinHeight: 72px;
+ivFormulaPreviewRadius: 8px;
+ivFormulaPreviewBg: windowBgOver;
+ivFormulaPreviewFg: windowFg;
+ivFormulaSourceField: InputField(defaultInputField) {
+	textMargins: margins(0px, 6px, 0px, 4px);
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+	placeholderShift: -50px;
+	heightMin: 33px;
 }
 defaultMarkdownTable: MarkdownTable {
 	cellPadding: margins(8px, 10px, 8px, 10px);
@@ -658,6 +869,10 @@ defaultMarkdownGroupedMedia: MarkdownGroupedMedia {
 	navPreviousIconOver: ivBackIcon;
 	navNextIcon: ivForwardIcon;
 	navNextIconOver: ivForwardIcon;
+	dotSize: 6px;
+	dotSkip: 14px;
+	dotsBottomSkip: 12px;
+	dotsBgOpacity: 0.34;
 }
 defaultMarkdownFailureLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 280px;
@@ -737,6 +952,10 @@ defaultMarkdown: Markdown {
 		font: font(15px semibold);
 		lineHeight: 22px;
 	}
+	footer: TextStyle(defaultMarkdownBodyStyle) {
+		font: font(11px);
+		lineHeight: 18px;
+	}
 	code: defaultMarkdownCodeStyle;
 	pagePadding: margins(0px, 0px, 0px, 16px);
 	pageMaxWidth: 732px;
@@ -748,6 +967,7 @@ defaultMarkdown: Markdown {
 	quoteReadableMinWidth: 160px;
 	quotePaintColors: defaultMarkdownQuotePaintColors;
 	pullquote: defaultMarkdownPullquote;
+	quoteAuthorStyle: defaultMarkdownQuoteAuthorStyle;
 	rule: defaultMarkdownRule;
 	displayMath: defaultMarkdownDisplayMath;
 	table: defaultMarkdownTable;
@@ -763,7 +983,6 @@ defaultMarkdown: Markdown {
 }
 messageMarkdownBodyStyle: TextStyle(messageTextStyle) {
 	font: font(13px);
-	lineHeight: 20px;
 }
 messageMarkdownCodeStyle: TextStyle(defaultMarkdownCodeStyle) {
 	font: font(13px);
@@ -774,6 +993,10 @@ messageMarkdownTableHeaderStyle: TextStyle(messageMarkdownBodyStyle) {
 	lineHeight: 20px;
 }
 messageMarkdownDisplayMathFallbackStyle: TextStyle(messageMarkdownCodeStyle) {
+}
+messageMarkdownQuoteAuthorStyle: TextStyle(messageMarkdownBodyStyle) {
+	font: font(13px semibold);
+	lineHeight: 20px;
 }
 messageMarkdownHeading1Style: TextStyle(messageMarkdownBodyStyle) {
 	font: font(19px semibold);
@@ -799,6 +1022,10 @@ messageMarkdownHeading6Style: TextStyle(messageMarkdownBodyStyle) {
 	font: font(14px semibold);
 	lineHeight: 21px;
 }
+messageMarkdownFooterStyle: TextStyle(messageMarkdownBodyStyle) {
+	font: font(12px);
+	lineHeight: 19px;
+}
 messageMarkdownDetailsSummaryStyle: TextStyle(messageMarkdownBodyStyle) {
 	linkUnderline: kLinkUnderlineNever;
 }
@@ -809,7 +1036,7 @@ messageMarkdownAudioTitleStyle: TextStyle(messageMarkdownBodyStyle) {
 messageMarkdownAudioSubtitleStyle: TextStyle(messageMarkdownDetailsSummaryStyle) {
 }
 messageMarkdownBlockSkips: MarkdownBlockSkips {
-	paragraph: 8px;
+	paragraph: 4px;
 	heading: 10px;
 	code: 8px;
 	rule: 8px;
@@ -950,6 +1177,7 @@ messageMarkdownGroupedMedia: MarkdownGroupedMedia(defaultMarkdownGroupedMedia) {
 	navPreviousIconOver: messageMarkdownNavPreviousIconSelected;
 	navNextIcon: messageMarkdownNavNextIcon;
 	navNextIconOver: messageMarkdownNavNextIconSelected;
+	dotsBottomSkip: 8px;
 }
 messageMarkdownFailureLabel: FlatLabel(defaultMarkdownFailureLabel) {
 	textFg: msgInDateFg;
@@ -988,6 +1216,7 @@ messageMarkdown: Markdown(defaultMarkdown) {
 	heading4: messageMarkdownHeading4Style;
 	heading5: messageMarkdownHeading5Style;
 	heading6: messageMarkdownHeading6Style;
+	footer: messageMarkdownFooterStyle;
 	code: messageMarkdownCodeStyle;
 	pagePadding: margins(0px, 0px, 0px, 0px);
 	pageMaxWidth: msgMaxWidth;
@@ -1002,6 +1231,7 @@ messageMarkdown: Markdown(defaultMarkdown) {
 	quoteReadableMinWidth: 160px;
 	quotePaintColors: messageMarkdownQuotePaintColors;
 	pullquote: messageMarkdownPullquote;
+	quoteAuthorStyle: messageMarkdownQuoteAuthorStyle;
 	rule: messageMarkdownRule;
 	table: messageMarkdownTable;
 	displayMath: messageMarkdownDisplayMath;
@@ -1193,4 +1423,11 @@ messageMarkdownOutSelected: Markdown(messageMarkdown) {
 	failure: MarkdownFailure(messageMarkdownFailure) {
 		label: messageMarkdownFailureLabelOutSelected;
 	}
+}
+aiComposeCardMarkdown: Markdown(messageMarkdown) {
+	textPadding: margins(12px, 8px, 12px, 8px);
+}
+translateBoxMarkdown: Markdown(messageMarkdown) {
+	textPadding: boxRowPadding;
+	rule: defaultMarkdownRule;
 }

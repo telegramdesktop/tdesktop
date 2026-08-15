@@ -370,6 +370,8 @@ enum class MessageFlag : uint64 {
 	TextAppearingStarted  = (1ULL << 61),
 
 	GuestChatViaFrom      = (1ULL << 62),
+
+	Ephemeral             = (1ULL << 63),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;

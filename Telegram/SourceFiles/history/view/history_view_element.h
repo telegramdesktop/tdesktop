@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class History;
 class HistoryBlock;
 class HistoryItem;
+class UserData;
 struct HistoryMessageReply;
 struct PreparedServiceText;
 struct HistoryMessageReplyMarkup;
@@ -130,6 +131,9 @@ public:
 	virtual void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) = 0;
+	virtual void elementShowHiddenSenderTooltip(
+		FullMsgId itemId,
+		const TextWithEntities &text) = 0;
 	virtual bool elementAnimationsPaused() = 0;
 	virtual bool elementHideReply(not_null<const Element*> view) = 0;
 	virtual bool elementShownUnread(not_null<const Element*> view) = 0;
@@ -195,6 +199,9 @@ public:
 	void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) override;
+	void elementShowHiddenSenderTooltip(
+		FullMsgId itemId,
+		const TextWithEntities &text) override;
 	bool elementHideReply(not_null<const Element*> view) override;
 	bool elementShownUnread(not_null<const Element*> view) override;
 	void elementSendBotCommand(
@@ -371,6 +378,15 @@ struct FakeBotAboutTop : RuntimeComponent<FakeBotAboutTop, Element> {
 	void init();
 
 	Ui::Text::String text;
+	int maxWidth = 0;
+	int height = 0;
+};
+
+struct EphemeralBadge : RuntimeComponent<EphemeralBadge, Element> {
+	void init(not_null<const HistoryItem*> item);
+
+	Ui::Text::String text;
+	UserData *receiver = nullptr;
 	int maxWidth = 0;
 	int height = 0;
 };
@@ -717,7 +733,10 @@ public:
 		not_null<const Element*> view,
 		QRect countedGeometry = QRect());
 
-	virtual bool consumeHorizontalScroll(QPoint position, int delta) {
+	virtual bool consumeHorizontalScroll(
+			QPoint position,
+			int delta,
+			Qt::ScrollPhase phase) {
 		return false;
 	}
 	[[nodiscard]] virtual bool canConsumeHorizontalScroll(
@@ -758,6 +777,7 @@ protected:
 	[[nodiscard]] int textHeightFor(int textWidth) const;
 	[[nodiscard]] int textRealWidth() const { return _textRealWidth; }
 	void validateText();
+	void invalidateTextSizeCache();
 	void validateTextSkipBlock(bool has, int width, int height);
 	void validateInlineKeyboard(HistoryMessageReplyMarkup *markup);
 
@@ -796,7 +816,6 @@ private:
 	}
 
 	void refreshMedia(Element *replacing);
-	void invalidateTextSizeCache();
 	void setTextWithLinks(
 		const TextWithEntities &text,
 		const std::vector<ClickHandlerPtr> &links = {});

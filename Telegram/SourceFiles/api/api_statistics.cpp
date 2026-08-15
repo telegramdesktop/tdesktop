@@ -725,6 +725,22 @@ rpl::producer<rpl::no_value, QString> EarnStatistics::request() {
 					).done([=](const MTPmessages_ChatFull &result) {
 						result.data().vfull_chat().match([&](
 								const MTPDchannelFull &d) {
+							// Not a full ApplyChannelUpdate() here: that would
+							// re-trigger an EarnStatistics request and loop. We
+							// only refresh the revenue-visibility flags that
+							// gate this screen, which may be stale if the
+							// program was enabled after the last full load.
+							using Flag = ChannelDataFlag;
+							const auto channel = this->channel();
+							channel->setFlags((channel->flags()
+								& ~(Flag::CanViewRevenue
+									| Flag::CanViewCreditsRevenue))
+								| (d.is_can_view_revenue()
+									? Flag::CanViewRevenue
+									: Flag())
+								| (d.is_can_view_stars_revenue()
+									? Flag::CanViewCreditsRevenue
+									: Flag()));
 							_data.switchedOff = d.is_restricted_sponsored();
 						}, [](const auto &) {
 						});

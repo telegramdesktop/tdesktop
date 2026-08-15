@@ -126,7 +126,7 @@ void PhoneWidget::setupQrLogin() {
 	}, qrLogin->lifetime());
 
 	qrLogin->setClickedCallback([=] {
-		goReplace<QrWidget>(Animate::Forward);
+		goNextOrBack<QrWidget>();
 	});
 }
 

@@ -157,12 +157,16 @@ struct LaidOutBlock {
 	style::align formulaAlign = style::al_left;
 	bool collapsed = false;
 	bool detailsOpen = false;
+	bool rtl = false;
 	bool overflowed = false;
 	bool tableBordered = true;
 	bool tableStriped = false;
 	bool supplementary = false;
 	bool pullquote = false;
+	bool quoteAuthor = false;
+	bool footer = false;
 	bool insideHorizontalScroll = false;
+	int tableBorder = 0;
 	int horizontalScrollLeft = 0;
 	int horizontalScrollMax = 0;
 	int horizontalScrollAncestorShift = 0;
@@ -195,6 +199,16 @@ struct EditableHeightOverride {
 	int editableIndex = -1;
 	int height = 0;
 	int nextEditableIndex = 0;
+};
+
+struct EditableMaxLineWidthOverride {
+	PreparedEditLeafSource leaf;
+	int width = 0;
+};
+
+struct EditableTextEmptyOverride {
+	PreparedEditLeafSource leaf;
+	bool empty = true;
 };
 
 enum class CachedTextLeafSlot {
@@ -270,6 +284,7 @@ struct CachedTextLeafSourceSignature {
 	int minResizeWidth = 1;
 	size_t styleKey = 0;
 	bool dependsOnMediaRuntime = false;
+	bool rtl = false;
 
 	friend inline bool operator==(
 		const CachedTextLeafSourceSignature &a,
@@ -301,9 +316,12 @@ struct LayoutContext {
 	int quoteDepth = 0;
 	int articleLeft = 0;
 	int articleWidth = 0;
+	double mediaPixelScale = 1.;
 	bool tightList = false;
 	bool useArticleBands = false;
 	bool editMode = false;
+	bool rtl = false;
+	bool hideEmptyQuoteAuthor = false;
 	bool allowAsyncSyntaxHighlighting = true;
 	CodeBlockSyntaxHighlightTracker *syntaxHighlightTracker = nullptr;
 	CachedTextLeafPool *cachedTextLeafs = nullptr;
@@ -312,6 +330,9 @@ struct LayoutContext {
 	Fn<bool(const ClickContext&)> spoilerLinkFilter;
 	std::vector<int> preparedPath;
 	std::shared_ptr<EditableHeightOverride> editableHeightOverride;
+	std::shared_ptr<EditableMaxLineWidthOverride>
+		editableMaxLineWidthOverride;
+	std::shared_ptr<EditableTextEmptyOverride> editableTextEmptyOverride;
 	std::function<std::shared_ptr<MediaBlock>(const PreparedBlock&)> mediaBlockFactory;
 	std::function<std::shared_ptr<PlaceholderBlockRuntime>(
 		PreparedPlaceholderBlockId)> placeholderRuntimeFactory;
@@ -331,6 +352,10 @@ private:
 	const LayoutContext *_previous = nullptr;
 };
 
+[[nodiscard]] bool TextNeedsRetainedLeaf(const QString &text);
+[[nodiscard]] bool MissingRetainedLeaf(
+	const QString &text,
+	const Ui::Text::String &leaf);
 [[nodiscard]] bool IsAnchorOnlyBlock(const PreparedBlock &block);
 [[nodiscard]] bool IsFlowKind(PreparedBlockKind kind);
 [[nodiscard]] QString ListMarkerText(const PreparedBlock &block);
@@ -409,6 +434,11 @@ struct TableCellMinimumWidthConstraint {
 	const std::vector<int> &columnWidths,
 	const style::Markdown &st,
 	bool bordered);
+
+[[nodiscard]] QRect TableCellHitRect(
+	const LaidOutBlock &block,
+	const LaidOutTableCell &cell);
+
 [[nodiscard]] int FlowBlockContentMinimumWidth(
 	const PreparedBlock &prepared,
 	const std::vector<PreparedFormulaSlot> &formulas,
@@ -447,11 +477,18 @@ struct TableCellMinimumWidthConstraint {
 [[nodiscard]] const style::TextStyle &TextStyleFor(
 	const PreparedBlock &block,
 	const style::Markdown &st);
+[[nodiscard]] const style::TextStyle &EditPlaceholderTextStyleFor(
+	const PreparedBlock &block,
+	const style::Markdown &st);
+[[nodiscard]] TextWithEntities EditPlaceholderTextValue(
+	const PreparedBlock &block,
+	const QString &text);
 void CopyCachedTextLeafs(
 	const std::vector<PreparedBlock> &preparedBlocks,
 	std::vector<LaidOutBlock> *blocks,
 	const style::Markdown &st,
-	CachedTextLeafPool *pool);
+	CachedTextLeafPool *pool,
+	bool rtl);
 void BuildOrReuseMarkedTextLeaf(
 	Ui::Text::String *leaf,
 	CachedTextLeafSlot slot,

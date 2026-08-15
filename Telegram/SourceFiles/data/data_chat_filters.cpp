@@ -362,6 +362,12 @@ bool ChatFilter::contains(
 	if (_never.contains(history)) {
 		return false;
 	}
+	const auto channel = history->peer->asChannel();
+	if (channel && channel->isCommunity()) {
+		// A community never matches a filter by chat type (it is neither a
+		// group nor a channel); it can only be included explicitly by id.
+		return _always.contains(history);
+	}
 	const auto state = (_flags & (Flag::NoMuted | Flag::NoRead))
 		? history->chatListBadgesState()
 		: Dialogs::BadgesState();
@@ -690,9 +696,15 @@ void ChatFilters::moveAllToFront() {
 void ChatFilters::applyRemove(int position) {
 	Expects(position >= 0 && position < _list.size());
 
+	// Remove the filter from the list before applyChange() tears down its
+	// chats. Unpinning a chat re-caches its siblings' pinned indices, which
+	// runs Session::refreshChatListEntry(); while the filter is still listed
+	// but emptied that re-enters PinnedList::setPinned() on the same pinned
+	// list mid-iteration and crashes (see also PinnedList::setPinned).
 	const auto i = begin(_list) + position;
-	applyChange(*i, ChatFilter(i->id(), {}, {}, {}, {}, {}, {}, {}));
+	auto filter = std::move(*i);
 	_list.erase(i);
+	applyChange(filter, ChatFilter(filter.id(), {}, {}, {}, {}, {}, {}, {}));
 }
 
 bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {

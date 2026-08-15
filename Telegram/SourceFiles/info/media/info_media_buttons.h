@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "storage/storage_shared_media.h"
+#include "window/window_separate_id.h"
 
 namespace Ui {
 class AbstractButton;
@@ -31,6 +32,11 @@ using Type = Storage::SharedMediaType;
 
 [[nodiscard]] Fn<QString(int)> MediaText(Type type);
 
+[[nodiscard]] Window::SeparateId SeparateId(
+	not_null<PeerData*> peer,
+	MsgId topicRootId,
+	Type type);
+
 [[nodiscard]] not_null<Ui::SlideWrap<Ui::SettingsButton>*> AddCountedButton(
 	Ui::VerticalLayout *parent,
 	rpl::producer<int> &&count,
@@ -45,36 +51,6 @@ using Type = Storage::SharedMediaType;
 	PeerId monoforumPeerId,
 	PeerData *migrated,
 	Type type,
-	Ui::MultiSlideTracker &tracker);
-
-[[nodiscard]] not_null<Ui::SettingsButton*> AddCommonGroupsButton(
-	Ui::VerticalLayout *parent,
-	not_null<Window::SessionNavigation*> navigation,
-	not_null<UserData*> user,
-	Ui::MultiSlideTracker &tracker);
-
-[[nodiscard]] not_null<Ui::SettingsButton*> AddSimilarPeersButton(
-	Ui::VerticalLayout *parent,
-	not_null<Window::SessionNavigation*> navigation,
-	not_null<PeerData*> peer,
-	Ui::MultiSlideTracker &tracker);
-
-[[nodiscard]] not_null<Ui::SettingsButton*> AddStoriesButton(
-	Ui::VerticalLayout *parent,
-	not_null<Window::SessionNavigation*> navigation,
-	not_null<PeerData*> peer,
-	Ui::MultiSlideTracker &tracker);
-
-[[nodiscard]] not_null<Ui::SettingsButton*> AddSavedSublistButton(
-	Ui::VerticalLayout *parent,
-	not_null<Window::SessionNavigation*> navigation,
-	not_null<PeerData*> peer,
-	Ui::MultiSlideTracker &tracker);
-
-[[nodiscard]] not_null<Ui::SettingsButton*> AddPeerGiftsButton(
-	Ui::VerticalLayout *parent,
-	not_null<Window::SessionNavigation*> navigation,
-	not_null<PeerData*> peer,
 	Ui::MultiSlideTracker &tracker);
 
 } // namespace Info::Media

@@ -245,6 +245,26 @@ rpl::producer<Ui::ScrollToRequest> InnerWidget::scrollToRequests() const {
 	return _scrollToRequests.events();
 }
 
+bool InnerWidget::processZoomWheel(not_null<QWheelEvent*> e) {
+	return _list->processZoomWheel(e);
+}
+
+void InnerWidget::zoomIn() {
+	_list->zoomIn();
+}
+
+void InnerWidget::zoomOut() {
+	_list->zoomOut();
+}
+
+bool InnerWidget::canZoomIn() const {
+	return _list->canZoomIn();
+}
+
+bool InnerWidget::canZoomOut() const {
+	return _list->canZoomOut();
+}
+
 void InnerWidget::jumpToMessage(MsgId msgId) {
 	_empty->setLoading(true);
 	_emptyHeightThreshold = st::semiboldFont->height;

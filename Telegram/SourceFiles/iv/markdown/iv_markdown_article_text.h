@@ -70,6 +70,7 @@ void SetTextLeaf(
 	InlineFormulaObjectCache *inlineFormulaObjects,
 	const std::shared_ptr<MediaRuntime> &mediaRuntime,
 	int minResizeWidth,
+	bool rtl,
 	Fn<void()> repaint = nullptr,
 	Fn<void(QRect)> repaintRect = nullptr,
 	Fn<bool(const ClickContext&)> spoilerLinkFilter = nullptr);

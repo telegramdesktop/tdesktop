@@ -10,12 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/basic_types.h"
 #include "base/unique_qptr.h"
 
-namespace Ui {
-class PopupMenu;
-} // namespace Ui
-
 namespace Ui::Menu {
 class ItemBase;
+class Menu;
 } // namespace Ui::Menu
 
 namespace Iv {
@@ -23,7 +20,7 @@ namespace Iv {
 class Delegate;
 
 [[nodiscard]] base::unique_qptr<Ui::Menu::ItemBase> CreateZoomMenuAction(
-	not_null<Ui::PopupMenu*> parent,
+	not_null<Ui::Menu::Menu*> menu,
 	not_null<Delegate*> delegate);
 
 } // namespace Iv

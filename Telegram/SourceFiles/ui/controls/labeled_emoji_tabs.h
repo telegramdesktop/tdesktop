@@ -75,6 +75,7 @@ public:
 	void setContextMenuCallback(Fn<void(int, QPoint)> callback);
 	void setActive(int index);
 	void setPaintOuterCorners(bool paint);
+	void setPaintBottomOuterCorners(bool paint);
 	void scrollToActive();
 	[[nodiscard]] int scrollLeft() const;
 	void setScrollLeft(int value);
@@ -100,6 +101,7 @@ private:
 	Animations::Simple _scrollAnimation;
 	std::unique_ptr<DragScroll> _dragScroll;
 	bool _paintOuterCorners = true;
+	bool _paintBottomOuterCorners = true;
 	bool _scrollToActivePending = false;
 	std::optional<int> _pendingScrollLeft;
 

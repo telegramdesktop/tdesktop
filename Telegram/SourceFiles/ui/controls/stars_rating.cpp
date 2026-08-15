@@ -30,8 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info_levels.h"
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
-#include "styles/style_settings.h"
-#include "styles/style_media_view.h"
 #include "styles/style_menu_icons.h"
 
 namespace Ui {

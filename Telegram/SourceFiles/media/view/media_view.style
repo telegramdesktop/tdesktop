@@ -254,7 +254,7 @@ mediaviewTextPalette: TextPalette(defaultTextPalette) {
 	spoilerFg: mediaviewCaptionFg;
 }
 
-mediaviewCaptionStyle: defaultTextStyle;
+mediaviewCaptionStyle: historyTextStyle;
 
 mediaviewThickFont: semiboldFont;
 mediaviewFont: normalFont;
@@ -585,6 +585,10 @@ storiesPopupMenuWithIcons: PopupMenu(storiesPopupMenu) {
 	scrollPadding: margins(0px, 5px, 0px, 5px);
 	menu: storiesMenuWithIcons;
 }
+storiesMenuWithIconsAttention: Menu(storiesMenuWithIcons) {
+	itemFg: attentionButtonFg;
+	itemFgOver: attentionButtonFgOver;
+}
 
 storiesBoxLabel: FlatLabel(boxLabel) {
 	textFg: groupCallMembersFg;
@@ -652,7 +656,9 @@ storiesEmojiPan: EmojiPan(defaultEmojiPan) {
 	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", storiesComposeBg }};
 	fadeRight: icon {{ "fade_horizontal", storiesComposeBg }};
 	menu: storiesPopupMenuWithIcons;
+	menuAttention: storiesMenuWithIconsAttention;
 	expandedSeparator: mediaviewWideMenuSeparator;
+	searchPackRipple: storiesComposeRippleLight;
 	tabs: SettingsSlider(emojiTabs) {
 		barFgActive: storiesComposeBlue;
 		labelFg: storiesComposeGrayText;
@@ -695,6 +701,14 @@ storiesEmojiPan: EmojiPan(defaultEmojiPan) {
 		menuRecentRemove: icon {{ "menu/delete", storiesComposeWhiteText }};
 		menuGifAdd: icon {{ "menu/gif", storiesComposeWhiteText }};
 		menuGifRemove: icon {{ "menu/delete", storiesComposeWhiteText }};
+		menuGifCaption: icon {{ "menu/edit", storiesComposeWhiteText }};
+		menuSetAdd: icon {{ "menu/add", storiesComposeWhiteText }};
+		menuSetShare: icon {{ "menu/share", storiesComposeWhiteText }};
+		menuSetCopyLink: icon {{ "menu/link", storiesComposeWhiteText }};
+		menuSetRemove: icon {{ "menu/delete", storiesComposeWhiteText }};
+		menuEmojiCopy: icon {{ "menu/copy", storiesComposeWhiteText }};
+		menuEmojiViewPack: icon {{ "menu/all_media", storiesComposeWhiteText }};
+		menuEmojiRemoveRecent: icon {{ "menu/cancel", storiesComposeWhiteText }};
 		menuMute: icon {{ "menu/mute", storiesComposeWhiteText }};
 		menuSchedule: icon {{ "menu/calendar", storiesComposeWhiteText }};
 		menuWhenOnline: icon {{ "menu/send_when_online", storiesComposeWhiteText }};
@@ -743,9 +757,10 @@ storiesChooseSendAs: ChooseSendAs(defaultChooseSendAs) {
 storiesCommentSentAt: Menu(storiesMenu, whoSentItem) {
 	itemFgDisabled: groupCallMembersFg;
 }
+storiesComposeRadius: 21px;
 storiesComposeControls: ComposeControls(defaultComposeControls) {
 	bg: storiesComposeBg;
-	radius: 21px;
+	radius: storiesComposeRadius;
 	padding: margins(1px, 8px, 1px, 6px);
 	field: InputField(historyComposeField) {
 		textMargins: margins(2px, 0px, 2px, 0px);
@@ -818,7 +833,7 @@ storiesComposeControls: ComposeControls(defaultComposeControls) {
 	record: RecordBar(defaultRecordBar) {
 		bg: storiesComposeBg;
 		durationFg: storiesComposeWhiteText;
-		radius: storiesRadius;
+		radius: storiesComposeRadius;
 		cancel: storiesComposeGrayText;
 		cancelActive: storiesComposeBlue;
 		cancelRipple: storiesComposeRippleLight;
