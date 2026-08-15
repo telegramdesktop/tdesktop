@@ -5251,6 +5251,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_unread_bar#other" = "{count} Unread Messages";
 "lng_unread_bar_some" = "Unread messages";
 
+"lng_jump_to_bottom" = "Jump to bottom";
+"lng_jump_to_mention" = "Jump to mention";
+"lng_jump_to_reaction" = "Jump to reaction";
+"lng_jump_to_poll_votes" = "Jump to poll votes";
+"lng_jump_unread_count#one" = "{count} unread";
+"lng_jump_unread_count#other" = "{count} unread";
+
 "lng_maps_point" = "Location";
 "lng_maps_select_on_map" = "Select on the Map";
 "lng_maps_point_send" = "Send This Location";
