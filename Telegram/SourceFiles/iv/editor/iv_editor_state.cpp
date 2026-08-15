@@ -6713,37 +6713,20 @@ std::optional<int> State::handleActiveListEnterUnchecked(
 	}
 	auto target = std::optional<LeafPath>();
 	if (itemStart) {
-		const auto first = (surface->itemIndex == 1)
-			? listItem(surface->path, 0)
-			: nullptr;
-		const auto startEscape = first
-			&& ListItemIsEmpty(*first)
-			&& (first->blocks.empty()
-				|| ((first->blocks.size() == 1)
-					&& (first->blocks.front().kind
-						== BlockKind::Paragraph)));
+		// Enter may not touch items the caret does not stand in.
 		clearTemporaryDownParagraph();
-		if (startEscape) {
-			owner->listItems.erase(owner->listItems.begin());
-			if (const auto paragraph = reuseOrInsertParagraph(
-					surface->path.container,
-					surface->path.index)) {
-				target = paragraph->leaf;
-			}
-		} else {
-			owner->listItems.insert(
-				owner->listItems.begin() + surface->itemIndex,
-				MakeParagraphListItem(SplitTaskState(item->taskState)));
-			target = LeafPath{
-				.kind = LeafKind::BlockText,
-				.block = {
-					.container = ListItemChildrenContainer(
-						surface->path,
-						surface->itemIndex + 1),
-					.index = 0,
-				},
-			};
-		}
+		owner->listItems.insert(
+			owner->listItems.begin() + surface->itemIndex,
+			MakeParagraphListItem(SplitTaskState(item->taskState)));
+		target = LeafPath{
+			.kind = LeafKind::BlockText,
+			.block = {
+				.container = ListItemChildrenContainer(
+					surface->path,
+					surface->itemIndex + 1),
+				.index = 0,
+			},
+		};
 	} else {
 		const auto itemEmpty = (item->blocks.size() == 1)
 			&& (item->blocks.front().kind == BlockKind::Paragraph)
