@@ -689,6 +689,11 @@ private:
 	[[nodiscard]] bool canJoinActiveListItemBoundary() const;
 	[[nodiscard]] bool joinActiveListItemBoundaryUnchecked(
 		ActiveTextSelectionTarget *target);
+	[[nodiscard]] bool removeBlankListItemBeforeBoundary(
+		RichPage::Block &owner,
+		const BlockPath &list,
+		int itemIndex,
+		ActiveTextSelectionTarget *target);
 	struct NextListItem {
 		BlockPath list;
 		int index = -1;
