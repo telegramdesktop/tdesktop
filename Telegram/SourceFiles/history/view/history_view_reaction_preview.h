@@ -25,6 +25,13 @@ class SessionController;
 
 namespace HistoryView {
 
+struct ReactionPreviewMenu {
+	Ui::DropdownMenu *menu = nullptr;
+	Fn<void()> refreshGeometry;
+
+	Fn<void()> hide;
+};
+
 bool ShowStickerPreview(
 	not_null<Window::SessionController*> controller,
 	FullMsgId origin,
@@ -46,6 +53,7 @@ bool ShowReactionPreview(
 	not_null<Window::SessionController*> controller,
 	FullMsgId origin,
 	Data::ReactionId reactionId,
-	bool emojiPreview = false);
+	bool emojiPreview = false,
+	Fn<void(ReactionPreviewMenu)> setupMenu = nullptr);
 
 } // namespace HistoryView

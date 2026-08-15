@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/call_delayed.h"
 #include "ui/widgets/menu/menu_action.h"
+#include "ui/widgets/dropdown_menu.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/chat/group_call_userpics.h"
@@ -1162,7 +1163,25 @@ void WhoReactedEntryAction::paint(Painter &&p) {
 			_textWidth,
 			width());
 	}
-	if (_type == WhoReactedType::RefRecipient
+	if (preloader) {
+		if (withDate) {
+			auto hq = PainterHighQualityEnabler(p);
+			p.setPen(Qt::NoPen);
+			p.setBrush(preloaderBrush);
+			const auto &font = st::whoReadDateStyle.font;
+			const auto height = font->height / 2;
+			const auto width = std::min(
+				st::whoReadDateSkip + _date.maxWidth(),
+				_textWidth);
+			p.drawRoundedRect(
+				st::defaultWhoRead.nameLeft,
+				st::whoReadDateTop + (font->height - height) / 2,
+				width,
+				height,
+				height / 2.,
+				height / 2.);
+		}
+	} else if (_type == WhoReactedType::RefRecipient
 		|| _type == WhoReactedType::RefRecipientNow) {
 		p.setPen(selected ? _st.itemFgShortcutOver : _st.itemFgShortcut);
 		_date.drawLeftElided(
@@ -1298,6 +1317,7 @@ WhoReactedListMenu::WhoReactedListMenu(
 
 void WhoReactedListMenu::clear() {
 	_actions.clear();
+	_minimalWidth = 0;
 }
 
 void WhoReactedListMenu::populate(
@@ -1306,13 +1326,80 @@ void WhoReactedListMenu::populate(
 		Fn<void()> refillTopActions,
 		int addedToBottom,
 		Fn<void()> appendBottomActions) {
+	populateTo(
+		menu,
+		content,
+		std::move(refillTopActions),
+		addedToBottom,
+		std::move(appendBottomActions));
+}
+
+void WhoReactedListMenu::populate(
+		not_null<DropdownMenu*> menu,
+		const WhoReadContent &content,
+		Fn<void()> refillTopActions,
+		int addedToBottom,
+		Fn<void()> appendBottomActions) {
+	populateTo(
+		menu,
+		content,
+		std::move(refillTopActions),
+		addedToBottom,
+		std::move(appendBottomActions));
+}
+
+void WhoReactedListMenu::populatePreloader(
+		not_null<DropdownMenu*> menu,
+		std::vector<WhoReactedEntryData> entries,
+		Fn<void()> appendBottomActions) {
+	for (auto &entry : entries) {
+		entry.type = WhoReactedType::Preloader;
+		entry.userpic = QImage();
+		entry.callback = nullptr;
+		entry.closeCallback = nullptr;
+		auto item = base::make_unique_q<WhoReactedEntryAction>(
+			menu->menu(),
+			_customEmojiFactory,
+			menu->menu()->st(),
+			std::move(entry));
+		accumulate_max(_minimalWidth, item->minWidth());
+		_actions.push_back(item.get());
+		menu->addAction(std::move(item));
+	}
+	applyMinimalWidth();
+	if (appendBottomActions) {
+		appendBottomActions();
+	}
+}
+
+void WhoReactedListMenu::applyMinimalWidth() {
+	if (!_minimalWidth) {
+		return;
+	}
+	for (const auto &action : _actions) {
+		if (action->minWidth() < _minimalWidth) {
+			action->setMinWidth(_minimalWidth);
+		}
+	}
+}
+
+template <typename Menu>
+void WhoReactedListMenu::populateTo(
+		not_null<Menu*> menu,
+		const WhoReadContent &content,
+		Fn<void()> refillTopActions,
+		int addedToBottom,
+		Fn<void()> appendBottomActions) {
+	constexpr auto kRebuildOnAnyChange = !std::is_same_v<Menu, PopupMenu>;
 	const auto reactions = ranges::count_if(
 		content.participants,
 		[](const auto &p) { return !p.customEntityData.isEmpty(); });
 	const auto addShowAll = (content.fullReactionsCount > reactions);
 	const auto actionsCount = int(content.participants.size())
 		+ (addShowAll ? 1 : 0);
-	if (_actions.size() > actionsCount) {
+	if (kRebuildOnAnyChange
+		? (_actions.size() != actionsCount)
+		: (_actions.size() > actionsCount)) {
 		_actions.clear();
 		menu->clearActions();
 		if (refillTopActions) {
@@ -1331,11 +1418,17 @@ void WhoReactedListMenu::populate(
 				menu->menu()->st(),
 				std::move(data));
 			_actions.push_back(item.get());
-			const auto count = int(menu->actions().size());
-			if (addedToBottom > 0 && addedToBottom <= count) {
-				menu->insertAction(count - addedToBottom, std::move(item));
-			} else {
+			if constexpr (kRebuildOnAnyChange) {
 				menu->addAction(std::move(item));
+			} else {
+				const auto count = int(menu->actions().size());
+				if (addedToBottom > 0 && addedToBottom <= count) {
+					menu->insertAction(
+						count - addedToBottom,
+						std::move(item));
+				} else {
+					menu->addAction(std::move(item));
+				}
 			}
 		}
 		++index;
@@ -1369,6 +1462,7 @@ void WhoReactedListMenu::populate(
 			.callback = _showAllChosen,
 		});
 	}
+	applyMinimalWidth();
 	if (!addedToBottom && appendBottomActions) {
 		appendBottomActions();
 	}
