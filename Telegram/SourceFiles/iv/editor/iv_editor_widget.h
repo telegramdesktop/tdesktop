@@ -602,6 +602,7 @@ private:
 	[[nodiscard]] bool handleStructuralBlockInsertShortcut(QKeyEvent *e);
 	[[nodiscard]] bool handleHardcodedBlockShortcut(QKeyEvent *e);
 	[[nodiscard]] bool handleBroaderFormatShortcut(QKeyEvent *e);
+	[[nodiscard]] bool activeLeafIsTableCell() const;
 	[[nodiscard]] bool fieldMonospaceShortcutUsesCodeBlock() const;
 	[[nodiscard]] bool structuralMonospaceShortcutTargetsCodeBlock() const;
 	void applyFieldMonospaceAction();
