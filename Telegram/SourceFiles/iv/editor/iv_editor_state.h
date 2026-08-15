@@ -139,6 +139,8 @@ public:
 		bool allOrderedUpperRoman = false;
 		int selectedItems = 0;
 		RichPage::ListKind listKind = RichPage::ListKind::Bullet;
+		Markdown::PreparedOrderedListType listOrderedType
+			= Markdown::PreparedOrderedListType::Decimal;
 	};
 
 	using ListStyle = Editor::ListStyle;
