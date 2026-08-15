@@ -3328,6 +3328,14 @@ bool State::hasActiveListItemSurface() const {
 	return activeListItemSurface().has_value();
 }
 
+bool State::hasActiveListItemExtraLine() const {
+	const auto descriptor = textNode(_activeTextOrdinal);
+	return descriptor
+		&& (descriptor->leaf.kind == LeafKind::BlockText)
+		&& (descriptor->leaf.block.index >= 1)
+		&& activeListItemSurface().has_value();
+}
+
 bool State::activeSurfaceAllowsSeparateLineFormula() const {
 	const auto descriptor = textNode(_activeTextOrdinal);
 	if (!descriptor || descriptor->leaf.kind == LeafKind::MathFormula) {
@@ -4212,6 +4220,7 @@ std::optional<int> State::appendActiveParagraphToPreviousListUnchecked() {
 	auto item = ListItem();
 	item.blocks.push_back(std::move(paragraph));
 	adoptLeadingParagraphListItemText(&item);
+	AdoptListItemMarkers(*list, &item);
 	const auto itemIndex = int(list->listItems.size());
 	const auto inlineText = item.blocks.empty();
 	list->listItems.push_back(std::move(item));
@@ -7058,6 +7067,10 @@ std::optional<int> State::liftActiveListItemUnchecked() {
 	const auto &steps = surface->path.container.steps;
 	if (steps.empty()
 		|| steps.back().kind != BlockContainerKind::ListItemChildren) {
+		// Only last item may leave its list by depth change.
+		if (itemIndex + 1 != int(owner->listItems.size())) {
+			return std::nullopt;
+		}
 		clearTemporaryDownParagraph();
 		if (!unwrapListItemIntoParent(surface->path, itemIndex, true)) {
 			return std::nullopt;

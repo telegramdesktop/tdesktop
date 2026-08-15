@@ -198,6 +198,7 @@ public:
 	[[nodiscard]] bool isActiveTopLevelParagraph() const;
 	[[nodiscard]] bool isActiveTopLevelParagraphOrHeading() const;
 	[[nodiscard]] bool hasActiveListItemSurface() const;
+	[[nodiscard]] bool hasActiveListItemExtraLine() const;
 	[[nodiscard]] bool activeSurfaceAllowsSeparateLineFormula() const;
 	[[nodiscard]] bool activeLeafUsesQuoteCaptionColor() const;
 	[[nodiscard]] bool activeLeafUsesQuotePlaceholderColor() const;
@@ -223,9 +224,9 @@ public:
 		const ActiveEnterContext &context);
 	[[nodiscard]] std::optional<int> handleActiveListEnter(
 		const ActiveEnterContext &context);
+	[[nodiscard]] std::optional<int> appendActiveParagraphToPreviousList();
 	[[nodiscard]] std::optional<int> sinkActiveListItem();
 	[[nodiscard]] std::optional<int> liftActiveListItem();
-	[[nodiscard]] std::optional<int> appendActiveParagraphToPreviousList();
 	[[nodiscard]] std::optional<int> liftActiveListLineOrItem();
 	[[nodiscard]] std::optional<int> resetActiveBlockToParagraph();
 	[[nodiscard]] std::optional<int> escapeEmptyActiveBlockLine();
@@ -773,8 +774,6 @@ private:
 	[[nodiscard]] bool canJoinActiveParagraphIntoPreviousList() const;
 	[[nodiscard]] bool joinActiveParagraphIntoPreviousListUnchecked(
 		ActiveTextSelectionTarget *target);
-	[[nodiscard]] std::optional<int>
-		appendActiveParagraphToPreviousListUnchecked();
 	[[nodiscard]] auto normalizeActiveListItemSurface()
 	-> std::optional<ActiveListItemSurface>;
 	[[nodiscard]] ApplyResult applyActiveTextUnchecked(TextWithEntities text);
@@ -825,6 +824,8 @@ private:
 		const ActiveEnterContext &context);
 	[[nodiscard]] std::optional<int> sinkActiveListItemUnchecked();
 	[[nodiscard]] std::optional<int> liftActiveListItemUnchecked();
+	[[nodiscard]] std::optional<int>
+		appendActiveParagraphToPreviousListUnchecked();
 	[[nodiscard]] std::optional<int> splitActiveLineIntoListItem();
 	[[nodiscard]] std::optional<int> splitActiveLineIntoListItemUnchecked();
 	[[nodiscard]] std::optional<LeafPath> rebasedActiveListItemLeaf(

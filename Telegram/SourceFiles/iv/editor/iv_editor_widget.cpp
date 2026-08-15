@@ -9165,6 +9165,9 @@ bool Widget::moveListItemDepth(bool deeper) {
 		&& _field->textCursor().atStart();
 	if (!inListItem && !intoPreviousList) {
 		return false;
+	} else if (deeper && _state->hasActiveListItemExtraLine()) {
+		// Own line of an item moves alone, so it can't take the item deeper.
+		return true;
 	}
 	const auto text = ConvertEditorTagsToRichText(
 		_field->getTextWithAppliedMarkdown());
@@ -9194,8 +9197,8 @@ bool Widget::moveListItemDepth(bool deeper) {
 		if (!target) {
 			if (_state->lastLimitError()) {
 				showLastLimitToast();
-				handled = true;
 			}
+			handled = inListItem;
 			return MutationTransactionResult{
 				.committed = committed,
 				.changed = (committed == ApplyResult::Changed),
