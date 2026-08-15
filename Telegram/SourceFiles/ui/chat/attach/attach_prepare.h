@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "editor/photo_editor_common.h"
+#include "editor/video/video_editor_common.h"
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/rect_part.h"
 
@@ -44,7 +45,9 @@ struct PreparedFileInformation {
 		bool isWebmSticker = false;
 		bool supportsStreaming = false;
 		crl::time duration = -1;
+		// Always the raw frame at |modifications.cover|, never modified.
 		QImage thumbnail;
+		Editor::VideoModifications modifications;
 	};
 
 	QString filemime;
@@ -86,6 +89,8 @@ struct PreparedFile {
 	[[nodiscard]] bool canUseHighQualityPhoto() const;
 	[[nodiscard]] bool hasAnimatedEditScene() const;
 
+	[[nodiscard]] bool canEditVideo() const;
+
 	QString path;
 	QString displayName;
 	TextWithTags caption;
@@ -100,7 +105,6 @@ struct PreparedFile {
 	crl::time ttlSeconds = 0;
 	bool spoiler = false;
 	bool sendLargePhotos = false;
-	int videoTranscodeHeight = 0;
 	std::shared_ptr<Media::Encode::Job> animationJob;
 };
 

@@ -160,11 +160,15 @@ bool IsMimeSticker(const QString &mime) {
 		|| IsMimeStickerAnimated(mime);
 }
 
+bool IsMimeSentAsVideo(const QString &mime) {
+	return (mime == u"video/mp4"_q)
+		|| (mime == u"video/quicktime"_q);
+}
+
 bool IsMimeAcceptedForPhotoVideoAlbum(const QString &mime) {
 	return (mime == u"image/jpeg"_q)
 		|| (mime == u"image/png"_q)
-		|| (mime == u"video/mp4"_q)
-		|| (mime == u"video/quicktime"_q);
+		|| IsMimeSentAsVideo(mime);
 }
 
 bool FileIsImage(const QString &name, const QString &mime) {

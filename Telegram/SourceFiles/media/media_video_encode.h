@@ -89,15 +89,17 @@ struct TranscodeResult {
 	const VideoSource &source,
 	Fn<bool(float64)> progress = nullptr);
 
-[[nodiscard]] int CompressedShorterSide(QSize original, int64 size);
+[[nodiscard]] int64 MaxTranscodeSourceSize();
 
 [[nodiscard]] QSize DownscaledSize(QSize original, int targetShorterSide);
 
-[[nodiscard]] QString TranscodeVideoToMp4(
-	const QString &sourcePath,
-	const QByteArray &sourceContent,
-	int targetShorterSide,
-	Fn<bool(float64)> progress = nullptr);
+[[nodiscard]] QSize TranscodedSize(
+	const VideoSource &source,
+	QSize displaySize);
+
+[[nodiscard]] crl::time TranscodedDuration(
+	const VideoSource &source,
+	crl::time duration);
 
 void ClearStaleTempFiles();
 

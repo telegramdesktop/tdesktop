@@ -21,6 +21,10 @@ struct PreparedList;
 enum class AlbumType;
 } // namespace Ui
 
+namespace Editor {
+struct PhotoModifications;
+} // namespace Editor
+
 namespace Storage {
 
 enum class MimeDataState {
@@ -59,6 +63,22 @@ enum class MimeDataState {
 	QByteArray &&content,
 	int previewWidth);
 void PrepareDetails(Ui::PreparedFile &file, int previewWidth, int sideLimit);
+struct VideoDetails {
+	QSize originalDimensions;
+	QSize shownDimensions;
+	QImage preview;
+};
+
+[[nodiscard]] VideoDetails ComputeVideoDetails(
+	const QImage &thumbnail,
+	const Editor::PhotoModifications &geometry,
+	int previewWidth,
+	int sideLimit);
+void ApplyVideoDetails(Ui::PreparedFile &file, VideoDetails &&details);
+void UpdateVideoDetails(
+	Ui::PreparedFile &file,
+	int previewWidth,
+	int sideLimit);
 void UpdateImageDetails(
 	Ui::PreparedFile &file,
 	int previewWidth,

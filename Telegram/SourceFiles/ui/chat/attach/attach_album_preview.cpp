@@ -98,6 +98,8 @@ void AlbumPreview::updateFileRows() {
 	for (auto i = 0; i < _order.size(); i++) {
 		const auto &thumb = _thumbs[_order[i]];
 		thumb->setButtonVisible(isFile && !thumb->isCompressedSticker());
+		// Video edits only apply when the file is sent as a video.
+		thumb->setModifyAllowed(!isFile && thumb->canEditVideo());
 		thumb->moveButtons(top);
 		top += thumb->fileHeight() + st::sendMediaRowSkip;
 	}

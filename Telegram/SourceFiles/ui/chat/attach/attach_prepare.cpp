@@ -244,6 +244,19 @@ bool PreparedFile::canUseHighQualityPhoto() const {
 			|| (originalDimensions.height() > kStandardPhotoSideLimit));
 }
 
+bool PreparedFile::canEditVideo() const {
+	Expects(information != nullptr);
+
+	using Video = PreparedFileInformation::Video;
+	const auto video = std::get_if<Video>(&information->media);
+	// Soundless clips are sent as GIFs, but stay editable; isVideoFile() is
+	// too narrow here. Playback streams from a real file on disk.
+	return (type == PreparedFile::Type::Video)
+		&& video
+		&& !video->isWebmSticker
+		&& !path.isEmpty();
+}
+
 bool PreparedFile::hasAnimatedEditScene() const {
 	const auto image = information
 		? std::get_if<PreparedFileInformation::Image>(&information->media)

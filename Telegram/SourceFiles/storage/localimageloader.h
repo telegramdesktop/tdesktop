@@ -18,6 +18,7 @@ struct PreparedFileInformation;
 
 namespace Media::Encode {
 struct Job;
+struct VideoSource;
 } // namespace Media::Encode
 
 namespace Main {
@@ -214,7 +215,8 @@ struct FilePrepareResult {
 	TextWithTags caption;
 	bool spoiler = false;
 	bool forceFile = false;
-	int videoTranscodeHeight = 0;
+	std::shared_ptr<Media::Encode::VideoSource> videoSource;
+	crl::time videoCoverOffset = 0;
 	std::shared_ptr<Media::Encode::Job> animationJob;
 	QString transcodedTempPath;
 
@@ -256,7 +258,6 @@ public:
 		std::shared_ptr<SendingAlbum> album;
 		bool forceFile = false;
 		bool sendLargePhotos = false;
-		int transcodeHeight = 0;
 		std::shared_ptr<Media::Encode::Job> animationJob;
 		uint64 idOverride = 0;
 		QString displayName;
@@ -330,7 +331,6 @@ private:
 	bool _spoiler = false;
 	bool _forceFile = false;
 	bool _sendLargePhotos = false;
-	int _transcodeHeight = 0;
 	std::shared_ptr<Media::Encode::Job> _animationJob;
 
 	std::shared_ptr<FilePrepareResult> _result;

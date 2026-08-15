@@ -837,16 +837,13 @@ struct GeometryPlan {
 	bool bake = false;
 };
 
-[[nodiscard]] GeometryPlan PlanGeometry(
+[[nodiscard]] GeometryPlan PlanDisplayGeometry(
 		const VideoSource &source,
-		QSize coded,
-		int fileRotation) {
+		QSize display) {
 	auto plan = GeometryPlan();
-	plan.fileRotation = fileRotation;
 	plan.userRotation = NormalizeAngle(source.rotation);
 	plan.flipped = source.flipped;
 
-	const auto display = TransposeSizeByRotation(coded, fileRotation);
 	const auto full = QRect(QPoint(), display);
 	plan.crop = source.crop.isValid() ? (source.crop & full) : full;
 	if (plan.crop.isEmpty()) {
@@ -858,7 +855,7 @@ struct GeometryPlan {
 		|| !source.exactSize.isEmpty()
 		|| (source.coverPosition >= 0);
 
-	auto oriented = plan.bake ? plan.crop.size() : coded;
+	auto oriented = plan.bake ? plan.crop.size() : display;
 	if (plan.bake && RotationSwapWidthHeight(plan.userRotation)) {
 		oriented.transpose();
 	}
@@ -873,6 +870,21 @@ struct GeometryPlan {
 			: downscaled;
 	} else {
 		plan.target = EvenSize(oriented);
+	}
+	return plan;
+}
+
+[[nodiscard]] GeometryPlan PlanGeometry(
+		const VideoSource &source,
+		QSize coded,
+		int fileRotation) {
+	const auto display = TransposeSizeByRotation(coded, fileRotation);
+	auto plan = PlanDisplayGeometry(source, display);
+	plan.fileRotation = fileRotation;
+	if (!plan.bake) {
+		// Frames stay coded and the display matrix is copied across, so the
+		// encoder target is coded-oriented as well.
+		plan.target = TransposeSizeByRotation(plan.target, fileRotation);
 	}
 	return plan;
 }
@@ -952,6 +964,10 @@ struct GeometryPlan {
 
 } // namespace
 
+int64 MaxTranscodeSourceSize() {
+	return kMaxSourceSize;
+}
+
 QSize DownscaledSize(QSize original, int targetShorterSide) {
 	const auto width = original.width();
 	const auto height = original.height();
@@ -966,20 +982,6 @@ QSize DownscaledSize(QSize original, int targetShorterSide) {
 	return QSize(
 		std::max(EvenDown(int(base::SafeRound(width * scale))), 2),
 		std::max(EvenDown(int(base::SafeRound(height * scale))), 2));
-}
-
-int CompressedShorterSide(QSize original, int64 size) {
-	const auto shorter = std::min(original.width(), original.height());
-	if (shorter <= 0 || size <= 0 || size >= kMaxSourceSize) {
-		return 0;
-	} else if (shorter >= 1080) {
-		return 1080;
-	} else if (shorter >= 720) {
-		return 720;
-	} else if (shorter >= 480) {
-		return 480;
-	}
-	return shorter;
 }
 
 TranscodeResult TranscodeVideo(
@@ -1498,9 +1500,8 @@ TranscodeResult TranscodeVideo(
 	const auto step = (fps > 0.)
 		? crl::time(base::SafeRound(1000. / fps))
 		: crl::time(0);
-	// The size a player will show, which is not the encoder target when the
-	// geometry was not baked in: there the frames stay in the source's coded
-	// orientation and the source display matrix is copied across.
+	// What a player shows, which differs from the encoder target when the
+	// geometry was not baked in.
 	const auto shown = plan.bake
 		? target
 		: TransposeSizeByRotation(target, plan.fileRotation);
@@ -1516,19 +1517,20 @@ TranscodeResult TranscodeVideo(
 	return result;
 }
 
-QString TranscodeVideoToMp4(
-		const QString &sourcePath,
-		const QByteArray &sourceContent,
-		int targetShorterSide,
-		Fn<bool(float64)> progress) {
-	if (targetShorterSide <= 0) {
-		return {};
-	}
-	return TranscodeVideo({
-		.path = sourcePath,
-		.bytes = sourceContent,
-		.targetShorterSide = targetShorterSide,
-	}, std::move(progress)).path;
+QSize TranscodedSize(const VideoSource &source, QSize displaySize) {
+	return displaySize.isEmpty()
+		? QSize()
+		: PlanDisplayGeometry(source, displaySize).target;
+}
+
+crl::time TranscodedDuration(
+		const VideoSource &source,
+		crl::time duration) {
+	const auto from = std::clamp(source.from, crl::time(0), duration);
+	const auto till = (source.till > from)
+		? std::min(source.till, duration)
+		: duration;
+	return std::max(till - from, crl::time(0));
 }
 
 Result Run(Job &&job, Fn<bool(float64)> progress) {

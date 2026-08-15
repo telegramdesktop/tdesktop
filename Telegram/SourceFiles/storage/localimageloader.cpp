@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "editor/scene/scene_item_sticker.h"
 #include "editor/scene/scene.h"
+#include "editor/video/video_editor_common.h"
 #include "media/audio/media_audio.h"
 #include "media/clip/media_clip_reader.h"
 #include "media/media_video_encode.h"
@@ -109,6 +110,11 @@ struct PreparedFileThumbnail {
 	return (filesize > kThumbnailUploadBySize)
 		|| (ranges::find(kThumbnailKnownMimes, filemime.toLower())
 			== end(kThumbnailKnownMimes));
+}
+
+[[nodiscard]] QString Mp4FileName(const QString &name) {
+	const auto dot = name.lastIndexOf('.');
+	return ((dot > 0) ? name.mid(0, dot) : name) + u".mp4"_q;
 }
 
 [[nodiscard]] PreparedFileThumbnail FinalizeFileThumbnail(
@@ -515,7 +521,6 @@ FileLoadTask::FileLoadTask(Args &&args)
 , _spoiler(args.spoiler)
 , _forceFile(args.forceFile)
 , _sendLargePhotos(args.sendLargePhotos)
-, _transcodeHeight(args.transcodeHeight)
 , _animationJob(std::move(args.animationJob)) {
 	Expects(_to.options.scheduled
 		|| _to.options.shortcutId
@@ -962,17 +967,58 @@ void FileLoadTask::process(ProcessArgs &&args) {
 			isVideo = true;
 			auto coverWidth = video->thumbnail.width();
 			auto coverHeight = video->thumbnail.height();
-			if (_transcodeHeight > 0 && !_forceFile) {
-				const auto target = Media::Encode::DownscaledSize(
-					QSize(coverWidth, coverHeight),
-					_transcodeHeight);
+			auto realSeconds = video->duration / 1000.;
+			const auto convert = !Core::IsMimeSentAsVideo(filemime)
+				&& !video->isWebmSticker
+				&& (filesize < Media::Encode::MaxTranscodeSourceSize());
+			if (!_forceFile
+				&& !video->thumbnail.isNull()
+				&& (convert
+					|| Editor::VideoEdited(
+						video->modifications,
+						video->thumbnail.size(),
+						video->duration))) {
+				auto source = Editor::ComposeVideoSource(
+					_filepath,
+					video->modifications,
+					{},
+					false);
+				source.bytes = _filepath.isEmpty() ? _content : QByteArray();
+				const auto target = Media::Encode::TranscodedSize(
+					source,
+					video->thumbnail.size());
 				if (!target.isEmpty()) {
+					const auto duration = Media::Encode::TranscodedDuration(
+						source,
+						video->duration);
 					coverWidth = target.width();
 					coverHeight = target.height();
-					video->thumbnail = video->thumbnail.scaled(
+					realSeconds = duration / 1000.;
+					video->thumbnail = Editor::ImageModified(
+						base::take(video->thumbnail),
+						video->modifications.geometry
+					).scaled(
 						target,
 						Qt::IgnoreAspectRatio,
 						Qt::SmoothTransformation);
+					_result->videoCoverOffset = std::clamp(
+						video->modifications.cover
+							- video->modifications.from,
+						crl::time(0),
+						duration);
+					_result->videoSource = std::make_shared<
+						Media::Encode::VideoSource>(std::move(source));
+
+					filemime = u"video/mp4"_q;
+					filename = Mp4FileName(filename);
+					if (!_displayName.isEmpty()) {
+						_displayName = Mp4FileName(_displayName);
+					}
+					attributes[0] = MTP_documentAttributeFilename(
+						MTP_string(_displayName.isEmpty()
+							? filename
+							: _displayName));
+					video->supportsStreaming = true;
 				}
 			}
 			if (!_forceFile) {
@@ -983,14 +1029,18 @@ void FileLoadTask::process(ProcessArgs &&args) {
 				if (video->supportsStreaming) {
 					flags |= MTPDdocumentAttributeVideo::Flag::f_supports_streaming;
 				}
-				const auto realSeconds = video->duration / 1000.;
+				const auto startTs = _result->videoCoverOffset;
+				if (startTs > 0) {
+					using Flag = MTPDdocumentAttributeVideo::Flag;
+					flags |= Flag::f_video_start_ts;
+				}
 				attributes.push_back(MTP_documentAttributeVideo(
 					MTP_flags(flags),
 					MTP_double(realSeconds),
 					MTP_int(coverWidth),
 					MTP_int(coverHeight),
 					MTPint(),
-					MTPdouble(),
+					MTP_double(startTs / 1000.),
 					MTPstring()));
 			}
 
@@ -1155,9 +1205,6 @@ void FileLoadTask::process(ProcessArgs &&args) {
 	_result->document = document;
 	_result->photoThumbs = photoThumbs;
 	_result->forceFile = _forceFile;
-	_result->videoTranscodeHeight = (isVideo && !_forceFile)
-		? _transcodeHeight
-		: 0;
 }
 
 void FileLoadTask::finish() {

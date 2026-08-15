@@ -69,6 +69,10 @@ void AbstractSingleMediaPreview::setSpoiler(bool spoiler) {
 	update();
 }
 
+void AbstractSingleMediaPreview::setModifyAllowed(bool value) {
+	_modifyAllowed = value;
+}
+
 void AbstractSingleMediaPreview::setCanShowHighQualityBadge(bool value) {
 	_canShowHighQualityBadge = value;
 	update();
@@ -286,17 +290,23 @@ void AbstractSingleMediaPreview::mousePressEvent(QMouseEvent *e) {
 }
 
 void AbstractSingleMediaPreview::mouseMoveEvent(QMouseEvent *e) {
-	applyCursor((isPhoto() && isOverPreview(e->pos()))
+	applyCursor((canModify() && isOverPreview(e->pos()))
 		? style::cur_pointer
 		: style::cur_default);
 }
 
 void AbstractSingleMediaPreview::mouseReleaseEvent(QMouseEvent *e) {
 	if (base::take(_pressed) && isOverPreview(e->pos())) {
-		if (e->button() == Qt::LeftButton && isPhoto()) {
+		if (e->button() == Qt::LeftButton && canModify()) {
 			_photoEditorRequests.fire({});
 		}
 	}
+}
+
+bool AbstractSingleMediaPreview::canModify() const {
+	// Video edits only apply when the file is sent as a video.
+	return isPhoto()
+		|| (_modifyAllowed && _sendWay.sendImagesAsPhotos());
 }
 
 void AbstractSingleMediaPreview::applyCursor(style::cursor cursor) {

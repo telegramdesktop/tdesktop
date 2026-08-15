@@ -7,14 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/video/video_editor_layer.h"
 
+#include "chat_helpers/compose/compose_show.h"
 #include "core/file_utilities.h"
 #include "editor/editor_layer_widget.h"
 #include "editor/photo_editor_layer_widget.h"
 #include "editor/video/video_editor.h"
 #include "lang/lang_keys.h"
 #include "media/media_video_frames.h"
+#include "storage/storage_media_prepare.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/chat/attach/attach_extensions.h"
+#include "ui/chat/attach/attach_prepare.h"
 #include "ui/image/image_prepare.h"
 #include "window/window_controller.h"
 
@@ -83,7 +86,7 @@ void PrepareProfileVideo(
 		done({
 			.image = std::move(preview),
 			.video = std::make_shared<Media::Encode::VideoSource>(
-				ComposeVideoSource(path, mods, editorData)),
+				ComposeVideoSource(path, mods, editorData, true)),
 		});
 	};
 
@@ -153,6 +156,100 @@ void PrepareProfileMediaFromFile(
 		tr::lng_choose_image(tr::now),
 		FileDialog::PhotoVideoFilesFilter(),
 		crl::guard(parent, callback));
+}
+
+void OpenWithPreparedVideoFile(
+		not_null<QWidget*> parent,
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<Ui::PreparedFile*> file,
+		int previewWidth,
+		Fn<void(bool ok)> &&doneCallback,
+		int sideLimit) {
+	using VideoInfo = Ui::PreparedFileInformation::Video;
+	const auto lookup = [=]() -> VideoInfo* {
+		return file->information
+			? std::get_if<VideoInfo>(&file->information->media)
+			: nullptr;
+	};
+	const auto video = lookup();
+	if (!file->canEditVideo() || !video || video->thumbnail.isNull()) {
+		doneCallback(false);
+		return;
+	}
+	const auto path = file->path;
+	const auto dimensions = video->thumbnail.size();
+	if (!AcceptableDimensions(dimensions)) {
+		doneCallback(false);
+		return;
+	}
+
+	const auto accepted = std::make_shared<bool>();
+	auto callback = [=](VideoModifications mods) {
+		*accepted = true;
+		const auto video = lookup();
+		if (!video) {
+			doneCallback(false);
+			return;
+		}
+		const auto coverChanged = (video->modifications.cover != mods.cover);
+		video->modifications = mods;
+		if (!coverChanged) {
+			Storage::UpdateVideoDetails(*file, previewWidth, sideLimit);
+			doneCallback(true);
+			return;
+		}
+		const auto kept = video->thumbnail;
+		crl::async([=, done = crl::guard(parent, [=](
+				QImage &&frame,
+				Storage::VideoDetails &&details) {
+			const auto video = lookup();
+			if (!video) {
+				doneCallback(false);
+				return;
+			}
+			if (!frame.isNull()) {
+				video->thumbnail = std::move(frame);
+			}
+			Storage::ApplyVideoDetails(*file, std::move(details));
+			doneCallback(true);
+		})] {
+			auto frame = Media::Video::ExtractFrame(
+				path,
+				mods.cover,
+				dimensions);
+			auto details = Storage::ComputeVideoDetails(
+				frame.isNull() ? kept : frame,
+				mods.geometry,
+				previewWidth,
+				sideLimit);
+			crl::on_main([
+				=,
+				frame = std::move(frame),
+				details = std::move(details)
+			]() mutable {
+				done(std::move(frame), std::move(details));
+			});
+		});
+	};
+
+	auto editor = base::make_unique_q<VideoEditor>(
+		parent,
+		VideoEditorDescriptor{
+			.path = path,
+			.dimensions = dimensions,
+			.duration = video->duration,
+			.data = VideoEditorData{ .allowQuality = true },
+			.initial = video->modifications,
+		});
+	const auto raw = editor.get();
+	auto layer = std::make_unique<LayerWidget>(parent, std::move(editor));
+	InitVideoEditorLayer(layer.get(), raw, std::move(callback));
+	QObject::connect(layer.get(), &QObject::destroyed, [=] {
+		if (!*accepted) {
+			doneCallback(false);
+		}
+	});
+	show->showLayer(std::move(layer), Ui::LayerOption::KeepOther);
 }
 
 } // namespace Editor

@@ -18,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "mtproto/mtproto_config.h"
 #include "chat_helpers/message_field.h"
-#include "media/media_video_encode.h"
 #include "menu/menu_checked_action.h"
 #include "menu/menu_send.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
@@ -26,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "editor/photo_editor_layer_widget.h"
+#include "editor/video/video_editor_layer.h"
 #include "history/history_drag_area.h"
 #include "history/view/controls/history_view_characters_limit.h"
 #include "history/view/controls/history_view_compose_ai_button.h"
@@ -1391,9 +1391,27 @@ void SendFilesBox::pushBlock(int from, int till) {
 	};
 	const auto state = widget->lifetime().make_state<State>();
 	const auto openedOnce = widget->lifetime().make_state<bool>(false);
-	const auto openInPhotoEditor = [=, show = _show](int index) {
+	const auto openInEditor = [=, show = _show](int index) {
 		applyBlockChanges();
 
+		auto done = [=](bool ok) {
+			if (ok) {
+				refreshAllAfterChanges(from);
+			}
+		};
+		if (_list.files[index].canEditVideo()) {
+			if (!_sendWay.current().sendImagesAsPhotos()) {
+				return;
+			}
+			Editor::OpenWithPreparedVideoFile(
+				this,
+				show,
+				&_list.files[index],
+				st::sendMediaPreviewSize,
+				std::move(done),
+				PhotoSideLimit(true));
+			return;
+		}
 		if (!(*openedOnce)) {
 			show->session().settings().incrementPhotoEditorHintShown();
 			show->session().saveSettings();
@@ -1404,11 +1422,7 @@ void SendFilesBox::pushBlock(int from, int till) {
 			show,
 			&_list.files[index],
 			st::sendMediaPreviewSize,
-			[=](bool ok) {
-				if (ok) {
-					refreshAllAfterChanges(from);
-				}
-			},
+			std::move(done),
 			PhotoSideLimit(true));
 	};
 	const auto replaceAttachment = [=, show = _show](int index) {
@@ -1601,12 +1615,17 @@ void SendFilesBox::pushBlock(int from, int till) {
 		state->menu->addAction(tr::lng_attach_replace(tr::now), [=] {
 			replaceAttachment(fileIndex);
 		}, &st::menuIconReplace);
-		const auto canOpenPhotoEditor = true
-			&& _sendWay.current().sendImagesAsPhotos()
+		const auto compressed = _sendWay.current().sendImagesAsPhotos();
+		const auto canOpenPhotoEditor = compressed
 			&& (file.type == Ui::PreparedFile::Type::Photo);
+		const auto canOpenVideoEditor = compressed && file.canEditVideo();
 		if (canOpenPhotoEditor) {
 			state->menu->addAction(tr::lng_context_draw(tr::now), [=] {
-				openInPhotoEditor(fileIndex);
+				openInEditor(fileIndex);
+			}, &st::menuIconDraw);
+		} else if (canOpenVideoEditor) {
+			state->menu->addAction(tr::lng_context_edit_video(tr::now), [=] {
+				openInEditor(fileIndex);
 			}, &st::menuIconDraw);
 		}
 		const auto canEditFileData = !SkipCaption(
@@ -1665,28 +1684,6 @@ void SendFilesBox::pushBlock(int from, int till) {
 				},
 				&icons.menuSpoiler,
 				spoilered);
-		}
-		const auto canCompress = _sendWay.current().sendImagesAsPhotos()
-			&& file.isVideoFile();
-		const auto compressHeight = canCompress
-			? Media::Encode::CompressedShorterSide(
-				file.originalDimensions,
-				file.size)
-			: 0;
-		if (compressHeight > 0) {
-			const auto compressed = (file.videoTranscodeHeight > 0);
-			Menu::AddCheckedAction(
-				state->menu.get(),
-				u"Compressed"_q,
-				[=] {
-					applyBlockChanges();
-					refreshAllAfterChanges(from, [&] {
-						_list.files[fileIndex].videoTranscodeHeight
-							= compressed ? 0 : compressHeight;
-					});
-				},
-				&st::menuIconShrink,
-				compressed);
 		}
 		const auto ttlUser = _toPeer->asUser();
 		const auto canSetTtl = !hasPrice()
@@ -1840,7 +1837,7 @@ void SendFilesBox::pushBlock(int from, int till) {
 
 	block.itemModifyRequest(
 	) | rpl::on_next([=](int index) {
-		openInPhotoEditor(index);
+		openInEditor(index);
 	}, widget->lifetime());
 
 	block.itemRenameRequest(

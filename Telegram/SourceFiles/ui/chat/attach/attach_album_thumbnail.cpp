@@ -43,6 +43,7 @@ AlbumThumbnail::AlbumThumbnail(
 , _shrinkSize(int(std::ceil(st::roundRadiusLarge / 1.4)))
 , _isPhoto(file.type == PreparedFile::Type::Photo)
 , _isVideo(file.type == PreparedFile::Type::Video)
+, _canEditVideo(file.canEditVideo())
 , _canShowHighQualityBadge(file.canUseHighQualityPhoto())
 , _canShowAnimatedBadge(file.hasAnimatedEditScene())
 , _ttlSeconds(file.ttlSeconds)
@@ -247,6 +248,18 @@ int AlbumThumbnail::fileHeight() const {
 
 bool AlbumThumbnail::isCompressedSticker() const {
 	return _isCompressedSticker;
+}
+
+bool AlbumThumbnail::canEditVideo() const {
+	return _canEditVideo;
+}
+
+void AlbumThumbnail::setModifyAllowed(bool value) {
+	_modifyAllowed = value;
+}
+
+bool AlbumThumbnail::canModify() const {
+	return !_isCompressedSticker && (_isPhoto || _modifyAllowed);
 }
 
 void AlbumThumbnail::paintInAlbum(
@@ -611,7 +624,7 @@ bool AlbumThumbnail::containsPoint(QPoint position) const {
 }
 
 bool AlbumThumbnail::buttonsContainPoint(QPoint position) const {
-	return ((_isPhoto && !_isCompressedSticker)
+	return (canModify()
 		? _lastRectOfModify
 		: _lastRectOfButtons).contains(position);
 }
@@ -620,7 +633,7 @@ AttachButtonType AlbumThumbnail::buttonTypeFromPoint(QPoint position) const {
 	if (!buttonsContainPoint(position)) {
 		return AttachButtonType::None;
 	}
-	return (!_lastRectOfButtons.contains(position) && !_isCompressedSticker)
+	return (!_lastRectOfButtons.contains(position) && canModify())
 		? AttachButtonType::Modify
 		: (_buttons.vertical()
 			? (position.y() < _lastRectOfButtons.center().y())

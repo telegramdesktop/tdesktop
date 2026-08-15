@@ -43,7 +43,8 @@ bool VideoEdited(
 Media::Encode::VideoSource ComposeVideoSource(
 		const QString &path,
 		const VideoModifications &modifications,
-		const VideoEditorData &data) {
+		const VideoEditorData &data,
+		bool coverNeeded) {
 	const auto &geometry = modifications.geometry;
 	return {
 		.path = path,
@@ -58,7 +59,9 @@ Media::Encode::VideoSource ComposeVideoSource(
 		.till = modifications.till,
 		.removeAudio = data.removeAudio,
 		.fpsLimit = data.fpsLimit,
-		.coverPosition = modifications.cover,
+		.coverPosition = (coverNeeded
+			? modifications.cover
+			: crl::time(-1)),
 	};
 }
 

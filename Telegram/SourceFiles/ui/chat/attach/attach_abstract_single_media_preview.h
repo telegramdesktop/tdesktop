@@ -37,6 +37,7 @@ public:
 	[[nodiscard]] bool isPhoto() const;
 
 	void setSpoiler(bool spoiler);
+	void setModifyAllowed(bool value);
 	void setCanShowHighQualityBadge(bool value);
 	void setCanShowAnimatedBadge(bool value);
 	void setTtlSeconds(crl::time ttlSeconds);
@@ -68,6 +69,7 @@ private:
 	void mouseReleaseEvent(QMouseEvent *e) override;
 
 	[[nodiscard]] bool isOverPreview(QPoint position) const;
+	[[nodiscard]] bool canModify() const;
 	void applyCursor(style::cursor cursor);
 
 	const style::ComposeControls &_st;
@@ -81,6 +83,7 @@ private:
 	int _previewHeight = 0;
 
 	std::unique_ptr<SpoilerAnimation> _spoiler;
+	bool _modifyAllowed = false;
 	bool _canShowHighQualityBadge = false;
 	bool _canShowAnimatedBadge = false;
 	crl::time _ttlSeconds = 0;

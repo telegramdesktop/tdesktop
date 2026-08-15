@@ -9,6 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "editor/video/video_editor_common.h"
 
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
+namespace Ui {
+struct PreparedFile;
+} // namespace Ui
+
 namespace Window {
 class Controller;
 } // namespace Window
@@ -39,5 +47,13 @@ void PrepareProfileMediaFromFile(
 	not_null<Window::Controller*> controller,
 	EditorData data,
 	Fn<void(ProfileMedia&&)> &&doneCallback);
+
+void OpenWithPreparedVideoFile(
+	not_null<QWidget*> parent,
+	std::shared_ptr<ChatHelpers::Show> show,
+	not_null<Ui::PreparedFile*> file,
+	int previewWidth,
+	Fn<void(bool ok)> &&doneCallback,
+	int sideLimit = 0);
 
 } // namespace Editor

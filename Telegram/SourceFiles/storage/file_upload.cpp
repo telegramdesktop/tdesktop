@@ -324,8 +324,7 @@ void Uploader::upload(
 		document->uploadingData = std::make_unique<Data::UploadState>(
 			document->size);
 		preparing = (file->animationJob != nullptr)
-			|| ((file->videoTranscodeHeight > 0)
-				&& (!file->content.isEmpty() || !file->filepath.isEmpty()));
+			|| (file->videoSource != nullptr);
 		if (preparing) {
 			document->uploadingData->preparing = true;
 		}
@@ -412,7 +411,7 @@ void Uploader::runTranscode(FullMsgId itemId) {
 	Assert(i != end(_queue));
 	auto &entry = *i;
 	const auto file = entry.file;
-	const auto height = file->videoTranscodeHeight;
+	const auto source = file->videoSource;
 	const auto job = file->animationJob;
 	const auto cancel = std::make_shared<std::atomic<bool>>(false);
 	entry.cancelPreparing = cancel;
@@ -445,12 +444,8 @@ void Uploader::runTranscode(FullMsgId itemId) {
 				result = Media::Encode::Run(std::move(fallback), nullptr);
 			}
 			bytes = std::move(result.bytes);
-		} else {
-			path = Media::Encode::TranscodeVideoToMp4(
-				file->filepath,
-				file->content,
-				height,
-				progress);
+		} else if (source) {
+			path = Media::Encode::TranscodeVideo(*source, progress).path;
 		}
 		crl::on_main([=, bytes = std::move(bytes)]() mutable {
 			const auto strong = weak.get();

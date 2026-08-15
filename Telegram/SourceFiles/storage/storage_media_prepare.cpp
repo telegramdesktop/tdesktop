@@ -343,22 +343,65 @@ void PrepareDetails(PreparedFile &file, int previewWidth, int sideLimit) {
 	} else if (const auto video = std::get_if<Video>(
 			&file.information->media)) {
 		if (ValidVideoForAlbum(*video)) {
-			auto blurred = Images::Blur(
-				Images::Opaque(base::duplicate(video->thumbnail)));
-			file.originalDimensions = video->thumbnail.size();
-			file.shownDimensions = PrepareShownDimensions(
-				video->thumbnail,
-				sideLimit);
-			file.preview = std::move(blurred).scaledToWidth(
-				previewWidth * style::DevicePixelRatio(),
-				Qt::SmoothTransformation);
-			Assert(!file.preview.isNull());
-			file.preview.setDevicePixelRatio(style::DevicePixelRatio());
+			UpdateVideoDetails(file, previewWidth, sideLimit);
 			file.type = PreparedFile::Type::Video;
 		}
 	} else if (v::is<Song>(file.information->media)) {
 		file.type = PreparedFile::Type::Music;
 	}
+}
+
+VideoDetails ComputeVideoDetails(
+		const QImage &thumbnail,
+		const Editor::PhotoModifications &geometry,
+		int previewWidth,
+		int sideLimit) {
+	if (thumbnail.isNull()) {
+		return {};
+	}
+	// The thumbnail stays raw, the modifications are applied on read.
+	auto preview = geometry
+		? Editor::ImageModified(base::duplicate(thumbnail), geometry)
+		: base::duplicate(thumbnail);
+	Assert(!preview.isNull());
+	auto result = VideoDetails{
+		.originalDimensions = preview.size(),
+		.shownDimensions = PrepareShownDimensions(preview, sideLimit),
+	};
+	result.preview = Images::Blur(Images::Opaque(std::move(preview)))
+		.scaledToWidth(
+			previewWidth * style::DevicePixelRatio(),
+			Qt::SmoothTransformation);
+	Assert(!result.preview.isNull());
+	result.preview.setDevicePixelRatio(style::DevicePixelRatio());
+	return result;
+}
+
+void ApplyVideoDetails(PreparedFile &file, VideoDetails &&details) {
+	if (details.preview.isNull()) {
+		return;
+	}
+	file.originalDimensions = details.originalDimensions;
+	file.shownDimensions = details.shownDimensions;
+	file.preview = std::move(details.preview);
+}
+
+void UpdateVideoDetails(
+		PreparedFile &file,
+		int previewWidth,
+		int sideLimit) {
+	using Video = PreparedFileInformation::Video;
+	const auto video = std::get_if<Video>(&file.information->media);
+	if (!video) {
+		return;
+	}
+	ApplyVideoDetails(
+		file,
+		ComputeVideoDetails(
+			video->thumbnail,
+			video->modifications.geometry,
+			previewWidth,
+			sideLimit));
 }
 
 void UpdateImageDetails(

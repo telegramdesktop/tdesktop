@@ -5430,6 +5430,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_poll_option_tab" = "Option";
 "lng_context_edit_msg" = "Edit";
 "lng_context_draw" = "Edit Image";
+"lng_context_edit_video" = "Edit Video";
 "lng_context_add_factcheck" = "Add Fact Check";
 "lng_context_edit_factcheck" = "Edit Fact Check";
 "lng_context_add_offer" = "Add Offer";

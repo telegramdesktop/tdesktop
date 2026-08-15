@@ -47,7 +47,8 @@ struct VideoEditorData {
 [[nodiscard]] Media::Encode::VideoSource ComposeVideoSource(
 	const QString &path,
 	const VideoModifications &modifications,
-	const VideoEditorData &data);
+	const VideoEditorData &data,
+	bool coverNeeded);
 
 [[nodiscard]] QImage ExtractCoverImage(
 	const QString &path,
