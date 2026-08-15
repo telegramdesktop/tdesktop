@@ -427,6 +427,10 @@ void DocumentData::setattributes(
 				_flags |= Flag::SilentVideo;
 			}
 			dimensions = QSize(data.vw().v, data.vh().v);
+			if (const auto info = video()) {
+				info->startTs = crl::time(base::SafeRound(
+					data.vvideo_start_ts().value_or_empty() * 1000));
+			}
 		}, [&](const MTPDdocumentAttributeAudio &data) {
 			if (type == FileDocument) {
 				if (data.is_voice()) {

@@ -31,13 +31,18 @@ MTPVector<MTPDocumentAttribute> ComposeSendingDocumentAttributes(
 			if (document->supportsStreaming()) {
 				flags |= VideoFlag::f_supports_streaming;
 			}
+			const auto video = document->video();
+			const auto startTs = video ? video->startTs : crl::time(0);
+			if (startTs > 0) {
+				flags |= VideoFlag::f_video_start_ts;
+			}
 			attributes.push_back(MTP_documentAttributeVideo(
 				MTP_flags(flags),
 				MTP_double(document->duration() / 1000.),
 				MTP_int(dimensions.width()),
 				MTP_int(dimensions.height()),
 				MTPint(), // preload_prefix_size
-				MTPdouble(), // video_start_ts
+				MTP_double(startTs / 1000.), // video_start_ts
 				MTPstring())); // video_codec
 		} else {
 			attributes.push_back(MTP_documentAttributeImageSize(

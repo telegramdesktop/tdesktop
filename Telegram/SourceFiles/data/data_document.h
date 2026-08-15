@@ -100,6 +100,7 @@ struct VideoData : public DocumentAdditionalData {
 	QString codec;
 	std::vector<not_null<DocumentData*>> qualities;
 	QSize realVideoSize;
+	crl::time startTs = 0;
 };
 
 using RoundData = VoiceData;

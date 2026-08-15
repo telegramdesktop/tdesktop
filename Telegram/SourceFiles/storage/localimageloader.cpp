@@ -1021,6 +1021,12 @@ void FileLoadTask::process(ProcessArgs &&args) {
 					video->supportsStreaming = true;
 				}
 			}
+			if (!_forceFile && !_result->videoSource) {
+				_result->videoCoverOffset = std::clamp(
+					video->modifications.cover,
+					crl::time(0),
+					video->duration);
+			}
 			if (!_forceFile) {
 				if (video->isGifv && !_album) {
 					attributes.push_back(MTP_documentAttributeAnimated());
