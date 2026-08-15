@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "editor/editor_crop.h"
+#include "editor/video/video_quality_slider.h"
 #include "editor/video/video_timeline.h"
 #include "lang/lang_keys.h"
 #include "media/streaming/media_streaming_document.h"
@@ -185,17 +186,20 @@ VideoEditor::VideoEditor(
 , _path(descriptor.path)
 , _dimensions(descriptor.dimensions)
 , _duration(std::max(descriptor.duration, crl::time(1)))
-, _data(descriptor.data) {
+, _data(descriptor.data)
+, _initial(descriptor.initial) {
+	_geometry = _initial.geometry;
 	_geometry.cropType = _data.editor.cropType;
 	_geometry.cropMode = _data.editor.cropMode;
-	_geometry.crop = [&] {
+	if (!_geometry.crop.isValid() && !_data.exactSize.isEmpty()) {
+		// A fixed size result starts from the largest crop that fits it.
 		const auto side = std::min(_dimensions.width(), _dimensions.height());
-		return QRect(
+		_geometry.crop = QRect(
 			(_dimensions.width() - side) / 2,
 			(_dimensions.height() - side) / 2,
 			side,
 			side);
-	}();
+	}
 
 	_crop = base::make_unique_q<Crop>(
 		this,
@@ -205,6 +209,7 @@ VideoEditor::VideoEditor(
 
 	setupControls();
 	setupTimeline();
+	setupQuality();
 	setupStreaming();
 	setupTapToPause();
 	refreshCoverPreview();
@@ -213,6 +218,7 @@ VideoEditor::VideoEditor(
 	) | rpl::filter([](not_null<QEvent*> e) {
 		return (e->type() == QEvent::MouseButtonRelease);
 	}) | rpl::on_next([=] {
+		refreshQualityLevels();
 		invalidateCoverPreview();
 	}, _crop->lifetime());
 
@@ -242,6 +248,9 @@ void VideoEditor::setupTimeline() {
 			.duration = _duration,
 			.maxDuration = _data.maxDuration,
 			.minDuration = _data.minDuration,
+			.from = _initial.from,
+			.till = _initial.till,
+			.cover = _initial.cover,
 		});
 	_from = _timeline->from();
 	_till = _timeline->till();
@@ -307,6 +316,29 @@ void VideoEditor::setupTimeline() {
 		}
 		updateBubble();
 	}, _timeline->lifetime());
+}
+
+void VideoEditor::setupQuality() {
+	if (!_data.allowQuality) {
+		return;
+	}
+	_quality = base::make_unique_q<VideoQualitySlider>(_controls.get());
+	refreshQualityLevels();
+	_quality->setValue(_initial.quality);
+}
+
+void VideoEditor::refreshQualityLevels() {
+	if (!_quality) {
+		return;
+	}
+	auto geometry = _geometry;
+	geometry.crop = _crop->saveCropRect();
+	const auto was = _quality->hasChoice();
+	_quality->setLevels(
+		VideoQualityLevels(EditedFrameSize(_dimensions, geometry)));
+	if ((_quality->hasChoice() != was) && !size().isEmpty()) {
+		applyGeometry();
+	}
 }
 
 void VideoEditor::setupControls() {
@@ -752,8 +784,32 @@ void VideoEditor::applyGeometry() {
 	if (size.isEmpty()) {
 		return;
 	}
-	const auto controlsHeight = st::videoEditorControlsHeight;
-	const auto contentRect = rect() - st::videoEditorContentMargins;
+	refreshQualityLevels();
+	const auto quality = (_quality && _quality->hasChoice())
+		? _quality.get()
+		: nullptr;
+	const auto skip = st::videoEditorContentSkip;
+	const auto available = std::max(size.width() - skip * 2, 1);
+	const auto barWidth = std::min(
+		int(st::photoEditorButtonBarWidth),
+		available);
+	const auto barLeft = (size.width() - barWidth) / 2;
+	_timeline->resizeToWidth(barWidth);
+	if (_hint) {
+		_hint->resizeToWidth(barWidth);
+	}
+	if (quality) {
+		quality->resizeToWidth(barWidth);
+	}
+	const auto controlsHeight = st::videoEditorTimelineTop
+		+ _timeline->height()
+		+ (_hint ? (st::videoEditorHintSkip + _hint->height()) : 0)
+		+ (quality ? (st::videoEditorQualitySkip + quality->height()) : 0)
+		+ st::videoEditorBarSkip
+		+ st::photoEditorButtonBarHeight
+		+ st::videoEditorBarBottomSkip;
+	const auto contentRect = rect()
+		- QMargins(skip, skip, skip, controlsHeight);
 	if (contentRect.isEmpty()) {
 		return;
 	}
@@ -800,22 +856,16 @@ void VideoEditor::applyGeometry() {
 	const auto controlsTop = size.height() - controlsHeight;
 	_controls->setGeometry(0, controlsTop, size.width(), controlsHeight);
 
-	const auto available = std::max(
-		size.width() - st::videoEditorContentMargins.left() * 2,
-		1);
-	const auto barWidth = std::min(
-		int(st::photoEditorButtonBarWidth),
-		available);
-	const auto barLeft = (size.width() - barWidth) / 2;
-
-	_timeline->resizeToWidth(barWidth);
 	_timeline->move(barLeft, st::videoEditorTimelineTop);
 
 	auto below = _timeline->y() + _timeline->height();
 	if (_hint) {
-		_hint->resizeToWidth(barWidth);
 		_hint->move(barLeft, below + st::videoEditorHintSkip);
 		below = _hint->y() + _hint->height();
+	}
+	if (quality) {
+		quality->move(barLeft, below + st::videoEditorQualitySkip);
+		below = quality->y() + quality->height();
 	}
 	_bar->setGeometry(
 		barLeft,
@@ -898,6 +948,7 @@ VideoModifications VideoEditor::collect() const {
 		.from = _timeline->from(),
 		.till = _timeline->till(),
 		.cover = _timeline->cover(),
+		.quality = _quality ? _quality->value() : 0,
 	};
 }
 

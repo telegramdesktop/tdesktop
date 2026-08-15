@@ -20,6 +20,11 @@ struct VideoTimelineDescriptor {
 
 	crl::time maxDuration = 0;
 	crl::time minDuration = 0;
+
+	// A zero |till| means the whole allowed window is selected.
+	crl::time from = 0;
+	crl::time till = 0;
+	crl::time cover = 0;
 };
 
 class VideoTimeline final

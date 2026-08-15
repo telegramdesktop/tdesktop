@@ -30,12 +30,15 @@ namespace Editor {
 
 class Crop;
 class VideoTimeline;
+class VideoQualitySlider;
 
 struct VideoEditorDescriptor {
 	QString path;
 	QSize dimensions;
 	crl::time duration = 0;
 	VideoEditorData data;
+
+	VideoModifications initial;
 };
 
 class VideoEditor final
@@ -60,6 +63,8 @@ private:
 	void setupStreaming();
 	void setupControls();
 	void setupTimeline();
+	void setupQuality();
+	void refreshQualityLevels();
 	void handleUpdate(Media::Streaming::Update &&update);
 	void restart(crl::time position);
 	void setupTapToPause();
@@ -81,6 +86,8 @@ private:
 	const crl::time _duration = 0;
 	const VideoEditorData _data;
 
+	const VideoModifications _initial;
+
 	PhotoModifications _geometry;
 	crl::time _from = 0;
 	crl::time _till = 0;
@@ -90,6 +97,7 @@ private:
 	std::unique_ptr<Media::Streaming::Instance> _instance;
 	base::unique_qptr<Crop> _crop;
 	base::unique_qptr<VideoTimeline> _timeline;
+	base::unique_qptr<VideoQualitySlider> _quality;
 	base::unique_qptr<Ui::RpWidget> _controls;
 	base::unique_qptr<Ui::RpWidget> _bar;
 	base::unique_qptr<Ui::IconButton> _rotate;

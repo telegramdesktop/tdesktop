@@ -1882,6 +1882,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_accept_video_sure" = "{user} suggests this photo for your Telegram profile.";
 "lng_profile_set_video_button" = "Set Photo";
 "lng_profile_video_confirm_button" = "Set Video";
+"lng_video_quality_original" = "Original";
 "lng_profile_choose_frame" = "Choose a frame for your profile photo";
 "lng_profile_choose_frame_other" = "Choose a frame for this video";
 "lng_profile_changed_photo_title" = "Photo updated";

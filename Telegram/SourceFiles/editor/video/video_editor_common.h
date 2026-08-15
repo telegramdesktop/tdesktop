@@ -17,6 +17,8 @@ struct VideoModifications {
 	crl::time from = 0;
 	crl::time till = 0;
 	crl::time cover = 0;
+	// Target shorter side, zero means the original resolution is kept.
+	int quality = 0;
 };
 
 struct VideoEditorData {
@@ -30,7 +32,17 @@ struct VideoEditorData {
 	crl::time minDuration = 0;
 	float64 fpsLimit = 0.;
 	bool removeAudio = false;
+	bool allowQuality = false;
 };
+
+[[nodiscard]] QSize EditedFrameSize(
+	QSize dimensions,
+	const PhotoModifications &geometry);
+
+[[nodiscard]] bool VideoEdited(
+	const VideoModifications &modifications,
+	QSize dimensions,
+	crl::time duration);
 
 [[nodiscard]] Media::Encode::VideoSource ComposeVideoSource(
 	const QString &path,

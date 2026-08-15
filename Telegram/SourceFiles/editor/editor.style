@@ -228,20 +228,28 @@ videoTimelineDurationStyle: TextStyle(defaultTextStyle) {
 	font: font(12px semibold);
 }
 
-// videoEditorTimelineTop + videoTimelineHeight + videoEditorHintSkip
-// + hint height + videoEditorBarSkip + photoEditorButtonBarHeight
-// + videoEditorBarBottomSkip
-videoEditorControlsHeight: 191px;
+videoQualitySliderDotSize: 7px;
+videoQualitySliderDotActiveSize: 11px;
+videoQualitySliderLineWidth: 2px;
+videoQualitySliderLineGap: 4px;
+videoQualitySliderLabelSkip: 5px;
+videoQualitySliderSideSkip: 18px;
+videoQualitySliderFg: mediaviewPipPlaybackInactive;
+videoQualitySliderActiveFg: mediaviewControlFg;
+videoQualitySliderLabelFg: mediaviewCaptionFg;
+videoQualitySliderLabelActiveFg: mediaviewControlFg;
+videoQualitySliderStyle: TextStyle(defaultTextStyle) {
+	font: font(12px semibold);
+}
+// videoQualitySliderDotActiveSize + videoQualitySliderLabelSkip + font height
+videoQualitySliderHeight: 32px;
+
 videoEditorTimelineTop: 10px;
 videoEditorHintSkip: 8px;
+videoEditorQualitySkip: 6px;
 videoEditorBarSkip: 12px;
 videoEditorBarBottomSkip: 16px;
 videoEditorContentSkip: 20px;
-videoEditorContentMargins: margins(
-	videoEditorContentSkip,
-	videoEditorContentSkip,
-	videoEditorContentSkip,
-	videoEditorControlsHeight);
 videoEditorHint: FlatLabel(defaultFlatLabel) {
 	textFg: mediaviewCaptionFg;
 	align: align(top);

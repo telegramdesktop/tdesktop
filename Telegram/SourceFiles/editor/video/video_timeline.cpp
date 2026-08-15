@@ -38,6 +38,17 @@ VideoTimeline::VideoTimeline(
 , _cover(0) {
 	setMouseTracking(true);
 
+	// Restore the selection when the editor is opened for a second time.
+	_from = std::clamp(
+		_descriptor.from,
+		crl::time(0),
+		std::max(_duration - _minDuration, crl::time(0)));
+	const auto limit = std::min(_from + _maxDuration, _duration);
+	_till = (_descriptor.till > _from)
+		? std::min(_descriptor.till, limit)
+		: limit;
+	_cover = std::clamp(_descriptor.cover, _from, _till);
+
 	sizeValue(
 	) | rpl::filter([=](QSize size) {
 		return !size.isEmpty();

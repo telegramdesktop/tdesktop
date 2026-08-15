@@ -11,6 +11,35 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Editor {
 
+QSize EditedFrameSize(QSize dimensions, const PhotoModifications &geometry) {
+	if (dimensions.isEmpty()) {
+		return {};
+	}
+	const auto full = QRect(QPoint(), dimensions);
+	const auto crop = geometry.crop.isValid()
+		? (geometry.crop & full)
+		: full;
+	auto result = crop.isEmpty() ? full.size() : crop.size();
+	if (((geometry.angle / 90) % 2) != 0) {
+		result.transpose();
+	}
+	return result;
+}
+
+bool VideoEdited(
+		const VideoModifications &modifications,
+		QSize dimensions,
+		crl::time duration) {
+	const auto &geometry = modifications.geometry;
+	const auto full = QRect(QPoint(), dimensions);
+	return (modifications.quality > 0)
+		|| geometry.angle
+		|| geometry.flipped
+		|| (geometry.crop.isValid() && (geometry.crop != full))
+		|| (modifications.from > 0)
+		|| ((modifications.till > 0) && (modifications.till < duration));
+}
+
 Media::Encode::VideoSource ComposeVideoSource(
 		const QString &path,
 		const VideoModifications &modifications,
@@ -18,6 +47,9 @@ Media::Encode::VideoSource ComposeVideoSource(
 	const auto &geometry = modifications.geometry;
 	return {
 		.path = path,
+		.targetShorterSide = (data.exactSize.isEmpty()
+			? modifications.quality
+			: 0),
 		.exactSize = data.exactSize,
 		.crop = geometry.crop,
 		.rotation = geometry.angle,
