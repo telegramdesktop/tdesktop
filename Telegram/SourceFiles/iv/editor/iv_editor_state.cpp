@@ -6679,8 +6679,10 @@ std::optional<int> State::handleActiveListEnterUnchecked(
 			std::make_move_iterator(blocks.begin() + moveFrom),
 			std::make_move_iterator(blocks.end()));
 		blocks.erase(blocks.begin() + moveFrom, blocks.end());
-		if (next.blocks.empty()) {
-			next.blocks.push_back(MakeParagraphBlock());
+		if (next.blocks.empty()
+			|| next.blocks.front().kind != BlockKind::Paragraph) {
+			// Item paints its first block on marker line.
+			next.blocks.insert(next.blocks.begin(), MakeParagraphBlock());
 		}
 		const auto insertedCount = int(next.blocks.size());
 		owner->listItems.insert(
