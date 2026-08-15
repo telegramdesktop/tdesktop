@@ -520,6 +520,8 @@ private:
 		bool useStructuralSelection = true);
 	[[nodiscard]] std::optional<MathEditRequest> activeMathEditRequest() const;
 	[[nodiscard]] MathEditRequest newDisplayMathRequest() const;
+	[[nodiscard]] int fieldTextOffsetForCursorPosition(int position) const;
+	[[nodiscard]] int cursorPositionForFieldTextOffset(int offset) const;
 	[[nodiscard]] int richOffsetForFieldOffset(
 		const TextWithEntities &text,
 		int offset) const;
