@@ -76,6 +76,12 @@ CornerButtons::CornerButtons(
 	_reactions.widget->addClickHandler([=] { reactionsClick(); });
 	_pollVotes.widget->addClickHandler([=] { pollVotesClick(); });
 
+	_down.widget->setAccessibleName(tr::lng_jump_to_bottom(tr::now));
+	_mentions.widget->setAccessibleName(tr::lng_jump_to_mention(tr::now));
+	_reactions.widget->setAccessibleName(tr::lng_jump_to_reaction(tr::now));
+	_pollVotes.widget->setAccessibleName(
+		tr::lng_jump_to_poll_votes(tr::now));
+
 	const auto filterScroll = [&](CornerButton &button) {
 		button.widget->installEventFilter(this);
 	};
@@ -93,6 +99,14 @@ CornerButtons::CornerButtons(
 	SendMenu::SetupUnreadPollVotesMenu(_pollVotes.widget.data(), [=] {
 		return _delegate->cornerButtonsThread();
 	});
+}
+
+void CornerButtons::updateAccessibleDescription(CornerButton &button) {
+	const auto count = button.widget->unreadCount();
+	button.widget->setAccessibleDescription(count
+		? tr::lng_jump_unread_count(tr::now, lt_count, count)
+		: QString());
+	button.widget->accessibilityDescriptionChanged();
 }
 
 bool CornerButtons::eventFilter(QObject *o, QEvent *e) {
@@ -278,6 +292,7 @@ void CornerButtons::updateUnreadThingsVisibility() {
 		&& unreadThings.trackMentions(thread)) {
 		if (const auto count = thread->unreadMentions().count(0)) {
 			_mentions.widget->setUnreadCount(count);
+			updateAccessibleDescription(_mentions);
 		}
 		updateWithCount(
 			Type::Mentions,
@@ -290,6 +305,7 @@ void CornerButtons::updateUnreadThingsVisibility() {
 		&& unreadThings.trackReactions(thread)) {
 		if (const auto count = thread->unreadReactions().count(0)) {
 			_reactions.widget->setUnreadCount(count);
+			updateAccessibleDescription(_reactions);
 		}
 		updateWithCount(
 			Type::Reactions,
@@ -302,6 +318,7 @@ void CornerButtons::updateUnreadThingsVisibility() {
 		&& unreadThings.trackPollVotes(thread)) {
 		if (const auto count = thread->unreadPollVotes().count(0)) {
 			_pollVotes.widget->setUnreadCount(count);
+			updateAccessibleDescription(_pollVotes);
 		}
 		updateWithCount(
 			Type::PollVotes,
@@ -317,6 +334,7 @@ void CornerButtons::updateJumpDownVisibility(std::optional<int> counter) {
 	}
 	if (counter) {
 		_down.widget->setUnreadCount(*counter);
+		updateAccessibleDescription(_down);
 	}
 }
 

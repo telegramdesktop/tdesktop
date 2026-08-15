@@ -112,6 +112,10 @@ private:
 	[[nodiscard]] History *lookupHistory() const;
 	void showAt(MsgId id);
 
+	// The unread counter is painted as a badge, so a screen reader should
+	// have it too - as the description, next to the unchanging name.
+	void updateAccessibleDescription(CornerButton &button);
+
 	const not_null<QWidget*> _parent;
 	const Fn<bool(QEvent*)> _scrollViewportEvent;
 	const not_null<CornerButtonsDelegate*> _delegate;
