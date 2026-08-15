@@ -39,6 +39,9 @@ enum class ListStyle : uchar {
 	int itemIndex);
 
 void DropOrderedItemNumber(RichPage::ListItem *item);
+void AdoptListItemMarkers(
+	const RichPage::Block &list,
+	RichPage::ListItem *item);
 
 void DropOrderedItemNumbers(std::vector<RichPage::ListItem> &items);
 
