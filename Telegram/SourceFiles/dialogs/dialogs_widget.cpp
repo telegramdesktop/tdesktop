@@ -1191,6 +1191,10 @@ void Widget::scrollToDefaultChecked(bool verytop) {
 }
 
 void Widget::setupScrollUpButton() {
+	// The button floats over the bottom of the list, but it is created long
+	// before it, so the scroll has to order the two by position.
+	_scroll->setVisualTabOrder(true);
+
 	_scrollToTop->setClickedCallback([=] { scrollToDefaultChecked(); });
 	_scrollToTop->setAccessibleName(tr::lng_sr_scroll_to_top(tr::now));
 	trackScroll(_scrollToTop);
