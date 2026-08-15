@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/editor_layer_widget.h"
 #include "editor/photo_editor.h"
 #include "editor/photo_editor_layer_widget.h"
+#include "editor/video/video_editor_layer.h"
 #include "history/history_drag_area.h"
 #include "history/history_item.h"
 #include "history/history.h"
@@ -780,8 +781,15 @@ void EditCaptionBox::showMenu(QPoint globalPos, bool forceTopRight) {
 	const auto canDraw = !_preparedList.files.empty()
 		? (_preparedList.files.front().type == Type::Photo)
 		: (_isPhoto && !_asFile);
+	const auto canEditVideo = !_asFile
+		&& !_preparedList.files.empty()
+		&& _preparedList.files.front().canEditVideo();
 	if (canDraw) {
 		_previewMenu->addAction(tr::lng_context_draw(tr::now), [=] {
+			_photoEditorOpens.fire({});
+		}, &st::menuIconDraw);
+	} else if (canEditVideo) {
+		_previewMenu->addAction(tr::lng_context_edit_video(tr::now), [=] {
 			_photoEditorOpens.fire({});
 		}, &st::menuIconDraw);
 	}
@@ -858,7 +866,23 @@ void EditCaptionBox::setupPhotoEditorEventHandler() {
 			&& (!_photoMedia
 				|| !_photoMedia->image(Data::PhotoSize::Large))) {
 			return;
-		} else if (!*openedOnce) {
+		}
+		if (!_preparedList.files.empty()
+			&& _preparedList.files.front().canEditVideo()) {
+			Editor::OpenWithPreparedVideoFile(
+				this,
+				controller->uiShow(),
+				&_preparedList.files.front(),
+				st::sendMediaPreviewSize,
+				[=](bool ok) {
+					if (ok) {
+						rebuildPreview();
+					}
+				},
+				PhotoSideLimit(true));
+			return;
+		}
+		if (!*openedOnce) {
 			*openedOnce = true;
 			controller->session().settings().incrementPhotoEditorHintShown();
 			controller->session().saveSettings();
