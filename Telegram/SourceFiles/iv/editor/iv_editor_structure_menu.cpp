@@ -174,7 +174,10 @@ void FillListItemChangeMenu(
 			OrderedListTypeIcon(type),
 			OrderedListTypeChecked(info, type));
 	};
-	addOrderedTypeAction(PreparedOrderedListType::Decimal);
+	// Decimal for one item is dropped on save unless the list is decimal too.
+	if (info.listOrderedType == PreparedOrderedListType::Decimal) {
+		addOrderedTypeAction(PreparedOrderedListType::Decimal);
+	}
 	addOrderedTypeAction(PreparedOrderedListType::LowerAlpha);
 	addOrderedTypeAction(PreparedOrderedListType::UpperAlpha);
 	addOrderedTypeAction(PreparedOrderedListType::LowerRoman);

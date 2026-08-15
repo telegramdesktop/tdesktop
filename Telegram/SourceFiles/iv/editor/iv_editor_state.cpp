@@ -1954,6 +1954,8 @@ State::ListSelectionInfo State::listSelectionInfo(
 	if (owner->listKind != ListKind::Ordered) {
 		return result;
 	}
+	result.listOrderedType = ResolvePreparedOrderedListType(
+		owner->orderedList.type);
 	result.allOrderedDecimal = true;
 	result.allOrderedLowerAlpha = true;
 	result.allOrderedUpperAlpha = true;
