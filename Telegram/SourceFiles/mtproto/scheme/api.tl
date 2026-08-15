@@ -2273,6 +2273,26 @@ ephemeral.welcomeMessages#104fc872 hash:long messages:Vector<EphemeralMessage> =
 
 auth.firebasePnvIntent#df5ac00c nonce:string digital_credential_payload:string = auth.FirebasePnvIntent;
 
+currencyRate#30d9743c currency:string rate:double = CurrencyRate;
+
+payments.currencyRates#bbcce4c2 rates:Vector<CurrencyRate> = payments.CurrencyRates;
+
+toncenter.apiResponse#ac8dfe19 response:DataJSON = toncenter.ApiResponse;
+
+toncenter.streamingUrl#19887601 url:string expires:int = toncenter.StreamingUrl;
+
+onrampMethodAvailability#9ec8c6a8 flags:# available:flags.0?true payment_method:string = OnrampMethodAvailability;
+
+onrampProviderInfo#dc27582 flags:# supports_base_currencies:flags.0?true supports_limits:flags.1?true supports_quote:flags.2?true id:string name:string crypto_currencies:Vector<string> = OnrampProviderInfo;
+
+onrampAvailability#f9c84973 flags:# allowed:flags.0?true buy_allowed:flags.1?true country_code:string state:flags.2?string methods:Vector<OnrampMethodAvailability> = OnrampAvailability;
+
+onrampLimits#7be2677e base_currency:string base_min_amount:string base_max_amount:string crypto_min_amount:string crypto_max_amount:string payment_method:string = OnrampLimits;
+
+onrampQuote#7a8011e9 base_currency:string base_amount:string crypto_currency:string crypto_amount:string crypto_price:string fee_amount:string extra_fee_amount:string network_fee_amount:string total_amount:string payment_method:string expires_date:int = OnrampQuote;
+
+onrampSession#d1e42e24 provider:string session_id:string url:string expires_date:int = OnrampSession;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -2951,6 +2971,13 @@ payments.sendStarGiftOffer#8fb86b41 flags:# peer:InputPeer slug:string price:Sta
 payments.getStarGiftUpgradeAttributes#6d038b58 gift_id:long = payments.StarGiftUpgradeAttributes;
 payments.getCraftStarGifts#fd05dd00 gift_id:long offset:string limit:int = payments.SavedStarGifts;
 payments.craftStarGift#b0f9684f stargift:Vector<InputSavedStarGift> = Updates;
+payments.getCurrencyRates#d35983e8 = payments.CurrencyRates;
+payments.getOnrampProviders#3f3e00dc flags:# crypto_currency:flags.0?string = Vector<OnrampProviderInfo>;
+payments.getOnrampBaseCurrencies#1c8bedf3 provider:string crypto_currency:string = Vector<string>;
+payments.getOnrampAvailability#2ec29951 flags:# provider:string crypto_currency:string base_currency:flags.0?string = OnrampAvailability;
+payments.getOnrampLimits#80e851fd flags:# provider:string crypto_currency:string base_currency:string payment_method:flags.0?string = OnrampLimits;
+payments.getOnrampQuote#e06645fa flags:# provider:string crypto_currency:string base_currency:string base_amount:flags.0?string crypto_amount:flags.1?string payment_method:flags.2?string = OnrampQuote;
+payments.createOnrampSession#9e5826d8 flags:# provider:string crypto_currency:string address:string payment_method:flags.0?string base_currency:flags.1?string base_amount:flags.2?string memo:flags.3?string theme:flags.4?string success_return_url:flags.5?string fail_return_url:flags.6?string = OnrampSession;
 
 stickers.createStickerSet#9021ab67 flags:# masks:flags.0?true emojis:flags.5?true text_color:flags.6?true user_id:InputUser title:string short_name:string thumb:flags.2?InputDocument stickers:Vector<InputStickerSetItem> software:flags.3?string = messages.StickerSet;
 stickers.removeStickerFromSet#f7760f51 sticker:InputDocument = messages.StickerSet;
@@ -3114,4 +3141,7 @@ ephemeral.deleteWelcomeMessage#e882a9e1 peer:InputPeer id:int = Bool;
 ephemeral.deleteAllWelcomeMessages#734f9721 peer:InputPeer = Bool;
 ephemeral.getWelcomeMessages#db9ac18d peer:InputPeer hash:long = ephemeral.WelcomeMessages;
 
-// LAYER 229
+toncenter.performApiRequest#8d7bdd61 flags:# post:flags.0?true endpoint:string query:flags.1?string payload:flags.2?string = toncenter.ApiResponse;
+toncenter.getStreamingUrl#cdaf63c7 = toncenter.StreamingUrl;
+
+// LAYER 230
