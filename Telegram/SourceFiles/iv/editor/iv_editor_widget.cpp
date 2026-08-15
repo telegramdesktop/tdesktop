@@ -6933,8 +6933,10 @@ void Widget::setInlineFieldFromActiveState(int selectionFrom, int selectionTo) {
 	cursorSelectionTo -= trimmedLeft;
 	auto cursor = _field->textCursor();
 	const auto size = int(_field->getLastText().size());
-	const auto from = std::clamp(cursorSelectionFrom, 0, size);
-	const auto to = std::clamp(cursorSelectionTo, 0, size);
+	const auto from = cursorPositionForFieldTextOffset(
+		std::clamp(cursorSelectionFrom, 0, size));
+	const auto to = cursorPositionForFieldTextOffset(
+		std::clamp(cursorSelectionTo, 0, size));
 	cursor.setPosition(from);
 	if (to != from) {
 		cursor.setPosition(to, QTextCursor::KeepAnchor);
@@ -7510,12 +7512,38 @@ void Widget::undoMarkdownPaste(const QString &text, const RichPage &pasted) {
 	});
 }
 
+int Widget::fieldTextOffsetForCursorPosition(int position) const {
+	// An emoji is one character in the document and two or more in the text.
+	return (_field && position > 0)
+		? int(_field->getTextWithTagsPart(0, position).text.size())
+		: 0;
+}
+
+int Widget::cursorPositionForFieldTextOffset(int offset) const {
+	if (!_field || offset <= 0) {
+		return std::max(offset, 0);
+	}
+	auto from = 0;
+	auto till = _field->rawTextEdit()->document()->characterCount();
+	while (from < till) {
+		const auto middle = from + (till - from) / 2;
+		if (fieldTextOffsetForCursorPosition(middle) < offset) {
+			from = middle + 1;
+		} else {
+			till = middle;
+		}
+	}
+	return from;
+}
+
 int Widget::richOffsetForFieldOffset(
 		const TextWithEntities &text,
 		int offset) const {
 	const auto replacements = ConvertRichTextToEditorTags(text).replacements;
 	return std::clamp(
-		MapEditorOffsetToRichOffset(replacements, offset),
+		MapEditorOffsetToRichOffset(
+			replacements,
+			fieldTextOffsetForCursorPosition(offset)),
 		0,
 		int(text.text.size()));
 }
