@@ -81,8 +81,9 @@ CornerButtons::CornerButtons(
 	_column.setAttribute(Qt::WA_TransparentForMouseEvents);
 	_column.show();
 	_column.setVisualTabOrder(true);
+	_column.setVisualTabOrderOverlay(true);
 	if (const auto scroll = qobject_cast<Ui::RpWidget*>(_parent.get())) {
-		// Without this the column, created before the list, would come first.
+		// Otherwise the column, created before the list, would come first.
 		scroll->setVisualTabOrder(true);
 	}
 
