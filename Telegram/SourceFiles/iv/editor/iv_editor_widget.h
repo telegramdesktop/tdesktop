@@ -993,6 +993,7 @@ private:
 	Ui::DraggingScrollManager _selectScroll;
 	std::optional<Qt::Orientation> _horizontalScrollLock;
 	bool _settingField = false;
+	bool _preparedContentStaleAfterCommit = false;
 	bool _trackingPointerPress = false;
 	bool _inlineFieldExternalInteractionActive = false;
 	bool _keyboardStructuralSelectionActive = false;
