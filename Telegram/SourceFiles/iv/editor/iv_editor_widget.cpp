@@ -116,6 +116,12 @@ namespace Iv::Editor {
 namespace {
 
 
+[[nodiscard]] bool IsFieldLineBreak(QChar ch) {
+	return (ch == QChar::LineFeed)
+		|| (ch == QChar::LineSeparator)
+		|| (ch == QChar::ParagraphSeparator);
+}
+
 [[nodiscard]] bool MatchesKeySequence(
 		QKeyEvent *e,
 		const QKeySequence &sequence) {
@@ -2856,11 +2862,54 @@ void Widget::applyFieldMonospaceAction() {
 			_field->setTextCursor(selecting);
 		}
 	}
-	_field->toggleCurrentMarkdownTag(Ui::InputField::kTagCode);
+	if (activeLeafIsTableCell()) {
+		toggleFieldMonospaceLineByLine();
+	} else {
+		_field->toggleCurrentMarkdownTag(Ui::InputField::kTagCode);
+	}
 	if (wholeCell) {
 		_field->setTextCursor(cursor);
 	}
 	notifyToolbarStateChanged();
+}
+
+void Widget::toggleFieldMonospaceLineByLine() {
+	// A multiline selection would toggle a code block, which a cell can't keep.
+	const auto tag = Ui::InputField::kTagCode;
+	const auto raw = _field->rawTextEdit();
+	const auto cursor = raw->textCursor();
+	const auto from = cursor.selectionStart();
+	const auto till = cursor.selectionEnd();
+	if (from >= till) {
+		_field->toggleCurrentMarkdownTag(tag);
+		return;
+	}
+	const auto document = raw->document();
+	auto lines = std::vector<std::pair<int, int>>();
+	auto lineFrom = from;
+	for (auto position = from; position != till; ++position) {
+		if (!IsFieldLineBreak(document->characterAt(position))) {
+			continue;
+		}
+		if (lineFrom < position) {
+			lines.push_back({ lineFrom, position });
+		}
+		lineFrom = position + 1;
+	}
+	if (lineFrom < till) {
+		lines.push_back({ lineFrom, till });
+	}
+	const auto remove = _field->isMarkdownTagActive(tag);
+	for (auto i = int(lines.size()); i != 0;) {
+		const auto line = lines[--i];
+		auto lineCursor = raw->textCursor();
+		lineCursor.setPosition(line.first);
+		lineCursor.setPosition(line.second, QTextCursor::KeepAnchor);
+		_field->setTextCursor(lineCursor);
+		if (_field->isMarkdownTagActive(tag) == remove) {
+			_field->toggleCurrentMarkdownTag(tag);
+		}
+	}
 }
 
 void Widget::applyStructuralMonospaceAction() {

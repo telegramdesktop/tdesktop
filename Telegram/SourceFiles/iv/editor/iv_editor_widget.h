@@ -608,6 +608,7 @@ private:
 	[[nodiscard]] bool fieldMonospaceShortcutUsesCodeBlock() const;
 	[[nodiscard]] bool structuralMonospaceShortcutTargetsCodeBlock() const;
 	void applyFieldMonospaceAction();
+	void toggleFieldMonospaceLineByLine();
 	void applyStructuralMonospaceAction();
 	void insertCodeBlock();
 	[[nodiscard]] bool handleFieldKey(QKeyEvent *e);
