@@ -939,6 +939,11 @@ ApplyResult State::applyActiveText(TextWithEntities text) {
 	_lastLimitError = std::nullopt;
 	_lastPreparedMutationKind = PreparedMutationKind::None;
 	(void)DegradeEditModeInlineButtons(text);
+	if (const auto descriptor = textNode(_activeTextOrdinal)) {
+		if (descriptor->leaf.kind == LeafKind::TableCellText) {
+			(void)DegradeBlockOnlyEntities(text);
+		}
+	}
 	return applyActiveTextWithLocalLimit(std::move(text));
 }
 
