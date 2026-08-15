@@ -993,7 +993,8 @@ void FinalizeOwnerSelection(
 			analysis.scrollOwnerOverflowWidth,
 			analysis.outerScrollViewportMinimumWidth,
 		});
-		analysis.ownerEligible = !prepared.children.empty();
+		analysis.ownerEligible = !prepared.children.empty()
+			&& !context.listItemDepth;
 	} break;
 	case PreparedBlockKind::ListItem: {
 		const auto markerWidth = std::max(
@@ -1042,7 +1043,7 @@ void FinalizeOwnerSelection(
 			analysis.scrollOwnerOverflowWidth,
 			analysis.outerScrollViewportMinimumWidth,
 		});
-		analysis.ownerEligible = !prepared.children.empty();
+		analysis.ownerEligible = false;
 	} break;
 	case PreparedBlockKind::Quote: {
 		const auto depthDelta = std::max(
@@ -1650,7 +1651,8 @@ void FinalizeOwnerSelection(
 			analysis.scrollOwnerOverflowWidth,
 			analysis.outerScrollViewportMinimumWidth,
 		});
-		analysis.ownerEligible = !prepared.children.empty();
+		analysis.ownerEligible = !prepared.children.empty()
+			&& !context.listItemDepth;
 	} break;
 	case PreparedBlockKind::ListItem: {
 		if (prepared.children.size() != block.children.size()) {
@@ -1709,7 +1711,7 @@ void FinalizeOwnerSelection(
 			analysis.scrollOwnerOverflowWidth,
 			analysis.outerScrollViewportMinimumWidth,
 		});
-		analysis.ownerEligible = !prepared.children.empty();
+		analysis.ownerEligible = false;
 	} break;
 	case PreparedBlockKind::Quote: {
 		const auto depthDelta = std::max(
