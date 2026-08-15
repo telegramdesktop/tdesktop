@@ -501,6 +501,9 @@ void Application::checkWindowId(not_null<Window::Controller*> window) {
 	if (_savedWindows) {
 		_savedWindows->scheduleSave();
 	}
+	if (!_lastActiveWindow) {
+		setLastActiveWindow(window);
+	}
 }
 
 void Application::showOpenGLCrashNotification() {
