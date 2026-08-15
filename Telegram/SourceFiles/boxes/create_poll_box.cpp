@@ -3068,6 +3068,11 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 			st::settingsButtonNoIcon)
 	)->toggleOn(rpl::single(false));
 
+	Ui::AddSkip(durationInner);
+	Ui::AddDividerText(
+		durationInner,
+		tr::lng_polls_create_hide_results_about());
+
 	const auto solution = setupSolution(
 		container,
 		rpl::single(quiz->toggled()) | rpl::then(quiz->toggledChanges()));
