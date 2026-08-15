@@ -6835,13 +6835,14 @@ std::optional<int> State::sinkActiveListItemUnchecked() {
 	}
 	auto nestedIndex = int(previous.blocks.size()) - 1;
 	if (nestedIndex < 0
-		|| previous.blocks[nestedIndex].kind != BlockKind::List
-		|| previous.blocks[nestedIndex].listKind != listKind) {
+		|| previous.blocks[nestedIndex].kind != BlockKind::List) {
 		auto nested = Block();
 		nested.kind = BlockKind::List;
 		nested.listKind = listKind;
 		previous.blocks.push_back(std::move(nested));
 		nestedIndex = int(previous.blocks.size()) - 1;
+	} else {
+		AdoptListItemMarkers(previous.blocks[nestedIndex], &moved);
 	}
 	auto &nested = previous.blocks[nestedIndex];
 	nested.listItems.push_back(std::move(moved));
@@ -6953,6 +6954,7 @@ std::optional<int> State::liftActiveListItemUnchecked() {
 		}
 		blocks->erase(blocks->begin() + surface->path.index);
 	}
+	AdoptListItemMarkers(*parentList, &moved);
 	parentList->listItems.insert(
 		parentList->listItems.begin() + parentItemIndex + 1,
 		std::move(moved));

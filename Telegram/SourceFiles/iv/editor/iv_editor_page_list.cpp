@@ -136,6 +136,20 @@ void DropOrderedItemNumbers(std::vector<ListItem> &items) {
 	}
 }
 
+void AdoptListItemMarkers(const Block &list, ListItem *item) {
+	if (!item || list.kind != BlockKind::List) {
+		return;
+	}
+	DropOrderedItemNumber(item);
+	const auto task = (list.listKind != ListKind::Ordered)
+		&& IsTaskList(list.listItems);
+	if (!task) {
+		item->taskState = TaskState::None;
+	} else if (item->taskState == TaskState::None) {
+		item->taskState = TaskState::Unchecked;
+	}
+}
+
 [[nodiscard]] bool ListsJoinable(const Block &first, const Block &second) {
 	return (first.kind == BlockKind::List)
 		&& (second.kind == BlockKind::List)
