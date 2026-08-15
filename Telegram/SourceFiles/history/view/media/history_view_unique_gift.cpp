@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/star_gift_box.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "core/click_handler_types.h"
+#include "core/ui_integration.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_birthday.h"
 #include "data/data_media_types.h"
@@ -21,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_premium_gift.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_element.h"
+#include "history/view/history_view_text_helper.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "info/peer_gifts/info_peer_gifts_common.h"
@@ -31,8 +33,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ministar_particles.h"
 #include "ui/effects/premium_stars_colored.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/effects/unique_gift_message_bubble.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
+#include "ui/dynamic_image.h"
+#include "ui/dynamic_thumbnails.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "ui/rect.h"
@@ -117,6 +122,40 @@ private:
 
 };
 
+class UniqueGiftMessagePart final : public MediaGenericPart {
+public:
+	UniqueGiftMessagePart(
+		not_null<Element*> parent,
+		const TextWithEntities &text,
+		std::shared_ptr<Ui::DynamicImage> image);
+
+	void draw(
+		Painter &p,
+		not_null<const MediaGeneric*> owner,
+		const PaintContext &context,
+		int outerWidth) const override;
+	TextState textState(
+		QPoint point,
+		StateRequest request,
+		int outerWidth) const override;
+
+	bool hasHeavyPart() override;
+	void unloadHeavyPart() override;
+
+	QSize countOptimalSize() override;
+	QSize countCurrentSize(int newWidth) override;
+
+private:
+	[[nodiscard]] Ui::UniqueGiftMessageBubble::Layout computeLayout(
+		int outerWidth) const;
+
+	const not_null<Element*> _parent;
+	Ui::Text::String _text;
+	const std::shared_ptr<Ui::DynamicImage> _image;
+	mutable bool _subscribed = false;
+
+};
+
 TextBubblePart::TextBubblePart(
 	TextWithEntities text,
 	QMargins margins,
@@ -175,6 +214,114 @@ void TextBubblePart::setupPen(
 
 int TextBubblePart::elisionLines() const {
 	return 1;
+}
+
+UniqueGiftMessagePart::UniqueGiftMessagePart(
+	not_null<Element*> parent,
+	const TextWithEntities &text,
+	std::shared_ptr<Ui::DynamicImage> image)
+: _parent(parent)
+, _text(
+	st::chatUniqueTextStyle,
+	text,
+	kMarkupTextOptions,
+	0,
+	Core::TextContext({
+		.session = &parent->history()->session(),
+		.repaint = [parent] { parent->customEmojiRepaint(); },
+	}))
+, _image(std::move(image)) {
+	InitElementTextPart(parent, _text);
+}
+
+void UniqueGiftMessagePart::draw(
+		Painter &p,
+		not_null<const MediaGeneric*> owner,
+		const PaintContext &context,
+		int outerWidth) const {
+	const auto layout = computeLayout(outerWidth);
+	Ui::UniqueGiftMessageBubble::Paint(
+		p,
+		st::chatUniqueMessageBubble,
+		layout);
+	if (!_subscribed) {
+		_subscribed = true;
+		const auto raw = _parent;
+		_image->subscribeToUpdates([raw] { raw->repaint(); });
+		raw->history()->owner().registerHeavyViewPart(raw);
+	}
+	p.drawImage(
+		layout.avatar.topLeft(),
+		_image->image(st::chatUniqueMessageBubble.avatarSize));
+
+	p.setPen(Qt::white);
+	_parent->prepareCustomEmojiPaint(p, context, _text);
+	_text.draw(p, {
+		.position = layout.text.topLeft(),
+		.outerWidth = outerWidth,
+		.availableWidth = layout.text.width(),
+		.align = style::al_topleft,
+		.palette = &context.st->serviceTextPalette(),
+		.pre = context.messageStyle()->preCache.get(),
+		.blockquote = context.quoteCache(
+			_parent->contentColorCollectible(),
+			_parent->contentColorIndex()),
+		.spoiler = Ui::Text::DefaultSpoilerCache(),
+		.now = context.now,
+		.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
+		.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
+		.selection = context.selection,
+		.elisionLines = 0,
+	});
+}
+
+TextState UniqueGiftMessagePart::textState(
+		QPoint point,
+		StateRequest request,
+		int outerWidth) const {
+	const auto layout = computeLayout(outerWidth);
+	point -= layout.text.topLeft();
+	auto forText = request.forText();
+	forText.align = style::al_topleft;
+	return TextState(
+		nullptr,
+		_text.getState(point, layout.text.width(), forText));
+}
+
+bool UniqueGiftMessagePart::hasHeavyPart() {
+	return _subscribed;
+}
+
+void UniqueGiftMessagePart::unloadHeavyPart() {
+	_text.unloadPersistentAnimation();
+	if (_subscribed) {
+		_subscribed = false;
+		_image->subscribeToUpdates(nullptr);
+	}
+}
+
+QSize UniqueGiftMessagePart::countOptimalSize() {
+	const auto width = st::msgServiceGiftBoxSize.width();
+	return { width, computeLayout(width).sectionHeight };
+}
+
+QSize UniqueGiftMessagePart::countCurrentSize(int newWidth) {
+	return { newWidth, computeLayout(newWidth).sectionHeight };
+}
+
+Ui::UniqueGiftMessageBubble::Layout UniqueGiftMessagePart::computeLayout(
+		int outerWidth) const {
+	const auto textWidth = Ui::UniqueGiftMessageBubble::MaximumTextWidth(
+		st::chatUniqueMessageBubble,
+		st::chatUniqueMessagePadding,
+		outerWidth,
+		_text.maxWidth());
+	return Ui::UniqueGiftMessageBubble::ComputeLayout(
+		st::chatUniqueMessageBubble,
+		st::chatUniqueMessagePadding,
+		outerWidth,
+		textWidth,
+		_text.countHeight(textWidth));
 }
 
 ButtonPart::ButtonPart(
@@ -413,6 +560,17 @@ auto GenerateUniqueGiftMedia(
 			st::chatUniqueTextPadding + tableAddedMargins,
 			[c = gift->backdrop.textColor](const auto&) { return c; },
 			[](const auto&) { return QColor(255, 255, 255); }));
+		if (fields
+			&& fields->messageFromUniqueAction
+			&& !fields->message.empty()) {
+			auto image = (!fields->anonymous && fields->messageAuthor)
+				? Ui::MakeUserpicThumbnail(fields->messageAuthor, true)
+				: Ui::MakeHiddenAuthorThumbnail();
+			push(std::make_unique<UniqueGiftMessagePart>(
+				parent,
+				fields->message,
+				std::move(image)));
+		}
 
 		auto link = OpenStarGiftLink(parent->data());
 		push(std::make_unique<ButtonPart>(

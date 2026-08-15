@@ -7932,9 +7932,28 @@ void HistoryItem::processAction(const MTPMessageAction &action) {
 		const auto realGiftMsgId = (peerIsUser(to) && data.vsaved_id())
 			? MsgId(data.vsaved_id().value_or_empty())
 			: id;
+		auto message = (data.vmessage()
+			? Api::ParseTextWithEntities(
+				&history()->session(),
+				*data.vmessage())
+			: TextWithEntities());
+		const auto anonymous = data.is_name_hidden();
+		auto messageAuthor = static_cast<PeerData*>(nullptr);
+		if (!message.empty() && !anonymous) {
+			if (data.vfrom_id()) {
+				const auto peer = history()->owner().peerLoaded(from);
+				if (peer && !peer->isServiceUser()) {
+					messageAuthor = peer;
+				}
+			} else if (!_from->isServiceUser()) {
+				messageAuthor = _from.get();
+			}
+		}
 
 		using Fields = Data::GiftCode;
 		auto fields = Fields{
+			.message = std::move(message),
+			.messageAuthor = messageAuthor,
 			.channel = channel,
 			.channelFrom = ((service && from)
 				? history()->owner().peer(from).get()
@@ -7945,6 +7964,8 @@ void HistoryItem::processAction(const MTPMessageAction &action) {
 				data.vdrop_original_details_stars().value_or_empty()),
 			.type = Data::GiftType::StarGift,
 			.transferred = data.is_transferred(),
+			.messageFromUniqueAction = true,
+			.anonymous = anonymous,
 			.refunded = data.is_refunded(),
 			.upgrade = data.is_upgrade(),
 			.saved = data.is_saved(),

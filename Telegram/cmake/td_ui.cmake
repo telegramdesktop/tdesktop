@@ -580,10 +580,12 @@ PRIVATE
     ui/effects/snowflakes.h
     ui/effects/toggle_arrow.cpp
     ui/effects/toggle_arrow.h
-    ui/effects/upload_progress_overlay.cpp
-    ui/effects/upload_progress_overlay.h
     ui/effects/ttl_icon.cpp
     ui/effects/ttl_icon.h
+    ui/effects/unique_gift_message_bubble.cpp
+    ui/effects/unique_gift_message_bubble.h
+    ui/effects/upload_progress_overlay.cpp
+    ui/effects/upload_progress_overlay.h
     ui/search_field_controller.cpp
     ui/search_field_controller.h
     ui/text/format_song_name.cpp

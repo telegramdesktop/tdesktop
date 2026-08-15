@@ -173,6 +173,7 @@ struct GiftCode {
 	PeerData *stargiftReleasedBy = nullptr;
 	std::shared_ptr<UniqueGift> unique;
 	TextWithEntities message;
+	PeerData *messageAuthor = nullptr;
 	PeerData *auctionTo = nullptr;
 	ChannelData *channel = nullptr;
 	PeerData *channelFrom = nullptr;
@@ -197,6 +198,7 @@ struct GiftCode {
 	bool upgradeGifted : 1 = false;
 	bool upgradable : 1 = false;
 	bool unclaimed : 1 = false;
+	bool messageFromUniqueAction : 1 = false;
 	bool anonymous : 1 = false;
 	bool converted : 1 = false;
 	bool upgraded : 1 = false;

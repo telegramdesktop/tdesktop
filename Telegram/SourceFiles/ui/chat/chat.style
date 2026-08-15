@@ -1141,6 +1141,19 @@ chatUniqueTextStyle: TextStyle(defaultTextStyle) {
 chatUniqueAuthorSkip: 6px;
 chatUniqueTableSkip: 9px;
 chatUniqueRowSkip: 2px;
+UniqueGiftMessageBubble {
+	textPadding: margins;
+	avatarSize: pixels;
+	radius: pixels;
+	tailSize: size;
+}
+chatUniqueMessageBubble: UniqueGiftMessageBubble {
+	textPadding: margins(6px, 6px, 6px, 6px);
+	avatarSize: 20px;
+	radius: 10px;
+	tailSize: size(4px, 5px);
+}
+chatUniqueMessagePadding: margins(22px, 6px, 22px, 7px);
 chatUniqueButtonPadding: margins(12px, 5px, 12px, 26px);
 
 markupWebview: icon {{ "chat/markup_webview", windowFg }};
