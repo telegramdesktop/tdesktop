@@ -1275,6 +1275,10 @@ void Toolbar::fillListStyleMenu(not_null<Ui::PopupMenu*> menu) {
 		}
 	}
 
+	if (!lists) {
+		addInserts(menu);
+		return;
+	}
 	auto insertSub = std::make_unique<Ui::PopupMenu>(
 		menu,
 		st::popupMenuWithIcons);

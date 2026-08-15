@@ -1500,10 +1500,16 @@ void Widget::syncInlineFieldGeometry() {
 }
 
 bool Widget::canInsertListAtCaret() const {
-	if (!_state->activeListItemIsEmpty()) {
+	// Nesting is Tab, restyling is the change menu, so never insert in an item.
+	if (hasStructuralSelection()) {
 		return true;
 	}
-	return !_field->isHidden() && !_field->getLastText().isEmpty();
+	const auto converted = structuralSelectionForTextSelection();
+	if ((converted.kind == PreparedEditSelectionKind::Blocks)
+		|| (converted.kind == PreparedEditSelectionKind::ListItems)) {
+		return true;
+	}
+	return !_state->hasActiveListItemSurface();
 }
 
 void Widget::insertBlock(State::InsertAction action) {
