@@ -109,6 +109,7 @@ RichPage::Block MakeMapBlock(double latitude, double longitude);
 
 [[nodiscard]] bool RichTextIsEmpty(const RichPage::RichText &text);
 
+[[nodiscard]] bool ListItemIsBlankLine(const RichPage::ListItem &item);
 [[nodiscard]] bool ListItemIsEmpty(const RichPage::ListItem &item);
 
 [[nodiscard]] bool BlockIsEmpty(const RichPage::Block &block);

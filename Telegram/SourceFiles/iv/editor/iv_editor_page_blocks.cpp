@@ -331,6 +331,18 @@ bool RichTextIsEmpty(const RichText &text) {
 		&& text.anchorIds.empty();
 }
 
+bool ListItemIsBlankLine(const ListItem &item) {
+	if (!RichTextIsEmpty(item.text) || !item.anchorId.isEmpty()) {
+		return false;
+	}
+	for (const auto &block : item.blocks) {
+		if ((block.kind != BlockKind::Paragraph) || !BlockIsEmpty(block)) {
+			return false;
+		}
+	}
+	return true;
+}
+
 bool ListItemIsEmpty(const ListItem &item) {
 	if (!RichTextIsEmpty(item.text) || !item.anchorId.isEmpty()) {
 		return false;

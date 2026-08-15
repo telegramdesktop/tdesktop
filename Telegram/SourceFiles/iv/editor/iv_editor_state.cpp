@@ -3565,6 +3565,41 @@ bool State::joinActiveParagraphBoundaryUnchecked(
 	return true;
 }
 
+bool State::removeBlankListItemBeforeBoundary(
+		Block &owner,
+		const BlockPath &list,
+		int itemIndex,
+		ActiveTextSelectionTarget *target) {
+	const auto previousIndex = itemIndex - 1;
+	const auto children = ListItemChildrenContainer(list, previousIndex);
+	auto landing = std::optional<LeafPath>();
+	for (const auto &node : _textNodes) {
+		const auto &leaf = node.leaf;
+		if (((leaf.kind == LeafKind::ListItemText)
+			&& (leaf.block == list)
+			&& (leaf.listItemIndex == previousIndex))
+			|| ContainerHasPrefix(leaf.block.container, children)) {
+			landing = leaf;
+		}
+	}
+	if (!landing) {
+		return false;
+	}
+	owner.listItems.erase(owner.listItems.begin() + itemIndex);
+	rebuild();
+	if (!activateRebuiltLeaf(*landing)) {
+		return false;
+	}
+	const auto text = richText(*landing);
+	const auto offset = text ? int(text->text.text.size()) : 0;
+	*target = {
+		.leaf = *landing,
+		.selectionFrom = offset,
+		.selectionTo = offset,
+	};
+	return true;
+}
+
 bool State::joinActiveListItemBoundaryUnchecked(
 		ActiveTextSelectionTarget *target) {
 	if (!target || !canJoinActiveListItemBoundary()) {
@@ -3602,6 +3637,13 @@ bool State::joinActiveListItemBoundaryUnchecked(
 		const auto previous = listItem(surface->path, previousIndex);
 		if (!previous) {
 			return false;
+		}
+		if (ListItemIsBlankLine(*item)) {
+			return removeBlankListItemBeforeBoundary(
+				*owner,
+				surface->path,
+				surface->itemIndex,
+				target);
 		}
 		auto merged = takeListItemBlocksForUnwrap(previous);
 		previous->anchorId = QString();
