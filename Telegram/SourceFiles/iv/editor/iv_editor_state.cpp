@@ -916,6 +916,11 @@ TextWithEntities State::activeText() const {
 ApplyResult State::applyActiveText(TextWithEntities text) {
 	_lastLimitError = std::nullopt;
 	_lastPreparedMutationKind = PreparedMutationKind::None;
+	if (const auto descriptor = textNode(_activeTextOrdinal)) {
+		if (descriptor->leaf.kind == LeafKind::TableCellText) {
+			(void)DegradeBlockOnlyEntities(text);
+		}
+	}
 	return applyActiveTextWithLocalLimit(std::move(text));
 }
 

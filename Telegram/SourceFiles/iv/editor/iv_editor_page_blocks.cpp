@@ -397,6 +397,32 @@ void StripEditModeWrapperEntities(RichPage::RichText &text) {
 	}
 }
 
+bool DegradeBlockOnlyEntities(TextWithEntities &text) {
+	// RichText keeps inline monospace, but has no code block and no quote.
+	auto result = false;
+	auto entities = EntitiesInText();
+	entities.reserve(text.entities.size());
+	for (auto &entity : text.entities) {
+		const auto type = entity.type();
+		if (type == EntityType::Pre) {
+			entities.push_back({
+				EntityType::Code,
+				entity.offset(),
+				entity.length(),
+			});
+			result = true;
+		} else if (type == EntityType::Blockquote) {
+			result = true;
+		} else {
+			entities.push_back(std::move(entity));
+		}
+	}
+	if (result) {
+		text.entities = std::move(entities);
+	}
+	return result;
+}
+
 void StripEditModeWrapperEntities(
 		std::vector<RichPage::Block> &blocks) {
 	for (auto &block : blocks) {

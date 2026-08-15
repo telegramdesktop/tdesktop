@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/editor/iv_editor_clipboard_import.h"
 
 #include "core/mime_type.h"
+#include "iv/editor/iv_editor_page_blocks.h"
 #include "iv/editor/iv_editor_session.h"
 #include "iv/editor/iv_editor_text_entities.h"
 #include "platform/platform_file_utilities.h"
@@ -103,12 +104,27 @@ constexpr auto kMaxDataUriHeaderLength = 256;
 	return ConvertEditorTagsToRichText(std::move(text));
 }
 
+[[nodiscard]] TextWithEntities WithoutBlockOnlyEntities(
+		TextWithEntities text) {
+	(void)DegradeBlockOnlyEntities(text);
+	return text;
+}
+
+[[nodiscard]] TextWithEntities ConvertImportedCellText(
+		const TextWithTags &text) {
+	return WithoutBlockOnlyEntities({
+		text.text,
+		TextUtilities::ConvertTextTagsToEntities(text.tags),
+	});
+}
+
 [[nodiscard]] RichPage::Block ConvertTable(
 		const TextUtilities::HtmlTable &table) {
 	auto result = RichPage::Block();
 	result.kind = RichPage::BlockKind::Table;
 	result.bordered = true;
-	result.text.text = ConvertImportedText(table.caption);
+	result.text.text = WithoutBlockOnlyEntities(
+		ConvertImportedText(table.caption));
 	result.tableRows.reserve(table.rows.size());
 	for (const auto &row : table.rows) {
 		auto converted = RichPage::TableRow();
@@ -116,11 +132,7 @@ constexpr auto kMaxDataUriHeaderLength = 256;
 		for (const auto &cell : row.cells) {
 			converted.cells.push_back({
 				.text = {
-					.text = {
-						cell.text.text,
-						TextUtilities::ConvertTextTagsToEntities(
-							cell.text.tags),
-					},
+					.text = ConvertImportedCellText(cell.text),
 				},
 				.colspan = cell.colspan,
 				.rowspan = cell.rowspan,

@@ -119,6 +119,8 @@ RichPage::Block MakeMapBlock(double latitude, double longitude);
 
 void StripEditModeWrapperEntities(RichPage::RichText &text);
 
+[[nodiscard]] bool DegradeBlockOnlyEntities(TextWithEntities &text);
+
 void StripEditModeWrapperEntities(
 	std::vector<RichPage::Block> &blocks);
 
