@@ -1142,6 +1142,9 @@ bool Widget::replayImeIntoField(QInputMethodEvent *e) {
 
 ApplyResult Widget::commitInlineField() {
 	const auto result = applyFieldTextToState();
+	if (result == ApplyResult::Changed) {
+		_preparedContentStaleAfterCommit = true;
+	}
 	if (result != ApplyResult::Failed) {
 		return result;
 	}
@@ -1339,6 +1342,7 @@ int Widget::searchBarTop() const {
 }
 
 void Widget::refreshPreparedContent() {
+	_preparedContentStaleAfterCommit = false;
 	setDocument(_state->prepared());
 	relayoutCurrentContent();
 	update();
@@ -1361,6 +1365,7 @@ void Widget::refreshPreparedLeafAtActiveSource() {
 
 void Widget::refreshPreparedLeafAtSource(
 		const Markdown::PreparedEditLeafSource &source) {
+	_preparedContentStaleAfterCommit = false;
 	_article->updatePreparedLeaf(source, _state->prepared());
 	relayoutCurrentContent();
 	if (_search) {
@@ -9498,6 +9503,10 @@ void Widget::finishMutationTransaction(
 		bool changed,
 		int beforeHistoryIndex,
 		uint64 beforeRetainToken) {
+	// Some transactions commit and bail out without refreshing the article.
+	if (_preparedContentStaleAfterCommit) {
+		refreshPreparedContent();
+	}
 	if (!changed) {
 		return;
 	}
@@ -9655,6 +9664,7 @@ void Widget::refreshAfterInlineFieldCommit(ApplyResult committed) {
 void Widget::refreshAfterInlineFieldCommit(
 		ApplyResult committed,
 		std::optional<Markdown::PreparedEditLeafSource> source) {
+	_preparedContentStaleAfterCommit = false;
 	switch ((committed == ApplyResult::Changed)
 		? _state->lastPreparedMutationKind()
 		: PreparedMutationKind::None) {
