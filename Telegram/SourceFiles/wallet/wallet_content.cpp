@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "calls/group/calls_group_common.h"
 #include "core/credits_amount.h"
+#include "core/file_utilities.h"
 #include "core/ton_explorer_url.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -68,6 +69,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_onramp.h"
 #include "wallet/wallet_rates.h"
 #include "wallet/wallet_session.h"
+#include "window/themes/window_theme.h"
+
+#include <QtCore/QUrl>
+#include <QtGui/QClipboard>
+#include <QtGui/QGuiApplication>
+#include <QtSvg/QSvgRenderer>
+#include <QtWidgets/QTextEdit>
+
+#include <array>
 
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
@@ -77,13 +87,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_wallet.h"
 #include "styles/style_widgets.h"
-
-#include <QtGui/QGuiApplication>
-#include <QtGui/QClipboard>
-#include <QtSvg/QSvgRenderer>
-#include <QtWidgets/QTextEdit>
-
-#include <array>
 
 namespace Wallet {
 namespace {
@@ -1326,15 +1329,21 @@ struct OnrampMethodMapping {
 
 class OnrampRoutesController final {
 public:
-	explicit OnrampRoutesController(not_null<Main::Session*> session);
+	OnrampRoutesController(
+		not_null<Main::Session*> session,
+		QString address,
+		std::shared_ptr<Ui::Show> show);
 
 	[[nodiscard]] OnrampRoutesViewStatus status() const;
 	[[nodiscard]] const std::vector<OnrampRenderRoute> &routes() const;
 	[[nodiscard]] bool allowedCurrenciesReady() const;
 	[[nodiscard]] std::vector<QString> allowedCurrencies() const;
 	[[nodiscard]] rpl::producer<> changes() const;
+	[[nodiscard]] rpl::producer<bool> routePendingValue(
+		OnrampRouteSelection selection) const;
 
 	void activate();
+	void activateRoute(const OnrampRouteSelection &selection);
 	void restart();
 	void invalidate();
 
@@ -1348,9 +1357,16 @@ private:
 	void baseCurrenciesLoaded(const Onramp::BaseCurrenciesState &load);
 	void availabilityLoaded(const Onramp::AvailabilityState &load);
 	void rateChanged(const FiatRate &rate);
+	[[nodiscard]] bool isCurrentRoute(
+		const OnrampRouteSelection &selection) const;
+	void hostedSessionLoaded(const Onramp::HostedSessionState &load);
+	void clearHostedExpected();
+	void failHostedSession();
 
 	Rates *_rates = nullptr;
 	Onramp *_onramp = nullptr;
+	const QString _address;
+	const std::shared_ptr<Ui::Show> _show;
 	uint64 _epoch = 0;
 	uint64 _expectedEpoch = 0;
 	OnrampDiscoveryPhase _phase = OnrampDiscoveryPhase::Inactive;
@@ -1362,6 +1378,8 @@ private:
 	std::vector<QString> _allowedCurrencies;
 	std::vector<OnrampProviderDiscovery> _providers;
 	std::vector<OnrampRenderRoute> _routes;
+	std::optional<OnrampRouteSelection> _expectedHostedSelection;
+	rpl::variable<std::optional<OnrampRouteSelection>> _pendingHostedSelection;
 	int _providerIndex = 0;
 	int _resolvedProviders = 0;
 	int _geographicDeniedProviders = 0;
@@ -1373,6 +1391,8 @@ private:
 	bool _baseCurrenciesPendingSeen = false;
 	bool _availabilityExpectingPending = false;
 	bool _availabilityPendingSeen = false;
+	bool _hostedExpectingPending = false;
+	bool _hostedPendingSeen = false;
 	bool _allowedCurrenciesReady = false;
 	rpl::event_stream<> _changes;
 	rpl::lifetime _lifetime;
@@ -1398,6 +1418,13 @@ constexpr auto kOnrampMethodMappings = std::array{
 		}
 	}
 	return std::nullopt;
+}
+
+[[nodiscard]] bool IsValidOnrampUrl(const QString &url) {
+	const auto parsed = QUrl(url, QUrl::StrictMode);
+	return parsed.isValid()
+		&& parsed.scheme() == u"https"_q
+		&& !parsed.host().isEmpty();
 }
 
 void AddOnrampCurrency(
@@ -1459,12 +1486,12 @@ void AddOnrampCurrency(
 
 void AddBuyRow(
 		not_null<Ui::VerticalLayout*> container,
-		not_null<Main::Session*> session,
 		rpl::producer<QString> title,
 		rpl::producer<QString> subtitle,
 		const style::icon *icon,
 		const style::color *background,
-		OnrampRouteSelection selection) {
+		rpl::producer<bool> pending,
+		Fn<void()> activate) {
 	const auto wrap = container->add(
 		object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
 			container,
@@ -1500,6 +1527,9 @@ void AddBuyRow(
 		&st::settingsPremiumArrow,
 		&st::settingsPremiumArrowOver);
 	arrow->setAttribute(Qt::WA_TransparentForMouseEvents);
+	std::move(pending) | rpl::on_next([=](bool pending) {
+		button->setDisabled(pending);
+	}, button->lifetime());
 	button->sizeValue(
 	) | rpl::on_next([=](QSize size) {
 		const auto &shift = st::settingsPremiumArrowShift;
@@ -1507,12 +1537,7 @@ void AddBuyRow(
 			-shift.x(),
 			shift.y() + (size.height() - arrow->height()) / 2);
 	}, arrow->lifetime());
-	const auto onramp = &session->wallet().onramp();
-	button->setClickedCallback([
-			onramp,
-			selection = std::move(selection)] {
-		onramp->selectRoute(selection);
-	});
+	button->setClickedCallback(std::move(activate));
 	Ui::ToggleChildrenVisibility(wrap, true);
 	wrap->geometryValue(
 	) | rpl::on_next([=](const QRect &g) {
@@ -1552,9 +1577,13 @@ void AddOnrampInformation(
 }
 
 OnrampRoutesController::OnrampRoutesController(
-		not_null<Main::Session*> session)
+		not_null<Main::Session*> session,
+		QString address,
+		std::shared_ptr<Ui::Show> show)
 : _rates(&session->wallet().rates())
-, _onramp(&session->wallet().onramp()) {
+, _onramp(&session->wallet().onramp())
+, _address(std::move(address))
+, _show(std::move(show)) {
 	_onramp->providersValue(
 	) | rpl::on_next([=](const Onramp::ProvidersState &load) {
 		providersLoaded(load);
@@ -1566,6 +1595,14 @@ OnrampRoutesController::OnrampRoutesController(
 	_onramp->availabilityValue(
 	) | rpl::on_next([=](const Onramp::AvailabilityState &load) {
 		availabilityLoaded(load);
+	}, _lifetime);
+	_onramp->routeSelections(
+	) | rpl::on_next([=](const OnrampRouteSelection &) {
+		clearHostedExpected();
+	}, _lifetime);
+	_onramp->hostedSessionValue(
+	) | rpl::on_next([=](const Onramp::HostedSessionState &load) {
+		hostedSessionLoaded(load);
 	}, _lifetime);
 	_rates->value(
 	) | rpl::on_next([=](const FiatRate &rate) {
@@ -1594,12 +1631,22 @@ rpl::producer<> OnrampRoutesController::changes() const {
 	return _changes.events();
 }
 
+rpl::producer<bool> OnrampRoutesController::routePendingValue(
+		OnrampRouteSelection selection) const {
+	return _pendingHostedSelection.value(
+	) | rpl::map([selection = std::move(selection)](
+			const std::optional<OnrampRouteSelection> &pending) {
+		return pending && (*pending == selection);
+	}) | rpl::distinct_until_changed();
+}
+
 void OnrampRoutesController::activate() {
 	_active = true;
 	restart();
 }
 
 void OnrampRoutesController::restart() {
+	clearHostedExpected();
 	if (!_active) {
 		return;
 	}
@@ -1631,6 +1678,7 @@ void OnrampRoutesController::restart() {
 }
 
 void OnrampRoutesController::invalidate() {
+	clearHostedExpected();
 	if (!_active && _phase == OnrampDiscoveryPhase::Inactive) {
 		return;
 	}
@@ -1668,6 +1716,7 @@ void OnrampRoutesController::publish(OnrampRoutesViewStatus status) {
 }
 
 void OnrampRoutesController::fail(bool currenciesReady) {
+	clearHostedExpected();
 	clearExpected();
 	_phase = OnrampDiscoveryPhase::Complete;
 	_routes.clear();
@@ -1904,10 +1953,100 @@ void OnrampRoutesController::rateChanged(const FiatRate &rate) {
 	}
 }
 
+bool OnrampRoutesController::isCurrentRoute(
+		const OnrampRouteSelection &selection) const {
+	return _active
+		&& _phase == OnrampDiscoveryPhase::Complete
+		&& _status == OnrampRoutesViewStatus::Ready
+		&& ranges::find_if(
+			_routes,
+			[&](const OnrampRenderRoute &route) {
+				return route.selection == selection;
+			}) != end(_routes);
+}
+
+void OnrampRoutesController::activateRoute(
+		const OnrampRouteSelection &selection) {
+	if (!isCurrentRoute(selection)) {
+		return;
+	}
+	const auto pending = _pendingHostedSelection.current();
+	if (pending && *pending == selection) {
+		return;
+	}
+	_onramp->selectRoute(selection);
+	_expectedHostedSelection = selection;
+	_pendingHostedSelection = std::optional<OnrampRouteSelection>(selection);
+	_hostedExpectingPending = true;
+	_hostedPendingSeen = false;
+	auto args = OnrampSessionArgs{
+		.provider = selection.provider,
+		.address = _address,
+		.paymentMethod = selection.paymentMethod,
+		.baseCurrency = selection.baseCurrency.toLower(),
+	};
+	if (selection.provider == u"moonpay"_q) {
+		args.theme = Window::Theme::IsNightMode()
+			? u"dark"_q
+			: u"light"_q;
+	}
+	_onramp->createSession(args);
+	if (_expectedHostedSelection
+		&& *_expectedHostedSelection == selection) {
+		_hostedPendingSeen = _hostedPendingSeen
+			|| _onramp->hostedSessionCurrent().pending;
+		_hostedExpectingPending = false;
+	}
+}
+
+void OnrampRoutesController::hostedSessionLoaded(
+		const Onramp::HostedSessionState &load) {
+	if (!_expectedHostedSelection
+		|| !isCurrentRoute(*_expectedHostedSelection)) {
+		return;
+	}
+	const auto pending = _pendingHostedSelection.current();
+	if (!pending || *pending != *_expectedHostedSelection) {
+		return;
+	}
+	if (load.pending) {
+		_hostedPendingSeen = _hostedExpectingPending;
+		return;
+	} else if (!_hostedPendingSeen && !_hostedExpectingPending) {
+		return;
+	} else if (load.error) {
+		failHostedSession();
+		return;
+	} else if (!load.value) {
+		return;
+	}
+	const auto &session = *load.value;
+	if (session.provider != _expectedHostedSelection->provider
+		|| session.expiresDate <= base::unixtime::now()
+		|| !IsValidOnrampUrl(session.url)) {
+		failHostedSession();
+		return;
+	}
+	const auto url = session.url;
+	clearHostedExpected();
+	File::OpenUrl(url);
+}
+
+void OnrampRoutesController::clearHostedExpected() {
+	_expectedHostedSelection = std::nullopt;
+	_hostedExpectingPending = false;
+	_hostedPendingSeen = false;
+	_pendingHostedSelection = std::nullopt;
+}
+
+void OnrampRoutesController::failHostedSession() {
+	clearHostedExpected();
+	_show->showToast(tr::lng_wallet_buy_session_error(tr::now));
+}
+
 void RenderOnrampRoutes(
 		not_null<Ui::VerticalLayout*> routeList,
-		not_null<Main::Session*> session,
-		const OnrampRoutesController &controller,
+		OnrampRoutesController &controller,
 		Fn<void()> retry) {
 	routeList->clear();
 	switch (controller.status()) {
@@ -1922,46 +2061,51 @@ void RenderOnrampRoutes(
 			auto providerText = OnrampProviderText(
 				route.providerName,
 				route.selection.provider);
+			auto activate = [
+					controller = &controller,
+					selection = route.selection] {
+				controller->activateRoute(selection);
+			};
 			switch (route.presentation) {
 			case OnrampRoutePresentation::BankCard:
 				AddBuyRow(
 					routeList,
-					session,
 					tr::lng_wallet_buy_card(),
 					std::move(providerText),
 					&st::walletBuyBankCardIcon,
 					&st::settingsIconBg2,
-					route.selection);
+					controller.routePendingValue(route.selection),
+					std::move(activate));
 				break;
 			case OnrampRoutePresentation::Cryptocurrency:
 				AddBuyRow(
 					routeList,
-					session,
 					tr::lng_wallet_buy_crypto(),
 					std::move(providerText),
 					&st::walletBuyCryptoIcon,
 					&st::settingsIconBg3,
-					route.selection);
+					controller.routePendingValue(route.selection),
+					std::move(activate));
 				break;
 			case OnrampRoutePresentation::P2p:
 				AddBuyRow(
 					routeList,
-					session,
 					tr::lng_wallet_buy_p2p(),
 					std::move(providerText),
 					&st::walletBuyP2pIcon,
 					&st::settingsIconBg4,
-					route.selection);
+					controller.routePendingValue(route.selection),
+					std::move(activate));
 				break;
 			case OnrampRoutePresentation::Generic:
 				AddBuyRow(
 					routeList,
-					session,
 					tr::lng_wallet_buy_provider(),
 					std::move(providerText),
 					nullptr,
 					nullptr,
-					route.selection);
+					controller.routePendingValue(route.selection),
+					std::move(activate));
 				break;
 			}
 		}
@@ -2032,9 +2176,12 @@ void WalletReceiveBox(
 		QImage image;
 	};
 	const auto state = box->lifetime().make_state<State>();
+	const auto show = box->uiShow();
 	const auto routes = box->lifetime().make_state<OnrampRoutesController>(
-		session);
-	const auto sessionShow = Main::MakeSessionShow(box->uiShow(), session);
+		session,
+		address,
+		show);
+	const auto sessionShow = Main::MakeSessionShow(show, session);
 	state->buying.changes(
 	) | rpl::on_next([=](bool buying) {
 		if (buying) {
@@ -2042,6 +2189,10 @@ void WalletReceiveBox(
 		} else {
 			routes->invalidate();
 		}
+	}, box->lifetime());
+	box->boxClosing(
+	) | rpl::on_next([=] {
+		routes->invalidate();
 	}, box->lifetime());
 
 	box->paintRequest(
@@ -2178,7 +2329,6 @@ void WalletReceiveBox(
 		plate->update();
 	}, plate->lifetime());
 
-	const auto show = box->uiShow();
 	const auto qrTarget = Ui::CreateChild<Ui::AbstractButton>(plate);
 	qrTarget->setClickedCallback([=] {
 		QGuiApplication::clipboard()->setImage(ReceiveQrImage(
@@ -2271,7 +2421,7 @@ void WalletReceiveBox(
 		object_ptr<Ui::VerticalLayout>(buyInner));
 	const auto rebuildRoutes = [=] {
 		currencyButton->setDisabled(!routes->allowedCurrenciesReady());
-		RenderOnrampRoutes(routeList, session, *routes, [=] {
+		RenderOnrampRoutes(routeList, *routes, [=] {
 			routes->restart();
 		});
 	};

@@ -8869,6 +8869,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_buy_disabled" = "Buying Grams is currently disabled.";
 "lng_wallet_buy_empty" = "No compatible payment options are available for this currency.";
 "lng_wallet_buy_error" = "Payment options couldn't be loaded. Try again.";
+"lng_wallet_buy_session_error" = "Payment page couldn't be opened. Try again.";
 "lng_wallet_buy_retry" = "Retry";
 "lng_wallet_buy_walt" = "Walt";
 "lng_wallet_buy_walt_about" = "Transfer Grams from your Walt";
