@@ -39,6 +39,8 @@ public:
 	void invalidate(QString reason);
 	[[nodiscard]] bool save(const QString &name);
 
+	[[nodiscard]] QWidget *widget() const;
+	[[nodiscard]] const QImage &image() const;
 	[[nodiscard]] QString pendingReason() const;
 
 private:

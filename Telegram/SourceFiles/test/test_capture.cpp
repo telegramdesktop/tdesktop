@@ -290,6 +290,14 @@ bool PreparedWidgetCapture::save(const QString &name) {
 	return true;
 }
 
+QWidget *PreparedWidgetCapture::widget() const {
+	return _widget.data();
+}
+
+const QImage &PreparedWidgetCapture::image() const {
+	return _image;
+}
+
 QString PreparedWidgetCapture::pendingReason() const {
 	return _pendingReason;
 }

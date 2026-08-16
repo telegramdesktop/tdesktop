@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "settings.h"
 
+#include <QtCore/QPointer>
 #include <QtCore/QTimer>
 
 namespace Test {
@@ -236,11 +237,73 @@ void Runner::waitForChatsLoadedStrict(crl::time timeout) {
 	});
 }
 
+void Runner::actOnWidget(
+		const QString &name,
+		Fn<QWidget*()> resolve,
+		Fn<void(QWidget*)> action,
+		Fn<bool(QWidget*)> ready,
+		crl::time timeout,
+		Fn<QString(QWidget*)> readinessDetails) {
+	struct State {
+		QPointer<QWidget> widget;
+		QString pendingReason;
+	};
+	const auto state = std::make_shared<State>();
+	add({
+		.name = u"act on widget: %1"_q.arg(name),
+		.until = [=] {
+			const auto widget = resolve();
+			if (!widget) {
+				state->widget = nullptr;
+				state->pendingReason = u"target does not exist"_q;
+				return false;
+			} else if (ready && !ready(widget)) {
+				state->widget = nullptr;
+				state->pendingReason = readinessDetails
+					? readinessDetails(widget)
+					: u"task readiness predicate did not pass"_q;
+				return false;
+			}
+			state->widget = widget;
+			state->pendingReason = QString();
+			return true;
+		},
+		.then = [=] {
+			if (const auto widget = state->widget.data()) {
+				action(widget);
+			} else {
+				Fail(
+					u"act on widget: %1"_q.arg(name),
+					u"accepted target was destroyed before the action"_q);
+			}
+		},
+		.timeout = timeout,
+		.timeoutDetails = [=] { return state->pendingReason; },
+	});
+}
+
 void Runner::captureWidget(
 		const QString &name,
 		Fn<QWidget*()> resolve,
 		Fn<bool(QWidget*)> ready,
-		crl::time timeout) {
+		crl::time timeout,
+		Fn<QString(QWidget*)> readinessDetails) {
+	captureAndInspect(
+		name,
+		std::move(resolve),
+		std::move(ready),
+		{},
+		timeout,
+		std::move(readinessDetails));
+}
+
+void Runner::captureAndInspect(
+		const QString &name,
+		Fn<QWidget*()> resolve,
+		Fn<bool(QWidget*)> ready,
+		Fn<void(QWidget*, const QImage &)> inspect,
+		crl::time timeout,
+		Fn<QString(QWidget*)> readinessDetails) {
 	const auto capture = std::make_shared<PreparedWidgetCapture>();
 	add({
 		.name = u"capture painted widget: %1"_q.arg(name),
@@ -250,12 +313,25 @@ void Runner::captureWidget(
 				return false;
 			} else if (ready && !ready(widget)) {
 				capture->invalidate(
-					u"task readiness predicate did not pass"_q);
+					readinessDetails
+						? readinessDetails(widget)
+						: u"task readiness predicate did not pass"_q);
 				return false;
 			}
 			return true;
 		},
-		.then = [=] { (void)capture->save(name); },
+		.then = [=] {
+			if (!capture->save(name) || !inspect) {
+				return;
+			}
+			if (const auto widget = capture->widget()) {
+				inspect(widget, capture->image());
+			} else {
+				Fail(
+					u"inspect capture %1"_q.arg(name),
+					u"accepted target was destroyed before inspection"_q);
+			}
+		},
 		.timeout = timeout,
 		.timeoutDetails = [=] { return capture->pendingReason(); },
 	});

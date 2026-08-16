@@ -378,17 +378,28 @@ The repository carries a permanent test harness under
 `Telegram/SourceFiles/test/` — always compiled, runtime-gated on `-testagent`
 (`Test::Active()`), with all of its `#ifdef`s inside the harness itself:
 
+**Read `Telegram/SourceFiles/test/README.md` completely before designing,
+authoring, or recovering an overlay.** It is the decision guide for stage
+semantics, exact-object publication, input targeting, capture selection, the
+specialized helpers, and first-run diagnostics. Then read the headers for the
+helpers selected by the design. Search the directory before writing local
+scaffolding.
+
 - `test_runner.h` — the staged scenario engine: `Stage{name, run, until, then, timeout}`,
   `waitEvent`, `waitForSessionReady`, the normal bounded non-fatal `waitForChatsLoaded()`, and
   explicit strict `waitForChatsLoadedStrict()`; timing out an ordinary `Stage` ends the whole
   scenario, while the wall-clock watchdog (default 120s, `TDESKTOP_TEST_WATCHDOG` override)
-  guarantees `TEST_COMPLETE` + quit on every exit path including timeout.
+  guarantees `TEST_COMPLETE` + quit on every exit path including timeout. `actOnWidget` waits for
+  and lifetime-guards the exact target before acting once. `captureAndInspect` saves the accepted
+  prepared frame and then runs numeric/raster assertions against that same widget and image.
 - `test_log.h` — evidence dir from `TDESKTOP_TEST_EVIDENCE_DIR` (the workspace `test-run`
   helper sets it), flushed absolute-path logging, `Step/Pass/Fail/Check/Note`, `CheckNear`
   tolerance assertions, `LogGeometry`, the standard markers.
 - `test_widgets.h` — `FindAll<T>`/`FindFirst<T>`/`FindVisible<T>` (the `dynamic_cast`-based
   finders that avoid the guaranteed `findChildren<CustomWidget*>` crash), `Click`, `TypeText`,
-  `PressKey` via real Qt events — each delivered event runs with postponed-call processing
+  `CommitText`, `PressKey`, `Drag`, and `Wheel` via real Qt events, plus generation-counted,
+  lifetime-guarded `PublishLiveWidget` / `PublishLiveAction` seams for exact layer-owned objects;
+  each delivered event runs with postponed-call processing
   deferred and is followed by a drain of every pending `Ui::PostponeCall` to empty, so
   postponed input fix-ups AND their own change handling are settled when the helper returns;
   wrap programmatic `setText` in `Test::Settle`.
@@ -397,6 +408,11 @@ The repository carries a permanent test harness under
   log, `SCREENSHOT` marker), plus `PreparedWidgetCapture`; `Runner::captureWidget` polls an
   exact target until it has a valid painted frame and saves that same accepted frame,
   `Crop`/`Zoom`/`ContactSheet` for tight same-scale evidence.
+- `test_ink.h`, `test_style.h`, and `test_panel.h` — painted-ink/contrast measurement, settled
+  palette baselines, and detection of a `Ui::SeparatePanel` show-animation cache.
+- `test_messages.h`, `test_transfer.h`, `test_open_handoff.h`, and `test_launch_fuse.h` — direct
+  sent-message, document-transfer, document-open, and safely blocked OS-launch oracles. Prefer
+  these established task-specific observers over reconstructing the same state in a scenario.
 - `test_agent.h` — `Test::Fire(name)` / `HasFired(name)` named waitpoints;
   `launch_finished` fires at the end of `Application::run()`. `TDESKTOP_TEST_SCALE` is applied
   by the harness at startup.
@@ -408,29 +424,35 @@ A minimal scenario shape:
 ```cpp
 void SetupScenario(not_null<Runner*> runner) {
 	runner->waitEvent(u"launch_finished"_q);
-	runner->waitForChatsLoaded();
-	runner->add({
-		.name = u"open the target and verify the row"_q,
-		.run = [] { /* trigger the flow under test */ },
-		.until = [] {
-			return Test::FindFirst<Ui::SomeWidget>(
-				Core::App().activeWindow()->widget()) != nullptr;
-		},
-		.then = [] {
-			const auto row = Test::FindFirst<Ui::SomeWidget>(
-				Core::App().activeWindow()->widget());
-			Test::LogGeometry(u"row"_q, row->geometry());
-			Test::CheckNear(row->height(), st::someRowHeight, 1, u"row height"_q);
-		},
-	});
-	runner->captureWidget(
-		u"target_row"_q,
-		[] {
-			return Test::FindFirst<Ui::SomeWidget>(
-				Core::App().activeWindow()->widget());
-		},
+	runner->actOnWidget(
+		u"activate the published target"_q,
+		[] { return Test::ReadLiveWidget(u"task.target"_q).widget; },
+		[](QWidget *widget) { Test::Click(widget); },
 		[](QWidget *widget) {
-			return widget->height() == st::someRowHeight;
+			return widget->isVisible() && widget->isEnabled();
+		},
+		Test::kDefaultStageTimeout,
+		[](QWidget *widget) {
+			return u"visible=%1 enabled=%2 size=%3x%4"_q
+				.arg(widget->isVisible())
+				.arg(widget->isEnabled())
+				.arg(widget->width())
+				.arg(widget->height());
+		});
+	runner->captureAndInspect(
+		u"target_surface"_q,
+		[] { return Test::ReadLiveWidget(u"task.surface"_q).widget; },
+		[](QWidget *widget) {
+			return widget->property("contentGeneration").toInt() > 0;
+		},
+		[](QWidget *widget, const QImage &image) {
+			Test::LogGeometry(u"surface"_q, widget->geometry());
+			Test::Check(
+				image.width() >= widget->width(),
+				u"capture covers the surface width"_q,
+				u"image=%1 widget=%2"_q
+					.arg(image.width())
+					.arg(widget->width()));
 		});
 }
 ```
@@ -466,6 +488,16 @@ so it can never run against real account data. The overlay must:
 - Express the flow as `Runner` stages with **condition-waits over fixed timers** (an `until`
   predicate on the target widget/data actually existing, with the stage timeout as fallback).
   Fixed sleeps are the main source of screenshot flake.
+- Keep the stage roles separate: `.run` is a one-shot action only after an earlier stage established
+  its prerequisites; `.until` is a pure readiness observation with no mutation and no expected
+  product result; `.then` performs assertions/actions; `timeoutDetails` logs the latest concrete
+  identities and values. If an action needs the object this stage is waiting for, use
+  `Runner::actOnWidget`. An expected mismatch in `.until` becomes a misleading timeout instead of
+  an implementation verdict.
+- Prefer `PublishLiveWidget` / `PublishLiveAction` at an inventoried production construction or
+  callback seam for repeated boxes, wrapper-owned buttons, and async replacements. Wait for the
+  published generation and invoke the exact action; do not rediscover those objects by descendant
+  order.
 - Log through `test_log.h` (`Step`/`Pass`/`Fail`/`Check`/`Note`/`CheckNear`/`LogGeometry`) —
   it already writes the flushed absolute-path log and the exact `TEST_STEP` / `TEST_RESULT` /
   `SCREENSHOT` / `TEST_COMPLETE` markers the external runner parses. Never hand-roll marker
@@ -484,6 +516,10 @@ so it can never run against real account data. The overlay must:
   hand-roll `GrabWidget` + `LooksBlank` + `SaveImage` for evidence and do not
   assume that object construction, `isVisible()`, or one child paint event
   means the owning presentation has painted current content.
+- When the capture itself needs geometry, colour, luma, containment, or raster assertions, use
+  `Runner::captureAndInspect`. Its readiness predicate identifies current painted content only; its
+  inspector logs and asserts the result after saving the exact accepted frame. Do not put expected
+  height/colour/pixel values in capture readiness, where a product bug is misclassified as timeout.
 - **Lay down the oracle's references.** Save every applicable independent reference beside the
   crop (`SaveImage`, `ContactSheet` for same-scale comparison). Exact asset work saves OLD and
   intended-NEW art as `<name>_{old,new}.png`. Without target artwork, save the
@@ -512,6 +548,10 @@ fix it; it is a real bug in the overlay, not a stale build.
   and `dynamic_cast` each result — C++ RTTI identifies the real type regardless of `Q_OBJECT`.
 - Only genuine Qt `Q_OBJECT` types (`QWidget`, `QLabel`, `QLineEdit`, …) are safe to pass directly to
   `findChildren<T*>()`.
+- `FindVisible<T>` filters only on `isVisible()`. It does not prove current-layer ownership,
+  non-empty mapped geometry, unobscured paint, hit-testability, or latest-instance identity. Add
+  those predicates or publish the exact live object; do not treat the helper name as a stronger
+  visibility contract.
 
 ### Log to an ABSOLUTE path (the launcher chdir's)
 

@@ -132,8 +132,9 @@ Do not restate the full context, plan, diff, or long reasoning in the chat reply
 - Phase 6d is complete only when `test-design.md` exists, covers every surface
   the task's Observable result names (or marks one N/A with a reason), states
   a falsifiable oracle with its source for each check, and compresses the run
-  plan to the fewest possible runs. It must not contain overlay code or filled
-  Actual/Result fields.
+  plan into one packed process by default, with every extra planned process
+  justified by an incompatible lifetime requirement. It must not contain
+  overlay code or filled Actual/Result fields.
 - A perform-task visual design phase is complete only when `visual.md` cites its available
   design sources (images when supplied; otherwise request facts and repository/baseline anchors),
   records assumptions, and contains desktop anchors, an ordered derivation, tolerances, and
@@ -407,6 +408,8 @@ Read these files:
 - <WORK_DIR>/context.md
 - <WORK_DIR>/plan.md
 - The task spec
+- Telegram/SourceFiles/test/README.md — use its one-run, stage, directness,
+  input, and capture contracts when assessing how the measurement will run
 - Then read the actual source files referenced, to verify the plan against the code rather than against its own prose.
 
 This plan measures shipped behavior and carries no implementation. Assess it on one question above all others: WOULD THIS RUN HAVE DETECTED THE NEGATIVE? A verification that passes whether or not the behavior exists is worse than no verification, because it converts an open gap into a false record of coverage.
@@ -899,10 +902,10 @@ Read these files:
 - <WORK_DIR>/visual.md when it exists
 - .agents/shared/test-loop.md — the sections "Design the tests from THIS
   task", "Visual contract", and "Test report"
-- the harness headers under Telegram/SourceFiles/test/ (test_runner.h,
-  test_widgets.h, test_capture.h, test_log.h) — design checks that the
-  harness's stage waits, typed finders, tight captures, and geometry logs can
-  observe directly
+- Telegram/SourceFiles/test/README.md in full, then the headers it selects for
+  this task — design checks around the established stage, exact-object,
+  interaction, capture, style, paint, and domain-specific primitives instead
+  of planning local replacements
 
 Then run `git diff` to see the current uncommitted task changes.
 
@@ -915,15 +918,21 @@ Write <WORK_DIR>/test-design.md:
   format, leaving Actual, Screenshots, and Result unfilled
 - a surface explicitly marked N/A with a reason when it genuinely cannot be
   observed
-- a run plan compressed to the fewest possible runs — normally exactly one —
-  splitting only for checks that cannot share one process lifetime
+- one packed run containing every compatible check; name the exact startup,
+  persisted-state, or contamination constraint for every additional planned
+  process. Scenario size or implementation convenience never justifies a split
 - a fixture fallback plan naming at least two progressively more direct ways
   to reach the changed production seam if the preferred fixture does not
   materialize; do not make unrelated UI setup a single point of failure
 - for each full box, layer owner, animated root, or asynchronously populated
-  surface, a `Runner::captureWidget` step that resolves the exact current
-  owner and uses a task-specific content predicate; never plan a hand-rolled
-  `GrabWidget` / `LooksBlank` / `SaveImage` chain
+  surface, a `Runner::captureWidget` or `captureAndInspect` step that resolves
+  the exact current owner and uses a task-specific content predicate; put
+  expected geometry/raster values in inspection assertions, never readiness,
+  and never plan a hand-rolled `GrabWidget` / `LooksBlank` / `SaveImage` chain
+- a stage map that keeps `.until` pure, puts falsifiable outcomes in `.then`
+  or `captureAndInspect`, and supplies value-rich timeout diagnostics; use
+  `actOnWidget` or exact live publication where an action depends on an async
+  or layer-owned object
 - a `## Reconcile` line reminding the test author to re-verify every check
   against the final retained diff after the review loop
 
@@ -948,6 +957,8 @@ Read:
 - <WORK_DIR>/test.md, including every prior Run and Recovery plan
 - <WORK_DIR>/test-overlay.paths and the current saved overlay
 - .agents/shared/test-loop.md, especially the repeated-failure directness ladder
+- Telegram/SourceFiles/test/README.md, especially stage roles, live object /
+  action publication, input routing, capture choice, and failure diagnosis
 
 The latest failure signature is:
 <FAILURE_SIGNATURE>
@@ -977,9 +988,10 @@ Then implement the recovery. Prefer fewer assumptions and more manual control:
 Keep an independent falsifiable oracle. A direct seam may bypass setup outside
 the task diff, but it must not reimplement or bypass the changed code itself.
 For full boxes, layer owners, animated roots, and asynchronously populated
-surfaces, use `Runner::captureWidget` so the scenario waits for and saves the
-same nonblank painted frame. Do not hand-roll capture readiness from
-`isVisible()`, a construction event, or one child paint event.
+surfaces, use `Runner::captureWidget` or `captureAndInspect` so the scenario
+waits for and saves the same nonblank painted frame. Keep expected product
+values out of readiness. Do not hand-roll capture readiness from `isVisible()`,
+a construction event, or one child paint event.
 Fix every test flaw visible in the latest run together, build Debug, and return
 the compact phase block.
 
@@ -1008,6 +1020,8 @@ Read:
 - <WORK_DIR>/test-overlay.patch and test-overlay.paths
 - every raw log and decisive screenshot from the current campaign
 - .agents/shared/test-loop.md, especially the directness ladder and campaign-cap rules
+- Telegram/SourceFiles/test/README.md, to audit whether an established exact
+  object, interaction, capture, style, or domain helper was skipped
 
 Campaign: <C>
 

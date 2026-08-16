@@ -9,15 +9,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 
+class QImage;
+class QWidget;
+
 namespace Test {
 
 inline constexpr auto kDefaultStageTimeout = crl::time(10000);
 inline constexpr auto kStartupStageTimeout = crl::time(30000);
 
-// One scenario step. Runs |run| once, polls |until| on the event loop till it
-// returns true (immediately ready when null), then runs |then| assertions.
-// A stage past its |timeout| fails the scenario and finishes early — the
-// scenario always ends in TEST_COMPLETE and quit, never a hang.
+// One scenario step. Runs |run| once after prerequisites from earlier stages,
+// polls the pure readiness observer |until| on the event loop till it returns
+// true (immediately ready when null), then runs |then| assertions/actions.
+// Expected product results belong in |then|, not |until|. A stage past its
+// |timeout| fails the scenario and finishes early — the scenario always ends
+// in TEST_COMPLETE and quit, never a hang.
 struct Stage {
 	QString name;
 	Fn<void()> run;
@@ -39,6 +44,17 @@ public:
 	void waitForChatsLoaded(crl::time timeout = kStartupStageTimeout);
 	void waitForChatsLoadedStrict(crl::time timeout = kStartupStageTimeout);
 
+	// Polls an exact target and an optional pure readiness predicate, then
+	// runs the action once against the same lifetime-guarded widget. This
+	// avoids eager stage actions and resolve-again races.
+	void actOnWidget(
+		const QString &name,
+		Fn<QWidget*()> resolve,
+		Fn<void(QWidget*)> action,
+		Fn<bool(QWidget*)> ready = {},
+		crl::time timeout = kDefaultStageTimeout,
+		Fn<QString(QWidget*)> readinessDetails = {});
+
 	// Resolves an exact widget on every tick, waits until the harness can
 	// prepare a valid painted frame and the optional task predicate agrees,
 	// then saves that same frame. Use this for full boxes, layer owners, and
@@ -47,7 +63,20 @@ public:
 		const QString &name,
 		Fn<QWidget*()> resolve,
 		Fn<bool(QWidget*)> ready = {},
-		crl::time timeout = kDefaultStageTimeout);
+		crl::time timeout = kDefaultStageTimeout,
+		Fn<QString(QWidget*)> readinessDetails = {});
+
+	// Saves the same accepted frame as captureWidget, then gives that exact
+	// widget and image to assertions. Keep readiness limited to identity and
+	// paint availability; geometry/raster expectations belong in |inspect|
+	// so a mismatch is a FAIL with actual values, never a timeout.
+	void captureAndInspect(
+		const QString &name,
+		Fn<QWidget*()> resolve,
+		Fn<bool(QWidget*)> ready,
+		Fn<void(QWidget*, const QImage &)> inspect,
+		crl::time timeout = kDefaultStageTimeout,
+		Fn<QString(QWidget*)> readinessDetails = {});
 
 	[[nodiscard]] bool empty() const;
 

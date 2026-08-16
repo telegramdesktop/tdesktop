@@ -507,7 +507,10 @@ notes, reports, chat, or commit messages.
 Read `.agents/shared/test-loop.md` completely and apply it after the first green
 implementation commit, or — for a `type: verify` task, which never has one —
 immediately after Phase 3V. A `type: minimal` task never enters this adapter
-at all; its profile ends at commit and publication. Read `references/computer-use-testing.md` when choosing
+at all; its profile ends at commit and publication. Before test design,
+authoring, recovery, or cap assessment, read
+`Telegram/SourceFiles/test/README.md` completely and then the selected helper
+headers. Read `references/computer-use-testing.md` when choosing
 or operating a UI driver. Retain all task-derived oracle, layout measurement,
 overlay, watchdog, crash/assertion, hang, account, attempt, report, and evidence
 rules, with these external-task safety adaptations:
@@ -670,10 +673,14 @@ The test author must read the full task specification and every current-branch
 commit whose message has this task's exact `Task:` line. For an uninterrupted
 contiguous run this is the `BASE_REF..GREEN_REF` diff; for a resumed older task,
 combine the exact task commits and inspect their current code at `RUN_REF`
-without treating intervening tasks as this task's changes. It writes checks
+without treating intervening tasks as this task's changes. The author must also
+read `Telegram/SourceFiles/test/README.md` and the headers for every selected
+helper before writing overlay scaffolding. It writes checks
 before running, covers every acceptance surface, declares a falsifiable oracle
-for each, compresses all checks into the fewest possible runs — normally
-exactly one — and never reuses a generic navigate-and-screenshot scenario. When
+for each, packs all compatible checks into one process by default, and never
+reuses a generic navigate-and-screenshot scenario. An additional planned
+process requires a named incompatible startup/lifetime/state constraint; it is
+never justified only by scenario size or simplicity. When
 a surface cannot be covered in the packed scenario, the author adds a run for it
 rather than dropping it: run count is the thing to minimize once coverage is
 settled, never the reason to leave a reachable surface unmeasured. Where an

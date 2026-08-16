@@ -47,9 +47,38 @@ template <typename T>
 	not_null<QWidget*> root,
 	const QString &name);
 
+// In-situ overlay hooks can publish the exact live object created by the
+// product instead of rediscovering layer-owned/custom widgets from a window
+// tree. Every replacement advances |generation|; dead QObjects resolve as
+// unavailable. Publish calls are runtime no-ops unless Test::Active().
+struct LiveWidgetSnapshot {
+	QWidget *widget = nullptr;
+	int generation = 0;
+};
+
+struct LiveActionSnapshot {
+	bool available = false;
+	int generation = 0;
+	int invocationCount = 0;
+	bool repeatable = false;
+};
+
+void PublishLiveWidget(
+	const QString &key,
+	not_null<QWidget*> widget);
+[[nodiscard]] LiveWidgetSnapshot ReadLiveWidget(const QString &key);
+
+void PublishLiveAction(
+	const QString &key,
+	not_null<QObject*> context,
+	Fn<void()> action,
+	bool repeatable = false);
+[[nodiscard]] LiveActionSnapshot ReadLiveAction(const QString &key);
+[[nodiscard]] bool InvokeLiveAction(const QString &key);
+
 // Input delivery and settlement contract.
 //
-// Click, TypeText and PressKey deliver their events synchronously with
+// The input helpers deliver their events synchronously with
 // QApplication::sendEvent from the calling (runner-stage) context. During
 // each dispatch postponed-call processing is deferred, so a product
 // fix-up queued by the event can never run mid-signal-emission, where
@@ -83,9 +112,28 @@ template <typename T>
 // default. Drives the same event path as a real click.
 void Click(not_null<QWidget*> widget, std::optional<QPoint> point = {});
 
-// Synthesizes key press + release pairs carrying the text, one character at
-// a time, into the widget.
+// Synthesizes key press + release pairs carrying one Unicode grapheme at a
+// time. Surrogate pairs and joined emoji are never split between events.
 void TypeText(not_null<QWidget*> widget, const QString &text);
+
+// Delivers one input-method commit. Prefer this when the behavior under test
+// is text insertion itself rather than physical key handling.
+void CommitText(not_null<QWidget*> widget, const QString &text);
+
+// Synthesizes a left-button drag in widget-local coordinates. Intermediate
+// mouse moves retain Qt::LeftButton in buttons(), matching a real drag.
+void Drag(
+	not_null<QWidget*> widget,
+	QPoint from,
+	QPoint to,
+	int steps = 8);
+
+// Synthesizes a wheel event at the widget center by default. |angleDelta|
+// uses Qt's native eighths-of-a-degree convention (120 is one wheel step).
+void Wheel(
+	not_null<QWidget*> widget,
+	QPoint angleDelta,
+	std::optional<QPoint> point = {});
 
 void PressKey(
 	not_null<QWidget*> widget,
