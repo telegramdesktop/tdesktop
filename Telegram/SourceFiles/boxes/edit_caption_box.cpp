@@ -872,7 +872,11 @@ void EditCaptionBox::setupPhotoEditorEventHandler() {
 				controller->uiShow(),
 				&_preparedList.files.front(),
 				st::sendMediaPreviewSize,
-				[=](bool ok) { if (ok) rebuildPreview(); },
+				[=](bool ok) {
+					if (ok) {
+						rebuildPreview();
+					}
+				},
 				PhotoSideLimit(true));
 		} else {
 			EditPhotoImage(
