@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/custom_emoji_helper.h"
 #include "ui/text/format_values.h"
+#include "ui/text/text_custom_emoji.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/fields/input_field.h"
@@ -116,6 +117,36 @@ constexpr auto kFeeFiatDecimals = 5;
 constexpr auto kMaxFiatUnits = 999'999'999LL;
 constexpr auto kMaxAmountNano = 999'999'999'999'999'999LL;
 constexpr auto kRowAmountPreciseBelowNano = Ui::kNanosInOne / 100;
+
+[[nodiscard]] float64 AlignedMarkTop(
+		const style::font &font,
+		const QImage &image) {
+	Expects(!image.isNull());
+	Expects(image.hasAlphaChannel());
+	const auto rowHasAlpha = [&](int y) {
+		for (auto x = 0; x != image.width(); ++x) {
+			if (qAlpha(image.pixel(x, y))) {
+				return true;
+			}
+		}
+		return false;
+	};
+	auto first = 0;
+	while (first != image.height() && !rowHasAlpha(first)) {
+		++first;
+	}
+	Expects(first != image.height());
+	auto last = image.height() - 1;
+	while (!rowHasAlpha(last)) {
+		--last;
+	}
+	const auto zero = font->metrics().tightBoundingRect(u"0"_q);
+	const auto digitCenter = font->ascent
+		+ (zero.top() + zero.bottom()) / 2.;
+	const auto markCenter = (first + last + 1.)
+		/ (2. * image.devicePixelRatio());
+	return digitCenter - markCenter;
+}
 
 class BalanceInk;
 class Card;
@@ -249,6 +280,7 @@ private:
 	QImage _markSettled;
 	CreditsAmount _balance;
 	QString _fiatText;
+	float64 _markTop = 0.;
 	float64 _tickerLeft = 0.;
 	float64 _amountWidth = 0.;
 	float64 _fiatWidth = 0.;
@@ -1079,15 +1111,28 @@ void AddFeeTableRow(
 		not_null<Ui::TableLayout*> table,
 		not_null<Main::Session*> session,
 		int64 feeNano,
-		bool approximate) {
+		bool approximate,
+		bool alignMarkToDigits = false) {
 	auto helper = Ui::Text::CustomEmojiHelper();
-	const auto diamond = helper.paletteDependent({
+	auto descriptor = Ui::Text::PaletteDependentEmoji{
 		.factory = [=] {
 			return Ui::Earn::IconCurrencyColored(
 				table->st().defaultValue.style.font,
 				st::windowActiveTextFg->c);
 		},
-	});
+	};
+	if (alignMarkToDigits) {
+		const auto &font = table->st().defaultValue.style.font;
+		const auto image = descriptor.factory();
+		const auto alignedTop = AlignedMarkTop(font, image);
+		const auto emojiY = (font->height - st::emojiSize) / 2;
+		const auto lineShift = Ui::Fixed(font->ascent) - font->fascent;
+		const auto naturalTop = (lineShift + emojiY).toInt()
+			+ Ui::Emoji::GetCustomSkipNormal();
+		const auto marginTop = int(base::SafeRound(alignedTop - naturalTop));
+		descriptor.margin = QMargins(0, marginTop, 0, 0);
+	}
+	const auto diamond = helper.paletteDependent(std::move(descriptor));
 	auto value = FiatRateValue(
 		session
 	) | rpl::map([=](FiatRate rate) {
@@ -1155,7 +1200,7 @@ void AddDetailsTable(
 	const auto pending
 		= (item.status == Gram::TransferItem::Status::Pending);
 	if (item.feeNano > 0 && !pending) {
-		AddFeeTableRow(table, session, item.feeNano, false);
+		AddFeeTableRow(table, session, item.feeNano, false, true);
 	}
 	Ui::AddTableRow(
 		table,
@@ -4458,6 +4503,9 @@ void BalanceInk::refresh() {
 	_markSettled = Ui::Earn::IconCurrencyColored(
 		st::walletCardMarkSize,
 		SettledBalancePalette().mark);
+	_markTop = AlignedMarkTop(
+		st::walletCardBalanceMajorLabel.style.font,
+		_markCard);
 }
 
 QRectF BalanceInk::amountRect(
@@ -4522,7 +4570,7 @@ void BalanceInk::paintPass(
 	p.drawImage(
 		QRectF(
 			0.,
-			st::walletCardIconMargin.top(),
+			_markTop,
 			st::walletCardMarkSize,
 			st::walletCardMarkSize),
 		mark);
