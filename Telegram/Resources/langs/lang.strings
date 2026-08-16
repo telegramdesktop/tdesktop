@@ -8863,6 +8863,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_buy_crypto_about" = "Swap from your existing wallet";
 "lng_wallet_buy_p2p" = "P2P Market";
 "lng_wallet_buy_p2p_about" = "Buy from other users using local payment methods";
+"lng_wallet_buy_provider" = "Payment Provider";
+"lng_wallet_buy_loading" = "Finding available payment options...";
+"lng_wallet_buy_geographic_denied" = "Buying Grams is not available in your region.";
+"lng_wallet_buy_disabled" = "Buying Grams is currently disabled.";
+"lng_wallet_buy_empty" = "No compatible payment options are available for this currency.";
+"lng_wallet_buy_error" = "Payment options couldn't be loaded. Try again.";
+"lng_wallet_buy_retry" = "Retry";
 "lng_wallet_buy_walt" = "Walt";
 "lng_wallet_buy_walt_about" = "Transfer Grams from your Walt";
 

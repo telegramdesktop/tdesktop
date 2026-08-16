@@ -50,6 +50,16 @@ struct OnrampAvailability {
 		const OnrampAvailability &) = default;
 };
 
+struct OnrampRouteSelection {
+	QString provider;
+	std::optional<QString> paymentMethod;
+	QString baseCurrency;
+
+	friend bool operator==(
+		const OnrampRouteSelection &,
+		const OnrampRouteSelection &) = default;
+};
+
 struct OnrampHostedSession {
 	QString provider;
 	QString sessionId;
@@ -150,6 +160,10 @@ public:
 	[[nodiscard]] rpl::producer<AvailabilityState> availabilityValue() const;
 	[[nodiscard]] HostedSessionState hostedSessionCurrent() const;
 	[[nodiscard]] rpl::producer<HostedSessionState> hostedSessionValue() const;
+	[[nodiscard]] std::optional<OnrampRouteSelection> lastRouteSelection() const;
+	[[nodiscard]] rpl::producer<OnrampRouteSelection> routeSelections() const;
+
+	void selectRoute(OnrampRouteSelection selection);
 
 	void requestProvidersForGram();
 	void requestAllProviders();
@@ -231,6 +245,8 @@ private:
 	Lane<std::vector<QString>> _baseCurrencies;
 	Lane<OnrampAvailability> _availability;
 	Lane<OnrampHostedSession> _hostedSession;
+	std::optional<OnrampRouteSelection> _lastRouteSelection;
+	rpl::event_stream<OnrampRouteSelection> _routeSelections;
 #ifdef _DEBUG
 	Fn<bool(const DebugOnrampRequest &)> _debugRequestInterceptor;
 #endif // _DEBUG

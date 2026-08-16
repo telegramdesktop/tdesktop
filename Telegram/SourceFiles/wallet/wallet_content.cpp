@@ -65,6 +65,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_collectible_media.h"
 #include "wallet/wallet_collectibles.h"
 #include "wallet/wallet_fiat.h"
+#include "wallet/wallet_onramp.h"
 #include "wallet/wallet_rates.h"
 #include "wallet/wallet_session.h"
 
@@ -81,6 +82,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QClipboard>
 #include <QtSvg/QSvgRenderer>
 #include <QtWidgets/QTextEdit>
+
+#include <array>
 
 namespace Wallet {
 namespace {
@@ -1281,12 +1284,178 @@ void AddBuySectionTitle(
 		st::walletBuySubsectionPadding);
 }
 
+enum class OnrampRoutePresentation {
+	BankCard,
+	Cryptocurrency,
+	P2p,
+	Generic,
+};
+
+enum class OnrampRoutesViewStatus {
+	Loading,
+	Ready,
+	Empty,
+	GeographicDenied,
+	BuyingDisabled,
+	Error,
+};
+
+enum class OnrampDiscoveryPhase {
+	Inactive,
+	Providers,
+	BaseCurrencies,
+	Availability,
+	Complete,
+};
+
+struct OnrampRenderRoute {
+	OnrampRoutePresentation presentation = OnrampRoutePresentation::Generic;
+	QString providerName;
+	OnrampRouteSelection selection;
+};
+
+struct OnrampProviderDiscovery {
+	OnrampProvider provider;
+	bool eligible = false;
+};
+
+struct OnrampMethodMapping {
+	QStringView method;
+	OnrampRoutePresentation presentation = OnrampRoutePresentation::Generic;
+};
+
+class OnrampRoutesController final {
+public:
+	explicit OnrampRoutesController(not_null<Main::Session*> session);
+
+	[[nodiscard]] OnrampRoutesViewStatus status() const;
+	[[nodiscard]] const std::vector<OnrampRenderRoute> &routes() const;
+	[[nodiscard]] bool allowedCurrenciesReady() const;
+	[[nodiscard]] std::vector<QString> allowedCurrencies() const;
+	[[nodiscard]] rpl::producer<> changes() const;
+
+	void activate();
+	void restart();
+	void invalidate();
+
+private:
+	void clearExpected();
+	void publish(OnrampRoutesViewStatus status);
+	void fail(bool currenciesReady);
+	void advanceBaseCurrencies();
+	void advanceAvailability();
+	void providersLoaded(const Onramp::ProvidersState &load);
+	void baseCurrenciesLoaded(const Onramp::BaseCurrenciesState &load);
+	void availabilityLoaded(const Onramp::AvailabilityState &load);
+	void rateChanged(const FiatRate &rate);
+
+	Rates *_rates = nullptr;
+	Onramp *_onramp = nullptr;
+	uint64 _epoch = 0;
+	uint64 _expectedEpoch = 0;
+	OnrampDiscoveryPhase _phase = OnrampDiscoveryPhase::Inactive;
+	OnrampRoutesViewStatus _status = OnrampRoutesViewStatus::Loading;
+	QString _currency;
+	QString _expectedProvider;
+	QString _expectedCurrency;
+	std::vector<QString> _knownCurrencies;
+	std::vector<QString> _allowedCurrencies;
+	std::vector<OnrampProviderDiscovery> _providers;
+	std::vector<OnrampRenderRoute> _routes;
+	int _providerIndex = 0;
+	int _resolvedProviders = 0;
+	int _geographicDeniedProviders = 0;
+	int _buyingDisabledProviders = 0;
+	bool _active = false;
+	bool _providersExpectingPending = false;
+	bool _providersPendingSeen = false;
+	bool _baseCurrenciesExpectingPending = false;
+	bool _baseCurrenciesPendingSeen = false;
+	bool _availabilityExpectingPending = false;
+	bool _availabilityPendingSeen = false;
+	bool _allowedCurrenciesReady = false;
+	rpl::event_stream<> _changes;
+	rpl::lifetime _lifetime;
+
+};
+
+constexpr auto kOnrampMethodMappings = std::array<OnrampMethodMapping, 0>{};
+
+[[nodiscard]] auto OnrampPresentationForMethod(const QString &method)
+-> std::optional<OnrampRoutePresentation> {
+	for (const auto &mapping : kOnrampMethodMappings) {
+		if (mapping.method == QStringView(method)) {
+			return mapping.presentation;
+		}
+	}
+	return std::nullopt;
+}
+
+void AddOnrampCurrency(
+		std::vector<QString> &currencies,
+		QString currency) {
+	currency = currency.toUpper();
+	if (currency.isEmpty() || ranges::contains(currencies, currency)) {
+		return;
+	}
+	currencies.push_back(std::move(currency));
+}
+
+[[nodiscard]] std::vector<QString> NormalizeOnrampCurrencies(
+		const std::vector<QString> &currencies) {
+	auto result = std::vector<QString>();
+	result.reserve(currencies.size());
+	for (const auto &currency : currencies) {
+		AddOnrampCurrency(result, currency);
+	}
+	return result;
+}
+
+[[nodiscard]] bool OnrampRouteExists(
+		const std::vector<OnrampRenderRoute> &routes,
+		const QString &provider,
+		const std::optional<QString> &paymentMethod) {
+	return ranges::find_if(routes, [&](const OnrampRenderRoute &route) {
+		return (route.selection.provider == provider)
+			&& (route.selection.paymentMethod == paymentMethod);
+	}) != end(routes);
+}
+
+[[nodiscard]] rpl::producer<QString> OnrampProviderText(
+		QString name,
+		const QString &provider) {
+	name = name.trimmed();
+	if (name.isEmpty() || name == provider) {
+		return tr::lng_wallet_buy_provider();
+	}
+	return rpl::single(std::move(name));
+}
+
+[[nodiscard]] OnrampRoutesViewStatus OnrampTerminalStatus(
+		const std::vector<OnrampRenderRoute> &routes,
+		int resolvedProviders,
+		int geographicDeniedProviders,
+		int buyingDisabledProviders) {
+	if (!routes.empty()) {
+		return OnrampRoutesViewStatus::Ready;
+	} else if (resolvedProviders > 0
+		&& geographicDeniedProviders == resolvedProviders) {
+		return OnrampRoutesViewStatus::GeographicDenied;
+	} else if (resolvedProviders > 0
+		&& buyingDisabledProviders == resolvedProviders) {
+		return OnrampRoutesViewStatus::BuyingDisabled;
+	}
+	return OnrampRoutesViewStatus::Empty;
+}
+
 void AddBuyRow(
 		not_null<Ui::VerticalLayout*> container,
+		not_null<Main::Session*> session,
 		rpl::producer<QString> title,
 		rpl::producer<QString> subtitle,
-		const style::icon &icon,
-		const style::color &background) {
+		const style::icon *icon,
+		const style::color *background,
+		OnrampRouteSelection selection) {
 	const auto wrap = container->add(
 		object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
 			container,
@@ -1308,11 +1477,13 @@ void AddBuyRow(
 		wrap,
 		rpl::single(QString()),
 		st::walletBuyRow);
-	Settings::AddButtonIcon(button, st::walletBuyRow, {
-		.icon = &icon,
-		.type = Settings::IconType::Rounded,
-		.background = &background,
-	});
+	if (icon && background) {
+		Settings::AddButtonIcon(button, st::walletBuyRow, {
+			.icon = icon,
+			.type = Settings::IconType::Rounded,
+			.background = background,
+		});
+	}
 	const auto arrow = Ui::CreateChild<Ui::IconButton>(
 		button,
 		st::backButton);
@@ -1327,6 +1498,12 @@ void AddBuyRow(
 			-shift.x(),
 			shift.y() + (size.height() - arrow->height()) / 2);
 	}, arrow->lifetime());
+	const auto onramp = &session->wallet().onramp();
+	button->setClickedCallback([
+			onramp,
+			selection = std::move(selection)] {
+		onramp->selectRoute(selection);
+	});
 	Ui::ToggleChildrenVisibility(wrap, true);
 	wrap->geometryValue(
 	) | rpl::on_next([=](const QRect &g) {
@@ -1334,6 +1511,502 @@ void AddBuyRow(
 		button->lower();
 	}, wrap->lifetime());
 }
+
+void AddOnrampInformation(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<QString> text,
+		bool loading) {
+	const auto wrap = container->add(
+		object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container),
+			st::walletBuyRowPadding));
+	const auto inner = wrap->entity();
+	if (loading) {
+		using namespace Info::Statistics;
+		const auto envelope = inner->add(
+			object_ptr<Ui::FixedHeightWidget>(
+				inner,
+				st::boxLoadingSize));
+		const auto animation = InfiniteRadialAnimationWidget(
+			envelope,
+			st::boxLoadingSize,
+			&st::boxLoadingAnimation);
+		AddChildToWidgetCenter(envelope, animation);
+		Ui::AddSkip(inner, st::walletBuyRowSkip);
+	}
+	inner->add(object_ptr<Ui::FlatLabel>(
+		inner,
+		std::move(text),
+		st::walletBuyRowSubtitle));
+	Ui::ToggleChildrenVisibility(wrap, true);
+}
+
+OnrampRoutesController::OnrampRoutesController(
+		not_null<Main::Session*> session)
+: _rates(&session->wallet().rates())
+, _onramp(&session->wallet().onramp()) {
+	_onramp->providersValue(
+	) | rpl::on_next([=](const Onramp::ProvidersState &load) {
+		providersLoaded(load);
+	}, _lifetime);
+	_onramp->baseCurrenciesValue(
+	) | rpl::on_next([=](const Onramp::BaseCurrenciesState &load) {
+		baseCurrenciesLoaded(load);
+	}, _lifetime);
+	_onramp->availabilityValue(
+	) | rpl::on_next([=](const Onramp::AvailabilityState &load) {
+		availabilityLoaded(load);
+	}, _lifetime);
+	_rates->value(
+	) | rpl::on_next([=](const FiatRate &rate) {
+		rateChanged(rate);
+	}, _lifetime);
+}
+
+OnrampRoutesViewStatus OnrampRoutesController::status() const {
+	return _status;
+}
+
+auto OnrampRoutesController::routes() const
+-> const std::vector<OnrampRenderRoute> & {
+	return _routes;
+}
+
+bool OnrampRoutesController::allowedCurrenciesReady() const {
+	return _allowedCurrenciesReady;
+}
+
+std::vector<QString> OnrampRoutesController::allowedCurrencies() const {
+	return _allowedCurrencies;
+}
+
+rpl::producer<> OnrampRoutesController::changes() const {
+	return _changes.events();
+}
+
+void OnrampRoutesController::activate() {
+	_active = true;
+	restart();
+}
+
+void OnrampRoutesController::restart() {
+	if (!_active) {
+		return;
+	}
+	++_epoch;
+	clearExpected();
+	_phase = OnrampDiscoveryPhase::Providers;
+	_currency = _rates->current().currency.toUpper();
+	_knownCurrencies = NormalizeOnrampCurrencies(_rates->currencies());
+	AddOnrampCurrency(_knownCurrencies, _currency);
+	_allowedCurrencies.clear();
+	_providers.clear();
+	_routes.clear();
+	_providerIndex = 0;
+	_resolvedProviders = 0;
+	_geographicDeniedProviders = 0;
+	_buyingDisabledProviders = 0;
+	_allowedCurrenciesReady = false;
+	_expectedEpoch = _epoch;
+	_providersExpectingPending = true;
+	_providersPendingSeen = false;
+	publish(OnrampRoutesViewStatus::Loading);
+	_onramp->requestProvidersForGram();
+	if (_phase == OnrampDiscoveryPhase::Providers
+		&& _expectedEpoch == _epoch) {
+		_providersPendingSeen = _providersPendingSeen
+			|| _onramp->providersCurrent().pending;
+		_providersExpectingPending = false;
+	}
+}
+
+void OnrampRoutesController::invalidate() {
+	if (!_active && _phase == OnrampDiscoveryPhase::Inactive) {
+		return;
+	}
+	_active = false;
+	++_epoch;
+	clearExpected();
+	_phase = OnrampDiscoveryPhase::Inactive;
+	_currency.clear();
+	_knownCurrencies.clear();
+	_allowedCurrencies.clear();
+	_providers.clear();
+	_routes.clear();
+	_providerIndex = 0;
+	_resolvedProviders = 0;
+	_geographicDeniedProviders = 0;
+	_buyingDisabledProviders = 0;
+	_allowedCurrenciesReady = false;
+}
+
+void OnrampRoutesController::clearExpected() {
+	_expectedEpoch = 0;
+	_expectedProvider.clear();
+	_expectedCurrency.clear();
+	_providersExpectingPending = false;
+	_providersPendingSeen = false;
+	_baseCurrenciesExpectingPending = false;
+	_baseCurrenciesPendingSeen = false;
+	_availabilityExpectingPending = false;
+	_availabilityPendingSeen = false;
+}
+
+void OnrampRoutesController::publish(OnrampRoutesViewStatus status) {
+	_status = status;
+	_changes.fire({});
+}
+
+void OnrampRoutesController::fail(bool currenciesReady) {
+	clearExpected();
+	_phase = OnrampDiscoveryPhase::Complete;
+	_routes.clear();
+	if (!currenciesReady) {
+		_allowedCurrencies.clear();
+		_allowedCurrenciesReady = false;
+	}
+	publish(OnrampRoutesViewStatus::Error);
+}
+
+void OnrampRoutesController::advanceBaseCurrencies() {
+	if (!_active || _phase != OnrampDiscoveryPhase::BaseCurrencies) {
+		return;
+	}
+	clearExpected();
+	while (_providerIndex < int(_providers.size())) {
+		auto &entry = _providers[_providerIndex];
+		if (entry.provider.supportsBaseCurrencies) {
+			const auto providerId = entry.provider.id;
+			_expectedEpoch = _epoch;
+			_expectedProvider = providerId;
+			_baseCurrenciesExpectingPending = true;
+			_baseCurrenciesPendingSeen = false;
+			_onramp->requestBaseCurrencies(providerId);
+			if (_phase == OnrampDiscoveryPhase::BaseCurrencies
+				&& _expectedEpoch == _epoch
+				&& _expectedProvider == providerId) {
+				_baseCurrenciesPendingSeen = _baseCurrenciesPendingSeen
+					|| _onramp->baseCurrenciesCurrent().pending;
+				_baseCurrenciesExpectingPending = false;
+			}
+			return;
+		}
+		entry.eligible = true;
+		_allowedCurrencies = _knownCurrencies;
+		++_providerIndex;
+	}
+	_allowedCurrenciesReady = true;
+	_phase = OnrampDiscoveryPhase::Availability;
+	_providerIndex = 0;
+	_changes.fire({});
+	advanceAvailability();
+}
+
+void OnrampRoutesController::advanceAvailability() {
+	if (!_active || _phase != OnrampDiscoveryPhase::Availability) {
+		return;
+	}
+	clearExpected();
+	while (_providerIndex < int(_providers.size())
+		&& !_providers[_providerIndex].eligible) {
+		++_providerIndex;
+	}
+	if (_providerIndex == int(_providers.size())) {
+		_phase = OnrampDiscoveryPhase::Complete;
+		publish(OnrampTerminalStatus(
+			_routes,
+			_resolvedProviders,
+			_geographicDeniedProviders,
+			_buyingDisabledProviders));
+		return;
+	}
+	const auto providerId = _providers[_providerIndex].provider.id;
+	_expectedEpoch = _epoch;
+	_expectedProvider = providerId;
+	_expectedCurrency = _currency.toLower();
+	_availabilityExpectingPending = true;
+	_availabilityPendingSeen = false;
+	_onramp->requestAvailability(providerId, _expectedCurrency);
+	if (_phase == OnrampDiscoveryPhase::Availability
+		&& _expectedEpoch == _epoch
+		&& _expectedProvider == providerId
+		&& _expectedCurrency == _currency.toLower()) {
+		_availabilityPendingSeen = _availabilityPendingSeen
+			|| _onramp->availabilityCurrent().pending;
+		_availabilityExpectingPending = false;
+	}
+}
+
+void OnrampRoutesController::providersLoaded(
+		const Onramp::ProvidersState &load) {
+	if (!_active
+		|| _phase != OnrampDiscoveryPhase::Providers
+		|| _expectedEpoch != _epoch) {
+		return;
+	}
+	if (load.pending) {
+		_providersPendingSeen = _providersExpectingPending;
+		return;
+	} else if (!_providersPendingSeen && !_providersExpectingPending) {
+		return;
+	} else if (load.error) {
+		fail(false);
+		return;
+	} else if (!load.value) {
+		return;
+	}
+	clearExpected();
+	_providers.clear();
+	_providers.reserve(load.value->size());
+	for (const auto &provider : *load.value) {
+		if (provider.id.isEmpty()
+			|| ranges::find_if(
+				_providers,
+				[&](const OnrampProviderDiscovery &entry) {
+					return entry.provider.id == provider.id;
+				}) != end(_providers)) {
+			continue;
+		}
+		_providers.push_back({ provider });
+	}
+	_phase = OnrampDiscoveryPhase::BaseCurrencies;
+	_providerIndex = 0;
+	advanceBaseCurrencies();
+}
+
+void OnrampRoutesController::baseCurrenciesLoaded(
+		const Onramp::BaseCurrenciesState &load) {
+	if (!_active
+		|| _phase != OnrampDiscoveryPhase::BaseCurrencies
+		|| _expectedEpoch != _epoch
+		|| _providerIndex >= int(_providers.size())
+		|| _expectedProvider != _providers[_providerIndex].provider.id) {
+		return;
+	}
+	if (load.pending) {
+		_baseCurrenciesPendingSeen = _baseCurrenciesExpectingPending;
+		return;
+	} else if (!_baseCurrenciesPendingSeen
+		&& !_baseCurrenciesExpectingPending) {
+		return;
+	} else if (load.error) {
+		fail(false);
+		return;
+	} else if (!load.value) {
+		return;
+	}
+	const auto supported = NormalizeOnrampCurrencies(*load.value);
+	auto &entry = _providers[_providerIndex];
+	entry.eligible = ranges::contains(supported, _currency);
+	for (const auto &currency : _knownCurrencies) {
+		if (ranges::contains(supported, currency)) {
+			AddOnrampCurrency(_allowedCurrencies, currency);
+		}
+	}
+	++_providerIndex;
+	advanceBaseCurrencies();
+}
+
+void OnrampRoutesController::availabilityLoaded(
+		const Onramp::AvailabilityState &load) {
+	if (!_active
+		|| _phase != OnrampDiscoveryPhase::Availability
+		|| _expectedEpoch != _epoch
+		|| _providerIndex >= int(_providers.size())) {
+		return;
+	}
+	const auto &provider = _providers[_providerIndex].provider;
+	if (_expectedProvider != provider.id
+		|| _expectedCurrency != _currency.toLower()) {
+		return;
+	}
+	if (load.pending) {
+		_availabilityPendingSeen = _availabilityExpectingPending;
+		return;
+	} else if (!_availabilityPendingSeen
+		&& !_availabilityExpectingPending) {
+		return;
+	} else if (load.error) {
+		fail(true);
+		return;
+	} else if (!load.value) {
+		return;
+	}
+
+	++_resolvedProviders;
+	const auto &availability = *load.value;
+	if (!availability.allowed) {
+		++_geographicDeniedProviders;
+	} else if (!availability.buyAllowed) {
+		++_buyingDisabledProviders;
+	} else {
+		auto hasAvailableMethod = false;
+		auto hasMappedRoute = false;
+		for (const auto &method : availability.methods) {
+			if (!method.available) {
+				continue;
+			}
+			hasAvailableMethod = true;
+			const auto presentation = OnrampPresentationForMethod(
+				method.paymentMethod);
+			if (!presentation) {
+				continue;
+			}
+			hasMappedRoute = true;
+			const auto paymentMethod = std::optional<QString>(
+				method.paymentMethod);
+			if (OnrampRouteExists(_routes, provider.id, paymentMethod)) {
+				continue;
+			}
+			_routes.push_back({
+				.presentation = *presentation,
+				.providerName = provider.name,
+				.selection = {
+					.provider = provider.id,
+					.paymentMethod = paymentMethod,
+					.baseCurrency = _expectedCurrency,
+				},
+			});
+		}
+		if (hasAvailableMethod && !hasMappedRoute) {
+			const auto paymentMethod = std::optional<QString>();
+			if (!OnrampRouteExists(_routes, provider.id, paymentMethod)) {
+				_routes.push_back({
+					.presentation = OnrampRoutePresentation::Generic,
+					.providerName = provider.name,
+					.selection = {
+						.provider = provider.id,
+						.paymentMethod = std::nullopt,
+						.baseCurrency = _expectedCurrency,
+					},
+				});
+			}
+		}
+	}
+	++_providerIndex;
+	advanceAvailability();
+}
+
+void OnrampRoutesController::rateChanged(const FiatRate &rate) {
+	const auto currency = rate.currency.toUpper();
+	if (_active && currency != _currency) {
+		restart();
+	}
+}
+
+void RenderOnrampRoutes(
+		not_null<Ui::VerticalLayout*> routeList,
+		not_null<Main::Session*> session,
+		const OnrampRoutesController &controller,
+		Fn<void()> retry) {
+	routeList->clear();
+	switch (controller.status()) {
+	case OnrampRoutesViewStatus::Loading:
+		AddOnrampInformation(
+			routeList,
+			tr::lng_wallet_buy_loading(),
+			true);
+		break;
+	case OnrampRoutesViewStatus::Ready:
+		for (const auto &route : controller.routes()) {
+			auto providerText = OnrampProviderText(
+				route.providerName,
+				route.selection.provider);
+			switch (route.presentation) {
+			case OnrampRoutePresentation::BankCard:
+				AddBuyRow(
+					routeList,
+					session,
+					tr::lng_wallet_buy_card(),
+					std::move(providerText),
+					&st::walletBuyBankCardIcon,
+					&st::settingsIconBg2,
+					route.selection);
+				break;
+			case OnrampRoutePresentation::Cryptocurrency:
+				AddBuyRow(
+					routeList,
+					session,
+					tr::lng_wallet_buy_crypto(),
+					std::move(providerText),
+					&st::walletBuyCryptoIcon,
+					&st::settingsIconBg3,
+					route.selection);
+				break;
+			case OnrampRoutePresentation::P2p:
+				AddBuyRow(
+					routeList,
+					session,
+					tr::lng_wallet_buy_p2p(),
+					std::move(providerText),
+					&st::walletBuyP2pIcon,
+					&st::settingsIconBg4,
+					route.selection);
+				break;
+			case OnrampRoutePresentation::Generic:
+				AddBuyRow(
+					routeList,
+					session,
+					tr::lng_wallet_buy_provider(),
+					std::move(providerText),
+					nullptr,
+					nullptr,
+					route.selection);
+				break;
+			}
+		}
+		break;
+	case OnrampRoutesViewStatus::Empty:
+		AddOnrampInformation(
+			routeList,
+			tr::lng_wallet_buy_empty(),
+			false);
+		break;
+	case OnrampRoutesViewStatus::GeographicDenied:
+		AddOnrampInformation(
+			routeList,
+			tr::lng_wallet_buy_geographic_denied(),
+			false);
+		break;
+	case OnrampRoutesViewStatus::BuyingDisabled:
+		AddOnrampInformation(
+			routeList,
+			tr::lng_wallet_buy_disabled(),
+			false);
+		break;
+	case OnrampRoutesViewStatus::Error: {
+		AddOnrampInformation(
+			routeList,
+			tr::lng_wallet_buy_error(),
+			false);
+		const auto retryButton = routeList->add(
+			object_ptr<Ui::RoundButton>(
+				routeList,
+				tr::lng_wallet_buy_retry(),
+				st::walletReceiveBuyButton),
+			st::walletReceiveBuyMargin,
+			style::al_justify);
+		retryButton->setTextTransform(
+			Ui::RoundButtonTextTransform::NoTransform);
+		retryButton->setClickedCallback(std::move(retry));
+		retryButton->widthValue(
+		) | rpl::on_next([=](int width) {
+			retryButton->setFullWidth(width);
+		}, retryButton->lifetime());
+		break;
+	}
+	}
+	Ui::AddSkip(routeList, st::walletBuySectionBottomSkip);
+	if (const auto width = routeList->width()) {
+		routeList->resizeToWidth(width);
+	}
+}
+
+void WalletChooseCurrencyBox(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<Main::SessionShow> show,
+		std::optional<std::vector<QString>> allowedCodes);
 
 void WalletReceiveBox(
 		not_null<Ui::GenericBox*> box,
@@ -1350,6 +2023,17 @@ void WalletReceiveBox(
 		QImage image;
 	};
 	const auto state = box->lifetime().make_state<State>();
+	const auto routes = box->lifetime().make_state<OnrampRoutesController>(
+		session);
+	const auto sessionShow = Main::MakeSessionShow(box->uiShow(), session);
+	state->buying.changes(
+	) | rpl::on_next([=](bool buying) {
+		if (buying) {
+			routes->activate();
+		} else {
+			routes->invalidate();
+		}
+	}, box->lifetime());
 
 	box->paintRequest(
 	) | rpl::on_next([=] {
@@ -1553,46 +2237,38 @@ void WalletReceiveBox(
 	const auto buyInner = buyGrams->entity();
 
 	AddBuySectionTitle(buyInner, tr::lng_wallet_buy_pay_with());
-	Settings::AddButtonWithLabel(
+	const auto currencyButton = Settings::AddButtonWithLabel(
 		buyInner,
 		tr::lng_wallet_menu_currency(),
 		FiatRateValue(session) | rpl::map([](const FiatRate &rate) {
 			return rate.currency;
 		}) | rpl::distinct_until_changed(),
 		st::settingsButtonNoIcon);
+	currencyButton->setClickedCallback([=] {
+		if (!routes->allowedCurrenciesReady()) {
+			return;
+		}
+		sessionShow->showBox(Box(
+			WalletChooseCurrencyBox,
+			sessionShow,
+			std::optional<std::vector<QString>>(
+				routes->allowedCurrencies())));
+	});
 	Ui::AddSkip(buyInner, st::walletBuySectionBottomSkip);
 
 	Ui::AddDivider(buyInner);
 	AddBuySectionTitle(buyInner, tr::lng_wallet_buy_buy_with());
-	AddBuyRow(
-		buyInner,
-		tr::lng_wallet_buy_card(),
-		tr::lng_wallet_buy_card_about(),
-		st::walletBuyBankCardIcon,
-		st::settingsIconBg2);
-	AddBuyRow(
-		buyInner,
-		tr::lng_wallet_buy_crypto(),
-		tr::lng_wallet_buy_crypto_about(),
-		st::walletBuyCryptoIcon,
-		st::settingsIconBg3);
-	AddBuyRow(
-		buyInner,
-		tr::lng_wallet_buy_p2p(),
-		tr::lng_wallet_buy_p2p_about(),
-		st::walletBuyP2pIcon,
-		st::settingsIconBg4);
-	Ui::AddSkip(buyInner, st::walletBuySectionBottomSkip);
-
-	Ui::AddDivider(buyInner);
-	AddBuySectionTitle(buyInner, tr::lng_wallet_buy_deposit_with());
-	AddBuyRow(
-		buyInner,
-		tr::lng_wallet_buy_walt(),
-		tr::lng_wallet_buy_walt_about(),
-		st::walletBuyWaltIcon,
-		st::settingsIconBg4);
-	Ui::AddSkip(buyInner, st::walletBuySectionBottomSkip);
+	const auto routeList = buyInner->add(
+		object_ptr<Ui::VerticalLayout>(buyInner));
+	const auto rebuildRoutes = [=] {
+		currencyButton->setDisabled(!routes->allowedCurrenciesReady());
+		RenderOnrampRoutes(routeList, session, *routes, [=] {
+			routes->restart();
+		});
+	};
+	rebuildRoutes();
+	routes->changes(
+	) | rpl::on_next(rebuildRoutes, routeList->lifetime());
 
 	buyGrams->toggleOn(state->buying.value());
 	buyGrams->finishAnimating();
@@ -4519,7 +5195,8 @@ public:
 	CurrencyListWidget(
 		not_null<QWidget*> parent,
 		std::shared_ptr<Main::SessionShow> show,
-		Fn<void(QString)> chosen);
+		Fn<void(QString)> chosen,
+		std::optional<std::vector<QString>> allowedCodes);
 
 	void updateFilter(const QString &query);
 	void selectSkip(int direction);
@@ -4555,6 +5232,7 @@ private:
 
 	const std::shared_ptr<Main::SessionShow> _show;
 	const Fn<void(QString)> _chosen;
+	const std::optional<std::vector<QString>> _allowedCodes;
 	QString _activeCode;
 	QString _filter;
 	std::vector<Row> _rows;
@@ -4588,7 +5266,8 @@ private:
 
 void WalletChooseCurrencyBox(
 		not_null<Ui::GenericBox*> box,
-		std::shared_ptr<Main::SessionShow> show) {
+		std::shared_ptr<Main::SessionShow> show,
+		std::optional<std::vector<QString>> allowedCodes) {
 	box->setTitle(tr::lng_wallet_currency_title());
 	box->setWidth(st::boxWideWidth);
 	box->setMaxHeight(st::boxMaxListHeight);
@@ -4599,10 +5278,14 @@ void WalletChooseCurrencyBox(
 			st::defaultMultiSelect,
 			tr::lng_country_ph()));
 	const auto list = box->addRow(
-		object_ptr<CurrencyListWidget>(box, show, [=](QString code) {
-			show->session().wallet().rates().setCurrency(code);
-			box->closeBox();
-		}),
+		object_ptr<CurrencyListWidget>(
+			box,
+			show,
+			[=](QString code) {
+				show->session().wallet().rates().setCurrency(code);
+				box->closeBox();
+			},
+			std::move(allowedCodes)),
 		style::margins());
 	box->setFocusCallback([=] { select->setInnerFocus(); });
 	select->setQueryChangedCallback([=](const QString &query) {
@@ -4634,10 +5317,12 @@ void WalletChooseCurrencyBox(
 CurrencyListWidget::CurrencyListWidget(
 	not_null<QWidget*> parent,
 	std::shared_ptr<Main::SessionShow> show,
-	Fn<void(QString)> chosen)
+	Fn<void(QString)> chosen,
+	std::optional<std::vector<QString>> allowedCodes)
 : RpWidget(parent)
 , _show(std::move(show))
-, _chosen(std::move(chosen)) {
+, _chosen(std::move(chosen))
+, _allowedCodes(std::move(allowedCodes)) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	_show->session().wallet().rates().value(
 	) | rpl::on_next([=] {
@@ -4858,6 +5543,10 @@ void CurrencyListWidget::refreshRows() {
 	const auto codes = rates.currencies();
 	_rows.reserve(codes.size());
 	for (const auto &code : codes) {
+		if (_allowedCodes
+			&& !ranges::contains(*_allowedCodes, code.toUpper())) {
+			continue;
+		}
 		const auto name = Ui::CurrencyName(code);
 		_rows.push_back({ code, (name == code) ? QString() : name });
 	}
@@ -4966,7 +5655,12 @@ void FillMenu(
 			tr::lng_wallet_menu_currency(tr::now))
 			+ u"\t"_q
 			+ currency),
-		[=] { show->showBox(Box(WalletChooseCurrencyBox, show)); },
+		[=] {
+			show->showBox(Box(
+				WalletChooseCurrencyBox,
+				show,
+				std::nullopt));
+		},
 		&st::walletMenuCurrencyIcon);
 	addAction(
 		Ui::Text::FixAmpersandInAction(tr::lng_wallet_keys_title(tr::now)),

@@ -131,6 +131,19 @@ auto Onramp::hostedSessionValue() const
 	return _hostedSession.state.value();
 }
 
+std::optional<OnrampRouteSelection> Onramp::lastRouteSelection() const {
+	return _lastRouteSelection;
+}
+
+rpl::producer<OnrampRouteSelection> Onramp::routeSelections() const {
+	return _routeSelections.events();
+}
+
+void Onramp::selectRoute(OnrampRouteSelection selection) {
+	_lastRouteSelection = selection;
+	_routeSelections.fire(std::move(selection));
+}
+
 void Onramp::requestProvidersForGram() {
 	using Flag = MTPpayments_GetOnrampProviders::Flag;
 	using Flags = MTPpayments_GetOnrampProviders::Flags;
