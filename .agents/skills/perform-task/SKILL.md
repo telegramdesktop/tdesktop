@@ -144,8 +144,11 @@ local state intact for the next invocation.
 A repeated test setup failure is not exhausted verification by itself. Follow
 the shared directness ladder: forbid the failed fixture technique and make the
 next run more manual and closer to the changed production seam. The configured
-test-run cap is the safety boundary; the former two-identical-signature shortcut
-must not be used.
+test-run cap closes one campaign: preserve prior passes, isolate the unmet
+checks, and start a focused recovery campaign unless a fresh assessment proves
+every direct strategy exhausted. The cap and a `TEST_FLAW` can never by
+themselves publish `BLOCKED`; the former two-identical-signature shortcut must
+not be used.
 
 A locked macOS session is not an environment stop or verification blocker.
 Skip interactive Computer Use and complete the same coverage through the

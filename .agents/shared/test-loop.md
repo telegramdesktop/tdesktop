@@ -34,7 +34,7 @@ adapter point; every other rule here still applies.
   absence is never by itself a planning, implementation, or test blocker. The spec and its cited
   repository/baseline sources are one side of test design; the implementation diff is the other.
 - Config: `BUILD` (build command), `EXE` (built binary path), `MAX_ATTEMPTS` (default 4),
-  `MAX_TEST_RUNS` (default 12). The test account lives in `out/Debug/` as the portable-data folders
+  `MAX_TEST_RUNS` (default 12 per test campaign). The test account lives in `out/Debug/` as the portable-data folders
   described under "Test account" below;
   the wrapper has already confirmed the golden one exists (launch gate). All paths are relative to
   the current checkout — no worktrees are created; the run happens in whatever repository slot it
@@ -58,9 +58,14 @@ TEST_AUTHOR -> RUN -> ASSESS (adversarial — see "Assessing"):
                     (--3way, else re-author); RUN. attempt++
   UNRECOVERABLE  -> delete the test binary; return BLOCKED up with the reason. Stop.
   attempt > MAX  -> delete the test binary; return BLOCKED up with test.md + "improve" notes. Stop.
+  campaign runs == MAX_TEST_RUNS with TEST_FLAW remaining
+                  -> CAP ASSESS; preserve every pass, isolate only unmet checks, and either
+                     begin a focused recovery campaign or prove recovery exhaustion. The cap
+                     alone never returns BLOCKED.
 
-On every TERMINAL exit (APPROVED / BLOCKED / UNRECOVERABLE / cap) "delete the test binary" means the
-step in "Leave no test binary behind" below.
+On every TERMINAL exit (APPROVED / BLOCKED / UNRECOVERABLE /
+implementation-attempt cap) "delete the test binary" means the step in "Leave
+no test binary behind" below. A test-campaign cap is not terminal.
 ```
 
 Repeated-failure rule: a repeated **failure signature is a demand for a more direct test**, not a
@@ -97,8 +102,29 @@ After the same signature repeats, use a fresh test-recovery leaf and explicitly 
 approach in its prompt. Early `BLOCKED(test)` is allowed only when a fresh recovery assessment
 records why every applicable unused strategy above is unsafe, unavailable, or would bypass the
 changed code, and the performer confirms that record. Otherwise continue until approval,
-implementation diagnosis, or `MAX_TEST_RUNS`. The macOS cached-language startup signature still
+implementation diagnosis, or a campaign-cap assessment. The macOS cached-language startup signature still
 gets the one-time clean-rebuild recovery under "Crashes & assertions" before entering this ladder.
+
+`MAX_TEST_RUNS` limits one campaign, not the task's lifetime. At the cap, use a
+fresh assessor over `test.md`, the saved overlay, the run artifacts, and the
+current unmet-check list. It must choose exactly one:
+
+- **FOCUSED_RECOVERY:** carry all prior PASS evidence forward, forbid every
+  failed technique, reduce the next scenario to only the unmet checks and the
+  controls needed to make them falsifiable, reset the campaign run counter,
+  and continue autonomously. Record the new campaign and its changed
+  directness in `test.md`; total `Test-Runs` never resets.
+- **RECOVERY_EXHAUSTED:** add `## Recovery exhaustion` to `test.md`, with one
+  row for every directness strategy and concrete evidence that it was tried or
+  is unsafe, unavailable, or would bypass the task diff. A run cap, elapsed
+  time, overlay complexity, or a missing screenshot is not exhaustion.
+
+A focused campaign must be monotonic: it never reruns checks already proved,
+never re-enables a forbidden fixture technique, and must remove at least one
+failed assumption. There is no fixed number of campaigns. The finite
+directness ladder and the exhaustion record are the stop condition, so a
+recoverable harness flaw stays inside the autonomous task instead of becoming
+a user-facing block.
 
 UNRECOVERABLE conditions: the app reaches a login screen / `AUTH_KEY_DUPLICATED` and re-copying the
 test account does not recover it, or a crash has no usable diagnostic after one retry and the
@@ -368,7 +394,9 @@ The repository carries a permanent test harness under
   wrap programmatic `setText` in `Test::Settle`.
 - `test_capture.h` — `CaptureWidget`/`CaptureRect` (visibility check, `QWidget::grab()` so
   floating elements and locked desktops cannot occlude, automatic blank-image FAIL, geometry
-  log, `SCREENSHOT` marker), `Crop`/`Zoom`/`ContactSheet` for tight same-scale evidence.
+  log, `SCREENSHOT` marker), plus `PreparedWidgetCapture`; `Runner::captureWidget` polls an
+  exact target until it has a valid painted frame and saves that same accepted frame,
+  `Crop`/`Zoom`/`ContactSheet` for tight same-scale evidence.
 - `test_agent.h` — `Test::Fire(name)` / `HasFired(name)` named waitpoints;
   `launch_finished` fires at the end of `Application::run()`. `TDESKTOP_TEST_SCALE` is applied
   by the harness at startup.
@@ -393,9 +421,17 @@ void SetupScenario(not_null<Runner*> runner) {
 				Core::App().activeWindow()->widget());
 			Test::LogGeometry(u"row"_q, row->geometry());
 			Test::CheckNear(row->height(), st::someRowHeight, 1, u"row height"_q);
-			Test::CaptureWidget(row, u"target_row"_q);
 		},
 	});
+	runner->captureWidget(
+		u"target_row"_q,
+		[] {
+			return Test::FindFirst<Ui::SomeWidget>(
+				Core::App().activeWindow()->widget());
+		},
+		[](QWidget *widget) {
+			return widget->height() == st::someRowHeight;
+		});
 }
 ```
 
@@ -440,6 +476,14 @@ so it can never run against real account data. The overlay must:
   isn't clearly captured, that is a TEST_FLAW (re-frame), never a pass. The helpers grab
   in-process after layout and paint, so a locked desktop never blocks capture and a blank
   grab fails loudly instead of passing silently.
+- **For a full box, layer owner, animated root, or any surface whose children
+  appear asynchronously, use `Runner::captureWidget`.** Resolve the exact
+  target on each poll and put task-specific content/identity checks in its
+  optional readiness predicate. It waits for a visible, non-empty, nonblank,
+  valid paint root and saves the exact frame that satisfied readiness. Do not
+  hand-roll `GrabWidget` + `LooksBlank` + `SaveImage` for evidence and do not
+  assume that object construction, `isVisible()`, or one child paint event
+  means the owning presentation has painted current content.
 - **Lay down the oracle's references.** Save every applicable independent reference beside the
   crop (`SaveImage`, `ContactSheet` for same-scale comparison). Exact asset work saves OLD and
   intended-NEW art as `<name>_{old,new}.png`. Without target artwork, save the

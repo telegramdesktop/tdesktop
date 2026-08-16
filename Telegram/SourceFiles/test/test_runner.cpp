@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_runner.h"
 
 #include "test/test_agent.h"
+#include "test/test_capture.h"
 #include "test/test_log.h"
 #include "base/call_delayed.h"
 #include "core/application.h"
@@ -235,6 +236,31 @@ void Runner::waitForChatsLoadedStrict(crl::time timeout) {
 	});
 }
 
+void Runner::captureWidget(
+		const QString &name,
+		Fn<QWidget*()> resolve,
+		Fn<bool(QWidget*)> ready,
+		crl::time timeout) {
+	const auto capture = std::make_shared<PreparedWidgetCapture>();
+	add({
+		.name = u"capture painted widget: %1"_q.arg(name),
+		.until = [=] {
+			const auto widget = resolve();
+			if (!capture->prepare(widget)) {
+				return false;
+			} else if (ready && !ready(widget)) {
+				capture->invalidate(
+					u"task readiness predicate did not pass"_q);
+				return false;
+			}
+			return true;
+		},
+		.then = [=] { (void)capture->save(name); },
+		.timeout = timeout,
+		.timeoutDetails = [=] { return capture->pendingReason(); },
+	});
+}
+
 bool Runner::empty() const {
 	return _stages.empty();
 }
@@ -262,9 +288,15 @@ void Runner::tick() {
 	if (!stage.until || stage.until()) {
 		completeStage();
 	} else if (crl::now() - _stageStarted > stage.timeout) {
+		const auto details = stage.timeoutDetails
+			? stage.timeoutDetails()
+			: QString();
 		Fail(
 			u"stage timed out: %1"_q.arg(stage.name),
-			u"waited %1 ms"_q.arg(stage.timeout));
+			details.isEmpty()
+				? u"waited %1 ms"_q.arg(stage.timeout)
+				: u"waited %1 ms; last state: %2"_q.arg(
+					stage.timeout).arg(details));
 		finish();
 	}
 }

@@ -63,7 +63,7 @@ out/Debug/Telegram.app/Contents/MacOS/Telegram
 
 TEST_ACCOUNT = out/Debug/test_TelegramForcePortable
 MAX_ATTEMPTS = 4
-MAX_TEST_RUNS = 12
+MAX_TEST_RUNS = 12 per test campaign
 COMPUTER_USE_POLICY = auto | overlay-only | required
 ```
 
@@ -148,6 +148,7 @@ work/review1-performance.md
 work/review1.md                # synthesized review for the iteration
 work/test-design.md            # check design drafted during review iteration 1
 work/test.md
+work/test-cap-assessment-*.md  # independent focused-recovery decision at a campaign cap
 work/result.md
 work/owned-paths.txt
 work/progress.md
@@ -335,7 +336,8 @@ Skip these phases outright rather than running them against an empty diff:
 - **Phase 6, Normalize.** No task-owned source text changes.
 - **Phase 7's `source-commit`.** The helper refuses it for this type. There is no
   implementation attempt, no `GREEN_REF`, and no attempt counter to advance;
-  `MAX_ATTEMPTS` does not apply, only `MAX_TEST_RUNS`.
+  `MAX_ATTEMPTS` does not apply; the per-campaign `MAX_TEST_RUNS` recovery
+  rules still do.
 
 ### What it does run
 
@@ -614,8 +616,10 @@ rules, with these external-task safety adaptations:
   re-copies golden — then retry once. That deletion takes the Crashpad
   database under `tdata/dumps/completed/` with it, so copy out any dump
   worth keeping first.
-- Enforce the in-app watchdog too. Count test runs independently from
-  implementation attempts and stop at `MAX_TEST_RUNS`.
+- Enforce the in-app watchdog too. Count total test runs independently from
+  implementation attempts, and also count runs in the current campaign. At
+  `MAX_TEST_RUNS`, run the shared cap assessment; never turn the number alone
+  into a terminal verdict.
 - A repeated setup failure is not a reason to stop below that cap. Apply the
   shared test loop's directness ladder: preserve what the run proved, forbid
   the failed fixture technique, and make the next overlay more manual and
@@ -623,8 +627,9 @@ rules, with these external-task safety adaptations:
   fails repeatedly, bypass that setup rather than continuing to test it.
 - Plan the fewest possible runs: one complete programmed scenario per attempt
   that proves every check in a single execution, splitting only for checks
-  that cannot share one process lifetime. `MAX_TEST_RUNS` is a safety cap,
-  never a budget to spend on fragmenting one scenario into several.
+  that cannot share one process lifetime. `MAX_TEST_RUNS` is a per-campaign
+  safety checkpoint, never a budget to spend on fragmenting one scenario into
+  several and never permission to publish a test block.
 - **That rule governs how checks are packed, never how many are taken. A
   coverage gap you find mid-task is closed by another run, not by a follow-up
   task.** When you discover a check this task's acceptance needs and this
@@ -640,7 +645,7 @@ rules, with these external-task safety adaptations:
   rebuilds all four from nothing before it can take the same measurement. One
   more run costs minutes; the task that replaces it costs a full lifecycle and
   lands days later. Runs added for coverage are not implementation attempts and
-  never advance `MAX_ATTEMPTS`; they count only against `MAX_TEST_RUNS`.
+  never advance `MAX_ATTEMPTS`; they count toward the current test campaign.
 - Start the test author from `work/test-design.md` when the review-phase
   draft exists; the author still reconciles every drafted check against the
   final retained diff before writing overlay code, and owns `test.md`.
@@ -677,12 +682,15 @@ halves of a branch, more than one interface scale — the author iterates the
 range rather than sampling it, because a hand-picked subset is exactly the shape
 of gap that comes back later as its own task. Missing or ambiguous evidence is
 `TEST_FLAW`; no expected task delta is `IMPL_BUG`. Repeated failure signatures
-trigger the shared directness ladder, not an automatic block. Block before
-`MAX_TEST_RUNS` only after a fresh recovery assessment proves that every
+trigger the shared directness ladder, not an automatic block. Block before or
+at a campaign cap only after a fresh recovery assessment proves that every
 applicable more-direct strategy is unsafe, unavailable, or would bypass the
-changed code. The macOS cached-language signature first gets the shared test
-loop's one-time Xcode clean-rebuild recovery. A known implementation bug at the
-attempt cap is implementation-blocked, not a successful retained commit.
+changed code and writes `## Recovery exhaustion` to `work/test.md`. Otherwise
+start a focused campaign that contains only the unmet checks and their controls,
+preserves all prior positive evidence, and resets only the campaign counter.
+The macOS cached-language signature first gets the shared test loop's one-time
+Xcode clean-rebuild recovery. A known implementation bug at the attempt cap is
+implementation-blocked, not a successful retained commit.
 
 Skip runtime testing only for a task with no runnable behavior. Record
 `NOT_APPLICABLE` and exact file-level validation. Configuration alone is not a
@@ -697,7 +705,10 @@ executable. The marked live test copy stays in place per the test-loop folder
 rules. For implementation-blocked work with no
 retained commit, restore only proven owned paths to `BASE_REF`. For test-blocked
 work retain the latest implementation commit and state the exact unverified
-behavior.
+behavior. `Blocker-Type: test` additionally requires `work/test.md` to contain
+`## Recovery exhaustion`, unless the verdict is the separately documented
+Computer Use infrastructure-unavailable case. A `TEST_FLAW`, a run cap, or a
+missing capture can never be the blocked verdict.
 
 Write `work/result.md` with exactly one value for every field:
 
@@ -827,6 +838,11 @@ delays finishing the work actually in hand.
   proceed with independent work, but the next invocation retries it once before
   starting new shared work. A dirty/non-buildable checkout or global
   environment problem stops the current invocation.
+- A test campaign cap is not a clean blocked attempt. Preserve the overlay and
+  evidence, run the cap assessment, and continue with a focused campaign while
+  any safe direct strategy remains. The publication helper rejects a test block
+  whose report still says `TEST_FLAW`, cites the run cap, or lacks the required
+  recovery-exhaustion record.
 - A Windows file-lock build error follows the shared bounded exact-checkout
   recovery. Only exhaustion or an unsafe/non-owned holder stops the run and
   asks the human; the task remains `in-progress`.

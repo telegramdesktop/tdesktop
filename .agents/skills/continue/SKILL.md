@@ -246,7 +246,7 @@ ownership.
 
 Otherwise select the first ready task in `own_blocked` whose id is in
 `batch_task_ids` and not in `attempted_blocked`. Readiness means every
-dependency is `approved`. Add its id to the set, then reopen it locally:
+dependency is `approved`. Reopen it locally:
 
 ```bash
 python3 .agents/skills/process-inbox/scripts/workspace.py retry \
@@ -258,9 +258,10 @@ result, and evidence while changing the slot worktree back to local
 `in-progress`. It publishes no `Resume` commit. Spawn its performer at the
 first incomplete validated boundary.
 
-If it blocks again, leave the new canonical `Block` boundary and do not retry
-it again in this invocation. Independent work may continue; the next
-invocation gets a fresh retry set.
+Add the id to `attempted_blocked` only if the performer later publishes a
+genuine new `Block` boundary under the validation below. A test-campaign cap,
+`TEST_FLAW`, blank/missing evidence, or another recoverable harness failure is
+not genuine and does not consume this invocation's blocked retry.
 
 ### 3. Start recorded reserved work
 
@@ -345,6 +346,19 @@ After it returns, require one of:
   with exact unverified behavior;
 - a clearly reported global hard stop, leaving the task `in-progress` and all
   task-scoped local state recoverable for the next invocation.
+
+Before accepting a canonical test block, read `work/result.md` and
+`work/test.md`. It is genuine only when the verdict is not `TEST_FLAW`, does
+not cite `MAX_TEST_RUNS` or a missing/blank capture as the blocker, and
+`work/test.md` contains `## Recovery exhaustion`; the separately documented
+Computer Use infrastructure-unavailable verdict is the only exception to the
+section requirement. If an older or concurrently finishing performer
+published a boundary that fails this check, immediately `retry` it in this
+same invocation, keep it out of `attempted_blocked`, and spawn one fresh
+performer at the focused test-recovery boundary. Preserve all positive
+evidence and rerun only unmet checks. New performers cannot normally publish
+such a boundary because `workspace.py finish` enforces the same rule; this is
+defense for legacy state.
 
 An interruption or environment stop never becomes a convenience `Block`.
 After a genuine `Block`, add the task id to `attempted_blocked` and continue

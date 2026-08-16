@@ -159,7 +159,8 @@ constexpr auto kBackgroundOwnerHops = 6;
 [[nodiscard]] QString BlankRootDetails(
 		not_null<QWidget*> widget,
 		const QImage &image,
-		const QRect &logicalRect) {
+		const QRect &logicalRect,
+		bool logCoverage = true) {
 	if (image.isNull()
 		|| widget->testAttribute(Qt::WA_OpaquePaintEvent)
 		|| widget->testAttribute(Qt::WA_NoSystemBackground)) {
@@ -171,11 +172,13 @@ constexpr auto kBackgroundOwnerHops = 6;
 		return QString();
 	}
 	const auto unpainted = UnpaintedPermille(widget, logicalRect);
-	Note(u"capture coverage: harnessThemeBase=%1/1000 unpainted=%2/1000 "
-		u"(threshold %3/1000)"_q
-		.arg(baseMatched)
-		.arg(unpainted)
-		.arg(kUnpaintedMinPermille));
+	if (logCoverage) {
+		Note(u"capture coverage: harnessThemeBase=%1/1000 unpainted=%2/1000 "
+			u"(threshold %3/1000)"_q
+			.arg(baseMatched)
+			.arg(unpainted)
+			.arg(kUnpaintedMinPermille));
+	}
 	if (unpainted < kUnpaintedMinPermille) {
 		return QString();
 	}
@@ -226,6 +229,69 @@ bool LooksBlank(const QImage &image) {
 		}
 	}
 	return (maxLuma - minLuma) < kBlankSpreadThreshold;
+}
+
+bool PreparedWidgetCapture::prepare(QWidget *widget) {
+	_widget = nullptr;
+	_image = QImage();
+	_globalGeometry = QRect();
+	if (!widget) {
+		_pendingReason = u"target does not exist"_q;
+		return false;
+	} else if (!widget->isVisible()) {
+		_pendingReason = u"target is not visible: %1"_q.arg(
+			WidgetDescription(widget));
+		return false;
+	} else if (widget->size().isEmpty()) {
+		_pendingReason = u"target has empty geometry: %1"_q.arg(
+			WidgetDescription(widget));
+		return false;
+	}
+	const auto image = GrabWidget(widget);
+	if (LooksBlank(image)) {
+		_pendingReason = u"target grab still looks blank: %1"_q.arg(
+			WidgetDescription(widget));
+		return false;
+	}
+	const auto blankRoot = BlankRootDetails(widget, image, QRect(), false);
+	if (!blankRoot.isEmpty()) {
+		_pendingReason = blankRoot;
+		return false;
+	}
+	_widget = widget;
+	_image = image;
+	_globalGeometry = QRect(widget->mapToGlobal(QPoint()), widget->size());
+	_pendingReason = QString();
+	return true;
+}
+
+void PreparedWidgetCapture::invalidate(QString reason) {
+	_widget = nullptr;
+	_image = QImage();
+	_globalGeometry = QRect();
+	_pendingReason = std::move(reason);
+}
+
+bool PreparedWidgetCapture::save(const QString &name) {
+	if (!_widget || _image.isNull()) {
+		Fail(
+			u"prepared capture %1"_q.arg(name),
+			_pendingReason.isEmpty()
+				? u"no accepted frame"_q
+				: _pendingReason);
+		return false;
+	}
+	LogGeometry(name, _globalGeometry);
+	const auto path = SaveImage(_image, name);
+	if (path.isEmpty()) {
+		Fail(u"prepared capture %1"_q.arg(name), u"could not save image"_q);
+		return false;
+	}
+	return true;
+}
+
+QString PreparedWidgetCapture::pendingReason() const {
+	return _pendingReason;
 }
 
 QString SaveImage(const QImage &image, const QString &name) {

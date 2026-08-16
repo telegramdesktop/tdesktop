@@ -2663,6 +2663,73 @@ def validate_verify_result(lines, result_path, approved):
 		)
 
 
+def required_result_value(lines, result_path, field):
+	prefix = f"{field}:"
+	values = [
+		line.split(":", 1)[1].strip() for line in lines
+		if line.startswith(prefix)
+	]
+	if len(values) != 1 or not values[0]:
+		raise WorkspaceError(
+			f"Task result must record exactly one nonempty {field}: {result_path}"
+		)
+	return values[0]
+
+
+def validate_blocked_result(lines, result_path):
+	blocker = required_result_value(lines, result_path, "Blocker-Type")
+	if blocker not in {"test", "impl", "unrecoverable"}:
+		raise WorkspaceError(
+			"A blocked task needs Blocker-Type: test | impl | unrecoverable: "
+			f"{result_path}"
+		)
+	if blocker != "test":
+		return
+	verdict = required_result_value(lines, result_path, "Verdict")
+	unverified = required_result_value(lines, result_path, "Unverified")
+	if unverified.lower() == "none":
+		raise WorkspaceError(
+			f"A test-blocked task must name exact unverified behavior: {result_path}"
+		)
+	lowered = verdict.lower().replace("-", "_")
+	for forbidden in (
+		"test_flaw",
+		"max_test_runs",
+		"max test runs",
+		"run_cap",
+		"run cap",
+		"blank_capture",
+		"blank capture",
+		"missing_capture",
+		"missing capture",
+		"missing_screenshot",
+		"missing screenshot",
+	):
+		if forbidden in lowered:
+			raise WorkspaceError(
+				"A recoverable harness or evidence failure cannot publish "
+				f"Blocker-Type: test ({forbidden}): {result_path}"
+			)
+	task_dir = result_path.parents[1]
+	if verdict.lower().startswith("computer-use-unavailable:"):
+		capability = task_dir / "computer-use-capability.md"
+		if not capability.is_file():
+			raise WorkspaceError(
+				"A computer-use-unavailable block needs its capability report: "
+				f"{capability}"
+			)
+		return
+	test_path = result_path.parent / "test.md"
+	if not test_path.is_file() or "## Recovery exhaustion" not in test_path.read_text(
+		encoding="utf-8-sig",
+	):
+		raise WorkspaceError(
+			"A test block requires work/test.md with ## Recovery exhaustion; "
+			"a run cap or recoverable TEST_FLAW must start a focused campaign: "
+			f"{test_path}"
+		)
+
+
 def command_finish(args):
 	model = args.model.strip()
 	if not MODEL_PATTERN.fullmatch(model):
@@ -2690,6 +2757,8 @@ def command_finish(args):
 		raise WorkspaceError(f"Task result does not contain an approved verdict: {result_path}")
 	if "Checkout: clean-buildable" not in lines:
 		raise WorkspaceError(f"Task result does not confirm a clean checkout: {result_path}")
+	if not approved:
+		validate_blocked_result(lines, result_path)
 	if kind == "verify":
 		validate_verify_result(lines, result_path, approved)
 	ensure_no_persisted_commit_hashes(result_path.parents[1])

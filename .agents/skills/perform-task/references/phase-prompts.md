@@ -920,6 +920,10 @@ Write <WORK_DIR>/test-design.md:
 - a fixture fallback plan naming at least two progressively more direct ways
   to reach the changed production seam if the preferred fixture does not
   materialize; do not make unrelated UI setup a single point of failure
+- for each full box, layer owner, animated root, or asynchronously populated
+  surface, a `Runner::captureWidget` step that resolves the exact current
+  owner and uses a task-specific content predicate; never plan a hand-rolled
+  `GrabWidget` / `LooksBlank` / `SaveImage` chain
 - a `## Reconcile` line reminding the test author to re-verify every check
   against the final retained diff after the review loop
 
@@ -972,6 +976,10 @@ Then implement the recovery. Prefer fewer assumptions and more manual control:
 
 Keep an independent falsifiable oracle. A direct seam may bypass setup outside
 the task diff, but it must not reimplement or bypass the changed code itself.
+For full boxes, layer owners, animated roots, and asynchronously populated
+surfaces, use `Runner::captureWidget` so the scenario waits for and saves the
+same nonblank painted frame. Do not hand-roll capture readiness from
+`isVisible()`, a construction event, or one child paint event.
 Fix every test flaw visible in the latest run together, build Debug, and return
 the compact phase block.
 
@@ -980,6 +988,62 @@ repeated signature as the reason. Add `## Recovery exhaustion` to test.md with
 one row per ladder strategy: attempted evidence, or the concrete reason it is
 unsafe, unavailable, or would bypass the task diff. Return `BLOCKED` for the
 performer to confirm independently.
+```
+
+## Test-Campaign-Cap Assessment
+
+Use a fresh leaf whenever the current campaign reaches `MAX_TEST_RUNS` with
+one or more `TEST_FLAW` checks still open. The cap is an internal recovery
+checkpoint, not a terminal verdict. Replace `<C>` with the campaign number.
+
+```text
+You are the independent campaign-cap assessor for one Telegram Desktop task.
+You assess test recovery only. Do not edit product source, the overlay, or the
+implementation, and do not delegate.
+
+Read:
+- the task spec and final retained task diff
+- <WORK_DIR>/test-design.md
+- <WORK_DIR>/test.md in full
+- <WORK_DIR>/test-overlay.patch and test-overlay.paths
+- every raw log and decisive screenshot from the current campaign
+- .agents/shared/test-loop.md, especially the directness ladder and campaign-cap rules
+
+Campaign: <C>
+
+Write <WORK_DIR>/test-cap-assessment-<C>.md with:
+
+## Prior proof
+Every check already established, with its decisive run/evidence. Prior PASS
+evidence is retained and must not be rerun.
+
+## Unmet checks
+Only acceptance checks still lacking decisive evidence. Distinguish a real
+product failure from a capture/fixture/oracle failure. Do not invent new scope.
+
+## Directness audit
+For each unmet check, list every ladder strategy already attempted and
+forbidden, then the next unused safe strategy. A different owner, production
+registration seam, transport callback, or Runner::captureWidget content-ready
+predicate counts as a changed strategy; renaming a wait does not.
+
+## Verdict: FOCUSED_RECOVERY | RECOVERY_EXHAUSTED
+
+Choose FOCUSED_RECOVERY whenever any safe strategy can still execute the
+changed code and decide the oracle. Append `## Test campaign <C+1>` to test.md
+with the carried prior proof, exact unmet checks, forbidden techniques, and
+the focused scenario to author. It must run only those checks and their
+falsifying controls. Total Test-Runs stays cumulative; only the campaign
+counter resets.
+
+Choose RECOVERY_EXHAUSTED only when no safe strategy remains. Append
+`## Recovery exhaustion` to test.md with one row per directness strategy and
+concrete attempted evidence or the exact reason it is unsafe, unavailable, or
+would bypass the task diff. The run cap, time spent, overlay size, a blank or
+missing screenshot, and repeated TEST_FLAW are never exhaustion.
+
+Return the compact phase block. The performer independently confirms an
+exhaustion verdict before it may publish a test block.
 ```
 
 ### Step 6s: Review synthesis

@@ -24,6 +24,7 @@ struct Stage {
 	Fn<bool()> until;
 	Fn<void()> then;
 	crl::time timeout = kDefaultStageTimeout;
+	Fn<QString()> timeoutDetails;
 };
 
 class Runner final {
@@ -37,6 +38,16 @@ public:
 	void waitForSessionReady(crl::time timeout = kStartupStageTimeout);
 	void waitForChatsLoaded(crl::time timeout = kStartupStageTimeout);
 	void waitForChatsLoadedStrict(crl::time timeout = kStartupStageTimeout);
+
+	// Resolves an exact widget on every tick, waits until the harness can
+	// prepare a valid painted frame and the optional task predicate agrees,
+	// then saves that same frame. Use this for full boxes, layer owners, and
+	// animated surfaces instead of capture-from-then timing guesses.
+	void captureWidget(
+		const QString &name,
+		Fn<QWidget*()> resolve,
+		Fn<bool(QWidget*)> ready = {},
+		crl::time timeout = kDefaultStageTimeout);
 
 	[[nodiscard]] bool empty() const;
 

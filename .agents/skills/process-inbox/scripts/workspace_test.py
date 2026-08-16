@@ -1038,7 +1038,11 @@ Checkout: clean-buildable
 				contextlib.redirect_stdout(io.StringIO()),
 			):
 				workspace.command_finish(
-					SimpleNamespace(task=TASK_ID, status="approved")
+					SimpleNamespace(
+						task=TASK_ID,
+						status="approved",
+						model="gpt-5.6-sol",
+					)
 				)
 
 			self.assertEqual(subjects, [
@@ -2326,6 +2330,61 @@ class MechanicsTest(unittest.TestCase):
 			check(["Touched: none", "Finding: inconclusive"])
 		with self.assertRaisesRegex(workspace.WorkspaceError, "could not measure"):
 			check(["Touched: none", "Finding: deviation"], approved=False)
+
+	def test_test_block_requires_real_recovery_exhaustion(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			task = Path(temporary) / "task"
+			work = task / "work"
+			work.mkdir(parents=True)
+			result = work / "result.md"
+
+			def check(verdict, unverified="full presentation"):
+				workspace.validate_blocked_result([
+					f"Verdict: {verdict}",
+					"Blocker-Type: test",
+					f"Unverified: {unverified}",
+				], result)
+
+			(work / "test.md").write_text(
+				"## Recovery exhaustion\n\n| Strategy | Evidence |\n",
+				encoding="utf-8",
+			)
+			check("recovery-exhausted: fixture unavailable")
+
+			for verdict in (
+				"TEST_FLAW at MAX_TEST_RUNS",
+				"blank-capture at run cap",
+				"missing screenshot",
+			):
+				with self.assertRaisesRegex(
+					workspace.WorkspaceError,
+					"recoverable harness or evidence failure",
+				):
+					check(verdict)
+
+			with self.assertRaisesRegex(
+				workspace.WorkspaceError,
+				"exact unverified behavior",
+			):
+				check("recovery-exhausted: fixture unavailable", "none")
+
+			(work / "test.md").unlink()
+			with self.assertRaisesRegex(
+				workspace.WorkspaceError,
+				"Recovery exhaustion",
+			):
+				check("recovery-exhausted: fixture unavailable")
+
+			with self.assertRaisesRegex(
+				workspace.WorkspaceError,
+				"capability report",
+			):
+				check("computer-use-unavailable: exact app identity")
+			(task / "computer-use-capability.md").write_text(
+				"unavailable\n",
+				encoding="utf-8",
+			)
+			check("computer-use-unavailable: exact app identity")
 
 	def test_task_type_defaults_to_implementation(self):
 		with tempfile.TemporaryDirectory() as temporary:

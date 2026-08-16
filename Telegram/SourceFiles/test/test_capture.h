@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <QtCore/QPointer>
+#include <QtGui/QImage>
 #include <QtWidgets/QWidget>
 
 namespace Test {
@@ -26,6 +28,25 @@ namespace Test {
 
 // Near-uniform images are capture failures, never evidence.
 [[nodiscard]] bool LooksBlank(const QImage &image);
+
+// Pollable capture state for animated/layer-owned surfaces. prepare() accepts
+// a frame only after the exact target is visible, non-empty, nonblank, and a
+// valid paint root. save() persists that same accepted frame, so the target
+// cannot regress between a runner's readiness check and its evidence step.
+class PreparedWidgetCapture final {
+public:
+	[[nodiscard]] bool prepare(QWidget *widget);
+	void invalidate(QString reason);
+	[[nodiscard]] bool save(const QString &name);
+
+	[[nodiscard]] QString pendingReason() const;
+
+private:
+	QPointer<QWidget> _widget;
+	QImage _image;
+	QRect _globalGeometry;
+	QString _pendingReason;
+};
 
 // Saves under ScreenshotsDir(), appends .png when missing, emits the
 // SCREENSHOT marker, and returns the absolute path (empty on failure).
