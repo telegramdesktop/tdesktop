@@ -63,13 +63,24 @@ constexpr auto kPreloadButtonRows = 2;
 [[nodiscard]] GiftDescriptor DescriptorForGift(
 		not_null<PeerData*> to,
 		const Data::SavedStarGift &gift) {
+	const auto unique = (gift.info.unique != nullptr);
+	auto sender = unique
+		? nullptr
+		: ((gift.anonymous || !gift.fromId)
+			? nullptr
+			: to->owner().peer(gift.fromId).get());
+	if (unique
+		&& !gift.message.empty()
+		&& !gift.anonymous
+		&& gift.fromId) {
+		const auto loaded = to->owner().peerLoaded(gift.fromId);
+		sender = (loaded && !loaded->isServiceUser()) ? loaded : nullptr;
+	}
 	return GiftTypeStars{
 		.info = gift.info,
-		.from = ((gift.anonymous || !gift.fromId)
-			? nullptr
-			: to->owner().peer(gift.fromId).get()),
+		.from = sender,
 		.date = gift.date,
-		.userpic = !gift.info.unique,
+		.userpic = unique ? (sender != nullptr) : true,
 		.pinned = gift.pinned,
 		.hidden = gift.hidden,
 		.mine = to->isSelf(),
