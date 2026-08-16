@@ -132,6 +132,7 @@ void UniqueGiftCoverMessageWidget::paintEvent(QPaintEvent *e) {
 		.pausedEmoji = On(PowerSaving::kEmojiChat),
 		.pausedSpoiler = On(PowerSaving::kChatSpoiler),
 		.elisionLines = 0,
+		.elisionBreakEverywhere = true,
 	});
 }
 
@@ -142,7 +143,9 @@ auto UniqueGiftCoverMessageWidget::computeLayout(int outerWidth) const
 		st::uniqueGiftMessagePadding,
 		outerWidth,
 		_text.maxWidth());
-	const auto textHeight = textWidth ? _text.countHeight(textWidth) : 0;
+	const auto textHeight = textWidth
+		? _text.countHeight(textWidth, true)
+		: 0;
 	return UniqueGiftMessageBubble::ComputeLayout(
 		st::chatUniqueMessageBubble,
 		st::uniqueGiftMessagePadding,
