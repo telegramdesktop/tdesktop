@@ -76,7 +76,7 @@ private:
 	void setMessage(const UniqueGiftCoverMessage &message);
 	void replaceImage(not_null<PeerData*> sender, bool hidden);
 
-	Text::String _text;
+	Text::String _text = { 1 };
 	std::shared_ptr<DynamicImage> _image;
 	PeerData *_sender = nullptr;
 	bool _hidden = false;
