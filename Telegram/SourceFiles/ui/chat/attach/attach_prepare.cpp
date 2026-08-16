@@ -245,6 +245,14 @@ bool PreparedFile::canUseHighQualityPhoto() const {
 			|| (originalDimensions.height() > kStandardPhotoSideLimit));
 }
 
+int PreparedFile::videoQuality() const {
+	using Video = PreparedFileInformation::Video;
+	const auto video = information
+		? std::get_if<Video>(&information->media)
+		: nullptr;
+	return video ? video->modifications.quality : 0;
+}
+
 bool PreparedFile::canEditVideo() const {
 	Expects(information != nullptr);
 
@@ -581,6 +589,34 @@ void PaintAnimatedBadge(
 		QRect rect,
 		RectPart origin) {
 	PaintMediaBadge(p, st, rect, origin, AnimatedBadgeImage());
+}
+
+void PaintVideoQualityBadge(QPainter &p, QRect preview, int quality) {
+	if (quality <= 0) {
+		return;
+	}
+	const auto text = QString::number(quality) + 'p';
+	const auto delta = st::msgDateImgDelta;
+	const auto &padding = st::msgDateImgPadding;
+	const auto size = QSize(
+		st::normalFont->width(text) + 2 * padding.x(),
+		st::normalFont->height + 2 * padding.y());
+	if (preview.width() < 2 * size.width()
+		|| preview.height() < 2 * size.height()) {
+		return;
+	}
+	const auto rect = Rect(
+		preview.x() + delta,
+		preview.y() + preview.height() - delta - size.height(),
+		size);
+	auto hq = PainterHighQualityEnabler(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::msgDateImgBg);
+	const auto radius = rect.height() / 2.;
+	p.drawRoundedRect(rect, radius, radius);
+	p.setFont(st::normalFont);
+	p.setPen(st::msgDateImgFg);
+	p.drawText(rect, Qt::AlignCenter, text);
 }
 
 void PaintMediaTtlBadge(QPainter &p, QRect preview, crl::time ttlSeconds) {

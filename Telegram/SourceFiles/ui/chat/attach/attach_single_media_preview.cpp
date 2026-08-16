@@ -64,6 +64,7 @@ SingleMediaPreview *SingleMediaPreview::Create(
 	result->setModifyAllowed(file.canEditVideo());
 	result->setCanShowHighQualityBadge(file.canUseHighQualityPhoto());
 	result->setCanShowAnimatedBadge(file.hasAnimatedEditScene());
+	result->setVideoQuality(file.videoQuality());
 	return result;
 }
 

@@ -107,6 +107,7 @@ private:
 	bool _modifyAllowed = false;
 	const bool _canShowHighQualityBadge;
 	const bool _canShowAnimatedBadge;
+	const int _videoQuality = 0;
 	const crl::time _ttlSeconds = 0;
 	QPixmap _albumImage;
 	QPixmap _albumImageBlurred;

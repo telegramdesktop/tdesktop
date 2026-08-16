@@ -93,6 +93,8 @@ struct PreparedFile {
 
 	[[nodiscard]] bool canEditVideo() const;
 
+	[[nodiscard]] int videoQuality() const;
+
 	QString path;
 	QString displayName;
 	TextWithTags caption;
@@ -203,5 +205,7 @@ void PaintAnimatedBadge(
 	RectPart origin = RectPart::BottomRight);
 
 void PaintMediaTtlBadge(QPainter &p, QRect preview, crl::time ttlSeconds);
+
+void PaintVideoQualityBadge(QPainter &p, QRect preview, int quality);
 
 } // namespace Ui

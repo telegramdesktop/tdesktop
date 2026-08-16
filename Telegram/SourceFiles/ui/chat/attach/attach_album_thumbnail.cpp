@@ -46,6 +46,7 @@ AlbumThumbnail::AlbumThumbnail(
 , _canEditVideo(file.canEditVideo())
 , _canShowHighQualityBadge(file.canUseHighQualityPhoto())
 , _canShowAnimatedBadge(file.hasAnimatedEditScene())
+, _videoQuality(file.videoQuality())
 , _ttlSeconds(file.ttlSeconds)
 , _isCompressedSticker(Core::IsMimeSticker(file.information->filemime))
 , _repaint(std::move(repaint))
@@ -338,6 +339,9 @@ void AlbumThumbnail::paintInAlbum(
 	if (_canShowAnimatedBadge) {
 		PaintAnimatedBadge(p, _st, paintedTo);
 	}
+	if (_videoQuality && !shrinkProgress) {
+		PaintVideoQualityBadge(p, paintedTo, _videoQuality);
+	}
 	if (_ttlSeconds && !shrinkProgress) {
 		PaintMediaTtlBadge(p, paintedTo, _ttlSeconds);
 	}
@@ -552,6 +556,9 @@ void AlbumThumbnail::paintPhoto(
 	}
 	if (_canShowAnimatedBadge) {
 		PaintAnimatedBadge(p, _st, rect);
+	}
+	if (_videoQuality) {
+		PaintVideoQualityBadge(p, rect, _videoQuality);
 	}
 }
 
