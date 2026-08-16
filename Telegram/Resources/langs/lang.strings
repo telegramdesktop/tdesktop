@@ -4227,6 +4227,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_stars_tabs_collectibles" = "Collectibles";
 "lng_gift_send_title" = "Send a Gift";
 "lng_gift_send_message" = "Enter Message";
+"lng_gift_send_message_preview" = "Your message…";
 "lng_gift_send_anonymous" = "Hide My Name";
 "lng_gift_send_pay_with_stars" = "Pay with {amount}";
 "lng_gift_send_stars_balance" = "Your balance is {amount}. {link}";

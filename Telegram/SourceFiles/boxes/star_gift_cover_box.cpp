@@ -10,27 +10,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_lottie.h"
 #include "core/application.h"
 #include "core/ui_integration.h"
-#include "main/main_session.h"
-#include "window/window_controller.h"
-#include "window/window_session_controller.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_document.h"
-#include "data/data_file_origin.h"
 #include "data/data_document_media.h"
+#include "data/data_file_origin.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
-#include "data/stickers/data_custom_emoji.h"
+#include "info/peer_gifts/info_peer_gifts_common.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_common.h"
 #include "lottie/lottie_single_player.h"
+#include "main/main_session.h"
 #include "ui/effects/premium_stars_colored.h"
-#include "ui/painter.h"
+#include "ui/effects/unique_gift_message_bubble.h"
 #include "ui/text/format_values.h"
+#include "ui/text/text.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
+#include "ui/wrap/vertical_layout.h"
+#include "ui/dynamic_image.h"
+#include "ui/dynamic_thumbnails.h"
+#include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "ui/top_background_gradient.h"
 #include "ui/vertical_list.h"
-#include "ui/widgets/buttons.h"
-#include "ui/wrap/vertical_layout.h"
-#include "ui/widgets/labels.h"
-#include "info/peer_gifts/info_peer_gifts_common.h"
+#include "window/window_controller.h"
+#include "window/window_session_controller.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_credits.h"
 #include "styles/style_layers.h"
@@ -52,6 +58,136 @@ constexpr auto kPatternStopsAt = crl::time(4 * 1000);
 constexpr auto kModelSpinDuration = crl::time(160);
 constexpr auto kModelStopsAt = crl::time(5.5 * 1000);
 constexpr auto kModelScaleFrom = 0.7;
+
+class UniqueGiftCoverMessageWidget final : public RpWidget {
+public:
+	UniqueGiftCoverMessageWidget(
+		QWidget *parent,
+		rpl::producer<UniqueGiftCoverMessage> message);
+	~UniqueGiftCoverMessageWidget();
+
+protected:
+	int resizeGetHeight(int newWidth) override;
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	[[nodiscard]] UniqueGiftMessageBubble::Layout computeLayout(
+		int outerWidth) const;
+	void setMessage(const UniqueGiftCoverMessage &message);
+	void replaceImage(not_null<PeerData*> sender, bool hidden);
+
+	Text::String _text;
+	std::shared_ptr<DynamicImage> _image;
+	PeerData *_sender = nullptr;
+	bool _hidden = false;
+	bool _placeholder = false;
+
+};
+
+UniqueGiftCoverMessageWidget::UniqueGiftCoverMessageWidget(
+	QWidget *parent,
+	rpl::producer<UniqueGiftCoverMessage> message)
+: RpWidget(parent) {
+	std::move(message) | rpl::on_next([this](
+			const UniqueGiftCoverMessage &value) {
+		setMessage(value);
+	}, lifetime());
+}
+
+UniqueGiftCoverMessageWidget::~UniqueGiftCoverMessageWidget() {
+	if (_image) {
+		_image->subscribeToUpdates(nullptr);
+	}
+}
+
+int UniqueGiftCoverMessageWidget::resizeGetHeight(int newWidth) {
+	return computeLayout(newWidth).sectionHeight;
+}
+
+void UniqueGiftCoverMessageWidget::paintEvent(QPaintEvent *e) {
+	auto p = Painter(this);
+	const auto layout = computeLayout(width());
+	UniqueGiftMessageBubble::Paint(
+		p,
+		st::chatUniqueMessageBubble,
+		layout);
+	if (_image) {
+		p.drawImage(
+			layout.avatar,
+			_image->image(st::chatUniqueMessageBubble.avatarSize));
+	}
+
+	auto textColor = QColor(Qt::white);
+	if (_placeholder) {
+		textColor.setAlphaF(st::uniqueGiftMessagePlaceholderOpacity);
+	}
+	p.setPen(textColor);
+	_text.draw(p, {
+		.position = layout.text.topLeft(),
+		.outerWidth = width(),
+		.availableWidth = layout.text.width(),
+		.align = style::al_topleft,
+		.spoiler = Text::DefaultSpoilerCache(),
+		.now = crl::now(),
+		.pausedEmoji = On(PowerSaving::kEmojiChat),
+		.pausedSpoiler = On(PowerSaving::kChatSpoiler),
+		.elisionLines = 0,
+	});
+}
+
+auto UniqueGiftCoverMessageWidget::computeLayout(int outerWidth) const
+-> UniqueGiftMessageBubble::Layout {
+	const auto textWidth = UniqueGiftMessageBubble::MaximumTextWidth(
+		st::chatUniqueMessageBubble,
+		st::uniqueGiftMessagePadding,
+		outerWidth,
+		_text.maxWidth());
+	const auto textHeight = textWidth ? _text.countHeight(textWidth) : 0;
+	return UniqueGiftMessageBubble::ComputeLayout(
+		st::chatUniqueMessageBubble,
+		st::uniqueGiftMessagePadding,
+		outerWidth,
+		textWidth,
+		textHeight);
+}
+
+void UniqueGiftCoverMessageWidget::setMessage(
+		const UniqueGiftCoverMessage &message) {
+	replaceImage(message.sender, message.hidden);
+	_placeholder = message.text.empty();
+	const auto displayed = _placeholder
+		? tr::marked(message.placeholder)
+		: message.text;
+	_text.setMarkedText(
+		st::chatUniqueTextStyle,
+		displayed,
+		kMarkupTextOptions,
+		Core::TextContext({
+			.session = &message.sender->session(),
+			.repaint = crl::guard(this, [this] { update(); }),
+		}));
+	if (width() > 0) {
+		resizeToWidth(width());
+	}
+	update();
+}
+
+void UniqueGiftCoverMessageWidget::replaceImage(
+		not_null<PeerData*> sender,
+		bool hidden) {
+	if (_sender == sender.get() && _hidden == hidden) {
+		return;
+	}
+	if (_image) {
+		_image->subscribeToUpdates(nullptr);
+	}
+	_sender = sender;
+	_hidden = hidden;
+	_image = hidden
+		? MakeHiddenAuthorThumbnail()
+		: MakeUserpicThumbnail(sender, true);
+	_image->subscribeToUpdates(crl::guard(this, [this] { update(); }));
+}
 
 struct AttributeSpin {
 	AttributeSpin(crl::time duration) : duration(duration) {
@@ -159,6 +295,7 @@ struct UniqueGiftCoverWidget::State {
 	FlatLabel *pretitle = nullptr;
 	FlatLabel *title = nullptr;
 	RpWidget *attrs = nullptr;
+	UniqueGiftCoverMessageWidget *message = nullptr;
 
 	Fn<void(const Data::UniqueGift &)> updateAttrs;
 	Fn<void(float64)> updateColors;
@@ -792,54 +929,102 @@ UniqueGiftCoverWidget::UniqueGiftCoverWidget(
 	}
 	_state->updateAttrs(*_state->now.gift);
 
-	rpl::combine(
-		widthValue(),
-		_state->released.subtitleHeight.value(),
-		_state->numberTextWidth.value()
-	) | rpl::on_next([this](int width, int subtitleHeight, int) {
-		const auto skip = st::uniqueGiftBottom;
-		if (width <= 3 * skip) {
-			return;
-		}
-		const auto available = width - 2 * skip;
-		auto top = st::uniqueGiftTitleTop;
-		if (_state->pretitle) {
-			_state->title->resizeToWidth(available);
-			_state->pretitle->move((width - _state->pretitle->width()) / 2, top);
-			top += _state->pretitle->height()
-				+ (st::uniqueGiftSubtitleTop - st::uniqueGiftTitleTop)
-				- _state->title->height();
-		}
+	_state->message = args.message
+		? CreateChild<UniqueGiftCoverMessageWidget>(
+			this,
+			std::move(args.message))
+		: nullptr;
+	if (_state->message) {
+		widthValue() | rpl::on_next([
+				message = _state->message](int width) {
+			message->resizeToWidth(width);
+		}, _state->message->lifetime());
+	}
 
-		if (_state->number && _state->number->textMaxWidth() > 0) {
-			const auto titleWidth = _state->title->textMaxWidth();
-			_state->title->resizeToWidth(titleWidth);
-			const auto numberWidth = _state->number->textMaxWidth();
-			_state->number->resizeToWidth(numberWidth);
-			const auto gap = st::normalFont->spacew;
-			const auto totalWidth = titleWidth + gap + numberWidth;
-			const auto groupLeft = (width - totalWidth) / 2;
-			_state->title->moveToLeft(groupLeft, top);
-			const auto &stTitle = _state->title->st();
-			const auto &stNumber = _state->number->st();
-			_state->number->moveToLeft(
-				groupLeft + titleWidth + gap,
-				(top
-					+ stTitle.style.font->ascent
-					- stNumber.style.font->ascent));
-		} else {
-			_state->title->resizeToWidth(available);
-			_state->title->moveToLeft(skip, top);
-		}
-		if (_state->pretitle) {
-			top += _state->title->height() + st::defaultVerticalListSkip;
-		} else {
-			top += st::uniqueGiftSubtitleTop - st::uniqueGiftTitleTop;
-		}
+	if (_state->message) {
+		rpl::combine(
+			widthValue(),
+			_state->released.subtitleHeight.value(),
+			_state->numberTextWidth.value(),
+			_state->message->heightValue()
+		) | rpl::on_next([this](
+				int width,
+				int subtitleHeight,
+				int,
+				int messageHeight) {
+			layoutContent(width, subtitleHeight, messageHeight);
+		}, lifetime());
+	} else {
+		rpl::combine(
+			widthValue(),
+			_state->released.subtitleHeight.value(),
+			_state->numberTextWidth.value()
+		) | rpl::on_next([this](int width, int subtitleHeight, int) {
+			layoutContent(width, subtitleHeight, 0);
+		}, lifetime());
+	}
+}
 
-		_state->released.subtitle->moveToLeft(skip, top);
-		top += subtitleHeight + (skip / 2);
+void UniqueGiftCoverWidget::layoutContent(
+		int width,
+		int subtitleHeight,
+		int messageHeight) {
+	const auto skip = st::uniqueGiftBottom;
+	if (width <= 3 * skip) {
+		return;
+	}
+	const auto available = width - 2 * skip;
+	auto top = st::uniqueGiftTitleTop;
+	if (_state->pretitle) {
+		_state->title->resizeToWidth(available);
+		_state->pretitle->move(
+			(width - _state->pretitle->width()) / 2,
+			top);
+		top += _state->pretitle->height()
+			+ (st::uniqueGiftSubtitleTop - st::uniqueGiftTitleTop)
+			- _state->title->height();
+	}
 
+	if (_state->number && _state->number->textMaxWidth() > 0) {
+		const auto titleWidth = _state->title->textMaxWidth();
+		_state->title->resizeToWidth(titleWidth);
+		const auto numberWidth = _state->number->textMaxWidth();
+		_state->number->resizeToWidth(numberWidth);
+		const auto gap = st::normalFont->spacew;
+		const auto totalWidth = titleWidth + gap + numberWidth;
+		const auto groupLeft = (width - totalWidth) / 2;
+		_state->title->moveToLeft(groupLeft, top);
+		const auto &stTitle = _state->title->st();
+		const auto &stNumber = _state->number->st();
+		_state->number->moveToLeft(
+			groupLeft + titleWidth + gap,
+			(top
+				+ stTitle.style.font->ascent
+				- stNumber.style.font->ascent));
+	} else {
+		_state->title->resizeToWidth(available);
+		_state->title->moveToLeft(skip, top);
+	}
+	if (_state->pretitle) {
+		top += _state->title->height() + st::defaultVerticalListSkip;
+	} else {
+		top += st::uniqueGiftSubtitleTop - st::uniqueGiftTitleTop;
+	}
+
+	_state->released.subtitle->moveToLeft(skip, top);
+	top += subtitleHeight;
+
+	if (_state->message) {
+		if (_state->attrs) {
+			top += (skip / 2);
+			_state->attrs->resizeToWidth(width);
+			_state->attrs->moveToLeft(0, top);
+			top += _state->attrs->height();
+		}
+		_state->message->moveToLeft(0, top);
+		top += messageHeight;
+	} else {
+		top += (skip / 2);
 		if (_state->attrs) {
 			_state->attrs->resizeToWidth(width);
 			_state->attrs->moveToLeft(0, top);
@@ -847,17 +1032,18 @@ UniqueGiftCoverWidget::UniqueGiftCoverWidget(
 		} else {
 			top += (skip / 2);
 		}
-		if (!height() || height() == top) {
-			resize(width, top);
-		} else {
-			_state->heightFinal = top;
-			_state->heightAnimation.start([this, width, top] {
-				resize(
-					width,
-					int(base::SafeRound(_state->heightAnimation.value(top))));
-			}, height(), top, st::slideWrapDuration);
-		}
-	}, lifetime());
+	}
+	if (!height() || height() == top) {
+		resize(width, top);
+	} else {
+		_state->heightFinal = top;
+		_state->heightAnimation.start([this, width, top] {
+			resize(
+				width,
+				int(base::SafeRound(
+					_state->heightAnimation.value(top))));
+		}, height(), top, st::slideWrapDuration);
+	}
 }
 
 void UniqueGiftCoverWidget::paintEvent(QPaintEvent *e) {

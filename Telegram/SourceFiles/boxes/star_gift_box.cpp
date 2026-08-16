@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/star_gift_preview_box.h"
 #include "boxes/star_gift_resale_box.h"
 #include "boxes/transfer_gift_box.h"
+#include "chat_helpers/compose/compose_show.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
@@ -1140,92 +1141,6 @@ struct GiftPriceTabs {
 		255);
 }
 
-[[nodiscard]] not_null<InputField*> AddPartInput(
-		not_null<Window::SessionController*> controller,
-		not_null<VerticalLayout*> container,
-		not_null<QWidget*> outer,
-		rpl::producer<QString> placeholder,
-		QString current,
-		int limit) {
-	const auto field = container->add(
-		object_ptr<InputField>(
-			container,
-			st::giftBoxTextField,
-			InputField::Mode::NoNewlines,
-			std::move(placeholder),
-			current),
-		st::giftBoxTextPadding);
-	field->setMaxLength(limit);
-	AddLengthLimitLabel(field, limit, {
-		.limitLabelTop = st::giftBoxLimitTop,
-	});
-
-	const auto toggle = CreateChild<EmojiButton>(
-		container,
-		st::defaultComposeFiles.emoji);
-	toggle->show();
-	field->geometryValue() | rpl::on_next([=](QRect r) {
-		toggle->move(
-			r.x() + r.width() - toggle->width(),
-			r.y() - st::giftBoxEmojiToggleTop);
-	}, toggle->lifetime());
-
-	using namespace ChatHelpers;
-	const auto panel = field->lifetime().make_state<TabbedPanel>(
-		outer,
-		controller,
-		object_ptr<TabbedSelector>(
-			nullptr,
-			controller->uiShow(),
-			Window::GifPauseReason::Layer,
-			TabbedSelector::Mode::EmojiOnly));
-	panel->setDesiredHeightValues(
-		1.,
-		st::emojiPanMinHeight / 2,
-		st::emojiPanMinHeight);
-	panel->hide();
-	panel->selector()->setAllowEmojiWithoutPremium(true);
-	panel->selector()->emojiChosen(
-	) | rpl::on_next([=](ChatHelpers::EmojiChosen data) {
-		InsertEmojiAtCursor(field->textCursor(), data.emoji);
-	}, field->lifetime());
-	panel->selector()->customEmojiChosen(
-	) | rpl::on_next([=](ChatHelpers::FileChosen data) {
-		Data::InsertCustomEmoji(field, data.document);
-	}, field->lifetime());
-
-	const auto updateEmojiPanelGeometry = [=] {
-		const auto parent = panel->parentWidget();
-		const auto global = toggle->mapToGlobal({ 0, 0 });
-		const auto local = parent->mapFromGlobal(global);
-		panel->moveBottomRight(
-			local.y(),
-			local.x() + toggle->width() * 3);
-	};
-
-	const auto filterCallback = [=](not_null<QEvent*> event) {
-		const auto type = event->type();
-		if (type == QEvent::Move || type == QEvent::Resize) {
-			// updateEmojiPanelGeometry uses not only container geometry, but
-			// also container children geometries that will be updated later.
-			crl::on_main(field, updateEmojiPanelGeometry);
-		}
-		return base::EventFilterResult::Continue;
-	};
-	for (auto widget = (QWidget*)field, end = (QWidget*)outer->parentWidget()
-		; widget && widget != end
-		; widget = widget->parentWidget()) {
-		base::install_event_filter(field, widget, filterCallback);
-	}
-
-	toggle->installEventFilter(panel);
-	toggle->addClickHandler([=] {
-		panel->toggleAnimated();
-	});
-
-	return field;
-}
-
 void SendGift(
 		not_null<Window::SessionController*> window,
 		not_null<PeerData*> peer,
@@ -2311,6 +2226,122 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 }
 
 } // namespace
+
+not_null<InputField*> AddStarGiftMessageField(
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<VerticalLayout*> container,
+		not_null<QWidget*> outer,
+		rpl::producer<QString> placeholder,
+		QString current) {
+	const auto session = &show->session();
+	const auto limit = StarGiftMessageLimit(session);
+	const auto field = container->add(
+		object_ptr<InputField>(
+			container,
+			st::giftBoxTextField,
+			InputField::Mode::NoNewlines,
+			std::move(placeholder),
+			current),
+		st::giftBoxTextPadding);
+	field->setMaxLength(limit);
+	AddLengthLimitLabel(field, limit, {
+		.limitLabelTop = st::giftBoxLimitTop,
+	});
+
+	const auto toggle = CreateChild<EmojiButton>(
+		container,
+		st::defaultComposeFiles.emoji);
+	toggle->show();
+	field->geometryValue() | rpl::on_next([=](QRect r) {
+		toggle->move(
+			r.x() + r.width() - toggle->width(),
+			r.y() - st::giftBoxEmojiToggleTop);
+	}, toggle->lifetime());
+
+	using namespace ChatHelpers;
+	const auto panel = field->lifetime().make_state<TabbedPanel>(
+		outer,
+		TabbedPanelDescriptor{
+			.ownedSelector = object_ptr<TabbedSelector>(
+				nullptr,
+				TabbedSelectorDescriptor{
+					.show = show,
+					.st = st::defaultEmojiPan,
+					.level = ChatHelpers::PauseReason::Layer,
+					.mode = TabbedSelector::Mode::EmojiOnly,
+				}),
+		});
+	panel->setDesiredHeightValues(
+		1.,
+		st::emojiPanMinHeight / 2,
+		st::emojiPanMinHeight);
+	panel->hide();
+	panel->selector()->setAllowEmojiWithoutPremium(true);
+	panel->selector()->emojiChosen(
+	) | rpl::on_next([=](ChatHelpers::EmojiChosen data) {
+		InsertEmojiAtCursor(field->textCursor(), data.emoji);
+	}, field->lifetime());
+	panel->selector()->customEmojiChosen(
+	) | rpl::on_next([=](ChatHelpers::FileChosen data) {
+		Data::InsertCustomEmoji(field, data.document);
+	}, field->lifetime());
+
+	const auto updateEmojiPanelGeometry = [=] {
+		const auto parent = panel->parentWidget();
+		const auto global = toggle->mapToGlobal({ 0, 0 });
+		const auto local = parent->mapFromGlobal(global);
+		panel->moveBottomRight(
+			local.y(),
+			local.x() + toggle->width() * 3);
+	};
+
+	const auto filterCallback = [=](not_null<QEvent*> event) {
+		const auto type = event->type();
+		if (type == QEvent::Move || type == QEvent::Resize) {
+			// updateEmojiPanelGeometry uses not only container geometry, but
+			// also container children geometries that will be updated later.
+			crl::on_main(field, updateEmojiPanelGeometry);
+		}
+		return base::EventFilterResult::Continue;
+	};
+	for (auto widget = (QWidget*)field, end = (QWidget*)outer->parentWidget()
+		; widget && widget != end
+		; widget = widget->parentWidget()) {
+		base::install_event_filter(field, widget, filterCallback);
+	}
+
+	toggle->installEventFilter(panel);
+	toggle->addClickHandler([=] {
+		panel->toggleAnimated();
+	});
+
+	const auto allow = [](not_null<DocumentData*>) {
+		return true;
+	};
+	InitMessageFieldHandlers({
+		.session = session,
+		.show = show,
+		.field = field,
+		.customEmojiPaused = [=] {
+			return show->paused(ChatHelpers::PauseReason::Layer);
+		},
+		.allowPremiumEmoji = allow,
+		.allowMarkdownTags = {
+			InputField::kTagBold,
+			InputField::kTagItalic,
+			InputField::kTagUnderline,
+			InputField::kTagStrikeOut,
+			InputField::kTagSpoiler,
+		}
+	});
+	Emoji::SuggestionsController::Init(
+		outer,
+		field,
+		session,
+		{ .suggestCustomEmoji = true, .allowCustomWithoutPremium = allow });
+
+	return field;
+}
 
 std::vector<not_null<UserData*>> CollectGiftFrequentUsers(
 		not_null<Main::Session*> session,
@@ -4266,7 +4297,17 @@ void SubmitTonForm(
 		uint64 formId,
 		CreditsAmount ton,
 		Fn<void(Payments::CheckoutResult, const MTPUpdates *)> done) {
-	const auto ready = [=] {
+	struct State {
+		rpl::lifetime lifetime;
+		bool completed = false;
+	};
+	const auto state = std::make_shared<State>();
+	const auto submit = [=] {
+		if (state->completed) {
+			return;
+		}
+		state->completed = true;
+		state->lifetime.destroy();
 		SendStarsFormRequest(
 			show,
 			Settings::SmallBalanceResult::Already,
@@ -4274,22 +4315,38 @@ void SubmitTonForm(
 			invoice,
 			done);
 	};
-	struct State {
-		rpl::lifetime lifetime;
-		bool success = false;
+	const auto cancel = [=] {
+		if (state->completed) {
+			return;
+		}
+		state->completed = true;
+		state->lifetime.destroy();
+		done(Payments::CheckoutResult::Cancelled, nullptr);
 	};
-	const auto state = std::make_shared<State>();
 
 	const auto session = &show->session();
 	session->credits().tonLoad();
 	session->credits().tonLoadedValue(
 	) | rpl::filter(rpl::mappers::_1) | rpl::on_next([=] {
-		state->lifetime.destroy();
-
 		if (session->credits().tonBalance() < ton) {
-			show->show(Box(Ui::InsufficientTonBox, session, ton));
+			state->lifetime.destroy();
+			if (!show->valid()) {
+				cancel();
+				return;
+			}
+			const auto weak = show->show(Box(
+				Ui::InsufficientTonBox,
+				session,
+				ton));
+			if (const auto strong = weak.get()) {
+				strong->boxClosing() | rpl::on_next(
+					cancel,
+					strong->lifetime());
+			} else {
+				cancel();
+			}
 		} else {
-			ready();
+			submit();
 		}
 	}, state->lifetime);
 }
@@ -4897,14 +4954,12 @@ void SendGiftBox(
 	messageWrap->toggleOn(state->messageAllowed.value());
 	messageWrap->finishAnimating();
 	const auto messageInner = messageWrap->entity();
-	const auto limit = StarGiftMessageLimit(session);
-	const auto text = AddPartInput(
-		window,
+	const auto text = AddStarGiftMessageField(
+		window->uiShow(),
 		messageInner,
 		box->getDelegate()->outerContainer(),
 		tr::lng_gift_send_message(),
-		QString(),
-		limit);
+		QString());
 	text->changes() | rpl::on_next([=] {
 		auto now = state->details.current();
 		auto textWithTags = text->getTextWithAppliedMarkdown();
@@ -4918,32 +4973,6 @@ void SendGiftBox(
 	box->setFocusCallback([=] {
 		text->setFocusFast();
 	});
-
-	const auto allow = [=](not_null<DocumentData*> emoji) {
-		return true;
-	};
-	InitMessageFieldHandlers({
-		.session = session,
-		.show = window->uiShow(),
-		.field = text,
-		.customEmojiPaused = [=] {
-			using namespace Window;
-			return window->isGifPausedAtLeastFor(GifPauseReason::Layer);
-		},
-		.allowPremiumEmoji = allow,
-		.allowMarkdownTags = {
-			InputField::kTagBold,
-			InputField::kTagItalic,
-			InputField::kTagUnderline,
-			InputField::kTagStrikeOut,
-			InputField::kTagSpoiler,
-		}
-	});
-	Emoji::SuggestionsController::Init(
-		box->getDelegate()->outerContainer(),
-		text,
-		session,
-		{ .suggestCustomEmoji = true, .allowCustomWithoutPremium = allow });
 	if (stars) {
 		if (costToUpgrade > 0 && !peer->isSelf() && !disallowLimited && !disallowUnique) {
 			const auto stargiftInfo = stars->info;
