@@ -594,6 +594,109 @@ bool AudioTranscoder::finish(not_null<AVFormatContext*> output) {
 	return EncodeAndWrite(_encoder.get(), _stream, output, nullptr);
 }
 
+class SilentAudioWriter final {
+public:
+	[[nodiscard]] bool init(not_null<AVFormatContext*> output);
+	[[nodiscard]] bool writeUntil(
+		not_null<AVFormatContext*> output,
+		crl::time position);
+	[[nodiscard]] bool finish(not_null<AVFormatContext*> output);
+
+private:
+	CodecPointer _encoder;
+	FramePointer _frame;
+	AVStream *_stream = nullptr;
+	int64 _pts = 0;
+
+};
+
+bool SilentAudioWriter::init(not_null<AVFormatContext*> output) {
+	const auto codec = avcodec_find_encoder(AV_CODEC_ID_AAC);
+	if (!codec) {
+		LogError(u"avcodec_find_encoder"_q, u"AAC"_q);
+		return false;
+	}
+	_stream = avformat_new_stream(output, codec);
+	if (!_stream) {
+		LogError(u"avformat_new_stream"_q, u"silent"_q);
+		return false;
+	}
+	_encoder = CodecPointer(avcodec_alloc_context3(codec));
+	if (!_encoder) {
+		LogError(u"avcodec_alloc_context3"_q, u"silent"_q);
+		return false;
+	}
+	av_channel_layout_default(&_encoder->ch_layout, 1);
+	_encoder->codec_type = AVMEDIA_TYPE_AUDIO;
+	_encoder->sample_fmt = AV_SAMPLE_FMT_FLTP;
+	_encoder->sample_rate = kAudioFrequency;
+	_encoder->time_base = AVRational{ 1, kAudioFrequency };
+	_encoder->bit_rate = kAudioBitratePerChannel;
+	if (output->oformat->flags & AVFMT_GLOBALHEADER) {
+		_encoder->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+	}
+	auto error = AvErrorWrap(avcodec_open2(_encoder.get(), codec, nullptr));
+	if (error) {
+		LogError(u"avcodec_open2"_q, error, u"silent"_q);
+		return false;
+	}
+	error = AvErrorWrap(avcodec_parameters_from_context(
+		_stream->codecpar,
+		_encoder.get()));
+	if (error) {
+		LogError(u"avcodec_parameters_from_context"_q, error, u"silent"_q);
+		return false;
+	}
+	_stream->time_base = _encoder->time_base;
+	_frame = MakeFramePointer();
+	if (!_frame) {
+		return false;
+	}
+	_frame->nb_samples = _encoder->frame_size;
+	_frame->format = _encoder->sample_fmt;
+	_frame->sample_rate = _encoder->sample_rate;
+	av_channel_layout_copy(&_frame->ch_layout, &_encoder->ch_layout);
+	error = AvErrorWrap(av_frame_get_buffer(_frame.get(), 0));
+	if (error) {
+		LogError(u"av_frame_get_buffer"_q, error, u"silent"_q);
+		return false;
+	}
+	return true;
+}
+
+bool SilentAudioWriter::writeUntil(
+		not_null<AVFormatContext*> output,
+		crl::time position) {
+	const auto samples = av_rescale_q(
+		std::max(position, crl::time(0)),
+		AVRational{ 1, 1000 },
+		_encoder->time_base);
+	const auto size = _encoder->frame_size;
+	while (_pts < samples) {
+		auto writable = AvErrorWrap(av_frame_make_writable(_frame.get()));
+		if (writable) {
+			LogError(u"av_frame_make_writable"_q, writable, u"silent"_q);
+			return false;
+		}
+		av_samples_set_silence(
+			_frame->extended_data,
+			0,
+			size,
+			_encoder->ch_layout.nb_channels,
+			_encoder->sample_fmt);
+		_frame->pts = _pts;
+		if (!EncodeAndWrite(_encoder.get(), _stream, output, _frame.get())) {
+			return false;
+		}
+		_pts += size;
+	}
+	return true;
+}
+
+bool SilentAudioWriter::finish(not_null<AVFormatContext*> output) {
+	return EncodeAndWrite(_encoder.get(), _stream, output, nullptr);
+}
+
 class EntityPlayer final {
 public:
 	explicit EntityPlayer(const AnimatedEntity &entity)
@@ -1086,9 +1189,22 @@ TranscodeResult TranscodeVideo(
 		? (till - from)
 		: ((totalDuration > from) ? (totalDuration - from) : crl::time(0));
 
-	auto decoder = MakeCodecPointer({ .stream = inVideoStream });
-	if (!decoder) {
-		return {};
+	// Only the audio track changes, so the frames are remuxed untouched
+	// instead of being decoded and encoded again at a quality loss.
+	const auto videoCodecId = inVideoStream->codecpar->codec_id;
+	const auto copyVideo = !plan.bake
+		&& !trimmed
+		&& !limiting
+		&& (plan.target == coded)
+		&& ((videoCodecId == AV_CODEC_ID_H264)
+			|| (videoCodecId == AV_CODEC_ID_HEVC));
+
+	auto decoder = CodecPointer();
+	if (!copyVideo) {
+		decoder = MakeCodecPointer({ .stream = inVideoStream });
+		if (!decoder) {
+			return {};
+		}
 	}
 
 	auto temp = QTemporaryFile(TempFileTemplate());
@@ -1129,20 +1245,43 @@ TranscodeResult TranscodeVideo(
 	const auto bitrate = (!plan.bake && sourceBitrate > 0)
 		? std::min(targetBitrate, sourceBitrate)
 		: targetBitrate;
-	auto video = CreateH264Encoder(
-		output.get(),
-		target,
-		bitrate,
-		int(base::SafeRound((fps > 1. && fps < 121.) ? fps : 30.)),
-		ReadColorDescription(inVideoStream->codecpar, plan.bake));
-	if (!video.codec) {
-		return {};
+	auto outVideoStream = (AVStream*)nullptr;
+	auto encoder = CodecPointer();
+	if (copyVideo) {
+		outVideoStream = avformat_new_stream(output.get(), nullptr);
+		if (!outVideoStream) {
+			LogError(u"avformat_new_stream"_q, u"video"_q);
+			return {};
+		}
+		error = AvErrorWrap(avcodec_parameters_copy(
+			outVideoStream->codecpar,
+			inVideoStream->codecpar));
+		if (error) {
+			LogError(u"avcodec_parameters_copy"_q, error, u"video"_q);
+			return {};
+		}
+		outVideoStream->codecpar->codec_tag = 0;
+		outVideoStream->time_base = inVideoStream->time_base;
+	} else {
+		auto video = CreateH264Encoder(
+			output.get(),
+			target,
+			bitrate,
+			int(base::SafeRound((fps > 1. && fps < 121.) ? fps : 30.)),
+			ReadColorDescription(inVideoStream->codecpar, plan.bake));
+		if (!video.codec) {
+			return {};
+		}
+		outVideoStream = video.stream;
+		encoder = std::move(video.codec);
+		if (!plan.bake) {
+			CopyDisplayMatrix(inVideoStream, outVideoStream);
+		}
 	}
-	const auto outVideoStream = video.stream;
-	auto encoder = std::move(video.codec);
-	if (!plan.bake) {
-		CopyDisplayMatrix(inVideoStream, outVideoStream);
-	}
+	// The muxer may change the stream time base while writing the header.
+	const auto videoTimeBase = [&] {
+		return copyVideo ? outVideoStream->time_base : encoder->time_base;
+	};
 
 	const auto inAudioStream = (audioId >= 0)
 		? input->streams[audioId]
@@ -1175,6 +1314,14 @@ TranscodeResult TranscodeVideo(
 			}
 			outAudioStream->codecpar->codec_tag = 0;
 			outAudioStream->time_base = inAudioStream->time_base;
+		}
+	}
+
+	auto silentAudio = std::optional<SilentAudioWriter>();
+	if (!inAudioStream && source.silentAudio) {
+		silentAudio.emplace();
+		if (!silentAudio->init(output.get())) {
+			return {};
 		}
 	}
 
@@ -1386,6 +1533,13 @@ TranscodeResult TranscodeVideo(
 				failed = true;
 				return false;
 			}
+			if (silentAudio
+				&& !silentAudio->writeUntil(
+					output.get(),
+					PtsToTime(pts, encoder->time_base))) {
+				failed = true;
+				return false;
+			}
 			if (progress && span > 0) {
 				const auto done = PtsToTime(pts, encoder->time_base);
 				const auto value = std::clamp(done / float64(span), 0., 1.);
@@ -1410,6 +1564,42 @@ TranscodeResult TranscodeVideo(
 		});
 
 		if (packet->stream_index == videoId) {
+			if (copyVideo) {
+				av_packet_rescale_ts(
+					packet,
+					inVideoStream->time_base,
+					outVideoStream->time_base);
+				packet->stream_index = outVideoStream->index;
+				packet->pos = -1;
+				if (packet->pts != AV_NOPTS_VALUE) {
+					lastVideoPts = std::max(lastVideoPts, packet->pts);
+				}
+				++emitted;
+				auto written = AvErrorWrap(av_interleaved_write_frame(
+					output.get(),
+					packet));
+				if (written) {
+					LogError(u"av_interleaved_write_frame"_q, written);
+					return {};
+				}
+				const auto done = PtsToTime(
+					lastVideoPts,
+					outVideoStream->time_base);
+				if (silentAudio
+					&& !silentAudio->writeUntil(output.get(), done)) {
+					return {};
+				}
+				if (progress && span > 0) {
+					const auto value = std::clamp(
+						done / float64(span),
+						0.,
+						1.);
+					if (!progress(value)) {
+						return {};
+					}
+				}
+				continue;
+			}
 			auto sent = AvErrorWrap(avcodec_send_packet(
 				decoder.get(),
 				packet));
@@ -1466,17 +1656,29 @@ TranscodeResult TranscodeVideo(
 		}
 	}
 
-	if (!reachedEnd && avcodec_send_packet(decoder.get(), nullptr) >= 0) {
+	if (!copyVideo
+		&& !reachedEnd
+		&& avcodec_send_packet(decoder.get(), nullptr) >= 0) {
 		drainDecoder();
 	}
 	if (failed || !emitted) {
 		return {};
 	}
-	if (!writeEncoded(nullptr)) {
+	if (!copyVideo && !writeEncoded(nullptr)) {
 		return {};
 	}
 	if (audioTranscoder && !audioTranscoder->finish(output.get())) {
 		return {};
+	}
+	const auto step = (fps > 0.)
+		? crl::time(base::SafeRound(1000. / fps))
+		: crl::time(0);
+	if (silentAudio) {
+		const auto until = PtsToTime(lastVideoPts, videoTimeBase()) + step;
+		if (!silentAudio->writeUntil(output.get(), until)
+			|| !silentAudio->finish(output.get())) {
+			return {};
+		}
 	}
 
 	error = AvErrorWrap(av_write_trailer(output.get()));
@@ -1497,9 +1699,6 @@ TranscodeResult TranscodeVideo(
 				crl::time(0))
 			: crl::time(0);
 	}
-	const auto step = (fps > 0.)
-		? crl::time(base::SafeRound(1000. / fps))
-		: crl::time(0);
 	// What a player shows, which differs from the encoder target when the
 	// geometry was not baked in.
 	const auto shown = plan.bake
@@ -1509,7 +1708,7 @@ TranscodeResult TranscodeVideo(
 		.path = path,
 		.cover = std::move(cover),
 		.dimensions = shown,
-		.duration = PtsToTime(lastVideoPts, encoder->time_base) + step,
+		.duration = PtsToTime(lastVideoPts, videoTimeBase()) + step,
 	};
 	result.coverOffset = coverOffset;
 	temp.setAutoRemove(false);

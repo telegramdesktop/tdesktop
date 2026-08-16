@@ -47,6 +47,8 @@ struct VideoSource {
 	crl::time till = 0;
 
 	bool removeAudio = false;
+
+	bool silentAudio = false;
 	float64 fpsLimit = 0.;
 
 	crl::time coverPosition = -1;
