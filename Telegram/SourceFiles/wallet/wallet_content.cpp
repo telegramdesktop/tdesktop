@@ -1379,7 +1379,16 @@ private:
 
 };
 
-constexpr auto kOnrampMethodMappings = std::array<OnrampMethodMapping, 0>{};
+constexpr auto kOnrampMethodMappings = std::array{
+	OnrampMethodMapping{
+		.method = u"p2p_express",
+		.presentation = OnrampRoutePresentation::P2p,
+	},
+	OnrampMethodMapping{
+		.method = u"credit_debit_card",
+		.presentation = OnrampRoutePresentation::BankCard,
+	},
+};
 
 [[nodiscard]] auto OnrampPresentationForMethod(const QString &method)
 -> std::optional<OnrampRoutePresentation> {
