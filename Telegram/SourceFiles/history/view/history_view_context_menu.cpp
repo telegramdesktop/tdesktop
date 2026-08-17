@@ -951,7 +951,9 @@ bool AddEditMessageAction(
 	}
 	const auto item = [&]() -> HistoryItem* {
 		const auto base = request.item;
-		const auto view = base->groupId() ? request.view : nullptr;
+		const auto view = (request.overSelection && base->groupId())
+			? request.view
+			: nullptr;
 		if (!view) {
 			return base;
 		} else if (const auto quoteItem = request.quote.item) {
