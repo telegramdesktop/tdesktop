@@ -3245,7 +3245,7 @@ void ComposeControls::updateFieldPlaceholder() {
 			const auto topicRootId = replyToMessage
 				? replyToMessage->topicRootId()
 				: replyTo.topicRootId;
-			if (channel->isForum() && topicRootId) {
+			if (channel->isForum() && topicRootId && !_topicRootId) {
 				auto topic = static_cast<Data::ForumTopic*>(nullptr);
 				if (const auto forum = channel->forum()) {
 					topic = forum->enforceTopicFor(topicRootId);
