@@ -1180,12 +1180,10 @@ void ShowBuyResaleGiftBox(
 		});
 
 		const auto container = box->verticalLayout();
-		auto subtitle = to->isSelf()
-			? tr::lng_action_gift_self_subtitle(tr::bold)
-			: tr::lng_action_gift_sent_subtitle(
-				lt_user,
-				rpl::single(tr::marked(to->shortName())),
-				tr::bold);
+		const auto initiallyTon = gift->onlyAcceptTon || forceTon;
+		const auto initialCost = initiallyTon
+			? Data::FormatGiftResaleTon(*gift)
+			: Data::FormatGiftResaleStars(*gift);
 		auto message = rpl::combine(
 			state->message.value(),
 			tr::lng_gift_send_message_preview(),
@@ -1201,16 +1199,12 @@ void ShowBuyResaleGiftBox(
 				.hidden = hidden,
 			};
 		});
-		Ui::AddUniqueGiftCover(
+		container->add(Ui::MakeUniqueGiftPreview(
 			container,
-			rpl::single(Ui::UniqueGiftCover{ .values = *gift }),
-			{
-				.numberText = rpl::single((gift->number > 0)
-					? (u"#"_q + Lang::FormatCountDecimal(gift->number))
-					: QString()),
-				.subtitle = std::move(subtitle),
-				.message = std::move(message),
-			});
+			to,
+			gift,
+			initialCost,
+			std::move(message)));
 
 		const auto field = Ui::AddStarGiftMessageField(
 			show,
@@ -1251,10 +1245,6 @@ void ShowBuyResaleGiftBox(
 				lt_recipient,
 				rpl::single(to->shortName())));
 
-		const auto initiallyTon = gift->onlyAcceptTon || forceTon;
-		const auto initialCost = initiallyTon
-			? Data::FormatGiftResaleTon(*gift)
-			: Data::FormatGiftResaleStars(*gift);
 		const auto button = box->addButton(rpl::single(QString()), [=] {
 			if (state->confirmationOpen || state->attempt->inFlight) {
 				return;

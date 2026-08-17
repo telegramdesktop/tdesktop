@@ -2840,7 +2840,16 @@ std::unique_ptr<HistoryView::Media> MediaGiftBox::createView(
 	} else if (const auto &unique = _data.unique) {
 		return std::make_unique<HistoryView::MediaGeneric>(
 			message,
-			HistoryView::GenerateUniqueGiftMedia(message, replacing, unique),
+			HistoryView::GenerateUniqueGiftMedia(message, replacing, {
+				.gift = unique,
+				.message = (_data.messageFromUniqueAction
+					? _data.message
+					: tr::marked()),
+				.messageAuthor = (_data.anonymous
+					? nullptr
+					: _data.messageAuthor),
+				.upgrade = _data.upgrade,
+			}),
 			HistoryView::MediaGenericDescriptor{
 				.maxWidth = st::msgServiceGiftBoxSize.width(),
 				.paintBgFactory = [=] {

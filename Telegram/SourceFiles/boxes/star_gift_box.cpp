@@ -282,22 +282,29 @@ private:
 
 };
 
+struct PreviewContent {
+	TextWithEntities service;
+	Fn<std::unique_ptr<MediaGeneric>(
+		not_null<Element*> parent,
+		Element *replacing)> media;
+	bool outgoing = false;
+};
+
 class PreviewWrap final : public RpWidget {
 public:
 	PreviewWrap(
 		not_null<QWidget*> parent,
-		not_null<PeerData*> recipient,
-		rpl::producer<GiftSendDetails> details);
+		not_null<History*> history,
+		rpl::producer<PreviewContent> content);
 	~PreviewWrap();
 
 private:
 	void paintEvent(QPaintEvent *e) override;
 
 	void resizeTo(int width);
-	void prepare(rpl::producer<GiftSendDetails> details);
+	void prepare(rpl::producer<PreviewContent> content);
 
 	const not_null<History*> _history;
-	const not_null<PeerData*> _recipient;
 	const std::unique_ptr<ChatTheme> _theme;
 	const std::unique_ptr<ChatStyle> _style;
 	const std::unique_ptr<PreviewDelegate> _delegate;
@@ -564,13 +571,90 @@ auto GenerateGiftMedia(
 	};
 }
 
+[[nodiscard]] TextWithEntities ResaleGiftServiceText(
+		not_null<PeerData*> recipient,
+		const TextWithEntities &cost) {
+	return recipient->isSelf()
+		? tr::lng_action_gift_self_bought(
+			tr::now,
+			lt_cost,
+			cost,
+			tr::marked)
+		: recipient->isBroadcast()
+		? tr::lng_action_gift_sent_self_channel(
+			tr::now,
+			lt_name,
+			tr::marked(recipient->name()),
+			lt_cost,
+			cost,
+			tr::marked)
+		: tr::lng_action_gift_sent(
+			tr::now,
+			lt_cost,
+			cost,
+			tr::marked);
+}
+
+[[nodiscard]] PreviewContent GiftPreviewContent(
+		not_null<PeerData*> recipient,
+		const GiftSendDetails &details) {
+	const auto &descriptor = details.descriptor;
+	const auto cost = v::match(descriptor, [&](GiftTypePremium data) {
+		const auto stars = (details.byStars && data.stars)
+			? data.stars
+			: (data.currency == kCreditsCurrency)
+			? data.cost
+			: 0;
+		return stars
+			? tr::lng_gift_stars_title(tr::now, lt_count, stars)
+			: FillAmountAndCurrency(data.cost, data.currency, true);
+	}, [&](GiftTypeStars data) {
+		const auto stars = data.info.stars
+			+ (details.upgraded ? data.info.starsToUpgrade : 0);
+		return stars
+			? tr::lng_gift_stars_title(tr::now, lt_count, stars)
+			: QString();
+	});
+	const auto name = recipient->session().user()->shortName();
+	const auto text = cost.isEmpty()
+		? tr::lng_action_gift_unique_received(tr::now, lt_user, name)
+		: recipient->isSelf()
+		? tr::lng_action_gift_self_bought(tr::now, lt_cost, cost)
+		: recipient->isBroadcast()
+		? tr::lng_action_gift_sent_channel(
+			tr::now,
+			lt_user,
+			name,
+			lt_name,
+			recipient->name(),
+			lt_cost,
+			cost)
+		: tr::lng_action_gift_received(
+			tr::now,
+			lt_user,
+			name,
+			lt_cost,
+			cost);
+	return {
+		.service = tr::marked(text),
+		.media = [=](not_null<Element*> parent, Element *replacing) {
+			return std::make_unique<MediaGeneric>(
+				parent,
+				GenerateGiftMedia(parent, replacing, recipient, details),
+				MediaGenericDescriptor{
+					.maxWidth = st::chatGiftPreviewWidth,
+					.service = true,
+				});
+		},
+	};
+}
+
 PreviewWrap::PreviewWrap(
 	not_null<QWidget*> parent,
-	not_null<PeerData*> recipient,
-	rpl::producer<GiftSendDetails> details)
+	not_null<History*> history,
+	rpl::producer<PreviewContent> content)
 : RpWidget(parent)
-, _history(recipient->owner().history(recipient->session().userPeerId()))
-, _recipient(recipient)
+, _history(history)
 , _theme(Window::Theme::DefaultChatThemeOn(lifetime()))
 , _style(std::make_unique<ChatStyle>(
 	_history->session().colorIndicesValue()))
@@ -593,7 +677,7 @@ PreviewWrap::PreviewWrap(
 		update();
 	}, lifetime());
 
-	prepare(std::move(details));
+	prepare(std::move(content));
 }
 
 void ShowSentToast(
@@ -682,61 +766,24 @@ PreviewWrap::~PreviewWrap() {
 	_item = {};
 }
 
-void PreviewWrap::prepare(rpl::producer<GiftSendDetails> details) {
-	std::move(details) | rpl::on_next([=](GiftSendDetails details) {
-		const auto &descriptor = details.descriptor;
-		const auto cost = v::match(descriptor, [&](GiftTypePremium data) {
-			const auto stars = (details.byStars && data.stars)
-				? data.stars
-				: (data.currency == kCreditsCurrency)
-				? data.cost
-				: 0;
-			return stars
-				? tr::lng_gift_stars_title(tr::now, lt_count, stars)
-				: FillAmountAndCurrency(data.cost, data.currency, true);
-		}, [&](GiftTypeStars data) {
-			const auto stars = data.info.stars
-				+ (details.upgraded ? data.info.starsToUpgrade : 0);
-			return stars
-				? tr::lng_gift_stars_title(tr::now, lt_count, stars)
-				: QString();
-		});
-		const auto name = _history->session().user()->shortName();
-		const auto text = cost.isEmpty()
-			? tr::lng_action_gift_unique_received(tr::now, lt_user, name)
-			: _recipient->isSelf()
-			? tr::lng_action_gift_self_bought(tr::now, lt_cost, cost)
-			: _recipient->isBroadcast()
-			? tr::lng_action_gift_sent_channel(
-				tr::now,
-				lt_user,
-				name,
-				lt_name,
-				_recipient->name(),
-				lt_cost,
-				cost)
-			: tr::lng_action_gift_received(
-				tr::now,
-				lt_user,
-				name,
-				lt_cost,
-				cost);
+void PreviewWrap::prepare(rpl::producer<PreviewContent> content) {
+	std::move(content) | rpl::on_next([=](PreviewContent content) {
 		const auto item = _history->makeMessage({
 			.id = _history->nextNonHistoryEntryId(),
 			.flags = (MessageFlag::FakeAboutView
 				| MessageFlag::FakeHistoryItem
-				| MessageFlag::Local),
-			.from = _history->peer->id,
-		}, PreparedServiceText{ { text } });
+				| MessageFlag::HasFromId
+				| MessageFlag::Local
+				| (content.outgoing
+					? MessageFlag::Outgoing
+					: MessageFlag())),
+			.from = (content.outgoing
+				? _history->session().userPeerId()
+				: _history->peer->id),
+		}, PreparedServiceText{ std::move(content.service) });
 
 		auto owned = AdminLog::OwnedItem(_delegate.get(), item);
-		owned->overrideMedia(std::make_unique<MediaGeneric>(
-			owned.get(),
-			GenerateGiftMedia(owned.get(), _item.get(), _recipient, details),
-			MediaGenericDescriptor{
-				.maxWidth = st::chatGiftPreviewWidth,
-				.service = true,
-			}));
+		owned->overrideMedia(content.media(owned.get(), _item.get()));
 		_item = std::move(owned);
 		if (width() >= st::msgMinWidth) {
 			resizeTo(width());
@@ -2341,6 +2388,49 @@ not_null<InputField*> AddStarGiftMessageField(
 		{ .suggestCustomEmoji = true, .allowCustomWithoutPremium = allow });
 
 	return field;
+}
+
+object_ptr<RpWidget> MakeUniqueGiftPreview(
+		not_null<QWidget*> parent,
+		not_null<PeerData*> recipient,
+		std::shared_ptr<Data::UniqueGift> gift,
+		TextWithEntities cost,
+		rpl::producer<UniqueGiftCoverMessage> message) {
+	using namespace HistoryView;
+
+	auto service = ResaleGiftServiceText(recipient, cost);
+	const auto cache = std::make_shared<UniqueGiftBgCache>();
+	return object_ptr<PreviewWrap>(
+		parent,
+		recipient->owner().history(recipient),
+		std::move(message) | rpl::map([=](UniqueGiftCoverMessage value) {
+			return PreviewContent{
+				.service = service,
+				.media = [=](
+						not_null<Element*> parent,
+						Element *replacing) {
+					return std::make_unique<MediaGeneric>(
+						parent,
+						GenerateUniqueGiftMedia(parent, replacing, {
+							.gift = gift,
+							.message = value.text,
+							.messagePlaceholder = value.placeholder,
+							.messageAuthor = (value.hidden
+								? nullptr
+								: value.sender.get()),
+							.skipViewAction = true,
+						}),
+						MediaGenericDescriptor{
+							.maxWidth = st::msgServiceGiftBoxSize.width(),
+							.paintBgFactory = [=] {
+								return UniqueGiftBg(parent, gift, cache);
+							},
+							.service = true,
+						});
+				},
+				.outgoing = true,
+			};
+		}));
 }
 
 std::vector<not_null<UserData*>> CollectGiftFrequentUsers(
@@ -4944,8 +5034,10 @@ void SendGiftBox(
 	const auto container = box->verticalLayout();
 	container->add(object_ptr<PreviewWrap>(
 		container,
-		peer,
-		state->details.value()));
+		peer->owner().history(peer->session().userPeerId()),
+		state->details.value() | rpl::map([=](GiftSendDetails details) {
+			return GiftPreviewContent(peer, details);
+		})));
 
 	const auto messageWrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(

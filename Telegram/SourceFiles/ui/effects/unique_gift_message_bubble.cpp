@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/unique_gift_message_bubble.h"
 
+#include "ui/text/text.h"
 #include "ui/painter.h"
 
 #include <QtGui/QPainterPath>
@@ -86,6 +87,26 @@ int MaximumTextWidth(
 		hostPadding,
 		outerWidth,
 		naturalTextWidth).text;
+}
+
+Layout ResolveLayout(
+		const style::UniqueGiftMessageBubble &st,
+		const QMargins &hostPadding,
+		int outerWidth,
+		const Text::String &text) {
+	const auto maximum = MaximumTextWidth(
+		st,
+		hostPadding,
+		outerWidth,
+		text.maxWidth());
+	const auto minimum = ResolveWidths(st, hostPadding, outerWidth, 0).text;
+	const auto size = Text::CountOptimalTextSize(text, minimum, maximum);
+	return ComputeLayout(
+		st,
+		hostPadding,
+		outerWidth,
+		std::max(text.countWidth(size.width()), minimum),
+		size.height());
 }
 
 Layout ComputeLayout(

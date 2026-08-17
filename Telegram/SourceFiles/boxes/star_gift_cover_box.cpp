@@ -71,16 +71,14 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	[[nodiscard]] UniqueGiftMessageBubble::Layout computeLayout(
-		int outerWidth) const;
 	void setMessage(const UniqueGiftCoverMessage &message);
 	void replaceImage(not_null<PeerData*> sender, bool hidden);
 
 	Text::String _text = { 1 };
 	std::shared_ptr<DynamicImage> _image;
+	UniqueGiftMessageBubble::Layout _layout;
 	PeerData *_sender = nullptr;
 	bool _hidden = false;
-	bool _placeholder = false;
 
 };
 
@@ -101,69 +99,46 @@ UniqueGiftCoverMessageWidget::~UniqueGiftCoverMessageWidget() {
 }
 
 int UniqueGiftCoverMessageWidget::resizeGetHeight(int newWidth) {
-	return computeLayout(newWidth).sectionHeight;
+	_layout = UniqueGiftMessageBubble::ResolveLayout(
+		st::chatUniqueMessageBubble,
+		st::uniqueGiftMessagePadding,
+		newWidth,
+		_text);
+	return _layout.sectionHeight;
 }
 
 void UniqueGiftCoverMessageWidget::paintEvent(QPaintEvent *e) {
 	auto p = Painter(this);
-	const auto layout = computeLayout(width());
 	UniqueGiftMessageBubble::Paint(
 		p,
 		st::chatUniqueMessageBubble,
-		layout);
+		_layout);
 	if (_image) {
 		p.drawImage(
-			layout.avatar,
+			_layout.avatar,
 			_image->image(st::chatUniqueMessageBubble.avatarSize));
 	}
 
-	auto textColor = QColor(Qt::white);
-	if (_placeholder) {
-		textColor.setAlphaF(st::uniqueGiftMessagePlaceholderOpacity);
-	}
-	p.setPen(textColor);
+	p.setPen(Qt::white);
 	_text.draw(p, {
-		.position = layout.text.topLeft(),
+		.position = _layout.text.topLeft(),
 		.outerWidth = width(),
-		.availableWidth = layout.text.width(),
+		.availableWidth = _layout.text.width(),
 		.align = style::al_topleft,
 		.spoiler = Text::DefaultSpoilerCache(),
 		.now = crl::now(),
 		.pausedEmoji = On(PowerSaving::kEmojiChat),
 		.pausedSpoiler = On(PowerSaving::kChatSpoiler),
 		.elisionLines = 0,
-		.elisionBreakEverywhere = true,
 	});
-}
-
-auto UniqueGiftCoverMessageWidget::computeLayout(int outerWidth) const
--> UniqueGiftMessageBubble::Layout {
-	const auto textWidth = UniqueGiftMessageBubble::MaximumTextWidth(
-		st::chatUniqueMessageBubble,
-		st::uniqueGiftMessagePadding,
-		outerWidth,
-		_text.maxWidth());
-	const auto textHeight = textWidth
-		? _text.countHeight(textWidth, true)
-		: 0;
-	return UniqueGiftMessageBubble::ComputeLayout(
-		st::chatUniqueMessageBubble,
-		st::uniqueGiftMessagePadding,
-		outerWidth,
-		textWidth,
-		textHeight);
 }
 
 void UniqueGiftCoverMessageWidget::setMessage(
 		const UniqueGiftCoverMessage &message) {
 	replaceImage(message.sender, message.hidden);
-	_placeholder = message.text.empty();
-	const auto displayed = _placeholder
-		? tr::marked(message.placeholder)
-		: message.text;
 	_text.setMarkedText(
 		st::chatUniqueTextStyle,
-		displayed,
+		message.text,
 		kMarkupTextOptions,
 		Core::TextContext({
 			.session = &message.sender->session(),

@@ -17,6 +17,10 @@ namespace style {
 struct UniqueGiftMessageBubble;
 } // namespace style
 
+namespace Ui::Text {
+class String;
+} // namespace Ui::Text
+
 namespace Ui::UniqueGiftMessageBubble {
 
 struct Layout {
@@ -33,6 +37,12 @@ struct Layout {
 	const QMargins &hostPadding,
 	int outerWidth,
 	int naturalTextWidth);
+
+[[nodiscard]] Layout ResolveLayout(
+	const style::UniqueGiftMessageBubble &st,
+	const QMargins &hostPadding,
+	int outerWidth,
+	const Text::String &text);
 
 [[nodiscard]] Layout ComputeLayout(
 	const style::UniqueGiftMessageBubble &st,

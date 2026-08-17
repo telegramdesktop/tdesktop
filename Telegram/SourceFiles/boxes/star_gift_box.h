@@ -76,6 +76,13 @@ class VerticalLayout;
 	rpl::producer<QString> placeholder,
 	QString current);
 
+[[nodiscard]] object_ptr<RpWidget> MakeUniqueGiftPreview(
+	not_null<QWidget*> parent,
+	not_null<PeerData*> recipient,
+	std::shared_ptr<Data::UniqueGift> gift,
+	TextWithEntities cost,
+	rpl::producer<UniqueGiftCoverMessage> message);
+
 void ChooseStarGiftRecipient(
 	not_null<Window::SessionController*> controller);
 
