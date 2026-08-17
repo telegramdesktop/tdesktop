@@ -511,8 +511,125 @@ void PaintRowAvatar(Painter &p, QRect rect, RowAvatar avatar) {
 	icon->paintInCenter(p, rect);
 }
 
+struct HistoryRowChipState {
+	Gram::NftKind kind = Gram::NftKind::Generic;
+	Ui::Text::String title;
+	Ui::Text::String subtitle;
+	int natural = 0;
+};
+
+class HistoryRowButton final : public Ui::SettingsButton {
+public:
+	using Ui::SettingsButton::SettingsButton;
+
+	void setPaintUnderRipple(Fn<void(Painter&)> paint);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	Fn<void(Painter&)> _paintUnderRipple;
+
+};
+
+void HistoryRowButton::setPaintUnderRipple(Fn<void(Painter&)> paint) {
+	_paintUnderRipple = std::move(paint);
+	update();
+}
+
+void HistoryRowButton::paintEvent(QPaintEvent *e) {
+	auto p = Painter(this);
+	const auto over = (isOver() || isDown()) && !isDisabled();
+	paintBg(p, e->rect(), over);
+	if (_paintUnderRipple) {
+		_paintUnderRipple(p);
+	}
+	paintRipple(p, 0, 0);
+	const auto outerw = width();
+	paintText(p, over, outerw);
+	paintToggle(p, outerw);
+}
+
+void PaintHistoryRowChipSurface(
+		Painter &p,
+		int outerWidth,
+		const HistoryRowChipState &state,
+		const std::shared_ptr<CollectibleMedia> &media,
+		const Gram::Address &address) {
+	const auto side = st::walletRowIconSize;
+	const auto radius = st::walletCollectibleThumbRadius;
+	const auto plate = std::min(state.natural, outerWidth);
+	const auto rtl = style::RightToLeft();
+	const auto plateLeft = rtl ? (outerWidth - plate) : 0;
+	const auto square = QRect(rtl ? (outerWidth - side) : 0, 0, side, side);
+	const auto dark = (state.kind == Gram::NftKind::TelegramUsername)
+		|| (state.kind == Gram::NftKind::TelegramNumber);
+	{
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::windowBgOver);
+		p.drawRoundedRect(
+			QRect(plateLeft, 0, plate, side),
+			radius,
+			radius);
+		if (dark) {
+			p.setBrush(st::callBgOpaque);
+			p.drawRoundedRect(square, radius, radius);
+		}
+	}
+	if (state.kind == Gram::NftKind::TelegramUsername) {
+		st::walletChipUsernameIcon.paintInCenter(p, square);
+	} else if (state.kind == Gram::NftKind::TelegramNumber) {
+		st::walletChipNumberIcon.paintInCenter(p, square);
+	} else {
+		media->paint(p, address, square, outerWidth, radius);
+	}
+}
+
+void PaintHistoryRowChipText(
+		Painter &p,
+		int outerWidth,
+		const HistoryRowChipState &state) {
+	const auto side = st::walletRowIconSize;
+	const auto plate = std::min(state.natural, outerWidth);
+	const auto rtl = style::RightToLeft();
+	const auto plateLeft = rtl ? (outerWidth - plate) : 0;
+	const auto available = plate
+		- side
+		- st::walletChipTextSkip
+		- st::walletChipPadding.right();
+	if (available <= 0) {
+		return;
+	}
+	const auto textLeft = rtl
+		? (plateLeft + st::walletChipPadding.right())
+		: (side + st::walletChipTextSkip);
+	const auto titleHeight = st::walletCollectibleTitleStyle.font->height;
+	const auto subtitleHeight = st::walletRowDateLabel.style.font->height;
+	const auto top = (side
+		- titleHeight
+		- st::walletRowSkip
+		- subtitleHeight) / 2;
+	p.setPen(st::windowBoldFg);
+	state.title.draw(p, {
+		.position = { textLeft, top },
+		.outerWidth = outerWidth,
+		.availableWidth = available,
+		.palette = &st::walletCollectibleTitlePalette,
+		.elisionLines = 1,
+	});
+	p.setPen(st::windowSubTextFg);
+	state.subtitle.draw(p, {
+		.position = { textLeft, top + titleHeight + st::walletRowSkip },
+		.outerWidth = outerWidth,
+		.availableWidth = available,
+		.elisionLines = 1,
+	});
+}
+
 void AddHistoryRowChip(
 		not_null<Ui::VerticalLayout*> inner,
+		not_null<HistoryRowButton*> button,
 		std::shared_ptr<CollectibleMedia> media,
 		Gram::Address address) {
 	Ui::AddSkip(inner, st::walletChipTopSkip);
@@ -520,13 +637,11 @@ void AddHistoryRowChip(
 		inner,
 		st::walletRowIconSize));
 	chip->setAttribute(Qt::WA_TransparentForMouseEvents);
-	struct State {
-		Gram::NftKind kind = Gram::NftKind::Generic;
-		Ui::Text::String title;
-		Ui::Text::String subtitle;
-		int natural = 0;
+	const auto state = chip->lifetime().make_state<HistoryRowChipState>();
+	const auto repaint = [=] {
+		chip->update();
+		button->update(Ui::MapFrom(button, chip, chip->rect()));
 	};
-	const auto state = chip->lifetime().make_state<State>();
 	const auto refresh = [=] {
 		const auto view = media->view(address);
 		state->kind = view.kind;
@@ -551,81 +666,26 @@ void AddHistoryRowChip(
 			+ st::walletChipTextSkip
 			+ std::max(state->title.maxWidth(), state->subtitle.maxWidth())
 			+ st::walletChipPadding.right();
-		chip->update();
+		repaint();
 	};
 	chip->paintRequest(
 	) | rpl::on_next([=] {
 		auto p = Painter(chip);
-		const auto width = chip->width();
-		const auto side = st::walletRowIconSize;
-		const auto radius = st::walletCollectibleThumbRadius;
-		const auto plate = std::min(state->natural, width);
-		const auto rtl = style::RightToLeft();
-		const auto plateLeft = rtl ? (width - plate) : 0;
-		const auto square = QRect(rtl ? (width - side) : 0, 0, side, side);
-		const auto dark = (state->kind == Gram::NftKind::TelegramUsername)
-			|| (state->kind == Gram::NftKind::TelegramNumber);
-		{
-			auto hq = PainterHighQualityEnabler(p);
-			p.setPen(Qt::NoPen);
-			p.setBrush(st::windowBgOver);
-			p.drawRoundedRect(
-				QRect(plateLeft, 0, plate, side),
-				radius,
-				radius);
-			if (dark) {
-				p.setBrush(st::callBgOpaque);
-				p.drawRoundedRect(square, radius, radius);
-			}
-		}
-		if (state->kind == Gram::NftKind::TelegramUsername) {
-			st::walletChipUsernameIcon.paintInCenter(p, square);
-		} else if (state->kind == Gram::NftKind::TelegramNumber) {
-			st::walletChipNumberIcon.paintInCenter(p, square);
-		} else {
-			media->paint(p, address, square, width, radius);
-		}
-		const auto available = plate
-			- side
-			- st::walletChipTextSkip
-			- st::walletChipPadding.right();
-		if (available <= 0) {
-			return;
-		}
-		const auto textLeft = rtl
-			? (plateLeft + st::walletChipPadding.right())
-			: (side + st::walletChipTextSkip);
-		const auto titleHeight = st::walletCollectibleTitleStyle.font->height;
-		const auto subtitleHeight = st::walletRowDateLabel.style.font->height;
-		const auto top = (side
-			- titleHeight
-			- st::walletRowSkip
-			- subtitleHeight) / 2;
-		p.setPen(st::windowBoldFg);
-		state->title.draw(p, {
-			.position = { textLeft, top },
-			.outerWidth = width,
-			.availableWidth = available,
-			.palette = &st::walletCollectibleTitlePalette,
-			.elisionLines = 1,
-		});
-		p.setPen(st::windowSubTextFg);
-		state->subtitle.draw(p, {
-			.position = { textLeft, top + titleHeight + st::walletRowSkip },
-			.outerWidth = width,
-			.availableWidth = available,
-			.elisionLines = 1,
-		});
+		PaintHistoryRowChipText(p, chip->width(), *state);
 	}, chip->lifetime());
+	button->setPaintUnderRipple([=](Painter &p) {
+		const auto origin = Ui::MapFrom(button, chip, QPoint());
+		p.translate(origin);
+		PaintHistoryRowChipSurface(p, chip->width(), *state, media, address);
+		p.translate(-origin);
+	});
 	const auto mine = [=](const Gram::Address &changed) {
 		return (changed == address);
 	};
 	media->changed(
 	) | rpl::filter(mine) | rpl::on_next(refresh, chip->lifetime());
 	media->repaint(
-	) | rpl::filter(mine) | rpl::on_next([=] {
-		chip->update();
-	}, chip->lifetime());
+	) | rpl::filter(mine) | rpl::on_next(repaint, chip->lifetime());
 	media->resolve(address);
 	refresh();
 }
@@ -642,6 +702,10 @@ void AddHistoryRow(
 			st::walletRowPadding));
 	const auto inner = wrap->entity();
 	inner->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto button = Ui::CreateChild<HistoryRowButton>(
+		wrap,
+		rpl::single(QString()));
+	button->setClickedCallback(std::move(clicked));
 	const auto title = inner->add(object_ptr<Ui::FlatLabel>(
 		inner,
 		content.title,
@@ -661,7 +725,7 @@ void AddHistoryRow(
 		st::walletRowDateLabel));
 	const auto hasChip = content.itemAmount && (media != nullptr);
 	if (hasChip) {
-		AddHistoryRowChip(inner, media, content.collectible);
+		AddHistoryRowChip(inner, button, media, content.collectible);
 	}
 
 	const auto major = Ui::CreateChild<Ui::FlatLabel>(
@@ -711,10 +775,6 @@ void AddHistoryRow(
 			PaintRowAvatar(p, circle->rect(), avatar);
 		}, circle->lifetime());
 	}
-	const auto button = Ui::CreateChild<Ui::SettingsButton>(
-		wrap,
-		rpl::single(QString()));
-	button->setClickedCallback(std::move(clicked));
 	Ui::ToggleChildrenVisibility(wrap, true);
 	wrap->geometryValue(
 	) | rpl::on_next([=](const QRect &g) {
