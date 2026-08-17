@@ -1368,6 +1368,9 @@ MsgId ChatWidget::resolveTopicRootId(const FullReplyTo &replyTo) const {
 }
 
 MsgId ChatWidget::resolvedTopicRootId() const {
+	if (_repliesRootId) {
+		return _repliesRootId;
+	}
 	const auto custom = _composeControls->replyingToMessage();
 	if (custom.messageId || custom.topicRootId) {
 		if (const auto result = resolveTopicRootId(custom)) {
