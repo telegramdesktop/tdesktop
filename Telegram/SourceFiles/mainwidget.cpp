@@ -2373,7 +2373,9 @@ bool MainWidget::showBackFromStack(const SectionShow &params) {
 	_stack.pop_back();
 	const auto currentHistoryPeer = _history->peer()
 		? _history->peer()
-		: _controller->activeChatCurrent().peer();
+		: OptionUseNewChatView.value()
+		? _controller->activeChatCurrent().peer()
+		: nullptr;
 	if (currentHistoryPeer) {
 		ClearBotStartToken(currentHistoryPeer);
 	}
