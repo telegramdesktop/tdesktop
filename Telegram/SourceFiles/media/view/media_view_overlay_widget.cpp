@@ -6100,7 +6100,7 @@ QImage OverlayWidget::systemMediaControlsThumbnail() const {
 			result = original(_documentMedia->thumbnail());
 		}
 	}
-	if (result.isNull() && _streamed) {
+	if (result.isNull() && videoShown()) {
 		result = currentVideoFrameImage();
 	}
 	return result;
