@@ -1821,6 +1821,15 @@ struct Poll::Options : public Poll::Part {
 	[[nodiscard]] int countVotesExtraHeight(
 		const Answer &answer,
 		int textWidth) const;
+
+	struct AnswerGeometry {
+		int height = 0;
+		int textTop = 0;
+		int mediaTop = 0;
+	};
+	[[nodiscard]] AnswerGeometry countAnswerGeometry(
+		const Answer &answer,
+		int innerWidth) const;
 	[[nodiscard]] int countAnswerHeight(
 		const Answer &answer,
 		int innerWidth) const;
@@ -1840,6 +1849,7 @@ struct Poll::Options : public Poll::Part {
 		const Answer &answer,
 		int left,
 		int top,
+		int topPadding,
 		const PaintContext &context) const;
 	void paintPercent(
 		Painter &p,
@@ -1963,7 +1973,8 @@ TextState Poll::Options::textState(
 
 	auto tshift = 0;
 	for (const auto &answer : _answers) {
-		const auto height = countAnswerHeight(answer, innerWidth);
+		const auto geometry = countAnswerGeometry(answer, innerWidth);
+		const auto height = geometry.height;
 		if (point.y() >= tshift && point.y() < tshift + height) {
 			const auto media = answer.thumbnail
 				? PollAnswerMediaSize()
@@ -1974,19 +1985,14 @@ TextState Poll::Options::textState(
 					left + innerWidth
 						- st::historyPollAnswerPadding.right()
 						- media,
-					tshift + (answer.thumbnail
-						? st::historyPollAnswerPadding
-						: st::historyPollAnswerPaddingNoMedia).top(),
+					tshift + geometry.mediaTop,
 					media,
 					media).contains(point)) {
 				result.link = answer.mediaHandler;
 			} else {
-				const auto &answerPadding = answer.thumbnail
-					? st::historyPollAnswerPadding
-					: st::historyPollAnswerPaddingNoMedia;
 				const auto aleft = left
 					+ st::historyPollAnswerPadding.left();
-				const auto atop = tshift + answerPadding.top();
+				const auto atop = tshift + geometry.textTop;
 				const auto textWidth = countAnswerContentWidth(
 					answer,
 					innerWidth);
@@ -2406,9 +2412,10 @@ int Poll::Options::countVotesExtraHeight(
 	return st::normalFont->height;
 }
 
-int Poll::Options::countAnswerHeight(
-		const Answer &answer,
-		int innerWidth) const {
+auto Poll::Options::countAnswerGeometry(
+	const Answer &answer,
+	int innerWidth) const
+-> AnswerGeometry {
 	const auto media = answer.thumbnail ? PollAnswerMediaSize() : 0;
 	const auto textWidth = countAnswerContentWidth(answer, innerWidth);
 	const auto &padding = answer.thumbnail
@@ -2428,13 +2435,23 @@ int Poll::Options::countAnswerHeight(
 			+ (st::historyPollFillingHeight
 				+ st::historyPollChoiceRight.height()) / 2)
 		: 0;
-	return padding.top()
-		+ std::max({
-			textHeight,
-			media,
-			fillingWithChoice,
-		})
-		+ padding.bottom();
+	const auto textTop = padding.top()
+		+ std::max(0, (media - textHeight) / 2);
+	const auto mediaTop = textTop + (textHeight - media) / 2;
+	const auto bottom = std::max(
+		textTop + std::max(textHeight, fillingWithChoice),
+		mediaTop + media);
+	return {
+		.height = bottom + padding.bottom(),
+		.textTop = textTop,
+		.mediaTop = mediaTop,
+	};
+}
+
+int Poll::Options::countAnswerHeight(
+		const Answer &answer,
+		int innerWidth) const {
+	return countAnswerGeometry(answer, innerWidth).height;
 }
 
 QSize Poll::countCurrentSize(int newWidth) {
@@ -3629,7 +3646,8 @@ int Poll::Options::paintAnswer(
 		int width,
 		int outerWidth,
 		const PaintContext &context) const {
-	const auto height = countAnswerHeight(answer, width);
+	const auto geometry = countAnswerGeometry(answer, width);
+	const auto height = geometry.height;
 	if (!context.highlight.pollOption.isEmpty()
 		&& context.highlight.pollOption == answer.option
 		&& context.highlight.collapsion > 0.) {
@@ -3670,9 +3688,7 @@ int Poll::Options::paintAnswer(
 		}
 	}
 	const auto stm = context.messageStyle();
-	const auto &answerPadding = answer.thumbnail
-		? st::historyPollAnswerPadding
-		: st::historyPollAnswerPaddingNoMedia;
+	const auto textPadding = geometry.textTop;
 	const auto aleft = left + st::historyPollAnswerPadding.left();
 	const auto awidth = width
 		- st::historyPollAnswerPadding.left()
@@ -3739,7 +3755,7 @@ int Poll::Options::paintAnswer(
 		const auto countX = rightEdge
 			- answer.votesCountWidth
 			- userpicsExtra;
-		const auto atop = top + answerPadding.top()
+		const auto atop = top + textPadding
 			+ ((multilineAnswer || votesExtraHeight)
 				? (textContentHeight
 					- (votesExtraHeight ? 0 : st::normalFont->height))
@@ -3766,7 +3782,7 @@ int Poll::Options::paintAnswer(
 		const auto opacity = animation->opacity.current();
 		if (opacity < 1.) {
 			p.setOpacity(1. - opacity);
-			paintRadio(p, answer, left, top, context);
+			paintRadio(p, answer, left, top, textPadding, context);
 		}
 		if (opacity > 0.) {
 			const auto percent = QString::number(
@@ -3780,7 +3796,7 @@ int Poll::Options::paintAnswer(
 				percentWidth,
 				left,
 				top,
-				answerPadding.top(),
+				textPadding,
 				outerWidth,
 				context);
 			paintVotesCount(opacity);
@@ -3792,7 +3808,7 @@ int Poll::Options::paintAnswer(
 				animation->filling.current(),
 				left,
 				top,
-				answerPadding.top(),
+				textPadding,
 				width,
 				barContentWidth,
 				fillingContentHeight,
@@ -3800,7 +3816,7 @@ int Poll::Options::paintAnswer(
 			p.setOpacity(1.);
 		}
 	} else if (!_owner->showVotes()) {
-		paintRadio(p, answer, left, top, context);
+		paintRadio(p, answer, left, top, textPadding, context);
 	} else {
 		paintPercent(
 			p,
@@ -3808,7 +3824,7 @@ int Poll::Options::paintAnswer(
 			answer.votesPercentWidth,
 			left,
 			top,
-			answerPadding.top(),
+			textPadding,
 			outerWidth,
 			context);
 		paintVotesCount();
@@ -3819,18 +3835,17 @@ int Poll::Options::paintAnswer(
 			answer.filling,
 			left,
 			top,
-			answerPadding.top(),
+			textPadding,
 			width,
 			barContentWidth,
 			fillingContentHeight,
 			context);
 	}
 
-	top += answerPadding.top();
 	if (answer.thumbnail) {
 		const auto target = QRect(
 			aleft + awidth - media,
-			top,
+			top + geometry.mediaTop,
 			media,
 			media);
 		if (!target.isEmpty()) {
@@ -3917,7 +3932,7 @@ int Poll::Options::paintAnswer(
 	}
 	p.setPen(stm->historyTextFg);
 	answer.text.draw(p, {
-		.position = { aleft, top },
+		.position = { aleft, top + textPadding },
 		.outerWidth = outerWidth,
 		.availableWidth = textWidth,
 		.spoiler = Ui::Text::DefaultSpoilerCache(),
@@ -3934,11 +3949,9 @@ void Poll::Options::paintRadio(
 		const Answer &answer,
 		int left,
 		int top,
+		int topPadding,
 		const PaintContext &context) const {
-	const auto &answerPadding = answer.thumbnail
-		? st::historyPollAnswerPadding
-		: st::historyPollAnswerPaddingNoMedia;
-	top += answerPadding.top();
+	top += topPadding;
 
 	const auto stm = context.messageStyle();
 
