@@ -296,9 +296,9 @@ walletPhraseWarnLabel: FlatLabel(defaultFlatLabel) {
 }
 walletPhraseWarnIconSkip: 3px;
 walletPhraseWarnRowSkip: 12px;
-walletPhraseWarnShareIcon: icon{{ "menu/stealth", windowActiveTextFg }};
-walletPhraseWarnStealIcon: icon{{ "menu/report", windowActiveTextFg }};
-walletPhraseWarnSupportIcon: icon{{ "menu/lock", windowActiveTextFg }};
+walletPhraseWarnShareIcon: icon{{ "wallet/eye_off", windowBoldFg }};
+walletPhraseWarnStealIcon: icon{{ "wallet/warning_circle", windowBoldFg }};
+walletPhraseWarnSupportIcon: icon{{ "wallet/shield_check", windowBoldFg }};
 walletPhraseGridPadding: margins(40px, 4px, 40px, 8px);
 walletPhraseColumnSkip: 16px;
 walletPhraseRowSkip: 8px;
@@ -429,9 +429,9 @@ walletBuyWaltIcon: icon {
 	{ "wallet/walt", settingsIconFg, point(2px, 2px) },
 };
 
-walletHowLogoIcon: icon{{ "payments/ton_emoji-48x48", windowFgActive }};
-walletHowLogoPadding: margins(8px, 8px, 8px, 8px);
-walletHowLogoMargin: margins(24px, 48px, 24px, 10px);
+walletHowLottieSize: 52px;
+walletHowLottieMargin: margins(24px, 24px, 24px, 12px);
+walletHowSubtitleMargin: margins(24px, 8px, 24px, 14px);
 
 walletIntroEmoji: IconEmoji {
 	icon: icon{{ "payments/ton_emoji-18x18", windowActiveTextFg }};

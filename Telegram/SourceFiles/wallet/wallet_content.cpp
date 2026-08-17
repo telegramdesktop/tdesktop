@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/event_filter.h"
 #include "base/unixtime.h"
-#include "calls/group/calls_group_common.h"
 #include "core/credits_amount.h"
 #include "core/file_utilities.h"
 #include "core/ton_explorer_url.h"
@@ -2574,12 +2573,21 @@ void WalletHowItWorksBox(not_null<Ui::GenericBox*> box) {
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
 
-	box->addRow(
-		Calls::Group::MakeRoundActiveLogo(
-			box,
-			st::walletHowLogoIcon,
-			st::walletHowLogoPadding),
-		st::walletHowLogoMargin);
+	auto icon = Settings::CreateLottieIcon(
+		box->verticalLayout(),
+		{
+			.name = u"diamond"_q,
+			.sizeOverride = {
+				st::walletHowLottieSize,
+				st::walletHowLottieSize,
+			},
+		},
+		st::walletHowLottieMargin);
+	box->verticalLayout()->add(std::move(icon.widget));
+	box->showFinishes() | rpl::on_next([animate = std::move(icon.animate)] {
+		animate(anim::repeat::loop);
+	}, box->lifetime());
+
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,
@@ -2592,24 +2600,28 @@ void WalletHowItWorksBox(not_null<Ui::GenericBox*> box) {
 			box,
 			tr::lng_wallet_how_subtitle(),
 			st::walletPhraseTextLabel),
-		st::walletPhraseTextMargin,
-		style::al_top);
+		st::walletHowSubtitleMargin,
+		style::al_top
+	)->setTryMakeSimilarLines(true);
 
 	const auto features = std::vector<Ui::FeatureListEntry>{
 		{
-			st::walletAboutInstantIcon,
-			tr::lng_wallet_about_instant_title(tr::now),
-			tr::lng_wallet_about_instant_text(tr::now, tr::marked),
+			.icon = st::walletAboutInstantIcon,
+			.title = tr::lng_wallet_about_instant_title(tr::now),
+			.about = tr::lng_wallet_about_instant_text(tr::now, tr::marked),
+			.similarLines = true,
 		},
 		{
-			st::walletAboutFeesIcon,
-			tr::lng_wallet_about_fees_title(tr::now),
-			tr::lng_wallet_about_fees_text(tr::now, tr::marked),
+			.icon = st::walletAboutFeesIcon,
+			.title = tr::lng_wallet_about_fees_title(tr::now),
+			.about = tr::lng_wallet_about_fees_text(tr::now, tr::marked),
+			.similarLines = true,
 		},
 		{
-			st::walletAboutChainIcon,
-			tr::lng_wallet_about_chain_title(tr::now),
-			tr::lng_wallet_about_chain_text(tr::now, tr::marked),
+			.icon = st::walletAboutChainIcon,
+			.title = tr::lng_wallet_about_chain_title(tr::now),
+			.about = tr::lng_wallet_about_chain_text(tr::now, tr::marked),
+			.similarLines = true,
 		},
 	};
 	for (const auto &feature : features) {

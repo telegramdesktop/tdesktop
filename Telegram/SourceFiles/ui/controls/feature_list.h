@@ -28,6 +28,7 @@ struct FeatureListEntry {
 	const style::icon &icon;
 	QString title;
 	TextWithEntities about;
+	bool similarLines = false;
 };
 
 [[nodiscard]] object_ptr<RpWidget> MakeFeatureListEntry(
