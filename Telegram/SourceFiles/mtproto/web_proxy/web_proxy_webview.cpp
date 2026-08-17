@@ -121,6 +121,7 @@ WebviewCarrier::WebviewCarrier(
 		},
 		.safe = true,
 		.mode = Webview::WindowMode::Hidden,
+		.restrictedOrigin = u"https://"_q + proxy.host,
 	}))
 , _handshakeTimer(std::make_unique<QTimer>())
 , _healthTimer(std::make_unique<QTimer>())
