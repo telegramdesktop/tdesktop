@@ -789,8 +789,18 @@ OwnedItem::OwnedItem(OwnedItem &&other)
 }
 
 OwnedItem &OwnedItem::operator=(OwnedItem &&other) {
-	_data = base::take(other._data);
-	_view = base::take(other._view);
+	if (this != &other) {
+		// destroy() is synchronous and fires itemRemoved, so both members
+		// must already hold the incoming values when it runs. Assigning
+		// _view also destroys the outgoing view, which ~Element requires
+		// to happen before the item it points to is destroyed.
+		const auto old = base::take(_data);
+		_data = base::take(other._data);
+		_view = base::take(other._view);
+		if (old) {
+			old->destroy();
+		}
+	}
 	return *this;
 }
 
