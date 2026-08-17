@@ -1929,6 +1929,8 @@ PRIVATE
     test/test_agent.h
     test/test_capture.cpp
     test/test_capture.h
+    test/test_history_fixtures.cpp
+    test/test_history_fixtures.h
     test/test_ink.cpp
     test/test_ink.h
     test/test_launch_fuse.cpp

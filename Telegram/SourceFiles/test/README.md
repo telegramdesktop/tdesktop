@@ -197,6 +197,7 @@ clicking.
 | `test_style.h` | Wait for palette/style samples to stabilize and assert a recorded baseline still holds. |
 | `test_panel.h` | Distinguish a live `Ui::SeparatePanel` from its faded/squeezed show-animation cache. |
 | `test_messages.h` | Lifetime-owned watcher for a matching newly sent server message. |
+| `test_history_fixtures.h` | Inject a caller-supplied service action into a real history as a regular or (negative-control) local item, with a caller-owned lifetime that removes it, and log the menu-gating predicates. |
 | `test_launch_fuse.h` | Declare and verify operating-system launches while refusing every real launch in test-agent mode. |
 | `test_open_handoff.h` | Inspect and assert the document-open branch without handing anything to the OS. |
 | `test_transfer.h` | Observe document save/failure transitions and assert duplicate or failed transfer behavior. |
