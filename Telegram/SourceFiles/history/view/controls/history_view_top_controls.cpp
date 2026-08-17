@@ -135,14 +135,11 @@ void TopControls::raise() {
 }
 
 void TopControls::show() {
-	_shown = true;
 	_wrap->show();
-	updateTopicReopenBarVisibility();
 	updateZOrder();
 }
 
 void TopControls::hide() {
-	_shown = false;
 	_wrap->hide();
 }
 
@@ -175,7 +172,6 @@ void TopControls::subscribeToPinnedMessages() {
 
 void TopControls::setAnimatingMode(bool enabled) {
 	_animatingMode = enabled;
-	updateTopicReopenBarVisibility();
 }
 
 void TopControls::finishAnimating() {
@@ -202,7 +198,6 @@ void TopControls::finishAnimating() {
 		return;
 	}
 	_animatingMode = false;
-	updateTopicReopenBarVisibility();
 }
 
 void TopControls::setRepliesRootId(MsgId repliesRootId) {
@@ -418,7 +413,7 @@ void TopControls::setupRootView() {
 
 void TopControls::setupTopicReopenBar() {
 	_topicReopenBar = std::make_unique<TopicReopenBar>(_topBars.get(), _topic);
-	updateTopicReopenBarVisibility();
+	_topicReopenBar->bar().setVisible(true);
 	_topicReopenBarHeight = _topicReopenBar->bar().height();
 	_topicReopenBar->bar().heightValue(
 	) | rpl::on_next([=] {
@@ -1227,12 +1222,6 @@ void TopControls::updateZOrder() {
 	}
 	if (_repliesRootView) {
 		_repliesRootView->raise();
-	}
-}
-
-void TopControls::updateTopicReopenBarVisibility() {
-	if (_topicReopenBar) {
-		_topicReopenBar->bar().setVisible(_shown && !_animatingMode);
 	}
 }
 

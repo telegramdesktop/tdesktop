@@ -116,7 +116,6 @@ private:
 	void resetPinnedState();
 	void updateLayout();
 	void updateZOrder();
-	void updateTopicReopenBarVisibility();
 	void applyHeightChange(int was, int now, bool preserveTop);
 	void applyHeightChangeWithTopMoved(int was, int now);
 	void applyHeightChangeWithRelayout(int was, int now);
@@ -176,7 +175,6 @@ private:
 	bool _modeSensitiveBarsInited = false;
 	bool _modeSensitiveShowInForum = false;
 	bool _modeSensitiveFullChat = false;
-	bool _shown = true;
 	bool _animatingMode = false;
 
 };
