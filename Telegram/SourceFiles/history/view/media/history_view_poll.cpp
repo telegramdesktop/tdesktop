@@ -2474,6 +2474,10 @@ void Poll::updateTexts() {
 		_pollVersion = 0;
 	}
 	if (_pollVersion == _poll->version) {
+		if (webpagesUpdated()) {
+			_optionsPart->updateAnswers();
+			refreshWebpageSubscriptions();
+		}
 		return;
 	}
 	const auto first = !_pollVersion;
@@ -4572,8 +4576,8 @@ bool Poll::Footer::centeredOverlapsInfo(
 }
 
 Poll::~Poll() {
-	for (const auto webpage : _registeredWebpages) {
-		history()->owner().unregisterWebPageView(webpage, _parent);
+	for (const auto &entry : _registeredWebpages) {
+		history()->owner().unregisterWebPageView(entry.page, _parent);
 	}
 	history()->owner().unregisterPollView(_poll, _parent);
 	if (hasHeavyPart()) {
@@ -4583,25 +4587,43 @@ Poll::~Poll() {
 }
 
 void Poll::refreshWebpageSubscriptions() {
-	auto wanted = std::vector<WebPageData*>();
+	using Registered = RegisteredWebpage;
+	const auto listed = [](
+			const std::vector<Registered> &list,
+			not_null<WebPageData*> page) {
+		return ranges::find(list, page, &Registered::page) != end(list);
+	};
+	auto wanted = std::vector<Registered>();
 	for (const auto &answer : _poll->answers) {
 		if (const auto webpage = answer.media.webpage) {
-			if (!ranges::contains(wanted, webpage)) {
-				wanted.push_back(webpage);
+			if (!listed(wanted, webpage)) {
+				wanted.push_back({
+					.page = webpage,
+					.photo = webpage->photo,
+					.pendingTill = webpage->pendingTill,
+				});
 			}
 		}
 	}
-	for (const auto webpage : _registeredWebpages) {
-		if (!ranges::contains(wanted, webpage)) {
-			history()->owner().unregisterWebPageView(webpage, _parent);
+	for (const auto &entry : _registeredWebpages) {
+		if (!listed(wanted, entry.page)) {
+			history()->owner().unregisterWebPageView(entry.page, _parent);
 		}
 	}
-	for (const auto webpage : wanted) {
-		if (!ranges::contains(_registeredWebpages, webpage)) {
-			history()->owner().registerWebPageView(webpage, _parent);
+	for (const auto &entry : wanted) {
+		if (!listed(_registeredWebpages, entry.page)) {
+			history()->owner().registerWebPageView(entry.page, _parent);
 		}
 	}
 	_registeredWebpages = std::move(wanted);
+}
+
+bool Poll::webpagesUpdated() const {
+	return ranges::any_of(_registeredWebpages, [](
+			const RegisteredWebpage &entry) {
+		return (entry.photo != entry.page->photo)
+			|| (entry.pendingTill != entry.page->pendingTill);
+	});
 }
 
 } // namespace HistoryView
