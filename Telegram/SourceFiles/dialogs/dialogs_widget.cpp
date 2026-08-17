@@ -4650,8 +4650,8 @@ void Widget::keyPressEvent(QKeyEvent *e) {
 		//} else {
 		//	e->ignore();
 		//}
-	} else if ((e->key() == Qt::Key_Backspace
-			|| (e->key() == Qt::Key_Tab && !Ui::ScreenReaderModeActive()))
+	} else if (e->key() == Qt::Key_Tab
+		&& !Ui::ScreenReaderModeActive()
 		&& _searchHasFocus
 		&& !_searchState.inChat
 		&& _searchState.query.isEmpty()) {
