@@ -1936,7 +1936,7 @@ std::vector<not_null<HistoryItem*>> ListWidget::collectBetween(
 			return {};
 		}
 		const auto item = (*i)->data();
-		if (item->isRegular() && !item->isService()) {
+		if (_delegate->listIsItemGoodForSelection(item)) {
 			result.push_back(item);
 		}
 	}
