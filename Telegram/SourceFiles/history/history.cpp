@@ -78,6 +78,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/payments_checkout_process.h"
 #include "core/crash_reports.h"
 #include "core/application.h"
+#include "base/options.h"
 #include "base/unixtime.h"
 #include "base/qt/qt_common_adapters.h"
 #include "styles/style_dialogs.h"
@@ -2116,7 +2117,11 @@ std::optional<int> History::countStillUnreadLocal(MsgId readTillId) const {
 		return std::nullopt;
 	}
 	if (isEmpty()) {
-		return countStillUnreadLocalFromMessages(readTillId);
+		// The message index is only built for the main chat view when the
+		// new chat view is enabled; without it, fall back to a server sync.
+		return base::options::value<bool>(kOptionUseNewChatView)
+			? countStillUnreadLocalFromMessages(readTillId)
+			: std::nullopt;
 	}
 	if (_inboxReadBefore) {
 		const auto before = *_inboxReadBefore;
