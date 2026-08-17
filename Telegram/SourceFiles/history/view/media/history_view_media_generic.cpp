@@ -85,6 +85,7 @@ MediaGeneric::MediaGeneric(
 , _fullAreaLink(descriptor.fullAreaLink)
 , _maxWidthCap(descriptor.maxWidth)
 , _expandCurrentWidth(descriptor.expandCurrentWidth)
+, _narrowToContent(descriptor.narrowToContent)
 , _service(descriptor.service)
 , _hideServiceText(descriptor.hideServiceText) {
 	generate(this, [&](std::unique_ptr<Part> part) {
@@ -102,15 +103,23 @@ MediaGeneric::~MediaGeneric() {
 }
 
 QSize MediaGeneric::countOptimalSize() {
-	const auto maxWidth = _maxWidthCap
+	const auto cap = _maxWidthCap
 		? _maxWidthCap
 		: st::chatGiveawayWidth;
 
-	auto top = 0;
+	auto contentWidth = 0;
 	for (auto &entry : _entries) {
 		const auto raw = entry.object.get();
 		raw->initDimensions();
-		top += raw->resizeGetHeight(maxWidth);
+		accumulate_max(contentWidth, raw->maxWidth());
+	}
+	const auto maxWidth = (_narrowToContent && contentWidth)
+		? std::min(contentWidth, cap)
+		: cap;
+
+	auto top = 0;
+	for (auto &entry : _entries) {
+		top += entry.object->resizeGetHeight(maxWidth);
 	}
 	return { maxWidth, top };
 }

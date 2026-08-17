@@ -2425,6 +2425,7 @@ object_ptr<RpWidget> MakeUniqueGiftPreview(
 							.paintBgFactory = [=] {
 								return UniqueGiftBg(parent, gift, cache);
 							},
+							.narrowToContent = true,
 							.service = true,
 						});
 				},

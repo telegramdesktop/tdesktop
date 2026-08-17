@@ -154,6 +154,7 @@ Layout ComputeLayout(
 			body.width() + st.tailSize.width(),
 			body.height()),
 		.rowHeight = rowHeight,
+		.sectionWidth = hostPadding.left() + groupWidth + hostPadding.right(),
 		.sectionHeight = rowTop + rowHeight + hostPadding.bottom(),
 	};
 }

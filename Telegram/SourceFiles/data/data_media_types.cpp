@@ -2855,6 +2855,7 @@ std::unique_ptr<HistoryView::Media> MediaGiftBox::createView(
 				.paintBgFactory = [=] {
 					return HistoryView::UniqueGiftBg(message, unique);
 				},
+				.narrowToContent = true,
 				.service = true,
 			});
 	}

@@ -306,8 +306,8 @@ void UniqueGiftMessagePart::unloadHeavyPart() {
 }
 
 QSize UniqueGiftMessagePart::countOptimalSize() {
-	const auto width = st::msgServiceGiftBoxSize.width();
-	return { width, resolveLayout(width) };
+	const auto height = resolveLayout(st::msgServiceGiftBoxSize.width());
+	return { _layout.sectionWidth, height };
 }
 
 QSize UniqueGiftMessagePart::countCurrentSize(int newWidth) {

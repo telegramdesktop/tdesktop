@@ -29,6 +29,7 @@ struct Layout {
 	QRect text;
 	QRect pathBounds;
 	int rowHeight = 0;
+	int sectionWidth = 0;
 	int sectionHeight = 0;
 };
 
