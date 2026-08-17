@@ -451,11 +451,6 @@ void FieldHeader::init() {
 		updateDisplayedReply();
 	}, lifetime());
 
-	_mediaEditManager.updateRequests(
-	) | rpl::on_next([=] {
-		update();
-	}, lifetime());
-
 	_data->session().changes().messageUpdates(
 		Data::MessageUpdate::Flag::Edited
 		| Data::MessageUpdate::Flag::Destroyed
