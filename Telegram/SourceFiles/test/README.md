@@ -171,6 +171,19 @@ paints the background. If a row is clipped by a scroll viewport, grab the
 content widget and map the row rect with `CaptureMappedRect`; do not treat a
 partial screenshot as product evidence.
 
+Measurements cross three coordinate systems, and each has a fixed contract.
+`CaptureWidget` / `CaptureRect` / `CaptureMappedRect` take widget LOGICAL
+rects; the image they produce — like every `Ui::GrabWidgetToImage` grab —
+holds logical-size × `style::DevicePixelRatio()` DEVICE pixels, so `Crop`
+and any direct `QImage` sampling index device space. Multiply logical values
+by the image's `devicePixelRatio()` exactly once, at the sampling boundary.
+`TDESKTOP_TEST_SCALE` is a third, independent multiplier: it scales the
+logical style metrics themselves, so derive expected geometry from the live
+scaled tokens, never from literals recorded at 100%. Rects from different
+widgets never share an origin by accident — map both through one declared
+frame (`Ui::MapFrom`, `mapToGlobal`) before comparing, cropping, or
+clicking.
+
 ## Helper catalog
 
 | Module | Facilities |
@@ -226,6 +239,8 @@ new local helper.
 | Emoji split or custom entity absent | UTF-16 code units or the wrong editor event route were synthesized. | Use grapheme-safe `TypeText` or one `CommitText` on the raw editor. |
 | Drag/wheel/cancel has no effect | Wrapper received an event owned by a child, presentation, or viewport. | Target the real event owner and use `Drag`, `Wheel`, or `PressKey`. |
 | Test reaches a real external action | Missing expectation/fuse or mock seam. | Declare the exact blocked launch, mock the transport/payment boundary, and assert zero real calls. |
+| Pixel probe misses only on Retina or at 125/150% | Logical rect indexed into the device-pixel grab, or a 100% literal reused at another interface scale. | Multiply by the image `devicePixelRatio()` once at the sampling boundary; derive expectations from the live scaled tokens. |
+| Geometry oracle fails on plausible-looking rects | Rects from different widgets compared without a shared origin. | Map both through one declared frame (`Ui::MapFrom`, `mapToGlobal`) and log the mapped values in the failure details. |
 
 Classify a sound assertion against changed behavior as an implementation bug,
 not a test flaw. Classify a wrong fixture, target, readiness model, event
