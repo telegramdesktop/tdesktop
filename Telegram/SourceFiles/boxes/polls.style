@@ -99,7 +99,6 @@ historyPollInChosenSelected: icon {{ "poll_select_check", historyFileInIconFgSel
 
 historyPollAddOptionTop: 3px;
 historyPollAddOptionButtonSize: 26px;
-historyPollAddOptionEmojiLeft: -4px;
 historyPollAddOptionField: InputField(defaultInputField) {
 	textBg: transparent;
 	textFg: windowFg;
