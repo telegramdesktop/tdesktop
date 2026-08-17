@@ -512,9 +512,8 @@ void BottomControls::recomputeContentHeight() {
 		: isButtonActive()
 		? st::historyComposeButton.height
 		: 0;
-	if (h > 0) {
-		resize(width(), h);
-	}
+	resize(width(), h);
+	setVisible(h > 0);
 	_contentHeight = h;
 }
 
