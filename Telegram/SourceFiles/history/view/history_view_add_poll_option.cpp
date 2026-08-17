@@ -52,6 +52,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
+[[nodiscard]] int EmojiOverflowLeft() {
+	return std::max(
+		(st::historyPollAddOptionEmoji.width
+			- st::historyPollRadio.diameter) / 2,
+		0);
+}
+
 class AddPollOptionWidget final : public Ui::RpWidget {
 public:
 	AddPollOptionWidget(
@@ -159,10 +166,15 @@ void AddPollOptionWidget::setupField() {
 	const auto attach = _attach;
 	sizeValue(
 	) | rpl::on_next([field, emoji, attach](QSize size) {
-		field->setGeometry(0, 0, size.width(), size.height());
+		const auto overflow = EmojiOverflowLeft();
+		field->setGeometry(
+			overflow,
+			0,
+			size.width() - overflow,
+			size.height());
 		const auto bsize = st::historyPollAddOptionButtonSize;
 		const auto by = (size.height() - bsize) / 2;
-		emoji->moveToLeft(st::historyPollAddOptionEmojiLeft, by);
+		emoji->moveToLeft(0, by);
 		attach->moveToRight(0, by, size.width());
 	}, _field->lifetime());
 
@@ -474,10 +486,11 @@ QString AddPollOptionWidget::mapErrorToText(const QString &error) {
 }
 
 void AddPollOptionWidget::updatePosition(QPoint topLeft, int w) {
+	const auto overflow = EmojiOverflowLeft();
 	setGeometry(
-		topLeft.x(),
+		topLeft.x() - overflow,
 		topLeft.y() + st::historyPollAddOptionTop,
-		w,
+		w + overflow,
 		st::historyPollAddOptionField.heightMin);
 }
 
