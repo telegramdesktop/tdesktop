@@ -109,9 +109,16 @@ private:
 
 	[[nodiscard]] bool canAddOption() const;
 	void refreshWebpageSubscriptions();
+	[[nodiscard]] bool webpagesUpdated() const;
+
+	struct RegisteredWebpage {
+		not_null<WebPageData*> page;
+		PhotoData *photo = nullptr;
+		TimeId pendingTill = 0;
+	};
 
 	not_null<PollData*> _poll;
-	std::vector<WebPageData*> _registeredWebpages;
+	std::vector<RegisteredWebpage> _registeredWebpages;
 	int _pollVersion = 0;
 	int _totalVotes = 0;
 	bool _voted = false;
