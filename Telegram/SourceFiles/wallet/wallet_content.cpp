@@ -1642,8 +1642,15 @@ void AddBuyRow(
 		&st::settingsPremiumArrow,
 		&st::settingsPremiumArrowOver);
 	arrow->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto loading = Info::Statistics::InfiniteRadialAnimationWidget(
+		button,
+		st::boxLoadingSize,
+		&st::boxLoadingAnimation);
+	loading->setAttribute(Qt::WA_TransparentForMouseEvents);
 	std::move(pending) | rpl::on_next([=](bool pending) {
 		button->setDisabled(pending);
+		arrow->setVisible(!pending);
+		loading->setVisible(pending);
 	}, button->lifetime());
 	button->sizeValue(
 	) | rpl::on_next([=](QSize size) {
@@ -1651,6 +1658,9 @@ void AddBuyRow(
 		arrow->moveToRight(
 			-shift.x(),
 			shift.y() + (size.height() - arrow->height()) / 2);
+		loading->moveToRight(
+			-shift.x() + (arrow->width() - loading->width()) / 2,
+			shift.y() + (size.height() - loading->height()) / 2);
 	}, arrow->lifetime());
 	button->setClickedCallback(std::move(activate));
 	Ui::ToggleChildrenVisibility(wrap, true);
@@ -5917,7 +5927,7 @@ void CurrencyListWidget::mouseReleaseEvent(QMouseEvent *e) {
 
 auto CurrencyListWidget::current() const
 -> const std::vector<CurrencyListWidget::Row> & {
-	return _filter.isEmpty() ? _rows : _filtered;
+	return _filtered;
 }
 
 bool CurrencyListWidget::rowMatches(const Row &row) const {
@@ -5944,13 +5954,16 @@ void CurrencyListWidget::refreshRows() {
 
 void CurrencyListWidget::refreshFiltered() {
 	_filtered.clear();
-	if (!_filter.isEmpty()) {
-		_filtered.reserve(_rows.size());
-		for (const auto &row : _rows) {
-			if (rowMatches(row)) {
-				_filtered.push_back(row);
-			}
+	_filtered.reserve(_rows.size());
+	for (const auto &row : _rows) {
+		if (_filter.isEmpty() || rowMatches(row)) {
+			_filtered.push_back(row);
 		}
+	}
+	if (_filter.isEmpty()) {
+		ranges::stable_partition(_filtered, [&](const Row &row) {
+			return (row.code == _activeCode);
+		});
 	}
 	_ripples.clear();
 	_pressed = -1;

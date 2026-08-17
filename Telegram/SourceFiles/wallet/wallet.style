@@ -448,4 +448,4 @@ walletCurrencyRowCodeFg: windowBoldFg;
 walletCurrencyRowNameFg: windowSubTextFg;
 walletCurrencyRowNameSkip: 8px;
 walletCurrencyListSkip: 12px;
-walletCurrencyCheckIcon: icon{{ "account_check", windowActiveTextFg }};
+walletCurrencyCheckIcon: icon{{ "player/player_check", windowActiveTextFg }};
