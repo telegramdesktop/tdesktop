@@ -704,7 +704,9 @@ ChatWidget::ChatWidget(
 
 	_composeControls->sendActionUpdates(
 	) | rpl::on_next([=](ComposeControls::SendActionUpdate &&data) {
-		if (!data.cancel) {
+		if (mode() == Mode::Sublist) {
+			return;
+		} else if (!data.cancel) {
 			session().sendProgressManager().update(
 				_history,
 				_repliesRootId,
@@ -1663,15 +1665,13 @@ void ChatWidget::setupComposeControls() {
 		controller()->hideLayer(anim::type::normal);
 		controller()->sendingAnimation().appendSending(
 			data.messageSendingFrom);
-		const auto clearField = data.stickersByEmoji;
 		auto messageToSend = Api::MessageToSend(
 			prepareSendAction(data.options));
 		messageToSend.textWithTags = base::take(data.caption);
 		sendExistingDocument(
 			data.document,
 			std::move(messageToSend),
-			data.messageSendingFrom.localId,
-			clearField);
+			data.messageSendingFrom.localId);
 	}, lifetime());
 
 	_composeControls->photoChosen(
@@ -3073,8 +3073,7 @@ void ChatWidget::updateControlsVisibility() {
 bool ChatWidget::sendExistingDocument(
 		not_null<DocumentData*> document,
 		Api::MessageToSend messageToSend,
-		std::optional<MsgId> localId,
-		bool clearFieldAfterSend) {
+		std::optional<MsgId> localId) {
 	const auto ephemeralReply = session().ephemeralMessages()
 		.isEphemeralBotReply(messageToSend.action.replyTo.messageId);
 	const auto error = !ephemeralReply
@@ -3091,11 +3090,7 @@ bool ChatWidget::sendExistingDocument(
 		const auto withPaymentApproved = [=](int approved) {
 			auto copy = messageToSend;
 			copy.action.options.starsApproved = approved;
-			sendExistingDocument(
-				document,
-				std::move(copy),
-				localId,
-				clearFieldAfterSend);
+			sendExistingDocument(document, std::move(copy), localId);
 		};
 		const auto checked = checkSendPayment(
 			1,
@@ -3111,9 +3106,7 @@ bool ChatWidget::sendExistingDocument(
 		document,
 		localId);
 
-	if (clearFieldAfterSend) {
-		_composeControls->clearFieldAfterStickerSend();
-	}
+	_composeControls->clearFieldAfterStickerSend();
 	_composeControls->cancelReplyMessage();
 	finishSending();
 	return true;

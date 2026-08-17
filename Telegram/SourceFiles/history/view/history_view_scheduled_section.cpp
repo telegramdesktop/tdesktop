@@ -878,6 +878,7 @@ bool ScheduledWidget::sendExistingDocument(
 
 	Api::SendExistingDocument(std::move(messageToSend), document);
 
+	_composeControls->clearFieldAfterStickerSend();
 	_composeControls->hidePanelsAnimated();
 	_composeControls->focus();
 	return true;

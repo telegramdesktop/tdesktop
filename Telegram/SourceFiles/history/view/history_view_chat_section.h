@@ -485,8 +485,7 @@ private:
 	bool sendExistingDocument(
 		not_null<DocumentData*> document,
 		Api::MessageToSend messageToSend,
-		std::optional<MsgId> localId,
-		bool clearFieldAfterSend = false);
+		std::optional<MsgId> localId);
 	void sendExistingPhoto(not_null<PhotoData*> photo);
 	bool sendExistingPhoto(
 		not_null<PhotoData*> photo,

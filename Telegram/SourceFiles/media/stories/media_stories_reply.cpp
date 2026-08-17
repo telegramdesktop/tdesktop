@@ -399,6 +399,7 @@ bool ReplyArea::sendExistingDocument(
 
 	Api::SendExistingDocument(std::move(messageToSend), document, localId);
 
+	_controls->clearFieldAfterStickerSend();
 	_controls->cancelReplyMessage();
 	finishSending();
 	return true;

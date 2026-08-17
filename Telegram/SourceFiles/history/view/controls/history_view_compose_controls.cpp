@@ -2349,7 +2349,10 @@ void ComposeControls::processChosenSticker(FileChosen &&chosen) {
 }
 
 void ComposeControls::clearFieldAfterStickerSend() {
-	setText({});
+	if (_autocomplete && _autocomplete->stickersShown()) {
+		setText({});
+		saveCloudDraft();
+	}
 }
 
 rpl::producer<FileChosen> ComposeControls::fileChosen() const {
@@ -3171,8 +3174,6 @@ void ComposeControls::initFieldAutocomplete() {
 			});
 		},
 		.stickerChosen = [=](ChatHelpers::FileChosen &&data) {
-			data.stickersByEmoji = _autocomplete
-				&& _autocomplete->stickersShown();
 			_fileChosen.fire(std::move(data));
 		},
 		.setText = [=](TextWithTags text) { setText(text); },
