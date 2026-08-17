@@ -743,15 +743,17 @@ bool MainWidget::filesOrForwardDrop(
 }
 
 bool MainWidget::notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo) {
-	return _mainSection
-		? _mainSection->notify_switchInlineBotButtonReceived(
+	if (_mainSection
+		&& _mainSection->notify_switchInlineBotButtonReceived(
 			query,
 			samePeerBot,
-			samePeerReplyTo)
-		: _history->notify_switchInlineBotButtonReceived(
-			query,
-			samePeerBot,
-			samePeerReplyTo);
+			samePeerReplyTo)) {
+		return true;
+	}
+	return _history->notify_switchInlineBotButtonReceived(
+		query,
+		samePeerBot,
+		samePeerReplyTo);
 }
 
 void MainWidget::clearHider(not_null<Window::HistoryHider*> instance) {
@@ -818,11 +820,7 @@ void MainWidget::hideSingleUseKeyboard(FullMsgId replyToId) {
 		? _mainSection->hideSingleUseKeyboard(replyToId)
 		: Window::SectionActionResult::Fallback;
 	if (type == Window::SectionActionResult::Fallback) {
-		if (_mainSection) {
-			_mainSection->hideSingleUseKeyboard(replyToId);
-		} else {
-			_history->hideSingleUseKeyboard(replyToId);
-		}
+		_history->hideSingleUseKeyboard(replyToId);
 	}
 }
 
