@@ -129,6 +129,10 @@ public:
 	}
 	virtual void fillTopBarMenu(const Ui::Menu::MenuCallback &addAction);
 
+	[[nodiscard]] virtual rpl::producer<> topBarMenuFilledChanges() const {
+		return rpl::never<>();
+	}
+
 	[[nodiscard]] virtual bool closeByOutsideClick() const {
 		return true;
 	}

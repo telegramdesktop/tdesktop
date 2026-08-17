@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
+#include "info/statistics/info_statistics_export.h"
 #include "info/statistics/info_statistics_list_controllers.h"
 #include "info/statistics/info_statistics_recent_message.h"
 #include "info/statistics/info_statistics_widget.h"
@@ -36,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/slide_wrap.h"
@@ -962,6 +964,30 @@ void InnerWidget::fillRecentPosts(not_null<Ui::VerticalLayout*> container) {
 	if (_messagePreviews.empty()) {
 		wrap->toggle(false, anim::type::instant);
 	}
+}
+
+rpl::producer<> InnerWidget::menuFilledChanges() const {
+	auto loaded = _loaded.events(
+	) | rpl::filter(rpl::mappers::_1) | rpl::to_empty;
+	return ExportAvailable(_state.stats)
+		? (rpl::single(rpl::empty) | rpl::then(std::move(loaded)))
+		: std::move(loaded);
+}
+
+void InnerWidget::fillMenu(const Ui::Menu::MenuCallback &addAction) {
+	if (!ExportAvailable(_state.stats)) {
+		return;
+	}
+	addAction(tr::lng_stats_export(tr::now), crl::guard(this, [=] {
+		ExportToFile(
+			this,
+			_controller->uiShow(),
+			_peer,
+			_state.stats,
+			_state.pollVotesGraph,
+			_contextId,
+			_storyId);
+	}), &st::menuIconExport);
 }
 
 void InnerWidget::saveState(not_null<Memento*> memento) {

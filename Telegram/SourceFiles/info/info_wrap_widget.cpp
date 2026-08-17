@@ -504,6 +504,13 @@ void WrapWidget::setupTopBarMenuToggle() {
 		}, _topBar->lifetime());
 	} else if (key.giftsPeer()) {
 		addTopBarMenuButton();
+	} else if (section.type() == Section::Type::Statistics) {
+		_content->topBarMenuFilledChanges(
+		) | rpl::on_next([=] {
+			if (!_topBarMenuToggle) {
+				addTopBarMenuButton();
+			}
+		}, _topBar->lifetime());
 	}
 }
 
