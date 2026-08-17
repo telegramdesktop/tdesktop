@@ -2939,7 +2939,7 @@ bool ChatWidget::showChooseReportMessages(
 		not_null<PeerData*> peer,
 		Data::ReportInput &&reportInput,
 		Fn<void(std::vector<MsgId>)> &&done) {
-	if (peer != _peer) {
+	if (peer != _peer || mode() != Mode::History) {
 		return false;
 	}
 	setChooseReportMessagesDetails(std::move(reportInput), std::move(done));
