@@ -709,7 +709,10 @@ void History::destroyMessage(not_null<HistoryItem*> item) {
 	}();
 
 	owner().unregisterMessage(item);
-	Core::App().notifications().clearFromItem(item);
+	const auto media = item->media();
+	if (item->isHistoryEntry() || (media && media->poll())) {
+		Core::App().notifications().clearFromItem(item);
+	}
 
 	auto hack = std::unique_ptr<HistoryItem>(item.get());
 	const auto i = _items.find(hack);
