@@ -126,16 +126,19 @@ QImage GenerateStars(int height, int count, int ratio) {
 		const auto s = kOutlineWidth;
 		q.save();
 		q.translate(s, s);
-		q.setCompositionMode(QPainter::CompositionMode_Clear);
-		svg.render(&q, QRectF(QPointF(s, 0), starSize));
-		svg.render(&q, QRectF(QPointF(s, s), starSize));
-		svg.render(&q, QRectF(QPointF(0, s), starSize));
-		svg.render(&q, QRectF(QPointF(-s, s), starSize));
-		svg.render(&q, QRectF(QPointF(-s, 0), starSize));
-		svg.render(&q, QRectF(QPointF(-s, -s), starSize));
-		svg.render(&q, QRectF(QPointF(0, -s), starSize));
-		svg.render(&q, QRectF(QPointF(s, -s), starSize));
-		q.setCompositionMode(QPainter::CompositionMode_SourceOver);
+		if (count > 1) {
+			// Cut a gap in the star below, they overlap by kShift.
+			q.setCompositionMode(QPainter::CompositionMode_Clear);
+			svg.render(&q, QRectF(QPointF(s, 0), starSize));
+			svg.render(&q, QRectF(QPointF(s, s), starSize));
+			svg.render(&q, QRectF(QPointF(0, s), starSize));
+			svg.render(&q, QRectF(QPointF(-s, s), starSize));
+			svg.render(&q, QRectF(QPointF(-s, 0), starSize));
+			svg.render(&q, QRectF(QPointF(-s, -s), starSize));
+			svg.render(&q, QRectF(QPointF(0, -s), starSize));
+			svg.render(&q, QRectF(QPointF(s, -s), starSize));
+			q.setCompositionMode(QPainter::CompositionMode_SourceOver);
+		}
 		svg.render(&q, Rect(starSize));
 		q.restore();
 	};
