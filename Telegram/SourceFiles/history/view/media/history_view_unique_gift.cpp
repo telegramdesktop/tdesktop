@@ -642,8 +642,7 @@ auto UniqueGiftBg(
 		const auto outer = full.marginsAdded(Margins(shift));
 		auto clipPath = QPainterPath();
 		clipPath.addRoundedRect(inner, radius, radius);
-		p.setClipRect(inner);
-		p.setClipPath(clipPath, Qt::IntersectClip);
+		p.setClipPath(clipPath);
 		Ui::PaintBgPoints(
 			p,
 			Ui::PatternBgPoints(),
