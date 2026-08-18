@@ -146,6 +146,7 @@ PRIVATE
     data/data_passkey_deserialize.h
     data/data_peer_colors.h
     data/data_premium_subscription_option.h
+    data/data_statistics.h
     data/data_statistics_chart.cpp
     data/data_statistics_chart.h
     data/data_subscriptions.h
