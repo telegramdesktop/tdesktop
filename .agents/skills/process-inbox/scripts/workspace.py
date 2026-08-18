@@ -640,22 +640,41 @@ def superseded_paths(root):
 
 
 def retained_task_digest(directory):
+	# Read the committed blobs rather than the working tree. A checkout may
+	# materialize tracked text with different line endings than the commit
+	# stores, so a working-tree digest is host-specific: an alias sealed on a
+	# CRLF checkout can never revalidate on an LF one, and vice versa. Git's
+	# stored bytes are the same everywhere, and they also exclude ignored
+	# files such as the disposable per-task `.local/` directory for free.
 	if not directory.is_dir():
 		raise WorkspaceError(f"Task directory does not exist: {directory}")
-	digest = hashlib.sha256()
-	paths = []
-	for path in directory.rglob("*"):
-		if path.is_symlink():
-			raise WorkspaceError(f"Task retained content must not be a symlink: {path}")
-		if not path.is_file():
+	root = git_root(directory)
+	prefix = directory.resolve().relative_to(root).as_posix()
+	listing = run_git_binary(root, "ls-tree", "-r", "-z", "HEAD", "--", prefix)
+	entries = []
+	for record in listing.split(b"\0"):
+		if not record:
 			continue
-		relative = path.relative_to(directory).as_posix()
+		meta, _, encoded = record.partition(b"\t")
+		fields = meta.split(b" ")
+		if len(fields) != 3:
+			raise WorkspaceError(f"Unexpected git ls-tree record: {record!r}")
+		mode, kind, oid = fields
+		path = encoded.decode("utf-8")
+		if mode == b"120000":
+			raise WorkspaceError(f"Task retained content must not be a symlink: {path}")
+		if kind != b"blob":
+			continue
+		relative = PurePosixPath(path).relative_to(prefix).as_posix()
 		if relative in ("state.yaml", "superseded.yaml"):
 			continue
-		paths.append((relative, path))
-	for relative, path in sorted(paths):
+		entries.append((relative, oid.decode("ascii")))
+	if not entries:
+		raise WorkspaceError(f"Task retained content is not committed: {prefix}")
+	digest = hashlib.sha256()
+	for relative, oid in sorted(entries):
 		name = relative.encode("utf-8")
-		data = path.read_bytes()
+		data = run_git_binary(root, "cat-file", "blob", oid)
 		digest.update(len(name).to_bytes(8, "big"))
 		digest.update(name)
 		digest.update(len(data).to_bytes(8, "big"))
