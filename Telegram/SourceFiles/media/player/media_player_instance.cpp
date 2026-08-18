@@ -74,6 +74,12 @@ base::options::toggle OptionDisableAutoplayNext({
 		: Core::App().settings().voicePlaybackSpeed();
 }
 
+[[nodiscard]] bool IsRealPlaybackContext(not_null<const HistoryItem*> item) {
+	return item->isRegular()
+		|| item->isScheduled()
+		|| item->isSavedMusicItem();
+}
+
 } // namespace
 
 const char kOptionDisableAutoplayNext[] = "disable-autoplay-next";
@@ -325,7 +331,10 @@ void Instance::setSession(not_null<Data*> data, Main::Session *session) {
 
 		session->data().itemRemoved(
 		) | rpl::filter([=](not_null<const HistoryItem*> item) {
-			return (data->current.contextId() == item->fullId());
+			const auto document = data->current.audio();
+			return (data->current.contextId() == item->fullId())
+				&& (IsRealPlaybackContext(item)
+					|| (document && document->isVideoMessage()));
 		}) | rpl::on_next([=] {
 			stopAndClear(data);
 		}, data->sessionLifetime);
@@ -456,10 +465,7 @@ auto Instance::playlistKey(not_null<const Data*> data) const
 		return {};
 	}
 	const auto item = data->history->owner().message(contextId);
-	if (!item
-		|| (!item->isRegular()
-			&& !item->isScheduled()
-			&& !item->isSavedMusicItem())) {
+	if (!item || !IsRealPlaybackContext(item)) {
 		return {};
 	}
 
