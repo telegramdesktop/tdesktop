@@ -837,11 +837,14 @@ int TabsHost::resizeGetHeight(int newWidth) {
 	_searchContentFits = _searching && !_scrolledToTop && (natural < span);
 	if (_searchContentFits) {
 		_keepMinHeight = span;
-	} else if (_keepMinHeight
-		&& ((natural >= _keepMinHeight)
-			|| (natural >= _visibleBottom)
-			|| _scrolledToTop)) {
-		_keepMinHeight = 0;
+	} else if (_keepMinHeight) {
+		// Growing filler would add scroll room on every scroll to bottom.
+		_keepMinHeight = std::min(
+			_keepMinHeight,
+			std::max(_visibleBottom, 0));
+		if ((natural >= _keepMinHeight) || _scrolledToTop) {
+			_keepMinHeight = 0;
+		}
 	}
 	return std::max(natural, _keepMinHeight);
 }
