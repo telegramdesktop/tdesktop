@@ -811,7 +811,15 @@ public:
 		const MTPBotApp &data);
 
 	[[nodiscard]] not_null<PollData*> poll(PollId id);
-	[[nodiscard]] HistoryItem *findItemForPoll(PollId id) const;
+	// Picks the item a poll update should notify against: the message the
+	// update names, when it is loaded and still carries this poll, else the
+	// oldest regular item among the poll's registered views. Returns null
+	// when only local, fake, scheduled or admin-log copies are registered -
+	// Manager::openNotificationMessage can open none of them, so notifying
+	// against one can only name a chat the vote did not happen in.
+	[[nodiscard]] HistoryItem *findItemForPoll(
+		PollId id,
+		FullMsgId namedId) const;
 	[[nodiscard]] std::vector<not_null<PeerData*>> pollRecentVoters(
 		PollId id) const;
 	not_null<PollData*> processPoll(const MTPPoll &data);

@@ -1959,17 +1959,21 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateMessagePoll: {
 		const auto &d = update.c_updateMessagePoll();
+		const auto tlPeer = d.vpeer();
+		const auto peer = tlPeer ? peerFromMTP(*tlPeer) : PeerId();
+		const auto msgId = MsgId(d.vmsg_id().value_or_empty());
 		const auto wasRecentVoters = session().data().pollRecentVoters(
 			d.vpoll_id().v);
 		session().data().applyUpdate(d);
 		const auto notifyItem = session().data().findItemForPoll(
-			d.vpoll_id().v);
+			d.vpoll_id().v,
+			FullMsgId(peer, msgId));
 		if (notifyItem) {
 			CheckPollVoteNotificationSchedule(
 				notifyItem,
 				wasRecentVoters);
 		}
-		if (const auto tlPeer = d.vpeer()) {
+		if (tlPeer) {
 			const auto &results = d.vresults();
 			const auto hasUnread = results.match([](
 					const MTPDpollResults &data) {
@@ -1979,8 +1983,6 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 					const MTPDpollResults &data) {
 				return data.is_min();
 			});
-			const auto peer = peerFromMTP(*tlPeer);
-			const auto msgId = d.vmsg_id()->v;
 			if (const auto history = session().data().historyLoaded(peer)) {
 				if (const auto item = session().data().message(
 						peer,

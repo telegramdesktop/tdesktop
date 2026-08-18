@@ -4838,16 +4838,31 @@ not_null<PollData*> Session::poll(PollId id) {
 	return i->second.get();
 }
 
-HistoryItem *Session::findItemForPoll(PollId id) const {
+HistoryItem *Session::findItemForPoll(PollId id, FullMsgId namedId) const {
 	const auto i = _polls.find(id);
 	if (i == _polls.end()) {
 		return nullptr;
 	}
-	const auto j = _pollViews.find(i->second.get());
-	if (j == _pollViews.end() || j->second.empty()) {
+	const auto poll = i->second.get();
+	if (const auto named = message(namedId)) {
+		const auto media = named->media();
+		if (named->isRegular() && media && media->poll() == poll) {
+			return named;
+		}
+	}
+	const auto j = _pollViews.find(poll);
+	if (j == _pollViews.end()) {
 		return nullptr;
 	}
-	return j->second.front()->data();
+	auto result = (HistoryItem*)nullptr;
+	for (const auto &view : j->second) {
+		const auto item = view->data();
+		if (item->isRegular()
+			&& (!result || item->position() < result->position())) {
+			result = item;
+		}
+	}
+	return result;
 }
 
 std::vector<not_null<PeerData*>> Session::pollRecentVoters(PollId id) const {
