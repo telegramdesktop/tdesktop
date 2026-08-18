@@ -66,7 +66,7 @@ private:
 	void enqueue(Pending pending);
 	void drain();
 	void heartbeat();
-	void fail();
+	void fail(const char *reason);
 
 	const ProxyData _proxy;
 	const uint64 _generation = 0;

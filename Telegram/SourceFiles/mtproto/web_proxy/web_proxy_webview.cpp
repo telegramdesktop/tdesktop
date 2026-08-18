@@ -160,9 +160,15 @@ WebviewCarrier::WebviewCarrier(
 			_writeTimer.get() }) {
 		timer->setSingleShot(true);
 	}
-	connect(_handshakeTimer.get(), &QTimer::timeout, this, [=] { fail(); });
-	connect(_healthTimer.get(), &QTimer::timeout, this, [=] { fail(); });
-	connect(_writeTimer.get(), &QTimer::timeout, this, [=] { fail(); });
+	connect(_handshakeTimer.get(), &QTimer::timeout, this, [=] {
+		fail("handshake timeout");
+	});
+	connect(_healthTimer.get(), &QTimer::timeout, this, [=] {
+		fail("health timeout");
+	});
+	connect(_writeTimer.get(), &QTimer::timeout, this, [=] {
+		fail("write timeout");
+	});
 	connect(_probeTimer.get(), &QTimer::timeout, this, [=] {
 		_window->eval("window.external?.invoke('h')");
 	});
@@ -174,7 +180,7 @@ WebviewCarrier::WebviewCarrier(
 	});
 	_window->setNavigationDoneHandler([=](bool success) {
 		if (!success) {
-			fail();
+			fail("navigation failed");
 		}
 	});
 	_window->init(BridgeScript());
@@ -231,11 +237,13 @@ void WebviewCarrier::handleMessage(
 		std::string sourceUrl) {
 	if (_closing) {
 		return;
-	} else if (_failed
-		|| !validSource(sourceUrl)
-		|| message.empty()
-		|| message.size() > kMaxMessageBytes) {
-		fail();
+	} else if (_failed) {
+		return;
+	} else if (!validSource(sourceUrl)) {
+		fail("invalid message source");
+		return;
+	} else if (message.empty() || message.size() > kMaxMessageBytes) {
+		fail("invalid message size");
 		return;
 	}
 	heartbeat();
@@ -243,7 +251,7 @@ void WebviewCarrier::handleMessage(
 	switch (data[0]) {
 	case 'h':
 		if (data.size() != 1) {
-			fail();
+			fail("invalid heartbeat");
 			return;
 		}
 		probeRestrictions();
@@ -258,13 +266,13 @@ void WebviewCarrier::handleMessage(
 		return;
 #endif // !NDEBUG
 	case 'f':
-		fail();
+		fail("bridge script failure");
 		return;
 	case 'a': {
 		bool ok = false;
 		const auto sequence = data.mid(1).toULongLong(&ok);
 		if (!ok || _inFlight.frame.isEmpty() || sequence != _writeSequence) {
-			fail();
+			fail("invalid write acknowledgement");
 			return;
 		}
 		_writeTimer->stop();
@@ -286,14 +294,14 @@ void WebviewCarrier::handleMessage(
 			data.mid(1),
 			QByteArray::AbortOnBase64DecodingErrors);
 		if (decoded.isEmpty()) {
-			fail();
+			fail("invalid binary message");
 			return;
 		}
 		handleBinary(decoded);
 		return;
 	} break;
 	default:
-		fail();
+		fail("invalid message type");
 	}
 }
 
@@ -301,7 +309,7 @@ void WebviewCarrier::handleControl(const QByteArray &control) {
 	QJsonParseError error;
 	const auto document = QJsonDocument::fromJson(control, &error);
 	if (error.error != QJsonParseError::NoError || !document.isObject()) {
-		fail();
+		fail("invalid control message");
 		return;
 	}
 	const auto object = document.object();
@@ -309,7 +317,7 @@ void WebviewCarrier::handleControl(const QByteArray &control) {
 	if (!_bridgeInitialized && type == u"tproxy-android-init"_q) {
 		if (object.value(u"v"_q).toInt() != 1
 			|| object.value(u"nonce"_q).toString() != _nonce) {
-			fail();
+			fail("invalid bridge initialization");
 			return;
 		}
 		_bridgeInitialized = true;
@@ -318,11 +326,11 @@ void WebviewCarrier::handleControl(const QByteArray &control) {
 			false,
 		});
 	} else if (type == u"close"_q) {
-		fail();
+		fail("bridge closed");
 	} else if (type == u"status"_q) {
 		const auto state = object.value(u"state"_q).toString();
 		if (state == u"failed"_q) {
-			fail();
+			fail("bridge reported failure");
 		} else if (!_adopted
 			&& (state == u"connecting"_q || state == u"reconnecting"_q)) {
 			extendHandshake();
@@ -334,7 +342,7 @@ void WebviewCarrier::extendHandshake() {
 	const auto left = kHandshakeTotalTimeout
 		- (crl::now() - _handshakeStarted);
 	if (left <= 0) {
-		fail();
+		fail("total handshake timeout");
 		return;
 	}
 	_handshakeTimer->start(int(std::min(kHandshakeTimeout, left)));
@@ -352,7 +360,7 @@ void WebviewCarrier::probeRestrictions() {
 
 void WebviewCarrier::handleBinary(QByteArray frame) {
 	if (!_bridgeInitialized) {
-		fail();
+		fail("binary message before initialization");
 		return;
 	}
 	if (!_adopted) {
@@ -364,7 +372,7 @@ void WebviewCarrier::handleBinary(QByteArray frame) {
 			|| frames.front().type != FrameType::Welcome
 			|| frames.front().streamId != 0
 			|| !frames.front().payload.isEmpty()) {
-			fail();
+			fail("invalid bridge welcome");
 			return;
 		}
 		_adopted = true;
@@ -411,7 +419,7 @@ void WebviewCarrier::enqueue(Pending pending) {
 	if (pendingItems >= kMaxPendingItems
 		|| pending.frame.size() > kMaxPendingBytes
 		|| _pendingBytes > kMaxPendingBytes - pending.frame.size()) {
-		fail();
+		fail("pending write limit exceeded");
 		return;
 	}
 	_pendingBytes += pending.frame.size();
@@ -440,10 +448,12 @@ void WebviewCarrier::heartbeat() {
 	_healthTimer->start(kHealthTimeout);
 }
 
-void WebviewCarrier::fail() {
+void WebviewCarrier::fail(const char *reason) {
 	if (_failed || _closing) {
 		return;
 	}
+	LOG(("Web Proxy Error: WebView carrier failed: %1"
+		).arg(QString::fromLatin1(reason)));
 	_failed = true;
 	if (_handshakeTimer) {
 		_handshakeTimer->stop();
