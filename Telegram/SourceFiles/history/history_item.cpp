@@ -3766,8 +3766,7 @@ Data::ReactionId HistoryItem::lookupUnreadReaction(
 
 QByteArray HistoryItem::lookupUnreadPollVote(
 		not_null<PeerData*> from) const {
-	const auto m = media();
-	const auto poll = m ? m->poll() : nullptr;
+	const auto poll = LookupNotificationPoll(this);
 	if (!poll) {
 		return {};
 	}
