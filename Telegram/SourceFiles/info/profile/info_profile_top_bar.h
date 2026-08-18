@@ -144,8 +144,7 @@ public:
 	void setLocalEmojiStatusId(EmojiStatusId emojiStatusId);
 	void addTopBarEditButton(
 		not_null<Window::SessionController*> controller,
-		Wrap wrap,
-		bool shouldUseColored);
+		Wrap wrap);
 
 	rpl::producer<std::optional<QColor>> edgeColor() const;
 
@@ -235,6 +234,8 @@ private:
 	void bindStatus();
 	[[nodiscard]] TopBarActionButtonStyle mapActionStyle(
 		std::optional<QColor> c) const;
+	[[nodiscard]] std::optional<QColor> buttonsColorOverride() const;
+	void updateButtonsColorOverride();
 
 	[[nodiscard]] rpl::producer<QString> nameValue() const;
 

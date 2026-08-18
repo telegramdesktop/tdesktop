@@ -152,12 +152,17 @@ private:
 constexpr auto kWaitBeforeGiftBadge = crl::time(1000);
 constexpr auto kGiftBadgeGlares = 3;
 constexpr auto kMinPatternRadius = 8;
-constexpr auto kMinContrast = 5.5;
 constexpr auto kStoryOutlineFadeEnd = 0.4;
 constexpr auto kStoryOutlineFadeRange = 1. - kStoryOutlineFadeEnd;
 constexpr auto kSwapMoveAmplitude = 0.3;
 
 using AnimatedPatternPoint = TopBar::AnimatedPatternPoint;
+
+[[nodiscard]] QColor ContentColorOverBackground(const QColor &background) {
+	return Ui::IsLightBackground(background)
+		? QColor(Qt::black)
+		: st::groupCallMembersFg->c;
+}
 
 struct PatternColors {
 	QColor patternColor;
@@ -2422,7 +2427,7 @@ void TopBar::hideTabSearch() {
 	}
 	_tabSearchShown = false;
 	if (_back) {
-		_back->entity()->setIconOverride(nullptr, nullptr);
+		_back->entity()->setIconColorOverride(buttonsColorOverride());
 	}
 	if (_tabSearchField->hasFocus()) {
 		setFocus();
@@ -2468,9 +2473,7 @@ void TopBar::raiseTabSearchOverlay() {
 	_tabSearchBar->raise();
 	if (_back) {
 		_back->raise();
-		_back->entity()->setIconOverride(
-			&st::infoTopBarBlackBack.icon,
-			&st::infoTopBarBlackBack.iconOver);
+		_back->entity()->setIconColorOverride(std::nullopt);
 	}
 }
 
@@ -2857,27 +2860,19 @@ void TopBar::setupButtons(
 		_edgeColor.value()
 	) | rpl::on_next([=](
 			Wrap wrap,
-			std::optional<QColor> edgeColor) mutable {
+			std::optional<QColor>) mutable {
 		const auto isLayer = (wrap == Wrap::Layer);
 		const auto isSide = (wrap == Wrap::Side);
 		setRoundEdges(isLayer);
 		setLottieSingleLoop(wrap == Wrap::Side);
 
-		const auto shouldUseColored = edgeColor
-			&& (kMinContrast > Ui::CountContrast(
-				st::boxTitleCloseFg->c,
-				*edgeColor));
 		_back = base::make_unique_q<Ui::FadeWrap<Ui::IconButton>>(
 			this,
 			object_ptr<Ui::IconButton>(
 				this,
 				(isLayer
-					? (shouldUseColored
-						? st::infoTopBarColoredBack
-						: st::infoTopBarBlackBack)
-					: (shouldUseColored
-						? st::infoLayerTopBarColoredBack
-						: st::infoLayerTopBarBlackBack))),
+					? st::infoTopBarBlackBack
+					: st::infoLayerTopBarBlackBack)),
 			st::infoTopBarScale);
 		_back->QWidget::show();
 		_back->setDuration(0);
@@ -2894,9 +2889,7 @@ void TopBar::setupButtons(
 		} else {
 			_close = base::make_unique_q<Ui::IconButton>(
 				this,
-				shouldUseColored
-					? st::infoTopBarColoredClose
-					: st::infoTopBarBlackClose);
+				st::infoTopBarBlackClose);
 			_close->setAccessibleName(tr::lng_sr_close_panel(tr::now));
 			_close->show();
 			_close->addClickHandler(isSide
@@ -2914,9 +2907,7 @@ void TopBar::setupButtons(
 			this,
 			object_ptr<Ui::IconButton>(
 				this,
-				shouldUseColored
-					? st::infoTopBarColoredMenu
-					: st::infoTopBarBlackMenu),
+				st::infoTopBarBlackMenu),
 			st::infoTopBarScale);
 		_tabMenuToggle->QWidget::show();
 		_tabMenuToggle->setDuration(st::infoTopBarDuration);
@@ -2931,9 +2922,7 @@ void TopBar::setupButtons(
 			this,
 			object_ptr<Ui::IconButton>(
 				this,
-				shouldUseColored
-					? st::infoTopBarColoredSearch
-					: st::infoTopBarBlackSearch),
+				st::infoTopBarBlackSearch),
 			st::infoTopBarScale);
 		_tabSearchToggle->QWidget::show();
 		_tabSearchToggle->setDuration(st::infoTopBarDuration);
@@ -2948,9 +2937,7 @@ void TopBar::setupButtons(
 			this,
 			object_ptr<Ui::IconButton>(
 				this,
-				shouldUseColored
-					? st::infoTopBarColoredGroup
-					: st::infoTopBarBlackGroup),
+				st::infoTopBarBlackGroup),
 			st::infoTopBarScale);
 		_tabGroupToggle->QWidget::show();
 		_tabGroupToggle->setDuration(st::infoTopBarDuration);
@@ -2978,9 +2965,10 @@ void TopBar::setupButtons(
 
 		if (wrap != Wrap::Side) {
 			if (source == Source::Stories) {
-				addTopBarEditButton(controller, wrap, shouldUseColored);
+				addTopBarEditButton(controller, wrap);
 			}
 		}
+		updateButtonsColorOverride();
 		raiseTabSearchOverlay();
 		raiseTabSelectionOverlay();
 	}, lifetime());
@@ -2988,17 +2976,12 @@ void TopBar::setupButtons(
 
 void TopBar::addTopBarEditButton(
 		not_null<Window::SessionController*> controller,
-		Wrap wrap,
-		bool shouldUseColored) {
+		Wrap wrap) {
 	_topBarButton = base::make_unique_q<Ui::IconButton>(
 		this,
 		((wrap == Wrap::Layer)
-			? (shouldUseColored
-				? st::infoLayerTopBarColoredEdit
-				: st::infoLayerTopBarBlackEdit)
-			: (shouldUseColored
-				? st::infoTopBarColoredEdit
-				: st::infoTopBarBlackEdit)));
+			? st::infoLayerTopBarBlackEdit
+			: st::infoTopBarBlackEdit));
 	_topBarButton->show();
 	_topBarButton->addClickHandler([=] {
 		controller->showSettings(::Settings::InformationId());
@@ -3012,6 +2995,28 @@ void TopBar::addTopBarEditButton(
 			_topBarButton->moveToRight(0, 0);
 		}
 	}, _topBarButton->lifetime());
+}
+
+std::optional<QColor> TopBar::buttonsColorOverride() const {
+	const auto edgeColor = _edgeColor.current();
+	return edgeColor
+		? std::make_optional(ContentColorOverBackground(*edgeColor))
+		: std::nullopt;
+}
+
+void TopBar::updateButtonsColorOverride() {
+	const auto color = buttonsColorOverride();
+	const auto apply = [&](Ui::IconButton *button) {
+		if (button) {
+			button->setIconColorOverride(color);
+		}
+	};
+	apply(_back ? _back->entity() : nullptr);
+	apply(_close.get());
+	apply(_tabMenuToggle ? _tabMenuToggle->entity() : nullptr);
+	apply(_tabSearchToggle ? _tabSearchToggle->entity() : nullptr);
+	apply(_tabGroupToggle ? _tabGroupToggle->entity() : nullptr);
+	apply(_topBarButton.get());
 }
 
 void TopBar::showTopBarMenu(
