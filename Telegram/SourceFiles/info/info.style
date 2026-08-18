@@ -372,6 +372,7 @@ infoProfileBirthdayDigitSize: 64px;
 
 
 infoProfileTopBarActionButtonBgOpacity: 0.16;
+infoProfileTopBarBackdropRippleOpacity: 0.125;
 infoProfileTopBarActionButtonSize: 52px;
 infoProfileTopBarActionButtonIconSize: 23px;
 infoProfileTopBarActionButtonLottieSize: infoProfileTopBarActionButtonIconSize - 0px;

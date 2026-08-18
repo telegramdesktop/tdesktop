@@ -164,6 +164,72 @@ using AnimatedPatternPoint = TopBar::AnimatedPatternPoint;
 		: st::groupCallMembersFg->c;
 }
 
+class BackdropIconButton final : public Ui::IconButton {
+public:
+	using Ui::IconButton::IconButton;
+
+	void setBackdropColor(std::optional<QColor> color);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void onStateChanged(State was, StateChangeSource source) override;
+
+private:
+	std::optional<QColor> _backdropColor;
+	style::owned_color _rippleColor = style::owned_color(QColor());
+	Ui::Animations::Simple _overAnimation;
+
+};
+
+void BackdropIconButton::setBackdropColor(std::optional<QColor> color) {
+	_backdropColor = color;
+	setIconColorOverride(color);
+	if (color) {
+		_rippleColor.update(anim::with_alpha(
+			*color,
+			st::infoProfileTopBarBackdropRippleOpacity));
+	}
+	setRippleColorOverride(color ? &_rippleColor.color() : nullptr);
+	update();
+}
+
+void BackdropIconButton::paintEvent(QPaintEvent *e) {
+	const auto shown = _backdropColor
+		? _overAnimation.value(isOver() ? 1. : 0.)
+		: 0.;
+	if (shown > 0.) {
+		auto p = QPainter(this);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setOpacity(shown);
+		p.setPen(Qt::NoPen);
+		p.setBrush(_rippleColor.color());
+		p.drawEllipse(QRect(
+			st().rippleAreaPosition,
+			QSize(st().rippleAreaSize, st().rippleAreaSize)));
+	}
+	Ui::IconButton::paintEvent(e);
+}
+
+void BackdropIconButton::onStateChanged(
+		State was,
+		StateChangeSource source) {
+	Ui::IconButton::onStateChanged(was, source);
+
+	const auto over = isOver();
+	if (over != ((was & StateFlag::Over) != 0)) {
+		_overAnimation.start(
+			[=] { update(); },
+			over ? 0. : 1.,
+			over ? 1. : 0.,
+			st::universalDuration);
+	}
+}
+
+[[nodiscard]] not_null<BackdropIconButton*> Backdrop(
+		not_null<Ui::IconButton*> button) {
+	return static_cast<BackdropIconButton*>(button.get());
+}
+
 struct PatternColors {
 	QColor patternColor;
 	bool useOverlayBlend = false;
@@ -2427,7 +2493,7 @@ void TopBar::hideTabSearch() {
 	}
 	_tabSearchShown = false;
 	if (_back) {
-		_back->entity()->setIconColorOverride(buttonsColorOverride());
+		Backdrop(_back->entity())->setBackdropColor(buttonsColorOverride());
 	}
 	if (_tabSearchField->hasFocus()) {
 		setFocus();
@@ -2473,7 +2539,7 @@ void TopBar::raiseTabSearchOverlay() {
 	_tabSearchBar->raise();
 	if (_back) {
 		_back->raise();
-		_back->entity()->setIconColorOverride(std::nullopt);
+		Backdrop(_back->entity())->setBackdropColor(std::nullopt);
 	}
 }
 
@@ -2868,7 +2934,7 @@ void TopBar::setupButtons(
 
 		_back = base::make_unique_q<Ui::FadeWrap<Ui::IconButton>>(
 			this,
-			object_ptr<Ui::IconButton>(
+			object_ptr<BackdropIconButton>(
 				this,
 				(isLayer
 					? st::infoLayerTopBarBlackBack
@@ -2887,7 +2953,7 @@ void TopBar::setupButtons(
 		if (!isLayer && !isSide) {
 			_close = nullptr;
 		} else {
-			_close = base::make_unique_q<Ui::IconButton>(
+			_close = base::make_unique_q<BackdropIconButton>(
 				this,
 				(isLayer
 					? st::infoLayerTopBarBlackClose
@@ -2907,7 +2973,7 @@ void TopBar::setupButtons(
 
 		_tabMenuToggle = base::make_unique_q<Ui::FadeWrap<Ui::IconButton>>(
 			this,
-			object_ptr<Ui::IconButton>(
+			object_ptr<BackdropIconButton>(
 				this,
 				st::infoTopBarBlackMenu),
 			st::infoTopBarScale);
@@ -2922,7 +2988,7 @@ void TopBar::setupButtons(
 
 		_tabSearchToggle = base::make_unique_q<Ui::FadeWrap<Ui::IconButton>>(
 			this,
-			object_ptr<Ui::IconButton>(
+			object_ptr<BackdropIconButton>(
 				this,
 				st::infoTopBarBlackSearch),
 			st::infoTopBarScale);
@@ -2937,7 +3003,7 @@ void TopBar::setupButtons(
 
 		_tabGroupToggle = base::make_unique_q<Ui::FadeWrap<Ui::IconButton>>(
 			this,
-			object_ptr<Ui::IconButton>(
+			object_ptr<BackdropIconButton>(
 				this,
 				st::infoTopBarBlackGroup),
 			st::infoTopBarScale);
@@ -2979,7 +3045,7 @@ void TopBar::setupButtons(
 void TopBar::addTopBarEditButton(
 		not_null<Window::SessionController*> controller,
 		Wrap wrap) {
-	_topBarButton = base::make_unique_q<Ui::IconButton>(
+	_topBarButton = base::make_unique_q<BackdropIconButton>(
 		this,
 		((wrap == Wrap::Layer)
 			? st::infoLayerTopBarBlackEdit
@@ -3010,7 +3076,7 @@ void TopBar::updateButtonsColorOverride() {
 	const auto color = buttonsColorOverride();
 	const auto apply = [&](Ui::IconButton *button) {
 		if (button) {
-			button->setIconColorOverride(color);
+			Backdrop(button)->setBackdropColor(color);
 		}
 	};
 	apply(_back ? _back->entity() : nullptr);
