@@ -661,6 +661,128 @@ content_sha256: {content_digest}
 				(main / "tasks" / source_task / workspace.CONSOLIDATION_COMPLETE).is_file()
 			)
 
+	def test_merged_consolidation_publishes_a_removed_directory(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			config = inbox_worktrees(root)
+			main = Path(config["ai_main"])
+			slot = Path(config["slot_worktree"])
+			source_task = "2026/07/18/active-task"
+			old_ids = ["2026/07/18/first-task", "2026/07/18/second-task"]
+			new_id = "2026/07/20/combined-task"
+			receipt = "receipts/2026/07/20/consolidation.md"
+			directory = main / "tasks" / source_task
+			state = directory / "state.yaml"
+			state.write_text(
+				state.read_text(encoding="utf-8")
+				.replace("status: todo", "status: approved")
+				.replace("phase: null", "phase: complete"),
+				encoding="utf-8",
+			)
+			pending = directory / workspace.CONSOLIDATION_PENDING
+			pending.parent.mkdir()
+			pending.write_text("# Pending task consolidation\n", encoding="utf-8")
+			for old_id in old_ids:
+				old = main / "tasks" / old_id
+				old.mkdir(parents=True)
+				(old / "task.md").write_text(f"# {old_id}\n", encoding="utf-8")
+				(old / "state.yaml").write_text(
+					"""status: todo
+type: implement
+created: 2026-07-18
+project: null
+depends_on: []
+claimed_by: null
+claimed_at: null
+claim_order: null
+lease_until: null
+phase: null
+inbox_receipt: receipts/2026/07/18/seed.md
+""",
+					encoding="utf-8",
+				)
+			retired = main / "projects" / "legacy"
+			retired.mkdir(parents=True)
+			(retired / "project.md").write_text("# Legacy project\n", encoding="utf-8")
+			(retired / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+			git(main, "add", "-A")
+			git(main, "commit", "-m", "Route follow-ups")
+			git(slot, "merge", "--ff-only", "master")
+			slot_directory = slot / "tasks" / source_task
+			(slot_directory / workspace.CONSOLIDATION_PENDING).unlink()
+			(slot_directory / workspace.CONSOLIDATION_COMPLETE).write_text(
+				f"# Consolidation\n\nSource: {source_task}\nSTATUS: MERGED\n",
+				encoding="utf-8",
+			)
+			for old_id in old_ids:
+				old = slot / "tasks" / old_id
+				digest = workspace.retained_task_digest(old)
+				(old / "state.yaml").unlink()
+				(old / "superseded.yaml").write_text(
+					f"""superseded_by: {new_id}
+receipt: {receipt}
+type: implement
+project: null
+content_sha256: {digest}
+""",
+					encoding="utf-8",
+				)
+			new = slot / "tasks" / new_id
+			new.mkdir(parents=True)
+			(new / "task.md").write_text("# Combined task\n", encoding="utf-8")
+			(new / "state.yaml").write_text(
+				f"""status: todo
+type: implement
+created: 2026-07-20
+project: null
+depends_on: []
+claimed_by: null
+claimed_at: null
+claim_order: null
+lease_until: null
+phase: null
+inbox_receipt: {receipt}
+""",
+				encoding="utf-8",
+			)
+			receipt_path = slot / receipt
+			receipt_path.parent.mkdir(parents=True)
+			receipt_path.write_text(
+				"\n".join(old_ids + [new_id]) + "\n",
+				encoding="utf-8",
+			)
+			git(slot, "rm", "-r", "-q", "--", "projects/legacy")
+			self.assertEqual(git(slot, "ls-files", "--", "projects/legacy"), "")
+
+			out = io.StringIO()
+			with (
+				mock.patch.object(workspace, "worktree_config", return_value=config),
+				contextlib.redirect_stdout(out),
+			):
+				workspace.command_consolidate_publish(SimpleNamespace(
+					source_task=source_task,
+					mappings=[f"{old_id}={new_id}" for old_id in old_ids],
+					receipt=receipt,
+					paths=[
+						f"tasks/{source_task}",
+						f"tasks/{old_ids[0]}",
+						f"tasks/{old_ids[1]}",
+						f"tasks/{new_id}",
+						receipt,
+						"projects/legacy",
+					],
+				))
+
+			result = json.loads(out.getvalue())
+			self.assertTrue(result["committed"])
+			self.assertTrue(result["published"])
+			self.assertIn(
+				"D\tprojects/legacy/project.md",
+				git(slot, "show", "--name-status", "--no-renames", "--format=", "HEAD"),
+			)
+			self.assertFalse((main / "projects" / "legacy").exists())
+			self.assertTrue((main / "tasks" / new_id / "state.yaml").is_file())
+
 	def test_merged_consolidation_validates_aliases_and_dependencies(self):
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary)
@@ -2231,6 +2353,36 @@ class MechanicsTest(unittest.TestCase):
 			)
 			self.assertTrue(verified["valid"])
 			self.assertEqual(verified["subject"], "Correct peer actions")
+
+	def test_source_commit_stages_a_removed_tracked_file(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			source, slot, work, config = source_repo_with_task(root)
+			(work / "owned-paths.txt").write_text(
+				"tracked.txt\n", encoding="utf-8",
+			)
+			git(source, "rm", "-q", "tracked.txt")
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				result = run_command(
+					workspace.command_source_commit,
+					task=TASK_ID,
+					subject="Remove the orphaned tracked file",
+					mark_green=False,
+				)
+			self.assertEqual(result["committed"], ["tracked.txt"])
+			self.assertEqual(
+				git(source, "show", "--name-status", "--format=", "HEAD"),
+				"D\ttracked.txt",
+			)
+			self.assertEqual(
+				git(source, "show", "-s", "--format=%B", "HEAD"),
+				f"Remove the orphaned tracked file\n\nTask: {TASK_ID}",
+			)
+			self.assertFalse((source / "tracked.txt").exists())
+			self.assertEqual(git(source, "status", "--porcelain"), "")
+			self.assertEqual(git(source, "rev-list", "--count", "HEAD"), "2")
 
 	def test_source_commit_rejects_paths_outside_owned_set(self):
 		with tempfile.TemporaryDirectory() as temporary:

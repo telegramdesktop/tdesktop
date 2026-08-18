@@ -489,6 +489,13 @@ def changed_paths(path):
 	return sorted(result)
 
 
+def path_is_stageable(root, path):
+	return (
+		os.path.lexists(root / path)
+		or bool(run_git(root, "ls-files", "--", path).stdout.strip())
+	)
+
+
 def unpublished_counts(config):
 	values = run_git(
 		config["slot_worktree"],
@@ -2508,7 +2515,8 @@ def command_source_commit(args):
 			+ ", ".join(submodules)
 		)
 	for path in dirty:
-		run_git(source, "add", "--", path)
+		if path_is_stageable(source, path):
+			run_git(source, "add", "--", path)
 	run_git(
 		source,
 		"commit",
@@ -3203,10 +3211,7 @@ def command_consolidate_publish(args):
 	committed = False
 	if changes:
 		for path in paths:
-			if (
-				(slot / path).exists()
-				or any(path_is_covered(change, [path]) for change in changes)
-			):
+			if path_is_stageable(slot, path):
 				run_git(slot, "add", "-A", "--", path)
 		unstaged = run_git(slot, "diff", "--name-only").stdout.splitlines()
 		untracked = run_git(
