@@ -2871,8 +2871,8 @@ void TopBar::setupButtons(
 			object_ptr<Ui::IconButton>(
 				this,
 				(isLayer
-					? st::infoTopBarBlackBack
-					: st::infoLayerTopBarBlackBack)),
+					? st::infoLayerTopBarBlackBack
+					: st::infoTopBarBlackBack)),
 			st::infoTopBarScale);
 		_back->QWidget::show();
 		_back->setDuration(0);
@@ -2889,7 +2889,9 @@ void TopBar::setupButtons(
 		} else {
 			_close = base::make_unique_q<Ui::IconButton>(
 				this,
-				st::infoTopBarBlackClose);
+				(isLayer
+					? st::infoLayerTopBarBlackClose
+					: st::infoTopBarBlackClose));
 			_close->setAccessibleName(tr::lng_sr_close_panel(tr::now));
 			_close->show();
 			_close->addClickHandler(isSide

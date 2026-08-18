@@ -22,6 +22,11 @@ infoTopBarBlackClose: IconButton(infoTopBarClose) {
 	iconOver: icon {{ "info/info_close", windowBoldFg }};
 	ripple: universalRippleAnimation;
 }
+infoLayerTopBarBlackClose: IconButton(infoLayerTopBarClose) {
+	icon: icon {{ "info/info_close", windowBoldFg }};
+	iconOver: icon {{ "info/info_close", windowBoldFg }};
+	ripple: universalRippleAnimation;
+}
 infoTopBarBlackMenu: IconButton(infoTopBarMenu) {
 	icon: icon {{ "title_menu_dots", windowBoldFg }};
 	iconOver: icon {{ "title_menu_dots", windowBoldFg }};
