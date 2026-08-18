@@ -1353,7 +1353,9 @@ void CheckPollVoteNotificationSchedule(
 	for (const auto &answer : poll->answers) {
 		for (const auto &voter : answer.recentVoters) {
 			const auto user = voter->asUser();
-			if (!user || ranges::contains(wasRecentVoters, voter)) {
+			if (!user
+				|| user->isSelf()
+				|| ranges::contains(wasRecentVoters, voter)) {
 				continue;
 			}
 			if (from == Api::ReactionsNotifyFrom::Contacts
