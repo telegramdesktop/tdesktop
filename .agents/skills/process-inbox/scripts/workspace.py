@@ -1401,6 +1401,14 @@ def run_git_binary(path, *args):
 	return result.stdout
 
 
+def literal_paths(path, *args):
+	return [
+		value
+		for value in os.fsdecode(run_git_binary(path, *args, "-z")).split("\0")
+		if value
+	]
+
+
 def resolved_exe(value):
 	path = Path(value).expanduser().resolve()
 	if not path.is_file():
@@ -1987,6 +1995,8 @@ def command_test_run(args):
 	dumps_dir = portable / PORTABLE_LIVE / "tdata" / "dumps"
 	completed_dir = dumps_dir / CRASHPAD_COMPLETED_DIR
 	completed_before = set(completed_dir.glob("*.dmp"))
+	dumps_before = set(dumps_dir.glob("*.dmp"))
+	working_before = working.stat().st_mtime_ns if working.is_file() else None
 
 	launched_at = time.time()
 	with stdout_path.open("wb") as out, stderr_path.open("wb") as err:
@@ -2044,12 +2054,12 @@ def command_test_run(args):
 	test_complete = TEST_COMPLETE_MARKER in log_text
 	crash_report_fresh = (
 		working.is_file()
-		and working.stat().st_mtime >= launched_at
+		and working.stat().st_mtime_ns != working_before
 		and working.stat().st_size > 0
 	)
 	dumps = sorted(
-		str(path) for path in dumps_dir.glob("*.dmp")
-		if path.stat().st_mtime >= launched_at
+		str(path)
+		for path in set(dumps_dir.glob("*.dmp")) - dumps_before
 	) if dumps_dir.is_dir() else []
 	crashpad_dumps_added = sorted(
 		str(path)
@@ -2441,9 +2451,9 @@ def command_overlay_apply(args):
 			errors.append(
 				f"{repository_path or '.'}: {result.stderr.strip()}"
 			)
-		for path in run_git(
+		for path in literal_paths(
 			repository, "diff", "--name-only", "--diff-filter=U"
-		).stdout.splitlines():
+		):
 			conflicts.append(
 				f"{repository_path}/{path}" if repository_path else path
 			)
@@ -3039,7 +3049,7 @@ def consolidation_validation_for_head(slot):
 	source_task = subject[len(prefix):]
 	if not TASK_ID_PATTERN.fullmatch(source_task):
 		raise WorkspaceError(f"Invalid consolidation commit subject: {subject!r}")
-	changed = run_git(
+	changed = literal_paths(
 		slot,
 		"diff-tree",
 		"--no-commit-id",
@@ -3047,7 +3057,7 @@ def consolidation_validation_for_head(slot):
 		"-r",
 		"HEAD^",
 		"HEAD",
-	).stdout.splitlines()
+	)
 	superseded = load_superseded(slot)
 	mappings = {}
 	for path in changed:
@@ -3213,13 +3223,13 @@ def command_consolidate_publish(args):
 		for path in paths:
 			if path_is_stageable(slot, path):
 				run_git(slot, "add", "-A", "--", path)
-		unstaged = run_git(slot, "diff", "--name-only").stdout.splitlines()
-		untracked = run_git(
+		unstaged = literal_paths(slot, "diff", "--name-only")
+		untracked = literal_paths(
 			slot,
 			"ls-files",
 			"--others",
 			"--exclude-standard",
-		).stdout.splitlines()
+		)
 		if unstaged or untracked:
 			raise WorkspaceError(
 				"Consolidation changes remain unstaged: "
@@ -3287,28 +3297,26 @@ def command_inbox_publish(args):
 			"Inbox worktree changes are outside the explicit publication paths: "
 			+ ", ".join(unexpected)
 		)
-	unstaged_before = set(
-		run_git(worktree, "diff", "--name-only").stdout.splitlines()
-	)
-	unstaged_before.update(run_git(
+	unstaged_before = set(literal_paths(worktree, "diff", "--name-only"))
+	unstaged_before.update(literal_paths(
 		worktree,
 		"ls-files",
 		"--others",
 		"--exclude-standard",
-	).stdout.splitlines())
+	))
 	for path in paths:
 		if (
 			(worktree / path).exists()
 			or any(path_is_covered(change, [path]) for change in unstaged_before)
 		):
 			run_git(worktree, "add", "-A", "--", path)
-	unstaged = run_git(worktree, "diff", "--name-only").stdout.splitlines()
-	untracked = run_git(
+	unstaged = literal_paths(worktree, "diff", "--name-only")
+	untracked = literal_paths(
 		worktree,
 		"ls-files",
 		"--others",
 		"--exclude-standard",
-	).stdout.splitlines()
+	)
 	if unstaged or untracked:
 		raise WorkspaceError(
 			"Inbox worktree changes remain unstaged: "

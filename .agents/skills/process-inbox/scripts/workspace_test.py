@@ -416,6 +416,65 @@ class WorkspaceTest(unittest.TestCase):
 			self.assertTrue((main / "projects" / "legacy").is_dir())
 			self.assertFalse((main / "projects" / "archive" / "legacy").exists())
 
+	def test_inbox_publish_stages_a_removed_non_ascii_publication_path(self):
+		name = "\u00e9\u6587.md"
+		self.assertEqual(name.encode("utf-8"), b"\xc3\xa9\xe6\x96\x87.md")
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			config = inbox_worktrees(root)
+			main = Path(config["ai_main"])
+			project = main / "projects" / "sample"
+			project.mkdir(parents=True)
+			(project / name).write_text("# Sample note\n", encoding="utf-8")
+			git(main, "add", "projects/sample")
+			git(main, "commit", "-m", "Add sample project")
+
+			prepared = io.StringIO()
+			with (
+				mock.patch.object(
+					workspace,
+					"inbox_worktree_config",
+					return_value=config,
+				),
+				contextlib.redirect_stdout(prepared),
+			):
+				workspace.command_prepare(SimpleNamespace())
+			result = json.loads(prepared.getvalue())
+
+			worktree = Path(config["inbox_worktree"])
+			(worktree / "projects" / "sample" / name).unlink()
+			(worktree / "projects" / "sample").rmdir()
+			receipt = "receipts/2026/07/19/removed-note.md"
+			receipt_path = worktree / receipt
+			receipt_path.parent.mkdir(parents=True)
+			receipt_path.write_text(
+				f"# Inbox receipt\n\nInbox digest: {result['digest']}\n",
+				encoding="utf-8",
+			)
+			with (
+				mock.patch.object(
+					workspace,
+					"inbox_worktree_config",
+					return_value=config,
+				),
+				contextlib.redirect_stdout(io.StringIO()),
+			):
+				workspace.command_inbox_publish(SimpleNamespace(
+					transaction=result["transaction"],
+					receipt=receipt,
+					paths=["projects/sample", receipt],
+				))
+
+			self.assertFalse((main / "projects" / "sample").exists())
+			self.assertEqual(
+				git_bytes(
+					main,
+					"-c", "core.quotePath=false",
+					"show", "--name-status", "--format=", "HEAD",
+				).decode("utf-8").strip().splitlines(),
+				["D\tprojects/sample/" + name, "A\t" + receipt],
+			)
+
 	def test_finalize_rejects_receipt_outside_master(self):
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary)
@@ -620,6 +679,60 @@ content_sha256: {content_digest}
 
 			self.assertIsNotNone(validate)
 			validate(root)
+
+	def test_consolidation_validation_rejects_a_non_ascii_superseded_path(self):
+		slug = "\u00e9\u6587"
+		self.assertEqual(slug.encode("utf-8"), b"\xc3\xa9\xe6\x96\x87")
+		planted = f"tasks/2026/07/19/{slug}/work/superseded.yaml"
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			git_repo(root)
+			directory = write_task(root, status="approved")
+			pending = directory / workspace.CONSOLIDATION_PENDING
+			pending.write_text("pending\n", encoding="utf-8")
+			git(root, "add", ".")
+			git(root, "commit", "-m", "Seed completed task")
+			pending.unlink()
+			complete = directory / workspace.CONSOLIDATION_COMPLETE
+			complete.write_text(
+				f"# Consolidation\n\nSource: {TASK_ID}\nSTATUS: NO_MERGE\n",
+				encoding="utf-8",
+			)
+			alias = root / planted
+			alias.parent.mkdir(parents=True)
+			alias.write_text(
+				"superseded_by: 2026/07/20/successor-task\n"
+				"receipt: receipts/2026/07/19/test.md\n"
+				"type: implement\n"
+				"project: null\n"
+				"content_sha256: " + "0" * 64 + "\n",
+				encoding="utf-8",
+			)
+			git(root, "add", "-A")
+			git(
+				root,
+				"commit",
+				"-m",
+				f"Consolidate pending tasks after {TASK_ID}",
+			)
+			self.assertEqual(
+				git_bytes(
+					root,
+					"-c", "core.quotePath=false",
+					"diff-tree", "--no-commit-id", "--name-only", "-r",
+					"HEAD^", "HEAD",
+				).decode("utf-8").splitlines().count(planted),
+				1,
+			)
+			self.assertEqual(workspace.superseded_paths(root), [])
+
+			with self.assertRaises(workspace.WorkspaceError) as caught:
+				workspace.consolidation_validation_for_head(root)
+
+			self.assertEqual(
+				str(caught.exception),
+				"Invalid superseded path in consolidation commit: " + planted,
+			)
 
 	def test_no_merge_consolidation_publishes_durable_completion(self):
 		with tempfile.TemporaryDirectory() as temporary:
@@ -2105,6 +2218,33 @@ class MechanicsTest(unittest.TestCase):
 				b"golden dump\n",
 			)
 
+	def test_test_run_ignores_a_stale_crash_report_copied_from_golden(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			golden = debug / workspace.PORTABLE_GOLDEN
+			(golden / "tdata" / "dumps").mkdir(parents=True)
+			report = golden / "tdata" / "working"
+			report.write_bytes(b"Assertion: last month\n")
+			dump = golden / "tdata" / "dumps" / "golden.dmp"
+			dump.write_bytes(b"MDMP old minidump\n")
+			for path in (report, dump):
+				os.utime(path, (1600000000, 1600000000))
+			exe = write_complete_markers_exe(debug / "Telegram")
+			result = run_test_run(exe, root / "run1")
+			live = debug / workspace.PORTABLE_LIVE
+			working = live / "tdata" / "working"
+			self.assertEqual(result["account"], "fresh-copy")
+			self.assertTrue(result["test_complete"])
+			self.assertEqual(working.read_bytes(), b"Assertion: last month\n")
+			self.assertEqual(working.stat().st_mtime, report.stat().st_mtime)
+			self.assertEqual(result["crash_report"], str(working))
+			self.assertFalse(result["crash_report_fresh"])
+			self.assertIsNone(result["crash_report_excerpt"])
+			self.assertEqual(result["dumps"], [])
+			self.assertEqual(result["death_signals"], [])
+			self.assertEqual(result["verdict_hint"], "complete")
+
 	def test_test_run_refuses_to_launch_when_the_stale_report_cannot_move(self):
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary)
@@ -2274,6 +2414,56 @@ class MechanicsTest(unittest.TestCase):
 			self.assertEqual(
 				tracked.read_text(encoding="utf-8"),
 				"base\noverlay\n",
+			)
+
+	def test_overlay_apply_reports_a_non_ascii_conflict_literally(self):
+		name = "\u00e9\u6587.txt"
+		self.assertEqual(name.encode("utf-8"), b"\xc3\xa9\xe6\x96\x87.txt")
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			source, slot, work, config = source_repo_with_task(root)
+			target = source / name
+			target.write_text("base\n", encoding="utf-8")
+			git(source, "add", "-A")
+			git(source, "commit", "-m", "Add the non-ASCII sample")
+			git(
+				source, "update-ref",
+				workspace.source_task_ref(TASK_ID, "run"), "HEAD",
+			)
+			(work / workspace.OVERLAY_PATHS_FILE).write_text(
+				name + "\n", encoding="utf-8",
+			)
+			target.write_text("overlay\n", encoding="utf-8")
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				saved = run_command(
+					workspace.command_overlay_save,
+					task=TASK_ID,
+					restore="run",
+				)
+			self.assertEqual(saved["restored"], [name])
+			self.assertEqual(target.read_text(encoding="utf-8"), "base\n")
+			target.write_text("diverged\n", encoding="utf-8")
+			git(source, "add", "-A")
+			git(source, "commit", "-m", "Diverge the non-ASCII sample")
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				applied = run_command(
+					workspace.command_overlay_apply,
+					task=TASK_ID,
+				)
+			self.assertEqual(applied["conflicts"], [name])
+			self.assertFalse(applied["applied"])
+			self.assertEqual(applied["outside_inventory"], [])
+			self.assertEqual(
+				git_bytes(
+					source,
+					"-c", "core.quotePath=false",
+					"diff", "--name-only", "--diff-filter=U",
+				).decode("utf-8").splitlines(),
+				[name],
 			)
 
 	def test_overlay_save_rejects_uninventoried_and_untracked_paths(self):
