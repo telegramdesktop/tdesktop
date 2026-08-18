@@ -306,7 +306,7 @@ void UniqueGiftMessagePart::unloadHeavyPart() {
 }
 
 QSize UniqueGiftMessagePart::countOptimalSize() {
-	const auto height = resolveLayout(st::msgServiceGiftBoxSize.width());
+	const auto height = resolveLayout(st::chatUniqueGiftMaxWidth);
 	return { _layout.sectionWidth, height };
 }
 

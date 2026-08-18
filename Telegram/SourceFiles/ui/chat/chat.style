@@ -1137,6 +1137,7 @@ botDownloadCancel: IconButton {
 }
 chatUniqueGiftBorder: 4px;
 chatUniqueGiftBadgePadding: margins(12px, 0px, 12px, 2px);
+chatUniqueGiftMaxWidth: 272px;
 
 chatUniqueStickerPadding: margins(10px, 40px, 10px, 9px);
 chatUniquePreviewPadding: margins(10px, 30px, 10px, 32px);

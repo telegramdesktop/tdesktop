@@ -2421,11 +2421,12 @@ object_ptr<RpWidget> MakeUniqueGiftPreview(
 							.skipViewAction = true,
 						}),
 						MediaGenericDescriptor{
-							.maxWidth = st::msgServiceGiftBoxSize.width(),
+							.maxWidth = st::chatUniqueGiftMaxWidth,
+							.minWidth = st::msgServiceGiftBoxSize.width(),
 							.paintBgFactory = [=] {
 								return UniqueGiftBg(parent, gift, cache);
 							},
-							.narrowToContent = true,
+							.fitToContent = true,
 							.service = true,
 						});
 				},

@@ -84,8 +84,9 @@ MediaGeneric::MediaGeneric(
 , _paintBg(_paintBgFactory ? _paintBgFactory() : nullptr)
 , _fullAreaLink(descriptor.fullAreaLink)
 , _maxWidthCap(descriptor.maxWidth)
+, _minWidth(descriptor.minWidth)
 , _expandCurrentWidth(descriptor.expandCurrentWidth)
-, _narrowToContent(descriptor.narrowToContent)
+, _fitToContent(descriptor.fitToContent)
 , _service(descriptor.service)
 , _hideServiceText(descriptor.hideServiceText) {
 	generate(this, [&](std::unique_ptr<Part> part) {
@@ -113,8 +114,8 @@ QSize MediaGeneric::countOptimalSize() {
 		raw->initDimensions();
 		accumulate_max(contentWidth, raw->maxWidth());
 	}
-	const auto maxWidth = (_narrowToContent && contentWidth)
-		? std::min(contentWidth, cap)
+	const auto maxWidth = (_fitToContent && contentWidth)
+		? std::clamp(contentWidth, std::min(_minWidth, cap), cap)
 		: cap;
 
 	auto top = 0;

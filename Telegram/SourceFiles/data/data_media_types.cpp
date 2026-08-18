@@ -2851,11 +2851,12 @@ std::unique_ptr<HistoryView::Media> MediaGiftBox::createView(
 				.upgrade = _data.upgrade,
 			}),
 			HistoryView::MediaGenericDescriptor{
-				.maxWidth = st::msgServiceGiftBoxSize.width(),
+				.maxWidth = st::chatUniqueGiftMaxWidth,
+				.minWidth = st::msgServiceGiftBoxSize.width(),
 				.paintBgFactory = [=] {
 					return HistoryView::UniqueGiftBg(message, unique);
 				},
-				.narrowToContent = true,
+				.fitToContent = true,
 				.service = true,
 			});
 	}
