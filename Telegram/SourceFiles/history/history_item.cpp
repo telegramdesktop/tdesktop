@@ -1964,7 +1964,7 @@ void HistoryItem::setIsPinned(bool pinned) {
 		}
 	} else {
 		_flags &= ~MessageFlag::Pinned;
-		if (_flags & MessageFlag::StoryItem) {
+		if (!changed || (_flags & MessageFlag::StoryItem)) {
 			return;
 		}
 
@@ -2594,6 +2594,7 @@ void HistoryItem::applyEdition(const MTPDmessageService &message) {
 
 		updateReactions(message.vreactions());
 	} else if (isService()) {
+		removeFromSharedMediaIndex();
 		if (const auto reply = Get<HistoryMessageReply>()) {
 			reply->clearData(this);
 		}
@@ -2601,6 +2602,7 @@ void HistoryItem::applyEdition(const MTPDmessageService &message) {
 		UpdateComponents(0);
 		createServiceFromMtp(message);
 		applyServiceDateEdition(message);
+		addToSharedMediaIndex();
 		finishEdition(-1);
 		_flags &= ~MessageFlag::DisplayFromChecked;
 
@@ -2654,6 +2656,9 @@ void HistoryItem::applySentMessage(const MTPDmessage &data) {
 		_flags &= ~MessageFlag::InvertMedia;
 	}
 
+	if (!isLocalUpdateMedia()) {
+		removeFromSharedMediaIndex();
+	}
 	updateSentContent(data);
 	updateReplyMarkup(HistoryMessageMarkupData(data.vreply_markup()));
 	updateForwardedInfo(data.vfwd_from());
@@ -2684,9 +2689,9 @@ void HistoryItem::applySentMessage(const MTPDmessage &data) {
 		});
 	}
 	setPostAuthor(data.vpost_author().value_or_empty());
-	setIsPinned(data.is_pinned());
 	contributeToSlowmode(data.vdate().v);
 	addToSharedMediaIndex();
+	setIsPinned(data.is_pinned());
 	addToMessagesIndex();
 	invalidateChatListEntry();
 	if (const auto period = data.vttl_period(); period && period->v > 0) {
