@@ -1602,10 +1602,10 @@ ProxyData ProxyBox::collectData() {
 
 void ProxyBox::setupTypes() {
 	const auto types = std::vector<std::pair<Type, QString>>{
-		{ Type::Web, u"WEB"_q },
 		{ Type::Mtproto, u"MTPROTO"_q },
 		{ Type::Socks5, u"SOCKS5"_q },
 		{ Type::Http, u"HTTP"_q },
+		{ Type::Web, u"WEB"_q },
 	};
 	for (const auto &[type, label] : types) {
 		_content->add(
