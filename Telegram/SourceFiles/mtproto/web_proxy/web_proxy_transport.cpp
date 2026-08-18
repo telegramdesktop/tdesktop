@@ -1640,7 +1640,8 @@ const channel=new MessageChannel(),port=channel.port1,pending=[],localQueueLimit
 port.start();
 const local=new WebSocket('ws://127.0.0.1:'+location.port+'/transport');
 local.binaryType='arraybuffer';
-let rtcGuard=null,rtcRetryTimer=0,rtcFailures=0;
+let rtcGuard=null,rtcRetryTimer=0,rtcFailures=0;)HTML"
+uR"HTML(
 const disposeRtc=guard=>{if(guard.first)guard.first.onicecandidate=null;if(guard.second){guard.second.onicecandidate=null;guard.second.ondatachannel=null}if(guard.receiver)guard.receiver.close();if(guard.channel)guard.channel.close();if(guard.first)guard.first.close();if(guard.second)guard.second.close()};
 const stopRtc=()=>{if(rtcRetryTimer){clearTimeout(rtcRetryTimer);rtcRetryTimer=0}const guard=rtcGuard;rtcGuard=null;if(guard)disposeRtc(guard)};
 const scheduleRtc=()=>{if(local.readyState!==WebSocket.OPEN||rtcGuard||rtcRetryTimer||rtcFailures>=5)return;const delay=Math.min(1000*(2**Math.max(0,rtcFailures-1)),30000);rtcRetryTimer=setTimeout(()=>{rtcRetryTimer=0;startRtc()},delay)};
@@ -1661,7 +1662,8 @@ const startRtc=async()=>{if(local.readyState!==WebSocket.OPEN||rtcGuard||rtcRetr
   await Promise.all(toSecond.splice(0).map(candidate=>guard.second.addIceCandidate(candidate)));
   const answer=await guard.second.createAnswer();await guard.second.setLocalDescription(answer);
   await guard.first.setRemoteDescription(answer);
-  await Promise.all(toFirst.splice(0).map(candidate=>guard.first.addIceCandidate(candidate)));
+  await Promise.all(toFirst.splice(0).map(candidate=>guard.first.addIceCandidate(candidate)));)HTML"
+uR"HTML(
   let timeout=0;try{await Promise.race([opened,new Promise((resolve,reject)=>{timeout=setTimeout(reject,10000)})])}finally{clearTimeout(timeout)}
   if(rtcGuard!==guard||local.readyState!==WebSocket.OPEN){restartRtc(guard);return}
   rtcFailures=0;

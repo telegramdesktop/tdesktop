@@ -725,5 +725,6 @@ PRIVATE
     desktop-app::lib_spellcheck
     desktop-app::lib_stripe
     desktop-app::external_kcoreaddons
+    desktop-app::external_minizip
     desktop-app::external_webrtc
 )
