@@ -148,6 +148,29 @@ namespace {
 	return bytes::make_vector(bytes::make_span(result));
 }
 
+// The WHATWG URL "ends in a number" rule: a host whose last label is
+// all ASCII digits or 0x-prefixed hex is an IPv4 address (possibly in
+// shorthand form like 127.1 or 0x7f.1), so the IP-literal policy below
+// does not depend on QHostAddress recognising every shorthand.
+[[nodiscard]] bool LastLabelIsNumeric(const QString &host) {
+	const auto label = host.mid(host.lastIndexOf('.') + 1);
+	if (label.isEmpty()) {
+		return false;
+	}
+	const auto hex = label.startsWith(u"0x"_q, Qt::CaseInsensitive);
+	const auto digits = hex ? label.mid(2) : label;
+	for (const auto ch : digits) {
+		const auto code = ch.unicode();
+		const auto decimal = (code >= '0' && code <= '9');
+		const auto alpha = (code >= 'a' && code <= 'f')
+			|| (code >= 'A' && code <= 'F');
+		if (!decimal && !(hex && alpha)) {
+			return false;
+		}
+	}
+	return true;
+}
+
 [[nodiscard]] QString ComputeWebProxyBridgeCapability(
 		const QString &host,
 		const QByteArray &key) {
@@ -193,6 +216,9 @@ QString NormalizeWebProxyHost(const QString &value) {
 			}
 		}
 	}
+	if (LastLabelIsNumeric(result)) {
+		return QString();
+	}
 	auto address = QHostAddress();
 	return address.setAddress(result) ? QString() : result;
 }
@@ -207,8 +233,16 @@ QString WebProxyBridgeCapability(const ProxyData &proxy) {
 			== u"proxy.example.com"_q);
 		Assert(NormalizeWebProxyHost(u"bücher.example"_q)
 			== u"xn--bcher-kva.example"_q);
+		Assert(NormalizeWebProxyHost(u"bücher.de"_q)
+			== u"xn--bcher-kva.de"_q);
+		Assert(NormalizeWebProxyHost(u"xn--strae-oqa.example"_q)
+			== u"xn--strae-oqa.example"_q);
 		Assert(NormalizeWebProxyHost(u"localhost"_q).isEmpty());
 		Assert(NormalizeWebProxyHost(u"127.0.0.1"_q).isEmpty());
+		Assert(NormalizeWebProxyHost(u"127.1"_q).isEmpty());
+		Assert(NormalizeWebProxyHost(u"0x7f.1"_q).isEmpty());
+		Assert(NormalizeWebProxyHost(u"0177.0.0.1"_q).isEmpty());
+		Assert(NormalizeWebProxyHost(u"1.2.3"_q).isEmpty());
 		Assert(NormalizeWebProxyHost(u"site.example:443"_q).isEmpty());
 		Assert(NormalizeWebProxyHost(u"site..example"_q).isEmpty());
 		const auto plain = QByteArray::fromHex(

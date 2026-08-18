@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QByteArray>
 #include <QtCore/QObject>
+#include <crl/crl_time.h>
 
 #include <deque>
 #include <memory>
@@ -44,6 +45,11 @@ public:
 	[[nodiscard]] bool valid() const;
 	void send(QByteArray frame);
 
+	// Asks the bridge page to close its relay session and stops reacting
+	// to the page. The object should be kept alive shortly afterwards so
+	// that the asynchronous close script gets a chance to run.
+	void close();
+
 private:
 	struct Pending {
 		QByteArray frame;
@@ -55,6 +61,8 @@ private:
 	void handleBinary(QByteArray frame);
 	[[nodiscard]] bool validNavigation(const QString &url) const;
 	[[nodiscard]] bool validSource(const std::string &sourceUrl) const;
+	void extendHandshake();
+	void probeRestrictions();
 	void enqueue(Pending pending);
 	void drain();
 	void heartbeat();
@@ -73,10 +81,13 @@ private:
 	std::deque<Pending> _pending;
 	Pending _inFlight;
 	uint64 _writeSequence = 0;
+	crl::time _handshakeStarted = 0;
 	int _pendingBytes = 0;
 	bool _bridgeInitialized = false;
 	bool _adopted = false;
 	bool _failed = false;
+	bool _closing = false;
+	bool _probed = false;
 };
 
 } // namespace MTP::WebProxy

@@ -53,11 +53,18 @@ constexpr auto kMaxFlushFramesPerTurn = 256;
 constexpr auto kDataFrameSize = 64 * 1024;
 constexpr auto kMaxLocalClients = 32;
 constexpr auto kMaxClosedStreamIds = 4096;
+constexpr auto kMaxWebviewPendingItems = 512;
+constexpr auto kWebviewItemsControlReserve = 64;
+constexpr auto kWindowFlushBytes = 256 * 1024;
+constexpr auto kWindowFlushDelay = crl::time(20);
 constexpr auto kCapabilityLifetime = crl::time(5 * 60 * 1000);
 constexpr auto kLocalClientHandshakeTimeout = crl::time(10 * 1000);
 constexpr auto kWelcomeTimeout = crl::time(30 * 1000);
 constexpr auto kWriteProgressTimeout = crl::time(30 * 1000);
-constexpr auto kWebviewRetryTimeout = crl::time(30 * 1000);
+constexpr auto kWebviewRetryMinTimeout = crl::time(2 * 1000);
+constexpr auto kWebviewRetryMaxTimeout = crl::time(30 * 1000);
+constexpr auto kWebviewCloseGrace = crl::time(200);
+constexpr auto kMaxWebviewFailures = 3;
 constexpr auto kWebSocketGuid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
 struct Globals {
@@ -65,13 +72,17 @@ struct Globals {
 	QPointer<Transport> transport;
 	std::atomic<Transport*> available = nullptr;
 	std::unique_ptr<WebviewCarrier> webview;
+	std::vector<std::unique_ptr<WebviewCarrier>> closingWebviews;
 	ProxyData active;
 	Transport::State state = Transport::State::Idle;
 	QString browser;
 	rpl::event_stream<Transport::StateChange> changes;
 	uint64 webviewGeneration = 0;
+	crl::time webviewRetryDelay = kWebviewRetryMinTimeout;
+	int webviewFailures = 0;
 	bool webviewRetryScheduled = false;
 	bool webviewDisabled = false;
+	bool webviewSupported = false;
 };
 
 [[nodiscard]] Globals &Global() {
@@ -166,6 +177,29 @@ void PublishState(
 	});
 }
 
+void RetireWebview(std::unique_ptr<WebviewCarrier> webview) {
+	if (!webview) {
+		return;
+	}
+	auto &global = Global();
+	const auto raw = webview.get();
+	raw->close();
+	global.closingWebviews.push_back(std::move(webview));
+	QTimer::singleShot(
+		int(kWebviewCloseGrace),
+		QCoreApplication::instance(),
+		[=] {
+			auto &list = Global().closingWebviews;
+			const auto i = ranges::find(
+				list,
+				raw,
+				&std::unique_ptr<WebviewCarrier>::get);
+			if (i != end(list)) {
+				list.erase(i);
+			}
+		});
+}
+
 } // namespace
 
 class Transport::Private {
@@ -187,6 +221,7 @@ public:
 	void webviewPayload(uint64 generation, const QByteArray &payload);
 	void webviewWritten(uint64 generation, int bytes);
 	void webviewFailed(uint64 generation);
+	void webviewUnavailable();
 
 private:
 	struct Client {
@@ -218,11 +253,13 @@ private:
 		Fn<void()> failed;
 		uint64 sendWindow = kInitialStreamWindow;
 		uint32 receiveWindow = kInitialStreamWindow;
+		uint32 pendingWindow = 0;
 		int pendingBytes = 0;
 		bool opened = false;
 	};
 
-	void startServer();
+	[[nodiscard]] bool ensureServer();
+	void stopListening();
 	void acceptClients();
 	void clientReadyRead(not_null<QTcpSocket*> socket);
 	void clientDisconnected(not_null<QTcpSocket*> socket);
@@ -259,6 +296,7 @@ private:
 		QByteArray extraHeaders = QByteArray());
 	[[nodiscard]] QByteArray page(const QString &nonce) const;
 	[[nodiscard]] QByteArray pageHeaders(const QString &nonce) const;
+	[[nodiscard]] QByteArray bridgeControl() const;
 
 	void sendFrame(
 		FrameType type,
@@ -266,11 +304,15 @@ private:
 		const QByteArray &payload = QByteArray());
 	void queueControlFrame(QByteArray frame);
 	void flushControlFrames();
+	void scheduleWindowFlush();
+	void flushWindows();
 	void ensureWriteProgressCheck();
 	void browserBytesWritten();
 	void writeCarrierFrame(QByteArray frame);
 	[[nodiscard]] bool carrierAvailable() const;
 	[[nodiscard]] int carrierPendingBytes() const;
+	[[nodiscard]] int carrierPendingItems() const;
+	[[nodiscard]] bool carrierAccepts(int frameSize, bool control) const;
 	[[nodiscard]] int carrierFrameSize(int payloadSize) const;
 	void markStreamReady(uint32 streamId);
 	void unmarkStreamReady(uint32 streamId);
@@ -307,9 +349,12 @@ private:
 	uint64 _webviewCandidateGeneration = 0;
 	uint64 _webviewGeneration = 0;
 	int _webviewPendingBytes = 0;
+	int _webviewPendingItems = 0;
+	quint16 _serverPort = 0;
 	bool _welcomed = false;
 	bool _browserWriteFailed = false;
 	bool _writeProgressCheckScheduled = false;
+	bool _windowFlushScheduled = false;
 	crl::time _lastWriteProgress = 0;
 
 };
@@ -322,12 +367,12 @@ void Transport::Private::configure(const ProxyData &proxy) {
 	Expects(QThread::currentThread() == _owner->thread());
 	Expects(proxy.type == ProxyData::Type::Web);
 
-	if (_proxy == proxy && _server && _server->isListening()) {
+	if (_proxy == proxy) {
 		return;
 	}
 	deactivate();
 	_proxy = proxy;
-	startServer();
+	setState(State::Connecting);
 }
 
 void Transport::Private::deactivate() {
@@ -353,6 +398,7 @@ void Transport::Private::deactivate() {
 	_webviewCandidateGeneration = 0;
 	_webviewGeneration = 0;
 	_webviewPendingBytes = 0;
+	_webviewPendingItems = 0;
 	_welcomed = false;
 	_browserWriteFailed = false;
 	_writeProgressCheckScheduled = false;
@@ -361,6 +407,7 @@ void Transport::Private::deactivate() {
 		_server->close();
 		_server = nullptr;
 	}
+	_serverPort = 0;
 	_proxy = ProxyData();
 	_state = State::Idle;
 }
@@ -372,28 +419,46 @@ void Transport::Private::stop() {
 QString Transport::Private::mintBrowserUrl() {
 	Expects(QThread::currentThread() == _owner->thread());
 
-	if (!_server || !_server->isListening()) {
+	if (!_proxy || !ensureServer()) {
 		return QString();
 	}
 	_pendingToken = RandomUrlToken(32);
 	_pendingTokenExpiresAt = crl::now() + kCapabilityLifetime;
+	const auto expiresAt = _pendingTokenExpiresAt;
+	QTimer::singleShot(int(kCapabilityLifetime), _owner, [=] {
+		if (_pendingTokenExpiresAt == expiresAt) {
+			_pendingToken.clear();
+			_pendingTokenExpiresAt = 0;
+			stopListening();
+		}
+	});
 	return u"http://127.0.0.1:%1/#%2"_q
-		.arg(_server->serverPort())
+		.arg(_serverPort)
 		.arg(_pendingToken);
 }
 
-void Transport::Private::startServer() {
-	_server = std::make_unique<QTcpServer>();
-	QObject::connect(
-		_server.get(),
-		&QTcpServer::newConnection,
-		_owner,
-		[=] { acceptClients(); });
-	if (!_server->listen(QHostAddress::LocalHost, 0)) {
-		setState(State::Failed);
-		return;
+bool Transport::Private::ensureServer() {
+	if (_server && _server->isListening()) {
+		return true;
+	} else if (!_server) {
+		_server = std::make_unique<QTcpServer>();
+		QObject::connect(
+			_server.get(),
+			&QTcpServer::newConnection,
+			_owner,
+			[=] { acceptClients(); });
 	}
-	setState(State::Connecting);
+	if (!_server->listen(QHostAddress::LocalHost, 0)) {
+		return false;
+	}
+	_serverPort = _server->serverPort();
+	return true;
+}
+
+void Transport::Private::stopListening() {
+	if (_server && _server->isListening()) {
+		_server->close();
+	}
 }
 
 void Transport::Private::acceptClients() {
@@ -525,7 +590,7 @@ void Transport::Private::processHttp(
 		return;
 	}
 	const auto expectedHost = QByteArray("127.0.0.1:")
-		+ QByteArray::number(_server->serverPort());
+		+ QByteArray::number(_serverPort);
 	if (headers.value("host") != expectedHost) {
 		writeHttp(socket, "403 Forbidden", "text/plain", {});
 		return;
@@ -647,7 +712,9 @@ void Transport::Private::processWebSocket(not_null<QTcpSocket*> socket) {
 			socket->disconnectFromHost();
 			return;
 		} else if (opcode == 0x09) {
-			writeWebSocket(socket, 0x0A, payload);
+			if (client.authenticated) {
+				writeWebSocket(socket, 0x0A, payload);
+			}
 			continue;
 		} else if (opcode == 0x0A) {
 			continue;
@@ -786,7 +853,9 @@ void Transport::Private::authenticateBrowser(
 	_closedStreams.clear();
 	_closedStreamOrder.clear();
 	_welcomed = false;
+	stopListening();
 	setState(State::Connecting, _browser);
+	writeWebSocket(socket, 0x01, bridgeControl());
 	sendFrame(FrameType::Hello, 0, QByteArray(1, char(1)));
 	const auto authenticated = QPointer<QTcpSocket>(socket.get());
 	QTimer::singleShot(int(kWelcomeTimeout), _owner, [=] {
@@ -833,7 +902,11 @@ void Transport::Private::webviewReady(uint64 generation) {
 	}
 	_webviewGeneration = generation;
 	_webviewPendingBytes = 0;
+	_webviewPendingItems = 0;
 	_browser = u"WebView"_q;
+	_pendingToken.clear();
+	_pendingTokenExpiresAt = 0;
+	stopListening();
 	welcome();
 }
 
@@ -846,12 +919,16 @@ void Transport::Private::webviewPayload(
 }
 
 void Transport::Private::webviewWritten(uint64 generation, int bytes) {
-	if (_webviewGeneration != generation
-		|| bytes <= 0
-		|| bytes > _webviewPendingBytes) {
+	if (_webviewGeneration != generation) {
+		return;
+	} else if (bytes <= 0
+		|| bytes > _webviewPendingBytes
+		|| _webviewPendingItems <= 0) {
+		protocolError();
 		return;
 	}
 	_webviewPendingBytes -= bytes;
+	--_webviewPendingItems;
 	_lastWriteProgress = crl::now();
 	flushControlFrames();
 	flushStreams();
@@ -869,6 +946,7 @@ void Transport::Private::webviewFailed(uint64 generation) {
 	if (active) {
 		_webviewGeneration = 0;
 		_webviewPendingBytes = 0;
+		_webviewPendingItems = 0;
 		_welcomed = false;
 		closeAllStreams(false);
 		_readyStreams.clear();
@@ -881,9 +959,16 @@ void Transport::Private::webviewFailed(uint64 generation) {
 		_closedStreams.clear();
 		_closedStreamOrder.clear();
 	}
-	if (!_browserSocket) {
-		setState(State::WaitingForBrowser);
+	if (!_browserSocket && _state != State::WaitingForBrowser) {
+		setState(State::Connecting);
 	}
+}
+
+void Transport::Private::webviewUnavailable() {
+	if (!_proxy || _browserSocket || _webviewGeneration) {
+		return;
+	}
+	setState(State::WaitingForBrowser);
 }
 
 void Transport::Private::processRelayPayload(const QByteArray &payload) {
@@ -1001,7 +1086,9 @@ void Transport::Private::registerStream(
 		uint32 streamId,
 		StreamHandlers handlers) {
 	auto stream = Stream(std::move(handlers));
-	if (!_proxy || _streams.contains(streamId)) {
+	if (!_proxy
+		|| _streams.contains(streamId)
+		|| _closedStreams.contains(streamId)) {
 		notifyFailed(stream);
 		return;
 	}
@@ -1075,7 +1162,33 @@ void Transport::Private::grantWindow(uint32 streamId, uint32 amount) {
 		return;
 	}
 	stream.receiveWindow += amount;
-	sendFrame(FrameType::Window, streamId, WindowPayload(amount));
+	stream.pendingWindow += amount;
+	if (stream.pendingWindow >= kWindowFlushBytes) {
+		const auto pending = base::take(stream.pendingWindow);
+		sendFrame(FrameType::Window, streamId, WindowPayload(pending));
+	} else {
+		scheduleWindowFlush();
+	}
+}
+
+void Transport::Private::scheduleWindowFlush() {
+	if (_windowFlushScheduled) {
+		return;
+	}
+	_windowFlushScheduled = true;
+	QTimer::singleShot(int(kWindowFlushDelay), _owner, [=] {
+		_windowFlushScheduled = false;
+		flushWindows();
+	});
+}
+
+void Transport::Private::flushWindows() {
+	for (auto &[streamId, stream] : _streams) {
+		if (stream.opened && stream.pendingWindow) {
+			const auto pending = base::take(stream.pendingWindow);
+			sendFrame(FrameType::Window, streamId, WindowPayload(pending));
+		}
+	}
 }
 
 void Transport::Private::sendFrame(
@@ -1092,9 +1205,7 @@ void Transport::Private::queueControlFrame(QByteArray frame) {
 	if (!carrierAvailable() || _browserWriteFailed) {
 		return;
 	}
-	if (_controlFrames.empty()
-		&& carrierPendingBytes()
-			<= kMaxLocalSocketPendingBytes - carrierFrameSize(frame.size())) {
+	if (_controlFrames.empty() && carrierAccepts(frame.size(), true)) {
 		writeCarrierFrame(std::move(frame));
 		ensureWriteProgressCheck();
 		return;
@@ -1118,8 +1229,7 @@ void Transport::Private::queueControlFrame(QByteArray frame) {
 void Transport::Private::flushControlFrames() {
 	while (carrierAvailable() && !_controlFrames.empty()) {
 		auto &frame = _controlFrames.front();
-		if (carrierPendingBytes()
-			> kMaxLocalSocketPendingBytes - carrierFrameSize(frame.size())) {
+		if (!carrierAccepts(frame.size(), true)) {
 			break;
 		}
 		const auto size = frame.size();
@@ -1166,6 +1276,7 @@ void Transport::Private::browserBytesWritten() {
 void Transport::Private::writeCarrierFrame(QByteArray frame) {
 	if (_webviewGeneration) {
 		_webviewPendingBytes += frame.size();
+		++_webviewPendingItems;
 		_owner->sendWebviewFrame(_webviewGeneration, std::move(frame));
 	} else if (_browserSocket) {
 		_browserSocket->write(WebSocketFrame(0x02, frame));
@@ -1182,6 +1293,21 @@ int Transport::Private::carrierPendingBytes() const {
 		: _browserSocket
 		? int(_browserSocket->bytesToWrite())
 		: 0;
+}
+
+int Transport::Private::carrierPendingItems() const {
+	return _webviewGeneration ? _webviewPendingItems : 0;
+}
+
+bool Transport::Private::carrierAccepts(int frameSize, bool control) const {
+	const auto bytesLimit = control
+		? kMaxLocalSocketPendingBytes
+		: (kMaxLocalSocketPendingBytes - kLocalSocketControlReserve);
+	const auto itemsLimit = control
+		? kMaxWebviewPendingItems
+		: (kMaxWebviewPendingItems - kWebviewItemsControlReserve);
+	return (carrierPendingBytes() <= bytesLimit - carrierFrameSize(frameSize))
+		&& (carrierPendingItems() < itemsLimit);
 }
 
 int Transport::Private::carrierFrameSize(int payloadSize) const {
@@ -1218,8 +1344,7 @@ void Transport::Private::flushStreams() {
 	auto processed = 0;
 	while (!_readyStreams.empty()
 		&& processed != kMaxFlushFramesPerTurn
-		&& carrierPendingBytes()
-			< kMaxLocalSocketPendingBytes - kLocalSocketControlReserve) {
+		&& carrierAccepts(kFrameHeaderSize + 1, false)) {
 		const auto streamId = _readyStreams.front();
 		_readyStreams.pop_front();
 		if (!_readySet.contains(streamId)) {
@@ -1247,7 +1372,8 @@ bool Transport::Private::flushStream(uint32 streamId) {
 		const auto localAllowance = kMaxLocalSocketPendingBytes
 			- kLocalSocketControlReserve
 			- carrierPendingBytes();
-		if (localAllowance <= kFrameHeaderSize + 10) {
+		if (localAllowance <= kFrameHeaderSize + 10
+			|| !carrierAccepts(kFrameHeaderSize + 1, false)) {
 			return false;
 		}
 		auto &front = stream.pending.front();
@@ -1474,15 +1600,21 @@ void Transport::Private::writeHttp(
 	socket->disconnectFromHost();
 }
 
-QByteArray Transport::Private::page(const QString &nonce) const {
-	const auto origin = QUrl(u"https://"_q + _proxy.host);
-	auto bridge = origin;
+QByteArray Transport::Private::bridgeControl() const {
+	auto bridge = QUrl(u"https://"_q + _proxy.host);
 	bridge.setPath(u"/"_q);
 	auto query = QUrlQuery();
 	query.addQueryItem(u"bridge"_q, WebProxyBridgeCapability(_proxy));
 	bridge.setQuery(query);
+	return QJsonDocument(QJsonObject{
+		{ u"t"_q, u"bridge"_q },
+		{ u"url"_q, bridge.toString(QUrl::FullyEncoded) },
+	}).toJson(QJsonDocument::Compact);
+}
+
+QByteArray Transport::Private::page(const QString &nonce) const {
+	const auto origin = QUrl(u"https://"_q + _proxy.host);
 	const auto target = JsonString(origin.toString(QUrl::FullyEncoded));
-	const auto bridgeUrl = JsonString(bridge.toString(QUrl::FullyEncoded));
 	const auto html = uR"HTML(<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -1492,9 +1624,9 @@ body{font:16px system-ui,sans-serif;margin:0;min-height:100vh;display:grid;place
 main{width:min(34rem,calc(100% - 4rem));padding:2rem;text-align:center}h1{font-size:1.5rem}#state{color:#5288c1}.traffic{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;margin:1.5rem 0;text-align:left}.traffic div{padding:1rem;border:1px solid #dce3e9;border-radius:.75rem;background:#fff}.traffic dt{font-size:.8rem;color:#6c7883}.traffic dd{margin:.35rem 0 0;font-size:1.1rem;font-weight:600}.traffic small{display:block;margin-top:.25rem;color:#5288c1;font-size:.8rem;font-weight:400}.note{font-size:.8rem;color:#6c7883}iframe{display:none}
 </style>
 <main><h1>Telegram Web Proxy</h1><p id="state">Connecting to Telegram Desktop…</p><dl class="traffic"><div><dt>Sent through HTTPS</dt><dd><span id="up-total">0 B</span><small id="up-rate">0 B/s</small></dd></div><div><dt>Received through HTTPS</dt><dd><span id="down-total">0 B</span><small id="down-rate">0 B/s</small></dd></div></dl><p>Keep this tab open while using Telegram.</p><p class="note">Counts obfuscated carrier payload after successful requests; HTTPS overhead is not included.</p></main>
-<script nonce="%3">
+<script nonce="%2">
 (()=>{
-const relayOrigin=%1,bridgeUrl=%2,state=document.getElementById('state');
+const relayOrigin=%1,state=document.getElementById('state');
 const upTotal=document.getElementById('up-total'),downTotal=document.getElementById('down-total'),upRate=document.getElementById('up-rate'),downRate=document.getElementById('down-rate');
 const traffic={up:0,down:0,lastUp:0,lastDown:0,lastAt:performance.now()};
 const formatBytes=value=>{const units=['B','KiB','MiB','GiB','TiB'];let unit=0;while(value>=1024&&unit<units.length-1){value/=1024;unit++}return value.toFixed(unit&&value<100?1:0)+' '+units[unit]};
@@ -1504,9 +1636,7 @@ const token=location.hash.slice(1);history.replaceState(null,'',location.pathnam
 const browser=(navigator.userAgentData&&navigator.userAgentData.brands)
  ?navigator.userAgentData.brands.map(x=>x.brand+' '+x.version).join(', ')
  :navigator.userAgent.slice(0,150);
-const iframe=document.createElement('iframe');iframe.src=bridgeUrl;
-iframe.sandbox='allow-scripts allow-same-origin';document.body.appendChild(iframe);
-const channel=new MessageChannel(),port=channel.port1,pending=[],localQueueLimit=33554432;let initialized=false,localClosed=false;
+const channel=new MessageChannel(),port=channel.port1,pending=[],localQueueLimit=33554432;let initialized=false,localClosed=false,iframe=null;
 port.start();
 const local=new WebSocket('ws://127.0.0.1:'+location.port+'/transport');
 local.binaryType='arraybuffer';
@@ -1541,23 +1671,26 @@ const startRtc=async()=>{if(local.readyState!==WebSocket.OPEN||rtcGuard||rtcRetr
 local.onopen=()=>{local.send(JSON.stringify({t:'auth',token,browser}));startRtc()};
 local.onclose=()=>{stopRtc();localClosed=true;state.textContent='Telegram Desktop disconnected. Reopen the browser from Proxy Settings.';if(initialized)port.postMessage({t:'close'})};
 local.onerror=()=>{state.textContent='Could not connect to Telegram Desktop.'};
-local.onmessage=e=>{if(!(e.data instanceof ArrayBuffer))return;if(initialized)port.postMessage(e.data,[e.data]);else pending.push(e.data)};
+const openBridge=url=>{if(iframe||localClosed)return;iframe=document.createElement('iframe');iframe.sandbox='allow-scripts allow-same-origin';iframe.referrerPolicy='no-referrer';
+ iframe.onload=()=>{if(localClosed)return;if(initialized){state.textContent='The proxy page reloaded. Reopen the browser from Proxy Settings.';local.close();return}iframe.contentWindow.postMessage({t:'tproxy-init',v:1},relayOrigin,[channel.port2]);initialized=true;while(pending.length){const data=pending.shift();port.postMessage(data,[data])}};
+ iframe.src=url;document.body.appendChild(iframe)};
+local.onmessage=e=>{if(e.data instanceof ArrayBuffer){if(initialized)port.postMessage(e.data,[e.data]);else pending.push(e.data);return}
+ if(typeof e.data!=='string')return;let control=null;try{control=JSON.parse(e.data)}catch(error){return}
+ if(!control||typeof control!=='object'||control.t!=='bridge'||typeof control.url!=='string'||!control.url.startsWith(relayOrigin+'/?bridge='))return;openBridge(control.url)};
 port.onmessage=e=>{if(e.data instanceof ArrayBuffer){if(local.readyState===WebSocket.OPEN){if(local.bufferedAmount>localQueueLimit-e.data.byteLength){state.textContent='Telegram Desktop is not consuming proxy data.';local.close();return}try{local.send(e.data)}catch(error){local.close()}}return}
  if(e.data&&e.data.t==='status'){const s=e.data.state;state.textContent=s==='connected'?'Connected. Keep this tab open.':s==='failed'?'The proxy site is unavailable.':'Connecting to the proxy site…';if(local.readyState===WebSocket.OPEN)local.send(JSON.stringify(e.data));return}
  if(e.data&&e.data.t==='traffic'){const up=e.data.up,down=e.data.down;if(Number.isSafeInteger(up)&&up>=0&&Number.isSafeInteger(down)&&down>=0){traffic.up+=up;traffic.down+=down}return}
  if(e.data&&e.data.t==='close'){state.textContent='The proxy site closed the connection.';local.close()}}
-iframe.onload=()=>{if(localClosed)return;if(initialized){state.textContent='The proxy page reloaded. Reopen the browser from Proxy Settings.';local.close();return}iframe.contentWindow.postMessage({t:'tproxy-init',v:1},relayOrigin,[channel.port2]);initialized=true;while(pending.length){const data=pending.shift();port.postMessage(data,[data])}};
 addEventListener('pagehide',stopRtc,{once:true});
 addEventListener('pageshow',startRtc);
 })();
-</script>)HTML"_q.arg(target, bridgeUrl, nonce).toUtf8();
+</script>)HTML"_q.arg(target, nonce).toUtf8();
 	return html;
 }
 
 QByteArray Transport::Private::pageHeaders(const QString &nonce) const {
 	const auto origin = QUrl(u"https://"_q + _proxy.host);
-	const auto connectSource = u"ws://127.0.0.1:%1"_q
-		.arg(_server->serverPort());
+	const auto connectSource = u"ws://127.0.0.1:%1"_q.arg(_serverPort);
 	return u"Content-Security-Policy: default-src 'none'; "
 		"script-src 'nonce-%3'; style-src 'unsafe-inline'; "
 		"base-uri 'none'; form-action 'none'; frame-ancestors 'none'; "
@@ -1582,7 +1715,7 @@ void Transport::StartWebview(const ProxyData &proxy) {
 	const auto generation = ++global.webviewGeneration;
 	const auto transport = global.transport;
 	transport->webviewStarting(generation);
-	if (global.webviewDisabled) {
+	if (global.webviewDisabled || !global.webviewSupported) {
 		transport->webviewFailed(generation);
 		return;
 	}
@@ -1591,6 +1724,11 @@ void Transport::StartWebview(const ProxyData &proxy) {
 		generation,
 		WebviewCarrier::Callbacks{
 			.ready = [=](uint64 readyGeneration) {
+				auto &global = Global();
+				if (global.webviewGeneration == readyGeneration) {
+					global.webviewFailures = 0;
+					global.webviewRetryDelay = kWebviewRetryMinTimeout;
+				}
 				if (transport) {
 					transport->webviewReady(readyGeneration);
 				}
@@ -1613,6 +1751,12 @@ void Transport::StartWebview(const ProxyData &proxy) {
 				}
 			},
 		});
+	if (!global.webview->valid()) {
+		global.webview = nullptr;
+		global.webviewFailures = kMaxWebviewFailures;
+		global.webviewRetryDelay = kWebviewRetryMaxTimeout;
+		transport->webviewFailed(generation);
+	}
 }
 
 void Transport::FinishWebview(uint64 generation) {
@@ -1621,16 +1765,31 @@ void Transport::FinishWebview(uint64 generation) {
 		if (global.webviewGeneration != generation) {
 			return;
 		}
-		global.webview = nullptr;
-		if (!global.active
-			|| global.webviewRetryScheduled
-			|| global.webviewDisabled) {
+		RetireWebview(base::take(global.webview));
+		if (!global.active || global.webviewRetryScheduled) {
+			return;
+		}
+		const auto transport = global.transport;
+		if (global.webviewFailures < kMaxWebviewFailures) {
+			++global.webviewFailures;
+		}
+		const auto retry = !global.webviewDisabled && global.webviewSupported;
+		if (!retry || global.webviewFailures >= kMaxWebviewFailures) {
+			if (transport) {
+				transport->webviewUnavailable();
+			}
+		}
+		if (!retry) {
 			return;
 		}
 		global.webviewRetryScheduled = true;
 		const auto proxy = global.active;
+		const auto delay = global.webviewRetryDelay;
+		global.webviewRetryDelay = std::min(
+			delay * 2,
+			kWebviewRetryMaxTimeout);
 		QTimer::singleShot(
-			int(kWebviewRetryTimeout),
+			int(delay),
 			QCoreApplication::instance(),
 			[=] {
 				auto &global = Global();
@@ -1664,9 +1823,12 @@ void Transport::Activate(const ProxyData &proxy) {
 	}
 	global.active = proxy;
 	if (changed) {
-		global.webview = nullptr;
+		RetireWebview(base::take(global.webview));
 		++global.webviewGeneration;
 		global.webviewRetryScheduled = false;
+		global.webviewFailures = 0;
+		global.webviewRetryDelay = kWebviewRetryMinTimeout;
+		global.webviewSupported = WebviewCarrier::Supported();
 		global.state = State::Connecting;
 		global.browser.clear();
 		const auto transport = global.transport.data();
@@ -1682,7 +1844,7 @@ void Transport::Deactivate() {
 	Expects(QThread::currentThread() == QCoreApplication::instance()->thread());
 
 	auto &global = Global();
-	global.webview = nullptr;
+	RetireWebview(base::take(global.webview));
 	++global.webviewGeneration;
 	global.webviewRetryScheduled = false;
 	if (global.transport && global.active) {
@@ -1715,6 +1877,7 @@ void Transport::Shutdown() {
 	global.thread->wait();
 	global.available = nullptr;
 	global.webview = nullptr;
+	global.closingWebviews.clear();
 	global.transport = nullptr;
 	global.thread = nullptr;
 }
@@ -1739,12 +1902,17 @@ bool Transport::ToggleWebviewDisabled() {
 	global.webviewDisabled = !global.webviewDisabled;
 	if (global.webviewDisabled) {
 		const auto generation = global.webviewGeneration;
-		global.webview = nullptr;
+		RetireWebview(base::take(global.webview));
 		++global.webviewGeneration;
+		global.webviewRetryScheduled = false;
 		if (global.transport && global.active && generation) {
 			global.transport->webviewFailed(generation);
+			global.transport->webviewUnavailable();
 		}
 	} else if (global.transport && global.active) {
+		global.webviewFailures = 0;
+		global.webviewRetryDelay = kWebviewRetryMinTimeout;
+		global.webviewRetryScheduled = false;
 		StartWebview(global.active);
 	}
 	return global.webviewDisabled;
@@ -1838,6 +2006,10 @@ void Transport::webviewWritten(uint64 generation, int bytes) {
 void Transport::webviewFailed(uint64 generation) {
 	FinishWebview(generation);
 	InvokeQueued(this, [=] { _private->webviewFailed(generation); });
+}
+
+void Transport::webviewUnavailable() {
+	InvokeQueued(this, [=] { _private->webviewUnavailable(); });
 }
 
 void Transport::sendWebviewFrame(uint64 generation, QByteArray frame) {

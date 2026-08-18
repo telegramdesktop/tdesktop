@@ -105,7 +105,8 @@ configuration. Keep sanitized headers with the run artifacts.
    - a value containing `http://` or `https://`;
    - a hostname with an explicit port;
    - a value with username, path, query, or fragment;
-   - an IPv4 or IPv6 address;
+   - an IPv4 or IPv6 address, including shorthand forms such as `127.1`,
+     `0x7f.1`, `0177.0.0.1` and `1.2.3`;
    - a single-label name such as `localhost`;
    - an invalid IDNA name, empty label, overlong label, or trailing dot;
    - invalid or unsupported MTProxy secret;
@@ -145,12 +146,21 @@ proxy. Sharing a saved WEB entry must reproduce the public form with `server` an
 `not tested`; re-enabling that exact entry must replace it with the live transport
 state. Inactive WEB rows must never start a proxy checker, WebView, or browser tab.
 
+Repeat once with an IDN hostname on a TLD that Qt renders in Unicode (`.de` or
+`.com`, e.g. `bücher.de`, not `.example`): the entry is stored as `xn--bcher-kva.de`,
+the hidden WebView connects, and the capability derived for it is byte-identical on
+a Qt 5.15 Windows build and a Qt 6 macOS/Linux build. Also confirm that
+`xn--strae-oqa.example` is stored unchanged on both.
+
 Repeat once with a profile secret that is valid MTProxy syntax but is not configured
-on staging. The ordinary-site fallback must match other root responses. Within ten
-seconds the client must stop showing only `connecting…`, offer to open the proxy page
-in the browser, and keep retrying the hidden WebView every 30 seconds. Cancel the
-offer and confirm no browser opens; then accept it and confirm exactly one numeric
-`http://127.0.0.1:<ephemeral>/#<capability>` tab opens.
+on staging. The ordinary-site fallback must match other root responses. The row must
+show `connecting…` while the hidden WebView is retried with growing delays (2 s,
+4 s, 8 s); after the third consecutive failure — at most ~2 min including the
+extended handshake — the client must offer to open the proxy page in the browser,
+and keep retrying the hidden WebView every 30 seconds afterwards. Cancel the offer
+and confirm no browser opens; then accept it and confirm exactly one numeric
+`http://127.0.0.1:<ephemeral>/#<capability>` tab opens, and that no loopback port
+was listening before that click.
 
 ## 6. Network-origin invariant (P0)
 
@@ -197,6 +207,10 @@ Run in order, checking both client behavior and relay/MTProxy stream metrics:
 8. Stream a video while downloading another file. P1.
 9. Open media from CDN-backed storage and confirm shifted/CDN DC streams work. P1.
 10. Leave the client idle for 30 minutes, then send and receive immediately. P1.
+11. On all-other platforms (WebKitGTK), download a large file while polling is
+    throttled (rate-limit the link so the relay coalesces `DATA` into 1 MiB
+    frames, i.e. ~1.4 MiB base64 native messages); the download must complete
+    with a matching hash and no carrier restart. P0.
 
 For large transfers record:
 
@@ -255,9 +269,10 @@ Execute each case from a connected baseline:
 
 | Case | Expected result |
 |---|---|
-| Initial WebView cannot be created | fallback is offered; no browser opens without confirmation; retry begins after 30 seconds |
-| Initial WebView handshake stalls | fallback is offered after ten seconds; no permanent spinner |
-| Active WebView stops answering probes | logical sockets disconnect; fallback is offered after at most ten seconds |
+| Hidden WebView unsupported on the platform | fallback is offered immediately, once; no WebView is created and nothing is retried |
+| Initial WebView cannot be created | fallback is offered immediately; no browser opens without confirmation; retry begins after 30 seconds |
+| Initial WebView handshake stalls | the deadline is extended while the bridge reports `connecting`/`reconnecting`, up to 45 s; the row stays `connecting…`; fallback is offered only after the third consecutive failure |
+| Active WebView stops answering probes | logical sockets disconnect within ten seconds; the row shows `connecting…`; a retry starts after 2 s and no fallback box appears on the first failure |
 | Cancel fallback offer | no browser opens; hidden WebView retries continue every 30 seconds |
 | Confirm fallback offer | fresh fragment capability; one tab authenticates; Telegram reconnects |
 | WebView retry succeeds during fallback | browser carrier closes only after WebView `WELCOME`; logical sockets reconnect through WebView |
@@ -343,7 +358,13 @@ Then verify:
 - a consumed capability cannot authenticate a second socket;
 - minting via `Open browser` invalidates any unconsumed earlier capability;
 - a newly authenticated browser replaces the old one and forces logical reconnect;
-- `GET /` never includes the capability or MTProxy secret;
+- `GET /` never includes the bridge capability (`bridge=`) or MTProxy secret; the
+  bridge URL arrives only as the `{"t":"bridge"}` text message on the
+  authenticated WebSocket;
+- no loopback port is listening while the fallback was never requested, and the
+  listener closes once a tab has authenticated, when the capability expires
+  unused, and when the hidden WebView takes over;
+- pings before authentication are not answered;
 - the local protocol cannot request an arbitrary host or port;
 - malformed input causes bounded close/failure, not a crash or growing buffer.
 - the loopback parent CSP contains a fresh nonce and does not permit arbitrary
@@ -362,8 +383,9 @@ Then verify:
    document its behavior. The new binary handles unknown types; old binary
    behavior may still require a release-note warning.
 5. Confirm WEB shares as `t.me/webproxy` or `tg://webproxy`, never as `tg://proxy`,
-   and inactive WEB rows show `not tested` without creating a checker, WebView, or
-   browser during availability checks or proxy rotation.
+   that the `tg://webproxy` confirmation shows the sponsored-proxy warning, and
+   that inactive WEB rows show `not tested` without creating a checker, WebView,
+   or browser during availability checks or proxy rotation.
 6. Confirm a saved and enabled WEB proxy creates one hidden WebView at application
    startup and opens no browser tab. Force the WebView to fail, cancel the offer, and
    confirm restart/retry still never opens a tab without confirmation.
@@ -386,9 +408,24 @@ combination available:
 
 For the primary path, verify the WebView is native, hidden, unique per process, and
 has no Telegram `RpWindow` or embedded widget. On all-other platforms verify the
-WebKitGTK helper process remains the owner. For fallback, pay special attention to
+WebKitGTK helper process remains the owner and that the restricted carrier still
+comes up in the Flatpak, Snap and AppImage packages (the 4.0/4.1 API path now
+enables the WebKit web-process sandbox). For fallback, pay special attention to
 iframe CSP, loopback WebSocket Origin, mixed-content rules, background-tab
 throttling, confirmation-only browser launch, and managed-browser policies.
+
+Restricted-profile probe, on every platform, with the debug build connected through
+the hidden WebView: the debug log must not contain
+`Restricted WebView profile probe failed` (the client evaluates
+`typeof RTCPeerConnection === 'undefined' && typeof WebTransport === 'undefined'
+&& typeof WebAssembly === 'undefined'` in the top frame and in a freshly created
+`about:blank` iframe after the first bridge message). Additionally, with the
+webview inspector available on a development build of the bridge page, confirm
+that `new WebSocket('wss://example.com')` throws or fails, `fetch('https://example.com')`
+is blocked, and `navigator.mediaDevices`, `navigator.credentials` and `Notification`
+are `undefined`. On Windows, capture the network during connect and confirm no
+SmartScreen (`*.smartscreen.microsoft.com`) traffic from the WebView2 process of
+the restricted profile.
 
 ## 14. Unreliable-MTProto network field test (P0)
 

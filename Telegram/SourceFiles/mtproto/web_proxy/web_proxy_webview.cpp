@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/web_proxy/web_proxy_webview.h"
 
 #include "base/bytes.h"
+#include "base/debug_log.h"
 #include "base/invoke_queued.h"
 #include "config.h"
 #include "mtproto/web_proxy/web_proxy_frame.h"
@@ -26,12 +27,21 @@ namespace MTP::WebProxy {
 namespace {
 
 constexpr auto kHandshakeTimeout = crl::time(10 * 1000);
+constexpr auto kHandshakeTotalTimeout = crl::time(45 * 1000);
 constexpr auto kHealthTimeout = crl::time(10 * 1000);
 constexpr auto kProbeInterval = crl::time(3 * 1000);
 constexpr auto kWriteTimeout = crl::time(10 * 1000);
 constexpr auto kMaxPendingBytes = 8 * 1024 * 1024;
 constexpr auto kMaxPendingItems = 1024;
 constexpr auto kMaxMessageBytes = 2 * 1024 * 1024;
+
+// The relay coalesces DATA up to kMaxFramePayload per frame and the bridge
+// posts one frame per native message, so a message can hold a full frame
+// in base64 (plus the one-byte prefix); the per-platform script message
+// caps in lib_webview must accept at least this much as well.
+constexpr auto kMaxFrameMessageBytes = 1
+	+ ((kMaxFramePayload + kFrameHeaderSize + 2) / 3) * 4;
+static_assert(kMaxMessageBytes >= kMaxFrameMessageBytes);
 
 [[nodiscard]] QString RandomUrlToken(int bytesCount) {
 	auto random = bytes::vector(bytesCount);
@@ -53,6 +63,17 @@ constexpr auto kMaxMessageBytes = 2 * 1024 * 1024;
 	result.setQuery(query);
 	result.setFragment(u"android="_q + nonce);
 	return result.toString(QUrl::FullyEncoded);
+}
+
+[[nodiscard]] QByteArray RestrictionsProbeScript() {
+	return R"JS((()=>{try{
+const probe=w=>typeof w.RTCPeerConnection==='undefined'&&typeof w.WebTransport==='undefined'&&typeof w.WebAssembly==='undefined';
+let ok=probe(window);
+const frame=document.createElement('iframe');
+(document.documentElement||document).appendChild(frame);
+try{ok=ok&&!!frame.contentWindow&&probe(frame.contentWindow)}finally{frame.remove()}
+window.external.invoke('d'+(ok?'1':'0'));
+}catch(error){window.external.invoke('d0')}})())JS";
 }
 
 [[nodiscard]] QByteArray BridgeScript() {
@@ -131,7 +152,6 @@ WebviewCarrier::WebviewCarrier(
 	Expects(proxy.type == ProxyData::Type::Web);
 
 	if (!_window->valid()) {
-		fail();
 		return;
 	}
 	for (const auto timer : {
@@ -158,6 +178,7 @@ WebviewCarrier::WebviewCarrier(
 		}
 	});
 	_window->init(BridgeScript());
+	_handshakeStarted = crl::now();
 	_handshakeTimer->start(kHandshakeTimeout);
 	_healthTimer->start(kHealthTimeout);
 	_probeTimer->start(kProbeInterval);
@@ -165,9 +186,31 @@ WebviewCarrier::WebviewCarrier(
 }
 
 WebviewCarrier::~WebviewCarrier() {
-	if (_window && _window->valid() && !_failed) {
-		_window->eval(
-			"window.TelegramWebProxy?.receiveControl(0,'{\"t\":\"close\"}')");
+	close();
+}
+
+void WebviewCarrier::close() {
+	if (_closing) {
+		return;
+	}
+	_closing = true;
+	if (_handshakeTimer) {
+		_handshakeTimer->stop();
+		_healthTimer->stop();
+		_probeTimer->stop();
+		_writeTimer->stop();
+	}
+	_callbacks = Callbacks();
+	if (_window && _window->valid()) {
+		_window->setMessageHandler(Fn<void(Webview::Message)>());
+		_window->setNavigationStartHandler([](QString, bool) {
+			return false;
+		});
+		_window->setNavigationDoneHandler(nullptr);
+		if (_adopted && !_failed) {
+			_window->eval(
+				"window.TelegramWebProxy?.receiveControl(0,'{\"t\":\"close\"}')");
+		}
 	}
 }
 
@@ -176,7 +219,7 @@ bool WebviewCarrier::Supported() {
 }
 
 bool WebviewCarrier::valid() const {
-	return _window && _window->valid() && !_failed;
+	return _window && _window->valid() && !_failed && !_closing;
 }
 
 void WebviewCarrier::send(QByteArray frame) {
@@ -186,7 +229,9 @@ void WebviewCarrier::send(QByteArray frame) {
 void WebviewCarrier::handleMessage(
 		std::string message,
 		std::string sourceUrl) {
-	if (_failed
+	if (_closing) {
+		return;
+	} else if (_failed
 		|| !validSource(sourceUrl)
 		|| message.empty()
 		|| message.size() > kMaxMessageBytes) {
@@ -199,8 +244,19 @@ void WebviewCarrier::handleMessage(
 	case 'h':
 		if (data.size() != 1) {
 			fail();
+			return;
+		}
+		probeRestrictions();
+		return;
+#ifndef NDEBUG
+	case 'd':
+		if (data != "d1") {
+			LOG(("Web Proxy Error: "
+				"Restricted WebView profile probe failed: %1"
+				).arg(QString::fromUtf8(data)));
 		}
 		return;
+#endif // !NDEBUG
 	case 'f':
 		fail();
 		return;
@@ -261,14 +317,44 @@ void WebviewCarrier::handleControl(const QByteArray &control) {
 			SerializeFrame(FrameType::Hello, 0, QByteArray(1, char(1))),
 			false,
 		});
-	} else if (type == u"close"_q
-		|| (type == u"status"_q
-			&& object.value(u"state"_q).toString() == u"failed"_q)) {
+	} else if (type == u"close"_q) {
 		fail();
+	} else if (type == u"status"_q) {
+		const auto state = object.value(u"state"_q).toString();
+		if (state == u"failed"_q) {
+			fail();
+		} else if (!_adopted
+			&& (state == u"connecting"_q || state == u"reconnecting"_q)) {
+			extendHandshake();
+		}
 	}
 }
 
+void WebviewCarrier::extendHandshake() {
+	const auto left = kHandshakeTotalTimeout
+		- (crl::now() - _handshakeStarted);
+	if (left <= 0) {
+		fail();
+		return;
+	}
+	_handshakeTimer->start(int(std::min(kHandshakeTimeout, left)));
+}
+
+void WebviewCarrier::probeRestrictions() {
+#ifndef NDEBUG
+	if (_probed) {
+		return;
+	}
+	_probed = true;
+	_window->eval(RestrictionsProbeScript());
+#endif // !NDEBUG
+}
+
 void WebviewCarrier::handleBinary(QByteArray frame) {
+	if (!_bridgeInitialized) {
+		fail();
+		return;
+	}
 	if (!_adopted) {
 		auto input = frame;
 		auto frames = std::vector<Frame>();
@@ -295,13 +381,13 @@ bool WebviewCarrier::validNavigation(const QString &url) const {
 
 bool WebviewCarrier::validSource(const std::string &sourceUrl) const {
 	if (sourceUrl.empty()) {
-		return true;
+		return false;
 	}
 	const auto url = QUrl(QString::fromStdString(sourceUrl));
 	const auto expected = QUrl(_url);
 	if (!url.isValid()
 		|| url.scheme() != u"https"_q
-		|| url.host() != _proxy.host
+		|| url.host(QUrl::EncodeUnicode) != _proxy.host
 		|| url.port(443) != 443
 		|| !url.userInfo().isEmpty()
 		|| url.path() != u"/"_q
@@ -317,7 +403,7 @@ bool WebviewCarrier::validSource(const std::string &sourceUrl) const {
 }
 
 void WebviewCarrier::enqueue(Pending pending) {
-	if (_failed || pending.frame.isEmpty()) {
+	if (_failed || _closing || pending.frame.isEmpty()) {
 		return;
 	}
 	const auto pendingItems = _pending.size()
@@ -355,7 +441,7 @@ void WebviewCarrier::heartbeat() {
 }
 
 void WebviewCarrier::fail() {
-	if (_failed) {
+	if (_failed || _closing) {
 		return;
 	}
 	_failed = true;

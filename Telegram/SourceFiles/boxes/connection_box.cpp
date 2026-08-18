@@ -2071,7 +2071,7 @@ void ProxiesBoxController::ShowApplyConfirmation(
 			});
 		}
 
-		if (type == Type::Mtproto) {
+		if (type == Type::Mtproto || type == Type::Web) {
 			table->addRow(
 				object_ptr<Ui::FlatLabel>(
 					table,

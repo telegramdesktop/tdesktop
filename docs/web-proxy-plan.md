@@ -48,10 +48,18 @@ The initial draft left several architectural choices open. They are now fixed:
    `connection_tcp.cpp`, the only factory site retaining the full `ProxyData`, is
    already in that target. No reverse dependency from `td_mtproto` is introduced.
 4. The serialized `host` field stores only the canonical lowercase ASCII/IDNA
-   A-label hostname. Scheme, port, path, query, fragment, user info, IP addresses,
+   A-label hostname. Scheme, port, path, query, fragment, user info, IP addresses
+   (including WHATWG "ends in a number" shorthands such as `127.1` or `0x7f.1`),
    and single-label names are rejected. `port` is fixed to `443`; `password` stores
-   the MTProxy secret.
-5. WEB is manual-entry-only in v1. It has no `tg://proxy` share/import format.
+   the MTProxy secret. Operators should publish WEB hostnames in ACE (`xn--…`)
+   form: ACE input round-trips unchanged on every platform, while a hand-typed
+   Unicode host is mapped by the Qt version the build ships (IDNA2003/nameprep
+   on the Qt 5.15 Windows builds, UTS #46 nontransitional on Qt 6), so hosts
+   containing deviation characters (`ß`, `ς`, ZWJ, ZWNJ) or characters newer
+   than Unicode 3.2 can normalise to different strings — and therefore different
+   capabilities — per platform.
+5. WEB entries are entered manually or imported from `tg://webproxy` /
+   `https://t.me/webproxy` links (see §11); there is no `tg://proxy?…` form.
 6. Inactive WEB entries are not checked and are removed from proxy rotation's
    candidate order in v1. Checking would require activating a WebView carrier and
    must not create background carriers for every saved proxy.
@@ -129,18 +137,20 @@ runs all I/O state on its worker thread.
 Main-thread lifecycle:
 
 - `Activate(proxy)` creates the worker on first use, synchronously installs the
-  selected valid proxy, binds the dormant fallback listener, and creates one hidden
-  WebView when the selected WEB proxy changes.
-- `OpenBrowser(proxy)` mints a fresh one-shot capability and opens a new tab on
-  explicit user request after fallback has been offered.
+  selected valid proxy and creates one hidden WebView when the selected WEB proxy
+  changes; the fallback listener stays unbound.
+- `OpenBrowser(proxy)` binds the loopback listener if needed, mints a fresh
+  one-shot capability and opens a new tab on explicit user request after fallback
+  has been offered.
 - `Deactivate()` closes streams, accepted clients, and the listener when the app
   changes away from WEB, and destroys the hidden WebView.
 - `Shutdown()` runs after MTP accounts have stopped and joins the worker thread.
 
 The WebView candidate performs its own `HELLO` / `WELCOME` handshake before the
 worker adopts it. Startup, bridge initialization, write acknowledgement, and health
-are each bounded. A failed candidate is destroyed, fallback is offered, and another
-candidate is tried after 30 seconds. If a retry succeeds while the browser fallback
+are each bounded. A failed candidate is destroyed and another candidate is tried
+after an exponentially growing delay (2 s to 30 s); fallback is offered only once
+the failure is terminal (see §8). If a retry succeeds while the browser fallback
 is connected, logical streams reconnect through the WebView and the fallback socket
 is closed; no relay session is migrated across carriers.
 
@@ -265,8 +275,48 @@ Qt widget:
 Hidden mode does not install the normal WebView dialog UI. New-window navigation is
 rejected. The transport allows only the exact canonical HTTPS bridge navigation.
 The bridge is injected only into the top-level document, and native messages are
-accepted only from the configured HTTPS origin; the scrubbed `https://host/` history
-URL is accepted for messages but not as a fresh navigation.
+accepted only from the configured HTTPS origin (compared in ACE form, so IDN hosts
+on Qt-whitelisted TLDs work); a message without a source URL is rejected. The
+scrubbed `https://host/` history URL is accepted for messages but not as a fresh
+navigation.
+
+The carrier opens the WebView with `restrictedOrigin` set, which puts `lib_webview`
+into its restricted profile: an ephemeral, per-carrier storage area; cookies never
+accepted; downloads, new windows, subframe navigations, permission prompts,
+authentication dialogs and non-`https`/`wss` requests to any other host refused;
+and a document-start lock script, injected into every frame (so a fresh
+`about:blank` realm cannot bypass it), that installs a `<meta>` CSP allowing only
+inline script and connections to the exact origin, and defines `undefined` over
+storage, workers, audio, speech, WebRTC (`RTCPeerConnection` and friends),
+`WebTransport`, `WebAssembly`, notifications, payment, presentation, media capture,
+file pickers, `navigator.credentials/mediaDevices/getUserMedia/wakeLock/share/xr/
+getGamepads/storage/locks/sendBeacon/permissions` and similar. The operator's page
+therefore only ever gets inline script plus `fetch`/`WebSocket` to its own origin.
+
+Engine-level enforcement backs the script per platform:
+
+- Windows (WebView2): the restricted profile owns its own user-data folder and
+  browser process; it runs with `--disable-features=msSmartScreenProtection`
+  and `IsReputationCheckingRequired = FALSE` (so the capability URL is never
+  reported to SmartScreen) and
+  `--force-webrtc-ip-handling-policy=disable_non_proxied_udp` (no direct UDP);
+  requests to other origins are answered 403 from `WebResourceRequested`; page
+  messages are not echoed back and new-window requests never reach the system
+  browser.
+- macOS (WKWebView): `peerConnectionEnabled` and `mediaDevicesEnabled` are turned
+  off through the same KVC path used for `developerExtrasEnabled`, and on macOS 13+
+  the configuration enables Lockdown Mode (no JIT, WebAssembly or WebGL). The
+  lock script is a `WKUserScript` with `forMainFrameOnly:NO`.
+- all-other platforms (WebKitGTK): `enable-webrtc` and `enable-media-stream` are
+  set to false when the installed WebKitGTK exposes them, the 4.0/4.1 API path
+  enables the web-process sandbox (`webkit_web_context_set_sandbox_enabled`),
+  the engine already runs in the separate `-webviewhelper` process, and the lock
+  script is injected with `WEBKIT_USER_CONTENT_INJECT_ALL_FRAMES`. The helper's
+  script-message cap is 2 MiB, enough for a full 1 MiB relay frame in base64.
+
+Debug builds evaluate a probe after the first bridge message and log a line if
+`RTCPeerConnection`, `WebTransport` or `WebAssembly` is still reachable in the
+top frame or in a freshly created `about:blank` iframe.
 
 The page receives an exact-origin `TelegramWebProxy` object at document start. This
 uses the same deployed bridge contract as Android: a fresh 32-byte URL-safe nonce in
@@ -275,15 +325,39 @@ desktop WebView API carries strings, binary frames cross the native boundary as
 strict base64 and are acknowledged by monotonically increasing write sequence. The
 native queue is bounded to 8 MiB / 1024 items.
 
-The candidate must receive exactly one valid `WELCOME` within ten seconds. Once
-adopted, the main thread probes JavaScript every three seconds; ten seconds without a
-valid bridge message, or ten seconds without the acknowledgement for a native write,
-fails the carrier.
+The candidate must receive exactly one valid `WELCOME`, and only after the nonce'd
+`tproxy-android-init`. The handshake deadline is ten seconds, extended by another
+ten seconds each time the bridge reports `status: connecting|reconnecting` (the
+bridge's own retry budget is ~23–28 s), up to 45 seconds from navigation start.
+Once adopted, the main thread probes JavaScript every three seconds; ten seconds
+without a valid bridge message, or ten seconds without the acknowledgement for a
+native write, fails the carrier.
+
+The transport keeps at most 512 frames outstanding towards the WebView (control
+frames may use the last 64 of them) and coalesces `WINDOW` grants per stream,
+emitting them once 256 KiB accumulate or after 20 ms, so the carrier's hard
+1024-item cap is unreachable in normal operation.
+
+When a carrier is dropped after being adopted, the close control is evaluated in
+the page and the WebView is kept alive for a further 200 ms so the bridge can send
+its `DELETE /api/v1/session`.
+
+WebView failures are retried with exponential backoff from 2 to 30 seconds (reset
+on every successful adoption). The row shows `connecting` throughout; the
+`WaitingForBrowser` state, and the confirmation box offering the system-browser
+fallback, appear only for a terminal failure: hidden WebViews unsupported on the
+platform (checked once per activation; nothing is retried), WebView creation
+failed, or three consecutive failures without a single adoption. Retries continue
+in the background at the maximum interval after that.
 
 ## 9. Explicit system-browser fallback boundary
 
-The worker binds `QHostAddress::LocalHost` on an ephemeral port and advertises the
-numeric origin `http://127.0.0.1:<port>`.
+The worker binds `QHostAddress::LocalHost` on an ephemeral port only when the user
+asks for the fallback (`Open browser`), and advertises the numeric origin
+`http://127.0.0.1:<port>`. The listener is closed again once a browser tab has
+authenticated, when the minted capability expires unused, when the hidden WebView
+takes over, and on deactivation, so there is no listening port unless the fallback
+was requested. A page reload after that needs a fresh `Open browser`.
 
 `GET /` serves the inline parent with `no-store`, `nosniff`, `no-referrer`, and a
 fresh per-response script nonce. Its strict CSP permits only that nonce-bound
@@ -323,9 +397,14 @@ streams to reconnect rather than attempting unsupported cross-tab resume.
 
 After authentication:
 
+- the client first sends the text message
+  `{"t":"bridge","url":"https://<host>/?bridge=<capability>"}`; the derived
+  capability is therefore only ever handed to a tab that proved possession of the
+  one-shot fragment token, never embedded in the unauthenticated `GET /` page;
 - binary WebSocket messages carry one or more shared relay frames;
-- text messages may only report bridge state as
-  `{"t":"status","state":"connecting|connected|reconnecting|failed"}`.
+- text messages from the page may only report bridge state as
+  `{"t":"status","state":"connecting|connected|reconnecting|failed"}`;
+- pings from unauthenticated clients are ignored.
 
 If an authenticated browser does not return the required `WELCOME` within 30
 seconds, the client fails that carrier and closes its local WebSocket. This turns a
@@ -336,8 +415,10 @@ forever.
 ## 10. Parent page and hosted iframe contract
 
 The local parent reads and scrubs its independent one-shot loopback capability,
-connects the local WebSocket, derives the bridge URL, creates an iframe with limited
-`sandbox` flags, and establishes a `MessageChannel`.
+connects the local WebSocket, waits for the `bridge` text message, and only then
+creates an iframe (with limited `sandbox` flags and `referrerPolicy` set before
+`src`) for that URL, which must begin with `relayOrigin + '/?bridge='`, and
+establishes a `MessageChannel`.
 
 The parent also creates two same-page `RTCPeerConnection`s with an empty ICE-server
 list, exchanges their descriptions only in local JavaScript, rewrites exchanged host
@@ -367,8 +448,8 @@ Normative vectors:
 | `proxy.example.com` | `000102030405060708090a0b0c0d0e0f` | `MHLEY5PmW1GWqJkSrlmJpvJUiLhBH_QKy6yKg8a0JPk` |
 | `proxy.example.com` | `dd000102030405060708090a0b0c0d0e0f` | `IpJrt3e7sKtzPyoXy6w-Zj6GGEvsvclN66JzQEfPYLA` |
 
-The derived capability is constructed in memory and is neither stored nor shown in
-proxy settings. On iframe load the parent sends exactly:
+The derived capability is constructed in memory in tdesktop and is neither stored
+nor shown in proxy settings. On iframe load the parent sends exactly:
 
 ```javascript
 iframe.contentWindow.postMessage(
@@ -389,8 +470,9 @@ The iframe's status objects update the visible tab and are forwarded to tdesktop
 When the local WebSocket closes, the parent sends `{t:'close'}` so the bridge can
 delete its relay session. Closing the fallback tab drops the local WebSocket and
 disconnects its logical sockets. Telegram Desktop does not reopen a tab
-automatically. It keeps trying the hidden WebView every 30 seconds. Reloading cannot
-reuse the scrubbed, one-shot loopback capability; after another failure, the
+automatically. It keeps trying the hidden WebView with the backoff from §8.
+Reloading cannot reuse the scrubbed, one-shot loopback capability (and the
+listener is closed once a tab authenticated); after another failure, the
 confirmation or row menu can mint a fresh capability and open a new tab.
 
 ## 11. Settings and app integration
@@ -405,7 +487,10 @@ Rows display only the hostname. Inactive WEB rows show `not tested` without crea
 a checker, WebView, or browser tab. Only the exact active WEB row shows the live
 transport lifecycle. `Open browser` is offered only after the built-in carrier has
 failed. WEB remains unsupported for calls. Because the backend is still MTProxy,
-WEB keeps the existing sponsored-proxy disclosure and promotion refresh behavior.
+WEB keeps the existing sponsored-proxy disclosure (in the editor and in the link
+confirmation) and promotion refresh behavior. Like MTProxy, the WEB hostname is
+what `initConnection` reports as the proxy address; QNetworkAccessManager traffic
+outside MTProto is not routed through the WEB carrier.
 
 WEB links use `webproxy`, a canonical hostname, and the MTProxy secret. Port 443 is
 implicit and is neither accepted from the link nor displayed in its confirmation:
@@ -441,6 +526,12 @@ opening a WebView or browser.
 - The parent iframe uses only `sandbox="allow-scripts allow-same-origin"`.
 - Payloads and secrets are never logged by this client code.
 - WEB socket failures do not invoke tdesktop's direct HTTP time-sync fallback.
+- `CLOSE` is an abort in both directions: undelivered `DATA` on a closed stream is
+  dropped, exactly like tdesktop's existing TCP path, which never half-closes.
+- Trust model: the operator is semi-trusted. Their page runs JavaScript inside the
+  restricted profile (§8) and never sees the MTProxy secret; the derived
+  capability is a stable bearer for (host, secret). A local process cannot obtain
+  the capability from the loopback listener (§9); it needs `tdata`.
 - Relay authentication (`AUTH_CHAL` / `AUTH_RESP`) is not implemented in v1. Adding
   it requires a fully specified challenge context and server test vectors; it must be
   computed in tdesktop without passing the secret to JavaScript.

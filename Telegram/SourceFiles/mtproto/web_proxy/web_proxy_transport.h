@@ -68,6 +68,7 @@ private:
 	void webviewPayload(uint64 generation, QByteArray payload);
 	void webviewWritten(uint64 generation, int bytes);
 	void webviewFailed(uint64 generation);
+	void webviewUnavailable();
 	void sendWebviewFrame(uint64 generation, QByteArray frame);
 	[[nodiscard]] bool reservePending(int bytes);
 	void releasePending(int bytes, int items);
