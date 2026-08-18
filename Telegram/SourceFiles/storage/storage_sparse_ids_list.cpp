@@ -167,7 +167,7 @@ void SparseIdsList::removeOne(MsgId messageId) {
 			return slice.messages.remove(messageId);
 		});
 	}
-	if (_count) {
+	if (_count && *_count > 0) {
 		--*_count;
 	}
 }
