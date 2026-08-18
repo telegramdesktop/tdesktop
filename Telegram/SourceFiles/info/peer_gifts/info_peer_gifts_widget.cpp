@@ -805,9 +805,10 @@ void InnerWidget::validateButtons() {
 		: padding.bottom();
 	const auto row = _single.height() + st::giftBoxGiftSkip.y();
 	const auto totalRows = (int(_list->size()) + _perRow - 1) / _perRow;
-	const auto fromRow = std::max(
+	const auto fromRow = std::clamp(
 		(std::max(_visibleFrom - vskip, 0) / row) - kPreloadButtonRows,
-		0);
+		0,
+		totalRows);
 	const auto tillRow = std::min(
 		((_visibleTill - vskip + row - 1) / row) + kPreloadButtonRows,
 		totalRows);
