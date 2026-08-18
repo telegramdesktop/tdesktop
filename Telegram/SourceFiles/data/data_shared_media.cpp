@@ -145,6 +145,10 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 		session->storage().sharedMediaOneRemoved(
 		) | rpl::filter([=](const OneRemoved &update) {
 			return (update.peerId == key.peerId)
+				&& (!key.topicRootId
+					|| key.topicRootId == update.topicRootId)
+				&& (!key.monoforumPeerId
+					|| key.monoforumPeerId == update.monoforumPeerId)
 				&& update.types.test(key.type);
 		}) | rpl::filter([=](const OneRemoved &update) {
 			return builder->removeOne(update.messageId);
