@@ -8244,6 +8244,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stats_recent_messages_views#one" = "{count} view";
 "lng_stats_recent_messages_views#other" = "{count} views";
 
+"lng_stats_export" = "Export to File";
+"lng_stats_export_done" = "Statistics saved to {file}.";
+"lng_stats_export_error" = "Could not save statistics.";
+
 "lng_stats_loading" = "Loading stats...";
 "lng_stats_loading_subtext" = "Please wait a few moments while we generate your stats.";
 "lng_stats_boosts_loading" = "Loading boosts list...";

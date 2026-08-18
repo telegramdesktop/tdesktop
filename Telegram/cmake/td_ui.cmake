@@ -344,6 +344,8 @@ PRIVATE
     statistics/statistics_format_values.h
     statistics/statistics_graphics.cpp
     statistics/statistics_graphics.h
+    statistics/statistics_sheets.cpp
+    statistics/statistics_sheets.h
     statistics/statistics_types.h
     statistics/statistics_xlsx.cpp
     statistics/statistics_xlsx.h

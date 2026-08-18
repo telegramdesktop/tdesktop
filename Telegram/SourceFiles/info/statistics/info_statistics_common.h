@@ -15,6 +15,7 @@ namespace Info::Statistics {
 struct SavedState final {
 	Data::AnyStatistics stats;
 	Data::StatisticsLists lists;
+	Data::StatisticalGraph pollVotesGraph;
 	base::flat_map<Data::RecentPostId, QImage> recentPostPreviews;
 	Data::PublicForwardsSlice publicForwardsFirstSlice;
 	int recentPostsExpanded = 0;

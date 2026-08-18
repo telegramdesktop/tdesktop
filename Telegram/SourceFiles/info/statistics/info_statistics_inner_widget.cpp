@@ -814,6 +814,7 @@ void InnerWidget::fillPollVotesGraph(
 			if (!graph.chart) {
 				return;
 			}
+			_state.pollVotesGraph = graph;
 			widget->setChartData(
 				std::move(graph.chart),
 				Statistic::ChartViewType::Linear);

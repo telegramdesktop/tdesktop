@@ -1309,6 +1309,8 @@ PRIVATE
     info/similar_peers/info_similar_peers_widget.cpp
     info/similar_peers/info_similar_peers_widget.h
     info/statistics/info_statistics_common.h
+    info/statistics/info_statistics_export.cpp
+    info/statistics/info_statistics_export.h
     info/statistics/info_statistics_inner_widget.cpp
     info/statistics/info_statistics_inner_widget.h
     info/statistics/info_statistics_list_controllers.cpp
