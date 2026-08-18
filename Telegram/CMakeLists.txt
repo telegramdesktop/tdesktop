@@ -1939,6 +1939,8 @@ PRIVATE
     test/test_agent.h
     test/test_capture.cpp
     test/test_capture.h
+    test/test_custom_emoji.cpp
+    test/test_custom_emoji.h
     test/test_history_fixtures.cpp
     test/test_history_fixtures.h
     test/test_ink.cpp
