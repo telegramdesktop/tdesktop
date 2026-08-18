@@ -366,7 +366,8 @@ void ListWidget::Inner::updateGeometry(QRect rect) {
 		return;
 	}
 	_inlineViewportHeight = rect.height();
-	_list->resizeToWidth(rect.width(), rect.height());
+	// Short inline list would sink to bottom of viewport.
+	_list->resizeToWidth(rect.width(), _scroll ? rect.height() : 0);
 	if (!_viewerRefreshed) {
 		_viewerRefreshed = true;
 		_list->refreshViewer();
