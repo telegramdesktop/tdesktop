@@ -64,7 +64,14 @@ void MusicButton::paintEvent(QPaintEvent *e) {
 	}
 	const auto lightBackground = _overrideBg
 		&& Ui::IsLightBackground(*_overrideBg);
-	paintRipple(p, QPoint());
+	const auto rippleColor = !_overrideBg
+		? std::nullopt
+		: std::make_optional(anim::with_alpha(
+			(lightBackground
+				? QColor(Qt::black)
+				: st::groupCallMembersFg->c),
+			st::infoProfileTopBarBackdropRippleOpacity));
+	paintRipple(p, QPoint(), rippleColor ? &*rippleColor : nullptr);
 
 	const auto &icon = st::topicButtonArrow;
 	const auto iconWidth = icon.width();

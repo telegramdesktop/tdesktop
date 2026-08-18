@@ -47,6 +47,7 @@ public:
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
+	void onStateChanged(State was, StateChangeSource source) override;
 
 	QImage prepareRippleMask() const override;
 	QPoint prepareRippleStartPosition() const override;
@@ -68,6 +69,8 @@ private:
 
 	QColor _bgColor;
 	std::optional<QColor> _fgColor;
+	std::optional<QColor> _rippleColor;
+	Ui::Animations::Simple _overAnimation;
 
 };
 
