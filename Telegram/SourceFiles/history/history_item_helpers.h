@@ -83,9 +83,23 @@ using OnStackUsers = std::array<UserData*, kMaxUnreadReactions>;
 void CheckReactionNotificationSchedule(
 	not_null<HistoryItem*> item,
 	const OnStackUsers &wasUsers);
+[[nodiscard]] PollData *LookupNotificationPoll(
+	not_null<const HistoryItem*> item);
 void CheckPollVoteNotificationSchedule(
 	not_null<HistoryItem*> item,
 	const std::vector<not_null<PeerData*>> &wasRecentVoters);
+
+// History::destroyMessage clears the notification manager for a destroyed
+// item only when this accepts it, so it has to stay a superset of every
+// scheduler guard that can accept a !isHistoryEntry() item - today only
+// CheckPollVoteNotificationSchedule, whose own creator() check is
+// deliberately not repeated here. An item some scheduler accepts but this
+// rejects stays behind in Manager::_queuedNotifications and in
+// Notification::_item, raw pointers that only Manager::doClearFromItem
+// unlinks.
+[[nodiscard]] bool CanHoldItemNotification(
+	not_null<const HistoryItem*> item);
+
 [[nodiscard]] MessageFlags NewForwardedFlags(
 	not_null<PeerData*> peer,
 	PeerId from,

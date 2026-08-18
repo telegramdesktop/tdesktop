@@ -1333,11 +1333,15 @@ void CheckReactionNotificationSchedule(
 	}
 }
 
+PollData *LookupNotificationPoll(not_null<const HistoryItem*> item) {
+	const auto media = item->media();
+	return media ? media->poll() : nullptr;
+}
+
 void CheckPollVoteNotificationSchedule(
 		not_null<HistoryItem*> item,
 		const std::vector<not_null<PeerData*>> &wasRecentVoters) {
-	const auto media = item->media();
-	const auto poll = media ? media->poll() : nullptr;
+	const auto poll = LookupNotificationPoll(item);
 	if (!poll || !poll->creator()) {
 		return;
 	}
@@ -1370,6 +1374,10 @@ void CheckPollVoteNotificationSchedule(
 			return;
 		}
 	}
+}
+
+bool CanHoldItemNotification(not_null<const HistoryItem*> item) {
+	return item->isHistoryEntry() || LookupNotificationPoll(item);
 }
 
 [[nodiscard]] MessageFlags NewForwardedFlags(

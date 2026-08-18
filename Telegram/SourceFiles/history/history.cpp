@@ -703,8 +703,7 @@ void History::destroyMessage(not_null<HistoryItem*> item) {
 	}();
 
 	owner().unregisterMessage(item);
-	const auto media = item->media();
-	if (item->isHistoryEntry() || (media && media->poll())) {
+	if (CanHoldItemNotification(item)) {
 		Core::App().notifications().clearFromItem(item);
 	}
 
