@@ -2656,9 +2656,9 @@ void HistoryItem::applySentMessage(const MTPDmessage &data) {
 		_flags &= ~MessageFlag::InvertMedia;
 	}
 
-	if (!isLocalUpdateMedia()) {
-		removeFromSharedMediaIndex();
-	}
+	const auto wasTypes = sharedMediaTypes();
+	const auto wasTopicRootId = topicRootId();
+	const auto wasSublistPeerId = sublistPeerId();
 	updateSentContent(data);
 	updateReplyMarkup(HistoryMessageMarkupData(data.vreply_markup()));
 	updateForwardedInfo(data.vfwd_from());
@@ -2690,6 +2690,19 @@ void HistoryItem::applySentMessage(const MTPDmessage &data) {
 	}
 	setPostAuthor(data.vpost_author().value_or_empty());
 	contributeToSlowmode(data.vdate().v);
+	if (isRegular()
+		&& !isLocalUpdateMedia()
+		&& (topicRootId() != wasTopicRootId
+			|| sublistPeerId() != wasSublistPeerId)) {
+		if (wasTypes) {
+			_history->session().storage().remove(Storage::SharedMediaRemoveOne(
+				_history->peer->id,
+				wasTopicRootId,
+				wasSublistPeerId,
+				wasTypes,
+				id));
+		}
+	}
 	addToSharedMediaIndex();
 	setIsPinned(data.is_pinned());
 	addToMessagesIndex();
