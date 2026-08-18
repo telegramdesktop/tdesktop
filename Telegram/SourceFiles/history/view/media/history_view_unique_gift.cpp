@@ -638,11 +638,8 @@ auto UniqueGiftBg(
 		p.setPen(Qt::NoPen);
 		p.drawRoundedRect(inner, radius, radius);
 
-		const auto width = media->width();
-		const auto shift = width / 12;
-		const auto doubled = width + 2 * shift;
-		const auto top = (webpreview ? 2 : 1) * (-shift);
-		const auto outer = QRect(-shift, top, doubled, doubled);
+		const auto shift = media->width() / 12;
+		const auto outer = full.marginsAdded(Margins(shift));
 		p.setClipRect(inner);
 		Ui::PaintBgPoints(
 			p,
