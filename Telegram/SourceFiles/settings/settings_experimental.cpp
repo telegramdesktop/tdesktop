@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/fields/input_field.h"
-#include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/buttons.h"
@@ -58,7 +57,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_flexible_scroll.h"
 #include "chat_helpers/stickers_list_widget.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_info.h"
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -603,32 +601,17 @@ void Experimental::showFinished() {
 
 base::weak_qptr<Ui::RpWidget> Experimental::createPinnedToTop(
 		not_null<QWidget*> parent) {
-	_searchController = std::make_unique<Ui::SearchFieldController>(
-		_query.current());
-	auto rowView = _searchController->createRowView(
-		parent,
-		st::infoLayerMediaSearch);
-	_searchField = rowView.field;
-
-	const auto searchContainer = Ui::CreateChild<Ui::FixedHeightWidget>(
-		parent.get(),
-		st::infoLayerMediaSearch.height);
-	const auto wrap = rowView.wrap.release();
-	wrap->setParent(searchContainer);
-	wrap->show();
-
-	searchContainer->widthValue(
-	) | rpl::on_next([=](int width) {
-		wrap->resizeToWidth(width);
-		wrap->moveToLeft(0, 0);
-	}, searchContainer->lifetime());
+	auto search = CreateSectionSearchRow(parent, _query.current());
+	_searchController = std::move(search.controller);
+	const auto row = search.row;
+	_searchField = search.field;
 
 	_searchController->queryValue(
 	) | rpl::on_next([=](QString text) {
 		_query = std::move(text);
-	}, searchContainer->lifetime());
+	}, row->lifetime());
 
-	return base::make_weak(not_null<Ui::RpWidget*>{ searchContainer });
+	return base::make_weak(row);
 }
 
 void Experimental::setupContent() {

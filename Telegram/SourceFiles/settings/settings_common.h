@@ -40,6 +40,8 @@ class Session;
 namespace Ui {
 class VerticalLayout;
 class FlatLabel;
+class InputField;
+class SearchFieldController;
 class SettingsButton;
 class AbstractButton;
 class MediaSlider;
@@ -334,5 +336,15 @@ void AddPremiumStar(
 	not_null<Button*> button,
 	bool credits,
 	Fn<bool()> isPaused);
+
+struct SectionSearchRow {
+	std::unique_ptr<Ui::SearchFieldController> controller;
+	not_null<Ui::RpWidget*> row;
+	not_null<Ui::InputField*> field;
+};
+
+[[nodiscard]] SectionSearchRow CreateSectionSearchRow(
+	not_null<QWidget*> parent,
+	const QString &query = QString());
 
 } // namespace Settings
