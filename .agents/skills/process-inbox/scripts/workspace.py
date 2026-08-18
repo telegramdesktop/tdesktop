@@ -483,7 +483,7 @@ def changed_paths(path):
 		("diff", "--cached", "--name-only"),
 		("ls-files", "--others", "--exclude-standard"),
 	):
-		for value in run_git(path, *arguments).stdout.splitlines():
+		for value in os.fsdecode(run_git_binary(path, *arguments, "-z")).split("\0"):
 			if value:
 				result.add(value)
 	return sorted(result)

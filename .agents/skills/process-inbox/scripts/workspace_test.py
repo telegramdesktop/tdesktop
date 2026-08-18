@@ -116,6 +116,15 @@ def git(repo, *args):
 	).stdout.strip()
 
 
+def git_bytes(repo, *args):
+	return subprocess.run(
+		["git", "-C", str(repo), *args],
+		check=True,
+		stdout=subprocess.PIPE,
+		stderr=subprocess.PIPE,
+	).stdout
+
+
 def git_repo(path):
 	path.mkdir(parents=True, exist_ok=True)
 	git(path, "init")
@@ -2383,6 +2392,57 @@ class MechanicsTest(unittest.TestCase):
 			self.assertFalse((source / "tracked.txt").exists())
 			self.assertEqual(git(source, "status", "--porcelain"), "")
 			self.assertEqual(git(source, "rev-list", "--count", "HEAD"), "2")
+
+	def test_source_commit_stages_a_non_ascii_tracked_file(self):
+		name = "\u00e9\u6587.txt"
+		self.assertEqual(name.encode("utf-8"), b"\xc3\xa9\xe6\x96\x87.txt")
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			source, slot, work, config = source_repo_with_task(root)
+			(source / name).write_text("base\n", encoding="utf-8")
+			git(source, "add", "-A")
+			git(source, "commit", "-m", "Add the non-ASCII sample")
+			(work / "owned-paths.txt").write_text(
+				name + "\n", encoding="utf-8",
+			)
+			(source / name).write_text("task\n", encoding="utf-8")
+			covered = workspace.path_is_covered
+			compared = []
+
+			def record_covered(path, roots):
+				compared.append(path)
+				return covered(path, roots)
+
+			with (
+				mock.patch.object(
+					workspace, "task_action_config", return_value=(config, slot),
+				),
+				mock.patch.object(
+					workspace, "path_is_covered", side_effect=record_covered,
+				),
+			):
+				result = run_command(
+					workspace.command_source_commit,
+					task=TASK_ID,
+					subject="Correct the non-ASCII sample",
+					mark_green=False,
+				)
+			self.assertEqual(compared, [name])
+			self.assertEqual(result["committed"], [name])
+			self.assertEqual(
+				git_bytes(
+					source,
+					"-c", "core.quotePath=false",
+					"show", "--name-status", "--format=", "HEAD",
+				).decode("utf-8").strip(),
+				"M\t" + name,
+			)
+			self.assertEqual(
+				git(source, "show", "-s", "--format=%B", "HEAD"),
+				f"Correct the non-ASCII sample\n\nTask: {TASK_ID}",
+			)
+			self.assertEqual(git(source, "status", "--porcelain"), "")
+			self.assertEqual(git(source, "rev-list", "--count", "HEAD"), "3")
 
 	def test_source_commit_rejects_paths_outside_owned_set(self):
 		with tempfile.TemporaryDirectory() as temporary:
