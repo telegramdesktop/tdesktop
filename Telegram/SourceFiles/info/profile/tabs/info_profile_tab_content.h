@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_shared_media.h"
 
 class PeerData;
+class QPainter;
 
 namespace Data {
 class ForumTopic;
@@ -55,6 +56,10 @@ public:
 	}
 
 	virtual void setTopOverlay(int height) {
+	}
+
+	// Painter is translated to tab widget origin, clipped to filler.
+	virtual void paintOverflow(QPainter &p) {
 	}
 
 	virtual void saveScrollState(QByteArray &out) {

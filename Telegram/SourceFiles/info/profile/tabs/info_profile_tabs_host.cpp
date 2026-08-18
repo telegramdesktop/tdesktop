@@ -702,10 +702,22 @@ void TabsHost::startSlideAnimation(
 }
 
 void TabsHost::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+	if (const auto active = _activeTab.current()) {
+		const auto widget = active->widget();
+		const auto bottom = _body->y() + _body->height();
+		const auto filler = QRect(0, bottom, width(), height() - bottom);
+		if (!filler.isEmpty() && filler.intersects(e->rect())) {
+			p.setClipRect(filler);
+			p.translate(_body->pos() + widget->pos());
+			active->paintOverflow(p);
+			p.resetTransform();
+			p.setClipping(false);
+		}
+	}
 	if (!_slideAnimation) {
 		return;
 	}
-	auto p = QPainter(this);
 	p.fillRect(_slideRect, st::windowBg);
 	_slideAnimation->paintFrame(
 		p,

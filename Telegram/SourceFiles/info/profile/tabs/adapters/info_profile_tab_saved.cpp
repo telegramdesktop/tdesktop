@@ -141,6 +141,12 @@ public:
 		_saved.selectionAction(SelectionAction::Clear);
 	}
 
+	void paintOverflow(QPainter &p) override {
+		if (!skeletonShown()) {
+			_saved.paintBackground(p, QRect());
+		}
+	}
+
 	void setVisibleRegion(int top, int bottom) override {
 		const auto height = bottom - top;
 		if (_viewportHeight != height) {
