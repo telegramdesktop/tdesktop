@@ -347,4 +347,10 @@ struct SectionSearchRow {
 	not_null<QWidget*> parent,
 	const QString &query = QString());
 
+[[nodiscard]] QStringList SearchWords(const QString &text);
+
+[[nodiscard]] bool MatchesWords(
+	const QStringList &terms,
+	const QStringList &words);
+
 } // namespace Settings

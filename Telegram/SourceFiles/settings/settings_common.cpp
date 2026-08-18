@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/text/text_entity.h"
 #include "styles/style_edit_peer_members.h"
 #include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
@@ -851,6 +852,27 @@ SectionSearchRow CreateSectionSearchRow(
 		.row = row,
 		.field = field,
 	};
+}
+
+QStringList SearchWords(const QString &text) {
+	auto simple = text;
+	return TextUtilities::PrepareSearchWords(simple.replace('#', ' '));
+}
+
+bool MatchesWords(const QStringList &terms, const QStringList &words) {
+	for (const auto &word : words) {
+		auto found = false;
+		for (const auto &term : terms) {
+			if (term.startsWith(word)) {
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			return false;
+		}
+	}
+	return true;
 }
 
 } // namespace Settings

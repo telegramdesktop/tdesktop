@@ -261,13 +261,13 @@ QString AddOption(
 	}, inner->lifetime());
 
 	const auto searchable = name + ' ' + description;
+	const auto terms = SearchWords(searchable);
 	std::move(
 		query
 	) | rpl::on_next([=](const QString &text) {
-		const auto trimmed = text.trimmed();
-		const auto matches = trimmed.isEmpty()
-			|| searchable.contains(trimmed, Qt::CaseInsensitive);
-		wrap->toggle(matches, anim::type::instant);
+		wrap->toggle(
+			MatchesWords(terms, SearchWords(text)),
+			anim::type::instant);
 	}, wrap->lifetime());
 
 	return searchable;
@@ -316,13 +316,13 @@ QString AddFavoriteLinkButton(
 	SetupCopyDeepLink(window, button, option->id());
 
 	const auto searchable = name + ' ' + description;
+	const auto terms = SearchWords(searchable);
 	std::move(
 		query
 	) | rpl::on_next([=](const QString &text) {
-		const auto trimmed = text.trimmed();
-		const auto matches = trimmed.isEmpty()
-			|| searchable.contains(trimmed, Qt::CaseInsensitive);
-		wrap->toggle(matches, anim::type::instant);
+		wrap->toggle(
+			MatchesWords(terms, SearchWords(text)),
+			anim::type::instant);
 	}, wrap->lifetime());
 
 	return searchable;
@@ -492,13 +492,17 @@ void SetupExperimental(
 		Ui::AddSkip(inner);
 		Ui::AddDivider(inner);
 
+		auto terms = std::vector<QStringList>();
+		for (const auto &entry : searchable) {
+			terms.push_back(SearchWords(entry));
+		}
 		rpl::duplicate(
 			query
 		) | rpl::on_next([=](const QString &text) {
-			const auto trimmed = text.trimmed();
-			const auto matches = trimmed.isEmpty()
-				|| ranges::any_of(searchable, [&](const QString &entry) {
-					return entry.contains(trimmed, Qt::CaseInsensitive);
+			const auto words = SearchWords(text);
+			const auto matches = words.isEmpty()
+				|| ranges::any_of(terms, [&](const QStringList &entry) {
+					return MatchesWords(entry, words);
 				});
 			wrap->toggle(matches, anim::type::instant);
 		}, wrap->lifetime());
