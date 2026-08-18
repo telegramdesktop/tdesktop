@@ -144,10 +144,10 @@ void RestoreWindowsOffer::relayout() {
 		+ _wideNever->height();
 	const auto bottom = padding.bottom() + margins.bottom();
 	const auto totalWidth = frame + inner;
-	for (const auto button : { _always, _restore, _never }) {
+	for (const auto &button : { _always, _restore, _never }) {
 		button->setVisible(horizontal);
 	}
-	for (const auto button : { _wideAlways, _wideRestore, _wideNever }) {
+	for (const auto &button : { _wideAlways, _wideRestore, _wideNever }) {
 		button->setVisible(!horizontal);
 	}
 	resize(
@@ -180,7 +180,7 @@ void RestoreWindowsOffer::relayout() {
 	} else {
 		const auto wideWidth = inner;
 		auto top = buttonsTop;
-		for (const auto button : { _wideAlways, _wideRestore, _wideNever }) {
+		for (const auto &button : { _wideAlways, _wideRestore, _wideNever }) {
 			button->resizeToWidth(wideWidth);
 			button->moveToLeft(margins.left() + padding.left(), top);
 			top += button->height() + buttonSkip;

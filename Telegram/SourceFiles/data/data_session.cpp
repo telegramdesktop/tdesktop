@@ -2437,7 +2437,7 @@ void Session::destroyMessagesWithCacheCleanup(
 	}
 	auto ids = std::vector<FullMsgId>();
 	ids.reserve(items.size());
-	for (const auto item : items) {
+	for (const auto &item : items) {
 		ids.push_back(item->fullId());
 	}
 	notifyItemsAboutToBeDestroyed(items);

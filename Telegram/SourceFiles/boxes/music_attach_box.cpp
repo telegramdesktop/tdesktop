@@ -129,7 +129,6 @@ public:
 	[[nodiscard]] auto globalMediaSliceViewValue() const
 		-> rpl::producer<std::optional<Info::Media::GlobalMediaSliceView>>;
 
-	void setQuery(QString query);
 	void setCollapsed(bool collapsed);
 	void setPagingEnabled(bool enabled);
 	void setExternalViewportHeight(int height);
@@ -194,10 +193,8 @@ public:
 	void setPagingEnabled(bool enabled);
 	[[nodiscard]] bool hasResults() const;
 	[[nodiscard]] bool busy() const;
-	[[nodiscard]] bool loading() const;
 	[[nodiscard]] bool awayFromTop() const;
 	[[nodiscard]] rpl::producer<bool> awayFromTopValue() const;
-	[[nodiscard]] int rawSelectedCount() const;
 	[[nodiscard]] rpl::producer<SelectedDocuments> selectedDocumentsValue() const;
 	[[nodiscard]] rpl::producer<> stateChanged() const;
 
@@ -411,10 +408,6 @@ auto HistoryMusicSection::globalMediaSliceViewValue() const
 	return _list->globalMediaSliceViewValue();
 }
 
-void HistoryMusicSection::setQuery(QString query) {
-	_controller->setQuery(std::move(query));
-}
-
 void HistoryMusicSection::setCollapsed(bool collapsed) {
 	if (_collapsed == collapsed) {
 		return;
@@ -623,20 +616,12 @@ bool GlobalMusicSearchSection::busy() const {
 	return _pending || _loading;
 }
 
-bool GlobalMusicSearchSection::loading() const {
-	return _loading;
-}
-
 bool GlobalMusicSearchSection::awayFromTop() const {
 	return _awayFromTop.current();
 }
 
 rpl::producer<bool> GlobalMusicSearchSection::awayFromTopValue() const {
 	return _awayFromTop.value();
-}
-
-int GlobalMusicSearchSection::rawSelectedCount() const {
-	return int(_selected.size());
 }
 
 rpl::producer<GlobalMusicSearchSection::SelectedDocuments>

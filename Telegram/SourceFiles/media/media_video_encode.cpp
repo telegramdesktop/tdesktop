@@ -470,10 +470,10 @@ bool AudioTranscoder::drainDecoder(not_null<AVFormatContext*> output) {
 				: _decodedFrame->pts;
 			if (raw != AV_NOPTS_VALUE && _inTimeBase.den > 0) {
 				_pts = std::max(
-					av_rescale_q(
+					int64(av_rescale_q(
 						raw,
 						_inTimeBase,
-						AVRational{ 1, kAudioFrequency }),
+						AVRational{ 1, kAudioFrequency })),
 					int64(0));
 			}
 		}
@@ -1572,7 +1572,9 @@ TranscodeResult TranscodeVideo(
 				packet->stream_index = outVideoStream->index;
 				packet->pos = -1;
 				if (packet->pts != AV_NOPTS_VALUE) {
-					lastVideoPts = std::max(lastVideoPts, packet->pts);
+					lastVideoPts = std::max(
+						lastVideoPts,
+						int64(packet->pts));
 				}
 				++emitted;
 				auto written = AvErrorWrap(av_interleaved_write_frame(

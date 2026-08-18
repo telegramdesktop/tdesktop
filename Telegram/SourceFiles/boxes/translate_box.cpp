@@ -324,7 +324,7 @@ void SetupRichArticleBody(
 
 	const auto setCopyText = [&] {
 		const auto padding = st::defaultSubsectionTitlePadding;
-		const auto subtitle = Ui::AddSubsectionTitle(container, std::move(toTitle));
+		const auto subtitle = Ui::AddSubsectionTitle(container, toTitle);
 
 		rpl::duplicate(to) | rpl::on_next([=] {
 			subtitle->resizeToWidth(container->width()
