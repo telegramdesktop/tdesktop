@@ -1961,6 +1961,8 @@ void HistoryItem::setIsPinned(bool pinned) {
 
 		_history->session().storage().remove(Storage::SharedMediaRemoveOne(
 			_history->peer->id,
+			topicRootId(),
+			sublistPeerId(),
 			Storage::SharedMediaType::Pinned,
 			id));
 	}
@@ -3018,6 +3020,8 @@ void HistoryItem::removeFromSharedMediaIndex() {
 			_history->session().storage().remove(
 				Storage::SharedMediaRemoveOne(
 					_history->peer->id,
+					topicRootId(),
+					sublistPeerId(),
 					types,
 					id));
 		}

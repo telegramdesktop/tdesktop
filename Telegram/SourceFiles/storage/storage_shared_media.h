@@ -117,14 +117,20 @@ struct SharedMediaAddSlice {
 struct SharedMediaRemoveOne {
 	SharedMediaRemoveOne(
 		PeerId peerId,
+		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		SharedMediaTypesMask types,
 		MsgId messageId)
 	: peerId(peerId)
+	, topicRootId(topicRootId)
+	, monoforumPeerId(monoforumPeerId)
 	, messageId(messageId)
 	, types(types) {
 	}
 
 	PeerId peerId = 0;
+	MsgId topicRootId = 0;
+	PeerId monoforumPeerId = 0;
 	MsgId messageId = 0;
 	SharedMediaTypesMask types;
 

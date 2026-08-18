@@ -680,7 +680,6 @@ not_null<HistoryItem*> History::insertItem(
 void History::destroyMessage(not_null<HistoryItem*> item) {
 	Expects(item->isHistoryEntry() || !item->mainView());
 
-	const auto peerId = peer->id;
 	if (item->isHistoryEntry()) {
 		// All this must be done for all items manually in History::clear()!
 		item->destroyHistoryEntry();
@@ -688,12 +687,7 @@ void History::destroyMessage(not_null<HistoryItem*> item) {
 			if (const auto messages = _messages.get()) {
 				messages->removeOne(item->id);
 			}
-			if (const auto types = item->sharedMediaTypes()) {
-				session().storage().remove(Storage::SharedMediaRemoveOne(
-					peerId,
-					types,
-					item->id));
-			}
+			item->removeFromSharedMediaIndex();
 		}
 		itemRemoved(item);
 	}
