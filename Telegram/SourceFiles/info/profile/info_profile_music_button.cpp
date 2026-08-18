@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_music_button.h"
 
+#include "ui/color_contrast.h"
 #include "ui/effects/animation_value.h"
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
@@ -61,6 +62,8 @@ void MusicButton::paintEvent(QPaintEvent *e) {
 	} else {
 		p.fillRect(e->rect(), st::shadowFg);
 	}
+	const auto lightBackground = _overrideBg
+		&& Ui::IsLightBackground(*_overrideBg);
 	paintRipple(p, QPoint());
 
 	const auto &icon = st::topicButtonArrow;
@@ -100,7 +103,11 @@ void MusicButton::paintEvent(QPaintEvent *e) {
 	const auto contentStartX = centerX - totalContentWidth / 2;
 	const auto textTop = (height() - st::normalFont->height) / 2;
 
-	p.setPen(_overrideBg ? st::groupCallMembersFg : st::windowBoldFg);
+	p.setPen(!_overrideBg
+		? st::windowBoldFg->c
+		: lightBackground
+		? QColor(Qt::black)
+		: st::groupCallMembersFg->c);
 	p.setFont(st::normalFont);
 	p.drawText(contentStartX, textTop + st::normalFont->ascent, _noteSymbol);
 
@@ -112,7 +119,13 @@ void MusicButton::paintEvent(QPaintEvent *e) {
 		.elisionMiddle = true,
 	});
 
-	p.setPen(_overrideBg ? st::groupCallVideoSubTextFg : st::windowSubTextFg);
+	p.setPen(!_overrideBg
+		? st::windowSubTextFg->c
+		: lightBackground
+		? anim::with_alpha(
+			QColor(Qt::black),
+			st::groupCallVideoSubTextFg->c.alphaF())
+		: st::groupCallVideoSubTextFg->c);
 	_title.draw(p, {
 		.position = QPoint(
 			contentStartX + _noteWidth + actualPerformerWidth + skip,

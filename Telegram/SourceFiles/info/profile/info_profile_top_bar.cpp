@@ -3863,7 +3863,7 @@ TopBarActionButtonStyle TopBar::mapActionStyle(
 				*c,
 				Qt::black,
 				st::infoProfileTopBarActionButtonBgOpacity),
-			.fgColor = std::make_optional(st::premiumButtonFg->c),
+			.fgColor = ContentColorOverBackground(*c),
 			.shadowColor = std::nullopt,
 		};
 	} else {
