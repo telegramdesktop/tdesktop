@@ -104,22 +104,23 @@ QByteArray CreditsIconSvg(int strokeWidth) {
 
 } // namespace
 
-QImage GenerateStars(int height, int count) {
+QImage GenerateStars(int height, int count, int ratio) {
 	constexpr auto kOutlineWidth = .6;
 	constexpr auto kStrokeWidth = 3;
 	constexpr auto kShift = 3;
 
+	if (!ratio) {
+		ratio = style::DevicePixelRatio();
+	}
 	auto svg = QSvgRenderer(CreditsIconSvg(kStrokeWidth));
 	svg.setViewBox(svg.viewBox() + Margins(kStrokeWidth));
 
 	const auto starSize = Size(height - kOutlineWidth * 2);
 
 	auto frame = QImage(
-		QSize(
-			(height + kShift * (count - 1)) * style::DevicePixelRatio(),
-			height * style::DevicePixelRatio()),
+		QSize((height + kShift * (count - 1)) * ratio, height * ratio),
 		QImage::Format_ARGB32_Premultiplied);
-	frame.setDevicePixelRatio(style::DevicePixelRatio());
+	frame.setDevicePixelRatio(ratio);
 	frame.fill(Qt::transparent);
 	const auto drawSingle = [&](QPainter &q) {
 		const auto s = kOutlineWidth;
@@ -140,7 +141,7 @@ QImage GenerateStars(int height, int count) {
 	};
 	{
 		auto q = QPainter(&frame);
-		q.translate(frame.width() / style::DevicePixelRatio() - height, 0);
+		q.translate(frame.width() / ratio - height, 0);
 		for (auto i = count; i > 0; --i) {
 			drawSingle(q);
 			q.translate(-kShift, 0);
