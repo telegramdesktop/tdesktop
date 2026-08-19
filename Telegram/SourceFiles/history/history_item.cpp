@@ -2418,9 +2418,9 @@ void HistoryItem::applyEdition(HistoryMessageEdition &&edition) {
 			}
 		}
 	}
-	const auto &checkedMedia = updatingSavedLocalEdit
-		? Get<HistoryMessageSavedMediaData>()->media
-		: _media;
+	const auto checkedMedia = updatingSavedLocalEdit
+		? Get<HistoryMessageSavedMediaData>()->media.get()
+		: _media.get();
 	clearFullRichPage();
 	if (edition.richPage) {
 		setRichPage(edition.richPage);
