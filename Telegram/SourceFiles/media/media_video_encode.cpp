@@ -1051,6 +1051,9 @@ struct GeometryPlan {
 		frame->height,
 		dstData,
 		dstLinesize);
+	if (srcFormat == AV_PIX_FMT_BGRA || srcFormat == AV_PIX_FMT_YUVA420P) {
+		PremultiplyInplace(rgb);
+	}
 
 	const auto display = TransposeSizeByRotation(coded, plan.fileRotation);
 	auto crop = plan.crop & QRect(QPoint(), display);
