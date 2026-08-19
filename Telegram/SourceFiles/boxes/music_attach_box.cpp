@@ -10,7 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_common.h"
 #include "api/api_sending.h"
 #include "apiwrap.h"
+#include "base/platform/base_platform_info.h"
 #include "base/algorithm.h"
+#include "base/call_delayed.h"
+#include "base/unique_qptr.h"
 #include "base/unixtime.h"
 #include "boxes/send_files_box.h"
 #include "boxes/sticker_set_box.h"
@@ -27,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_saved_music.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "history/view/media/history_view_save_document_action.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -50,8 +54,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/multi_select.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/painter.h"
@@ -64,6 +71,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_credits.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_overview.h"
 #include "styles/style_share_box.h"
 #include "styles/style_widgets.h"
@@ -205,6 +213,7 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 
 private:
@@ -254,6 +263,7 @@ private:
 	void updateTitleVisibility();
 	void updateHovered();
 	void clearHovered();
+	void showContextMenu(int index, QPoint globalPosition);
 	void clearHeavyItems();
 	void pruneHeavyItems();
 	void toggleSelected(DocumentData *document);
@@ -280,6 +290,7 @@ private:
 	std::map<QString, std::unique_ptr<CacheEntry>> _cache;
 	std::vector<const Overview::Layout::ItemBase*> _heavyLayouts;
 	std::unique_ptr<StickerPremiumMark> _hiddenMark;
+	base::unique_qptr<Ui::PopupMenu> _contextMenu;
 	UserData *_bot = nullptr;
 	QString _query;
 	QString _nextQuery;
@@ -690,6 +701,10 @@ void GlobalMusicSearchSection::paintEvent(QPaintEvent *e) {
 }
 
 void GlobalMusicSearchSection::mousePressEvent(QMouseEvent *e) {
+	if (_contextMenu) {
+		e->accept();
+		return;
+	}
 	if (e->button() != Qt::LeftButton) {
 		return;
 	}
@@ -731,6 +746,20 @@ void GlobalMusicSearchSection::mouseReleaseEvent(QMouseEvent *e) {
 void GlobalMusicSearchSection::mouseMoveEvent(QMouseEvent *e) {
 	_lastMousePos = e->globalPos();
 	updateHovered();
+}
+
+void GlobalMusicSearchSection::contextMenuEvent(QContextMenuEvent *e) {
+	_contextMenu = nullptr;
+	_pressed = -1;
+	ClickHandler::unpressed();
+	if (e->reason() == QContextMenuEvent::Mouse) {
+		_lastMousePos = e->globalPos();
+		updateHovered();
+	}
+	if (_hovered >= 0 && _hovered < int(_rows.size())) {
+		showContextMenu(_hovered, e->globalPos());
+		e->accept();
+	}
 }
 
 void GlobalMusicSearchSection::leaveEventHook(QEvent *) {
@@ -1066,6 +1095,66 @@ void GlobalMusicSearchSection::clearHovered() {
 	_hovered = -1;
 	_pressed = -1;
 	setCursor(style::cur_default);
+}
+
+void GlobalMusicSearchSection::showContextMenu(
+		int index,
+		QPoint globalPosition) {
+	const auto owned = _rows[index].owned;
+	const auto document = owned->document;
+	const auto item = owned->item.get();
+	if (!document || !item) {
+		return;
+	}
+	_contextMenu = base::make_unique_q<Ui::PopupMenu>(
+		this,
+		st::popupMenuWithIcons);
+	if (document->loading()) {
+		_contextMenu->addAction(
+			tr::lng_context_cancel_download(tr::now),
+			[document] {
+				document->cancel();
+			},
+			&st::menuIconCancel);
+	} else {
+		const auto filepath = document->filepath(true);
+		if (!filepath.isEmpty()) {
+			_contextMenu->addAction(
+				(Platform::IsMac()
+					? tr::lng_context_show_in_finder(tr::now)
+					: tr::lng_context_show_in_folder(tr::now)),
+				base::fn_delayed(
+					st::defaultDropdownMenu.menu.ripple.hideDuration,
+					this,
+					[filepath] {
+						File::ShowInFolder(filepath);
+					}),
+				&st::menuIconShowInFolder);
+		}
+		HistoryView::AddSaveDocumentAction(
+			Ui::Menu::CreateAddActionCallback(_contextMenu),
+			item,
+			document,
+			_controller);
+	}
+	const auto selected = isSelected(document);
+	_contextMenu->addAction(
+		(selected
+			? tr::lng_context_deselect_msg
+			: tr::lng_context_select_msg)(tr::now),
+		crl::guard(this, [=] {
+			toggleSelected(document);
+		}),
+		&st::menuIconSelect);
+	if (_contextMenu->empty()) {
+		_contextMenu = nullptr;
+		return;
+	}
+	_contextMenu->setDestroyedCallback(crl::guard(this, [=] {
+		_lastMousePos = QCursor::pos();
+		updateHovered();
+	}));
+	_contextMenu->popup(globalPosition);
 }
 
 void GlobalMusicSearchSection::clearHeavyItems() {

@@ -1396,7 +1396,7 @@ void ListWidget::showContextMenu(
 		}
 	} else if (hasSelectedText()) {
 		// #TODO text selection
-	} else if (hasSelectedItems()) {
+	} else if (hasSelectedItems() && !_selectOnClick) {
 		auto it = _selected.find(_overState.item);
 		if (isSelectedItem(it) && _overState.inside) {
 			overSelected = SelectionState::OverSelectedItems;
@@ -1634,22 +1634,37 @@ void ListWidget::showContextMenu(
 					&st::menuIconReport);
 			}
 		}
-		if (!_provider->hasSelectRestriction()) {
-			_contextMenu->addAction(
-				tr::lng_context_select_msg(tr::now),
-				crl::guard(this, [=] {
-					if (hasSelectedText()) {
-						clearSelected();
-					} else if (_selected.size() == _selectedLimit) {
-						return;
-					} else if (_selected.empty()) {
-						update();
-					}
-					applyItemSelection(
-						MessageByGlobalId(globalId),
-						FullSelection);
-				}),
-				&st::menuIconSelect);
+		if (_selectOnClick || !_provider->hasSelectRestriction()) {
+			if (isSelectedItem(_selected.find(item))) {
+				_contextMenu->addAction(
+					tr::lng_context_deselect_msg(tr::now),
+					crl::guard(this, [=] {
+						if (const auto item = MessageByGlobalId(globalId)) {
+							const auto i = _selected.find(item);
+							if (isSelectedItem(i)) {
+								removeItemSelection(i);
+								repaintItem(item);
+							}
+						}
+					}),
+					&st::menuIconSelect);
+			} else {
+				_contextMenu->addAction(
+					tr::lng_context_select_msg(tr::now),
+					crl::guard(this, [=] {
+						if (hasSelectedText()) {
+							clearSelected();
+						} else if (_selected.size() == _selectedLimit) {
+							return;
+						} else if (_selected.empty()) {
+							update();
+						}
+						applyItemSelection(
+							MessageByGlobalId(globalId),
+							FullSelection);
+					}),
+					&st::menuIconSelect);
+			}
 		}
 	}
 
