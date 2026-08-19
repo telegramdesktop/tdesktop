@@ -621,7 +621,11 @@ private:
 
 	Window::SessionController *findWindow(bool switchTo = true) const;
 
+	void refreshScreenshotProtection();
+	[[nodiscard]] bool contentNeedsScreenshotProtection() const;
+
 	bool _opengl = false;
+	bool _screenshotProtected = false;
 	const std::unique_ptr<Ui::GL::Window> _wrap;
 	const not_null<Ui::RpWindow*> _window;
 	const std::unique_ptr<Platform::OverlayWidgetHelper> _helper;

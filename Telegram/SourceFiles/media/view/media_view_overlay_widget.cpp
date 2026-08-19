@@ -105,6 +105,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "layout/layout_document_generic_preview.h"
 #include "platform/platform_overlay_widget.h"
+#include "platform/platform_specific.h"
 #include "storage/file_download.h"
 #include "storage/storage_account.h"
 #include "styles/style_chat_style.h"
@@ -911,6 +912,14 @@ OverlayWidget::OverlayWidget()
 		_window->setWindowFlags(Qt::FramelessWindowHint | Qt::Tool);
 	}
 	_widget->setMouseTracking(true);
+
+	// Toggling between windowed and fullscreen changes the window flags,
+	// and that is a path where Qt recreates the native window, dropping
+	// everything set on the old one. Reapply on every handle change.
+	_window->winIdValue(
+	) | rpl::on_next([=] {
+		Platform::SetWindowScreenshotProtection(_window, _screenshotProtected);
+	}, lifetime());
 
 	_window->screenValue(
 	) | rpl::skip(1) | rpl::on_next([=](not_null<QScreen*> screen) {
@@ -6038,6 +6047,19 @@ void OverlayWidget::setSystemMediaControls(
 	_smtcSink = sink;
 }
 
+bool OverlayWidget::contentNeedsScreenshotProtection() const {
+	if (const auto story = _stories ? _stories->story() : nullptr) {
+		return story->forbidsForward();
+	}
+	return (_history && !_history->peer->allowsForwarding())
+		|| (_message && _message->forbidsSaving());
+}
+
+void OverlayWidget::refreshScreenshotProtection() {
+	_screenshotProtected = contentNeedsScreenshotProtection();
+	Platform::SetWindowScreenshotProtection(_window, _screenshotProtected);
+}
+
 void OverlayWidget::refreshSystemMediaControls() {
 	if (!_smtcSink) {
 		return;
@@ -7750,6 +7772,7 @@ void OverlayWidget::setContext(
 		}
 	}
 	_user = _peer ? _peer->asUser() : nullptr;
+	refreshScreenshotProtection();
 }
 
 void OverlayWidget::setStoriesPeer(PeerData *peer) {
