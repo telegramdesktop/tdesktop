@@ -1628,6 +1628,10 @@ bool LocalStorage::paintOuter(
 void LocalStorage::showFinished() {
 	Section::showFinished();
 
+	_shown = true;
+	if (auto pending = base::take(_pendingStats)) {
+		update(std::move(pending->stats), std::move(pending->statsBig));
+	}
 	if (_clearButton) {
 		controller()->checkHighlightControl(
 			u"storage/clear-cache"_q,
@@ -1656,6 +1660,13 @@ void LocalStorage::updateRow(
 void LocalStorage::update(
 		Database::Stats &&stats,
 		Database::Stats &&statsBig) {
+	if (!_shown && !isVisible()) {
+		_pendingStats = PendingStats{
+			.stats = std::move(stats),
+			.statsBig = std::move(statsBig),
+		};
+		return;
+	}
 	_stats = std::move(stats);
 	_statsBig = std::move(statsBig);
 	for (const auto &entry : _rows) {
