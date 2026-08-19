@@ -41,7 +41,10 @@ struct SparseIdsSliceUpdate {
 class SparseIdsList {
 public:
 	void addNew(MsgId messageId);
-	void addExisting(MsgId messageId, MsgRange noSkipRange);
+	void addExisting(
+		MsgId messageId,
+		MsgRange noSkipRange,
+		bool incrementCount = false);
 	void addSlice(
 		std::vector<MsgId> &&messageIds,
 		MsgRange noSkipRange,
