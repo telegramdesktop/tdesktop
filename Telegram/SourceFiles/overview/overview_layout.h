@@ -398,6 +398,10 @@ public:
 		QPoint point,
 		StateRequest request) const override;
 
+	[[nodiscard]] DocumentData *getDocument() const override {
+		return _data;
+	}
+
 	void clearHeavyPart() override;
 
 protected:
