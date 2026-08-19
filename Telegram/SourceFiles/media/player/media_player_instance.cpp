@@ -74,12 +74,6 @@ base::options::toggle OptionDisableAutoplayNext({
 		: Core::App().settings().voicePlaybackSpeed();
 }
 
-[[nodiscard]] bool IsRealPlaybackContext(not_null<const HistoryItem*> item) {
-	return item->isRegular()
-		|| item->isScheduled()
-		|| item->isSavedMusicItem();
-}
-
 } // namespace
 
 const char kOptionDisableAutoplayNext[] = "disable-autoplay-next";
@@ -146,6 +140,12 @@ void SaveLastPlaybackPosition(
 	if (session.local().mediaLastPlaybackPosition(document->id) != time) {
 		session.local().setMediaLastPlaybackPosition(document->id, time);
 	}
+}
+
+bool IsRealPlaybackContext(not_null<const HistoryItem*> item) {
+	return item->isRegular()
+		|| item->isScheduled()
+		|| item->isSavedMusicItem();
 }
 
 Instance::Streamed::Streamed(

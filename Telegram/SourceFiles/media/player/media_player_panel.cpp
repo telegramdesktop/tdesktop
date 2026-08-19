@@ -251,9 +251,7 @@ void Panel::refreshList() {
 		const auto document = media ? media->document() : nullptr;
 		if (!document
 			|| !document->isSharedMediaMusic()
-			|| (!item->isRegular()
-				&& !item->isScheduled()
-				&& !item->isSavedMusicItem())) {
+			|| !IsRealPlaybackContext(item)) {
 			return nullptr;
 		}
 		savedMusicItem = item->isSavedMusicItem();

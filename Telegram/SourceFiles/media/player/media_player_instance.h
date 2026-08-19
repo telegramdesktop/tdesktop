@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class AudioMsgId;
 class DocumentData;
 class History;
+class HistoryItem;
 
 namespace Media {
 enum class RepeatMode;
@@ -65,6 +66,8 @@ void finish(not_null<Audio::Instance*> instance);
 void SaveLastPlaybackPosition(
 	not_null<DocumentData*> document,
 	const TrackState &state);
+
+[[nodiscard]] bool IsRealPlaybackContext(not_null<const HistoryItem*> item);
 
 not_null<Instance*> instance();
 
