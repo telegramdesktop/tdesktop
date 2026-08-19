@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/rows_scroll_cache.h"
 #include "ui/widgets/tooltip.h"
 #include "info/media/info_media_widget.h"
 #include "info/media/info_media_common.h"
@@ -48,9 +49,11 @@ class AbstractController;
 namespace Media {
 
 struct ListFoundItem;
+struct ListFoundItemWithSection;
 struct ListContext;
 class ListSection;
 class ListProvider;
+class ListZoom;
 
 class ListWidget final
 	: public Ui::RpWidget
@@ -70,6 +73,13 @@ public:
 	rpl::producer<SelectedItems> selectedListValue() const;
 	void selectionAction(SelectionAction action);
 
+	struct ReorderDescriptor {
+		Fn<void(int old, int pos, Fn<void()> done, Fn<void()> fail)> save;
+		Fn<bool(HistoryItem*)> filter;
+	};
+
+	void setReorderDescriptor(ReorderDescriptor descriptor);
+
 	QRect getCurrentSongGeometry();
 	rpl::producer<> checkForHide() const {
 		return _checkForHide.events();
@@ -79,11 +89,25 @@ public:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
 
+	void jumpToMessage(MsgId msgId);
+
+	void setTopOverlayHeight(int height);
+
+	void setExternalViewportHeight(int height);
+
+	bool processZoomWheel(not_null<QWheelEvent*> e);
+	void zoomIn();
+	void zoomOut();
+	[[nodiscard]] bool canZoomIn() const;
+	[[nodiscard]] bool canZoomOut() const;
+
 	// Overview::Layout::Delegate
 	void registerHeavyItem(not_null<const BaseLayout*> item) override;
 	void unregisterHeavyItem(not_null<const BaseLayout*> item) override;
 	void repaintItem(not_null<const BaseLayout*> item) override;
 	bool itemVisible(not_null<const BaseLayout*> item) override;
+	bool keepPhotoMediaLoaded() override;
+	not_null<StickerPremiumMark*> hiddenMark() override;
 
 	// AbstractTooltipShower interface
 	QString tooltipText() const override;
@@ -97,6 +121,8 @@ public:
 		bool showInMediaView = false) override;
 
 private:
+	friend class ListZoom;
+
 	struct DateBadge;
 	using Section = ListSection;
 	using FoundItem = ListFoundItem;
@@ -112,6 +138,24 @@ private:
 		Dragging,
 		PrepareSelect,
 		Selecting,
+		PrepareReorder,
+		Reordering,
+	};
+	struct ReorderState {
+		bool enabled = false;
+		int index = -1;
+		int targetIndex = -1;
+		QPoint startPos;
+		QPoint dragPoint;
+		QPoint currentPos;
+		BaseLayout *item = nullptr;
+		const Section *section = nullptr;
+	};
+	struct ShiftAnimation {
+		Ui::Animations::Simple xAnimation;
+		Ui::Animations::Simple yAnimation;
+		int shift = 0;
+		int targetShift = 0;
 	};
 	struct MouseState {
 		HistoryItem *item = nullptr;
@@ -139,6 +183,7 @@ private:
 		int visibleTop,
 		int visibleBottom) override;
 
+	bool eventHook(QEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
@@ -156,8 +201,10 @@ private:
 		rpl::lifetime &lifetime);
 
 	void setupSelectRestriction();
+	[[nodiscard]] bool showDrawButton() const;
 
 	[[nodiscard]] MsgId topicRootId() const;
+	[[nodiscard]] PeerId monoforumPeerId() const;
 
 	QMargins padding() const;
 	bool isItemLayout(
@@ -170,6 +217,7 @@ private:
 	void itemLayoutChanged(not_null<const HistoryItem*> item);
 
 	void refreshRows();
+	void markStoryMsgsSelected();
 	void trackSession(not_null<Main::Session*> session);
 
 	[[nodiscard]] SelectedItems collectSelectedItems() const;
@@ -190,11 +238,12 @@ private:
 	void forwardItems(MessageIdsList &&items);
 	void deleteSelected();
 	void toggleStoryPinSelected();
-	void toggleStoryInProfileSelected();
+	void toggleStoryInProfileSelected(bool toProfile);
 	void deleteItem(GlobalMsgId globalId);
 	void deleteItems(SelectedItems &&items, Fn<void()> confirmed = nullptr);
 	void toggleStoryInProfile(
 		MessageIdsList &&items,
+		bool toProfile,
 		Fn<void()> confirmed = nullptr);
 	void toggleStoryPin(
 		MessageIdsList &&items,
@@ -229,7 +278,10 @@ private:
 	[[nodiscard]] auto findSectionAfterBottom(
 		std::vector<Section>::const_iterator from,
 		int bottom) const -> std::vector<Section>::const_iterator;
+	[[nodiscard]] auto findSectionAndItem(QPoint point) const
+		-> std::pair<std::vector<Section>::const_iterator, FoundItem>;
 	[[nodiscard]] FoundItem findItemByPoint(QPoint point) const;
+	[[nodiscard]] ListFoundItemWithSection findItemByPointWithSection(QPoint point) const;
 	[[nodiscard]] std::optional<FoundItem> findItemByItem(
 		const HistoryItem *item);
 	[[nodiscard]] FoundItem findItemDetails(not_null<BaseLayout*> item);
@@ -238,6 +290,7 @@ private:
 		const Section &section) const;
 
 	[[nodiscard]] ListScrollTopState countScrollState() const;
+	[[nodiscard]] ListScrollTopState countScrollState(QPoint anchor) const;
 	void saveScrollState();
 	void restoreScrollState();
 
@@ -271,7 +324,22 @@ private:
 	void checkMoveToOtherViewer();
 	void clearHeavyItems();
 
-	void setActionBoxWeak(QPointer<Ui::BoxContent> box);
+	void setActionBoxWeak(base::weak_qptr<Ui::BoxContent> box);
+
+	void setupStoriesTrackIds();
+
+	void startReorder(const QPoint &globalPos);
+	void updateReorder(const QPoint &globalPos);
+	void finishReorder();
+	void cancelReorder();
+	void updateShiftAnimations();
+	[[nodiscard]] int itemIndexFromPoint(QPoint point) const;
+	[[nodiscard]] QRect itemGeometryByIndex(int index);
+	[[nodiscard]] BaseLayout *itemByIndex(int index);
+	[[nodiscard]] bool canReorder() const;
+	void reorderItemsInSections(int oldIndex, int newIndex);
+	void resetAllItemShifts();
+	void finishShiftAnimations();
 
 	const not_null<AbstractController*> _controller;
 	const std::unique_ptr<ListProvider> _provider;
@@ -279,11 +347,14 @@ private:
 	base::flat_set<not_null<const BaseLayout*>> _heavyLayouts;
 	bool _heavyLayoutsInvalidated = false;
 	std::vector<Section> _sections;
+	Ui::RowsScrollCache _rowsScrollCache;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
 	ListScrollTopState _scrollTopState;
 	rpl::event_stream<int> _scrollToRequests;
+
+	std::unique_ptr<ListZoom> _zoom;
 
 	MouseAction _mouseAction = MouseAction::None;
 	TextSelectType _mouseSelectType = TextSelectType::Letters;
@@ -303,16 +374,32 @@ private:
 	bool _wasSelectedText = false; // was some text selected in current drag action
 
 	const std::unique_ptr<DateBadge> _dateBadge;
+	int _topOverlayHeight = 0;
+	int _externalViewportHeight = 0;
+
+	int _selectedLimit = 0;
+	int _storiesAddToAlbumId = 0;
+	int _storiesAddToAlbumTotal = 0;
+	base::flat_set<StoryId> _storiesInAlbum;
+	base::flat_set<MsgId> _storyMsgsToMarkSelected;
+	std::unique_ptr<StickerPremiumMark> _hiddenMark;
 
 	base::unique_qptr<Ui::PopupMenu> _contextMenu;
 	rpl::event_stream<> _checkForHide;
-	QPointer<Ui::BoxContent> _actionBoxWeak;
+	base::weak_qptr<Ui::BoxContent> _actionBoxWeak;
 	rpl::lifetime _actionBoxWeakLifetime;
 
 	QPoint _trippleClickPoint;
 	crl::time _trippleClickStartTime = 0;
 
 	base::flat_map<not_null<Main::Session*>, rpl::lifetime> _trackedSessions;
+
+	ReorderState _reorderState;
+	base::flat_map<int, ShiftAnimation> _shiftAnimations;
+	int _activeShiftAnimations = 0;
+	Ui::Animations::Simple _returnAnimation;
+	ReorderDescriptor _reorderDescriptor;
+	bool _inDragArea = false;
 
 };
 

@@ -13,8 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
+#include "settings/settings_common.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
@@ -25,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "styles/style_boxes.h"
 #include "styles/style_calls.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -34,8 +37,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Calls::Group {
 namespace {
-
-constexpr auto kPasswordCharAmount = 24;
 
 void StartWithBox(
 		not_null<Ui::GenericBox*> box,
@@ -47,6 +48,21 @@ void StartWithBox(
 		base::unique_qptr<Ui::PopupMenu> menu;
 	};
 	const auto state = box->lifetime().make_state<State>();
+
+	{
+		auto icon = Settings::CreateLottieIcon(
+			box->verticalLayout(),
+			{
+				.name = u"rtmp"_q,
+				.sizeOverride = st::normalBoxLottieSize,
+			},
+			{});
+		box->verticalLayout()->add(std::move(icon.widget), {}, style::al_top);
+		box->setShowFinishedCallback([animate = icon.animate] {
+			animate(anim::repeat::loop);
+		});
+		Ui::AddSkip(box->verticalLayout());
+	}
 
 	StartRtmpProcess::FillRtmpRows(
 		box->verticalLayout(),
@@ -123,7 +139,7 @@ void StartRtmpProcess::start(
 			.done = std::move(done),
 		});
 	session->account().sessionChanges(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_request = nullptr;
 	}, _request->lifetime);
 
@@ -133,7 +149,7 @@ void StartRtmpProcess::start(
 void StartRtmpProcess::close() {
 	if (_request) {
 		_request->peer->session().api().request(_request->id).cancel();
-		if (const auto strong = _request->box.data()) {
+		if (const auto strong = _request->box.get()) {
 			strong->closeBox();
 		}
 		_request = nullptr;
@@ -143,7 +159,8 @@ void StartRtmpProcess::close() {
 void StartRtmpProcess::requestUrl(bool revoke) {
 	const auto session = &_request->peer->session();
 	_request->id = session->api().request(MTPphone_GetGroupCallStreamRtmpUrl(
-		_request->peer->input,
+		MTP_flags(0),
+		_request->peer->input(),
 		MTP_bool(revoke)
 	)).done([=](const MTPphone_GroupCallStreamRtmpUrl &result) {
 		auto data = result.match([&](
@@ -196,10 +213,10 @@ void StartRtmpProcess::createBox() {
 		_request->show,
 		_request->data.value());
 	object->boxClosing(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_request = nullptr;
 	}, _request->lifetime);
-	_request->box = Ui::MakeWeak(object.data());
+	_request->box = base::make_weak(object.data());
 	_request->show->showBox(std::move(object));
 }
 
@@ -214,7 +231,6 @@ void StartRtmpProcess::FillRtmpRows(
 		const style::RoundButton *attentionButtonStyle,
 		const style::PopupMenu *popupMenuStyle) {
 	struct State {
-		rpl::variable<bool> hidden = true;
 		rpl::variable<QString> key;
 		rpl::variable<QString> url;
 		bool warned = false;
@@ -222,8 +238,6 @@ void StartRtmpProcess::FillRtmpRows(
 
 	const auto &rowPadding = st::boxRowPadding;
 
-	const auto passChar = QChar(container->style()->styleHint(
-		QStyle::SH_LineEdit_PasswordCharacter));
 	const auto state = container->lifetime().make_state<State>();
 	state->key = rpl::duplicate(
 		data
@@ -232,9 +246,6 @@ void StartRtmpProcess::FillRtmpRows(
 		data
 	) | rpl::map([=](const auto &d) { return d.url; });
 
-	const auto showToast = [=](const QString &text) {
-		show->showToast(text);
-	};
 	const auto addButton = [&](
 			bool key,
 			rpl::producer<QString> &&text) {
@@ -243,31 +254,38 @@ void StartRtmpProcess::FillRtmpRows(
 			wrap.data(),
 			rpl::duplicate(text),
 			st::groupCallRtmpCopyButton);
-		button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 		button->setClickedCallback(key
 			? Fn<void()>([=] {
 				QGuiApplication::clipboard()->setText(state->key.current());
-				showToast(tr::lng_group_call_rtmp_key_copied(tr::now));
+				show->showToast({
+					.text = { tr::lng_group_call_rtmp_key_copied(tr::now) },
+					.iconLottie = u"toast/copy"_q,
+					.iconLottieSize = st::toastLottieIconSize,
+				});
 			})
 			: Fn<void()>([=] {
 				QGuiApplication::clipboard()->setText(state->url.current());
-				showToast(tr::lng_group_call_rtmp_url_copied(tr::now));
+				show->showToast({
+					.text = { tr::lng_group_call_rtmp_url_copied(tr::now) },
+					.iconLottie = u"toast/voip_invite"_q,
+					.iconLottieSize = st::toastLottieIconSize,
+				});
 			}));
 		Ui::AddSkip(container, st::groupCallRtmpCopyButtonTopSkip);
 		const auto weak = container->add(std::move(wrap), rowPadding);
 		Ui::AddSkip(container, st::groupCallRtmpCopyButtonBottomSkip);
 		button->heightValue(
-		) | rpl::start_with_next([=](int height) {
+		) | rpl::on_next([=](int height) {
 			weak->resize(weak->width(), height);
 		}, container->lifetime());
 		return weak;
 	};
 
-	const auto addLabel = [&](rpl::producer<QString> &&text) {
+	const auto addLabel = [&](v::text::data &&text) {
 		const auto label = container->add(
 			object_ptr<Ui::FlatLabel>(
 				container,
-				std::move(text),
+				v::text::take_marked(std::move(text)),
 				*labelStyle,
 				*popupMenuStyle),
 			st::boxRowPadding + QMargins(0, 0, showButtonStyle->width, 0));
@@ -302,47 +320,27 @@ void StartRtmpProcess::FillRtmpRows(
 		st::groupCallRtmpSubsectionTitleAddPadding,
 		subsectionTitleStyle);
 
-	auto keyLabelContent = rpl::combine(
-		state->hidden.value(),
-		state->key.value()
-	) | rpl::map([passChar](bool hidden, const QString &key) {
-		return key.isEmpty()
-			? QString()
-			: hidden
-			? QString().fill(passChar, kPasswordCharAmount)
-			: key;
+	auto keyLabelContent = state->key.value(
+	) | rpl::map([](const QString &key) {
+		const auto size = int(key.size());
+		auto result = TextWithEntities{ key };
+		if (size > 0) {
+			result.entities.push_back({ EntityType::Spoiler, 0, size });
+		}
+		return result;
 	}) | rpl::after_next([=] {
 		container->resizeToWidth(container->widthNoMargins());
 	});
 	const auto streamKeyLabel = addLabel(std::move(keyLabelContent));
-	streamKeyLabel->setSelectable(false);
-	const auto streamKeyButton = Ui::CreateChild<Ui::IconButton>(
-		container.get(),
-		*showButtonStyle);
-
-	streamKeyLabel->topValue(
-	) | rpl::start_with_next([=, right = rowPadding.right()](int top) {
-		streamKeyButton->moveToRight(
-			st::groupCallRtmpShowButtonPosition.x(),
-			top + st::groupCallRtmpShowButtonPosition.y());
-		streamKeyButton->raise();
-	}, container->lifetime());
-	streamKeyButton->addClickHandler([=] {
-		const auto toggle = [=] {
-			const auto newValue = !state->hidden.current();
-			state->hidden = newValue;
-			streamKeyLabel->setSelectable(!newValue);
-			streamKeyLabel->setAttribute(
-				Qt::WA_TransparentForMouseEvents,
-				newValue);
-		};
-		if (!state->warned && state->hidden.current()) {
+	streamKeyLabel->setClickHandlerFilter([=](
+			const ClickHandlerPtr &handler,
+			Qt::MouseButton button) {
+		if (button == Qt::LeftButton) {
 			show->showBox(Ui::MakeConfirmBox({
 				.text = tr::lng_group_call_rtmp_key_warning(
-					Ui::Text::RichLangValue),
+					tr::rich),
 				.confirmed = [=](Fn<void()> &&close) {
-					state->warned = true;
-					toggle();
+					handler->onClick({});
 					close();
 				},
 				.confirmText = tr::lng_from_request_understand(),
@@ -350,9 +348,8 @@ void StartRtmpProcess::FillRtmpRows(
 				.confirmStyle = attentionButtonStyle,
 				.labelStyle = labelStyle,
 			}));
-		} else {
-			toggle();
 		}
+		return false;
 	});
 
 	addButton(true, tr::lng_group_call_rtmp_key_copy());

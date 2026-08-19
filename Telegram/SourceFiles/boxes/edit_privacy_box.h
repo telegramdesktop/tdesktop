@@ -104,6 +104,10 @@ public:
 		return nullptr;
 	}
 
+	virtual void checkHighlightControls(
+			not_null<Window::SessionController*> controller) {
+	}
+
 	virtual ~EditPrivacyController() = default;
 
 protected:
@@ -143,6 +147,7 @@ public:
 
 protected:
 	void prepare() override;
+	void showFinished() override;
 
 private:
 	bool showExceptionLink(Exception exception) const;
@@ -163,14 +168,25 @@ private:
 	const not_null<Window::SessionController*> _window;
 	std::unique_ptr<EditPrivacyController> _controller;
 	Value _value;
+	QPointer<QWidget> _always;
+	QPointer<QWidget> _never;
 
 };
 
 void EditMessagesPrivacyBox(
 	not_null<Ui::GenericBox*> box,
-	not_null<Window::SessionController*> controller);
+	not_null<Window::SessionController*> controller,
+	const QString &highlightControlId = QString());
 
 [[nodiscard]] rpl::producer<int> SetupChargeSlider(
 	not_null<Ui::VerticalLayout*> container,
 	not_null<PeerData*> peer,
-	int savedValue);
+	std::optional<int> savedValue,
+	int defaultValue,
+	bool allowZero = false);
+
+void EditDirectMessagesPriceBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<ChannelData*> channel,
+	std::optional<int> savedValue,
+	Fn<void(std::optional<int>)> callback);

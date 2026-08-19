@@ -20,6 +20,8 @@ private:
 		int argc,
 		char *argv[]) const override;
 
+	void initHook() override;
+
 	bool launchUpdater(UpdaterLaunch action) override;
 
 	bool launch(

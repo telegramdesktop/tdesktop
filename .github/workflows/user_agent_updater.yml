@@ -6,8 +6,6 @@ on:
   schedule:
     # At 00:00 on day-of-month 1.
     - cron: "0 0 1 * *"
-  pull_request_target:
-    types: [closed]
 
 jobs:
   User-agent:

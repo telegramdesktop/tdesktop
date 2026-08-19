@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "qr/qr_generate.h"
+#include "settings/settings_common.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/dynamic_image.h"
 #include "ui/dynamic_thumbnails.h"
@@ -25,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/toast/toast.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/box_content_divider.h"
@@ -34,13 +36,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_giveaway.h"
 #include "styles/style_credits.h"
 #include "styles/style_intro.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 #include "styles/style_widgets.h"
-#include "styles/style_window.h"
 
 #include <QtCore/QMimeData>
 #include <QtGui/QGuiApplication>
@@ -195,7 +197,7 @@ void Paint(
 
 not_null<Ui::RpWidget*> PrepareQrWidget(
 		not_null<Ui::VerticalLayout*> container,
-		not_null<Ui::RpWidget*> topWidget,
+		std::shared_ptr<Ui::DynamicImage> userpicMedia,
 		rpl::producer<int> fontSizeValue,
 		rpl::producer<bool> userpicToggled,
 		rpl::producer<bool> backgroundToggled,
@@ -222,10 +224,11 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 		bool backgroundToggled = false;
 	};
 	const auto result = Ui::CreateChild<Ui::RpWidget>(divider);
-	topWidget->setParent(result);
-	topWidget->setAttribute(Qt::WA_TransparentForMouseEvents);
 	const auto state = result->lifetime().make_state<State>(
 		[=] { result->update(); });
+	userpicMedia->subscribeToUpdates(crl::guard(result, [=] {
+		result->update();
+	}));
 	const auto qrMaxSize = st::boxWideWidth
 		- rect::m::sum::h(st::boxRowPadding)
 		- rect::m::sum::h(st::profileQrBackgroundMargins);
@@ -241,7 +244,7 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 		std::move(links),
 		std::move(about),
 		rpl::single(rpl::empty) | rpl::then(style::PaletteChanged())
-	) | rpl::start_with_next([=](
+	) | rpl::on_next([=](
 			int fontSize,
 			bool userpicToggled,
 			bool backgroundToggled,
@@ -261,7 +264,7 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 		state->backgroundColors = backgroundColors;
 		state->text = username.toUpper();
 		state->textWidth = state->font->width(state->text);
-		{
+		if (!link.isEmpty()) {
 			const auto remainder = qrMaxSize % st::introQrPixel;
 			const auto downTo = remainder
 				? qrMaxSize - remainder
@@ -274,6 +277,13 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 					Size(qrMaxSize * style::DevicePixelRatio()),
 					Qt::IgnoreAspectRatio,
 					Qt::SmoothTransformation);
+		} else {
+			auto image = QImage(
+				Size(qrMaxSize * style::DevicePixelRatio()),
+				QImage::Format_ARGB32_Premultiplied);
+			image.fill(Qt::white);
+			image.setDevicePixelRatio(style::DevicePixelRatio());
+			state->qrImage = std::move(image);
 		}
 		const auto resultWidth = qrMaxSize
 			+ rect::m::sum::h(state->backgroundMargins);
@@ -301,9 +311,6 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 
 		divider->resize(container->width(), result->height());
 		result->moveToLeft((container->width() - result->width()) / 2, 0);
-		topWidget->setVisible(userpicToggled);
-		topWidget->moveToLeft(0, std::numeric_limits<int>::min());
-		topWidget->raise();
 
 		aboutLabel->raise();
 		aboutLabel->moveToLeft(
@@ -313,7 +320,7 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 				- st::defaultBoxDividerLabelPadding.top());
 	}, container->lifetime());
 	result->paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
+	) | rpl::on_next([=](QRect clip) {
 		auto p = QPainter(result);
 		const auto size = (state->qrImage.size() / style::DevicePixelRatio());
 		const auto qrRect = Rect(
@@ -341,14 +348,14 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 			return;
 		}
 		const auto photoSize = state->photoSize;
-		const auto top = Ui::GrabWidget(
-			topWidget,
-			QRect(),
-			Qt::transparent).scaled(
-				Size(photoSize * style::DevicePixelRatio()),
-				Qt::IgnoreAspectRatio,
-				Qt::SmoothTransformation);
-		p.drawPixmap((result->width() - photoSize) / 2, -photoSize / 2, top);
+		const auto pixelSize = photoSize * style::DevicePixelRatio();
+		p.drawImage(
+			QRect(
+				(result->width() - photoSize) / 2,
+				-photoSize / 2,
+				photoSize,
+				photoSize),
+			userpicMedia->image(pixelSize));
 	}, result->lifetime());
 	return result;
 }
@@ -375,7 +382,7 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 		const auto dot = smallDots.back();
 		dot->resize(smallSize);
 		dot->setAttribute(Qt::WA_TransparentForMouseEvents);
-		dot->paintRequest() | rpl::start_with_next([=] {
+		dot->paintRequest() | rpl::on_next([=] {
 			auto p = QPainter(dot);
 			const auto fg = (slider->value() > (i / float64(count - 1)))
 				? st.activeFg
@@ -386,7 +393,7 @@ not_null<Ui::RpWidget*> PrepareQrWidget(
 	const auto bigDot = Ui::CreateChild<Ui::RpWidget>(slider->parentWidget());
 	bigDot->resize(st.seekSize);
 	bigDot->setAttribute(Qt::WA_TransparentForMouseEvents);
-	bigDot->paintRequest() | rpl::start_with_next([=] {
+	bigDot->paintRequest() | rpl::on_next([=] {
 		auto p = QPainter(bigDot);
 		auto hq = PainterHighQualityEnabler(p);
 		auto pen = st::boxBg->p;
@@ -450,7 +457,7 @@ void FillPeerQrBox(
 
 	const auto usernameValue = [=] {
 		return (customLink || !peer)
-			? (rpl::single(QString()) | rpl::type_erased())
+			? (rpl::single(QString()) | rpl::type_erased)
 			: Info::Profile::UsernameValue(peer, true) | rpl::map(
 				[](const auto &username) { return username.text; });
 	};
@@ -460,25 +467,25 @@ void FillPeerQrBox(
 			: peer
 			? Info::Profile::LinkValue(peer, true) | rpl::map(
 				[](const auto &link) { return link.text; })
-			: (rpl::single(QString()) | rpl::type_erased());
+			: (rpl::single(QString()) | rpl::type_erased);
 	};
 
-	const auto userpic = Ui::CreateChild<Ui::RpWidget>(box);
-	const auto userpicSize = st::defaultUserpicButton.photoSize;
-	userpic->resize(Size(userpicSize));
 	const auto userpicMedia = Ui::MakeUserpicThumbnail(peer
 		? peer
 		: controller->session().user().get());
-	userpicMedia->subscribeToUpdates([=] { userpic->update(); });
-	userpic->paintRequest() | rpl::start_with_next([=] {
-		auto p = QPainter(userpic);
-		p.drawImage(0, 0, userpicMedia->image(userpicSize));
-	}, userpic->lifetime());
 
-	userpic->setVisible(peer != nullptr);
+	linkValue() | rpl::on_next([=](const QString &link) {
+		if (link.isEmpty()) {
+			box->showFinishes() | rpl::on_next([=] {
+				box->closeBox();
+			}, box->lifetime());
+			box->closeBox();
+		}
+	}, box->lifetime());
+
 	PrepareQrWidget(
 		box->verticalLayout(),
-		userpic,
+		userpicMedia,
 		state->fontSizeValue.value(),
 		state->userpicToggled.value(),
 		state->backgroundToggled.value(),
@@ -584,7 +591,7 @@ void FillPeerQrBox(
 			state->chosen.value() | rpl::combine_previous(
 			) | rpl::filter([=](int i, int k) {
 				return i == counter || k == counter;
-			}) | rpl::start_with_next([=] {
+			}) | rpl::on_next([=] {
 				widget->update();
 			}, widget->lifetime());
 			widget->resize(size, size);
@@ -636,7 +643,7 @@ void FillPeerQrBox(
 				}
 				return result;
 			}();
-			widget->paintRequest() | rpl::start_with_next([=] {
+			widget->paintRequest() | rpl::on_next([=] {
 				auto p = QPainter(widget);
 				const auto rect = widget->rect() - Margins(activewidth * 2.5);
 				p.drawImage(rect.x(), rect.y(), back);
@@ -667,7 +674,7 @@ void FillPeerQrBox(
 	} else {
 		themes->refreshChatThemes();
 		themes->chatThemesUpdated(
-		) | rpl::take(1) | rpl::start_with_next([=] {
+		) | rpl::take(1) | rpl::on_next([=] {
 			fill(themes->chatThemes());
 		}, box->lifetime());
 	}
@@ -701,7 +708,7 @@ void FillPeerQrBox(
 			tr::lng_qr_box_quality3(),
 			labelSt);
 		labels->sizeValue(
-		) | rpl::start_with_next([=](const QSize &size) {
+		) | rpl::on_next([=](const QSize &size) {
 			left->moveToLeft(0, 0);
 			middle->moveToLeft((size.width() - middle->width()) / 2, 0);
 			right->moveToRight(0, 0);
@@ -735,7 +742,7 @@ void FillPeerQrBox(
 			st::settingsScale,
 			kMaxQualities);
 		slider->geometryValue(
-		) | rpl::start_with_next([=](const QRect &rect) {
+		) | rpl::on_next([=](const QRect &rect) {
 			updateGeometry(int(slider->value() * (kMaxQualities - 1)));
 		}, box->lifetime());
 
@@ -754,7 +761,7 @@ void FillPeerQrBox(
 			},
 			[](int) {});
 	}
-	{
+	if (peer && !customLink) {
 		Ui::AddSkip(box->verticalLayout());
 		Ui::AddSkip(box->verticalLayout());
 		Ui::AddSubsectionTitle(
@@ -769,9 +776,9 @@ void FillPeerQrBox(
 				st::settingsScale),
 			st::boxRowPadding);
 		slider->resize(slider->width(), seekSize);
-		const auto kSizeAmount = 8;
-		const auto kMinSize = 20;
-		const auto kMaxSize = 36;
+		const auto kSizeAmount = 15;
+		const auto kMinSize = 14;
+		const auto kMaxSize = 44;
 		const auto kStep = (kMaxSize - kMinSize) / (kSizeAmount - 1);
 		const auto updateGeometry = AddDotsToSlider(
 			slider,
@@ -783,8 +790,27 @@ void FillPeerQrBox(
 		const auto indexToFontSize = [=](int index) {
 			return kMinSize + index * kStep;
 		};
+		{
+			const auto username = peer->username();
+			if (!username.isEmpty()) {
+				const auto measured = ('@' + username).toUpper();
+				const auto qrMaxSize = st::boxWideWidth
+					- rect::m::sum::h(st::boxRowPadding)
+					- rect::m::sum::h(st::profileQrBackgroundMargins);
+				auto picked = kMinSize;
+				for (auto i = kSizeAmount - 1; i >= 0; --i) {
+					const auto size = indexToFontSize(i);
+					const auto font = CreateFont(size, style::Scale());
+					if (font->width(measured) <= qrMaxSize) {
+						picked = size;
+						break;
+					}
+				}
+				state->fontSizeValue = picked;
+			}
+		}
 		slider->geometryValue(
-		) | rpl::start_with_next([=](const QRect &rect) {
+		) | rpl::on_next([=](const QRect &rect) {
 			updateGeometry(fontSizeToIndex(state->fontSizeValue.current()));
 		}, box->lifetime());
 
@@ -843,14 +869,7 @@ void FillPeerQrBox(
 		if (state->saveButtonBusy.current()) {
 			return;
 		}
-		const auto buttonWidth = state->saveButton
-			? state->saveButton->width()
-			: 0;
 		state->saveButtonBusy = true;
-		if (state->saveButton) {
-			state->saveButton->resizeToWidth(buttonWidth);
-		}
-
 		const auto userpicToggled = state->userpicToggled.current();
 		const auto backgroundToggled = state->backgroundToggled.current();
 		const auto scale = style::kScaleDefault
@@ -897,7 +916,7 @@ void FillPeerQrBox(
 		const auto top = photoSize
 			? userpicMedia->image(photoSize)
 			: QImage();
-		const auto weak = Ui::MakeWeak(box);
+		const auto weak = base::make_weak(box);
 
 		crl::async([=] {
 			const auto qrImage = TelegramQr(
@@ -959,7 +978,11 @@ void FillPeerQrBox(
 				auto mime = std::make_unique<QMimeData>();
 				mime->setImageData(std::move(image));
 				QGuiApplication::clipboard()->setMimeData(mime.release());
-				show->showToast(tr::lng_group_invite_qr_copied(tr::now));
+				show->showToast({
+					.text = { tr::lng_group_invite_qr_copied(tr::now) },
+					.iconLottie = u"toast/copy"_q,
+					.iconLottieSize = st::toastLottieIconSize,
+				});
 			});
 		});
 	});
@@ -971,16 +994,32 @@ void FillPeerQrBox(
 			saveButton->height() / 2);
 		AddChildToWidgetCenter(saveButton, loadingAnimation);
 		loadingAnimation->showOn(state->saveButtonBusy.value());
+
+		box->showFinishes(
+		) | rpl::take(1) | rpl::on_next([=] {
+			if (const auto window = Core::App().findWindow(box)) {
+				window->checkHighlightControl(
+					u"self-qr-code/copy"_q,
+					saveButton,
+					{
+						.color = &st::activeButtonFg,
+						.opacity = 0.6,
+						.rippleShape = true,
+						.scroll = false,
+					});
+			}
+		}, box->lifetime());
 	}
 
-	const auto buttonWidth = box->width()
-		- rect::m::sum::h(st::giveawayGiftCodeBox.buttonPadding);
-	state->saveButton->widthValue() | rpl::filter([=] {
-		return (state->saveButton->widthNoMargins() != buttonWidth);
-	}) | rpl::start_with_next([=] {
-		state->saveButton->resizeToWidth(buttonWidth);
-	}, state->saveButton->lifetime());
 	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
+}
+
+void DefaultShowFillPeerQrBoxCallback(
+		std::shared_ptr<Ui::Show> show,
+		PeerData *peer) {
+	if (peer && !peer->username().isEmpty()) {
+		show->show(Box(Ui::FillPeerQrBox, peer, std::nullopt, nullptr));
+	}
 }
 
 } // namespace Ui

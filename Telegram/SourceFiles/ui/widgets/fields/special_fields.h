@@ -94,6 +94,7 @@ public:
 		const QString &linkPlaceholder);
 
 	void setLinkPlaceholder(const QString &placeholder);
+	void setMaxLength(int maxLength);
 
 protected:
 	void correctValue(
@@ -105,6 +106,7 @@ protected:
 
 private:
 	QString _linkPlaceholder;
+	int _maxLength = 0;
 
 };
 

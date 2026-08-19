@@ -7,11 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "menu/menu_send.h"
 
+#include "menu/menu_checked_action.h"
+
 #include "api/api_common.h"
 #include "base/event_filter.h"
 #include "base/unixtime.h"
 #include "boxes/abstract_box.h"
 #include "boxes/premium_preview_box.h"
+#include "calls/group/calls_group_stars_box.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "core/shortcuts.h"
@@ -45,10 +48,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
 #include "data/data_message_reactions.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
-#include "settings/settings_premium.h"
+#include "settings/sections/settings_premium.h"
 #include "window/themes/window_theme.h"
 #include "window/section_widget.h"
 #include "styles/style_chat.h"
@@ -143,6 +147,7 @@ private:
 	QImage _bg;
 	QPoint _itemShift;
 	QRect _iconRect;
+	Ui::BoxShadow _boxShadow;
 	std::unique_ptr<Ui::InfiniteRadialAnimation> _loading;
 
 	Ui::Animations::Simple _shownAnimation;
@@ -276,13 +281,14 @@ EffectPreview::EffectPreview(
 			this,
 			tr::lng_effect_premium(
 				lt_link,
-				tr::lng_effect_premium_link() | Ui::Text::ToLink(),
-				Ui::Text::WithEntities),
+				tr::lng_effect_premium_link(tr::link),
+				tr::marked),
 			st::effectPreviewPromoLabel),
 		st::effectPreviewPromoPadding))
 , _bottom(_send ? ((Ui::RpWidget*)_send.get()) : _premiumPromoLabel.get())
 , _close(done)
-, _actionWithEffect(ComposeActionWithEffect(action, _effectId, done)) {
+, _actionWithEffect(ComposeActionWithEffect(action, _effectId, done))
+, _boxShadow(st::previewMenu.animation.shadow) {
 	_chatStyle->apply(_theme.get());
 
 	setupGeometry(position);
@@ -372,8 +378,7 @@ void EffectPreview::mousePressEvent(QMouseEvent *e) {
 void EffectPreview::setupGeometry(QPoint position) {
 	const auto parent = parentWidget();
 	const auto innerSize = HistoryView::Sticker::MessageEffectSize();
-	const auto shadow = st::previewMenu.shadow;
-	const auto extend = shadow.extend;
+	const auto extend = Ui::BoxShadow::ExtendFor(st::previewMenu.shadow);
 	_inner = QRect(QPoint(extend.left(), extend.top()), innerSize);
 	_bottom->resizeToWidth(_inner.width());
 	const auto size = _inner.marginsAdded(extend).size()
@@ -404,7 +409,7 @@ void EffectPreview::setupBackground() {
 		QImage::Format_ARGB32_Premultiplied);
 	_bg.setDevicePixelRatio(ratio);
 	repaintBackground();
-	_theme->repaintBackgroundRequests() | rpl::start_with_next([=] {
+	_theme->repaintBackgroundRequests() | rpl::on_next([=] {
 		repaintBackground();
 		update();
 	}, lifetime());
@@ -452,6 +457,7 @@ void EffectPreview::repaintBackground() {
 			_chatStyle.get(),
 			rect,
 			rect,
+			rect,
 			false);
 		context.outbg = _item->hasOutLayout();
 		_item->draw(p, context);
@@ -466,9 +472,8 @@ void EffectPreview::repaintBackground() {
 	_bg.fill(Qt::transparent);
 	auto p = QPainter(&_bg);
 
-	const auto &shadow = st::previewMenu.animation.shadow;
 	const auto shadowed = QRect(_inner.topLeft(), inner);
-	Ui::Shadow::paint(p, shadowed, width(), shadow);
+	_boxShadow.paint(p, shadowed, st::previewMenu.radius);
 	p.drawImage(_inner.topLeft(), bg);
 }
 
@@ -483,7 +488,7 @@ void EffectPreview::setupLottie() {
 	}
 	rpl::single(rpl::empty) | rpl::then(
 		_show->session().downloaderTaskFinished()
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (checkLoaded()) {
 			_readyCheckLifetime.destroy();
 			createLottie();
@@ -499,7 +504,7 @@ void EffectPreview::createLottie() {
 		Stickers::EffectType::MessageEffect);
 	const auto raw = _lottie.get();
 	raw->updates(
-	) | rpl::start_with_next([=](Lottie::Update update) {
+	) | rpl::on_next([=](Lottie::Update update) {
 		v::match(update.data, [&](const Lottie::Information &information) {
 		}, [&](const Lottie::DisplayFrameRequest &request) {
 			this->update();
@@ -588,7 +593,7 @@ void EffectPreview::toggle(bool shown) {
 Fn<void(Action, Details)> DefaultCallback(
 		std::shared_ptr<ChatHelpers::Show> show,
 		Fn<void(Api::SendOptions)> send) {
-	const auto guard = Ui::MakeWeak(show->toastParent());
+	const auto guard = base::make_weak(show->toastParent());
 	return [=](Action action, Details details) {
 		if (action.type == ActionType::Send) {
 			send(action.options);
@@ -600,9 +605,9 @@ Fn<void(Action, Details)> DefaultCallback(
 			details,
 			send,
 			action.options);
-		const auto weak = Ui::MakeWeak(box.data());
+		const auto weak = base::make_weak(box.data());
 		show->showBox(std::move(box));
-		if (const auto strong = weak.data()) {
+		if (const auto strong = weak.get()) {
 			strong->setCloseByOutsideClick(false);
 		}
 	};
@@ -617,13 +622,15 @@ FillMenuResult AttachSendMenuEffect(
 	Expects(show != nullptr);
 
 	using namespace HistoryView::Reactions;
-	const auto effect = std::make_shared<QPointer<EffectPreview>>();
+	const auto effect = std::make_shared<base::weak_qptr<EffectPreview>>();
 	const auto position = desiredPositionOverride.value_or(QCursor::pos());
-	const auto selector = (show && details.effectAllowed)
+	const auto selector = details.effectAllowed
 		? AttachSelectorToMenu(
 			menu,
 			position,
-			st::reactPanelEmojiPan,
+			(details.effectsPan
+				? *details.effectsPan
+				: st::reactPanelEmojiPan),
 			show,
 			LookupPossibleEffects(&show->session()),
 			{ tr::lng_effect_add_title(tr::now) },
@@ -639,18 +646,18 @@ FillMenuResult AttachSendMenuEffect(
 	}
 
 	(*selector)->chosen(
-	) | rpl::start_with_next([=](ChosenReaction chosen) {
+	) | rpl::on_next([=](ChosenReaction chosen) {
 		const auto &reactions = show->session().data().reactions();
 		const auto &effects = reactions.list(Data::Reactions::Type::Effects);
 		const auto i = ranges::find(effects, chosen.id, &Data::Reaction::id);
 		if (i != end(effects)) {
-			if (const auto strong = effect->data()) {
+			if (const auto strong = effect->get()) {
 				strong->hideAnimated();
 			}
-			const auto weak = Ui::MakeWeak(menu);
+			const auto weak = base::make_weak(menu);
 			const auto done = [=] {
-				delete effect->data();
-				if (const auto strong = weak.data()) {
+				delete effect->get();
+				if (const auto strong = weak.get()) {
 					strong->hideMenu(true);
 				}
 			};
@@ -669,9 +676,47 @@ FillMenuResult AttachSendMenuEffect(
 	return FillMenuResult::Prepared;
 }
 
+FillMenuResult FillEditCommentPriceMenu(
+		not_null<Ui::PopupMenu*> menu,
+		std::shared_ptr<ChatHelpers::Show> show,
+		Details details,
+		Fn<void(Action, Details)> action,
+		const style::ComposeIcons *iconsOverride,
+		std::optional<QPoint> desiredPositionOverride) {
+	Expects(show != nullptr);
+
+	const auto &icons = iconsOverride
+		? *iconsOverride
+		: st::defaultComposeIcons;
+	menu->addAction(tr::lng_video_stream_edit_stars(tr::now), [=] {
+		show->show(Calls::Group::MakeVideoStreamStarsBox({
+			.show = show,
+			.min = int(details.commentPriceMin.value_or(1)),
+			.current = int(details.price.value_or(1)),
+			.save = [=](int count) {
+				auto copy = details;
+				copy.price = count;
+				action({ {}, Action::Type::ChangePrice }, copy);
+			},
+			.name = details.commentStreamerName,
+			//.preview = details.commentPreview,
+		}));
+	}, &icons.menuEditStars);
+	if (details.price.value_or(0) > details.commentPriceMin.value_or(0)) {
+		auto copy = details;
+		copy.price = details.commentPriceMin.value_or(0);
+		menu->addAction(tr::lng_video_stream_remove_stars(tr::now), [=] {
+			action({ {}, Action::Type::ChangePrice }, copy);
+		}, &icons.menuGifRemove);
+	}
+	const auto position = desiredPositionOverride.value_or(QCursor::pos());
+	menu->prepareGeometryFor(position);
+	return FillMenuResult::Prepared;
+}
+
 FillMenuResult FillSendMenu(
 		not_null<Ui::PopupMenu*> menu,
-		std::shared_ptr<ChatHelpers::Show> showForEffect,
+		std::shared_ptr<ChatHelpers::Show> maybeShow,
 		Details details,
 		Fn<void(Action, Details)> action,
 		const style::ComposeIcons *iconsOverride,
@@ -681,9 +726,18 @@ FillMenuResult FillSendMenu(
 	const auto empty = !sending
 		&& (details.spoiler == SpoilerState::None)
 		&& (details.caption == CaptionState::None)
+		&& (details.photoQuality == PhotoQualityState::None)
 		&& !details.price.has_value();
 	if (empty || !action) {
 		return FillMenuResult::Skipped;
+	} else if (type == Type::EditCommentPrice) {
+		return FillEditCommentPriceMenu(
+			menu,
+			maybeShow,
+			details,
+			action,
+			iconsOverride,
+			desiredPositionOverride);
 	}
 	const auto &icons = iconsOverride
 		? *iconsOverride
@@ -697,7 +751,7 @@ FillMenuResult FillSendMenu(
 	}
 	if (sending && type != Type::SilentOnly) {
 		menu->addAction(
-			(type == Type::Reminder
+			((type == Type::Reminder)
 				? tr::lng_reminder_message(tr::now)
 				: tr::lng_schedule_message(tr::now)),
 			[=] { action({ .type = ActionType::Schedule }, details); },
@@ -715,20 +769,33 @@ FillMenuResult FillSendMenu(
 	if ((type != Type::Disabled)
 		&& ((details.spoiler != SpoilerState::None)
 			|| (details.caption != CaptionState::None)
+			|| (details.photoQuality != PhotoQualityState::None)
 			|| details.price.has_value())) {
 		menu->addSeparator(&st::expandedMenuSeparator);
 	}
+	if (details.photoQuality != PhotoQualityState::None) {
+		const auto high = (details.photoQuality == PhotoQualityState::High);
+		Menu::AddCheckedAction(
+			menu,
+			tr::lng_send_high_quality(tr::now),
+			[=] { action({ .type = high
+				? ActionType::PhotoQualityOff
+				: ActionType::PhotoQualityOn
+			}, details); },
+			&icons.menuQualityHigh,
+			high);
+	}
 	if (details.spoiler != SpoilerState::None) {
 		const auto spoilered = (details.spoiler == SpoilerState::Enabled);
-		menu->addAction(
-			(spoilered
-				? tr::lng_context_disable_spoiler(tr::now)
-				: tr::lng_context_spoiler_effect(tr::now)),
+		Menu::AddCheckedAction(
+			menu,
+			tr::lng_context_spoiler_effect(tr::now),
 			[=] { action({ .type = spoilered
 				? ActionType::SpoilerOff
 				: ActionType::SpoilerOn
 			}, details); },
-			spoilered ? &icons.menuSpoilerOff : &icons.menuSpoiler);
+			&icons.menuSpoiler,
+			spoilered);
 	}
 	if (details.caption != CaptionState::None) {
 		const auto above = (details.caption == CaptionState::Above);
@@ -751,10 +818,10 @@ FillMenuResult FillSendMenu(
 			&icons.menuPrice);
 	}
 
-	if (showForEffect) {
+	if (maybeShow) {
 		return AttachSendMenuEffect(
 			menu,
-			showForEffect,
+			maybeShow,
 			details,
 			action,
 			desiredPositionOverride);
@@ -766,15 +833,22 @@ FillMenuResult FillSendMenu(
 
 void SetupMenuAndShortcuts(
 		not_null<Ui::RpWidget*> button,
-		std::shared_ptr<ChatHelpers::Show> show,
+		std::shared_ptr<ChatHelpers::Show> maybeShow,
 		Fn<Details()> details,
-		Fn<void(Action, Details)> action) {
+		Fn<void(Action, Details)> action,
+		const style::PopupMenu *stOverride,
+		const style::ComposeIcons *iconsOverride) {
 	const auto menu = std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
 	const auto showMenu = [=] {
 		*menu = base::make_unique_q<Ui::PopupMenu>(
 			button,
-			st::popupMenuWithIcons);
-		const auto result = FillSendMenu(*menu, show, details(), action);
+			stOverride ? *stOverride : st::popupMenuWithIcons);
+		const auto result = FillSendMenu(
+			*menu,
+			maybeShow,
+			details(),
+			action,
+			iconsOverride);
 		if (result != FillMenuResult::Prepared) {
 			return false;
 		}
@@ -791,7 +865,7 @@ void SetupMenuAndShortcuts(
 	Shortcuts::Requests(
 	) | rpl::filter([=] {
 		return button->isActiveWindow();
-	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+	}) | rpl::on_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 
 		const auto now = details().type;
@@ -888,7 +962,7 @@ void SetupUnreadMentionsMenu(
 		using Flag = MTPmessages_ReadMentions::Flag;
 		peer->session().api().request(MTPmessages_ReadMentions(
 			MTP_flags(rootId ? Flag::f_top_msg_id : Flag()),
-			peer->input,
+			peer->input(),
 			MTP_int(rootId)
 		)).done([=](const MTPmessages_AffectedHistory &result) {
 			const auto offset = peer->session().api().applyAffectedHistory(
@@ -924,12 +998,58 @@ void SetupUnreadReactionsMenu(
 			return;
 		}
 		const auto topic = thread->asTopic();
+		const auto sublist = thread->asSublist();
 		const auto peer = thread->peer();
 		const auto rootId = topic ? topic->rootId() : 0;
 		using Flag = MTPmessages_ReadReactions::Flag;
 		peer->session().api().request(MTPmessages_ReadReactions(
+			MTP_flags((rootId ? Flag::f_top_msg_id : Flag(0))
+				| (sublist ? Flag::f_saved_peer_id : Flag(0))),
+			peer->input(),
+			MTP_int(rootId),
+			sublist ? sublist->sublistPeer()->input() : MTPInputPeer()
+		)).done([=](const MTPmessages_AffectedHistory &result) {
+			const auto offset = peer->session().api().applyAffectedHistory(
+				peer,
+				result);
+			if (offset > 0) {
+				resend(weakThread, done, resend);
+			} else {
+				done();
+				peer->owner().history(peer)->clearUnreadReactionsFor(
+					rootId,
+					sublist);
+			}
+		}).fail(done).send();
+	};
+	const auto sendRequest = [=](
+			not_null<Data::Thread*> thread,
+			Fn<void()> done) {
+		sendOne(base::make_weak(thread), std::move(done), sendOne);
+	};
+	SetupReadAllMenu(button, currentThread, text, sendRequest);
+}
+
+void SetupUnreadPollVotesMenu(
+		not_null<Ui::RpWidget*> button,
+		Fn<Data::Thread*()> currentThread) {
+	const auto text = tr::lng_context_mark_read_poll_votes_all(tr::now);
+	const auto sendOne = [=](
+			base::weak_ptr<Data::Thread> weakThread,
+			Fn<void()> done,
+			auto resend) -> void {
+		const auto thread = weakThread.get();
+		if (!thread) {
+			done();
+			return;
+		}
+		const auto topic = thread->asTopic();
+		const auto peer = thread->peer();
+		const auto rootId = topic ? topic->rootId() : 0;
+		using Flag = MTPmessages_ReadPollVotes::Flag;
+		peer->session().api().request(MTPmessages_ReadPollVotes(
 			MTP_flags(rootId ? Flag::f_top_msg_id : Flag(0)),
-			peer->input,
+			peer->input(),
 			MTP_int(rootId)
 		)).done([=](const MTPmessages_AffectedHistory &result) {
 			const auto offset = peer->session().api().applyAffectedHistory(
@@ -939,7 +1059,8 @@ void SetupUnreadReactionsMenu(
 				resend(weakThread, done, resend);
 			} else {
 				done();
-				peer->owner().history(peer)->clearUnreadReactionsFor(rootId);
+				peer->owner().history(peer)->clearUnreadPollVotesFor(
+					rootId);
 			}
 		}).fail(done).send();
 	};

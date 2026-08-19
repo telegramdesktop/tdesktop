@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "core/application.h"
 #include "base/event_filter.h"
+#include "base/integration.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
@@ -167,7 +168,7 @@ SuggestionsWidget::SuggestionsWidget(
 , _session(session)
 , _suggestCustomEmoji(suggestCustomEmoji)
 , _allowCustomWithoutPremium(std::move(allowCustomWithoutPremium))
-, _overRect(st::roundRadiusSmall, _st.overBg)
+, _overRect(st::roundRadiusLarge, _st.overBg)
 , _oneWidth(st::emojiSuggestionSize)
 , _padding(st::emojiSuggestionsPadding) {
 	resize(
@@ -704,12 +705,12 @@ void SuggestionsWidget::enterEventHook(QEnterEvent *e) {
 	if (!inner().contains(mapToInner(QCursor::pos()))) {
 		clearMouseSelection();
 	}
-	return TWidget::enterEventHook(e);
+	return RpWidget::enterEventHook(e);
 }
 
 void SuggestionsWidget::leaveEventHook(QEvent *e) {
 	clearMouseSelection();
-	return TWidget::leaveEventHook(e);
+	return RpWidget::leaveEventHook(e);
 }
 
 SuggestionsController::SuggestionsController(
@@ -750,11 +751,11 @@ SuggestionsController::SuggestionsController(
 	};
 	_outerFilter.reset(base::install_event_filter(outer, outerCallback));
 
-	QObject::connect(
-		_field,
-		&QTextEdit::textChanged,
-		_container,
-		[=] { handleTextChange(); });
+	QObject::connect(_field, &QTextEdit::textChanged, _container, [=] {
+		base::Integration::Instance().enterFromEventLoop([&] {
+			handleTextChange();
+		});
+	});
 	QObject::connect(
 		_field,
 		&QTextEdit::cursorPositionChanged,
@@ -762,15 +763,15 @@ SuggestionsController::SuggestionsController(
 		[=] { handleCursorPositionChange(); });
 
 	_suggestions->toggleAnimated(
-	) | rpl::start_with_next([=](bool visible) {
+	) | rpl::on_next([=](bool visible) {
 		suggestionsUpdated(visible);
 	}, _lifetime);
 	_suggestions->triggered(
-	) | rpl::start_with_next([=](const SuggestionsWidget::Chosen &chosen) {
+	) | rpl::on_next([=](const SuggestionsWidget::Chosen &chosen) {
 		replaceCurrent(chosen.emoji, chosen.customData);
 	}, _lifetime);
 	Core::App().emojiKeywords().refreshed(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_keywordsRefreshed = true;
 		if (!_showExactTimer.isActive()) {
 			showWithQuery(_lastShownQuery);
@@ -782,7 +783,7 @@ SuggestionsController::SuggestionsController(
 	_container->shownValue(
 	) | rpl::filter([=](bool shown) {
 		return shown && !_shown;
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		_container->hide();
 	}, _container->lifetime());
 
@@ -984,7 +985,7 @@ void SuggestionsController::replaceCurrent(
 	const auto position = cursor.position();
 	const auto suggestion = getEmojiQuery();
 	if (v::is<EmojiPtr>(suggestion)) {
-		const auto weak = Ui::MakeWeak(_container.get());
+		const auto weak = base::make_weak(_container.get());
 		const auto count = std::max(_emojiQueryLength, 1);
 		for (auto i = 0; i != count; ++i) {
 			const auto start = position - count + i;

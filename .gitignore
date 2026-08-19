@@ -3,6 +3,7 @@ Debug/
 Release/
 /ThirdParty/
 /Telegram/build/target
+/Telegram/build/ai-machine-tag
 /Telegram/tests/
 /Telegram/gyp/tests/*.test
 /Telegram/out/
@@ -53,3 +54,21 @@ stage
 *.*~
 .idea/
 cmake-build-debug/
+*.qsb
+
+# Local configuration files
+settings.local.json
+*.local.json
+.env
+.env.local
+.env.*.local
+
+# Cursor IDE local settings (but keep .cursor/rules/)
+.cursor/*
+!.cursor/rules/
+
+# AI work folder (session-specific, not for version control)
+.ai
+
+# Generated changelog page (built by CI, deployed to GitHub Pages)
+/docs/changelog/

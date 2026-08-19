@@ -24,8 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
-#include "styles/style_chat_helpers.h"
-#include "styles/style_layers.h"
 #include "styles/style_settings.h"
 
 namespace Settings {
@@ -33,7 +31,7 @@ namespace {
 
 constexpr auto kShortcutLimit = 32;
 
-class QuickReplies : public BusinessSection<QuickReplies> {
+class QuickReplies : public Section<QuickReplies> {
 public:
 	QuickReplies(
 		QWidget *parent,
@@ -52,7 +50,7 @@ private:
 QuickReplies::QuickReplies(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
-: BusinessSection(parent, controller) {
+: Section(parent, controller) {
 	setupContent(controller);
 }
 
@@ -73,7 +71,7 @@ void QuickReplies::setupContent(
 		.lottieSize = st::settingsCloudPasswordIconSize,
 		.lottieMargins = st::peerAppearanceIconPadding,
 		.showFinished = showFinishes(),
-		.about = tr::lng_replies_about(Ui::Text::WithEntities),
+		.about = tr::lng_replies_about(tr::marked),
 		.aboutMargins = st::peerAppearanceCoverLabelMargin,
 	});
 	Ui::AddSkip(content);
@@ -87,7 +85,7 @@ void QuickReplies::setupContent(
 	rpl::combine(
 		_count.value(),
 		ShortcutsLimitValue(&controller->session())
-	) | rpl::start_with_next([=](int count, int limit) {
+	) | rpl::on_next([=](int count, int limit) {
 		while (addWrap->count()) {
 			delete addWrap->widgetAt(0);
 		}
@@ -130,7 +128,7 @@ void QuickReplies::setupContent(
 		object_ptr<Ui::VerticalLayout>(content));
 	rpl::single(rpl::empty) | rpl::then(
 		messages->shortcutsChanged()
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		auto old = inner->count();
 
 		const auto &shortcuts = messages->shortcuts();
@@ -220,15 +218,15 @@ void EditShortcutNameBox(
 		if (!ValidShortcutName(name)) {
 			field->showError();
 		} else {
-			submit(name, [weak = Ui::MakeWeak(box)] {
-				if (const auto strong = weak.data()) {
+			submit(name, [weak = base::make_weak(box)] {
+				if (const auto strong = weak.get()) {
 					strong->closeBox();
 				}
 			});
 		}
 	};
 	field->submits(
-	) | rpl::start_with_next(callback, field->lifetime());
+	) | rpl::on_next(callback, field->lifetime());
 	box->addButton(tr::lng_settings_save(), callback);
 	box->addButton(tr::lng_cancel(), [=] {
 		box->closeBox();

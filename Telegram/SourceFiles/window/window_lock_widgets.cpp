@@ -28,7 +28,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "main/main_domain.h"
 #include "styles/style_layers.h"
-#include "styles/style_boxes.h"
+#include "styles/style_passcode_box.h"
+#include "styles/style_window_lock_widgets.h"
 
 namespace Window {
 namespace {
@@ -102,8 +103,6 @@ PasscodeLockWidget::PasscodeLockWidget(
 , _logout(this, tr::lng_passcode_logout(tr::now)) {
 	connect(_passcode, &Ui::MaskedInputField::changed, [=] { changed(); });
 	connect(_passcode, &Ui::MaskedInputField::submitted, [=] { submit(); });
-
-	_submit->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	_submit->setClickedCallback([=] { submit(); });
 	_logout->setClickedCallback([=] {
 		window->showLogoutConfirmation();
@@ -150,7 +149,7 @@ void PasscodeLockWidget::setupSystemUnlockInfo() {
 		std::move(text),
 		st::passcodeSystemUnlockLater);
 	_logout->geometryValue(
-	) | rpl::start_with_next([=](QRect logout) {
+	) | rpl::on_next([=](QRect logout) {
 		info->resizeToWidth(width()
 			- st::boxRowPadding.left()
 			- st::boxRowPadding.right());
@@ -167,7 +166,7 @@ void PasscodeLockWidget::setupSystemUnlock() {
 		return active
 			&& !_systemUnlockSuggested
 			&& !_systemUnlockCooldown.isActive();
-	}) | rpl::start_with_next([=](bool) {
+	}) | rpl::on_next([=](bool) {
 		[[maybe_unused]] auto refresh = base::SystemUnlockStatus();
 		suggestSystemUnlock();
 	}, lifetime());
@@ -178,7 +177,7 @@ void PasscodeLockWidget::setupSystemUnlock() {
 	if (!Platform::IsWindows()) {
 		using namespace base;
 		_systemUnlockAllowed.value(
-		) | rpl::start_with_next([=](SystemUnlockType type) {
+		) | rpl::on_next([=](SystemUnlockType type) {
 			const auto icon = (type == SystemUnlockType::Biometrics)
 				? &st::passcodeSystemTouchID
 				: (type == SystemUnlockType::Companion)
@@ -189,7 +188,7 @@ void PasscodeLockWidget::setupSystemUnlock() {
 	}
 	button->showOn(_systemUnlockAllowed.value(
 	) | rpl::map(rpl::mappers::_1 != SystemUnlockType::None));
-	_passcode->sizeValue() | rpl::start_with_next([=](QSize size) {
+	_passcode->sizeValue() | rpl::on_next([=](QSize size) {
 		button->moveToRight(0, size.height() - button->height());
 	}, button->lifetime());
 	button->setClickedCallback([=] {
@@ -211,11 +210,11 @@ void PasscodeLockWidget::suggestSystemUnlock() {
 		_systemUnlockAllowed.value(
 		) | rpl::filter(
 			rpl::mappers::_1 != SystemUnlockType::None
-		) | rpl::take(1) | rpl::start_with_next([=] {
-			const auto weak = Ui::MakeWeak(this);
+		) | rpl::take(1) | rpl::on_next([=] {
+			const auto weak = base::make_weak(this);
 			const auto done = [weak](SystemUnlockResult result) {
 				crl::on_main([=] {
-					if (const auto strong = weak.data()) {
+					if (const auto strong = weak.get()) {
 						strong->systemUnlockDone(result);
 					}
 				});
@@ -443,12 +442,12 @@ void TermsBox::prepare() {
 
 	if (age) {
 		age->entity()->checkedChanges(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			toggleAgeError(false);
 		}, age->lifetime());
 
 		heightValue(
-		) | rpl::start_with_next([=](int height) {
+		) | rpl::on_next([=](int height) {
 			age->moveToLeft(0, height - age->height());
 		}, age->lifetime());
 	}
@@ -460,7 +459,7 @@ void TermsBox::prepare() {
 		content->heightValue(),
 		age ? age->heightValue() : rpl::single(0),
 		_1 + _2
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		setDimensions(st::boxWideWidth, height);
 	}, content->lifetime());
 }

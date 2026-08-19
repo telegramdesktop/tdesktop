@@ -65,6 +65,8 @@ PRIVATE
 
     v2/ContentNegotiation.cpp
     v2/ContentNegotiation.h
+    v2/CustomDcSctpSocket.cpp
+    v2/CustomDcSctpSocket.h
     v2/DirectNetworkingImpl.cpp
     v2/DirectNetworkingImpl.h
     v2/ExternalSignalingConnection.cpp
@@ -88,12 +90,8 @@ PRIVATE
     v2/SignalingConnection.h
     v2/SignalingEncryption.cpp
     v2/SignalingEncryption.h
-    v2/SignalingKcpConnection.cpp
-    v2/SignalingKcpConnection.h
     v2/SignalingSctpConnection.cpp
     v2/SignalingSctpConnection.h
-    v2/ikcp.cpp
-    v2/ikcp.h
 
     # Desktop capturer
     desktop_capturer/DesktopCaptureSource.h
@@ -280,26 +278,3 @@ PUBLIC
 PRIVATE
     ${tgcalls_loc}
 )
-
-# add_library(lib_tgcalls_legacy STATIC)
-# init_target(lib_tgcalls_legacy)
-
-# add_library(tdesktop::lib_tgcalls_legacy ALIAS lib_tgcalls_legacy)
-
-# nice_target_sources(lib_tgcalls_legacy ${tgcalls_loc}
-# PRIVATE
-#     legacy/InstanceImplLegacy.cpp
-#     legacy/InstanceImplLegacy.h
-# )
-
-# target_include_directories(lib_tgcalls_legacy
-# PRIVATE
-#     ${tgcalls_loc}
-# )
-
-# target_link_libraries(lib_tgcalls_legacy
-# PRIVATE
-#     tdesktop::lib_tgcalls
-#     tdesktop::lib_tgvoip
-#     desktop-app::external_openssl
-# )

@@ -15,8 +15,7 @@ namespace Iv {
 
 class Delegate {
 public:
-	virtual void ivSetLastSourceWindow(not_null<QWidget*> window) = 0;
-	[[nodiscard]] virtual QRect ivGeometry() const = 0;
+	[[nodiscard]] virtual QRect ivGeometry(not_null<Ui::RpWindow*> window) const = 0;
 	virtual void ivSaveGeometry(not_null<Ui::RpWindow*> window) = 0;
 
 	[[nodiscard]] virtual int ivZoom() const = 0;

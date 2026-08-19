@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_types.h"
 #include "data/data_cloud_file.h"
+#include "core/file_location.h"
 
 namespace Main {
 class Session;
@@ -160,6 +161,10 @@ public:
 	[[nodiscard]] int width() const;
 	[[nodiscard]] int height() const;
 
+	[[nodiscard]] MediaKey mediaKey() const;
+	[[nodiscard]] const Core::FileLocation &location(bool check) const;
+	void setLocation(const Core::FileLocation &loc);
+
 	PhotoId id = 0;
 
 	PeerData *peer = nullptr; // for chat and channel photos connection
@@ -194,5 +199,7 @@ private:
 	std::weak_ptr<Data::PhotoMedia> _media;
 
 	not_null<Data::Session*> _owner;
+
+	Core::FileLocation _location;
 
 };

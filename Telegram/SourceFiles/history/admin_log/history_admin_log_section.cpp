@@ -11,19 +11,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/admin_log/history_admin_log_filter.h"
 #include "profile/profile_back_button.h"
 #include "core/shortcuts.h"
+#include "info/profile/info_profile_values.h"
 #include "ui/chat/chat_style.h"
+#include "ui/controls/jump_down_button.h"
 #include "ui/controls/swipe_handler.h"
 #include "ui/effects/animations.h"
-#include "ui/widgets/scroll_area.h"
+#include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
+#include "ui/controls/userpic_button.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/ui_utility.h"
-#include "mainwidget.h"
-#include "mainwindow.h"
 #include "apiwrap.h"
 #include "window/themes/window_theme.h"
-#include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
 #include "ui/boxes/confirm_box.h"
 #include "base/timer.h"
@@ -32,19 +32,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_window.h"
 #include "styles/style_info.h"
 
 namespace AdminLog {
 
-class FixedBar final : public TWidget {
+class FixedBar final : public Ui::RpWidget {
 public:
 	FixedBar(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
 		not_null<ChannelData*> channel);
 
-	[[nodiscard]] rpl::producer<> showFilterRequests() const;
 	[[nodiscard]] rpl::producer<> searchCancelRequests() const;
 	[[nodiscard]] rpl::producer<QString> searchRequests() const;
 
@@ -81,7 +79,6 @@ private:
 	object_ptr<Profile::BackButton> _backButton;
 	object_ptr<Ui::IconButton> _search;
 	object_ptr<Ui::CrossButton> _cancel;
-	object_ptr<Ui::RoundButton> _filter;
 
 	Ui::Animations::Simple _searchShownAnimation;
 	bool _searchShown = false;
@@ -109,37 +106,39 @@ object_ptr<Window::SectionWidget> SectionMemento::createWidget(
 FixedBar::FixedBar(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
-	not_null<ChannelData*> channel) : TWidget(parent)
+	not_null<ChannelData*> channel)
+: RpWidget(parent)
 , _controller(controller)
 , _channel(channel)
 , _field(this, st::defaultMultiSelectSearchField, tr::lng_dlg_filter())
-, _backButton(
-	this,
-	&controller->session(),
-	tr::lng_admin_log_title_all(tr::now),
-	controller->adaptive().oneColumnValue())
+, _backButton(this)
 , _search(this, st::topBarSearch)
-, _cancel(this, st::historyAdminLogCancelSearch)
-, _filter(this, tr::lng_admin_log_filter(), st::topBarButton) {
+, _cancel(this, st::historyAdminLogCancelSearch) {
 	_backButton->moveToLeft(0, 0);
 	_backButton->setClickedCallback([=] { goBack(); });
 	_search->setClickedCallback([=] { showSearch(); });
 	_cancel->setClickedCallback([=] { cancelSearch(); });
 	_field->hide();
-	_filter->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
-	_field->cancelled(
-	) | rpl::start_with_next([=] {
+	_field->cancelled() | rpl::on_next([=] {
 		cancelSearch();
 	}, _field->lifetime());
-	_field->changes(
-	) | rpl::start_with_next([=] {
+	_field->changes() | rpl::on_next([=] {
 		searchUpdated();
 	}, _field->lifetime());
 	_field->submits(
-	) | rpl::start_with_next([=] { applySearch(); }, _field->lifetime());
+	) | rpl::on_next([=] { applySearch(); }, _field->lifetime());
 	_searchTimer.setCallback([=] { applySearch(); });
 
 	_cancel->hide(anim::type::instant);
+
+	_backButton->setSubtext(tr::lng_admin_log_title_all(tr::now));
+	Info::Profile::NameValue(channel) | rpl::on_next([=](QString name) {
+		_backButton->setText(name);
+	}, _backButton->lifetime());
+	_backButton->setWidget(Ui::CreateChild<Ui::UserpicButton>(
+		_backButton.get(),
+		channel,
+		st::topBarInfoButton));
 }
 
 void FixedBar::applyFilter(const FilterValue &value) {
@@ -186,6 +185,7 @@ void FixedBar::searchAnimationCallback() {
 			_searchShown ? &st::topBarBg : nullptr);
 		_search->setCursor(
 			_searchShown ? style::cur_default : style::cur_pointer);
+		_backButton->setOpacity(1.);
 	}
 	resizeToWidth(width());
 }
@@ -215,29 +215,33 @@ void FixedBar::applySearch() {
 }
 
 int FixedBar::resizeGetHeight(int newWidth) {
-	auto filterLeft = newWidth - _filter->width();
-	_filter->moveToLeft(filterLeft, 0);
-
-	auto cancelLeft = filterLeft - _cancel->width();
-	_cancel->moveToLeft(cancelLeft, 0);
-
-	auto searchShownLeft = st::topBarArrowPadding.left();
-	auto searchHiddenLeft = filterLeft - _search->width();
-	auto searchShown = _searchShownAnimation.value(_searchShown ? 1. : 0.);
-	auto searchCurrentLeft = anim::interpolate(searchHiddenLeft, searchShownLeft, searchShown);
+	const auto offset = st::historySendRight + st::lineWidth;
+	const auto searchShownLeft = st::topBarArrowPadding.left();
+	const auto searchHiddenLeft = newWidth - _search->width() - offset;
+	const auto searchShown = _searchShownAnimation.value(_searchShown
+		? 1.
+		: 0.);
+	const auto searchCurrentLeft = anim::interpolate(
+		searchHiddenLeft,
+		searchShownLeft,
+		searchShown);
 	_search->moveToLeft(searchCurrentLeft, 0);
+	_backButton->setOpacity(1. - searchShown);
 	_backButton->resizeToWidth(searchCurrentLeft);
 	_backButton->moveToLeft(0, 0);
 
-	auto newHeight = _backButton->height();
-	auto fieldLeft = searchShownLeft + _search->width();
-	_field->setGeometryToLeft(fieldLeft, st::historyAdminLogSearchTop, cancelLeft - fieldLeft, _field->height());
+	const auto cancelLeft = newWidth - _cancel->width() - offset;
+	_cancel->moveToLeft(cancelLeft, 0);
+
+	const auto newHeight = _backButton->height();
+	const auto fieldLeft = searchShownLeft + _search->width();
+	_field->setGeometryToLeft(
+		fieldLeft,
+		st::historyAdminLogSearchTop,
+		cancelLeft - fieldLeft,
+		_field->height());
 
 	return newHeight;
-}
-
-rpl::producer<> FixedBar::showFilterRequests() const {
-	return _filter->clicks() | rpl::to_empty;
 }
 
 rpl::producer<> FixedBar::searchCancelRequests() const {
@@ -276,7 +280,7 @@ void FixedBar::mousePressEvent(QMouseEvent *e) {
 	if (e->button() == Qt::LeftButton) {
 		goBack();
 	} else {
-		TWidget::mousePressEvent(e);
+		RpWidget::mousePressEvent(e);
 	}
 }
 
@@ -285,57 +289,73 @@ Widget::Widget(
 	not_null<Window::SessionController*> controller,
 	not_null<ChannelData*> channel)
 : Window::SectionWidget(parent, controller, rpl::single<PeerData*>(channel))
-, _scroll(this, st::historyScroll, false)
+, _scroll(this, st::historyScroll)
 , _fixedBar(this, controller, channel)
 , _fixedBarShadow(this)
-, _whatIsThis(
-		this,
-		tr::lng_admin_log_about(tr::now),
-		st::historyComposeButton) {
+, _settingsFilter(
+	this,
+	tr::lng_menu_settings(tr::now),
+	st::historyComposeButton)
+, _whatIsThis(this, st::historyAdminLogWhatIsThis)
+, _scrollDown(_scroll, st::historyToDown) {
 	_fixedBar->move(0, 0);
 	_fixedBar->resizeToWidth(width());
-	_fixedBar->showFilterRequests(
-	) | rpl::start_with_next([=] {
-		showFilter();
-	}, lifetime());
 	_fixedBar->searchCancelRequests(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		setInnerFocus();
 	}, lifetime());
 	_fixedBar->searchRequests(
-	) | rpl::start_with_next([=](const QString &query) {
+	) | rpl::on_next([=](const QString &query) {
 		_inner->applySearch(query);
 	}, lifetime());
 	_fixedBar->show();
 
+	_whatIsThis->raise();
 	_fixedBarShadow->raise();
 
 	controller->adaptive().value(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		updateAdaptiveLayout();
 	}, lifetime());
 
-	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(this, controller, channel));
+	_scroll->setHandleTouch(false);
+	_scroll->lockWheelDirection();
+	_inner = _scroll->setOwnedWidget(
+		object_ptr<InnerWidget>(this, controller, channel));
+	_inner->lower();
 	_inner->showSearchSignal(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_fixedBar->showSearch();
 	}, lifetime());
 	_inner->cancelSignal(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_fixedBar->goBack();
 	}, lifetime());
 	_inner->scrollToSignal(
-	) | rpl::start_with_next([=](int top) {
+	) | rpl::on_next([=](int top) {
 		_scroll->scrollToY(top);
+	}, lifetime());
+	_inner->newEventsCountValue(
+	) | rpl::on_next([=](int count) {
+		_scrollDown->setUnreadCount(count);
+		updateScrollDownVisibility();
 	}, lifetime());
 
 	_scroll->move(0, _fixedBar->height());
 	_scroll->show();
-	_scroll->scrolls(
-	) | rpl::start_with_next([=] {
+	_scroll->setOverscrollBg(QColor(0, 0, 0, 0));
+	_scroll->setOverscrollEdges([=] {
+		return !_inner || _inner->loadedAtTop();
+	}, [=] {
+		return !_inner || _inner->loadedAtBottom();
+	});
+	_scroll->scrolls() | rpl::on_next([=] {
 		onScroll();
 	}, lifetime());
 
+	_settingsFilter->setClickedCallback([=] {
+		showFilter();
+	});
 	_whatIsThis->setClickedCallback([=] {
 		controller->show(Ui::MakeInformBox(channel->isMegagroup()
 			? tr::lng_admin_log_about_text()
@@ -344,6 +364,79 @@ Widget::Widget(
 
 	setupShortcuts();
 	setupSwipeReply();
+	setupScrollDownButton();
+}
+
+void Widget::setupScrollDownButton() {
+	_scrollDown->setClickedCallback([=] { scrollDownClicked(); });
+	updateScrollDownVisibility();
+}
+
+void Widget::scrollDownClicked() {
+	_inner->resetNewEventsCount();
+	const auto scrollTo = _scroll->scrollTopMax();
+	auto scrollTop = _scroll->scrollTop();
+	if (scrollTop == scrollTo) {
+		_scrollToAnimation.stop();
+		return;
+	}
+	const auto maxAnimatedDelta = _scroll->height();
+	auto transition = anim::sineInOut;
+	if (scrollTo > scrollTop + maxAnimatedDelta) {
+		scrollTop = scrollTo - maxAnimatedDelta;
+		_scroll->scrollToY(scrollTop);
+		transition = anim::easeOutCubic;
+	}
+	_scrollToAnimation.stop();
+	_scrollToAnimation.start(
+		[=] { scrollToAnimationCallback(); },
+		scrollTop,
+		scrollTo,
+		st::slideDuration,
+		transition);
+}
+
+void Widget::scrollToAnimationCallback() {
+	const auto scrollTo = _scroll->scrollTopMax();
+	_scroll->scrollToY(qRound(_scrollToAnimation.value(scrollTo)));
+}
+
+void Widget::updateScrollDownVisibility() {
+	if (_scroll->isHidden()) {
+		return;
+	}
+	const auto top = _scroll->scrollTop() + st::historyToDownShownAfter / 4;
+	const auto hasPendingEvents = _scrollDown->unreadCount() > 0;
+	startScrollDownButtonAnimation(hasPendingEvents
+		|| top < _scroll->scrollTopMax());
+}
+
+void Widget::startScrollDownButtonAnimation(bool shown) {
+	if (_scrollDownIsShown == shown) {
+		return;
+	}
+	_scrollDownIsShown = shown;
+	_scrollDownShown.start(
+		[=] { updateScrollDownPosition(); },
+		_scrollDownIsShown ? 0. : 1.,
+		_scrollDownIsShown ? 1. : 0.,
+		st::historyToDownDuration);
+}
+
+void Widget::updateScrollDownPosition() {
+	// _scrollDown is a child widget of _scroll, not me.
+	const auto top = anim::interpolate(
+		0,
+		_scrollDown->height() + st::historyToDownPosition.y(),
+		_scrollDownShown.value(_scrollDownIsShown ? 1. : 0.));
+	_scrollDown->moveToRight(
+		st::historyToDownPosition.x(),
+		_scroll->height() - top);
+	const auto shouldBeHidden
+		= !_scrollDownIsShown && !_scrollDownShown.animating();
+	if (shouldBeHidden != _scrollDown->isHidden()) {
+		_scrollDown->setVisible(!shouldBeHidden);
+	}
 }
 
 void Widget::showFilter() {
@@ -372,10 +465,15 @@ Dialogs::RowDescriptor Widget::activeChat() const {
 	};
 }
 
-QPixmap Widget::grabForShowAnimation(const Window::SectionSlideParams &params) {
-	if (params.withTopBarShadow) _fixedBarShadow->hide();
+QPixmap Widget::grabForShowAnimation(
+		const Window::SectionSlideParams &params) {
+	if (params.withTopBarShadow) {
+		_fixedBarShadow->hide();
+	}
 	auto result = Ui::GrabWidget(this);
-	if (params.withTopBarShadow) _fixedBarShadow->show();
+	if (params.withTopBarShadow) {
+		_fixedBarShadow->show();
+	}
 	return result;
 }
 
@@ -397,7 +495,9 @@ bool Widget::showInternal(
 	return false;
 }
 
-void Widget::setInternalState(const QRect &geometry, not_null<SectionMemento*> memento) {
+void Widget::setInternalState(
+		const QRect &geometry,
+		not_null<SectionMemento*> memento) {
 	setGeometry(geometry);
 	Ui::SendPendingMoveResizeEvents(this);
 	restoreState(memento);
@@ -410,7 +510,7 @@ void Widget::setupShortcuts() {
 			&& Ui::InFocusChain(this)
 			&& !controller()->isLayerShown()
 			&& isActiveWindow();
-	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+	}) | rpl::on_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 		request->check(Command::Search, 2) && request->handle([=] {
 			_fixedBar->showSearch();
@@ -440,8 +540,8 @@ void Widget::setupSwipeReply() {
 		}
 	};
 
-	auto init = [=](int, Qt::LayoutDirection direction) {
-		if (direction == Qt::RightToLeft) {
+	auto init = [=](Ui::Controls::SwipeHandlerInitData data) {
+		if (data.direction == Qt::RightToLeft) {
 			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
 				controller()->showBackFromStack();
 			});
@@ -480,15 +580,18 @@ void Widget::resizeEvent(QResizeEvent *e) {
 		return;
 	}
 
-	auto contentWidth = width();
+	const auto contentWidth = width();
 
-	auto newScrollTop = _scroll->scrollTop() + topDelta();
+	const auto delta = takeTopDelta();
+	const auto newScrollTop = _scroll->scrollTop() + delta;
 	_fixedBar->resizeToWidth(contentWidth);
 	_fixedBarShadow->resize(contentWidth, st::lineWidth);
 
-	auto bottom = height();
-	auto scrollHeight = bottom - _fixedBar->height() - _whatIsThis->height();
-	auto scrollSize = QSize(contentWidth, scrollHeight);
+	const auto bottom = height();
+	const auto scrollHeight = bottom
+		- _fixedBar->height()
+		- _settingsFilter->height();
+	const auto scrollSize = QSize(contentWidth, scrollHeight);
 	if (_scroll->size() != scrollSize) {
 		_scroll->resize(scrollSize);
 		_inner->resizeToWidth(scrollSize.width(), _scroll->height());
@@ -496,14 +599,23 @@ void Widget::resizeEvent(QResizeEvent *e) {
 	}
 
 	if (!_scroll->isHidden()) {
-		if (topDelta()) {
+		if (delta) {
 			_scroll->scrollToY(newScrollTop);
 		}
 		auto scrollTop = _scroll->scrollTop();
 		_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
 	}
-	auto fullWidthButtonRect = myrtlrect(0, bottom - _whatIsThis->height(), contentWidth, _whatIsThis->height());
-	_whatIsThis->setGeometry(fullWidthButtonRect);
+	const auto fullWidthButtonRect = myrtlrect(
+		0,
+		bottom - _settingsFilter->height(),
+		contentWidth,
+		_settingsFilter->height());
+	_settingsFilter->setGeometry(fullWidthButtonRect);
+	_whatIsThis->moveToRight(
+		st::historySendRight,
+		bottom - _whatIsThis->height());
+
+	updateScrollDownPosition();
 }
 
 void Widget::paintEvent(QPaintEvent *e) {
@@ -527,12 +639,15 @@ void Widget::paintEvent(QPaintEvent *e) {
 void Widget::onScroll() {
 	int scrollTop = _scroll->scrollTop();
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
+	updateScrollDownVisibility();
 }
 
 void Widget::showAnimatedHook(
 		const Window::SectionSlideParams &params) {
 	_fixedBar->setAnimatingMode(true);
-	if (params.withTopBarShadow) _fixedBarShadow->show();
+	if (params.withTopBarShadow) {
+		_fixedBarShadow->show();
+	}
 }
 
 void Widget::showFinishedHook() {

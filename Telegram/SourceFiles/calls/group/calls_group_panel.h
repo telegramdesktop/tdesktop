@@ -16,21 +16,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class Image;
 
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
 namespace Data {
 class PhotoMedia;
 class GroupCall;
 } // namespace Data
 
-namespace Main {
-class SessionShow;
-} // namespace Main
-
 namespace Ui {
 class Show;
 class BoxContent;
-class LayerWidget;
-enum class LayerOption;
-using LayerOptions = base::flags<LayerOption>;
 class AbstractButton;
 class ImportantTooltip;
 class DropdownMenu;
@@ -47,6 +44,7 @@ class PaddingWrap;
 class ScrollArea;
 class GenericBox;
 class GroupCallScheduledLeft;
+struct CallButtonColors;
 } // namespace Ui
 
 namespace Ui::Toast {
@@ -73,6 +71,8 @@ class Viewport;
 enum class PanelMode;
 enum class StickedTooltip;
 class MicLevelTester;
+class MessageField;
+class MessagesUi;
 
 class Panel final
 	: public base::has_weak_ptr
@@ -97,9 +97,8 @@ public:
 	void showAndActivate();
 	void closeBeforeDestroy();
 
-	[[nodiscard]] std::shared_ptr<Main::SessionShow> sessionShow();
-	[[nodiscard]] std::shared_ptr<Ui::Show> uiShow();
-
+	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow();
+	[[nodiscard]] not_null<Window*> callWindow() const;
 	[[nodiscard]] not_null<Ui::RpWindow*> window() const;
 
 	rpl::lifetime &lifetime();
@@ -161,6 +160,7 @@ private:
 	void setupControlsBackgroundWide();
 	void setupControlsBackgroundNarrow();
 	void showControls();
+	void createMessageButton();
 	void refreshLeftButton();
 	void refreshVideoButtons(
 		std::optional<bool> overrideWideMode = std::nullopt);
@@ -171,6 +171,9 @@ private:
 	void updateWideControlsVisibility();
 	[[nodiscard]] bool videoButtonInNarrowMode() const;
 	[[nodiscard]] Fn<void()> shareConferenceLinkCallback();
+	void toggleMessageTyping();
+	[[nodiscard]] rpl::producer<Ui::CallButtonColors> toggleableOverrides(
+		rpl::producer<bool> active);
 
 	void endCall();
 
@@ -222,6 +225,7 @@ private:
 	object_ptr<Ui::IconButton> _pinOnTop = { nullptr };
 	object_ptr<Ui::DropdownMenu> _menu = { nullptr };
 	rpl::variable<bool> _wideMenuShown = false;
+	rpl::variable<bool> _messageTyping = false;
 	object_ptr<Ui::AbstractButton> _joinAsToggle = { nullptr };
 	object_ptr<Members> _members = { nullptr };
 	std::unique_ptr<Viewport> _viewport;
@@ -248,6 +252,7 @@ private:
 	object_ptr<Ui::CallButton> _callShare = { nullptr };
 	object_ptr<Ui::CallButton> _video = { nullptr };
 	object_ptr<Ui::CallButton> _screenShare = { nullptr };
+	object_ptr<Ui::CallButton> _message = { nullptr };
 	std::unique_ptr<Ui::CallMuteButton> _mute;
 	object_ptr<Ui::CallButton> _hangup;
 	object_ptr<Ui::ImportantTooltip> _niceTooltip = { nullptr };
@@ -255,6 +260,10 @@ private:
 	QPointer<Ui::RpWidget> _niceTooltipControl;
 	StickedTooltips _stickedTooltipsShown;
 	Fn<void()> _callShareLinkCallback;
+
+	std::shared_ptr<ChatHelpers::Show> _cachedShow;
+	std::unique_ptr<MessageField> _messageField;
+	std::unique_ptr<MessagesUi> _messages;
 
 	const std::unique_ptr<Toasts> _toasts;
 

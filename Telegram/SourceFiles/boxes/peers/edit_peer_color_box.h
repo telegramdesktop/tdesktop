@@ -19,6 +19,10 @@ namespace ChatHelpers {
 class Show;
 } // namespace ChatHelpers
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
 namespace Ui {
 class RpWidget;
 class GenericBox;
@@ -38,14 +42,20 @@ void AddLevelBadge(
 	const QMargins &padding,
 	rpl::producer<QString> text);
 
+enum class PeerColorTab {
+	Profile,
+	Name,
+};
+
 void EditPeerColorBox(
 	not_null<Ui::GenericBox*> box,
-	std::shared_ptr<ChatHelpers::Show> show,
+	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
 	std::shared_ptr<Ui::ChatStyle> style = nullptr,
-	std::shared_ptr<Ui::ChatTheme> theme = nullptr);
+	std::shared_ptr<Ui::ChatTheme> theme = nullptr,
+	PeerColorTab initialTab = PeerColorTab::Profile);
 
-void AddPeerColorButton(
+not_null<Ui::SettingsButton*> AddPeerColorButton(
 	not_null<Ui::VerticalLayout*> container,
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<PeerData*> peer,

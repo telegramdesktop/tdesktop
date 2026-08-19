@@ -75,11 +75,16 @@ private:
 
 class CreditsHistory final {
 public:
-	CreditsHistory(not_null<PeerData*> peer, bool in, bool out);
+	CreditsHistory(
+		not_null<PeerData*> peer,
+		bool in,
+		bool out,
+		bool currency = false);
 
 	void request(
 		const Data::CreditsStatusSlice::OffsetToken &token,
-		Fn<void(Data::CreditsStatusSlice)> done);
+		Fn<void(Data::CreditsStatusSlice)> done,
+		int limit = 0);
 	void requestSubscriptions(
 		const Data::CreditsStatusSlice::OffsetToken &token,
 		Fn<void(Data::CreditsStatusSlice)> done,
@@ -106,8 +111,6 @@ public:
 private:
 	const bool _isUser = false;
 	Data::CreditsEarnStatistics _data;
-
-	mtpRequestId _requestId = 0;
 
 };
 

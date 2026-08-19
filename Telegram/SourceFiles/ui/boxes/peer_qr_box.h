@@ -12,6 +12,11 @@ class PeerData;
 namespace Ui {
 
 class GenericBox;
+class Show;
+
+void DefaultShowFillPeerQrBoxCallback(
+	std::shared_ptr<Ui::Show> show,
+	PeerData *peer);
 
 void FillPeerQrBox(
 	not_null<Ui::GenericBox*> box,

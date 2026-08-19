@@ -1,0 +1,4 @@
+interface:
+  display_name: "Perform AI Task"
+  short_description: "Implement or resume one Telegram AI task"
+  default_prompt: "Use $perform-task to start or resume, implement, verify, and publish one named ai-tdesktop task."

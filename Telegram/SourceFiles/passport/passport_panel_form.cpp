@@ -26,8 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/ui_utility.h"
 #include "styles/style_passport.h"
-#include "styles/style_layers.h"
-#include "styles/style_boxes.h"
 
 namespace Passport {
 
@@ -41,6 +39,7 @@ PanelForm::PanelForm(
 		this,
 		tr::lng_passport_authorize(),
 		st::passportPanelAuthorize) {
+	_submit->setTextTransform(Ui::RoundButtonTextTransform::ToUpper);
 	setupControls();
 }
 
@@ -60,43 +59,33 @@ not_null<Ui::RpWidget*> PanelForm::setupContent() {
 	const auto inner = _scroll->setOwnedWidget(
 		object_ptr<Ui::VerticalLayout>(this));
 	_scroll->widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		inner->resizeToWidth(width);
 	}, inner->lifetime());
 
-	const auto userpicWrap = inner->add(
-		object_ptr<Ui::FixedHeightWidget>(
-			inner,
-			st::passportFormUserpic.size.height()),
-		st::passportFormUserpicPadding);
-	_userpic = Ui::AttachParentChild(
-		userpicWrap,
+	_userpic = inner->add(
 		object_ptr<Ui::UserpicButton>(
-			userpicWrap,
+			inner,
 			bot,
-			st::passportFormUserpic));
-	userpicWrap->widthValue(
-	) | rpl::start_with_next([=](int width) {
-		_userpic->move((width - _userpic->width()) / 2, _userpic->y());
-	}, _userpic->lifetime());
+			st::passportFormUserpic),
+		st::passportFormUserpicPadding,
+		style::al_top);
 
 	_about1 = inner->add(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+		object_ptr<Ui::FlatLabel>(
 			inner,
-			object_ptr<Ui::FlatLabel>(
-				inner,
-				tr::lng_passport_request1(tr::now, lt_bot, bot->name()),
-				st::passportPasswordLabelBold)),
-		st::passportFormAbout1Padding)->entity();
+			tr::lng_passport_request1(tr::now, lt_bot, bot->name()),
+			st::passportPasswordLabelBold),
+		st::passportFormAbout1Padding,
+		style::al_top);
 
 	_about2 = inner->add(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+		object_ptr<Ui::FlatLabel>(
 			inner,
-			object_ptr<Ui::FlatLabel>(
-				inner,
-				tr::lng_passport_request2(tr::now),
-				st::passportPasswordLabel)),
-		st::passportFormAbout2Padding)->entity();
+			tr::lng_passport_request2(tr::now),
+			st::passportPasswordLabel),
+		st::passportFormAbout2Padding,
+		style::al_top);
 
 	inner->add(object_ptr<Ui::BoxContentDivider>(
 		inner,
@@ -127,7 +116,7 @@ not_null<Ui::RpWidget*> PanelForm::setupContent() {
 		++index;
 	});
 	_controller->refillRows(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		auto index = 0;
 		_controller->fillRows([&](
 				QString title,
@@ -148,22 +137,22 @@ not_null<Ui::RpWidget*> PanelForm::setupContent() {
 	auto policyLink = tr::lng_passport_policy(
 		lt_bot,
 		rpl::single(bot->name())
-	) | Ui::Text::ToLink(
-		policyUrl
+	) | rpl::map(
+		tr::url(policyUrl)
 	) | rpl::map([=](TextWithEntities &&text) {
 		return Ui::Text::Wrapped(std::move(text), EntityType::Bold);
 	});
 	auto text = policyUrl.isEmpty()
 		? tr::lng_passport_allow(
 			lt_bot,
-			rpl::single('@' + bot->username())
-		) | Ui::Text::ToWithEntities()
+			rpl::single(tr::marked('@' + bot->username())),
+			tr::marked)
 		: tr::lng_passport_accept_allow(
 			lt_policy,
 			std::move(policyLink),
 			lt_bot,
-			rpl::single('@' + bot->username()) | Ui::Text::ToWithEntities(),
-			Ui::Text::WithEntities);
+			rpl::single(tr::marked('@' + bot->username())),
+			tr::marked);
 	const auto policy = inner->add(
 		object_ptr<Ui::FlatLabel>(
 			inner,

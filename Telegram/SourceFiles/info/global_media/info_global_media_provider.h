@@ -91,6 +91,7 @@ public:
 		not_null<const HistoryItem*> b) override;
 
 	void setSearchQuery(QString query) override;
+	void jumpToMessage(MsgId messageId, Fn<void(FullMsgId)> callback) override;
 
 	Media::ListItemSelectionData computeSelectionData(
 		not_null<const HistoryItem*> item,

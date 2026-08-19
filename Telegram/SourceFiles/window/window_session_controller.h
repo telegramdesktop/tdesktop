@@ -16,6 +16,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_type.h"
 #include "window/window_adaptive.h"
 
+#include <QtCore/QDate>
+#include <QtCore/QPointer>
+
 class PhotoData;
 class MainWidget;
 class MainWindow;
@@ -26,8 +29,14 @@ enum class WindowLayout;
 
 namespace Data {
 struct StoriesContext;
+struct DrawToReplyRequest;
+class SavedMessages;
 enum class StorySourcesList : uchar;
 } // namespace Data
+
+namespace Dialogs {
+struct SearchState;
+} // namespace Dialogs
 
 namespace ChatHelpers {
 class TabbedSelector;
@@ -65,20 +74,37 @@ struct ChatThemeBackgroundData;
 class MessageSendingAnimationController;
 struct BoostCounters;
 struct ChatPaintContextArgs;
+struct PreparedList;
+struct PreparedBundle;
 } // namespace Ui
+
+namespace Api {
+struct SendOptions;
+} // namespace Api
 
 namespace Data {
 struct CloudTheme;
 enum class CloudThemeType;
+class PhotoMedia;
 class Thread;
+class CommunityInfo;
 class Forum;
 class ForumTopic;
+class SavedSublist;
 class WallPaper;
 } // namespace Data
+
+namespace HistoryView {
+class SubsectionTabs;
+} // namespace HistoryView
 
 namespace HistoryView::Reactions {
 class CachedIconFactory;
 } // namespace HistoryView::Reactions
+
+namespace Settings {
+struct HighlightArgs;
+} // namespace Settings
 
 namespace Window {
 
@@ -86,17 +112,21 @@ using GifPauseReason = ChatHelpers::PauseReason;
 using GifPauseReasons = ChatHelpers::PauseReasons;
 
 class SectionMemento;
+class SectionWidget;
 class Controller;
 class FiltersMenu;
 class ChatPreviewManager;
+class ChatSwitchProcess;
 
 struct PeerByLinkInfo;
 struct SeparateId;
 
+extern const char kOptionExternalMediaViewer[];
+
 struct PeerThemeOverride {
 	PeerData *peer = nullptr;
 	std::shared_ptr<Ui::ChatTheme> theme;
-	EmojiPtr emoji = nullptr;
+	QString token;
 };
 bool operator==(const PeerThemeOverride &a, const PeerThemeOverride &b);
 bool operator!=(const PeerThemeOverride &a, const PeerThemeOverride &b);
@@ -112,6 +142,21 @@ private:
 	Dialogs::Key _chat;
 	base::weak_ptr<Data::ForumTopic> _weak;
 	QDate _date;
+
+};
+
+class ForumThreadClickHandler : public ClickHandler {
+public:
+	explicit ForumThreadClickHandler(not_null<HistoryItem*> item);
+
+	void update(not_null<HistoryItem*> item);
+	void onClick(ClickContext context) const override;
+
+private:
+	[[nodiscard]] base::weak_ptr<Data::Thread> resolveThread(
+		not_null<HistoryItem*> item) const;
+
+	base::weak_ptr<Data::Thread> _thread;
 
 };
 
@@ -156,8 +201,9 @@ struct SectionShow {
 		return copy;
 	}
 
-	TextWithEntities highlightPart;
+	MessageHighlightId highlight;
 	int highlightPartOffsetHint = 0;
+	int highlightTodoItemId = 0;
 	std::optional<TimeId> videoTimestamp;
 	Way way = Way::Forward;
 	anim::type animated = anim::type::normal;
@@ -165,11 +211,17 @@ struct SectionShow {
 	bool thirdColumn = false;
 	bool childColumn = false;
 	bool forbidLayer = false;
+	bool forceTopicsList = false;
+	bool preferCurrentWindow = false;
 	bool reapplyLocalDraft = false;
 	bool dropSameFromStack = false;
+	bool allowDuplicateInStack = false;
+	bool slideFromBottom = false;
 	Origin origin;
 
 };
+
+[[nodiscard]] MessageHighlightId SearchHighlightId(const QString &query);
 
 class SessionController;
 
@@ -198,6 +250,10 @@ public:
 		const SectionShow &params = SectionShow());
 	void showTopic(
 		not_null<Data::ForumTopic*> topic,
+		MsgId itemId = 0,
+		const SectionShow &params = SectionShow());
+	void showSublist(
+		not_null<Data::SavedSublist*> sublist,
 		MsgId itemId = 0,
 		const SectionShow &params = SectionShow());
 	void showThread(
@@ -282,6 +338,9 @@ public:
 
 	[[nodiscard]] virtual std::shared_ptr<ChatHelpers::Show> uiShow();
 
+protected:
+	void fullInfoLoadedHook(not_null<PeerData*> peer);
+
 private:
 	void resolvePhone(
 		const QString &phone,
@@ -328,6 +387,7 @@ private:
 	MTP::Sender _api;
 
 	mtpRequestId _resolveRequestId = 0;
+	PeerData *_waitingDirectChannel = nullptr;
 
 	History *_showingRepliesHistory = nullptr;
 	MsgId _showingRepliesRootId = 0;
@@ -359,6 +419,7 @@ public:
 	[[nodiscard]] SeparateId windowId() const;
 	[[nodiscard]] bool isPrimary() const;
 	[[nodiscard]] not_null<::MainWindow*> widget() const;
+	[[nodiscard]] rpl::producer<> imeCompositionStarts() const;
 	[[nodiscard]] not_null<MainWidget*> content() const;
 	[[nodiscard]] Adaptive &adaptive() const;
 	[[nodiscard]] ChatHelpers::EmojiInteractions &emojiInteractions() const {
@@ -372,7 +433,7 @@ public:
 	void stickerOrEmojiChosen(FileChosen chosen);
 	[[nodiscard]] rpl::producer<FileChosen> stickerOrEmojiChosen() const;
 
-	QPointer<Ui::BoxContent> show(
+	base::weak_qptr<Ui::BoxContent> show(
 		object_ptr<Ui::BoxContent> content,
 		Ui::LayerOptions options = Ui::LayerOption::KeepOther,
 		anim::type animated = anim::type::normal);
@@ -393,7 +454,7 @@ public:
 	void setSearchInChat(Dialogs::Key value) {
 		_searchInChat = value;
 	}
-	bool uniqueChatsInSearchResults() const;
+	bool uniqueChatsInSearchResults(const Dialogs::SearchState &state) const;
 
 	void openFolder(not_null<Data::Folder*> folder);
 	void closeFolder();
@@ -401,9 +462,14 @@ public:
 
 	void showForum(
 		not_null<Data::Forum*> forum,
-		const SectionShow &params = SectionShow::Way::ClearStack);
+		const SectionShow &params = SectionShow::Way::ClearStack,
+		MsgId showAtMsgId = ShowAtUnreadMsgId);
 	void closeForum();
 	const rpl::variable<Data::Forum*> &shownForum() const;
+
+	void openCommunity(not_null<Data::CommunityInfo*> info);
+	void closeCommunity();
+	const rpl::variable<Data::CommunityInfo*> &openedCommunity() const;
 
 	void setActiveChatEntry(Dialogs::RowDescriptor row);
 	void setActiveChatEntry(Dialogs::Key key);
@@ -498,10 +564,19 @@ public:
 	}
 	void removeLayerBlackout();
 	[[nodiscard]] bool isLayerShown() const;
+	[[nodiscard]] rpl::producer<bool> boxShownValue() const;
+	void registerActiveLayerSection(SectionWidget *section);
+	void unregisterActiveLayerSection(SectionWidget *section);
+	[[nodiscard]] SectionWidget *activeLayerSection() const;
 
-	void showCalendar(
-		Dialogs::Key chat,
-		QDate requestedDate);
+	struct ShowCalendarDescriptor {
+		Dialogs::Key chat;
+		QDate date;
+		bool mediaPhoto = false;
+		bool mediaVideo = false;
+		Fn<void(FullMsgId, Fn<void()>)> customJump;
+	};
+	void showCalendar(ShowCalendarDescriptor &&descriptor);
 
 	void showAddContact();
 	void showNewGroup();
@@ -513,6 +588,8 @@ public:
 	struct MessageContext {
 		FullMsgId id;
 		MsgId topicRootId;
+		PeerId monoforumPeerId;
+		bool showDrawButton = false;
 	};
 	void openPhoto(
 		not_null<PhotoData*> photo,
@@ -603,7 +680,7 @@ public:
 	void overridePeerTheme(
 		not_null<PeerData*> peer,
 		std::shared_ptr<Ui::ChatTheme> theme,
-		EmojiPtr emoji);
+		QString token);
 	void clearPeerThemeOverride(not_null<PeerData*> peer);
 	[[nodiscard]] auto peerThemeOverrideValue() const
 		-> rpl::producer<PeerThemeOverride> {
@@ -616,7 +693,9 @@ public:
 		Data::StoriesContext context);
 	void openPeerStories(
 		PeerId peerId,
-		std::optional<Data::StorySourcesList> list = std::nullopt);
+		std::optional<Data::StorySourcesList> list = std::nullopt,
+		bool onlyLive = false,
+		bool afterReload = false);
 
 	[[nodiscard]] Ui::ChatPaintContext preparePaintContext(
 		Ui::ChatPaintContextArgs &&args);
@@ -646,6 +725,28 @@ public:
 	[[nodiscard]] bool contentOverlapped(QWidget *w, QPaintEvent *e) const;
 
 	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow() override;
+
+	void saveSubsectionTabs(
+		std::unique_ptr<HistoryView::SubsectionTabs> tabs);
+	[[nodiscard]] auto restoreSubsectionTabsFor(
+		not_null<Ui::RpWidget*> parent,
+		not_null<Data::Thread*> thread)
+		-> std::unique_ptr<HistoryView::SubsectionTabs>;
+	void dropSubsectionTabs();
+
+	void showStarGiftAuction(const QString &slug);
+	void showStarGiftAuction(uint64 giftId);
+
+	void showCloudPassword(const QString &highlightId = QString());
+
+	void setHighlightControlId(const QString &id);
+	[[nodiscard]] QString highlightControlId() const;
+	[[nodiscard]] bool takeHighlightControlId(const QString &id);
+	void checkHighlightControl(
+		const QString &id,
+		QWidget *widget,
+		Settings::HighlightArgs &&args);
+	void checkHighlightControl(const QString &id, QWidget *widget);
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
@@ -697,9 +798,28 @@ private:
 	void checkNonPremiumLimitToastUpload(FullMsgId id);
 
 	bool openFolderInDifferentWindow(not_null<Data::Folder*> folder);
+	bool openCommunityInDifferentWindow(
+		not_null<Data::CommunityInfo*> info);
 	bool showForumInDifferentWindow(
 		not_null<Data::Forum*> forum,
-		const SectionShow &params);
+		const SectionShow &params,
+		MsgId showAtMsgId);
+
+	[[nodiscard]] bool openPhotoExternal(
+		not_null<PhotoData*> photo,
+		Data::FileOrigin origin);
+	void handleDrawToReplyRequest(Data::DrawToReplyRequest request);
+	[[nodiscard]] Data::Thread *resolveDrawToReplyThread(
+		const Data::DrawToReplyRequest &request) const;
+	void showDrawToReplyFilesBox(
+		not_null<Data::Thread*> thread,
+		FullMsgId replyTo,
+		Ui::PreparedList &&list);
+	void sendDrawToReplyFiles(
+		not_null<Data::Thread*> thread,
+		FullMsgId replyTo,
+		std::shared_ptr<Ui::PreparedBundle> bundle,
+		Api::SendOptions options);
 
 	const not_null<Controller*> _window;
 	const std::unique_ptr<ChatHelpers::EmojiInteractions> _emojiInteractions;
@@ -741,25 +861,44 @@ private:
 	rpl::variable<int> _connectingBottomSkip;
 
 	rpl::event_stream<ChatHelpers::FileChosen> _stickerOrEmojiChosen;
+	QPointer<SectionWidget> _activeLayerSection;
 
 	PeerData *_showEditPeer = nullptr;
 	rpl::variable<Data::Folder*> _openedFolder;
 	rpl::variable<Data::Forum*> _shownForum;
 	rpl::lifetime _shownForumLifetime;
+	rpl::variable<Data::CommunityInfo*> _openedCommunity;
+	rpl::lifetime _openedCommunityLifetime;
 
 	rpl::event_stream<> _filtersMenuChanged;
 
 	const std::shared_ptr<Ui::ChatTheme> _defaultChatTheme;
+	std::vector<QColor> _defaultChatThemeBubblesColors;
 	base::flat_map<CachedThemeKey, CachedTheme> _customChatThemes;
 	rpl::event_stream<std::shared_ptr<Ui::ChatTheme>> _cachedThemesStream;
+	rpl::event_stream<> _giftSymbolLoaded;
 	const std::unique_ptr<Ui::ChatStyle> _chatStyle;
 	std::weak_ptr<Ui::ChatTheme> _chatStyleTheme;
 	std::deque<std::shared_ptr<Ui::ChatTheme>> _lastUsedCustomChatThemes;
 	rpl::variable<PeerThemeOverride> _peerThemeOverride;
 
+	std::unique_ptr<ChatSwitchProcess> _chatSwitchProcess;
+
+	DocumentId _pendingOpenDocumentId = 0;
+	struct PendingOpenPhoto {
+		PhotoData *data = nullptr;
+		std::shared_ptr<Data::PhotoMedia> media;
+		QString filepath;
+	} _pendingOpenPhoto;
+
 	base::has_weak_ptr _storyOpenGuard;
 
 	QString _premiumRef;
+	std::unique_ptr<HistoryView::SubsectionTabs> _savedSubsectionTabs;
+	rpl::lifetime _savedSubsectionTabsLifetime;
+
+	rpl::lifetime _starGiftAuctionLifetime;
+	rpl::lifetime _showCloudPasswordLifetime;
 
 	rpl::lifetime _lifetime;
 

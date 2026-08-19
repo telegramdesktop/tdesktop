@@ -8,9 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "api/api_common.h"
+#include "menu/menu_send_details.h"
 
 namespace style {
 struct ComposeIcons;
+struct PopupMenu;
 } // namespace style
 
 namespace ChatHelpers {
@@ -29,34 +31,6 @@ class Thread;
 
 namespace SendMenu {
 
-enum class Type : uchar {
-	Disabled,
-	SilentOnly,
-	Scheduled,
-	ScheduledToUser, // For "Send when online".
-	Reminder,
-};
-
-enum class SpoilerState : uchar {
-	None,
-	Enabled,
-	Possible,
-};
-
-enum class CaptionState : uchar {
-	None,
-	Below,
-	Above,
-};
-
-struct Details {
-	Type type = Type::Disabled;
-	SpoilerState spoiler = SpoilerState::None;
-	CaptionState caption = CaptionState::None;
-	std::optional<uint64> price;
-	bool effectAllowed = false;
-};
-
 enum class FillMenuResult : uchar {
 	Prepared,
 	Skipped,
@@ -70,6 +44,8 @@ enum class ActionType : uchar {
 	SpoilerOff,
 	CaptionUp,
 	CaptionDown,
+	PhotoQualityOn,
+	PhotoQualityOff,
 	ChangePrice,
 };
 struct Action {
@@ -84,7 +60,7 @@ struct Action {
 
 FillMenuResult FillSendMenu(
 	not_null<Ui::PopupMenu*> menu,
-	std::shared_ptr<ChatHelpers::Show> showForEffect,
+	std::shared_ptr<ChatHelpers::Show> maybeShow,
 	Details details,
 	Fn<void(Action, Details)> action,
 	const style::ComposeIcons *iconsOverride = nullptr,
@@ -99,15 +75,21 @@ FillMenuResult AttachSendMenuEffect(
 
 void SetupMenuAndShortcuts(
 	not_null<Ui::RpWidget*> button,
-	std::shared_ptr<ChatHelpers::Show> show,
+	std::shared_ptr<ChatHelpers::Show> maybeShow,
 	Fn<Details()> details,
-	Fn<void(Action, Details)> action);
+	Fn<void(Action, Details)> action,
+	const style::PopupMenu *stOverride = nullptr,
+	const style::ComposeIcons *iconsOverride = nullptr);
 
 void SetupUnreadMentionsMenu(
 	not_null<Ui::RpWidget*> button,
 	Fn<Data::Thread*()> currentThread);
 
 void SetupUnreadReactionsMenu(
+	not_null<Ui::RpWidget*> button,
+	Fn<Data::Thread*()> currentThread);
+
+void SetupUnreadPollVotesMenu(
 	not_null<Ui::RpWidget*> button,
 	Fn<Data::Thread*()> currentThread);
 

@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/basic_click_handlers.h"
-#include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 
 namespace HistoryView {
@@ -192,7 +191,6 @@ auto WithPinnedTitle(not_null<Main::Session*> session, PinnedId id) {
 	label->setTextColorOverride(stButton.textFg->c); // Use button's text color for label.
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-	button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	button->setFullRadius(true);
 	button->setClickedCallback(std::move(clickCallback));
 
@@ -260,7 +258,7 @@ rpl::producer<HistoryItem*> PinnedBarItemWithCustomButton(
 			id
 		) | rpl::filter([=](PinnedId current) {
 			return current.message && (current.message != state->resolvedId);
-		}) | rpl::start_with_next([=](PinnedId current) {
+		}) | rpl::on_next([=](PinnedId current) {
 			const auto fullId = current.message;
 			state->lifetime.destroy();
 			state->resolvedId = fullId;
@@ -273,7 +271,7 @@ rpl::producer<HistoryItem*> PinnedBarItemWithCustomButton(
 					(Update::Flag::ReplyMarkup
 						| Update::Flag::Edited
 						| Update::Flag::Destroyed)
-				) | rpl::start_with_next([=](const Update &update) {
+				) | rpl::on_next([=](const Update &update) {
 					if (update.flags & Update::Flag::Destroyed) {
 						state->lifetime.destroy();
 						invalidate_weak_ptrs(&state->guard);

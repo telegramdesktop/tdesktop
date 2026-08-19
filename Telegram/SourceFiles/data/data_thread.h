@@ -43,11 +43,12 @@ class PeerNotifySettings;
 enum class ItemNotificationType {
 	Message,
 	Reaction,
+	PollVote,
 };
 
 struct ItemNotification {
 	not_null<HistoryItem*> item;
-	UserData *reactionSender = nullptr;
+	UserData *reactionOrVoteSender = nullptr;
 	ItemNotificationType type = ItemNotificationType::Message;
 
 	friend inline auto operator<=>(
@@ -67,6 +68,8 @@ public:
 		return const_cast<Thread*>(this)->owningHistory();
 	}
 	[[nodiscard]] MsgId topicRootId() const;
+	[[nodiscard]] PeerId monoforumPeerId() const;
+	[[nodiscard]] PeerData *maybeSublistPeer() const;
 	[[nodiscard]] not_null<PeerData*> peer() const;
 	[[nodiscard]] PeerNotifySettings &notify();
 	[[nodiscard]] const PeerNotifySettings &notify() const;
@@ -76,8 +79,12 @@ public:
 	[[nodiscard]] HistoryUnreadThings::ConstProxy unreadMentions() const;
 	[[nodiscard]] HistoryUnreadThings::Proxy unreadReactions();
 	[[nodiscard]] HistoryUnreadThings::ConstProxy unreadReactions() const;
+	[[nodiscard]] HistoryUnreadThings::Proxy unreadPollVotes();
+	[[nodiscard]] HistoryUnreadThings::ConstProxy unreadPollVotes() const;
 	virtual void hasUnreadMentionChanged(bool has) = 0;
 	virtual void hasUnreadReactionChanged(bool has) = 0;
+	virtual void hasUnreadPollVoteChanged(bool has) = 0;
+	bool canToggleUnread(bool nowUnread) const;
 
 	void removeNotification(not_null<HistoryItem*> item);
 	void clearNotifications();
@@ -103,6 +110,7 @@ public:
 
 	[[nodiscard]] const base::flat_set<MsgId> &unreadMentionsIds() const;
 	[[nodiscard]] const base::flat_set<MsgId> &unreadReactionsIds() const;
+	[[nodiscard]] const base::flat_set<MsgId> &unreadPollVotesIds() const;
 
 	[[nodiscard]] Ui::Text::String &cloudDraftTextCache() {
 		return _cloudDraftTextCache;
@@ -112,10 +120,12 @@ public:
 	}
 
 	[[nodiscard]] virtual auto sendActionPainter()
-		-> not_null<HistoryView::SendActionPainter*> = 0;
+		-> HistoryView::SendActionPainter* = 0;
 
 	[[nodiscard]] bool hasPinnedMessages() const;
 	void setHasPinnedMessages(bool has);
+
+	void saveMeAsActiveSubsectionThread();
 
 protected:
 	void setUnreadMarkFlag(bool unread);

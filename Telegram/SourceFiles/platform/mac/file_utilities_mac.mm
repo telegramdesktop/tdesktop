@@ -302,7 +302,6 @@ QString strNeedToRefresh2() {
 	NSNumber *isDirectory;
 	if ([url getResourceValue:&isDirectory forKey:NSURLIsDirectoryKey error:nil] && isDirectory != nil && [isDirectory boolValue]) {
 		if (onlyRecommended) {
-			CFStringRef ext = CFURLCopyPathExtension((CFURLRef)url);
 			NSNumber *isPackage;
 			if ([url getResourceValue:&isPackage forKey:NSURLIsPackageKey error:nil] && isPackage != nil && [isPackage boolValue]) {
 				return [self isRecommended:url];
@@ -388,6 +387,8 @@ QString UrlToLocal(const QUrl &url) {
 	}
 	return result;
 }
+
+namespace Unfused {
 
 bool UnsafeShowOpenWithDropdown(const QString &filepath) {
 	@autoreleasepool {
@@ -566,5 +567,6 @@ void UnsafeLaunch(const QString &filepath) {
 	}
 }
 
+} // namespace Unfused
 } // namespace File
 } // namespace Platform

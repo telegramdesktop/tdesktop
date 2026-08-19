@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_widgets.h" // style::IconButton
 #include "styles/style_info.h" // st::topBarCall
 
+#include <QtCore/QMutex>
 #include <QtSvg/QSvgRenderer>
 
 namespace Ui {
@@ -366,6 +367,17 @@ void EmptyUserpic::paintSquare(
 	});
 }
 
+void EmptyUserpic::paintMonoforum(
+		QPainter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size) const {
+	paint(p, x, y, outerWidth, size, [&] {
+		PaintMonoforumShape(p, QRect(x, y, size, size));
+	});
+}
+
 void EmptyUserpic::PaintSavedMessages(
 		QPainter &p,
 		int x,
@@ -648,5 +660,87 @@ void EmptyUserpic::fillString(const QString &name) {
 }
 
 EmptyUserpic::~EmptyUserpic() = default;
+
+void PaintMonoforumShape(QPainter &p, QRect rect) {
+	p.drawEllipse(rect);
+
+	auto path = QPainterPath();
+	path.moveTo(
+		rect.x() + rect.width() * 0.5,
+		rect.y() + rect.height() * 0.5);
+	path.arcTo(
+		QRectF(
+			rect.x() - rect.width() * 0.5,
+			rect.y(),
+			rect.width(),
+			rect.height()),
+		0,
+		-90);
+	path.arcTo(
+		QRectF(
+			rect.x() - rect.width() * 0.25,
+			rect.y() - rect.height() * 2,
+			rect.width() * 0.5,
+			rect.height() * 3),
+		-90,
+		45);
+	path.lineTo(
+		rect.x() + rect.width() * 0.5,
+		rect.y() + rect.height() * 0.5);
+	p.drawPath(path);
+}
+
+QImage MonoforumShapeMask(QSize size) {
+	auto result = QImage(size, QImage::Format_ARGB32_Premultiplied);
+	result.fill(Qt::transparent);
+
+	QPainter p(&result);
+	PainterHighQualityEnabler hq(p);
+	p.setBrush(Qt::white);
+	p.setPen(Qt::NoPen);
+
+	PaintMonoforumShape(p, QRect(QPoint(), size));
+
+	p.end();
+
+	return result;
+}
+
+const QImage &MonoforumShapeMaskCached(QSize size) {
+	const auto key = (uint64(uint32(size.width())) << 32)
+		| uint64(uint32(size.height()));
+
+	static auto Masks = base::flat_map<uint64, QImage>();
+	static auto Mutex = QMutex();
+	auto lock = QMutexLocker(&Mutex);
+	const auto i = Masks.find(key);
+	if (i != end(Masks)) {
+		return i->second;
+	}
+	lock.unlock();
+
+	auto mask = MonoforumShapeMask(size);
+
+	lock.relock();
+	return Masks.emplace(key, std::move(mask)).first->second;
+}
+
+QImage ApplyMonoforumShape(QImage image) {
+	const auto size = image.size();
+	auto mask = MonoforumShapeMaskCached(size);
+
+	constexpr auto format = QImage::Format_ARGB32_Premultiplied;
+	if (image.format() != format) {
+		image = std::move(image).convertToFormat(format);
+	}
+	auto p = QPainter(&image);
+	p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+	p.drawImage(
+		QRect(QPoint(), image.size() / image.devicePixelRatio()),
+		mask);
+	p.end();
+
+	return image;
+}
 
 } // namespace Ui

@@ -28,7 +28,7 @@ namespace {
 		not_null<PeerData*> peer) {
 	const auto user = peer->asUser();
 	return (user && user->botInfo && user->botInfo->canEditInformation)
-		? std::make_optional<MTPInputUser>(user->inputUser)
+		? std::make_optional<MTPInputUser>(user->inputUser())
 		: std::nullopt;
 }
 
@@ -71,6 +71,11 @@ rpl::producer<Data::Usernames> Usernames::loadUsernames(
 			_session->api().request(MTPusers_GetUsers(
 				MTP_vector<MTPInputUser>(1, data)
 			)).done([=](const MTPVector<MTPUser> &result) {
+				if (result.v.isEmpty()) {
+					consumer.put_next({});
+					consumer.put_done();
+					return;
+				}
 				result.v.front().match([&](const MTPDuser &data) {
 					push(data.vusernames(), data.vusername());
 					consumer.put_done();
@@ -85,6 +90,11 @@ rpl::producer<Data::Usernames> Usernames::loadUsernames(
 				MTP_vector<MTPInputChannel>(1, data)
 			)).done([=](const MTPmessages_Chats &result) {
 				result.match([&](const auto &data) {
+					if (data.vchats().v.isEmpty()) {
+						consumer.put_next({});
+						consumer.put_done();
+						return;
+					}
 					data.vchats().v.front().match([&](const MTPDchannel &c) {
 						push(c.vusernames(), c.vusername());
 						consumer.put_done();
@@ -98,9 +108,9 @@ rpl::producer<Data::Usernames> Usernames::loadUsernames(
 		if (peer->isSelf()) {
 			requestUser(MTP_inputUserSelf());
 		} else if (const auto user = peer->asUser()) {
-			requestUser(user->inputUser);
+			requestUser(user->inputUser());
 		} else if (const auto channel = peer->asChannel()) {
-			requestChannel(channel->inputChannel);
+			requestChannel(channel->inputChannel());
 		}
 		return lifetime;
 	};
@@ -134,7 +144,7 @@ rpl::producer<rpl::no_value, Usernames::Error> Usernames::toggle(
 			if (list.empty()) {
 				if (error == Error::Unknown) {
 					it->second.done.fire_done();
-				} else if (error == Error::TooMuch) {
+				} else {
 					it->second.done.fire_error_copy(error);
 				}
 				_toggleRequests.remove(peerId);
@@ -149,6 +159,8 @@ rpl::producer<rpl::no_value, Usernames::Error> Usernames::toggle(
 		const auto type = error.type();
 		if (type == u"USERNAMES_ACTIVE_TOO_MUCH"_q) {
 			pop(Error::TooMuch);
+		} else if (type.startsWith(u"FLOOD_WAIT_"_q)) {
+			pop(Error::Flood);
 		} else {
 			pop(Error::Unknown);
 		}
@@ -158,19 +170,19 @@ rpl::producer<rpl::no_value, Usernames::Error> Usernames::toggle(
 		_api.request(MTPaccount_ToggleUsername(
 			MTP_string(username),
 			MTP_bool(active)
-		)).done(done).fail(fail).send();
+		)).done(done).fail(fail).handleFloodErrors().send();
 	} else if (const auto channel = peer->asChannel()) {
 		_api.request(MTPchannels_ToggleUsername(
-			channel->inputChannel,
+			channel->inputChannel(),
 			MTP_string(username),
 			MTP_bool(active)
-		)).done(done).fail(fail).send();
+		)).done(done).fail(fail).handleFloodErrors().send();
 	} else if (const auto botUserInput = BotUserInput(peer)) {
 		_api.request(MTPbots_ToggleUsername(
 			*botUserInput,
 			MTP_string(username),
 			MTP_bool(active)
-		)).done(done).fail(fail).send();
+		)).done(done).fail(fail).handleFloodErrors().send();
 	} else {
 		return rpl::never<rpl::no_value, Error>();
 	}
@@ -214,7 +226,7 @@ rpl::producer<> Usernames::reorder(
 			_reorderRequests.emplace(peerId, requestId);
 		} else if (const auto channel = peer->asChannel()) {
 			const auto requestId = _api.request(MTPchannels_ReorderUsernames(
-				channel->inputChannel,
+				channel->inputChannel(),
 				MTP_vector<MTPstring>(std::move(tlUsernames))
 			)).done(finish).fail(finish).send();
 			_reorderRequests.emplace(peerId, requestId);
@@ -249,7 +261,7 @@ void Usernames::requestToCache(not_null<PeerData*> peer) {
 	const auto lifetime = std::make_shared<rpl::lifetime>();
 	*lifetime = loadUsernames(
 		peer
-	) | rpl::start_with_next([=, id = peer->id](Data::Usernames usernames) {
+	) | rpl::on_next([=, id = peer->id](Data::Usernames usernames) {
 		_tinyCache = std::make_pair(id, std::move(usernames));
 		lifetime->destroy();
 	});

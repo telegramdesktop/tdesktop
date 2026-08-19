@@ -33,6 +33,10 @@ public:
 		not_null<HistoryItem*> data,
 		Element *replacing);
 
+	void clickHandlerPressedChanged(
+		const ClickHandlerPtr &handler,
+		bool pressed) override;
+
 	int marginTop() const override;
 	int marginBottom() const override;
 	bool isHidden() const override;
@@ -52,7 +56,10 @@ public:
 
 	QRect innerGeometry() const override;
 
-	bool consumeHorizontalScroll(QPoint position, int delta) override;
+	bool consumeHorizontalScroll(
+		QPoint position,
+		int delta,
+		Qt::ScrollPhase phase) override;
 
 	void animateReaction(Ui::ReactionFlyAnimationArgs &&args) override;
 

@@ -32,6 +32,10 @@ namespace Media::Player {
 class FloatDelegate;
 } // namespace Media::Player
 
+namespace Settings {
+struct HighlightArgs;
+} // namespace Settings
+
 namespace Window {
 
 class Controller final : public base::has_weak_ptr {
@@ -68,6 +72,8 @@ public:
 
 	void setupPasscodeLock();
 	void clearPasscodeLock();
+	void setupSetupEmailLock();
+	void clearSetupEmailLock();
 
 	void showLogoutConfirmation();
 
@@ -79,7 +85,7 @@ public:
 	void showToast(TextWithEntities &&text, crl::time duration = 0);
 	void showToast(const QString &text, crl::time duration = 0);
 
-	void showRightColumn(object_ptr<TWidget> widget);
+	void showRightColumn(object_ptr<Ui::RpWidget> widget);
 
 	void showBox(
 		object_ptr<Ui::BoxContent> content,
@@ -92,17 +98,19 @@ public:
 
 	void hideLayer(anim::type animated = anim::type::normal);
 	void hideSettingsAndLayer(anim::type animated = anim::type::normal);
+	bool closeLayerByBackButton();
 	[[nodiscard]] bool isLayerShown() const;
+	[[nodiscard]] rpl::producer<bool> boxShownValue() const;
 
 	template <
 		typename BoxType,
 		typename = std::enable_if_t<
 			std::is_base_of_v<Ui::BoxContent, BoxType>>>
-	QPointer<BoxType> show(
+		base::weak_qptr<BoxType> show(
 			object_ptr<BoxType> content,
 			Ui::LayerOptions options = Ui::LayerOption::KeepOther,
 			anim::type animated = anim::type()) {
-		auto result = QPointer<BoxType>(content.data());
+		auto result = base::weak_qptr<BoxType>(content.data());
 		showBox(std::move(content), options, animated);
 		return result;
 	}
@@ -140,6 +148,15 @@ public:
 
 	[[nodiscard]] std::shared_ptr<Ui::Show> uiShow();
 
+	void setHighlightControlId(const QString &id);
+	[[nodiscard]] QString highlightControlId() const;
+	[[nodiscard]] bool takeHighlightControlId(const QString &id);
+	void checkHighlightControl(
+		const QString &id,
+		QWidget *widget,
+		Settings::HighlightArgs &&args);
+	void checkHighlightControl(const QString &id, QWidget *widget);
+
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
@@ -148,7 +165,7 @@ private:
 	};
 	explicit Controller(CreateArgs &&args);
 
-	void setupIntro(QPixmap oldContentCache);
+	void setupIntro(Main::Account *accountBeforeIntro, QPixmap oldContentCache);
 	void setupMain(MsgId singlePeerShowAtMsgId, QPixmap oldContentCache);
 
 	void showAccount(
@@ -168,13 +185,15 @@ private:
 	const std::unique_ptr<Adaptive> _adaptive;
 	std::unique_ptr<SessionController> _sessionController;
 	rpl::variable<SessionController*> _sessionControllerValue;
-	QPointer<Ui::BoxContent> _termsBox;
+	base::weak_qptr<Ui::BoxContent> _termsBox;
 
 	rpl::event_stream<Media::View::OpenRequest> _openInMediaViewRequests;
 
 	FloatDelegate *_defaultFloatPlayerDelegate = nullptr;
 	FloatDelegate *_replacementFloatPlayerDelegate = nullptr;
 	rpl::variable<FloatDelegate*> _floatPlayerDelegate = nullptr;
+
+	QString _highlightControlId;
 
 	rpl::lifetime _accountLifetime;
 	rpl::lifetime _lifetime;

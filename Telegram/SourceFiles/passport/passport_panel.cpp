@@ -15,8 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "lang/lang_keys.h"
 #include "styles/style_passport.h"
-#include "styles/style_widgets.h"
-#include "styles/style_calls.h"
 
 namespace Passport {
 
@@ -29,12 +27,12 @@ Panel::Panel(not_null<PanelController*> controller)
 	_widget->setInnerSize(st::passportPanelSize);
 
 	_widget->closeRequests(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_controller->cancelAuth();
 	}, _widget->lifetime());
 
 	_widget->closeEvents(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_controller->cancelAuthSure();
 	}, _widget->lifetime());
 }
@@ -76,7 +74,7 @@ void Panel::showCriticalError(const QString &error) {
 			st::passportErrorLabel),
 		style::margins(0, st::passportPanelSize.height() / 3, 0, 0));
 	container->widthValue(
-	) | rpl::start_with_next([label = container->entity()](int width) {
+	) | rpl::on_next([label = container->entity()](int width) {
 		label->resize(width, label->height());
 	}, container->lifetime());
 

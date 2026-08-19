@@ -105,13 +105,13 @@ QRect Row::elementGeometry(int element, int outerWidth) const {
 	switch (element) {
 	case kAcceptButton: {
 		const auto size = _delegate->rowAcceptButtonSize();
-		return QRect(st::requestAcceptPosition, size);
+		return QRect(st::communityRequestAcceptPosition, size);
 	} break;
 	case kRejectButton: {
 		const auto accept = _delegate->rowAcceptButtonSize();
 		const auto size = _delegate->rowRejectButtonSize();
 		return QRect(
-			(st::requestAcceptPosition
+			(st::communityRequestAcceptPosition
 				+ QPoint(accept.width() + st::requestButtonsSkip, 0)),
 			size);
 	} break;
@@ -145,7 +145,7 @@ void Row::elementAddRipple(
 			(element == kAcceptButton
 				? _delegate->rowAcceptButtonSize()
 				: _delegate->rowRejectButtonSize()),
-			st::buttonRadius);
+			st::requestsAcceptButton.height / 2);
 		ripple = std::make_unique<Ui::RippleAnimation>(
 			(element == kAcceptButton
 				? st::requestsAcceptButton.ripple
@@ -236,10 +236,18 @@ private:
 };
 
 RequestsBoxController::RowHelper::RowHelper(bool isGroup)
-: _acceptRect(st::buttonRadius, st::requestsAcceptButton.textBg)
-, _acceptRectOver(st::buttonRadius, st::requestsAcceptButton.textBgOver)
-, _rejectRect(st::buttonRadius, st::requestsRejectButton.textBg)
-, _rejectRectOver(st::buttonRadius, st::requestsRejectButton.textBgOver)
+: _acceptRect(
+	st::requestsAcceptButton.height / 2,
+	st::requestsAcceptButton.textBg)
+, _acceptRectOver(
+	st::requestsAcceptButton.height / 2,
+	st::requestsAcceptButton.textBgOver)
+, _rejectRect(
+	st::requestsAcceptButton.height / 2,
+	st::requestsRejectButton.textBg)
+, _rejectRectOver(
+	st::requestsAcceptButton.height / 2,
+	st::requestsRejectButton.textBgOver)
 , _acceptText(isGroup
 	? tr::lng_group_requests_add(tr::now)
 	: tr::lng_group_requests_add_channel(tr::now))
@@ -256,7 +264,7 @@ RequestsBoxController::RequestsBoxController(
 , _helper(std::make_unique<RowHelper>(!peer->isBroadcast()))
 , _peer(peer)
 , _api(&_peer->session().mtp()) {
-	setStyleOverrides(&st::requestsBoxList);
+	setStyleOverrides(&st::communityRequestsBoxList);
 	subscribeToMigration();
 }
 
@@ -362,11 +370,11 @@ void RequestsBoxController::loadMoreRows() {
 	using Flag = MTPmessages_GetChatInviteImporters::Flag;
 	_loadRequestId = _api.request(MTPmessages_GetChatInviteImporters(
 		MTP_flags(Flag::f_requested),
-		_peer->input,
+		_peer->input(),
 		MTPstring(), // link
 		MTPstring(), // q
 		MTP_int(_offsetDate),
-		_offsetUser ? _offsetUser->inputUser : MTP_inputUserEmpty(),
+		_offsetUser ? _offsetUser->inputUser() : MTP_inputUserEmpty(),
 		MTP_int(limit)
 	)).done([=](const MTPmessages_ChatInviteImporters &result) {
 		const auto firstLoad = !_offsetDate;
@@ -436,8 +444,8 @@ void RequestsBoxController::processRequest(
 				: tr::lng_group_requests_was_added)(
 					tr::now,
 					lt_user,
-					Ui::Text::Bold(user->name()),
-					Ui::Text::WithEntities));
+					tr::bold(user->name()),
+					tr::marked));
 		}
 	});
 	const auto fail = crl::guard(this, remove);
@@ -681,11 +689,11 @@ bool RequestsBoxSearchController::loadMoreRows() {
 	using Flag = MTPmessages_GetChatInviteImporters::Flag;
 	_requestId = _api.request(MTPmessages_GetChatInviteImporters(
 		MTP_flags(Flag::f_requested | Flag::f_q),
-		_peer->input,
+		_peer->input(),
 		MTPstring(), // link
 		MTP_string(_query),
 		MTP_int(_offsetDate),
-		_offsetUser ? _offsetUser->inputUser : MTP_inputUserEmpty(),
+		_offsetUser ? _offsetUser->inputUser() : MTP_inputUserEmpty(),
 		MTP_int(limit)
 	)).done([=](
 			const MTPmessages_ChatInviteImporters &result,

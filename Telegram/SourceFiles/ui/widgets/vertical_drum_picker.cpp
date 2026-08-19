@@ -10,13 +10,44 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animation_value_f.h"
 #include "ui/ui_utility.h"
 #include "styles/style_basic.h"
+#include "styles/style_widgets.h"
 
 namespace Ui {
 namespace {
 
 constexpr auto kAlmostIndex = float64(.99);
+constexpr auto kMinYScale = 0.2;
+
+using PaintItemCallback = VerticalDrumPicker::PaintItemCallback;
 
 } // namespace
+
+PaintItemCallback VerticalDrumPicker::DefaultPaintCallback(
+		const style::font &font,
+		int itemHeight,
+		Fn<void(QPainter&, QRectF, int)> paintContent) {
+	return [=](
+			QPainter &p,
+			int index,
+			float64 y,
+			float64 distanceFromCenter,
+			int outerWidth) {
+		const auto r = QRectF(0, y, outerWidth, itemHeight);
+		const auto progress = std::abs(distanceFromCenter);
+		const auto revProgress = 1. - progress;
+		p.save();
+		p.translate(r.center());
+		const auto yScale = kMinYScale
+			+ (1. - kMinYScale) * anim::easeOutCubic(1., revProgress);
+		p.scale(1., yScale);
+		p.translate(-r.center());
+		p.setOpacity(revProgress);
+		p.setFont(font);
+		p.setPen(st::defaultFlatLabel.textFg);
+		paintContent(p, r, index);
+		p.restore();
+	};
+}
 
 PickerAnimation::PickerAnimation() = default;
 
@@ -80,7 +111,7 @@ VerticalDrumPicker::VerticalDrumPicker(
 	Expects(_paintCallback != nullptr);
 
 	sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
+	) | rpl::on_next([=](const QSize &s) {
 		_itemsVisible.count = std::ceil(float64(s.height()) / _itemHeight);
 		_itemsVisible.centerOffset = _itemsVisible.count / 2;
 		if ((_pendingStartIndex >= 0) && _itemsVisible.count) {
@@ -98,7 +129,7 @@ VerticalDrumPicker::VerticalDrumPicker(
 	}, lifetime());
 
 	paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		auto p = QPainter(this);
 
 		const auto outerWidth = width();
@@ -120,7 +151,7 @@ VerticalDrumPicker::VerticalDrumPicker(
 	}, lifetime());
 
 	_animation.updates(
-	) | rpl::start_with_next([=](PickerAnimation::Shift shift) {
+	) | rpl::on_next([=](PickerAnimation::Shift shift) {
 		increaseShift(shift);
 	}, lifetime());
 }

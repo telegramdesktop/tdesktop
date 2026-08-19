@@ -8,14 +8,74 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_history_messages.h"
 
 #include "apiwrap.h"
+#include "data/data_changes.h"
 #include "data/data_chat.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_sparse_ids.h"
 #include "history/history.h"
+#include "history/history_item.h"
 #include "main/main_session.h"
 
 namespace Data {
+namespace {
+
+void AppendClientSideMessages(
+		not_null<History*> history,
+		MessagesSlice &slice) {
+	const auto &messages = history->clientSideMessages();
+	if (messages.empty()) {
+		return;
+	} else if (slice.ids.empty()) {
+		if (slice.skippedBefore != 0 || slice.skippedAfter != 0) {
+			return;
+		}
+		slice.ids.reserve(messages.size());
+		for (const auto &item : messages) {
+			slice.ids.push_back(item->fullId());
+		}
+		ranges::sort(slice.ids);
+		return;
+	}
+	auto &owner = history->owner();
+	auto dates = std::vector<TimeId>();
+	dates.reserve(slice.ids.size());
+	for (const auto &id : slice.ids) {
+		const auto message = owner.message(id);
+		Assert(message != nullptr);
+
+		dates.push_back(message->date());
+	}
+	for (const auto &item : messages) {
+		const auto date = item->date();
+		if (date < dates.front()) {
+			if (slice.skippedBefore != 0) {
+				if (slice.skippedBefore) {
+					++*slice.skippedBefore;
+				}
+				continue;
+			}
+			dates.insert(dates.begin(), date);
+			slice.ids.insert(slice.ids.begin(), item->fullId());
+		} else {
+			auto to = dates.size();
+			for (; to != 0; --to) {
+				const auto checkId = slice.ids[to - 1].msg;
+				if (dates[to - 1] > date) {
+					continue;
+				} else if (dates[to - 1] < date
+					|| IsServerMsgId(checkId)
+					|| checkId < item->id) {
+					break;
+				}
+			}
+			dates.insert(dates.begin() + to, date);
+			slice.ids.insert(slice.ids.begin() + to, item->fullId());
+		}
+	}
+}
+
+} // namespace
 
 void HistoryMessages::addNew(MsgId messageId) {
 	_chat.addNew(messageId);
@@ -88,7 +148,7 @@ rpl::producer<SparseIdsSlice> HistoryViewer(
 			limitAfter);
 		using RequestAroundInfo = SparseIdsSliceBuilder::AroundData;
 		builder->insufficientAround(
-		) | rpl::start_with_next([=](const RequestAroundInfo &info) {
+		) | rpl::on_next([=](const RequestAroundInfo &info) {
 			if (!info.aroundId) {
 				// Ignore messages-count-only requests, because we perform
 				// them with non-zero limit of messages and end up adding
@@ -110,22 +170,22 @@ rpl::producer<SparseIdsSlice> HistoryViewer(
 		messages->sliceUpdated(
 		) | rpl::filter([=](const SliceUpdate &update) {
 			return builder->applyUpdate(update);
-		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
+		}) | rpl::on_next(pushNextSnapshot, lifetime);
 
 		messages->oneRemoved(
 		) | rpl::filter([=](MsgId messageId) {
 			return builder->removeOne(messageId);
-		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
+		}) | rpl::on_next(pushNextSnapshot, lifetime);
 
 		messages->allRemoved(
 		) | rpl::filter([=] {
 			return builder->removeAll();
-		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
+		}) | rpl::on_next(pushNextSnapshot, lifetime);
 
 		messages->bottomInvalidated(
 		) | rpl::filter([=] {
 			return builder->invalidateBottom();
-		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
+		}) | rpl::on_next(pushNextSnapshot, lifetime);
 
 		const auto snapshot = messages->snapshot({
 			aroundId,
@@ -152,6 +212,7 @@ rpl::producer<SparseIdsMergedSlice> HistoryMergedViewer(
 	auto createSimpleViewer = [=](
 			PeerId peerId,
 			MsgId topicRootId,
+			PeerId monoforumPeerId,
 			SparseIdsSlice::Key simpleKey,
 			int limitBefore,
 			int limitAfter) {
@@ -161,11 +222,10 @@ rpl::producer<SparseIdsMergedSlice> HistoryMergedViewer(
 		return HistoryViewer(chosen, simpleKey, limitBefore, limitAfter);
 	};
 	const auto peerId = history->peer->id;
-	const auto topicRootId = MsgId();
 	const auto migratedPeerId = migrateFrom ? migrateFrom->id : PeerId(0);
 	using Key = SparseIdsMergedSlice::Key;
 	return SparseIdsMergedSlice::CreateViewer(
-		Key(peerId, topicRootId, migratedPeerId, universalAroundId),
+		Key(peerId, MsgId(), PeerId(), migratedPeerId, universalAroundId),
 		limitBefore,
 		limitAfter,
 		std::move(createSimpleViewer));
@@ -195,7 +255,7 @@ rpl::producer<MessagesSlice> HistoryMessagesViewer(
 		: (aroundId.fullId.peer == history->peer->id)
 		? aroundId.fullId.msg
 		: (aroundId.fullId.msg - ServerMaxMsgId);
-	return HistoryMergedViewer(
+	auto server = HistoryMergedViewer(
 		history,
 		messageId,
 		limitBefore,
@@ -214,6 +274,17 @@ rpl::producer<MessagesSlice> HistoryMessagesViewer(
 			result.ids.push_back(slice[i]);
 		}
 		return result;
+	});
+	return rpl::combine(
+		std::move(server),
+		rpl::single(rpl::empty) | rpl::then(
+			history->session().changes().historyUpdates(
+				history,
+				HistoryUpdate::Flag::ClientSideMessages
+			) | rpl::to_empty)
+	) | rpl::map([=](MessagesSlice slice, rpl::empty_value) {
+		AppendClientSideMessages(history, slice);
+		return slice;
 	});
 }
 

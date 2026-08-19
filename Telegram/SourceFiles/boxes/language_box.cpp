@@ -7,49 +7,55 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/language_box.h"
 
-#include "data/data_peer_values.h"
-#include "lang/lang_keys.h"
-#include "ui/boxes/choose_language_box.h"
-#include "ui/widgets/checkbox.h"
-#include "ui/widgets/buttons.h"
-#include "ui/widgets/labels.h"
-#include "ui/widgets/multi_select.h"
-#include "ui/widgets/scroll_area.h"
-#include "ui/widgets/dropdown_menu.h"
-#include "ui/widgets/box_content_divider.h"
-#include "ui/text/text_entity.h"
-#include "ui/wrap/vertical_layout.h"
-#include "ui/wrap/slide_wrap.h"
-#include "ui/effects/ripple_animation.h"
-#include "ui/toast/toast.h"
-#include "ui/text/text_options.h"
-#include "ui/painter.h"
-#include "ui/vertical_list.h"
-#include "ui/ui_utility.h"
-#include "storage/localstorage.h"
+#include "base/platform/base_platform_info.h"
 #include "boxes/abstract_box.h"
 #include "boxes/premium_preview_box.h"
 #include "boxes/translate_box.h"
-#include "ui/boxes/confirm_box.h"
-#include "main/main_session.h"
-#include "mainwidget.h"
-#include "mainwindow.h"
 #include "core/application.h"
-#include "lang/lang_instance.h"
+#include "data/data_peer_values.h"
 #include "lang/lang_cloud_manager.h"
+#include "lang/lang_instance.h"
+#include "lang/lang_keys.h"
+#include "main/main_session.h"
+#include "platform/platform_translate_provider.h"
 #include "settings/settings_common.h"
 #include "spellcheck/spellcheck_types.h"
+#include "storage/localstorage.h"
+#include "ui/accessible/ui_accessible_item.h"
+#include "ui/boxes/choose_language_box.h"
+#include "ui/boxes/confirm_box.h"
+#include "ui/effects/ripple_animation.h"
+#include "ui/text/text_entity.h"
+#include "ui/text/text_options.h"
+#include "ui/toast/toast.h"
+#include "ui/widgets/box_content_divider.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/dropdown_menu.h"
+#include "ui/widgets/labels.h"
+#include "ui/widgets/multi_select.h"
+#include "ui/widgets/scroll_area.h"
+#include "ui/wrap/slide_wrap.h"
+#include "ui/wrap/vertical_layout.h"
+#include "ui/painter.h"
+#include "ui/screen_reader_mode.h"
+#include "ui/ui_utility.h"
+#include "ui/vertical_list.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
-#include "styles/style_layers.h"
+#include "mainwidget.h"
+#include "mainwindow.h"
+
 #include "styles/style_boxes.h"
-#include "styles/style_info.h"
-#include "styles/style_passport.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_info.h"
+#include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_passport.h"
 #include "styles/style_settings.h"
 
-#include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
+#include <QtGui/QGuiApplication>
 
 namespace {
 
@@ -68,22 +74,44 @@ public:
 
 	int count() const;
 	int selected() const;
+	int chosenIndex() const;
 	void setSelected(int selected);
 	rpl::producer<bool> hasSelection() const;
 	rpl::producer<bool> isEmpty() const;
 
 	void activateSelected();
+	void selectSkip(int dir);
 	rpl::producer<Language> activations() const;
 	void changeChosen(const QString &chosen);
 
 	Ui::ScrollToRequest rowScrollRequest(int index) const;
+	[[nodiscard]] rpl::producer<Ui::ScrollToRequest> mustScrollTo() const;
 
 	static int DefaultRowHeight();
+
+	QAccessible::Role accessibilityRole() override;
+	Qt::FocusPolicy accessibilityFocusPolicy() override;
+	QAccessible::Role accessibilityChildRole() const override;
+	QAccessible::State accessibilityChildState(int index) const override;
+	int accessibilityChildCount() const override;
+	QString accessibilityChildName(int index) const override;
+	QRect accessibilityChildRect(int index) const override;
+	int accessibilityChildColumnCount(int row) const override;
+	QAccessible::Role accessibilityChildSubItemRole() const override;
+	QString accessibilityChildSubItemName(int row, int column) const override;
+	QString accessibilityChildSubItemValue(int row, int column) const override;
+	bool accessibilityChildSupportsActions(int index) const override;
+	quintptr accessibilityChildIdentity(int index) const override;
+	int accessibilityChildIndexByIdentity(quintptr identity) const override;
+	void accessibilityChildSetFocus(quintptr identity) override;
+	void accessibilityChildActivate(quintptr identity) override;
 
 protected:
 	int resizeGetHeight(int newWidth) override;
 
+	void focusInEvent(QFocusEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
@@ -151,6 +179,13 @@ private:
 	void repaintChecked(not_null<const Row*> row);
 	void activateByIndex(int index);
 
+	enum class Announce {
+		No,
+		OnChange,
+		Always,
+	};
+	void setSelected(int index, Announce announce);
+
 	void showMenu(int index);
 	void setForceRippled(not_null<Row*> row, bool rippled);
 	bool canShare(not_null<const Row*> row) const;
@@ -177,8 +212,29 @@ private:
 	rpl::event_stream<bool> _hasSelection;
 	rpl::event_stream<Language> _activations;
 	rpl::event_stream<bool> _isEmpty;
+	rpl::event_stream<Ui::ScrollToRequest> _mustScrollTo;
 
 };
+
+[[nodiscard]] bool ForwardListNavigation(
+		not_null<QKeyEvent*> e,
+		not_null<Rows*> rows,
+		int pageHeight) {
+	const auto key = e->key();
+	if (key == Qt::Key_Down) {
+		rows->selectSkip(1);
+	} else if (key == Qt::Key_Up) {
+		rows->selectSkip(-1);
+	} else if (key == Qt::Key_PageDown || key == Qt::Key_PageUp) {
+		const auto perPage = std::max(
+			pageHeight / Rows::DefaultRowHeight(),
+			1);
+		rows->selectSkip((key == Qt::Key_PageDown) ? perPage : -perPage);
+	} else {
+		return false;
+	}
+	return true;
+}
 
 class Content : public Ui::RpWidget {
 public:
@@ -192,6 +248,7 @@ public:
 	rpl::producer<Language> activations() const;
 	void changeChosen(const QString &chosen);
 	void activateBySubmit();
+	[[nodiscard]] rpl::producer<Ui::ScrollToRequest> mustScrollTo() const;
 
 private:
 	void setupContent(
@@ -203,6 +260,7 @@ private:
 	Fn<rpl::producer<Language>()> _activations;
 	Fn<void(const QString &chosen)> _changeChosen;
 	Fn<void()> _activateBySubmit;
+	rpl::event_stream<Ui::ScrollToRequest> _mustScrollTo;
 
 };
 
@@ -285,6 +343,55 @@ Rows::Rows(
 	resizeToWidth(width());
 	setAttribute(Qt::WA_MouseTracking);
 	update();
+
+	setAccessibleName(tr::lng_languages(tr::now));
+}
+
+void Rows::focusInEvent(QFocusEvent *e) {
+	// On real Tab traversal always land on the checked row: the accessibility
+	// SetFocus / Invoke actions leave a selection behind, and keeping it here
+	// would move Tab focus to whatever row was last acted on instead. Those
+	// actions themselves come through with OtherFocusReason (plain setFocus())
+	// and must keep the selection they have just set.
+	const auto tab = (e->reason() == Qt::TabFocusReason)
+		|| (e->reason() == Qt::BacktabFocusReason);
+	if (count() > 0) {
+		const auto chosen = chosenIndex();
+		if (tab && chosen >= 0) {
+			setSelected(chosen, Announce::No);
+		} else if (selected() < 0) {
+			setSelected(chosen >= 0 ? chosen : 0, Announce::No);
+		}
+	}
+	RpWidget::focusInEvent(e);
+	const auto index = selected();
+	if (index >= 0) {
+		InvokeQueued(this, [=] {
+			if (selected() == index && hasFocus()) {
+				accessibilityChildFocused(index);
+			}
+		});
+	}
+}
+
+void Rows::keyPressEvent(QKeyEvent *e) {
+	const auto pageHeight = window() ? window()->height() : height();
+	if (ForwardListNavigation(e, this, pageHeight)) {
+		return;
+	}
+	const auto key = e->key();
+	if (key == Qt::Key_Home && count() > 0) {
+		setSelected(0, Announce::Always);
+	} else if (key == Qt::Key_End && count() > 0) {
+		setSelected(count() - 1, Announce::Always);
+	} else if (!e->isAutoRepeat()
+		&& (key == Qt::Key_Space
+			|| key == Qt::Key_Return
+			|| key == Qt::Key_Enter)) {
+		activateSelected();
+	} else {
+		RpWidget::keyPressEvent(e);
+	}
 }
 
 void Rows::mouseMoveEvent(QMouseEvent *e) {
@@ -427,7 +534,11 @@ bool Rows::hasMenu(not_null<const Row*> row) const {
 void Rows::share(not_null<const Row*> row) const {
 	const auto link = u"https://t.me/setlanguage/"_q + row->data.id;
 	QGuiApplication::clipboard()->setText(link);
-	Ui::Toast::Show(tr::lng_username_copied(tr::now));
+	Ui::Toast::Show({
+		.text = { tr::lng_username_copied(tr::now) },
+		.iconLottie = u"toast/voip_invite"_q,
+		.iconLottieSize = st::toastLottieIconSize,
+	});
 }
 
 void Rows::remove(not_null<Row*> row) {
@@ -552,7 +663,10 @@ void Rows::setForceRippled(not_null<Row*> row, bool rippled) {
 }
 
 void Rows::activateByIndex(int index) {
+	_chosen = rowByIndex(index).data.id;
 	_activations.fire_copy(rowByIndex(index).data);
+	accessibilityChildStateChanged(index, { .checked = true });
+	accessibilityChildNameChanged(index);
 }
 
 void Rows::leaveEventHook(QEvent *e) {
@@ -628,10 +742,39 @@ int Rows::selected() const {
 	return indexFromSelection(_selected);
 }
 
+int Rows::chosenIndex() const {
+	for (auto i = 0, n = count(); i < n; ++i) {
+		if (rowByIndex(i).data.id == _chosen) {
+			return i;
+		}
+	}
+	return -1;
+}
+
 void Rows::activateSelected() {
 	const auto index = selected();
 	if (index >= 0) {
 		activateByIndex(index);
+	}
+}
+
+void Rows::selectSkip(int dir) {
+	const auto limit = count();
+	auto now = selected();
+	if (now < 0) {
+		now = chosenIndex();
+	}
+	if (now >= 0) {
+		const auto changed = now + dir;
+		if (changed < 0) {
+			setSelected(0, Announce::Always);
+		} else if (changed >= limit) {
+			setSelected(limit - 1, Announce::Always);
+		} else {
+			setSelected(changed, Announce::Always);
+		}
+	} else if (dir > 0) {
+		setSelected(0, Announce::Always);
 	}
 }
 
@@ -640,18 +783,40 @@ rpl::producer<Language> Rows::activations() const {
 }
 
 void Rows::changeChosen(const QString &chosen) {
+	const auto oldIndex = chosenIndex();
+	_chosen = chosen;
 	for (const auto &row : _rows) {
 		row.check->setChecked(row.data.id == chosen, anim::type::normal);
+	}
+	const auto newIndex = chosenIndex();
+	if (newIndex != oldIndex && newIndex >= 0) {
+		accessibilityChildStateChanged(newIndex, { .checked = true });
+		accessibilityChildNameChanged(newIndex);
 	}
 }
 
 void Rows::setSelected(int selected) {
+	setSelected(selected, Announce::OnChange);
+}
+
+void Rows::setSelected(int selected, Announce announce) {
 	_mouseSelection = false;
 	const auto limit = count();
-	if (selected >= 0 && selected < limit) {
-		updateSelected(RowSelection{ selected });
+	const auto clamped = (selected >= 0 && selected < limit)
+		? selected
+		: -1;
+	const auto changed = (indexFromSelection(_selected) != clamped)
+		|| (clamped < 0 && !v::is_null(_selected));
+	if (clamped >= 0) {
+		updateSelected(RowSelection{ clamped });
 	} else {
 		updateSelected({});
+	}
+	const auto shouldAnnounce = (announce == Announce::Always)
+		|| (announce == Announce::OnChange && changed);
+	if (shouldAnnounce && clamped >= 0) {
+		accessibilityChildNameChanged(clamped);
+		accessibilityChildFocused(clamped);
 	}
 }
 
@@ -759,6 +924,10 @@ const std::unique_ptr<Ui::RippleAnimation> &Rows::rippleBySelection(
 Ui::ScrollToRequest Rows::rowScrollRequest(int index) const {
 	const auto &row = rowByIndex(index);
 	return Ui::ScrollToRequest(row.top, row.top + row.height);
+}
+
+rpl::producer<Ui::ScrollToRequest> Rows::mustScrollTo() const {
+	return _mustScrollTo.events();
 }
 
 int Rows::DefaultRowHeight() {
@@ -872,6 +1041,171 @@ void Rows::paintEvent(QPaintEvent *e) {
 	}
 }
 
+QAccessible::Role Rows::accessibilityRole() {
+	return QAccessible::List;
+}
+
+Qt::FocusPolicy Rows::accessibilityFocusPolicy() {
+	return Qt::TabFocus;
+}
+
+QAccessible::Role Rows::accessibilityChildRole() const {
+	return QAccessible::RadioButton;
+}
+
+QAccessible::State Rows::accessibilityChildState(int index) const {
+	QAccessible::State state;
+	if (Ui::ScreenReaderModeActive()) {
+		state.focusable = true;
+	}
+	state.checkable = true;
+	state.checked = (index == chosenIndex());
+	if (index == selected()) {
+		state.active = true;
+		if (hasFocus()) {
+			state.focused = true;
+		}
+	}
+	return state;
+}
+
+int Rows::accessibilityChildCount() const {
+	return count();
+}
+
+QString Rows::accessibilityChildName(int index) const {
+	if (index < 0 || index >= count()) {
+		return {};
+	}
+	const auto &row = rowByIndex(index);
+	return row.data.nativeName + u", "_q + row.data.name;
+}
+
+QRect Rows::accessibilityChildRect(int index) const {
+	if (index < 0 || index >= count()) {
+		return {};
+	}
+	const auto &row = rowByIndex(index);
+	return QRect(0, row.top, width(), row.height);
+}
+
+int Rows::accessibilityChildColumnCount(int row) const {
+	return 2;
+}
+
+QAccessible::Role Rows::accessibilityChildSubItemRole() const {
+	return QAccessible::Cell;
+}
+
+QString Rows::accessibilityChildSubItemName(int row, int column) const {
+	if (column == 0) {
+		return tr::lng_sr_languages_column_native(tr::now);
+	} else if (column == 1) {
+		return tr::lng_sr_languages_column_name(tr::now);
+	}
+	return {};
+}
+
+QString Rows::accessibilityChildSubItemValue(int row, int column) const {
+	if (row < 0 || row >= count()) {
+		return {};
+	}
+	const auto &data = rowByIndex(row).data;
+	if (column == 0) {
+		return data.nativeName;
+	} else if (column == 1) {
+		return data.name;
+	}
+	return {};
+}
+
+bool Rows::accessibilityChildSupportsActions(int index) const {
+	// Every row is a language that can be focused and activated, and each
+	// has a stable identity below. Tying the opt-in to a valid identity
+	// keeps the action interface off invalid indices.
+	return accessibilityChildIdentity(index) != 0;
+}
+
+quintptr Rows::accessibilityChildIdentity(int index) const {
+	// _filtered is rebuilt on every search keystroke, so row indices are
+	// not stable by the time a queued action runs. The language id uniquely
+	// names a row within this widget (PrepareLists keeps the recent and
+	// official lists disjoint by id), so derive the token from it; hash
+	// collisions are possible but acceptable, same as in the country box
+	// and the hashtag cohort in the chat list. Shift instead of masking so
+	// that small hash values keep their distinguishing low bits; the tag
+	// bit keeps the token non-zero.
+	if (index < 0 || index >= count()) {
+		return 0;
+	}
+	const auto value = quintptr(qHash(rowByIndex(index).data.id));
+	return value ? ((value << 3) | quintptr(1)) : quintptr(0);
+}
+
+int Rows::accessibilityChildIndexByIdentity(quintptr identity) const {
+	if (!identity) {
+		return -1;
+	}
+	const auto count = accessibilityChildCount();
+	for (auto i = 0; i != count; ++i) {
+		if (accessibilityChildIdentity(i) == identity) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+void Rows::accessibilityChildSetFocus(quintptr identity) {
+	// UIA invokes provider actions (SetFocus) on a background thread, so hop
+	// to the main thread before touching any widget state. Resolve the stable
+	// identity to its current index here (not on the background thread) so a
+	// filter rebuild does not move focus to another row.
+	crl::on_main(this, [=] {
+		// An explicit accessibility SetFocus is itself sufficient
+		// authorization, so we do not gate it on the screen-reader-mode
+		// detector: the UIA provider already reported success to the caller,
+		// and the detector may still be false during startup or for valid
+		// clients that are not on its allowlist.
+		const auto index = accessibilityChildIndexByIdentity(identity);
+		if (index < 0) {
+			return;
+		}
+		// The rows are virtual (no real QWidget), so the screen reader's
+		// SetFocus can't move real keyboard focus to a row. Translate it
+		// into our internal selection, then either announce it directly or
+		// grab keyboard focus (focusInEvent announces the selected row).
+		setSelected(index, hasFocus() ? Announce::Always : Announce::No);
+		_mustScrollTo.fire(rowScrollRequest(index));
+		if (!hasFocus()) {
+			setFocus();
+		}
+	});
+}
+
+void Rows::accessibilityChildActivate(quintptr identity) {
+	// UIA invokes the press action on a background thread too; resolve the
+	// identity, move the selection and activate the row on the main thread.
+	crl::on_main(this, [=] {
+		const auto index = accessibilityChildIndexByIdentity(identity);
+		if (index < 0) {
+			return;
+		}
+		// Unlike the country box, activation keeps the box open and toggles
+		// the row's checked state, and the screen reader only announces the
+		// state change of the element it considers focused. Take focus onto
+		// the row (as the SetFocus action does) before activating, so the
+		// "checked" announcement is heard from Invoke as well as from Space:
+		// focusInEvent announces the row when focus moves here, OnChange
+		// covers an invoke on a not-focused row of the focused list, and an
+		// invoke on the already-focused row announces the change alone.
+		setSelected(index, hasFocus() ? Announce::OnChange : Announce::No);
+		if (!hasFocus()) {
+			setFocus();
+		}
+		activateByIndex(index);
+	});
+}
+
 Content::Content(
 	QWidget *parent,
 	const Languages &recent,
@@ -908,7 +1242,7 @@ void Content::setupContent(
 			inner,
 			st::defaultBox.margin.top()));
 
-		rows->isEmpty() | rpl::start_with_next([=](bool empty) {
+		rows->isEmpty() | rpl::on_next([=](bool empty) {
 			wrap->toggle(!empty, anim::type::instant);
 		}, rows->lifetime());
 
@@ -931,7 +1265,7 @@ void Content::setupContent(
 		tr::lng_languages_none(),
 		st::membersAbout);
 	empty->entity()->sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
+	) | rpl::on_next([=](QSize size) {
 		label->move(
 			(size.width() - label->width()) / 2,
 			(size.height() - label->height()) / 2);
@@ -951,7 +1285,7 @@ void Content::setupContent(
 			main->isEmpty(),
 			other->isEmpty(),
 			_1 || _2
-		) | rpl::start_with_next([=](bool empty) {
+		) | rpl::on_next([=](bool empty) {
 			divider->toggle(!empty, anim::type::instant);
 		}, divider->lifetime());
 
@@ -959,7 +1293,7 @@ void Content::setupContent(
 			a->hasSelection(
 			) | rpl::filter(
 				_1
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				b->setSelected(-1);
 			}, a->lifetime());
 		};
@@ -1048,7 +1382,7 @@ void Content::setupContent(
 	};
 	_activations = [=] {
 		if (!main && !other) {
-			return rpl::never<Language>() | rpl::type_erased();
+			return rpl::never<Language>() | rpl::type_erased;
 		} else if (!main) {
 			return other->activations();
 		} else if (!other) {
@@ -1057,7 +1391,7 @@ void Content::setupContent(
 		return rpl::merge(
 			main->activations(),
 			other->activations()
-		) | rpl::type_erased();
+		) | rpl::type_erased;
 	};
 	_changeChosen = [=](const QString &chosen) {
 		if (main) {
@@ -1078,6 +1412,21 @@ void Content::setupContent(
 			other->activateSelected();
 		}
 	};
+	const auto forwardScrollRequests = [=](Rows *rows) {
+		if (!rows) {
+			return;
+		}
+		rows->mustScrollTo(
+		) | rpl::on_next([=](Ui::ScrollToRequest request) {
+			const auto shift = rows->mapToGlobal({ 0, 0 }).y()
+				- mapToGlobal({ 0, 0 }).y();
+			_mustScrollTo.fire(Ui::ScrollToRequest(
+				request.ymin + shift,
+				request.ymax + shift));
+		}, rows->lifetime());
+	};
+	forwardScrollRequests(main);
+	forwardScrollRequests(other);
 }
 
 void Content::filter(const QString &query) {
@@ -1100,10 +1449,18 @@ Ui::ScrollToRequest Content::jump(int rows) {
 	return _jump(rows);
 }
 
+rpl::producer<Ui::ScrollToRequest> Content::mustScrollTo() const {
+	return _mustScrollTo.events();
+}
+
 } // namespace
 
-LanguageBox::LanguageBox(QWidget*, Window::SessionController *controller)
-: _controller(controller) {
+LanguageBox::LanguageBox(
+	QWidget*,
+	Window::SessionController *controller,
+	const QString &highlightId)
+: _controller(controller)
+, _highlightId(highlightId) {
 }
 
 void LanguageBox::prepare() {
@@ -1134,12 +1491,12 @@ void LanguageBox::prepare() {
 		inner->heightValue(),
 		topContainer->heightValue(),
 		_1 + _2
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		accumulate_max(*max, height);
 		setDimensions(st::boxWidth, qMin(*max, st::boxMaxListHeight));
 	}, inner->lifetime());
 	topContainer->heightValue(
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		setInnerTopSkip(height);
 	}, inner->lifetime());
 
@@ -1154,7 +1511,7 @@ void LanguageBox::prepare() {
 	});
 
 	inner->activations(
-	) | rpl::start_with_next([=](const Language &language) {
+	) | rpl::on_next([=](const Language &language) {
 		// "#custom" is applied each time it's passed to switchToLanguage().
 		// So we check that the language really has changed.
 		const auto currentId = [] {
@@ -1168,12 +1525,33 @@ void LanguageBox::prepare() {
 		}
 	}, inner->lifetime());
 
+	inner->mustScrollTo(
+	) | rpl::on_next([=](Ui::ScrollToRequest request) {
+		scrollToY(request.ymin, request.ymax);
+	}, inner->lifetime());
+
 	_setInnerFocus = [=] {
 		select->setInnerFocus();
 	};
 	_jump = [=](int rows) {
 		return inner->jump(rows);
 	};
+}
+
+void LanguageBox::showFinished() {
+	if (_controller && !_highlightId.isEmpty()) {
+		if (const auto window = Core::App().findWindow(this)) {
+			window->checkHighlightControl(
+				u"language/show-button"_q,
+				_showButtonToggle.data());
+			window->checkHighlightControl(
+				u"language/translate-chats"_q,
+				_translateChatsToggle.data());
+			window->checkHighlightControl(
+				u"language/do-not-translate"_q,
+				_doNotTranslateButton.data());
+		}
+	}
 }
 
 void LanguageBox::setupTop(not_null<Ui::VerticalLayout*> container) {
@@ -1186,14 +1564,50 @@ void LanguageBox::setupTop(not_null<Ui::VerticalLayout*> container) {
 			tr::lng_translate_settings_show(),
 			st::settingsButtonNoIcon))->toggleOn(
 				rpl::single(Core::App().settings().translateButtonEnabled()));
+	_showButtonToggle = translateEnabled;
 
 	translateEnabled->toggledValue(
 	) | rpl::filter([](bool checked) {
 		return (checked != Core::App().settings().translateButtonEnabled());
-	}) | rpl::start_with_next([=](bool checked) {
+	}) | rpl::on_next([=](bool checked) {
 		Core::App().settings().setTranslateButtonEnabled(checked);
 		Core::App().saveSettingsDelayed();
 	}, translateEnabled->lifetime());
+
+	if (Platform::IsTranslateProviderAvailable()) {
+		const auto platformTranslateWrap = container->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				container,
+				object_ptr<Ui::VerticalLayout>(container)));
+		platformTranslateWrap->toggle(
+			translateEnabled->toggled(),
+			anim::type::instant);
+		platformTranslateWrap->toggleOn(translateEnabled->toggledValue());
+		const auto platformTranslateEnabled = platformTranslateWrap->entity()->add(
+			object_ptr<Ui::SettingsButton>(
+				platformTranslateWrap->entity(),
+				Platform::IsMac()
+					? tr::lng_translate_settings_use_platform_mac()
+					: tr::lng_translate_settings_use_platform_linux(),
+				st::settingsButtonNoIcon))->toggleOn(
+					rpl::single(
+						Core::App().settings().usePlatformTranslation()));
+		platformTranslateEnabled->toggledValue(
+		) | rpl::filter([](bool checked) {
+			return (checked
+				!= Core::App().settings().usePlatformTranslation());
+		}) | rpl::on_next([=](bool checked) {
+			Core::App().settings().setUsePlatformTranslation(checked);
+			Core::App().saveSettingsDelayed();
+		}, platformTranslateEnabled->lifetime());
+		if (Platform::IsMac()) {
+			Ui::AddSkip(platformTranslateWrap->entity());
+			Ui::AddDividerText(
+				platformTranslateWrap->entity(),
+				tr::lng_translate_settings_use_platform_mac_about());
+			Ui::AddSkip(platformTranslateWrap->entity());
+		}
+	}
 
 	using namespace rpl::mappers;
 	auto premium = Data::AmPremiumValue(&_controller->session());
@@ -1207,7 +1621,8 @@ void LanguageBox::setupTop(not_null<Ui::VerticalLayout*> container) {
 			rpl::duplicate(premium),
 			_1 && _2),
 		_translateChatTurnOff.events()));
-	std::move(premium) | rpl::start_with_next([=](bool value) {
+	_translateChatsToggle = translateChat;
+	std::move(premium) | rpl::on_next([=](bool value) {
 		translateChat->setToggleLocked(!value);
 	}, translateChat->lifetime());
 
@@ -1222,7 +1637,7 @@ void LanguageBox::setupTop(not_null<Ui::VerticalLayout*> container) {
 		}
 		return premium
 			&& (checked != Core::App().settings().translateChatEnabled());
-	}) | rpl::start_with_next([=](bool checked) {
+	}) | rpl::on_next([=](bool checked) {
 		Core::App().settings().setTranslateChatEnabled(checked);
 		Core::App().saveSettingsDelayed();
 	}, translateChat->lifetime());
@@ -1249,6 +1664,7 @@ void LanguageBox::setupTop(not_null<Ui::VerticalLayout*> container) {
 				: Ui::LanguageName(list.front());
 		}),
 		st::settingsButtonNoIcon);
+	_doNotTranslateButton = translateSkip;
 
 	translateSkip->setClickedCallback([=] {
 		uiShow()->showBox(Ui::EditSkipTranslationLanguages());
@@ -1288,7 +1704,9 @@ void LanguageBox::setInnerFocus() {
 	_setInnerFocus();
 }
 
-base::binary_guard LanguageBox::Show(Window::SessionController *controller) {
+base::binary_guard LanguageBox::Show(
+		Window::SessionController *controller,
+		const QString &highlightId) {
 	auto result = base::binary_guard();
 
 	auto &manager = Lang::CurrentCloudManager();
@@ -1300,17 +1718,17 @@ base::binary_guard LanguageBox::Show(Window::SessionController *controller) {
 		manager.languageListChanged(
 		) | rpl::take(
 			1
-		) | rpl::start_with_next([=]() mutable {
+		) | rpl::on_next([=]() mutable {
 			const auto show = guard->alive();
 			if (lifetime) {
 				base::take(lifetime)->destroy();
 			}
 			if (show) {
-				Ui::show(Box<LanguageBox>(weak.get()));
+				Ui::show(Box<LanguageBox>(weak.get(), highlightId));
 			}
 		}, *lifetime);
 	} else {
-		Ui::show(Box<LanguageBox>(controller));
+		Ui::show(Box<LanguageBox>(controller, highlightId));
 	}
 	manager.requestLanguageList();
 

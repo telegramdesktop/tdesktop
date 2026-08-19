@@ -34,6 +34,7 @@ public:
 	void setChecked(
 		bool newChecked,
 		anim::type animated = anim::type::normal);
+	void finishAnimating();
 
 	void invalidateCache();
 
@@ -53,7 +54,12 @@ private:
 
 class RoundImageCheckbox {
 public:
-	using PaintRoundImage = Fn<void(Painter &p, int x, int y, int outerWidth, int size)>;
+	using PaintRoundImage = Fn<void(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size)>;
 	RoundImageCheckbox(
 		const style::RoundImageCheckbox &st,
 		Fn<void()> updateCallback,
@@ -66,7 +72,9 @@ public:
 	float64 checkedAnimationRatio() const;
 
 	void setColorOverride(std::optional<QBrush> fg);
-	void setCustomizedSegments(std::vector<OutlineSegment> segments);
+	void setCustomizedSegments(
+		std::vector<OutlineSegment> segments,
+		bool liveBadge);
 
 	bool checked() const {
 		return _check.checked();
@@ -81,6 +89,7 @@ public:
 
 private:
 	void prepareWideCache();
+	void paintFrame(Painter &p, int x, int y, int outerWidth) const;
 
 	const style::RoundImageCheckbox &_st;
 	Fn<void()> _updateCallback;
@@ -95,6 +104,16 @@ private:
 	//std::optional<QBrush> _fgOverride;
 	std::vector<OutlineSegment> _segments;
 
+	mutable QImage _liveBadgeCache;
+	bool _liveBadge = false;
+
 };
+
+void PaintLiveBadge(
+	QPainter &p,
+	int x,
+	int y,
+	int photoSize,
+	std::optional<QColor> outline = std::nullopt);
 
 } // namespace Ui

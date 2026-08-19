@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/object_ptr.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
+#include "settings/settings_common.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
@@ -16,41 +18,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/gradient_round_button.h"
 #include "ui/widgets/labels.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
+#include "ui/vertical_list.h"
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
+#include "styles/style_boxes.h"
+#include "styles/style_settings.h"
 
 namespace Ui {
 namespace {
 
 constexpr auto kShowOrLineOpacity = 0.3;
-
-[[nodiscard]] object_ptr<RpWidget> MakeShowOrPremiumIcon(
-		not_null<RpWidget*> parent,
-		not_null<const style::icon*> icon) {
-	const auto margin = st::showOrIconMargin;
-	const auto padding = st::showOrIconPadding;
-	const auto inner = padding.top() + icon->height() + padding.bottom();
-	const auto full = margin.top() + inner + margin.bottom();
-	auto result = object_ptr<FixedHeightWidget>(parent, full);
-	const auto raw = result.data();
-
-	raw->resize(st::boxWideWidth, full);
-	raw->paintRequest(
-	) | rpl::start_with_next([=] {
-		auto p = QPainter(raw);
-		auto hq = PainterHighQualityEnabler(p);
-		const auto width = raw->width();
-		const auto position = QPoint((width - inner) / 2, margin.top());
-		const auto rect = QRect(position, QSize(inner, inner));
-		const auto shift = QPoint(padding.left(), padding.top());
-		p.setPen(Qt::NoPen);
-		p.setBrush(st::showOrIconBg);
-		p.drawEllipse(rect);
-		icon->paint(p, position + shift, width);
-	}, raw->lifetime());
-
-	return result;
-}
 
 } // namespace
 
@@ -64,12 +42,12 @@ object_ptr<RpWidget> MakeShowOrLabel(
 	const auto raw = result.data();
 
 	raw->paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		auto p = QPainter(raw);
 
 		const auto full = st::showOrLineWidth;
 		const auto left = (raw->width() - full) / 2;
-		const auto text = raw->textMaxWidth() + 2 * st::showOrLabelSkip;
+		const auto text = raw->naturalWidth() + 2 * st::showOrLabelSkip;
 		const auto fill = (full - text) / 2;
 		const auto stroke = st::lineWidth;
 		const auto top = st::showOrLineTop;
@@ -97,7 +75,7 @@ void ShowOrPremiumBox(
 		rpl::producer<TextWithEntities> premiumAbout;
 		rpl::producer<QString> premiumButton;
 		QString toast;
-		const style::icon *icon = nullptr;
+		QString lottie;
 	};
 	auto skin = (type == ShowOrPremium::LastSeen)
 		? Skin{
@@ -105,34 +83,34 @@ void ShowOrPremiumBox(
 			tr::lng_lastseen_show_about(
 				lt_user,
 				rpl::single(TextWithEntities{ shortName }),
-				Text::RichLangValue),
+				tr::rich),
 			tr::lng_lastseen_show_button(),
 			tr::lng_lastseen_or(),
 			tr::lng_lastseen_premium_title(),
 			tr::lng_lastseen_premium_about(
 				lt_user,
 				rpl::single(TextWithEntities{ shortName }),
-				Text::RichLangValue),
+				tr::rich),
 			tr::lng_lastseen_premium_button(),
 			tr::lng_lastseen_shown_toast(tr::now),
-			&st::showOrIconLastSeen,
+			u"show_or_premium_lastseen"_q,
 		}
 		: Skin{
 			tr::lng_readtime_show_title(),
 			tr::lng_readtime_show_about(
 				lt_user,
 				rpl::single(TextWithEntities{ shortName }),
-				Text::RichLangValue),
+				tr::rich),
 			tr::lng_readtime_show_button(),
 			tr::lng_readtime_or(),
 			tr::lng_readtime_premium_title(),
 			tr::lng_readtime_premium_about(
 				lt_user,
 				rpl::single(TextWithEntities{ shortName }),
-				Text::RichLangValue),
+				tr::rich),
 			tr::lng_readtime_premium_button(),
 			tr::lng_readtime_shown_toast(tr::now),
-			&st::showOrIconReadTime,
+			u"show_or_premium_readtime"_q,
 		};
 
 	box->setStyle(st::showOrBox);
@@ -146,41 +124,59 @@ void ShowOrPremiumBox(
 		0,
 		st::showOrBox.buttonPadding.right(),
 		0);
-	box->addRow(MakeShowOrPremiumIcon(box, skin.icon));
+
+	auto icon = Settings::CreateLottieIcon(
+		box,
+		{
+			.name = skin.lottie,
+			.sizeOverride = st::normalBoxLottieSize
+				- Size(st::showOrTitleIconMargin * 2),
+		},
+		{ 0, st::showOrTitleIconMargin, 0, st::showOrTitleIconMargin });
+	Settings::AddLottieIconWithCircle(
+		box->verticalLayout(),
+		std::move(icon.widget),
+		st::settingsBlockedListIconPadding,
+		st::normalBoxLottieSize);
+	Ui::AddSkip(box->verticalLayout());
 	box->addRow(
 		object_ptr<FlatLabel>(
 			box,
 			std::move(skin.showTitle),
 			st::boostCenteredTitle),
-		st::showOrTitlePadding + buttonPadding);
+		st::showOrTitlePadding + buttonPadding,
+		style::al_top);
 	box->addRow(
 		object_ptr<FlatLabel>(
 			box,
 			std::move(skin.showAbout),
 			st::boostText),
-		st::showOrAboutPadding + buttonPadding);
+		st::showOrAboutPadding + buttonPadding,
+		style::al_top);
 	const auto show = box->addRow(
 		object_ptr<RoundButton>(
 			box,
 			std::move(skin.showButton),
 			st::showOrShowButton),
 		buttonPadding);
-	show->setTextTransform(RoundButton::TextTransform::NoTransform);
 	box->addRow(
 		MakeShowOrLabel(box, std::move(skin.orPremium)),
-		st::showOrLabelPadding + buttonPadding);
+		st::showOrLabelPadding + buttonPadding,
+		style::al_justify);
 	box->addRow(
 		object_ptr<FlatLabel>(
 			box,
 			std::move(skin.premiumTitle),
 			st::boostCenteredTitle),
-		st::showOrTitlePadding + buttonPadding);
+		st::showOrTitlePadding + buttonPadding,
+		style::al_top);
 	box->addRow(
 		object_ptr<FlatLabel>(
 			box,
 			std::move(skin.premiumAbout),
 			st::boostText),
-		st::showOrPremiumAboutPadding + buttonPadding);
+		st::showOrPremiumAboutPadding + buttonPadding,
+		style::al_top);
 
 	const auto premium = CreateChild<GradientButton>(
 		box.get(),
@@ -196,15 +192,16 @@ void ShowOrPremiumBox(
 	rpl::combine(
 		premium->widthValue(),
 		label->widthValue()
-	) | rpl::start_with_next([=](int outer, int width) {
+	) | rpl::on_next([=](int outer, int width) {
 		label->moveToLeft(
 			(outer - width) / 2,
 			st::premiumPreviewBox.button.textTop,
 			outer);
 	}, label->lifetime());
 
-	box->setShowFinishedCallback([=] {
+	box->setShowFinishedCallback([=, animate = std::move(icon.animate)] {
 		premium->startGlareAnimation();
+		animate(anim::repeat::once);
 	});
 
 	box->addButton(

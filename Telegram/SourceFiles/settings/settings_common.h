@@ -11,7 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/round_rect.h"
 #include "base/object_ptr.h"
+#include "base/weak_qptr.h"
 #include "settings/settings_type.h"
+
+#include <any>
 
 namespace anim {
 enum class repeat : uchar;
@@ -21,6 +24,14 @@ namespace Info {
 struct SelectedItems;
 enum class SelectionAction;
 } // namespace Info
+
+namespace ChatHelpers {
+struct FileChosen;
+} // namespace ChatHelpers
+
+namespace SendMenu {
+struct Details;
+} // namespace SendMenu
 
 namespace Main {
 class Session;
@@ -32,6 +43,7 @@ class FlatLabel;
 class SettingsButton;
 class AbstractButton;
 class MediaSlider;
+class ToggleView;
 } // namespace Ui
 
 namespace Ui::Menu {
@@ -54,15 +66,63 @@ struct IconDescriptor;
 
 namespace Settings {
 
+class KeyNavigation;
+
 using Button = Ui::SettingsButton;
+
+enum class HighlightShape {
+	Rect,
+	Ellipse,
+};
+
+struct HighlightArgs {
+	style::margins margin;
+	HighlightShape shape = HighlightShape::Rect;
+	int radius = 0;
+	const style::color *color = nullptr;
+	float64 opacity = 0.4;
+	bool below = false;
+	bool rippleShape = false;
+	bool scroll = true;
+	crl::time showDelay = 400;
+	crl::time showDuration = 600;
+	crl::time shownDuration = 400;
+	crl::time hideDuration = 600;
+};
+
+void HighlightWidget(QWidget *target, HighlightArgs &&args = {});
+void ScrollToWidget(not_null<QWidget*> target);
+void RevealWidget(not_null<QWidget*> target, int margin = 0);
+
+[[nodiscard]] HighlightArgs SubsectionTitleHighlight();
+
+struct HighlightEntry {
+	QPointer<QWidget> widget;
+	HighlightArgs args;
+};
+
+using HighlightRegistry = std::vector<std::pair<QString, HighlightEntry>>;
+
+using SectionBuildMethod = Fn<void(
+	not_null<Ui::VerticalLayout*> container,
+	not_null<Window::SessionController*> controller,
+	Fn<void(Type)> showOther,
+	rpl::producer<> showFinished)>;
 
 class AbstractSection : public Ui::RpWidget {
 public:
-	using RpWidget::RpWidget;
+	AbstractSection(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller);
+	~AbstractSection();
+
+	[[nodiscard]] not_null<Window::SessionController*> controller() const {
+		return _controller;
+	}
 
 	[[nodiscard]] virtual Type id() const = 0;
 	[[nodiscard]] virtual rpl::producer<Type> sectionShowOther() {
-		return nullptr;
+		return _showOtherRequests.events();
 	}
 	[[nodiscard]] virtual rpl::producer<> sectionShowBack() {
 		return nullptr;
@@ -80,7 +140,10 @@ public:
 	virtual void sectionSaveChanges(FnMut<void()> done) {
 		done();
 	}
+	virtual SendMenu::Details sendMenuDetails() const;
+	virtual bool processChosenSticker(ChatHelpers::FileChosen &&chosen);
 	virtual void showFinished() {
+		_showFinished.fire({});
 	}
 	virtual void setInnerFocus() {
 		setFocus();
@@ -88,11 +151,11 @@ public:
 	[[nodiscard]] virtual const Ui::RoundRect *bottomSkipRounding() const {
 		return nullptr;
 	}
-	[[nodiscard]] virtual QPointer<Ui::RpWidget> createPinnedToTop(
+	[[nodiscard]] virtual base::weak_qptr<Ui::RpWidget> createPinnedToTop(
 			not_null<QWidget*> parent) {
 		return nullptr;
 	}
-	[[nodiscard]] virtual QPointer<Ui::RpWidget> createPinnedToBottom(
+	[[nodiscard]] virtual base::weak_qptr<Ui::RpWidget> createPinnedToBottom(
 			not_null<Ui::RpWidget*> parent) {
 		return nullptr;
 	}
@@ -100,6 +163,10 @@ public:
 		return false;
 	}
 	virtual void setStepDataReference(std::any &data) {
+	}
+	virtual void sectionSaveState(std::any &state) {
+	}
+	virtual void sectionRestoreState(const std::any &state) {
 	}
 
 	[[nodiscard]] virtual auto selectedListValue()
@@ -118,6 +185,34 @@ public:
 			QRect clip) {
 		return false;
 	}
+
+	[[nodiscard]] rpl::producer<> showFinishes() const {
+		return _showFinished.events();
+	}
+
+	void showOther(Type type) {
+		_showOtherRequests.fire_copy(type);
+	}
+	[[nodiscard]] Fn<void(Type)> showOtherMethod() {
+		return crl::guard(this, [=](Type type) {
+			showOther(type);
+		});
+	}
+	void setNavigationAnchor(not_null<QWidget*> widget);
+
+protected:
+	void build(
+		not_null<Ui::VerticalLayout*> container,
+		SectionBuildMethod method);
+
+	void keyPressEvent(QKeyEvent *e) override;
+
+private:
+	const not_null<Window::SessionController*> _controller;
+	rpl::event_stream<Type> _showOtherRequests;
+	rpl::event_stream<> _showFinished;
+	std::unique_ptr<KeyNavigation> _keyNavigation;
+
 };
 
 enum class IconType {
@@ -183,6 +278,15 @@ void CreateRightLabel(
 	rpl::producer<QString> buttonText,
 	Ui::Text::MarkedContext context = {});
 
+struct SeparatedToggle {
+	not_null<Ui::SettingsButton*> button;
+	not_null<Ui::ToggleView*> checkView;
+};
+[[nodiscard]] SeparatedToggle AddSeparatedToggle(
+	not_null<Button*> button,
+	const style::SettingsButton &st,
+	bool checked);
+
 struct DividerWithLottieDescriptor {
 	QString lottie;
 	std::optional<anim::repeat> lottieRepeat;
@@ -204,7 +308,8 @@ struct LottieIcon {
 [[nodiscard]] LottieIcon CreateLottieIcon(
 	not_null<QWidget*> parent,
 	Lottie::IconDescriptor &&descriptor,
-	style::margins padding = {});
+	style::margins padding = {},
+	Fn<QColor()> colorOverride = nullptr);
 
 struct SliderWithLabel {
 	object_ptr<Ui::RpWidget> widget;
@@ -218,5 +323,16 @@ struct SliderWithLabel {
 	int skip,
 	int minLabelWidth = 0,
 	bool ignoreWheel = false);
+
+void AddLottieIconWithCircle(
+	not_null<Ui::VerticalLayout*>,
+	object_ptr<Ui::RpWidget> icon,
+	QMargins iconPadding,
+	QSize circleSize);
+
+void AddPremiumStar(
+	not_null<Button*> button,
+	bool credits,
+	Fn<bool()> isPaused);
 
 } // namespace Settings

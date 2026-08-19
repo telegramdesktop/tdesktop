@@ -1,0 +1,20 @@
+<!DOCTYPE node PUBLIC
+'-//freedesktop//DTD D-BUS Object Introspection 1.0//EN'
+'http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd'>
+<node>
+  <interface name="org.bluez.Adapter1">
+    <method name="StartDiscovery"/>
+
+    <method name="StopDiscovery"/>
+
+    <method name="SetDiscoveryFilter">
+      <arg name="properties" direction="in" type="a{sv}"/>
+    </method>
+
+    <property name="Powered" type="b" access="read"/>
+  </interface>
+
+  <interface name="org.bluez.Device1">
+    <property name="ServiceData" type="a{sv}" access="read"/>
+  </interface>
+</node>

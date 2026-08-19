@@ -40,6 +40,8 @@ class ItemBase;
 
 namespace Ui {
 
+class UploadProgressOverlay;
+
 class PopupMenu;
 
 class UserpicButton final : public RippleButton {
@@ -62,18 +64,20 @@ public:
 		not_null<::Window::Controller*> window,
 		Role role,
 		const style::UserpicButton &st,
-		bool forceForumShape = false);
+		PeerUserpicShape shape = PeerUserpicShape::Auto);
 	UserpicButton(
 		QWidget *parent,
 		not_null<::Window::SessionController*> controller,
 		not_null<PeerData*> peer,
 		Role role,
 		Source source,
-		const style::UserpicButton &st);
+		const style::UserpicButton &st,
+		PeerUserpicShape shape = PeerUserpicShape::Auto);
 	UserpicButton(
 		QWidget *parent,
 		not_null<PeerData*> peer, // Role::Custom, Source::PeerPhoto
-		const style::UserpicButton &st);
+		const style::UserpicButton &st,
+		PeerUserpicShape shape = PeerUserpicShape::Auto);
 	~UserpicButton();
 
 	enum class ChosenType {
@@ -94,7 +98,8 @@ public:
 		bool enabled,
 		Fn<void(ChosenImage)> chosen);
 	void showSavedMessagesOnSelf(bool enabled);
-	void forceForumShape(bool force);
+	void showMyNotesOnSelf(bool enabled);
+	void overrideShape(PeerUserpicShape shape);
 
 	// Role::ChoosePhoto or Role::ChangePhoto
 	[[nodiscard]] rpl::producer<ChosenImage> chosenImages() const {
@@ -107,6 +112,10 @@ public:
 	void showCustom(QImage &&image);
 	void showSource(Source source);
 	void showCustomOnChosen();
+
+	void showUploadProgress();
+
+	[[nodiscard]] PopupMenu *showChangePhotoMenu();
 
 	void overrideHasPersonalPhoto(bool has);
 	[[nodiscard]] rpl::producer<> resetPersonalRequests() const;
@@ -129,7 +138,7 @@ private:
 	void processNewPeerPhoto();
 	void startNewPhotoShowing();
 	void prepareUserpicPixmap();
-	void fillShape(QPainter &p, const style::color &color) const;
+	void fillShape(QPainter &p, QBrush brush) const;
 	[[nodiscard]] QPoint countPhotoPosition() const;
 	void startChangeOverlayAnimation();
 	void updateCursorInChangeOverlay(QPoint localPos);
@@ -138,6 +147,8 @@ private:
 	void updateVideo();
 	[[nodiscard]] bool showSavedMessages() const;
 	[[nodiscard]] bool showRepliesMessages() const;
+	[[nodiscard]] bool showMyNotes() const;
+	[[nodiscard]] bool showAuthorHidden() const;
 	void checkStreamedIsStarted();
 	bool createStreamingObjects(not_null<PhotoData*> photo);
 	void clearStreaming();
@@ -161,8 +172,9 @@ private:
 	::Window::SessionController *_controller = nullptr;
 	::Window::Controller *_window = nullptr;
 	PeerData *_peer = nullptr;
-	bool _forceForumShape = false;
+	PeerUserpicShape _shape = PeerUserpicShape::Auto;
 	PeerUserpicView _userpicView;
+	QImage _monoforumMask;
 	std::shared_ptr<Data::PhotoMedia> _nonPersonalView;
 	Role _role = Role::ChangePhoto;
 	bool _notShownYet = true;
@@ -181,6 +193,7 @@ private:
 	base::unique_qptr<PopupMenu> _menu;
 
 	bool _showSavedMessagesOnSelf = false;
+	bool _showMyNotesOnSelf = false;
 	bool _canOpenPhoto = false;
 	bool _cursorInChangeOverlay = false;
 	bool _changeOverlayEnabled = false;
@@ -192,6 +205,9 @@ private:
 	std::optional<bool> _overrideHasPersonalPhoto;
 	rpl::event_stream<> _resetPersonalRequests;
 	rpl::lifetime _sourceLifetime;
+
+	std::unique_ptr<UploadProgressOverlay> _uploadOverlay;
+	rpl::lifetime _uploadLifetime;
 
 };
 

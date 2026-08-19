@@ -57,12 +57,13 @@ PeerId GenerateUser(not_null<History*> history, const QString &name) {
 		MTPstring(), // lang code
 		MTPEmojiStatus(),
 		MTPVector<MTPUsername>(),
-		MTPint(), // stories_max_id
+		MTPRecentStory(),
 		MTPPeerColor(), // color
 		MTPPeerColor(), // profile_color
 		MTPint(), // bot_active_users
 		MTPlong(), // bot_verification_icon
-		MTPlong())); // send_paid_messages_stars
+		MTPlong(), // send_paid_messages_stars
+		MTPlong())); // linked_community_id
 	return peerId;
 }
 

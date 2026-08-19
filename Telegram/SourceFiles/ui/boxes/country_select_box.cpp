@@ -7,15 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/boxes/country_select_box.h"
 
-#include "lang/lang_keys.h"
-#include "ui/widgets/scroll_area.h"
-#include "ui/widgets/multi_select.h"
-#include "ui/effects/ripple_animation.h"
-#include "ui/painter.h"
+#include "base/event_filter.h"
+#include "base/invoke_queued.h"
 #include "countries/countries_instance.h"
-#include "styles/style_layers.h"
-#include "styles/style_boxes.h"
+#include "lang/lang_keys.h"
+#include "ui/accessible/ui_accessible_item.h"
+#include "ui/effects/ripple_animation.h"
+#include "ui/widgets/multi_select.h"
+#include "ui/widgets/scroll_area.h"
+#include "ui/painter.h"
+#include "ui/screen_reader_mode.h"
+#include "styles/style_country_select_box.h"
 #include "styles/style_intro.h"
+#include "styles/style_layers.h"
 
 #include <QtCore/QRegularExpression>
 
@@ -48,8 +52,27 @@ public:
 		return _mustScrollTo.events();
 	}
 
+	QAccessible::Role accessibilityRole() override;
+	Qt::FocusPolicy accessibilityFocusPolicy() override;
+	QAccessible::Role accessibilityChildRole() const override;
+	QAccessible::State accessibilityChildState(int index) const override;
+	int accessibilityChildCount() const override;
+	QString accessibilityChildName(int index) const override;
+	QRect accessibilityChildRect(int index) const override;
+	int accessibilityChildColumnCount(int row) const override;
+	QAccessible::Role accessibilityChildSubItemRole() const override;
+	QString accessibilityChildSubItemName(int row, int column) const override;
+	QString accessibilityChildSubItemValue(int row, int column) const override;
+	bool accessibilityChildSupportsActions(int index) const override;
+	quintptr accessibilityChildIdentity(int index) const override;
+	int accessibilityChildIndexByIdentity(quintptr identity) const override;
+	void accessibilityChildSetFocus(quintptr identity) override;
+	void accessibilityChildActivate(quintptr identity) override;
+
 protected:
+	void focusInEvent(QFocusEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 	void enterEventHook(QEnterEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
@@ -65,6 +88,12 @@ private:
 	void updateSelectedRow();
 	void updateRow(int index);
 	void setPressed(int pressed);
+	enum class Announce {
+		No,
+		OnChange,
+		Always,
+	};
+	void setSelected(int index, Announce announce);
 	const std::vector<Entry> &current() const;
 
 	Type _type = Type::Phones;
@@ -86,6 +115,28 @@ private:
 	rpl::event_stream<ScrollToRequest> _mustScrollTo;
 
 };
+
+namespace {
+
+[[nodiscard]] bool ForwardListNavigation(
+		not_null<QKeyEvent*> e,
+		not_null<CountrySelectBox::Inner*> inner,
+		int pageHeight) {
+	if (e->key() == Qt::Key_Down) {
+		inner->selectSkip(1);
+	} else if (e->key() == Qt::Key_Up) {
+		inner->selectSkip(-1);
+	} else if (e->key() == Qt::Key_PageDown) {
+		inner->selectSkipPage(pageHeight, 1);
+	} else if (e->key() == Qt::Key_PageUp) {
+		inner->selectSkipPage(pageHeight, -1);
+	} else {
+		return false;
+	}
+	return true;
+}
+
+} // namespace
 
 CountrySelectBox::CountrySelectBox(QWidget*)
 : CountrySelectBox(nullptr, QString(), Type::Phones) {
@@ -135,9 +186,20 @@ void CountrySelectBox::prepare() {
 	setDimensions(st::boxWidth, st::boxMaxListHeight);
 
 	_inner->mustScrollTo(
-	) | rpl::start_with_next([=](ScrollToRequest request) {
+	) | rpl::on_next([=](ScrollToRequest request) {
 		scrollToY(request.ymin, request.ymax);
 	}, lifetime());
+
+	base::install_event_filter(_select.data(), [=](not_null<QEvent*> e) {
+		if (e->type() != QEvent::KeyPress) {
+			return base::EventFilterResult::Continue;
+		}
+		const auto key = static_cast<QKeyEvent*>(e.get());
+		const auto pageHeight = height() - _select->height();
+		return ForwardListNavigation(key, _inner.data(), pageHeight)
+			? base::EventFilterResult::Cancel
+			: base::EventFilterResult::Continue;
+	});
 }
 
 void CountrySelectBox::submit() {
@@ -145,15 +207,8 @@ void CountrySelectBox::submit() {
 }
 
 void CountrySelectBox::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Down) {
-		_inner->selectSkip(1);
-	} else if (e->key() == Qt::Key_Up) {
-		_inner->selectSkip(-1);
-	} else if (e->key() == Qt::Key_PageDown) {
-		_inner->selectSkipPage(height() - _select->height(), 1);
-	} else if (e->key() == Qt::Key_PageUp) {
-		_inner->selectSkipPage(height() - _select->height(), -1);
-	} else {
+	const auto pageHeight = height() - _select->height();
+	if (!ForwardListNavigation(e, _inner.data(), pageHeight)) {
 		BoxContent::keyPressEvent(e);
 	}
 }
@@ -194,7 +249,7 @@ CountrySelectBox::Inner::Inner(
 	rpl::single(
 	) | rpl::then(
 		Countries::Instance().updated()
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_mustScrollTo.fire(ScrollToRequest(0, 0));
 		_list.clear();
 		_namesList.clear();
@@ -203,6 +258,8 @@ CountrySelectBox::Inner::Inner(
 		_filter = u"a"_q;
 		updateFilter(filter);
 	}, lifetime());
+
+	setAccessibleName(tr::lng_country_select(tr::now));
 }
 
 void CountrySelectBox::Inner::init() {
@@ -262,6 +319,36 @@ void CountrySelectBox::Inner::init() {
 	}
 }
 
+void CountrySelectBox::Inner::setSelected(int index, Announce announce) {
+	const auto changed = (_selected != index);
+	if (changed) {
+		updateSelectedRow();
+		_selected = index;
+		updateSelectedRow();
+	}
+	const auto shouldAnnounce = (announce == Announce::Always)
+		|| (announce == Announce::OnChange && changed);
+	if (shouldAnnounce && _selected >= 0) {
+		accessibilityChildNameChanged(_selected);
+		accessibilityChildFocused(_selected);
+	}
+}
+
+void CountrySelectBox::Inner::focusInEvent(QFocusEvent *e) {
+	if (_selected < 0 && !current().empty()) {
+		setSelected(0, Announce::No);
+	}
+	RpWidget::focusInEvent(e);
+	if (_selected >= 0) {
+		const auto index = _selected;
+		InvokeQueued(this, [=] {
+			if (_selected == index && hasFocus()) {
+				accessibilityChildFocused(index);
+			}
+		});
+	}
+}
+
 void CountrySelectBox::Inner::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	QRect r(e->rect());
@@ -313,6 +400,32 @@ void CountrySelectBox::Inner::paintEvent(QPaintEvent *e) {
 			p.setPen(selected ? st::countryRowCodeFgOver : st::countryRowCodeFg);
 			p.drawTextLeft(st::countryRowPadding.left() + nameWidth + st::countryRowPadding.right(), y + st::countryRowPadding.top(), width(), code);
 		}
+	}
+}
+
+void CountrySelectBox::Inner::keyPressEvent(QKeyEvent *e) {
+	const auto pageHeight = parentWidget()->height();
+	if (ForwardListNavigation(e, this, pageHeight)) {
+		return;
+	}
+	const auto &list = current();
+	if (e->key() == Qt::Key_Home && !list.empty()) {
+		setSelected(0, Announce::Always);
+		_mustScrollTo.fire(ScrollToRequest(
+			st::countriesSkip,
+			st::countriesSkip + _rowHeight));
+	} else if (e->key() == Qt::Key_End && !list.empty()) {
+		const auto last = int(list.size()) - 1;
+		setSelected(last, Announce::Always);
+		_mustScrollTo.fire(ScrollToRequest(
+			st::countriesSkip + last * _rowHeight,
+			st::countriesSkip + (last + 1) * _rowHeight));
+	} else if (!e->isAutoRepeat()
+		&& (e->key() == Qt::Key_Return
+			|| e->key() == Qt::Key_Enter)) {
+		chooseCountry();
+	} else {
+		RpWidget::keyPressEvent(e);
 	}
 }
 
@@ -413,13 +526,12 @@ void CountrySelectBox::Inner::selectSkip(int32 dir) {
 	const auto &list = current();
 	int cur = (_selected >= 0) ? _selected : -1;
 	cur += dir;
-	if (cur <= 0) {
-		_selected = list.empty() ? -1 : 0;
-	} else if (cur >= list.size()) {
-		_selected = -1;
-	} else {
-		_selected = cur;
-	}
+	const auto next = (cur <= 0)
+		? (list.empty() ? -1 : 0)
+		: (cur >= int(list.size()))
+			? -1
+			: cur;
+	setSelected(next, Announce::Always);
 	if (_selected >= 0) {
 		_mustScrollTo.fire(ScrollToRequest(
 			st::countriesSkip + _selected * _rowHeight,
@@ -447,17 +559,18 @@ void CountrySelectBox::Inner::refresh() {
 }
 
 void CountrySelectBox::Inner::updateSelected(QPoint localPos) {
-	if (!_mouseSelection) return;
-
-	auto in = parentWidget()->rect().contains(parentWidget()->mapFromGlobal(QCursor::pos()));
-
-	const auto &list = current();
-	auto selected = (in && localPos.y() >= st::countriesSkip && localPos.y() < st::countriesSkip + list.size() * _rowHeight) ? ((localPos.y() - st::countriesSkip) / _rowHeight) : -1;
-	if (_selected != selected) {
-		updateSelectedRow();
-		_selected = selected;
-		updateSelectedRow();
+	if (!_mouseSelection) {
+		return;
 	}
+	const auto in = parentWidget()->rect().contains(
+		parentWidget()->mapFromGlobal(QCursor::pos()));
+	const auto &list = current();
+	const auto selected = (in
+		&& localPos.y() >= st::countriesSkip
+		&& localPos.y() < st::countriesSkip + int(list.size()) * _rowHeight)
+			? ((localPos.y() - st::countriesSkip) / _rowHeight)
+			: -1;
+	setSelected(selected, Announce::OnChange);
 }
 
 auto CountrySelectBox::Inner::current() const
@@ -483,5 +596,181 @@ void CountrySelectBox::Inner::setPressed(int pressed) {
 }
 
 CountrySelectBox::Inner::~Inner() = default;
+
+QAccessible::Role CountrySelectBox::Inner::accessibilityRole() {
+	return QAccessible::List;
+}
+
+Qt::FocusPolicy CountrySelectBox::Inner::accessibilityFocusPolicy() {
+	return Qt::TabFocus;
+}
+
+QAccessible::Role CountrySelectBox::Inner::accessibilityChildRole() const {
+	return QAccessible::ListItem;
+}
+
+QAccessible::State CountrySelectBox::Inner::accessibilityChildState(
+		int index) const {
+	QAccessible::State state;
+	state.selectable = true;
+	if (Ui::ScreenReaderModeActive()) {
+		state.focusable = true;
+	}
+	if (index == _selected) {
+		state.selected = true;
+		state.active = true;
+		if (hasFocus()) {
+			state.focused = true;
+		}
+	}
+	return state;
+}
+
+int CountrySelectBox::Inner::accessibilityChildCount() const {
+	return int(current().size());
+}
+
+QString CountrySelectBox::Inner::accessibilityChildName(int index) const {
+	const auto &list = current();
+	if (index < 0 || index >= int(list.size())) {
+		return {};
+	}
+	if (_type == Type::Phones) {
+		return list[index].country + u", +"_q + list[index].code;
+	}
+	return list[index].country;
+}
+
+QRect CountrySelectBox::Inner::accessibilityChildRect(int index) const {
+	const auto &list = current();
+	if (index < 0 || index >= int(list.size())) {
+		return {};
+	}
+	return QRect(
+		0,
+		st::countriesSkip + index * _rowHeight,
+		width(),
+		_rowHeight);
+}
+
+int CountrySelectBox::Inner::accessibilityChildColumnCount(int row) const {
+	return (_type == Type::Phones) ? 2 : 1;
+}
+
+QAccessible::Role CountrySelectBox::Inner::accessibilityChildSubItemRole() const {
+	return QAccessible::Cell;
+}
+
+QString CountrySelectBox::Inner::accessibilityChildSubItemName(
+		int row,
+		int column) const {
+	if (column == 0) {
+		return tr::lng_sr_country_column_name(tr::now);
+	} else if (column == 1 && _type == Type::Phones) {
+		return tr::lng_country_code(tr::now);
+	}
+	return {};
+}
+
+QString CountrySelectBox::Inner::accessibilityChildSubItemValue(
+		int row,
+		int column) const {
+	const auto &list = current();
+	if (row < 0 || row >= int(list.size())) {
+		return {};
+	}
+	if (column == 0) {
+		return list[row].country;
+	} else if (column == 1 && _type == Type::Phones) {
+		return u"+"_q + list[row].code;
+	}
+	return {};
+}
+
+bool CountrySelectBox::Inner::accessibilityChildSupportsActions(
+		int index) const {
+	// Every row is a country that can be focused and activated, and each
+	// has a stable identity below. Tying the opt-in to a valid identity
+	// keeps the action interface off invalid indices.
+	return accessibilityChildIdentity(index) != 0;
+}
+
+quintptr CountrySelectBox::Inner::accessibilityChildIdentity(
+		int index) const {
+	// _filtered is rebuilt on every search keystroke and _list on every
+	// countries update, and the rebuilt vectors reuse their buffers, so
+	// neither indices nor Entry pointers are stable by the time a queued
+	// action runs. Derive the token from the (iso2, code) pair, which
+	// uniquely names a row; hash collisions are possible but acceptable,
+	// same as the hashtag cohort in the chat list. Shift instead of
+	// masking so that small hash values keep their distinguishing low
+	// bits; the tag bit keeps the token non-zero.
+	const auto &list = current();
+	if (index < 0 || index >= int(list.size())) {
+		return 0;
+	}
+	const auto value = quintptr(
+		qHash(list[index].iso2 + u"+"_q + list[index].code));
+	return value ? ((value << 3) | quintptr(1)) : quintptr(0);
+}
+
+int CountrySelectBox::Inner::accessibilityChildIndexByIdentity(
+		quintptr identity) const {
+	if (!identity) {
+		return -1;
+	}
+	const auto count = accessibilityChildCount();
+	for (auto i = 0; i != count; ++i) {
+		if (accessibilityChildIdentity(i) == identity) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+void CountrySelectBox::Inner::accessibilityChildSetFocus(quintptr identity) {
+	// UIA invokes provider actions (SetFocus) on a background thread, so hop
+	// to the main thread before touching any widget state. Resolve the stable
+	// identity to its current index here (not on the background thread) so a
+	// filter or countries-list rebuild does not move focus to another row.
+	crl::on_main(this, [=] {
+		// An explicit accessibility SetFocus is itself sufficient
+		// authorization, so we do not gate it on the screen-reader-mode
+		// detector: the UIA provider already reported success to the caller,
+		// and the detector may still be false during startup or for valid
+		// clients that are not on its allowlist.
+		const auto index = accessibilityChildIndexByIdentity(identity);
+		if (index < 0) {
+			return;
+		}
+		// The rows are virtual (no real QWidget), so the screen reader's
+		// SetFocus can't move real keyboard focus to a row. Translate it
+		// into our internal selection, then either announce it directly or
+		// grab keyboard focus (focusInEvent announces the selected row).
+		_mouseSelection = false;
+		setSelected(index, hasFocus() ? Announce::Always : Announce::No);
+		_mustScrollTo.fire(ScrollToRequest(
+			st::countriesSkip + index * _rowHeight,
+			st::countriesSkip + (index + 1) * _rowHeight));
+		update();
+		if (!hasFocus()) {
+			setFocus();
+		}
+	});
+}
+
+void CountrySelectBox::Inner::accessibilityChildActivate(quintptr identity) {
+	// UIA invokes the press action on a background thread too; resolve the
+	// identity, move the selection and choose the country on the main thread.
+	crl::on_main(this, [=] {
+		const auto index = accessibilityChildIndexByIdentity(identity);
+		if (index < 0) {
+			return;
+		}
+		_mouseSelection = false;
+		setSelected(index, Announce::No);
+		chooseCountry();
+	});
+}
 
 } // namespace Ui

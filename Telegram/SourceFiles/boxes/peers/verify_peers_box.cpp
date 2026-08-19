@@ -19,8 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/input_field.h"
 #include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
-#include "styles/style_boxes.h"
 #include "styles/style_layers.h"
+#include "styles/style_polls.h"
 
 namespace {
 
@@ -58,8 +58,8 @@ void Setup(
 		MTP_flags(Flag::f_bot
 			| Flag::f_enabled
 			| (description.isEmpty() ? Flag() : Flag::f_custom_description)),
-		bot->inputUser,
-		peer->input,
+		bot->inputUser(),
+		peer->input(),
 		MTP_string(description)
 	)).done([=] {
 		done(QString());
@@ -74,8 +74,8 @@ void Remove(
 		Fn<void(QString)> done) {
 	bot->session().api().request(MTPbots_SetCustomVerification(
 		MTP_flags(MTPbots_SetCustomVerification::Flag::f_bot),
-		bot->inputUser,
-		peer->input,
+		bot->inputUser(),
+		peer->input(),
 		MTPstring()
 	)).done([=] {
 		done(QString());
@@ -127,19 +127,19 @@ void Controller::confirmAdd(not_null<PeerData*> peer) {
 				return;
 			}
 			state->sent = true;
-			const auto weak = Ui::MakeWeak(box);
+			const auto weak = base::make_weak(box);
 			const auto description = modify ? state->description : QString();
 			Setup(bot, peer, description, [=](QString error) {
 				if (error.isEmpty()) {
-					if (const auto strong = weak.data()) {
+					if (const auto strong = weak.get()) {
 						strong->closeBox();
 					}
 					show->showToast({
 						.text = PeerVerifyPhrases(peer).sent(
 							tr::now,
 							lt_name,
-							Ui::Text::Bold(peer->shortName()),
-							Ui::Text::WithEntities),
+							tr::bold(peer->shortName()),
+							tr::marked),
 						.duration = kSetupVerificationToastDuration,
 					});
 				} else {
@@ -153,8 +153,8 @@ void Controller::confirmAdd(not_null<PeerData*> peer) {
 		Ui::ConfirmBox(box, {
 			.text = phrases.text(
 				lt_name,
-				rpl::single(Ui::Text::Bold(peer->shortName())),
-				Ui::Text::WithEntities),
+				rpl::single(tr::bold(peer->shortName())),
+				tr::marked),
 			.confirmed = send,
 			.confirmText = phrases.submit(),
 			.title = phrases.title(),
@@ -183,12 +183,12 @@ void Controller::confirmAdd(not_null<PeerData*> peer) {
 
 		Ui::AddSkip(box->verticalLayout());
 
-		field->changes() | rpl::start_with_next([=] {
+		field->changes() | rpl::on_next([=] {
 			state->description = field->getLastText();
 		}, field->lifetime());
 
 		field->setMaxLength(limit * 2);
-		Ui::AddLengthLimitLabel(field, limit, std::nullopt);
+		Ui::AddLengthLimitLabel(field, limit);
 
 		Ui::AddDividerText(box->verticalLayout(), phrases.about());
 	}));
@@ -204,10 +204,10 @@ void Controller::confirmRemove(not_null<PeerData*> peer) {
 				return;
 			}
 			*sent = true;
-			const auto weak = Ui::MakeWeak(box);
+			const auto weak = base::make_weak(box);
 			Remove(bot, peer, [=](QString error) {
 				if (error.isEmpty()) {
-					if (const auto strong = weak.data()) {
+					if (const auto strong = weak.get()) {
 						strong->closeBox();
 					}
 					show->showToast(tr::lng_bot_verify_remove_done(tr::now));

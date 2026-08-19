@@ -16,11 +16,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_preview_box.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/message_field.h"
+#include "chat_helpers/tabbed_panel.h"
+#include "chat_helpers/tabbed_selector.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/ui_integration.h"
+#include "data/stickers/data_custom_emoji.h"
+#include "data/stickers/data_stickers.h"
 #include "data/data_channel.h"
 #include "data/data_chat_filters.h"
+#include "data/data_document.h"
 #include "data/data_peer.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
 #include "data/data_premium_limits.h"
@@ -32,6 +37,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "settings/settings_common.h"
 #include "ui/chat/chats_filter_tag.h"
+#include "ui/controls/emoji_button_factory.h"
+#include "ui/controls/emoji_button.h"
 #include "ui/effects/animation_value_f.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/panel_animation.h"
@@ -40,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/filter_icons.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/power_saving.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
@@ -48,11 +56,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_settings.h"
-#include "styles/style_boxes.h"
-#include "styles/style_dialogs.h"
 #include "styles/style_layers.h"
 #include "styles/style_window.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_info_userpic_builder.h"
 
 namespace {
@@ -85,7 +92,7 @@ not_null<FilterChatsPreview*> SetupChatsPreview(
 		(rules.*peers)()));
 
 	preview->flagRemoved(
-	) | rpl::start_with_next([=](Flag flag) {
+	) | rpl::on_next([=](Flag flag) {
 		const auto rules = data->current();
 		auto computed = Data::ChatFilter(
 			rules.id(),
@@ -101,7 +108,7 @@ not_null<FilterChatsPreview*> SetupChatsPreview(
 	}, preview->lifetime());
 
 	preview->peerRemoved(
-	) | rpl::start_with_next([=](not_null<History*> history) {
+	) | rpl::on_next([=](not_null<History*> history) {
 		const auto rules = data->current();
 		auto always = rules.always();
 		auto pinned = rules.pinned();
@@ -197,6 +204,45 @@ void EditExceptions(
 		Box<PeerListBox>(std::move(controller), std::move(initBox)));
 }
 
+struct ParabolicPath {
+	float64 a = 0.;
+	float64 b = 0.;
+	int from = 0;
+
+	[[nodiscard]] int y(float64 progress) const {
+		return int(base::SafeRound(
+			(a * progress * progress) + (b * progress) + from));
+	}
+};
+
+[[nodiscard]] ParabolicPath ComputeParabolicPath(int from, int to, int up) {
+	const auto y_1 = to - from;
+	const auto y_0 = std::min(0, y_1) - up;
+	const auto ratio = y_1 ? (float64(y_0) / y_1) : 0.;
+	const auto root = y_1 ? sqrt(ratio * (ratio - 1)) : 0.;
+	const auto t_0 = !y_1
+		? 0.5
+		: (y_1 > 0)
+		? (ratio + root)
+		: (ratio - root);
+	const auto a = y_1 ? (y_1 / (1 - 2 * t_0)) : (-4. * y_0);
+	return { .a = a, .b = y_1 - a, .from = from };
+}
+
+[[nodiscard]] QImage PrepareFlyIcon(
+		not_null<const style::icon*> icon,
+		QColor color) {
+	const auto ratio = style::DevicePixelRatio();
+	auto result = QImage(
+		icon->size() * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(ratio);
+	result.fill(Qt::transparent);
+	auto p = QPainter(&result);
+	icon->paint(p, 0, 0, icon->width(), color);
+	return result;
+}
+
 void CreateIconSelector(
 		not_null<QWidget*> outer,
 		not_null<QWidget*> box,
@@ -204,35 +250,76 @@ void CreateIconSelector(
 		not_null<Ui::InputField*> input,
 		not_null<rpl::variable<Data::ChatFilter>*> data) {
 	const auto rules = data->current();
+	const auto size = st::windowFilterIconUserpicSize;
+	const auto badge = st::windowFilterIconUserpicBadge;
+	const auto badgePosition = st::windowFilterIconUserpicBadgePosition;
+	const auto border = st::windowFilterIconUserpicBadgeBorder;
 	const auto toggle = Ui::CreateChild<Ui::AbstractButton>(parent.get());
-	toggle->resize(st::windowFilterIconToggleSize);
+	toggle->resize(Size(badgePosition.x() + badge + border));
+
+	struct FlyState {
+		Ui::Animations::Simple animation;
+		Ui::Animations::Simple scaleOut;
+		QImage previous;
+		QImage from;
+		QImage to;
+		QRect fromRect;
+		QRect toRect;
+		QRect bounds;
+		QRect last;
+		ParabolicPath path;
+		base::unique_qptr<Ui::RpWidget> layer;
+	};
+	const auto fly = toggle->lifetime().make_state<FlyState>();
 
 	const auto type = toggle->lifetime().make_state<Ui::FilterIcon>();
 	data->value(
 	) | rpl::map([=](const Data::ChatFilter &filter) {
 		return Ui::ComputeFilterIcon(filter);
-	}) | rpl::start_with_next([=](Ui::FilterIcon icon) {
+	}) | rpl::on_next([=](Ui::FilterIcon icon) {
 		*type = icon;
 		toggle->update();
 	}, toggle->lifetime());
 
 	input->geometryValue(
-	) | rpl::start_with_next([=](QRect geometry) {
-		const auto left = geometry.x() + geometry.width() - toggle->width();
-		const auto position = st::windowFilterIconTogglePosition;
+	) | rpl::on_next([=](QRect geometry) {
 		toggle->move(
-			left - position.x(),
-			geometry.y() + position.y());
+			geometry.x() - st::windowFilterIconUserpicSkip - size,
+			geometry.y() + st::windowFilterIconUserpicTop);
 	}, toggle->lifetime());
 
 	toggle->paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		auto p = QPainter(toggle);
+		auto hq = PainterHighQualityEnabler(p);
+		const auto userpic = Rect(Size(size));
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::windowBgActive);
+		p.drawEllipse(userpic);
+
 		const auto icons = Ui::LookupFilterIcon(*type);
-		icons.normal->paintInCenter(
-			p,
-			toggle->rect(),
-			st::dialogsUnreadBgMuted->c);
+		if (!fly->animation.animating()) {
+			icons.userpic->paintInCenter(p, userpic);
+		} else if (const auto scale = fly->scaleOut.value(0.); scale > 0.) {
+			const auto ratio = fly->previous.devicePixelRatio();
+			auto shrunk = QRectF(
+				QPointF(),
+				QSizeF(fly->previous.size()) * scale / ratio);
+			shrunk.moveCenter(rect::center(QRectF(userpic)));
+			p.setOpacity(scale);
+			p.drawImage(shrunk, fly->previous);
+			p.setOpacity(1.);
+		}
+
+		const auto badgeRect = Rect(
+			badgePosition.x(),
+			badgePosition.y(),
+			Size(badge));
+		p.setBrush(st::boxBg);
+		p.drawEllipse(badgeRect.marginsAdded(Margins(border)));
+		p.setBrush(st::windowBgActive);
+		p.drawEllipse(badgeRect);
+		st::windowFilterIconUserpicBadgeIcon.paintInCenter(p, badgeRect);
 	}, toggle->lifetime());
 
 	const auto panel = toggle->lifetime().make_state<Ui::FilterIconPanel>(
@@ -241,16 +328,101 @@ void CreateIconSelector(
 	toggle->addClickHandler([=] {
 		panel->toggleAnimated();
 	});
+	const auto startFly = [=](Ui::FilterIconChosen chosen) {
+		fly->previous = PrepareFlyIcon(
+			Ui::LookupFilterIcon(*type).userpic,
+			st::windowFgActive->c);
+		const auto icons = Ui::LookupFilterIcon(chosen.icon);
+		const auto map = [&](not_null<QWidget*> from, QRect geometry) {
+			return QRect(
+				outer->mapFromGlobal(from->mapToGlobal(geometry.topLeft())),
+				geometry.size());
+		};
+		const auto centerOn = [](QRect where, QSize size) {
+			auto result = QRect(QPoint(), size);
+			result.moveCenter(rect::center(where));
+			return result;
+		};
+		fly->from = PrepareFlyIcon(icons.normal, st::dialogsUnreadBgMuted->c);
+		fly->to = PrepareFlyIcon(icons.userpic, st::windowFgActive->c);
+		fly->fromRect = centerOn(
+			map(panel, chosen.geometry),
+			icons.normal->size());
+		fly->toRect = centerOn(
+			map(toggle, Rect(Size(size))),
+			icons.userpic->size());
+		fly->path = ComputeParabolicPath(
+			fly->fromRect.y(),
+			fly->toRect.y(),
+			st::windowFilterIconFlyUp);
+
+		const auto frameRect = [=](float64 progress) {
+			return QRect(
+				anim::interpolate(
+					fly->fromRect.x(),
+					fly->toRect.x(),
+					progress),
+				fly->path.y(progress),
+				anim::interpolate(
+					fly->fromRect.width(),
+					fly->toRect.width(),
+					progress),
+				anim::interpolate(
+					fly->fromRect.height(),
+					fly->toRect.height(),
+					progress));
+		};
+		fly->bounds = fly->fromRect.united(fly->toRect).marginsAdded(
+			{ 0, st::windowFilterIconFlyUp, 0, 0 });
+		fly->last = fly->fromRect;
+
+		fly->layer = base::make_unique_q<Ui::RpWidget>(outer);
+		const auto layer = fly->layer.get();
+		layer->setAttribute(Qt::WA_TransparentForMouseEvents);
+		layer->setGeometry(fly->bounds);
+		layer->show();
+		layer->raise();
+		layer->paintRequest(
+		) | rpl::on_next([=] {
+			auto p = QPainter(layer);
+			auto hq = PainterHighQualityEnabler(p);
+			const auto progress = fly->animation.value(1.);
+			const auto rect = frameRect(progress).translated(
+				-fly->bounds.topLeft());
+			p.setOpacity(1. - progress);
+			p.drawImage(rect, fly->from);
+			p.setOpacity(progress);
+			p.drawImage(rect, fly->to);
+		}, layer->lifetime());
+
+		fly->scaleOut.start([=] {
+			toggle->update();
+		}, 1., 0., st::windowFilterIconScaleOutDuration);
+
+		fly->animation.start([=] {
+			const auto finished = !fly->animation.animating();
+			const auto rect = frameRect(fly->animation.value(1.));
+			layer->update(
+				rect.united(fly->last).translated(-fly->bounds.topLeft()));
+			fly->last = rect;
+			toggle->update();
+			if (finished) {
+				InvokeQueued(toggle, [=] { fly->layer = nullptr; });
+			}
+		}, 0., 1., st::windowFilterIconFlyDuration, anim::sineInOut);
+	};
+
 	panel->chosen(
-	) | rpl::filter([=](Ui::FilterIcon icon) {
-		return icon != Ui::ComputeFilterIcon(data->current());
-	}) | rpl::start_with_next([=](Ui::FilterIcon icon) {
+	) | rpl::filter([=](Ui::FilterIconChosen chosen) {
+		return chosen.icon != Ui::ComputeFilterIcon(data->current());
+	}) | rpl::on_next([=](Ui::FilterIconChosen chosen) {
+		startFly(chosen);
 		panel->hideAnimated();
 		const auto rules = data->current();
 		*data = Data::ChatFilter(
 			rules.id(),
 			rules.title(),
-			Ui::LookupFilterIcon(icon).emoji,
+			Ui::LookupFilterIcon(chosen.icon).emoji,
 			rules.colorIndex(),
 			rules.flags(),
 			rules.always(),
@@ -259,15 +431,12 @@ void CreateIconSelector(
 	}, panel->lifetime());
 
 	const auto updatePanelGeometry = [=] {
-		const auto global = toggle->mapToGlobal({
-			toggle->width(),
-			toggle->height()
-		});
+		const auto global = toggle->mapToGlobal({ 0, toggle->height() });
 		const auto local = outer->mapFromGlobal(global);
 		const auto position = st::windwoFilterIconPanelPosition;
 		const auto padding = panel->innerPadding();
 		panel->move(
-			local.x() - panel->width() + position.x() + padding.right(),
+			local.x() + position.x() - padding.left(),
 			local.y() + position.y() - padding.top());
 	};
 
@@ -356,6 +525,7 @@ void EditFilterBox(
 		rpl::variable<TextWithEntities> title;
 		rpl::variable<bool> staticTitle;
 		rpl::variable<int> colorIndex;
+		base::unique_qptr<ChatHelpers::TabbedPanel> emojiPanel;
 	};
 	const auto owner = &window->session().data();
 	const auto state = box->lifetime().make_state<State>(State{
@@ -372,7 +542,7 @@ void EditFilterBox(
 	});
 	state->hasLinks.value() | rpl::filter(
 		_1
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		state->chatlist = true;
 	}, box->lifetime());
 
@@ -381,7 +551,7 @@ void EditFilterBox(
 	owner->chatsFilters().isChatlistChanged(
 	) | rpl::filter([=](FilterId id) {
 		return (id == data->current().id());
-	}) | rpl::start_with_next([=](FilterId id) {
+	}) | rpl::on_next([=](FilterId id) {
 		const auto filters = &owner->chatsFilters();
 		const auto &list = filters->list();
 		const auto i = ranges::find(list, id, &Data::ChatFilter::id);
@@ -404,7 +574,7 @@ void EditFilterBox(
 	const auto session = &window->session();
 	Data::AmPremiumValue(
 		session
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		box->closeBox();
 	}, box->lifetime());
 
@@ -416,13 +586,28 @@ void EditFilterBox(
 			st::windowFilterNameInput,
 			Ui::InputField::Mode::SingleLine,
 			tr::lng_filters_new_name()),
-		st::markdownLinkFieldPadding);
+		st::windowFilterNameInputPadding);
 	InitMessageFieldHandlers(window, name, ChatHelpers::PauseReason::Layer);
 	name->setTextWithTags({
 		current.text,
 		TextUtilities::ConvertEntitiesToTextTags(current.entities),
 	}, Ui::InputField::HistoryAction::Clear);
-	name->setMaxLength(kMaxFilterTitleLength);
+	Ui::AddLengthLimitLabel(
+		name,
+		kMaxFilterTitleLength,
+		Ui::LengthLimitLabelOptions{
+			.customThreshold = 0,
+			.customUpdatePosition = [=](QSize parent, QSize label) {
+				return QPoint(
+					parent.width()
+						- st::windowFilterNameCharsLimitRightPosition.x()
+						- label.width() / 2,
+					st::windowFilterNameCharsLimitRightPosition.y());
+			},
+			.customCharactersCount = [=] {
+				return Ui::ComputeFieldCharacterCount(name);
+			},
+		});
 
 	const auto nameEditing = box->lifetime().make_state<NameEditing>(
 		NameEditing{ name });
@@ -433,7 +618,7 @@ void EditFilterBox(
 	staticTitle->setClickedCallback([=] {
 		state->staticTitle = !state->staticTitle.current();
 	});
-	state->staticTitle.value() | rpl::start_with_next([=](bool value) {
+	state->staticTitle.value() | rpl::on_next([=](bool value) {
 		staticTitle->setText(value
 			? tr::lng_filters_enable_animations(tr::now)
 			: tr::lng_filters_disable_animations(tr::now));
@@ -455,7 +640,7 @@ void EditFilterBox(
 	rpl::combine(
 		staticTitle->widthValue(),
 		name->widthValue()
-	) | rpl::start_with_next([=](int inner, int outer) {
+	) | rpl::on_next([=](int inner, int outer) {
 		staticTitle->moveToRight(
 			st::windowFilterStaticTitlePosition.x(),
 			st::windowFilterStaticTitlePosition.y(),
@@ -463,12 +648,53 @@ void EditFilterBox(
 	}, staticTitle->lifetime());
 
 	state->creating.value(
-	) | rpl::filter(!_1) | rpl::start_with_next([=] {
+	) | rpl::filter(!_1) | rpl::on_next([=] {
 		nameEditing->custom = true;
 	}, box->lifetime());
 
+	using Selector = ChatHelpers::TabbedSelector;
+	state->emojiPanel = base::make_unique_q<ChatHelpers::TabbedPanel>(
+		box->getDelegate()->outerContainer(),
+		window,
+		object_ptr<Selector>(
+			nullptr,
+			window->uiShow(),
+			Window::GifPauseReason::Layer,
+			Selector::Mode::EmojiOnly));
+	state->emojiPanel->setDesiredHeightValues(
+		1.,
+		st::emojiPanMinHeight / 2,
+		st::emojiPanMinHeight);
+	state->emojiPanel->hide();
+	state->emojiPanel->selector()->setCurrentPeer(window->session().user());
+	state->emojiPanel->selector()->emojiChosen(
+	) | rpl::on_next([=](ChatHelpers::EmojiChosen data) {
+		Ui::InsertEmojiAtCursor(name->textCursor(), data.emoji);
+	}, name->lifetime());
+	state->emojiPanel->selector()->customEmojiChosen(
+	) | rpl::on_next([=](ChatHelpers::FileChosen data) {
+		const auto info = data.document->sticker();
+		if (info
+			&& info->setType == Data::StickersType::Emoji
+			&& !window->session().premium()) {
+			ShowPremiumPreviewBox(
+				window,
+				PremiumFeature::AnimatedEmoji);
+		} else {
+			Data::InsertCustomEmoji(name, data.document);
+		}
+	}, name->lifetime());
+
+	const auto emojiButton = Ui::AddEmojiToggleToField(
+		name,
+		box,
+		window,
+		state->emojiPanel.get(),
+		st::windowFilterNameEmojiPosition);
+	emojiButton->show();
+
 	name->changes(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (!nameEditing->settingDefault) {
 			nameEditing->custom = true;
 		}
@@ -492,7 +718,7 @@ void EditFilterBox(
 	};
 
 	state->title.value(
-	) | rpl::start_with_next([=](const TextWithEntities &value) {
+	) | rpl::on_next([=](const TextWithEntities &value) {
 		staticTitle->setVisible(!value.entities.isEmpty());
 	}, staticTitle->lifetime());
 
@@ -584,18 +810,31 @@ void EditFilterBox(
 			}),
 			anim::type::instant);
 
+		const auto &padding = st::defaultSubsectionTitlePadding;
 		const auto isPremium = session->premium();
-		const auto title = Ui::AddSubsectionTitle(
-			colors,
-			tr::lng_filters_tag_color_subtitle());
-		const auto preview = Ui::CreateChild<Ui::RpWidget>(colors);
-		title->geometryValue(
-		) | rpl::start_with_next([=](const QRect &r) {
+		const auto titleWrap = colors->add(
+			object_ptr<Ui::FixedHeightWidget>(
+				colors,
+				rect::m::sum::v(padding)
+					+ st::defaultSubsectionTitle.style.font->height));
+		const auto title = Ui::CreateChild<Ui::FlatLabel>(
+			titleWrap,
+			tr::lng_filters_tag_color_subtitle(),
+			st::defaultSubsectionTitle);
+		title->move(rect::m::pos::tl(padding));
+		const auto preview = Ui::CreateChild<Ui::RpWidget>(titleWrap);
+		rpl::combine(
+			title->sizeValue(),
+			titleWrap->widthValue()
+		) | rpl::on_next([=](const QSize &s, int w) {
 			const auto h = st::normalFont->height;
+			const auto left = padding.left()
+				+ s.width()
+				+ st::settingsFilterTagPreviewSkip;
 			preview->setGeometry(
-				colors->x(),
-				r.y() + (r.height() - h) / 2 + st::lineWidth,
-				colors->width(),
+				left,
+				padding.top() + (s.height() - h) / 2,
+				w - left,
 				h);
 		}, preview->lifetime());
 
@@ -607,12 +846,16 @@ void EditFilterBox(
 		};
 		const auto tag = preview->lifetime().make_state<TagState>();
 		tag->context.textContext = Core::TextContext({ .session = session });
-		preview->paintRequest() | rpl::start_with_next([=] {
+		const auto shift = st::settingsFilterTagPreviewSkip / 2;
+		preview->paintRequest() | rpl::on_next([=] {
 			auto p = QPainter(preview);
 			p.setOpacity(tag->alpha);
 			const auto size = tag->frame.size() / style::DevicePixelRatio();
 			const auto rect = QRect(
-				preview->width() - size.width() - st::boxRowPadding.right(),
+				preview->width()
+					- size.width()
+					- st::boxRowPadding.right()
+					- shift,
 				(st::normalFont->height - size.height()) / 2,
 				size.width(),
 				size.height());
@@ -622,7 +865,7 @@ void EditFilterBox(
 				p.setFont(st::normalFont);
 				p.setPen(st::windowSubTextFg);
 				p.drawText(
-					preview->rect() - st::boxRowPadding,
+					preview->rect().translated(-shift, 0) - st::boxRowPadding,
 					tr::lng_filters_tag_color_no(tr::now),
 					style::al_right);
 			}
@@ -642,7 +885,7 @@ void EditFilterBox(
 			return value;
 		};
 		state->title.changes(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			tag->context.color = palette(state->colorIndex.current())->c;
 			tag->frame = Ui::ChatsFilterTag(
 				upperTitle(),
@@ -702,7 +945,7 @@ void EditFilterBox(
 				});
 			}
 		}
-		line->sizeValue() | rpl::start_with_next([=](const QSize &size) {
+		line->sizeValue() | rpl::on_next([=](const QSize &size) {
 			const auto totalWidth = buttons.size() * side;
 			const auto spacing = (size.width() - totalWidth)
 				/ (buttons.size() - 1);
@@ -716,7 +959,7 @@ void EditFilterBox(
 			const auto last = buttons.back();
 			const auto icon = Ui::CreateChild<Ui::RpWidget>(last);
 			icon->resize(side, side);
-			icon->paintRequest() | rpl::start_with_next([=] {
+			icon->paintRequest() | rpl::on_next([=] {
 				auto p = QPainter(icon);
 				(session->premium()
 					? st::windowFilterSmallRemove.icon
@@ -740,7 +983,8 @@ void EditFilterBox(
 		const auto staticTitle = !title.entities.isEmpty()
 			&& state->staticTitle.current();
 		const auto rules = data->current();
-		if (title.empty()) {
+		if (Ui::ComputeFieldCharacterCount(name) > kMaxFilterTitleLength
+			|| title.empty()) {
 			name->showError();
 			box->scrollToY(0);
 			return {};
@@ -769,7 +1013,7 @@ void EditFilterBox(
 			tr::lng_filters_link_has(),
 			tr::lng_filters_link()));
 
-	state->hasLinks.changes() | rpl::start_with_next([=] {
+	state->hasLinks.changes() | rpl::on_next([=] {
 		content->resizeToWidth(content->widthNoMargins());
 	}, content->lifetime());
 
@@ -802,7 +1046,7 @@ void EditFilterBox(
 		addLink->clicks()
 	) | rpl::filter(
 		(rpl::mappers::_1 == Qt::LeftButton)
-	) | rpl::start_with_next([=](Qt::MouseButton button) {
+	) | rpl::on_next([=](Qt::MouseButton button) {
 		const auto result = collect();
 		if (!result || !GoodForExportFilterLink(window, *result)) {
 			return;
@@ -884,6 +1128,7 @@ void EditFilterBox(
 			doneCallback(*result);
 		}
 	};
+	name->submits() | rpl::on_next(save, name->lifetime());
 
 	box->addButton(rpl::conditional(
 		state->creating.value(),

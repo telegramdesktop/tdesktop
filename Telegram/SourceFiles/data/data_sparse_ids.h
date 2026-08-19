@@ -28,16 +28,19 @@ class SparseIdsMergedSlice {
 public:
 	using UniversalMsgId = MsgId;
 	static constexpr MsgId kScheduledTopicId = ScheduledMaxMsgId;
+	static constexpr MsgId kSavedMusicTopicId = ScheduledMaxMsgId + 1;
 
 	struct Key {
 		Key(
 			PeerId peerId,
 			MsgId topicRootId,
+			PeerId monoforumPeerId,
 			PeerId migratedPeerId,
 			UniversalMsgId universalId)
 		: peerId(peerId)
 		, topicRootId(topicRootId)
-		, migratedPeerId(topicRootId ? 0 : migratedPeerId)
+		, monoforumPeerId(monoforumPeerId)
+		, migratedPeerId((topicRootId || monoforumPeerId) ? 0 : migratedPeerId)
 		, universalId(universalId) {
 		}
 
@@ -47,6 +50,7 @@ public:
 
 		PeerId peerId = 0;
 		MsgId topicRootId = 0;
+		PeerId monoforumPeerId = 0;
 		PeerId migratedPeerId = 0;
 		UniversalMsgId universalId = 0;
 	};
@@ -72,6 +76,7 @@ public:
 	using SimpleViewerFunction = rpl::producer<SparseIdsSlice>(
 		PeerId peerId,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		SparseIdsSlice::Key simpleKey,
 		int limitBefore,
 		int limitAfter);

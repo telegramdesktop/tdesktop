@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/parse_helper.h"
 #include "base/debug_log.h"
 
+#include "lang_auto_counts.h" // kKeysCount.
+
 #include <QtCore/QTextStream>
 #include <QtCore/QFile>
 #include <QtCore/QFileInfo>

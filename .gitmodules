@@ -1,6 +1,3 @@
-[submodule "Telegram/ThirdParty/libtgvoip"]
-	path = Telegram/ThirdParty/libtgvoip
-	url = https://github.com/telegramdesktop/libtgvoip
 [submodule "Telegram/ThirdParty/GSL"]
 	path = Telegram/ThirdParty/GSL
 	url = https://github.com/Microsoft/GSL.git
@@ -76,12 +73,6 @@
 [submodule "Telegram/lib_webview"]
 	path = Telegram/lib_webview
 	url = https://github.com/desktop-app/lib_webview.git
-[submodule "Telegram/ThirdParty/jemalloc"]
-	path = Telegram/ThirdParty/jemalloc
-	url = https://github.com/jemalloc/jemalloc
-[submodule "Telegram/ThirdParty/dispatch"]
-	path = Telegram/ThirdParty/dispatch
-	url = https://github.com/apple/swift-corelibs-libdispatch
 [submodule "Telegram/ThirdParty/kimageformats"]
 	path = Telegram/ThirdParty/kimageformats
 	url = https://github.com/KDE/kimageformats.git
@@ -97,3 +88,21 @@
 [submodule "Telegram/ThirdParty/xdg-desktop-portal"]
 	path = Telegram/ThirdParty/xdg-desktop-portal
 	url = https://github.com/flatpak/xdg-desktop-portal.git
+[submodule "Telegram/lib_translate"]
+	path = Telegram/lib_translate
+	url = https://github.com/desktop-app/lib_translate
+[submodule "Telegram/ThirdParty/cmark-gfm"]
+	path = Telegram/ThirdParty/cmark-gfm
+	url = https://github.com/github/cmark-gfm.git
+[submodule "Telegram/ThirdParty/MicroTeX"]
+	path = Telegram/ThirdParty/MicroTeX
+	url = https://github.com/desktop-app/MicroTeX.git
+[submodule "Telegram/ThirdParty/TooManyCooks"]
+	path = Telegram/ThirdParty/TooManyCooks
+	url = https://github.com/tzcnt/TooManyCooks.git
+[submodule "Telegram/ThirdParty/libcbor"]
+	path = Telegram/ThirdParty/libcbor
+	url = https://github.com/PJK/libcbor.git
+[submodule "Telegram/ThirdParty/libfido2"]
+	path = Telegram/ThirdParty/libfido2
+	url = https://github.com/Yubico/libfido2.git

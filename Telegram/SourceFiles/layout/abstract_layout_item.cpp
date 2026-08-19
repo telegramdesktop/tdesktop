@@ -37,6 +37,18 @@ int AbstractLayoutItem::position() const {
 	return _position;
 }
 
+void AbstractLayoutItem::setShiftX(int x) {
+	_shiftX = x;
+}
+
+void AbstractLayoutItem::setShiftY(int y) {
+	_shiftY = y;
+}
+
+QPoint AbstractLayoutItem::shift() const {
+	return { _shiftX, _shiftY };
+}
+
 bool AbstractLayoutItem::hasPoint(QPoint point) const {
 	return QRect(0, 0, width(), height()).contains(point);
 }

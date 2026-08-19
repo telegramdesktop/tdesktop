@@ -65,6 +65,8 @@ Ui::ChatPaintHighlight ElementHighlighter::state(
 	if (item->fullId() == _highlighted.itemId) {
 		auto result = _animation.state();
 		result.range = _highlighted.part;
+		result.todoItemId = _highlighted.todoListId;
+		result.pollOption = _highlighted.pollOption;
 		return result;
 	}
 	return {};
@@ -82,19 +84,44 @@ ElementHighlighter::Highlight ElementHighlighter::computeHighlight(
 		const auto i = ranges::find(group->items, item);
 		if (i != end(group->items)) {
 			const auto index = int(i - begin(group->items));
-			if (quote.text.empty()) {
+			if (quote.highlight.empty()) {
 				return { leaderId, AddGroupItemSelection({}, index) };
 			} else if (const auto leaderView = _viewForItem(leader)) {
-				return { leaderId, leaderView->selectionFromQuote(quote) };
+				return {
+					leaderId,
+					leaderView->selectionFromQuote(quote),
+					quote.highlight.todoItemId,
+					quote.highlight.pollOption,
+				};
 			}
 		}
-		return { leaderId };
-	} else if (quote.text.empty()) {
-		return { item->fullId() };
+		return {
+			leaderId,
+			{},
+			quote.highlight.todoItemId,
+			quote.highlight.pollOption,
+		};
+	} else if (quote.highlight.quote.empty()) {
+		return {
+			item->fullId(),
+			{},
+			quote.highlight.todoItemId,
+			quote.highlight.pollOption,
+		};
 	} else if (const auto view = _viewForItem(item)) {
-		return { item->fullId(), view->selectionFromQuote(quote) };
+		return {
+			item->fullId(),
+			view->selectionFromQuote(quote),
+			quote.highlight.todoItemId,
+			quote.highlight.pollOption,
+		};
 	}
-	return { item->fullId() };
+	return {
+		item->fullId(),
+		{},
+		quote.highlight.todoItemId,
+		quote.highlight.pollOption,
+	};
 }
 
 void ElementHighlighter::highlight(Highlight data) {
@@ -108,7 +135,9 @@ void ElementHighlighter::highlight(Highlight data) {
 				}
 			}
 			_highlighted = data;
-			_animation.start(!data.part.empty()
+			_animation.start((!data.part.empty()
+					|| data.todoListId
+					|| !data.pollOption.isEmpty())
 				&& !IsSubGroupSelection(data.part));
 
 			repaintHighlightedItem(view);

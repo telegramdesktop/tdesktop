@@ -450,7 +450,7 @@ struct Templates::Updates {
 Templates::Templates(not_null<Main::Session*> session) : _session(session) {
 	load();
 	Shortcuts::Requests(
-	) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+	) | rpl::on_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 		request->check(
 			Command::SupportReloadTemplates
@@ -463,7 +463,7 @@ Templates::Templates(not_null<Main::Session*> session) : _session(session) {
 
 void Templates::reload() {
 	_reloadToastSubscription = errors(
-	) | rpl::start_with_next([=](QStringList errors) {
+	) | rpl::on_next([=](QStringList errors) {
 		Ui::Toast::Show(errors.isEmpty()
 			? "Templates reloaded!"
 			: ("Errors:\n\n" + errors.join("\n\n")));

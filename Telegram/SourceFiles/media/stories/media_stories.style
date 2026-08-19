@@ -1,0 +1,80 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/basic.style";
+using "ui/widgets/widgets.style";
+using "boxes/boxes.style";
+
+StealthBoxStyle {
+	box: Box;
+	buttonLabel: FlatLabel;
+	lockIcon: icon;
+	boxClose: IconButton;
+	about: FlatLabel;
+	featureTitle: FlatLabel;
+	featureAbout: FlatLabel;
+	featurePastIcon: icon;
+	featureNextIcon: icon;
+	logoIcon: icon;
+	logoBg: color;
+}
+
+storiesStealthStyleDefault: StealthBoxStyle {
+	box: Box(defaultBox) {
+		buttonPadding: margins(10px, 10px, 10px, 10px);
+		buttonHeight: 42px;
+		button: RoundButton(defaultActiveButton) {
+			height: 42px;
+			textTop: 12px;
+			style: semiboldTextStyle;
+		}
+		margin: margins(0px, 56px, 0px, 10px);
+		bg: windowBg;
+		title: FlatLabel(boxTitle) {
+			align: align(top);
+		}
+		titleAdditionalFg: windowSubTextFg;
+	}
+	buttonLabel: FlatLabel(defaultFlatLabel) {
+		textFg: activeButtonFg;
+		style: semiboldTextStyle;
+		align: align(top);
+		minWidth: 20px;
+		maxHeight: 20px;
+	}
+	lockIcon: icon {{ "dialogs/dialogs_lock_on", windowFgActive }};
+	boxClose: IconButton(defaultIconButton) {
+		width: boxTitleHeight;
+		height: boxTitleHeight;
+		icon: icon {{ "box_button_close", boxTitleCloseFg }};
+		iconOver: icon {{ "box_button_close", boxTitleCloseFgOver }};
+		rippleAreaPosition: point(4px, 4px);
+		rippleAreaSize: 40px;
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: windowBgOver;
+		}
+	}
+	about: FlatLabel(defaultFlatLabel) {
+		textFg: windowSubTextFg;
+		align: align(top);
+		minWidth: 20px;
+	}
+	featureTitle: FlatLabel(defaultFlatLabel) {
+		textFg: windowBoldFg;
+		style: semiboldTextStyle;
+		minWidth: 10px;
+		maxHeight: 20px;
+	}
+	featureAbout: FlatLabel(defaultFlatLabel) {
+		textFg: windowSubTextFg;
+		minWidth: 20px;
+	}
+	featurePastIcon: icon {{ "stories/stealth_5m", windowActiveTextFg }};
+	featureNextIcon: icon {{ "stories/stealth_25m", windowActiveTextFg }};
+	logoIcon: icon {{ "stories/stealth_logo", windowFgActive }};
+	logoBg: windowBgActive;
+}

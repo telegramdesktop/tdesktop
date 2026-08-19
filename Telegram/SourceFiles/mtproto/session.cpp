@@ -180,7 +180,7 @@ void Session::watchDcKeyChanges() {
 	_instance->dcTemporaryKeyChanged(
 	) | rpl::filter([=](DcId dcId) {
 		return (dcId == _shiftedDcId) || (dcId == BareDcId(_shiftedDcId));
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		DEBUG_LOG(("AuthKey Info: dcTemporaryKeyChanged in Session %1"
 			).arg(_shiftedDcId));
 		if (const auto captured = _private) {
@@ -197,7 +197,7 @@ void Session::watchDcOptionsChanges() {
 	_instance->dcOptions().changed(
 	) | rpl::filter([=](DcId dcId) {
 		return (BareDcId(_shiftedDcId) == dcId) && (_private != nullptr);
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		InvokeQueued(_private, [captured = _private] {
 			captured->dcOptionsChanged();
 		});
@@ -207,7 +207,7 @@ void Session::watchDcOptionsChanges() {
 	) | rpl::filter([=] {
 		return (_private != nullptr)
 			&& (_instance->dcOptions().dcType(_shiftedDcId) == DcType::Cdn);
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		InvokeQueued(_private, [captured = _private] {
 			captured->cdnConfigChanged();
 		});

@@ -30,6 +30,7 @@ TopBar::TopBar(QWidget *parent, Content &&content)
 , _progress(this, st::mediaPlayerPlayback)
 , _button(this) {
 	resize(width(), st::mediaPlayerHeight + st::lineWidth);
+	_infoMiddle->setElisionMiddle(true);
 	_progress->setAttribute(Qt::WA_TransparentForMouseEvents);
 	updateData(std::move(content));
 }
@@ -45,28 +46,36 @@ void TopBar::resizeToWidthInfo(int w) {
 	const auto &infoFont = st::mediaPlayerName.style.font;
 	const auto infoTop = st::mediaPlayerNameTop - infoFont->ascent;
 	const auto padding = st::mediaPlayerPlayLeft + st::mediaPlayerPadding;
+	const auto spacing = infoFont->spacew;
 	_infoLeft->moveToLeft(padding, infoTop);
 	auto availableWidth = w;
 	availableWidth -= rect::right(_infoLeft);
 	availableWidth -= padding;
 	_infoMiddle->resizeToWidth(_infoMiddle->naturalWidth());
 	_infoRight->resizeToWidth(_infoRight->naturalWidth());
-	if (_infoMiddle->naturalWidth() > availableWidth) {
+	const auto requiredWidth = spacing
+		+ _infoMiddle->naturalWidth()
+		+ (_infoRight->naturalWidth()
+			? (spacing + _infoRight->naturalWidth())
+			: 0);
+	if (requiredWidth > availableWidth) {
 		_infoRight->moveToLeft(
 			w - padding - _infoRight->width(),
 			infoTop);
-		_infoMiddle->resizeToWidth(_infoRight->x()
-			- rect::right(_infoLeft)
-			- infoFont->spacew * 2);
+		_infoMiddle->resizeToWidth(qMax(
+			_infoRight->x()
+				- rect::right(_infoLeft)
+				- spacing * 2,
+			0));
 		_infoMiddle->moveToLeft(
-			rect::right(_infoLeft) + infoFont->spacew,
+			rect::right(_infoLeft) + spacing,
 			infoTop);
 	} else {
 		_infoMiddle->moveToLeft(
-			rect::right(_infoLeft) + infoFont->spacew,
+			rect::right(_infoLeft) + spacing,
 			infoTop);
 		_infoRight->moveToLeft(
-			rect::right(_infoMiddle) + infoFont->spacew,
+			rect::right(_infoMiddle) + spacing,
 			infoTop);
 	}
 }
@@ -77,7 +86,7 @@ void TopBar::updateData(Content &&content) {
 	}
 	const auto &row = content.rows[0];
 	_infoLeft->setMarkedText(
-		tr::lng_export_progress_title(tr::now, Ui::Text::Bold)
+		tr::lng_export_progress_title(tr::now, tr::bold)
 			.append(' ')
 			.append(QChar(0x2013)));
 	_infoMiddle->setText(row.label);
@@ -99,7 +108,7 @@ void TopBar::resizeEvent(QResizeEvent *e) {
 void TopBar::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 	auto fill = e->rect().intersected(
-		QRect(0, 0, width(), st::mediaPlayerHeight));
+		QRect(0, 0, width(), st::mediaPlayerHeight + st::lineWidth));
 	if (!fill.isEmpty()) {
 		p.fillRect(fill, st::mediaPlayerBg);
 	}

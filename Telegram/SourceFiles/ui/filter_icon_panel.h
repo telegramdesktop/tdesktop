@@ -11,11 +11,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 #include "ui/round_rect.h"
+#include "ui/widgets/shadow.h"
 
 namespace Ui {
 
 enum class FilterIcon : uchar;
 class PanelAnimation;
+
+struct FilterIconChosen {
+	FilterIcon icon = {};
+	QRect geometry;
+};
 
 class FilterIconPanel final : public Ui::RpWidget {
 public:
@@ -33,7 +39,7 @@ public:
 	void hideAnimated();
 	void toggleAnimated();
 
-	[[nodiscard]] rpl::producer<FilterIcon> chosen() const;
+	[[nodiscard]] rpl::producer<FilterIconChosen> chosen() const;
 
 private:
 	void enterEventHook(QEnterEvent *e) override;
@@ -69,7 +75,7 @@ private:
 	void mouseRelease(Qt::MouseButton button);
 
 	const not_null<Ui::RpWidget*> _inner;
-	rpl::event_stream<FilterIcon> _chosen;
+	rpl::event_stream<FilterIconChosen> _chosen;
 	Ui::RoundRect _innerBg;
 
 	int _selected = -1;
@@ -78,6 +84,7 @@ private:
 	std::unique_ptr<Ui::PanelAnimation> _showAnimation;
 	Ui::Animations::Simple _a_show;
 
+	Ui::BoxShadow _shadow;
 	bool _hiding = false;
 	QPixmap _cache;
 	Ui::Animations::Simple _a_opacity;

@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_media.h"
+#include "ui/basic_click_handlers.h"
 
 #include "boxes/send_credits_box.h" // CreditsEmoji.
 #include "history/history.h"
@@ -72,7 +73,7 @@ QString TimestampLinkBase(
 		not_null<DocumentData*> document,
 		FullMsgId context) {
 	return QString(
-		"media_timestamp?base=doc%1_%2_%3&t="
+		"internal:media_timestamp?base=doc%1_%2_%3&t="
 	).arg(document->id).arg(context.peer.value).arg(context.msg.bare);
 }
 
@@ -117,10 +118,10 @@ QString TimestampLinkBase(
 		return base.mid(0, query)
 			+ (params.empty() ? "?" : ("?" + params.join(QChar('&')) + "&"));
 	}();
-	return "url:"
-		+ use
+	const auto urlToEncode = use
 		+ "t="
 		+ (parts.empty() ? QString() : ("#" + parts.join(QChar('#'))));
+	return UrlClickHandler::EncodeInternalWrappedUrl(urlToEncode);
 }
 
 TextWithEntities AddTimestampLinks(
@@ -131,9 +132,9 @@ TextWithEntities AddTimestampLinks(
 		return text;
 	}
 	static const auto expression = QRegularExpression(
-		"(?<![^\\s\\(\\)\"\\,\\.\\-])"
+		"(?<![^\\s\\(\\)\\[\\]\"\\,\\.\\-])"
 		"(?:(?:(\\d{1,2}):)?(\\d))?(\\d):(\\d\\d)"
-		"(?![^\\s\\(\\)\",\\.\\-\\+])");
+		"(?![^\\s\\(\\)\\[\\]\",\\.\\-\\+])");
 	const auto &string = text.text;
 	auto offset = 0;
 	while (true) {
@@ -161,9 +162,13 @@ TextWithEntities AddTimestampLinks(
 			from,
 			std::less<>(),
 			&EntityInText::offset);
+		const auto allowsTimestampLink = [](const EntityInText &entity) {
+			return (entity.type() == EntityType::Spoiler)
+				|| (entity.type() == EntityType::Blockquote);
+		};
 		while (i != entities.end()
 			&& i->offset() < till
-			&& i->type() == EntityType::Spoiler) {
+			&& allowsTimestampLink(*i)) {
 			++i;
 		}
 		if (i != entities.end() && i->offset() < till) {
@@ -172,7 +177,7 @@ TextWithEntities AddTimestampLinks(
 
 		const auto intersects = [&](const EntityInText &entity) {
 			return (entity.offset() + entity.length() > from)
-				&& (entity.type() != EntityType::Spoiler);
+				&& !allowsTimestampLink(entity);
 		};
 		auto j = std::make_reverse_iterator(i);
 		const auto e = std::make_reverse_iterator(entities.begin());
@@ -186,7 +191,7 @@ TextWithEntities AddTimestampLinks(
 				EntityType::CustomUrl,
 				from,
 				till - from,
-				("internal:" + base + QString::number(time))));
+				(base + QString::number(time))));
 	}
 	return text;
 }
@@ -241,14 +246,12 @@ void Media::drawPurchasedTag(
 		if (!amount) {
 			return;
 		}
-		const auto session = &item->history()->session();
-		auto text = Ui::Text::Colorized(Ui::CreditsEmojiSmall(session));
+		auto text = Ui::Text::Colorized(Ui::CreditsEmojiSmall());
 		text.append(Lang::FormatCountDecimal(amount));
 		purchased->text.setMarkedText(
 			st::defaultTextStyle,
 			text,
-			kMarkupTextOptions,
-			Core::TextContext({ .session = session }));
+			kMarkupTextOptions);
 	}
 
 	const auto st = context.st;
@@ -403,8 +406,7 @@ void Media::drawSpoilerTag(
 				tr::lng_sensitive_tag(tr::now));
 			iconSkip = st::mediaMenuIconStealth.width() * 1.4;
 		} else {
-			const auto session = &history()->session();
-			auto price = Ui::Text::Colorized(Ui::CreditsEmoji(session));
+			auto price = Ui::Text::Colorized(Ui::CreditsEmoji());
 			price.append(Lang::FormatCountDecimal(tag->price));
 			text.setMarkedText(
 				st::semiboldTextStyle,
@@ -412,9 +414,8 @@ void Media::drawSpoilerTag(
 					tr::now,
 					lt_price,
 					price,
-					Ui::Text::WithEntities),
-				kMarkupTextOptions,
-				Core::TextContext({ .session = session }));
+					tr::marked),
+				kMarkupTextOptions);
 		}
 		const auto width = iconSkip + text.maxWidth();
 		const auto inner = QRect(0, 0, width, text.minHeight());
@@ -482,7 +483,9 @@ void Media::setupSpoilerTag(std::unique_ptr<MediaSpoilerTag> &tag) const {
 	}
 	const auto media = parent()->data()->media();
 	const auto invoice = media ? media->invoice() : nullptr;
-	if (const auto price = invoice->isPaidMedia ? invoice->amount : 0) {
+	if (const auto price = (invoice && invoice->isPaidMedia)
+		? invoice->amount
+		: 0) {
 		tag = std::make_unique<MediaSpoilerTag>();
 		tag->price = price;
 	}
@@ -587,6 +590,10 @@ std::unique_ptr<StickerPlayer> Media::stickerTakePlayer(
 
 QImage Media::locationTakeImage() {
 	return QImage();
+}
+
+std::vector<Media::TodoTaskInfo> Media::takeTasksInfo() {
+	return {};
 }
 
 TextState Media::getStateGrouped(

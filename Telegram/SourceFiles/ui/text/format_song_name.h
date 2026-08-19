@@ -26,8 +26,11 @@ public:
 	[[nodiscard]] TextWithEntities textWithEntities(
 		bool boldOnlyPerformer = false) const;
 
+	void setNoDash(bool noDash);
+
 private:
 	const ComposedName _composedName;
+	bool _noDash = false;
 
 };
 

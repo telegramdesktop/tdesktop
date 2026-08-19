@@ -171,6 +171,7 @@ struct InvoiceCredits {
 	bool extended = false;
 	PeerId giftPeerId = PeerId(0);
 	int subscriptionPeriod = 0;
+	PeerId spendPurposePeerId = PeerId(0);
 };
 
 struct InvoiceStarGift {
@@ -179,6 +180,7 @@ struct InvoiceStarGift {
 	TextWithEntities message;
 	not_null<PeerData*> recipient;
 	int limitedCount = 0;
+	int perUserLimit = 0;
 	bool anonymous = false;
 	bool upgraded = false;
 };
@@ -202,6 +204,7 @@ struct CreditsFormData {
 	InvoiceCredits invoice;
 	MTPInputInvoice inputInvoice;
 	int starGiftLimitedCount = 0;
+	int starGiftPerUserLimit = 0;
 	bool starGiftForm = false;
 };
 
@@ -211,7 +214,7 @@ struct CreditsReceiptData {
 	QString description;
 	PhotoData *photo = nullptr;
 	PeerId peerId = PeerId(0);
-	StarsAmount credits;
+	CreditsAmount credits;
 	TimeId date = 0;
 };
 

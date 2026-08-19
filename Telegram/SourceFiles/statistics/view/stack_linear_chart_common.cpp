@@ -83,6 +83,8 @@ PiePartData PiePartsPercentageByIndices(
 	for (const auto &line : chartData.lines) {
 		auto sum = ChartValue(0);
 		for (auto i = xIndices.min; i <= xIndices.max; i++) {
+			const auto index = int(base::SafeRound(i));
+			Assert(index >= 0 && index < line.y.size());
 			sum += line.y[i];
 		}
 		if (linesFilter) {

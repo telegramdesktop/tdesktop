@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "api/api_updates.h"
 #include "base/unixtime.h"
+#include "boxes/gift_premium_box.h"
 #include "boxes/peers/edit_peer_color_box.h" // AddLevelBadge.
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "core/application.h"
@@ -55,9 +56,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/fields/input_field.h"
-#include "ui/widgets/label_with_custom_emoji.h"
 #include "ui/widgets/peer_bubble.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/slider_natural_width.h"
@@ -67,10 +68,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
+#include "styles/style_premium.h"
 #include "styles/style_settings.h"
 #include "styles/style_statistics.h"
-#include "styles/style_credits.h"
-#include "styles/style_window.h" // mainMenuToggleFourStrokes.
 
 #include <QtWidgets/QApplication>
 
@@ -88,7 +88,11 @@ void ShowMenu(not_null<Ui::GenericBox*> box, const QString &text) {
 	const auto menu = Ui::CreateChild<Ui::PopupMenu>(box.get());
 	menu->addAction(tr::lng_context_copy_link(tr::now), [=] {
 		TextUtilities::SetClipboardText(TextForMimeData::Simple(text));
-		box->uiShow()->showToast(tr::lng_background_link_copied(tr::now));
+		box->uiShow()->showToast({
+			.text = { tr::lng_background_link_copied(tr::now) },
+			.iconLottie = u"toast/voip_invite"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
 	});
 	menu->popup(QCursor::pos());
 }
@@ -112,7 +116,7 @@ void ShowMenu(not_null<Ui::GenericBox*> box, const QString &text) {
 			Core::App().iv().show(controller, iv, QString());
 		} else {
 			resolver->resolved(
-			) | rpl::start_with_next([=](const QString &s) {
+			) | rpl::on_next([=](const QString &s) {
 				if (s == url) {
 					if (const auto d = resolver->lookup(url)) {
 						if (const auto iv = (*d)->iv.get()) {
@@ -140,14 +144,13 @@ void AddHeader(
 }
 
 void AddRecipient(not_null<Ui::GenericBox*> box, const TextWithEntities &t) {
-	const auto wrap = box->addRow(
-		object_ptr<Ui::CenterWrap<Ui::RoundButton>>(
+	const auto container = box->addRow(
+		object_ptr<Ui::RoundButton>(
 			box,
-			object_ptr<Ui::RoundButton>(
-				box,
-				rpl::single(QString()),
-				st::channelEarnHistoryRecipientButton)));
-	const auto container = wrap->entity();
+			rpl::single(QString()),
+			st::channelEarnHistoryRecipientButton),
+		style::al_top);
+	container->setTextTransform(Ui::RoundButtonTextTransform::ToUpper);
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		container,
 		rpl::single(t),
@@ -157,7 +160,7 @@ void AddRecipient(not_null<Ui::GenericBox*> box, const TextWithEntities &t) {
 	label->setTryMakeSimilarLines(true);
 	label->resizeToWidth(container->width());
 	label->sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
+	) | rpl::on_next([=](const QSize &s) {
 		const auto padding = QMargins(
 			st::chatGiveawayPeerPadding.right(),
 			st::chatGiveawayPeerPadding.top(),
@@ -170,7 +173,11 @@ void AddRecipient(not_null<Ui::GenericBox*> box, const TextWithEntities &t) {
 	}, container->lifetime());
 	container->setClickedCallback([=] {
 		QGuiApplication::clipboard()->setText(t.text);
-		box->showToast(tr::lng_text_copied(tr::now));
+		box->showToast({
+			.text = { tr::lng_text_copied(tr::now) },
+			.iconLottie = u"toast/copy"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
 	});
 }
 
@@ -198,6 +205,8 @@ void AddRecipient(not_null<Ui::GenericBox*> box, const TextWithEntities &t) {
 		lt_time,
 		QLocale().toString(date.time(), QLocale::ShortFormat));
 }
+
+constexpr auto kMinus = QChar(0x2212);
 
 } // namespace
 
@@ -246,10 +255,9 @@ void InnerWidget::load() {
 		state->apiCreditsLifetime.destroy();
 
 		_peer->session().account().mtpUpdates(
-		) | rpl::start_with_next([=, peerId = _peer->id](
+		) | rpl::on_next([=, peerId = _peer->id](
 				const MTPUpdates &updates) {
 			using TLCreditsUpdate = MTPDupdateStarsRevenueStatus;
-			using TLCurrencyUpdate = MTPDupdateBroadcastRevenueTransactions;
 			using TLNotificationUpdate = MTPDupdateServiceNotification;
 			Api::PerformForUpdate<TLCreditsUpdate>(updates, [&](
 					const TLCreditsUpdate &d) {
@@ -257,29 +265,39 @@ void InnerWidget::load() {
 					return;
 				}
 				const auto &data = d.vstatus().data();
-				auto &e = _state.creditsEarn;
-				e.currentBalance = Data::FromTL(data.vcurrent_balance());
-				e.availableBalance = Data::FromTL(data.vavailable_balance());
-				e.overallRevenue = Data::FromTL(data.voverall_revenue());
-				e.isWithdrawalEnabled = data.is_withdrawal_enabled();
-				e.nextWithdrawalAt = data.vnext_withdrawal_at()
-					? base::unixtime::parse(
-						data.vnext_withdrawal_at()->v)
-					: QDateTime();
-				state->apiCreditsHistory.request({}, [=](
-						const Data::CreditsStatusSlice &data) {
-					_state.creditsStatusSlice = data;
-					_stateUpdated.fire({});
+				const auto isCredits = data.vcurrent_balance().match([](
+						const MTPDstarsAmount &) {
+					return true;
+				}, [](const MTPDstarsTonAmount &) {
+					return false;
 				});
-			});
-			Api::PerformForUpdate<TLCurrencyUpdate>(updates, [&](
-					const TLCurrencyUpdate &d) {
-				if (peerId == peerFromMTP(d.vpeer())) {
-					const auto &data = d.vbalances().data();
-					auto &e = _state.currencyEarn;
-					e.currentBalance = data.vcurrent_balance().v;
-					e.availableBalance = data.vavailable_balance().v;
-					e.overallRevenue = data.voverall_revenue().v;
+				if (isCredits) {
+					auto &credits = _state.creditsEarn;
+					credits.currentBalance = CreditsAmountFromTL(
+						data.vcurrent_balance());
+					credits.availableBalance = CreditsAmountFromTL(
+						data.vavailable_balance());
+					credits.overallRevenue = CreditsAmountFromTL(
+						data.voverall_revenue());
+					credits.isWithdrawalEnabled
+						= data.is_withdrawal_enabled();
+					credits.nextWithdrawalAt = data.vnext_withdrawal_at()
+						? base::unixtime::parse(
+							data.vnext_withdrawal_at()->v)
+						: QDateTime();
+					state->apiCreditsHistory.request({}, [=](
+							const Data::CreditsStatusSlice &data) {
+						_state.creditsStatusSlice = data;
+						_stateUpdated.fire({});
+					});
+				} else {
+					auto &currency = _state.currencyEarn;
+					currency.currentBalance = CreditsAmountFromTL(
+						data.vcurrent_balance());
+					currency.availableBalance = CreditsAmountFromTL(
+						data.vavailable_balance());
+					currency.overallRevenue = CreditsAmountFromTL(
+						data.voverall_revenue());
 					_stateUpdated.fire({});
 				}
 			});
@@ -298,17 +316,17 @@ void InnerWidget::load() {
 	};
 
 	_showFinished.events(
-	) | rpl::take(1) | rpl::start_with_next([=] {
+	) | rpl::take(1) | rpl::on_next([=] {
 		const auto nextRequests = [=] {
 			state->apiCreditsHistory.request({}, [=](
 					const Data::CreditsStatusSlice &data) {
 				_state.creditsStatusSlice = data;
 				::Api::PremiumPeerBot(
 					&_peer->session()
-				) | rpl::start_with_next([=](not_null<PeerData*> bot) {
+				) | rpl::on_next([=](not_null<PeerData*> bot) {
 					_state.premiumBotId = bot->id;
 					state->apiCredits.request(
-					) | rpl::start_with_error_done([=](const QString &error) {
+					) | rpl::on_error_done([=](const QString &error) {
 						if (canViewCredits) {
 							fail(error);
 						} else {
@@ -325,7 +343,7 @@ void InnerWidget::load() {
 		};
 		const auto isMegagroup = _peer->isMegagroup();
 		state->api.request(
-		) | rpl::start_with_error_done([=](const QString &error) {
+		) | rpl::on_error_done([=](const QString &error) {
 			if (isMegagroup) {
 				_state.currencyEarn = {};
 				if (error == u"BROADCAST_REQUIRED"_q) {
@@ -348,8 +366,8 @@ void InnerWidget::fill() {
 		const auto empty = container->add(object_ptr<Dialogs::SearchEmpty>(
 			container,
 			Dialogs::SearchEmptyIcon::NoResults,
-			tr::lng_search_tab_no_results(Ui::Text::Bold)));
-		empty->setMinimalHeight(st::changePhoneIconSize);
+			tr::lng_search_tab_no_results(tr::bold)));
+		empty->setMinimalHeight(st::normalBoxLottieSize.height());
 		empty->animate();
 		return;
 	}
@@ -384,81 +402,49 @@ void InnerWidget::fill() {
 	);
 
 	auto creditsStateValue = bot
-		? rpl::single(Data::CreditsEarnStatistics()) | rpl::type_erased()
+		? rpl::single(Data::CreditsEarnStatistics()) | rpl::type_erased
 		: rpl::single(creditsData) | rpl::then(
 			_stateUpdated.events(
 			) | rpl::map([this] { return _state.creditsEarn; })
 		);
 
 	constexpr auto kMinorLength = 3;
-	constexpr auto kMinus = QChar(0x2212);
 	//constexpr auto kApproximately = QChar(0x2248);
 	const auto multiplier = data.usdRate;
 
-	const auto creditsToUsdMap = [=](StarsAmount c) {
-		const auto creditsMultiplier = _state.creditsEarn.usdRate
-			* Data::kEarnMultiplier;
+	const auto creditsToUsdMap = [=](CreditsAmount c) {
+		const auto creditsMultiplier = _state.creditsEarn.usdRate;
 		return c ? ToUsd(c, creditsMultiplier, 0) : QString();
 	};
 
 	const auto session = &_peer->session();
 	const auto withdrawalEnabled = WithdrawalEnabled(session);
-	const auto addEmojiToMajor = [=](
-			not_null<Ui::FlatLabel*> label,
-			rpl::producer<EarnInt> value,
-			std::optional<bool> isIn,
-			std::optional<QMargins> margins) {
-		const auto &st = label->st();
-		auto icon = Ui::Text::SingleCustomEmoji(
-			session->data().customEmojiManager().registerInternalEmoji(
-				Ui::Earn::IconCurrencyColored(
-					st.style.font,
-					!isIn
-						? st::activeButtonBg->c
-						: (*isIn)
-						? st::boxTextFgGood->c
-						: st::menuIconAttentionColor->c),
-				margins ? *margins : st::channelEarnCurrencyCommonMargins,
-				false));
-		const auto prepended = !isIn
-			? TextWithEntities()
-			: TextWithEntities::Simple((*isIn) ? QChar('+') : kMinus);
-		std::move(
-			value
-		) | rpl::start_with_next([=](EarnInt v) {
-			label->setMarkedText(
-				base::duplicate(prepended).append(icon).append(MajorPart(v)),
-				Core::TextContext({ .session = session }));
-		}, label->lifetime());
-	};
 
-	const auto bigCurrencyIcon = Ui::Text::SingleCustomEmoji(
-		session->data().customEmojiManager().registerInternalEmoji(
-			Ui::Earn::IconCurrencyColored(
-				st::boxTitle.style.font,
-				st::activeButtonBg->c),
-			st::channelEarnCurrencyLearnMargins,
-			false));
-
-	const auto arrow = Ui::Text::IconEmoji(&st::textMoreIconEmoji);
 	const auto addAboutWithLearn = [&](const tr::phrase<lngtag_link> &text) {
-		auto label = Ui::CreateLabelWithCustomEmoji(
+		auto label = object_ptr<Ui::FlatLabel>(
 			container,
 			text(
 				lt_link,
 				tr::lng_channel_earn_about_link(
 					lt_emoji,
-					rpl::single(arrow),
-					Ui::Text::RichLangValue
+					rpl::single(Ui::Text::IconEmoji(&st::textMoreIconEmoji)),
+					tr::rich
 				) | rpl::map([](TextWithEntities text) {
-					return Ui::Text::Link(std::move(text), 1);
+					return tr::link(std::move(text), 1);
 				}),
-				Ui::Text::RichLangValue),
-			Core::TextContext({ .session = session }),
+				tr::rich),
 			st::boxDividerLabel);
 		label->setLink(1, std::make_shared<LambdaClickHandler>([=] {
 			_show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
 				box->setNoContentMargin(true);
+
+				auto emojiHelper = Ui::Text::CustomEmojiHelper();
+				const auto bigCurrencyIcon = emojiHelper.paletteDependent({
+					.factory = [=] {
+						return Ui::Earn::IconCurrencyColored(
+							st::boxTitle.style.font,
+							st::currencyFg->c);
+					}, .margin = st::channelEarnCurrencyLearnMargins });
 
 				const auto content = box->verticalLayout().get();
 
@@ -470,12 +456,12 @@ void InnerWidget::fill() {
 					const auto rect = Rect(icon.size() * 1.4);
 					auto owned = object_ptr<Ui::RpWidget>(content);
 					owned->resize(rect.size());
+					owned->setNaturalWidth(rect.width());
 					const auto widget = box->addRow(
-						object_ptr<Ui::CenterWrap<>>(
-							content,
-							std::move(owned)))->entity();
+						std::move(owned),
+						style::al_top);
 					widget->paintRequest(
-					) | rpl::start_with_next([=] {
+					) | rpl::on_next([=] {
 						auto p = Painter(widget);
 						auto hq = PainterHighQualityEnabler(p);
 						p.setPen(Qt::NoPen);
@@ -486,14 +472,13 @@ void InnerWidget::fill() {
 				}
 				Ui::AddSkip(content);
 				Ui::AddSkip(content);
-				box->addRow(object_ptr<Ui::CenterWrap<>>(
+				box->addRow(object_ptr<Ui::FlatLabel>(
 					content,
-					object_ptr<Ui::FlatLabel>(
-						content,
-						bot
-							? tr::lng_channel_earn_bot_learn_title()
-							: tr::lng_channel_earn_learn_title(),
-						st::boxTitle)));
+					bot
+						? tr::lng_channel_earn_bot_learn_title()
+						: tr::lng_channel_earn_learn_title(),
+					st::boxTitle),
+					style::al_top);
 				Ui::AddSkip(content);
 				Ui::AddSkip(content);
 				Ui::AddSkip(content);
@@ -524,13 +509,13 @@ void InnerWidget::fill() {
 						const auto left = Ui::CreateChild<Ui::RpWidget>(
 							box->verticalLayout().get());
 						left->paintRequest(
-						) | rpl::start_with_next([=] {
+						) | rpl::on_next([=] {
 							auto p = Painter(left);
 							icon.paint(p, 0, 0, left->width());
 						}, left->lifetime());
 						left->resize(icon.size());
 						top->geometryValue(
-						) | rpl::start_with_next([=](const QRect &g) {
+						) | rpl::on_next([=](const QRect &g) {
 							left->moveToLeft(
 								(g.left() - left->width()) / 2,
 								g.top() + st::channelEarnHistoryThreeSkip);
@@ -561,18 +546,17 @@ void InnerWidget::fill() {
 				Ui::AddSkip(content);
 				{
 					const auto l = box->addRow(
-						object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+						object_ptr<Ui::FlatLabel>(
 							content,
-							Ui::CreateLabelWithCustomEmoji(
-								content,
-								tr::lng_channel_earn_learn_coin_title(
-									lt_emoji,
-									rpl::single(
-										Ui::Text::Link(bigCurrencyIcon, 1)),
-									Ui::Text::RichLangValue
-								),
-								Core::TextContext({ .session = session }),
-								st::boxTitle)))->entity();
+							tr::lng_channel_earn_learn_coin_title(
+								lt_emoji,
+								rpl::single(
+									tr::link(bigCurrencyIcon, 1)),
+								tr::rich),
+							st::boxTitle,
+							st::defaultPopupMenu,
+							emojiHelper.context()),
+						style::al_top);
 					const auto diamonds = l->lifetime().make_state<int>(0);
 					l->setLink(1, std::make_shared<LambdaClickHandler>([=] {
 						const auto count = (*diamonds);
@@ -588,20 +572,19 @@ void InnerWidget::fill() {
 				Ui::AddSkip(content);
 				{
 					const auto label = box->addRow(
-						Ui::CreateLabelWithCustomEmoji(
+						object_ptr<Ui::FlatLabel>(
 							content,
 							tr::lng_channel_earn_learn_coin_about(
 								lt_link,
 								tr::lng_channel_earn_about_link(
 									lt_emoji,
-									rpl::single(arrow),
-									Ui::Text::RichLangValue
+									rpl::single(Ui::Text::IconEmoji(
+										&st::textMoreIconEmoji)),
+									tr::rich
 								) | rpl::map([](TextWithEntities text) {
-									return Ui::Text::Link(std::move(text), 1);
+									return tr::link(std::move(text), 1);
 								}),
-								Ui::Text::RichLangValue
-							),
-							Core::TextContext({ .session = session }),
+								tr::rich),
 							st::channelEarnLearnDescription));
 					label->resizeToWidth(box->width()
 						- rect::m::sum::h(st::boxRowPadding));
@@ -620,8 +603,6 @@ void InnerWidget::fill() {
 						container,
 						tr::lng_channel_earn_learn_close(),
 						st::defaultActiveButton);
-					button->setTextTransform(
-						Ui::RoundButton::TextTransform::NoTransform);
 					button->resizeToWidth(box->width()
 						- st.buttonPadding.left()
 						- st.buttonPadding.left());
@@ -633,8 +614,7 @@ void InnerWidget::fill() {
 		container->add(object_ptr<Ui::DividerLabel>(
 			container,
 			std::move(label),
-			st::defaultBoxDividerLabelPadding,
-			RectPart::Top | RectPart::Bottom));
+			st::defaultBoxDividerLabelPadding));
 	};
 	if (canViewCurrencyEarn) {
 		addAboutWithLearn(bot
@@ -692,6 +672,7 @@ void InnerWidget::fill() {
 			}(), Type::StackBar);
 			widget->setTitle(tr::lng_bot_earn_chart_revenue());
 		}
+		Statistic::FixCacheForHighDPIChartWidget(container);
 	}
 	if (data.topHoursGraph.chart
 		|| data.revenueGraph.chart
@@ -706,8 +687,8 @@ void InnerWidget::fill() {
 		Ui::AddSkip(container, st::channelEarnOverviewTitleSkip);
 
 		const auto addOverview = [&](
-				rpl::producer<EarnInt> currencyValue,
-				rpl::producer<StarsAmount> creditsValue,
+				rpl::producer<CreditsAmount> currencyValue,
+				rpl::producer<CreditsAmount> creditsValue,
 				const tr::phrase<> &text,
 				bool showCurrency,
 				bool showCredits) {
@@ -717,22 +698,24 @@ void InnerWidget::fill() {
 			const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
 				st::channelEarnOverviewMajorLabel);
-			addEmojiToMajor(
+			AddEmojiToMajor(
 				majorLabel,
 				rpl::duplicate(currencyValue),
 				{},
 				{});
 			const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
-				rpl::duplicate(currencyValue) | rpl::map([=](EarnInt v) {
-					return MinorPart(v).left(kMinorLength);
+				rpl::duplicate(
+					currencyValue
+				) | rpl::map([](CreditsAmount v) {
+					return MinorPart(v);
 				}),
 				st::channelEarnOverviewMinorLabel);
 			const auto secondMinorLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
 				std::move(
 					currencyValue
-				) | rpl::map([=](EarnInt value) {
+				) | rpl::map([=](CreditsAmount value) {
 					return value
 						? ToUsd(value, multiplier, kMinorLength)
 						: QString();
@@ -741,8 +724,10 @@ void InnerWidget::fill() {
 
 			const auto creditsLabel = Ui::CreateChild<Ui::FlatLabel>(
 				line,
-				rpl::duplicate(creditsValue) | rpl::map([](StarsAmount value) {
-					return Lang::FormatStarsAmountDecimal(value);
+				rpl::duplicate(
+					creditsValue
+				) | rpl::map([](CreditsAmount value) {
+					return Lang::FormatCreditsAmountDecimal(value);
 				}),
 				st::channelEarnOverviewMajorLabel);
 			const auto icon = Ui::CreateSingleStarWidget(
@@ -757,11 +742,11 @@ void InnerWidget::fill() {
 				majorLabel->sizeValue(),
 				creditsLabel->sizeValue(),
 				std::move(creditsValue)
-			) | rpl::start_with_next([=](
+			) | rpl::on_next([=](
 					int available,
 					const QSize &size,
 					const QSize &creditsSize,
-					StarsAmount credits) {
+					CreditsAmount credits) {
 				const auto skip = st::channelEarnOverviewSubMinorLabelPos.x();
 				line->resize(line->width(), size.height());
 				minorLabel->moveToLeft(
@@ -787,13 +772,13 @@ void InnerWidget::fill() {
 				creditsSecondLabel->resizeToWidth(
 					available - creditsSecondLabel->pos().x());
 				if (!showCredits) {
-					const auto x = std::numeric_limits<int>::max();
+					const auto x = std::numeric_limits<int>::max() / 2;
 					icon->moveToLeft(x, 0);
 					creditsLabel->moveToLeft(x, 0);
 					creditsSecondLabel->moveToLeft(x, 0);
 				}
 				if (!showCurrency) {
-					const auto x = std::numeric_limits<int>::max();
+					const auto x = std::numeric_limits<int>::max() / 2;
 					majorLabel->moveToLeft(x, 0);
 					minorLabel->moveToLeft(x, 0);
 					secondMinorLabel->moveToLeft(x, 0);
@@ -856,9 +841,8 @@ void InnerWidget::fill() {
 		Ui::AddSkip(container);
 
 		const auto labels = container->add(
-			object_ptr<Ui::CenterWrap<Ui::RpWidget>>(
-				container,
-				object_ptr<Ui::RpWidget>(container)))->entity();
+			object_ptr<Ui::RpWidget>(container),
+			style::al_top);
 
 		const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
 			labels,
@@ -866,7 +850,7 @@ void InnerWidget::fill() {
 		{
 			const auto &m = st::channelEarnCurrencyCommonMargins;
 			const auto p = QMargins(m.left(), 0, m.right(), m.bottom());
-			addEmojiToMajor(majorLabel, rpl::single(value), {}, p);
+			AddEmojiToMajor(majorLabel, rpl::single(value), {}, p);
 		}
 		majorLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 		const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(
@@ -877,12 +861,14 @@ void InnerWidget::fill() {
 		rpl::combine(
 			majorLabel->sizeValue(),
 			minorLabel->sizeValue()
-		) | rpl::start_with_next([=](
+		) | rpl::on_next([=](
 				const QSize &majorSize,
 				const QSize &minorSize) {
 			labels->resize(
 				majorSize.width() + minorSize.width(),
 				majorSize.height());
+			labels->setNaturalWidth(
+				majorSize.width() + minorSize.width());
 			majorLabel->moveToLeft(0, 0);
 			minorLabel->moveToRight(
 				0,
@@ -892,12 +878,11 @@ void InnerWidget::fill() {
 
 		Ui::AddSkip(container);
 		container->add(
-			object_ptr<Ui::CenterWrap<>>(
+			object_ptr<Ui::FlatLabel>(
 				container,
-				object_ptr<Ui::FlatLabel>(
-					container,
-					ToUsd(value, multiplier, 0),
-					st::channelEarnOverviewSubMinorLabel)));
+				ToUsd(value, multiplier, 0),
+				st::channelEarnOverviewSubMinorLabel),
+			style::al_top);
 
 		Ui::AddSkip(container);
 
@@ -907,7 +892,9 @@ void InnerWidget::fill() {
 				container,
 				rpl::never<QString>(),
 				stButton),
-			st::boxRowPadding);
+			st::boxRowPadding,
+			style::al_justify);
+		button->setTextTransform(Ui::RoundButtonTextTransform::ToUpper);
 
 		const auto label = Ui::CreateChild<Ui::FlatLabel>(
 			button,
@@ -918,7 +905,7 @@ void InnerWidget::fill() {
 		rpl::combine(
 			button->sizeValue(),
 			label->sizeValue()
-		) | rpl::start_with_next([=](const QSize &b, const QSize &l) {
+		) | rpl::on_next([=](const QSize &b, const QSize &l) {
 			label->moveToLeft(
 				(b.width() - l.width()) / 2,
 				(b.height() - l.height()) / 2);
@@ -931,11 +918,9 @@ void InnerWidget::fill() {
 					anim::interpolateF(.5, 1., value)));
 		};
 		colorText(withdrawalEnabled ? 1. : 0.);
-#ifndef _DEBUG
 		button->setAttribute(
 			Qt::WA_TransparentForMouseEvents,
-			!withdrawalEnabled);
-#endif
+			!withdrawalEnabled && (value.value() > 0.01));
 
 		Api::HandleWithdrawalButton(
 			{ .currencyReceiver = _peer },
@@ -989,8 +974,7 @@ void InnerWidget::fill() {
 		const auto button = Info::BotStarRef::AddViewListButton(
 			container,
 			tr::lng_credits_summary_earn_title(),
-			tr::lng_credits_summary_earn_about(),
-			true);
+			tr::lng_credits_summary_earn_about());
 		button->setClickedCallback([=] {
 			_controller->showSection(Info::BotStarRef::Join::Make(_peer));
 		});
@@ -1072,7 +1056,7 @@ void InnerWidget::fill() {
 
 		rpl::single(slider->entity()->activeSection()) | rpl::then(
 			slider->entity()->sectionActivated()
-		) | rpl::start_with_next([=](int index) {
+		) | rpl::on_next([=](int index) {
 			if (index == 0) {
 				tabCurrencyList->toggle(true, anim::type::instant);
 				tabCreditsList->toggle(false, anim::type::instant);
@@ -1086,9 +1070,10 @@ void InnerWidget::fill() {
 		if (hasCurrencyTab) {
 			Ui::AddSkip(listsContainer);
 
-			const auto historyList = tabCurrencyList->entity();
+			const auto historyList = tabCurrencyList->entity()->add(
+				object_ptr<Ui::VerticalLayout>(tabCurrencyList->entity()));
 			const auto addHistoryEntry = [=](
-					const Data::EarnHistoryEntry &entry,
+					const Data::CreditsHistoryEntry &entry,
 					const tr::phrase<> &text) {
 				const auto wrap = historyList->add(
 					object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
@@ -1102,8 +1087,7 @@ void InnerWidget::fill() {
 					text(),
 					st::channelEarnSemiboldLabel));
 
-				const auto isIn
-					= (entry.type == Data::EarnHistoryEntry::Type::In);
+				const auto isIn = entry.in;
 				const auto recipient = Ui::Text::Wrapped(
 					{ entry.provider },
 					EntityType::Code);
@@ -1120,18 +1104,17 @@ void InnerWidget::fill() {
 					Ui::AddSkip(inner, st::channelEarnHistoryTwoSkip);
 				}
 
-				const auto isFailed = entry.status
-					== Data::EarnHistoryEntry::Status::Failed;
-				const auto isPending = entry.status
-					== Data::EarnHistoryEntry::Status::Pending;
-				const auto dateText = (!entry.dateTo.isNull() || isFailed)
+				const auto isFailed = entry.failed;
+				const auto isPending = entry.pending;
+				const auto dateText = (!entry.adsProceedsToDate.isNull()
+						|| isFailed)
 					? (FormatDate(entry.date)
 						+ ' '
 						+ QChar(8212)
 						+ ' '
 						+ (isFailed
 							? tr::lng_channel_earn_history_out_failed(tr::now)
-							: FormatDate(entry.dateTo)))
+							: FormatDate(entry.adsProceedsToDate)))
 					: isPending
 					? tr::lng_channel_earn_history_pending(tr::now)
 					: FormatDate(entry.date);
@@ -1150,14 +1133,14 @@ void InnerWidget::fill() {
 				const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
 					wrap,
 					st::channelEarnHistoryMajorLabel);
-				addEmojiToMajor(
+				AddEmojiToMajor(
 					majorLabel,
-					rpl::single(entry.amount),
+					rpl::single(entry.credits),
 					isIn,
 					{});
 				majorLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 				majorLabel->setTextColorOverride(color);
-				const auto minorText = MinorPart(entry.amount);
+				const auto minorText = MinorPart(entry.credits);
 				const auto minorLabel = Ui::CreateChild<Ui::FlatLabel>(
 					wrap,
 					rpl::single(minorText),
@@ -1177,16 +1160,15 @@ void InnerWidget::fill() {
 					Ui::AddSkip(box->verticalLayout());
 					Ui::AddSkip(box->verticalLayout());
 					const auto labels = box->addRow(
-						object_ptr<Ui::CenterWrap<Ui::RpWidget>>(
-							box,
-							object_ptr<Ui::RpWidget>(box)))->entity();
+						object_ptr<Ui::RpWidget>(box),
+						style::al_top);
 
 					const auto majorLabel = Ui::CreateChild<Ui::FlatLabel>(
 						labels,
 						st::channelEarnOverviewMajorLabel);
-					addEmojiToMajor(
+					AddEmojiToMajor(
 						majorLabel,
-						rpl::single(entry.amount),
+						rpl::single(entry.credits),
 						isIn,
 						{});
 					majorLabel->setAttribute(
@@ -1202,12 +1184,14 @@ void InnerWidget::fill() {
 					rpl::combine(
 						majorLabel->sizeValue(),
 						minorLabel->sizeValue()
-					) | rpl::start_with_next([=](
+					) | rpl::on_next([=](
 							const QSize &majorSize,
 							const QSize &minorSize) {
 						labels->resize(
 							majorSize.width() + minorSize.width(),
 							majorSize.height());
+						labels->setNaturalWidth(
+							majorSize.width() + minorSize.width());
 						majorLabel->moveToLeft(0, 0);
 						minorLabel->moveToRight(
 							0,
@@ -1215,23 +1199,28 @@ void InnerWidget::fill() {
 					}, box->lifetime());
 
 					Ui::AddSkip(box->verticalLayout());
-					box->addRow(object_ptr<Ui::CenterWrap<>>(
-						box,
+					box->addRow(
 						object_ptr<Ui::FlatLabel>(
 							box,
 							dateText,
-							st::channelEarnHistorySubLabel)));
+							st::channelEarnHistorySubLabel),
+						style::al_top);
 					Ui::AddSkip(box->verticalLayout());
 					Ui::AddSkip(box->verticalLayout());
+					AddChannelEarnTable(
+						box->uiShow(),
+						box->verticalLayout(),
+						entry);
 					Ui::AddSkip(box->verticalLayout());
-					box->addRow(object_ptr<Ui::CenterWrap<>>(
-						box,
+					Ui::AddSkip(box->verticalLayout());
+					box->addRow(
 						object_ptr<Ui::FlatLabel>(
 							box,
 							isIn
 								? tr::lng_channel_earn_history_in_about()
 								: tr::lng_channel_earn_history_out(),
-							st::channelEarnHistoryDescriptionLabel)));
+							st::channelEarnHistoryDescriptionLabel),
+						style::al_top);
 					Ui::AddSkip(box->verticalLayout());
 					if (isIn) {
 						Ui::AddSkip(box->verticalLayout());
@@ -1242,9 +1231,8 @@ void InnerWidget::fill() {
 					}
 					if (isIn) {
 						box->addRow(
-							object_ptr<Ui::CenterWrap<>>(
-								box,
-								Ui::CreatePeerBubble(box, peer)));
+							Ui::CreatePeerBubble(box, peer),
+							style::al_top);
 					}
 					const auto closeBox = [=] { box->closeBox(); };
 					{
@@ -1256,6 +1244,7 @@ void InnerWidget::fill() {
 								? tr::lng_channel_earn_history_out_button()
 								: tr::lng_box_ok(),
 							st::defaultActiveButton);
+						button->setTextTransform(Ui::RoundButtonTextTransform::ToUpper);
 						button->resizeToWidth(box->width()
 							- st.buttonPadding.left()
 							- st.buttonPadding.left());
@@ -1283,7 +1272,7 @@ void InnerWidget::fill() {
 					_show->showBox(Box(detailsBox));
 				});
 				wrap->geometryValue(
-				) | rpl::start_with_next([=](const QRect &g) {
+				) | rpl::on_next([=](const QRect &g) {
 					const auto &padding = st::boxRowPadding;
 					const auto majorTop = (g.height() - majorLabel->height())
 						/ 2;
@@ -1296,22 +1285,22 @@ void InnerWidget::fill() {
 					const auto rightWrapPadding = rect::m::sum::h(padding)
 						+ minorLabel->width()
 						+ majorLabel->width();
-					wrap->setPadding(st::channelEarnHistoryOuter
-						+ QMargins(padding.left(), 0, rightWrapPadding, 0));
-					button->resize(g.size());
+					const auto additional = st::channelEarnHistoryOuter
+						+ QMargins(padding.left(), 0, rightWrapPadding, 0);
+					wrap->setPadding(additional);
+					button->resize((g + additional).size());
 					button->lower();
 				}, wrap->lifetime());
 			};
 			const auto handleSlice = [=](const Data::EarnHistorySlice &s) {
-				using Type = Data::EarnHistoryEntry::Type;
 				for (const auto &entry : s.list) {
 					addHistoryEntry(
 						entry,
-						(entry.type == Type::In)
-							? tr::lng_channel_earn_history_in
-							: (entry.type == Type::Return)
+						(entry.refunded
 							? tr::lng_channel_earn_history_return
-							: tr::lng_channel_earn_history_out);
+							: entry.in
+							? tr::lng_channel_earn_history_in
+							: tr::lng_channel_earn_history_out));
 				}
 				historyList->resizeToWidth(listsContainer->width());
 			};
@@ -1331,23 +1320,17 @@ void InnerWidget::fill() {
 					= lifetime().make_state<ShowMoreState>(_peer);
 				state->token = firstSlice.token;
 				state->showed = firstSlice.list.size();
-				const auto max = firstSlice.total;
-				const auto wrap = listsContainer->add(
+				const auto wrap = tabCurrencyList->entity()->add(
 					object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
-						listsContainer,
+						tabCurrencyList->entity(),
 						object_ptr<Ui::SettingsButton>(
-							listsContainer,
-							tr::lng_channel_earn_history_show_more(
-								lt_count,
-								state->showed.value(
-								) | rpl::map(
-									max - rpl::mappers::_1
-								) | tr::to_count()),
+							tabCurrencyList->entity(),
+							tr::lng_channels_your_more(),
 							st::statisticsShowMoreButton)));
 				const auto button = wrap->entity();
 				Ui::AddToggleUpDownArrowToMoreButton(button);
 
-				wrap->toggle(true, anim::type::instant);
+				wrap->toggle(!firstSlice.allLoaded, anim::type::instant);
 				const auto handleReceived = [=](
 						Data::EarnHistorySlice slice) {
 					state->loading = false;
@@ -1403,7 +1386,7 @@ void InnerWidget::fill() {
 		object_ptr<Ui::VerticalLayout>(container));
 	rpl::single(rpl::empty) | rpl::then(
 		_stateUpdated.events()
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		const auto listsContainer = historyContainer->add(
 			object_ptr<Ui::VerticalLayout>(container));
 		rebuildLists(_state, listsContainer, historyDividerContainer);
@@ -1436,12 +1419,12 @@ void InnerWidget::fill() {
 			phrase());
 
 		button->toggleOn(rpl::single(
-			data.switchedOff
+			_state.currencyEarn.switchedOff
 		) | rpl::then(toggled->events()));
 		button->setToggleLocked(isLocked);
 
 		button->toggledChanges(
-		) | rpl::start_with_next([=](bool value) {
+		) | rpl::on_next([=](bool value) {
 			if (isLocked && value) {
 				toggled->fire(false);
 				CheckBoostLevel(
@@ -1455,10 +1438,10 @@ void InnerWidget::fill() {
 					[] {});
 			}
 			if (!isLocked) {
-				const auto weak = Ui::MakeWeak(this);
+				const auto weak = base::make_weak(this);
 				const auto show = _controller->uiShow();
 				const auto failed = [=](const QString &e) {
-					if (weak.data()) {
+					if (weak.get()) {
 						toggled->fire(false);
 						show->showToast(e);
 					}
@@ -1512,6 +1495,40 @@ void InnerWidget::setInnerFocus() {
 
 not_null<PeerData*> InnerWidget::peer() const {
 	return _peer;
+}
+
+void AddEmojiToMajor(
+		not_null<Ui::FlatLabel*> label,
+		rpl::producer<CreditsAmount> value,
+		std::optional<bool> isIn,
+		std::optional<QMargins> margins) {
+	const auto &st = label->st();
+	const auto prepended = !isIn
+		? TextWithEntities()
+		: TextWithEntities::Simple((*isIn) ? QChar('+') : kMinus);
+	std::move(
+		value
+	) | rpl::on_next([=](CreditsAmount v) {
+		auto helper = Ui::Text::CustomEmojiHelper();
+		auto icon = helper.paletteDependent({
+			.factory = [=] {
+				return Ui::Earn::IconCurrencyColored(
+					st.style.font,
+					!isIn
+					? st::currencyFg->c
+					: (*isIn)
+					? st::boxTextFgGood->c
+					: st::menuIconAttentionColor->c);
+				},
+			.margin = margins
+				? *margins
+				: st::channelEarnCurrencyCommonMargins
+		});
+		auto value = MajorPart(v.abs());
+		label->setMarkedText(
+			base::duplicate(prepended).append(icon).append(value),
+			helper.context());
+	}, label->lifetime());
 }
 
 } // namespace Info::ChannelEarn

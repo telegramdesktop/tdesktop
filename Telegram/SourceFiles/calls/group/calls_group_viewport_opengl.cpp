@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "data/data_peer.h"
 #include "styles/style_calls.h"
+#include "styles/style_media_view.h"
 
 #include <QOpenGLShader>
 
@@ -307,14 +308,12 @@ Viewport::RendererGL::RendererGL(not_null<Viewport*> owner)
 	st::radialBg) {
 
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_buttons.invalidate();
 	}, _lifetime);
 }
 
-void Viewport::RendererGL::init(
-		not_null<QOpenGLWidget*> widget,
-		QOpenGLFunctions &f) {
+void Viewport::RendererGL::init(QOpenGLFunctions &f) {
 	_frameBuffer.emplace();
 	_frameBuffer->setUsagePattern(QOpenGLBuffer::DynamicDraw);
 	_frameBuffer->create();
@@ -389,9 +388,7 @@ void Viewport::RendererGL::ensureARGB32Program() {
 		}));
 }
 
-void Viewport::RendererGL::deinit(
-		not_null<QOpenGLWidget*> widget,
-		QOpenGLFunctions *f) {
+void Viewport::RendererGL::deinit(QOpenGLFunctions *f) {
 	_frameBuffer = std::nullopt;
 	_frameVertexShader = nullptr;
 	_imageProgram = std::nullopt;
@@ -404,10 +401,12 @@ void Viewport::RendererGL::deinit(
 	_noiseFramebuffer.destroy(f);
 	for (auto &data : _tileData) {
 		data.textures.destroy(f);
+		data.framebuffers.destroy(f);
 	}
 	_tileData.clear();
 	_tileDataIndices.clear();
 	_buttons.destroy(f);
+	_names.destroy(f);
 }
 
 void Viewport::RendererGL::setDefaultViewport(QOpenGLFunctions &f) {
@@ -447,7 +446,7 @@ void Viewport::RendererGL::paint(
 }
 
 std::optional<QColor> Viewport::RendererGL::clearColor() {
-	return st::groupCallBg->c;
+	return _owner->videoStream() ? st::mediaviewBg->c : st::groupCallBg->c;
 }
 
 void Viewport::RendererGL::validateUserpicFrame(
@@ -461,7 +460,7 @@ void Viewport::RendererGL::validateUserpicFrame(
 	}
 	const auto size = tile->trackOrUserpicSize();
 	tileData.userpicFrame = PeerData::GenerateUserpicImage(
-		tile->row()->peer(),
+		tile->peer(),
 		tile->row()->ensureUserpicView(),
 		size.width(),
 		0);
@@ -489,7 +488,8 @@ void Viewport::RendererGL::paintTile(
 
 	_rgbaFrame = (data.format == Webrtc::FrameFormat::ARGB32)
 		|| _userpicFrame;
-	const auto geometry = tile->geometry();
+	const auto geometry = tile->geometry().translated(
+		_owner->borrowedOrigin());
 	const auto x = geometry.x();
 	const auto y = geometry.y();
 	const auto width = geometry.width();
@@ -788,12 +788,15 @@ void Viewport::RendererGL::paintTile(
 	program->setUniformValue("viewport", uniformViewport);
 	program->setUniformValue(
 		"frameBg",
-		fullscreen ? QColor(0, 0, 0) : st::groupCallBg->c);
+		fullscreen ? QColor(0, 0, 0) : *clearColor());
+	const auto radius = _owner->videoStream()
+		? st::storiesRadius
+		: st::roundRadiusLarge;
 	program->setUniformValue("radiusOutline", QVector2D(
-		GLfloat(st::roundRadiusLarge * _factor * (fullscreen ? 0. : 1.)),
+		GLfloat(radius * _factor * (fullscreen ? 0. : 1.)),
 		(outline > 0) ? (st::groupCallOutline * _factor) : 0.f));
 	program->setUniformValue("roundRect", Uniform(rect));
-	program->setUniformValue("roundBg", st::groupCallBg->c);
+	program->setUniformValue("roundBg", *clearColor());
 	program->setUniformValue("outlineFg", QVector4D(
 		st::groupCallMemberActiveIcon->c.redF(),
 		st::groupCallMemberActiveIcon->c.greenF(),
@@ -1236,7 +1239,7 @@ void Viewport::RendererGL::validateDatas() {
 			j->stale = false;
 			const auto index = (j - begin(_tileData));
 			_tileDataIndices[i] = index;
-			const auto peer = tiles[i]->row()->peer();
+			const auto peer = tiles[i]->peer();
 			if ((j->peer != peer)
 				|| (j->nameVersion != peer->nameVersion())
 				|| (j->nameRect.width() != width)) {
@@ -1260,7 +1263,7 @@ void Viewport::RendererGL::validateDatas() {
 			continue;
 		}
 		const auto id = quintptr(tiles[i]->track().get());
-		const auto peer = tiles[i]->row()->peer();
+		const auto peer = tiles[i]->peer();
 		const auto paused = (tiles[i]->track()->state()
 			== Webrtc::VideoState::Paused);
 		auto index = int(_tileData.size());

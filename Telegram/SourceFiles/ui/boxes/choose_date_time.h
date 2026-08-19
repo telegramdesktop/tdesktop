@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/boxes/calendar_box.h"
 #include "ui/layers/generic_box.h"
 
 namespace style {
@@ -23,6 +24,7 @@ struct ChooseDateTimeBoxDescriptor {
 	QPointer<RoundButton> submit;
 	Fn<TimeId()> collect;
 	rpl::producer<TimeId> values;
+	rpl::producer<int> width;
 };
 
 struct ChooseDateTimeStyleArgs {
@@ -44,10 +46,23 @@ struct ChooseDateTimeBoxArgs {
 	Fn<TimeId()> max;
 	rpl::producer<QString> description;
 	ChooseDateTimeStyleArgs style;
+	Fn<void(QDate, CalendarImageSetter)> dynamicImageForDate;
 };
 
 ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 	not_null<GenericBox*> box,
 	ChooseDateTimeBoxArgs &&args);
+
+struct ChooseRepeatPeriodArgs {
+	TimeId value = 0;
+	rpl::variable<bool> locked;
+	Fn<bool()> filter;
+	Fn<void(TimeId)> changed;
+	bool test = false;
+};
+
+[[nodiscard]] object_ptr<Ui::RpWidget> ChooseRepeatPeriod(
+	not_null<Ui::RpWidget*> parent,
+	ChooseRepeatPeriodArgs &&args);
 
 } // namespace Ui

@@ -364,6 +364,45 @@ private:
 
 };
 
+class Thumbnail : public ItemBase {
+public:
+	Thumbnail(not_null<Context*> context, std::shared_ptr<Result> result);
+
+	void initDimensions() override;
+
+	bool isFullLine() const override {
+		return false;
+	}
+	bool hasRightSkip() const override {
+		return true;
+	}
+
+	void paint(
+		Painter &p,
+		const QRect &clip,
+		const PaintContext *context) const override;
+	TextState getState(
+		QPoint point,
+		StateRequest request) const override;
+
+	void unloadHeavyPart() override;
+
+private:
+	QSize countFrameSize() const;
+	void prepareThumbnail(QSize size, QSize frame) const;
+	void validateThumbnail(
+		Image *image,
+		QSize size,
+		QSize frame,
+		bool good) const;
+
+	mutable QPixmap _thumb;
+	mutable bool _thumbGood = false;
+	mutable std::shared_ptr<Data::PhotoMedia> _photoMedia;
+	mutable std::shared_ptr<Data::DocumentMedia> _documentMedia;
+
+};
+
 class Article : public ItemBase {
 public:
 	Article(
@@ -379,6 +418,8 @@ public:
 		QPoint point,
 		StateRequest request) const override;
 
+	void unloadHeavyPart() override;
+
 private:
 	ClickHandlerPtr _url, _link;
 
@@ -389,6 +430,10 @@ private:
 	int32 _urlWidth;
 
 	void prepareThumbnail(int width, int height) const;
+	void prepareMediaThumbnail(int width, int height) const;
+
+	mutable std::shared_ptr<Data::PhotoMedia> _photoMedia;
+	mutable std::shared_ptr<Data::DocumentMedia> _documentMedia;
 
 };
 

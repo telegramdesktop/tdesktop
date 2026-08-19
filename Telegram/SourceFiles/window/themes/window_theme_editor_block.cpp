@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/widgets/color_editor.h"
 #include "ui/widgets/shadow.h"
-#include "styles/style_layers.h"
+#include "styles/style_widgets.h"
 #include "styles/style_window.h"
 
 namespace Window {
@@ -178,7 +178,7 @@ EditorBlock::EditorBlock(QWidget *parent, Type type, Context *context)
 	setMouseTracking(true);
 
 	_context->updated.events(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (_mouseSelection) {
 			_lastGlobalPos = QCursor::pos();
 			updateSelected(mapFromGlobal(_lastGlobalPos));
@@ -188,7 +188,7 @@ EditorBlock::EditorBlock(QWidget *parent, Type type, Context *context)
 
 	if (_type == Type::Existing) {
 		_context->appended.events(
-		) | rpl::start_with_next([=](const Context::AppendData &added) {
+		) | rpl::on_next([=](const Context::AppendData &added) {
 			auto name = added.name;
 			auto value = added.value;
 			feed(name, value);
@@ -208,7 +208,7 @@ EditorBlock::EditorBlock(QWidget *parent, Type type, Context *context)
 		}, lifetime());
 	} else {
 		_context->changed.events(
-		) | rpl::start_with_next([=](const Context::ChangeData &data) {
+		) | rpl::on_next([=](const Context::ChangeData &data) {
 			checkCopiesChanged(0, data.names, data.value);
 		}, lifetime());
 	}
@@ -335,18 +335,18 @@ void EditorBlock::activateRow(const Row &row) {
 				saveEditing(editor->color());
 			});
 			box->boxClosing(
-			) | rpl::start_with_next(crl::guard(this, [=] {
+			) | rpl::on_next(crl::guard(this, [=] {
 				cancelEditing();
 			}), state->cancelLifetime);
 			editor->submitRequests(
-			) | rpl::start_with_next(save, editor->lifetime());
+			) | rpl::on_next(save, editor->lifetime());
 
 			box->setFocusCallback([=] {
 				editor->setInnerFocus();
 			});
 			box->addButton(tr::lng_settings_save(), save);
 			box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-			box->setTitle(rpl::single(name));
+			box->setTitle(name);
 			box->setWidth(editor->width());
 
 			_context->colorEditor.box = box;
@@ -637,7 +637,10 @@ void EditorBlock::checkCopiesChanged(int startIndex, QStringList names, QColor v
 }
 
 void EditorBlock::cancelEditing() {
-	if (_editing >= 0) {
+	// The only place we need to check for _editing < _data.size(),
+	// because we could remove the row that was edited in New block,
+	// and it could be the last row, making _editing inconsistent.
+	if (_editing >= 0 && _editing < _data.size()) {
 		updateRow(_data[_editing]);
 	}
 	_editing = -1;

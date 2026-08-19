@@ -68,6 +68,7 @@ enum class StickerLottieSize : uint8 {
 	EmojiInteractionReserved7,
 	ChatIntroHelloSticker,
 	StickerEmojiSize,
+	PinnedProfileUniqueGiftSize,
 };
 [[nodiscard]] uint8 LottieCacheKeyShift(
 	uint8 replacementsTag,
@@ -136,6 +137,7 @@ bool PaintStickerThumbnailPath(
 
 [[nodiscard]] not_null<DocumentData*> GenerateLocalTgsSticker(
 	not_null<Main::Session*> session,
-	const QString &name);
+	const QString &name,
+	bool useTextColor = false);
 
 } // namespace ChatHelpers

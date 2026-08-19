@@ -68,7 +68,7 @@ int PremiumLimits::dialogFiltersDefault() const {
 	return appConfigLimit("dialog_filters_limit_default", 10);
 }
 int PremiumLimits::dialogFiltersPremium() const {
-	return appConfigLimit("dialog_filters_limit_premium", 20);
+	return appConfigLimit("dialog_filters_limit_premium", 30);
 }
 int PremiumLimits::dialogFiltersCurrent() const {
 	return isPremium()
@@ -176,6 +176,20 @@ int PremiumLimits::captionLengthCurrent() const {
 		: captionLengthDefault();
 }
 
+int PremiumLimits::messageLengthDefault() const {
+	return appConfigLimit("message_length_limit_default", 4096);
+}
+
+int PremiumLimits::messageLengthPremium() const {
+	return appConfigLimit("message_length_limit_premium", 8192);
+}
+
+int PremiumLimits::messageLengthCurrent() const {
+	return isPremium()
+		? messageLengthPremium()
+		: messageLengthDefault();
+}
+
 int PremiumLimits::uploadMaxDefault() const {
 	return appConfigLimit("upload_max_fileparts_default", 4000);
 }
@@ -200,10 +214,28 @@ int PremiumLimits::aboutLengthCurrent() const {
 		: aboutLengthDefault();
 }
 
+int PremiumLimits::contactNoteLengthCurrent() const {
+	return appConfigLimit("contact_note_length_limit", 128);
+}
+
 int PremiumLimits::maxBoostLevel() const {
 	return appConfigLimit(
 		u"boosts_channel_level_max"_q,
 		_session->isTestMode() ? 9 : 99);
+}
+
+int PremiumLimits::botsCreateDefault() const {
+	return appConfigLimit("bots_create_limit_default", 20);
+}
+int PremiumLimits::botsCreatePremium() const {
+	return appConfigLimit("bots_create_limit_premium", 40);
+}
+
+int PremiumLimits::aiComposeSavedTonesDefault() const {
+	return appConfigLimit("aicompose_tone_saved_limit_default", 5);
+}
+int PremiumLimits::aiComposeSavedTonesPremium() const {
+	return appConfigLimit("aicompose_tone_saved_limit_premium", 20);
 }
 
 int PremiumLimits::appConfigLimit(

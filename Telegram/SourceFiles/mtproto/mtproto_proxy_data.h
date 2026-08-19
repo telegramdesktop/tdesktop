@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <QtNetwork/QNetworkProxy>
+
 namespace MTP {
 
 struct ProxyData {
@@ -24,6 +26,7 @@ struct ProxyData {
 	enum class Status {
 		Valid,
 		Unsupported,
+		IncorrectSecret,
 		Invalid,
 	};
 

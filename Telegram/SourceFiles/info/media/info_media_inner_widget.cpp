@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "data/data_forum_topic.h"
 #include "data/data_peer.h"
+#include "data/data_saved_sublist.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
@@ -36,7 +37,7 @@ InnerWidget::InnerWidget(
 , _controller(controller)
 , _empty(this) {
 	_empty->heightValue(
-	) | rpl::start_with_next(
+	) | rpl::on_next(
 		[this] { refreshHeight(); },
 		_empty->lifetime());
 	_list = setupList();
@@ -62,7 +63,7 @@ void InnerWidget::createOtherTypes() {
 
 	_otherTypes->resizeToWidth(width());
 	_otherTypes->heightValue(
-	) | rpl::start_with_next(
+	) | rpl::on_next(
 		[this] { refreshHeight(); },
 		_otherTypes->lifetime());
 }
@@ -79,7 +80,11 @@ void InnerWidget::createTypeButtons() {
 	auto tracker = Ui::MultiSlideTracker();
 	const auto peer = _controller->key().peer();
 	const auto topic = _controller->key().topic();
+	const auto sublist = _controller->key().sublist();
 	const auto topicRootId = topic ? topic->rootId() : MsgId();
+	const auto monoforumPeerId = sublist
+		? sublist->sublistPeer()->id
+		: PeerId();
 	const auto migrated = _controller->migrated();
 	const auto addMediaButton = [&](
 			Type buttonType,
@@ -92,6 +97,7 @@ void InnerWidget::createTypeButtons() {
 			_controller,
 			peer,
 			topicRootId,
+			monoforumPeerId,
 			migrated,
 			buttonType,
 			tracker);
@@ -141,7 +147,7 @@ bool InnerWidget::showInternal(not_null<Memento*> memento) {
 object_ptr<ListWidget> InnerWidget::setupList() {
 	auto result = object_ptr<ListWidget>(this, _controller);
 	result->heightValue(
-	) | rpl::start_with_next(
+	) | rpl::on_next(
 		[this] { refreshHeight(); },
 		result->lifetime());
 	using namespace rpl::mappers;
@@ -158,7 +164,7 @@ object_ptr<ListWidget> InnerWidget::setupList() {
 	_listTops.fire(result->topValue());
 	_empty->setType(_controller->section().mediaType());
 	_controller->mediaSourceQueryValue(
-	) | rpl::start_with_next([this](const QString &query) {
+	) | rpl::on_next([this](const QString &query) {
 		_empty->setSearchQuery(query);
 	}, result->lifetime());
 	return result;
@@ -215,7 +221,7 @@ int InnerWidget::recountHeight() {
 		listHeight = _list->heightNoMargins();
 		top += listHeight;
 	}
-	if (listHeight > 0) {
+	if (listHeight > _emptyHeightThreshold && !_empty->loading()) {
 		_empty->hide();
 	} else {
 		_empty->show();
@@ -237,6 +243,40 @@ void InnerWidget::setScrollHeightValue(rpl::producer<int> value) {
 
 rpl::producer<Ui::ScrollToRequest> InnerWidget::scrollToRequests() const {
 	return _scrollToRequests.events();
+}
+
+bool InnerWidget::processZoomWheel(not_null<QWheelEvent*> e) {
+	return _list->processZoomWheel(e);
+}
+
+void InnerWidget::zoomIn() {
+	_list->zoomIn();
+}
+
+void InnerWidget::zoomOut() {
+	_list->zoomOut();
+}
+
+bool InnerWidget::canZoomIn() const {
+	return _list->canZoomIn();
+}
+
+bool InnerWidget::canZoomOut() const {
+	return _list->canZoomOut();
+}
+
+void InnerWidget::jumpToMessage(MsgId msgId) {
+	_empty->setLoading(true);
+	_emptyHeightThreshold = st::semiboldFont->height;
+	_list->jumpToMessage(msgId);
+	_emptyLoadingLifetime = _list->heightValue(
+	) | rpl::skip(1) | rpl::filter(
+		rpl::mappers::_1 > _emptyHeightThreshold
+	) | rpl::take(1) | rpl::on_next([=](int height) {
+		_empty->setLoading(false);
+		_emptyHeightThreshold = 0;
+		recountHeight();
+	});
 }
 
 } // namespace Media

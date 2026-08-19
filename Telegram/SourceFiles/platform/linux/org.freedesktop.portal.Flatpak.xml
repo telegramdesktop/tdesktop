@@ -1,0 +1,583 @@
+<!DOCTYPE node PUBLIC
+"-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
+"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+
+<!--
+ Copyright (C) 2018 Red Hat, Inc.
+
+ This library is free software; you can redistribute it and/or
+ modify it under the terms of the GNU Lesser General Public
+ License as published by the Free Software Foundation; either
+ version 2 of the License, or (at your option) any later version.
+
+ This library is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ Lesser General Public License for more details.
+
+ You should have received a copy of the GNU Lesser General
+ Public License along with this library; if not, write to the
+ Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ Boston, MA 02110-1301, USA.
+
+ Author: Alexander Larsson <alexl@redhat.com>
+-->
+
+<node name="/" xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd">
+  <!--
+      org.freedesktop.portal.Flatpak:
+      @short_description: Flatpak portal
+
+      The flatpak portal exposes some interactions with flatpak on the
+      host to the sandbox. For example, it allows you to restart the
+      applications or start a more sandboxed instance.
+
+      This portal is available on the D-Bus session bus under the
+      bus name org.freedesktop.portal.Flatpak and the object path
+      /org/freedesktop/portal/Flatpak.
+
+      This documentation describes version 8 of this interface.
+  -->
+  <interface name='org.freedesktop.portal.Flatpak'>
+    <property name="version" type="u" access="read"/>
+    <!--
+        supports:
+
+        Flags marking what optional features are available.
+         The following flags values are supported:
+         <variablelist>
+           <varlistentry>
+             <term>1 (FLATPAK_SPAWN_SUPPORT_FLAGS_EXPOSE_PIDS)</term>
+             <listitem><para>
+              Supports the expose sandbox pids flag of Spawn.
+              If the version of this interface is 5 or later, this also
+              indicates that the share sandbox pids flag is available.
+             </para></listitem>
+           </varlistentry>
+         </variablelist>
+
+         This was added in version 3 of this interface (available from flatpak 1.6.0 and later).
+        -->
+    <property name="supports" type="u" access="read"/>
+
+    <!--
+         Spawn:
+         @cwd_path: the working directory for the new process
+         @argv: the argv for the new process, starting with the executable to launch
+         @fds: an array of file descriptors to pass to the new process
+         @envs: an array of variable/value pairs for the environment of the new process
+         @flags: flags
+         @options: Vardict with optional further information
+         @pid: the PID of the new process
+
+         This method lets you start a new instance of your
+         application, optionally enabling a tighter sandbox.
+
+         The following flags values are supported:
+         <variablelist>
+           <varlistentry>
+             <term>1 (FLATPAK_SPAWN_FLAGS_CLEAR_ENV)</term>
+             <listitem><para>
+               Clear the environment.
+             </para></listitem>
+           </varlistentry>
+           <varlistentry>
+             <term>2 (FLATPAK_SPAWN_FLAGS_LATEST_VERSION)</term>
+             <listitem><para>
+               Spawn the latest version of the app.
+             </para></listitem>
+           </varlistentry>
+           <varlistentry>
+             <term>4 (FLATPAK_SPAWN_FLAGS_SANDBOX)</term>
+             <listitem><para>
+               Spawn in a sandbox (equivalent of the sandbox option of flatpak run).
+             </para></listitem>
+           </varlistentry>
+           <varlistentry>
+             <term>8 (FLATPAK_SPAWN_FLAGS_NO_NETWORK)</term>
+             <listitem><para>
+               Spawn without network (equivalent of the unshare=network option of flatpak run).
+             </para></listitem>
+           </varlistentry>
+           <varlistentry>
+             <term>16 (FLATPAK_SPAWN_FLAGS_WATCH_BUS)</term>
+             <listitem><para>
+               Kill the sandbox when the caller disappears from the session bus.
+             </para></listitem>
+           </varlistentry>
+           <varlistentry>
+             <term>32 (FLATPAK_SPAWN_FLAGS_EXPOSE_PIDS)</term>
+             <listitem><para>
+               Expose the sandbox pids in the callers sandbox, only supported if using user namespaces for containers (not setuid), see the support property.
+               </para><para>
+               This was added in version 3 of this interface (available from flatpak 1.6.0 and later).
+             </para></listitem>
+           </varlistentry>
+           <varlistentry>
+             <term>64 (FLATPAK_SPAWN_FLAGS_NOTIFY_START)</term>
+             <listitem><para>
+               Emit a SpawnStarted signal once the sandboxed process has been
+               fully started.
+               </para><para>
+               This was added in version 4 of this interface (available from flatpak 1.8.0 and later).
+             </para></listitem>
+           </varlistentry>
+           <varlistentry>
+             <term>128 (FLATPAK_SPAWN_FLAGS_SHARE_PIDS)</term>
+             <listitem><para>
+              Expose the sandbox process IDs in the caller's sandbox and
+              the caller's process IDs in the new sandbox. Only supported
+              if using user namespaces for containers (not setuid), see the
+              support property.
+             </para><para>
+               This was added in version 5 of this interface (available from flatpak 1.10.0 and later).
+             </para></listitem>
+           </varlistentry>
+           <varlistentry>
+             <term>256 (FLATPAK_SPAWN_FLAGS_EMPTY_APP)</term>
+             <listitem><para>
+               Don't provide app files at <filename>/app</filename> in the
+               new sandbox. Instead, <filename>/app</filename> will be an
+               empty directory. This flag and the <option>app-fd</option>
+               option are mutually exclusive.
+             </para><para>
+               As with the <option>app-fd</option> option, the caller's
+               Flatpak app files and extensions will be mounted on
+               <filename>/run/parent/app</filename>, with
+               filenames like <filename>/run/parent/app/bin/myapp</filename>.
+             </para><para>
+               This was added in version 6 of this interface (available from
+               flatpak 1.12.0 and later).
+             </para></listitem>
+           </varlistentry>
+         </variablelist>
+
+         Unknown (unsupported) flags are an error and will cause Spawn()
+         to fail.
+
+         Unknown (unsupported) options are ignored.
+         The following options are supported:
+         <variablelist>
+           <varlistentry>
+             <term>sandbox-expose as</term>
+             <listitem><para>
+               A list of filenames for files inside the sandbox that will be exposed
+               to the new sandbox, for reading and writing. Note that absolute paths
+               or subdirectories are not allowed.
+             </para><para>
+               The files must be in the <filename>sandbox</filename> subdirectory of
+               the instance directory (i.e. <filename>~/.var/app/$APP_ID/sandbox</filename>).
+             </para></listitem>
+           </varlistentry>
+           <varlistentry>
+             <term>sandbox-expose-ro as</term>
+             <listitem><para>
+               A list of filenames for files inside the sandbox that will be exposed
+               to the new sandbox, readonly. Note that absolute paths or subdirectories
+               are not allowed.
+             </para><para>
+               The files must be in the <filename>sandbox</filename> subdirectory of
+               the instance directory (i.e. <filename>~/.var/app/$APP_ID/sandbox</filename>).
+             </para></listitem>
+           </varlistentry>
+           <varlistentry>
+             <term>sandbox-expose-fd ah</term>
+             <listitem><para>
+               A list of file descriptor for files inside the sandbox that will be exposed
+               to the new sandbox, for reading and writing (if the caller has write access).
+               The file descriptors must be opened with O_PATH and O_NOFOLLOW and cannot be symlinks.
+             </para><para>
+               This was added in version 3 of this interface (available from flatpak 1.6.0 and later).
+             </para></listitem>
+           </varlistentry>
+           <varlistentry>
+             <term>sandbox-expose-fd-ro ah</term>
+             <listitem><para>
+               A list of file descriptor for files inside the sandbox that will be exposed
+               to the new sandbox, readonly. The file descriptors must be opened with O_PATH and O_NOFOLLOW and cannot be symlinks.
+             </para><para>
+               This was added in version 3 of this interface (available from flatpak 1.6.0 and later).
+             </para></listitem>
+           </varlistentry>
+           <varlistentry>
+             <term>sandbox-flags u</term>
+             <listitem><para>
+             Flags affecting the created sandbox. The following flags values are supported:
+             <variablelist>
+               <varlistentry>
+                 <term>1</term>
+                 <listitem><para>
+                   Share the display access (X11, wayland) with the caller.
+                 </para></listitem>
+               </varlistentry>
+               <varlistentry>
+                 <term>2</term>
+                 <listitem><para>
+                   Share the sound access (pulseaudio) with the caller.
+                 </para></listitem>
+               </varlistentry>
+               <varlistentry>
+                 <term>4</term>
+                 <listitem><para>
+                   Share the gpu access with the caller.
+                 </para></listitem>
+               </varlistentry>
+               <varlistentry>
+                 <term>8</term>
+                 <listitem><para>
+                   Allow sandbox access to (filtered) session bus.
+                 </para></listitem>
+               </varlistentry>
+               <varlistentry>
+                 <term>16</term>
+                 <listitem><para>
+                   Allow sandbox access to accessibility bus.
+                 </para></listitem>
+               </varlistentry>
+               <varlistentry>
+                 <term>32</term>
+                 <listitem><para>
+                   Allow sandbox access to input devices.
+                 </para></listitem>
+               </varlistentry>
+               <varlistentry>
+                 <term>64</term>
+                 <listitem><para>
+                   Allow sandbox access to USB devices.
+                 </para></listitem>
+               </varlistentry>
+               <varlistentry>
+                 <term>128</term>
+                 <listitem><para>
+                   Allow sandbox access to KVM.
+                 </para></listitem>
+               </varlistentry>
+               <varlistentry>
+                 <term>256</term>
+                 <listitem><para>
+                   Allow sandbox access to shared memory.
+                 </para></listitem>
+               </varlistentry>
+               <varlistentry>
+                 <term>512</term>
+                 <listitem><para>
+                   Allow sandbox access to all devices.
+                 </para></listitem>
+               </varlistentry>
+             </variablelist>
+
+             </para><para>
+             This was added in version 3 of this interface (available from flatpak 1.6.0 and later).
+             </para></listitem>
+           </varlistentry>
+           <varlistentry>
+             <term>sandbox-a11y-own-names as</term>
+             <listitem><para>
+               An array of D-Bus names to be owned on the accessibility bus. The
+               names must have the app id as prefix.
+             </para><para>
+               Only applies when `sandbox-flags` contains access to the accessibility
+               bus as well.
+             </para><para>
+               This was added in version 7 of this interface (available from
+               flatpak 1.16.0 and later).
+             </para></listitem>
+           </varlistentry>
+           <varlistentry>
+             <term>unset-env as</term>
+             <listitem><para>
+             A list of environment variables to unset (remove from the environment).
+             </para><para>
+             This was added in version 5 of this interface (available from flatpak 1.10.0 and later).
+             </para></listitem>
+           </varlistentry>
+           <varlistentry>
+             <term>usr-fd h</term>
+             <listitem><para>
+               A file descriptor for the directory that will be used as
+               <filename>/usr</filename> in the new sandbox, instead of the
+               <filename>files</filename> directory
+               from the caller's Flatpak runtime.
+               The new sandbox's <filename>/etc</filename> will be based
+               on the <filename>etc</filename> subdirectory of the given
+               directory, and compatibility symlinks in its
+               root directory (<filename>/lib</filename>,
+               <filename>/bin</filename> and so on) will point into the
+               given directory. The caller's Flatpak runtime and its
+               extensions will be mounted on
+               <filename>/run/parent/usr</filename>, with filenames like
+               <filename>/run/parent/usr/bin/env</filename>,
+               and compatibility symlinks like
+               <filename>/run/parent/bin</filename> →
+               <filename>usr/bin</filename>.
+             </para><para>
+               The file descriptor must be opened with O_PATH and
+               O_NOFOLLOW and cannot be a symlink.
+             </para><para>
+               This was added in version 6 of this interface (available from
+               flatpak 1.12.0 and later).
+             </para></listitem>
+           </varlistentry>
+           <varlistentry>
+             <term>app-fd h</term>
+             <listitem><para>
+               A file descriptor for the directory that will be used as
+               <filename>/app</filename> in the new sandbox, instead of the
+               <filename>files</filename> directory
+               from the caller's Flatpak app. The caller's Flatpak app
+               files and extensions will be
+               mounted on <filename>/run/parent/app</filename>, with
+               filenames like <filename>/run/parent/app/bin/myapp</filename>.
+             </para><para>
+               This option and the
+               <option>FLATPAK_SPAWN_FLAGS_EMPTY_APP</option>
+               flag are mutually exclusive.
+             </para><para>
+               The file descriptor must be opened with O_PATH and
+               O_NOFOLLOW and cannot be a symlink.
+             </para><para>
+               This was added in version 6 of this interface (available from
+               flatpak 1.12.0 and later).
+             </para></listitem>
+           </varlistentry>
+         </variablelist>
+
+    -->
+    <method name="Spawn">
+      <annotation name="org.gtk.GDBus.C.UnixFD" value="true"/>
+      <arg type='ay' name='cwd_path' direction='in'/>
+      <arg type='aay' name='argv' direction='in'/>
+      <arg type='a{uh}' name='fds' direction='in'/>
+      <arg type='a{ss}' name='envs' direction='in'/>
+      <arg type='u' name='flags' direction='in'/>
+      <arg type="a{sv}" name="options" direction="in"/>
+      <arg type='u' name='pid' direction='out'/>
+    </method>
+
+    <!--
+        SpawnSignal:
+        @pid: the PID inside the container to signal
+        @signal: the signal to send (see <citerefentry><refentrytitle>signal</refentrytitle><manvolnum>7</manvolnum></citerefentry>)
+        @to_process_group: whether to send the signal to the process group
+
+        This method lets you send a Unix signal to a process
+        that was started with org.freedesktop.portal.Flatpak.Spawn().
+        The @pid argument here should be the PID that is returned
+        by the Spawn() call: it is not necessarily valid in the caller's
+        PID namespace.
+      -->
+    <method name="SpawnSignal">
+      <arg type='u' name='pid' direction='in'/>
+      <arg type='u' name='signal' direction='in'/>
+      <arg type='b' name='to_process_group' direction='in'/>
+    </method>
+
+    <!--
+        SpawnStarted:
+        @pid: the PID of the process that has been started
+        @relpid: the PID of the process relative to the current namespace.
+        This is only non-zero if the expose PIDs flag (32) or the share
+        PIDs flag (128) was passed to
+        org.freedesktop.portal.Flatpak.Spawn(), and it may still be zero if
+        the process exits before its relative PID could be read.
+
+        Emitted when a process started by org.freedesktop.portal.Flatpak.Spawn()
+        has fully started. In other words, org.freedesktop.portal.Flatpak.Spawn() returns once the sandbox
+        has been started, and this signal is emitted once the process inside
+        itself is started.
+
+        Only emitted by version 4 of this interface (available from flatpak
+        1.8.0 and later) and if the notify start flag (64) was passed to
+        org.freedesktop.portal.Flatpak.Spawn().
+    -->
+    <signal name="SpawnStarted">
+      <arg type='u' name='pid' direction='out'/>
+      <arg type='u' name='relpid' direction='out'/>
+    </signal>
+
+    <!--
+        SpawnExited:
+        @pid: the PID of the process that has ended
+        @exit_status: the wait status (see <citerefentry><refentrytitle>waitpid</refentrytitle><manvolnum>2</manvolnum></citerefentry>)
+
+        Emitted when a process started by org.freedesktop.portal.Flatpak.Spawn()
+        exits.
+        Use g_spawn_check_exit_status(), or the macros such as
+        WIFEXITED documented in
+        <citerefentry><refentrytitle>waitpid</refentrytitle><manvolnum>2</manvolnum></citerefentry>,
+        to interpret the @exit_status.
+
+        This signal is not emitted for processes that were not launched
+        directly by Spawn(), for example if a process launched by
+        Spawn() runs foreground or background child processes.
+    -->
+    <signal name="SpawnExited">
+      <arg type='u' name='pid' direction='out'/>
+      <arg type='u' name='exit_status' direction='out'/>
+    </signal>
+
+    <!--
+        CreateUpdateMonitor:
+        @options: Vardict with optional further information
+        @handle: Object path for the #org.freedesktop.portal.Flatpak.UpdateMonitor object
+
+        Creates an update monitor object that will emit
+        signals when an update for the caller becomes
+        available, and can be used to install it.
+
+        The handle will be of the form /org/freedesktop/portal/Flatpak/update_monitor/SENDER/TOKEN,
+        where SENDER is the caller's unique name, with the initial ':' removed and
+        all '.' replaced by '_', and TOKEN is a unique token that the caller can optionally provide
+        with the 'handle_token' key in the options vardict.
+
+        Currently, no other options are accepted.
+
+        This was added in version 2 of this interface (available from flatpak 1.5.0 and later).
+    -->
+    <method name="CreateUpdateMonitor">
+      <arg type="a{sv}" name="options" direction="in"/>
+      <arg type="o" name="handle" direction="out"/>
+    </method>
+  </interface>
+
+  <interface name="org.freedesktop.portal.Flatpak.UpdateMonitor">
+
+    <!--
+        Close:
+
+        Ends the update monitoring and cancels any ongoing
+        installation.
+    -->
+    <method name="Close">
+    </method>
+
+    <!--
+        UpdateAvailable:
+        @update_info: More information about the available update
+
+        Gets emitted when a new update is available. This is only
+        sent once with the same information, but can be sent many
+        times if new updates appear.
+
+        The following information may be included in the
+        @update_info dictionary:
+        <variablelist>
+          <varlistentry>
+            <term>running-commit s</term>
+            <listitem><para>
+              The commit of the currently running instance.
+            </para></listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>local-commit s</term>
+            <listitem><para>
+              The commit that is currently installed. Restarting
+              the application will cause this commit to be used.
+            </para></listitem>
+          </varlistentry>
+          <varlistentry>
+            <term>remote-commit s</term>
+            <listitem><para>
+              The commit that is available as an update from the
+              remote. Updating the application will deploy this
+              commit.
+            </para></listitem>
+          </varlistentry>
+        </variablelist>
+    -->
+    <signal name="UpdateAvailable">
+      <arg type="a{sv}" name="update_info" direction="out"/>
+    </signal>
+
+    <!--
+        Update:
+        @parent_window: Identifier for the application window,
+          see <link linkend="parent_window">Common Conventions</link>
+        @options: Vardict with optional further information
+
+        Asks to install an update of the calling app.
+        During the installation,
+        #org.freedesktop.portal.Flatpak.UpdateMonitor::Progress
+        signals will be emitted to communicate the status
+        and progress.
+
+        Note that updates are only allowed if the new version
+        has the same permissions (or less) than the currently installed
+        version. If the new version requires a new permission then the
+        operation will fail with the error org.freedesktop.DBus.Error.NotSupported
+        and updates has to be done with the system tools.
+
+        Currently, no options are accepted.
+    -->
+    <method name="Update">
+      <arg type="s" name="parent_window" direction="in"/>
+      <arg type="a{sv}" name="options" direction="in"/>
+    </method>
+
+    <!--
+      Progress:
+      @handle: the handle of the Request
+      @info: More information about the update progress
+
+      Gets emitted to indicate progress of the installation.  It's
+      undefined exactly how often this is sent, but it will be emitted
+      at least once at the end with non-zero status field. For each
+      successful operation in the update we're also guaranteed to send
+      one (and only one) signal with progress 100.
+
+      The following fields may be included in the info:
+         <variablelist>
+           <varlistentry>
+             <term>n_ops u</term>
+             <listitem><para>
+               The number of operations that the update
+               consists of.
+             </para></listitem>
+           </varlistentry>
+           <varlistentry>
+             <term>op u</term>
+             <listitem><para>
+               The position of the currently active
+               operation.
+             </para></listitem>
+           </varlistentry>
+           <varlistentry>
+             <term>progress u</term>
+             <listitem><para>
+               The progress of the currently active
+               operation, as a number between 0 and 100.
+             </para></listitem>
+           </varlistentry>
+           <varlistentry>
+             <term>status u</term>
+             <listitem><para>
+               The overall status of the update.
+               <simplelist>
+                 <member>0: Running</member>
+                 <member>1: Empty. No update to install</member>
+                 <member>2: Done</member>
+                 <member>3: Failed</member>
+               </simplelist>
+             </para></listitem>
+           </varlistentry>
+           <varlistentry>
+             <term>error s</term>
+             <listitem><para>
+               The error name, sent when status is Failed
+             </para></listitem>
+           </varlistentry>
+           <varlistentry>
+             <term>error_message s</term>
+             <listitem><para>
+               The error message, sent when status is Failed
+             </para></listitem>
+           </varlistentry>
+         </variablelist>
+    -->
+    <signal name="Progress">
+      <arg type="a{sv}" name="info" direction="out"/>
+    </signal>
+
+  </interface>
+
+</node>

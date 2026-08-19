@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/painter.h"
 #include "base/debug_log.h"
+#include "styles/style_boxes.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 
@@ -320,7 +321,7 @@ void ChooseLanguageBox(
 			})));
 
 			button->entity()->toggledChanges(
-			) | rpl::start_with_next([=](bool value) {
+			) | rpl::on_next([=](bool value) {
 				if (toggleCheck && !toggleCheck(id)) {
 					state->toggles.fire({ .id = id, .selected = !value });
 				}
@@ -349,7 +350,7 @@ void ChooseLanguageBox(
 			tr::lng_languages_none(),
 			st::membersAbout);
 		box->verticalLayout()->geometryValue(
-		) | rpl::start_with_next([=](const QRect &geometry) {
+		) | rpl::on_next([=](const QRect &geometry) {
 			const auto shown = (geometry.height() <= 0);
 			label->setVisible(shown);
 			if (shown) {

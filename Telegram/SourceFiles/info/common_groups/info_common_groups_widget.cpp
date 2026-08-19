@@ -15,13 +15,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
-#include "styles/style_info.h"
 
 namespace Info {
 namespace CommonGroups {
 
 Memento::Memento(not_null<UserData*> user)
-: ContentMemento(user, nullptr, PeerId()) {
+: ContentMemento(user, nullptr, nullptr, PeerId()) {
 }
 
 Section Memento::section() const {

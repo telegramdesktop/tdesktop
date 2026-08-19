@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/time_input.h"
 #include "ui/ui_utility.h"
 #include "styles/style_layers.h"
-#include "styles/style_boxes.h"
+#include "styles/style_passcode_box.h"
 
 namespace {
 
@@ -102,7 +102,7 @@ void AutoLockBox::prepare() {
 	};
 
 	timeInput->focuses(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		group->setValue(kCustom);
 	}, lifetime());
 
@@ -119,7 +119,7 @@ void AutoLockBox::prepare() {
 			[=] { return group->current() == kCustom; }
 		),
 		timeInput->submitRequests()
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (const auto result = collect()) {
 			durationChanged(result);
 		} else {

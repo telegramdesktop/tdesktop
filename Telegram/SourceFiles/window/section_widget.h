@@ -17,8 +17,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class PeerData;
 
 namespace ChatHelpers {
+struct FileChosen;
 class Show;
 } // namespace ChatHelpers
+
+namespace SendMenu {
+struct Details;
+} // namespace SendMenu
 
 namespace Data {
 struct ReactionId;
@@ -72,6 +77,8 @@ public:
 	virtual bool returnTabbedSelector() {
 		return false;
 	}
+	[[nodiscard]] virtual SendMenu::Details sendMenuDetails() const;
+	virtual bool processChosenSticker(ChatHelpers::FileChosen &&chosen);
 
 private:
 	const not_null<SessionController*> _controller;
@@ -87,6 +94,7 @@ struct SectionSlideParams {
 	bool withTopBarShadow = false;
 	bool withTabs = false;
 	bool withFade = false;
+	bool fromBottom = false;
 
 	explicit operator bool() const {
 		return !oldContentCache.isNull();
@@ -138,6 +146,9 @@ public:
 	virtual bool showInternal(
 		not_null<SectionMemento*> memento,
 		const SectionShow &params) = 0;
+	virtual bool showBackInternal() {
+		return false;
+	}
 	virtual bool sameTypeAs(not_null<SectionMemento*> memento) {
 		return false;
 	}
@@ -194,6 +205,9 @@ public:
 		return nullptr;
 	}
 
+	virtual void validateSubsectionTabs() {
+	}
+
 	static void PaintBackground(
 		not_null<SessionController*> controller,
 		not_null<Ui::ChatTheme*> theme,
@@ -204,20 +218,25 @@ public:
 		not_null<QWidget*> widget,
 		int fillHeight,
 		int fromy,
-		QRect clip);
+		QRect clip,
+		bool paused = false);
 	static void PaintBackground(
 		QPainter &p,
 		not_null<Ui::ChatTheme*> theme,
 		QSize fill,
-		QRect clip);
+		QRect clip,
+		bool paused = false);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
-	// Temp variable used in resizeEvent() implementation, that is passed
-	// to setGeometryWithTopMoved() to adjust the scroll position with the resize.
-	int topDelta() const {
-		return _topDelta;
+	// A size-changing setGeometryWithTopMoved() can deliver the shift to
+	// the section twice: Ui::RpWidget fires its geometry stream before
+	// QEvent::Resize reaches resizeEvent(), so a section with a consumer
+	// of its own sizeValue() relayouts once for each. A relative applier
+	// must add the shift only once.
+	[[nodiscard]] int takeTopDelta() {
+		return base::take(_topDelta);
 	}
 
 	// Called after the hideChildren() call in showAnimated().
@@ -240,7 +259,6 @@ private:
 
 	std::unique_ptr<SlideAnimation> _showAnimation;
 
-	// Saving here topDelta in setGeometryWithTopMoved() to get it passed to resizeEvent().
 	int _topDelta = 0;
 
 };

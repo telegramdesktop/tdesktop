@@ -11,6 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 
+enum class BotStatus : int {
+	NoBots = -1,
+	Unknown = 0,
+	HasBots = 2,
+};
+
 struct BotCommands final {
 	UserId userId;
 	std::vector<BotCommand> commands;

@@ -213,6 +213,7 @@ public:
 
 	[[nodiscard]] bool tagsEnabled() const;
 	[[nodiscard]] rpl::producer<bool> tagsEnabledValue() const;
+	[[nodiscard]] rpl::producer<bool> tagsEnabledChanges() const;
 	void requestToggleTags(bool value, Fn<void()> fail);
 
 private:

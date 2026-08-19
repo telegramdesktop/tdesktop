@@ -45,6 +45,7 @@ public:
 	rpl::producer<> refreshed() override;
 
 	void setSearchQuery(QString query) override;
+	void jumpToMessage(MsgId messageId, Fn<void(FullMsgId)> callback) override;
 
 	std::vector<Media::ListSection> fillSections(
 		not_null<Overview::Layout::Delegate*> delegate) override;
@@ -129,6 +130,7 @@ private:
 	std::optional<int> _fullCount;
 	base::flat_set<not_null<const HistoryItem*>> _downloading;
 	base::flat_set<not_null<const HistoryItem*>> _downloaded;
+	int _storiesAddToAlbumId = 0;
 
 	std::vector<Element> _addPostponed;
 

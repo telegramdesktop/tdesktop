@@ -19,7 +19,7 @@ class RoundButton;
 namespace Window {
 namespace Theme {
 
-class WarningWidget : public TWidget {
+class WarningWidget : public Ui::RpWidget {
 public:
 	WarningWidget(QWidget *parent);
 

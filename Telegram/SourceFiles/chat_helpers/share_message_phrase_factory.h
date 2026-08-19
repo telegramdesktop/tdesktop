@@ -7,7 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/toast/toast.h"
+
 class PeerData;
+
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace ChatHelpers {
 
@@ -16,9 +22,16 @@ struct ForwardedMessagePhraseArgs final {
 	bool singleMessage = false;
 	PeerData *to1 = nullptr;
 	PeerData *to2 = nullptr;
+	bool toSelfWithPremiumIsEmpty = true;
 };
 
-rpl::producer<TextWithEntities> ForwardedMessagePhrase(
+[[nodiscard]] rpl::producer<TextWithEntities> ForwardedMessagePhrase(
 	const ForwardedMessagePhraseArgs &args);
+
+[[nodiscard]] QString ForwardedMessagePhraseIcon(
+	const ForwardedMessagePhraseArgs &args);
+
+[[nodiscard]] Ui::Toast::ClickHandlerFilter ForwardedToSavedMessagesFilter(
+	not_null<Main::Session*> session);
 
 } // namespace ChatHelpers

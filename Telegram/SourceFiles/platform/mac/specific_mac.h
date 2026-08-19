@@ -10,10 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "platform/mac/specific_mac_p.h"
 
-namespace Data {
-class LocationPoint;
-} // namespace Data
-
 namespace Platform {
 
 inline bool AutostartSupported() {
@@ -38,6 +34,10 @@ inline uint64 ActivationWindowId(not_null<QWidget*> window) {
 }
 
 inline void ActivateOtherProcess(uint64 processId, uint64 windowId) {
+}
+
+inline bool WaitForProcessExit(uint64 processId, crl::time timeout) {
+	return true;
 }
 
 inline QString ApplicationIconName() {
@@ -72,5 +72,3 @@ int psFixPrevious();
 void psDownloadPathEnableAccess();
 QByteArray psDownloadPathBookmark(const QString &path);
 QByteArray psPathBookmark(const QString &path);
-
-bool psLaunchMaps(const Data::LocationPoint &point);

@@ -10,13 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_album_thumbnail.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/effects/spoiler_mess.h"
-#include "ui/widgets/popup_menu.h"
 #include "ui/painter.h"
-#include "lang/lang_keys.h"
 #include "styles/style_chat.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
-#include "styles/style_menu_icons.h"
 
 #include <QtWidgets/QApplication>
 
@@ -37,12 +34,12 @@ AlbumPreview::AlbumPreview(
 	QWidget *parent,
 	const style::ComposeControls &st,
 	gsl::span<Ui::PreparedFile> items,
-	SendFilesWay way,
-	Fn<bool(int, AttachActionType)> actionAllowed)
+	const Text::MarkedContext &captionContext,
+	SendFilesWay way)
 : RpWidget(parent)
 , _st(st)
+, _captionContext(captionContext)
 , _sendWay(way)
-, _actionAllowed(std::move(actionAllowed))
 , _dragTimer([=] { switchToDrag(); }) {
 	setMouseTracking(true);
 	prepareThumbs(items);
@@ -60,6 +57,37 @@ void AlbumPreview::setSendWay(SendFilesWay way) {
 	updateSize();
 	updateFileRows();
 	update();
+}
+
+void AlbumPreview::setCaption(int index, const TextWithTags &caption) {
+	if (index < 0 || index >= _thumbs.size()) {
+		return;
+	}
+	const auto realIndex = _order[index];
+	const auto oldHeight = _thumbs[realIndex]->fileHeight();
+	_thumbs[realIndex]->setCaption(caption);
+	const auto newHeight = _thumbs[realIndex]->fileHeight();
+	if (oldHeight == newHeight) {
+		return;
+	}
+	const auto firstFileHeight = _thumbs.front()->fileHeight();
+	_hasMixedFileHeights = ranges::any_of(
+		_thumbs,
+		[=](const auto &thumb) {
+			return thumb->fileHeight() != firstFileHeight;
+		});
+	_filesHeight = ranges::accumulate(ranges::views::all(
+		_thumbs
+	) | ranges::views::transform([](const auto &thumb) {
+		return thumb->fileHeight();
+	}), 0) + (int(_thumbs.size()) - 1) * st::sendMediaRowSkip;
+	updateSize();
+	updateFileRows();
+}
+
+int AlbumPreview::indexFromPoint(QPoint position) const {
+	const auto thumb = findThumb(position);
+	return thumb ? orderIndex(thumb) : -1;
 }
 
 void AlbumPreview::updateFileRows() {
@@ -148,9 +176,11 @@ void AlbumPreview::prepareThumbs(gsl::span<Ui::PreparedFile> items) {
 		_thumbs.push_back(std::make_unique<AlbumThumbnail>(
 			_st,
 			items[i],
+			_captionContext,
 			layout[i],
 			this,
 			[=] { update(); },
+			[=](QRect rect) { update(rect); },
 			[=] { changeThumbByIndex(orderIndex(thumbUnderCursor())); },
 			[=] { deleteThumbByIndex(orderIndex(thumbUnderCursor())); }));
 		if (_thumbs.back()->isCompressedSticker()) {
@@ -164,16 +194,17 @@ void AlbumPreview::prepareThumbs(gsl::span<Ui::PreparedFile> items) {
 		return thumb->photoHeight();
 	}), 0) + (count - 1) * st::sendMediaRowSkip;
 
-	if (!_hasMixedFileHeights) {
-		_filesHeight = count * _thumbs.front()->fileHeight()
-			+ (count - 1) * st::sendMediaRowSkip;
-	} else {
-		_filesHeight = ranges::accumulate(ranges::views::all(
-			_thumbs
-		) | ranges::views::transform([](const auto &thumb) {
-			return thumb->fileHeight();
-		}), 0) + (count - 1) * st::sendMediaRowSkip;
-	}
+	const auto firstFileHeight = _thumbs.front()->fileHeight();
+	_hasMixedFileHeights = _hasMixedFileHeights || ranges::any_of(
+		_thumbs,
+		[=](const auto &thumb) {
+			return thumb->fileHeight() != firstFileHeight;
+		});
+	_filesHeight = ranges::accumulate(ranges::views::all(
+		_thumbs
+	) | ranges::views::transform([](const auto &thumb) {
+		return thumb->fileHeight();
+	}), 0) + (count - 1) * st::sendMediaRowSkip;
 }
 
 int AlbumPreview::contentLeft() const {
@@ -345,11 +376,23 @@ void AlbumPreview::paintAlbum(Painter &p) const {
 	const auto top = contentTop();
 	for (const auto &thumb : _thumbs) {
 		if (thumb.get() != _paintedAbove) {
-			thumb->paintInAlbum(p, left, top, shrink, moveProgress);
+			thumb->paintInAlbum(
+				p,
+				left,
+				top,
+				shrink,
+				moveProgress,
+				_sendWay.sendLargePhotos());
 		}
 	}
 	if (_paintedAbove) {
-		_paintedAbove->paintInAlbum(p, left, top, shrink, moveProgress);
+		_paintedAbove->paintInAlbum(
+			p,
+			left,
+			top,
+			shrink,
+			moveProgress,
+			_sendWay.sendLargePhotos());
 	}
 }
 
@@ -367,7 +410,12 @@ void AlbumPreview::paintPhotos(Painter &p, QRect clip) const {
 		} else if (bottom <= clip.y()) {
 			continue;
 		}
-		thumb->paintPhoto(p, left, top, outerWidth);
+		thumb->paintPhoto(
+			p,
+			left,
+			top,
+			outerWidth,
+			_sendWay.sendLargePhotos());
 	}
 }
 
@@ -375,7 +423,7 @@ void AlbumPreview::paintFiles(Painter &p, QRect clip) const {
 	const auto left = (st::boxWideWidth - st::sendMediaPreviewSize) / 2;
 	const auto outerWidth = width();
 	if (!_hasMixedFileHeights) {
-		const auto fileHeight = st::attachPreviewThumbLayout.thumbSize
+		const auto fileHeight = _thumbs.front()->fileHeight()
 			+ st::sendMediaRowSkip;
 		const auto bottom = clip.y() + clip.height();
 		const auto from = std::clamp(
@@ -570,49 +618,11 @@ void AlbumPreview::mouseReleaseEvent(QMouseEvent *e) {
 	} else if (const auto thumb = base::take(_pressedThumb)) {
 		const auto was = _pressedButtonType;
 		const auto now = thumb->buttonTypeFromPoint(e->pos());
-		if (e->button() == Qt::RightButton) {
-			showContextMenu(thumb, e->globalPos());
-		} else if (was == now) {
+		if (e->button() == Qt::LeftButton && was == now) {
 			thumbButtonsCallback(thumb, now);
 		}
 	}
 	_pressedButtonType = AttachButtonType::None;
-}
-
-void AlbumPreview::showContextMenu(
-		not_null<AlbumThumbnail*> thumb,
-		QPoint position) {
-	_menu = base::make_unique_q<Ui::PopupMenu>(
-		this,
-		st::popupMenuWithIcons);
-
-	const auto index = orderIndex(thumb);
-	if (_actionAllowed(index, AttachActionType::ToggleSpoiler)
-		&& _sendWay.sendImagesAsPhotos()) {
-		const auto spoilered = thumb->hasSpoiler();
-		_menu->addAction(spoilered
-			? tr::lng_context_disable_spoiler(tr::now)
-			: tr::lng_context_spoiler_effect(tr::now), [=] {
-			thumb->setSpoiler(!spoilered);
-		}, spoilered ? &st::menuIconSpoilerOff : &st::menuIconSpoiler);
-	}
-	if (_actionAllowed(index, AttachActionType::EditCover)) {
-		_menu->addAction(tr::lng_context_edit_cover(tr::now), [=] {
-			_thumbEditCoverRequested.fire_copy(index);
-		}, &st::menuIconEdit);
-
-		if (_actionAllowed(index, AttachActionType::ClearCover)) {
-			_menu->addAction(tr::lng_context_clear_cover(tr::now), [=] {
-				_thumbClearCoverRequested.fire_copy(index);
-			}, &st::menuIconCancel);
-		}
-	}
-
-	if (_menu->empty()) {
-		_menu = nullptr;
-	} else {
-		_menu->popup(position);
-	}
 }
 
 void AlbumPreview::switchToDrag() {
@@ -662,7 +672,7 @@ QImage AlbumPreview::generatePriceTagBackground() const {
 		p.translate(geometry.center());
 		p.scale(wscale, hscale);
 		p.translate(-geometry.center());
-		thumb->paintInAlbum(p, 0, 0, 1., 1.);
+		thumb->paintInAlbum(p, 0, 0, 1., 1., _sendWay.sendLargePhotos());
 		p.restore();
 	}
 	p.end();

@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 #include "lang/lang_keys.h"
 #include "ui/toast/toast.h"
-#include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 
 namespace HistoryView {
@@ -68,10 +67,14 @@ CornerButtons::CornerButtons(
 	st->value(_stLifetime, st::historyUnreadMentions))
 , _reactions(
 		parent,
-		st->value(_stLifetime, st::historyUnreadReactions)) {
+		st->value(_stLifetime, st::historyUnreadReactions))
+, _pollVotes(
+		parent,
+		st->value(_stLifetime, st::historyUnreadPollVotes)) {
 	_down.widget->addClickHandler([=] { downClick(); });
 	_mentions.widget->addClickHandler([=] { mentionsClick(); });
 	_reactions.widget->addClickHandler([=] { reactionsClick(); });
+	_pollVotes.widget->addClickHandler([=] { pollVotesClick(); });
 
 	const auto filterScroll = [&](CornerButton &button) {
 		button.widget->installEventFilter(this);
@@ -79,11 +82,15 @@ CornerButtons::CornerButtons(
 	filterScroll(_down);
 	filterScroll(_mentions);
 	filterScroll(_reactions);
+	filterScroll(_pollVotes);
 
 	SendMenu::SetupUnreadMentionsMenu(_mentions.widget.data(), [=] {
 		return _delegate->cornerButtonsThread();
 	});
 	SendMenu::SetupUnreadReactionsMenu(_reactions.widget.data(), [=] {
+		return _delegate->cornerButtonsThread();
+	});
+	SendMenu::SetupUnreadPollVotesMenu(_pollVotes.widget.data(), [=] {
 		return _delegate->cornerButtonsThread();
 	});
 }
@@ -92,7 +99,8 @@ bool CornerButtons::eventFilter(QObject *o, QEvent *e) {
 	if (e->type() == QEvent::Wheel
 		&& (o == _down.widget
 			|| o == _mentions.widget
-			|| o == _reactions.widget)) {
+			|| o == _reactions.widget
+			|| o == _pollVotes.widget)) {
 		return _scrollViewportEvent(e);
 	}
 	return QObject::eventFilter(o, e);
@@ -140,6 +148,15 @@ void CornerButtons::reactionsClick() {
 	}
 	const auto thread = _delegate->cornerButtonsThread();
 	showAt(thread->unreadReactions().minLoaded());
+}
+
+void CornerButtons::pollVotesClick() {
+	const auto history = lookupHistory();
+	if (!history) {
+		return;
+	}
+	const auto thread = _delegate->cornerButtonsThread();
+	showAt(thread->unreadPollVotes().minLoaded());
 }
 
 void CornerButtons::clearReplyReturns() {
@@ -195,7 +212,7 @@ void CornerButtons::pushReplyReturn(not_null<HistoryItem*> item) {
 	if (!_replyReturnStarted) {
 		_replyReturnStarted = true;
 		item->history()->owner().itemRemoved(
-		) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
+		) | rpl::on_next([=](not_null<const HistoryItem*> item) {
 			while (item == _replyReturn) {
 				calculateNextReplyReturn();
 			}
@@ -208,6 +225,7 @@ CornerButton &CornerButtons::buttonByType(Type type) {
 	case Type::Down: return _down;
 	case Type::Mentions: return _mentions;
 	case Type::Reactions: return _reactions;
+	case Type::PollVotes: return _pollVotes;
 	}
 	Unexpected("Type in CornerButtons::buttonByType.");
 }
@@ -245,6 +263,7 @@ void CornerButtons::updateUnreadThingsVisibility() {
 	if (!thread) {
 		updateVisibility(Type::Mentions, false);
 		updateVisibility(Type::Reactions, false);
+		updateVisibility(Type::PollVotes, false);
 		return;
 	}
 	auto &unreadThings = thread->session().api().unreadThings();
@@ -278,6 +297,18 @@ void CornerButtons::updateUnreadThingsVisibility() {
 	} else {
 		updateVisibility(Type::Reactions, false);
 	}
+
+	if (_delegate->cornerButtonsHas(Type::PollVotes)
+		&& unreadThings.trackPollVotes(thread)) {
+		if (const auto count = thread->unreadPollVotes().count(0)) {
+			_pollVotes.widget->setUnreadCount(count);
+		}
+		updateWithCount(
+			Type::PollVotes,
+			thread->unreadPollVotes().loadedCount());
+	} else {
+		updateVisibility(Type::PollVotes, false);
+	}
 }
 
 void CornerButtons::updateJumpDownVisibility(std::optional<int> counter) {
@@ -306,6 +337,7 @@ void CornerButtons::updatePositions() {
 	const auto historyDownShown = shown(_down);
 	const auto unreadMentionsShown = shown(_mentions);
 	const auto unreadReactionsShown = shown(_reactions);
+	const auto unreadPollVotesShown = shown(_pollVotes);
 	const auto skip = st::historyUnreadThingsSkip;
 	{
 		const auto top = anim::interpolate(
@@ -350,16 +382,41 @@ void CornerButtons::updatePositions() {
 			- shift;
 		_reactions.widget->moveToRight(right, top);
 	}
+	{
+		const auto right = anim::interpolate(
+			-_pollVotes.widget->width(),
+			st::historyToDownPosition.x(),
+			unreadPollVotesShown);
+		const auto shift = anim::interpolate(
+			0,
+			_down.widget->height() + skip,
+			historyDownShown
+		) + anim::interpolate(
+			0,
+			_mentions.widget->height() + skip,
+			unreadMentionsShown
+		) + anim::interpolate(
+			0,
+			_reactions.widget->height() + skip,
+			unreadReactionsShown);
+		const auto top = _parent->height()
+			- _pollVotes.widget->height()
+			- st::historyToDownPosition.y()
+			- shift;
+		_pollVotes.widget->moveToRight(right, top);
+	}
 
 	checkVisibility(_down);
 	checkVisibility(_mentions);
 	checkVisibility(_reactions);
+	checkVisibility(_pollVotes);
 }
 
 void CornerButtons::finishAnimations() {
 	_down.animation.stop();
 	_mentions.animation.stop();
 	_reactions.animation.stop();
+	_pollVotes.animation.stop();
 	updatePositions();
 }
 

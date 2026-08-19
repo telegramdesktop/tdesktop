@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "base/random.h"
 #include "styles/style_intro.h"
-#include "styles/style_boxes.h"
+#include "styles/style_widgets.h"
 
 namespace Intro {
 namespace details {
@@ -40,7 +40,7 @@ PasswordCheckWidget::PasswordCheckWidget(
 	Expects(_passwordState.hasPassword);
 
 	Lang::Updated(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		refreshLang();
 	}, lifetime());
 
@@ -48,7 +48,7 @@ PasswordCheckWidget::PasswordCheckWidget(
 	_toPassword->addClickHandler([=] { toPassword(); });
 	connect(_pwdField, &Ui::PasswordInput::changed, [=] { hideError(); });
 	_codeField->changes(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		hideError();
 	}, _codeField->lifetime());
 
@@ -156,12 +156,8 @@ void PasswordCheckWidget::pwdSubmitFail(const MTP::Error &error) {
 		goBack();
 	} else if (type == u"SRP_ID_INVALID"_q) {
 		handleSrpIdInvalid();
-	} else {
-		if (Logs::DebugEnabled()) { // internal server error
-			showError(rpl::single(type + ": " + error.description()));
-		} else {
-			showError(rpl::single(Lang::Hard::ServerError()));
-		}
+	} else if (!MTP::IgnoreError(error)) {
+		showError(rpl::single(type));
 		_pwdField->setFocus();
 	}
 }
@@ -230,10 +226,10 @@ void PasswordCheckWidget::codeSubmitDone(
 	fields.mtp.curRequest = {};
 	fields.hasPassword = false;
 	auto box = Box<PasscodeBox>(&api().instance(), nullptr, fields);
-	const auto boxShared = std::make_shared<QPointer<PasscodeBox>>();
+	const auto boxShared = std::make_shared<base::weak_qptr<PasscodeBox>>();
 
 	box->newAuthorization(
-	) | rpl::start_with_next([=](const MTPauth_Authorization &result) {
+	) | rpl::on_next([=](const MTPauth_Authorization &result) {
 		if (boxShared) {
 			(*boxShared)->closeBox();
 		}
@@ -264,12 +260,8 @@ void PasswordCheckWidget::codeSubmitFail(const MTP::Error &error) {
 		showError(tr::lng_signin_wrong_code());
 		_codeField->selectAll();
 		_codeField->showError();
-	} else {
-		if (Logs::DebugEnabled()) { // internal server error
-			showError(rpl::single(type + ": " + error.description()));
-		} else {
-			showError(rpl::single(Lang::Hard::ServerError()));
-		}
+	} else if (!MTP::IgnoreError(error)) {
+		showError(rpl::single(type));
 		_codeField->setFocus();
 	}
 }
@@ -316,7 +308,7 @@ void PasswordCheckWidget::toRecover() {
 		const auto box = Ui::show(
 			Ui::MakeInformBox(tr::lng_signin_no_email_forgot()));
 		box->boxClosing(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			showReset();
 		}, box->lifetime());
 	}
@@ -326,7 +318,7 @@ void PasswordCheckWidget::toPassword() {
 	const auto box = Ui::show(
 		Ui::MakeInformBox(tr::lng_signin_cant_email_forgot()));
 	box->boxClosing(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		showReset();
 	}, box->lifetime());
 }
@@ -354,8 +346,8 @@ void PasswordCheckWidget::updateDescriptionText() {
 		? tr::lng_signin_recover_desc(
 			lt_email,
 			rpl::single(Ui::Text::WrapEmailPattern(emailPattern)),
-			Ui::Text::WithEntities)
-		: tr::lng_signin_desc(Ui::Text::WithEntities));
+			tr::marked)
+		: tr::lng_signin_desc(tr::marked));
 }
 
 void PasswordCheckWidget::submit() {

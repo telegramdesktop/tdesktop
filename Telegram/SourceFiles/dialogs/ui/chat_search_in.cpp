@@ -79,6 +79,10 @@ private:
 		Unexpected("Type in Dialogs::TabLabel.");
 	case ChatSearchTab::PublicPosts:
 		return tr::lng_search_tab_public_posts(tr::now);
+	case ChatSearchTab::Archive:
+		return tr::lng_search_tab_archive(tr::now);
+	case ChatSearchTab::ThisCommunity:
+		return tr::lng_search_tab_this_community(tr::now);
 	}
 	Unexpected("Tab in Dialogs::TabLabel.");
 }
@@ -95,16 +99,14 @@ Action::Action(
 , _height(st::dialogsSearchInHeight)
 , _icon(std::move(icon))
 , _checked(chosen) {
-	const auto parent = parentMenu->menu();
-
 	_text.setText(st::semiboldTextStyle, label);
 	_icon->subscribeToUpdates([=] { update(); });
 
-	initResizeHook(parent->sizeValue());
+	fitToMenuWidth();
 	resolveMinWidth();
 
 	paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		Painter p(this);
 		paint(p);
 	}, lifetime());
@@ -263,7 +265,7 @@ void ChatSearchIn::Section::update() {
 
 ChatSearchIn::ChatSearchIn(QWidget *parent)
 : RpWidget(parent) {
-	_in.clicks.events() | rpl::start_with_next([=] {
+	_in.clicks.events() | rpl::on_next([=] {
 		showMenu();
 	}, lifetime());
 }
@@ -285,13 +287,13 @@ void ChatSearchIn::apply(
 	updateSection(
 		&_in,
 		i->icon->clone(),
-		Ui::Text::Semibold(TabLabel(active, peerTabType)));
+		tr::semibold(TabLabel(active, peerTabType)));
 
 	auto text = tr::lng_dlg_search_from(
 		tr::now,
 		lt_user,
-		Ui::Text::Semibold(fromName),
-		Ui::Text::WithEntities);
+		tr::semibold(fromName),
+		tr::marked);
 	updateSection(&_from, std::move(fromUserpic), std::move(text));
 
 	resizeToWidth(width());
@@ -332,7 +334,7 @@ void ChatSearchIn::showMenu() {
 			tab.icon,
 			TabLabel(value, _peerTabType),
 			(value == active));
-		action->setClickedCallback([=] {
+		action->setActionTriggered([=] {
 			_active = value;
 		});
 		_menu->addAction(std::move(action));
@@ -410,7 +412,7 @@ void ChatSearchIn::updateSection(
 			st::columnMinimalWidthLeft,
 			st::dialogsSearchInHeight);
 
-		raw->paintRequest() | rpl::start_with_next([=] {
+		raw->paintRequest() | rpl::on_next([=] {
 			auto p = QPainter(raw);
 			if (!section->subscribed) {
 				section->subscribed = true;
@@ -451,8 +453,9 @@ void ChatSearchIn::updateSection(
 
 		const auto st = &st::dialogsCancelSearchInPeer;
 		section->cancel = std::make_unique<Ui::IconButton>(raw, *st);
+		section->cancel->setAccessibleName(tr::lng_cancel(tr::now));
 		section->cancel->show();
-		raw->sizeValue() | rpl::start_with_next([=](QSize size) {
+		raw->sizeValue() | rpl::on_next([=](QSize size) {
 			const auto left = size.width() - section->cancel->width();
 			const auto top = (size.height() - st->height) / 2;
 			section->cancel->moveToLeft(left, top);

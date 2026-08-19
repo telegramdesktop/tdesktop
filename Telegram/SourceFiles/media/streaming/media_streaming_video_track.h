@@ -85,6 +85,7 @@ private:
 		FFmpeg::FramePointer transferred;
 		QImage original;
 		FrameYUV yuv;
+		NativeFrame nativeFrame;
 		crl::time position = kTimeUnknown;
 		crl::time displayed = kTimeUnknown;
 		crl::time display = kTimeUnknown;

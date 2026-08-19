@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "api/api_statistics.h"
 
+#include "api/api_credits_history_entry.h"
 #include "api/api_statistics_data_deserialize.h"
 #include "apiwrap.h"
 #include "base/unixtime.h"
@@ -209,7 +210,7 @@ rpl::producer<rpl::no_value, QString> Statistics::request() {
 		if (!channel()->isMegagroup()) {
 			makeRequest(MTPstats_GetBroadcastStats(
 				MTP_flags(MTPstats_GetBroadcastStats::Flags(0)),
-				channel()->inputChannel
+				channel()->inputChannel()
 			)).done([=](const MTPstats_BroadcastStats &result) {
 				_channelStats = ChannelStatisticsFromTL(result.data());
 				consumer.put_done();
@@ -219,7 +220,7 @@ rpl::producer<rpl::no_value, QString> Statistics::request() {
 		} else {
 			makeRequest(MTPstats_GetMegagroupStats(
 				MTP_flags(MTPstats_GetMegagroupStats::Flags(0)),
-				channel()->inputChannel
+				channel()->inputChannel()
 			)).done([=](const MTPstats_MegagroupStats &result) {
 				const auto &data = result.data();
 				_supergroupStats = SupergroupStatisticsFromTL(data);
@@ -350,14 +351,14 @@ void PublicForwards::request(
 	constexpr auto kLimit = tl::make_int(100);
 	if (_fullId.messageId) {
 		_requestId = makeRequest(MTPstats_GetMessagePublicForwards(
-			channel->inputChannel,
+			channel->inputChannel(),
 			MTP_int(_fullId.messageId.msg),
 			MTP_string(token),
 			kLimit
 		)).done(processResult).fail(processFail).send();
 	} else if (_fullId.storyId) {
 		_requestId = makeRequest(MTPstats_GetStoryPublicForwards(
-			channel->input,
+			channel->input(),
 			MTP_int(_fullId.storyId.story),
 			MTP_string(token),
 			kLimit
@@ -412,7 +413,7 @@ void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
 			const Data::StatisticalGraph &messageGraph,
 			const Data::StatisticalGraph &reactionsGraph) {
 		api().request(MTPchannels_GetMessages(
-			channel()->inputChannel,
+			channel()->inputChannel(),
 			MTP_vector<MTPInputMessage>(
 				1,
 				MTP_inputMessageID(MTP_int(_fullId.msg))))
@@ -467,7 +468,7 @@ void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
 			const Data::StatisticalGraph &messageGraph,
 			const Data::StatisticalGraph &reactionsGraph) {
 		api().request(MTPstories_GetStoriesByID(
-			channel()->input,
+			channel()->input(),
 			MTP_vector<MTPint>(1, MTP_int(_storyId.story)))
 		).done([=](const MTPstories_Stories &result) {
 			const auto &storyItem = result.data().vstories().v.front();
@@ -498,7 +499,7 @@ void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
 	if (_storyId) {
 		makeRequest(MTPstats_GetStoryStats(
 			MTP_flags(MTPstats_GetStoryStats::Flags(0)),
-			channel()->input,
+			channel()->input(),
 			MTP_int(_storyId.story)
 		)).done([=](const MTPstats_StoryStats &result) {
 			const auto &data = result.data();
@@ -511,7 +512,7 @@ void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
 	} else {
 		makeRequest(MTPstats_GetMessageStats(
 			MTP_flags(MTPstats_GetMessageStats::Flags(0)),
-			channel()->inputChannel,
+			channel()->inputChannel(),
 			MTP_int(_fullId.msg.bare)
 		)).done([=](const MTPstats_MessageStats &result) {
 			const auto &data = result.data();
@@ -538,7 +539,7 @@ rpl::producer<rpl::no_value, QString> Boosts::request() {
 		}
 
 		_api.request(MTPpremium_GetBoostsStatus(
-			_peer->input
+			_peer->input()
 		)).done([=](const MTPpremium_BoostsStatus &result) {
 			const auto &data = result.data();
 			channel->updateLevelHint(data.vlevel().v);
@@ -624,7 +625,7 @@ void Boosts::requestBoosts(
 		gifts
 			? MTP_flags(MTPpremium_GetBoostsList::Flag::f_gifts)
 			: MTP_flags(0),
-		_peer->input,
+		_peer->input(),
 		MTP_string(token.next),
 		token.next.isEmpty() ? kTlFirstSlice : kTlLimit
 	)).done([=](const MTPpremium_BoostsList &result) {
@@ -695,19 +696,23 @@ rpl::producer<rpl::no_value, QString> EarnStatistics::request() {
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 
-		makeRequest(MTPstats_GetBroadcastRevenueStats(
-			MTP_flags(0),
-			(_isUser ? user()->input : channel()->input)
-		)).done([=](const MTPstats_BroadcastRevenueStats &result) {
+		api().request(MTPpayments_GetStarsRevenueStats(
+			MTP_flags(MTPpayments_getStarsRevenueStats::Flag::f_ton),
+			(_isUser ? user()->input() : channel()->input())
+		)).done([=](const MTPpayments_StarsRevenueStats &result) {
 			const auto &data = result.data();
-			const auto &balances = data.vbalances().data();
+			const auto &balances = data.vstatus().data();
+			const auto amount = [](const auto &a) {
+				return CreditsAmountFromTL(a);
+			};
 			_data = Data::EarnStatistics{
-				.topHoursGraph = StatisticalGraphFromTL(
-					data.vtop_hours_graph()),
+				.topHoursGraph = data.vtop_hours_graph()
+					? StatisticalGraphFromTL(*data.vtop_hours_graph())
+					: Data::StatisticalGraph(),
 				.revenueGraph = StatisticalGraphFromTL(data.vrevenue_graph()),
-				.currentBalance = balances.vcurrent_balance().v,
-				.availableBalance = balances.vavailable_balance().v,
-				.overallRevenue = balances.voverall_revenue().v,
+				.currentBalance = amount(balances.vcurrent_balance()),
+				.availableBalance = amount(balances.vavailable_balance()),
+				.overallRevenue = amount(balances.voverall_revenue()),
 				.usdRate = data.vusd_rate().v,
 			};
 
@@ -716,10 +721,26 @@ rpl::producer<rpl::no_value, QString> EarnStatistics::request() {
 
 				if (!_isUser) {
 					api().request(
-						MTPchannels_GetFullChannel(channel()->inputChannel)
+						MTPchannels_GetFullChannel(channel()->inputChannel())
 					).done([=](const MTPmessages_ChatFull &result) {
 						result.data().vfull_chat().match([&](
 								const MTPDchannelFull &d) {
+							// Not a full ApplyChannelUpdate() here: that would
+							// re-trigger an EarnStatistics request and loop. We
+							// only refresh the revenue-visibility flags that
+							// gate this screen, which may be stale if the
+							// program was enabled after the last full load.
+							using Flag = ChannelDataFlag;
+							const auto channel = this->channel();
+							channel->setFlags((channel->flags()
+								& ~(Flag::CanViewRevenue
+									| Flag::CanViewCreditsRevenue))
+								| (d.is_can_view_revenue()
+									? Flag::CanViewRevenue
+									: Flag())
+								| (d.is_can_view_stars_revenue()
+									? Flag::CanViewCreditsRevenue
+									: Flag()));
 							_data.switchedOff = d.is_restricted_sponsored();
 						}, [](const auto &) {
 						});
@@ -745,62 +766,35 @@ void EarnStatistics::requestHistory(
 	if (_requestId) {
 		return;
 	}
+
 	constexpr auto kTlFirstSlice = tl::make_int(kFirstSlice);
 	constexpr auto kTlLimit = tl::make_int(kLimit);
-	_requestId = api().request(MTPstats_GetBroadcastRevenueTransactions(
-		(_isUser ? user()->input : channel()->input),
-		MTP_int(token),
-		(!token) ? kTlFirstSlice : kTlLimit
-	)).done([=](const MTPstats_BroadcastRevenueTransactions &result) {
+
+	_requestId = api().request(MTPpayments_GetStarsTransactions(
+		MTP_flags(MTPpayments_getStarsTransactions::Flag::f_ton),
+		MTP_string(), // Subscription ID.
+		(_isUser ? user()->input() : channel()->input()),
+		MTP_string(token),
+		token.isEmpty() ? kTlFirstSlice : kTlLimit
+	)).done([=](const MTPpayments_StarsStatus &result) {
 		_requestId = 0;
 
-		const auto &tlTransactions = result.data().vtransactions().v;
+		const auto nextToken = result.data().vnext_offset().value_or_empty();
 
-		auto list = std::vector<Data::EarnHistoryEntry>();
-		list.reserve(tlTransactions.size());
-		for (const auto &tlTransaction : tlTransactions) {
-			list.push_back(tlTransaction.match([&](
-					const MTPDbroadcastRevenueTransactionProceeds &d) {
-				return Data::EarnHistoryEntry{
-					.type = Data::EarnHistoryEntry::Type::In,
-					.amount = d.vamount().v,
-					.date = base::unixtime::parse(d.vfrom_date().v),
-					.dateTo = base::unixtime::parse(d.vto_date().v),
-				};
-			}, [&](const MTPDbroadcastRevenueTransactionWithdrawal &d) {
-				return Data::EarnHistoryEntry{
-					.type = Data::EarnHistoryEntry::Type::Out,
-					.status = d.is_pending()
-						? Data::EarnHistoryEntry::Status::Pending
-						: d.is_failed()
-						? Data::EarnHistoryEntry::Status::Failed
-						: Data::EarnHistoryEntry::Status::Success,
-					.amount = (std::numeric_limits<Data::EarnInt>::max()
-						- d.vamount().v
-						+ 1),
-					.date = base::unixtime::parse(d.vdate().v),
-					// .provider = qs(d.vprovider()),
-					.successDate = d.vtransaction_date()
-						? base::unixtime::parse(d.vtransaction_date()->v)
-						: QDateTime(),
-					.successLink = d.vtransaction_url()
-						? qs(*d.vtransaction_url())
-						: QString(),
-				};
-			}, [&](const MTPDbroadcastRevenueTransactionRefund &d) {
-				return Data::EarnHistoryEntry{
-					.type = Data::EarnHistoryEntry::Type::Return,
-					.amount = d.vamount().v,
-					.date = base::unixtime::parse(d.vdate().v),
-					// .provider = qs(d.vprovider()),
-				};
-			}));
-		}
-		const auto nextToken = token + tlTransactions.size();
+		const auto tlTransactions
+			= result.data().vhistory().value_or_empty();
+
+		const auto peer = _isUser ? (PeerData*)user() : (PeerData*)channel();
+		auto list = ranges::views::all(
+			tlTransactions
+		) | ranges::views::transform([=](const auto &d) {
+			return CreditsHistoryEntryFromTL(d, peer);
+		}) | ranges::to_vector;
 		done(Data::EarnHistorySlice{
 			.list = std::move(list),
-			.total = result.data().vcount().v,
-			.allLoaded = (result.data().vcount().v == nextToken),
+			.total = int(tlTransactions.size()),
+			// .total = result.data().vcount().v,
+			.allLoaded = nextToken.isEmpty(),
 			.token = Data::EarnHistorySlice::OffsetToken(nextToken),
 		});
 	}).fail([=] {

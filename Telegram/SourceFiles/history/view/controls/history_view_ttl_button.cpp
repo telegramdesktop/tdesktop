@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_chat.h"
 
 namespace HistoryView::Controls {
 
@@ -37,7 +36,7 @@ TTLButton::TTLButton(
 	peer->session().changes().peerFlagsValue(
 		peer,
 		Data::PeerUpdate::Flag::MessagesTTL
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_button.setText(Ui::FormatTTLTiny(peer->messagesTTL()));
 	}, _button.lifetime());
 }

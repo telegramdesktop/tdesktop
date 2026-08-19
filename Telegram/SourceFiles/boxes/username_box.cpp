@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/wrap/follow_slide_wrap.h"
 #include "ui/wrap/slide_wrap.h"
+#include "styles/style_edit_peer_members.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
@@ -312,9 +313,10 @@ QString UsernameEditor::getName() const {
 
 } // namespace
 
-void UsernamesBox(
+void FillUsernamesBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<PeerData*> peer) {
+		not_null<PeerData*> peer,
+		Fn<void()> onSaved) {
 	const auto isBot = peer && peer->isUser() && peer->asUser()->isBot();
 	box->setTitle(isBot
 		? tr::lng_bot_username_title()
@@ -324,7 +326,7 @@ void UsernamesBox(
 
 	const auto editor = box->addRow(
 		object_ptr<UsernameEditor>(box, peer),
-		{});
+		style::margins());
 	editor->setEnabled(!isBot);
 	box->setFocusCallback([=] { editor->setInnerFocus(); });
 
@@ -333,20 +335,20 @@ void UsernamesBox(
 	auto description = [&]() -> rpl::producer<TextWithEntities> {
 		if (!isBot) {
 			return rpl::combine(
-				tr::lng_username_description1(Ui::Text::RichLangValue),
-				tr::lng_username_description2(Ui::Text::RichLangValue)
+				tr::lng_username_description1(tr::rich),
+				tr::lng_username_description2(tr::rich)
 			) | rpl::map([](TextWithEntities d1, TextWithEntities d2) {
 				return d1.append("\n\n").append(std::move(d2));
 			});
 		}
 		if (const auto url = AppConfig::FragmentLink(&peer->session())) {
-			const auto link = Ui::Text::Link(
+			const auto link = tr::link(
 				tr::lng_bot_username_description1_link(tr::now),
 				*url);
 			return tr::lng_bot_username_description1(
 				lt_link,
 				rpl::single(link),
-				Ui::Text::RichLangValue);
+				tr::rich);
 		}
 		return rpl::single<TextWithEntities>({});
 	}();
@@ -366,19 +368,22 @@ void UsernamesBox(
 			!isBot
 				? [=] { box->scrollToY(0); editor->setInnerFocus(); }
 				: Fn<void()>(nullptr)),
-		{});
+		style::margins());
 
 	const auto finish = [=] {
 		list->save(
-		) | rpl::start_with_done([=] {
+		) | rpl::on_done([=] {
 			editor->save(
-			) | rpl::start_with_done([=] {
+			) | rpl::on_done([=] {
+				if (onSaved) {
+					onSaved();
+				}
 				box->closeBox();
 			}, box->lifetime());
 		}, box->lifetime());
 	};
 	editor->submitted(
-	) | rpl::start_with_next(finish, editor->lifetime());
+	) | rpl::on_next(finish, editor->lifetime());
 
 	if (isBot) {
 		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
@@ -386,6 +391,19 @@ void UsernamesBox(
 		box->addButton(tr::lng_settings_save(), finish);
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	}
+}
+
+void UsernamesBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<PeerData*> peer) {
+	FillUsernamesBox(box, peer, nullptr);
+}
+
+void UsernamesBoxWithCallback(
+		not_null<Ui::GenericBox*> box,
+		not_null<PeerData*> peer,
+		Fn<void()> onSaved) {
+	FillUsernamesBox(box, peer, std::move(onSaved));
 }
 
 void AddUsernameCheckLabel(
@@ -410,7 +428,7 @@ void AddUsernameCheckLabel(
 	rpl::combine(
 		std::move(checkInfo),
 		container->widthValue()
-	) | rpl::start_with_next([=](const UsernameCheckInfo &info, int w) {
+	) | rpl::on_next([=](const UsernameCheckInfo &info, int w) {
 		using Type = UsernameCheckInfo::Type;
 		label->setMarkedText(info.text);
 		const auto &color = (info.type == Type::Good)
@@ -433,10 +451,10 @@ UsernameCheckInfo UsernameCheckInfo::PurchaseAvailable(
 			.text = tr::lng_username_purchase_available(
 				tr::now,
 				lt_link,
-				Ui::Text::Link(
+				tr::link(
 					tr::lng_username_purchase_available_link(tr::now),
 					(*fragmentLink) + u"/username/"_q + username),
-				Ui::Text::RichLangValue),
+				tr::rich),
 		};
 	} else {
 		return {

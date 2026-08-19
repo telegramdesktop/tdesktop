@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "data/data_poll.h"
 #include "base/weak_ptr.h"
+#include "base/timer.h"
 
 namespace Ui {
 class RippleAnimation;
@@ -25,7 +26,8 @@ class Poll final : public Media {
 public:
 	Poll(
 		not_null<Element*> parent,
-		not_null<PollData*> poll);
+		not_null<PollData*> poll,
+		const TextWithEntities &consumed);
 	~Poll();
 
 	void draw(Painter &p, const PaintContext &context) const override;
@@ -58,174 +60,74 @@ public:
 		const QRect &bubble,
 		crl::time ms) const override;
 
+	void clickHandlerActiveChanged(
+		const ClickHandlerPtr &handler,
+		bool active) override;
 	void clickHandlerPressedChanged(
 		const ClickHandlerPtr &handler,
 		bool pressed) override;
 
+	void hideSpoilers() override;
+
 	void unloadHeavyPart() override;
 	bool hasHeavyPart() const override;
+	void parentTextUpdated() override;
+
+	[[nodiscard]] QRect addOptionRect(int innerWidth) const override;
+	void setAddOptionActive(bool active) override;
 
 private:
+	struct Part;
+	struct Header;
+	struct Options;
+	struct AddOption;
+	struct Footer;
+
 	struct AnswerAnimation;
 	struct AnswersAnimation;
 	struct SendingAnimation;
 	struct Answer;
-	struct CloseInformation;
+	struct AttachedMedia;
+	struct SolutionMedia;
 	struct RecentVoter;
 
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 
 	[[nodiscard]] bool showVotes() const;
+	[[nodiscard]] PollData::VoteRestriction knownVoteRestriction() const;
+	[[nodiscard]] bool voteRestricted() const;
+	void showVoteRestrictionToast() const;
 	[[nodiscard]] bool canVote() const;
 	[[nodiscard]] bool canSendVotes() const;
-
-	[[nodiscard]] int countAnswerTop(
-		const Answer &answer,
-		int innerWidth) const;
-	[[nodiscard]] int countAnswerHeight(
-		const Answer &answer,
-		int innerWidth) const;
-	[[nodiscard]] ClickHandlerPtr createAnswerClickHandler(
-		const Answer &answer);
+	[[nodiscard]] bool isAuthorNotVoted() const;
 	void updateTexts();
-	void updateRecentVoters();
-	void updateAnswers();
 	void updateVotes();
-	void updateTotalVotes();
 	bool showVotersCount() const;
 	bool inlineFooter() const;
-	void updateAnswerVotes();
-	void updateAnswerVotesFromOriginal(
-		Answer &answer,
-		const PollAnswer &original,
-		int percent,
-		int maxVotes);
-	void checkSendingAnimation() const;
 
-	void paintRecentVoters(
-		Painter &p,
-		int left,
-		int top,
-		const PaintContext &context) const;
-	void paintCloseByTimer(
-		Painter &p,
-		int right,
-		int top,
-		const PaintContext &context) const;
-	void paintShowSolution(
-		Painter &p,
-		int right,
-		int top,
-		const PaintContext &context) const;
-	int paintAnswer(
-		Painter &p,
-		const Answer &answer,
-		const AnswerAnimation *animation,
-		int left,
-		int top,
-		int width,
-		int outerWidth,
-		const PaintContext &context) const;
-	void paintRadio(
-		Painter &p,
-		const Answer &answer,
-		int left,
-		int top,
-		const PaintContext &context) const;
-	void paintPercent(
-		Painter &p,
-		const QString &percent,
-		int percentWidth,
-		int left,
-		int top,
-		int outerWidth,
-		const PaintContext &context) const;
-	void paintFilling(
-		Painter &p,
-		bool chosen,
-		bool correct,
-		float64 filling,
-		int left,
-		int top,
-		int width,
-		int height,
-		const PaintContext &context) const;
-	void paintInlineFooter(
-		Painter &p,
-		int left,
-		int top,
-		int paintw,
-		const PaintContext &context) const;
-	void paintBottom(
-		Painter &p,
-		int left,
-		int top,
-		int paintw,
-		const PaintContext &context) const;
+	[[nodiscard]] bool canAddOption() const;
+	void refreshWebpageSubscriptions();
 
-	bool checkAnimationStart() const;
-	bool answerVotesChanged() const;
-	void saveStateInAnimation() const;
-	void startAnswersAnimation() const;
-	void resetAnswersAnimation() const;
-	void radialAnimationCallback() const;
-
-	void toggleRipple(Answer &answer, bool pressed);
-	void toggleLinkRipple(bool pressed);
-	void toggleMultiOption(const QByteArray &option);
-	void sendMultiOptions();
-	void showResults();
-	void checkQuizAnswered();
-	void showSolution() const;
-	void solutionToggled(
-		bool solutionShown,
-		anim::type animated = anim::type::normal) const;
-
-	[[nodiscard]] bool canShowSolution() const;
-	[[nodiscard]] bool inShowSolution(
-		QPoint point,
-		int right,
-		int top) const;
-
-	[[nodiscard]] int bottomButtonHeight() const;
-
-	const not_null<PollData*> _poll;
+	not_null<PollData*> _poll;
+	std::vector<WebPageData*> _registeredWebpages;
 	int _pollVersion = 0;
 	int _totalVotes = 0;
 	bool _voted = false;
 	PollData::Flags _flags = PollData::Flags();
 
-	Ui::Text::String _question;
-	Ui::Text::String _subtitle;
-	std::vector<RecentVoter> _recentVoters;
-	QImage _recentVotersImage;
-
-	std::vector<Answer> _answers;
-	Ui::Text::String _totalVotesLabel;
-	ClickHandlerPtr _showResultsLink;
-	ClickHandlerPtr _sendVotesLink;
-	mutable ClickHandlerPtr _showSolutionLink;
-	mutable std::unique_ptr<Ui::RippleAnimation> _linkRipple;
-	mutable int _linkRippleShift = 0;
-
-	mutable std::unique_ptr<AnswersAnimation> _answersAnimation;
-	mutable std::unique_ptr<SendingAnimation> _sendingAnimation;
 	mutable std::unique_ptr<Ui::FireworksAnimation> _fireworksAnimation;
 	Ui::Animations::Simple _wrongAnswerAnimation;
 	mutable QPoint _lastLinkPoint;
-	mutable QImage _userpicCircleCache;
-	mutable QImage _fillingIconCache;
 
-	mutable std::unique_ptr<CloseInformation> _close;
-
-	mutable Ui::Animations::Simple _solutionButtonAnimation;
-	mutable bool _solutionShown = false;
-	mutable bool _solutionButtonVisible = false;
-
-	bool _hasSelected = false;
-	bool _votedFromHere = false;
+	bool _addOptionActive = false;
 	mutable bool _wrongAnswerAnimated = false;
+	mutable bool _adminShowResults = false;
+
+	std::unique_ptr<Header> _headerPart;
+	std::unique_ptr<Options> _optionsPart;
+	std::unique_ptr<AddOption> _addOptionPart;
+	std::unique_ptr<Footer> _footerPart;
 
 };
 

@@ -174,7 +174,7 @@ void IdentityBox::prepare() {
 		_scans.back()->setImage(scan.thumb);
 		_scans.back()->resizeToWidth(st::boxWideWidth);
 		_scans.back()->deleteClicks(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			_controller->deleteScan(_valueIndex, index - 1);
 		}, lifetime());
 	}
@@ -186,7 +186,7 @@ void IdentityBox::prepare() {
 		closeBox();
 	});
 	_controller->scanUpdated(
-	) | rpl::start_with_next([=](ScanInfo &&info) {
+	) | rpl::on_next([=](ScanInfo &&info) {
 		updateScan(std::move(info));
 	}, lifetime());
 

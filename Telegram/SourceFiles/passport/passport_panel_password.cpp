@@ -49,6 +49,7 @@ PanelAskPassword::PanelAskPassword(
 	tr::lng_passport_password_placeholder())
 , _submit(this, tr::lng_passport_next(), st::passportPasswordSubmit)
 , _forgot(this, tr::lng_signin_recover(tr::now), st::defaultLinkButton) {
+	_submit->setTextTransform(Ui::RoundButtonTextTransform::ToUpper);
 	connect(_password, &Ui::PasswordInput::submitted, this, [=] {
 		submit();
 	});
@@ -62,7 +63,7 @@ PanelAskPassword::PanelAskPassword(
 			st::passportPasswordHintLabel);
 	}
 	_controller->passwordError(
-	) | rpl::start_with_next([=](const QString &error) {
+	) | rpl::on_next([=](const QString &error) {
 		showError(error);
 	}, lifetime());
 
@@ -123,12 +124,12 @@ void PanelAskPassword::updateControlsGeometry() {
 		_password->height());
 	_password->moveToLeft((width() - _password->width()) / 2, top);
 
-	top -= st::passportPasswordFieldSkip + _about2->height();
 	_about2->resizeToWidth(availableWidth);
+	top -= st::passportPasswordFieldSkip + _about2->height();
 	_about2->moveToLeft(padding.left(), top);
 
-	top -= _about1->height();
 	_about1->resizeToWidth(availableWidth);
+	top -= _about1->height();
 	_about1->moveToLeft(padding.left(), top);
 
 	top -= st::passportPasswordUserpicSkip + _userpic->height();
@@ -166,51 +167,47 @@ PanelNoPassword::PanelNoPassword(
 
 void PanelNoPassword::setupContent() {
 	widthValue(
-	) | rpl::start_with_next([=](int newWidth) {
+	) | rpl::on_next([=](int newWidth) {
 		_inner->resizeToWidth(newWidth);
 	}, _inner->lifetime());
 
 	_inner->add(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+		object_ptr<Ui::FlatLabel>(
 			_inner,
-			object_ptr<Ui::FlatLabel>(
-				_inner,
-				tr::lng_passport_request1(
-					tr::now,
-					lt_bot,
-					_controller->bot()->name()),
-				st::passportPasswordLabelBold)),
-		st::passportPasswordAbout1Padding)->entity();
+			tr::lng_passport_request1(
+				tr::now,
+				lt_bot,
+				_controller->bot()->name()),
+			st::passportPasswordLabelBold),
+		st::passportPasswordAbout1Padding,
+		style::al_top);
 
 	_inner->add(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+		object_ptr<Ui::FlatLabel>(
 			_inner,
-			object_ptr<Ui::FlatLabel>(
-				_inner,
-				tr::lng_passport_request2(tr::now),
-				st::passportPasswordLabel)),
-		st::passportPasswordAbout2Padding)->entity();
+			tr::lng_passport_request2(tr::now),
+			st::passportPasswordLabel),
+		st::passportPasswordAbout2Padding,
+		style::al_top);
 
 	const auto iconWrap = _inner->add(
-		object_ptr<Ui::CenterWrap<Ui::FixedHeightWidget>>(
+		object_ptr<Ui::FixedHeightWidget>(
 			_inner,
-			object_ptr<Ui::FixedHeightWidget>(
-				_inner,
-				st::passportPasswordIconHeight)));
-	iconWrap->entity()->resizeToWidth(st::passportPasswordIcon.width());
+			st::passportPasswordIconHeight),
+		style::al_top);
+	iconWrap->setNaturalWidth(st::passportPasswordIcon.width());
 	Ui::CreateChild<Info::Profile::FloatingIcon>(
-		iconWrap->entity(),
+		iconWrap,
 		st::passportPasswordIcon,
 		QPoint(0, 0));
 
 	_inner->add(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+		object_ptr<Ui::FlatLabel>(
 			_inner,
-			object_ptr<Ui::FlatLabel>(
-				_inner,
-				tr::lng_passport_create_password(tr::now),
-				st::passportPasswordSetupLabel)),
-		st::passportFormAbout2Padding)->entity();
+			tr::lng_passport_create_password(tr::now),
+			st::passportPasswordSetupLabel),
+		st::passportFormAbout2Padding,
+		style::al_top);
 
 	refreshBottom();
 }
@@ -218,24 +215,23 @@ void PanelNoPassword::setupContent() {
 void PanelNoPassword::refreshBottom() {
 	const auto pattern = _controller->unconfirmedEmailPattern();
 	_about.reset(_inner->add(
-		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+		object_ptr<Ui::FlatLabel>(
 			_inner,
-			object_ptr<Ui::FlatLabel>(
-				_inner,
-				(pattern.isEmpty()
-					? tr::lng_passport_about_password(tr::now)
-					: tr::lng_passport_code_sent(tr::now, lt_email, pattern)),
-				st::passportPasswordSetupLabel)),
-		st::passportFormAbout2Padding)->entity());
+			(pattern.isEmpty()
+				? tr::lng_passport_about_password(tr::now)
+				: tr::lng_passport_code_sent(tr::now, lt_email, pattern)),
+			st::passportPasswordSetupLabel),
+		st::passportFormAbout2Padding,
+		style::al_top));
 	if (pattern.isEmpty()) {
 		const auto button = _inner->add(
-			object_ptr<Ui::CenterWrap<Ui::RoundButton>>(
+			object_ptr<Ui::RoundButton>(
 				_inner,
-				object_ptr<Ui::RoundButton>(
-					_inner,
-					tr::lng_passport_password_create(),
-					st::defaultBoxButton)));
-		button->entity()->addClickHandler([=] {
+				tr::lng_passport_password_create(),
+				st::defaultBoxButton),
+			style::al_top);
+		button->setTextTransform(Ui::RoundButtonTextTransform::ToUpper);
+		button->addClickHandler([=] {
 			_controller->setupPassword();
 		});
 	} else {
@@ -247,8 +243,6 @@ void PanelNoPassword::refreshBottom() {
 			container,
 			tr::lng_cancel(),
 			st::defaultBoxButton);
-		cancel->setTextTransform(
-			Ui::RoundButton::TextTransform::NoTransform);
 		cancel->addClickHandler([=] {
 			_controller->cancelPasswordSubmit();
 		});
@@ -256,13 +250,11 @@ void PanelNoPassword::refreshBottom() {
 			container,
 			tr::lng_passport_email_validate(),
 			st::defaultBoxButton);
-		validate->setTextTransform(
-			Ui::RoundButton::TextTransform::NoTransform);
 		validate->addClickHandler([=] {
 			_controller->validateRecoveryEmail();
 		});
 		container->widthValue(
-		) | rpl::start_with_next([=](int width) {
+		) | rpl::on_next([=](int width) {
 			const auto both = cancel->width()
 				+ validate->width()
 				+ st::boxLittleSkip;

@@ -50,12 +50,6 @@ public:
 		return _samplesFrequency;
 	}
 
-#if !DA_FFMPEG_NEW_CHANNEL_LAYOUT
-	static uint64_t ComputeChannelLayout(
-		uint64_t channel_layout,
-		int channels);
-#endif // !DA_FFMPEG_NEW_CHANNEL_LAYOUT
-
 	[[nodiscard]] int64 startedAtSample() const {
 		return _startedAtSample;
 	}
@@ -72,11 +66,7 @@ protected:
 	uchar *ioBuffer = nullptr;
 	AVIOContext *ioContext = nullptr;
 	AVFormatContext *fmtContext = nullptr;
-#if LIBAVFORMAT_VERSION_MAJOR >= 59
 	const AVCodec *codec = nullptr;
-#else
-	AVCodec *codec = nullptr;
-#endif
 	int32 streamId = 0;
 
 	bool _opened = false;
@@ -170,13 +160,8 @@ private:
 	const int _swrDstRate = Media::Player::kDefaultFrequency;
 	AVSampleFormat _swrDstSampleFormat = AV_SAMPLE_FMT_S16;
 
-#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	AVChannelLayout _swrSrcChannelLayout = AV_CHANNEL_LAYOUT_STEREO;
 	AVChannelLayout _swrDstChannelLayout = AV_CHANNEL_LAYOUT_STEREO;
-#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
-	uint64_t _swrSrcChannelLayout = 0;
-	uint64_t _swrDstChannelLayout = AV_CH_LAYOUT_STEREO;
-#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 
 	AVFilterGraph *_filterGraph = nullptr;
 	float64 _filterSpeed = 1.;

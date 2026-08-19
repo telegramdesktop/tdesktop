@@ -11,8 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/padding_wrap.h"
-#include "styles/style_boxes.h"
 #include "styles/style_layers.h"
+#include "styles/style_passcode_box.h"
 
 void SingleChoiceBox(
 		not_null<Ui::GenericBox*> box,
@@ -46,7 +46,7 @@ void SingleChoiceBox(
 	}
 	const auto callback = args.callback.value();
 	group->setChangedCallback([=](int value) {
-		const auto weak = Ui::MakeWeak(box);
+		const auto weak = base::make_weak(box);
 		callback(value);
 		if (weak) {
 			box->closeBox();

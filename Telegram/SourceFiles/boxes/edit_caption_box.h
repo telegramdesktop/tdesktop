@@ -24,10 +24,15 @@ namespace Data {
 class PhotoMedia;
 } // namespace Data
 
+namespace HistoryView::Controls {
+class ComposeAiButton;
+} // namespace HistoryView::Controls
+
 namespace Ui {
 class AbstractSinglePreview;
 class InputField;
 class EmojiButton;
+class PopupMenu;
 class VerticalLayout;
 enum class AlbumType;
 } // namespace Ui
@@ -39,6 +44,7 @@ public:
 		not_null<Window::SessionController*> controller,
 		not_null<HistoryItem*> item,
 		TextWithTags &&text,
+		SuggestOptions suggest,
 		bool spoilered,
 		bool invertCaption,
 		Ui::PreparedList &&list,
@@ -49,6 +55,7 @@ public:
 		not_null<Window::SessionController*> controller,
 		FullMsgId itemId,
 		TextWithTags text,
+		SuggestOptions suggest,
 		bool spoilered,
 		bool invertCaption,
 		Fn<void()> saved);
@@ -57,6 +64,7 @@ public:
 		FullMsgId itemId,
 		Ui::PreparedList &&list,
 		TextWithTags text,
+		SuggestOptions suggest,
 		bool spoilered,
 		bool invertCaption,
 		Fn<void()> saved);
@@ -65,6 +73,7 @@ public:
 		std::shared_ptr<Data::PhotoMedia> media,
 		FullMsgId itemId,
 		TextWithTags text,
+		SuggestOptions suggest,
 		bool spoilered,
 		bool invertCaption,
 		Fn<void()> saved);
@@ -82,7 +91,11 @@ protected:
 private:
 	void rebuildPreview();
 	void setupEditEventHandler();
+	void showMenu(QPoint globalPos, bool forceTopRight);
+	void renameCurrentFile();
 	void setupPhotoEditorEventHandler();
+	void setupEditCoverHandler();
+	void setupClearCoverHandler();
 	void setupField();
 	void setupFieldAutocomplete();
 	void setupControls();
@@ -106,11 +119,15 @@ private:
 
 	[[nodiscard]] int errorTopSkip() const;
 	[[nodiscard]] bool hasSpoiler() const;
+	[[nodiscard]] bool hasSendLargePhotosOption() const;
+	[[nodiscard]] Ui::SendFilesWay currentSendWay() const;
+	void saveSendWaySettings();
 
 	bool setPreparedList(Ui::PreparedList &&list);
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<HistoryItem*> _historyItem;
+	const SuggestOptions _suggest;
 	const bool _isAllowedEditMedia;
 	const Ui::AlbumType _albumType;
 
@@ -118,10 +135,12 @@ private:
 	const base::unique_qptr<Ui::ScrollArea> _scroll;
 	const base::unique_qptr<Ui::InputField> _field;
 	const base::unique_qptr<Ui::EmojiButton> _emojiToggle;
+	HistoryView::Controls::ComposeAiButton *_aiButton = nullptr;
 
 	std::unique_ptr<ChatHelpers::FieldAutocomplete> _autocomplete;
 
 	base::unique_qptr<Ui::AbstractSinglePreview> _content;
+	base::unique_qptr<Ui::PopupMenu> _previewMenu;
 	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
 	base::unique_qptr<QObject> _emojiFilter;
 
@@ -138,7 +157,9 @@ private:
 
 	base::Timer _checkChangedTimer;
 	bool _isPhoto = false;
+	bool _isVideo = false;
 	bool _asFile = false;
+	bool _sendLargePhotos = false;
 
 	QString _error;
 

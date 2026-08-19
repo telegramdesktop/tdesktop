@@ -54,12 +54,15 @@ private:
 
 	int errorTop() const override;
 
+	[[nodiscard]] bool isEmailVerification() const;
+
 	void updateCallText();
 	void refreshLang();
 	void updateControlsGeometry();
 
 	void codeSubmitDone(const MTPauth_Authorization &result);
 	void codeSubmitFail(const MTP::Error &error);
+	void emailVerifyDone(const MTPaccount_EmailVerified &result);
 
 	void showCodeError(rpl::producer<QString> text);
 	void callDone(const MTPauth_SentCode &result);

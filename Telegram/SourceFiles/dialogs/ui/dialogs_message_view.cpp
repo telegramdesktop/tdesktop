@@ -9,15 +9,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/view/history_view_element.h"
 #include "history/view/history_view_item_preview.h"
 #include "main/main_session.h"
 #include "dialogs/dialogs_three_state_icon.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "dialogs/ui/dialogs_topics_view.h"
 #include "ui/effects/spoiler_mess.h"
+#include "ui/text/custom_emoji_helper.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/power_saving.h"
 #include "core/ui_integration.h"
 #include "lang/lang_keys.h"
@@ -138,28 +141,43 @@ bool MessageView::dependsOn(not_null<const HistoryItem*> item) const {
 
 bool MessageView::prepared(
 		not_null<const HistoryItem*> item,
-		Data::Forum *forum) const {
+		Data::Forum *forum,
+		Data::SavedMessages *monoforum) const {
 	return (_textCachedFor == item.get())
-		&& (!forum
+		&& (_unreadMedia == item->isUnreadMedia())
+		&& ((!forum && !monoforum)
 			|| (_topics
 				&& _topics->forum() == forum
+				&& _topics->monoforum() == monoforum
 				&& _topics->prepared()));
 }
 
 void MessageView::prepare(
 		not_null<const HistoryItem*> item,
 		Data::Forum *forum,
+		Data::SavedMessages *monoforum,
 		Fn<void()> customEmojiRepaint,
 		ToPreviewOptions options) {
-	if (!forum) {
+	if (!forum && !monoforum) {
 		_topics = nullptr;
-	} else if (!_topics || _topics->forum() != forum) {
-		_topics = std::make_unique<TopicsView>(forum);
-		_topics->prepare(item->topicRootId(), customEmojiRepaint);
+	} else if (!_topics
+		|| _topics->forum() != forum
+		|| _topics->monoforum() != monoforum) {
+		_topics = std::make_unique<TopicsView>(forum, monoforum);
+		if (forum) {
+			_topics->prepare(item->topicRootId(), customEmojiRepaint);
+		} else {
+			_topics->prepare(item->sublistPeerId(), customEmojiRepaint);
+		}
 	} else if (!_topics->prepared()) {
-		_topics->prepare(item->topicRootId(), customEmojiRepaint);
+		if (forum) {
+			_topics->prepare(item->topicRootId(), customEmojiRepaint);
+		} else {
+			_topics->prepare(item->sublistPeerId(), customEmojiRepaint);
+		}
 	}
 	if (_textCachedFor == item.get()) {
+		_unreadMedia = item->isUnreadMedia();
 		return;
 	}
 	options.existing = &_imagesCache;
@@ -173,7 +191,7 @@ void MessageView::prepare(
 		: nullptr;
 	const auto hasImages = !preview.images.empty();
 	const auto history = item->history();
-	const auto context = Core::TextContext({
+	auto context = Core::TextContext({
 		.session = &history->session(),
 		.repaint = customEmojiRepaint,
 		.customEmojiLoopLimit = kEmojiLoopCount,
@@ -194,14 +212,107 @@ void MessageView::prepare(
 	}
 	TextUtilities::Trim(preview.text);
 	auto textToCache = DialogsPreviewText(std::move(preview.text));
+
+	if (!options.searchLowerText.isEmpty()) {
+		static constexpr auto kLeftShift = 15;
+		auto minFrom = std::numeric_limits<uint16>::max();
+
+		const auto words = Ui::Text::Words(options.searchLowerText);
+		textToCache.entities.reserve(textToCache.entities.size()
+			+ words.size());
+
+		for (const auto &word : words) {
+			const auto selection = HistoryView::FindSearchQueryHighlight(
+				textToCache.text,
+				word);
+			if (!selection.empty()) {
+				minFrom = std::min(minFrom, selection.from);
+				textToCache.entities.push_back(EntityInText{
+					EntityType::Colorized,
+					selection.from,
+					selection.to - selection.from
+				});
+			}
+		}
+
+		if (minFrom == std::numeric_limits<uint16>::max()
+			&& !item->replyTo().quote.empty()) {
+			auto textQuote = TextWithEntities();
+			for (const auto &word : words) {
+				const auto selection = HistoryView::FindSearchQueryHighlight(
+					item->replyTo().quote.text,
+					word);
+				if (!selection.empty()) {
+					minFrom = 0;
+					if (textQuote.empty()) {
+						textQuote = item->replyTo().quote;
+					}
+					textQuote.entities.push_back(EntityInText{
+						EntityType::Colorized,
+						selection.from,
+						selection.to - selection.from
+					});
+				}
+			}
+			if (!textQuote.empty()) {
+				auto helper = Ui::Text::CustomEmojiHelper(context);
+				const auto factory = Ui::Text::PaletteDependentEmoji{
+					.factory = [=] {
+						const auto &icon = st::dialogsMiniQuoteIcon;
+						auto image = QImage(
+							icon.size() * style::DevicePixelRatio(),
+							QImage::Format_ARGB32_Premultiplied);
+						image.setDevicePixelRatio(style::DevicePixelRatio());
+						image.fill(Qt::transparent);
+						{
+							auto p = Painter(&image);
+							icon.paintInCenter(
+								p,
+								Rect(icon.size()),
+								st::dialogsTextFg->c);
+						}
+						return image;
+					},
+					.margin = QMargins(
+						st::lineWidth * 2,
+						0,
+						st::lineWidth * 2,
+						0),
+				};
+				textToCache = textQuote
+					.append(helper.paletteDependent(factory))
+					.append(std::move(textToCache));
+				context = helper.context(customEmojiRepaint);
+			}
+		}
+
+		if (!words.empty() && minFrom != std::numeric_limits<uint16>::max()) {
+			std::sort(
+				textToCache.entities.begin(),
+				textToCache.entities.end(),
+				[](const auto &a, const auto &b) {
+					return a.offset() < b.offset();
+				});
+
+			const auto textSize = textToCache.text.size();
+			minFrom = (minFrom > textSize || minFrom < kLeftShift)
+				? 0
+				: minFrom - kLeftShift;
+
+			textToCache = (TextWithEntities{
+				minFrom > 0 ? kQEllipsis : QString()
+			}).append(Text::Mid(std::move(textToCache), minFrom));
+		}
+	}
 	_hasPlainLinkAtBegin = !textToCache.entities.empty()
 		&& (textToCache.entities.front().type() == EntityType::Colorized);
 	_textCache.setMarkedText(
 		st::dialogsTextStyle,
 		std::move(textToCache),
 		DialogTextOptions(),
-		context);
+		std::move(context));
 	_textCachedFor = item;
+	_unreadMedia = item->isUnreadMedia();
 	_imagesCache = std::move(preview.images);
 	if (!ranges::any_of(_imagesCache, &ItemPreviewImage::hasSpoiler)) {
 		_spoiler = nullptr;
@@ -212,7 +323,7 @@ void MessageView::prepare(
 		if (!_loadingContext) {
 			_loadingContext = std::make_unique<LoadingContext>();
 			item->history()->session().downloaderTaskFinished(
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				_textCachedFor = nullptr;
 			}, _loadingContext->lifetime);
 		}
@@ -254,10 +365,17 @@ int MessageView::countWidth() const {
 	auto result = 0;
 	if (!_senderCache.isEmpty()) {
 		result += _senderCache.maxWidth();
-		if (!_imagesCache.empty()) {
+		if (!_imagesCache.empty() && !_leftIcon) {
 			result += st::dialogsMiniPreviewSkip
 				+ st::dialogsMiniPreviewRight;
 		}
+	}
+	if (_leftIcon) {
+		const auto w = _leftIcon->icon.icon.width();
+		result += w
+			+ (_imagesCache.empty()
+				? _leftIcon->skipText
+				: _leftIcon->skipMedia);
 	}
 	if (!_imagesCache.empty()) {
 		result += (_imagesCache.size()
@@ -267,6 +385,24 @@ int MessageView::countWidth() const {
 	return result + _textCache.maxWidth();
 }
 
+bool MessageView::hasAnimatedContent() const {
+	if (_textCache.hasCustomEmoji()
+		|| _textCache.hasSpoilers()
+		|| _senderCache.hasCustomEmoji()) {
+		return true;
+	}
+	for (const auto &image : _imagesCache) {
+		if (image.hasSpoiler()) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void MessageView::resetLastPaintGeometry() {
+	_lastPaintGeometry = QRect();
+}
+
 void MessageView::paint(
 		Painter &p,
 		const QRect &geometry,
@@ -274,6 +410,7 @@ void MessageView::paint(
 	if (geometry.isEmpty()) {
 		return;
 	}
+	_lastPaintGeometry = geometry;
 	p.setFont(st::dialogsTextFont);
 	p.setPen(context.active
 		? st::dialogsTextFgActive

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/boxes/confirm_box.h"
 #include "core/click_handler_types.h" // UrlClickHandler
+#include "core/version.h"
 #include "base/qthelp_url.h" // qthelp::url_encode
 #include "base/platform/base_platform_info.h"
 #include "window/window_controller.h"
@@ -49,7 +50,7 @@ Locale: ") + ::Platform::SystemLanguage();
 void ShowPhoneBannedError(
 		not_null<Window::Controller*> controller,
 		const QString &phone) {
-	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
+	const auto box = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
 	const auto close = [=] {
 		if (*box) {
 			(*box)->closeBox();

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "data/data_stories_ids.h"
 #include "info/media/info_media_common.h"
+#include "info/stories/info_stories_common.h"
 
 class DocumentData;
 class HistoryItem;
@@ -25,8 +26,6 @@ class AbstractController;
 } // namespace Info
 
 namespace Info::Stories {
-
-enum class Tab;
 
 class Provider final
 	: public Media::ListProvider
@@ -54,6 +53,7 @@ public:
 	rpl::producer<> refreshed() override;
 
 	void setSearchQuery(QString query) override;
+	void jumpToMessage(MsgId, Fn<void(FullMsgId)> done) override;
 
 	std::vector<Media::ListSection> fillSections(
 		not_null<Overview::Layout::Delegate*> delegate) override;
@@ -117,7 +117,8 @@ private:
 	const not_null<AbstractController*> _controller;
 	const not_null<PeerData*> _peer;
 	const not_null<History*> _history;
-	const Tab _tab;
+	const int _albumId = 0;
+	const int _addingToAlbumId = 0;
 
 	StoryId _aroundId = kDefaultAroundId;
 	int _idsLimit = kMinimalIdsLimit;
@@ -127,8 +128,6 @@ private:
 	std::unordered_map<StoryId, Media::CachedItem> _layouts;
 	rpl::event_stream<not_null<Media::BaseLayout*>> _layoutRemoved;
 	rpl::event_stream<> _refreshed;
-
-	bool _started = false;
 
 	rpl::lifetime _lifetime;
 	rpl::lifetime _viewerLifetime;

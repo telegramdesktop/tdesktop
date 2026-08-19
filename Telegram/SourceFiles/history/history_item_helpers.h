@@ -45,6 +45,8 @@ namespace Window {
 class SessionNavigation;
 } // namespace Window
 
+struct HistoryMessageMarkupData;
+
 struct PreparedServiceText {
 	TextWithEntities text;
 	std::vector<ClickHandlerPtr> links;
@@ -84,6 +86,9 @@ using OnStackUsers = std::array<UserData*, kMaxUnreadReactions>;
 void CheckReactionNotificationSchedule(
 	not_null<HistoryItem*> item,
 	const OnStackUsers &wasUsers);
+void CheckPollVoteNotificationSchedule(
+	not_null<HistoryItem*> item,
+	const std::vector<not_null<PeerData*>> &wasRecentVoters);
 [[nodiscard]] MessageFlags NewForwardedFlags(
 	not_null<PeerData*> peer,
 	PeerId from,
@@ -95,6 +100,7 @@ void CheckReactionNotificationSchedule(
 [[nodiscard]] TextWithEntities EnsureNonEmpty(
 	const TextWithEntities &text = TextWithEntities());
 [[nodiscard]] TextWithEntities UnsupportedMessageText();
+[[nodiscard]] HistoryMessageMarkupData UnsupportedMessageMarkup();
 
 void RequestDependentMessageItem(
 	not_null<HistoryItem*> item,
@@ -122,6 +128,17 @@ void RequestDependentMessageStory(
 	not_null<History*> history,
 	FullReplyTo replyTo);
 [[nodiscard]] bool LookupReplyIsTopicPost(HistoryItem *replyTo);
+[[nodiscard]] bool ShowEphemeralReplyTextOnlyError(
+	std::shared_ptr<ChatHelpers::Show> show,
+	not_null<Main::Session*> session,
+	FullMsgId replyToId);
+void StripEphemeralReply(
+	not_null<Main::Session*> session,
+	FullReplyTo &replyTo);
+void ConfirmDeleteSelectedEphemeral(
+	std::shared_ptr<ChatHelpers::Show> show,
+	std::vector<not_null<HistoryItem*>> items,
+	Fn<void()> confirmed);
 
 struct SendingErrorRequest {
 	MsgId topicRootId = 0;
@@ -130,6 +147,8 @@ struct SendingErrorRequest {
 	const TextWithTags *text = nullptr;
 	int messagesCount = 0;
 	bool ignoreSlowmodeCountdown = false;
+	bool richMessage = false;
+	bool ignoreRestrictions = false;
 };
 [[nodiscard]] int ComputeSendingMessagesCount(
 	not_null<History*> history,
@@ -149,6 +168,10 @@ struct SendPaymentDetails {
 	not_null<PeerData*> peer,
 	int messagesCount);
 
+[[nodiscard]] bool SuggestPaymentDataReady(
+	not_null<PeerData*> peer,
+	SuggestOptions suggest);
+
 struct PaidConfirmStyles {
 	const style::FlatLabel *label = nullptr;
 	const style::Checkbox *checkbox = nullptr;
@@ -158,34 +181,37 @@ void ShowSendPaidConfirm(
 	not_null<PeerData*> peer,
 	SendPaymentDetails details,
 	Fn<void()> confirmed,
-	PaidConfirmStyles styles = {});
+	PaidConfirmStyles styles = {},
+	int suggestStarsPrice = 0);
 void ShowSendPaidConfirm(
 	std::shared_ptr<Main::SessionShow> show,
 	not_null<PeerData*> peer,
 	SendPaymentDetails details,
 	Fn<void()> confirmed,
-	PaidConfirmStyles styles = {});
+	PaidConfirmStyles styles = {},
+	int suggestStarsPrice = 0);
 void ShowSendPaidConfirm(
 	std::shared_ptr<Main::SessionShow> show,
 	const std::vector<not_null<PeerData*>> &peers,
 	SendPaymentDetails details,
 	Fn<void()> confirmed,
-	PaidConfirmStyles styles = {});
+	PaidConfirmStyles styles = {},
+	int suggestStarsPrice = 0);
 
 class SendPaymentHelper final {
 public:
 	[[nodiscard]] bool check(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,
+		Api::SendOptions options,
 		int messagesCount,
-		int starsApproved,
 		Fn<void(int)> resend,
 		PaidConfirmStyles styles = {});
 	[[nodiscard]] bool check(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<PeerData*> peer,
+		Api::SendOptions options,
 		int messagesCount,
-		int starsApproved,
 		Fn<void(int)> resend,
 		PaidConfirmStyles styles = {});
 
@@ -222,13 +248,11 @@ private:
 	not_null<PeerData*> peer,
 	MsgId msgId,
 	FullMsgId returnToId = FullMsgId(),
-	TextWithEntities highlightPart = {},
-	int highlightPartOffsetHint = 0);
+	MessageHighlightId highlight = {});
 [[nodiscard]] ClickHandlerPtr JumpToMessageClickHandler(
 	not_null<HistoryItem*> item,
 	FullMsgId returnToId = FullMsgId(),
-	TextWithEntities highlightPart = {},
-	int highlightPartOffsetHint = 0);
+	MessageHighlightId highlight = {});
 [[nodiscard]] ClickHandlerPtr JumpToStoryClickHandler(
 	not_null<Data::Story*> story);
 ClickHandlerPtr JumpToStoryClickHandler(

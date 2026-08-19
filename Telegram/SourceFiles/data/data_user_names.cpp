@@ -44,7 +44,7 @@ void UsernamesInfo::setUsernames(const Usernames &usernames) {
 	) | ranges::views::filter([&](const Data::Username &username) {
 		if (username.editable) {
 			editableUsername = username.username;
-			return true;
+			return username.active;
 		}
 		return username.active;
 	}) | ranges::views::transform([](const Data::Username &username) {

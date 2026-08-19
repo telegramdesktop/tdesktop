@@ -31,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
-#include "styles/style_menu_icons.h"
 
 namespace {
 
@@ -115,18 +114,18 @@ PeerShortInfoCover::PeerShortInfoCover(
 
 	std::move(
 		userpic
-	) | rpl::start_with_next([=](PeerShortInfoUserpic &&value) {
+	) | rpl::on_next([=](PeerShortInfoUserpic &&value) {
 		applyUserpic(std::move(value));
 		applyAdditionalStatus(value.additionalStatus);
 	}, lifetime());
 
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		refreshBarImages();
 	}, lifetime());
 
 	_widget->paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		auto p = QPainter(_widget.get());
 		paint(p);
 	}, lifetime());
@@ -230,9 +229,13 @@ void PeerShortInfoCover::paintCoverImage(QPainter &p, const QImage &image) {
 	if (fill > 0) {
 		const auto t = roundedHeight + _scrollTop;
 		p.drawImage(
-			QRect(0, t, roundedWidth * factor, (roundedWidth - t) * factor),
+			QRect(0, t, roundedWidth, roundedWidth - t),
 			image,
-			QRect(0, t, roundedWidth * factor, (roundedWidth - t) * factor));
+			QRect(
+				0,
+				t * factor,
+				roundedWidth * factor,
+				(roundedWidth - t) * factor));
 	}
 	if (covered <= 0) {
 		return;
@@ -241,9 +244,9 @@ void PeerShortInfoCover::paintCoverImage(QPainter &p, const QImage &image) {
 	const auto from = top - rounded;
 	auto q = QPainter(&_roundedTopImage);
 	q.drawImage(
-		QRect(0, 0, roundedWidth * factor, rounded * factor),
+		QRect(0, 0, roundedWidth, rounded),
 		image,
-		QRect(0, _scrollTop, roundedWidth * factor, rounded * factor));
+		QRect(0, _scrollTop * factor, roundedWidth * factor, rounded * factor));
 	q.end();
 	_roundedTopImage = Images::Round(
 		std::move(_roundedTopImage),
@@ -474,7 +477,7 @@ void PeerShortInfoCover::applyUserpic(PeerShortInfoUserpic &&value) {
 		_videoStartPosition = value.videoStartPosition;
 		_videoInstance->lockPlayer();
 		_videoInstance->player().updates(
-		) | rpl::start_with_next_error([=](Update &&update) {
+		) | rpl::on_next_error([=](Update &&update) {
 			handleStreamingUpdate(std::move(update));
 		}, [=](Error &&error) {
 			handleStreamingError(std::move(error));
@@ -681,7 +684,7 @@ PeerShortInfoBox::PeerShortInfoBox(
 	_rows->add(_cover.takeOwned());
 
 	_scroll->scrolls(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_cover.setScrollTop(_scroll->scrollTop());
 	}, _cover.lifetime());
 }
@@ -716,7 +719,7 @@ void PeerShortInfoBox::prepare() {
 
 	_topRoundBackground->resize(st::shortInfoWidth, st::boxRadius);
 	_topRoundBackground->paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (const auto use = fillRoundedTopHeight()) {
 			const auto width = _topRoundBackground->width();
 			const auto top = _topRoundBackground->height() - use;
@@ -747,7 +750,7 @@ void PeerShortInfoBox::prepareRows() {
 			const style::FlatLabel &textSt) {
 		auto line = CreateTextWithLabel(
 			_rows,
-			rpl::duplicate(label) | Ui::Text::ToWithEntities(),
+			rpl::duplicate(label) | rpl::map(tr::marked),
 			rpl::duplicate(text),
 			_st.label,
 			textSt,
@@ -759,7 +762,7 @@ void PeerShortInfoBox::prepareRows() {
 		rpl::combine(
 			std::move(label),
 			std::move(text)
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			_rows->resizeToWidth(st::shortInfoWidth);
 		}, _rows->lifetime());
 
@@ -797,7 +800,7 @@ void PeerShortInfoBox::prepareRows() {
 		tr::lng_context_copy_link(tr::now));
 	addInfoOneLine(
 		tr::lng_info_mobile_label(),
-		phoneValue() | Ui::Text::ToWithEntities(),
+		phoneValue() | rpl::map(tr::marked),
 		tr::lng_profile_copy_phone(tr::now));
 	auto label = _fields.current().isBio
 		? tr::lng_info_bio_label()
@@ -805,12 +808,16 @@ void PeerShortInfoBox::prepareRows() {
 	addInfoLine(std::move(label), aboutValue(), _st.labeled);
 	addInfoOneLine(
 		tr::lng_info_username_label(),
-		usernameValue() | Ui::Text::ToWithEntities(),
+		usernameValue(),
 		tr::lng_context_copy_mention(tr::now));
 	addInfoOneLine(
 		birthdayLabel(),
-		birthdayValue() | Ui::Text::ToWithEntities(),
+		birthdayValue() | rpl::map(tr::marked),
 		tr::lng_mediaview_copy(tr::now));
+	addInfoLine(
+		tr::lng_info_notes_label(),
+		noteValue(),
+		_st.labeled);
 }
 
 void PeerShortInfoBox::resizeEvent(QResizeEvent *e) {
@@ -873,14 +880,14 @@ rpl::producer<QString> PeerShortInfoBox::nameValue() const {
 rpl::producer<TextWithEntities> PeerShortInfoBox::channelValue() const {
 	return _fields.value(
 	) | rpl::map([](const PeerShortInfoFields &fields) {
-		return Ui::Text::Link(fields.channelName, fields.channelLink);
+		return tr::link(fields.channelName, fields.channelLink);
 	}) | rpl::distinct_until_changed();
 }
 
 rpl::producer<TextWithEntities> PeerShortInfoBox::linkValue() const {
 	return _fields.value(
 	) | rpl::map([](const PeerShortInfoFields &fields) {
-		return Ui::Text::Link(fields.link, fields.link);
+		return tr::link(fields.link, fields.link);
 	}) | rpl::distinct_until_changed();
 }
 
@@ -891,10 +898,12 @@ rpl::producer<QString> PeerShortInfoBox::phoneValue() const {
 	}) | rpl::distinct_until_changed();
 }
 
-rpl::producer<QString> PeerShortInfoBox::usernameValue() const {
+rpl::producer<TextWithEntities> PeerShortInfoBox::usernameValue() const {
 	return _fields.value(
 	) | rpl::map([](const PeerShortInfoFields &fields) {
-		return fields.username;
+		return fields.usernameLink.isEmpty()
+			? TextWithEntities{ fields.username }
+			: tr::link(fields.username, fields.usernameLink);
 	}) | rpl::distinct_until_changed();
 }
 
@@ -915,5 +924,11 @@ rpl::producer<QString> PeerShortInfoBox::birthdayValue() const {
 rpl::producer<TextWithEntities> PeerShortInfoBox::aboutValue() const {
 	return _fields.value() | rpl::map([](const PeerShortInfoFields &fields) {
 		return fields.about;
+	}) | rpl::distinct_until_changed();
+}
+
+rpl::producer<TextWithEntities> PeerShortInfoBox::noteValue() const {
+	return _fields.value() | rpl::map([](const PeerShortInfoFields &fields) {
+		return fields.note;
 	}) | rpl::distinct_until_changed();
 }

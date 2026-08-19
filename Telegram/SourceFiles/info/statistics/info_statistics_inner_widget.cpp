@@ -7,11 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/statistics/info_statistics_inner_widget.h"
 
+#include "api/api_polls.h"
 #include "api/api_statistics.h"
 #include "apiwrap.h"
 #include "base/call_delayed.h"
 #include "base/event_filter.h"
 #include "data/data_peer.h"
+#include "data/data_poll.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_story.h"
@@ -93,11 +95,11 @@ void ProcessZoom(
 		return;
 	}
 	widget->zoomRequests(
-	) | rpl::start_with_next([=](float64 x) {
+	) | rpl::on_next([=](float64 x) {
 		d.api->requestZoom(
 			zoomToken,
 			x
-		) | rpl::start_with_next_error_done([=](
+		) | rpl::on_next_error_done([=](
 				const Data::StatisticalGraph &graph) {
 			if (graph.chart) {
 				widget->setZoomedChartData(graph.chart, x, type);
@@ -165,7 +167,7 @@ void FillStatistic(
 			descriptor.api->requestZoom(
 				graphData.zoomToken,
 				0
-			) | rpl::start_with_next_error_done([=, graphPtr = &graphData](
+			) | rpl::on_next_error_done([=, graphPtr = &graphData](
 					const Data::StatisticalGraph &graph) mutable {
 				{
 					// Save the loaded async data to cache.
@@ -287,6 +289,7 @@ void FillStatistic(
 				Type::Bar);
 		}
 	}
+	Statistic::FixCacheForHighDPIChartWidget(content);
 	if (!state->pendingCount) {
 		++state->pendingCount;
 		singlePendingDone();
@@ -393,7 +396,7 @@ void FillOverview(
 		sub->setTextColorOverride(st::windowSubTextFg->c);
 
 		primary->geometryValue(
-		) | rpl::start_with_next([=](const QRect &g) {
+		) | rpl::on_next([=](const QRect &g) {
 			const auto &padding = st::statisticsOverviewSecondValuePadding;
 			second->moveToLeft(
 				rect::right(g) + padding.left(),
@@ -539,7 +542,7 @@ void FillOverview(
 	}
 	container->showChildren();
 	container->sizeValue() | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](const QSize &s) {
+	) | rpl::on_next([=](const QSize &s) {
 		const auto halfWidth = s.width() / 2;
 		{
 			const auto &p = st::statisticsOverviewValuePadding;
@@ -579,41 +582,40 @@ void FillLoading(
 		: u"stats"_q;
 	auto icon = ::Settings::CreateLottieIcon(
 		content,
-		{ .name = iconName, .sizeOverride = Size(st::changePhoneIconSize) },
+		{ .name = iconName, .sizeOverride = st::normalBoxLottieSize },
 		st::settingsBlockedListIconPadding);
 
 	(
 		std::move(showFinished) | rpl::take(1)
-	) | rpl::start_with_next([animate = std::move(icon.animate)] {
+	) | rpl::on_next([animate = std::move(icon.animate)] {
 		animate(anim::repeat::loop);
 	}, icon.widget->lifetime());
 	content->add(std::move(icon.widget));
 
 	content->add(
-		object_ptr<Ui::CenterWrap<>>(
+		object_ptr<Ui::FlatLabel>(
 			content,
-			object_ptr<Ui::FlatLabel>(
-				content,
-				(type == LoadingType::Boosts)
-					? tr::lng_stats_boosts_loading()
-					: (type == LoadingType::Earn)
-					? tr::lng_stats_earn_loading()
-					: tr::lng_stats_loading(),
-				st::changePhoneTitle)),
-		st::changePhoneTitlePadding + st::boxRowPadding);
+			(type == LoadingType::Boosts)
+				? tr::lng_stats_boosts_loading()
+				: (type == LoadingType::Earn)
+				? tr::lng_stats_earn_loading()
+				: tr::lng_stats_loading(),
+			st::changePhoneTitle),
+		st::changePhoneTitlePadding + st::boxRowPadding,
+		style::al_top);
 
 	content->add(
-		object_ptr<Ui::CenterWrap<>>(
+		object_ptr<Ui::FlatLabel>(
 			content,
-			object_ptr<Ui::FlatLabel>(
-				content,
-				(type == LoadingType::Boosts)
-					? tr::lng_stats_boosts_loading_subtext()
-					: (type == LoadingType::Earn)
-					? tr::lng_stats_earn_loading_subtext()
-					: tr::lng_stats_loading_subtext(),
-				st::statisticsLoadingSubtext)),
-		st::changePhoneDescriptionPadding + st::boxRowPadding);
+			(type == LoadingType::Boosts)
+				? tr::lng_stats_boosts_loading_subtext()
+				: (type == LoadingType::Earn)
+				? tr::lng_stats_earn_loading_subtext()
+				: tr::lng_stats_loading_subtext(),
+			st::statisticsLoadingSubtext),
+		st::changePhoneDescriptionPadding + st::boxRowPadding,
+		style::al_top
+	)->setTryMakeSimilarLines(true);
 
 	Ui::AddSkip(content, st::settingsBlockedListIconPadding.top());
 }
@@ -647,10 +649,10 @@ void InnerWidget::load() {
 		_showFinished.events());
 
 	_showFinished.events(
-	) | rpl::take(1) | rpl::start_with_next([=] {
+	) | rpl::take(1) | rpl::on_next([=] {
 		if (!_contextId && !_storyId) {
 			descriptor.api->request(
-			) | rpl::start_with_done([=] {
+			) | rpl::on_done([=] {
 				_state.stats = Data::AnyStatistics{
 					descriptor.api->channelStats(),
 					descriptor.api->supergroupStats(),
@@ -726,6 +728,9 @@ void InnerWidget::fill() {
 		FillOverview(inner, _state.stats, true);
 	}
 	FillStatistic(inner, descriptor, _state.stats, finishLoading);
+	if (_state.stats.message) {
+		fillPollVotesGraph(inner);
+	}
 	const auto &channel = _state.stats.channel;
 	const auto &supergroup = _state.stats.supergroup;
 	if (channel) {
@@ -786,6 +791,38 @@ void InnerWidget::fill() {
 	}
 }
 
+void InnerWidget::fillPollVotesGraph(
+		not_null<Ui::VerticalLayout*> container) {
+	const auto item = _peer->owner().message(_contextId);
+	const auto media = item ? item->media() : nullptr;
+	const auto poll = media ? media->poll() : nullptr;
+	if (!poll || !poll->canViewStats()) {
+		return;
+	}
+	const auto wrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	wrap->toggle(false, anim::type::instant);
+	const auto widget = wrap->entity()->add(
+		object_ptr<Statistic::ChartWidget>(wrap->entity()),
+		st::statisticsLayerMargins);
+	_peer->session().api().polls().requestStats(
+		_contextId,
+		crl::guard(this, [=](Data::StatisticalGraph graph) {
+			if (!graph.chart) {
+				return;
+			}
+			widget->setChartData(
+				std::move(graph.chart),
+				Statistic::ChartViewType::Linear);
+			widget->setTitle(tr::lng_notification_reactions_poll_votes());
+			Statistic::FixCacheForHighDPIChartWidget(wrap->entity());
+			wrap->toggle(true, anim::type::normal);
+		}),
+		[](QString) {});
+}
+
 void InnerWidget::fillRecentPosts(not_null<Ui::VerticalLayout*> container) {
 	const auto &stats = _state.stats.channel;
 	if (!stats || stats.recentMessageInteractions.empty()) {
@@ -840,7 +877,7 @@ void InnerWidget::fillRecentPosts(not_null<Ui::VerticalLayout*> container) {
 		_messagePreviews.push_back(raw);
 		raw->show();
 		button->sizeValue(
-		) | rpl::start_with_next([=](const QSize &s) {
+		) | rpl::on_next([=](const QSize &s) {
 			if (!s.isNull()) {
 				raw->setGeometry(Rect(s)
 					- st::statisticsRecentPostButton.padding);
@@ -957,4 +994,3 @@ void InnerWidget::showFinished() {
 }
 
 } // namespace Info::Statistics
-

@@ -19,8 +19,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history.h"
 #include "core/file_location.h"
+#include "core/application.h"
 #include "core/mime_type.h"
 #include "main/main_session.h"
+#include "storage/storage_account.h"
 #include "apiwrap.h"
 
 namespace Storage {
@@ -157,7 +159,7 @@ Uploader::Uploader(not_null<ApiWrap*> api)
 , _stopSessionsTimer([=] { stopSessions(); }) {
 	const auto session = &_api->session();
 	photoReady(
-	) | rpl::start_with_next([=](UploadedMedia &&data) {
+	) | rpl::on_next([=](UploadedMedia &&data) {
 		if (data.edit) {
 			const auto item = session->data().message(data.fullId);
 			Api::EditMessageWithUploadedPhoto(
@@ -173,7 +175,7 @@ Uploader::Uploader(not_null<ApiWrap*> api)
 	}, _lifetime);
 
 	documentReady(
-	) | rpl::start_with_next([=](UploadedMedia &&data) {
+	) | rpl::on_next([=](UploadedMedia &&data) {
 		if (data.edit) {
 			const auto item = session->data().message(data.fullId);
 			Api::EditMessageWithUploadedDocument(
@@ -189,27 +191,27 @@ Uploader::Uploader(not_null<ApiWrap*> api)
 	}, _lifetime);
 
 	photoProgress(
-	) | rpl::start_with_next([=](const FullMsgId &fullId) {
+	) | rpl::on_next([=](const FullMsgId &fullId) {
 		processPhotoProgress(fullId);
 	}, _lifetime);
 
 	photoFailed(
-	) | rpl::start_with_next([=](const FullMsgId &fullId) {
+	) | rpl::on_next([=](const FullMsgId &fullId) {
 		processPhotoFailed(fullId);
 	}, _lifetime);
 
 	documentProgress(
-	) | rpl::start_with_next([=](const FullMsgId &fullId) {
+	) | rpl::on_next([=](const FullMsgId &fullId) {
 		processDocumentProgress(fullId);
 	}, _lifetime);
 
 	documentFailed(
-	) | rpl::start_with_next([=](const FullMsgId &fullId) {
+	) | rpl::on_next([=](const FullMsgId &fullId) {
 		processDocumentFailed(fullId);
 	}, _lifetime);
 
 	_api->instance().nonPremiumDelayedRequests(
-	) | rpl::start_with_next([=](mtpRequestId id) {
+	) | rpl::on_next([=](mtpRequestId id) {
 		const auto i = _requests.find(id);
 		if (i != end(_requests)) {
 			i->second.nonPremiumDelayed = true;
@@ -264,14 +266,16 @@ void Uploader::sendProgressUpdate(
 		Api::SendProgressType type,
 		int progress) {
 	const auto history = item->history();
-	auto &manager = _api->session().sendProgressManager();
-	manager.update(history, type, progress);
-	if (const auto replyTo = item->replyToTop()) {
-		if (history->peer->isMegagroup()) {
-			manager.update(history, replyTo, type, progress);
+	if (!item->isEphemeral()) {
+		auto &manager = _api->session().sendProgressManager();
+		manager.update(history, type, progress);
+		if (const auto replyTo = item->replyToTop()) {
+			if (history->peer->isMegagroup()) {
+				manager.update(history, replyTo, type, progress);
+			}
+		} else if (history->isForum()) {
+			manager.update(history, item->topicRootId(), type, progress);
 		}
-	} else if (history->isForum()) {
-		manager.update(history, item->topicRootId(), type, progress);
 	}
 	_api->session().data().requestItemRepaint(item);
 }
@@ -331,6 +335,22 @@ void Uploader::upload(
 		}
 		if (!file->filepath.isEmpty()) {
 			document->setLocation(Core::FileLocation(file->filepath));
+		} else if (!file->content.isEmpty()
+			&& !document->saveToCache()
+			&& !document->useStreamingLoader()
+			&& Core::App().canSaveFileWithoutAskingForPath()) {
+			const auto path = DocumentFileNameForSave(document);
+			if (!path.isEmpty()) {
+				auto f = QFile(path);
+				if (f.open(QIODevice::WriteOnly)
+					&& f.write(file->content) == file->content.size()) {
+					f.close();
+					document->setLocation(Core::FileLocation(path));
+					session().local().writeFileLocation(
+						document->mediaKey(),
+						Core::FileLocation(path));
+				}
+			}
 		}
 		if (file->type == SendMediaType::ThemeFile) {
 			document->checkWallPaperProperties();
@@ -928,6 +948,7 @@ void Uploader::finishFront() {
 				.file = file,
 				.thumb = thumb,
 				.attachedStickers = attachedStickers,
+				.forceFile = entry.file->forceFile,
 			},
 			.options = options,
 			.edit = edit,
@@ -970,12 +991,13 @@ void Uploader::uploadCoverAsPhoto(
 	_api->request(MTPmessages_UploadMedia(
 		MTP_flags(0),
 		MTPstring(), // business_connection_id
-		session().data().peer(videoId.peer)->input,
+		session().data().peer(videoId.peer)->input(),
 		MTP_inputMediaUploadedPhoto(
 			MTP_flags(0),
 			cover.info.file,
 			MTP_vector<MTPInputDocument>(0),
-			MTP_int(0))
+			MTP_int(0),
+			MTPInputDocument()) // video
 	)).done([=](const MTPMessageMedia &result) {
 		result.match([&](const MTPDmessageMediaPhoto &data) {
 			const auto photo = data.vphoto();

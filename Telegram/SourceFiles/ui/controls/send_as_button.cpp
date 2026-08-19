@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/cross_animation.h"
 #include "ui/painter.h"
-#include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 
 namespace Ui {
 

@@ -53,6 +53,8 @@ MTPMessagesFilter PrepareSearchFilter(Storage::SharedMediaType type) {
 		return MTP_inputMessagesFilterChatPhotos();
 	case Type::Pinned:
 		return MTP_inputMessagesFilterPinned();
+	case Type::Poll:
+		return MTP_inputMessagesFilterPoll();
 	}
 	return MTP_inputMessagesFilterEmpty();
 }
@@ -77,13 +79,14 @@ std::optional<GlobalMediaRequest> PrepareGlobalMediaRequest(
 	return MTPmessages_SearchGlobal(
 		MTP_flags(MTPmessages_SearchGlobal::Flag::f_folder_id), // No archive
 		MTP_int(folderId),
+		MTPInputChannel(),
 		MTP_string(query),
 		filter,
 		MTP_int(minDate),
 		MTP_int(maxDate),
 		MTP_int(offsetRate),
 		(offsetPosition.fullId.peer
-			? session->data().peer(PeerId(offsetPosition.fullId.peer))->input
+			? session->data().peer(PeerId(offsetPosition.fullId.peer))->input()
 			: MTP_inputPeerEmpty()),
 		MTP_int(offsetPosition.fullId.msg),
 		MTP_int(limit));
@@ -132,6 +135,7 @@ GlobalMediaResult ParseGlobalMediaResult(
 std::optional<SearchRequest> PrepareSearchRequest(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
+	    PeerId monoforumPeerId,
 		Storage::SharedMediaType type,
 		const QString &query,
 		MsgId messageId,
@@ -168,11 +172,14 @@ std::optional<SearchRequest> PrepareSearchRequest(
 		int64(0x3FFFFFFF)));
 	using Flag = MTPmessages_Search::Flag;
 	return MTPmessages_Search(
-		MTP_flags(topicRootId ? Flag::f_top_msg_id : Flag(0)),
-		peer->input,
+		MTP_flags((topicRootId ? Flag::f_top_msg_id : Flag(0))
+			| (monoforumPeerId ? Flag::f_saved_peer_id : Flag(0))),
+		peer->input(),
 		MTP_string(query),
 		MTP_inputPeerEmpty(),
-		MTPInputPeer(), // saved_peer_id
+		(monoforumPeerId
+			? peer->owner().peer(monoforumPeerId)->input()
+			: MTPInputPeer()),
 		MTPVector<MTPReaction>(), // saved_reaction
 		MTP_int(topicRootId),
 		filter,
@@ -201,6 +208,7 @@ SearchResult ParseSearchResult(
 			auto &d = data.c_messages_messages();
 			peer->owner().processUsers(d.vusers());
 			peer->owner().processChats(d.vchats());
+			peer->processTopics(d.vtopics());
 			result.fullCount = d.vmessages().v.size();
 			return &d.vmessages().v;
 		} break;
@@ -209,21 +217,22 @@ SearchResult ParseSearchResult(
 			auto &d = data.c_messages_messagesSlice();
 			peer->owner().processUsers(d.vusers());
 			peer->owner().processChats(d.vchats());
+			peer->processTopics(d.vtopics());
 			result.fullCount = d.vcount().v;
 			return &d.vmessages().v;
 		} break;
 
 		case mtpc_messages_channelMessages: {
 			const auto &d = data.c_messages_channelMessages();
+			peer->owner().processUsers(d.vusers());
+			peer->owner().processChats(d.vchats());
 			if (const auto channel = peer->asChannel()) {
 				channel->ptsReceived(d.vpts().v);
-				channel->processTopics(d.vtopics());
 			} else {
 				LOG(("API Error: received messages.channelMessages when "
 					"no channel was passed! (ParseSearchResult)"));
 			}
-			peer->owner().processUsers(d.vusers());
-			peer->owner().processChats(d.vchats());
+			peer->processTopics(d.vtopics());
 			result.fullCount = d.vcount().v;
 			return &d.vmessages().v;
 		} break;
@@ -305,7 +314,7 @@ HistoryRequest PrepareHistoryRequest(
 		int64(0),
 		int64(0x3FFFFFFF)));
 	return MTPmessages_GetHistory(
-		peer->input,
+		peer->input(),
 		MTP_int(mtpOffsetId),
 		MTP_int(offsetDate),
 		MTP_int(addOffset),
@@ -369,12 +378,14 @@ rpl::producer<SparseIdsMergedSlice> SearchController::idsSlice(
 	auto createSimpleViewer = [=](
 			PeerId peerId,
 			MsgId topicRootId,
+			PeerId monoforumPeerId,
 			SparseIdsSlice::Key simpleKey,
 			int limitBefore,
 			int limitAfter) {
 		return simpleIdsSlice(
 			peerId,
 			topicRootId,
+			monoforumPeerId,
 			simpleKey,
 			query,
 			limitBefore,
@@ -384,6 +395,7 @@ rpl::producer<SparseIdsMergedSlice> SearchController::idsSlice(
 		SparseIdsMergedSlice::Key(
 			query.peerId,
 			query.topicRootId,
+			query.monoforumPeerId,
 			query.migratedPeerId,
 			aroundId),
 		limitBefore,
@@ -394,6 +406,7 @@ rpl::producer<SparseIdsMergedSlice> SearchController::idsSlice(
 rpl::producer<SparseIdsSlice> SearchController::simpleIdsSlice(
 		PeerId peerId,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		MsgId aroundId,
 		const Query &query,
 		int limitBefore,
@@ -402,8 +415,12 @@ rpl::producer<SparseIdsSlice> SearchController::simpleIdsSlice(
 	Expects(IsServerMsgId(aroundId) || (aroundId == 0));
 	Expects((aroundId != 0)
 		|| (limitBefore == 0 && limitAfter == 0));
-	Expects((query.peerId == peerId && query.topicRootId == topicRootId)
-		|| (query.migratedPeerId == peerId && MsgId(0) == topicRootId));
+	Expects((query.peerId == peerId
+		&& query.topicRootId == topicRootId
+		&& query.monoforumPeerId == monoforumPeerId)
+		|| (query.migratedPeerId == peerId
+			&& MsgId(0) == topicRootId
+			&& PeerId(0) == monoforumPeerId));
 
 	auto it = _cache.find(query);
 	if (it == _cache.end()) {
@@ -420,7 +437,7 @@ rpl::producer<SparseIdsSlice> SearchController::simpleIdsSlice(
 			limitBefore,
 			limitAfter);
 		builder->insufficientAround(
-		) | rpl::start_with_next([=](
+		) | rpl::on_next([=](
 				const SparseIdsSliceBuilder::AroundData &data) {
 			requestMore(data, query, listData);
 		}, lifetime);
@@ -432,22 +449,24 @@ rpl::producer<SparseIdsSlice> SearchController::simpleIdsSlice(
 		listData->list.sliceUpdated(
 		) | rpl::filter([=](const SliceUpdate &update) {
 			return builder->applyUpdate(update);
-		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
+		}) | rpl::on_next(pushNextSnapshot, lifetime);
 
 		_session->data().itemRemoved(
 		) | rpl::filter([=](not_null<const HistoryItem*> item) {
 			return (item->history()->peer->id == peerId)
-				&& (!topicRootId || item->topicRootId() == topicRootId);
+				&& (!topicRootId || item->topicRootId() == topicRootId)
+				&& (!monoforumPeerId
+					|| item->sublistPeerId() == monoforumPeerId);
 		}) | rpl::filter([=](not_null<const HistoryItem*> item) {
 			return builder->removeOne(item->id);
-		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
+		}) | rpl::on_next(pushNextSnapshot, lifetime);
 
 		_session->data().historyCleared(
 		) | rpl::filter([=](not_null<const History*> history) {
 			return (history->peer->id == peerId);
 		}) | rpl::filter([=] {
 			return builder->removeAll();
-		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
+		}) | rpl::on_next(pushNextSnapshot, lifetime);
 
 		using Result = Storage::SparseIdsListResult;
 		listData->list.query(Storage::SparseIdsListQuery(
@@ -456,7 +475,7 @@ rpl::producer<SparseIdsSlice> SearchController::simpleIdsSlice(
 			limitAfter
 		)) | rpl::filter([=](const Result &result) {
 			return builder->applyInitial(result);
-		}) | rpl::start_with_next_done(
+		}) | rpl::on_next_done(
 			pushNextSnapshot,
 			[=] { builder->checkInsufficient(); },
 			lifetime);
@@ -510,6 +529,7 @@ void SearchController::requestMore(
 	auto prepared = PrepareSearchRequest(
 		listData->peer,
 		query.topicRootId,
+		query.monoforumPeerId,
 		query.type,
 		query.query,
 		key.aroundId,

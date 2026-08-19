@@ -37,50 +37,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 
 namespace Window {
-namespace {
-
-class VersionLabel final
-	: public Ui::FlatLabel
-	, public Ui::AbstractTooltipShower {
-public:
-	using Ui::FlatLabel::FlatLabel;
-
-	void clickHandlerActiveChanged(
-			const ClickHandlerPtr &action,
-			bool active) override {
-		update();
-		if (active && action && !action->dragText().isEmpty()) {
-			Ui::Tooltip::Show(1000, this);
-		} else {
-			Ui::Tooltip::Hide();
-		}
-	}
-
-	QString tooltipText() const override {
-		return u"Build date: %1."_q.arg(__DATE__);
-	}
-
-	QPoint tooltipPos() const override {
-		return QCursor::pos();
-	}
-
-	bool tooltipWindowActive() const override {
-		return Ui::AppInFocus() && Ui::InFocusChain(window());
-	}
-
-};
-
-} // namespace
 
 [[nodiscard]] not_null<Ui::FlatLabel*> AddVersionLabel(
 		not_null<Ui::RpWidget*> parent) {
-	return (Platform::IsMacStoreBuild() || Platform::IsWindowsStoreBuild())
-		? Ui::CreateChild<Ui::FlatLabel>(
-			parent.get(),
-			st::mainMenuVersionLabel)
-		: Ui::CreateChild<VersionLabel>(
-			parent.get(),
-			st::mainMenuVersionLabel);
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		parent.get(),
+		st::mainMenuVersionLabel);
+	if constexpr (!Platform::IsMacStoreBuild()
+		&& !Platform::IsWindowsStoreBuild()) {
+		Ui::InstallTooltip(label, [] {
+			return u"Build date: %1.\nQt version: %2."_q
+				.arg(__DATE__)
+				.arg(QT_VERSION_STR);
+		});
+	}
+	return label;
 }
 
 not_null<Ui::SettingsButton*> AddMyChannelsBox(
@@ -112,7 +83,7 @@ not_null<Ui::SettingsButton*> AddMyChannelsBox(
 	const auto addIcon = [=](not_null<Ui::GenericBox*> box) {
 		const auto widget = box->addRow(object_ptr<Ui::RpWidget>(box));
 		widget->paintRequest(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			auto p = QPainter(widget);
 			p.setFont(st::boxTextFont);
 			p.setPen(st::windowSubTextFg);
@@ -139,7 +110,7 @@ not_null<Ui::SettingsButton*> AddMyChannelsBox(
 				const auto icon = owned.get();
 				widget->lifetime().add([kept = std::move(owned)]{});
 				widget->paintRequest(
-				) | rpl::start_with_next([=] {
+				) | rpl::on_next([=] {
 					auto p = QPainter(widget);
 					icon->paint(p, (widget->width() - icon->width()) / 2, 0);
 				}, widget->lifetime());
@@ -197,7 +168,7 @@ not_null<Ui::SettingsButton*> AddMyChannelsBox(
 							lt_count,
 							count)
 					: QString());
-			row->paintRequest() | rpl::start_with_next([=] {
+			row->paintRequest() | rpl::on_next([=] {
 				auto p = QPainter(row);
 				const auto &st = st::defaultPeerListItem;
 				const auto availableWidth = row->width()
@@ -255,6 +226,7 @@ not_null<Ui::SettingsButton*> AddMyChannelsBox(
 		} else {
 			data.enumerateBroadcasts([&](not_null<ChannelData*> channel) {
 				if (channel->amCreator()
+					&& !channel->isCommunity()
 					&& !ranges::contains(ids, channel->id)) {
 					ids.push_back(channel->id);
 					add(channel, box->verticalLayout());
@@ -317,7 +289,7 @@ void SetupMenuBots(
 		rpl::empty
 	) | rpl::then(
 		bots->attachBotsUpdates()
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		const auto width = container->widthNoMargins();
 		wrap->clear();
 		for (const auto &bot : bots->attachBots()) {
@@ -328,7 +300,7 @@ void SetupMenuBots(
 				if (!*iconLoadLifetime) {
 					auto &session = user->session();
 					*iconLoadLifetime = session.downloaderTaskFinished(
-					) | rpl::start_with_next([=] {
+					) | rpl::on_next([=] {
 						if (media->loaded()) {
 							iconLoadLifetime->destroy();
 							bots->notifyBotIconLoaded();
@@ -348,16 +320,16 @@ void SetupMenuBots(
 				button,
 				bot.media);
 			button->heightValue(
-			) | rpl::start_with_next([=](int height) {
+			) | rpl::on_next([=](int height) {
 				icon->move(
 					st::mainMenuButton.iconLeft,
 					(height - icon->height()) / 2);
 			}, button->lifetime());
-			const auto weak = Ui::MakeWeak(container);
+			const auto weak = base::make_weak(container);
 			const auto show = controller->uiShow();
 			button->setAcceptBoth(true);
 			button->clicks(
-			) | rpl::start_with_next([=](Qt::MouseButton which) {
+			) | rpl::on_next([=](Qt::MouseButton which) {
 				if (which == Qt::LeftButton) {
 					bots->open({
 						.bot = user,

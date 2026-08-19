@@ -8,8 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/settings/info_settings_widget.h"
 
 #include "info/info_memento.h"
-#include "settings/settings_main.h"
-#include "settings/settings_information.h"
+#include "settings/sections/settings_main.h"
+#include "settings/sections/settings_information.h"
+#include "settings/settings_common_session.h"
+#include "menu/menu_send.h"
 #include "ui/ui_utility.h"
 
 namespace Info {
@@ -43,62 +45,38 @@ Widget::Widget(
 : ContentWidget(parent, controller)
 , _self(controller->key().settingsSelf())
 , _type(controller->section().settingsType())
-, _inner([&] {
-	auto inner = _type->create(
-		this,
-		controller->parentController(),
-		scroll(),
-		controller->wrapValue(
-		) | rpl::map([](Wrap wrap) { return (wrap == Wrap::Layer)
-			? ::Settings::Container::Layer
-			: ::Settings::Container::Section; }));
-	if (inner->hasFlexibleTopBar()) {
-		auto filler = setInnerWidget(object_ptr<Ui::RpWidget>(this));
-		filler->resize(1, 1);
-
-		_flexibleScroll.contentHeightValue.events(
-		) | rpl::start_with_next([=](int h) {
-			filler->resize(filler->width(), h);
-		}, filler->lifetime());
-
-		filler->widthValue(
-		) | rpl::start_to_stream(
-			_flexibleScroll.fillerWidthValue,
-			lifetime());
-
-		controller->stepDataReference() = SectionCustomTopBarData{
-			.backButtonEnables = _flexibleScroll.backButtonEnables.events(),
-			.wrapValue = controller->wrapValue(),
-		};
-
-		// ScrollArea -> PaddingWrap -> RpWidget.
-		inner->setParent(filler->parentWidget()->parentWidget());
-		inner->raise();
-
-		using InnerPtr = base::unique_qptr<::Settings::AbstractSection>;
-		auto owner = filler->lifetime().make_state<InnerPtr>(
-			std::move(inner.release()));
-		return owner->get();
-	} else {
-		return setInnerWidget(std::move(inner));
-	}
-}())
+, _inner(setupFlexibleInnerWidget(
+		_type->create(
+			this,
+			controller->parentController(),
+			scroll(),
+			controller->wrapValue(
+			) | rpl::map([](Wrap wrap) { return (wrap == Wrap::Layer)
+				? ::Settings::Container::Layer
+				: ::Settings::Container::Section; })),
+		_flexibleScroll,
+		[=](Ui::RpWidget*) {
+			controller->stepDataReference() = SectionCustomTopBarData{
+				.backButtonEnables = _flexibleScroll.backButtonEnables.events(),
+				.wrapValue = controller->wrapValue(),
+			};
+		}))
 , _pinnedToTop(_inner->createPinnedToTop(this))
 , _pinnedToBottom(_inner->createPinnedToBottom(this)) {
 	_inner->sectionShowOther(
-	) | rpl::start_with_next([=](Type type) {
+	) | rpl::on_next([=](Type type) {
 		controller->showSettings(type);
 	}, _inner->lifetime());
 
 	_inner->sectionShowBack(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		controller->showBackFromStack();
 	}, _inner->lifetime());
 
 	_inner->setStepDataReference(controller->stepDataReference());
 
 	_removesFromStack.events(
-	) | rpl::start_with_next([=](const std::vector<Type> &types) {
+	) | rpl::on_next([=](const std::vector<Type> &types) {
 		const auto sections = ranges::views::all(
 			types
 		) | ranges::views::transform([](Type type) {
@@ -109,13 +87,13 @@ Widget::Widget(
 
 	if (_pinnedToTop) {
 		_inner->widthValue(
-		) | rpl::start_with_next([=](int w) {
+		) | rpl::on_next([=](int w) {
 			_pinnedToTop->resizeToWidth(w);
 			setScrollTopSkip(_pinnedToTop->height());
 		}, _pinnedToTop->lifetime());
 
 		_pinnedToTop->heightValue(
-		) | rpl::start_with_next([=](int h) {
+		) | rpl::on_next([=](int h) {
 			setScrollTopSkip(h);
 		}, _pinnedToTop->lifetime());
 	}
@@ -129,7 +107,7 @@ Widget::Widget(
 		};
 
 		_inner->sizeValue(
-		) | rpl::start_with_next([=](const QSize &s) {
+		) | rpl::on_next([=](const QSize &s) {
 			_pinnedToBottom->resizeToWidth(s.width());
 			//processHeight();
 		}, _pinnedToBottom->lifetime());
@@ -137,7 +115,7 @@ Widget::Widget(
 		rpl::combine(
 			_pinnedToBottom->heightValue(),
 			heightValue()
-		) | rpl::start_with_next(processHeight, _pinnedToBottom->lifetime());
+		) | rpl::on_next(processHeight, _pinnedToBottom->lifetime());
 	}
 
 	if (_pinnedToTop
@@ -151,12 +129,12 @@ Widget::Widget(
 		rpl::combine(
 			_pinnedToTop->heightValue(),
 			_inner->heightValue()
-		) | rpl::start_with_next([=](int, int h) {
+		) | rpl::on_next([=](int, int h) {
 			_flexibleScroll.contentHeightValue.fire(h + heightDiff());
 		}, _pinnedToTop->lifetime());
 
 		scrollTopValue(
-		) | rpl::start_with_next([=](int top) {
+		) | rpl::on_next([=](int top) {
 			if (!_pinnedToTop) {
 				return;
 			}
@@ -168,7 +146,7 @@ Widget::Widget(
 		}, _inner->lifetime());
 
 		_flexibleScroll.fillerWidthValue.events(
-		) | rpl::start_with_next([=](int w) {
+		) | rpl::on_next([=](int w) {
 			_inner->resizeToWidth(w);
 		}, _inner->lifetime());
 
@@ -210,6 +188,14 @@ void Widget::saveChanges(FnMut<void()> done) {
 	_inner->sectionSaveChanges(std::move(done));
 }
 
+SendMenu::Details Widget::sendMenuDetails() const {
+	return _inner->sendMenuDetails();
+}
+
+bool Widget::processChosenSticker(ChatHelpers::FileChosen &&chosen) {
+	return _inner->processChosenSticker(std::move(chosen));
+}
+
 void Widget::showFinished() {
 	_inner->showFinished();
 
@@ -226,8 +212,8 @@ const Ui::RoundRect *Widget::bottomSkipRounding() const {
 }
 
 rpl::producer<bool> Widget::desiredShadowVisibility() const {
-	return (_type == ::Settings::Main::Id()
-		|| _type == ::Settings::Information::Id())
+	return (_type == ::Settings::MainId()
+		|| _type == ::Settings::InformationId())
 		? ContentWidget::desiredShadowVisibility()
 		: rpl::single(true);
 }
@@ -280,9 +266,13 @@ void Widget::fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) {
 
 void Widget::saveState(not_null<Memento*> memento) {
 	memento->setScrollTop(scrollTopSave());
+	auto sectionState = std::any();
+	_inner->sectionSaveState(sectionState);
+	memento->setSectionState(std::move(sectionState));
 }
 
 void Widget::restoreState(not_null<Memento*> memento) {
+	_inner->sectionRestoreState(memento->sectionState());
 	scrollTopRestore(memento->scrollTop());
 }
 

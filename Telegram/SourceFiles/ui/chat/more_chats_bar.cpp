@@ -28,7 +28,7 @@ MoreChatsBar::MoreChatsBar(
 	_shadow->hide();
 
 	_wrap.entity()->paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
+	) | rpl::on_next([=](QRect clip) {
 		QPainter(_wrap.entity()).fillRect(clip, st::historyPinnedBg);
 	}, lifetime());
 	_wrap.setAttribute(Qt::WA_OpaquePaintEvent);
@@ -39,7 +39,7 @@ MoreChatsBar::MoreChatsBar(
 
 	rpl::duplicate(
 		copy
-	) | rpl::start_with_next([=](MoreChatsBarContent &&content) {
+	) | rpl::on_next([=](MoreChatsBarContent &&content) {
 		_content = content;
 		if (_content.count > 0) {
 			_text.setText(
@@ -64,7 +64,7 @@ MoreChatsBar::MoreChatsBar(
 		copy
 	) | rpl::map([=](const MoreChatsBarContent &content) {
 		return !content.count;
-	}) | rpl::start_with_next_done([=](bool hidden) {
+	}) | rpl::on_next_done([=](bool hidden) {
 		_shouldBeShown = !hidden;
 		if (!_forceHidden) {
 			_wrap.toggle(_shouldBeShown, anim::type::normal);
@@ -82,7 +82,7 @@ MoreChatsBar::~MoreChatsBar() = default;
 void MoreChatsBar::setupInner() {
 	_inner->resize(0, st::moreChatsBarHeight);
 	_inner->paintRequest(
-	) | rpl::start_with_next([=](QRect rect) {
+	) | rpl::on_next([=](QRect rect) {
 		auto p = Painter(_inner);
 		paint(p);
 	}, _inner->lifetime());
@@ -104,7 +104,7 @@ void MoreChatsBar::setupInner() {
 	) | rpl::to_empty | rpl::start_to_stream(_barClicks, _inner->lifetime());
 
 	_wrap.geometryValue(
-	) | rpl::start_with_next([=](QRect rect) {
+	) | rpl::on_next([=](QRect rect) {
 		updateShadowGeometry(rect);
 		updateControlsGeometry(rect);
 	}, _inner->lifetime());

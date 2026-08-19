@@ -129,7 +129,7 @@ protected:
 private:
 	void createChannel(const QString &title, const QString &description);
 	void createGroup(
-		QPointer<Ui::BoxContent> selectUsersBox,
+		base::weak_qptr<Ui::BoxContent> selectUsersBox,
 		const QString &title,
 		const std::vector<not_null<PeerData*>> &users);
 	void submitName();
@@ -246,7 +246,14 @@ private:
 
 class EditNameBox : public Ui::BoxContent {
 public:
-	EditNameBox(QWidget*, not_null<UserData*> user);
+	enum class Focus {
+		FirstName,
+		LastName,
+	};
+	EditNameBox(
+		QWidget*,
+		not_null<UserData*> user,
+		Focus focus = Focus::FirstName);
 
 protected:
 	void setInnerFocus() override;
@@ -266,6 +273,7 @@ private:
 	object_ptr<Ui::InputField> _last;
 
 	bool _invertOrder = false;
+	Focus _focus = Focus::FirstName;
 
 	mtpRequestId _requestId = 0;
 	QString _sentName;

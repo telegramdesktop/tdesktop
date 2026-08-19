@@ -58,25 +58,25 @@ void Userpic::setup(rpl::producer<bool> muted) {
 	_content.setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	_content.paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		paint();
 	}, lifetime());
 
 	std::move(
 		muted
-	) | rpl::start_with_next([=](bool muted) {
+	) | rpl::on_next([=](bool muted) {
 		setMuted(muted);
 	}, lifetime());
 
 	_peer->session().changes().peerFlagsValue(
 		_peer,
 		Data::PeerUpdate::Flag::Photo
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		processPhoto();
 	}, lifetime());
 
 	_peer->session().downloaderTaskFinished(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		refreshPhoto();
 	}, lifetime());
 

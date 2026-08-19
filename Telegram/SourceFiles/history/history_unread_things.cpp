@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_unread_things.h"
 
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
@@ -26,6 +27,7 @@ template <typename Update>
 	switch (type) {
 	case Type::Mentions: return Flag::UnreadMentions;
 	case Type::Reactions: return Flag::UnreadReactions;
+	case Type::PollVotes: return Flag::UnreadPollVotes;
 	}
 	Unexpected("Type in HistoryUnreadThings::UpdateFlag.");
 }
@@ -36,6 +38,15 @@ template <typename Update>
 
 [[nodiscard]] Data::TopicUpdate::Flag TopicUpdateFlag(Type type) {
 	return UpdateFlag<Data::TopicUpdate>(type);
+}
+
+[[nodiscard]] Data::SublistUpdate::Flag SublistUpdateFlag(Type type) {
+	Expects(type == Type::Reactions || type == Type::PollVotes);
+
+	if (type == Type::PollVotes) {
+		return Data::SublistUpdate::Flag::UnreadPollVotes;
+	}
+	return Data::SublistUpdate::Flag::UnreadReactions;
 }
 
 } // namespace
@@ -51,6 +62,9 @@ void Proxy::setCount(int count) {
 		createData();
 	}
 	auto &list = resolveList();
+	if (!count) {
+		list.clear();
+	}
 	const auto loaded = list.loadedCount();
 	if (loaded > count) {
 		LOG(("API Warning: "
@@ -58,10 +72,23 @@ void Proxy::setCount(int count) {
 		count = loaded;
 	}
 	const auto had = (list.count() > 0);
-	const auto &other = (_type == Type::Mentions)
-		? _data->reactions
-		: _data->mentions;
-	if (!count && other.count(-1) == 0) {
+	const auto othersEmpty = [&] {
+		for (auto t : { Type::Mentions, Type::Reactions, Type::PollVotes }) {
+			if (t == _type) {
+				continue;
+			}
+			const auto &other = (t == Type::Mentions)
+				? _data->mentions
+				: (t == Type::Reactions)
+				? _data->reactions
+				: _data->pollVotes;
+			if (other.count(-1) != 0) {
+				return false;
+			}
+		}
+		return true;
+	}();
+	if (!count && othersEmpty) {
 		_data = nullptr;
 	} else {
 		list.setCount(count);
@@ -72,6 +99,8 @@ void Proxy::setCount(int count) {
 			_thread->hasUnreadMentionChanged(has);
 		} else if (_type == Type::Reactions) {
 			_thread->hasUnreadReactionChanged(has);
+		} else if (_type == Type::PollVotes) {
+			_thread->hasUnreadPollVoteChanged(has);
 		}
 	}
 }
@@ -136,17 +165,19 @@ void Proxy::addSlice(const MTPmessages_Messages &slice, int alreadyLoaded) {
 			"(Proxy::addSlice)"));
 		return 0;
 	}, [&](const MTPDmessages_messages &data) {
+		history->peer->processTopics(data.vtopics());
 		return int(data.vmessages().v.size());
 	}, [&](const MTPDmessages_messagesSlice &data) {
+		history->peer->processTopics(data.vtopics());
 		return data.vcount().v;
 	}, [&](const MTPDmessages_channelMessages &data) {
 		if (const auto channel = history->peer->asChannel()) {
 			channel->ptsReceived(data.vpts().v);
-			channel->processTopics(data.vtopics());
 		} else {
 			LOG(("API Error: received messages.channelMessages when "
 				"no channel was passed! (Proxy::addSlice)"));
 		}
+		history->peer->processTopics(data.vtopics());
 		return data.vcount().v;
 	});
 
@@ -174,10 +205,14 @@ void Proxy::addSlice(const MTPmessages_Messages &slice, int alreadyLoaded) {
 			message,
 			localFlags,
 			type);
+		if (_type == Type::PollVotes) {
+			item->setHasUnreadPollVote();
+		}
 		const auto is = [&] {
 			switch (_type) {
 			case Type::Mentions: return item->isUnreadMention();
 			case Type::Reactions: return item->hasUnreadReaction();
+			case Type::PollVotes: return item->hasUnreadPollVote();
 			}
 			Unexpected("Type in Proxy::addSlice.");
 		}();
@@ -194,7 +229,7 @@ void Proxy::addSlice(const MTPmessages_Messages &slice, int alreadyLoaded) {
 }
 
 void Proxy::checkAdd(MsgId msgId, bool resolved) {
-	Expects(_type == Type::Reactions);
+	Expects(_type == Type::Reactions || _type == Type::PollVotes);
 
 	if (!_data) {
 		return;
@@ -206,11 +241,19 @@ void Proxy::checkAdd(MsgId msgId, bool resolved) {
 	const auto history = _thread->owningHistory();
 	const auto peer = history->peer;
 	const auto item = peer->owner().message(peer, msgId);
-	if (item && item->hasUnreadReaction()) {
+	const auto matches = item
+		&& ((_type == Type::Reactions) ? item->hasUnreadReaction()
+			: item->hasUnreadPollVote());
+	if (matches) {
 		item->addToUnreadThings(AddType::Existing);
 	} else if (!item && !resolved) {
+		const auto type = _type;
 		peer->session().api().requestMessageData(peer, msgId, [=] {
-			history->unreadReactions().checkAdd(msgId, true);
+			if (type == Type::Reactions) {
+				history->unreadReactions().checkAdd(msgId, true);
+			} else {
+				history->unreadPollVotes().checkAdd(msgId, true);
+			}
 		});
 	}
 }
@@ -224,6 +267,10 @@ void Proxy::notifyUpdated() {
 		topic->session().changes().topicUpdated(
 			topic,
 			TopicUpdateFlag(_type));
+	} else if (const auto sublist = _thread->asSublist()) {
+		sublist->session().changes().sublistUpdated(
+			sublist,
+			SublistUpdateFlag(_type));
 	}
 }
 
@@ -232,6 +279,7 @@ void Proxy::createData() {
 	if (_known) {
 		_data->mentions.setCount(0);
 		_data->reactions.setCount(0);
+		_data->pollVotes.setCount(0);
 	}
 }
 
@@ -241,6 +289,7 @@ List &Proxy::resolveList() {
 	switch (_type) {
 	case Type::Mentions: return _data->mentions;
 	case Type::Reactions: return _data->reactions;
+	case Type::PollVotes: return _data->pollVotes;
 	}
 	Unexpected("Unread things type in Proxy::resolveList.");
 }

@@ -12,12 +12,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/painter.h"
 #include "styles/style_editor.h"
+#include "styles/style_media_view.h"
 #include "styles/style_menu_icons.h"
 
 #include <QGraphicsScene>
 #include <QGraphicsSceneHoverEvent>
 #include <QGraphicsSceneMouseEvent>
 #include <QStyleOptionGraphicsItem>
+#include <QtWidgets/QApplication>
 #include <QtMath>
 
 namespace Editor {
@@ -84,9 +86,18 @@ void NumberedItem::setStatus(Status status) {
 	}
 }
 
+void NumberedItem::setUndoable(bool undoable) {
+	_undoable = undoable;
+}
+
+bool NumberedItem::undoable() const {
+	return _undoable;
+}
+
 ItemBase::ItemBase(Data data)
 : _lastZ(data.zPtr)
 , _imageSize(data.imageSize)
+, _contentMargins(data.contentMargins)
 , _horizontalSize(data.size) {
 	setFlags(QGraphicsItem::ItemIsMovable
 		| QGraphicsItem::ItemIsSelectable
@@ -100,7 +111,9 @@ QRectF ItemBase::boundingRect() const {
 }
 
 QRectF ItemBase::contentRect() const {
-	return innerRect() - _scaledInnerMargins;
+	return _contentMargins
+		? (innerRect() - _scaledInnerMargins)
+		: innerRect();
 }
 
 QRectF ItemBase::innerRect() const {
@@ -121,13 +134,23 @@ void ItemBase::paint(
 	p->setPen(hasFocus ? _pens.select : _pens.selectInactive);
 	p->drawRect(innerRect());
 
+	paintHandle(p, rightHandleRect(), hasFocus);
+	paintHandle(p, leftHandleRect(), hasFocus);
+}
+
+void ItemBase::paintHandle(
+		QPainter *p,
+		const QRectF &rect,
+		bool hasFocus) const {
 	p->setPen(hasFocus ? _pens.handle : _pens.handleInactive);
 	p->setBrush(st::photoEditorItemBaseHandleFg);
-	p->drawEllipse(rightHandleRect());
-	p->drawEllipse(leftHandleRect());
+	p->drawEllipse(rect);
 }
 
 void ItemBase::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
+	if (!dragThresholdPassed(event)) {
+		return;
+	}
 	if (isHandling()) {
 		const auto mousePos = event->pos();
 		const auto shift = event->modifiers().testFlag(Qt::ShiftModifier);
@@ -161,7 +184,10 @@ void ItemBase::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 }
 
 void ItemBase::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
-	setCursor(isHandling()
+	const auto owner = static_cast<Scene*>(scene());
+	setCursor((owner && owner->hasPendingShape())
+		? Qt::CrossCursor
+		: isHandling()
 		? Qt::ClosedHandCursor
 		: (handleType(event->pos()) != HandleType::None) && isSelected()
 		? Qt::OpenHandCursor
@@ -170,7 +196,8 @@ void ItemBase::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
 }
 
 void ItemBase::mousePressEvent(QGraphicsSceneMouseEvent *event) {
-	setZValue((*_lastZ)++);
+	raiseToTop();
+	resetDragging();
 	if (event->button() == Qt::LeftButton) {
 		_handle = handleType(event->pos());
 	}
@@ -211,22 +238,22 @@ void ItemBase::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		nullptr,
-		st::popupMenuWithIcons);
+		st::mediaviewPopupMenu);
 	add(
 		tr::lng_photo_editor_menu_delete,
 		kDeleteSequence,
 		[=] { actionDelete(); },
-		&st::menuIconDelete);
+		&st::mediaMenuIconDelete);
 	add(
 		tr::lng_photo_editor_menu_flip,
 		kFlipSequence,
 		[=] { actionFlip(); },
-		&st::menuIconFlip);
+		&st::mediaMenuIconFlip);
 	add(
 		tr::lng_photo_editor_menu_duplicate,
 		kDuplicateSequence,
 		[=] { actionDuplicate(); },
-		&st::menuIconCopy);
+		&st::mediaMenuIconCopy);
 
 	_menu->popup(event->screenPos());
 }
@@ -265,6 +292,10 @@ void ItemBase::actionDuplicate() {
 		setSelected(false);
 		s->addItem(newItem);
 	}
+}
+
+void ItemBase::raiseToTop() {
+	setZValue((*_lastZ)++);
 }
 
 void ItemBase::keyPressEvent(QKeyEvent *e) {
@@ -314,23 +345,82 @@ bool ItemBase::isHandling() const {
 	return _handle != HandleType::None;
 }
 
+void ItemBase::resetDragging() {
+	_dragging = false;
+}
+
+bool ItemBase::dragThresholdPassed(
+		not_null<QGraphicsSceneMouseEvent*> event) {
+	if (!_dragging) {
+		const auto delta = event->screenPos()
+			- event->buttonDownScreenPos(Qt::LeftButton);
+		const auto distance = QApplication::startDragDistance();
+		_dragging = (delta.manhattanLength() >= distance);
+	}
+	return _dragging;
+}
+
 float64 ItemBase::size() const {
 	return _horizontalSize;
 }
 
+float64 ItemBase::horizontalSize() const {
+	return _horizontalSize;
+}
+
+float64 ItemBase::verticalSize() const {
+	return _verticalSize;
+}
+
+float64 ItemBase::verticalMinimum() const {
+	return _verticalMinimumEnabled ? float64(_sizeLimits.min) : 1.;
+}
+
 void ItemBase::updateVerticalSize() {
 	const auto verticalSize = _horizontalSize * _aspectRatio;
-	_verticalSize = std::max(
-		verticalSize,
-		float64(_sizeLimits.min));
-	if (verticalSize < _sizeLimits.min) {
+	const auto minimum = verticalMinimum();
+	_verticalSize = std::max(verticalSize, minimum);
+	if (verticalSize < minimum) {
 		_horizontalSize = _verticalSize / _aspectRatio;
 	}
 }
 
+void ItemBase::setVerticalMinimumEnabled(bool enabled) {
+	if (_verticalMinimumEnabled != enabled) {
+		_verticalMinimumEnabled = enabled;
+		updateVerticalSize();
+	}
+}
+
 void ItemBase::setAspectRatio(float64 aspectRatio) {
+	prepareGeometryChange();
 	_aspectRatio = aspectRatio;
 	updateVerticalSize();
+}
+
+void ItemBase::applyStretch(
+		float64 horizontal,
+		float64 vertical,
+		bool allowBelowMinimum) {
+	prepareGeometryChange();
+	_horizontalSize = std::clamp(
+		horizontal,
+		allowBelowMinimum ? 1. : float64(_sizeLimits.min),
+		float64(_sizeLimits.max));
+	_verticalSize = std::clamp(
+		vertical,
+		allowBelowMinimum ? 1. : verticalMinimum(),
+		float64(_sizeLimits.max));
+	_aspectRatio = _verticalSize / _horizontalSize;
+}
+
+bool ItemBase::fitsMinimumSize() const {
+	return (_horizontalSize >= _sizeLimits.min)
+		&& (_verticalSize >= verticalMinimum());
+}
+
+float64 ItemBase::scaledHandleSize() const {
+	return _scaledHandleSize;
 }
 
 ItemBase::HandleType ItemBase::handleType(const QPointF &pos) const {
@@ -368,8 +458,8 @@ void ItemBase::updateZoom(float64 zoom) {
 		_imageSize.width(),
 		_imageSize.height());
 	_sizeLimits = {
-		.min = int(maxSide * kMinSizeRatio),
-		.max = int(maxSide * kMaxSizeRatio),
+		.min = std::max(int(maxSide * kMinSizeRatio), 1),
+		.max = std::max(int(maxSide * kMaxSizeRatio), 1),
 	};
 	_horizontalSize = std::clamp(
 		_horizontalSize,
@@ -413,7 +503,33 @@ ItemBase::Data ItemBase::generateData() const {
 		.flipped = flipped(),
 		.rotation = int(rotation()),
 		.imageSize = _imageSize,
+		.contentMargins = _contentMargins,
 	};
+}
+
+ItemBase::Placement ItemBase::placement() const {
+	return {
+		.position = pos(),
+		.rotation = rotation(),
+		.scale = scale(),
+		.zValue = zValue(),
+		.size = _horizontalSize,
+		.aspectRatio = _aspectRatio,
+		.flipped = _flipped,
+	};
+}
+
+void ItemBase::applyPlacement(const Placement &placement) {
+	prepareGeometryChange();
+	_horizontalSize = placement.size;
+	_aspectRatio = placement.aspectRatio;
+	updateVerticalSize();
+	setPos(placement.position);
+	setRotation(placement.rotation);
+	setScale(placement.scale);
+	setZValue(placement.zValue);
+	setFlip(placement.flipped);
+	update();
 }
 
 void ItemBase::applyData(const Data &data) {

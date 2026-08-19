@@ -9,8 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_report.h"
 #include "core/application.h"
+#include "data/components/ephemeral_messages.h"
 #include "data/data_peer.h"
 #include "data/data_photo.h"
+#include "history/history.h"
+#include "history/history_item.h"
+#include "main/main_session.h"
 #include "lang/lang_keys.h"
 #include "ui/boxes/report_box_graphics.h"
 #include "ui/layers/generic_box.h"
@@ -20,10 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/input_field.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
-#include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_layers.h"
-#include "styles/style_settings.h"
 
 namespace {
 
@@ -66,16 +67,12 @@ object_ptr<Ui::BoxContent> ReportProfilePhotoBox(
 	return ReportPhoto(peer, photo, nullptr);
 }
 
-void ShowReportMessageBox(
+void ShowReportFlowBox(
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
-		const std::vector<MsgId> &ids,
-		const std::vector<StoryId> &stories,
+		Fn<void(Data::ReportInput, Fn<void(Api::ReportResult)>)> report,
+		Data::ReportInput initialInput,
 		const style::ReportBox *stOverride) {
-	const auto report = Api::CreateReportMessagesOrStoriesCallback(
-		show,
-		peer);
-
 	auto performRequest = [=](
 			const auto &repeatRequest,
 			Data::ReportInput reportInput) -> void {
@@ -105,11 +102,9 @@ void ShowReportMessageBox(
 			}
 			if (!result.options.empty() || result.commentOption) {
 				show->show(Box([=](not_null<Ui::GenericBox*> box) {
-					box->setTitle(
-						rpl::single(
-							result.title.isEmpty()
-								? reportInput.optionText
-								: result.title));
+					box->setTitle(result.title.isEmpty()
+						? reportInput.optionText
+						: result.title);
 
 					for (const auto &option : result.options) {
 						const auto button = Ui::AddReportOptionButton(
@@ -147,8 +142,7 @@ void ShowReportMessageBox(
 							auto label = object_ptr<Ui::FlatLabel>(
 								container,
 								tr::lng_report_details_message_about(),
-								st::boxDividerLabel);
-							label->setTextColorOverride(st->dividerFg->c);
+								st->divider.label);
 							using namespace Ui;
 							const auto widget = container->add(
 								object_ptr<PaddingWrap<>>(
@@ -159,11 +153,11 @@ void ShowReportMessageBox(
 								= CreateChild<BoxContentDivider>(
 									widget,
 									st::boxDividerHeight,
-									st->dividerBg,
+									st->divider.bar,
 									RectPart::Top | RectPart::Bottom);
 							background->lower();
 							widget->sizeValue(
-							) | rpl::start_with_next([=](const QSize &s) {
+							) | rpl::on_next([=](const QSize &s) {
 								background->resize(s);
 							}, background->lifetime());
 						}
@@ -184,7 +178,7 @@ void ShowReportMessageBox(
 							repeatRequest(repeatRequest, std::move(copy));
 						};
 						details->submits(
-						) | rpl::start_with_next(submit, details->lifetime());
+						) | rpl::on_next(submit, details->lifetime());
 						box->addButton(tr::lng_report_button(), submit);
 					} else {
 						box->addButton(
@@ -206,5 +200,36 @@ void ShowReportMessageBox(
 			}
 		});
 	};
-	performRequest(performRequest, { .ids = ids, .stories = stories });
+	performRequest(performRequest, std::move(initialInput));
+}
+
+void ShowReportMessageBox(
+		std::shared_ptr<Ui::Show> show,
+		not_null<PeerData*> peer,
+		const std::vector<MsgId> &ids,
+		const std::vector<StoryId> &stories,
+		const style::ReportBox *stOverride) {
+	ShowReportFlowBox(
+		show,
+		peer,
+		Api::CreateReportMessagesOrStoriesCallback(show, peer),
+		{ .ids = ids, .stories = stories },
+		stOverride);
+}
+
+void ShowReportEphemeralBox(
+		std::shared_ptr<Ui::Show> show,
+		not_null<HistoryItem*> item) {
+	const auto peer = item->history()->peer;
+	const auto ephemeralId = peer->session().ephemeralMessages().lookupId(
+		item);
+	if (!ephemeralId) {
+		return;
+	}
+	ShowReportFlowBox(
+		show,
+		peer,
+		Api::CreateReportEphemeralMessageCallback(show, peer, ephemeralId),
+		{},
+		nullptr);
 }

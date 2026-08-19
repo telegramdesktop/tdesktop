@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/main_window_linux.h"
 
-#include "styles/style_window.h"
 #include "platform/linux/specific_linux.h"
 #include "history/history.h"
 #include "history/history_widget.h"
@@ -25,15 +24,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "base/platform/base_platform_info.h"
+#include "base/platform/linux/base_linux_xcb_utilities.h"
 #include "base/event_filter.h"
 #include "ui/platform/ui_platform_window_title.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/ui_utility.h"
-
-#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
-#include "base/platform/linux/base_linux_xcb_utilities.h"
-#endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
 #include <QtCore/QSize>
 #include <QtCore/QMimeData>
@@ -49,8 +45,8 @@ namespace {
 
 using WorkMode = Core::Settings::WorkMode;
 
-#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 void XCBSkipTaskbar(QWindow *window, bool skip) {
+	using namespace base::Platform::XCB::Library;
 	const base::Platform::XCB::Connection connection;
 	if (!connection || xcb_connection_has_error(connection)) {
 		return;
@@ -100,15 +96,12 @@ void XCBSkipTaskbar(QWindow *window, bool skip) {
 					| XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY,
 				reinterpret_cast<const char*>(&xev))));
 }
-#endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
 void SkipTaskbar(QWindow *window, bool skip) {
-#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 	if (IsX11()) {
 		XCBSkipTaskbar(window, skip);
 		return;
 	}
-#endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 }
 
 void SendKeySequence(
@@ -374,7 +367,6 @@ void MainWindow::createGlobalMenu() {
 		QKeySequence(Qt::ControlModifier | Qt::Key_Comma));
 
 	prefs->setMenuRole(QAction::PreferencesRole);
-	prefs->setShortcutContext(Qt::WidgetShortcut);
 
 	auto tools = psMainMenu->addMenu(tr::lng_linux_menu_tools(tr::now));
 
@@ -431,7 +423,7 @@ void MainWindow::createGlobalMenu() {
 			u"Telegram"_q),
 		[=] {
 			ensureWindowShown();
-			controller().show(Box<AboutBox>());
+			controller().show(Box(AboutBox));
 		});
 
 	about->setMenuRole(QAction::AboutQtRole);
@@ -537,6 +529,38 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {
 }
 
 MainWindow::~MainWindow() {
+}
+
+int32 ScreenNameChecksum(const QString &name) {
+	return Window::DefaultScreenNameChecksum(name);
+}
+
+int32 ScreenNameChecksum(const QScreen *screen) {
+	return ScreenNameChecksum(screen->name());
+}
+
+QString ScreenDisplayLabel(const QScreen *screen) {
+	if (!screen) {
+		return QString();
+	}
+
+	const auto model = (screen->manufacturer()
+		+ ' '
+		+ screen->model()).simplified();
+
+	if (!model.isEmpty()) {
+		if (!screen->name().isEmpty()) {
+			return (model
+				+ ' '
+				+ QChar(8212)
+				+ ' '
+				+ screen->name()).simplified();
+		}
+
+		return model;
+	}
+
+	return screen->name();
 }
 
 } // namespace Platform

@@ -21,7 +21,7 @@ EmptyListBubbleWidget::EmptyListBubbleWidget(
 , _padding(padding)
 , _st(st) {
 	parent->sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
+	) | rpl::on_next([=](const QSize &s) {
 		updateGeometry(s);
 	}, lifetime());
 }

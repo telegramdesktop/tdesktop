@@ -37,11 +37,11 @@ void showBox(
 } // namespace internal
 
 template <typename BoxType>
-QPointer<BoxType> show(
+base::weak_qptr<BoxType> show(
 		object_ptr<BoxType> content,
 		Ui::LayerOptions options = Ui::LayerOption::CloseOther,
 		anim::type animated = anim::type::normal) {
-	auto result = QPointer<BoxType>(content.data());
+	auto result = base::weak_qptr<BoxType>(content.data());
 	internal::showBox(std::move(content), options, animated);
 	return result;
 }

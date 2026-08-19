@@ -59,6 +59,11 @@ public:
 	void handleMouseEvent(not_null<QMouseEvent*> e);
 	void handleKeyEvent(not_null<QKeyEvent*> e);
 
+	static PaintItemCallback DefaultPaintCallback(
+		const style::font &font,
+		int itemHeight,
+		Fn<void(QPainter&, QRectF, int)> paintContent);
+
 protected:
 	void wheelEvent(QWheelEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;

@@ -15,7 +15,6 @@ extern "C" {
 #include <openssl/sha.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
-#include <openssl/engine.h>
 #include <openssl/conf.h>
 #include <openssl/ssl.h>
 #include <openssl/rand.h>

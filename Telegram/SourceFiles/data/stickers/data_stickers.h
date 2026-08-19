@@ -78,6 +78,8 @@ public:
 	[[nodiscard]] rpl::producer<> savedGifsUpdated() const;
 	void notifyStickerSetInstalled(uint64 setId);
 	[[nodiscard]] rpl::producer<uint64> stickerSetInstalled() const;
+	void notifyGifWithCaptionSent();
+	[[nodiscard]] rpl::producer<> gifWithCaptionSent() const;
 	void notifyEmojiSetInstalled(uint64 setId);
 	[[nodiscard]] rpl::producer<uint64> emojiSetInstalled() const;
 
@@ -291,7 +293,7 @@ private:
 	void setPackAndEmoji(
 		StickersSet &set,
 		StickersPack &&pack,
-		const std::vector<TimeId> &&dates,
+		std::vector<TimeId> &&dates,
 		const QVector<MTPStickerPack> &packs);
 	void somethingReceived(
 		const QVector<MTPStickerSet> &list,
@@ -306,6 +308,7 @@ private:
 	rpl::event_stream<StickersType> _recentUpdated;
 	rpl::event_stream<> _savedGifsUpdated;
 	rpl::event_stream<uint64> _stickerSetInstalled;
+	rpl::event_stream<> _gifWithCaptionSent;
 	rpl::event_stream<uint64> _emojiSetInstalled;
 	crl::time _lastUpdate = 0;
 	crl::time _lastRecentUpdate = 0;

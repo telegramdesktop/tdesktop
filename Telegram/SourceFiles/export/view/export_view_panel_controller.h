@@ -24,7 +24,7 @@ class Session;
 namespace Export {
 namespace View {
 
-QPointer<Ui::BoxContent> SuggestStart(not_null<Main::Session*> session);
+base::weak_qptr<Ui::BoxContent> SuggestStart(not_null<Main::Session*> session);
 void ClearSuggestStart(not_null<Main::Session*> session);
 bool IsDefaultPath(not_null<Main::Session*> session, const QString &path);
 void ResolveSettings(not_null<Main::Session*> session, Settings &settings);
@@ -79,7 +79,7 @@ private:
 	base::unique_qptr<Ui::SeparatePanel> _panel;
 
 	State _state;
-	QPointer<Ui::BoxContent> _confirmStopBox;
+	base::weak_qptr<Ui::BoxContent> _confirmStopBox;
 	rpl::event_stream<rpl::producer<>> _panelCloseEvents;
 	bool _stopRequested = false;
 	rpl::lifetime _lifetime;

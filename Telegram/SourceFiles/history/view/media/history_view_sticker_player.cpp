@@ -26,7 +26,7 @@ void LottiePlayer::setRepaintCallback(Fn<void()> callback) {
 		return;
 	}
 	_repaintLifetime = _lottie->updates(
-	) | rpl::start_with_next([=](Lottie::Update update) {
+	) | rpl::on_next([=](Lottie::Update update) {
 		v::match(update.data, [&](const Lottie::Information &) {
 			callback();
 			//markFramesTillExternal();

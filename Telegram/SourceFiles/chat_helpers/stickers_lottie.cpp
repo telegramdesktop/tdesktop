@@ -324,18 +324,14 @@ QSize ComputeStickerSize(not_null<DocumentData*> document, QSize box) {
 not_null<DocumentData*> GenerateLocalSticker(
 		not_null<Main::Session*> session,
 		const QString &path) {
-	auto task = FileLoadTask(
-		session,
-		path,
-		QByteArray(),
-		nullptr,
-		nullptr,
-		SendMediaType::File,
-		FileLoadTo(0, {}, {}, 0),
-		{},
-		false,
-		nullptr,
-		LocalStickerId(path));
+	auto task = FileLoadTask(FileLoadTask::Args{
+		.session = session,
+		.filepath = path,
+		.type = SendMediaType::File,
+		.to = FileLoadTo(0, {}, {}, 0),
+		.caption = {},
+		.idOverride = LocalStickerId(path),
+	});
 	task.process({ .generateGoodThumbnail = false });
 	const auto result = task.peekResult();
 	Assert(result != nullptr);
@@ -353,10 +349,42 @@ not_null<DocumentData*> GenerateLocalSticker(
 
 not_null<DocumentData*> GenerateLocalTgsSticker(
 		not_null<Main::Session*> session,
-		const QString &name) {
+		const QString &name,
+		bool useTextColor) {
+	const auto cache = [&] {
+		struct Session {
+			base::weak_ptr<Main::Session> session;
+			base::flat_map<QString, not_null<DocumentData*>> cache;
+		};
+		static auto Map = std::vector<Session>();
+		for (auto i = begin(Map); i != end(Map);) {
+			if (const auto strong = i->session.get()) {
+				if (strong == session) {
+					return &i->cache;
+				}
+				++i;
+			} else {
+				i = Map.erase(i);
+			}
+		}
+		Map.push_back({ .session = session });
+		return &Map.back().cache;
+	}();
+
+	const auto key = useTextColor ? (name + u"/:/1"_q) : name;
+	const auto i = cache->find(key);
+	if (i != end(*cache)) {
+		return i->second;
+	}
+
 	const auto result = GenerateLocalSticker(
 		session,
 		u":/animations/"_q + name + u".tgs"_q);
+	if (useTextColor) {
+		result->overrideEmojiUsesTextColor(true);
+	}
+
+	cache->emplace(key, result);
 
 	Ensures(result->sticker()->isLottie());
 	return result;

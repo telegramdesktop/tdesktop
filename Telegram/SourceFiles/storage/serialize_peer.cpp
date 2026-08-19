@@ -21,7 +21,7 @@ namespace {
 
 constexpr auto kModernImageLocationTag = std::numeric_limits<qint32>::min();
 constexpr auto kVersionTag = uint64(0x77FF'FFFF'FFFF'FFFFULL);
-constexpr auto kVersion = 2;
+constexpr auto kVersion = 3;
 
 } // namespace
 
@@ -130,7 +130,8 @@ uint32 peerSize(not_null<PeerData*> peer) {
 			+ stringSize(botInlinePlaceholder)
 			+ sizeof(quint32) // lastseen
 			+ sizeof(qint32) // contact
-			+ sizeof(qint32); // botInfoVersion
+			+ sizeof(qint32) // botInfoVersion
+			+ sizeof(qint32); // supportsGuestChat
 	} else if (const auto chat = peer->asChat()) {
 		result += stringSize(chat->name())
 			+ sizeof(qint32) // count
@@ -174,7 +175,10 @@ void writePeer(QDataStream &stream, not_null<PeerData*> peer) {
 			<< botInlinePlaceholder
 			<< quint32(user->lastseen().serialize())
 			<< qint32(user->isContact() ? 1 : 0)
-			<< qint32(user->isBot() ? user->botInfo->version : -1);
+			<< qint32(user->isBot() ? user->botInfo->version : -1)
+			<< qint32(user->isBot()
+				&& user->botInfo
+				&& user->botInfo->supportsGuestChat);
 	} else if (const auto chat = peer->asChat()) {
 		auto field1 = qint32(uint32(chat->creator.bare & 0xFFFFFFFFULL));
 		auto field2 = qint32(uint32(chat->creator.bare >> 32) << 8);
@@ -190,7 +194,7 @@ void writePeer(QDataStream &stream, not_null<PeerData*> peer) {
 	} else if (const auto channel = peer->asChannel()) {
 		stream
 			<< channel->name()
-			<< quint64(channel->access)
+			<< quint64(channel->accessHash())
 			<< qint32(channel->date)
 			<< qint32(0) // legacy - version
 			<< qint32(0)
@@ -237,7 +241,7 @@ PeerData *readPeer(
 	if (const auto user = result->asUser()) {
 		QString first, last, phone, username, inlinePlaceholder;
 		quint64 access;
-		qint32 flags = 0, contact, botInfoVersion;
+		qint32 flags = 0, contact, botInfoVersion, supportsGuestChat = 0;
 		quint32 lastseen;
 		stream >> first >> last >> phone >> username >> access;
 		if (streamAppVersion >= 9012) {
@@ -247,6 +251,9 @@ PeerData *readPeer(
 			stream >> inlinePlaceholder;
 		}
 		stream >> lastseen >> contact >> botInfoVersion;
+		if (version > 2) {
+			stream >> supportsGuestChat;
+		}
 
 		userpicAccessHash = access;
 
@@ -295,16 +302,11 @@ PeerData *readPeer(
 				: Data::LastseenStatus::FromLegacy(lastseen));
 			user->setIsContact(contact == 1);
 			user->setBotInfoVersion(botInfoVersion);
+			if (user->isBot() && user->botInfo) {
+				user->botInfo->supportsGuestChat = (supportsGuestChat == 1);
+			}
 			if (!inlinePlaceholder.isEmpty() && user->isBot()) {
 				user->botInfo->inlinePlaceholder = inlinePlaceholder;
-			}
-
-			if (user->id == selfId) {
-				user->input = MTP_inputPeerSelf();
-				user->inputUser = MTP_inputUserSelf();
-			} else {
-				user->input = MTP_inputPeerUser(MTP_long(peerToUser(user->id).bare), MTP_long(user->accessHash()));
-				user->inputUser = MTP_inputUser(MTP_long(peerToUser(user->id).bare), MTP_long(user->accessHash()));
 			}
 		}
 	} else if (const auto chat = result->asChat()) {
@@ -373,8 +375,6 @@ PeerData *readPeer(
 
 			chat->creator = creator;
 			chat->setInviteLink(inviteLink);
-
-			chat->input = MTP_inputPeerChat(MTP_long(peerToChat(chat->id).bare));
 		}
 	} else if (const auto channel = result->asChannel()) {
 		QString name, inviteLink;
@@ -394,7 +394,7 @@ PeerData *readPeer(
 
 		if (apply) {
 			channel->setName(name, QString());
-			channel->access = access;
+			channel->setAccessHash(access);
 			channel->date = date;
 
 			if (streamAppVersion >= 2008007) {
@@ -440,9 +440,6 @@ PeerData *readPeer(
 			}
 
 			channel->setInviteLink(inviteLink);
-
-			channel->input = MTP_inputPeerChannel(MTP_long(peerToChannel(channel->id).bare), MTP_long(access));
-			channel->inputChannel = MTP_inputChannel(MTP_long(peerToChannel(channel->id).bare), MTP_long(access));
 		}
 	}
 	if (apply) {

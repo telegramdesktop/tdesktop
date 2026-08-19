@@ -26,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/payments_checkout_process.h" // Payments::CheckoutProcess
 #include "payments/payments_form.h" // Payments::InvoicePremiumGiftCode
 #include "settings/settings_common.h"
-#include "settings/settings_premium.h" // Settings::ShowPremium
+#include "settings/sections/settings_premium.h" // Settings::ShowPremium
 #include "ui/boxes/choose_date_time.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/effects/credits_graphics.h"
@@ -50,9 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_giveaway.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
-#include "styles/style_premium.h"
 #include "styles/style_settings.h"
-#include "styles/style_statistics.h"
 
 #include <xxhash.h> // XXH64.
 
@@ -125,7 +123,7 @@ void AddPremiumTopBarWithDefaultTitleBar(
 
 	std::move(
 		titleText
-	) | rpl::start_with_next([=](const QString &s) {
+	) | rpl::on_next([=](const QString &s) {
 		state->title.setText(st::startGiveawayBox.title.style, s);
 	}, box->lifetime());
 
@@ -142,7 +140,7 @@ void AddPremiumTopBarWithDefaultTitleBar(
 		object_ptr<Ui::RpWidget>(box));
 	closeTopBar->resize(box->width(), st::boxTitleHeight);
 	closeTopBar->paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		auto p = Painter(closeTopBar);
 		const auto r = closeTopBar->rect();
 		const auto radius = st::boxRadius;
@@ -187,7 +185,7 @@ void AddPremiumTopBarWithDefaultTitleBar(
 			st::startGiveawayBoxTitleClose);
 		close->setClickedCallback([=] { box->closeBox(); });
 		closeTopBar->widthValue(
-		) | rpl::start_with_next([=](int w) {
+		) | rpl::on_next([=](int w) {
 			const auto &pos = st::giveawayGiftCodeCoverClosePosition;
 			close->moveToRight(pos.x(), pos.y());
 		}, box->lifetime());
@@ -213,23 +211,23 @@ void AddPremiumTopBarWithDefaultTitleBar(
 				- st::boxTitleHeight
 				+ st::boxDividerHeight
 				+ st::defaultVerticalListSkip,
-			st::boxDividerBg,
+			st::defaultDividerBar,
 			RectPart::Bottom),
-		{});
+		style::margins());
 	bar->setPaused(true);
 	bar->setRoundEdges(false);
 	bar->setMaximumHeight(st::giveawayGiftCodeTopHeight);
 	bar->setMinimumHeight(st::infoLayerTopBarHeight);
 	bar->resize(bar->width(), bar->maximumHeight());
 	box->widthValue(
-	) | rpl::start_with_next([=](int w) {
+	) | rpl::on_next([=](int w) {
 		bar->resizeToWidth(w - hPadding);
 		bar->moveToLeft(st::boxRowPadding.left(), bar->y());
 	}, box->lifetime());
 
 	std::move(
 		showFinished
-	) | rpl::take(1) | rpl::start_with_next([=] {
+	) | rpl::take(1) | rpl::on_next([=] {
 		closeTopBar->raise();
 		if (const auto shadow = FindFirstShadowInBox(box)) {
 			bar->stackUnder(shadow);
@@ -237,7 +235,7 @@ void AddPremiumTopBarWithDefaultTitleBar(
 		bar->setPaused(false);
 		box->scrolls(
 		) | rpl::map(isCloseBarShown) | rpl::distinct_until_changed(
-		) | rpl::start_with_next([=](bool showBar) {
+		) | rpl::on_next([=](bool showBar) {
 			state->animation.stop();
 			state->animation.start(
 				[=] { closeTopBar->update(); },
@@ -246,7 +244,7 @@ void AddPremiumTopBarWithDefaultTitleBar(
 				st::slideWrapDuration);
 		}, box->lifetime());
 		box->scrolls(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			bar->moveToLeft(bar->x(), -box->scrollTop());
 		}, box->lifetime());
 	}, box->lifetime());
@@ -307,7 +305,7 @@ void CreateGiveawayBox(
 		return rpl::combine(
 			state->typeValue.value(),
 			state->toAwardAmountChanged.events_starting_with(
-				rpl::empty_value()) | rpl::type_erased()
+				rpl::empty_value()) | rpl::type_erased
 		) | rpl::map([=](GiveawayType type, auto) {
 			return (type == GiveawayType::Credits) || !isSpecificUsers();
 		});
@@ -323,7 +321,7 @@ void CreateGiveawayBox(
 			tr::lng_giveaway_award()),
 		rpl::conditional(
 			isPrepaidCredits
-				? rpl::single(true) | rpl::type_erased()
+				? rpl::single(true) | rpl::type_erased
 				: state->typeValue.value() | rpl::map(
 					rpl::mappers::_1 == GiveawayType::Credits),
 			(peer->isMegagroup()
@@ -332,7 +330,7 @@ void CreateGiveawayBox(
 			(peer->isMegagroup()
 				? tr::lng_giveaway_new_about_group()
 				: tr::lng_giveaway_new_about())
-		) | rpl::map(Ui::Text::RichLangValue));
+		) | rpl::map(tr::rich));
 	{
 		const auto &padding = st::giveawayGiftCodeCoverDividerPadding;
 		Ui::AddSkip(box->verticalLayout(), padding.bottom());
@@ -348,12 +346,11 @@ void CreateGiveawayBox(
 		Ui::AddSkip(container);
 		Ui::AddSkip(container);
 		container->add(
-			object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
+			object_ptr<Ui::FlatLabel>(
 				box,
-				object_ptr<Ui::FlatLabel>(
-					box,
-					tr::lng_contacts_loading(),
-					st::giveawayLoadingLabel)));
+				tr::lng_contacts_loading(),
+				st::giveawayLoadingLabel),
+			style::al_top);
 		Ui::AddSkip(container);
 		Ui::AddSkip(container);
 	}
@@ -470,6 +467,33 @@ void CreateGiveawayBox(
 			return w.users;
 		}) | ranges::to_vector;
 	};
+	const auto creditsIndexValue = [=] {
+		return rpl::single(
+			creditsGroup->current()
+		) | rpl::then(creditsGroup->changes());
+	};
+	const auto boostsValue = [=]() -> rpl::producer<int> {
+		if (prepaid && prepaid->boosts) {
+			return rpl::single(prepaid->boosts);
+		}
+		return rpl::combine(
+			state->typeValue.value(),
+			hideSpecificUsersOn(),
+			state->sliderValue.value(),
+			creditsIndexValue()
+		) | rpl::map([=](
+				GiveawayType type,
+				bool random,
+				int quantity,
+				int creditsIndex) {
+			return (type == GiveawayType::Credits)
+				? creditsOption(creditsIndex).yearlyBoosts
+				: (state->apiOptions.giveawayBoostsPerPremium()
+					* (random
+						? quantity
+						: int(state->selectedToAward.size())));
+		});
+	};
 	const auto creditsTypeWrap = contentWrap->entity()->add(
 		object_ptr<Ui::VerticalLayout>(contentWrap->entity()));
 	const auto fillCreditsTypeWrap = [=] {
@@ -503,7 +527,7 @@ void CreateGiveawayBox(
 			contentWrap,
 			object_ptr<Ui::VerticalLayout>(box)));
 	state->typeValue.value(
-	) | rpl::start_with_next([=](GiveawayType type) {
+	) | rpl::on_next([=](GiveawayType type) {
 		randomWrap->toggle(!isSpecificUsers(), anim::type::instant);
 	}, randomWrap->lifetime());
 
@@ -536,14 +560,10 @@ void CreateGiveawayBox(
 		rightLabel->show();
 
 		rpl::combine(
-			tr::lng_giveaway_quantity(
-				lt_count,
-				creditsGroup->value() | rpl::map([=](int i) -> float64 {
-					return creditsOption(i).yearlyBoosts;
-				})),
+			tr::lng_giveaway_quantity(lt_count, boostsValue() | tr::to_count()),
 			title->positionValue(),
 			content->geometryValue()
-		) | rpl::start_with_next([=](QString s, const QPoint &p, QRect) {
+		) | rpl::on_next([=](QString s, const QPoint &p, QRect) {
 			rightLabel->setText(std::move(s));
 			rightLabel->moveToRight(st::boxRowPadding.right(), p.y());
 		}, rightLabel->lifetime());
@@ -598,7 +618,7 @@ void CreateGiveawayBox(
 				+ (st.nameStyle.font->spacew * 2)
 				+ (stars.width() / style::DevicePixelRatio());
 			state->sliderValue.value(
-			) | rpl::start_with_next([=](int users) {
+			) | rpl::on_next([=](int users) {
 				const auto option = creditsOption(i);
 				buttonState->hasStatus = false;
 				for (const auto &winner : option.winners) {
@@ -616,7 +636,7 @@ void CreateGiveawayBox(
 				inner->update();
 			}, button->lifetime());
 			inner->paintRequest(
-			) | rpl::start_with_next([=](const QRect &rect) {
+			) | rpl::on_next([=](const QRect &rect) {
 				auto p = QPainter(inner);
 				const auto namey = buttonState->hasStatus
 					? st.namePosition.y()
@@ -639,7 +659,7 @@ void CreateGiveawayBox(
 				}
 			}, inner->lifetime());
 			button->widthValue(
-			) | rpl::start_with_next([=](int width) {
+			) | rpl::on_next([=](int width) {
 				price->moveToRight(
 					st::boxRowPadding.right(),
 					(buttonHeight - price->height()) / 2);
@@ -734,7 +754,7 @@ void CreateGiveawayBox(
 		rightLabel->show();
 		rpl::duplicate(
 			creditsValueType
-		) | rpl::start_with_next([=](bool isCredits) {
+		) | rpl::on_next([=](bool isCredits) {
 			rightLabel->setVisible(!isCredits);
 		}, rightLabel->lifetime());
 
@@ -744,15 +764,10 @@ void CreateGiveawayBox(
 		floatLabel->show();
 
 		rpl::combine(
-			tr::lng_giveaway_quantity(
-				lt_count,
-				state->sliderValue.value(
-				) | rpl::map([=](int v) -> float64 {
-					return state->apiOptions.giveawayBoostsPerPremium() * v;
-				})),
+			tr::lng_giveaway_quantity(lt_count, boostsValue() | tr::to_count()),
 			title->positionValue(),
 			sliderContainer->geometryValue()
-		) | rpl::start_with_next([=](QString s, const QPoint &p, QRect) {
+		) | rpl::on_next([=](QString s, const QPoint &p, QRect) {
 			rightLabel->setText(std::move(s));
 			rightLabel->moveToRight(st::boxRowPadding.right(), p.y());
 		}, rightLabel->lifetime());
@@ -771,7 +786,7 @@ void CreateGiveawayBox(
 		rpl::combine(
 			rpl::duplicate(creditsValueType),
 			creditsGroup->value()
-		) | rpl::start_with_next([=](bool isCredits, int value) {
+		) | rpl::on_next([=](bool isCredits, int value) {
 			while (sliderParent->count()) {
 				delete sliderParent->widgetAt(0);
 			}
@@ -810,7 +825,7 @@ void CreateGiveawayBox(
 			rpl::duplicate(creditsValueType),
 			creditsGroup->value(),
 			state->sliderValue.value()
-		) | rpl::start_with_next([=](
+		) | rpl::on_next([=](
 				bool isCredits,
 				int credits,
 				int boosts) {
@@ -882,7 +897,7 @@ void CreateGiveawayBox(
 				&listState->controller)));
 		listState->controller.setDelegate(&listState->delegate);
 		listState->controller.channelRemoved(
-		) | rpl::start_with_next([=](not_null<PeerData*> peer) {
+		) | rpl::on_next([=](not_null<PeerData*> peer) {
 			auto &list = state->selectedToSubscribe;
 			list.erase(ranges::remove(list, peer), end(list));
 		}, box->lifetime());
@@ -890,12 +905,7 @@ void CreateGiveawayBox(
 			? tr::lng_giveaway_channels_this_group
 			: tr::lng_giveaway_channels_this)(
 				lt_count,
-				state->sliderValue.value(
-				) | rpl::map([=](int v) -> float64 {
-					return (prepaid && prepaid->boosts)
-						? prepaid->boosts
-						: (state->apiOptions.giveawayBoostsPerPremium() * v);
-				})));
+				boostsValue() | tr::to_count()));
 
 		using IconType = Settings::IconType;
 		Settings::AddButtonWithIcon(
@@ -972,7 +982,8 @@ void CreateGiveawayBox(
 				Ui::SelectCountriesBox,
 				state->countriesValue.current(),
 				std::move(done),
-				std::move(error)));
+				std::move(error),
+				Countries::Naming::Default));
 		};
 
 		const auto createCallback = [=](GiveawayType type) {
@@ -1024,9 +1035,9 @@ void CreateGiveawayBox(
 				lt_link,
 				tr::lng_premium_gift_terms_link(
 				) | rpl::map([](const QString &t) {
-					return Ui::Text::Link(t, 1);
+					return tr::link(t, 1);
 				}),
-				Ui::Text::WithEntities),
+				tr::marked),
 			st::boxDividerLabel);
 		terms->setLink(1, std::make_shared<LambdaClickHandler>([=] {
 			box->closeBox();
@@ -1066,7 +1077,7 @@ void CreateGiveawayBox(
 			Ui::Premium::AddGiftOptions(
 				listOptions,
 				durationGroup,
-				state->apiOptions.options(usersCount),
+				state->apiOptions.optionsForGiveaway(usersCount),
 				st::giveawayGiftCodeGiftOption,
 				true);
 
@@ -1088,7 +1099,7 @@ void CreateGiveawayBox(
 		rpl::combine(
 			state->sliderValue.value(),
 			state->typeValue.value()
-		) | rpl::start_with_next([=](int users, GiveawayType type) {
+		) | rpl::on_next([=](int users, GiveawayType type) {
 			typeGroup->setValue(type);
 			rebuildListOptions(
 				type,
@@ -1123,7 +1134,7 @@ void CreateGiveawayBox(
 			state->additionalPrize = additional->getLastText().trimmed();
 		};
 		additionalToggle->toggleOn(rpl::single(false))->toggledChanges(
-		) | rpl::start_with_next([=](bool toggled) {
+		) | rpl::on_next([=](bool toggled) {
 			if (!toggled && Ui::InFocusChain(additional)) {
 				additionalWrap->setFocus();
 				state->additionalPrize = QString();
@@ -1138,27 +1149,27 @@ void CreateGiveawayBox(
 
 		additional->changes() | rpl::filter([=] {
 			return additionalInner->toggled();
-		}) | rpl::start_with_next(
+		}) | rpl::on_next(
 			fillAdditionalPrizeValue,
 			additional->lifetime());
 
 		Ui::AddSkip(additionalWrap);
 
 		auto monthsValue = prepaid
-			? (rpl::single(prepaid->months) | rpl::type_erased())
+			? (rpl::single(prepaid->months) | rpl::type_erased)
 			: state->chosenMonths.value();
 		const auto usersCountByType = [=](GiveawayType type) {
 			if (!isSpecificUsers()) {
-				return state->sliderValue.value() | rpl::type_erased();
+				return state->sliderValue.value() | rpl::type_erased;
 			}
 			return state->toAwardAmountChanged.events_starting_with_copy(
 				rpl::empty
 			) | rpl::map([=] {
 				return int(state->selectedToAward.size());
-			}) | rpl::type_erased();
+			}) | rpl::type_erased;
 		};
 		auto usersCountValue = prepaid
-			? (rpl::single(prepaid->quantity) | rpl::type_erased())
+			? (rpl::single(prepaid->quantity) | rpl::type_erased)
 			: state->typeValue.value(
 			) | rpl::map(usersCountByType) | rpl::flatten_latest();
 
@@ -1168,7 +1179,7 @@ void CreateGiveawayBox(
 				return QString::number(count);
 			}),
 			st::giveawayGiftCodeAdditionalLabel);
-		additionalLabel->widthValue() | rpl::start_with_next([=](int width) {
+		additionalLabel->widthValue() | rpl::on_next([=](int width) {
 			const auto min = st::giveawayGiftCodeAdditionalPaddingMin;
 			const auto skip = st::giveawayGiftCodeAdditionalLabelSkip;
 			const auto added = std::max(width + skip - min.left(), 0);
@@ -1196,7 +1207,7 @@ void CreateGiveawayBox(
 					users,
 					lt_duration,
 					TextWithEntities{ duration },
-					Ui::Text::RichLangValue);
+					tr::rich);
 			}
 			return tr::lng_giveaway_prizes_additional(
 				tr::now,
@@ -1206,7 +1217,7 @@ void CreateGiveawayBox(
 				TextWithEntities{ prize },
 				lt_duration,
 				TextWithEntities{ duration },
-				Ui::Text::RichLangValue);
+				tr::rich);
 		});
 		auto creditsAdditionalAbout = rpl::combine(
 			state->additionalPrize.value(),
@@ -1219,7 +1230,7 @@ void CreateGiveawayBox(
 					tr::now,
 					lt_count,
 					credits,
-					Ui::Text::RichLangValue)
+					tr::rich)
 				: tr::lng_giveaway_prizes_additional_credits(
 					tr::now,
 					lt_count,
@@ -1231,8 +1242,8 @@ void CreateGiveawayBox(
 						tr::now,
 						lt_count,
 						credits,
-						Ui::Text::RichLangValue),
-					Ui::Text::RichLangValue);
+						tr::rich),
+					tr::rich);
 		});
 
 		auto creditsValueType = typeGroup->value(
@@ -1248,9 +1259,8 @@ void CreateGiveawayBox(
 					std::move(additionalAbout)),
 				rpl::conditional(
 					rpl::duplicate(creditsValueType),
-					tr::lng_giveaway_additional_credits_about(),
-					tr::lng_giveaway_additional_about()
-				) | rpl::map(Ui::Text::WithEntities)));
+					tr::lng_giveaway_additional_credits_about(tr::marked),
+					tr::lng_giveaway_additional_about(tr::marked))));
 		Ui::AddSkip(additionalWrap);
 	}
 
@@ -1354,23 +1364,7 @@ void CreateGiveawayBox(
 				hideSpecificUsersOn(),
 				tr::lng_giveaway_start(),
 				tr::lng_giveaway_award()),
-			(prepaid && prepaid->boosts)
-				? rpl::single(prepaid->boosts) | rpl::type_erased()
-				: rpl::conditional(
-					state->typeValue.value(
-					) | rpl::map(rpl::mappers::_1 == GiveawayType::Credits),
-					creditsGroup->value() | rpl::map([=](int v) {
-						return creditsOption(v).yearlyBoosts;
-					}),
-					rpl::combine(
-						state->sliderValue.value(),
-						hideSpecificUsersOn()
-					) | rpl::map([=](int value, bool random) -> int {
-						return state->apiOptions.giveawayBoostsPerPremium()
-							* (random
-								? value
-								: int(state->selectedToAward.size()));
-					})),
+			boostsValue(),
 			state->confirmButtonBusy.value() | rpl::map(!rpl::mappers::_1));
 
 		{
@@ -1381,9 +1375,8 @@ void CreateGiveawayBox(
 			loadingAnimation->showOn(state->confirmButtonBusy.value());
 		}
 
-		button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 		state->typeValue.value(
-		) | rpl::start_with_next([=, raw = button.data()] {
+		) | rpl::on_next([=, raw = button.data()] {
 			raw->resizeToWidth(box->width()
 				- stButton.buttonPadding.left()
 				- stButton.buttonPadding.right());
@@ -1459,11 +1452,11 @@ void CreateGiveawayBox(
 			}
 			state->confirmButtonBusy = true;
 			const auto show = box->uiShow();
-			const auto weak = Ui::MakeWeak(box.get());
+			const auto weak = base::make_weak(box.get());
 			const auto done = [=](Payments::CheckoutResult result) {
 				const auto isPaid = result == Payments::CheckoutResult::Paid;
 				if (result == Payments::CheckoutResult::Pending || isPaid) {
-					if (const auto strong = weak.data()) {
+					if (const auto strong = weak.get()) {
 						strong->window()->setFocus();
 						strong->closeBox();
 					}
@@ -1488,15 +1481,15 @@ void CreateGiveawayBox(
 							? tr::lng_giveaway_created_body_group
 							: tr::lng_giveaway_created_body);
 					show->showToast({
-						.text = Ui::Text::Bold(
+						.text = tr::bold(
 							title(tr::now)).append('\n').append(
 								body(
 									tr::now,
 									lt_link,
-									Ui::Text::Link(
+									tr::link(
 										tr::lng_giveaway_created_link(
 											tr::now)),
-									Ui::Text::WithEntities)),
+									tr::marked)),
 						.filter = filter,
 						.adaptive = true,
 						.duration = kDoneTooltipDuration,
@@ -1513,7 +1506,7 @@ void CreateGiveawayBox(
 				state->apiOptions.applyPrepaid(
 					invoice,
 					prepaid->id
-				) | rpl::start_with_error_done([=](const QString &error) {
+				) | rpl::on_error_done([=](const QString &error) {
 					if (const auto window = weakWindow.get()) {
 						window->uiShow()->showToast(error);
 						close();
@@ -1546,7 +1539,7 @@ void CreateGiveawayBox(
 
 	std::move(
 		showFinished
-	) | rpl::take(1) | rpl::start_with_next([=] {
+	) | rpl::take(1) | rpl::on_next([=] {
 		if (!loading->toggled()) {
 			return;
 		}
@@ -1567,7 +1560,7 @@ void CreateGiveawayBox(
 		const auto receivedOptions = [=] {
 			state->lifetimeApi.destroy();
 			state->lifetimeApi = state->apiCreditsOptions.request(
-			) | rpl::start_with_error_done([=](const QString &error) {
+			) | rpl::on_error_done([=](const QString &error) {
 				box->uiShow()->showToast(error);
 				box->closeBox();
 			}, done);
@@ -1576,7 +1569,7 @@ void CreateGiveawayBox(
 			return done();
 		}
 		state->lifetimeApi = state->apiOptions.request(
-		) | rpl::start_with_error_done([=](const QString &error) {
+		) | rpl::on_error_done([=](const QString &error) {
 			box->uiShow()->showToast(error);
 			box->closeBox();
 		}, receivedOptions);

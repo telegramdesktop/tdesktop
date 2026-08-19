@@ -46,7 +46,7 @@ RepostView::RepostView(
 	}
 
 	_story->session().colorIndicesValue(
-	) | rpl::start_with_next([=](Ui::ColorIndicesCompressed &&indices) {
+	) | rpl::on_next([=](Ui::ColorIndicesCompressed &&indices) {
 		_colorIndices = std::move(indices);
 		if (_maxWidth) {
 			_controller->repaint();
@@ -105,7 +105,6 @@ void RepostView::draw(Painter &p, int x, int y, int availableWidth) {
 				crl::guard(this, [=] { _controller->repaint(); }));
 		}
 		ValidateBackgroundEmoji(
-			backgroundEmojiId,
 			backgroundEmoji,
 			backgroundEmojiCache,
 			cache);
@@ -115,7 +114,8 @@ void RepostView::draw(Painter &p, int x, int y, int availableWidth) {
 				p,
 				rect,
 				hasQuoteIcon,
-				*backgroundEmojiCache);
+				*backgroundEmojiCache,
+				backgroundEmoji->firstGiftFrame);
 		}
 	}
 	cache->bg = rippleColor;
@@ -240,7 +240,7 @@ void RepostView::recountDimensions() {
 	}
 
 	auto nameFull = TextWithEntities();
-	nameFull.append(HistoryView::Reply::PeerEmoji(owner, _sourcePeer));
+	nameFull.append(HistoryView::Reply::PeerEmoji(_sourcePeer));
 	nameFull.append(name);
 	auto context = Core::TextContext({
 		.session = &_story->session(),

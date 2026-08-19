@@ -7,17 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Api {
-class CreditsStatus;
-} // namespace Api
-
 namespace Main {
 class Session;
 } // namespace Main
 
 namespace Data {
-
-[[nodiscard]] StarsAmount FromTL(const MTPStarsAmount &value);
 
 class Credits final {
 public:
@@ -25,26 +19,34 @@ public:
 	~Credits();
 
 	void load(bool force = false);
-	void apply(StarsAmount balance);
-	void apply(PeerId peerId, StarsAmount balance);
-
 	[[nodiscard]] bool loaded() const;
 	[[nodiscard]] rpl::producer<bool> loadedValue() const;
-
-	[[nodiscard]] StarsAmount balance() const;
-	[[nodiscard]] StarsAmount balance(PeerId peerId) const;
-	[[nodiscard]] rpl::producer<StarsAmount> balanceValue() const;
+	[[nodiscard]] CreditsAmount balance() const;
+	[[nodiscard]] CreditsAmount balance(PeerId peerId) const;
+	[[nodiscard]] rpl::producer<CreditsAmount> balanceValue() const;
+	[[nodiscard]] float64 usdRate() const;
 	[[nodiscard]] rpl::producer<float64> rateValue(
 		not_null<PeerData*> ownedBotOrChannel);
 
 	[[nodiscard]] rpl::producer<> refreshedByPeerId(PeerId peerId);
 
-	void applyCurrency(PeerId peerId, uint64 balance);
-	[[nodiscard]] uint64 balanceCurrency(PeerId peerId) const;
+	void tonLoad(bool force = false);
+	[[nodiscard]] bool tonLoaded() const;
+	[[nodiscard]] rpl::producer<bool> tonLoadedValue() const;
+	[[nodiscard]] CreditsAmount tonBalance() const;
+	[[nodiscard]] rpl::producer<CreditsAmount> tonBalanceValue() const;
 
-	void lock(StarsAmount count);
-	void unlock(StarsAmount count);
-	void withdrawLocked(StarsAmount count);
+	void apply(CreditsAmount balance);
+	void apply(PeerId peerId, CreditsAmount balance);
+
+	[[nodiscard]] bool statsEnabled() const;
+
+	void applyCurrency(PeerId peerId, CreditsAmount balance);
+	[[nodiscard]] CreditsAmount balanceCurrency(PeerId peerId) const;
+
+	void lock(CreditsAmount count);
+	void unlock(CreditsAmount count);
+	void withdrawLocked(CreditsAmount count);
 	void invalidate();
 
 	void apply(const MTPDupdateStarsBalance &data);
@@ -54,17 +56,23 @@ private:
 
 	const not_null<Main::Session*> _session;
 
-	std::unique_ptr<Api::CreditsStatus> _loader;
+	std::unique_ptr<rpl::lifetime> _loader;
 
-	base::flat_map<PeerId, StarsAmount> _cachedPeerBalances;
-	base::flat_map<PeerId, uint64> _cachedPeerCurrencyBalances;
+	base::flat_map<PeerId, CreditsAmount> _cachedPeerBalances;
+	base::flat_map<PeerId, CreditsAmount> _cachedPeerCurrencyBalances;
 
-	StarsAmount _balance;
-	StarsAmount _locked;
-	rpl::variable<StarsAmount> _nonLockedBalance;
+	CreditsAmount _balance;
+	CreditsAmount _locked;
+	rpl::variable<CreditsAmount> _nonLockedBalance;
 	rpl::event_stream<> _loadedChanges;
 	crl::time _lastLoaded = 0;
-	float64 _rate = 0.;
+
+	rpl::variable<CreditsAmount> _tonBalance;
+	rpl::event_stream<> _tonLoadedChanges;
+	crl::time _tonLastLoaded = false;
+	mtpRequestId _tonRequestId = 0;
+
+	bool _statsEnabled = false;
 
 	rpl::event_stream<PeerId> _refreshedByPeerId;
 

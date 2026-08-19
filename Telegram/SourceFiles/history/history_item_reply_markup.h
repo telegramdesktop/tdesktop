@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "data/data_chat_participant_status.h"
 
+namespace Api {
+struct SendOptions;
+} // namespace Api
+
 namespace Data {
 class Session;
 } // namespace Data
@@ -33,6 +37,9 @@ enum class ReplyMarkupFlag : uint32 {
 	IsNull                = (1U << 7),
 	OnlyBuyButton         = (1U << 8),
 	Persistent            = (1U << 9),
+	SuggestionDecline     = (1U << 10),
+	SuggestionAccept      = (1U << 11),
+	SuggestionSeparator   = (1U << 12),
 };
 inline constexpr bool is_flag_type(ReplyMarkupFlag) { return true; }
 using ReplyMarkupFlags = base::flags<ReplyMarkupFlag>;
@@ -62,8 +69,13 @@ struct RequestPeerQuery {
 };
 static_assert(std::is_trivially_copy_assignable_v<RequestPeerQuery>);
 
+class MTPDkeyboardButtonRequestPeer;
+
+[[nodiscard]] RequestPeerQuery RequestPeerQueryFromTL(
+	const MTPDkeyboardButtonRequestPeer &query);
+
 struct HistoryMessageMarkupButton {
-	enum class Type {
+	enum class Type : uchar {
 		Default,
 		Url,
 		Callback,
@@ -81,11 +93,29 @@ struct HistoryMessageMarkupButton {
 		WebView,
 		SimpleWebView,
 		CopyText,
+
+		SuggestDecline,
+		SuggestAccept,
+		SuggestChange,
+		CreateBot,
+	};
+
+	enum class Color : uchar {
+		Normal,
+		Primary,
+		Danger,
+		Success,
+	};
+
+	struct Visual {
+		DocumentId iconId = 0;
+		Color color = Color::Normal;
 	};
 
 	HistoryMessageMarkupButton(
 		Type type,
 		const QString &text,
+		Visual visual,
 		const QByteArray &data = QByteArray(),
 		const QString &forwardText = QString(),
 		int64 buttonId = 0);
@@ -97,6 +127,7 @@ struct HistoryMessageMarkupButton {
 		int column);
 
 	Type type;
+	Visual visual;
 	QString text, forwardText;
 	QByteArray data;
 	int64 buttonId = 0;
@@ -135,4 +166,17 @@ struct HistoryMessageRepliesData {
 	int repliesCount = 0;
 	bool isNull = true;
 	int pts = 0;
+};
+
+struct HistoryMessageSuggestInfo {
+	HistoryMessageSuggestInfo() = default;
+	explicit HistoryMessageSuggestInfo(const MTPSuggestedPost *data);
+	explicit HistoryMessageSuggestInfo(const Api::SendOptions &options);
+	explicit HistoryMessageSuggestInfo(SuggestOptions options);
+
+	CreditsAmount price;
+	TimeId date = 0;
+	bool accepted = false;
+	bool rejected = false;
+	bool exists = false;
 };

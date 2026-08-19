@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
-#include "styles/style_widgets.h"
 #include "styles/style_media_view.h"
 
 namespace Media::Stories {
@@ -49,14 +48,15 @@ void Slider::show(SliderData data) {
 
 	raw->widthValue() | rpl::filter([=](int width) {
 		return (width >= st::storiesSliderWidth);
-	}) | rpl::start_with_next([=](int width) {
+	}) | rpl::on_next([=](int width) {
 		layout(width);
 	}, raw->lifetime());
 
 	raw->paintRequest(
 	) | rpl::filter([=] {
-		return (raw->width() >= st::storiesSliderWidth);
-	}) | rpl::start_with_next([=](QRect clip) {
+		return !_data.videoStream
+			&& (raw->width() >= st::storiesSliderWidth);
+	}) | rpl::on_next([=](QRect clip) {
 		paint(QRectF(clip));
 	}, raw->lifetime());
 
@@ -68,7 +68,7 @@ void Slider::show(SliderData data) {
 	});
 
 	_controller->layoutValue(
-	) | rpl::start_with_next([=](const Layout &layout) {
+	) | rpl::on_next([=](const Layout &layout) {
 		raw->setGeometry(layout.slider - st::storiesSliderMargin);
 	}, raw->lifetime());
 }
@@ -126,21 +126,24 @@ void Slider::paint(QRectF clip) {
 		} else if (i == _data.index) {
 			const auto progress = _progress->value();
 			const auto full = _rects[i].width();
-			const auto min = _rects[i].height();
+			const auto height = _rects[i].height();
+			const auto min = height;
 			const auto activeWidth = std::max(full * progress, min);
 			const auto inactiveWidth = full - activeWidth + min;
 			const auto activeLeft = _rects[i].left();
 			const auto inactiveLeft = activeLeft + activeWidth - min;
 			p.setOpacity(kOpacityInactive);
 			p.drawRoundedRect(
-				QRectF(inactiveLeft, 0, inactiveWidth, min),
+				QRectF(inactiveLeft, 0, inactiveWidth, height),
 				radius,
 				radius);
-			p.setOpacity(kOpacityActive);
-			p.drawRoundedRect(
-				QRectF(activeLeft, 0, activeWidth, min),
-				radius,
-				radius);
+			if (activeWidth > 0.) {
+				p.setOpacity(kOpacityActive);
+				p.drawRoundedRect(
+					QRectF(activeLeft, 0, activeWidth, height),
+					radius,
+					radius);
+			}
 		} else {
 			p.setOpacity((i < _data.index)
 				? kOpacityActive

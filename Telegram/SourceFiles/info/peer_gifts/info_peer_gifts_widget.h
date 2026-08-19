@@ -19,6 +19,14 @@ template <typename Widget>
 class SlideWrap;
 } // namespace Ui
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
+namespace Ui::Menu {
+struct MenuCallback;
+} // namespace Ui::Menu
+
 namespace Info::PeerGifts {
 
 struct ListState {
@@ -30,18 +38,52 @@ struct Filter {
 	bool sortByValue : 1 = false;
 	bool skipUnlimited : 1 = false;
 	bool skipLimited : 1 = false;
+	bool skipUpgradable : 1 = false;
 	bool skipUnique : 1 = false;
 	bool skipSaved : 1 = false;
 	bool skipUnsaved : 1 = false;
 
+	[[nodiscard]] bool skipsSomething() const {
+		return skipLimited
+			|| skipUnlimited
+			|| skipSaved
+			|| skipUnsaved
+			|| skipUpgradable
+			|| skipUnique;
+	}
+
 	friend inline bool operator==(Filter, Filter) = default;
 };
+
+struct Descriptor {
+	Filter filter;
+	int collectionId = 0;
+
+	friend inline bool operator==(
+		const Descriptor &,
+		const Descriptor &) = default;
+};
+
+struct InlineGifts {
+	object_ptr<Ui::RpWidget> widget = { nullptr };
+	Fn<void(const Ui::Menu::MenuCallback&)> fillMenu;
+	rpl::producer<Descriptor> descriptorChanges;
+};
+
+[[nodiscard]] InlineGifts MakePeerGiftsInner(
+	QWidget *parent,
+	not_null<Window::SessionController*> window,
+	not_null<PeerData*> peer,
+	rpl::producer<Descriptor> descriptor);
+
 
 class InnerWidget;
 
 class Memento final : public ContentMemento {
 public:
-	explicit Memento(not_null<PeerData*> peer);
+	Memento(not_null<Controller*> controller);
+	Memento(not_null<PeerData*> peer, int collectionId);
+	~Memento();
 
 	object_ptr<ContentWidget> createWidget(
 		QWidget *parent,
@@ -53,8 +95,6 @@ public:
 	void setListState(std::unique_ptr<ListState> state);
 	std::unique_ptr<ListState> listState();
 
-	~Memento();
-
 private:
 	std::unique_ptr<ListState> _listState;
 
@@ -62,10 +102,7 @@ private:
 
 class Widget final : public ContentWidget {
 public:
-	Widget(
-		QWidget *parent,
-		not_null<Controller*> controller,
-		not_null<PeerData*> peer);
+	Widget(QWidget *parent, not_null<Controller*> controller);
 
 	[[nodiscard]] not_null<PeerData*> peer() const;
 
@@ -90,14 +127,22 @@ private:
 
 	std::shared_ptr<ContentMemento> doCreateMemento() override;
 
-	void setupNotifyCheckbox(bool enabled);
+	void setupNotifyCheckbox(int wasBottomHeight, bool enabled);
+	void setupBottomButton(int wasBottomHeight);
+	void refreshBottom();
 
 	InnerWidget *_inner = nullptr;
 	QPointer<Ui::SlideWrap<Ui::RpWidget>> _pinnedToBottom;
 	rpl::variable<bool> _hasPinnedToBottom;
-	rpl::variable<Filter> _filter;
+	rpl::variable<bool> _emptyCollectionShown;
+	rpl::variable<Descriptor> _descriptor;
+	std::optional<bool> _notifyEnabled;
 	bool _shown = false;
 
 };
+
+[[nodiscard]] std::shared_ptr<Info::Memento> Make(
+	not_null<PeerData*> peer,
+	int collectionId = 0);
 
 } // namespace Info::PeerGifts

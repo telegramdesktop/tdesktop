@@ -16,7 +16,7 @@ public:
 	explicit RendererSW(not_null<Pip*> owner);
 
 	void paintFallback(
-		Painter &&p,
+		Painter &p,
 		const QRegion &clip,
 		Ui::GL::Backend backend) override;
 

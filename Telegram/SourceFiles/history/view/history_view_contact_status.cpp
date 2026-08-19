@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/tooltip.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/layers/generic_box.h"
 #include "ui/toast/toast.h"
@@ -21,9 +22,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/generic_box.h"
+#include "ui/ui_utility.h"
 #include "chat_helpers/message_field.h" // PaidSendButtonText
 #include "core/click_handler_types.h"
 #include "core/ui_integration.h"
+#include "history/history.h"
 #include "data/business/data_business_chatbots.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/data_emoji_statuses.h"
@@ -37,13 +40,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 #include "data/data_peer_values.h"
 #include "data/stickers/data_custom_emoji.h"
-#include "settings/settings_premium.h"
+#include "settings/sections/settings_premium.h"
 #include "window/window_peer_menu.h"
 #include "window/window_controller.h"
+#include "window/main_window.h"
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
 #include "api/api_blocked_peers.h"
 #include "main/main_session.h"
+#include "base/timer.h"
 #include "base/unixtime.h"
 #include "boxes/peers/edit_contact_box.h"
 #include "styles/style_chat.h"
@@ -51,9 +56,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_widgets.h"
 
 namespace HistoryView {
 namespace {
+
+constexpr auto kAddTooltipDelay = crl::time(1000);
 
 [[nodiscard]] bool BarCurrentlyHidden(not_null<PeerData*> peer) {
 	const auto settings = peer->barSettings();
@@ -73,6 +81,19 @@ namespace {
 		return true;
 	}
 	return false;
+}
+
+void FinalizeSetBotPhotoFirstOpenState(not_null<PeerData*> peer) {
+	using State = BotInfo::SetBotPhotoOpenState;
+
+	const auto user = peer->asUser();
+	const auto info = user ? user->botInfo.get() : nullptr;
+	if (!info || (info->setBotPhotoOpenState != State::Unknown)) {
+		return;
+	}
+	info->setBotPhotoOpenState = peer->owner().history(peer)->lastMessage()
+		? State::OpenedWithHistory
+		: State::OpenedEmpty;
 }
 
 [[nodiscard]] rpl::producer<TextWithEntities> ResolveIsCustom(
@@ -131,13 +152,60 @@ namespace {
 		st::historyContactStatusButton.ripple);
 	const auto raw = result.data();
 	raw->paintRequest(
-	) | rpl::start_with_next([=, &icon] {
+	) | rpl::on_next([=, &icon] {
 		auto p = QPainter(raw);
 		p.fillRect(raw->rect(), st::historyContactStatusButton.bgColor);
 		raw->paintRipple(p, 0, 0);
 		icon.paintInCenter(p, raw->rect());
 	}, raw->lifetime());
 	return result;
+}
+
+[[nodiscard]] object_ptr<Ui::RippleButton> SetupSetBotPhotoButton(
+		object_ptr<Ui::RippleButton> button) {
+	const auto raw = button.data();
+
+	const auto icon = Ui::CreateChild<Ui::RpWidget>(raw);
+	icon->setAttribute(Qt::WA_TransparentForMouseEvents);
+	icon->paintRequest(
+	) | rpl::on_next([=] {
+		auto p = QPainter(icon);
+		st::historySetBotPhotoIcon.paintInCenter(p, icon->rect());
+	}, icon->lifetime());
+
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		raw,
+		tr::lng_managed_bot_set_photo(tr::now),
+		st::historySetBotPhotoLabel);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	raw->sizeValue(
+	) | rpl::on_next([=](QSize size) {
+		const auto closeWidth = st::historyReplyCancel.width;
+		const auto iconWidth = st::historySetBotPhotoIconSize;
+		const auto margin = st::historySetBotPhotoLabelMarginRight;
+		const auto available = size.width() - closeWidth - margin;
+		const auto labelNatural = label->naturalWidth();
+		const auto labelWidth = std::max(
+			0,
+			std::min(labelNatural, available - iconWidth));
+		const auto totalContent = iconWidth + labelWidth;
+		const auto contentLeft = std::max(0, (available - totalContent) / 2);
+		icon->setGeometry(
+			contentLeft,
+			0,
+			iconWidth,
+			size.height());
+		label->resizeToWidth(labelWidth);
+		label->moveToLeft(
+			contentLeft + iconWidth,
+			(size.height() - label->height()) / 2,
+			size.width());
+		icon->raise();
+		label->raise();
+	}, raw->lifetime());
+
+	return button;
 }
 
 } // namespace
@@ -158,7 +226,10 @@ private:
 
 class ContactStatus::Bar final : public Ui::RpWidget {
 public:
-	Bar(QWidget *parent, const QString &name);
+	Bar(
+		QWidget *parent,
+		not_null<QWidget*> tooltipParent,
+		const QString &name);
 
 	void showState(
 		State state,
@@ -173,12 +244,17 @@ public:
 	[[nodiscard]] rpl::producer<> closeClicks() const;
 	[[nodiscard]] rpl::producer<> requestInfoClicks() const;
 	[[nodiscard]] rpl::producer<> emojiStatusClicks() const;
+	[[nodiscard]] rpl::producer<> setBotPhotoClicks() const;
 
 private:
 	int resizeGetHeight(int newWidth) override;
 
+	void refreshAddText(int newWidth);
+	void showAddTooltip();
+	void hideAddTooltip();
 	void emojiStatusRepaint();
 
+	const not_null<QWidget*> _tooltipParent;
 	QString _name;
 	object_ptr<Ui::FlatButton> _add;
 	object_ptr<Ui::FlatButton> _unarchive;
@@ -192,7 +268,12 @@ private:
 	object_ptr<Ui::FlatLabel> _requestChatInfo;
 	object_ptr<Ui::PaddingWrap<Ui::FlatLabel>> _emojiStatusInfo;
 	object_ptr<Ui::PlainShadow> _emojiStatusShadow;
+	object_ptr<Ui::RippleButton> _setBotPhoto;
+	base::unique_qptr<Ui::ImportantTooltip> _addTooltip;
+	base::Timer _addTooltipTimer;
 	bool _emojiStatusRepaintScheduled = false;
+	bool _addWithName = false;
+	bool _addElided = false;
 	bool _narrow = false;
 	rpl::event_stream<> _emojiStatusClicks;
 
@@ -221,8 +302,10 @@ void ContactStatus::BgButton::paintEvent(QPaintEvent *e) {
 
 ContactStatus::Bar::Bar(
 	QWidget *parent,
+	not_null<QWidget*> tooltipParent,
 	const QString &name)
 : RpWidget(parent)
+, _tooltipParent(tooltipParent)
 , _name(name)
 , _add(
 	this,
@@ -260,10 +343,31 @@ ContactStatus::Bar::Bar(
 		st::topBarArrowPadding.top(),
 		st::historyContactStatusMinSkip,
 		st::topBarArrowPadding.top()))
-, _emojiStatusShadow(this) {
+, _emojiStatusShadow(this)
+, _setBotPhoto(
+	SetupSetBotPhotoButton(
+		object_ptr<BgButton>(this, st::historyContactStatusButton))) {
+	_close->setAccessibleName(tr::lng_cancel(tr::now));
+	_unarchiveIcon->setAccessibleName(tr::lng_new_contact_unarchive(tr::now));
+	_reportIcon->setAccessibleName(tr::lng_report_spam(tr::now));
 	_requestChatInfo->setAttribute(Qt::WA_TransparentForMouseEvents);
+	_addTooltipTimer.setCallback([=] {
+		showAddTooltip();
+	});
+	_add->events(
+	) | rpl::on_next([=](not_null<QEvent*> e) {
+		const auto type = e->type();
+		if (type == QEvent::Enter) {
+			if (_addElided) {
+				_addTooltipTimer.callOnce(kAddTooltipDelay);
+			}
+		} else if (type == QEvent::Leave
+			|| type == QEvent::MouseButtonPress) {
+			hideAddTooltip();
+		}
+	}, _add->lifetime());
 	_emojiStatusInfo->paintRequest(
-	) | rpl::start_with_next([=, raw = _emojiStatusInfo.data()](QRect clip) {
+	) | rpl::on_next([=, raw = _emojiStatusInfo.data()](QRect clip) {
 		_emojiStatusRepaintScheduled = false;
 		QPainter(raw).fillRect(clip, st::historyComposeButtonBg);
 	}, lifetime());
@@ -283,13 +387,16 @@ void ContactStatus::Bar::showState(
 	_block->setVisible(type == Type::AddOrBlock
 		|| type == Type::UnarchiveOrBlock);
 	_share->setVisible(type == Type::SharePhoneNumber);
-	_close->setVisible(!_narrow && type != Type::RequestChatInfo);
+	_close->setVisible(
+		(!_narrow && type != Type::RequestChatInfo)
+		|| type == Type::SetBotPhoto);
 	const auto report = (type == Type::ReportSpam)
 		|| (type == Type::UnarchiveOrReport);
 	_report->setVisible(!_narrow && report);
 	_reportIcon->setVisible(_narrow && report);
 	_requestChatInfo->setVisible(type == Type::RequestChatInfo);
 	_requestChatBg->setVisible(type == Type::RequestChatInfo);
+	_setBotPhoto->setVisible(type == Type::SetBotPhoto);
 	const auto has = !status.empty();
 	_emojiStatusShadow->setVisible(
 		has && (type == Type::AddOrBlock || type == Type::UnarchiveOrBlock));
@@ -301,9 +408,9 @@ void ContactStatus::Bar::showState(
 				lt_emoji,
 				status,
 				lt_link,
-				Ui::Text::Link(
+				tr::link(
 					tr::lng_new_contact_about_status_link(tr::now)),
-				Ui::Text::WithEntities),
+				tr::marked),
 			context);
 		_emojiStatusInfo->entity()->overrideLinkClickHandler([=] {
 			_emojiStatusClicks.fire({});
@@ -313,9 +420,7 @@ void ContactStatus::Bar::showState(
 		});
 	}
 	_emojiStatusInfo->setVisible(has);
-	_add->setText((type == Type::Add)
-		? tr::lng_new_contact_add_name(tr::now, lt_user, _name).toUpper()
-		: tr::lng_new_contact_add(tr::now).toUpper());
+	_addWithName = (type == Type::Add);
 	_report->setText((type == Type::ReportSpam)
 		? tr::lng_report_spam_and_leave(tr::now).toUpper()
 		: tr::lng_report_spam(tr::now).toUpper());
@@ -325,10 +430,10 @@ void ContactStatus::Bar::showState(
 			: tr::lng_new_contact_from_request_group)(
 			tr::now,
 			lt_user,
-			Ui::Text::Bold(_name),
+			tr::bold(_name),
 			lt_name,
-			Ui::Text::Bold(state.requestChatName),
-			Ui::Text::WithEntities));
+			tr::bold(state.requestChatName),
+			tr::marked));
 	resizeToWidth(width());
 }
 
@@ -370,12 +475,88 @@ rpl::producer<> ContactStatus::Bar::emojiStatusClicks() const {
 	return _emojiStatusClicks.events();
 }
 
+rpl::producer<> ContactStatus::Bar::setBotPhotoClicks() const {
+	return _setBotPhoto->clicks() | rpl::to_empty;
+}
+
+void ContactStatus::Bar::refreshAddText(int newWidth) {
+	const auto compose = [](const QString &name) {
+		return tr::lng_new_contact_add_name(tr::now, lt_user, name).toUpper();
+	};
+	auto text = tr::lng_new_contact_add(tr::now).toUpper();
+	auto elided = false;
+	if (_addWithName) {
+		const auto font = st::historyContactStatusButton.font;
+		const auto available = newWidth
+			- _close->width()
+			- 2 * st::historyContactStatusMinSkip;
+		const auto name = _name.toUpper();
+		text = compose(name);
+		if (available > 0 && font->width(text) > available) {
+			elided = true;
+			const auto rest = font->width(compose(QString()));
+			text = compose(font->elided(
+				name,
+				std::max(available - rest, 0),
+				Qt::ElideMiddle));
+			if (font->width(text) > available) {
+				text = font->elided(text, available);
+			}
+		}
+	}
+	_add->setText(text);
+	_addElided = elided;
+	if (!elided) {
+		hideAddTooltip();
+	}
+}
+
+void ContactStatus::Bar::showAddTooltip() {
+	if (!_addElided || !_add->isVisible()) {
+		return;
+	}
+	const auto parent = _tooltipParent.get();
+	if (!_addTooltip) {
+		_addTooltip = base::make_unique_q<Ui::ImportantTooltip>(
+			parent,
+			Ui::MakeNiceTooltipLabel(
+				parent,
+				rpl::single(TextWithEntities{ _name }),
+				std::max(
+					std::min(
+						st::boxWideWidth,
+						parent->width()
+							- 2 * st::historyContactStatusMinSkip),
+					st::defaultImportantTooltipLabel.minWidth
+						+ st::lineWidth),
+				st::defaultImportantTooltipLabel),
+			st::defaultImportantTooltip);
+		_addTooltip->setAttribute(Qt::WA_TransparentForMouseEvents);
+		_addTooltip->toggleFast(false);
+	}
+	_addTooltip->pointAt(
+		Ui::MapFrom(parent, _add.data(), _add->rect()),
+		RectPart::Bottom);
+	_addTooltip->raise();
+	_addTooltip->toggleAnimated(true);
+}
+
+void ContactStatus::Bar::hideAddTooltip() {
+	_addTooltipTimer.cancel();
+	if (_addTooltip) {
+		_addTooltip->toggleAnimated(false);
+	}
+}
+
 int ContactStatus::Bar::resizeGetHeight(int newWidth) {
+	refreshAddText(newWidth);
 	_close->moveToRight(0, 0, newWidth);
 	const auto narrow = (newWidth < _close->width() * 2);
 	if (_narrow != narrow) {
 		_narrow = narrow;
-		_close->setVisible(_requestChatInfo->isHidden() && !_narrow);
+		_close->setVisible(
+			(_requestChatInfo->isHidden() && !_narrow)
+			|| !_setBotPhoto->isHidden());
 		const auto report = !_report->isHidden() || !_reportIcon->isHidden();
 		_report->setVisible(!_narrow && report);
 		_reportIcon->setVisible(_narrow && report);
@@ -383,6 +564,13 @@ int ContactStatus::Bar::resizeGetHeight(int newWidth) {
 			|| !_unarchiveIcon->isHidden();
 		_unarchive->setVisible(!_narrow && unarchive);
 		_unarchiveIcon->setVisible(_narrow && unarchive);
+	}
+
+	if (!_setBotPhoto->isHidden()) {
+		const auto closeHeight = _close->height();
+		_setBotPhoto->setGeometry(0, 0, newWidth, closeHeight);
+		_close->raise();
+		return closeHeight;
 	}
 
 	if (!_unarchiveIcon->isHidden()) {
@@ -499,12 +687,12 @@ SlidingBar::SlidingBar(
 
 void SlidingBar::setup(not_null<Ui::RpWidget*> parent) {
 	parent->widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		_wrapped.resizeToWidth(width);
 	}, _wrapped.lifetime());
 
 	_wrapped.geometryValue(
-	) | rpl::start_with_next([=](QRect geometry) {
+	) | rpl::on_next([=](QRect geometry) {
 		_shadow.setGeometry(
 			geometry.x(),
 			geometry.y() + geometry.height(),
@@ -563,8 +751,12 @@ ContactStatus::ContactStatus(
 	not_null<PeerData*> peer,
 	bool showInForum)
 : _controller(window)
-, _inner(Ui::CreateChild<Bar>(parent.get(), peer->shortName()))
+, _inner(Ui::CreateChild<Bar>(
+	parent.get(),
+	window->widget()->body(),
+	peer->shortName()))
 , _bar(parent, object_ptr<Bar>::fromRaw(_inner)) {
+	FinalizeSetBotPhotoFirstOpenState(peer);
 	setupState(peer, showInForum);
 	setupHandlers(peer);
 }
@@ -582,12 +774,22 @@ auto ContactStatus::PeerState(not_null<PeerData*> peer)
 			return flags.diff
 				& (Flag::Contact | Flag::MutualContact | Flag::Blocked);
 		});
+		auto managedBotChanges = user->session().changes().peerFlagsValue(
+			user,
+			Data::PeerUpdate::Flag::ManagedBot);
+		auto photoChanges = user->session().changes().peerFlagsValue(
+			user,
+			Data::PeerUpdate::Flag::Photo);
 		return rpl::combine(
 			std::move(changes),
-			user->barSettingsValue()
+			user->barSettingsValue(),
+			std::move(photoChanges),
+			std::move(managedBotChanges)
 		) | rpl::map([=](
 				FlagsChange flags,
-				SettingsChange settings) -> State {
+				SettingsChange settings,
+				const auto &,
+				const auto &) -> State {
 			if (flags.value & Flag::Blocked) {
 				return { Type::None };
 			} else if (user->isContact()) {
@@ -610,6 +812,22 @@ auto ContactStatus::PeerState(not_null<PeerData*> peer)
 				return { Type::AddOrBlock };
 			} else if (settings.value & PeerBarSetting::AddContact) {
 				return { Type::Add };
+			} else if (user->botManagerId()) {
+				if (const auto info = user->botInfo.get()) {
+					if (info->canEditInformation) {
+						const auto hasUserpic = user->hasUserpic();
+						if (hasUserpic) {
+							info->setBotPhotoHidden = true;
+						}
+						using State = BotInfo::SetBotPhotoOpenState;
+						if (info->setBotPhotoOpenState == State::OpenedEmpty
+							&& !info->setBotPhotoHidden
+							&& !hasUserpic) {
+							return { Type::SetBotPhoto };
+						}
+					}
+				}
+				return { Type::None };
 			} else {
 				return { Type::None };
 			}
@@ -640,8 +858,8 @@ void ContactStatus::setupState(not_null<PeerData*> peer, bool showInForum) {
 		PeerCustomStatus(peer),
 		((channel && !showInForum)
 			? Data::PeerFlagValue(channel, ChannelData::Flag::Forum)
-			: (rpl::single(false) | rpl::type_erased()))
-	) | rpl::start_with_next([=](
+			: (rpl::single(false) | rpl::type_erased))
+	) | rpl::on_next([=](
 			State state,
 			TextWithEntities status,
 			bool hiddenByForum) {
@@ -662,6 +880,7 @@ void ContactStatus::setupHandlers(not_null<PeerData*> peer) {
 		setupAddHandler(user);
 		setupBlockHandler(user);
 		setupShareHandler(user);
+		setupSetBotPhotoHandler(user);
 	}
 	setupUnarchiveHandler(peer);
 	setupReportHandler(peer);
@@ -672,14 +891,14 @@ void ContactStatus::setupHandlers(not_null<PeerData*> peer) {
 
 void ContactStatus::setupAddHandler(not_null<UserData*> user) {
 	_inner->addClicks(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_controller->window().show(Box(EditContactBox, _controller, user));
 	}, _bar.lifetime());
 }
 
 void ContactStatus::setupBlockHandler(not_null<UserData*> user) {
 	_inner->blockClicks(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_controller->window().show(Box(
 			Window::PeerMenuBlockUserBox,
 			&_controller->window(),
@@ -691,12 +910,12 @@ void ContactStatus::setupBlockHandler(not_null<UserData*> user) {
 
 void ContactStatus::setupShareHandler(not_null<UserData*> user) {
 	_inner->shareClicks(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		const auto show = _controller->uiShow();
 		const auto share = [=](Fn<void()> &&close) {
 			user->setBarSettings(0);
 			user->session().api().request(MTPcontacts_AcceptContact(
-				user->inputUser
+				user->inputUser()
 			)).done([=](const MTPUpdates &result) {
 				user->session().api().applyUpdates(result);
 				show->showToast(tr::lng_new_contact_share_done(
@@ -710,11 +929,11 @@ void ContactStatus::setupShareHandler(not_null<UserData*> user) {
 			.text = tr::lng_new_contact_share_sure(
 				tr::now,
 				lt_phone,
-				Ui::Text::WithEntities(
+				tr::marked(
 					Ui::FormatPhone(user->session().user()->phone())),
 				lt_user,
-				Ui::Text::Bold(user->name()),
-				Ui::Text::WithEntities),
+				tr::bold(user->name()),
+				tr::marked),
 			.confirmed = share,
 			.confirmText = tr::lng_box_ok(),
 		}));
@@ -723,7 +942,7 @@ void ContactStatus::setupShareHandler(not_null<UserData*> user) {
 
 void ContactStatus::setupUnarchiveHandler(not_null<PeerData*> peer) {
 	_inner->unarchiveClicks(
-	) | rpl::start_with_next([=, show = _controller->uiShow()] {
+	) | rpl::on_next([=, show = _controller->uiShow()] {
 		using namespace Window;
 		ToggleHistoryArchived(show, peer->owner().history(peer), false);
 		peer->owner().notifySettings().resetToDefault(peer);
@@ -738,7 +957,7 @@ void ContactStatus::setupUnarchiveHandler(not_null<PeerData*> peer) {
 
 void ContactStatus::setupReportHandler(not_null<PeerData*> peer) {
 	_inner->reportClicks(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		Expects(!peer->isUser());
 
 		const auto show = _controller->uiShow();
@@ -746,7 +965,7 @@ void ContactStatus::setupReportHandler(not_null<PeerData*> peer) {
 			close();
 
 			peer->session().api().request(MTPmessages_ReportSpam(
-				peer->input
+				peer->input()
 			)).send();
 
 			crl::on_main(&peer->session(), [=] {
@@ -781,10 +1000,20 @@ void ContactStatus::setupCloseHandler(not_null<PeerData*> peer) {
 	_inner->closeClicks(
 	) | rpl::filter([=] {
 		return !(*request);
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
+		if (_state.type == State::Type::SetBotPhoto) {
+			if (const auto user = peer->asUser()) {
+				if (const auto info = user->botInfo.get()) {
+					info->setBotPhotoHidden = true;
+				}
+			}
+			_state = {};
+			_bar.toggleContent(false);
+			return;
+		}
 		peer->setBarSettings(0);
 		*request = peer->session().api().request(
-			MTPmessages_HidePeerSettingsBar(peer->input)
+			MTPmessages_HidePeerSettingsBar(peer->input())
 		).send();
 	}, _bar.lifetime());
 }
@@ -794,7 +1023,7 @@ void ContactStatus::setupRequestInfoHandler(not_null<PeerData*> peer) {
 	_inner->requestInfoClicks(
 	) | rpl::filter([=] {
 		return !(*request);
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		_controller->show(Box([=](not_null<Ui::GenericBox*> box) {
 			box->setTitle((_state.requestChatIsBroadcast
 				? tr::lng_from_request_title_channel
@@ -804,12 +1033,12 @@ void ContactStatus::setupRequestInfoHandler(not_null<PeerData*> peer) {
 				box,
 				tr::lng_from_request_body(
 					lt_name,
-					rpl::single(Ui::Text::Bold(_state.requestChatName)),
+					rpl::single(tr::bold(_state.requestChatName)),
 					lt_date,
-					rpl::single(langDateTimeFull(
+					rpl::single(tr::marked(langDateTimeFull(
 						base::unixtime::parse(_state.requestDate)
-					)) | Ui::Text::ToWithEntities(),
-					Ui::Text::WithEntities),
+					))),
+					tr::marked),
 				st::boxLabel));
 
 			box->addButton(tr::lng_from_request_understand(), [=] {
@@ -818,7 +1047,7 @@ void ContactStatus::setupRequestInfoHandler(not_null<PeerData*> peer) {
 				}
 				peer->setBarSettings(0);
 				*request = peer->session().api().request(
-					MTPmessages_HidePeerSettingsBar(peer->input)
+					MTPmessages_HidePeerSettingsBar(peer->input())
 				).send();
 				box->closeBox();
 			});
@@ -828,8 +1057,15 @@ void ContactStatus::setupRequestInfoHandler(not_null<PeerData*> peer) {
 
 void ContactStatus::setupEmojiStatusHandler(not_null<PeerData*> peer) {
 	_inner->emojiStatusClicks(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		Settings::ShowEmojiStatusPremium(_controller, peer);
+	}, _bar.lifetime());
+}
+
+void ContactStatus::setupSetBotPhotoHandler(not_null<UserData*> user) {
+	_inner->setBotPhotoClicks(
+	) | rpl::on_next([=] {
+		_controller->showEditPeerBox(user);
 	}, _bar.lifetime());
 }
 
@@ -889,8 +1125,6 @@ BusinessBotStatus::Bar::Bar(QWidget *parent)
 	_name->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_status->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_togglePaused->setFullRadius(true);
-	_togglePaused->setTextTransform(
-		Ui::RoundButton::TextTransform::NoTransform);
 	_settings->setClickedCallback([=] {
 		showMenu();
 	});
@@ -947,8 +1181,8 @@ void BusinessBotStatus::Bar::showMenu() {
 		this,
 		st::popupMenuExpandedSeparator);
 	_menu->setDestroyedCallback([
-		weak = Ui::MakeWeak(this),
-		weakButton = Ui::MakeWeak(_settings.data()),
+		weak = base::make_weak(this),
+		weakButton = base::make_weak(_settings.data()),
 		menu = _menu.get()] {
 		if (weak && weak->_menu == menu) {
 			if (weakButton) {
@@ -1042,7 +1276,7 @@ void BusinessBotStatus::setupState(not_null<PeerData*> peer) {
 	}
 	PeerState(
 		peer
-	) | rpl::start_with_next([=](State state) {
+	) | rpl::on_next([=](State state) {
 		_state = state;
 		if (!state.bot) {
 			_bar.toggleContent(false);
@@ -1055,22 +1289,22 @@ void BusinessBotStatus::setupState(not_null<PeerData*> peer) {
 
 void BusinessBotStatus::setupHandlers(not_null<PeerData*> peer) {
 	_inner->pauseClicks(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		peer->owner().chatbots().togglePaused(peer, true);
 	}, _bar.lifetime());
 
 	_inner->resumeClicks(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		peer->owner().chatbots().togglePaused(peer, false);
 	}, _bar.lifetime());
 
 	_inner->removeClicks(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		peer->owner().chatbots().removeFrom(peer);
 	}, _bar.lifetime());
 
 	_inner->manageClicks(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		UrlClickHandler::Open(
 			_state.manageUrl,
 			QVariant::fromValue(ClickHandlerContext{
@@ -1110,8 +1344,10 @@ TopicReopenBar::TopicReopenBar(
 
 void TopicReopenBar::setupState() {
 	const auto channel = _topic->channel();
-	auto canToggle = (_topic->my() || channel->amCreator())
-		? (rpl::single(true) | rpl::type_erased())
+	auto canToggle = !channel
+		? (rpl::single(false) | rpl::type_erased)
+		: (_topic->my() || channel->amCreator())
+		? (rpl::single(true) | rpl::type_erased)
 		: channel->adminRightsValue(
 		) | rpl::map([=] { return _topic->canToggleClosed(); });
 
@@ -1120,7 +1356,7 @@ void TopicReopenBar::setupState() {
 			_topic,
 			Data::TopicUpdate::Flag::Closed),
 		std::move(canToggle)
-	) | rpl::start_with_next([=](const auto &, bool can) {
+	) | rpl::on_next([=](const auto &, bool can) {
 		_bar.toggleContent(can && _topic->closed());
 	}, _bar.lifetime());
 }
@@ -1165,7 +1401,7 @@ void PaysStatus::Bar::showState(State state) {
 		TextWithEntities{ _peer->shortName() },
 		lt_cost,
 		PaidSendButtonText(tr::now, state.perMessage),
-		Ui::Text::WithEntities));
+		tr::marked));
 	resizeToWidth(width());
 }
 
@@ -1194,6 +1430,7 @@ PaysStatus::PaysStatus(
 	not_null<UserData*> user)
 : _controller(window)
 , _user(user)
+, _paidAlready(std::make_shared<rpl::variable<int>>())
 , _inner(Ui::CreateChild<Bar>(parent.get(), user))
 , _bar(parent, object_ptr<Bar>::fromRaw(_inner)) {
 	setupState();
@@ -1206,7 +1443,7 @@ void PaysStatus::setupState() {
 	_user->session().changes().peerFlagsValue(
 		_user,
 		Data::PeerUpdate::Flag::PaysPerMessage
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_state = State{ _user->paysPerMessage() };
 		if (_state.perMessage > 0) {
 			_inner->showState(_state);
@@ -1219,61 +1456,13 @@ void PaysStatus::setupState() {
 
 void PaysStatus::setupHandlers() {
 	_inner->removeClicks(
-	) | rpl::start_with_next([=] {
-		const auto user = _user;
-		const auto exception = [=](bool refund) {
-			using Flag = MTPaccount_AddNoPaidMessagesException::Flag;
-			const auto api = &user->session().api();
-			api->request(MTPaccount_AddNoPaidMessagesException(
-				MTP_flags(refund ? Flag::f_refund_charged : Flag()),
-				user->inputUser
-			)).done([=] {
-				user->clearPaysPerMessage();
-			}).send();
-		};
-		_controller->show(Box([=](not_null<Ui::GenericBox*> box) {
-			const auto refund = std::make_shared<QPointer<Ui::Checkbox>>();
-			Ui::ConfirmBox(box, {
-				.text = tr::lng_payment_refund_text(
-					tr::now,
-					lt_name,
-					Ui::Text::Bold(user->shortName()),
-					Ui::Text::WithEntities),
-				.confirmed = [=](Fn<void()> close) {
-					exception(*refund && (*refund)->checked());
-					close();
-				},
-				.confirmText = tr::lng_payment_refund_confirm(tr::now),
-				.title = tr::lng_payment_refund_title(tr::now),
-			});
-			const auto paid = box->lifetime().make_state<
-				rpl::variable<int>
-			>();
-			*paid = _paidAlready.value();
-			paid->value() | rpl::start_with_next([=](int already) {
-				if (!already) {
-					delete base::take(*refund);
-				} else if (!*refund) {
-					const auto skip = st::defaultCheckbox.margin.top();
-					*refund = box->addRow(
-						object_ptr<Ui::Checkbox>(
-							box,
-							tr::lng_payment_refund_also(
-								lt_count,
-								paid->value() | tr::to_count()),
-							false,
-							st::defaultCheckbox),
-						st::boxRowPadding + QMargins(0, skip, 0, skip));
-				}
-			}, box->lifetime());
-
-			user->session().api().request(MTPaccount_GetPaidMessagesRevenue(
-				user->inputUser
-			)).done(crl::guard(_inner, [=](
-					const MTPaccount_PaidMessagesRevenue &result) {
-				_paidAlready = result.data().vstars_amount().v;
-			})).send();
-		}));
+	) | rpl::on_next([=] {
+		Window::PeerMenuConfirmToggleFee(
+			_controller,
+			_paidAlready,
+			_user->session().user(),
+			_user,
+			true);
 	}, _bar.lifetime());
 }
 

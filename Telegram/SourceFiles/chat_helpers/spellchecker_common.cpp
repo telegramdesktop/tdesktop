@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 
 #include "base/platform/base_platform_info.h"
+#include "base/weak_ptr.h"
 #include "base/zlib_help.h"
 #include "data/data_session.h"
 #include "lang/lang_instance.h"
@@ -18,12 +19,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
+#include "mtproto/dedicated_file_loader.h"
 #include "spellcheck/platform/platform_spellcheck.h"
 #include "spellcheck/spellcheck_utils.h"
 #include "spellcheck/spellcheck_value.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "core/version.h"
 
+#include <QtCore/QJsonArray>
+#include <QtCore/QJsonDocument>
+#include <QtCore/QJsonObject>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QInputMethod>
 
@@ -59,53 +65,187 @@ inline auto LanguageFromLocale(QLocale loc) {
 			: int(locLang);
 }
 
-const auto kDictionaries = {
-	Dict{{ QLocale::English,                               649,   174'516, "English" }}, // en_US
-	Dict{{ QLocale::Bulgarian,                             594,   229'658, "\xd0\x91\xd1\x8a\xd0\xbb\xd0\xb3\xd0\xb0\xd1\x80\xd1\x81\xd0\xba\xd0\xb8" }}, // bg_BG
-	Dict{{ QLocale::Catalan,                               595,   417'611, "\x43\x61\x74\x61\x6c\xc3\xa0" }}, // ca_ES
-	Dict{{ QLocale::Czech,                                 596,   860'286, "\xc4\x8c\x65\xc5\xa1\x74\x69\x6e\x61" }}, // cs_CZ
-	Dict{{ QLocale::Welsh,                                 597,   177'305, "\x43\x79\x6d\x72\x61\x65\x67" }}, // cy_GB
-	Dict{{ QLocale::Danish,                                598,   345'874, "\x44\x61\x6e\x73\x6b" }}, // da_DK
-	Dict{{ QLocale::German,                                599, 2'412'780, "\x44\x65\x75\x74\x73\x63\x68" }}, // de_DE
-	Dict{{ QLocale::Greek,                                 600, 1'389'160, "\xce\x95\xce\xbb\xce\xbb\xce\xb7\xce\xbd\xce\xb9\xce\xba\xce\xac" }}, // el_GR
-	Dict{{ LWC(QLocale::English, QLocale::Australia),      601,   175'266, "English (Australia)" }}, // en_AU
-	Dict{{ LWC(QLocale::English, QLocale::Canada),         602,   174'295, "English (Canada)" }}, // en_CA
-	Dict{{ LWC(QLocale::English, QLocale::UnitedKingdom),  603,   174'433, "English (United Kingdom)" }}, // en_GB
-	Dict{{ QLocale::Spanish,                               604,   264'717, "\x45\x73\x70\x61\xc3\xb1\x6f\x6c" }}, // es_ES
-	Dict{{ QLocale::Estonian,                              605,   757'394, "\x45\x65\x73\x74\x69" }}, // et_EE
-	Dict{{ QLocale::Persian,                               606,   333'911, "\xd9\x81\xd8\xa7\xd8\xb1\xd8\xb3\xdb\x8c" }}, // fa_IR
-	Dict{{ QLocale::French,                                607,   321'391, "\x46\x72\x61\x6e\xc3\xa7\x61\x69\x73" }}, // fr_FR
-	Dict{{ QLocale::Hebrew,                                608,   622'550, "\xd7\xa2\xd7\x91\xd7\xa8\xd7\x99\xd7\xaa" }}, // he_IL
-	Dict{{ QLocale::Hindi,                                 609,    56'105, "\xe0\xa4\xb9\xe0\xa4\xbf\xe0\xa4\xa8\xe0\xa5\x8d\xe0\xa4\xa6\xe0\xa5\x80" }}, // hi_IN
-	Dict{{ QLocale::Croatian,                              610,   668'876, "\x48\x72\x76\x61\x74\x73\x6b\x69" }}, // hr_HR
-	Dict{{ QLocale::Hungarian,                             611,   660'402, "\x4d\x61\x67\x79\x61\x72" }}, // hu_HU
-	Dict{{ QLocale::Armenian,                              612,   928'746, "\xd5\x80\xd5\xa1\xd5\xb5\xd5\xa5\xd6\x80\xd5\xa5\xd5\xb6" }}, // hy_AM
-	Dict{{ QLocale::Indonesian,                            613,   100'134, "\x49\x6e\x64\x6f\x6e\x65\x73\x69\x61" }}, // id_ID
-	Dict{{ QLocale::Italian,                               614,   324'613, "\x49\x74\x61\x6c\x69\x61\x6e\x6f" }}, // it_IT
-	Dict{{ QLocale::Korean,                                615, 1'256'987, "\xed\x95\x9c\xea\xb5\xad\xec\x96\xb4" }}, // ko_KR
-	Dict{{ QLocale::Lithuanian,                            616,   267'427, "\x4c\x69\x65\x74\x75\x76\x69\xc5\xb3" }}, // lt_LT
-	Dict{{ QLocale::Latvian,                               617,   641'602, "\x4c\x61\x74\x76\x69\x65\xc5\xa1\x75" }}, // lv_LV
-	Dict{{ QLocale::NorwegianBokmal,                       618,   588'650, "\x4e\x6f\x72\x73\x6b" }}, // nb_NO
-	Dict{{ QLocale::Dutch,                                 619,   743'406, "\x4e\x65\x64\x65\x72\x6c\x61\x6e\x64\x73" }}, // nl_NL
-	Dict{{ QLocale::Polish,                                620, 1'015'747, "\x50\x6f\x6c\x73\x6b\x69" }}, // pl_PL
-	Dict{{ QLocale::Portuguese,                            621, 1'231'999, "\x50\x6f\x72\x74\x75\x67\x75\xc3\xaa\x73 (Brazil)" }}, // pt_BR
-	Dict{{ LWC(QLocale::Portuguese, QLocale::Portugal),    622,   138'571, "\x50\x6f\x72\x74\x75\x67\x75\xc3\xaa\x73" }}, // pt_PT
-	Dict{{ QLocale::Romanian,                              623,   455'643, "\x52\x6f\x6d\xc3\xa2\x6e\xc4\x83" }}, // ro_RO
-	Dict{{ QLocale::Russian,                               624,   463'194, "\xd0\xa0\xd1\x83\xd1\x81\xd1\x81\xd0\xba\xd0\xb8\xd0\xb9" }}, // ru_RU
-	Dict{{ QLocale::Slovak,                                625,   525'328, "\x53\x6c\x6f\x76\x65\x6e\xc4\x8d\x69\x6e\x61" }}, // sk_SK
-	Dict{{ QLocale::Slovenian,                             626, 1'143'710, "\x53\x6c\x6f\x76\x65\x6e\xc5\xa1\xc4\x8d\x69\x6e\x61" }}, // sl_SI
-	Dict{{ QLocale::Albanian,                              627,   583'412, "\x53\x68\x71\x69\x70" }}, // sq_AL
-	Dict{{ QLocale::Swedish,                               628,   593'877, "\x53\x76\x65\x6e\x73\x6b\x61" }}, // sv_SE
-	Dict{{ QLocale::Tamil,                                 629,   323'193, "\xe0\xae\xa4\xe0\xae\xae\xe0\xae\xbf\xe0\xae\xb4\xe0\xaf\x8d" }}, // ta_IN
-	Dict{{ QLocale::Tajik,                                 630,   369'931, "\xd0\xa2\xd0\xbe\xd2\xb7\xd0\xb8\xd0\xba\xd3\xa3" }}, // tg_TG
-	Dict{{ QLocale::Turkish,                               631, 4'301'099, "\x54\xc3\xbc\x72\x6b\xc3\xa7\x65" }}, // tr_TR
-	Dict{{ QLocale::Ukrainian,                             632,   445'711, "\xd0\xa3\xd0\xba\xd1\x80\xd0\xb0\xd1\x97\xd0\xbd\xd1\x81\xd1\x8c\xd0\xba\xd0\xb0" }}, // uk_UA
-	Dict{{ QLocale::Vietnamese,                            633,    12'949, "\x54\x69\xe1\xba\xbf\x6e\x67\x20\x56\x69\xe1\xbb\x87\x74" }}, // vi_VN
-	// The Tajik code is 'tg_TG' in Chromium, but QT has only 'tg_TJ'.
+constexpr auto kDictionariesManifestChannel = "tdhbcfiles"_cs;
+constexpr auto kDictionariesManifestPostId = 2949;
+
+// Runtime-loaded dictionaries manifest. Kept in memory only: fetched from
+// the pinned JSON post the first time something actually needs it
+// (Manage Dictionaries, auto-download). Nothing persists to disk, so an
+// install whose enabled dictionaries are all on disk never hits the net.
+std::vector<Dict> DictionariesList;
+rpl::event_stream<> DictionariesListChanged;
+
+void EnsurePath();
+
+bool ParseLocation(const QString &text, QString &channel, int &postId) {
+	const auto sep = text.indexOf('#');
+	if (sep <= 0 || sep == text.size() - 1) {
+		return false;
+	}
+	auto ok = false;
+	const auto parsed = text.mid(sep + 1).toInt(&ok);
+	if (!ok || parsed <= 0) {
+		return false;
+	}
+	channel = text.left(sep);
+	postId = parsed;
+	return true;
+}
+
+std::vector<Dict> ParseManifest(const QByteArray &bytes) {
+	auto result = std::vector<Dict>();
+	auto err = QJsonParseError();
+	const auto doc = QJsonDocument::fromJson(bytes, &err);
+	if (err.error != QJsonParseError::NoError || !doc.isObject()) {
+		LOG(("Spellcheck Error: manifest JSON parse failed: %1"
+			).arg(err.errorString()));
+		return result;
+	}
+	const auto list = doc.object().value(u"dictionaries"_q).toArray();
+	result.reserve(list.size());
+	for (const auto &v : list) {
+		const auto obj = v.toObject();
+		auto d = Dict();
+		d.id = obj.value(u"id"_q).toInt();
+		d.size = int64(obj.value(u"size"_q).toDouble());
+		d.name = obj.value(u"name"_q).toString();
+		const auto location = obj.value(u"location"_q).toString();
+		if (!d.id
+			|| d.name.isEmpty()
+			|| !ParseLocation(location, d.channel, d.postId)) {
+			continue;
+		}
+		result.push_back(std::move(d));
+	}
+	return result;
+}
+
+class DictManifestLoader final : public base::has_weak_ptr {
+public:
+	explicit DictManifestLoader(base::weak_ptr<Main::Session> session);
+
+	void start();
+
+private:
+	void resolved(const MTPInputChannel &channel);
+	void received(const MTPmessages_Messages &result);
+	void apply(const QByteArray &bytes);
+	void finish();
+
+	MTP::WeakInstance _mtp;
+
 };
 
+std::shared_ptr<DictManifestLoader> ActiveManifestLoader;
+
+DictManifestLoader::DictManifestLoader(base::weak_ptr<Main::Session> session)
+: _mtp(session) {
+}
+
+void DictManifestLoader::start() {
+	if (!_mtp.valid()) {
+		finish();
+		return;
+	}
+	const auto weak = base::make_weak(this);
+	MTP::ResolveChannel(&_mtp, kDictionariesManifestChannel.utf16(), [=](
+			const MTPInputChannel &channel) {
+		if (const auto strong = weak.get()) {
+			strong->resolved(channel);
+		}
+	}, [=] {
+		if (const auto strong = weak.get()) {
+			strong->finish();
+		}
+	});
+}
+
+void DictManifestLoader::resolved(const MTPInputChannel &channel) {
+	const auto weak = base::make_weak(this);
+	_mtp.send(
+		MTPchannels_GetMessages(
+			channel,
+			MTP_vector<MTPInputMessage>(1,
+				MTP_inputMessageID(
+					MTP_int(kDictionariesManifestPostId)))),
+		[=](const MTPmessages_Messages &result) {
+			if (const auto strong = weak.get()) {
+				strong->received(result);
+			}
+		},
+		[=](const MTP::Error &) {
+			if (const auto strong = weak.get()) {
+				strong->finish();
+			}
+		});
+}
+
+void DictManifestLoader::received(const MTPmessages_Messages &result) {
+	const auto message = MTP::GetMessagesElement(result);
+	if (!message || message->type() != mtpc_message) {
+		LOG(("Spellcheck Error: manifest message not found."));
+		finish();
+		return;
+	}
+	apply(message->c_message().vmessage().v);
+	finish();
+}
+
+void DictManifestLoader::apply(const QByteArray &bytes) {
+	auto parsed = ParseManifest(bytes);
+	if (parsed.empty()) {
+		LOG(("Spellcheck Error: manifest empty or unparseable."));
+		return;
+	}
+	DictionariesList = std::move(parsed);
+	DictionariesListChanged.fire({});
+}
+
+void DictManifestLoader::finish() {
+	crl::on_main([] {
+		ActiveManifestLoader.reset();
+	});
+}
+
+void StartManifestRefresh(not_null<Main::Session*> session) {
+	if (ActiveManifestLoader) {
+		return;
+	}
+	ActiveManifestLoader = std::make_shared<DictManifestLoader>(
+		base::make_weak(session));
+	ActiveManifestLoader->start();
+}
+
+// Callers waiting for the first manifest arrival in this session.
+// We don't cache manifest to disk, so each cold start begins empty;
+// queued callbacks fire once when the MTP fetch lands.
+std::vector<Fn<void()>> ManifestPending;
+rpl::lifetime ManifestPendingSubscription;
+
+void EnsureManifestThen(
+		not_null<Main::Session*> session,
+		Fn<void()> callback) {
+	if (!DictionariesList.empty()) {
+		callback();
+		return;
+	}
+	const auto firstCaller = ManifestPending.empty();
+	ManifestPending.push_back(std::move(callback));
+	if (firstCaller) {
+		DictionariesListChanged.events(
+		) | rpl::take(1) | rpl::on_next([] {
+			auto fns = std::move(ManifestPending);
+			ManifestPending.clear();
+			for (auto &fn : fns) {
+				fn();
+			}
+		}, ManifestPendingSubscription);
+	}
+	StartManifestRefresh(session);
+}
+
 inline auto IsSupportedLang(int lang) {
-	return ranges::contains(kDictionaries, lang, &Dict::id);
+	return ranges::contains(DictionariesList, lang, &Dict::id);
 }
 
 void EnsurePath() {
@@ -144,9 +284,12 @@ void DownloadDictionaryInBackground(
 
 		if (DictionaryExists(id)) {
 			auto dicts = Core::App().settings().dictionariesEnabled();
-			if (!ranges::contains(dicts, id)) {
+			if (ranges::contains(dicts, id)) {
+				Platform::Spellchecker::UpdateLanguages(dicts);
+			} else {
 				dicts.push_back(id);
-				Core::App().settings().setDictionariesEnabled(std::move(dicts));
+				Core::App().settings().setDictionariesEnabled(
+					std::move(dicts));
 				Core::App().saveSettingsDelayed();
 			}
 		}
@@ -230,17 +373,28 @@ void DictLoader::fail() {
 }
 
 std::vector<Dict> Dictionaries() {
-	return kDictionaries | ranges::to_vector;
+	return DictionariesList;
+}
+
+rpl::producer<> DictionariesChanged() {
+	return DictionariesListChanged.events();
+}
+
+void RefreshDictionariesManifest(not_null<Main::Session*> session) {
+	StartManifestRefresh(session);
 }
 
 int64 GetDownloadSize(int id) {
-	return ranges::find(kDictionaries, id, &Spellchecker::Dict::id)->size;
+	const auto i = ranges::find(DictionariesList, id, &Dict::id);
+	return (i == end(DictionariesList)) ? 0 : i->size;
 }
 
 MTP::DedicatedLoader::Location GetDownloadLocation(int id) {
-	const auto username = kCloudLocationUsername.utf16();
-	const auto i = ranges::find(kDictionaries, id, &Spellchecker::Dict::id);
-	return MTP::DedicatedLoader::Location{ username, i->postId };
+	const auto i = ranges::find(DictionariesList, id, &Dict::id);
+	if (i == end(DictionariesList)) {
+		return MTP::DedicatedLoader::Location{};
+	}
+	return MTP::DedicatedLoader::Location{ i->channel, i->postId };
 }
 
 QString DictPathByLangId(int langId) {
@@ -256,7 +410,24 @@ QString DictionariesPath() {
 
 bool UnpackDictionary(const QString &path, int langId) {
 	const auto folder = DictPathByLangId(langId);
-	return UnpackBlob(path, folder, IsGoodPartName);
+	if (!UnpackBlob(path, folder, IsGoodPartName)) {
+		return false;
+	}
+	// The Serbian archive ships "sr_Cyrl_RS.{dic,aff}", but
+	// QLocale(QLocale::Serbian).name() is "sr_RS" on our Qt, so the
+	// Hunspell loader and DictionaryExists miss them. Rename to the
+	// expected stem.
+	if (langId == int(QLocale::Serbian)) {
+		const auto dir = QDir(folder);
+		for (const auto &ext : kDictExtensions) {
+			const auto from = u"sr_Cyrl_RS.%1"_q.arg(ext);
+			const auto to = u"sr_RS.%1"_q.arg(ext);
+			if (dir.exists(from) && !dir.exists(to)) {
+				QFile::rename(dir.filePath(from), dir.filePath(to));
+			}
+		}
+	}
+	return true;
 }
 
 bool DictionaryExists(int langId) {
@@ -316,26 +487,26 @@ rpl::producer<QString> ButtonManageDictsState(
 		if (!Core::App().settings().spellcheckerEnabled()) {
 			return QString();
 		}
-		if (!Core::App().settings().dictionariesEnabled().size()) {
+		const auto dicts = Core::App().settings().dictionariesEnabled();
+		if (dicts.empty()) {
 			return QString();
 		}
-		const auto dicts = Core::App().settings().dictionariesEnabled();
 		const auto filtered = ranges::views::all(
 			dicts
 		) | ranges::views::filter(
 			DictionaryExists
 		) | ranges::to_vector;
-		const auto active = Platform::Spellchecker::ActiveLanguages();
 
-		return (active.size() == filtered.size())
-			? QString::number(filtered.size())
-			: tr::lng_contacts_loading(tr::now);
+		return (filtered.size() < dicts.size())
+			? tr::lng_contacts_loading(tr::now)
+			: QString::number(filtered.size());
 	};
 	return rpl::single(
 		computeString()
 	) | rpl::then(
 		rpl::merge(
 			Spellchecker::SupportedScriptsChanged(),
+			Spellchecker::DictionariesChanged(),
 			Core::App().settings().dictionariesEnabledChanges(
 			) | rpl::to_empty,
 			Core::App().settings().spellcheckerEnabledChanges(
@@ -389,23 +560,23 @@ void Start(not_null<Main::Session*> session) {
 	if (Platform::Spellchecker::IsSystemSpellchecker()) {
 		Spellchecker::SupportedScriptsChanged()
 		| rpl::take(1)
-		| rpl::start_with_next(AddExceptions, lifetime);
+		| rpl::on_next(AddExceptions, lifetime);
 
 		return;
 	}
 
 	Spellchecker::SupportedScriptsChanged(
-	) | rpl::start_with_next(AddExceptions, lifetime);
+	) | rpl::on_next(AddExceptions, lifetime);
 
 	Spellchecker::SetWorkingDirPath(DictionariesPath());
 
 	settings->dictionariesEnabledChanges(
-	) | rpl::start_with_next([](auto dictionaries) {
+	) | rpl::on_next([](auto dictionaries) {
 		Platform::Spellchecker::UpdateLanguages(dictionaries);
 	}, lifetime);
 
 	settings->spellcheckerEnabledChanges(
-	) | rpl::start_with_next(onEnabled, lifetime);
+	) | rpl::on_next(onEnabled, lifetime);
 
 	const auto method = QGuiApplication::inputMethod();
 
@@ -418,12 +589,18 @@ void Start(not_null<Main::Session*> session) {
 				return;
 			}
 			const auto l = LanguageFromLocale(method->locale());
-			if (!IsSupportedLang(l) || DictionaryExists(l)) {
+			// Avoid pulling the manifest just because an input-method
+			// locale flipped; only fetch if we'd actually need to
+			// download something for the new locale.
+			if (DictionaryExists(l)) {
 				return;
 			}
-			crl::on_main(session, [=] {
+			EnsureManifestThen(session, crl::guard(session, [=] {
+				if (!IsSupportedLang(l) || DictionaryExists(l)) {
+					return;
+				}
 				DownloadDictionaryInBackground(session, 0, { l });
-			});
+			}));
 		};
 		QObject::connect(
 			method,
@@ -433,12 +610,21 @@ void Start(not_null<Main::Session*> session) {
 
 	if (settings->autoDownloadDictionaries()) {
 		session->data().contactsLoaded().changes(
-		) | rpl::start_with_next([=](bool loaded) {
+		) | rpl::on_next([=](bool loaded) {
 			if (!loaded) {
 				return;
 			}
-
-			DownloadDictionaryInBackground(session, 0, DefaultLanguages());
+			const auto enabled = settings->dictionariesEnabled();
+			if (!enabled.empty()
+				&& ranges::all_of(enabled, &DictionaryExists)) {
+				// Every previously-enabled dictionary is already on
+				// disk; no manifest fetch, no network traffic.
+				return;
+			}
+			EnsureManifestThen(session, crl::guard(session, [=] {
+				DownloadDictionaryInBackground(
+					session, 0, DefaultLanguages());
+			}));
 		}, lifetime);
 
 		connectInput();
@@ -466,7 +652,7 @@ void Start(not_null<Main::Session*> session) {
 	rpl::combine(
 		settings->spellcheckerEnabledValue(),
 		settings->autoDownloadDictionariesValue()
-	) | rpl::start_with_next([=](bool spell, bool download) {
+	) | rpl::on_next([=](bool spell, bool download) {
 		if (spell && download) {
 			connectInput();
 			return;

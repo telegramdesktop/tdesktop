@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/ui/dialogs_stories_content.h"
 #include "dialogs/ui/dialogs_stories_list.h"
 #include "dialogs/ui/dialogs_suggestions.h"
+#include "dialogs/ui/dialogs_top_bar_suggestion_content.h"
 #include "dialogs/dialogs_inner_widget.h"
 #include "dialogs/dialogs_search_from_controllers.h"
 #include "dialogs/dialogs_top_bar_suggestion.h"
@@ -21,19 +22,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/view/history_view_top_bar_widget.h"
+#include "history/view/history_view_chat_section.h"
 #include "history/view/history_view_contact_status.h"
-#include "history/view/history_view_requests_bar.h"
 #include "history/view/history_view_group_call_bar.h"
+#include "history/view/history_view_requests_bar.h"
+#include "history/view/history_view_top_bar_widget.h"
+#include "boxes/peers/community_box.h"
+#include "boxes/peers/community_pending_requests_box.h"
 #include "boxes/peers/edit_peer_requests_box.h"
+#include "boxes/choose_filter_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/chat_filters_tabs_strip.h"
 #include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/effects/radial_animation.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/chat/requests_bar.h"
 #include "ui/chat/group_call_bar.h"
 #include "ui/chat/more_chats_bar.h"
@@ -42,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/swipe_handler.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/screen_reader_mode.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -49,6 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "api/api_authorizations.h"
 #include "api/api_chat_filters.h"
 #include "apiwrap.h"
 #include "chat_helpers/message_field.h"
@@ -78,14 +87,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_download_manager.h"
 #include "data/data_chat_filters.h"
+#include "data/data_saved_messages.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_stories.h"
 #include "info/downloads/info_downloads_widget.h"
+#include "info/profile/info_profile_values.h"
 #include "info/info_memento.h"
 #include "inline_bots/bot_attach_web_view.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_dialogs_widget.h"
 #include "styles/style_info.h"
 #include "styles/style_window.h"
 #include "base/qt/qt_common_adapters.h"
@@ -108,6 +120,20 @@ base::options::toggle OptionForumHideChatsList({
 	.description = "Don't keep a narrow column of chat list.",
 });
 
+// An invisible, larger hit-area stacked under the main menu toggle so a mouse
+// click near the toggle still opens the menu. It duplicates the toggle's action
+// and carries no label, so it reports no accessible role - that keeps the screen
+// reader's FocusManager from turning it into a second, unnamed Tab stop, while
+// mouse clicks keep working.
+class MenuUnderButton final : public Ui::AbstractButton {
+public:
+	using Ui::AbstractButton::AbstractButton;
+
+	QAccessible::Role accessibilityRole() override {
+		return QAccessible::NoRole;
+	}
+};
+
 [[nodiscard]] bool RedirectTextToSearch(const QString &text) {
 	for (const auto &ch : text) {
 		if (ch.unicode() >= 32) {
@@ -119,9 +145,11 @@ base::options::toggle OptionForumHideChatsList({
 
 [[nodiscard]] QImage UpdateIcon() {
 	const auto iconSize = st::dialogsInstallUpdateIconSize;
+	const auto ratio = style::DevicePixelRatio();
 	auto result = QImage(
-		Size(iconSize) * style::DevicePixelRatio(),
+		Size(iconSize) * ratio,
 		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(ratio);
 	result.fill(Qt::transparent);
 	{
 		auto p = QPainter(&result);
@@ -165,6 +193,38 @@ base::options::toggle OptionForumHideChatsList({
 		p.fillPath(path, Qt::black);
 	}
 	return result;
+}
+
+class CommunityAddChatNarrowButton final : public Ui::RippleButton {
+public:
+	explicit CommunityAddChatNarrowButton(not_null<QWidget*> parent);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+	QImage prepareRippleMask() const override;
+
+};
+
+CommunityAddChatNarrowButton::CommunityAddChatNarrowButton(
+	not_null<QWidget*> parent)
+: Ui::RippleButton(parent, st::defaultRippleAnimation) {
+	setCursor(style::cur_pointer);
+}
+
+void CommunityAddChatNarrowButton::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+	auto hq = PainterHighQualityEnabler(p);
+	const auto radius = height() / 2.;
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::activeButtonBg);
+	p.drawRoundedRect(rect(), radius, radius);
+	paintRipple(p, 0, 0);
+	st::communityAddChatButton.icon.paintInCenter(p, rect());
+}
+
+QImage CommunityAddChatNarrowButton::prepareRippleMask() const {
+	return Ui::RippleAnimation::RoundRectMask(size(), height() / 2);
 }
 
 } // namespace
@@ -220,7 +280,7 @@ Widget::BottomButton::BottomButton(
 	if (_hasTextIcon) {
 		rpl::single(rpl::empty_value()) | rpl::then(
 			style::PaletteChanged()
-		) | rpl::start_with_next([this] {
+		) | rpl::on_next([this] {
 			_textIcon = UpdateIcon();
 		}, lifetime());
 	}
@@ -345,7 +405,7 @@ Widget::Widget(
 	.toggle = object_ptr<Ui::IconButton>(
 		_searchControls,
 		st::dialogsMenuToggle),
-	.under = object_ptr<Ui::AbstractButton>(_searchControls),
+	.under = object_ptr<MenuUnderButton>(_searchControls),
 })
 , _searchForNarrowLayout(_searchControls, st::dialogsSearchForNarrowFilters)
 , _search(_searchControls, st::dialogsFilter, tr::lng_dlg_filter())
@@ -377,10 +437,11 @@ Widget::Widget(
 	_scroll->setOverscrollTypes(
 		_stories ? OverscrollType::Virtual : OverscrollType::Real,
 		OverscrollType::Real);
-	const auto innerList = _scroll->setOwnedWidget(
+	_scroll->setOverscrollPullDistances(st::dialogsStoriesFull.height, 0);
+	_innerList = _scroll->setOwnedWidget(
 		object_ptr<Ui::VerticalLayout>(this));
-	_inner = innerList->add(object_ptr<InnerWidget>(
-		innerList,
+	_inner = _innerList->add(object_ptr<InnerWidget>(
+		_innerList,
 		controller,
 		rpl::combine(
 			_childListPeerId.value(),
@@ -389,27 +450,26 @@ Widget::Widget(
 	rpl::combine(
 		_scroll->heightValue(),
 		_topBarSuggestionHeightChanged.events_starting_with(0)
-	) | rpl::start_with_next([=](int height, int topBarHeight) {
-		innerList->setMinimumHeight(height);
+	) | rpl::on_next([=](int height, int topBarHeight) {
+		_innerList->setMinimumHeight(height);
 		_inner->setMinimumHeight(height - topBarHeight);
 		_inner->refresh();
-	}, innerList->lifetime());
-	_scroll->widthValue() | rpl::start_with_next([=](int width) {
-		innerList->resizeToWidth(width);
-	}, innerList->lifetime());
+	}, _innerList->lifetime());
+	_scroll->widthValue() | rpl::on_next([=](int width) {
+		_innerList->resizeToWidth(width);
+	}, _innerList->lifetime());
 	_scrollToTop->raise();
 	_lockUnlock->toggle(false, anim::type::instant);
 
-
 	_inner->updated(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		listScrollUpdated();
 	}, lifetime());
 
 	rpl::combine(
 		session().api().dialogsLoadMayBlockByDate(),
 		session().api().dialogsLoadBlockedByDate()
-	) | rpl::start_with_next([=](bool mayBlock, bool isBlocked) {
+	) | rpl::on_next([=](bool mayBlock, bool isBlocked) {
 		refreshLoadMoreButton(mayBlock, isBlocked);
 	}, lifetime());
 
@@ -426,28 +486,25 @@ Widget::Widget(
 				&& !update.history->isPinnedDialog(
 					controller->activeChatsFilterCurrent());
 		}
-	}) | rpl::start_with_next([=](const Data::HistoryUpdate &update) {
+	}) | rpl::on_next([=](const Data::HistoryUpdate &update) {
 		jumpToTop(true);
 	}, lifetime());
 
-	fullSearchRefreshOn(session().settings().skipArchiveInSearchChanges(
-	) | rpl::to_empty);
-
 	_inner->scrollByDeltaRequests(
-	) | rpl::start_with_next([=](int delta) {
+	) | rpl::on_next([=](int delta) {
 		if (_scroll) {
 			_scroll->scrollToY(_scroll->scrollTop() + delta);
 		}
 	}, lifetime());
 
 	_inner->mustScrollTo(
-	) | rpl::start_with_next([=](const Ui::ScrollToRequest &data) {
+	) | rpl::on_next([=](const Ui::ScrollToRequest &data) {
 		if (_scroll) {
 			_scroll->scrollToY(data.ymin, data.ymax);
 		}
 	}, lifetime());
 	_inner->dialogMoved(
-	) | rpl::start_with_next([=](const Ui::ScrollToRequest &data) {
+	) | rpl::on_next([=](const Ui::ScrollToRequest &data) {
 		const auto movedFrom = data.ymin;
 		const auto movedTo = data.ymax;
 		const auto st = _scroll->scrollTop();
@@ -456,21 +513,21 @@ Widget::Widget(
 		}
 	}, lifetime());
 	_inner->searchRequests(
-	) | rpl::start_with_next([=](SearchRequestDelay delay) {
+	) | rpl::on_next([=](SearchRequestDelay delay) {
 		searchRequested(delay);
 	}, lifetime());
 	_inner->completeHashtagRequests(
-	) | rpl::start_with_next([=](const QString &tag) {
+	) | rpl::on_next([=](const QString &tag) {
 		completeHashtag(tag);
 	}, lifetime());
 	_inner->refreshHashtagsRequests(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		searchCursorMoved();
 	}, lifetime());
 	_inner->changeSearchTabRequests(
 	) | rpl::filter([=](ChatSearchTab tab) {
 		return _searchState.tab != tab;
-	}) | rpl::start_with_next([=](ChatSearchTab tab) {
+	}) | rpl::on_next([=](ChatSearchTab tab) {
 		auto copy = _searchState;
 		copy.tab = tab;
 		applySearchState(std::move(copy));
@@ -479,13 +536,33 @@ Widget::Widget(
 	) | rpl::filter([=](ChatTypeFilter filter) {
 		return (_searchState.filter != filter)
 			&& (_searchState.tab == ChatSearchTab::MyMessages);
-	}) | rpl::start_with_next([=](ChatTypeFilter filter) {
+	}) | rpl::on_next([=](ChatTypeFilter filter) {
 		auto copy = _searchState;
 		copy.filter = filter;
 		applySearchState(copy);
 	}, lifetime());
+	_inner->changeSearchFromArchiveRequests(
+	) | rpl::filter([=](bool fromArchive) {
+		return (_searchState.fromArchive != fromArchive)
+			&& (_searchState.tab == ChatSearchTab::MyMessages);
+	}) | rpl::on_next([=](bool fromArchive) {
+		auto copy = _searchState;
+		copy.fromArchive = fromArchive;
+		applySearchState(copy);
+	}, lifetime());
+	_inner->resetSearchRestrictionsRequests(
+	) | rpl::filter([=] {
+		return (_searchState.tab == ChatSearchTab::MyMessages)
+			&& ((_searchState.filter != ChatTypeFilter::All)
+				|| !_searchState.fromArchive);
+	}) | rpl::on_next([=] {
+		auto copy = _searchState;
+		copy.filter = ChatTypeFilter::All;
+		copy.fromArchive = true;
+		applySearchState(copy);
+	}, lifetime());
 	_inner->cancelSearchRequests(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		cancelSearch({
 			.forceFullCancel = true,
 			.jumpBackToSearchedChat = true,
@@ -493,7 +570,7 @@ Widget::Widget(
 		controller->widget()->setInnerFocus();
 	}, lifetime());
 	_inner->cancelSearchFromRequests(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		auto copy = _searchState;
 		copy.fromPeer = nullptr;
 		if (copy.inChat.sublist()) {
@@ -502,33 +579,33 @@ Widget::Widget(
 		applySearchState(std::move(copy));
 	}, lifetime());
 	_inner->changeSearchFromRequests(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		showSearchFrom();
 	}, lifetime());
 	_inner->chosenRow(
-	) | rpl::start_with_next([=](const ChosenRow &row) {
+	) | rpl::on_next([=](const ChosenRow &row) {
 		chosenRow(row);
 	}, lifetime());
 	_inner->openBotMainAppRequests(
-	) | rpl::start_with_next([=](UserId userId) {
+	) | rpl::on_next([=](UserId userId) {
 		if (const auto user = session().data().user(userId)) {
 			openBotMainApp(user);
 		}
 	}, lifetime());
 
 	_scroll->geometryChanged(
-	) | rpl::start_with_next(crl::guard(_inner, [=] {
+	) | rpl::on_next(crl::guard(_inner, [=] {
 		_inner->parentGeometryChanged();
 	}), lifetime());
 	_scroll->scrolls(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		listScrollUpdated();
 	}, lifetime());
 
 	session().data().chatsListChanges(
 	) | rpl::filter([=](Data::Folder *folder) {
 		return (folder == _inner->shownFolder());
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		Ui::PostponeCall(this, [=] { listScrollUpdated(); });
 	}, lifetime());
 
@@ -536,17 +613,31 @@ Widget::Widget(
 	controller->widget()->imeCompositionStarts(
 	) | rpl::filter([=] {
 		return redirectImeToSearch();
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		_search->setFocusFast();
 	}, lifetime());
 
 	_search->changes(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		crl::on_main(this, [=] { applySearchUpdate(); });
 	}, _search->lifetime());
 
 	_search->submits(
-	) | rpl::start_with_next([=] { submit(); }, _search->lifetime());
+	) | rpl::on_next([=] { submit(); }, _search->lifetime());
+
+	_search->setMimeDataHook([=](
+			not_null<const QMimeData*> data,
+			Ui::InputField::MimeAction action) {
+		if (data->hasFormat(u"application/x-telegram-dialog"_q)) {
+			if (const auto history = HistoryFromMimeData(data, &session())) {
+				if (action != Ui::InputField::MimeAction::Check) {
+					controller->searchInChat(history);
+				}
+				return true;
+			}
+		}
+		return false;
+	});
 
 	QObject::connect(
 		_search->rawTextEdit().get(),
@@ -562,7 +653,7 @@ Widget::Widget(
 			checker.isLatest(),
 			checker.failed(),
 			checker.ready()
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			checkUpdateStatus();
 		}, lifetime());
 	}
@@ -570,14 +661,20 @@ Widget::Widget(
 	_cancelSearch->setClickedCallback([=] {
 		cancelSearch({ .jumpBackToSearchedChat = true });
 	});
+	_cancelSearch->setAccessibleName(tr::lng_sr_cancel_search(tr::now));
 	_jumpToDate->entity()->setClickedCallback([=] { showCalendar(); });
+	_jumpToDate->entity()->setAccessibleName(
+		tr::lng_sr_search_date(tr::now));
 	_chooseFromUser->entity()->setClickedCallback([=] { showSearchFrom(); });
+	_chooseFromUser->entity()->setAccessibleName(
+		tr::lng_search_messages_from(tr::now));
 	rpl::single(rpl::empty) | rpl::then(
 		session().domain().local().localPasscodeChanged()
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		updateLockUnlockVisibility();
 	}, lifetime());
 	const auto lockUnlock = _lockUnlock->entity();
+	lockUnlock->setAccessibleName(tr::lng_shortcuts_lock(tr::now));
 	lockUnlock->setClickedCallback([=] {
 		lockUnlock->setIconOverride(
 			&st::dialogsUnlockIcon,
@@ -592,6 +689,7 @@ Widget::Widget(
 		setupStories();
 	}
 
+	_searchForNarrowLayout->setAccessibleName(tr::lng_dlg_filter(tr::now));
 	_searchForNarrowLayout->setClickedCallback([=] {
 		_search->setFocusFast();
 		if (_childList) {
@@ -626,7 +724,7 @@ Widget::Widget(
 		}
 	});
 	_inner->listBottomReached(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		loadMoreBlockedByDate();
 	}, lifetime());
 
@@ -646,7 +744,7 @@ Widget::Widget(
 	};
 	_scroll->setOverscrollBg(overscrollBg());
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_scroll->setOverscrollBg(overscrollBg());
 	}, lifetime());
 
@@ -658,12 +756,12 @@ Widget::Widget(
 			anim::type::instant);
 
 		controller->openedFolder().changes(
-		) | rpl::start_with_next([=](Data::Folder *folder) {
+		) | rpl::on_next([=](Data::Folder *folder) {
 			changeOpenedFolder(folder, anim::type::normal);
 		}, lifetime());
 
 		controller->shownForum().changes(
-		) | rpl::filter(!rpl::mappers::_1) | rpl::start_with_next([=] {
+		) | rpl::filter(!rpl::mappers::_1) | rpl::on_next([=] {
 			if (_openedForum) {
 				changeOpenedForum(nullptr, anim::type::normal);
 			} else if (_childList) {
@@ -671,15 +769,24 @@ Widget::Widget(
 			}
 		}, lifetime());
 
+		changeOpenedCommunity(
+			controller->openedCommunity().current(),
+			anim::type::instant);
+
+		controller->openedCommunity().changes(
+		) | rpl::on_next([=](Data::CommunityInfo *community) {
+			changeOpenedCommunity(community, anim::type::normal);
+		}, lifetime());
+
 		_childListShown.changes(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			_scroll->setOverscrollBg(overscrollBg());
 			updateControlsGeometry();
 		}, lifetime());
 
 		_childListShown.changes(
 		) | rpl::filter((rpl::mappers::_1 == 0.) || (rpl::mappers::_1 == 1.)
-		) | rpl::start_with_next([=](float64 shown) {
+		) | rpl::on_next([=](float64 shown) {
 			const auto color = (shown > 0.) ? &st::dialogsRippleBg : nullptr;
 			_mainMenu.toggle->setRippleColorOverride(color);
 			_searchForNarrowLayout->setRippleColorOverride(color);
@@ -697,7 +804,10 @@ Widget::Widget(
 	}
 
 	setupFrozenAccountBar();
-	setupTopBarSuggestions(innerList);
+	setupTopBarSuggestions();
+#ifdef _DEBUG
+	setupTopBarSuggestionTestHotkeys();
+#endif // _DEBUG
 }
 
 void Widget::setupSwipeBack() {
@@ -711,6 +821,7 @@ void Widget::setupSwipeBack() {
 	};
 
 	auto update = [=](Ui::Controls::SwipeContextData data) {
+		data.cursorTop -= _inner->y();
 		if (data.translation != 0) {
 			if (data.translation < 0
 				&& _inner
@@ -744,13 +855,14 @@ void Widget::setupSwipeBack() {
 		}
 	};
 
-	auto init = [=](int top, Qt::LayoutDirection direction) {
+	auto init = [=](Ui::Controls::SwipeHandlerInitData data) {
+		const auto top = data.cursorPosition.y() - _inner->y();
 		_swipeBackIconMirrored = false;
 		_swipeBackMirrored = false;
 		if (_childListShown.current()) {
 			return Ui::Controls::SwipeHandlerFinishData();
 		}
-		const auto isRightToLeft = direction == Qt::RightToLeft;
+		const auto isRightToLeft = data.direction == Qt::RightToLeft;
 		const auto action = Core::App().settings().quickDialogAction();
 		const auto isDisabled = action == Ui::QuickDialogAction::Disabled;
 		if (_inner) {
@@ -811,6 +923,19 @@ void Widget::setupSwipeBack() {
 				}
 			});
 		}
+		if (controller()->openedCommunity().current()) {
+			if (!isRightToLeft) {
+				return Ui::Controls::SwipeHandlerFinishData();
+			}
+			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
+				_swipeBackData = {};
+				if (controller()->openedCommunity().current()) {
+					if (!controller()->windowId().community()) {
+						controller()->closeCommunity();
+					}
+				}
+			});
+		}
 		if (isRightToLeft && isMainList()) {
 			_swipeBackIconMirrored = true;
 			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
@@ -837,7 +962,7 @@ void Widget::setupSwipeBack() {
 	};
 
 	Ui::Controls::SetupSwipeHandler({
-		.widget = _inner,
+		.widget = _innerList,
 		.scroll = _scroll.data(),
 		.update = std::move(update),
 		.init = std::move(init),
@@ -859,8 +984,27 @@ void Widget::chosenRow(const ChosenRow &row) {
 
 	const auto history = row.key.history();
 	const auto topicJump = history
-		? history->peer->forumTopicFor(row.message.fullId.msg)
+		? history->peer->forumTopicFor(row.topicJumpRootId)
 		: nullptr;
+	const auto sublistJump = history
+		? history->peer->monoforumSublistFor(row.sublistJumpPeerId)
+		: nullptr;
+	const auto userpicCommunity = [&]() -> ChannelData* {
+		if (!history
+			|| !row.userpicClick
+			|| (row.message.fullId.msg != ShowAtUnreadMsgId)) {
+			return nullptr;
+		}
+		const auto communityId = Data::PeerLinkedCommunityId(history->peer);
+		if (!communityId) {
+			return nullptr;
+		}
+		const auto community = session().data().channel(communityId);
+		const auto info = community->communityInfo();
+		return (info && controller()->openedCommunity().current() != info)
+			? community.get()
+			: nullptr;
+	}();
 
 	if (topicJump) {
 		if (controller()->shownForum().current() == topicJump->forum()) {
@@ -868,7 +1012,8 @@ void Widget::chosenRow(const ChosenRow &row) {
 		} else if (row.newWindow) {
 			controller()->showInNewWindow(Window::SeparateId(topicJump));
 		} else {
-			if (!controller()->adaptive().isOneColumn()) {
+			if (!controller()->adaptive().isOneColumn()
+				&& !topicJump->peer()->useSubsectionTabs()) {
 				controller()->showForum(
 					topicJump->forum(),
 					Window::SectionShow().withChildColumn());
@@ -879,13 +1024,20 @@ void Widget::chosenRow(const ChosenRow &row) {
 				Window::SectionShow::Way::ClearStack);
 		}
 		return;
+	} else if (sublistJump) {
+		if (row.newWindow) {
+			controller()->showInNewWindow(Window::SeparateId(sublistJump));
+		} else {
+			controller()->showThread(
+				sublistJump,
+				ShowAtUnreadMsgId,
+				Window::SectionShow::Way::ClearStack);
+		}
+		return;
 	} else if (const auto topic = row.key.topic()) {
 		auto params = Window::SectionShow(
 			Window::SectionShow::Way::ClearStack);
-		params.highlightPart.text = _searchState.query;
-		if (!params.highlightPart.empty()) {
-			params.highlightPartOffsetHint = kSearchQueryOffsetHint;
-		}
+		params.highlight = Window::SearchHighlightId(_searchState.query);
 		if (row.newWindow) {
 			controller()->showInNewWindow(
 				Window::SeparateId(topic),
@@ -901,22 +1053,48 @@ void Widget::chosenRow(const ChosenRow &row) {
 		&& !history->peer->isSelf()) {
 		controller()->openPeerStories(history->peer->id);
 		return;
+	} else if (userpicCommunity) {
+		controller()->showPeerInfo(userpicCommunity);
+		return;
+	} else if (history
+		&& !row.message.fullId
+		&& history->peer->asChannel()
+		&& history->peer->asChannel()->isCommunity()) {
+		if (row.newWindow) {
+			controller()->showInNewWindow(Window::SeparateId(
+				Window::SeparateType::Community,
+				history));
+		} else if (const auto info
+				= history->peer->asChannel()->communityInfo()) {
+			if (controller()->openedCommunity().current() == info) {
+				controller()->closeCommunity();
+			} else {
+				controller()->openCommunity(info);
+				hideChildList();
+			}
+		}
+		return;
 	} else if (history
 		&& history->isForum()
 		&& !row.message.fullId
 		&& (!controller()->adaptive().isOneColumn()
-			|| !history->peer->forum()->channel()->viewForumAsMessages())) {
+			|| !history->peer->viewForumAsMessages()
+			|| history->peer->useSubsectionTabs())) {
 		const auto forum = history->peer->forum();
 		if (controller()->shownForum().current() == forum) {
 			controller()->closeForum();
 		} else if (row.newWindow) {
-			controller()->showInNewWindow(
-				Window::SeparateId(Window::SeparateType::Forum, history));
+			const auto type = forum->peer()->useSubsectionTabs()
+				? Window::SeparateType::Chat
+				: Window::SeparateType::Forum;
+			controller()->showInNewWindow(Window::SeparateId(type, history));
 		} else {
 			controller()->showForum(
 				forum,
-				Window::SectionShow().withChildColumn());
-			if (forum->channel()->viewForumAsMessages()) {
+				Window::SectionShow(
+					Window::SectionShow::Way::ClearStack).withChildColumn());
+			if (controller()->shownForum().current() == forum
+				&& forum->peer()->viewForumAsMessages()) {
 				controller()->showThread(
 					history,
 					ShowAtUnreadMsgId,
@@ -924,19 +1102,37 @@ void Widget::chosenRow(const ChosenRow &row) {
 			}
 		}
 		return;
+	} else if (history
+		&& history->amMonoforumAdmin()
+		&& !row.message.fullId) {
+		const auto monoforum = history->peer->monoforum();
+		if (row.newWindow) {
+			controller()->showInNewWindow(
+				Window::SeparateId(Window::SeparateType::Chat, history));
+		} else {
+			if (const auto active = monoforum->activeSubsectionThread()) {
+				controller()->showThread(
+					active,
+					ShowAtUnreadMsgId,
+					Window::SectionShow::Way::ClearStack);
+			} else {
+				controller()->showPeerHistory(
+					history,
+					Window::SectionShow::Way::ClearStack);
+			}
+		}
+		return;
 	} else if (history) {
 		const auto peer = history->peer;
-		const auto showAtMsgId = controller()->uniqueChatsInSearchResults()
-			? ShowAtUnreadMsgId
-			: row.message.fullId.msg;
+		const auto showAtMsgId = controller()->uniqueChatsInSearchResults(
+			_searchState
+		) ? ShowAtUnreadMsgId : row.message.fullId.msg;
 		auto params = Window::SectionShow(
 			Window::SectionShow::Way::ClearStack);
-		params.highlightPart.text = _searchState.query;
-		if (!params.highlightPart.empty()) {
-			params.highlightPartOffsetHint = kSearchQueryOffsetHint;
-		}
+		params.highlight = Window::SearchHighlightId(_searchState.query);
 		if (row.newWindow) {
 			controller()->showInNewWindow(peer, showAtMsgId);
+			closeSuggestions();
 		} else {
 			controller()->showThread(history, showAtMsgId, params);
 			hideChildList();
@@ -975,7 +1171,7 @@ void Widget::setGeometryWithTopMoved(
 	_topDelta = topDelta;
 	bool willBeResized = (size() != newGeometry.size());
 	if (geometry() != newGeometry) {
-		auto weak = Ui::MakeWeak(this);
+		auto weak = base::make_weak(this);
 		setGeometry(newGeometry);
 		if (!weak) {
 			return;
@@ -996,6 +1192,7 @@ void Widget::scrollToDefaultChecked(bool verytop) {
 
 void Widget::setupScrollUpButton() {
 	_scrollToTop->setClickedCallback([=] { scrollToDefaultChecked(); });
+	_scrollToTop->setAccessibleName(tr::lng_sr_scroll_to_top(tr::now));
 	trackScroll(_scrollToTop);
 	trackScroll(this);
 	updateScrollUpVisibility();
@@ -1005,7 +1202,7 @@ void Widget::setupTouchChatPreview() {
 	_scroll->setCustomTouchProcess([=](not_null<QTouchEvent*> e) {
 		return _inner->processTouchEvent(e);
 	});
-	_inner->touchCancelRequests() | rpl::start_with_next([=] {
+	_inner->touchCancelRequests() | rpl::on_next([=] {
 		QTouchEvent ev(QEvent::TouchCancel);
 		ev.setTimestamp(crl::now());
 		QGuiApplication::sendEvent(_scroll, &ev);
@@ -1014,72 +1211,67 @@ void Widget::setupTouchChatPreview() {
 
 void Widget::setupFrozenAccountBar() {
 	session().frozenValue(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		updateFrozenAccountBar();
 		updateControlsGeometry();
 	}, lifetime());
 }
 
-void Widget::setupTopBarSuggestions(not_null<Ui::VerticalLayout*> dialogs) {
+void Widget::setupTopBarSuggestions() {
 	if (_layout == Layout::Child) {
 		return;
 	}
 	using namespace rpl::mappers;
-	crl::on_main(&session(), [=, session = &session()] {
-		(session->data().chatsListLoaded(nullptr)
+	crl::on_main(_innerList, [=] {
+		const auto owner = &session().data();
+		session().api().authorizations().unreviewedChanges(
+		) | rpl::on_next([=] {
+			updateForceDisplayWide();
+		}, lifetime());
+		(owner->chatsListLoaded(nullptr)
 			? rpl::single<Data::Folder*>(nullptr)
-			: session->data().chatsListLoadedEvents()
+			: owner->chatsListLoadedEvents()
 		) | rpl::filter(_1 == nullptr) | rpl::map([=] {
 			auto on = rpl::combine(
 				controller()->activeChatsFilter(),
 				_openedFolderOrForumChanges.events_starting_with(false),
-				widthValue() | rpl::map(
-					_1 >= st::columnMinimalWidthLeft
-				) | rpl::distinct_until_changed(),
 				_searchStateForTopBarSuggestion.events_starting_with(
 					!_searchState.query.isEmpty()),
 				_jumpToDate->toggledValue()
 			) | rpl::map([=](
 					FilterId id,
 					bool folderOrForum,
-					bool wide,
 					bool search,
 					bool searchInPeer) {
 				return !folderOrForum
-					&& wide
 					&& !search
 					&& !searchInPeer
-					&& (id == session->data().chatsFilters().defaultId());
+					&& (id == owner->chatsFilters().defaultId());
 			});
-			return TopBarSuggestionValue(dialogs, session, std::move(on));
-		}) | rpl::flatten_latest() | rpl::start_with_next([=](
+			return TopBarSuggestionValue(
+				this,
+				&session(),
+				std::move(on),
+				_childListShown.value(),
+				_prepareTopBarSnapshot.events());
+		}) | rpl::flatten_latest() | rpl::on_next([=](
 				Ui::SlideWrap<Ui::RpWidget> *raw) {
 			if (raw) {
-				_topBarSuggestion = dialogs->insert(
-					0,
-					object_ptr<Ui::SlideWrap<Ui::RpWidget>>::fromRaw(raw));
-				_topBarSuggestion->heightValue(
-				) | rpl::start_to_stream(
-					_topBarSuggestionHeightChanged,
-					_topBarSuggestion->entity()->lifetime());
-				rpl::combine(
-					_topBarSuggestion->entity()->desiredHeightValue(),
-					_childListShown.value()
-				) | rpl::start_with_next([=](
-						int desiredHeight,
-						float64 shown) {
-					const auto newHeight = desiredHeight * (1. - shown);
-					_topBarSuggestion->entity()->setMaximumHeight(newHeight);
-					_topBarSuggestion->entity()->setMinimumWidth((shown > 0)
-						? width()
-						: 0);
-					_topBarSuggestion->entity()->resize(width(), newHeight);
-				}, _topBarSuggestion->lifetime());
+				_topBarSuggestion.reset(raw);
+				MountTopBarSuggestion({
+					.scroll = _scroll,
+					.innerList = _innerList,
+					.wrap = _topBarSuggestion.get(),
+					.placeholder = &_topBarSuggestionPlaceholder,
+					.heightChanged = [=](int h) {
+						_topBarSuggestionHeightChanged.fire_copy(h);
+					},
+				});
 			} else {
-				if (_topBarSuggestion) {
-					delete _topBarSuggestion;
-				}
+				_topBarSuggestionPlaceholder = nullptr;
 				_topBarSuggestion = nullptr;
+				_scroll->setBarTopInset(0);
+				_topBarSuggestionHeightChanged.fire(0);
 			}
 		}, lifetime());
 	});
@@ -1089,6 +1281,7 @@ void Widget::updateFrozenAccountBar() {
 	if (_layout == Layout::Child
 		|| _openedForum
 		|| _openedFolder
+		|| _openedCommunity
 		|| !session().frozen()) {
 		_frozenAccountBar = nullptr;
 	} else if (!_frozenAccountBar) {
@@ -1102,8 +1295,195 @@ void Widget::updateFrozenAccountBar() {
 
 void Widget::updateTopBarSuggestions() {
 	if (_topBarSuggestion) {
-		_openedFolderOrForumChanges.fire(_openedForum || _openedFolder);
+		_openedFolderOrForumChanges.fire(
+			_openedFolder || _openedForum || _openedCommunity);
 	}
+}
+
+bool Widget::communityOverlaysShown() const {
+	return _openedCommunity
+		&& !_openedForum
+		&& (_inner->state() == WidgetState::Default);
+}
+
+void Widget::updateCommunityOverlaysVisibility() {
+	if (_communityRequests) {
+		_communityRequests->toggle(
+			communityOverlaysShown() && (_communityRequestsCount > 0),
+			anim::type::instant);
+	}
+	if (_communityAddChat) {
+		_communityAddChatRefresh.fire({});
+	}
+}
+
+void Widget::updateCommunityRequestsBubble() {
+	_communityRequestsLifetime.destroy();
+	_communityRequestsPlaceholder = nullptr;
+	_communityRequests = nullptr;
+	_communityRequestsCount = 0;
+
+	const auto channel = _openedCommunity
+		? _openedCommunity->channel().get()
+		: nullptr;
+	if (!channel || !channel->canManageLinkedPeers()) {
+		_scroll->setBarTopInset(0);
+		_topBarSuggestionHeightChanged.fire(0);
+		return;
+	}
+
+	auto count = Info::Profile::PendingRequestsCountValue(
+		channel
+	) | rpl::start_spawning(_communityRequestsLifetime);
+
+	const auto content = Ui::CreateChild<TopBarSuggestionContent>(this);
+	const auto &margins = st::dialogsTopBarSuggestionMargins;
+	content->setGeometryOverride({
+		.cardInnerHeight = st::dialogsCommunityRequestsBubbleHeight,
+		.iconLeft = st::dialogsCommunityRequestsBubbleIconMargin
+			+ margins.left(),
+		.leadingTextSkip = st::dialogsCommunityRequestsBubbleTextSkip
+			+ margins.left(),
+		.rightInset = st::dialogsCommunityRequestsBubbleRightInset
+			+ margins.right(),
+		.cornerRadius = st::dialogsCommunityRequestsBubbleRadius,
+		.centerSingleLineTitle = true,
+	});
+	content->setLeadingWidget(CreateRequestsBubbleIcon(content));
+	content->setContent(
+		tr::lng_community_requests_title(tr::now, tr::marked),
+		TextWithEntities());
+	const auto open = [=] {
+		ShowCommunityPendingRequestsBox(controller(), channel);
+	};
+	content->setRightBadge(rpl::duplicate(count));
+	content->setClickedCallback(open);
+
+	_communityRequests.reset(Ui::CreateChild<Ui::SlideWrap<Ui::RpWidget>>(
+		this,
+		object_ptr<Ui::RpWidget>::fromRaw(content)));
+	_communityRequests->toggle(false, anim::type::instant);
+
+	MountTopBarSuggestion({
+		.scroll = _scroll,
+		.innerList = _innerList,
+		.wrap = _communityRequests.get(),
+		.placeholder = &_communityRequestsPlaceholder,
+		.heightChanged = [=](int h) {
+			_topBarSuggestionHeightChanged.fire_copy(h);
+		},
+	});
+
+	std::move(count) | rpl::on_next([=](int c) {
+		_communityRequestsCount = c;
+		updateCommunityOverlaysVisibility();
+	}, _communityRequestsLifetime);
+}
+
+void Widget::updateCommunityAddChatButton() {
+	_communityAddChatLifetime.destroy();
+	_communityAddChatPlaceholder = nullptr;
+	_communityAddChat = nullptr;
+	_communityAddChatNarrow = nullptr;
+
+	const auto channel = _openedCommunity
+		? _openedCommunity->channel().get()
+		: nullptr;
+	if (!channel || !channel->canManageLinkedPeers()) {
+		_scroll->setBarBottomInset(0);
+		return;
+	}
+
+	auto wrap = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+		this,
+		object_ptr<Ui::VerticalLayout>(this));
+	const auto entity = wrap->entity();
+	const auto row = entity->add(
+		object_ptr<Ui::RpWidget>(entity),
+		st::communityAddChatButtonMargin);
+	const auto button = MakeCommunityAddChatButton(row, [=] {
+		ShowChooseChatToAddBox(controller(), channel);
+	});
+	row->resize(row->width(), st::communityAddChatButton.height);
+	row->widthValue() | rpl::on_next([=](int width) {
+		button->setFullWidth(width);
+		button->moveToLeft(0, 0, width);
+	}, row->lifetime());
+	entity->paintOn([=](QPainter &p) {
+		const auto fadeHeight = st::communityAddChatButtonMargin.top()
+			+ st::communityAddChatButton.height
+			+ st::communityAddChatButtonMargin.bottom();
+		PaintBottomFade(p, entity->width(), fadeHeight, st::dialogsBg);
+	});
+
+	_communityAddChat.reset(wrap.release());
+	const auto raw = _communityAddChat.get();
+
+	_communityAddChatPlaceholder.reset(_innerList->add(
+		object_ptr<Ui::RpWidget>(_innerList)));
+	const auto placeholder = _communityAddChatPlaceholder.get();
+	placeholder->paintOn([placeholder](QPainter &p) {
+		p.fillRect(placeholder->rect(), st::dialogsBg);
+	});
+
+	raw->setParent(_scroll);
+	raw->raise();
+
+	const auto narrowButton = Ui::CreateChild<CommunityAddChatNarrowButton>(
+		_scroll.data());
+	_communityAddChatNarrow.reset(narrowButton);
+	narrowButton->setClickedCallback([=] {
+		ShowChooseChatToAddBox(controller(), channel);
+	});
+	narrowButton->resize(
+		st::communityAddChatButton.height + st::communityAddChatNarrowAddedWidth,
+		st::communityAddChatButton.height);
+	narrowButton->raise();
+	narrowButton->hide();
+
+	const auto pinToBottom = [=] {
+		const auto shown = communityOverlaysShown();
+		const auto narrow
+			= (_scroll->width() < st::columnMinimalWidthLeft / 2);
+		const auto buttonHeight = st::communityAddChatButton.height;
+		const auto buttonWidth = buttonHeight
+			+ st::communityAddChatNarrowAddedWidth;
+		const auto stripHeight = buttonHeight
+			+ st::defaultDialogRow.padding.top()
+			+ st::defaultDialogRow.padding.bottom();
+		if (!shown) {
+			raw->toggle(false, anim::type::instant);
+			narrowButton->hide();
+			placeholder->resize(placeholder->width(), 0);
+		} else if (narrow) {
+			placeholder->resize(placeholder->width(), stripHeight);
+			const auto bottom = std::max(0, _scroll->height() - stripHeight);
+			raw->toggle(false, anim::type::instant);
+			narrowButton->moveToLeft(
+				(_scroll->width() - buttonWidth) / 2,
+				bottom + st::defaultDialogRow.padding.top());
+			narrowButton->show();
+		} else {
+			narrowButton->hide();
+			raw->toggle(true, anim::type::instant);
+			raw->resizeToWidth(_scroll->width());
+			const auto height = raw->height();
+			placeholder->resize(placeholder->width(), height);
+			const auto bottom = std::max(0, _scroll->height() - height);
+			raw->moveToLeft(0, bottom);
+		}
+		_scroll->setBarBottomInset(shown
+			? (st::communityAddChatButtonMargin.top()
+				+ buttonHeight
+				+ st::communityAddChatButtonMargin.bottom())
+			: 0);
+	};
+	rpl::merge(
+		_scroll->sizeValue() | rpl::to_empty,
+		raw->heightValue() | rpl::to_empty,
+		_communityAddChatRefresh.events()
+	) | rpl::on_next(pinToBottom, _communityAddChatLifetime);
+	pinToBottom();
 }
 
 void Widget::setupMoreChatsBar() {
@@ -1111,7 +1491,7 @@ void Widget::setupMoreChatsBar() {
 		return;
 	}
 	controller()->activeChatsFilter(
-	) | rpl::start_with_next([=](FilterId id) {
+	) | rpl::on_next([=](FilterId id) {
 		storiesToggleExplicitExpand(false);
 		const auto cancelled = cancelSearch({ .forceFullCancel = true });
 		const auto guard = gsl::finally([&] {
@@ -1133,7 +1513,7 @@ void Widget::setupMoreChatsBar() {
 		trackScroll(_moreChatsBar->wrap());
 
 		_moreChatsBar->barClicks(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			if (const auto missing = filters->moreChats(id)
 				; !missing.empty()) {
 				Api::ProcessFilterUpdate(controller(), id, missing);
@@ -1141,7 +1521,7 @@ void Widget::setupMoreChatsBar() {
 		}, _moreChatsBar->lifetime());
 
 		_moreChatsBar->closeClicks(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			Api::ProcessFilterUpdate(controller(), id, {});
 		}, _moreChatsBar->lifetime());
 
@@ -1153,7 +1533,7 @@ void Widget::setupMoreChatsBar() {
 		}
 
 		_moreChatsBar->heightValue(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			updateControlsGeometry();
 		}, _moreChatsBar->lifetime());
 	}, lifetime());
@@ -1165,7 +1545,7 @@ void Widget::setupDownloadBar() {
 	}
 
 	Data::MakeDownloadBarContent(
-	) | rpl::start_with_next([=](Ui::DownloadBarContent &&content) {
+	) | rpl::on_next([=](Ui::DownloadBarContent &&content) {
 		const auto create = (content.count && !_downloadBar);
 		if (create) {
 			_downloadBar = std::make_unique<Ui::DownloadBar>(
@@ -1177,20 +1557,20 @@ void Widget::setupDownloadBar() {
 		}
 		if (create) {
 			_downloadBar->heightValue(
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				updateControlsGeometry();
 			}, _downloadBar->lifetime());
 
 			_downloadBar->shownValue(
 			) | rpl::filter(
 				!rpl::mappers::_1
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				_downloadBar = nullptr;
 				updateControlsGeometry();
 			}, _downloadBar->lifetime());
 
 			_downloadBar->clicks(
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				auto &&list = Core::App().downloadManager().loadingList();
 				const auto guard = gsl::finally([] {
 					Core::App().downloadManager().clearIfFinished();
@@ -1206,8 +1586,12 @@ void Widget::setupDownloadBar() {
 						return;
 					}
 				}
-				if (first) {
+				if (first && first->isHistoryEntry()) {
 					controller()->showMessage(first);
+				} else if (first) {
+					controller()->showSection(
+						Info::Downloads::Make(
+							controller()->session().user()));
 				}
 			}, _downloadBar->lifetime());
 
@@ -1281,10 +1665,12 @@ void Widget::setupMainMenuToggle() {
 	});
 	_mainMenu.under->stackUnder(_mainMenu.toggle);
 	_mainMenu.toggle->setClickedCallback([=] { showMainMenu(); });
+	_mainMenu.toggle->setIsMenuButton(true);
+	_mainMenu.toggle->setAccessibleName(tr::lng_main_menu(tr::now));
 
 	rpl::single(rpl::empty) | rpl::then(
 		controller()->filtersMenuChanged()
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		const auto filtersHidden = !controller()->filtersWidth();
 		_mainMenu.toggle->setVisible(filtersHidden);
 		_mainMenu.under->setVisible(filtersHidden);
@@ -1294,7 +1680,7 @@ void Widget::setupMainMenuToggle() {
 
 	Window::OtherAccountsUnreadState(
 		&controller()->session().account()
-	) | rpl::start_with_next([=](const Window::OthersUnreadState &state) {
+	) | rpl::on_next([=](const Window::OthersUnreadState &state) {
 		const auto icon = !state.count
 			? nullptr
 			: !state.allMuted
@@ -1306,7 +1692,7 @@ void Widget::setupMainMenuToggle() {
 
 void Widget::setupStories() {
 	_stories->verticalScrollEvents(
-	) | rpl::start_with_next([=](not_null<QWheelEvent*> e) {
+	) | rpl::on_next([=](not_null<QWheelEvent*> e) {
 		_scroll->viewportEvent(e);
 	}, _stories->lifetime());
 
@@ -1341,7 +1727,7 @@ void Widget::setupStories() {
 		_scroll->positionValue(),
 		_scroll->movementValue(),
 		_storiesExplicitExpandValue.value()
-	) | rpl::start_with_next([=](
+	) | rpl::on_next([=](
 			Ui::ElasticScrollPosition position,
 			Ui::ElasticScrollMovement movement,
 			int explicitlyExpanded) {
@@ -1383,27 +1769,28 @@ void Widget::setupStories() {
 	}, lifetime());
 
 	_stories->collapsedGeometryChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		updateLockUnlockPosition();
+		updateStoriesTitleShown();
 	}, lifetime());
 
 	_stories->clicks(
-	) | rpl::start_with_next([=](uint64 id) {
+	) | rpl::on_next([=](uint64 id) {
 		controller()->openPeerStories(PeerId(int64(id)), currentSource());
 	}, lifetime());
 
 	_stories->showMenuRequests(
-	) | rpl::start_with_next([=](const Stories::ShowMenuRequest &request) {
+	) | rpl::on_next([=](const Stories::ShowMenuRequest &request) {
 		FillSourceMenu(controller(), request);
 	}, lifetime());
 
 	_stories->loadMoreRequests(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		session().data().stories().loadMore(currentSource());
 	}, lifetime());
 
 	_stories->toggleExpandedRequests(
-	) | rpl::start_with_next([=](bool expanded) {
+	) | rpl::on_next([=](bool expanded) {
 		const auto position = _scroll->position();
 		if (!expanded) {
 			_scroll->setOverscrollDefaults(0, 0);
@@ -1417,17 +1804,21 @@ void Widget::setupStories() {
 		}
 	}, lifetime());
 
-	_stories->emptyValue() | rpl::skip(1) | rpl::start_with_next([=] {
+	_stories->emptyValue() | rpl::skip(1) | rpl::on_next([=] {
 		updateStoriesVisibility();
 	}, lifetime());
 
-	_stories->widthValue() | rpl::start_with_next([=] {
+	_stories->widthValue() | rpl::on_next([=] {
 		updateLockUnlockPosition();
 	}, lifetime());
 }
 
 void Widget::storiesToggleExplicitExpand(bool expand) {
 	if (_storiesExplicitExpand == expand) {
+		if (!expand && _scroll->position().overscroll < 0) {
+			_scroll->setOverscrollDefaults(0, 0);
+			_scroll->returnToOverscrollDefaults();
+		}
 		return;
 	}
 	_storiesExplicitExpand = expand;
@@ -1444,7 +1835,7 @@ void Widget::storiesToggleExplicitExpand(bool expand) {
 
 void Widget::trackScroll(not_null<Ui::RpWidget*> widget) {
 	widget->events(
-	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+	) | rpl::on_next([=](not_null<QEvent*> e) {
 		const auto type = e->type();
 		if (type == QEvent::TouchBegin
 			|| type == QEvent::TouchUpdate
@@ -1464,7 +1855,7 @@ void Widget::setupShortcuts() {
 			&& !_childList
 			&& !controller()->isLayerShown()
 			&& !controller()->window().locked();
-	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+	}) | rpl::on_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 
 		if (!controller()->activeChatCurrent()) {
@@ -1473,9 +1864,19 @@ void Widget::setupShortcuts() {
 					const auto history = forum->history();
 					controller()->searchInChat(history);
 					return true;
-				} else if (!_openedFolder
-					&& !_childList
-					&& _search->isVisible()) {
+				} else if (_openedFolder) {
+					if (!_subsectionTopBar->searchSetFocus()) {
+						controller()->searchInChat(_openedFolder);
+					}
+					return true;
+				} else if (const auto community = _openedCommunity) {
+					if (!_subsectionTopBar->searchSetFocus()) {
+						const auto history = session().data().history(
+							community->channel());
+						controller()->searchInChat(history);
+					}
+					return true;
+				} else if (!_childList && _search->isVisible()) {
 					_search->setFocus();
 					return true;
 				}
@@ -1505,7 +1906,7 @@ void Widget::fullSearchRefreshOn(rpl::producer<> events) {
 		events
 	) | rpl::filter([=] {
 		return !_searchQuery.isEmpty();
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		_searchTimer.cancel();
 		_searchProcess.cache.clear();
 		const auto queries = base::take(_searchProcess.queries);
@@ -1524,13 +1925,15 @@ void Widget::updateControlsVisibility(bool fast) {
 	updateLoadMoreChatsVisibility();
 	_scroll->setVisible(!_suggestions && _hidingSuggestions.empty());
 	updateStoriesVisibility();
-	if ((_openedFolder || _openedForum) && _searchHasFocus) {
+	if ((_openedFolder || _openedForum || _openedCommunity)
+		&& _searchHasFocus) {
 		setInnerFocus();
 	}
 	if (_updateTelegram) {
 		_updateTelegram->show();
 	}
-	_searchControls->setVisible(!_openedFolder && !_openedForum);
+	_searchControls->setVisible(
+		!_openedFolder && !_openedForum && !_openedCommunity);
 	if (_moreChatsBar) {
 		_moreChatsBar->show();
 	}
@@ -1540,7 +1943,8 @@ void Widget::updateControlsVisibility(bool fast) {
 	if (_chatFilters) {
 		_chatFilters->setVisible(!_openedForum);
 	}
-	if (_openedFolder || _openedForum) {
+	updateCommunityOverlaysVisibility();
+	if (_openedFolder || _openedForum || _openedCommunity) {
 		_subsectionTopBar->show();
 		if (_forumTopShadow) {
 			_forumTopShadow->show();
@@ -1555,7 +1959,9 @@ void Widget::updateControlsVisibility(bool fast) {
 			_forumReportBar->show();
 		}
 	} else {
-		updateLockUnlockVisibility();
+		updateLockUnlockVisibility(fast
+			? anim::type::instant
+			: anim::type::normal);
 		updateJumpToDateVisibility(fast);
 		updateSearchFromVisibility(fast);
 	}
@@ -1613,7 +2019,8 @@ void Widget::toggleFiltersMenu(bool enabled) {
 	if (_layout == Layout::Child) {
 		enabled = false;
 	}
-	if (const auto id = controller()->windowId(); id.forum() || id.folder()) {
+	if (const auto id = controller()->windowId()
+		; id.forum() || id.folder() || id.community()) {
 		enabled = false;
 	}
 	if (!enabled == !_chatFilters) {
@@ -1647,12 +2054,15 @@ void Widget::toggleFiltersMenu(bool enabled) {
 			Window::GifPauseReason::Any,
 			controller(),
 			true);
-		raw->show();
+		raw->setVisible(_searchState.query.isEmpty()
+			&& !_openedForum
+			&& !_searchState.community
+			&& !searchInPeer());
 		raw->stackUnder(_scroll);
 		raw->resizeToWidth(width());
 		const auto shadow = Ui::CreateChild<Ui::PlainShadow>(raw);
 		shadow->show();
-		inner->sizeValue() | rpl::start_with_next([=, this](const QSize &s) {
+		inner->sizeValue() | rpl::on_next([=, this](const QSize &s) {
 			raw->resize(s);
 			shadow->setGeometry(
 				0,
@@ -1681,8 +2091,12 @@ void Widget::processSearchFocusChange() {
 	updateSuggestions(anim::type::normal);
 }
 
+bool Widget::searchActive() const {
+	return Ui::ScreenReaderModeActive() ? _searchEngaged : _searchHasFocus;
+}
+
 void Widget::updateSuggestions(anim::type animated) {
-	const auto suggest = (_searchHasFocus || _searchSuggestionsLocked)
+	const auto suggest = (searchActive() || _searchSuggestionsLocked)
 		&& !_searchState.inChat
 		&& (_inner->state() == WidgetState::Default);
 	if (anim::Disabled() || !session().data().chatsListLoaded()) {
@@ -1712,11 +2126,20 @@ void Widget::updateSuggestions(anim::type animated) {
 		} else {
 			_suggestions = nullptr;
 			_hidingSuggestions.clear();
+			stopWidthAnimation();
 			storiesExplicitCollapse();
-			updateStoriesVisibility();
+			updateControlsVisibility();
 			_scroll->show();
 		}
+	} else if (!suggest
+		&& !_hidingSuggestions.empty()
+		&& (animated == anim::type::instant)) {
+		_hidingSuggestions.clear();
+		stopWidthAnimation();
+		updateControlsVisibility();
+		_scroll->show();
 	} else if (suggest && !_suggestions) {
+		_hidingSuggestions.clear();
 		if (animated == anim::type::normal) {
 			startWidthAnimation();
 		}
@@ -1727,7 +2150,7 @@ void Widget::updateSuggestions(anim::type animated) {
 			controller(),
 			TopPeersContent(&session()),
 			RecentPeersContent(&session()));
-		_suggestions->clearSearchQueryRequests() | rpl::start_with_next([=] {
+		_suggestions->clearSearchQueryRequests() | rpl::on_next([=] {
 			setSearchQuery(QString());
 		}, _suggestions->lifetime());
 		_searchSuggestionsLocked = false;
@@ -1737,7 +2160,7 @@ void Widget::updateSuggestions(anim::type animated) {
 			_suggestions->recentPeerChosen(),
 			_suggestions->myChannelChosen(),
 			_suggestions->recommendationChosen()
-		) | rpl::start_with_next([=](not_null<PeerData*> peer) {
+		) | rpl::on_next([=](not_null<PeerData*> peer) {
 			if (_searchSuggestionsLocked
 				&& (!_suggestions || !_suggestions->persist())) {
 				processSearchFocusChange();
@@ -1755,7 +2178,7 @@ void Widget::updateSuggestions(anim::type animated) {
 		rpl::merge(
 			_suggestions->openBotMainAppRequests(),
 			_suggestions->recentAppChosen()
-		) | rpl::start_with_next([=](not_null<PeerData*> peer) {
+		) | rpl::on_next([=](not_null<PeerData*> peer) {
 			if (const auto user = peer->asUser()) {
 				if (const auto info = user->botInfo.get()) {
 					if (info->hasMainApp) {
@@ -1771,8 +2194,12 @@ void Widget::updateSuggestions(anim::type animated) {
 		}, _suggestions->lifetime());
 
 		_suggestions->popularAppChosen(
-		) | rpl::start_with_next([=](not_null<PeerData*> peer) {
+		) | rpl::on_next([=](not_null<PeerData*> peer) {
 			controller()->showPeerInfo(peer);
+		}, _suggestions->lifetime());
+
+		_suggestions->closeRequests() | rpl::on_next([=] {
+			closeSuggestions();
 		}, _suggestions->lifetime());
 
 		updateControlsGeometry();
@@ -1784,6 +2211,15 @@ void Widget::updateSuggestions(anim::type animated) {
 	} else {
 		updateStoriesVisibility();
 	}
+}
+
+void Widget::closeSuggestions() {
+	_searchSuggestionsLocked = false;
+	_searchHasFocus = false;
+	setFocus();
+	updateForceDisplayWide();
+	updateCancelSearch();
+	updateSuggestions(anim::type::normal);
 }
 
 void Widget::openBotMainApp(not_null<UserData*> bot) {
@@ -1819,6 +2255,7 @@ void Widget::changeOpenedSubsection(
 	destroyChildListCanvas();
 	change();
 	refreshTopBars();
+	updateSuggestions(anim::type::instant);
 	updateControlsVisibility(true);
 	_peerSearch.clear();
 	_api.request(base::take(_topicSearchRequest)).cancel();
@@ -1853,6 +2290,7 @@ void Widget::changeOpenedFolder(Data::Folder *folder, anim::type animated) {
 		_openedFolder = folder;
 		_inner->changeOpenedFolder(folder);
 		if (_stories) {
+			_stories->setShowTitle(folder != nullptr);
 			storiesExplicitCollapse();
 		}
 		updateFrozenAccountBar();
@@ -1865,8 +2303,7 @@ void Widget::storiesExplicitCollapse() {
 		storiesToggleExplicitExpand(false);
 	} else if (_stories) {
 		using Type = Ui::ElasticScroll::OverscrollType;
-		_scroll->setOverscrollDefaults(0, 0);
-		_scroll->setOverscrollTypes(Type::None, Type::Real);
+		_scroll->clearOverscroll();
 		_scroll->setOverscrollTypes(
 			_stories->isHidden() ? Type::Real : Type::Virtual,
 			Type::Real);
@@ -1919,6 +2356,25 @@ void Widget::changeOpenedForum(Data::Forum *forum, anim::type animated) {
 	}, (forum != nullptr), animated);
 }
 
+void Widget::changeOpenedCommunity(
+		Data::CommunityInfo *community,
+		anim::type animated) {
+	if (_openedCommunity == community) {
+		return;
+	}
+	changeOpenedSubsection([&] {
+		cancelSearch({ .forceFullCancel = true });
+		closeChildList(anim::type::instant);
+		controller()->closeForum();
+		_openedCommunity = community;
+		_inner->changeOpenedCommunity(community);
+		updateFrozenAccountBar();
+		updateTopBarSuggestions();
+		updateCommunityRequestsBubble();
+		updateCommunityAddChatButton();
+	}, (community != nullptr), animated);
+}
+
 void Widget::hideChildList() {
 	if (_childList) {
 		controller()->closeForum();
@@ -1926,44 +2382,51 @@ void Widget::hideChildList() {
 }
 
 void Widget::refreshTopBars() {
-	if (_openedFolder || _openedForum) {
+	if (_openedFolder || _openedForum || _openedCommunity) {
 		if (!_subsectionTopBar) {
 			_subsectionTopBar.create(this, controller());
 			if (_stories) {
 				_stories->raise();
 			}
 			_subsectionTopBar->searchCancelled(
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				escape();
 			}, _subsectionTopBar->lifetime());
 			_subsectionTopBar->searchSubmitted(
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				submit();
 			}, _subsectionTopBar->lifetime());
 			_subsectionTopBar->searchQuery(
-			) | rpl::start_with_next([=](QString query) {
+			) | rpl::on_next([=](QString query) {
 				applySearchUpdate();
 			}, _subsectionTopBar->lifetime());
+			_subsectionTopBar->searchModeChanges(
+			) | rpl::on_next([=](bool) {
+				updateStoriesVisibility();
+			}, _subsectionTopBar->lifetime());
 			_subsectionTopBar->jumpToDateRequest(
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				showCalendar();
 			}, _subsectionTopBar->lifetime());
 			_subsectionTopBar->chooseFromUserRequest(
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				showSearchFrom();
 			}, _subsectionTopBar->lifetime());
 			updateControlsGeometry();
 		}
+		const auto communityHistory = _openedCommunity
+			? session().data().history(_openedCommunity->channel()).get()
+			: nullptr;
 		const auto history = _openedForum
 			? _openedForum->history().get()
-			: nullptr;
+			: communityHistory;
 		_subsectionTopBar->setActiveChat(
 			HistoryView::TopBarWidget::ActiveChat{
-				.key = (_openedForum
+				.key = (history
 					? Dialogs::Key(history)
 					: Dialogs::Key(_openedFolder)),
 				.section = Dialogs::EntryState::Section::ChatsList,
-			}, history ? history->sendActionPainter().get() : nullptr);
+			}, history ? history->sendActionPainter() : nullptr);
 		if (_forumSearchRequested) {
 			showSearchInTopBar(anim::type::instant);
 		}
@@ -1975,41 +2438,41 @@ void Widget::refreshTopBars() {
 		updateSearchFromVisibility(true);
 	}
 	_forumSearchRequested = false;
-	if (_openedForum) {
-		const auto channel = _openedForum->channel();
-		channel->updateFull();
+	if (_openedForum && _openedForum->peer()->isChannel()) {
+		const auto peer = _openedForum->peer();
+		peer->updateFull();
 
 		_forumReportBar = std::make_unique<HistoryView::ContactStatus>(
 			controller(),
 			this,
-			channel,
+			peer,
 			true);
 		_forumRequestsBar = std::make_unique<Ui::RequestsBar>(
 			this,
 			HistoryView::RequestsBarContentByPeer(
-				channel,
+				peer,
 				st::historyRequestsUserpics.size,
 				true));
 		_forumGroupCallBar = std::make_unique<Ui::GroupCallBar>(
 			this,
 			HistoryView::GroupCallBarContentByPeer(
-				channel,
+				peer,
 				st::historyGroupCallUserpics.size,
 				true),
 			Core::App().appDeactivatedValue());
 		_forumTopShadow = std::make_unique<Ui::PlainShadow>(this);
 
 		_forumRequestsBar->barClicks(
-		) | rpl::start_with_next([=] {
-			RequestsBoxController::Start(controller(), channel);
+		) | rpl::on_next([=] {
+			RequestsBoxController::Start(controller(), peer);
 		}, _forumRequestsBar->lifetime());
 
 		rpl::merge(
 			_forumGroupCallBar->barClicks(),
 			_forumGroupCallBar->joinClicks()
-		) | rpl::start_with_next([=] {
-			if (channel->groupCall()) {
-				controller()->startOrJoinGroupCall(channel);
+		) | rpl::on_next([=] {
+			if (peer->groupCall()) {
+				controller()->startOrJoinGroupCall(peer);
 			}
 		}, _forumGroupCallBar->lifetime());
 
@@ -2031,7 +2494,7 @@ void Widget::refreshTopBars() {
 			_forumGroupCallBar->heightValue(),
 			_forumRequestsBar->heightValue(),
 			_forumReportBar->bar().heightValue()
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			updateControlsGeometry();
 		}, _forumRequestsBar->lifetime());
 	} else {
@@ -2112,6 +2575,10 @@ void Widget::setInnerFocus(bool unfocusSearch) {
 			|| _searchHasFocus
 			|| _searchSuggestionsLocked)) {
 		_search->setFocus();
+	} else if (Ui::ScreenReaderModeActive()) {
+		// Focus the chat list itself, so the screen reader announces the list
+		// and its selected chat, instead of the unnamed dialogs container.
+		_inner->setFocus();
 	} else {
 		setFocus();
 	}
@@ -2119,6 +2586,10 @@ void Widget::setInnerFocus(bool unfocusSearch) {
 
 bool Widget::searchHasFocus() const {
 	return _searchHasFocus;
+}
+
+Data::Forum *Widget::openedForum() const {
+	return _openedForum;
 }
 
 void Widget::jumpToTop(bool belowPinned) {
@@ -2225,7 +2696,11 @@ void Widget::scrollToDefault(bool verytop) {
 			this,
 			QPoint(),
 			QRect(0, top, wideGeometry.width(), skip));
-		if (_chatFilters) {
+		if (_chatFilters
+			&& _searchState.query.isEmpty()
+			&& !_openedForum
+			&& !_searchState.community
+			&& !searchInPeer()) {
 			Ui::RenderWidget(
 				p,
 				_chatFilters,
@@ -2263,7 +2738,7 @@ void Widget::stopWidthAnimation() {
 			_frozenAccountBar->setVisible(!_suggestions);
 		}
 		if (_chatFilters) {
-			_chatFilters->setVisible(!_suggestions);
+			_chatFilters->setVisible(!_suggestions && !_openedForum);
 		}
 	}
 	updateStoriesVisibility();
@@ -2271,28 +2746,38 @@ void Widget::stopWidthAnimation() {
 }
 
 void Widget::updateStoriesVisibility() {
-	updateLockUnlockVisibility();
+	updateLockUnlockVisibility(anim::type::normal);
 	if (!_stories) {
 		return;
 	}
-	const auto hidden = (_showAnimation != nullptr)
-		|| _openedForum
-		|| !_widthAnimationCache.isNull()
-		|| _childList
-		|| _searchHasFocus
+	const auto widthAnimation = !_widthAnimationCache.isNull();
+	const auto suggestionsAnimation = widthAnimation
+		&& (!_suggestions || !_hidingSuggestions.empty());
+	const auto hiddenAnimated = _searchHasFocus
 		|| _searchSuggestionsLocked
 		|| !_searchState.query.isEmpty()
 		|| _searchState.inChat
-		|| _stories->empty();
-	if (_stories->isHidden() != hidden) {
-		_stories->setVisible(!hidden);
+		|| suggestionsAnimation
+		|| (_openedFolder
+			&& _subsectionTopBar
+			&& _subsectionTopBar->searchMode());
+	const auto pulledDown = _scroll->position().overscroll
+		< -st::dialogsFilterSkip;
+	const auto hiddenInstant = _showAnimation
+		|| _openedForum
+		|| _openedCommunity
+		|| (widthAnimation && !suggestionsAnimation)
+		|| _childList
+		|| _stories->empty()
+		|| (pulledDown && hiddenAnimated);
+	const auto hidden = hiddenInstant || hiddenAnimated;
+	const auto changed = (_stories->toggledHidden() != hidden);
+	_stories->setToggledHidden(hiddenInstant, hiddenAnimated);
+	if (changed) {
 		using Type = Ui::ElasticScroll::OverscrollType;
 		if (hidden) {
-			_scroll->setOverscrollDefaults(0, 0);
+			_scroll->clearOverscroll();
 			_scroll->setOverscrollTypes(Type::Real, Type::Real);
-			if (_scroll->position().overscroll < 0) {
-				_scroll->scrollToY(0);
-			}
 			_scroll->update();
 		} else {
 			_scroll->setOverscrollDefaults(0, 0);
@@ -2305,6 +2790,19 @@ void Widget::updateStoriesVisibility() {
 		}
 		updateLockUnlockPosition();
 	}
+	updateStoriesTitleShown();
+}
+
+void Widget::updateStoriesTitleShown() {
+	if (!_subsectionTopBar || !_openedFolder) {
+		return;
+	}
+	const auto shown = (!_stories
+		|| _stories->empty()
+		|| _stories->toggledHidden())
+		? 1.
+		: _stories->collapsedGeometryCurrent().expanded;
+	_subsectionTopBar->setTitleShownRatio(shown);
 }
 
 void Widget::showFast() {
@@ -2350,7 +2848,7 @@ void Widget::startSlideAnimation(
 		Window::SlideDirection direction) {
 	_scroll->hide();
 	if (_stories) {
-		_stories->hide();
+		_stories->setToggledHidden(true, false);
 	}
 	_searchControls->hide();
 	if (_subsectionTopBar) {
@@ -2422,6 +2920,10 @@ void Widget::escape() {
 		} else if (controller()->openedFolder().current()) {
 			if (!controller()->windowId().folder()) {
 				controller()->closeFolder();
+			}
+		} else if (controller()->openedCommunity().current()) {
+			if (!controller()->windowId().community()) {
+				controller()->closeCommunity();
 			}
 		} else if (controller()->activeChatEntryCurrent().key) {
 			controller()->content()->dialogsCancelled();
@@ -2513,7 +3015,13 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 	const auto fromPeer = searchFromPeer();
 	const auto &inTags = searchInTags();
 	const auto tab = _searchState.tab;
+	const auto community = _searchState.community
+		? _searchState.community
+		: _openedCommunity
+		? _openedCommunity->channel().get()
+		: nullptr;
 	const auto filter = _searchState.filter;
+	const auto fromArchive = _searchState.fromArchive;
 	const auto fromStartType = SearchRequestType{
 		.start = true,
 		.peer = (inPeer != nullptr),
@@ -2556,7 +3064,9 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 			_searchQueryFrom = fromPeer;
 			_searchQueryTags = inTags;
 			_searchQueryTab = tab;
+			_searchQueryCommunity = community;
 			_searchQueryFilter = filter;
+			_searchQueryFromArchive = fromArchive;
 			process->nextRate = 0;
 			process->full = false;
 			_migratedProcess.full = false;
@@ -2568,13 +3078,17 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 		|| _searchQueryFrom != fromPeer
 		|| _searchQueryTags != inTags
 		|| _searchQueryTab != tab
-		|| _searchQueryFilter != filter) {
+		|| _searchQueryCommunity != community
+		|| _searchQueryFilter != filter
+		|| _searchQueryFromArchive != fromArchive) {
 		const auto process = currentSearchProcess();
 		_searchQuery = query;
 		_searchQueryFrom = fromPeer;
 		_searchQueryTags = inTags;
 		_searchQueryTab = tab;
+		_searchQueryCommunity = community;
 		_searchQueryFilter = filter;
+		_searchQueryFromArchive = fromArchive;
 		process->nextRate = 0;
 		process->full = false;
 		_migratedProcess.full = false;
@@ -2589,7 +3103,7 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 				: _searchState.inChat.sublist();
 			const auto fromPeer = sublist ? nullptr : _searchQueryFrom;
 			const auto savedPeer = sublist
-				? sublist->peer().get()
+				? sublist->sublistPeer().get()
 				: nullptr;
 			_historiesRequest = histories.sendRequest(history, type, [=](
 					Fn<void()> finish) {
@@ -2606,10 +3120,10 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 							| (_searchQueryTags.empty()
 								? Flag()
 								: Flag::f_saved_reaction)),
-						inPeer->input,
+						inPeer->input(),
 						MTP_string(_searchQuery),
-						(fromPeer ? fromPeer->input : MTP_inputPeerEmpty()),
-						(savedPeer ? savedPeer->input : MTP_inputPeerEmpty()),
+						(fromPeer ? fromPeer->input() : MTP_inputPeerEmpty()),
+						(savedPeer ? savedPeer->input() : MTP_inputPeerEmpty()),
 						MTP_vector_from_range(
 							_searchQueryTags | ranges::views::transform(
 								Data::ReactionToMTP
@@ -2682,8 +3196,8 @@ bool Widget::peerSearchRequired() const {
 bool Widget::searchForTopicsRequired(const QString &query) const {
 	return _searchState.filterChatsList()
 		&& _openedForum
-		&& !query.isEmpty()
 		&& (IsHashOrCashtagSearchQuery(query) == HashOrCashtag::None)
+		&& !TextUtilities::PrepareSearchWords(query).isEmpty()
 		&& !_openedForum->topicsList()->loaded();
 }
 
@@ -2703,8 +3217,44 @@ void Widget::showMainMenu() {
 }
 
 void Widget::searchMessages(SearchState state) {
+	if (const auto peer = state.inChat.peer()) {
+		if (_openedForum && peer->forum() != _openedForum) {
+			controller()->closeForum();
+		}
+		const auto channel = peer->asChannel();
+		if (_openedCommunity
+			&& channel
+			&& channel->isCommunity()
+			&& channel != _openedCommunity->channel()
+			&& controller()->windowId().type
+				!= Window::SeparateType::Community) {
+			controller()->closeCommunity();
+		}
+	} else if (state.query.isEmpty()) {
+		if (_childList) {
+			hideChildList();
+		}
+		if (_openedForum) {
+			controller()->closeForum();
+		}
+		if (_layout == Layout::Main
+			&& (!_openedFolder || state.inChat.folder() != _openedFolder)) {
+			controller()->closeFolder();
+		}
+	}
 	applySearchState(std::move(state));
 	session().local().saveRecentSearchHashtags(_searchState.query);
+
+	if (_childList) {
+		_childList->setInnerFocus();
+	} else if (_subsectionTopBar) {
+		if (!_subsectionTopBar->searchSetFocus()
+			&& !_subsectionTopBar->searchHasFocus()) {
+			_subsectionTopBar->toggleSearch(true, anim::type::normal);
+		}
+	} else {
+		_search->setFocus();
+	}
 }
 
 void Widget::searchTopics() {
@@ -2712,9 +3262,9 @@ void Widget::searchTopics() {
 		return;
 	}
 	_api.request(base::take(_topicSearchRequest)).cancel();
-	_topicSearchRequest = _api.request(MTPchannels_GetForumTopics(
-		MTP_flags(MTPchannels_GetForumTopics::Flag::f_q),
-		_openedForum->channel()->inputChannel,
+	_topicSearchRequest = _api.request(MTPmessages_GetForumTopics(
+		MTP_flags(MTPmessages_GetForumTopics::Flag::f_q),
+		_openedForum->peer()->input(),
 		MTP_string(_topicSearchQuery),
 		MTP_int(_topicSearchOffsetDate),
 		MTP_int(_topicSearchOffsetId),
@@ -2765,7 +3315,7 @@ void Widget::searchMore() {
 				: _searchState.inChat.sublist();
 			const auto fromPeer = sublist ? nullptr : _searchQueryFrom;
 			const auto savedPeer = sublist
-				? sublist->peer().get()
+				? sublist->sublistPeer().get()
 				: nullptr;
 			_historiesRequest = histories.sendRequest(history, type, [=](
 					Fn<void()> finish) {
@@ -2782,11 +3332,11 @@ void Widget::searchMore() {
 							| (_searchQueryTags.empty()
 								? Flag()
 								: Flag::f_saved_reaction)),
-						peer->input,
+						peer->input(),
 						MTP_string(_searchQuery),
-						(fromPeer ? fromPeer->input : MTP_inputPeerEmpty()),
+						(fromPeer ? fromPeer->input() : MTP_inputPeerEmpty()),
 						(savedPeer
-							? savedPeer->input
+							? savedPeer->input()
 							: MTP_inputPeerEmpty()),
 						MTP_vector_from_range(
 							_searchQueryTags | ranges::views::transform(
@@ -2839,10 +3389,10 @@ void Widget::searchMore() {
 			_migratedProcess.requestId = session().api().request(
 				MTPmessages_Search(
 					flags,
-					_searchInMigrated->peer->input,
+					_searchInMigrated->peer->input(),
 					MTP_string(_searchQuery),
 					(_searchQueryFrom
-						? _searchQueryFrom->input
+						? _searchQueryFrom->input()
 						: MTP_inputPeerEmpty()),
 					MTPInputPeer(), // saved_peer_id
 					MTPVector<MTPReaction>(), // saved_reaction
@@ -2878,15 +3428,19 @@ void Widget::requestPublicPosts(bool fromStart) {
 		.posts = true,
 		.start = fromStart,
 	};
+	using Flag = MTPchannels_SearchPosts::Flag;
 	_postsProcess.requestId = session().api().request(
 		MTPchannels_SearchPosts(
+			MTP_flags(Flag::f_hashtag),
 			MTP_string(_searchState.query.trimmed().mid(1)),
+			MTP_string(), // query
 			MTP_int(fromStart ? 0 : _postsProcess.nextRate),
 			(fromStart
 				? MTP_inputPeerEmpty()
-				: _postsProcess.lastPeer->input),
+				: _postsProcess.lastPeer->input()),
 			MTP_int(fromStart ? 0 : _postsProcess.lastId),
-			MTP_int(kSearchPerPage))
+			MTP_int(kSearchPerPage),
+			MTP_long(0)) // allow_paid_stars
 	).done([=](const MTPmessages_Messages &result) {
 		searchReceived(type, result, &_postsProcess);
 	}).fail([=](const MTP::Error &error) {
@@ -2905,10 +3459,16 @@ void Widget::requestMessages(bool fromStart) {
 		.start = fromStart,
 	};
 	using Flag = MTPmessages_SearchGlobal::Flag;
-	const auto flags = Flag()
-		| (session().settings().skipArchiveInSearch()
-			? Flag::f_folder_id
-			: Flag())
+	const auto community = (_searchQueryTab == ChatSearchTab::ThisCommunity)
+		? _searchQueryCommunity
+		: nullptr;
+	const auto restrictFolder = (_searchQueryTab == ChatSearchTab::Archive)
+		|| !_searchQueryFromArchive;
+	const auto flags = (community
+		? Flag::f_community
+		: restrictFolder
+		? Flag::f_folder_id
+		: Flag())
 		| (_searchQueryFilter == ChatTypeFilter::Private
 			? Flag::f_users_only
 			: _searchQueryFilter == ChatTypeFilter::Groups
@@ -2916,11 +3476,14 @@ void Widget::requestMessages(bool fromStart) {
 			: _searchQueryFilter == ChatTypeFilter::Channels
 			? Flag::f_broadcasts_only
 			: Flag());
-	const auto folderId = 0;
+	const auto folderId = (_searchQueryTab == ChatSearchTab::Archive)
+		? Data::Folder::kId
+		: 0;
 	_searchProcess.requestId = session().api().request(
 		MTPmessages_SearchGlobal(
 			MTP_flags(flags),
 			MTP_int(folderId),
+			(community ? community->inputChannel() : MTPInputChannel()),
 			MTP_string(_searchQuery),
 			MTP_inputMessagesFilterEmpty(),
 			MTP_int(0), // min_date
@@ -2928,7 +3491,7 @@ void Widget::requestMessages(bool fromStart) {
 			MTP_int(fromStart ? 0 : _searchProcess.nextRate),
 			(fromStart
 				? MTP_inputPeerEmpty()
-				: _searchProcess.lastPeer->input),
+				: _searchProcess.lastPeer->input()),
 			MTP_int(fromStart ? 0 : _searchProcess.lastId),
 			MTP_int(kSearchPerPage))
 	).done([=](const MTPmessages_Messages &result) {
@@ -2973,7 +3536,7 @@ void Widget::searchReceived(
 			process->queries.erase(i);
 		}
 	}
-	const auto inject = (type.start && !type.posts)
+	const auto inject = (type.start && !type.posts && !type.migrated)
 		? *_singleMessageSearch.lookup(_searchQuery)
 		: nullptr;
 	if (cacheResults && process->requestId) {
@@ -3012,6 +3575,9 @@ void Widget::searchReceived(
 			// Don't apply cached data!
 			session().data().processUsers(data.vusers());
 			session().data().processChats(data.vchats());
+			if (const auto peer = searchInPeer()) {
+				peer->processTopics(data.vtopics());
+			}
 		}
 		process->full = true;
 		auto list = processList(data.vmessages());
@@ -3022,6 +3588,9 @@ void Widget::searchReceived(
 			// Don't apply cached data!
 			session().data().processUsers(data.vusers());
 			session().data().processChats(data.vchats());
+			if (const auto peer = searchInPeer()) {
+				peer->processTopics(data.vtopics());
+			}
 		}
 		auto list = processList(data.vmessages());
 		const auto nextRate = data.vnext_rate();
@@ -3039,24 +3608,24 @@ void Widget::searchReceived(
 		fullCount = data.vcount().v;
 		return list;
 	}, [&](const MTPDmessages_channelMessages &data) {
-		if (const auto peer = searchInPeer()) {
-			if (const auto channel = peer->asChannel()) {
-				channel->ptsReceived(data.vpts().v);
-				channel->processTopics(data.vtopics());
+		if (!cacheResults) {
+			// Don't apply cached data!
+			session().data().processUsers(data.vusers());
+			session().data().processChats(data.vchats());
+			if (const auto peer = searchInPeer()) {
+				if (const auto channel = peer->asChannel()) {
+					channel->ptsReceived(data.vpts().v);
+				} else {
+					LOG(("API Error: "
+						"received messages.channelMessages when no channel "
+						"was passed! (Widget::searchReceived)"));
+				}
+				peer->processTopics(data.vtopics());
 			} else {
 				LOG(("API Error: "
 					"received messages.channelMessages when no channel "
 					"was passed! (Widget::searchReceived)"));
 			}
-		} else {
-			LOG(("API Error: "
-				"received messages.channelMessages when no channel "
-				"was passed! (Widget::searchReceived)"));
-		}
-		if (!cacheResults) {
-			// Don't apply cached data!
-			session().data().processUsers(data.vusers());
-			session().data().processChats(data.vchats());
 		}
 		auto list = processList(data.vmessages());
 		if (list.empty()) {
@@ -3091,6 +3660,7 @@ void Widget::searchApplyEmpty(
 		type,
 		MTP_messages_messages(
 			MTP_vector<MTPMessage>(),
+			MTP_vector<MTPForumTopic>(),
 			MTP_vector<MTPChat>(),
 			MTP_vector<MTPUser>()),
 		process);
@@ -3209,8 +3779,13 @@ void Widget::listScrollUpdated() {
 void Widget::updateCancelSearch() {
 	const auto shown = !_searchState.query.isEmpty()
 		|| (!_searchState.inChat
-			&& (_searchHasFocus || _searchSuggestionsLocked));
+			&& (searchActive() || _searchSuggestionsLocked));
 	_cancelSearch->toggle(shown, anim::type::normal);
+	if (_searchState.inChat) {
+		_cancelSearch->setAccessibleName(shown
+			? tr::lng_sr_clear_search(tr::now)
+			: tr::lng_sr_cancel_search(tr::now));
+	}
 }
 
 QString Widget::validateSearchQuery() {
@@ -3241,6 +3816,9 @@ QString Widget::validateSearchQuery() {
 void Widget::applySearchUpdate() {
 	auto copy = _searchState;
 	copy.query = validateSearchQuery();
+	if (Ui::ScreenReaderModeActive() && !copy.query.isEmpty()) {
+		_searchEngaged = true;
+	}
 	applySearchState(std::move(copy));
 
 	if (_chooseFromUser->toggled()
@@ -3265,7 +3843,8 @@ void Widget::updateForceDisplayWide() {
 		|| (_subsectionTopBar && _subsectionTopBar->searchHasFocus())
 		|| _searchSuggestionsLocked
 		|| !_searchState.query.isEmpty()
-		|| _searchState.inChat);
+		|| _searchState.inChat
+		|| !session().api().authorizations().unreviewed().empty());
 }
 
 void Widget::showForum(
@@ -3310,7 +3889,7 @@ void Widget::openChildList(
 			controller(),
 			Layout::Child);
 		_childList->showForum(forum, copy);
-		_childListPeerId = forum->channel()->id;
+		_childListPeerId = forum->peer()->id;
 	}
 
 	_childListShadow = std::make_unique<Ui::RpWidget>(this);
@@ -3318,12 +3897,12 @@ void Widget::openChildList(
 	const auto opacity = shadow->lifetime().make_state<float64>(0.);
 	shadow->setAttribute(Qt::WA_TransparentForMouseEvents);
 	shadow->paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
+	) | rpl::on_next([=](QRect clip) {
 		auto p = QPainter(shadow);
 		p.setOpacity(*opacity);
 		p.fillRect(clip, st::shadowFg);
 	}, shadow->lifetime());
-	_childListShown.value() | rpl::start_with_next([=](float64 value) {
+	_childListShown.value() | rpl::on_next([=](float64 value) {
 		*opacity = value;
 		update();
 		_inner->update();
@@ -3333,6 +3912,7 @@ void Widget::openChildList(
 		}
 	}, shadow->lifetime());
 
+	_prepareTopBarSnapshot.fire({});
 	updateControlsGeometry();
 	updateControlsVisibility(true);
 
@@ -3365,7 +3945,7 @@ void Widget::closeChildList(anim::type animated) {
 			Window::SlideAnimation
 		>();
 		_hideChildListCanvas->paintRequest(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			QPainter p(_hideChildListCanvas.get());
 			animation->paintContents(p);
 		}, _hideChildListCanvas->lifetime());
@@ -3413,7 +3993,9 @@ bool Widget::applySearchState(SearchState state) {
 		}
 		hideChildList();
 	}
-	if (state.inChat && _layout == Layout::Main) {
+	if (state.inChat
+		&& _layout == Layout::Main
+		&& state.inChat.folder() != _openedFolder) {
 		controller()->closeFolder();
 	}
 
@@ -3426,7 +4008,17 @@ bool Widget::applySearchState(SearchState state) {
 	const auto peer = state.inChat.peer();
 	const auto topic = state.inChat.topic();
 	const auto forum = peer ? peer->forum() : nullptr;
-	if (state.inChat.folder() || (forum && !topic)) {
+	const auto folder = state.inChat.folder();
+	const auto channel = peer ? peer->asChannel() : nullptr;
+	const auto community = (channel && channel->isCommunity())
+		? channel
+		: nullptr;
+	if (community) {
+		state.community = community;
+	} else if (peer) {
+		state.community = nullptr;
+	}
+	if (folder || (forum && !topic) || community) {
 		state.inChat = {};
 	}
 	if (!state.inChat && !forum && !_openedForum) {
@@ -3436,11 +4028,25 @@ bool Widget::applySearchState(SearchState state) {
 		&& IsHashOrCashtagSearchQuery(state.query) == HashOrCashtag::None) {
 		state.tab = (_openedForum && !state.inChat)
 			? ChatSearchTab::ThisPeer
+			: _openedFolder
+			? ChatSearchTab::Archive
+			: (state.community || _openedCommunity)
+			? ChatSearchTab::ThisCommunity
 			: ChatSearchTab::MyMessages;
 	} else if (!state.inChat
 		&& _searchHashOrCashtag == HashOrCashtag::None) {
+		const auto archive = _openedFolder
+			&& ((folder == _openedFolder)
+				|| (state.tab == ChatSearchTab::Archive));
+		const auto communityScope = (state.community || _openedCommunity)
+			&& (community
+				|| (state.tab == ChatSearchTab::ThisCommunity));
 		state.tab = (forum || _openedForum)
 			? ChatSearchTab::ThisPeer
+			: archive
+			? ChatSearchTab::Archive
+			: communityScope
+			? ChatSearchTab::ThisCommunity
 			: ChatSearchTab::MyMessages;
 	}
 	if (!state.tags.empty()) {
@@ -3454,6 +4060,7 @@ bool Widget::applySearchState(SearchState state) {
 	}
 
 	const auto inChatChanged = (_searchState.inChat != state.inChat);
+	const auto communityChanged = (_searchState.community != state.community);
 	const auto fromPeerChanged = (_searchState.fromPeer != state.fromPeer);
 	const auto tagsChanged = (_searchState.tags != state.tags);
 	const auto queryChanged = (_searchState.query != state.query);
@@ -3463,18 +4070,30 @@ bool Widget::applySearchState(SearchState state) {
 		: false;
 	if (queryEmptyChanged || tabChanged) {
 		state.filter = ChatTypeFilter::All;
+		state.fromArchive = true;
 	}
 	const auto filterChanged = (_searchState.filter != state.filter);
+	const auto fromArchiveChanged = (_searchState.fromArchive
+		!= state.fromArchive);
 
 	if (forum) {
 		if (_openedForum == forum) {
 			showSearchInTopBar(anim::type::normal);
 		} else if (_layout == Layout::Main) {
 			_forumSearchRequested = true;
-			controller()->showForum(forum);
+			auto params = Window::SectionShow(
+				Window::SectionShow::Way::ClearStack);
+			params.forceTopicsList = true;
+			controller()->showForum(forum, params);
 		} else {
 			return false;
 		}
+	} else if ((folder && folder == _openedFolder)
+		|| (peer
+			&& _openedCommunity
+			&& (!community
+				|| community == _openedCommunity->channel()))) {
+		showSearchInTopBar(anim::type::normal);
 	} else if (peer && (_layout != Layout::Main)) {
 		return false;
 	}
@@ -3484,6 +4103,10 @@ bool Widget::applySearchState(SearchState state) {
 		|| (state.tab == ChatSearchTab::ThisPeer
 			&& !state.inChat
 			&& !_openedForum)
+		|| (state.tab == ChatSearchTab::Archive
+			&& (!_openedFolder || state.inChat))
+		|| (state.tab == ChatSearchTab::ThisCommunity
+			&& ((!state.community && !_openedCommunity) || state.inChat))
 		|| (state.tab == ChatSearchTab::PublicPosts
 			&& _searchHashOrCashtag == HashOrCashtag::None)) {
 		state.tab = state.inChat.topic()
@@ -3491,6 +4114,7 @@ bool Widget::applySearchState(SearchState state) {
 			: (state.inChat.owningHistory() || state.inChat.sublist())
 			? ChatSearchTab::ThisPeer
 			: ChatSearchTab::MyMessages;
+		state.community = nullptr;
 	}
 
 	const auto migrateFrom = (peer
@@ -3502,9 +4126,14 @@ bool Widget::applySearchState(SearchState state) {
 		? peer->owner().history(migrateFrom).get()
 		: nullptr;
 	_searchState = state;
-	if (_chatFilters && (queryEmptyChanged || inChatChanged)) {
+	if (inChatChanged && _searchState.inChat && _stories) {
+		storiesExplicitCollapse();
+	}
+	if (_chatFilters
+		&& (queryEmptyChanged || inChatChanged || communityChanged)) {
 		_chatFilters->setVisible(_searchState.query.isEmpty()
 			&& !_openedForum
+			&& !_searchState.community
 			&& !searchInPeer());
 		updateControlsGeometry();
 	}
@@ -3532,8 +4161,10 @@ bool Widget::applySearchState(SearchState state) {
 		&& state.tags.empty();
 	if (searchCleared
 		|| inChatChanged
+		|| communityChanged
 		|| fromPeerChanged
 		|| filterChanged
+		|| fromArchiveChanged
 		|| tagsChanged
 		|| tabChanged) {
 		clearSearchCache(searchCleared);
@@ -3546,6 +4177,7 @@ bool Widget::applySearchState(SearchState state) {
 		setSearchQuery(_searchState.query);
 	}
 	_inner->applySearchState(_searchState);
+	updateCommunityOverlaysVisibility();
 
 	if (!_postponeProcessSearchFocusChange) {
 		// Suggestions depend on _inner->state(), not on _searchState.
@@ -3553,14 +4185,14 @@ bool Widget::applySearchState(SearchState state) {
 	}
 
 	_searchTagsLifetime = _inner->searchTagsChanges(
-	) | rpl::start_with_next([=](std::vector<Data::ReactionId> &&list) {
+	) | rpl::on_next([=](std::vector<Data::ReactionId> &&list) {
 		auto copy = _searchState;
 		copy.tags = std::move(list);
 		applySearchState(std::move(copy));
 	});
 	if (_subsectionTopBar) {
 		_subsectionTopBar->searchEnableJumpToDate(
-			_openedForum && _searchState.inChat);
+			_openedForum || _searchState.inChat);
 	}
 	if (!_searchState.inChat && _searchState.query.isEmpty()) {
 		if (!_widthAnimationCache.isNull()) {
@@ -3603,8 +4235,11 @@ void Widget::clearSearchCache(bool clearPosts) {
 }
 
 void Widget::showCalendar() {
-	if (_searchState.inChat) {
-		controller()->showCalendar(_searchState.inChat, QDate());
+	const auto chat = (!_searchState.inChat && _openedForum)
+		? Key(_openedForum->history())
+		: _searchState.inChat;
+	if (chat) {
+		controller()->showCalendar({ chat });
 	}
 }
 
@@ -3703,20 +4338,28 @@ void Widget::updateLockUnlockVisibility(anim::type animated) {
 	if (_showAnimation) {
 		return;
 	}
-	const auto hidden = !session().domain().local().hasLocalPasscode()
-		|| _showAnimation
+	const auto widthAnimation = !_widthAnimationCache.isNull();
+	const auto suggestionsAnimation = widthAnimation
+		&& (!_suggestions || !_hidingSuggestions.empty());
+	const auto hiddenInstant = _showAnimation
 		|| _openedForum
-		|| !_widthAnimationCache.isNull()
+		|| (widthAnimation && !suggestionsAnimation)
 		|| _childList
-		|| _searchHasFocus
+		|| !session().domain().local().hasLocalPasscode()
+		|| (_stories
+			&& !_stories->empty()
+			&& _scroll->position().overscroll < -st::dialogsFilterSkip);
+	const auto hiddenAnimated = _searchHasFocus
 		|| _searchSuggestionsLocked
+		|| !_searchState.query.isEmpty()
 		|| _searchState.inChat
-		|| !_searchState.query.isEmpty();
-	if (_lockUnlock->toggled() == hidden) {
-		const auto stories = _stories && !_stories->empty();
-		_lockUnlock->toggle(
-			!hidden,
-			stories ? anim::type::instant : animated);
+		|| suggestionsAnimation;
+	const auto hidden = hiddenInstant || hiddenAnimated;
+	const auto changed = (_lockUnlock->toggled() == hidden);
+	_lockUnlock->toggle(
+		!hidden,
+		hiddenInstant ? anim::type::instant : animated);
+	if (changed) {
 		if (!hidden) {
 			updateLockUnlockPosition();
 		}
@@ -3730,6 +4373,7 @@ void Widget::updateLoadMoreChatsVisibility() {
 	}
 	const auto hidden = (_openedFolder != nullptr)
 		|| (_openedForum != nullptr)
+		|| (_openedCommunity != nullptr)
 		|| !_searchState.query.isEmpty();
 	if (_loadMoreChats->isHidden() != hidden) {
 		_loadMoreChats->setVisible(!hidden);
@@ -3843,9 +4487,15 @@ void Widget::updateControlsGeometry() {
 		+ st::dialogsStories.photo;
 	const auto added = (st::dialogsFilter.heightMin - storiesHeight) / 2;
 	if (_stories) {
+		const auto inFolderTitle = _openedFolder && _subsectionTopBar;
+		const auto storiesLeft = inFolderTitle
+			? (_subsectionTopBar->titleLeft()
+				- st::dialogsStories.left
+				- st::dialogsStories.photoLeft)
+			: (filterLeft + filterWidth);
 		_stories->setLayoutConstraints(
-			{ filterLeft + filterWidth, filterTop + added },
-			style::al_right,
+			{ storiesLeft, filterTop + added },
+			inFolderTitle ? style::al_left : style::al_right,
 			{ 0, expandedStoriesTop, barw, st::dialogsStoriesFull.height });
 	}
 	if (_forumTopShadow) {
@@ -3937,7 +4587,9 @@ void Widget::updateControlsGeometry() {
 		const auto scrollTop = chatFiltersTop
 			+ ((_chatFilters
 				&& _searchState.query.isEmpty()
-				&& !_openedForum && !searchInPeer())
+				&& !_openedForum
+				&& !_searchState.community
+				&& !searchInPeer())
 				? (_chatFilters->height() * (1. - narrowRatio))
 				: 0);
 		const auto scrollHeight = height() - scrollTop - bottomSkip;
@@ -3998,7 +4650,8 @@ void Widget::keyPressEvent(QKeyEvent *e) {
 		//} else {
 		//	e->ignore();
 		//}
-	} else if ((e->key() == Qt::Key_Backspace || e->key() == Qt::Key_Tab)
+	} else if ((e->key() == Qt::Key_Backspace
+			|| (e->key() == Qt::Key_Tab && !Ui::ScreenReaderModeActive()))
 		&& _searchHasFocus
 		&& !_searchState.inChat
 		&& _searchState.query.isEmpty()) {
@@ -4011,22 +4664,13 @@ void Widget::keyPressEvent(QKeyEvent *e) {
 			|| e->key() == Qt::Key_Left
 			|| e->key() == Qt::Key_Right)) {
 		_suggestions->selectJump(Qt::Key(e->key()));
-	} else if (e->key() == Qt::Key_Down) {
-		_inner->selectSkip(1);
-	} else if (e->key() == Qt::Key_Up) {
-		_inner->selectSkip(-1);
-	} else if (e->key() == Qt::Key_PageDown) {
-		if (_suggestions) {
-			_suggestions->selectJump(Qt::Key_Down, _scroll->height());
-		} else {
-			_inner->selectSkipPage(_scroll->height(), 1);
-		}
-	} else if (e->key() == Qt::Key_PageUp) {
-		if (_suggestions) {
-			_suggestions->selectJump(Qt::Key_Up, _scroll->height());
-		} else {
-			_inner->selectSkipPage(_scroll->height(), -1);
-		}
+	} else if (_suggestions
+		&& (e->key() == Qt::Key_PageDown
+			|| e->key() == Qt::Key_PageUp)) {
+		_suggestions->selectJump(
+			(e->key() == Qt::Key_PageDown) ? Qt::Key_Down : Qt::Key_Up,
+			_scroll->height());
+	} else if (_inner->processKeyDispatch(e)) {
 	} else if (redirectKeyToSearch(e)) {
 		// This delay in search focus processing allows us not to create
 		// _suggestions in case the event inserts some non-whitespace search
@@ -4071,10 +4715,11 @@ QVariant Widget::inputMethodQuery(Qt::InputMethodQuery query) const {
 bool Widget::redirectToSearchPossible() const {
 	return !_openedFolder
 		&& !_openedForum
+		&& !_openedCommunity
 		&& !_childList
 		&& _search->isVisible()
 		&& !_search->hasFocus()
-		&& hasFocus();
+		&& (hasFocus() || _inner->hasFocus());
 }
 
 bool Widget::redirectKeyToSearch(QKeyEvent *e) const {
@@ -4138,6 +4783,10 @@ void Widget::paintEvent(QPaintEvent *e) {
 		const auto top = _searchControls->y()
 			+ _searchControls->height()
 			+ suggestionsSkip;
+		const auto aboveBottom = above.y() + above.height();
+		if (top > aboveBottom) {
+			p.fillRect(0, aboveBottom, width(), top - aboveBottom, bg);
+		}
 		p.drawPixmapLeft(0, top, width(), _widthAnimationCache);
 		belowTop = top
 			+ (_widthAnimationCache.height() / style::DevicePixelRatio());
@@ -4163,12 +4812,14 @@ void Widget::cancelSearchRequest() {
 
 PeerData *Widget::searchInPeer() const {
 	return (_searchState.tab == ChatSearchTab::MyMessages
-		|| _searchState.tab == ChatSearchTab::PublicPosts)
+		|| _searchState.tab == ChatSearchTab::PublicPosts
+		|| _searchState.tab == ChatSearchTab::Archive
+		|| _searchState.tab == ChatSearchTab::ThisCommunity)
 		? nullptr
 		: _openedForum
-		? _openedForum->channel().get()
+		? _openedForum->peer().get()
 		: _searchState.inChat.sublist()
-		? session().user().get()
+		? _searchState.inChat.sublist()->owningHistory()->peer.get()
 		: _searchState.inChat.peer();
 }
 
@@ -4234,6 +4885,7 @@ void Widget::setSearchQuery(const QString &query, int cursorPosition) {
 }
 
 bool Widget::cancelSearch(CancelSearchOptions options) {
+	_searchEngaged = false;
 	const auto clearingSuggestionsQuery = _suggestions
 		&& _suggestions->consumeSearchQuery(QString());
 	if (clearingSuggestionsQuery) {
@@ -4274,6 +4926,15 @@ bool Widget::cancelSearch(CancelSearchOptions options) {
 		setInnerFocus(true);
 		clearingInChat = true;
 	}
+	if ((updatedState.tab == ChatSearchTab::Archive
+		|| updatedState.tab == ChatSearchTab::ThisCommunity
+		|| updatedState.tab == ChatSearchTab::PublicPosts)
+		&& (forceFullCancel || !clearingQuery)) {
+		updatedState.tab = ChatSearchTab::MyMessages;
+	}
+	if (forceFullCancel || !clearingQuery) {
+		updatedState.community = nullptr;
+	}
 	const auto clearSearchFocus = (forceFullCancel || !updatedState.inChat)
 		&& (_searchHasFocus || _searchSuggestionsLocked);
 	if (!updatedState.inChat && _suggestions) {
@@ -4300,6 +4961,19 @@ bool Widget::cancelSearch(CancelSearchOptions options) {
 		}
 	}
 	updateForceDisplayWide();
+	if (clearingInChat) {
+		if (const auto forum = controller()->shownForum().current()) {
+			if (forum->peer()->useSubsectionTabs()) {
+				const auto id = controller()->windowId();
+				const auto initial = id.forum();
+				if (!initial) {
+					controller()->closeForum();
+				} else if (initial != forum) {
+					controller()->showForum(initial);
+				}
+			}
+		}
+	}
 	return clearingQuery || clearingInChat || clearSearchFocus;
 }
 
@@ -4308,6 +4982,14 @@ Widget::~Widget() {
 
 	// Destructor may hide the bar and attempt to double-destroy it.
 	base::take(_downloadBar);
+
+	// Destroying a row of _innerList removes it from the layout, resizing
+	// the layout and firing _scroll position updates into subscriptions
+	// that live in lifetime() and die after most of the fields, like the
+	// one from setupStories that uses the already destroyed _stories.
+	//
+	// So destroy the whole scroll now, while all the fields are alive.
+	_scroll.destroy();
 }
 
 } // namespace Dialogs

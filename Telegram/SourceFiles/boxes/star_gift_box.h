@@ -7,7 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "boxes/star_gift_cover_box.h"
+#include "data/data_peer_id.h"
 #include "data/data_star_gift.h"
+
+class UserData;
+
+namespace Api {
+class PremiumGiftCodeOptions;
+} // namespace Api
 
 namespace ChatHelpers {
 class Show;
@@ -18,15 +26,25 @@ struct UniqueGift;
 struct GiftCode;
 struct CreditsHistoryEntry;
 class SavedStarGiftId;
+struct GiftAuctionState;
 } // namespace Data
 
+namespace Info::PeerGifts {
+struct GiftDescriptor;
+} // namespace Info::PeerGifts
+
 namespace Main {
+class Session;
 class SessionShow;
 } // namespace Main
 
 namespace Payments {
 enum class CheckoutResult;
 } // namespace Payments
+
+namespace MTP {
+class Error;
+} // namespace MTP
 
 namespace Settings {
 struct GiftWearBoxStyleOverride;
@@ -43,27 +61,34 @@ class CustomEmoji;
 
 namespace Ui {
 
+class RpWidget;
 class PopupMenu;
 class GenericBox;
+class Show;
 class VerticalLayout;
 
 void ChooseStarGiftRecipient(
 	not_null<Window::SessionController*> controller);
 
+[[nodiscard]] std::vector<not_null<UserData*>> CollectGiftFrequentUsers(
+	not_null<Main::Session*> session,
+	const std::vector<UserId> &exclude = {});
+
 void ShowStarGiftBox(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer);
 
-void AddUniqueGiftCover(
-	not_null<VerticalLayout*> container,
-	rpl::producer<Data::UniqueGift> data,
-	rpl::producer<QString> subtitleOverride = nullptr,
-	rpl::producer<int> resalePrice = nullptr,
-	Fn<void()> resaleClick = nullptr);
 void AddWearGiftCover(
 	not_null<VerticalLayout*> container,
 	const Data::UniqueGift &data,
 	not_null<PeerData*> peer);
+
+void AttachGiftSenderBadge(
+	not_null<GenericBox*> box,
+	std::shared_ptr<ChatHelpers::Show> show,
+	not_null<PeerData*> from,
+	const QDateTime &date,
+	bool crafted);
 
 void ShowUniqueGiftWearBox(
 	std::shared_ptr<ChatHelpers::Show> show,
@@ -71,40 +96,31 @@ void ShowUniqueGiftWearBox(
 	const Data::UniqueGift &gift,
 	Settings::GiftWearBoxStyleOverride st);
 
+void PreloadUniqueGiftResellPrices(not_null<Main::Session*> session);
+
 void UpdateGiftSellPrice(
 	std::shared_ptr<ChatHelpers::Show> show,
 	std::shared_ptr<Data::UniqueGift> unique,
 	Data::SavedStarGiftId savedId,
-	int price);
+	CreditsAmount price);
 void ShowUniqueGiftSellBox(
 	std::shared_ptr<ChatHelpers::Show> show,
 	std::shared_ptr<Data::UniqueGift> unique,
 	Data::SavedStarGiftId savedId,
 	Settings::GiftWearBoxStyleOverride st);
 
-struct PatternPoint {
-	QPointF position;
-	float64 scale = 1.;
-	float64 opacity = 1.;
-};
-[[nodiscard]] const std::vector<PatternPoint> &PatternPoints();
-[[nodiscard]] const std::vector<PatternPoint> &PatternPointsSmall();
-
-void PaintPoints(
-	QPainter &p,
-	const std::vector<PatternPoint> &points,
-	base::flat_map<float64, QImage> &cache,
-	not_null<Text::CustomEmoji*> emoji,
-	const Data::UniqueGift &gift,
-	const QRect &rect,
-	float64 shown = 1.);
+void ShowOfferBuyBox(
+	std::shared_ptr<ChatHelpers::Show> show,
+	std::shared_ptr<Data::UniqueGift> unique);
 
 struct StarGiftUpgradeArgs {
 	not_null<Window::SessionController*> controller;
-	base::required<uint64> stargiftId;
+	Data::StarGift stargift;
 	Fn<void(bool)> ready;
+	Fn<void()> upgraded;
 	not_null<PeerData*> peer;
 	Data::SavedStarGiftId savedId;
+	QString giftPrepayUpgradeHash;
 	int cost = 0;
 	bool canAddSender = false;
 	bool canAddComment = false;
@@ -113,11 +129,25 @@ struct StarGiftUpgradeArgs {
 };
 void ShowStarGiftUpgradeBox(StarGiftUpgradeArgs &&args);
 
-void AddUniqueCloseButton(
-	not_null<GenericBox*> box,
-	Settings::CreditsEntryBoxStyleOverrides st,
-	Fn<void(not_null<PopupMenu*>)> fillMenu = nullptr);
-
+void SubmitStarsForm(
+	std::shared_ptr<Main::SessionShow> show,
+	MTPInputInvoice invoice,
+	uint64 formId,
+	uint64 price,
+	Fn<void(Payments::CheckoutResult, const MTPUpdates *)> done);
+void SubmitTonForm(
+	std::shared_ptr<Main::SessionShow> show,
+	MTPInputInvoice invoice,
+	uint64 formId,
+	CreditsAmount ton,
+	Fn<void(Payments::CheckoutResult, const MTPUpdates *)> done);
+void RequestOurForm(
+	std::shared_ptr<Main::SessionShow> show,
+	MTPInputInvoice invoice,
+	Fn<void(
+		uint64 formId,
+		CreditsAmount price,
+		std::optional<Payments::CheckoutResult> failure)> done);
 void RequestStarsFormAndSubmit(
 	std::shared_ptr<Main::SessionShow> show,
 	MTPInputInvoice invoice,
@@ -128,9 +158,53 @@ void ShowGiftTransferredToast(
 	not_null<PeerData*> to,
 	const Data::UniqueGift &gift);
 
-void ShowResaleGiftBoughtToast(
-	std::shared_ptr<Main::SessionShow> show,
-	not_null<PeerData*> to,
-	const Data::UniqueGift &gift);
+[[nodiscard]] bool ShowGiftErrorToast(
+	std::shared_ptr<Ui::Show> show,
+	const MTP::Error &error);
+
+[[nodiscard]] CreditsAmount StarsFromTon(
+	not_null<Main::Session*> session,
+	CreditsAmount ton);
+[[nodiscard]] CreditsAmount TonFromStars(
+	not_null<Main::Session*> session,
+	CreditsAmount stars);
+
+struct GiftsDescriptor {
+	std::vector<Info::PeerGifts::GiftDescriptor> list;
+	std::shared_ptr<Api::PremiumGiftCodeOptions> api;
+};
+enum class GiftsListMode {
+	Send,
+	Craft,
+	CraftResale,
+};
+struct GiftsListArgs {
+	not_null<Window::SessionController*> window;
+	GiftsListMode mode = GiftsListMode::Send;
+	not_null<PeerData*> peer;
+	rpl::producer<GiftsDescriptor> gifts;
+	std::vector<std::shared_ptr<Data::UniqueGift>> selected;
+	Fn<void()> loadMore;
+	Fn<void(Info::PeerGifts::GiftDescriptor)> handler;
+};
+[[nodiscard]] object_ptr<RpWidget> MakeGiftsList(GiftsListArgs &&args);
+
+void SendGiftBox(
+	not_null<GenericBox*> box,
+	not_null<Window::SessionController*> window,
+	not_null<PeerData*> peer,
+	std::shared_ptr<Api::PremiumGiftCodeOptions> api,
+	const Info::PeerGifts::GiftDescriptor &descriptor,
+	rpl::producer<Data::GiftAuctionState> auctionState);
+
+[[nodiscard]] Data::CreditsHistoryEntry EntryForUpgradedGift(
+	const std::shared_ptr<Data::GiftUpgradeResult> &gift,
+	uint64 nextToUpgradeStickerId = 0,
+	Fn<void()> nextToUpgradeShow = nullptr,
+	Fn<void()> craftAnother = nullptr);
+
+[[nodiscard]] std::shared_ptr<Data::GiftUpgradeResult> FindUniqueGift(
+	not_null<Main::Session*> session,
+	const MTPUpdates &updates);
 
 } // namespace Ui

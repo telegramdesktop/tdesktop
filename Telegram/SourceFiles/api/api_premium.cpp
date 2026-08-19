@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "payments/payments_form.h"
+#include "ui/chat/chat_style.h" // ColorCollectible
 #include "ui/text/format_values.h"
 
 namespace Api {
@@ -35,7 +36,7 @@ namespace {
 		.giveawayId = data.vgiveaway_msg_id().value_or_empty(),
 		.date = data.vdate().v,
 		.used = data.vused_date().value_or_empty(),
-		.months = data.vmonths().v,
+		.days = data.vdays().v,
 		.giveaway = data.is_via_giveaway(),
 	};
 }
@@ -45,17 +46,46 @@ namespace {
 	auto options = PremiumSubscriptionOptionsFromTL(tlOptions);
 	for (auto i = 0; i < options.size(); i++) {
 		const auto &tlOption = tlOptions[i].data();
+		const auto currency = qs(tlOption.vcurrency());
 		const auto perUserText = Ui::FillAmountAndCurrency(
 			tlOption.vamount().v / float64(tlOption.vusers().v),
-			qs(tlOption.vcurrency()),
+			currency,
 			false);
 		options[i].costPerMonth = perUserText
 			+ ' '
 			+ QChar(0x00D7)
 			+ ' '
 			+ QString::number(tlOption.vusers().v);
+		options[i].total = Ui::FillAmountAndCurrency(
+			tlOption.vamount().v,
+			currency);
+		options[i].currency = currency;
 	}
 	return options;
+}
+
+[[nodiscard]] int FindStarsForResale(const MTPVector<MTPStarsAmount> *list) {
+	if (!list) {
+		return 0;
+	}
+	for (const auto &amount : list->v) {
+		if (amount.type() == mtpc_starsAmount) {
+			return int(amount.c_starsAmount().vamount().v);
+		}
+	}
+	return 0;
+}
+
+[[nodiscard]] int64 FindTonForResale(const MTPVector<MTPStarsAmount> *list) {
+	if (!list) {
+		return 0;
+	}
+	for (const auto &amount : list->v) {
+		if (amount.type() == mtpc_starsTonAmount) {
+			return int64(amount.c_starsTonAmount().vamount().v);
+		}
+	}
+	return 0;
 }
 
 } // namespace
@@ -68,7 +98,7 @@ Premium::Premium(not_null<ApiWrap*> api)
 		// only queued, because it is not constructed yet.
 		Data::AmPremiumValue(
 			_session
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			reload();
 			if (_session->premium()) {
 				reloadCloudSet();
@@ -338,7 +368,7 @@ void Premium::resolveGiveawayInfo(
 	_giveawayInfoPeer = peer;
 	_giveawayInfoMessageId = messageId;
 	_giveawayInfoRequestId = _api.request(MTPpayments_GetGiveawayInfo(
-		_giveawayInfoPeer->input,
+		_giveawayInfoPeer->input(),
 		MTP_int(_giveawayInfoMessageId.bare)
 	)).done([=](const MTPpayments_GiveawayInfo &result) {
 		_giveawayInfoRequestId = 0;
@@ -424,7 +454,7 @@ void Premium::requestPremiumRequiredSlice() {
 				constexpr auto hasPrem = Flag::HasRequirePremiumToWrite;
 				constexpr auto hasStars = Flag::HasStarsPerMessage;
 				user->setStarsPerMessage(stars);
-				user->setFlags((user->flags() & ~(me | hasPrem | hasStars))
+				user->setFlags((user->flags() & ~me)
 					| known
 					| (requirePremium ? (me | hasPrem) : Flag())
 					| (stars ? hasStars : Flag()));
@@ -473,7 +503,7 @@ rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::request() {
 			MTP_flags(_peer->isChannel()
 				? MTPpayments_GetPremiumGiftCodeOptions::Flag::f_boost_peer
 				: MTPpayments_GetPremiumGiftCodeOptions::Flag(0)),
-			_peer->input
+			_peer->input()
 		)).done([=](const MTPVector<TLOption> &result) {
 			auto tlMapOptions = base::flat_map<Amount, QVector<TLOption>>();
 			for (const auto &tlOption : result.v) {
@@ -527,7 +557,7 @@ rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::applyPrepaid(
 		}
 
 		_api.request(MTPpayments_LaunchPrepaidGiveaway(
-			_peer->input,
+			_peer->input(),
 			MTP_long(prepaidId),
 			invoice.giveawayCredits
 				? Payments::InvoiceCreditsGiveawayToTL(invoice)
@@ -589,24 +619,32 @@ std::vector<GiftOptionData> PremiumGiftCodeOptions::optionsForPeer() const {
 	return result;
 }
 
-Data::PremiumSubscriptionOptions PremiumGiftCodeOptions::options(int amount) {
-	const auto it = _subscriptionOptions.find(amount);
+Data::PremiumSubscriptionOptions PremiumGiftCodeOptions::optionsForGiveaway(
+		int usersCount) {
+	const auto skipForStars = [&](Data::PremiumSubscriptionOptions options) {
+		const auto proj = &Data::PremiumSubscriptionOption::currency;
+		options.erase(
+			ranges::remove(options, Ui::kCreditsCurrency, proj),
+			end(options));
+		return options;
+	};
+	const auto it = _subscriptionOptions.find(usersCount);
 	if (it != end(_subscriptionOptions)) {
-		return it->second;
+		return skipForStars(it->second);
 	} else {
 		auto tlOptions = QVector<MTPPremiumGiftCodeOption>();
 		for (auto i = 0; i < _optionsForOnePerson.months.size(); i++) {
 			tlOptions.push_back(MTP_premiumGiftCodeOption(
 				MTP_flags(MTPDpremiumGiftCodeOption::Flags(0)),
-				MTP_int(amount),
+				MTP_int(usersCount),
 				MTP_int(_optionsForOnePerson.months[i]),
 				MTPstring(),
 				MTPint(),
 				MTP_string(_optionsForOnePerson.currencies[i]),
-				MTP_long(_optionsForOnePerson.totalCosts[i] * amount)));
+				MTP_long(_optionsForOnePerson.totalCosts[i] * usersCount)));
 		}
-		_subscriptionOptions[amount] = GiftCodesFromTL(tlOptions);
-		return _subscriptionOptions[amount];
+		_subscriptionOptions[usersCount] = GiftCodesFromTL(tlOptions);
+		return skipForStars(_subscriptionOptions[usersCount]);
 	}
 }
 
@@ -619,6 +657,8 @@ auto PremiumGiftCodeOptions::requestStarGifts()
 			MTP_int(0)
 		)).done([=](const MTPpayments_StarGifts &result) {
 			result.match([&](const MTPDpayments_starGifts &data) {
+				_peer->owner().processUsers(data.vusers());
+				_peer->owner().processChats(data.vchats());
 				_giftsHash = data.vhash().v;
 				const auto &list = data.vgifts().v;
 				const auto session = &_peer->session();
@@ -805,19 +845,49 @@ std::optional<Data::StarGift> FromTL(
 		if (!document->sticker()) {
 			return std::optional<Data::StarGift>();
 		}
+		const auto releasedById = data.vreleased_by()
+			? peerFromMTP(*data.vreleased_by())
+			: PeerId();
+		const auto releasedBy = releasedById
+			? session->data().peer(releasedById).get()
+			: nullptr;
+		const auto background = [&] {
+			if (!data.vbackground()) {
+				return std::shared_ptr<Data::StarGiftBackground>();
+			}
+			const auto &fields = data.vbackground()->data();
+			using namespace Ui;
+			return std::make_shared<Data::StarGiftBackground>(
+				Data::StarGiftBackground{
+					.center = ColorFromSerialized(fields.vcenter_color()),
+					.edge = ColorFromSerialized(fields.vedge_color()),
+					.text = ColorFromSerialized(fields.vtext_color()),
+				});
+		};
 		return std::optional<Data::StarGift>(Data::StarGift{
 			.id = uint64(data.vid().v),
+			.background = background(),
 			.stars = int64(data.vstars().v),
 			.starsConverted = int64(data.vconvert_stars().v),
 			.starsToUpgrade = int64(data.vupgrade_stars().value_or_empty()),
 			.starsResellMin = int64(resellPrice),
 			.document = document,
+			.releasedBy = releasedBy,
 			.resellTitle = qs(data.vtitle().value_or_empty()),
 			.resellCount = int(data.vavailability_resale().value_or_empty()),
+			.auctionSlug = qs(data.vauction_slug().value_or_empty()),
+			.auctionGiftsPerRound = data.vgifts_per_round().value_or_empty(),
+			.auctionStartDate = data.vauction_start_date().value_or_empty(),
 			.limitedLeft = remaining.value_or_empty(),
 			.limitedCount = total.value_or_empty(),
+			.perUserTotal = data.vper_user_total().value_or_empty(),
+			.perUserRemains = data.vper_user_remains().value_or_empty(),
+			.upgradeVariants = data.vupgrade_variants().value_or_empty(),
 			.firstSaleDate = data.vfirst_sale_date().value_or_empty(),
 			.lastSaleDate = data.vlast_sale_date().value_or_empty(),
+			.lockedUntilDate = data.vlocked_until_date().value_or_empty(),
+			.requirePremium = data.is_require_premium(),
+			.peerColorAvailable = data.is_peer_color_available(),
 			.upgradable = data.vupgrade_stars().has_value(),
 			.birthday = data.is_birthday(),
 			.soldOut = data.is_sold_out(),
@@ -841,25 +911,73 @@ std::optional<Data::StarGift> FromTL(
 			|| !pattern->document->sticker()) {
 			return std::optional<Data::StarGift>();
 		}
+		const auto releasedById = data.vreleased_by()
+			? peerFromMTP(*data.vreleased_by())
+			: PeerId();
+		const auto themeUserId = data.vtheme_peer()
+			? peerFromMTP(*data.vtheme_peer())
+			: PeerId();
+		const auto releasedBy = releasedById
+			? session->data().peer(releasedById).get()
+			: nullptr;
+		const auto themeUser = themeUserId
+			? session->data().peer(themeUserId).get()
+			: nullptr;
+		const auto colorCollectible = (data.vpeer_color()
+			&& data.vpeer_color()->type() == mtpc_peerColorCollectible)
+			? std::make_shared<Ui::ColorCollectible>(
+				Data::ParseColorCollectible(
+					data.vpeer_color()->c_peerColorCollectible()))
+			: nullptr;
 		auto result = Data::StarGift{
-			.id = uint64(data.vid().v),
+			.id = data.vid().v,
 			.unique = std::make_shared<Data::UniqueGift>(Data::UniqueGift{
 				.id = data.vid().v,
+				.initialGiftId = data.vgift_id().v,
 				.slug = qs(data.vslug()),
 				.title = qs(data.vtitle()),
+				.giftAddress = qs(data.vgift_address().value_or_empty()),
 				.ownerAddress = qs(data.vowner_address().value_or_empty()),
 				.ownerName = qs(data.vowner_name().value_or_empty()),
 				.ownerId = (data.vowner_id()
 					? peerFromMTP(*data.vowner_id())
 					: PeerId()),
+				.hostId = (data.vhost_id()
+					? peerFromMTP(*data.vhost_id())
+					: PeerId()),
+				.releasedBy = releasedBy,
+				.themeUser = themeUser,
+				.nanoTonForResale = FindTonForResale(data.vresell_amount()),
+				.craftChancePermille
+					= data.vcraft_chance_permille().value_or_empty(),
+				.starsForResale = FindStarsForResale(data.vresell_amount()),
+				.starsMinOffer = data.voffer_min_stars().value_or(-1),
 				.number = data.vnum().v,
-				.starsForResale = int(data.vresell_stars().value_or_empty()),
+				.onlyAcceptTon = data.is_resale_ton_only(),
+				.canBeTheme = data.is_theme_available(),
+				.crafted = data.is_crafted(),
+				.burned = data.is_burned(),
 				.model = *model,
 				.pattern = *pattern,
+				.value = (data.vvalue_amount()
+					? std::make_shared<Data::UniqueGiftValue>(
+						Data::UniqueGiftValue{
+							.currency = qs(
+								data.vvalue_currency().value_or_empty()),
+							.valuePrice = int64(
+								data.vvalue_amount().value_or_empty()),
+							.valuePriceUsd = int64(
+								data.vvalue_usd_amount().value_or_empty()),
+						})
+					: nullptr),
+				.peerColor = colorCollectible,
 			}),
 			.document = model->document,
+			.releasedBy = releasedBy,
 			.limitedLeft = (total - data.vavailability_issued().v),
 			.limitedCount = total,
+			.resellTonOnly = data.is_resale_ton_only(),
+			.requirePremium = data.is_require_premium(),
 		};
 		const auto unique = result.unique.get();
 		for (const auto &attribute : data.vattributes().v) {
@@ -871,7 +989,7 @@ std::optional<Data::StarGift> FromTL(
 				unique->originalDetails = FromTL(session, data);
 			});
 		}
-		return std::make_optional(result);
+		return std::make_optional(std::move(result));
 	});
 }
 
@@ -888,6 +1006,7 @@ std::optional<Data::SavedStarGift> FromTL(
 		unique->exportAt = data.vcan_export_at().value_or_empty();
 		unique->canTransferAt = data.vcan_transfer_at().value_or_empty();
 		unique->canResellAt = data.vcan_resell_at().value_or_empty();
+		unique->canCraftAt = data.vcan_craft_at().value_or_empty();
 	}
 	using Id = Data::SavedStarGiftId;
 	const auto hasUnique = parsed->unique != nullptr;
@@ -896,27 +1015,49 @@ std::optional<Data::SavedStarGift> FromTL(
 		.manageId = (to->isUser()
 			? Id::User(data.vmsg_id().value_or_empty())
 			: Id::Chat(to, data.vsaved_id().value_or_empty())),
+		.collectionIds = (data.vcollection_id()
+			? (data.vcollection_id()->v
+				| ranges::views::transform(&MTPint::v)
+				| ranges::to_vector)
+			: std::vector<int>()),
 		.message = (data.vmessage()
-			? TextWithEntities{
-				.text = qs(data.vmessage()->data().vtext()),
-				.entities = Api::EntitiesFromMTP(
-					session,
-					data.vmessage()->data().ventities().v),
-			}
+			? Api::ParseTextWithEntities(
+				session,
+				*data.vmessage())
 			: TextWithEntities()),
 		.starsConverted = int64(data.vconvert_stars().value_or_empty()),
 		.starsUpgradedBySender = int64(
 			data.vupgrade_stars().value_or_empty()),
+		.starsForDetailsRemove = int64(
+			data.vdrop_original_details_stars().value_or_empty()),
+		.giftPrepayUpgradeHash = qs(
+			data.vprepaid_upgrade_hash().value_or_empty()),
 		.fromId = (data.vfrom_id()
 			? peerFromMTP(*data.vfrom_id())
 			: PeerId()),
 		.date = data.vdate().v,
+		.giftNum = data.vgift_num().value_or_empty(),
+		.upgradeSeparate = data.is_upgrade_separate(),
 		.upgradable = data.is_can_upgrade(),
 		.anonymous = data.is_name_hidden(),
 		.pinned = data.is_pinned_to_top() && hasUnique,
 		.hidden = data.is_unsaved(),
 		.mine = to->isSelf(),
 	};
+}
+
+int ParseRarity(const MTPStarGiftAttributeRarity &rarity) {
+	return rarity.match([&](const MTPDstarGiftAttributeRarity &data) {
+		return std::max(data.vpermille().v, 0);
+	}, [&](const MTPDstarGiftAttributeRarityUncommon &) {
+		return int(Data::UniqueGiftRarity::Uncommon);
+	}, [&](const MTPDstarGiftAttributeRarityRare &) {
+		return int(Data::UniqueGiftRarity::Rare);
+	}, [&](const MTPDstarGiftAttributeRarityEpic &) {
+		return int(Data::UniqueGiftRarity::Epic);
+	}, [&](const MTPDstarGiftAttributeRarityLegendary &) {
+		return int(Data::UniqueGiftRarity::Legendary);
+	});
 }
 
 Data::UniqueGiftModel FromTL(
@@ -926,7 +1067,7 @@ Data::UniqueGiftModel FromTL(
 		.document = session->data().processDocument(data.vdocument()),
 	};
 	result.name = qs(data.vname());
-	result.rarityPermille = data.vrarity_permille().v;
+	result.rarityValue = ParseRarity(data.vrarity());
 	return result;
 }
 
@@ -938,14 +1079,14 @@ Data::UniqueGiftPattern FromTL(
 	};
 	result.document->overrideEmojiUsesTextColor(true);
 	result.name = qs(data.vname());
-	result.rarityPermille = data.vrarity_permille().v;
+	result.rarityValue = ParseRarity(data.vrarity());
 	return result;
 }
 
 Data::UniqueGiftBackdrop FromTL(const MTPDstarGiftAttributeBackdrop &data) {
 	auto result = Data::UniqueGiftBackdrop{ .id = data.vbackdrop_id().v };
 	result.name = qs(data.vname());
-	result.rarityPermille = data.vrarity_permille().v;
+	result.rarityValue = ParseRarity(data.vrarity());
 	result.centerColor = Ui::ColorFromSerialized(
 		data.vcenter_color());
 	result.edgeColor = Ui::ColorFromSerialized(

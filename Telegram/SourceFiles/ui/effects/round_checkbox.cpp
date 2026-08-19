@@ -7,10 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/round_checkbox.h"
 
+#include "lang/lang_keys.h"
 #include "ui/rp_widget.h"
 #include "ui/ui_utility.h"
 #include "ui/painter.h"
 #include "ui/effects/outline_segments.h"
+#include "styles/style_calls.h"
+#include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
 
 #include <QtCore/QCoreApplication>
@@ -31,7 +34,7 @@ public:
 		Expects(parent != nullptr);
 
 		style::PaletteChanged(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			_data.clear();
 		}, _lifetime);
 	}
@@ -308,6 +311,10 @@ void RoundCheckbox::setChecked(bool newChecked, anim::type animated) {
 	}
 }
 
+void RoundCheckbox::finishAnimating() {
+	_checkedProgress.stop();
+}
+
 void RoundCheckbox::invalidateCache() {
 	if (!_inactiveCacheBg.isNull() || !_inactiveCacheFg.isNull()) {
 		prepareInactiveCache();
@@ -372,13 +379,50 @@ RoundImageCheckbox::RoundImageCheckbox(RoundImageCheckbox&&) = default;
 
 RoundImageCheckbox::~RoundImageCheckbox() = default;
 
-void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) const {
+void RoundImageCheckbox::paint(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth) const {
+	if (_liveBadge) {
+		const auto ratio = style::DevicePixelRatio();
+		const auto added = _st.selectWidth;
+		const auto cacheSize = (added + _st.imageRadius) * 2;
+		const auto fullCacheSize = cacheSize * ratio;
+		if (_liveBadgeCache.width() != fullCacheSize) {
+			_liveBadgeCache = QImage(
+				QSize(fullCacheSize, fullCacheSize),
+				QImage::Format_ARGB32_Premultiplied);
+			_liveBadgeCache.setDevicePixelRatio(ratio);
+		}
+		_liveBadgeCache.fill(Qt::transparent);
+		auto q = Painter(&_liveBadgeCache);
+		paintFrame(q, added, added, cacheSize);
+		q.end();
+
+		p.drawImage(x - added, y - added, _liveBadgeCache);
+	} else {
+		paintFrame(p, x, y, outerWidth);
+	}
+}
+
+void RoundImageCheckbox::paintFrame(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth) const {
 	auto selectionLevel = _selection.value(checked() ? 1. : 0.);
 	if (_selection.animating()) {
-		auto userpicRadius = qRound(kWideScale * (_st.imageRadius + (_st.imageSmallRadius - _st.imageRadius) * selectionLevel));
+		auto userpicRadius = qRound(kWideScale
+			* (_st.imageRadius + (_st.imageSmallRadius - _st.imageRadius)
+				* selectionLevel));
 		auto userpicShift = kWideScale * _st.imageRadius - userpicRadius;
-		auto userpicLeft = x - (kWideScale - 1) * _st.imageRadius + userpicShift;
-		auto userpicTop = y - (kWideScale - 1) * _st.imageRadius + userpicShift;
+		auto userpicLeft = x
+			- ((kWideScale - 1) * _st.imageRadius)
+			+ userpicShift;
+		auto userpicTop = y
+			- ((kWideScale - 1) * _st.imageRadius)
+			+ userpicShift;
 		auto to = QRect(userpicLeft, userpicTop, userpicRadius * 2, userpicRadius * 2);
 		auto from = QRect(QPoint(0, 0), _wideCache.size());
 
@@ -422,6 +466,11 @@ void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) const {
 		} else {
 			PaintOutlineSegments(p, outline, _segments);
 		}
+
+		if (_liveBadge) {
+			PaintLiveBadge(p, x, y, _st.imageRadius * 2);
+		}
+
 		p.setOpacity(1.);
 	}
 	if (_st.check.size > 0) {
@@ -489,15 +538,59 @@ void RoundImageCheckbox::setColorOverride(std::optional<QBrush> fg) {
 	if (fg) {
 		setCustomizedSegments({
 			{ .brush = *fg, .width = float64(_st.selectWidth) }
-		});
+		}, false);
 	} else {
-		setCustomizedSegments({});
+		setCustomizedSegments({}, false);
 	}
 }
 
 void RoundImageCheckbox::setCustomizedSegments(
-		std::vector<Ui::OutlineSegment> segments) {
+		std::vector<Ui::OutlineSegment> segments,
+		bool liveBadge) {
 	_segments = std::move(segments);
+	_liveBadge = liveBadge;
+}
+
+void PaintLiveBadge(
+		QPainter &p,
+		int x,
+		int y,
+		int photoSize,
+		std::optional<QColor> outline) {
+	const auto &st = st::groupCallMessageBadge;
+	const auto text = tr::lng_video_stream_live(tr::now);
+	auto string = Ui::Text::String(st.style, text);
+	const auto size = QSize(string.maxWidth(), string.minHeight());
+
+	const auto full = QSize(
+		(st.width < 0) ? (size.width() - st.width) : st.width,
+		st.height);
+	const auto left = x + (photoSize - full.width()) / 2;
+	const auto top = y + photoSize - full.height();
+
+	const auto stroke = st::dialogsStories.lineTwice / 2.;
+	auto pen = QPen(outline.value_or(QColor(Qt::transparent)));
+	pen.setWidthF(stroke);
+
+	const auto half = stroke / 2.;
+	if (!outline) {
+		p.setCompositionMode(QPainter::CompositionMode_Source);
+	}
+	auto hq = PainterHighQualityEnabler(p);
+	p.setPen(pen);
+	p.setBrush(st.textBg);
+
+	const auto r = st.radius + half;
+	const auto rect = QRectF(left, top, full.width(), full.height());
+	const auto sub = QMarginsF(half, half, half, half);
+	p.drawRoundedRect(rect.marginsAdded(sub), r, r);
+
+	if (!outline) {
+		p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+	}
+	const auto textLeft = (full.width() - size.width()) / 2;
+	p.setPen(st.textFg);
+	string.draw(p, { .position = { left + textLeft, top + st.textTop } });
 }
 
 } // namespace Ui

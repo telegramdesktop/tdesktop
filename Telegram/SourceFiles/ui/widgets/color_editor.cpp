@@ -14,10 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/widgets/fields/masked_input_field.h"
 #include "ui/widgets/shadow.h"
-#include "styles/style_boxes.h"
-#include "styles/style_media_view.h"
+#include "styles/style_color_editor.h"
+#include "styles/style_widgets.h"
 
-class ColorEditor::Picker : public TWidget {
+class ColorEditor::Picker : public Ui::RpWidget {
 public:
 	Picker(QWidget *parent, Mode mode, QColor color);
 
@@ -94,7 +94,7 @@ QCursor ColorEditor::Picker::generateCursor() {
 }
 
 ColorEditor::Picker::Picker(QWidget *parent, Mode mode, QColor color)
-: TWidget(parent)
+: RpWidget(parent)
 , _mode(mode) {
 	setCursor(generateCursor());
 
@@ -292,7 +292,7 @@ void ColorEditor::Picker::setFromColor(QColor color) {
 	}
 }
 
-class ColorEditor::Slider : public TWidget {
+class ColorEditor::Slider : public Ui::RpWidget {
 public:
 	enum class Direction {
 		Horizontal,
@@ -365,7 +365,7 @@ ColorEditor::Slider::Slider(
 	Direction direction,
 	Type type,
 	QColor color)
-: TWidget(parent)
+: RpWidget(parent)
 , _direction(direction)
 , _type(type)
 , _color(color.red(), color.green(), color.blue())
@@ -917,6 +917,7 @@ void ColorEditor::prepare() {
 	connect(_blueField, &Ui::MaskedInputField::submitted, submitted);
 	connect(_result, &Ui::MaskedInputField::submitted, submitted);
 
+	setNaturalWidth(st::colorEditWidth);
 	const auto height = st::colorEditSkip
 		+ st::colorPickerSize
 		+ st::colorEditSkip
@@ -929,7 +930,7 @@ void ColorEditor::prepare() {
 		(_hueSlider ? _hueSlider->changed() : rpl::never<>()),
 		(_opacitySlider ? _opacitySlider->changed() : rpl::never<>()),
 		(_lightnessSlider ? _lightnessSlider->changed() : rpl::never<>())
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		updateFromControls();
 	}, lifetime());
 

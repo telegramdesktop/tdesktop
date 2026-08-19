@@ -7,15 +7,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "api/api_common.h"
+#include "ui/text/text_entity.h"
+
 namespace Api {
 enum class SendProgressType;
-struct SendOptions;
 struct SendAction;
 } // namespace Api
+
+namespace Data {
+class GroupCall;
+} // namespace Data
 
 class History;
 
 namespace HistoryView::Controls {
+
+extern const char kOptionMacCmdReplyImmediately[];
 
 struct MessageToEdit {
 	FullMsgId fullId;
@@ -41,6 +49,7 @@ enum class WriteRestrictionType {
 	Rights,
 	PremiumRequired,
 	Frozen,
+	Hidden,
 };
 
 struct WriteRestriction {
@@ -65,12 +74,16 @@ struct WriteRestriction {
 
 struct SetHistoryArgs {
 	required<History*> history;
+	std::shared_ptr<Data::GroupCall> videoStream;
 	MsgId topicRootId = 0;
+	PeerId monoforumPeerId = 0;
 	Fn<bool()> showSlowmodeError;
 	Fn<Api::SendAction()> sendActionFactory;
+	Fn<void(TextWithEntities, Api::SendOptions, Fn<void()>)> sendWithText;
 	rpl::producer<int> slowmodeSecondsLeft;
 	rpl::producer<bool> sendDisabledBySlowmode;
 	rpl::producer<bool> liked;
+	rpl::producer<int> minStarsCount;
 	rpl::producer<WriteRestriction> writeRestriction;
 };
 
@@ -81,6 +94,18 @@ struct ReplyNextRequest {
 	};
 	const FullMsgId replyId;
 	const Direction direction;
+};
+
+enum class ToggleCommentsState {
+	Empty,
+	Shown,
+	Hidden,
+	WithNew,
+};
+
+struct SendStarButtonEffect {
+	not_null<PeerData*> from;
+	int stars = 0;
 };
 
 } // namespace HistoryView::Controls

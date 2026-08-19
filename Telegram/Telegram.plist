@@ -42,6 +42,21 @@
 			</array>
 		</dict>
 	</array>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Any File</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.data</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>@desktop_app_version_string@</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
@@ -60,6 +75,8 @@
 	<string>We need access to your camera so that you can record video messages and make video calls.</string>
 	<key>NSLocationUsageDescription</key>
 	<string>We need access to your location so that you can send your current locations.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>We need access to Bluetooth so that you can sign in with a passkey from your phone over a QR code.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>NSSupportsAutomaticGraphicsSwitching</key>

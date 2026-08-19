@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "lang/lang_keys.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_calls.h"
 #include "styles/style_info.h" // st::topBarArrowPadding, like TopBarWidget.
 #include "styles/style_window.h" // st::columnMinimalWidthLeft
 #include "styles/palette.h"
@@ -36,7 +35,7 @@ RequestsBar::RequestsBar(
 	_shadow->hide();
 
 	_wrap.entity()->paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
+	) | rpl::on_next([=](QRect clip) {
 		QPainter(_wrap.entity()).fillRect(clip, st::historyPinnedBg);
 	}, lifetime());
 	_wrap.setAttribute(Qt::WA_OpaquePaintEvent);
@@ -47,7 +46,7 @@ RequestsBar::RequestsBar(
 
 	rpl::duplicate(
 		copy
-	) | rpl::start_with_next([=](RequestsBarContent &&content) {
+	) | rpl::on_next([=](RequestsBarContent &&content) {
 		_content = content;
 		if (_content.count > 0) {
 			if (_content.count == 1 && !_content.nameFull.isEmpty()) {
@@ -84,7 +83,7 @@ RequestsBar::RequestsBar(
 		copy
 	) | rpl::map([=](const RequestsBarContent &content) {
 		return !content.count;
-	}) | rpl::start_with_next_done([=](bool hidden) {
+	}) | rpl::on_next_done([=](bool hidden) {
 		_shouldBeShown = !hidden;
 		if (!_forceHidden) {
 			_wrap.toggle(_shouldBeShown, anim::type::normal);
@@ -95,7 +94,7 @@ RequestsBar::RequestsBar(
 	}, lifetime());
 
 	_userpics->widthValue(
-	) | rpl::start_with_next([=](int width) {
+	) | rpl::on_next([=](int width) {
 		_userpicsWidth = width;
 	}, lifetime());
 
@@ -107,7 +106,7 @@ RequestsBar::~RequestsBar() = default;
 void RequestsBar::setupInner() {
 	_inner->resize(0, st::historyRequestsHeight);
 	_inner->paintRequest(
-	) | rpl::start_with_next([=](QRect rect) {
+	) | rpl::on_next([=](QRect rect) {
 		auto p = Painter(_inner);
 		paint(p);
 	}, _inner->lifetime());
@@ -129,7 +128,7 @@ void RequestsBar::setupInner() {
 	) | rpl::to_empty | rpl::start_to_stream(_barClicks, _inner->lifetime());
 
 	_wrap.geometryValue(
-	) | rpl::start_with_next([=](QRect rect) {
+	) | rpl::on_next([=](QRect rect) {
 		updateShadowGeometry(rect);
 		updateControlsGeometry(rect);
 	}, _inner->lifetime());

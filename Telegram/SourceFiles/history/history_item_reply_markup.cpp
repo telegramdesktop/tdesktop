@@ -12,9 +12,35 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "inline_bots/bot_attach_web_view.h"
 
+#include <QtCore/QDataStream>
+
 namespace {
 
-[[nodiscard]] RequestPeerQuery RequestPeerQueryFromTL(
+[[nodiscard]] HistoryMessageMarkupButton::Visual ParseVisual(
+		const tl::conditional<MTPKeyboardButtonStyle> &style) {
+	if (!style) {
+		return {};
+	}
+	using Color = HistoryMessageMarkupButton::Color;
+	const auto &data = style->data();
+	if (data.vicon()) {
+		[[maybe_unused]] int a = 0;
+	}
+	return {
+		.iconId = data.vicon().value_or_empty(),
+		.color = (data.is_bg_danger()
+			? Color::Danger
+			: data.is_bg_primary()
+			? Color::Primary
+			: data.is_bg_success()
+			? Color::Success
+			: Color::Normal),
+	};
+}
+
+} // namespace
+
+RequestPeerQuery RequestPeerQueryFromTL(
 		const MTPDkeyboardButtonRequestPeer &query) {
 	using Type = RequestPeerQuery::Type;
 	using Restriction = RequestPeerQuery::Restriction;
@@ -48,11 +74,10 @@ namespace {
 		result.hasUsername = restriction(data.vhas_username());
 		result.myRights = rights(data.vuser_admin_rights());
 		result.botRights = rights(data.vbot_admin_rights());
+	}, [](const MTPDrequestPeerTypeCreateBot &) {
 	});
 	return result;
 }
-
-} // namespace
 
 InlineBots::PeerTypes PeerTypesFromMTP(
 		const MTPvector<MTPInlineQueryPeerType> &types) {
@@ -79,10 +104,12 @@ InlineBots::PeerTypes PeerTypesFromMTP(
 HistoryMessageMarkupButton::HistoryMessageMarkupButton(
 	Type type,
 	const QString &text,
+	Visual visual,
 	const QByteArray &data,
 	const QString &forwardText,
 	int64 buttonId)
 : type(type)
+, visual(visual)
 , text(text)
 , forwardText(forwardText)
 , data(data)
@@ -122,38 +149,76 @@ void HistoryMessageMarkupData::fillRows(
 			row.reserve(data.vbuttons().v.size());
 			for (const auto &button : data.vbuttons().v) {
 				button.match([&](const MTPDkeyboardButton &data) {
-					row.emplace_back(Type::Default, qs(data.vtext()));
+					row.emplace_back(
+						Type::Default,
+						qs(data.vtext()),
+						ParseVisual(data.vstyle()));
 				}, [&](const MTPDkeyboardButtonCallback &data) {
 					row.emplace_back(
 						(data.is_requires_password()
 							? Type::CallbackWithPassword
 							: Type::Callback),
 						qs(data.vtext()),
+						ParseVisual(data.vstyle()),
 						qba(data.vdata()));
 				}, [&](const MTPDkeyboardButtonRequestGeoLocation &data) {
-					row.emplace_back(Type::RequestLocation, qs(data.vtext()));
-				}, [&](const MTPDkeyboardButtonRequestPhone &data) {
-					row.emplace_back(Type::RequestPhone, qs(data.vtext()));
-				}, [&](const MTPDkeyboardButtonRequestPeer &data) {
-					const auto query = RequestPeerQueryFromTL(data);
 					row.emplace_back(
-						Type::RequestPeer,
+						Type::RequestLocation,
 						qs(data.vtext()),
-						QByteArray(
-							reinterpret_cast<const char*>(&query),
-							sizeof(query)),
-						QString(),
-						int64(data.vbutton_id().v));
+						ParseVisual(data.vstyle()));
+				}, [&](const MTPDkeyboardButtonRequestPhone &data) {
+					row.emplace_back(
+						Type::RequestPhone,
+						qs(data.vtext()),
+						ParseVisual(data.vstyle()));
+				}, [&](const MTPDkeyboardButtonRequestPeer &data) {
+					data.vpeer_type().match([&](
+							const MTPDrequestPeerTypeCreateBot &createData) {
+						auto serialized = QByteArray();
+						{
+							auto stream = QDataStream(
+								&serialized,
+								QIODevice::WriteOnly);
+							stream
+								<< qs(createData.vsuggested_name()
+									.value_or_empty())
+								<< qs(createData.vsuggested_username()
+									.value_or_empty());
+						}
+						row.emplace_back(
+							Type::CreateBot,
+							qs(data.vtext()),
+							ParseVisual(data.vstyle()),
+							serialized,
+							QString(),
+							int64(data.vbutton_id().v));
+					}, [&](const auto &) {
+						const auto query = RequestPeerQueryFromTL(data);
+						row.emplace_back(
+							Type::RequestPeer,
+							qs(data.vtext()),
+							ParseVisual(data.vstyle()),
+							QByteArray(
+								reinterpret_cast<const char*>(&query),
+								sizeof(query)),
+							QString(),
+							int64(data.vbutton_id().v));
+					});
 				}, [&](const MTPDkeyboardButtonUrl &data) {
 					row.emplace_back(
 						Type::Url,
 						qs(data.vtext()),
+						ParseVisual(data.vstyle()),
 						qba(data.vurl()));
 				}, [&](const MTPDkeyboardButtonSwitchInline &data) {
 					const auto type = data.is_same_peer()
 						? Type::SwitchInlineSame
 						: Type::SwitchInline;
-					row.emplace_back(type, qs(data.vtext()), qba(data.vquery()));
+					row.emplace_back(
+						type,
+						qs(data.vtext()),
+						ParseVisual(data.vstyle()),
+						qba(data.vquery()));
 					if (type == Type::SwitchInline) {
 						// Optimization flag.
 						// Fast check on all new messages if there is a switch button to auto-click it.
@@ -163,13 +228,20 @@ void HistoryMessageMarkupData::fillRows(
 						}
 					}
 				}, [&](const MTPDkeyboardButtonGame &data) {
-					row.emplace_back(Type::Game, qs(data.vtext()));
+					row.emplace_back(
+						Type::Game,
+						qs(data.vtext()),
+						ParseVisual(data.vstyle()));
 				}, [&](const MTPDkeyboardButtonBuy &data) {
-					row.emplace_back(Type::Buy, qs(data.vtext()));
+					row.emplace_back(
+						Type::Buy,
+						qs(data.vtext()),
+						ParseVisual(data.vstyle()));
 				}, [&](const MTPDkeyboardButtonUrlAuth &data) {
 					row.emplace_back(
 						Type::Auth,
 						qs(data.vtext()),
+						ParseVisual(data.vstyle()),
 						qba(data.vurl()),
 						qs(data.vfwd_text().value_or_empty()),
 						data.vbutton_id().v);
@@ -187,11 +259,13 @@ void HistoryMessageMarkupData::fillRows(
 					row.emplace_back(
 						Type::RequestPoll,
 						qs(data.vtext()),
+						ParseVisual(data.vstyle()),
 						quiz);
 				}, [&](const MTPDkeyboardButtonUserProfile &data) {
 					row.emplace_back(
 						Type::UserProfile,
 						qs(data.vtext()),
+						ParseVisual(data.vstyle()),
 						QByteArray::number(data.vuser_id().v));
 				}, [&](const MTPDinputKeyboardButtonUrlAuth &data) {
 					LOG(("API Error: inputKeyboardButtonUrlAuth."));
@@ -203,16 +277,19 @@ void HistoryMessageMarkupData::fillRows(
 					row.emplace_back(
 						Type::WebView,
 						qs(data.vtext()),
+						ParseVisual(data.vstyle()),
 						data.vurl().v);
 				}, [&](const MTPDkeyboardButtonSimpleWebView &data) {
 					row.emplace_back(
 						Type::SimpleWebView,
 						qs(data.vtext()),
+						ParseVisual(data.vstyle()),
 						data.vurl().v);
 				}, [&](const MTPDkeyboardButtonCopy &data) {
 					row.emplace_back(
 						Type::CopyText,
 						qs(data.vtext()),
+						ParseVisual(data.vstyle()),
 						data.vcopy_text().v);
 				}, [&](const MTPDinputKeyboardButtonRequestPeer &data) {
 					LOG(("API Error: inputKeyboardButtonRequestPeer."));
@@ -283,6 +360,7 @@ void HistoryMessageMarkupData::fillForwardedData(
 			row.emplace_back(
 				newType,
 				text,
+				button.visual,
 				button.data,
 				QString(),
 				button.buttonId);
@@ -312,7 +390,7 @@ HistoryMessageRepliesData::HistoryMessageRepliesData(
 	if (!data) {
 		return;
 	}
-	const auto &fields = data->c_messageReplies();
+	const auto &fields = data->data();
 	if (const auto list = fields.vrecent_repliers()) {
 		recentRepliers.reserve(list->v.size());
 		for (const auto &id : list->v) {
@@ -325,4 +403,32 @@ HistoryMessageRepliesData::HistoryMessageRepliesData(
 	maxId = fields.vmax_id().value_or_empty();
 	isNull = false;
 	pts = fields.vreplies_pts().v;
+}
+
+HistoryMessageSuggestInfo::HistoryMessageSuggestInfo(
+		const MTPSuggestedPost *data) {
+	if (!data) {
+		return;
+	}
+	const auto &fields = data->data();
+	price = CreditsAmountFromTL(fields.vprice());
+	date = fields.vschedule_date().value_or_empty();
+	accepted = fields.is_accepted();
+	rejected = fields.is_rejected();
+	exists = true;
+}
+
+HistoryMessageSuggestInfo::HistoryMessageSuggestInfo(
+	const Api::SendOptions &options)
+: HistoryMessageSuggestInfo(options.suggest) {
+}
+
+HistoryMessageSuggestInfo::HistoryMessageSuggestInfo(
+		SuggestOptions options) {
+	if (!options.exists) {
+		return;
+	}
+	price = options.price();
+	date = options.date;
+	exists = true;
 }

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/choose_send_as.h"
 
 #include "boxes/peer_list_box.h"
+#include "data/data_group_call.h"
 #include "data/data_peer.h"
 #include "data/data_channel.h"
 #include "data/data_peer_values.h"
@@ -19,10 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/session/send_as_peers.h"
 #include "lang/lang_keys.h"
-#include "settings/settings_premium.h"
+#include "settings/sections/settings_premium.h"
 #include "styles/style_calls.h"
-#include "styles/style_boxes.h"
-#include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 
 namespace Ui {
@@ -111,7 +110,7 @@ ListController::ListController(
 , _selected(selected) {
 	Data::AmPremiumValue(
 		&selected->session()
-	) | rpl::skip(1) | rpl::start_with_next([=] {
+	) | rpl::skip(1) | rpl::on_next([=] {
 		const auto count = delegate()->peerListFullRowsCount();
 		for (auto i = 0; i != count; ++i) {
 			delegate()->peerListUpdateRow(
@@ -171,6 +170,7 @@ rpl::producer<not_null<PeerData*>> ListController::clicked() const {
 
 void ChooseSendAsBox(
 		not_null<GenericBox*> box,
+		const style::ChooseSendAs &st,
 		std::vector<Main::SendAsPeer> list,
 		not_null<PeerData*> chosen,
 		Fn<bool(not_null<PeerData*>)> done) {
@@ -179,11 +179,10 @@ void ChooseSendAsBox(
 
 	box->setWidth(st::groupCallJoinAsWidth);
 	box->setTitle(tr::lng_send_as_title());
-	const auto &labelSt = st::confirmPhoneAboutLabel;
 	box->addRow(object_ptr<Ui::FlatLabel>(
 		box,
 		tr::lng_group_call_join_as_about(),
-		labelSt));
+		st.label));
 
 	auto &lifetime = box->lifetime();
 	const auto delegate = lifetime.make_state<
@@ -192,13 +191,11 @@ void ChooseSendAsBox(
 	const auto controller = lifetime.make_state<ListController>(
 		list,
 		chosen);
-	controller->setStyleOverrides(
-		&st::peerListJoinAsList,
-		nullptr);
+	controller->setStyleOverrides(&st.list, nullptr);
 
 	controller->clicked(
-	) | rpl::start_with_next([=](not_null<PeerData*> peer) {
-		const auto weak = MakeWeak(box);
+	) | rpl::on_next([=](not_null<PeerData*> peer) {
+		const auto weak = base::make_weak(box);
 		if (done(peer) && weak) {
 			box->closeBox();
 		}
@@ -214,19 +211,21 @@ void ChooseSendAsBox(
 
 void SetupSendAsButton(
 		not_null<SendAsButton*> button,
+		const style::ChooseSendAs &st,
 		rpl::producer<PeerData*> active,
-		not_null<Window::SessionController*> window) {
+		std::shared_ptr<ChatHelpers::Show> show) {
 	using namespace rpl::mappers;
 	const auto current = button->lifetime().make_state<
 		rpl::variable<PeerData*>
 	>(std::move(active));
-	button->setClickedCallback([=] {
+	button->setClickedCallback([=, &st] {
 		const auto peer = current->current();
 		if (!peer) {
 			return;
 		}
+		const auto key = Main::SendAsKey{ peer, Main::SendAsType::Message };
 		const auto session = &peer->session();
-		const auto &list = session->sendAsPeers().list(peer);
+		const auto &list = session->sendAsPeers().list(key);
 		if (list.size() < 2) {
 			return;
 		}
@@ -239,28 +238,30 @@ void SetupSendAsButton(
 				&& i->premiumRequired
 				&& !sendAs->session().premium()) {
 				Settings::ShowPremiumPromoToast(
-					window->uiShow(),
+					show,
 					tr::lng_send_as_premium_required(
 						tr::now,
 						lt_link,
-						Ui::Text::Link(
-							Ui::Text::Bold(
+						tr::link(
+							tr::bold(
 								tr::lng_send_as_premium_required_link(
 									tr::now))),
-						Ui::Text::WithEntities),
+						tr::marked),
 					u"send_as"_q);
 				return false;
 			}
 			session->sendAsPeers().saveChosen(peer, sendAs);
 			return true;
 		};
-		window->show(Box(
+		show->show(Box(
 			Ui::ChooseSendAsBox,
+			st,
 			list,
 			session->sendAsPeers().resolveChosen(peer),
 			done));
 	});
 
+	const auto size = st.button.size;
 	auto userpic = current->value(
 	) | rpl::filter([=](PeerData *peer) {
 		return peer && peer->isChannel();
@@ -271,7 +272,7 @@ void SetupSendAsButton(
 			rpl::empty
 		) | rpl::then(channel->session().sendAsPeers().updated(
 		) | rpl::filter(
-			_1 == channel
+			_1 == Main::SendAsKey(channel, Main::SendAsType::Message)
 		) | rpl::to_empty);
 
 		return rpl::combine(
@@ -283,25 +284,68 @@ void SetupSendAsButton(
 		) | rpl::map([=](not_null<PeerData*> chosen) {
 			return Data::PeerUserpicImageValue(
 				chosen,
-				st::sendAsButton.size * style::DevicePixelRatio());
+				size * style::DevicePixelRatio());
 		}) | rpl::flatten_latest();
 	}) | rpl::flatten_latest();
 
 	std::move(
 		userpic
-	) | rpl::start_with_next([=](QImage &&userpic) {
+	) | rpl::on_next([=](QImage &&userpic) {
 		button->setUserpic(std::move(userpic));
 	}, button->lifetime());
 }
 
 void SetupSendAsButton(
 		not_null<SendAsButton*> button,
+		const style::ChooseSendAs &st,
+		std::shared_ptr<Data::GroupCall> videoStream,
+		std::shared_ptr<ChatHelpers::Show> show) {
+	const auto peer = videoStream->peer();
+	const auto type = Main::SendAsType::VideoStream;
+	const auto key = Main::SendAsKey{ peer, type };
+	button->setClickedCallback([=, &st] {
+		const auto session = &peer->session();
+		const auto &list = session->sendAsPeers().list(key);
+		if (list.size() < 2) {
+			return;
+		}
+		const auto done = [=](not_null<PeerData*> sendAs) {
+			videoStream->saveSendAs(sendAs);
+			return true;
+		};
+		show->show(Box(
+			Ui::ChooseSendAsBox,
+			st,
+			list,
+			videoStream->resolveSendAs(),
+			done));
+	});
+
+	const auto size = st.button.size;
+	auto userpic = videoStream->sendAsValue(
+	) | rpl::distinct_until_changed(
+	) | rpl::map([=](not_null<PeerData*> chosen) {
+		return Data::PeerUserpicImageValue(
+			chosen,
+			size * style::DevicePixelRatio());
+	}) | rpl::flatten_latest();
+
+	std::move(
+		userpic
+	) | rpl::on_next([=](QImage &&userpic) {
+		button->setUserpic(std::move(userpic));
+	}, button->lifetime());
+}
+
+void SetupSendAsButton(
+		not_null<SendAsButton*> button,
+		const style::ChooseSendAs &st,
 		not_null<Window::SessionController*> window) {
 	auto active = window->activeChatValue(
 	) | rpl::map([=](Dialogs::Key key) {
 		return key.history() ? key.history()->peer.get() : nullptr;
 	});
-	SetupSendAsButton(button, std::move(active), window);
+	SetupSendAsButton(button, st, std::move(active), window->uiShow());
 }
 
 } // namespace Ui

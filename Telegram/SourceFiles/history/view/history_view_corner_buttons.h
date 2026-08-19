@@ -42,6 +42,7 @@ enum class CornerButtonType {
 	Down,
 	Mentions,
 	Reactions,
+	PollVotes,
 };
 
 class CornerButtonsDelegate {
@@ -72,6 +73,7 @@ public:
 	void downClick();
 	void mentionsClick();
 	void reactionsClick();
+	void pollVotesClick();
 
 	void clearReplyReturns();
 	[[nodiscard]] QVector<FullMsgId> replyReturns() const;
@@ -119,6 +121,7 @@ private:
 	CornerButton _down;
 	CornerButton _mentions;
 	CornerButton _reactions;
+	CornerButton _pollVotes;
 
 	HistoryItem *_replyReturn = nullptr;
 	QVector<FullMsgId> _replyReturns;

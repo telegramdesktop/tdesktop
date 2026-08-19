@@ -10,8 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "lang/lang_keys.h"
-#include "styles/style_layers.h"
-#include "styles/style_boxes.h"
 
 namespace Ui {
 
@@ -46,7 +44,7 @@ void FillForwardOptions(
 		});
 	};
 	names->checkedChanges(
-	) | rpl::start_with_next([=](bool showNames) {
+	) | rpl::on_next([=](bool showNames) {
 		if (showNames && captions && !captions->checked()) {
 			captions->setChecked(true, anim::type::normal);
 		} else {
@@ -55,7 +53,7 @@ void FillForwardOptions(
 	}, lifetime);
 	if (captions) {
 		captions->checkedChanges(
-		) | rpl::start_with_next([=](bool showCaptions) {
+		) | rpl::on_next([=](bool showCaptions) {
 			if (!showCaptions && names->checked()) {
 				names->setChecked(false, anim::type::normal);
 			} else {

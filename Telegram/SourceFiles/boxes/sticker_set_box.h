@@ -64,15 +64,17 @@ public:
 		QWidget*,
 		std::shared_ptr<ChatHelpers::Show> show,
 		const StickerSetIdentifier &set,
-		Data::StickersType type);
+		Data::StickersType type,
+		DocumentId previewDocumentId = 0);
 	StickerSetBox(
 		QWidget*,
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Data::StickersSet*> set);
 
-	static QPointer<Ui::BoxContent> Show(
+	static base::weak_qptr<Ui::BoxContent> Show(
 		std::shared_ptr<ChatHelpers::Show> show,
-		not_null<DocumentData*> document);
+		not_null<DocumentData*> document,
+		DocumentId previewDocumentId = 0);
 
 protected:
 	void prepare() override;
@@ -97,5 +99,6 @@ private:
 
 	class Inner;
 	QPointer<Inner> _inner;
+	DocumentId _previewDocumentId = 0;
 
 };

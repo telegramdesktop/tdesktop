@@ -21,7 +21,7 @@ class SessionController;
 } // namespace Window
 
 class BotKeyboard
-	: public TWidget
+	: public Ui::RpWidget
 	, public Ui::AbstractTooltipShower
 	, public ClickHandlerHost {
 public:
@@ -44,7 +44,7 @@ public:
 	void step_selected(crl::time ms, bool timer);
 	void resizeToWidth(int newWidth, int maxOuterHeight) {
 		_maxOuterHeight = maxOuterHeight;
-		return TWidget::resizeToWidth(newWidth);
+		return RpWidget::resizeToWidth(newWidth);
 	}
 
 	[[nodiscard]] bool maximizeSize() const;

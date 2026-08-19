@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "lang/lang_keys.h"
 #include "ui/ui_utility.h"
-#include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 
 namespace Ui {
@@ -28,9 +27,10 @@ SilentToggle::SilentToggle(QWidget *parent, not_null<ChannelData*> channel)
 	resize(_st.width, _st.height);
 
 	setMouseTracking(true);
+	setAccessibleName(tr::lng_broadcast_silent(tr::now));
 
 	clicks(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		setChecked(!_checked);
 		Ui::Tooltip::Show(0, this);
 		_channel->owner().notifySettings().update(_channel, {}, _checked);
@@ -65,6 +65,7 @@ void SilentToggle::setChecked(bool checked) {
 	if (_checked != checked) {
 		_checked = checked;
 		update();
+        accessibilityStateChanged({ .checked = true });
 		// _crossLineAnimation.start(
 		// 	[=] { update(); },
 		// 	_checked ? 0. : 1.,
@@ -104,6 +105,14 @@ QPoint SilentToggle::prepareRippleStartPosition() const {
 QImage SilentToggle::prepareRippleMask() const {
 	return RippleAnimation::EllipseMask(
 		QSize(_st.rippleAreaSize, _st.rippleAreaSize));
+}
+
+QAccessible::Role SilentToggle::accessibilityRole() {
+    return QAccessible::Role::CheckBox;
+}
+
+Ui::AccessibilityState SilentToggle::accessibilityState() const {
+	return { .checkable = true, .checked = _checked };
 }
 
 } // namespace Ui

@@ -22,8 +22,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "lang/lang_keys.h"
 #include "storage/storage_account.h"
+#include "iv/iv_rich_page.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
 #include "core/application.h"
 #include "core/mime_type.h"
@@ -61,12 +63,19 @@ constexpr auto ByDocument = [](const auto &entry) {
 	if (const auto user = peer->asUser()) {
 		return user->accessHash();
 	} else if (const auto channel = peer->asChannel()) {
-		return channel->access;
+		return channel->accessHash();
 	}
 	return 0;
 }
 
 [[nodiscard]] bool ItemContainsMedia(const DownloadObject &object) {
+	if (const auto iv = object.item->Get<HistoryMessageMediaForInstantView>()) {
+		if (object.document && iv->documents.contains(object.document)) {
+			return true;
+		} else if (object.photo && iv->photos.contains(object.photo)) {
+			return true;
+		}
+	}
 	if (const auto photo = object.photo) {
 		if (const auto media = object.item->media()) {
 			if (const auto page = media->webpage()) {
@@ -111,6 +120,33 @@ struct DocumentDescriptor {
 	FullMsgId itemId;
 };
 
+[[nodiscard]] QString RichExportFolderToRemove(const QString &filePath) {
+	if (!filePath.endsWith(u".html"_q, Qt::CaseInsensitive)) {
+		return QString();
+	}
+	const auto info = QFileInfo(filePath);
+	const auto folder = info.absolutePath();
+	if (QDir(folder).dirName() != info.completeBaseName()) {
+		return QString();
+	}
+	auto file = QFile(filePath);
+	if (!file.open(QIODevice::ReadOnly)) {
+		return QString();
+	}
+	const auto head = QString::fromUtf8(file.read(2048));
+	if (!head.contains(Iv::RichExportGeneratorMarker())) {
+		return QString();
+	}
+	const auto entries = QDir(folder).entryList(
+		QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden);
+	for (const auto &entry : entries) {
+		if ((entry != info.fileName()) && (entry != u"media"_q)) {
+			return QString();
+		}
+	}
+	return folder;
+}
+
 } // namespace
 
 struct DownloadManager::DeleteFilesDescriptor {
@@ -141,32 +177,32 @@ void DownloadManager::trackSession(not_null<Main::Session*> session) {
 	session->data().documentLoadProgress(
 	) | rpl::filter([=](not_null<DocumentData*> document) {
 		return _loadingDocuments.contains(document);
-	}) | rpl::start_with_next([=](not_null<DocumentData*> document) {
+	}) | rpl::on_next([=](not_null<DocumentData*> document) {
 		check(document);
 	}, data.lifetime);
 
 	session->data().itemLayoutChanged(
 	) | rpl::filter([=](not_null<const HistoryItem*> item) {
 		return _loading.contains(item);
-	}) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
+	}) | rpl::on_next([=](not_null<const HistoryItem*> item) {
 		check(item);
 	}, data.lifetime);
 
 	session->data().itemViewRefreshRequest(
-	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
+	) | rpl::on_next([=](not_null<const HistoryItem*> item) {
 		changed(item);
 	}, data.lifetime);
 
 	session->changes().messageUpdates(
 		MessageUpdate::Flag::Destroyed
-	) | rpl::start_with_next([=](const MessageUpdate &update) {
+	) | rpl::on_next([=](const MessageUpdate &update) {
 		removed(update.item);
 	}, data.lifetime);
 
 	session->account().sessionChanges(
 	) | rpl::filter(
 		rpl::mappers::_1 != session
-	) | rpl::take(1) | rpl::start_with_next([=] {
+	) | rpl::take(1) | rpl::on_next([=] {
 		untrack(session);
 	}, data.lifetime);
 }
@@ -248,6 +284,136 @@ void DownloadManager::addLoading(DownloadObject object) {
 	check(item);
 }
 
+not_null<HistoryItem*> DownloadManager::generateExternalItem(
+		not_null<DocumentData*> document) {
+	_generatedDocuments.emplace(document);
+	return generateFakeItem(document);
+}
+
+void DownloadManager::addLoadingExternal(
+		DownloadObject object,
+		const QString &path,
+		int64 total,
+		Fn<void()> cancel) {
+	Expects(object.item != nullptr);
+	Expects(object.document != nullptr);
+	Expects(cancel != nullptr);
+
+	const auto item = object.item;
+	auto &data = sessionData(item);
+
+	data.downloading.push_back({
+		.object = object,
+		.started = computeNextStartDate(),
+		.path = path,
+		.externalCancel = std::move(cancel),
+		.total = total,
+	});
+	_loading.emplace(item);
+	_loadingProgress = DownloadProgress{
+		.ready = _loadingProgress.current().ready,
+		.total = _loadingProgress.current().total + total,
+	};
+	_loadingListChanges.fire({});
+	_clearLoadingTimer.cancel();
+}
+
+auto DownloadManager::lookupExternal(not_null<const HistoryItem*> item)
+-> std::pair<SessionData*, std::vector<DownloadingId>::iterator> {
+	const auto session = &item->history()->session();
+	const auto i = _sessions.find(session);
+	if (i == end(_sessions)) {
+		return {};
+	}
+	const auto j = ranges::find(i->second.downloading, item, ByItem);
+	if (j == end(i->second.downloading) || !j->externalCancel) {
+		return {};
+	}
+	return { &i->second, j };
+}
+
+void DownloadManager::updateLoadingExternal(
+		not_null<const HistoryItem*> item,
+		int64 ready,
+		int64 total) {
+	const auto [data, i] = lookupExternal(item);
+	if (!data || i->done) {
+		return;
+	}
+	const auto readyChange = ready - i->ready;
+	const auto totalChange = total - i->total;
+	if (!readyChange && !totalChange) {
+		return;
+	}
+	i->ready += readyChange;
+	i->total += totalChange;
+	_loadingProgress = DownloadProgress{
+		.ready = _loadingProgress.current().ready + readyChange,
+		.total = _loadingProgress.current().total + totalChange,
+	};
+	item->history()->owner().requestItemRepaint(item);
+}
+
+auto DownloadManager::loadingExternalState(
+	not_null<const HistoryItem*> item)
+-> std::optional<ExternalLoadingState> {
+	const auto [data, i] = lookupExternal(item);
+	if (!data) {
+		return std::nullopt;
+	}
+	return ExternalLoadingState{
+		.ready = i->ready,
+		.total = i->total,
+		.done = i->done,
+	};
+}
+
+void DownloadManager::cancelLoadingExternal(
+		not_null<const HistoryItem*> item) {
+	const auto [data, i] = lookupExternal(item);
+	if (data) {
+		cancel(*data, i);
+	}
+}
+
+void DownloadManager::finishLoadingExternal(
+		not_null<const HistoryItem*> item,
+		const QString &path) {
+	const auto [data, i] = lookupExternal(item);
+	if (!data) {
+		return;
+	}
+	const auto object = i->object;
+	const auto started = i->started;
+	if (!i->done) {
+		const auto readyChange = i->total - i->ready;
+		i->ready += readyChange;
+		i->done = true;
+		_loading.remove(object.item);
+		_loadingDone.emplace(object.item);
+		_loadingProgress = DownloadProgress{
+			.ready = _loadingProgress.current().ready + readyChange,
+			.total = _loadingProgress.current().total,
+		};
+		_loadingListChanges.fire({});
+		if (_loading.empty()) {
+			_clearLoadingTimer.callOnce(kClearLoadingTimeout);
+		}
+		item->history()->owner().requestItemRepaint(item);
+	}
+	addLoaded(object, path, started);
+}
+
+void DownloadManager::removeLoadingExternal(
+		not_null<const HistoryItem*> item) {
+	const auto [data, i] = lookupExternal(item);
+	if (!data) {
+		return;
+	}
+	i->externalCancel = nullptr;
+	remove(*data, i);
+}
+
 void DownloadManager::check(not_null<const HistoryItem*> item) {
 	auto &data = sessionData(item);
 	const auto i = ranges::find(data.downloading, item, ByItem);
@@ -270,7 +436,9 @@ void DownloadManager::check(
 		std::vector<DownloadingId>::iterator i) {
 	auto &entry = *i;
 
-	if (!ItemContainsMedia(entry.object)) {
+	if (entry.externalCancel) {
+		return;
+	} else if (!ItemContainsMedia(entry.object)) {
 		cancel(data, i);
 		return;
 	}
@@ -452,7 +620,12 @@ void DownloadManager::finishFilesDelete(DeleteFilesDescriptor &&descriptor) {
 	}
 	crl::async([files = std::move(descriptor.files)]{
 		for (const auto &file : files) {
-			QFile(file.first).remove();
+			const auto folder = RichExportFolderToRemove(file.first);
+			if (!folder.isEmpty()) {
+				QDir(folder).removeRecursively();
+			} else {
+				QFile(file.first).remove();
+			}
 			crl::on_main([descriptor = file.second] {
 				if (const auto session = SessionByUniqueId(
 						descriptor.sessionUniqueId)) {
@@ -809,6 +982,10 @@ void DownloadManager::remove(
 	_loadingDone.remove(i->object.item);
 	if (const auto document = i->object.document) {
 		_loadingDocuments.remove(document);
+		if (i->externalCancel && !_loaded.contains(i->object.item)) {
+			_generated.remove(i->object.item);
+			_generatedDocuments.remove(document);
+		}
 	}
 	data.downloading.erase(i);
 	_loadingListChanges.fire({});
@@ -823,6 +1000,11 @@ void DownloadManager::cancel(
 		std::vector<DownloadingId>::iterator i) {
 	const auto object = i->object;
 	const auto item = object.item;
+	if (auto external = base::take(i->externalCancel)) {
+		remove(data, i);
+		external();
+		return;
+	}
 	remove(data, i);
 	if (!item->isAdminLogEntry()) {
 		if (const auto document = object.document) {
@@ -839,10 +1021,7 @@ void DownloadManager::changed(not_null<const HistoryItem*> item) {
 		const auto i = ranges::find(data.downloaded, item.get(), ByItem);
 		Assert(i != end(data.downloaded));
 
-		const auto media = item->media();
-		const auto photo = media ? media->photo() : nullptr;
-		const auto document = media ? media->document() : nullptr;
-		if (i->object->photo != photo || i->object->document != document) {
+		if (!ItemContainsMedia(*i->object)) {
 			detach(*i);
 		}
 	}
@@ -1137,7 +1316,7 @@ rpl::producer<Ui::DownloadBarContent> MakeDownloadBarContent() {
 				state->document->session().downloaderTaskFinished(
 				) | rpl::filter([=] {
 					return self(self);
-				}) | rpl::start_with_next(
+				}) | rpl::on_next(
 					state->push,
 					state->downloadTaskLifetime);
 			}
@@ -1199,7 +1378,7 @@ rpl::producer<Ui::DownloadBarContent> MakeDownloadBarContent() {
 		manager.loadingListChanges(
 		) | rpl::filter([=] {
 			return !state->scheduled;
-		}) | rpl::start_with_next(state->push, lifetime);
+		}) | rpl::on_next(state->push, lifetime);
 
 		notify();
 		return lifetime;

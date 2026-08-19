@@ -28,7 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
-#include "styles/style_boxes.h"
 #include "styles/style_menu_icons.h"
 
 namespace Ui {
@@ -143,7 +142,7 @@ auto AddButtonWithLoader(
 
 	std::move(
 		query
-	) | rpl::start_with_next([=](auto string) {
+	) | rpl::on_next([=](auto string) {
 		wrap->toggle(
 			ranges::any_of(indexList, [&](const QString &s) {
 				return s.startsWith(string, Qt::CaseInsensitive);
@@ -198,7 +197,7 @@ auto AddButtonWithLoader(
 	};
 
 	Spellchecker::GlobalLoaderChanged(
-	) | rpl::start_with_next([=](int langId) {
+	) | rpl::on_next([=](int langId) {
 		if (!langId && rawGlobalLoaderPtr()) {
 			setGlobalLoaderPtr(nullptr);
 		} else if (langId == id) {
@@ -211,18 +210,19 @@ auto AddButtonWithLoader(
 		buttonState->value() | rpl::map(StateDescription),
 		st::settingsUpdateState);
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	label->show();
 
 	rpl::combine(
 		button->widthValue(),
 		label->widthValue()
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		label->moveToLeft(
 			st::settingsUpdateStatePosition.x(),
 			st::settingsUpdateStatePosition.y());
 	}, label->lifetime());
 
 	buttonState->value(
-	) | rpl::start_with_next([=](const DictState &state) {
+	) | rpl::on_next([=](const DictState &state) {
 		const auto isToggledSet = v::is<Active>(state);
 		const auto toggled = isToggledSet ? 1. : 0.;
 		const auto over = !button->isDisabled()
@@ -279,10 +279,10 @@ auto AddButtonWithLoader(
 	});
 
 	button->toggledValue(
-	) | rpl::start_with_next([=](bool toggled) {
+	) | rpl::on_next([=](bool toggled) {
 		const auto &state = buttonState->current();
 		if (toggled && (v::is<Available>(state) || v::is<Failed>(state))) {
-			const auto weak = Ui::MakeWeak(button);
+			const auto weak = base::make_weak(button);
 			setLocalLoader(base::make_unique_q<Loader>(
 				QCoreApplication::instance(),
 				session,
@@ -344,24 +344,44 @@ void Inner::setupContent(
 	const auto queryStream = content->lifetime()
 		.make_state<rpl::event_stream<QStringView>>();
 
-	for (const auto &dict : Spellchecker::Dictionaries()) {
-		const auto id = dict.id;
-		const auto row = AddButtonWithLoader(
-			content,
-			session,
-			dict,
-			ranges::contains(enabledDictionaries, id),
-			queryStream->events());
-		row->toggledValue(
-		) | rpl::start_with_next([=](auto enabled) {
-			if (enabled) {
-				_enabledRows.push_back(id);
-			} else {
-				auto &rows = _enabledRows;
-				rows.erase(ranges::remove(rows, id), end(rows));
-			}
-		}, row->lifetime());
-	}
+	// Rows are created once, when Spellchecker::Dictionaries() becomes
+	// non-empty. Manifest is fetched lazily and may arrive after the box
+	// opens, so we subscribe to DictionariesChanged and populate rows
+	// then if we haven't already.
+	const auto built = content->lifetime().make_state<bool>(false);
+	const auto buildRows = [=] {
+		if (*built) {
+			return;
+		}
+		const auto dicts = Spellchecker::Dictionaries();
+		if (dicts.empty()) {
+			return;
+		}
+		*built = true;
+		for (const auto &dict : dicts) {
+			const auto id = dict.id;
+			const auto row = AddButtonWithLoader(
+				content,
+				session,
+				dict,
+				ranges::contains(enabledDictionaries, id),
+				queryStream->events());
+			row->toggledValue(
+			) | rpl::on_next([=](auto enabled) {
+				if (enabled) {
+					_enabledRows.push_back(id);
+				} else {
+					auto &rows = _enabledRows;
+					rows.erase(ranges::remove(rows, id), end(rows));
+				}
+			}, row->lifetime());
+		}
+	};
+
+	buildRows();
+	Spellchecker::DictionariesChanged(
+	) | rpl::on_next(buildRows, content->lifetime());
+	Spellchecker::RefreshDictionariesManifest(session);
 
 	_queryCallback = [=](const QString &query) {
 		if (query.size() >= kMaxQueryLength) {
@@ -403,11 +423,6 @@ void ManageDictionariesBox::prepare() {
 		multiSelect->setInnerFocus();
 	};
 
-	// The initial list of enabled rows may differ from the list of languages
-	// in settings, so we should store it when box opens
-	// and save it when box closes (don't do it when "Save" was pressed).
-	const auto initialEnabledRows = inner->enabledRows();
-
 	setTitle(tr::lng_settings_manage_dictionaries());
 
 	addButton(tr::lng_settings_save(), [=] {
@@ -420,9 +435,13 @@ void ManageDictionariesBox::prepare() {
 	});
 	addButton(tr::lng_close(), [=] { closeBox(); });
 
-	boxClosing() | rpl::start_with_next([=] {
-		Core::App().settings().setDictionariesEnabled(
-			FilterEnabledDict(initialEnabledRows));
+	boxClosing() | rpl::on_next([=] {
+		const auto &current = Core::App().settings().dictionariesEnabled();
+		const auto filtered = FilterEnabledDict(current);
+		if (filtered.size() == current.size()) {
+			return;
+		}
+		Core::App().settings().setDictionariesEnabled(filtered);
 		Core::App().saveSettingsDelayed();
 	}, lifetime());
 
@@ -434,7 +453,7 @@ void ManageDictionariesBox::prepare() {
 		inner->heightValue(),
 		multiSelect->heightValue(),
 		_1 + _2
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		using std::min;
 		accumulate_max(*max, height);
 		setDimensions(st::boxWidth, min(*max, st::boxMaxListHeight), true);

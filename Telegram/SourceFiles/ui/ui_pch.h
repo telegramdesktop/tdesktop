@@ -33,12 +33,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/basic_types.h"
 #include "base/flat_map.h"
 #include "base/flat_set.h"
+#include "base/weak_qptr.h"
 
-#include "core/stars_amount.h"
+#include "core/credits_amount.h"
 
 #include "ui/arc_angles.h"
+#include "ui/color_int_conversion.h"
 #include "ui/text/text.h"
 #include "ui/effects/animations.h"
 #include "ui/qt_object_factory.h"
-#include "ui/qt_weak_factory.h"
 #include "styles/palette.h"

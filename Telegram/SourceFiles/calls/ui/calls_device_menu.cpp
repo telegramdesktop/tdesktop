@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webrtc/webrtc_device_common.h"
 #include "webrtc/webrtc_environment.h"
 #include "styles/style_calls.h"
-#include "styles/style_layers.h"
 
 namespace Calls {
 namespace {
@@ -25,7 +24,7 @@ namespace {
 class Subsection final : public Ui::Menu::ItemBase {
 public:
 	Subsection(
-		not_null<RpWidget*> parent,
+		not_null<Ui::Menu::Menu*> parent,
 		const style::Menu &st,
 		const QString &text);
 
@@ -44,7 +43,7 @@ private:
 class Selector final : public Ui::Menu::ItemBase {
 public:
 	Selector(
-		not_null<RpWidget*> parent,
+		not_null<Ui::Menu::Menu*> parent,
 		const style::Menu &st,
 		rpl::producer<std::vector<Webrtc::DeviceInfo>> devices,
 		rpl::producer<Webrtc::DeviceResolvedId> chosen,
@@ -66,7 +65,7 @@ private:
 };
 
 Subsection::Subsection(
-	not_null<RpWidget*> parent,
+	not_null<Ui::Menu::Menu*> parent,
 	const style::Menu &st,
 	const QString &text)
 : Ui::Menu::ItemBase(parent, st)
@@ -75,10 +74,10 @@ Subsection::Subsection(
 	this,
 	text,
 	st::callDeviceSelectionLabel))
-, _dummyAction(new QAction(parent)) {
+, _dummyAction(Ui::CreateChild<QAction>(parent)) {
 	setPointerCursor(false);
 
-	initResizeHook(parent->sizeValue());
+	fitToMenuWidth();
 
 	_text->resizeToWidth(st::callDeviceSelectionLabel.minWidth);
 	_text->moveToLeft(st.itemPadding.left(), st.itemPadding.top());
@@ -99,7 +98,7 @@ int Subsection::contentHeight() const {
 }
 
 Selector::Selector(
-	not_null<RpWidget*> parent,
+	not_null<Ui::Menu::Menu*> parent,
 	const style::Menu &st,
 	rpl::producer<std::vector<Webrtc::DeviceInfo>> devices,
 	rpl::producer<Webrtc::DeviceResolvedId> chosen,
@@ -107,16 +106,16 @@ Selector::Selector(
 : Ui::Menu::ItemBase(parent, st)
 , _scroll(base::make_unique_q<Ui::ScrollArea>(this))
 , _list(_scroll->setOwnedWidget(object_ptr<Ui::VerticalLayout>(this)))
-, _dummyAction(new QAction(parent)) {
+, _dummyAction(Ui::CreateChild<QAction>(parent)) {
 	setPointerCursor(false);
 
-	initResizeHook(parent->sizeValue());
+	fitToMenuWidth();
 
 	const auto padding = st.itemPadding;
 	const auto group = std::make_shared<Ui::RadiobuttonGroup>();
 	std::move(
 		chosen
-	) | rpl::start_with_next([=](Webrtc::DeviceResolvedId id) {
+	) | rpl::on_next([=](Webrtc::DeviceResolvedId id) {
 		const auto value = id.isDefault() ? 0 : registerId(id.value);
 		if (!group->hasValue() || group->current() != value) {
 			group->setValue(value);
@@ -138,7 +137,7 @@ Selector::Selector(
 
 	std::move(
 		devices
-	) | rpl::start_with_next([=](const std::vector<Webrtc::DeviceInfo> &v) {
+	) | rpl::on_next([=](const std::vector<Webrtc::DeviceInfo> &v) {
 		while (_list->count()) {
 			delete _list->widgetAt(0);
 		}
@@ -214,10 +213,13 @@ void AddDeviceSelection(
 		Unexpected("Type in AddDeviceSelection.");
 	}();
 	menu->addAction(
-		base::make_unique_q<Subsection>(menu, menu->st().menu, title));
+		base::make_unique_q<Subsection>(
+			menu->menu(),
+			menu->st().menu,
+			title));
 	menu->addAction(
 		base::make_unique_q<Selector>(
-			menu,
+			menu->menu(),
 			menu->st().menu,
 			environment->devicesValue(type.type),
 			std::move(type.chosen),

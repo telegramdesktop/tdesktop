@@ -73,10 +73,14 @@ Widget::Widget(
 	QWidget *parent,
 	not_null<Window::Controller*> controller,
 	not_null<Main::Account*> account,
-	EnterPoint point)
+	EnterPoint point,
+	Main::Account *accountBeforeIntro)
 : RpWidget(parent)
 , _account(account)
-, _data(details::Data{ .controller = controller })
+, _data(details::Data{
+	.controller = controller,
+	.accountBeforeIntro = base::make_weak(accountBeforeIntro),
+})
 , _nextStyle(&st::introNextButton)
 , _back(this, object_ptr<Ui::IconButton>(this, st::introBackButton))
 , _settings(
@@ -92,12 +96,13 @@ Widget::Widget(
 		this,
 		account,
 		rpl::single(true))) {
+	_settings->entity()->setTextTransform(Ui::RoundButtonTextTransform::ToUpper);
 	controller->setDefaultFloatPlayerDelegate(floatPlayerDelegate());
 
 	getData()->country = ComputeNewAccountCountry();
 
 	_account->mtpValue(
-	) | rpl::start_with_next([=](not_null<MTP::Instance*> instance) {
+	) | rpl::on_next([=](not_null<MTP::Instance*> instance) {
 		_api.emplace(instance);
 		crl::on_main(this, [=] { createLanguageLink(); });
 	}, lifetime());
@@ -116,19 +121,33 @@ Widget::Widget(
 	default: Unexpected("Enter point in Intro::Widget::Widget.");
 	}
 
+	setupStep();
 	fixOrder();
 
+	if (_account->mtp().isTestMode()) {
+		_testModeLabel.create(
+			this,
+			object_ptr<Ui::FlatLabel>(
+				this,
+				u"Test Mode"_q,
+				st::defaultFlatLabel));
+		_testModeLabel->entity()->setTextColorOverride(
+			st::windowSubTextFg->c);
+		_testModeLabel->show(anim::type::instant);
+	}
+
 	Lang::CurrentCloudManager().firstLanguageSuggestion(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		createLanguageLink();
 	}, lifetime());
 
 	_account->mtpUpdates(
-	) | rpl::start_with_next([=](const MTPUpdates &updates) {
+	) | rpl::on_next([=](const MTPUpdates &updates) {
 		handleUpdates(updates);
 	}, lifetime());
 
 	_back->entity()->setClickedCallback([=] { backRequested(); });
+	_back->entity()->setAccessibleName(tr::lng_go_back(tr::now));
 	_back->hide(anim::type::instant);
 
 	if (_changeLanguage) {
@@ -136,7 +155,7 @@ Widget::Widget(
 	}
 
 	Lang::Updated(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		refreshLang();
 	}, lifetime());
 
@@ -155,7 +174,7 @@ Widget::Widget(
 			checker.isLatest(),
 			checker.failed(),
 			checker.ready()
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			checkUpdateStatus();
 		}, lifetime());
 	}
@@ -305,6 +324,7 @@ void Widget::checkUpdateStatus() {
 				this,
 				tr::lng_menu_update(),
 				st::defaultBoxButton));
+		_update->entity()->setTextTransform(Ui::RoundButtonTextTransform::ToUpper);
 		if (!_showAnimation) {
 			_update->setVisible(true);
 		}
@@ -329,6 +349,32 @@ void Widget::setInnerFocus() {
 	}
 }
 
+void Widget::setupStep() {
+	getStep()->nextButtonStyle(
+	) | rpl::on_next([=](const style::RoundButton *st) {
+		const auto nextStyle = st ? st : &st::introNextButton;
+		if (_nextStyle != nextStyle) {
+			_nextStyle = nextStyle;
+			const auto wasShown = _next->toggled();
+			_next.destroy();
+			_next.create(
+				this,
+				object_ptr<Ui::RoundButton>(this, nullptr, *nextStyle));
+			showControls();
+			updateControlsGeometry();
+			_next->toggle(wasShown, anim::type::instant);
+		}
+	}, getStep()->lifetime());
+
+	getStep()->nextButtonFocusRequests() | rpl::on_next([=] {
+		if (_next && !_next->isHidden()) {
+			_next->entity()->setFocus(Qt::OtherFocusReason);
+		}
+	}, getStep()->lifetime());
+
+	getStep()->finishInit();
+}
+
 void Widget::historyMove(StackAction action, Animate animate) {
 	Expects(_stepHistory.size() > 1);
 
@@ -350,25 +396,8 @@ void Widget::historyMove(StackAction action, Animate animate) {
 	if (_terms) {
 		hideAndDestroy(std::exchange(_terms, { nullptr }));
 	}
-	{
-		getStep()->nextButtonStyle(
-		) | rpl::start_with_next([=](const style::RoundButton *st) {
-			const auto nextStyle = st ? st : &st::introNextButton;
-			if (_nextStyle != nextStyle) {
-				_nextStyle = nextStyle;
-				const auto wasShown = _next->toggled();
-				_next.destroy();
-				_next.create(
-					this,
-					object_ptr<Ui::RoundButton>(this, nullptr, *nextStyle));
-				showControls();
-				updateControlsGeometry();
-				_next->toggle(wasShown, anim::type::instant);
-			}
-		}, _next->lifetime());
-	}
+	setupStep();
 
-	getStep()->finishInit();
 	getStep()->prepareShowAnimated(wasStep);
 	if (wasStep->hasCover() != getStep()->hasCover()) {
 		_nextTopFrom = wasStep->contentTop() + st::introNextTop;
@@ -392,6 +421,9 @@ void Widget::historyMove(StackAction action, Animate animate) {
 
 	auto stepHasCover = getStep()->hasCover();
 	_settings->toggle(!stepHasCover, anim::type::normal);
+	if (_testModeLabel) {
+		_testModeLabel->toggle(!stepHasCover, anim::type::normal);
+	}
 	if (_update) {
 		_update->toggle(!stepHasCover, anim::type::normal);
 	}
@@ -403,10 +435,10 @@ void Widget::historyMove(StackAction action, Animate animate) {
 }
 
 void Widget::hideAndDestroy(object_ptr<Ui::FadeWrap<Ui::RpWidget>> widget) {
-	const auto weak = Ui::MakeWeak(widget.data());
+	const auto weak = base::make_weak(widget.data());
 	widget->hide(anim::type::normal);
 	widget->shownValue(
-	) | rpl::start_with_next([=](bool shown) {
+	) | rpl::on_next([=](bool shown) {
 		if (!shown && weak) {
 			weak->deleteLater();
 		}
@@ -445,6 +477,9 @@ void Widget::appendStep(Step *step) {
 			moveToStep(step, action, animate);
 		}
 	});
+	step->setStepBelowCallback([=]() -> Step* {
+		return (_stepHistory.size() > 1) ? getStep(1) : nullptr;
+	});
 	step->setShowResetCallback([=] {
 		showResetButton();
 	});
@@ -467,6 +502,7 @@ void Widget::showResetButton() {
 			this,
 			tr::lng_signin_reset_account(),
 			st::introResetButton);
+		entity->setTextTransform(Ui::RoundButtonTextTransform::ToUpper);
 		_resetAccount.create(this, std::move(entity));
 		_resetAccount->hide(anim::type::instant);
 		_resetAccount->entity()->setClickedCallback([this] { resetAccount(); });
@@ -486,8 +522,8 @@ void Widget::showTerms() {
 			this,
 			tr::lng_terms_signup(
 				lt_link,
-				tr::lng_terms_signup_link() | Ui::Text::ToLink(),
-				Ui::Text::WithEntities),
+				tr::lng_terms_signup_link(tr::link),
+				tr::marked),
 			st::introTermsLabel);
 		_terms.create(this, std::move(entity));
 		_terms->entity()->overrideLinkClickHandler([=] {
@@ -585,9 +621,9 @@ void Widget::resetAccount() {
 			} else if (type == u"2FA_RECENT_CONFIRM"_q) {
 				Ui::show(Ui::MakeInformBox(
 					tr::lng_signin_reset_cancelled()));
-			} else {
+			} else if (!MTP::IgnoreError(error)) {
 				getData()->controller->hideLayer();
-				getStep()->showError(rpl::single(Lang::Hard::ServerError()));
+				getStep()->showError(rpl::single(type));
 			}
 		}).send();
 	});
@@ -625,7 +661,7 @@ void Widget::showTerms(Fn<void()> callback) {
 	if (getData()->termsLock.text.text.isEmpty()) {
 		return;
 	}
-	const auto weak = Ui::MakeWeak(this);
+	const auto weak = base::make_weak(this);
 	const auto box = Ui::show(callback
 		? Box<Window::TermsBox>(
 			getData()->termsLock,
@@ -640,7 +676,7 @@ void Widget::showTerms(Fn<void()> callback) {
 	box->setCloseByOutsideClick(false);
 
 	box->agreeClicks(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (callback) {
 			callback();
 		}
@@ -650,19 +686,19 @@ void Widget::showTerms(Fn<void()> callback) {
 	}, box->lifetime());
 
 	box->cancelClicks(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		const auto box = Ui::show(Box<Window::TermsBox>(
 			TextWithEntities{ tr::lng_terms_signup_sorry(tr::now) },
 			tr::lng_intro_finish(),
 			tr::lng_terms_decline()));
 		box->agreeClicks(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			if (weak) {
 				showTerms(callback);
 			}
 		}, box->lifetime());
 		box->cancelClicks(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			if (box) {
 				box->closeBox();
 			}
@@ -678,6 +714,9 @@ void Widget::showControls() {
 	_connecting->setForceHidden(false);
 	auto hasCover = getStep()->hasCover();
 	_settings->toggle(!hasCover, anim::type::instant);
+	if (_testModeLabel) {
+		_testModeLabel->toggle(!hasCover, anim::type::instant);
+	}
 	if (_update) {
 		_update->toggle(!hasCover, anim::type::instant);
 	}
@@ -694,8 +733,6 @@ void Widget::showControls() {
 
 void Widget::setupNextButton() {
 	_next->entity()->setClickedCallback([=] { getStep()->submit(); });
-	_next->entity()->setTextTransform(
-		Ui::RoundButton::TextTransform::NoTransform);
 
 	_next->entity()->setText(getStep()->nextButtonText(
 	) | rpl::filter([](const QString &text) {
@@ -706,7 +743,7 @@ void Widget::setupNextButton() {
 		return !text.isEmpty();
 	}) | rpl::filter([=](bool visible) {
 		return visible != _nextShown;
-	}) | rpl::start_with_next([=](bool visible) {
+	}) | rpl::on_next([=](bool visible) {
 		_next->toggle(visible, anim::type::normal);
 		_nextShown = visible;
 		if (_changeLanguage) {
@@ -727,6 +764,7 @@ void Widget::hideControls() {
 	_next->hide(anim::type::instant);
 	_connecting->setForceHidden(true);
 	_settings->hide(anim::type::instant);
+	if (_testModeLabel) _testModeLabel->hide(anim::type::instant);
 	if (_update) _update->hide(anim::type::instant);
 	if (_changeLanguage) _changeLanguage->hide(anim::type::instant);
 	if (_terms) _terms->hide(anim::type::instant);
@@ -797,6 +835,13 @@ void Widget::updateControlsGeometry() {
 		getStep()->hasCover() ? st::introCoverHeight : 0,
 		shown);
 	_settings->moveToRight(skip, controlsTop + skip);
+	if (_testModeLabel) {
+		_testModeLabel->moveToRight(
+			skip + _settings->width() + skip,
+			_settings->y()
+				+ (_settings->height()
+				- _testModeLabel->height()) / 2);
+	}
 	if (_update) {
 		_update->moveToRight(
 			skip + _settings->width() + skip,
@@ -847,8 +892,12 @@ void Widget::keyPressEvent(QKeyEvent *e) {
 }
 
 void Widget::backRequested() {
+	const auto back = getData()->accountBeforeIntro.get();
 	if (_stepHistory.size() > 1) {
 		historyMove(StackAction::Back, Animate::Back);
+	} else if (back && back->sessionExists()) {
+		Core::App().setActivePrimaryWindow(getData()->controller);
+		back->domain().activate(back);
 	} else if (const auto parent
 		= Core::App().domain().maybeLastOrSomeAuthedAccount()) {
 		Core::App().domain().activate(parent);

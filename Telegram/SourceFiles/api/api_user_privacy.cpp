@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "main/main_session.h"
-#include "settings/settings_premium.h" // Settings::ShowPremium.
+#include "settings/sections/settings_premium.h" // Settings::ShowPremium.
 
 namespace Api {
 namespace {
@@ -33,7 +33,7 @@ TLInputRules RulesToTL(const UserPrivacy::Rule &rule) {
 		result.reserve(peers.size());
 		for (const auto &peer : peers) {
 			if (const auto user = peer->asUser()) {
-				result.push_back(user->inputUser);
+				result.push_back(user->inputUser());
 			}
 		}
 		return result;
@@ -211,6 +211,7 @@ MTPInputPrivacyKey KeyToTL(UserPrivacy::Key key) {
 	case Key::Birthday: return MTP_inputPrivacyKeyBirthday();
 	case Key::GiftsAutoSave: return MTP_inputPrivacyKeyStarGiftsAutoSave();
 	case Key::NoPaidMessages: return MTP_inputPrivacyKeyNoPaidMessages();
+	case Key::SavedMusic: return MTP_inputPrivacyKeySavedMusic();
 	}
 	Unexpected("Key in Api::UserPrivacy::KetToTL.");
 }
@@ -244,6 +245,8 @@ std::optional<UserPrivacy::Key> TLToKey(mtpTypeId type) {
 	case mtpc_inputPrivacyKeyStarGiftsAutoSave: return Key::GiftsAutoSave;
 	case mtpc_privacyKeyNoPaidMessages:
 	case mtpc_inputPrivacyKeyNoPaidMessages: return Key::NoPaidMessages;
+	case mtpc_privacyKeySavedMusic:
+	case mtpc_inputPrivacyKeySavedMusic: return Key::SavedMusic;
 	}
 	return std::nullopt;
 }

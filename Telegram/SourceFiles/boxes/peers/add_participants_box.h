@@ -56,7 +56,7 @@ private:
 		base::flat_set<not_null<UserData*>> &&alreadyIn,
 		bool justCreated);
 
-	QPointer<Ui::BoxContent> showBox(object_ptr<Ui::BoxContent> box) const;
+	base::weak_qptr<Ui::BoxContent> showBox(object_ptr<Ui::BoxContent> box) const;
 
 	void addInviteLinkButton();
 	void inviteSelectedUsers(
@@ -101,7 +101,7 @@ public:
 	using AdminDoneCallback = Fn<void(
 		not_null<UserData*> user,
 		ChatAdminRightsInfo adminRights,
-		const QString &rank)>;
+		const std::optional<QString> &rank)>;
 	using BannedDoneCallback = Fn<void(
 		not_null<PeerData*> participant,
 		ChatRestrictionsInfo bannedRights)>;
@@ -129,11 +129,14 @@ private:
 	void prepareChatRows(not_null<ChatData*> chat);
 	void rebuildChatRows(not_null<ChatData*> chat);
 
+	void prepareCommunityRows();
+	void rebuildCommunityRows();
+
 	void showAdmin(not_null<UserData*> user, bool sure = false);
 	void editAdminDone(
 		not_null<UserData*> user,
 		ChatAdminRightsInfo rights,
-		const QString &rank);
+		const std::optional<QString> &rank);
 	void showRestricted(not_null<UserData*> user, bool sure = false);
 	void editRestrictedDone(
 		not_null<PeerData*> participant,
@@ -147,7 +150,7 @@ private:
 	void subscribeToMigration();
 	void migrate(not_null<ChatData*> chat, not_null<ChannelData*> channel);
 
-	QPointer<Ui::BoxContent> showBox(object_ptr<Ui::BoxContent> box) const;
+	base::weak_qptr<Ui::BoxContent> showBox(object_ptr<Ui::BoxContent> box) const;
 
 	not_null<PeerData*> _peer;
 	MTP::Sender _api;
@@ -158,7 +161,7 @@ private:
 	ParticipantsAdditionalData _additional;
 	std::unique_ptr<ParticipantsOnlineSorter> _onlineSorter;
 	Ui::BoxPointer _editBox;
-	QPointer<Ui::BoxContent> _editParticipantBox;
+	base::weak_qptr<Ui::BoxContent> _editParticipantBox;
 	AdminDoneCallback _adminDoneCallback;
 	BannedDoneCallback _bannedDoneCallback;
 

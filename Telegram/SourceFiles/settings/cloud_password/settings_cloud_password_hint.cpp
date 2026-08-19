@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
-#include "styles/style_boxes.h"
 #include "styles/style_settings.h"
 
 /*
@@ -75,14 +74,13 @@ void Hint::setupContent() {
 
 	Ui::AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
 
-	const auto wrap = AddWrappedField(
+	const auto newInput = AddWrappedField(
 		content,
 		tr::lng_cloud_password_hint(),
 		currentStepDataHint);
-	const auto newInput = wrap->entity();
 	const auto error = AddError(content, nullptr);
 	newInput->changes(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		error->hide();
 	}, newInput->lifetime());
 	AddSkipInsteadOfField(content);
@@ -96,7 +94,7 @@ void Hint::setupContent() {
 				currentStepData.processRecover.checkedCode,
 				currentStepData.password,
 				hint
-			) | rpl::start_with_error_done([=](const QString &type) {
+			) | rpl::on_error_done([=](const QString &type) {
 				_requestLifetime.destroy();
 
 				error->show();
@@ -122,7 +120,7 @@ void Hint::setupContent() {
 	};
 
 	AddLinkButton(
-		wrap,
+		newInput,
 		tr::lng_settings_cloud_password_skip_hint()
 	)->setClickedCallback([=] {
 		save(QString());
@@ -145,7 +143,7 @@ void Hint::setupContent() {
 	});
 
 	const auto submit = [=] { button->clicked({}, Qt::LeftButton); };
-	newInput->submits() | rpl::start_with_next(submit, newInput->lifetime());
+	newInput->submits() | rpl::on_next(submit, newInput->lifetime());
 
 	setFocusCallback([=] { newInput->setFocus(); });
 

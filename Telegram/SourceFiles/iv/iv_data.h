@@ -7,58 +7,38 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <memory>
+
+class DocumentData;
+class PhotoData;
+
 namespace Iv {
-
-struct Source;
-
-struct Options {
-};
-
-struct Prepared {
-	uint64 pageId = 0;
-	QString name;
-	QByteArray content;
-	QByteArray script;
-	QString url;
-	QString hash;
-	base::flat_map<QByteArray, QByteArray> embeds;
-	base::flat_set<QByteArray> channelIds;
-	bool rtl = false;
-	bool hasCode = false;
-	bool hasEmbeds = false;
-};
-
-struct Geo {
-	float64 lat = 0.;
-	float64 lon = 0.;
-	uint64 access = 0;
-};
-
-[[nodiscard]] QByteArray GeoPointId(Geo point);
-[[nodiscard]] Geo GeoPointFromId(QByteArray data);
+struct RichPage;
 
 class Data final {
 public:
-	Data(const MTPDwebPage &webpage, const MTPPage &page);
+	Data(
+		const MTPDwebPage &webpage,
+		std::shared_ptr<const RichPage> richPage);
 	~Data();
 
 	[[nodiscard]] QString id() const;
+	[[nodiscard]] QString name() const;
+	[[nodiscard]] uint64 pageId() const;
+	[[nodiscard]] int32 hash() const;
 	[[nodiscard]] bool partial() const;
-
-	void updateCachedViews(int cachedViews);
-
-	void prepare(const Options &options, Fn<void(Prepared)> done) const;
+	[[nodiscard]] const std::shared_ptr<const RichPage> &richPage() const;
 
 private:
-	const std::unique_ptr<Source> _source;
+	const uint64 _pageId = 0;
+	const int32 _hash = 0;
+	const QString _url;
+	const QString _name;
+	const bool _partial = false;
+	const std::shared_ptr<const RichPage> _richPage;
 
 };
 
 [[nodiscard]] QString SiteNameFromUrl(const QString &url);
-
-[[nodiscard]] bool ShowButton();
-
-void RecordShowFailure();
-[[nodiscard]] bool FailedToShow();
 
 } // namespace Iv

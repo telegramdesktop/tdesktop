@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "menu/menu_send.h"
 #include "ui/widgets/popup_menu.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_menu_icons.h"
 
 namespace HistoryView {
 
@@ -36,7 +35,7 @@ void MediaEditManager::start(
 	_spoilered = spoilered.value_or(media->hasSpoiler());
 	_invertCaption = invertCaption.value_or(item->invertMedia());
 	_lifetime = item->history()->owner().itemRemoved(
-	) | rpl::start_with_next([=](not_null<const HistoryItem*> removed) {
+	) | rpl::on_next([=](not_null<const HistoryItem*> removed) {
 		if (removed == _item) {
 			cancel();
 		}
@@ -60,6 +59,8 @@ void MediaEditManager::apply(SendMenu::Action action) {
 void MediaEditManager::cancel() {
 	_menu = nullptr;
 	_item = nullptr;
+	_spoilered = false;
+	_invertCaption = false;
 	_lifetime.destroy();
 }
 

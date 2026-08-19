@@ -24,10 +24,15 @@ namespace {
 [[nodiscard]] bool IsOldForPin(
 		MsgId id,
 		not_null<PeerData*> peer,
-		MsgId topicRootId) {
+		MsgId topicRootId,
+		PeerId monoforumPeerId) {
 	const auto normal = peer->migrateToOrMe();
 	const auto migrated = normal->migrateFrom();
-	const auto top = Data::ResolveTopPinnedId(normal, topicRootId, migrated);
+	const auto top = Data::ResolveTopPinnedId(
+		normal,
+		topicRootId,
+		monoforumPeerId,
+		migrated);
 	if (!top) {
 		return false;
 	} else if (peer == migrated) {
@@ -45,15 +50,22 @@ void PinMessageBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<HistoryItem*> item) {
 	struct State {
-		QPointer<Ui::Checkbox> pinForPeer;
-		QPointer<Ui::Checkbox> notify;
+		base::weak_qptr<Ui::Checkbox> pinForPeer;
+		base::weak_qptr<Ui::Checkbox> notify;
 		mtpRequestId requestId = 0;
 	};
 
 	const auto peer = item->history()->peer;
 	const auto msgId = item->id;
 	const auto topicRootId = item->topic() ? item->topicRootId() : MsgId();
-	const auto pinningOld = IsOldForPin(msgId, peer, topicRootId);
+	const auto monoforumPeerId = item->history()->peer->amMonoforumAdmin()
+		? item->sublistPeerId()
+		: PeerId();
+	const auto pinningOld = IsOldForPin(
+		msgId,
+		peer,
+		topicRootId,
+		monoforumPeerId);
 	const auto state = box->lifetime().make_state<State>();
 	const auto api = box->lifetime().make_state<MTP::Sender>(
 		&peer->session().mtp());
@@ -69,16 +81,18 @@ void PinMessageBox(
 				false,
 				st::urlAuthCheckbox);
 			object->setAllowTextLines();
-			state->pinForPeer = Ui::MakeWeak(object.data());
+			state->pinForPeer = base::make_weak(object.data());
 			return object;
-		} else if (!pinningOld && (peer->isChat() || peer->isMegagroup())) {
+		} else if (!pinningOld
+			&& (peer->isChat() || peer->isMegagroup())
+			&& !peer->isMonoforum()) {
 			auto object = object_ptr<Ui::Checkbox>(
 				box,
 				tr::lng_pinned_notify(tr::now),
 				true,
 				st::urlAuthCheckbox);
 			object->setAllowTextLines();
-			state->notify = Ui::MakeWeak(object.data());
+			state->notify = base::make_weak(object.data());
 			return object;
 		}
 		return { nullptr };
@@ -98,7 +112,7 @@ void PinMessageBox(
 		}
 		state->requestId = api->request(MTPmessages_UpdatePinnedMessage(
 			MTP_flags(flags),
-			peer->input,
+			peer->input(),
 			MTP_int(msgId)
 		)).done([=](const MTPUpdates &result) {
 			peer->session().api().applyUpdates(result);

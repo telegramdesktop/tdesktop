@@ -18,6 +18,7 @@ namespace Media::View {
 class OverlayWidget::Renderer : public Ui::GL::Renderer {
 public:
 	virtual void paintBackground() = 0;
+	virtual void paintVideoStream() = 0;
 	virtual void paintTransformedVideoFrame(ContentGeometry geometry) = 0;
 	virtual void paintTransformedStaticContent(
 		const QImage &image,
@@ -32,6 +33,8 @@ public:
 	virtual void paintThemePreview(QRect outer) = 0;
 	virtual void paintDocumentBubble(QRect outer, QRect icon) = 0;
 	virtual void paintSaveMsg(QRect outer) = 0;
+	virtual void paintChapter(QRect outer) = 0;
+	virtual void paintSpeedBoost(QRect outer) = 0;
 	virtual void paintControlsStart() = 0;
 	virtual void paintControl(
 		Over control,

@@ -24,14 +24,20 @@ class SessionController;
 
 class LanguageBox : public Ui::BoxContent {
 public:
-	LanguageBox(QWidget*, Window::SessionController *controller);
+	LanguageBox(
+		QWidget*,
+		Window::SessionController *controller,
+		const QString &highlightId = QString());
 
 	void setInnerFocus() override;
 
-	static base::binary_guard Show(Window::SessionController *controller);
+	[[nodiscard]] static base::binary_guard Show(
+		Window::SessionController *controller,
+		const QString &highlightId = QString());
 
 protected:
 	void prepare() override;
+	void showFinished() override;
 
 	void keyPressEvent(QKeyEvent *e) override;
 
@@ -40,6 +46,10 @@ private:
 	[[nodiscard]] int rowsInPage() const;
 
 	Window::SessionController *_controller = nullptr;
+	QString _highlightId;
+	QPointer<Ui::RpWidget> _showButtonToggle;
+	QPointer<Ui::RpWidget> _translateChatsToggle;
+	QPointer<Ui::RpWidget> _doNotTranslateButton;
 	rpl::event_stream<bool> _translateChatTurnOff;
 	Fn<void()> _setInnerFocus;
 	Fn<Ui::ScrollToRequest(int rows)> _jump;

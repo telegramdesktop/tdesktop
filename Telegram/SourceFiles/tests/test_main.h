@@ -36,6 +36,12 @@ void test(not_null<Ui::RpWindow*> window, not_null<Ui::RpWidget*> widget);
 };
 
 class App final : public QApplication, public QAbstractNativeEventFilter {
+private:
+	auto createEventNestingLevel() {
+		incrementEventNestingLevel();
+		return gsl::finally([=] { decrementEventNestingLevel(); });
+	}
+
 public:
 	using QApplication::QApplication;
 
@@ -56,18 +62,12 @@ private:
 		FnMut<void()> callable;
 	};
 
-	auto createEventNestingLevel() {
-		incrementEventNestingLevel();
-		return gsl::finally([=] { decrementEventNestingLevel(); });
-	}
-
 	void checkForEmptyLoopNestingLevel();
 	void processPostponedCalls(int level);
 	void incrementEventNestingLevel();
 	void decrementEventNestingLevel();
 	void registerEnterFromEventLoop();
 
-	bool notifyOrInvoke(QObject *receiver, QEvent *e);
 	bool notify(QObject *receiver, QEvent *e) override;
 	bool nativeEventFilter(
 		const QByteArray &eventType,
@@ -105,6 +105,11 @@ public:
 	QString emojiCacheFolder();
 	QString openglCheckFilePath();
 	QString angleBackendFilePath();
+	void touchCounterIncrement();
+	int touchCounterNow();
+
+private:
+	int _touchCounter = 0;
 };
 
 } // namespace Test

@@ -56,10 +56,10 @@ Widget::Widget(
 		controller,
 		controller->statisticsTag().peer))) {
 	_inner->showRequests(
-	) | rpl::start_with_next([=](InnerWidget::ShowRequest request) {
+	) | rpl::on_next([=](InnerWidget::ShowRequest request) {
 	}, _inner->lifetime());
 	_inner->scrollToRequests(
-	) | rpl::start_with_next([=](const Ui::ScrollToRequest &request) {
+	) | rpl::on_next([=](const Ui::ScrollToRequest &request) {
 		scrollTo(request);
 	}, _inner->lifetime());
 }

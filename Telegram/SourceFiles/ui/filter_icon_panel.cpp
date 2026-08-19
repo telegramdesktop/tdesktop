@@ -71,7 +71,8 @@ constexpr auto kIcons = std::array{
 FilterIconPanel::FilterIconPanel(QWidget *parent)
 : RpWidget(parent)
 , _inner(Ui::CreateChild<Ui::RpWidget>(this))
-, _innerBg(ImageRoundRadius::Small, st::dialogsBg) {
+, _innerBg(st::emojiPanRadius, st::dialogsBg)
+, _shadow(st::emojiPanAnimation.shadow) {
 	setup();
 }
 
@@ -79,7 +80,7 @@ FilterIconPanel::~FilterIconPanel() {
 	hideFast();
 }
 
-rpl::producer<FilterIcon> FilterIconPanel::chosen() const {
+rpl::producer<FilterIconChosen> FilterIconPanel::chosen() const {
 	return _chosen.events();
 }
 
@@ -93,7 +94,7 @@ void FilterIconPanel::setup() {
 	macWindowDeactivateEvents(
 	) | rpl::filter([=] {
 		return !isHidden();
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		hideAnimated();
 	}, lifetime());
 
@@ -116,7 +117,7 @@ void FilterIconPanel::setupInner() {
 	_inner->resize(full);
 
 	_inner->paintRequest(
-		) | rpl::start_with_next([=](QRect clip) {
+		) | rpl::on_next([=](QRect clip) {
 		auto p = Painter(_inner);
 		_innerBg.paint(p, _inner->rect());
 		p.setFont(st::emojiPanHeaderFont);
@@ -153,7 +154,7 @@ void FilterIconPanel::setupInner() {
 
 	_inner->setMouseTracking(true);
 	_inner->events(
-	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+	) | rpl::on_next([=](not_null<QEvent*> e) {
 		switch (e->type()) {
 		case QEvent::Leave: setSelected(-1); break;
 		case QEvent::MouseMove:
@@ -240,7 +241,10 @@ void FilterIconPanel::mouseRelease(Qt::MouseButton button) {
 	setPressed(-1);
 	if (pressed == _selected && pressed >= 0) {
 		Assert(pressed < kIcons.size());
-		_chosen.fire_copy(kIcons[pressed]);
+		_chosen.fire({
+			.icon = kIcons[pressed],
+			.geometry = countRect(pressed).translated(_inner->pos()),
+		});
 	}
 }
 
@@ -276,11 +280,7 @@ void FilterIconPanel::paintEvent(QPaintEvent *e) {
 		hideFinished();
 	} else {
 		if (!_cache.isNull()) _cache = QPixmap();
-		Ui::Shadow::paint(
-			p,
-			innerRect(),
-			width(),
-			st::emojiPanAnimation.shadow);
+		_shadow.paint(p, innerRect(), st::emojiPanRadius);
 	}
 }
 
@@ -296,7 +296,7 @@ void FilterIconPanel::leaveEventHook(QEvent *e) {
 	} else {
 		_hideTimer.callOnce(kHideTimeoutMs);
 	}
-	return TWidget::leaveEventHook(e);
+	return RpWidget::leaveEventHook(e);
 }
 
 void FilterIconPanel::otherEnter() {
@@ -375,14 +375,15 @@ void FilterIconPanel::startShowAnimation() {
 	if (!_a_show.animating()) {
 		auto image = grabForAnimation();
 
-		_showAnimation = std::make_unique<Ui::PanelAnimation>(st::emojiPanAnimation, Ui::PanelAnimation::Origin::TopRight);
+		_showAnimation = std::make_unique<Ui::PanelAnimation>(st::emojiPanAnimation, Ui::PanelAnimation::Origin::TopLeft);
 		auto inner = rect().marginsRemoved(st::emojiPanMargins);
 		_showAnimation->setFinalImage(
 			std::move(image),
 			QRect(
 				inner.topLeft() * style::DevicePixelRatio(),
-				inner.size() * style::DevicePixelRatio()));
-		_showAnimation->setCornerMasks(Images::CornersMask(ImageRoundRadius::Small));
+				inner.size() * style::DevicePixelRatio()),
+			st::emojiPanRadius);
+		_showAnimation->setCornerMasks(Images::CornersMask(st::emojiPanRadius));
 		_showAnimation->start();
 	}
 	hideChildren();

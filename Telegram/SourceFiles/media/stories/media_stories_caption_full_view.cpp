@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/compose/compose_show.h"
 #include "media/stories/media_stories_controller.h"
 #include "media/stories/media_stories_view.h"
+#include "media/view/media_view_open_common.h"
 #include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/labels.h"
 #include "ui/click_handler.h"
@@ -30,13 +31,15 @@ CaptionFullView::CaptionFullView(not_null<Controller*> controller)
 		object_ptr<Ui::FlatLabel>(_scroll.get(), st::storiesCaptionFull),
 		st::mediaviewCaptionPadding + _controller->repostCaptionPadding())))
 , _text(_wrap->entity()) {
-	_text->setMarkedText(controller->captionText(), Core::TextContext({
+	using namespace Media::View;
+	const auto text = StripQuoteEntities(controller->captionText());
+	_text->setMarkedText(text, Core::TextContext({
 		.session = &controller->uiShow()->session(),
 	}));
 
 	startAnimation();
 	_controller->layoutValue(
-	) | rpl::start_with_next([=](const Layout &layout) {
+	) | rpl::on_next([=](const Layout &layout) {
 		if (_outer != layout.content) {
 			const auto skip = layout.header.y()
 				+ layout.header.height()
@@ -108,7 +111,7 @@ CaptionFullView::CaptionFullView(not_null<Controller*> controller)
 		_scroll->movementValue()
 	) | rpl::filter([=] {
 		return !_closing;
-	}) | rpl::start_with_next([=](
+	}) | rpl::on_next([=](
 			Ui::ElasticScrollPosition position,
 			Ui::ElasticScrollMovement movement) {
 		const auto overscrollTop = std::max(-position.overscroll, 0);
@@ -132,7 +135,7 @@ CaptionFullView::CaptionFullView(not_null<Controller*> controller)
 		}
 	}, _scroll->lifetime());
 
-	_wrap->paintRequest() | rpl::start_with_next([=] {
+	_wrap->paintRequest() | rpl::on_next([=] {
 		if (_controller->repost()) {
 			auto p = Painter(_wrap.get());
 			_controller->drawRepostInfo(

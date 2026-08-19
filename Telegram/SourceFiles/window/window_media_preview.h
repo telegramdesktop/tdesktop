@@ -38,6 +38,13 @@ public:
 		Data::FileOrigin origin,
 		not_null<PhotoData*> photo);
 	void hidePreview();
+	void setCustomPadding(const QMargins &padding = QMargins());
+	void setBackgroundMargins(const QMargins &margins = QMargins());
+	void setCustomRadius(int radius);
+	void setCustomDuration(crl::time duration);
+	void setHideEmoji(bool hide);
+	void setContentShift(int y);
+	[[nodiscard]] int contentBottom() const;
 
 	~MediaPreviewWidget();
 
@@ -87,6 +94,12 @@ private:
 	mutable CacheStatus _cacheStatus = CacheNotLoaded;
 	mutable QPixmap _cache;
 	mutable QSize _cachedSize;
+	QMargins _customPadding;
+	QMargins _backgroundMargins;
+	int _customRadius = 0;
+	crl::time _customDuration = 0;
+	bool _hideEmoji = false;
+	int _contentShiftY = 0;
 
 };
 

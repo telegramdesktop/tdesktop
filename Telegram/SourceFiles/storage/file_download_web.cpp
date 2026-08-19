@@ -552,7 +552,7 @@ void webFileLoader::startLoading() {
 		_manager = GetManager();
 		_manager->updates(
 			this
-		) | rpl::start_with_next([=](const Update &data) {
+		) | rpl::on_next([=](const Update &data) {
 			if (const auto progress = std::get_if<Progress>(&data)) {
 				loadProgress(
 					progress->ready,

@@ -7,12 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/themes/window_themes_embedded.h"
 
-#include "window/themes/window_theme.h"
+#include "base/platform/base_platform_info.h"
 #include "lang/lang_keys.h"
 #include "storage/serialize_common.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "ui/style/style_palette_colorizer.h"
+#include "window/themes/window_theme.h"
+
+#include <QtGui/QGuiApplication>
+#include <QtGui/QPalette>
 
 namespace Window {
 namespace Theme {
@@ -175,6 +179,16 @@ style::colorizer ColorizerFrom(
 	return result;
 }
 
+std::optional<QColor> SystemAccentColor() {
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+	if (Platform::IsWindows() && Platform::IsWindows8OrGreater()) {
+		return std::nullopt;
+	}
+#endif // Qt < 6.0.0
+	const auto accent = QPalette().color(QPalette::Highlight);
+	return accent.isValid() ? std::make_optional(accent) : std::nullopt;
+}
+
 style::colorizer ColorizerForTheme(const QString &absolutePath) {
 	if (!IsEmbeddedTheme(absolutePath)) {
 		return {};
@@ -187,7 +201,13 @@ style::colorizer ColorizerForTheme(const QString &absolutePath) {
 	if (i == end(schemes)) {
 		return {};
 	}
-	const auto &colors = Core::App().settings().themesAccentColors();
+	const auto &settings = Core::App().settings();
+	if (settings.systemAccentColorEnabled()) {
+		if (const auto accent = SystemAccentColor()) {
+			return ColorizerFrom(*i, *accent);
+		}
+	}
+	const auto &colors = settings.themesAccentColors();
 	if (const auto accent = colors.get(i->type)) {
 		return ColorizerFrom(*i, *accent);
 	}

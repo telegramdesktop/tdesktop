@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_button.h"
 #include "media/player/media_player_dropdown.h"
 #include "media/view/media_view_playback_progress.h"
+#include "ui/widgets/cross_fade_label.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/effects/fade_animation.h"
@@ -23,6 +24,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Media {
 namespace View {
+namespace  {
+
+constexpr auto kEps = 0.005;
+
+} // namespace
 
 PlaybackControls::PlaybackControls(
 	QWidget *parent,
@@ -59,7 +65,7 @@ PlaybackControls::PlaybackControls(
 			: Fn<void(float64)>()),
 		_qualitiesList,
 		[=] { return _delegate->playbackControlsCurrentQuality(); },
-		[=](int quality) { saveQuality(quality); })
+		[=](Media::VideoQuality quality) { saveQuality(quality); })
 	: nullptr)
 , _fadeAnimation(std::make_unique<Ui::FadeAnimation>(this)) {
 	_fadeAnimation->show();
@@ -77,7 +83,7 @@ PlaybackControls::PlaybackControls(
 
 	if (const auto controller = _speedController.get()) {
 		controller->menuToggledValue(
-		) | rpl::start_with_next([=](bool toggled) {
+		) | rpl::on_next([=](bool toggled) {
 			_speedToggle->setActive(toggled);
 		}, _speedToggle->lifetime());
 	}
@@ -143,6 +149,7 @@ void PlaybackControls::handleSeekProgress(float64 progress) {
 	if (_seekPositionMs != positionMs) {
 		_seekPositionMs = positionMs;
 		refreshTimeTexts();
+		updateTimestampLabel();
 
 		// This may destroy PlaybackControls.
 		_delegate->playbackControlsSeekProgress(positionMs);
@@ -157,8 +164,10 @@ void PlaybackControls::handleSeekFinished(float64 progress) {
 		crl::time(0),
 		_lastDurationMs);
 	_seekPositionMs = -1;
-	_delegate->playbackControlsSeekFinished(positionMs);
 	refreshTimeTexts();
+
+	// This may destroy PlaybackControls.
+	_delegate->playbackControlsSeekFinished(positionMs);
 }
 
 template <typename Callback>
@@ -207,7 +216,6 @@ void PlaybackControls::fadeUpdated(float64 opacity) {
 	_volumeController->setFadeOpacity(opacity);
 }
 
-
 float64 PlaybackControls::speedLookup(bool lastNonDefault) const {
 	return _delegate->playbackControlsCurrentSpeed(lastNonDefault);
 }
@@ -217,14 +225,20 @@ void PlaybackControls::saveSpeed(float64 speed) {
 	_delegate->playbackControlsSpeedChanged(speed);
 }
 
-void PlaybackControls::saveQuality(int quality) {
-	_speedToggle->setQuality(_qualitiesList.empty() ? 0 : quality);
+void PlaybackControls::saveQuality(Media::VideoQuality quality) {
+	_speedToggle->setQuality(quality);
 	_delegate->playbackControlsQualityChanged(quality);
 }
 
 void PlaybackControls::updateSpeedToggleQuality() {
-	const auto quality = _delegate->playbackControlsCurrentQuality();
-	_speedToggle->setQuality(_qualitiesList.empty() ? 0 : quality.height);
+	const auto qualities = _delegate->playbackControlsQualities();
+	if (_qualitiesList != qualities) {
+		_qualitiesList = qualities;
+		if (_speedController) {
+			_speedController->setQualities(qualities);
+		}
+	}
+	_speedToggle->setQuality(_delegate->playbackControlsCurrentQuality());
 }
 
 void PlaybackControls::updatePlaybackSpeed(float64 speed) {
@@ -237,6 +251,7 @@ void PlaybackControls::updatePlayback(const Player::TrackState &state) {
 	updatePlayPauseResumeState(state);
 	_playbackProgress->updateState(state, countDownloadedTillPercent(state));
 	updateTimeTexts(state);
+	updateTimestampLabel();
 }
 
 void PlaybackControls::updateVolumeToggleIcon() {
@@ -266,6 +281,87 @@ float64 PlaybackControls::countDownloadedTillPercent(
 		return 0.;
 	}
 	return (_loadingReady - header) / float64(_loadingTotal - header);
+}
+
+void PlaybackControls::setTimestamps(std::vector<TimestampData> timestamps) {
+	_playbackSlider->clearDividers();
+	_playbackSlider->setDividerStyle(
+		Ui::MediaSlider::DividerStyle::Gaps);
+	_timestamps = std::move(timestamps);
+	for (const auto &ts : _timestamps) {
+		if (ts.position > 0.) {
+			_playbackSlider->addDivider(
+				ts.position,
+				st::mediaviewPlaybackTimestamp);
+		}
+	}
+	const auto hasLabels = ranges::any_of(
+		_timestamps,
+		[](const auto &ts) { return !ts.label.isEmpty(); });
+	if (hasLabels && !_timestampLabel) {
+		_timestampLabel.create(
+			this,
+			st::mediaviewTimestampLabel);
+		_timestampLabel->show();
+	} else if (!hasLabels) {
+		_timestampLabel.destroy();
+	}
+	_playbackSlider->update();
+	_currentTimestampIndex = -1;
+	updateTimestampLabel();
+}
+
+bool PlaybackControls::hasTimestamps() const {
+	return _timestampLabel != nullptr;
+}
+
+auto PlaybackControls::nextTimestamp(float64 progress) const
+-> std::optional<TimestampData> {
+	for (const auto &ts : _timestamps) {
+		if (ts.position > progress + kEps) {
+			return ts;
+		}
+	}
+	return std::nullopt;
+}
+
+auto PlaybackControls::prevTimestamp(float64 progress) const
+-> std::optional<TimestampData> {
+	for (auto i = int(_timestamps.size()) - 1; i >= 0; --i) {
+		if (_timestamps[i].position < progress - kEps) {
+			return _timestamps[i];
+		}
+	}
+	return std::nullopt;
+}
+
+void PlaybackControls::updateTimestampLabel() {
+	if (!_timestampLabel) {
+		return;
+	}
+	const auto progress = _playbackSlider->value();
+	auto index = -1;
+	for (auto i = int(_timestamps.size()) - 1; i >= 0; --i) {
+		if (_timestamps[i].position <= progress) {
+			index = i;
+			break;
+		}
+	}
+	if (index == _currentTimestampIndex) {
+		return;
+	}
+	const auto previous = _currentTimestampIndex;
+	_currentTimestampIndex = index;
+	_timestampLabel->setDirection((index > previous) ? 1 : -1);
+	auto text = (index >= 0) ? _timestamps[index].label : QString();
+	const auto maxWidth = _playbackSlider->width();
+	if (maxWidth > 0
+		&& st::mediaviewTimestampLabel.font->width(text) > maxWidth) {
+		text = st::mediaviewTimestampLabel.font->elided(text, maxWidth);
+	}
+	_timestampLabel->setText(text);
+	resizeEvent(nullptr);
+	refreshFadeCache();
 }
 
 void PlaybackControls::setLoadingProgress(int64 ready, int64 total) {
@@ -375,6 +471,15 @@ void PlaybackControls::resizeEvent(QResizeEvent *e) {
 	auto playbackWidth = width() - remove;
 	_playbackSlider->resize(playbackWidth, st::mediaviewPlayback.seekSize.height());
 	_playbackSlider->moveToLeft(textLeft + 2 * textSkip + _playedAlready->width(), st::mediaviewPlaybackTop);
+
+	if (_timestampLabel) {
+		_timestampLabel->resize(
+			_playbackSlider->width(),
+			_timestampLabel->height());
+		_timestampLabel->moveToLeft(
+			_playbackSlider->x(),
+			st::mediaviewTimestampLabelTop);
+	}
 
 	_playPauseResume->moveToLeft(
 		(width() - _playPauseResume->width()) / 2,

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_hash.h"
 #include "apiwrap.h"
+#include "core/version.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -44,6 +45,8 @@ constexpr auto kRequestTimeLimit = 10 * crl::time(1000);
 [[nodiscard]] MTPTopPeerCategory TypeToCategory(TopPeerType type) {
 	switch (type) {
 	case TopPeerType::Chat: return MTP_topPeerCategoryCorrespondents();
+	case TopPeerType::BotGuestChat:
+		return MTP_topPeerCategoryBotsGuestChat();
 	case TopPeerType::BotApp: return MTP_topPeerCategoryBotsApp();
 	}
 	Unexpected("Type in TypeToCategory.");
@@ -53,9 +56,42 @@ constexpr auto kRequestTimeLimit = 10 * crl::time(1000);
 	using Flag = MTPcontacts_GetTopPeers::Flag;
 	switch (type) {
 	case TopPeerType::Chat: return Flag::f_correspondents;
+	case TopPeerType::BotGuestChat: return Flag::f_bots_guestchat;
 	case TopPeerType::BotApp: return Flag::f_bots_app;
 	}
 	Unexpected("Type in TypeToGetFlags.");
+}
+
+[[nodiscard]] mtpTypeId TypeToCategoryConstructor(TopPeerType type) {
+	switch (type) {
+	case TopPeerType::Chat:
+		return mtpc_topPeerCategoryCorrespondents;
+	case TopPeerType::BotGuestChat:
+		return mtpc_topPeerCategoryBotsGuestChat;
+	case TopPeerType::BotApp:
+		return mtpc_topPeerCategoryBotsApp;
+	}
+	Unexpected("Type in TypeToCategoryConstructor.");
+}
+
+[[nodiscard]] bool CanIncrementPeer(
+		TopPeerType type,
+		not_null<PeerData*> peer) {
+	const auto user = peer->asUser();
+	if (!user) {
+		return false;
+	}
+	switch (type) {
+	case TopPeerType::Chat:
+		return !user->isBot();
+	case TopPeerType::BotGuestChat:
+		return user->isBot()
+			&& user->botInfo
+			&& user->botInfo->supportsGuestChat;
+	case TopPeerType::BotApp:
+		return false;
+	}
+	Unexpected("Type in CanIncrementPeer.");
 }
 
 } // namespace
@@ -72,7 +108,7 @@ void TopPeers::loadAfterChats() {
 	using namespace rpl::mappers;
 	crl::on_main(_session, [=] {
 		_session->data().chatsListLoadedEvents(
-		) | rpl::filter(_1 == nullptr) | rpl::start_with_next([=] {
+		) | rpl::filter(_1 == nullptr) | rpl::on_next([=] {
 			crl::on_main(_session, [=] {
 				request();
 			});
@@ -109,7 +145,7 @@ void TopPeers::remove(not_null<PeerData*> peer) {
 
 	_requestId = _session->api().request(MTPcontacts_ResetTopPeerRating(
 		TypeToCategory(_type),
-		peer->input
+		peer->input()
 	)).send();
 }
 
@@ -119,30 +155,31 @@ void TopPeers::increment(not_null<PeerData*> peer, TimeId date) {
 	if (_disabled || date <= _lastReceivedDate) {
 		return;
 	}
-	if (const auto user = peer->asUser(); user && !user->isBot()) {
-		auto changed = false;
-		auto i = ranges::find(_list, peer, &TopPeer::peer);
-		if (i == end(_list)) {
-			_list.push_back({ .peer = peer });
-			i = end(_list) - 1;
+	if (!CanIncrementPeer(_type, peer)) {
+		return;
+	}
+	auto changed = false;
+	auto i = ranges::find(_list, peer, &TopPeer::peer);
+	if (i == end(_list)) {
+		_list.push_back({ .peer = peer });
+		i = end(_list) - 1;
+		changed = true;
+	}
+	const auto &config = peer->session().mtp().config();
+	const auto decay = config.values().ratingDecay;
+	i->rating += RatingDelta(date, _lastReceivedDate, decay);
+	for (; i != begin(_list); --i) {
+		if (i->rating >= (i - 1)->rating) {
 			changed = true;
-		}
-		const auto &config = peer->session().mtp().config();
-		const auto decay = config.values().ratingDecay;
-		i->rating += RatingDelta(date, _lastReceivedDate, decay);
-		for (; i != begin(_list); --i) {
-			if (i->rating >= (i - 1)->rating) {
-				changed = true;
-				std::swap(*i, *(i - 1));
-			} else {
-				break;
-			}
-		}
-		if (changed) {
-			updated();
+			std::swap(*i, *(i - 1));
 		} else {
-			_session->local().writeSearchSuggestionsDelayed();
+			break;
 		}
+	}
+	if (changed) {
+		updated();
+	} else {
+		_session->local().writeSearchSuggestionsDelayed();
 	}
 }
 
@@ -202,9 +239,7 @@ void TopPeers::request() {
 			owner->processChats(data.vchats());
 			for (const auto &category : data.vcategories().v) {
 				const auto &data = category.data();
-				const auto cons = (_type == TopPeerType::Chat)
-					? mtpc_topPeerCategoryCorrespondents
-					: mtpc_topPeerCategoryBotsApp;
+				const auto cons = TypeToCategoryConstructor(_type);
 				if (data.vcategory().type() != cons) {
 					LOG(("API Error: Unexpected top peer category."));
 					continue;

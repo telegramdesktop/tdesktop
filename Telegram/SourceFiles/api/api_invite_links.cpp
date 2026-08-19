@@ -101,7 +101,7 @@ void InviteLinks::performCreate(
 				: Flag(0))
 			| (requestApproval ? Flag::f_request_needed : Flag(0))
 			| (args.subscription ? Flag::f_subscription_pricing : Flag(0))),
-		args.peer->input,
+		args.peer->input(),
 		MTP_int(args.expireDate),
 		MTP_int(args.usageLimit),
 		MTP_string(args.label),
@@ -270,7 +270,7 @@ void InviteLinks::performEdit(
 			: Flag(0));
 	_api->request(MTPmessages_EditExportedChatInvite(
 		MTP_flags(editOnlyTitle ? Flag::f_title : flags),
-		peer->input,
+		peer->input(),
 		MTP_string(link),
 		MTP_int(expireDate),
 		MTP_int(usageLimit),
@@ -365,7 +365,7 @@ void InviteLinks::destroy(
 		callbacks.push_back(std::move(done));
 	}
 	_api->request(MTPmessages_DeleteExportedChatInvite(
-		peer->input,
+		peer->input(),
 		MTP_string(link)
 	)).done([=] {
 		const auto callbacks = _deleteCallbacks.take(key);
@@ -400,8 +400,8 @@ void InviteLinks::destroyAllRevoked(
 		callbacks.push_back(std::move(done));
 	}
 	_api->request(MTPmessages_DeleteRevokedExportedChatInvites(
-		peer->input,
-		admin->inputUser
+		peer->input(),
+		admin->inputUser()
 	)).done([=] {
 		if (const auto callbacks = _deleteRevokedCallbacks.take(peer)) {
 			for (const auto &callback : *callbacks) {
@@ -418,7 +418,7 @@ void InviteLinks::requestMyLinks(not_null<PeerData*> peer) {
 	}
 	const auto requestId = _api->request(MTPmessages_GetExportedChatInvites(
 		MTP_flags(0),
-		peer->input,
+		peer->input(),
 		MTP_inputUserSelf(),
 		MTPint(), // offset_date
 		MTPstring(), // offset_link
@@ -471,8 +471,8 @@ void InviteLinks::processRequest(
 	using Flag = MTPmessages_HideChatJoinRequest::Flag;
 	_api->request(MTPmessages_HideChatJoinRequest(
 		MTP_flags(approved ? Flag::f_approved : Flag(0)),
-		peer->input,
-		user->inputUser
+		peer->input(),
+		user->inputUser()
 	)).done([=](const MTPUpdates &result) {
 		if (const auto chat = peer->asChat()) {
 			if (chat->count > 0) {
@@ -601,7 +601,7 @@ void InviteLinks::requestJoinedFirstSlice(LinkKey key) {
 	}
 	const auto requestId = _api->request(MTPmessages_GetChatInviteImporters(
 		MTP_flags(MTPmessages_GetChatInviteImporters::Flag::f_link),
-		key.peer->input,
+		key.peer->input(),
 		MTP_string(key.link),
 		MTPstring(), // q
 		MTP_int(0), // offset_date
@@ -780,8 +780,8 @@ void InviteLinks::requestMoreLinks(
 	_api->request(MTPmessages_GetExportedChatInvites(
 		MTP_flags(Flag::f_offset_link
 			| (revoked ? Flag::f_revoked : Flag(0))),
-		peer->input,
-		admin->inputUser,
+		peer->input(),
+		admin->inputUser(),
 		MTP_int(lastDate),
 		MTP_string(lastLink),
 		MTP_int(kPerPage)

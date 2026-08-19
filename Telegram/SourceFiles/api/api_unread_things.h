@@ -23,6 +23,7 @@ public:
 
 	[[nodiscard]] bool trackMentions(Data::Thread *thread) const;
 	[[nodiscard]] bool trackReactions(Data::Thread *thread) const;
+	[[nodiscard]] bool trackPollVotes(Data::Thread *thread) const;
 
 	void preloadEnough(Data::Thread *thread);
 
@@ -35,14 +36,17 @@ public:
 private:
 	void preloadEnoughMentions(not_null<Data::Thread*> thread);
 	void preloadEnoughReactions(not_null<Data::Thread*> thread);
+	void preloadEnoughPollVotes(not_null<Data::Thread*> thread);
 
 	void requestMentions(not_null<Data::Thread*> thread, int loaded);
 	void requestReactions(not_null<Data::Thread*> thread, int loaded);
+	void requestPollVotes(not_null<Data::Thread*> thread, int loaded);
 
 	const not_null<ApiWrap*> _api;
 
 	base::flat_map<not_null<Data::Thread*>, mtpRequestId> _mentionsRequests;
 	base::flat_map<not_null<Data::Thread*>, mtpRequestId> _reactionsRequests;
+	base::flat_map<not_null<Data::Thread*>, mtpRequestId> _pollVotesRequests;
 
 };
 

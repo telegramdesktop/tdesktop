@@ -91,6 +91,17 @@ giveawayGiftMessage: FlatLabel(defaultTableValue) {
 	minWidth: 128px;
 	maxHeight: 0px;
 }
+giveawayGiftMessageRemove: IconButton(defaultIconButton) {
+	width: 32px;
+	height: 32px;
+	icon: icon{{ "menu/delete", windowActiveTextFg }};
+	iconOver: icon{{ "menu/delete", windowActiveTextFg }};
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 32px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgRipple;
+	}
+}
 giveawayGiftCodeValueMargin: margins(13px, 9px, 13px, 9px);
 giveawayGiftCodePeerMargin: margins(11px, 6px, 11px, 4px);
 giveawayGiftCodeUserpic: UserpicButton(defaultUserpicButton) {
@@ -150,15 +161,19 @@ giveawayGiftCodeFooter: FlatLabel(defaultFlatLabel) {
 	textFg: windowBoldFg;
 }
 giveawayGiftCodeFooterMargin: margins(0px, 9px, 0px, 4px);
+giveawayGiftCodeBoxButton: RoundButton(defaultActiveButton) {
+	height: 42px;
+	textTop: 12px;
+	style: semiboldTextStyle;
+}
 giveawayGiftCodeBox: Box(defaultBox) {
 	buttonPadding: margins(22px, 11px, 22px, 22px);
 	buttonHeight: 42px;
-	button: RoundButton(defaultActiveButton) {
-		height: 42px;
-		textTop: 12px;
-		style: semiboldTextStyle;
-	}
+	buttonWide: true;
+	button: giveawayGiftCodeBoxButton;
 	shadowIgnoreTopSkip: true;
+}
+giveawayGiftCodeBoxUpgradeNext: RoundButton(defaultLightButton, giveawayGiftCodeBoxButton) {
 }
 giveawayRefundedLabel: FlatLabel(boxLabel) {
 	align: align(top);
@@ -169,10 +184,6 @@ giveawayRefundedPadding: margins(8px, 10px, 8px, 10px);
 
 startGiveawayBox: Box(premiumGiftBox) {
 	shadowIgnoreTopSkip: true;
-}
-startGiveawayScrollArea: ScrollArea(boxScroll) {
-	deltax: 3px;
-	deltat: 50px;
 }
 startGiveawayBoxTitleClose: IconButton(boxTitleClose) {
 	ripple: universalRippleAnimation;
@@ -198,18 +209,7 @@ startGiveawayButtonLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimati
 	thickness: 2px;
 }
 
-starConvertButtonLoading: InfiniteRadialAnimation(startGiveawayButtonLoading) {
-	color: windowActiveTextFg;
-	thickness: 2px;
-}
-
-starGiftSmallButton: defaultTableSmallButton;
 darkGiftCodeBox: Box(giveawayGiftCodeBox) {
-	button: RoundButton(defaultActiveButton) {
-		height: 42px;
-		textTop: 12px;
-		style: semiboldTextStyle;
-	}
 	bg: groupCallMembersBg;
 	title: FlatLabel(boxTitle) {
 		textFg: groupCallMembersFg;
@@ -218,7 +218,9 @@ darkGiftCodeBox: Box(giveawayGiftCodeBox) {
 }
 darkGiftLink: icon {{ "menu/copy", groupCallMembersFg }};
 darkGiftShare: icon {{ "menu/share", groupCallMembersFg }};
+darkGiftTheme: icon {{ "menu/colors", groupCallMembersFg }};
 darkGiftTransfer: icon {{ "chat/input_replace", groupCallMembersFg }};
+darkGiftCraft: icon {{ "menu/craft_start-24x24", groupCallMembersFg }};
 darkGiftNftWear: icon {{ "menu/nft_wear", groupCallMembersFg }};
 darkGiftNftTakeOff: icon {{ "menu/nft_takeoff", groupCallMembersFg }};
 darkGiftNftResell: icon {{ "menu/tag_sell", groupCallMembersFg }};
@@ -227,6 +229,7 @@ darkGiftHide: icon {{ "menu/stealth", groupCallMembersFg }};
 darkGiftShow: icon {{ "menu/show_in_chat", groupCallMembersFg }};
 darkGiftPin: icon {{ "menu/pin", groupCallMembersFg }};
 darkGiftUnpin: icon {{ "menu/unpin", groupCallMembersFg }};
+darkGiftOffer: icon {{ "menu/earn", groupCallMembersFg }};
 darkGiftPalette: TextPalette(defaultTextPalette) {
 	linkFg: mediaviewTextLinkFg;
 	monoFg: groupCallMembersFg;
@@ -260,9 +263,6 @@ darkGiftTableValueMultiline: FlatLabel(giveawayGiftCodeValueMultiline) {
 darkGiftTableMessage: FlatLabel(giveawayGiftMessage) {
 	textFg: groupCallMembersFg;
 	palette: darkGiftPalette;
-}
-darkGiftCodeLink: FlatLabel(giveawayGiftCodeLink) {
-	textFg: mediaviewMenuFg;
 }
 darkGiftBoxClose: IconButton(boxTitleClose) {
 	icon: icon {{ "box_button_close", groupCallMemberInactiveIcon }};

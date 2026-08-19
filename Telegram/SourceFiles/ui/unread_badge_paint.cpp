@@ -38,12 +38,20 @@ public:
 		st::dialogsUnreadBgMutedOver,
 		st::dialogsUnreadBgMutedActive
 	};
+	style::color pollBg[6] = {
+		st::dialogsPollIconFg,
+		st::dialogsPollIconFg,
+		st::dialogsPollIconFg,
+		st::dialogsUnreadBgMuted,
+		st::dialogsUnreadBgMutedOver,
+		st::dialogsUnreadBgMutedActive
+	};
 	rpl::lifetime lifetime;
 };
 
 UnreadBadgeStyleData::UnreadBadgeStyleData() {
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		for (auto &data : sizes) {
 			for (auto &left : data.left) {
 				left = QPixmap();
@@ -100,6 +108,8 @@ void PaintUnreadBadge(QPainter &p, const QRect &rect, const UnreadBadgeStyle &st
 	}
 	const auto bg = (st.sizeId == UnreadBadgeSize::ReactionInDialogs)
 		? styles.reactionBg[index]
+		: (st.sizeId == UnreadBadgeSize::PollInDialogs)
+		? styles.pollBg[index]
 		: styles.bg[index];
 	if (badgeData->left[index].isNull()) {
 		const auto ratio = style::DevicePixelRatio();

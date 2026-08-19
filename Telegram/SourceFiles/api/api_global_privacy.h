@@ -25,11 +25,12 @@ enum class UnarchiveOnNewMessage {
 };
 
 enum class DisallowedGiftType : uchar {
-	Limited   = 0x01,
-	Unlimited = 0x02,
-	Unique    = 0x04,
-	Premium   = 0x08,
-	SendHide  = 0x10,
+	Limited      = 0x01,
+	Unlimited    = 0x02,
+	Unique       = 0x04,
+	FromChannels = 0x08,
+	Premium      = 0x10,
+	SendHide     = 0x20,
 };
 inline constexpr bool is_flag_type(DisallowedGiftType) { return true; }
 

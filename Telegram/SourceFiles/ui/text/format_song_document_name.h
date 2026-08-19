@@ -19,4 +19,8 @@ namespace Ui::Text {
 [[nodiscard]] TextWithEntities FormatDownloadsName(
 	not_null<DocumentData*> document);
 
+[[nodiscard]] FormatSongName FormatVoiceName(
+	not_null<DocumentData*> document,
+	FullMsgId contextId);
+
 } // namespace Ui::Text

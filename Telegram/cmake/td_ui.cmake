@@ -16,28 +16,68 @@ set(style_files
     ui/filter_icons.style
     ui/menu_icons.style
     ui/chat/chat.style
+    ui/chat/chat_style.style
+    history/view/history_view_about_view.style
     ui/effects/credits.style
     ui/effects/premium.style
+    ui/effects/premium_limits.style
     ui/color_indices.style
+    ui/controls/userpic_button.style
     boxes/boxes.style
+    api/api_chat_invite.style
+    boxes/add_contact_box.style
+    boxes/background_preview_box.style
+    boxes/moderate_messages_box.style
+    boxes/passcode_box.style
+    boxes/peer_list_section_index.style
+    boxes/peers/edit_peer_members.style
+    boxes/share_box.style
+    boxes/stickers_box.style
+    boxes/url_auth_box_content.style
+    info/community_requests/info_community_requests_widget.style
+    settings/sections/settings_notifications.style
+    ui/boxes/calendar_box.style
+    ui/boxes/choose_date_time.style
+    ui/boxes/collectible_info_box.style
+    ui/boxes/country_select_box.style
+    ui/controls/labeled_emoji_tabs.style
+    ui/widgets/color_editor.style
+    window/window_lock_widgets.style
+    boxes/compose_ai_box.style
+    boxes/connection_box.style
+    boxes/polls.style
     dialogs/dialogs.style
+    dialogs/dialogs_widget.style
+    dialogs/ui/dialogs_layout.style
     chat_helpers/chat_helpers.style
+    chat_helpers/emoji_picker_overlay.style
+    history/view/controls/history_view_voice_record_bar.style
+    ui/controls/location_picker.style
     calls/calls.style
     export/view/export.style
     info/info.style
+    info/profile/info_profile_actions.style
+    info/profile/info_profile_top_bar.style
     info/channel_statistics/boosts/giveaway/giveaway.style
     info/channel_statistics/earn/channel_earn.style
+    info/profile/info_levels.style
     info/userpic/info_userpic_builder.style
     intro/intro.style
     iv/iv.style
     media/player/media_player.style
+    media/stories/media_stories.style
     passport/passport.style
     payments/ui/payments.style
     profile/profile.style
     settings/settings.style
+    settings/sections/settings_local_storage.style
+    settings/sections/settings_active_sessions.style
+    settings/sections/settings_premium.style
+    ui/controls/filter_link_header.style
     media/view/media_view.style
     overview/overview.style
     window/window.style
+    window/window_main_menu.style
     editor/editor.style
     statistics/statistics.style
 )
@@ -58,11 +98,20 @@ PRIVATE
 
     boxes/peers/edit_peer_history_visibility_box.cpp
     boxes/peers/edit_peer_history_visibility_box.h
+    boxes/peers/toggle_topics_box.cpp
+    boxes/peers/toggle_topics_box.h
+
+    boxes/url_auth_box_content.cpp
+    boxes/url_auth_box_content.h
+    boxes/translate_box_content.cpp
+    boxes/translate_box_content.h
 
     calls/group/ui/calls_group_recording_box.cpp
     calls/group/ui/calls_group_recording_box.h
     calls/group/ui/calls_group_scheduled_labels.cpp
     calls/group/ui/calls_group_scheduled_labels.h
+    calls/group/ui/calls_group_stars_coloring.cpp
+    calls/group/ui/calls_group_stars_coloring.h
     calls/group/ui/desktop_capture_choose_source.cpp
     calls/group/ui/desktop_capture_choose_source.h
     calls/ui/calls_device_menu.cpp
@@ -85,11 +134,15 @@ PRIVATE
 
     data/raw/raw_countries_bounds.cpp
     data/raw/raw_countries_bounds.h
+    data/data_authorization.h
     data/data_birthday.cpp
     data/data_birthday.h
     data/data_channel_earn.h
     data/data_credits.h
     data/data_credits_earn.h
+    data/data_passkey_deserialize.cpp
+    data/data_passkey_deserialize.h
+    data/data_peer_colors.h
     data/data_premium_subscription_option.h
     data/data_statistics_chart.cpp
     data/data_statistics_chart.h
@@ -101,12 +154,16 @@ PRIVATE
     dialogs/ui/chat_search_empty.h
     dialogs/ui/chat_search_in.cpp
     dialogs/ui/chat_search_in.h
+    dialogs/ui/dialogs_pill.cpp
+    dialogs/ui/dialogs_pill.h
     dialogs/ui/dialogs_quick_action_context.h
     dialogs/ui/dialogs_quick_action.h
     dialogs/ui/dialogs_stories_list.cpp
     dialogs/ui/dialogs_stories_list.h
     dialogs/ui/dialogs_top_bar_suggestion_content.cpp
     dialogs/ui/dialogs_top_bar_suggestion_content.h
+    dialogs/ui/posts_search_intro.cpp
+    dialogs/ui/posts_search_intro.h
     dialogs/ui/top_peers_strip.cpp
     dialogs/ui/top_peers_strip.h
 
@@ -129,6 +186,15 @@ PRIVATE
     editor/scene/scene_item_image.h
     editor/scene/scene_item_line.cpp
     editor/scene/scene_item_line.h
+    editor/scene/scene_item_shape.cpp
+    editor/scene/scene_item_shape.h
+    editor/scene/scene_item_text.cpp
+    editor/scene/scene_item_text.h
+    editor/scene/scene_emoji_document.cpp
+    editor/scene/scene_emoji_document.h
+
+    ui/boxes/about_cocoon_box.h
+    ui/boxes/about_cocoon_box.cpp
 
     history/admin_log/history_admin_log_filter_value.h
     history/history_view_top_toast.cpp
@@ -138,8 +204,17 @@ PRIVATE
     history/view/controls/history_view_voice_record_button.cpp
     history/view/controls/history_view_voice_record_button.h
 
+    info/info_flexible_scroll.cpp
+    info/info_flexible_scroll.h
+
     info/profile/info_profile_icon.cpp
     info/profile/info_profile_icon.h
+    info/profile/info_profile_music_button.cpp
+    info/profile/info_profile_music_button.h
+    info/profile/info_profile_text.cpp
+    info/profile/info_profile_text.h
+    info/profile/info_profile_top_bar_action_button.cpp
+    info/profile/info_profile_top_bar_action_button.h
     info/userpic/info_userpic_bubble_wrap.cpp
     info/userpic/info_userpic_bubble_wrap.h
     info/userpic/info_userpic_color_circle_button.cpp
@@ -189,8 +264,17 @@ PRIVATE
 
     menu/gift_resale_filter.cpp
     menu/gift_resale_filter.h
+    menu/menu_action_with_thumbnail.cpp
+    menu/menu_action_with_thumbnail.h
+    menu/menu_checked_action.cpp
+    menu/menu_checked_action.h
     menu/menu_check_item.cpp
     menu/menu_check_item.h
+    menu/menu_item_rate_transcribe.cpp
+    menu/menu_item_rate_transcribe.h
+    menu/menu_send_details.h
+    menu/menu_timecode_action.cpp
+    menu/menu_timecode_action.h
     menu/menu_ttl.cpp
     menu/menu_ttl.h
 
@@ -216,17 +300,27 @@ PRIVATE
 
     platform/linux/current_geo_location_linux.cpp
     platform/linux/current_geo_location_linux.h
+    platform/linux/text_recognition_linux.h
     platform/mac/file_bookmark_mac.h
     platform/mac/file_bookmark_mac.mm
     platform/mac/current_geo_location_mac.h
     platform/mac/current_geo_location_mac.mm
+    platform/mac/text_recognition_mac.h
+    platform/mac/text_recognition_mac.mm
     platform/win/current_geo_location_win.cpp
     platform/win/current_geo_location_win.h
+    platform/win/text_recognition_win.h
     platform/platform_file_bookmark.h
     platform/platform_current_geo_location.h
+    platform/platform_text_recognition.h
+
+    profile/profile_back_button.cpp
+    profile/profile_back_button.h
 
     settings/settings_common.cpp
     settings/settings_common.h
+    settings/settings_key_navigation.cpp
+    settings/settings_key_navigation.h
     settings/cloud_password/settings_cloud_password_common.cpp
     settings/cloud_password/settings_cloud_password_common.h
 
@@ -321,6 +415,10 @@ PRIVATE
     ui/chat/attach/attach_bot_downloads.h
     ui/chat/attach/attach_bot_webview.cpp
     ui/chat/attach/attach_bot_webview.h
+    ui/chat/attach/attach_bot_webview_linux_shell.cpp
+    ui/chat/attach/attach_bot_webview_linux_shell.h
+    ui/layers/standalone_layer_stack.cpp
+    ui/layers/standalone_layer_stack.h
     ui/chat/attach/attach_controls.cpp
     ui/chat/attach/attach_controls.h
     ui/chat/attach/attach_extensions.cpp
@@ -341,8 +439,6 @@ PRIVATE
     ui/chat/chat_theme.h
     ui/chat/chats_filter_tag.cpp
     ui/chat/chats_filter_tag.h
-    ui/chat/continuous_scroll.cpp
-    ui/chat/continuous_scroll.h
     ui/chat/forward_options_box.cpp
     ui/chat/forward_options_box.h
     ui/chat/group_call_bar.cpp
@@ -359,6 +455,8 @@ PRIVATE
     ui/chat/pinned_bar.h
     ui/chat/requests_bar.cpp
     ui/chat/requests_bar.h
+    ui/controls/button_labels.cpp
+    ui/controls/button_labels.h
     ui/controls/call_mute_button.cpp
     ui/controls/call_mute_button.h
     ui/controls/chat_service_checkbox.cpp
@@ -367,8 +465,12 @@ PRIVATE
     ui/controls/delete_message_context_action.h
     ui/controls/download_bar.cpp
     ui/controls/download_bar.h
+    ui/controls/dynamic_images_strip.cpp
+    ui/controls/dynamic_images_strip.h
     ui/controls/emoji_button.cpp
     ui/controls/emoji_button.h
+    ui/controls/feature_list.cpp
+    ui/controls/feature_list.h
     ui/controls/filter_link_header.cpp
     ui/controls/filter_link_header.h
     ui/controls/jump_down_button.cpp
@@ -377,36 +479,77 @@ PRIVATE
     ui/controls/invite_link_buttons.h
     ui/controls/invite_link_label.cpp
     ui/controls/invite_link_label.h
+    ui/controls/labeled_emoji_tabs.cpp
+    ui/controls/labeled_emoji_tabs.h
     ui/controls/peer_list_dummy.cpp
     ui/controls/peer_list_dummy.h
+    ui/controls/popup_selector.cpp
+    ui/controls/popup_selector.h
+    ui/controls/round_video_recorder_data.h
     ui/controls/round_video_recorder.cpp
     ui/controls/round_video_recorder.h
     ui/controls/send_as_button.cpp
     ui/controls/send_as_button.h
     ui/controls/send_button.cpp
     ui/controls/send_button.h
+    ui/controls/stars_rating.cpp
+    ui/controls/stars_rating.h
+    ui/controls/subsection_tabs_slider.cpp
+    ui/controls/subsection_tabs_slider.h
+    ui/controls/subsection_tabs_slider_reorder.cpp
+    ui/controls/subsection_tabs_slider_reorder.h
+    ui/controls/sub_tabs.cpp
+    ui/controls/sub_tabs.h
     ui/controls/swipe_handler.cpp
     ui/controls/swipe_handler.h
     ui/controls/swipe_handler_data.h
     ui/controls/tabbed_search.cpp
     ui/controls/tabbed_search.h
+    ui/controls/ton_common.cpp
+    ui/controls/ton_common.h
     ui/controls/who_reacted_context_action.cpp
     ui/controls/who_reacted_context_action.h
     ui/controls/window_outdated_bar.cpp
     ui/controls/window_outdated_bar_dummy.cpp
     ui/controls/window_outdated_bar.h
+    ui/controls/window_screen_reader_bar.cpp
+    ui/controls/window_screen_reader_bar.h
     ui/effects/fireworks_animation.cpp
     ui/effects/fireworks_animation.h
     ui/effects/glare.cpp
     ui/effects/glare.h
     ui/effects/loading_element.cpp
     ui/effects/loading_element.h
+    ui/effects/ministar_particles.cpp
+    ui/effects/ministar_particles.h
     ui/effects/outline_segments.cpp
     ui/effects/outline_segments.h
+    ui/effects/premium_3d_cover.cpp
+    ui/effects/premium_3d_cover.h
+    ui/effects/premium_3d_mesh.cpp
+    ui/effects/premium_3d_mesh.h
+    ui/effects/premium_3d_support.cpp
+    ui/effects/premium_3d_support.h
     ui/effects/premium_bubble.cpp
     ui/effects/premium_bubble.h
+    ui/effects/premium_coin.cpp
+    ui/effects/premium_coin.h
+    ui/effects/premium_coin_renderer.cpp
+    ui/effects/premium_coin_renderer.h
+    ui/effects/premium_diamond.cpp
+    ui/effects/premium_diamond.h
+    ui/effects/premium_diamond_renderer.cpp
+    ui/effects/premium_diamond_renderer.h
     ui/effects/premium_graphics.cpp
     ui/effects/premium_graphics.h
+    ui/effects/premium_star.cpp
+    ui/effects/premium_star.h
+    ui/effects/premium_star_model.cpp
+    ui/effects/premium_star_model.h
+    ui/effects/premium_star_particles.cpp
+    ui/effects/premium_star_particles.h
+    ui/effects/premium_star_renderer.cpp
+    ui/effects/premium_star_renderer.h
     ui/effects/premium_stars.cpp
     ui/effects/premium_stars.h
     ui/effects/premium_stars_colored.cpp
@@ -417,30 +560,44 @@ PRIVATE
     ui/effects/round_checkbox.h
     ui/effects/scroll_content_shadow.cpp
     ui/effects/scroll_content_shadow.h
+    ui/effects/skeleton_animation.cpp
+    ui/effects/skeleton_animation.h
     ui/effects/shake_animation.cpp
     ui/effects/shake_animation.h
     ui/effects/snowflakes.cpp
     ui/effects/snowflakes.h
     ui/effects/toggle_arrow.cpp
     ui/effects/toggle_arrow.h
+    ui/effects/upload_progress_overlay.cpp
+    ui/effects/upload_progress_overlay.h
+    ui/effects/ttl_icon.cpp
+    ui/effects/ttl_icon.h
     ui/search_field_controller.cpp
     ui/search_field_controller.h
     ui/text/format_song_name.cpp
     ui/text/format_song_name.h
     ui/text/format_values.cpp
     ui/text/format_values.h
+    ui/text/text_lottie_custom_emoji.cpp
+    ui/text/text_lottie_custom_emoji.h
     ui/text/text_options.cpp
     ui/text/text_options.h
+
+    ui/image/svg_preview.cpp
+    ui/image/svg_preview.h
 
     ui/widgets/fields/special_fields.cpp
     ui/widgets/fields/special_fields.h
     ui/widgets/fields/time_part_input_with_placeholder.cpp
     ui/widgets/fields/time_part_input_with_placeholder.h
 
+    ui/widgets/chat_filters_tabs_mode.h
     ui/widgets/chat_filters_tabs_slider.cpp
     ui/widgets/chat_filters_tabs_slider.h
     ui/widgets/chat_filters_tabs_slider_reorder.cpp
     ui/widgets/chat_filters_tabs_slider_reorder.h
+    ui/widgets/cross_fade_label.cpp
+    ui/widgets/cross_fade_label.h
     ui/widgets/color_editor.cpp
     ui/widgets/color_editor.h
     ui/widgets/continuous_sliders.cpp
@@ -449,8 +606,12 @@ PRIVATE
     ui/widgets/discrete_sliders.h
     ui/widgets/gradient_round_button.cpp
     ui/widgets/gradient_round_button.h
+    ui/widgets/horizontal_fit_container.cpp
+    ui/widgets/horizontal_fit_container.h
     ui/widgets/level_meter.cpp
     ui/widgets/level_meter.h
+    ui/widgets/middle_click_autoscroll.cpp
+    ui/widgets/middle_click_autoscroll.h
     ui/widgets/multi_select.cpp
     ui/widgets/multi_select.h
     ui/widgets/sent_code_field.cpp
@@ -458,6 +619,8 @@ PRIVATE
     ui/widgets/participants_check_view.cpp
     ui/widgets/participants_check_view.h
     ui/widgets/slider_natural_width.h
+    ui/widgets/sliding_tabs.cpp
+    ui/widgets/sliding_tabs.h
     ui/widgets/vertical_drum_picker.cpp
     ui/widgets/vertical_drum_picker.h
 
@@ -473,12 +636,16 @@ PRIVATE
     ui/grouped_layout.h
     ui/new_badges.cpp
     ui/new_badges.h
+    ui/peer/color_sample.cpp
+    ui/peer/color_sample.h
     ui/power_saving.cpp
     ui/power_saving.h
     ui/vertical_list.cpp
     ui/vertical_list.h
     ui/unread_badge_paint.cpp
     ui/unread_badge_paint.h
+    ui/unread_counter_format.cpp
+    ui/unread_counter_format.h
     ui/userpic_view.cpp
     ui/userpic_view.h
     ui/webview_helpers.cpp
@@ -492,9 +659,18 @@ PRIVATE
 
 nice_target_sources(td_ui ${res_loc}
 PRIVATE
+    bot_webview_shell_html/body.html
+    bot_webview_shell_html/page.css
+    bot_webview_shell_html/page.js
     picker_html/picker.css
     picker_html/picker.js
 )
+
+if (WIN32 OR APPLE)
+    remove_target_sources(td_ui ${src_loc}
+        ui/chat/attach/attach_bot_webview_linux_shell.cpp
+    )
+endif()
 
 if (DESKTOP_APP_SPECIAL_TARGET)
     remove_target_sources(td_ui ${src_loc}

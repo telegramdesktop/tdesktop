@@ -12,7 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/credits_graphics.h"
 #include "ui/effects/outline_segments.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/effects/ttl_icon.h"
+#include "ui/effects/round_checkbox.h"
 #include "ui/image/image_prepare.h"
+#include "ui/text/custom_emoji_text_badge.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
@@ -20,6 +23,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_entry.h"
 #include "dialogs/ui/dialogs_video_userpic.h"
 #include "dialogs/ui/dialogs_layout.h"
+#include "data/data_channel.h"
+#include "data/data_community.h"
 #include "data/data_folder.h"
 #include "data/data_forum.h"
 #include "data/data_session.h"
@@ -35,7 +40,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Dialogs {
 namespace {
 
-constexpr auto kTopLayer = 2;
+constexpr auto kTopLayer = 3;
+constexpr auto kHiddenLayer = 2;
 constexpr auto kBottomLayer = 1;
 constexpr auto kNoneLayer = 0;
 constexpr auto kBlurRadius = 24;
@@ -131,30 +137,47 @@ constexpr auto kBlurRadius = 24;
 		- st::dialogsTTLBadgeInnerMargins;
 	const auto ttlText = Ui::FormatTTLTiny(ttl);
 
-	q.setFont(st::dialogsScamFont);
-	q.setPen(st::premiumButtonFg);
-	q.drawText(
-		innerRect,
-		(ttlText.size() > 2) ? ttlText.mid(0, 2) : ttlText,
-		style::al_center);
+	Ui::PaintTimerIcon(q, innerRect, ttlText, st::premiumButtonFg->c);
 
-	constexpr auto kPenWidth = 1.5;
+	return result;
+}
 
-	const auto penWidth = style::ConvertScaleExact(kPenWidth);
-	auto pen = QPen(st::premiumButtonFg);
-	pen.setJoinStyle(Qt::RoundJoin);
-	pen.setCapStyle(Qt::RoundCap);
-	pen.setWidthF(penWidth);
+[[nodiscard]] QRect CornerBadgeHiddenRect(int photoSize) {
+	const auto iconSize = st::dialogsCommunityHiddenBadgeIcon.size();
+	const auto padding = st::dialogsCommunityHiddenBadgePadding;
+	const auto margins = QMargins(padding, padding, padding, padding);
+	const auto badgeSize = iconSize.grownBy(margins);
+	return QRect(
+		QPoint(
+			photoSize - badgeSize.width()
+				+ st::dialogsTTLBadgeSkip.x(),
+			photoSize - badgeSize.height()
+				+ st::dialogsTTLBadgeSkip.y()),
+		badgeSize);
+}
 
-	q.setPen(pen);
-	q.setBrush(Qt::NoBrush);
-	q.drawArc(innerRect, arc::kQuarterLength, arc::kHalfLength);
+[[nodiscard]] QImage CornerBadgeHidden(
+		not_null<PeerData*> peer,
+		Ui::PeerUserpicView &view,
+		int photoSize) {
+	const auto ratio = style::DevicePixelRatio();
+	const auto fullSize = photoSize;
+	const auto partSize = CornerBadgeHiddenRect(fullSize).size();
+	auto result = Images::Circle(BlurredDarkenedPart(
+		PeerData::GenerateUserpicImage(peer, view, fullSize * ratio, 0),
+		QRect(
+			QPoint(
+				fullSize - partSize.width(),
+				fullSize - partSize.height()) * ratio,
+			partSize * ratio)));
+	result.setDevicePixelRatio(ratio);
 
-	q.setClipRect(innerRect
-		- QMargins(innerRect.width() / 2, -penWidth, -penWidth, -penWidth));
-	pen.setStyle(Qt::DotLine);
-	q.setPen(pen);
-	q.drawEllipse(innerRect);
+	auto q = QPainter(&result);
+	PainterHighQualityEnabler hq(q);
+
+	st::dialogsCommunityHiddenBadgeIcon.paintInCenter(
+		q,
+		QRect(QPoint(), partSize));
 
 	return result;
 }
@@ -317,29 +340,32 @@ Row::~Row() {
 	clearTopicJumpRipple();
 }
 
-void Row::recountHeight(float64 narrowRatio, FilterId filterId) {
-	if (const auto history = _id.history()) {
-		const auto hasTags = _id.entry()->hasChatsFilterTags(filterId);
-		_height = history->isForum()
-			? anim::interpolate(
-				hasTags
-					? st::taggedForumDialogRow.height
-					: st::forumDialogRow.height,
-				st::defaultDialogRow.height,
-				narrowRatio)
+const style::DialogRow &Row::ComputeSt(
+		not_null<const Entry*> entry,
+		FilterId filterId) {
+	if (const auto history = entry->asHistory()) {
+		const auto hasTags = entry->hasChatsFilterTags(filterId);
+		const auto wideRow = history->peer->displayAsForum()
+			|| history->amMonoforumAdmin();
+		return wideRow
+			? (hasTags ? st::taggedForumDialogRow : st::forumDialogRow)
 			: hasTags
-			? anim::interpolate(
-				st::taggedDialogRow.height,
-				st::defaultDialogRow.height,
-				narrowRatio)
-			: st::defaultDialogRow.height;
-	} else if (_id.folder()) {
-		_height = st::defaultDialogRow.height;
-	} else if (_id.topic()) {
-		_height = st::forumTopicRow.height;
-	} else {
-		_height = st::defaultDialogRow.height;
+			? st::taggedDialogRow
+			: st::defaultDialogRow;
+	} else if (entry->asTopic()) {
+		return st::forumTopicRow;
 	}
+	return st::defaultDialogRow;
+}
+
+void Row::recountHeight(float64 narrowRatio, FilterId filterId) {
+	const auto &st = ComputeSt(_id.entry(), filterId);
+	_height = ((&st == &st::defaultDialogRow) || !_id.history())
+		? st::defaultDialogRow.height
+		: anim::interpolate(
+			st.height,
+			st::defaultDialogRow.height,
+			narrowRatio);
 }
 
 uint64 Row::sortKey(FilterId filterId) const {
@@ -373,19 +399,26 @@ void Row::setCornerBadgeShown(
 void Row::updateCornerBadgeShown(
 		not_null<PeerData*> peer,
 		Fn<void()> updateCallback,
-		bool hasUnreadBadgesAbove) const {
+		bool hasUnreadBadgesAbove,
+		bool insideCommunity,
+		bool hidden) const {
 	const auto user = peer->asUser();
 	const auto now = user ? base::unixtime::now() : TimeId();
 	const auto channel = user ? nullptr : peer->asChannel();
 	const auto nextLayer = [&] {
 		if (hasUnreadBadgesAbove) {
 			return kNoneLayer;
-		} else if (user && Data::IsUserOnline(user, now)) {
+		} else if (user
+			&& (Data::IsUserOnline(user, now)
+				|| (!insideCommunity && user->linkedCommunityId()))) {
 			return kTopLayer;
 		} else if (channel
 			&& (Data::ChannelHasActiveCall(channel)
-				|| Data::ChannelHasSubscriptionUntilDate(channel))) {
+				|| Data::ChannelHasSubscriptionUntilDate(channel)
+				|| (!insideCommunity && channel->linkedCommunityId()))) {
 			return kTopLayer;
+		} else if (hidden) {
+			return kHiddenLayer;
 		} else if (peer->messagesTTL()) {
 			return kBottomLayer;
 		}
@@ -412,7 +445,9 @@ void Row::PaintCornerBadgeFrame(
 		Ui::VideoUserpic *videoUserpic,
 		Ui::PeerUserpicView &view,
 		const Ui::PaintContext &context,
-		bool subscribed) {
+		bool subscribed,
+		bool communityMember,
+		bool hidden) {
 	data->frame.fill(Qt::transparent);
 
 	Painter q(&data->frame);
@@ -444,34 +479,43 @@ void Row::PaintCornerBadgeFrame(
 		q.restore();
 
 		const auto outline = QRectF(0, 0, photoSize, photoSize);
-		const auto storiesUnreadCount = data->storiesUnreadCount;
-		const auto storiesUnreadBrush = [&] {
-			if (context.active || !storiesUnreadCount) {
-				return st::dialogsUnreadBgMutedActive->b;
-			}
-			auto gradient = Ui::UnreadStoryOutlineGradient(outline);
-			return QBrush(gradient);
-		}();
-		const auto storiesBrush = context.active
-			? st::dialogsUnreadBgMutedActive->b
-			: st::dialogsUnreadBgMuted->b;
 		const auto storiesUnread = st::dialogsStoriesFull.lineTwice / 2.;
 		const auto storiesLine = st::dialogsStoriesFull.lineReadTwice / 2.;
 		auto segments = std::vector<Ui::OutlineSegment>();
-		segments.reserve(storiesCount);
-		const auto storiesReadCount = storiesCount - storiesUnreadCount;
-		for (auto i = 0; i != storiesReadCount; ++i) {
-			segments.push_back({ storiesBrush, storiesLine });
+		if (data->storiesHasVideoStream) {
+			const auto storiesVideoStreamBrush = st::attentionButtonFg->b;
+			segments.push_back({ storiesVideoStreamBrush, storiesUnread });
+		} else {
+			const auto storiesUnreadCount = data->storiesUnreadCount;
+			const auto storiesUnreadBrush = [&] {
+				if (context.active || !storiesUnreadCount) {
+					return st::dialogsUnreadBgMutedActive->b;
+				}
+				auto gradient = Ui::UnreadStoryOutlineGradient(outline);
+				return QBrush(gradient);
+			}();
+			const auto storiesBrush = context.active
+				? st::dialogsUnreadBgMutedActive->b
+				: st::dialogsUnreadBgMuted->b;
+			segments.reserve(storiesCount);
+			const auto storiesReadCount = storiesCount - storiesUnreadCount;
+			for (auto i = 0; i != storiesReadCount; ++i) {
+				segments.push_back({ storiesBrush, storiesLine });
+			}
+			for (auto i = 0; i != storiesUnreadCount; ++i) {
+				segments.push_back({ storiesUnreadBrush, storiesUnread });
+			}
 		}
-		for (auto i = 0; i != storiesUnreadCount; ++i) {
-			segments.push_back({ storiesUnreadBrush, storiesUnread });
-		}
-		if (peer && peer->forum()) {
+		if (peer && (peer->forum() || peer->monoforum())) {
 			const auto radius = context.st->photoSize
 				* Ui::ForumUserpicRadiusMultiplier();
 			Ui::PaintOutlineSegments(q, outline, radius, segments);
 		} else {
 			Ui::PaintOutlineSegments(q, outline, segments);
+		}
+
+		if (data->storiesHasVideoStream) {
+			Ui::PaintLiveBadge(q, 0, 0, photoSize);
 		}
 	}
 
@@ -493,6 +537,41 @@ void Row::PaintCornerBadgeFrame(
 		return;
 	}
 
+	if (communityMember) {
+		if (!hq) {
+			hq.emplace(q);
+		}
+		q.setCompositionMode(QPainter::CompositionMode_Source);
+		const auto size = st::dialogsCommunityBadgeSize;
+		const auto &skip = st::dialogsCommunityBadgeSkip;
+		const auto rect = QRectF(
+			photoSize - skip.x() - size,
+			photoSize - skip.y() - size,
+			size,
+			size);
+		auto pen = QPen(Qt::transparent);
+		pen.setWidthF(st::dialogsCommunityBadgeStroke);
+		q.setPen(pen);
+		q.setBrush(st::windowFg);
+		q.drawEllipse(rect);
+		q.setCompositionMode(QPainter::CompositionMode_SourceOver);
+
+		const auto center = rect.center();
+		const auto arm = size / 4.;
+		auto arrow = QPen(st::windowBg->c);
+		arrow.setWidthF(st::dialogsCommunityBadgeLine);
+		arrow.setCapStyle(Qt::RoundCap);
+		arrow.setJoinStyle(Qt::MiterJoin);
+		q.setPen(arrow);
+		q.setBrush(Qt::NoBrush);
+		auto path = QPainterPath();
+		path.moveTo(center.x() - arm, center.y() - arm / 2.);
+		path.lineTo(center.x(), center.y() + arm / 2.);
+		path.lineTo(center.x() + arm, center.y() - arm / 2.);
+		q.drawPath(path);
+		return;
+	}
+
 	const auto &manager = data->layersManager;
 	if (const auto p = manager.progressForLayer(kBottomLayer); p > 0.) {
 		const auto size = photoSize;
@@ -503,6 +582,27 @@ void Row::PaintCornerBadgeFrame(
 		const auto point = CornerBadgeTTLRect(size).topLeft();
 		q.drawImage(point, data->cacheTTL);
 		q.setOpacity(1.);
+	}
+	if (const auto p = manager.progressForLayer(kHiddenLayer); p > 0.) {
+		const auto rect = CornerBadgeHiddenRect(photoSize);
+		if (data->cacheHidden.isNull() && peer && hidden) {
+			data->cacheHidden = CornerBadgeHidden(peer, view, photoSize);
+		}
+		if (!data->cacheHidden.isNull()) {
+			q.setOpacity(p);
+			q.drawImage(rect.topLeft(), data->cacheHidden);
+			q.setOpacity(1.);
+			if (!hq) {
+				hq.emplace(q);
+			}
+			q.setCompositionMode(QPainter::CompositionMode_Source);
+			auto pen = QPen(Qt::transparent);
+			pen.setWidthF(st::dialogsOnlineBadgeStroke * p);
+			q.setPen(pen);
+			q.setBrush(Qt::NoBrush);
+			q.drawEllipse(QRectF(rect));
+			q.setCompositionMode(QPainter::CompositionMode_SourceOver);
+		}
 	}
 	const auto topLayerProgress = manager.progressForLayer(kTopLayer);
 	if (!topLayerProgress) {
@@ -545,8 +645,33 @@ void Row::paintUserpic(
 		Ui::VideoUserpic *videoUserpic,
 		const Ui::PaintContext &context,
 		bool hasUnreadBadgesAbove) const {
+	const auto communityChannel = peer ? peer->asChannel() : nullptr;
+	if (communityChannel && communityChannel->isCommunity()) {
+		if (!_communityUserpicEffect) {
+			_communityUserpicEffect
+				= std::make_unique<Ui::CommunityUserpicEffect>();
+		}
+		Ui::PaintCommunityUserpicEffect(
+			p,
+			*_communityUserpicEffect,
+			context.st->padding.left(),
+			context.st->padding.top(),
+			context.st->photoSize,
+			st::windowSubTextFg->c);
+	} else if (_communityUserpicEffect) {
+		_communityUserpicEffect = nullptr;
+	}
+	const auto insideCommunity = context.insideCommunity;
+	const auto hidden = peer
+		&& context.community
+		&& context.community->isHidden(peer);
 	if (peer) {
-		updateCornerBadgeShown(peer, nullptr, hasUnreadBadgesAbove);
+		updateCornerBadgeShown(
+			peer,
+			nullptr,
+			hasUnreadBadgesAbove,
+			insideCommunity,
+			hidden);
 	}
 
 	const auto cornerBadgeShown = !_cornerBadgeUserpic
@@ -559,7 +684,7 @@ void Row::paintUserpic(
 	const auto storiesHas = storiesPeer
 		? storiesPeer->hasActiveStories()
 		: storiesFolder
-		? storiesFolder->storiesCount()
+		? (storiesFolder->storiesCount() > 0)
 		: false;
 	if (!cornerBadgeShown && !storiesHas) {
 		BasicRow::paintUserpic(p, entry, peer, videoUserpic, context, false);
@@ -594,6 +719,11 @@ void Row::paintUserpic(
 		: (storiesPeer && storiesPeer->hasUnreadStories())
 		? 1
 		: 0;
+	const auto storiesHasVideoStream = storiesSource
+		? storiesSource->hasVideoStream
+		: (storiesPeer && storiesPeer->hasActiveVideoStream())
+		? 1
+		: 0;
 	const auto limit = Ui::kOutlineSegmentsMax;
 	const auto storiesCount = std::min(storiesCountReal, limit);
 	const auto storiesUnreadCount = std::min(storiesUnreadCountReal, limit);
@@ -613,21 +743,34 @@ void Row::paintUserpic(
 		|| (_cornerBadgeUserpic->paletteVersion != paletteVersion);
 	if (keyChanged) {
 		_cornerBadgeUserpic->cacheTTL = QImage();
+		_cornerBadgeUserpic->cacheHidden = QImage();
 	}
+	const auto badgeChannel = peer ? peer->asChannel() : nullptr;
+	const auto badgeUser = peer ? peer->asUser() : nullptr;
 	const auto subscribed = Data::ChannelHasSubscriptionUntilDate(
-		peer ? peer->asChannel() : nullptr);
+		badgeChannel);
+	const auto communityMember = peer
+		&& Data::PeerLinkedCommunityId(peer)
+		&& !(badgeChannel && Data::ChannelHasActiveCall(badgeChannel))
+		&& !(badgeUser && Data::IsUserOnline(badgeUser))
+		&& !subscribed
+		&& !insideCommunity;
 	if (keyChanged
 		|| !_cornerBadgeUserpic->layersManager.isFinished()
 		|| _cornerBadgeUserpic->active != active
+		|| _cornerBadgeUserpic->hidden != (hidden ? 1 : 0)
 		|| _cornerBadgeUserpic->frameIndex != frameIndex
 		|| _cornerBadgeUserpic->storiesCount != storiesCount
 		|| _cornerBadgeUserpic->storiesUnreadCount != storiesUnreadCount
+		|| _cornerBadgeUserpic->storiesHasVideoStream != storiesHasVideoStream
 		|| videoUserpic) {
 		_cornerBadgeUserpic->key = key;
 		_cornerBadgeUserpic->paletteVersion = paletteVersion;
 		_cornerBadgeUserpic->active = active;
+		_cornerBadgeUserpic->hidden = hidden ? 1 : 0;
 		_cornerBadgeUserpic->storiesCount = storiesCount;
 		_cornerBadgeUserpic->storiesUnreadCount = storiesUnreadCount;
+		_cornerBadgeUserpic->storiesHasVideoStream = storiesHasVideoStream;
 		_cornerBadgeUserpic->frameIndex = frameIndex;
 		_cornerBadgeUserpic->layersManager.markFrameShown();
 		PaintCornerBadgeFrame(
@@ -638,14 +781,21 @@ void Row::paintUserpic(
 			videoUserpic,
 			userpicView(),
 			context,
-			subscribed);
+			subscribed,
+			communityMember,
+			hidden);
 	}
 	p.drawImage(
 		context.st->padding.left() - framePadding,
 		context.st->padding.top() - framePadding,
 		_cornerBadgeUserpic->frame);
 	const auto history = _id.history();
-	if (!history || history->peer->isUser() || subscribed) {
+	if (!history
+		|| history->peer->isUser()
+		|| subscribed
+		|| communityMember
+		|| (hidden
+			&& !(badgeChannel && Data::ChannelHasActiveCall(badgeChannel)))) {
 		return;
 	}
 	const auto actionPainter = history->sendActionPainter();
@@ -758,6 +908,12 @@ const Ui::Text::String &FakeRow::name() const {
 			Ui::NameTextOptions());
 	}
 	return _name;
+}
+
+DateText FakeRow::dateText(
+		TimeId date,
+		crl::time now) const {
+	return ResolveDateText(_dateCache, date, now);
 }
 
 } // namespace Dialogs

@@ -28,10 +28,18 @@ UniversalMsgId GetUniversalId(not_null<const BaseLayout*> layout) {
 	return GetUniversalId(layout->getItem()->fullId());
 }
 
+uint64 GetLayoutCacheKey(not_null<const BaseLayout*> layout) {
+	return uint64(reinterpret_cast<quintptr>(layout.get()));
+}
+
 bool ChangeItemSelection(
 		ListSelectedMap &selected,
 		not_null<const HistoryItem*> item,
-		ListItemSelectionData selectionData) {
+		ListItemSelectionData selectionData,
+		int limit) {
+	if (!limit) {
+		limit = MaxSelectedItems;
+	}
 	const auto changeExisting = [&](auto it) {
 		if (it == selected.cend()) {
 			return false;
@@ -41,7 +49,7 @@ bool ChangeItemSelection(
 		}
 		return false;
 	};
-	if (selected.size() < MaxSelectedItems) {
+	if (selected.size() < limit) {
 		const auto &[i, ok] = selected.try_emplace(item, selectionData);
 		if (ok) {
 			return true;
@@ -58,6 +66,7 @@ int MinItemHeight(Type type, int width) {
 	case Type::Photo:
 	case Type::GIF:
 	case Type::Video:
+	case Type::PhotoVideo:
 	case Type::RoundFile: {
 		auto itemsLeft = st::infoMediaSkip;
 		auto itemsInRow = (width - itemsLeft)

@@ -96,8 +96,7 @@ void DocumentSaveClickHandler::Save(
 			return;
 		}
 		const auto filepath = data->filepath(true);
-		const auto fileinfo = QFileInfo(
-			);
+		const auto fileinfo = QFileInfo(filepath);
 		const auto filedir = filepath.isEmpty()
 			? QDir()
 			: fileinfo.dir();

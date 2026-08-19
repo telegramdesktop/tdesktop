@@ -38,7 +38,7 @@ PinnedBar::PinnedBar(
 	}));
 
 	_wrap.entity()->paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
+	) | rpl::on_next([=](QRect clip) {
 		QPainter(_wrap.entity()).fillRect(clip, st::historyPinnedBg);
 	}, lifetime());
 	_wrap.setAttribute(Qt::WA_OpaquePaintEvent);
@@ -46,7 +46,7 @@ PinnedBar::PinnedBar(
 	if (customEmojiPausedChanges) {
 		std::move(
 			customEmojiPausedChanges
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			_wrap.entity()->update();
 		}, lifetime());
 	}
@@ -67,7 +67,7 @@ void PinnedBar::setContent(rpl::producer<Ui::MessageBarContent> content) {
 		copy
 	) | rpl::filter([=](const MessageBarContent &content) {
 		return !content.title.isEmpty() || !content.text.text.isEmpty();
-	}) | rpl::start_with_next([=](MessageBarContent &&content) {
+	}) | rpl::on_next([=](MessageBarContent &&content) {
 		const auto creating = !_bar;
 		if (creating) {
 			createControls();
@@ -88,7 +88,7 @@ void PinnedBar::setContent(rpl::producer<Ui::MessageBarContent> content) {
 		copy
 	) | rpl::map([=](const MessageBarContent &content) {
 		return content.title.isEmpty() || content.text.text.isEmpty();
-	}) | rpl::start_with_next_done([=](bool hidden) {
+	}) | rpl::on_next_done([=](bool hidden) {
 		_shouldBeShown = !hidden;
 		if (!_forceHidden) {
 			_wrap.toggle(_shouldBeShown, anim::type::normal);
@@ -106,7 +106,7 @@ void PinnedBar::setRightButton(object_ptr<Ui::RpWidget> button) {
 	if (auto previous = _right.button.release()) {
 		using Unique = base::unique_qptr<Ui::FadeWrapScaled<Ui::RpWidget>>;
 		_right.previousButtonLifetime = previous->shownValue(
-		) | rpl::filter(!rpl::mappers::_1) | rpl::start_with_next([=] {
+		) | rpl::filter(!rpl::mappers::_1) | rpl::on_next([=] {
 			_right.previousButtonLifetime.destroy();
 		});
 		previous->hide(anim::type::normal);
@@ -164,23 +164,29 @@ void PinnedBar::createControls() {
 
 	// Clicks.
 	_bar->widget()->setCursor(style::cur_pointer);
-	_bar->widget()->events(
-	) | rpl::filter([=](not_null<QEvent*> event) {
-		return (event->type() == QEvent::MouseButtonPress)
-			&& (static_cast<QMouseEvent*>(event.get())->button()
-					== Qt::LeftButton);
-	}) | rpl::map([=] {
-		return _bar->widget()->events(
-		) | rpl::filter([](not_null<QEvent*> event) {
-			return (event->type() == QEvent::MouseButtonRelease);
-		}) | rpl::take(1) | rpl::filter([=](not_null<QEvent*> event) {
-			return _bar->widget()->rect().contains(
-				static_cast<QMouseEvent*>(event.get())->pos());
-		});
-	}) | rpl::flatten_latest(
-	) | rpl::to_empty | rpl::start_to_stream(
-		_barClicks,
-		_bar->widget()->lifetime());
+	const auto fillClicks = [=](
+			Qt::MouseButton button,
+			rpl::event_stream<> &stream) {
+		_bar->widget()->events(
+		) | rpl::filter([=](not_null<QEvent*> event) {
+			return (event->type() == QEvent::MouseButtonPress)
+				&& (static_cast<QMouseEvent*>(event.get())->button()
+						== button);
+		}) | rpl::map([=] {
+			return _bar->widget()->events(
+			) | rpl::filter([](not_null<QEvent*> event) {
+				return (event->type() == QEvent::MouseButtonRelease);
+			}) | rpl::take(1) | rpl::filter([=](not_null<QEvent*> event) {
+				return _bar->widget()->rect().contains(
+					static_cast<QMouseEvent*>(event.get())->pos());
+			});
+		}) | rpl::flatten_latest(
+		) | rpl::to_empty | rpl::start_to_stream(
+			stream,
+			_bar->widget()->lifetime());
+	};
+	fillClicks(Qt::LeftButton, _barClicks);
+	fillClicks(Qt::RightButton, _barRightClicks);
 
 	_bar->widget()->move(0, 0);
 	_bar->widget()->show();
@@ -189,7 +195,7 @@ void PinnedBar::createControls() {
 		_bar->widget()->height());
 
 	_wrap.geometryValue(
-	) | rpl::start_with_next([=](QRect rect) {
+	) | rpl::on_next([=](QRect rect) {
 		updateShadowGeometry(rect);
 		updateControlsGeometry(rect);
 	}, _bar->widget()->lifetime());
@@ -199,7 +205,7 @@ void PinnedBar::createControls() {
 		1
 	) | rpl::filter([=](bool shown) {
 		return !shown && !_forceHidden;
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		_bar = nullptr;
 	}, _bar->widget()->lifetime());
 
@@ -247,6 +253,9 @@ void PinnedBar::move(int x, int y) {
 
 void PinnedBar::resizeToWidth(int width) {
 	_wrap.entity()->resizeToWidth(width);
+	if (!_wrap.width()) {
+		_wrap.resizeToWidth(width);
+	}
 }
 
 int PinnedBar::height() const {
@@ -263,6 +272,10 @@ rpl::producer<int> PinnedBar::heightValue() const {
 
 rpl::producer<> PinnedBar::barClicks() const {
 	return _barClicks.events();
+}
+
+rpl::producer<> PinnedBar::barRightClicks() const {
+	return _barRightClicks.events();
 }
 
 rpl::producer<> PinnedBar::contextMenuRequested() const {

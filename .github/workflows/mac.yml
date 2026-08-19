@@ -40,7 +40,7 @@ jobs:
 
   macos:
     name: MacOS
-    runs-on: macos-13
+    runs-on: ${{ (github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/nightly') && 'depot-macos-latest' || 'macos-latest' }}
 
     strategy:
       matrix:
@@ -56,7 +56,7 @@ jobs:
         run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
 
       - name: Clone.
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
           path: ${{ env.REPO_NAME }}
@@ -67,26 +67,22 @@ jobs:
 
           brew update
           brew upgrade || true
-          brew install automake meson nasm ninja pkg-config
+          brew install automake libtool meson nasm ninja pkg-config
 
           # Disable spotlight.
           sudo mdutil -a -i off
 
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
-      - name: ThirdParty cache.
-        id: cache-third-party
-        uses: actions/cache@v4
-        with:
-          path: ThirdParty
-          key: ${{ runner.OS }}-third-party-${{ hashFiles(format('{0}/{1}', env.REPO_NAME, env.PREPARE_PATH)) }}
-          restore-keys: ${{ runner.OS }}-third-party-
+          sudo sed -i '' '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/ -g//' /opt/homebrew/share/cmake/Modules/Compiler/GNU.cmake
 
       - name: Libraries cache.
         id: cache-libs
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
-          path: Libraries
+          path: |
+            Libraries
+            ThirdParty
           key: ${{ runner.OS }}-libs-${{ hashFiles(format('{0}/{1}', env.REPO_NAME, env.PREPARE_PATH)) }}
           restore-keys: ${{ runner.OS }}-libs-
 
@@ -95,9 +91,7 @@ jobs:
           ./$REPO_NAME/Telegram/build/prepare/mac.sh skip-release silent
 
       - name: Free up some disk space.
-        run: |
-          cd Libraries
-          find . -iname "*.dir" -exec rm -rf {} || true \;
+        run: find Libraries '(' '(' ! '(' -name '*.a' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -perm +111 ')' -type f ')' -o -empty ')' -delete
 
       - name: Telegram Desktop build.
         if: env.ONLY_CACHE == 'false'
@@ -108,7 +102,7 @@ jobs:
           if [ -n "${{ matrix.defines }}" ]; then
             DEFINE="-D ${{ matrix.defines }}=ON"
             echo Define from matrix: $DEFINE
-            echo "ARTIFACT_NAME=Telegram_${{ matrix.defines }}" >> $GITHUB_ENV
+            echo "ARTIFACT_NAME=Telegram ${{ matrix.defines }}" >> $GITHUB_ENV
           else
             echo "ARTIFACT_NAME=Telegram" >> $GITHUB_ENV
           fi
@@ -131,7 +125,7 @@ jobs:
           mkdir artifact
           mv Telegram.app artifact/
           mv Updater artifact/
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: env.UPLOAD_ARTIFACT == 'true'
         name: Upload artifact.
         with:

@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-class StarsAmount;
+class CreditsAmount;
 
 enum lngtag_count : int;
 
@@ -26,17 +26,21 @@ struct ShortenedCount {
 	QString string;
 	bool shortened = false;
 };
-[[nodiscard]] ShortenedCount FormatCountToShort(int64 number);
+[[nodiscard]] ShortenedCount FormatCountToShort(
+	int64 number,
+	bool onlyK = false);
 [[nodiscard]] QString FormatCountDecimal(int64 number);
 [[nodiscard]] QString FormatExactCountDecimal(float64 number);
-[[nodiscard]] ShortenedCount FormatStarsAmountToShort(StarsAmount amount);
-[[nodiscard]] QString FormatStarsAmountDecimal(StarsAmount amount);
-[[nodiscard]] QString FormatStarsAmountRounded(StarsAmount amount);
+[[nodiscard]] ShortenedCount FormatCreditsAmountToShort(
+	CreditsAmount amount);
+[[nodiscard]] QString FormatCreditsAmountDecimal(CreditsAmount amount);
+[[nodiscard]] QString FormatCreditsAmountRounded(CreditsAmount amount);
 
 struct PluralResult {
 	int keyShift = 0;
 	QString replacement;
 };
+inline constexpr auto kPluralKeyBaseForCloudValue = ushort(-1);
 PluralResult Plural(
 	ushort keyBase,
 	float64 value,

@@ -16,12 +16,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/toast/toast.h"
 #include "ui/widgets/menu/menu_multiline_action.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_calls.h"
 #include "styles/style_chat.h" // popupMenuExpandedSeparator.
+#include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
 
 namespace {
@@ -72,7 +74,7 @@ void RequestResolveBankCard(
 class ResolveBankCardAction final : public Ui::Menu::ItemBase {
 public:
 	ResolveBankCardAction(
-		not_null<Ui::RpWidget*> parent,
+		not_null<Ui::Menu::Menu*> parent,
 		const style::Menu &st);
 
 	void setStatus(Status status);
@@ -98,14 +100,14 @@ private:
 };
 
 ResolveBankCardAction::ResolveBankCardAction(
-	not_null<Ui::RpWidget*> parent,
+	not_null<Ui::Menu::Menu*> parent,
 	const style::Menu &st)
 : ItemBase(parent, st)
 , _dummyAction(Ui::CreateChild<QAction>(parent))
 , _st(st)
 , _height(st::groupCallJoinAsPhotoSize) {
 	setAcceptBoth(true);
-	initResizeHook(parent->sizeValue());
+	fitToMenuWidth();
 	setStatus(Status::Loading);
 }
 
@@ -190,7 +192,11 @@ void BankCardClickHandler::onClick(ClickContext context) const {
 	const auto copy = [bankCard, show = controller->uiShow()] {
 		TextUtilities::SetClipboardText(
 			TextForMimeData::Simple(bankCard));
-		show->showToast(tr::lng_context_bank_card_copied(tr::now));
+		show->showToast({
+			.text = { tr::lng_context_bank_card_copied(tr::now) },
+			.iconLottie = u"toast/copy"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
 	};
 
 	menu->addAction(
@@ -199,7 +205,7 @@ void BankCardClickHandler::onClick(ClickContext context) const {
 		&st::menuIconCopy);
 
 	auto resolveBankCardAction = base::make_unique_q<ResolveBankCardAction>(
-		menu,
+		menu->menu(),
 		menu->st().menu);
 	const auto resolveBankCardRaw = resolveBankCardAction.get();
 
@@ -209,12 +215,12 @@ void BankCardClickHandler::onClick(ClickContext context) const {
 
 	const auto addTitle = [=](const QString &name) {
 		auto button = base::make_unique_q<Ui::Menu::MultilineAction>(
-			menu,
+			menu->menu(),
 			menu->st().menu,
 			st::historyHasCustomEmoji,
 			st::historyBankCardMenuMultilinePosition,
 			TextWithEntities{ name });
-		button->setClickedCallback(copy);
+		button->setActionTriggered(copy);
 		menu->addAction(std::move(button));
 	};
 

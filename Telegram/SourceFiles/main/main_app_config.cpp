@@ -10,9 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_authorizations.h"
 #include "apiwrap.h"
 #include "base/call_delayed.h"
+#include "calls/group/ui/calls_group_stars_coloring.h"
+#include "data/data_session.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
-#include "data/data_session.h"
 #include "ui/chat/chat_style.h"
 
 namespace Main {
@@ -26,7 +27,7 @@ AppConfig::AppConfig(not_null<Account*> account) : _account(account) {
 	account->sessionChanges(
 	) | rpl::filter([=](Session *session) {
 		return (session != nullptr);
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		_lastFrozenRefresh = 0;
 		refresh();
 	}, _lifetime);
@@ -36,12 +37,13 @@ AppConfig::~AppConfig() = default;
 
 void AppConfig::start() {
 	_account->mtpMainSessionValue(
-	) | rpl::start_with_next([=](not_null<MTP::Instance*> instance) {
+	) | rpl::on_next([=](not_null<MTP::Instance*> instance) {
 		_api.emplace(instance);
+		_requestId = 0;
 		refresh();
 
 		_frozenTrackLifetime = instance->frozenErrorReceived(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			if (!get<int>(u"freeze_since_date"_q, 0)) {
 				const auto now = crl::now();
 				if (!_lastFrozenRefresh
@@ -62,6 +64,12 @@ int AppConfig::stargiftConvertPeriodMax() const {
 	return get<int>(
 		u"stargifts_convert_period_max"_q,
 		_account->mtp().isTestMode() ? 300 : (90 * 86400));
+}
+
+int AppConfig::noForwardsRequestExpirePeriod() const {
+	return get<int>(
+		u"no_forwards_request_expire_period"_q,
+		_account->mtp().isTestMode() ? 300 : 86400);
 }
 
 const std::vector<QString> &AppConfig::startRefPrefixes() {
@@ -89,8 +97,28 @@ int AppConfig::starrefCommissionMax() const {
 	return get<int>(u"starref_max_commission_permille"_q, 900);
 }
 
+int AppConfig::starsWithdrawMax() const {
+	return get<int>(u"stars_revenue_withdrawal_max"_q, 100);
+}
+
 float64 AppConfig::starsWithdrawRate() const {
 	return get<float64>(u"stars_usd_withdraw_rate_x1000"_q, 1300) / 1000.;
+}
+
+float64 AppConfig::currencyWithdrawRate() const {
+	return get<float64>(u"ton_usd_rate"_q, 1);
+}
+
+float64 AppConfig::starsSellRate() const {
+	return get<float64>(u"stars_usd_sell_rate_x1000"_q, 1410) / 1000.;
+}
+
+float64 AppConfig::currencySellRate() const {
+	return get<float64>(u"ton_usd_rate"_q, 1);
+}
+
+bool AppConfig::starsSpendTopupInvoiceDisabled() const {
+	return get<bool>(u"stars_spend_topup_invoice_disabled"_q, false);
 }
 
 bool AppConfig::paidMessagesAvailable() const {
@@ -105,8 +133,20 @@ int AppConfig::paidMessageCommission() const {
 	return get<int>(u"stars_paid_message_commission_permille"_q, 850);
 }
 
+int AppConfig::paidMessageChannelStarsDefault() const {
+	return get<int>(u"stars_paid_messages_channel_amount_default"_q, 10);
+}
+
 int AppConfig::pinnedGiftsLimit() const {
 	return get<int>(u"stargifts_pinned_to_top_limit"_q, 6);
+}
+
+int AppConfig::giftCollectionsLimit() const {
+	return get<int>(u"stargifts_collections_limit"_q, 10);
+}
+
+int AppConfig::giftCollectionGiftsLimit() const {
+	return get<int>(u"stargifts_collection_gifts_limit"_q, 500);
 }
 
 bool AppConfig::callsDisabledForSession() const {
@@ -128,16 +168,159 @@ bool AppConfig::confcallPrioritizeVP8() const {
 	return get<bool>(u"confcall_use_vp8"_q, false);
 }
 
-int AppConfig::giftResalePriceMax() const {
-	return get<int>(u"stars_stargift_resale_amount_max"_q, 35000);
-}
-
-int AppConfig::giftResalePriceMin() const {
+int AppConfig::giftResaleStarsMin() const {
 	return get<int>(u"stars_stargift_resale_amount_min"_q, 125);
 }
 
-int AppConfig::giftResaleReceiveThousandths() const {
+int AppConfig::giftResaleStarsMax() const {
+	return get<int>(u"stars_stargift_resale_amount_max"_q, 35000);
+}
+
+int AppConfig::giftResaleStarsThousandths() const {
 	return get<int>(u"stars_stargift_resale_commission_permille"_q, 800);
+}
+
+int64 AppConfig::giftResaleNanoTonMin() const {
+	return get<int64>(u"ton_stargift_resale_amount_min"_q, 250'000'000LL);
+}
+
+int64 AppConfig::giftResaleNanoTonMax() const {
+	return get<int64>(
+		u"ton_stargift_resale_amount_max"_q,
+		1'000'000'000'000'000LL);
+}
+
+int AppConfig::giftResaleNanoTonThousandths() const {
+	return get<int>(u"ton_stargift_resale_commission_permille"_q, 800);
+}
+
+int AppConfig::pollOptionsLimit() const {
+	return get<int>(u"poll_answers_max"_q, 12);
+}
+
+int AppConfig::pollAnswerDeletePeriod() const {
+	return get<int>(u"poll_answer_delete_period"_q, 300);
+}
+
+int AppConfig::pollCountriesMax() const {
+	return get<int>(u"poll_countries_max"_q, 12);
+}
+
+QString AppConfig::phoneCountryIso2() const {
+	return get<QString>(u"phone_country_iso2"_q, QString());
+}
+
+int AppConfig::todoListItemsLimit() const {
+	return get<int>(
+		u"todo_items_max"_q,
+		_account->mtp().isTestMode() ? 10 : 30);
+}
+
+int AppConfig::todoListTitleLimit() const {
+	return get<int>(u"todo_title_length_max"_q, 32);
+}
+
+int AppConfig::todoListItemTextLimit() const {
+	return get<int>(u"todo_item_length_max"_q, 64);
+}
+
+int AppConfig::suggestedPostCommissionStars() const {
+	return get<int>(u"stars_suggested_post_commission_permille"_q, 850);
+}
+
+int AppConfig::suggestedPostCommissionTon() const {
+	return get<int>(u"ton_suggested_post_commission_permille"_q, 850);
+}
+
+int AppConfig::suggestedPostStarsMin() const {
+	return get<int>(u"stars_suggested_post_amount_min"_q, 5);
+}
+
+int AppConfig::suggestedPostStarsMax() const {
+	return get<int>(u"stars_suggested_post_amount_max"_q, 100'000);
+}
+
+int64 AppConfig::suggestedPostNanoTonMin() const {
+	return get<int64>(u"ton_suggested_post_amount_min"_q, 10'000'000LL);
+}
+
+int64 AppConfig::suggestedPostNanoTonMax() const {
+	return get<int64>(
+		u"ton_suggested_post_amount_max"_q,
+		10'000'000'000'000LL);
+}
+
+int AppConfig::suggestedPostDelayMin() const {
+	return get<int>(u"stars_suggested_post_future_min"_q, 300);
+}
+
+int AppConfig::suggestedPostDelayMax() const {
+	return get<int>(u"appConfig.stars_suggested_post_future_max"_q, 2678400);
+}
+
+TimeId AppConfig::suggestedPostAgeMin() const {
+	return get<int>(u"stars_suggested_post_age_min"_q, 86400);
+}
+
+bool AppConfig::ageVerifyNeeded() const {
+	return get<bool>(u"need_age_video_verification"_q, false);
+}
+
+QString AppConfig::ageVerifyCountry() const {
+	return get<QString>(u"verify_age_country"_q, QString());
+}
+
+int AppConfig::ageVerifyMinAge() const {
+	return get<int>(u"verify_age_min"_q, 18);
+}
+
+QString AppConfig::ageVerifyBotUsername() const {
+	return get<QString>(u"verify_age_bot_username"_q, QString());
+}
+
+int AppConfig::storiesAlbumsLimit() const {
+	return get<int>(u"stories_albums_limit"_q, 100);
+}
+
+int AppConfig::storiesAlbumLimit() const {
+	return get<int>(u"stories_album_stories_limit"_q, 1000);
+}
+
+int AppConfig::groupCallMessageLengthLimit() const {
+	return get<int>(u"group_call_message_length_limit"_q, 128);
+}
+
+TimeId AppConfig::groupCallMessageTTL() const {
+	return get<int>(u"group_call_message_ttl"_q, 10);
+}
+
+int AppConfig::passkeysAccountPasskeysMax() const {
+	return get<int>(u"passkeys_account_passkeys_max"_q, 10);
+}
+
+bool AppConfig::settingsDisplayPasskeys() const {
+	return get<bool>(u"settings_display_passkeys"_q, false);
+}
+
+int64 AppConfig::stakeDiceNanoTonMin() const {
+	return get<int64>(u"ton_stakedice_stake_amount_min"_q, 100'000'000LL);
+}
+
+int64 AppConfig::stakeDiceNanoTonMax() const {
+	return get<int64>(u"ton_stakedice_stake_amount_max"_q, 50'000'000'000LL);
+}
+
+std::vector<int64> AppConfig::stakeDiceNanoTonSuggested() const {
+	return get<std::vector<int64>>(
+		u"ton_stakedice_stake_suggested_amounts"_q,
+		std::vector<int64>{
+			100'000'000LL,
+			1'000'000'000LL,
+			2'000'000'000LL,
+			5'000'000'000LL,
+			10'000'000'000LL,
+			20'000'000'000LL,
+		});
 }
 
 void AppConfig::refresh(bool force) {
@@ -169,6 +352,8 @@ void AppConfig::refresh(bool force) {
 				});
 			}
 			updateIgnoredRestrictionReasons(std::move(was));
+
+			_groupCallColorings = {};
 
 			DEBUG_LOG(("getAppConfig result handled."));
 			_refreshed.fire({});
@@ -322,10 +507,203 @@ std::vector<int> AppConfig::getIntArray(
 	});
 }
 
+std::vector<std::vector<int>> AppConfig::getIntIntArray(
+		const QString &key,
+		std::vector<std::vector<int>> &&fallback) const {
+	return getValue(key, [&](const MTPJSONValue &value) {
+		return value.match([&](const MTPDjsonArray &data) {
+			auto result = std::vector<std::vector<int>>();
+			result.reserve(data.vvalue().v.size());
+			for (const auto &entry : data.vvalue().v) {
+				if (entry.type() != mtpc_jsonArray) {
+					return std::move(fallback);
+				}
+				const auto &list = entry.c_jsonArray().vvalue().v;
+				auto &last = result.emplace_back();
+				last.reserve(list.size());
+				for (const auto &inner : list) {
+					if (inner.type() != mtpc_jsonNumber) {
+						return std::move(fallback);
+					}
+					last.push_back(
+						int(base::SafeRound(inner.c_jsonNumber().vvalue().v)));
+				}
+			}
+			return result;
+		}, [&](const auto &data) {
+			return std::move(fallback);
+		});
+	});
+}
+
+std::vector<int64> AppConfig::getInt64Array(
+		const QString &key,
+		std::vector<int64> &&fallback) const {
+	return getValue(key, [&](const MTPJSONValue &value) {
+		return value.match([&](const MTPDjsonArray &data) {
+			auto result = std::vector<int64>();
+			result.reserve(data.vvalue().v.size());
+			for (const auto &entry : data.vvalue().v) {
+				if (entry.type() != mtpc_jsonNumber) {
+					return std::move(fallback);
+				}
+				result.push_back(
+					int64(base::SafeRound(entry.c_jsonNumber().vvalue().v)));
+			}
+			return result;
+		}, [&](const auto &data) {
+			return std::move(fallback);
+		});
+	});
+}
+
 bool AppConfig::newRequirePremiumFree() const {
 	return get<bool>(
 		u"new_noncontact_peers_require_premium_without_ownpremium"_q,
 		false);
+}
+
+auto AppConfig::groupCallColorings() const -> std::vector<StarsColoring> {
+	if (!_groupCallColorings.empty()) {
+		return _groupCallColorings;
+	}
+	const auto key = u"stars_groupcall_message_limits"_q;
+	getValue(key, [&](const MTPJSONValue &value) {
+		value.match([&](const MTPDjsonArray &data) {
+			const auto &list = data.vvalue().v;
+			_groupCallColorings.reserve(list.size());
+			for (const auto &entry : list) {
+				entry.match([&](const MTPDjsonObject &data) {
+					auto &entry = _groupCallColorings.emplace_back();
+					const auto &fields = data.vvalue().v;
+					for (const auto &field : fields) {
+						const auto &key = field.data().vkey().v;
+						const auto &value = field.data().vvalue();
+						const auto error = [&] {
+							LOG(("API Error: Incorrect value for %1."
+								).arg(qs(key)));
+							return std::nullopt;
+						};
+						const auto number = [&]() -> std::optional<int> {
+							if (value.type() != mtpc_jsonNumber) {
+								return error();
+							}
+							const auto &data = value.c_jsonNumber();
+							const auto v = base::SafeRound(data.vvalue().v);
+							if (v < 0) {
+								return error();
+							}
+							return int(v);
+						};
+						const auto color = [&]() -> std::optional<int> {
+							if (value.type() != mtpc_jsonString) {
+								return error();
+							}
+							const auto &data = value.c_jsonString();
+							const auto text = data.vvalue().v;
+							if (text.size() != 6) {
+								return error();
+							}
+							const auto digit = [&](int i) {
+								Expects(i >= 0 && i < 6);
+
+								const auto ch = text[i];
+								return (ch >= '0' && ch <= '9')
+									? int(ch - '0')
+									: (ch >= 'A' && ch <= 'F')
+									? (int(ch - 'A') + 10)
+									: (ch >= 'a' && ch <= 'f')
+									? (int(ch - 'a') + 10)
+									: std::optional<int>();
+							};
+							const auto component = [&](int i) {
+								const auto a = digit(i), b = digit(i + 1);
+								return (a && b)
+									? ((*a) * 16 + (*b))
+									: std::optional<int>();
+							};
+							const auto r = component(0);
+							const auto g = component(2);
+							const auto b = component(4);
+							if (!r || !g || !b) {
+								return error();
+							}
+							return ((*r) << 16) | ((*g) << 8) | (*b);
+						};
+						if (key == "stars"_q) {
+							if (const auto n = number()) {
+								entry.fromStars = *n;
+							} else {
+								return _groupCallColorings.pop_back();
+							}
+						} else if (key == "pin_period"_q) {
+							if (const auto n = number()) {
+								entry.secondsPin = *n;
+							} else {
+								return _groupCallColorings.pop_back();
+							}
+						} else if (key == "text_length_max"_q) {
+							if (const auto n = number()) {
+								entry.charactersMax = *n;
+							} else {
+								return _groupCallColorings.pop_back();
+							}
+						} else if (key == "emoji_max"_q) {
+							if (const auto n = number()) {
+								entry.emojiLimit = *n;
+							} else {
+								return _groupCallColorings.pop_back();
+							}
+						} else if (key == "color1"_q) {
+							if (const auto c = color()) {
+								entry.bgLight = *c;
+							} else {
+								return _groupCallColorings.pop_back();
+							}
+						} else if (key == "color_bg"_q) {
+							if (const auto c = color()) {
+								entry.bgDark = *c;
+							} else {
+								return _groupCallColorings.pop_back();
+							}
+						}
+					}
+				}, [](const auto &) {});
+			}
+		}, [](const auto &) {});
+	});
+	if (_groupCallColorings.empty()) {
+		_groupCallColorings = std::vector<StarsColoring>{
+			{ 0x955CDB, 0x49079B, 0, 30, 30, 0 }, // purple
+			{ 0x955CDB, 0x49079B, 10, 60, 60, 1 }, // still purple
+			{ 0x46A3EB, 0x00508E, 50, 120, 80, 2 }, // blue
+			{ 0x40A920, 0x176200, 100, 300, 110, 3 }, // green
+			{ 0xE29A09, 0x9A3E00, 250, 600, 150, 4 }, // yellow
+			{ 0xED771E, 0x9B3100, 500, 900, 200, 7 }, // orange
+			{ 0xE14542, 0x8B0503, 2'000, 1800, 280, 10 }, // red
+			{ 0x596473, 0x252C36, 10'000, 3600, 400, 20 }, // silver
+		};
+	} else {
+		const auto proj = &StarsColoring::fromStars;
+		if (!ranges::contains(_groupCallColorings, 0, proj)) {
+			_groupCallColorings.insert(
+				begin(_groupCallColorings),
+				{ 0x955CDB, 0x49079B, 0, 30, 30, 0 });
+		}
+		ranges::sort(_groupCallColorings, ranges::less(), proj);
+	}
+	return _groupCallColorings;
+}
+
+std::vector<std::vector<int>> AppConfig::craftAttributePermilles() const {
+	return get<std::vector<std::vector<int>>>(
+		u"stargifts_craft_attribute_permilles"_q,
+		{
+			{ 90 },
+			{ 80, 200 },
+			{ 70, 190, 460 },
+			{ 60, 180, 450, 1000 },
+		});
 }
 
 } // namespace Main

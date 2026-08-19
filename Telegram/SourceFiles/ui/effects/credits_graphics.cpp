@@ -26,17 +26,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
-#include "ui/text/text_custom_emoji.h"
+#include "ui/text/custom_emoji_instance.h"
+#include "ui/text/format_values.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/fields/number_input.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "styles/style_channel_earn.h"
+#include "styles/style_color_indices.h"
 #include "styles/style_credits.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_intro.h" // introFragmentIcon.
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
-#include "styles/style_widgets.h"
 
 #include <QtSvg/QSvgRenderer>
 
@@ -77,7 +79,7 @@ PaintRoundImageCallback MultiThumbnail(
 		q.setBrush(st::shadowFg);
 		q.drawRoundedRect(QRect(0, shift, smaller, smaller), radius, radius);
 		q.setPen(st::toastFg);
-		q.setFont(style::font(smaller / 2, style::FontFlag::Semibold, 0));
+		q.setFont(style::font(smaller / 2, style::FontFlag::Bold, 0));
 		q.drawText(
 			QRect(0, shift, smaller, smaller),
 			QString::number(totalCount),
@@ -154,7 +156,7 @@ not_null<RpWidget*> CreateSingleStarWidget(
 	const auto image = GenerateStars(height, 1);
 	widget->resize(image.size() / style::DevicePixelRatio());
 	widget->paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		auto p = QPainter(widget);
 		p.drawImage(0, 0, image);
 	}, widget->lifetime());
@@ -164,21 +166,25 @@ not_null<RpWidget*> CreateSingleStarWidget(
 
 not_null<MaskedInputField*> AddInputFieldForCredits(
 		not_null<VerticalLayout*> container,
-		rpl::producer<StarsAmount> value) {
+		rpl::producer<CreditsAmount> value) {
 	const auto &st = st::botEarnInputField;
 	const auto inputContainer = container->add(
 		CreateSkipWidget(container, st.heightMin));
-	const auto currentValue = rpl::variable<StarsAmount>(
+	const auto currentValue = rpl::variable<CreditsAmount>(
 		rpl::duplicate(value));
 	const auto input = CreateChild<NumberInput>(
 		inputContainer,
 		st,
-		tr::lng_bot_earn_out_ph(),
+		tr::lng_bot_earn_out_ph_max(
+			lt_amount,
+			currentValue.value() | rpl::map([](CreditsAmount amount) {
+				return QString::number(amount.whole());
+			})),
 		QString::number(currentValue.current().whole()),
 		currentValue.current().whole());
 	rpl::duplicate(
 		value
-	) | rpl::start_with_next([=](StarsAmount v) {
+	) | rpl::on_next([=](CreditsAmount v) {
 		input->changeLimit(v.whole());
 		input->setText(QString::number(v.whole()));
 	}, input->lifetime());
@@ -186,7 +192,7 @@ not_null<MaskedInputField*> AddInputFieldForCredits(
 		inputContainer,
 		st.style.font->height);
 	inputContainer->sizeValue(
-	) | rpl::start_with_next([=](const QSize &size) {
+	) | rpl::on_next([=](const QSize &size) {
 		input->resize(
 			size.width() - rect::m::sum::h(st::boxRowPadding),
 			st.heightMin);
@@ -217,11 +223,17 @@ PaintRoundImageCallback GenerateCreditsPaintUserpicCallback(
 		};
 	}
 	const auto bg = [&]() -> EmptyUserpic::BgColors {
+		if (entry.postsSearch) {
+			return {
+				st::historyPeerSavedMessagesBg,
+				st::historyPeerSavedMessagesBg2,
+			};
+		}
 		switch (entry.peerType) {
 		case Data::CreditsHistoryEntry::PeerType::API:
 			return { st::historyPeer2UserpicBg, st::historyPeer2UserpicBg2 };
 		case Data::CreditsHistoryEntry::PeerType::Peer:
-			return EmptyUserpic::UserpicColor(0);
+			return EmptyUserpic::UserpicColor(st::colorIndexRed);
 		case Data::CreditsHistoryEntry::PeerType::AppStore:
 			return { st::historyPeer7UserpicBg, st::historyPeer7UserpicBg2 };
 		case Data::CreditsHistoryEntry::PeerType::PlayMarket:
@@ -300,7 +312,9 @@ PaintRoundImageCallback GenerateCreditsPaintUserpicCallback(
 	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
 		userpic->paintCircle(p, x, y, outerWidth, size);
 		const auto rect = QRect(x, y, size, size);
-		((entry.peerType == PeerType::AppStore)
+		(entry.postsSearch
+			? st::creditsHistorySearchPostsIcon
+			: (entry.peerType == PeerType::AppStore)
 			? st::sessionIconiPhone
 			: (entry.peerType == PeerType::PlayMarket)
 			? st::sessionIconAndroid
@@ -327,8 +341,8 @@ PaintRoundImageCallback GenerateCreditsPaintEntryCallback(
 	photo->load(Data::PhotoSize::Large, {});
 
 	rpl::single(rpl::empty_value()) | rpl::then(
-		photo->owner().session().downloaderTaskFinished()
-	) | rpl::start_with_next([=] {
+		photo->session().downloaderTaskFinished()
+	) | rpl::on_next([=] {
 		using Size = Data::PhotoSize;
 		if (const auto large = state->view->image(Size::Large)) {
 			state->imagePtr = large;
@@ -377,8 +391,8 @@ PaintRoundImageCallback GenerateCreditsPaintEntryCallback(
 	video->loadThumbnail({});
 
 	rpl::single(rpl::empty_value()) | rpl::then(
-		video->owner().session().downloaderTaskFinished()
-	) | rpl::start_with_next([=] {
+		video->session().downloaderTaskFinished()
+	) | rpl::on_next([=] {
 		if (const auto thumbnail = state->view->thumbnail()) {
 			state->imagePtr = thumbnail;
 		}
@@ -555,6 +569,10 @@ TextWithEntities GenerateEntryName(const Data::CreditsHistoryEntry &entry) {
 				Info::BotStarRef::FormatCommission(entry.starrefCommission)
 			},
 			TextWithEntities::Simple)
+		: entry.isLiveStoryReaction()
+		? tr::lng_credits_paid_messages_fee_live_reaction(
+			tr::now,
+			TextWithEntities::Simple)
 		: entry.paidMessagesCount
 		? tr::lng_credits_paid_messages_fee(
 			tr::now,
@@ -567,8 +585,8 @@ TextWithEntities GenerateEntryName(const Data::CreditsHistoryEntry &entry) {
 		? tr::lng_credits_box_history_entry_api
 		: entry.reaction
 		? tr::lng_credits_box_history_entry_reaction_name
-		: entry.giftUpgraded
-		? tr::lng_credits_box_history_entry_gift_upgrade
+		: entry.giftOffer
+		? tr::lng_credits_box_history_entry_gift_offer
 		: entry.giftResale
 		? (entry.in
 			? tr::lng_credits_box_history_entry_gift_sold
@@ -686,9 +704,23 @@ QImage CreditsWhiteDoubledIcon(int size, float64 outlineRatio) {
 std::unique_ptr<Ui::Text::CustomEmoji> MakeCreditsIconEmoji(
 		int height,
 		int count) {
-	return std::make_unique<Ui::Text::StaticCustomEmoji>(
-		GenerateStars(height, count),
-		u"credits_icon:%1:%2"_q.arg(height).arg(count));
+	return std::make_unique<Ui::CustomEmoji::Internal>(
+		u"credits_icon:%1:%2"_q.arg(height).arg(count),
+		GenerateStars(height, count));
+}
+
+Ui::Text::MarkedContext MakeCreditsIconContext(int height, int count) {
+	auto customEmojiFactory = [=](
+		QStringView data,
+		const Ui::Text::MarkedContext &context
+	) -> std::unique_ptr<Ui::Text::CustomEmoji> {
+		return MakeCreditsIconEmoji(height, count);
+	};
+	return { .customEmojiFactory = std::move(customEmojiFactory) };
+}
+
+TextWithEntities MakeCreditsIconEntity() {
+	return Ui::Text::SingleCustomEmoji(Ui::kCreditsCurrency);
 }
 
 } // namespace Ui

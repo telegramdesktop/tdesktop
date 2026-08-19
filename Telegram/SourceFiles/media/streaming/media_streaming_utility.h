@@ -41,6 +41,7 @@ struct Stream {
 	// Video only.
 	int rotation = 0;
 	AVRational aspect = FFmpeg::kNormalAspect;
+	float64 fps = 0.;
 	FFmpeg::SwscalePointer swscale;
 };
 

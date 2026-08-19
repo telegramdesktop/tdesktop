@@ -112,6 +112,9 @@ tlsBlockGrease seed:int = TlsBlock;
 tlsBlockPublicKey = TlsBlock;
 tlsBlockScope entries:Vector<TlsBlock> = TlsBlock;
 tlsBlockPermutation entries:Vector<Vector<TlsBlock>> = TlsBlock;
+tlsBlockM = TlsBlock;
+tlsBlockE = TlsBlock;
+tlsBlockPadding = TlsBlock;
 
 ---functions---
 

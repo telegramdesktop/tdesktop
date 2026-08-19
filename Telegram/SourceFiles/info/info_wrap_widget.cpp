@@ -10,22 +10,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_widget.h"
 #include "info/profile/info_profile_values.h"
 #include "info/media/info_media_widget.h"
+#include "info/stories/info_stories_widget.h"
 #include "info/info_content_widget.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "info/info_top_bar.h"
 #include "settings/cloud_password/settings_cloud_password_email_confirm.h"
-#include "settings/settings_chat.h"
-#include "settings/settings_information.h"
-#include "settings/settings_main.h"
-#include "settings/settings_premium.h"
+#include "settings/sections/settings_chat.h"
+#include "settings/sections/settings_information.h"
+#include "settings/sections/settings_main.h"
+#include "settings/sections/settings_premium.h"
+#include "settings/settings_search.h"
 #include "ui/effects/ripple_animation.h" // MaskByDrawer.
 #include "ui/widgets/menu/menu_add_action_callback.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
+#include "ui/widgets/menu/menu_item_base.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/popup_menu.h"
-#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/search_field_controller.h"
 #include "ui/ui_utility.h"
@@ -47,10 +50,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_numbers_animation.h"
+#include "menu/menu_send.h"
 #include "styles/style_chat.h" // popupMenuExpandedSeparator
 #include "styles/style_info.h"
-#include "styles/style_profile.h"
-#include "styles/style_menu_icons.h"
 #include "styles/style_layers.h"
 
 namespace Info {
@@ -65,8 +67,14 @@ const style::InfoTopBar &TopBarStyle(Wrap wrap) {
 [[nodiscard]] bool HasCustomTopBar(not_null<const Controller*> controller) {
 	const auto section = controller->section();
 	return (section.type() == Section::Type::BotStarRef)
+		|| (section.type() == Section::Type::Profile)
+		|| (section.type() == Section::Type::Community)
 		|| ((section.type() == Section::Type::Settings)
-			&& section.settingsType()->hasCustomTopBar());
+			&& section.settingsType()->hasCustomTopBar())
+		|| (section.type() == Section::Type::Stories
+			&& controller->key().storiesAlbumId() != Stories::ArchiveId()
+			&& controller->key().storiesPeer()
+			&& controller->key().storiesPeer()->isSelf());
 }
 
 [[nodiscard]] Fn<Ui::StringWithNumbers(int)> SelectedTitleForMedia(
@@ -83,6 +91,7 @@ const style::InfoTopBar &TopBarStyle(Wrap wrap) {
 			case Type::Link: return tr::lng_media_selected_link;
 			case Type::RoundVoiceFile: return tr::lng_media_selected_audio;
 			case Type::PhotoVideo: return tr::lng_stories_row_count;
+			case Type::Poll: return tr::lng_media_selected_poll;
 			}
 			Unexpected("Type in TopBar::generateSelectedText()");
 		}()(tr::now, lt_count, count, Ui::StringWithNumbers::FromString);
@@ -123,12 +132,12 @@ WrapWidget::WrapWidget(
 		) | rpl::flatten_latest() | rpl::distinct_until_changed());
 
 	_wrap.changes(
-	) | rpl::start_with_next([this] {
+	) | rpl::on_next([this] {
 		setupTop();
 		finishShowContent();
 	}, lifetime());
 	selectedListValue(
-	) | rpl::start_with_next([this](SelectedItems &&items) {
+	) | rpl::on_next([this](SelectedItems &&items) {
 		InvokeQueued(this, [this, items = std::move(items)]() mutable {
 			if (_topBar) {
 				_topBar->setSelectedItems(std::move(items));
@@ -139,7 +148,7 @@ WrapWidget::WrapWidget(
 
 	if (const auto topic = _controller->topic()) {
 		topic->destroyed(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			if (_wrap.current() == Wrap::Layer) {
 				_controller->parentController()->hideSpecialLayer();
 			} else if (_wrap.current() == Wrap::Narrow) {
@@ -155,15 +164,39 @@ WrapWidget::WrapWidget(
 }
 
 void WrapWidget::setupShortcuts() {
+	if (_shortcutsSetup) {
+		return;
+	}
+	_shortcutsSetup = true;
+	const auto isSettings = [=] {
+		return _controller->section().type() == Section::Type::Settings;
+	};
+	const auto isContentSearch = [=] {
+		return _content && _content->searchAvailable();
+	};
+	const auto isSearchSettings = [=] {
+		return isSettings()
+			&& (_controller->section().settingsType()
+				== ::Settings::Search::Id());
+	};
+
 	Shortcuts::Requests(
 	) | rpl::filter([=] {
-		return requireTopBarSearch()
-			&& (Core::App().activeWindow()
-				== &_controller->parentController()->window());
-	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+		return (Core::App().activeWindow()
+				== &_controller->parentController()->window())
+			&& (requireTopBarSearch() || isSettings() || isContentSearch());
+	}) | rpl::on_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 		request->check(Command::Search) && request->handle([=] {
-			_topBar->showSearch();
+			if (requireTopBarSearch()) {
+				_topBar->showSearch();
+			} else if (isSearchSettings()) {
+				_content->setInnerFocus();
+			} else if (isSettings()) {
+				_controller->showSettings(::Settings::Search::Id());
+			} else if (isContentSearch()) {
+				_content->showSearch();
+			}
 			return true;
 		});
 	}, lifetime());
@@ -199,7 +232,7 @@ void WrapWidget::startInjectingActivePeerProfiles() {
 		(_1 == Wrap::Side) && _2
 	) | rpl::map(
 		_2
-	) | rpl::start_with_next([this](Dialogs::Key key) {
+	) | rpl::on_next([this](Dialogs::Key key) {
 		injectActiveProfile(key);
 	}, lifetime());
 
@@ -286,11 +319,19 @@ Dialogs::RowDescriptor WrapWidget::activeChat() const {
 			peer->owner().history(peer),
 			FullMsgId());
 	} else if (const auto storiesPeer = key().storiesPeer()) {
-		return (key().storiesTab() == Stories::Tab::Saved)
-			? Dialogs::RowDescriptor(
+		return (key().storiesAlbumId() == Stories::ArchiveId())
+			? Dialogs::RowDescriptor()
+			: Dialogs::RowDescriptor(
 				storiesPeer->owner().history(storiesPeer),
-				FullMsgId())
-			: Dialogs::RowDescriptor();
+				FullMsgId());
+	} else if (const auto giftsPeer = key().giftsPeer()) {
+		return Dialogs::RowDescriptor(
+			giftsPeer->owner().history(giftsPeer),
+			FullMsgId());
+	} else if (const auto musicPeer = key().musicPeer()) {
+		return Dialogs::RowDescriptor(
+			musicPeer->owner().history(musicPeer),
+			FullMsgId());
 	} else if (key().settingsSelf()
 			|| key().isDownloads()
 			|| key().reactionsContextId()
@@ -312,8 +353,11 @@ void WrapWidget::forceContentRepaint() {
 }
 
 void WrapWidget::setupTop() {
-	if (HasCustomTopBar(_controller.get()) || wrap() == Wrap::Search) {
+	if (HasCustomTopBar(_controller.get())
+		|| wrap() == Wrap::Search
+		|| wrap() == Wrap::StoryAlbumEdit) {
 		_topBar.destroy();
+		setupShortcuts();
 		return;
 	}
 	createTopBar();
@@ -330,14 +374,14 @@ void WrapWidget::createTopBar() {
 		TopBarStyle(wrapValue),
 		std::move(selectedItems));
 	_topBar->selectionActionRequests(
-	) | rpl::start_with_next([=](SelectionAction action) {
+	) | rpl::on_next([=](SelectionAction action) {
 		_content->selectionAction(action);
 	}, _topBar->lifetime());
 
 	if (hasBackButton()) {
 		_topBar->enableBackButton();
 		_topBar->backRequest(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			checkBeforeClose([=] { _controller->showBackFromStack(); });
 		}, _topBar->lifetime());
 	} else if (wrapValue == Wrap::Side) {
@@ -345,11 +389,12 @@ void WrapWidget::createTopBar() {
 			base::make_unique_q<Ui::IconButton>(
 				_topBar,
 				st::infoTopBarClose));
+		close->setAccessibleName(tr::lng_sr_close_panel(tr::now));
 		close->addClickHandler([this] {
 			_controller->parentController()->closeThirdSection();
 		});
 	}
-	_topBar->storyClicks() | rpl::start_with_next([=] {
+	_topBar->storyClicks() | rpl::on_next([=] {
 		if (const auto peer = _controller->key().peer()) {
 			_controller->parentController()->openPeerStories(peer->id);
 		}
@@ -359,6 +404,7 @@ void WrapWidget::createTopBar() {
 			base::make_unique_q<Ui::IconButton>(
 				_topBar,
 				st::infoLayerTopBarClose));
+		close->setAccessibleName(tr::lng_sr_close_panel(tr::now));
 		close->addClickHandler([this] {
 			checkBeforeClose([=] {
 				_controller->parentController()->hideSpecialLayer();
@@ -393,8 +439,17 @@ void WrapWidget::setupTopBarMenuToggle() {
 		addProfileCallsButton();
 	} else if (section.type() == Section::Type::Settings) {
 		addTopBarMenuButton();
-		if (section.settingsType() == ::Settings::Information::Id()
-			|| section.settingsType() == ::Settings::Main::Id()) {
+		if (section.settingsType() == ::Settings::MainId()) {
+			const auto &st = (wrap() == Wrap::Layer)
+				? st::infoLayerTopBarSearch
+				: st::infoTopBarSearch;
+			const auto button = _topBar->addButton(
+				base::make_unique_q<Ui::IconButton>(_topBar, st));
+			button->setAccessibleName(tr::lng_dlg_filter(tr::now));
+			button->addClickHandler([=] {
+				_controller->showSettings(::Settings::Search::Id());
+			});
+		} else if (section.settingsType() == ::Settings::InformationId()) {
 			const auto controller = _controller->parentController();
 			const auto self = controller->session().user();
 			if (!self->username().isEmpty()) {
@@ -404,23 +459,26 @@ void WrapWidget::setupTopBarMenuToggle() {
 					: st::infoTopBarQr;
 				const auto button = _topBar->addButton(
 					base::make_unique_q<Ui::IconButton>(_topBar, st));
+				button->setAccessibleName(tr::lng_group_invite_context_qr(tr::now));
 				button->addClickHandler([show, self] {
-					show->show(
-						Box(Ui::FillPeerQrBox, self, std::nullopt, nullptr));
+					Ui::DefaultShowFillPeerQrBoxCallback(show, self);
 				});
 			}
 		}
+		setupShortcuts();
 	} else if (key.storiesPeer()
 		&& key.storiesPeer()->isSelf()
-		&& key.storiesTab() == Stories::Tab::Saved) {
+		&& key.storiesAlbumId() != Stories::ArchiveId()) {
 		const auto &st = (wrap() == Wrap::Layer)
 			? st::infoLayerTopBarEdit
 			: st::infoTopBarEdit;
 		const auto button = _topBar->addButton(
 			base::make_unique_q<Ui::IconButton>(_topBar, st));
 		button->addClickHandler([=] {
-			_controller->showSettings(::Settings::Information::Id());
+			_controller->showSettings(::Settings::InformationId());
 		});
+	} else if (section.type() == Section::Type::Media) {
+		addTopBarMenuButton();
 	} else if (section.type() == Section::Type::Downloads) {
 		auto &manager = Core::App().downloadManager();
 		rpl::merge(
@@ -428,7 +486,7 @@ void WrapWidget::setupTopBarMenuToggle() {
 			manager.loadingListChanges() | rpl::map_to(false),
 			manager.loadedAdded() | rpl::map_to(true),
 			manager.loadedRemoved() | rpl::map_to(false)
-		) | rpl::start_with_next([=, &manager](bool definitelyHas) {
+		) | rpl::on_next([=, &manager](bool definitelyHas) {
 			const auto has = [&] {
 				for ([[maybe_unused]] const auto id : manager.loadingList()) {
 					return true;
@@ -444,7 +502,7 @@ void WrapWidget::setupTopBarMenuToggle() {
 				addTopBarMenuButton();
 			}
 		}, _topBar->lifetime());
-	} else if (section.type() == Section::Type::PeerGifts && key.peer()) {
+	} else if (key.giftsPeer()) {
 		addTopBarMenuButton();
 	}
 }
@@ -488,6 +546,7 @@ void WrapWidget::addTopBarMenuButton() {
 			(wrap() == Wrap::Layer
 				? st::infoLayerTopBarMenu
 				: st::infoTopBarMenu))));
+	_topBarMenuToggle->setAccessibleName(tr::lng_sr_profile_menu(tr::now));
 	_topBarMenuToggle->addClickHandler([this] {
 		showTopBarMenu(false);
 	});
@@ -495,7 +554,7 @@ void WrapWidget::addTopBarMenuButton() {
 	Shortcuts::Requests(
 	) | rpl::filter([=] {
 		return (_controller->section().type() == Section::Type::Profile);
-	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+	}) | rpl::on_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 
 		request->check(Command::ShowChatMenu, 1) && request->handle([=] {
@@ -526,7 +585,7 @@ void WrapWidget::addProfileCallsButton() {
 		return user->hasCalls();
 	}) | rpl::take(
 		1
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_topBar->addButton(
 			base::make_unique_q<Ui::IconButton>(
 				_topBar,
@@ -534,7 +593,7 @@ void WrapWidget::addProfileCallsButton() {
 					? st::infoLayerTopBarCall
 					: st::infoTopBarCall))
 		)->addClickHandler([=] {
-			Core::App().calls().startOutgoingCall(user, false);
+			Core::App().calls().startOutgoingCall(user, {});
 		});
 	}, _topBar->lifetime());
 
@@ -568,8 +627,9 @@ void WrapWidget::showTopBarMenu(bool check) {
 	}
 	_topBarMenu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
 	_topBarMenuToggle->setForceRippled(true);
-	_topBarMenu->popup(_topBarMenuToggle->mapToGlobal(
-		st::infoLayerTopBarMenuPosition));
+	_topBarMenu->popup(Ui::PopupMenu::ConstrainToParentScreen(
+		_topBarMenu,
+		_topBarMenuToggle->mapToGlobal(st::infoLayerTopBarMenuPosition)));
 }
 
 bool WrapWidget::requireTopBarSearch() const {
@@ -655,8 +715,6 @@ void WrapWidget::finishShowContent() {
 			.subtitle = _content->subtitle(),
 		});
 		_topBar->setStories(_content->titleStories());
-		_topBar->setStoriesArchive(
-			_controller->key().storiesTab() == Stories::Tab::Archive);
 	}
 	_desiredHeights.fire(desiredHeightForContent());
 	_desiredShadowVisibilities.fire(_content->desiredShadowVisibility());
@@ -676,7 +734,7 @@ void WrapWidget::finishShowContent() {
 	_contentChanges.fire({});
 
 	_content->scrollBottomSkipValue(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		updateContentGeometry();
 	}, _content->lifetime());
 }
@@ -696,7 +754,13 @@ rpl::producer<int> WrapWidget::desiredHeightForContent() const {
 }
 
 rpl::producer<SelectedItems> WrapWidget::selectedListValue() const {
-	return _selectedLists.events() | rpl::flatten_latest();
+	auto current = _content
+		? _content->selectedListValue()
+		: nullptr;
+	return _selectedLists.events_starting_with(current
+		? std::move(current)
+		: rpl::single(SelectedItems(Storage::SharedMediaType::Photo))
+	) | rpl::flatten_latest();
 }
 
 object_ptr<ContentWidget> WrapWidget::createContent(
@@ -714,6 +778,10 @@ rpl::producer<Wrap> WrapWidget::wrapValue() const {
 
 void WrapWidget::setWrap(Wrap wrap) {
 	_wrap = wrap;
+}
+
+rpl::producer<bool> WrapWidget::contentTillBottomValue() const {
+	return _contentTillBottom.value();
 }
 
 rpl::producer<> WrapWidget::contentChanged() const {
@@ -765,6 +833,36 @@ void WrapWidget::showFinishedHook() {
 	_bottomShadow->toggle(_bottomShadow->toggled(), anim::type::instant);
 	_topBarSurrogate.destroy();
 	_content->showFinished();
+
+	if (_topBarMenuToggle
+		&& _controller->section().type() == Section::Type::Settings) {
+		const auto controller = _controller->parentController();
+		const auto settingsType = _controller->section().settingsType();
+		const auto highlightId = [&]() -> QString {
+			if (settingsType == ::Settings::MainId()) {
+				return u"settings/log-out"_q;
+			} else if (settingsType == ::Settings::ChatId()) {
+				return u"chat/themes-create"_q;
+			}
+			return QString();
+		}();
+		if (!highlightId.isEmpty()
+			&& controller->takeHighlightControlId(highlightId)) {
+			showTopBarMenu(false);
+			if (_topBarMenu) {
+				const auto menu = _topBarMenu->menu();
+				for (const auto &action : menu->actions()) {
+					const auto controlId = "highlight-control-id";
+					if (action->property(controlId).toString() == highlightId) {
+						if (const auto item = menu->itemForAction(action)) {
+							::Settings::HighlightWidget(item);
+						}
+						break;
+					}
+				}
+			}
+		}
+	}
 }
 
 bool WrapWidget::showInternal(
@@ -779,7 +877,6 @@ bool WrapWidget::showInternal(
 			&& (params.way == Window::SectionShow::Way::ClearStack);
 		if (_controller->validateMementoPeer(content)) {
 			if (!skipInternal && _content->showInternal(content)) {
-				highlightTopBar();
 				return true;
 			}
 		}
@@ -817,6 +914,16 @@ std::shared_ptr<Window::SectionMemento> WrapWidget::createMemento() {
 	return std::make_shared<Memento>(std::move(stack));
 }
 
+SendMenu::Details WrapWidget::sendMenuDetails() const {
+	return _content ? _content->sendMenuDetails() : SendMenu::Details();
+}
+
+bool WrapWidget::processChosenSticker(ChatHelpers::FileChosen &&chosen) {
+	return _content
+		? _content->processChosenSticker(std::move(chosen))
+		: false;
+}
+
 rpl::producer<int> WrapWidget::desiredHeightValue() const {
 	return _desiredHeights.events_starting_with(desiredHeightForContent())
 		| rpl::flatten_latest();
@@ -824,7 +931,7 @@ rpl::producer<int> WrapWidget::desiredHeightValue() const {
 
 QRect WrapWidget::contentGeometry() const {
 	const auto top = _topBar ? _topBar->height() : 0;
-	return rect().marginsRemoved({ 0, top, 0, 0 });
+	return rect().marginsRemoved({ 0, std::min(top, height()), 0, 0});
 }
 
 bool WrapWidget::returnToFirstStackFrame(
@@ -927,7 +1034,11 @@ void WrapWidget::showNewContent(
 void WrapWidget::showNewContent(not_null<ContentMemento*> memento) {
 	// Validates contentGeometry().
 	setupTop();
-	showContent(createContent(memento, _controller.get()));
+	auto newContent = createContent(memento, _controller.get());
+	if (!_topBar && hasBackButton()) {
+		newContent->enableBackButton();
+	}
+	showContent(std::move(newContent));
 }
 
 void WrapWidget::resizeEvent(QResizeEvent *e) {
@@ -938,15 +1049,30 @@ void WrapWidget::resizeEvent(QResizeEvent *e) {
 }
 
 void WrapWidget::keyPressEvent(QKeyEvent *e) {
+	if (_content
+		&& (_content->processZoomKey(e) || _content->processScrollKey(e))) {
+		return;
+	}
 	if (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Back) {
-		checkBeforeCloseByEscape((hasStackHistory() || wrap() != Wrap::Layer)
-			? Fn<void()>([=] { _controller->showBackFromStack(); })
-			: Fn<void()>([=] {
-				_controller->parentController()->hideSpecialLayer();
-			}));
+		if (!closeByBackButton()) {
+			checkBeforeCloseByEscape(
+				[=] { _controller->showBackFromStack(); });
+		}
 		return;
 	}
 	SectionWidget::keyPressEvent(e);
+}
+
+bool WrapWidget::closeByBackButton() {
+	if (!hasStackHistory() && wrap() != Wrap::Layer) {
+		return false;
+	}
+	checkBeforeCloseByEscape(hasStackHistory()
+		? Fn<void()>([=] { _controller->showBackFromStack(); })
+		: Fn<void()>([=] {
+			_controller->parentController()->hideSpecialLayer();
+		}));
+	return true;
 }
 
 void WrapWidget::updateContentGeometry() {
@@ -979,7 +1105,7 @@ object_ptr<Ui::RpWidget> WrapWidget::createTopBarSurrogate(
 		Assert(_topBar != nullptr);
 
 		auto result = object_ptr<Ui::AbstractButton>(parent);
-		result->addClickHandler([weak = Ui::MakeWeak(this)]{
+		result->addClickHandler([weak = base::make_weak(this)]{
 			if (weak) {
 				weak->_controller->showBackFromStack();
 			}
@@ -994,6 +1120,7 @@ object_ptr<Ui::RpWidget> WrapWidget::createTopBarSurrogate(
 void WrapWidget::updateGeometry(
 		QRect newGeometry,
 		bool expanding,
+		bool contentTillBottom,
 		int additionalScroll,
 		int maxVisibleHeight) {
 	auto scrollChanged = (_additionalScroll != additionalScroll);
@@ -1002,6 +1129,7 @@ void WrapWidget::updateGeometry(
 	_additionalScroll = additionalScroll;
 	_maxVisibleHeight = maxVisibleHeight;
 	_expanding = expanding;
+	_contentTillBottom = contentTillBottom;
 
 	_content->applyMaxVisibleHeight(maxVisibleHeight);
 

@@ -150,11 +150,36 @@ PeerPhoto::PeerPhoto(not_null<ApiWrap*> api)
 : _session(&api->session())
 , _api(&api->instance()) {
 	crl::on_main(_session, [=] {
+		auto &uploader = _session->uploader();
+
 		// You can't use _session->lifetime() in the constructor,
 		// only queued, because it is not constructed yet.
-		_session->uploader().photoReady(
-		) | rpl::start_with_next([=](const Storage::UploadedMedia &data) {
+		uploader.photoReady(
+		) | rpl::on_next([=](const Storage::UploadedMedia &data) {
 			ready(data.fullId, data.info.file, std::nullopt);
+		}, _session->lifetime());
+
+		uploader.photoProgress(
+		) | rpl::on_next([=](const FullMsgId &id) {
+			const auto i = _uploads.find(id);
+			if (i == end(_uploads) || !i->second.photoId) {
+				return;
+			}
+			const auto peer = i->second.peer;
+			const auto photo = _session->data().photo(
+				i->second.photoId);
+			_uploadProgress.fire({ peer, photo->progress() });
+		}, _session->lifetime());
+
+		uploader.photoFailed(
+		) | rpl::on_next([=](const FullMsgId &id) {
+			const auto i = _uploads.find(id);
+			if (i == end(_uploads)) {
+				return;
+			}
+			const auto peer = i->second.peer;
+			_uploads.erase(i);
+			_uploadFailed.fire_copy(peer);
 		}, _session->lifetime());
 	});
 }
@@ -222,17 +247,18 @@ void PeerPhoto::upload(
 		_session->uploader().cancel(already->first);
 		_uploads.erase(already);
 	}
-	_uploads.emplace(
+	const auto &[it, ok] = _uploads.emplace(
 		fakeId,
-		UploadValue{ peer, type, std::move(done) });
+		UploadValue{ peer, type, std::move(done), PhotoId(0) });
 	if (mtpMarkup) {
 		ready(fakeId, std::nullopt, mtpMarkup);
 	} else {
-		const auto ready = PreparePeerPhoto(
+		const auto prepared = PreparePeerPhoto(
 			_api.instance().mainDcId(),
 			peer->id,
 			base::take(photo.image));
-		_session->uploader().upload(fakeId, ready);
+		it->second.photoId = prepared->thumbId;
+		_session->uploader().upload(fakeId, prepared);
 	}
 }
 
@@ -240,15 +266,81 @@ void PeerPhoto::suggest(not_null<PeerData*> peer, UserPhoto &&photo) {
 	upload(peer, std::move(photo), UploadType::Suggestion, nullptr);
 }
 
+void PeerPhoto::subscribeToUpload(
+		not_null<PeerData*> peer,
+		rpl::lifetime &lifetime,
+		UploadCallbacks callbacks) {
+	uploadProgress(
+	) | rpl::filter([=](const UploadProgress &data) {
+		return (data.peer == peer);
+	}) | rpl::on_next([cb = callbacks.progress](const UploadProgress &data) {
+		if (cb) {
+			cb(data.progress);
+		}
+	}, lifetime);
+
+	uploadDone(
+	) | rpl::filter([=](not_null<PeerData*> p) {
+		return (p == peer);
+	}) | rpl::on_next([cb = callbacks.done](not_null<PeerData*>) {
+		if (cb) {
+			cb();
+		}
+	}, lifetime);
+
+	uploadFailed(
+	) | rpl::filter([=](not_null<PeerData*> p) {
+		return (p == peer);
+	}) | rpl::on_next([cb = callbacks.failed](not_null<PeerData*>) {
+		if (cb) {
+			cb();
+		}
+	}, lifetime);
+}
+
+auto PeerPhoto::uploadProgress() const
+-> rpl::producer<UploadProgress> {
+	return _uploadProgress.events();
+}
+
+auto PeerPhoto::uploadDone() const
+-> rpl::producer<not_null<PeerData*>> {
+	return _uploadDone.events();
+}
+
+auto PeerPhoto::uploadFailed() const
+-> rpl::producer<not_null<PeerData*>> {
+	return _uploadFailed.events();
+}
+
+void PeerPhoto::cancelUpload(not_null<PeerData*> peer) {
+	peer = peer->migrateToOrMe();
+	const auto i = ranges::find(
+		_uploads,
+		peer,
+		[](const auto &pair) { return pair.second.peer; });
+	if (i == end(_uploads)) {
+		return;
+	}
+	const auto fakeId = i->first;
+	_uploads.erase(i);
+	_session->uploader().cancel(fakeId);
+	_uploadFailed.fire_copy(peer);
+}
+
 void PeerPhoto::clear(not_null<PhotoData*> photo) {
 	const auto self = _session->user();
 	if (self->userpicPhotoId() == photo->id) {
+		const auto photoId = photo->id;
+		const auto peerId = self->id;
 		_api.request(MTPphotos_UpdateProfilePhoto(
 			MTP_flags(0),
 			MTPInputUser(), // bot
 			MTP_inputPhotoEmpty()
 		)).done([=](const MTPphotos_Photo &result) {
 			self->setPhoto(MTP_userProfilePhotoEmpty());
+			_session->storage().remove(
+				Storage::UserPhotosRemoveOne(peerToUser(peerId), photoId));
 		}).send();
 	} else if (photo->peer && photo->peer->userpicPhotoId() == photo->id) {
 		const auto applier = [=](const MTPUpdates &result) {
@@ -256,12 +348,12 @@ void PeerPhoto::clear(not_null<PhotoData*> photo) {
 		};
 		if (const auto chat = photo->peer->asChat()) {
 			_api.request(MTPmessages_EditChatPhoto(
-				chat->inputChat,
+				chat->inputChat(),
 				MTP_inputChatPhotoEmpty()
 			)).done(applier).send();
 		} else if (const auto channel = photo->peer->asChannel()) {
 			_api.request(MTPchannels_EditPhoto(
-				channel->inputChannel,
+				channel->inputChannel(),
 				MTP_inputChatPhotoEmpty()
 			)).done(applier).send();
 		}
@@ -290,7 +382,7 @@ void PeerPhoto::clear(not_null<PhotoData*> photo) {
 void PeerPhoto::clearPersonal(not_null<UserData*> user) {
 	_api.request(MTPphotos_UploadContactProfilePhoto(
 		MTP_flags(MTPphotos_UploadContactProfilePhoto::Flag::f_save),
-		user->inputUser,
+		user->inputUser(),
 		MTPInputFile(),
 		MTPInputFile(), // video
 		MTPdouble(), // video_start_ts
@@ -314,15 +406,20 @@ void PeerPhoto::set(not_null<PeerData*> peer, not_null<PhotoData*> photo) {
 		return;
 	}
 	if (peer == _session->user()) {
+		const auto photoId = photo->id;
+		const auto peerId = peer->id;
 		_api.request(MTPphotos_UpdateProfilePhoto(
 			MTP_flags(0),
 			MTPInputUser(), // bot
 			photo->mtpInput()
 		)).done([=](const MTPphotos_Photo &result) {
-			result.match([&](const MTPDphotos_photo &data) {
-				_session->data().processPhoto(data.vphoto());
-				_session->data().processUsers(data.vusers());
-			});
+			const auto newPhoto = _session->data().processPhoto(
+				result.data().vphoto());
+			_session->data().processUsers(result.data().vusers());
+			_session->storage().replace(Storage::UserPhotosReplace(
+				peerToUser(peerId),
+				photoId,
+				newPhoto->id));
 		}).send();
 	} else {
 		const auto applier = [=](const MTPUpdates &result) {
@@ -330,12 +427,12 @@ void PeerPhoto::set(not_null<PeerData*> peer, not_null<PhotoData*> photo) {
 		};
 		if (const auto chat = peer->asChat()) {
 			_api.request(MTPmessages_EditChatPhoto(
-				chat->inputChat,
+				chat->inputChat(),
 				MTP_inputChatPhoto(photo->mtpInput())
 			)).done(applier).send();
 		} else if (const auto channel = peer->asChannel()) {
 			_api.request(MTPchannels_EditPhoto(
-				channel->inputChannel,
+				channel->inputChannel(),
 				MTP_inputChatPhoto(photo->mtpInput())
 			)).done(applier).send();
 		}
@@ -353,16 +450,23 @@ void PeerPhoto::ready(
 	const auto peer = maybeUploadValue->peer;
 	const auto type = maybeUploadValue->type;
 	const auto done = maybeUploadValue->done;
-	const auto applier = [=](const MTPUpdates &result) {
-		_session->updates().applyUpdates(result);
+	const auto finish = [=] {
+		_uploadDone.fire_copy(peer);
 		if (done) {
 			done();
 		}
 	};
+	const auto fail = [=](const MTP::Error &error) {
+		_uploadFailed.fire_copy(peer);
+	};
+	const auto applier = [=](const MTPUpdates &result) {
+		_session->updates().applyUpdates(result);
+		finish();
+	};
 	const auto botUserInput = [&] {
 		const auto user = peer->asUser();
 		return (user && user->botInfo && user->botInfo->canEditInformation)
-			? std::make_optional<MTPInputUser>(user->inputUser)
+			? std::make_optional<MTPInputUser>(user->inputUser())
 			: std::nullopt;
 	}();
 	if (peer->isSelf() || botUserInput) {
@@ -386,17 +490,19 @@ void PeerPhoto::ready(
 				_session->storage().add(Storage::UserPhotosSetBack(
 					peerToUser(peer->id),
 					photoId));
+			} else {
+				_session->storage().add(Storage::UserPhotosAddNew(
+					peerToUser(peer->id),
+					photoId));
 			}
-			if (done) {
-				done();
-			}
-		}).send();
+			finish();
+		}).fail(fail).send();
 	} else if (const auto chat = peer->asChat()) {
 		const auto history = _session->data().history(chat);
 		using Flag = MTPDinputChatUploadedPhoto::Flag;
 		const auto none = MTPDinputChatUploadedPhoto::Flags(0);
 		history->sendRequestId = _api.request(MTPmessages_EditChatPhoto(
-			chat->inputChat,
+			chat->inputChat(),
 			MTP_inputChatUploadedPhoto(
 				MTP_flags((file ? Flag::f_file : none)
 					| (videoSize ? Flag::f_video_emoji_markup : none)),
@@ -404,13 +510,13 @@ void PeerPhoto::ready(
 				MTPInputFile(), // video
 				MTPdouble(), // video_start_ts
 				videoSize ? (*videoSize) : MTPVideoSize()) // video_emoji_markup
-		)).done(applier).afterRequest(history->sendRequestId).send();
+		)).done(applier).fail(fail).afterRequest(history->sendRequestId).send();
 	} else if (const auto channel = peer->asChannel()) {
 		using Flag = MTPDinputChatUploadedPhoto::Flag;
 		const auto none = MTPDinputChatUploadedPhoto::Flags(0);
 		const auto history = _session->data().history(channel);
 		history->sendRequestId = _api.request(MTPchannels_EditPhoto(
-			channel->inputChannel,
+			channel->inputChannel(),
 			MTP_inputChatUploadedPhoto(
 				MTP_flags((file ? Flag::f_file : none)
 					| (videoSize ? Flag::f_video_emoji_markup : none)),
@@ -418,7 +524,7 @@ void PeerPhoto::ready(
 				MTPInputFile(), // video
 				MTPdouble(), // video_start_ts
 				videoSize ? (*videoSize) : MTPVideoSize()) // video_emoji_markup
-		)).done(applier).afterRequest(history->sendRequestId).send();
+		)).done(applier).fail(fail).afterRequest(history->sendRequestId).send();
 	} else if (const auto user = peer->asUser()) {
 		using Flag = MTPphotos_UploadContactProfilePhoto::Flag;
 		const auto none = MTPphotos_UploadContactProfilePhoto::Flags(0);
@@ -428,7 +534,7 @@ void PeerPhoto::ready(
 				| ((type == UploadType::Suggestion)
 					? Flag::f_suggest
 					: Flag::f_save)),
-			user->inputUser,
+			user->inputUser(),
 			file ? (*file) : MTPInputFile(),
 			MTPInputFile(), // video
 			MTPdouble(), // video_start_ts
@@ -441,10 +547,8 @@ void PeerPhoto::ready(
 			if (type != UploadType::Suggestion) {
 				user->updateFullForced();
 			}
-			if (done) {
-				done();
-			}
-		}).send();
+			finish();
+		}).fail(fail).send();
 	}
 }
 
@@ -456,7 +560,7 @@ void PeerPhoto::requestUserPhotos(
 	}
 
 	const auto requestId = _api.request(MTPphotos_GetUserPhotos(
-		user->inputUser,
+		user->inputUser(),
 		MTP_int(0),
 		MTP_long(afterId),
 		MTP_int(kSharedMediaLimit)

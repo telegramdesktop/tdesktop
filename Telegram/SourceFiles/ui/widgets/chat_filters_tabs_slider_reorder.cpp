@@ -51,7 +51,7 @@ void ChatsFiltersTabsReorder::start() {
 		return;
 	}
 	_layout->events()
-	| rpl::start_with_next_done([this](not_null<QEvent*> e) {
+	| rpl::on_next_done([this](not_null<QEvent*> e) {
 		switch (e->type()) {
 		case QEvent::MouseMove:
 			mouseMove(static_cast<QMouseEvent*>(e.get())->globalPos());

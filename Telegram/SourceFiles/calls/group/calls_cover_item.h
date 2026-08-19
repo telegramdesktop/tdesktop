@@ -28,7 +28,7 @@ struct ParticipantState;
 class CoverItem final : public Ui::Menu::ItemBase {
 public:
 	CoverItem(
-		not_null<RpWidget*> parent,
+		not_null<Ui::Menu::Menu*> parent,
 		const style::Menu &stMenu,
 		const style::ShortInfoCover &st,
 		rpl::producer<QString> name,
@@ -50,7 +50,7 @@ private:
 class AboutItem final : public Ui::Menu::ItemBase {
 public:
 	AboutItem(
-		not_null<RpWidget*> parent,
+		not_null<Ui::Menu::Menu*> parent,
 		const style::Menu &st,
 		TextWithEntities &&about);
 

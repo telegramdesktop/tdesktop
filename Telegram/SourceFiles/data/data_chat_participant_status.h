@@ -14,6 +14,7 @@ class Show;
 namespace Ui {
 struct PreparedList;
 struct PreparedFile;
+struct PreparedBundle;
 } // namespace Ui
 
 namespace Window {
@@ -36,6 +37,10 @@ enum class ChatAdminRight {
 	PostStories = (1 << 14),
 	EditStories = (1 << 15),
 	DeleteStories = (1 << 16),
+	ManageDirect = (1 << 17),
+	ManageRanks = (1 << 18),
+	ProcessJoinRequests = (1 << 19),
+	ManageLinkedPeers = (1 << 20),
 };
 inline constexpr bool is_flag_type(ChatAdminRight) { return true; }
 using ChatAdminRights = base::flags<ChatAdminRight>;
@@ -62,6 +67,9 @@ enum class ChatRestriction {
 	AddParticipants = (1 << 15),
 	PinMessages = (1 << 17),
 	CreateTopics = (1 << 18),
+	EditRank = (1 << 26),
+	SendReactions = (1 << 27),
+	ManageLinkedPeers = (1 << 28),
 };
 inline constexpr bool is_flag_type(ChatRestriction) { return true; }
 using ChatRestrictions = base::flags<ChatRestriction>;
@@ -75,6 +83,8 @@ struct ChatAdminRightsInfo {
 	ChatAdminRights flags;
 };
 
+[[nodiscard]] MTPChatAdminRights AdminRightsToMTP(ChatAdminRightsInfo info);
+
 struct ChatRestrictionsInfo {
 	ChatRestrictionsInfo() = default;
 	ChatRestrictionsInfo(ChatRestrictions flags, TimeId until)
@@ -87,6 +97,9 @@ struct ChatRestrictionsInfo {
 	TimeId until = 0;
 };
 
+[[nodiscard]] MTPChatBannedRights RestrictionsToMTP(
+	ChatRestrictionsInfo info);
+
 namespace Data {
 
 class Thread;
@@ -94,11 +107,14 @@ class Thread;
 struct AdminRightsSetOptions {
 	bool isGroup : 1 = false;
 	bool isForum : 1 = false;
+	bool isCommunity : 1 = false;
 	bool anyoneCanAddMembers : 1 = false;
+	bool canProcessJoinRequests : 1 = false;
 };
 
 struct RestrictionsSetOptions {
 	bool isForum = false;
+	bool isUserSpecific = false;
 };
 
 [[nodiscard]] std::vector<ChatRestrictions> ListOfRestrictions(
@@ -190,18 +206,21 @@ struct SendError {
 	struct Args {
 		QString text;
 		int boostsToLift = 0;
+		bool monoforumAdmin = false;
 		bool premiumToLift = false;
 		bool frozen = false;
 	};
 	SendError(Args &&args)
 	: text(std::move(args.text))
 	, boostsToLift(args.boostsToLift)
+	, monoforumAdmin(args.monoforumAdmin)
 	, premiumToLift(args.premiumToLift)
 	, frozen(args.frozen) {
 	}
 
 	QString text;
 	int boostsToLift = 0;
+	bool monoforumAdmin = false;
 	bool premiumToLift = false;
 	bool frozen = false;
 
@@ -210,7 +229,7 @@ struct SendError {
 	}
 
 	explicit operator bool() const {
-		return !text.isEmpty();
+		return monoforumAdmin || !text.isEmpty();
 	}
 	[[nodiscard]] bool has_value() const {
 		return !text.isEmpty();
@@ -246,5 +265,19 @@ void ShowSendErrorToast(
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<PeerData*> peer,
 	SendError error);
+
+bool ShowSendError(
+	std::shared_ptr<ChatHelpers::Show> show,
+	not_null<PeerData*> peer,
+	const Ui::PreparedList &list,
+	std::optional<bool> compress,
+	bool ignoreSlowmodeLeft = false,
+	bool ignoreRestrictions = false);
+bool ShowSendError(
+	std::shared_ptr<ChatHelpers::Show> show,
+	not_null<PeerData*> peer,
+	const Ui::PreparedBundle &bundle,
+	bool ignoreSlowmodeLeft = false,
+	bool ignoreRestrictions = false);
 
 } // namespace Data

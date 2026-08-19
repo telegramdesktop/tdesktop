@@ -22,7 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/padding_wrap.h"
-#include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "ui/search_field_controller.h"
 #include "lang/lang_keys.h"
 #include "ui/boxes/confirm_box.h"
@@ -44,10 +43,12 @@ constexpr auto kEnableSearchMembersAfterCount = 20;
 
 Members::Members(
 	QWidget *parent,
-	not_null<Controller*> controller)
+	not_null<Controller*> controller,
+	bool skipHeader)
 : RpWidget(parent)
 , _show(controller->uiShow())
 , _controller(controller)
+, _skipHeader(skipHeader)
 , _peer(_controller->key().peer())
 , _listController(CreateMembersController(controller, _peer)) {
 	_listController->setStoriesShown(true);
@@ -57,13 +58,13 @@ Members::Members(
 	_listController->setDelegate(static_cast<PeerListDelegate*>(this));
 
 	_controller->searchFieldController()->queryValue(
-	) | rpl::start_with_next([this](QString &&query) {
+	) | rpl::on_next([this](QString &&query) {
 		peerListScrollToTop();
 		content()->searchQueryChanged(std::move(query));
 	}, lifetime());
 	MembersCountValue(
 		_peer
-	) | rpl::start_with_next([this](int count) {
+	) | rpl::on_next([this](int count) {
 		const auto enabled = (count >= kEnableSearchMembersAfterCount);
 		_controller->setSearchEnabledByContent(enabled);
 	}, lifetime());
@@ -71,16 +72,7 @@ Members::Members(
 
 int Members::desiredHeight() const {
 	auto desired = _header ? _header->height() : 0;
-	auto count = [this] {
-		if (auto chat = _peer->asChat()) {
-			return chat->count;
-		} else if (auto channel = _peer->asChannel()) {
-			return channel->membersCount();
-		}
-		return 0;
-	}();
-	desired += qMax(count, _list->fullRowsCount())
-		* st::infoMembersList.item.height;
+	desired += _list->fullRowsCount() * st::infoMembersList.item.height;
 	return qMax(height(), desired);
 }
 
@@ -94,6 +86,27 @@ rpl::producer<int> Members::fullCountValue() const {
 
 rpl::producer<Ui::ScrollToRequest> Members::scrollToRequests() const {
 	return _scrollToRequests.events();
+}
+
+void Members::applySearchQuery(const QString &query) {
+	peerListScrollToTop();
+	content()->searchQueryChanged(query);
+}
+
+void Members::setGroupByRole(bool grouped) {
+	_listController->setGroupByRole(grouped);
+}
+
+rpl::producer<bool> Members::groupByRoleValue() const {
+	return _listController->groupByRoleValue();
+}
+
+rpl::producer<bool> Members::groupByRoleAvailableValue() const {
+	return _listController->groupByRoleAvailableValue();
+}
+
+rpl::producer<bool> Members::rowsVisibleValue() const {
+	return _rowsVisible.value();
 }
 
 std::unique_ptr<MembersState> Members::saveState() {
@@ -121,7 +134,8 @@ void Members::restoreState(std::unique_ptr<MembersState> state) {
 }
 
 void Members::setupHeader() {
-	if (_controller->section().type() == Section::Type::Members) {
+	if (_skipHeader
+		|| (_controller->section().type() == Section::Type::Members)) {
 		return;
 	}
 	_header = object_ptr<Ui::FixedHeightWidget>(
@@ -132,6 +146,7 @@ void Members::setupHeader() {
 	_openMembers = Ui::CreateChild<Ui::SettingsButton>(
 		parent,
 		rpl::single(QString()));
+	// _openMembers->setAccessibleName(tr::lng_manage_peer_members(tr::now));
 
 	object_ptr<FloatingIcon>(
 		parent,
@@ -143,12 +158,14 @@ void Members::setupHeader() {
 	_addMember = Ui::CreateChild<Ui::IconButton>(
 		_openMembers,
 		st::infoMembersAddMember);
+	_addMember->setAccessibleName(tr::lng_channel_add_members(tr::now));
 	//_searchField = _controller->searchFieldController()->createField(
 	//	parent,
 	//	st::infoMembersSearchField);
 	_search = Ui::CreateChild<Ui::IconButton>(
 		_openMembers,
 		st::infoMembersSearch);
+	_search->setAccessibleName(tr::lng_participant_filter(tr::now));
 	//_cancelSearch = Ui::CreateChild<Ui::CrossButton>(
 	//	parent,
 	//	st::infoMembersCancelSearch);
@@ -156,12 +173,12 @@ void Members::setupHeader() {
 	setupButtons();
 
 	//_controller->wrapValue(
-	//) | rpl::start_with_next([this](Wrap wrap) {
+	//) | rpl::on_next([this](Wrap wrap) {
 	//	_wrap = wrap;
 	//	updateSearchOverrides();
 	//}, lifetime());
 	widthValue(
-	) | rpl::start_with_next([this](int width) {
+	) | rpl::on_next([this](int width) {
 		_header->resizeToWidth(width);
 	}, _header->lifetime());
 }
@@ -170,15 +187,19 @@ object_ptr<Ui::FlatLabel> Members::setupTitle() {
 	auto visible = _peer->isMegagroup()
 		? CanViewParticipantsValue(_peer->asMegagroup())
 		: rpl::single(true);
+	auto text = rpl::conditional(
+		std::move(visible),
+		tr::lng_chat_status_members(
+			lt_count_decimal,
+			MembersCountValue(_peer) | tr::to_count(),
+			tr::upper),
+		tr::lng_channel_admins(tr::upper));
+	rpl::duplicate(text) | rpl::on_next([=](const QString &v) {
+		_openMembers->setAccessibleName(v);
+	}, _openMembers->lifetime());
 	auto result = object_ptr<Ui::FlatLabel>(
 		_titleWrap,
-		rpl::conditional(
-			std::move(visible),
-			tr::lng_chat_status_members(
-				lt_count_decimal,
-				MembersCountValue(_peer) | tr::to_count(),
-				Ui::Text::Upper),
-			tr::lng_channel_admins(Ui::Text::Upper)),
+		std::move(text),
 		st::infoBlockHeaderLabel);
 	result->setAttribute(Qt::WA_TransparentForMouseEvents);
 	return result;
@@ -197,7 +218,7 @@ void Members::setupButtons() {
 	auto visible = _peer->isMegagroup()
 		? CanViewParticipantsValue(_peer->asMegagroup())
 		: rpl::single(true);
-	rpl::duplicate(visible) | rpl::start_with_next([=](bool visible) {
+	rpl::duplicate(visible) | rpl::on_next([=](bool visible) {
 		_openMembers->setVisible(visible);
 	}, lifetime());
 
@@ -225,7 +246,7 @@ void Members::setupButtons() {
 		std::move(addMemberShown),
 		std::move(searchShown),
 		std::move(visible)
-	) | rpl::start_with_next([this] {
+	) | rpl::on_next([this] {
 		updateHeaderControlsGeometry(width());
 	}, lifetime());
 }
@@ -238,7 +259,7 @@ void Members::setupList() {
 		this,
 		_listController.get());
 	_list->scrollToRequests(
-	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
+	) | rpl::on_next([this](Ui::ScrollToRequest request) {
 		auto addmin = (request.ymin < 0 || !_header)
 			? 0
 			: _header->height();
@@ -250,11 +271,11 @@ void Members::setupList() {
 			request.ymax + addmax });
 	}, _list->lifetime());
 	widthValue(
-	) | rpl::start_with_next([this](int newWidth) {
+	) | rpl::on_next([this](int newWidth) {
 		_list->resizeToWidth(newWidth);
 	}, _list->lifetime());
 	_list->heightValue(
-	) | rpl::start_with_next([=](int listHeight) {
+	) | rpl::on_next([=](int listHeight) {
 		auto newHeight = (listHeight > st::membersMarginBottom)
 			? (topSkip
 				+ listHeight
@@ -428,6 +449,9 @@ void Members::visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) {
 	setChildVisibleTopBottom(_list, visibleTop, visibleBottom);
+	const auto top = _list->y();
+	_rowsVisible = (visibleBottom > top)
+		&& (visibleTop < top + _list->height());
 }
 
 void Members::peerListSetTitle(rpl::producer<QString> title) {

@@ -19,6 +19,7 @@ class Session;
 namespace Spellchecker {
 
 struct Dict : public Storage::CloudBlob::Blob {
+	QString channel;
 };
 
 int64 GetDownloadSize(int id);
@@ -33,6 +34,8 @@ bool RemoveDictionary(int langId);
 
 bool WriteDefaultDictionary();
 std::vector<Dict> Dictionaries();
+rpl::producer<> DictionariesChanged();
+void RefreshDictionariesManifest(not_null<Main::Session*> session);
 
 void Start(not_null<Main::Session*> session);
 [[nodiscard]] rpl::producer<QString> ButtonManageDictsState(

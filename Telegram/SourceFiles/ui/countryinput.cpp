@@ -15,8 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "countries/countries_instance.h"
 #include "window/window_session_controller.h"
-#include "styles/style_layers.h"
-#include "styles/style_boxes.h"
 #include "styles/style_intro.h"
 #include "styles/style_widgets.h"
 
@@ -29,6 +27,7 @@ CountryInput::CountryInput(
 , _st(st)
 , _text(tr::lng_country_code(tr::now)) {
 	resize(_st.width, _st.heightMin);
+	setFocusPolicy(Qt::StrongFocus);
 }
 
 void CountryInput::paintEvent(QPaintEvent *e) {
@@ -72,10 +71,10 @@ void CountryInput::mousePressEvent(QMouseEvent *e) {
 	mouseMoveEvent(e);
 	if (_active) {
 		auto object = Box<Ui::CountrySelectBox>();
-		const auto box = Ui::MakeWeak(object.data());
+		const auto box = base::make_weak(object.data());
 		_show->showBox(std::move(object), Ui::LayerOption::CloseOther);
 		box->entryChosen(
-		) | rpl::start_with_next([=](
+		) | rpl::on_next([=](
 				const Ui::CountrySelectBox::Entry &entry) {
 			if (box) {
 				box->closeBox();
@@ -100,6 +99,42 @@ void CountryInput::mousePressEvent(QMouseEvent *e) {
 					std::distance(begin(info.codes), it));
 			}
 		}, lifetime());
+	}
+}
+
+void CountryInput::keyPressEvent(QKeyEvent* e) {
+	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return || e->key() == Qt::Key_Space) {
+		auto object = Box<Ui::CountrySelectBox>();
+		const auto box = base::make_weak(object.data());
+		_show->showBox(std::move(object), Ui::LayerOption::CloseOther);
+		box->entryChosen(
+		) | rpl::on_next([=](
+			const Ui::CountrySelectBox::Entry& entry) {
+				if (box) {
+					box->closeBox();
+				}
+
+				const auto& list = Countries::Instance().list();
+				const auto infoIt = ranges::find(
+					list,
+					entry.iso2,
+					&Countries::Info::iso2);
+				if (infoIt == end(list)) {
+					return;
+				}
+				const auto info = *infoIt;
+				const auto it = ranges::find(
+					info.codes,
+					entry.code,
+					&Countries::CallingCodeInfo::callingCode);
+				if (it != end(info.codes)) {
+					chooseCountry(
+						&info,
+						std::distance(begin(info.codes), it));
+				}
+			}, lifetime());
+	} else {
+		RpWidget::keyPressEvent(e);
 	}
 }
 
@@ -162,4 +197,5 @@ void CountryInput::setText(const QString &newText) {
 	_text = _st.style.font->elided(
 		newText,
 		width() - _st.textMargins.left() - _st.textMargins.right());
+	accessibilityNameChanged();
 }

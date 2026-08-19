@@ -43,6 +43,11 @@ struct FileReferenceAccumulator {
 		push(data.data().vphotos());
 		push(data.data().vdocuments());
 	}
+	void push(const MTPRichMessage &data) {
+		const auto &fields = data.data();
+		push(fields.vphotos());
+		push(fields.vdocuments());
+	}
 	void push(const MTPWallPaper &data) {
 		data.match([&](const MTPDwallPaper &data) {
 			push(data.vdocument());
@@ -61,6 +66,11 @@ struct FileReferenceAccumulator {
 			push(data.vstickers());
 		}, [&](const MTPDwebPageAttributeUniqueStarGift &data) {
 			push(data.vgift());
+		}, [&](const MTPDwebPageAttributeStarGiftCollection &data) {
+			push(data.vicons());
+		}, [&](const MTPDwebPageAttributeStarGiftAuction &data) {
+			push(data.vgift());
+		}, [](const MTPDwebPageAttributeAiComposeTone &) {
 		});
 	}
 	void push(const MTPStarGift &data) {
@@ -115,6 +125,15 @@ struct FileReferenceAccumulator {
 			push(data.vextended_media());
 		}, [&](const MTPDmessageMediaPaidMedia &data) {
 			push(data.vextended_media());
+		}, [&](const MTPDmessageMediaPoll &data) {
+			push(data.vattached_media());
+			for (const auto &answer : data.vpoll().data().vanswers().v) {
+				answer.match([&](const MTPDpollAnswer &a) {
+					push(a.vmedia());
+				}, [](const auto &) {
+				});
+			}
+			push(data.vresults().data().vsolution_media());
 		}, [](const auto &data) {
 		});
 	}
@@ -124,10 +143,24 @@ struct FileReferenceAccumulator {
 		}, [](const MTPDmessageReplyStoryHeader &data) {
 		});
 	}
+	void push(const MTPDraftMessage &data) {
+		data.match([&](const MTPDdraftMessage &data) {
+			push(data.vrich_message());
+		}, [](const MTPDdraftMessageEmpty &) {
+		});
+	}
+	void push(const MTPDialog &data) {
+		data.match([&](const MTPDdialog &data) {
+			push(data.vdraft());
+		}, [](const MTPDdialogFolder &) {
+		}, [](const MTPDdialogCommunity &) {
+		});
+	}
 	void push(const MTPMessage &data) {
 		data.match([&](const MTPDmessage &data) {
 			push(data.vmedia());
 			push(data.vreply_to());
+			push(data.vrich_message());
 		}, [&](const MTPDmessageService &data) {
 			data.vaction().match(
 			[&](const MTPDmessageActionChatEditPhoto &data) {
@@ -155,13 +188,44 @@ struct FileReferenceAccumulator {
 			push(data.vmessages());
 		});
 	}
+	void push(const MTPmessages_PeerDialogs &data) {
+		const auto &fields = data.c_messages_peerDialogs();
+		push(fields.vmessages());
+		push(fields.vdialogs());
+	}
 	void push(const MTPphotos_Photos &data) {
 		data.match([&](const auto &data) {
 			push(data.vphotos());
 		});
 	}
 	void push(const MTPusers_UserFull &data) {
-		push(data.data().vfull_user().data().vpersonal_photo());
+		const auto &full = data.data().vfull_user().data();
+		push(full.vpersonal_photo());
+		push(full.vfallback_photo());
+		push(full.vprofile_photo());
+	}
+	void push(const MTPChatFull &data) {
+		data.match([&](const MTPDchatFull &data) {
+			push(data.vchat_photo());
+		}, [&](const MTPDchannelFull &data) {
+			push(data.vchat_photo());
+		}, [&](const MTPDcommunityFull &data) {
+			push(data.vchat_photo());
+		});
+	}
+	void push(const MTPmessages_ChatFull &data) {
+		push(data.data().vfull_chat());
+	}
+	void push(const MTPForumTopic &data) {
+		data.match([&](const MTPDforumTopic &data) {
+			push(data.vdraft());
+		}, [](const MTPDforumTopicDeleted &data) {
+		});
+	}
+	void push(const MTPmessages_ForumTopics &data) {
+		const auto &fields = data.data();
+		push(fields.vmessages());
+		push(fields.vtopics());
 	}
 	void push(const MTPmessages_RecentStickers &data) {
 		data.match([&](const MTPDmessages_recentStickers &data) {
@@ -187,6 +251,19 @@ struct FileReferenceAccumulator {
 		}, [](const MTPDmessages_savedGifsNotModified &data) {
 		});
 	}
+	void push(const MTPSavedDialog &data) {
+		data.match([&](const MTPDsavedDialog &) {
+		}, [&](const MTPDmonoForumDialog &data) {
+			push(data.vdraft());
+		});
+	}
+	void push(const MTPmessages_SavedDialogs &data) {
+		data.match([](const MTPDmessages_savedDialogsNotModified &) {
+		}, [&](const auto &data) {
+			push(data.vmessages());
+			push(data.vdialogs());
+		});
+	}
 	void push(const MTPaccount_SavedRingtones &data) {
 		data.match([&](const MTPDaccount_savedRingtones &data) {
 			push(data.vringtones());
@@ -201,6 +278,12 @@ struct FileReferenceAccumulator {
 	}
 	void push(const MTPstories_Stories &data) {
 		push(data.data().vstories());
+	}
+	void push(const MTPusers_SavedMusic &data) {
+		data.match([&](const MTPDusers_savedMusic &data) {
+			push(data.vdocuments());
+		}, [](const MTPDusers_savedMusicNotModified &data) {
+		});
 	}
 
 	UpdatedFileReferences result;
@@ -219,11 +302,23 @@ UpdatedFileReferences GetFileReferences(const MTPmessages_Messages &data) {
 	return GetFileReferencesHelper(data);
 }
 
+UpdatedFileReferences GetFileReferences(const MTPmessages_PeerDialogs &data) {
+	return GetFileReferencesHelper(data);
+}
+
 UpdatedFileReferences GetFileReferences(const MTPphotos_Photos &data) {
 	return GetFileReferencesHelper(data);
 }
 
 UpdatedFileReferences GetFileReferences(const MTPusers_UserFull &data) {
+	return GetFileReferencesHelper(data);
+}
+
+UpdatedFileReferences GetFileReferences(const MTPmessages_ChatFull &data) {
+	return GetFileReferencesHelper(data);
+}
+
+UpdatedFileReferences GetFileReferences(const MTPmessages_ForumTopics &data) {
 	return GetFileReferencesHelper(data);
 }
 
@@ -243,6 +338,10 @@ UpdatedFileReferences GetFileReferences(
 }
 
 UpdatedFileReferences GetFileReferences(const MTPmessages_SavedGifs &data) {
+	return GetFileReferencesHelper(data);
+}
+
+UpdatedFileReferences GetFileReferences(const MTPmessages_SavedDialogs &data) {
 	return GetFileReferencesHelper(data);
 }
 
@@ -268,6 +367,10 @@ UpdatedFileReferences GetFileReferences(const MTPmessages_WebPage &data) {
 }
 
 UpdatedFileReferences GetFileReferences(const MTPstories_Stories &data) {
+	return GetFileReferencesHelper(data);
+}
+
+UpdatedFileReferences GetFileReferences(const MTPusers_SavedMusic &data) {
 	return GetFileReferencesHelper(data);
 }
 

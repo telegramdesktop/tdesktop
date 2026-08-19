@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_utilities.h"
 #include "lang/lang_keys.h"
+#include "styles/style_edit_peer_members.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
@@ -34,8 +35,6 @@ ConfirmPhoneBox::ConfirmPhoneBox(
 			tr::lng_intro_fragment_button(),
 			st::fragmentBoxButton);
 		_fragment->setClickedCallback([=] { File::OpenUrl(openUrl); });
-		_fragment->setTextTransform(
-			Ui::RoundButton::TextTransform::NoTransform);
 	}
 	if (timeout) {
 		_call.setStatus({ Ui::SentCodeCall::State::Waiting, *timeout });
@@ -51,8 +50,8 @@ void ConfirmPhoneBox::prepare() {
 		this,
 		tr::lng_confirm_phone_about(
 			lt_phone,
-			rpl::single(Ui::Text::Bold(Ui::FormatPhone(_phone))),
-			Ui::Text::WithEntities),
+			rpl::single(tr::bold(Ui::FormatPhone(_phone))),
+			tr::marked),
 		st::confirmPhoneAboutLabel);
 
 	_code.create(this, st::confirmPhoneCodeField, tr::lng_code_ph());
@@ -74,7 +73,7 @@ void ConfirmPhoneBox::prepare() {
 			+ (_fragment ? (_fragment->height() + fragmentSkip()) : 0));
 
 	_code->submits(
-	) | rpl::start_with_next([=] { sendCode(); }, _code->lifetime());
+	) | rpl::on_next([=] { sendCode(); }, _code->lifetime());
 
 	showChildren();
 }

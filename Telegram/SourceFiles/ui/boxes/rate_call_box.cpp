@@ -93,13 +93,13 @@ void RateCallBox::ratingChanged(int value) {
 
 			updateMaxHeight();
 			_comment->heightChanges(
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				commentResized();
 			}, _comment->lifetime());
 			_comment->submits(
-			) | rpl::start_with_next([=] { send(); }, _comment->lifetime());
+			) | rpl::on_next([=] { send(); }, _comment->lifetime());
 			_comment->cancelled(
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				closeBox();
 			}, _comment->lifetime());
 		}

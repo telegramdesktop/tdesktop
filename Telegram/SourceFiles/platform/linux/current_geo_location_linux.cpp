@@ -17,9 +17,6 @@ namespace {
 
 typedef struct _GClueSimple GClueSimple;
 typedef struct _GClueLocation GClueLocation;
-typedef struct _GeocodeLocation GeocodeLocation;
-typedef struct _GeocodeReverse GeocodeReverse;
-typedef struct _GeocodePlace GeocodePlace;
 
 typedef enum {
 	GCLUE_ACCURACY_LEVEL_NONE = 0,
@@ -42,29 +39,6 @@ GClueLocation *(*gclue_simple_get_location)(GClueSimple *simple);
 
 gdouble (*gclue_location_get_latitude)(GClueLocation *loc);
 gdouble (*gclue_location_get_longitude)(GClueLocation *loc);
-
-GeocodeLocation *(*geocode_location_new)(
-	gdouble latitude,
-	gdouble longitude,
-	gdouble accuracy);
-
-GeocodeReverse *(*geocode_reverse_new_for_location)(
-	GeocodeLocation *location);
-
-void (*geocode_reverse_resolve_async)(
-	GeocodeReverse *object,
-	GCancellable *cancellable,
-	GAsyncReadyCallback callback,
-	gpointer user_data);
-
-GeocodePlace *(*geocode_reverse_resolve_finish)(
-	GeocodeReverse *object,
-	GAsyncResult *res,
-	GError **error);
-
-const char *(*geocode_place_get_street_address)(GeocodePlace *place);
-const char *(*geocode_place_get_town)(GeocodePlace *place);
-const char *(*geocode_place_get_country)(GeocodePlace *place);
 
 } // namespace
 
@@ -125,75 +99,7 @@ void ResolveLocationAddress(
 		const Core::GeoLocation &location,
 		const QString &language,
 		Fn<void(Core::GeoAddress)> callback) {
-	static const auto Inited = [] {
-		const auto lib = base::Platform::LoadLibrary(
-			"libgeocode-glib-2.so.0",
-			RTLD_NODELETE) ?: base::Platform::LoadLibrary(
-			"libgeocode-glib.so.0",
-			RTLD_NODELETE);
-		return lib
-			&& LOAD_LIBRARY_SYMBOL(lib, geocode_location_new)
-			&& LOAD_LIBRARY_SYMBOL(lib, geocode_reverse_new_for_location)
-			&& LOAD_LIBRARY_SYMBOL(lib, geocode_reverse_resolve_async)
-			&& LOAD_LIBRARY_SYMBOL(lib, geocode_reverse_resolve_finish)
-			&& LOAD_LIBRARY_SYMBOL(lib, geocode_place_get_street_address)
-			&& LOAD_LIBRARY_SYMBOL(lib, geocode_place_get_town)
-			&& LOAD_LIBRARY_SYMBOL(lib, geocode_place_get_country);
-	}();
-
-	if (!Inited) {
-		callback({});
-		return;
-	}
-
-	geocode_reverse_resolve_async(
-		geocode_reverse_new_for_location(geocode_location_new(
-			location.point.x(),
-			location.point.y(),
-			-1)),
-		nullptr,
-		GAsyncReadyCallback(+[](
-				GeocodeReverse *reverse,
-				GAsyncResult* res,
-				Fn<void(Core::GeoAddress)> *callback) {
-			const auto argsGuard = gsl::finally([&] {
-				delete callback;
-				g_object_unref(reverse);
-			});
-
-			const auto place = geocode_reverse_resolve_finish(
-				reverse,
-				res,
-				nullptr);
-
-			if (!place) {
-				(*callback)({});
-				return;
-			}
-
-			const auto placeGuard = gsl::finally([&] {
-				g_object_unref(place);
-			});
-
-			const auto values = {
-				geocode_place_get_street_address(place),
-				geocode_place_get_town(place),
-				geocode_place_get_country(place),
-			};
-
-			QStringList checked;
-			for (const auto &value : values) {
-				if (value) {
-					const auto qt = QString::fromUtf8(value);
-					if (!qt.isEmpty()) {
-						checked.push_back(qt);
-					}
-				}
-			}
-
-			(*callback)({ .name = checked.join(u", "_q) });
-		}),
-		new Fn(callback));
+	callback({});
 }
 
 } // namespace Platform

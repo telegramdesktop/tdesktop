@@ -60,6 +60,12 @@ struct GroupCallParticipant {
 	[[nodiscard]] bool screenPaused() const;
 };
 
+enum class GroupCallOrigin : uchar {
+	Group,
+	Conference,
+	VideoStream,
+};
+
 class GroupCall final {
 public:
 	GroupCall(
@@ -68,14 +74,17 @@ public:
 		uint64 accessHash,
 		TimeId scheduleDate,
 		bool rtmp,
-		bool conference);
+		GroupCallOrigin origin);
 	~GroupCall();
 
 	[[nodiscard]] Main::Session &session() const;
 
 	[[nodiscard]] CallId id() const;
 	[[nodiscard]] bool loaded() const;
+	[[nodiscard]] rpl::producer<bool> loadedValue() const;
 	[[nodiscard]] bool rtmp() const;
+	[[nodiscard]] GroupCallOrigin origin() const;
+	[[nodiscard]] bool creator() const;
 	[[nodiscard]] bool canManage() const;
 	[[nodiscard]] bool listenersHidden() const;
 	[[nodiscard]] bool blockchainMayBeEmpty() const;
@@ -118,7 +127,7 @@ public:
 		return _unmutedVideoLimit.current();
 	}
 	[[nodiscard]] bool recordVideo() const {
-		return _recordVideo.current();
+		return _recordVideo;
 	}
 
 	void setPeer(not_null<PeerData*> peer);
@@ -189,6 +198,31 @@ public:
 	[[nodiscard]] bool canChangeJoinMuted() const;
 	[[nodiscard]] bool joinedToTop() const;
 
+	void setMessagesEnabledLocally(bool enabled);
+	[[nodiscard]] bool canChangeMessagesEnabled() const {
+		return _canChangeMessagesEnabled;
+	}
+	[[nodiscard]] bool messagesEnabled() const {
+		return _messagesEnabled.current();
+	}
+	[[nodiscard]] rpl::producer<bool> messagesEnabledValue() const {
+		return _messagesEnabled.value();
+	}
+	[[nodiscard]] int messagesMinPrice() const {
+		return _messagesMinPrice.current();
+	}
+	[[nodiscard]] rpl::producer<int> messagesMinPriceValue() const {
+		return _messagesMinPrice.value();
+	}
+
+	[[nodiscard]] not_null<PeerData*> resolveSendAs() const {
+		return _savedSendAs.current();
+	}
+	[[nodiscard]] rpl::producer<not_null<PeerData*>> sendAsValue() const {
+		return _savedSendAs.value();
+	}
+	void saveSendAs(not_null<PeerData*> peer);
+
 private:
 	enum class ApplySliceSource {
 		FullReloaded,
@@ -230,6 +264,7 @@ private:
 
 	not_null<PeerData*> _peer;
 	int _version = 0;
+	rpl::event_stream<bool> _loadedChanges;
 	mtpRequestId _participantsRequestId = 0;
 	mtpRequestId _reloadRequestId = 0;
 	crl::time _reloadLastFinished = 0;
@@ -250,7 +285,8 @@ private:
 	int _serverParticipantsCount = 0;
 	rpl::variable<int> _fullCount = 0;
 	rpl::variable<int> _unmutedVideoLimit = 0;
-	rpl::variable<bool> _recordVideo = 0;
+	rpl::variable<bool> _messagesEnabled = false;
+	rpl::variable<int> _messagesMinPrice = 0;
 	rpl::variable<TimeId> _recordStartDate = 0;
 	rpl::variable<TimeId> _scheduleDate = 0;
 	rpl::variable<bool> _scheduleStartSubscribed = false;
@@ -271,14 +307,19 @@ private:
 	rpl::event_stream<base::flat_set<UserId>> _staleParticipantIds;
 	rpl::lifetime _checkStaleLifetime;
 
+	rpl::variable<not_null<PeerData*>> _savedSendAs;
+
 	bool _creator : 1 = false;
 	bool _joinMuted : 1 = false;
+	bool _recordVideo : 1 = false;
 	bool _canChangeJoinMuted : 1 = true;
+	bool _canChangeMessagesEnabled : 1 = true;
 	bool _allParticipantsLoaded : 1 = false;
 	bool _joinedToTop : 1 = false;
 	bool _applyingQueuedUpdates : 1 = false;
 	bool _rtmp : 1 = false;
 	bool _conference : 1 = false;
+	bool _videoStream : 1 = false;
 	bool _listenersHidden : 1 = false;
 
 };

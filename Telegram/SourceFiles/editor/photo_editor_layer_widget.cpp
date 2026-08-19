@@ -27,6 +27,7 @@ void OpenWithPreparedFile(
 		not_null<Ui::PreparedFile*> file,
 		int previewWidth,
 		Fn<void(bool ok)> &&doneCallback,
+		int sideLimit,
 		QSize exactSize) {
 	using ImageInfo = Ui::PreparedFileInformation::Image;
 	const auto image = std::get_if<ImageInfo>(&file->information->media);
@@ -42,7 +43,7 @@ void OpenWithPreparedFile(
 		return;
 	}
 
-	const auto sideLimit = PhotoSideLimit();
+	sideLimit = sideLimit ? sideLimit : PhotoSideLimit(true);
 	const auto accepted = std::make_shared<bool>();
 	auto callback = [=](const PhotoModifications &mods) {
 		*accepted = true;

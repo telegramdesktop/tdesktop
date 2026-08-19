@@ -87,7 +87,7 @@ void ConfirmPhone::resolve(
 				sentCodeLength,
 				fragmentUrl,
 				timeout);
-			const auto boxWeak = Ui::MakeWeak(box.data());
+			const auto boxWeak = base::make_weak(box.data());
 			using LoginCode = rpl::event_stream<QString>;
 			const auto codeHandles = box->lifetime().make_state<LoginCode>();
 			controller->session().account().setHandleLoginCode([=](
@@ -95,7 +95,7 @@ void ConfirmPhone::resolve(
 				codeHandles->fire_copy(code);
 			});
 			box->resendRequests(
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				_api.request(MTPauth_ResendCode(
 					MTP_flags(0),
 					MTP_string(phone),
@@ -110,7 +110,7 @@ void ConfirmPhone::resolve(
 			rpl::merge(
 				codeHandles->events(),
 				box->checkRequests()
-			) | rpl::start_with_next([=](const QString &code) {
+			) | rpl::on_next([=](const QString &code) {
 				if (_checkRequestId) {
 					return;
 				}
@@ -142,7 +142,7 @@ void ConfirmPhone::resolve(
 				}).handleFloodErrors().send();
 			}, box->lifetime());
 			box->boxClosing(
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				controller->session().account().setHandleLoginCode(nullptr);
 			}, box->lifetime());
 

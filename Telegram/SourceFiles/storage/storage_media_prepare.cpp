@@ -133,6 +133,7 @@ MimeDataState ComputeMimeDataState(const QMimeData *data) {
 	}
 
 	auto allAreSmallImages = true;
+	auto allAreMedia = true;
 	for (const auto &url : urls) {
 		if (!url.isLocalFile()) {
 			return MimeDataState::None;
@@ -162,9 +163,17 @@ MimeDataState ComputeMimeDataState(const QMimeData *data) {
 				}
 			}
 		}
+		if (allAreMedia) {
+			const auto type = DetectNameType(file);
+			if (type != NameType::Image && type != NameType::Video) {
+				allAreMedia = false;
+			}
+		}
 	}
 	return allAreSmallImages
 		? MimeDataState::PhotoFiles
+		: allAreMedia
+		? MimeDataState::MediaFiles
 		: MimeDataState::Files;
 }
 
@@ -219,7 +228,7 @@ PreparedList PrepareMediaList(
 			result.files.back().size = filesize;
 		} else {
 			result.filesToProcess.emplace_back(file);
-			result.files.back().size = filesize;
+			result.filesToProcess.back().size = filesize;
 		}
 	}
 	PrepareDetailsInParallel(result, previewWidth);

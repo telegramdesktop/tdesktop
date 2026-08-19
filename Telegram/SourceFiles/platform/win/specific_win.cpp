@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/win/base_windows_shlobj_h.h"
 #include "base/platform/win/base_windows_winrt.h"
 #include "base/call_delayed.h"
+#include "core/version.h"
 #include "ui/boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -26,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "window/window_controller.h"
 #include "core/crash_reports.h"
+#include "core/version.h"
 
 #include <QtCore/QOperatingSystemVersion>
 #include <QtWidgets/QApplication>
@@ -367,6 +369,9 @@ void start() {
 } // namespace ThirdParty
 
 void start() {
+	const auto supported = base::WinRT::Supported();
+	LOG(("WinRT Supported: %1").arg(Logs::b(supported)));
+
 	// https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/setlocale-wsetlocale#utf-8-support
 	setlocale(LC_ALL, ".UTF8");
 
@@ -535,6 +540,18 @@ void ActivateOtherProcess(uint64 processId, uint64 windowId) {
 	}
 }
 
+bool WaitForProcessExit(uint64 processId, crl::time timeout) {
+	const auto process = ::OpenProcess(
+		SYNCHRONIZE,
+		FALSE,
+		DWORD(processId));
+	if (!process) {
+		return (::GetLastError() == ERROR_INVALID_PARAMETER);
+	}
+	const auto guard = gsl::finally([&] { ::CloseHandle(process); });
+	return (::WaitForSingleObject(process, DWORD(timeout)) == WAIT_OBJECT_0);
+}
+
 } // namespace Platform
 
 namespace {
@@ -667,6 +684,36 @@ QImage DefaultApplicationIcon() {
 	return Window::Logo();
 }
 
+void LaunchMaps(const Data::LocationPoint &point, Fn<void()> fail) {
+	const auto aar = base::WinRT::TryCreateInstance<
+		IApplicationAssociationRegistration
+	>(CLSID_ApplicationAssociationRegistration);
+	if (!aar) {
+		fail();
+		return;
+	}
+
+	auto handler = base::CoTaskMemString();
+	const auto result = aar->QueryCurrentDefault(
+		L"geo",
+		AT_URLPROTOCOL,
+		AL_EFFECTIVE,
+		handler.put());
+	if (FAILED(result)
+		|| !handler
+		|| !handler.data()
+		|| std::wstring(handler.data()) == L"geo") {
+		fail();
+		return;
+	}
+
+	const auto url = u"geo:%1,%2"_q;
+	if (!QDesktopServices::openUrl(
+		url.arg(point.latAsString(), point.lonAsString()))) {
+		fail();
+	}
+}
+
 } // namespace Platform
 
 void psSendToMenu(bool send, bool silent) {
@@ -674,35 +721,9 @@ void psSendToMenu(bool send, bool silent) {
 		send,
 		silent,
 		FOLDERID_SendTo,
-		L"-sendpath",
+		L"--",
 		L"Telegram send to link.\n"
 		"You can disable send to menu item in Telegram settings.");
-}
-
-bool psLaunchMaps(const Data::LocationPoint &point) {
-	const auto aar = base::WinRT::TryCreateInstance<
-		IApplicationAssociationRegistration
-	>(CLSID_ApplicationAssociationRegistration);
-	if (!aar) {
-		return false;
-	}
-
-	auto handler = base::CoTaskMemString();
-	const auto result = aar->QueryCurrentDefault(
-		L"bingmaps",
-		AT_URLPROTOCOL,
-		AL_EFFECTIVE,
-		handler.put());
-	if (FAILED(result)
-		|| !handler
-		|| !handler.data()
-		|| std::wstring(handler.data()) == L"bingmaps") {
-		return false;
-	}
-
-	const auto url = u"bingmaps:?lvl=16&collection=point.%1_%2_Point"_q;
-	return QDesktopServices::openUrl(
-		url.arg(point.latAsString()).arg(point.lonAsString()));
 }
 
 // Stub while we still support Windows 7.

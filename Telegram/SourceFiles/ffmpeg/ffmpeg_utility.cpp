@@ -8,14 +8,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ffmpeg/ffmpeg_utility.h"
 
 #include "base/algorithm.h"
+#include "base/options.h"
 #include "logs.h"
 
-#if !defined TDESKTOP_USE_PACKAGED && !defined Q_OS_WIN && !defined Q_OS_MAC
+#if !defined Q_OS_WIN && !defined Q_OS_MAC
 #include "base/platform/linux/base_linux_library.h"
 #include <deque>
-#endif // !TDESKTOP_USE_PACKAGED && !Q_OS_WIN && !Q_OS_MAC
+#endif // !Q_OS_WIN && !Q_OS_MAC
 
 #include <QImage>
+#include <cmath>
+#include <limits>
+#include <new>
 
 #ifdef LIB_FFMPEG_USE_QT_PRIVATE_API
 #include <private/qdrawhelper_p.h>
@@ -26,6 +30,16 @@ extern "C" {
 #include <libavutil/display.h>
 } // extern "C"
 
+#if !defined Q_OS_WIN && !defined Q_OS_MAC
+extern "C" {
+void _libvdpau_so_tramp_resolve_all(void) __attribute__((weak));
+void _libva_drm_so_tramp_resolve_all(void) __attribute__((weak));
+void _libva_x11_so_tramp_resolve_all(void) __attribute__((weak));
+void _libva_so_tramp_resolve_all(void) __attribute__((weak));
+void _libdrm_so_tramp_resolve_all(void) __attribute__((weak));
+} // extern "C"
+#endif // !Q_OS_WIN && !Q_OS_MAC
+
 namespace FFmpeg {
 namespace {
 
@@ -34,21 +48,82 @@ constexpr auto kAlignImageBy = 64;
 constexpr auto kImageFormat = QImage::Format_ARGB32_Premultiplied;
 constexpr auto kMaxScaleByAspectRatio = 16;
 constexpr auto kAvioBlockSize = 4096;
+constexpr auto kMaxFrameStorageBytes = 64 * 1024 * 1024;
+constexpr auto kMaxPixelsPaddingRatio = 32;
+constexpr auto kMaxPixelsFixedPadding = 64 * 1024;
 constexpr auto kTimeUnknown = std::numeric_limits<crl::time>::min();
 constexpr auto kDurationMax = crl::time(std::numeric_limits<int>::max());
+
+base::options::toggle OptionFFmpegMultiThread({
+	.id = kOptionFFmpegMultiThread,
+	.name = "Multi-thread video decoding",
+	.description = "Allow FFmpeg to use a thread pool for decoding,"
+		" typically a thread per CPU thread.",
+	.defaultValue = true,
+});
+
+base::options::option<int> OptionFFmpegThreadCount({
+	.id = kOptionFFmpegThreadCount,
+	.name = "Video decoding thread count",
+	.description = "Override FFmpeg's thread pool thread count.",
+});
 
 using GetFormatMethod = enum AVPixelFormat(*)(
 	struct AVCodecContext *s,
 	const enum AVPixelFormat *fmt);
+
+[[nodiscard]] int NormalizeRotation(int rotation) {
+	auto result = rotation % 360;
+	if (result < 0) {
+		result += 360;
+	}
+	return (result == 90 || result == 180 || result == 270) ? result : 0;
+}
 
 struct HwAccelDescriptor {
 	GetFormatMethod getFormat = nullptr;
 	AVPixelFormat format = AV_PIX_FMT_NONE;
 };
 
-void AlignedImageBufferCleanupHandler(void* data) {
+struct AlignedFrameStorageLayout {
+	int width = 0;
+	int height = 0;
+	int bytesPerLine = 0;
+	int totalBytes = 0;
+};
+
+void AlignedImageBufferCleanupHandler(void *data) {
 	const auto buffer = static_cast<uchar*>(data);
 	delete[] buffer;
+}
+
+[[nodiscard]] bool ComputeAlignedFrameStorageLayout(
+		QSize size,
+		AlignedFrameStorageLayout *out) {
+	const auto width = size.width();
+	const auto height = size.height();
+	if (width <= 0 || height <= 0) {
+		return false;
+	}
+	const auto widthAlign = kAlignImageBy / kPixelBytesSize;
+	const auto widthRemainder = width % widthAlign;
+	const auto widthPadding = widthRemainder
+		? (widthAlign - widthRemainder)
+		: 0;
+	const auto alignedWidth = int64_t(width) + widthPadding;
+	const auto bytesPerLine = int64_t(alignedWidth) * kPixelBytesSize;
+	if (bytesPerLine > kMaxFrameStorageBytes) {
+		return false;
+	}
+	const auto totalBytes = int64_t(bytesPerLine) * height + kAlignImageBy;
+	if (totalBytes > kMaxFrameStorageBytes) {
+		return false;
+	}
+	out->width = width;
+	out->height = height;
+	out->bytesPerLine = int(bytesPerLine);
+	out->totalBytes = int(totalBytes);
+	return true;
 }
 
 [[nodiscard]] bool IsValidAspectRatio(AVRational aspect) {
@@ -91,23 +166,24 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 #endif // LIB_FFMPEG_USE_QT_PRIVATE_API
 }
 
-#if !defined TDESKTOP_USE_PACKAGED && !defined Q_OS_WIN && !defined Q_OS_MAC
+#if !defined Q_OS_WIN && !defined Q_OS_MAC
 [[nodiscard]] auto CheckHwLibs() {
 	auto list = std::deque{
 		AV_PIX_FMT_CUDA,
 	};
-	if (base::Platform::LoadLibrary("libvdpau.so.1")) {
+	if (!_libvdpau_so_tramp_resolve_all
+			|| base::Platform::LoadLibrary("libvdpau.so.1")) {
 		list.push_front(AV_PIX_FMT_VDPAU);
 	}
 	if ([&] {
 		const auto list = std::array{
-			"libva-drm.so.2",
-			"libva-x11.so.2",
-			"libva.so.2",
-			"libdrm.so.2",
+			std::make_pair(_libva_drm_so_tramp_resolve_all, "libva-drm.so.2"),
+			std::make_pair(_libva_x11_so_tramp_resolve_all, "libva-x11.so.2"),
+			std::make_pair(_libva_so_tramp_resolve_all, "libva.so.2"),
+			std::make_pair(_libdrm_so_tramp_resolve_all, "libdrm.so.2"),
 		};
-		for (const auto lib : list) {
-			if (!base::Platform::LoadLibrary(lib)) {
+		for (const auto &lib : list) {
+			if (lib.first && !base::Platform::LoadLibrary(lib.second)) {
 				return false;
 			}
 		}
@@ -117,7 +193,7 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 	}
 	return list;
 }
-#endif // !TDESKTOP_USE_PACKAGED && !Q_OS_WIN && !Q_OS_MAC
+#endif // !Q_OS_WIN && !Q_OS_MAC
 
 [[nodiscard]] bool InitHw(AVCodecContext *context, AVHWDeviceType type) {
 	AVCodecContext *parent = static_cast<AVCodecContext*>(context->opaque);
@@ -160,9 +236,7 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 		}
 		return false;
 	};
-#if !defined TDESKTOP_USE_PACKAGED && !defined Q_OS_WIN && !defined Q_OS_MAC
-	static const auto list = CheckHwLibs();
-#else // !TDESKTOP_USE_PACKAGED && !Q_OS_WIN && !Q_OS_MAC
+#if defined Q_OS_WIN || defined Q_OS_MAC
 	const auto list = std::array{
 #ifdef Q_OS_WIN
 		AV_PIX_FMT_D3D11,
@@ -170,13 +244,11 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 		AV_PIX_FMT_CUDA,
 #elif defined Q_OS_MAC // Q_OS_WIN
 		AV_PIX_FMT_VIDEOTOOLBOX,
-#else // Q_OS_WIN || Q_OS_MAC
-		AV_PIX_FMT_VAAPI,
-		AV_PIX_FMT_VDPAU,
-		AV_PIX_FMT_CUDA,
 #endif // Q_OS_WIN || Q_OS_MAC
 	};
-#endif // TDESKTOP_USE_PACKAGED || Q_OS_WIN || Q_OS_MAC
+#else // Q_OS_WIN || Q_OS_MAC
+	static const auto list = CheckHwLibs();
+#endif // !Q_OS_WIN && !Q_OS_MAC
 	for (const auto format : list) {
 		if (!has(format)) {
 			continue;
@@ -226,6 +298,9 @@ enum AVPixelFormat GetFormatImplementation(
 }
 
 } // namespace
+
+const char kOptionFFmpegMultiThread[] = "ffmpeg-multithread";
+const char kOptionFFmpegThreadCount[] = "ffmpeg-thread-count";
 
 IOPointer MakeIOPointer(
 		void *opaque,
@@ -371,6 +446,12 @@ const AVCodec *FindDecoder(not_null<AVCodecContext*> context) {
 		: avcodec_find_decoder(context->codec_id);
 }
 
+int64_t MaxPixelsForAreaLimit(int64_t area) {
+	// Decoders may check internally padded frame dimensions against max_pixels,
+	// not just the visible frame size. Leave room for alignment/cropping slack.
+	return area + area / kMaxPixelsPaddingRatio + kMaxPixelsFixedPadding;
+}
+
 CodecPointer MakeCodecPointer(CodecDescriptor descriptor) {
 	auto error = AvErrorWrap();
 
@@ -387,7 +468,18 @@ CodecPointer MakeCodecPointer(CodecDescriptor descriptor) {
 		return {};
 	}
 	context->pkt_timebase = stream->time_base;
-	av_opt_set(context, "threads", "auto", 0);
+	if ((descriptor.videoMaxArea > 0)
+		&& (context->codec_type == AVMEDIA_TYPE_VIDEO)) {
+		context->max_pixels = MaxPixelsForAreaLimit(
+			descriptor.videoMaxArea);
+	}
+	if (OptionFFmpegMultiThread.value()) {
+		av_opt_set_int(
+			context,
+			"threads",
+			OptionFFmpegThreadCount.value(),
+			0);
+	}
 	av_opt_set_int(context, "refcounted_frames", 1, 0);
 
 	const auto codec = FindDecoder(context);
@@ -505,18 +597,10 @@ void SwresampleDeleter::operator()(SwrContext *value) {
 }
 
 SwresamplePointer MakeSwresamplePointer(
-#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
 		AVChannelLayout *srcLayout,
-#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
-		uint64_t srcLayout,
-#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 		AVSampleFormat srcFormat,
 		int srcRate,
-#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
 		AVChannelLayout *dstLayout,
-#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
-		uint64_t dstLayout,
-#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 		AVSampleFormat dstFormat,
 		int dstRate,
 		SwresamplePointer *existing) {
@@ -527,16 +611,8 @@ SwresamplePointer MakeSwresamplePointer(
 	// to the resulting context, so the caching doesn't work.
 	if (existing && (*existing) != nullptr) {
 		const auto &deleter = existing->get_deleter();
-		if (true
-#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
-			&& srcLayout->nb_channels == deleter.srcChannels
+		if (srcLayout->nb_channels == deleter.srcChannels
 			&& dstLayout->nb_channels == deleter.dstChannels
-#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
-			&& (av_get_channel_layout_nb_channels(srcLayout)
-				== deleter.srcChannels)
-			&& (av_get_channel_layout_nb_channels(dstLayout)
-				== deleter.dstChannels)
-#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 			&& srcFormat == deleter.srcFormat
 			&& dstFormat == deleter.dstFormat
 			&& srcRate == deleter.srcRate
@@ -546,10 +622,8 @@ SwresamplePointer MakeSwresamplePointer(
 	}
 
 	// Initialize audio resampler
-	AvErrorWrap error;
-#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	auto result = (SwrContext*)nullptr;
-	error = AvErrorWrap(swr_alloc_set_opts2(
+	auto error = AvErrorWrap(swr_alloc_set_opts2(
 		&result,
 		dstLayout,
 		dstFormat,
@@ -563,21 +637,6 @@ SwresamplePointer MakeSwresamplePointer(
 		LogError(u"swr_alloc_set_opts2"_q, error);
 		return SwresamplePointer();
 	}
-#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
-	auto result = swr_alloc_set_opts(
-		existing ? existing->get() : nullptr,
-		dstLayout,
-		dstFormat,
-		dstRate,
-		srcLayout,
-		srcFormat,
-		srcRate,
-		0,
-		nullptr);
-	if (!result) {
-		LogError(u"swr_alloc_set_opts"_q);
-	}
-#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 
 	error = AvErrorWrap(swr_init(result));
 	if (error) {
@@ -591,18 +650,10 @@ SwresamplePointer MakeSwresamplePointer(
 		{
 			srcFormat,
 			srcRate,
-#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
 			srcLayout->nb_channels,
-#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
-			av_get_channel_layout_nb_channels(srcLayout),
-#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 			dstFormat,
 			dstRate,
-#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
 			dstLayout->nb_channels,
-#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
-			av_get_channel_layout_nb_channels(dstLayout),
-#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 		});
 }
 
@@ -676,17 +727,33 @@ int DurationByPacket(const Packet &packet, AVRational timeBase) {
 }
 
 int ReadRotationFromMetadata(not_null<AVStream*> stream) {
-	const auto displaymatrix = av_stream_get_side_data(
-		stream,
-		AV_PKT_DATA_DISPLAYMATRIX,
-		nullptr);
-	auto theta = 0;
+	const auto displaymatrix = av_packet_side_data_get(
+		stream->codecpar->coded_side_data,
+		stream->codecpar->nb_coded_side_data,
+		AV_PKT_DATA_DISPLAYMATRIX);
 	if (displaymatrix) {
-		theta = -round(av_display_rotation_get((int32_t*)displaymatrix));
+		const auto matrix = (int32_t*)displaymatrix->data;
+		const auto angle = av_display_rotation_get(matrix);
+		if (std::isfinite(angle)) {
+			if (const auto result = NormalizeRotation(
+					-base::SafeRound(angle))) {
+				return result;
+			}
+		}
 	}
-	theta -= 360 * floor(theta / 360 + 0.9 / 360);
-	const auto result = int(base::SafeRound(theta));
-	return (result == 90 || result == 180 || result == 270) ? result : 0;
+	const auto rotateTag = av_dict_get(
+		stream->metadata,
+		"rotate",
+		nullptr,
+		0);
+	if (rotateTag && *rotateTag->value) {
+		auto ok = false;
+		const auto rotation = QString::fromUtf8(rotateTag->value).toInt(&ok);
+		if (ok) {
+			return NormalizeRotation(rotation);
+		}
+	}
+	return 0;
 }
 
 AVRational ValidateAspectRatio(AVRational aspect) {
@@ -717,27 +784,26 @@ bool GoodStorageForFrame(const QImage &storage, QSize size) {
 
 // Create a QImage of desired size where all the data is properly aligned.
 QImage CreateFrameStorage(QSize size) {
-	const auto width = size.width();
-	const auto height = size.height();
-	const auto widthAlign = kAlignImageBy / kPixelBytesSize;
-	const auto neededWidth = width + ((width % widthAlign)
-		? (widthAlign - (width % widthAlign))
-		: 0);
-	const auto perLine = neededWidth * kPixelBytesSize;
-	const auto buffer = new uchar[perLine * height + kAlignImageBy];
-	const auto cleanupData = static_cast<void *>(buffer);
+	auto layout = AlignedFrameStorageLayout();
+	if (!ComputeAlignedFrameStorageLayout(size, &layout)) {
+		return {};
+	}
+	const auto buffer = new (std::nothrow) uchar[layout.totalBytes];
+	if (!buffer) {
+		return {};
+	}
 	const auto address = reinterpret_cast<uintptr_t>(buffer);
 	const auto alignedBuffer = buffer + ((address % kAlignImageBy)
 		? (kAlignImageBy - (address % kAlignImageBy))
 		: 0);
 	return QImage(
 		alignedBuffer,
-		width,
-		height,
-		perLine,
+		layout.width,
+		layout.height,
+		layout.bytesPerLine,
 		kImageFormat,
 		AlignedImageBufferCleanupHandler,
-		cleanupData);
+		buffer);
 }
 
 void UnPremultiply(QImage &dst, const QImage &src) {
@@ -745,21 +811,32 @@ void UnPremultiply(QImage &dst, const QImage &src) {
 	// as an image in QImage::Format_ARGB32 format.
 	if (!GoodStorageForFrame(dst, src.size())) {
 		dst = CreateFrameStorage(src.size());
+		if (dst.isNull()) {
+			return;
+		}
 	}
 	const auto srcPerLine = src.bytesPerLine();
 	const auto dstPerLine = dst.bytesPerLine();
 	const auto width = src.width();
 	const auto height = src.height();
+	if (width <= 0 || height <= 0) {
+		return;
+	}
+	const auto packedLine = int64_t(width) * kPixelBytesSize;
+	const auto packedCount = int64_t(width) * height;
+	const auto fast = (srcPerLine == packedLine)
+		&& (dstPerLine == packedLine)
+		&& (packedCount <= kMaxFrameStorageBytes);
 	auto srcBytes = src.bits();
 	auto dstBytes = dst.bits();
-	if (srcPerLine != width * 4 || dstPerLine != width * 4) {
+	if (!fast) {
 		for (auto i = 0; i != height; ++i) {
 			UnPremultiplyLine(dstBytes, srcBytes, width);
 			srcBytes += srcPerLine;
 			dstBytes += dstPerLine;
 		}
 	} else {
-		UnPremultiplyLine(dstBytes, srcBytes, width * height);
+		UnPremultiplyLine(dstBytes, srcBytes, int(packedCount));
 	}
 }
 
@@ -767,14 +844,21 @@ void PremultiplyInplace(QImage &image) {
 	const auto perLine = image.bytesPerLine();
 	const auto width = image.width();
 	const auto height = image.height();
+	if (width <= 0 || height <= 0) {
+		return;
+	}
+	const auto packedLine = int64_t(width) * kPixelBytesSize;
+	const auto packedCount = int64_t(width) * height;
+	const auto fast = (perLine == packedLine)
+		&& (packedCount <= kMaxFrameStorageBytes);
 	auto bytes = image.bits();
-	if (perLine != width * 4) {
+	if (!fast) {
 		for (auto i = 0; i != height; ++i) {
 			PremultiplyLine(bytes, bytes, width);
 			bytes += perLine;
 		}
 	} else {
-		PremultiplyLine(bytes, bytes, width * height);
+		PremultiplyLine(bytes, bytes, int(packedCount));
 	}
 }
 

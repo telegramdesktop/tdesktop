@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_abstract_structure.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
+#include "data/data_todo_list.h"
 #include "info/profile/info_profile_cover.h"
 #include "ui/chat/chat_style.h"
 #include "ui/effects/reaction_fly_animation.h"
@@ -197,6 +198,15 @@ bool NeedAboutGroup(not_null<History*> history) {
 
 void SetText(Ui::Text::String &text, const QString &content) {
 	text.setText(st::serviceTextStyle, content, EmptyLineOptions);
+}
+
+[[nodiscard]] Ui::BubbleRounding KeyboardRounding() {
+	return Ui::BubbleRounding{
+		.topLeft = Ui::BubbleCornerRounding::Large,
+		.topRight = Ui::BubbleCornerRounding::Large,
+		.bottomLeft = Ui::BubbleCornerRounding::Large,
+		.bottomRight = Ui::BubbleCornerRounding::Large,
+	};
 }
 
 } // namespace
@@ -410,11 +420,28 @@ Service::Service(
 	setupReactions(replacing);
 }
 
+void Service::clickHandlerPressedChanged(
+		const ClickHandlerPtr &handler,
+		bool pressed) {
+	if (const auto markup = data()->Get<HistoryMessageReplyMarkup>()) {
+		if (const auto keyboard = markup->inlineKeyboard.get()) {
+			keyboard->clickHandlerPressedChanged(
+				handler,
+				pressed,
+				KeyboardRounding());
+		}
+	}
+	Element::clickHandlerPressedChanged(handler, pressed);
+}
+
 QRect Service::innerGeometry() const {
 	return countGeometry();
 }
 
-bool Service::consumeHorizontalScroll(QPoint position, int delta) {
+bool Service::consumeHorizontalScroll(
+		QPoint position,
+		int delta,
+		Qt::ScrollPhase phase) {
 	if (const auto media = this->media()) {
 		return media->consumeHorizontalScroll(position, delta);
 	}
@@ -423,7 +450,7 @@ bool Service::consumeHorizontalScroll(QPoint position, int delta) {
 
 QRect Service::countGeometry() const {
 	auto result = QRect(0, 0, width(), height());
-	if (delegate()->elementIsChatWide()) {
+	if (delegate()->elementChatMode() == ElementChatMode::Wide) {
 		result.setWidth(qMin(result.width(), st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
 	}
 	auto margins = st::msgServiceMargin;
@@ -448,12 +475,13 @@ void Service::animateReaction(Ui::ReactionFlyAnimationArgs &&args) {
 }
 
 QSize Service::performCountCurrentSize(int newWidth) {
-	auto newHeight = displayedDateHeight();
-	if (const auto bar = Get<UnreadBar>()) {
-		newHeight += bar->height();
-	}
+	auto newHeight = marginTop();
 
 	data()->resolveDependent();
+
+	if (const auto service = Get<ServicePreMessage>()) {
+		service->resizeToWidth(newWidth, delegate()->elementChatMode());
+	}
 
 	if (isHidden()) {
 		return { newWidth, newHeight };
@@ -461,29 +489,29 @@ QSize Service::performCountCurrentSize(int newWidth) {
 	const auto media = this->media();
 	const auto mediaDisplayed = media && media->isDisplayed();
 	auto contentWidth = newWidth;
+	if (delegate()->elementChatMode() == ElementChatMode::Wide) {
+		accumulate_min(contentWidth, st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left());
+	}
+	contentWidth -= st::msgServiceMargin.left() + st::msgServiceMargin.left(); // two small margins
+	if (contentWidth < st::msgServicePadding.left() + st::msgServicePadding.right() + 1) {
+		contentWidth = st::msgServicePadding.left() + st::msgServicePadding.right() + 1;
+	}
 	if (mediaDisplayed && media->hideServiceText()) {
-		newHeight += st::msgServiceMargin.top()
-			+ media->resizeGetHeight(newWidth)
-			+ st::msgServiceMargin.bottom();
+		newHeight += media->resizeGetHeight(newWidth) + marginBottom();
 	} else if (!text().isEmpty()) {
-		if (delegate()->elementIsChatWide()) {
-			accumulate_min(contentWidth, st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left());
-		}
-		contentWidth -= st::msgServiceMargin.left() + st::msgServiceMargin.left(); // two small margins
-		if (contentWidth < st::msgServicePadding.left() + st::msgServicePadding.right() + 1) {
-			contentWidth = st::msgServicePadding.left() + st::msgServicePadding.right() + 1;
-		}
-
 		auto nwidth = qMax(contentWidth - st::msgServicePadding.left() - st::msgServicePadding.right(), 0);
 		newHeight += (contentWidth >= maxWidth())
 			? minHeight()
 			: textHeightFor(nwidth);
-		newHeight += st::msgServicePadding.top() + st::msgServicePadding.bottom() + st::msgServiceMargin.top() + st::msgServiceMargin.bottom();
+		newHeight += st::msgServicePadding.top() + st::msgServicePadding.bottom();
 		if (mediaDisplayed) {
 			const auto mediaWidth = std::min(media->maxWidth(), nwidth);
 			newHeight += st::msgServiceMargin.top()
 				+ media->resizeGetHeight(mediaWidth);
 		}
+		newHeight += marginBottom();
+	} else {
+		newHeight -= st::msgServiceMargin.top();
 	}
 
 	if (_reactions) {
@@ -494,11 +522,21 @@ QSize Service::performCountCurrentSize(int newWidth) {
 		}
 	}
 
+	const auto item = data();
+	if (const auto keyboard = item->inlineReplyKeyboard()) {
+		const auto keyboardWidth = mediaDisplayed ? media->width() : contentWidth;
+		const auto keyboardHeight = st::msgBotKbButton.margin + keyboard->naturalHeight();
+		newHeight += keyboardHeight;
+		keyboard->resize(keyboardWidth, keyboardHeight - st::msgBotKbButton.margin);
+	}
+
 	return { newWidth, newHeight };
 }
 
 QSize Service::performCountOptimalSize() {
+	const auto markup = data()->inlineReplyMarkup();
 	validateText();
+	validateInlineKeyboard(markup);
 
 	if (_reactions) {
 		_reactions->initDimensions();
@@ -520,16 +558,29 @@ bool Service::isHidden() const {
 }
 
 int Service::marginTop() const {
-	auto result = st::msgServiceMargin.top();
+	auto result = isHidden() ? 0 : st::msgServiceMargin.top();
 	result += displayedDateHeight();
 	if (const auto bar = Get<UnreadBar>()) {
 		result += bar->height();
+	}
+	if (const auto bar = Get<ForumThreadBar>()) {
+		result += bar->height();
+	}
+	if (const auto service = Get<ServicePreMessage>()) {
+		result += service->height;
+	}
+	if (const auto margins = Get<ViewAddedMargins>()) {
+		result += margins->top;
 	}
 	return result;
 }
 
 int Service::marginBottom() const {
-	return st::msgServiceMargin.bottom();
+	auto result = st::msgServiceMargin.bottom();
+	if (const auto margins = Get<ViewAddedMargins>()) {
+		result += margins->bottom;
+	}
+	return result;
 }
 
 void Service::draw(Painter &p, const PaintContext &context) const {
@@ -541,20 +592,27 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 	const auto st = context.st;
 	if (const auto bar = Get<UnreadBar>()) {
 		auto unreadbarh = bar->height();
-		auto dateh = 0;
+		auto aboveh = 0;
 		if (const auto date = Get<DateBadge>()) {
-			dateh = date->height();
+			aboveh += date->height();
 		}
-		if (context.clip.intersects(QRect(0, dateh, width(), unreadbarh))) {
-			p.translate(0, dateh);
+		if (const auto bar = Get<ForumThreadBar>()) {
+			aboveh += bar->height();
+		}
+		if (context.clip.intersects(QRect(0, aboveh, width(), unreadbarh))) {
+			p.translate(0, aboveh);
 			bar->paint(
 				p,
 				context,
 				0,
 				width(),
-				delegate()->elementIsChatWide());
-			p.translate(0, -dateh);
+				delegate()->elementChatMode());
+			p.translate(0, -aboveh);
 		}
+	}
+
+	if (const auto service = Get<ServicePreMessage>()) {
+		service->paint(p, context, g, delegate()->elementChatMode());
 	}
 
 	if (isHidden()) {
@@ -581,6 +639,29 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 			context.reactionInfo->position = reactionsPosition;
 		}
 		p.translate(-reactionsPosition);
+	}
+
+	const auto item = data();
+	const auto keyboard = item->inlineReplyKeyboard();
+	if (keyboard) {
+		// We need to count geometry without keyboard for bubble selection
+		// intervals counting below.
+		const auto keyboardHeight = st::msgBotKbButton.margin + keyboard->naturalHeight();
+		g.setHeight(g.height() - keyboardHeight);
+
+		const auto keyboardWidth = mediaDisplayed ? media->width() : g.width();
+		const auto keyboardPosition = QPoint(
+			g.left() + (g.width() - keyboardWidth) / 2,
+			g.top() + g.height() + st::msgBotKbButton.margin);
+		p.translate(keyboardPosition);
+		keyboard->paint(
+			p,
+			context.st,
+			KeyboardRounding(),
+			keyboardWidth,
+			context.clip.translated(-keyboardPosition),
+			context.paused);
+		p.translate(-keyboardPosition);
 	}
 
 	if (!onlyMedia) {
@@ -658,6 +739,13 @@ TextState Service::textState(QPoint point, StateRequest request) const {
 		return result;
 	}
 
+	if (const auto service = Get<ServicePreMessage>()) {
+		result.link = service->textState(point, request, g);
+		if (result.link) {
+			return result;
+		}
+	}
+
 	if (_reactions) {
 		const auto reactionsHeight = st::mediaInBubbleSkip + _reactions->height();
 		const auto reactionsLeft = 0;
@@ -669,6 +757,25 @@ TextState Service::textState(QPoint point, StateRequest request) const {
 		}
 	}
 
+	auto keyboard = item->inlineReplyKeyboard();
+	auto keyboardHeight = 0;
+	if (keyboard) {
+		keyboardHeight = keyboard->naturalHeight();
+		g.setHeight(g.height() - st::msgBotKbButton.margin - keyboardHeight);
+
+		if (item->isHistoryEntry()) {
+			const auto keyboardWidth = mediaDisplayed ? media->width() : g.width();
+			const auto keyboardPosition = QPoint(
+				g.left() + (g.width() - keyboardWidth) / 2,
+				g.top() + g.height() + st::msgBotKbButton.margin);
+			if (QRect(keyboardPosition, QSize(keyboardWidth, keyboardHeight)).contains(point)) {
+				result.link = keyboard->getLink(point - keyboardPosition);
+				if (result.link) {
+					return result;
+				}
+			}
+		}
+	}
 
 	if (onlyMedia) {
 		return media->textState(point - QPoint(st::msgServiceMargin.left() + (g.width() - media->width()) / 2, g.top()), request);
@@ -715,6 +822,16 @@ TextState Service::textState(QPoint point, StateRequest request) const {
 				result.link = custom->link;
 			} else if (const auto payment = item->Get<HistoryServicePaymentRefund>()) {
 				result.link = payment->link;
+			} else if (const auto done = item->Get<HistoryServiceTodoCompletions>()) {
+				result.link = done->lnk;
+			} else if (const auto append = item->Get<HistoryServiceTodoAppendTasks>()) {
+				result.link = append->lnk;
+			} else if (const auto pollAppend = item->Get<HistoryServicePollAppendAnswer>()) {
+				result.link = pollAppend->lnk;
+			} else if (const auto pollDelete = item->Get<HistoryServicePollDeleteAnswer>()) {
+				result.link = pollDelete->lnk;
+			} else if (const auto finish = item->Get<HistoryServiceSuggestFinish>()) {
+				result.link = finish->lnk;
 			} else if (media && data()->showSimilarChannels()) {
 				result = media->textState(mediaPoint, request);
 			}
@@ -860,7 +977,8 @@ void EmptyPainter::paint(
 	if (_icon) {
 		_icon->paintInRect(
 			p,
-			QRect(bubbleLeft, top, bubbleWidth, iconHeight));
+			QRect(bubbleLeft, top, bubbleWidth, iconHeight),
+			st->msgServiceFg()->c);
 		top += iconHeight + st::historyGroupAboutHeaderSkip;
 	}
 

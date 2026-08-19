@@ -40,7 +40,7 @@ ItemSingleFilePreview::ItemSingleFilePreview(
 	const style::ComposeControls &st,
 	not_null<HistoryItem*> item,
 	AttachControls::Type type)
-: AbstractSingleFilePreview(parent, st, CheckControlsType(item, type)) {
+: AbstractSingleFilePreview(parent, st, CheckControlsType(item, type), {}) {
 	const auto media = item->media();
 	Assert(media != nullptr);
 	const auto document = media->document();
@@ -51,7 +51,7 @@ ItemSingleFilePreview::ItemSingleFilePreview(
 
 	rpl::single(rpl::empty) | rpl::then(
 		document->session().downloaderTaskFinished()
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (_documentMedia->thumbnail()) {
 			_lifetimeDownload.destroy();
 		}
@@ -109,7 +109,7 @@ void ItemSingleFilePreview::preparePreview(not_null<DocumentData*> document) {
 	}
 	data.statusText = FormatSizeText(document->size);
 
-	setData(data);
+	setData(std::move(data));
 }
 
 } // namespace Ui

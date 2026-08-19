@@ -24,42 +24,66 @@ public:
 	AbstractSingleFilePreview(
 		QWidget *parent,
 		const style::ComposeControls &st,
-		AttachControls::Type type);
+		AttachControls::Type type,
+		const Text::MarkedContext &captionContext);
 	~AbstractSingleFilePreview();
 
 	[[nodiscard]] rpl::producer<> deleteRequests() const override;
 	[[nodiscard]] rpl::producer<> editRequests() const override;
+	[[nodiscard]] rpl::producer<> renameRequests() const;
 	[[nodiscard]] rpl::producer<> modifyRequests() const override;
+	void setRenameEnabled(bool enabled);
+	virtual void setDisplayName(const QString &displayName);
+	virtual void setCaption(const TextWithTags &caption);
 
 protected:
 	struct Data {
 		QPixmap fileThumb;
 		QString name;
 		QString statusText;
+		Text::String caption;
 		int nameWidth = 0;
 		int statusWidth = 0;
+		int captionAvailableWidth = 0;
 		bool fileIsAudio = false;
 		bool fileIsImage = false;
 	};
 
 	void prepareThumbFor(Data &data, const QImage &preview);
-	bool isThumbedLayout(Data &data) const;
+	bool isThumbedLayout(const Data &data) const;
+	[[nodiscard]] const Text::MarkedContext &captionContext() const {
+		return _captionContext;
+	}
 
-	void setData(const Data &data);
+	void setData(Data data);
 
 private:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
 
 	void updateTextWidthFor(Data &data);
+	void updateDataGeometry();
+	[[nodiscard]] QRect captionRect() const;
+	[[nodiscard]] QRect nameRect() const;
+	[[nodiscard]] bool isOverName(QPoint point) const;
+	void applyCursor(style::cursor cursor);
 
 	const style::ComposeControls &_st;
 	const AttachControls::Type _type;
+	Text::MarkedContext _captionContext;
 
 	Data _data;
 
 	object_ptr<IconButton> _editMedia = { nullptr };
 	object_ptr<IconButton> _deleteMedia = { nullptr };
+	rpl::event_stream<> _renameRequests;
+
+	style::cursor _cursor = style::cur_default;
+	bool _namePressed = false;
+	bool _renameEnabled = false;
 
 };
 

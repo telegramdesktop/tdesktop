@@ -27,6 +27,12 @@ public:
 
 	void submit() override;
 	rpl::producer<QString> nextButtonText() const override;
+	rpl::producer<> nextButtonFocusRequests() const override;
+	void activate() override;
+	void setInnerFocus() override;
+
+private:
+	rpl::event_stream<> _nextButtonFocusRequests;
 
 };
 

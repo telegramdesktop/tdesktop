@@ -10,7 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_credits.h"
 #include "api/api_global_privacy.h"
 #include "apiwrap.h"
+#include "boxes/peers/prepare_short_info_box.h"
 #include "boxes/send_credits_box.h" // CreditsEmojiSmall.
+#include "calls/group/calls_group_call.h"
+#include "calls/group/calls_group_messages.h"
 #include "core/ui_integration.h" // TextContext.
 #include "data/components/credits.h"
 #include "data/data_channel.h"
@@ -38,19 +41,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Payments {
 namespace {
 
-constexpr auto kMaxPerReactionFallback = 2'500;
+constexpr auto kMaxPerReactionFallback = 10'000;
 constexpr auto kDefaultPerReaction = 50;
 
 void TryAddingPaidReaction(
-		not_null<Main::Session*> session,
+		std::shared_ptr<Main::SessionShow> show,
 		FullMsgId itemId,
 		base::weak_ptr<HistoryView::Element> weakView,
 		int count,
 		std::optional<PeerId> shownPeer,
-		std::shared_ptr<Ui::Show> show,
 		Fn<void(bool)> finished) {
+	const auto owner = &show->session().data();
 	const auto checkItem = [=] {
-		const auto item = session->data().message(itemId);
+		const auto item = owner->message(itemId);
 		if (!item) {
 			if (const auto onstack = finished) {
 				onstack(false);
@@ -85,7 +88,7 @@ void TryAddingPaidReaction(
 	};
 	const auto channelId = peerToChannel(itemId.peer);
 	Settings::MaybeRequestBalanceIncrease(
-		Main::MakeSessionShow(show, session),
+		show,
 		count,
 		Settings::SmallBalanceReaction{ .channelId = channelId },
 		done);
@@ -107,16 +110,51 @@ void TryAddingPaidReaction(
 		HistoryView::Element *view,
 		int count,
 		std::optional<PeerId> shownPeer,
-		std::shared_ptr<Ui::Show> show,
+		std::shared_ptr<Main::SessionShow> show,
 		Fn<void(bool)> finished) {
 	TryAddingPaidReaction(
-		&item->history()->session(),
+		std::move(show),
 		item->fullId(),
 		view,
 		count,
 		shownPeer,
-		std::move(show),
 		std::move(finished));
+}
+
+void TryAddingPaidReaction(
+		not_null<Calls::GroupCall*> call,
+		int count,
+		std::shared_ptr<Main::SessionShow> show,
+		Fn<void(bool)> finished) {
+	const auto checkCall = [weak = base::make_weak(call), finished] {
+		const auto strong = weak.get();
+		if (!strong) {
+			if (const auto onstack = finished) {
+				onstack(false);
+			}
+		}
+		return strong;
+	};
+
+	const auto done = [=](Settings::SmallBalanceResult result) {
+		if (result == Settings::SmallBalanceResult::Success
+			|| result == Settings::SmallBalanceResult::Already) {
+			if (const auto call = checkCall()) {
+				call->messages()->reactionsPaidAdd(count);
+				call->peer()->owner().notifyCallPaidReactionSent(call);
+				if (const auto onstack = finished) {
+					onstack(true);
+				}
+			}
+		} else if (const auto onstack = finished) {
+			onstack(false);
+		}
+	};
+	Settings::MaybeRequestBalanceIncrease(
+		show,
+		count,
+		Settings::SmallBalanceVideoStream{ .streamerId = call->peer()->id },
+		done);
 }
 
 void ShowPaidReactionDetails(
@@ -140,7 +178,7 @@ void ShowPaidReactionDetails(
 	const auto chosen = std::clamp(kDefaultPerReaction, 1, max);
 
 	struct State {
-		QPointer<Ui::BoxContent> selectBox;
+		base::weak_qptr<Ui::BoxContent> selectBox;
 		bool ignoreShownPeerSwitch = false;
 		bool sending = false;
 	};
@@ -155,7 +193,7 @@ void ShowPaidReactionDetails(
 			state->sending = false;
 			if (success && count > 0) {
 				state->ignoreShownPeerSwitch = true;
-				if (const auto strong = state->selectBox.data()) {
+				if (const auto strong = state->selectBox.get()) {
 					strong->closeBox();
 				}
 			}
@@ -176,19 +214,13 @@ void ShowPaidReactionDetails(
 
 	auto submitText = [=](rpl::producer<int> amount) {
 		auto nice = std::move(amount) | rpl::map([=](int count) {
-			return Ui::CreditsEmojiSmall(session).append(
+			return Ui::CreditsEmojiSmall().append(
 				Lang::FormatCountDecimal(count));
 		});
 		return tr::lng_paid_react_send(
 			lt_price,
 			std::move(nice),
-			Ui::Text::RichLangValue
-		) | rpl::map([=](TextWithEntities &&text) {
-			return Ui::TextWithContext{
-				.text = std::move(text),
-				.context = Core::TextContext({ .session = session }),
-			};
-		});
+			tr::rich);
 	};
 	auto top = std::vector<Ui::PaidReactionTop>();
 	const auto add = [&](const Data::MessageReactionsTopPaid &entry) {
@@ -197,7 +229,7 @@ void ShowPaidReactionDetails(
 			? peer->shortName()
 			: tr::lng_paid_react_anonymous(tr::now);
 		const auto open = [=] {
-			controller->showPeerInfo(peer);
+			controller->uiShow()->show(PrepareShortInfoBox(peer, controller));
 		};
 		top.push_back({
 			.name = name,
@@ -212,7 +244,11 @@ void ShowPaidReactionDetails(
 	};
 	const auto linked = item->discussionPostOriginalSender();
 	const auto channel = (linked ? linked : item->history()->peer.get());
-	const auto channels = session->sendAsPeers().paidReactionList(channel);
+	const auto channels = session->sendAsPeers().list(
+		{ channel, Main::SendAsType::PaidReaction }
+	) | ranges::views::transform(
+		&Main::SendAsPeer::peer
+	) | ranges::to_vector;
 	const auto topPaid = item->topPaidReactionsWithLocal();
 	top.reserve(topPaid.size() + 2 + channels.size());
 	for (const auto &entry : topPaid) {
@@ -251,7 +287,8 @@ void ShowPaidReactionDetails(
 		.chosen = chosen,
 		.max = max,
 		.top = std::move(top),
-		.channel = channel->name(),
+		.session = &channel->session(),
+		.name = channel->name(),
 		.submit = std::move(submitText),
 		.balanceValue = session->credits().balanceValue(),
 		.send = [=](int count, uint64 barePeerId) {
@@ -259,9 +296,9 @@ void ShowPaidReactionDetails(
 		},
 	}));
 
-	if (const auto strong = state->selectBox.data()) {
+	if (const auto strong = state->selectBox.get()) {
 		session->data().itemRemoved(
-		) | rpl::start_with_next([=](not_null<const HistoryItem*> removed) {
+		) | rpl::on_next([=](not_null<const HistoryItem*> removed) {
 			if (removed == item) {
 				strong->closeBox();
 			}

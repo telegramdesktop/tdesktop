@@ -78,7 +78,6 @@ private:
 
 	Ui::Text::String _nameLine;
 	Ui::Text::String _phoneLine;
-	Ui::Text::String _infoLine;
 
 	Fn<void(not_null<Ui::GenericBox*>)> _vcardBoxFactory;
 

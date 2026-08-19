@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/text/format_song_name.h"
 #include "ui/text/format_values.h"
+#include "ui/text/text_utilities.h"
 #include "ui/ui_utility.h"
 #include "core/mime_type.h"
 #include "styles/style_chat.h"
@@ -22,9 +23,26 @@ SingleFilePreview::SingleFilePreview(
 	QWidget *parent,
 	const style::ComposeControls &st,
 	const PreparedFile &file,
+	const Text::MarkedContext &captionContext,
 	AttachControls::Type type)
-: AbstractSingleFilePreview(parent, st, type) {
+: AbstractSingleFilePreview(parent, st, type, captionContext) {
 	preparePreview(file);
+}
+
+SingleFilePreview::SingleFilePreview(
+	QWidget *parent,
+	const style::ComposeControls &st,
+	const PreparedFile &file,
+	AttachControls::Type type)
+: SingleFilePreview(parent, st, file, {}, type) {
+}
+
+void SingleFilePreview::setDisplayName(const QString &displayName) {
+	AbstractSingleFilePreview::setDisplayName(displayName);
+}
+
+void SingleFilePreview::setCaption(const TextWithTags &caption) {
+	AbstractSingleFilePreview::setCaption(caption);
 }
 
 void SingleFilePreview::preparePreview(const PreparedFile &file) {
@@ -33,7 +51,7 @@ void SingleFilePreview::preparePreview(const PreparedFile &file) {
 	auto preview = QImage();
 	if (const auto image = std::get_if<PreparedFileInformation::Image>(
 		&file.information->media)) {
-		preview = image->data;
+		preview = file.preview.isNull() ? image->data : file.preview;
 	} else if (const auto video = std::get_if<PreparedFileInformation::Video>(
 		&file.information->media)) {
 		preview = video->thumbnail;
@@ -41,13 +59,23 @@ void SingleFilePreview::preparePreview(const PreparedFile &file) {
 	prepareThumbFor(data, preview);
 	const auto filepath = file.path;
 	if (filepath.isEmpty()) {
-		auto filename = "image.png";
-		data.name = filename;
-		data.statusText = FormatImageSizeText(file.originalDimensions);
-		data.fileIsImage = true;
+		const auto fallbackName = u"image.png"_q;
+		const auto displayName = file.displayName.isEmpty()
+			? fallbackName
+			: file.displayName;
+		data.name = displayName;
+		if (file.originalDimensions.isValid()) {
+			data.statusText = FormatImageSizeText(file.originalDimensions);
+			data.fileIsImage = true;
+		} else {
+			data.statusText = FormatSizeText(file.size);
+			data.fileIsImage = false;
+		}
 	} else {
 		auto fileinfo = QFileInfo(filepath);
-		auto filename = fileinfo.fileName();
+		auto filename = file.displayName.isEmpty()
+			? fileinfo.fileName()
+			: file.displayName;
 		data.fileIsImage = Core::FileIsImage(
 			filename,
 			Core::MimeTypeForFile(fileinfo).name());
@@ -73,8 +101,18 @@ void SingleFilePreview::preparePreview(const PreparedFile &file) {
 			.string();
 		data.statusText = FormatSizeText(fileinfo.size());
 	}
+	auto caption = TextWithEntities{
+		file.caption.text,
+		TextUtilities::ConvertTextTagsToEntities(file.caption.tags),
+	};
+	caption = TextUtilities::SingleLine(caption);
+	data.caption.setMarkedText(
+		st::defaultTextStyle,
+		caption,
+		kMarkupTextOptions,
+		captionContext());
 
-	setData(data);
+	setData(std::move(data));
 }
 
 } // namespace Ui

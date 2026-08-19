@@ -19,7 +19,12 @@ struct SendAction;
 struct SendOptions;
 } // namespace Api
 
+namespace Calls {
+class GroupCall;
+} // namespace Calls
+
 namespace Data {
+class GroupCall;
 struct ReactionId;
 } // namespace Data
 
@@ -57,9 +62,16 @@ class Controller;
 struct ReplyAreaData {
 	PeerData *peer = nullptr;
 	StoryId id = 0;
+	std::shared_ptr<Data::GroupCall> videoStream;
 
 	friend inline auto operator<=>(ReplyAreaData, ReplyAreaData) = default;
 	friend inline bool operator==(ReplyAreaData, ReplyAreaData) = default;
+};
+
+enum class ReplyAreaType {
+	Reply,
+	Comment,
+	VideoStreamComment,
 };
 
 class ReplyArea final : public base::has_weak_ptr {
@@ -80,7 +92,9 @@ public:
 	[[nodiscard]] bool ignoreWindowMove(QPoint position) const;
 	void tryProcessKeyInput(not_null<QKeyEvent*> e);
 
-	[[nodiscard]] not_null<Ui::RpWidget*> likeAnimationTarget() const;
+	[[nodiscard]] Ui::RpWidget *likeAnimationTarget() const;
+
+	void updateVideoStream(not_null<Calls::GroupCall*> videoStream);
 
 private:
 	class Cant;
@@ -96,7 +110,7 @@ private:
 
 	[[nodiscard]] bool checkSendPayment(
 		int messagesCount,
-		int starsApproved,
+		Api::SendOptions options,
 		Fn<void(int)> withPaymentApproved);
 
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
@@ -113,15 +127,8 @@ private:
 		std::optional<bool> overrideSendImagesAsPhotos,
 		const QString &insertTextOnCancel = QString());
 	bool showSendingFilesError(const Ui::PreparedList &list) const;
-	bool showSendingFilesError(
-		const Ui::PreparedList &list,
-		std::optional<bool> compress) const;
-	void sendingFilesConfirmed(
-		Ui::PreparedList &&list,
-		Ui::SendFilesWay way,
-		TextWithTags &&caption,
-		Api::SendOptions options,
-		bool ctrlShiftEnter);
+	bool showSendingFilesError(const Ui::PreparedBundle &bundle) const;
+
 	void sendingFilesConfirmed(
 		std::shared_ptr<Ui::PreparedBundle> bundle,
 		Api::SendOptions options);
@@ -154,13 +161,15 @@ private:
 	void chooseAttach(std::optional<bool> overrideSendImagesAsPhotos);
 
 	[[nodiscard]] Fn<SendMenu::Details()> sendMenuDetails() const;
+	[[nodiscard]] rpl::producer<int> starsPerMessageValue() const;
 
 	void showPremiumToast(not_null<DocumentData*> emoji);
 	[[nodiscard]] bool showSlowmodeError();
 
 	const not_null<Controller*> _controller;
-	rpl::variable<bool> _isComment;
+	rpl::variable<ReplyAreaType> _type;
 	rpl::variable<int> _starsForMessage;
+	base::weak_ptr<Calls::GroupCall> _videoStream;
 
 	const std::unique_ptr<HistoryView::ComposeControls> _controls;
 	std::unique_ptr<Cant> _cant;

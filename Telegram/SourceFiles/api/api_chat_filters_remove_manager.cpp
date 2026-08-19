@@ -44,7 +44,7 @@ void RemoveChatFilter(
 			MTP_vector<MTPInputPeer>(ranges::views::all(
 				leave
 			) | ranges::views::transform([](not_null<PeerData*> peer) {
-				return MTPInputPeer(peer->input);
+				return MTPInputPeer(peer->input());
 			}) | ranges::to<QVector<MTPInputPeer>>())
 		)).done([=](const MTPUpdates &result) {
 			api->applyUpdates(result);
@@ -57,7 +57,7 @@ void RemoveChatFilter(
 RemoveComplexChatFilter::RemoveComplexChatFilter() = default;
 
 void RemoveComplexChatFilter::request(
-		QPointer<Ui::RpWidget> widget,
+		base::weak_qptr<Ui::RpWidget> widget,
 		base::weak_ptr<Window::SessionController> weak,
 		FilterId id) {
 	const auto session = &weak->session();

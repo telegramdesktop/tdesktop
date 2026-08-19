@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "info/info_content_widget.h"
+#include "ui/effects/animations.h"
 
 namespace Data {
 class ForumTopic;
@@ -16,6 +17,7 @@ class ForumTopic;
 namespace Info::Profile {
 
 class InnerWidget;
+class TabsHost;
 struct MembersState;
 
 struct GroupReactionOrigin {
@@ -35,20 +37,28 @@ public:
 		PeerId migratedPeerId,
 		Origin origin = { v::null });
 	explicit Memento(not_null<Data::ForumTopic*> topic);
+	explicit Memento(not_null<Data::SavedSublist*> sublist);
 
 	object_ptr<ContentWidget> createWidget(
 		QWidget *parent,
 		not_null<Controller*> controller,
 		const QRect &geometry) override;
 
-	Section section() const override;
+	Info::Section section() const override;
 
 	[[nodiscard]] Origin origin() const {
 		return _origin;
 	}
 
 	void setMembersState(std::unique_ptr<MembersState> state);
-	std::unique_ptr<MembersState> membersState();
+	[[nodiscard]] std::unique_ptr<MembersState> membersState();
+
+	void setActiveTab(const QString &id) {
+		_activeTab = id;
+	}
+	[[nodiscard]] QString activeTab() const {
+		return _activeTab;
+	}
 
 	~Memento();
 
@@ -56,11 +66,13 @@ private:
 	Memento(
 		not_null<PeerData*> peer,
 		Data::ForumTopic *topic,
+		Data::SavedSublist *sublist,
 		PeerId migratedPeerId,
 		Origin origin);
 
 	std::unique_ptr<MembersState> _membersState;
 	Origin _origin;
+	QString _activeTab;
 
 };
 
@@ -76,6 +88,11 @@ public:
 		not_null<Memento*> memento);
 
 	void setInnerFocus() override;
+	void enableBackButton() override;
+	void showFinished() override;
+	void checkBeforeCloseByEscape(Fn<void()> close) override;
+	bool searchAvailable() const override;
+	void showSearch() override;
 
 	rpl::producer<QString> title() override;
 	rpl::producer<Dialogs::Stories::Content> titleStories() override;
@@ -83,10 +100,22 @@ public:
 private:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
+	void setupTabsStripFloat();
+	void updateTabsStripFloatGeometry();
+	[[nodiscard]] auto swipeTabsFinishData(
+		Ui::Controls::SwipeHandlerInitData data)
+	-> Ui::Controls::SwipeHandlerFinishData;
 
 	std::shared_ptr<ContentMemento> doCreateMemento() override;
 
+	FlexibleScrollData _flexibleScroll;
 	InnerWidget *_inner = nullptr;
+	base::weak_qptr<Ui::RpWidget> _pinnedToTop;
+	base::weak_qptr<Ui::RpWidget> _pinnedToBottom;
+	std::unique_ptr<FlexibleScrollHelper> _flexibleScrollHelper;
+	base::unique_qptr<Ui::RpWidget> _tabsStripFloat;
+	base::weak_qptr<TabsHost> _tabsHost;
+	base::weak_qptr<Ui::RpWidget> _tabsStrip;
 
 };
 

@@ -7,16 +7,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/click_handler_types.h"
 
+#include "base/unixtime.h"
 #include "lang/lang_keys.h"
 #include "chat_helpers/bot_command.h"
 #include "core/application.h"
 #include "core/local_url_handlers.h"
+#include "core/file_utilities.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/toast/toast.h"
+#include "ui/widgets/popup_menu.h"
 #include "base/qthelp_regex.h"
 #include "base/qt/qt_key_modifiers.h"
+#include "base/random.h"
 #include "storage/storage_account.h"
 #include "history/history.h"
 #include "history/view/history_view_element.h"
@@ -28,10 +32,65 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "window/window_session_controller_link_info.h"
+#include "apiwrap.h"
+#include "history/view/history_view_schedule_box.h"
+#include "history/view/history_view_scheduled_section.h"
+#include "menu/menu_send.h"
+#include "data/data_types.h"
 #include "styles/style_calls.h" // groupCallBoxLabel
+#include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
+
+#include <QtCore/QDateTime>
+#include <QtCore/QLocale>
 
 namespace {
+
+constexpr auto kReminderSetToastDuration = 4 * crl::time(1000);
+
+[[nodiscard]] TextWithEntities BoldDomainInUrl(const QString &url) {
+	auto result = TextWithEntities{ .text = url };
+
+	if (const auto parsedUrl = QUrl(url); parsedUrl.isValid()) {
+		if (const auto host = parsedUrl.host(); !host.isEmpty()) {
+			if (const auto hostPos = url.indexOf(host); hostPos != -1) {
+				auto boldEntity = EntityInText(
+					EntityType::Bold,
+					hostPos,
+					host.length());
+
+				if (host.startsWith("www.")) {
+					boldEntity = EntityInText(
+						EntityType::Bold,
+						hostPos + 4,
+						host.length() - 4);
+				}
+
+				result.entities.push_back(boldEntity);
+			}
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] bool IsTelegramShortLinkHost(const QUrl &url) {
+	using namespace qthelp;
+
+	return regex_match(
+		"(^|\\.)(telegram\\.(me|dog)|t\\.me)$",
+		url.host(),
+		RegExOption::CaseInsensitive).valid();
+}
+
+[[nodiscard]] bool HiddenUrlRequiresConfirmation(const QUrl &url) {
+	return UrlRequiresConfirmation(url) || IsTelegramShortLinkHost(url);
+}
+
+[[nodiscard]] bool RequiresConfirmationAfterIvFallback(const QUrl &url) {
+	const auto host = url.host().toLower();
+	return (host == u"telegra.ph"_q) || (host == u"te.legra.ph"_q);
+}
 
 // Possible context owners: media viewer, profile, history widget.
 
@@ -67,6 +126,93 @@ void SearchByHashtag(ClickContext context, const QString &tag) {
 			: Dialogs::Key());
 }
 
+void ExportToCalendar(TimeId date, const QString &messageText) {
+	const auto start = QDateTime::fromSecsSinceEpoch(
+		date,
+		Qt::UTC);
+	const auto end = QDateTime::fromSecsSinceEpoch(
+		date + 3600,
+		Qt::UTC);
+	const auto now = QDateTime::currentDateTimeUtc();
+	const auto format = u"yyyyMMdd'T'HHmmss'Z'"_q;
+	const auto locale = QLocale();
+	const auto raw = locale.toString(
+		base::unixtime::parse(date),
+		QLocale::LongFormat);
+	auto summary = raw;
+	summary.replace('\\', u"\\\\"_q);
+	summary.replace(';', u"\\;"_q);
+	summary.replace(',', u"\\,"_q);
+	summary.replace('\n', u"\\n"_q);
+	auto description = messageText;
+	description.replace('\\', u"\\\\"_q);
+	description.replace(';', u"\\;"_q);
+	description.replace(',', u"\\,"_q);
+	description.replace('\n', u"\\n"_q);
+	const auto uid = base::RandomValue<uint64>();
+	const auto content = u"BEGIN:VCALENDAR\r\n"
+		"VERSION:2.0\r\n"
+		"PRODID:-//Telegram Desktop//EN\r\n"
+		"BEGIN:VEVENT\r\n"
+		"DTSTART:%1\r\n"
+		"DTEND:%2\r\n"
+		"DTSTAMP:%3\r\n"
+		"UID:telegram-%4-%7@telegram.org\r\n"
+		"SUMMARY:%5\r\n"
+		"DESCRIPTION:%6\r\n"
+		"END:VEVENT\r\n"
+		"END:VCALENDAR\r\n"_q
+			.arg(start.toString(format))
+			.arg(end.toString(format))
+			.arg(now.toString(format))
+			.arg(date)
+			.arg(summary)
+			.arg(description)
+			.arg(uid, 0, 16);
+	const auto dir = cWorkingDir() + u"tdata/temp"_q;
+	QDir().mkpath(dir);
+	const auto path = u"%1/event_%2.ics"_q
+		.arg(dir)
+		.arg(date);
+	auto file = QFile(path);
+	if (file.open(QIODevice::WriteOnly)) {
+		file.write(content.toUtf8());
+		file.close();
+		File::Launch(path);
+	}
+}
+
+void DoneSetReminder(std::shared_ptr<ChatHelpers::Show> show) {
+	if (!show->valid()) {
+		return;
+	}
+	const auto text = tr::lng_reminder_scheduled_in(
+		tr::now,
+		lt_link,
+		tr::link(tr::bold(tr::lng_saved_messages(tr::now))),
+		tr::marked);
+	const auto session = &show->session();
+	const auto filter = [=](
+			const ClickHandlerPtr &,
+			Qt::MouseButton) {
+		if (const auto controller = show->resolveWindow()) {
+			controller->showSection(
+				std::make_shared<HistoryView::ScheduledMemento>(
+					session->data().history(session->user())));
+		}
+		return false;
+	};
+	show->showToast({
+		.text = text,
+		.filter = filter,
+		.iconLottie = u"toast/saved_messages"_q,
+		.iconPadding = st::selfForwardsTaggerIconPadding,
+		.st = &st::selfForwardsTaggerToast,
+		.attach = RectPart::Top,
+		.duration = kReminderSetToastDuration,
+	});
+};
+
 } // namespace
 
 bool UrlRequiresConfirmation(const QUrl &url) {
@@ -86,17 +232,30 @@ bool UrlRequiresConfirmation(const QUrl &url) {
 }
 
 QString HiddenUrlClickHandler::copyToClipboardText() const {
-	return url().startsWith(u"internal:url:"_q)
-		? url().mid(u"internal:url:"_q.size())
-		: url();
+	const auto original = originalUrl();
+	const auto originalExternal = UrlClickHandler::ExternalUrlFromInternalUrl(
+		original);
+	if (!originalExternal.isEmpty()) {
+		return originalExternal;
+	}
+	const auto value = url();
+	const auto external = UrlClickHandler::ExternalUrlFromInternalUrl(value);
+	return external.isEmpty() ? value : external;
 }
 
 QString HiddenUrlClickHandler::copyToClipboardContextItemText() const {
-	return url().isEmpty()
+	const auto original = originalUrl();
+	const auto originalExternal = UrlClickHandler::ExternalUrlFromInternalUrl(
+		original);
+	const auto value = originalExternal.isEmpty() ? url() : original;
+	const auto external = originalExternal.isEmpty()
+		? UrlClickHandler::ExternalUrlFromInternalUrl(value)
+		: originalExternal;
+	return value.isEmpty()
 		? QString()
-		: !url().startsWith(u"internal:"_q)
+		: !value.startsWith(u"internal:"_q)
 		? UrlClickHandler::copyToClipboardContextItemText()
-		: url().startsWith(u"internal:url:"_q)
+		: !external.isEmpty()
 		? UrlClickHandler::copyToClipboardContextItemText()
 		: QString();
 }
@@ -107,14 +266,15 @@ QString HiddenUrlClickHandler::dragText() const {
 }
 
 void HiddenUrlClickHandler::Open(QString url, QVariant context) {
+	if (const auto external = UrlClickHandler::ExternalUrlFromInternalUrl(url);
+			!external.isEmpty()) {
+		url = external;
+	}
 	url = Core::TryConvertUrlToLocal(url);
-	if (Core::InternalPassportLink(url)) {
+	if (Core::InternalPassportOrOAuthLink(url)) {
 		return;
 	}
 
-	const auto open = [=] {
-		UrlClickHandler::Open(url, context);
-	};
 	if (url.startsWith(u"tg://"_q, Qt::CaseInsensitive)
 		|| url.startsWith(u"internal:"_q, Qt::CaseInsensitive)) {
 		UrlClickHandler::Open(url, QVariant::fromValue([&] {
@@ -126,8 +286,31 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 		const auto parsedUrl = url.startsWith(u"tonsite://"_q)
 			? QUrl(url)
 			: QUrl::fromUserInput(url);
-		if (UrlRequiresConfirmation(parsedUrl) && !base::IsCtrlPressed()) {
-			const auto my = context.value<ClickHandlerContext>();
+		auto my = context.value<ClickHandlerContext>();
+		auto openContext = context;
+		const auto forceConfirmation = my.forceExternalUrlConfirmation
+			&& my.ignoreIv;
+		const auto skipConfirmation = base::IsCtrlPressed();
+		if (forceConfirmation) {
+			my.forceExternalUrlConfirmation = false;
+			openContext = QVariant::fromValue(my);
+		}
+		const auto confirmAfterIvFallback
+			= RequiresConfirmationAfterIvFallback(parsedUrl)
+			&& !my.ignoreIv
+			&& !skipConfirmation;
+		const auto canTryIv = (my.sessionWindow.get() != nullptr);
+		if (confirmAfterIvFallback && canTryIv) {
+			my.forceExternalUrlConfirmation = true;
+			openContext = QVariant::fromValue(my);
+		}
+		const auto open = [=] {
+			UrlClickHandler::Open(url, openContext);
+		};
+		if (forceConfirmation
+			|| (confirmAfterIvFallback && !canTryIv)
+			|| (HiddenUrlRequiresConfirmation(parsedUrl)
+				&& !skipConfirmation)) {
 			if (!my.show) {
 				Core::App().hideMediaView();
 			}
@@ -155,7 +338,39 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 					: st::boxLabel;
 				box->addSkip(st.style.lineHeight - st::boxPadding.bottom());
 				const auto url = box->addRow(
-					object_ptr<Ui::FlatLabel>(box, displayUrl, st));
+					object_ptr<Ui::FlatLabel>(
+						box,
+						rpl::single(BoldDomainInUrl(displayUrl)),
+						st));
+				url->setContextMenuHook([=](
+						Ui::FlatLabel::ContextMenuRequest request) {
+					const auto copyContextText = [=] {
+						TextUtilities::SetClipboardText(
+							TextForMimeData::Simple(displayUrl));
+					};
+					if (request.fullSelection) {
+						request.menu->addAction(
+							tr::lng_context_copy_link(tr::now),
+							copyContextText);
+					} else if (request.uponSelection
+						&& !request.fullSelection) {
+						const auto selection = request.selection;
+						const auto copySelectedText = [=] {
+							TextUtilities::SetClipboardText(
+								TextForMimeData::Simple(
+									displayUrl.mid(
+										selection.from,
+										selection.to - selection.from)));
+						};
+						request.menu->addAction(
+							tr::lng_context_copy_selected(tr::now),
+							copySelectedText);
+					} else if (request.selection.empty()) {
+						request.menu->addAction(
+							tr::lng_context_copy_link(tr::now),
+							copyContextText);
+					}
+				});
 				url->setSelectable(true);
 				url->setContextCopyText(tr::lng_context_copy_link(tr::now));
 			});
@@ -173,7 +388,7 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 
 void BotGameUrlClickHandler::onClick(ClickContext context) const {
 	const auto url = Core::TryConvertUrlToLocal(this->url());
-	if (Core::InternalPassportLink(url)) {
+	if (Core::InternalPassportOrOAuthLink(url)) {
 		return;
 	}
 	const auto openLink = [=] {
@@ -197,6 +412,7 @@ void BotGameUrlClickHandler::onClick(ClickContext context) const {
 	const auto openGame = [=] {
 		bot->session().attachWebView().open({
 			.bot = bot,
+			.context = { .controller = weakController },
 			.button = {.url = url.toUtf8() },
 			.source = InlineBots::WebViewSourceGame{
 				.messageId = itemId,
@@ -228,7 +444,13 @@ void BotGameUrlClickHandler::onClick(ClickContext context) const {
 }
 
 auto HiddenUrlClickHandler::getTextEntity() const -> TextEntity {
-	return { EntityType::CustomUrl, url() };
+	const auto original = originalUrl();
+	return {
+		EntityType::CustomUrl,
+		UrlClickHandler::ExternalUrlFromInternalUrl(original).isEmpty()
+			? url()
+			: original
+	};
 }
 
 QString MentionClickHandler::copyToClipboardContextItemText() const {
@@ -368,7 +590,11 @@ void MonospaceClickHandler::onClick(ClickContext context) const {
 	}
 	const auto my = context.other.value<ClickHandlerContext>();
 	if (const auto controller = my.sessionWindow.get()) {
-		controller->showToast(tr::lng_text_copied(tr::now));
+		controller->showToast({
+			.text = { tr::lng_text_copied(tr::now) },
+			.iconLottie = u"toast/copy"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
 	}
 	TextUtilities::SetClipboardText(TextForMimeData::Simple(_text.trimmed()));
 }
@@ -379,4 +605,104 @@ auto MonospaceClickHandler::getTextEntity() const -> TextEntity {
 
 QString MonospaceClickHandler::url() const {
 	return _text;
+}
+
+FormattedDateClickHandler::FormattedDateClickHandler(
+	int32 date,
+	FormattedDateFlags flags)
+: _date(date)
+, _entityData(SerializeFormattedDateData(date, flags)) {
+}
+
+void FormattedDateClickHandler::onClick(ClickContext context) const {
+	if (context.button != Qt::LeftButton) {
+		return;
+	}
+	const auto my = context.other.value<ClickHandlerContext>();
+	const auto controller = my.sessionWindow.get();
+	if (!controller) {
+		return;
+	}
+	const auto menu = Ui::CreateChild<Ui::PopupMenu>(
+		controller->content(),
+		st::popupMenuWithIcons);
+
+	const auto date = _date;
+	const auto show = controller->uiShow();
+
+	menu->addAction(
+		tr::lng_context_copy_date(tr::now),
+		[date, show] {
+			const auto text = QLocale().toString(
+				base::unixtime::parse(date),
+				QLocale::LongFormat);
+			TextUtilities::SetClipboardText(TextForMimeData::Simple(text));
+			show->showToast({
+				.text = { tr::lng_date_copied(tr::now) },
+				.iconLottie = u"toast/copy"_q,
+				.iconLottieSize = st::toastLottieIconSize,
+			});
+		},
+		&st::menuIconCopy);
+
+	const auto itemId = my.itemId;
+	const auto &owner = controller->session().data();
+	const auto item = owner.message(itemId);
+
+	const auto messageText = item ? item->originalText().text : QString();
+	menu->addAction(
+		tr::lng_context_add_to_calendar(tr::now),
+		[date, messageText] { ExportToCalendar(date, messageText); },
+		&st::menuIconSchedule);
+
+	const auto canForward = item
+		&& !item->forbidsForward()
+		&& item->history()->peer->allowsForwarding();
+	if (canForward) {
+		menu->addAction(
+			tr::lng_context_set_reminder(tr::now),
+			[date, itemId, show] {
+				const auto session = &show->session();
+				const auto item = session->data().message(itemId);
+				if (!item) {
+					return;
+				}
+				const auto self = session->user();
+				const auto history = self->owner().history(self);
+				const auto now = base::unixtime::now();
+				const auto scheduleTime = (date > now + 60)
+					? date
+					: HistoryView::DefaultScheduleTime();
+				show->showBox(HistoryView::PrepareScheduleBox(
+					session,
+					show,
+					SendMenu::Details{ .type = SendMenu::Type::Reminder },
+					[=](Api::SendOptions options) {
+						auto action = Api::SendAction(history, options);
+						action.clearDraft = false;
+						action.generateLocal = false;
+						session->api().forwardMessages(
+							Data::ResolvedForwardDraft{
+								.items = { item },
+							},
+							action,
+							[=] { DoneSetReminder(show); });
+					},
+					Api::SendOptions(),
+					scheduleTime));
+			},
+			&st::menuIconNotifications);
+	}
+
+	menu->popup(QCursor::pos());
+}
+
+auto FormattedDateClickHandler::getTextEntity() const -> TextEntity {
+	return { EntityType::FormattedDate, _entityData };
+}
+
+QString FormattedDateClickHandler::tooltip() const {
+	return QLocale().toString(
+		base::unixtime::parse(_date),
+		QLocale::LongFormat);
 }

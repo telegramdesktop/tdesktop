@@ -35,7 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "apiwrap.h"
 #include "api/api_peer_photo.h"
-#include "settings/settings_information.h" // UpdatePhotoLocally
+#include "settings/sections/settings_information.h" // UpdatePhotoLocally
 #include "styles/style_chat.h"
 
 namespace HistoryView {

@@ -26,6 +26,10 @@ namespace Data {
 class DocumentMedia;
 } // namespace Data
 
+namespace style {
+struct Shadow;
+} // namespace style
+
 namespace Ui {
 class IconButton;
 template <typename Widget>
@@ -52,6 +56,7 @@ class PlaybackProgress;
 [[nodiscard]] bool UsePainterRotation(int rotation);
 [[nodiscard]] QSize FlipSizeByRotation(QSize size, int rotation);
 [[nodiscard]] QImage RotateFrameImage(QImage image, int rotation);
+[[nodiscard]] const style::Shadow &PipShadow();
 
 class PipPanel final {
 public:
@@ -104,7 +109,8 @@ private:
 	void moveAnimated(QPoint to);
 	void updateDecorations();
 
-	const std::unique_ptr<Ui::RpWidgetWrap> _content;
+	const std::unique_ptr<Ui::RpWidget> _window;
+	std::unique_ptr<Ui::RpWidgetWrap> _content;
 	const QPointer<QWidget> _parent;
 	RectParts _attached = RectParts();
 	RectParts _snapped = RectParts();
@@ -192,6 +198,7 @@ private:
 	class Renderer;
 	class RendererGL;
 	class RendererSW;
+	class RendererRhi;
 
 	void setupPanel();
 	void setupButtons();

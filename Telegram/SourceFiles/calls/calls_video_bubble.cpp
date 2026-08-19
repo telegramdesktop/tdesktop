@@ -10,8 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webrtc/webrtc_video_track.h"
 #include "ui/image/image_prepare.h"
 #include "ui/widgets/shadow.h"
-#include "styles/style_calls.h"
-#include "styles/style_widgets.h"
 #include "styles/style_layers.h"
 
 namespace Calls {
@@ -30,17 +28,17 @@ void VideoBubble::setup() {
 	applyDragMode(_dragMode);
 
 	_content.paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		paint();
 	}, lifetime());
 
 	_track->stateValue(
-	) | rpl::start_with_next([=](Webrtc::VideoState state) {
+	) | rpl::on_next([=](Webrtc::VideoState state) {
 		setState(state);
 	}, lifetime());
 
 	_track->renderNextFrame(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (_track->frameSize().isEmpty()) {
 			_track->markFrameShown();
 		} else {

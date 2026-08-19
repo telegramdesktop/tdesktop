@@ -174,7 +174,7 @@ private:
 		int index,
 		Api::SendOptions options,
 		bool forceSend = false,
-		TextWithTags caption = {});
+		bool needsCaption = false);
 
 	const std::shared_ptr<Show> _show;
 	std::unique_ptr<Ui::TabbedSearch> _search;

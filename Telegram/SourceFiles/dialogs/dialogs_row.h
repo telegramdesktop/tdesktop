@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text.h"
 #include "ui/unread_badge.h"
 #include "ui/userpic_view.h"
+#include "dialogs/dialogs_entry.h"
 #include "dialogs/dialogs_key.h"
 #include "dialogs/ui/dialogs_message_view.h"
 
@@ -87,6 +88,10 @@ public:
 	Row(Key key, int index, int top);
 	~Row();
 
+	[[nodiscard]] static const style::DialogRow &ComputeSt(
+		not_null<const Entry*> entry,
+		FilterId filterId);
+
 	[[nodiscard]] int top() const {
 		return _top;
 	}
@@ -100,7 +105,9 @@ public:
 	void updateCornerBadgeShown(
 		not_null<PeerData*> peer,
 		Fn<void()> updateCallback = nullptr,
-		bool hasUnreadBadgesAbove = false) const;
+		bool hasUnreadBadgesAbove = false,
+		bool insideCommunity = false,
+		bool hidden = false) const;
 	void paintUserpic(
 		Painter &p,
 		not_null<Entry*> entry,
@@ -177,11 +184,14 @@ private:
 		CornerLayersManager layersManager;
 		QImage frame;
 		QImage cacheTTL;
+		QImage cacheHidden;
 		int frameIndex = -1;
-		uint32 paletteVersion : 17 = 0;
-		uint32 storiesCount : 7 = 0;
-		uint32 storiesUnreadCount : 7 = 0;
+		uint32 paletteVersion : 16 = 0;
+		uint32 storiesCount : 6 = 0;
+		uint32 storiesUnreadCount : 6 = 0;
+		uint32 storiesHasVideoStream : 1 = 0;
 		uint32 active : 1 = 0;
+		uint32 hidden : 1 = 0;
 	};
 
 	void setCornerBadgeShown(
@@ -196,10 +206,13 @@ private:
 		Ui::VideoUserpic *videoUserpic,
 		Ui::PeerUserpicView &view,
 		const Ui::PaintContext &context,
-		bool subscribed);
+		bool subscribed,
+		bool communityMember,
+		bool hidden);
 
 	Key _id;
 	mutable std::unique_ptr<CornerBadgeUserpic> _cornerBadgeUserpic;
+	mutable std::unique_ptr<Ui::CommunityUserpicEffect> _communityUserpicEffect;
 	int _top = 0;
 	int _height = 0;
 	uint32 _index : 30 = 0;
@@ -234,6 +247,9 @@ public:
 		return _badge;
 	}
 	[[nodiscard]] const Ui::Text::String &name() const;
+	[[nodiscard]] DateText dateText(
+		TimeId date,
+		crl::time now) const;
 
 	void invalidateTopic();
 
@@ -247,6 +263,7 @@ private:
 	mutable Ui::MessageView _itemView;
 	mutable Ui::PeerBadge _badge;
 	mutable Ui::Text::String _name;
+	mutable DateTextCache _dateCache;
 
 };
 

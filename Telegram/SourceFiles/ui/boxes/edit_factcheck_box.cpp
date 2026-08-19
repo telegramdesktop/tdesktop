@@ -39,7 +39,7 @@ void EditFactcheckBox(
 	};
 	const auto state = box->lifetime().make_state<rpl::variable<State>>(
 		State::Initial);
-	field->changes() | rpl::start_with_next([=] {
+	field->changes() | rpl::on_next([=] {
 		const auto now = field->getLastText().trimmed();
 		*state = !now.isEmpty()
 			? State::Changed
@@ -48,7 +48,7 @@ void EditFactcheckBox(
 			: State::Removed;
 	}, field->lifetime());
 
-	state->value() | rpl::start_with_next([=](State state) {
+	state->value() | rpl::on_next([=](State state) {
 		box->clearButtons();
 		if (state == State::Removed) {
 			box->addButton(tr::lng_box_remove(), [=] {

@@ -24,6 +24,8 @@ public:
 	Row *addByName(Key key);
 	void adjustByDate(const RowsByLetter &links);
 	void moveToTop(Key key);
+	void freeze();
+	void unfreeze();
 	bool updateHeight(Key key, float64 narrowRatio);
 	bool updateHeights(float64 narrowRatio);
 

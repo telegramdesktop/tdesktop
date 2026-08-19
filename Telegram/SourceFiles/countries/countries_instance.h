@@ -24,6 +24,11 @@ struct Info {
 	bool isHidden = false;
 };
 
+enum class Naming : uchar {
+	Default,
+	Polls,
+};
+
 struct FormatResult {
 	QString formatted;
 	QVector<int> groups;
@@ -50,7 +55,9 @@ public:
 	[[nodiscard]] const Map &byISO2() const;
 
 	[[nodiscard]] QString validPhoneCode(QString fullCode) const;
-	[[nodiscard]] QString countryNameByISO2(const QString &iso) const;
+	[[nodiscard]] QString countryNameByISO2(
+		const QString &iso,
+		Naming naming = Naming::Default) const;
 	[[nodiscard]] QString countryISO2ByPhone(const QString &phone) const;
 	[[nodiscard]] QString flagEmojiByISO2(const QString &iso) const;
 

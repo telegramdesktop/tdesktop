@@ -401,25 +401,25 @@ Editor::Inner::Inner(QWidget *parent, const QString &path)
 	resize(st::windowMinWidth, st::windowMinHeight);
 
 	_context.resized.events(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		resizeToWidth(width());
 	}, lifetime());
 
 	using Context = EditorBlock::Context;
 	_context.pending.events(
-	) | rpl::start_with_next([=](const Context::EditionData &data) {
+	) | rpl::on_next([=](const Context::EditionData &data) {
 		applyEditing(data.name, data.copyOf, data.value);
 	}, lifetime());
 
 	_context.updated.events(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (_context.name.isEmpty() && _focusCallback) {
 			_focusCallback();
 		}
 	}, lifetime());
 
 	_context.scroll.events(
-	) | rpl::start_with_next([=](const Context::ScrollData &data) {
+	) | rpl::on_next([=](const Context::ScrollData &data) {
 		if (_scrollCallback) {
 			auto top = (data.type == EditorBlock::Type::Existing
 				? _existingRows
@@ -430,7 +430,7 @@ Editor::Inner::Inner(QWidget *parent, const QString &path)
 	}, lifetime());
 
 	Background()->updates(
-	) | rpl::start_with_next([=](const BackgroundUpdate &update) {
+	) | rpl::on_next([=](const BackgroundUpdate &update) {
 		if (_applyingUpdate || !Background()->editingTheme()) {
 			return;
 		}
@@ -725,7 +725,7 @@ void Editor::showMenu() {
 	_menu = base::make_unique_q<Ui::DropdownMenu>(
 		this,
 		st::dropdownMenuWithIcons);
-	_menu->setHiddenCallback([weak = Ui::MakeWeak(this), menu = _menu.get()]{
+	_menu->setHiddenCallback([weak = base::make_weak(this), menu = _menu.get()]{
 		menu->deleteLater();
 		if (weak && weak->_menu == menu) {
 			weak->_menu = nullptr;

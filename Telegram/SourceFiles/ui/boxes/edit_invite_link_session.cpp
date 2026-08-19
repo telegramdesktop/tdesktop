@@ -24,11 +24,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/number_input.h"
-#include "ui/widgets/label_with_custom_emoji.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
-#include "styles/style_channel_earn.h"
 #include "styles/style_chat.h"
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
@@ -75,7 +73,7 @@ InviteLinkSubscriptionToggle FillCreateInviteLinkSubscriptionToggle(
 		tr::lng_group_invite_subscription_ph(),
 		QString(),
 		std::pow(QString::number(maxCredits).size(), 10));
-	wrap->toggledValue() | rpl::start_with_next([=](bool shown) {
+	wrap->toggledValue() | rpl::on_next([=](bool shown) {
 		if (shown) {
 			input->setFocus();
 		}
@@ -86,7 +84,7 @@ InviteLinkSubscriptionToggle FillCreateInviteLinkSubscriptionToggle(
 	const auto priceOverlay = Ui::CreateChild<Ui::RpWidget>(inputContainer);
 	priceOverlay->setAttribute(Qt::WA_TransparentForMouseEvents);
 	inputContainer->sizeValue(
-	) | rpl::start_with_next([=](const QSize &size) {
+	) | rpl::on_next([=](const QSize &size) {
 		input->resize(
 			size.width() - rect::m::sum::h(st::boxRowPadding),
 			st.heightMin);
@@ -105,7 +103,7 @@ InviteLinkSubscriptionToggle FillCreateInviteLinkSubscriptionToggle(
 		priceOverlay->update();
 	});
 	priceOverlay->paintRequest(
-	) | rpl::start_with_next([=, right = st::boxRowPadding.right()] {
+	) | rpl::on_next([=, right = st::boxRowPadding.right()] {
 		if (state->usdRate.current() <= 0) {
 			return;
 		}
@@ -129,29 +127,27 @@ InviteLinkSubscriptionToggle FillCreateInviteLinkSubscriptionToggle(
 
 	state->usdRate = peer->session().credits().rateValue(peer);
 
-	auto about = Ui::CreateLabelWithCustomEmoji(
+	auto about = object_ptr<Ui::FlatLabel>(
 		container,
 		tr::lng_group_invite_subscription_about(
 			lt_link,
 			tr::lng_group_invite_subscription_about_link(
 				lt_emoji,
 				rpl::single(Ui::Text::IconEmoji(&st::textMoreIconEmoji)),
-				Ui::Text::RichLangValue
+				tr::rich
 			) | rpl::map([](TextWithEntities text) {
-				return Ui::Text::Link(
+				return tr::link(
 					std::move(text),
 					tr::lng_group_invite_subscription_about_url(tr::now));
 			}),
-			Ui::Text::RichLangValue),
-		Core::TextContext({ .session = &peer->session() }),
+			tr::rich),
 		st::boxDividerLabel);
 	Ui::AddSkip(wrap->entity());
 	Ui::AddSkip(wrap->entity());
 	container->add(object_ptr<Ui::DividerLabel>(
 		container,
 		std::move(about),
-		st::defaultBoxDividerLabelPadding,
-		RectPart::Top | RectPart::Bottom));
+		st::defaultBoxDividerLabelPadding));
 	return { toggle, input };
 }
 

@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "core/version.h"
 #include "settings.h"
 
 enum {
@@ -17,15 +16,11 @@ enum {
 	LocalEncryptNoPwdIterCount = 4, // key derivation iteration count without pwd (not secure anyway)
 	LocalEncryptSaltSize = 32, // 256 bit
 
-	RecentInlineBotsLimit = 10,
-
 	AutoSearchTimeout = 900, // 0.9 secs
 
 	PreloadHeightsCount = 3, // when 3 screens to scroll left make a preload request
 
 	SearchPeopleLimit = 5,
-
-	MaxMessageSize = 4096,
 
 	WebPageUserId = 701000,
 

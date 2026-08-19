@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "ui/power_saving.h"
 #include "ui/ui_utility.h"
-#include "styles/style_chat.h"
 
 namespace HistoryView {
 namespace {
@@ -46,6 +45,17 @@ constexpr auto kDropDelayedAfterDelay = crl::time(2000);
 
 } // namespace
 
+bool CanPlayEmojiInteraction(not_null<const Element*> view) {
+	if (!view->media()) {
+		// Large emoji may be disabled.
+		return false;
+	} else if (!view->isIsolatedEmoji() && !view->isOnlyCustomEmoji()) {
+		return false;
+	}
+	const auto emoji = view->isolatedEmoji();
+	return !emoji.empty() && v::is_null(emoji.items[1]);
+}
+
 EmojiInteractions::EmojiInteractions(
 	not_null<QWidget*> parent,
 	not_null<QWidget*> layerParent,
@@ -58,7 +68,7 @@ EmojiInteractions::EmojiInteractions(
 	_session->data().viewRemoved(
 	) | rpl::filter([=] {
 		return !_plays.empty() || !_delayed.empty();
-	}) | rpl::start_with_next([=](not_null<const Element*> view) {
+	}) | rpl::on_next([=](not_null<const Element*> view) {
 		_plays.erase(ranges::remove(_plays, view, &Play::view), end(_plays));
 		_delayed.erase(
 			ranges::remove(_delayed, view, &Delayed::view),
@@ -66,7 +76,7 @@ EmojiInteractions::EmojiInteractions(
 	}, _lifetime);
 
 	_session->data().reactions().effectsUpdates(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		checkPendingEffects();
 	}, _lifetime);
 }
@@ -76,8 +86,7 @@ EmojiInteractions::~EmojiInteractions() = default;
 void EmojiInteractions::play(
 		ChatHelpers::EmojiInteractionPlayRequest request,
 		not_null<Element*> view) {
-	if (!view->media()) {
-		// Large emoji may be disabled.
+	if (!CanPlayEmojiInteraction(view)) {
 		return;
 	} else if (_plays.empty()) {
 		play(
@@ -169,7 +178,7 @@ void EmojiInteractions::playEffect(not_null<const Element*> view) {
 	} else if (view->data()->effectId()) {
 		if (resolved.document && !_downloadLifetime) {
 			_downloadLifetime = _session->downloaderTaskFinished(
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				checkPendingEffects();
 			});
 		}
@@ -266,7 +275,7 @@ void EmojiInteractions::checkPendingEffects() {
 		_downloadLifetime.destroy();
 	} else if (!_downloadLifetime) {
 		_downloadLifetime = _session->downloaderTaskFinished(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			checkPendingEffects();
 		});
 	}
@@ -294,7 +303,7 @@ void EmojiInteractions::play(
 		const auto raw = _layer.get();
 		raw->setAttribute(Qt::WA_TransparentForMouseEvents);
 		raw->show();
-		raw->paintRequest() | rpl::start_with_next([=](QRect clip) {
+		raw->paintRequest() | rpl::on_next([=](QRect clip) {
 			paint(raw, clip);
 		}, raw->lifetime());
 	}
@@ -315,7 +324,7 @@ void EmojiInteractions::play(
 		: QPoint();
 	const auto raw = lottie.get();
 	lottie->updates(
-	) | rpl::start_with_next([=](Lottie::Update update) {
+	) | rpl::on_next([=](Lottie::Update update) {
 		v::match(update.data, [&](const Lottie::Information &information) {
 		}, [&](const Lottie::DisplayFrameRequest &request) {
 			const auto i = ranges::find(_plays, raw, [](const Play &p) {

@@ -61,6 +61,7 @@ struct GlobalMediaResult {
 [[nodiscard]] std::optional<SearchRequest> PrepareSearchRequest(
 	not_null<PeerData*> peer,
 	MsgId topicRootId,
+	PeerId monoforumPeerId,
 	Storage::SharedMediaType type,
 	const QString &query,
 	MsgId messageId,
@@ -92,6 +93,7 @@ public:
 
 		PeerId peerId = 0;
 		MsgId topicRootId = 0;
+		PeerId monoforumPeerId = 0;
 		PeerId migratedPeerId = 0;
 		MediaType type = MediaType::kCount;
 		QString query;
@@ -151,6 +153,7 @@ private:
 	rpl::producer<SparseIdsSlice> simpleIdsSlice(
 		PeerId peerId,
 		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		MsgId aroundId,
 		const Query &query,
 		int limitBefore,

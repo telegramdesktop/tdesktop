@@ -19,6 +19,7 @@ namespace style {
 struct ReportBox;
 } // namespace style
 
+class HistoryItem;
 class PeerData;
 
 [[nodiscard]] object_ptr<Ui::BoxContent> ReportProfilePhotoBox(
@@ -31,3 +32,7 @@ void ShowReportMessageBox(
 	const std::vector<MsgId> &ids,
 	const std::vector<StoryId> &stories,
 	const style::ReportBox *stOverride = nullptr);
+
+void ShowReportEphemeralBox(
+	std::shared_ptr<Ui::Show> show,
+	not_null<HistoryItem*> item);

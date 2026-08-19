@@ -15,16 +15,12 @@ class DelegateImpl final : public Delegate {
 public:
 	DelegateImpl() = default;
 
-	void ivSetLastSourceWindow(not_null<QWidget*> window) override;
-	[[nodiscard]] QRect ivGeometry() const override;
+	[[nodiscard]] QRect ivGeometry(not_null<Ui::RpWindow*> window) const override;
 	void ivSaveGeometry(not_null<Ui::RpWindow*> window) override;
 
 	[[nodiscard]] int ivZoom() const override;
 	[[nodiscard]] rpl::producer<int> ivZoomValue() const override;
 	void ivSetZoom(int value) override;
-
-private:
-	QPointer<QWidget> _lastSourceWindow;
 
 };
 

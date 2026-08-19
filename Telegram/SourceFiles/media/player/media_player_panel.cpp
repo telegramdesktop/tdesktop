@@ -9,12 +9,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "media/player/media_player_instance.h"
 #include "info/media/info_media_list_widget.h"
+#include "info/saved/info_saved_music_widget.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_forum_topic.h"
+#include "data/data_saved_messages.h"
+#include "data/data_saved_sublist.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/cached_round_corners.h"
@@ -99,7 +103,7 @@ void Panel::updateControlsGeometry() {
 	if (scrollHeight > 0) {
 		_scroll->setGeometryToRight(contentRight(), scrollTop, width, scrollHeight);
 	}
-	if (const auto widget = static_cast<TWidget*>(_scroll->widget())) {
+	if (const auto widget = static_cast<RpWidget*>(_scroll->widget())) {
 		widget->resizeToWidth(width);
 	}
 }
@@ -132,6 +136,10 @@ void Panel::updateSize() {
 	_scroll->setVisible(scrollVisible);
 }
 
+style::color Panel::listBackground() const {
+	return st::menuBg;
+}
+
 void Panel::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
@@ -157,7 +165,7 @@ void Panel::paintEvent(QPaintEvent *e) {
 		| RectPart::Bottom
 		| (rtl() ? RectPart::Left : RectPart::Right)
 		| RectPart::Top;
-	Ui::Shadow::paint(p, shadowedRect, width(), st::defaultRoundShadow, shadowedSides);
+	Ui::Shadow::paint(p, shadowedRect, width(), st::roundShadowRadius8px, shadowedSides);
 	Ui::FillRoundRect(p, shadowedRect, st::menuBg, Ui::MenuCorners);
 }
 
@@ -209,7 +217,7 @@ void Panel::ensureCreated() {
 
 	_refreshListLifetime = instance()->playlistChanges(
 		AudioMsgId::Type::Song
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		refreshList();
 	});
 	refreshList();
@@ -217,7 +225,7 @@ void Panel::ensureCreated() {
 	macWindowDeactivateEvents(
 	) | rpl::filter([=] {
 		return !isHidden();
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		leaveEvent(nullptr);
 	}, _refreshListLifetime);
 
@@ -227,6 +235,8 @@ void Panel::ensureCreated() {
 void Panel::refreshList() {
 	const auto current = instance()->current(AudioMsgId::Type::Song);
 	const auto contextId = current.contextId();
+	const auto context = instance()->playlistContext(AudioMsgId::Type::Song);
+	auto savedMusicItem = false;
 	const auto peer = [&]() -> PeerData* {
 		if (const auto document = current.audio()) {
 			if (&document->session() != &session()) {
@@ -241,9 +251,12 @@ void Panel::refreshList() {
 		const auto document = media ? media->document() : nullptr;
 		if (!document
 			|| !document->isSharedMediaMusic()
-			|| (!item->isRegular() && !item->isScheduled())) {
+			|| (!item->isRegular()
+				&& !item->isScheduled()
+				&& !item->isSavedMusicItem())) {
 			return nullptr;
 		}
+		savedMusicItem = item->isSavedMusicItem();
 		const auto result = item->history()->peer;
 		if (const auto migrated = result->migrateTo()) {
 			return migrated;
@@ -251,13 +264,34 @@ void Panel::refreshList() {
 		return result;
 	}();
 	const auto migrated = peer ? peer->migrateFrom() : nullptr;
-	if (_listPeer != peer || _listMigratedPeer != migrated) {
+	const auto listPeer = savedMusicItem ? nullptr : peer;
+	const auto listMusicPeer = savedMusicItem ? peer : nullptr;
+	const auto listTopicRootId = savedMusicItem
+		? MsgId()
+		: context.topicRootId;
+	const auto listSublistPeerId = savedMusicItem
+		? PeerId()
+		: context.monoforumPeerId;
+	const auto scoped = listTopicRootId || listSublistPeerId;
+	const auto listMigratedPeer = (savedMusicItem || scoped)
+		? nullptr
+		: migrated;
+	if (_listPeer != listPeer
+		|| _listMusicPeer != listMusicPeer
+		|| _listMigratedPeer != listMigratedPeer
+		|| _listTopicRootId != listTopicRootId
+		|| _listSublistPeerId != listSublistPeerId) {
 		_scroll->takeWidget<QWidget>().destroy();
-		_listPeer = _listMigratedPeer = nullptr;
+		_listPeer = _listMusicPeer = _listMigratedPeer = nullptr;
+		_listTopicRootId = MsgId();
+		_listSublistPeerId = PeerId();
 	}
-	if (peer && !_listPeer) {
-		_listPeer = peer;
-		_listMigratedPeer = migrated;
+	if ((listPeer && !_listPeer) || (listMusicPeer && !_listMusicPeer)) {
+		_listPeer = listPeer;
+		_listMusicPeer = listMusicPeer;
+		_listMigratedPeer = listMigratedPeer;
+		_listTopicRootId = listTopicRootId;
+		_listSublistPeerId = listSublistPeerId;
 		auto list = object_ptr<ListWidget>(this, infoController());
 
 		const auto weak = _scroll->setOwnedWidget(std::move(list));
@@ -266,19 +300,19 @@ void Panel::refreshList() {
 		updateControlsGeometry();
 
 		weak->checkForHide(
-		) | rpl::start_with_next([this] {
+		) | rpl::on_next([this] {
 			if (!rect().contains(mapFromGlobal(QCursor::pos()))) {
 				_hideTimer.callOnce(kDelayedHideTimeout);
 			}
 		}, weak->lifetime());
 
 		weak->heightValue(
-		) | rpl::start_with_next([this](int newHeight) {
+		) | rpl::on_next([this](int newHeight) {
 			listHeightUpdated(newHeight);
 		}, weak->lifetime());
 
 		weak->scrollToRequests(
-		) | rpl::start_with_next([this](int newScrollTop) {
+		) | rpl::on_next([this](int newScrollTop) {
 			_scroll->scrollToY(newScrollTop);
 		}, weak->lifetime());
 
@@ -287,15 +321,28 @@ void Panel::refreshList() {
 		rpl::combine(
 			_scroll->scrollTopValue(),
 			_scroll->heightValue()
-		) | rpl::start_with_next([=](int top, int height) {
+		) | rpl::on_next([=](int top, int height) {
 			const auto bottom = top + height;
 			weak->setVisibleTopBottom(top, bottom);
 		}, weak->lifetime());
 
-		auto memento = Info::Media::Memento(
-			peer,
-			migratedPeerId(),
-			section().mediaType());
+		const auto type = listMusicPeer
+			? Storage::SharedMediaType::MusicFile
+			: section().mediaType();
+		const auto topic = listTopic();
+		const auto sublist = listSublist();
+		auto musicMemento = Info::Saved::MusicMemento(peer);
+		auto mediaMemento = topic
+			? std::make_unique<Info::Media::Memento>(topic, type)
+			: sublist
+			? std::make_unique<Info::Media::Memento>(sublist, type)
+			: std::make_unique<Info::Media::Memento>(
+				peer,
+				migratedPeerId(),
+				type);
+		auto &memento = listMusicPeer
+			? musicMemento.media()
+			: *mediaMemento;
 		memento.setAroundId(contextId);
 		memento.setIdsLimit(kPlaylistIdsLimit);
 		memento.setScrollTopItem({ contextId, peer->session().uniqueId() });
@@ -308,11 +355,36 @@ void Panel::performDestroy() {
 	if (!_scroll->widget()) return;
 
 	_scroll->takeWidget<QWidget>().destroy();
-	_listPeer = _listMigratedPeer = nullptr;
+	_listPeer = _listMusicPeer = _listMigratedPeer = nullptr;
+	_listTopicRootId = MsgId();
+	_listSublistPeerId = PeerId();
 	_refreshListLifetime.destroy();
 }
 
+Data::ForumTopic *Panel::listTopic() const {
+	return (_listPeer && _listTopicRootId)
+		? _listPeer->forumTopicFor(_listTopicRootId)
+		: nullptr;
+}
+
+Data::SavedSublist *Panel::listSublist() const {
+	const auto monoforum = (_listPeer && _listSublistPeerId)
+		? _listPeer->monoforum()
+		: nullptr;
+	return monoforum
+		? monoforum->sublistLoaded(
+			_listPeer->owner().peer(_listSublistPeerId))
+		: nullptr;
+}
+
 Info::Key Panel::key() const {
+	if (_listMusicPeer) {
+		return Info::Key(Info::Saved::MusicTag{ _listMusicPeer });
+	} else if (const auto topic = listTopic()) {
+		return Info::Key(topic);
+	} else if (const auto sublist = listSublist()) {
+		return Info::Key(sublist);
+	}
 	return Info::Key(_listPeer);
 }
 
@@ -321,7 +393,9 @@ PeerData *Panel::migrated() const {
 }
 
 Info::Section Panel::section() const {
-	return Info::Section(Info::Section::MediaType::MusicFile);
+	return _listMusicPeer
+		? Info::Section(Info::Section::Type::SavedMusic)
+		: Info::Section(Info::Section::MediaType::MusicFile);
 }
 
 void Panel::startShow() {

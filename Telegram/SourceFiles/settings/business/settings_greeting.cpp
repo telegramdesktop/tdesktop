@@ -35,7 +35,7 @@ namespace {
 
 constexpr auto kDefaultNoActivityDays = 7;
 
-class Greeting : public BusinessSection<Greeting> {
+class Greeting : public Section<Greeting> {
 public:
 	Greeting(
 		QWidget *parent,
@@ -66,7 +66,7 @@ private:
 Greeting::Greeting(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
-: BusinessSection(parent, controller)
+: Section(parent, controller)
 , _bottomSkipRounding(st::boxRadius, st::boxDividerBg) {
 	setupContent(controller);
 }
@@ -89,9 +89,9 @@ void EditPeriodBox(
 	const auto take = TimePickerBox(box, values, phrases, days);
 
 	box->addButton(tr::lng_settings_save(), [=] {
-		const auto weak = Ui::MakeWeak(box);
+		const auto weak = base::make_weak(box);
 		save(take());
-		if (const auto strong = weak.data()) {
+		if (const auto strong = weak.get()) {
 			strong->closeBox();
 		}
 	});
@@ -135,7 +135,7 @@ void Greeting::setupContent(
 		.lottieSize = st::settingsCloudPasswordIconSize,
 		.lottieMargins = st::peerAppearanceIconPadding,
 		.showFinished = showFinishes(),
-		.about = tr::lng_greeting_about(Ui::Text::WithEntities),
+		.about = tr::lng_greeting_about(tr::marked),
 		.aboutMargins = st::peerAppearanceCoverLabelMargin,
 	});
 
@@ -159,7 +159,7 @@ void Greeting::setupContent(
 	)));
 
 	_enabled = enabled->toggledValue();
-	_enabled.value() | rpl::filter(_1) | rpl::start_with_next([=] {
+	_enabled.value() | rpl::filter(_1) | rpl::on_next([=] {
 		if (!_canHave.current()) {
 			controller->showToast({
 				.text = { tr::lng_greeting_limit_reached(tr::now) },
@@ -177,7 +177,7 @@ void Greeting::setupContent(
 			object_ptr<Ui::BoxContentDivider>(
 				content,
 				st::boxDividerHeight,
-				st::boxDividerBg,
+				st::defaultDividerBar,
 				RectPart::Top))
 	)->setDuration(0)->toggleOn(enabled->toggledValue() | rpl::map(!_1));
 	content->add(
@@ -256,6 +256,7 @@ void Greeting::setupContent(
 		inner,
 		tr::lng_greeting_period_about(),
 		st::settingsChatbotsBottomTextMargin,
+		st::defaultDividerLabel,
 		RectPart::Top);
 
 	wrap->toggleOn(enabled->toggledValue());

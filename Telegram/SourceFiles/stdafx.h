@@ -111,6 +111,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/algorithm.h"
 #include "base/basic_types.h"
+#include "base/const_string.h"
 #include "base/debug_destroy_informer.h" // _DEBUG only.
 #include "base/flat_set.h"
 #include "base/flat_map.h"
@@ -118,6 +119,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/optional.h"
 #include "base/variant.h"
 #include "base/weak_ptr.h"
+#include "base/weak_qptr.h"
 
 #include "scheme.h"
 #include "mtproto/type_utils.h"
@@ -128,13 +130,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/arc_angles.h"
 #include "ui/emoji_config.h"
 #include "ui/qt_object_factory.h"
-#include "ui/qt_weak_factory.h"
 #include "ui/ui_rpl_filter.h"
 
 #include "styles/palette.h"
 #include "styles/style_basic.h"
 
-#include "core/stars_amount.h"
+#include "core/credits_amount.h"
 #include "core/utils.h"
 #include "logs.h"
 #include "config.h"

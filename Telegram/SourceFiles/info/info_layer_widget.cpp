@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "core/application.h"
 #include "styles/style_info.h"
-#include "styles/style_window.h"
 #include "styles/style_layers.h"
 
 namespace Info {
@@ -31,6 +30,7 @@ LayerWidget::LayerWidget(
 	not_null<Memento*> memento)
 : _controller(controller)
 , _contentWrap(this, controller, Wrap::Layer, memento) {
+	controller->registerActiveLayerSection(_contentWrap.data());
 	setupHeightConsumers();
 	controller->window().replaceFloatPlayerDelegate(floatPlayerDelegate());
 }
@@ -40,6 +40,7 @@ LayerWidget::LayerWidget(
 	not_null<MoveMemento*> memento)
 : _controller(controller)
 , _contentWrap(memento->takeContent(this, Wrap::Layer)) {
+	controller->registerActiveLayerSection(_contentWrap.data());
 	setupHeightConsumers();
 	controller->window().replaceFloatPlayerDelegate(floatPlayerDelegate());
 }
@@ -96,12 +97,12 @@ void LayerWidget::setupHeightConsumers() {
 		}
 		_pendingResize = true;
 		return false;
-	}) | rpl::start_with_next([this] {
+	}) | rpl::on_next([this] {
 		resizeToWidth(width());
 	}, lifetime());
 
 	_contentWrap->grabbingForExpanding(
-	) | rpl::start_with_next([=](bool grabbing) {
+	) | rpl::on_next([=](bool grabbing) {
 		if (grabbing) {
 			_savedHeight = _contentWrapHeight;
 			_savedHeightAnimation = base::take(_heightAnimation);
@@ -113,7 +114,7 @@ void LayerWidget::setupHeightConsumers() {
 	}, lifetime());
 
 	_contentWrap->desiredHeightValue(
-	) | rpl::start_with_next([this](int height) {
+	) | rpl::on_next([this](int height) {
 		if (!height) {
 			// New content arrived.
 			_heightAnimated = _heightAnimation.animating();
@@ -129,7 +130,11 @@ void LayerWidget::setupHeightConsumers() {
 			_heightAnimation.start([=] {
 				setContentHeight(_heightAnimation.value(_desiredHeight));
 			}, _contentWrapHeight, _desiredHeight, st::slideDuration);
-			resizeToWidth(width());
+			if (_inResize) {
+				_pendingResize = true;
+			} else {
+				resizeToWidth(width());
+			}
 		}
 	}, lifetime());
 }
@@ -161,6 +166,7 @@ void LayerWidget::parentResized() {
 	if (parentWidth < MinimalSupportedWidth()) {
 		Ui::FocusPersister persister(this);
 		restoreFloatPlayerDelegate();
+		unregisterActiveLayerSection();
 
 		auto memento = std::make_shared<MoveMemento>(std::move(_contentWrap));
 
@@ -247,6 +253,12 @@ bool LayerWidget::closeByOutsideClick() const {
 	return _contentWrap ? _contentWrap->closeByOutsideClick() : true;
 }
 
+bool LayerWidget::closeByBackButton() {
+	return _contentWrap
+		? _contentWrap->closeByBackButton()
+		: Ui::LayerWidget::closeByBackButton();
+}
+
 int LayerWidget::MinimalSupportedWidth() {
 	const auto minimalMargins = 2 * st::infoMinimalLayerMargin;
 	return st::infoMinimalWidth + minimalMargins;
@@ -322,7 +334,7 @@ QRect LayerWidget::countGeometry(int newWidth) {
 		contentTop,
 		contentWidth,
 		contentHeight,
-	}, expanding, additionalScroll, maxVisibleHeight);
+	}, expanding, _contentTillBottom, additionalScroll, maxVisibleHeight);
 
 	return QRect(newLeft, newTop, newWidth, desiredHeight);
 }
@@ -374,11 +386,19 @@ void LayerWidget::restoreFloatPlayerDelegate() {
 	}
 }
 
+void LayerWidget::unregisterActiveLayerSection() {
+	if (_contentWrap) {
+		_controller->unregisterActiveLayerSection(_contentWrap.data());
+	}
+}
+
 void LayerWidget::closeHook() {
+	unregisterActiveLayerSection();
 	restoreFloatPlayerDelegate();
 }
 
 LayerWidget::~LayerWidget() {
+	unregisterActiveLayerSection();
 	if (!Core::Quitting()) {
 		restoreFloatPlayerDelegate();
 	}

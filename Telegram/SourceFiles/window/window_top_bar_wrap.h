@@ -22,13 +22,13 @@ public:
 		rpl::producer<bool> oneColumnValue)
 	: Parent(parent, std::move(inner)) {
 		this->sizeValue(
-		) | rpl::start_with_next([=](const QSize &size) {
+		) | rpl::on_next([=](const QSize &size) {
 			updateShadowGeometry(size);
 		}, this->lifetime());
 
 		std::move(
 			oneColumnValue
-		) | rpl::start_with_next([=](bool oneColumn) {
+		) | rpl::on_next([=](bool oneColumn) {
 			_isOneColumn = oneColumn;
 		}, this->lifetime());
 	}

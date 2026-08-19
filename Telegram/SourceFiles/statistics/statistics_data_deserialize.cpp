@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/statistics_data_deserialize.h"
 
 #include "base/debug_log.h"
-#include "data/data_channel_earn.h" // kEarnMultiplier.
 #include "data/data_statistics_chart.h"
 #include "statistics/statistics_types.h"
 #include "ui/text/format_values.h" // kCreditsCurrency.
@@ -76,10 +75,7 @@ Data::StatisticalChart StatisticalChartFromJSON(const QByteArray &json) {
 			line.isHiddenOnStart = ranges::contains(hiddenLines, columnId);
 			line.y.resize(length);
 			for (auto i = 0; i < length; i++) {
-				using Currency = Data::StatisticalCurrency;
-				const auto multiplier = (result.currency == Currency::Credits)
-					? Data::kEarnMultiplier
-					: 1;
+				const auto multiplier = 1;
 				const auto value = ChartValue(
 						base::SafeRound(array.at(i + 1).toDouble()))
 					* multiplier;

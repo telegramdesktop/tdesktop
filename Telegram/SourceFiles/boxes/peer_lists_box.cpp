@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_peer.h"
-#include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 
 PeerListsBox::PeerListsBox(
@@ -90,7 +89,7 @@ void PeerListsBox::createMultiSelect() {
 		tr::lng_participant_filter());
 	_select.create(this, std::move(entity));
 	_select->heightValue(
-	) | rpl::start_with_next(
+	) | rpl::on_next(
 		[this] { updateScrollSkips(); },
 		lifetime());
 	_select->entity()->setSubmittedCallback([=](Qt::KeyboardModifiers) {
@@ -146,19 +145,19 @@ void PeerListsBox::updateScrollSkips() {
 }
 
 void PeerListsBox::prepare() {
-	auto rows = setInnerWidget(
+	_rows = setInnerWidget(
 		object_ptr<Ui::VerticalLayout>(this),
 		st::boxScroll);
 	for (auto &list : _lists) {
-		const auto content = rows->add(object_ptr<PeerListContent>(
-			rows,
+		const auto content = _rows->add(object_ptr<PeerListContent>(
+			_rows,
 			list.controller.get()));
 		list.content = content;
 		list.delegate->setContent(content);
 		list.controller->setDelegate(list.delegate.get());
 
 		content->scrollToRequests(
-		) | rpl::start_with_next([=](Ui::ScrollToRequest request) {
+		) | rpl::on_next([=](Ui::ScrollToRequest request) {
 			const auto skip = content->y();
 			scrollToY(
 				skip + request.ymin,
@@ -168,7 +167,7 @@ void PeerListsBox::prepare() {
 		content->selectedIndexValue(
 		) | rpl::filter([=](int index) {
 			return (index >= 0);
-		}) | rpl::start_with_next([=] {
+		}) | rpl::on_next([=] {
 			for (const auto &list : _lists) {
 				if (list.content && list.content != content) {
 					list.content->clearSelection();
@@ -176,9 +175,16 @@ void PeerListsBox::prepare() {
 			}
 		}, lifetime());
 	}
-	rows->resizeToWidth(firstController()->contentWidth());
+	_rows->resizeToWidth(firstController()->contentWidth());
 
-	setDimensions(firstController()->contentWidth(), st::boxMaxListHeight);
+	{
+		setDimensions(
+			firstController()->contentWidth(),
+			std::clamp(
+				_rows->height(),
+				st::boxMaxListHeight,
+				st::boxMaxListHeight * 3));
+	}
 	if (_select) {
 		_select->finishAnimating();
 		Ui::SendPendingMoveResizeEvents(_select);
@@ -341,6 +347,23 @@ void PeerListsBox::Delegate::peerListSetForeignRowChecked(
 		// The itemRemovedCallback will call changeCheckState() here.
 		_box->_select->entity()->removeItem(row->id());
 	}
+}
+
+not_null<Ui::RpWidget*> PeerListsBox::addSeparatorBefore(
+		int listIndex,
+		object_ptr<Ui::RpWidget> widget) {
+	Assert(!(listIndex < 0 || listIndex >= int(_lists.size()) || !_rows));
+	const auto position = listIndex * 2;
+	auto wrapped = object_ptr<Ui::SlideWrap<>>(
+		_rows,
+		std::move(widget));
+	_lists[listIndex].content->heightValue(
+	) | rpl::on_next([=, separator = wrapped.data()](int h) {
+		separator->toggle(h > 0, anim::type::instant);
+	}, wrapped->lifetime());
+	_lists[listIndex].separator = wrapped.data();
+	_rows->insert(position, std::move(wrapped));
+	return _lists[listIndex].separator;
 }
 
 void PeerListsBox::Delegate::peerListScrollToTop() {

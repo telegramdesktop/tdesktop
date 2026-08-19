@@ -53,13 +53,15 @@ EmojiInteractions::EmojiInteractions(not_null<Main::Session*> session)
 	_session->changes().messageUpdates(
 		Data::MessageUpdate::Flag::Destroyed
 		| Data::MessageUpdate::Flag::Edited
-	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
+	) | rpl::on_next([=](const Data::MessageUpdate &update) {
 		if (update.flags & Data::MessageUpdate::Flag::Destroyed) {
 			_outgoing.remove(update.item);
 			_incoming.remove(update.item);
+			_autoplay.remove(update.item);
 		} else if (update.flags & Data::MessageUpdate::Flag::Edited) {
 			checkEdition(update.item, _outgoing);
 			checkEdition(update.item, _incoming);
+			checkEdition(update.item, _autoplay);
 		}
 	}, _lifetime);
 }
@@ -117,6 +119,43 @@ void EmojiInteractions::startOutgoing(
 		.document = document,
 		.media = media,
 		.scheduledAt = now,
+		.index = index,
+	});
+	check(now);
+}
+
+void EmojiInteractions::startAutoplay(
+		not_null<const HistoryView::Element*> view) {
+	const auto item = view->data();
+	if (!item->isRegular() || !item->history()->peer->isUser()) {
+		return;
+	}
+	const auto &pack = _session->emojiStickersPack();
+	const auto emoticon = item->originalText().text;
+	const auto emoji = pack.chooseInteractionEmoji(emoticon);
+	if (!emoji) {
+		return;
+	}
+	const auto &list = pack.animationsForEmoji(emoji);
+	if (list.empty()) {
+		return;
+	}
+	auto &animations = _autoplay[item];
+	if (!animations.empty()) {
+		return;
+	}
+	const auto index = base::RandomIndex(int(list.size()));
+	const auto document = (begin(list) + index)->second;
+	const auto media = document->createMediaView();
+	media->checkStickerLarge();
+	const auto now = crl::now();
+	animations.push_back({
+		.emoticon = emoticon,
+		.emoji = emoji,
+		.document = document,
+		.media = media,
+		.scheduledAt = now,
+		.incoming = false,
 		.index = index,
 	});
 	check(now);
@@ -196,8 +235,10 @@ void EmojiInteractions::seenOutgoing(
 
 auto EmojiInteractions::checkAnimations(crl::time now) -> CheckResult {
 	return Combine(
-		checkAnimations(now, _outgoing),
-		checkAnimations(now, _incoming));
+		Combine(
+			checkAnimations(now, _outgoing),
+			checkAnimations(now, _incoming)),
+		checkAnimations(now, _autoplay));
 }
 
 auto EmojiInteractions::checkAnimations(
@@ -281,7 +322,7 @@ void EmojiInteractions::sendAccumulatedOutgoing(
 	const auto emoji = from->emoji;
 	const auto requestId = _session->api().request(MTPmessages_SetTyping(
 		MTP_flags(0),
-		peer->input,
+		peer->input(),
 		MTPint(), // top_msg_id
 		MTP_sendMessageEmojiInteraction(
 			MTP_string(from->emoticon),
@@ -332,6 +373,18 @@ auto EmojiInteractions::checkAccumulated(crl::time now) -> CheckResult {
 		clearAccumulatedIncoming(now, animations);
 		if (animations.empty()) {
 			i = _incoming.erase(i);
+			continue;
+		} else {
+			// Doesn't really matter when, just clear them finally.
+			nearest = std::min(nearest, now + kAccumulateDelay);
+		}
+		++i;
+	}
+	for (auto i = begin(_autoplay); i != end(_autoplay);) {
+		auto &animations = i->second;
+		clearAccumulatedIncoming(now, animations);
+		if (animations.empty()) {
+			i = _autoplay.erase(i);
 			continue;
 		} else {
 			// Doesn't really matter when, just clear them finally.
@@ -408,7 +461,7 @@ void EmojiInteractions::setWaitingForDownload(bool waiting) {
 	_waitingForDownload = waiting;
 	if (_waitingForDownload) {
 		_session->downloaderTaskFinished(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			check();
 		}, _downloadCheckLifetime);
 	} else {
@@ -426,7 +479,7 @@ void EmojiInteractions::playStarted(not_null<PeerData*> peer, QString emoji) {
 	}
 	_session->api().request(MTPmessages_SetTyping(
 		MTP_flags(0),
-		peer->input,
+		peer->input(),
 		MTPint(), // top_msg_id
 		MTP_sendMessageEmojiInteractionSeen(MTP_string(emoji))
 	)).send();

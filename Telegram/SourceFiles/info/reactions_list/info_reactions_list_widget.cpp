@@ -107,7 +107,7 @@ InnerWidget::InnerWidget(
 	setContent(_list.data());
 	_full.controller->setDelegate(static_cast<PeerListDelegate*>(this));
 	_tabs->changes(
-	) | rpl::start_with_next([=](Data::ReactionId reaction) {
+	) | rpl::on_next([=](Data::ReactionId reaction) {
 		_selected = reaction;
 		_full.switchTab(reaction);
 	}, _list->lifetime());
@@ -156,7 +156,7 @@ object_ptr<InnerWidget::ListWidget> InnerWidget::setupList(
 	const auto raw = result.data();
 
 	raw->scrollToRequests(
-	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
+	) | rpl::on_next([this](Ui::ScrollToRequest request) {
 		const auto skip = _tabsHeight.current()
 			+ st::infoCommonGroupsMargin.top();
 		auto addmin = (request.ymin < 0) ? 0 : skip;
@@ -167,12 +167,12 @@ object_ptr<InnerWidget::ListWidget> InnerWidget::setupList(
 	}, raw->lifetime());
 
 	_tabs->move(0, 0);
-	_tabsHeight.value() | rpl::start_with_next([=](int tabs) {
+	_tabsHeight.value() | rpl::on_next([=](int tabs) {
 		raw->moveToLeft(0, tabs + st::infoCommonGroupsMargin.top());
 	}, raw->lifetime());
 
 	parent->widthValue(
-	) | rpl::start_with_next([=](int newWidth) {
+	) | rpl::on_next([=](int newWidth) {
 		_tabs->resizeToWidth(newWidth);
 		raw->resizeToWidth(newWidth);
 	}, raw->lifetime());
@@ -180,7 +180,7 @@ object_ptr<InnerWidget::ListWidget> InnerWidget::setupList(
 	rpl::combine(
 		_tabsHeight.value(),
 		raw->heightValue()
-	) | rpl::start_with_next([parent](int tabsHeight, int listHeight) {
+	) | rpl::on_next([parent](int tabsHeight, int listHeight) {
 		const auto newHeight = tabsHeight
 			+ st::infoCommonGroupsMargin.top()
 			+ listHeight

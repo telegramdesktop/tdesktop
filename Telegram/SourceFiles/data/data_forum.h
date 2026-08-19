@@ -41,8 +41,10 @@ public:
 
 	[[nodiscard]] Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
+	[[nodiscard]] not_null<PeerData*> peer() const;
 	[[nodiscard]] not_null<History*> history() const;
-	[[nodiscard]] not_null<ChannelData*> channel() const;
+	[[nodiscard]] UserData *bot() const;
+	[[nodiscard]] ChannelData *channel() const;
 	[[nodiscard]] not_null<Dialogs::MainList*> topicsList();
 	[[nodiscard]] rpl::producer<> destroyed() const;
 	[[nodiscard]] auto topicDestroyed() const
@@ -85,9 +87,11 @@ public:
 	void discardCreatingId(MsgId rootId);
 	[[nodiscard]] bool creating(MsgId rootId) const;
 	void created(MsgId rootId, MsgId realId);
+	[[nodiscard]] ForumTopic *reserveNewBotTopic();
 
 	void clearAllUnreadMentions();
 	void clearAllUnreadReactions();
+	void clearAllUnreadPollVotes();
 	void enumerateTopics(Fn<void(not_null<ForumTopic*>)> action) const;
 
 	void listMessageChanged(HistoryItem *from, HistoryItem *to);
@@ -95,6 +99,14 @@ public:
 	void recentTopicsInvalidate(not_null<ForumTopic*> topic);
 	[[nodiscard]] auto recentTopics() const
 		-> const std::vector<not_null<ForumTopic*>> &;
+
+	void saveActiveSubsectionThread(not_null<Thread*> thread);
+	[[nodiscard]] Thread *activeSubsectionThread() const;
+
+	void markUnreadCountsUnknown(MsgId readTillId);
+	void updateUnreadCounts(
+		MsgId readTillId,
+		const base::flat_map<not_null<ForumTopic*>, int> &counts);
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
@@ -128,6 +140,8 @@ private:
 
 	std::vector<not_null<ForumTopic*>> _lastTopics;
 	int _lastTopicsVersion = 0;
+
+	ForumTopic *_activeSubsectionTopic = nullptr;
 
 	rpl::event_stream<> _chatsListChanges;
 	rpl::event_stream<> _chatsListLoadedEvents;

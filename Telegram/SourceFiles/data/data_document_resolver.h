@@ -9,8 +9,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/binary_guard.h"
 
+#include <gsl/util>
+
+#include <optional>
+
 class DocumentData;
 class HistoryItem;
+
+namespace Core {
+class Settings;
+enum class NameType : uchar;
+} // namespace Core
 
 namespace Window {
 class SessionController;
@@ -20,7 +29,31 @@ namespace Data {
 
 class DocumentMedia;
 
-extern const char kOptionExternalVideoPlayer[];
+enum class ImageOpenSource : uchar {
+	None,
+	Location,
+	Bytes,
+};
+
+struct ImageOpenCheck {
+	QString mime;
+	ImageOpenSource source = ImageOpenSource::None;
+	bool sizeOverLimit = false;
+	bool readable = false;
+	bool openInApp = false;
+	std::optional<gsl::final_action<Fn<void()>>> accessGuard;
+};
+
+[[nodiscard]] ImageOpenCheck CheckImageOpenInApp(
+	not_null<DocumentData*> document,
+	const std::shared_ptr<DocumentMedia> &media);
+
+[[nodiscard]] bool LauncherWouldWarn(
+	const Core::Settings &settings,
+	Core::NameType nameType,
+	bool isIpReveal,
+	const QString &extension,
+	HistoryItem *item);
 
 base::binary_guard ReadBackgroundImageAsync(
 	not_null<Data::DocumentMedia*> media,
@@ -31,6 +64,8 @@ void ResolveDocument(
 	Window::SessionController *controller,
 	not_null<DocumentData*> document,
 	HistoryItem *item,
-	MsgId topicRootId);
+	MsgId topicRootId,
+	PeerId monoforumPeerId,
+	bool showDrawButton);
 
 } // namespace Data

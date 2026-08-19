@@ -11,7 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_global_privacy.h"
 #include "api/api_sensitive_content.h"
 #include "api/api_statistics.h"
+#include "api/api_text_entities.h"
 #include "base/timer_rpl.h"
+#include "core/application.h"
 #include "storage/localstorage.h"
 #include "storage/storage_account.h"
 #include "storage/storage_user_photos.h"
@@ -19,6 +21,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/business/data_business_common.h"
 #include "data/business/data_business_info.h"
 #include "data/components/credits.h"
+#include "data/data_cloud_themes.h"
+#include "data/data_forum.h"
+#include "data/data_forum_icons.h"
+#include "data/data_saved_music.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_peer_bot_command.h"
@@ -27,10 +33,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_wall_paper.h"
 #include "data/notify/data_notify_settings.h"
 #include "history/history.h"
+#include "history/history_item.h"
 #include "api/api_peer_photo.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
-#include "styles/style_chat.h"
+#include "window/notifications_manager.h"
 
 namespace {
 
@@ -64,9 +71,45 @@ bool ApplyBotVerifierSettings(
 	return false;
 }
 
+[[nodiscard]] Data::StarsRating ParseStarsRating(
+		const MTPStarsRating *rating) {
+	if (!rating) {
+		return {};
+	}
+	const auto &data = rating->data();
+	return {
+		.level = data.vlevel().v,
+		.stars = int(data.vstars().v),
+		.thisLevelStars = int(data.vcurrent_level_stars().v),
+		.nextLevelStars = int(data.vnext_level_stars().value_or_empty()),
+	};
+}
+
 } // namespace
 
 BotInfo::BotInfo() = default;
+
+BotInfo::~BotInfo() = default;
+
+void BotInfo::ensureForum(not_null<UserData*> that) {
+	if (!_forum) {
+		const auto history = that->owner().history(that);
+		_forum = std::make_unique<Data::Forum>(history);
+		history->forumChanged(nullptr);
+	}
+}
+
+Data::Forum *BotInfo::forum() const {
+	return _forum.get();
+}
+
+std::unique_ptr<Data::Forum> BotInfo::takeForumData() {
+	if (auto result = base::take(_forum)) {
+		result->history()->forumChanged(result.get());
+		return result;
+	}
+	return nullptr;
+}
 
 Data::LastseenStatus LastseenFromMTP(
 		const MTPUserStatus &status,
@@ -192,20 +235,34 @@ bool UserData::hasUnreadStories() const {
 	return flags() & Flag::HasUnreadStories;
 }
 
+bool UserData::hasActiveVideoStream() const {
+	return flags() & Flag::HasActiveVideoStream;
+}
+
 void UserData::setStoriesState(StoriesState state) {
 	Expects(state != StoriesState::Unknown);
 
 	const auto was = flags();
 	switch (state) {
 	case StoriesState::None:
-		_flags.remove(Flag::HasActiveStories | Flag::HasUnreadStories);
+		_flags.remove(Flag::HasActiveStories
+			| Flag::HasUnreadStories
+			| Flag::HasActiveVideoStream);
 		break;
 	case StoriesState::HasRead:
-		_flags.set(
-			(flags() & ~Flag::HasUnreadStories) | Flag::HasActiveStories);
+		_flags.set(Flag::HasActiveStories
+			| (was
+				& ~(Flag::HasUnreadStories | Flag::HasActiveVideoStream)));
 		break;
 	case StoriesState::HasUnread:
-		_flags.add(Flag::HasActiveStories | Flag::HasUnreadStories);
+		_flags.set((was & ~Flag::HasActiveVideoStream)
+			| Flag::HasActiveStories
+			| Flag::HasUnreadStories);
+		break;
+	case StoriesState::HasVideoStream:
+		_flags.set((was & ~Flag::HasUnreadStories)
+			| Flag::HasActiveStories
+			| Flag::HasActiveVideoStream);
 		break;
 	}
 	if (flags() != was) {
@@ -260,6 +317,52 @@ void UserData::setPersonalChannel(ChannelId channelId, MsgId messageId) {
 	}
 }
 
+ChannelId UserData::linkedCommunityId() const {
+	return _linkedCommunityId;
+}
+
+void UserData::setLinkedCommunityId(ChannelId id) {
+	if (_linkedCommunityId == id) {
+		return;
+	}
+	_linkedCommunityId = id;
+	if (const auto history = owner().historyLoaded(this)) {
+		history->updateCommunityRegistration();
+		history->updateChatListSortPosition();
+		history->updateChatListExistence();
+	}
+}
+
+UserId UserData::botManagerId() const {
+	return _botManagerId;
+}
+
+void UserData::setBotManagerId(UserId managerId) {
+	const auto changed = (_botManagerId != managerId);
+	_botManagerId = managerId;
+	if (changed) {
+		session().changes().peerUpdated(this, UpdateFlag::ManagedBot);
+	}
+}
+
+MTPInputUser UserData::inputUser() const {
+	const auto item = isLoaded() ? nullptr : owner().messageWithPeer(id);
+	if (item) {
+		const auto peer = item->history()->peer;
+		Assert(peer.get() != this);
+
+		return MTP_inputUserFromMessage(
+			item->history()->peer->input(),
+			MTP_int(item->id.bare),
+			MTP_long(peerToUser(id).bare));
+	} else if (isSelf()) {
+		return MTP_inputUserSelf();
+	}
+	return MTP_inputUser(
+		MTP_long(peerToUser(id).bare),
+		MTP_long(_accessHash));
+}
+
 void UserData::setName(
 		const QString &newFirstName,
 		const QString &newLastName,
@@ -267,25 +370,16 @@ void UserData::setName(
 		const QString &newUsername) {
 	bool changeName = !newFirstName.isEmpty() || !newLastName.isEmpty();
 
-	QString newFullName;
 	if (changeName && newFirstName.trimmed().isEmpty()) {
 		firstName = newLastName;
 		lastName = QString();
-		newFullName = firstName;
 	} else {
 		if (changeName) {
 			firstName = newFirstName;
 			lastName = newLastName;
 		}
-		newFullName = lastName.isEmpty()
-			? firstName
-			: tr::lng_full_name(
-				tr::now,
-				lt_first_name,
-				firstName,
-				lt_last_name,
-				lastName);
 	}
+	const auto newFullName = langFullName(firstName, lastName);
 	updateNameDelayed(newFullName, newPhoneName, newUsername);
 }
 
@@ -455,12 +549,43 @@ void UserData::setAccessHash(uint64 accessHash) {
 }
 
 void UserData::setFlags(UserDataFlags which) {
-	if ((which & UserDataFlag::Deleted)
-		!= (flags() & UserDataFlag::Deleted)) {
+	if (!isBot()) {
+		which &= ~Flag::Forum;
+	}
+	const auto diff = flags() ^ which;
+	if (diff & Flag::Deleted) {
 		invalidateEmptyUserpic();
 	}
-	_flags.set((flags() & UserDataFlag::Self)
-		| (which & ~UserDataFlag::Self));
+	// Let Data::Forum live till the end of _flags.set.
+	// That way the data can be used in changes handler.
+	// Example: render frame for forum auto-closing animation.
+	const auto takenForum = (botInfo
+		&& (diff & Flag::Forum)
+		&& !(which & Flag::Forum))
+		? botInfo->takeForumData()
+		: nullptr;
+	if ((diff & Flag::Forum) && (which & Flag::Forum)) {
+		if (const auto info = botInfo.get()) {
+			info->ensureForum(this);
+		}
+	}
+	_flags.set((flags() & Flag::Self) | (which & ~Flag::Self));
+	if (diff & Flag::Forum) {
+		if (const auto history = this->owner().historyLoaded(this)) {
+			if (diff & Flag::Forum) {
+				Core::App().notifications().clearFromHistory(history);
+				history->updateChatListEntryHeight();
+				if (history->inChatList()) {
+					if (const auto forum = this->forum()) {
+						forum->preloadTopics();
+					}
+				}
+			}
+		}
+	}
+	if (const auto raw = takenForum.get()) {
+		owner().forumIcons().clearUserpicsReset(raw);
+	}
 }
 
 void UserData::addFlags(UserDataFlags which) {
@@ -539,8 +664,35 @@ bool UserData::readDatesPrivate() const {
 	return (flags() & UserDataFlag::ReadDatesPrivate);
 }
 
+bool UserData::allowsForwarding() const {
+	return !(flags() & Flag::NoForwardsMyEnabled)
+		&& !(flags() & Flag::NoForwardsPeerEnabled);
+}
+
+void UserData::setNoForwardsFlags(bool myEnabled, bool peerEnabled) {
+	const auto mask = Flag::NoForwardsMyEnabled | Flag::NoForwardsPeerEnabled;
+	setFlags((flags() & ~mask)
+		| (myEnabled ? Flag::NoForwardsMyEnabled : Flag())
+		| (peerEnabled ? Flag::NoForwardsPeerEnabled : Flag()));
+	if (!myEnabled && !peerEnabled) {
+		owner().clearSharingDisabledTime(this);
+	}
+}
+
 int UserData::starsPerMessage() const {
 	return _starsPerMessage;
+}
+
+void UserData::setStoriesCorrespondent(bool is) {
+	if (is) {
+		_flags.add(UserDataFlag::StoriesCorrespondent);
+	} else {
+		_flags.remove(UserDataFlag::StoriesCorrespondent);
+	}
+}
+
+bool UserData::storiesCorrespondent() const {
+	return (_flags.current() & UserDataFlag::StoriesCorrespondent);
 }
 
 void UserData::setStarsPerMessage(int stars) {
@@ -549,6 +701,17 @@ void UserData::setStarsPerMessage(int stars) {
 		session().changes().peerUpdated(this, UpdateFlag::StarsPerMessage);
 	}
 	checkTrustedPayForMessage();
+}
+
+void UserData::setStarsRating(Data::StarsRating value) {
+	if (_starsRating != value) {
+		_starsRating = value;
+		session().changes().peerUpdated(this, UpdateFlag::StarsRating);
+	}
+}
+
+Data::StarsRating UserData::starsRating() const {
+	return _starsRating;
 }
 
 bool UserData::canAddContact() const {
@@ -668,6 +831,17 @@ void UserData::setDisallowedGiftTypes(Api::DisallowedGiftTypes types) {
 	}
 }
 
+const TextWithEntities &UserData::note() const {
+	return _note;
+}
+
+void UserData::setNote(const TextWithEntities &note) {
+	if (_note != note) {
+		_note = note;
+		session().changes().peerUpdated(this, UpdateFlag::ContactNote);
+	}
+}
+
 namespace Data {
 
 void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
@@ -719,8 +893,13 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 		| Flag::CanPinMessages
 		| Flag::VoiceMessagesForbidden
 		| Flag::ReadDatesPrivate
+		| (update.is_contact_require_premium()
+			? Flag::HasRequirePremiumToWrite
+			: Flag())
+		| (user->starsPerMessage() ? Flag::HasStarsPerMessage : Flag())
 		| Flag::MessageMoneyRestrictionsKnown
-		| Flag::RequiresPremiumToWrite;
+		| Flag::RequiresPremiumToWrite
+		| Flag::UnofficialSecurityRisk;
 	user->setFlags((user->flags() & ~mask)
 		| (update.is_phone_calls_private()
 			? Flag::PhoneCallsPrivate
@@ -732,9 +911,13 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 			? Flag::VoiceMessagesForbidden
 			: Flag())
 		| (update.is_read_dates_private() ? Flag::ReadDatesPrivate : Flag())
+		| (user->starsPerMessage() ? Flag::HasStarsPerMessage : Flag())
 		| Flag::MessageMoneyRestrictionsKnown
 		| (update.is_contact_require_premium()
-			? Flag::RequiresPremiumToWrite
+			? (Flag::RequiresPremiumToWrite | Flag::HasRequirePremiumToWrite)
+			: Flag())
+		| (update.is_unofficial_security_risk()
+			? Flag::UnofficialSecurityRisk
 			: Flag()));
 	user->setIsBlocked(update.is_blocked());
 	user->setCallsStatus(update.is_phone_calls_private()
@@ -745,8 +928,18 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	user->setAbout(qs(update.vabout().value_or_empty()));
 	user->setCommonChatsCount(update.vcommon_chats_count().v);
 	user->setPeerGiftsCount(update.vstargifts_count().value_or_empty());
+	user->setMainProfileTab(Data::ParseProfileTab(update.vmain_tab()));
 	user->checkFolder(update.vfolder_id().value_or_empty());
-	user->setThemeEmoji(qs(update.vtheme_emoticon().value_or_empty()));
+	if (const auto theme = update.vtheme()) {
+		theme->match([&](const MTPDchatTheme &data) {
+			user->setThemeToken(qs(data.vemoticon()));
+		}, [&](const MTPDchatThemeUniqueGift &data) {
+			user->setThemeToken(
+				user->owner().cloudThemes().processGiftThemeGetToken(data));
+		});
+	} else {
+		user->setThemeToken(QString());
+	}
 	user->setTranslationDisabled(update.is_translations_disabled());
 	user->setPrivateForwardName(
 		update.vprivate_forward_name().value_or_empty());
@@ -781,24 +974,26 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 				}
 				creditsLoadLifetime->destroy();
 			});
-			base::timer_once(kTimeout) | rpl::start_with_next([=] {
+			base::timer_once(kTimeout) | rpl::on_next([=] {
 				creditsLoadLifetime->destroy();
 			}, *creditsLoadLifetime);
 			const auto currencyLoadLifetime
 				= std::make_shared<rpl::lifetime>();
 			const auto currencyLoad
 				= currencyLoadLifetime->make_state<Api::EarnStatistics>(user);
-			const auto apply = [=](Data::EarnInt balance) {
+			const auto apply = [=](const CreditsAmount &balance) {
 				if (const auto strong = weak.get()) {
 					strong->credits().applyCurrency(id, balance);
 				}
 				currencyLoadLifetime->destroy();
 			};
-			currencyLoad->request() | rpl::start_with_error_done(
-				[=](const QString &error) { apply(0); },
+			currencyLoad->request() | rpl::on_error_done(
+				[=](const QString &error) {
+					apply(CreditsAmount(0, CreditsType::Ton));
+				},
 				[=] { apply(currencyLoad->data().currentBalance); },
 				*currencyLoadLifetime);
-			base::timer_once(kTimeout) | rpl::start_with_next([=] {
+			base::timer_once(kTimeout) | rpl::on_next([=] {
 				currencyLoadLifetime->destroy();
 			}, *currencyLoadLifetime);
 		}
@@ -821,6 +1016,7 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	user->setPersonalChannel(
 		update.vpersonal_channel_id().value_or_empty(),
 		update.vpersonal_channel_message().value_or_empty());
+	user->setBotManagerId(update.vbot_manager_id().value_or_empty());
 	if (user->isSelf()) {
 		user->owner().businessInfo().applyAwaySettings(
 			FromMTP(&user->owner(), update.vbusiness_away_message()));
@@ -829,6 +1025,13 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	}
 	user->setBotVerifyDetails(
 		ParseBotVerifyDetails(update.vbot_verification()));
+	user->setStarsRating(ParseStarsRating(update.vstars_rating()));
+	if (user->isSelf()) {
+		user->owner().setPendingStarsRating({
+			.value = ParseStarsRating(update.vstars_my_pending_rating()),
+			.date = update.vstars_my_pending_rating_date().value_or_empty(),
+		});
+	}
 
 	if (const auto gifts = update.vdisallowed_gifts()) {
 		const auto &data = gifts->data();
@@ -845,6 +1048,9 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 			| (data.is_disallow_premium_gifts()
 				? Api::DisallowedGiftType::Premium
 				: Api::DisallowedGiftType())
+			| (data.is_disallow_stargifts_from_channels()
+				? Api::DisallowedGiftType::FromChannels
+				: Api::DisallowedGiftType())
 			| (update.is_display_gifts_button()
 				? Api::DisallowedGiftType::SendHide
 				: Api::DisallowedGiftType()));
@@ -856,6 +1062,22 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	}
 
 	user->owner().stories().apply(user, update.vstories());
+	user->owner().savedMusic().apply(user, update.vsaved_music());
+
+	if (const auto note = update.vnote()) {
+		user->setNote(TextWithEntities{
+			qs(note->data().vtext()),
+			Api::EntitiesFromMTP(
+				&user->session(),
+				note->data().ventities().v)
+		});
+	} else {
+		user->setNote(TextWithEntities());
+	}
+
+	user->setNoForwardsFlags(
+		update.is_noforwards_my_enabled(),
+		update.is_noforwards_peer_enabled());
 
 	user->fullUpdated();
 }
@@ -868,9 +1090,8 @@ StarRefProgram ParseStarRefProgram(const MTPStarRefProgram *program) {
 	const auto &data = program->data();
 	result.commission = data.vcommission_permille().v;
 	result.durationMonths = data.vduration_months().value_or_empty();
-	result.revenuePerUser = data.vdaily_revenue_per_user()
-		? Data::FromTL(*data.vdaily_revenue_per_user())
-		: StarsAmount();
+	result.revenuePerUser = CreditsAmountFromTL(
+		data.vdaily_revenue_per_user());
 	result.endDate = data.vend_date().value_or_empty();
 	return result;
 }

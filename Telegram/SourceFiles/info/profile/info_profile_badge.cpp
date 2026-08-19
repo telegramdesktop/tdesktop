@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_badge.h"
 
+#include "data/data_changes.h"
 #include "data/data_emoji_statuses.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
@@ -18,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
+#include "ui/text/text_custom_emoji.h"
 #include "main/main_session.h"
 #include "styles/style_info.h"
 
@@ -49,7 +51,7 @@ Badge::Badge(
 , _animationPaused(std::move(animationPaused)) {
 	std::move(
 		content
-	) | rpl::start_with_next([=](Content content) {
+	) | rpl::on_next([=](Content content) {
 		setContent(content);
 	}, _lifetime);
 }
@@ -80,6 +82,26 @@ void Badge::setContent(Content content) {
 		return;
 	}
 	_view.create(_parent);
+	_view->setAccessibleName([&] {
+		switch (_content.badge) {
+		case BadgeType::Verified:
+			return tr::lng_sr_verified_badge(tr::now);
+		case BadgeType::BotVerified:
+			return tr::lng_sr_bot_verified_badge(tr::now);
+		case BadgeType::Premium:
+			if (_content.emojiStatusId) {
+				return tr::lng_profile_bot_emoji_status_access(tr::now);
+			}
+			return tr::lng_premium_summary_title(tr::now);
+		case BadgeType::Scam:
+			return tr::lng_scam_badge(tr::now);
+		case BadgeType::Fake:
+			return tr::lng_fake_badge(tr::now);
+		case BadgeType::Direct:
+			return tr::lng_direct_badge(tr::now);
+		}
+		Unexpected("badge type");
+	}());
 	_view->show();
 	switch (_content.badge) {
 	case BadgeType::Verified:
@@ -90,18 +112,25 @@ void Badge::setContent(Content content) {
 			? (Data::FrameSizeFromTag(sizeTag())
 				/ style::DevicePixelRatio())
 			: 0;
+		const auto &style = st();
 		const auto icon = (_content.badge == BadgeType::Verified)
-			? &_st.verified
+			? &style.verified
 			: id
 			? nullptr
-			: &_st.premium;
+			: &style.premium;
+		const auto iconForeground = (_content.badge == BadgeType::Verified)
+			? &style.verifiedCheck
+			: nullptr;
 		if (id) {
 			_emojiStatus = _session->data().customEmojiManager().create(
 				Data::EmojiStatusCustomId(id),
 				[raw = _view.data()] { raw->update(); },
 				sizeTag());
-			if (_customStatusLoopsLimit > 0) {
-				_emojiStatus = std::make_unique<Ui::Text::LimitedLoopsEmoji>(
+			if (_content.badge == BadgeType::BotVerified) {
+				_emojiStatus = MakeWrappedEmoji<Ui::Text::FirstFrameEmoji>(
+					std::move(_emojiStatus));
+			} else if (_customStatusLoopsLimit > 0) {
+				_emojiStatus = MakeWrappedEmoji<Ui::Text::LimitedLoopsEmoji>(
 					std::move(_emojiStatus),
 					_customStatusLoopsLimit);
 			}
@@ -110,10 +139,10 @@ void Badge::setContent(Content content) {
 		const auto height = std::max(emoji, icon ? icon->height() : 0);
 		_view->resize(width, height);
 		_view->paintRequest(
-		) | rpl::start_with_next([=, check = _view.data()]{
+		) | rpl::on_next([=, check = _view.data()]{
 			if (_emojiStatus) {
 				auto args = Ui::Text::CustomEmoji::Context{
-					.textColor = _st.premiumFg->c,
+					.textColor = style.premiumFg->c,
 					.now = crl::now(),
 					.paused = ((_animationPaused && _animationPaused())
 						|| On(PowerSaving::kEmojiStatus)),
@@ -125,28 +154,58 @@ void Badge::setContent(Content content) {
 				}
 			}
 			if (icon) {
-				Painter p(check);
-				icon->paint(p, emoji, 0, check->width());
+				auto p = Painter(check);
+				if (_overrideSt && !iconForeground) {
+					icon->paint(
+						p,
+						emoji,
+						0,
+						check->width(),
+						_overrideSt->premiumFg->c);
+				} else {
+					icon->paint(p, emoji, 0, check->width());
+				}
+				if (iconForeground) {
+					if (_overrideSt) {
+						iconForeground->paint(
+							p,
+							emoji,
+							0,
+							check->width(),
+							_overrideSt->premiumFg->c);
+					} else {
+						iconForeground->paint(p, emoji, 0, check->width());
+					}
+				}
 			}
 		}, _view->lifetime());
 	} break;
 	case BadgeType::Scam:
-	case BadgeType::Fake: {
-		const auto fake = (_content.badge == BadgeType::Fake);
-		const auto size = Ui::ScamBadgeSize(fake);
+	case BadgeType::Fake:
+	case BadgeType::Direct: {
+		const auto type = (_content.badge == BadgeType::Direct)
+			? Ui::TextBadgeType::Direct
+			: (_content.badge == BadgeType::Fake)
+			? Ui::TextBadgeType::Fake
+			: Ui::TextBadgeType::Scam;
+		const auto size = Ui::TextBadgeSize(type);
 		const auto skip = st::infoVerifiedCheckPosition.x();
 		_view->resize(
 			size.width() + 2 * skip,
 			size.height() + 2 * skip);
 		_view->paintRequest(
-		) | rpl::start_with_next([=, badge = _view.data()]{
+		) | rpl::on_next([=, badge = _view.data()]{
 			Painter p(badge);
-			Ui::DrawScamBadge(
-				fake,
+			Ui::DrawTextBadge(
+				type,
 				p,
 				badge->rect().marginsRemoved({ skip, skip, skip, skip }),
 				badge->width(),
-				st::attentionButtonFg);
+				_overrideSt
+					? _overrideSt->premiumFg
+					: (type == Ui::TextBadgeType::Direct
+						? st::windowSubTextFg
+						: st::attentionButtonFg));
 			}, _view->lifetime());
 	} break;
 	}
@@ -172,6 +231,13 @@ void Badge::setPremiumClickCallback(Fn<void()> callback) {
 	}
 }
 
+void Badge::setOverrideStyle(const style::InfoPeerBadge *st) {
+	const auto was = _content;
+	_overrideSt = st;
+	_content = {};
+	setContent(was);
+}
+
 rpl::producer<> Badge::updated() const {
 	return _updated.events();
 }
@@ -180,24 +246,30 @@ void Badge::move(int left, int top, int bottom) {
 	if (!_view) {
 		return;
 	}
+	const auto &style = st();
 	const auto star = !_emojiStatus
 		&& (_content.badge == BadgeType::Premium
 			|| _content.badge == BadgeType::Verified);
 	const auto fake = !_emojiStatus && !star;
-	const auto skip = fake ? 0 : _st.position.x();
+	const auto skip = fake ? 0 : style.position.x();
 	const auto badgeLeft = left + skip;
 	const auto badgeTop = top
 		+ (star
-			? _st.position.y()
+			? style.position.y()
 			: (bottom - top - _view->height()) / 2);
 	_view->moveToLeft(badgeLeft, badgeTop);
 }
 
+const style::InfoPeerBadge &Badge::st() const {
+	return _overrideSt ? *_overrideSt : _st;
+}
+
 Data::CustomEmojiSizeTag Badge::sizeTag() const {
 	using SizeTag = Data::CustomEmojiSizeTag;
-	return (_st.sizeTag == 2)
+	const auto &style = st();
+	return (style.sizeTag == 2)
 		? SizeTag::Isolated
-		: (_st.sizeTag == 1)
+		: (style.sizeTag == 1)
 		? SizeTag::Large
 		: SizeTag::Normal;
 }
@@ -208,6 +280,9 @@ rpl::producer<Badge::Content> BadgeContentForPeer(not_null<PeerData*> peer) {
 		BadgeValue(peer),
 		EmojiStatusIdValue(peer)
 	) | rpl::map([=](BadgeType badge, EmojiStatusId emojiStatusId) {
+		if (emojiStatusId.collectible && (badge == BadgeType::Verified)) {
+			return Badge::Content{ BadgeType::Premium, emojiStatusId };
+		}
 		if (badge == BadgeType::Verified) {
 			badge = BadgeType::None;
 		}
@@ -227,6 +302,20 @@ rpl::producer<Badge::Content> VerifiedContentForPeer(
 			badge = BadgeType::None;
 		}
 		return Badge::Content{ badge };
+	});
+}
+
+rpl::producer<Badge::Content> BotVerifyBadgeForPeer(
+		not_null<PeerData*> peer) {
+	return peer->session().changes().peerFlagsValue(
+		peer,
+		Data::PeerUpdate::Flag::VerifyInfo
+	) | rpl::map([=] {
+		const auto info = peer->botVerifyDetails();
+		return Badge::Content{
+			.badge = info ? BadgeType::BotVerified : BadgeType::None,
+			.emojiStatusId = { info ? info->iconId : DocumentId() },
+		};
 	});
 }
 

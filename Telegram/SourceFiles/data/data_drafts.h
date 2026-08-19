@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_msg_id.h"
 
+#include <memory>
+
 namespace Ui {
 class InputField;
 } // namespace Ui
@@ -17,17 +19,23 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Iv {
+struct RichPage;
+} // namespace Iv
+
 namespace Data {
 
 void ApplyPeerCloudDraft(
 	not_null<Main::Session*> session,
 	PeerId peerId,
 	MsgId topicRootId,
+	PeerId monoforumPeerId,
 	const MTPDdraftMessage &draft);
 void ClearPeerCloudDraft(
 	not_null<Main::Session*> session,
 	PeerId peerId,
 	MsgId topicRootId,
+	PeerId monoforumPeerId,
 	TimeId date);
 
 struct WebPageDraft {
@@ -50,21 +58,30 @@ struct Draft {
 	Draft(
 		const TextWithTags &textWithTags,
 		FullReplyTo reply,
+		SuggestOptions suggest,
 		const MessageCursor &cursor,
 		WebPageDraft webpage,
 		mtpRequestId saveRequestId = 0);
 	Draft(
 		not_null<const Ui::InputField*> field,
 		FullReplyTo reply,
+		SuggestOptions suggest,
 		WebPageDraft webpage,
 		mtpRequestId saveRequestId = 0);
 
 	TimeId date = 0;
 	TextWithTags textWithTags;
 	FullReplyTo reply; // reply.messageId.msg is editMsgId for edit draft.
+	SuggestOptions suggest;
 	MessageCursor cursor;
 	WebPageDraft webpage;
+	std::shared_ptr<const Iv::RichPage> richMessage;
+	TextWithEntities richMessageSummary;
 	mtpRequestId saveRequestId = 0;
+
+	[[nodiscard]] bool hasRichMessage() const {
+		return (richMessage != nullptr);
+	}
 };
 
 class DraftKey {
@@ -72,22 +89,38 @@ public:
 	[[nodiscard]] static constexpr DraftKey None() {
 		return 0;
 	}
-	[[nodiscard]] static constexpr DraftKey Local(MsgId topicRootId) {
-		return (topicRootId < 0 || topicRootId >= ServerMaxMsgId)
+	[[nodiscard]] static constexpr DraftKey Local(
+			MsgId topicRootId,
+			PeerId monoforumPeerId) {
+		return Invalid(topicRootId, monoforumPeerId)
 			? None()
-			: (topicRootId ? topicRootId.bare : kLocalDraftIndex);
+			: (topicRootId
+				? topicRootId.bare
+				: monoforumPeerId
+				? (monoforumPeerId.value + kMonoforumDraftBit)
+				: kLocalDraftIndex);
 	}
-	[[nodiscard]] static constexpr DraftKey LocalEdit(MsgId topicRootId) {
-		return (topicRootId < 0 || topicRootId >= ServerMaxMsgId)
+	[[nodiscard]] static constexpr DraftKey LocalEdit(
+			MsgId topicRootId,
+			PeerId monoforumPeerId) {
+		return Invalid(topicRootId, monoforumPeerId)
 			? None()
-			: ((topicRootId ? topicRootId.bare : kLocalDraftIndex)
-				+ kEditDraftShift);
+			: (kEditDraftShift
+				+ (topicRootId
+					? topicRootId.bare
+					: monoforumPeerId
+					? (monoforumPeerId.value + kMonoforumDraftBit)
+					: kLocalDraftIndex));
 	}
-	[[nodiscard]] static constexpr DraftKey Cloud(MsgId topicRootId) {
-		return (topicRootId < 0 || topicRootId >= ServerMaxMsgId)
+	[[nodiscard]] static constexpr DraftKey Cloud(
+			MsgId topicRootId,
+			PeerId monoforumPeerId) {
+		return Invalid(topicRootId, monoforumPeerId)
 			? None()
 			: topicRootId
 			? (kCloudDraftShift + topicRootId.bare)
+			: monoforumPeerId
+			? (kCloudDraftShift + monoforumPeerId.value + kMonoforumDraftBit)
 			: kCloudDraftIndex;
 	}
 	[[nodiscard]] static constexpr DraftKey Scheduled() {
@@ -120,40 +153,62 @@ public:
 		return !value
 			? None()
 			: (value == kLocalDraftIndex + kEditDraftShiftOld)
-			? LocalEdit(0)
+			? LocalEdit(MsgId(), PeerId())
 			: (value == kScheduledDraftIndex + kEditDraftShiftOld)
 			? ScheduledEdit()
 			: (value > 0 && value < 0x4000'0000)
-			? Local(MsgId(value))
+			? Local(MsgId(value), PeerId())
 			: (value > kEditDraftShiftOld
 				&& value < kEditDraftShiftOld + 0x4000'000)
-			? LocalEdit(int64(value - kEditDraftShiftOld))
+			? LocalEdit(MsgId(int64(value - kEditDraftShiftOld)), PeerId())
 			: None();
 	}
 	[[nodiscard]] constexpr bool isLocal() const {
 		return (_value == kLocalDraftIndex)
-			|| (_value > 0 && _value < ServerMaxMsgId.bare);
+			|| (_value > 0
+				&& (_value & kMonoforumDraftMask) < ServerMaxMsgId.bare);
 	}
 	[[nodiscard]] constexpr bool isCloud() const {
 		return (_value == kCloudDraftIndex)
-			|| (_value > kCloudDraftShift
-				&& _value < kCloudDraftShift + ServerMaxMsgId.bare);
+			|| ((_value & kMonoforumDraftMask) > kCloudDraftShift
+				&& ((_value & kMonoforumDraftMask)
+					< kCloudDraftShift + ServerMaxMsgId.bare));
 	}
 
 	[[nodiscard]] constexpr MsgId topicRootId() const {
 		const auto max = ServerMaxMsgId.bare;
-		if (_value > kCloudDraftShift && _value < kCloudDraftShift + max) {
+		if (_value & kMonoforumDraftBit) {
+			return 0;
+		} else if ((_value > kCloudDraftShift)
+			&& (_value < kCloudDraftShift + max)) {
 			return (_value - kCloudDraftShift);
-		} else if (_value > kEditDraftShift && _value < kEditDraftShift + max) {
+		} else if ((_value > kEditDraftShift)
+			&& (_value < kEditDraftShift + max)) {
 			return (_value - kEditDraftShift);
 		} else if (_value > 0 && _value < max) {
 			return _value;
 		}
 		return 0;
 	}
-
+	[[nodiscard]] constexpr PeerId monoforumPeerId() const {
+		const auto max = ServerMaxMsgId.bare;
+		const auto value = _value & kMonoforumDraftMask;
+		if (!(_value & kMonoforumDraftBit)) {
+			return 0;
+		} else if ((value > kCloudDraftShift)
+			&& (value < kCloudDraftShift + max)) {
+			return PeerId(UserId(value - kCloudDraftShift));
+		} else if ((value > kEditDraftShift)
+			&& (value < kEditDraftShift + max)) {
+			return PeerId(UserId(value - kEditDraftShift));
+		} else if (value > 0 && value < max) {
+			return PeerId(UserId(value));
+		}
+		return 0;
+	}
 
 	friend inline constexpr auto operator<=>(DraftKey, DraftKey) = default;
+	friend inline constexpr bool operator==(DraftKey, DraftKey) = default;
 
 	inline explicit operator bool() const {
 		return _value != 0;
@@ -163,9 +218,20 @@ private:
 	constexpr DraftKey(int64 value) : _value(value) {
 	}
 
+	[[nodiscard]] static constexpr bool Invalid(
+			MsgId topicRootId,
+			PeerId monoforumPeerId) {
+		return (topicRootId < 0)
+			|| (topicRootId >= ServerMaxMsgId)
+			|| !peerIsUser(monoforumPeerId)
+			|| (monoforumPeerId.value >= ServerMaxMsgId);
+	}
+
 	static constexpr auto kLocalDraftIndex = -1;
 	static constexpr auto kCloudDraftIndex = -2;
 	static constexpr auto kScheduledDraftIndex = -3;
+	static constexpr auto kMonoforumDraftBit = (int64(1) << 60);
+	static constexpr auto kMonoforumDraftMask = (kMonoforumDraftBit - 1);
 	static constexpr auto kEditDraftShift = ServerMaxMsgId.bare;
 	static constexpr auto kCloudDraftShift = 2 * ServerMaxMsgId.bare;
 	static constexpr auto kShortcutDraftShift = 3 * ServerMaxMsgId.bare;
@@ -186,24 +252,8 @@ using HistoryDrafts = base::flat_map<DraftKey, std::unique_ptr<Draft>>;
 	return true;
 }
 
-[[nodiscard]] inline bool DraftIsNull(const Draft *draft) {
-	return !draft
-		|| (!draft->reply.messageId
-			&& DraftStringIsEmpty(draft->textWithTags.text));
-}
-
-[[nodiscard]] inline bool DraftsAreEqual(const Draft *a, const Draft *b) {
-	const auto aIsNull = DraftIsNull(a);
-	const auto bIsNull = DraftIsNull(b);
-	if (aIsNull) {
-		return bIsNull;
-	} else if (bIsNull) {
-		return false;
-	}
-	return (a->textWithTags == b->textWithTags)
-		&& (a->reply == b->reply)
-		&& (a->webpage == b->webpage);
-}
+[[nodiscard]] bool DraftIsNull(const Draft *draft);
+[[nodiscard]] bool DraftsAreEqual(const Draft *a, const Draft *b);
 
 void SetChatLinkDraft(not_null<PeerData*> peer, TextWithEntities draft);
 

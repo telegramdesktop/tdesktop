@@ -40,7 +40,7 @@ Document::Document(
 	std::vector<QualityDescriptor> otherQualities)
 : Document(std::move(reader), document, {}, std::move(otherQualities)) {
 	_player.fullInCache(
-	) | rpl::start_with_next([=](bool fullInCache) {
+	) | rpl::on_next([=](bool fullInCache) {
 		_document->setLoadedInMediaCache(fullInCache);
 	}, _player.lifetime());
 }
@@ -73,7 +73,7 @@ Document::Document(
 
 void Document::resubscribe() {
 	_subscription = _player.updates(
-	) | rpl::start_with_next_error([=](Update &&update) {
+	) | rpl::on_next_error([=](Update &&update) {
 		handleUpdate(std::move(update));
 	}, [=](Streaming::Error &&error) {
 		handleError(std::move(error));

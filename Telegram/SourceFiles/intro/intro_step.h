@@ -45,6 +45,16 @@ public:
 		bool hasCover = false);
 	~Step();
 
+	QAccessible::Role accessibilityRole() override {
+		return QAccessible::Role::Dialog;
+	}
+	QString accessibilityName() override {
+		return _titleText.current();
+	}
+	QString accessibilityDescription() override {
+		return _descriptionText.current().text;
+	}
+
 	[[nodiscard]] Main::Account &account() const {
 		return *_account;
 	}
@@ -62,6 +72,7 @@ public:
 
 	void setGoCallback(
 		Fn<void(Step *step, StackAction action, Animate animate)> callback);
+	void setStepBelowCallback(Fn<Step*()> callback);
 	void setShowResetCallback(Fn<void()> callback);
 	void setShowTermsCallback(Fn<void()> callback);
 	void setCancelNearestDcCallback(Fn<void()> callback);
@@ -84,6 +95,7 @@ public:
 	[[nodiscard]] virtual rpl::producer<QString> nextButtonText() const;
 	[[nodiscard]] virtual auto nextButtonStyle() const
 		-> rpl::producer<const style::RoundButton*>;
+	[[nodiscard]] virtual rpl::producer<> nextButtonFocusRequests() const;
 
 	[[nodiscard]] int contentLeft() const;
 	[[nodiscard]] int contentTop() const;
@@ -123,6 +135,15 @@ protected:
 	template <typename StepType>
 	void goNext() {
 		goNext(new StepType(parentWidget(), _account, _data));
+	}
+
+	template <typename StepType>
+	void goNextOrBack() {
+		if (dynamic_cast<StepType*>(stepBelow())) {
+			goBack();
+		} else {
+			goNext<StepType>();
+		}
 	}
 
 	template <typename StepType>
@@ -173,6 +194,7 @@ private:
 
 	void goNext(Step *step);
 	void goReplace(Step *step, Animate animate);
+	[[nodiscard]] Step *stepBelow() const;
 
 	[[nodiscard]] CoverAnimation prepareCoverAnimation(Step *step);
 	[[nodiscard]] QPixmap prepareContentSnapshot();
@@ -188,6 +210,7 @@ private:
 
 	bool _hasCover = false;
 	Fn<void(Step *step, StackAction action, Animate animate)> _goCallback;
+	Fn<Step*()> _stepBelowCallback;
 	Fn<void()> _showResetCallback;
 	Fn<void()> _showTermsCallback;
 	Fn<void()> _cancelNearestDcCallback;

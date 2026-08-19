@@ -47,7 +47,7 @@ struct ParsedTheme {
 [[nodiscard]] Data::CloudTheme ReadCloudFromText(const QByteArray &text);
 [[nodiscard]] QByteArray StripCloudTextFields(const QByteArray &text);
 
-class Editor : public TWidget {
+class Editor : public Ui::RpWidget {
 public:
 	Editor(
 		QWidget*,

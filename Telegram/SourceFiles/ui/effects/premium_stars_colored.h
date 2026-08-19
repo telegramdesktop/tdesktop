@@ -25,8 +25,8 @@ public:
 	ColoredMiniStars(
 		not_null<Ui::RpWidget*> parent,
 		bool optimizeUpdate,
-		MiniStars::Type type = MiniStars::Type::MonoStars);
-	ColoredMiniStars(Fn<void(const QRect &)> update, MiniStars::Type type);
+		MiniStarsType type = MiniStarsType::MonoStars);
+	ColoredMiniStars(Fn<void(const QRect &)> update, MiniStarsType type);
 
 	void setSize(const QSize &size);
 	void setPosition(QPoint position);

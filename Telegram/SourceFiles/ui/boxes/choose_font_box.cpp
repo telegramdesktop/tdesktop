@@ -22,9 +22,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_style.h"
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
-#include "styles/style_window.h"
 
 #include <QtGui/QFontDatabase>
 
@@ -32,8 +32,6 @@ namespace Ui {
 namespace {
 
 constexpr auto kMinTextWidth = 120;
-constexpr auto kMaxTextWidth = 320;
-constexpr auto kMaxTextLines = 3;
 
 struct PreviewRequest {
 	QString family;
@@ -179,13 +177,13 @@ Selector::Selector(
 , _rowHeight(_st.height + _st.padding.top() + _st.padding.bottom()) {
 	setMouseTracking(true);
 
-	std::move(filter) | rpl::start_with_next([=](const QString &query) {
+	std::move(filter) | rpl::on_next([=](const QString &query) {
 		applyFilter(query);
 	}, _lifetime);
 
 	std::move(
 		submits
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		if (_selected >= 0) {
 			choose(shownRowAt(_selected));
 		} else if (searching() && !_filtered.empty()) {
@@ -585,7 +583,7 @@ PreviewPainter::PreviewPainter(const QImage &bg, PreviewRequest request)
 : _request(request)
 , _msgBg(_request.msgBg)
 , _msgShadow(_request.msgShadow)
-, _nameFontOwned(_request.family, style::FontFlag::Semibold, st::fsize)
+, _nameFontOwned(_request.family, style::FontFlag::Bold, st::fsize)
 , _nameFont(_nameFontOwned.font())
 , _nameStyle(st::semiboldTextStyle)
 , _textFontOwned(_request.family, 0, st::fsize)
@@ -803,14 +801,14 @@ void PreviewPainter::layout() {
 	const auto state = raw->lifetime().make_state<State>();
 
 	state->bg = generatePreviewBg();
-	style::PaletteChanged() | rpl::start_with_next([=] {
+	style::PaletteChanged() | rpl::on_next([=] {
 		state->bg = generatePreviewBg();
 	}, raw->lifetime());
 
 	rpl::combine(
 		rpl::single(rpl::empty) | rpl::then(style::PaletteChanged()),
 		std::move(family)
-	) | rpl::start_with_next([=](const auto &, QString family) {
+	) | rpl::on_next([=](const auto &, QString family) {
 		state->family = family;
 		if (state->preview.isNull()) {
 			state->preview = GeneratePreview(
@@ -819,7 +817,7 @@ void PreviewPainter::layout() {
 			const auto ratio = state->preview.devicePixelRatio();
 			raw->resize(state->preview.size() / int(ratio));
 		} else {
-			const auto weak = Ui::MakeWeak(raw);
+			const auto weak = base::make_weak(raw);
 			const auto request = PrepareRequest(family);
 			crl::async([=, bg = state->bg] {
 				crl::on_main([
@@ -827,7 +825,7 @@ void PreviewPainter::layout() {
 					state,
 					preview = GeneratePreview(bg, request)
 				]() mutable {
-					if (const auto strong = weak.data()) {
+					if (const auto strong = weak.get()) {
 						state->preview = std::move(preview);
 						const auto ratio = state->preview.devicePixelRatio();
 						strong->resize(
@@ -840,7 +838,7 @@ void PreviewPainter::layout() {
 		}
 	}, raw->lifetime());
 
-	raw->paintRequest() | rpl::start_with_next([=](QRect clip) {
+	raw->paintRequest() | rpl::on_next([=](QRect clip) {
 		QPainter(raw).drawImage(0, 0, state->preview);
 	}, raw->lifetime());
 
@@ -922,7 +920,7 @@ void ChooseFontBox(
 	rpl::combine(
 		box->heightValue(),
 		top->heightValue()
-	) | rpl::start_with_next([=](int box, int top) {
+	) | rpl::on_next([=](int box, int top) {
 		selector->setMinHeight(box - top);
 	}, selector->lifetime());
 
@@ -953,7 +951,7 @@ void ChooseFontBox(
 		});
 	};
 	state->family.value(
-	) | rpl::start_with_next(refreshButtons, box->lifetime());
+	) | rpl::on_next(refreshButtons, box->lifetime());
 
 	box->setFocusCallback([=] {
 		filter->setInnerFocus();

@@ -7,8 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Overview {
-namespace Layout {
+class StickerPremiumMark;
+
+namespace Overview::Layout {
 
 class ItemBase;
 
@@ -18,6 +19,11 @@ public:
 	virtual void unregisterHeavyItem(not_null<const ItemBase*> item) = 0;
 	virtual void repaintItem(not_null<const ItemBase*> item) = 0;
 	virtual bool itemVisible(not_null<const ItemBase*> item) = 0;
+	[[nodiscard]] virtual bool keepPhotoMediaLoaded() {
+		return false;
+	}
+
+	[[nodiscard]] virtual not_null<StickerPremiumMark*> hiddenMark() = 0;
 
 	virtual void openPhoto(not_null<PhotoData*> photo, FullMsgId id) = 0;
 	virtual void openDocument(
@@ -27,5 +33,4 @@ public:
 
 };
 
-} // namespace Layout
-} // namespace Overview
+} // namespace Overview::Layout

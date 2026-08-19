@@ -26,6 +26,7 @@ class Controller;
 struct SliderData {
 	int index = 0;
 	int total = 0;
+	bool videoStream = false;
 
 	friend inline auto operator<=>(SliderData, SliderData) = default;
 	friend inline bool operator==(SliderData, SliderData) = default;

@@ -7,9 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/media/info_media_widget.h"
 
+#include "history/history.h"
 #include "info/media/info_media_inner_widget.h"
 #include "info/info_controller.h"
+#include "data/data_session.h"
 #include "main/main_session.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/search_field_controller.h"
 #include "ui/ui_utility.h"
@@ -17,8 +20,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_channel.h"
 #include "data/data_forum_topic.h"
+#include "data/data_saved_sublist.h"
 #include "lang/lang_keys.h"
-#include "styles/style_info.h"
+#include "window/window_session_controller.h"
+#include "styles/style_menu_icons.h"
 
 namespace Info::Media {
 
@@ -40,40 +45,79 @@ Type TabIndexToType(int index) {
 	Unexpected("Index in Info::Media::TabIndexToType()");
 }
 
+tr::phrase<> SharedMediaTitle(Type type) {
+	switch (type) {
+	case Type::PhotoVideo:
+		return tr::lng_media_type_media;
+	case Type::Photo:
+		return tr::lng_media_type_photos;
+	case Type::GIF:
+		return tr::lng_media_type_gifs;
+	case Type::Video:
+		return tr::lng_media_type_videos;
+	case Type::MusicFile:
+		return tr::lng_media_type_songs;
+	case Type::File:
+		return tr::lng_media_type_files;
+	case Type::RoundVoiceFile:
+		return tr::lng_media_type_audios;
+	case Type::Link:
+		return tr::lng_media_type_links;
+	case Type::RoundFile:
+		return tr::lng_media_type_rounds;
+	case Type::Poll:
+		return tr::lng_media_type_polls;
+	}
+	Unexpected("Bad media type in Info::TitleValue()");
+}
+
 Memento::Memento(not_null<Controller*> controller)
 : Memento(
 	(controller->peer()
 		? controller->peer()
 		: controller->storiesPeer()
 		? controller->storiesPeer()
+		: controller->musicPeer()
+		? controller->musicPeer()
 		: controller->parentController()->session().user()),
 	controller->topic(),
+	controller->sublist(),
 	controller->migratedPeerId(),
 	(controller->section().type() == Section::Type::Downloads
 		? Type::File
 		: controller->section().type() == Section::Type::Stories
 		? Type::PhotoVideo
+		: controller->section().type() == Section::Type::SavedMusic
+		? Type::MusicFile
 		: controller->section().mediaType())) {
 }
 
 Memento::Memento(not_null<PeerData*> peer, PeerId migratedPeerId, Type type)
-: Memento(peer, nullptr, migratedPeerId, type) {
+: Memento(peer, nullptr, nullptr, migratedPeerId, type) {
 }
 
 Memento::Memento(not_null<Data::ForumTopic*> topic, Type type)
-: Memento(topic->channel(), topic, PeerId(), type) {
+: Memento(topic->peer(), topic, nullptr, PeerId(), type) {
+}
+
+Memento::Memento(not_null<Data::SavedSublist*> sublist, Type type)
+: Memento(sublist->owningHistory()->peer, nullptr, sublist, PeerId(), type) {
 }
 
 Memento::Memento(
 	not_null<PeerData*> peer,
 	Data::ForumTopic *topic,
+	Data::SavedSublist *sublist,
 	PeerId migratedPeerId,
 	Type type)
-: ContentMemento(peer, topic, migratedPeerId)
+: ContentMemento(peer, topic, sublist, migratedPeerId)
 , _type(type) {
 	_searchState.query.type = type;
 	_searchState.query.peerId = peer->id;
-	_searchState.query.topicRootId = topic ? topic->rootId() : 0;
+	_searchState.query.topicRootId = topic ? topic->rootId() : MsgId();
+	_searchState.query.monoforumPeerId = sublist
+		? sublist->sublistPeer()->id
+		: PeerId();
 	_searchState.query.migratedPeerId = migratedPeerId;
 	if (migratedPeerId) {
 		_searchState.migratedList = Storage::SparseIdsList();
@@ -102,9 +146,14 @@ Widget::Widget(QWidget *parent, not_null<Controller*> controller)
 		controller));
 	_inner->setScrollHeightValue(scrollHeightValue());
 	_inner->scrollToRequests(
-	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
+	) | rpl::on_next([this](Ui::ScrollToRequest request) {
 		scrollTo(request);
 	}, _inner->lifetime());
+
+	scroll()->setCustomWheelProcess([this](not_null<QWheelEvent*> e) {
+		return (e->modifiers() & Qt::ControlModifier)
+			&& _inner->processZoomWheel(e);
+	});
 }
 
 rpl::producer<SelectedItems> Widget::selectedListValue() const {
@@ -115,29 +164,59 @@ void Widget::selectionAction(SelectionAction action) {
 	_inner->selectionAction(action);
 }
 
+void Widget::fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) {
+	const auto type = controller()->section().mediaType();
+	if (type != Type::Photo
+		&& type != Type::Video
+		&& type != Type::PhotoVideo) {
+		return;
+	}
+	if (_inner->canZoomIn()) {
+		addAction(tr::lng_media_zoom_in(tr::now), [=] {
+			_inner->zoomIn();
+		}, &st::menuIconZoomIn);
+	}
+	if (_inner->canZoomOut()) {
+		addAction(tr::lng_media_zoom_out(tr::now), [=] {
+			_inner->zoomOut();
+		}, &st::menuIconZoomOut);
+	}
+	addAction(tr::lng_calendar(tr::now), [=] {
+		controller()->parentController()->showCalendar({
+			.chat = Dialogs::Key(
+				controller()->session().data().history(
+					controller()->key().peer())),
+			.date = QDate::currentDate(),
+			.mediaPhoto = (type != Type::Video),
+			.mediaVideo = (type != Type::Photo),
+			.customJump = [=](FullMsgId id, Fn<void()> close) {
+				_inner->jumpToMessage(id.msg);
+				close();
+			},
+		});
+	}, &st::menuIconSchedule);
+}
+
+bool Widget::processZoomKey(not_null<QKeyEvent*> e) {
+	if (!(e->modifiers() & Qt::ControlModifier)) {
+		return false;
+	}
+	const auto key = e->key();
+	if (key == Qt::Key_Plus || key == Qt::Key_Equal) {
+		_inner->zoomIn();
+		return true;
+	} else if (key == Qt::Key_Minus || key == Qt::Key_Underscore) {
+		_inner->zoomOut();
+		return true;
+	}
+	return false;
+}
+
 rpl::producer<QString> Widget::title() {
 	if (controller()->key().peer()->sharedMediaInfo() && isStackBottom()) {
 		return tr::lng_profile_shared_media();
 	}
-	switch (controller()->section().mediaType()) {
-	case Section::MediaType::Photo:
-		return tr::lng_media_type_photos();
-	case Section::MediaType::GIF:
-		return tr::lng_media_type_gifs();
-	case Section::MediaType::Video:
-		return tr::lng_media_type_videos();
-	case Section::MediaType::MusicFile:
-		return tr::lng_media_type_songs();
-	case Section::MediaType::File:
-		return tr::lng_media_type_files();
-	case Section::MediaType::RoundVoiceFile:
-		return tr::lng_media_type_audios();
-	case Section::MediaType::Link:
-		return tr::lng_media_type_links();
-	case Section::MediaType::RoundFile:
-		return tr::lng_media_type_rounds();
-	}
-	Unexpected("Bad media type in Info::TitleValue()");
+	return SharedMediaTitle(controller()->section().mediaType())();
 }
 
 void Widget::setIsStackBottom(bool isStackBottom) {

@@ -1,0 +1,48 @@
+#version 450
+
+layout(local_size_x = 64) in;
+
+layout(rgba32f, binding = 0) uniform image2D particleStateImage;
+layout(rgba32f, binding = 2) uniform image2D particleVelocityImage;
+
+layout(std140, binding = 1) uniform Params {
+	uint particleCountX;
+	uint particleCountY;
+	uint seed;
+	uint _pad;
+};
+
+uint hash(uint x) {
+	x ^= x >> 16u;
+	x *= 0x45d9f3bu;
+	x ^= x >> 16u;
+	x *= 0x45d9f3bu;
+	x ^= x >> 16u;
+	return x;
+}
+
+float hashFloat(uint x) {
+	return float(hash(x)) / float(0xFFFFFFFFu);
+}
+
+void main() {
+	uint gid = gl_GlobalInvocationID.x;
+	uint count = particleCountX * particleCountY;
+	if (gid >= count) {
+		return;
+	}
+
+	uint s = gid * 3u + seed;
+
+	float direction = hashFloat(s) * (3.14159265 * 2.0);
+	float speed = (0.1 + hashFloat(s + 1u) * 0.1) * 320.0;
+
+	vec2 velocity = vec2(cos(direction) * speed, sin(direction) * speed);
+	float lifetime = 1.5 + hashFloat(s + 2u) * 1.5;
+
+	ivec2 coord = ivec2(
+		int(gid % particleCountX),
+		int(gid / particleCountX));
+	imageStore(particleStateImage, coord, vec4(0.0, 0.0, lifetime, 0.0));
+	imageStore(particleVelocityImage, coord, vec4(velocity, 0.0, 0.0));
+}

@@ -103,17 +103,17 @@ EmojiPack::EmojiPack(not_null<Main::Session*> session)
 	session->data().viewRemoved(
 	) | rpl::filter([](not_null<const ViewElement*> view) {
 		return view->isIsolatedEmoji() || view->isOnlyCustomEmoji();
-	}) | rpl::start_with_next([=](not_null<const ViewElement*> item) {
+	}) | rpl::on_next([=](not_null<const ViewElement*> item) {
 		remove(item);
 	}, _lifetime);
 
 	Core::App().settings().largeEmojiChanges(
-	) | rpl::start_with_next([=](bool large) {
+	) | rpl::on_next([=](bool large) {
 		refreshAll();
 	}, _lifetime);
 
 	Ui::Emoji::Updated(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_images.clear();
 		refreshAll();
 	}, _lifetime);
@@ -122,7 +122,10 @@ EmojiPack::EmojiPack(not_null<Main::Session*> session)
 EmojiPack::~EmojiPack() = default;
 
 bool EmojiPack::add(not_null<ViewElement*> view) {
-	if (const auto custom = view->onlyCustomEmoji()) {
+	if (view->data()->textAppearing()
+		|| view->Get<HistoryView::FakeBotAboutTop>()) {
+		return false;
+	} else if (const auto custom = view->onlyCustomEmoji()) {
 		_onlyCustomItems.emplace(view);
 		return true;
 	} else if (const auto emoji = view->isolatedEmoji()) {

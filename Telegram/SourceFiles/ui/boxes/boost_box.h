@@ -34,7 +34,9 @@ struct BoostCounters {
 struct BoostFeatures {
 	base::flat_map<int, int> nameColorsByLevel;
 	base::flat_map<int, int> linkStylesByLevel;
+	base::flat_map<int, int> profileColorsByLevel;
 	int linkLogoLevel = 0;
+	int profileIconLevel = 0;
 	int autotranslateLevel = 0;
 	int transcribeLevel = 0;
 	int emojiPackLevel = 0;

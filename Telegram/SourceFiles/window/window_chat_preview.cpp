@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_chat_preview.h"
 
+#include "data/data_channel.h"
 #include "data/data_forum_topic.h"
 #include "data/data_histories.h"
 #include "data/data_peer.h"
@@ -22,6 +23,12 @@ namespace Window {
 namespace {
 
 constexpr auto kChatPreviewDelay = crl::time(1000);
+
+[[nodiscard]] bool SkipChatPreviewFor(Dialogs::Key key) {
+	const auto peer = key.peer();
+	const auto channel = peer ? peer->asChannel() : nullptr;
+	return channel && channel->isCommunity();
+}
 
 } // namespace
 
@@ -39,10 +46,13 @@ bool ChatPreviewManager::show(
 	cancelScheduled();
 	_topicLifetime.destroy();
 	if (const auto topic = row.key.topic()) {
-		_topicLifetime = topic->destroyed() | rpl::start_with_next([=] {
+		_topicLifetime = topic->destroyed() | rpl::on_next([=] {
 			_menu = nullptr;
 		});
 	} else if (!row.key) {
+		return false;
+	}
+	if (SkipChatPreviewFor(row.key)) {
 		return false;
 	}
 
@@ -54,12 +64,12 @@ bool ChatPreviewManager::show(
 		return false;
 	}
 	_menu = std::move(preview.menu);
-	const auto weakMenu = Ui::MakeWeak(_menu.get());
+	const auto weakMenu = base::make_weak(_menu.get());
 	const auto weakThread = base::make_weak(row.key.entry()->asThread());
 	const auto weakController = base::make_weak(_controller);
 	std::move(
 		preview.actions
-	) | rpl::start_with_next([=](HistoryView::ChatPreviewAction action) {
+	) | rpl::on_next([=](HistoryView::ChatPreviewAction action) {
 		if (const auto controller = weakController.get()) {
 			if (const auto thread = weakThread.get()) {
 				const auto itemId = action.openItemId;
@@ -82,7 +92,7 @@ bool ChatPreviewManager::show(
 				}
 			}
 		}
-		if (const auto strong = weakMenu.data()) {
+		if (const auto strong = weakMenu.get()) {
 			strong->hideMenu();
 		}
 	}, _menu->lifetime());
@@ -109,11 +119,14 @@ bool ChatPreviewManager::schedule(
 	cancelScheduled();
 	_topicLifetime.destroy();
 	if (const auto topic = row.key.topic()) {
-		_topicLifetime = topic->destroyed() | rpl::start_with_next([=] {
+		_topicLifetime = topic->destroyed() | rpl::on_next([=] {
 			cancelScheduled();
 			_menu = nullptr;
 		});
 	} else if (!row.key.history()) {
+		return false;
+	}
+	if (SkipChatPreviewFor(row.key)) {
 		return false;
 	}
 	_scheduled = std::move(row);

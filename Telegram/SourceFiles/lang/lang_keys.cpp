@@ -68,6 +68,19 @@ bool langFirstNameGoesSecond() {
 	return fullname.indexOf(kLastName) < fullname.indexOf(kFirstName);
 }
 
+QString langFullName(
+		const QString &firstName,
+		const QString &lastName) {
+	if (firstName.isEmpty()) {
+		return lastName;
+	} else if (lastName.isEmpty()) {
+		return firstName;
+	}
+	return langFirstNameGoesSecond()
+		? (lastName + u' ' + firstName)
+		: (firstName + u' ' + lastName);
+}
+
 QString langDayOfMonth(const QDate &date) {
 	auto day = date.day();
 	return langDateMaybeWithYear(date, [&](int month, int year) {
@@ -105,6 +118,20 @@ QString langDayOfMonthFull(const QDate &date) {
 			tr::now,
 			lt_month,
 			MonthDay(month)(tr::now),
+			lt_day,
+			QString::number(day));
+	});
+}
+
+QString langDayOfMonthShort(const QDate &date) {
+	auto day = date.day();
+	return langDateMaybeWithYear(date, [&](int month, int year) {
+		return QLocale().toString(date, QLocale::ShortFormat);
+	}, [day](int month, int year) {
+		return tr::lng_month_day(
+			tr::now,
+			lt_month,
+			MonthSmall(month)(tr::now),
 			lt_day,
 			QString::number(day));
 	});
@@ -149,7 +176,15 @@ QString langMonthFull(const QDate &date) {
 }
 
 QString langDayOfWeek(int index) {
-	return (index > 0 && index <= 7) ? Weekday(index)(tr::now) : u"DAY_ERR"_q;
+	return (index > 0 && index <= 7)
+		? Weekday(index)(tr::now)
+		: u"DAY_ERR"_q;
+}
+
+QString langDayOfWeekFull(int index) {
+	return (index > 0 && index <= 7)
+		? WeekdayFull(index)(tr::now)
+		: u"DAY_ERR"_q;
 }
 
 QString langDateTime(const QDateTime &date) {
@@ -245,6 +280,19 @@ tr::phrase<> Weekday(int index) {
 	case 7: return tr::lng_weekday7;
 	}
 	Unexpected("Index in Weekday.");
+}
+
+tr::phrase<> WeekdayFull(int index) {
+	switch (index) {
+	case 1: return tr::lng_hours_monday;
+	case 2: return tr::lng_hours_tuesday;
+	case 3: return tr::lng_hours_wednesday;
+	case 4: return tr::lng_hours_thursday;
+	case 5: return tr::lng_hours_friday;
+	case 6: return tr::lng_hours_saturday;
+	case 7: return tr::lng_hours_sunday;
+	}
+	Unexpected("Index in WeekdayFull.");
 }
 
 } // namespace Lang

@@ -8,12 +8,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_theme_document.h"
 
 #include "apiwrap.h"
+#include "base/unixtime.h"
 #include "boxes/background_preview_box.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_item_components.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/media/history_view_sticker_player_abstract.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_changes.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
@@ -27,16 +30,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/text/format_values.h"
+#include "ui/text/text_utilities.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
+#include "ui/top_background_gradient.h"
 #include "ui/ui_utility.h"
 #include "window/section_widget.h"
 #include "window/window_session_controller.h"
 #include "window/themes/window_theme.h"
 #include "styles/style_chat.h"
+#include "styles/style_credits.h"
 
 namespace HistoryView {
 namespace {
@@ -477,7 +483,7 @@ ThemeDocumentBox::ThemeDocumentBox(
 	Window::WallPaperResolved(
 		&_parent->history()->owner(),
 		&paper
-	) | rpl::start_with_next([=](const Data::WallPaper *paper) {
+	) | rpl::on_next([=](const Data::WallPaper *paper) {
 		_parent->repaint();
 		if (!paper) {
 			_preview.reset();
@@ -549,7 +555,7 @@ ClickHandlerPtr ThemeDocumentBox::createViewLink() {
 					const auto api = &controller->session().api();
 					api->request(MTPmessages_SetChatWallPaper(
 						MTP_flags(MTPmessages_SetChatWallPaper::Flag::f_revert),
-						view->data()->history()->peer->input,
+						view->data()->history()->peer->input(),
 						MTPInputWallPaper(),
 						MTPWallPaperSettings(),
 						MTPint()
@@ -603,6 +609,285 @@ void ThemeDocumentBox::unloadHeavyPart() {
 	if (_preview) {
 		_preview->unloadHeavyPart();
 	}
+}
+
+GiftServiceBox::GiftServiceBox(
+	not_null<Element*> parent,
+	not_null<Data::MediaGiftBox*> gift)
+: _parent(parent)
+, _data(*gift->gift()) {
+}
+
+GiftServiceBox::~GiftServiceBox() = default;
+
+int GiftServiceBox::top() {
+	return st::msgServiceStarGiftStickerTop;
+}
+
+int GiftServiceBox::width() {
+	return st::msgServiceStarGiftBoxWidth;
+}
+
+QSize GiftServiceBox::size() {
+	return QSize(
+		st::msgServiceGiftThemeStickerSize,
+		st::msgServiceGiftThemeStickerSize).grownBy(
+			st::msgServiceGiftThemeStickerPadding);
+}
+
+TextWithEntities GiftServiceBox::title() {
+	return {};
+}
+
+TextWithEntities GiftServiceBox::subtitle() {
+	const auto giftName = tr::bold(Data::UniqueGiftName(*_data.unique));
+	if (_data.type == Data::GiftType::GiftOffer) {
+		const auto item = _parent->data();
+		if (const auto suggestion = item->Get<HistoryMessageSuggestion>()) {
+			const auto amount = suggestion->price;
+			const auto cost = tr::bold(PrepareCreditsAmountText(amount));
+			auto text = tr::marked();
+			if (_parent->data()->out()) {
+				text.append(tr::lng_action_gift_offer_you(
+					tr::now,
+					lt_cost,
+					cost,
+					lt_name,
+					giftName,
+					tr::marked));
+			} else {
+				text.append(tr::lng_action_gift_offer_incoming(
+					tr::now,
+					lt_amount,
+					cost,
+					tr::marked));
+			}
+			text.append(u"\n\n"_q);
+
+			const auto ends = suggestion->date;
+			const auto now = base::unixtime::now();
+			const auto expired = (now >= ends);
+
+			checkKeyboardRemoval(suggestion, expired);
+
+			if (suggestion->accepted) {
+				text.append(
+					tr::lng_action_gift_offer_state_accepted(tr::now));
+			} else if (suggestion->rejected) {
+				text.append(
+					tr::lng_action_gift_offer_state_rejected(tr::now));
+			} else {
+				if (expired) {
+					text.append(
+						tr::lng_action_gift_offer_state_expired(tr::now));
+				} else {
+					auto time = QString();
+					const auto left = (ends - now) + 59;
+					if (left >= 3600) {
+						const auto hours = left / 3600;
+						const auto minutes = (left % 3600) / 60;
+						time = minutes
+							? tr::lng_action_gift_offer_time_medium(
+								tr::now,
+								lt_hours,
+								QString::number(hours),
+								lt_minutes,
+								QString::number(minutes))
+							: tr::lng_action_gift_offer_time_large(
+								tr::now,
+								lt_hours,
+								QString::number(hours));
+					} else {
+						const auto minutes = left / 60;
+						time = tr::lng_action_gift_offer_time_small(
+							tr::now,
+							lt_minutes,
+							QString::number(minutes));
+					}
+					text.append(tr::lng_action_gift_offer_state_expires(
+						tr::now,
+						lt_time,
+						tr::bold(time),
+						tr::marked));
+
+					const auto tillNext = left % 60;
+					_changeTimer.setCallback([=] { _changes.fire({}); });
+					_changeTimer.callOnce((tillNext ? tillNext : 60)
+						* crl::time(1000));
+				}
+			}
+			return text;
+		}
+	} else if (_parent->data()->out()) {
+		return tr::lng_action_you_gift_theme_changed(
+			tr::now,
+			lt_name,
+			giftName,
+			tr::marked);
+	} else {
+		return tr::lng_action_gift_theme_changed(
+			tr::now,
+			lt_from,
+			tr::bold(_parent->data()->from()->shortName()),
+			lt_name,
+			giftName,
+			tr::marked);
+	}
+	return _parent->data()->originalText();
+}
+
+void GiftServiceBox::checkKeyboardRemoval(
+		not_null<const HistoryMessageSuggestion*> suggestion,
+		bool expired) {
+	Expects(_data.type == Data::GiftType::GiftOffer);
+
+	const auto item = _parent->data();
+	if (const auto markup = item->Get<HistoryMessageReplyMarkup>()) {
+		if (!markup->data.isTrivial()) {
+			if (suggestion->accepted || suggestion->rejected || expired) {
+				crl::on_main(this, [=] {
+					clearKeyboard();
+				});
+			}
+		}
+	}
+}
+
+void GiftServiceBox::clearKeyboard() {
+	Expects(_data.type == Data::GiftType::GiftOffer);
+
+	const auto item = _parent->data();
+	if (const auto markup = item->Get<HistoryMessageReplyMarkup>()) {
+		markup->updateSuggestControls(SuggestionActions::None);
+		item->history()->owner().requestItemResize(item);
+	}
+}
+
+rpl::producer<> GiftServiceBox::changes() {
+	if (_data.type != Data::GiftType::GiftOffer) {
+		return nullptr;
+	}
+	return _changes.events();
+}
+
+rpl::producer<QString> GiftServiceBox::button() {
+	if (_data.type == Data::GiftType::GiftOffer) {
+		return nullptr;
+	}
+	return tr::lng_sticker_premium_view();
+}
+
+ClickHandlerPtr GiftServiceBox::createViewLink() {
+	return std::make_shared<UrlClickHandler>(
+		u"tg://nft?slug="_q + _data.unique->slug);
+}
+
+int GiftServiceBox::buttonSkip() {
+	return st::msgServiceGiftBoxButtonMargins.top();
+}
+
+void GiftServiceBox::cacheUniqueBackground(int width, int height) {
+	if (!_patternEmoji) {
+		const auto session = &_parent->data()->history()->session();
+		_patternEmoji = session->data().customEmojiManager().create(
+			_data.unique->pattern.document,
+			[=] { _parent->repaint(); },
+			Data::CustomEmojiSizeTag::Large);
+		[[maybe_unused]] const auto preload = _patternEmoji->ready();
+	}
+	const auto inner = QRect(0, 0, width, height);
+	const auto ratio = style::DevicePixelRatio();
+	if (_backgroundCache.size() != inner.size() * ratio) {
+		_backgroundCache = QImage(
+			inner.size() * ratio,
+			QImage::Format_ARGB32_Premultiplied);
+		_backgroundCache.fill(Qt::transparent);
+		_backgroundCache.setDevicePixelRatio(ratio);
+
+		const auto radius = st::giftBoxGiftRadius;
+		auto p = QPainter(&_backgroundCache);
+		auto hq = PainterHighQualityEnabler(p);
+		auto gradient = QRadialGradient(inner.center(), inner.width() / 2);
+		gradient.setStops({
+			{ 0., _data.unique->backdrop.centerColor },
+			{ 1., _data.unique->backdrop.edgeColor },
+		});
+		p.setBrush(gradient);
+		p.setPen(Qt::NoPen);
+		p.drawRoundedRect(inner, radius, radius);
+		_backroundPatterned = false;
+	}
+	if (!_backroundPatterned && _patternEmoji->ready()) {
+		_backroundPatterned = true;
+		auto p = QPainter(&_backgroundCache);
+		p.setClipRect(inner);
+		const auto skip = inner.width() / 3;
+		Ui::PaintBgPoints(
+			p,
+			Ui::PatternBgPointsSmall(),
+			_patternCache,
+			_patternEmoji.get(),
+			*_data.unique,
+			QRect(-skip, 0, inner.width() + 2 * skip, inner.height()));
+	}
+}
+
+void GiftServiceBox::draw(
+		Painter &p,
+		const PaintContext &context,
+		const QRect &geometry) {
+	cacheUniqueBackground(geometry.width(), geometry.height());
+	p.drawImage(geometry.topLeft(), _backgroundCache);
+
+	if (_sticker) {
+		_sticker->draw(
+			p,
+			context,
+			geometry.marginsRemoved(st::msgServiceGiftThemeStickerPadding));
+	} else {
+		ensureStickerCreated();
+	}
+}
+
+bool GiftServiceBox::hideServiceText() {
+	return true;
+}
+
+void GiftServiceBox::stickerClearLoopPlayed() {
+	if (_sticker) {
+		_sticker->stickerClearLoopPlayed();
+	}
+}
+
+std::unique_ptr<StickerPlayer> GiftServiceBox::stickerTakePlayer(
+		not_null<DocumentData*> data,
+		const Lottie::ColorReplacements *replacements) {
+	return _sticker
+		? _sticker->stickerTakePlayer(data, replacements)
+		: nullptr;
+}
+
+bool GiftServiceBox::hasHeavyPart() {
+	return (_sticker ? _sticker->hasHeavyPart() : false);
+}
+
+void GiftServiceBox::unloadHeavyPart() {
+	if (_sticker) {
+		_sticker->unloadHeavyPart();
+	}
+}
+
+void GiftServiceBox::ensureStickerCreated() const {
+	if (_sticker) {
+		return;
+	}
+	const auto document = _data.unique->model.document;
+	const auto sticker = document->sticker();
+	Assert(sticker != nullptr);
+	_sticker.emplace(_parent, document, false, _parent);
+	_sticker->setPlayingOnce(true);
+	_sticker->initSize(st::msgServiceGiftThemeStickerSize);
+	_parent->repaint();
 }
 
 } // namespace HistoryView

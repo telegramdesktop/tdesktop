@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_channel.h"
 #include "lang/lang_keys.h"
-#include "styles/style_info.h"
 
 namespace Info {
 namespace Members {
@@ -26,7 +25,7 @@ Memento::Memento(not_null<Controller*> controller)
 }
 
 Memento::Memento(not_null<PeerData*> peer, PeerId migratedPeerId)
-: ContentMemento(peer, nullptr, migratedPeerId) {
+: ContentMemento(peer, nullptr, nullptr, migratedPeerId) {
 }
 
 Section Memento::section() const {

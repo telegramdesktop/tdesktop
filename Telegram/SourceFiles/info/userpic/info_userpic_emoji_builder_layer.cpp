@@ -15,6 +15,11 @@ namespace UserpicBuilder {
 
 LayerWidget::LayerWidget()
 : _corners(Ui::PrepareCornerPixmaps(st::boxRadius, st::boxDividerBg)) {
+	style::PaletteChanged(
+	) | rpl::on_next([=] {
+		_corners = Ui::PrepareCornerPixmaps(st::boxRadius, st::boxDividerBg);
+		update();
+	}, lifetime());
 }
 
 void LayerWidget::setContent(not_null<Ui::RpWidget*> content) {

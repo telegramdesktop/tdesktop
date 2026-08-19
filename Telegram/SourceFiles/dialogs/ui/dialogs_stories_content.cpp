@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/ui/dialogs_stories_content.h"
 
+#include "base/unixtime.h"
 #include "data/data_changes.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
@@ -21,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "main/main_session.h"
+#include "media/stories/media_stories_stealth.h"
 #include "lang/lang_keys.h"
 #include "ui/dynamic_image.h"
 #include "ui/dynamic_thumbnails.h"
@@ -75,6 +77,7 @@ Content State::next() {
 			.thumbnail = std::move(userpic),
 			.count = info.count,
 			.unreadCount = info.unreadCount,
+			.hasVideoStream = info.hasVideoStream ? 1U : 0U,
 			.skipSmall = peer->isSelf() ? 1U : 0U,
 		});
 	}
@@ -94,7 +97,7 @@ rpl::producer<Content> ContentForSession(
 			rpl::empty
 		) | rpl::then(
 			stories->sourcesChanged(list)
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			consumer.put_next(state->next());
 		}, result);
 		return result;
@@ -152,13 +155,16 @@ rpl::producer<Content> LastForPeer(not_null<PeerData*> peer) {
 					const auto maybe = stories->lookup(storyId);
 					if (maybe) {
 						if (!resolving) {
-							const auto unread = (id > state->readTill);
+							const auto stream = (*maybe)->call();
+							const auto unread = stream
+								|| (id > state->readTill);
 							result.elements.reserve(ids.size());
 							result.elements.push_back({
 								.id = uint64(id),
 								.thumbnail = Ui::MakeStoryThumbnail(*maybe),
 								.count = 1U,
 								.unreadCount = unread ? 1U : 0U,
+								.hasVideoStream = stream ? 1U : 0U,
 							});
 							if (unread) {
 								done = false;
@@ -183,11 +189,11 @@ rpl::producer<Content> LastForPeer(not_null<PeerData*> peer) {
 
 			rpl::single(peerId) | rpl::then(
 				stories->itemsChanged() | rpl::filter(_1 == peerId)
-			) | rpl::start_with_next(state->check, lifetime);
+			) | rpl::on_next(state->check, lifetime);
 
 			stories->session().changes().storyUpdates(
 				Data::StoryUpdate::Flag::MarkRead
-			) | rpl::start_with_next([=](const Data::StoryUpdate &update) {
+			) | rpl::on_next([=](const Data::StoryUpdate &update) {
 				if (update.story->peer()->id == peerId) {
 					if (update.story->id() > state->readTill) {
 						state->readTill = update.story->id();
@@ -215,7 +221,7 @@ void FillSourceMenu(
 		add(tr::lng_stories_archive_button(tr::now), [=] {
 			controller->showSection(Info::Stories::Make(
 				peer,
-				Info::Stories::Tab::Archive));
+				Info::Stories::ArchiveId()));
 		}, &st::menuIconStoriesArchiveSection);
 		add(tr::lng_stories_my_title(tr::now), [=] {
 			controller->showSection(Info::Stories::Make(peer));
@@ -239,6 +245,9 @@ void FillSourceMenu(
 		add(viewProfileText, [=] {
 			controller->showPeerInfo(peer);
 		}, channel ? &st::menuIconInfo : &st::menuIconProfile);
+		if (!peer->hasActiveVideoStream() && peer->hasUnreadStories()) {
+			Media::Stories::AddStealthModeMenu(add, peer, controller);
+		}
 		const auto in = [&](Data::StorySourcesList list) {
 			return ranges::contains(
 				owner->stories().sources(list),

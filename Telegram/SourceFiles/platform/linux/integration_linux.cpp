@@ -16,11 +16,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #endif
 #include "base/random.h"
+#include "base/qt_connection.h"
 
 #include <QtCore/QAbstractEventDispatcher>
 
 #include <gio/gio.hpp>
 #include <xdpinhibit/xdpinhibit.hpp>
+
+#ifdef __GLIBC__
+#include <malloc.h>
+#endif // __GLIBC__
 
 namespace Platform {
 namespace {
@@ -99,20 +104,6 @@ Application::Application()
 		});
 	});
 	actionMap.add_action(quitAction);
-
-	const auto notificationIdVariantType = GLib::VariantType::new_("a{sv}");
-
-	auto notificationActivateAction = Gio::SimpleAction::new_(
-		"notification-activate",
-		notificationIdVariantType);
-
-	actionMap.add_action(notificationActivateAction);
-
-	auto notificationMarkAsReadAction = Gio::SimpleAction::new_(
-		"notification-mark-as-read",
-		notificationIdVariantType);
-
-	actionMap.add_action(notificationMarkAsReadAction);
 }
 
 gi::ref_ptr<Application> MakeApplication() {
@@ -143,6 +134,10 @@ private:
 #if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
 	base::Platform::XDP::SettingWatcher _darkModeWatcher;
 #endif // Qt < 6.5.0
+#ifdef __GLIBC__
+	base::qt_connection _memoryTrim;
+	crl::time _memoryTrimmed = 0;
+#endif // __GLIBC__
 };
 
 LinuxIntegration::LinuxIntegration()
@@ -166,6 +161,18 @@ LinuxIntegration::LinuxIntegration()
 		g_warning("Qt is running without GLib event loop integration, "
 			"expect various functionality to not to work.");
 	}
+
+#ifdef __GLIBC__
+	_memoryTrim = QObject::connect(
+		QCoreApplication::eventDispatcher(),
+		&QAbstractEventDispatcher::aboutToBlock,
+		[=] {
+			if (crl::now() - _memoryTrimmed >= 10000) {
+				malloc_trim(0);
+				_memoryTrimmed = crl::now();
+			}
+		});
+#endif // __GLIBC__
 }
 
 void LinuxIntegration::init() {

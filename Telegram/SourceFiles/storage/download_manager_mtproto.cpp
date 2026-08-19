@@ -124,7 +124,7 @@ DownloadManagerMtproto::DownloadManagerMtproto(not_null<ApiWrap*> api)
 	_api->instance().restartsByTimeout(
 	) | rpl::filter([](MTP::ShiftedDcId shiftedDcId) {
 		return MTP::isDownloadDcId(shiftedDcId);
-	}) | rpl::start_with_next([=](MTP::ShiftedDcId shiftedDcId) {
+	}) | rpl::on_next([=](MTP::ShiftedDcId shiftedDcId) {
 		sessionTimedOut(
 			MTP::BareDcId(shiftedDcId),
 			MTP::GetDcIdShift(shiftedDcId));
@@ -824,7 +824,7 @@ void DownloadMtprotoTask::subscribeToNonPremiumLimit() {
 		return;
 	}
 	_owner->api().instance().nonPremiumDelayedRequests(
-	) | rpl::start_with_next([=](mtpRequestId id) {
+	) | rpl::on_next([=](mtpRequestId id) {
 		if (_sentRequests.contains(id)) {
 			if (const auto documentId = objectId()) {
 				const auto type = v::get<StorageFileLocation>(

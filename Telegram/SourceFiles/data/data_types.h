@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_msg_id.h"
 #include "base/qt/qt_compare.h"
 
+struct AudioAlbumThumbLocation;
 class HistoryItem;
 using HistoryItemsList = std::vector<not_null<HistoryItem*>>;
 
@@ -128,6 +129,7 @@ struct WebPageData;
 struct GameData;
 struct BotAppData;
 struct PollData;
+struct TodoListData;
 
 using PhotoId = uint64;
 using VideoId = uint64;
@@ -136,6 +138,7 @@ using DocumentId = uint64;
 using WebPageId = uint64;
 using GameId = uint64;
 using PollId = uint64;
+using TodoListId = FullMsgId;
 using WallPaperId = uint64;
 using CallId = uint64;
 using BotAppId = uint64;
@@ -351,6 +354,24 @@ enum class MessageFlag : uint64 {
 	ReactionsAllowed      = (1ULL << 50),
 
 	HideDisplayDate       = (1ULL << 51),
+
+	StarsPaidSuggested    = (1ULL << 52),
+	TonPaidSuggested      = (1ULL << 53),
+
+	StoryInProfile        = (1ULL << 54),
+	SavedMusicItem        = (1ULL << 55),
+
+	HasHiddenLinks        = (1ULL << 56),
+	HasSummaryEntry       = (1ULL << 57),
+	CanBeSummarized       = (1ULL << 58),
+	HasUnreadPollVote     = (1ULL << 59),
+
+	TextAppearing         = (1ULL << 60),
+	TextAppearingStarted  = (1ULL << 61),
+
+	GuestChatViaFrom      = (1ULL << 62),
+
+	Ephemeral             = (1ULL << 63),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;
@@ -373,6 +394,11 @@ enum class ForwardOptions {
 	NoNamesAndCaptions,
 };
 
+enum class ViewRemovalReason : uchar {
+	Removed,
+	Detached,
+};
+
 struct ForwardDraft {
 	MessageIdsList ids;
 	ForwardOptions options = ForwardOptions::PreserveInfo;
@@ -381,8 +407,6 @@ struct ForwardDraft {
 		const ForwardDraft&,
 		const ForwardDraft&) = default;
 };
-
-using ForwardDrafts = base::flat_map<MsgId, ForwardDraft>;
 
 struct ResolvedForwardDraft {
 	HistoryItemsList items;

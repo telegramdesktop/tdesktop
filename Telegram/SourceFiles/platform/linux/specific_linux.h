@@ -9,10 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_specific.h"
 
-namespace Data {
-class LocationPoint;
-} // namespace Data
-
 namespace Platform {
 
 inline void IgnoreApplicationActivationRightNow() {
@@ -38,6 +34,10 @@ inline uint64 ActivationWindowId(not_null<QWidget*> window) {
 inline void ActivateOtherProcess(uint64 processId, uint64 windowId) {
 }
 
+inline bool WaitForProcessExit(uint64 processId, crl::time timeout) {
+	return true;
+}
+
 } // namespace Platform
 
 inline void psCheckLocalSocket(const QString &serverName) {
@@ -60,5 +60,3 @@ inline void psDownloadPathEnableAccess() {
 }
 
 bool linuxMoveFile(const char *from, const char *to);
-
-bool psLaunchMaps(const Data::LocationPoint &point);

@@ -65,6 +65,7 @@ struct FileChosen {
 	Ui::MessageSendingAnimationFrom messageSendingFrom;
 	std::shared_ptr<Data::EmojiStatusCollectible> collectible;
 	TextWithTags caption;
+	bool needsCaption = false;
 };
 
 struct PhotoChosen {
@@ -82,6 +83,7 @@ using InlineChosen = InlineBots::ResultSelected;
 enum class TabbedSelectorMode {
 	Full,
 	EmojiOnly,
+	CustomEmojiOnly,
 	StickersOnly,
 	MediaEditor,
 	EmojiStatus,
@@ -100,6 +102,8 @@ struct TabbedSelectorDescriptor {
 	TabbedSelectorMode mode = TabbedSelectorMode::Full;
 	Fn<QColor()> customTextColor;
 	ComposeFeatures features;
+	uint64 excludeStickerSetId = 0;
+	int searchRightReserved = 0;
 };
 
 enum class TabbedSearchType {
@@ -157,6 +161,8 @@ public:
 	void setCurrentPeer(PeerData *peer);
 	void provideRecentEmoji(
 		const std::vector<EmojiStatusId> &customRecentList);
+	void setMarkedCustomIds(const base::flat_set<DocumentId> &ids);
+	void setSearchRightReserved(int value);
 
 	void hideFinished();
 	void showStarted();
@@ -198,6 +204,7 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 private:
 	class Tab {
@@ -288,13 +295,14 @@ private:
 	not_null<GifsListWidget*> gifs() const;
 	not_null<StickersListWidget*> masks() const;
 
-	void reinstallSwipe(not_null<Ui::RpWidget*> widget);
+	void reinstallSwipe(not_null<Inner*> widget);
 
 	const style::EmojiPan &_st;
 	const ComposeFeatures _features;
 	const std::shared_ptr<Show> _show;
 	const PauseReason _level = {};
 	const Fn<QColor()> _customTextColor;
+	const uint64 _excludeStickerSetId = 0;
 
 	Ui::Controls::SwipeBackResult _swipeBackData;
 
@@ -389,6 +397,11 @@ public:
 	}
 	virtual void beforeHiding() {
 	}
+	[[nodiscard]] virtual bool canConsumeHorizontalScroll(
+			QPoint position,
+			int delta) {
+		return false;
+	}
 	[[nodiscard]] virtual base::unique_qptr<Ui::PopupMenu> fillContextMenu(
 			const SendMenu::Details &details) {
 		return nullptr;
@@ -417,12 +430,14 @@ protected:
 	void scrollTo(int y);
 	void disableScroll(bool disabled);
 
-	void checkHideWithBox(object_ptr<Ui::BoxContent> box);
+	void showBoxPreventHide(object_ptr<Ui::BoxContent> box);
+	void preventHideWithBox(base::weak_qptr<Ui::BoxContent> weak);
 
 	void paintEmptySearchResults(
 		Painter &p,
 		const style::icon &icon,
-		const QString &text) const;
+		const QString &text,
+		bool skipIcon = false) const;
 
 private:
 	const style::EmojiPan &_st;

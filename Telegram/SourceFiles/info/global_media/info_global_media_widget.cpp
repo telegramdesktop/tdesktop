@@ -20,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "core/application.h"
 #include "lang/lang_keys.h"
-#include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 
@@ -58,7 +57,7 @@ Widget::Widget(QWidget *parent, not_null<Controller*> controller)
 		controller));
 	_inner->setScrollHeightValue(scrollHeightValue());
 	_inner->scrollToRequests(
-	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
+	) | rpl::on_next([this](Ui::ScrollToRequest request) {
 		scrollTo(request);
 	}, _inner->lifetime());
 }

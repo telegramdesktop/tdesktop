@@ -13,9 +13,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_location_manager.h"
 #include "history/view/history_view_element.h"
+#include "history/view/history_view_message.h"
 #include "history/view/history_view_cursor_state.h"
 #include "lang/lang_keys.h"
 #include "ui/chat/chat_style.h"
+#include "ui/dynamic_thumbnails.h"
+#include "ui/dynamic_image.h"
+#include "ui/widgets/shadow.h"
 #include "ui/image/image.h"
 #include "ui/text/text_options.h"
 #include "ui/cached_round_corners.h"
@@ -30,6 +34,10 @@ namespace {
 
 constexpr auto kUntilOffPeriod = std::numeric_limits<TimeId>::max();
 constexpr auto kLiveElapsedPartOpacity = 0.2;
+
+[[nodiscard]] bool IsHostedInstantViewMedia(not_null<const Element*> parent) {
+	return parent->Get<InstantViewMediaRuntime>() != nullptr;
+}
 
 [[nodiscard]] TimeId ResolveUpdateDate(not_null<Element*> view) {
 	const auto item = view->data();
@@ -90,13 +98,16 @@ Location::Location(
 	not_null<Data::CloudImage*> data,
 	Data::LocationPoint point,
 	Element *replacing,
-	TimeId livePeriod)
+	TimeId livePeriod,
+	QSize sizeOverride)
 : Media(parent)
 , _data(data)
 , _live(CreateLiveTracker(parent, livePeriod))
 , _title(st::msgMinWidth)
 , _description(st::msgMinWidth)
-, _link(std::make_shared<LocationClickHandler>(point)) {
+, _link(std::make_shared<LocationClickHandler>(point))
+, _sizeOverride(sizeOverride)
+, _liveLocation(livePeriod > 0) {
 	if (_live) {
 		_title.setText(
 			st::webPageTitleStyle,
@@ -160,7 +171,13 @@ void Location::checkLiveFinish() {
 	const auto item = _parent->data();
 	const auto start = item->date();
 	if (_live->period != kUntilOffPeriod && now - start >= _live->period) {
+		const auto had = hasHeavyPart();
+		_title.clear();
+		_description.clear();
 		_live = nullptr;
+		if (had && !hasHeavyPart()) {
+			_parent->checkHeavyPart();
+		}
 		item->history()->owner().requestViewResize(_parent);
 	} else {
 		_parent->repaint();
@@ -240,13 +257,19 @@ QImage Location::locationTakeImage() {
 
 void Location::unloadHeavyPart() {
 	_media = nullptr;
+	if (_userpic) {
+		_userpic->subscribeToUpdates(nullptr);
+		_userpic = nullptr;
+	}
 	if (_live) {
 		_live->previous = QImage();
 	}
 }
 
 bool Location::hasHeavyPart() const {
-	return (_media != nullptr) || (_live && !_live->previous.isNull());
+	return (_media != nullptr)
+		|| (_userpic != nullptr)
+		|| (_live && !_live->previous.isNull());
 }
 
 void Location::ensureMediaCreated() const {
@@ -258,17 +281,32 @@ void Location::ensureMediaCreated() const {
 	history()->owner().registerHeavyViewPart(_parent);
 }
 
+void Location::ensureUserpicCreated() const {
+	if (_userpic) {
+		return;
+	}
+	const auto peer = _parent->data()->from();
+	_userpic = Ui::MakeUserpicThumbnail(peer, true);
+	_userpic->subscribeToUpdates([parent = _parent] {
+		parent->repaint();
+	});
+	history()->owner().registerHeavyViewPart(_parent);
+}
+
 QSize Location::countOptimalSize() {
+	const auto hostedInstantView = IsHostedInstantViewMedia(_parent);
 	auto tw = fullWidth();
 	auto th = fullHeight();
-	if (tw > st::maxMediaSize) {
+	if (!hostedInstantView && tw > st::maxMediaSize) {
 		th = (st::maxMediaSize * th) / tw;
 		tw = st::maxMediaSize;
 	}
-	auto minWidth = std::clamp(
-		_parent->minWidthForMedia(),
-		st::minPhotoSize,
-		st::maxMediaSize);
+	auto minWidth = hostedInstantView
+		? std::max(_parent->minWidthForMedia(), 1)
+		: std::clamp(
+			_parent->minWidthForMedia(),
+			st::minPhotoSize,
+			st::maxMediaSize);
 	auto maxWidth = qMax(tw, minWidth);
 	auto minHeight = qMax(th, st::minPhotoSize);
 
@@ -281,14 +319,8 @@ QSize Location::countOptimalSize() {
 		}
 		if (!_title.isEmpty() || !_description.isEmpty()) {
 			minHeight += st::mediaInBubbleSkip;
-			if (_live) {
-				if (isBubbleBottom()) {
-					minHeight += st::msgPadding.bottom();
-				}
-			} else {
-				if (isBubbleTop()) {
-					minHeight += st::msgPadding.top();
-				}
+			if (isBubbleBottom()) {
+				minHeight += st::msgPadding.bottom();
 			}
 		}
 	}
@@ -298,9 +330,10 @@ QSize Location::countOptimalSize() {
 QSize Location::countCurrentSize(int newWidth) {
 	accumulate_min(newWidth, maxWidth());
 
+	const auto hostedInstantView = IsHostedInstantViewMedia(_parent);
 	auto tw = fullWidth();
 	auto th = fullHeight();
-	if (tw > st::maxMediaSize) {
+	if (!hostedInstantView && tw > st::maxMediaSize) {
 		th = (st::maxMediaSize * th) / tw;
 		tw = st::maxMediaSize;
 	}
@@ -310,12 +343,15 @@ QSize Location::countCurrentSize(int newWidth) {
 	} else {
 		newWidth = tw;
 	}
-	auto minWidth = std::clamp(
-		_parent->minWidthForMedia(),
-		st::minPhotoSize,
-		std::min(newWidth, st::maxMediaSize));
+	auto minWidth = hostedInstantView
+		? std::max(_parent->minWidthForMedia(), 1)
+		: std::clamp(
+			_parent->minWidthForMedia(),
+			st::minPhotoSize,
+			std::min(newWidth, st::maxMediaSize));
 	accumulate_max(newWidth, minWidth);
 	accumulate_max(newHeight, st::minPhotoSize);
+	_thumbnailHeight = newHeight;
 	if (_live) {
 		_live->thumbnailHeight = newHeight;
 	}
@@ -328,14 +364,8 @@ QSize Location::countCurrentSize(int newWidth) {
 		}
 		if (!_title.isEmpty() || !_description.isEmpty()) {
 			newHeight += st::mediaInBubbleSkip;
-			if (_live) {
-				if (isBubbleBottom()) {
-					newHeight += st::msgPadding.bottom();
-				}
-			} else {
-				if (isBubbleTop()) {
-					newHeight += st::msgPadding.top();
-				}
+			if (isBubbleBottom()) {
+				newHeight += st::msgPadding.bottom();
 			}
 		}
 	}
@@ -357,24 +387,21 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 		return;
 	}
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
+	const auto hostedInstantView = IsHostedInstantViewMedia(_parent);
 	bool bubble = _parent->hasBubble();
 	const auto st = context.st;
 	const auto stm = context.messageStyle();
 
 	const auto hasText = !_title.isEmpty() || !_description.isEmpty();
-	const auto rounding = adjustedBubbleRounding(_live
-		? RectPart::FullBottom
-		: hasText
-		? RectPart::FullTop
-		: RectPart());
+	const auto square = hasText ? RectPart::FullBottom : RectPart();
+	const auto rounding = hostedInstantView
+		? Ui::BubbleRounding()
+		: adjustedBubbleRounding(square);
 	const auto paintText = [&] {
-		if (_live) {
-			painty += st::mediaInBubbleSkip;
-		} else if (!hasText) {
+		if (!hasText && !_live) {
 			return;
-		} else if (isBubbleTop()) {
-			painty += st::msgPadding.top();
 		}
+		painty += st::mediaInBubbleSkip;
 
 		auto textw = width() - st::msgPadding.left() - st::msgPadding.right();
 
@@ -390,17 +417,10 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 			_description.drawLeftElided(p, paintx + st::msgPadding.left(), painty, textw, width(), 3, style::al_left, 0, -1, 0, false, toDescriptionSelection(context.selection));
 			painty += qMin(_description.countHeight(textw), 3 * st::webPageDescriptionFont->height);
 		}
-		if (!_live) {
-			painty += st::mediaInBubbleSkip;
-			painth -= painty;
-		}
 	};
-	if (!_live) {
-		paintText();
-	}
-	const auto thumbh = _live ? _live->thumbnailHeight : painth;
+	const auto thumbh = _thumbnailHeight;
 	auto rthumb = QRect(paintx, painty, paintw, thumbh);
-	if (!bubble) {
+	if (!bubble && !hostedInstantView) {
 		fillImageShadow(p, rthumb, rounding, context);
 	}
 
@@ -436,24 +456,90 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 				.rounding = rounding,
 			});
 	}
-	const auto paintMarker = [&](const style::icon &icon) {
-		icon.paint(
+	if (_liveLocation) {
+		ensureUserpicCreated();
+
+		const auto pinRadius = st::historyMapPinRadius;
+		const auto userpicSize = st::historyMapPinUserpicSize;
+		const auto tailHeight = st::historyMapPinTailHeight;
+		const auto tailHalfWidth = st::historyMapPinTailHalfWidth;
+
+		const auto cx = float64(rthumb.x() + rthumb.width() / 2);
+		const auto tipY = float64(rthumb.y() + rthumb.height() / 2);
+		const auto circleY = tipY - tailHeight - pinRadius;
+
+		const auto r = float64(pinRadius);
+		const auto w = float64(tailHalfWidth);
+		const auto attachAngle = std::asin(w / r) * 180.0 / M_PI;
+
+		const auto circleRect = QRectF(cx - r, circleY - r, 2.0 * r, 2.0 * r);
+
+		auto pin = QPainterPath();
+		pin.arcMoveTo(circleRect, 270.0 - attachAngle);
+		pin.arcTo(
+			circleRect,
+			270.0 - attachAngle,
+			-(360.0 - 2.0 * attachAngle));
+		pin.lineTo(cx, tipY);
+		pin.closeSubpath();
+
+		if (!_pinShadow) {
+			_pinShadow = std::make_unique<Ui::BoxShadow>(
+				st::historyMapPinShadow);
+		}
+		_pinShadow->paint(
 			p,
-			rthumb.x() + ((rthumb.width() - icon.width()) / 2),
-			rthumb.y() + (rthumb.height() / 2) - icon.height(),
-			width());
-	};
-	paintMarker(st->historyMapPoint());
-	paintMarker(st->historyMapPointInner());
+			circleRect.toAlignedRect(),
+			pinRadius);
+
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+
+		const auto dotRadius = st::historyMapPinDotRadius;
+		const auto dotStroke = st::historyMapPinDotStroke;
+		p.setBrush(st::mapPointDot);
+		p.drawEllipse(
+			QPointF(cx, tipY + dotRadius + dotStroke),
+			dotRadius + dotStroke,
+			dotRadius + dotStroke);
+		p.setBrush(st::mapPointDrop);
+		p.drawEllipse(
+			QPointF(cx, tipY + dotRadius + dotStroke),
+			dotRadius,
+			dotRadius);
+
+		p.setBrush(st::mapPointDot);
+		p.drawPath(pin);
+
+		const auto userpicImage = _userpic->image(userpicSize);
+		p.drawImage(
+			QRectF(
+				cx - userpicSize / 2.0,
+				circleY - userpicSize / 2.0,
+				userpicSize,
+				userpicSize),
+			userpicImage);
+	} else {
+		const auto paintMarker = [&](const style::icon &icon) {
+			icon.paint(
+				p,
+				rthumb.x() + ((rthumb.width() - icon.width()) / 2),
+				rthumb.y() + (rthumb.height() / 2) - icon.height(),
+				width());
+		};
+		paintMarker(st->historyMapPoint());
+		paintMarker(st->historyMapPointInner());
+	}
 	if (context.selected()) {
 		fillImageOverlay(p, rthumb, rounding, context);
 	}
+	painty += thumbh;
 	if (_live) {
-		painty += _live->thumbnailHeight;
-		painth -= _live->thumbnailHeight;
+		painth -= thumbh;
 		paintLiveRemaining(p, context, { paintx, painty, paintw, painth });
-		paintText();
-	} else if (_parent->media() == this) {
+	}
+	paintText();
+	if (!_live && !hasText && _parent->media() == this) {
 		auto fullRight = paintx + paintw;
 		auto fullBottom = height();
 		_parent->drawInfo(
@@ -593,17 +679,15 @@ TextState Location::textState(QPoint point, StateRequest request) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
 		return result;
 	}
-	auto paintx = 0, painty = 0, paintw = width(), painth = height();
+	auto paintx = 0, painty = 0, paintw = width();
 	bool bubble = _parent->hasBubble();
 
+	const auto hasText = !_title.isEmpty() || !_description.isEmpty();
 	auto checkText = [&] {
-		if (_live) {
-			painty += st::mediaInBubbleSkip;
-		} else if (_title.isEmpty() && _description.isEmpty()) {
+		if (!hasText && !_live) {
 			return false;
-		} else if (isBubbleTop()) {
-			painty += st::msgPadding.top();
 		}
+		painty += st::mediaInBubbleSkip;
 
 		auto textw = width() - st::msgPadding.left() - st::msgPadding.right();
 
@@ -636,26 +720,17 @@ TextState Location::textState(QPoint point, StateRequest request) const {
 			}
 			painty += descriptionh;
 		}
-		if (!_title.isEmpty() || !_description.isEmpty()) {
-			painty += st::mediaInBubbleSkip;
-		}
-		painth -= painty;
 		return false;
 	};
-	if (!_live && checkText()) {
-		return result;
-	}
-	const auto thumbh = _live ? _live->thumbnailHeight : painth;
+	const auto thumbh = _thumbnailHeight;
 	if (QRect(paintx, painty, paintw, thumbh).contains(point) && _data) {
 		result.link = _link;
 	}
-	if (_live) {
-		painty += _live->thumbnailHeight;
-		painth -= _live->thumbnailHeight;
-		if (checkText()) {
-			return result;
-		}
-	} else if (_parent->media() == this) {
+	painty += thumbh;
+	if (checkText()) {
+		return result;
+	}
+	if (!_live && !hasText && _parent->media() == this) {
 		auto fullRight = paintx + paintw;
 		auto fullBottom = height();
 		const auto bottomInfoResult = _parent->bottomInfoTextState(
@@ -728,11 +803,15 @@ QPoint Location::resolveCustomInfoRightBottom() const {
 }
 
 int Location::fullWidth() const {
-	return st::locationSize.width();
+	return (_sizeOverride.width() > 0)
+		? _sizeOverride.width()
+		: st::locationSize.width();
 }
 
 int Location::fullHeight() const {
-	return st::locationSize.height();
+	return (_sizeOverride.height() > 0)
+		? _sizeOverride.height()
+		: st::locationSize.height();
 }
 
 } // namespace HistoryView

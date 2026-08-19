@@ -12,12 +12,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/sandbox.h"
 #include "core/update_checker.h"
 #include "core/ui_integration.h"
+#include "core/version.h"
 #include "window/main_window.h"
 #include "platform/platform_specific.h"
 #include "base/zlib_help.h"
 
 #include <QtWidgets/QFileDialog>
+#include <QtWidgets/QMenu>
+#include <QtGui/QClipboard>
+#include <QtGui/QContextMenuEvent>
 #include <QtGui/QFontInfo>
+#include <QtGui/QGuiApplication>
 #include <QtGui/QScreen>
 #include <QtGui/QDesktopServices>
 #include <QtCore/QStandardPaths>
@@ -112,6 +117,46 @@ void PreLaunchLabel::setText(const QString &text) {
 	QLabel::setText(text);
 	updateGeometry();
 	resize(sizeHint());
+}
+
+void PreLaunchLabel::contextMenuEvent(QContextMenuEvent *e) {
+	const auto flags = textInteractionFlags();
+	const auto selectable = flags
+		& (Qt::TextSelectableByMouse | Qt::TextSelectableByKeyboard);
+	if (!selectable) {
+		e->ignore();
+		return;
+	}
+	const auto accel = [](QKeySequence::StandardKey key) {
+		return QCoreApplication::testAttribute(
+				Qt::AA_DontShowShortcutsInContextMenus)
+			? QString()
+			: QChar('\t')
+				+ QKeySequence(key).toString(QKeySequence::NativeText);
+	};
+	const auto menu = new QMenu(this);
+	menu->setAttribute(Qt::WA_DeleteOnClose);
+
+	const auto copy = menu->addAction(
+		u"&Copy"_q + accel(QKeySequence::Copy));
+	copy->setEnabled(hasSelectedText());
+	connect(copy, &QAction::triggered, this, [=] {
+		if (hasSelectedText()) {
+			QGuiApplication::clipboard()->setText(selectedText());
+		}
+	});
+
+	menu->addSeparator();
+
+	const auto selectAll = menu->addAction(
+		u"Select All"_q + accel(QKeySequence::SelectAll));
+	selectAll->setEnabled(!text().isEmpty());
+	connect(selectAll, &QAction::triggered, this, [=] {
+		setSelection(0, text().size());
+	});
+
+	e->accept();
+	menu->popup(e->globalPos());
 }
 
 PreLaunchInput::PreLaunchInput(QWidget *parent, bool password) : QLineEdit(parent) {
@@ -362,21 +407,21 @@ LastCrashedWindow::LastCrashedWindow(
 		Core::UpdateChecker checker;
 		using Progress = Core::UpdateChecker::Progress;
 		checker.checking(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			Assert(_updaterData != nullptr);
 
 			setUpdatingState(UpdatingCheck);
 		}, _lifetime);
 
 		checker.isLatest(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			Assert(_updaterData != nullptr);
 
 			setUpdatingState(UpdatingLatest);
 		}, _lifetime);
 
 		checker.progress(
-		) | rpl::start_with_next([=](const Progress &result) {
+		) | rpl::on_next([=](const Progress &result) {
 			Assert(_updaterData != nullptr);
 
 			setUpdatingState(UpdatingDownload);
@@ -384,14 +429,14 @@ LastCrashedWindow::LastCrashedWindow(
 		}, _lifetime);
 
 		checker.failed(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			Assert(_updaterData != nullptr);
 
 			setUpdatingState(UpdatingFail);
 		}, _lifetime);
 
 		checker.ready(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			Assert(_updaterData != nullptr);
 
 			setUpdatingState(UpdatingReady);
@@ -880,7 +925,7 @@ void LastCrashedWindow::networkSettings() {
 		proxy.user,
 		proxy.password);
 	box->saveRequests(
-	) | rpl::start_with_next([=](MTP::ProxyData &&data) {
+	) | rpl::on_next([=](MTP::ProxyData &&data) {
 		Assert(data.host.isEmpty() || data.port != 0);
 		_proxyChanges.fire(std::move(data));
 		proxyUpdated();

@@ -23,7 +23,7 @@ void SetupShadowsToScrollContent(
 	const auto topShadow = Ui::CreateChild<Ui::FadeShadow>(parent.get());
 	const auto bottomShadow = Ui::CreateChild<Ui::FadeShadow>(parent.get());
 	scroll->geometryValue(
-	) | rpl::start_with_next_done([=](const QRect &geometry) {
+	) | rpl::on_next_done([=](const QRect &geometry) {
 		topShadow->resizeToWidth(geometry.width());
 		topShadow->move(
 			geometry.x(),
@@ -32,9 +32,9 @@ void SetupShadowsToScrollContent(
 		bottomShadow->move(
 			geometry.x(),
 			geometry.y() + geometry.height() - st::lineWidth);
-	}, [t = Ui::MakeWeak(topShadow), b = Ui::MakeWeak(bottomShadow)] {
-		Ui::DestroyChild(t.data());
-		Ui::DestroyChild(b.data());
+	}, [t = base::make_weak(topShadow), b = base::make_weak(bottomShadow)] {
+		Ui::DestroyChild(t.get());
+		Ui::DestroyChild(b.get());
 	}, topShadow->lifetime());
 
 	topShadow->toggleOn(scroll->scrollTopValue() | rpl::map(_1 > 0));

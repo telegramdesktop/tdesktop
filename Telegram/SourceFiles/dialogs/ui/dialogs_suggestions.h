@@ -32,10 +32,11 @@ namespace Storage {
 enum class SharedMediaType : signed char;
 } // namespace Storage
 
-namespace Ui {
-namespace Controls {
+namespace Ui::Controls {
 struct SwipeHandlerArgs;
-} // namespace Controls
+} // namespace Ui::Controls
+
+namespace Ui {
 class BoxContent;
 class ScrollArea;
 class ElasticScroll;
@@ -51,6 +52,10 @@ class SessionController;
 
 namespace Dialogs {
 
+class InnerWidget;
+class PostsSearch;
+class PostsSearchIntro;
+struct PostsSearchIntroState;
 enum class SearchEmptyIcon;
 
 struct RecentPeersList {
@@ -109,6 +114,9 @@ public:
 	-> rpl::producer<not_null<PeerData*>> {
 		return _openBotMainAppRequests.events();
 	}
+	[[nodiscard]] rpl::producer<> closeRequests() const {
+		return _closeRequests.events();
+	}
 
 	class ObjectListController;
 
@@ -118,6 +126,7 @@ private:
 		Chats,
 		Channels,
 		Apps,
+		Posts,
 		Media,
 		Downloads,
 	};
@@ -209,6 +218,12 @@ private:
 	void updateControlsGeometry();
 	void applySearchQuery();
 
+	void setupPostsSearch();
+	void setPostsSearchQuery(const QString &query);
+	void setupPostsResults();
+	void setupPostsIntro(const PostsSearchIntroState &intro);
+	void updatePostsSearchVisibleRange();
+
 	const not_null<Window::SessionController*> _controller;
 
 	const std::unique_ptr<Ui::ScrollArea> _tabsScroll;
@@ -224,6 +239,7 @@ private:
 	const not_null<TopPeersStrip*> _topPeers;
 	rpl::event_stream<not_null<PeerData*>> _topPeerChosen;
 	rpl::event_stream<not_null<PeerData*>> _openBotMainAppRequests;
+	rpl::event_stream<> _closeRequests;
 
 	const std::unique_ptr<ObjectList> _recent;
 
@@ -239,6 +255,12 @@ private:
 
 	const std::unique_ptr<Ui::ElasticScroll> _appsScroll;
 	const not_null<Ui::VerticalLayout*> _appsContent;
+
+	std::unique_ptr<PostsSearch> _postsSearch;
+	const std::unique_ptr<Ui::ElasticScroll> _postsScroll;
+	const not_null<Ui::RpWidget*> _postsWrap;
+	PostsSearchIntro *_postsSearchIntro = nullptr;
+	InnerWidget *_postsContent = nullptr;
 
 	rpl::producer<> _recentAppsRefreshed;
 	Fn<bool(not_null<PeerData*>)> _recentAppsShows;

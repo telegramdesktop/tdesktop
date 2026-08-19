@@ -12,19 +12,27 @@ include(cmake/validate_special_target.cmake)
 include(cmake/version.cmake)
 desktop_app_parse_version(Telegram/build/version)
 
-set(project_langs C CXX)
-if (APPLE)
-    list(APPEND project_langs OBJC OBJCXX)
-elseif (LINUX)
-    list(APPEND project_langs ASM)
+if (NOT DEFINED CMAKE_CONFIGURATION_TYPES)
+    set(configuration_types_init 1)
 endif()
 
 project(Telegram
-    LANGUAGES ${project_langs}
+    LANGUAGES C CXX
     VERSION ${desktop_app_version_cmake}
     DESCRIPTION "Official Telegram Desktop messenger"
     HOMEPAGE_URL "https://desktop.telegram.org"
 )
+
+if (APPLE)
+    enable_language(OBJC OBJCXX)
+endif()
+
+if (configuration_types_init
+    AND CMAKE_CONFIGURATION_TYPES
+    AND NOT MinSizeRel IN_LIST CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_CONFIGURATION_TYPES "${CMAKE_CONFIGURATION_TYPES};MinSizeRel" CACHE STRING "" FORCE)
+endif()
+
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Telegram)
 
 get_filename_component(third_party_loc "Telegram/ThirdParty" REALPATH)
@@ -39,9 +47,7 @@ include(cmake/variables.cmake)
 include(cmake/nice_target_sources.cmake)
 include(cmake/target_compile_options_if_exists.cmake)
 include(cmake/target_link_frameworks.cmake)
-include(cmake/target_link_optional_libraries.cmake)
 include(cmake/target_link_options_if_exists.cmake)
-include(cmake/target_link_static_libraries.cmake)
 include(cmake/init_target.cmake)
 include(cmake/generate_target.cmake)
 include(cmake/nuget.cmake)

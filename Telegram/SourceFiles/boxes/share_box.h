@@ -71,6 +71,9 @@ struct ShareBoxStyleOverrides {
 };
 [[nodiscard]] ShareBoxStyleOverrides DarkShareBoxStyle();
 
+void FastShareMessageToSelf(
+	std::shared_ptr<Main::SessionShow> show,
+	not_null<HistoryItem*> item);
 void FastShareMessage(
 	std::shared_ptr<Main::SessionShow> show,
 	not_null<HistoryItem*> item,

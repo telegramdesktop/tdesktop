@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_style.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QScreen>
@@ -138,7 +139,7 @@ Preview::Preview(QWidget *slider, rpl::producer<QImage> userpic)
 , _slider(slider)
 , _ratio(style::DevicePixelRatio())
 , _window(Ui::Platform::TranslucentWindowsSupported()) {
-	std::move(userpic) | rpl::start_with_next([=](QImage &&userpic) {
+	std::move(userpic) | rpl::on_next([=](QImage &&userpic) {
 		_userpicOriginal = std::move(userpic);
 		if (!_userpicImage.isNull()) {
 			_userpicImage = {};
@@ -282,13 +283,13 @@ void Preview::init() {
 	});
 
 	_widget.paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
+	) | rpl::on_next([=](QRect clip) {
 		auto p = Painter(&_widget);
 		paint(p, clip);
 	}, _widget.lifetime());
 
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_bubbleCorners = {};
 		_bubbleTail = {};
 		_bubbleShadowBottomRight = {};

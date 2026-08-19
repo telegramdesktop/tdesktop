@@ -40,7 +40,7 @@ CodeWidget::CodeWidget(
 , _callLabel(this, st::introDescription)
 , _checkRequestTimer([=] { checkRequest(); }) {
 	Lang::Updated(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		refreshLang();
 	}, lifetime());
 
@@ -56,13 +56,13 @@ CodeWidget::CodeWidget(
 			: tr::lng_intro_fragment_title();
 	}) | rpl::flatten_latest());
 
-	account->setHandleLoginCode([=](const QString &code) {
+	account->setHandleLoginCode(crl::guard(this, [=](const QString &code) {
 		_code->setCode(code);
 		_code->requestCode();
-	});
+	}));
 
 	_code->codeCollected(
-	) | rpl::start_with_next([=](const QString &code) {
+	) | rpl::on_next([=](const QString &code) {
 		hideError();
 		submitCode(code);
 	}, lifetime());
@@ -84,16 +84,22 @@ void CodeWidget::updateDescText() {
 	const auto byTelegram = getData()->codeByTelegram;
 	const auto isFragment = !getData()->codeByFragmentUrl.isEmpty();
 	_isFragment = isFragment;
-	setDescriptionText(
-		isFragment
-			? tr::lng_intro_fragment_about(
-				lt_phone_number,
-				rpl::single(TextWithEntities{
-					.text = Ui::FormatPhone(getData()->phone)
-				}),
-				Ui::Text::RichLangValue)
-			: (byTelegram ? tr::lng_code_from_telegram : tr::lng_code_desc)(
-				Ui::Text::RichLangValue));
+	const auto emailPattern = !getData()->emailPatternSetup.isEmpty()
+		? getData()->emailPatternSetup
+		: getData()->emailPatternLogin;
+	setDescriptionText(!emailPattern.isEmpty()
+		? tr::lng_intro_email_confirm_subtitle(
+			lt_email,
+			rpl::single(Ui::Text::WrapEmailPattern(emailPattern)),
+			tr::marked)
+		: isFragment
+		? tr::lng_intro_fragment_about(
+			lt_phone_number,
+			rpl::single(
+				TextWithEntities::Simple(Ui::FormatPhone(getData()->phone))),
+			tr::rich)
+		: (byTelegram ? tr::lng_code_from_telegram : tr::lng_code_desc)(
+			tr::rich));
 	if (getData()->codeByTelegram) {
 		_noTelegramCode->show();
 		_callTimer.cancel();
@@ -226,6 +232,37 @@ void CodeWidget::codeSubmitDone(const MTPauth_Authorization &result) {
 	finish(result);
 }
 
+void CodeWidget::emailVerifyDone(const MTPaccount_EmailVerified &result) {
+	stopCheck();
+	_sentRequest = 0;
+
+	result.match([&](const MTPDaccount_emailVerified &data) {
+		_code->setEnabled(true);
+		showCodeError(rpl::single(
+			u"Unexpected type of response: emailVerifiedLogin"_q));
+	}, [&](const MTPDaccount_emailVerifiedLogin &data) {
+		getData()->emailPatternSetup.clear();
+		data.vsent_code().match([&](const MTPDauth_sentCode &sentData) {
+			fillSentCodeData(sentData);
+			getData()->phoneHash = qba(sentData.vphone_code_hash());
+			const auto next = sentData.vnext_type();
+			if (next && next->type() == mtpc_auth_codeTypeCall) {
+				getData()->callStatus = CallStatus::Waiting;
+				getData()->callTimeout = sentData.vtimeout().value_or(60);
+			} else {
+				getData()->callStatus = CallStatus::Disabled;
+				getData()->callTimeout = 0;
+			}
+			goReplace<CodeWidget>(Animate::Forward);
+		}, [&](const MTPDauth_sentCodeSuccess &sentData) {
+			finish(sentData.vauthorization());
+		}, [](const MTPDauth_sentCodePaymentRequired &) {
+			LOG(("API Error: Unexpected auth.sentCodePaymentRequired "
+				"(CodeWidget::emailVerifyDone)."));
+		});
+	});
+}
+
 void CodeWidget::codeSubmitFail(const MTP::Error &error) {
 	if (MTP::IsFloodError(error)) {
 		stopCheck();
@@ -255,10 +292,8 @@ void CodeWidget::codeSubmitFail(const MTP::Error &error) {
 		}).fail([=](const MTP::Error &error) {
 			codeSubmitFail(error);
 		}).handleFloodErrors().send();
-	} else if (Logs::DebugEnabled()) { // internal server error
-		showCodeError(rpl::single(err + ": " + error.description()));
-	} else {
-		showCodeError(rpl::single(Lang::Hard::ServerError()));
+	} else if (!MTP::IgnoreError(error)) {
+	    showCodeError(rpl::single(err));
 	}
 }
 
@@ -349,17 +384,39 @@ void CodeWidget::submitCode(const QString &text) {
 	_sentCode = text;
 	_code->setEnabled(false);
 	getData()->pwdState = Core::CloudPasswordState();
-	_sentRequest = api().request(MTPauth_SignIn(
-		MTP_flags(MTPauth_SignIn::Flag::f_phone_code),
-		MTP_string(getData()->phone),
-		MTP_bytes(getData()->phoneHash),
-		MTP_string(_sentCode),
-		MTPEmailVerification()
-	)).done([=](const MTPauth_Authorization &result) {
-		codeSubmitDone(result);
-	}).fail([=](const MTP::Error &error) {
-		codeSubmitFail(error);
-	}).handleFloodErrors().send();
+
+	if (isEmailVerification()) {
+		_sentRequest = api().request(MTPaccount_VerifyEmail(
+			MTP_emailVerifyPurposeLoginSetup(
+				MTP_string(getData()->phone),
+				MTP_bytes(getData()->phoneHash)),
+			MTP_emailVerificationCode(MTP_string(_sentCode))
+		)).done([=](const MTPaccount_EmailVerified &result) {
+			emailVerifyDone(result);
+		}).fail([=](const MTP::Error &error) {
+			codeSubmitFail(error);
+		}).handleFloodErrors().send();
+	} else {
+		const auto isEmailLogin = !getData()->emailPatternLogin.isEmpty();
+		_sentRequest = api().request(MTPauth_SignIn(
+			MTP_flags(isEmailLogin
+				? MTPauth_SignIn::Flag::f_email_verification
+				: MTPauth_SignIn::Flag::f_phone_code),
+			MTP_string(getData()->phone),
+			MTP_bytes(getData()->phoneHash),
+			MTP_string(_sentCode),
+			MTP_emailVerificationCode(
+				MTP_string(isEmailLogin ? _sentCode : QString()))
+		)).done([=](const MTPauth_Authorization &result) {
+			codeSubmitDone(result);
+		}).fail([=](const MTP::Error &error) {
+			codeSubmitFail(error);
+		}).handleFloodErrors().send();
+	}
+}
+
+bool CodeWidget::isEmailVerification() const {
+	return !getData()->emailPatternSetup.isEmpty();
 }
 
 rpl::producer<QString> CodeWidget::nextButtonText() const {
@@ -420,20 +477,12 @@ void CodeWidget::noTelegramCodeDone(const MTPauth_SentCode &result) {
 }
 
 void CodeWidget::noTelegramCodeFail(const MTP::Error &error) {
-	if (MTP::IsFloodError(error)) {
-		_noTelegramCodeRequestId = 0;
-		showCodeError(tr::lng_flood_error());
-		return;
-	} else if (error.type() == u"SEND_CODE_UNAVAILABLE"_q) {
-		_noTelegramCodeRequestId = 0;
-		return;
-	}
-
 	_noTelegramCodeRequestId = 0;
-	if (Logs::DebugEnabled()) { // internal server error
-		showCodeError(rpl::single(error.type() + ": " + error.description()));
-	} else {
-		showCodeError(rpl::single(Lang::Hard::ServerError()));
+	if (MTP::IsFloodError(error)) {
+		showCodeError(tr::lng_flood_error());
+	} else if (error.type() != u"SEND_CODE_UNAVAILABLE"_q
+	    && !MTP::IgnoreError(error)) {
+		showCodeError(rpl::single(error.type()));
 	}
 }
 

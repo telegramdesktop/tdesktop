@@ -25,6 +25,7 @@ public:
 	[[nodiscard]] not_null<History*> history() const;
 	[[nodiscard]] Element *view() const;
 	[[nodiscard]] HistoryItem *item() const;
+	[[nodiscard]] bool aboveHistory() const;
 
 	bool refresh();
 
@@ -33,6 +34,7 @@ public:
 	[[nodiscard]] auto sendIntroSticker() const
 		-> rpl::producer<not_null<DocumentData*>>;
 	[[nodiscard]] rpl::producer<> refreshRequests() const;
+	[[nodiscard]] rpl::producer<> destroyRequests() const;
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 	int top = 0;
@@ -50,6 +52,9 @@ private:
 	[[nodiscard]] AdminLog::OwnedItem makeNewPeerInfo(
 		not_null<UserData*> user);
 	[[nodiscard]] AdminLog::OwnedItem makeBlocked();
+	[[nodiscard]] AdminLog::OwnedItem makeNewBotThread();
+	[[nodiscard]] AdminLog::OwnedItem makeManagedBotInfo(
+		not_null<UserData*> user);
 	void makeIntro(not_null<UserData*> user);
 	void setItem(AdminLog::OwnedItem item, DocumentData *sticker);
 	void setHelloChosen(not_null<DocumentData*> sticker);
@@ -71,6 +76,7 @@ private:
 	bool _commonGroupsRequested = false;
 	std::vector<not_null<PeerData*>> _commonGroups;
 	rpl::event_stream<> _refreshRequests;
+	rpl::event_stream<> _destroyRequests;
 	rpl::lifetime _lifetime;
 
 };

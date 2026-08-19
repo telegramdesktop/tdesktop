@@ -50,7 +50,7 @@ PinnedTracker::PinnedTracker(not_null<Data::Thread*> thread)
 			: nullptr),
 		_1 || _2
 	) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](bool has) {
+	) | rpl::on_next([=](bool has) {
 		if (has) {
 			refreshViewer();
 		} else {
@@ -73,6 +73,19 @@ PinnedId PinnedTracker::currentMessageId() const {
 	return _current.current();
 }
 
+FullMsgId PinnedTracker::nextPinnedId(UniversalMsgId messageId) const {
+	const auto proj1 = [](FullMsgId id) {
+		return peerIsChannel(id.peer) ? id.msg : (id.msg - ServerMaxMsgId);
+	};
+	const auto proj2 = [](FullMsgId id) {
+		return id.msg;
+	};
+	const auto i = _migratedPeer
+		? ranges::upper_bound(_slice.ids, messageId, ranges::less(), proj1)
+		: ranges::upper_bound(_slice.ids, messageId, ranges::less(), proj2);
+	return (i != end(_slice.ids)) ? *i : FullMsgId();
+}
+
 void PinnedTracker::refreshViewer() {
 	if (_viewerAroundId == _aroundId) {
 		return;
@@ -86,12 +99,13 @@ void PinnedTracker::refreshViewer() {
 			SparseIdsMergedSlice::Key(
 				peer->id,
 				_thread->topicRootId(),
+				_thread->monoforumPeerId(),
 				_migratedPeer ? _migratedPeer->id : 0,
 				_viewerAroundId),
 			Storage::SharedMediaType::Pinned),
 		kLoadedLimit,
 		kLoadedLimit
-	) | rpl::start_with_next([=](const SparseIdsMergedSlice &result) {
+	) | rpl::on_next([=](const SparseIdsMergedSlice &result) {
 		_slice.fullCount = result.fullCount();
 		_slice.skippedBefore = result.skippedBefore();
 		_slice.skippedAfter = result.skippedAfter();

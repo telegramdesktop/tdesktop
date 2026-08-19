@@ -211,12 +211,12 @@ void BackgroundBox::prepare() {
 	setInnerTopSkip(st::lineWidth);
 
 	_inner->chooseEvents(
-	) | rpl::start_with_next([=](const Data::WallPaper &paper) {
+	) | rpl::on_next([=](const Data::WallPaper &paper) {
 		chosen(paper);
 	}, _inner->lifetime());
 
 	_inner->removeRequests(
-	) | rpl::start_with_next([=](const Data::WallPaper &paper) {
+	) | rpl::on_next([=](const Data::WallPaper &paper) {
 		removePaper(paper);
 	}, _inner->lifetime());
 }
@@ -337,7 +337,7 @@ void BackgroundBox::resetForPeer() {
 	const auto api = &_controller->session().api();
 	api->request(MTPmessages_SetChatWallPaper(
 		MTP_flags(0),
-		_forPeer->input,
+		_forPeer->input(),
 		MTPInputWallPaper(),
 		MTPWallPaperSettings(),
 		MTPint()
@@ -345,7 +345,7 @@ void BackgroundBox::resetForPeer() {
 		api->applyUpdates(result);
 	}).send();
 
-	const auto weak = Ui::MakeWeak(this);
+	const auto weak = base::make_weak(this);
 	_forPeer->setWallPaper({});
 	if (weak) {
 		_controller->finishChatThemeEdit(_forPeer);
@@ -358,7 +358,7 @@ bool BackgroundBox::forChannel() const {
 
 void BackgroundBox::removePaper(const Data::WallPaper &paper) {
 	const auto session = &_controller->session();
-	const auto remove = [=, weak = Ui::MakeWeak(this)](Fn<void()> &&close) {
+	const auto remove = [=, weak = base::make_weak(this)](Fn<void()> &&close) {
 		close();
 		if (weak) {
 			weak->_inner->removePaper(paper);
@@ -396,30 +396,30 @@ BackgroundBox::Inner::Inner(
 			+ st::backgroundPadding));
 
 	Window::Theme::IsNightModeValue(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		updatePapers();
 	}, lifetime());
 	requestPapers();
 
 	_session->downloaderTaskFinished(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		update();
 	}, lifetime());
 
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		_check->invalidateCache();
 	}, lifetime());
 
 	if (forChannel()) {
 		_session->data().cloudThemes().chatThemesUpdated(
-		) | rpl::start_with_next([=] {
+		) | rpl::on_next([=] {
 			updatePapers();
 		}, lifetime());
 	} else {
 		using Update = Window::Theme::BackgroundUpdate;
 		Window::Theme::Background()->updates(
-		) | rpl::start_with_next([=](const Update &update) {
+		) | rpl::on_next([=](const Update &update) {
 			if (update.type == Update::Type::New) {
 				sortPapers();
 				requestPapers();
@@ -451,12 +451,12 @@ auto BackgroundBox::Inner::resolveResetCustomPaper() const
 		return {};
 	}
 	const auto nonCustom = Window::Theme::Background()->paper();
-	const auto themeEmoji = _forPeer->themeEmoji();
-	if (forChannel() || themeEmoji.isEmpty()) {
+	const auto themeToken = _forPeer->themeToken();
+	if (forChannel() || themeToken.isEmpty()) {
 		return nonCustom;
 	}
 	const auto &themes = _forPeer->owner().cloudThemes();
-	const auto theme = themes.themeForEmoji(themeEmoji);
+	const auto theme = themes.themeForToken(themeToken);
 	if (!theme) {
 		return nonCustom;
 	}

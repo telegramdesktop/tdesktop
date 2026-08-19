@@ -43,6 +43,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
+#include "styles/style_boxes.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_media_player.h"
@@ -270,8 +272,8 @@ void Resolve(
 		not_null<UserData*> bot,
 		Fn<void(std::optional<ConnectedBotState>)> done) {
 	peer->session().api().request(MTPpayments_GetConnectedStarRefBot(
-		peer->input,
-		bot->inputUser
+		peer->input(),
+		bot->inputUser()
 	)).done([=](const MTPpayments_ConnectedStarRefBots &result) {
 		const auto parsed = Parse(&peer->session(), result);
 		if (parsed.empty()) {
@@ -296,7 +298,7 @@ ListController::ListController(
 
 	if (_type == JoinType::Joined) {
 		setupLinkBadge();
-		style::PaletteChanged() | rpl::start_with_next([=] {
+		style::PaletteChanged() | rpl::on_next([=] {
 			setupLinkBadge();
 		}, lifetime());
 	}
@@ -358,7 +360,7 @@ void ListController::loadMoreRows() {
 				MTP_flags(Flag()
 					| (_offsetDate ? Flag::f_offset_date : Flag())
 					| (_offsetThing.isEmpty() ? Flag() : Flag::f_offset_link)),
-				_peer->input,
+				_peer->input(),
 				MTP_int(_offsetDate),
 				MTP_string(_offsetThing),
 				MTP_int(kPerPage))
@@ -390,7 +392,7 @@ void ListController::loadMoreRows() {
 					: (_sort == SuggestedSort::Date)
 					? Flag::f_order_by_date
 					: Flag()),
-				_peer->input,
+				_peer->input(),
 				MTP_string(_offsetThing),
 				MTP_int(kPerPage))
 		).done([=](const MTPpayments_SuggestedStarRefBots &result) {
@@ -454,7 +456,7 @@ void ListController::setupAddForBot() {
 		st::starrefAddForBotIcon,
 		QPoint());
 	button->entity()->heightValue(
-	) | rpl::start_with_next([=](int height) {
+	) | rpl::on_next([=](int height) {
 		icon->moveToLeft(
 			st::starrefAddForBotIconPosition.x(),
 			(height - st::starrefAddForBotIcon.height()) / 2);
@@ -466,7 +468,7 @@ void ListController::setupAddForBot() {
 	button->entity()->events(
 	) | rpl::filter([=](not_null<QEvent*> e) {
 		return (e->type() == QEvent::Enter);
-	}) | rpl::start_with_next([=] {
+	}) | rpl::on_next([=] {
 		delegate()->peerListMouseLeftGeometry();
 	}, button->lifetime());
 	delegate()->peerListSetAboveWidget(std::move(button));
@@ -595,7 +597,7 @@ void RevokeLink(
 		Fn<void()> revoked) {
 	peer->session().api().request(MTPpayments_EditConnectedStarRefBot(
 		MTP_flags(MTPpayments_EditConnectedStarRefBot::Flag::f_revoked),
-		peer->input,
+		peer->input(),
 		MTP_string(link)
 	)).done([=] {
 		controller->showToast({
@@ -634,7 +636,11 @@ base::unique_qptr<Ui::PopupMenu> ListController::rowContextMenu(
 	if (!state.link.isEmpty()) {
 		addAction(tr::lng_star_ref_list_my_copy(tr::now), [=] {
 			QApplication::clipboard()->setText(state.link);
-			_controller->showToast(tr::lng_username_copied(tr::now));
+			_controller->showToast({
+				.text = { tr::lng_username_copied(tr::now) },
+				.iconLottie = u"toast/voip_invite"_q,
+				.iconLottieSize = st::toastLottieIconSize,
+			});
 		}, &st::menuIconLinks);
 		const auto revoke = [=] {
 			const auto link = state.link;
@@ -645,8 +651,8 @@ base::unique_qptr<Ui::PopupMenu> ListController::rowContextMenu(
 			_controller->show(Ui::MakeConfirmBox({
 				.text = tr::lng_star_ref_revoke_text(
 					lt_bot,
-					rpl::single(Ui::Text::Bold(bot->name())),
-					Ui::Text::RichLangValue),
+					rpl::single(tr::bold(bot->name())),
+					tr::rich),
 				.confirmed = sure,
 				.title = tr::lng_star_ref_revoke_title(),
 			}));
@@ -762,7 +768,7 @@ not_null<ListController*> InnerWidget::setupMy() {
 	) | rpl::map(rpl::mappers::_1 > 0));
 
 	controller->revoked(
-	) | rpl::start_with_next([=](ConnectedBot row) {
+	) | rpl::on_next([=](ConnectedBot row) {
 		_suggested->process(row);
 	}, content->lifetime());
 
@@ -771,24 +777,22 @@ not_null<ListController*> InnerWidget::setupMy() {
 
 void InnerWidget::setupSort(not_null<Ui::RpWidget*> label) {
 	constexpr auto phrase = [](SuggestedSort sort) {
-		return (sort == SuggestedSort::Profitability)
-			? tr::lng_star_ref_sort_profitability(tr::now)
+		return ((sort == SuggestedSort::Profitability)
+			? tr::lng_star_ref_sort_profitability
 			: (sort == SuggestedSort::Revenue)
-			? tr::lng_star_ref_sort_revenue(tr::now)
-			: tr::lng_star_ref_sort_date(tr::now);
+			? tr::lng_star_ref_sort_revenue
+			: tr::lng_star_ref_sort_date)(tr::now, tr::link);
 	};
 	const auto sort = Ui::CreateChild<Ui::FlatLabel>(
 		label->parentWidget(),
-		tr::lng_star_ref_sort_text(
-			lt_sort,
-			_sort.value() | rpl::map(phrase) | Ui::Text::ToLink(),
-		Ui::Text::WithEntities),
+		tr::lng_star_ref_sort_text(lt_sort, _sort.value() | rpl::map(phrase),
+		tr::marked),
 		st::defaultFlatLabel);
 	rpl::combine(
 		label->geometryValue(),
 		widthValue(),
 		sort->widthValue()
-	) | rpl::start_with_next([=](QRect geometry, int outer, int sortWidth) {
+	) | rpl::on_next([=](QRect geometry, int outer, int sortWidth) {
 		const auto skip = st::boxRowPadding.right();
 		const auto top = geometry.y()
 			+ st::defaultSubsectionTitle.style.font->ascent
@@ -806,7 +810,7 @@ void InnerWidget::setupSort(not_null<Ui::RpWidget*> label) {
 		};
 		for (const auto order : orders) {
 			const auto chosen = (order == _sort.current());
-			menu->addAction(phrase(order), crl::guard(this, [=] {
+			menu->addAction(phrase(order).text, crl::guard(this, [=] {
 				_sort = order;
 			}), chosen ? &st::mediaPlayerMenuCheck : nullptr);
 		}
@@ -846,11 +850,11 @@ not_null<ListController*> InnerWidget::setupSuggested() {
 	) | rpl::map(rpl::mappers::_1 > 0));
 
 	controller->connected(
-	) | rpl::start_with_next([=](ConnectedBot row) {
+	) | rpl::on_next([=](ConnectedBot row) {
 		_my->process(row);
 	}, content->lifetime());
 
-	_sort.value() | rpl::start_with_next([=](SuggestedSort sort) {
+	_sort.value() | rpl::on_next([=](SuggestedSort sort) {
 		controller->setSort(sort);
 	}, content->lifetime());
 
@@ -867,7 +871,7 @@ object_ptr<Ui::RpWidget> InnerWidget::infoRow(
 	raw->add(
 		object_ptr<Ui::FlatLabel>(
 			raw,
-			std::move(title) | Ui::Text::ToBold(),
+			std::move(title) | rpl::map(tr::bold),
 			st::defaultFlatLabel),
 		st::settingsPremiumRowTitlePadding);
 	raw->add(
@@ -989,8 +993,7 @@ void Widget::restoreState(not_null<Memento*> memento) {
 
 std::unique_ptr<Ui::Premium::TopBarAbstract> Widget::setupTop() {
 	auto title = tr::lng_star_ref_list_title();
-	auto about = tr::lng_star_ref_list_about_channel()
-		| Ui::Text::ToWithEntities();
+	auto about = tr::lng_star_ref_list_about_channel(tr::marked);
 
 	const auto controller = this->controller();
 	const auto weak = base::make_weak(controller->parentController());
@@ -1013,22 +1016,36 @@ std::unique_ptr<Ui::Premium::TopBarAbstract> Widget::setupTop() {
 	const auto raw = result.get();
 
 	controller->wrapValue(
-	) | rpl::start_with_next([=](Info::Wrap wrap) {
+	) | rpl::on_next([=](Info::Wrap wrap) {
 		raw->setRoundEdges(wrap == Info::Wrap::Layer);
 	}, raw->lifetime());
 
 	const auto baseHeight = st::starrefCoverHeight;
 	raw->resize(width(), baseHeight);
+	const auto updateTopSkip = [=] {
+		const auto height = raw->height();
+		setPaintPadding({ 0, height, 0, 0 });
+		setScrollTopSkip(height);
+	};
+	const auto setTopHeight = [=](int height) {
+		if (height > raw->maximumHeight()) {
+			raw->setMaximumHeight(height);
+			raw->setMinimumHeight(height);
+		} else {
+			raw->setMinimumHeight(height);
+			raw->setMaximumHeight(height);
+		}
+		raw->resize(raw->width(), height);
+		updateTopSkip();
+	};
 
 	raw->additionalHeight(
-	) | rpl::start_with_next([=](int additionalHeight) {
-		raw->setMaximumHeight(baseHeight + additionalHeight);
-		raw->setMinimumHeight(baseHeight + additionalHeight);
-		setPaintPadding({ 0, raw->height(), 0, 0 });
+	) | rpl::on_next([=](int additionalHeight) {
+		setTopHeight(baseHeight + additionalHeight);
 	}, raw->lifetime());
 
 	controller->wrapValue(
-	) | rpl::start_with_next([=](Info::Wrap wrap) {
+	) | rpl::on_next([=](Info::Wrap wrap) {
 		const auto isLayer = (wrap == Info::Wrap::Layer);
 		_back = base::make_unique_q<Ui::FadeWrap<Ui::IconButton>>(
 			raw,
@@ -1040,7 +1057,7 @@ std::unique_ptr<Ui::Premium::TopBarAbstract> Widget::setupTop() {
 			st::infoTopBarScale);
 		_back->setDuration(0);
 		_back->toggleOn(isLayer
-			? _backEnabled.value() | rpl::type_erased()
+			? _backEnabled.value() | rpl::type_erased
 			: rpl::single(true));
 		_back->entity()->addClickHandler([=] {
 			controller->showBackFromStack();
@@ -1048,7 +1065,7 @@ std::unique_ptr<Ui::Premium::TopBarAbstract> Widget::setupTop() {
 		_back->entity()->setRippleColorOverride(
 			&st::universalRippleAnimation.color);
 		_back->toggledValue(
-		) | rpl::start_with_next([=](bool toggled) {
+		) | rpl::on_next([=](bool toggled) {
 			const auto &st = isLayer ? st::infoLayerTopBar : st::infoTopBar;
 			raw->setTextPosition(
 				toggled ? st.back.width : st.titlePosition.x(),
@@ -1068,16 +1085,16 @@ std::unique_ptr<Ui::Premium::TopBarAbstract> Widget::setupTop() {
 			_close->setRippleColorOverride(
 				&st::universalRippleAnimation.color);
 			raw->widthValue(
-			) | rpl::start_with_next([=] {
+			) | rpl::on_next([=] {
 				_close->moveToRight(0, 0);
 			}, _close->lifetime());
 		}
 	}, raw->lifetime());
 
 	raw->move(0, 0);
-	widthValue() | rpl::start_with_next([=](int width) {
+	widthValue() | rpl::on_next([=](int width) {
 		raw->resizeToWidth(width);
-		setScrollTopSkip(raw->height());
+		updateTopSkip();
 	}, raw->lifetime());
 
 	return result;
@@ -1105,7 +1122,7 @@ std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer) {
 object_ptr<Ui::BoxContent> ProgramsListBox(
 		not_null<Window::SessionController*> window,
 		not_null<PeerData*> peer) {
-	const auto weak = std::make_shared<QPointer<PeerListBox>>();
+	const auto weak = std::make_shared<base::weak_qptr<PeerListBox>>();
 	const auto initBox = [=](not_null<PeerListBox*> box) {
 		*weak = box;
 		box->addButton(tr::lng_close(), [=] {
@@ -1117,8 +1134,8 @@ object_ptr<Ui::BoxContent> ProgramsListBox(
 		window,
 		peer,
 		JoinType::Existing);
-	controller->addForBotRequests() | rpl::start_with_next([=] {
-		if (const auto strong = weak->data()) {
+	controller->addForBotRequests() | rpl::on_next([=] {
+		if (const auto strong = weak->get()) {
 			strong->closeBox();
 		}
 	}, controller->lifetime());

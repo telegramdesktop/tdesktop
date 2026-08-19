@@ -28,6 +28,13 @@ public:
 		std::shared_ptr<Ui::Show> show,
 		const style::InputField &st);
 
+	QAccessible::Role accessibilityRole() override {
+		return QAccessible::Role::PushButton;
+	}
+	QString accessibilityName() override {
+		return _text;
+	}
+
 	[[nodiscard]] QString iso() const {
 		return _chosenIso;
 	}
@@ -41,6 +48,7 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
+	void keyPressEvent(QKeyEvent* e) override;
 	void enterEventHook(QEnterEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 

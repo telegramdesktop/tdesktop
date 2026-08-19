@@ -154,16 +154,19 @@ void ChatFilterLinkBox(
 		labelField->setFocusFast();
 	});
 
-	const auto &saveLabel = link.isEmpty()
-		? tr::lng_formatting_link_create
-		: tr::lng_settings_save;
-	box->addButton(saveLabel(), [=] {
+	const auto save = [=] {
 		session->data().chatsFilters().edit(
 			data.id,
 			data.url,
 			labelField->getLastText().trimmed());
 		box->closeBox();
-	});
+	};
+	labelField->submits() | rpl::on_next(save, labelField->lifetime());
+
+	const auto &saveLabel = link.isEmpty()
+		? tr::lng_formatting_link_create
+		: tr::lng_settings_save;
+	box->addButton(saveLabel(), save);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
@@ -531,35 +534,34 @@ void LinkController::addHeader(not_null<Ui::VerticalLayout*> container) {
 		},
 		st::settingsFilterIconPadding);
 	_showFinished.events(
-	) | rpl::start_with_next([animate = std::move(icon.animate)] {
+	) | rpl::on_next([animate = std::move(icon.animate)] {
 		animate(anim::repeat::once);
 	}, verticalLayout->lifetime());
 	verticalLayout->add(std::move(icon.widget));
 
 	const auto isStatic = _filterTitle.isStatic;
 	verticalLayout->add(
-		object_ptr<Ui::CenterWrap<>>(
+		object_ptr<Ui::FlatLabel>(
 			verticalLayout,
-			object_ptr<Ui::FlatLabel>(
-				verticalLayout,
-				(_data.url.isEmpty()
-					? tr::lng_filters_link_no_about(Ui::Text::WithEntities)
-					: tr::lng_filters_link_share_about(
-						lt_folder,
-						rpl::single(Ui::Text::Wrapped(
-							_filterTitle.text,
-							EntityType::Bold)),
-						Ui::Text::WithEntities)),
-				st::settingsFilterDividerLabel,
-				st::defaultPopupMenu,
-				Core::TextContext({
-					.session = &_window->session(),
-					.customEmojiLoopLimit = isStatic ? -1 : 0,
-				}))),
-		st::filterLinkDividerLabelPadding);
+			(_data.url.isEmpty()
+				? tr::lng_filters_link_no_about(tr::marked)
+				: tr::lng_filters_link_share_about(
+					lt_folder,
+					rpl::single(Ui::Text::Wrapped(
+						_filterTitle.text,
+						EntityType::Bold)),
+					tr::marked)),
+			st::settingsFilterDividerLabel,
+			st::defaultPopupMenu,
+			Core::TextContext({
+				.session = &_window->session(),
+				.customEmojiLoopLimit = isStatic ? -1 : 0,
+			})),
+		st::filterLinkDividerLabelPadding,
+		style::al_top)->setTryMakeSimilarLines(true);
 
 	verticalLayout->geometryValue(
-	) | rpl::start_with_next([=](const QRect &r) {
+	) | rpl::on_next([=](const QRect &r) {
 		divider->setGeometry(r);
 	}, divider->lifetime());
 }
@@ -582,7 +584,7 @@ void LinkController::addLinkBlock(not_null<Ui::VerticalLayout*> container) {
 	using namespace Settings;
 
 	const auto link = _data.url;
-	const auto weak = Ui::MakeWeak(container);
+	const auto weak = base::make_weak(container);
 	const auto copyLink = crl::guard(weak, [=] {
 		CopyInviteLink(delegate()->peerListUiShow(), link);
 	});
@@ -648,7 +650,7 @@ void LinkController::addLinkBlock(not_null<Ui::VerticalLayout*> container) {
 		st::inviteLinkFieldPadding);
 
 	label->clicks(
-	) | rpl::start_with_next(copyLink, label->lifetime());
+	) | rpl::on_next(copyLink, label->lifetime());
 
 	AddCopyShareLinkButtons(container, copyLink, shareLink);
 
@@ -786,7 +788,7 @@ void LinkController::setupAboveWidget() {
 		[=](bool select) { toggleAllSelected(select); });
 
 	// Fix label cutting on text change from smaller to longer.
-	_selected.changes() | rpl::start_with_next([=] {
+	_selected.changes() | rpl::on_next([=] {
 		container->resizeToWidth(container->widthNoMargins());
 	}, container->lifetime());
 
@@ -826,7 +828,7 @@ LinksController::LinksController(
 , _currentFilter(std::move(currentFilter))
 , _rows(std::move(content)) {
 	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		for (auto &image : _icons) {
 			image = QImage();
 		}
@@ -835,7 +837,7 @@ LinksController::LinksController(
 
 void LinksController::prepare() {
 	_rows.value(
-	) | rpl::start_with_next([=](const std::vector<InviteLinkData> &rows) {
+	) | rpl::on_next([=](const std::vector<InviteLinkData> &rows) {
 		rebuild(rows);
 	}, _lifetime);
 }
@@ -1016,7 +1018,7 @@ void ExportFilterLink(
 	const auto front = peers.front();
 	const auto session = &front->session();
 	auto mtpPeers = peers | ranges::views::transform(
-		[](not_null<PeerData*> peer) { return MTPInputPeer(peer->input); }
+		[](not_null<PeerData*> peer) { return MTPInputPeer(peer->input()); }
 	) | ranges::to<QVector<MTPInputPeer>>();
 	session->api().request(MTPchatlists_ExportChatlistInvite(
 		MTP_inputChatlistDialogFilter(MTP_int(id)),
@@ -1049,7 +1051,7 @@ void EditLinkChats(
 	const auto front = peers.front();
 	const auto session = &front->session();
 	auto mtpPeers = peers | ranges::views::transform(
-		[](not_null<PeerData*> peer) { return MTPInputPeer(peer->input); }
+		[](not_null<PeerData*> peer) { return MTPInputPeer(peer->input()); }
 	) | ranges::to<QVector<MTPInputPeer>>();
 	session->api().request(MTPchatlists_EditExportedInvite(
 		MTP_flags(MTPchatlists_EditExportedInvite::Flag::f_peers),
@@ -1079,7 +1081,7 @@ object_ptr<Ui::BoxContent> ShowLinkBox(
 
 		const auto saving = std::make_shared<bool>(false);
 		raw->hasChangesValue(
-		) | rpl::start_with_next([=](bool has) {
+		) | rpl::on_next([=](bool has) {
 			box->setCloseByOutsideClick(!has);
 			box->setCloseByEscape(!has);
 			box->clearButtons();
@@ -1183,7 +1185,7 @@ void AddFilterSubtitleWithToggles(
 	const auto canSelect = link->lifetime().make_state<rpl::variable<bool>>(
 		std::move(selectedCount) | rpl::map(_1 < selectableCount));
 	canSelect->value(
-	) | rpl::start_with_next([=](bool can) {
+	) | rpl::on_next([=](bool can) {
 		link->setText(can
 			? tr::lng_filters_by_link_select(tr::now)
 			: tr::lng_filters_by_link_deselect(tr::now));
@@ -1196,7 +1198,7 @@ void AddFilterSubtitleWithToggles(
 		container->widthValue(),
 		title->topValue(),
 		link->widthValue()
-	) | rpl::start_with_next([=](int outer, int y, int width) {
+	) | rpl::on_next([=](int outer, int y, int width) {
 		link->move(outer - st::boxRowPadding.right() - width, y);
 	}, link->lifetime());
 }

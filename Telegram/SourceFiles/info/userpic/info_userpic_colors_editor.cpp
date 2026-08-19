@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "ui/rect.h"
 #include "styles/style_info_userpic_builder.h"
-#include "styles/style_boxes.h"
+#include "styles/style_userpic_button.h"
 
 namespace UserpicBuilder {
 namespace {
@@ -94,7 +94,7 @@ void ColorsLine::fillButtons() {
 	_container = base::make_unique_q<Ui::RpWidget>(this);
 	const auto container = _container.get();
 	sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
+	) | rpl::on_next([=](const QSize &s) {
 		container->setGeometry(Rect(s));
 	}, container->lifetime());
 
@@ -245,12 +245,11 @@ object_ptr<Ui::RpWidget> CreateGradientEditor(
 		std::vector<QColor> colors;
 	};
 	const auto preview = container->add(
-		object_ptr<Ui::CenterWrap<EmojiUserpic>>(
+		object_ptr<EmojiUserpic>(
 			container,
-			object_ptr<EmojiUserpic>(
-				container,
-				Size(st::defaultUserpicButton.photoSize),
-				false)))->entity();
+			Size(st::defaultUserpicButton.photoSize),
+			false),
+		style::al_top);
 	preview->setDuration(0);
 	if (document) {
 		preview->setDocument(document);
@@ -271,13 +270,15 @@ object_ptr<Ui::RpWidget> CreateGradientEditor(
 	Ui::AddDivider(container);
 	Ui::AddSkip(container);
 
-	const auto editor = container->add(object_ptr<ColorEditor>(
+	auto ownedEditor = object_ptr<ColorEditor>(
 		container,
 		ColorEditor::Mode::HSL,
-		state->colors.back()));
+		state->colors.back());
+	container->resizeToWidth(ownedEditor->width());
+	const auto editor = container->add(std::move(ownedEditor));
 
 	buttonsContainer->chosenChanges(
-	) | rpl::start_with_next([=](ColorsLine::Chosen *chosen) {
+	) | rpl::on_next([=](ColorsLine::Chosen *chosen) {
 		if (chosen) {
 			const auto color = state->colors[chosen->index()];
 			editor->showColor(color);
@@ -289,10 +290,10 @@ object_ptr<Ui::RpWidget> CreateGradientEditor(
 		communication.result(state->colors);
 	});
 	// editor->submitRequests(
-	// ) | rpl::start_with_next([=] {
+	// ) | rpl::on_next([=] {
 	// }, editor->lifetime());
 	editor->colorValue(
-	) | rpl::start_with_next([=](QColor c) {
+	) | rpl::on_next([=](QColor c) {
 		if (const auto chosen = buttonsContainer->chosen()) {
 			chosen->setBrush(c);
 			state->colors[chosen->index()] = c;
@@ -302,11 +303,10 @@ object_ptr<Ui::RpWidget> CreateGradientEditor(
 
 	base::take(
 		communication.triggers
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		save();
 	}, container->lifetime());
 
-	container->resizeToWidth(editor->width());
 	buttonsContainer->init();
 
 	return container;

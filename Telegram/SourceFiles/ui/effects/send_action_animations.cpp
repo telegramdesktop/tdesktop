@@ -20,6 +20,7 @@ namespace {
 constexpr int kTypingDotsCount = 3;
 constexpr int kRecordArcsCount = 4;
 constexpr int kUploadArrowsCount = 3;
+constexpr auto kRoundPeriod = 800;
 constexpr auto kSpeakingDuration = 3200;
 constexpr auto kSpeakingFadeDuration = 400;
 
@@ -225,6 +226,71 @@ void RecordAnimation::paint(
 		p.drawArc(rect, kAngleStart, kAngleSpan);
 		size += st::historySendActionRecordDelta;
 	}
+	p.setOpacity(1.);
+}
+
+class RoundAnimation : public SendActionAnimation::Impl {
+public:
+	RoundAnimation() : Impl(kRoundPeriod) {
+	}
+
+	static const MetaData kMeta;
+	static std::unique_ptr<Impl> create() {
+		return std::make_unique<RoundAnimation>();
+	}
+	const MetaData *metaData() const override {
+		return &kMeta;
+	}
+
+	int width() const override {
+		return 2 * st::historySendActionRoundPosition.x()
+			+ 2 * st::historySendActionRoundRadius
+			+ 2 * st::lineWidth;
+	}
+
+	void paint(
+		QPainter &p,
+		style::color color,
+		int x,
+		int y,
+		int outerWidth,
+		crl::time now) override;
+
+};
+
+const RoundAnimation::MetaData RoundAnimation::kMeta = {
+	0,
+	&RoundAnimation::create,
+};
+
+void RoundAnimation::paint(
+		QPainter &p,
+		style::color color,
+		int x,
+		int y,
+		int outerWidth,
+		crl::time now) {
+	auto hq = PainterHighQualityEnabler(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(color);
+
+	const auto frameMs = frameTime(now);
+	const auto half = period() / 2;
+	const auto progress = anim::Disabled()
+		? 1.
+		: (frameMs < half)
+		? (frameMs / float64(half))
+		: (1. - (frameMs - half) / float64(half));
+
+	constexpr auto kMinOpacity = 55. / 255.;
+	p.setOpacity(kMinOpacity + (1. - kMinOpacity) * progress);
+
+	const auto radius = float64(st::historySendActionRoundRadius);
+	const auto center = QPointF(
+		x + st::historySendActionRoundPosition.x() + radius,
+		y + st::historySendActionRoundPosition.y());
+	p.drawEllipse(center, radius, radius);
+
 	p.setOpacity(1.);
 }
 
@@ -640,7 +706,6 @@ void CreateImplementationsMap() {
 	static constexpr auto kRecordTypes = {
 		Type::RecordVideo,
 		Type::RecordVoice,
-		Type::RecordRound,
 	};
 	for (const auto type : kRecordTypes) {
 		Implementations->insert(type, &RecordAnimation::kMeta);
@@ -650,10 +715,16 @@ void CreateImplementationsMap() {
 		Type::UploadPhoto,
 		Type::UploadVideo,
 		Type::UploadVoice,
-		Type::UploadRound,
 	};
 	for (const auto type : kUploadTypes) {
 		Implementations->insert(type, &UploadAnimation::kMeta);
+	}
+	static constexpr auto kRoundTypes = {
+		Type::RecordRound,
+		Type::UploadRound,
+	};
+	for (const auto type : kRoundTypes) {
+		Implementations->insert(type, &RoundAnimation::kMeta);
 	}
 	Implementations->insert(Type::Speaking, &SpeakingAnimation::kMeta);
 	Implementations->insert(

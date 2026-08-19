@@ -14,18 +14,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace Premium {
 
+enum class MiniStarsType {
+	MonoStars,
+	BiStars,
+	SlowStars,
+	DiamondStars,
+	SlowDiamondStars,
+};
+
 class MiniStars final {
 public:
-	enum class Type {
-		MonoStars,
-		BiStars,
-		SlowStars,
-	};
-
 	MiniStars(
 		Fn<void(const QRect &r)> updateCallback,
 		bool opaque = false,
-		Type type = Type::MonoStars);
+		MiniStarsType type = MiniStarsType::MonoStars);
 
 	void paint(QPainter &p, const QRectF &rect);
 	void setPaused(bool paused);
@@ -75,6 +77,7 @@ private:
 
 	crl::time _nextBirthTime = 0;
 	bool _paused = false;
+	uint8_t _idleCounter : 3 = 0;
 
 	QRect _rectToUpdate;
 
