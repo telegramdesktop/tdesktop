@@ -70,7 +70,8 @@ void SharedMedia::add(SharedMediaAddExisting &&query) {
 		if (query.types.test(type)) {
 			peerIt->second[index].addExisting(
 				query.messageId,
-				query.noSkipRange);
+				query.noSkipRange,
+				query.incrementCount);
 		}
 	}
 }
