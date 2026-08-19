@@ -2127,7 +2127,6 @@ PRIVATE
     qrc/emoji_7.qrc
     qrc/emoji_8.qrc
     qrc/emoji_preview.qrc
-    qrc/telegram/animations.qrc
     qrc/telegram/export.qrc
     qrc/telegram/export_rich.qrc
     qrc/telegram/picker.qrc
@@ -2142,6 +2141,7 @@ PRIVATE
 
 include(cmake/qrhi_shaders.cmake)
 include(cmake/generate_models.cmake)
+include(cmake/pack_animations.cmake)
 
 if (APPLE AND NOT build_macstore)
     nice_target_sources(Telegram ${res_loc}
