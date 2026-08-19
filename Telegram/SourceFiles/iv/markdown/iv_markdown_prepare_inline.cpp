@@ -409,9 +409,8 @@ void AppendInline(
 			inlineFormulas,
 			state);
 		break;
+	// Chat markdown never ends lines with two spaces of CommonMark.
 	case NodeKind::SoftBreak:
-		text->append(QChar(' '));
-		break;
 	case NodeKind::LineBreak:
 		text->append(QChar('\n'));
 		break;
