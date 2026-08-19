@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor.h"
 #include "editor/photo_editor_common.h"
 #include "iv/editor/iv_editor_article_style.h"
+#include "iv/editor/iv_editor_auto_pair.h"
 #include "iv/editor/iv_editor_clipboard_import.h"
 #include "iv/editor/iv_editor_commands.h"
 #include "iv/editor/iv_editor_math_box.h"
@@ -8575,6 +8576,10 @@ bool Widget::handleFieldKey(QKeyEvent *e) {
 		_inputRuleUndo = std::nullopt;
 	}
 	if (handleFieldInputRule(e)) {
+		return true;
+	}
+	if (!hasStructuralSelection() && HandleAutoPairKey(_field.get(), e)) {
+		e->accept();
 		return true;
 	}
 	if (key == Qt::Key_Escape) {
