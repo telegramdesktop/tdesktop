@@ -144,9 +144,10 @@ void SparseIdsList::addNew(MsgId messageId) {
 
 void SparseIdsList::addExisting(
 		MsgId messageId,
-		MsgRange noSkipRange) {
+		MsgRange noSkipRange,
+		bool incrementCount) {
 	auto range = { messageId };
-	addRange(range, noSkipRange, std::nullopt);
+	addRange(range, noSkipRange, std::nullopt, incrementCount);
 }
 
 void SparseIdsList::addSlice(
