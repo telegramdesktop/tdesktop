@@ -19,7 +19,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/local_url_handlers.h" // TryConvertUrlToLocal.
 #include "core/file_utilities.h" // File::OpenUrl.
 #include "core/core_cloud_password.h" // Core::CloudPasswordState
+#include "core/application.h"
 #include "core/click_handler_types.h"
+#include "core/core_screenshot_protection.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
 #include "api/api_cloud_password.h"
@@ -334,6 +336,10 @@ CheckoutProcess::CheckoutProcess(
 	) | rpl::on_next([=](const FormUpdate &update) {
 		handleFormUpdate(update);
 	}, _lifetime);
+
+	Core::App().screenshotProtection().addReason(
+		_screenshotProtection.value(),
+		_panel->lifetime());
 
 	_panel->savedMethodChosen(
 	) | rpl::on_next([=](QString id) {
@@ -802,6 +808,7 @@ void CheckoutProcess::panelEditPhone() {
 }
 
 void CheckoutProcess::showForm() {
+	_screenshotProtection = !_form->invoice().isTest;
 	_panel->showForm(
 		_form->invoice(),
 		_form->information(),
