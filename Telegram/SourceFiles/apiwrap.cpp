@@ -3713,7 +3713,10 @@ void ApiWrap::sharedMediaDone(
 		SharedMediaType type,
 		Api::SearchResult &&parsed) {
 	const auto topic = peer->forumTopicFor(topicRootId);
-	const auto sublist = peer->monoforumSublistFor(monoforumPeerId);
+	const auto sublist = (monoforumPeerId && peer->isSelf())
+		? _session->data().savedMessages().sublistLoaded(
+			_session->data().peer(monoforumPeerId))
+		: peer->monoforumSublistFor(monoforumPeerId);
 	if ((topicRootId && !topic) || (monoforumPeerId && !sublist)) {
 		return;
 	}
