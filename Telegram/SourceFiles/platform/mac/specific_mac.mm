@@ -288,6 +288,29 @@ void ActivateThisProcess() {
 	objc_activateProgram(window ? window->widget()->winId() : 0);
 }
 
+bool ScreenshotProtectionSupported() {
+	return true;
+}
+
+void SetWindowScreenshotProtection(not_null<QWidget*> window, bool enabled) {
+	const auto handle = window->internalWinId();
+	if (!handle) {
+		return;
+	}
+	NSView *view = reinterpret_cast<NSView*>(handle);
+	NSWindow *nsWindow = [view window];
+	if (!nsWindow) {
+		return;
+	}
+	// Do not read sharingType back to check this: once it has been set to
+	// NSWindowSharingNone the getter keeps returning that on macOS 26 even
+	// after the window is capturable again. The assignment itself works in
+	// both directions and takes effect immediately.
+	nsWindow.sharingType = enabled
+		? NSWindowSharingNone
+		: NSWindowSharingReadOnly;
+}
+
 void LaunchMaps(const Data::LocationPoint &point, Fn<void()> fail) {
 	if (!QDesktopServices::openUrl(
 		u"https://maps.apple.com/?q=Point&z=16&ll=%1,%2"_q.arg(

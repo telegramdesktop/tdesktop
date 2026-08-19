@@ -72,6 +72,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #define WM_NCPOINTERUP 0x0243
 #endif
 
+// Windows 10 version 2004 and later. Older systems only have WDA_MONITOR,
+// which leaves the window in the capture but paints it black.
+#ifndef WDA_EXCLUDEFROMCAPTURE
+#define WDA_EXCLUDEFROMCAPTURE 0x00000011
+#endif
+
 using namespace ::Platform;
 
 namespace {
@@ -515,6 +521,23 @@ void WriteCrashDumpDetails() {
 			<< " MB (current)\n";
 	}
 #endif // TDESKTOP_DISABLE_CRASH_REPORTS
+}
+
+bool ScreenshotProtectionSupported() {
+	return true;
+}
+
+void SetWindowScreenshotProtection(not_null<QWidget*> window, bool enabled) {
+	const auto handle = window->internalWinId();
+	if (!handle) {
+		return;
+	}
+	const auto hwnd = reinterpret_cast<HWND>(handle);
+	if (!enabled) {
+		SetWindowDisplayAffinity(hwnd, WDA_NONE);
+	} else if (!SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)) {
+		SetWindowDisplayAffinity(hwnd, WDA_MONITOR);
+	}
 }
 
 void SetWindowPriority(not_null<QWidget*> window, uint32 priority) {
