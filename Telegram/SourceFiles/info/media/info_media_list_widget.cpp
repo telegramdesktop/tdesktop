@@ -1455,6 +1455,10 @@ void ListWidget::showContextMenu(
 		? reinterpret_cast<DocumentData*>(
 			link->property(kDocumentLinkMediaProperty).toULongLong())
 		: nullptr;
+	const auto rowDocument = _overLayout
+		? _overLayout->getDocument()
+		: nullptr;
+	const auto document = rowDocument ? rowDocument : lnkDocument;
 	using ExternalState = Data::DownloadManager::ExternalLoadingState;
 	const auto externalState = _controller->isDownloads()
 		? Core::App().downloadManager().loadingExternalState(item)
@@ -1468,53 +1472,39 @@ void ListWidget::showContextMenu(
 				}
 			},
 			&st::menuIconCancel);
-	} else if (lnkPhoto || lnkDocument) {
-		if (lnkPhoto) {
+	} else if (document) {
+		if (document->loading()) {
+			_contextMenu->addAction(
+				tr::lng_context_cancel_download(tr::now),
+				[document] {
+					document->cancel();
+				},
+				&st::menuIconCancel);
 		} else {
-			if (lnkDocument->loading()) {
-				_contextMenu->addAction(
-					tr::lng_context_cancel_download(tr::now),
-					[lnkDocument] {
-						lnkDocument->cancel();
-					},
-					&st::menuIconCancel);
-			} else {
-				const auto filepath = _provider->showInFolderPath(
-					item,
-					lnkDocument);
-				if (!filepath.isEmpty()) {
-					const auto handler = base::fn_delayed(
-						st::defaultDropdownMenu.menu.ripple.hideDuration,
-						this,
-						[filepath] {
-							File::ShowInFolder(filepath);
-						});
-					_contextMenu->addAction(
-						(Platform::IsMac()
-							? tr::lng_context_show_in_finder(tr::now)
-							: tr::lng_context_show_in_folder(tr::now)),
-						std::move(handler),
-						&st::menuIconShowInFolder);
-				}
+			const auto filepath = _provider->showInFolderPath(item, document);
+			if (!filepath.isEmpty()) {
 				const auto handler = base::fn_delayed(
 					st::defaultDropdownMenu.menu.ripple.hideDuration,
 					this,
-					[=] {
-						DocumentSaveClickHandler::SaveAndTrack(
-							globalId.itemId,
-							lnkDocument,
-							DocumentSaveClickHandler::Mode::ToNewFile);
+					[filepath] {
+						File::ShowInFolder(filepath);
 					});
-				if (_provider->allowSaveFileAs(item, lnkDocument)) {
-					HistoryView::AddSaveDocumentAction(
-						Ui::Menu::CreateAddActionCallback(_contextMenu),
-						item,
-						lnkDocument,
-						_controller->parentController());
-				}
+				_contextMenu->addAction(
+					(Platform::IsMac()
+						? tr::lng_context_show_in_finder(tr::now)
+						: tr::lng_context_show_in_folder(tr::now)),
+					std::move(handler),
+					&st::menuIconShowInFolder);
+			}
+			if (_provider->allowSaveFileAs(item, document)) {
+				HistoryView::AddSaveDocumentAction(
+					Ui::Menu::CreateAddActionCallback(_contextMenu),
+					item,
+					document,
+					_controller->parentController());
 			}
 		}
-	} else if (link) {
+	} else if (link && !lnkPhoto) {
 		const auto actionText = link->copyToClipboardContextItemText();
 		if (!actionText.isEmpty()) {
 			_contextMenu->addAction(

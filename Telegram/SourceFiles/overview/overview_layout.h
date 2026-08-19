@@ -69,6 +69,10 @@ public:
 		return _parent;
 	}
 
+	[[nodiscard]] virtual DocumentData *getDocument() const {
+		return nullptr;
+	}
+
 	[[nodiscard]] virtual bool selectionConsumesClick(QPoint point) const;
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) override;
@@ -451,6 +455,10 @@ public:
 		QPoint point,
 		StateRequest request) const override;
 	[[nodiscard]] bool selectionConsumesClick(QPoint point) const override;
+
+	[[nodiscard]] DocumentData *getDocument() const override {
+		return _data;
+	}
 
 	void clearHeavyPart() override;
 
