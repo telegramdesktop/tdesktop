@@ -87,7 +87,7 @@ TopControls::TopControls(
 , _repliesRootId(descriptor.repliesRootId)
 , _topic(descriptor.topic)
 , _sublist(descriptor.sublist)
-, _monoforumPeerId(descriptor.monoforumPeerId)
+, _monoforumPeerId(activeThread()->monoforumPeerId())
 , _scroll(descriptor.scroll)
 , _list(descriptor.list)
 , _keyboardReservedHeight(std::move(descriptor.keyboardReservedHeight))
