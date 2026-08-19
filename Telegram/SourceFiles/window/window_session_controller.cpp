@@ -73,6 +73,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_interactions.h"
 #include "core/shortcuts.h"
 #include "core/application.h"
+#include "core/core_screenshot_protection.h"
 #include "core/click_handler_types.h"
 #include "core/file_utilities.h"
 #include "core/ui_integration.h"
@@ -1915,6 +1916,18 @@ void SessionController::init() {
 		handleDrawToReplyRequest(std::move(request));
 	}, lifetime());
 	setupShortcuts();
+	setupScreenshotProtection();
+}
+
+void SessionController::setupScreenshotProtection() {
+	Core::App().screenshotProtection().addReason(activeChatValue(
+	) | rpl::map([](Dialogs::Key key) {
+		const auto peer = key.peer();
+		return peer
+			? (Data::AllowsForwardingValue(peer)
+				| rpl::map(!rpl::mappers::_1))
+			: (rpl::single(false) | rpl::type_erased);
+	}) | rpl::flatten_latest(), lifetime());
 }
 
 void SessionController::setupShortcuts() {
