@@ -549,6 +549,8 @@ PRIVATE
     core/click_handler_types.h
     core/core_cloud_password.cpp
     core/core_cloud_password.h
+    core/core_screenshot_protection.cpp
+    core/core_screenshot_protection.h
     core/core_settings.cpp
     core/core_settings.h
     core/core_settings_proxy.cpp

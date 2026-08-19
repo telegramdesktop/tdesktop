@@ -113,6 +113,7 @@ class Environment;
 namespace Core {
 
 struct LocalUrlHandler;
+class ScreenshotProtection;
 class Settings;
 class Tray;
 
@@ -162,6 +163,9 @@ public:
 	}
 	[[nodiscard]] base::BatterySaving &batterySaving() const {
 		return *_batterySaving;
+	}
+	[[nodiscard]] ScreenshotProtection &screenshotProtection() const {
+		return *_screenshotProtection;
 	}
 
 	// Windows interface.
@@ -418,6 +422,7 @@ private:
 	const std::unique_ptr<Platform::Integration> _platformIntegration;
 	const std::unique_ptr<base::BatterySaving> _batterySaving;
 	const std::unique_ptr<Webrtc::Environment> _mediaDevices;
+	const std::unique_ptr<ScreenshotProtection> _screenshotProtection;
 
 	const std::unique_ptr<Storage::Databases> _databases;
 	const std::unique_ptr<Ui::Animations::Manager> _animationsManager;

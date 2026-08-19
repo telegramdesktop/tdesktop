@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt_signal_producer.h"
 #include "base/timer.h"
 #include "base/unixtime.h"
+#include "core/core_screenshot_protection.h"
 #include "core/core_settings.h"
 #include "core/update_checker.h"
 #include "core/shortcuts.h"
@@ -161,6 +162,7 @@ Application::Application()
 , _platformIntegration(Platform::Integration::Create())
 , _batterySaving(std::make_unique<base::BatterySaving>())
 , _mediaDevices(std::make_unique<Webrtc::Environment>())
+, _screenshotProtection(std::make_unique<ScreenshotProtection>())
 , _databases(std::make_unique<Storage::Databases>())
 , _animationsManager(std::make_unique<Ui::Animations::Manager>())
 , _clearEmojiImageLoaderTimer([=] { clearEmojiSourceImages(); })
@@ -183,6 +185,8 @@ Application::Application()
 	_private->proxyRotation = std::make_unique<ProxyRotationManager>();
 
 	_platformIntegration->init();
+
+	_screenshotProtection->addReason(passcodeLockValue());
 
 	passcodeLockChanges(
 	) | rpl::on_next([=](bool locked) {
