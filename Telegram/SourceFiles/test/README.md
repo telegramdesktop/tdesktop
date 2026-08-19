@@ -96,6 +96,54 @@ a production callback that is intentionally retryable. Use
 then `InvokeLiveAction()` in an action/assertion stage. This is preferable to
 guessing which `RoundButton` belongs to a presentation wrapper.
 
+## Resolving a chat's message list
+
+A chat's message list is not necessarily `HistoryWidget` / `HistoryInner`.
+The legacy main-chat stack is `HistoryWidget` (`history/history_widget.h`)
+plus `HistoryInner` (`history/history_inner_widget.h`); the modern stack is
+`HistoryView::ChatWidget` (`history/view/history_view_chat_section.h`) plus
+`HistoryView::ListWidget` (`history/view/history_view_list_widget.h`); and the
+admin log is a third stack again, `AdminLog::InnerWidget`, which implements
+`HistoryView::ElementDelegate` itself and constructs no `ListWidget`.
+`ChatWidget` already backs replies threads, forum topics and both monoforum
+and Saved Messages sublists (both are `Data::SavedSublist`); scheduled
+messages, pinned messages, welcome messages and the chat preview popup each
+construct their own `ListWidget`.
+
+A scenario that assumes one named widget renders every chat fails opaquely.
+Publishing a live widget from `HistoryWidget`'s construction seam and then
+walking the window logged `RENDER_ROUTES: published=0 walked=0 chain=[none]`
+against 403 root descendants — the `HistoryInner` was never constructed, and
+the walk found none either — while the window grab plainly showed the chat
+painting the row.
+
+The rule is therefore about resolution, not about a name, and stays true as
+the migration proceeds. Resolve the list from the section that constructs it
+and prove the candidate owns the message:
+
+- publish the exact live object at the statement that constructs the list —
+  `_inner = _scroll->setOwnedWidget(object_ptr<ListWidget>(` in
+  `history/view/history_view_chat_section.cpp` — through
+  `Test::PublishLiveWidget`;
+- keep `Test::FindVisible<HistoryView::ListWidget>` as an independent
+  cross-check and log both answers;
+- accept a candidate only when its own lookup answers for the exact message:
+  `list->viewByPosition(item->position())` must return an `Element` whose
+  `data()` is that item and whose `delegate()` is that same list;
+- scroll with the product's own entry points, `showThread` and then the list's
+  `showAtPosition`; decide where the row sits with the list's public
+  `elementIntersectsRange(view, from, till)`, and frame it with
+  `Test::CaptureMappedRect`.
+
+`item->mainView()` is not the `Element` the visible section owns, so it is
+neither a readiness gate nor a geometry oracle. For a row a `ListWidget` was
+painting it answered `view=1` with `viewHeight=0` and `itemTop=-3`; use the
+list's own `viewByPosition` for both jobs instead.
+
+The parent chain a resolved `ListWidget` produced, as the shape to expect, was
+`ListWidget < Ui::ElasticScroll < ChatWidget < MainWidget < Ui::RpWidget <
+Ui::RpWidget < MainWindow`.
+
 ## Input helpers
 
 All input helpers synchronously dispatch real Qt events and drain
@@ -274,6 +322,30 @@ criteria `N/A` and the run a test flaw — never a `FAIL`. Without that gate, a
 frozen reading taken after the action cannot be told apart from the product
 failing.
 
+## Scenario teardown before quit
+
+A scenario that deliberately leaks its `State` so it outlives a stage owns the
+release of everything that `State` holds into session-owned objects: every
+`rpl::lifetime`, every watcher, and every raw cross-stage pointer. Destroy
+them in a final teardown stage that runs before the runner quits.
+
+Nothing else does it, and skipping it costs a whole run. A leaked `State`
+whose two `rpl::lifetime`s were never released kept observers subscribed to
+`Storage::Facade`'s and `Data::Session`'s streams while `~Main::Session` tore
+those streams and their items down. The run reached `TEST_COMPLETE` after a
+clean sweep and then died with `Caught signal 11 (SIGSEGV)`, no assertion line
+anywhere in the run's logs, and a 0-byte minidump because the runner had to
+kill the process. With the teardown stage added, three consecutive runs exited
+0, wrote no crash report and left no minidump.
+
+The stage is not guaranteed to run. A stage that times out, and the scenario
+watchdog, make `Runner` finish immediately and skip every stage after it,
+while a stage whose assertions `FAIL` does not — that run still reaches its
+teardown. After a timeout the same death can follow `TEST_COMPLETE`, so read
+it as this signature rather than as a second product fault, and keep the
+leaked `State`'s session-observing subscriptions no wider than the stages that
+need them.
+
 ## Failure diagnosis
 
 | Symptom | Likely harness cause | Repair |
@@ -289,6 +361,7 @@ failing.
 | Test reaches a real external action | Missing expectation/fuse or mock seam. | Declare the exact blocked launch, mock the transport/payment boundary, and assert zero real calls. |
 | Pixel probe misses only on Retina or at 125/150% | Logical rect indexed into the device-pixel grab, or a 100% literal reused at another interface scale. | Multiply by the image `devicePixelRatio()` once at the sampling boundary; derive expectations from the live scaled tokens. |
 | Geometry oracle fails on plausible-looking rects | Rects from different widgets compared without a shared origin. | Map both through one declared frame (`Ui::MapFrom`, `mapToGlobal`) and log the mapped values in the failure details. |
+| Process dies after `TEST_COMPLETE`, with no assertion line and often a 0-byte dump | Overlay teardown, not the product: a leaked scenario `State` still holds `rpl` subscriptions to session-owned streams while `~Main::Session` destroys them. | Destroy the scenario's lifetimes, release its watchers and null every raw cross-stage pointer in a final teardown stage — and check it ran, because a timed-out stage or the watchdog skips every stage after it. |
 | Media reading frozen at position `0`, with the length equal to the document's declared duration | Undecodable fixture document — often a synthetic upload left on the shared test account — accepted on metadata alone; the app debug log shows `Streaming Error: Error in avformat_open_input`. | Select the fixture with the playability probe: play each candidate and accept only one whose position strictly advances, then reuse that document everywhere. |
 
 Classify a sound assertion against changed behavior as an implementation bug,
