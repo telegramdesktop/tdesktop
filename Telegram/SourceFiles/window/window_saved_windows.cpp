@@ -52,10 +52,12 @@ constexpr auto kBatchResolveFallback = 10 * crl::time(1000);
 constexpr auto kMaxSavedWindows = 64;
 constexpr auto kMaxSavedChats = 64;
 constexpr auto kMaxClosedWindows = 16;
+constexpr auto kMaxIgnoredOffers = 3;
 constexpr auto kVersion = 3;
 constexpr auto kPrefKey = std::string_view("windows_state");
 constexpr auto kRestoreKey = std::string_view("windows_state.restore");
 constexpr auto kAskedKey = std::string_view("windows_state.asked");
+constexpr auto kIgnoredKey = std::string_view("windows_state.ignored");
 
 [[nodiscard]] bool ValidType(int type) {
 	switch (SeparateType(type)) {
@@ -358,6 +360,7 @@ void SavedWindows::setRestoreOnLaunch(bool restore) {
 void SavedWindows::markAsked(bool restore) {
 	_app->settings().writePref<bool>(kAskedKey, true);
 	_app->settings().writePref<bool>(kRestoreKey, restore);
+	_app->settings().clearPref(kIgnoredKey);
 }
 
 void SavedWindows::attachToWindow(not_null<Controller*> window) {
@@ -670,6 +673,16 @@ void SavedWindows::maybeOfferRestore() {
 	if (!window || !window->sessionController()) {
 		return;
 	}
+	if (!_offerCounted) {
+		const auto ignored = _app->settings().readPref<int>(kIgnoredKey, 0);
+		if (ignored >= kMaxIgnoredOffers) {
+			markAsked(false);
+			discardRestore();
+			return;
+		}
+		_offerCounted = true;
+		_app->settings().writePref<int>(kIgnoredKey, ignored + 1);
+	}
 	_offered = true;
 	ShowRestoreOffer(window, crl::guard(this, [=](OfferChoice choice) {
 		switch (choice) {
@@ -679,6 +692,7 @@ void SavedWindows::maybeOfferRestore() {
 			beginRestore();
 			break;
 		case OfferChoice::Once:
+			_app->settings().clearPref(kIgnoredKey);
 			beginRestore();
 			break;
 		case OfferChoice::Never:

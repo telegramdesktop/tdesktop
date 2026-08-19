@@ -141,6 +141,7 @@ private:
 	int _generation = 0;
 	bool _domainReady = false;
 	bool _offered = false;
+	bool _offerCounted = false;
 	bool _announceOnFinish = false;
 	bool _activatedOnce = false;
 	bool _deferUntilActivated = false;
