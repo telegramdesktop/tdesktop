@@ -2690,15 +2690,30 @@ void HistoryItem::applySentMessage(const MTPDmessage &data) {
 	}
 	setPostAuthor(data.vpost_author().value_or_empty());
 	contributeToSlowmode(data.vdate().v);
-	if (isRegular()
-		&& (topicRootId() != wasTopicRootId
-			|| sublistPeerId() != wasSublistPeerId)) {
-		if (wasTypes) {
+	if (isRegular() && wasTypes) {
+		// addToSharedMediaIndex() below writes the message's current
+		// (key, mask); this is its inverse. A type the message keeps at
+		// an unchanged key must not be removed and re-added: Storage's
+		// SparseIdsList::removeOne decrements the stored count with no
+		// membership test, and SharedMedia::remove fires a removal event
+		// that every open shared-media viewer of that type applies, so
+		// such a pair is only count-neutral, never free.
+		const auto keyMoved = (topicRootId() != wasTopicRootId)
+			|| (sublistPeerId() != wasSublistPeerId);
+		const auto nowTypes = sharedMediaTypes();
+		auto goneTypes = Storage::SharedMediaTypesMask();
+		for (auto index = 0; index != Storage::kSharedMediaTypeCount; ++index) {
+			const auto type = static_cast<Storage::SharedMediaType>(index);
+			if (wasTypes.test(type) && (keyMoved || !nowTypes.test(type))) {
+				goneTypes.set(type);
+			}
+		}
+		if (goneTypes) {
 			_history->session().storage().remove(Storage::SharedMediaRemoveOne(
 				_history->peer->id,
 				wasTopicRootId,
 				wasSublistPeerId,
-				wasTypes,
+				goneTypes,
 				id));
 		}
 	}
