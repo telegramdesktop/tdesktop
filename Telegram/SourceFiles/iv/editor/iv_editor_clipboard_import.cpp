@@ -685,6 +685,14 @@ std::vector<RichPage::Block> ConvertImportedBlocks(
 	};
 }
 
+// SplitTextIntoRichPage() spells field text with exactly these kinds.
+[[nodiscard]] bool BlockKindFitsComposeField(RichPage::BlockKind kind) {
+	using Kind = RichPage::BlockKind;
+	return (kind == Kind::Paragraph)
+		|| (kind == Kind::Code)
+		|| (kind == Kind::Quote);
+}
+
 } // namespace
 
 TableImportLimits TableImportLimitsFor(
@@ -753,11 +761,9 @@ bool MimeDataLooksLikeExportedHtml(not_null<const QMimeData*> data) {
 }
 
 bool RichBlocksCarryStructure(const std::vector<RichPage::Block> &blocks) {
-	if (blocks.size() > 1) {
-		return true;
-	}
 	for (const auto &block : blocks) {
-		if (block.kind != RichPage::BlockKind::Paragraph) {
+		if (!BlockKindFitsComposeField(block.kind)
+			|| RichBlocksCarryStructure(block.blocks)) {
 			return true;
 		}
 	}
