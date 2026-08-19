@@ -992,6 +992,27 @@ struct GeometryPlan {
 	return plan;
 }
 
+[[nodiscard]] QRect CodedCrop(QRect crop, int rotation, QSize coded) {
+	switch (rotation) {
+	case 90: return QRect(
+		crop.y(),
+		coded.height() - crop.x() - crop.width(),
+		crop.height(),
+		crop.width());
+	case 180: return QRect(
+		coded.width() - crop.x() - crop.width(),
+		coded.height() - crop.y() - crop.height(),
+		crop.width(),
+		crop.height());
+	case 270: return QRect(
+		coded.width() - crop.y() - crop.height(),
+		crop.x(),
+		crop.height(),
+		crop.width());
+	}
+	return crop;
+}
+
 [[nodiscard]] QImage ComposeFrame(
 		not_null<AVFrame*> frame,
 		const GeometryPlan &plan,
@@ -1031,32 +1052,61 @@ struct GeometryPlan {
 		dstData,
 		dstLinesize);
 
-	auto image = plan.fileRotation
-		? rgb.transformed(QTransform().rotate(plan.fileRotation))
-		: rgb;
-	if (plan.crop != QRect(QPoint(), image.size())) {
-		image = image.copy(plan.crop);
+	const auto display = TransposeSizeByRotation(coded, plan.fileRotation);
+	auto crop = plan.crop & QRect(QPoint(), display);
+	if (crop.isEmpty()) {
+		crop = QRect(QPoint(), display);
 	}
-	if (plan.flipped || plan.userRotation) {
-		auto transform = QTransform();
+	const auto source = CodedCrop(crop, plan.fileRotation, coded);
+	const auto rotation = NormalizeAngle(
+		plan.userRotation + plan.fileRotation);
+	const auto oriented = TransposeSizeByRotation(
+		crop.size(),
+		plan.userRotation);
+	auto scaled = oriented;
+	if (scaled != plan.target) {
+		scaled = oriented.scaled(plan.target, Qt::KeepAspectRatioByExpanding);
+		scaled = QSize(
+			std::max(scaled.width(), 1),
+			std::max(scaled.height(), 1));
+	}
+	const auto unrotated = TransposeSizeByRotation(scaled, rotation);
+
+	auto image = rgb;
+	if (source != QRect(QPoint(), coded)) {
+		image = image.copy(source);
+	}
+	const auto turn = [&] {
+		if (rotation) {
+			image = image.transformed(QTransform().rotate(rotation));
+		}
 		if (plan.flipped) {
-			transform.scale(-1, 1);
+			image = image.mirrored(true, false);
 		}
-		if (plan.userRotation) {
-			transform.rotate(plan.userRotation);
+	};
+	// Turning costs a full pass, so it runs on the smaller size.
+	if (int64(unrotated.width()) * unrotated.height()
+		< int64(source.width()) * source.height()) {
+		if (image.size() != unrotated) {
+			image = image.scaled(
+				unrotated,
+				Qt::IgnoreAspectRatio,
+				Qt::SmoothTransformation);
 		}
-		image = image.transformed(transform);
+		turn();
+	} else {
+		turn();
+		if (image.size() != scaled) {
+			image = image.scaled(
+				scaled,
+				Qt::IgnoreAspectRatio,
+				Qt::SmoothTransformation);
+		}
 	}
 	if (image.size() != plan.target) {
-		image = image.scaled(
-			plan.target,
-			Qt::KeepAspectRatioByExpanding,
-			Qt::SmoothTransformation);
-		if (image.size() != plan.target) {
-			const auto x = (image.width() - plan.target.width()) / 2;
-			const auto y = (image.height() - plan.target.height()) / 2;
-			image = image.copy(QRect(QPoint(x, y), plan.target));
-		}
+		const auto x = (image.width() - plan.target.width()) / 2;
+		const auto y = (image.height() - plan.target.height()) / 2;
+		image = image.copy(QRect(QPoint(x, y), plan.target));
 	}
 	if (image.format() != QImage::Format_ARGB32_Premultiplied) {
 		image = std::move(image).convertToFormat(
