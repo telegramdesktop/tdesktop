@@ -62,7 +62,7 @@ jobs:
       ONLY_CACHE: "false"
       PREPARE_PATH: "Telegram/build/prepare/prepare.py"
       BUILD_CONFIG: ${{ github.ref == 'refs/heads/nightly' && 'Release' || 'Debug' }}
-      DISABLE_AUTOUPDATE: ${{ github.ref == 'refs/heads/nightly' && 'ON' || 'OFF' }}
+      DISABLE_AUTOUPDATE: "OFF"
       DISABLE_CRASH_REPORTS: ${{ github.ref == 'refs/heads/nightly' && 'ON' || 'OFF' }}
       SKIP_RELEASE_LIBS: ${{ github.ref != 'refs/heads/nightly' && 'skip-release' || '' }}
       CACHE_CONFIG: ${{ github.ref == 'refs/heads/nightly' && 'rel' || '' }}
@@ -97,6 +97,14 @@ jobs:
           echo "SDK=$SDK" >> $GITHUB_ENV
 
           sed -i '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/${_Zi}//' "$PROGRAMFILES"/CMake/share/cmake*/Modules/Platform/Windows-MSVC.cmake
+
+          # A bare /LTCGOUT: blanks the .iobj path MSBuild passes to link.exe,
+          # which is what keeps the 32 bit LTCG image under the 4 GB limit, so
+          # it has to stay there. Ninja has no such value to blank and hands
+          # the flag over as is, failing with LNK1146, so drop it only there.
+          if [ -n "${{ matrix.generator }}" ]; then
+            sed -i '/LTCGOUT/d' $TBUILD/$REPO_NAME/cmake/options_win.cmake
+          fi
 
           echo "$(sha256sum $TBUILD/$REPO_NAME/$PREPARE_PATH | awk '{ print $1 }')" >> CACHE_KEY.txt
           echo "$SDK" >> CACHE_KEY.txt
@@ -215,6 +223,33 @@ jobs:
           fi
           echo "TDESKTOP_BUILD_API=$API" >> $GITHUB_ENV
 
+          SPECIAL_TARGET=""
+          if [ "$GITHUB_REF" == 'refs/heads/nightly' ]; then
+            case "${{ matrix.arch }}" in
+              x64_x86) SPECIAL_TARGET="win";;
+              x64) SPECIAL_TARGET="win64";;
+              arm64) SPECIAL_TARGET="winarm";;
+            esac
+            echo "Special target: $SPECIAL_TARGET"
+          fi
+          echo "TDESKTOP_BUILD_SPECIAL_TARGET=${SPECIAL_TARGET:+-D DESKTOP_APP_SPECIAL_TARGET=$SPECIAL_TARGET}" >> $GITHUB_ENV
+
+      - name: Generate a fake DesktopPrivate.
+        if: env.TDESKTOP_BUILD_SPECIAL_TARGET != ''
+        shell: bash
+        run: |
+          # Packer only parses these at runtime, so random junk is enough
+          # to check that the special target build compiles and links.
+          mkdir -p $TBUILD/DesktopPrivate
+          random_key() {
+            printf -- '-----BEGIN RSA PRIVATE KEY-----\\n%s\\n-----END RSA PRIVATE KEY-----\\n' \
+              "$(head -c 96 /dev/urandom | base64 | tr -d '\n')"
+          }
+          printf 'const char *PrivateKey = "%s";\nconst char *PrivateBetaKey = "%s";\n' \
+            "$(random_key)" "$(random_key)" > $TBUILD/DesktopPrivate/packer_private.h
+          printf 'static const char *AlphaPrivateKey = "%s";\n' \
+            "$(random_key)" > $TBUILD/DesktopPrivate/alpha_private.h
+
       - name: Free up some disk space.
         shell: bash
         run: find $LibrariesPath '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -path '*/nv-codec-headers/*' ')' -type f ')' -o -empty ')' -delete
@@ -232,6 +267,8 @@ jobs:
           -D CMAKE_CONFIGURATION_TYPES=%BUILD_CONFIG% ^
           -D CMAKE_COMPILE_WARNING_AS_ERROR=ON ^
           -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT= ^
+          %TDESKTOP_BUILD_SPECIAL_TARGET% ^
+          -D DESKTOP_APP_ENABLE_LTO=ON ^
           -D DESKTOP_APP_DISABLE_AUTOUPDATE=%DISABLE_AUTOUPDATE% ^
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=%DISABLE_CRASH_REPORTS% ^
           %TDESKTOP_BUILD_DEFINE%
