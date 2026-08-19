@@ -92,7 +92,6 @@ parts:
       - minizip
       - mozjpeg
       - openal
-      - protobuf
       - qt
       - rnnoise
       - tde2e
@@ -372,18 +371,6 @@ parts:
     make-parameters:
       - PREFIX=/usr
       - LIBDIR=lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
-    prime: [-./*]
-
-  protobuf:
-    source: https://github.com/protocolbuffers/protobuf.git
-    source-depth: 1
-    source-tag: v30.2
-    plugin: cmake
-    cmake-generator: Ninja
-    cmake-parameters:
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DCMAKE_INSTALL_PREFIX=/usr
-      - -Dprotobuf_BUILD_TESTS=OFF
     prime: [-./*]
 
   qt:

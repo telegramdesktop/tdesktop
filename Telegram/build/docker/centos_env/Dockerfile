@@ -199,22 +199,6 @@ cd ..
 rm -rf xz
 EOF
 
-FROM builder AS protobuf
-RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b v30.2 --depth=1 --recursive --shallow-submodules \
-	https://github.com/protocolbuffers/protobuf.git
-cd protobuf
-cmake -B build . \
-	-Dprotobuf_BUILD_TESTS=OFF \
-	-Dprotobuf_BUILD_PROTOBUF_BINARIES=ON \
-	-Dprotobuf_BUILD_LIBPROTOC=ON \
-	-Dprotobuf_WITH_ZLIB=OFF
-cmake --build build
-DESTDIR=/usr/src/protobuf-cache cmake --install build
-cd ..
-rm -rf protobuf
-EOF
-
 FROM builder AS lcms2
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b lcms2.15 --depth=1 https://github.com/mm2/Little-CMS.git
@@ -1019,7 +1003,6 @@ EOF
 FROM builder
 COPY --link --from=zlib /usr/src/zlib-cache /
 COPY --link --from=xz /usr/src/xz-cache /
-COPY --link --from=protobuf /usr/src/protobuf-cache /
 COPY --link --from=lcms2 /usr/src/lcms2-cache /
 COPY --link --from=brotli /usr/src/brotli-cache /
 COPY --link --from=highway /usr/src/highway-cache /

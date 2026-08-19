@@ -1823,41 +1823,6 @@ mac:
     cmake --install build
 """)
 
-stage('protobuf', """
-win:
-    git clone --recursive -b v21.9 https://github.com/protocolbuffers/protobuf
-    cd protobuf
-    git clone https://github.com/abseil/abseil-cpp third_party/abseil-cpp
-    cd third_party/abseil-cpp
-    git checkout 273292d1cf
-    cd ../..
-    mkdir build
-    cd build
-    cmake .. ^
-        -Dprotobuf_BUILD_TESTS=OFF ^
-        -Dprotobuf_BUILD_PROTOBUF_BINARIES=ON ^
-        -Dprotobuf_BUILD_LIBPROTOC=ON ^
-        -Dprotobuf_WITH_ZLIB_DEFAULT=OFF ^
-        -Dprotobuf_DEBUG_POSTFIX=""
-    cmake --build . --config Release
-    cmake --build . --config Debug
-""")
-# mac:
-#     git clone --recursive -b v21.9 https://github.com/protocolbuffers/protobuf
-#     cd protobuf
-#     git clone https://github.com/abseil/abseil-cpp third_party/abseil-cpp
-#     cd third_party/abseil-cpp
-#     git checkout 273292d1cf
-#     cd ../..
-#     mkdir build
-#     cd build
-#     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake .. \
-#         -Dprotobuf_BUILD_TESTS=OFF \
-#         -Dprotobuf_BUILD_PROTOBUF_BINARIES=ON \
-#         -Dprotobuf_BUILD_LIBPROTOC=ON \
-#         -Dprotobuf_WITH_ZLIB_DEFAULT=OFF
-#     cmake --build .
-
 stage('tde2e', """
     git clone https://github.com/tdlib/td.git tde2e
     cd tde2e
