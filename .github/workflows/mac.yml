@@ -2,6 +2,9 @@ name: MacOS.
 
 on:
   push:
+    # Pushes to canary run only canary.yml, see there.
+    branches-ignore:
+      - canary
     paths-ignore:
       - 'docs/**'
       - '**.md'

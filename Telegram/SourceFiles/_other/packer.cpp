@@ -27,8 +27,7 @@ QString V2LocalKeyId;
 QString V2SigningInputFile;
 QString V2UnsignedFile;
 std::vector<std::pair<QString, QString>> V2EmbedSignatures;
-QString V2Os;
-QString V2Arch;
+Core::Updates::Target V2Target;
 
 const char *PublicKey = "\
 -----BEGIN RSA PUBLIC KEY-----\n\
@@ -201,8 +200,8 @@ void AppendLeU64(QByteArray &to, quint64 value) {
 		quint32 base,
 		quint32 counter) {
 	auto result = QString("update-%1-%2-%3-%4"
-	).arg(V2Os
-	).arg(V2Arch
+	).arg(QString::fromLatin1(Core::Updates::OsName(V2Target.os))
+	).arg(QString::fromLatin1(Core::Updates::ArchName(V2Target.arch))
 	).arg(V2ChannelTag(channel)
 	).arg(base);
 	if (counter) {
@@ -239,8 +238,47 @@ struct V2Keys {
 	return V2Keys{ rootPem, std::move(*parsed) };
 }
 
+// The build-time expiry watchdog: the client never rejects an expired
+// manifest (revocation is the kill switch), so this is the only place
+// the approaching dates are surfaced, ahead of the moment a channel key
+// expires and packing starts failing verification.
+void ReportExpiry(const Core::Updates::Manifest &manifest, Channel channel) {
+	constexpr auto kWarnDays = 90;
+	const auto now = QDateTime::currentSecsSinceEpoch();
+	const auto report = [&](const QByteArray &what, qint64 expires) {
+		if (!expires) {
+			return;
+		}
+		const auto days = (expires - now) / (24 * 60 * 60);
+		if (days < 0) {
+			cout << "WARNING: " << what.constData() << " expired "
+				<< -days << " days ago!\n";
+		} else if (days < kWarnDays) {
+			cout << "WARNING: " << what.constData() << " expires in "
+				<< days << " days!\n";
+		} else {
+			cout << what.constData() << " expires in " << days << " days.\n";
+		}
+	};
+	report("The manifest", manifest.expires);
+	const auto i = manifest.channels.find(Core::Updates::ChannelName(channel));
+	if (i == manifest.channels.end()) {
+		return;
+	}
+	for (const auto &group : i->second) {
+		for (const auto &id : group) {
+			for (const auto &key : manifest.keys) {
+				if (key.id == id) {
+					report("Key '" + id + "'", key.expires);
+				}
+			}
+		}
+	}
+}
+
 [[nodiscard]] QByteArray BuildV2Envelope(
 		Channel channel,
+		Core::Updates::Target target,
 		quint64 version,
 		qint64 created,
 		const QByteArray &manifest,
@@ -251,6 +289,8 @@ struct V2Keys {
 	result.append(Core::Updates::kEnvelopeMagic, 4);
 	AppendLeU32(result, Core::Updates::kEnvelopeFormat);
 	result.append(char(uchar(channel)));
+	result.append(char(uchar(target.os)));
+	result.append(char(uchar(target.arch)));
 	AppendLeU64(result, version);
 	AppendLeU64(result, quint64(created));
 	AppendLeU32(result, quint32(manifest.size()));
@@ -313,12 +353,14 @@ struct V2Keys {
 [[nodiscard]] bool VerifyPackedV2(
 		const QByteArray &fileBytes,
 		const V2Keys &keys,
-		Channel channel) {
+		Channel channel,
+		Core::Updates::Target target) {
 	auto error = QString();
 	const auto verified = Core::Updates::VerifyUpdate(
 		fileBytes,
 		channel,
 		true, // betaSet
+		target,
 		0, // runningVersion
 		keys.manifest,
 		keys.rootPublicKeyPem,
@@ -350,6 +392,7 @@ int WriteV2Update(const QByteArray &payload, quint32 baseVersion) {
 		return -1;
 	}
 	const auto channel = *V2Channel;
+	ReportExpiry(keys->manifest, channel);
 	const auto version = Core::Updates::MakeUpdateVersion(
 		baseVersion,
 		V2Counter);
@@ -358,6 +401,7 @@ int WriteV2Update(const QByteArray &payload, quint32 baseVersion) {
 	auto signatures = std::vector<std::pair<QByteArray, QByteArray>>();
 	const auto unsigned_ = BuildV2Envelope(
 		channel,
+		V2Target,
 		version,
 		QDateTime::currentSecsSinceEpoch(),
 		keys->manifest.bytes,
@@ -400,13 +444,14 @@ int WriteV2Update(const QByteArray &payload, quint32 baseVersion) {
 
 	const auto result = BuildV2Envelope(
 		channel,
+		V2Target,
 		version,
 		envelope->created,
 		keys->manifest.bytes,
 		keys->manifest.signature,
 		signatures,
 		payload);
-	if (!VerifyPackedV2(result, *keys, channel)
+	if (!VerifyPackedV2(result, *keys, channel, V2Target)
 		|| !WriteWholeFile(name, result)) {
 		return -1;
 	}
@@ -444,6 +489,7 @@ int EmbedV2Signatures() {
 		cout << "The -channel param does not match the unsigned update!\n";
 		return -1;
 	}
+	ReportExpiry(keys->manifest, envelope->channel);
 
 	auto signatures = std::vector<std::pair<QByteArray, QByteArray>>();
 	for (const auto &[keyId, file] : V2EmbedSignatures) {
@@ -483,6 +529,7 @@ int EmbedV2Signatures() {
 
 	const auto result = BuildV2Envelope(
 		envelope->channel,
+		envelope->target,
 		envelope->version,
 		envelope->created,
 		envelope->manifest,
@@ -491,7 +538,7 @@ int EmbedV2Signatures() {
 		envelope->payload);
 	const auto name = V2UnsignedFile.left(
 		V2UnsignedFile.size() - int(strlen(".unsigned")));
-	if (!VerifyPackedV2(result, *keys, envelope->channel)
+	if (!VerifyPackedV2(result, *keys, envelope->channel, envelope->target)
 		|| !WriteWholeFile(name, result)) {
 		return -1;
 	}
@@ -603,20 +650,24 @@ int main(int argc, char *argv[])
 		return writeAlphaKey();
 	}
 
+	{
+		using Core::Updates::Os;
+		using Core::Updates::Arch;
 #ifdef Q_OS_WIN
-	V2Os = QString("win");
-	V2Arch = targetwinarm
-		? QString("arm")
-		: targetwin64
-		? QString("x64")
-		: QString("x86");
+		V2Target.os = Os::Windows;
+		V2Target.arch = targetwinarm
+			? Arch::Arm
+			: targetwin64
+			? Arch::X64
+			: Arch::X86;
 #elif defined Q_OS_MAC
-	V2Os = QString("mac");
-	V2Arch = targetarmac ? QString("arm") : QString("x64");
+		V2Target.os = Os::Mac;
+		V2Target.arch = targetarmac ? Arch::Arm : Arch::X64;
 #else
-	V2Os = QString("linux");
-	V2Arch = QString("x64");
+		V2Target.os = Os::Linux;
+		V2Target.arch = Arch::X64;
 #endif
+	}
 
 	if (!V2UnsignedFile.isEmpty()) {
 		return EmbedV2Signatures();
@@ -631,6 +682,9 @@ int main(int argc, char *argv[])
 			return -1;
 		} else if (canary != (V2Counter > 0)) {
 			cout << "Canary channels require a positive -counter, others require none!\n";
+			return -1;
+		} else if (!V2EmbedSignatures.empty()) {
+			cout << "The -embed-signatures param requires -unsigned!\n";
 			return -1;
 		} else if (V2SigningInputFile.isEmpty()
 			&& (V2LocalKeyFile.isEmpty() || V2LocalKeyId.isEmpty())) {
@@ -859,14 +913,16 @@ int main(int argc, char *argv[])
 	stream.next_out = (uint8_t*)resultCheck.data();
 
 	res = lzma_code(&stream, LZMA_FINISH);
-	if (stream.avail_in) {
-		cout << "Error in decompression, " << stream.avail_in << " bytes left in _in of " << compressedLen << " whole.\n";
+	const auto availIn = stream.avail_in;
+	const auto availOut = stream.avail_out;
+	lzma_end(&stream);
+	if (availIn) {
+		cout << "Error in decompression, " << availIn << " bytes left in _in of " << compressedLen << " whole.\n";
 		return -1;
-	} else if (stream.avail_out) {
-		cout << "Error in decompression, " << stream.avail_out << " bytes free left in _out of " << resultLen << " whole.\n";
+	} else if (availOut) {
+		cout << "Error in decompression, " << availOut << " bytes free left in _out of " << resultLen << " whole.\n";
 		return -1;
 	}
-	lzma_end(&stream);
 	if (res != LZMA_OK && res != LZMA_STREAM_END) {
 		const char *msg;
 		switch (res) {

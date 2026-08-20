@@ -35,24 +35,32 @@ def b64url_decode(text: str) -> bytes:
 
 
 def der_to_raw_rs(der: bytes) -> bytes:
-    # Minimal DER parse of SEQUENCE { INTEGER r, INTEGER s }.
+    # Minimal DER parse of SEQUENCE { INTEGER r, INTEGER s }, strict
+    # about lengths: the input is normally trusted openssl output, but a
+    # malformed signature must fail here rather than in the packer.
     def read_len(data, offset):
         first = data[offset]
         offset += 1
         if first < 0x80:
             return first, offset
         count = first & 0x7F
+        if count == 0 or count > 2 or offset + count > len(data):
+            raise ValueError('bad DER length')
         value = int.from_bytes(data[offset:offset + count], 'big')
         return value, offset + count
 
     if not der or der[0] != 0x30:
         raise ValueError('not a DER SEQUENCE')
-    _, offset = read_len(der, 1)
+    total, offset = read_len(der, 1)
+    if offset + total != len(der):
+        raise ValueError('DER SEQUENCE length does not match the input')
 
     def read_int(data, offset):
-        if data[offset] != 0x02:
+        if offset >= len(data) or data[offset] != 0x02:
             raise ValueError('not a DER INTEGER')
         length, offset = read_len(data, offset + 1)
+        if length == 0 or offset + length > len(data):
+            raise ValueError('bad DER INTEGER length')
         value = data[offset:offset + length].lstrip(b'\x00')
         if len(value) > 32:
             raise ValueError('integer too long for P-256')
@@ -60,6 +68,8 @@ def der_to_raw_rs(der: bytes) -> bytes:
 
     r, offset = read_int(der, offset)
     s, offset = read_int(der, offset)
+    if offset != len(der):
+        raise ValueError('trailing bytes after the DER signature')
     return r + s
 
 
@@ -72,6 +82,7 @@ def sign_azure(digest: bytes, args) -> bytes:
         '--algorithm', 'ES256',
         '--digest', b64url(digest),
         '--output', 'json',
+        '--only-show-errors',
     ]
     if args.az_key_version:
         command += ['--version', args.az_key_version]

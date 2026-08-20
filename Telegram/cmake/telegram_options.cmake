@@ -64,6 +64,20 @@ set(TDESKTOP_CANARY_PUBLIC_CHANNEL "" CACHE STRING "Public canary channel userna
 set(TDESKTOP_CANARY_PRIVATE_CHANNEL_ID "0" CACHE STRING "Private canary channel numeric id (canary-private builds).")
 set(TDESKTOP_CANARY_METADATA_MSG_ID "0" CACHE STRING "Fixed metadata message id in the canary channel.")
 
+# CI passes these straight from repository variables, an unset variable
+# arrives as an empty string and must mean "not configured", not an
+# empty macro body.
+foreach(numeric_option
+    TDESKTOP_CANARY_COUNTER
+    TDESKTOP_CANARY_PRIVATE_CHANNEL_ID
+    TDESKTOP_CANARY_METADATA_MSG_ID)
+    if (${numeric_option} STREQUAL "")
+        set(${numeric_option} 0)
+    elseif (NOT ${numeric_option} MATCHES "^[0-9]+$")
+        message(FATAL_ERROR "${numeric_option} must be a non-negative integer, got '${${numeric_option}}'.")
+    endif()
+endforeach()
+
 if (TDESKTOP_UPDATE_CHANNEL STREQUAL "stable")
     set(tdesktop_update_channel_value 0)
 elseif (TDESKTOP_UPDATE_CHANNEL STREQUAL "beta")

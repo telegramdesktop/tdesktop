@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 // Focused console tests for the v2 update verification: throwaway keys are
 // generated in-process with OpenSSL, so no fixture files and no network.
 
+#include "core/update_keys.h"
 #include "core/update_verify.h"
 
 #include <QtCore/QJsonArray>
@@ -34,6 +35,10 @@ using namespace Core::Updates;
 
 int FailedChecks = 0;
 int TotalChecks = 0;
+
+constexpr auto kTarget = Target{ Os::Linux, Arch::X64 };
+constexpr auto kOtherArch = Target{ Os::Linux, Arch::Arm };
+constexpr auto kOtherOs = Target{ Os::Mac, Arch::X64 };
 
 void Check(bool condition, const char *name) {
 	++TotalChecks;
@@ -283,11 +288,14 @@ void AppendLeU64(QByteArray &to, quint64 value) {
 		const QByteArray &manifestSig,
 		const std::vector<std::pair<QByteArray, QByteArray>> &signatures,
 		const QByteArray &payload,
+		Target target = kTarget,
 		quint32 format = kEnvelopeFormat) {
 	auto result = QByteArray();
 	result.append(kEnvelopeMagic, 4);
 	AppendLeU32(result, format);
 	result.append(char(uchar(channel)));
+	result.append(char(uchar(target.os)));
+	result.append(char(uchar(target.arch)));
 	AppendLeU64(result, version);
 	AppendLeU64(result, quint64(1700000000));
 	AppendLeU32(result, quint32(manifest.size()));
@@ -312,14 +320,16 @@ void AppendLeU64(QByteArray &to, quint64 value) {
 		const QByteArray &manifest,
 		const QByteArray &manifestSig,
 		const std::vector<const TestKey*> &signers,
-		const QByteArray &payload) {
+		const QByteArray &payload,
+		Target target = kTarget) {
 	const auto unsignedBytes = BuildEnvelope(
 		channel,
 		version,
 		manifest,
 		manifestSig,
 		{},
-		payload);
+		payload,
+		target);
 	const auto envelope = ParseEnvelope(unsignedBytes);
 	if (!envelope) {
 		return QByteArray();
@@ -335,7 +345,8 @@ void AppendLeU64(QByteArray &to, quint64 value) {
 		manifest,
 		manifestSig,
 		signatures,
-		payload);
+		payload,
+		target);
 }
 
 } // namespace
@@ -399,12 +410,28 @@ int main(int argc, char *argv[]) {
 			data,
 			build,
 			betaSet,
+			kTarget,
 			running,
 			held,
 			rootPem,
 			kNow,
 			error);
 	};
+
+	{ // The committed trust files must verify with the pinned root.
+		auto error = QString();
+		const auto embedded = ParseVerifiedManifest(
+			EmbeddedManifest(),
+			EmbeddedManifestSignature(),
+			RootPublicKeyPem(),
+			&error);
+		Check(embedded.has_value(), "embedded manifest verifies");
+		Check(embedded && embedded->version >= 1, "embedded manifest version");
+		Check(embedded && embedded->channels.size() == 4,
+			"embedded manifest lists all four channels");
+		Check(embedded && !embedded->keys.empty(),
+			"embedded manifest has usable keys");
+	}
 
 	{ // A good stable package needs one rl AND one rc signature.
 		const auto good = BuildSignedEnvelope(
@@ -594,6 +621,7 @@ int main(int argc, char *argv[]) {
 				byExpired,
 				Channel::CanaryPublic,
 				false,
+				kTarget,
 				runningCanary,
 				heldSame,
 				rootPem,
@@ -603,6 +631,7 @@ int main(int argc, char *argv[]) {
 				byExpired,
 				Channel::CanaryPublic,
 				false,
+				kTarget,
 				runningCanary,
 				heldSame,
 				rootPem,
@@ -640,6 +669,7 @@ int main(int argc, char *argv[]) {
 				oldManifestPackage,
 				Channel::CanaryPublic,
 				false,
+				kTarget,
 				runningCanary,
 				heldRevoking,
 				rootPem,
@@ -674,6 +704,7 @@ int main(int argc, char *argv[]) {
 			package,
 			Channel::CanaryPublic,
 			false,
+			kTarget,
 			runningCanary,
 			std::nullopt,
 			rootPem,
@@ -744,8 +775,16 @@ int main(int argc, char *argv[]) {
 			manifestSig,
 			{},
 			payload,
+			kTarget,
 			3);
 		Check(!ParseEnvelope(badFormat), "unknown format rejected");
+
+		auto badOs = good;
+		badOs[9] = char(3);
+		Check(!ParseEnvelope(badOs), "unknown os rejected");
+		auto badArch = good;
+		badArch[10] = char(3);
+		Check(!ParseEnvelope(badArch), "unknown arch rejected");
 
 		auto badMagic = good;
 		badMagic[0] = 'X';
@@ -791,6 +830,96 @@ int main(int argc, char *argv[]) {
 		Check(verify(withExtra, Channel::CanaryPublic, false, runningCanary)
 				.has_value(),
 			"unknown extra signature entries are ignored");
+
+		// A DER-encoded ECDSA signature is not the raw r||s the envelope
+		// stores, the fixed 64-byte check must refuse it.
+		auto der = QByteArray();
+		der.append(char(0x30)).append(char(0x44));
+		der.append(char(0x02)).append(char(0x20)).append(QByteArray(32, 'r'));
+		der.append(char(0x02)).append(char(0x20)).append(QByteArray(32, 's'));
+		const auto withDer = BuildEnvelope(
+			Channel::CanaryPublic,
+			MakeUpdateVersion(5000000, 41),
+			manifestJson,
+			manifestSig,
+			{ { cp.id, der } },
+			payload);
+		Check(!verify(withDer, Channel::CanaryPublic, false, runningCanary),
+			"DER-encoded ES256 signature rejected");
+	}
+
+	{ // The signed target must be the one this client should receive.
+		const auto otherArch = BuildSignedEnvelope(
+			Channel::CanaryPublic,
+			MakeUpdateVersion(5000000, 41),
+			manifestJson,
+			manifestSig,
+			{ &cp },
+			payload,
+			kOtherArch);
+		Check(!verify(otherArch, Channel::CanaryPublic, false, runningCanary),
+			"validly signed package for another arch rejected");
+		Check(VerifyUpdate(
+				otherArch,
+				Channel::CanaryPublic,
+				false,
+				kOtherArch,
+				runningCanary,
+				held,
+				rootPem,
+				kNow).has_value(),
+			"the same package accepted by a client expecting that arch");
+
+		const auto otherOs = BuildSignedEnvelope(
+			Channel::CanaryPublic,
+			MakeUpdateVersion(5000000, 41),
+			manifestJson,
+			manifestSig,
+			{ &cp },
+			payload,
+			kOtherOs);
+		Check(!verify(otherOs, Channel::CanaryPublic, false, runningCanary),
+			"validly signed package for another os rejected");
+
+		const auto good = BuildSignedEnvelope(
+			Channel::CanaryPublic,
+			MakeUpdateVersion(5000000, 41),
+			manifestJson,
+			manifestSig,
+			{ &cp },
+			payload);
+		auto retargeted = good;
+		retargeted[10] = char(uchar(Arch::Arm));
+		Check(!VerifyUpdate(
+				retargeted,
+				Channel::CanaryPublic,
+				false,
+				kOtherArch,
+				runningCanary,
+				held,
+				rootPem,
+				kNow),
+			"target byte tampering breaks the signature");
+
+		Check(TargetFromPlatformKey("armac")
+				&& *TargetFromPlatformKey("armac") == Target{ Os::Mac, Arch::Arm }
+				&& TargetFromPlatformKey("win64")
+				&& *TargetFromPlatformKey("win64") == Target{ Os::Windows, Arch::X64 }
+				&& !TargetFromPlatformKey("amiga"),
+			"platform keys map to targets");
+	}
+
+	{ // Dormancy rescue also works for beta packages on canary-public.
+		const auto beta = BuildSignedEnvelope(
+			Channel::Beta,
+			MakeUpdateVersion(5000001, 0),
+			manifestJson,
+			manifestSig,
+			{ &rl, &rc },
+			payload);
+		Check(verify(beta, Channel::CanaryPublic, false, runningCanary)
+				.has_value(),
+			"beta with greater base accepted on canary-public");
 	}
 
 	std::cout << (TotalChecks - FailedChecks) << "/" << TotalChecks

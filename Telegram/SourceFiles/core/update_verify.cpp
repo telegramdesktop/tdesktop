@@ -112,6 +112,9 @@ void SetError(QString *error, const QString &text) {
 		return std::nullopt;
 	}
 	const auto number = value.toDouble();
+	if (!(number > -9007199254740992.) || !(number < 9007199254740992.)) {
+		return std::nullopt;
+	}
 	const auto result = qint64(number);
 	if (double(result) != number) {
 		return std::nullopt;
@@ -455,7 +458,7 @@ struct Reader {
 		}
 		auto result = QByteArray(
 			reinterpret_cast<const char*>(data + offset),
-			int(count));
+			qsizetype(count));
 		offset += count;
 		return result;
 	}
@@ -482,6 +485,41 @@ std::optional<Channel> ChannelFromName(const QByteArray &name) {
 		return Channel::CanaryPublic;
 	} else if (name == "canary-private") {
 		return Channel::CanaryPrivate;
+	}
+	return std::nullopt;
+}
+
+QByteArray OsName(Os os) {
+	switch (os) {
+	case Os::Windows: return QByteArrayLiteral("win");
+	case Os::Mac: return QByteArrayLiteral("mac");
+	case Os::Linux: return QByteArrayLiteral("linux");
+	}
+	return QByteArray();
+}
+
+QByteArray ArchName(Arch arch) {
+	switch (arch) {
+	case Arch::X86: return QByteArrayLiteral("x86");
+	case Arch::X64: return QByteArrayLiteral("x64");
+	case Arch::Arm: return QByteArrayLiteral("arm");
+	}
+	return QByteArray();
+}
+
+std::optional<Target> TargetFromPlatformKey(const QByteArray &key) {
+	if (key == "win") {
+		return Target{ Os::Windows, Arch::X86 };
+	} else if (key == "win64") {
+		return Target{ Os::Windows, Arch::X64 };
+	} else if (key == "winarm") {
+		return Target{ Os::Windows, Arch::Arm };
+	} else if (key == "mac") {
+		return Target{ Os::Mac, Arch::X64 };
+	} else if (key == "armac") {
+		return Target{ Os::Mac, Arch::Arm };
+	} else if (key == "linux") {
+		return Target{ Os::Linux, Arch::X64 };
 	}
 	return std::nullopt;
 }
@@ -596,6 +634,18 @@ std::optional<Envelope> ParseEnvelope(
 	}
 	result.channel = Channel(*channel);
 
+	const auto os = reader.readU8();
+	if (!os || *os > quint8(Os::Linux)) {
+		SetError(error, QStringLiteral("Bad envelope os."));
+		return std::nullopt;
+	}
+	const auto arch = reader.readU8();
+	if (!arch || *arch > quint8(Arch::Arm)) {
+		SetError(error, QStringLiteral("Bad envelope arch."));
+		return std::nullopt;
+	}
+	result.target = Target{ Os(*os), Arch(*arch) };
+
 	const auto version = reader.readU64();
 	if (!version) {
 		SetError(error, QStringLiteral("Bad envelope version."));
@@ -672,7 +722,9 @@ std::optional<Envelope> ParseEnvelope(
 	}
 
 	const auto payloadLength = reader.readU32();
-	if (!payloadLength || !*payloadLength) {
+	if (!payloadLength
+		|| !*payloadLength
+		|| *payloadLength > kMaxPayloadSize) {
 		SetError(error, QStringLiteral("Bad envelope payload size."));
 		return std::nullopt;
 	}
@@ -805,6 +857,7 @@ std::optional<VerifiedUpdate> VerifyUpdate(
 		const QByteArray &data,
 		Channel buildChannel,
 		bool betaSet,
+		Target expectedTarget,
 		quint64 runningVersion,
 		const std::optional<Manifest> &held,
 		const QByteArray &rootPublicKeyPem,
@@ -812,6 +865,11 @@ std::optional<VerifiedUpdate> VerifyUpdate(
 		QString *error) {
 	auto envelope = ParseEnvelope(data, error);
 	if (!envelope) {
+		return std::nullopt;
+	} else if (!(envelope->target == expectedTarget)) {
+		SetError(
+			error,
+			QStringLiteral("Package target is not this platform."));
 		return std::nullopt;
 	}
 

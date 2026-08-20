@@ -44,7 +44,7 @@
 #       every published update file.
 #
 # Public repository only:
-#   secrets.CANARY_PUBLIC_CHANNEL_ID
+#   vars.CANARY_PUBLIC_CHANNEL_ID
 #       Numeric -100... public channel id for the Bot API calls.
 #   vars.CANARY_PUBLIC_CHANNEL_USERNAME
 #       Public channel username compiled into canary-public builds.
@@ -54,13 +54,18 @@
 #       Key Vault key name, must match the manifest id ("cp-2026a").
 #
 # Private repository only:
-#   secrets.CANARY_PRIVATE_CHANNEL_ID
+#   vars.CANARY_PRIVATE_CHANNEL_ID
 #       Bare numeric id of the private channel (no -100 prefix), also
 #       compiled into canary-private builds for discovery.
 #   vars.CANARY_PRIVATE_METADATA_MSG_ID
 #       Fixed id of the pinned metadata message in the private channel.
 #   vars.CANARY_PRIVATE_SIGNING_KEY_ID
 #       Key Vault key name, must match the manifest id ("cx-2026a").
+#   vars.CANARY_ALLOW_UNSIGNED
+#       Bring-up only: "1" publishes without Windows/macOS platform
+#       signatures (the v2 envelope is still signed). Refused on the
+#       public lane; remove it once KeyLocker and the Apple certificate
+#       exist.
 #
 # Publishing no-ops cleanly while CANARY_BOT_TOKEN is absent, so the
 # workflow can run before the bots/channels/KeyLocker exist.
@@ -76,17 +81,24 @@ concurrency:
   group: canary-publish
   cancel-in-progress: false
 
+# The OIDC token that mints Key Vault signatures is granted per job to
+# the three packing jobs only, nothing else can request it.
 permissions:
-  id-token: write
   contents: read
-  packages: read
 
 jobs:
 
   version:
     name: Version
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-latest
     environment: canary
+    # Belt and braces next to the environment branch policy: the secrets
+    # are never even requested from a run that is not a push to canary.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/canary'
+
+    permissions:
+      contents: read
+      packages: read
 
     outputs:
       channel: ${{ steps.compute.outputs.channel }}
@@ -95,10 +107,11 @@ jobs:
       counter: ${{ steps.compute.outputs.counter }}
       previous: ${{ steps.compute.outputs.previous }}
       publish: ${{ steps.compute.outputs.publish }}
+      unsigned: ${{ steps.compute.outputs.unsigned }}
 
     steps:
       - name: Clone.
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           # Full history: the changelog walks commits and the pipeline
           # must survive force-pushes and rebases of the canary branch.
@@ -108,15 +121,26 @@ jobs:
         id: compute
         env:
           BOT_TOKEN: ${{ secrets.CANARY_BOT_TOKEN }}
-          PUBLIC_CHANNEL: ${{ secrets.CANARY_PUBLIC_CHANNEL_ID }}
-          PRIVATE_CHANNEL: ${{ secrets.CANARY_PRIVATE_CHANNEL_ID }}
+          PUBLIC_CHANNEL: ${{ vars.CANARY_PUBLIC_CHANNEL_ID }}
+          PRIVATE_CHANNEL: ${{ vars.CANARY_PRIVATE_CHANNEL_ID }}
+          PUBLIC_MSG_ID: ${{ vars.CANARY_METADATA_MSG_ID }}
+          PRIVATE_MSG_ID: ${{ vars.CANARY_PRIVATE_METADATA_MSG_ID }}
           CHANNEL_OVERRIDE: ${{ vars.CANARY_CHANNEL }}
+          ALLOW_UNSIGNED: ${{ vars.CANARY_ALLOW_UNSIGNED }}
           REPO_IS_PRIVATE: ${{ github.event.repository.private }}
           BOT_API_IMAGE: ${{ vars.CANARY_BOT_API_IMAGE }}
           TELEGRAM_API_ID: ${{ secrets.CANARY_API_ID }}
           TELEGRAM_API_HASH: ${{ secrets.CANARY_API_HASH }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # A re-run of an older run would read the live counter and
+          # republish old code as a newer version: only the current tip
+          # of the canary branch may become a canary.
+          if [ "$GITHUB_SHA" != "$(git rev-parse origin/canary)" ]; then
+            echo "::error::$GITHUB_SHA is not the tip of canary, refusing to publish old code as a new version."
+            exit 1
+          fi
+
           CHANNEL="$CHANNEL_OVERRIDE"
           if [ -z "$CHANNEL" ]; then
             if [ "$REPO_IS_PRIVATE" = "true" ]; then
@@ -139,8 +163,10 @@ jobs:
           echo "channel=$CHANNEL" >> $GITHUB_OUTPUT
           if [ "$CHANNEL" = "public" ]; then
             CHAT_ID="$PUBLIC_CHANNEL"
+            MSG_ID="$PUBLIC_MSG_ID"
           else
             CHAT_ID="-100$PRIVATE_CHANNEL"
+            MSG_ID="$PRIVATE_MSG_ID"
           fi
 
           while IFS=' ' read -r name value; do
@@ -155,15 +181,35 @@ jobs:
           fi
           echo "publish=$PUBLISH" >> $GITHUB_OUTPUT
 
+          # Bring-up escape hatch for the private lane only: publish
+          # builds without platform signatures (the v2 envelope is still
+          # signed). The public lane never accepts it.
+          UNSIGNED=false
+          if [ "$ALLOW_UNSIGNED" = "1" ]; then
+            if [ "$CHANNEL" != "private" ]; then
+              echo "::error::CANARY_ALLOW_UNSIGNED is only honoured on the private lane."
+              exit 1
+            fi
+            UNSIGNED=true
+            echo "::warning::CANARY_ALLOW_UNSIGNED=1: this run publishes binaries WITHOUT platform signatures."
+          fi
+          echo "unsigned=$UNSIGNED" >> $GITHUB_OUTPUT
+
           COUNTER=1
           PREVIOUS=""
-          if [ "$PUBLISH" = "true" ] && [ -n "$CHAT_ID" ] && [ "$CHAT_ID" != "-100" ]; then
+          if [ "$PUBLISH" = "true" ]; then
+            if [ -z "$CHAT_ID" ] || [ "$CHAT_ID" = "-100" ] || [ -z "$MSG_ID" ]; then
+              echo "::error::The lane's channel id and metadata message id are required when publishing."
+              exit 1
+            fi
             # The bot is logged out of the cloud Bot API (a requirement
             # for local server use), so the pinned metadata is read
             # through the same self-built local server the publish job
-            # runs.
-            if [ -z "$BOT_API_IMAGE" ]; then
-              echo "::error::vars.CANARY_BOT_API_IMAGE is required when publishing."
+            # runs. Bots cannot fetch a message by id, the pinned message
+            # is the only way to read it back, so it MUST be the fixed
+            # metadata message the clients use.
+            if ! [[ "$BOT_API_IMAGE" =~ ^ghcr\.io/[A-Za-z0-9._/-]+@sha256:[0-9a-f]{64}$ ]]; then
+              echo "::error::vars.CANARY_BOT_API_IMAGE must be a digest-pinned ghcr.io reference."
               exit 1
             fi
             echo "$GITHUB_TOKEN" | docker login ghcr.io \
@@ -171,21 +217,50 @@ jobs:
             docker run -d --name bot-api -p 8081:8081 \
               -e TELEGRAM_API_ID -e TELEGRAM_API_HASH -e TELEGRAM_LOCAL=1 \
               "$BOT_API_IMAGE"
+            READY=false
             for i in $(seq 1 30); do
               sleep 2
-              if curl -sf "http://localhost:8081/bot$BOT_TOKEN/getMe" > /dev/null; then
+              if curl -sf "http://localhost:8081/bot$BOT_TOKEN/getMe" | jq -e '.ok == true' > /dev/null; then
+                READY=true
                 break
               fi
             done
-            PINNED=$(curl -sf "http://localhost:8081/bot$BOT_TOKEN/getChat?chat_id=$CHAT_ID" \
-              | jq -r '.result.pinned_message.text // empty')
+            if [ "$READY" != "true" ]; then
+              echo "::error::The local Bot API server did not come up."
+              exit 1
+            fi
+            CHAT=$(curl -sf "http://localhost:8081/bot$BOT_TOKEN/getChat?chat_id=$CHAT_ID")
             docker rm -f bot-api > /dev/null
-            if [ -n "$PINNED" ]; then
+            if ! echo "$CHAT" | jq -e '.ok == true' > /dev/null; then
+              echo "::error::getChat failed: $(echo "$CHAT" | jq -r '.description // "no response"')"
+              exit 1
+            fi
+            PINNED_ID=$(echo "$CHAT" | jq -r '.result.pinned_message.message_id // empty')
+            if [ "$PINNED_ID" != "$MSG_ID" ]; then
+              echo "::error::The pinned message is '$PINNED_ID', expected the metadata message $MSG_ID; re-pin it."
+              exit 1
+            fi
+            PINNED=$(echo "$CHAT" | jq -r '.result.pinned_message.text // empty')
+            if ! echo "$PINNED" | jq -e 'type == "object"' > /dev/null; then
+              echo "::error::The metadata message is not a JSON object, seed it with {} for a first publish."
+              exit 1
+            fi
+            # No entry for this lane yet means the first publish of the
+            # lane, anything else must continue the counter sequence.
+            if echo "$PINNED" | jq -e ".channels.\"canary-$CHANNEL\"" > /dev/null; then
               OLD_BASE=$(echo "$PINNED" | jq -r ".channels.\"canary-$CHANNEL\".base // 0")
               OLD_COUNTER=$(echo "$PINNED" | jq -r ".channels.\"canary-$CHANNEL\".counter // 0")
               PREVIOUS=$(echo "$PINNED" | jq -r ".channels.\"canary-$CHANNEL\".commit // empty")
               if [ "$OLD_BASE" = "$BASE" ]; then
                 COUNTER=$((OLD_COUNTER + 1))
+              elif [ "$OLD_BASE" -gt "$BASE" ]; then
+                echo "::error::The channel is at base $OLD_BASE, this branch builds $BASE; a lower base never publishes."
+                exit 1
+              fi
+              if [ -n "$PREVIOUS" ] && git cat-file -e "$PREVIOUS^{commit}" 2>/dev/null \
+                && ! git merge-base --is-ancestor "$PREVIOUS" HEAD; then
+                echo "::error::The published commit $PREVIOUS is not an ancestor of HEAD, refusing to publish a rollback as an update."
+                exit 1
               fi
             fi
           fi
@@ -195,9 +270,13 @@ jobs:
 
   windows:
     name: Windows x64 (${{ needs.version.outputs.channel }})
-    runs-on: depot-windows-latest-16
+    runs-on: depot-windows-latest-32
     needs: version
     environment: canary
+
+    permissions:
+      contents: read
+      id-token: write
 
     # win-arm64 is phase 2: add an arch matrix here together with the
     # windows-11-arm runner and the VS ARM64 build tools steps from
@@ -222,11 +301,40 @@ jobs:
         shell: bash
         run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
 
+      - name: Git auth through the TBuild symlink.
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          # actions/checkout persists its auth header in the repository's
+          # local git config, which does not take effect for a checkout
+          # path that goes through the TBuild directory symlink: on the
+          # public repository the fetch needs no credentials, on the
+          # private one it fails with "could not read Username". The same
+          # header passed through the environment applies to every git
+          # call of the checkout step regardless of the path.
+          BASIC=$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)
+          echo "::add-mask::$BASIC"
+          echo "GIT_AUTH_HEADER=AUTHORIZATION: basic $BASIC" >> $GITHUB_ENV
+
       - name: Clone.
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        env:
+          GIT_CONFIG_COUNT: 1
+          GIT_CONFIG_KEY_0: http.https://github.com/.extraheader
+          GIT_CONFIG_VALUE_0: ${{ env.GIT_AUTH_HEADER }}
         with:
-          submodules: recursive
           path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
+
+      - name: Submodules.
+        shell: bash
+        run: |
+          # Separate from the clone on purpose: with submodules enabled
+          # actions/checkout adds its own Authorization header on top of
+          # the one above and GitHub rejects the duplicate. The submodules
+          # are public repositories and need no credentials.
+          cd $TBUILD/$REPO_NAME
+          git submodule update --init --recursive --depth=1
 
       - name: Read canary configuration.
         shell: bash
@@ -239,7 +347,7 @@ jobs:
           else
             echo "CANARY_TAG=canarypriv" >> $GITHUB_ENV
             echo "CANARY_KEY_ID=${{ vars.CANARY_PRIVATE_SIGNING_KEY_ID }}" >> $GITHUB_ENV
-            echo "CANARY_DEFINES=-D TDESKTOP_UPDATE_CHANNEL=canary-private -D TDESKTOP_CANARY_PRIVATE_CHANNEL_ID=${{ secrets.CANARY_PRIVATE_CHANNEL_ID }} -D TDESKTOP_CANARY_METADATA_MSG_ID=${{ vars.CANARY_PRIVATE_METADATA_MSG_ID }}" >> $GITHUB_ENV
+            echo "CANARY_DEFINES=-D TDESKTOP_UPDATE_CHANNEL=canary-private -D TDESKTOP_CANARY_PRIVATE_CHANNEL_ID=${{ vars.CANARY_PRIVATE_CHANNEL_ID }} -D TDESKTOP_CANARY_METADATA_MSG_ID=${{ vars.CANARY_PRIVATE_METADATA_MSG_ID }}" >> $GITHUB_ENV
           fi
 
       - name: First set up.
@@ -259,7 +367,10 @@ jobs:
           git config --global user.email "you@example.com"
           git config --global user.name "Sample"
 
-      - uses: Eden-CI/msvc-dev-cmd@master
+      # Pinned to a commit (master as of 2026-04-01): this job holds the
+      # platform-signing credentials and the OIDC token, a floating tag
+      # would let a third party run code next to them.
+      - uses: Eden-CI/msvc-dev-cmd@1bd71f95d6f3d1b2b3395b335cc63bcdc90cf223
         name: Native Tools Command Prompt.
         with:
           arch: x64
@@ -272,14 +383,14 @@ jobs:
           nuget sources Add -Source https://api.nuget.org/v3/index.json & exit 0
 
       - name: ThirdParty cache.
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ${{ env.TBUILD }}\ThirdParty
           key: ${{ runner.OS }}-${{ runner.arch }}-third-party-${{ env.CACHE_KEY }}
           restore-keys: ${{ runner.OS }}-${{ runner.arch }}-third-party-
 
       - name: Libraries cache.
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             ${{ env.LibrariesPath }}\*
@@ -291,7 +402,7 @@ jobs:
           restore-keys: ${{ runner.OS }}-x64-libs-v2rel-
 
       - name: Qt cache.
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             ${{ env.LibrariesPath }}\[qQ]t[_-]*
@@ -332,7 +443,6 @@ jobs:
           -D TDESKTOP_API_ID=${{ secrets.CANARY_API_ID }} ^
           -D TDESKTOP_API_HASH=${{ secrets.CANARY_API_HASH }} ^
           -D CMAKE_CONFIGURATION_TYPES=Release ^
-          -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT= ^
           -D DESKTOP_APP_SPECIAL_TARGET=win64 ^
           -D DESKTOP_APP_ENABLE_LTO=ON ^
           -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF ^
@@ -372,6 +482,11 @@ jobs:
         run: |
           cd $TBUILD/$REPO_NAME/out/Release
           if [ -z "$SM_API_KEY" ]; then
+            if [ "${{ needs.version.outputs.publish }}" = "true" ] \
+              && [ "${{ needs.version.outputs.unsigned }}" != "true" ]; then
+              echo "::error::Publishing requires the KeyLocker secrets, unsigned binaries never ship."
+              exit 1
+            fi
             echo "::warning::KeyLocker secrets absent, leaving binaries unsigned."
             exit 0
           fi
@@ -381,13 +496,15 @@ jobs:
           export SM_CLIENT_CERT_FILE=/tmp/keylocker.p12
           smctl sign --keypair-alias "$SM_KEYPAIR_ALIAS" --input Telegram.exe
           smctl sign --keypair-alias "$SM_KEYPAIR_ALIAS" --input Updater.exe
-          # TODO(canary-infra): verify both signatures here (signtool or
-          # smctl) — the publish job can only re-check the portable's
-          # Telegram.exe, Updater.exe travels inside the update envelope.
+          # Both binaries are verified here, on the exact bytes that get
+          # packed: Updater.exe travels only inside the update envelope,
+          # the publish job can re-check just the portable's Telegram.exe.
+          signtool verify /pa /all Telegram.exe
+          signtool verify /pa /all Updater.exe
 
       - name: Azure login for update signing.
         if: needs.version.outputs.publish == 'true'
-        uses: azure/login@v2
+        uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -419,8 +536,11 @@ jobs:
               -keys-loc ../../Telegram/Resources/update \
               -unsigned update-win-x64-$CANARY_TAG-$BASE-$CANARY_COUNTER.unsigned \
               -embed-signatures $CANARY_KEY_ID:canary.sig
+            rm update-win-x64-$CANARY_TAG-$BASE-$CANARY_COUNTER.unsigned signing-input.bin canary.sig
+            UPDATE=update-win-x64-$CANARY_TAG-$BASE-$CANARY_COUNTER
           else
             echo "::warning::No publish secrets, keeping the unsigned envelope only."
+            UPDATE=update-win-x64-$CANARY_TAG-$BASE-$CANARY_COUNTER.unsigned
           fi
 
           # The first-install artifact is a portable-style archive (like
@@ -433,21 +553,36 @@ jobs:
           cp Telegram.exe portable/Telegram/
           (cd portable && 7z a -mx9 ../$PORTABLE Telegram/)
 
-          mkdir artifact
-          mv update-win-x64-$CANARY_TAG-* artifact/
-          mv $PORTABLE artifact/
+          mkdir -p artifact/update artifact/portable
+          mv $UPDATE artifact/update/
+          mv $PORTABLE artifact/portable/
 
-      - uses: actions/upload-artifact@v7
-        name: Upload artifact.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        name: Upload the update.
         with:
           name: canary-win64
-          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}\out\Release\artifact\
+          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}\out\Release\artifact\update\
+          retention-days: ${{ needs.version.outputs.channel == 'public' && 90 || 1 }}
+
+      # The portable is its own artifact so its link can be handed to a
+      # user in an issue; on the private lane it is transport to the
+      # publish job only.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        name: Upload the portable.
+        with:
+          name: canary-win64-portable
+          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}\out\Release\artifact\portable\
+          retention-days: ${{ needs.version.outputs.channel == 'public' && 90 || 1 }}
 
   macos:
     name: macOS universal (${{ needs.version.outputs.channel }})
     runs-on: depot-macos-latest
     needs: version
     environment: canary
+
+    permissions:
+      contents: read
+      id-token: write
 
     env:
       PREPARE_PATH: "Telegram/build/prepare/prepare.py"
@@ -457,7 +592,7 @@ jobs:
         run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
 
       - name: Clone.
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           submodules: recursive
           path: ${{ env.REPO_NAME }}
@@ -472,7 +607,7 @@ jobs:
           else
             echo "CANARY_TAG=canarypriv" >> $GITHUB_ENV
             echo "CANARY_KEY_ID=${{ vars.CANARY_PRIVATE_SIGNING_KEY_ID }}" >> $GITHUB_ENV
-            echo "CANARY_DEFINES=-D TDESKTOP_UPDATE_CHANNEL=canary-private -D TDESKTOP_CANARY_PRIVATE_CHANNEL_ID=${{ secrets.CANARY_PRIVATE_CHANNEL_ID }} -D TDESKTOP_CANARY_METADATA_MSG_ID=${{ vars.CANARY_PRIVATE_METADATA_MSG_ID }}" >> $GITHUB_ENV
+            echo "CANARY_DEFINES=-D TDESKTOP_UPDATE_CHANNEL=canary-private -D TDESKTOP_CANARY_PRIVATE_CHANNEL_ID=${{ vars.CANARY_PRIVATE_CHANNEL_ID }} -D TDESKTOP_CANARY_METADATA_MSG_ID=${{ vars.CANARY_PRIVATE_METADATA_MSG_ID }}" >> $GITHUB_ENV
           fi
 
       - name: First set up.
@@ -488,7 +623,7 @@ jobs:
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
       - name: Libraries cache.
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             Libraries
@@ -522,8 +657,7 @@ jobs:
           ./configure.sh \
           -D CMAKE_CONFIGURATION_TYPES=Release \
           -D CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO \
-          -D CMAKE_POLICY_DEFAULT_CMP0069=NEW \
-          -D CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=ON \
+          -D DESKTOP_APP_ENABLE_LTO=ON \
           -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
           -D TDESKTOP_API_ID=${{ secrets.CANARY_API_ID }} \
           -D TDESKTOP_API_HASH=${{ secrets.CANARY_API_HASH }} \
@@ -587,6 +721,11 @@ jobs:
         run: |
           cd $REPO_NAME/out/Release
           if [ -z "$CERTIFICATE_P12_B64" ]; then
+            if [ "${{ needs.version.outputs.publish }}" = "true" ] \
+              && [ "${{ needs.version.outputs.unsigned }}" != "true" ]; then
+              echo "::error::Publishing requires the signing certificate, unsigned apps never ship."
+              exit 1
+            fi
             echo "::warning::No signing certificate, leaving the apps unsigned."
             exit 0
           fi
@@ -611,12 +750,14 @@ jobs:
               --team-id "$NOTARY_TEAM_ID" \
               --password "$NOTARY_PASSWORD"
             xcrun stapler staple "$BUNDLE"
+            xcrun stapler validate "$BUNDLE"
+            spctl --assess --type execute --verbose=2 "$BUNDLE"
             rm notarize.zip
           done
 
       - name: Azure login for update signing.
         if: needs.version.outputs.publish == 'true'
-        uses: azure/login@v2
+        uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -654,10 +795,12 @@ jobs:
                 -keys-loc ../../../Telegram/Resources/update \
                 -unsigned update-mac-$SHORT-$CANARY_TAG-$BASE-$CANARY_COUNTER.unsigned \
                 -embed-signatures $CANARY_KEY_ID:canary.sig
+              rm update-mac-$SHORT-$CANARY_TAG-$BASE-$CANARY_COUNTER.unsigned signing-input.bin canary.sig
+              mv update-mac-$SHORT-$CANARY_TAG-$BASE-$CANARY_COUNTER ../
             else
               echo "::warning::No publish secrets, keeping the unsigned envelope only."
+              mv update-mac-$SHORT-$CANARY_TAG-$BASE-$CANARY_COUNTER.unsigned ../
             fi
-            mv update-mac-$SHORT-$CANARY_TAG-* ../
             cd ..
             rm -rf update_pack
           done
@@ -670,28 +813,40 @@ jobs:
           cp -R Telegram.app portable/Telegram/
           (cd portable && zip -q -r ../$PORTABLE Telegram)
 
-          mkdir artifact
-          mv update-mac-*-$CANARY_TAG-* artifact/
-          mv $PORTABLE artifact/
+          mkdir -p artifact/update artifact/portable
+          mv update-mac-*-$CANARY_TAG-* artifact/update/
+          mv $PORTABLE artifact/portable/
 
-      - uses: actions/upload-artifact@v7
-        name: Upload artifact.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        name: Upload the updates.
         with:
           name: canary-mac
-          path: ${{ env.REPO_NAME }}/out/Release/artifact/
+          path: ${{ env.REPO_NAME }}/out/Release/artifact/update/
+          retention-days: ${{ needs.version.outputs.channel == 'public' && 90 || 1 }}
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        name: Upload the portable.
+        with:
+          name: canary-mac-portable
+          path: ${{ env.REPO_NAME }}/out/Release/artifact/portable/
+          retention-days: ${{ needs.version.outputs.channel == 'public' && 90 || 1 }}
 
   linux:
     name: Linux x64 (${{ needs.version.outputs.channel }})
-    runs-on: depot-ubuntu-latest-16
+    runs-on: depot-ubuntu-latest-32
     needs: version
     environment: canary
+
+    permissions:
+      contents: read
+      id-token: write
 
     env:
       IMAGE_TAG: tdesktop:centos_env
 
     steps:
       - name: Clone.
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           submodules: recursive
 
@@ -705,16 +860,18 @@ jobs:
           else
             echo "CANARY_TAG=canarypriv" >> $GITHUB_ENV
             echo "CANARY_KEY_ID=${{ vars.CANARY_PRIVATE_SIGNING_KEY_ID }}" >> $GITHUB_ENV
-            echo "CANARY_DEFINES=-D TDESKTOP_UPDATE_CHANNEL=canary-private -D TDESKTOP_CANARY_PRIVATE_CHANNEL_ID=${{ secrets.CANARY_PRIVATE_CHANNEL_ID }} -D TDESKTOP_CANARY_METADATA_MSG_ID=${{ vars.CANARY_PRIVATE_METADATA_MSG_ID }}" >> $GITHUB_ENV
+            echo "CANARY_DEFINES=-D TDESKTOP_UPDATE_CHANNEL=canary-private -D TDESKTOP_CANARY_PRIVATE_CHANNEL_ID=${{ vars.CANARY_PRIVATE_CHANNEL_ID }} -D TDESKTOP_CANARY_METADATA_MSG_ID=${{ vars.CANARY_PRIVATE_METADATA_MSG_ID }}" >> $GITHUB_ENV
           fi
 
       - name: First set up.
         run: |
+          # The template only needs Jinja2: the distro package replaces
+          # the curl-piped poetry installer linux.yml uses, so no code
+          # from an unpinned URL runs in a job that later signs.
           sudo apt update
-          curl -sSL https://install.python-poetry.org | python3 -
+          sudo apt install -y python3-jinja2
           cd Telegram/build/docker/centos_env
-          poetry install
-          DOCKERFILE=$(DEBUG= poetry run gen_dockerfile)
+          DOCKERFILE=$(DEBUG= python3 gen_dockerfile.py)
           echo "$DOCKERFILE" > Dockerfile
           rm -rf __pycache__
 
@@ -725,11 +882,11 @@ jobs:
 
       - name: Set up Docker Buildx.
         id: setup-buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
 
       - name: Libraries cache.
         id: cache-libs
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             ${{ runner.temp }}/.buildx-cache
@@ -746,7 +903,7 @@ jobs:
           skip-extraction: ${{ steps.cache-libs.outputs.cache-hit }}
 
       - name: Libraries.
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: Telegram/build/docker/centos_env
           load: true
@@ -781,7 +938,7 @@ jobs:
           $IMAGE_TAG \
           /usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh \
           -D CMAKE_CONFIGURATION_TYPES=Release \
-          -D CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=ON \
+          -D DESKTOP_APP_ENABLE_LTO=ON \
           -D TDESKTOP_API_ID=${{ secrets.CANARY_API_ID }} \
           -D TDESKTOP_API_HASH=${{ secrets.CANARY_API_HASH }} \
           -D DESKTOP_APP_SPECIAL_TARGET=linux \
@@ -804,9 +961,17 @@ jobs:
           # TODO(canary-infra): upload symbols/ to R2 (see the Windows job).
           ../../Telegram/build/minidebug.sh Telegram
 
+      - name: Verify the update trust chain.
+        run: |
+          # The focused verification test and the Packer round-trip run
+          # against the exact binaries built for this canary, including
+          # the committed trust files against the pinned root.
+          out/Release/test_update_verify
+          Telegram/build/canary_test_fixtures.sh out/Release/Packer "$RUNNER_TEMP/fixtures"
+
       - name: Azure login for update signing.
         if: needs.version.outputs.publish == 'true'
-        uses: azure/login@v2
+        uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -831,8 +996,11 @@ jobs:
               -keys-loc ../../Telegram/Resources/update \
               -unsigned update-linux-x64-$CANARY_TAG-${{ needs.version.outputs.base }}-$CANARY_COUNTER.unsigned \
               -embed-signatures $CANARY_KEY_ID:canary.sig
+            rm update-linux-x64-$CANARY_TAG-${{ needs.version.outputs.base }}-$CANARY_COUNTER.unsigned signing-input.bin canary.sig
+            UPDATE=update-linux-x64-$CANARY_TAG-${{ needs.version.outputs.base }}-$CANARY_COUNTER
           else
             echo "::warning::No publish secrets, keeping the unsigned envelope only."
+            UPDATE=update-linux-x64-$CANARY_TAG-${{ needs.version.outputs.base }}-$CANARY_COUNTER.unsigned
           fi
 
           # Portable-style first-install archive, tdata forced next to
@@ -843,22 +1011,34 @@ jobs:
           cp Telegram Updater portable/Telegram/
           tar -cJf $PORTABLE -C portable Telegram
 
-          mkdir artifact
-          mv update-linux-x64-$CANARY_TAG-* artifact/
-          mv $PORTABLE artifact/
+          mkdir -p artifact/update artifact/portable
+          mv $UPDATE artifact/update/
+          mv $PORTABLE artifact/portable/
 
-      - uses: actions/upload-artifact@v7
-        name: Upload artifact.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        name: Upload the update.
         with:
           name: canary-linux
-          path: out/Release/artifact/
+          path: out/Release/artifact/update/
+          retention-days: ${{ needs.version.outputs.channel == 'public' && 90 || 1 }}
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        name: Upload the portable.
+        with:
+          name: canary-linux-portable
+          path: out/Release/artifact/portable/
+          retention-days: ${{ needs.version.outputs.channel == 'public' && 90 || 1 }}
 
   publish:
     name: Publish (${{ needs.version.outputs.channel }})
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-latest
     needs: [version, windows, macos, linux]
     if: needs.version.outputs.publish == 'true'
     environment: canary
+
+    permissions:
+      contents: read
+      packages: read
 
     services:
       # Built from a pinned tdlib/telegram-bot-api ref by the
@@ -883,25 +1063,40 @@ jobs:
 
     steps:
       - name: Clone.
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
       - name: Download artifacts.
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           path: artifacts
 
+      - name: Wait for the Bot API server.
+        run: |
+          # GitHub only waits for the container process, not for tdlib to
+          # accept requests.
+          for i in $(seq 1 30); do
+            if curl -sf "$BOT_API/bot$BOT_TOKEN/getMe" | jq -e '.ok == true' > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::The local Bot API server did not come up."
+          exit 1
+
       - name: Verify platform signatures.
+        if: needs.version.outputs.unsigned != 'true'
         run: |
           # Publishing unsigned binaries is never allowed: this is a hard
           # gate, not a warning. The binaries inside the update envelopes
-          # were verified right after signing in the build jobs; here the
+          # were verified right after signing in the build jobs (signtool
+          # on Windows, codesign + stapler + spctl on macOS); here the
           # portable archives are re-checked as the publish-side witness.
           sudo apt-get update && sudo apt-get install -y osslsigncode
           FAILED=0
 
-          unzip -q artifacts/canary-win64/portable-win-x64-*.zip -d /tmp/winapp
+          unzip -q artifacts/canary-win64-portable/portable-win-x64-*.zip -d /tmp/winapp
           if ! osslsigncode verify /tmp/winapp/Telegram/Telegram.exe; then
             echo "::error::The portable Telegram.exe is not Authenticode-signed."
             FAILED=1
@@ -910,7 +1105,7 @@ jobs:
           # TODO(canary-infra): pin an apple-codesign (rcodesign) release
           # for full macOS signature+staple verification on Linux:
           #   rcodesign verify /tmp/macapp/Telegram/Telegram.app
-          unzip -q artifacts/canary-mac/portable-mac-universal-*.zip -d /tmp/macapp
+          unzip -q artifacts/canary-mac-portable/portable-mac-universal-*.zip -d /tmp/macapp
           if [ ! -d "/tmp/macapp/Telegram/Telegram.app/Contents/_CodeSignature" ]; then
             echo "::error::The portable Telegram.app has no code signature."
             FAILED=1
@@ -921,8 +1116,8 @@ jobs:
       - name: Publish the channel.
         env:
           CHANNEL: ${{ needs.version.outputs.channel }}
-          PUBLIC_CHANNEL: ${{ secrets.CANARY_PUBLIC_CHANNEL_ID }}
-          PRIVATE_CHANNEL: ${{ secrets.CANARY_PRIVATE_CHANNEL_ID }}
+          PUBLIC_CHANNEL: ${{ vars.CANARY_PUBLIC_CHANNEL_ID }}
+          PRIVATE_CHANNEL: ${{ vars.CANARY_PRIVATE_CHANNEL_ID }}
           PUBLIC_MSG_ID: ${{ vars.CANARY_METADATA_MSG_ID }}
           PRIVATE_MSG_ID: ${{ vars.CANARY_PRIVATE_METADATA_MSG_ID }}
         run: |
@@ -933,11 +1128,29 @@ jobs:
             CHAT_ID="-100$PRIVATE_CHANNEL"
             MSG_ID="$PRIVATE_MSG_ID"
           fi
+          BASE="${{ needs.version.outputs.base }}"
           COUNTER="${{ needs.version.outputs.counter }}"
           PREVIOUS="${{ needs.version.outputs.previous }}"
+          TAG=canarypub
+          if [ "$CHANNEL" = "private" ]; then TAG=canarypriv; fi
+
+          call() {
+            local METHOD="$1"
+            shift
+            local RESPONSE
+            RESPONSE=$(curl -sf "$BOT_API/bot$BOT_TOKEN/$METHOD" "$@")
+            if ! echo "$RESPONSE" | jq -e '.ok == true' > /dev/null; then
+              echo "::error::$METHOD failed: $(echo "$RESPONSE" | jq -r '.description // "no response"')"
+              return 1
+            fi
+            echo "$RESPONSE"
+          }
 
           CAPTION=$({
             echo "Canary #$COUNTER · ${{ needs.version.outputs.commit }}"
+            if [ "${{ needs.version.outputs.unsigned }}" = "true" ]; then
+              echo "UNSIGNED test build: no Authenticode / notarization."
+            fi
             echo ""
             if [ -n "$PREVIOUS" ] && git cat-file -e "$PREVIOUS^{commit}" 2>/dev/null; then
               git log --no-merges --pretty=format:'• %s' "$PREVIOUS..HEAD" | head -20
@@ -946,42 +1159,56 @@ jobs:
             fi
           } | head -c 1000)
 
+          # Exact names only: the build jobs delete the .unsigned
+          # intermediates, a publish run never guesses from a glob.
           declare -A FILES
-          FILES[win64]=$(ls artifacts/canary-win64/update-win-x64-* | head -1)
-          FILES[mac]=$(ls artifacts/canary-mac/update-mac-x64-* | head -1)
-          FILES[armac]=$(ls artifacts/canary-mac/update-mac-arm-* | head -1)
-          FILES[linux]=$(ls artifacts/canary-linux/update-linux-x64-* | head -1)
+          FILES[win64]=artifacts/canary-win64/update-win-x64-$TAG-$BASE-$COUNTER
+          FILES[mac]=artifacts/canary-mac/update-mac-x64-$TAG-$BASE-$COUNTER
+          FILES[armac]=artifacts/canary-mac/update-mac-arm-$TAG-$BASE-$COUNTER
+          FILES[linux]=artifacts/canary-linux/update-linux-x64-$TAG-$BASE-$COUNTER
+          declare -A PORTABLES
+          PORTABLES[win64]=artifacts/canary-win64-portable/portable-win-x64-$TAG-$BASE-$COUNTER.zip
+          PORTABLES[mac]=artifacts/canary-mac-portable/portable-mac-universal-$TAG-$BASE-$COUNTER.zip
+          PORTABLES[linux]=artifacts/canary-linux-portable/portable-linux-x64-$TAG-$BASE-$COUNTER.tar.xz
+          for FILE in "${FILES[@]}" "${PORTABLES[@]}"; do
+            if [ ! -f "$FILE" ]; then
+              echo "::error::$FILE is missing, refusing to publish."
+              exit 1
+            fi
+          done
+
+          # The metadata is read back first so that entries other lanes
+          # or a human wrote (the dormancy-rescue 'stable' entry of a
+          # retired lane) survive: only this lane's entry and the trust
+          # material are replaced.
+          CHAT=$(call getChat -F chat_id="$CHAT_ID")
+          PINNED_ID=$(echo "$CHAT" | jq -r '.result.pinned_message.message_id // empty')
+          if [ "$PINNED_ID" != "$MSG_ID" ]; then
+            echo "::error::The pinned message is '$PINNED_ID', expected the metadata message $MSG_ID."
+            exit 1
+          fi
+          CURRENT=$(echo "$CHAT" | jq -r '.result.pinned_message.text // empty')
+          if ! echo "$CURRENT" | jq -e 'type == "object"' > /dev/null; then
+            echo "::error::The metadata message is not a JSON object."
+            exit 1
+          fi
 
           declare -A POSTS
           for PLATFORM in win64 mac armac linux; do
-            FILE=${FILES[$PLATFORM]}
-            if [ -z "$FILE" ] || [[ "$FILE" == *.unsigned ]]; then
-              echo "::error::$PLATFORM update is missing or unsigned, refusing to publish."
-              exit 1
-            fi
-            RESPONSE=$(curl -sf "$BOT_API/bot$BOT_TOKEN/sendDocument" \
+            RESPONSE=$(call sendDocument \
               -F chat_id="$CHAT_ID" \
-              -F document=@"$FILE" \
+              -F document=@"${FILES[$PLATFORM]}" \
               -F caption="$CAPTION")
-            POSTS[$PLATFORM]=$(echo "$RESPONSE" | jq -r '.result.message_id')
+            POSTS[$PLATFORM]=$(echo "$RESPONSE" | jq -e -r '.result.message_id | numbers')
             echo "$PLATFORM -> post ${POSTS[$PLATFORM]}"
           done
 
           # The portable archives are for first installs, posted as plain
           # documents and not referenced from the metadata.
-          declare -A PORTABLES
-          PORTABLES[win64]=$(ls artifacts/canary-win64/portable-win-x64-* | head -1)
-          PORTABLES[mac]=$(ls artifacts/canary-mac/portable-mac-universal-* | head -1)
-          PORTABLES[linux]=$(ls artifacts/canary-linux/portable-linux-x64-* | head -1)
           for PLATFORM in win64 mac linux; do
-            PORTABLE=${PORTABLES[$PLATFORM]}
-            if [ -z "$PORTABLE" ]; then
-              echo "::error::$PLATFORM portable archive is missing."
-              exit 1
-            fi
-            curl -sf "$BOT_API/bot$BOT_TOKEN/sendDocument" \
+            call sendDocument \
               -F chat_id="$CHAT_ID" \
-              -F document=@"$PORTABLE" \
+              -F document=@"${PORTABLES[$PLATFORM]}" \
               -F caption="Portable, $CAPTION" > /dev/null
             echo "$PLATFORM portable posted."
           done
@@ -989,38 +1216,39 @@ jobs:
           MANIFEST_B64=$(base64 -w0 Telegram/Resources/update/manifest.min.json)
           MANIFEST_SIG_B64=$(base64 -w0 Telegram/Resources/update/manifest.sig)
 
-          NEW=$(jq -n \
+          NEW=$(echo "$CURRENT" | jq \
             --arg manifest "$MANIFEST_B64" \
             --arg manifest_sig "$MANIFEST_SIG_B64" \
             --arg commit "${{ needs.version.outputs.commit }}" \
-            --argjson base "${{ needs.version.outputs.base }}" \
+            --argjson base "$BASE" \
             --argjson counter "$COUNTER" \
             --argjson win64 "${POSTS[win64]}" \
             --argjson mac "${POSTS[mac]}" \
             --argjson armac "${POSTS[armac]}" \
             --argjson linux "${POSTS[linux]}" \
-            "{
+            ". + {
               format: 1,
               manifest: \$manifest,
-              manifest_sig: \$manifest_sig,
-              channels: {
-                \"canary-$CHANNEL\": {
-                  base: \$base,
-                  counter: \$counter,
-                  commit: \$commit,
-                  posts: {
-                    win64: \$win64,
-                    mac: \$mac,
-                    armac: \$armac,
-                    linux: \$linux
-                  }
+              manifest_sig: \$manifest_sig
+            } | .channels = ((.channels // {}) + {
+              \"canary-$CHANNEL\": {
+                base: \$base,
+                counter: \$counter,
+                commit: \$commit,
+                posts: {
+                  win64: \$win64,
+                  mac: \$mac,
+                  armac: \$armac,
+                  linux: \$linux
                 }
               }
-            }")
-          curl -sf "$BOT_API/bot$BOT_TOKEN/editMessageText" \
+            })")
+          if [ "${#NEW}" -gt 4096 ]; then
+            echo "::error::The metadata message would exceed 4096 characters, prune the manifest or old entries."
+            exit 1
+          fi
+          call editMessageText \
             -F chat_id="$CHAT_ID" \
             -F message_id="$MSG_ID" \
-            --form-string text="$NEW" || {
-              echo "::error::Could not edit the metadata message $MSG_ID."
-              exit 1
-            }
+            --form-string text="$NEW" > /dev/null
+          echo "Metadata message $MSG_ID updated to canary-$CHANNEL $BASE #$COUNTER."

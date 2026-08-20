@@ -4,6 +4,10 @@
 # printed digest-pinned reference. Rebuild deliberately on upgrades,
 # never track a third-party image: the publish job hands this container
 # the bot token and every published update file.
+#
+# The job runs in the 'canary' environment so only the refs that
+# environment admits can dispatch it, exactly like the publish job that
+# consumes the image.
 
 name: Canary Bot API image.
 
@@ -11,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: tdlib/telegram-bot-api tag or commit to build
+        description: full 40-hex tdlib/telegram-bot-api commit to build (the project has no tags; take the "Update version to X.Y" commit of a release)
         required: true
 
 permissions:
@@ -22,14 +26,24 @@ jobs:
 
   build:
     name: Build and push
-    runs-on: depot-ubuntu-latest-16
+    runs-on: depot-ubuntu-latest-32
+    environment: canary
 
     steps:
+      - name: Validate the ref.
+        env:
+          REF: ${{ inputs.ref }}
+        run: |
+          if ! [[ "$REF" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Pass a full 40-hex commit, got '$REF'."
+            exit 1
+          fi
+
       - name: Clone.
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Log in to GHCR.
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -37,7 +51,7 @@ jobs:
 
       - name: Build and push.
         id: push
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: .github/telegram-bot-api
           push: true

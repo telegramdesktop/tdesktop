@@ -252,6 +252,7 @@ private:
 	void gotCanaryMessage(
 		const MTPInputChannel &channel,
 		const MTPmessages_Messages &result,
+		int messageId,
 		bool fallbackToPinned);
 	void parseCanaryMetadata(
 		const MTPInputChannel &channel,
@@ -595,6 +596,16 @@ QString ExtractFilename(const QString &url) {
 [[nodiscard]] bool UnpackUpdateV2(
 		const QString &filepath,
 		const QByteArray &content) {
+	// The expected target follows the feed key, not the build: an x64
+	// build under Rosetta asks for armac and must accept that package.
+	const auto target = Updates::TargetFromPlatformKey(
+		Platform::AutoUpdateKey().toLatin1());
+	if (!target) {
+		LOG(("Update Error: No v2 target for platform key '%1'."
+			).arg(Platform::AutoUpdateKey()));
+		return false;
+	}
+
 	// The full verification happens before any decompression, so no
 	// unauthenticated bytes ever reach the LZMA or QDataStream parsers.
 	auto error = QString();
@@ -602,6 +613,7 @@ QString ExtractFilename(const QString &url) {
 		content,
 		BuildUpdateChannel,
 		AppBetaVersion || cInstallBetaVersion(),
+		*target,
 		RunningUpdateVersion(),
 		HeldManifest(),
 		Updates::RootPublicKeyPem(),
@@ -690,6 +702,9 @@ bool UnpackUpdate(const QString &filepath) {
 	if (!input.open(QIODevice::ReadOnly)) {
 		LOG(("Update Error: cant read updates file!"));
 		return false;
+	} else if (input.size() > Loader::kMaxFileSize) {
+		LOG(("Update Error: updates file is too large: %1").arg(input.size()));
+		return false;
 	}
 
 #if defined Q_OS_WIN && !defined TDESKTOP_USE_PACKAGED // use Lzma SDK for win
@@ -703,6 +718,12 @@ bool UnpackUpdate(const QString &filepath) {
 
 	if (Updates::IsV2UpdateFile(compressed)) {
 		return UnpackUpdateV2(filepath, compressed);
+	} else if (BuildIsCanary) {
+		// The channel policy lives in the v2 envelope only, a classical
+		// RSA package has no channel and would let any official v1 file
+		// posted to the canary channel jump a canary off its lane.
+		LOG(("Update Error: canary builds accept only v2 updates."));
+		return false;
 	}
 
 	int32 compressedLen = compressed.size() - hSize;
@@ -1182,7 +1203,7 @@ void HttpLoaderActor::gotMetaData() {
 		if (QString::fromUtf8(pair.first).toLower() == "content-range") {
 			const auto m = QRegularExpression(u"/(\\d+)([^\\d]|$)"_q).match(QString::fromUtf8(pair.second));
 			if (m.hasMatch()) {
-				_parent->writeChunk({}, m.captured(1).toInt());
+				_parent->writeChunk({}, m.captured(1).toLongLong());
 			}
 		}
 	}
@@ -1405,7 +1426,7 @@ void MtpChecker::requestCanaryMetadata(
 				1,
 				MTP_inputMessageID(MTP_int(messageId)))),
 		[=](const MTPmessages_Messages &result) {
-			gotCanaryMessage(channel, result, fallbackToPinned);
+			gotCanaryMessage(channel, result, messageId, fallbackToPinned);
 		},
 		failHandler());
 }
@@ -1433,8 +1454,9 @@ void MtpChecker::requestCanaryPinnedFallback(const MTPInputChannel &channel) {
 void MtpChecker::gotCanaryMessage(
 		const MTPInputChannel &channel,
 		const MTPmessages_Messages &result,
+		int messageId,
 		bool fallbackToPinned) {
-	const auto message = MTP::GetMessagesElement(result);
+	const auto message = MTP::GetMessagesElement(result, messageId);
 	if (!message || message->type() != mtpc_message) {
 		if (fallbackToPinned) {
 			requestCanaryPinnedFallback(channel);
@@ -1459,6 +1481,11 @@ void MtpChecker::parseCanaryMetadata(
 		return;
 	}
 	const auto object = document.object();
+	if (object.value(u"format"_q).toDouble() != 1.) {
+		LOG(("Update Error: Unknown canary metadata format."));
+		fail();
+		return;
+	}
 
 	const auto decode = [](const QJsonValue &value) {
 		if (!value.isString()) {
@@ -1472,11 +1499,15 @@ void MtpChecker::parseCanaryMetadata(
 	const auto manifest = decode(object.value(u"manifest"_q));
 	const auto manifestSig = decode(object.value(u"manifest_sig"_q));
 	if (!manifest.isEmpty() && !manifestSig.isEmpty()) {
+		auto error = QString();
 		if (auto parsed = Updates::ParseVerifiedManifest(
 				manifest,
 				manifestSig,
-				Updates::RootPublicKeyPem())) {
+				Updates::RootPublicKeyPem(),
+				&error)) {
 			AdoptManifest(*parsed);
+		} else {
+			LOG(("Update Error: Bad canary metadata manifest: %1").arg(error));
 		}
 	}
 
@@ -1484,35 +1515,46 @@ void MtpChecker::parseCanaryMetadata(
 	const auto platform = Platform::AutoUpdateKey();
 	auto bestVersion = quint64(0);
 	auto bestPostId = 0;
+	const auto readU32 = [](const QJsonValue &value, quint32 *result) {
+		const auto number = value.toDouble();
+		if (!(number >= 0.) || !(number <= 4294967295.)) {
+			return false;
+		}
+		*result = quint32(number);
+		return (double(*result) == number);
+	};
 	const auto consider = [&](const QByteArray &name) {
 		const auto entry = channels.value(QLatin1String(name)).toObject();
 		if (entry.isEmpty()) {
 			return;
 		}
-		const auto base = entry.value(u"base"_q).toDouble();
-		const auto counter = entry.value(u"counter"_q).toDouble();
-		if (base <= 0
-			|| base != double(quint32(base))
-			|| counter < 0
-			|| counter != double(quint32(counter))) {
+		auto base = quint32(0);
+		auto counter = quint32(0);
+		auto postId = quint32(0);
+		if (!readU32(entry.value(u"base"_q), &base)
+			|| !base
+			|| !readU32(entry.value(u"counter"_q), &counter)
+			|| !readU32(
+				entry.value(u"posts"_q).toObject().value(platform),
+				&postId)
+			|| !postId
+			|| postId > quint32(0x7FFFFFFF)) {
 			return;
 		}
-		const auto version = Updates::MakeUpdateVersion(
-			quint32(base),
-			quint32(counter));
-		const auto postId = int(base::SafeRound(
-			entry.value(u"posts"_q).toObject().value(platform).toDouble()));
-		if (version > bestVersion && postId > 0) {
+		const auto version = Updates::MakeUpdateVersion(base, counter);
+		if (version > bestVersion) {
 			bestVersion = version;
-			bestPostId = postId;
+			bestPostId = int(postId);
 		}
 	};
 	consider(Updates::ChannelName(BuildUpdateChannel));
 	if (BuildUpdateChannel == Updates::Channel::CanaryPublic) {
 		// Dormancy rescue: a stale public canary channel may point to a
-		// newer stable release. Package verification still enforces the
-		// strictly-greater-base channel policy on whatever is downloaded.
+		// newer stable or beta release. Package verification still
+		// enforces the strictly-greater-base channel policy on whatever
+		// is downloaded.
 		consider(Updates::ChannelName(Updates::Channel::Stable));
+		consider(Updates::ChannelName(Updates::Channel::Beta));
 	}
 	if (!bestVersion || bestVersion <= RunningUpdateVersion()) {
 		done(nullptr);
@@ -2235,6 +2277,10 @@ bool checkReadyUpdate() {
 				ClearAll();
 				return false;
 			}
+		} else if (BuildUpdateChannel == Updates::Channel::CanaryPrivate) {
+			LOG(("Update Error: cant install a non-canary version %1 on a private canary").arg(versionNum));
+			ClearAll();
+			return false;
 		} else if (versionNum <= AppVersion) {
 			LOG(("Update Error: cant install version %1 having version %2").arg(versionNum).arg(AppVersion));
 			ClearAll();

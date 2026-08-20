@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_instance.h"
 
 #include <QtCore/QDirIterator>
+#include <QtCore/QSaveFile>
 
 #ifndef Q_OS_WIN
 #include <unistd.h>
@@ -603,10 +604,12 @@ void writeUpdateManifest(
 		|| manifest.isEmpty()) {
 		return;
 	}
-	QFile f(updateManifestFile());
-	if (f.open(QIODevice::WriteOnly)) {
-		f.write(signature);
-		f.write(manifest);
+	QSaveFile f(updateManifestFile());
+	if (!f.open(QIODevice::WriteOnly)
+		|| f.write(signature) != signature.size()
+		|| f.write(manifest) != manifest.size()
+		|| !f.commit()) {
+		LOG(("Storage Error: Could not write the update manifest."));
 	}
 }
 

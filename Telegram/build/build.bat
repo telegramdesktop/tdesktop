@@ -202,7 +202,7 @@ if %AlphaVersion% neq 0 (
     echo Deploy folder for version %AppVersionStr% already exists!
     exit /b 1
   )
-  if exist %ReleasePath%\tupdate%AppVersion% (
+  if exist %ReleasePath%\%UpdateFile% (
     echo Update file for version %AppVersion% already exists!
     exit /b 1
   )

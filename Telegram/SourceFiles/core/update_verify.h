@@ -34,6 +34,44 @@ enum class Channel : uchar {
 [[nodiscard]] QByteArray ChannelName(Channel channel);
 [[nodiscard]] std::optional<Channel> ChannelFromName(const QByteArray &name);
 
+enum class Os : uchar {
+	Windows = 0,
+	Mac = 1,
+	Linux = 2,
+};
+
+enum class Arch : uchar {
+	X86 = 0,
+	X64 = 1,
+	Arm = 2,
+};
+
+// The target a package was built for, part of the signed region: a valid
+// signature for one arch can't be re-routed to clients of another one.
+struct Target {
+	Os os = Os::Windows;
+	Arch arch = Arch::X86;
+
+	friend inline bool operator==(Target a, Target b) {
+		return (a.os == b.os) && (a.arch == b.arch);
+	}
+};
+
+[[nodiscard]] QByteArray OsName(Os os);
+[[nodiscard]] QByteArray ArchName(Arch arch);
+
+// The feed key of Platform::AutoUpdateKey(): win / win64 / winarm / mac
+// / armac / linux. It names the package a client should RECEIVE, which is
+// not always the client's own build (an x64 build under Rosetta asks for
+// armac), so clients compute the expected target from it, never from
+// compile-time macros.
+[[nodiscard]] std::optional<Target> TargetFromPlatformKey(
+	const QByteArray &key);
+
+// The payload is the only envelope field without a tight structural cap,
+// this one matches the updater download limit.
+inline constexpr auto kMaxPayloadSize = quint32(256 * 1024 * 1024);
+
 [[nodiscard]] constexpr quint64 MakeUpdateVersion(
 		quint32 base,
 		quint32 counter) {
@@ -86,6 +124,7 @@ struct EnvelopeSignature {
 
 struct Envelope {
 	Channel channel = Channel::Stable;
+	Target target;
 	quint64 version = 0;
 	qint64 created = 0;
 	QByteArray manifest;
@@ -153,6 +192,7 @@ struct VerifiedUpdate {
 	const QByteArray &data,
 	Channel buildChannel,
 	bool betaSet,
+	Target expectedTarget,
 	quint64 runningVersion,
 	const std::optional<Manifest> &held,
 	const QByteArray &rootPublicKeyPem,

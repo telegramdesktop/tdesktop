@@ -29,6 +29,7 @@ if ! openssl genpkey -algorithm ed25519 2>/dev/null >/dev/null; then
 fi
 
 echo "Working in $WORKDIR"
+mkdir -p "$WORKDIR"
 cd "$WORKDIR"
 mkdir -p keys app
 
