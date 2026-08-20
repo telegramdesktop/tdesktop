@@ -27,7 +27,8 @@ QString V2LocalKeyId;
 QString V2SigningInputFile;
 QString V2UnsignedFile;
 std::vector<std::pair<QString, QString>> V2EmbedSignatures;
-QString V2PlatformKey;
+QString V2Os;
+QString V2Arch;
 
 const char *PublicKey = "\
 -----BEGIN RSA PUBLIC KEY-----\n\
@@ -199,8 +200,9 @@ void AppendLeU64(QByteArray &to, quint64 value) {
 		Channel channel,
 		quint32 base,
 		quint32 counter) {
-	auto result = QString("tv2-%1-%2-%3"
-	).arg(V2PlatformKey
+	auto result = QString("update-%1-%2-%3-%4"
+	).arg(V2Os
+	).arg(V2Arch
 	).arg(V2ChannelTag(channel)
 	).arg(base);
 	if (counter) {
@@ -499,6 +501,7 @@ int main(int argc, char *argv[])
 	[[maybe_unused]] bool targetwin64 = false;
 	[[maybe_unused]] bool targetwinarm = false;
 	[[maybe_unused]] bool targetarmac = false;
+	[[maybe_unused]] bool targetunimac = false;
 	QFileInfoList files;
 	for (int i = 0; i < argc; ++i) {
 		if (string("-path") == argv[i] && i + 1 < argc) {
@@ -511,7 +514,10 @@ int main(int argc, char *argv[])
 			targetwinarm = (string("winarm") == argv[i + 1]);
 		} else if (string("-arch") == argv[i] && i + 1 < argc) {
 			targetarmac = (string("arm64") == argv[i + 1]);
-			if (!targetarmac && string("x86_64") != argv[i + 1]) {
+			targetunimac = (string("universal") == argv[i + 1]);
+			if (!targetarmac
+				&& !targetunimac
+				&& string("x86_64") != argv[i + 1]) {
 				cout << "Bad -arch param value passed: " << argv[i + 1] << "\n";
 				return -1;
 			}
@@ -575,16 +581,28 @@ int main(int argc, char *argv[])
 	}
 
 #ifdef Q_OS_WIN
-	V2PlatformKey = targetwinarm
-		? QString("winarm")
+	V2Os = QString("win");
+	V2Arch = targetwinarm
+		? QString("arm")
 		: targetwin64
-		? QString("win64")
-		: QString("win");
+		? QString("x64")
+		: QString("x86");
 #elif defined Q_OS_MAC
-	V2PlatformKey = targetarmac ? QString("armac") : QString("mac");
+	V2Os = QString("mac");
+	V2Arch = targetunimac
+		? QString("universal")
+		: targetarmac
+		? QString("arm")
+		: QString("x64");
 #else
-	V2PlatformKey = QString("linux");
+	V2Os = QString("linux");
+	V2Arch = QString("x64");
 #endif
+
+	if (targetunimac && !V2Channel) {
+		cout << "The universal arch is only supported with -channel packing!\n";
+		return -1;
+	}
 
 	if (!V2UnsignedFile.isEmpty()) {
 		return EmbedV2Signatures();

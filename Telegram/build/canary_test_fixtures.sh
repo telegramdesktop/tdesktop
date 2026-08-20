@@ -81,13 +81,13 @@ echo
 echo "=== One-pass Ed25519 signing (stable) ==="
 "$PACKER" -path app -version 5000123 -channel stable \
   -keys-loc keys -local-key ed-private.pem -local-key-id ed-test
-ls -la tv2-*-stable-5000123
+ls -la update-*-stable-5000123
 
 echo
 echo "=== Two-pass external signing (canary-public, Ed25519 + ES256) ==="
 "$PACKER" -path app -version 5000123 -channel canary-public -counter 7 \
   -keys-loc keys -emit-signing-input signing-input.bin
-UNSIGNED=$(ls tv2-*-canarypub-5000123-7.unsigned)
+UNSIGNED=$(ls update-*-canarypub-5000123-7.unsigned)
 openssl pkeyutl -sign -inkey ed-private.pem -rawin \
   -in signing-input.bin -out ed.sig
 python3 "$SIGN_UPDATE" --input signing-input.bin --output es.sig \
