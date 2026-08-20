@@ -609,6 +609,7 @@ div.toast_shown {
     max-width: 100%;
 }
 .default .rich_message .rich_button_align_stretch .rich_button_group {
+    align-items: flex-start;
     width: 100%;
 }
 .default .rich_message .rich_button_align_left {
