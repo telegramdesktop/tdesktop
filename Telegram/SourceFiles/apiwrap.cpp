@@ -3706,6 +3706,34 @@ void ApiWrap::requestSharedMedia(
 	_sharedMediaRequests.emplace(key);
 }
 
+void ApiWrap::requestPinnedMessagesIfNeeded(
+		not_null<PeerData*> peer,
+		MsgId messageId) {
+	if (!IsServerMsgId(messageId)) {
+		return;
+	}
+	const auto snapshot = _session->storage().snapshot(
+		Storage::SharedMediaQuery(
+			Storage::SharedMediaKey(
+				peer->id,
+				MsgId(0), // topicRootId
+				PeerId(0), // monoforumPeerId
+				SharedMediaType::Pinned,
+				messageId),
+			0,
+			0));
+	if (!snapshot.count || snapshot.messageIds.contains(messageId)) {
+		return;
+	}
+	requestSharedMedia(
+		peer,
+		MsgId(0), // topicRootId
+		PeerId(0), // monoforumPeerId
+		SharedMediaType::Pinned,
+		messageId,
+		SliceType::Around);
+}
+
 void ApiWrap::sharedMediaDone(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,

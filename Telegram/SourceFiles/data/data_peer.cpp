@@ -2177,6 +2177,8 @@ void SetTopPinnedMessageId(
 			Storage::SharedMediaType::Pinned,
 			{},
 			{ messageId, ServerMaxMsgId }));
+	} else {
+		session.api().requestPinnedMessagesIfNeeded(peer, messageId);
 	}
 }
 
