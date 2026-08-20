@@ -46,7 +46,7 @@ public:
 		std::vector<MsgId> &&messageIds,
 		MsgRange noSkipRange,
 		std::optional<int> count);
-	void removeOne(MsgId messageId);
+	void removeOne(MsgId messageId, bool onlyMatched = false);
 	void removeAll();
 	void invalidateBottom();
 	rpl::producer<SparseIdsListResult> query(SparseIdsListQuery &&query) const;

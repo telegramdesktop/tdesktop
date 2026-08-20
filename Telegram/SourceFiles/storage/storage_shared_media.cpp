@@ -95,7 +95,7 @@ void SharedMedia::remove(SharedMediaRemoveOne &&query) {
 		for (auto index = 0; index != kSharedMediaTypeCount; ++index) {
 			auto type = static_cast<SharedMediaType>(index);
 			if (query.types.test(type)) {
-				i->second[index].removeOne(query.messageId);
+				i->second[index].removeOne(query.messageId, query.onlyMatched);
 			}
 		}
 	};
