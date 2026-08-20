@@ -538,8 +538,20 @@ dialogsMiniInvoiceIcon: IconEmoji {
 	icon: icon {{ "payments/payment_card-18x18", dialogsTextFg }};
 	padding: margins(0px, 1px, 3px, 0px);
 }
-dialogsMiniCallIcon: IconEmoji {
-	icon: icon {{ "profile/call-18x18", dialogsTextFg }};
+dialogsMiniCallOutgoingIcon: IconEmoji {
+	icon: icon {{ "dialogs/dialogs_chatlist_call_outgoing-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 3px, 0px);
+}
+dialogsMiniCallIncomingIcon: IconEmoji {
+	icon: icon {{ "dialogs/dialogs_chatlist_call_incoming-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 3px, 0px);
+}
+dialogsMiniVideoCallOutgoingIcon: IconEmoji {
+	icon: icon {{ "dialogs/dialogs_chatlist_video_call_outgoing-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 3px, 0px);
+}
+dialogsMiniVideoCallIncomingIcon: IconEmoji {
+	icon: icon {{ "dialogs/dialogs_chatlist_video_call_incoming-18x18", dialogsTextFg }};
 	padding: margins(0px, 1px, 3px, 0px);
 }
 dialogsMiniStoryIcon: IconEmoji {

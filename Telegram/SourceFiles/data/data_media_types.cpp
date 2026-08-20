@@ -1842,10 +1842,16 @@ const Call *MediaCall::call() const {
 }
 
 ItemPreview MediaCall::toPreview(ToPreviewOptions options) const {
+	const auto out = parent()->out();
+	const auto icon = _call.video
+		? (out
+			? &st::dialogsMiniVideoCallOutgoingIcon
+			: &st::dialogsMiniVideoCallIncomingIcon)
+		: (out
+			? &st::dialogsMiniCallOutgoingIcon
+			: &st::dialogsMiniCallIncomingIcon);
 	return {
-		.text = Ui::Text::IconEmoji(
-			&st::dialogsMiniCallIcon
-		).append(notificationText()),
+		.text = Ui::Text::IconEmoji(icon).append(notificationText()),
 	};
 }
 
