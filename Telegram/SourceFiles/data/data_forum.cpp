@@ -240,10 +240,12 @@ void Forum::applyTopicDeleted(MsgId rootId) {
 	_topics.erase(i);
 
 	_history->destroyMessagesByTopic(rootId);
-	session().storage().unload(Storage::SharedMediaUnloadThread(
-		_history->peer->id,
-		rootId,
-		PeerId()));
+	if (rootId) {
+		session().storage().unload(Storage::SharedMediaUnloadThread(
+			_history->peer->id,
+			rootId,
+			PeerId()));
+	}
 	_history->setForwardDraft(rootId, PeerId(), {});
 }
 
