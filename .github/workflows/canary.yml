@@ -356,6 +356,9 @@ jobs:
           export SM_CLIENT_CERT_FILE=/tmp/keylocker.p12
           smctl sign --keypair-alias "$SM_KEYPAIR_ALIAS" --input Telegram.exe
           smctl sign --keypair-alias "$SM_KEYPAIR_ALIAS" --input Updater.exe
+          # TODO(canary-infra): verify both signatures here (signtool or
+          # smctl) — the publish job can only re-check the portable's
+          # Telegram.exe, Updater.exe travels inside the update envelope.
 
       - name: Azure login for update signing.
         if: needs.version.outputs.publish == 'true'
@@ -365,13 +368,15 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           allow-no-subscriptions: true
 
-      - name: Pack v2 update.
+      - name: Pack v2 update and portable.
         shell: bash
         run: |
           cd $TBUILD/$REPO_NAME/out/Release
+          BASE=${{ needs.version.outputs.base }}
           ./Packer.exe -path Telegram.exe -path Updater.exe \
+            -path modules/x64/d3d/d3dcompiler_47.dll \
             -target win64 \
-            -version ${{ needs.version.outputs.base }} \
+            -version $BASE \
             -channel canary-${{ needs.version.outputs.channel }} \
             -counter $CANARY_COUNTER \
             -keys-loc ../../Telegram/Resources/update \
@@ -384,14 +389,27 @@ jobs:
               --az-key "$CANARY_KEY_ID"
             ./Packer.exe -channel canary-${{ needs.version.outputs.channel }} \
               -keys-loc ../../Telegram/Resources/update \
-              -unsigned update-win-x64-$CANARY_TAG-${{ needs.version.outputs.base }}-$CANARY_COUNTER.unsigned \
+              -unsigned update-win-x64-$CANARY_TAG-$BASE-$CANARY_COUNTER.unsigned \
               -embed-signatures $CANARY_KEY_ID:canary.sig
           else
             echo "::warning::No publish secrets, keeping the unsigned envelope only."
           fi
+
+          # The first-install artifact is a portable-style archive (like
+          # the alpha builds): the empty TelegramForcePortable keeps the
+          # canary's tdata next to the binary, never touching a normal
+          # installation.
+          PORTABLE=portable-win-x64-$CANARY_TAG-$BASE-$CANARY_COUNTER.zip
+          rm -rf portable
+          mkdir -p portable/Telegram/modules/x64/d3d
+          mkdir portable/Telegram/TelegramForcePortable
+          cp Telegram.exe portable/Telegram/
+          cp modules/x64/d3d/d3dcompiler_47.dll portable/Telegram/modules/x64/d3d/
+          (cd portable && 7z a -mx9 ../$PORTABLE Telegram/)
+
           mkdir artifact
           mv update-win-x64-$CANARY_TAG-* artifact/
-          mv Telegram.exe Updater.exe artifact/
+          mv $PORTABLE artifact/
 
       - uses: actions/upload-artifact@v7
         name: Upload artifact.
@@ -618,12 +636,17 @@ jobs:
             rm -rf update_pack
           done
 
-          INSTALLER=install-mac-universal-$CANARY_TAG-$BASE-$CANARY_COUNTER.zip
-          ditto -c -k --keepParent Telegram.app "$INSTALLER"
+          # Portable-style first-install archive from the stapled
+          # universal app, with tdata forced next to the bundle.
+          PORTABLE=portable-mac-universal-$CANARY_TAG-$BASE-$CANARY_COUNTER.zip
+          rm -rf portable
+          mkdir -p portable/Telegram/TelegramForcePortable
+          cp -R Telegram.app portable/Telegram/
+          (cd portable && zip -q -r ../$PORTABLE Telegram)
 
           mkdir artifact
           mv update-mac-*-$CANARY_TAG-* artifact/
-          mv "$INSTALLER" artifact/
+          mv $PORTABLE artifact/
 
       - uses: actions/upload-artifact@v7
         name: Upload artifact.
@@ -785,9 +808,18 @@ jobs:
           else
             echo "::warning::No publish secrets, keeping the unsigned envelope only."
           fi
+
+          # Portable-style first-install archive, tdata forced next to
+          # the binary.
+          PORTABLE=portable-linux-x64-$CANARY_TAG-${{ needs.version.outputs.base }}-$CANARY_COUNTER.tar.xz
+          rm -rf portable
+          mkdir -p portable/Telegram/TelegramForcePortable
+          cp Telegram Updater portable/Telegram/
+          tar -cJf $PORTABLE -C portable Telegram
+
           mkdir artifact
           mv update-linux-x64-$CANARY_TAG-* artifact/
-          mv Telegram Updater artifact/
+          mv $PORTABLE artifact/
 
       - uses: actions/upload-artifact@v7
         name: Upload artifact.
@@ -834,25 +866,24 @@ jobs:
       - name: Verify platform signatures.
         run: |
           # Publishing unsigned binaries is never allowed: this is a hard
-          # gate, not a warning. The per-arch update bundles were verified
-          # right after signing in the macOS job; here the installer app
-          # is re-checked as the publish-side witness.
+          # gate, not a warning. The binaries inside the update envelopes
+          # were verified right after signing in the build jobs; here the
+          # portable archives are re-checked as the publish-side witness.
           sudo apt-get update && sudo apt-get install -y osslsigncode
           FAILED=0
 
-          for EXE in Telegram.exe Updater.exe; do
-            if ! osslsigncode verify "artifacts/canary-win64/$EXE"; then
-              echo "::error::$EXE is not Authenticode-signed."
-              FAILED=1
-            fi
-          done
+          unzip -q artifacts/canary-win64/portable-win-x64-*.zip -d /tmp/winapp
+          if ! osslsigncode verify /tmp/winapp/Telegram/Telegram.exe; then
+            echo "::error::The portable Telegram.exe is not Authenticode-signed."
+            FAILED=1
+          fi
 
           # TODO(canary-infra): pin an apple-codesign (rcodesign) release
           # for full macOS signature+staple verification on Linux:
-          #   rcodesign verify /tmp/macapp/Telegram.app
-          unzip -q artifacts/canary-mac/install-mac-universal-*.zip -d /tmp/macapp
-          if [ ! -d "/tmp/macapp/Telegram.app/Contents/_CodeSignature" ]; then
-            echo "::error::The installer Telegram.app has no code signature."
+          #   rcodesign verify /tmp/macapp/Telegram/Telegram.app
+          unzip -q artifacts/canary-mac/portable-mac-universal-*.zip -d /tmp/macapp
+          if [ ! -d "/tmp/macapp/Telegram/Telegram.app/Contents/_CodeSignature" ]; then
+            echo "::error::The portable Telegram.app has no code signature."
             FAILED=1
           fi
 
@@ -907,13 +938,24 @@ jobs:
             echo "$PLATFORM -> post ${POSTS[$PLATFORM]}"
           done
 
-          # The universal installer is for first installs, posted as a
-          # plain document and not referenced from the metadata.
-          INSTALLER=$(ls artifacts/canary-mac/install-mac-universal-* | head -1)
-          curl -sf "$BOT_API/bot$BOT_TOKEN/sendDocument" \
-            -F chat_id="$CHAT_ID" \
-            -F document=@"$INSTALLER" \
-            -F caption="macOS installer, $CAPTION" > /dev/null
+          # The portable archives are for first installs, posted as plain
+          # documents and not referenced from the metadata.
+          declare -A PORTABLES
+          PORTABLES[win64]=$(ls artifacts/canary-win64/portable-win-x64-* | head -1)
+          PORTABLES[mac]=$(ls artifacts/canary-mac/portable-mac-universal-* | head -1)
+          PORTABLES[linux]=$(ls artifacts/canary-linux/portable-linux-x64-* | head -1)
+          for PLATFORM in win64 mac linux; do
+            PORTABLE=${PORTABLES[$PLATFORM]}
+            if [ -z "$PORTABLE" ]; then
+              echo "::error::$PLATFORM portable archive is missing."
+              exit 1
+            fi
+            curl -sf "$BOT_API/bot$BOT_TOKEN/sendDocument" \
+              -F chat_id="$CHAT_ID" \
+              -F document=@"$PORTABLE" \
+              -F caption="Portable, $CAPTION" > /dev/null
+            echo "$PLATFORM portable posted."
+          done
 
           MANIFEST_B64=$(base64 -w0 Telegram/Resources/update/manifest.min.json)
           MANIFEST_SIG_B64=$(base64 -w0 Telegram/Resources/update/manifest.sig)
