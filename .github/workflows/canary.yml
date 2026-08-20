@@ -79,6 +79,7 @@ concurrency:
 permissions:
   id-token: write
   contents: read
+  packages: read
 
 jobs:
 
@@ -111,6 +112,10 @@ jobs:
           PRIVATE_CHANNEL: ${{ secrets.CANARY_PRIVATE_CHANNEL_ID }}
           CHANNEL_OVERRIDE: ${{ vars.CANARY_CHANNEL }}
           REPO_IS_PRIVATE: ${{ github.event.repository.private }}
+          BOT_API_IMAGE: ${{ vars.CANARY_BOT_API_IMAGE }}
+          TELEGRAM_API_ID: ${{ secrets.CANARY_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.CANARY_API_HASH }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           CHANNEL="$CHANNEL_OVERRIDE"
           if [ -z "$CHANNEL" ]; then
@@ -153,8 +158,28 @@ jobs:
           COUNTER=1
           PREVIOUS=""
           if [ "$PUBLISH" = "true" ] && [ -n "$CHAT_ID" ] && [ "$CHAT_ID" != "-100" ]; then
-            PINNED=$(curl -sf "https://api.telegram.org/bot$BOT_TOKEN/getChat?chat_id=$CHAT_ID" \
+            # The bot is logged out of the cloud Bot API (a requirement
+            # for local server use), so the pinned metadata is read
+            # through the same self-built local server the publish job
+            # runs.
+            if [ -z "$BOT_API_IMAGE" ]; then
+              echo "::error::vars.CANARY_BOT_API_IMAGE is required when publishing."
+              exit 1
+            fi
+            echo "$GITHUB_TOKEN" | docker login ghcr.io \
+              -u "$GITHUB_ACTOR" --password-stdin
+            docker run -d --name bot-api -p 8081:8081 \
+              -e TELEGRAM_API_ID -e TELEGRAM_API_HASH -e TELEGRAM_LOCAL=1 \
+              "$BOT_API_IMAGE"
+            for i in $(seq 1 30); do
+              sleep 2
+              if curl -sf "http://localhost:8081/bot$BOT_TOKEN/getMe" > /dev/null; then
+                break
+              fi
+            done
+            PINNED=$(curl -sf "http://localhost:8081/bot$BOT_TOKEN/getChat?chat_id=$CHAT_ID" \
               | jq -r '.result.pinned_message.text // empty')
+            docker rm -f bot-api > /dev/null
             if [ -n "$PINNED" ]; then
               OLD_BASE=$(echo "$PINNED" | jq -r ".channels.\"canary-$CHANNEL\".base // 0")
               OLD_COUNTER=$(echo "$PINNED" | jq -r ".channels.\"canary-$CHANNEL\".counter // 0")
@@ -842,6 +867,9 @@ jobs:
       # third-party image is acceptable here.
       telegram-bot-api:
         image: ${{ vars.CANARY_BOT_API_IMAGE }}
+        credentials:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
         env:
           TELEGRAM_API_ID: ${{ secrets.CANARY_API_ID }}
           TELEGRAM_API_HASH: ${{ secrets.CANARY_API_HASH }}
