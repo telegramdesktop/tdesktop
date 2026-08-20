@@ -113,7 +113,7 @@ void SublistsWidget::setupOtherTypes() {
 			controller(),
 			peer,
 			MsgId(), // topicRootId
-			PeerId(), // monoforumPeerId
+			nullptr, // sublist
 			nullptr, // migrated
 			buttonType,
 			tracker);
