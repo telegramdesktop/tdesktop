@@ -1945,7 +1945,9 @@ void HistoryItem::setIsPinned(bool pinned) {
 				changed)); // incrementCount
 		};
 		add(MsgId(0), PeerId(0));
-		add(topicRootId(), PeerId(0));
+		if (_history->asForum()) {
+			add(topicRootId(), PeerId(0));
+		}
 		if (const auto sublistPeer = sublistPeerId()) {
 			add(MsgId(0), sublistPeer);
 		}
