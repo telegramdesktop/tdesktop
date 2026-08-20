@@ -394,7 +394,10 @@ MTP::DedicatedLoader::Location GetDownloadLocation(int id) {
 	if (i == end(DictionariesList)) {
 		return MTP::DedicatedLoader::Location{};
 	}
-	return MTP::DedicatedLoader::Location{ i->channel, i->postId };
+	return MTP::DedicatedLoader::Location{
+		.username = i->channel,
+		.postId = i->postId,
+	};
 }
 
 QString DictPathByLangId(int langId) {

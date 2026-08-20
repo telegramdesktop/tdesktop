@@ -472,9 +472,8 @@ void StartDedicatedLoader(
 		ready(nullptr);
 	};
 
-	const auto &[username, postId] = location;
-	ResolveChannel(mtp, username, [=, postId = postId](
-			const MTPInputChannel &channel) {
+	const auto postId = location.postId;
+	const auto request = [=](const MTPInputChannel &channel) {
 		mtp->send(
 			MTPchannels_GetMessages(
 				channel,
@@ -483,7 +482,16 @@ void StartDedicatedLoader(
 					MTP_inputMessageID(MTP_int(postId)))),
 			doneHandler,
 			failHandler);
-	}, [=] { ready(nullptr); });
+	};
+	if (location.channelId) {
+		request(MTP_inputChannel(
+			MTP_long(location.channelId),
+			MTP_long(location.accessHash)));
+	} else {
+		ResolveChannel(mtp, location.username, request, [=] {
+			ready(nullptr);
+		});
+	}
 }
 
 } // namespace MTP

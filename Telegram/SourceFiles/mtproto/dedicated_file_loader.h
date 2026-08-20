@@ -114,6 +114,12 @@ class DedicatedLoader : public AbstractDedicatedLoader {
 public:
 	struct Location {
 		QString username;
+
+		// When channelId is set the channel is used directly with the
+		// cached accessHash instead of resolving username.
+		uint64 channelId = 0;
+		uint64 accessHash = 0;
+
 		int32 postId = 0;
 	};
 	struct File {
