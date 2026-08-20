@@ -84,14 +84,22 @@ echo "=== One-pass Ed25519 signing (stable) ==="
 ls -la update-*-stable-5000123
 
 echo
-echo "=== Two-pass external signing (canary-public, Ed25519 + ES256) ==="
+echo "=== Two-pass 2-of-2 signing (canary-public, ES256 external + Ed25519 local) ==="
 "$PACKER" -path app -version 5000123 -channel canary-public -counter 7 \
   -keys-loc keys -emit-signing-input signing-input.bin
 UNSIGNED=$(ls update-*-canarypub-5000123-7.unsigned)
-openssl pkeyutl -sign -inkey ed-private.pem -rawin \
-  -in signing-input.bin -out ed.sig
 python3 "$SIGN_UPDATE" --input signing-input.bin --output es.sig \
   --openssl-key es-private.pem
+"$PACKER" -channel canary-public -keys-loc keys \
+  -unsigned "$UNSIGNED" -embed-signatures es-test:es.sig \
+  -local-key ed-private.pem -local-key-id ed-test
+ls -la "${UNSIGNED%.unsigned}"
+
+echo
+echo "=== Two-pass with fully external signatures ==="
+openssl pkeyutl -sign -inkey ed-private.pem -rawin \
+  -in signing-input.bin -out ed.sig
+rm "${UNSIGNED%.unsigned}"
 "$PACKER" -channel canary-public -keys-loc keys \
   -unsigned "$UNSIGNED" -embed-signatures ed-test:ed.sig es-test:es.sig
 ls -la "${UNSIGNED%.unsigned}"

@@ -454,6 +454,33 @@ int EmbedV2Signatures() {
 		signatures.push_back({ keyId.toUtf8(), signature });
 	}
 
+	// Multi-group channels (stable/beta are 2-of-2) combine an external
+	// cloud signature with the local Ed25519 key in one embed pass.
+	if (!V2LocalKeyFile.isEmpty()) {
+		if (V2LocalKeyId.isEmpty()) {
+			cout << "The -local-key param requires -local-key-id!\n";
+			return -1;
+		}
+		const auto keyPem = ReadFile(V2LocalKeyFile);
+		if (keyPem.isEmpty()) {
+			return -1;
+		}
+		const auto signingInput = Core::Updates::SigningInput(*envelope);
+		if (signingInput.isEmpty()) {
+			cout << "Could not build the signing input!\n";
+			return -1;
+		}
+		const auto signature = SignEd25519(keyPem, signingInput);
+		if (signature.isEmpty()) {
+			return -1;
+		}
+		signatures.push_back({ V2LocalKeyId.toUtf8(), signature });
+	}
+	if (signatures.empty()) {
+		cout << "No signatures to embed, pass -embed-signatures or -local-key!\n";
+		return -1;
+	}
+
 	const auto result = BuildV2Envelope(
 		envelope->channel,
 		envelope->version,

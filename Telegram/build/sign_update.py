@@ -20,6 +20,7 @@ import argparse
 import base64
 import hashlib
 import json
+import shutil
 import subprocess
 import sys
 
@@ -63,8 +64,9 @@ def der_to_raw_rs(der: bytes) -> bytes:
 
 
 def sign_azure(digest: bytes, args) -> bytes:
+    # On Windows the CLI is az.cmd, which a plain 'az' argv misses.
     command = [
-        'az', 'keyvault', 'key', 'sign',
+        shutil.which('az') or 'az', 'keyvault', 'key', 'sign',
         '--vault-name', args.az_vault,
         '--name', args.az_key,
         '--algorithm', 'ES256',
