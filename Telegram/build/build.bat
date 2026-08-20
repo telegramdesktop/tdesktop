@@ -123,6 +123,30 @@ if %Build64% neq 0 (
   set "PortableFile=tportable.%AppVersionStrFull%.zip"
   set "DumpSymsPath=%SolutionPath%\..\..\Libraries\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe"
 )
+
+rem TDESKTOP_UPDATE_V2=1 switches the update packaging to the v2 signed
+rem envelope (2-of-2: the local Ed25519 release key plus the cloud ES256
+rem key through an interactive az login). Installers and everything else
+rem stay as is; the classical v1 update is built without the switch.
+set "UpdateChannel=stable"
+if %BetaChannel% neq 0 set "UpdateChannel=beta"
+if "%TDESKTOP_RELEASE_KEYVAULT%" equ "" set "TDESKTOP_RELEASE_KEYVAULT=tdesktop-release-kv"
+if "%TDESKTOP_RELEASE_CLOUD_KEY_ID%" equ "" set "TDESKTOP_RELEASE_CLOUD_KEY_ID=rc-2026a"
+if "%TDESKTOP_RELEASE_LOCAL_KEY%" equ "" set "TDESKTOP_RELEASE_LOCAL_KEY=%HomePath%\..\..\DesktopPrivate\release-local.pem"
+if "%TDESKTOP_RELEASE_LOCAL_KEY_ID%" equ "" set "TDESKTOP_RELEASE_LOCAL_KEY_ID=rl-2026a"
+if "%TDESKTOP_UPDATE_V2%" equ "1" (
+  if %AlphaVersion% neq 0 (
+    echo The v2 update format has no alpha channel!
+    exit /b 1
+  )
+  if %Build64% neq 0 (
+    set "UpdateFile=update-win-x64-%UpdateChannel%-%AppVersion%"
+  ) else if %BuildARM% neq 0 (
+    set "UpdateFile=update-win-arm-%UpdateChannel%-%AppVersion%"
+  ) else (
+    set "UpdateFile=update-win-x86-%UpdateChannel%-%AppVersion%"
+  )
+)
 set "ReleasePath=%SolutionPath%\Release"
 set "DeployPath=%ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStrFull%"
 set "SignPath=%HomePath%\..\..\DesktopPrivate\Sign.bat"
@@ -218,7 +242,16 @@ if %BuildUWP% equ 0 (
     if not exist "%SetupFile%" goto error
   )
 
-  if %BuildARM% neq 0 (
+  if "%TDESKTOP_UPDATE_V2%" equ "1" (
+    if %BuildARM% neq 0 (
+      call Packer.exe -version %VersionForPacker% -path %BinaryName%.exe -path Updater.exe -target %BuildTarget% -channel %UpdateChannel% -keys-loc "%ResourcesPath%\update" -emit-signing-input signing-input.bin || goto error
+    ) else (
+      call Packer.exe -version %VersionForPacker% -path %BinaryName%.exe -path Updater.exe -path "modules\%Platform%\d3d\d3dcompiler_47.dll" -target %BuildTarget% -channel %UpdateChannel% -keys-loc "%ResourcesPath%\update" -emit-signing-input signing-input.bin || goto error
+    )
+    python "%FullScriptPath%sign_update.py" --input signing-input.bin --output release-cloud.sig --az-vault "%TDESKTOP_RELEASE_KEYVAULT%" --az-key "%TDESKTOP_RELEASE_CLOUD_KEY_ID%" || goto error
+    call Packer.exe -channel %UpdateChannel% -keys-loc "%ResourcesPath%\update" -unsigned "%UpdateFile%.unsigned" -embed-signatures %TDESKTOP_RELEASE_CLOUD_KEY_ID%:release-cloud.sig -local-key "%TDESKTOP_RELEASE_LOCAL_KEY%" -local-key-id %TDESKTOP_RELEASE_LOCAL_KEY_ID% || goto error
+    del signing-input.bin release-cloud.sig "%UpdateFile%.unsigned"
+  ) else if %BuildARM% neq 0 (
     call Packer.exe -version %VersionForPacker% -path %BinaryName%.exe -path Updater.exe -target %BuildTarget% %AlphaBetaParam% || goto error
   ) else (
     call Packer.exe -version %VersionForPacker% -path %BinaryName%.exe -path Updater.exe -path "modules\%Platform%\d3d\d3dcompiler_47.dll" -target %BuildTarget% %AlphaBetaParam% || goto error
