@@ -2693,11 +2693,14 @@ void HistoryItem::applySentMessage(const MTPDmessage &data) {
 	if (isRegular() && wasTypes) {
 		// addToSharedMediaIndex() below writes the message's current
 		// (key, mask); this is its inverse. A type the message keeps at
-		// an unchanged key must not be removed and re-added: Storage's
-		// SparseIdsList::removeOne decrements the stored count with no
-		// membership test, and SharedMedia::remove fires a removal event
-		// that every open shared-media viewer of that type applies, so
-		// such a pair is only count-neutral, never free.
+		// an unchanged key must not be removed and re-added: onlyMatched
+		// makes the removal skip an id no fetched slice holds while the
+		// re-add still raises the count, and SharedMedia::remove fires a
+		// removal event that every open shared-media viewer of that type
+		// applies, so such a pair is at best count-neutral, never free.
+		// A key move is different: SharedMedia keys the peer-wide list
+		// by peerId alone, so the old and the new key meet there and the
+		// removal must keep lowering its count to offset that re-add.
 		const auto keyMoved = (topicRootId() != wasTopicRootId)
 			|| (sublistPeerId() != wasSublistPeerId);
 		const auto nowTypes = sharedMediaTypes();
@@ -2709,12 +2712,14 @@ void HistoryItem::applySentMessage(const MTPDmessage &data) {
 			}
 		}
 		if (goneTypes) {
+			const auto onlyMatched = !keyMoved;
 			_history->session().storage().remove(Storage::SharedMediaRemoveOne(
 				_history->peer->id,
 				wasTopicRootId,
 				wasSublistPeerId,
 				goneTypes,
-				id));
+				id,
+				onlyMatched));
 		}
 	}
 	addToSharedMediaIndex();

@@ -156,16 +156,25 @@ void SparseIdsList::addSlice(
 	addRange(messageIds, noSkipRange, count);
 }
 
-void SparseIdsList::removeOne(MsgId messageId) {
+void SparseIdsList::removeOne(MsgId messageId, bool onlyMatched) {
+	auto removed = false;
 	auto slice = ranges::lower_bound(
 		_slices,
 		messageId,
 		std::less<>(),
 		[](const Slice &slice) { return slice.range.till; });
 	if (slice != _slices.end() && slice->range.from <= messageId) {
-		_slices.modify(slice, [messageId](Slice &slice) {
-			return slice.messages.remove(messageId);
+		_slices.modify(slice, [&removed, messageId](Slice &slice) {
+			removed = slice.messages.remove(messageId);
 		});
+	}
+	// _count is a server total while _slices hold only the ranges this
+	// client fetched, so an id that no slice covers can still be inside
+	// _count and a real deletion of it must lower that total. Only a
+	// caller undoing an index entry it wrote itself, not one reporting
+	// the id really leaving the list, may ask for onlyMatched.
+	if (onlyMatched && !removed) {
+		return;
 	}
 	if (_count && *_count > 0) {
 		--*_count;

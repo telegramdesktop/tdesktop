@@ -120,12 +120,14 @@ struct SharedMediaRemoveOne {
 		MsgId topicRootId,
 		PeerId monoforumPeerId,
 		SharedMediaTypesMask types,
-		MsgId messageId)
+		MsgId messageId,
+		bool onlyMatched = false)
 	: peerId(peerId)
 	, topicRootId(topicRootId)
 	, monoforumPeerId(monoforumPeerId)
 	, messageId(messageId)
-	, types(types) {
+	, types(types)
+	, onlyMatched(onlyMatched) {
 	}
 
 	PeerId peerId = 0;
@@ -133,6 +135,7 @@ struct SharedMediaRemoveOne {
 	PeerId monoforumPeerId = 0;
 	MsgId messageId = 0;
 	SharedMediaTypesMask types;
+	bool onlyMatched = false;
 
 };
 
