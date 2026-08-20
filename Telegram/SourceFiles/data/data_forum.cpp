@@ -209,6 +209,12 @@ void Forum::applyTopicDeleted(MsgId rootId) {
 
 	const auto i = _topics.find(rootId);
 	if (i == end(_topics)) {
+		if (rootId) {
+			session().storage().unload(Storage::SharedMediaUnloadThread(
+				_history->peer->id,
+				rootId,
+				PeerId()));
+		}
 		return;
 	}
 	const auto raw = i->second.get();
