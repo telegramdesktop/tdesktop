@@ -4,6 +4,28 @@
 # For license and copyright information please follow this link:
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
+add_executable(test_update_verify)
+init_target(test_update_verify "(tests)")
+
+target_include_directories(test_update_verify PRIVATE ${src_loc})
+
+nice_target_sources(test_update_verify ${src_loc}
+PRIVATE
+    core/update_verify.cpp
+    core/update_verify.h
+    tests/test_update_verify.cpp
+)
+
+target_link_libraries(test_update_verify
+PRIVATE
+    desktop-app::external_qt
+    desktop-app::external_openssl
+)
+
+set_target_properties(test_update_verify PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+
+add_dependencies(Telegram test_update_verify)
+
 add_executable(test_text WIN32)
 init_target(test_text "(tests)")
 
