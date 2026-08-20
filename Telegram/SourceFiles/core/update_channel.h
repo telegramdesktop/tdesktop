@@ -24,14 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #define TDESKTOP_CANARY_COUNTER 0
 #endif // TDESKTOP_CANARY_COUNTER
 
-#ifndef TDESKTOP_CANARY_COMMIT
-#define TDESKTOP_CANARY_COMMIT
-#endif // TDESKTOP_CANARY_COMMIT
-
-#ifndef TDESKTOP_CANARY_PUBLIC_CHANNEL
-#define TDESKTOP_CANARY_PUBLIC_CHANNEL
-#endif // TDESKTOP_CANARY_PUBLIC_CHANNEL
-
 #ifndef TDESKTOP_CANARY_PRIVATE_CHANNEL_ID
 #define TDESKTOP_CANARY_PRIVATE_CHANNEL_ID 0
 #endif // TDESKTOP_CANARY_PRIVATE_CHANNEL_ID
@@ -52,10 +44,22 @@ inline constexpr auto BuildIsCanary
 static_assert(!BuildIsCanary || CanaryBuildCounter > 0);
 static_assert(BuildIsCanary || CanaryBuildCounter == 0);
 
+// The string-valued defines are passed as bare tokens and stringified,
+// so they are only ever defined when non-empty: stringifying an empty
+// macro is a hard error on MSVC (C4003 under /WX).
+#ifdef TDESKTOP_CANARY_COMMIT
 inline constexpr auto CanaryCommitHash
 	= QT_STRINGIFY(TDESKTOP_CANARY_COMMIT);
+#else // TDESKTOP_CANARY_COMMIT
+inline constexpr auto CanaryCommitHash = "";
+#endif // TDESKTOP_CANARY_COMMIT
+
+#ifdef TDESKTOP_CANARY_PUBLIC_CHANNEL
 inline constexpr auto CanaryPublicChannelUsername
 	= QT_STRINGIFY(TDESKTOP_CANARY_PUBLIC_CHANNEL);
+#else // TDESKTOP_CANARY_PUBLIC_CHANNEL
+inline constexpr auto CanaryPublicChannelUsername = "";
+#endif // TDESKTOP_CANARY_PUBLIC_CHANNEL
 inline constexpr auto CanaryPrivateChannelId
 	= qint64(TDESKTOP_CANARY_PRIVATE_CHANNEL_ID);
 inline constexpr auto CanaryMetadataMessageId

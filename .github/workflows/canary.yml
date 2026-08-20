@@ -654,6 +654,9 @@ jobs:
         run: |
           cd $REPO_NAME/Telegram
 
+          # Report every failing file in one run rather than the first.
+          defaults write com.apple.dt.Xcode IDEBuildingContinueBuildingAfterErrors -bool YES
+
           ./configure.sh \
           -D CMAKE_CONFIGURATION_TYPES=Release \
           -D CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO \
@@ -935,6 +938,7 @@ jobs:
           -v $PWD:/usr/src/tdesktop \
           -v $PWD/../DesktopPrivate:/usr/src/DesktopPrivate \
           -e CONFIG=Release \
+          -e KEEP_GOING=1 \
           $IMAGE_TAG \
           /usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh \
           -D CMAKE_CONFIGURATION_TYPES=Release \
