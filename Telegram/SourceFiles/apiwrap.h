@@ -324,6 +324,9 @@ public:
 		Storage::SharedMediaType type,
 		MsgId messageId,
 		SliceType slice);
+	void requestPinnedMessagesIfNeeded(
+		not_null<PeerData*> peer,
+		MsgId messageId);
 	mtpRequestId requestGlobalMedia(
 		Storage::SharedMediaType type,
 		const QString &query,
