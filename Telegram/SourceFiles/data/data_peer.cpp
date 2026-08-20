@@ -1688,6 +1688,9 @@ Data::SavedSublist *PeerData::monoforumSublistFor(
 		PeerId sublistPeerId) const {
 	if (!sublistPeerId) {
 		return nullptr;
+	} else if (isSelf()) {
+		return owner().savedMessages().sublistLoaded(
+			owner().peer(sublistPeerId));
 	} else if (const auto monoforum = this->monoforum()) {
 		return monoforum->sublistLoaded(owner().peer(sublistPeerId));
 	}
