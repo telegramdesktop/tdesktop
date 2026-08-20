@@ -110,6 +110,24 @@ LinuxSetupFile="tsetup.$AppVersionStrFull.tar.xz"
 LinuxRemoteFolder="tlinux"
 DeployPath="$BackupPath/$AppVersionStrMajor/$AppVersionStrFull"
 
+# Deploys the v2 update files built with the same switch in build.sh;
+# installers and remote folders stay the same either way.
+if [ "$TDESKTOP_UPDATE_V2" == "1" ]; then
+  if [ "$AlphaVersion" != "0" ]; then
+    Error "The v2 update format has no alpha channel."
+  fi
+  UpdateChannel="stable"
+  if [ "$BetaChannel" != "0" ]; then
+    UpdateChannel="beta"
+  fi
+  MacUpdateFile="update-mac-x64-$UpdateChannel-$AppVersion"
+  ARMacUpdateFile="update-mac-arm-$UpdateChannel-$AppVersion"
+  WinUpdateFile="update-win-x86-$UpdateChannel-$AppVersion"
+  Win64UpdateFile="update-win-x64-$UpdateChannel-$AppVersion"
+  WinArmUpdateFile="update-win-arm-$UpdateChannel-$AppVersion"
+  LinuxUpdateFile="update-linux-x64-$UpdateChannel-$AppVersion"
+fi
+
 if [ "$AlphaVersion" != "0" ]; then
   if [ "$DeployTarget" == "win" ]; then
     AlphaFilePath="$WinDeployPath/$AlphaKeyFile"

@@ -654,6 +654,10 @@ int main(int argc, char *argv[])
 #else
 		cout << "Usage: Packer -path {file} -version {version} OR Packer -path {dir} -version {version}\n";
 #endif
+		cout << "V2 envelopes: add -channel {stable|beta|canary-public|canary-private} -keys-loc {dir}\n";
+		cout << "  with -local-key {pem} -local-key-id {id} for one-pass Ed25519 signing, or\n";
+		cout << "  with -emit-signing-input {file} and later -unsigned {file} -embed-signatures {id}:{sigfile} ...\n";
+		cout << "  (canary channels also require -counter {n})\n";
 		return -1;
 	}
 
