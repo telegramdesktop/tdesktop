@@ -96,6 +96,7 @@ Forum::~Forum() {
 		changes.topicRemoved(raw);
 		changes.entryRemoved(raw);
 	}
+	storage.unload(Storage::SharedMediaUnloadAllTopics(peerId));
 }
 
 Session &Forum::owner() const {

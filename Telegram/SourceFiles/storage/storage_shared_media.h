@@ -261,6 +261,13 @@ struct SharedMediaUnloadThread {
 	PeerId monoforumPeerId = 0;
 };
 
+struct SharedMediaUnloadAllTopics {
+	SharedMediaUnloadAllTopics(PeerId peerId) : peerId(peerId) {
+	}
+
+	PeerId peerId = 0;
+};
+
 class SharedMedia {
 public:
 	using Type = SharedMediaType;
@@ -272,6 +279,7 @@ public:
 	void remove(SharedMediaRemoveAll &&query);
 	void invalidate(SharedMediaInvalidateBottom &&query);
 	void unload(SharedMediaUnloadThread &&query);
+	void unload(SharedMediaUnloadAllTopics &&query);
 
 	rpl::producer<SharedMediaResult> query(SharedMediaQuery &&query) const;
 	SharedMediaResult snapshot(const SharedMediaQuery &query) const;
