@@ -661,8 +661,7 @@ div.toast_shown {
     flex: 0 1 auto;
 }
 .default .rich_message .rich_button_align_stretch .rich_button_block {
-    flex: 1 1 0;
-    min-width: fit-content;
+    flex: 1 1 6em;
 }
 .default .rich_message .rich_button_inline {
     padding: 0.1em 0.5em;
