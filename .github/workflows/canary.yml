@@ -511,6 +511,26 @@ jobs:
           done
           # TODO(canary-infra): upload symbols/ to R2 (see the Windows job).
 
+      - name: Prepare per-arch bundles.
+        run: |
+          # One universal compile, then per-arch update bundles exactly
+          # like build.sh: copy the bundle and lipo -thin the Mach-O
+          # files. The universal app itself becomes the installer.
+          cd $REPO_NAME/out/Release
+          BINARIES="MacOS/Telegram Frameworks/Updater Helpers/crashpad_handler"
+          for ARCH in x86_64 arm64; do
+            rm -rf Telegram.$ARCH.app
+            cp -R Telegram.app Telegram.$ARCH.app
+            for BINARY in $BINARIES; do
+              lipo -thin $ARCH Telegram.app/Contents/$BINARY \
+                -output Telegram.$ARCH.app/Contents/$BINARY
+              strip Telegram.$ARCH.app/Contents/$BINARY
+            done
+          done
+          for BINARY in $BINARIES; do
+            strip Telegram.app/Contents/$BINARY
+          done
+
       - name: Sign and notarize.
         env:
           CERTIFICATE_P12_B64: ${{ secrets.MACOS_CERTIFICATE_P12_B64 }}
@@ -523,7 +543,7 @@ jobs:
         run: |
           cd $REPO_NAME/out/Release
           if [ -z "$CERTIFICATE_P12_B64" ]; then
-            echo "::warning::No signing certificate, leaving the app unsigned."
+            echo "::warning::No signing certificate, leaving the apps unsigned."
             exit 0
           fi
           echo "$CERTIFICATE_P12_B64" | base64 -d > /tmp/certificate.p12
@@ -535,17 +555,20 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: \
             -s -k "$KEYCHAIN_PASSWORD" build.keychain
 
-          codesign --force --deep --timestamp --options runtime \
-            --sign "$SIGN_IDENTITY" Telegram.app
-          codesign --verify --deep --strict Telegram.app
-
-          ditto -c -k --keepParent Telegram.app Telegram.zip
-          xcrun notarytool submit Telegram.zip --wait \
-            --apple-id "$NOTARY_APPLE_ID" \
-            --team-id "$NOTARY_TEAM_ID" \
-            --password "$NOTARY_PASSWORD"
-          xcrun stapler staple Telegram.app
-          rm Telegram.zip
+          for BUNDLE in Telegram.x86_64.app Telegram.arm64.app Telegram.app; do
+            codesign --force --deep --timestamp --options runtime \
+              --sign "$SIGN_IDENTITY" \
+              --entitlements ../../Telegram/Telegram/Telegram.entitlements \
+              "$BUNDLE"
+            codesign --verify --deep --strict "$BUNDLE"
+            ditto -c -k --keepParent "$BUNDLE" notarize.zip
+            xcrun notarytool submit notarize.zip --wait \
+              --apple-id "$NOTARY_APPLE_ID" \
+              --team-id "$NOTARY_TEAM_ID" \
+              --password "$NOTARY_PASSWORD"
+            xcrun stapler staple "$BUNDLE"
+            rm notarize.zip
+          done
 
       - name: Azure login for update signing.
         if: needs.version.outputs.publish == 'true'
@@ -555,32 +578,52 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           allow-no-subscriptions: true
 
-      - name: Pack v2 update.
+      - name: Pack v2 updates.
         run: |
           cd $REPO_NAME/out/Release
-          ./Packer -path Telegram.app \
-            -arch universal \
-            -version ${{ needs.version.outputs.base }} \
-            -channel canary-${{ needs.version.outputs.channel }} \
-            -counter $CANARY_COUNTER \
-            -keys-loc ../../Telegram/Resources/update \
-            -emit-signing-input signing-input.bin
-          if [ "${{ needs.version.outputs.publish }}" = "true" ]; then
-            python3 ../../Telegram/build/sign_update.py \
-              --input signing-input.bin \
-              --output canary.sig \
-              --az-vault "${{ secrets.AZURE_KEYVAULT_NAME }}" \
-              --az-key "$CANARY_KEY_ID"
-            ./Packer -channel canary-${{ needs.version.outputs.channel }} \
-              -keys-loc ../../Telegram/Resources/update \
-              -unsigned update-mac-universal-$CANARY_TAG-${{ needs.version.outputs.base }}-$CANARY_COUNTER.unsigned \
-              -embed-signatures $CANARY_KEY_ID:canary.sig
-          else
-            echo "::warning::No publish secrets, keeping the unsigned envelope only."
-          fi
+          BASE=${{ needs.version.outputs.base }}
+          for ARCH in x86_64 arm64; do
+            SHORT=x64
+            if [ "$ARCH" = "arm64" ]; then SHORT=arm; fi
+
+            # The thinned bundle is packed under the canonical app name,
+            # so the file paths inside the update match the install.
+            rm -rf update_pack
+            mkdir update_pack
+            cp -R Telegram.$ARCH.app update_pack/Telegram.app
+            cp Packer update_pack/
+            cd update_pack
+            ./Packer -path Telegram.app \
+              -arch $ARCH \
+              -version $BASE \
+              -channel canary-${{ needs.version.outputs.channel }} \
+              -counter $CANARY_COUNTER \
+              -keys-loc ../../../Telegram/Resources/update \
+              -emit-signing-input signing-input.bin
+            if [ "${{ needs.version.outputs.publish }}" = "true" ]; then
+              python3 ../../../Telegram/build/sign_update.py \
+                --input signing-input.bin \
+                --output canary.sig \
+                --az-vault "${{ secrets.AZURE_KEYVAULT_NAME }}" \
+                --az-key "$CANARY_KEY_ID"
+              ./Packer -channel canary-${{ needs.version.outputs.channel }} \
+                -keys-loc ../../../Telegram/Resources/update \
+                -unsigned update-mac-$SHORT-$CANARY_TAG-$BASE-$CANARY_COUNTER.unsigned \
+                -embed-signatures $CANARY_KEY_ID:canary.sig
+            else
+              echo "::warning::No publish secrets, keeping the unsigned envelope only."
+            fi
+            mv update-mac-$SHORT-$CANARY_TAG-* ../
+            cd ..
+            rm -rf update_pack
+          done
+
+          INSTALLER=install-mac-universal-$CANARY_TAG-$BASE-$CANARY_COUNTER.zip
+          ditto -c -k --keepParent Telegram.app "$INSTALLER"
+
           mkdir artifact
-          mv update-mac-universal-$CANARY_TAG-* artifact/
-          mv Telegram.app artifact/
+          mv update-mac-*-$CANARY_TAG-* artifact/
+          mv "$INSTALLER" artifact/
 
       - uses: actions/upload-artifact@v7
         name: Upload artifact.
@@ -791,7 +834,9 @@ jobs:
       - name: Verify platform signatures.
         run: |
           # Publishing unsigned binaries is never allowed: this is a hard
-          # gate, not a warning.
+          # gate, not a warning. The per-arch update bundles were verified
+          # right after signing in the macOS job; here the installer app
+          # is re-checked as the publish-side witness.
           sudo apt-get update && sudo apt-get install -y osslsigncode
           FAILED=0
 
@@ -804,9 +849,10 @@ jobs:
 
           # TODO(canary-infra): pin an apple-codesign (rcodesign) release
           # for full macOS signature+staple verification on Linux:
-          #   rcodesign verify artifacts/canary-mac/Telegram.app
-          if [ ! -d "artifacts/canary-mac/Telegram.app/Contents/_CodeSignature" ]; then
-            echo "::error::Telegram.app has no code signature."
+          #   rcodesign verify /tmp/macapp/Telegram.app
+          unzip -q artifacts/canary-mac/install-mac-universal-*.zip -d /tmp/macapp
+          if [ ! -d "/tmp/macapp/Telegram.app/Contents/_CodeSignature" ]; then
+            echo "::error::The installer Telegram.app has no code signature."
             FAILED=1
           fi
 
@@ -840,11 +886,17 @@ jobs:
             fi
           } | head -c 1000)
 
+          declare -A FILES
+          FILES[win64]=$(ls artifacts/canary-win64/update-win-x64-* | head -1)
+          FILES[mac]=$(ls artifacts/canary-mac/update-mac-x64-* | head -1)
+          FILES[armac]=$(ls artifacts/canary-mac/update-mac-arm-* | head -1)
+          FILES[linux]=$(ls artifacts/canary-linux/update-linux-x64-* | head -1)
+
           declare -A POSTS
-          for PLATFORM in win64 mac linux; do
-            FILE=$(ls artifacts/canary-$PLATFORM/update-* | head -1)
-            if [[ "$FILE" == *.unsigned ]]; then
-              echo "::error::$PLATFORM update is unsigned, refusing to publish."
+          for PLATFORM in win64 mac armac linux; do
+            FILE=${FILES[$PLATFORM]}
+            if [ -z "$FILE" ] || [[ "$FILE" == *.unsigned ]]; then
+              echo "::error::$PLATFORM update is missing or unsigned, refusing to publish."
               exit 1
             fi
             RESPONSE=$(curl -sf "$BOT_API/bot$BOT_TOKEN/sendDocument" \
@@ -855,11 +907,17 @@ jobs:
             echo "$PLATFORM -> post ${POSTS[$PLATFORM]}"
           done
 
+          # The universal installer is for first installs, posted as a
+          # plain document and not referenced from the metadata.
+          INSTALLER=$(ls artifacts/canary-mac/install-mac-universal-* | head -1)
+          curl -sf "$BOT_API/bot$BOT_TOKEN/sendDocument" \
+            -F chat_id="$CHAT_ID" \
+            -F document=@"$INSTALLER" \
+            -F caption="macOS installer, $CAPTION" > /dev/null
+
           MANIFEST_B64=$(base64 -w0 Telegram/Resources/update/manifest.min.json)
           MANIFEST_SIG_B64=$(base64 -w0 Telegram/Resources/update/manifest.sig)
 
-          # The macOS build is universal, both runtime platform keys
-          # point at the same post.
           NEW=$(jq -n \
             --arg manifest "$MANIFEST_B64" \
             --arg manifest_sig "$MANIFEST_SIG_B64" \
@@ -868,6 +926,7 @@ jobs:
             --argjson counter "$COUNTER" \
             --argjson win64 "${POSTS[win64]}" \
             --argjson mac "${POSTS[mac]}" \
+            --argjson armac "${POSTS[armac]}" \
             --argjson linux "${POSTS[linux]}" \
             "{
               format: 1,
@@ -881,7 +940,7 @@ jobs:
                   posts: {
                     win64: \$win64,
                     mac: \$mac,
-                    armac: \$mac,
+                    armac: \$armac,
                     linux: \$linux
                   }
                 }

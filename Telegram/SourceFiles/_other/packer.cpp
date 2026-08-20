@@ -501,7 +501,6 @@ int main(int argc, char *argv[])
 	[[maybe_unused]] bool targetwin64 = false;
 	[[maybe_unused]] bool targetwinarm = false;
 	[[maybe_unused]] bool targetarmac = false;
-	[[maybe_unused]] bool targetunimac = false;
 	QFileInfoList files;
 	for (int i = 0; i < argc; ++i) {
 		if (string("-path") == argv[i] && i + 1 < argc) {
@@ -514,10 +513,7 @@ int main(int argc, char *argv[])
 			targetwinarm = (string("winarm") == argv[i + 1]);
 		} else if (string("-arch") == argv[i] && i + 1 < argc) {
 			targetarmac = (string("arm64") == argv[i + 1]);
-			targetunimac = (string("universal") == argv[i + 1]);
-			if (!targetarmac
-				&& !targetunimac
-				&& string("x86_64") != argv[i + 1]) {
+			if (!targetarmac && string("x86_64") != argv[i + 1]) {
 				cout << "Bad -arch param value passed: " << argv[i + 1] << "\n";
 				return -1;
 			}
@@ -589,20 +585,11 @@ int main(int argc, char *argv[])
 		: QString("x86");
 #elif defined Q_OS_MAC
 	V2Os = QString("mac");
-	V2Arch = targetunimac
-		? QString("universal")
-		: targetarmac
-		? QString("arm")
-		: QString("x64");
+	V2Arch = targetarmac ? QString("arm") : QString("x64");
 #else
 	V2Os = QString("linux");
 	V2Arch = QString("x64");
 #endif
-
-	if (targetunimac && !V2Channel) {
-		cout << "The universal arch is only supported with -channel packing!\n";
-		return -1;
-	}
 
 	if (!V2UnsignedFile.isEmpty()) {
 		return EmbedV2Signatures();

@@ -351,7 +351,7 @@ QString FindUpdateFile() {
 			QRegularExpression::CaseInsensitiveOption
 		);
 		static const auto RegExpV2 = QRegularExpression(
-			"^update-(win|mac|linux)-(x86|x64|arm|universal)"
+			"^update-(win|mac|linux)-(x86|x64|arm)"
 			"-(stable|beta|canarypub|canarypriv)-\\d+(-\\d+)?$",
 			QRegularExpression::CaseInsensitiveOption
 		);
