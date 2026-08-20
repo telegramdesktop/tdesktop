@@ -214,7 +214,7 @@ void AdoptListItemMarkers(const Block &list, ListItem *item) {
 	return changed;
 }
 
-[[nodiscard]] bool ClearOrderedListRawMarkers(Block *block) {
+bool ClearOrderedListRawMarkers(Block *block) {
 	return block
 		? ClearOrderedListRawMarkers(block, 0, int(block->listItems.size()))
 		: false;
@@ -250,7 +250,7 @@ void AdoptListItemMarkers(const Block &list, ListItem *item) {
 	return changed;
 }
 
-[[nodiscard]] bool ResetNonOrderedListMetadata(Block *block) {
+bool ResetNonOrderedListMetadata(Block *block) {
 	if (!block || block->kind != BlockKind::List) {
 		return false;
 	}
@@ -278,7 +278,7 @@ void NormalizeInsertedOrderedListMetadata(Block *block) {
 		return;
 	}
 	if (block->listKind != ListKind::Ordered) {
-		(void)ResetNonOrderedListMetadata(block);
+		ResetNonOrderedListMetadata(block);
 	}
 }
 

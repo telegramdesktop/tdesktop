@@ -675,7 +675,7 @@ void Message::activateRichPagePreparedLink(
 					return false;
 				}
 				const auto rect = owner->richPageRect(trect);
-				static_cast<void>(rich->article.resizeGetHeight(rect.width()));
+				rich->article.resizeGetHeight(rect.width());
 				top = rich->article.anchorTop(anchorId);
 				owner->requestRichPageRelayout(QRect());
 			} else {
@@ -4809,7 +4809,7 @@ void Message::updatePressed(QPoint point) {
 			if (rich->handlerHorizontalScrollActive
 				&& (ClickHandler::getPressed()
 					== rich->handlerHorizontalScrollPressed)) {
-				(void)rich->article.updateHorizontalScroll(local);
+				rich->article.updateHorizontalScroll(local);
 			}
 		}
 	}

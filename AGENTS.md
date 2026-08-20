@@ -241,6 +241,8 @@ if (user->isPremium()) {
 
 **Style and formatting rules** are in `REVIEW.md` — see that file for empty-line-before-closing-brace, operator placement in multi-line expressions, if-with-initializer, and other mechanical style rules.
 
+**Never discard a result with a cast:** `static_cast<void>(...)` and `(void)expr` are banned; instead of silencing `[[nodiscard]]`, fix the design.
+
 **Use `auto` for type deduction:**
 
 Prefer `auto` (or `const auto`, `const auto &`) instead of explicit types:

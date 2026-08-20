@@ -59,13 +59,13 @@ struct NativeIvPrepareState {
 	int nextGeneratedId = 0;
 	int nextFormulaIndex = 0;
 
-	[[nodiscard]] int rememberFormula(
+	int rememberFormula(
 		MathKind kind,
 		QString formulaTex,
 		int textSize,
 		int renderWidthCap,
 		int renderHeightCap);
-	[[nodiscard]] int rememberFormula(const PreparedBlock &block);
+	int rememberFormula(const PreparedBlock &block);
 	void addFormulaWarning();
 	void setFailure(
 		PrepareTerminalFailure terminal,

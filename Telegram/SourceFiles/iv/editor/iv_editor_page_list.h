@@ -61,13 +61,13 @@ void DropOrderedItemNumbers(std::vector<RichPage::ListItem> &items);
 	int from,
 	int till);
 
-[[nodiscard]] bool ClearOrderedListRawMarkers(RichPage::Block *block);
+bool ClearOrderedListRawMarkers(RichPage::Block *block);
 
 [[nodiscard]] bool ClearOrderedListItemTypes(RichPage::Block *block);
 
 [[nodiscard]] bool ClearOrderedTaskStates(RichPage::Block *block);
 
-[[nodiscard]] bool ResetNonOrderedListMetadata(RichPage::Block *block);
+bool ResetNonOrderedListMetadata(RichPage::Block *block);
 
 void NormalizeInsertedOrderedListMetadata(RichPage::Block *block);
 

@@ -110,7 +110,7 @@ void PaintImageCenterCrop(Painter &p, QRect rect, const QImage &image) {
 	return false;
 }
 
-[[nodiscard]] bool PaintThumbnailImage(
+bool PaintThumbnailImage(
 		Painter &p,
 		QRect rect,
 		const std::shared_ptr<Ui::DynamicImage> &thumbnail,
@@ -175,7 +175,7 @@ void RefreshResolvedBlockImage(
 	});
 }
 
-[[nodiscard]] bool PaintRelatedArticleImage(
+bool PaintRelatedArticleImage(
 		Painter &p,
 		QRect rect,
 		const std::shared_ptr<Ui::DynamicImage> &thumbnail,
@@ -2334,7 +2334,7 @@ void PaintEmbedPostBlock(
 			p.setClipPath(
 				avatarPath,
 				Qt::IntersectClip);
-			(void)PaintThumbnailImage(
+			PaintThumbnailImage(
 				p,
 				block.thumbnailRect,
 				block.thumbnailImage,
@@ -2602,7 +2602,7 @@ void PaintRelatedArticleBlock(
 						style.thumbnailRadius);
 					p.save();
 					p.setClipPath(path, Qt::IntersectClip);
-					(void)PaintRelatedArticleImage(
+					PaintRelatedArticleImage(
 						p,
 						block.thumbnailRect,
 						block.thumbnailImage,
@@ -2612,7 +2612,7 @@ void PaintRelatedArticleBlock(
 						visibleContext.mediaPixelScale);
 					p.restore();
 				} else {
-					(void)PaintRelatedArticleImage(
+					PaintRelatedArticleImage(
 						p,
 						block.thumbnailRect,
 						block.thumbnailImage,

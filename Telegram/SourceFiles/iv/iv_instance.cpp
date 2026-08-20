@@ -178,12 +178,12 @@ struct LocalMarkdownTarget {
 	article.setTextRepaintCallbacks([] {}, [](QRect) {});
 	article.setContent(content);
 	const auto width = article.maxWidth();
-	static_cast<void>(article.resizeGetHeight(width));
+	article.resizeGetHeight(width);
 	auto top = article.anchorTop(anchorId);
 	if (top < 0) {
 		const auto expansion = article.expandDetailsToAnchor(anchorId);
 		if (expansion.changed) {
-			static_cast<void>(article.resizeGetHeight(width));
+			article.resizeGetHeight(width);
 		}
 		top = article.anchorTop(anchorId);
 	}

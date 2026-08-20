@@ -219,7 +219,7 @@ NativeInstantViewPrepareResult TryPrepareNativeInstantView(
 				NativeInstantViewPrepareResultKind::Failure,
 				state.result.failure.debugReason);
 		}
-		(void)PrepareNativeIvPlainPlaceholderBlock(
+		PrepareNativeIvPlainPlaceholderBlock(
 			u"Prepare Failed"_q,
 			&state.result.blocks.blocks);
 	}

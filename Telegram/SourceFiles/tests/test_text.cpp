@@ -360,9 +360,7 @@ QString name() {
 	return u"text"_q;
 }
 
-void test(not_null<Ui::RpWindow*> window, not_null<Ui::RpWidget*> body) {
-	(void)window;
-
+void test(not_null<Ui::RpWindow*>, not_null<Ui::RpWidget*> body) {
 	const auto formulaEntityData =
 		u"iv-markdown:inline-text-object;formula;copy;tex"_q;
 	const auto formulaReplacementText = u"$\\frac{a}{b}$"_q;

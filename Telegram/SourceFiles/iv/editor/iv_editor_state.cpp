@@ -720,7 +720,7 @@ State::State(
 		_richPage->blocks.push_back(MakeParagraphBlock());
 	}
 	StripEditModeWrapperEntities(_richPage->blocks);
-	(void)DegradeEditModeButtons(_richPage->blocks);
+	DegradeEditModeButtons(_richPage->blocks);
 	rebuild();
 }
 
@@ -938,10 +938,10 @@ TextWithEntities State::activeText() const {
 ApplyResult State::applyActiveText(TextWithEntities text) {
 	_lastLimitError = std::nullopt;
 	_lastPreparedMutationKind = PreparedMutationKind::None;
-	(void)DegradeEditModeInlineButtons(text);
+	DegradeEditModeInlineButtons(text);
 	if (const auto descriptor = textNode(_activeTextOrdinal)) {
 		if (descriptor->leaf.kind == LeafKind::TableCellText) {
-			(void)DegradeBlockOnlyEntities(text);
+			DegradeBlockOnlyEntities(text);
 		}
 	}
 	return applyActiveTextWithLocalLimit(std::move(text));
@@ -2127,7 +2127,7 @@ bool State::setListStyle(
 	case ListStyle::Bullet:
 		owner->listKind = ListKind::Bullet;
 		changed = true;
-		static_cast<void>(ResetNonOrderedListMetadata(owner));
+		ResetNonOrderedListMetadata(owner);
 		for (auto &item : owner->listItems) {
 			if (item.taskState != TaskState::None) {
 				item.taskState = TaskState::None;
@@ -2172,7 +2172,7 @@ bool State::setListOrderedType(
 	// Item overrides would shadow the new list type.
 	changed = ClearOrderedListItemTypes(owner) || changed;
 	if (changed) {
-		(void)ClearOrderedListRawMarkers(owner);
+		ClearOrderedListRawMarkers(owner);
 		rebuild();
 	}
 	return true;
@@ -2192,7 +2192,7 @@ bool State::setListOrderedReversed(
 	auto changed = false;
 	if (owner->orderedList.reversed != reversed) {
 		owner->orderedList.reversed = reversed;
-		(void)ClearOrderedListRawMarkers(owner);
+		ClearOrderedListRawMarkers(owner);
 		changed = true;
 	}
 	if (changed) {
@@ -3690,7 +3690,7 @@ bool State::joinActiveListItemBoundaryUnchecked(
 		owner->listItems.erase(
 			owner->listItems.begin() + surface->itemIndex);
 		rebuild();
-		(void)destinationTargetForInsertedBlocks(
+		focusInsertedBlocks(
 			ListItemChildrenContainer(surface->path, previousIndex),
 			destinationIndex,
 			count);
@@ -4241,17 +4241,17 @@ std::optional<int> State::appendActiveParagraphToPreviousListUnchecked() {
 	return activateRebuiltLeaf(target);
 }
 
-bool State::mergeListWithNextSibling(const BlockPath &list) {
+void State::mergeListWithNextSibling(const BlockPath &list) {
 	const auto blocks = blockContainer(list.container);
 	if (!blocks
 		|| list.index < 0
 		|| list.index + 1 >= int(blocks->size())) {
-		return false;
+		return;
 	}
 	auto &first = (*blocks)[list.index];
 	auto &second = (*blocks)[list.index + 1];
 	if (!ListsJoinable(first, second)) {
-		return false;
+		return;
 	}
 	DropOrderedItemNumbers(second.listItems);
 	first.listItems.insert(
@@ -4259,7 +4259,6 @@ bool State::mergeListWithNextSibling(const BlockPath &list) {
 		std::make_move_iterator(second.listItems.begin()),
 		std::make_move_iterator(second.listItems.end()));
 	blocks->erase(blocks->begin() + list.index + 1);
-	return true;
 }
 
 auto State::joinListWithSiblings(const BlockPath &list, bool startExplicit)
@@ -4333,7 +4332,7 @@ void State::joinInsertedListWithSiblings(bool startExplicit) {
 		.listItemIndex = joined->itemsFrom + leaf->listItemIndex,
 	};
 	rebuild();
-	static_cast<void>(activateRebuiltLeaf(target));
+	activateRebuiltLeaf(target);
 }
 
 bool State::canJoinActiveParagraphIntoPreviousList() const {
@@ -4406,7 +4405,7 @@ bool State::joinActiveParagraphIntoPreviousListUnchecked(
 			};
 		}
 	}
-	static_cast<void>(mergeListWithNextSibling(*listPath));
+	mergeListWithNextSibling(*listPath);
 	rebuild();
 	if (!activateRebuiltLeaf(destination)) {
 		return false;
@@ -5995,7 +5994,7 @@ auto State::normalizeActiveListItemSurface()
 	return surface;
 }
 
-RichText *State::seedInsertedBlocks(
+void State::seedInsertedBlocks(
 		std::vector<Block> &blocks,
 		TextWithEntities text) {
 	for (auto &block : blocks) {
@@ -6005,10 +6004,9 @@ RichText *State::seedInsertedBlocks(
 				combined.append(target->text);
 				target->text = std::move(combined);
 			}
-			return target;
+			return;
 		}
 	}
-	return nullptr;
 }
 
 RichText *State::seedInsertedBlock(Block &block) {
@@ -6913,8 +6911,8 @@ std::optional<int> State::sinkActiveListItemUnchecked() {
 	}
 	const auto listKind = owner->listKind;
 	clearTemporaryDownParagraph();
-	static_cast<void>(normalizeTextOnlyListItemForInsertion(
-		ListItemChildrenContainer(surface->path, itemIndex - 1)));
+	normalizeTextOnlyListItemForInsertion(
+		ListItemChildrenContainer(surface->path, itemIndex - 1));
 	owner = block(surface->path);
 	if (!owner || itemIndex >= int(owner->listItems.size())) {
 		return std::nullopt;
@@ -7079,8 +7077,8 @@ std::optional<int> State::liftActiveListItemUnchecked() {
 	}
 	if (itemIndex + 1 < int(owner->listItems.size())
 		&& (sourceLeaf.kind == LeafKind::ListItemText)) {
-		static_cast<void>(normalizeTextOnlyListItemForInsertion(
-			ListItemChildrenContainer(surface->path, itemIndex)));
+		normalizeTextOnlyListItemForInsertion(
+			ListItemChildrenContainer(surface->path, itemIndex));
 		owner = block(surface->path);
 		if (!owner || itemIndex >= int(owner->listItems.size())) {
 			return std::nullopt;
@@ -8144,10 +8142,7 @@ bool State::toggleCodeBlockForStructuralSelection(
 				return CheckedMutationResult<bool>{ .result = false };
 			}
 			candidate.rebuild();
-			(void)candidate.destinationTargetForInsertedBlocks(
-				range->container,
-				insertAt,
-				1);
+			candidate.focusInsertedBlocks(range->container, insertAt, 1);
 			return CheckedMutationResult<bool>{
 				.apply = true,
 				.result = true,
@@ -8674,9 +8669,7 @@ State::TextSelectionDropResult State::moveTextSelectionToDropTarget(
 				int selectionTo) {
 			candidate.rebuild();
 			const auto ordinal = candidate.textOrdinalForLeafPath(leaf);
-			if (ordinal >= 0) {
-				(void)candidate.setActiveTextByOrdinal(ordinal);
-			} else {
+			if (ordinal < 0 || !candidate.setActiveTextByOrdinal(ordinal)) {
 				candidate.ensureActiveTextOrdinal();
 			}
 			result.result = ApplyResult::Changed;
@@ -8860,14 +8853,14 @@ State::TextSelectionDropResult State::moveTextSelectionToDropTarget(
 }
 
 void State::insertHeading1AfterActive() {
-	(void)insertBlockAfterActive({
+	insertBlockAfterActive({
 		.type = InsertBlockType::Heading,
 		.headingLevel = 1,
 	});
 }
 
 void State::insertBlockquoteAfterActive() {
-	(void)insertBlockAfterActive({
+	insertBlockAfterActive({
 		.type = InsertBlockType::Blockquote,
 	});
 }
@@ -8913,7 +8906,7 @@ bool State::insertBlocksAfterActiveWithContextUnchecked(
 		}
 		current->text = context.before;
 	}
-	(void)seedInsertedBlocks(blocks, context.selected);
+	seedInsertedBlocks(blocks, context.selected);
 	if (removeSource) {
 		destination->erase(destination->begin() + insertAt);
 	}

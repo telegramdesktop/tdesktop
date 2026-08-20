@@ -2093,7 +2093,7 @@ void ClearPreparedEditSources(std::vector<PreparedBlock> *blocks) {
 			if (state->result.failure.failed()) {
 				return false;
 			}
-			(void)PrepareNativeIvPlainPlaceholderBlock(
+			PrepareNativeIvPlainPlaceholderBlock(
 				u"Unsupported Block"_q,
 				result);
 		}

@@ -582,12 +582,12 @@ void MarkdownDocumentWidget::contextMenuEvent(QContextMenuEvent *e) {
 
 void MarkdownDocumentWidget::wheelEvent(QWheelEvent *e) {
 	if (!_article) {
-		(void)_scrollDirectionLock.update(e->phase(), {});
+		_scrollDirectionLock.update(e->phase(), {});
 		e->ignore();
 		return;
 	}
 	if (e->modifiers().testFlag(Qt::ControlModifier)) {
-		(void)_scrollDirectionLock.update(e->phase(), {});
+		_scrollDirectionLock.update(e->phase(), {});
 		const auto angle = e->angleDelta().y();
 		const auto wheel = angle ? angle : e->pixelDelta().y();
 		if (wheel) {
@@ -621,7 +621,7 @@ void MarkdownDocumentWidget::wheelEvent(QWheelEvent *e) {
 		return;
 	}
 	if (horizontal) {
-		(void)_article->consumeHorizontalScroll(
+		_article->consumeHorizontalScroll(
 			local,
 			int(std::round(delta.x())),
 			e->phase());
@@ -665,7 +665,7 @@ void MarkdownDocumentWidget::touchEvent(QTouchEvent *e) {
 	} break;
 	case QEvent::TouchUpdate:
 		if (_activeTouchHorizontalScroll) {
-			(void)_article->updateHorizontalScroll(local);
+			_article->updateHorizontalScroll(local);
 			e->accept();
 		} else if (_pendingTouchHorizontalScrollPoint) {
 			const auto delta = local - *_pendingTouchHorizontalScrollPoint;
@@ -682,7 +682,7 @@ void MarkdownDocumentWidget::touchEvent(QTouchEvent *e) {
 				true);
 			_pendingTouchHorizontalScrollPoint = std::nullopt;
 			if (_activeTouchHorizontalScroll) {
-				(void)_article->updateHorizontalScroll(local);
+				_article->updateHorizontalScroll(local);
 				e->accept();
 			}
 		}
@@ -703,7 +703,7 @@ void MarkdownDocumentWidget::touchEvent(QTouchEvent *e) {
 void MarkdownDocumentWidget::mouseMoveEvent(QMouseEvent *e) {
 	if (_activeHorizontalScrollDrag) {
 		if (_article) {
-			(void)_article->updateHorizontalScroll(
+			_article->updateHorizontalScroll(
 				ArticlePointFromWidget(e->pos(), zoomScale()));
 		}
 		e->accept();
@@ -737,7 +737,7 @@ void MarkdownDocumentWidget::mouseReleaseEvent(QMouseEvent *e) {
 	const auto weak = base::make_weak(this);
 	if (_activeHorizontalScrollDrag && e->button() == Qt::LeftButton) {
 		if (_article) {
-			(void)_article->updateHorizontalScroll(
+			_article->updateHorizontalScroll(
 				ArticlePointFromWidget(e->pos(), zoomScale()));
 		}
 		_activeHorizontalScrollDrag = false;
@@ -1578,12 +1578,7 @@ MarkdownArticleHitTestResult MarkdownDocumentWidget::dragActionFinish(
 				clickHandlerContext = viewerToastClickHandlerContext();
 			}
 			if (monospace) {
-				const auto context = clickHandlerContext.value<ClickHandlerContext>();
-				if (context.show) {
-					const auto handled = Ui::Integration::Instance().copyPreOnClick(
-						clickHandlerContext);
-					static_cast<void>(handled);
-				}
+				showToast(tr::lng_code_copied(tr::now));
 			}
 			auto context = ClickContext();
 			context.button = button;

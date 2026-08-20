@@ -100,10 +100,10 @@ void ActivateRichTranslateLink(
 		UrlClickHandler::Open(target, context);
 	} break;
 	case Kind::ToggleDetails:
-		static_cast<void>(body->toggleDetails(link.target));
+		body->toggleDetails(link.target);
 		break;
 	case Kind::ToggleBlockquote:
-		static_cast<void>(body->toggleBlockquote(link.target));
+		body->toggleBlockquote(link.target);
 		break;
 	default:
 		break;

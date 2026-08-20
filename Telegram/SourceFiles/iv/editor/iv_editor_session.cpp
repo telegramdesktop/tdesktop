@@ -957,11 +957,11 @@ private:
 
 	void dropDetachedReturnText() {
 		if (detachedCompose()) {
-			(void)base::take(_composeOptions.returnText);
+			_composeOptions.returnText = nullptr;
 		}
 	}
 
-	[[nodiscard]] bool deliverDetachedReturnText() {
+	bool deliverDetachedReturnText() {
 		Expects(detachedCompose());
 
 		if (hasPendingPreparation()) {
@@ -2060,7 +2060,7 @@ private:
 			&& _composeOptions.returnText
 			&& !_submittedPage
 			&& !_submitApiRequested) {
-			(void)deliverDetachedReturnText();
+			deliverDetachedReturnText();
 		}
 		const auto sync = _composeAction
 			&& _composeThreadKey

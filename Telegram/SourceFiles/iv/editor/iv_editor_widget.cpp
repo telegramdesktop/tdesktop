@@ -6124,10 +6124,10 @@ void Widget::mouseReleaseEvent(QMouseEvent *e) {
 			&& (operation == ArticleSelectionOperation::DragSelection)) {
 			if (_articleSelectionDrag.dropTarget) {
 				if (_articleSelectionDrag.mode == DragSelectionMode::Structural) {
-					static_cast<void>(applyStructuralSelectionDrop());
+					applyStructuralSelectionDrop();
 				} else if (_articleSelectionDrag.mode
 					== DragSelectionMode::Text) {
-					static_cast<void>(applyInlineSelectionDrop());
+					applyInlineSelectionDrop();
 				}
 			}
 			clearArticleDropTarget();
@@ -6151,10 +6151,10 @@ void Widget::mouseReleaseEvent(QMouseEvent *e) {
 				const auto selectionFrom = selection.from.offset;
 				const auto selectionTo = selection.to.offset;
 				clearTextSelection();
-				static_cast<void>(commitAndActivateTextOrdinal(
+				commitAndActivateTextOrdinal(
 					selectionOrdinal,
 					selectionFrom,
-					selectionTo));
+					selectionTo);
 				e->accept();
 				return;
 			} else if (fromField) {
@@ -6221,10 +6221,10 @@ void Widget::mouseReleaseEvent(QMouseEvent *e) {
 			_field->setTextCursor(cursor);
 			_field->setFocusFast();
 		} else if (targetOrdinal >= 0) {
-			static_cast<void>(commitAndActivateTextOrdinal(
+			commitAndActivateTextOrdinal(
 				targetOrdinal,
 				offset,
-				offset));
+				offset);
 		}
 	} else if (articlePoint.y() >= _articleHeight) {
 		activateTrailingParagraph();
@@ -8351,9 +8351,7 @@ bool Widget::enterStructuralSelectionFromField(bool forward, bool page) {
 	setFocus();
 	setStructuralSelection(initialSelection, origin);
 	if (page) {
-		static_cast<void>(adjustStructuralSelectionFromKeyboard(
-			forward,
-			true));
+		adjustStructuralSelectionFromKeyboard(forward, true);
 	}
 	update();
 	return true;
@@ -8614,7 +8612,7 @@ bool Widget::handleFieldKey(QKeyEvent *e) {
 			QTextCursor::MoveOperation operation,
 			QTextCursor::MoveMode mode) {
 		auto next = _field->textCursor();
-		static_cast<void>(next.movePosition(operation, mode));
+		next.movePosition(operation, mode);
 		return applyFieldCursor(next);
 	};
 	const auto activateVerticalTarget = [&](
@@ -8622,11 +8620,11 @@ bool Widget::handleFieldKey(QKeyEvent *e) {
 		if (target.ordinal == _activeOrdinal) {
 			setActiveFieldCursorOffset(target.offset);
 		} else {
-			static_cast<void>(commitAndActivateTextOrdinal(
+			commitAndActivateTextOrdinal(
 				target.ordinal,
 				target.offset,
 				target.offset,
-				ActivateReveal::Reveal));
+				ActivateReveal::Reveal);
 		}
 		handled = true;
 	};
@@ -10777,17 +10775,16 @@ void Widget::finishArticleSelection() {
 	}
 }
 
-bool Widget::applyStructuralSelectionDrop() {
+void Widget::applyStructuralSelectionDrop() {
 	if (!_articleSelectionDrag.structuralSource
 		|| !_articleSelectionDrag.dropTarget) {
-		return false;
+		return;
 	}
 	const auto clearOverlay = gsl::finally([&] {
 		clearArticleDropTarget();
 	});
 	const auto selection = *_articleSelectionDrag.structuralSource;
 	const auto target = *_articleSelectionDrag.dropTarget;
-	auto applied = false;
 	recordMutationTransaction([&] {
 		const auto hadVisibleField = !_field->isHidden();
 		const auto source = hadVisibleField
@@ -10828,7 +10825,6 @@ bool Widget::applyStructuralSelectionDrop() {
 				.changed = (committed == ApplyResult::Changed),
 			};
 		}
-		applied = true;
 		refreshPreparedContent();
 		switch (moved.destination.action) {
 		case State::BoundaryTarget::Action::StructuralSelection:
@@ -10856,19 +10852,17 @@ bool Widget::applyStructuralSelectionDrop() {
 			.changed = true,
 		};
 	});
-	return applied;
 }
 
-bool Widget::applyInlineSelectionDrop() {
+void Widget::applyInlineSelectionDrop() {
 	if (!_articleSelectionDrag.inlineSource
 		|| !_articleSelectionDrag.dropTarget) {
-		return false;
+		return;
 	}
 	const auto clearOverlay = gsl::finally([&] {
 		clearArticleDropTarget();
 	});
 	const auto target = *_articleSelectionDrag.dropTarget;
-	auto applied = false;
 	recordMutationTransaction([&] {
 		const auto restoreField = !_field->isHidden();
 		const auto restoreLeaf = restoreField
@@ -10966,7 +10960,6 @@ bool Widget::applyInlineSelectionDrop() {
 			};
 		}
 		restore = false;
-		applied = true;
 		refreshPreparedContent();
 		const auto ordinal = moved.destinationLeaf
 			? _state->textOrdinalForLeafPath(*moved.destinationLeaf)
@@ -10984,7 +10977,6 @@ bool Widget::applyInlineSelectionDrop() {
 			.changed = true,
 		};
 	});
-	return applied;
 }
 
 bool Widget::handleStructuralSelectionKey(QKeyEvent *e) {
@@ -11305,10 +11297,10 @@ bool Widget::handleFieldMouseEvent(QEvent *event) {
 		if (operation == ArticleSelectionOperation::DragSelection) {
 			if (_articleSelectionDrag.dropTarget) {
 				if (_articleSelectionDrag.mode == DragSelectionMode::Structural) {
-					static_cast<void>(applyStructuralSelectionDrop());
+					applyStructuralSelectionDrop();
 				} else if (_articleSelectionDrag.mode
 					== DragSelectionMode::Text) {
-					static_cast<void>(applyInlineSelectionDrop());
+					applyInlineSelectionDrop();
 				}
 			}
 			clearArticleDropTarget();

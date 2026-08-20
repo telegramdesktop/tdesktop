@@ -214,7 +214,6 @@ void MarkMaskRange(std::vector<bool> *mask, const SourceRange &range) {
 		|| RawTypeString(node) != u"tasklist"_q) {
 		return false;
 	}
-	(void)cmark_gfm_extensions_get_tasklist_item_checked(node);
 	return true;
 }
 

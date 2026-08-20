@@ -38,7 +38,7 @@ struct InlineLinkButtonSpan {
 	TextWithEntities label,
 	const Ui::Text::FormattedDateFactory &dates);
 [[nodiscard]] bool TextHasInlineLinkButton(const TextWithEntities &text);
-[[nodiscard]] std::vector<InlineLinkButtonSpan> ExpandInlineLinkButtons(
+std::vector<InlineLinkButtonSpan> ExpandInlineLinkButtons(
 	TextWithEntities *text,
 	RichButtonLabelDates dates,
 	const Ui::Text::FormattedDateFactory &factory);

@@ -122,11 +122,11 @@ void StripEditModeWrapperEntities(RichPage::RichText &text);
 void StripEditModeWrapperEntities(
 	std::vector<RichPage::Block> &blocks);
 
-[[nodiscard]] bool DegradeBlockOnlyEntities(TextWithEntities &text);
+bool DegradeBlockOnlyEntities(TextWithEntities &text);
 
-[[nodiscard]] bool DegradeEditModeInlineButtons(TextWithEntities &text);
+bool DegradeEditModeInlineButtons(TextWithEntities &text);
 
-[[nodiscard]] bool DegradeEditModeButtons(
+bool DegradeEditModeButtons(
 	std::vector<RichPage::Block> &blocks);
 
 [[nodiscard]] bool CanEditRichPage(const RichPage &page);

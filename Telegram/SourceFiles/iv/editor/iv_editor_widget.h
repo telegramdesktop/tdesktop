@@ -619,7 +619,7 @@ private:
 		int ordinal = -1;
 		int offset = 0;
 	};
-	[[nodiscard]] bool commitAndActivateTextOrdinal(
+	bool commitAndActivateTextOrdinal(
 		int ordinal,
 		int selectionFrom,
 		int selectionTo,
@@ -648,7 +648,7 @@ private:
 	[[nodiscard]] bool enterStructuralSelectionFromField(
 		bool forward,
 		bool page);
-	[[nodiscard]] bool adjustStructuralSelectionFromKeyboard(
+	bool adjustStructuralSelectionFromKeyboard(
 		bool forward,
 		bool page);
 	[[nodiscard]] bool restoreFieldFromBoundaryOrigin();
@@ -839,8 +839,8 @@ private:
 		const Markdown::PreparedEditHit &editHit);
 	void updateArticleSelectionDragAtWidgetPoint(QPoint widgetPoint);
 	void updateArticleSelectionDragFromCursor();
-	[[nodiscard]] bool applyStructuralSelectionDrop();
-	[[nodiscard]] bool applyInlineSelectionDrop();
+	void applyStructuralSelectionDrop();
+	void applyInlineSelectionDrop();
 	[[nodiscard]] bool handleStructuralSelectionKey(QKeyEvent *e);
 	void addFieldBlockFormatActions(not_null<QMenu*> menu);
 	void handleFieldContextMenuRequest(

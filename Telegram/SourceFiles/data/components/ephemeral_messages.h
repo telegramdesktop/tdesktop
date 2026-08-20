@@ -72,7 +72,7 @@ public:
 		FullReplyTo realReply = {},
 		Data::WebPageDraft webPage = {},
 		bool invertCaption = false);
-	[[nodiscard]] bool sendMedia(
+	bool sendMedia(
 		not_null<HistoryItem*> item,
 		const MTPInputMedia &media,
 		Data::FileOrigin origin = {},

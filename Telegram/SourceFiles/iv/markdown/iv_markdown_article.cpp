@@ -2753,7 +2753,7 @@ void AddSelectedBlockRects(
 	}
 }
 
-[[nodiscard]] bool AddSelectedListItemRects(
+bool AddSelectedListItemRects(
 		QRect *result,
 		const std::vector<LaidOutBlock> &blocks,
 		const PreparedEditListItemRange &range) {
@@ -2788,10 +2788,10 @@ void AddSelectedBlockRects(
 		AddSelectedBlockRects(&result, blocks, selection.blocks);
 		return result;
 	case PreparedEditSelectionKind::ListItems:
-		static_cast<void>(AddSelectedListItemRects(
+		AddSelectedListItemRects(
 			&result,
 			blocks,
-			selection.listItems));
+			selection.listItems);
 		return result;
 	case PreparedEditSelectionKind::TableRows:
 	case PreparedEditSelectionKind::TableCells:
@@ -3841,7 +3841,7 @@ public:
 	[[nodiscard]] int lastLayoutWidth() const;
 	[[nodiscard]] bool hasMissingMediaBlocks() const;
 
-	[[nodiscard]] int resizeGetHeight(int width);
+	int resizeGetHeight(int width);
 
 	[[nodiscard]] auto countRevealLinesGeometry(int width)
 	-> std::vector<MarkdownArticleRevealLine>;
@@ -3888,12 +3888,12 @@ public:
 	[[nodiscard]] bool canConsumeHorizontalScroll(
 		QPoint point,
 		int delta) const;
-	[[nodiscard]] bool consumeHorizontalScroll(
+	bool consumeHorizontalScroll(
 		QPoint point,
 		int delta,
 		Qt::ScrollPhase phase);
 	[[nodiscard]] bool beginHorizontalScroll(QPoint point, bool fromTouch);
-	[[nodiscard]] bool updateHorizontalScroll(QPoint point);
+	bool updateHorizontalScroll(QPoint point);
 	void endHorizontalScroll();
 
 	[[nodiscard]] int anchorTop(const QString &anchorId) const;
@@ -6527,7 +6527,7 @@ bool MarkdownArticle::Impl::beginHorizontalScroll(
 			: (thumb.width() / 2),
 	};
 	if (!lookup.hit.overScrollbarThumb) {
-		(void)updateHorizontalScroll(point);
+		updateHorizontalScroll(point);
 	}
 	return true;
 }
@@ -6712,7 +6712,6 @@ void MarkdownArticle::Impl::relayout(int width) {
 			return getOrCreateTaskMarkerRippleRuntime(source);
 		};
 	const auto contextScope = LayoutContextScope(context);
-	(void)contextScope;
 	const auto y = LayoutBlocks(
 		_content.blocks.blocks,
 		&_content.formulas,
@@ -6801,7 +6800,6 @@ void MarkdownArticle::Impl::relayoutRetained(int width) {
 			return getOrCreateTaskMarkerRippleRuntime(source);
 		};
 	const auto contextScope = LayoutContextScope(context);
-	(void)contextScope;
 	const auto y = RecountLaidOutBlocks(
 		_content.blocks.blocks,
 		_content.formulas,

@@ -106,7 +106,7 @@ constexpr auto kMaxDataUriHeaderLength = 256;
 
 [[nodiscard]] TextWithEntities WithoutBlockOnlyEntities(
 		TextWithEntities text) {
-	(void)DegradeBlockOnlyEntities(text);
+	DegradeBlockOnlyEntities(text);
 	return text;
 }
 

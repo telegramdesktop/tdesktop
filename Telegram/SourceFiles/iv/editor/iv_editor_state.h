@@ -399,7 +399,7 @@ public:
 		RichPage::Button button);
 	[[nodiscard]] ParagraphBoundaryJoinResult joinActiveParagraphBoundary(
 		bool forward);
-	[[nodiscard]] bool insertBlockAfterActive(
+	bool insertBlockAfterActive(
 		InsertAction action,
 		std::optional<ActiveTextInsertContext> context = std::nullopt);
 	[[nodiscard]] ActiveTextBlockActionResult applyActiveTextBlockAction(
@@ -686,10 +686,10 @@ private:
 	[[nodiscard]] Result applyCheckedMutation(
 		Result failure,
 		Callback &&callback);
-	[[nodiscard]] std::optional<int> activateRebuiltLeaf(
+	std::optional<int> activateRebuiltLeaf(
 		const LeafPath &path);
 	[[nodiscard]] InsertionAnchor resolveActiveInsertionTarget() const;
-	[[nodiscard]] std::optional<int> normalizeTextOnlyListItemForInsertion(
+	std::optional<int> normalizeTextOnlyListItemForInsertion(
 		const BlockContainerPath &container);
 	[[nodiscard]] std::optional<int> normalizeTextOnlyQuoteSurface(
 		const BlockContainerPath &container,
@@ -761,7 +761,7 @@ private:
 	[[nodiscard]] std::optional<BlockPath> listBeforeActiveParagraph() const;
 	[[nodiscard]] std::optional<NextListItem> deepestLastItem(
 		BlockPath list) const;
-	[[nodiscard]] bool mergeListWithNextSibling(const BlockPath &list);
+	void mergeListWithNextSibling(const BlockPath &list);
 	struct ListJoin {
 		BlockPath list;
 		int itemsFrom = 0;
@@ -898,7 +898,7 @@ private:
 	[[nodiscard]] bool insertBlocksAfterActiveWithContextUnchecked(
 		std::vector<RichPage::Block> &blocks,
 		const ActiveTextInsertContext &context);
-	[[nodiscard]] RichPage::RichText *seedInsertedBlocks(
+	void seedInsertedBlocks(
 		std::vector<RichPage::Block> &blocks,
 		TextWithEntities text);
 	[[nodiscard]] RichPage::RichText *seedInsertedBlock(

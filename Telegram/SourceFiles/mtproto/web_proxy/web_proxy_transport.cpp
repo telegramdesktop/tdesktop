@@ -317,7 +317,7 @@ private:
 	void markStreamReady(uint32 streamId);
 	void unmarkStreamReady(uint32 streamId);
 	void flushStreams();
-	[[nodiscard]] bool flushStream(uint32 streamId);
+	void flushStream(uint32 streamId);
 	void releasePending(Stream &stream);
 	void rememberClosedStream(uint32 streamId);
 	void notifyConnected(const Stream &stream);
@@ -1351,7 +1351,7 @@ void Transport::Private::flushStreams() {
 			continue;
 		}
 		_readySet.erase(streamId);
-		(void)flushStream(streamId);
+		flushStream(streamId);
 		markStreamReady(streamId);
 		++processed;
 	}
@@ -1360,10 +1360,10 @@ void Transport::Private::flushStreams() {
 	}
 }
 
-bool Transport::Private::flushStream(uint32 streamId) {
+void Transport::Private::flushStream(uint32 streamId) {
 	const auto i = _streams.find(streamId);
 	if (i == end(_streams) || !i->second.opened || !carrierAvailable()) {
-		return false;
+		return;
 	}
 	auto &stream = i->second;
 	if (stream.sendWindow
@@ -1374,7 +1374,7 @@ bool Transport::Private::flushStream(uint32 streamId) {
 			- carrierPendingBytes();
 		if (localAllowance <= kFrameHeaderSize + 10
 			|| !carrierAccepts(kFrameHeaderSize + 1, false)) {
-			return false;
+			return;
 		}
 		auto &front = stream.pending.front();
 		const auto remaining = front.data.size() - front.offset;
@@ -1398,9 +1398,7 @@ bool Transport::Private::flushStream(uint32 streamId) {
 			stream.pending.pop_front();
 		}
 		ensureWriteProgressCheck();
-		return true;
 	}
-	return false;
 }
 
 void Transport::Private::failStream(uint32 streamId) {

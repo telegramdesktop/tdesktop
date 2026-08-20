@@ -5514,7 +5514,7 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 		}
 		_sendingAlbums.remove(groupId);
 		for (const auto &[partItem, media] : parts) {
-			(void)_session->ephemeralMessages().sendMedia(partItem, media);
+			_session->ephemeralMessages().sendMedia(partItem, media);
 		}
 		return;
 	}

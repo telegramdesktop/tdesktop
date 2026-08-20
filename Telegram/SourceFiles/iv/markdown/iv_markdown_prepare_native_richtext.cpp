@@ -125,7 +125,7 @@ void SortPreparedIvRichText(PreparedIvRichText *text) {
 	return result;
 }
 
-[[nodiscard]] bool AddNativeIvPreparedLink(
+void AddNativeIvPreparedLink(
 		TextWithEntities *text,
 		std::vector<PreparedLink> *links,
 		int from,
@@ -133,11 +133,11 @@ void SortPreparedIvRichText(PreparedIvRichText *text) {
 		QString target,
 		uint64 webpageId = 0) {
 	if (!length || target.isEmpty()) {
-		return true;
+		return;
 	}
 	const auto index = links->size() + 1;
 	if (index > std::numeric_limits<uint16>::max()) {
-		return true;
+		return;
 	}
 	auto prepared = PreparedLink();
 	if (webpageId) {
@@ -150,7 +150,7 @@ void SortPreparedIvRichText(PreparedIvRichText *text) {
 	}
 	if (prepared.kind == PreparedLinkKind::RejectedRelative
 		|| prepared.kind == PreparedLinkKind::LocalFile) {
-		return true;
+		return;
 	}
 	FinalizePreparedUrlLink(&prepared, QStringView(text->text).mid(from, length));
 	if (prepared.kind == PreparedLinkKind::InstantViewPage) {
@@ -166,7 +166,6 @@ void SortPreparedIvRichText(PreparedIvRichText *text) {
 		length,
 		InternalLinkData(uint16(index))));
 	links->push_back(std::move(prepared));
-	return true;
 }
 
 void AddNativeIvRichPageButtonLink(
@@ -245,7 +244,7 @@ void RememberCanonicalInlineFormula(
 	if (!formula) {
 		return;
 	}
-	(void)state->rememberFormula(
+	state->rememberFormula(
 		MathKind::Inline,
 		formula->trimmedTex,
 		context.textSize,
@@ -301,7 +300,7 @@ void AppendCanonicalNativeIvRichText(
 			}
 			const auto decoded = Iv::DecodeRichPageLinkUrl(entity.data());
 			const auto count = result->links.size();
-			(void)AddNativeIvPreparedLink(
+			AddNativeIvPreparedLink(
 				&result->text,
 				&result->links,
 				shift + offset,

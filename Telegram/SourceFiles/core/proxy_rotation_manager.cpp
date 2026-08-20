@@ -41,10 +41,8 @@ void ProxyRotationManager::settingsChanged() {
 }
 
 void ProxyRotationManager::handleConnectionStateChanged(
-		not_null<Main::Account*> account,
-		int32 state) {
-	(void)account;
-	(void)state;
+		not_null<Main::Account*>,
+		int32) {
 	reevaluate();
 }
 

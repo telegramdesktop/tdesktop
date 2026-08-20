@@ -573,10 +573,7 @@ void Controller::updateOptions(OpenOptions options) {
 	}
 	refreshTitle();
 	if (!initialFragment.isEmpty() && _preview) {
-		const auto scrolled = ScrollMarkdownPreviewToAnchor(
-			_preview.get(),
-			initialFragment);
-		static_cast<void>(scrolled);
+		ScrollMarkdownPreviewToAnchor(_preview.get(), initialFragment);
 	}
 	if (_window && _window->isActiveWindow() && _preview) {
 		_preview->setFocus();

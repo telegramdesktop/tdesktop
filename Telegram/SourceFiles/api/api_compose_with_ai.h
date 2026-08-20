@@ -81,7 +81,7 @@ public:
 	[[nodiscard]] static MTPInputAiComposeTone SerializeTone(
 		const std::optional<ToneRef> &tone);
 
-	[[nodiscard]] mtpRequestId request(
+	mtpRequestId request(
 		Request request,
 		Fn<void(Result &&)> done,
 		Fn<void(const MTP::Error &)> fail = nullptr);

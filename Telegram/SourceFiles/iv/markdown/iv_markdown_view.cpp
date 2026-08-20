@@ -764,10 +764,7 @@ void MarkdownPreviewRoot::applyPreparedContent(
 	_failure->hide();
 	_failureOpen->hide();
 	if (!_pendingFragment.isEmpty()) {
-		const auto scrolled = scrollToAnchor(
-			_pendingFragment,
-			MarkdownPreviewScrollMode::Instant);
-		static_cast<void>(scrolled);
+		scrollToAnchor(_pendingFragment, MarkdownPreviewScrollMode::Instant);
 		_pendingFragment.clear();
 	}
 	_scrollToTop->raise();

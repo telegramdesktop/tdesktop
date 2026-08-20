@@ -828,7 +828,7 @@ void RememberWebPageMedia(
 	return AddEntity(text, from, EntityType::CustomEmoji, entityData);
 }
 
-[[nodiscard]] bool AppendRichText(
+bool AppendRichText(
 		const MTPRichText &text,
 		RichText *result,
 		ParseContext *context,
@@ -1168,7 +1168,7 @@ void RememberWebPageMedia(
 		= (mode != RichTextParseMode::Normal);
 	context->keepRichTextFormattedDates
 		= (mode == RichTextParseMode::DropClickHandlersKeepDates);
-	const auto parsed = AppendRichText(
+	AppendRichText(
 		text,
 		&result,
 		context,
@@ -1176,7 +1176,6 @@ void RememberWebPageMedia(
 		&anchorIds);
 	context->dropRichTextClickHandlers = wasDropClickHandlers;
 	context->keepRichTextFormattedDates = wasKeepFormattedDates;
-	(void)parsed;
 	result.anchorId = std::move(anchorId);
 	result.anchorIds = std::move(anchorIds);
 	return result;
@@ -1188,14 +1187,14 @@ void RememberWebPageMedia(
 	auto result = RichText();
 	auto anchorId = QString();
 	auto anchorIds = std::vector<QString>();
-	(void)AppendRichText(
+	AppendRichText(
 		caption.data().vtext(),
 		&result,
 		context,
 		&anchorId,
 		&anchorIds);
 	auto credit = RichText();
-	(void)AppendRichText(
+	AppendRichText(
 		caption.data().vcredit(),
 		&credit,
 		context,

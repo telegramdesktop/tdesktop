@@ -291,7 +291,7 @@ struct SerializeBlockResult {
 	return std::nullopt;
 }
 
-[[nodiscard]] bool CollectUser(SerializeContext *context, uint64 userId) {
+bool CollectUser(SerializeContext *context, uint64 userId) {
 	if (!userId) {
 		return false;
 	} else if (context->users.contains(userId)) {
@@ -674,7 +674,7 @@ struct SerializeBlockResult {
 		if (!userId) {
 			return std::nullopt;
 		}
-		(void)CollectUser(context, userId);
+		CollectUser(context, userId);
 		return MTP_inlineButtonTypeUserProfile(MTP_long(userId));
 	}
 	}

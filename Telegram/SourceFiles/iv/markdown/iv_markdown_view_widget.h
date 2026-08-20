@@ -73,8 +73,8 @@ public:
 	[[nodiscard]] bool expandDetailsToAnchor(const QString &anchorId);
 	[[nodiscard]] bool expandDetailsBlock(const QString &anchorId);
 	[[nodiscard]] QRect segmentRect(int segmentIndex) const;
-	[[nodiscard]] bool toggleDetails(const QString &anchorId);
-	[[nodiscard]] bool toggleBlockquote(const QString &toggleId);
+	bool toggleDetails(const QString &anchorId);
+	bool toggleBlockquote(const QString &toggleId);
 	[[nodiscard]] int lastRelayoutMs() const;
 	int resizeGetHeight(int newWidth) override;
 	void requestRepaint(QRect articleRect) override;

@@ -30,7 +30,7 @@ struct NativeIvRichTextContext {
 	bool dropClickHandlers = false;
 };
 
-[[nodiscard]] bool PrepareNativeIvPlainPlaceholderBlock(
+bool PrepareNativeIvPlainPlaceholderBlock(
 	QString label,
 	std::vector<PreparedBlock> *result);
 [[nodiscard]] bool PrepareNativeIvPhotoBlock(

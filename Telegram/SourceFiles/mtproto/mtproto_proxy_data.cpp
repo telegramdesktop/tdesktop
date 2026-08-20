@@ -228,7 +228,7 @@ QString WebProxyBridgeCapability(const ProxyData &proxy) {
 	Expects(proxy.host == NormalizeWebProxyHost(proxy.host));
 
 #ifndef NDEBUG
-	static const auto checked = [] {
+	[[maybe_unused]] static const auto checked = [] {
 		Assert(NormalizeWebProxyHost(u" Proxy.Example.COM "_q)
 			== u"proxy.example.com"_q);
 		Assert(NormalizeWebProxyHost(u"bücher.example"_q)
@@ -257,7 +257,6 @@ QString WebProxyBridgeCapability(const ProxyData &proxy) {
 			padded) == u"IpJrt3e7sKtzPyoXy6w-Zj6GGEvsvclN66JzQEfPYLA"_q);
 		return true;
 	}();
-	(void)checked;
 #endif // !NDEBUG
 
 	const auto secret = proxy.secretFromMtprotoPassword();

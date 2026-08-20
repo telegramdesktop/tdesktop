@@ -473,7 +473,7 @@ bool DegradeEditModeInlineButtons(TextWithEntities &text) {
 	using Type = HistoryMessageMarkupButton::Type;
 	auto result = false;
 	if (Markdown::TextHasInlineLinkButton(text)) {
-		(void)Markdown::ExpandInlineLinkButtons(
+		Markdown::ExpandInlineLinkButtons(
 			&text,
 			Markdown::RichButtonLabelDates::Keep,
 			nullptr);

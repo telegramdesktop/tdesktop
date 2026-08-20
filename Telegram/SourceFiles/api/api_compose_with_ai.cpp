@@ -150,7 +150,7 @@ void ApplyAiInPlaceBySlug(
 		Fn<void(const MTP::Error &)> fail) {
 	auto apply = [=, text = std::move(text), done = std::move(done)](
 			ComposeWithAi::ToneRef tone) mutable {
-		(void)session->api().composeWithAi().request({
+		session->api().composeWithAi().request({
 			.text = std::move(text),
 			.tone = std::move(tone),
 		}, [done = std::move(done)](ComposeWithAi::Result &&result) {
