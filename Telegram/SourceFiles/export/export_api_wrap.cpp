@@ -340,6 +340,11 @@ void VisitRichBlock(
 	case Kind::InputMap:
 		VisitRichCaption(message, block.caption, callbacks);
 		break;
+	case Kind::ButtonRow:
+		for (auto &button : block.buttons) {
+			VisitRichText(message, button, callbacks);
+		}
+		break;
 	case Kind::Unsupported:
 	case Kind::Divider:
 	case Kind::Anchor:

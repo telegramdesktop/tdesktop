@@ -14,9 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_birthday.h"
 #include "data/data_peer_id.h"
 
+#include <QtCore/QByteArray>
 #include <QtCore/QSize>
 #include <QtCore/QString>
-#include <QtCore/QByteArray>
 
 #include <map>
 #include <vector>
@@ -82,6 +82,73 @@ struct TextPart {
 	}
 };
 
+enum class InlineButtonPeerType : uint8 {
+	SameBotPM,
+	PM,
+	Chat,
+	Megagroup,
+	Broadcast,
+	BotPM,
+};
+
+struct InlineButtonAction {
+	enum class Type : uint8 {
+		Url,
+		Auth,
+		WebView,
+		Callback,
+		CallbackWithPassword,
+		Game,
+		Buy,
+		SwitchInline,
+		SwitchInlineSame,
+		UserProfile,
+		CopyText,
+		Disabled,
+	};
+
+	[[nodiscard]] static Utf8String TypeToString(
+		const InlineButtonAction &action);
+
+	Utf8String url;
+	std::optional<Utf8String> forwardText;
+	QByteArray callbackData;
+	Utf8String query;
+	std::optional<std::vector<InlineButtonPeerType>> peerTypes;
+	Utf8String copyText;
+	uint64 userId = 0;
+	int32 buttonId = 0;
+	Type type = Type::Url;
+	bool requiresPassword : 1 = false;
+	bool samePeer : 1 = false;
+};
+
+enum class RichButtonStyle : uint8 {
+	Default,
+	Primary,
+	Success,
+	Danger,
+	Link,
+};
+
+enum class RichButtonAlignment : uint8 {
+	Stretch,
+	Left,
+	Center,
+	Right,
+};
+
+[[nodiscard]] Utf8String InlineButtonPeerTypeToString(
+	InlineButtonPeerType type);
+[[nodiscard]] Utf8String RichButtonStyleToString(RichButtonStyle style);
+[[nodiscard]] Utf8String RichButtonAlignmentToString(
+	RichButtonAlignment alignment);
+
+struct RichButtonPayload {
+	InlineButtonAction action;
+	std::optional<RichButtonStyle> style;
+};
+
 struct RichText {
 	enum class Type : uint8 {
 		Empty,
@@ -114,6 +181,7 @@ struct RichText {
 		FormattedDate,
 		InlineImage,
 		Diff,
+		Button,
 	};
 
 	Utf8String text;
@@ -121,6 +189,7 @@ struct RichText {
 	Utf8String customEmojiData;
 	std::vector<RichText> children;
 	std::vector<RichText> oldChildren;
+	std::unique_ptr<RichButtonPayload> button;
 	uint64 id = 0;
 	TimeId date = 0;
 	int width = 0;
@@ -280,6 +349,7 @@ struct RichBlock {
 		RelatedArticles,
 		Map,
 		InputMap,
+		ButtonRow,
 		Unknown,
 	};
 
@@ -300,6 +370,7 @@ struct RichBlock {
 	std::vector<RichListItem> listItems;
 	std::vector<RichTableRow> tableRows;
 	std::vector<RichRelatedArticle> relatedArticles;
+	std::vector<RichText> buttons;
 	std::optional<uint64> optionalWebpageId;
 	std::optional<uint64> posterPhotoId;
 	std::optional<int> width;
@@ -316,6 +387,7 @@ struct RichBlock {
 	Kind kind = Kind::Unknown;
 	RichListKind listKind = RichListKind::Bullet;
 	RichQuoteContent quoteContent = RichQuoteContent::Text;
+	RichButtonAlignment buttonAlignment = RichButtonAlignment::Stretch;
 	bool unsupported : 1 = false;
 	bool fullWidth : 1 = false;
 	bool allowScrolling : 1 = false;

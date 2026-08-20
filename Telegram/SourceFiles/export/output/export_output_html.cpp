@@ -640,6 +640,11 @@ private:
 		const Data::RichText &text,
 		const std::optional<QByteArray> &href,
 		std::map<QByteArray, QByteArray> attributes);
+	[[nodiscard]] QByteArray renderButton(
+		const Data::RichText &button,
+		bool inlineButton);
+	[[nodiscard]] QByteArray renderButtonRow(
+		const Data::RichBlock &block);
 	[[nodiscard]] QByteArray renderCustomEmojiLink(
 		const QByteArray &alt,
 		std::map<QByteArray, QByteArray> attributes);
@@ -747,6 +752,115 @@ QByteArray RichBoolAttribute(bool value) {
 	return value ? QByteArray("true") : QByteArray("false");
 }
 
+QByteArray RichButtonMetadata(const QByteArray &value) {
+	return QUrl::toPercentEncoding(QString::fromUtf8(value));
+}
+
+QByteArray RichButtonPeerTypes(
+		const std::vector<Data::InlineButtonPeerType> &types) {
+	auto result = QByteArray("[");
+	auto first = true;
+	for (const auto type : types) {
+		if (!first) {
+			result += ',';
+		}
+		first = false;
+		result += '"';
+		result += Data::InlineButtonPeerTypeToString(type);
+		result += '"';
+	}
+	return RichButtonMetadata(result + ']');
+}
+
+std::map<QByteArray, QByteArray> RichButtonAttributes(
+		const Data::InlineButtonAction &action,
+		const std::optional<Data::RichButtonStyle> &style,
+		bool inlineButton) {
+	using Type = Data::InlineButtonAction::Type;
+
+	const auto resolvedStyle = style.value_or(Data::RichButtonStyle::Default);
+	const auto styleName = Data::RichButtonStyleToString(resolvedStyle);
+	auto classes = QByteArray("rich_button ")
+		+ (inlineButton
+			? QByteArray("rich_button_inline")
+			: QByteArray("rich_button_block"))
+		+ " rich_button_style_"
+		+ styleName
+		+ " rich_button_action_"
+		+ Data::InlineButtonAction::TypeToString(action);
+	auto result = std::map<QByteArray, QByteArray>{
+		{ "class", std::move(classes) },
+		{
+			"data-button-type",
+			Data::InlineButtonAction::TypeToString(action),
+		},
+		{ "inline", QByteArray() },
+	};
+	if (style) {
+		result.emplace("data-button-style", styleName);
+	}
+	switch (action.type) {
+	case Type::Url:
+	case Type::Auth:
+	case Type::WebView:
+		result.emplace("data-button-url", RichButtonMetadata(action.url));
+		if (action.type == Type::Auth) {
+			if (action.forwardText) {
+				result.emplace(
+					"data-button-forward-text",
+					RichButtonMetadata(*action.forwardText));
+			}
+			result.emplace(
+				"data-button-id",
+				Data::NumberToString(action.buttonId));
+		}
+		break;
+	case Type::Callback:
+	case Type::CallbackWithPassword:
+		result.emplace(
+			"data-callback-data-base64",
+			action.callbackData.toBase64(
+				QByteArray::Base64UrlEncoding
+				| QByteArray::OmitTrailingEquals));
+		result.emplace(
+			"data-button-requires-password",
+			RichBoolAttribute(action.requiresPassword));
+		break;
+	case Type::Game:
+	case Type::Buy:
+	case Type::Disabled:
+		break;
+	case Type::SwitchInline:
+	case Type::SwitchInlineSame:
+		result.emplace(
+			"data-button-query",
+			RichButtonMetadata(action.query));
+		result.emplace(
+			"data-button-same-peer",
+			RichBoolAttribute(action.samePeer));
+		if (action.peerTypes) {
+			result.emplace(
+				"data-button-peer-types",
+				RichButtonPeerTypes(*action.peerTypes));
+		}
+		break;
+	case Type::UserProfile:
+		result.emplace(
+			"data-button-user-id",
+			Data::NumberToString(action.userId));
+		break;
+	case Type::CopyText:
+		result.emplace(
+			"data-copy-text",
+			RichButtonMetadata(action.copyText));
+		break;
+	}
+	if (action.type == Type::Disabled) {
+		result.emplace("aria-disabled", "true");
+	}
+	return result;
+}
+
 QByteArray RichPercentValue(int value, int total) {
 	return QByteArray::number(value * 100. / total, 'f', 3) + '%';
 }
@@ -799,6 +913,7 @@ bool RichTextHasOutput(const Data::RichText &text) {
 	case Type::FormattedDate:
 	case Type::InlineImage:
 	case Type::Diff:
+	case Type::Button:
 		return true;
 	}
 	Unexpected("Type in RichTextHasOutput.");
@@ -1265,6 +1380,8 @@ bool AppendPlainTarget(
 	case Type::MentionName:
 	case Type::FormattedDate:
 		return AppendPlainTarget(result, text.children);
+	case Type::Button:
+		return false;
 	case Type::CustomEmoji:
 		return AppendPlainTarget(result, text.text);
 	case Type::Diff:
@@ -1415,6 +1532,7 @@ RichTailState RichHtmlRenderer::tailState(
 	case Kind::Divider:
 	case Kind::Math:
 	case Kind::Table:
+	case Kind::ButtonRow:
 	case Kind::Unknown:
 		return RichTailState::Other;
 	case Kind::Anchor:
@@ -2151,6 +2269,7 @@ void RichHtmlRenderer::collectTextAnchors(const Data::RichText &text) {
 	case Type::BankCard:
 	case Type::MentionName:
 	case Type::FormattedDate:
+	case Type::Button:
 		collectTextAnchors(text.children);
 		break;
 	case Type::Diff:
@@ -2265,6 +2384,11 @@ void RichHtmlRenderer::collectBlockAnchors(const Data::RichBlock &block) {
 	case Kind::RelatedArticles:
 		collectTextAnchors(block.text);
 		break;
+	case Kind::ButtonRow:
+		for (const auto &button : block.buttons) {
+			collectTextAnchors(button);
+		}
+		break;
 	case Kind::Unsupported:
 	case Kind::Divider:
 	case Kind::Channel:
@@ -2345,6 +2469,64 @@ QByteArray RichHtmlRenderer::renderTextLink(
 	_linkActive = true;
 	const auto guard = gsl::finally([&] { _linkActive = previous; });
 	result += renderTextChildren(text);
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderButton(
+		const Data::RichText &button,
+		bool inlineButton) {
+	using Type = Data::InlineButtonAction::Type;
+	Expects(button.type == Data::RichText::Type::Button);
+	Expects(button.children.size() == 1);
+	Expects(button.button != nullptr);
+	const auto &action = button.button->action;
+
+	auto attributes = RichButtonAttributes(
+		action,
+		button.button->style,
+		inlineButton);
+	auto tag = QByteArray("span");
+	const auto nested = _linkActive;
+	const auto url = (action.type == Type::Url)
+		? SafeMessageHref(action.url)
+		: std::optional<QByteArray>();
+	if (!nested && url) {
+		tag = "a";
+		attributes.emplace("href", *url);
+	} else if (!nested && action.type == Type::CopyText) {
+		tag = "button";
+		attributes.emplace("type", "button");
+		attributes.emplace(
+			"onclick",
+			"return ShowTextCopied(decodeURIComponent(this.dataset.copyText))");
+	}
+
+	auto result = _context.pushTag(tag, std::move(attributes));
+	const auto previous = _linkActive;
+	_linkActive = true;
+	const auto guard = gsl::finally([&] { _linkActive = previous; });
+	result += renderText(button.children.front());
+	result += _context.popTag();
+	return result;
+}
+
+QByteArray RichHtmlRenderer::renderButtonRow(
+		const Data::RichBlock &block) {
+	const auto alignment = Data::RichButtonAlignmentToString(
+		block.buttonAlignment);
+	auto attributes = RichBlockAttributes(
+		QByteArray("rich_button_row rich_button_align_") + alignment,
+		"button-row");
+	attributes.emplace("data-button-alignment", alignment);
+	auto result = _context.pushTag("div", std::move(attributes));
+	result += _context.pushTag("div", {
+		{ "class", "rich_button_group" },
+	});
+	for (const auto &button : block.buttons) {
+		result += renderButton(button, false);
+	}
+	result += _context.popTag();
 	result += _context.popTag();
 	return result;
 }
@@ -2620,6 +2802,8 @@ QByteArray RichHtmlRenderer::renderText(const Data::RichText &text) {
 		result += _context.popTag();
 		return result;
 	}
+	case Type::Button:
+		return renderButton(text, true);
 	}
 	Unexpected("Type in RichHtmlRenderer::renderText.");
 }
@@ -3069,6 +3253,8 @@ QByteArray RichHtmlRenderer::renderBlock(const Data::RichBlock &block) {
 		return renderMap(block, "map");
 	case Kind::InputMap:
 		return renderMap(block, "input-map");
+	case Kind::ButtonRow:
+		return renderButtonRow(block);
 	case Kind::Unknown:
 		return renderFallback("unknown", "Unknown rich content");
 	}

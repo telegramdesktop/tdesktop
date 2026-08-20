@@ -134,6 +134,62 @@ std::vector<std::vector<HistoryMessageMarkupButton>> ButtonRowsFromTL(
 
 } // namespace
 
+Utf8String InlineButtonAction::TypeToString(
+		const InlineButtonAction &action) {
+	using Type = InlineButtonAction::Type;
+	switch (action.type) {
+	case Type::Url: return "url";
+	case Type::Auth: return "auth";
+	case Type::WebView: return "web_view";
+	case Type::Callback: return "callback";
+	case Type::CallbackWithPassword: return "callback_with_password";
+	case Type::Game: return "game";
+	case Type::Buy: return "buy";
+	case Type::SwitchInline: return "switch_inline";
+	case Type::SwitchInlineSame: return "switch_inline_same";
+	case Type::UserProfile: return "user_profile";
+	case Type::CopyText: return "copy_text";
+	case Type::Disabled: return "disabled";
+	}
+	Unexpected("Type in InlineButtonAction::Type.");
+}
+
+Utf8String InlineButtonPeerTypeToString(InlineButtonPeerType type) {
+	using Type = InlineButtonPeerType;
+	switch (type) {
+	case Type::SameBotPM: return "same_bot_pm";
+	case Type::PM: return "pm";
+	case Type::Chat: return "chat";
+	case Type::Megagroup: return "megagroup";
+	case Type::Broadcast: return "broadcast";
+	case Type::BotPM: return "bot_pm";
+	}
+	Unexpected("Type in InlineButtonPeerType.");
+}
+
+Utf8String RichButtonStyleToString(RichButtonStyle style) {
+	using Style = RichButtonStyle;
+	switch (style) {
+	case Style::Default: return "default";
+	case Style::Primary: return "primary";
+	case Style::Success: return "success";
+	case Style::Danger: return "danger";
+	case Style::Link: return "link";
+	}
+	Unexpected("Style in RichButtonStyle.");
+}
+
+Utf8String RichButtonAlignmentToString(RichButtonAlignment alignment) {
+	using Alignment = RichButtonAlignment;
+	switch (alignment) {
+	case Alignment::Stretch: return "stretch";
+	case Alignment::Left: return "left";
+	case Alignment::Center: return "center";
+	case Alignment::Right: return "right";
+	}
+	Unexpected("Alignment in RichButtonAlignment.");
+}
+
 QByteArray HistoryMessageMarkupButton::TypeToString(
 		const HistoryMessageMarkupButton &button) {
 	using Type = HistoryMessageMarkupButton::Type;
@@ -320,6 +376,142 @@ RichBlock ParseRichBlock(const MTPPageBlock &block);
 std::vector<RichBlock> ParseRichBlocks(
 		const QVector<MTPPageBlock> &blocks);
 
+InlineButtonPeerType ParseInlineButtonPeerType(
+		const MTPInlineQueryPeerType &type) {
+	using Type = InlineButtonPeerType;
+	return type.match(
+		[](const MTPDinlineQueryPeerTypeSameBotPM &) {
+			return Type::SameBotPM;
+		}, [](const MTPDinlineQueryPeerTypePM &) {
+			return Type::PM;
+		}, [](const MTPDinlineQueryPeerTypeChat &) {
+			return Type::Chat;
+		}, [](const MTPDinlineQueryPeerTypeMegagroup &) {
+			return Type::Megagroup;
+		}, [](const MTPDinlineQueryPeerTypeBroadcast &) {
+			return Type::Broadcast;
+		}, [](const MTPDinlineQueryPeerTypeBotPM &) {
+			return Type::BotPM;
+		});
+}
+
+std::optional<InlineButtonAction> ParseInlineButtonAction(
+		const MTPInlineButtonType &type) {
+	using Type = InlineButtonAction::Type;
+	auto result = std::optional<InlineButtonAction>();
+	type.match([&](const MTPDinlineButtonTypeUrl &data) {
+		auto &action = result.emplace();
+		action.type = Type::Url;
+		action.url = ParseString(data.vurl());
+	}, [&](const MTPDinlineButtonTypeUrlAuth &data) {
+		auto &action = result.emplace();
+		action.type = Type::Auth;
+		action.url = ParseString(data.vurl());
+		action.buttonId = data.vbutton_id().v;
+		if (const auto forwardText = data.vfwd_text()) {
+			action.forwardText = ParseString(*forwardText);
+		}
+	}, [&](const MTPDinputInlineButtonTypeUrlAuth &) {
+	}, [&](const MTPDinlineButtonTypeWebView &data) {
+		auto &action = result.emplace();
+		action.type = Type::WebView;
+		action.url = ParseString(data.vurl());
+	}, [&](const MTPDinlineButtonTypeCallback &data) {
+		auto &action = result.emplace();
+		action.requiresPassword = data.is_requires_password();
+		action.type = action.requiresPassword
+			? Type::CallbackWithPassword
+			: Type::Callback;
+		action.callbackData = qba(data.vdata());
+	}, [&](const MTPDinlineButtonTypeGame &) {
+		auto &action = result.emplace();
+		action.type = Type::Game;
+	}, [&](const MTPDinlineButtonTypeBuy &) {
+		auto &action = result.emplace();
+		action.type = Type::Buy;
+	}, [&](const MTPDinlineButtonTypeSwitchInline &data) {
+		auto &action = result.emplace();
+		action.samePeer = data.is_same_peer();
+		action.type = action.samePeer
+			? Type::SwitchInlineSame
+			: Type::SwitchInline;
+		action.query = ParseString(data.vquery());
+		if (const auto peerTypes = data.vpeer_types()) {
+			auto &parsed = action.peerTypes.emplace();
+			parsed.reserve(peerTypes->v.size());
+			for (const auto &peerType : peerTypes->v) {
+				parsed.push_back(ParseInlineButtonPeerType(peerType));
+			}
+		}
+	}, [&](const MTPDinlineButtonTypeUserProfile &data) {
+		auto &action = result.emplace();
+		action.type = Type::UserProfile;
+		action.userId = uint64(data.vuser_id().v);
+	}, [&](const MTPDinputInlineButtonTypeUserProfile &) {
+	}, [&](const MTPDinlineButtonTypeCopy &data) {
+		auto &action = result.emplace();
+		action.type = Type::CopyText;
+		action.copyText = ParseString(data.vcopy_text());
+	}, [&](const MTPDinlineButtonTypeDisabled &) {
+		auto &action = result.emplace();
+		action.type = Type::Disabled;
+	});
+	return result;
+}
+
+bool RichButtonLinkStyleAllowed(InlineButtonAction::Type type) {
+	using Type = InlineButtonAction::Type;
+	return (type == Type::Callback)
+		|| (type == Type::CallbackWithPassword)
+		|| (type == Type::Disabled);
+}
+
+std::optional<RichButtonStyle> ParseRichButtonStyle(
+		const tl::conditional<MTPRichButtonStyle> &style,
+		InlineButtonAction::Type actionType,
+		bool inlineButton) {
+	if (!style) {
+		return std::nullopt;
+	}
+	const auto &data = style->data();
+	if (inlineButton
+		&& data.is_link()
+		&& RichButtonLinkStyleAllowed(actionType)) {
+		return RichButtonStyle::Link;
+	}
+	return data.is_bg_danger()
+		? RichButtonStyle::Danger
+		: data.is_bg_primary()
+		? RichButtonStyle::Primary
+		: data.is_bg_success()
+		? RichButtonStyle::Success
+		: RichButtonStyle::Default;
+}
+
+std::optional<RichText> ParseRichButton(
+		const MTPRichText &text,
+		const MTPInlineButtonType &type,
+		const tl::conditional<MTPRichButtonStyle> &style,
+		bool inlineButton) {
+	auto action = ParseInlineButtonAction(type);
+	if (!action) {
+		return std::nullopt;
+	}
+	auto result = RichText();
+	result.type = RichText::Type::Button;
+	result.children.reserve(1);
+	result.children.push_back(ParseRichText(text));
+	auto buttonStyle = ParseRichButtonStyle(
+		style,
+		action->type,
+		inlineButton);
+	result.button = std::make_unique<RichButtonPayload>(RichButtonPayload{
+		.action = std::move(*action),
+		.style = std::move(buttonStyle),
+	});
+	return result;
+}
+
 RichText ParseRichTextWrapper(
 		RichText::Type type,
 		const MTPRichText &child) {
@@ -445,10 +637,14 @@ RichText ParseRichText(const MTPRichText &text) {
 		result.oldChildren.push_back(ParseRichText(data.vold_text()));
 		return result;
 	}, [](const MTPDtextButton &data) {
-		AssertIsDebug();
-		auto result = ParseRichTextWrapper(Type::Concat, data.vtext());
-		result.unsupported = true;
-		return result;
+		if (auto button = ParseRichButton(
+				data.vtext(),
+				data.vtype(),
+				data.vstyle(),
+				true)) {
+			return std::move(*button);
+		}
+		return ParseRichText(data.vtext());
 	});
 }
 
@@ -942,9 +1138,28 @@ RichBlock ParseRichBlock(const MTPPageBlock &block) {
 		result.blocks = ParseRichBlocks(data.vblocks().v);
 		result.quoteCaption = ParseRichText(data.vcaption());
 		return result;
-	}, [](const MTPDpageBlockButtonRow &) {
-		AssertIsDebug();
-		return ParseRichUnsupportedBlock(Kind::Unsupported);
+	}, [](const MTPDpageBlockButtonRow &data) {
+		auto result = ParseRichSupportedBlock(Kind::ButtonRow);
+		result.buttonAlignment = data.is_align_left()
+			? RichButtonAlignment::Left
+			: data.is_align_center()
+			? RichButtonAlignment::Center
+			: data.is_align_right()
+			? RichButtonAlignment::Right
+			: RichButtonAlignment::Stretch;
+		const auto &buttons = data.vbuttons().v;
+		result.buttons.reserve(buttons.size());
+		for (const auto &button : buttons) {
+			const auto &fields = button.data();
+			if (auto parsed = ParseRichButton(
+					fields.vtext(),
+					fields.vtype(),
+					fields.vstyle(),
+					false)) {
+				result.buttons.push_back(std::move(*parsed));
+			}
+		}
+		return result;
 	}, [](const MTPDpageBlockDocument &data) {
 		auto result = ParseRichSupportedBlock(Kind::File);
 		result.documentId = uint64(data.vdocument_id().v);
