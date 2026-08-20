@@ -373,8 +373,11 @@ jobs:
         run: |
           cd $TBUILD/$REPO_NAME/out/Release
           BASE=${{ needs.version.outputs.base }}
+          # Unlike releases, canary does not bundle d3dcompiler_47.dll:
+          # the release copy is a pinned known-good build for Windows 7,
+          # while CI would grab whatever the runner's SDK ships. Canary
+          # machines use the system compiler dll.
           ./Packer.exe -path Telegram.exe -path Updater.exe \
-            -path modules/x64/d3d/d3dcompiler_47.dll \
             -target win64 \
             -version $BASE \
             -channel canary-${{ needs.version.outputs.channel }} \
@@ -401,10 +404,8 @@ jobs:
           # installation.
           PORTABLE=portable-win-x64-$CANARY_TAG-$BASE-$CANARY_COUNTER.zip
           rm -rf portable
-          mkdir -p portable/Telegram/modules/x64/d3d
-          mkdir portable/Telegram/TelegramForcePortable
+          mkdir -p portable/Telegram/TelegramForcePortable
           cp Telegram.exe portable/Telegram/
-          cp modules/x64/d3d/d3dcompiler_47.dll portable/Telegram/modules/x64/d3d/
           (cd portable && 7z a -mx9 ../$PORTABLE Telegram/)
 
           mkdir artifact
