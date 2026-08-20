@@ -1392,6 +1392,8 @@ void History::applyServiceChanges(
 						Storage::SharedMediaType::Pinned,
 						{},
 						{ id, ServerMaxMsgId }));
+				} else {
+					session().api().requestPinnedMessagesIfNeeded(peer, id);
 				}
 			}, [&](const MTPDmessageReplyStoryHeader &data) {
 				LOG(("API Error: story reply in messageActionPinMessage."));
