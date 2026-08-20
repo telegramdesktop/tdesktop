@@ -53,6 +53,9 @@ if (WIN32)
     )
 endif()
 
+include(cmake/generate_update_keys.cmake)
+generate_update_keys(Telegram ${res_loc}/update)
+
 set_target_properties(Telegram PROPERTIES AUTOMOC ON)
 
 target_link_libraries(Telegram
@@ -588,8 +591,13 @@ PRIVATE
     core/shortcuts.h
     core/ui_integration.cpp
     core/ui_integration.h
+    core/update_channel.h
     core/update_checker.cpp
     core/update_checker.h
+    core/update_keys.cpp
+    core/update_keys.h
+    core/update_verify.cpp
+    core/update_verify.h
     core/utils.cpp
     core/utils.h
     core/version.h
@@ -2546,7 +2554,11 @@ if (NOT DESKTOP_APP_DISABLE_AUTOUPDATE AND NOT build_macstore AND NOT build_wins
         PRIVATE
             _other/packer.cpp
             _other/packer.h
+            core/update_verify.cpp
+            core/update_verify.h
         )
+
+        target_include_directories(Packer PRIVATE ${src_loc})
 
         target_link_libraries(Packer
         PRIVATE
