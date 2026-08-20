@@ -36,6 +36,12 @@
 #   secrets.R2_ACCOUNT_ID / secrets.R2_ACCESS_KEY_ID /
 #   secrets.R2_SECRET_ACCESS_KEY / vars.R2_SYMBOLS_BUCKET
 #       Cloudflare R2 bucket for breakpad symbols (upload placeholder).
+#   vars.CANARY_BOT_API_IMAGE
+#       Digest-pinned Bot API server image built from a pinned
+#       tdlib/telegram-bot-api ref by canary-bot-api.yml, e.g.
+#       ghcr.io/<org>/telegram-bot-api@sha256:<digest>. Never point this
+#       at a third-party image: the container handles the bot token and
+#       every published update file.
 #
 # Public repository only:
 #   secrets.CANARY_PUBLIC_CHANNEL_ID
@@ -378,13 +384,13 @@ jobs:
               --az-key "$CANARY_KEY_ID"
             ./Packer.exe -channel canary-${{ needs.version.outputs.channel }} \
               -keys-loc ../../Telegram/Resources/update \
-              -unsigned tv2-win64-$CANARY_TAG-${{ needs.version.outputs.base }}-$CANARY_COUNTER.unsigned \
+              -unsigned update-win-x64-$CANARY_TAG-${{ needs.version.outputs.base }}-$CANARY_COUNTER.unsigned \
               -embed-signatures $CANARY_KEY_ID:canary.sig
           else
             echo "::warning::No publish secrets, keeping the unsigned envelope only."
           fi
           mkdir artifact
-          mv tv2-win64-$CANARY_TAG-* artifact/
+          mv update-win-x64-$CANARY_TAG-* artifact/
           mv Telegram.exe Updater.exe artifact/
 
       - uses: actions/upload-artifact@v7
@@ -553,6 +559,7 @@ jobs:
         run: |
           cd $REPO_NAME/out/Release
           ./Packer -path Telegram.app \
+            -arch universal \
             -version ${{ needs.version.outputs.base }} \
             -channel canary-${{ needs.version.outputs.channel }} \
             -counter $CANARY_COUNTER \
@@ -566,13 +573,13 @@ jobs:
               --az-key "$CANARY_KEY_ID"
             ./Packer -channel canary-${{ needs.version.outputs.channel }} \
               -keys-loc ../../Telegram/Resources/update \
-              -unsigned tv2-mac-$CANARY_TAG-${{ needs.version.outputs.base }}-$CANARY_COUNTER.unsigned \
+              -unsigned update-mac-universal-$CANARY_TAG-${{ needs.version.outputs.base }}-$CANARY_COUNTER.unsigned \
               -embed-signatures $CANARY_KEY_ID:canary.sig
           else
             echo "::warning::No publish secrets, keeping the unsigned envelope only."
           fi
           mkdir artifact
-          mv tv2-mac-$CANARY_TAG-* artifact/
+          mv update-mac-universal-$CANARY_TAG-* artifact/
           mv Telegram.app artifact/
 
       - uses: actions/upload-artifact@v7
@@ -730,13 +737,13 @@ jobs:
               --az-key "$CANARY_KEY_ID"
             ./Packer -channel canary-${{ needs.version.outputs.channel }} \
               -keys-loc ../../Telegram/Resources/update \
-              -unsigned tv2-linux-$CANARY_TAG-${{ needs.version.outputs.base }}-$CANARY_COUNTER.unsigned \
+              -unsigned update-linux-x64-$CANARY_TAG-${{ needs.version.outputs.base }}-$CANARY_COUNTER.unsigned \
               -embed-signatures $CANARY_KEY_ID:canary.sig
           else
             echo "::warning::No publish secrets, keeping the unsigned envelope only."
           fi
           mkdir artifact
-          mv tv2-linux-$CANARY_TAG-* artifact/
+          mv update-linux-x64-$CANARY_TAG-* artifact/
           mv Telegram Updater artifact/
 
       - uses: actions/upload-artifact@v7
@@ -753,8 +760,12 @@ jobs:
     environment: canary
 
     services:
+      # Built from a pinned tdlib/telegram-bot-api ref by the
+      # canary-bot-api.yml workflow and referenced by digest: this
+      # container handles the bot token and the published files, so no
+      # third-party image is acceptable here.
       telegram-bot-api:
-        image: aiogram/telegram-bot-api:latest
+        image: ${{ vars.CANARY_BOT_API_IMAGE }}
         env:
           TELEGRAM_API_ID: ${{ secrets.CANARY_API_ID }}
           TELEGRAM_API_HASH: ${{ secrets.CANARY_API_HASH }}
@@ -831,7 +842,7 @@ jobs:
 
           declare -A POSTS
           for PLATFORM in win64 mac linux; do
-            FILE=$(ls artifacts/canary-$PLATFORM/tv2-* | head -1)
+            FILE=$(ls artifacts/canary-$PLATFORM/update-* | head -1)
             if [[ "$FILE" == *.unsigned ]]; then
               echo "::error::$PLATFORM update is unsigned, refusing to publish."
               exit 1
