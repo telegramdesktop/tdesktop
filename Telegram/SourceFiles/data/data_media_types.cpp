@@ -1851,7 +1851,8 @@ ItemPreview MediaCall::toPreview(ToPreviewOptions options) const {
 			? &st::dialogsMiniCallOutgoingIcon
 			: &st::dialogsMiniCallIncomingIcon);
 	return {
-		.text = Ui::Text::IconEmoji(icon).append(notificationText()),
+		.text = Ui::Text::Colorized(
+			Ui::Text::IconEmoji(icon).append(notificationText())),
 	};
 }
 
