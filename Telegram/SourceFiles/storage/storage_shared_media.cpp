@@ -157,6 +157,17 @@ void SharedMedia::unload(SharedMediaUnloadThread &&query) {
 	_lists.erase({ query.peerId, query.topicRootId, query.monoforumPeerId });
 }
 
+void SharedMedia::unload(SharedMediaUnloadAllTopics &&query) {
+	auto peerIt = _lists.lower_bound({ query.peerId, MsgId(0) });
+	while (peerIt != end(_lists) && peerIt->first.peerId == query.peerId) {
+		if (peerIt->first.topicRootId) {
+			peerIt = _lists.erase(peerIt);
+		} else {
+			++peerIt;
+		}
+	}
+}
+
 rpl::producer<SharedMediaResult> SharedMedia::query(SharedMediaQuery &&query) const {
 	Expects(IsValidSharedMediaType(query.key.type));
 
