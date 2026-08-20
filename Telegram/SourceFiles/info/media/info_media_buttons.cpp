@@ -160,7 +160,7 @@ not_null<Ui::SettingsButton*> AddButton(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
-		PeerId monoforumPeerId,
+		Data::SavedSublist *sublist,
 		PeerData *migrated,
 		Type type,
 		Ui::MultiSlideTracker &tracker) {
@@ -169,11 +169,12 @@ not_null<Ui::SettingsButton*> AddButton(
 		Profile::SharedMediaCountValue(
 			peer,
 			topicRootId,
-			monoforumPeerId,
+			sublist ? sublist->sublistPeer()->id : PeerId(),
 			migrated,
 			type),
 		MediaText(type),
 		tracker)->entity();
+	const auto weakSublist = base::make_weak(sublist);
 	const auto separateId = SeparateId(peer, topicRootId, type);
 	const auto openInWindow = separateId
 		? [=] { navigation->parentController()->showInNewWindow(separateId); }
@@ -198,12 +199,18 @@ not_null<Ui::SettingsButton*> AddButton(
 		if (topicRootId && !topic) {
 			return;
 		}
+		const auto sublist = weakSublist.get();
+		if (!weakSublist.null() && !sublist) {
+			return;
+		}
 		const auto separateId = SeparateId(peer, topicRootId, type);
 		if (Core::App().separateWindowFor(separateId) && openInWindow) {
 			openInWindow();
 		} else {
 			navigation->showSection(topicRootId
 				? std::make_shared<Info::Memento>(topic, Section(type))
+				: sublist
+				? std::make_shared<Info::Memento>(sublist, Section(type))
 				: std::make_shared<Info::Memento>(peer, Section(type)));
 		}
 	});

@@ -262,7 +262,7 @@ object_ptr<Ui::SlideWrap<Ui::RpWidget>> SetupSharedMediaClassic(
 			controller,
 			peer,
 			topic ? topic->rootId() : MsgId(),
-			sublist ? sublist->sublistPeer()->id : PeerId(),
+			sublist,
 			migrated,
 			type,
 			tracker);

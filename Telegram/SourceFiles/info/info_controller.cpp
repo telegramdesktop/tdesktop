@@ -436,6 +436,7 @@ not_null<Ui::RpWidget*> Controller::wrapWidget() const {
 bool Controller::validateMementoPeer(
 		not_null<ContentMemento*> memento) const {
 	return memento->peer() == peer()
+		&& memento->sublist() == sublist()
 		&& memento->migratedPeerId() == migratedPeerId()
 		&& memento->settingsSelf() == settingsSelf()
 		&& memento->storiesPeer() == storiesPeer()
@@ -548,6 +549,9 @@ auto Controller::produceSearchQuery(
 	result.type = _section.mediaType();
 	result.peerId = _key.peer()->id;
 	result.topicRootId = _key.topic() ? _key.topic()->rootId() : 0;
+	result.monoforumPeerId = _key.sublist()
+		? _key.sublist()->sublistPeer()->id
+		: PeerId();
 	result.query = query;
 	result.migratedPeerId = _migrated ? _migrated->id : PeerId(0);
 	return result;

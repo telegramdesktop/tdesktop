@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_shared_media.h"
 #include "window/window_separate_id.h"
 
+namespace Data {
+class SavedSublist;
+} // namespace Data
+
 namespace Ui {
 class AbstractButton;
 class MultiSlideTracker;
@@ -48,7 +52,7 @@ using Type = Storage::SharedMediaType;
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<PeerData*> peer,
 	MsgId topicRootId,
-	PeerId monoforumPeerId,
+	Data::SavedSublist *sublist,
 	PeerData *migrated,
 	Type type,
 	Ui::MultiSlideTracker &tracker);
