@@ -657,10 +657,14 @@ jobs:
           # Report every failing file in one run rather than the first.
           defaults write com.apple.dt.Xcode IDEBuildingContinueBuildingAfterErrors -bool YES
 
+          # No LTO on the macOS canary: the full-LTO x86_64 link of the
+          # universal app took 4h39m on the Depot runner (arm64: 8 min),
+          # turning a ~40 minute job into 5+ hours. Release builds keep
+          # LTO on the release machine; revisit with ThinLTO or a larger
+          # runner if the canary binaries need to match exactly.
           ./configure.sh \
           -D CMAKE_CONFIGURATION_TYPES=Release \
           -D CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO \
-          -D DESKTOP_APP_ENABLE_LTO=ON \
           -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
           -D TDESKTOP_API_ID=${{ secrets.CANARY_API_ID }} \
           -D TDESKTOP_API_HASH=${{ secrets.CANARY_API_HASH }} \
@@ -956,8 +960,15 @@ jobs:
         run: |
           cd out/Release
           mkdir -p symbols
+          # dump_syms is built into the centos_env image (breakpad), so
+          # it runs there against the same binaries mounted from the
+          # host; the release flow copies the tool out by hand instead.
           for MODULE in Telegram Updater; do
-            ./dump_syms $MODULE > $MODULE.sym
+            docker run --rm \
+              -u $(id -u) \
+              -v $PWD:/out -w /out \
+              $IMAGE_TAG \
+              dump_syms $MODULE > $MODULE.sym
             DEBUG_ID=$(head -n 1 $MODULE.sym | awk '{ print $4 }')
             mkdir -p symbols/$MODULE/$DEBUG_ID
             mv $MODULE.sym symbols/$MODULE/$DEBUG_ID/

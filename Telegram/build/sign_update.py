@@ -7,14 +7,15 @@
 
 # ES256 signing glue for the v2 update packer, shared by build.bat,
 # build.sh and canary.yml. Standard library only: the actual signing
-# happens in Azure Key Vault (az keyvault key sign) or, for local
+# happens in Azure Key Vault (REST sign with an az token) or, for local
 # testing, in an openssl subprocess.
 #
 # The packer emits a signing-input file (-emit-signing-input), this
 # script signs its SHA-256 and writes the raw r||s (64 bytes) signature
 # that the packer embeds (-embed-signatures id:sigfile). ES256 keys sign
 # SHA256(signing_input); Ed25519 keys are signed by the packer itself
-# in-process (-local-key), never through this script.
+# in-process (-local-key), never through this script. Azure signing goes
+# through the Key Vault REST API with a token from the az session.
 
 import argparse
 import base64
@@ -23,6 +24,8 @@ import json
 import shutil
 import subprocess
 import sys
+import urllib.error
+import urllib.request
 
 
 def b64url(data: bytes) -> str:
@@ -73,26 +76,59 @@ def der_to_raw_rs(der: bytes) -> bytes:
     return r + s
 
 
-def sign_azure(digest: bytes, args) -> bytes:
+def az_access_token() -> str:
     # On Windows the CLI is az.cmd, which a plain 'az' argv misses.
-    command = [
-        shutil.which('az') or 'az', 'keyvault', 'key', 'sign',
-        '--vault-name', args.az_vault,
-        '--name', args.az_key,
-        '--algorithm', 'ES256',
-        '--digest', b64url(digest),
-        '--output', 'json',
-        '--only-show-errors',
-    ]
-    if args.az_key_version:
-        command += ['--version', args.az_key_version]
-    result = subprocess.run(command, capture_output=True, text=True)
+    result = subprocess.run(
+        [
+            shutil.which('az') or 'az', 'account', 'get-access-token',
+            '--resource', 'https://vault.azure.net',
+            '--query', 'accessToken',
+            '--output', 'tsv',
+            '--only-show-errors',
+        ],
+        capture_output=True, text=True)
     if result.returncode != 0:
-        raise RuntimeError('az keyvault key sign failed: ' + result.stderr)
-    signature = b64url_decode(json.loads(result.stdout)['signature'])
+        raise RuntimeError('az account get-access-token failed: ' + result.stderr)
+    token = result.stdout.strip()
+    if not token:
+        raise RuntimeError('az account get-access-token returned no token')
+    return token
+
+
+def key_vault_request(token: str, url: str, body=None) -> dict:
+    data = json.dumps(body).encode() if body is not None else None
+    request = urllib.request.Request(url, data=data, method='POST' if data else 'GET')
+    request.add_header('Authorization', 'Bearer ' + token)
+    request.add_header('Content-Type', 'application/json')
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            return json.loads(response.read().decode())
+    except urllib.error.HTTPError as error:
+        raise RuntimeError('Key Vault %s failed: HTTP %d %s' % (
+            url, error.code, error.read().decode(errors='replace')))
+
+
+def sign_azure(digest: bytes, args) -> bytes:
+    # The Key Vault REST API is called directly: "az keyvault key sign"
+    # wants the digest as standard base64 but then serializes the raw
+    # signature bytes through str.decode(), which is not a usable
+    # transport for an ECDSA signature. The token comes from the az
+    # session azure/login (OIDC) or an interactive az login set up.
+    token = az_access_token()
+    base = 'https://%s.vault.azure.net/keys/%s' % (args.az_vault, args.az_key)
+    if args.az_key_version:
+        key_id = base + '/' + args.az_key_version
+    else:
+        key_id = key_vault_request(token, base + '?api-version=7.4')['key']['kid']
+    result = key_vault_request(
+        token,
+        key_id + '/sign?api-version=7.4',
+        {'alg': 'ES256', 'value': b64url(digest)})
+    signature = b64url_decode(result['value'])
     if len(signature) != 64:
         raise RuntimeError(
-            'unexpected Key Vault signature size: %d' % len(signature))
+            'unexpected Key Vault signature size: %d (from %r)'
+            % (len(signature), result['value']))
     return signature
 
 
@@ -118,7 +154,7 @@ def main():
         help='where to write the raw r||s (64 bytes) signature')
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--az-vault',
-        help='Azure Key Vault name (signs with az keyvault key sign)')
+        help='Azure Key Vault name (signs through the Key Vault REST API)')
     group.add_argument('--openssl-key',
         help='local P-256 private key PEM (testing stub)')
     parser.add_argument('--az-key',
