@@ -332,12 +332,8 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		addTab(Storage::SharedMediaType::File);
 		addTab(Storage::SharedMediaType::Link);
 		addTab(Storage::SharedMediaType::MusicFile);
-		tabs.push_back(MakePollsTabDescriptor(SharedMediaCountValue(
-			tabsPeer,
-			topicRootId,
-			monoforumPeerId,
-			_migrated,
-			Storage::SharedMediaType::Poll) | rpl::map(_1 > 0)));
+		tabs.push_back(MakePollsTabDescriptor(
+			countValue(Storage::SharedMediaType::Poll) | rpl::map(_1 > 0)));
 		addTab(Storage::SharedMediaType::RoundVoiceFile);
 		addTab(Storage::SharedMediaType::GIF);
 		if (!_topic && !_sublist && !_savedMessages) {
