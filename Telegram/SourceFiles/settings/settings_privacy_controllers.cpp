@@ -713,7 +713,8 @@ object_ptr<Ui::RpWidget> LastSeenPrivacyController::setupBelowWidget(
 			? tr::lng_edit_lastseen_hide_read_time_about_premium(tr::now)
 			: tr::lng_edit_lastseen_hide_read_time_about(tr::now);
 	});
-
+	
+	Ui::AddSkip(content);
 	Ui::AddDividerText(
 		content,
 		std::move(aboutText));
