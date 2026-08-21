@@ -2168,6 +2168,19 @@ void SetTopPinnedMessageId(
 			0);
 		session.saveSettingsDelayed();
 	}
+	ApplyPinnedMessageId(
+		peer,
+		messageId,
+		MsgId(0), // topicRootId
+		PeerId(0)); // monoforumPeerId
+}
+
+void ApplyPinnedMessageId(
+		not_null<PeerData*> peer,
+		MsgId messageId,
+		MsgId topicRootId,
+		PeerId monoforumPeerId) {
+	auto &session = peer->session();
 	if (const auto item = peer->owner().message(peer->id, messageId)) {
 		item->setIsPinned(true);
 		session.storage().add(Storage::SharedMediaAddSlice(
@@ -2178,7 +2191,11 @@ void SetTopPinnedMessageId(
 			{},
 			{ messageId, ServerMaxMsgId }));
 	} else {
-		session.api().requestPinnedMessagesIfNeeded(peer, messageId);
+		session.api().requestPinnedMessagesIfNeeded(
+			peer,
+			messageId,
+			topicRootId,
+			monoforumPeerId);
 	}
 }
 

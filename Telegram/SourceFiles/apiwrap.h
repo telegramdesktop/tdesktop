@@ -326,7 +326,9 @@ public:
 		SliceType slice);
 	void requestPinnedMessagesIfNeeded(
 		not_null<PeerData*> peer,
-		MsgId messageId);
+		MsgId messageId,
+		MsgId topicRootId = 0,
+		PeerId monoforumPeerId = 0);
 	mtpRequestId requestGlobalMedia(
 		Storage::SharedMediaType type,
 		const QString &query,
