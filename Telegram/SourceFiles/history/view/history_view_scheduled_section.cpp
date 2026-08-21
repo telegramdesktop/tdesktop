@@ -555,8 +555,9 @@ bool ScheduledWidget::confirmSendingFiles(
 
 	if (const auto urls = Core::ReadMimeUrls(data); !urls.empty()) {
 		const auto folder = Storage::SingleFolderPath(urls);
-		if (!folder.isEmpty() && !_composeControls->isEditingMessage()) {
-			if (overrideSendImagesAsPhotos == false) {
+		if (!folder.isEmpty()) {
+			if (overrideSendImagesAsPhotos == false
+				&& !_composeControls->isEditingMessage()) {
 				const auto files = Storage::FolderFilesForSending(folder);
 				if (!files.isEmpty()) {
 					auto list = Storage::PrepareMediaList(
@@ -573,7 +574,6 @@ bool ScheduledWidget::confirmSendingFiles(
 			return true;
 		}
 		if (overrideSendImagesAsPhotos == true
-			&& !_composeControls->isEditingMessage()
 			&& (Storage::ComputeMimeDataState(data)
 				== Storage::MimeDataState::FilesArchive)) {
 			auto list = Ui::PreparedList();
@@ -1749,7 +1749,9 @@ void ScheduledWidget::setupDragArea() {
 		this,
 		[=](auto d) { return _history && !_composeControls->isRecording(); },
 		nullptr,
-		[=] { updateControlsGeometry(); });
+		[=] { updateControlsGeometry(); },
+		nullptr,
+		[=] { return _composeControls->isEditingMessage(); });
 
 	const auto droppedCallback = [=](bool overrideSendImagesAsPhotos) {
 		return [=](const QMimeData *data) {
@@ -1761,7 +1763,7 @@ void ScheduledWidget::setupDragArea() {
 	areas.photo->setDroppedCallback(droppedCallback(true));
 	areas.photo->setArchiveDroppedCallback([=](const QMimeData *data) {
 		const auto urls = Core::ReadMimeUrls(data);
-		if (!urls.isEmpty() && !_composeControls->isEditingMessage()) {
+		if (!urls.isEmpty()) {
 			auto list = Ui::PreparedList();
 			list.files.push_back(Storage::PrepareFilesArchive(urls));
 			confirmSendingFiles(std::move(list), QString());

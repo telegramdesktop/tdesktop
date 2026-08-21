@@ -32,6 +32,7 @@ public:
 		Fn<void(bool)> &&setAcceptDropsField = nullptr,
 		Fn<void()> &&updateControlsGeometry = nullptr,
 		CallbackComputeState &&computeState = nullptr,
+		Fn<bool()> &&archiveOnly = nullptr,
 		bool hideSubtext = false);
 
 	static void SetupProxyDropArea(

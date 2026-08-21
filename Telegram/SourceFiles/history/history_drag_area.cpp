@@ -44,10 +44,18 @@ constexpr auto kDragAreaEvents = {
 	QEvent::Leave,
 };
 
-[[nodiscard]] Storage::MimeDataState PromoteToArchiveState(
+[[nodiscard]] Storage::MimeDataState ArchiveDragState(
 		Storage::MimeDataState state,
-		Qt::KeyboardModifiers modifiers) {
+		Qt::KeyboardModifiers modifiers,
+		bool archiveOnly) {
 	using DragState = Storage::MimeDataState;
+	if (archiveOnly) {
+		if (state == DragState::Folder) {
+			return DragState::FolderArchiveOnly;
+		} else if (state == DragState::FilesArchive) {
+			return DragState::FilesArchiveOnly;
+		}
+	}
 	if (!modifiers) {
 		return state;
 	}
@@ -101,6 +109,7 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 		Fn<void(bool)> &&setAcceptDropsField,
 		Fn<void()> &&updateControlsGeometry,
 		DragArea::CallbackComputeState &&computeState,
+		Fn<bool()> &&archiveOnly,
 		bool hideSubtext) {
 
 	using DragState = Storage::MimeDataState;
@@ -177,6 +186,8 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 					- attachDragPhoto->height()
 					- st::dragMargin.bottom());
 		break;
+		case DragState::FilesArchiveOnly:
+		case DragState::FolderArchiveOnly:
 		case DragState::Image:
 			resizeToFull(attachDragPhoto);
 			moveToTop(attachDragPhoto);
@@ -275,6 +286,24 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 			attachDragDocument->otherEnter();
 			attachDragPhoto->otherEnter();
 		break;
+		case DragState::FilesArchiveOnly:
+			attachDragPhoto->setText(
+				tr::lng_drag_files_here(tr::now),
+				hideSubtext
+					? QString()
+					: tr::lng_drag_to_send_files_archive(tr::now));
+			attachDragDocument->hideFast();
+			attachDragPhoto->otherEnter();
+		break;
+		case DragState::FolderArchiveOnly:
+			attachDragPhoto->setText(
+				tr::lng_drag_folder_here(tr::now),
+				hideSubtext
+					? QString()
+					: tr::lng_drag_to_send_folder(tr::now));
+			attachDragDocument->hideFast();
+			attachDragPhoto->otherEnter();
+		break;
 		case DragState::Image:
 			attachDragPhoto->setText(
 				tr::lng_drag_images_here(tr::now),
@@ -300,12 +329,17 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 		}
 	};
 
+	const auto resolveDragState = [=](DragState state) {
+		return ArchiveDragState(
+			state,
+			QGuiApplication::queryKeyboardModifiers(),
+			archiveOnly && archiveOnly());
+	};
+
 	const auto applyDragModifiers = [=] {
-		const auto promoted = PromoteToArchiveState(
-			*attachDragBaseState,
-			QGuiApplication::queryKeyboardModifiers());
-		if (*attachDragState != promoted) {
-			*attachDragState = promoted;
+		const auto resolved = resolveDragState(*attachDragBaseState);
+		if (*attachDragState != resolved) {
+			*attachDragState = resolved;
 			updateDragAreas();
 		}
 	};
@@ -318,9 +352,7 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 		*attachDragBaseState = computeState
 			? computeState(e->mimeData())
 			: Storage::ComputeMimeDataState(e->mimeData());
-		*attachDragState = PromoteToArchiveState(
-			*attachDragBaseState,
-			QGuiApplication::queryKeyboardModifiers());
+		*attachDragState = resolveDragState(*attachDragBaseState);
 		updateDragAreas();
 
 		if (*attachDragState != DragState::None) {

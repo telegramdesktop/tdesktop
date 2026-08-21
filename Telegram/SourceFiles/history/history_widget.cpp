@@ -691,7 +691,9 @@ HistoryWidget::HistoryWidget(
 				: Data::CanSendAnyOf(_peer, Data::FilesSendRestrictions());
 		}),
 		crl::guard(this, [=](bool f) { _field->setAcceptDrops(f); }),
-		crl::guard(this, [=] { updateControlsGeometry(); }));
+		crl::guard(this, [=] { updateControlsGeometry(); }),
+		nullptr,
+		crl::guard(this, [=] { return (_editMsgId != 0); }));
 	_attachDragAreas.document->setDroppedCallback([=](const QMimeData *data) {
 		confirmSendingFiles(data, false);
 		Window::ActivateWindow(controller);
@@ -703,7 +705,7 @@ HistoryWidget::HistoryWidget(
 	_attachDragAreas.photo->setArchiveDroppedCallback([=](
 			const QMimeData *data) {
 		const auto urls = Core::ReadMimeUrls(data);
-		if (!urls.isEmpty() && !_editMsgId) {
+		if (!urls.isEmpty()) {
 			auto list = Ui::PreparedList();
 			list.files.push_back(Storage::PrepareFilesArchive(urls));
 			confirmSendingFiles(std::move(list), QString());
@@ -7944,8 +7946,8 @@ bool HistoryWidget::confirmSendingFiles(
 
 	if (const auto urls = Core::ReadMimeUrls(data); !urls.empty()) {
 		const auto folder = Storage::SingleFolderPath(urls);
-		if (!folder.isEmpty() && !_editMsgId) {
-			if (overrideSendImagesAsPhotos == false) {
+		if (!folder.isEmpty()) {
+			if (overrideSendImagesAsPhotos == false && !_editMsgId) {
 				const auto files = Storage::FolderFilesForSending(folder);
 				if (!files.isEmpty()) {
 					auto list = Storage::PrepareMediaList(
@@ -7962,7 +7964,6 @@ bool HistoryWidget::confirmSendingFiles(
 			return true;
 		}
 		if (overrideSendImagesAsPhotos == true
-			&& !_editMsgId
 			&& (Storage::ComputeMimeDataState(data)
 				== Storage::MimeDataState::FilesArchive)) {
 			auto list = Ui::PreparedList();
