@@ -79,9 +79,11 @@
 #       defaults to CANARY_PRIVATE_SIGNING_KEY_ID when unset.
 #   vars.CANARY_ALLOW_UNSIGNED
 #       Bring-up only: "1" publishes without Windows/macOS platform
-#       signatures (the v2 envelope is still signed). Refused on the
-#       public lane; remove it once KeyLocker and the Apple certificate
-#       exist.
+#       signatures (the v2 envelope is still signed, and the posts say
+#       "UNSIGNED test build"). Honoured on both lanes, so on the public
+#       one it puts unsigned binaries in front of real subscribers —
+#       remove the variable the moment KeyLocker and the Apple
+#       certificate exist.
 #
 # Every platform publishes on its own as soon as its build is done
 # (publish-win64 / publish-mac / publish-linux): a failing or slow build
@@ -223,17 +225,15 @@ jobs:
           fi
           echo "publish=$PUBLISH" >> $GITHUB_OUTPUT
 
-          # Bring-up escape hatch for the private lane only: publish
-          # builds without platform signatures (the v2 envelope is still
-          # signed). The public lane never accepts it.
+          # Bring-up escape hatch: publish builds without platform
+          # signatures (the v2 envelope is still signed). Set per lane in
+          # that lane's environment, so the public lane needs its own
+          # deliberate opt-in — which still means unsigned binaries in a
+          # channel real people subscribe to.
           UNSIGNED=false
           if [ "$ALLOW_UNSIGNED" = "1" ]; then
-            if [ "$CHANNEL" != "private" ]; then
-              echo "::error::CANARY_ALLOW_UNSIGNED is only honoured on the private lane."
-              exit 1
-            fi
             UNSIGNED=true
-            echo "::warning::CANARY_ALLOW_UNSIGNED=1: this run publishes binaries WITHOUT platform signatures."
+            echo "::warning::CANARY_ALLOW_UNSIGNED=1: this run publishes canary-$CHANNEL binaries WITHOUT platform signatures."
           fi
           echo "unsigned=$UNSIGNED" >> $GITHUB_OUTPUT
 
