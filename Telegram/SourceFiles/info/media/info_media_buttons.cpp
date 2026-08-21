@@ -56,6 +56,25 @@ namespace {
 		|| (type == Type::Poll);
 }
 
+[[nodiscard]] bool SeparateAllowed(
+		not_null<PeerData*> peer,
+		Storage::SharedMediaType type) {
+	return !peer->isSelf() && SeparateSupported(type);
+}
+
+[[nodiscard]] Window::SeparateId ButtonSeparateId(
+		not_null<PeerData*> peer,
+		MsgId topicRootId,
+		Data::SavedSublist *sublist,
+		Storage::SharedMediaType type) {
+	if (!sublist) {
+		return SeparateId(peer, topicRootId, type);
+	} else if (!SeparateAllowed(peer, type)) {
+		return { nullptr };
+	}
+	return { sublist, type };
+}
+
 void AddContextMenuToButton(
 		not_null<Ui::AbstractButton*> button,
 		Fn<void()> openInWindow) {
@@ -110,7 +129,7 @@ Window::SeparateId SeparateId(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
 		Storage::SharedMediaType type) {
-	if (peer->isSelf() || !SeparateSupported(type)) {
+	if (!SeparateAllowed(peer, type)) {
 		return { nullptr };
 	}
 	const auto topic = topicRootId
@@ -175,9 +194,23 @@ not_null<Ui::SettingsButton*> AddButton(
 		MediaText(type),
 		tracker)->entity();
 	const auto weakSublist = base::make_weak(sublist);
-	const auto separateId = SeparateId(peer, topicRootId, type);
+	const auto separateId = ButtonSeparateId(peer, topicRootId, sublist, type);
 	const auto openInWindow = separateId
-		? [=] { navigation->parentController()->showInNewWindow(separateId); }
+		? [=] {
+			const auto sublist = weakSublist.get();
+			if (!weakSublist.null() && !sublist) {
+				return;
+			}
+			const auto separateId = ButtonSeparateId(
+				peer,
+				topicRootId,
+				sublist,
+				type);
+			if (!separateId) {
+				return;
+			}
+			navigation->parentController()->showInNewWindow(separateId);
+		}
 		: Fn<void()>(nullptr);
 	Ui::InstallTooltip(result, [=] {
 		return Platform::IsMac()
@@ -203,7 +236,11 @@ not_null<Ui::SettingsButton*> AddButton(
 		if (!weakSublist.null() && !sublist) {
 			return;
 		}
-		const auto separateId = SeparateId(peer, topicRootId, type);
+		const auto separateId = ButtonSeparateId(
+			peer,
+			topicRootId,
+			sublist,
+			type);
 		if (Core::App().separateWindowFor(separateId) && openInWindow) {
 			openInWindow();
 		} else {

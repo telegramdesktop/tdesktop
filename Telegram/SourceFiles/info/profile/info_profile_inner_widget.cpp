@@ -273,7 +273,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		auto tabs = std::vector<MediaTabDescriptor>();
 		const auto countValue = [&](Storage::SharedMediaType type) {
 			return SharedMediaCountValue(
-				tabsPeer,
+				_peer,
 				topicRootId,
 				monoforumPeerId,
 				_migrated,
