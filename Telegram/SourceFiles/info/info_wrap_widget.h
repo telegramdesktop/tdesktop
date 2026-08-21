@@ -247,7 +247,7 @@ private:
 
 	std::vector<StackItem> _historyStack;
 	rpl::event_stream<> _removeRequests;
-	std::unique_ptr<rpl::lifetime> _threadDestroyedLifetime;
+	rpl::lifetime _threadDestroyedLifetime;
 	bool _shortcutsSetup = false;
 
 	rpl::event_stream<rpl::producer<int>> _desiredHeights;
