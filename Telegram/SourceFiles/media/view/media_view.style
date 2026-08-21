@@ -203,6 +203,9 @@ mediaviewPopupMenu: PopupMenu(defaultPopupMenu) {
 	menu: mediaviewMenu;
 	animation: mediaviewPanelAnimation;
 }
+mediaviewSponsorInfoMenu: PopupMenu(mediaviewPopupMenu) {
+	maxHeight: 420px;
+}
 mediaviewDropdownMenu: DropdownMenu(defaultDropdownMenu) {
 	menu: mediaviewMenu;
 	wrap: InnerDropdown(defaultInnerDropdown) {
