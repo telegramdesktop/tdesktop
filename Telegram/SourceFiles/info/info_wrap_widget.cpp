@@ -146,7 +146,11 @@ WrapWidget::WrapWidget(
 		});
 	}, lifetime());
 	restoreHistoryStack(memento->takeStack());
+	subscribeToThreadDestroyed();
+}
 
+void WrapWidget::subscribeToThreadDestroyed() {
+	_threadDestroyedLifetime.destroy();
 	if (const auto topic = _controller->topic()) {
 		topic->destroyed(
 		) | rpl::on_next([=] {
@@ -160,9 +164,8 @@ WrapWidget::WrapWidget(
 			} else {
 				_removeRequests.fire({});
 			}
-		}, lifetime());
-	}
-	if (const auto sublist = _controller->sublist()) {
+		}, _threadDestroyedLifetime);
+	} else if (const auto sublist = _controller->sublist()) {
 		sublist->destroyed(
 		) | rpl::on_next([=] {
 			const auto parent = _controller->parentController();
@@ -175,7 +178,7 @@ WrapWidget::WrapWidget(
 				Window::SectionShow::Way::ClearStack,
 				anim::type::instant));
 			_removeRequests.fire({});
-		}, lifetime());
+		}, _threadDestroyedLifetime);
 	}
 }
 
@@ -1040,6 +1043,7 @@ void WrapWidget::showNewContent(
 			showNewContent(memento);
 		}
 	}
+	subscribeToThreadDestroyed();
 
 	if (animationParams) {
 		if (Ui::InFocusChain(this)) {
