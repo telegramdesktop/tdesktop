@@ -99,6 +99,9 @@ UniqueGiftCoverMessageWidget::~UniqueGiftCoverMessageWidget() {
 }
 
 int UniqueGiftCoverMessageWidget::resizeGetHeight(int newWidth) {
+	if (!newWidth) {
+		return 0;
+	}
 	_layout = UniqueGiftMessageBubble::ResolveLayout(
 		st::chatUniqueMessageBubble,
 		st::uniqueGiftMessagePadding,
@@ -926,12 +929,11 @@ UniqueGiftCoverWidget::UniqueGiftCoverWidget(
 			_state->released.subtitleHeight.value(),
 			_state->numberTextWidth.value(),
 			_state->message->heightValue()
-		) | rpl::on_next([this](
-				int width,
-				int subtitleHeight,
-				int,
-				int messageHeight) {
-			layoutContent(width, subtitleHeight, messageHeight);
+		) | rpl::on_next([this](int width, int subtitleHeight, int, int) {
+			layoutContent(
+				width,
+				subtitleHeight,
+				_state->message->height());
 		}, lifetime());
 	} else {
 		rpl::combine(
