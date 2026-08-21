@@ -105,8 +105,8 @@ void Activate(ActivateArgs args) {
 			}
 			const auto &userpicsSt = st::historyCommentsUserpics;
 			const auto rowCount = int(inRow.size());
-			const auto rowWidth = rowCount * userpicsSt.size
-				- userpicsSt.shift;
+			const auto rowWidth = userpicsSt.size
+				+ (rowCount - 1) * (userpicsSt.size - userpicsSt.shift);
 			const auto rowHeight = userpicsSt.size;
 			const auto widget = Ui::CreateChild<Ui::RpWidget>(content.get());
 			widget->resize(rowWidth, rowHeight);
