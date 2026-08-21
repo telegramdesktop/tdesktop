@@ -436,6 +436,7 @@ not_null<Ui::RpWidget*> Controller::wrapWidget() const {
 bool Controller::validateMementoPeer(
 		not_null<ContentMemento*> memento) const {
 	return memento->peer() == peer()
+		&& memento->topic() == topic()
 		&& memento->sublist() == sublist()
 		&& memento->migratedPeerId() == migratedPeerId()
 		&& memento->settingsSelf() == settingsSelf()

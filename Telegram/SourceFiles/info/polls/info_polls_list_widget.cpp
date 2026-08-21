@@ -1064,9 +1064,16 @@ void ListWidget::setInternalState(
 }
 
 std::shared_ptr<ContentMemento> ListWidget::doCreateMemento() {
-	auto result = std::make_shared<ListMemento>(
-		controller()->key().peer(),
-		controller()->migratedPeerId());
+	auto result = std::shared_ptr<ListMemento>();
+	if (const auto sublist = controller()->sublist()) {
+		result = std::make_shared<ListMemento>(sublist);
+	} else if (const auto topic = controller()->topic()) {
+		result = std::make_shared<ListMemento>(topic);
+	} else {
+		result = std::make_shared<ListMemento>(
+			controller()->key().peer(),
+			controller()->migratedPeerId());
+	}
 	saveState(result.get());
 	return result;
 }
