@@ -361,6 +361,10 @@ void SavedWindows::markAsked(bool restore) {
 }
 
 void SavedWindows::attachToWindow(not_null<Controller*> window) {
+	if (!_restoring && _hideOffer) {
+		hideOffer();
+		stashUndecided();
+	}
 	scheduleSave();
 	window->sessionControllerValue(
 	) | rpl::on_next([=](SessionController *controller) {
@@ -504,7 +508,7 @@ void RaiseAboveSiblings(not_null<QWidget*> card) {
 	}
 }
 
-OfferCard *ShowRestoreOffer(
+[[nodiscard]] Fn<void()> ShowRestoreOffer(
 		not_null<Controller*> window,
 		Fn<void(OfferChoice)> chosen) {
 	const auto controller = window->sessionController();
@@ -521,12 +525,15 @@ OfferCard *ShowRestoreOffer(
 		body,
 		object_ptr<OfferCard>(body));
 	const auto card = wrap->entity();
-	card->chosen(
-	) | rpl::on_next([=](OfferChoice choice) {
+	const auto close = [=] {
 		wrap->hide(anim::type::normal);
 		base::call_delayed(st::fadeWrapDuration, wrap, [=] {
 			wrap->deleteLater();
 		});
+	};
+	card->chosen(
+	) | rpl::on_next([=](OfferChoice choice) {
+		close();
 		notify(choice);
 	}, wrap->lifetime());
 	rpl::combine(
@@ -578,7 +585,10 @@ OfferCard *ShowRestoreOffer(
 			});
 		}
 	}, wrap->lifetime());
-	return card;
+	return crl::guard(wrap, [=] {
+		*notified = true;
+		close();
+	});
 }
 
 } // namespace
@@ -676,7 +686,9 @@ void SavedWindows::maybeOfferRestore() {
 		return;
 	}
 	_offered = true;
-	ShowRestoreOffer(window, crl::guard(this, [=](OfferChoice choice) {
+	_hideOffer = ShowRestoreOffer(window, crl::guard(this, [=](
+			OfferChoice choice) {
+		_hideOffer = nullptr;
 		switch (choice) {
 		case OfferChoice::Always:
 			markAsked(true);
@@ -704,6 +716,12 @@ void SavedWindows::maybeOfferRestore() {
 	}));
 }
 
+void SavedWindows::hideOffer() {
+	if (const auto hide = base::take(_hideOffer)) {
+		hide();
+	}
+}
+
 bool SavedWindows::worthOffering() const {
 	return (_toRestore.size() > 1);
 }
@@ -712,6 +730,7 @@ void SavedWindows::beginRestore() {
 	if (_restoring || Core::Quitting()) {
 		return;
 	}
+	hideOffer();
 	_restoring = true;
 	if (!_undecided.empty()) {
 		_toRestore.insert(
@@ -724,6 +743,7 @@ void SavedWindows::beginRestore() {
 }
 
 void SavedWindows::discardRestore() {
+	hideOffer();
 	_toRestore.clear();
 	_undecided.clear();
 	_restoreFinished = true;

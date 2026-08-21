@@ -100,6 +100,7 @@ private:
 
 	void maybeBeginRestore();
 	void maybeOfferRestore();
+	void hideOffer();
 	[[nodiscard]] bool worthOffering() const;
 	void markAsked(bool restore);
 	void beginRestore();
@@ -138,6 +139,7 @@ private:
 		Main::Session*,
 		std::unique_ptr<BatchResolve>> _batches;
 	std::optional<Core::WindowPosition> _restorePosition;
+	Fn<void()> _hideOffer;
 	int _generation = 0;
 	bool _domainReady = false;
 	bool _offered = false;
