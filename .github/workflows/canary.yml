@@ -51,7 +51,10 @@
 #   vars.CANARY_METADATA_MSG_ID
 #       Fixed id of the pinned metadata message in the public channel.
 #   vars.CANARY_SIGNING_KEY_ID
-#       Key Vault key name, must match the manifest id ("cp-2026a").
+#       Manifest key id embedded in the update ("cp-2026a").
+#   vars.CANARY_AZURE_KEY_NAME
+#       Key Vault key name holding that key ("canary-public-2026a");
+#       defaults to CANARY_SIGNING_KEY_ID when unset.
 #
 # Private repository only:
 #   vars.CANARY_PRIVATE_CHANNEL_ID
@@ -60,7 +63,10 @@
 #   vars.CANARY_PRIVATE_METADATA_MSG_ID
 #       Fixed id of the pinned metadata message in the private channel.
 #   vars.CANARY_PRIVATE_SIGNING_KEY_ID
-#       Key Vault key name, must match the manifest id ("cx-2026a").
+#       Manifest key id embedded in the update ("cx-2026a").
+#   vars.CANARY_PRIVATE_AZURE_KEY_NAME
+#       Key Vault key name holding that key ("canary-private-2026a");
+#       defaults to CANARY_PRIVATE_SIGNING_KEY_ID when unset.
 #   vars.CANARY_ALLOW_UNSIGNED
 #       Bring-up only: "1" publishes without Windows/macOS platform
 #       signatures (the v2 envelope is still signed). Refused on the
@@ -343,10 +349,12 @@ jobs:
           if [ "${{ needs.version.outputs.channel }}" = "public" ]; then
             echo "CANARY_TAG=canarypub" >> $GITHUB_ENV
             echo "CANARY_KEY_ID=${{ vars.CANARY_SIGNING_KEY_ID }}" >> $GITHUB_ENV
+            echo "CANARY_AZ_KEY=${{ vars.CANARY_AZURE_KEY_NAME || vars.CANARY_SIGNING_KEY_ID }}" >> $GITHUB_ENV
             echo "CANARY_DEFINES=-D TDESKTOP_UPDATE_CHANNEL=canary-public -D TDESKTOP_CANARY_PUBLIC_CHANNEL=${{ vars.CANARY_PUBLIC_CHANNEL_USERNAME }} -D TDESKTOP_CANARY_METADATA_MSG_ID=${{ vars.CANARY_METADATA_MSG_ID }}" >> $GITHUB_ENV
           else
             echo "CANARY_TAG=canarypriv" >> $GITHUB_ENV
             echo "CANARY_KEY_ID=${{ vars.CANARY_PRIVATE_SIGNING_KEY_ID }}" >> $GITHUB_ENV
+            echo "CANARY_AZ_KEY=${{ vars.CANARY_PRIVATE_AZURE_KEY_NAME || vars.CANARY_PRIVATE_SIGNING_KEY_ID }}" >> $GITHUB_ENV
             echo "CANARY_DEFINES=-D TDESKTOP_UPDATE_CHANNEL=canary-private -D TDESKTOP_CANARY_PRIVATE_CHANNEL_ID=${{ vars.CANARY_PRIVATE_CHANNEL_ID }} -D TDESKTOP_CANARY_METADATA_MSG_ID=${{ vars.CANARY_PRIVATE_METADATA_MSG_ID }}" >> $GITHUB_ENV
           fi
 
@@ -568,7 +576,7 @@ jobs:
               --input signing-input.bin \
               --output canary.sig \
               --az-vault "${{ secrets.AZURE_KEYVAULT_NAME }}" \
-              --az-key "$CANARY_KEY_ID"
+              --az-key "$CANARY_AZ_KEY"
             ./Packer.exe -channel canary-${{ needs.version.outputs.channel }} \
               -keys-loc ../../Telegram/Resources/update \
               -unsigned update-win-x64-$CANARY_TAG-$BASE-$CANARY_COUNTER.unsigned \
@@ -640,10 +648,12 @@ jobs:
           if [ "${{ needs.version.outputs.channel }}" = "public" ]; then
             echo "CANARY_TAG=canarypub" >> $GITHUB_ENV
             echo "CANARY_KEY_ID=${{ vars.CANARY_SIGNING_KEY_ID }}" >> $GITHUB_ENV
+            echo "CANARY_AZ_KEY=${{ vars.CANARY_AZURE_KEY_NAME || vars.CANARY_SIGNING_KEY_ID }}" >> $GITHUB_ENV
             echo "CANARY_DEFINES=-D TDESKTOP_UPDATE_CHANNEL=canary-public -D TDESKTOP_CANARY_PUBLIC_CHANNEL=${{ vars.CANARY_PUBLIC_CHANNEL_USERNAME }} -D TDESKTOP_CANARY_METADATA_MSG_ID=${{ vars.CANARY_METADATA_MSG_ID }}" >> $GITHUB_ENV
           else
             echo "CANARY_TAG=canarypriv" >> $GITHUB_ENV
             echo "CANARY_KEY_ID=${{ vars.CANARY_PRIVATE_SIGNING_KEY_ID }}" >> $GITHUB_ENV
+            echo "CANARY_AZ_KEY=${{ vars.CANARY_PRIVATE_AZURE_KEY_NAME || vars.CANARY_PRIVATE_SIGNING_KEY_ID }}" >> $GITHUB_ENV
             echo "CANARY_DEFINES=-D TDESKTOP_UPDATE_CHANNEL=canary-private -D TDESKTOP_CANARY_PRIVATE_CHANNEL_ID=${{ vars.CANARY_PRIVATE_CHANNEL_ID }} -D TDESKTOP_CANARY_METADATA_MSG_ID=${{ vars.CANARY_PRIVATE_METADATA_MSG_ID }}" >> $GITHUB_ENV
           fi
 
@@ -848,7 +858,7 @@ jobs:
                 --input signing-input.bin \
                 --output canary.sig \
                 --az-vault "${{ secrets.AZURE_KEYVAULT_NAME }}" \
-                --az-key "$CANARY_KEY_ID"
+                --az-key "$CANARY_AZ_KEY"
               ./Packer -channel canary-${{ needs.version.outputs.channel }} \
                 -keys-loc ../../../Telegram/Resources/update \
                 -unsigned update-mac-$SHORT-$CANARY_TAG-$BASE-$CANARY_COUNTER.unsigned \
@@ -914,10 +924,12 @@ jobs:
           if [ "${{ needs.version.outputs.channel }}" = "public" ]; then
             echo "CANARY_TAG=canarypub" >> $GITHUB_ENV
             echo "CANARY_KEY_ID=${{ vars.CANARY_SIGNING_KEY_ID }}" >> $GITHUB_ENV
+            echo "CANARY_AZ_KEY=${{ vars.CANARY_AZURE_KEY_NAME || vars.CANARY_SIGNING_KEY_ID }}" >> $GITHUB_ENV
             echo "CANARY_DEFINES=-D TDESKTOP_UPDATE_CHANNEL=canary-public -D TDESKTOP_CANARY_PUBLIC_CHANNEL=${{ vars.CANARY_PUBLIC_CHANNEL_USERNAME }} -D TDESKTOP_CANARY_METADATA_MSG_ID=${{ vars.CANARY_METADATA_MSG_ID }}" >> $GITHUB_ENV
           else
             echo "CANARY_TAG=canarypriv" >> $GITHUB_ENV
             echo "CANARY_KEY_ID=${{ vars.CANARY_PRIVATE_SIGNING_KEY_ID }}" >> $GITHUB_ENV
+            echo "CANARY_AZ_KEY=${{ vars.CANARY_PRIVATE_AZURE_KEY_NAME || vars.CANARY_PRIVATE_SIGNING_KEY_ID }}" >> $GITHUB_ENV
             echo "CANARY_DEFINES=-D TDESKTOP_UPDATE_CHANNEL=canary-private -D TDESKTOP_CANARY_PRIVATE_CHANNEL_ID=${{ vars.CANARY_PRIVATE_CHANNEL_ID }} -D TDESKTOP_CANARY_METADATA_MSG_ID=${{ vars.CANARY_PRIVATE_METADATA_MSG_ID }}" >> $GITHUB_ENV
           fi
 
@@ -1078,7 +1090,7 @@ jobs:
               --input signing-input.bin \
               --output canary.sig \
               --az-vault "${{ secrets.AZURE_KEYVAULT_NAME }}" \
-              --az-key "$CANARY_KEY_ID"
+              --az-key "$CANARY_AZ_KEY"
             ./Packer -channel canary-${{ needs.version.outputs.channel }} \
               -keys-loc ../../Telegram/Resources/update \
               -unsigned update-linux-x64-$CANARY_TAG-${{ needs.version.outputs.base }}-$CANARY_COUNTER.unsigned \
