@@ -214,20 +214,13 @@ processing never reserves work: new tasks always remain
 `status: todo` with `claimed_by`, `claimed_at`, and `claim_order` set to `null`.
 The checkout tag belongs in the receipt only.
 
-Inbox processing writes `type: implement` by default. Write `type: minimal`
-instead when the request meets every minimal bound in `ai_main/AGENTS.md` — a
-small mechanical change whose acceptance is provable by the diff, a Debug
-build of the touched targets, and the existing unit suite, with no runtime,
-visual, account, or network measurement — and give it acceptance criteria
-that match; a criterion demanding an instrumented run makes the task
-`implement`. When in doubt keep `implement`: a performer upgrades a misjudged
-minimal task in place, never the reverse. A human request is work to do,
-not a measurement of work already done. Only the `continue` scheduler's routing
-step creates `type: verify` tasks, when an approved result leaves an
-`Unverified:` gap the existing checkout could close; that step reuses these
-task-creation rules and sets the field itself. A verification carries no
-implementation, so never give one acceptance criteria that would need a source
-change to satisfy — that request is an `implement` task.
+Every new task uses `type: implement`. Do not predict a cheap or expensive
+execution profile while routing: the performer selects review specialists and
+evidence instruments after inspecting the real code and risks. Keep acceptance
+criteria outcome-focused. Name a required build, probe, app run, interaction,
+or screenshot only when that instrument is itself part of the requested result
+or no other instrument could decide the claim from the facts already known to
+the planner.
 
 For a new project, create `projects/<slug>/project.md` with a concise durable
 scope and `projects/<slug>/tasks.md` with task links. For an existing project,

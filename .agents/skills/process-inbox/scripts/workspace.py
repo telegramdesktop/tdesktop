@@ -21,9 +21,9 @@ TASK_ID_PATTERN = re.compile(
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 VALID_STATUSES = {"todo", "in-progress", "approved", "blocked"}
 DEFAULT_TASK_TYPE = "implement"
-VALID_TASK_TYPES = {DEFAULT_TASK_TYPE, "verify", "minimal"}
+LEGACY_TASK_TYPES = {"verify", "minimal"}
+VALID_TASK_TYPES = {DEFAULT_TASK_TYPE, *LEGACY_TASK_TYPES}
 MODEL_PATTERN = re.compile(r"[a-z0-9][a-z0-9.-]{0,39}")
-VALID_FINDINGS = {"confirmed", "deviation", "inconclusive"}
 CONSOLIDATION_PENDING = "work/consolidation-pending.md"
 CONSOLIDATION_COMPLETE = "work/consolidation-complete.md"
 COMMIT_HASH_PATTERN = re.compile(
@@ -376,6 +376,11 @@ def load_state(root, path):
 	kind = DEFAULT_TASK_TYPE if kind is None else str(kind)
 	if kind not in VALID_TASK_TYPES:
 		raise WorkspaceError(f"Invalid task type {kind!r} in {path}")
+	if kind in LEGACY_TASK_TYPES and status != "approved":
+		raise WorkspaceError(
+			f"Only type 'implement' is valid for unfinished work in {path}; "
+			f"{kind!r} is accepted only for approved history"
+		)
 	project = parse_scalar(values["project"])
 	if project is not None and not TAG_PATTERN.fullmatch(str(project)):
 		raise WorkspaceError(f"Invalid project slug {project!r} in {path}")
@@ -1184,6 +1189,25 @@ def task_tip_commits(source, task_id):
 	]
 
 
+def task_has_retained_source_change(slot, state):
+	if state["type"] == "verify":
+		return False
+	result_path = (
+		Path(slot)
+		/ task_relative_dir(state["id"])
+		/ "work"
+		/ "result.md"
+	)
+	if not result_path.is_file():
+		return True
+	outcomes = [
+		line.split(":", 1)[1].strip()
+		for line in result_path.read_text(encoding="utf-8-sig").splitlines()
+		if line.startswith("Outcome:")
+	]
+	return outcomes != ["already-satisfied"]
+
+
 def source_lineage_report(config, slot, task_id, extra_requirements=()):
 	states = load_states(slot)
 	task = states.get(task_id)
@@ -1199,7 +1223,7 @@ def source_lineage_report(config, slot, task_id, extra_requirements=()):
 			if resolved not in unfinished:
 				unfinished.append(resolved)
 			continue
-		if state["type"] == "verify" or resolved in required:
+		if not task_has_retained_source_change(slot, state) or resolved in required:
 			continue
 		required.append(resolved)
 
@@ -1264,7 +1288,7 @@ def task_type(slot, task_id):
 	return load_state(slot, state_path(slot, task_id))["type"]
 
 
-def validate_source_state(config, task_id, required, kind=DEFAULT_TASK_TYPE):
+def validate_source_state(config, task_id, expected_commit):
 	source = Path(config["source_root"])
 	base = resolved_ref(source, source_task_ref(task_id, "base"))
 	green = resolved_ref(source, source_task_ref(task_id, "green"))
@@ -1274,24 +1298,18 @@ def validate_source_state(config, task_id, required, kind=DEFAULT_TASK_TYPE):
 		raise WorkspaceError("The local task baseline ref is missing")
 	if run is None or head != run:
 		raise WorkspaceError("Telegram HEAD no longer matches the task run ref")
-	if kind == "verify":
-		if green is not None:
-			raise WorkspaceError(
-				"A verification task must not retain a Telegram implementation commit"
-			)
-		if head != base:
-			raise WorkspaceError(
-				"A verification task must leave Telegram at its local baseline"
-			)
-		return
 	if green is None:
-		if required:
+		if expected_commit is True:
 			raise WorkspaceError("An approved task must retain a Telegram implementation commit")
 		if head != base:
 			raise WorkspaceError(
-				"A blocked task without an implementation must be restored to its local baseline"
+				"A task without an implementation must be restored to its local baseline"
 			)
 		return
+	if expected_commit is False:
+		raise WorkspaceError(
+			"An already-satisfied task must not retain a Telegram implementation commit"
+		)
 	if not is_ancestor(source, green, head):
 		raise WorkspaceError(
 			"The retained task implementation is not in Telegram HEAD history"
@@ -2480,11 +2498,6 @@ def gitlink_paths(source, paths):
 
 def command_source_commit(args):
 	config, slot = task_action_config(args)
-	if task_type(slot, args.task) == "verify":
-		raise WorkspaceError(
-			"A verification task carries no implementation and cannot commit "
-			"Telegram source; report the deviation as a follow-up task instead"
-		)
 	source = Path(config["source_root"])
 	subject = args.subject.strip()
 	if not subject or "\n" in subject:
@@ -2666,40 +2679,6 @@ def command_source_preflight(args):
 	print(json.dumps(result, indent=2, sort_keys=True))
 
 
-def validate_verify_result(lines, result_path, approved):
-	if "Touched: none" not in lines:
-		raise WorkspaceError(
-			f"A verification task must report Touched: none: {result_path}"
-		)
-	findings = [
-		line.split(":", 1)[1].strip() for line in lines
-		if line.startswith("Finding:")
-	]
-	if len(findings) != 1 or findings[0] not in VALID_FINDINGS:
-		raise WorkspaceError(
-			"A verification task must record exactly one Finding: "
-			+ " | ".join(sorted(VALID_FINDINGS))
-			+ f": {result_path}"
-		)
-	finding = findings[0]
-	if approved:
-		if finding == "inconclusive":
-			raise WorkspaceError(
-				"An inconclusive verification is blocked, never approved: "
-				f"{result_path}"
-			)
-		if finding == "deviation" and "Discovered: present" not in lines:
-			raise WorkspaceError(
-				"A verification that found a deviation must route it as a "
-				f"discovered follow-up task: {result_path}"
-			)
-	elif finding != "inconclusive":
-		raise WorkspaceError(
-			"A verification blocks only when it could not measure, so a blocked "
-			f"result must record Finding: inconclusive: {result_path}"
-		)
-
-
 def required_result_value(lines, result_path, field):
 	prefix = f"{field}:"
 	values = [
@@ -2711,6 +2690,31 @@ def required_result_value(lines, result_path, field):
 			f"Task result must record exactly one nonempty {field}: {result_path}"
 		)
 	return values[0]
+
+
+def validate_outcome_result(lines, result_path, approved):
+	outcome = required_result_value(lines, result_path, "Outcome")
+	touched = required_result_value(lines, result_path, "Touched")
+	allowed = {"changed", "already-satisfied"} if approved else {"blocked"}
+	if outcome not in allowed:
+		raise WorkspaceError(
+			"Task result Outcome must be "
+			+ " | ".join(sorted(allowed))
+			+ f": {result_path}"
+		)
+	if approved and "Test-Report: work/test.md" not in lines:
+		raise WorkspaceError(
+			f"An approved task must retain its adaptive evidence report: {result_path}"
+		)
+	if outcome == "changed" and touched == "none":
+		raise WorkspaceError(
+			f"A changed task must name its touched paths: {result_path}"
+		)
+	if outcome == "already-satisfied" and touched != "none":
+		raise WorkspaceError(
+			f"An already-satisfied task must report Touched: none: {result_path}"
+		)
+	return outcome
 
 
 def validate_blocked_result(lines, result_path):
@@ -2778,6 +2782,10 @@ def command_finish(args):
 	config, slot = task_action_config(args, allow_project=True)
 	ensure_clean(Path(config["source_root"]), "Telegram source checkout")
 	kind = task_type(slot, args.task)
+	if kind != DEFAULT_TASK_TYPE:
+		raise WorkspaceError(
+			f"Historical task type {kind!r} cannot enter the current workflow"
+		)
 	approved = args.status == "approved"
 	result_path = slot / task_relative_dir(args.task) / "work" / "result.md"
 	if not result_path.is_file():
@@ -2787,22 +2795,26 @@ def command_finish(args):
 	expected = "STATUS: DONE" if approved else "STATUS: BLOCKED"
 	if expected not in lines:
 		raise WorkspaceError(f"Task result does not contain {expected}: {result_path}")
-	if approved and not any(
-		line in ("Verdict: APPROVED", "Verdict: NOT_APPLICABLE")
-		for line in lines
-	):
+	if approved and "Verdict: APPROVED" not in lines:
 		raise WorkspaceError(f"Task result does not contain an approved verdict: {result_path}")
 	if "Checkout: clean-buildable" not in lines:
 		raise WorkspaceError(f"Task result does not confirm a clean checkout: {result_path}")
 	if not approved:
 		validate_blocked_result(lines, result_path)
-	if kind == "verify":
-		validate_verify_result(lines, result_path, approved)
+	outcome = validate_outcome_result(lines, result_path, approved)
+	if approved and not (result_path.parent / "test.md").is_file():
+		raise WorkspaceError(
+			"An approved task must retain work/test.md as adaptive evidence: "
+			f"{result_path.parent / 'test.md'}"
+		)
 	ensure_no_persisted_commit_hashes(result_path.parents[1])
 	source_note = Path(config["source_root"]) / "tasks" / f"{args.task}.md"
 	if source_note.is_file():
 		ensure_no_persisted_commit_hashes(source_note)
-	validate_source_state(config, args.task, approved, kind)
+	expected_commit = (
+		outcome == "changed" if approved else None
+	)
+	validate_source_state(config, args.task, expected_commit)
 	path = state_path(slot, args.task)
 	update_state(path, {
 		"status": args.status,

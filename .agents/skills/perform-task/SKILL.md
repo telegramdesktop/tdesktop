@@ -1,6 +1,6 @@
 ---
 name: perform-task
-description: Resolve, start or resume, implement, commit, and verify exactly one existing ai-tdesktop task by short slug or full dated id, including rare blocked unfinished work. Use when the user invokes $perform-task or /perform-task with a known task name, or when the continue scheduler delegates one selected task. Runs the complete context, planning, assessment, Debug build, review, test-loop, Computer Use, recovery, and final publication pipeline without selecting additional work.
+description: Resolve, start or resume, implement, review, test, and publish exactly one existing ai-tdesktop task by short slug or full dated id, including rare blocked unfinished work. Use when the user invokes $perform-task or /perform-task with a known task name, or when the continue scheduler delegates one selected task. Selects task-specific review specialists and evidence instruments without selecting additional work.
 ---
 
 # Perform One AI Task
@@ -8,8 +8,9 @@ description: Resolve, start or resume, implement, commit, and verify exactly one
 When running in Grok Build, read `.grok/ai-workflow-adapter.md` completely
 before any other host-specific delegation rule and apply its substitutions.
 
-Own exactly one task through a Telegram commit and a canonical AI `Approve` or
-exceptional `Block`. Do not process the inbox, split the task, drain the queue,
+Own exactly one task through its retained change, or a proved
+`already-satisfied` outcome, and a canonical AI `Approve` or exceptional
+`Block`. Do not process the inbox, split the task, drain the queue,
 select a follow-up, or consolidate pending tasks afterward. The `continue`
 scheduler isolates discovery routing and queue consolidation in fresh workers
 after this performer returns.
@@ -107,9 +108,10 @@ the scheduler may continue work that does not depend on it.
 
 ## Run and publish
 
-Execute `references/pipeline.md` exactly. A normal task produces:
+Execute `references/pipeline.md` exactly. A task that changes the repository
+produces:
 
-1. one or more tested Telegram implementation-attempt commits, each with an
+1. one or more tested source implementation-attempt commits, each with an
    exact one-line subject using the pipeline's conditional `[ai] ` prefix,
    blank line, and `Task: <full-task-id>`;
 2. local tracked phase artifacts and progress in the AI slot worktree, without
@@ -117,43 +119,43 @@ Execute `references/pipeline.md` exactly. A normal task produces:
 3. one canonical `Approve <full-task-id>` commit containing all final AI
    artifacts and state.
 
-Read `type` from the `resolve` output before planning. A `type: verify` task
-measures shipped behavior, carries no implementation, and produces **no Telegram
-commit at all** — only item 2 and item 3 above. It skips implementation, the
-implementation build, the five-lens review loop, and Windows normalization, and
-runs the pipeline's Verification tasks profile instead: measurement plan,
-falsifiability assessment, then the test loop. Its outcome is either that the
-behavior held or a `Finding: deviation` recording the exact disagreement plus
-follow-up tasks that repair it; both finish `approved`. Never repair what a
-verification measured, and never let one commit source.
+New and unfinished tasks use the single adaptive `implement` path. During
+assessment, select one mandatory general review, every specialist review whose
+failure surface is present, and a falsifiable evidence plan. The evidence loop
+may use static readings, commands and artifacts, unit tests, a standalone probe
+or component binary, a Telegram Debug build with logged assertions, an in-app
+overlay, Computer Use, screenshots, or any necessary combination. Do not
+require a portable account, Telegram executable, or desktop unless a selected
+check uses it. Do not weaken a runtime or visual check merely because another
+instrument is cheaper.
 
-A `type: minimal` task is a small mechanical change with the bounds defined
-in the AI repository's `AGENTS.md`. It keeps the implement commit contract —
-one retained Telegram commit — but runs the pipeline's Minimal tasks profile
-instead: inspect and confirm eligibility, edit, build the touched targets,
-one fresh review leaf, commit, publish. No test loop, no golden account, no
-overlay. If any bound fails mid-run, the performer upgrades the task in place
-to `implement` or `verify` and continues under the full profile in the same
-run.
+The assessment's selection is provisional until implementation exists. The
+general reviewer examines the complete diff and evidence plan, may require a
+missing specialist or stronger instrument, and cannot defer a concern to an
+optional reviewer. Review fixes receive targeted re-review instead of an
+unconditional replay of every lens. A task whose desired outcome was already
+present may finish without a source commit only after the same general review
+and evidence loop prove `Outcome: already-satisfied`.
 
-Only a genuine exhausted implementation or verification blocker produces a
+Only a genuine exhausted task blocker produces a
 canonical `Block <full-task-id>` commit. Agent interruption, tool loss, and
 global environment stops leave the task `in-progress` with its task-scoped
 local state intact for the next invocation.
 
-A repeated test setup failure is not exhausted verification by itself. Follow
-the shared directness ladder: forbid the failed fixture technique and make the
-next run more manual and closer to the changed production seam. The configured
+A repeated evidence setup failure is not exhausted recovery by itself. Follow
+the shared directness ladder: forbid the failed command, fixture, probe, or
+capture technique and make the next run closer to the changed surface. The configured
 test-run cap closes one campaign: preserve prior passes, isolate the unmet
 checks, and start a focused recovery campaign unless a fresh assessment proves
 every direct strategy exhausted. The cap and a `TEST_FLAW` can never by
 themselves publish `BLOCKED`; the former two-identical-signature shortcut must
 not be used.
 
-A locked macOS session is not an environment stop or verification blocker.
-Skip interactive Computer Use and complete the same coverage through the
-in-binary overlay: drive the flow, log/assert, capture widgets or windows,
-quit, and assess the saved artifacts.
+A locked macOS session is not an environment stop or evidence blocker for a
+selected Telegram runtime check. Skip interactive Computer Use and complete
+the same coverage through the in-binary overlay: drive the flow, log/assert,
+capture widgets or windows, quit, and assess the saved artifacts. Non-app
+instruments are unaffected.
 
 A Windows build-output lock is not an immediate environment stop. Follow the
 shared bounded recovery contract, including exact-path cleanup before builds.

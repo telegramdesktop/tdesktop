@@ -57,7 +57,7 @@ The canonical lifecycle is deliberately small:
 `Start` atomically assigns an unclaimed task and changes it to `in-progress`.
 Normal phase artifacts remain local and uncommitted in the slot worktree.
 `Approve` publishes all final AI artifacts and state in one commit. `Block` is
-permitted only for a genuine exhausted implementation or verification blocker,
+permitted only for a genuine exhausted task blocker,
 not for an interrupted agent session. Never publish `Claim`, phase checkpoint,
 or `Resume` commits. Existing claimed `todo` records from the older workflow
 remain startable but do not justify creating new reservations.
@@ -122,8 +122,8 @@ frozen batch.
 ### Source-lineage gate
 
 Before freezing the batch, inspect every prospective initial task's `task.md`
-and dependencies. For every approved non-verification task whose shipped code
-is a prerequisite, run:
+and dependencies. For every approved task whose shipped code is a prerequisite,
+run:
 
 ```bash
 python3 .agents/skills/process-inbox/scripts/workspace.py source-lineage \
@@ -225,14 +225,12 @@ not eligible in this invocation. Do not substitute it when a batch task is
 claimed concurrently, blocked by an external dependency, or otherwise
 unavailable.
 
-Before publishing any new canonical `Start` commit, require a startable
-environment: a clean Telegram source checkout with clean submodules and no
-unrelated untracked files, plus — when the selected task's type runs the test
-loop — an existing `out/Debug/test_TelegramForcePortable` golden account. A
-`type: minimal` start does not require the account. A failed check is a
-global hard stop before claiming; never reserve shared work this checkout
-cannot immediately run. Resuming and retrying already-owned work keeps the
-performer's own preflight rules instead.
+Before publishing any new canonical `Start` commit, require a clean Telegram
+source checkout with clean submodules and no unrelated untracked files. Do not
+require a Telegram executable, portable account, desktop, Docker daemon, or
+other instrument before assessment selects it. The performer gates every
+selected instrument before using it and records an unavailable platform or
+stage precisely instead of preventing unrelated task work from starting.
 
 ### 1. Resume active batch work
 
@@ -429,7 +427,7 @@ Batch:
 ```
 
 Project assignment has a strong source-project bias. When the source task has
-a project, assign each discovered implementation or verification task to that
+a project, assign each discovered task to that
 same project by default, add it to the project index, and name the source task
 in `depends_on` whenever its shipped code or behavior is a prerequisite, even
 when it is already approved. State that code-lineage requirement in the new
@@ -444,27 +442,30 @@ receipt must record the concrete independence evidence. If the source project
 is archived, restore it before adding the task. When the source task has no
 project, apply the ordinary project-selection rules from `process-inbox`.
 
-First apply the scope filter, before any disposition. A verification exists to
-prove **the source task's own change**, so run the revert test on each entry: if
+First apply the scope filter, before any disposition. A coverage follow-up
+exists to prove **the source task's own change**, so run the revert test on each entry: if
 reverting that task's diff could not change the outcome, the entry is about
-pre-existing behavior and no verification is created for it. Untested code the
+pre-existing behavior and no coverage task is created for it. Untested code the
 run passed on the way, a neighbouring feature, a parameter range the acceptance
 never named, a pre-existing bug the performer noticed: record the observation in
 the receipt and stop there. If it deserves work it must earn its own task on its
 own merits, through the ordinary discovered-follow-up planner and with its own
 justification — never as coverage debt attributed to a task that did not create
 it. This filter is what keeps a codebase far larger than the queue from
-generating verification work without end.
+generating coverage work without end.
 
 Entries that survive the filter get exactly one of two dispositions, and the
 receipt records which and why:
 
-- **Routable** when the existing test account and checkout could close the gap
-  and the run simply did not cover it. Create a `type: verify` task naming the
-  exact behavior to prove; its acceptance is that verification, and it carries
-  no implementation work of its own.
+- **Routable** when an available checkout or capable host can close the gap.
+  Create an ordinary `type: implement` task naming the exact behavior to
+  establish. It first measures the claim with the adaptive evidence loop. If
+  the behavior deviates, it repairs and re-tests it in the same task. If the
+  behavior already holds and no permanent change is warranted, it may approve
+  as `Outcome: already-satisfied` with no source commit and with the measurement
+  evidence retained.
 
-  This disposition should now be rare. `pipeline.md` requires a performer to
+  This disposition should be rare. `pipeline.md` requires a performer to
   close any gap its own checkout can measure by adding a test run while it still
   holds the context, the branch, the overlay and the build, rather than deferring
   it — so a routable entry means that bar slipped. Route it anyway, because the
@@ -484,36 +485,14 @@ about whether it is worth verifying. That rule governs the choice between the tw
 dispositions; it does not override the scope filter above, which asks a different
 question — whether this task is the one that owes the measurement at all.
 
-Type each implementation follow-up `minimal` when it meets every minimal
-bound in the AI repository's `AGENTS.md` — a small mechanical change whose
-acceptance is provable by the diff, a Debug build of the touched targets, and
-the existing unit suite, with no runtime, visual, account, or network
-measurement. Write acceptance criteria that match: a criterion demanding an
-instrumented run or a rendered surface makes the task `implement`, not
-`minimal`. When in doubt keep `type: implement`; the performer can upgrade a
-misjudged minimal task in place, but nothing downgrades a full task, so the
-cost of over-typing is permanent while the cost of under-typing is one
-upgrade note.
-
-Write `type: verify` into that task's `state.yaml`. It is the only thing that
-selects the verification profile in `perform-task`, so a verification created
-without it silently runs the implementation pipeline against an empty diff.
-Give it one specific measurable claim: a task that would need a source change to
-satisfy its own acceptance is misrouted and belongs in an `implement` task.
-
-Write the source task's diff into it as its scope boundary, naming that task and
-what it changed, and state that the verification proves that change and nothing
-around it. A verification inherits its parent's boundary; it does not get a wider
-one by being about testing. Its acceptance criteria must all pass the revert test
-against the parent's diff, and it may not enumerate a parameter range the parent's
-acceptance never named.
-
-A `verify` task's own follow-ups are always implementation work — `type:
-implement`, or `type: minimal` when they meet the minimal bounds. When a
-verification reports `Finding: deviation`, route the repair as ordinary
-implementation work naming the measured expected and actual values, and cite the
-verification as its evidence. Never route a second verification for a gap the
-first one already measured; the measurement exists, so what is left is the fix.
+Every discovered task uses `type: implement`; assessment, not routing, chooses
+its review and evidence depth. For a coverage follow-up, write the source
+task's diff into it as its scope boundary, naming that task and what it changed.
+Its acceptance criteria must all pass the revert test against that boundary and
+must not enumerate a parameter range the source task never named. If a prior
+coverage task already measured a deviation, route only the repair with the
+measured expected and actual values; do not create another measurement of the
+same gap.
 
 After validating the discovery receipt, append only the task ids created from
 that result to `discovered_task_ids` and `batch_task_ids`, preserving routing

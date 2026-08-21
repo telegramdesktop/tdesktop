@@ -81,9 +81,11 @@ This session is the orchestrator and may spawn leaves.
 
 - Run each leaf as one blocking `spawn_subagent` with a self-contained
   prompt. Do not tell leaf phase agents to read this adapter.
-- Spawn the independent leaves of one step — the review lenses plus the
-  iteration-1 test-design leaf, or assessed-disjoint implementation
-  units — as parallel `spawn_subagent` calls in a single message.
+- Spawn independent leaves that truly share one step — the selected
+  specialist reviews in an iteration, or assessed-disjoint implementation
+  units — as parallel `spawn_subagent` calls in a single message. Run the
+  mandatory general reviewer only after the selected specialist reports
+  exist.
 - If the first real leaf is rejected before work begins because nested
   delegation is unavailable, use the shared same-session fallback for
   the rest of the run.
@@ -112,7 +114,7 @@ treat that driver as unavailable unless an equivalent UI-driver tool is
 actually exposed in the current session. Preserve the same policy: `auto`
 uses the already planned overlay fallback, while `required` reports the
 exact unverified interaction. Driver availability never permits skipping
-the ordinary overlay test loop, account setup, evidence, or safety rules.
+selected runtime, overlay, account-safety, evidence, or other safety checks.
 
 Judge overlay screenshots and supplied mockups by reading the image files
 with `read_file`. Saved PNG/JPG artifacts are visual input. A missing

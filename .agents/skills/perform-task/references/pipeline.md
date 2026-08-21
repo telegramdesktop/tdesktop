@@ -7,8 +7,7 @@
 - [Local artifacts and resumption](#local-artifacts-and-resumption)
 - [Delegation](#delegation)
 - [Implementation phases](#implementation-phases)
-- [Verification tasks](#verification-tasks)
-- [Minimal tasks](#minimal-tasks)
+- [Adaptive review and evidence](#adaptive-review-and-evidence)
 - [Telegram commits](#telegram-commits)
 - [Test loop adapter](#test-loop-adapter)
 - [Final AI state](#final-ai-state)
@@ -48,8 +47,9 @@ RUN_REF = refs/ai-tasks/TASK_ID/run
 
 Capture a wall-clock start time for the final elapsed-time report.
 
-Resolve host kind, build tree, command, executable, and desktop target as one
-consistent platform configuration:
+Resolve host kind and the available build trees, commands, executables, and
+desktop target as one consistent platform inventory. These are candidates;
+assessment selects only the instruments the task needs:
 
 ```text
 native Windows: cmake --build ./out --config Debug --target Telegram
@@ -61,7 +61,6 @@ out/Debug/Telegram.exe
 out/Debug/Telegram
 out/Debug/Telegram.app/Contents/MacOS/Telegram
 
-TEST_ACCOUNT = out/Debug/test_TelegramForcePortable
 MAX_ATTEMPTS = 4
 MAX_TEST_RUNS = 12 per test campaign
 COMPUTER_USE_POLICY = auto | overlay-only | required
@@ -101,14 +100,13 @@ Before planning or editing:
 
    It reports source/submodule cleanliness, dirty paths outside the owned
    write set, and the golden test account and live marker state for `EXE`.
-5. Require the prepared portable test account (`golden_account_present`). A
-   `type: minimal` task runs no test loop and starts without it; for every
-   other type its absence is a global hard stop before implementation.
-6. Verify a usable Debug executable/build tree, safe path-scoped process
-   control, safe portable-folder operations, and the ability to launch and
-   render the in-binary test flow. A locked macOS session disables Computer Use
-   only; it does not fail this preflight or block testing, even when policy was
-   `required`.
+5. Record available evidence capabilities without requiring them yet: relevant
+   compilers and build trees, Docker, unit targets, probe toolchains, Telegram
+   Debug executable, golden portable account, and UI driver. After assessment,
+   gate every selected instrument before editing or running it. An unavailable
+   unselected instrument is irrelevant. An unavailable selected platform or
+   stage is either replaced by an equally direct instrument or recorded under
+   `Unverified:` with its expected exposure; never silently weaken the oracle.
 7. For a new run require a clean tracked Telegram worktree, clean submodules,
    and no unrelated untracked files, then initialize local recovery state:
 
@@ -140,13 +138,10 @@ work/context.md
 work/project.proposed.md       # project tasks only
 work/visual.md                 # layout tasks only
 work/plan.md
-work/review1-correctness.md    # one report per review lens per iteration
-work/review1-lifetime.md
-work/review1-reuse.md
-work/review1-structure.md
-work/review1-performance.md
-work/review1.md                # synthesized review for the iteration
-work/test-design.md            # check design drafted during review iteration 1
+work/review1-general.md        # mandatory independent review and verdict
+work/review1-<specialist>.md   # only specialists selected by assessment
+work/review1.md                # actionable overall verdict for the iteration
+work/test-design.md            # assessed evidence contract, reconciled after diff
 work/test.md
 work/test-cap-assessment-*.md  # independent focused-recovery decision at a campaign cap
 work/result.md
@@ -203,8 +198,8 @@ prompts, plus the host-specific orchestration rules.
   policy rejects that spawn before work begins, execute the same prompt
   checklists in the performer. This is a supported mode, not degraded failure.
 - In nested mode, use a fresh leaf for context-and-plan, assessment, each
-  implementation unit, review lenses, test design, review synthesis,
-  review-fix, and test authoring. Every leaf must be told not to delegate and
+  implementation unit, selected specialist reviews, general review,
+  review-fix, and evidence authoring. Every leaf must be told not to delegate and
   never to commit.
 - Small-task fast path: the performer may run the context-and-plan checklist
   itself, without a leaf, only when the task spec itself names every file to
@@ -242,7 +237,8 @@ Run sequentially:
 1. **Context, visual design, and plan.** One leaf writes a self-contained
    `work/context.md`, then — for `Visual: layout` tasks — `work/visual.md`,
    then `work/plan.md` with exact files, functions, ordered steps, bounded
-   phases, owned write sets, Debug build verification, and status checkboxes.
+   phases, owned write sets, adaptive review/evidence plans, the selected
+   pre-review validation, and status checkboxes.
    For project work it also writes `work/project.proposed.md` as a coherent
    finished-state blueprint; use the Phase 1F prompt when prior task context
    exists, otherwise Phase 1 with the project file. Do not promote the
@@ -268,31 +264,32 @@ Run sequentially:
 3. **Implement.** Run one leaf per assessed plan phase. Before each edit,
    update `work/owned-paths.txt`. A leaf edits only its owned paths and its
    phase status; it does not commit.
-4. **Build.** Run the resolved Debug build in the performer. Fix only build
-   errors belonging to the task. If the task changed only a resource consumed
-   by codegen, force its documented regeneration so the Debug binary contains
-   the new resource. On Windows, run the exact-path proactive cleanup before
-   every build. Recover file-lock/access-denied failures through
-   `.agents/shared/build-lock-recovery.md`; only an exhausted or unsafe
-   recovery is a global hard stop.
-5. **Review.** Run the multi-lens review/fix loop from the phase prompts for up
-   to three review iterations. Each iteration runs five independent lenses over
-   the task diff — correctness, lifetime and ownership, reuse, structure,
-   performance — and then one synthesis pass that confirms every finding
-   against the code itself and writes the single `review<R>.md` the fix phase
-   implements. A lens defaults to not clean and must record the surfaces it
-   checked; an approved review carries that merged coverage as the evidence for
-   approval. Rebuild
-   after every fix pass. Give the correctness and structure lenses the visual
-   contract on layout tasks. Alongside the iteration-1 lenses, spawn the
-   Phase 6d test-design leaf; it drafts `work/test-design.md` from the spec,
-   plan, and current diff so the test loop does not start from scratch.
+4. **Pre-review validation.** Run the assessed fast validation in the
+   performer. App source normally builds the configured Debug Telegram target;
+   isolated scripts, generators, libraries and harness code may use a focused
+   configure, unit, probe or component command. Documentation may defer its
+   direct checks to the evidence loop. If a selected build consumes a changed
+   resource, force its documented regeneration. Apply exact-path Windows
+   cleanup and build-lock recovery only to a command that writes the configured
+   build tree.
+5. **Review.** Run the adaptive review/fix loop from the phase prompts. The
+   independent general reviewer always runs over the complete diff, adjacent
+   integration, task contract, and `work/test-design.md`. Before it, run every
+   specialist selected by assessment: lifetime (including concurrency and
+   races), reuse, structure, performance, security, or a named domain review.
+   The general reviewer confirms or drops their findings, adds any missing
+   specialist or evidence check, and writes the single `review<R>.md` the fix
+   phase implements. Only material blocking findings cause a fix. After a fix,
+   rerun the general review plus specialists whose surfaces changed; never
+   replay unrelated lenses. Rebuild or rerun a cheaper pre-review check only
+   when the fix touched that instrument's surface.
 6. **Normalize.** On native non-WSL Windows, normalize only task-owned source,
    header, style, localization, and build/config text to CRLF without BOM,
-   preserving content and trailing-newline state, then rebuild. On macOS,
+   preserving content and trailing-newline state, then rerun the selected
+   pre-review validation when normalization could affect it. On macOS,
    Linux, and WSL preserve LF/no-BOM.
-7. **Commit and test.** Create the Telegram implementation commit with the
-   scripted helper, then run the test loop below:
+7. **Commit and test.** When the task changed source, create the implementation
+   commit with the scripted helper, then run the evidence loop below:
 
    ```bash
    python3 SOURCE_ROOT/.agents/skills/process-inbox/scripts/workspace.py \
@@ -307,160 +304,151 @@ Run sequentially:
    moves the retained-implementation refs — replacing manual staging and the
    separate `source-mark-green` call. An implementation bug creates the next
    committed attempt through the same helper; keep the same `Task:` locator on
-   every attempt.
+   every attempt. When assessment and general review prove the requested
+   outcome was already present, leave the source checkout at `BASE_REF`, skip
+   `source-commit`, and run the same evidence loop against that state with
+   `Outcome: already-satisfied`.
 
-## Verification tasks
+## Adaptive review and evidence
 
-A task whose `state.yaml` carries `type: verify` measures behavior that already
-shipped. Read the type from the `resolve` output before planning; it selects
-this profile for the whole run and nothing else does.
+Every unfinished task follows one adaptive implementation path. Task size,
+repository location, and whether Telegram is eventually launched do not select
+a profile. Before editing, Phase 2 assessment records the task's actual failure
+surfaces and writes both of these contracts:
 
-A verification carries no implementation. It must not change a byte under
-`Telegram/SourceFiles/` or `Telegram/Resources/` outside the disposable test
-overlay, and it produces **no Telegram commit at all**. Its deliverable is the
-measurement, and its outcome is either "the behavior held" or "here is the exact
-disagreement, and here are the follow-up tasks that fix it". Both are `approved`.
+```text
+Review plan:
+- general: required
+- lifetime: selected | omitted — <reason>
+- reuse: selected | omitted — <reason>
+- structure: selected | omitted — <reason>
+- performance: selected | omitted — <reason>
+- security: selected | omitted — <reason>
+- specialist-<domain>: selected — <material risk>, when needed
 
-### What it does not run
+Evidence plan:
+- Claim: <acceptance criterion or material shipped invariant>
+- Changed surface: <code, build stage, artifact, runtime state, or pixels>
+- Instrument: <reading | command | artifact | unit | probe | component |
+  telegram-log | overlay | computer-use | screenshot>
+- Oracle: <literal pass/fail decision>
+- Control / negative: <how a check proves it reached the subject>
+- Evidence: <planned durable output>
+```
 
-Skip these phases outright rather than running them against an empty diff:
+The plan also names escalation triggers: implementation surfaces that would add
+a specialist or require a stronger instrument. Assessment rejects ceremony as
+well as under-testing. It removes checks that cannot be affected by the task,
+and it rejects an omitted lens whose failure mode is present.
 
-- **Phase 3, Implement.** There is no product write set. The only code a
-  verification writes is the test overlay, authored in the test loop.
-- **Phase 4, Build,** as a separate implementation step. The overlay build in
-  the test loop is the only build.
-- **Phase 5's five review lenses** — correctness, lifetime, reuse, structure,
-  performance — and the whole three-iteration review/fix loop. They read a
-  product diff that does not exist. Step 6d, the test-check design, is the one
-  part that survives, and it moves into Phase 2V below.
-- **Phase 6, Normalize.** No task-owned source text changes.
-- **Phase 7's `source-commit`.** The helper refuses it for this type. There is no
-  implementation attempt, no `GREEN_REF`, and no attempt counter to advance;
-  `MAX_ATTEMPTS` does not apply; the per-campaign `MAX_TEST_RUNS` recovery
-  rules still do.
+### Review selection
 
-### What it does run
+The independent **general** review always runs. It owns correctness,
+completeness, adjacent integration, unintended regressions, proportionality,
+repository conventions, and the adequacy of the evidence plan. It reads every
+changed file in full and cannot defer a concern to a specialist.
 
-1. **Phase 1V: context and measurement plan.** One leaf writes `work/context.md`
-   and then `work/plan.md` as a measurement plan rather than a change plan: the
-   exact claim under test stated as a falsifiable proposition, the oracle that
-   decides it, the fixture and how it is obtained, the surfaces to be read, and
-   the literal values to be quoted before and after. Where the spec names a
-   control — a sibling widget that must measure differently, a pre-change render
-   reconstructed from history, a negative case that must not fire — the plan
-   carries it as a required check, not as an optional extra.
-2. **Phase 3V: assess for falsifiability.** A fresh leaf verifies the plan the
-   way Phase 2 verifies an implementation plan, against one question the five
-   review lenses never ask: *would this run have detected the negative?* It
-   rejects a plan whose oracle passes when the behavior is absent, whose control
-   cannot disagree with the subject, or that reads local state where the claim is
-   about persisted or server state. It also writes `work/test-design.md`, so the
-   test author starts from a reviewed design. Require `Assessed: yes` and a named
-   falsifier for every check.
-3. **Test loop.** Enter it directly after assessment. Everything in the adapter
-   below applies unchanged except that it starts here instead of after a green
-   implementation commit, and `overlay-apply` is never needed because no
-   implementation-fix commit ever moves `RUN_REF`.
+Select focused independent specialists when their surfaces exist:
 
-Choose the cheapest instrument that genuinely decides the claim. A
-verification is not obliged to launch the client: when the claim is decidable
-by the unit suite, a standalone probe program, or a scripted reading — with
-the falsifiability assessment confirming that instrument can detect the
-negative — take the measurement there, and reserve the full app, account, and
-overlay loop for claims that live in the running client. The instrument may
-be cheap; the falsifiability bar never is.
+- **lifetime** — object and resource ownership, callbacks, re-entrancy,
+  destruction order, threads, concurrency, races, synchronization,
+  cancellation, and shutdown;
+- **reuse** — a new helper, API, style, string, switch, algorithm, or mechanism
+  may duplicate an established one;
+- **structure** — cross-module placement, broad moves or deletion, generated
+  files, build graphs, platform containment, or new abstractions;
+- **performance** — hot or repeated paths, main-thread blocking, startup,
+  memory, I/O, scale, or material build-time cost;
+- **security** — secrets, authentication, permissions, privacy, cryptography,
+  untrusted input, command or subprocess construction, filesystem boundaries,
+  downloads, network trust, or destructive behavior.
 
-The claim itself may be about the code rather than a running process: a
-pattern present or absent across the tree, a comment agreeing with measured
-behavior, a vendored or submodule library carrying an expected change. Such a
-verification runs this same profile with the reading as its instrument and
-normally costs minutes. Its readings quote the literal sites and bytes, never
-just a hit count, and a reading that reports absence must also demonstrate
-its pattern on a known-present control in the same run — a mistyped pattern
-that matches nothing must fail the run rather than verify the claim.
+Add a named domain specialist when a material risk such as ABI portability or
+persistence migration does not fit those lenses. App-runtime work usually
+selects several lenses; persisted state, asynchronous ownership, network
+mutation, payments, security boundaries, and broad refactors retain deep
+independent review. A build or documentation change is not exempt from review;
+it receives the general review and the specialists its real risks select.
 
-`source-begin` still runs in preflight and still sets `BASE_REF` and `RUN_REF`;
-they stay equal for the whole task, which is exactly what makes `overlay-save
---restore run` restore the checkout to its untouched baseline. `work/owned-paths.txt`
-lists the overlay paths only. For a verification it keeps the preflight's
-`dirty_outside_owned` honest; it never authorizes a commit.
+A specialist reports only material findings with a concrete failure. The
+general reviewer confirms each one against the code and writes the sole
+`review<R>.md` verdict. Wording, style, or optional cleanup that does not cause
+wrong behavior, unsafe use, material maintenance cost, or violated repository
+rules is non-blocking and never starts a fix cycle.
 
-### Failures belong to the subject, not the run
+After a blocking fix, select the next review set from what the fix changed:
+general always reruns; only affected specialists rerun. A fix that changed no
+owned source closes the loop. A new surface triggers reassessment instead of an
+automatic replay of every lens.
 
-A verification that finds the behavior wrong has succeeded. Record the exact
-disagreement — expected, actual, literal values, quoted — report it as a
-discovered follow-up, and finish `approved`. **Do not repair what you measured**,
-even when the fix looks like one line: the repair is ordinary implementation work
-in a separate task, and making it here would destroy the measurement's
-independence and produce a commit this task may not make.
+### Evidence selection
 
-Reserve `blocked` for a measurement that could not be taken at all — the fixture
-is unobtainable, the surface cannot be reached, the oracle needs infrastructure
-this checkout does not have. A negative result is never a block.
+Every task runs the same evidence loop. It may combine instruments:
 
-A verification also never widens its own scope. If the run reveals a second
-untested behavior, that is another discovered follow-up, not another check.
+1. **Static or generated reading** — exact source, configuration, generated
+   output, controlled presence/absence, documentation command or link.
+2. **Command and artifact** — execute a build/dependency/harness stage; record
+   its command, environment, exit code and log; inspect resulting names, sizes,
+   architectures, symbols, versions, or options with known-present controls.
+3. **Unit, probe, or component** — run an existing suite or a purpose-built
+   small binary when it directly exercises isolated code or an ABI without
+   requiring Telegram.
+4. **Telegram runtime** — build the Debug Telegram target and use task-specific
+   log assertions or an overlay when the behavior exists only in the client.
+5. **Interaction and visual evidence** — add physical input only when that path
+   is the subject, and add tight screenshots plus numeric geometry or raster
+   oracles only for visible claims.
 
-## Minimal tasks
+Choose the most direct practical instrument that can detect the negative. The
+cheapest sufficient instrument is preferred; a cheaper instrument that bypasses
+the changed integration is not sufficient. Checks may use different
+instruments in one task. A Telegram executable, portable account, overlay,
+desktop driver, screenshot, Docker daemon, or platform toolchain becomes a
+precondition only when a selected check needs it.
 
-A task whose `state.yaml` carries `type: minimal` is a small mechanical change
-executed end to end in one performer session. Read the type from the `resolve`
-output before planning; it selects this profile the same way `verify` selects
-its own. The bounds that make a task minimal are defined in the AI
-repository's `AGENTS.md`, read in preflight; this section is the operative
-profile.
+Use these presumptions unless the assessed task facts justify another direct
+instrument:
 
-A minimal task keeps the implement commit contract — it retains exactly one
-Telegram commit through `source-commit --mark-green`, with the same three-line
-message and conditional `[ai] ` prefix — and skips the test loop entirely: no
-overlay, no portable account, no `test-run`, no Computer Use, and no
-`work/test.md`. The preflight's golden-account and test-launch requirements
-(steps 4 and 5) do not apply; every other preflight rule, including
-`source-begin` and the clean-checkout gate, is unchanged.
+- app runtime behavior: Debug Telegram build plus instrumented execution and
+  literal logs;
+- visible text, appearance, or layout: the runtime check plus tight captures,
+  with geometry or exact-text assertions;
+- build and dependency work: execute the affected stage, inspect its artifacts,
+  and build a consumer when consumer compatibility is claimed;
+- isolated library behavior: unit suite or standalone probe, with Telegram
+  omitted when it adds no coverage;
+- deletion or cleanup: controlled absence checks, regeneration, affected
+  target build, and retained unit tests; do not replay neighboring network or
+  UI flows unless the deletion could change their result;
+- harness work: isolated harness self-tests and safety controls, with Telegram
+  used only for harness behavior that exists inside the app.
 
-Run these phases in the performer itself, with exactly one leaf:
+Each check must map to an acceptance criterion or a material risk introduced by
+the diff, name its falsifier, and retain positive evidence. Apply the revert
+test: if reverting the diff could not change the result, the check is
+pre-existing behavior and does not belong to this task. For an
+`already-satisfied` outcome with no diff, replace the revert test with direct
+proof of the requested proposition and why no retained change is warranted.
 
-1. **Inspect and confirm.** Read the spec, project context, and the code.
-   Write `work/minimal.md` recording each eligibility bound confirmed against
-   the actual code rather than the spec's hope, the exact planned change —
-   files, sites, before and after — and which acceptance criterion each part
-   satisfies. Update `work/owned-paths.txt`. If any bound fails, upgrade now.
-2. **Edit and build.** Make the change directly in the performer. Run the
-   resolved Debug build for the touched targets, and the existing unit suite
-   when the touched code has one (for `Telegram/SourceFiles/gram/`,
-   `td_gram_test`). Quote the passing output in `work/minimal.md`.
-3. **Review.** Spawn one fresh review leaf over the diff carrying a combined
-   correctness, lifetime, reuse, and structure checklist built from the phase
-   prompts' lens rules; the Delegation section's host rules apply, and the
-   same-session fallback is allowed when nested delegation is unavailable.
-   Confirm each finding against the code, fix what survives, rebuild, and
-   record the verdict in `work/minimal.md`. One iteration is the norm; run a
-   second only after substantive fixes.
-4. **Commit and finish.** `source-commit --mark-green`, then write
-   `work/result.md` with `Test-Report: not-applicable`, `Test-Runs: 0`,
-   `UI-Driver: not-applicable`, and `Evidence:` naming `work/minimal.md`.
-   `Unverified:` must be `none` — a minimal task that would publish a
-   non-`none` value has failed its eligibility and upgrades instead.
-   `Discovered:` follows the ordinary rules. Then `finish --status approved`.
-   No `test-cleanup` is needed: no overlay existed, so the built executable
-   is clean and stays for the next task.
+### Already-satisfied outcome
 
-The implementation profile's Normalize step applies unchanged on hosts that
-run it; host adapters that remove it remove it here too. `checkpoint` after
-each phase with `minimal-inspect`, `minimal-edit`, `minimal-review`, or
-`minimal-commit`.
+When inspection finds the requested outcome already present, do not manufacture
+a source edit. Assessment records that candidate outcome and designs direct
+evidence. The mandatory general review independently confirms the relevant
+current code and the evidence contract; specialists run only when the existing
+subject needs their risk-specific judgement. Run the ordinary evidence loop
+against `RUN_REF == BASE_REF`.
 
-**Upgrade instead of struggling.** The eligibility bounds are part of the
-task. The moment any phase shows one failing — runtime behavior to measure, a
-wider diff than the bounds allow, a design question, a review finding that
-needs a runtime answer — upgrade in place: rewrite `type:` in `state.yaml` to
-`implement`, or to `verify` when the remaining deliverable is purely a
-measurement of shipped behavior; append a dated `Upgraded from minimal:
-<reason>` note to `task.md`; checkpoint; then continue the full selected
-profile in the same run, reusing the inspection notes as Phase 1 input. The
-upgrade is local state until `Approve` or `Block` publishes it. Upgrading is
-an expected outcome, never a failure, and `blocked` keeps its ordinary
-meaning — it is never a substitute for upgrading.
+Approval without a source commit requires all of:
+
+- `Outcome: already-satisfied` and `Touched: none` in `work/result.md`;
+- no `GREEN_REF`, a clean source checkout at `BASE_REF`, and no owned source
+  changes;
+- an approved general review and passing evidence for every acceptance
+  criterion.
+
+If measurement instead exposes a deviation, implement the repair in this same
+task, reassess changed surfaces, review, commit, and rerun affected checks.
 
 ## Telegram commits
 
@@ -502,84 +490,65 @@ make `GREEN_REF` an ancestor of `RUN_REF`. These refs are local recovery
 mechanics: never copy their resolved object names into AI artifacts, source
 notes, reports, chat, or commit messages.
 
-## Test loop adapter
+## Evidence loop adapter
 
-Read `.agents/shared/test-loop.md` completely and apply it after the first green
-implementation commit, or — for a `type: verify` task, which never has one —
-immediately after Phase 3V. A `type: minimal` task never enters this adapter
-at all; its profile ends at commit and publication. Before test design,
-authoring, recovery, or cap assessment, read
-`Telegram/SourceFiles/test/README.md` completely and then the selected helper
-headers. Read `references/computer-use-testing.md` when choosing
-or operating a UI driver. Retain all task-derived oracle, layout measurement,
-overlay, watchdog, crash/assertion, hang, account, attempt, report, and evidence
-rules, with these external-task safety adaptations:
+Read `.agents/shared/test-loop.md` completely and enter its universal evidence
+loop after the first green implementation commit, or after general review when
+the outcome is `already-satisfied`. Start from the assessed
+`work/test-design.md`, reconcile every check against the final diff or the
+proved no-change proposition, and write `work/test.md` before executing any
+check.
 
-- The performer, not leaves, stages and commits every attempt (through
-  `source-commit`).
-- The overlay is authored against the permanent harness in
-  `Telegram/SourceFiles/test/` and normally consists of replacing
-  `Telegram/SourceFiles/test/test_scenario.cpp` alone on the first run. That is
-  a preference, not a boundary: after a setup or reachability failure, overlay
-  code may modify any relevant tracked source path, including initialized
-  submodules, to place a disposable probe or direct entry point beside the
-  changed production code. Inventory every overlay path in
-  `work/test-overlay.paths`; never introduce an untracked source file, commit
-  an overlay or submodule injection, or re-implement logging, widget-finding,
-  capture, watchdog, or quit mechanics the harness already provides.
-- Save and restore the overlay with the scripted helper instead of manual git
-  mechanics:
+The performer, not leaves, stages and commits every implementation attempt.
+Use `TASK_DIR/.local/runs/attempt-<n>/run-<m>/` for complete logs, probes,
+screenshots, dumps, and command by-products. Promote only compact decisive
+evidence. A command without its exact command line, working directory,
+environment additions, exit code, and complete local log did not run. Every
+artifact or absence assertion includes a known-present control when a mistyped
+path or pattern could otherwise pass.
+
+A run may execute several instruments. Pack checks that share setup, but do not
+force unrelated commands into one shell process or force all runtime checks
+into one application lifetime. Count one evidence run for one planned execution
+set recorded under a run directory. Every rerun keeps prior positive evidence
+and executes only failed or invalidated checks.
+
+Before an instrument runs, gate only its own prerequisites:
+
+- command, unit, probe, component, and artifact checks need their named
+  toolchain and isolated output location;
+- a Telegram build needs the matching configured Debug tree;
+- a Telegram launch additionally needs the exact executable, golden portable
+  account, safe path-scoped process control, and test harness;
+- Computer Use needs the separate capability gate;
+- another platform's unavailable toolchain is recorded as an exact
+  `Unverified:` exposure, not simulated by an unrelated local command.
+
+When a Telegram overlay or app launch is selected, read
+`Telegram/SourceFiles/test/README.md` completely and then the chosen helper
+headers. Read `references/computer-use-testing.md` when selecting or operating
+a UI driver. Retain all shared task-derived oracle, layout measurement,
+watchdog, crash/assertion, hang, account, and evidence rules, with these
+external-task adaptations:
+
+- Prefer an overlay in
+  `Telegram/SourceFiles/test/test_scenario.cpp`, but place disposable probes
+  or direct entry points in any relevant tracked source or initialized
+  submodule when that is more direct. Inventory every path in
+  `work/test-overlay.paths`; never add an untracked source file or commit the
+  overlay.
+- Save and restore an overlay through the helpers:
 
   ```bash
   python3 SOURCE_ROOT/.agents/skills/process-inbox/scripts/workspace.py \
     overlay-save --source-root SOURCE_ROOT --task TASK_ID --restore run
-  ```
-
-  It verifies every dirty path against the inventory, refuses untracked
-  files, writes a verified top-level patch plus per-submodule patch bundle
-  when needed, and restores only inventoried paths to `RUN_REF` or the
-  submodule's current baseline — never a repository-wide hard reset.
-  After an implementation-fix commit (`source-commit --mark-green` moves both
-  `GREEN_REF` and `RUN_REF`), reapply with:
-
-  ```bash
   python3 SOURCE_ROOT/.agents/skills/process-inbox/scripts/workspace.py \
     overlay-apply --source-root SOURCE_ROOT --task TASK_ID
   ```
 
-  It applies with `--3way` and reports conflicted paths; re-author a
-  conflicting hunk from `test.md` rather than leaving conflict markers.
-- On locked macOS, force overlay-only testing without waiting or blocking.
-  Encode the complete interaction inside the Debug binary using application
-  actions or Qt events, log assertions and geometry, capture widgets/windows
-  in-process, save the artifacts, and quit. Do not require an OS-level desktop
-  screenshot or interactive Computer Use evidence.
-- Missing `test_TelegramForcePortable` is a portable-account setup blocker. A
-  `testing` marker file inside the live folder marks it as the reusable test
-  copy: never copy, move, or delete any of the three folders on this branch.
-  For this reused marked-live account only, after the exact-path straggler kill
-  and before launch, `test-run` moves a non-empty live `tdata/working` to
-  `RUN_DIR/stale-crash/working` and every live `tdata/dumps/*.dmp` to
-  `RUN_DIR/stale-crash/dumps/`; a zero-byte `tdata/working` is neither moved
-  nor reported. The report is moved because leaving it makes the app show the
-  previous-launch window instead of starting, so no `test_log.txt` is written
-  and the run reads as a hang. A leftover dump never blocks launch and is
-  moved only to keep the current run's mtime-filtered dump report free of old
-  minidumps. After successful relocation, the next SETUP finds nothing left
-  to move. An unmarked live folder is real data: move it to real when real is
-  absent; delete it only when real already exists. Only then deep-copy golden
-  to live and create the `testing` marker inside the copy. The four account
-  results remain `fresh-copy`, `reused-marked-live`, `preserved-real`, and
-  `replaced-manual-live`; clearing creates no fifth account state. There is NO
-  folder cleanup after testing — the marked copy stays live for the next run
-  and next task. Never delete, rename, move, or alter golden or real.
-- Set `RUN_DIR` and `EVIDENCE_DIR` to
-  `TASK_DIR/.local/runs/attempt-<n>/run-<m>/`, an ignored run-specific path.
-  Promote only decisive compact logs/screenshots and decisive preserved
-  `RUN_DIR/stale-crash/` payloads into tracked `evidence/`; keep promotion
-  selective rather than committing every large dump.
-- Execute every app run through the scripted runner instead of hand-composed
-  launch/poll/kill shell:
+  Save before restore. Reapply only after an implementation-fix commit; reauthor
+  a conflicting hunk from `test.md`.
+- Execute every app run through:
 
   ```bash
   python3 SOURCE_ROOT/.agents/skills/process-inbox/scripts/workspace.py \
@@ -587,121 +556,44 @@ rules, with these external-task safety adaptations:
     [--deadline 120] [--quiet 60]
   ```
 
-  One call performs the idempotent portable-account SETUP, the path-scoped
-  straggler kill, stale-crash relocation for a reused marked-live account
-  after that kill and before launch, and the `-testagent -noupdate` launch
-  (never auto-update a test binary) with stdout/stderr capture and
-  `TDESKTOP_TEST_EVIDENCE_DIR` set to `RUN_DIR`. It enforces the external
-  wall-clock deadline and quiet-log watchdog and returns one JSON report:
-  outcome, `TEST_COMPLETE` state, parsed
-  `TEST_STEP`/`TEST_RESULT`/`SCREENSHOT` markers, stderr tail, fresh
-  `tdata/working` crash excerpt, minidump paths, `crashpad_dumps_added`,
-  `death_signals`, and `stale_crash_cleared`. `crashpad_dumps_added` is the
-  before/after delta of the live `tdata/dumps/completed/` Crashpad database
-  across the run — a delta because `test-run` never clears that directory
-  between runs — and `death_signals` names which of `"breakpad_dump"` /
-  `"crashpad_dump"` / `"exit_code"` fired. A run that writes `TEST_COMPLETE`
-  and then dies on any of those signals reports `died-after-complete`, not
-  `complete`. `stale_crash_cleared` is an ordered list of `{from, kind, to}`
-  entries whose `kind` is `"report"` or `"dump"`, and is `[]` when nothing
-  was cleared. If a stale report cannot be moved, `test-run` refuses before
-  launch, prints the helper error on stderr, exits non-zero, and emits no
-  JSON. If a dump cannot be moved, the run leaves it in place, records its
-  entry with `"to": null` (a null destination), and continues to launch. The
-  performer then judges the evidence itself — the runner gathers, it never
-  assesses. Pre-`TEST_COMPLETE` crash detection keys on process death
-  without `TEST_COMPLETE` plus a fresh `tdata/working`, not exit code;
-  post-`TEST_COMPLETE` death keys on `exit_code`, the `completed/` delta and
-  a fresh top-level `tdata/dumps/*.dmp`, because the clean shutdown unlinks
-  `tdata/working` before the fault.
-- If the account breaks mid-loop (login screen, `AUTH_KEY_DUPLICATED`), run
-  `test-account-reset --exe EXE` — it deletes only a marked live copy and
-  re-copies golden — then retry once. That deletion takes the Crashpad
-  database under `tdata/dumps/completed/` with it, so copy out any dump
-  worth keeping first.
-- Enforce the in-app watchdog too. Count total test runs independently from
-  implementation attempts, and also count runs in the current campaign. At
-  `MAX_TEST_RUNS`, run the shared cap assessment; never turn the number alone
-  into a terminal verdict.
-- A repeated setup failure is not a reason to stop below that cap. Apply the
-  shared test loop's directness ladder: preserve what the run proved, forbid
-  the failed fixture technique, and make the next overlay more manual and
-  closer to the changed production seam. Once a setup outside the task's diff
-  fails repeatedly, bypass that setup rather than continuing to test it.
-- Plan the fewest possible runs: one complete programmed scenario per attempt
-  that proves every check in a single execution, splitting only for checks
-  that cannot share one process lifetime. `MAX_TEST_RUNS` is a per-campaign
-  safety checkpoint, never a budget to spend on fragmenting one scenario into
-  several and never permission to publish a test block.
-- **That rule governs how checks are packed, never how many are taken. A
-  coverage gap you find mid-task is closed by another run, not by a follow-up
-  task.** When you discover a check this task's acceptance needs and this
-  checkout can take — a parameter the scenario only sampled (a subset of an
-  enum, one interface scale, one context), a surface reachable only behind a
-  different launch flag, a persisted or server value that only a fresh start
-  re-reads, a wire path an in-process assertion never exercised — take it now.
-  Extend the current scenario when the check can share the process; add a run
-  when it cannot. Do this even after every planned check has passed, and even
-  while writing `work/result.md`.
-  Deferring it is the expensive choice, not the cheap one: this process already
-  holds the context, the branch, the overlay and the build, and a follow-up task
-  rebuilds all four from nothing before it can take the same measurement. One
-  more run costs minutes; the task that replaces it costs a full lifecycle and
-  lands days later. Runs added for coverage are not implementation attempts and
-  never advance `MAX_ATTEMPTS`; they count toward the current test campaign.
-- Start the test author from `work/test-design.md` when the review-phase
-  draft exists; the author still reconciles every drafted check against the
-  final retained diff before writing overlay code, and owns `test.md`.
-- On every terminal test exit, run `test-cleanup --exe EXE --delete-exe` so no
-  straggler survives and no overlay-bearing Debug executable is left for the
-  user to launch accidentally.
-- **On a `type: verify` task the `IMPL_BUG` branch does not exist.** The shared
-  loop classifies a failing check as either a flawed test or an implementation
-  bug to fix and recommit; a verification may do neither. Classify a failing
-  check as `TEST_FLAW` only when the fault is in the overlay, the oracle, or the
-  fixture — that is still a real flaw and still gets fixed and rerun. When the
-  overlay is sound and the *subject* behaves differently than the claim, that is
-  not a bug to repair here: it is the measurement's result. Stop the loop, record
-  it as `Finding: deviation` with expected and actual quoted literally, and route
-  the repair as a follow-up. Re-running a sound measurement until it agrees with
-  the claim is the one failure mode this task type exists to prevent.
-- When a task needs an out-of-scope fence, snapshot it with
-  `fence-create --file <baseline> --root SOURCE_ROOT <paths...>` and verify it
-  before publication with `fence-check`.
+  The helper owns portable-account setup, exact-path process cleanup,
+  `-testagent -noupdate`, stale-crash relocation, watchdogs, stdout/stderr,
+  markers, and crash collection. It gathers; the performer assesses.
+- Missing `test_TelegramForcePortable` blocks only a selected Telegram launch.
+  Never delete, rename, move, or alter the golden or preserved real account.
+  Reuse a marked live test copy under the shared account rules.
+- On locked macOS, replace external driving with the complete in-binary overlay
+  flow. The lock is never a test block and does not reduce logged, geometry, or
+  in-process capture coverage.
+- Use Computer Use only when physical input is the subject. Most UI checks stay
+  overlay-driven; visible claims still require tight in-process captures.
+- On terminal exit from an overlay run, call
+  `test-cleanup --exe EXE --delete-exe` so no overlay-bearing executable
+  survives. Direct command, artifact, unit, or probe runs do not delete an
+  unrelated Telegram executable.
 
-The test author must read the full task specification and every current-branch
-commit whose message has this task's exact `Task:` line. For an uninterrupted
-contiguous run this is the `BASE_REF..GREEN_REF` diff; for a resumed older task,
-combine the exact task commits and inspect their current code at `RUN_REF`
-without treating intervening tasks as this task's changes. The author must also
-read `Telegram/SourceFiles/test/README.md` and the headers for every selected
-helper before writing overlay scaffolding. It writes checks
-before running, covers every acceptance surface, declares a falsifiable oracle
-for each, packs all compatible checks into one process by default, and never
-reuses a generic navigate-and-screenshot scenario. An additional planned
-process requires a named incompatible startup/lifetime/state constraint; it is
-never justified only by scenario size or simplicity. When
-a surface cannot be covered in the packed scenario, the author adds a run for it
-rather than dropping it: run count is the thing to minimize once coverage is
-settled, never the reason to leave a reachable surface unmeasured. Where an
-acceptance criterion ranges over a parameter — every value of an enum, both
-halves of a branch, more than one interface scale — the author iterates the
-range rather than sampling it, because a hand-picked subset is exactly the shape
-of gap that comes back later as its own task. Missing or ambiguous evidence is
-`TEST_FLAW`; no expected task delta is `IMPL_BUG`. Repeated failure signatures
-trigger the shared directness ladder, not an automatic block. Block before or
-at a campaign cap only after a fresh recovery assessment proves that every
-applicable more-direct strategy is unsafe, unavailable, or would bypass the
-changed code and writes `## Recovery exhaustion` to `work/test.md`. Otherwise
-start a focused campaign that contains only the unmet checks and their controls,
-preserves all prior positive evidence, and resets only the campaign counter.
-The macOS cached-language signature first gets the shared test loop's one-time
-Xcode clean-rebuild recovery. A known implementation bug at the attempt cap is
-implementation-blocked, not a successful retained commit.
+For every instrument, assessment returns exactly one of:
 
-Skip runtime testing only for a task with no runnable behavior. Record
-`NOT_APPLICABLE` and exact file-level validation. Configuration alone is not a
-reason to skip.
+- `APPROVED` — every selected check has positive evidence;
+- `TEST_FLAW` — the command, fixture, probe, oracle, capture, or evidence
+  collection was incapable of deciding the claim;
+- `IMPL_BUG` — a sound check exposed a defect in the retained implementation;
+- `UNRECOVERABLE` — a required subject or capability cannot be reached safely
+  after the bounded directness assessment.
+
+A `TEST_FLAW` recovery must remove an assumption or move closer to the changed
+surface. Do not repeat the same command, fixture, or overlay wording. A campaign
+cap is an assessment checkpoint, not permission to block: carry prior passes,
+isolate unmet checks, and choose a more direct instrument or document recovery
+exhaustion. An `IMPL_BUG` fix creates a new retained attempt, triggers targeted
+general/specialist re-review, and reruns only invalidated checks.
+
+The evidence author reads the full task, assessed plan, final task diff, and
+existing `test-design.md`. It covers every acceptance surface and nothing
+outside it. A check discovered late is taken now when this checkout has the
+required capability; a check that cannot be affected by the diff is removed
+rather than exported as coverage debt. Use an out-of-scope fence through
+`fence-create` and `fence-check` when the task needs one.
 
 ## Final AI state
 
@@ -722,13 +614,14 @@ Write `work/result.md` with exactly one value for every field:
 ```text
 # Task result: <TASK_ID>
 STATUS: DONE | BLOCKED
-Verdict: APPROVED | NOT_APPLICABLE | <specific blocker>
+Outcome: changed | already-satisfied | blocked
+Verdict: APPROVED | <specific blocker>
 Blocker-Type: none | test | impl | unrecoverable
 Attempts: <n>
 Test-Runs: <n>
 UI-Driver: overlay | hybrid | mixed | hybrid-unavailable | not-applicable
 Touched: <source paths or none>
-Test-Report: work/test.md | not-applicable
+Test-Report: work/test.md
 Evidence: <tracked evidence paths and what they prove>
 Unverified: none | <exact behavior and manual follow-up>
 Checkout: clean-buildable | unsafe
@@ -738,20 +631,11 @@ Discovered: none | present
 <complete independently testable follow-ups, or omit>
 ```
 
-A `type: verify` task writes one more field and is held to three extra rules,
-all enforced by `finish`:
-
-```text
-Finding: confirmed | deviation | inconclusive
-```
-
-`Touched:` is always `none`. `Finding: deviation` requires `Discovered: present`,
-because a measured disagreement that routes no repair is how a known defect
-becomes invisible. `Finding: inconclusive` is the only finding a blocked
-verification may carry, and it may never be approved — which is what keeps
-"the measurement failed" and "the behavior failed" from collapsing into each
-other. State the finding against quoted literal values in `work/result.md`, never
-as a summary judgement.
+`Outcome: changed` requires a retained task implementation and names its paths
+under `Touched:`. `Outcome: already-satisfied` requires `Touched: none`, no
+source commit, and direct evidence that the requested proposition held before
+the task. A blocked result uses `Outcome: blocked` and retains a latest safe
+implementation attempt when one exists.
 
 For approved project work, promote `work/project.proposed.md` to the project's
 `project.md` immediately before final AI publication. For blocked work, retain
@@ -776,7 +660,8 @@ actually completed it. Never guess or copy the value from another task; if you
 cannot tell what you are, say so and stop rather than recording a wrong name.
 
 The helper verifies a clean source checkout, local task refs, current `HEAD`,
-and the retained implementation's exact three-line commit message. It commits
+and either the retained implementation's exact three-line commit message or
+the strict no-change state required by `already-satisfied`. It commits
 all task-scoped local artifacts and final state as `Approve <TASK_ID>` or the
 exceptional `Block <TASK_ID>`, fetches newer canonical state when configured,
 rebases the slot, publishes without force, and fast-forwards local AI master.
@@ -799,8 +684,9 @@ context, branch, overlay and build before it can measure what this process is
 already holding, so writing one you could have closed trades minutes for days.
 
 What legitimately belongs here is a gap this checkout cannot close: one that
-needs a second account, funded external value, real server-backed cloud state, a
-purpose-built bot, or hardware this machine does not have. Write it to be
+needs another platform or architecture, a second account, funded external
+value, real server-backed cloud state, a purpose-built bot, or hardware this
+machine does not have. Write it to be
 routable — the exact behavior that shipped without verification, and precisely
 what closing it would require — so the scheduler can record it rather than
 queueing work that would be unstartable the moment it entered the queue.

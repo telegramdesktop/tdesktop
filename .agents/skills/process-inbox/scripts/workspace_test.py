@@ -603,11 +603,14 @@ class WorkspaceTest(unittest.TestCase):
 	def test_resolve_follows_durable_superseded_task_alias(self):
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary)
+			git_repo(root)
 			write_task(root, status="todo", claimed_by=None)
 			old_id = "2026/07/18/old-recent-search-task"
 			old = root / "tasks" / old_id
 			old.mkdir(parents=True)
 			(old / "task.md").write_text("# Old task\n", encoding="utf-8")
+			git(root, "add", "-A")
+			git(root, "commit", "-m", "Retain the old task")
 			content_digest = workspace.retained_task_digest(old)
 			(old / "superseded.yaml").write_text(
 				f"""superseded_by: {TASK_ID}
@@ -908,6 +911,7 @@ inbox_receipt: {receipt}
 	def test_merged_consolidation_validates_aliases_and_dependencies(self):
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary)
+			git_repo(root)
 			source = write_task(root, status="approved")
 			(source / workspace.CONSOLIDATION_COMPLETE).write_text(
 				f"# Consolidation\n\nSource: {TASK_ID}\nSTATUS: MERGED\n",
@@ -922,6 +926,8 @@ inbox_receipt: {receipt}
 				(directory / "task.md").write_text(
 					f"# {old_id}\n", encoding="utf-8",
 				)
+				git(root, "add", "-A")
+				git(root, "commit", "-m", f"Retain {old_id}")
 				content_digest = workspace.retained_task_digest(directory)
 				(directory / "superseded.yaml").write_text(
 					f"""superseded_by: {new_id}
@@ -967,6 +973,8 @@ inbox_receipt: {receipt}
 			(root / "tasks" / old_ids[0] / "task.md").write_text(
 				"# Late changed acceptance\n", encoding="utf-8",
 			)
+			git(root, "add", "-A")
+			git(root, "commit", "-m", "Change retained content")
 			with self.assertRaisesRegex(
 				workspace.WorkspaceError,
 				"retained content changed",
@@ -980,6 +988,8 @@ inbox_receipt: {receipt}
 			(root / "tasks" / old_ids[0] / "task.md").write_text(
 				f"# {old_ids[0]}\n", encoding="utf-8",
 			)
+			git(root, "add", "-A")
+			git(root, "commit", "-m", "Restore retained content")
 
 			dependent = root / "tasks" / "2026/07/20/racing-dependent"
 			dependent.mkdir(parents=True)
@@ -1185,6 +1195,21 @@ inbox_receipt: receipts/2026/07/18/test.md
 			self.assertEqual(report["unavailable_source_tasks"], [])
 			self.assertIn("with-dependency", report["compatible_local_branches"])
 
+			result_path = dependency / "work" / "result.md"
+			result_path.parent.mkdir()
+			result_path.write_text(
+				"Outcome: already-satisfied\n",
+				encoding="utf-8",
+			)
+			report = workspace.source_lineage_report(
+				config,
+				slot,
+				TASK_ID,
+			)
+			self.assertTrue(report["current_satisfies"])
+			self.assertEqual(report["required_source_tasks"], [])
+			result_path.unlink()
+
 			git(source, "switch", "with-dependency")
 			report = workspace.source_lineage_report(
 				config,
@@ -1264,9 +1289,16 @@ inbox_receipt: receipts/2026/07/18/test.md
 			(directory / "work" / "result.md").write_text(
 				f"""# Task result: {TASK_ID}
 STATUS: DONE
+Outcome: changed
+Touched: tracked.txt
 Verdict: APPROVED
+Test-Report: work/test.md
 Checkout: clean-buildable
 """,
+				encoding="utf-8",
+			)
+			(directory / "work" / "test.md").write_text(
+				"# Adaptive evidence\n",
 				encoding="utf-8",
 			)
 			with (
@@ -2668,70 +2700,63 @@ class MechanicsTest(unittest.TestCase):
 						mark_green=False,
 					)
 
-	def test_verification_task_cannot_commit_telegram_source(self):
+	def test_already_satisfied_source_state_requires_baseline(self):
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary)
-			source, slot, work, config = source_repo_with_task(root, kind="verify")
-			(work / "owned-paths.txt").write_text(
-				"tracked.txt\n", encoding="utf-8",
-			)
-			(source / "tracked.txt").write_text("task\n", encoding="utf-8")
-			with mock.patch.object(
-				workspace, "task_action_config", return_value=(config, slot),
-			):
-				with self.assertRaisesRegex(workspace.WorkspaceError, "follow-up"):
-					run_command(
-						workspace.command_source_commit,
-						task=TASK_ID,
-						subject="Correct peer actions",
-						mark_green=False,
-					)
-			self.assertEqual(
-				git(source, "show", "-s", "--format=%s", "HEAD"),
-				"Create baseline",
-			)
-
-	def test_verification_source_state_requires_an_untouched_baseline(self):
-		with tempfile.TemporaryDirectory() as temporary:
-			root = Path(temporary)
-			source, _, _, config = source_repo_with_task(root, kind="verify")
+			source, _, _, config = source_repo_with_task(root)
 			for name in ("base", "run"):
 				git(source, "update-ref", workspace.source_task_ref(TASK_ID, name), "HEAD")
-			workspace.validate_source_state(config, TASK_ID, True, "verify")
+			workspace.validate_source_state(config, TASK_ID, False)
 
 			(source / "tracked.txt").write_text("task\n", encoding="utf-8")
 			git(source, "commit", "-am", "Correct peer actions", "-m", f"Task: {TASK_ID}")
-			git(source, "update-ref", workspace.source_task_ref(TASK_ID, "run"), "HEAD")
-			with self.assertRaisesRegex(workspace.WorkspaceError, "local baseline"):
-				workspace.validate_source_state(config, TASK_ID, True, "verify")
-
-			git(source, "update-ref", workspace.source_task_ref(TASK_ID, "green"), "HEAD")
-			with self.assertRaisesRegex(workspace.WorkspaceError, "implementation commit"):
-				workspace.validate_source_state(config, TASK_ID, True, "verify")
+			for name in ("green", "run"):
+				git(source, "update-ref", workspace.source_task_ref(TASK_ID, name), "HEAD")
+			with self.assertRaisesRegex(workspace.WorkspaceError, "already-satisfied"):
+				workspace.validate_source_state(config, TASK_ID, False)
 			workspace.validate_source_state(config, TASK_ID, True)
 
-	def test_verification_result_contract(self):
+	def test_adaptive_outcome_result_contract(self):
 		path = Path("work/result.md")
+		workspace.validate_outcome_result([
+			"Outcome: changed",
+			"Touched: tracked.txt",
+			"Test-Report: work/test.md",
+		], path, True)
+		workspace.validate_outcome_result([
+			"Outcome: already-satisfied",
+			"Touched: none",
+			"Test-Report: work/test.md",
+		], path, True)
+		workspace.validate_outcome_result([
+			"Outcome: blocked",
+			"Touched: none",
+		], path, False)
 
-		def check(lines, approved=True):
-			workspace.validate_verify_result(lines, path, approved)
-
-		check(["Touched: none", "Finding: confirmed"])
-		check(["Touched: none", "Finding: deviation", "Discovered: present"])
-		check(["Touched: none", "Finding: inconclusive"], approved=False)
-
+		with self.assertRaisesRegex(workspace.WorkspaceError, "adaptive evidence"):
+			workspace.validate_outcome_result([
+				"Outcome: changed",
+				"Touched: tracked.txt",
+			], path, True)
+		with self.assertRaisesRegex(workspace.WorkspaceError, "touched paths"):
+			workspace.validate_outcome_result([
+				"Outcome: changed",
+				"Touched: none",
+				"Test-Report: work/test.md",
+			], path, True)
 		with self.assertRaisesRegex(workspace.WorkspaceError, "Touched: none"):
-			check(["Touched: Telegram/SourceFiles/main.cpp", "Finding: confirmed"])
-		with self.assertRaisesRegex(workspace.WorkspaceError, "exactly one Finding"):
-			check(["Touched: none"])
-		with self.assertRaisesRegex(workspace.WorkspaceError, "exactly one Finding"):
-			check(["Touched: none", "Finding: probably-fine"])
-		with self.assertRaisesRegex(workspace.WorkspaceError, "discovered follow-up"):
-			check(["Touched: none", "Finding: deviation", "Discovered: none"])
-		with self.assertRaisesRegex(workspace.WorkspaceError, "never approved"):
-			check(["Touched: none", "Finding: inconclusive"])
-		with self.assertRaisesRegex(workspace.WorkspaceError, "could not measure"):
-			check(["Touched: none", "Finding: deviation"], approved=False)
+			workspace.validate_outcome_result([
+				"Outcome: already-satisfied",
+				"Touched: tracked.txt",
+				"Test-Report: work/test.md",
+			], path, True)
+		with self.assertRaisesRegex(workspace.WorkspaceError, "Outcome must be"):
+			workspace.validate_outcome_result([
+				"Outcome: blocked",
+				"Touched: none",
+				"Test-Report: work/test.md",
+			], path, True)
+
 
 	def test_test_block_requires_real_recovery_exhaustion(self):
 		with tempfile.TemporaryDirectory() as temporary:
@@ -2796,12 +2821,16 @@ class MechanicsTest(unittest.TestCase):
 			self.assertEqual(state["type"], "implement")
 
 			workspace.update_state(directory / "state.yaml", {"type": "verify"})
+			with self.assertRaisesRegex(workspace.WorkspaceError, "Only type 'implement'"):
+				workspace.load_state(slot, directory / "state.yaml")
+
+			workspace.update_state(directory / "state.yaml", {"status": "approved"})
 			state = workspace.load_state(slot, directory / "state.yaml")
 			self.assertEqual(state["type"], "verify")
 			text = (directory / "state.yaml").read_text(encoding="utf-8")
 			self.assertEqual(
 				text.splitlines()[:2],
-				["status: todo", "type: verify"],
+				["status: approved", "type: verify"],
 			)
 
 			workspace.update_state(directory / "state.yaml", {"type": "guess"})

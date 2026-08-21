@@ -33,18 +33,18 @@ approved history, create or move projects, or change the meaning of a request.
 
 ## Inventory and eligibility
 
-Refresh canonical AI state. Inventory every task's id, status, ownership, type,
+Refresh canonical AI state. Inventory every task's id, status, ownership,
 project, dependencies, and tracked task-directory contents. Partition all
 mergeable work by this exact key:
 
 1. the same project slug, or `project: null` for every member;
-2. the same `type` (`implement`, `verify`, or `minimal`);
-3. the same scheduler membership: every member is in the current batch, or no
+2. the same scheduler membership: every member is in the current batch, or no
    member is in it.
 
-Never merge across projects, between a project and standalone work, across task
-types, or across the frozen-batch boundary. Named projects and standalone work
-are separate lineages even when their files overlap.
+Never merge across projects, between a project and standalone work, or across
+the frozen-batch boundary. Named projects and standalone work are separate
+lineages even when their files overlap. Every unfinished task uses
+`type: implement`; historical approved task types never enter a candidate set.
 
 A candidate must be `status: todo`, `claimed_by: null`, with `claimed_at`,
 `claim_order`, `lease_until`, and `phase` all `null`. It must have no tracked
@@ -76,7 +76,7 @@ signals include:
 - one fixture, account state, overlay, process lifetime, or UI navigation can
   exercise all acceptance criteria;
 - one implementation naturally establishes several requested invariants;
-- verification tasks measure the same parent diff, state machine, or tightly
+- coverage tasks measure the same parent diff, state machine, or tightly
   related surfaces from one instrumented run;
 - the combined work can use one coherent plan, review, Debug build, and test
   loop instead of merely running unrelated jobs back to back.
@@ -88,21 +88,16 @@ not why they happen to resemble each other.
 Keep tasks separate when the merged title and plan would be artificial, the
 parts need independent designs or incompatible fixtures, one part materially
 interferes with another's measurement, the work has a real sequential product
-boundary, or the result would no longer fit one normal implementation or
-verification pass. Same project alone is not enough. Record close candidates
+boundary, or the result would no longer fit one normal adaptive implementation
+pass. Same project alone is not enough. Record close candidates
 left separate and the concrete reason; do not use vague labels such as
 "unrelated" or "too large".
 
-For `verify` clusters, retain each claim's own parent-diff boundary and revert
+For coverage clusters, retain each claim's own parent-diff boundary and revert
 test. A union of dependencies or paths is not a new scope boundary. Combining
-verification saves setup; it never widens what shipped behavior is owed and
-never permits a source change. Do not combine `verify` with `implement`; a
-verification finding routes its repair through the normal later pipeline.
-
-For `minimal` clusters, the replacement stays `minimal` only when the merged
-work still fits every minimal bound in the AI repository's `AGENTS.md`;
-otherwise type the replacement `implement`. The partition key already forbids
-merging `minimal` with `implement` or `verify`.
+them saves setup; it never widens what shipped behavior each source task owes.
+If a measurement finds a deviation, the adaptive task may repair it in the same
+run.
 
 ## Build replacement tasks
 
@@ -111,7 +106,7 @@ status, but old task ids are durable: never delete their directories. Use a
 concise imperative slug with the normal same-day collision suffix and write
 canonical `task.md` plus `state.yaml`:
 
-- `status: todo`, the shared source `type` and `project`, and all ownership and
+- `status: todo`, `type: implement`, the shared `project`, and all ownership and
   phase fields `null`;
 - `created` equal to the local consolidation date;
 - `depends_on` equal to the stable union of external source dependencies, with
@@ -137,7 +132,7 @@ project: project-slug
 content_sha256: <helper-output>
 ```
 
-Use the actual shared type and `project: null` where appropriate. The queue sees
+Use `type: implement` and `project: null` where appropriate. The queue sees
 only directories with `state.yaml`, while the workspace resolver follows
 `superseded.yaml` chains. This preserves old receipt links, deduplication paths,
 human bookmarks, original wording, and inputs without leaving duplicate live
@@ -152,10 +147,9 @@ and input. Exact duplicate criteria may collapse to the strongest version only
 when the receipt maps every source criterion to it and explains why nothing was
 lost. Never generalize precise readings into a weaker umbrella criterion.
 
-For a combined verification with several parent tasks, give each part its own
+For a combined coverage task with several parent tasks, give each part its own
 scope boundary and dependency statement. Explicitly state that their union is
-not the boundary of any individual claim. Preserve the no-implementation and
-no-Telegram-commit contract once for the whole task.
+not the boundary of any individual claim.
 
 Copy supplied files into the replacement's `input/` using collision-safe names,
 rewrite all links, and map every old file to the new path in the receipt. If an
@@ -175,7 +169,7 @@ and consolidation time. Include:
 
 - trigger source task, local time, checkout tag, and newly routed ids;
 - the eligible inventory and every selected or rejected close cluster;
-- exact old-to-new mapping, project, type, and batch-membership class;
+- exact old-to-new mapping, project, and batch-membership class;
 - shared setup that justifies each merge and the fixed-cost saving it creates;
 - per-criterion and load-bearing-context accounting;
 - dependency unions, dependent rewrites, inputs, project-index changes, and all
@@ -183,13 +177,13 @@ and consolidation time. Include:
 
 Keep the proposal in worker context or an ignored temporary file. Immediately
 before writing tracked files, refresh canonical state and re-read every source
-and rewritten dependent. If any status, owner, type, project, dependency, or
+and rewritten dependent. If any status, owner, project, dependency, or
 tracked task contents changed, write nothing and return `RACED`, leaving the
 pending marker for a later invocation. Apply all selected clusters only after
 this safety check; never produce a partial consolidation.
 
 Validate that every replacement is an unclaimed `todo`, every source criterion
-and input is accounted for, all dependencies and links exist, project/type
+and input is accounted for, all dependencies and links exist, project
 boundaries hold, no old id remains as a live dependency or project link, every
 alias chain reaches a live task, every retained-content fingerprint still
 matches, and the complete live dependency graph is acyclic. Preserve native

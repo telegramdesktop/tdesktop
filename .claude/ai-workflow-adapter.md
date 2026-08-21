@@ -31,10 +31,11 @@ This file adapts harness mechanics and removes unnecessary text normalization.
   five-minute stall windows in the shared references are Codex-only mechanics
   and do not apply in Claude Code. Leaves still write their progress files
   (they are cheap resumability evidence), but the performer never polls them.
-- Run the independent leaves of one step — the review lenses plus the
-  iteration-1 test-design leaf, or assessed-disjoint implementation units —
-  as parallel Agent calls in a single message so they run concurrently and
-  all return together.
+- Run independent leaves that truly share one step — the selected specialist
+  reviews in an iteration, or assessed-disjoint implementation units — as
+  parallel Agent calls in a single message so they run concurrently and all
+  return together. Run the mandatory general reviewer only after the selected
+  specialist reports exist.
 - A long Debug build may run as background Bash; the harness re-invokes the
   session when a background command exits, so do not poll its log with sleep
   loops either.
@@ -120,4 +121,4 @@ treat that particular driver as unavailable unless an equivalent UI-driver
 tool is actually exposed in the current session. Preserve the same policy:
 `auto` uses the already planned overlay fallback, while `required` reports the
 exact unverified interaction. Driver availability never permits skipping the
-ordinary overlay test loop, account setup, evidence, or safety rules.
+selected runtime, overlay, account-safety, evidence, or other safety checks.
