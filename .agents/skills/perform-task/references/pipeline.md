@@ -469,14 +469,19 @@ Every implementation or implementation-fix commit message is exactly:
 Task: <full TASK_ID>
 ```
 
-Determine the prefix from the retained task implementation, not from the
-temporary test overlay. Start the subject with exactly `[ai] ` when the task
-changes permanent test-helper code, the agent harness, or agent documentation
-in any way. This includes `Telegram/SourceFiles/test/`, `.agents/`, `.claude/`,
-`.grok/`, `AGENTS.md`, `CLAUDE.md`, `GROK.md`, and files whose sole role
-is supporting those systems. The disposable test overlay and external AI task artifacts do not
-count. For every other task, the subject must not contain `[ai]` anywhere. The
-prefix counts toward the subject length.
+Determine the prefix separately for each retained commit, not once for the
+whole task and not from the temporary test overlay. Start the subject with
+exactly `[ai] ` only when every retained change in that commit, and the commit's
+purpose, are exclusively about the AI workflow: the agent harness, skills,
+prompts, custom commands, agent documentation, or AI testing infrastructure.
+Typical qualifying paths include `Telegram/SourceFiles/test/`, `.agents/`,
+`.claude/`, `.grok/`, `AGENTS.md`, `CLAUDE.md`, and `GROK.md`, but paths alone
+do not decide the prefix. Product-specific test seams, app code, and build-system
+integration do not qualify merely because agents use them for verification.
+Split mixed workflow and product work into separate implementation commits when
+practical; otherwise the mixed commit must not use `[ai] `. The disposable test
+overlay and external AI task artifacts do not count. Every other commit must not
+contain `[ai]` anywhere. The prefix counts toward the subject length.
 
 Do not add a body, `Autotask:`, attempt marker, `Co-Authored-By:`, assistant
 attribution, or any other trailer. Track rationale in the AI task. If a short

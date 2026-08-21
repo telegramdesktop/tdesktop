@@ -13,8 +13,9 @@ continue with other queue work, route discoveries, or consolidate pending tasks
 afterward; those post-result phases belong to the `continue` scheduler.
 
 Apply the shared pipeline's conditional `[ai] ` commit-subject rule exactly;
-the prefix is required for permanent test-helper or agent harness/documentation
-changes and forbidden for every other task.
+decide it per commit, require it only when all changes and the purpose are
+exclusively AI workflow or infrastructure, and forbid it for product or mixed
+commits.
 
 Apply the shared source-lineage gate before Phase 1 and pass explicit source
 task requirements to `start` or `retry`. A pre-Phase-1 mismatch returns the

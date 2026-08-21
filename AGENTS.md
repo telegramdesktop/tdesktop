@@ -182,14 +182,18 @@ user to close that checkout's Telegram/debugger before rebuilding.
 ## Commits
 
 - Subject: one concise, plain-language line summarizing the change, ~50-60 characters, matching the style of recent `git log` subjects. This is usually the entire message.
-- For an `ai-tdesktop` task, start the subject with exactly `[ai] ` when the
-  retained task implementation changes permanent test-helper code, the agent
-  harness, or agent documentation in any way. This includes
-  `Telegram/SourceFiles/test/`, `.agents/`, `.claude/`, `.grok/`,
-  `AGENTS.md`, `CLAUDE.md`, `GROK.md`, and files whose sole role is
-  supporting those systems. Do not
-  count the disposable test overlay or external AI task artifacts. For every
-  other task, the subject must not contain `[ai]` anywhere.
+- Decide the `[ai] ` prefix separately for each commit. Use it only when every
+  retained change in that commit, and the commit's purpose, are exclusively
+  about the AI workflow: the agent harness, skills, prompts, custom commands,
+  agent documentation, or AI testing infrastructure. Typical qualifying paths
+  include `Telegram/SourceFiles/test/`, `.agents/`, `.claude/`, `.grok/`,
+  `AGENTS.md`, `CLAUDE.md`, and `GROK.md`, but paths alone do not decide the
+  prefix. Product-specific test seams, app code, and build-system integration do
+  not qualify merely because agents use them for verification. Split mixed
+  workflow and product work into separate commits when practical; otherwise the
+  mixed commit must not use `[ai] `. Do not count the disposable test overlay or
+  external AI task artifacts. Every other commit must not contain `[ai]`
+  anywhere.
 - For ordinary work not associated with an AI task, add a short plain-language body only when the subject can't carry it (what was done, not the technical how) — a line or two at most.
 - Never add a `Co-Authored-By:` line or any tool/assistant attribution trailer.
 - Never add `Autotask:`/attempt or other internal run markers. A commit owned by

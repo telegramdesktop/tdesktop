@@ -14,9 +14,9 @@ consolidate pending tasks afterward; those post-result phases belong to the
 `continue` scheduler.
 
 Apply the shared pipeline's conditional `[ai] ` commit-subject rule exactly;
-the prefix is required for permanent test-helper or agent harness or
-documentation changes and forbidden for every other task. Count `.grok/`
-with `.agents/` and `.claude/` for that prefix.
+decide it per commit, require it only when all changes and the purpose are
+exclusively AI workflow or infrastructure, and forbid it for product or mixed
+commits. Count `.grok/` with `.agents/` and `.claude/` for that decision.
 
 This session is the performer, so leaf delegation is available. Delegate
 phases with blocking `spawn_subagent` calls per the adapter; leaf phase
