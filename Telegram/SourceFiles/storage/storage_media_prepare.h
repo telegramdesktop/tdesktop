@@ -34,6 +34,7 @@ enum class MimeDataState {
 	MediaFiles,
 	//PremiumFile,
 	Image,
+	Folder,
 };
 
 [[nodiscard]] std::optional<Ui::PreparedList> PreparedFileFromFilesDialog(

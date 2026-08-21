@@ -905,6 +905,8 @@ void SendFilesBox::setupDragArea() {
 			? (_sendWay.current().sendImagesAsPhotos()
 				? DragState::Image
 				: DragState::Files)
+			: (state == DragState::Folder)
+			? DragState::None
 			: state;
 	};
 	const auto areas = DragArea::SetupDragAreaToContainer(

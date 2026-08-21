@@ -135,6 +135,7 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 		break;
 		case DragState::PhotoFiles:
 		case DragState::MediaFiles:
+		case DragState::Folder:
 			attachDragDocument->resize(
 				width() - horizontalMargins,
 				(height() - verticalMargins) / 2);
@@ -174,6 +175,20 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 					: tr::lng_drag_to_send_files(tr::now));
 			attachDragDocument->otherEnter();
 			attachDragPhoto->hideFast();
+		break;
+		case DragState::Folder:
+			attachDragDocument->setText(
+				tr::lng_drag_folder_here(tr::now),
+				hideSubtext
+					? QString()
+					: tr::lng_drag_to_send_folder_files(tr::now));
+			attachDragPhoto->setText(
+				tr::lng_drag_folder_here(tr::now),
+				hideSubtext
+					? QString()
+					: tr::lng_drag_to_send_folder(tr::now));
+			attachDragDocument->otherEnter();
+			attachDragPhoto->otherEnter();
 		break;
 		case DragState::PhotoFiles:
 			attachDragDocument->setText(

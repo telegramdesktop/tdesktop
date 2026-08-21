@@ -5917,11 +5917,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_drag_photos_here" = "Drop photos here";
 "lng_drag_files_here" = "Drop files here";
 "lng_drag_media_here" = "Drop photos and videos";
+"lng_drag_folder_here" = "Drop folder here";
 
 "lng_drag_to_send_quick" = "to send them in a quick way";
 "lng_drag_to_send_no_compression" = "to send them without compression";
 "lng_drag_to_send_files" = "to send them as documents";
 "lng_drag_to_send_media" = "to send them as media files";
+"lng_drag_to_send_folder" = "to send it as an archive";
+"lng_drag_to_send_folder_files" = "to send all its files";
 
 "lng_drag_proxy_here" = "Connect to a proxy";
 "lng_drag_proxy_about" = "Drop the link here";
