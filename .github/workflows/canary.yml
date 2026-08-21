@@ -2,12 +2,16 @@
 # universal macOS, Linux x64 through docker), signed, packed as v2
 # updates and published via a local Bot API server.
 #
-# Each repository builds exactly ONE lane. The lane follows repository
-# visibility (public repo -> canary-public, private repo ->
-# canary-private) and can be overridden with the repository variable
-# CANARY_CHANNEL ("public" or "private"); the private lane refuses to
-# run from a public repository no matter what. A repository holds only
-# its own lane's secrets.
+# Each repository builds exactly ONE lane from its own branch: the
+# public repository builds canary-public from 'public-canary', the
+# private one builds canary-private from 'private-canary'. The lane
+# follows repository visibility and can be overridden with the
+# repository variable CANARY_CHANNEL ("public" or "private"); the branch
+# name must then be '<lane>-canary', so a branch pushed to the wrong
+# repository is refused, and the private lane refuses to run from a
+# public repository no matter what. A repository holds only its own
+# lane's secrets, and its 'canary' environment admits only its own
+# branch.
 #
 # Infrastructure this workflow needs before its first real run, all under
 # the 'canary' environment unless noted. Placeholders, do not invent values:
@@ -93,7 +97,8 @@ name: Canary.
 on:
   push:
     branches:
-      - canary
+      - public-canary
+      - private-canary
 
 concurrency:
   group: canary-publish
@@ -111,8 +116,12 @@ jobs:
     runs-on: depot-ubuntu-latest
     environment: canary
     # Belt and braces next to the environment branch policy: the secrets
-    # are never even requested from a run that is not a push to canary.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/canary'
+    # are never even requested from a run that is not a push to a canary
+    # branch (the lane check below then pins the branch to the lane).
+    if: >-
+      github.event_name == 'push'
+      && (github.ref == 'refs/heads/public-canary'
+      || github.ref == 'refs/heads/private-canary')
 
     permissions:
       contents: read
@@ -135,7 +144,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           # Full history: the changelog walks commits and the pipeline
-          # must survive force-pushes and rebases of the canary branch.
+          # must survive force-pushes and rebases of the lane's branch.
           fetch-depth: 0
 
       - name: Compute canary version.
@@ -155,9 +164,9 @@ jobs:
         run: |
           # A re-run of an older run would read the live counter and
           # republish old code as a newer version: only the current tip
-          # of the canary branch may become a canary.
-          if [ "$GITHUB_SHA" != "$(git rev-parse origin/canary)" ]; then
-            echo "::error::$GITHUB_SHA is not the tip of canary, refusing to publish old code as a new version."
+          # of the lane's branch may become a canary.
+          if [ "$GITHUB_SHA" != "$(git rev-parse "origin/$GITHUB_REF_NAME")" ]; then
+            echo "::error::$GITHUB_SHA is not the tip of $GITHUB_REF_NAME, refusing to publish old code as a new version."
             exit 1
           fi
 
@@ -178,6 +187,10 @@ jobs:
           esac
           if [ "$CHANNEL" = "private" ] && [ "$REPO_IS_PRIVATE" != "true" ]; then
             echo "::error::The private canary lane only builds from the private repository."
+            exit 1
+          fi
+          if [ "$GITHUB_REF_NAME" != "$CHANNEL-canary" ]; then
+            echo "::error::Branch '$GITHUB_REF_NAME' is not this repository's $CHANNEL lane branch ('$CHANNEL-canary'), refusing to build it here."
             exit 1
           fi
           echo "channel=$CHANNEL" >> $GITHUB_OUTPUT
@@ -254,7 +267,7 @@ jobs:
           PREVIOUS=$(curl -sf \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/canary.yml/runs?branch=canary&status=completed&per_page=5" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/canary.yml/runs?branch=$GITHUB_REF_NAME&status=completed&per_page=5" \
             | jq -r --argjson id "$GITHUB_RUN_ID" \
               '[.workflow_runs[] | select(.id != $id)][0].head_sha // empty' \
             || true)

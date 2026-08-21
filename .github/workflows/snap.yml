@@ -2,9 +2,10 @@ name: Snap.
 
 on:
   push:
-    # Pushes to canary run only canary.yml, see there.
+    # Pushes to the canary branches run only canary.yml, see there.
     branches-ignore:
-      - canary
+      - public-canary
+      - private-canary
     paths-ignore:
       - 'docs/**'
       - '**.md'
