@@ -1711,6 +1711,15 @@ bool Document::updateStatusText() const {
 	if (statusSize != _statusSize) {
 		setStatusSize(statusSize, realDuration);
 	}
+	if (_data->uploading() && _data->uploadingData->preparing) {
+		const auto percent = int(base::SafeRound(
+			_data->uploadingData->prepareProgress * 100));
+		_statusText = tr::lng_send_video_preparing(
+			tr::now,
+			lt_progress,
+			QString::number(percent));
+		_statusSize = Ui::FileStatusSizeReady;
+	}
 	return showPause;
 }
 

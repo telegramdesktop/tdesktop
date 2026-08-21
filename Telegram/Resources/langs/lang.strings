@@ -8755,6 +8755,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rich_paste_toast_undo" = "Undo";
 "lng_rich_paste_toast_apply" = "Apply";
 
+"lng_folder_archive_failed" = "Failed to create archive.";
 "lng_folder_archive_status" = "ZIP archive";
 
 // Keys finished

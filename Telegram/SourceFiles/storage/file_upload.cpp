@@ -9,13 +9,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_editing.h"
 #include "api/api_send_progress.h"
+#include "boxes/abstract_box.h"
+#include "boxes/premium_limits_box.h"
+#include "lang/lang_keys.h"
 #include "storage/localimageloader.h"
 #include "storage/file_download.h"
+#include "storage/storage_folder_archive.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
+#include "ui/chat/attach/attach_prepare.h"
 #include "ui/image/image_location_factory.h"
+#include "ui/toast/toast.h"
 #include "history/history_item.h"
 #include "history/history.h"
 #include "core/file_location.h"
@@ -324,7 +330,8 @@ void Uploader::upload(
 		document->uploadingData = std::make_unique<Data::UploadState>(
 			document->size);
 		preparing = (file->animationJob != nullptr)
-			|| (file->videoSource != nullptr);
+			|| (file->videoSource != nullptr)
+			|| (file->archive != nullptr);
 		if (preparing) {
 			document->uploadingData->preparing = true;
 		}
@@ -386,22 +393,30 @@ void Uploader::upload(
 }
 
 void Uploader::startTranscode(FullMsgId itemId) {
-	_transcodeQueue.push_back(itemId);
-	maybeStartTranscode();
+	const auto i = ranges::find(_queue, itemId, &Entry::itemId);
+	Assert(i != end(_queue));
+	auto &queue = i->file->archive ? _archiveQueue : _transcodeQueue;
+	queue.list.push_back(itemId);
+	maybeStartTranscode(queue);
 }
 
 void Uploader::maybeStartTranscode() {
-	if (_transcodeRunning) {
+	maybeStartTranscode(_transcodeQueue);
+	maybeStartTranscode(_archiveQueue);
+}
+
+void Uploader::maybeStartTranscode(PrepareQueue &queue) {
+	if (queue.running) {
 		return;
 	}
-	while (!_transcodeQueue.empty()) {
-		const auto itemId = _transcodeQueue.front();
-		_transcodeQueue.pop_front();
+	while (!queue.list.empty()) {
+		const auto itemId = queue.list.front();
+		queue.list.pop_front();
 		const auto i = ranges::find(_queue, itemId, &Entry::itemId);
 		if (i == end(_queue) || !i->preparing) {
 			continue;
 		}
-		_transcodeRunning = true;
+		queue.running = true;
 		runTranscode(itemId);
 		return;
 	}
@@ -414,9 +429,16 @@ void Uploader::runTranscode(FullMsgId itemId) {
 	const auto file = entry.file;
 	const auto source = file->videoSource;
 	const auto job = file->animationJob;
+	const auto archiveWork = (file->archive != nullptr);
+	const auto archiveLimit = session().premium()
+		? kFileSizePremiumLimit
+		: kFileSizeLimit;
 	const auto cancel = std::make_shared<std::atomic<bool>>(false);
 	entry.cancelPreparing = cancel;
-	crl::async([=, weak = base::make_weak(this)]() mutable {
+	crl::async([
+		=,
+		entries = base::take(file->archiveEntries),
+		weak = base::make_weak(this)]() mutable {
 		auto lastReported = -1.;
 		const auto progress = [&](float64 value) {
 			if (value - lastReported >= 0.01 || value >= 1.) {
@@ -429,6 +451,8 @@ void Uploader::runTranscode(FullMsgId itemId) {
 		};
 		auto bytes = QByteArray();
 		auto path = QString();
+		auto archiveStatus = ArchiveWriteResult::Status::Done;
+		auto archiveSize = int64();
 		if (job) {
 			auto result = Media::Encode::Run(
 				Media::Encode::Job(*job),
@@ -447,6 +471,14 @@ void Uploader::runTranscode(FullMsgId itemId) {
 			bytes = std::move(result.bytes);
 		} else if (source) {
 			path = Media::Encode::TranscodeVideo(*source, progress).path;
+		} else if (entries) {
+			const auto written = WriteArchive(
+				std::move(*entries),
+				archiveLimit,
+				progress);
+			archiveStatus = written.status;
+			archiveSize = written.size;
+			path = written.path;
 		}
 		crl::on_main([=, bytes = std::move(bytes)]() mutable {
 			const auto strong = weak.get();
@@ -456,11 +488,28 @@ void Uploader::runTranscode(FullMsgId itemId) {
 				}
 				return;
 			}
-			strong->_transcodeRunning = false;
-			if (cancel->load()) {
+			auto &prepareQueue = archiveWork
+				? strong->_archiveQueue
+				: strong->_transcodeQueue;
+			prepareQueue.running = false;
+			using Status = ArchiveWriteResult::Status;
+			if (cancel->load() || archiveStatus == Status::Cancelled) {
 				if (!path.isEmpty()) {
 					QFile::remove(path);
 				}
+			} else if (archiveStatus != Status::Done) {
+				if (archiveStatus == Status::TooLarge) {
+					Ui::show(
+						Box(
+							FileSizeLimitBox,
+							&strong->session(),
+							uint64(archiveSize),
+							nullptr),
+						Ui::LayerOption::KeepOther);
+				} else {
+					Ui::Toast::Show(tr::lng_folder_archive_failed(tr::now));
+				}
+				strong->failed(itemId);
 			} else {
 				strong->finishTranscode(itemId, std::move(bytes), path);
 			}
@@ -910,7 +959,8 @@ void Uploader::clear() {
 			entry.cancelPreparing->store(true);
 		}
 	}
-	_transcodeQueue.clear();
+	_transcodeQueue.list.clear();
+	_archiveQueue.list.clear();
 	_queue.clear();
 	cancelAllRequests();
 	stopSessions();

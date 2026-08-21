@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_prepare.h"
 #include "lang/lang_keys.h"
 #include "storage/file_download.h"
+#include "storage/storage_folder_archive.h"
 #include "storage/storage_media_prepare.h"
 #include "window/themes/window_theme_preview.h"
 #include "mainwidget.h"
@@ -521,7 +522,8 @@ FileLoadTask::FileLoadTask(Args &&args)
 , _spoiler(args.spoiler)
 , _forceFile(args.forceFile)
 , _sendLargePhotos(args.sendLargePhotos)
-, _animationJob(std::move(args.animationJob)) {
+, _animationJob(std::move(args.animationJob))
+, _archive(std::move(args.archive)) {
 	Expects(_to.options.scheduled
 		|| _to.options.shortcutId
 		|| !_to.replaceMediaOf
@@ -825,6 +827,18 @@ void FileLoadTask::process(ProcessArgs &&args) {
 			QString(),
 			true);
 		filemime = "video/mp4";
+	} else if (_archive) {
+		if (auto entries = Storage::GatherArchiveEntries(*_archive)) {
+			filesize = Storage::ArchiveSizeEstimate(*entries);
+			_result->archiveEntries
+				= std::make_shared<Storage::ArchiveEntries>(
+					std::move(*entries));
+		}
+		filename = _displayName.isEmpty()
+			? u"Archive.zip"_q
+			: _displayName;
+		filemime = u"application/zip"_q;
+		_result->archive = _archive;
 	} else if (!_content.isEmpty()) {
 		filesize = _content.size();
 		if (isVoice) {
@@ -1230,8 +1244,9 @@ void FileLoadTask::finish() {
 	const auto premium = session->user()->isPremium();
 	if (!_result || !_result->filesize || _result->filesize < 0) {
 		Ui::show(
-			Ui::MakeInformBox(
-				tr::lng_send_image_empty(tr::now, lt_name, _filepath)),
+			Ui::MakeInformBox((_result && _result->archive)
+				? tr::lng_folder_archive_failed(tr::now)
+				: tr::lng_send_image_empty(tr::now, lt_name, _filepath)),
 			Ui::LayerOption::KeepOther);
 		removeFromAlbum();
 	} else if (_result->filesize > kFileSizePremiumLimit
