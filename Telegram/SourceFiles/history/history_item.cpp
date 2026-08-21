@@ -451,10 +451,19 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 			qs(media.vemoticon()),
 			media.vvalue().v);
 	}, [&](const MTPDmessageMediaStory &media) -> Result {
-		return std::make_unique<Data::MediaStory>(item, FullStoryId{
+		const auto storyId = FullStoryId{
 			peerFromMTP(media.vpeer()),
 			media.vid().v,
-		}, media.is_via_mention());
+		};
+		if (const auto embed = media.vstory()) {
+			item->history()->owner().stories().applySingle(
+				storyId.peer,
+				*embed);
+		}
+		return std::make_unique<Data::MediaStory>(
+			item,
+			storyId,
+			media.is_via_mention());
 	}, [&](const MTPDmessageMediaGiveaway &media) -> Result {
 		return std::make_unique<Data::MediaGiveawayStart>(
 			item,
