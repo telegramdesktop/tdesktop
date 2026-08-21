@@ -166,19 +166,15 @@ WrapWidget::WrapWidget(
 		sublist->destroyed(
 		) | rpl::on_next([=] {
 			const auto parent = _controller->parentController();
-			if (_wrap.current() == Wrap::Layer) {
-				parent->hideSpecialLayer();
-			} else if (_wrap.current() == Wrap::Narrow) {
-				parent->showBackFromStack(
-					Window::SectionShow(
-						anim::type::instant,
-						anim::activation::background));
-				parent->clearSectionStack(Window::SectionShow(
-					Window::SectionShow::Way::ClearStack,
-					anim::type::instant));
-			} else {
-				_removeRequests.fire({});
-			}
+			parent->hideSpecialLayer();
+			parent->showBackFromStack(
+				Window::SectionShow(
+					anim::type::instant,
+					anim::activation::background));
+			parent->clearSectionStack(Window::SectionShow(
+				Window::SectionShow::Way::ClearStack,
+				anim::type::instant));
+			_removeRequests.fire({});
 		}, lifetime());
 	}
 }
