@@ -81,11 +81,12 @@ This session is the orchestrator and may spawn leaves.
 
 - Run each leaf as one blocking `spawn_subagent` with a self-contained
   prompt. Do not tell leaf phase agents to read this adapter.
-- Spawn independent leaves that truly share one step — the selected
+- Spawn independent leaves that truly share one step — the surviving
   specialist reviews in an iteration, or assessed-disjoint implementation
-  units — as parallel `spawn_subagent` calls in a single message. Run the
-  mandatory general reviewer only after the selected specialist reports
-  exist.
+  units — as parallel `spawn_subagent` calls in a single message. The
+  mandatory general reviewer is not one of them: it runs alone before them
+  to emit the retirement list, and alone again after their reports exist to
+  own the verdict.
 - If the first real leaf is rejected before work begins because nested
   delegation is unavailable, use the shared same-session fallback for
   the rest of the run.

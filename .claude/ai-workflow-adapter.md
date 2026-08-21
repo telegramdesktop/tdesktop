@@ -31,11 +31,12 @@ This file adapts harness mechanics and removes unnecessary text normalization.
   five-minute stall windows in the shared references are Codex-only mechanics
   and do not apply in Claude Code. Leaves still write their progress files
   (they are cheap resumability evidence), but the performer never polls them.
-- Run independent leaves that truly share one step — the selected specialist
+- Run independent leaves that truly share one step — the surviving specialist
   reviews in an iteration, or assessed-disjoint implementation units — as
   parallel Agent calls in a single message so they run concurrently and all
-  return together. Run the mandatory general reviewer only after the selected
-  specialist reports exist.
+  return together. The mandatory general reviewer is not one of them: it runs
+  alone before them to emit the retirement list, and alone again after their
+  reports exist to own the verdict.
 - A long Debug build may run as background Bash; the harness re-invokes the
   session when a background command exits, so do not poll its log with sleep
   loops either.
