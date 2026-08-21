@@ -50,6 +50,9 @@ public:
 	void setDroppedCallback(Fn<void(const QMimeData *data)> callback) {
 		_droppedCallback = std::move(callback);
 	}
+	void setArchiveDroppedCallback(Fn<void(const QMimeData *data)> callback) {
+		_archiveDroppedCallback = std::move(callback);
+	}
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -71,8 +74,10 @@ private:
 
 	bool _hiding = false;
 	bool _in = false;
+	bool _archiveDropped = false;
 	QPixmap _cache;
 	Fn<void(const QMimeData *data)> _droppedCallback;
+	Fn<void(const QMimeData *data)> _archiveDroppedCallback;
 
 	Ui::Animations::Simple _a_opacity;
 	Ui::Animations::Simple _a_in;

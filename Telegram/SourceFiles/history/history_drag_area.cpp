@@ -31,15 +31,38 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_window.h"
 
+#include <QtGui/QGuiApplication>
+
 namespace {
 
 constexpr auto kDragAreaEvents = {
 	QEvent::DragEnter,
+	QEvent::DragMove,
 	QEvent::DragLeave,
 	QEvent::Drop,
 	QEvent::MouseButtonRelease,
 	QEvent::Leave,
 };
+
+[[nodiscard]] Storage::MimeDataState PromoteToArchiveState(
+		Storage::MimeDataState state,
+		Qt::KeyboardModifiers modifiers) {
+	using DragState = Storage::MimeDataState;
+	if (!modifiers) {
+		return state;
+	}
+	return (state == DragState::PhotoFiles)
+		? DragState::PhotoFilesArchive
+		: (state == DragState::MediaFiles)
+		? DragState::MediaFilesArchive
+		: state;
+}
+
+[[nodiscard]] bool IsPromotedToArchive(Storage::MimeDataState state) {
+	using DragState = Storage::MimeDataState;
+	return (state == DragState::PhotoFilesArchive)
+		|| (state == DragState::MediaFilesArchive);
+}
 
 [[nodiscard]] QString DetectProxyLink(const QMimeData *data) {
 	if (!data) {
@@ -97,6 +120,8 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 
 	const auto attachDragState
 		= lifetime.make_state<DragState>(DragState::None);
+	const auto attachDragBaseState
+		= lifetime.make_state<DragState>(DragState::None);
 
 	const auto width = [=] {
 		return container->width();
@@ -134,7 +159,9 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 			moveToTop(attachDragDocument);
 		break;
 		case DragState::PhotoFiles:
+		case DragState::PhotoFilesArchive:
 		case DragState::MediaFiles:
+		case DragState::MediaFilesArchive:
 		case DragState::Folder:
 		case DragState::FilesArchive:
 			attachDragDocument->resize(
@@ -192,6 +219,7 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 			attachDragPhoto->otherEnter();
 		break;
 		case DragState::FilesArchive:
+		case DragState::MediaFilesArchive:
 			attachDragDocument->setText(
 				tr::lng_drag_files_here(tr::now),
 				hideSubtext
@@ -216,6 +244,20 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 				hideSubtext
 					? QString()
 					: tr::lng_drag_to_send_quick(tr::now));
+			attachDragDocument->otherEnter();
+			attachDragPhoto->otherEnter();
+		break;
+		case DragState::PhotoFilesArchive:
+			attachDragDocument->setText(
+				tr::lng_drag_images_here(tr::now),
+				hideSubtext
+					? QString()
+					: tr::lng_drag_to_send_no_compression(tr::now));
+			attachDragPhoto->setText(
+				tr::lng_drag_files_here(tr::now),
+				hideSubtext
+					? QString()
+					: tr::lng_drag_to_send_files_archive(tr::now));
 			attachDragDocument->otherEnter();
 			attachDragPhoto->otherEnter();
 		break;
@@ -253,6 +295,17 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 			|| !attachDragPhoto->isHidden()
 			|| !attachDragDocument->isHidden()) {
 			*attachDragState = DragState::None;
+			*attachDragBaseState = DragState::None;
+			updateDragAreas();
+		}
+	};
+
+	const auto applyDragModifiers = [=] {
+		const auto promoted = PromoteToArchiveState(
+			*attachDragBaseState,
+			QGuiApplication::queryKeyboardModifiers());
+		if (*attachDragState != promoted) {
+			*attachDragState = promoted;
 			updateDragAreas();
 		}
 	};
@@ -262,9 +315,12 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 			return;
 		}
 
-		*attachDragState = computeState
+		*attachDragBaseState = computeState
 			? computeState(e->mimeData())
 			: Storage::ComputeMimeDataState(e->mimeData());
+		*attachDragState = PromoteToArchiveState(
+			*attachDragBaseState,
+			QGuiApplication::queryKeyboardModifiers());
 		updateDragAreas();
 
 		if (*attachDragState != DragState::None) {
@@ -278,11 +334,16 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 	};
 
 	const auto dropEvent = [=](QDropEvent *e) {
+		// Dropped callback is called later, so save the mode.
+		attachDragPhoto->_archiveDropped = IsPromotedToArchive(
+			*attachDragState);
+
 		// Hide fast to avoid visual bugs in resizable boxes.
 		attachDragDocument->hideFast();
 		attachDragPhoto->hideFast();
 
 		*attachDragState = DragState::None;
+		*attachDragBaseState = DragState::None;
 		updateDragAreas();
 		e->setDropAction(Qt::CopyAction);
 		e->accept();
@@ -292,6 +353,9 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 		switch (event->type()) {
 		case QEvent::DragEnter:
 			dragEnterEvent(static_cast<QDragEnterEvent*>(event.get()));
+			return true;
+		case QEvent::DragMove:
+			applyDragModifiers();
 			return true;
 		case QEvent::DragLeave:
 			dragLeaveEvent(static_cast<QDragLeaveEvent*>(event.get()));
@@ -532,8 +596,11 @@ void DragArea::dragLeaveEvent(QDragLeaveEvent *e) {
 }
 
 void DragArea::dropEvent(QDropEvent *e) {
-	if (e->isAccepted() && _droppedCallback) {
-		_droppedCallback(e->mimeData());
+	const auto &callback = (_archiveDropped && _archiveDroppedCallback)
+		? _archiveDroppedCallback
+		: _droppedCallback;
+	if (e->isAccepted() && callback) {
+		callback(e->mimeData());
 	}
 }
 

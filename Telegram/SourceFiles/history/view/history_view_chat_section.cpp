@@ -6034,6 +6034,15 @@ void ChatWidget::setupDragArea() {
 	};
 	areas.document->setDroppedCallback(droppedCallback(false));
 	areas.photo->setDroppedCallback(droppedCallback(true));
+	areas.photo->setArchiveDroppedCallback([=](const QMimeData *data) {
+		const auto urls = Core::ReadMimeUrls(data);
+		if (!urls.isEmpty() && !_composeControls->isEditingMessage()) {
+			auto list = Ui::PreparedList();
+			list.files.push_back(Storage::PrepareFilesArchive(urls));
+			confirmSendingFiles(std::move(list), QString());
+		}
+		Window::ActivateWindow(controller());
+	});
 }
 
 void ChatWidget::setupShortcuts() {

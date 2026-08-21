@@ -700,6 +700,16 @@ HistoryWidget::HistoryWidget(
 		confirmSendingFiles(data, true);
 		Window::ActivateWindow(controller);
 	});
+	_attachDragAreas.photo->setArchiveDroppedCallback([=](
+			const QMimeData *data) {
+		const auto urls = Core::ReadMimeUrls(data);
+		if (!urls.isEmpty() && !_editMsgId) {
+			auto list = Ui::PreparedList();
+			list.files.push_back(Storage::PrepareFilesArchive(urls));
+			confirmSendingFiles(std::move(list), QString());
+		}
+		Window::ActivateWindow(controller);
+	});
 
 	Core::App().mediaDevices().recordAvailabilityValue(
 	) | rpl::on_next([=](Webrtc::RecordAvailability value) {
