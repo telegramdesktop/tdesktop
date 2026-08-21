@@ -43,6 +43,11 @@
 #   vars.CANARY_COUNTER_BASE
 #       Optional offset added to github.run_number for the build counter
 #       (to stay above counters published by an earlier workflow).
+#   vars.CANARY_CPPGIR_MIRROR
+#       Optional git URL replacing https://gitlab.com/mnauw/cppgir.git
+#       for the Linux job's nested submodule clone. gitlab.com refuses
+#       (HTTP 403) the Depot runners this workflow uses; a mirror of
+#       that repository on github.com is the way around it.
 #   vars.CANARY_BOT_API_IMAGE
 #       Digest-pinned Bot API server image built from a pinned
 #       tdlib/telegram-bot-api ref by canary-bot-api.yml, e.g.
@@ -359,8 +364,15 @@ jobs:
           # actions/checkout adds its own Authorization header on top of
           # the one above and GitHub rejects the duplicate. The submodules
           # are public repositories and need no credentials.
+          #
+          # Not recursive: the only nested submodule any build needs is
+          # cmake/external/glib/cppgir, which cmake/external adds under
+          # if (LINUX) — so Windows and macOS never compile it. Skipping
+          # it keeps gitlab.com, which regularly answers 403 to cloud
+          # runners, out of these jobs; the other nested submodules are
+          # documentation (range-v3 gh-pages, libcbor doxygen-theme).
           cd $TBUILD/$REPO_NAME
-          git submodule update --init --recursive --depth=1
+          git submodule update --init --depth=1
 
       - name: Read canary configuration.
         shell: bash
@@ -675,7 +687,10 @@ jobs:
       - name: Clone.
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          submodules: recursive
+          # Not recursive, see the Windows job: nothing macOS compiles
+          # lives in a nested submodule, and recursing would clone
+          # cppgir from gitlab.com once per arch of this matrix.
+          submodules: true
           path: ${{ env.REPO_NAME }}
 
       - name: Read canary configuration.
@@ -1062,7 +1077,27 @@ jobs:
       - name: Clone.
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          submodules: recursive
+          submodules: true
+
+      - name: Nested submodules.
+        env:
+          CPPGIR_MIRROR: ${{ vars.CANARY_CPPGIR_MIRROR }}
+        run: |
+          # This platform is the only one that compiles cppgir
+          # (cmake/external adds glib under if (LINUX)), so it is the
+          # only job that clones from gitlab.com. Recursing here instead
+          # of in the checkout keeps the documentation-only nested
+          # submodules (range-v3 gh-pages, libcbor doxygen-theme) out.
+          #
+          # gitlab.com answers 403 to the Depot runners every job here
+          # uses, while GitHub-hosted runners reach it fine, so the clone
+          # can be pointed at a mirror of cppgir without touching
+          # .gitmodules, which belongs to desktop-app/cmake_helpers.
+          if [ -n "$CPPGIR_MIRROR" ]; then
+            git config --global \
+              url."$CPPGIR_MIRROR".insteadOf https://gitlab.com/mnauw/cppgir.git
+          fi
+          git -C cmake submodule update --init --recursive --depth=1
 
       - name: Read canary configuration.
         run: |
