@@ -633,18 +633,22 @@ jobs:
           path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}\out\Release\artifact\portable\
           retention-days: ${{ needs.version.outputs.channel == 'public' && 90 || 1 }}
 
-  macos:
-    name: macOS universal (${{ needs.version.outputs.channel }})
+  # Two single-arch builds, lipo'd back together by the 'macos' job
+  # below: half the wall clock and half the peak linker memory of one
+  # x86_64;arm64 compile. All of the signing still happens there, once.
+  macos-build:
+    name: macOS ${{ matrix.arch }} (${{ needs.version.outputs.channel }})
     runs-on: depot-macos-latest
     needs: version
     environment: canary
 
     permissions:
       contents: read
-      id-token: write
 
-    outputs:
-      signed: ${{ steps.sign.outputs.signed }}
+    strategy:
+      fail-fast: true
+      matrix:
+        arch: [x86_64, arm64]
 
     env:
       PREPARE_PATH: "Telegram/build/prepare/prepare.py"
@@ -663,18 +667,8 @@ jobs:
         run: |
           echo "CANARY_COUNTER=${{ needs.version.outputs.counter }}" >> $GITHUB_ENV
           if [ "${{ needs.version.outputs.channel }}" = "public" ]; then
-            echo "CANARY_SUFFIX=${{ needs.version.outputs.suffix }}" >> $GITHUB_ENV
-            echo "CANARY_VERSION=${{ needs.version.outputs.version_str }}" >> $GITHUB_ENV
-            echo "CANARY_FOLDER=${{ needs.version.outputs.folder }}" >> $GITHUB_ENV
-            echo "CANARY_KEY_ID=${{ vars.CANARY_SIGNING_KEY_ID }}" >> $GITHUB_ENV
-            echo "CANARY_AZ_KEY=${{ vars.CANARY_AZURE_KEY_NAME || vars.CANARY_SIGNING_KEY_ID }}" >> $GITHUB_ENV
             echo "CANARY_DEFINES=-D TDESKTOP_UPDATE_CHANNEL=canary-public -D TDESKTOP_CANARY_PUBLIC_CHANNEL=${{ vars.CANARY_PUBLIC_CHANNEL_USERNAME }} -D TDESKTOP_CANARY_METADATA_MSG_ID=${{ vars.CANARY_METADATA_MSG_ID_MAC }}" >> $GITHUB_ENV
           else
-            echo "CANARY_SUFFIX=${{ needs.version.outputs.suffix }}" >> $GITHUB_ENV
-            echo "CANARY_VERSION=${{ needs.version.outputs.version_str }}" >> $GITHUB_ENV
-            echo "CANARY_FOLDER=${{ needs.version.outputs.folder }}" >> $GITHUB_ENV
-            echo "CANARY_KEY_ID=${{ vars.CANARY_PRIVATE_SIGNING_KEY_ID }}" >> $GITHUB_ENV
-            echo "CANARY_AZ_KEY=${{ vars.CANARY_PRIVATE_AZURE_KEY_NAME || vars.CANARY_PRIVATE_SIGNING_KEY_ID }}" >> $GITHUB_ENV
             echo "CANARY_DEFINES=-D TDESKTOP_UPDATE_CHANNEL=canary-private -D TDESKTOP_CANARY_PRIVATE_CHANNEL_ID=${{ vars.CANARY_PRIVATE_CHANNEL_ID }} -D TDESKTOP_CANARY_METADATA_MSG_ID=${{ vars.CANARY_PRIVATE_METADATA_MSG_ID_MAC }}" >> $GITHUB_ENV
           fi
 
@@ -694,6 +688,9 @@ jobs:
       # combined action saves in a post step gated on job success, so
       # every failed signing or packing attempt was discarding the full
       # library build. The save below runs right after the prune step.
+      # The key has no architecture: prepare.py builds every macOS
+      # library universal, so both halves share one tree (and, on a cold
+      # cache, race to save it - the loser only warns).
       - name: Libraries cache.
         id: cache-libs
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -747,7 +744,7 @@ jobs:
           ./configure.sh \
           -D CMAKE_CONFIGURATION_TYPES=Release \
           -D CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO \
-          -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
+          -D CMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} \
           -D TDESKTOP_API_ID=${{ secrets.CANARY_API_ID }} \
           -D TDESKTOP_API_HASH=${{ secrets.CANARY_API_HASH }} \
           -D DESKTOP_APP_SPECIAL_TARGET=mac \
@@ -764,39 +761,143 @@ jobs:
           cd $REPO_NAME/out/Release
           DUMP=../../../Libraries/breakpad/src/tools/mac/dump_syms/build/Release/dump_syms
           mkdir -p symbols
-          for ARCH in x86_64 arm64; do
-            for MODULE in Telegram Updater; do
-              BINARY=Telegram.app/Contents/MacOS/Telegram
-              if [ "$MODULE" = "Updater" ]; then
-                BINARY=Telegram.app/Contents/Frameworks/Updater
-              fi
-              "$DUMP" -a $ARCH "$BINARY" > $MODULE.sym 2>/dev/null
-              DEBUG_ID=$(head -n 1 $MODULE.sym | awk '{ print $4 }')
-              mkdir -p symbols/$MODULE/$DEBUG_ID
-              mv $MODULE.sym symbols/$MODULE/$DEBUG_ID/
-            done
+          for MODULE in Telegram Updater; do
+            BINARY=Telegram.app/Contents/MacOS/Telegram
+            if [ "$MODULE" = "Updater" ]; then
+              BINARY=Telegram.app/Contents/Frameworks/Updater
+            fi
+            "$DUMP" -a ${{ matrix.arch }} "$BINARY" > $MODULE.sym 2>/dev/null
+            DEBUG_ID=$(head -n 1 $MODULE.sym | awk '{ print $4 }')
+            mkdir -p symbols/$MODULE/$DEBUG_ID
+            mv $MODULE.sym symbols/$MODULE/$DEBUG_ID/
           done
           # TODO(canary-infra): upload symbols/ to R2 (see the Windows job).
 
-      - name: Prepare per-arch bundles.
+      - name: Pack the half for transport.
         run: |
-          # One universal compile, then per-arch update bundles exactly
-          # like build.sh: copy the bundle and lipo -thin the Mach-O
-          # files. The universal app itself becomes the installer.
           cd $REPO_NAME/out/Release
-          BINARIES="MacOS/Telegram Frameworks/Updater Helpers/crashpad_handler"
-          for ARCH in x86_64 arm64; do
-            rm -rf Telegram.$ARCH.app
-            cp -R Telegram.app Telegram.$ARCH.app
-            for BINARY in $BINARIES; do
-              lipo -thin $ARCH Telegram.app/Contents/$BINARY \
-                -output Telegram.$ARCH.app/Contents/$BINARY
-              strip Telegram.$ARCH.app/Contents/$BINARY
-            done
+          for ENTRY in Telegram.app Packer; do
+            if [ ! -e "$ENTRY" ]; then
+              echo "::error::$ENTRY not found after the build."
+              exit 1
+            fi
           done
-          for BINARY in $BINARIES; do
+
+          # Stripped here: the universal app is lipo'd from these.
+          for BINARY in MacOS/Telegram Frameworks/Updater Helpers/crashpad_handler; do
             strip Telegram.app/Contents/$BINARY
           done
+
+          # A tar, because upload-artifact resolves symlinks and drops
+          # the executable bit, and an .app bundle survives neither.
+          mkdir -p transport
+          tar -cf transport/mac-${{ matrix.arch }}.tar Telegram.app Packer
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        name: Upload the half.
+        with:
+          name: canary-mac-build-${{ matrix.arch }}
+          path: ${{ env.REPO_NAME }}/out/Release/transport/mac-${{ matrix.arch }}.tar
+          retention-days: 1
+
+  macos:
+    name: macOS universal (${{ needs.version.outputs.channel }})
+    runs-on: depot-macos-latest
+    needs: [version, macos-build]
+    environment: canary
+
+    permissions:
+      contents: read
+      id-token: write
+
+    outputs:
+      signed: ${{ steps.sign.outputs.signed }}
+
+    steps:
+      - name: Get repository name.
+        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
+
+      # notarytool and stapler come from Xcode, not the Command Line
+      # Tools, just like in the build jobs.
+      - name: Select Xcode.
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      # No submodules: this job signs and packs, it never compiles.
+      - name: Clone.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          path: ${{ env.REPO_NAME }}
+
+      - name: Read canary configuration.
+        run: |
+          echo "CANARY_COUNTER=${{ needs.version.outputs.counter }}" >> $GITHUB_ENV
+          if [ "${{ needs.version.outputs.channel }}" = "public" ]; then
+            echo "CANARY_SUFFIX=${{ needs.version.outputs.suffix }}" >> $GITHUB_ENV
+            echo "CANARY_VERSION=${{ needs.version.outputs.version_str }}" >> $GITHUB_ENV
+            echo "CANARY_FOLDER=${{ needs.version.outputs.folder }}" >> $GITHUB_ENV
+            echo "CANARY_KEY_ID=${{ vars.CANARY_SIGNING_KEY_ID }}" >> $GITHUB_ENV
+            echo "CANARY_AZ_KEY=${{ vars.CANARY_AZURE_KEY_NAME || vars.CANARY_SIGNING_KEY_ID }}" >> $GITHUB_ENV
+          else
+            echo "CANARY_SUFFIX=${{ needs.version.outputs.suffix }}" >> $GITHUB_ENV
+            echo "CANARY_VERSION=${{ needs.version.outputs.version_str }}" >> $GITHUB_ENV
+            echo "CANARY_FOLDER=${{ needs.version.outputs.folder }}" >> $GITHUB_ENV
+            echo "CANARY_KEY_ID=${{ vars.CANARY_PRIVATE_SIGNING_KEY_ID }}" >> $GITHUB_ENV
+            echo "CANARY_AZ_KEY=${{ vars.CANARY_PRIVATE_AZURE_KEY_NAME || vars.CANARY_PRIVATE_SIGNING_KEY_ID }}" >> $GITHUB_ENV
+          fi
+
+      - name: Download the x86_64 half.
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: canary-mac-build-x86_64
+          path: ${{ env.REPO_NAME }}/out/Release/transport
+
+      - name: Download the arm64 half.
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: canary-mac-build-arm64
+          path: ${{ env.REPO_NAME }}/out/Release/transport
+
+      - name: Assemble the universal app.
+        run: |
+          # The mirror image of build.sh, which lipo -thins one universal
+          # bundle: here two thin bundles are lipo -created into it. The
+          # universal app installs, the thin ones become the updates.
+          cd $REPO_NAME/out/Release
+          for ARCH in x86_64 arm64; do
+            rm -rf unpack.$ARCH Telegram.$ARCH.app
+            mkdir unpack.$ARCH
+            tar -xf transport/mac-$ARCH.tar -C unpack.$ARCH
+            mv unpack.$ARCH/Telegram.app Telegram.$ARCH.app
+          done
+
+          # Packer runs here, so do not bet on the runner architecture.
+          lipo -create unpack.arm64/Packer unpack.x86_64/Packer -output Packer
+          chmod +x Packer
+          rm -rf unpack.x86_64 unpack.arm64 transport
+
+          # Same Mach-O list as build.sh, everything else is the same in
+          # both halves, so the arm64 bundle is the template.
+          BINARIES="MacOS/Telegram Frameworks/Updater Helpers/crashpad_handler"
+          rm -rf Telegram.app
+          cp -R Telegram.arm64.app Telegram.app
+          for BINARY in $BINARIES; do
+            lipo -create Telegram.arm64.app/Contents/$BINARY \
+              Telegram.x86_64.app/Contents/$BINARY \
+              -output Telegram.app/Contents/$BINARY
+          done
+
+          # A new Mach-O outside that list would silently stay arm64-only
+          # and break every Intel Mac. lipo errors out on the rest.
+          while IFS= read -r -d '' FILE; do
+            INFO=$(lipo -info "$FILE" 2>/dev/null) || continue
+            case "$INFO" in
+              *x86_64*) ;;
+              *)
+                echo "::error::$FILE is not universal, add it to BINARIES."
+                exit 1
+                ;;
+            esac
+          done < <(find Telegram.app -type f -perm +111 -print0)
 
       - name: Sign and notarize.
         id: sign
