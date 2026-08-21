@@ -72,15 +72,9 @@ inline constexpr auto CanaryMetadataMessageId
 }
 
 [[nodiscard]] inline QString CanaryVersionSuffix() {
-	if (!BuildIsCanary) {
-		return QString();
-	}
-	auto result = QStringLiteral(" canary #%1").arg(CanaryBuildCounter);
-	if (CanaryCommitHash[0] != '\0') {
-		result += QStringLiteral(" · ")
-			+ QLatin1String(CanaryCommitHash);
-	}
-	return result;
+	return BuildIsCanary
+		? QStringLiteral(" canary #%1").arg(CanaryBuildCounter)
+		: QString();
 }
 
 } // namespace Core

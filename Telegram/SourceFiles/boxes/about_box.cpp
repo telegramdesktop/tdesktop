@@ -150,7 +150,9 @@ QString telegramFaqLink() {
 	return result;
 }
 
-QString currentVersionText() {
+namespace {
+
+[[nodiscard]] QString CurrentVersionText(bool withCommit) {
 	auto result = QString::fromLatin1(AppVersionStr);
 	if (Core::BuildIsCanary) {
 		result += Core::CanaryVersionSuffix();
@@ -167,7 +169,22 @@ QString currentVersionText() {
 #ifdef _DEBUG
 	result += " DEBUG";
 #endif
+	if (withCommit
+		&& Core::BuildIsCanary
+		&& Core::CanaryCommitHash[0] != '\0') {
+		result += u" \u00B7 "_q + QLatin1String(Core::CanaryCommitHash);
+	}
 	return result;
+}
+
+} // namespace
+
+QString currentVersionText() {
+	return CurrentVersionText(true);
+}
+
+QString currentVersionShortText() {
+	return CurrentVersionText(false);
 }
 
 void ArchiveHintBox(
