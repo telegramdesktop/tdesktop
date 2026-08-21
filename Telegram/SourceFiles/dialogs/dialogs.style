@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 using "ui/basic.style";
 
+using "chat_helpers/chat_helpers.style"; // GroupCallUserpics
 using "ui/layers/layers.style"; // boxRoundShadow
 using "ui/widgets/widgets.style";
 
@@ -853,6 +854,12 @@ dialogsTopBarSuggestionAboutStyle: TextStyle(defaultTextStyle) {
 }
 dialogsTopBarSuggestionMargins: margins(8px, 8px, 8px, 8px);
 dialogsTopBarSuggestionIconPadding: 12px;
+dialogsTopBarSuggestionUserpics: GroupCallUserpics {
+	size: 25px;
+	shift: 8px;
+	stroke: 2px;
+	align: align(left);
+}
 dialogsTopBarSuggestionShadow: BoxShadow {
 	blurRadius: 3px;
 	offset: point(0px, 1px);
