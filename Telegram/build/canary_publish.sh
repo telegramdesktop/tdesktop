@@ -71,9 +71,15 @@ call() {
   local METHOD="$1"
   shift
   local RESPONSE
-  RESPONSE=$(curl -sf "$BOT_API/bot$BOT_TOKEN/$METHOD" "$@")
-  if ! echo "$RESPONSE" | jq -e '.ok == true' > /dev/null; then
-    echo "::error::$METHOD failed: $(echo "$RESPONSE" | jq -r '.description // "no response"')"
+  # Deliberately not curl -f: the Bot API reports failures as 4xx with a
+  # JSON body, and -f would discard that body and abort the script
+  # through set -e before anything could be printed. Diagnostics go to
+  # stderr because callers capture stdout.
+  RESPONSE=$(curl -s "$BOT_API/bot$BOT_TOKEN/$METHOD" "$@" || true)
+  if ! echo "$RESPONSE" | jq -e '.ok == true' > /dev/null 2>&1; then
+    local WHY
+    WHY=$(echo "$RESPONSE" | jq -r '.description // empty' 2>/dev/null) || WHY=""
+    echo "::error::$METHOD failed: ${WHY:-no response}" >&2
     return 1
   fi
   echo "$RESPONSE"

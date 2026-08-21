@@ -57,7 +57,8 @@
 #
 # Public repository only:
 #   vars.CANARY_PUBLIC_CHANNEL_ID
-#       Numeric -100... public channel id for the Bot API calls.
+#       Public channel id for the Bot API calls, bare or in the -100
+#       form — the version job normalises it.
 #   vars.CANARY_PUBLIC_CHANNEL_USERNAME
 #       Public channel username compiled into canary-public builds.
 #   vars.CANARY_METADATA_MSG_ID_WIN64 / _MAC / _LINUX
@@ -72,8 +73,9 @@
 #
 # Private repository only:
 #   vars.CANARY_PRIVATE_CHANNEL_ID
-#       Bare numeric id of the private channel (no -100 prefix), also
-#       compiled into canary-private builds for discovery.
+#       Bare numeric id of the private channel: it is compiled into
+#       canary-private builds for discovery, so unlike the public one it
+#       must stay bare even though publishing uses the -100 form.
 #   vars.CANARY_PRIVATE_METADATA_MSG_ID_WIN64 / _MAC / _LINUX
 #       Fixed ids of the three per-platform metadata messages in the
 #       private channel.
@@ -136,6 +138,7 @@ jobs:
 
     outputs:
       channel: ${{ steps.compute.outputs.channel }}
+      chat_id: ${{ steps.compute.outputs.chat_id }}
       base: ${{ steps.compute.outputs.base }}
       commit: ${{ steps.compute.outputs.commit }}
       counter: ${{ steps.compute.outputs.counter }}
@@ -205,9 +208,20 @@ jobs:
             CHAT_ID="$PUBLIC_CHANNEL"
             MSG_IDS="$PUBLIC_MSG_IDS"
           else
-            CHAT_ID="-100$PRIVATE_CHANNEL"
+            CHAT_ID="$PRIVATE_CHANNEL"
             MSG_IDS="$PRIVATE_MSG_IDS"
           fi
+
+          # Either lane's id may be stored the way Telegram clients show
+          # it (bare, which is also the form compiled into canary-private
+          # builds) or already in the -100 form the Bot API requires.
+          # Normalised here once; the publish jobs take the result as an
+          # output instead of repeating the rule.
+          case "$CHAT_ID" in
+            ''|-100*) ;;
+            *) CHAT_ID="-100${CHAT_ID#-}" ;;
+          esac
+          echo "chat_id=$CHAT_ID" >> $GITHUB_OUTPUT
 
           while IFS=' ' read -r name value; do
             [ "$name" = "AppVersion" ] && BASE="$value"
@@ -1387,8 +1401,7 @@ jobs:
       - name: Publish.
         env:
           CHANNEL: ${{ needs.version.outputs.channel }}
-          PUBLIC_CHANNEL: ${{ vars.CANARY_PUBLIC_CHANNEL_ID }}
-          PRIVATE_CHANNEL: ${{ vars.CANARY_PRIVATE_CHANNEL_ID }}
+          CHAT_ID: ${{ needs.version.outputs.chat_id }}
           PUBLIC_MSG_ID: ${{ vars.CANARY_METADATA_MSG_ID_WIN64 }}
           PRIVATE_MSG_ID: ${{ vars.CANARY_PRIVATE_METADATA_MSG_ID_WIN64 }}
           PLATFORMS: win64
@@ -1403,9 +1416,9 @@ jobs:
           PORTABLE_DIR: artifacts/portable
         run: |
           if [ "$CHANNEL" = "public" ]; then
-            export CHAT_ID="$PUBLIC_CHANNEL" MSG_ID="$PUBLIC_MSG_ID"
+            export MSG_ID="$PUBLIC_MSG_ID"
           else
-            export CHAT_ID="-100$PRIVATE_CHANNEL" MSG_ID="$PRIVATE_MSG_ID"
+            export MSG_ID="$PRIVATE_MSG_ID"
           fi
           Telegram/build/canary_publish.sh
 
@@ -1476,8 +1489,7 @@ jobs:
       - name: Publish.
         env:
           CHANNEL: ${{ needs.version.outputs.channel }}
-          PUBLIC_CHANNEL: ${{ vars.CANARY_PUBLIC_CHANNEL_ID }}
-          PRIVATE_CHANNEL: ${{ vars.CANARY_PRIVATE_CHANNEL_ID }}
+          CHAT_ID: ${{ needs.version.outputs.chat_id }}
           PUBLIC_MSG_ID: ${{ vars.CANARY_METADATA_MSG_ID_MAC }}
           PRIVATE_MSG_ID: ${{ vars.CANARY_PRIVATE_METADATA_MSG_ID_MAC }}
           PLATFORMS: mac armac
@@ -1492,9 +1504,9 @@ jobs:
           PORTABLE_DIR: artifacts/portable
         run: |
           if [ "$CHANNEL" = "public" ]; then
-            export CHAT_ID="$PUBLIC_CHANNEL" MSG_ID="$PUBLIC_MSG_ID"
+            export MSG_ID="$PUBLIC_MSG_ID"
           else
-            export CHAT_ID="-100$PRIVATE_CHANNEL" MSG_ID="$PRIVATE_MSG_ID"
+            export MSG_ID="$PRIVATE_MSG_ID"
           fi
           Telegram/build/canary_publish.sh
 
@@ -1551,8 +1563,7 @@ jobs:
       - name: Publish.
         env:
           CHANNEL: ${{ needs.version.outputs.channel }}
-          PUBLIC_CHANNEL: ${{ vars.CANARY_PUBLIC_CHANNEL_ID }}
-          PRIVATE_CHANNEL: ${{ vars.CANARY_PRIVATE_CHANNEL_ID }}
+          CHAT_ID: ${{ needs.version.outputs.chat_id }}
           PUBLIC_MSG_ID: ${{ vars.CANARY_METADATA_MSG_ID_LINUX }}
           PRIVATE_MSG_ID: ${{ vars.CANARY_PRIVATE_METADATA_MSG_ID_LINUX }}
           PLATFORMS: linux
@@ -1567,8 +1578,8 @@ jobs:
           PORTABLE_DIR: artifacts/portable
         run: |
           if [ "$CHANNEL" = "public" ]; then
-            export CHAT_ID="$PUBLIC_CHANNEL" MSG_ID="$PUBLIC_MSG_ID"
+            export MSG_ID="$PUBLIC_MSG_ID"
           else
-            export CHAT_ID="-100$PRIVATE_CHANNEL" MSG_ID="$PRIVATE_MSG_ID"
+            export MSG_ID="$PRIVATE_MSG_ID"
           fi
           Telegram/build/canary_publish.sh
