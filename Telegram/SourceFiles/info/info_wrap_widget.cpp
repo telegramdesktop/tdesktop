@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_user.h"
 #include "data/data_forum_topic.h"
+#include "data/data_saved_sublist.h"
 #include "mainwidget.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_numbers_animation.h"
@@ -148,6 +149,21 @@ WrapWidget::WrapWidget(
 
 	if (const auto topic = _controller->topic()) {
 		topic->destroyed(
+		) | rpl::on_next([=] {
+			if (_wrap.current() == Wrap::Layer) {
+				_controller->parentController()->hideSpecialLayer();
+			} else if (_wrap.current() == Wrap::Narrow) {
+				_controller->parentController()->showBackFromStack(
+					Window::SectionShow(
+						anim::type::normal,
+						anim::activation::background));
+			} else {
+				_removeRequests.fire({});
+			}
+		}, lifetime());
+	}
+	if (const auto sublist = _controller->sublist()) {
+		sublist->destroyed(
 		) | rpl::on_next([=] {
 			if (_wrap.current() == Wrap::Layer) {
 				_controller->parentController()->hideSpecialLayer();
@@ -947,6 +963,8 @@ bool WrapWidget::returnToFirstStackFrame(
 	const auto first = _historyStack.front().section.get();
 	if (first->peer() == memento->peer()
 		&& first->savedMessages() == memento->savedMessages()
+		&& first->topic() == memento->topic()
+		&& first->sublist() == memento->sublist()
 		&& first->section().type() == memento->section().type()
 		&& first->section().type() == Section::Type::Profile) {
 		_historyStack.resize(1);
