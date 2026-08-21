@@ -1,0 +1,1 @@
+Info wrap `destroyed()` teardown now rebinds when `showNewContent` replaces the controller, using a wrap-owned lifetime so an old sublist cannot tear down a wrap that no longer shows it. The constructor path still subscribes.
