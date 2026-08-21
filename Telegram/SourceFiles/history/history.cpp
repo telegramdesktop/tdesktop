@@ -1383,18 +1383,22 @@ void History::applyServiceChanges(
 		if (replyTo) {
 			replyTo->match([&](const MTPDmessageReplyHeader &data) {
 				const auto id = data.vreply_to_msg_id().value_or_empty();
-				if (const auto pinned = owner().message(peer->id, id)) {
-					pinned->setIsPinned(true);
-					session().storage().add(Storage::SharedMediaAddSlice(
-						peer->id,
-						MsgId(0), // topicRootId
-						PeerId(0), // monoforumPeerId
-						Storage::SharedMediaType::Pinned,
-						{},
-						{ id, ServerMaxMsgId }));
-				} else {
-					session().api().requestPinnedMessagesIfNeeded(peer, id);
-				}
+				const auto topicRootId = [&] {
+					if (!peer->forum()) {
+						return MsgId(0);
+					} else if (const auto top = data.vreply_to_top_id()) {
+						return MsgId(top->v);
+					} else if (!data.is_forum_topic()) {
+						return MsgId(Data::ForumTopic::kGeneralId);
+					}
+					return MsgId(0);
+				}();
+				const auto monoforumPeerId = item->sublistPeerId();
+				Data::ApplyPinnedMessageId(
+					peer,
+					id,
+					topicRootId,
+					monoforumPeerId);
 			}, [&](const MTPDmessageReplyStoryHeader &data) {
 				LOG(("API Error: story reply in messageActionPinMessage."));
 			});
