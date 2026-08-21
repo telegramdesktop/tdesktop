@@ -1018,6 +1018,36 @@ cd ..
 rm -rf tlottie rustup cargo
 EOF
 
+FROM builder AS wallet-engine
+RUN <<EOF
+RUST_TOOLCHAIN=1.96.1
+export RUSTUP_HOME=/usr/src/rustup
+export CARGO_HOME=/usr/src/cargo
+wget -O rustup-init.sh https://sh.rustup.rs
+sh rustup-init.sh -y --no-modify-path --profile minimal --default-toolchain $RUST_TOOLCHAIN
+rm rustup-init.sh
+export RUSTUP_TOOLCHAIN=$RUST_TOOLCHAIN
+export PATH=$CARGO_HOME/bin:$PATH
+export DESTDIR=/usr/src/wallet-engine-cache
+git init wallet-engine
+cd wallet-engine
+git remote add origin https://github.com/i582/wallet-engine.git
+git fetch --depth=1 origin 6a13d614dc0d4cf81bbca4148ab72d3c0151b938
+git reset --hard FETCH_HEAD
+cargo rustc -p wallet-engine --lib --release --locked \
+	--target x86_64-unknown-linux-gnu \
+	--config "profile.release.panic='unwind'" \
+	-- --print native-static-libs
+mkdir -p $DESTDIR/usr/local/lib $DESTDIR/usr/local/include/wallet_engine $DESTDIR/usr/local/src/wallet_engine
+cargo run --manifest-path bindgen/cpp/bindgen/Cargo.toml --locked -- \
+	--library --out-dir $DESTDIR/usr/local/include/wallet_engine \
+	target/x86_64-unknown-linux-gnu/release/libwallet_engine.so
+mv $DESTDIR/usr/local/include/wallet_engine/wallet_engine.cpp $DESTDIR/usr/local/src/wallet_engine/wallet_engine.cpp
+cp target/x86_64-unknown-linux-gnu/release/libwallet_engine.a $DESTDIR/usr/local/lib/libwallet_engine.a
+cd ..
+rm -rf wallet-engine rustup cargo
+EOF
+
 FROM builder
 COPY --link --from=zlib /usr/src/zlib-cache /
 COPY --link --from=xz /usr/src/xz-cache /
@@ -1060,6 +1090,7 @@ COPY --link --from=webrtc /usr/src/webrtc-cache /
 COPY --link --from=ada /usr/src/ada-cache /
 COPY --link --from=tde2e /usr/src/tde2e-cache /
 COPY --link --from=tlottie /usr/src/tlottie-cache /
+COPY --link --from=wallet-engine /usr/src/wallet-engine-cache /
 
 COPY --link --from=patches /usr/src/patches patches
 RUN <<EOF

@@ -2029,6 +2029,59 @@ mac:
     cp include/tlottie.h $USED_PREFIX/include/tlottie/tlottie.h
 """)
 
+stage('wallet-engine', """
+win:
+    SET "GIT_LFS_SKIP_SMUDGE=1"
+mac:
+    export GIT_LFS_SKIP_SMUDGE=1
+win_mac:
+    git clone https://github.com/i582/wallet-engine.git
+    cd wallet-engine
+    git checkout 6a13d614dc0d4cf81bbca4148ab72d3c0151b938
+win:
+    SET "RUSTUP_HOME=%THIRDPARTY_DIR%\\rust\\rustup"
+    SET "CARGO_HOME=%THIRDPARTY_DIR%\\rust\\cargo"
+    SET RUSTUP_TOOLCHAIN=""" + rustToolchain + """
+    SET "PATH=%CARGO_HOME%\\bin;%PATH%"
+win32:
+    SET "RUST_TARGET=i686-pc-windows-msvc"
+win64:
+    SET "RUST_TARGET=x86_64-pc-windows-msvc"
+winarm:
+    SET "RUST_TARGET=aarch64-pc-windows-msvc"
+win:
+    cargo rustc -p wallet-engine --lib --release --locked ^
+        --target %RUST_TARGET% ^
+        --config "profile.release.panic='unwind'" ^
+        --config "target.%RUST_TARGET%.rustflags=['-C','target-feature=+crt-static']" ^
+        -- --print native-static-libs
+    mkdir out\\lib out\\include out\\src
+    cargo run --manifest-path bindgen\\cpp\\bindgen\\Cargo.toml --locked -- ^
+        --library --out-dir out\\include ^
+        target\\%RUST_TARGET%\\release\\wallet_engine.dll
+    move out\\include\\wallet_engine.cpp out\\src\\wallet_engine.cpp
+    copy target\\%RUST_TARGET%\\release\\wallet_engine.lib out\\lib\\wallet_engine.lib
+mac:
+    export RUSTUP_HOME=$THIRDPARTY_DIR/rust/rustup
+    export CARGO_HOME=$THIRDPARTY_DIR/rust/cargo
+    export RUSTUP_TOOLCHAIN=""" + rustToolchain + """
+    export PATH=$CARGO_HOME/bin:$PATH
+    buildOneArch() {
+        cargo rustc -p wallet-engine --lib --release --locked \\
+            --target $1 \\
+            --config "profile.release.panic='unwind'" \\
+            -- --print native-static-libs
+    }
+    buildOneArch aarch64-apple-darwin
+    buildOneArch x86_64-apple-darwin
+    mkdir -p $USED_PREFIX/lib $USED_PREFIX/include/wallet_engine $USED_PREFIX/src/wallet_engine
+    cargo run --manifest-path bindgen/cpp/bindgen/Cargo.toml --locked -- \\
+        --library --out-dir $USED_PREFIX/include/wallet_engine \\
+        target/aarch64-apple-darwin/release/libwallet_engine.dylib
+    mv $USED_PREFIX/include/wallet_engine/wallet_engine.cpp $USED_PREFIX/src/wallet_engine/wallet_engine.cpp
+    lipo -create target/aarch64-apple-darwin/release/libwallet_engine.a target/x86_64-apple-darwin/release/libwallet_engine.a -output $USED_PREFIX/lib/libwallet_engine.a
+""")
+
 if win:
     currentCodePage = subprocess.run('chcp', capture_output=True, shell=True, text=True, env=modifiedEnv).stdout.strip().split()[-1]
     subprocess.run('chcp 65001 > nul', shell=True, env=modifiedEnv)
