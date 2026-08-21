@@ -77,4 +77,12 @@ inline constexpr auto CanaryMetadataMessageId
 		: QString();
 }
 
+[[nodiscard]] inline QString CanaryTitleLabel() {
+	return (BuildUpdateChannel == Updates::Channel::CanaryPrivate)
+		? QStringLiteral("PRIVATE #%1").arg(CanaryBuildCounter)
+		: (BuildUpdateChannel == Updates::Channel::CanaryPublic)
+		? QStringLiteral("CANARY #%1").arg(CanaryBuildCounter)
+		: QString();
+}
+
 } // namespace Core
