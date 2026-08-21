@@ -1381,7 +1381,11 @@ void MtpChecker::startCanary() {
 		crl::on_main(this, [=] { fail(); });
 		return;
 	}
-	if (BuildUpdateChannel == Updates::Channel::CanaryPublic) {
+	// The branches are compile-time: the private one exists only in a
+	// build that has a real channel id, so no other build compiles a
+	// channelLoaded() whose result the optimizer can fold to nullptr and
+	// then report as a null 'this' at the inputChannel() call below.
+	if constexpr (BuildUpdateChannel == Updates::Channel::CanaryPublic) {
 		const auto username = QString::fromLatin1(
 			CanaryPublicChannelUsername);
 		if (username.isEmpty()) {
@@ -1393,26 +1397,28 @@ void MtpChecker::startCanary() {
 				const MTPInputChannel &channel) {
 			requestCanaryMetadata(channel, CanaryMetadataMessageId, true);
 		}, [=] { fail(); });
-		return;
-	}
-
-	// Membership is enrollment for the private canary channel, so it is
-	// located by numeric id and cached access hash on this session, never
-	// through a username resolve.
-	const auto session = _mtp.session().get();
-	const auto channel = (session && CanaryPrivateChannelId)
-		? session->data().channelLoaded(
-			ChannelId(BareId(CanaryPrivateChannelId)))
-		: nullptr;
-	if (!channel || !channel->amIn()) {
-		LOG(("Update Error: Canary private channel is not available."));
+	} else if constexpr (CanaryPrivateChannelId != 0) {
+		// Membership is enrollment for the private canary channel, so it
+		// is located by numeric id and cached access hash on this
+		// session, never through a username resolve.
+		const auto session = _mtp.session().get();
+		const auto channel = session
+			? session->data().channelLoaded(
+				ChannelId(BareId(CanaryPrivateChannelId)))
+			: nullptr;
+		if (!channel || !channel->amIn()) {
+			LOG(("Update Error: Canary private channel is not available."));
+			crl::on_main(this, [=] { fail(); });
+			return;
+		}
+		requestCanaryMetadata(
+			channel->inputChannel(),
+			CanaryMetadataMessageId,
+			true);
+	} else {
+		LOG(("Update Error: Canary private channel id is not set."));
 		crl::on_main(this, [=] { fail(); });
-		return;
 	}
-	requestCanaryMetadata(
-		channel->inputChannel(),
-		CanaryMetadataMessageId,
-		true);
 }
 
 void MtpChecker::requestCanaryMetadata(
