@@ -2007,9 +2007,9 @@ starsTonAmount#74aee3e0 amount:long = StarsAmount;
 messages.foundStickersNotModified#6010c534 flags:# next_offset:flags.0?int = messages.FoundStickers;
 messages.foundStickers#82c9e290 flags:# next_offset:flags.0?int hash:long stickers:Vector<Document> = messages.FoundStickers;
 
-botVerifierSettings#b0cd6617 flags:# can_modify_custom_description:flags.1?true icon:long company:string custom_description:flags.0?string = BotVerifierSettings;
+botVerifierSettings#a12aefff flags:# can_modify_custom_description:flags.1?true icon:long company:string custom_description:flags.0?TextWithEntities = BotVerifierSettings;
 
-botVerification#f93cd45c bot_id:long icon:long description:string = BotVerification;
+botVerification#f72e0ed9 bot_id:long icon:long description:TextWithEntities = BotVerification;
 
 starGiftAttributeModel#565251e2 flags:# crafted:flags.0?true name:string document:Document rarity:StarGiftAttributeRarity = StarGiftAttribute;
 starGiftAttributePattern#4e7085ea name:string document:Document rarity:StarGiftAttributeRarity = StarGiftAttribute;
@@ -2895,7 +2895,7 @@ bots.toggleUserEmojiStatusPermission#6de6392 bot:InputUser enabled:Bool = Bool;
 bots.checkDownloadFileParams#50077589 bot:InputUser file_name:string url:string = Bool;
 bots.getAdminedBots#b0711d83 = Vector<User>;
 bots.updateStarRefProgram#778b5ab3 flags:# bot:InputUser commission_permille:int duration_months:flags.0?int = StarRefProgram;
-bots.setCustomVerification#8b89dfbd flags:# enabled:flags.1?true bot:flags.0?InputUser peer:InputPeer custom_description:flags.2?string = Bool;
+bots.setCustomVerification#f4946757 flags:# enabled:flags.1?true bot:flags.0?InputUser peer:InputPeer custom_description:flags.2?TextWithEntities = Bool;
 bots.getBotRecommendations#a1b70815 bot:InputUser = users.Users;
 bots.checkUsername#87f2219b username:string = Bool;
 bots.createBot#e5b17f2b flags:# via_deeplink:flags.0?true name:string username:string manager_id:InputUser = User;
