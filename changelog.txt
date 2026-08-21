@@ -1,3 +1,16 @@
+7.1 (21.08.26)
+
+- Add welcome messages for groups and channels.
+- Add buttons and file blocks to rich messages.
+- Improve lists, tables and markdown pasting in the rich editor.
+- Add self-destruct timers and single view for photos and videos.
+- Add video profile photos for yourself, chats and channels.
+- Add video editor with trimming, quality and cover frame.
+- Add restoring of opened windows and chats on relaunch.
+- Add sending of music files in the attach menu.
+- Add new WEB proxy type to connection settings.
+- Crash fixes.
+
 7.0.9 (05.08.26)
 
 - Add saving rich messages to HTML and importing them back.
