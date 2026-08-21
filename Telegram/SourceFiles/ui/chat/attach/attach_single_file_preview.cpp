@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/chat/attach/attach_single_file_preview.h"
 
+#include "lang/lang_keys.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/text/format_song_name.h"
 #include "ui/text/format_values.h"
@@ -58,7 +59,11 @@ void SingleFilePreview::preparePreview(const PreparedFile &file) {
 	}
 	prepareThumbFor(data, preview);
 	const auto filepath = file.path;
-	if (filepath.isEmpty()) {
+	if (file.archive) {
+		data.name = file.displayName;
+		data.fileIsImage = false;
+		data.statusText = tr::lng_folder_archive_status(tr::now);
+	} else if (filepath.isEmpty()) {
 		const auto fallbackName = u"image.png"_q;
 		const auto displayName = file.displayName.isEmpty()
 			? fallbackName
