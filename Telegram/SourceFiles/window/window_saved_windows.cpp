@@ -383,6 +383,11 @@ void SavedWindows::scheduleSave() {
 
 void SavedWindows::writeNow() {
 	_saveTimer.cancel();
+	if (!_restoring && !restoreOnLaunch()) {
+		// Not restored windows are not offered on the next launch.
+		_toRestore.clear();
+		_undecided.clear();
+	}
 	save();
 }
 
