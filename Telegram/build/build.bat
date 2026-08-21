@@ -126,10 +126,18 @@ if %Build64% neq 0 (
 
 rem TDESKTOP_UPDATE_V2=1 switches the update packaging to the v2 signed
 rem envelope (2-of-2: the local Ed25519 release key plus the cloud ES256
-rem key through an interactive az login). Installers and everything else
-rem stay as is; the classical v1 update is built without the switch.
+rem key through an interactive az login) and every artifact to the v2
+rem names: td-update-win-{arch}-{version}[-beta] and
+rem td-(setup|portable)-win-{arch}-{version_str}[-beta].(exe|zip). Without
+rem the switch the classical v1 update and the classical names are built,
+rem so the stepping-stone releases keep coming out exactly as before.
 set "UpdateChannel=stable"
-if %BetaChannel% neq 0 set "UpdateChannel=beta"
+set "V2Suffix="
+if %BetaChannel% neq 0 (
+  set "UpdateChannel=beta"
+  set "V2Suffix=-beta"
+)
+set "IsccNameParam="
 if "%TDESKTOP_RELEASE_KEYVAULT%" equ "" set "TDESKTOP_RELEASE_KEYVAULT=tdesktop-release-kv"
 if "%TDESKTOP_RELEASE_CLOUD_KEY_ID%" equ "" set "TDESKTOP_RELEASE_CLOUD_KEY_ID=rc-2026a"
 if "%TDESKTOP_RELEASE_LOCAL_KEY%" equ "" set "TDESKTOP_RELEASE_LOCAL_KEY=%HomePath%\..\..\DesktopPrivate\release-local.pem"
@@ -140,11 +148,20 @@ if "%TDESKTOP_UPDATE_V2%" equ "1" (
     exit /b 1
   )
   if %Build64% neq 0 (
-    set "UpdateFile=update-win-x64-%UpdateChannel%-%AppVersion%"
+    set "UpdateFile=td-update-win-x64-%AppVersion%%V2Suffix%"
+    set "SetupFile=td-setup-win-x64-%AppVersionStr%%V2Suffix%.exe"
+    set "PortableFile=td-portable-win-x64-%AppVersionStr%%V2Suffix%.zip"
+    set "IsccNameParam=/dMyOutputBaseFilename=td-setup-win-x64-%AppVersionStr%%V2Suffix%"
   ) else if %BuildARM% neq 0 (
-    set "UpdateFile=update-win-arm-%UpdateChannel%-%AppVersion%"
+    set "UpdateFile=td-update-win-arm-%AppVersion%%V2Suffix%"
+    set "SetupFile=td-setup-win-arm-%AppVersionStr%%V2Suffix%.exe"
+    set "PortableFile=td-portable-win-arm-%AppVersionStr%%V2Suffix%.zip"
+    set "IsccNameParam=/dMyOutputBaseFilename=td-setup-win-arm-%AppVersionStr%%V2Suffix%"
   ) else (
-    set "UpdateFile=update-win-x86-%UpdateChannel%-%AppVersion%"
+    set "UpdateFile=td-update-win-x86-%AppVersion%%V2Suffix%"
+    set "SetupFile=td-setup-win-x86-%AppVersionStr%%V2Suffix%.exe"
+    set "PortableFile=td-portable-win-x86-%AppVersionStr%%V2Suffix%.zip"
+    set "IsccNameParam=/dMyOutputBaseFilename=td-setup-win-x86-%AppVersionStr%%V2Suffix%"
   )
 )
 set "ReleasePath=%SolutionPath%\Release"
@@ -238,7 +255,7 @@ if %BuildUWP% equ 0 (
   call :sign "Updater.exe"
 
   if %AlphaVersion% equ 0 (
-    iscc /dMyAppVersion=%AppVersionStrSmall% /dMyAppVersionZero=%AppVersionStr% /dMyAppVersionFull=%AppVersionStrFull% "/dReleasePath=%ReleasePath%" "/dMyBuildTarget=%BuildTarget%" "%FullScriptPath%setup.iss" || goto error
+    iscc /dMyAppVersion=%AppVersionStrSmall% /dMyAppVersionZero=%AppVersionStr% /dMyAppVersionFull=%AppVersionStrFull% "/dReleasePath=%ReleasePath%" "/dMyBuildTarget=%BuildTarget%" %IsccNameParam% "%FullScriptPath%setup.iss" || goto error
     if not exist "%SetupFile%" goto error
   )
 

@@ -110,22 +110,35 @@ LinuxSetupFile="tsetup.$AppVersionStrFull.tar.xz"
 LinuxRemoteFolder="tlinux"
 DeployPath="$BackupPath/$AppVersionStrMajor/$AppVersionStrFull"
 
-# Deploys the v2 update files built with the same switch in build.sh;
-# installers and remote folders stay the same either way.
+# Deploys the v2-named files built with the same switch in build.sh /
+# build.bat (updates, installers and portables alike); the remote
+# folders stay the same either way.
 if [ "$TDESKTOP_UPDATE_V2" == "1" ]; then
   if [ "$AlphaVersion" != "0" ]; then
     Error "The v2 update format has no alpha channel."
   fi
-  UpdateChannel="stable"
+  case "$AppVersionStr" in
+    *.*.*) ;;
+    *) Error "AppVersionStr '$AppVersionStr' must have three components for the v2 names." ;;
+  esac
+  V2Suffix=""
   if [ "$BetaChannel" != "0" ]; then
-    UpdateChannel="beta"
+    V2Suffix="-beta"
   fi
-  MacUpdateFile="update-mac-x64-$UpdateChannel-$AppVersion"
-  ARMacUpdateFile="update-mac-arm-$UpdateChannel-$AppVersion"
-  WinUpdateFile="update-win-x86-$UpdateChannel-$AppVersion"
-  Win64UpdateFile="update-win-x64-$UpdateChannel-$AppVersion"
-  WinArmUpdateFile="update-win-arm-$UpdateChannel-$AppVersion"
-  LinuxUpdateFile="update-linux-x64-$UpdateChannel-$AppVersion"
+  MacUpdateFile="td-update-mac-x64-$AppVersion$V2Suffix"
+  ARMacUpdateFile="td-update-mac-arm-$AppVersion$V2Suffix"
+  MacSetupFile="td-setup-mac-$AppVersionStr$V2Suffix.dmg"
+  WinUpdateFile="td-update-win-x86-$AppVersion$V2Suffix"
+  WinSetupFile="td-setup-win-x86-$AppVersionStr$V2Suffix.exe"
+  WinPortableFile="td-portable-win-x86-$AppVersionStr$V2Suffix.zip"
+  Win64UpdateFile="td-update-win-x64-$AppVersion$V2Suffix"
+  Win64SetupFile="td-setup-win-x64-$AppVersionStr$V2Suffix.exe"
+  Win64PortableFile="td-portable-win-x64-$AppVersionStr$V2Suffix.zip"
+  WinArmUpdateFile="td-update-win-arm-$AppVersion$V2Suffix"
+  WinArmSetupFile="td-setup-win-arm-$AppVersionStr$V2Suffix.exe"
+  WinArmPortableFile="td-portable-win-arm-$AppVersionStr$V2Suffix.zip"
+  LinuxUpdateFile="td-update-linux-x64-$AppVersion$V2Suffix"
+  LinuxSetupFile="td-setup-linux-x64-$AppVersionStr$V2Suffix.tar.xz"
 fi
 
 if [ "$AlphaVersion" != "0" ]; then

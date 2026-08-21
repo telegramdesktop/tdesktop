@@ -82,13 +82,13 @@ echo
 echo "=== One-pass Ed25519 signing (stable) ==="
 "$PACKER" -path app -version 5000123 -channel stable \
   -keys-loc keys -local-key ed-private.pem -local-key-id ed-test
-ls -la update-*-stable-5000123
+ls -la td-update-*-5000123
 
 echo
 echo "=== Two-pass 2-of-2 signing (canary-public, ES256 external + Ed25519 local) ==="
 "$PACKER" -path app -version 5000123 -channel canary-public -counter 7 \
   -keys-loc keys -emit-signing-input signing-input.bin
-UNSIGNED=$(ls update-*-canarypub-5000123-7.unsigned)
+UNSIGNED=$(ls td-update-*-5000123-canary-7.unsigned)
 python3 "$SIGN_UPDATE" --input signing-input.bin --output es.sig \
   --openssl-key es-private.pem
 "$PACKER" -channel canary-public -keys-loc keys \

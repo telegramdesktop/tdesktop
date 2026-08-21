@@ -185,12 +185,15 @@ void AppendLeU64(QByteArray &to, quint64 value) {
 	return file.readAll();
 }
 
-[[nodiscard]] QString V2ChannelTag(Channel channel) {
+// td-update-{os}-{arch}-{base}[-beta|-canary-{counter}[-private]], the same
+// suffix the installers and portable archives carry after their version.
+[[nodiscard]] QString V2NameSuffix(Channel channel, quint32 counter) {
 	switch (channel) {
-	case Channel::Stable: return QString("stable");
-	case Channel::Beta: return QString("beta");
-	case Channel::CanaryPublic: return QString("canarypub");
-	case Channel::CanaryPrivate: return QString("canarypriv");
+	case Channel::Stable: return QString();
+	case Channel::Beta: return QString("-beta");
+	case Channel::CanaryPublic: return QString("-canary-%1").arg(counter);
+	case Channel::CanaryPrivate:
+		return QString("-canary-%1-private").arg(counter);
 	}
 	return QString();
 }
@@ -199,15 +202,11 @@ void AppendLeU64(QByteArray &to, quint64 value) {
 		Channel channel,
 		quint32 base,
 		quint32 counter) {
-	auto result = QString("update-%1-%2-%3-%4"
+	return QString("td-update-%1-%2-%3%4"
 	).arg(QString::fromLatin1(Core::Updates::OsName(V2Target.os))
 	).arg(QString::fromLatin1(Core::Updates::ArchName(V2Target.arch))
-	).arg(V2ChannelTag(channel)
-	).arg(base);
-	if (counter) {
-		result += QString("-%1").arg(counter);
-	}
-	return result;
+	).arg(base
+	).arg(V2NameSuffix(channel, counter));
 }
 
 struct V2Keys {

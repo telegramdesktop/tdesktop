@@ -52,6 +52,10 @@ jobs:
       - name: Build and push.
         id: push
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        env:
+          # The build record the action uploads by default is not a zip
+          # artifact and breaks a download-all of the run's artifacts.
+          DOCKER_BUILD_RECORD_UPLOAD: false
         with:
           context: .github/telegram-bot-api
           push: true
