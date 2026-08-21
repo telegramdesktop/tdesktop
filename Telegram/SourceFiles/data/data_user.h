@@ -42,7 +42,7 @@ struct StarRefProgram {
 struct BotVerifierSettings {
 	DocumentId iconId = 0;
 	QString company;
-	QString customDescription;
+	TextWithEntities customDescription;
 	bool canModifyDescription = false;
 
 	explicit operator bool() const {

@@ -46,6 +46,17 @@ constexpr auto kSetOnlineAfterActivity = TimeId(30);
 
 using UpdateFlag = Data::PeerUpdate::Flag;
 
+[[nodiscard]] TextWithEntities ParseBotVerificationText(
+		const MTPTextWithEntities &text) {
+	auto result = Api::ParseTextWithEntities(nullptr, text);
+	result.entities.erase(
+		ranges::remove_if(result.entities, [](const EntityInText &entity) {
+			return entity.type() != EntityType::CustomUrl;
+		}),
+		result.entities.end());
+	return result;
+}
+
 bool ApplyBotVerifierSettings(
 		not_null<BotInfo*> info,
 		const MTPBotVerifierSettings *settings) {
@@ -57,7 +68,9 @@ bool ApplyBotVerifierSettings(
 	const auto parsed = BotVerifierSettings{
 		.iconId = DocumentId(data.vicon().v),
 		.company = qs(data.vcompany()),
-		.customDescription = qs(data.vcustom_description().value_or_empty()),
+		.customDescription = (data.vcustom_description()
+			? ParseBotVerificationText(*data.vcustom_description())
+			: TextWithEntities()),
 		.canModifyDescription = data.is_can_modify_custom_description(),
 	};
 	if (!info->verifierSettings) {
@@ -1101,12 +1114,10 @@ Ui::BotVerifyDetails ParseBotVerifyDetails(const MTPBotVerification *info) {
 		return {};
 	}
 	const auto &data = info->data();
-	const auto description = qs(data.vdescription());
-	const auto flags = TextParseLinks;
 	return {
 		.botId = UserId(data.vbot_id().v),
 		.iconId = DocumentId(data.vicon().v),
-		.description = TextUtilities::ParseEntities(description, flags),
+		.description = ParseBotVerificationText(data.vdescription()),
 	};
 }
 
