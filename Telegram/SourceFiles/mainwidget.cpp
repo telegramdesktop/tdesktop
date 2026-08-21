@@ -952,14 +952,28 @@ void MainWidget::createPlayer() {
 		});
 		_player->entity()->setShowItemCallback([=](
 				not_null<const HistoryItem*> item) {
+			// Defer: showMessage may activate another account and destroy
+			// this MainWidget while still inside the player mouse-release.
 			const auto peer = item->history()->peer;
-			if (const auto window = Core::App().windowFor(peer)) {
-				if (const auto controller = window->sessionController()) {
-					controller->showMessage(item);
+			const auto itemId = item->fullId();
+			crl::on_main([=] {
+				const auto window = Core::App().windowFor(peer);
+				if (!window) {
 					return;
 				}
-			}
-			_controller->showMessage(item);
+				window->invokeForSessionController(
+					&peer->session().account(),
+					peer,
+					[=](not_null<Window::SessionController*> controller) {
+						const auto resolved = controller->session().data().message(
+							itemId);
+						if (resolved) {
+							controller->content()->showMessage(
+								resolved,
+								SectionShow::Way::ClearStack);
+						}
+					});
+			});
 		});
 
 		_player->entity()->togglePlaylistRequests(
