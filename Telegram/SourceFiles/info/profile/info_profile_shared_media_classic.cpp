@@ -260,7 +260,7 @@ object_ptr<Ui::SlideWrap<Ui::RpWidget>> SetupSharedMediaClassic(
 		auto result = Media::AddButton(
 			content,
 			controller,
-			peer,
+			profilePeer,
 			topic ? topic->rootId() : MsgId(),
 			sublist,
 			migrated,
