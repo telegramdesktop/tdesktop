@@ -144,6 +144,7 @@ void UniqueGiftCoverMessageWidget::setMessage(
 			.session = &message.sender->session(),
 			.repaint = crl::guard(this, [this] { update(); }),
 		}));
+	_text.setSpoilerRevealed(true, anim::type::instant);
 	if (width() > 0) {
 		resizeToWidth(width());
 	}
