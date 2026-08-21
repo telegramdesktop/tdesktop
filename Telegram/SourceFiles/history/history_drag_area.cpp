@@ -522,6 +522,12 @@ void DragArea::SetupProxyDropArea(
 	});
 }
 
+int DragArea::MinimalHeight() {
+	return st::dragHeight + 2 * std::max(
+		st::dragPadding.top(),
+		st::dragSubfont->height + st::dragPadding.bottom());
+}
+
 DragArea::DragArea(QWidget *parent) : Ui::RpWidget(parent) {
 	setMouseTracking(true);
 	setAcceptDrops(true);

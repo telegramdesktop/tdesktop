@@ -39,6 +39,8 @@ public:
 		not_null<Ui::RpWidget*> container,
 		Fn<void(const QString &localUrl)> connectProxy);
 
+	[[nodiscard]] static int MinimalHeight();
+
 	void setText(const QString &text, const QString &subtext);
 
 	void otherEnter();

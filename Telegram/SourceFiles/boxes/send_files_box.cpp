@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "storage/localimageloader.h"
 #include "storage/localstorage.h"
+#include "storage/storage_folder_archive.h"
 #include "storage/storage_media_prepare.h"
 #include "iv/iv_instance.h"
 #include "mainwidget.h"
@@ -905,18 +906,21 @@ void SendFilesBox::setupDragArea() {
 			? (_sendWay.current().sendImagesAsPhotos()
 				? DragState::Image
 				: DragState::Files)
-			: (state == DragState::Folder)
-			? DragState::None
 			: (state == DragState::FilesArchive)
 			? DragState::Files
 			: state;
+	};
+	const auto archiveOnly = [=] {
+		const auto margins = st::dragMargin.top() + st::dragMargin.bottom();
+		return ((height() - margins) / 2) < DragArea::MinimalHeight();
 	};
 	const auto areas = DragArea::SetupDragAreaToContainer(
 		this,
 		CanAddFiles,
 		[=](bool f) { _caption->setAcceptDrops(f); },
 		[=] { updateControlsGeometry(); },
-		std::move(computeState));
+		std::move(computeState),
+		archiveOnly);
 
 	const auto droppedCallback = [=](bool compress) {
 		return [=](const QMimeData *data) {
@@ -2261,8 +2265,22 @@ bool SendFilesBox::addFiles(
 		not_null<const QMimeData*> data,
 		std::optional<bool> overrideSendImagesAsPhotos) {
 	const auto premium = _show->session().premium();
+	const auto urls = Core::ReadMimeUrls(data);
+	const auto folder = Storage::SingleFolderPath(urls);
+	if (!folder.isEmpty()) {
+		if (overrideSendImagesAsPhotos == false) {
+			const auto files = Storage::FolderFilesForSending(folder);
+			return !files.isEmpty()
+				&& addFiles(Storage::PrepareMediaList(
+					files,
+					st::sendMediaPreviewSize,
+					premium));
+		}
+		auto list = Ui::PreparedList();
+		list.files.push_back(Storage::PrepareFolderArchive(folder));
+		return addFiles(std::move(list));
+	}
 	auto list = [&] {
-		const auto urls = Core::ReadMimeUrls(data);
 		auto result = CanAddUrls(urls)
 			? Storage::PrepareMediaList(
 				urls,
