@@ -106,6 +106,7 @@ PRIVATE
     desktop-app::external_auto_updates
     desktop-app::external_openssl
     desktop-app::external_openal
+    desktop-app::external_wallet_engine
     desktop-app::external_xxhash
 )
 
@@ -2165,6 +2166,8 @@ PRIVATE
     wallet/wallet_collectibles.h
     wallet/wallet_content.cpp
     wallet/wallet_content.h
+    wallet/wallet_engine_smoke.cpp
+    wallet/wallet_engine_smoke.h
     wallet/wallet_fee_estimator.cpp
     wallet/wallet_fee_estimator.h
     wallet/wallet_fiat.cpp
