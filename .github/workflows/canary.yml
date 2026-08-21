@@ -749,6 +749,8 @@ jobs:
           # Report every failing file in one run rather than the first.
           defaults write com.apple.dt.Xcode IDEBuildingContinueBuildingAfterErrors -bool YES
 
+          # Only DESKTOP_APP_MAC_ARCH picks thin crashpad_handler.
+          #
           # No LTO on the macOS canary: the full-LTO x86_64 link of the
           # universal app took 4h39m on the Depot runner (arm64: 8 min),
           # turning a ~40 minute job into 5+ hours. Release builds keep
@@ -758,6 +760,7 @@ jobs:
           -D CMAKE_CONFIGURATION_TYPES=Release \
           -D CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO \
           -D CMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} \
+          -D DESKTOP_APP_MAC_ARCH=${{ matrix.arch }} \
           -D TDESKTOP_API_ID=${{ secrets.CANARY_API_ID }} \
           -D TDESKTOP_API_HASH=${{ secrets.CANARY_API_HASH }} \
           -D DESKTOP_APP_SPECIAL_TARGET=mac \
