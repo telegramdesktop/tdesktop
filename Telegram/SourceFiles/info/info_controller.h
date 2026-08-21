@@ -310,6 +310,12 @@ public:
 		return _parent;
 	}
 
+protected:
+	using SearchQuery = Api::DelayedSearchController::Query;
+
+	[[nodiscard]] SearchQuery produceSearchQuery(
+		const QString &query) const;
+
 private:
 	not_null<Window::SessionController*> _parent;
 
@@ -382,10 +388,7 @@ public:
 	~Controller();
 
 private:
-	using SearchQuery = Api::DelayedSearchController::Query;
-
 	void updateSearchControllers(not_null<ContentMemento*> memento);
-	SearchQuery produceSearchQuery(const QString &query) const;
 	void setupMigrationViewer();
 	void setupTopicViewer();
 

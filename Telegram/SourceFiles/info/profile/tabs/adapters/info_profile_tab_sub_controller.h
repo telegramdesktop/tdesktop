@@ -35,11 +35,6 @@ public:
 	void applySearchQuery(const QString &query);
 
 private:
-	using SearchQuery = Api::DelayedSearchController::Query;
-
-	[[nodiscard]] SearchQuery produceSearchQuery(
-		const QString &query) const;
-
 	const not_null<AbstractController*> _parent;
 	const Key _key;
 	const ::Info::Section _section;
