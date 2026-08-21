@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
 #include "data/data_forum_topic.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_user.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -122,11 +123,13 @@ base::options::toggle OptionDisableTouchbar({
 	}
 	const auto thread = id.thread;
 	const auto topic = thread->asTopic();
+	const auto sublist = thread->asSublist();
+	const auto peer = sublist ? sublist->sublistPeer() : thread->peer();
 	const auto name = topic
 		? topic->title()
-		: thread->peer()->isSelf()
+		: peer->isSelf()
 		? tr::lng_saved_messages(tr::now)
-		: thread->peer()->name();
+		: peer->name();
 	const auto wrapped = st::wrap_rtl(name);
 	return name + u" @ "_q + result;
 }
