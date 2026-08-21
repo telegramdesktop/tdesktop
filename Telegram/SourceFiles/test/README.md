@@ -239,6 +239,7 @@ clicking.
 | `test_agent.h` | Runtime gate, startup scale override, sticky named events, scenario start. |
 | `test_runner.h` | Stages, bounded waits, exact-widget actions, prepared capture/inspection, watchdog and termination. |
 | `test_log.h` | Absolute flushed logs, steps, notes, checks, tolerances, geometry, completion markers. |
+| `test_probe.h` | Append-only observation records read only through a declared window, and scans that must match a control before a zero counts as absence. |
 | `test_widgets.h` | Safe typed discovery, live object/action publication, input, and postponed-call settlement. |
 | `test_capture.h` | In-process grabs, paint-root validation, mapped rects, blank detection, crops, zoom, contact sheets. |
 | `test_ink.h` | Derived paint bands, colour separation, ink scans, counts, and contrast reports. |
@@ -254,7 +255,10 @@ clicking.
 
 Read the selected module's header before using it; the contracts there are
 more precise than the summary above. Search this directory before writing a
-new local helper.
+new local helper: an overlay that reimplements a shared facility is a test
+flaw like any other, because the local copy carries none of the refusals the
+shared one accumulated. One overlay rebuilt grab-check-save by hand after
+`CaptureWidget` had already refused blank and hidden targets for months.
 
 ## Building one reliable packed scenario
 
@@ -363,9 +367,18 @@ need them.
 | Geometry oracle fails on plausible-looking rects | Rects from different widgets compared without a shared origin. | Map both through one declared frame (`Ui::MapFrom`, `mapToGlobal`) and log the mapped values in the failure details. |
 | Process dies after `TEST_COMPLETE`, with no assertion line and often a 0-byte dump | Overlay teardown, not the product: a leaked scenario `State` still holds `rpl` subscriptions to session-owned streams while `~Main::Session` destroys them. | Destroy the scenario's lifetimes, release its watchers and null every raw cross-stage pointer in a final teardown stage — and check it ran, because a timed-out stage or the watchdog skips every stage after it. |
 | Media reading frozen at position `0`, with the length equal to the document's declared duration | Undecodable fixture document — often a synthetic upload left on the shared test account — accepted on metadata alone; the app debug log shows `Streaming Error: Error in avformat_open_input`. | Select the fixture with the playability probe: play each candidate and accept only one whose position strictly advances, then reuse that document everywhere. |
+| A premise fails against a row its own fixture had to create, or a check passes without ever reaching its subject | The oracle read the probe's whole history, or bracketed a slice by wall time, so rows from an earlier stage or a slow neighbouring surface answered it. | Record through `Test::Probe`, take `mark()` immediately before the action, and query only `...Since(mark)`; there is no whole-history accessor to fall back to. |
+| A sweep reports a confident `found=0` that no repair ever changes | The enumeration structurally cannot reach the subject, so the zero was guaranteed before the run started and measures nothing. | Count through `Test::DiscriminatingScan` and feed it a known-present control; `report()` refuses to certify a zero the walk cannot tell from absence. |
 
 Classify a sound assertion against changed behavior as an implementation bug,
 not a test flaw. Classify a wrong fixture, target, readiness model, event
 route, capture owner, or oracle as a test flaw. Preserve everything a failed
 run proved, repair all visible harness faults together, and rerun the packed
 scenario rather than fragmenting it into isolated launches.
+
+When a flaw's cause is the instrument idiom rather than this task's fixture,
+repair it here as well as in the overlay: add the missing helper, tighten an
+existing contract, or add its row to the table above, in the same run that
+diagnosed it. A diagnosis that stays in one task's notes is rediscovered by
+the next task, which is how the two rows above cost four runs each before
+they were written down.
