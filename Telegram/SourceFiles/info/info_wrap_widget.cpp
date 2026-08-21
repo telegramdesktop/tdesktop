@@ -150,7 +150,7 @@ WrapWidget::WrapWidget(
 }
 
 void WrapWidget::subscribeToThreadDestroyed() {
-	_threadDestroyedLifetime = std::make_unique<rpl::lifetime>();
+	_threadDestroyedLifetime.destroy();
 	if (const auto topic = _controller->topic()) {
 		topic->destroyed(
 		) | rpl::on_next([=] {
@@ -164,26 +164,23 @@ void WrapWidget::subscribeToThreadDestroyed() {
 			} else {
 				_removeRequests.fire({});
 			}
-		}, *_threadDestroyedLifetime);
+		}, _threadDestroyedLifetime);
 	} else if (const auto sublist = _controller->sublist()) {
 		sublist->destroyed(
 		) | rpl::on_next([=] {
-			auto keep = std::move(_threadDestroyedLifetime);
+			auto keep = base::take(_threadDestroyedLifetime);
+			auto removeRequests = base::take(_removeRequests);
 			const auto parent = _controller->parentController();
-			if (_wrap.current() == Wrap::Layer) {
-				parent->hideSpecialLayer(anim::type::instant);
-			} else if (_wrap.current() == Wrap::Narrow) {
-				parent->showBackFromStack(
-					Window::SectionShow(
-						anim::type::instant,
-						anim::activation::background));
-				parent->clearSectionStack(Window::SectionShow(
-					Window::SectionShow::Way::ClearStack,
-					anim::type::instant));
-			} else {
-				_removeRequests.fire({});
-			}
-		}, *_threadDestroyedLifetime);
+			parent->hideSpecialLayer();
+			parent->showBackFromStack(
+				Window::SectionShow(
+					anim::type::instant,
+					anim::activation::background));
+			parent->clearSectionStack(Window::SectionShow(
+				Window::SectionShow::Way::ClearStack,
+				anim::type::instant));
+			removeRequests.fire({});
+		}, _threadDestroyedLifetime);
 	}
 }
 
