@@ -165,18 +165,20 @@ WrapWidget::WrapWidget(
 	if (const auto sublist = _controller->sublist()) {
 		sublist->destroyed(
 		) | rpl::on_next([=] {
-			crl::on_main(this, [=] {
-				if (_wrap.current() == Wrap::Layer) {
-					_controller->parentController()->hideSpecialLayer();
-				} else if (_wrap.current() == Wrap::Narrow) {
-					_controller->parentController()->showBackFromStack(
-						Window::SectionShow(
-							anim::type::normal,
-							anim::activation::background));
-				} else {
-					_removeRequests.fire({});
-				}
-			});
+			const auto parent = _controller->parentController();
+			if (_wrap.current() == Wrap::Layer) {
+				parent->hideSpecialLayer();
+			} else if (_wrap.current() == Wrap::Narrow) {
+				parent->showBackFromStack(
+					Window::SectionShow(
+						anim::type::instant,
+						anim::activation::background));
+				parent->clearSectionStack(Window::SectionShow(
+					Window::SectionShow::Way::ClearStack,
+					anim::type::instant));
+			} else {
+				_removeRequests.fire({});
+			}
 		}, lifetime());
 	}
 }
