@@ -169,19 +169,22 @@ void WrapWidget::subscribeToThreadDestroyed() {
 		sublist->destroyed(
 		) | rpl::on_next([=] {
 			const auto parent = _controller->parentController();
-			if (_wrap.current() == Wrap::Layer) {
-				parent->hideSpecialLayer(anim::type::instant);
-			} else if (_wrap.current() == Wrap::Narrow) {
-				parent->showBackFromStack(
-					Window::SectionShow(
-						anim::type::instant,
-						anim::activation::background));
-				parent->clearSectionStack(Window::SectionShow(
-					Window::SectionShow::Way::ClearStack,
-					anim::type::instant));
-			} else {
-				_removeRequests.fire({});
-			}
+			const auto kind = _wrap.current();
+			InvokeQueued(this, [=] {
+				if (kind == Wrap::Layer) {
+					parent->hideSpecialLayer(anim::type::instant);
+				} else if (kind == Wrap::Narrow) {
+					parent->showBackFromStack(
+						Window::SectionShow(
+							anim::type::instant,
+							anim::activation::background));
+					parent->clearSectionStack(Window::SectionShow(
+						Window::SectionShow::Way::ClearStack,
+						anim::type::instant));
+				} else {
+					_removeRequests.fire({});
+				}
+			});
 		}, _threadDestroyedLifetime);
 	}
 }
