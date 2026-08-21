@@ -1,1 +1,0 @@
-Info wrap `destroyed()` teardown now rebinds when `showNewContent` replaces the controller. The sublist handler moves its wrap-owned lifetime aside, then hides a Layer wrap instantly so the wrap is gone before `applySublistDeleted` erases the sublist.
