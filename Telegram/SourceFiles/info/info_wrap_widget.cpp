@@ -150,7 +150,7 @@ WrapWidget::WrapWidget(
 }
 
 void WrapWidget::subscribeToThreadDestroyed() {
-	_threadDestroyedLifetime.destroy();
+	_threadDestroyedLifetime = std::make_unique<rpl::lifetime>();
 	if (const auto topic = _controller->topic()) {
 		topic->destroyed(
 		) | rpl::on_next([=] {
@@ -164,28 +164,26 @@ void WrapWidget::subscribeToThreadDestroyed() {
 			} else {
 				_removeRequests.fire({});
 			}
-		}, _threadDestroyedLifetime);
+		}, *_threadDestroyedLifetime);
 	} else if (const auto sublist = _controller->sublist()) {
 		sublist->destroyed(
 		) | rpl::on_next([=] {
+			auto keep = std::move(_threadDestroyedLifetime);
 			const auto parent = _controller->parentController();
-			const auto kind = _wrap.current();
-			InvokeQueued(this, [=] {
-				if (kind == Wrap::Layer) {
-					parent->hideSpecialLayer(anim::type::instant);
-				} else if (kind == Wrap::Narrow) {
-					parent->showBackFromStack(
-						Window::SectionShow(
-							anim::type::instant,
-							anim::activation::background));
-					parent->clearSectionStack(Window::SectionShow(
-						Window::SectionShow::Way::ClearStack,
-						anim::type::instant));
-				} else {
-					_removeRequests.fire({});
-				}
-			});
-		}, _threadDestroyedLifetime);
+			if (_wrap.current() == Wrap::Layer) {
+				parent->hideSpecialLayer(anim::type::instant);
+			} else if (_wrap.current() == Wrap::Narrow) {
+				parent->showBackFromStack(
+					Window::SectionShow(
+						anim::type::instant,
+						anim::activation::background));
+				parent->clearSectionStack(Window::SectionShow(
+					Window::SectionShow::Way::ClearStack,
+					anim::type::instant));
+			} else {
+				_removeRequests.fire({});
+			}
+		}, *_threadDestroyedLifetime);
 	}
 }
 
