@@ -30,6 +30,7 @@ namespace Storage {
 enum class MimeDataState {
 	None,
 	Files,
+	FilesArchive,
 	PhotoFiles,
 	MediaFiles,
 	//PremiumFile,

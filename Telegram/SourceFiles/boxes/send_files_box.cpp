@@ -907,6 +907,8 @@ void SendFilesBox::setupDragArea() {
 				: DragState::Files)
 			: (state == DragState::Folder)
 			? DragState::None
+			: (state == DragState::FilesArchive)
+			? DragState::Files
 			: state;
 	};
 	const auto areas = DragArea::SetupDragAreaToContainer(

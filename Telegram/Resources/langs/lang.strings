@@ -5925,6 +5925,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_drag_to_send_media" = "to send them as media files";
 "lng_drag_to_send_folder" = "to send it as an archive";
 "lng_drag_to_send_folder_files" = "to send all its files";
+"lng_drag_to_send_files_archive" = "to send them as one archive";
 
 "lng_drag_proxy_here" = "Connect to a proxy";
 "lng_drag_proxy_about" = "Drop the link here";

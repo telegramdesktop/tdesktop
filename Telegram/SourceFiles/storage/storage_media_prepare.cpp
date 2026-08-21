@@ -179,6 +179,8 @@ MimeDataState ComputeMimeDataState(const QMimeData *data) {
 		? MimeDataState::PhotoFiles
 		: allAreMedia
 		? MimeDataState::MediaFiles
+		: (urls.size() > 1)
+		? MimeDataState::FilesArchive
 		: MimeDataState::Files;
 }
 

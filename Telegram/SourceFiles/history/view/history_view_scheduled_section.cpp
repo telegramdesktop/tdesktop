@@ -572,6 +572,15 @@ bool ScheduledWidget::confirmSendingFiles(
 			}
 			return true;
 		}
+		if (overrideSendImagesAsPhotos == true
+			&& !_composeControls->isEditingMessage()
+			&& (Storage::ComputeMimeDataState(data)
+				== Storage::MimeDataState::FilesArchive)) {
+			auto list = Ui::PreparedList();
+			list.files.push_back(Storage::PrepareFilesArchive(urls));
+			confirmSendingFiles(std::move(list), QString());
+			return true;
+		}
 		auto list = Storage::PrepareMediaList(
 			urls,
 			st::sendMediaPreviewSize,
