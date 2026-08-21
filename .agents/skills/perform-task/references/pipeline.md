@@ -317,14 +317,8 @@ a profile. Before editing, Phase 2 assessment records the task's actual failure
 surfaces and writes both of these contracts:
 
 ```text
-Review plan:
-- general: required
-- lifetime: selected | omitted — <reason>
-- reuse: selected | omitted — <reason>
-- structure: selected | omitted — <reason>
-- performance: selected | omitted — <reason>
-- security: selected | omitted — <reason>
-- specialist-<domain>: selected — <material risk>, when needed
+Expected surfaces:
+- <surface this task is likely to touch, and the escalation it would imply>
 
 Evidence plan:
 - Claim: <acceptance criterion or material shipped invariant>
@@ -332,54 +326,83 @@ Evidence plan:
 - Instrument: <reading | command | artifact | unit | probe | component |
   telegram-log | overlay | computer-use | screenshot>
 - Oracle: <literal pass/fail decision>
-- Control / negative: <how a check proves it reached the subject>
+- Window: <the mark or bound the reading is taken within>
+- Control: <a known-present item the same reading also reaches>
+- Falsifier: <the observation that would make this check fail>
 - Evidence: <planned durable output>
 ```
 
-The plan also names escalation triggers: implementation surfaces that would add
-a specialist or require a stronger instrument. Assessment rejects ceremony as
-well as under-testing. It removes checks that cannot be affected by the task,
-and it rejects an omitted lens whose failure mode is present.
+Assessment does not choose reviewers. The general reviewer does that with the
+diff in hand, and `Expected surfaces` is a note for it, not a decision.
+Assessment rejects ceremony as well as under-testing: it removes checks that
+cannot be affected by the task.
 
 ### Review selection
 
-The independent **general** review always runs. It owns correctness,
-completeness, adjacent integration, unintended regressions, proportionality,
-repository conventions, and the adequacy of the evidence plan. It reads every
-changed file in full and cannot defer a concern to a specialist.
+Selection happens with the diff in hand, never before it. Assessment records
+the surfaces it expects and the escalation triggers it can name, but it does
+not choose reviewers: a lens picked from the task text is a prediction, and
+the hazards that matter are routinely invisible until the implementation
+exists. A task reading `open a different page` produced a use-after-free that
+only the diff showed.
 
-Select focused independent specialists when their surfaces exist:
+The independent **general** review therefore runs first, alone. It reads every
+changed file in full and owns correctness, completeness, adjacent integration,
+unintended regressions, proportionality, repository conventions, and the
+adequacy of the evidence plan. It cannot defer a concern to a specialist.
 
-- **lifetime** — object and resource ownership, callbacks, re-entrancy,
+Its first output is the **retirement list**. Every specialist below runs unless
+the general reviewer retires it, so a lens nobody considered still runs. Retire
+one only by asserting the absence of its surface in the terms given, and record
+each retirement with that assertion in `review<R>.md`:
+
+- **lifetime** — owns object and resource ownership, callbacks, re-entrancy,
   destruction order, threads, concurrency, races, synchronization,
-  cancellation, and shutdown;
-- **reuse** — a new helper, API, style, string, switch, algorithm, or mechanism
-  may duplicate an established one;
-- **structure** — cross-module placement, broad moves or deletion, generated
-  files, build graphs, platform containment, or new abstractions;
-- **performance** — hot or repeated paths, main-thread blocking, startup,
-  memory, I/O, scale, or material build-time cost;
-- **security** — secrets, authentication, permissions, privacy, cryptography,
-  untrusted input, command or subprocess construction, filesystem boundaries,
-  downloads, network trust, or destructive behavior.
+  cancellation, and shutdown. Retire only when the diff adds or changes no
+  owner, stores nothing past its call, registers no callback or subscription,
+  touches no destruction or teardown path, and crosses no thread or async
+  boundary.
+- **reuse** — owns duplication of an established helper, API, style, string,
+  switch, algorithm, or mechanism. Retire only when the diff introduces none
+  of those and edits existing call sites alone.
+- **structure** — owns cross-module placement, broad moves or deletion,
+  generated files, build graphs, platform containment, and new abstractions.
+  Retire only when the diff adds, moves and deletes no file, changes no build
+  graph or generated output, and crosses no module or platform boundary.
+- **performance** — owns hot or repeated paths, main-thread blocking, startup,
+  memory, I/O, scale, and material build-time cost. Retire only when the diff
+  adds nothing to a repeated, hot or startup path, adds no allocation, I/O or
+  blocking work there, and adds no material build-time cost.
+- **security** — owns secrets, authentication, permissions, privacy,
+  cryptography, untrusted input, command or subprocess construction,
+  filesystem boundaries, downloads, network trust, and destructive behavior.
+  Retire only when the diff touches none of them.
 
-Add a named domain specialist when a material risk such as ABI portability or
-persistence migration does not fit those lenses. App-runtime work usually
-selects several lenses; persisted state, asynchronous ownership, network
-mutation, payments, security boundaries, and broad refactors retain deep
-independent review. A build or documentation change is not exempt from review;
-it receives the general review and the specialists its real risks select.
+One failing clause keeps the lens. The test is presence of the surface, not an
+estimate of how risky it looks: presence is checkable by the next reader and
+severity is not, and severity judged under time pressure drifts optimistic.
+`documentation only` is not an assertion of absence; the clauses above are.
 
-A specialist reports only material findings with a concrete failure. The
-general reviewer confirms each one against the code and writes the sole
-`review<R>.md` verdict. Wording, style, or optional cleanup that does not cause
-wrong behavior, unsafe use, material maintenance cost, or violated repository
-rules is non-blocking and never starts a fix cycle.
+The general reviewer may also add a named domain specialist when a material
+risk such as ABI portability or persistence migration fits none of the lenses.
 
-After a blocking fix, select the next review set from what the fix changed:
-general always reruns; only affected specialists rerun. A fix that changed no
-owned source closes the loop. A new surface triggers reassessment instead of an
-automatic replay of every lens.
+Then run the surviving specialists independently and in parallel. Give them the
+diff and the retirement decision, never the general reviewer's findings: a
+specialist that reads them anchors on them, and the independence of the lenses
+is what lets the synthesis drop a finding another lens refutes.
+
+A specialist reports only material findings with a concrete failure. The general
+reviewer then returns, confirms each one against the code, and writes the sole
+`review<R>.md` verdict, which accounts for every retired and every surviving
+lens. Wording, style, or optional cleanup that does not cause wrong behavior,
+unsafe use, material maintenance cost, or violated repository rules is
+non-blocking and never starts a fix cycle.
+
+After a blocking fix, repeat the same shape against what the fix changed:
+general reruns with emphasis on the changed hunks and re-decides retirement
+there; only specialists whose surfaces the fix touched rerun. A fix that changed
+no owned source closes the loop. A new surface triggers reassessment instead of
+an automatic replay of every lens.
 
 ### Evidence selection
 
@@ -422,6 +445,22 @@ instrument:
   UI flows unless the deletion could change their result;
 - harness work: isolated harness self-tests and safety controls, with Telegram
   used only for harness behavior that exists inside the app.
+
+Every check declares a window, a control, and a falsifier before the run. A
+check missing any of the three is not run, because each names a way a check
+passes or fails without ever reaching its subject:
+
+- **Window** — the mark or bound the reading is taken within. A premise read
+  over everything the run has produced answers from rows an earlier stage
+  created, and a slice bracketed by wall time collects a slow neighbour's rows.
+  Record through `Test::Probe`, take `mark()` immediately before the action, and
+  query only `...Since(mark)`; it offers no whole-history accessor.
+- **Control** — a known-present item the same reading also reaches. A count
+  whose zero is structurally guaranteed measures nothing, and reads as a
+  confident absence. Count through `Test::DiscriminatingScan`, which refuses to
+  certify a zero the walk cannot tell from absence.
+- **Falsifier** — the observation that would make this check fail. A check
+  nobody can describe failing is not a check.
 
 Each check must map to an acceptance criterion or a material risk introduced by
 the diff, name its falsifier, and retain positive evidence. Apply the revert

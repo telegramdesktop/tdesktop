@@ -22,8 +22,8 @@ every applicable placeholder: `<TASK>`, `<TASK_ID>`, `<WORK_DIR>`,
 
 ## Orchestration Rules
 
-- When delegation is available, use a fresh subagent for Phase 1 (context and plan), Phase 3, each Phase 4 implementation unit, each selected Phase 6 specialist, the Phase 6 general review, and each Phase 6 fix. Do not switch those phases to same-session midstream because of a timeout or missing artifact.
-- Selected specialist reviews are independent and write disjoint reports, so spawn them together when capacity allows. The mandatory general reviewer runs after them, reads and confirms their findings, reviews the complete diff itself, reconciles the evidence design, and owns the overall verdict.
+- When delegation is available, use a fresh subagent for Phase 1 (context and plan), Phase 3, each Phase 4 implementation unit, each Phase 6 general review pass, each surviving Phase 6 specialist, and each Phase 6 fix. Do not switch those phases to same-session midstream because of a timeout or missing artifact.
+- The mandatory general reviewer runs first and alone on the complete diff, and emits the retirement list. Surviving specialist reviews are independent and write disjoint reports, so spawn them together when capacity allows, giving them the diff and the retirement decision but never the general reviewer's findings. The general reviewer then returns, confirms or drops their findings, reconciles the evidence design, and owns the overall verdict.
 - Treat delegation as selected only after the first real phase spawn succeeds; tool presence is insufficient. An immediate depth/capacity/policy rejection before phase work selects same-session checklists and is not a delegated retry.
 - Phase 7 runs in the current session on native, non-WSL Windows because it depends on the final local diff and touched-file set. Skip it on WSL and keep files LF/no-BOM there.
 - Write each phase prompt to `<WORK_DIR>/logs/phase-<phase-name>.prompt.md` before execution.
@@ -43,7 +43,7 @@ every applicable placeholder: `<TASK>`, `<TASK_ID>`, `<WORK_DIR>`,
   is the completion signal; there is no polling, no heartbeat-mtime ladder,
   and no stall windows. On return, validate the artifact-based completion
   checks below before treating the phase as done.
-- Spawn the independent leaves of one step — the selected Phase 6 specialists,
+- Spawn the independent leaves of one step — the surviving Phase 6 specialists,
   or assessed-disjoint Phase 4 units —
   as parallel Agent calls in a single message so they run concurrently.
 - If a returned leaf fails its completion check, retry that disposable phase
@@ -57,7 +57,7 @@ every applicable placeholder: `<TASK>`, `<TASK_ID>`, `<WORK_DIR>`,
 - When this session is a top-level `/perform-task`, run each leaf as one
   blocking `spawn_subagent` (`background: false`). The call returning is
   the completion signal; validate the artifact checks below on return.
-- Spawn the independent leaves of one step — the selected Phase 6 specialists,
+- Spawn the independent leaves of one step — the surviving Phase 6 specialists,
   or assessed-disjoint Phase 4
   units — as parallel `spawn_subagent` calls in a single message.
 - When this session is a `/continue` child, do not call `spawn_subagent`.
@@ -125,7 +125,7 @@ Do not restate the full context, plan, diff, or long reasoning in the chat reply
 - Phase 4 is complete only when the target phase checkbox changed to checked and the touched-file list matches the owned write set, or the blocker explains any mismatch.
 - Phase 5 is complete only when the build outcome is known and the build checkbox is updated on success.
 - A Phase 6 specialist is complete only when every scheduled specialist wrote `review<R>-<lens>.md` with a `## Verdict:` line and a non-empty `## Checked` section. A report that records no checked surfaces is incomplete work.
-- Phase 6 general review is complete only when `review<R>-general.md` and `review<R>.md` exist with a `## Verdict:` line, a non-empty `## Coverage` section, the selected and omitted specialists accounted for, and every evidence check reconciled against the actual diff.
+- Phase 6 general review is complete only when `review<R>-general.md` and `review<R>.md` exist with a `## Verdict:` line, a non-empty `## Coverage` section, every retired lens carrying its absence assertion, every surviving lens accounted for, and every evidence check reconciled against the actual diff.
 - Phase 6b is complete only when the requested fixes were applied and the post-fix build outcome is known.
 - Phase 3 is additionally incomplete until `test-design.md` exists, covers
   every acceptance surface, assigns each check a direct instrument, oracle,
@@ -248,14 +248,9 @@ Number every step. Group steps into phases if there are more than about eight st
 - build command to run
 - expected outcome
 
-## Review Plan
-- general: required
-- lifetime: selected or omitted, with the concrete reason
-- reuse: selected or omitted, with the concrete reason
-- structure: selected or omitted, with the concrete reason
-- performance: selected or omitted, with the concrete reason
-- security: selected or omitted, with the concrete reason
-- any task-specific specialist and the material risk it owns
+## Expected Surfaces
+- each surface this task is likely to touch, and the escalation it implies
+- any task-specific domain risk that fits none of the standard lenses
 
 ## Evidence Plan
 - one preliminary check per acceptance criterion: changed surface, instrument,
@@ -384,14 +379,11 @@ Assess the plan:
    - New files are not the problem: a focused file bounding a coherent role
      beats both growing a mega-module and scattering through one; judge
      whether the boundary does work, not whether it is new.
-5. Review selection: require general review. Select lifetime for ownership,
-   callbacks, concurrency, races, cancellation or shutdown; reuse for likely
-   duplication; structure for placement, build graphs, broad moves/deletion or
-   abstractions; performance for hot, repeated, blocking or scaled cost; and
-   security for trust boundaries, secrets, auth, permissions, untrusted input,
-   command execution, filesystem safety, privacy, crypto or destructive work.
-   Add a focused domain specialist when a material risk fits none. Reject both
-   an omitted applicable lens and a ceremonial selected lens with no surface.
+5. Expected surfaces: record the surfaces this task is likely to touch and the
+   escalations they would imply, as a note for the reviewer. Do not select or
+   omit review lenses here — the general reviewer decides that with the diff in
+   hand, and every optional lens runs unless it retires the lens by asserting
+   the absence of its surface.
 6. Evidence design: map every acceptance criterion and material shipped risk to
    the most direct practical instrument that can detect the negative. Allow
    static readings, commands/artifacts, unit tests, a standalone probe or
@@ -428,10 +420,10 @@ Update plan.md with your refinements. Keep the same structure but:
   as much a refinement as addition
 - improve the approach if you found better patterns
 - ensure phases are properly sized for single-agent execution
-- finalize `## Review Plan` with one reason per selected or omitted lens
+- finalize `## Expected Surfaces` as a note for the reviewer, selecting no lens
 - finalize `## Evidence Plan`, then write `<WORK_DIR>/test-design.md` with one
   check per acceptance surface: Claim, Changed surface, Instrument, Oracle,
-  Control / negative, Evidence, and Falsifier. State which prerequisites are
+  Window, Control, Falsifier, and Evidence. State which prerequisites are
   gated only if that instrument runs. Name `Outcome: already-satisfied` as a
   candidate when current code appears to meet the request without a change.
 - add a line at the top of the Status section: `Phases: <N>`
@@ -532,36 +524,38 @@ When finished, report the build result and which files, if any, you changed.
 
 ## Phase 6: Adaptive Review Loop
 
-Assessment selects the review set before implementation. The mandatory general
+Selection happens with the diff in hand. Assessment records expected surfaces
+and escalation triggers but does not choose reviewers. The mandatory general
 review runs for every task. The optional library is lifetime, reuse, structure,
-performance, and security; assessment may add a specialist-<domain> review for
-another material risk.
+performance, and security; the general reviewer may add a specialist-<domain>
+review for another material risk.
 
 For iteration R:
 
-1. Reconcile the selected specialists against the actual diff. Add one when the
-   implementation crossed an assessment escalation trigger. Remove a specialist
-   only when the expected surface is absent, and record that reason in plan.md.
-2. Run selected specialists independently and in parallel. They write
-   review<R>-<lens>.md.
-3. Run the general reviewer after specialist reports exist. It independently
-   reviews the complete diff and evidence design, confirms or drops specialist
-   findings, and writes both review<R>-general.md and the actionable
-   review<R>.md.
-4. If general review requests a missing specialist, run it and rerun general in
-   the same iteration before fixing code.
-5. APPROVED closes review. NEEDS_CHANGES runs the fix phase for blocking
+1. Run the general reviewer first and alone, on the complete diff. Besides its
+   own review it emits the retirement list: every optional lens runs unless it
+   is retired, and a lens is retired only by asserting the absence of its
+   surface in the terms `pipeline.md` gives. Record each retirement with its
+   assertion. It writes review<R>-general.md.
+2. Run the surviving specialists independently and in parallel. Give them the
+   diff and the retirement decision, never the general reviewer's findings.
+   They write review<R>-<lens>.md.
+3. The general reviewer returns, confirms or drops each specialist finding
+   against the code, and writes the actionable review<R>.md, accounting for
+   every retired and every surviving lens.
+4. APPROVED closes review. NEEDS_CHANGES runs the fix phase for blocking
    findings only.
-6. After a substantive fix, increment R, rerun general, and rerun only the
+5. After a substantive fix, increment R, rerun general with emphasis on the
+   changed hunks so it re-decides retirement there, and rerun only the
    specialists whose surfaces the fix touched or whose prior blocking finding
    was repaired. A fix that changed no owned source closes the loop without
    another round.
 
-There is no automatic five-lens replay. Every review cycle must either add
-material coverage, validate changed code, or close. A wording or style
-suggestion is non-blocking unless it causes incorrect behavior, unsafe use,
-misleading build instructions, a repository-rule violation, or a material
-maintenance defect.
+There is no automatic five-lens replay, and no lens is skipped by omission:
+silence retires nothing. Every review cycle must either add material coverage,
+validate changed code, or close. A wording or style suggestion is non-blocking
+unless it causes incorrect behavior, unsafe use, misleading build instructions,
+a repository-rule violation, or a material maintenance defect.
 
 ### Shared specialist preamble
 
@@ -685,26 +679,37 @@ security invariant for a blocking finding.
 ### Mandatory general review
 
 The general reviewer owns the result and cannot assume a specialist covered an
-angle.
+angle. It runs twice per iteration: pass 1 alone on the diff, emitting the
+retirement list, and pass 2 after the surviving specialists report.
 
 ~~~text
 You are the mandatory general reviewer for one Telegram Desktop task,
-iteration <R>. You are a leaf and must not delegate.
+iteration <R>, pass <PASS> of 2. You are a leaf and must not delegate.
 
 Read:
 - the task specification and every referenced input
 - <WORK_DIR>/context.md, plan.md, visual.md when present, and test-design.md
 - AGENTS.md and REVIEW.md
-- every review<R>-<specialist>.md
+- on pass 2 only, every review<R>-<lens>.md the surviving specialists wrote
 - the complete task diff and every changed file in full
 - adjacent callers, consumers, generated/build declarations, and repository
   precedents needed to judge integration
 
 Independently review correctness, completeness, edge/error paths, unintended
 regressions, integration, proportionality, repository conventions, and the
-evidence design. Do not defer anything to a specialist. Confirm every
-specialist finding against the code; drop it when the concrete failure does not
-hold.
+evidence design. Do not defer anything to a specialist.
+
+On pass 1 no specialist has run yet. Besides your own review, emit the
+retirement list. Every optional lens — lifetime, reuse, structure, performance,
+security — runs unless you retire it, so a lens you do not mention still runs.
+Retire one only by asserting the absence of its surface in the exact terms
+pipeline.md gives, and write that assertion beside it; a failing clause keeps
+the lens, and "documentation only" is not an assertion of absence. Name any
+extra domain specialist a material risk needs. Then return: the performer runs
+the surviving specialists and calls you back for pass 2.
+
+On pass 2, confirm every specialist finding against the code; drop it when the
+concrete failure does not hold.
 
 Reconcile test-design.md against the actual diff:
 - every acceptance criterion and material new risk has a check;
@@ -720,9 +725,11 @@ Reconcile test-design.md against the actual diff:
 - selected instrument prerequisites are explicit, and unavailable unselected
   instruments are not treated as blockers.
 
-If a material risk lacks a specialist, write "Missing specialist: <name> —
-<reason>" and return without an implementation verdict. The performer runs that
-specialist, then reruns this general review in iteration R.
+If pass 2 exposes a material risk no surviving lens covered — including one you
+retired on pass 1 — write "Missing specialist: <name> — <reason>" and return
+without an implementation verdict. The performer runs that specialist, then
+calls you back again in iteration R. Retiring a lens you then have to recall is
+a worse outcome than keeping it, so retire only on the absence clauses.
 
 Classify findings:
 - BLOCKING: concrete wrong behavior, crash, race, security/data-safety failure,

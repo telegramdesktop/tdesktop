@@ -103,6 +103,21 @@ surface. Record before each recovery:
 - next direct instrument;
 - why it executes the changed surface and preserves an independent oracle.
 
+When the flaw's cause is the instrument idiom rather than this task's fixture,
+repair the harness in the same run, not only the overlay: add the missing
+helper to `Telegram/SourceFiles/test/`, tighten an existing contract so the
+failed technique becomes unreachable, or add the symptom to that directory's
+README failure-diagnosis table. Prefer making the technique impossible over
+documenting that it is forbidden — the repair that retired the unbounded probe
+accessor also exposed a check that had been passing vacuously in two earlier
+runs, which a written rule would not have caught. A diagnosis left in one
+task's notes is rediscovered by the next task at full campaign cost, and this
+is the mechanism that stops it.
+
+Before writing any local overlay helper, search that directory first. An
+overlay that reimplements a shared facility is itself a TEST_FLAW risk: the
+local copy carries none of the refusals the shared one accumulated.
+
 The directness ladder is task-dependent:
 
 1. read the produced artifact or runtime value instead of a summary;
