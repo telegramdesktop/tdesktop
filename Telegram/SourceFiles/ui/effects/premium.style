@@ -129,6 +129,20 @@ premiumDotPadding: margins(4px, 4px, 4px, 4px);
 premiumDotsMargin: margins(0px, 5px, 0px, 6px);
 premiumVideoWidth: 182px;
 
+premiumPromoParticlesInset: 30px;
+premiumPromoParticlesDeviceSkip: 10px;
+premiumPromoIconSmall: 14px;
+premiumPromoIconMedium: 15px;
+premiumPromoIconLarge: 16px;
+premiumPromoIconWide: 18px;
+premiumPromoStarSmall: 4px;
+premiumPromoStarMedium: 10px;
+premiumPromoStarLarge: 12px;
+premiumPromoMatrixCell: 16px;
+premiumPromoSpeedInset: 100px;
+premiumPromoSpeedLine: 30px;
+premiumPromoHelloFont: font(24px bold);
+
 // Graphics.
 
 defaultPremiumBubble: PremiumBubble {

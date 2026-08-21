@@ -561,6 +561,8 @@ PRIVATE
     ui/effects/premium_diamond_renderer.h
     ui/effects/premium_graphics.cpp
     ui/effects/premium_graphics.h
+    ui/effects/premium_promo_particles.cpp
+    ui/effects/premium_promo_particles.h
     ui/effects/premium_star.cpp
     ui/effects/premium_star.h
     ui/effects/premium_star_model.cpp
