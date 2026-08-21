@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Platform {
 
+inline bool CheckAppTranslocation() {
+	return true;
+}
+
 inline void IgnoreApplicationActivationRightNow() {
 }
 

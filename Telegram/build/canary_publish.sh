@@ -26,7 +26,9 @@
 #   BASE, COUNTER, COMMIT   the version being published
 #   VERSION_STR             the display version (7.0.9) of the archives
 #   PREVIOUS                commit of the previous run, for the changelog
-#   UNSIGNED                "true" when platform signing was skipped
+#   SIGNED                  "true" when the platform binaries carry their
+#                           Authenticode signature / notarization (Linux
+#                           has none to carry and always passes "true")
 #   KEYS_LOC                directory with manifest.min.json + manifest.sig
 #   UPDATE_DIR, PORTABLE_DIR
 #                           downloaded artifacts of this platform
@@ -109,10 +111,17 @@ if [ ! -f "$PORTABLE" ]; then
   exit 1
 fi
 
+NOTE=""
+if [ "$SIGNED" != "true" ]; then
+  case "$FIRST" in
+    win64) NOTE="UNSIGNED test build: no Authenticode signature." ;;
+    mac|armac) NOTE="UNSIGNED test build: not signed or notarized." ;;
+  esac
+fi
 CAPTION=$({
   echo "Canary #$COUNTER · $COMMIT"
-  if [ "$UNSIGNED" = "true" ]; then
-    echo "UNSIGNED test build: no Authenticode / notarization."
+  if [ -n "$NOTE" ]; then
+    echo "$NOTE"
   fi
   echo ""
   if [ -n "$PREVIOUS" ] && git cat-file -e "$PREVIOUS^{commit}" 2>/dev/null \

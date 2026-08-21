@@ -292,6 +292,9 @@ jobs:
     # windows-11-arm runner and the VS ARM64 build tools steps from
     # win.yml when the canary channels grow an arm feed.
 
+    outputs:
+      signed: ${{ steps.sign.outputs.signed }}
+
     env:
       PREPARE_PATH: "Telegram/build/prepare/prepare.py"
 
@@ -525,6 +528,7 @@ jobs:
           #   --endpoint-url https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com
 
       - name: Sign binaries.
+        id: sign
         shell: bash
         env:
           SM_API_KEY: ${{ secrets.SM_API_KEY }}
@@ -541,6 +545,7 @@ jobs:
               exit 1
             fi
             echo "::warning::KeyLocker secrets absent, leaving binaries unsigned."
+            echo "signed=false" >> $GITHUB_OUTPUT
             exit 0
           fi
           # TODO(canary-infra): install the DigiCert KeyLocker tools once
@@ -554,6 +559,7 @@ jobs:
           # the publish job can re-check just the portable's Telegram.exe.
           signtool verify /pa /all Telegram.exe
           signtool verify /pa /all Updater.exe
+          echo "signed=true" >> $GITHUB_OUTPUT
 
       - name: Azure login for update signing.
         if: needs.version.outputs.publish == 'true'
@@ -636,6 +642,9 @@ jobs:
     permissions:
       contents: read
       id-token: write
+
+    outputs:
+      signed: ${{ steps.sign.outputs.signed }}
 
     env:
       PREPARE_PATH: "Telegram/build/prepare/prepare.py"
@@ -790,6 +799,7 @@ jobs:
           done
 
       - name: Sign and notarize.
+        id: sign
         env:
           CERTIFICATE_P12_B64: ${{ secrets.MACOS_CERTIFICATE_P12_B64 }}
           CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
@@ -807,6 +817,7 @@ jobs:
               exit 1
             fi
             echo "::warning::No signing certificate, leaving the apps unsigned."
+            echo "signed=false" >> $GITHUB_OUTPUT
             exit 0
           fi
           echo "$CERTIFICATE_P12_B64" | base64 -d > /tmp/certificate.p12
@@ -834,6 +845,7 @@ jobs:
             spctl --assess --type execute --verbose=2 "$BUNDLE"
             rm notarize.zip
           done
+          echo "signed=true" >> $GITHUB_OUTPUT
 
       - name: Azure login for update signing.
         if: needs.version.outputs.publish == 'true'
@@ -1226,7 +1238,7 @@ jobs:
           COMMIT: ${{ needs.version.outputs.commit }}
           VERSION_STR: ${{ needs.version.outputs.version_str }}
           PREVIOUS: ${{ needs.version.outputs.previous }}
-          UNSIGNED: ${{ needs.version.outputs.unsigned }}
+          SIGNED: ${{ needs.windows.outputs.signed }}
           KEYS_LOC: Telegram/Resources/update
           UPDATE_DIR: artifacts/update
           PORTABLE_DIR: artifacts/portable
@@ -1315,7 +1327,7 @@ jobs:
           COMMIT: ${{ needs.version.outputs.commit }}
           VERSION_STR: ${{ needs.version.outputs.version_str }}
           PREVIOUS: ${{ needs.version.outputs.previous }}
-          UNSIGNED: ${{ needs.version.outputs.unsigned }}
+          SIGNED: ${{ needs.macos.outputs.signed }}
           KEYS_LOC: Telegram/Resources/update
           UPDATE_DIR: artifacts/update
           PORTABLE_DIR: artifacts/portable
@@ -1390,7 +1402,7 @@ jobs:
           COMMIT: ${{ needs.version.outputs.commit }}
           VERSION_STR: ${{ needs.version.outputs.version_str }}
           PREVIOUS: ${{ needs.version.outputs.previous }}
-          UNSIGNED: ${{ needs.version.outputs.unsigned }}
+          SIGNED: true
           KEYS_LOC: Telegram/Resources/update
           UPDATE_DIR: artifacts/update
           PORTABLE_DIR: artifacts/portable

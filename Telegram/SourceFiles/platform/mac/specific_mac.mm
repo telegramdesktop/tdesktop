@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_widget.h"
 #include "core/crash_reports.h"
 #include "core/sandbox.h"
+#include "core/launcher.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "storage/localstorage.h"
@@ -22,11 +23,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/mac/base_utilities_mac.h"
 #include "base/platform/base_platform_info.h"
 
+#include <QtCore/QDirIterator>
 #include <QtGui/QDesktopServices>
 #include <QtWidgets/QApplication>
 
 #include <cstdlib>
+#include <dlfcn.h>
 #include <execinfo.h>
+#include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <sys/xattr.h>
 
@@ -107,6 +111,154 @@ int psFixPrevious() {
 	return 0;
 }
 
+#ifndef OS_MAC_STORE
+namespace {
+
+struct TranslocationState {
+	bool translocated = false;
+	QString original; // The bundle path macOS made the copy from.
+};
+
+// Security.framework exports these since 10.12 without declaring them in
+// the public headers; the path check is the fallback when they are not
+// resolvable.
+using SecTranslocateIsTranslocatedURLFn = Boolean(*)(
+	CFURLRef,
+	bool*,
+	CFErrorRef*);
+using SecTranslocateCreateOriginalPathForURLFn = CFURLRef(*)(
+	CFURLRef,
+	CFErrorRef*);
+
+[[nodiscard]] TranslocationState CheckTranslocationState(
+		const QString &bundle) {
+	auto result = TranslocationState();
+	NSURL *url = [NSURL fileURLWithPath:Platform::Q2NSString(bundle)];
+	const auto security = dlopen(
+		"/System/Library/Frameworks/Security.framework/Security",
+		RTLD_LAZY);
+	const auto isTranslocated = security
+		? reinterpret_cast<SecTranslocateIsTranslocatedURLFn>(
+			dlsym(security, "SecTranslocateIsTranslocatedURL"))
+		: nullptr;
+	const auto createOriginal = security
+		? reinterpret_cast<SecTranslocateCreateOriginalPathForURLFn>(
+			dlsym(security, "SecTranslocateCreateOriginalPathForURL"))
+		: nullptr;
+
+	auto flag = false;
+	if (isTranslocated && isTranslocated((CFURLRef)url, &flag, nullptr)) {
+		result.translocated = flag;
+	} else {
+		result.translocated = bundle.contains(u"/AppTranslocation/"_q);
+	}
+	if (!result.translocated) {
+		return result;
+	}
+	if (createOriginal) {
+		if (const auto original = createOriginal((CFURLRef)url, nullptr)) {
+			result.original = Platform::NS2QString([(NSURL*)original path]);
+			CFRelease(original);
+		}
+	}
+	if (result.original.isEmpty()) {
+		// The translocated bundle lives on a read-only mount of the
+		// original location, so the mount source names it.
+		struct statfs info;
+		if (statfs(QFile::encodeName(bundle).constData(), &info) == 0) {
+			auto from = QFile::decodeName(info.f_mntfromname);
+			const auto name = QFileInfo(bundle).fileName();
+			if (!from.endsWith('/' + name)) {
+				from += '/' + name;
+			}
+			result.original = from;
+		}
+	}
+	return result;
+}
+
+// Every item of the bundle carries the attribute, and a single leftover
+// would translocate the relaunch again.
+[[nodiscard]] bool RemoveQuarantineRecursively(const QString &bundle) {
+	constexpr auto kAttribute = "com.apple.quarantine";
+	const auto remove = [&](const QString &path) {
+		const auto local = QFile::encodeName(path);
+		if (removexattr(local.constData(), kAttribute, XATTR_NOFOLLOW) == 0
+			|| errno == ENOATTR) {
+			return true;
+		}
+		LOG(("Translocation Error: removexattr failed for '%1': %2"
+			).arg(path
+			).arg(errno));
+		return false;
+	};
+	if (!remove(bundle)) {
+		return false;
+	}
+	auto iterator = QDirIterator(
+		bundle,
+		QDir::AllEntries
+			| QDir::Hidden
+			| QDir::System
+			| QDir::NoDotAndDotDot,
+		QDirIterator::Subdirectories);
+	while (iterator.hasNext()) {
+		if (!remove(iterator.next())) {
+			return false;
+		}
+	}
+	const auto local = QFile::encodeName(bundle);
+	const auto left = getxattr(
+		local.constData(),
+		kAttribute,
+		nullptr,
+		0,
+		0,
+		XATTR_NOFOLLOW);
+	return (left < 0) && (errno == ENOATTR);
+}
+
+[[nodiscard]] bool RelaunchUntranslocated(const QString &bundle) {
+	NSDictionary *conf = @{
+		NSWorkspaceLaunchConfigurationArguments: @[
+			[NSString stringWithUTF8String:Platform::kUntranslocatedArgument]
+		],
+	};
+	NSError *error = nil;
+	const auto launched = [[NSWorkspace sharedWorkspace]
+		launchApplicationAtURL:[NSURL fileURLWithPath:Platform::Q2NSString(bundle)]
+		options:NSWorkspaceLaunchAsync | NSWorkspaceLaunchNewInstance
+		configuration:conf
+		error:&error];
+	if (!launched) {
+		LOG(("Translocation Error: relaunch failed: %1"
+			).arg(Platform::NS2QString([error localizedDescription])));
+	}
+	return launched != nil;
+}
+
+// Runs before Qt exists, so this is a bare AppKit alert. No localization
+// is loaded at this point either.
+void ShowTranslocationError() {
+	NSApplication *app = [NSApplication sharedApplication];
+	[app setActivationPolicy:NSApplicationActivationPolicyRegular];
+	[app activateIgnoringOtherApps:YES];
+
+	NSAlert *alert = [[NSAlert alloc] init];
+	alert.alertStyle = NSAlertStyleCritical;
+	alert.messageText = @"Telegram Desktop can't start from here";
+	alert.informativeText = @"macOS started this copy of Telegram Desktop "
+		@"from a read-only temporary location (App Translocation), so it "
+		@"can't use its own folder. Please reinstall the app and launch it "
+		@"again.";
+	[alert addButtonWithTitle:@"Quit"];
+	[alert runModal];
+	[alert release];
+}
+
+} // namespace
+#endif // !OS_MAC_STORE
+
 namespace Platform {
 
 void start() {
@@ -115,6 +267,57 @@ void start() {
 
 void finish() {
 	objc_finish();
+}
+
+// macOS starts a quarantined bundle that was never moved by Finder from
+// a random read-only mount, so a portable build loses the
+// TelegramForcePortable folder it was shipped with and silently works on
+// the default installation's data. When the original location is known
+// and is the shipped portable layout, stripping the quarantine attribute
+// there is exactly what a Finder move would have done (Gatekeeper has
+// already assessed and allowed this launch), and the original can be
+// relaunched in place. Anything else is a hard stop: moving the parent
+// folder does not help and the user has to reinstall.
+bool CheckAppTranslocation() {
+#ifdef OS_MAC_STORE
+	// Installed by the App Store: never quarantined, never translocated,
+	// and the private SecTranslocate symbols must not appear in a store
+	// binary.
+	return true;
+#else // OS_MAC_STORE
+	@autoreleasepool {
+
+	const auto bundle = cExeDir() + cExeName();
+	if (cExeName().isEmpty()) {
+		return true;
+	}
+	const auto state = CheckTranslocationState(bundle);
+	if (!state.translocated) {
+		return true;
+	}
+	LOG(("Translocation Info: running from '%1', original '%2'."
+		).arg(bundle
+		).arg(state.original));
+
+	const auto relaunched = Core::Launcher::Instance().arguments().contains(
+		QString::fromLatin1(kUntranslocatedArgument));
+	const auto portable = !state.original.isEmpty()
+		&& QFileInfo(state.original + u"/Contents/Info.plist"_q).isFile()
+		&& QDir(QFileInfo(state.original).path()
+			+ u"/TelegramForcePortable"_q).exists();
+	if (!relaunched
+		&& portable
+		&& RemoveQuarantineRecursively(state.original)
+		&& RelaunchUntranslocated(state.original)) {
+		LOG(("Translocation Info: relaunched from '%1'."
+			).arg(state.original));
+		return false;
+	}
+	ShowTranslocationError();
+	return false;
+
+	}
+#endif // !OS_MAC_STORE
 }
 
 QString SingleInstanceLocalServerName(const QString &hash) {
