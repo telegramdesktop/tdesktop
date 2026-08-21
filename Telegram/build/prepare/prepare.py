@@ -2044,13 +2044,19 @@ win:
     SET RUSTUP_TOOLCHAIN=""" + rustToolchain + """
     SET "PATH=%CARGO_HOME%\\bin;%PATH%"
 win32:
-    SET "RUST_TARGET=i686-pc-windows-msvc"
+    SET "RUST_TARGET=i686-win7-windows-msvc"
+    SET "RUST_BUILD_STD=-Z build-std=std,panic_abort"
+    SET "RUSTC_BOOTSTRAP=1"
 win64:
-    SET "RUST_TARGET=x86_64-pc-windows-msvc"
+    SET "RUST_TARGET=x86_64-win7-windows-msvc"
+    SET "RUST_BUILD_STD=-Z build-std=std,panic_abort"
+    SET "RUSTC_BOOTSTRAP=1"
 winarm:
     SET "RUST_TARGET=aarch64-pc-windows-msvc"
+    SET "RUST_BUILD_STD="
 win:
     cargo rustc -p wallet-engine --lib --release --locked ^
+        %RUST_BUILD_STD% ^
         --target %RUST_TARGET% ^
         --config "profile.release.panic='unwind'" ^
         --config "target.%RUST_TARGET%.rustflags=['-C','target-feature=+crt-static']" ^
