@@ -99,6 +99,13 @@ struct ParsedCommand {
 	return result;
 }
 
+[[nodiscard]] bool SupportsEphemeral(not_null<PeerData*> peer) {
+	if (const auto user = peer->asUser()) {
+		return user->isBot();
+	}
+	return peer->isChat() || peer->isMegagroup();
+}
+
 template <typename Value>
 [[nodiscard]] Value TakeHint(
 		base::flat_map<
@@ -121,7 +128,13 @@ template <typename Value>
 
 PeerId PeerIdFromEphemeral(const MTPDephemeralMessage &data) {
 	const auto peer = data.vpeer_id();
-	return peer ? peerFromMTP(*peer) : PeerId();
+	const auto peerId = peer ? peerFromMTP(*peer) : PeerId();
+	if (peerId && !peerIsUser(peerId)) {
+		return peerId;
+	}
+	return data.is_out()
+		? peerFromUser(UserId(data.vreceiver_id()))
+		: peerFromMTP(data.vfrom_id());
 }
 
 EphemeralMessages::EphemeralMessages(not_null<Main::Session*> session)
@@ -580,7 +593,7 @@ UserData *EphemeralMessages::replyBot(
 bool EphemeralMessages::wouldSend(const Api::MessageToSend &message) const {
 	const auto history = message.action.history;
 	const auto peer = history->peer;
-	if (!peer->isChat() && !peer->isMegagroup()) {
+	if (!SupportsEphemeral(peer)) {
 		return false;
 	}
 	if (const auto replyToId = realReplyId(message)) {
@@ -596,7 +609,7 @@ bool EphemeralMessages::wouldSend(const Api::MessageToSend &message) const {
 bool EphemeralMessages::hasEphemeralCommand(
 		not_null<PeerData*> peer,
 		const QString &text) const {
-	if (!peer->isChat() && !peer->isMegagroup()) {
+	if (!SupportsEphemeral(peer)) {
 		return false;
 	}
 	return findCommandBot(peer, text.trimmed()) != nullptr;
@@ -628,7 +641,7 @@ FullMsgId EphemeralMessages::realReplyId(
 bool EphemeralMessages::trySend(const Api::MessageToSend &message) {
 	const auto history = message.action.history;
 	const auto peer = history->peer;
-	if (!peer->isChat() && !peer->isMegagroup()) {
+	if (!SupportsEphemeral(peer)) {
 		return false;
 	} else if (message.action.options.scheduled
 		|| message.action.options.shortcutId) {
@@ -696,32 +709,40 @@ bool EphemeralMessages::trySend(const Api::MessageToSend &message) {
 UserData *EphemeralMessages::findCommandBot(
 		not_null<PeerData*> peer,
 		const QString &text) const {
-	if (!peer->isChat() && !peer->isMegagroup()) {
+	if (!SupportsEphemeral(peer)) {
 		return nullptr;
 	}
 	const auto parsed = ParseCommand(text);
 	if (!parsed) {
 		return nullptr;
 	}
+	const auto matches = [&](
+			not_null<UserData*> user,
+			const std::vector<BotCommand> &list) {
+		if (!parsed->username.isEmpty()
+			&& parsed->username.compare(
+				user->username(),
+				Qt::CaseInsensitive) != 0) {
+			return false;
+		}
+		return ranges::any_of(list, [&](const BotCommand &command) {
+			return command.ephemeral
+				&& !command.command.compare(
+					parsed->command,
+					Qt::CaseInsensitive);
+		});
+	};
+	if (const auto user = peer->asUser()) {
+		const auto info = user->botInfo.get();
+		return (info && matches(user, info->commands)) ? user : nullptr;
+	}
 	const auto &commands = peer->isChat()
 		? peer->asChat()->botCommands()
 		: peer->asMegagroup()->mgInfo->botCommands();
 	for (const auto &[userId, list] : commands) {
 		const auto user = _session->data().userLoaded(userId);
-		if (!user
-			|| (!parsed->username.isEmpty()
-				&& parsed->username.compare(
-					user->username(),
-					Qt::CaseInsensitive) != 0)) {
-			continue;
-		}
-		for (const auto &command : list) {
-			if (command.ephemeral
-				&& !command.command.compare(
-					parsed->command,
-					Qt::CaseInsensitive)) {
-				return user;
-			}
+		if (user && matches(user, list)) {
+			return user;
 		}
 	}
 	return nullptr;
