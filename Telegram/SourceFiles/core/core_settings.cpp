@@ -1348,23 +1348,6 @@ void Settings::writePrefImpl<bool>(std::string_view key, bool value) {
 }
 
 template <>
-std::optional<int> Settings::readPrefImpl<int>(std::string_view key) {
-	if (const auto data = readPrefGeneric(key)) {
-		auto ok = false;
-		const auto result = data->toInt(&ok);
-		if (ok) {
-			return result;
-		}
-	}
-	return {};
-}
-
-template <>
-void Settings::writePrefImpl<int>(std::string_view key, int value) {
-	writePrefGeneric(key, QByteArray::number(value));
-}
-
-template <>
 std::optional<QByteArray> Settings::readPrefImpl<QByteArray>(
 		std::string_view key) {
 	return readPrefGeneric(key);
