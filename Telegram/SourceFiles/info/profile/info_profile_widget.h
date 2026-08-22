@@ -35,7 +35,8 @@ public:
 	Memento(
 		not_null<PeerData*> peer,
 		PeerId migratedPeerId,
-		Origin origin = { v::null });
+		Origin origin = { v::null },
+		bool savedMessages = false);
 	explicit Memento(not_null<Data::ForumTopic*> topic);
 	explicit Memento(not_null<Data::SavedSublist*> sublist);
 
@@ -48,6 +49,9 @@ public:
 
 	[[nodiscard]] Origin origin() const {
 		return _origin;
+	}
+	[[nodiscard]] bool savedMessages() const {
+		return _savedMessages;
 	}
 
 	void setMembersState(std::unique_ptr<MembersState> state);
@@ -68,10 +72,12 @@ private:
 		Data::ForumTopic *topic,
 		Data::SavedSublist *sublist,
 		PeerId migratedPeerId,
-		Origin origin);
+		Origin origin,
+		bool savedMessages);
 
 	std::unique_ptr<MembersState> _membersState;
 	Origin _origin;
+	bool _savedMessages = false;
 	QString _activeTab;
 
 };

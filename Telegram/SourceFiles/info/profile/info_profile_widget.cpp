@@ -41,14 +41,22 @@ Memento::Memento(not_null<Controller*> controller)
 	controller->topic(),
 	controller->sublist(),
 	controller->migratedPeerId(),
-	{ v::null }) {
+	{ v::null },
+	controller->section().savedMessages()) {
 }
 
 Memento::Memento(
 	not_null<PeerData*> peer,
 	PeerId migratedPeerId,
-	Origin origin)
-: Memento(peer, nullptr, nullptr, migratedPeerId, origin) {
+	Origin origin,
+	bool savedMessages)
+: Memento(
+	peer,
+	nullptr,
+	nullptr,
+	migratedPeerId,
+	origin,
+	savedMessages) {
 }
 
 Memento::Memento(
@@ -56,9 +64,11 @@ Memento::Memento(
 	Data::ForumTopic *topic,
 	Data::SavedSublist *sublist,
 	PeerId migratedPeerId,
-	Origin origin)
+	Origin origin,
+	bool savedMessages)
 : ContentMemento(peer, topic, sublist, migratedPeerId)
-, _origin(origin) {
+, _origin(origin)
+, _savedMessages(savedMessages) {
 }
 
 Memento::Memento(not_null<Data::ForumTopic*> topic)
@@ -70,7 +80,9 @@ Memento::Memento(not_null<Data::SavedSublist*> sublist)
 }
 
 Info::Section Memento::section() const {
-	return Info::Section(Info::Section::Type::Profile);
+	return _savedMessages
+		? Info::Section::SavedMessages()
+		: Info::Section(Info::Section::Type::Profile);
 }
 
 object_ptr<ContentWidget> Memento::createWidget(
@@ -325,7 +337,7 @@ rpl::producer<QString> Widget::title() {
 		return tr::lng_profile_direct_messages();
 	}
 	const auto peer = controller()->key().peer();
-	if (peer->isSelf() && !controller()->key().sublist()) {
+	if (controller()->section().savedMessages()) {
 		return tr::lng_saved_messages();
 	} else if (const auto user = peer->asUser()) {
 		return (user->isBot() && !user->isSupport())
@@ -356,6 +368,12 @@ bool Widget::showInternal(not_null<ContentMemento*> memento) {
 		return false;
 	}
 	if (auto profileMemento = dynamic_cast<Memento*>(memento.get())) {
+		if (profileMemento->savedMessages()
+			!= controller()->section().savedMessages()) {
+			// The Saved Messages page and the self profile page
+			// are built differently, so a new content is required.
+			return false;
+		}
 		restoreState(profileMemento);
 		return true;
 	}

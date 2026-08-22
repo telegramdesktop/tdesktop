@@ -343,10 +343,7 @@ TopBar::TopBar(
 , _wrap(std::move(descriptor.wrap))
 , _st(st::infoTopBar)
 , _source(descriptor.source)
-, _savedMessages(descriptor.source == Source::Profile
-	&& !_topic
-	&& !_key.sublist()
-	&& _peer->isSelf())
+, _savedMessages(descriptor.savedMessages)
 , _badgeTooltipHide(
 	std::make_unique<base::Timer>([=] { hideBadgeTooltip(); }))
 , _botVerify(std::make_unique<Badge>(

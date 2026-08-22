@@ -195,6 +195,13 @@ public:
 	, _settingsType(settingsType) {
 	}
 
+	// The Saved Messages chat info page, not a self profile page.
+	[[nodiscard]] static Section SavedMessages() {
+		auto result = Section(Type::Profile);
+		result._savedMessages = true;
+		return result;
+	}
+
 	[[nodiscard]] Type type() const {
 		return _type;
 	}
@@ -208,11 +215,15 @@ public:
 
 		return _settingsType;
 	}
+	[[nodiscard]] bool savedMessages() const {
+		return _savedMessages;
+	}
 
 private:
 	Type _type;
 	MediaType _mediaType = MediaType();
 	SettingsType _settingsType = SettingsType();
+	bool _savedMessages = false;
 
 };
 
