@@ -14,7 +14,7 @@ class Show;
 } // namespace ChatHelpers
 
 namespace Ui {
-struct PreparedFile;
+struct PreparedList;
 } // namespace Ui
 
 namespace Window {
@@ -51,7 +51,8 @@ void PrepareProfileMediaFromFile(
 void OpenWithPreparedVideoFile(
 	not_null<QWidget*> parent,
 	std::shared_ptr<ChatHelpers::Show> show,
-	not_null<Ui::PreparedFile*> file,
+	not_null<Ui::PreparedList*> list,
+	int index,
 	int previewWidth,
 	Fn<void(bool ok)> &&doneCallback,
 	int sideLimit = 0);

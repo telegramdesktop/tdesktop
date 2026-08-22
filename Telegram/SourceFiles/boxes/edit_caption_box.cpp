@@ -872,7 +872,8 @@ void EditCaptionBox::setupPhotoEditorEventHandler() {
 			Editor::OpenWithPreparedVideoFile(
 				this,
 				controller->uiShow(),
-				&_preparedList.files.front(),
+				&_preparedList,
+				0,
 				st::sendMediaPreviewSize,
 				[=](bool ok) {
 					if (ok) {

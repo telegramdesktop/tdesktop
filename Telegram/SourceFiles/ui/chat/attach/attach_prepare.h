@@ -95,6 +95,8 @@ struct PreparedFile {
 
 	[[nodiscard]] int videoQuality() const;
 
+	// Assigned on demand, so deferred work can find this entry back.
+	int64 id = 0;
 	QString path;
 	QString displayName;
 	TextWithTags caption;
