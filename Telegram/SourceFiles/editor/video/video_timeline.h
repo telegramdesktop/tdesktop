@@ -110,6 +110,7 @@ private:
 	crl::time _playback = -1;
 
 	std::vector<QImage> _frames;
+	QSize _framesBox;
 	int _frameWidth = 0;
 	std::shared_ptr<std::atomic<bool>> _framesCancel;
 

@@ -21,6 +21,9 @@ namespace {
 constexpr auto kMaxFrames = 24;
 constexpr auto kDotDuration = crl::time(500);
 
+// Frames are scaled on paint, so small width drift needs no re-extract.
+constexpr auto kFrameWidthTolerance = 0.25;
+
 } // namespace
 
 VideoTimeline::VideoTimeline(
@@ -156,13 +159,18 @@ void VideoTimeline::reloadFrames() {
 		1,
 		kMaxFrames);
 	const auto frameWidth = (strip.width() + count - 1) / count;
-	if (int(_frames.size()) == count && _frameWidth == frameWidth) {
+	const auto kept = (int(_frames.size()) == count)
+		&& (_framesBox.height() == height)
+		&& (std::abs(frameWidth - _framesBox.width())
+			<= _framesBox.width() * kFrameWidthTolerance);
+	_frameWidth = frameWidth;
+	if (kept) {
 		return;
 	}
 	if (_framesCancel) {
 		_framesCancel->store(true);
 	}
-	_frameWidth = frameWidth;
+	_framesBox = QSize(frameWidth, height);
 	_frames = std::vector<QImage>(count);
 
 	auto positions = std::vector<crl::time>();
@@ -175,7 +183,7 @@ void VideoTimeline::reloadFrames() {
 	_framesCancel = cancel;
 
 	const auto path = _descriptor.path;
-	const auto box = QSize(_frameWidth, height) * style::DevicePixelRatio();
+	const auto box = _framesBox * style::DevicePixelRatio();
 	crl::async([=, weak = base::make_weak(this)] {
 		Media::Video::ExtractFrames(path, {
 			.positions = positions,
