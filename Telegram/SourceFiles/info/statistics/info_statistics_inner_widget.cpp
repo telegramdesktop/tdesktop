@@ -971,7 +971,7 @@ rpl::producer<> InnerWidget::menuFilledChanges() const {
 	) | rpl::filter(rpl::mappers::_1) | rpl::to_empty;
 	return ExportAvailable(_state.stats)
 		? (rpl::single(rpl::empty) | rpl::then(std::move(loaded)))
-		: std::move(loaded);
+		: (std::move(loaded) | rpl::type_erased);
 }
 
 void InnerWidget::fillMenu(const Ui::Menu::MenuCallback &addAction) {

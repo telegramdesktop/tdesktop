@@ -347,7 +347,9 @@ Info::Section MusicSectionController::section() const {
 }
 
 rpl::producer<QString> MusicSectionController::searchQueryValue() const {
-	return _globalMedia ? _query.value() : rpl::single(QString());
+	return _globalMedia
+		? _query.value()
+		: (rpl::single(QString()) | rpl::type_erased);
 }
 
 void MusicSectionController::setQuery(QString query) {

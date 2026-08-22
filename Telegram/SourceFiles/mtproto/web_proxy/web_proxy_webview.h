@@ -87,7 +87,9 @@ private:
 	bool _adopted = false;
 	bool _failed = false;
 	bool _closing = false;
+#ifndef NDEBUG
 	bool _probed = false;
+#endif // !NDEBUG
 };
 
 } // namespace MTP::WebProxy

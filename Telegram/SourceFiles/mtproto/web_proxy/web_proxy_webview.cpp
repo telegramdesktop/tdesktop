@@ -65,6 +65,7 @@ static_assert(kMaxMessageBytes >= kMaxFrameMessageBytes);
 	return result.toString(QUrl::FullyEncoded);
 }
 
+#ifndef NDEBUG
 [[nodiscard]] QByteArray RestrictionsProbeScript() {
 	return R"JS((()=>{try{
 const probe=w=>typeof w.RTCPeerConnection==='undefined'&&typeof w.WebTransport==='undefined'&&typeof w.WebAssembly==='undefined';
@@ -75,6 +76,7 @@ try{ok=ok&&!!frame.contentWindow&&probe(frame.contentWindow)}finally{frame.remov
 window.external.invoke('d'+(ok?'1':'0'));
 }catch(error){window.external.invoke('d0')}})())JS";
 }
+#endif // !NDEBUG
 
 [[nodiscard]] QByteArray BridgeScript() {
 	return R"JS((()=>{
