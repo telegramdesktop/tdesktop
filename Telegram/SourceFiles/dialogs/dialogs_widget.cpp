@@ -730,6 +730,11 @@ Widget::Widget(
 
 	_search->customUpDown(true);
 
+	// The bars above the list and the folder tabs are created only once they
+	// are needed, long after the list and the buttons below it, so the Tab
+	// chain has to follow the column instead of the creation order.
+	setVisualTabOrder(true);
+
 	updateJumpToDateVisibility(true);
 	updateSearchFromVisibility(true);
 	setupSupportMode();
