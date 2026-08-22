@@ -690,6 +690,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_restore_windows_never" = "Never";
 "lng_restore_windows_enabled_toast" = "Windows will now restore on launch. You can disable this in Settings > Advanced.";
 "lng_restore_windows_disabled_toast" = "Windows will not be restored. You can enable this in Settings > Advanced.";
+"lng_restore_windows_unavailable" = "This chat is no longer available.";
 "lng_settings_open_system_settings" = "Open Settings";
 "lng_settings_add_sendto" = "Place Telegram in \"Send to\" menu";
 "lng_settings_mac_warn_before_quit" = "Show warning before quitting with {text}";

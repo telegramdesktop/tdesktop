@@ -1783,7 +1783,8 @@ bool Application::closeActiveWindow() {
 		return true;
 	} else if (_iv->closeActive()
 		|| Iv::Editor::CloseActiveWindow()
-		|| calls().closeCurrentActiveCall()) {
+		|| calls().closeCurrentActiveCall()
+		|| (_savedWindows && _savedWindows->closeActiveShell())) {
 		return true;
 	} else if (const auto window = activeWindow()) {
 		if (window->widget()->isActive()) {

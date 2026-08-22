@@ -30,6 +30,7 @@ class Session;
 namespace Window {
 
 class Controller;
+class RestoreShell;
 class SessionController;
 
 enum class SavedChatSection {
@@ -86,6 +87,7 @@ public:
 	void windowActivated();
 	void windowClosed(not_null<Controller*> window);
 	bool reopenLastClosed();
+	bool closeActiveShell();
 
 	[[nodiscard]] auto restorePositionFor(SeparateId id)
 	-> std::optional<Core::WindowPosition>;
@@ -107,25 +109,44 @@ private:
 	void beginRestore();
 	void discardRestore();
 	void stashUndecided();
-	void processNext();
-	bool startStep(SavedWindow &&data);
-	void queueFinishStep();
-	void finishStep();
+	void startStep(SavedWindow &&data);
+	[[nodiscard]] Step *stepById(int stepId) const;
+	[[nodiscard]] QString shellTitle(
+		const SavedWindow &data,
+		not_null<Main::Session*> session) const;
+	void createShell(not_null<Step*> step);
+	void queueFinishStep(int stepId);
+	void finishStep(not_null<Step*> step);
+	void abortStep(not_null<Step*> step, bool intoClosed);
+	void markUnavailable(std::unique_ptr<Step> step);
+	void pushClosed(SavedWindow &&data, RestoreShell *shell);
+	void checkRestoreFinished();
 	void finishRestore();
 	void createWindow(const Step &step);
+	void ensureStepWindow(
+		not_null<Step*> step,
+		SeparateId id,
+		Core::WindowPosition position);
 	void replayChats(
 		not_null<Controller*> window,
 		not_null<SessionController*> controller,
 		const Step &step,
 		Data::Thread *windowThread);
-	void resolveSlot(int index);
-	void waitPeer(PeerId peerId, Fn<void(PeerData*)> done);
+	void resolveSlot(not_null<Step*> step, int index);
+	void waitPeer(
+		not_null<Step*> step,
+		PeerId peerId,
+		Fn<void(PeerData*)> done);
 
 	[[nodiscard]] Main::Session *sessionFor(const SavedWindow &data) const;
 	[[nodiscard]] not_null<BatchResolve*> ensureBatchResolve(
 		not_null<Main::Session*> session);
 	[[nodiscard]] bool batchResolveDone(
 		not_null<Main::Session*> session) const;
+	[[nodiscard]] bool batchResolveCovered(
+		not_null<Main::Session*> session,
+		PeerId peerId) const;
+	void rearmBatchResolve(not_null<Main::Session*> session);
 	void sendBatchResolve(not_null<Main::Session*> session);
 	void sendNextBatchRequest(not_null<Main::Session*> session);
 
@@ -135,13 +156,14 @@ private:
 	std::vector<SavedWindow> _toRestore;
 	std::vector<SavedWindow> _undecided;
 	std::vector<SavedWindow> _closed;
-	std::unique_ptr<Step> _step;
+	std::vector<std::unique_ptr<Step>> _steps;
+	std::vector<std::unique_ptr<RestoreShell>> _deadShells;
 	base::flat_map<
 		Main::Session*,
 		std::unique_ptr<BatchResolve>> _batches;
 	std::optional<Core::WindowPosition> _restorePosition;
 	Fn<void()> _hideOffer;
-	int _generation = 0;
+	int _stepIdCounter = 0;
 	bool _domainReady = false;
 	bool _offered = false;
 	bool _announceOnFinish = false;

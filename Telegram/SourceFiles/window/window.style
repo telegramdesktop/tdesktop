@@ -17,6 +17,20 @@ windowDefaultHeight: 600px;
 windowBigDefaultWidth: 1024px;
 windowBigDefaultHeight: 768px;
 
+windowShellMinWidth: 240px;
+windowShellMinHeight: 160px;
+windowShellLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	size: size(32px, 32px);
+	color: windowSubTextFg;
+	thickness: 3px;
+}
+windowShellUnavailableLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	align: align(top);
+	minWidth: 160px;
+}
+windowShellUnavailablePadding: margins(24px, 24px, 24px, 24px);
+
 columnMinimalWidthLeft: 260px;
 columnMaximalWidthLeft: 540px;
 columnMinimalWidthMain: 380px;
