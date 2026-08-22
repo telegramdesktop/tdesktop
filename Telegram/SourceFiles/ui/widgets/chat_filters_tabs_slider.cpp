@@ -424,6 +424,18 @@ void ChatsFiltersTabs::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void ChatsFiltersTabs::contextMenuEvent(QContextMenuEvent *e) {
+	if (e->reason() == QContextMenuEvent::Keyboard) {
+		// A menu asked for from the keyboard comes with the center of an
+		// empty input method rect instead of a position over a tab, so the
+		// lookup below would land outside of them all - take the tab the
+		// browse position is on, or the active one when it is on none.
+		const auto browsed = accessibilityBrowsedSection();
+		const auto index = (browsed >= 0) ? browsed : activeSection();
+		if (!_lockedFrom || index < _lockedFrom) {
+			_contextMenuRequested.fire_copy(index);
+		}
+		return;
+	}
 	const auto pos = e->pos();
 	if (pos.x() >= _lockedFromX) {
 		return;
