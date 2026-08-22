@@ -556,22 +556,13 @@ void RaiseAboveSiblings(not_null<QWidget*> card) {
 		notify(OfferChoice::Detached);
 	}));
 	const auto desired = std::make_shared<bool>(false);
-	auto loaded = rpl::single(
-		controller->session().data().chatsListLoaded()
-	) | rpl::then(controller->session().data().chatsListLoadedEvents(
-	) | rpl::map([](Data::Folder *folder) {
-		return !folder;
-	}) | rpl::filter([](bool mainList) {
-		return mainList;
-	}));
 	rpl::combine(
 		controller->activeChatValue(),
 		rpl::single(
 			controller->mainSectionShown()
-		) | rpl::then(controller->mainSectionShownChanges()),
-		std::move(loaded)
-	) | rpl::map([](Dialogs::Key key, bool section, bool loaded) {
-		return loaded && !key && !section;
+		) | rpl::then(controller->mainSectionShownChanges())
+	) | rpl::map([](Dialogs::Key key, bool section) {
+		return !key && !section;
 	}) | rpl::distinct_until_changed(
 	) | rpl::on_next([=](bool show) {
 		*desired = show;
