@@ -77,7 +77,7 @@ void ControlsBar::layoutChildren() {
 	}
 	const auto count = int(widgets.size());
 	const auto step = (count > 1)
-		? ((width() - total) / float64(count - 1))
+		? std::max((width() - total) / float64(count - 1), 0.)
 		: 0.;
 	auto left = 0.;
 	for (const auto widget : widgets) {
