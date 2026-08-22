@@ -1049,28 +1049,8 @@ patch -p1 -d /usr/lib64/gobject-introspection -i $PWD/patches/gobject-introspect
 rm -rf patches
 EOF
 
-RUN <<EOF
-cat <<'CAT' > /usr/local/bin/entrypoint
-#!/bin/sh
-if [ "$SOURCE_DATE_EPOCH" = 1 ]; then
-	SOURCE_DATE_EPOCH=$(GIT_CONFIG_COUNT=1 \
-		GIT_CONFIG_KEY_0=safe.directory \
-		GIT_CONFIG_VALUE_0='*' \
-		git -C /usr/src/tdesktop log -1 --format=%ct 2>/dev/null)
-	if [ -n "$SOURCE_DATE_EPOCH" ]; then
-		export SOURCE_DATE_EPOCH
-	else
-		unset SOURCE_DATE_EPOCH
-	fi
-fi
-exec "$@"
-CAT
-chmod +x /usr/local/bin/entrypoint
-EOF
-
 ENV CCACHE_DISABLE=true
 WORKDIR /usr/src/tdesktop
 USER user
 VOLUME [ "/usr/src/tdesktop" ]
-ENTRYPOINT [ "/usr/local/bin/entrypoint" ]
 CMD [ "/usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh" ]
