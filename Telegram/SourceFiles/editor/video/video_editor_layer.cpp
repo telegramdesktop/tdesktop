@@ -70,25 +70,39 @@ void PrepareProfileVideo(
 
 	auto applyModifications = [=, done = std::move(doneCallback)](
 			VideoModifications mods) mutable {
-		auto preview = ExtractCoverImage(
-			path,
-			mods,
-			info.dimensions,
-			kProfileVideoSide);
-		if (preview.isNull()) {
-			controller->show(Ui::MakeInformBox(tr::lng_bad_video()));
-			return;
-		}
-		const auto side = kProfileVideoSide;
-		preview = preview.scaled(
-			side,
-			side,
-			Qt::KeepAspectRatio,
-			Qt::SmoothTransformation);
-		done({
-			.image = std::move(preview),
-			.video = std::make_shared<Media::Encode::VideoSource>(
-				ComposeVideoSource(path, mods, editorData, true)),
+		crl::async([
+			=,
+			ready = crl::guard(parent, [=](QImage &&preview) mutable {
+				if (preview.isNull()) {
+					controller->show(Ui::MakeInformBox(tr::lng_bad_video()));
+					return;
+				}
+				done({
+					.image = std::move(preview),
+					.video = std::make_shared<Media::Encode::VideoSource>(
+						ComposeVideoSource(path, mods, editorData, true)),
+				});
+			})
+		]() mutable {
+			auto preview = ExtractCoverImage(
+				path,
+				mods,
+				info.dimensions,
+				kProfileVideoSide);
+			if (!preview.isNull()) {
+				const auto side = kProfileVideoSide;
+				preview = preview.scaled(
+					side,
+					side,
+					Qt::KeepAspectRatio,
+					Qt::SmoothTransformation);
+			}
+			crl::on_main([
+				ready = std::move(ready),
+				preview = std::move(preview)
+			]() mutable {
+				ready(std::move(preview));
+			});
 		});
 	};
 
