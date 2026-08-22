@@ -1101,6 +1101,11 @@ ChatWidget::~ChatWidget() {
 		_inner->saveState(&state);
 		saveHistoryScrollState(state);
 	}
+	if (const auto reserved = base::take(_creatingBotTopic)) {
+		if (reserved->creating()) {
+			reserved->discard();
+		}
+	}
 	if (_topic) {
 		if (_topic->creating()) {
 			if (controller()->activeChatCurrent().topic() == _topic) {
@@ -2707,13 +2712,15 @@ void ChatWidget::edit(
 		}
 	}
 
+	// Not guarded by 'this': 'done' and 'fail' check the weak pointer
+	// themselves and still clear the local edit draft if we're already gone.
 	*saveEditMsgRequestId = Api::EditTextMessage(
 		item,
 		sending,
 		webpage,
 		options,
-		crl::guard(this, done),
-		crl::guard(this, fail),
+		done,
+		fail,
 		spoilered,
 		videoCover);
 

@@ -3328,17 +3328,19 @@ void ComposeControls::fieldChanged() {
 	const auto commandShown = updateBotCommandShown();
 	const auto menuRefreshed = refreshBotMenuButton();
 	const auto likeShown = updateLikeShown();
-	const auto hideExtraButtons = isEditingMessage()
+	// Must repeat the rule from updateControlsVisibility().
+	const auto hideExtra = hideExtraButtons()
+		|| isEditingMessage()
 		|| textExceedsMaxSize();
 	const auto refreshControls = commandShown
 		|| menuRefreshed
 		|| likeShown
 		|| (giftToUserVisible != (_giftToUser
 			&& (_mode == Mode::Normal)
-			&& !hideExtraButtons))
-		|| (silentVisible != (_silent && !hideExtraButtons))
-		|| (scheduledVisible != (_scheduled && !hideExtraButtons))
-		|| (ttlVisible != (_ttlInfo && !hideExtraButtons));
+			&& !hideExtra))
+		|| (silentVisible != (_silent && !hideExtra))
+		|| (scheduledVisible != (_scheduled && !hideExtra))
+		|| (ttlVisible != (_ttlInfo && !hideExtra));
 	if (refreshControls) {
 		updateControlsVisibility();
 		updateControlsGeometry(_wrap->size());

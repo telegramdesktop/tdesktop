@@ -580,24 +580,26 @@ ListWidget::ListWidget(
 
 	_scrollDateHideTimer.setCallback([this] { scrollDateHideByTimer(); });
 
-	using PlayRequest = ChatHelpers::EmojiInteractionPlayRequest;
-	controller()->emojiInteractions().playRequests(
-	) | rpl::filter([=](const PlayRequest &request) {
-		return (viewForItem(request.item) != nullptr)
-			&& controller()->widget()->isActive();
-	}) | rpl::on_next([=](PlayRequest &&request) {
-		if (const auto view = viewForItem(request.item)) {
-			_emojiInteractions->play(std::move(request), view);
-		}
-	}, lifetime());
-	_emojiInteractions->playStarted(
-	) | rpl::on_next([=](QString &&emoji) {
-		if (const auto history = _delegate->listTranslateHistory()) {
-			controller()->emojiInteractions().playStarted(
-				history->peer,
-				std::move(emoji));
-		}
-	}, lifetime());
+	if (const auto window = controllerOrNull()) {
+		using PlayRequest = ChatHelpers::EmojiInteractionPlayRequest;
+		window->emojiInteractions().playRequests(
+		) | rpl::filter([=](const PlayRequest &request) {
+			return (viewForItem(request.item) != nullptr)
+				&& window->widget()->isActive();
+		}) | rpl::on_next([=](PlayRequest &&request) {
+			if (const auto view = viewForItem(request.item)) {
+				_emojiInteractions->play(std::move(request), view);
+			}
+		}, lifetime());
+		_emojiInteractions->playStarted(
+		) | rpl::on_next([=](QString &&emoji) {
+			if (const auto history = _delegate->listTranslateHistory()) {
+				window->emojiInteractions().playStarted(
+					history->peer,
+					std::move(emoji));
+			}
+		}, lifetime());
+	}
 
 	_session->data().viewRepaintRequest(
 	) | rpl::on_next([this](Data::RequestViewRepaint data) {
@@ -739,6 +741,10 @@ Main::Session &ListWidget::session() const {
 
 not_null<Window::SessionController*> ListWidget::controller() const {
 	return _delegate->listWindow();
+}
+
+Window::SessionController *ListWidget::controllerOrNull() const {
+	return _delegate->listWindowOrNull();
 }
 
 not_null<ListDelegate*> ListWidget::delegate() const {
@@ -2449,13 +2455,17 @@ void ListWidget::elementShowAddPollOption(
 		not_null<PollData*> poll,
 		FullMsgId context,
 		QRect optionRect) {
+	const auto window = controllerOrNull();
+	if (!window) {
+		return;
+	}
 	ShowAddPollOptionOverlay(
 		ensureOverlayHost(),
 		this,
 		view,
 		poll,
 		context,
-		controller(),
+		window,
 		_delegate->listChatStyle());
 }
 
@@ -2576,7 +2586,9 @@ void ListWidget::elementReplyTo(const FullReplyTo &to) {
 }
 
 void ListWidget::elementStartInteraction(not_null<const Element*> view) {
-	controller()->emojiInteractions().startOutgoing(view);
+	if (const auto window = controllerOrNull()) {
+		window->emojiInteractions().startOutgoing(view);
+	}
 }
 
 void ListWidget::elementStartPremium(
@@ -2954,6 +2966,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 	auto startInteractions = base::flat_set<not_null<const Element*>>();
 	const auto markingAsViewed = markingMessagesRead();
 	const auto markingContentRead = markingContentsRead();
+	const auto interactionsWindow = controllerOrNull();
 	const auto guard = gsl::finally([&] {
 		if (_translateTracker) {
 			_delegate->listAddTranslatedItems(_translateTracker.get());
@@ -2970,7 +2983,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		if (!startInteractions.empty()) {
 			for (const auto &view : startInteractions) {
 				_animatedStickersPlayed.emplace(view->data());
-				controller()->emojiInteractions().startAutoplay(view);
+				interactionsWindow->emojiInteractions().startAutoplay(view);
 			}
 		}
 		if (markingAsViewed && readTill) {
@@ -3117,6 +3130,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 				startEffects.emplace(view);
 			}
 			if (markingContentRead
+				&& interactionsWindow
 				&& !item->out()
 				&& !_animatedStickersPlayed.contains(item)
 				&& !PowerSaving::On(PowerSaving::kEmojiChat)
@@ -3946,6 +3960,10 @@ void ListWidget::contextMenuEvent(QContextMenuEvent *e) {
 }
 
 void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
+	if (!controllerOrNull()) {
+		// Every entry of this menu needs a window, like in the chat preview.
+		return;
+	}
 	if (e->reason() == QContextMenuEvent::Mouse) {
 		mouseActionUpdate(e->globalPos());
 	} else if (e->reason() == QContextMenuEvent::Keyboard
@@ -4935,7 +4953,7 @@ ClickHandlerContext ListWidget::prepareClickHandlerContext(FullMsgId id) {
 		.elementDelegate = [weak = base::make_weak(this)] {
 			return (ElementDelegate*)weak.get();
 		},
-		.sessionWindow = base::make_weak(controller()),
+		.sessionWindow = base::make_weak(controllerOrNull()),
 	};
 }
 

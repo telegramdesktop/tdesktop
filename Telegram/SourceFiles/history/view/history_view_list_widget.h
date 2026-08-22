@@ -193,6 +193,13 @@ public:
 
 	// Methods that use Window::SessionController by default.
 	virtual not_null<Window::SessionController*> listWindow() = 0;
+
+	// Some delegates (like the chat preview menu item) are shown without
+	// a Window::SessionController, they override this to return nullptr,
+	// and window-dependent features are skipped for them.
+	[[nodiscard]] virtual Window::SessionController *listWindowOrNull() {
+		return listWindow();
+	}
 	virtual not_null<QWidget*> listEmojiInteractionsParent() = 0;
 	virtual not_null<const Ui::ChatStyle*> listChatStyle() = 0;
 	virtual rpl::producer<bool> listChatWideValue() = 0;
@@ -330,6 +337,7 @@ public:
 
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] not_null<Window::SessionController*> controller() const;
+	[[nodiscard]] Window::SessionController *controllerOrNull() const;
 	[[nodiscard]] not_null<ListDelegate*> delegate() const;
 
 	// Set the correct scroll position after being resized.
