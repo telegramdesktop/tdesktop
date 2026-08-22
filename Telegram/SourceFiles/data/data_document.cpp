@@ -89,6 +89,14 @@ void UpdateStickerSetIdentifier(
 	});
 }
 
+[[nodiscard]] crl::time MillisecondsFromSeconds(float64 seconds) {
+	constexpr auto limit = float64(std::numeric_limits<crl::time>::max());
+	const auto milliseconds = seconds * 1000.;
+	return (std::isfinite(milliseconds) && (std::abs(milliseconds) < limit))
+		? crl::time(base::SafeRound(milliseconds))
+		: crl::time(0);
+}
+
 [[nodiscard]] int ResolveAttributeVsTranscodeQuality(
 		int attributesQuality,
 		int transcodeMax) {
@@ -420,16 +428,15 @@ void DocumentData::setattributes(
 			} else if (const auto info = sticker()) {
 				info->type = StickerType::Webm;
 			}
-			_duration = crl::time(
-				base::SafeRound(data.vduration().v * 1000));
+			_duration = MillisecondsFromSeconds(data.vduration().v);
 			setMaybeSupportsStreaming(data.is_supports_streaming());
 			if (data.is_nosound()) {
 				_flags |= Flag::SilentVideo;
 			}
 			dimensions = QSize(data.vw().v, data.vh().v);
 			if (const auto info = video()) {
-				info->startTs = crl::time(base::SafeRound(
-					data.vvideo_start_ts().value_or_empty() * 1000));
+				info->startTs = MillisecondsFromSeconds(
+					data.vvideo_start_ts().value_or_empty());
 			}
 		}, [&](const MTPDdocumentAttributeAudio &data) {
 			if (type == FileDocument) {
