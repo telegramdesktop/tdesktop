@@ -109,7 +109,6 @@ public:
 		rpl::producer<bool> backToggles;
 		rpl::producer<> showFinished;
 		rpl::producer<TextWithEntities> customStatus;
-		bool savedMessages = false;
 	};
 
 	struct AnimatedPatternPoint {

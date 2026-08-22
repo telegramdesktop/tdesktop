@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_forum_topic.h"
 #include "data/data_forum.h"
+#include "data/data_saved_messages.h"
+#include "data/data_user.h"
 #include "info/profile/info_profile_widget.h"
 #include "info/media/info_media_widget.h"
 #include "info/common_groups/info_common_groups_widget.h"
@@ -604,6 +606,8 @@ Key ContentMemento::key() const {
 		return Key(topic);
 	} else if (const auto sublist = this->sublist()) {
 		return Key(sublist);
+	} else if (const auto savedMessages = this->savedMessages()) {
+		return Key(savedMessages);
 	} else if (const auto peer = this->peer()) {
 		return Key(peer);
 	} else if (const auto poll = this->poll()) {
@@ -655,6 +659,12 @@ ContentMemento::ContentMemento(
 			}
 		}, _lifetime);
 	}
+}
+
+ContentMemento::ContentMemento(not_null<Data::SavedMessages*> savedMessages)
+: _peer(savedMessages->session().user().get())
+, _savedMessages(savedMessages) {
+	Expects(!savedMessages->parentChat());
 }
 
 ContentMemento::ContentMemento(Settings::Tag settings)

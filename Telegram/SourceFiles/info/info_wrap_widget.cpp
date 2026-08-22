@@ -252,37 +252,29 @@ void WrapWidget::injectActivePeerProfile(not_null<PeerData*> peer) {
 		? _historyStack.front().section->section().type()
 		: _controller->section().type();
 	const auto firstSectionMediaType = [&] {
-		if (firstSectionType == Section::Type::Profile
-			|| firstSectionType == Section::Type::SavedSublists
-			|| firstSectionType == Section::Type::Downloads) {
+		if (firstSectionType != Section::Type::Media
+			&& firstSectionType != Section::Type::GlobalMedia) {
 			return Section::MediaType::kCount;
 		}
 		return hasStackHistory()
 			? _historyStack.front().section->section().mediaType()
 			: _controller->section().mediaType();
 	}();
-	const auto savedSublistsInfo = peer->savedSublistsInfo();
-	const auto sharedMediaInfo = peer->sharedMediaInfo();
-	const auto expectedType = savedSublistsInfo
-		? Section::Type::SavedSublists
-		: sharedMediaInfo
-		? Section::Type::Media
-		: Section::Type::Profile;
-	const auto expectedMediaType = savedSublistsInfo
-		? Section::MediaType::kCount
-		: sharedMediaInfo
-		? Section::MediaType::Photo
+	const auto firstSavedMessages = hasStackHistory()
+		? _historyStack.front().section->savedMessages()
+		: _controller->key().savedMessages();
+	auto expected = Memento::Default(peer);
+	const auto expectedContent = expected->content();
+	const auto expectedSection = expectedContent->section();
+	const auto expectedMediaType = (expectedSection.type()
+		== Section::Type::Media)
+		? expectedSection.mediaType()
 		: Section::MediaType::kCount;
-	if (firstSectionType != expectedType
+	if (firstSectionType != expectedSection.type()
 		|| firstSectionMediaType != expectedMediaType
+		|| firstSavedMessages != expectedContent->savedMessages()
 		|| firstPeer != peer) {
-		auto section = savedSublistsInfo
-			? Section(Section::Type::SavedSublists)
-			: sharedMediaInfo
-			? Section(Section::MediaType::Photo)
-			: Section(Section::Type::Profile);
-		injectActiveProfileMemento(std::move(
-			Memento(peer, section).takeStack().front()));
+		injectActiveProfileMemento(expected->takeStack().front());
 	}
 }
 
@@ -947,12 +939,11 @@ bool WrapWidget::returnToFirstStackFrame(
 	if (!hasStackHistory()) {
 		return false;
 	}
-	auto firstPeer = _historyStack.front().section->peer();
-	auto firstSection = _historyStack.front().section->section();
-	if (firstPeer == memento->peer()
-		&& firstSection.type() == memento->section().type()
-		&& firstSection.savedMessages() == memento->section().savedMessages()
-		&& firstSection.type() == Section::Type::Profile) {
+	const auto first = _historyStack.front().section.get();
+	if (first->peer() == memento->peer()
+		&& first->savedMessages() == memento->savedMessages()
+		&& first->section().type() == memento->section().type()
+		&& first->section().type() == Section::Type::Profile) {
 		_historyStack.resize(1);
 		_controller->showBackFromStack();
 		return true;

@@ -17,6 +17,10 @@ namespace Api {
 struct WhoReadList;
 } // namespace Api
 
+namespace Data {
+class SavedMessages;
+} // namespace Data
+
 namespace Dialogs::Stories {
 struct Content;
 } // namespace Dialogs::Stories
@@ -269,6 +273,7 @@ public:
 		Data::ForumTopic *topic,
 		Data::SavedSublist *sublist,
 		PeerId migratedPeerId);
+	explicit ContentMemento(not_null<Data::SavedMessages*> savedMessages);
 	explicit ContentMemento(PeerGifts::Tag gifts);
 	explicit ContentMemento(Settings::Tag settings);
 	explicit ContentMemento(Downloads::Tag downloads);
@@ -303,6 +308,9 @@ public:
 	}
 	[[nodiscard]] Data::SavedSublist *sublist() const {
 		return _sublist;
+	}
+	[[nodiscard]] Data::SavedMessages *savedMessages() const {
+		return _savedMessages;
 	}
 	[[nodiscard]] UserData *settingsSelf() const {
 		return _settingsSelf;
@@ -387,6 +395,7 @@ private:
 	const PeerId _migratedPeerId = 0;
 	Data::ForumTopic *_topic = nullptr;
 	Data::SavedSublist *_sublist = nullptr;
+	Data::SavedMessages * const _savedMessages = nullptr;
 	UserData * const _settingsSelf = nullptr;
 	PeerData * const _storiesPeer = nullptr;
 	int _storiesAlbumId = 0;

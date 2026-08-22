@@ -177,7 +177,7 @@ InnerWidget::InnerWidget(
 , _migrated(_controller->migrated())
 , _topic(_controller->key().topic())
 , _sublist(_controller->key().sublist())
-, _savedMessages(_controller->section().savedMessages())
+, _savedMessages(_controller->key().savedMessages() != nullptr)
 , _content(setupContent(this, origin)) {
 	_content->heightValue(
 	) | rpl::on_next([this](int height) {
@@ -588,7 +588,6 @@ base::weak_qptr<Ui::RpWidget> InnerWidget::createPinnedToTop(
 			.customStatus = (_savedMessages
 				? SavedChatsCountStatus(&_peer->session())
 				: rpl::producer<TextWithEntities>()),
-			.savedMessages = _savedMessages,
 		});
 	content->backRequest(
 	) | rpl::start_to_stream(_backClicks, content->lifetime());

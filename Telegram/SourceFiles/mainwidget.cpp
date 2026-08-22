@@ -2971,13 +2971,9 @@ auto MainWidget::thirdSectionForCurrentMainSection(
 		; sublist && sublist->parentChat()) {
 		return std::make_shared<Info::Memento>(sublist);
 	} else if (const auto peer = key.peer()) {
-		return std::make_shared<Info::Memento>(
-			peer,
-			Info::Memento::DefaultSection(peer));
+		return Info::Memento::Default(peer);
 	} else if (const auto sublist = key.sublist()) {
-		return std::make_shared<Info::Memento>(
-			sublist->owningHistory()->peer,
-			Info::Memento::DefaultSection(sublist->owningHistory()->peer));
+		return Info::Memento::Default(sublist->owningHistory()->peer);
 	}
 	Unexpected("Key in MainWidget::thirdSectionForCurrentMainSection().");
 }

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 class ForumTopic;
+class SavedMessages;
 } // namespace Data
 
 namespace Info::Profile {
@@ -35,10 +36,10 @@ public:
 	Memento(
 		not_null<PeerData*> peer,
 		PeerId migratedPeerId,
-		Origin origin = { v::null },
-		bool savedMessages = false);
+		Origin origin = { v::null });
 	explicit Memento(not_null<Data::ForumTopic*> topic);
 	explicit Memento(not_null<Data::SavedSublist*> sublist);
+	explicit Memento(not_null<Data::SavedMessages*> savedMessages);
 
 	object_ptr<ContentWidget> createWidget(
 		QWidget *parent,
@@ -49,9 +50,6 @@ public:
 
 	[[nodiscard]] Origin origin() const {
 		return _origin;
-	}
-	[[nodiscard]] bool savedMessages() const {
-		return _savedMessages;
 	}
 
 	void setMembersState(std::unique_ptr<MembersState> state);
@@ -72,12 +70,10 @@ private:
 		Data::ForumTopic *topic,
 		Data::SavedSublist *sublist,
 		PeerId migratedPeerId,
-		Origin origin,
-		bool savedMessages);
+		Origin origin);
 
 	std::unique_ptr<MembersState> _membersState;
 	Origin _origin;
-	bool _savedMessages = false;
 	QString _activeTab;
 
 };

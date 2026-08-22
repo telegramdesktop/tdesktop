@@ -41,22 +41,14 @@ Memento::Memento(not_null<Controller*> controller)
 	controller->topic(),
 	controller->sublist(),
 	controller->migratedPeerId(),
-	{ v::null },
-	controller->section().savedMessages()) {
+	{ v::null }) {
 }
 
 Memento::Memento(
 	not_null<PeerData*> peer,
 	PeerId migratedPeerId,
-	Origin origin,
-	bool savedMessages)
-: Memento(
-	peer,
-	nullptr,
-	nullptr,
-	migratedPeerId,
-	origin,
-	savedMessages) {
+	Origin origin)
+: Memento(peer, nullptr, nullptr, migratedPeerId, origin) {
 }
 
 Memento::Memento(
@@ -64,11 +56,9 @@ Memento::Memento(
 	Data::ForumTopic *topic,
 	Data::SavedSublist *sublist,
 	PeerId migratedPeerId,
-	Origin origin,
-	bool savedMessages)
+	Origin origin)
 : ContentMemento(peer, topic, sublist, migratedPeerId)
-, _origin(origin)
-, _savedMessages(savedMessages) {
+, _origin(origin) {
 }
 
 Memento::Memento(not_null<Data::ForumTopic*> topic)
@@ -79,10 +69,12 @@ Memento::Memento(not_null<Data::SavedSublist*> sublist)
 : ContentMemento(sublist->owningHistory()->peer, nullptr, sublist, 0) {
 }
 
+Memento::Memento(not_null<Data::SavedMessages*> savedMessages)
+: ContentMemento(savedMessages) {
+}
+
 Info::Section Memento::section() const {
-	return _savedMessages
-		? Info::Section::SavedMessages()
-		: Info::Section(Info::Section::Type::Profile);
+	return Info::Section(Info::Section::Type::Profile);
 }
 
 object_ptr<ContentWidget> Memento::createWidget(
@@ -337,7 +329,7 @@ rpl::producer<QString> Widget::title() {
 		return tr::lng_profile_direct_messages();
 	}
 	const auto peer = controller()->key().peer();
-	if (controller()->section().savedMessages()) {
+	if (controller()->key().savedMessages()) {
 		return tr::lng_saved_messages();
 	} else if (const auto user = peer->asUser()) {
 		return (user->isBot() && !user->isSupport())
@@ -369,7 +361,7 @@ bool Widget::showInternal(not_null<ContentMemento*> memento) {
 	}
 	if (auto profileMemento = dynamic_cast<Memento*>(memento.get())) {
 		if (profileMemento->savedMessages()
-			!= controller()->section().savedMessages()) {
+			!= controller()->key().savedMessages()) {
 			// The Saved Messages page and the self profile page
 			// are built differently, so a new content is required.
 			return false;
@@ -389,7 +381,10 @@ void Widget::setInternalState(
 }
 
 std::shared_ptr<ContentMemento> Widget::doCreateMemento() {
-	auto result = std::make_shared<Memento>(controller());
+	const auto savedMessages = controller()->key().savedMessages();
+	auto result = savedMessages
+		? std::make_shared<Memento>(savedMessages)
+		: std::make_shared<Memento>(controller());
 	saveState(result.get());
 	return result;
 }

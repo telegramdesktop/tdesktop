@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_forum_topic.h"
+#include "data/data_saved_messages.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
@@ -64,6 +65,10 @@ Memento::Memento(not_null<Data::SavedSublist*> sublist)
 
 Memento::Memento(not_null<Data::SavedSublist*> sublist, Section section)
 : Memento(DefaultStack(sublist, section)) {
+}
+
+Memento::Memento(not_null<Data::SavedMessages*> savedMessages)
+: Memento(DefaultStack(savedMessages)) {
 }
 
 Memento::Memento(Settings::Tag settings, Section section)
@@ -149,6 +154,13 @@ std::vector<std::shared_ptr<ContentMemento>> Memento::DefaultStack(
 }
 
 std::vector<std::shared_ptr<ContentMemento>> Memento::DefaultStack(
+		not_null<Data::SavedMessages*> savedMessages) {
+	auto result = std::vector<std::shared_ptr<ContentMemento>>();
+	result.push_back(std::make_shared<Profile::Memento>(savedMessages));
+	return result;
+}
+
+std::vector<std::shared_ptr<ContentMemento>> Memento::DefaultStack(
 		Settings::Tag settings,
 		Section section) {
 	auto result = std::vector<std::shared_ptr<ContentMemento>>();
@@ -180,9 +192,7 @@ std::vector<std::shared_ptr<ContentMemento>> Memento::DefaultStack(
 
 Section Memento::DefaultSection(not_null<PeerData*> peer) {
 	if (peer->savedSublistsInfo()) {
-		return Profile::UseProfileMediaTabs()
-			? Section::SavedMessages()
-			: Section(Section::Type::SavedSublists);
+		return Section(Section::Type::SavedSublists);
 	} else if (peer->sharedMediaInfo()) {
 		return Section(Section::MediaType::Photo);
 	}
@@ -190,6 +200,9 @@ Section Memento::DefaultSection(not_null<PeerData*> peer) {
 }
 
 std::shared_ptr<Memento> Memento::Default(not_null<PeerData*> peer) {
+	if (peer->savedSublistsInfo() && Profile::UseProfileMediaTabs()) {
+		return std::make_shared<Memento>(&peer->owner().savedMessages());
+	}
 	return std::make_shared<Memento>(peer, DefaultSection(peer));
 }
 
@@ -206,9 +219,7 @@ std::shared_ptr<ContentMemento> Memento::DefaultContent(
 	case Section::Type::Profile:
 		return std::make_shared<Profile::Memento>(
 			peer,
-			migratedPeerId,
-			Profile::Origin(),
-			section.savedMessages());
+			migratedPeerId);
 	case Section::Type::Media:
 		if (section.mediaType() == Storage::SharedMediaType::Poll) {
 			return std::make_shared<Polls::ListMemento>(
