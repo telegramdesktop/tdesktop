@@ -55,10 +55,13 @@ constexpr auto kSilentAudioFillMargin = crl::time(1000);
 	return value & ~1;
 }
 
+[[nodiscard]] float64 SanitizedFps(float64 fps) {
+	return (fps > 1. && fps < 121.) ? fps : 30.;
+}
+
 [[nodiscard]] int TargetBitrate(QSize size, float64 fps) {
 	const auto pixels = int64(size.width()) * size.height();
-	const auto useFps = (fps > 1. && fps < 121.) ? fps : 30.;
-	const auto bits = float64(pixels) * useFps * 0.07;
+	const auto bits = float64(pixels) * SanitizedFps(fps) * 0.07;
 	return int(std::clamp(bits, float64(kMinBitrate), float64(kMaxBitrate)));
 }
 
@@ -1334,7 +1337,7 @@ TranscodeResult TranscodeVideo(
 			output.get(),
 			target,
 			bitrate,
-			int(base::SafeRound((fps > 1. && fps < 121.) ? fps : 30.)),
+			int(base::SafeRound(SanitizedFps(fps))),
 			ReadColorDescription(inVideoStream->codecpar, plan.bake));
 		if (!video.codec) {
 			return {};
@@ -1743,9 +1746,7 @@ TranscodeResult TranscodeVideo(
 	if (audioTranscoder && !audioTranscoder->finish(output.get())) {
 		return {};
 	}
-	const auto step = (fps > 0.)
-		? crl::time(base::SafeRound(1000. / fps))
-		: crl::time(0);
+	const auto step = crl::time(base::SafeRound(1000. / SanitizedFps(fps)));
 	if (silentAudio) {
 		const auto until = PtsToTime(lastVideoPts, videoTimeBase()) + step;
 		if (!silentAudio->writeUntil(output.get(), until)
