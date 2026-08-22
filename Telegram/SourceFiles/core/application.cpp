@@ -186,8 +186,6 @@ Application::Application()
 
 	_platformIntegration->init();
 
-	_screenshotProtection->addReason(passcodeLockValue());
-
 	passcodeLockChanges(
 	) | rpl::on_next([=](bool locked) {
 		_shouldLockAt = 0;
