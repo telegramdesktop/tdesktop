@@ -4734,13 +4734,26 @@ void OverlayWidget::displayDocument(
 
 	refreshMediaViewer();
 	if (_document) {
-		if (_document->sticker()) {
-			if (const auto image = _documentMedia->getStickerLarge()) {
+		if (const auto sticker = _document->sticker()) {
+			// Always kick off the full sticker file (and a crisp rendered frame for
+			// Lottie). Animated stickers never populate getStickerLarge(), so the
+			// media viewer used to stay on a tiny Blur-upscaled thumbnail.
+			_documentMedia->automaticLoad(fileOrigin(), _message);
+			if (sticker->isAnimated()) {
+				_documentMedia->goodThumbnailWanted();
+			}
+			if (sticker->isWebm()
+				&& _documentMedia->canBePlayed()
+				&& initStreaming(startStreaming)) {
+				// WebM stickers stream at full quality via the normal player.
+			} else if (const auto image = _documentMedia->getStickerLarge()) {
 				setStaticContent(image->original());
+			} else if (const auto good = _documentMedia->goodThumbnail()) {
+				setStaticContent(good->original());
 			} else if (const auto thumbnail = _documentMedia->thumbnail()) {
+				// Sharp upscale while the full/good frame loads — never Blur.
 				setStaticContent(thumbnail->pix(
-					_document->dimensions,
-					{ .options = Images::Option::Blur }
+					_document->dimensions
 				).toImage());
 			}
 		} else {
@@ -7814,6 +7827,24 @@ void OverlayWidget::setSession(not_null<Main::Session*> session) {
 		if (!isHidden()) {
 			updateControls();
 			checkForSaveLoaded();
+			// Upgrade sticker/custom-emoji stills when a larger frame becomes
+			// available (animated stickers never fill getStickerLarge()).
+			if (_document
+				&& _documentMedia
+				&& _document->sticker()
+				&& !_streamed) {
+				const auto better = [&]() -> Image* {
+					if (const auto large = _documentMedia->getStickerLarge()) {
+						return large;
+					}
+					return _documentMedia->goodThumbnail();
+				}();
+				if (better
+					&& (better->width() > _staticContent.width()
+						|| better->height() > _staticContent.height())) {
+					redisplayContent();
+				}
+			}
 		}
 	}, _sessionLifetime);
 
