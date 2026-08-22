@@ -66,6 +66,7 @@ struct SavedWindow {
 	int sharedMediaType = 0;
 	SavedChat thread;
 	Core::WindowPosition position;
+	QString title;
 	std::vector<SavedChat> chats;
 };
 

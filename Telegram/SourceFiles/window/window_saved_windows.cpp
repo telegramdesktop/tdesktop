@@ -52,7 +52,7 @@ constexpr auto kBatchResolveFallback = 10 * crl::time(1000);
 constexpr auto kMaxSavedWindows = 64;
 constexpr auto kMaxSavedChats = 64;
 constexpr auto kMaxClosedWindows = 16;
-constexpr auto kVersion = 3;
+constexpr auto kVersion = 4;
 constexpr auto kPrefKey = std::string_view("windows_state");
 constexpr auto kRestoreKey = std::string_view("windows_state.restore");
 constexpr auto kAskedKey = std::string_view("windows_state.asked");
@@ -122,6 +122,7 @@ constexpr auto kAskedKey = std::string_view("windows_state.asked");
 				<< qint32(window.position.moncrc)
 				<< qint32(window.position.maximized)
 				<< qint32(window.position.scale)
+				<< window.title
 				<< qint32(window.chats.size());
 			for (const auto &chat : window.chats) {
 				stream << quint64(chat.peer.value)
@@ -173,6 +174,7 @@ constexpr auto kAskedKey = std::string_view("windows_state.asked");
 		auto moncrc = qint32();
 		auto maximized = qint32();
 		auto scale = qint32();
+		auto title = QString();
 		auto chatsCount = qint32();
 		stream >> accountIndex
 			>> userPeer
@@ -192,8 +194,11 @@ constexpr auto kAskedKey = std::string_view("windows_state.asked");
 			>> h
 			>> moncrc
 			>> maximized
-			>> scale
-			>> chatsCount;
+			>> scale;
+		if (version > 3) {
+			stream >> title;
+		}
+		stream >> chatsCount;
 		if (stream.status() != QDataStream::Ok
 			|| !ValidType(type)
 			|| chatsCount < 0
@@ -221,6 +226,7 @@ constexpr auto kAskedKey = std::string_view("windows_state.asked");
 			.w = w,
 			.h = h,
 		};
+		window.title = title;
 		window.chats.reserve(chatsCount);
 		for (auto j = 0; j != chatsCount; ++j) {
 			auto peer = quint64();
@@ -476,6 +482,13 @@ std::optional<SavedWindow> SavedWindows::serializeWindow(
 	result.sharedMediaType = static_cast<int>(id.sharedMediaType);
 	if (id.thread) {
 		result.thread = SavedChatFromThread(id.thread);
+		const auto topic = id.thread->asTopic();
+		const auto peer = id.thread->peer();
+		result.title = topic
+			? topic->title()
+			: peer->isSelf()
+			? tr::lng_saved_messages(tr::now)
+			: peer->name();
 	}
 	result.position = window->widget()->countPositionForSave();
 	if (ReplayableType(id.type)) {
