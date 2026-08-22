@@ -36,6 +36,10 @@ constexpr auto kStaleTempTimeout = 24 * 60 * 60;
 
 constexpr auto kMp3InMp4MinFrequency = 16'000;
 
+// Broken source timestamps would grow silent track without bound.
+constexpr auto kMaxSilentAudioFill = crl::time(4 * 60 * 60 * 1000);
+constexpr auto kSilentAudioFillMargin = crl::time(1000);
+
 [[nodiscard]] QString TempDirectory() {
 	return QDir::tempPath() + u"/tdtranscode"_q;
 }
@@ -596,7 +600,9 @@ bool AudioTranscoder::finish(not_null<AVFormatContext*> output) {
 
 class SilentAudioWriter final {
 public:
-	[[nodiscard]] bool init(not_null<AVFormatContext*> output);
+	[[nodiscard]] bool init(
+		not_null<AVFormatContext*> output,
+		crl::time limit);
 	[[nodiscard]] bool writeUntil(
 		not_null<AVFormatContext*> output,
 		crl::time position);
@@ -606,11 +612,15 @@ private:
 	CodecPointer _encoder;
 	FramePointer _frame;
 	AVStream *_stream = nullptr;
+	crl::time _limit = 0;
 	int64 _pts = 0;
 
 };
 
-bool SilentAudioWriter::init(not_null<AVFormatContext*> output) {
+bool SilentAudioWriter::init(
+		not_null<AVFormatContext*> output,
+		crl::time limit) {
+	_limit = limit;
 	const auto codec = avcodec_find_encoder(AV_CODEC_ID_AAC);
 	if (!codec) {
 		LogError(u"avcodec_find_encoder"_q, u"AAC"_q);
@@ -668,7 +678,7 @@ bool SilentAudioWriter::writeUntil(
 		not_null<AVFormatContext*> output,
 		crl::time position) {
 	const auto samples = av_rescale_q(
-		std::max(position, crl::time(0)),
+		std::clamp(position, crl::time(0), _limit),
 		AVRational{ 1, 1000 },
 		_encoder->time_base);
 	const auto size = _encoder->frame_size;
@@ -1370,10 +1380,13 @@ TranscodeResult TranscodeVideo(
 		}
 	}
 
+	const auto silentLimit = (span > 0)
+		? std::min(span + kSilentAudioFillMargin, kMaxSilentAudioFill)
+		: kMaxSilentAudioFill;
 	auto silentAudio = std::optional<SilentAudioWriter>();
 	if (!inAudioStream && source.silentAudio) {
 		silentAudio.emplace();
-		if (!silentAudio->init(output.get())) {
+		if (!silentAudio->init(output.get(), silentLimit)) {
 			return {};
 		}
 	}
