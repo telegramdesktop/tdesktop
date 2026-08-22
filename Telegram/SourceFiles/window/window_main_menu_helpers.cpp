@@ -46,9 +46,13 @@ namespace Window {
 	if constexpr (!Platform::IsMacStoreBuild()
 		&& !Platform::IsWindowsStoreBuild()) {
 		Ui::InstallTooltip(label, [] {
-			return u"Build date: %1.\nQt version: %2."_q
-				.arg(__DATE__)
-				.arg(QT_VERSION_STR);
+			if constexpr (Platform::IsLinux()) {
+				return u"Qt version: %1."_q.arg(QT_VERSION_STR);
+			} else {
+				return u"Build date: %1.\nQt version: %2."_q
+					.arg(__DATE__)
+					.arg(QT_VERSION_STR);
+			}
 		});
 	}
 	return label;
