@@ -1593,9 +1593,11 @@ TranscodeResult TranscodeVideo(
 				failed = true;
 				return false;
 			}
-			if (progress && span > 0) {
+			if (progress) {
 				const auto done = PtsToTime(pts, encoder->time_base);
-				const auto value = std::clamp(done / float64(span), 0., 1.);
+				const auto value = (span > 0)
+					? std::clamp(done / float64(span), 0., 1.)
+					: 0.;
 				if (!progress(value)) {
 					failed = true;
 					return false;
@@ -1644,11 +1646,10 @@ TranscodeResult TranscodeVideo(
 					&& !silentAudio->writeUntil(output.get(), done)) {
 					return {};
 				}
-				if (progress && span > 0) {
-					const auto value = std::clamp(
-						done / float64(span),
-						0.,
-						1.);
+				if (progress) {
+					const auto value = (span > 0)
+						? std::clamp(done / float64(span), 0., 1.)
+						: 0.;
 					if (!progress(value)) {
 						return {};
 					}
