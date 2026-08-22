@@ -30,6 +30,7 @@ constexpr auto kVideoTimeBase = AVRational{ 1, 1'000'000 };
 constexpr auto kMinBitrate = 600'000;
 constexpr auto kMaxBitrate = 6'800'000;
 constexpr auto kMaxSourceSize = 1000 * int64(1024) * 1024;
+constexpr auto kMaxTranscodeArea = 4096 * int64(4096);
 constexpr auto kAudioFrequency = 48'000;
 constexpr auto kAudioBitratePerChannel = 64'000;
 constexpr auto kStaleTempTimeout = 24 * 60 * 60;
@@ -1264,7 +1265,10 @@ TranscodeResult TranscodeVideo(
 
 	auto decoder = CodecPointer();
 	if (!copyVideo) {
-		decoder = MakeCodecPointer({ .stream = inVideoStream });
+		decoder = MakeCodecPointer({
+			.stream = inVideoStream,
+			.videoMaxArea = kMaxTranscodeArea,
+		});
 		if (!decoder) {
 			return {};
 		}
