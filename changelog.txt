@@ -1,3 +1,8 @@
+7.1.1 (22.08.26)
+
+- Fix broken chats loading for some users.
+- Minor bug fixes.
+
 7.1 (21.08.26)
 
 - Add welcome messages for groups and channels.
