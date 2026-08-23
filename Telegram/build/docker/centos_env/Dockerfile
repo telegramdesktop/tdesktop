@@ -762,6 +762,7 @@ cd FFmpeg
 	--enable-decoder=wmavoice \
 	--enable-encoder=aac \
 	--enable-encoder=libopenh264 \
+	--enable-encoder=libvpx_vp9 \
 	--enable-encoder=libopus \
 	--enable-encoder=pcm_s16le \
 	--enable-filter=atempo \
@@ -789,7 +790,8 @@ cd FFmpeg
 	--enable-muxer=mp4 \
 	--enable-muxer=ogg \
 	--enable-muxer=opus \
-	--enable-muxer=wav
+	--enable-muxer=wav \
+	--enable-muxer=webm
 make -j$(nproc)
 make DESTDIR=/usr/src/ffmpeg-cache install
 cd ..
