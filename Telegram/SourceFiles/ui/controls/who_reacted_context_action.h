@@ -106,6 +106,8 @@ public:
 
 	void setData(Data &&data);
 
+	void setScrollBarSkip(int skip);
+
 	not_null<QAction*> action() const override;
 	bool isEnabled() const override;
 
@@ -119,6 +121,7 @@ private:
 	QImage prepareRippleMask() const override;
 
 	void paint(Painter &&p);
+	void refreshDimensions();
 	[[nodiscard]] bool closeAffordanceActive() const;
 	void refreshCloseMouseTracking();
 	void refreshCloseGeometry();
@@ -137,6 +140,7 @@ private:
 	QImage _userpic;
 	int _textWidth = 0;
 	int _customSize = 0;
+	int _scrollBarSkip = 0;
 	WhoReactedType _type = WhoReactedType::Viewed;
 	Fn<void()> _closeCallback;
 	QRect _closeRect;
@@ -183,6 +187,8 @@ private:
 		Fn<void()> refillTopActions,
 		int addedToBottom,
 		Fn<void()> appendBottomActions);
+	template <typename Menu>
+	void applyScrollBarSkip(not_null<Menu*> menu);
 	void applyMinimalWidth();
 
 	const Text::CustomEmojiFactory _customEmojiFactory;

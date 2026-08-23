@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_widgets.h"
 
 #include <QtCore/QLocale>
 
@@ -1010,9 +1011,9 @@ void WhoReactedEntryAction::refreshCloseGeometry() {
 		return;
 	}
 	_closeRect = QRect(
-		width() - st::whoReadClose.width,
+		width() - _scrollBarSkip - st::whoReadClose.width,
 		0,
-		st::whoReadClose.width,
+		_scrollBarSkip + st::whoReadClose.width,
 		st::whoReadClose.height);
 }
 
@@ -1065,13 +1066,24 @@ void WhoReactedEntryAction::setData(Data &&data) {
 			{ .repaint = [=] { update(); } })
 		: nullptr;
 	const auto ratio = style::DevicePixelRatio();
+	_customSize = Text::AdjustCustomEmojiSize(Emoji::GetSizeNormal() / ratio);
+	refreshDimensions();
+	refreshCloseGeometry();
+	refreshCloseMouseTracking();
+	invalidateCloseCache();
+	updateCloseHovered(QCursor::pos());
+	update();
+}
+
+void WhoReactedEntryAction::refreshDimensions() {
+	const auto ratio = style::DevicePixelRatio();
 	const auto size = Emoji::GetSizeNormal() / ratio;
-	_customSize = Text::AdjustCustomEmojiSize(size);
 	const auto textWidth = std::max(
 		_text.maxWidth(),
 		st::whoReadDateSkip + _date.maxWidth());
 	const auto &padding = _st.itemPadding;
 	const auto rightSkip = padding.right()
+		+ _scrollBarSkip
 		+ (_custom ? (size + padding.right()) : 0);
 	const auto goodWidth = st::defaultWhoRead.nameLeft
 		+ textWidth
@@ -1079,10 +1091,16 @@ void WhoReactedEntryAction::setData(Data &&data) {
 	const auto w = std::clamp(goodWidth, _st.widthMin, _st.widthMax);
 	_textWidth = w - (goodWidth - textWidth);
 	setMinWidth(w);
+}
+
+void WhoReactedEntryAction::setScrollBarSkip(int skip) {
+	if (_scrollBarSkip == skip) {
+		return;
+	}
+	_scrollBarSkip = skip;
+	refreshDimensions();
 	refreshCloseGeometry();
-	refreshCloseMouseTracking();
 	invalidateCloseCache();
-	updateCloseHovered(QCursor::pos());
 	update();
 }
 
@@ -1233,7 +1251,11 @@ void WhoReactedEntryAction::paint(Painter &&p) {
 			.textColor = (selected ? _st.itemFgOver : _st.itemFg)->c,
 			.now = crl::now(),
 			.position = QPoint(
-				width() - _st.itemPadding.right() - size + skip,
+				(width()
+					- _scrollBarSkip
+					- _st.itemPadding.right()
+					- size
+					+ skip),
 				(height() - _customSize) / 2),
 			.paused = inactive || On(PowerSaving::kEmojiChat),
 		});
@@ -1259,7 +1281,11 @@ void WhoReactedEntryAction::paint(Painter &&p) {
 			: st::whoReadClose.icon;
 		icon.paint(
 			p,
-			WhoReactedCloseIconPosition(_closeRect, icon),
+			WhoReactedCloseIconPosition(
+				QRect(
+					_closeRect.topLeft(),
+					QSize(st::whoReadClose.width, _closeRect.height())),
+				icon),
 			width());
 	}
 }
@@ -1370,6 +1396,39 @@ void WhoReactedListMenu::populatePreloader(
 	if (appendBottomActions) {
 		appendBottomActions();
 	}
+	applyScrollBarSkip(menu);
+}
+
+template <typename Menu>
+void WhoReactedListMenu::applyScrollBarSkip(not_null<Menu*> menu) {
+	const auto skip = [&] {
+		if (!_moderateReactionChosen) {
+			return 0;
+		}
+		const auto &menuSt = menu->st();
+		const auto content = menu->menu()->height()
+			+ menuSt.scrollPadding.top()
+			+ menuSt.scrollPadding.bottom();
+		if constexpr (std::is_same_v<Menu, PopupMenu>) {
+			// style::PopupMenu has no scroll field, PopupMenu hardcodes it.
+			return (content > menu->inner().height())
+				? st::defaultMultiSelect.scroll.width
+				: 0;
+		} else {
+			const auto viewport = menu->height()
+				- menuSt.padding.top()
+				- menuSt.padding.bottom()
+				- menuSt.scrollMargin.top()
+				- menuSt.scrollMargin.bottom();
+			return (content > viewport) ? menuSt.scroll.width : 0;
+		}
+	}();
+	_minimalWidth = 0;
+	for (const auto &action : _actions) {
+		action->setScrollBarSkip(skip);
+		accumulate_max(_minimalWidth, action->minWidth());
+	}
+	applyMinimalWidth();
 }
 
 void WhoReactedListMenu::applyMinimalWidth() {
@@ -1466,6 +1525,7 @@ void WhoReactedListMenu::populateTo(
 	if (!addedToBottom && appendBottomActions) {
 		appendBottomActions();
 	}
+	applyScrollBarSkip(menu);
 }
 
 } // namespace Ui
