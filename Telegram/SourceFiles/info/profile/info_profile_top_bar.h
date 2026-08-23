@@ -200,7 +200,7 @@ private:
 		const std::vector<Data::SavedStarGift> &gifts);
 	void paintPinnedToTopGifts(
 		QPainter &p,
-		const QRect &rect,
+		const QRect &clip,
 		const QRect &userpicGeometry);
 	[[nodiscard]] QPointF calculateGiftPosition(
 		int position,

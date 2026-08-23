@@ -2912,7 +2912,7 @@ void TopBar::paintEvent(QPaintEvent *e) {
 
 	if (clipBounds.bottom() >= geometry.top()
 		&& clipBounds.top() <= geometry.bottom()) {
-		paintPinnedToTopGifts(p, rect(), geometry);
+		paintPinnedToTopGifts(p, clipBounds, geometry);
 	}
 
 	if (clipBounds.intersects(geometry)) {
@@ -3636,7 +3636,7 @@ QPointF TopBar::calculateGiftPosition(
 
 void TopBar::paintPinnedToTopGifts(
 		QPainter &p,
-		const QRect &rect,
+		const QRect &clip,
 		const QRect &userpicRect) {
 	if (_pinnedToTopGifts.empty() || _source == Source::Preview) {
 		return;
@@ -3701,15 +3701,24 @@ void TopBar::paintPinnedToTopGifts(
 			const auto resultPos = QPointF(
 				giftPos.x() - halfFrameSize,
 				giftPos.y() - halfFrameSize);
-			if (!gift.bg.isNull()) {
-				const auto bgSize = gift.bg.width()
-					/ style::DevicePixelRatio();
-				const auto bgPos = QPointF(
+			auto target = QRectF(resultPos, QSizeF(frameSize, frameSize));
+			auto bgPos = QPointF();
+			const auto bgSize = gift.bg.isNull()
+				? 0
+				: (gift.bg.width() / style::DevicePixelRatio());
+			if (bgSize > 0) {
+				bgPos = QPointF(
 					resultPos.x() + (frameSize - bgSize) / 2.,
 					resultPos.y() + (frameSize - bgSize) / 2.);
-				p.drawImage(bgPos, gift.bg);
+				target = target.united(
+					QRectF(bgPos, QSizeF(bgSize, bgSize)));
 			}
-			p.drawImage(resultPos, frameToRender);
+			if (target.intersects(QRectF(clip))) {
+				if (bgSize > 0) {
+					p.drawImage(bgPos, gift.bg);
+				}
+				p.drawImage(resultPos, frameToRender);
+			}
 		}
 	}
 	p.setOpacity(1.);
