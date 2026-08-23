@@ -23,11 +23,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QPointer>
 #include <QtCore/QTimer>
 
+#include <limits>
+
 namespace Test {
 namespace {
 
 constexpr auto kTickInterval = crl::time(50);
 constexpr auto kDefaultWatchdogSeconds = 120;
+constexpr auto kMaxWatchdogSeconds = 600;
 constexpr auto kAbortAfterQuit = 10 * crl::time(1000);
 
 // The fuse records a blocked launch inside the fused
@@ -41,13 +44,28 @@ constexpr auto kAbortAfterQuit = 10 * crl::time(1000);
 // main-queue quiescence having none.
 constexpr auto kFinishDrainDelay = crl::time(500);
 
+static_assert(kMaxWatchdogSeconds
+	<= std::numeric_limits<int>::max() / 1000);
+
 [[nodiscard]] crl::time WatchdogTimeout() {
 	const auto value = qEnvironmentVariable("TDESKTOP_TEST_WATCHDOG");
-	auto ok = false;
-	const auto seconds = value.toInt(&ok);
-	return crl::time(1000) * ((ok && seconds > 0)
-		? seconds
-		: kDefaultWatchdogSeconds);
+	auto selected = kDefaultWatchdogSeconds;
+	auto source = u"default"_q;
+	if (!value.isEmpty()) {
+		auto ok = false;
+		const auto seconds = value.toInt(&ok);
+		if (ok && seconds > 0 && seconds <= kMaxWatchdogSeconds) {
+			selected = seconds;
+			source = u"environment"_q;
+		} else {
+			Note(u"TDESKTOP_TEST_WATCHDOG rejected: %1"_q.arg(value));
+		}
+	}
+	Note(u"TDESKTOP_TEST_WATCHDOG=[%1] applied: %2s source=%3"_q.arg(
+		value,
+		QString::number(selected),
+		source));
+	return crl::time(1000) * selected;
 }
 
 [[nodiscard]] bool SessionReady() {

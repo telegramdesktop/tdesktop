@@ -391,7 +391,7 @@ scaffolding.
 - `test_runner.h` — the staged scenario engine: `Stage{name, run, until, then, timeout}`,
   `waitEvent`, `waitForSessionReady`, the normal bounded non-fatal `waitForChatsLoaded()`, and
   explicit strict `waitForChatsLoadedStrict()`; timing out an ordinary `Stage` ends the whole
-  scenario, while the wall-clock watchdog (default 120s, `TDESKTOP_TEST_WATCHDOG` override)
+  scenario, while the wall-clock watchdog (default 120s; `TDESKTOP_TEST_WATCHDOG` override in seconds, 1..600, otherwise the default; the armed duration is logged at scenario start)
   guarantees `TEST_COMPLETE` + quit on every exit path including timeout. `actOnWidget` waits for
   and lifetime-guards the exact target before acting once. `captureAndInspect` saves the accepted
   prepared frame and then runs numeric/raster assertions against that same widget and image.

@@ -237,7 +237,7 @@ clicking.
 | Module | Facilities |
 | --- | --- |
 | `test_agent.h` | Runtime gate, startup scale override, sticky named events, scenario start. |
-| `test_runner.h` | Stages, bounded waits, exact-widget actions, prepared capture/inspection, watchdog and termination. |
+| `test_runner.h` | Stages, bounded waits, exact-widget actions, prepared capture/inspection, watchdog (`TDESKTOP_TEST_WATCHDOG` in seconds) and termination. |
 | `test_log.h` | Absolute flushed logs, steps, notes, checks, tolerances, geometry, completion markers. |
 | `test_probe.h` | Append-only observation records read only through a declared window, and scans that must match a control before a zero counts as absence. |
 | `test_widgets.h` | Safe typed discovery, live object/action publication, input, and postponed-call settlement. |
@@ -354,6 +354,7 @@ need them.
 
 | Symptom | Likely harness cause | Repair |
 | --- | --- | --- |
+| Run exits with no `TEST_COMPLETE` and no `SCENARIO_RESULT` | `TDESKTOP_TEST_WATCHDOG` is seconds; a millisecond-shaped value (for example `600000`) used to arm a multi-day timer that `test-run --deadline` always outruns, so the watchdog never wrote the markers. | Override is seconds in 1..600; implausible values fall back to 120s and the armed duration is logged next to `SCENARIO_START`. Use a value in that range, or omit the variable. |
 | Timeout before the task fixture exists | Generic account/chats preamble or unrelated navigation. | Remove unused startup gates; inject the fixture or publish the production object at its real seam. |
 | Assertion/crash in a stage action | `.run` dereferenced an async object or a raw pointer outlived its owner. | Use `actOnWidget`, `QPointer`, or live publication. |
 | Wrong custom widget/button found | Unsafe Qt typed search or ambiguous descendant order. | Use the RTTI finders; for repeated/layer-owned controls publish the exact object/action. |
