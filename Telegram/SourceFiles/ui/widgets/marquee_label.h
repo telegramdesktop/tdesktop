@@ -49,6 +49,9 @@ private:
 	void refreshMarqueeState();
 	bool marqueeStep(crl::time now);
 	void paintMarquee(Painter &p);
+	void invalidateCache();
+	void validateTape();
+	void validateFades();
 
 	const style::FlatLabel &_st;
 	Text::String _text;
@@ -57,6 +60,9 @@ private:
 	base::unique_qptr<PopupMenu> _menu;
 
 	QImage _frame;
+	QImage _tape;
+	QImage _fadeLeft;
+	QImage _fadeRight;
 	Animations::Basic _marquee;
 	crl::time _lastUpdate = 0;
 	crl::time _lastFrame = 0;

@@ -34,10 +34,20 @@ MarqueeLabel::MarqueeLabel(
 	) | rpl::on_next([=](const QString &value) {
 		setText(value);
 	}, lifetime());
+
+	style::PaletteChanged(
+	) | rpl::on_next([=] {
+		invalidateCache();
+		update();
+	}, lifetime());
 }
 
 void MarqueeLabel::setTextColorOverride(std::optional<QColor> color) {
+	if (_textColorOverride == color) {
+		return;
+	}
 	_textColorOverride = color;
+	invalidateCache();
 	update();
 }
 
@@ -56,6 +66,7 @@ QString MarqueeLabel::accessibilityName() {
 void MarqueeLabel::setText(const QString &text) {
 	_text.setText(_st.style, text, NameTextOptions());
 	accessibilityNameChanged();
+	invalidateCache();
 	_offset = 0.;
 	_delay = kMarqueeDelay;
 	_lastUpdate = crl::now();
@@ -147,6 +158,59 @@ void MarqueeLabel::paintEvent(QPaintEvent *e) {
 	});
 }
 
+void MarqueeLabel::invalidateCache() {
+	_tape = QImage();
+}
+
+void MarqueeLabel::validateTape() {
+	const auto ratio = style::DevicePixelRatio();
+	const auto natural = _text.maxWidth();
+	const auto size = QSize(natural + st::marqueeLabelGap, height());
+	if (_tape.size() == size * ratio) {
+		return;
+	}
+	_tape = QImage(size * ratio, QImage::Format_ARGB32_Premultiplied);
+	_tape.setDevicePixelRatio(ratio);
+	_tape.fill(Qt::transparent);
+	auto q = Painter(&_tape);
+	if (_textColorOverride) {
+		q.setPen(*_textColorOverride);
+	} else {
+		q.setPen(_st.textFg);
+	}
+	q.setTextPalette(_st.palette);
+	_text.draw(q, {
+		.position = { 0, 0 },
+		.availableWidth = natural,
+		.palette = &_st.palette,
+		.now = crl::now(),
+	});
+}
+
+void MarqueeLabel::validateFades() {
+	const auto ratio = style::DevicePixelRatio();
+	const auto fade = st::marqueeLabelFade;
+	const auto size = QSize(fade, height());
+	if (_fadeRight.size() == size * ratio) {
+		return;
+	}
+	const auto prepare = [&](int fromAlpha, int tillAlpha) {
+		auto result = QImage(
+			size * ratio,
+			QImage::Format_ARGB32_Premultiplied);
+		result.setDevicePixelRatio(ratio);
+		result.fill(Qt::transparent);
+		auto q = QPainter(&result);
+		auto gradient = QLinearGradient(0, 0, fade, 0);
+		gradient.setColorAt(0., QColor(255, 255, 255, fromAlpha));
+		gradient.setColorAt(1., QColor(255, 255, 255, tillAlpha));
+		q.fillRect(QRect(QPoint(), size), gradient);
+		return result;
+	};
+	_fadeLeft = prepare(255, 0);
+	_fadeRight = prepare(0, 255);
+}
+
 void MarqueeLabel::paintMarquee(Painter &p) {
 	const auto ratio = style::DevicePixelRatio();
 	const auto full = size() * ratio;
@@ -154,57 +218,31 @@ void MarqueeLabel::paintMarquee(Painter &p) {
 		_frame = QImage(full, QImage::Format_ARGB32_Premultiplied);
 		_frame.setDevicePixelRatio(ratio);
 	}
+	validateTape();
+	validateFades();
+
+	const auto fade = st::marqueeLabelFade;
+	const auto total = float64(_text.maxWidth() + st::marqueeLabelGap);
 	_frame.fill(Qt::transparent);
 	{
-		auto q = Painter(&_frame);
-		if (_textColorOverride) {
-			q.setPen(*_textColorOverride);
-		} else {
-			q.setPen(_st.textFg);
+		auto q = QPainter(&_frame);
+		q.drawImage(QPointF(-_offset, 0), _tape);
+		if (_offset + width() > total) {
+			q.drawImage(QPointF(total - _offset, 0), _tape);
 		}
-		q.setTextPalette(_st.palette);
-		const auto natural = _text.maxWidth();
-		const auto gap = st::marqueeLabelGap;
-		const auto now = crl::now();
-		q.save();
-		q.translate(-_offset, 0);
-		_text.draw(q, {
-			.position = { 0, 0 },
-			.availableWidth = natural,
-			.palette = &_st.palette,
-			.now = now,
-		});
-		if (_offset > 0.) {
-			q.translate(natural + gap, 0);
-			_text.draw(q, {
-				.position = { 0, 0 },
-				.availableWidth = natural,
-				.palette = &_st.palette,
-				.now = now,
-			});
-		}
-		q.restore();
 		q.setCompositionMode(QPainter::CompositionMode_DestinationOut);
-		const auto fade = st::marqueeLabelFade;
 		const auto ramp = float64(st::marqueeLabelFadeRamp);
-		const auto total = float64(natural + gap);
 		const auto leftOpacity = (_offset < ramp)
 			? (_offset / ramp)
 			: (_offset > total - ramp)
 			? (1. - (_offset - (total - ramp)) / ramp)
 			: 1.;
 		if (leftOpacity > 0.) {
-			auto gradient = QLinearGradient(0, 0, fade, 0);
-			gradient.setColorAt(
-				0.,
-				QColor(255, 255, 255, anim::interpolate(0, 255, leftOpacity)));
-			gradient.setColorAt(1., QColor(255, 255, 255, 0));
-			q.fillRect(QRect(0, 0, fade, height()), gradient);
+			q.setOpacity(leftOpacity);
+			q.drawImage(QPointF(0, 0), _fadeLeft);
+			q.setOpacity(1.);
 		}
-		auto gradient = QLinearGradient(width() - fade, 0, width(), 0);
-		gradient.setColorAt(0., QColor(255, 255, 255, 0));
-		gradient.setColorAt(1., QColor(255, 255, 255, 255));
-		q.fillRect(QRect(width() - fade, 0, fade, height()), gradient);
+		q.drawImage(QPointF(width() - fade, 0), _fadeRight);
 	}
 	p.drawImage(0, 0, _frame);
 }
