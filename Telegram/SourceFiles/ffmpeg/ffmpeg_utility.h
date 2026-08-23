@@ -198,7 +198,7 @@ using SwscalePointer = std::unique_ptr<SwsContext, SwscaleDeleter>;
 	QSize srcSize,
 	int srcFormat,
 	QSize dstSize,
-	int dstFormat, // This field doesn't take part in caching!
+	int dstFormat,
 	SwscalePointer *existing = nullptr);
 [[nodiscard]] SwscalePointer MakeSwscalePointer(
 	not_null<AVFrame*> frame,
