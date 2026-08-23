@@ -221,7 +221,10 @@ void Entry::updateChatListSortPosition() {
 		updateChatListEntry();
 		return;
 	}
-	_sortKeyByDate = DialogPosFromDate(adjustedChatListTimeId());
+	const auto sortKeyByDate = DialogPosFromDate(adjustedChatListTimeId());
+	_sortKeyByDate = (UnreadOnTopEnabled() && hasUnreadUnmutedForSort())
+		? UnreadOnTopDialogPos(sortKeyByDate)
+		: sortKeyByDate;
 	const auto fixedIndex = fixedOnTopIndex();
 	_sortKeyInChatList = fixedIndex
 		? FixedOnTopDialogPos(fixedIndex)
@@ -247,12 +250,7 @@ int Entry::lookupPinnedIndex(FilterId filterId) const {
 
 uint64 Entry::computeSortPosition(FilterId filterId) const {
 	const auto index = lookupPinnedIndex(filterId);
-	if (index) {
-		return PinnedDialogPos(index);
-	} else if (UnreadOnTopEnabled() && hasUnreadUnmutedForSort()) {
-		return UnreadOnTopDialogPos(_sortKeyByDate);
-	}
-	return _sortKeyByDate;
+	return index ? PinnedDialogPos(index) : _sortKeyByDate;
 }
 
 bool Entry::hasUnreadUnmutedForSort() const {
