@@ -106,7 +106,7 @@ struct FileFormatDeleter {
 };
 using FileFormatPointer = std::unique_ptr<AVFormatContext, FileFormatDeleter>;
 
-struct H264Encoder {
+struct VideoEncoder {
 	AVStream *stream = nullptr;
 	CodecPointer codec;
 };
@@ -131,20 +131,13 @@ struct ColorDescription {
 	};
 }
 
-[[nodiscard]] H264Encoder CreateH264Encoder(
+[[nodiscard]] VideoEncoder CreateVideoEncoder(
 		not_null<AVFormatContext*> output,
+		not_null<const AVCodec*> encoderCodec,
 		QSize size,
 		int64 bitrate,
 		float64 fps,
 		ColorDescription color) {
-	auto encoderCodec = avcodec_find_encoder_by_name("libopenh264");
-	if (!encoderCodec) {
-		encoderCodec = avcodec_find_encoder(AV_CODEC_ID_H264);
-		if (!encoderCodec) {
-			LogError(u"avcodec_find_encoder"_q, u"H264"_q);
-			return {};
-		}
-	}
 	const auto stream = avformat_new_stream(output, encoderCodec);
 	if (!stream) {
 		LogError(u"avformat_new_stream"_q, u"video"_q);
@@ -190,6 +183,29 @@ struct ColorDescription {
 	}
 	stream->time_base = encoder->time_base;
 	return { stream, std::move(encoder) };
+}
+
+[[nodiscard]] VideoEncoder CreateH264Encoder(
+		not_null<AVFormatContext*> output,
+		QSize size,
+		int64 bitrate,
+		float64 fps,
+		ColorDescription color) {
+	auto encoderCodec = avcodec_find_encoder_by_name("libopenh264");
+	if (!encoderCodec) {
+		encoderCodec = avcodec_find_encoder(AV_CODEC_ID_H264);
+		if (!encoderCodec) {
+			LogError(u"avcodec_find_encoder"_q, u"H264"_q);
+			return {};
+		}
+	}
+	return CreateVideoEncoder(
+		output,
+		encoderCodec,
+		size,
+		bitrate,
+		fps,
+		color);
 }
 
 [[nodiscard]] QString MoveMoovToFront(const QString &sourcePath) {
