@@ -153,8 +153,12 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	void paintEdges(QPainter &p, const QBrush &brush) const;
-	void paintEdges(QPainter &p) const;
+	[[nodiscard]] bool clipTouchesRoundedCorners(const QRect &clip) const;
+	void paintEdges(
+		QPainter &p,
+		const QRect &clip,
+		const QBrush &brush) const;
+	void paintEdges(QPainter &p, const QRect &clip) const;
 	void updateLabelsPosition();
 	[[nodiscard]] int titleMostLeft() const;
 	[[nodiscard]] int statusMostLeft() const;

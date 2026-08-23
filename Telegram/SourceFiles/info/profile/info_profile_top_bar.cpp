@@ -1831,9 +1831,21 @@ auto TopBar::effectiveCollectible() const
 		: _peer->emojiStatusId().collectible;
 }
 
-void TopBar::paintEdges(QPainter &p, const QBrush &brush) const {
+bool TopBar::clipTouchesRoundedCorners(const QRect &clip) const {
+	if (!_roundEdges) {
+		return false;
+	}
+	const auto radius = st::boxRadius;
+	return (clip.top() < radius)
+		&& ((clip.left() < radius) || (clip.right() >= width() - radius));
+}
+
+void TopBar::paintEdges(
+		QPainter &p,
+		const QRect &clip,
+		const QBrush &brush) const {
 	const auto r = rect();
-	if (_roundEdges) {
+	if (clipTouchesRoundedCorners(clip)) {
 		auto hq = PainterHighQualityEnabler(p);
 		const auto radius = st::boxRadius;
 		p.setPen(Qt::NoPen);
@@ -1843,15 +1855,15 @@ void TopBar::paintEdges(QPainter &p, const QBrush &brush) const {
 			radius,
 			radius);
 	} else {
-		p.fillRect(r, brush);
+		p.fillRect(r.intersected(clip), brush);
 	}
 }
 
-void TopBar::paintEdges(QPainter &p) const {
+void TopBar::paintEdges(QPainter &p, const QRect &clip) const {
 	if (!_solidBg) {
-		paintEdges(p, st::boxDividerBg);
+		paintEdges(p, clip, st::boxDividerBg);
 	} else {
-		paintEdges(p, *_solidBg);
+		paintEdges(p, clip, *_solidBg);
 	}
 }
 
@@ -2843,6 +2855,7 @@ void TopBar::paintUserpic(QPainter &p, const QRect &geometry) {
 void TopBar::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 	const auto geometry = userpicGeometry();
+	const auto clipBounds = e->region().boundingRect();
 
 	if (_hasGradientBg && _cachedGradient.isNull()) {
 		const auto collectible = effectiveCollectible();
@@ -2869,7 +2882,7 @@ void TopBar::paintEvent(QPaintEvent *e) {
 		}
 	}
 	if (!_hasGradientBg) {
-		paintEdges(p);
+		paintEdges(p, clipBounds);
 	} else {
 		const auto x = (width()
 			- _cachedGradient.width() / style::DevicePixelRatio())
@@ -2877,7 +2890,7 @@ void TopBar::paintEvent(QPaintEvent *e) {
 		const auto y = (height()
 			- _cachedGradient.height() / style::DevicePixelRatio())
 				/ 2;
-		if (_roundEdges) {
+		if (clipTouchesRoundedCorners(clipBounds)) {
 			if (_cachedClipPath.isEmpty()) {
 				const auto radius = st::boxRadius;
 				_cachedClipPath.addRoundedRect(
@@ -2897,7 +2910,6 @@ void TopBar::paintEvent(QPaintEvent *e) {
 		paintAnimatedPattern(p, rect(), geometry);
 	}
 
-	const auto clipBounds = e->region().boundingRect();
 	if (clipBounds.bottom() >= geometry.top()
 		&& clipBounds.top() <= geometry.bottom()) {
 		paintPinnedToTopGifts(p, rect(), geometry);
