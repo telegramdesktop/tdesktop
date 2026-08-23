@@ -52,6 +52,7 @@ private:
 	void invalidateCache();
 	void validateTape();
 	void validateFades();
+	void validateFrame(float64 offset);
 
 	const style::FlatLabel &_st;
 	Text::String _text;
@@ -63,6 +64,7 @@ private:
 	QImage _tape;
 	QImage _fadeLeft;
 	QImage _fadeRight;
+	std::optional<float64> _frameOffset;
 	Animations::Basic _marquee;
 	crl::time _lastUpdate = 0;
 	crl::time _lastFrame = 0;

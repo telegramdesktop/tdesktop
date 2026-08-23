@@ -160,6 +160,7 @@ void MarqueeLabel::paintEvent(QPaintEvent *e) {
 
 void MarqueeLabel::invalidateCache() {
 	_tape = QImage();
+	_frameOffset = std::nullopt;
 }
 
 void MarqueeLabel::validateTape() {
@@ -169,6 +170,7 @@ void MarqueeLabel::validateTape() {
 	if (_tape.size() == size * ratio) {
 		return;
 	}
+	_frameOffset = std::nullopt;
 	_tape = QImage(size * ratio, QImage::Format_ARGB32_Premultiplied);
 	_tape.setDevicePixelRatio(ratio);
 	_tape.fill(Qt::transparent);
@@ -194,6 +196,7 @@ void MarqueeLabel::validateFades() {
 	if (_fadeRight.size() == size * ratio) {
 		return;
 	}
+	_frameOffset = std::nullopt;
 	const auto prepare = [&](int fromAlpha, int tillAlpha) {
 		auto result = QImage(
 			size * ratio,
@@ -211,39 +214,47 @@ void MarqueeLabel::validateFades() {
 	_fadeRight = prepare(0, 255);
 }
 
-void MarqueeLabel::paintMarquee(Painter &p) {
+void MarqueeLabel::validateFrame(float64 offset) {
 	const auto ratio = style::DevicePixelRatio();
 	const auto full = size() * ratio;
 	if (_frame.size() != full) {
 		_frame = QImage(full, QImage::Format_ARGB32_Premultiplied);
 		_frame.setDevicePixelRatio(ratio);
+		_frameOffset = std::nullopt;
 	}
 	validateTape();
 	validateFades();
+	if (_frameOffset == offset) {
+		return;
+	}
+	_frameOffset = offset;
 
 	const auto fade = st::marqueeLabelFade;
 	const auto total = float64(_text.maxWidth() + st::marqueeLabelGap);
 	_frame.fill(Qt::transparent);
-	{
-		auto q = QPainter(&_frame);
-		q.drawImage(QPointF(-_offset, 0), _tape);
-		if (_offset + width() > total) {
-			q.drawImage(QPointF(total - _offset, 0), _tape);
-		}
-		q.setCompositionMode(QPainter::CompositionMode_DestinationOut);
-		const auto ramp = float64(st::marqueeLabelFadeRamp);
-		const auto leftOpacity = (_offset < ramp)
-			? (_offset / ramp)
-			: (_offset > total - ramp)
-			? (1. - (_offset - (total - ramp)) / ramp)
-			: 1.;
-		if (leftOpacity > 0.) {
-			q.setOpacity(leftOpacity);
-			q.drawImage(QPointF(0, 0), _fadeLeft);
-			q.setOpacity(1.);
-		}
-		q.drawImage(QPointF(width() - fade, 0), _fadeRight);
+	auto q = QPainter(&_frame);
+	q.drawImage(QPointF(-offset, 0), _tape);
+	if (offset + width() > total) {
+		q.drawImage(QPointF(total - offset, 0), _tape);
 	}
+	q.setCompositionMode(QPainter::CompositionMode_DestinationOut);
+	const auto ramp = float64(st::marqueeLabelFadeRamp);
+	const auto leftOpacity = (offset < ramp)
+		? (offset / ramp)
+		: (offset > total - ramp)
+		? (1. - (offset - (total - ramp)) / ramp)
+		: 1.;
+	if (leftOpacity > 0.) {
+		q.setOpacity(leftOpacity);
+		q.drawImage(QPointF(0, 0), _fadeLeft);
+		q.setOpacity(1.);
+	}
+	q.drawImage(QPointF(width() - fade, 0), _fadeRight);
+}
+
+void MarqueeLabel::paintMarquee(Painter &p) {
+	const auto ratio = style::DevicePixelRatio();
+	validateFrame(std::round(_offset * ratio) / ratio);
 	p.drawImage(0, 0, _frame);
 }
 
