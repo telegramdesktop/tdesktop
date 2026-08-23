@@ -212,11 +212,13 @@ not_null<Ui::SettingsButton*> AddButton(
 			navigation->parentController()->showInNewWindow(separateId);
 		}
 		: Fn<void()>(nullptr);
-	Ui::InstallTooltip(result, [=] {
-		return Platform::IsMac()
-			? tr::lng_new_window_tooltip_cmd(tr::now)
-			: tr::lng_new_window_tooltip_ctrl(tr::now);
-	});
+	if (openInWindow) {
+		Ui::InstallTooltip(result, [=] {
+			return Platform::IsMac()
+				? tr::lng_new_window_tooltip_cmd(tr::now)
+				: tr::lng_new_window_tooltip_ctrl(tr::now);
+		});
+	}
 	AddContextMenuToButton(result, openInWindow);
 	result->addClickHandler([=](Qt::MouseButton mouse) {
 		if (mouse == Qt::RightButton) {
