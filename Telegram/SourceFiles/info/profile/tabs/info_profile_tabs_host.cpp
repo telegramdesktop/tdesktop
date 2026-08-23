@@ -44,15 +44,6 @@ base::options::toggle ProfileMediaTabs({
 		"a strip of tabs holding the media lists inline. Work in progress.",
 });
 
-[[nodiscard]] Window::SeparateId TabSeparateId(
-		not_null<PeerData*> peer,
-		MsgId topicRootId,
-		Data::SavedSublist *sublist,
-		Storage::SharedMediaType type) {
-	const auto id = Media::SeparateId(peer, topicRootId, type);
-	return (sublist && id) ? Window::SeparateId(sublist, type) : id;
-}
-
 } // namespace
 
 const char kOptionProfileMediaTabs[] = "profile-media-tabs";
@@ -309,26 +300,12 @@ Fn<void()> TabsHost::openInWindowFor(const MediaTabDescriptor &tab) const {
 		? _context.topic->rootId()
 		: MsgId();
 	const auto type = *tab.sharedMediaType;
-	const auto weakSublist = base::make_weak(_context.sublist);
-	if (!TabSeparateId(peer, topicRootId, _context.sublist, type)) {
-		return nullptr;
-	}
-	const auto window = _context.controller->parentController();
-	return [=] {
-		const auto sublist = weakSublist.get();
-		if (!weakSublist.null() && !sublist) {
-			return;
-		}
-		const auto separateId = TabSeparateId(
-			peer,
-			topicRootId,
-			sublist,
-			type);
-		if (!separateId) {
-			return;
-		}
-		window->showInNewWindow(separateId);
-	};
+	return Media::SeparateOpenCallback(
+		_context.controller,
+		peer,
+		topicRootId,
+		_context.sublist,
+		type);
 }
 
 void TabsHost::showTabMenu(const QString &id) {
