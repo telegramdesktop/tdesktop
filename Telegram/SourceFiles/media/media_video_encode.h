@@ -30,6 +30,11 @@ struct StillSource {
 };
 
 struct VideoSource {
+	enum class Mode {
+		Mp4,
+		WebmSticker,
+	};
+
 	QString path;
 	QByteArray bytes;
 
@@ -45,6 +50,9 @@ struct VideoSource {
 
 	crl::time from = 0;
 	crl::time till = 0;
+
+	Mode mode = Mode::Mp4;
+	std::optional<int> webmCrf;
 
 	bool removeAudio = false;
 
@@ -85,6 +93,12 @@ struct TranscodeResult {
 };
 
 [[nodiscard]] Result Run(Job &&job, Fn<bool(float64)> progress = nullptr);
+
+// Retries with harder quality ceilings until the result fits maxBytes.
+[[nodiscard]] Result RunWebmSticker(
+	VideoSource source,
+	int64 maxBytes,
+	Fn<bool(float64)> progress = nullptr);
 
 // Writes a temporary mp4 the caller owns and must remove.
 [[nodiscard]] TranscodeResult TranscodeVideo(

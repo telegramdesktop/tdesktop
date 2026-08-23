@@ -29,6 +29,15 @@ using namespace FFmpeg;
 constexpr auto kVideoTimeBase = AVRational{ 1, 1'000'000 };
 constexpr auto kMinBitrate = 600'000;
 constexpr auto kMaxBitrate = 6'800'000;
+constexpr auto kWebmStickerCrf = 28;
+constexpr auto kWebmStickerCrfLadder = std::array<std::optional<int>, 6>{
+	std::nullopt,
+	34,
+	40,
+	47,
+	55,
+	63,
+};
 constexpr auto kMaxSourceSize = 1000 * int64(1024) * 1024;
 constexpr auto kMaxTranscodeArea = 4096 * int64(4096);
 constexpr auto kAudioFrequency = 48'000;
@@ -45,7 +54,7 @@ constexpr auto kSilentAudioFillMargin = crl::time(1000);
 	return QDir::tempPath() + u"/tdtranscode"_q;
 }
 
-[[nodiscard]] QString TempFileTemplate() {
+[[nodiscard]] QString TempFileTemplate(const QString &extension) {
 	const auto directory = TempDirectory();
 	QDir().mkpath(directory);
 	QFile::setPermissions(
@@ -53,7 +62,11 @@ constexpr auto kSilentAudioFillMargin = crl::time(1000);
 		QFileDevice::ReadUser
 			| QFileDevice::WriteUser
 			| QFileDevice::ExeUser);
-	return directory + u"/XXXXXX.mp4"_q;
+	return directory + u"/XXXXXX."_q + extension;
+}
+
+[[nodiscard]] QString TempFileTemplate() {
+	return TempFileTemplate(u"mp4"_q);
 }
 
 [[nodiscard]] int EvenDown(int value) {
@@ -137,7 +150,10 @@ struct ColorDescription {
 		QSize size,
 		int64 bitrate,
 		float64 fps,
-		ColorDescription color) {
+		ColorDescription color,
+		AVPixelFormat pixelFormat,
+		float64 avgFps,
+		Fn<bool(not_null<AVCodecContext*>)> setup) {
 	const auto stream = avformat_new_stream(output, encoderCodec);
 	if (!stream) {
 		LogError(u"avformat_new_stream"_q, u"video"_q);
@@ -156,13 +172,16 @@ struct ColorDescription {
 	encoder->time_base = kVideoTimeBase;
 	// Without this libopenh264 reads time base and caps at 60 fps.
 	encoder->framerate = av_d2q(rate, 1000000);
-	encoder->pix_fmt = AV_PIX_FMT_YUV420P;
+	encoder->pix_fmt = pixelFormat;
 	encoder->bit_rate = bitrate;
 	encoder->gop_size = int(base::SafeRound(rate));
 	encoder->color_range = color.range;
 	encoder->color_primaries = color.primaries;
 	encoder->color_trc = color.transfer;
 	encoder->colorspace = color.space;
+	if (setup && !setup(encoder.get())) {
+		return {};
+	}
 	if (output->oformat->flags & AVFMT_GLOBALHEADER) {
 		encoder->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 	}
@@ -182,6 +201,9 @@ struct ColorDescription {
 		return {};
 	}
 	stream->time_base = encoder->time_base;
+	if (avgFps > 0.) {
+		stream->avg_frame_rate = av_d2q(avgFps, 100'000);
+	}
 	return { stream, std::move(encoder) };
 }
 
@@ -205,7 +227,59 @@ struct ColorDescription {
 		size,
 		bitrate,
 		fps,
-		color);
+		color,
+		AV_PIX_FMT_YUV420P,
+		0.,
+		nullptr);
+}
+
+[[nodiscard]] bool SetupVp9StickerOptions(
+		not_null<AVCodecContext*> encoder,
+		int crf) {
+	auto error = AvErrorWrap(av_opt_set_int(
+		encoder->priv_data,
+		"crf",
+		crf,
+		0));
+	if (error) {
+		LogError(u"av_opt_set_int"_q, error, u"crf"_q);
+		return false;
+	}
+	error = AvErrorWrap(av_opt_set_int(
+		encoder->priv_data,
+		"auto-alt-ref",
+		0,
+		0));
+	if (error) {
+		LogError(u"av_opt_set_int"_q, error, u"auto-alt-ref"_q);
+		return false;
+	}
+	return true;
+}
+
+[[nodiscard]] VideoEncoder CreateVp9WebmEncoder(
+		not_null<AVFormatContext*> output,
+		QSize size,
+		ColorDescription color,
+		int crf,
+		float64 fps) {
+	const auto encoderCodec = avcodec_find_encoder_by_name("libvpx-vp9");
+	if (!encoderCodec) {
+		LogError(u"avcodec_find_encoder"_q, u"VP9"_q);
+		return {};
+	}
+	return CreateVideoEncoder(
+		output,
+		encoderCodec,
+		size,
+		0,
+		fps,
+		color,
+		AV_PIX_FMT_YUVA420P,
+		SanitizedFps(fps),
+		[crf](not_null<AVCodecContext*> encoder) {
+			return SetupVp9StickerOptions(encoder, crf);
+		});
 }
 
 [[nodiscard]] QString MoveMoovToFront(const QString &sourcePath) {
@@ -1256,7 +1330,8 @@ struct TranscodeAttempt {
 	if (videoId < 0) {
 		return {};
 	}
-	const auto audioId = source.removeAudio
+	const auto webm = (source.mode == VideoSource::Mode::WebmSticker);
+	const auto audioId = (source.removeAudio || webm)
 		? -1
 		: av_find_best_stream(
 			input.get(),
@@ -1313,7 +1388,8 @@ struct TranscodeAttempt {
 	// Only the audio track changes, so the frames are remuxed untouched
 	// instead of being decoded and encoded again at a quality loss.
 	const auto videoCodecId = inVideoStream->codecpar->codec_id;
-	const auto copyVideo = !plan.bake
+	const auto copyVideo = !webm
+		&& !plan.bake
 		&& !trimmed
 		&& !limiting
 		&& (plan.target == coded)
@@ -1331,7 +1407,7 @@ struct TranscodeAttempt {
 		}
 	}
 
-	auto temp = QTemporaryFile(TempFileTemplate());
+	auto temp = QTemporaryFile(TempFileTemplate(webm ? u"webm"_q : u"mp4"_q));
 	if (!temp.open()) {
 		return {};
 	}
@@ -1349,7 +1425,7 @@ struct TranscodeAttempt {
 	if (AvErrorWrap(avformat_alloc_output_context2(
 			&rawOutput,
 			nullptr,
-			"mp4",
+			webm ? "webm" : "mp4",
 			pathUtf8.constData()))
 		|| !rawOutput) {
 		return {};
@@ -1387,12 +1463,15 @@ struct TranscodeAttempt {
 		outVideoStream->codecpar->codec_tag = 0;
 		outVideoStream->time_base = inVideoStream->time_base;
 	} else {
-		auto video = CreateH264Encoder(
-			output.get(),
-			target,
-			bitrate,
-			fps,
-			ReadColorDescription(inVideoStream->codecpar, plan.bake));
+		const auto color = ReadColorDescription(
+			inVideoStream->codecpar,
+			plan.bake);
+		const auto crf = source.webmCrf
+			? std::clamp(*source.webmCrf, 0, 63)
+			: kWebmStickerCrf;
+		auto video = webm
+			? CreateVp9WebmEncoder(output.get(), target, color, crf, fps)
+			: CreateH264Encoder(output.get(), target, bitrate, fps, color);
 		if (!video.codec) {
 			return {};
 		}
@@ -1445,7 +1524,7 @@ struct TranscodeAttempt {
 		? std::min(span + kSilentAudioFillMargin, kMaxSilentAudioFill)
 		: kMaxSilentAudioFill;
 	auto silentAudio = std::optional<SilentAudioWriter>();
-	if (!inAudioStream && source.silentAudio) {
+	if (!inAudioStream && source.silentAudio && !webm) {
 		silentAudio.emplace();
 		if (!silentAudio->init(output.get(), silentLimit)) {
 			return {};
@@ -1453,7 +1532,9 @@ struct TranscodeAttempt {
 	}
 
 	auto muxOptions = (AVDictionary*)nullptr;
-	av_dict_set(&muxOptions, "movflags", "+faststart", 0);
+	if (!webm) {
+		av_dict_set(&muxOptions, "movflags", "+faststart", 0);
+	}
 	error = AvErrorWrap(avformat_write_header(output.get(), &muxOptions));
 	av_dict_free(&muxOptions);
 	if (error) {
@@ -1469,7 +1550,7 @@ struct TranscodeAttempt {
 	if (!encodeFrame || !decodedFrame) {
 		return {};
 	}
-	encodeFrame->format = AV_PIX_FMT_YUV420P;
+	encodeFrame->format = webm ? AV_PIX_FMT_YUVA420P : AV_PIX_FMT_YUV420P;
 	encodeFrame->width = target.width();
 	encodeFrame->height = target.height();
 	error = AvErrorWrap(av_frame_get_buffer(encodeFrame.get(), 0));
@@ -1589,11 +1670,19 @@ struct TranscodeAttempt {
 				return false;
 			}
 			if (plan.bake) {
+				if (webm) {
+					composed = std::move(composed).convertToFormat(
+						QImage::Format_ARGB32);
+					if (composed.isNull()) {
+						failed = true;
+						return false;
+					}
+				}
 				fromRgb = MakeSwscalePointer(
 					target,
 					AV_PIX_FMT_BGRA,
 					target,
-					AV_PIX_FMT_YUV420P,
+					AVPixelFormat(encodeFrame->format),
 					&fromRgb);
 				if (!fromRgb) {
 					failed = true;
@@ -1620,7 +1709,7 @@ struct TranscodeAttempt {
 					QSize(decodedFrame->width, decodedFrame->height),
 					decodedFrame->format,
 					target,
-					AV_PIX_FMT_YUV420P,
+					AVPixelFormat(encodeFrame->format),
 					&swscale);
 				if (!swscale) {
 					failed = true;
@@ -1902,6 +1991,25 @@ Result Run(Job &&job, Fn<bool(float64)> progress) {
 			job.bitrate,
 			std::move(progress));
 	});
+}
+
+Result RunWebmSticker(
+		VideoSource source,
+		int64 maxBytes,
+		Fn<bool(float64)> progress) {
+	Expects(source.mode == VideoSource::Mode::WebmSticker);
+
+	auto result = Result();
+	for (const auto crf : kWebmStickerCrfLadder) {
+		source.webmCrf = crf;
+		result = Run({ .source = source }, progress);
+		if (result.empty()
+			|| result.bytes.size() <= maxBytes
+			|| (progress && !progress(1.))) {
+			break;
+		}
+	}
+	return result;
 }
 
 void ClearStaleTempFiles() {
