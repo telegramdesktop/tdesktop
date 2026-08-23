@@ -35,6 +35,11 @@ MarqueeLabel::MarqueeLabel(
 		setText(value);
 	}, lifetime());
 
+	anim::Disables(
+	) | rpl::on_next([=](bool) {
+		refreshMarqueeState();
+	}, lifetime());
+
 	style::PaletteChanged(
 	) | rpl::on_next([=] {
 		invalidateCache();
@@ -88,15 +93,17 @@ void MarqueeLabel::refreshMarqueeState() {
 	const auto was = _overflown;
 	_overflown = (_availableTextWidth > 0)
 		&& (_text.maxWidth() > _availableTextWidth);
-	if (_overflown && !_marquee.animating()) {
+	const auto scroll = _overflown && !anim::Disabled();
+	if (scroll && !_marquee.animating()) {
 		_offset = 0.;
 		_delay = kMarqueeDelay;
 		_lastUpdate = crl::now();
 		_lastFrame = 0;
 		_marquee.start();
-	} else if (!_overflown && _marquee.animating()) {
+	} else if (!scroll && _marquee.animating()) {
 		_marquee.stop();
 		_offset = 0.;
+		update();
 	}
 	if (was != _overflown) {
 		update();
