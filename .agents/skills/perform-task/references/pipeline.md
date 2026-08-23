@@ -667,6 +667,12 @@ external-task adaptations:
   The helper owns portable-account setup, exact-path process cleanup,
   `-testagent -noupdate`, stale-crash relocation, watchdogs, stdout/stderr,
   markers, and crash collection. It gathers; the performer assesses.
+- A pre-Runner crash or DeadlockDetector event is a production startup failure,
+  not automatically a fixture or harness failure. Follow `shared/test-loop.md`:
+  symbolize a usable dump, and after at most one identical run use its Windows
+  live-debugger fallback when the dump is empty, unreadable, or lacks the main
+  thread stack. Do not reset the account merely because `launch_finished` was
+  never reached.
 - Missing `test_TelegramForcePortable` blocks only a selected Telegram launch.
   Never delete, rename, move, or alter the golden or preserved real account.
   Reuse a marked live test copy under the shared account rules.

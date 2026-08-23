@@ -662,8 +662,9 @@ deciding the verdict:
    `CrtAssert:` annotations, the failed `file:line`, and `Caught signal …` / minidump id. Plain text;
    read it directly. `<workdir>` is the launch `-workdir` (in portable test runs,
    `out/Debug/TelegramForcePortable/`).
-3. **`<workdir>/tdata/dumps/`** — the minidump (full stack, needs symbols to read; note its path in
-   `test.md`, don't try to symbolize inline). Breakpad writes `*.dmp` at that top level; the macOS
+3. **`<workdir>/tdata/dumps/`** — the minidump (full stack, needs symbols to read). When the local
+   Debug build and its symbols are available, symbolize it now rather than merely recording its
+   path. Breakpad writes `*.dmp` at that top level; the macOS
    Crashpad build keeps its database one directory below, in `<workdir>/tdata/dumps/completed/`, so
    a top-level listing can be empty while a real dump exists. `test-run` reports this run's fresh
    top-level dumps in `dumps` and its new `completed/` entries in `crashpad_dumps_added`, so on a
@@ -677,6 +678,24 @@ a TEST_FLAW, unless the overlay itself is what reached out of bounds — quote t
 and the `tdata/working` excerpt in `test.md` as evidence, and feed the expression + file:line to the
 impl-fix agent as the Root cause / Fix hint. Only a crash with NO usable diagnostic after one retry
 is UNRECOVERABLE.
+
+**An empty, unreadable, or unsymbolized dump is failed evidence collection, not evidence of a bad
+fixture.** After at most one confirmation run with the same startup-crash or DeadlockDetector
+signature, stop launching the ordinary test command and capture the fault under a debugger. On
+Windows, first look for `cdb.exe` / WinDbg or ProcDump; when they are absent but Visual Studio is
+installed, locate it with `vswhere.exe` and launch or attach its native debugger to the exact Debug
+executable. GUI debugger operation may use Computer Use. For a startup freeze, attach before the
+30-second detector fires or reproduce without `-testagent`, pause the process, and save the main
+thread plus all-thread stacks. Use the exact test workdir and account copy; do not reset the fixture
+or broaden the implementation while diagnosing it. If no local debugger is available or usable,
+report that exact missing capability instead of inventing a fixture verdict.
+
+A failure before `launch_finished` or before the first Runner stage is a production startup failure.
+It does not implicate the account fixture by itself. Classify it from the captured stack and the
+changed surfaces. Reset or replace the fixture only when the stack or a same-binary control proves
+that fixture state is causal. When the stack is in app code changed by the task or one of its retained
+prerequisites, classify `IMPL_BUG`; if the fault belongs to an earlier approved prerequisite, record
+that upstream defect and repair or route it rather than publishing the current task as test-blocked.
 
 On macOS, treat this exact repeated startup signature as a stale Xcode incremental build, not an
 implementation or overlay verdict:
@@ -708,8 +727,8 @@ A run that never reaches `TEST_COMPLETE` and never dies is a hang. Two independe
   on the UI thread), raises `Unexpected("Deadlock found!")` from a side thread. That crashes through
   the same reporter, so the **frozen main-thread stack is captured in the minidump** and the process
   exits on its own (key on the `tdata/working` report, not the exit code) — same diagnostics path as
-  a crash above. No agent action needed beyond reading `tdata/working` / the dump. Detection is
-  within ~30–90s of the stall.
+  a crash above. Read and symbolize the dump; if it is unusable, follow the debugger fallback above
+  instead of repeating the fixture. Detection is within ~30–90s of the stall.
 - **Everything else (external hard cap).** The DeadlockDetector does NOT fire when the event loop is
   still alive but the test simply never finishes — e.g. a buggy overlay that loops forever, waits on
   a condition that never comes, or just never calls `Core::Quit()`. For that the **runner enforces a

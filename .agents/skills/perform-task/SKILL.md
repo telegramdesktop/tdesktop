@@ -185,6 +185,11 @@ repeated non-converging focused signature stops automatic work for an explicit
 human/convergence decision; it does not start another campaign. A cap and a
 `TEST_FLAW` can never by themselves publish `BLOCKED` or approval.
 
+A pre-Runner crash or DeadlockDetector event is not an evidence setup failure merely
+because the scenario did not start. Apply the shared crash diagnostics and debugger
+fallback before changing an account fixture. An empty or unusable dump requires live
+debugging after at most one confirmation run; it never supports a fixture verdict.
+
 A locked macOS session is not an environment stop or evidence blocker for a
 selected Telegram runtime check. Skip interactive Computer Use and complete
 the same coverage through the in-binary overlay: drive the flow, log/assert,
