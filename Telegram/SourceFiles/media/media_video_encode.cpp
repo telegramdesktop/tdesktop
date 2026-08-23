@@ -48,6 +48,11 @@ constexpr auto kSilentAudioFillMargin = crl::time(1000);
 [[nodiscard]] QString TempFileTemplate() {
 	const auto directory = TempDirectory();
 	QDir().mkpath(directory);
+	QFile::setPermissions(
+		directory,
+		QFileDevice::ReadUser
+			| QFileDevice::WriteUser
+			| QFileDevice::ExeUser);
 	return directory + u"/XXXXXX.mp4"_q;
 }
 
