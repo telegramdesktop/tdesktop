@@ -60,10 +60,6 @@ base::options::toggle OptionUnreadOnTop({
 		"pinned ones and keep them there until you read them.",
 });
 
-[[nodiscard]] bool UnreadOnTopEnabled() {
-	return OptionUnreadOnTop.value();
-}
-
 } // namespace
 
 const char kOptionDialogsUnreadOnTop[] = "dialogs-unread-on-top";
@@ -222,7 +218,8 @@ void Entry::updateChatListSortPosition() {
 		return;
 	}
 	const auto sortKeyByDate = DialogPosFromDate(adjustedChatListTimeId());
-	_sortKeyByDate = (UnreadOnTopEnabled() && hasUnreadUnmutedForSort())
+	_sortKeyByDate = (owner().dialogsUnreadOnTop()
+		&& hasUnreadUnmutedForSort())
 		? UnreadOnTopDialogPos(sortKeyByDate)
 		: sortKeyByDate;
 	const auto fixedIndex = fixedOnTopIndex();
@@ -325,7 +322,7 @@ void Entry::notifyUnreadStateChange(const UnreadState &wasState) {
 			sublist,
 			Data::SublistUpdate::Flag::UnreadView);
 	}
-	if (UnreadOnTopEnabled()) {
+	if (owner().dialogsUnreadOnTop()) {
 		updateChatListSortPosition();
 	}
 	updateChatListEntryPostponed();

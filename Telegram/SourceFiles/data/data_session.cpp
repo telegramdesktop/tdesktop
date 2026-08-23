@@ -372,9 +372,11 @@ Session::Session(not_null<Main::Session*> session)
 		notifyUnreadBadgeChanged();
 	}, _lifetime);
 
-	base::options::lookup<bool>(
-		Dialogs::kOptionDialogsUnreadOnTop
-	).changes() | rpl::on_next([=] {
+	const auto &unreadOnTop = base::options::lookup<bool>(
+		Dialogs::kOptionDialogsUnreadOnTop);
+	_dialogsUnreadOnTop = unreadOnTop.value();
+	unreadOnTop.changes() | rpl::on_next([=, &unreadOnTop] {
+		_dialogsUnreadOnTop = unreadOnTop.value();
 		refreshChatListUnreadOnTop();
 	}, _lifetime);
 
