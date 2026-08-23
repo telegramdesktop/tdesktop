@@ -337,7 +337,7 @@ CheckoutProcess::CheckoutProcess(
 		handleFormUpdate(update);
 	}, _lifetime);
 
-	Core::App().screenshotProtection().addReason(
+	Core::App().screenshotProtection().addContentReason(
 		_screenshotProtection.value(),
 		_panel->lifetime());
 

@@ -49,6 +49,7 @@ void AutostartToggle(bool enabled, Fn<void(bool)> done = nullptr);
 [[nodiscard]] bool TrayIconSupported();
 [[nodiscard]] bool SkipTaskbarSupported();
 [[nodiscard]] bool ScreenshotProtectionSupported();
+[[nodiscard]] bool AmbientScreenshotProtectionSupported();
 void SetWindowScreenshotProtection(not_null<QWidget*> window, bool enabled);
 void WriteCrashDumpDetails();
 void NewVersionLaunched(int oldVersion);

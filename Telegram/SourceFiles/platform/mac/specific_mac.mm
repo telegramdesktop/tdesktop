@@ -292,6 +292,10 @@ bool ScreenshotProtectionSupported() {
 	return true;
 }
 
+bool AmbientScreenshotProtectionSupported() {
+	return true;
+}
+
 void SetWindowScreenshotProtection(not_null<QWidget*> window, bool enabled) {
 	const auto handle = window->internalWinId();
 	if (!handle) {

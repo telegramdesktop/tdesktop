@@ -1920,7 +1920,7 @@ void SessionController::init() {
 }
 
 void SessionController::setupScreenshotProtection() {
-	Core::App().screenshotProtection().addReason(activeChatValue(
+	Core::App().screenshotProtection().addAmbientReason(activeChatValue(
 	) | rpl::map([](Dialogs::Key key) {
 		const auto peer = key.peer();
 		return peer

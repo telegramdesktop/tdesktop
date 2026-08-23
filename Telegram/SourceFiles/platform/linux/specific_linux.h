@@ -42,6 +42,10 @@ inline bool ScreenshotProtectionSupported() {
 	return false;
 }
 
+inline bool AmbientScreenshotProtectionSupported() {
+	return false;
+}
+
 inline void SetWindowScreenshotProtection(
 		not_null<QWidget*> window,
 		bool enabled) {
