@@ -103,7 +103,6 @@ implib() {
 implib /usr/lib64/libgtk-3.so
 implib /usr/lib64/libgdk-3.so
 implib /usr/lib64/libgdk_pixbuf-2.0.so
-implib /usr/lib64/libpango-1.0.so
 implib /usr/lib64/libvdpau.so
 implib /usr/lib64/libva-x11.so
 implib /usr/lib64/libva-drm.so
