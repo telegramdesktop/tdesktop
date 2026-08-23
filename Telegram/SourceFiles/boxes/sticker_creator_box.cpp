@@ -18,9 +18,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_common.h"
 #include "editor/scene/scene.h"
 #include "editor/scene/scene_item_image.h"
+#include "editor/video/video_editor.h"
+#include "editor/video/video_editor_common.h"
+#include "editor/video/video_editor_layer.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "media/media_video_encode.h"
+#include "media/media_video_frames.h"
 #include "ui/emoji_config.h"
 #include "ui/image/image.h"
 #include "ui/image/image_prepare.h"
@@ -38,6 +43,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 
 #include <QtCore/QBuffer>
+#include <QtCore/QDir>
+#include <QtCore/QTemporaryFile>
 #include <QtGui/QImageReader>
 
 namespace {
@@ -46,6 +53,11 @@ constexpr auto kStickerSide = 512;
 constexpr auto kPreviewSide = 256;
 constexpr auto kWebpQuality = 95;
 constexpr auto kMaxEmojis = 7;
+constexpr auto kEmojiVideoMaxDuration = crl::time(3000);
+constexpr auto kEmojiVideoMinDuration = crl::time(200);
+constexpr auto kEmojiVideoFps = 30.;
+// Server limit for a webm custom emoji file.
+constexpr auto kMaxEmojiWebmBytes = 64 * 1024;
 constexpr auto kMaxOriginalRatio = 3.;
 constexpr auto kSquareRatioEpsilon = 0.01;
 
@@ -268,10 +280,10 @@ void ShowPhotoEditor(
 	return bytes;
 }
 
-void LoadStickerImage(
+void LoadStickerMedia(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<DocumentData*> document,
-		Fn<void(QImage)> done) {
+		Fn<void(std::shared_ptr<Data::DocumentMedia>)> done) {
 	struct State {
 		std::shared_ptr<Data::DocumentMedia> media;
 		rpl::lifetime lifetime;
@@ -280,10 +292,9 @@ void LoadStickerImage(
 	state->media = document->createMediaView();
 	state->media->checkStickerLarge();
 	const auto finish = [=] {
-		const auto large = state->media->getStickerLarge();
-		auto image = large ? large->original() : QImage();
+		auto media = state->media;
 		state->lifetime.destroy();
-		done(std::move(image));
+		done(std::move(media));
 	};
 	if (state->media->loaded()) {
 		finish();
@@ -297,6 +308,50 @@ void LoadStickerImage(
 	}, state->lifetime);
 }
 
+void LoadStickerImage(
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<DocumentData*> document,
+		Fn<void(QImage)> done) {
+	LoadStickerMedia(show, document, [done = std::move(done)](
+			std::shared_ptr<Data::DocumentMedia> media) {
+		const auto large = media->getStickerLarge();
+		done(large ? large->original() : QImage());
+	});
+}
+
+struct StickerVideoSource {
+	std::shared_ptr<QTemporaryFile> file;
+	QString path;
+	Media::Video::FileInfo info;
+	Editor::VideoEditorData editorData;
+	Editor::VideoModifications modifications;
+};
+
+[[nodiscard]] std::shared_ptr<QTemporaryFile> WriteStickerTempFile(
+		const QByteArray &bytes) {
+	auto result = std::make_shared<QTemporaryFile>(
+		QDir::tempPath() + u"/tdemoji_XXXXXX.webm"_q);
+	if (!result->open() || result->write(bytes) != bytes.size()) {
+		return nullptr;
+	}
+	result->close();
+	return result;
+}
+
+[[nodiscard]] Editor::VideoEditorData EmojiVideoEditorData() {
+	return {
+		.editor = Editor::EditorData{
+			.keepAspectRatio = true,
+		},
+		.exactSize = Size(Api::kEmojiStickerSideMax),
+		.maxDuration = kEmojiVideoMaxDuration,
+		.minDuration = kEmojiVideoMinDuration,
+		.fpsLimit = kEmojiVideoFps,
+		.removeAudio = true,
+		.webmSticker = true,
+	};
+}
+
 } // namespace
 
 namespace Api {
@@ -306,6 +361,7 @@ struct CreateMediaArgs {
 	std::shared_ptr<ChatHelpers::Show> show;
 	StickerSetIdentifier set;
 	QImage image;
+	std::shared_ptr<StickerVideoSource> video;
 	Data::StickersType type = Data::StickersType::Stickers;
 	std::vector<EmojiPtr> emoji;
 	Fn<void(std::vector<EmojiPtr>)> back;
@@ -324,6 +380,7 @@ void CreateMediaBox(
 	struct State {
 		rpl::variable<bool> uploading = false;
 		std::unique_ptr<StickerUpload> upload;
+		std::shared_ptr<std::atomic<bool>> cancelEncode;
 		QPointer<Ui::RoundButton> addButton;
 	};
 	const auto state = box->lifetime().make_state<State>();
@@ -390,6 +447,7 @@ void CreateMediaBox(
 
 	Ui::AddSkip(inner);
 
+	const auto video = args.video;
 	const auto startUpload = [=,
 			set = std::move(args.set),
 			done = std::move(args.done)]() mutable {
@@ -405,49 +463,96 @@ void CreateMediaBox(
 				tr::lng_stickers_create_emoji_required(tr::now));
 			return;
 		}
+		const auto lockUploading = [=] {
+			const auto lockedWidth = state->addButton
+				? state->addButton->width()
+				: 0;
+			state->uploading = true;
+			if (state->addButton && lockedWidth > 0) {
+				state->addButton->resizeToWidth(lockedWidth);
+			}
+		};
+		const auto upload = [=, doneCallback = done](
+				QByteArray bytes,
+				QSize dimensions,
+				crl::time videoDuration) {
+			state->upload = std::make_unique<StickerUpload>(
+				session,
+				set,
+				std::move(bytes),
+				dimensions,
+				emoji,
+				type,
+				videoDuration);
+			state->upload->start(
+				crl::guard(box, [=](MTPmessages_StickerSet result) {
+					state->upload = nullptr;
+					state->uploading = false;
+					show->showToast(isEmoji
+						? tr::lng_emoji_added(tr::now)
+						: tr::lng_stickers_create_added(tr::now));
+					if (doneCallback) {
+						doneCallback(result);
+					}
+					box->closeBox();
+				}),
+				crl::guard(box, [=](QString err) {
+					state->upload = nullptr;
+					state->uploading = false;
+					show->showToast(err.isEmpty()
+						? tr::lng_stickers_create_upload_failed(tr::now)
+						: err);
+				}));
+		};
+		if (video) {
+			lockUploading();
+			const auto cancel = std::make_shared<std::atomic<bool>>(false);
+			state->cancelEncode = cancel;
+			crl::async([
+				=,
+				weak = base::make_weak(box),
+				mods = video->modifications
+			] {
+				auto result = Media::Encode::RunWebmSticker(
+					Editor::ComposeVideoSource(
+						video->path,
+						mods,
+						video->editorData,
+						false),
+					kMaxEmojiWebmBytes,
+					[=](float64) { return !cancel->load(); });
+				crl::on_main(weak, [
+					=,
+					result = std::move(result)
+				]() mutable {
+					if (result.empty()
+						|| result.bytes.size() > kMaxEmojiWebmBytes) {
+						state->uploading = false;
+						if (!cancel->load()) {
+							show->showToast(tr::lng_bad_video(tr::now));
+						}
+						return;
+					}
+					upload(
+						std::move(result.bytes),
+						result.dimensions,
+						std::clamp(
+							result.duration,
+							crl::time(1),
+							kEmojiVideoMaxDuration));
+				});
+			});
+			return;
+		}
 		const auto dimensions = FittedStickerSize(image.size(), side);
-		const auto bytes = EncodeWebp(image, dimensions);
+		auto bytes = EncodeWebp(image, dimensions);
 		if (bytes.isEmpty()) {
 			show->showToast(
 				tr::lng_stickers_create_upload_failed(tr::now));
 			return;
 		}
-
-		const auto lockedWidth = state->addButton
-			? state->addButton->width()
-			: 0;
-		state->uploading = true;
-		if (state->addButton && lockedWidth > 0) {
-			state->addButton->resizeToWidth(lockedWidth);
-		}
-		state->upload = std::make_unique<StickerUpload>(
-			session,
-			set,
-			bytes,
-			dimensions,
-			emoji,
-			type);
-
-		const auto doneCallback = done;
-		state->upload->start(
-			crl::guard(box, [=](MTPmessages_StickerSet result) {
-				state->upload = nullptr;
-				state->uploading = false;
-				show->showToast(isEmoji
-					? tr::lng_emoji_added(tr::now)
-					: tr::lng_stickers_create_added(tr::now));
-				if (doneCallback) {
-					doneCallback(result);
-				}
-				box->closeBox();
-			}),
-			crl::guard(box, [=](QString err) {
-				state->upload = nullptr;
-				state->uploading = false;
-				show->showToast(err.isEmpty()
-					? tr::lng_stickers_create_upload_failed(tr::now)
-					: err);
-			}));
+		lockUploading();
+		upload(std::move(bytes), dimensions, 0);
 	};
 
 	const auto addButton = box->addButton(
@@ -478,6 +583,9 @@ void CreateMediaBox(
 
 	box->boxClosing(
 	) | rpl::on_next([=] {
+		if (state->cancelEncode) {
+			state->cancelEncode->store(true);
+		}
 		state->upload = nullptr;
 	}, box->lifetime());
 }
@@ -502,6 +610,106 @@ void ShowEditorThenCreate(
 			.done = done,
 		}));
 	});
+}
+
+void ShowVideoEditorThenCreate(
+		std::shared_ptr<ChatHelpers::Show> show,
+		StickerSetIdentifier set,
+		std::shared_ptr<StickerVideoSource> video,
+		std::vector<EmojiPtr> emoji,
+		Fn<void(MTPmessages_StickerSet)> done) {
+	const auto sessionController = show->resolveWindow();
+	if (!sessionController) {
+		show->showToast(tr::lng_stickers_create_open_failed(tr::now));
+		return;
+	}
+	const auto windowController = &sessionController->window();
+	const auto parentWidget = sessionController->widget();
+
+	auto applyModifications = [=](Editor::VideoModifications mods) {
+		video->modifications = mods;
+		const auto path = video->path;
+		const auto dimensions = video->info.dimensions;
+		crl::async([=, weak = base::make_weak(parentWidget)] {
+			auto preview = Editor::ExtractCoverImage(
+				path,
+				mods,
+				dimensions,
+				kPreviewSide);
+			crl::on_main(weak, [=, preview = std::move(preview)]() mutable {
+				show->showBox(Box(CreateMediaBox, CreateMediaArgs{
+					.show = show,
+					.set = set,
+					.image = std::move(preview),
+					.video = video,
+					.type = Data::StickersType::Emoji,
+					.emoji = emoji,
+					.back = [=](std::vector<EmojiPtr> chosen) {
+						ShowVideoEditorThenCreate(
+							show,
+							set,
+							video,
+							chosen,
+							done);
+					},
+					.done = done,
+				}));
+			});
+		});
+	};
+
+	Editor::ShowVideoEditorLayer(
+		parentWidget,
+		windowController,
+		Editor::VideoEditorDescriptor{
+			.path = video->path,
+			.dimensions = video->info.dimensions,
+			.duration = video->info.duration,
+			.data = video->editorData,
+			.initial = video->modifications,
+		},
+		std::move(applyModifications));
+}
+
+void RunVideoEditorAndCreate(
+		std::shared_ptr<ChatHelpers::Show> show,
+		StickerSetIdentifier set,
+		not_null<DocumentData*> document,
+		std::shared_ptr<Data::DocumentMedia> media,
+		Fn<void(MTPmessages_StickerSet)> done) {
+	auto bytes = media->bytes();
+	auto file = std::shared_ptr<QTemporaryFile>();
+	auto path = QString();
+	if (!bytes.isEmpty()) {
+		file = WriteStickerTempFile(bytes);
+		path = file ? file->fileName() : QString();
+	}
+	if (path.isEmpty()) {
+		path = document->filepath(true);
+	}
+	const auto info = path.isEmpty()
+		? Media::Video::FileInfo()
+		: Media::Video::ReadFileInfo(path);
+	if (!info.valid()) {
+		show->showToast(tr::lng_bad_video(tr::now));
+		return;
+	}
+	auto video = std::make_shared<StickerVideoSource>(StickerVideoSource{
+		.file = std::move(file),
+		.path = path,
+		.info = info,
+		.editorData = EmojiVideoEditorData(),
+	});
+	auto initial = std::vector<EmojiPtr>();
+	if (const auto emoji = Ui::Emoji::Find(StickerEmojiOrDefault(document))) {
+		initial.push_back(emoji);
+	}
+	ShowVideoEditorThenCreate(
+		std::move(show),
+		std::move(set),
+		std::move(video),
+		std::move(initial),
+		std::move(done));
 }
 
 void RunImageEditorAndCreate(
@@ -590,8 +798,8 @@ bool AdaptStickerToEmoji(
 		not_null<DocumentData*> document,
 		Fn<void(MTPmessages_StickerSet)> done) {
 	const auto sticker = document->sticker();
-	if (!sticker || sticker->isWebm()) {
-		show->showToast(tr::lng_emoji_adapt_no_video(tr::now));
+	if (!sticker) {
+		show->showToast(tr::lng_attach_failed(tr::now));
 		return false;
 	}
 	if (sticker->isLottie()) {
@@ -611,6 +819,21 @@ bool AdaptStickerToEmoji(
 				show->showToast(err.isEmpty()
 					? tr::lng_attach_failed(tr::now)
 					: err);
+			});
+		return true;
+	}
+	if (sticker->isWebm()) {
+		LoadStickerMedia(
+			show,
+			document,
+			[=, set = std::move(set), done = std::move(done)](
+					std::shared_ptr<Data::DocumentMedia> media) mutable {
+				RunVideoEditorAndCreate(
+					show,
+					std::move(set),
+					document,
+					std::move(media),
+					std::move(done));
 			});
 		return true;
 	}

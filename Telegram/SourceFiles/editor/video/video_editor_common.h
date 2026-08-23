@@ -34,6 +34,7 @@ struct VideoEditorData {
 	float64 fpsLimit = 0.;
 	bool removeAudio = false;
 	bool allowQuality = false;
+	bool webmSticker = false;
 };
 
 [[nodiscard]] QSize EditedFrameSize(

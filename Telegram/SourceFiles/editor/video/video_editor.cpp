@@ -170,10 +170,13 @@ void BarTextButton::paintEvent(QPaintEvent *e) {
 	return result;
 }
 
-[[nodiscard]] Media::Streaming::FrameRequest FrameRequestFor(QSize size) {
+[[nodiscard]] Media::Streaming::FrameRequest FrameRequestFor(
+		QSize size,
+		bool keepAlpha) {
 	auto result = Media::Streaming::FrameRequest();
 	result.resize = size * style::DevicePixelRatio();
 	result.outer = result.resize;
+	result.keepAlpha = keepAlpha;
 	return result;
 }
 
@@ -750,8 +753,9 @@ void VideoEditor::restart(crl::time position) {
 	if (!_frameRect.isEmpty()
 		&& _instance->player().ready()
 		&& !_instance->player().videoSize().isEmpty()) {
-		_lastFrame = _instance->frame(
-			FrameRequestFor(_frameRect.size())).copy();
+		_lastFrame = _instance->frame(FrameRequestFor(
+			_frameRect.size(),
+			_data.webmSticker)).copy();
 	}
 	_position = std::clamp(position, _from, _till);
 	auto options = PlaybackOptions();
@@ -912,7 +916,9 @@ void VideoEditor::paint(QPainter &p) {
 	if (_instance
 		&& _instance->player().ready()
 		&& !_instance->player().videoSize().isEmpty()) {
-		frame = _instance->frame(FrameRequestFor(_frameRect.size()));
+		frame = _instance->frame(FrameRequestFor(
+			_frameRect.size(),
+			_data.webmSticker));
 		if (!held()) {
 			// Marking a frame shown lets the player walk past a pause.
 			_instance->markFrameShown();

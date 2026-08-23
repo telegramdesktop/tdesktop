@@ -61,6 +61,9 @@ Media::Encode::VideoSource ComposeVideoSource(
 		.flipped = geometry.flipped,
 		.from = modifications.from,
 		.till = modifications.till,
+		.mode = (data.webmSticker
+			? Media::Encode::VideoSource::Mode::WebmSticker
+			: Media::Encode::VideoSource::Mode::Mp4),
 		.removeAudio = (data.removeAudio || modifications.gif),
 		.silentAudio = (!data.removeAudio && !modifications.gif),
 		.fpsLimit = data.fpsLimit,

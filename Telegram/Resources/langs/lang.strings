@@ -4857,7 +4857,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_emoji_create_new" = "Create a New Emoji";
 "lng_emoji_add_existing" = "Add an Existing Emoji";
 "lng_emoji_adapt_sticker" = "Adapt from a Sticker";
-"lng_emoji_adapt_no_video" = "Video stickers are not supported yet.";
 "lng_stickers_add_to_set" = "Add to Sticker Set";
 "lng_stickers_already_in_set" = "This Sticker is already in the Set.";
 "lng_stickers_set_is_full" = "This Sticker Set is full.";
