@@ -1822,11 +1822,11 @@ int TextLineHeight(const style::TextStyle &style) {
 
 int TextLineAscent(const style::TextStyle &style) {
 	if (style.qtextEditLineMetrics) {
-		const auto lineHeight = QFixed(TextLineHeight(style));
-		const auto leading = std::max(style.font->fleading, QFixed());
+		const auto lineHeight = Ui::Fixed(TextLineHeight(style));
+		const auto leading = std::max(style.font->fleading, Ui::Fixed());
 		return std::clamp(
 			(lineHeight * 4 / 5) - leading,
-			QFixed(),
+			Ui::Fixed(),
 			lineHeight).toInt();
 	}
 	const auto lineHeight = TextLineHeight(style);
