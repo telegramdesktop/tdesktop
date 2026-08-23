@@ -41,6 +41,19 @@ using Type = Storage::SharedMediaType;
 	MsgId topicRootId,
 	Type type);
 
+[[nodiscard]] Window::SeparateId SeparateId(
+	not_null<PeerData*> peer,
+	MsgId topicRootId,
+	Data::SavedSublist *sublist,
+	Type type);
+
+[[nodiscard]] Fn<void()> SeparateOpenCallback(
+	not_null<Window::SessionNavigation*> navigation,
+	not_null<PeerData*> peer,
+	MsgId topicRootId,
+	Data::SavedSublist *sublist,
+	Type type);
+
 [[nodiscard]] not_null<Ui::SlideWrap<Ui::SettingsButton>*> AddCountedButton(
 	Ui::VerticalLayout *parent,
 	rpl::producer<int> &&count,
