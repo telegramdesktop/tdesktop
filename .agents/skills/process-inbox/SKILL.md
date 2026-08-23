@@ -129,6 +129,15 @@ owns and the direct evidence that can approve it without first implementing a
 sibling. If that sentence needs several independent outcomes or several
 unrelated instruments, split again.
 
+This is the first scope gate, not an irrevocable ruling. Inbox planning uses the
+request plus light source inspection and deliberately does not construct the
+implementation plan. The later independent perform-task assessment sees exact
+files, APIs, phases, ownership boundaries, and evidence design; it may veto the
+single-task shape when that richer proof exposes independently shippable and
+testable boundaries. That veto does not mean task sizing is based on elapsed
+time or diff length, and it does not authorize the performer to mutate the
+queue itself.
+
 Project slugs are unique across `projects/` and `projects/archive/`. When a
 request belongs to an archived project, restore it before routing to it:
 

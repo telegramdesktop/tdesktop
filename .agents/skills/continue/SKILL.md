@@ -348,13 +348,17 @@ After it returns, require one of:
 - a clearly reported global hard stop, leaving the task `in-progress` and all
   task-scoped local state recoverable for the next invocation.
 
-A rescope boundary stops this invocation and is reported to the human; it is
-not retried, approved, blocked, or routed as an ordinary discovered follow-up.
-On a later invocation, a performer that finds the same unresolved boundary
-returns it immediately without rerunning planning, review, builds, or tests.
-Inbox planning prevents most new oversized tasks; replacing an already-active
-task and deciding how to salvage its source is a deliberate queue mutation,
-not authority the scheduler should infer.
+A rescope boundary stops task performance and is not retried, approved, blocked,
+or routed as an ordinary discovered follow-up. The scheduler is the queue
+authority: it independently checks that the proposal contains separately
+shippable/testable boundaries and a coherent dependency graph before any
+dedicated rescope transaction or human handoff. It never treats the performer's
+proposal alone as permission to delete source or rewrite shared task state. On
+a later invocation, a performer that finds the same unresolved boundary returns
+it immediately without rerunning planning, review, builds, or tests. Inbox
+planning prevents most new oversized tasks; replacing an already-active task
+and deciding how to salvage its source requires that explicit scheduler-owned
+transaction, not ordinary discovery routing.
 
 Before accepting a canonical test block, read `work/result.md` and
 `work/test.md`. It is genuine only when the verdict is not `TEST_FLAW`, does

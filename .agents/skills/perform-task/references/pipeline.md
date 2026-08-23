@@ -140,8 +140,8 @@ work/project.proposed.md       # project tasks only
 work/visual.md                 # layout tasks only
 work/plan.md
 work/split-proposal.md         # only when assessment rejects intrinsic scope
-work/review1-general.md        # mandatory complete-diff review and selection
-work/review1-<specialist>.md   # specialists selected for material questions
+work/review1-general.md        # mandatory complete-file review
+work/review1-<lens>.md         # all five standard lens applicability/reviews
 work/review1.md                # canonical first-review verdict
 work/review<R>-focused.md      # mandatory focused general re-review, R > 1
 work/review<R>-<specialist>.md # only specialists invalidated by the fix
@@ -203,7 +203,7 @@ prompts, plus the host-specific orchestration rules.
   policy rejects that spawn before work begins, execute the same prompt
   checklists in the performer. This is a supported mode, not degraded failure.
 - In nested mode, use a fresh leaf for context-and-plan, assessment, each
-  implementation unit, selected specialist reviews, general review,
+  implementation unit, initial standard-lens reviews, general review,
   review-fix, and evidence authoring. Every leaf must be told not to delegate and
   never to commit.
 - Small-task fast path: the performer may run the context-and-plan checklist
@@ -276,6 +276,10 @@ Run sequentially:
    `Approach: rejected` outcome that reruns Phase 1 as a fresh leaf — an
    approach rejection with the assessor's simpler direction as added input —
    or the terminal pre-edit `Scope: split-required` planning boundary.
+   This assessor has authority to veto source implementation because it has the
+   first exact implementation/evidence plan. It cannot mutate task state beyond
+   its local artifacts or create replacement tasks; the scheduler independently
+   validates and owns rescoping.
 3. **Implement.** Run one leaf per assessed plan phase. Before each edit,
    update `work/owned-paths.txt`. A leaf edits only its owned paths and its
    phase status; it does not commit.
@@ -287,11 +291,13 @@ Run sequentially:
    resource, force its documented regeneration. Apply exact-path Windows
    cleanup and build-lock recovery only to a command that writes the configured
    build tree.
-5. **Review.** Run the adaptive review/fix loop from the phase prompts. The
-   first independent general reviewer always examines the complete diff,
-   adjacent integration, task contract, and `work/test-design.md`, and selects
-   specialists for concrete material questions. It confirms or drops their
-   findings and writes the single `review1.md` the fix phase implements. Only
+5. **Review.** Run the adaptive review/fix loop from the phase prompts. Launch
+   the first independent general reviewer and all five standard lens reviewers
+   against the task and complete diff without sharing findings. The general
+   reviewer examines every changed file in full; each lens either proves
+   `NOT_APPLICABLE` from the complete diff or performs its relevant focused
+   review. General synthesis confirms or drops findings, rejects unsupported
+   bailouts, and writes the single `review1.md` the fix phase implements. Only
    material blocking findings cause a fix. After a fix, preserve every prior
    approval that the fix did not invalidate: run one focused general review of
    the fix and affected invariants, plus only the specialists that originated a
@@ -352,34 +358,38 @@ Evidence plan:
 - Evidence: <planned durable output>
 ```
 
-Assessment does not choose reviewers. The first general reviewer does that with
-the diff in hand, and `Expected surfaces` is a recall checklist rather than an
-automatic decision. Assessment rejects ceremony as well as under-testing: it
-removes checks that cannot be affected by the task.
+Assessment does not choose among the standard reviewers. `Expected surfaces` is
+a recall checklist for their initial applicability scan. Assessment rejects
+ceremony as well as under-testing: it removes evidence checks that cannot be
+affected by the task.
 
-### Review selection
+### Initial review fanout
 
-Selection happens with the implementation in hand. Assessment records expected
-surfaces and escalation triggers, but a task-text prediction neither schedules
-nor omits a reviewer.
+The initial review always includes one independent **general** reviewer and all
+five standard lenses. Start them together when capacity permits; under a slot
+limit, keep the complete set queued and start the next lens as soon as a slot
+opens. The general reviewer and lenses do not read one another's findings.
 
-The independent **general** review runs first, alone, exactly once for the
-initial implementation. It reads every changed file in full and owns
-correctness, completeness, adjacent integration, unintended regressions,
-proportionality, repository conventions, and evidence adequacy. It cannot defer
-a concern to a specialist. This complete-diff pass is the mandatory safety net.
+The general reviewer reads every changed file in full and owns correctness,
+completeness, adjacent integration, unintended regressions, proportionality,
+repository conventions, and evidence adequacy. It cannot defer a concern to a
+specialist. This is the mandatory safety net.
 
-Its first output is a **specialist decision table**. Account for every lens
-below with `SELECT` or `OMIT`; silence is invalid. Select a specialist only when
-the diff creates a concrete material failure question that focused tracing,
-call-site search, or domain expertise is likely to answer better than the
-general pass alone. Record that question, the affected paths or invariant, and
-what a failure would do. Omit it when the surface is absent, or when the surface
-is narrow and the general reviewer has already established the relevant
-invariant with no unresolved specialist question. `Low risk`, time pressure,
-and `documentation only` are not sufficient reasons by themselves.
+Each lens first reads the task specification and complete task diff — every
+hunk, not necessarily every changed file in full — and chooses one result:
 
-The lens surfaces are recall prompts, not automatic retention clauses:
+- `NOT_APPLICABLE` — the diff affects no mechanism owned by the lens. Give a
+  short, concrete proof tied to the changed paths/hunks, then stop without broad
+  repository searches or reading irrelevant files in full.
+- `CLEAN` — the lens applies; read the relevant changed files in full and the
+  adjacent callers, owners, consumers or precedents needed to decide it, and
+  report no material finding.
+- `FINDINGS` — perform the same applicable review and report concrete material
+  findings.
+
+Uncertainty means the lens is applicable. `Low risk`, small size, time pressure,
+and `documentation only` are not proofs of non-applicability. The standard lens
+surfaces are:
 
 - **lifetime** — object and resource ownership, callbacks, re-entrancy,
   destruction order, threads, concurrency, races, synchronization,
@@ -394,24 +404,21 @@ The lens surfaces are recall prompts, not automatic retention clauses:
   untrusted input, command or subprocess construction, filesystem boundaries,
   downloads, network trust, and destructive behavior.
 
+Lens source search is rooted at `SOURCE_ROOT`; a reviewer must not search or read
+`WORK_DIR/review*` or phase-review logs. Accidental exposure is reported and
+invalidates only that lens, not already independent work.
+
 The general reviewer may add a named domain specialist when a material risk
-such as ABI portability or persistence migration fits none of the lenses.
-
-Run selected specialists independently and in parallel. Give each the task
-diff, its exact material review question, and source paths, but never the
-general reviewer's findings or another review report. Specialist source search
-is rooted at `SOURCE_ROOT`; it must not search or read `WORK_DIR/review*` or
-phase-review logs beyond the explicit input list. Accidental exposure is
-reported and invalidates only that specialist, not already independent work.
-
-A specialist reports only material findings with a concrete failure. Reuse the
-same general reviewer for synthesis when the host supports continuing that
-agent; otherwise a fresh synthesis reviewer starts from the saved general
-report and specialist reports, then reads only code needed to confirm or drop
-their findings. It writes the sole `review1.md` verdict and accounts for every
-lens decision. Wording, style, or optional cleanup that does not cause wrong
-behavior, unsafe use, material maintenance cost, or a repository-rule violation
-is non-blocking and never starts a fix cycle.
+such as ABI portability or persistence migration fits none of the five lenses.
+Reuse the same general reviewer for synthesis when the host supports continuing
+that agent; otherwise a fresh synthesis reviewer starts from the saved general
+report and lens reports, then reads only code needed to confirm or drop their
+findings. Synthesis rejects a `NOT_APPLICABLE` whose proof contradicts the diff
+and sends only that lens back for a full applicable review. It writes the sole
+`review1.md` verdict and accounts for all five lens results. Wording, style, or
+optional cleanup that does not cause wrong behavior, unsafe use, material
+maintenance cost, or a repository-rule violation is non-blocking and never
+starts a fix cycle.
 
 ### Focused re-review and convergence
 
@@ -422,16 +429,16 @@ invariants, and invalidated validations/evidence. After the fix:
 
 1. run one mandatory focused general review over those edits, the containing
    functions and affected callers, and the prior blocking findings;
-2. rerun only a specialist that originated a repaired blocker or whose recorded
-   material question the fix actually changed;
+2. rerun only a lens that originated a repaired blocker or whose prior
+   `NOT_APPLICABLE`/`CLEAN` proof the fix actually invalidated;
 3. reconcile only evidence checks invalidated by the fix; and
 4. carry every other general, specialist, validation, and evidence approval
    forward explicitly.
 
-The focused general reviewer owns synthesis. It may add a specialist only for a
-new concrete material question introduced by the fix. Merely touching an async,
-storage, build, security, or other broad surface does not invalidate every lens
-that could describe it. It reads the complete task diff only when the fix has
+The focused general reviewer owns synthesis. It reruns a previously inapplicable
+lens only when the fix introduces one of its owned mechanisms. Merely touching
+an async, storage, build, security, or other broad surface does not invalidate
+every lens that could describe it. It reads the complete task diff only when the fix has
 made the previous review boundary unreliable, in which case it triggers the
 convergence assessment rather than silently restarting the initial review.
 
@@ -820,8 +827,10 @@ delays finishing the work actually in hand.
   convergence assessment are planning boundaries, not task `Block` verdicts
   and not permission to keep retrying. Preserve `split-proposal.md`, all
   validated source recovery, and the task's `in-progress` state; return the
-  proposal to the scheduler or human and stop automatic performance until the
-  queue is deliberately replaced. A resumed performer that sees the same
+  proposal to the scheduler (or human for a direct invocation) and stop
+  automatic performance until the queue is deliberately replaced. Assessment
+  owns the stop; only the scheduler owns task creation, dependency rewrites,
+  and superseding the original. A resumed performer that sees the same
   unresolved boundary reports it immediately without rerunning context,
   implementation, review, or builds.
 - Source lineage has a strict timing boundary. Before Phase 1, a missing

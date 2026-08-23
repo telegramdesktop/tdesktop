@@ -1,6 +1,6 @@
 ---
 name: perform-task
-description: Resolve, start or resume, implement, review, test, and publish exactly one existing ai-tdesktop task by short slug or full dated id, including rare blocked unfinished work. Use when the user invokes $perform-task or /perform-task with a known task name, or when the continue scheduler delegates one selected task. Selects task-specific review specialists and evidence instruments without selecting additional work.
+description: Resolve, start or resume, implement, review, test, and publish exactly one existing ai-tdesktop task by short slug or full dated id, including rare blocked unfinished work. Use when the user invokes $perform-task or /perform-task with a known task name, or when the continue scheduler delegates one selected task. Runs standard review lenses with fast applicability bailouts and selects task-specific domain and evidence instruments without selecting additional work.
 ---
 
 # Perform One AI Task
@@ -124,13 +124,19 @@ must first confirm that the request is one cohesive implementation/review/test
 unit. If it contains independently useful and independently testable product
 boundaries, record `Scope: split-required` and a concrete split proposal before
 source edits, then stop for queue rescoping; do not force the broad request
-through smaller implementation phases and call it one task.
+through smaller implementation phases and call it one task. The independent
+assessment has veto authority over implementation, not authority to create,
+retire, or rewrite tasks. The performer validates and preserves the proposal;
+the checkout scheduler owns any later queue mutation. A direct invocation
+returns the proposal to the human.
 
-For a cohesive task, select one mandatory general review and a falsifiable
-evidence plan. The first general review uses the complete implementation as the
-safety net and chooses specialist reviews only for concrete material questions
-that benefit from focused tracing or repository search. Surface presence is a
-recall prompt, not an automatic specialist. The evidence loop
+For a cohesive task, use one mandatory general review, all five standard review
+lenses, and a falsifiable evidence plan. On the initial implementation the
+general reviewer and all lenses inspect the task and complete diff without
+seeing one another's findings. A lens may return a compact
+`NOT_APPLICABLE` immediately after that scan when it proves the diff affects no
+mechanism it owns; otherwise it reads the relevant changed files and adjacent
+code and returns `CLEAN` or `FINDINGS`. The evidence loop
 may use static readings, commands and artifacts, unit tests, a standalone probe
 or component binary, a Telegram Debug build with logged assertions, an in-app
 overlay, Computer Use, screenshots, or any necessary combination. Do not
@@ -138,9 +144,10 @@ require a portable account, Telegram executable, or desktop unless a selected
 check uses it. Do not weaken a runtime or visual check merely because another
 instrument is cheaper.
 
-The general reviewer examines the complete diff and evidence plan, may require
-a specialist or stronger instrument, and cannot defer a concern to an optional
-reviewer. Its approval and every clean specialist result carry forward. A fix
+The general reviewer examines every changed file in full and the evidence plan,
+may reject an unsupported `NOT_APPLICABLE`, require a named domain specialist
+or stronger instrument, and cannot defer its own concern. Its approval and
+every clean or proved-not-applicable lens result carry forward. A fix
 invalidates only the findings, changed invariants, specialists, validations,
 and evidence checks it actually affects. Review fixes receive a focused general
 delta review plus only those invalidated specialists; they do not restart the
