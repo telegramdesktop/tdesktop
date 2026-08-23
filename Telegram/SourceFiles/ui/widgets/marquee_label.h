@@ -43,6 +43,8 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 	void paintEvent(QPaintEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
+	void showEvent(QShowEvent *e) override;
+	void hideEvent(QHideEvent *e) override;
 
 private:
 	void setText(const QString &text);

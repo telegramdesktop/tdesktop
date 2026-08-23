@@ -89,11 +89,19 @@ int MarqueeLabel::resizeGetHeight(int newWidth) {
 	return _st.maxHeight ? std::min(full, _st.maxHeight) : full;
 }
 
+void MarqueeLabel::showEvent(QShowEvent *e) {
+	refreshMarqueeState();
+}
+
+void MarqueeLabel::hideEvent(QHideEvent *e) {
+	refreshMarqueeState();
+}
+
 void MarqueeLabel::refreshMarqueeState() {
 	const auto was = _overflown;
 	_overflown = (_availableTextWidth > 0)
 		&& (_text.maxWidth() > _availableTextWidth);
-	const auto scroll = _overflown && !anim::Disabled();
+	const auto scroll = _overflown && isVisible() && !anim::Disabled();
 	if (scroll && !_marquee.animating()) {
 		_offset = 0.;
 		_delay = kMarqueeDelay;
