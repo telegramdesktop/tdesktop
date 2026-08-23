@@ -59,6 +59,7 @@ private:
 	QImage _frame;
 	Animations::Basic _marquee;
 	crl::time _lastUpdate = 0;
+	crl::time _lastFrame = 0;
 	crl::time _delay = 0;
 	float64 _offset = 0.;
 	int _availableTextWidth = 0;

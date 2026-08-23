@@ -18,7 +18,7 @@ namespace Ui {
 namespace {
 
 constexpr auto kMarqueeDelay = crl::time(500);
-constexpr auto kMaxFrameDelta = crl::time(17);
+constexpr auto kFrameDelta = crl::time(16);
 
 } // namespace
 
@@ -81,6 +81,7 @@ void MarqueeLabel::refreshMarqueeState() {
 		_offset = 0.;
 		_delay = kMarqueeDelay;
 		_lastUpdate = crl::now();
+		_lastFrame = 0;
 		_marquee.start();
 	} else if (!_overflown && _marquee.animating()) {
 		_marquee.stop();
@@ -92,7 +93,7 @@ void MarqueeLabel::refreshMarqueeState() {
 }
 
 bool MarqueeLabel::marqueeStep(crl::time now) {
-	const auto dt = std::min(now - _lastUpdate, kMaxFrameDelta);
+	const auto dt = std::min(now - _lastUpdate, kFrameDelta);
 	_lastUpdate = now;
 	if (_delay > 0) {
 		_delay -= dt;
@@ -114,7 +115,10 @@ bool MarqueeLabel::marqueeStep(crl::time now) {
 		_offset = 0.;
 		_delay = kMarqueeDelay;
 	}
-	update();
+	if (now - _lastFrame >= kFrameDelta) {
+		_lastFrame = now;
+		update();
+	}
 	return true;
 }
 
