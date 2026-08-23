@@ -2907,7 +2907,7 @@ void TopBar::paintEvent(QPaintEvent *e) {
 		}
 	}
 	if (_patternEmoji && _patternEmoji->ready()) {
-		paintAnimatedPattern(p, rect(), geometry);
+		paintAnimatedPattern(p, clipBounds, geometry);
 	}
 
 	if (clipBounds.bottom() >= geometry.top()
@@ -3269,7 +3269,7 @@ void TopBar::setupAnimatedPattern(const QRect &userpicGeometry) {
 
 void TopBar::paintAnimatedPattern(
 		QPainter &p,
-		const QRect &rect,
+		const QRect &clip,
 		const QRect &userpicGeometry) {
 	if (!_patternEmoji || !_patternEmoji->ready()) {
 		return;
@@ -3385,14 +3385,17 @@ void TopBar::paintAnimatedPattern(
 			alpha = alpha * collapseProgress;
 		}
 
+		const auto target = QRectF(
+			x - scaledHalfWidth,
+			y - scaledHalfHeight,
+			scaledHalfWidth * 2,
+			scaledHalfHeight * 2);
+		if (!target.intersects(QRectF(clip))) {
+			continue;
+		}
+
 		p.setOpacity(alpha);
-		p.drawImage(
-			QRectF(
-				x - scaledHalfWidth,
-				y - scaledHalfHeight,
-				scaledHalfWidth * 2,
-				scaledHalfHeight * 2),
-			_basePatternImage);
+		p.drawImage(target, _basePatternImage);
 	}
 	p.setOpacity(1.);
 }

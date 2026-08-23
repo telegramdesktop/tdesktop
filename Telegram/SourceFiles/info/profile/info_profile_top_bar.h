@@ -191,7 +191,7 @@ private:
 	void setupAnimatedPattern(const QRect &userpicGeometry = QRect());
 	void paintAnimatedPattern(
 		QPainter &p,
-		const QRect &rect,
+		const QRect &clip,
 		const QRect &userpicGeometry);
 	void setupPinnedToTopGifts(
 		not_null<Window::SessionController*> controller);
