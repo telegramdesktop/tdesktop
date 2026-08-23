@@ -321,6 +321,7 @@ private:
 	void fullListRefresh();
 	void refreshRows();
 	void resort();
+	void preloadAdmins();
 	void sortByRoleAndName();
 	void applyRoleSectionHeaders();
 	[[nodiscard]] int memberRoleTier(not_null<PeerData*> peer) const;
@@ -333,7 +334,9 @@ private:
 	Role _role = Role::Admins;
 	int _offset = 0;
 	mtpRequestId _loadRequestId = 0;
+	mtpRequestId _adminsRequestId = 0;
 	bool _allLoaded = false;
+	bool _adminsPreloaded = false;
 	ParticipantsAdditionalData _additional;
 	std::unique_ptr<ParticipantsOnlineSorter> _onlineSorter;
 	rpl::variable<bool> _groupByRole = false;
