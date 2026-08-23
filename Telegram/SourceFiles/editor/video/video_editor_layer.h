@@ -23,6 +23,8 @@ class Controller;
 
 namespace Editor {
 
+struct VideoEditorDescriptor;
+
 inline constexpr auto kProfileVideoSide = 800;
 inline constexpr auto kProfileVideoMaxDuration = crl::time(9600);
 inline constexpr auto kProfileVideoMinDuration = crl::time(1000);
@@ -34,6 +36,12 @@ struct ProfileMedia {
 };
 
 [[nodiscard]] VideoEditorData ProfileVideoEditorData(EditorData data);
+
+void ShowVideoEditorLayer(
+	not_null<QWidget*> parent,
+	not_null<Window::Controller*> controller,
+	VideoEditorDescriptor &&descriptor,
+	Fn<void(VideoModifications)> &&done);
 
 void PrepareProfileVideo(
 	not_null<QWidget*> parent,

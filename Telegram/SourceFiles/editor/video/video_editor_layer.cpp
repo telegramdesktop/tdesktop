@@ -55,6 +55,20 @@ VideoEditorData ProfileVideoEditorData(EditorData data) {
 	};
 }
 
+void ShowVideoEditorLayer(
+		not_null<QWidget*> parent,
+		not_null<Window::Controller*> controller,
+		VideoEditorDescriptor &&descriptor,
+		Fn<void(VideoModifications)> &&done) {
+	auto editor = base::make_unique_q<VideoEditor>(
+		parent,
+		std::move(descriptor));
+	const auto raw = editor.get();
+	auto layer = std::make_unique<LayerWidget>(parent, std::move(editor));
+	InitVideoEditorLayer(layer.get(), raw, std::move(done));
+	controller->showLayer(std::move(layer), Ui::LayerOption::KeepOther);
+}
+
 void PrepareProfileVideo(
 		not_null<QWidget*> parent,
 		not_null<Window::Controller*> controller,
@@ -106,18 +120,16 @@ void PrepareProfileVideo(
 		});
 	};
 
-	auto editor = base::make_unique_q<VideoEditor>(
+	ShowVideoEditorLayer(
 		parent,
+		controller,
 		VideoEditorDescriptor{
 			.path = path,
 			.dimensions = info.dimensions,
 			.duration = info.duration,
 			.data = editorData,
-		});
-	const auto raw = editor.get();
-	auto layer = std::make_unique<LayerWidget>(parent, std::move(editor));
-	InitVideoEditorLayer(layer.get(), raw, std::move(applyModifications));
-	controller->showLayer(std::move(layer), Ui::LayerOption::KeepOther);
+		},
+		std::move(applyModifications));
 }
 
 void PrepareProfileMediaFromFile(
