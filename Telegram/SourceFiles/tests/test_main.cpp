@@ -148,6 +148,10 @@ QString UiIntegration::emojiCacheFolder() {
 	return QDir().currentPath() + "/tests/" + name() + "/emoji";
 }
 
+QString UiIntegration::fontsCacheFolder() {
+	return QDir().currentPath() + "/tests/" + name() + "/fonts";
+}
+
 QString UiIntegration::openglCheckFilePath() {
 	return QDir().currentPath() + "/tests/" + name() + "/opengl";
 }
