@@ -263,6 +263,7 @@ public:
 	[[nodiscard]] bool readyToForward() const;
 	[[nodiscard]] const HistoryItemsList &forwardItems() const;
 	[[nodiscard]] FullReplyTo replyingToMessage() const;
+	[[nodiscard]] FullReplyTo draftReplyingToMessage() const;
 	[[nodiscard]] rpl::producer<FullReplyTo> replyingToMessageValue() const;
 	void replyToMessageExternal(FullReplyTo id);
 	void cancelReplyMessageExternal();

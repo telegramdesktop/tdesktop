@@ -778,7 +778,7 @@ ChatWidget::ChatWidget(
 				action.replyTo.messageId);
 			const auto replyMatches = action.replyTo.messageId
 				&& (action.replyTo.messageId
-					== _composeControls->replyingToMessage().messageId);
+					== _composeControls->draftReplyingToMessage().messageId);
 			auto cancelledReply = false;
 			auto cancelledSuggest = false;
 			if (action.options.scheduled || !_justMarkingAsRead) {
@@ -5612,10 +5612,9 @@ bool ChatWidget::lastForceReplyReplied() const {
 }
 
 bool ChatWidget::cancelReply(bool lastKeyboardUsed) {
-	auto wasReply = false;
-	if (_composeControls->replyingToMessage()) {
-		wasReply = true;
-		_composeControls->cancelReplyMessage();
+	const auto wasReply = bool(_composeControls->replyingToMessage());
+	_composeControls->cancelReplyMessage();
+	if (wasReply) {
 		updateBotKeyboard();
 		refreshTopBarActiveChat();
 		updateControlsVisibility();

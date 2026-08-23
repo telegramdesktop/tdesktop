@@ -6115,6 +6115,17 @@ FullReplyTo ComposeControls::replyingToMessage() const {
 	return result;
 }
 
+FullReplyTo ComposeControls::draftReplyingToMessage() const {
+	auto result = replyingToMessage();
+	if (!result.messageId && _history) {
+		// Compose box owns the field, applyDraft() leaves header empty.
+		if (const auto draft = _history->draft(draftKey(DraftType::Normal))) {
+			result.messageId = draft->reply.messageId;
+		}
+	}
+	return result;
+}
+
 rpl::producer<FullReplyTo> ComposeControls::replyingToMessageExternalValue() const {
 	return _header->replyingToMessageExternalValue(
 	) | rpl::map([=](FullReplyTo value) {
