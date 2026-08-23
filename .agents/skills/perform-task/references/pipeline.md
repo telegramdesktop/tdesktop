@@ -277,9 +277,12 @@ Run sequentially:
    approach rejection with the assessor's simpler direction as added input —
    or the terminal pre-edit `Scope: split-required` planning boundary.
    This assessor has authority to veto source implementation because it has the
-   first exact implementation/evidence plan. It cannot mutate task state beyond
-   its local artifacts or create replacement tasks; the scheduler independently
-   validates and owns rescoping.
+   first exact implementation/evidence plan. It cannot create replacement tasks;
+   the performer publishes the proposal as the task's `split-required` result,
+   and the scheduler independently owns the deep split transaction. The same
+   result may be produced after source edits by the bounded convergence
+   assessment when the retained implementation exposes several independently
+   shippable/testable boundaries.
 3. **Implement.** Run one leaf per assessed plan phase. Before each edit,
    update `work/owned-paths.txt`. A leaf edits only its owned paths and its
    phase status; it does not commit.
@@ -718,14 +721,22 @@ behavior. `Blocker-Type: test` additionally requires `work/test.md` to contain
 Computer Use infrastructure-unavailable case. A `TEST_FLAW`, a run cap, or a
 missing capture can never be the blocked verdict.
 
+For `split-required`, do not clean, reset, stash, or checkpoint retained source
+implementation. Require current task base/run refs, keep the owned diff and any
+green commit in place, and inventory every owned path in `work/owned-paths.txt`.
+The publication helper seals that work in `work/carried-work.json`; the later
+split transaction rechecks the seal before assigning an implementation carrier.
+
 Write `work/result.md` with exactly one value for every field:
 
 ```text
 # Task result: <TASK_ID>
-STATUS: DONE | BLOCKED
-Outcome: changed | already-satisfied | blocked
-Verdict: APPROVED | <specific blocker>
+STATUS: DONE | BLOCKED | SPLIT_REQUIRED
+Outcome: changed | already-satisfied | blocked | split-required
+Verdict: APPROVED | SPLIT_REQUIRED | <specific blocker>
 Blocker-Type: none | test | impl | unrecoverable
+Implementation: retained | none
+Split-Proposal: work/split-proposal.md | none
 Attempts: <n>
 Test-Runs: <n>
 UI-Driver: overlay | hybrid | mixed | hybrid-unavailable | not-applicable
@@ -733,7 +744,7 @@ Touched: <source paths or none>
 Test-Report: work/test.md
 Evidence: <tracked evidence paths and what they prove>
 Unverified: none | <exact behavior and manual follow-up>
-Checkout: clean-buildable | unsafe
+Checkout: clean-buildable | source-state-retained | unsafe
 Discovered: none | present
 
 ## Discovered tasks
@@ -746,6 +757,14 @@ source commit, and direct evidence that the requested proposition held before
 the task. A blocked result uses `Outcome: blocked` and retains a latest safe
 implementation attempt when one exists.
 
+A split result uses `STATUS: SPLIT_REQUIRED`, `Outcome: split-required`,
+`Verdict: SPLIT_REQUIRED`, `Blocker-Type: none`, and
+`Split-Proposal: work/split-proposal.md`. Set `Implementation: retained` and
+name its paths under `Touched:` when owned source work exists; otherwise use
+`Implementation: none` and `Touched: none`. It uses
+`Checkout: source-state-retained` and does not require a test report, because
+each replacement receives its own complete review and evidence campaign.
+
 For approved project work, promote `work/project.proposed.md` to the project's
 `project.md` immediately before final AI publication. For blocked work, retain
 the proposal only as a task artifact.
@@ -755,7 +774,7 @@ Publish final AI state only after the Telegram commit and result are final:
 ```bash
 python3 SOURCE_ROOT/.agents/skills/process-inbox/scripts/workspace.py \
   finish --source-root SOURCE_ROOT --task TASK_ID \
-  --status approved|blocked --model MODEL_SHORT_NAME
+  --status approved|blocked|split-required --model MODEL_SHORT_NAME
 ```
 
 `--model` is required and records which model finished the task, into the
@@ -768,14 +787,17 @@ resumed by a different model after an interruption records the model that
 actually completed it. Never guess or copy the value from another task; if you
 cannot tell what you are, say so and stop rather than recording a wrong name.
 
-The helper verifies a clean source checkout, local task refs, current `HEAD`,
-and either the retained implementation's exact three-line commit message or
-the strict no-change state required by `already-satisfied`. It commits
-all task-scoped local artifacts and final state as `Approve <TASK_ID>` or the
-exceptional `Block <TASK_ID>`, fetches newer canonical state when configured,
+For approval or Block, the helper verifies a clean source checkout, local task
+refs, current `HEAD`, and either the retained implementation's exact three-line
+commit message or the strict no-change state required by `already-satisfied`.
+For split-required it verifies current refs, seals the owned working state, and
+does not require a clean source checkout. It commits all task-scoped local
+artifacts and final state as `Approve <TASK_ID>`, exceptional
+`Block <TASK_ID>`, or `Split-required <TASK_ID>`, fetches newer canonical state when configured,
 rebases the slot, publishes without force, and fast-forwards local AI master.
 It deletes all local task refs after approval; after a block it deletes only
-`RUN_REF` and retains implementation recovery refs for the next invocation.
+`RUN_REF` and retains implementation recovery refs for the next invocation;
+after split-required it retains all refs for the scheduler's carrier transfer.
 Do not report final state until that AI commit reaches canonical master.
 Preserve an unpublished final slot commit on a semantic conflict or remote
 outage and hard-stop instead of pretending completion.
@@ -825,13 +847,13 @@ delays finishing the work actually in hand.
 
 - `Scope: split-required` before source edits and `RESCOPE_REQUIRED` from a
   convergence assessment are planning boundaries, not task `Block` verdicts
-  and not permission to keep retrying. Preserve `split-proposal.md`, all
-  validated source recovery, and the task's `in-progress` state; return the
-  proposal to the scheduler (or human for a direct invocation) and stop
-  automatic performance until the queue is deliberately replaced. Assessment
-  owns the stop; only the scheduler owns task creation, dependency rewrites,
-  and superseding the original. A resumed performer that sees the same
-  unresolved boundary reports it immediately without rerunning context,
+  and not permission to keep retrying. Preserve `split-proposal.md`, all owned
+  implementation and source recovery, write the split result, and publish
+  `finish --status split-required`; then return control to the scheduler (or
+  human for a direct invocation). Assessment owns the stop; only the scheduler
+  owns task creation, dependency rewrites, implementation-carrier transfer,
+  and retiring the original. A performer resolving an already published
+  split-required task reports it immediately without rerunning context,
   implementation, review, or builds.
 - Source lineage has a strict timing boundary. Before Phase 1, a missing
   approved prerequisite is a clean pre-phase routing stop: do not publish

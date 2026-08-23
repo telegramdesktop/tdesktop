@@ -52,14 +52,21 @@ The canonical lifecycle is deliberately small:
 - `todo` with `claimed_by: null` is ready shared work;
 - `in-progress` with this `checkout_tag` is this checkout's one active task;
 - `blocked` with this tag is a rare published unfinished boundary;
+- `split-required` with this tag is a published performer result awaiting one
+  scheduler-owned split transaction;
 - `approved` is the only completed terminal state.
+
+After routing, the retired source has no live state: its sealed `split.yaml`
+records all successors and the optional implementation carrier. This is
+terminal history, not another runnable status.
 
 `Start` atomically assigns an unclaimed task and changes it to `in-progress`.
 Normal phase artifacts remain local and uncommitted in the slot worktree.
 `Approve` publishes all final AI artifacts and state in one commit. `Block` is
 permitted only for a genuine exhausted task blocker,
-not for an interrupted agent session. Never publish `Claim`, phase checkpoint,
-or `Resume` commits. Existing claimed `todo` records from the older workflow
+not for an interrupted agent session. `Split-required` publishes the proposal
+and seals any retained source work for the scheduler transaction. Never publish
+`Claim`, phase checkpoint, or `Resume` commits. Existing claimed `todo` records from the older workflow
 remain startable but do not justify creating new reservations.
 
 Never infer ownership from an inbox receipt. Do not steal work from another
@@ -76,8 +83,18 @@ the queue. A repeated pre-commit race may remain pending for the next
 invocation; record that marker as attempted and do not spin. If a task is
 already active, its expected local phase files make the shared AI slot unsafe
 for consolidation: freeze and finish that active task first, then recover all
-pending markers at its clean canonical `Approve` or `Block` boundary before
-selecting more work.
+pending markers at its clean canonical `Approve`, `Block`, or completed split
+routing boundary before selecting more work.
+
+After recovering pending consolidations and before freezing a new batch, route
+this checkout's `own_split_required` task, when any, through the dedicated split
+worker below. Refresh the queue afterward and freeze the resulting replacement
+tasks at the front of the initial batch regardless of a scope hint; they replace
+checkout work that hints cannot exclude. Record that startup split for the
+invocation summary. A split-required task is exclusive checkout work: do not
+start, retry, or resume another task while it remains unrouted. If its retained
+source state cannot be transferred safely, stop with that state intact rather
+than skipping it.
 
 ## Interpret scope hints
 
@@ -87,7 +104,8 @@ preference such as "payments tasks first" reorders the shared tasks recorded
 in the startup batch; it does not exclude the others. A restriction such as
 "only the payments tasks" or "all tasks except projects X and Y" records only
 matching unclaimed shared tasks.
-Hints never exclude this checkout's active, blocked, or legacy-reserved work.
+Hints never exclude this checkout's active, split-required, blocked, or
+legacy-reserved work.
 A restrictive hint that matches no shared task does not make an existing
 queue look idle or permit inbox processing.
 
@@ -113,7 +131,9 @@ these invocation-local values in the scheduler plan:
 - ordered `batch_task_ids`, initially equal to the initial batch;
 - empty `discovered_task_ids`;
 - empty `consolidation_mappings` and `consolidation_receipts`;
-- empty `attempted_blocked`.
+- empty `attempted_blocked`;
+- `split_records`, initialized with any startup split transaction and otherwise
+  empty.
 
 Do not write a batch file, claim the whole batch, or publish reservations.
 Queue refreshes update task state but never add ordinary task ids to the
@@ -170,14 +190,15 @@ would record from the startup snapshot:
 - only matching unclaimed tasks under a restrictive hint.
 
 Record dependency-waiting tasks too. Finish the active task to an approved,
-genuinely blocked, or global-hard-stop boundary, then continue through ready
-recorded tasks one at a time. Only an explicit request to run just the active
+genuinely blocked, split-required, or global-hard-stop boundary, route any
+split before continuing, then continue through ready recorded tasks one at a
+time. Only an explicit request to run just the active
 task produces a one-item active batch.
 
 ### Mode 2: drain the existing queue snapshot
 
-When there is no active task but any `own_blocked`, `own_todo`, or
-`unclaimed_todo` task exists, choose `queue` mode. Record:
+When there is no active or split-required task but any `own_blocked`,
+`own_todo`, or `unclaimed_todo` task exists, choose `queue` mode. Record:
 
 - every own blocked and legacy-reserved task, regardless of the hint;
 - every unclaimed task under no hint or a preference, ordered with preferred
@@ -194,8 +215,9 @@ recorded batch drains.
 
 ### Mode 3: bootstrap from the inbox
 
-Choose `inbox` mode only when `own_in_progress`, `own_blocked`, `own_todo`,
-and `unclaimed_todo` were all empty in the initial snapshot. Work owned by
+Choose `inbox` mode only when `own_in_progress`, `own_split_required`,
+`own_blocked`, `own_todo`, and `unclaimed_todo` were all empty in the initial
+snapshot. Work owned by
 another checkout is not work this checkout can drain and does not enter its
 batch.
 
@@ -226,8 +248,12 @@ claimed concurrently, blocked by an external dependency, or otherwise
 unavailable.
 
 Before publishing any new canonical `Start` commit, require a clean Telegram
-source checkout with clean submodules and no unrelated untracked files. Do not
-require a Telegram executable, portable account, desktop, Docker daemon, or
+source checkout with clean submodules and no unrelated untracked files. The one
+exception is the checkout-owned first replacement whose `carried_from` field
+and source `split.yaml` designate it as the implementation carrier: start it
+with the retained source state intact, and let the helper revalidate the sealed
+worktree before transferring task refs. Do not require a Telegram executable,
+portable account, desktop, Docker daemon, or
 other instrument before assessment selects it. The performer gates every
 selected instrument before using it and records an unavailable platform or
 stage precisely instead of preventing unrelated task work from starting.
@@ -240,7 +266,18 @@ resumption handoff. There must be at most one active task. Stop on an active
 task outside the batch instead of silently expanding the batch or stealing
 ownership.
 
-### 2. Retry recorded blocked work
+### 2. Start a carried implementation
+
+Otherwise select the first ready checkout-owned `todo` task in
+`batch_task_ids` whose `carried_from` field names a retired split task. It must
+be the first replacement and match that task's `implementation_carrier`.
+Start it with the normal helper command. The helper verifies the source
+worktree seal, transfers the old task's base/green/run refs, publishes the
+carrier's canonical `Start`, and removes the obsolete refs. If any check fails,
+hard-stop with both the carrier and retained source state intact; do not start
+another batch task around it.
+
+### 3. Retry recorded blocked work
 
 Otherwise select the first ready task in `own_blocked` whose id is in
 `batch_task_ids` and not in `attempted_blocked`. Readiness means every
@@ -261,7 +298,7 @@ genuine new `Block` boundary under the validation below. A test-campaign cap,
 `TEST_FLAW`, blank/missing evidence, or another recoverable harness failure is
 not genuine and does not consume this invocation's blocked retry.
 
-### 3. Start recorded reserved work
+### 4. Start recorded reserved work
 
 Otherwise select the first ready legacy `todo` task already owned by this
 checkout whose id is in `batch_task_ids`, and start it:
@@ -275,7 +312,7 @@ The resulting canonical `Start` commit changes it to `in-progress`. Leave
 legacy reservations with unfinished dependencies untouched and consider later
 ready batch work.
 
-### 4. Start recorded shared work
+### 5. Start recorded shared work
 
 Otherwise select the first ready unclaimed `todo` task whose id is in
 `batch_task_ids`, using the order recorded at startup. Start it with the same
@@ -286,11 +323,12 @@ A concurrent start may mean another checkout won the task. Never overwrite
 shared state or replace it with a task outside the batch; refresh and continue
 with another recorded id.
 
-### 5. Stop normally
+### 6. Stop normally
 
 Stop when none of these batch-scoped conditions exist:
 
 - this checkout's active batch task;
+- a ready recorded carried implementation;
 - a ready recorded blocked task not attempted in this invocation;
 - a ready recorded legacy-reserved task;
 - a ready recorded unclaimed task.
@@ -327,9 +365,9 @@ Source checkout: <source_root>
 AI slot worktree: <slot_worktree>
 Checkout tag: <checkout_tag>
 Task: <task-id>
-Own this task until it is approved, genuinely blocked, or reaches a global
-hard stop. You may use the bounded leaf delegation required by the skill. Do
-not select or start another task.
+Own this task until it is approved, genuinely blocked, split-required, or
+reaches a global hard stop. You may use the bounded leaf delegation required by
+the skill. Do not select or start another task.
 ```
 
 The performer is stateful. Never duplicate it. Poll at no more than 60-second
@@ -342,23 +380,42 @@ After it returns, require one of:
   canonical AI master;
 - source checkout clean and task exceptionally `blocked` on canonical master,
   with exact unverified behavior;
-- a pre-source `Scope: split-required` or review-convergence
-  `RESCOPE_REQUIRED` boundary with `work/split-proposal.md`, leaving the task
-  `in-progress` and all source/task recovery intact; or
+- task `split-required` on canonical AI master with `work/split-proposal.md`
+  and `work/carried-work.json`, leaving every retained source change and task
+  ref sealed for transfer; or
 - a clearly reported global hard stop, leaving the task `in-progress` and all
   task-scoped local state recoverable for the next invocation.
 
-A rescope boundary stops task performance and is not retried, approved, blocked,
-or routed as an ordinary discovered follow-up. The scheduler is the queue
-authority: it independently checks that the proposal contains separately
-shippable/testable boundaries and a coherent dependency graph before any
-dedicated rescope transaction or human handoff. It never treats the performer's
-proposal alone as permission to delete source or rewrite shared task state. On
-a later invocation, a performer that finds the same unresolved boundary returns
-it immediately without rerunning planning, review, builds, or tests. Inbox
-planning prevents most new oversized tasks; replacing an already-active task
-and deciding how to salvage its source requires that explicit scheduler-owned
-transaction, not ordinary discovery routing.
+A rescope result stops task performance and is not retried, approved, blocked,
+or routed as an ordinary discovered follow-up. The performer's publication is
+the durable request for the scheduler-owned transaction below; it is not
+permission to delete source or flatten several successors into one alias.
+
+## Route a split-required result
+
+When a batch performer publishes `split-required`, immediately spawn one fresh
+split worker with `fork_turns: "none"`. Give it `source_root`, `slot_worktree`,
+`checkout_tag`, the source task id, and the current ordered batch. Tell it not
+to delegate and to read
+`.agents/skills/continue/references/split-required-task.md` completely. It may
+inspect Telegram source and edit/publish AI task, project, dependency, and
+receipt state; it must not edit, reset, stash, commit, build, or test Telegram
+source.
+
+Validate its canonical `Split <source-id>` result and refreshed queue. Replace
+the source id in `batch_task_ids` at its existing position with the ordered
+replacement ids, removing duplicates; leave `initial_batch_task_ids` unchanged.
+Append the source, replacements, carrier, and receipt to `split_records`. The
+replacements are part of this invocation because they replace an existing batch
+member, not because later queue refreshes normally expand the frozen batch.
+
+When a carrier exists it must be first, checkout-owned `todo`, and name the
+source in `carried_from`; select it through the carried-implementation step
+before any blocked, reserved, or shared task. Starting it performs the sealed
+source-ref transfer. When no carrier exists, all replacements are ordinary
+unclaimed `todo`. A split publication race is retried normally. A semantic
+conflict, unavailable remote, changed worktree seal, or incoherent carrier is a
+global hard stop with the source result and implementation left recoverable.
 
 Before accepting a canonical test block, read `work/result.md` and
 `work/test.md`. It is genuine only when the verdict is not `TEST_FLAW`, does
@@ -543,7 +600,8 @@ this invocation, and continue without treating the optimization as a blocker.
 If the worker created a commit that cannot be published safely, preserve it and
 hard-stop exactly as for discovery routing.
 
-At every clean canonical `Approve` or `Block` boundary, process any older
+At every clean canonical `Approve`, `Block`, or completed split routing
+boundary, process any older
 pending marker deferred by an active startup task before selecting more work,
 then process the marker just created by that task's routing. Attempt each marker
 at most once per invocation.
@@ -562,7 +620,8 @@ Return one compact summary: invocation mode, initial batch ids, discovered ids
 added to the batch, inbox receipt if processed, tasks approved, exceptionally
 blocked tasks with exact unverified behavior and retry status, recorded tasks
 left queued, unrelated new tasks deferred to the next invocation, routed
-discoveries, infrastructure-limited coverage gaps recorded but not routed,
+discoveries, split-required sources with ordered replacements and carriers,
+infrastructure-limited coverage gaps recorded but not routed,
 consolidation no-merge results or receipts, old-to-new mappings, the net
 task-count saving, archived projects, any discarded interrupted-worker leftovers,
 elapsed time, and why the loop stopped. Make any global hard stop or unsafe

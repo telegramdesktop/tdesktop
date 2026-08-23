@@ -1,6 +1,6 @@
 ---
 name: perform-task
-description: Resolve, start or resume, implement, review, test, and publish exactly one existing ai-tdesktop task by short slug or full dated id, including rare blocked unfinished work. Use when the user invokes $perform-task or /perform-task with a known task name, or when the continue scheduler delegates one selected task. Runs standard review lenses with fast applicability bailouts and selects task-specific domain and evidence instruments without selecting additional work.
+description: Resolve, start or resume, implement, review, test, and publish exactly one existing ai-tdesktop task by short slug or full dated id, including rare blocked retries and split-required results. Use when the user invokes $perform-task or /perform-task with a known task name, or when the continue scheduler delegates one selected task. Runs standard review lenses with fast applicability bailouts and selects task-specific domain and evidence instruments without selecting additional work.
 ---
 
 # Perform One AI Task
@@ -10,7 +10,8 @@ before any other host-specific delegation rule and apply its substitutions.
 
 Own exactly one task through its retained change, or a proved
 `already-satisfied` outcome, and a canonical AI `Approve` or exceptional
-`Block`. Do not process the inbox, split the task, drain the queue,
+`Block`, or a canonical `Split-required` result. Do not process the inbox,
+create replacement tasks, drain the queue,
 select a follow-up, or consolidate pending tasks afterward. The `continue`
 scheduler isolates discovery routing and queue consolidation in fresh workers
 after this performer returns.
@@ -62,6 +63,9 @@ Inspect the resolved task, readiness, `other_active_task`, status, and owner.
 
 - If another task is already `in-progress` for this checkout, stop.
 - If this task is `approved`, report its completed result and stop.
+- If it is `split-required`, report its published split proposal and stop. A
+  direct invocation leaves routing to the human; a scheduler invocation returns
+  control so `continue` can launch the dedicated split worker.
 - If it is owned by another checkout, stop. Cross-checkout restart is a rare
   explicit human reassignment, never an implicit steal.
 - If its dependencies are unfinished, report them and stop without starting.
@@ -109,7 +113,7 @@ the scheduler may continue work that does not depend on it.
 ## Run and publish
 
 Execute `references/pipeline.md` exactly. A task that changes the repository
-produces:
+and is approved produces:
 
 1. one or more tested source implementation-attempt commits, each with an
    exact one-line subject using the pipeline's conditional `[ai] ` prefix,
@@ -123,12 +127,16 @@ New and unfinished tasks use the single adaptive `implement` path. Assessment
 must first confirm that the request is one cohesive implementation/review/test
 unit. If it contains independently useful and independently testable product
 boundaries, record `Scope: split-required` and a concrete split proposal before
-source edits, then stop for queue rescoping; do not force the broad request
-through smaller implementation phases and call it one task. The independent
-assessment has veto authority over implementation, not authority to create,
-retire, or rewrite tasks. The performer validates and preserves the proposal;
-the checkout scheduler owns any later queue mutation. A direct invocation
-returns the proposal to the human.
+source edits. The same result may arise later from the bounded convergence
+assessment when the retained implementation proves that one review/evidence
+campaign is not coherent. Do not force the broad request through smaller
+implementation phases and call it one task. The independent assessment has
+veto authority over further implementation, not authority to create, retire,
+or rewrite tasks. The performer writes the split result, preserves any owned
+implementation and source refs, and publishes it with
+`finish --status split-required`. The checkout scheduler owns the later queue
+mutation and implementation transfer. A direct invocation returns the
+published proposal to the human.
 
 For a cohesive task, use one mandatory general review, all five standard review
 lenses, and a falsifiable evidence plan. On the initial implementation the

@@ -19,7 +19,13 @@ TASK_ID_PATTERN = re.compile(
 	r"[0-9]{4}/[0-9]{2}/[0-9]{2}/[a-z0-9][a-z0-9-]*"
 )
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
-VALID_STATUSES = {"todo", "in-progress", "approved", "blocked"}
+VALID_STATUSES = {
+	"todo",
+	"in-progress",
+	"approved",
+	"blocked",
+	"split-required",
+}
 DEFAULT_TASK_TYPE = "implement"
 LEGACY_TASK_TYPES = {"verify", "minimal"}
 VALID_TASK_TYPES = {DEFAULT_TASK_TYPE, *LEGACY_TASK_TYPES}
@@ -44,6 +50,7 @@ STATE_FIELD_ORDER = [
 	"claim_order",
 	"lease_until",
 	"phase",
+	"carried_from",
 	"model",
 	"inbox_receipt",
 ]
@@ -393,6 +400,12 @@ def load_state(root, path):
 	model = parse_scalar(values.get("model", "null"))
 	if model is not None and not MODEL_PATTERN.fullmatch(str(model)):
 		raise WorkspaceError(f"Invalid model name {model!r} in {path}")
+	carried_from = parse_scalar(values.get("carried_from", "null"))
+	if (
+		carried_from is not None
+		and not TASK_ID_PATTERN.fullmatch(str(carried_from))
+	):
+		raise WorkspaceError(f"Invalid carried_from in {path}: {carried_from!r}")
 	task_id = task_id_for_state(root, path)
 	task_file = path.with_name("task.md")
 	title = task_id.rsplit("/", 1)[-1]
@@ -414,6 +427,7 @@ def load_state(root, path):
 		"claim_order": order,
 		"lease_until": parse_scalar(values.get("lease_until", "null")),
 		"phase": parse_scalar(values.get("phase", "null")),
+		"carried_from": carried_from,
 		"model": model,
 		"inbox_receipt": parse_scalar(values.get("inbox_receipt", "null")),
 		"state_path": str(path),
@@ -623,20 +637,24 @@ def publish_inbox(config):
 	)
 
 
-def commit_paths(config, paths, subject):
+def commit_paths(config, paths, subject, validate=None):
 	slot = Path(config["slot_worktree"])
 	for path in paths:
 		run_git(slot, "add", "--", path)
 	if run_git(slot, "diff", "--cached", "--quiet", check=False).returncode == 0:
 		raise WorkspaceError("No AI task state changed")
 	run_git(slot, "commit", "-m", subject)
-	return publish_slot(config)
+	return publish_slot(config, validate=validate)
 
 
 def task_summary(task, states):
 	return {
 		**task,
-		"ready": task_ready(task, states),
+		"ready": (
+			task_ready(task, states)
+			if task["status"] != "split"
+			else False
+		),
 	}
 
 
@@ -649,6 +667,13 @@ def superseded_paths(root):
 	if not tasks.is_dir():
 		return []
 	return sorted(tasks.glob("*/*/*/*/superseded.yaml"))
+
+
+def split_paths(root):
+	tasks = root / "tasks"
+	if not tasks.is_dir():
+		return []
+	return sorted(tasks.glob("*/*/*/*/split.yaml"))
 
 
 def retained_task_digest(directory):
@@ -678,7 +703,7 @@ def retained_task_digest(directory):
 		if kind != b"blob":
 			continue
 		relative = PurePosixPath(path).relative_to(prefix).as_posix()
-		if relative in ("state.yaml", "superseded.yaml"):
+		if relative in ("state.yaml", "superseded.yaml", "split.yaml"):
 			continue
 		entries.append((relative, oid.decode("ascii")))
 	if not entries:
@@ -746,6 +771,166 @@ def load_superseded(root):
 	return result
 
 
+def load_splits(root):
+	result = {}
+	for path in split_paths(root):
+		values = {}
+		for line in path.read_text(encoding="utf-8-sig").splitlines():
+			if not line or line[0].isspace() or ":" not in line:
+				continue
+			key, value = line.split(":", 1)
+			values[key] = value.strip()
+		task_id = "/".join(path.relative_to(root).parts[1:5])
+		if not TASK_ID_PATTERN.fullmatch(task_id):
+			raise WorkspaceError(f"Invalid split task path: {path}")
+		for field in (
+			"split_into",
+			"implementation_carrier",
+			"receipt",
+			"type",
+			"created",
+			"project",
+			"depends_on",
+			"model",
+			"content_sha256",
+		):
+			if field not in values:
+				raise WorkspaceError(f"Missing {field} in {path}")
+		targets = parse_dependencies(values["split_into"])
+		if (
+			len(targets) < 2
+			or len(targets) != len(set(targets))
+			or any(not TASK_ID_PATTERN.fullmatch(value) for value in targets)
+			or task_id in targets
+		):
+			raise WorkspaceError(f"Invalid split_into in {path}: {targets!r}")
+		carrier = parse_scalar(values["implementation_carrier"])
+		if carrier is not None and carrier not in targets:
+			raise WorkspaceError(
+				f"Invalid implementation_carrier in {path}: {carrier!r}"
+			)
+		kind = parse_scalar(values["type"])
+		if kind not in VALID_TASK_TYPES:
+			raise WorkspaceError(f"Invalid type in {path}: {kind!r}")
+		project = parse_scalar(values["project"])
+		if project is not None and not TAG_PATTERN.fullmatch(str(project)):
+			raise WorkspaceError(f"Invalid project in {path}: {project!r}")
+		receipt = parse_scalar(values["receipt"])
+		if not isinstance(receipt, str) or not receipt.startswith("receipts/"):
+			raise WorkspaceError(f"Invalid receipt in {path}: {receipt!r}")
+		content_digest = parse_scalar(values["content_sha256"])
+		if (
+			not isinstance(content_digest, str)
+			or not SHA256_PATTERN.fullmatch(content_digest)
+		):
+			raise WorkspaceError(
+				f"Invalid content_sha256 in {path}: {content_digest!r}"
+			)
+		dependencies = parse_dependencies(values["depends_on"])
+		if any(not TASK_ID_PATTERN.fullmatch(value) for value in dependencies):
+			raise WorkspaceError(f"Invalid depends_on in {path}: {dependencies!r}")
+		model = parse_scalar(values["model"])
+		if model is None or not MODEL_PATTERN.fullmatch(str(model)):
+			raise WorkspaceError(f"Invalid model in {path}: {model!r}")
+		result[task_id] = {
+			"id": task_id,
+			"split_into": targets,
+			"implementation_carrier": carrier,
+			"receipt": receipt,
+			"type": kind,
+			"created": str(parse_scalar(values["created"])),
+			"project": project,
+			"depends_on": dependencies,
+			"model": model,
+			"content_sha256": content_digest,
+			"path": str(path),
+		}
+	return result
+
+
+def resolve_split_targets(states, superseded, splits, task_id, visited=None):
+	visited = [] if visited is None else visited
+	if task_id in visited:
+		raise WorkspaceError(
+			"Split task cycle: " + " -> ".join(visited + [task_id])
+		)
+	if task_id in states:
+		return [task_id]
+	if task_id in superseded:
+		return resolve_split_targets(
+			states,
+			superseded,
+			splits,
+			superseded[task_id]["superseded_by"],
+			visited + [task_id],
+		)
+	split = splits.get(task_id)
+	if split is None:
+		raise WorkspaceError(f"Split task {task_id} targets missing task state")
+	result = []
+	for target in split["split_into"]:
+		for resolved in resolve_split_targets(
+			states,
+			superseded,
+			splits,
+			target,
+			visited + [task_id],
+		):
+			if resolved not in result:
+				result.append(resolved)
+	return result
+
+
+def split_task_summary(root, states, superseded, splits, task_id):
+	split = splits[task_id]
+	task_file = root / "tasks" / task_id / "task.md"
+	title = task_id.rsplit("/", 1)[-1]
+	if task_file.is_file():
+		for line in task_file.read_text(encoding="utf-8-sig").splitlines():
+			if line.startswith("# "):
+				title = line[2:].strip()
+				break
+	return {
+		"id": task_id,
+		"title": title,
+		"status": "split",
+		"type": split["type"],
+		"created": split["created"],
+		"project": split["project"],
+		"depends_on": split["depends_on"],
+		"claimed_by": None,
+		"split_into": resolve_split_targets(
+			states, superseded, splits, task_id,
+		),
+		"implementation_carrier": split["implementation_carrier"],
+		"receipt": split["receipt"],
+		"model": split["model"],
+	}
+
+
+def resolve_task_reference(root, states, superseded, splits, task_id):
+	visited = []
+	current = task_id
+	while current not in states and current not in splits:
+		if current in visited:
+			raise WorkspaceError(
+				"Superseded task cycle: " + " -> ".join(visited + [current])
+			)
+		visited.append(current)
+		alias = superseded.get(current)
+		if alias is None:
+			raise WorkspaceError(f"Task does not exist: {task_id}")
+		current = alias["superseded_by"]
+	result = (
+		dict(states[current])
+		if current in states
+		else split_task_summary(root, states, superseded, splits, current)
+	)
+	if current != task_id:
+		result["superseded_from"] = task_id
+	return result
+
+
 def resolve_task_id(states, superseded, task_id):
 	visited = []
 	current = task_id
@@ -767,8 +952,9 @@ def resolve_task_id(states, superseded, task_id):
 
 def resolve_task(root, states, value):
 	superseded = load_superseded(root)
+	splits = load_splits(root)
 	if TASK_ID_PATTERN.fullmatch(value):
-		return resolve_task_id(states, superseded, value)
+		return resolve_task_reference(root, states, superseded, splits, value)
 	name = normalized_task_name(value)
 	if not name:
 		raise WorkspaceError("Task name is empty")
@@ -787,13 +973,24 @@ def resolve_task(root, states, value):
 			if task_id.rsplit("/", 1)[-1] == name
 		]
 		exact = [
-			resolve_task_id(states, superseded, task_id)
+			resolve_task_reference(root, states, superseded, splits, task_id)
 			for task_id in alias_ids
 		]
 		exact = list({task["id"]: task for task in exact}.values())
+	if not exact:
+		split_ids = [
+			task_id for task_id in splits
+			if task_id.rsplit("/", 1)[-1] == name
+		]
+		exact = [
+			split_task_summary(root, states, superseded, splits, task_id)
+			for task_id in split_ids
+		]
 	unfinished = [
 		task for task in exact
-		if task["status"] in ("todo", "in-progress", "blocked")
+		if task["status"] in (
+			"todo", "in-progress", "blocked", "split-required"
+		)
 	]
 	candidates = unfinished or exact
 	if not candidates:
@@ -859,6 +1056,14 @@ def command_queue(args):
 		),
 		key=queue_sort_key,
 	)
+	own_split_required = sorted(
+		(
+			task for task in values
+			if task["claimed_by"] == tag
+			and task["status"] == "split-required"
+		),
+		key=queue_sort_key,
+	)
 	unclaimed_todo = sorted(
 		(
 			task for task in values
@@ -869,11 +1074,19 @@ def command_queue(args):
 	violations = []
 	if len(own_in_progress) > 1:
 		violations.append(f"{tag} has more than one in-progress task")
+	if len(own_split_required) > 1:
+		violations.append(f"{tag} has more than one split-required task")
+	if own_in_progress and own_split_required:
+		violations.append(
+			f"{tag} has both in-progress and split-required work"
+		)
 	for task in values:
 		if task["status"] == "in-progress" and task["claimed_by"] is None:
 			violations.append(f"{task['id']} is in-progress but unclaimed")
 		if task["status"] == "blocked" and task["claimed_by"] is None:
 			violations.append(f"{task['id']} is blocked but unclaimed")
+		if task["status"] == "split-required" and task["claimed_by"] is None:
+			violations.append(f"{task['id']} is split-required but unclaimed")
 	inbox_file = main / "inbox" / "inbox.md"
 	result = {
 		**config,
@@ -884,12 +1097,15 @@ def command_queue(args):
 		"own_in_progress": own_in_progress,
 		"own_todo": own_todo,
 		"own_blocked": own_blocked,
+		"own_split_required": own_split_required,
 		"unclaimed_todo": unclaimed_todo,
 		"pending_consolidations": pending_consolidations(slot),
 		"other_claimed_unfinished": sum(
 			1 for task in values
 			if task["claimed_by"] not in (None, tag)
-			and task["status"] in ("todo", "in-progress", "blocked")
+			and task["status"] in (
+				"todo", "in-progress", "blocked", "split-required"
+			)
 		),
 		"ai_main_dirty": main_dirty,
 		"slot_dirty": slot_dirty,
@@ -915,7 +1131,7 @@ def command_resolve(args):
 	active = sorted(
 		value["id"] for value in states.values()
 		if value["claimed_by"] == config["checkout_tag"]
-		and value["status"] == "in-progress"
+		and value["status"] in ("in-progress", "split-required")
 	)
 	print(json.dumps({
 		**config,
@@ -944,6 +1160,18 @@ def command_start(args):
 		raise WorkspaceError(
 			f"Task is not available todo work for this checkout: {args.task}"
 		)
+	carried_from = task["carried_from"]
+	if carried_from is not None:
+		split = load_splits(slot).get(carried_from)
+		if (
+			split is None
+			or split["implementation_carrier"] != args.task
+			or task["claimed_by"] != config["checkout_tag"]
+		):
+			raise WorkspaceError(
+				f"Task has an invalid carried implementation source: {args.task}"
+			)
+		validate_carried_worktree(config, slot, carried_from)
 	if not task_ready(task, states):
 		raise WorkspaceError(f"Task has unfinished dependencies: {args.task}")
 	lineage = source_lineage_report(
@@ -967,10 +1195,12 @@ def command_start(args):
 	active = [
 		value["id"] for value in states.values()
 		if value["claimed_by"] == config["checkout_tag"]
-		and value["status"] == "in-progress"
+		and value["status"] in ("in-progress", "split-required")
 	]
 	if active:
 		raise WorkspaceError("Another task is already in progress: " + ", ".join(active))
+	if carried_from is not None:
+		transfer_source_refs(config, carried_from, args.task)
 	path = state_path(slot, args.task)
 	update_state(path, {
 		"status": "in-progress",
@@ -1010,6 +1240,8 @@ def command_start(args):
 				f"Start lost to newer master for {args.task}"
 			) from error
 		raise
+	if carried_from is not None:
+		delete_source_refs(config, carried_from)
 	print(json.dumps({
 		"task": args.task,
 		"status": "in-progress",
@@ -1069,7 +1301,7 @@ def command_retry(args):
 	active = [
 		value["id"] for value in states.values()
 		if value["claimed_by"] == config["checkout_tag"]
-		and value["status"] == "in-progress"
+		and value["status"] in ("in-progress", "split-required")
 	]
 	if active:
 		raise WorkspaceError("Another task is already in progress: " + ", ".join(active))
@@ -1228,10 +1460,13 @@ def source_lineage_report(config, slot, task_id, extra_requirements=()):
 		required.append(resolved)
 
 	source = Path(config["source_root"])
-	tips = {
-		dependency: task_tip_commits(source, dependency)
-		for dependency in required
-	}
+	tips = {}
+	for dependency in required:
+		commits = task_tip_commits(source, dependency)
+		carried_from = states[dependency]["carried_from"]
+		if not commits and carried_from is not None:
+			commits = task_tip_commits(source, carried_from)
+		tips[dependency] = commits
 	missing_history = [
 		dependency for dependency, commits in tips.items()
 		if not commits
@@ -1290,6 +1525,13 @@ def task_type(slot, task_id):
 
 def validate_source_state(config, task_id, expected_commit):
 	source = Path(config["source_root"])
+	slot_value = config.get("slot_worktree")
+	carried_from = None
+	if slot_value:
+		slot = Path(slot_value)
+		path = slot / task_relative_dir(task_id) / "state.yaml"
+		if path.is_file():
+			carried_from = load_state(slot, path)["carried_from"]
 	base = resolved_ref(source, source_task_ref(task_id, "base"))
 	green = resolved_ref(source, source_task_ref(task_id, "green"))
 	run = resolved_ref(source, source_task_ref(task_id, "run"))
@@ -1314,7 +1556,11 @@ def validate_source_state(config, task_id, expected_commit):
 		raise WorkspaceError(
 			"The retained task implementation is not in Telegram HEAD history"
 		)
-	validate_task_commit(source, green, task_id)
+	if not task_commit_matches(source, green, task_id):
+		if carried_from is None or not task_commit_matches(
+			source, green, carried_from,
+		):
+			validate_task_commit(source, green, task_id)
 
 
 def ensure_no_persisted_commit_hashes(root):
@@ -1342,9 +1588,33 @@ def delete_source_refs(config, task_id, retain_implementation=False):
 			run_git(source, "update-ref", "-d", value)
 
 
-def command_source_begin(args):
-	config, _ = task_action_config(args)
+def transfer_source_refs(config, source_task, target_task):
 	source = Path(config["source_root"])
+	base = resolved_ref(source, source_task_ref(source_task, "base"))
+	run = resolved_ref(source, source_task_ref(source_task, "run"))
+	head = resolved_ref(source, "HEAD")
+	if base is None or run is None or run != head:
+		raise WorkspaceError(
+			f"Carried source refs are incomplete or stale for {source_task}"
+		)
+	for name in ("base", "green", "run"):
+		value = resolved_ref(source, source_task_ref(source_task, name))
+		target = source_task_ref(target_task, name)
+		if value is None:
+			if resolved_ref(source, target) is not None:
+				run_git(source, "update-ref", "-d", target)
+		else:
+			run_git(source, "update-ref", target, value)
+
+
+def command_source_begin(args):
+	config, slot = task_action_config(args)
+	source = Path(config["source_root"])
+	carried_from = (
+		load_state(slot, state_path(slot, args.task))["carried_from"]
+		if slot is not None
+		else None
+	)
 	base = source_task_ref(args.task, "base")
 	green = source_task_ref(args.task, "green")
 	run = source_task_ref(args.task, "run")
@@ -1358,7 +1628,23 @@ def command_source_begin(args):
 		and is_ancestor(source, green_value, head)
 		and task_commit_matches(source, green_value, args.task)
 	)
-	if retained or (base_value is not None and green_value is None and head == base_value):
+	carried = (
+		carried_from is not None
+		and base_value is not None
+		and resolved_ref(source, run) == head
+		and (
+			green_value is None
+			or task_commit_matches(source, green_value, args.task)
+			or task_commit_matches(source, green_value, carried_from)
+		)
+	)
+	if carried:
+		state = "adopted"
+	elif retained or (
+		base_value is not None
+		and green_value is None
+		and head == base_value
+	):
 		state = "resumed"
 	else:
 		series = task_series_refs(source, args.task)
@@ -2518,7 +2804,10 @@ def command_source_commit(args):
 	if not owned:
 		raise WorkspaceError(f"Empty owned-paths inventory: {owned_file}")
 	source_note = f"tasks/{args.task}.md"
+	carried_from = load_state(slot, state_path(slot, args.task))["carried_from"]
 	allowed = owned + [source_note]
+	if carried_from is not None:
+		allowed.append(f"tasks/{carried_from}.md")
 	dirty = changed_paths(source)
 	if not dirty:
 		raise WorkspaceError("The source checkout has no changes to commit")
@@ -2771,6 +3060,195 @@ def validate_blocked_result(lines, result_path):
 		)
 
 
+def owned_source_paths(slot, task_id):
+	path = slot / task_relative_dir(task_id) / "work" / "owned-paths.txt"
+	if not path.is_file():
+		return []
+	return [
+		line.strip()
+		for line in path.read_text(encoding="utf-8-sig").splitlines()
+		if line.strip()
+	]
+
+
+def source_worktree_snapshot(config, slot, task_id):
+	source = Path(config["source_root"])
+	owned = owned_source_paths(slot, task_id)
+	dirty = changed_paths(source)
+	allowed = owned + [f"tasks/{task_id}.md"]
+	gitlinks = set(gitlink_paths(source, dirty))
+	nested_owned = {}
+	for path in gitlinks:
+		prefix = path + "/"
+		nested_allowed = [
+			value[len(prefix):]
+			for value in allowed
+			if value.startswith(prefix)
+		]
+		if not nested_allowed:
+			continue
+		nested_dirty = changed_paths(source / path)
+		if all(path_is_covered(value, nested_allowed) for value in nested_dirty):
+			nested_owned[path] = (nested_allowed, nested_dirty)
+	owned_dirty = [
+		path for path in dirty
+		if path_is_covered(path, allowed) or path in nested_owned
+	]
+	outside = [path for path in dirty if path not in owned_dirty]
+	digest = hashlib.sha256()
+	if owned_dirty:
+		digest.update(run_git_binary(
+			source,
+			"diff",
+			"--binary",
+			"--submodule=diff",
+			"HEAD",
+			"--",
+			*owned_dirty,
+		))
+		untracked = set(literal_paths(
+			source,
+			"ls-files",
+			"--others",
+			"--exclude-standard",
+			"--",
+			*owned_dirty,
+		))
+		for relative in sorted(untracked):
+			path = source / relative
+			name = relative.encode("utf-8")
+			digest.update(len(name).to_bytes(8, "big"))
+			digest.update(name)
+			if path.is_file():
+				data = path.read_bytes()
+				digest.update(len(data).to_bytes(8, "big"))
+				digest.update(data)
+		for submodule, (nested_allowed, nested_dirty) in sorted(
+			nested_owned.items()
+		):
+			nested = source / submodule
+			nested_untracked = set(literal_paths(
+				nested,
+				"ls-files",
+				"--others",
+				"--exclude-standard",
+				"--",
+				*nested_dirty,
+			)) if nested_dirty else set()
+			for relative in sorted(nested_untracked):
+				if not path_is_covered(relative, nested_allowed):
+					continue
+				path = nested / relative
+				name = f"{submodule}/{relative}".encode("utf-8")
+				digest.update(len(name).to_bytes(8, "big"))
+				digest.update(name)
+				if path.is_file():
+					data = path.read_bytes()
+					digest.update(len(data).to_bytes(8, "big"))
+					digest.update(data)
+	return {
+		"owned_dirty_paths": owned_dirty,
+		"outside_owned_paths": outside,
+		"worktree_digest": digest.hexdigest(),
+	}
+
+
+def validate_carried_worktree(config, slot, task_id):
+	carried_path = slot / task_relative_dir(task_id) / "work" / "carried-work.json"
+	if not carried_path.is_file():
+		raise WorkspaceError(f"Split source lacks carried-work.json: {carried_path}")
+	carried = json.loads(carried_path.read_text(encoding="utf-8-sig"))
+	current = source_worktree_snapshot(config, slot, task_id)
+	for field in (
+		"owned_dirty_paths",
+		"outside_owned_paths",
+		"worktree_digest",
+	):
+		if carried.get(field) != current[field]:
+			raise WorkspaceError(
+				f"Source worktree changed after split-required publication: {field}"
+			)
+	return carried
+
+
+def reconcile_split_source_refs(config, task_id):
+	source = Path(config["source_root"])
+	base_ref = source_task_ref(task_id, "base")
+	green_ref = source_task_ref(task_id, "green")
+	run_ref = source_task_ref(task_id, "run")
+	base = resolved_ref(source, base_ref)
+	run = resolved_ref(source, run_ref)
+	head = resolved_ref(source, "HEAD")
+	if base is None or run is None or run != head:
+		raise WorkspaceError(
+			"Split-required publication needs current task base/run refs at HEAD"
+		)
+	green = resolved_ref(source, green_ref)
+	if green is None:
+		series = task_series_refs(source, task_id)
+		if series is not None:
+			_, green = series
+			run_git(source, "update-ref", green_ref, green)
+	if green is not None:
+		if not is_ancestor(source, green, head):
+			raise WorkspaceError(
+				"The retained split implementation is not in current source history"
+			)
+		validate_task_commit(source, green, task_id)
+	return green is not None
+
+
+def validate_split_required_result(lines, result_path, retained):
+	if "STATUS: SPLIT_REQUIRED" not in lines:
+		raise WorkspaceError(
+			f"Task result does not contain STATUS: SPLIT_REQUIRED: {result_path}"
+		)
+	if "Verdict: SPLIT_REQUIRED" not in lines:
+		raise WorkspaceError(
+			f"Task result does not contain Verdict: SPLIT_REQUIRED: {result_path}"
+		)
+	if "Checkout: source-state-retained" not in lines:
+		raise WorkspaceError(
+			f"Split result does not preserve source state: {result_path}"
+		)
+	outcome = required_result_value(lines, result_path, "Outcome")
+	if outcome != "split-required":
+		raise WorkspaceError(
+			f"Split result Outcome must be split-required: {result_path}"
+		)
+	implementation = required_result_value(lines, result_path, "Implementation")
+	expected = "retained" if retained else "none"
+	if implementation != expected:
+		raise WorkspaceError(
+			f"Split result Implementation must be {expected}: {result_path}"
+		)
+	touched = required_result_value(lines, result_path, "Touched")
+	if retained == (touched == "none"):
+		raise WorkspaceError(
+			f"Split result Touched does not match retained implementation: {result_path}"
+		)
+	if "Split-Proposal: work/split-proposal.md" not in lines:
+		raise WorkspaceError(
+			f"Split result must name work/split-proposal.md: {result_path}"
+		)
+	proposal = result_path.parent / "split-proposal.md"
+	if not proposal.is_file() or not proposal.read_text(
+		encoding="utf-8-sig",
+	).strip():
+		raise WorkspaceError(f"Split proposal is missing or empty: {proposal}")
+
+
+def write_carried_work(path, snapshot, retained):
+	payload = {
+		"implementation": "retained" if retained else "none",
+		**snapshot,
+	}
+	state = path.parents[1] / "state.yaml"
+	newline = "\r\n" if b"\r\n" in state.read_bytes() else "\n"
+	text = json.dumps(payload, indent=2, sort_keys=True) + "\n"
+	path.write_bytes(text.replace("\n", newline).encode("utf-8"))
+
+
 def command_finish(args):
 	model = args.model.strip()
 	if not MODEL_PATTERN.fullmatch(model):
@@ -2780,28 +3258,44 @@ def command_finish(args):
 			"gpt-5.6-sol, glm-5.3."
 		)
 	config, slot = task_action_config(args, allow_project=True)
-	ensure_clean(Path(config["source_root"]), "Telegram source checkout")
 	kind = task_type(slot, args.task)
 	if kind != DEFAULT_TASK_TYPE:
 		raise WorkspaceError(
 			f"Historical task type {kind!r} cannot enter the current workflow"
 		)
 	approved = args.status == "approved"
+	split_required = args.status == "split-required"
 	result_path = slot / task_relative_dir(args.task) / "work" / "result.md"
 	if not result_path.is_file():
 		raise WorkspaceError(f"Task result is missing: {result_path}")
 	result = result_path.read_text(encoding="utf-8-sig")
 	lines = result.splitlines()
-	expected = "STATUS: DONE" if approved else "STATUS: BLOCKED"
-	if expected not in lines:
-		raise WorkspaceError(f"Task result does not contain {expected}: {result_path}")
+	if not split_required:
+		ensure_clean(Path(config["source_root"]), "Telegram source checkout")
+		expected = "STATUS: DONE" if approved else "STATUS: BLOCKED"
+		if expected not in lines:
+			raise WorkspaceError(
+				f"Task result does not contain {expected}: {result_path}"
+			)
 	if approved and "Verdict: APPROVED" not in lines:
 		raise WorkspaceError(f"Task result does not contain an approved verdict: {result_path}")
-	if "Checkout: clean-buildable" not in lines:
+	if not split_required and "Checkout: clean-buildable" not in lines:
 		raise WorkspaceError(f"Task result does not confirm a clean checkout: {result_path}")
-	if not approved:
+	if not approved and not split_required:
 		validate_blocked_result(lines, result_path)
-	outcome = validate_outcome_result(lines, result_path, approved)
+	if split_required:
+		snapshot = source_worktree_snapshot(config, slot, args.task)
+		retained_commit = reconcile_split_source_refs(config, args.task)
+		retained = retained_commit or bool(snapshot["owned_dirty_paths"])
+		validate_split_required_result(lines, result_path, retained)
+		write_carried_work(
+			result_path.parent / "carried-work.json",
+			snapshot,
+			retained,
+		)
+		outcome = "split-required"
+	else:
+		outcome = validate_outcome_result(lines, result_path, approved)
 	if approved and not (result_path.parent / "test.md").is_file():
 		raise WorkspaceError(
 			"An approved task must retain work/test.md as adaptive evidence: "
@@ -2811,18 +3305,25 @@ def command_finish(args):
 	source_note = Path(config["source_root"]) / "tasks" / f"{args.task}.md"
 	if source_note.is_file():
 		ensure_no_persisted_commit_hashes(source_note)
-	expected_commit = (
-		outcome == "changed" if approved else None
-	)
-	validate_source_state(config, args.task, expected_commit)
+	if not split_required:
+		expected_commit = outcome == "changed" if approved else None
+		validate_source_state(config, args.task, expected_commit)
 	path = state_path(slot, args.task)
 	update_state(path, {
 		"status": args.status,
-		"phase": "complete" if args.status == "approved" else "blocked",
+		"phase": (
+			"complete" if approved
+			else "split-required" if split_required
+			else "blocked"
+		),
 		"lease_until": None,
 		"model": model,
 	})
-	verb = "Approve" if args.status == "approved" else "Block"
+	verb = (
+		"Approve" if approved
+		else "Split-required" if split_required
+		else "Block"
+	)
 	paths = [task_relative_dir(args.task)]
 	project = load_state(slot, path)["project"]
 	if project is not None:
@@ -2835,11 +3336,12 @@ def command_finish(args):
 		paths,
 		f"{verb} {args.task}",
 	)
-	delete_source_refs(
-		config,
-		args.task,
-		retain_implementation=(args.status == "blocked"),
-	)
+	if not split_required:
+		delete_source_refs(
+			config,
+			args.task,
+			retain_implementation=(args.status == "blocked"),
+		)
 	print(json.dumps({
 		"task": args.task,
 		"status": args.status,
@@ -2850,8 +3352,16 @@ def command_finish(args):
 def command_publish(args):
 	config = worktree_config(args, create=True)
 	slot = Path(config["slot_worktree"])
-	validate = consolidation_validation_for_head(slot)
+	consolidation_validate = consolidation_validation_for_head(slot)
+	split_validate = split_validation_for_head(slot)
+	validate = consolidation_validate or split_validate
 	published = publish_slot(config, validate=validate)
+	if published and split_validate is not None:
+		source_task = run_git(
+			slot, "show", "-s", "--format=%s", "HEAD",
+		).stdout.strip()[len("Split "):]
+		if load_splits(slot)[source_task]["implementation_carrier"] is None:
+			delete_source_refs(config, source_task)
 	print(json.dumps({"published": bool(published)}, indent=2, sort_keys=True))
 
 
@@ -2932,6 +3442,7 @@ def validate_dependency_graph(states):
 
 
 def validate_superseded_graph(root, states, superseded):
+	splits = load_splits(root)
 	for task_id, alias in superseded.items():
 		if task_id in states:
 			raise WorkspaceError(
@@ -2947,7 +3458,7 @@ def validate_superseded_graph(root, states, superseded):
 			)
 		current = task_id
 		visited = []
-		while current not in states:
+		while current not in states and current not in splits:
 			if current in visited:
 				raise WorkspaceError(
 					"Superseded task cycle: " + " -> ".join(visited + [current])
@@ -2961,9 +3472,290 @@ def validate_superseded_graph(root, states, superseded):
 			current = current_alias["superseded_by"]
 
 
+def validate_split_graph(root, states, superseded, splits):
+	for task_id, split in splits.items():
+		if task_id in states or task_id in superseded:
+			raise WorkspaceError(
+				f"Split task still has live or superseded state: {task_id}"
+			)
+		directory = root / "tasks" / task_id
+		if not (directory / "task.md").is_file():
+			raise WorkspaceError(f"Split task lost task.md: {task_id}")
+		actual_digest = retained_task_digest(directory)
+		if actual_digest != split["content_sha256"]:
+			raise WorkspaceError(f"Split task retained content changed: {task_id}")
+		receipt = root / split["receipt"]
+		if not receipt.is_file():
+			raise WorkspaceError(f"Split task receipt is missing: {receipt}")
+		resolve_split_targets(states, superseded, splits, task_id)
+
+
+def validate_split_tree(root, source_task, replacements, receipt, carrier):
+	states = load_states(root)
+	superseded = load_superseded(root)
+	splits = load_splits(root)
+	split = splits.get(source_task)
+	if split is None:
+		raise WorkspaceError(f"Missing split record for {source_task}")
+	if split["split_into"] != replacements:
+		raise WorkspaceError(
+			f"Split replacements changed for {source_task}: {split['split_into']!r}"
+		)
+	if split["receipt"] != receipt or split["implementation_carrier"] != carrier:
+		raise WorkspaceError(f"Split routing metadata changed for {source_task}")
+	validate_dependency_graph(states)
+	validate_superseded_graph(root, states, superseded)
+	validate_split_graph(root, states, superseded, splits)
+	receipt_path = root / receipt
+	receipt_text = receipt_path.read_text(encoding="utf-8-sig")
+	for task_id in [source_task, *replacements]:
+		if task_id not in receipt_text:
+			raise WorkspaceError(f"Split receipt omits task {task_id}: {receipt}")
+	for index, task_id in enumerate(replacements):
+		task = states.get(task_id)
+		if task is None:
+			raise WorkspaceError(f"Split replacement has no live state: {task_id}")
+		if task["type"] != DEFAULT_TASK_TYPE or task["status"] != "todo":
+			raise WorkspaceError(
+				f"Split replacement is not todo implementation work: {task_id}"
+			)
+		if task["inbox_receipt"] != receipt or task["model"] is not None:
+			raise WorkspaceError(
+				f"Split replacement has invalid routing state: {task_id}"
+			)
+		if task_id == carrier:
+			if index != 0:
+				raise WorkspaceError(
+					"The implementation carrier must be the first replacement"
+				)
+			if (
+				task["carried_from"] != source_task
+				or task["claimed_by"] is None
+				or task["claimed_at"] is None
+				or task["claim_order"] is None
+				or task["phase"] is not None
+			):
+				raise WorkspaceError(
+					f"Implementation carrier does not own the split handoff: {task_id}"
+				)
+		elif any(task[field] is not None for field in (
+			"claimed_by",
+			"claimed_at",
+			"claim_order",
+			"lease_until",
+			"phase",
+			"carried_from",
+		)):
+			raise WorkspaceError(
+				f"Non-carrier split replacement is not pristine: {task_id}"
+			)
+	for project_path in sorted((root / "projects").glob("*/tasks.md")):
+		text = project_path.read_text(encoding="utf-8-sig")
+		if f"tasks/{source_task}/task.md" in text:
+			raise WorkspaceError(
+				f"Project index still links split task {source_task}: {project_path}"
+			)
+	for task_id in replacements:
+		project = states[task_id]["project"]
+		if project is None:
+			continue
+		project_path = root / "projects" / project / "tasks.md"
+		if (
+			not project_path.is_file()
+			or f"tasks/{task_id}/task.md" not in project_path.read_text(
+				encoding="utf-8-sig",
+			)
+		):
+			raise WorkspaceError(
+				f"Project index omits split replacement {task_id}: {project_path}"
+			)
+
+
+def split_validation_for_head(slot):
+	subject = run_git(slot, "show", "-s", "--format=%s", "HEAD").stdout.strip()
+	prefix = "Split "
+	if not subject.startswith(prefix):
+		return None
+	source_task = subject[len(prefix):]
+	if not TASK_ID_PATTERN.fullmatch(source_task):
+		raise WorkspaceError(f"Invalid split commit subject: {subject!r}")
+	split = load_splits(slot).get(source_task)
+	if split is None:
+		raise WorkspaceError(f"Split commit lost its split record: {source_task}")
+	return lambda root: validate_split_tree(
+		root,
+		source_task,
+		split["split_into"],
+		split["receipt"],
+		split["implementation_carrier"],
+	)
+
+
+def write_split_record(path, source_state, replacements, receipt, carrier, digest):
+	newline = "\r\n" if b"\r\n" in path.with_name("state.yaml").read_bytes() else "\n"
+	values = [
+		"split_into: [" + ", ".join(replacements) + "]",
+		f"implementation_carrier: {format_scalar(carrier)}",
+		f"receipt: {receipt}",
+		f"type: {source_state['type']}",
+		f"created: {source_state['created']}",
+		f"project: {format_scalar(source_state['project'])}",
+		"depends_on: [" + ", ".join(source_state["depends_on"]) + "]",
+		f"model: {source_state['model']}",
+		f"content_sha256: {digest}",
+	]
+	path.write_bytes((newline.join(values) + newline).encode("utf-8"))
+
+
+def command_split_publish(args):
+	config = worktree_config(args, create=True)
+	slot = Path(config["slot_worktree"])
+	ensure_clean(Path(config["ai_main"]), "ai-tdesktop master")
+	if not TASK_ID_PATTERN.fullmatch(args.source_task):
+		raise WorkspaceError(f"Invalid split source task: {args.source_task!r}")
+	replacements = list(dict.fromkeys(args.replacements))
+	if (
+		len(replacements) < 2
+		or len(replacements) != len(args.replacements)
+		or any(not TASK_ID_PATTERN.fullmatch(value) for value in replacements)
+		or args.source_task in replacements
+	):
+		raise WorkspaceError("A split needs at least two unique replacement task ids")
+	carrier = args.implementation_carrier
+	if carrier is not None and (carrier not in replacements or carrier != replacements[0]):
+		raise WorkspaceError(
+			"The implementation carrier must be the first replacement task"
+		)
+	receipt = normalized_publish_path(args.receipt)
+	if not receipt.startswith("receipts/"):
+		raise WorkspaceError("The split receipt must be below receipts/")
+	paths = sorted({normalized_publish_path(value) for value in args.paths})
+	required_paths = [
+		f"tasks/{args.source_task}",
+		*(f"tasks/{task_id}" for task_id in replacements),
+		receipt,
+	]
+	for required in required_paths:
+		if not path_is_covered(required, paths):
+			raise WorkspaceError(
+				f"Split publication path does not cover {required}"
+			)
+	changes = changed_paths(slot)
+	unexpected = [path for path in changes if not path_is_covered(path, paths)]
+	if unexpected:
+		raise WorkspaceError(
+			"Split changes are outside the explicit publication paths: "
+			+ ", ".join(unexpected)
+		)
+	source_prefix = f"tasks/{args.source_task}/"
+	source_changes = [path for path in changes if path.startswith(source_prefix)]
+	if source_changes:
+		raise WorkspaceError(
+			"The split worker must not rewrite retained source-task content: "
+			+ ", ".join(source_changes)
+		)
+	states = load_states(slot)
+	source_state = states.get(args.source_task)
+	if (
+		source_state is None
+		or source_state["status"] != "split-required"
+		or source_state["claimed_by"] != config["checkout_tag"]
+		or source_state["model"] is None
+	):
+		raise WorkspaceError(
+			f"Task is not split-required work owned by this checkout: {args.source_task}"
+		)
+	carried = validate_carried_worktree(config, slot, args.source_task)
+	retained = carried.get("implementation") == "retained"
+	if retained != (carrier is not None):
+		raise WorkspaceError(
+			"Retained implementation requires exactly one implementation carrier"
+		)
+	for task_id in replacements:
+		task = states.get(task_id)
+		if task is None:
+			raise WorkspaceError(f"Split replacement is missing: {task_id}")
+		if (
+			task["status"] != "todo"
+			or task["type"] != DEFAULT_TASK_TYPE
+			or task["claimed_by"] is not None
+			or task["model"] is not None
+			or task["carried_from"] is not None
+			or task["inbox_receipt"] != receipt
+		):
+			raise WorkspaceError(
+				f"Split replacement is not pristine routed todo work: {task_id}"
+			)
+	if carrier is not None:
+		old_owned = (
+			slot / task_relative_dir(args.source_task) / "work" / "owned-paths.txt"
+		)
+		if not old_owned.is_file():
+			raise WorkspaceError(
+				f"Retained implementation lacks owned-paths.txt: {old_owned}"
+			)
+		carrier_work = slot / task_relative_dir(carrier) / "work"
+		carrier_work.mkdir(parents=True, exist_ok=True)
+		shutil.copyfile(old_owned, carrier_work / "owned-paths.txt")
+		update_state(state_path(slot, carrier), {
+			"claimed_by": config["checkout_tag"],
+			"claimed_at": source_state["claimed_at"],
+			"claim_order": source_state["claim_order"] or 1,
+			"lease_until": None,
+			"phase": None,
+			"carried_from": args.source_task,
+		})
+	source_dir = slot / task_relative_dir(args.source_task)
+	digest = retained_task_digest(source_dir)
+	source_state_path = source_dir / "state.yaml"
+	split_path = source_dir / "split.yaml"
+	write_split_record(
+		split_path,
+		source_state,
+		replacements,
+		receipt,
+		carrier,
+		digest,
+	)
+	source_state_path.unlink()
+	post_changes = changed_paths(slot)
+	required_source_changes = {
+		f"tasks/{args.source_task}/state.yaml",
+		f"tasks/{args.source_task}/split.yaml",
+	}
+	actual_source_changes = {
+		path for path in post_changes if path.startswith(source_prefix)
+	}
+	if actual_source_changes != required_source_changes:
+		raise WorkspaceError(
+			"Split retirement changed unexpected source-task content: "
+			+ ", ".join(sorted(actual_source_changes ^ required_source_changes))
+		)
+	validate = lambda root: validate_split_tree(
+		root, args.source_task, replacements, receipt, carrier,
+	)
+	validate(slot)
+	commit = commit_paths(
+		config,
+		paths,
+		f"Split {args.source_task}",
+		validate=validate,
+	)
+	if carrier is None:
+		delete_source_refs(config, args.source_task)
+	print(json.dumps({
+		"implementation_carrier": carrier,
+		"published": bool(commit),
+		"replacements": replacements,
+		"source_task": args.source_task,
+		"status": "split",
+	}, indent=2, sort_keys=True))
+
+
 def validate_consolidation_tree(root, source_task, mappings, receipt):
 	states = load_states(root)
 	superseded = load_superseded(root)
+	splits = load_splits(root)
 	if source_task not in states:
 		raise WorkspaceError(
 			f"Consolidation source task does not exist: {source_task}"
@@ -2988,6 +3780,7 @@ def validate_consolidation_tree(root, source_task, mappings, receipt):
 		)
 	validate_dependency_graph(states)
 	validate_superseded_graph(root, states, superseded)
+	validate_split_graph(root, states, superseded, splits)
 	if not mappings:
 		if receipt is not None:
 			raise WorkspaceError("A no-merge consolidation must not publish a receipt")
@@ -3833,7 +4626,11 @@ def parse_args():
 	finish = subparsers.add_parser("finish")
 	add_common_arguments(finish)
 	finish.add_argument("--task", required=True)
-	finish.add_argument("--status", choices=("approved", "blocked"), required=True)
+	finish.add_argument(
+		"--status",
+		choices=("approved", "blocked", "split-required"),
+		required=True,
+	)
 	finish.add_argument("--model", required=True)
 	finish.set_defaults(handler=command_finish)
 
@@ -3870,6 +4667,25 @@ def parse_args():
 		required=True,
 	)
 	consolidate_publish.set_defaults(handler=command_consolidate_publish)
+
+	split_publish = subparsers.add_parser("split-publish")
+	add_common_arguments(split_publish)
+	split_publish.add_argument("--source-task", required=True)
+	split_publish.add_argument("--receipt", required=True)
+	split_publish.add_argument(
+		"--replacement",
+		action="append",
+		dest="replacements",
+		required=True,
+	)
+	split_publish.add_argument("--implementation-carrier")
+	split_publish.add_argument(
+		"--path",
+		action="append",
+		dest="paths",
+		required=True,
+	)
+	split_publish.set_defaults(handler=command_split_publish)
 
 	task_content_digest = subparsers.add_parser("task-content-digest")
 	add_common_arguments(task_content_digest)

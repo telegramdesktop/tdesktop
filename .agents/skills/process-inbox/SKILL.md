@@ -63,6 +63,10 @@ paths. Follow `superseded_by` chains to their live task when deduplicating,
 resolving prior receipt references, or checking whether a same-digest result
 still exists. New dependencies and project links must name the final live task,
 never an alias. A dated slug occupied by an alias still counts as a collision.
+Some retired oversized tasks instead have `split.yaml`, whose `split_into`
+list resolves to several live successors. Treat the retained directory as
+history, deduplicate against all live successors, and never put the split id in
+a new dependency or project link. A split path is also permanently occupied.
 
 Use one disposable leaf planner when the harness supports delegation; instruct
 it not to delegate. Otherwise perform the same work locally. The planner may
@@ -136,7 +140,10 @@ files, APIs, phases, ownership boundaries, and evidence design; it may veto the
 single-task shape when that richer proof exposes independently shippable and
 testable boundaries. That veto does not mean task sizing is based on elapsed
 time or diff length, and it does not authorize the performer to mutate the
-queue itself.
+queue itself. The performer publishes `split-required`; the checkout scheduler
+then launches a dedicated deep split transaction that creates replacements,
+rewrites dependencies and project links, and retires the source with a durable
+multi-target split record.
 
 Project slugs are unique across `projects/` and `projects/archive/`. When a
 request belongs to an archived project, restore it before routing to it:
@@ -224,11 +231,13 @@ claimed_at: null
 claim_order: null
 lease_until: null
 phase: null
+carried_from: null
 inbox_receipt: receipts/YYYY/MM/DD/<receipt>.md
 ```
 
 Do not write a `model` field. It records which model finished the task, so only
-`finish` writes it, at the canonical `Approve` or `Block` boundary; a task
+`finish` writes it, at the canonical `Approve`, `Block`, or `Split-required`
+boundary; a task
 carrying one before it is claimed is malformed.
 
 Use a project slug instead of `null` when routed to a project. Use a YAML list
@@ -263,9 +272,9 @@ Create one tracked Markdown receipt under `receipts/YYYY/MM/DD/`. Include:
 - deduplication decisions.
 
 Before writing, search receipts for the same digest. If it was already fully
-processed and every referenced task either has live state or has a durable alias
-chain reaching live state, create nothing and reuse that receipt for
-finalization.
+processed and every referenced task either has live state, has a durable alias
+chain reaching live state, or has a durable split record whose successors all
+resolve to live state, create nothing and reuse that receipt for finalization.
 
 ## Validate and publish
 

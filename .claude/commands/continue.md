@@ -19,6 +19,14 @@ follow-up requires its affirmative independence test. Continue until that
 frozen-and-derived batch reaches the scheduler's normal stop condition or a
 global hard stop.
 
+Apply the shared `split-required` result and routing phase. A performer publishes
+that state; this parent launches one fresh foreground split Agent that reads the
+complete shared split reference, creates and publishes the replacements, and
+retires the source task. Replace the source id in the frozen batch with those
+replacements. When retained implementation exists, start the checkout-owned
+carrier first so the helper transfers its sealed source state; do not reset or
+checkpoint that work.
+
 Apply the shared source-lineage gate in this parent scheduler. Before batch
 freeze, a missing approved prerequisite pauses through `AskUserQuestion` after
 the exact branch and compatible-branch report. After freeze but before Phase 1,
@@ -35,10 +43,10 @@ scheduler context, and require it to read the complete shared consolidation
 reference. Never run consolidation inside the performer or discovery-routing
 Agent, and defer it while the active task owns dirty local phase state.
 
-Every inbox worker, performer, discovered-task routing Agent, and pending-task
-consolidation Agent must be told in its initial prompt to read
-`.claude/ai-workflow-adapter.md` completely before the applicable shared skill
-or reference. Use the Agent tool for those workers; do not start Claude
+Every inbox worker, performer, split-routing Agent, discovered-task routing
+Agent, and pending-task consolidation Agent must be told in its initial prompt
+to read `.claude/ai-workflow-adapter.md` completely before the applicable shared
+skill or reference. Use the Agent tool for those workers; do not start Claude
 subprocesses through Bash.
 
 Arguments, when present, are natural-language hints for new shared work; their

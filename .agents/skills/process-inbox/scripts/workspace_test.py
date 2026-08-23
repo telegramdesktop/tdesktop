@@ -2898,6 +2898,226 @@ class MechanicsTest(unittest.TestCase):
 			self.assertTrue(result["golden_account_present"])
 			self.assertFalse(result["live_marker_present"])
 
+	def test_finish_publishes_split_required_with_carried_work(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			source, slot, work, config = source_repo_with_task(root)
+			config["slot_worktree"] = str(slot)
+			for name in ("base", "run"):
+				git(
+					source,
+					"update-ref",
+					workspace.source_task_ref(TASK_ID, name),
+					"HEAD",
+				)
+			(work / "owned-paths.txt").write_text(
+				"tracked.txt\n", encoding="utf-8",
+			)
+			(work / "split-proposal.md").write_text(
+				"# Split proposal\n\nTwo independent boundaries.\n",
+				encoding="utf-8",
+			)
+			(work / "result.md").write_text(
+				"""STATUS: SPLIT_REQUIRED
+Outcome: split-required
+Verdict: SPLIT_REQUIRED
+Implementation: retained
+Touched: tracked.txt
+Split-Proposal: work/split-proposal.md
+Checkout: source-state-retained
+""",
+				encoding="utf-8",
+			)
+			(source / "tracked.txt").write_text("carried\n", encoding="utf-8")
+			with (
+				mock.patch.object(
+					workspace,
+					"task_action_config",
+					return_value=(config, slot),
+				),
+				mock.patch.object(workspace, "commit_paths", return_value=True),
+			):
+				result = run_command(
+					workspace.command_finish,
+					task=TASK_ID,
+					status="split-required",
+					model="gpt-5.6-sol",
+				)
+
+			state = workspace.load_state(slot, work.parent / "state.yaml")
+			self.assertEqual(result["status"], "split-required")
+			self.assertEqual(state["status"], "split-required")
+			self.assertEqual(state["phase"], "split-required")
+			carried = json.loads((work / "carried-work.json").read_text(
+				encoding="utf-8-sig",
+			))
+			self.assertEqual(carried["implementation"], "retained")
+			self.assertEqual(carried["owned_dirty_paths"], ["tracked.txt"])
+			self.assertEqual((source / "tracked.txt").read_text(), "carried\n")
+
+	def test_carried_work_snapshot_seals_owned_submodule_changes(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			source, slot, work, config = source_repo_with_task(root)
+			nested = source / "nested"
+			git_repo(nested)
+			(nested / "owned.txt").write_text("base\n", encoding="utf-8")
+			git(nested, "add", "owned.txt")
+			git(nested, "commit", "-m", "Create nested baseline")
+			nested_head = git(nested, "rev-parse", "HEAD")
+			git(
+				source,
+				"update-index",
+				"--add",
+				"--cacheinfo",
+				f"160000,{nested_head},nested",
+			)
+			git(source, "commit", "-m", "Track nested repository")
+			(work / "owned-paths.txt").write_text(
+				"nested/owned.txt\n", encoding="utf-8",
+			)
+			(nested / "owned.txt").write_text("carried\n", encoding="utf-8")
+
+			snapshot = workspace.source_worktree_snapshot(
+				config, slot, TASK_ID,
+			)
+
+			self.assertEqual(snapshot["owned_dirty_paths"], ["nested"])
+			self.assertEqual(snapshot["outside_owned_paths"], [])
+			self.assertNotEqual(snapshot["worktree_digest"], "0" * 64)
+
+	def test_split_publish_routes_and_starts_implementation_carrier(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			config = inbox_worktrees(root)
+			main = Path(config["ai_main"])
+			slot = Path(config["slot_worktree"])
+			source = root / "source"
+			git_repo(source)
+			(source / "Telegram" / "build").mkdir(parents=True)
+			(source / "tracked.txt").write_text("base\n", encoding="utf-8")
+			git(source, "add", "-A")
+			git(source, "commit", "-m", "Create baseline")
+			config["source_root"] = str(source)
+			source_task = "2026/07/18/active-task"
+			source_dir = main / "tasks" / source_task
+			state_path = source_dir / "state.yaml"
+			state_path.write_text(
+				state_path.read_text(encoding="utf-8")
+				.replace("status: todo", "status: split-required")
+				.replace("claimed_by: null", "claimed_by: macbook-twork")
+				.replace("claimed_at: null", "claimed_at: 2026-07-18T10:00:00+04:00")
+				.replace("claim_order: null", "claim_order: 1")
+				.replace("phase: null", "phase: split-required")
+				.replace(
+					"inbox_receipt:",
+					"model: gpt-5.6-sol\ninbox_receipt:",
+				),
+				encoding="utf-8",
+			)
+			work = source_dir / "work"
+			work.mkdir()
+			(work / "owned-paths.txt").write_text(
+				"tracked.txt\n", encoding="utf-8",
+			)
+			for name in ("base", "run"):
+				git(
+					source,
+					"update-ref",
+					workspace.source_task_ref(source_task, name),
+					"HEAD",
+				)
+			(source / "tracked.txt").write_text("carried\n", encoding="utf-8")
+			snapshot = workspace.source_worktree_snapshot(
+				config, main, source_task,
+			)
+			(work / "carried-work.json").write_text(
+				json.dumps({"implementation": "retained", **snapshot}) + "\n",
+				encoding="utf-8",
+			)
+			git(main, "add", f"tasks/{source_task}")
+			git(main, "commit", "-m", f"Split-required {source_task}")
+			git(slot, "merge", "--ff-only", "master")
+
+			replacements = [
+				"2026/07/20/adopt-active-task-implementation",
+				"2026/07/20/finish-active-task-integration",
+			]
+			receipt = "receipts/2026/07/20/split-active-task.md"
+			for task_id in replacements:
+				directory = slot / "tasks" / task_id
+				directory.mkdir(parents=True)
+				(directory / "task.md").write_text(
+					f"# {task_id.rsplit('/', 1)[-1]}\n",
+					encoding="utf-8",
+				)
+				(directory / "state.yaml").write_text(
+					f"""status: todo
+type: implement
+created: 2026-07-20
+project: null
+depends_on: []
+claimed_by: null
+claimed_at: null
+claim_order: null
+lease_until: null
+phase: null
+inbox_receipt: {receipt}
+""",
+					encoding="utf-8",
+				)
+			receipt_path = slot / receipt
+			receipt_path.parent.mkdir(parents=True)
+			receipt_path.write_text(
+				"\n".join([source_task, *replacements]) + "\n",
+				encoding="utf-8",
+			)
+			with mock.patch.object(
+				workspace, "worktree_config", return_value=config,
+			):
+				result = run_command(
+					workspace.command_split_publish,
+					source_task=source_task,
+					replacements=replacements,
+					receipt=receipt,
+					implementation_carrier=replacements[0],
+					paths=[
+						f"tasks/{source_task}",
+						*(f"tasks/{task_id}" for task_id in replacements),
+						receipt,
+					],
+				)
+			self.assertEqual(result["status"], "split")
+			self.assertTrue((main / "tasks" / source_task / "split.yaml").is_file())
+			self.assertFalse((main / "tasks" / source_task / "state.yaml").exists())
+			resolved = workspace.resolve_task(
+				main, workspace.load_states(main), source_task,
+			)
+			self.assertEqual(resolved["status"], "split")
+			self.assertEqual(resolved["split_into"], replacements)
+			carrier = workspace.load_states(main)[replacements[0]]
+			self.assertEqual(carrier["claimed_by"], "macbook-twork")
+			self.assertEqual(carrier["carried_from"], source_task)
+			self.assertEqual((source / "tracked.txt").read_text(), "carried\n")
+
+			with mock.patch.object(
+				workspace, "worktree_config", return_value=config,
+			):
+				started = run_command(
+					workspace.command_start,
+					task=replacements[0],
+					require=[],
+				)
+			self.assertEqual(started["status"], "in-progress")
+			self.assertIsNotNone(workspace.resolved_ref(
+				source,
+				workspace.source_task_ref(replacements[0], "base"),
+			))
+			self.assertIsNone(workspace.resolved_ref(
+				source,
+				workspace.source_task_ref(source_task, "base"),
+			))
+
 
 if __name__ == "__main__":
 	unittest.main()

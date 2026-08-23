@@ -350,6 +350,9 @@ independent assessor has veto authority because it is the first phase with the
 exact implementation and evidence plan. It does not create, retire, supersede,
 or rewrite queue tasks; the performer preserves the proposal and returns it to
 the scheduler, which owns any rescope transaction.
+The performer does not leave this as an unpublished `in-progress` marker: after
+validating the proposal it writes the split result and calls
+`finish --status split-required`, preserving any owned source state.
 
 ```text
 You are a plan assessment agent. Review and refine an implementation plan.
@@ -907,6 +910,11 @@ The verdict cannot approve code. If a permitted final focused round still has
 blocking findings, stop with its unapproved artifacts; do not begin another
 campaign automatically.
 ~~~
+
+On `RESCOPE_REQUIRED`, the performer validates `split-proposal.md`, inventories
+all retained owned source paths, writes the canonical split result, and calls
+`finish --status split-required`. It does not clean or checkpoint source work;
+the scheduler's later split worker assigns the sealed implementation carrier.
 
 ### Review fix
 
