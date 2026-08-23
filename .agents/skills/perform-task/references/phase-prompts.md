@@ -22,8 +22,9 @@ every applicable placeholder: `<TASK>`, `<TASK_ID>`, `<WORK_DIR>`,
 
 ## Orchestration Rules
 
-- When delegation is available, use a fresh subagent for Phase 1 (context and plan), Phase 3, each Phase 4 implementation unit, each Phase 6 general review pass, each surviving Phase 6 specialist, and each Phase 6 fix. Do not switch those phases to same-session midstream because of a timeout or missing artifact.
-- The mandatory general reviewer runs first and alone on the complete diff, and emits the retirement list. Surviving specialist reviews are independent and write disjoint reports, so spawn them together when capacity allows, giving them the diff and the retirement decision but never the general reviewer's findings. The general reviewer then returns, confirms or drops their findings, reconciles the evidence design, and owns the overall verdict.
+- When delegation is available, use a fresh subagent for Phase 1 (context and plan), Phase 3, each Phase 4 implementation unit, the initial Phase 6 general review, each selected specialist, each Phase 6 fix, each focused re-review, and any convergence assessment. Do not switch those phases to same-session midstream because of a timeout or missing artifact.
+- The initial mandatory general reviewer runs first and alone on the complete diff, and emits a specialist decision table with one concrete material question for every selected lens. Selected specialists are independent and write disjoint reports, so spawn them together when capacity allows, giving them the diff and their question but never the general reviewer's findings. When the host supports continuing the saved general-review agent, send synthesis back to that agent; otherwise use one fresh synthesis agent with the saved general report and specialist reports instead of making it rediscover the whole review.
+- After a fix, use the focused re-review prompt: one mandatory general reviewer over the fix and affected invariants, plus only specialists whose recorded question or blocker the fix invalidated. Carry every other approval forward. Do not schedule a lens from surface presence alone.
 - Treat delegation as selected only after the first real phase spawn succeeds; tool presence is insufficient. An immediate depth/capacity/policy rejection before phase work selects same-session checklists and is not a delegated retry.
 - Phase 7 runs in the current session on native, non-WSL Windows because it depends on the final local diff and touched-file set. Skip it on WSL and keep files LF/no-BOM there.
 - Write each phase prompt to `<WORK_DIR>/logs/phase-<phase-name>.prompt.md` before execution.
@@ -43,7 +44,7 @@ every applicable placeholder: `<TASK>`, `<TASK_ID>`, `<WORK_DIR>`,
   is the completion signal; there is no polling, no heartbeat-mtime ladder,
   and no stall windows. On return, validate the artifact-based completion
   checks below before treating the phase as done.
-- Spawn the independent leaves of one step — the surviving Phase 6 specialists,
+- Spawn the independent leaves of one step — the selected Phase 6 specialists,
   or assessed-disjoint Phase 4 units —
   as parallel Agent calls in a single message so they run concurrently.
 - If a returned leaf fails its completion check, retry that disposable phase
@@ -57,7 +58,7 @@ every applicable placeholder: `<TASK>`, `<TASK_ID>`, `<WORK_DIR>`,
 - When this session is a top-level `/perform-task`, run each leaf as one
   blocking `spawn_subagent` (`background: false`). The call returning is
   the completion signal; validate the artifact checks below on return.
-- Spawn the independent leaves of one step — the surviving Phase 6 specialists,
+- Spawn the independent leaves of one step — the selected Phase 6 specialists,
   or assessed-disjoint Phase 4
   units — as parallel `spawn_subagent` calls in a single message.
 - When this session is a `/continue` child, do not call `spawn_subagent`.
@@ -70,6 +71,9 @@ every applicable placeholder: `<TASK>`, `<TASK_ID>`, `<WORK_DIR>`,
 ### Codex: asynchronous spawn and wait
 
 - Store the canonical target returned by `spawn_agent`.
+- After the initial general reviewer finishes pass 1, keep its canonical target.
+  When specialists finish, use `followup_task` on that target with the pass-2
+  synthesis prompt instead of spawning a second complete-diff reviewer.
 - Poll with `wait_agent` for at most 60 seconds per call; use elapsed wall-clock windows for stall decisions. Use 30-60 second polls when a phase appears close to landing.
 - `wait_agent` is mailbox-wide and may wake for another agent or user input. A timeout is not failure. After every wake, handle new user input if any, inspect the saved target with `list_agents`, and check the expected artifact and matching progress file.
 - If the expected artifact exists and shows progress, wait again.
@@ -121,11 +125,12 @@ Do not restate the full context, plan, diff, or long reasoning in the chat reply
   were made. For a project task, `project.proposed.md` must also exist and be
   non-empty. For a `Visual: layout` task, `visual.md` must also satisfy the
   visual design completion check below.
-- Phase 3 is complete only when `plan.md` contains both `Phases:` in the Status section and `Assessed: yes`, or records a rejection outcome (`Fast-Path: rejected` or `Approach: rejected`) that sends the performer back to a fresh Phase 1 leaf.
+- Phase 3 is complete only when `plan.md` contains both `Phases:` in the Status section and `Assessed: yes`, records a rejection outcome (`Fast-Path: rejected` or `Approach: rejected`) that sends the performer back to a fresh Phase 1 leaf, or records `Scope: split-required` and has a complete `split-proposal.md` that stops source work for queue rescoping.
 - Phase 4 is complete only when the target phase checkbox changed to checked and the touched-file list matches the owned write set, or the blocker explains any mismatch.
 - Phase 5 is complete only when the build outcome is known and the build checkbox is updated on success.
-- A Phase 6 specialist is complete only when every scheduled specialist wrote `review<R>-<lens>.md` with a `## Verdict:` line and a non-empty `## Checked` section. A report that records no checked surfaces is incomplete work.
-- Phase 6 general review is complete only when `review<R>-general.md` and `review<R>.md` exist with a `## Verdict:` line, a non-empty `## Coverage` section, every retired lens carrying its absence assertion, every surviving lens accounted for, and every evidence check reconciled against the actual diff.
+- A Phase 6 specialist is complete only when every scheduled specialist wrote `review<R>-<lens>.md` with a `## Verdict:` line and a non-empty `## Checked` section tied to its assigned material question. A report that records no checked surface is incomplete work.
+- Initial Phase 6 general review is complete only when `review1-general.md` and `review1.md` exist with a `## Verdict:` line, a non-empty `## Coverage` section, every standard lens marked `SELECT` or `OMIT` with a valid reason, every selected lens accounted for, and every evidence check reconciled against the actual diff.
+- A focused Phase 6 review is complete only when `review<R>-focused.md` and `review<R>.md` name the fix paths and invariants, account for every carried-forward and invalidated approval, account for every rerun specialist, and reconcile only invalidated evidence checks. A convergence assessment is complete only with one exact disposition from the pipeline and its required bounded next action or split proposal.
 - Phase 6b is complete only when the requested fixes were applied and the post-fix build outcome is known.
 - Phase 3 is additionally incomplete until `test-design.md` exists, covers
   every acceptance surface, assigns each check a direct instrument, oracle,
@@ -332,12 +337,15 @@ Do not implement code in this phase.
 
 ## Phase 3: Plan Assessment
 
-Assessment has two rejection outcomes besides refinement, and both withhold
-`Assessed: yes` and send the performer back to a fresh Phase 1 leaf:
+Assessment has two approach rejection outcomes besides refinement, and both
+withhold `Assessed: yes` and send the performer back to a fresh Phase 1 leaf:
 `Fast-Path: rejected` when the performer's same-session Phase 1 undersized the
 task, and `Approach: rejected` when the plan is over-engineered or over-coupled
 beyond step-level repair. On an approach rejection the performer appends the
-assessor's named simpler direction to the Phase 1 rerun prompt.
+assessor's named simpler direction to the Phase 1 rerun prompt. A third outcome,
+`Scope: split-required`, means the request itself contains several independently
+useful and testable product boundaries; it writes `split-proposal.md` and stops
+before source edits instead of trying another plan for the same task.
 
 ```text
 You are a plan assessment agent. Review and refine an implementation plan.
@@ -380,10 +388,10 @@ Assess the plan:
      beats both growing a mega-module and scattering through one; judge
      whether the boundary does work, not whether it is new.
 5. Expected surfaces: record the surfaces this task is likely to touch and the
-   escalations they would imply, as a note for the reviewer. Do not select or
-   omit review lenses here — the general reviewer decides that with the diff in
-   hand, and every optional lens runs unless it retires the lens by asserting
-   the absence of its surface.
+   escalations they would imply, as a recall note for the reviewer. Do not
+   select or omit review lenses here — the first general reviewer decides that
+   with the diff in hand from concrete material questions, not surface presence
+   alone.
 6. Evidence design: map every acceptance criterion and material shipped risk to
    the most direct practical instrument that can detect the negative. Allow
    static readings, commands/artifacts, unit tests, a standalone probe or
@@ -392,7 +400,10 @@ Assess the plan:
    Preserve deep app testing when behavior lives in Telegram, and require tight
    captures for visible claims. Do not require Telegram for an isolated probe or
    build-stage claim it cannot strengthen.
-7. Phase sizing: Each phase should be implementable by a single agent in one session. If a phase has more than about 8-10 substantive code changes, split it further.
+7. Phase sizing: Each phase should be implementable by a single agent in one
+   session. If a phase has more than about 8-10 substantive code changes, split
+   the phase. Then assess the task as a whole: several well-sized phases do not
+   make an intrinsically broad task cohesive.
 8. Visual contract (layout tasks): when visual.md exists, verify its anchors
    are real (the cited style tokens, fonts, and reference widgets exist),
    the ordered derivation is arithmetically consistent, and every quantity the
@@ -412,15 +423,38 @@ Assess the plan:
    precedent or existing mechanism to ride on, which existing files absorb
    the change, and where it stays contained. The performer reruns Phase 1 as
    a fresh leaf with those lines as input.
+11. Intrinsic scope: decide whether one fresh reviewer and one coherent
+   evidence campaign can judge the final retained result. Strong split signals
+   are multiple parts with their own useful outcome and oracle; a stable
+   dependency order where a later part can consume an earlier approved part;
+   separate network, persistence, concurrency/ownership, engine, lifecycle, or
+   UI boundaries; materially different fixtures or platforms; or a diff too
+   broad for one reviewer to reason about as one invariant set. Phase count,
+   changed-file count, and acceptance count are warning signals, not automatic
+   thresholds. Keep inseparable API-plus-only-caller changes together.
 
-Update plan.md with your refinements. Keep the same structure but:
+   When this fails because of the request rather than the proposed approach,
+   add `Scope: split-required` to Status, do NOT add `Assessed: yes`, and write
+   `<WORK_DIR>/split-proposal.md` with:
+   - why one review/test campaign is not coherent;
+   - the smallest independently buildable and testable replacement tasks;
+   - each task's shipped boundary, acceptance oracle, and dependencies;
+   - which current source or validated artifacts, if any, can be salvaged;
+   - a final integration task only when integration itself has behavior not
+     already proved by the component tasks.
+   Do not edit source and do not create or mutate queue tasks. Return
+   `RESCOPE_REQUIRED` to the performer.
+
+If you selected any rejection outcome, write only its required status, reason,
+direction or split proposal and stop. Otherwise update plan.md with your
+refinements. Keep the same structure but:
 - fix any inaccuracies
 - add missing steps
 - remove files, abstractions, and steps the task does not need — deletion is
   as much a refinement as addition
 - improve the approach if you found better patterns
 - ensure phases are properly sized for single-agent execution
-- finalize `## Expected Surfaces` as a note for the reviewer, selecting no lens
+- finalize `## Expected Surfaces` as a recall note for the reviewer, selecting no lens
 - finalize `## Evidence Plan`, then write `<WORK_DIR>/test-design.md` with one
   check per acceptance surface: Claim, Changed surface, Instrument, Oracle,
   Window, Control, Falsifier, and Evidence. State which prerequisites are
@@ -530,32 +564,39 @@ review runs for every task. The optional library is lifetime, reuse, structure,
 performance, and security; the general reviewer may add a specialist-<domain>
 review for another material risk.
 
-For iteration R:
+For the initial implementation:
 
-1. Run the general reviewer first and alone, on the complete diff. Besides its
-   own review it emits the retirement list: every optional lens runs unless it
-   is retired, and a lens is retired only by asserting the absence of its
-   surface in the terms `pipeline.md` gives. Record each retirement with its
-   assertion. It writes review<R>-general.md.
-2. Run the surviving specialists independently and in parallel. Give them the
-   diff and the retirement decision, never the general reviewer's findings.
-   They write review<R>-<lens>.md.
-3. The general reviewer returns, confirms or drops each specialist finding
-   against the code, and writes the actionable review<R>.md, accounting for
-   every retired and every surviving lens.
-4. APPROVED closes review. NEEDS_CHANGES runs the fix phase for blocking
+1. Run the general reviewer first and alone on the complete diff. It owns the
+   complete safety review and writes `review1-general.md` with a `SELECT` or
+   `OMIT` decision for every standard lens. Every `SELECT` includes one concrete
+   material failure question and affected paths/invariants. Surface presence is
+   a recall prompt, not a reason by itself.
+2. Run selected specialists independently and in parallel. Give each the diff
+   and its exact question, never the general reviewer's findings or another
+   review report. They write `review1-<lens>.md`.
+3. Continue the same general-review agent for synthesis when the host supports
+   it. Otherwise use a fresh synthesis agent that starts from
+   `review1-general.md`, reads the specialist reports, and opens only the code
+   needed to confirm their findings. It writes actionable `review1.md`.
+4. `APPROVED` closes review. `NEEDS_CHANGES` runs the fix phase for blocking
    findings only.
-5. After a substantive fix, increment R, rerun general with emphasis on the
-   changed hunks so it re-decides retirement there, and rerun only the
-   specialists whose surfaces the fix touched or whose prior blocking finding
-   was repaired. A fix that changed no owned source closes the loop without
-   another round.
 
-There is no automatic five-lens replay, and no lens is skipped by omission:
-silence retires nothing. Every review cycle must either add material coverage,
-validate changed code, or close. A wording or style suggestion is non-blocking
-unless it causes incorrect behavior, unsafe use, misleading build instructions,
-a repository-rule violation, or a material maintenance defect.
+For a fix, increment R and do not repeat the initial shape. Run one focused
+general reviewer over the fix result, changed paths/functions, affected callers,
+prior blockers, and invalidated evidence checks. Rerun only a specialist that
+originated a repaired blocker or whose exact recorded question the fix changed.
+The focused general reviewer confirms those reports and writes `review<R>.md`,
+explicitly carrying all other approvals forward.
+
+After two `NEEDS_CHANGES` verdicts, non-shrinking findings, architectural/scope
+expansion, or loss of a reliable carry-forward boundary, run the convergence
+prompt instead of another ordinary fix round. It permits at most one final
+focused repair before a stop, replan, or rescope. The bound never converts an
+unresolved finding into approval.
+
+A wording or style suggestion is non-blocking unless it causes incorrect
+behavior, unsafe use, misleading build instructions, a repository-rule
+violation, or a material maintenance defect.
 
 ### Shared specialist preamble
 
@@ -568,8 +609,16 @@ Read:
 - <WORK_DIR>/plan.md
 - AGENTS.md and REVIEW.md
 - the task specification
-- the complete task diff and every changed file in full
-- for R > 1, the preceding actionable review and fix result
+- the complete task diff and changed files relevant to the assigned question
+- the exact material review question and affected paths/invariant
+- for R > 1, only the preceding actionable finding and fix result assigned to
+  this specialist
+
+Do not read another reviewer's findings. Do not search or read
+`<WORK_DIR>/review*` or phase-review logs beyond the exact files listed above;
+root repository searches at the source checkout instead. If another review
+report is exposed accidentally, disclose it and stop so only this specialist
+can be rerun cleanly.
 
 Review only this task's diff under your assigned angle. Search outside the diff
 when your angle requires repository or call-site context, but do not report
@@ -586,7 +635,8 @@ Write <WORK_DIR>/review<R>-<LENS>.md:
 ## Lens: <LENS> — iteration <R>
 
 ## Checked
-<Every changed surface examined under this angle and what was established.>
+<Every relevant changed surface examined for the assigned question and what
+was established.>
 
 ## Findings
 <For each: title, file/line, Severity: BLOCKING | NON_BLOCKING, concrete
@@ -679,37 +729,46 @@ security invariant for a blocking finding.
 ### Mandatory general review
 
 The general reviewer owns the result and cannot assume a specialist covered an
-angle. It runs twice per iteration: pass 1 alone on the diff, emitting the
-retirement list, and pass 2 after the surviving specialists report.
+angle. Its initial pass is the one complete-diff safety review. Synthesis should
+continue that reviewer when possible; a replacement synthesis reviewer starts
+from its saved work rather than duplicating it.
 
 ~~~text
 You are the mandatory general reviewer for one Telegram Desktop task,
-iteration <R>, pass <PASS> of 2. You are a leaf and must not delegate.
+initial review, pass <PASS> of 2. You are a leaf and must not delegate.
 
 Read:
 - the task specification and every referenced input
 - <WORK_DIR>/context.md, plan.md, visual.md when present, and test-design.md
 - AGENTS.md and REVIEW.md
-- on pass 2 only, every review<R>-<lens>.md the surviving specialists wrote
-- the complete task diff and every changed file in full
-- adjacent callers, consumers, generated/build declarations, and repository
+- on pass 1, the complete task diff and every changed file in full, plus
+  adjacent callers, consumers, generated/build declarations, and repository
   precedents needed to judge integration
+- on pass 2, review1-general.md, every selected review1-<lens>.md, and only the
+  code needed to confirm/drop a specialist finding or resolve a contradiction
 
 Independently review correctness, completeness, edge/error paths, unintended
 regressions, integration, proportionality, repository conventions, and the
 evidence design. Do not defer anything to a specialist.
 
-On pass 1 no specialist has run yet. Besides your own review, emit the
-retirement list. Every optional lens — lifetime, reuse, structure, performance,
-security — runs unless you retire it, so a lens you do not mention still runs.
-Retire one only by asserting the absence of its surface in the exact terms
-pipeline.md gives, and write that assertion beside it; a failing clause keeps
-the lens, and "documentation only" is not an assertion of absence. Name any
-extra domain specialist a material risk needs. Then return: the performer runs
-the surviving specialists and calls you back for pass 2.
+On pass 1 no specialist has run yet. Besides your own review, emit a specialist
+decision table. Mark every optional lens — lifetime, reuse, structure,
+performance, security — exactly `SELECT` or `OMIT`; silence is invalid.
+
+`SELECT` only when the actual diff presents a concrete material failure question
+for which focused tracing, call-site search, or domain expertise adds useful
+independent confidence. State the question, affected paths/invariant, and the
+failure it could expose. `OMIT` when the surface is absent or narrow enough that
+your complete review already established its relevant invariant with no open
+specialist question; state that proof. Surface presence alone, `low risk`, time
+pressure, or `documentation only` is not a decision. Name any extra domain
+specialist a material risk needs. Then return: the performer runs selected
+specialists and calls you back for pass 2.
 
 On pass 2, confirm every specialist finding against the code; drop it when the
-concrete failure does not hold.
+concrete failure does not hold. Do not redo the complete general review; carry
+pass 1 findings and coverage forward and open only the code needed for
+synthesis or a newly contradicted invariant.
 
 Reconcile test-design.md against the actual diff:
 - every acceptance criterion and material new risk has a check;
@@ -725,11 +784,10 @@ Reconcile test-design.md against the actual diff:
 - selected instrument prerequisites are explicit, and unavailable unselected
   instruments are not treated as blockers.
 
-If pass 2 exposes a material risk no surviving lens covered — including one you
-retired on pass 1 — write "Missing specialist: <name> — <reason>" and return
-without an implementation verdict. The performer runs that specialist, then
-calls you back again in iteration R. Retiring a lens you then have to recall is
-a worse outcome than keeping it, so retire only on the absence clauses.
+If pass 2 exposes a concrete material question no selected lens covered, write
+"Missing specialist: <name> — <question>" and return without an implementation
+verdict. The performer runs only that specialist, then calls you back. Do not
+turn a generic surface into a late specialist request.
 
 Classify findings:
 - BLOCKING: concrete wrong behavior, crash, race, security/data-safety failure,
@@ -738,13 +796,14 @@ Classify findings:
 - NON_BLOCKING: optional wording, preference, speculative cleanup, or polish.
   Preserve it in Dropped/Notes, but do not ask the fix agent to implement it.
 
-Write <WORK_DIR>/review<R>-general.md with Checked, specialist confirmation,
+Write <WORK_DIR>/review1-general.md with Checked, the specialist decision table,
+specialist confirmation,
 evidence reconciliation, findings and verdict. Then write
-<WORK_DIR>/review<R>.md:
+<WORK_DIR>/review1.md:
 
-## Code Review — Iteration <R>
+## Code Review — Initial
 ## Coverage
-<general coverage plus selected/omitted specialist reasons>
+<general coverage plus every SELECT/OMIT reason and material question>
 ## Evidence reconciliation
 <each planned check confirmed or changed>
 ## Verdict: APPROVED | NEEDS_CHANGES | MISSING_SPECIALIST
@@ -755,6 +814,88 @@ evidence reconciliation, findings and verdict. Then write
 
 An APPROVED verdict requires no blocking finding and complete evidence
 reconciliation. NEEDS_CHANGES requires at least one blocking finding.
+~~~
+
+### Focused general re-review
+
+~~~text
+You are the mandatory focused general reviewer for one Telegram Desktop task,
+review round <R> after a blocking fix. You are a leaf and must not delegate.
+
+Read:
+- the task specification, AGENTS.md, and REVIEW.md;
+- <WORK_DIR>/review<R-1>.md and the fix result;
+- the fixed paths, containing functions/types, and affected callers;
+- test-design.md entries the fix reports invalidated;
+- only the specialist reports explicitly rerun for this fix.
+
+Do not restart the complete-diff review. Verify each repaired blocker, inspect
+the fix for regressions in its actual data/control/lifetime boundary, and check
+that no undeclared path changed. For every prior general and specialist approval,
+record `CARRIED` with why the fix did not touch its exact code or invariant, or
+`INVALIDATED` with the concrete changed question. Presence of a broad surface is
+not invalidation.
+
+Rerun a specialist only when it originated a repaired blocker, its exact prior
+question changed, or this fix introduced a new concrete material question that
+focused expertise must answer. If one is needed and has not run, write
+`Missing specialist: <name> — <question>` and return; the performer runs only
+that specialist and calls you back.
+
+Reconcile only evidence checks whose changed surface, oracle, fixture, or
+expected result the fix invalidated. Carry all other checks forward.
+
+Write <WORK_DIR>/review<R>-focused.md and <WORK_DIR>/review<R>.md with:
+
+## Code Review — Focused round <R>
+## Fix boundary
+<touched paths, repaired blockers, affected functions/invariants>
+## Carried approvals
+<general, specialist, validation, and evidence approvals with reason>
+## Invalidated approvals
+<only those actually changed, plus rerun result>
+## Verdict: APPROVED | NEEDS_CHANGES | MISSING_SPECIALIST | CONVERGENCE_REQUIRED
+## Changes Required
+<blocking findings only>
+
+Return `CONVERGENCE_REQUIRED` rather than another ordinary fix when this is the
+second NEEDS_CHANGES verdict, findings did not shrink, the fix expanded owned
+paths/architecture, or the carry-forward boundary is unreliable.
+~~~
+
+### Review convergence assessment
+
+~~~text
+You are an independent review-convergence assessor for one Telegram Desktop
+task. You are a leaf and must not delegate or edit source.
+
+Read the task, context.md, assessed plan.md, every canonical review<R>.md, every
+fix result, current owned paths, the current complete task diff, and the exact
+validation/evidence status. Read source only as needed to decide disposition.
+
+Diagnose why review is not converging: repeated discovery in stable code,
+regressions introduced by fixes, architectural coupling, oversized intrinsic
+scope, or an external unsafe boundary. Preserve findings already resolved and
+do not run another broad review.
+
+Write <WORK_DIR>/review-convergence<C>.md with exactly one verdict:
+
+## Verdict: CONTINUE_FOCUSED | REPLAN_CURRENT | RESCOPE_REQUIRED | HARD_STOP
+
+- CONTINUE_FOCUSED: one bounded list of remaining blockers, one owned write
+  set, the approvals carried forward, and at most one final focused review.
+- REPLAN_CURRENT: why the task remains cohesive, the exact validated source
+  boundary to preserve or restore, and the replacement approach. Do not use
+  this to disguise multiple independent product outcomes as phases.
+- RESCOPE_REQUIRED: why one review/evidence campaign is incoherent and a
+  split-proposal.md containing independently buildable/testable replacement
+  tasks, acceptance oracles, dependencies, and salvageable work.
+- HARD_STOP: the exact unsafe or unavailable condition and required human
+  action.
+
+The verdict cannot approve code. If a permitted final focused round still has
+blocking findings, stop with its unapproved artifacts; do not begin another
+campaign automatically.
 ~~~
 
 ### Review fix
@@ -768,12 +909,18 @@ file named by a blocking finding. Implement only "Changes Required".
 Do not implement Dropped or non-blocking notes. Stay inside owned-paths.txt and
 do not edit AI artifacts.
 
-After editing, run the cheapest pre-review validation affected by the fix. For
-an app-source fix this is normally the configured Debug build; for an isolated
-script, generated artifact, or probe it may be its focused syntax/configure or
-component check. Use build-lock recovery when applicable.
+After editing, run the cheapest validation that can catch breakage in the fixed
+surface: a focused compile/target, syntax/configure check, unit, probe, or
+component command when sufficient. Rerun the complete Telegram Debug build
+immediately only when the fix changes the build graph/ABI or no focused command
+can validate compilation; otherwise the performer runs the complete selected
+pre-review validation once after review approval. Use build-lock recovery when
+applicable.
 
-Report exact touched paths and which review specialists the fix invalidated.
+Report exact touched paths, repaired findings, changed functions/invariants,
+which prior specialist question (if any) the fix invalidated and why, and which
+validation/evidence checks it invalidated. Surface presence alone is not
+invalidation.
 If no blocking finding can be acted on inside the owned write set, change
 nothing and report that boundary.
 ~~~
@@ -831,8 +978,10 @@ for independent confirmation.
 
 ## Evidence-Campaign-Cap Assessment
 
-At MAX_TEST_RUNS with an evidence flaw still open, use a fresh assessor. The cap
-is a convergence checkpoint, never a terminal verdict.
+At MAX_TEST_RUNS with an evidence flaw still open, use a fresh assessor. The
+first campaign cap may start one focused recovery campaign. A focused campaign
+cap or repeated non-converging focused signature is the final automatic
+checkpoint; it cannot start a third campaign.
 
 ~~~text
 Read the task, final diff, plan.md, test-design.md, test.md, every run artifact,
@@ -850,9 +999,10 @@ Write <WORK_DIR>/test-cap-assessment-<C>.md:
 <each instrument or setup already attempted and forbidden, followed by the next
 safe strategy that executes the changed surface>
 
-## Verdict: FOCUSED_RECOVERY | RECOVERY_EXHAUSTED
+## Verdict: FOCUSED_RECOVERY | RECOVERY_EXHAUSTED | HARD_STOP
 
-Choose FOCUSED_RECOVERY whenever a safer or more direct reading, command,
+Choose FOCUSED_RECOVERY only after the normal campaign and whenever a safer or
+more direct reading, command,
 artifact inspection, unit, probe, component, Telegram log/overlay, physical
 interaction or visual capture can still decide an unmet check. The next
 campaign runs only unmet checks and their controls.
@@ -861,6 +1011,12 @@ Choose RECOVERY_EXHAUSTED only when every applicable instrument is unsafe,
 unavailable, or would bypass the task's changed surface. Time spent, a run cap,
 overlay complexity, a blank screenshot, or repeated identical failure is not
 exhaustion.
+
+At the focused campaign boundary, choose HARD_STOP when a plausible safe direct
+strategy remains but automatic recovery did not converge. Name that strategy,
+the exact prior proof retained, and the human/environment decision needed to
+continue. Leave the task in-progress; do not publish approval or Block and do
+not begin another campaign automatically.
 ~~~
 
 

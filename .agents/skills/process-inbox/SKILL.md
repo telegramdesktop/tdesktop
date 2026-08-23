@@ -108,8 +108,26 @@ essential context, and use a standalone task only when no project does.
 Do not create generic holding projects such as `fixes`. A release batch of
 unrelated regressions normally becomes standalone tasks or tasks in existing
 domain projects. Group requests into one task only when they form one cohesive,
-independently testable behavior. Split work until every task is implementable
-in one pass and has an exact observable acceptance result.
+independently testable behavior that can be implemented, reviewed, and tested
+as one normal pass.
+
+Split at product boundaries, not arbitrary file or line-count boundaries. A
+request needs multiple tasks when two or more parts have their own useful
+outcome and acceptance oracle, when a later part can consume an earlier part as
+a stable dependency, or when the parts require materially different context,
+failure analysis, or evidence setup. New network, persistence, concurrency or
+ownership machinery plus application lifecycle/UI integration are especially
+strong split signals when each can be exercised independently. Shared project
+context, overlapping files, or one eventual feature does not by itself justify
+paying one review and test loop over their combined implementation.
+
+Do not over-split inseparable changes: keep a small API and its only caller
+together when neither has a meaningful standalone result, and keep one atomic
+behavior together when separating it would leave an unbuildable or untestable
+intermediate state. For every proposed task, state the one shipped boundary it
+owns and the direct evidence that can approve it without first implementing a
+sibling. If that sentence needs several independent outcomes or several
+unrelated instruments, split again.
 
 Project slugs are unique across `projects/` and `projects/archive/`. When a
 request belongs to an archived project, restore it before routing to it:

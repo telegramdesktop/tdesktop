@@ -119,9 +119,18 @@ produces:
 3. one canonical `Approve <full-task-id>` commit containing all final AI
    artifacts and state.
 
-New and unfinished tasks use the single adaptive `implement` path. During
-assessment, select one mandatory general review, every specialist review whose
-failure surface is present, and a falsifiable evidence plan. The evidence loop
+New and unfinished tasks use the single adaptive `implement` path. Assessment
+must first confirm that the request is one cohesive implementation/review/test
+unit. If it contains independently useful and independently testable product
+boundaries, record `Scope: split-required` and a concrete split proposal before
+source edits, then stop for queue rescoping; do not force the broad request
+through smaller implementation phases and call it one task.
+
+For a cohesive task, select one mandatory general review and a falsifiable
+evidence plan. The first general review uses the complete implementation as the
+safety net and chooses specialist reviews only for concrete material questions
+that benefit from focused tracing or repository search. Surface presence is a
+recall prompt, not an automatic specialist. The evidence loop
 may use static readings, commands and artifacts, unit tests, a standalone probe
 or component binary, a Telegram Debug build with logged assertions, an in-app
 overlay, Computer Use, screenshots, or any necessary combination. Do not
@@ -129,13 +138,22 @@ require a portable account, Telegram executable, or desktop unless a selected
 check uses it. Do not weaken a runtime or visual check merely because another
 instrument is cheaper.
 
-The assessment's selection is provisional until implementation exists. The
-general reviewer examines the complete diff and evidence plan, may require a
-missing specialist or stronger instrument, and cannot defer a concern to an
-optional reviewer. Review fixes receive targeted re-review instead of an
-unconditional replay of every lens. A task whose desired outcome was already
-present may finish without a source commit only after the same general review
-and evidence loop prove `Outcome: already-satisfied`.
+The general reviewer examines the complete diff and evidence plan, may require
+a specialist or stronger instrument, and cannot defer a concern to an optional
+reviewer. Its approval and every clean specialist result carry forward. A fix
+invalidates only the findings, changed invariants, specialists, validations,
+and evidence checks it actually affects. Review fixes receive a focused general
+delta review plus only those invalidated specialists; they do not restart the
+full review or evidence design.
+
+Automatic replay is bounded. If two review verdicts need changes, findings are
+not converging, or a fix expands the architecture or owned paths, run the
+pipeline's independent convergence assessment instead of another broad round.
+It chooses a bounded focused repair, a coherent replan, or `RESCOPE_REQUIRED`;
+unresolved findings are never approved merely to meet the bound. A task whose
+desired outcome was already present may finish without a source commit only
+after the same general review and evidence loop prove
+`Outcome: already-satisfied`.
 
 Only a genuine exhausted task blocker produces a
 canonical `Block <full-task-id>` commit. Agent interruption, tool loss, and
@@ -146,10 +164,11 @@ A repeated evidence setup failure is not exhausted recovery by itself. Follow
 the shared directness ladder: forbid the failed command, fixture, probe, or
 capture technique and make the next run closer to the changed surface. The configured
 test-run cap closes one campaign: preserve prior passes, isolate the unmet
-checks, and start a focused recovery campaign unless a fresh assessment proves
-every direct strategy exhausted. The cap and a `TEST_FLAW` can never by
-themselves publish `BLOCKED`; the former two-identical-signature shortcut must
-not be used.
+checks, and start at most one focused recovery campaign unless a fresh
+assessment proves every direct strategy exhausted. A second campaign cap or a
+repeated non-converging focused signature stops automatic work for an explicit
+human/convergence decision; it does not start another campaign. A cap and a
+`TEST_FLAW` can never by themselves publish `BLOCKED` or approval.
 
 A locked macOS session is not an environment stop or evidence blocker for a
 selected Telegram runtime check. Skip interactive Computer Use and complete

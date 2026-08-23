@@ -26,7 +26,9 @@ assessment, recovery, and reporting.
   already-satisfied outcome;
 - available commands, toolchains, targets, executables and UI-driver
   capabilities;
-- MAX_ATTEMPTS and MAX_TEST_RUNS.
+- MAX_ATTEMPTS, MAX_TEST_RUNS, and MAX_TEST_CAMPAIGNS. The default campaign
+  bound is two total: one normal campaign and at most one focused recovery
+  campaign.
 
 No instrument is globally mandatory. Its prerequisites become mandatory only
 after assessment selects a check that needs it.
@@ -46,8 +48,10 @@ TEST_FLAW:
 
 IMPL_BUG:
   a sound check exposed a defect; fix the implementation, run targeted general
-  and affected-specialist review, retain the next implementation attempt, then
-  rerun only invalidated checks.
+  and invalidated-specialist review while carrying prior approvals forward,
+  retain the next implementation attempt, then rerun only invalidated checks.
+  Use the perform-task convergence gate after two non-converging bug fixes or
+  any architectural/scope expansion.
 
 UNRECOVERABLE:
   a required subject or capability cannot be reached safely after independent
@@ -103,16 +107,20 @@ surface. Record before each recovery:
 - next direct instrument;
 - why it executes the changed surface and preserves an independent oracle.
 
-When the flaw's cause is the instrument idiom rather than this task's fixture,
-repair the harness in the same run, not only the overlay: add the missing
-helper to `Telegram/SourceFiles/test/`, tighten an existing contract so the
-failed technique becomes unreachable, or add the symptom to that directory's
-README failure-diagnosis table. Prefer making the technique impossible over
-documenting that it is forbidden — the repair that retired the unbounded probe
-accessor also exposed a check that had been passing vacuously in two earlier
-runs, which a written rule would not have caught. A diagnosis left in one
-task's notes is rediscovered by the next task at full campaign cost, and this
-is the mechanism that stops it.
+When the flaw's cause is a reusable instrument idiom rather than this task's
+fixture, do not silently expand a product task's retained implementation into
+shared harness work. Recover the current proof with a safe inventoried
+disposable overlay/helper when possible, and record a concrete discovered
+workflow follow-up to add or tighten the shared helper and its self-test. That
+follow-up gets its own implementation, review, evidence, and `[ai]` commit
+intent. If no safe disposable recovery can decide the current task without the
+permanent harness repair, stop at the bounded recovery boundary and name that
+dependency instead of mixing purposes in one task.
+
+For a task whose requested outcome is itself the shared harness repair, retain
+the change directly: prefer making a bad technique impossible over merely
+documenting that it is forbidden, and verify the helper with focused harness
+self-tests rather than an unrelated Telegram feature campaign.
 
 Before writing any local overlay helper, search that directory first. An
 overlay that reimplements a shared facility is itself a TEST_FLAW risk: the
@@ -133,11 +141,20 @@ The directness ladder is task-dependent:
    subject.
 
 After a repeated signature, use a fresh recovery assessment and forbid the
-failed technique. MAX_TEST_RUNS closes one campaign, not the task: preserve
-passes, isolate unmet checks, and either start focused recovery with a different
-instrument or prove every applicable strategy unsafe, unavailable, or
-non-causal in a Recovery exhaustion table. Time spent, the cap, repeated
-failure, probe complexity, and a blank screenshot are not exhaustion.
+failed technique. MAX_TEST_RUNS closes the normal campaign, not the task:
+preserve passes, isolate unmet checks, and either start one focused recovery
+campaign with a different instrument or prove every applicable strategy unsafe,
+unavailable, or non-causal in a Recovery exhaustion table. The focused campaign
+runs only unmet checks and their controls.
+
+Do not start a third campaign. At the focused campaign cap, or after the same
+focused failure signature repeats without a new directness step, run one final
+independent assessment. It either records genuine recovery exhaustion or
+returns a hard stop naming the still-plausible direct strategy and the human or
+environment decision needed to continue. A cap, elapsed time, repeated failure,
+probe complexity, and a blank screenshot are not exhaustion and never become
+approval or a task `Block` by themselves; the hard stop leaves the task
+`in-progress` and recoverable.
 
 ## Assessment
 
