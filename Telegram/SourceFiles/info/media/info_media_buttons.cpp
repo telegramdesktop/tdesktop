@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "base/platform/base_platform_info.h"
 #include "base/qt/qt_key_modifiers.h"
+#include "base/weak_ptr.h"
 #include "core/application.h"
 #include "core/ui_integration.h"
 #include "data/components/recent_shared_media_gifts.h"
@@ -62,17 +63,14 @@ namespace {
 	return !peer->isSelf() && SeparateSupported(type);
 }
 
-[[nodiscard]] Window::SeparateId ButtonSeparateId(
-		not_null<PeerData*> peer,
-		MsgId topicRootId,
-		Data::SavedSublist *sublist,
-		Storage::SharedMediaType type) {
-	if (!sublist) {
-		return SeparateId(peer, topicRootId, type);
-	} else if (!SeparateAllowed(peer, type)) {
-		return { nullptr };
-	}
-	return { sublist, type };
+[[nodiscard]] bool SublistDestroyed(
+		const base::weak_ptr<Data::SavedSublist> &weak) {
+	// A weak_ptr built from nullptr has no alive_tracker, so null() and
+	// empty() are both true. Destroying a real SavedSublist leaves a
+	// tracker whose value is gone: null() is false and get() is nullptr.
+	// Returning on !get() alone would also no-op buttons created with no
+	// sublist. The destroyed-only test is therefore !null() && !get().
+	return !weak.null() && !weak.get();
 }
 
 void AddContextMenuToButton(
@@ -144,6 +142,45 @@ Window::SeparateId SeparateId(
 	return { thread, type };
 }
 
+Window::SeparateId SeparateId(
+		not_null<PeerData*> peer,
+		MsgId topicRootId,
+		Data::SavedSublist *sublist,
+		Type type) {
+	if (sublist) {
+		return SeparateAllowed(peer, type)
+			? Window::SeparateId(sublist, type)
+			: Window::SeparateId(nullptr);
+	}
+	return SeparateId(peer, topicRootId, type);
+}
+
+Fn<void()> SeparateOpenCallback(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<PeerData*> peer,
+		MsgId topicRootId,
+		Data::SavedSublist *sublist,
+		Type type) {
+	if (!SeparateId(peer, topicRootId, sublist, type)) {
+		return nullptr;
+	}
+	const auto weakSublist = base::make_weak(sublist);
+	return [=] {
+		if (SublistDestroyed(weakSublist)) {
+			return;
+		}
+		const auto separateId = SeparateId(
+			peer,
+			topicRootId,
+			weakSublist.get(),
+			type);
+		if (!separateId) {
+			return;
+		}
+		navigation->parentController()->showInNewWindow(separateId);
+	};
+}
+
 not_null<Ui::SlideWrap<Ui::SettingsButton>*> AddCountedButton(
 		Ui::VerticalLayout *parent,
 		rpl::producer<int> &&count,
@@ -194,24 +231,12 @@ not_null<Ui::SettingsButton*> AddButton(
 		MediaText(type),
 		tracker)->entity();
 	const auto weakSublist = base::make_weak(sublist);
-	const auto separateId = ButtonSeparateId(peer, topicRootId, sublist, type);
-	const auto openInWindow = separateId
-		? [=] {
-			const auto sublist = weakSublist.get();
-			if (!weakSublist.null() && !sublist) {
-				return;
-			}
-			const auto separateId = ButtonSeparateId(
-				peer,
-				topicRootId,
-				sublist,
-				type);
-			if (!separateId) {
-				return;
-			}
-			navigation->parentController()->showInNewWindow(separateId);
-		}
-		: Fn<void()>(nullptr);
+	const auto openInWindow = SeparateOpenCallback(
+		navigation,
+		peer,
+		topicRootId,
+		sublist,
+		type);
 	if (openInWindow) {
 		Ui::InstallTooltip(result, [=] {
 			return Platform::IsMac()
@@ -234,11 +259,11 @@ not_null<Ui::SettingsButton*> AddButton(
 		if (topicRootId && !topic) {
 			return;
 		}
-		const auto sublist = weakSublist.get();
-		if (!weakSublist.null() && !sublist) {
+		if (SublistDestroyed(weakSublist)) {
 			return;
 		}
-		const auto separateId = ButtonSeparateId(
+		const auto sublist = weakSublist.get();
+		const auto separateId = SeparateId(
 			peer,
 			topicRootId,
 			sublist,
