@@ -10464,7 +10464,8 @@ bool HistoryWidget::cancelReply(bool lastKeyboardUsed) {
 		updateControlsVisibility();
 		updateControlsGeometry();
 		update();
-	} else if (const auto localDraft
+	}
+	if (const auto localDraft
 			= (_history ? _history->localDraft({}, {}) : nullptr)) {
 		if (localDraft->reply) {
 			if (localDraft->textWithTags.text.isEmpty()) {
