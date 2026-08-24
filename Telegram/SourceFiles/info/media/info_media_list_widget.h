@@ -372,6 +372,7 @@ private:
 	void updateReorder(const QPoint &globalPos);
 	void finishReorder();
 	void cancelReorder();
+	void dropReorderState();
 	void updateShiftAnimations();
 	[[nodiscard]] int itemIndexFromPoint(QPoint point) const;
 	[[nodiscard]] QRect itemGeometryByIndex(int index);

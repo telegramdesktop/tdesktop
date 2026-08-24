@@ -200,7 +200,7 @@ void ListWidget::start() {
 			_overLayout = nullptr;
 		}
 		if (_reorderState.item == layout) {
-			_reorderState = {};
+			dropReorderState();
 		}
 		if (!_shiftAnimations.empty()) {
 			// Shift animation callbacks capture layout pointers, so
@@ -537,7 +537,7 @@ void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
 	}
 
 	if (_reorderState.item && _reorderState.item->getItem() == item) {
-		_reorderState = {};
+		dropReorderState();
 	}
 
 	auto needHeightRefresh = false;
@@ -607,12 +607,12 @@ bool ListWidget::removeItemFromSection(
 	}
 	if (_reorderState.section == &*i) {
 		// The reorder indices into this section just became stale.
-		_reorderState = {};
+		dropReorderState();
 	}
 	if (i->empty()) {
 		if (_reorderState.section) {
 			// Erasing shifts the sections the pointer points into.
-			_reorderState = {};
+			dropReorderState();
 		}
 		_sections.erase(i);
 	}
@@ -2832,6 +2832,18 @@ void ListWidget::cancelReorder() {
 	finishShiftAnimations();
 	_mouseAction = MouseAction::None;
 	update();
+}
+
+void ListWidget::dropReorderState() {
+	// Unlike cancelReorder(), this must not use finishShiftAnimations(),
+	// which starts callbacks capturing layout pointers that may be about
+	// to be destroyed.
+	_reorderState = {};
+	_returnAnimation.stop();
+	if (_mouseAction == MouseAction::PrepareReorder
+		|| _mouseAction == MouseAction::Reordering) {
+		_mouseAction = MouseAction::None;
+	}
 }
 
 void ListWidget::updateShiftAnimations() {
