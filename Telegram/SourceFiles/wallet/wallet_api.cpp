@@ -47,7 +47,7 @@ bool Api::IsTimeoutError(const Gram::ApiError &error) {
 	return (error.message == kTimeoutErrorMessage);
 }
 
-void Api::request(
+mtpRequestId Api::request(
 		const Gram::HttpRequest &request,
 		Fn<void(const QByteArray &)> done,
 		Fn<void(const Gram::ApiError &)> fail) {
@@ -110,6 +110,7 @@ void Api::request(
 		_debugSwallowedId = id;
 	}
 #endif // _DEBUG
+	return id;
 }
 
 mtpRequestId Api::requestStreamingUrl(

@@ -22,7 +22,7 @@ public:
 	explicit Api(not_null<Main::Session*> session);
 	~Api();
 
-	void request(
+	mtpRequestId request(
 		const Gram::HttpRequest &request,
 		Fn<void(const QByteArray &)> done,
 		Fn<void(const Gram::ApiError &)> fail);

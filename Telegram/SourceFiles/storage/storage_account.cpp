@@ -107,7 +107,8 @@ enum { // Local Storage Keys
 	lskBotStorages = 0x1d, // data: PeerId botId
 	lskPrefs = 0x1e, // no data
 	lskWalletKey = 0x1f, // no data
-	lskWalletEngineKey = 0x20, // no data
+	lskWalletEngineKey = 0x20, // no data, legacy single-file storage
+	lskWalletEngineStorages = 0x21, // data: QString key
 };
 
 auto EmptyMessageDraftSources()
@@ -276,7 +277,6 @@ base::flat_set<QString> Account::collectGoodNames() const {
 		_inlineBotsDownloadsKey,
 		_mediaLastPlaybackPositionsKey,
 		_walletKey,
-		_walletEngineKey,
 	};
 	auto result = base::flat_set<QString>{
 		"map0",
@@ -302,6 +302,9 @@ base::flat_set<QString> Account::collectGoodNames() const {
 		push(value);
 	}
 	for (const auto &[key, value] : _botStoragesMap) {
+		push(value);
+	}
+	for (const auto &[key, value] : _walletEngineStoragesMap) {
 		push(value);
 	}
 	for (const auto &value : keys) {
@@ -372,7 +375,8 @@ Account::ReadMapResult Account::readMapWith(
 	quint64 inlineBotsDownloadsKey = 0;
 	quint64 mediaLastPlaybackPositionsKey = 0;
 	quint64 walletKey = 0;
-	quint64 walletEngineKey = 0;
+	quint64 walletEngineLegacyKey = 0;
+	base::flat_map<QString, FileKey> walletEngineStoragesMap;
 	QByteArray webviewStorageTokenBots, webviewStorageTokenOther;
 	while (!map.stream.atEnd()) {
 		quint32 keyType;
@@ -498,7 +502,20 @@ Account::ReadMapResult Account::readMapWith(
 			map.stream >> walletKey;
 		} break;
 		case lskWalletEngineKey: {
-			map.stream >> walletEngineKey;
+			map.stream >> walletEngineLegacyKey;
+		} break;
+		case lskWalletEngineStorages: {
+			quint32 count = 0;
+			map.stream >> count;
+			for (auto i = quint32(0); i != count; ++i) {
+				FileKey key = 0;
+				QString entryKey;
+				map.stream >> key >> entryKey;
+				if (!CheckStreamStatus(map.stream)) {
+					return ReadMapResult::Failed;
+				}
+				walletEngineStoragesMap.emplace(entryKey, key);
+			}
 		} break;
 		case lskWebviewTokens: {
 			map.stream
@@ -560,7 +577,7 @@ Account::ReadMapResult Account::readMapWith(
 	_inlineBotsDownloadsKey = inlineBotsDownloadsKey;
 	_mediaLastPlaybackPositionsKey = mediaLastPlaybackPositionsKey;
 	_walletKey = walletKey;
-	_walletEngineKey = walletEngineKey;
+	_walletEngineStoragesMap = walletEngineStoragesMap;
 	_oldMapVersion = mapData.version;
 	_webviewStorageIdBots.token = webviewStorageTokenBots;
 	_webviewStorageIdOther.token = webviewStorageTokenOther;
@@ -569,6 +586,10 @@ Account::ReadMapResult Account::readMapWith(
 		writeMapDelayed();
 	} else {
 		_mapChanged = false;
+	}
+	if (walletEngineLegacyKey) {
+		ClearKey(walletEngineLegacyKey, _basePath);
+		writeMapDelayed();
 	}
 
 	if (_prefsKey) {
@@ -683,8 +704,13 @@ void Account::writeMap() {
 	if (_inlineBotsDownloadsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_mediaLastPlaybackPositionsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_walletKey) mapSize += sizeof(quint32) + sizeof(quint64);
-	if (_walletEngineKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (!_botStoragesMap.empty()) mapSize += sizeof(quint32) * 2 + _botStoragesMap.size() * sizeof(quint64) * 2;
+	if (!_walletEngineStoragesMap.empty()) {
+		mapSize += sizeof(quint32) * 2;
+		for (const auto &[key, value] : _walletEngineStoragesMap) {
+			mapSize += sizeof(quint64) + Serialize::stringSize(key);
+		}
+	}
 
 	EncryptedDescriptor mapData(mapSize);
 	if (!self.isEmpty()) {
@@ -774,9 +800,13 @@ void Account::writeMap() {
 		mapData.stream << quint32(lskWalletKey);
 		mapData.stream << quint64(_walletKey);
 	}
-	if (_walletEngineKey) {
-		mapData.stream << quint32(lskWalletEngineKey);
-		mapData.stream << quint64(_walletEngineKey);
+	if (!_walletEngineStoragesMap.empty()) {
+		mapData.stream
+			<< quint32(lskWalletEngineStorages)
+			<< quint32(_walletEngineStoragesMap.size());
+		for (const auto &[key, value] : _walletEngineStoragesMap) {
+			mapData.stream << quint64(value) << key;
+		}
 	}
 	if (!_botStoragesMap.empty()) {
 		mapData.stream << quint32(lskBotStorages) << quint32(_botStoragesMap.size());
@@ -819,8 +849,7 @@ void Account::reset() {
 	_inlineBotsDownloadsKey = 0;
 	_mediaLastPlaybackPositionsKey = 0;
 	_walletKey = 0;
-	_walletEngineKey = 0;
-	_walletEngineData = std::nullopt;
+	_walletEngineStoragesMap.clear();
 	_oldMapVersion = 0;
 	_fileLocations.clear();
 	_fileLocationPairs.clear();
@@ -3816,82 +3845,77 @@ bool Account::hasWalletWithUnviewedPhrase() {
 	return wallet && !wallet->phraseViewed;
 }
 
-base::flat_map<QString, QByteArray> &Account::walletEngineData() {
-	if (_walletEngineData) {
-		return *_walletEngineData;
+WalletEngineValue Account::readWalletEngineValue(const QString &key) {
+	const auto i = _walletEngineStoragesMap.find(key);
+	if (i == _walletEngineStoragesMap.cend()) {
+		return { .state = WalletEngineValue::State::Absent };
 	}
-	_walletEngineData.emplace();
-	if (!_walletEngineKey) {
-		return *_walletEngineData;
-	}
-	FileReadDescriptor data;
-	if (!ReadEncryptedFile(data, _walletEngineKey, _basePath, _localKey)) {
-		ClearKey(_walletEngineKey, _basePath);
-		_walletEngineKey = 0;
-		writeMapDelayed();
-		return *_walletEngineData;
+	// A record that exists but cannot be read (or was written by a newer
+	// format) is reported as Broken and kept on disk untouched: the wallet
+	// engine send journal must never see file corruption as "nothing
+	// pending", which would silently abandon an interrupted transfer.
+	FileReadDescriptor file;
+	if (!ReadEncryptedFile(file, i->second, _basePath, _localKey)) {
+		return { .state = WalletEngineValue::State::Broken };
 	}
 	quint32 formatVersion = 0;
-	qint32 count = 0;
-	data.stream >> formatVersion >> count;
-	if (!CheckStreamStatus(data.stream)
+	file.stream >> formatVersion;
+	if (!CheckStreamStatus(file.stream)
 		|| formatVersion > kWalletEngineFormatVersion) {
-		return *_walletEngineData;
+		return { .state = WalletEngineValue::State::Broken };
 	}
-	for (auto i = 0; i != count; ++i) {
-		auto key = QString();
-		auto value = QByteArray();
-		data.stream >> key >> value;
-		if (!CheckStreamStatus(data.stream)) {
-			_walletEngineData->clear();
-			return *_walletEngineData;
-		}
-		_walletEngineData->emplace(key, value);
+	auto bytes = QByteArray();
+	file.stream >> bytes;
+	if (!CheckStreamStatus(file.stream)) {
+		return { .state = WalletEngineValue::State::Broken };
 	}
-	return *_walletEngineData;
+	return { .state = WalletEngineValue::State::Read, .bytes = bytes };
 }
 
-std::optional<QByteArray> Account::walletEngineValue(const QString &key) {
-	const auto &data = walletEngineData();
-	const auto i = data.find(key);
-	return (i != data.end()) ? std::make_optional(i->second) : std::nullopt;
-}
-
-void Account::setWalletEngineValue(
+void Account::writeWalletEngineValue(
 		const QString &key,
-		const std::optional<QByteArray> &value) {
-	auto &data = walletEngineData();
-	if (value) {
-		data[key] = *value;
-	} else if (!data.remove(key)) {
-		return;
+		const QByteArray &bytes) {
+	auto i = _walletEngineStoragesMap.find(key);
+	const auto created = (i == _walletEngineStoragesMap.cend());
+	if (created) {
+		i = _walletEngineStoragesMap.emplace(
+			key,
+			GenerateKey(_basePath)).first;
 	}
-	if (data.empty()) {
-		if (_walletEngineKey) {
-			ClearKey(_walletEngineKey, _basePath);
-			_walletEngineKey = 0;
-			writeMapDelayed();
-		}
-		return;
+	const auto size = quint32(sizeof(quint32))
+		+ quint32(Serialize::bytearraySize(bytes));
+	EncryptedDescriptor data(size);
+	data.stream << quint32(kWalletEngineFormatVersion) << bytes;
+	// The sync write blocks until QSaveFile committed its atomic rename,
+	// which is the durability level the wallet engine journal contract
+	// gets: a completed write survives a crash, though not necessarily an
+	// abrupt power loss (no directory fsync). A brand new file key must
+	// also reach the on-disk map before this returns, because the journal
+	// compare-exchange reports the record durable to its caller.
+	FileWriteDescriptor file(i->second, _basePath, true);
+	file.writeEncrypted(data, _localKey);
+	if (created) {
+		_mapChanged = true;
+		writeMap();
+		Sync();
 	}
-	if (!_walletEngineKey) {
-		_walletEngineKey = GenerateKey(_basePath);
-		writeMapQueued();
+}
+
+bool Account::removeWalletEngineValue(const QString &key) {
+	const auto i = _walletEngineStoragesMap.find(key);
+	if (i == _walletEngineStoragesMap.cend()) {
+		return false;
 	}
-	auto size = quint32(sizeof(quint32) + sizeof(qint32));
-	for (const auto &[entryKey, entryValue] : data) {
-		size += Serialize::stringSize(entryKey)
-			+ Serialize::bytearraySize(entryValue);
-	}
-	EncryptedDescriptor file(size);
-	file.stream
-		<< quint32(kWalletEngineFormatVersion)
-		<< qint32(data.size());
-	for (const auto &[entryKey, entryValue] : data) {
-		file.stream << entryKey << entryValue;
-	}
-	FileWriteDescriptor descriptor(_walletEngineKey, _basePath, true);
-	descriptor.writeEncrypted(file, _localKey);
+	const auto fileKey = i->second;
+	_walletEngineStoragesMap.erase(i);
+	// Drop the key from the on-disk map before deleting the file, so that
+	// a crash between the two leaves an orphaned file, not a key pointing
+	// at nothing that the next read would report as a broken record.
+	_mapChanged = true;
+	writeMap();
+	Sync();
+	ClearKey(fileKey, _basePath);
+	return true;
 }
 
 bool Account::encrypt(

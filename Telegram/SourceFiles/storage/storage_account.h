@@ -73,6 +73,17 @@ struct WalletStored {
 	bool phraseViewed = false;
 };
 
+struct WalletEngineValue {
+	enum class State : uchar {
+		Read,
+		Absent,
+		Broken,
+	};
+
+	State state = State::Absent;
+	QByteArray bytes;
+};
+
 class Account final {
 public:
 	Account(not_null<Main::Account*> owner, const QString &dataName);
@@ -222,13 +233,14 @@ public:
 	[[nodiscard]] std::optional<WalletStored> readWallet();
 	[[nodiscard]] bool hasWalletWithUnviewedPhrase();
 
-	// Small encrypted key-value records owned by the wallet engine bridge
-	// (protected secrets and the send journal). An empty value removes.
-	[[nodiscard]] std::optional<QByteArray> walletEngineValue(
+	// Per-key encrypted records owned by the wallet engine bridge
+	// (protected secrets and the send journal). Broken reports a record
+	// that exists but cannot be read; it is kept on disk, never silently
+	// dropped, so corruption can't masquerade as absence.
+	[[nodiscard]] WalletEngineValue readWalletEngineValue(
 		const QString &key);
-	void setWalletEngineValue(
-		const QString &key,
-		const std::optional<QByteArray> &value);
+	void writeWalletEngineValue(const QString &key, const QByteArray &bytes);
+	bool removeWalletEngineValue(const QString &key);
 
 	[[nodiscard]] bool encrypt(
 		const void *src,
@@ -381,12 +393,8 @@ private:
 	FileKey _roundPlaceholderKey = 0;
 	FileKey _inlineBotsDownloadsKey = 0;
 	FileKey _mediaLastPlaybackPositionsKey = 0;
-	[[nodiscard]] auto walletEngineData()
-		-> base::flat_map<QString, QByteArray> &;
-
 	FileKey _walletKey = 0;
-	FileKey _walletEngineKey = 0;
-	std::optional<base::flat_map<QString, QByteArray>> _walletEngineData;
+	base::flat_map<QString, FileKey> _walletEngineStoragesMap;
 
 	qint64 _cacheTotalSizeLimit = 0;
 	qint64 _cacheBigFileTotalSizeLimit = 0;
