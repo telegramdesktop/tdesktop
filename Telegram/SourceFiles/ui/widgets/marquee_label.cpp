@@ -203,7 +203,7 @@ void MarqueeLabel::handleOutsidePress(QEvent *e) {
 		return;
 	}
 	const auto mouse = static_cast<QMouseEvent*>(e);
-	const auto global = mouse->globalPosition().toPoint();
+	const auto global = mouse->globalPos();
 	if (QRect(mapToGlobal(QPoint(0, 0)), size()).contains(global)) {
 		return;
 	}
@@ -688,7 +688,7 @@ void MarqueeLabel::enterEventHook(QEnterEvent *e) {
 		return;
 	}
 	_inside = true;
-	_lastMousePos = e->globalPosition().toPoint();
+	_lastMousePos = e->globalPos();
 	dragActionUpdate();
 	refreshMarqueeState();
 }
