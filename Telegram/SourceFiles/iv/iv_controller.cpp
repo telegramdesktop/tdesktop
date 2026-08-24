@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt/qt_key_modifiers.h"
 #include "base/event_filter.h"
 #include "base/qt_signal_producer.h"
+#include "core/core_webview_proxy.h"
 #include "core/file_utilities.h"
 #include "lang/lang_keys.h"
 #include "styles/palette.h"
@@ -287,6 +288,7 @@ void Controller::createWebview(const Webview::StorageId &storageId) {
 			.opaqueBg = st::windowBg->c,
 			.storageId = storageId,
 			.safe = true,
+			.proxySettings = Core::CurrentWebviewProxy(),
 		});
 	const auto raw = _webview.get();
 
