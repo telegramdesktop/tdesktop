@@ -363,15 +363,10 @@ void Rows::focusInEvent(QFocusEvent *e) {
 			setSelected(chosen >= 0 ? chosen : 0, Announce::No);
 		}
 	}
+	// The row is picked above, before the base class runs: taking focus raises
+	// a focus event of its own, which the platform hands to focusChild() - the
+	// selected row - so announcing it here as well would read it twice.
 	RpWidget::focusInEvent(e);
-	const auto index = selected();
-	if (index >= 0) {
-		InvokeQueued(this, [=] {
-			if (selected() == index && hasFocus()) {
-				accessibilityChildFocused(index);
-			}
-		});
-	}
 }
 
 void Rows::keyPressEvent(QKeyEvent *e) {
@@ -1173,7 +1168,7 @@ void Rows::accessibilityChildSetFocus(quintptr identity) {
 		// The rows are virtual (no real QWidget), so the screen reader's
 		// SetFocus can't move real keyboard focus to a row. Translate it
 		// into our internal selection, then either announce it directly or
-		// grab keyboard focus (focusInEvent announces the selected row).
+		// grab keyboard focus (taking it announces the row by itself).
 		setSelected(index, hasFocus() ? Announce::Always : Announce::No);
 		_mustScrollTo.fire(rowScrollRequest(index));
 		if (!hasFocus()) {
@@ -1195,9 +1190,9 @@ void Rows::accessibilityChildActivate(quintptr identity) {
 		// state change of the element it considers focused. Take focus onto
 		// the row (as the SetFocus action does) before activating, so the
 		// "checked" announcement is heard from Invoke as well as from Space:
-		// focusInEvent announces the row when focus moves here, OnChange
-		// covers an invoke on a not-focused row of the focused list, and an
-		// invoke on the already-focused row announces the change alone.
+		// taking focus announces the row by itself, OnChange covers an invoke
+		// on a not-focused row of the focused list, and an invoke on the
+		// already-focused row announces the change alone.
 		setSelected(index, hasFocus() ? Announce::OnChange : Announce::No);
 		if (!hasFocus()) {
 			setFocus();
