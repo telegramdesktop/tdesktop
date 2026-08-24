@@ -62,6 +62,7 @@ struct PreviewOverlayState {
 	base::unique_qptr<Ui::AbstractButton> background;
 	base::unique_qptr<Ui::FlatLabel> label;
 	Fn<void()> extraHide;
+	bool hiding = false;
 	rpl::lifetime shutdownGuard;
 
 	void clear() {
@@ -159,6 +160,10 @@ template <typename MediaData>
 	state->mediaPreview->setCustomDuration(st::defaultToggle.duration);
 	state->clickable = base::make_unique_q<Ui::AbstractButton>(mainwidget);
 	const auto hideAll = [=] {
+		if (state->hiding) {
+			return;
+		}
+		state->hiding = true;
 		state->clickable->setAttribute(Qt::WA_TransparentForMouseEvents);
 		state->mediaPreview->hidePreview();
 		if (state->extraHide) {
@@ -203,6 +208,9 @@ Fn<void()> SetupPreviewMenu(
 		state->mediaPreview->setHideEmoji(true);
 		auto menu = object_ptr<Ui::DropdownMenu>(mainwidget, menuSt);
 		menu->setAutoHiding(false);
+		// The hidden callback comes after the menu drops its content.
+		menu->setHideStartCallback(
+			crl::guard(state->clickable.get(), overlay.hideAll));
 		menu->setHiddenCallback(
 			crl::guard(state->clickable.get(), overlay.hideAll));
 		fillMenu(menu.data());
