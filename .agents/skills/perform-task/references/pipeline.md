@@ -486,6 +486,14 @@ Every task runs the same evidence loop. It may combine instruments:
    is the subject, and add tight screenshots plus numeric geometry or raster
    oracles only for visible claims.
 
+Instruments observe through the overlay, the `test/` helpers, existing logs,
+or an existing debug seam. Adding new `#ifdef _DEBUG` machinery, debug-only
+types, or observation state to production translation units is a review
+defect, not evidence (see "Debug-Only Code" in `AGENTS.md`): when
+observability is missing, extend the `test/` helpers or the overlay, and
+treat any proposed new production debug hook as an exception that needs a
+solid, stated reason.
+
 Choose the most direct practical instrument that can detect the negative. The
 cheapest sufficient instrument is preferred; a cheaper instrument that bypasses
 the changed integration is not sufficient. Checks may use different
