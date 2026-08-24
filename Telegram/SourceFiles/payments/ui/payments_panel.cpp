@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/radial_animation.h"
 #include "ui/click_handler.h"
 #include "lang/lang_keys.h"
+#include "core/core_webview_proxy.h"
 #include "webview/webview_embed.h"
 #include "webview/webview_interface.h"
 #include "styles/style_payments.h"
@@ -552,6 +553,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 		Webview::WindowConfig{
 			.opaqueBg = params.bodyBg,
 			.storageId = _delegate->panelWebviewStorageId(),
+			.proxySettings = Core::CurrentWebviewProxy(),
 		});
 
 	const auto raw = &_webview->window;

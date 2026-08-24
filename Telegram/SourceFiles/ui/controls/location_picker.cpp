@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/platform/base_platform_info.h"
 #include "boxes/peer_list_box.h"
+#include "core/core_webview_proxy.h"
 #include "core/current_geo_location.h"
 #include "core/file_utilities.h"
 #include "data/data_document.h"
@@ -894,6 +895,7 @@ void LocationPicker::setupWebview() {
 			.opaqueBg = st::windowBg->c,
 			.storageId = _webviewStorageId,
 			.safe = true,
+			.proxySettings = Core::CurrentWebviewProxy(),
 		});
 	const auto raw = _webview.get();
 	if (!raw->widget()) {

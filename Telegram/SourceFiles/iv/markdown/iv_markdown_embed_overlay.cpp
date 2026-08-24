@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/padding_wrap.h"
+#include "core/core_webview_proxy.h"
 #include "webview/webview_data_stream_memory.h"
 #include "webview/webview_embed.h"
 #include "webview/webview_interface.h"
@@ -499,6 +500,7 @@ Webview::WindowConfig EmbedOverlay::makeWindowConfig() const {
 		.initialSize = UsesExternalWindow(_mode)
 			? externalInitialSize()
 			: QSize(),
+		.proxySettings = Core::CurrentWebviewProxy(),
 	};
 }
 

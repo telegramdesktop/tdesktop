@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
+#include "core/core_webview_proxy.h"
 #include "core/file_utilities.h"
 #include "webview/webview_embed.h"
 #include "webview/webview_dialog.h"
@@ -2132,6 +2133,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			.shellMessageToken = _externalShell
 				? _externalShellToken
 				: QString(),
+			.proxySettings = Core::CurrentWebviewProxy(),
 		});
 	const auto raw = &_webview->window;
 
