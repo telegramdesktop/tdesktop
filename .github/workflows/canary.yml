@@ -662,7 +662,7 @@ jobs:
         with:
           name: canary-win64
           path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}\out\Release\artifact\update\
-          retention-days: ${{ needs.version.outputs.channel == 'public' && 90 || 1 }}
+          retention-days: 7
 
       # The portable is its own artifact so its link can be handed to a
       # user in an issue; on the private lane it is transport to the
@@ -672,7 +672,7 @@ jobs:
         with:
           name: canary-win64-portable
           path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}\out\Release\artifact\portable\
-          retention-days: ${{ needs.version.outputs.channel == 'public' && 90 || 1 }}
+          retention-days: 7
 
   # Two single-arch builds, lipo'd back together by the 'macos' job
   # below: half the wall clock and half the peak linker memory of one
@@ -1065,14 +1065,14 @@ jobs:
         with:
           name: canary-mac
           path: ${{ env.REPO_NAME }}/out/Release/artifact/update/
-          retention-days: ${{ needs.version.outputs.channel == 'public' && 90 || 1 }}
+          retention-days: 7
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         name: Upload the portable.
         with:
           name: canary-mac-portable
           path: ${{ env.REPO_NAME }}/out/Release/artifact/portable/
-          retention-days: ${{ needs.version.outputs.channel == 'public' && 90 || 1 }}
+          retention-days: 7
 
   linux:
     name: Linux x64 (${{ needs.version.outputs.channel }})
@@ -1324,14 +1324,14 @@ jobs:
         with:
           name: canary-linux
           path: out/Release/artifact/update/
-          retention-days: ${{ needs.version.outputs.channel == 'public' && 90 || 1 }}
+          retention-days: 7
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         name: Upload the portable.
         with:
           name: canary-linux-portable
           path: out/Release/artifact/portable/
-          retention-days: ${{ needs.version.outputs.channel == 'public' && 90 || 1 }}
+          retention-days: 7
 
   publish-win64:
     name: Publish win64 (${{ needs.version.outputs.channel }})
