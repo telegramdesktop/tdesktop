@@ -528,22 +528,15 @@ void ListWidget::restart() {
 }
 
 void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
-	if (!_provider->isMyItem(item)) {
-		return;
-	}
-
+	// The provider may handle this removal first and stop counting the
+	// item as its own (downloads), so the item pointers must be dropped
+	// before the membership check, only the sections work depends on it.
 	if (_contextItem == item) {
 		_contextItem = nullptr;
 	}
 
 	if (_reorderState.item && _reorderState.item->getItem() == item) {
 		dropReorderState();
-	}
-
-	auto needHeightRefresh = false;
-	const auto sectionIt = findSectionByItem(item);
-	if (sectionIt != _sections.end()) {
-		needHeightRefresh = removeItemFromSection(item, sectionIt);
 	}
 
 	if (isItemLayout(item, _overLayout)) {
@@ -563,7 +556,13 @@ void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
 		removeItemSelection(i);
 	}
 
-	if (needHeightRefresh) {
+	if (!_provider->isMyItem(item)) {
+		return;
+	}
+
+	const auto sectionIt = findSectionByItem(item);
+	if (sectionIt != _sections.end()
+		&& removeItemFromSection(item, sectionIt)) {
 		refreshHeightAfterRemoval();
 	}
 	mouseActionUpdate(_mousePosition);
