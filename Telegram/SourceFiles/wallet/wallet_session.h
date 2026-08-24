@@ -12,8 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "gram/api/gram_api_account.h"
 #include "gram/api/gram_api_history.h"
 #include "gram/api/gram_api_nft.h"
-#include "gram/crypto/gram_ed25519.h"
-#include "gram/crypto/gram_mnemonic.h"
 #include "gram/ton/gram_address.h"
 #include "gram/wallet/gram_wallet_v5.h"
 #include "wallet/wallet_api.h"
@@ -21,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_stream.h"
 
 namespace wallet_engine {
+struct WalletDescriptor;
 struct WalletUpdate;
 } // namespace wallet_engine
 
@@ -42,6 +41,12 @@ enum class KeyState {
 	None,
 	Created,
 	Imported,
+};
+
+enum class LifecycleError {
+	None,
+	InvalidPhrase,
+	Failed,
 };
 
 enum class SendState {
@@ -79,9 +84,12 @@ public:
 	[[nodiscard]] std::optional<Gram::Address> address();
 	[[nodiscard]] QString addressFriendly(bool bounceable = false);
 
-	bool create();
-	bool import(std::vector<QString> words);
-	void remove();
+	void create(Fn<void(LifecycleError)> done);
+	void import(std::vector<QString> words, Fn<void(LifecycleError)> done);
+	void remove(Fn<void(LifecycleError)> done);
+	void revealPhrase(
+		Fn<void(std::vector<QString>)> done,
+		Fn<void(LifecycleError)> fail);
 	[[nodiscard]] bool provenEmpty() const;
 
 	[[nodiscard]] bool phraseUnviewed();
@@ -156,10 +164,8 @@ public:
 
 private:
 	void ensureLoaded();
-	bool applyKey(
-		std::vector<QString> words,
-		Gram::MnemonicType type,
-		quint32 walletId,
+	bool applyDescriptor(
+		wallet_engine::WalletDescriptor descriptor,
 		KeyState state);
 	void clearNetworkState();
 	void pollTick();
@@ -180,10 +186,6 @@ private:
 	void checkPendingBySeqno(const Gram::AccountState &state);
 	void finishPending();
 	[[nodiscard]] bool pendingExpired() const;
-	void sendWithState(
-		SendArgs args,
-		const Gram::AccountState &state,
-		Fn<void(QString)> done);
 	[[nodiscard]] Gram::TransferRequest buildTransferRequest(
 		const SendArgs &args,
 		quint32 seqno) const;
@@ -200,9 +202,8 @@ private:
 	bool _loaded = false;
 	rpl::variable<KeyState> _keyState = KeyState::None;
 	rpl::variable<bool> _phraseUnviewed = false;
-	std::optional<Gram::KeyPair> _keyPair;
+	std::unique_ptr<wallet_engine::WalletDescriptor> _descriptor;
 	Gram::Address _address;
-	quint32 _walletId = Gram::kDefaultWalletId;
 
 	rpl::variable<int64> _balanceNano = 0;
 	rpl::variable<bool> _stateKnown = false;
@@ -240,6 +241,7 @@ private:
 	QString _engineClientAddress;
 	bool _engineStopping = false;
 	bool _engineRefreshPending = false;
+	bool _lifecyclePending = false;
 	std::vector<Fn<void(const Gram::AccountState &)>> _stateDone;
 	std::vector<Fn<void(const Gram::ApiError &)>> _stateFail;
 	std::vector<Fn<void()>> _historyDone;

@@ -8,11 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_session.h"
 
 #include "base/unixtime.h"
-#include "gram/api/gram_api_send.h"
-#include "gram/crypto/gram_mnemonic.h"
-#include "gram/ton/gram_boc.h"
 #include "gram/ton/gram_message.h"
 #include "gram/wallet/gram_wallet_v5.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "storage/storage_account.h"
 #include "ui/widgets/separate_panel.h"
@@ -21,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_rates.h"
 
 #include "wallet_engine.hpp"
+
+#include <QtCore/QUuid>
 
 namespace Wallet {
 namespace {
@@ -51,6 +51,80 @@ constexpr auto kEngineRequestTimeoutMs = uint64(15000);
 		}
 	}
 	return true;
+}
+
+[[nodiscard]] std::string NewRecordId() {
+	return QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString();
+}
+
+[[nodiscard]] QByteArray PublicKeyBytes(
+		const engine::WalletDescriptor &descriptor) {
+	const auto &key = descriptor.public_key;
+	return QByteArray(
+		reinterpret_cast<const char*>(key.data()),
+		key.size());
+}
+
+[[nodiscard]] Storage::WalletStored StoredFromDescriptor(
+		const engine::WalletDescriptor &descriptor,
+		bool phraseViewed) {
+	return Storage::WalletStored{
+		.recordId = QString::fromStdString(descriptor.record_id),
+		.address = QString::fromStdString(descriptor.address),
+		.publicKey = PublicKeyBytes(descriptor),
+		.network = qint32(descriptor.network),
+		.secretRef = QString::fromStdString(descriptor.secret_ref.value),
+		.phraseViewed = phraseViewed,
+	};
+}
+
+[[nodiscard]] engine::WalletDescriptor DescriptorFromStored(
+		const Storage::WalletStored &stored) {
+	const auto &key = stored.publicKey;
+	return engine::WalletDescriptor{
+		.record_id = stored.recordId.toStdString(),
+		.address = stored.address.toStdString(),
+		.public_key = std::vector<uint8_t>(
+			key.constData(),
+			key.constData() + key.size()),
+		.network = engine::Network(stored.network),
+		.secret_ref = engine::ProtectedSecretRef{
+			.value = stored.secretRef.toStdString(),
+		},
+	};
+}
+
+[[nodiscard]] LifecycleError LifecycleErrorFrom(const EngineError &error) {
+	if (!error.underlying) {
+		return LifecycleError::Failed;
+	}
+	try {
+		std::rethrow_exception(error.underlying);
+	} catch (const engine::wallet_lifecycle_error::InvalidRecoveryPhrase &) {
+		return LifecycleError::InvalidPhrase;
+	} catch (...) {
+	}
+	return LifecycleError::Failed;
+}
+
+[[nodiscard]] bool SecretAlreadyGone(const EngineError &error) {
+	if (!error.underlying) {
+		return false;
+	}
+	try {
+		std::rethrow_exception(error.underlying);
+	} catch (const engine::wallet_lifecycle_error::ProtectedSecretHost &e) {
+		return e.kind == engine::ProtectedSecretHostErrorKind::kNotFound;
+	} catch (...) {
+	}
+	return false;
+}
+
+[[nodiscard]] std::vector<QString> SplitPhrase(const std::string &phrase) {
+	const auto words = QString::fromStdString(phrase).split(
+		QChar(' '),
+		Qt::SkipEmptyParts);
+	return std::vector<QString>(words.begin(), words.end());
 }
 
 } // namespace
@@ -94,30 +168,28 @@ void Session::ensureLoaded() {
 	}
 	_loaded = true;
 	const auto stored = _session->local().readWallet();
-	if (!stored || stored->words.empty()) {
+	if (!stored) {
 		return;
 	}
-	if (applyKey(
-			stored->words,
-			stored->mnemonicType,
-			stored->walletId,
+	if (applyDescriptor(
+			DescriptorFromStored(*stored),
 			stored->phraseViewed ? KeyState::Imported : KeyState::Created)) {
 		_phraseUnviewed = !stored->phraseViewed;
 	}
 }
 
-bool Session::applyKey(
-		std::vector<QString> words,
-		Gram::MnemonicType type,
-		quint32 walletId,
+bool Session::applyDescriptor(
+		engine::WalletDescriptor descriptor,
 		KeyState state) {
-	auto key = Gram::MnemonicToKeyPair(words, type);
-	if (!key) {
+	const auto parsed = Gram::ParseAddress(
+		QString::fromStdString(descriptor.address));
+	if (!parsed) {
+		LOG(("Wallet Error: engine descriptor address is not parseable."));
 		return false;
 	}
-	_keyPair = std::move(key);
-	_walletId = walletId;
-	_address = Gram::WalletV5Address(_keyPair->publicKey, walletId);
+	_descriptor = std::make_unique<engine::WalletDescriptor>(
+		std::move(descriptor));
+	_address = parsed->address;
 	_keyState = state;
 	updateEngineClient();
 	return true;
@@ -149,70 +221,152 @@ QString Session::addressFriendly(bool bounceable) {
 	return Gram::FormatFriendly(_address, bounceable);
 }
 
-bool Session::create() {
+void Session::create(Fn<void(LifecycleError)> done) {
 	ensureLoaded();
-	if (_keyState.current() != KeyState::None) {
-		return false;
+	if (_keyState.current() != KeyState::None || _lifecyclePending) {
+		if (done) {
+			done(LifecycleError::Failed);
+		}
+		return;
 	}
-	auto words = Gram::GenerateMnemonic();
-	const auto applied = applyKey(
-		words,
-		Gram::MnemonicType::Ton,
-		Gram::kDefaultWalletId,
-		KeyState::Created);
-	if (applied) {
-		_session->local().writeWallet(Storage::WalletStored{
-			.words = std::move(words),
-			.mnemonicType = Gram::MnemonicType::Ton,
-			.contractVersion = 1,
-			.walletId = Gram::kDefaultWalletId,
-			.networkId = -239,
-			.phraseViewed = false,
+	_lifecyclePending = true;
+	const auto lifecycle = _engine->lifecycle();
+	const auto recordId = NewRecordId();
+	_engine->run([lifecycle, recordId] {
+		return lifecycle->create_wallet(engine::CreateWalletRequest{
+			.record_id = recordId,
+			.network = engine::Network::kMainnet,
 		});
+	}, [=, this](engine::CreatedWallet created) {
+		_lifecyclePending = false;
+		const auto applied = applyDescriptor(
+			std::move(created.descriptor),
+			KeyState::Created);
+		if (!applied) {
+			if (done) {
+				done(LifecycleError::Failed);
+			}
+			return;
+		}
+		_session->local().writeWallet(
+			StoredFromDescriptor(*_descriptor, false));
 		_phraseUnviewed = true;
-	}
-	return applied;
+		pollTick();
+		if (done) {
+			done(LifecycleError::None);
+		}
+	}, [=, this](EngineError error) {
+		_lifecyclePending = false;
+		LOG(("Wallet Error: engine create_wallet failed: %1"
+			).arg(error.message));
+		if (done) {
+			done(LifecycleErrorFrom(error));
+		}
+	});
 }
 
-bool Session::import(std::vector<QString> words) {
+void Session::import(
+		std::vector<QString> words,
+		Fn<void(LifecycleError)> done) {
 	ensureLoaded();
-	if (_keyState.current() != KeyState::None || words.empty()) {
-		return false;
+	if (_keyState.current() != KeyState::None
+		|| _lifecyclePending
+		|| words.empty()) {
+		if (done) {
+			done(LifecycleError::Failed);
+		}
+		return;
 	}
-	for (auto &word : words) {
-		word = word.trimmed().toLower();
+	auto recovery = std::vector<std::string>();
+	recovery.reserve(words.size());
+	for (const auto &word : words) {
+		recovery.push_back(word.trimmed().toLower().toStdString());
 	}
-	const auto type = Gram::DetectMnemonicType(words);
-	if (!type) {
-		return false;
-	}
-	const auto applied = applyKey(
-		words,
-		*type,
-		Gram::kDefaultWalletId,
-		KeyState::Imported);
-	if (applied) {
-		_session->local().writeWallet(Storage::WalletStored{
-			.words = std::move(words),
-			.mnemonicType = *type,
-			.contractVersion = 1,
-			.walletId = Gram::kDefaultWalletId,
-			.networkId = -239,
-			.phraseViewed = true,
+	_lifecyclePending = true;
+	const auto lifecycle = _engine->lifecycle();
+	const auto recordId = NewRecordId();
+	_engine->run([lifecycle, recordId, recovery = std::move(recovery)] {
+		return lifecycle->import_wallet(engine::ImportWalletRequest{
+			.record_id = recordId,
+			.network = engine::Network::kMainnet,
+			.recovery_words = recovery,
 		});
+	}, [=, this](engine::WalletDescriptor descriptor) {
+		_lifecyclePending = false;
+		const auto applied = applyDescriptor(
+			std::move(descriptor),
+			KeyState::Imported);
+		if (!applied) {
+			if (done) {
+				done(LifecycleError::Failed);
+			}
+			return;
+		}
+		_session->local().writeWallet(
+			StoredFromDescriptor(*_descriptor, true));
 		_phraseUnviewed = false;
-	}
-	return applied;
+		pollTick();
+		if (done) {
+			done(LifecycleError::None);
+		}
+	}, [=, this](EngineError error) {
+		_lifecyclePending = false;
+		LOG(("Wallet Error: engine import_wallet failed: %1"
+			).arg(error.message));
+		if (done) {
+			done(LifecycleErrorFrom(error));
+		}
+	});
 }
 
-void Session::remove() {
-	_session->local().writeWallet(Storage::WalletStored());
-	_keyPair.reset();
-	_address = Gram::Address();
-	_walletId = Gram::kDefaultWalletId;
-	_keyState = KeyState::None;
-	_phraseUnviewed = false;
-	clearNetworkState();
+void Session::remove(Fn<void(LifecycleError)> done) {
+	ensureLoaded();
+	if (!_descriptor) {
+		_session->local().writeWallet(Storage::WalletStored());
+		_keyState = KeyState::None;
+		_phraseUnviewed = false;
+		clearNetworkState();
+		if (done) {
+			done(LifecycleError::None);
+		}
+		return;
+	} else if (_lifecyclePending) {
+		if (done) {
+			done(LifecycleError::Failed);
+		}
+		return;
+	}
+	_lifecyclePending = true;
+	const auto lifecycle = _engine->lifecycle();
+	const auto descriptor = *_descriptor;
+	const auto cleared = [=, this] {
+		_lifecyclePending = false;
+		_session->local().writeWallet(Storage::WalletStored());
+		_descriptor = nullptr;
+		_address = Gram::Address();
+		_keyState = KeyState::None;
+		_phraseUnviewed = false;
+		clearNetworkState();
+		if (done) {
+			done(LifecycleError::None);
+		}
+	};
+	_engine->run([lifecycle, descriptor] {
+		lifecycle->delete_wallet(descriptor);
+	}, cleared, [=, this](EngineError error) {
+		if (SecretAlreadyGone(error)) {
+			LOG(("Wallet Warning: engine secret already gone, "
+				"dropping the wallet record."));
+			cleared();
+			return;
+		}
+		_lifecyclePending = false;
+		LOG(("Wallet Error: engine delete_wallet failed: %1"
+			).arg(error.message));
+		if (done) {
+			done(LifecycleErrorFrom(error));
+		}
+	});
 }
 
 bool Session::provenEmpty() const {
@@ -250,6 +404,33 @@ void Session::markPhraseViewed() {
 		_session->local().writeWallet(*stored);
 	}
 	_phraseUnviewed = false;
+}
+
+void Session::revealPhrase(
+		Fn<void(std::vector<QString>)> done,
+		Fn<void(LifecycleError)> fail) {
+	ensureLoaded();
+	if (!_descriptor) {
+		if (fail) {
+			fail(LifecycleError::Failed);
+		}
+		return;
+	}
+	const auto lifecycle = _engine->lifecycle();
+	const auto descriptor = *_descriptor;
+	_engine->run([lifecycle, descriptor] {
+		return lifecycle->reveal_recovery_phrase(descriptor);
+	}, [=](engine::RecoveryPhrase phrase) {
+		if (done) {
+			done(SplitPhrase(phrase.phrase));
+		}
+	}, [=](EngineError error) {
+		LOG(("Wallet Error: engine reveal_recovery_phrase failed: %1"
+			).arg(error.message));
+		if (fail) {
+			fail(LifecycleErrorFrom(error));
+		}
+	});
 }
 
 void Session::clearNetworkState() {
@@ -290,8 +471,8 @@ void Session::clearNetworkState() {
 }
 
 void Session::updateEngineClient() {
-	const auto wanted = (_keyState.current() != KeyState::None)
-		? addressFriendly(false)
+	const auto wanted = _descriptor
+		? QString::fromStdString(_descriptor->address)
 		: QString();
 	if (_engineStopping) {
 		return;
@@ -314,16 +495,12 @@ void Session::updateEngineClient() {
 	if (wanted.isEmpty()) {
 		return;
 	}
-	const auto address = wanted.toStdString();
-	const auto &key = _keyPair->publicKey;
 	const auto config = engine::WalletClientConfig{
-		.record_id = "watch-" + address,
-		.address = address,
-		.public_key = std::vector<uint8_t>(
-			key.constData(),
-			key.constData() + key.size()),
-		.local_secret_ref = std::nullopt,
-		.network = engine::Network::kMainnet,
+		.record_id = _descriptor->record_id,
+		.address = _descriptor->address,
+		.public_key = _descriptor->public_key,
+		.local_secret_ref = _descriptor->secret_ref,
+		.network = _descriptor->network,
 		.send_validity_seconds = 300,
 		.resolution_margin_seconds = 60,
 		.providers = engine::ProviderConfig{
@@ -989,7 +1166,7 @@ void Session::estimateFee(const SendArgs &args, Fn<void(FeeResult)> done) {
 	const auto knownSeqno = Gram::SeqnoFromStateData(
 		_lastState.dataBoc).value_or(0);
 	auto request = FeeRequest{
-		.publicKey = _keyPair->publicKey,
+		.publicKey = PublicKeyBytes(*_descriptor),
 		.transfer = buildTransferRequest(args, knownSeqno),
 		.attachStateInit = (_lastState.status != Gram::AccountStatus::Active),
 	};
@@ -1010,127 +1187,11 @@ void Session::send(SendArgs args, Fn<void(QString)> done) {
 		}
 		return;
 	}
-	if (_sendState.current() == SendState::Sending) {
-		if (done) {
-			done(u"Send already in progress."_q);
-		}
-		return;
+	LOG(("Wallet Error: legacy send refused, "
+		"no signing key until the engine send lands."));
+	if (done) {
+		done(tr::lng_wallet_send_unavailable(tr::now));
 	}
-	if (_pending) {
-		if (!pendingExpired()) {
-			if (done) {
-				done(u"Previous transfer is still pending until %1."_q.arg(
-					_pending->validUntil + kSendRetryClockMargin));
-			}
-			return;
-		}
-		LOG(("Wallet: pending transfer expired, allowing fresh send."));
-		_pending.reset();
-		updatePollingState();
-	}
-	_sendState = SendState::Sending;
-	refreshState([=](const Gram::AccountState &state) {
-		sendWithState(args, state, done);
-	}, [=](const Gram::ApiError &error) {
-		_sendState = SendState::Idle;
-		if (done) {
-			done(u"Failed to read wallet state: %1"_q.arg(error.message));
-		}
-	});
-}
-
-void Session::sendWithState(
-		SendArgs args,
-		const Gram::AccountState &state,
-		Fn<void(QString)> done) {
-	const auto abort = [&](const QString &error) {
-		_sendState = SendState::Idle;
-		if (done) {
-			done(error);
-		}
-	};
-	auto usedSeqno = quint32(0);
-	if (state.status == Gram::AccountStatus::Active) {
-		const auto seqno = Gram::SeqnoFromStateData(state.dataBoc);
-		if (!seqno) {
-			LOG(("Wallet Error: Seqno unavailable for active wallet, "
-				"send aborted."));
-			abort(u"Wallet state has no seqno, send aborted."_q);
-			return;
-		}
-		usedSeqno = *seqno;
-	} else if (state.status == Gram::AccountStatus::Frozen) {
-		abort(u"Wallet is frozen."_q);
-		return;
-	}
-	if (args.simulateStaleSeqno && usedSeqno > 0) {
-		usedSeqno = usedSeqno - 1;
-	}
-	const auto request = buildTransferRequest(args, usedSeqno);
-	const auto attachStateInit
-		= (state.status != Gram::AccountStatus::Active);
-	const auto boc = Gram::BuildSignedTransfer(
-		*_keyPair,
-		request,
-		attachStateInit);
-	const auto root = Gram::DeserializeBoc(boc);
-	if (!root) {
-		LOG(("Wallet Error: Failed to deserialize signed transfer."));
-		abort(u"Internal error building transfer."_q);
-		return;
-	}
-	const auto hashNorm = Gram::NormalizedExternalHash(*root);
-	_pending = PendingSend{
-		.messageHashNorm = hashNorm,
-		.signedSeqno = usedSeqno,
-		.validUntil = request.validUntil,
-		.posted = base::unixtime::now(),
-		.amountNano = args.amountNano,
-		.destination = args.destination,
-		.comment = args.comment,
-	};
-	const auto validUntil = request.validUntil;
-	const auto keepPending = [=](const QString &reason) {
-		if (_pending) {
-			_sendState = SendState::Pending;
-			updatePollingState();
-			LOG(("Wallet: %1, seqno %2, validUntil %3."
-				).arg(reason).arg(usedSeqno).arg(validUntil));
-		}
-		if (done) {
-			done(QString());
-		}
-	};
-	const auto generation = _networkGeneration;
-	_api.request(
-		Gram::SendMessageRequest(boc.toBase64()),
-		[=](const QByteArray &json) {
-			if (generation != _networkGeneration) {
-				return;
-			}
-			if (const auto sent = Gram::ParseSendResult(json)) {
-				if (_pending && !sent->messageHashNorm.isEmpty()) {
-					_pending->messageHashNorm = sent->messageHashNorm;
-				}
-			}
-			keepPending(u"transfer posted"_q);
-		},
-		[=](const Gram::ApiError &error) {
-			if (generation != _networkGeneration) {
-				return;
-			}
-			if (Api::IsTimeoutError(error)) {
-				keepPending(u"transfer answer timed out, still pending"_q);
-				return;
-			}
-			_pending.reset();
-			_sendState = SendState::Failed;
-			updatePollingState();
-			LOG(("Wallet Error: sendMessage failed: %1").arg(error.message));
-			if (done) {
-				done(u"Send failed: %1"_q.arg(error.message));
-			}
-		});
 }
 
 void Session::checkPendingByMessage() {
@@ -1204,7 +1265,7 @@ Gram::TransferRequest Session::buildTransferRequest(
 	return Gram::TransferRequest{
 		.messages = { std::move(message) },
 		.seqno = seqno,
-		.walletId = _walletId,
+		.walletId = Gram::kDefaultWalletId,
 		.validUntil = base::unixtime::now() + kSendValidUntilOffset,
 	};
 }

@@ -3500,18 +3500,14 @@ void AddPhraseBoxHeader(
 
 void WalletPhraseBox(
 		not_null<Ui::GenericBox*> box,
-		std::shared_ptr<Main::SessionShow> show) {
-	const auto stored = show->session().local().readWallet();
-	if (!stored || stored->words.empty()) {
-		box->closeBox();
-		return;
-	}
+		std::shared_ptr<Main::SessionShow> show,
+		std::vector<QString> words) {
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
 	show->session().wallet().markPhraseViewed();
 
-	const auto count = int(stored->words.size());
+	const auto count = int(words.size());
 	AddPhraseBoxHeader(
 		box,
 		tr::lng_wallet_phrase_title(),
@@ -3535,7 +3531,7 @@ void WalletPhraseBox(
 			st::walletPhraseNumberLabel));
 		wordLabels.push_back(Ui::CreateChild<Ui::FlatLabel>(
 			grid,
-			stored->words[i],
+			words[i],
 			st::walletPhraseWordLabel));
 	}
 	const auto rowHeight = wordLabels.front()->height();
@@ -3617,13 +3613,20 @@ void WalletPhraseWarningBox(
 	Ui::AddSkip(container);
 
 	AddBoxCloseButton(box);
+	const auto revealing = box->lifetime().make_state<bool>(false);
 	box->addButton(tr::lng_wallet_keys_show_phrase(), [=] {
-		const auto stored = show->session().local().readWallet();
-		if (!stored || stored->words.empty()) {
+		if (*revealing) {
 			return;
 		}
-		box->closeBox();
-		show->showBox(Box(WalletPhraseBox, show));
+		*revealing = true;
+		show->session().wallet().revealPhrase(crl::guard(box, [=](
+				std::vector<QString> words) {
+			box->closeBox();
+			show->showBox(Box(WalletPhraseBox, show, std::move(words)));
+		}), crl::guard(box, [=](LifecycleError) {
+			*revealing = false;
+			show->showToast(tr::lng_wallet_phrase_error(tr::now));
+		}));
 	});
 }
 
@@ -4019,11 +4022,12 @@ void WalletImportBox(
 			last->setCursorPosition(last->getLastText().size());
 		});
 	};
+	const auto wallet = &show->session().wallet();
+	const auto weak = base::make_weak(box.get());
 	const auto submit = [=] {
 		if (state->importing || !formValid()) {
 			return;
 		}
-		auto &wallet = show->session().wallet();
 		const auto count = state->count.current();
 		auto words = std::vector<QString>();
 		words.reserve(count);
@@ -4031,17 +4035,28 @@ void WalletImportBox(
 			words.push_back(wordAt(i));
 		}
 		state->importing = true;
-		if (!wallet.import(std::move(words))) {
-			state->importing = false;
-			state->error = tr::lng_wallet_import_error(tr::now);
-			return;
-		}
-		wallet.startPolling();
-		show->hideLayer();
-		show->showToast({
-			.title = tr::lng_wallet_imported_title(tr::now),
-			.text = { tr::lng_wallet_imported_text(tr::now) },
-			.icon = &st::toastCheckIcon,
+		wallet->import(std::move(words), [=](LifecycleError error) {
+			if (!show->valid()) {
+				return;
+			} else if (weak.get()) {
+				state->importing = false;
+				if (error == LifecycleError::InvalidPhrase) {
+					state->error = tr::lng_wallet_import_error(tr::now);
+					return;
+				} else if (error != LifecycleError::None) {
+					state->error = tr::lng_wallet_import_failed(tr::now);
+					return;
+				}
+			} else if (error != LifecycleError::None) {
+				return;
+			}
+			wallet->startPolling();
+			show->hideLayer();
+			show->showToast({
+				.title = tr::lng_wallet_imported_title(tr::now),
+				.text = { tr::lng_wallet_imported_text(tr::now) },
+				.icon = &st::toastCheckIcon,
+			});
 		});
 	};
 	const auto button = box->addButton(
@@ -4382,21 +4397,31 @@ void WalletReplaceBox(
 		st::walletReplaceButtonMargin,
 		style::al_justify);
 	create->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
+	const auto wallet = &show->session().wallet();
+	const auto weak = base::make_weak(box.get());
+	const auto creating = box->lifetime().make_state<bool>(false);
 	create->setClickedCallback([=] {
-		auto &wallet = show->session().wallet();
-		if (wallet.keyState() != KeyState::None) {
+		if (*creating || wallet->keyState() != KeyState::None) {
 			return;
 		}
-		if (!wallet.create()) {
-			show->showToast(u"Wallet create failed."_q);
-			return;
-		}
-		wallet.startPolling();
-		show->hideLayer();
-		show->showToast({
-			.title = tr::lng_wallet_created_title(tr::now),
-			.text = { tr::lng_wallet_created_text(tr::now) },
-			.icon = &st::toastCheckIcon,
+		*creating = true;
+		wallet->create([=](LifecycleError error) {
+			if (!show->valid()) {
+				return;
+			} else if (weak.get()) {
+				*creating = false;
+			}
+			if (error != LifecycleError::None) {
+				show->showToast(tr::lng_wallet_create_error(tr::now));
+				return;
+			}
+			wallet->startPolling();
+			show->hideLayer();
+			show->showToast({
+				.title = tr::lng_wallet_created_title(tr::now),
+				.text = { tr::lng_wallet_created_text(tr::now) },
+				.icon = &st::toastCheckIcon,
+			});
 		});
 	});
 	const auto import = box->addRow(
@@ -4417,12 +4442,11 @@ void WalletReplaceBox(
 void WalletKeysBackupBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show) {
-	const auto stored = show->session().local().readWallet();
-	if (!stored || stored->words.empty()) {
+	if (show->session().wallet().keyState() == KeyState::None) {
 		box->closeBox();
 		return;
 	}
-	const auto count = int(stored->words.size());
+	const auto count = kImportWordCountLong;
 	box->setTitle(tr::lng_wallet_keys_title());
 	const auto container = box->verticalLayout();
 	Ui::AddSkip(container);
@@ -4441,13 +4465,20 @@ void WalletKeysBackupBox(
 			rpl::single(count * 1.) | tr::to_count()));
 	Ui::AddSkip(container);
 	const auto deleteAndChoose = [=] {
-		auto &wallet = show->session().wallet();
-		if (wallet.keyState() == KeyState::None) {
+		const auto wallet = &show->session().wallet();
+		if (wallet->keyState() == KeyState::None) {
 			return;
 		}
 		show->hideLayer();
-		wallet.remove();
-		show->showBox(Box(WalletReplaceBox, show));
+		wallet->remove([=](LifecycleError error) {
+			if (!show->valid()) {
+				return;
+			} else if (error != LifecycleError::None) {
+				show->showToast(tr::lng_wallet_delete_error(tr::now));
+				return;
+			}
+			show->showBox(Box(WalletReplaceBox, show));
+		});
 	};
 	Settings::AddButtonWithIcon(
 		container,
@@ -4869,7 +4900,7 @@ Content::Content(
 , _scroll(this, st::defaultScrollArea) {
 	auto &wallet = _show->session().wallet();
 	if (wallet.keyState() == KeyState::None) {
-		wallet.create();
+		wallet.create(nullptr);
 	}
 	wallet.startPolling();
 

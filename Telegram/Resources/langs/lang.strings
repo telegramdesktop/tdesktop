@@ -8851,6 +8851,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_import_error" = "This recovery phrase could not restore a wallet. Check the words and try again.";
 "lng_wallet_imported_title" = "Wallet Imported";
 "lng_wallet_imported_text" = "Your wallet was restored from your recovery phrase.";
+"lng_wallet_import_failed" = "Couldn't import the wallet. Please try again.";
+"lng_wallet_create_error" = "Couldn't create a wallet. Please try again.";
+"lng_wallet_phrase_error" = "Couldn't show the recovery phrase. Please try again.";
+"lng_wallet_delete_error" = "Couldn't delete the wallet. Please try again.";
+"lng_wallet_send_unavailable" = "Sending is temporarily unavailable.";
 "lng_wallet_receive_copy_hint" = "Click to copy address";
 "lng_wallet_buy_title" = "Buy Grams";
 "lng_wallet_buy_button" = "Buy with card or crypto";

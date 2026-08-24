@@ -71,7 +71,8 @@ constexpr auto kMultiDraftTag = quint64(0xFFFF'FFFF'FFFF'FF03ULL);
 constexpr auto kMultiDraftCursorsTag = quint64(0xFFFF'FFFF'FFFF'FF04ULL);
 constexpr auto kRichDraftsTag = quint64(0xFFFF'FFFF'FFFF'FF05ULL);
 constexpr auto kDraftsTag2 = quint64(0xFFFF'FFFF'FFFF'FF06ULL);
-constexpr auto kWalletFormatVersion = quint32(1);
+constexpr auto kWalletFormatVersion = quint32(2);
+constexpr auto kWalletPublicKeySize = 32;
 constexpr auto kWalletEngineFormatVersion = quint32(1);
 
 enum { // Local Storage Keys
@@ -3749,7 +3750,7 @@ QByteArray Account::readBotStorage(PeerId botId) {
 }
 
 void Account::writeWallet(const WalletStored &data) {
-	if (data.words.empty()) {
+	if (data.recordId.isEmpty()) {
 		if (_walletKey) {
 			ClearKey(_walletKey, _basePath);
 			_walletKey = 0;
@@ -3761,22 +3762,21 @@ void Account::writeWallet(const WalletStored &data) {
 		_walletKey = GenerateKey(_basePath);
 		writeMapQueued();
 	}
-	auto size = quint32(sizeof(quint32) * 2 + sizeof(qint32) * 5);
-	for (const auto &word : data.words) {
-		size += Serialize::stringSize(word);
-	}
+	const auto size = quint32(sizeof(quint32))
+		+ Serialize::stringSize(data.recordId)
+		+ Serialize::stringSize(data.address)
+		+ Serialize::bytearraySize(data.publicKey)
+		+ quint32(sizeof(qint32))
+		+ Serialize::stringSize(data.secretRef)
+		+ quint32(sizeof(qint32));
 	EncryptedDescriptor wallet(size);
 	wallet.stream
 		<< quint32(kWalletFormatVersion)
-		<< qint32(data.words.size());
-	for (const auto &word : data.words) {
-		wallet.stream << word;
-	}
-	wallet.stream
-		<< qint32((data.mnemonicType == Gram::MnemonicType::Bip39) ? 1 : 0)
-		<< qint32(data.contractVersion)
-		<< quint32(data.walletId)
-		<< qint32(data.networkId)
+		<< data.recordId
+		<< data.address
+		<< data.publicKey
+		<< qint32(data.network)
+		<< data.secretRef
 		<< qint32(data.phraseViewed ? 1 : 0);
 	FileWriteDescriptor file(_walletKey, _basePath, true);
 	file.writeEncrypted(wallet, _localKey);
@@ -3797,42 +3797,34 @@ std::optional<WalletStored> Account::readWallet() {
 		return broken();
 	}
 	quint32 formatVersion = 0;
-	qint32 wordCount = 0;
-	wallet.stream >> formatVersion >> wordCount;
+	wallet.stream >> formatVersion;
 	if (!CheckStreamStatus(wallet.stream)) {
 		return broken();
 	} else if (formatVersion > kWalletFormatVersion) {
 		return std::nullopt;
-	} else if (wordCount != 12 && wordCount != 24) {
+	} else if (formatVersion < kWalletFormatVersion) {
+		LOG(("Wallet: dropping the legacy recovery-words wallet record."));
 		return broken();
 	}
 	auto result = WalletStored();
-	result.words.reserve(wordCount);
-	for (auto i = 0; i != wordCount; ++i) {
-		auto word = QString();
-		wallet.stream >> word;
-		result.words.push_back(word);
-	}
-	auto mnemonicType = qint32(0);
-	auto contractVersion = qint32(0);
-	auto walletId = quint32(0);
-	auto networkId = qint32(0);
+	auto network = qint32(0);
 	auto phraseViewed = qint32(0);
 	wallet.stream
-		>> mnemonicType
-		>> contractVersion
-		>> walletId
-		>> networkId
+		>> result.recordId
+		>> result.address
+		>> result.publicKey
+		>> network
+		>> result.secretRef
 		>> phraseViewed;
-	if (!CheckStreamStatus(wallet.stream)) {
+	if (!CheckStreamStatus(wallet.stream)
+		|| result.recordId.isEmpty()
+		|| result.address.isEmpty()
+		|| result.secretRef.isEmpty()
+		|| result.publicKey.size() != kWalletPublicKeySize
+		|| (network != 1 && network != 2)) {
 		return broken();
 	}
-	result.mnemonicType = (mnemonicType == 1)
-		? Gram::MnemonicType::Bip39
-		: Gram::MnemonicType::Ton;
-	result.contractVersion = contractVersion;
-	result.walletId = walletId;
-	result.networkId = networkId;
+	result.network = network;
 	result.phraseViewed = (phraseViewed == 1);
 	return result;
 }

@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers_set.h"
 #include "data/data_drafts.h"
 #include "webview/webview_common.h"
-#include "gram/crypto/gram_mnemonic.h"
 
 class History;
 
@@ -65,11 +64,11 @@ struct MessageDraftSource {
 };
 
 struct WalletStored {
-	std::vector<QString> words;
-	Gram::MnemonicType mnemonicType = Gram::MnemonicType::Ton;
-	qint32 contractVersion = 1;
-	quint32 walletId = 2147483409;
-	qint32 networkId = -239;
+	QString recordId;
+	QString address;
+	QByteArray publicKey;
+	qint32 network = 1;
+	QString secretRef;
 	bool phraseViewed = false;
 };
 

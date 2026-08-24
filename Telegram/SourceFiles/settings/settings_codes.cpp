@@ -767,37 +767,31 @@ auto GenerateCodes() {
 		if (!window) {
 			return;
 		}
-		auto &wallet = window->session().wallet();
-		if (wallet.keyState() != Wallet::KeyState::None) {
+		const auto wallet = &window->session().wallet();
+		if (wallet->keyState() != Wallet::KeyState::None) {
 			Ui::Toast::Show(u"Wallet already exists."_q);
 			return;
 		}
-		if (wallet.create()) {
-			Ui::Toast::Show(
-				u"Wallet created: %1"_q.arg(wallet.addressFriendly(false)));
-		} else {
-			Ui::Toast::Show(u"Wallet create failed."_q);
-		}
+		wallet->create([=](Wallet::LifecycleError error) {
+			Ui::Toast::Show((error == Wallet::LifecycleError::None)
+				? u"Wallet created: %1"_q.arg(wallet->addressFriendly(false))
+				: u"Wallet create failed."_q);
+		});
 	});
 	codes.emplace(u"walletimport"_q, [](SessionController *window) {
 		if (!window) {
 			return;
 		}
-		auto &wallet = window->session().wallet();
-		if (wallet.keyState() != Wallet::KeyState::None) {
+		const auto wallet = &window->session().wallet();
+		if (wallet->keyState() != Wallet::KeyState::None) {
 			Ui::Toast::Show(u"Wallet already exists, walletdelete first."_q);
 			return;
 		}
-		if (!wallet.import(TestWalletPhrase())) {
-			Ui::Toast::Show(u"Wallet import failed."_q);
-			return;
-		}
-		const auto address = wallet.addressFriendly(true);
-		const auto match = (address
-			== u"EQDSLOFVamNZzdy4LulclcCBEFkRReZ7WscBCLAw3Pg53kAk"_q);
-		Ui::Toast::Show(u"Wallet imported: %1 (%2)"_q
-			.arg(address)
-			.arg(match ? u"PASS"_q : u"FAIL"_q));
+		wallet->import(TestWalletPhrase(), [=](Wallet::LifecycleError error) {
+			Ui::Toast::Show((error == Wallet::LifecycleError::None)
+				? u"Wallet imported: %1"_q.arg(wallet->addressFriendly(true))
+				: u"Wallet import failed."_q);
+		});
 	});
 	codes.emplace(u"walletaddress"_q, [](SessionController *window) {
 		if (!window) {
@@ -939,8 +933,11 @@ auto GenerateCodes() {
 			Ui::Toast::Show(u"No wallet."_q);
 			return;
 		}
-		wallet.remove();
-		Ui::Toast::Show(u"Wallet deleted."_q);
+		wallet.remove([](Wallet::LifecycleError error) {
+			Ui::Toast::Show((error == Wallet::LifecycleError::None)
+				? u"Wallet deleted."_q
+				: u"Wallet delete failed."_q);
+		});
 	});
 #ifdef _DEBUG
 	codes.emplace(u"wallethistoryfixture"_q, [](SessionController *window) {
