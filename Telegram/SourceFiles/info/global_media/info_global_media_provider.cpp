@@ -112,6 +112,7 @@ const std::vector<GlobalMediaSlice::Value> &GlobalMediaSlice::items() const {
 
 Provider::Provider(not_null<AbstractController*> controller)
 : _controller(controller)
+, _session(&controller->session())
 , _type(_controller->section().mediaType())
 , _onlyForwardable(_controller->key().globalMediaOnlyForwardable())
 , _slice(sliceKey(_aroundId)) {
@@ -129,10 +130,12 @@ Provider::Provider(not_null<AbstractController*> controller)
 }
 
 Provider::~Provider() {
+	// _controller may be destroyed already, if the widget owning it was
+	// destroyed before its (QWidget-)child list widget owning this.
 	for (auto &entry : _totalLists) {
 		auto &list = entry.second;
 		if (list.requestId) {
-			_controller->session().api().request(list.requestId).cancel();
+			_session->api().request(list.requestId).cancel();
 		}
 	}
 }
