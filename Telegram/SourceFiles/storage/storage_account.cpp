@@ -3886,14 +3886,22 @@ void Account::writeWalletEngineValue(
 		+ quint32(Serialize::bytearraySize(bytes));
 	EncryptedDescriptor data(size);
 	data.stream << quint32(kWalletEngineFormatVersion) << bytes;
-	// The sync write blocks until QSaveFile committed its atomic rename,
-	// which is the durability level the wallet engine journal contract
-	// gets: a completed write survives a crash, though not necessarily an
-	// abrupt power loss (no directory fsync). A brand new file key must
-	// also reach the on-disk map before this returns, because the journal
-	// compare-exchange reports the record durable to its caller.
-	FileWriteDescriptor file(i->second, _basePath, true);
-	file.writeEncrypted(data, _localKey);
+	// The record file is committed by the descriptor's destructor, so the
+	// scope below closes (and its sync flag blocks on QSaveFile's atomic
+	// rename) before a brand new file key reaches the on-disk map, which
+	// in turn is flushed before returning, because the journal
+	// compare-exchange reports the record durable to its caller. A crash
+	// between the two leaves an orphaned record file and a truthful
+	// "absent", never a map key pointing at a missing record. A failed
+	// disk write is only logged by the write manager, and an abrupt power
+	// loss can still roll back a committed rename (no directory fsync);
+	// the engine's resolve_pending() reconciliation is the backstop. The
+	// Sync() call drains every queued storage write, not only the map --
+	// accepted, this runs a few times per wallet lifetime.
+	{
+		FileWriteDescriptor file(i->second, _basePath, true);
+		file.writeEncrypted(data, _localKey);
+	}
 	if (created) {
 		_mapChanged = true;
 		writeMap();

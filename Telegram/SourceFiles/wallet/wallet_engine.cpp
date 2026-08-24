@@ -58,7 +58,27 @@ template <typename Kind>
 }
 
 [[nodiscard]] bool GoodStorageKeyPart(const std::string &part) {
-	return !part.empty() && (part.find('/') == std::string::npos);
+	if (part.empty()) {
+		return false;
+	}
+	for (const auto ch : part) {
+		if (ch == '/' || (uchar(ch) >= 0x80)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+[[nodiscard]] QByteArray ToByteArray(const std::vector<uint8_t> &bytes) {
+	return QByteArray(
+		reinterpret_cast<const char*>(bytes.data()),
+		bytes.size());
+}
+
+[[nodiscard]] std::vector<uint8_t> ToByteVector(const QByteArray &bytes) {
+	return std::vector<uint8_t>(
+		bytes.constData(),
+		bytes.constData() + bytes.size());
 }
 
 [[nodiscard]] QString SecretStorageKey(
@@ -87,9 +107,7 @@ template <typename Kind>
 [[nodiscard]] QByteArray SerializeJournalRecord(
 		const engine::JournalRecord &record) {
 	auto result = Serialize::ByteArrayWriter();
-	result << quint64(record.version) << QByteArray(
-		reinterpret_cast<const char*>(record.payload.data()),
-		record.payload.size());
+	result << quint64(record.version) << ToByteArray(record.payload);
 	return std::move(result).result();
 }
 
@@ -104,9 +122,7 @@ template <typename Kind>
 	}
 	return engine::JournalRecord{
 		.version = version,
-		.payload = std::vector<uint8_t>(
-			payload.constData(),
-			payload.constData() + payload.size()),
+		.payload = ToByteVector(payload),
 	};
 }
 
@@ -117,9 +133,7 @@ template <typename Kind>
 		<< quint32(request.require_user_presence
 			? kSecretRequireUserPresenceFlag
 			: 0)
-		<< QByteArray(
-			reinterpret_cast<const char*>(request.bytes.data()),
-			request.bytes.size());
+		<< ToByteArray(request.bytes);
 	return std::move(result).result();
 }
 
@@ -177,11 +191,13 @@ public:
 			base = _baseUrl;
 			basePath = _basePath;
 		}
-		// The transport reaches exactly the provider this client was
-		// configured with, so a URL outside that base would be silently
-		// re-routed to it: reject the request instead of lying about the
-		// origin in final_url. The echo below is truthful only together
-		// with this check.
+		// The MTProto proxy chooses its provider upstream server-side, so
+		// the bridge can only enforce config-consistency: the caller
+		// contracts (see startClient) that toncenter_base_url names the
+		// provider the proxy actually serves, in canonical form. Anything
+		// outside that base would be silently re-routed to the proxy's
+		// upstream — reject it instead of lying about the origin in the
+		// final_url echo below.
 		if (base.isEmpty()
 			|| !url.startsWith(base)
 			|| !url.mid(base.size()).startsWith(u"/api/"_q)) {
@@ -205,6 +221,10 @@ public:
 				throw HostFailed(
 					engine::HttpHostErrorKind::kCancelled,
 					u"wallet engine is closing"_q);
+			} else if (_cancelledEarly.remove(id)) {
+				throw HostFailed(
+					engine::HttpHostErrorKind::kCancelled,
+					u"cancelled before start"_q);
 			}
 			const auto [i, inserted] = _pending.emplace(id, pending);
 			Assert(inserted);
@@ -213,9 +233,7 @@ public:
 			.post = (request.method == engine::HttpMethod::kPost),
 			.endpoint = parsed.path().mid(basePath.size()),
 			.query = parsed.query(),
-			.payload = QByteArray(
-				reinterpret_cast<const char*>(request.body.data()),
-				request.body.size()),
+			.payload = ToByteArray(request.body),
 		};
 		const auto requestUrl = request.url;
 		crl::on_main(_weak, [=, api = _api] {
@@ -237,9 +255,7 @@ public:
 				Complete(pending, engine::HttpResponse{
 					.status = 200,
 					.headers = {},
-					.body = std::vector<uint8_t>(
-						bytes.constData(),
-						bytes.constData() + bytes.size()),
+					.body = ToByteVector(bytes),
 					.final_url = requestUrl,
 				});
 			}, [=](const Gram::ApiError &error) {
@@ -278,7 +294,10 @@ public:
 		lock.unlock();
 		{
 			auto outerLock = std::lock_guard(_mutex);
-			_pending.remove(id);
+			const auto i = _pending.find(id);
+			if (i != _pending.end() && i->second == pending) {
+				_pending.erase(i);
+			}
 		}
 		if (pending->error) {
 			cancelTransport(pending);
@@ -455,12 +474,12 @@ public:
 				engine::ProtectedSecretHostErrorKind::kUnavailable,
 				u"stored secret is unreadable"_q);
 		}
-		const auto &bytes = record->bytes;
-		return std::vector<uint8_t>(
-			bytes.constData(),
-			bytes.constData() + bytes.size());
+		return ToByteVector(record->bytes);
 	}
 
+	// Overwrites an existing record even when it is unreadable: an
+	// explicit store of a fresh secret is the recovery path for a
+	// Broken record, unlike the journal CAS which refuses to touch one.
 	void store_protected_secret(
 			const engine::ProtectedSecretStore &request) override {
 		const auto key = SecretStorageKey(request.secret_ref);
@@ -661,7 +680,6 @@ struct Engine::Worker {
 
 Engine::Engine(not_null<Main::Session*> session, not_null<Api*> api)
 : _session(session)
-, _api(api)
 , _httpHost(std::make_shared<HttpHost>(base::make_weak(this), api))
 , _platformHost(std::make_shared<PlatformHost>(
 	base::make_weak(this),
@@ -699,7 +717,9 @@ Engine::~Engine() {
 		_worker->stopping = true;
 	}
 	_worker->wake.notify_all();
-	_worker->thread.join();
+	if (_worker->thread.joinable()) {
+		_worker->thread.join();
+	}
 }
 
 auto Engine::lifecycle()

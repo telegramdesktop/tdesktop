@@ -55,7 +55,10 @@ public:
 
 	// The client for one configured wallet. A live client must first be
 	// stopped through stopClient() and its callback awaited. Construction
-	// only validates the config, so it runs on the main thread.
+	// only validates the config, so it runs on the main thread. The
+	// config's toncenter_base_url must name the provider the MTProto
+	// proxy actually serves, in canonical form (lowercase host, no
+	// default port) — the transport certifies it in final_url.
 	void startClient(const wallet_engine::WalletClientConfig &config);
 	[[nodiscard]] auto client() const
 		-> std::shared_ptr<wallet_engine::WalletClient>;
@@ -68,7 +71,10 @@ public:
 	// result or the engine error on the main thread. Both callbacks are
 	// dropped when the Engine is destroyed before the job finishes. The
 	// queue does not coalesce: don't enqueue a repeatable operation, like
-	// a refresh, while the previous one is still outstanding.
+	// a refresh, while the previous one is still outstanding. Waiters
+	// that only the client shutdown releases (wait_for_change) must not
+	// go through here: the serial worker could never advance them, and
+	// the destructor's queued shutdown would deadlock behind them.
 	template <typename Job, typename Done>
 	void run(Job job, Done done, Fn<void(EngineError)> fail) {
 		enqueue(Package(
@@ -141,7 +147,6 @@ private:
 	void workerLoop();
 
 	const not_null<Main::Session*> _session;
-	const not_null<Api*> _api;
 	std::shared_ptr<HttpHost> _httpHost;
 	std::shared_ptr<PlatformHost> _platformHost;
 	std::shared_ptr<wallet_engine::WalletLifecycle> _lifecycle;
