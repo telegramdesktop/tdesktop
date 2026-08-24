@@ -485,6 +485,7 @@ TopBar::TopBar(
 	bindStatus();
 
 	_title->setContextCopyText(tr::lng_profile_copy_fullname(tr::now));
+	_title->setSelectable(true);
 
 	auto badgeUpdates = rpl::producer<rpl::empty_value>();
 	if (_badge) {
