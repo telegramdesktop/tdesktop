@@ -202,6 +202,13 @@ void ListWidget::start() {
 		if (_reorderState.item == layout) {
 			_reorderState = {};
 		}
+		if (!_shiftAnimations.empty()) {
+			// Shift animation callbacks capture layout pointers, so
+			// they must be dropped while all the layouts are alive.
+			_shiftAnimations.clear();
+			_activeShiftAnimations = 0;
+			resetAllItemShifts();
+		}
 		_heavyLayouts.remove(layout);
 		_rowsScrollCache.invalidate(GetLayoutCacheKey(layout));
 		removeLayoutFromSections(layout);
@@ -536,12 +543,7 @@ void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
 	auto needHeightRefresh = false;
 	const auto sectionIt = findSectionByItem(item);
 	if (sectionIt != _sections.end()) {
-		if (sectionIt->removeItem(item)) {
-			if (sectionIt->empty()) {
-				_sections.erase(sectionIt);
-			}
-			needHeightRefresh = true;
-		}
+		needHeightRefresh = removeItemFromSection(item, sectionIt);
 	}
 
 	if (isItemLayout(item, _overLayout)) {
@@ -590,18 +592,31 @@ void ListWidget::removeLayoutFromSections(not_null<BaseLayout*> layout) {
 	// before that refresh would use the destroyed layout.
 	const auto item = layout->getItem();
 	for (auto i = begin(_sections); i != end(_sections); ++i) {
-		if (!i->removeItem(item)) {
-			continue;
+		if (removeItemFromSection(item, i)) {
+			refreshHeightAfterRemoval();
+			return;
 		}
-		if (i->empty()) {
-			if (_reorderState.section) {
-				_reorderState = {};
-			}
-			_sections.erase(i);
-		}
-		refreshHeightAfterRemoval();
-		return;
 	}
+}
+
+bool ListWidget::removeItemFromSection(
+		not_null<const HistoryItem*> item,
+		std::vector<Section>::iterator i) {
+	if (!i->removeItem(item)) {
+		return false;
+	}
+	if (_reorderState.section == &*i) {
+		// The reorder indices into this section just became stale.
+		_reorderState = {};
+	}
+	if (i->empty()) {
+		if (_reorderState.section) {
+			// Erasing shifts the sections the pointer points into.
+			_reorderState = {};
+		}
+		_sections.erase(i);
+	}
+	return true;
 }
 
 auto ListWidget::collectSelectedItems() const -> SelectedItems {

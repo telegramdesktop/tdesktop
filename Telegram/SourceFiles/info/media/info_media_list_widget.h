@@ -227,6 +227,9 @@ private:
 	void refreshHeight();
 	void refreshHeightAfterRemoval();
 	void removeLayoutFromSections(not_null<BaseLayout*> layout);
+	bool removeItemFromSection(
+		not_null<const HistoryItem*> item,
+		std::vector<ListSection>::iterator i);
 	void subscribeToSession(
 		not_null<Main::Session*> session,
 		rpl::lifetime &lifetime);

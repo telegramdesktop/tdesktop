@@ -112,6 +112,13 @@ bool ListSection::removeItem(not_null<const HistoryItem*> item) {
 	if (const auto i = _byItem.find(item); i != end(_byItem)) {
 		_items.erase(ranges::remove(_items, i->second), end(_items));
 		_byItem.erase(i);
+		if (!_mosaic.empty()) {
+			// The mosaic must be rebuilt without touching the removed
+			// layout (it may already be destroyed, see refreshMinId()),
+			// otherwise height recount or paint would still use it.
+			_mosaic.clearRows(true);
+			_mosaic.addItems(_items);
+		}
 		refreshMinId();
 		refreshHeight();
 		return true;
