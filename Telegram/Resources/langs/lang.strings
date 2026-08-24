@@ -1315,6 +1315,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_proxy_sponsor" = "Proxy sponsor";
 "lng_proxy_sponsor_about" = "This channel is shown by your proxy server.\nTo remove this channel from your chat list,\ndisable the proxy in Telegram Settings.";
 "lng_proxy_sponsor_warning" = "This proxy may display a sponsored channel in your chat list. This doesn't reveal any of your Telegram traffic.";
+"lng_proxy_web_warning" = "This WEB proxy runs a web page from its provider in the background while you're connected. Only use it if you trust the provider. It may also display a sponsored channel in your chat list. This doesn't reveal any of your Telegram traffic.";
 "lng_proxy_add_from_clipboard" = "Add proxy from clipboard";
 "lng_proxy_add_from_clipboard_good_toast" = "Proxy was added from clipboard.";
 "lng_proxy_add_from_clipboard_failed_toast" = "This is not a proxy link.";

@@ -1623,13 +1623,19 @@ void ProxyBox::setupTypes() {
 				label),
 			st::proxyEditTypePadding);
 	}
+	auto warning = _type->value(
+	) | rpl::map([](Type type) {
+		return (type == Type::Web)
+			? tr::lng_proxy_web_warning(tr::now)
+			: tr::lng_proxy_sponsor_warning(tr::now);
+	});
 	_aboutSponsored = _content->add(object_ptr<Ui::SlideWrap<>>(
 		_content,
 		object_ptr<Ui::PaddingWrap<>>(
 			_content,
 			object_ptr<Ui::FlatLabel>(
 				_content,
-				tr::lng_proxy_sponsor_warning(tr::now),
+				std::move(warning),
 				st::boxDividerLabel),
 			st::proxyAboutSponsorPadding)));
 }
@@ -2087,7 +2093,9 @@ void ProxiesBoxController::ShowApplyConfirmation(
 			table->addRow(
 				object_ptr<Ui::FlatLabel>(
 					table,
-					tr::lng_proxy_sponsor_warning(),
+					(type == Type::Web)
+						? tr::lng_proxy_web_warning()
+						: tr::lng_proxy_sponsor_warning(),
 					st::proxyApplyBoxSponsorLabel),
 				object_ptr<Ui::RpWidget>(nullptr),
 				st::proxyApplyBoxSponsorMargin,
