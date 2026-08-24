@@ -213,6 +213,9 @@ publication at a construction seam).
   mixed commit must not use `[ai] `. Do not count the disposable test overlay or
   external AI task artifacts. Every other commit must not contain `[ai]`
   anywhere.
+- The `[ai] ` prefix marks the commit's scope, never its authorship. It does
+  not mean "authored by an AI": an AI-authored product fix takes a plain
+  subject, and a workflow-only commit takes the prefix no matter who wrote it.
 - For ordinary work not associated with an AI task, add a short plain-language body only when the subject can't carry it (what was done, not the technical how) — a line or two at most.
 - Never add a `Co-Authored-By:` line or any tool/assistant attribution trailer.
 - Never add `Autotask:`/attempt or other internal run markers. A commit owned by
