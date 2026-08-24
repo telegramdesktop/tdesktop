@@ -6458,11 +6458,13 @@ void InnerWidget::focusInEvent(QFocusEvent *e) {
 			selectSkip(1);
 		}
 	}
-	InvokeQueued(this, [=] {
-		if (hasFocus()) {
-			announceSelectedFocus();
-		}
-	});
+	// The row is picked above while the focus event Qt raises for the
+	// widget is still pending: where the platform resolves it to
+	// focusChild() that announces the row, and the helper covers the
+	// platform that does not, so nothing is read twice anywhere.
+	if (const auto index = selectedChildIndex(); index >= 0) {
+		accessibilityChildFocusedByEntry(index);
+	}
 }
 
 bool InnerWidget::processKeyDispatch(QKeyEvent *e) {
@@ -6529,37 +6531,37 @@ void InnerWidget::keyPressEvent(QKeyEvent *e) {
 	RpWidget::keyPressEvent(e);
 }
 
-void InnerWidget::announceSelectedFocus() {
+int InnerWidget::selectedChildIndex() const {
 	if (_state == WidgetState::Default) {
-		const auto index = defaultChildIndexOfSelected();
-		if (index >= 0) {
-			accessibilityChildNameChanged(index);
-			accessibilityChildFocused(index);
-		}
+		return defaultChildIndexOfSelected();
 	} else if (_state == WidgetState::Filtered) {
 		const auto h = int(_hashtagResults.size());
 		const auto f = int(_filterResults.size());
 		const auto p = int(_peerSearchResults.size());
 		const auto v = int(_previewResults.size());
-		auto index = -1;
 		if (base::in_range(_hashtagSelected, 0, h)) {
-			index = _hashtagSelected;
+			return _hashtagSelected;
 		} else if (base::in_range(_filteredSelected, 0, f)) {
-			index = h + _filteredSelected;
+			return h + _filteredSelected;
 		} else if (base::in_range(_peerSearchSelected, 0, p)) {
-			index = h + f + _peerSearchSelected;
+			return h + f + _peerSearchSelected;
 		} else if (base::in_range(_previewSelected, 0, v)) {
-			index = h + f + p + _previewSelected;
+			return h + f + p + _previewSelected;
 		} else if (base::in_range(
 				_searchedSelected,
 				0,
 				int(_searchResults.size()))) {
-			index = h + f + p + v + _searchedSelected;
+			return h + f + p + v + _searchedSelected;
 		}
-		if (index >= 0) {
-			accessibilityChildNameChanged(index);
-			accessibilityChildFocused(index);
-		}
+	}
+	return -1;
+}
+
+void InnerWidget::announceSelectedFocus() {
+	const auto index = selectedChildIndex();
+	if (index >= 0) {
+		accessibilityChildNameChanged(index);
+		accessibilityChildFocused(index);
 	}
 }
 
@@ -6638,7 +6640,7 @@ void InnerWidget::accessibilityChildSetFocus(quintptr identity) {
 		// The rows are virtual (no real QWidget), so the screen reader's
 		// SetFocus can't move real keyboard focus to a row. Translate it
 		// into our internal selection, then either grab keyboard focus
-		// (focusInEvent announces the row) or announce it directly.
+		// (taking it announces the row by itself) or announce it directly.
 		if (index < 0 || !selectChildByIndex(index)) {
 			return;
 		}
