@@ -222,6 +222,14 @@ public:
 	[[nodiscard]] std::optional<WalletStored> readWallet();
 	[[nodiscard]] bool hasWalletWithUnviewedPhrase();
 
+	// Small encrypted key-value records owned by the wallet engine bridge
+	// (protected secrets and the send journal). An empty value removes.
+	[[nodiscard]] std::optional<QByteArray> walletEngineValue(
+		const QString &key);
+	void setWalletEngineValue(
+		const QString &key,
+		const std::optional<QByteArray> &value);
+
 	[[nodiscard]] bool encrypt(
 		const void *src,
 		void *dst,
@@ -373,7 +381,12 @@ private:
 	FileKey _roundPlaceholderKey = 0;
 	FileKey _inlineBotsDownloadsKey = 0;
 	FileKey _mediaLastPlaybackPositionsKey = 0;
+	[[nodiscard]] auto walletEngineData()
+		-> base::flat_map<QString, QByteArray> &;
+
 	FileKey _walletKey = 0;
+	FileKey _walletEngineKey = 0;
+	std::optional<base::flat_map<QString, QByteArray>> _walletEngineData;
 
 	qint64 _cacheTotalSizeLimit = 0;
 	qint64 _cacheBigFileTotalSizeLimit = 0;

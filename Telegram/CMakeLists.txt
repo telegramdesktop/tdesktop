@@ -2166,6 +2166,8 @@ PRIVATE
     wallet/wallet_collectibles.h
     wallet/wallet_content.cpp
     wallet/wallet_content.h
+    wallet/wallet_engine.cpp
+    wallet/wallet_engine.h
     wallet/wallet_engine_smoke.cpp
     wallet/wallet_engine_smoke.h
     wallet/wallet_fee_estimator.cpp
