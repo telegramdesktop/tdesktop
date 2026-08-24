@@ -81,6 +81,8 @@ private:
 	void reanchorWrapped();
 	void checkEdgeScroll();
 	bool edgeScrollStep(crl::time now);
+	void refreshOutsideClickFilter();
+	void handleOutsidePress(QEvent *e);
 
 	const style::FlatLabel &_st;
 	Text::String _text;
@@ -117,6 +119,7 @@ private:
 	QPoint _trippleClickPoint;
 	base::Timer _trippleClickTimer;
 	Animations::Basic _edgeScroll;
+	base::unique_qptr<QObject> _outsideClickFilter;
 
 };
 

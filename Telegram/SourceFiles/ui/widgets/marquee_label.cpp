@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/widgets/marquee_label.h"
 
+#include "base/event_filter.h"
 #include "base/invoke_queued.h"
 #include "ui/inactive_press.h"
 #include "ui/integration.h"
@@ -178,6 +179,40 @@ void MarqueeLabel::refreshMarqueeState() {
 	if (was != _overflown) {
 		update();
 	}
+	refreshOutsideClickFilter();
+}
+
+void MarqueeLabel::refreshOutsideClickFilter() {
+	const auto needed = _selectable
+		&& (!_selection.empty() || (_menu != nullptr));
+	if (needed && !_outsideClickFilter) {
+		_outsideClickFilter.reset(base::install_event_filter(
+			this,
+			QCoreApplication::instance(),
+			[=](not_null<QEvent*> e) {
+				handleOutsidePress(e.get());
+				return base::EventFilterResult::Continue;
+			}).get());
+	} else if (!needed && _outsideClickFilter) {
+		_outsideClickFilter = nullptr;
+	}
+}
+
+void MarqueeLabel::handleOutsidePress(QEvent *e) {
+	if ((e->type() != QEvent::MouseButtonPress) || _menu) {
+		return;
+	}
+	const auto mouse = static_cast<QMouseEvent*>(e);
+	const auto global = mouse->globalPosition().toPoint();
+	if (QRect(mapToGlobal(QPoint(0, 0)), size()).contains(global)) {
+		return;
+	}
+	_selection = { 0, 0 };
+	_savedSelection = { 0, 0 };
+	update();
+	InvokeQueued(this, [=] {
+		refreshMarqueeState();
+	});
 }
 
 bool MarqueeLabel::marqueeStep(crl::time now) {
@@ -441,6 +476,7 @@ void MarqueeLabel::updateSelection(const Text::StateResult &state) {
 		_savedSelection = { 0, 0 };
 		setFocus();
 		update();
+		refreshOutsideClickFilter();
 	}
 }
 
