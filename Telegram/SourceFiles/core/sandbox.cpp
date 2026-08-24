@@ -320,6 +320,14 @@ void Sandbox::setupScreenScale() {
 }
 
 Sandbox::~Sandbox() {
+	// When WM_ENDSESSION deferred closeApplication() to a main-loop
+	// tick that never came, the Application is still alive here and
+	// would be destroyed by member teardown at base nesting level,
+	// where Ui::PostponeCall bookkeeping is not allowed. Destroy it
+	// inside enter-from-event-loop instead, like a normal quit does.
+	customEnterFromEventLoop([&] {
+		closeApplication();
+	});
 #ifdef Q_OS_MAC
 	Platform::DestroyGlobalMenu();
 #endif // Q_OS_MAC
