@@ -616,12 +616,14 @@ jobs:
           fi
 
           # The first-install artifact is a portable-style archive (like
-          # the alpha builds): the empty TelegramForcePortable keeps the
+          # the alpha builds): the TelegramForcePortable folder keeps the
           # canary's tdata next to the binary, never touching a normal
-          # installation.
+          # installation. The .keep file stops unpackers that skip empty
+          # folders from dropping it.
           PORTABLE=td-portable-win-x64-$CANARY_VERSION$CANARY_SUFFIX.zip
           rm -rf portable
           mkdir -p portable/$CANARY_FOLDER/TelegramForcePortable
+          touch portable/$CANARY_FOLDER/TelegramForcePortable/.keep
           cp Telegram.exe portable/$CANARY_FOLDER/
           (cd portable && 7z a -mx9 ../$PORTABLE $CANARY_FOLDER/)
 
@@ -1015,10 +1017,13 @@ jobs:
           done
 
           # Portable-style first-install archive from the stapled
-          # universal app, with tdata forced next to the bundle.
+          # universal app, with tdata forced next to the bundle. The
+          # .keep file stops unpackers that skip empty folders from
+          # dropping TelegramForcePortable.
           PORTABLE=td-portable-mac-$CANARY_VERSION$CANARY_SUFFIX.zip
           rm -rf portable
           mkdir -p portable/$CANARY_FOLDER/TelegramForcePortable
+          touch portable/$CANARY_FOLDER/TelegramForcePortable/.keep
           cp -R Telegram.app portable/$CANARY_FOLDER/
           (cd portable && zip -q -r ../$PORTABLE $CANARY_FOLDER)
 
@@ -1252,10 +1257,12 @@ jobs:
           fi
 
           # Portable-style first-install archive, tdata forced next to
-          # the binary.
+          # the binary. The .keep file stops unpackers that skip empty
+          # folders from dropping TelegramForcePortable.
           PORTABLE=td-portable-linux-x64-$CANARY_VERSION$CANARY_SUFFIX.tar.xz
           rm -rf portable
           mkdir -p portable/$CANARY_FOLDER/TelegramForcePortable
+          touch portable/$CANARY_FOLDER/TelegramForcePortable/.keep
           cp Telegram Updater portable/$CANARY_FOLDER/
           tar -cJf $PORTABLE -C portable $CANARY_FOLDER
 
