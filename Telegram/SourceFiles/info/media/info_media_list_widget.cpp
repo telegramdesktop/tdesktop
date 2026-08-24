@@ -199,8 +199,12 @@ void ListWidget::start() {
 		if (_overLayout == layout) {
 			_overLayout = nullptr;
 		}
+		if (_reorderState.item == layout) {
+			_reorderState = {};
+		}
 		_heavyLayouts.remove(layout);
 		_rowsScrollCache.invalidate(GetLayoutCacheKey(layout));
+		removeLayoutFromSections(layout);
 	}, lifetime());
 
 	_provider->refreshed(
@@ -558,21 +562,46 @@ void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
 	}
 
 	if (needHeightRefresh) {
-		const auto provider = globalMediaProvider();
-		const auto globalMediaMusic = provider
-			&& (provider->type() == Type::MusicFile);
-		if (globalMediaMusic) {
-			_globalMediaSliceRefreshInProgress = true;
-			_globalMediaSliceView = std::nullopt;
-		}
-		refreshHeight();
-		if (globalMediaMusic) {
-			_globalMediaSliceRefreshInProgress = false;
-			_globalMediaSliceViewChanges.fire_copy(
-				_globalMediaSliceView);
-		}
+		refreshHeightAfterRemoval();
 	}
 	mouseActionUpdate(_mousePosition);
+}
+
+void ListWidget::refreshHeightAfterRemoval() {
+	const auto provider = globalMediaProvider();
+	const auto globalMediaMusic = provider
+		&& (provider->type() == Type::MusicFile);
+	if (globalMediaMusic) {
+		_globalMediaSliceRefreshInProgress = true;
+		_globalMediaSliceView = std::nullopt;
+	}
+	refreshHeight();
+	if (globalMediaMusic) {
+		_globalMediaSliceRefreshInProgress = false;
+		_globalMediaSliceViewChanges.fire_copy(
+			_globalMediaSliceView);
+	}
+}
+
+void ListWidget::removeLayoutFromSections(not_null<BaseLayout*> layout) {
+	// Providers destroy layouts before any sections refresh reaches us,
+	// sometimes with only a postponed refresh scheduled (downloads), so
+	// the sections must forget the layout right away, otherwise a paint
+	// before that refresh would use the destroyed layout.
+	const auto item = layout->getItem();
+	for (auto i = begin(_sections); i != end(_sections); ++i) {
+		if (!i->removeItem(item)) {
+			continue;
+		}
+		if (i->empty()) {
+			if (_reorderState.section) {
+				_reorderState = {};
+			}
+			_sections.erase(i);
+		}
+		refreshHeightAfterRemoval();
+		return;
+	}
 }
 
 auto ListWidget::collectSelectedItems() const -> SelectedItems {

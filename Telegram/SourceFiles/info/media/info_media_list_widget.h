@@ -225,6 +225,8 @@ private:
 	void start();
 	int recountHeight();
 	void refreshHeight();
+	void refreshHeightAfterRemoval();
+	void removeLayoutFromSections(not_null<BaseLayout*> layout);
 	void subscribeToSession(
 		not_null<Main::Session*> session,
 		rpl::lifetime &lifetime);
