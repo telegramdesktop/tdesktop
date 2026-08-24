@@ -1,3 +1,15 @@
+7.1.2 (24.08.26)
+
+- Show who reacted preview next to the cursor.
+- Improve restoring of opened windows and chats on relaunch.
+- Don't hide content from screenshots while the app is passcode-locked.
+- Fix saving of words with the system spellchecker.
+- Fix sorting of unmuted unread chats in folders.
+- Fix quote staying above the field after sending a message.
+- Fix some WEB proxies not working on Windows.
+- Warn about possible risks when adding a WEB proxy.
+- Crash fixes.
+
 7.1.1 (22.08.26)
 
 - Fix broken chats loading for some users.
