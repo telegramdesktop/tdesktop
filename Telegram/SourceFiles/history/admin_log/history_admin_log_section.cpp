@@ -563,6 +563,11 @@ std::shared_ptr<Window::SectionMemento> Widget::createMemento() {
 	return result;
 }
 
+auto Widget::createIdentityMemento()
+-> std::shared_ptr<Window::SectionMemento> {
+	return std::make_shared<SectionMemento>(channel());
+}
+
 void Widget::saveState(not_null<SectionMemento*> memento) {
 	memento->setScrollTop(_scroll->scrollTop());
 	_inner->saveState(memento);

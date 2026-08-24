@@ -221,6 +221,15 @@ public:
 	// This method may modify the section ("take" heavy items).
 	virtual std::shared_ptr<SectionMemento> createMemento();
 
+	// Create a memento that only identifies the section, without taking
+	// anything from it. Unlike createMemento() this doesn't modify the
+	// section, so it is safe to call on the one that stays alive, like
+	// when saving the opened windows state. Null if not supported.
+	[[nodiscard]] virtual auto createIdentityMemento()
+	-> std::shared_ptr<SectionMemento> {
+		return nullptr;
+	}
+
 	void setInnerFocus() {
 		doSetInnerFocus();
 	}
