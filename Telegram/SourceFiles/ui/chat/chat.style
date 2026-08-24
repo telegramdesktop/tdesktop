@@ -657,6 +657,7 @@ whoReadDropdownMenu: DropdownMenu(dropdownMenuWithIcons) {
 }
 whoReadDropdownMenuMaxHeight: 400px;
 whoReadDropdownMenuSkip: 24px;
+reactionPreviewEdgeSkip: 16px;
 whoReadNameWithDateTop: 3px;
 whoReadDateTop: 20px;
 whoReadDateSkip: 15px;
