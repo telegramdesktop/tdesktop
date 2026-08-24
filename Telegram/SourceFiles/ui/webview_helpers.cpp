@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/webview_helpers.h"
 
 #include "lang/lang_keys.h"
+#include "webview/webview_interface.h"
+#include <string>
 
 namespace Ui {
 namespace {
