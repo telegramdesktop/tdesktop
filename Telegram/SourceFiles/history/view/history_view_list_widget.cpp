@@ -5940,6 +5940,11 @@ ListWidget::~ListWidget() {
 			delete raw;
 		});
 	}
+
+	// Views in _views are destroyed after _reactionsManager, but their
+	// destructors may invoke repaintItem() (e.g. by clearing the active
+	// click handler), which uses _reactionsManager, so null it explicitly.
+	_reactionsManager = nullptr;
 }
 
 // Accessibility.
