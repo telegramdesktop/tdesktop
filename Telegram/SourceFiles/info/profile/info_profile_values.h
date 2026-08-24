@@ -94,6 +94,7 @@ struct LinkWithUrl {
 [[nodiscard]] rpl::producer<bool> NotificationsEnabledValue(
 	not_null<Data::Thread*> thread);
 [[nodiscard]] rpl::producer<bool> IsContactValue(not_null<UserData*> user);
+[[nodiscard]] bool CanReportBot(not_null<UserData*> user);
 [[nodiscard]] rpl::producer<QString> InviteToChatButton(
 	not_null<UserData*> user);
 [[nodiscard]] rpl::producer<QString> InviteToChatAbout(

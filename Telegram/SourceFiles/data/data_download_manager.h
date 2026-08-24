@@ -69,6 +69,7 @@ struct DownloadingId {
 	DownloadObject object;
 	DownloadDate started = 0;
 	QString path;
+	Fn<void()> externalCancel;
 	int64 ready = 0;
 	int64 total = 0;
 	bool hiddenByView = false;
@@ -92,6 +93,31 @@ public:
 		DownloadObject object,
 		const QString &path,
 		DownloadDate started);
+
+	struct ExternalLoadingState {
+		int64 ready = 0;
+		int64 total = 0;
+		bool done = false;
+	};
+	[[nodiscard]] not_null<HistoryItem*> generateExternalItem(
+		not_null<DocumentData*> document);
+	void addLoadingExternal(
+		DownloadObject object,
+		const QString &path,
+		int64 total,
+		Fn<void()> cancel);
+	void updateLoadingExternal(
+		not_null<const HistoryItem*> item,
+		int64 ready,
+		int64 total);
+	[[nodiscard]] auto loadingExternalState(
+		not_null<const HistoryItem*> item)
+	-> std::optional<ExternalLoadingState>;
+	void cancelLoadingExternal(not_null<const HistoryItem*> item);
+	void finishLoadingExternal(
+		not_null<const HistoryItem*> item,
+		const QString &path);
+	void removeLoadingExternal(not_null<const HistoryItem*> item);
 
 	void clearIfFinished();
 	void deleteFiles(const std::vector<GlobalMsgId> &ids);
@@ -135,6 +161,8 @@ private:
 	void check(
 		SessionData &data,
 		std::vector<DownloadingId>::iterator i);
+	[[nodiscard]] auto lookupExternal(not_null<const HistoryItem*> item)
+		-> std::pair<SessionData*, std::vector<DownloadingId>::iterator>;
 	void changed(not_null<const HistoryItem*> item);
 	void removed(not_null<const HistoryItem*> item);
 	void detach(DownloadedId &id);

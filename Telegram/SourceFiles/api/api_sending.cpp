@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_histories.h"
 #include "data/data_changes.h"
 #include "data/components/ephemeral_messages.h"
+#include "data/components/welcome_messages.h"
 #include "data/stickers/data_stickers.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -28,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_dice_pack.h" // DicePacks::kDiceString.
 #include "ui/text/text_entity.h" // TextWithEntities.
 #include "ui/item_text_options.h" // Ui::ItemTextOptions.
+#include "ui/chat/attach/attach_prepare.h"
 #include "main/main_session.h"
 #include "main/main_app_config.h"
 #include "storage/localimageloader.h"
@@ -187,6 +189,13 @@ void SendExistingMedia(
 	const auto peer = history->peer;
 	const auto session = &history->session();
 	const auto api = &session->api();
+	const auto welcomeTemplate = message.action.options.welcomeTemplate;
+
+	if (welcomeTemplate
+		&& session->welcomeMessages().count(history)
+			>= Data::WelcomeMessagesLimit(session)) {
+		return;
+	}
 
 	message.action.clearDraft = false;
 	message.action.generateLocal = true;
@@ -197,19 +206,28 @@ void SendExistingMedia(
 		localMessageId
 			? (*localMessageId)
 			: session->data().nextLocalMessageId());
-	const auto randomId = base::RandomValue<uint64>();
+	const auto randomId = welcomeTemplate
+		? uint64(0)
+		: base::RandomValue<uint64>();
 	auto &action = message.action;
 
 	auto flags = NewMessageFlags(peer);
 	auto sendFlags = MTPmessages_SendMedia::Flags(0);
+	if (welcomeTemplate) {
+		flags &= ~MessageFlag::Outgoing;
+		flags |= MessageFlag::FakeHistoryItem;
+	}
 	if (action.replyTo) {
 		flags |= MessageFlag::HasReplyInfo;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to;
 	}
-	if (!action.options.scheduled
+	if (!welcomeTemplate
+		&& !action.options.scheduled
 		&& !action.options.shortcutId
-		&& session->ephemeralMessages().isEphemeralBotReply(
-			action.replyTo.messageId)) {
+		&& session->ephemeralMessages().wouldSendMedia(
+			peer,
+			action.replyTo,
+			message.textWithTags.text)) {
 		flags |= MessageFlag::Ephemeral;
 	}
 	const auto silentPost = ShouldSendSilent(peer, action.options);
@@ -263,8 +281,6 @@ void SendExistingMedia(
 		sendFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
 	}
 
-	session->data().registerMessageRandomId(randomId, newId);
-
 	const auto item = history->addNewLocalMessage({
 		.id = newId.msg,
 		.flags = flags,
@@ -280,7 +296,21 @@ void SendExistingMedia(
 		.mediaSpoiler = action.options.mediaSpoiler,
 	}, media, caption);
 
-	if (session->ephemeralMessages().sendMedia(item, inputMedia())) {
+	if (welcomeTemplate) {
+		auto &welcome = session->welcomeMessages();
+		welcome.appendSending(item);
+		welcome.sendMedia(item, inputMedia(), origin, inputMedia);
+		api->finishForwarding(action);
+		return;
+	}
+
+	session->data().registerMessageRandomId(randomId, newId);
+
+	if (session->ephemeralMessages().sendMedia(
+			item,
+			inputMedia(),
+			origin,
+			inputMedia)) {
 		api->finishForwarding(action);
 		return;
 	}
@@ -330,6 +360,342 @@ void SendExistingMedia(
 	api->finishForwarding(action);
 }
 
+struct MusicSendRequestItem {
+	MusicSelectionItem item;
+	not_null<HistoryItem*> localItem;
+	FullMsgId localId;
+	uint64 randomId = 0;
+	TextWithEntities caption;
+};
+
+struct MusicRefreshItem {
+	not_null<DocumentData*> document;
+	Data::FileOrigin origin;
+	QByteArray usedFileReference;
+};
+
+struct MusicSelectionState {
+	SendAction action;
+	std::vector<MusicSelectionItem> items;
+	TextWithEntities caption;
+	int offset = 0;
+};
+
+[[nodiscard]] MTPInputMedia PrepareMusicInputMedia(
+		const MusicSelectionItem &item,
+		bool spoiler) {
+	using Flag = MTPDinputMediaDocument::Flag;
+	return MTP_inputMediaDocument(
+		MTP_flags(spoiler
+			? Flag::f_spoiler
+			: Flag(0)),
+		item.document->mtpInput(),
+		MTPInputPhoto(), // video_cover
+		MTPint(), // ttl_seconds
+		MTPint(), // video_timestamp
+		MTPstring()); // query
+}
+
+[[nodiscard]] MTPInputSingleMedia PrepareMusicInputSingleMedia(
+		not_null<Main::Session*> session,
+		const MusicSendRequestItem &item,
+		bool spoiler) {
+	const auto entities = EntitiesToMTP(
+		session,
+		item.caption.entities,
+		ConvertOption::SkipLocal);
+	using Flag = MTPDinputSingleMedia::Flag;
+	return MTP_inputSingleMedia(
+		MTP_flags(!entities.v.isEmpty()
+			? Flag::f_entities
+			: Flag(0)),
+		PrepareMusicInputMedia(item.item, spoiler),
+		MTP_long(item.randomId),
+		MTP_string(item.caption.text),
+		entities);
+}
+
+void SendMusicSelectionBatch(
+		SendAction &action,
+		std::vector<MusicSelectionItem> items,
+		TextWithEntities caption,
+		Fn<void()> done) {
+	Expects(!items.empty());
+
+	const auto history = action.history;
+	const auto peer = history->peer;
+	const auto session = &history->session();
+	const auto api = &session->api();
+	const auto actionPtr = &action;
+	const auto multi = (items.size() > 1);
+	const auto groupId = multi ? base::RandomValue<uint64>() : uint64(0);
+
+	auto flags = NewMessageFlags(peer);
+	if (action.replyTo) {
+		flags |= MessageFlag::HasReplyInfo;
+	}
+	if (!multi
+		&& !action.options.scheduled
+		&& !action.options.shortcutId
+		&& session->ephemeralMessages().isEphemeralBotReply(
+			action.replyTo.messageId)) {
+		flags |= MessageFlag::Ephemeral;
+	}
+	InnerFillMessagePostFlags(action.options, peer, flags);
+	if (action.options.scheduled) {
+		flags |= MessageFlag::IsOrWasScheduled;
+	}
+	if (action.options.shortcutId) {
+		flags |= MessageFlag::ShortcutMessage;
+	}
+	if (action.options.invertCaption) {
+		flags |= MessageFlag::InvertMedia;
+	}
+
+	auto batchStarsPaid = 0;
+	auto remainingStarsApproved = action.options.starsApproved;
+	auto requests = std::vector<MusicSendRequestItem>();
+	requests.reserve(items.size());
+	for (auto i = 0; i != int(items.size()); ++i) {
+		auto itemCaption = (i + 1 == int(items.size()))
+			? caption
+			: TextWithEntities();
+		const auto newId = FullMsgId(
+			peer->id,
+			session->data().nextLocalMessageId());
+		const auto randomId = base::RandomValue<uint64>();
+		const auto messageStarsPaid = std::min(
+			peer->starsPerMessageChecked(),
+			remainingStarsApproved);
+		remainingStarsApproved -= messageStarsPaid;
+		batchStarsPaid += messageStarsPaid;
+
+		session->data().registerMessageRandomId(randomId, newId);
+		const auto localItem = history->addNewLocalMessage({
+			.id = newId.msg,
+			.flags = flags,
+			.from = NewMessageFromId(action),
+			.replyTo = action.replyTo,
+			.date = NewMessageDate(action.options),
+			.scheduleRepeatPeriod = action.options.scheduleRepeatPeriod,
+			.shortcutId = action.options.shortcutId,
+			.starsPaid = messageStarsPaid,
+			.postAuthor = NewMessagePostAuthor(action),
+			.groupedId = groupId,
+			.effectId = action.options.effectId,
+			.suggest = HistoryMessageSuggestInfo(action.options),
+			.mediaSpoiler = action.options.mediaSpoiler,
+		}, items[i].document, itemCaption);
+		requests.push_back({
+			.item = std::move(items[i]),
+			.localItem = localItem,
+			.localId = newId,
+			.randomId = randomId,
+			.caption = std::move(itemCaption),
+		});
+	}
+
+	const auto failRequest = [=](const MTP::Error &error) {
+		for (const auto &item : requests) {
+			api->sendMessageFail(error, peer, item.randomId, item.localId);
+		}
+		if (done) {
+			done();
+		}
+	};
+
+	const auto refreshItems = [=] {
+		auto result = std::vector<MusicRefreshItem>();
+		result.reserve(requests.size());
+		for (const auto &item : requests) {
+			if (!item.item.origin) {
+				continue;
+			}
+			result.push_back({
+				.document = item.item.document,
+				.origin = item.item.origin,
+				.usedFileReference = item.item.document->fileReference(),
+			});
+		}
+		return result;
+	}();
+	if (!multi) {
+		const auto &item = requests.front();
+		if (session->ephemeralMessages().sendMedia(
+				item.localItem,
+				PrepareMusicInputMedia(
+					item.item,
+					action.options.mediaSpoiler))) {
+			if (done) {
+				done();
+			}
+			return;
+		}
+	}
+
+	const auto performRequest = [=](const auto &repeatRequest, bool refreshed)
+			-> void {
+		const auto sendAs = action.options.sendAs;
+		const auto retryOrFail = [=](
+				const MTP::Error &error,
+				const MTP::Response &response) {
+			if (refreshed
+				|| (error.code() != 400)
+				|| !error.type().startsWith(u"FILE_REFERENCE_"_q)
+				|| refreshItems.empty()) {
+				failRequest(error);
+				return;
+			}
+			const auto changed = std::make_shared<bool>(false);
+			const auto left = std::make_shared<int>(int(refreshItems.size()));
+			for (const auto &refresh : refreshItems) {
+				api->refreshFileReference(refresh.origin, [=](const auto &) {
+					*changed = *changed
+						|| (refresh.document->fileReference()
+							!= refresh.usedFileReference);
+					if (!--*left) {
+						if (*changed) {
+							repeatRequest(repeatRequest, true);
+						} else {
+							failRequest(error);
+						}
+					}
+				});
+			}
+		};
+		if (!multi) {
+			const auto &item = requests.front();
+			const auto inputMedia = PrepareMusicInputMedia(
+				item.item,
+				action.options.mediaSpoiler);
+			const auto entities = EntitiesToMTP(
+				session,
+				item.caption.entities,
+				ConvertOption::SkipLocal);
+			auto sendFlags = MTPmessages_SendMedia::Flags(0);
+			if (action.replyTo) {
+				sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to;
+			}
+			if (ShouldSendSilent(peer, action.options)) {
+				sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
+			}
+			if (!entities.v.isEmpty()) {
+				sendFlags |= MTPmessages_SendMedia::Flag::f_entities;
+			}
+			if (action.options.scheduled) {
+				sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
+				if (action.options.scheduleRepeatPeriod) {
+					sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_repeat_period;
+				}
+			}
+			if (action.options.shortcutId) {
+				sendFlags |= MTPmessages_SendMedia::Flag::f_quick_reply_shortcut;
+			}
+			if (sendAs) {
+				sendFlags |= MTPmessages_SendMedia::Flag::f_send_as;
+			}
+			if (action.options.effectId) {
+				sendFlags |= MTPmessages_SendMedia::Flag::f_effect;
+			}
+			if (action.options.suggest) {
+				sendFlags |= MTPmessages_SendMedia::Flag::f_suggested_post;
+			}
+			if (action.options.invertCaption) {
+				sendFlags |= MTPmessages_SendMedia::Flag::f_invert_media;
+			}
+			if (batchStarsPaid) {
+				sendFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
+			}
+
+			auto &histories = history->owner().histories();
+			histories.sendPreparedMessage(
+				history,
+				action.replyTo,
+				item.randomId,
+				Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
+					MTP_flags(sendFlags),
+					peer->input(),
+					Data::Histories::ReplyToPlaceholder(),
+					(action.options.price
+						? MTPInputMedia(MTP_inputMediaPaidMedia(
+							MTP_flags(0),
+							MTP_long(action.options.price),
+							MTP_vector<MTPInputMedia>(1, inputMedia),
+							MTPstring()))
+						: inputMedia),
+					MTP_string(item.caption.text),
+					MTP_long(item.randomId),
+					MTPReplyMarkup(),
+					entities,
+					MTP_int(action.options.scheduled),
+					MTP_int(action.options.scheduleRepeatPeriod),
+					(sendAs ? sendAs->input() : MTP_inputPeerEmpty()),
+					Data::ShortcutIdToMTP(session, action.options.shortcutId),
+					MTP_long(action.options.effectId),
+					MTP_long(batchStarsPaid),
+					SuggestToMTP(action.options.suggest)
+				), [=](const MTPUpdates &result, const MTP::Response &response) {
+				actionPtr->options.starsApproved -= batchStarsPaid;
+				if (done) {
+					done();
+				}
+			}, retryOrFail);
+			return;
+		}
+
+		using Flag = MTPmessages_SendMultiMedia::Flag;
+		const auto sendFlags = Flag(0)
+			| (action.replyTo ? Flag::f_reply_to : Flag(0))
+			| (ShouldSendSilent(peer, action.options)
+				? Flag::f_silent
+				: Flag(0))
+			| (action.options.scheduled
+				? Flag::f_schedule_date
+				: Flag(0))
+			| (sendAs ? Flag::f_send_as : Flag(0))
+			| (action.options.shortcutId
+				? Flag::f_quick_reply_shortcut
+				: Flag(0))
+			| (action.options.effectId ? Flag::f_effect : Flag(0))
+			| (action.options.invertCaption
+				? Flag::f_invert_media
+				: Flag(0))
+			| (batchStarsPaid ? Flag::f_allow_paid_stars : Flag(0));
+
+		auto media = QVector<MTPInputSingleMedia>();
+		media.reserve(requests.size());
+		for (const auto &item : requests) {
+			media.push_back(PrepareMusicInputSingleMedia(
+				session,
+				item,
+				action.options.mediaSpoiler));
+		}
+
+		auto &histories = history->owner().histories();
+		histories.sendPreparedMessage(
+			history,
+			action.replyTo,
+			uint64(0),
+			Data::Histories::PrepareMessage<MTPmessages_SendMultiMedia>(
+				MTP_flags(sendFlags),
+				peer->input(),
+				Data::Histories::ReplyToPlaceholder(),
+				MTP_vector<MTPInputSingleMedia>(std::move(media)),
+				MTP_int(action.options.scheduled),
+				(sendAs ? sendAs->input() : MTP_inputPeerEmpty()),
+				Data::ShortcutIdToMTP(session, action.options.shortcutId),
+				MTP_long(action.options.effectId),
+				MTP_long(batchStarsPaid)
+			), [=](const MTPUpdates &result, const MTP::Response &response) {
+			actionPtr->options.starsApproved -= batchStarsPaid;
+			if (done) {
+				done();
+			}
+		}, retryOrFail);
+	};
+	performRequest(performRequest, false);
+}
+
 } // namespace
 
 void SendExistingDocument(
@@ -359,6 +725,61 @@ void SendExistingDocument(
 	}
 }
 
+void SendMusicSelection(
+		MessageToSend &&message,
+		std::vector<MusicSelectionItem> items) {
+	if (items.empty()) {
+		return;
+	}
+
+	auto caption = TextWithEntities{
+		std::move(message.textWithTags.text),
+		TextUtilities::ConvertTextTagsToEntities(message.textWithTags.tags)
+	};
+	TextUtilities::Trim(caption);
+
+	const auto api = &message.action.history->session().api();
+
+	message.action.clearDraft = false;
+	message.action.generateLocal = true;
+	api->sendAction(message.action);
+
+	const auto state = std::make_shared<MusicSelectionState>(MusicSelectionState{
+		.action = message.action,
+		.items = std::move(items),
+		.caption = std::move(caption),
+	});
+	const auto sendNext = [=](const auto &self) -> void {
+		const auto count = int(state->items.size());
+		if (state->offset == count) {
+			api->finishForwarding(state->action);
+			return;
+		}
+		const auto optionsRequireSingle = state->action.options.price
+			|| state->action.options.scheduleRepeatPeriod
+			|| state->action.options.suggest;
+		const auto batchLimit = optionsRequireSingle
+			? 1
+			: Ui::MaxAlbumItems();
+		const auto till = std::min(state->offset + batchLimit, count);
+		auto batch = std::vector<MusicSelectionItem>();
+		batch.reserve(till - state->offset);
+		for (; state->offset != till; ++state->offset) {
+			batch.push_back(std::move(state->items[state->offset]));
+		}
+		auto batchCaption = TextWithEntities();
+		if (state->offset == count) {
+			batchCaption = std::move(state->caption);
+		}
+		SendMusicSelectionBatch(
+			state->action,
+			std::move(batch),
+			std::move(batchCaption),
+			[=] { self(self); });
+	};
+	sendNext(sendNext);
+}
+
 void SendExistingPhoto(
 		MessageToSend &&message,
 		not_null<PhotoData*> photo,
@@ -386,7 +807,7 @@ bool SendDice(MessageToSend &message) {
 		|| !message.textWithTags.tags.isEmpty()) {
 		return false;
 	}
-	auto &config = message.action.history->session().appConfig();
+	const auto &config = message.action.history->session().appConfig();
 	static const auto hardcoded = std::vector<QString>{
 		Stickers::DicePacks::kDiceString,
 		Stickers::DicePacks::kDartString,
@@ -560,53 +981,25 @@ void FillMessagePostFlags(
 	InnerFillMessagePostFlags(action.options, peer, flags);
 }
 
-void SendConfirmedFile(
+namespace {
+
+struct ConfirmedLocalFile {
+	std::shared_ptr<FilePrepareResult> file;
+	not_null<History*> history;
+	not_null<PeerData*> peer;
+	FullMsgId newId;
+	SendAction action;
+	TextWithEntities caption;
+	MTPMessageMedia media;
+	MessageFlags flags = MessageFlags();
+	HistoryItem *itemToEdit = nullptr;
+	int starsPaid = 0;
+};
+
+[[nodiscard]] TextWithEntities PrepareConfirmedFileCaption(
+		not_null<History*> history,
 		not_null<Main::Session*> session,
 		const std::shared_ptr<FilePrepareResult> &file) {
-	const auto isEditing = (file->type != SendMediaType::Audio)
-		&& (file->type != SendMediaType::Round)
-		&& (file->to.replaceMediaOf != 0);
-	const auto newId = FullMsgId(
-		file->to.peer,
-		(isEditing
-			? file->to.replaceMediaOf
-			: session->data().nextLocalMessageId()));
-	const auto groupId = file->album ? file->album->groupId : uint64(0);
-	if (file->album) {
-		const auto proj = [](const SendingAlbum::Item &item) {
-			return item.taskId;
-		};
-		const auto it = ranges::find(file->album->items, file->taskId, proj);
-		Assert(it != file->album->items.end());
-
-		it->msgId = newId;
-	}
-
-	const auto itemToEdit = isEditing
-		? session->data().message(newId)
-		: nullptr;
-	const auto history = session->data().history(file->to.peer);
-	const auto peer = history->peer;
-
-	if (!isEditing) {
-		const auto histories = &session->data().histories();
-		file->to.replyTo.messageId = histories->convertTopicReplyToId(
-			history,
-			file->to.replyTo.messageId);
-		file->to.replyTo.topicRootId = histories->convertTopicReplyToId(
-			history,
-			file->to.replyTo.topicRootId);
-	}
-
-	session->uploader().upload(newId, file);
-
-	auto action = SendAction(history, file->to.options);
-	action.clearDraft = false;
-	action.replyTo = file->to.replyTo;
-	action.generateLocal = true;
-	action.replaceMediaOf = file->to.replaceMediaOf;
-	session->api().sendAction(action);
-
 	auto caption = TextWithEntities{
 		file->caption.text,
 		TextUtilities::ConvertTextTagsToEntities(file->caption.tags)
@@ -616,17 +1009,39 @@ void SendConfirmedFile(
 		session->user()).flags;
 	TextUtilities::PrepareForSending(caption, prepareFlags);
 	TextUtilities::Trim(caption);
+	return caption;
+}
 
+[[nodiscard]] MessageFlags PrepareConfirmedFileFlags(
+		not_null<Main::Session*> session,
+		const SendAction &action,
+		not_null<PeerData*> peer,
+		const std::shared_ptr<FilePrepareResult> &file,
+		const QString &caption,
+		bool isEditing) {
+	const auto welcomeTemplate = file->to.options.welcomeTemplate;
+	const auto groupId = welcomeTemplate
+		? uint64(0)
+		: file->album
+		? file->album->groupId
+		: uint64(0);
 	auto flags = isEditing ? MessageFlags() : NewMessageFlags(peer);
+	if (welcomeTemplate) {
+		flags &= ~MessageFlag::Outgoing;
+		flags |= MessageFlag::FakeHistoryItem;
+	}
 	if (file->to.replyTo) {
 		flags |= MessageFlag::HasReplyInfo;
 	}
 	if (!isEditing
+		&& !welcomeTemplate
 		&& !groupId
 		&& !file->to.options.scheduled
 		&& !file->to.options.shortcutId
-		&& session->ephemeralMessages().isEphemeralBotReply(
-			file->to.replyTo.messageId)) {
+		&& session->ephemeralMessages().wouldSendMedia(
+			peer,
+			file->to.replyTo,
+			caption)) {
 		flags |= MessageFlag::Ephemeral;
 	}
 	FillMessagePostFlags(action, peer, flags);
@@ -642,8 +1057,14 @@ void SendConfirmedFile(
 		// Shortcut messages have no 'edited' badge.
 		flags |= MessageFlag::HideEdited;
 	}
+	const auto mediaTtlSeconds = (file->to.options.scheduled
+		|| (file->type != SendMediaType::Photo
+			&& file->type != SendMediaType::File))
+		? crl::time()
+		: file->to.options.ttlSeconds;
 	if (file->type == SendMediaType::Audio
-		|| file->type == SendMediaType::Round) {
+		|| file->type == SendMediaType::Round
+		|| mediaTtlSeconds) {
 		if (!peer->isChannel() || peer->isMegagroup()) {
 			flags |= MessageFlag::MediaIsUnread;
 		}
@@ -651,26 +1072,38 @@ void SendConfirmedFile(
 	if (file->to.options.invertCaption) {
 		flags |= MessageFlag::InvertMedia;
 	}
-	const auto media = MTPMessageMedia([&] {
+	return flags;
+}
+
+[[nodiscard]] MTPMessageMedia PrepareConfirmedFileMedia(
+		const std::shared_ptr<FilePrepareResult> &file) {
+	const auto mediaTtlSeconds = (file->to.options.scheduled
+		|| (file->type != SendMediaType::Photo
+			&& file->type != SendMediaType::File))
+		? crl::time()
+		: file->to.options.ttlSeconds;
+	return MTPMessageMedia([&] {
 		if (file->type == SendMediaType::Photo) {
 			using Flag = MTPDmessageMediaPhoto::Flag;
 			return MTP_messageMediaPhoto(
 				MTP_flags(Flag::f_photo
-					| (file->spoiler ? Flag::f_spoiler : Flag())),
+					| (file->spoiler ? Flag::f_spoiler : Flag())
+					| (mediaTtlSeconds ? Flag::f_ttl_seconds : Flag())),
 				file->photo,
-				MTPint(), // ttl_seconds
+				MTP_int(mediaTtlSeconds),
 				MTPDocument()); // video
 		} else if (file->type == SendMediaType::File) {
 			using Flag = MTPDmessageMediaDocument::Flag;
 			return MTP_messageMediaDocument(
 				MTP_flags(Flag::f_document
 					| (file->spoiler ? Flag::f_spoiler : Flag())
-					| (file->videoCover ? Flag::f_video_cover : Flag())),
+					| (file->videoCover ? Flag::f_video_cover : Flag())
+					| (mediaTtlSeconds ? Flag::f_ttl_seconds : Flag())),
 				file->document,
 				MTPVector<MTPDocument>(), // alt_documents
 				file->videoCover ? file->videoCover->photo : MTPPhoto(),
 				MTPint(), // video_timestamp
-				MTPint());
+				MTP_int(mediaTtlSeconds));
 		} else if (file->type == SendMediaType::Audio) {
 			const auto ttlSeconds = file->to.options.ttlSeconds;
 			using Flag = MTPDmessageMediaDocument::Flag;
@@ -697,19 +1130,88 @@ void SendConfirmedFile(
 				MTPPhoto(), // video_cover
 				MTPint(), // video_timestamp
 				MTP_int(ttlSeconds));
-		} else {
-			Unexpected("Type in sendFilesConfirmed.");
 		}
+		Unexpected("Type in sendFilesConfirmed.");
 	}());
+}
 
-	if (itemToEdit) {
+[[nodiscard]] ConfirmedLocalFile PrepareConfirmedLocalFile(
+		not_null<Main::Session*> session,
+		const std::shared_ptr<FilePrepareResult> &file,
+		int starsPaid) {
+	const auto isEditing = (file->type != SendMediaType::Audio)
+		&& (file->type != SendMediaType::Round)
+		&& (file->to.replaceMediaOf != 0);
+	const auto newId = FullMsgId(
+		file->to.peer,
+		(isEditing
+			? file->to.replaceMediaOf
+			: session->data().nextLocalMessageId()));
+	const auto welcomeTemplate = file->to.options.welcomeTemplate;
+	if (!welcomeTemplate && file->album) {
+		const auto it = ranges::find(
+			file->album->items,
+			file->taskId,
+			&SendingAlbum::Item::taskId);
+		Assert(it != file->album->items.end());
+
+		it->msgId = newId;
+	}
+
+	const auto itemToEdit = isEditing
+		? session->data().message(newId)
+		: nullptr;
+	const auto history = session->data().history(file->to.peer);
+	const auto peer = history->peer;
+
+	if (!isEditing) {
+		auto &histories = session->data().histories();
+		file->to.replyTo.messageId = histories.convertTopicReplyToId(
+			history,
+			file->to.replyTo.messageId);
+		file->to.replyTo.topicRootId = histories.convertTopicReplyToId(
+			history,
+			file->to.replyTo.topicRootId);
+	}
+
+	auto action = SendAction(history, file->to.options);
+	action.clearDraft = false;
+	action.replyTo = file->to.replyTo;
+	action.generateLocal = true;
+	action.replaceMediaOf = file->to.replaceMediaOf;
+
+	auto caption = PrepareConfirmedFileCaption(history, session, file);
+	const auto flags = PrepareConfirmedFileFlags(
+		session,
+		action,
+		peer,
+		file,
+		caption.text,
+		isEditing);
+
+	return ConfirmedLocalFile{
+		file,
+		history,
+		peer,
+		newId,
+		action,
+		std::move(caption),
+		PrepareConfirmedFileMedia(file),
+		flags,
+		itemToEdit,
+		starsPaid,
+	};
+}
+
+void AddConfirmedLocalPlaceholder(const ConfirmedLocalFile &local) {
+	if (local.itemToEdit) {
 		auto edition = HistoryMessageEdition();
-		edition.isEditHide = (flags & MessageFlag::HideEdited);
+		edition.isEditHide = (local.flags & MessageFlag::HideEdited);
 		edition.editDate = 0;
 		edition.ttl = 0;
-		edition.mtpMedia = &media;
-		edition.textWithEntities = caption;
-		edition.invertMedia = file->to.options.invertCaption;
+		edition.mtpMedia = &local.media;
+		edition.textWithEntities = local.caption;
+		edition.invertMedia = local.file->to.options.invertCaption;
 		edition.useSameViews = true;
 		edition.useSameForwards = true;
 		edition.useSameMarkup = true;
@@ -717,38 +1219,125 @@ void SendConfirmedFile(
 		edition.useSameReactions = true;
 		edition.useSameSuggest = true;
 		edition.savePreviousMedia = true;
-		itemToEdit->applyEdition(std::move(edition));
-	} else {
-		history->addNewLocalMessage({
-			.id = newId.msg,
-			.flags = flags,
-			.from = NewMessageFromId(action),
-			.replyTo = file->to.replyTo,
-			.date = NewMessageDate(file->to.options),
-			.scheduleRepeatPeriod = file->to.options.scheduleRepeatPeriod,
-			.shortcutId = file->to.options.shortcutId,
-			.starsPaid = std::min(
-				history->peer->starsPerMessageChecked(),
-				file->to.options.starsApproved),
-			.postAuthor = NewMessagePostAuthor(action),
-			.groupedId = groupId,
-			.effectId = file->to.options.effectId,
-			.suggest = HistoryMessageSuggestInfo(file->to.options),
-		}, caption, media);
+		local.itemToEdit->applyEdition(std::move(edition));
+		return;
 	}
 
-	if (isEditing) {
+	const auto welcomeTemplate = local.file->to.options.welcomeTemplate;
+	const auto item = local.history->addNewLocalMessage({
+		.id = local.newId.msg,
+		.flags = local.flags,
+		.from = NewMessageFromId(local.action),
+		.replyTo = local.file->to.replyTo,
+		.date = NewMessageDate(local.file->to.options),
+		.scheduleRepeatPeriod = local.file->to.options.scheduleRepeatPeriod,
+		.shortcutId = local.file->to.options.shortcutId,
+		.starsPaid = local.starsPaid,
+		.postAuthor = NewMessagePostAuthor(local.action),
+		.groupedId = welcomeTemplate
+			? uint64(0)
+			: local.file->album
+			? local.file->album->groupId
+			: uint64(0),
+		.effectId = local.file->to.options.effectId,
+		.suggest = HistoryMessageSuggestInfo(local.file->to.options),
+	}, local.caption, local.media);
+	if (welcomeTemplate) {
+		local.history->session().welcomeMessages().appendSending(item);
+	}
+}
+
+[[nodiscard]] bool FlushPreparedMusicBatch(
+		not_null<Main::Session*> session,
+		const std::shared_ptr<FilePrepareResult> &sample) {
+	const auto album = sample->album;
+	if (!album || !album->preparedMusicBatching()) {
+		return false;
+	}
+	auto files = album->takePreparedMusic();
+	if (files.empty()) {
+		return false;
+	}
+
+	const auto peer = session->data().history(files.front()->to.peer)->peer;
+	auto remainingStarsApproved = album->options.starsApproved;
+	auto locals = std::vector<ConfirmedLocalFile>();
+	locals.reserve(files.size());
+	for (const auto &file : files) {
+		const auto starsPaid = std::min(
+			peer->starsPerMessageChecked(),
+			remainingStarsApproved);
+		remainingStarsApproved -= starsPaid;
+		locals.push_back(PrepareConfirmedLocalFile(session, file, starsPaid));
+	}
+
+	auto notifyHistory = false;
+	for (const auto &local : locals) {
+		session->api().sendAction(local.action);
+		AddConfirmedLocalPlaceholder(local);
+		notifyHistory = notifyHistory
+			|| (!local.itemToEdit
+				&& !local.file->to.options.welcomeTemplate);
+	}
+	for (const auto &local : locals) {
+		session->uploader().upload(local.newId, local.file);
+	}
+
+	if (notifyHistory) {
+		session->data().sendHistoryChangeNotifications();
+		session->changes().historyUpdated(
+			locals.front().history,
+			(locals.front().action.options.scheduled
+				? Data::HistoryUpdate::Flag::ScheduledSent
+				: Data::HistoryUpdate::Flag::MessageSent));
+	}
+	return true;
+}
+
+} // namespace
+
+void SendConfirmedFile(
+		not_null<Main::Session*> session,
+		const std::shared_ptr<FilePrepareResult> &file) {
+	const auto welcomeTemplate = file->to.options.welcomeTemplate;
+	if (welcomeTemplate && file->to.replaceMediaOf) {
+		return;
+	}
+	if (welcomeTemplate) {
+		const auto history = session->data().history(file->to.peer);
+		if (session->welcomeMessages().count(history)
+			>= Data::WelcomeMessagesLimit(session)) {
+			return;
+		}
+	}
+	if (FlushPreparedMusicBatch(session, file)) {
+		return;
+	}
+
+	const auto history = session->data().history(file->to.peer);
+	const auto local = PrepareConfirmedLocalFile(
+		session,
+		file,
+		std::min(
+			history->peer->starsPerMessageChecked(),
+			file->to.options.starsApproved));
+	session->uploader().upload(local.newId, file);
+	session->api().sendAction(local.action);
+	AddConfirmedLocalPlaceholder(local);
+
+	if (local.itemToEdit) {
+		return;
+	}
+	if (welcomeTemplate) {
 		return;
 	}
 
 	session->data().sendHistoryChangeNotifications();
-	if (!itemToEdit) {
-		session->changes().historyUpdated(
-			history,
-			(action.options.scheduled
-				? Data::HistoryUpdate::Flag::ScheduledSent
-				: Data::HistoryUpdate::Flag::MessageSent));
-	}
+	session->changes().historyUpdated(
+		local.history,
+		(local.action.options.scheduled
+			? Data::HistoryUpdate::Flag::ScheduledSent
+			: Data::HistoryUpdate::Flag::MessageSent));
 }
 
 } // namespace Api

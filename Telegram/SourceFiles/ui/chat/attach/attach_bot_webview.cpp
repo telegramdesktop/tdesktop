@@ -285,6 +285,9 @@ void LogNativeMessageRejected(
 			LogNativeMessageRejected(reason, byteCount, command);
 			return std::optional<NativeMessage>();
 		};
+		if (!IsExternalShellOrigin(OriginFromUrl(sourceUrl))) {
+			return reject(u"bad external sender"_q);
+		}
 		if (object.value(u"type"_q).toString()
 			!= QString::fromLatin1(kExternalMessageType)) {
 			return reject(u"bad external type"_q);
@@ -310,6 +313,9 @@ void LogNativeMessageRejected(
 				|| !IsExternalShellOrigin(origin.toString())) {
 				return reject(u"bad shell origin"_q);
 			}
+		} else if (!origin.isString()
+			|| OriginFromUrl(origin.toString()).isEmpty()) {
+			return reject(u"bad webapp origin"_q);
 		}
 		if (!object.value(u"eventType"_q).isString() || command.isEmpty()) {
 			return reject(u"bad command"_q);
@@ -330,7 +336,7 @@ void LogNativeMessageRejected(
 		return NativeMessage{
 			.source = source,
 			.origin = (source == NativeMessageSource::ExternalWebApp)
-				? origin.toString()
+				? OriginFromUrl(origin.toString())
 				: QString(),
 			.command = command,
 			.arguments = arguments,
@@ -406,6 +412,7 @@ enum class SharedPanelMenuAction {
 	ShareGame,
 	Terms,
 	Privacy,
+	Report,
 	RemoveFromMenu,
 	RemoveFromMainMenu,
 	DownloadOpen,
@@ -455,6 +462,8 @@ struct SharedPanelMenuDispatchArgs {
 		return u"terms"_q;
 	case SharedPanelMenuAction::Privacy:
 		return u"privacy"_q;
+	case SharedPanelMenuAction::Report:
+		return u"report"_q;
 	case SharedPanelMenuAction::RemoveFromMenu:
 		return u"remove_from_menu"_q;
 	case SharedPanelMenuAction::RemoveFromMainMenu:
@@ -517,6 +526,8 @@ struct ParsedSharedPanelMenuAction {
 		return { SharedPanelMenuAction::Terms };
 	} else if (id == u"privacy"_q) {
 		return { SharedPanelMenuAction::Privacy };
+	} else if (id == u"report"_q) {
+		return { SharedPanelMenuAction::Report };
 	} else if (id == u"remove_from_menu"_q) {
 		return { SharedPanelMenuAction::RemoveFromMenu };
 	} else if (id == u"remove_from_main_menu"_q) {
@@ -569,6 +580,11 @@ void DispatchSharedPanelMenuAction(
 	case SharedPanelMenuAction::Privacy:
 		if (dispatch.privacy) {
 			dispatch.privacy();
+		}
+		break;
+	case SharedPanelMenuAction::Report:
+		if (dispatch.menuButton) {
+			dispatch.menuButton(MenuButton::Report);
 		}
 		break;
 	case SharedPanelMenuAction::RemoveFromMenu:
@@ -694,6 +710,14 @@ void DispatchSharedPanelMenuAction(
 			.iconKey = u"privacy"_q,
 			.icon = &st::menuIconAntispam,
 		});
+		if (args.buttons & MenuButton::Report) {
+			result.push_back({
+				.id = SharedPanelMenuActionId(SharedPanelMenuAction::Report),
+				.text = tr::lng_profile_report(tr::now),
+				.iconKey = u"report"_q,
+				.icon = &st::menuIconReport,
+			});
+		}
 	}
 	if (args.buttons & MenuButton::RemoveFromMainMenu) {
 		result.push_back({
@@ -1254,7 +1278,7 @@ Panel::Panel(Args &&args)
 		if (_closeNeedConfirmation) {
 			scheduleCloseWithConfirmation();
 		} else {
-			_delegate->botClose();
+			requestClose();
 		}
 	}, _widget->lifetime());
 
@@ -1262,7 +1286,7 @@ Panel::Panel(Args &&args)
 	) | rpl::filter([=] {
 		return !_hiddenForPayment;
 	}) | rpl::on_next([=] {
-		_delegate->botClose();
+		requestClose();
 	}, _widget->lifetime());
 
 	_widget->backRequests(
@@ -1993,7 +2017,7 @@ void Panel::showExternalShellError(TextWithEntities text) {
 		}
 		*botClosed = true;
 		if (const auto panel = weak.get()) {
-			panel->_delegate->botClose();
+			panel->requestClose();
 		}
 	};
 	auto box = Ui::MakeInformBox({
@@ -2038,10 +2062,11 @@ void Panel::showPopup(
 		Webview::PopupArgs &&args,
 		Fn<void(Webview::PopupResult)> done) {
 	if (!_externalShell) {
-		auto result = Webview::ShowBlockingPopup(std::move(args));
-		if (done) {
-			done(std::move(result));
-		}
+		// Never block here: a nested event loop started from inside a
+		// webview callback would run queued main thread work, including
+		// the deferred close of this very panel, and the whole object
+		// graph under the running callback would be destroyed.
+		Webview::ShowPopupAsync(std::move(args), std::move(done), true);
 		return;
 	}
 	const auto anchor = externalShellAnchor();
@@ -2129,6 +2154,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 		Webview::WindowConfig{
 			.opaqueBg = params.bodyBg,
 			.storageId = _storageId,
+			.allowThirdPartyCookies = _externalShell,
 			.mode = _externalShell
 				? Webview::WindowMode::External
 				: Webview::WindowMode::Embedded,
@@ -2192,7 +2218,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 		}
 		_externalWindowCloseRequested = true;
 		invalidateExternalShellSession();
-		_delegate->botClose();
+		requestClose();
 	});
 
 	QObject::connect(raw->widget(), &QObject::destroyed, [=] {
@@ -2240,7 +2266,9 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 	}
 
 	raw->setMessageHandler([=](Webview::Message message) {
-		if (message.text.size() > size_t(kMaxNativeMessageBytes)) {
+		if (_closeRequested) {
+			return;
+		} else if (message.text.size() > size_t(kMaxNativeMessageBytes)) {
 			LogNativeMessageRejected(
 				u"payload too large"_q,
 				quint64(message.text.size()));
@@ -2276,7 +2304,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 				if (_closeNeedConfirmation) {
 					scheduleCloseWithConfirmation();
 				} else {
-					_delegate->botClose();
+					requestClose();
 				}
 			} else if (command == "shell_menu_request") {
 				if (_externalBlockCount <= 0) {
@@ -2298,7 +2326,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			return;
 		}
 		if (command == "web_app_close") {
-			_delegate->botClose();
+			requestClose();
 		} else if (command == "web_app_data_send") {
 			sendDataMessage(arguments);
 		} else if (command == "web_app_switch_inline_query") {
@@ -2491,6 +2519,12 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 				false);
 			return true;
 		});
+	} else {
+		raw->setDialogHandler([=](Webview::DialogArgs args) {
+			return _closeRequested
+				? Webview::DialogResult()
+				: Webview::DefaultDialogHandler(std::move(args));
+		});
 	}
 
 	auto initScript = QByteArray(R"(
@@ -2591,13 +2625,13 @@ void Panel::setTitle(rpl::producer<QString> title) {
 
 void Panel::sendDataMessage(const QJsonObject &args) {
 	if (args.isEmpty()) {
-		_delegate->botClose();
+		requestClose();
 		return;
 	}
 	const auto data = args["data"].toString();
 	if (data.isEmpty()) {
 		LOG(("BotWebView Error: Bad 'data' in sendDataMessage."));
-		_delegate->botClose();
+		requestClose();
 		return;
 	}
 	_delegate->botSendData(data.toUtf8());
@@ -2605,11 +2639,11 @@ void Panel::sendDataMessage(const QJsonObject &args) {
 
 void Panel::switchInlineQueryMessage(const QJsonObject &args) {
 	if (args.isEmpty()) {
-		_delegate->botClose();
+		requestClose();
 		return;
 	} else if (!args.contains("query")) {
 		LOG(("BotWebView Error: No 'query' in switchInlineQueryMessage."));
-		_delegate->botClose();
+		requestClose();
 		return;
 	}
 	const auto query = args["query"].toString();
@@ -2637,7 +2671,7 @@ void Panel::switchInlineQueryMessage(const QJsonObject &args) {
 
 void Panel::processSendMessageRequest(const QJsonObject &args) {
 	if (args.isEmpty()) {
-		_delegate->botClose();
+		requestClose();
 		return;
 	}
 	const auto id = args["id"].toString();
@@ -2658,7 +2692,7 @@ void Panel::processSendMessageRequest(const QJsonObject &args) {
 
 void Panel::processRequestChat(const QJsonObject &args) {
 	if (args.isEmpty()) {
-		_delegate->botClose();
+		requestClose();
 		return;
 	}
 	const auto requestId = args["req_id"].toString();
@@ -2685,7 +2719,7 @@ void Panel::processRequestChat(const QJsonObject &args) {
 
 void Panel::processEmojiStatusRequest(const QJsonObject &args) {
 	if (args.isEmpty()) {
-		_delegate->botClose();
+		requestClose();
 		return;
 	}
 	const auto emojiId = args["custom_emoji_id"].toString().toULongLong();
@@ -2787,13 +2821,13 @@ void Panel::secureStorageFailed(const QJsonObject &args) {
 void Panel::openTgLink(const QJsonObject &args) {
 	if (args.isEmpty()) {
 		LOG(("BotWebView Error: Bad arguments in 'web_app_open_tg_link'."));
-		_delegate->botClose();
+		requestClose();
 		return;
 	}
 	const auto path = args["path_full"].toString();
 	if (path.isEmpty()) {
 		LOG(("BotWebView Error: Bad 'path_full' in 'web_app_open_tg_link'."));
-		_delegate->botClose();
+		requestClose();
 		return;
 	}
 	_delegate->botHandleLocalUri("https://t.me" + path, true);
@@ -2801,14 +2835,14 @@ void Panel::openTgLink(const QJsonObject &args) {
 
 void Panel::openExternalLink(const QJsonObject &args) {
 	if (args.isEmpty()) {
-		_delegate->botClose();
+		requestClose();
 		return;
 	}
 	const auto iv = args["try_instant_view"].toBool();
 	const auto url = args["url"].toString();
 	if (!_delegate->botValidateExternalLink(url)) {
-		LOG(("BotWebView Error: Bad url in openExternalLink: %1").arg(url));
-		_delegate->botClose();
+		LOG(("BotWebView Error: Bad url in openExternalLink."));
+		requestClose();
 		return;
 	} else if (!allowOpenLink()) {
 		return;
@@ -2821,13 +2855,13 @@ void Panel::openExternalLink(const QJsonObject &args) {
 
 void Panel::openInvoice(const QJsonObject &args) {
 	if (args.isEmpty()) {
-		_delegate->botClose();
+		requestClose();
 		return;
 	}
 	const auto slug = args["slug"].toString();
 	if (slug.isEmpty()) {
 		LOG(("BotWebView Error: Bad 'slug' in openInvoice."));
-		_delegate->botClose();
+		requestClose();
 		return;
 	}
 	_delegate->botHandleInvoice(slug);
@@ -2835,7 +2869,7 @@ void Panel::openInvoice(const QJsonObject &args) {
 
 void Panel::openPopup(const QJsonObject &args) {
 	if (args.isEmpty()) {
-		_delegate->botClose();
+		requestClose();
 		return;
 	}
 	using Button = Webview::PopupArgs::Button;
@@ -2855,7 +2889,7 @@ void Panel::openPopup(const QJsonObject &args) {
 		const auto i = types.find(fields["type"].toString());
 		if (i == end(types)) {
 			LOG(("BotWebView Error: Bad 'type' in openPopup buttons."));
-			_delegate->botClose();
+			requestClose();
 			return;
 		}
 		buttons.push_back({
@@ -2866,11 +2900,11 @@ void Panel::openPopup(const QJsonObject &args) {
 	}
 	if (message.isEmpty()) {
 		LOG(("BotWebView Error: Bad 'message' in openPopup."));
-		_delegate->botClose();
+		requestClose();
 		return;
 	} else if (buttons.empty()) {
 		LOG(("BotWebView Error: Bad 'buttons' in openPopup."));
-		_delegate->botClose();
+		requestClose();
 		return;
 	}
 	const auto weak = base::make_weak(this);
@@ -3100,7 +3134,7 @@ void Panel::scheduleCloseWithConfirmation() {
 void Panel::closeWithConfirmation() {
 	if (!_webview) {
 		_closeWithConfirmationScheduled = false;
-		_delegate->botClose();
+		requestClose();
 		return;
 	}
 	using Button = Webview::PopupArgs::Button;
@@ -3123,7 +3157,7 @@ void Panel::closeWithConfirmation() {
 		if (!weak) {
 			return;
 		} else if (result.id == "close") {
-			_delegate->botClose();
+			requestClose();
 		} else {
 			_closeWithConfirmationScheduled = false;
 		}
@@ -3134,11 +3168,16 @@ void Panel::setupClosingBehaviour(const QJsonObject &args) {
 	_closeNeedConfirmation = args["need_confirmation"].toBool();
 }
 
+void Panel::requestClose() {
+	_closeRequested = true;
+	_delegate->botClose();
+}
+
 void Panel::processButtonMessage(
 		std::unique_ptr<Button> &button,
 		const QJsonObject &args) {
 	if (args.isEmpty()) {
-		_delegate->botClose();
+		requestClose();
 		return;
 	}
 	if (_externalShell) {
@@ -3338,18 +3377,18 @@ void Panel::processBottomBarColor(const QJsonObject &args) {
 
 void Panel::processDownloadRequest(const QJsonObject &args) {
 	if (args.isEmpty()) {
-		_delegate->botClose();
+		requestClose();
 		return;
 	}
 	const auto url = args["url"].toString();
 	const auto name = args["file_name"].toString();
 	if (url.isEmpty()) {
 		LOG(("BotWebView Error: Bad 'url' in download request."));
-		_delegate->botClose();
+		requestClose();
 		return;
 	} else if (name.isEmpty()) {
 		LOG(("BotWebView Error: Bad 'file_name' in download request."));
-		_delegate->botClose();
+		requestClose();
 		return;
 	}
 	const auto done = crl::guard(this, [=](bool started) {

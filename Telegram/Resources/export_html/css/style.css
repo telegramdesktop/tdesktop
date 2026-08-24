@@ -63,6 +63,7 @@ pre {
 }
 .page_header .content {
     width: 480px;
+    max-width: 100%;
     margin: 0 auto;
     border-radius: 0 !important;
 }
@@ -91,6 +92,7 @@ pre {
 .page_body {
     padding-top: 64px;
     width: 480px;
+    max-width: calc(100% - 20px);
     margin: 0 auto;
 }
 .page_about {
@@ -593,6 +595,114 @@ div.toast_shown {
     min-width: 0;
     max-width: 100%;
 }
+.default .rich_message .rich_button_row {
+    display: flex;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0 0 8px;
+}
+.default .rich_message .rich_button_group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    min-width: 0;
+    max-width: 100%;
+}
+.default .rich_message .rich_button_align_stretch .rich_button_group {
+    align-items: flex-start;
+    width: 100%;
+}
+.default .rich_message .rich_button_align_left {
+    justify-content: flex-start;
+}
+.default .rich_message .rich_button_align_center {
+    justify-content: center;
+}
+.default .rich_message .rich_button_align_right {
+    justify-content: flex-end;
+}
+.default .rich_message .rich_button_align_left .rich_button_group,
+.default .rich_message .rich_button_align_center .rich_button_group,
+.default .rich_message .rich_button_align_right .rich_button_group {
+    width: fit-content;
+}
+.default .rich_message .rich_button_align_left .rich_button_group {
+    justify-content: flex-start;
+}
+.default .rich_message .rich_button_align_center .rich_button_group {
+    justify-content: center;
+}
+.default .rich_message .rich_button_align_right .rich_button_group {
+    justify-content: flex-end;
+}
+.default .rich_message .rich_button {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+    padding: 0.35em 0.75em;
+    color: inherit;
+    border: 0;
+    border-radius: 1em;
+    font: inherit;
+    font-weight: 600;
+    line-height: inherit;
+    text-align: center;
+    text-decoration: none;
+    vertical-align: middle;
+    white-space: normal;
+    cursor: default;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.default .rich_message .rich_button_block {
+    flex: 0 1 auto;
+}
+.default .rich_message .rich_button_align_stretch .rich_button_block {
+    flex: 1 1 6em;
+}
+.default .rich_message .rich_button_inline {
+    padding: 0.1em 0.5em;
+}
+.default .rich_message a.rich_button_action_url,
+.default .rich_message button.rich_button_action_copy_text {
+    cursor: pointer;
+}
+.default .rich_message .rich_button_style_default {
+    color: #168acd;
+    background-color: #168acd1f;
+}
+.default .rich_message .rich_button_style_primary {
+    color: #ffffff;
+    background-color: #168acd;
+}
+.default .rich_message .rich_button_style_success {
+    color: #64bf47;
+    background-color: #64bf471f;
+}
+.default .rich_message .rich_button_style_danger {
+    color: #ff5555;
+    background-color: #ff55551f;
+}
+.default .rich_message .rich_button_action_disabled {
+    opacity: 0.33;
+    cursor: default;
+}
+.default .rich_message .rich_button_inline.rich_button_style_link {
+    display: inline;
+    padding: 0;
+    color: #168acd;
+    background: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    font: inherit;
+    line-height: inherit;
+    text-decoration: none;
+}
 .default .rich_message > .rich_block:first-child {
     margin-top: 0;
 }
@@ -892,6 +1002,10 @@ div.toast_shown {
 .default .rich_message .rich_table.bordered td {
     border: 1px solid #e3e6e8;
 }
+.default .rich_message .rich_table.compact th,
+.default .rich_message .rich_table.compact td {
+    padding-block: 2px;
+}
 .default .rich_message .rich_table.striped tbody > tr:nth-child(even) > td,
 .default .rich_message .rich_table th {
     background-color: #f5f7f8;
@@ -1174,6 +1288,123 @@ div.toast_shown {
 .default .rich_message .rich_media_group[data-rich-has-items="true"][data-rich-items-end-media="true"] > .rich_media_group_items:not(:last-child) {
     margin-bottom: 0;
 }
+.default .rich_message .rich_collage_box,
+.default .rich_message .rich_slideshow_box {
+    box-sizing: border-box;
+    display: block;
+    position: relative;
+    width: 260px;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    border-radius: 8px;
+}
+.default .rich_message .rich_media_group > .rich_collage_box + .rich_media_caption,
+.default .rich_message .rich_media_group > .rich_slideshow_box + .rich_media_caption {
+    margin-top: 0;
+}
+.default .rich_message .rich_collage_item {
+    position: absolute;
+    overflow: hidden;
+}
+.default .rich_message .rich_slideshow_box {
+    direction: ltr;
+    background: #000000;
+}
+.default .rich_message .rich_slideshow_track {
+    display: flex;
+    height: 100%;
+    transition: transform 0.25s ease;
+}
+.default .rich_message .rich_slide {
+    flex: 0 0 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+.default .rich_message .rich_collage_item > .rich_media_item,
+.default .rich_message .rich_slide > .rich_media_item,
+.default .rich_message .rich_collage_item .media_wrap,
+.default .rich_message .rich_slide .media_wrap,
+.default .rich_message .rich_collage_item .photo_wrap,
+.default .rich_message .rich_slide .photo_wrap,
+.default .rich_message .rich_collage_item .video_file_wrap,
+.default .rich_message .rich_slide .video_file_wrap {
+    display: block;
+    float: none;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+.default .rich_message .rich_collage_item .photo,
+.default .rich_message .rich_collage_item .video_file {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover;
+    border-radius: 0;
+}
+.default .rich_message .rich_slide .photo,
+.default .rich_message .rich_slide .video_file {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain;
+    border-radius: 0;
+}
+.default .rich_message .rich_slideshow_prev,
+.default .rich_message .rich_slideshow_next {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: #ffffff;
+    color: #333333;
+    font-size: 16px;
+    line-height: 36px;
+    text-align: center;
+    opacity: 0.9;
+    cursor: pointer;
+    z-index: 3;
+}
+.default .rich_message .rich_slideshow_prev {
+    left: 12px;
+}
+.default .rich_message .rich_slideshow_next {
+    right: 12px;
+}
+.default .rich_message .rich_slideshow_prev:hover,
+.default .rich_message .rich_slideshow_next:hover {
+    opacity: 1;
+}
+.default .rich_message .rich_slideshow_dots {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 10px;
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    z-index: 3;
+}
+.default .rich_message .rich_slideshow_dot {
+    width: 8px;
+    height: 8px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+}
+.default .rich_message .rich_slideshow_dot.active {
+    background: #ffffff;
+}
 .default .rich_message .rich_embed_post[data-rich-has-items="true"][data-rich-has-meta="false"] > .rich_embed_post_author + .rich_embed_post_blocks {
     margin-top: 3px;
 }
@@ -1437,6 +1668,26 @@ div.selected {
 }
 .default .rich_message .rich_source_link {
     color: #4db8ff;
+}
+.default .rich_message .rich_button_style_default {
+    color: #4db8ff;
+    background-color: #4db8ff1f;
+}
+.default .rich_message .rich_button_style_primary {
+    color: #1a2026;
+    background-color: #4db8ff;
+}
+.default .rich_message .rich_button_style_success {
+    color: #64bf47;
+    background-color: #64bf471f;
+}
+.default .rich_message .rich_button_style_danger {
+    color: #ff5555;
+    background-color: #ff55551f;
+}
+.default .rich_message .rich_button_inline.rich_button_style_link {
+    color: #4db8ff;
+    background: none;
 }
 msgInBg,
 .historyComposeAreaBg {

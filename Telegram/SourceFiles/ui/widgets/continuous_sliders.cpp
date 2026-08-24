@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "base/timer.h"
+#include "base/weak_qptr.h"
 #include "base/platform/base_platform_info.h"
 #include "styles/style_widgets.h"
 
@@ -101,8 +102,12 @@ void ContinuousSlider::mousePressEvent(QMouseEvent *e) {
 void ContinuousSlider::mouseReleaseEvent(QMouseEvent *e) {
 	if (_mouseDown) {
 		_mouseDown = false;
+		const auto weak = base::make_weak(this);
 		if (_changeFinishedCallback) {
 			_changeFinishedCallback(_downValue);
+		}
+		if (!weak) {
+			return;
 		}
 		_value = _downValue;
 		update();
@@ -125,8 +130,12 @@ void ContinuousSlider::wheelEvent(QWheelEvent *e) {
 	auto delta = (qAbs(deltaX) > qAbs(deltaY)) ? deltaX : deltaY;
 	auto finalValue = std::clamp(_value + delta * coef, 0., 1.);
 	setValue(finalValue);
+	const auto weak = base::make_weak(this);
 	if (_changeProgressCallback) {
 		_changeProgressCallback(finalValue);
+	}
+	if (!weak) {
+		return;
 	}
 	_byWheelFinished->callOnce(kByWheelFinishedTimeout);
 }
@@ -171,11 +180,15 @@ void ContinuousSlider::keyPressEvent(QKeyEvent *e) {
 		return;
 	}
 	setValue(newValue);
+	const auto weak = base::make_weak(this);
 	if (_changeProgressCallback) {
 		_changeProgressCallback(_value);
 	}
-	if (_changeFinishedCallback) {
+	if (weak && _changeFinishedCallback) {
 		_changeFinishedCallback(_value);
+	}
+	if (!weak) {
+		return;
 	}
 	accessibilityValueChanged();
 }

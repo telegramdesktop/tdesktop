@@ -25,6 +25,16 @@ struct GlobalMediaKey {
 		const GlobalMediaKey &) = default;
 };
 
+struct GlobalMediaSliceSnapshot {
+	QString query;
+	uint64 generation = 0;
+	int fullCount = 0;
+	int skippedAfter = 0;
+	int skippedBefore = 0;
+	bool fullyLoaded = false;
+	std::vector<Data::MessagePosition> positions;
+};
+
 class GlobalMediaSlice final {
 public:
 	using Key = GlobalMediaKey;
@@ -46,6 +56,7 @@ public:
 		const Key &a,
 		const Key &b) const;
 	[[nodiscard]] std::optional<Value> nearest(Value id) const;
+	[[nodiscard]] const std::vector<Value> &items() const;
 
 private:
 	GlobalMediaKey _key;
@@ -63,6 +74,7 @@ public:
 	using BaseLayout = Media::BaseLayout;
 
 	explicit Provider(not_null<AbstractController*> controller);
+	~Provider() override;
 
 	Type type() override;
 	bool hasSelectRestriction() override;
@@ -80,6 +92,10 @@ public:
 		bool preloadBottom) override;
 	void refreshViewer() override;
 	rpl::producer<> refreshed() override;
+	[[nodiscard]] bool anchorWhileAtTop() override;
+
+	[[nodiscard]] auto sliceSnapshot() const
+		-> const std::optional<GlobalMediaSliceSnapshot> &;
 
 	std::vector<Media::ListSection> fillSections(
 		not_null<Overview::Layout::Delegate*> delegate) override;
@@ -127,12 +143,45 @@ private:
 		GlobalMediaSlice slice;
 		bool notEnough = false;
 	};
+	struct SliceUpdate {
+		QString query;
+		uint64 generation = 0;
+		GlobalMediaSlice slice;
+	};
+	struct RequestCursor {
+		Data::MessagePosition position;
+		int32 rate = 0;
+
+		friend inline constexpr bool operator==(
+			const RequestCursor &,
+			const RequestCursor &) = default;
+	};
 	struct List {
 		std::vector<Data::MessagePosition> list;
+		base::flat_set<FullMsgId> ids;
 		Data::MessagePosition offsetPosition;
 		int32 offsetRate = 0;
 		int fullCount = 0;
+		int filteredCount = 0;
+		mtpRequestId requestId = 0;
+		uint64 requestToken = 0;
+		std::vector<Fn<void()>> requestWaiters;
+		std::vector<RequestCursor> requestCursors;
 		bool loaded = false;
+	};
+	struct EdgeRequestKey {
+		enum class Direction : uchar {
+			Top,
+			Bottom,
+		};
+
+		uint64 generation = 0;
+		Direction direction = Direction::Top;
+		Data::MessagePosition aroundId;
+
+		friend inline constexpr bool operator==(
+			const EdgeRequestKey &,
+			const EdgeRequestKey &) = default;
 	};
 
 	bool sectionHasFloatingHeader() override;
@@ -141,10 +190,11 @@ private:
 		not_null<const BaseLayout*> item,
 		not_null<const BaseLayout*> previous) override;
 
-	[[nodiscard]] rpl::producer<GlobalMediaSlice> source(
+	[[nodiscard]] rpl::producer<SliceUpdate> source(
 		Type type,
 		Data::MessagePosition aroundId,
 		QString query,
+		uint64 generation,
 		int limitBefore,
 		int limitAfter);
 
@@ -162,19 +212,29 @@ private:
 	void itemRemoved(not_null<const HistoryItem*> item);
 	void markLayoutsStale();
 	void clearStaleLayouts();
-	[[nodiscard]] List *currentList();
+	[[nodiscard]] List *listForQuery(const QString &query);
 	[[nodiscard]] FillResult fillRequest(
+		const QString &query,
 		Data::MessagePosition aroundId,
 		int limitBefore,
 		int limitAfter);
-	mtpRequestId requestMore(Fn<void()> loaded);
+	void requestMore(
+		const QString &query,
+		uint64 generation,
+		Fn<void()> loaded);
+	[[nodiscard]] std::optional<GlobalMediaSliceSnapshot> makeSnapshot(
+		const SliceUpdate &update) const;
 
 	const not_null<AbstractController*> _controller;
 	const Type _type = {};
+	const bool _onlyForwardable = false;
 
 	Data::MessagePosition _aroundId = Data::MaxMessagePosition;
 	int _idsLimit = kMinimalIdsLimit;
 	GlobalMediaSlice _slice;
+	uint64 _generation = 0;
+	std::optional<EdgeRequestKey> _edgeRequest;
+	std::optional<GlobalMediaSliceSnapshot> _sliceSnapshot;
 
 	base::flat_set<FullMsgId> _seenIds;
 	std::unordered_map<FullMsgId, Media::CachedItem> _layouts;

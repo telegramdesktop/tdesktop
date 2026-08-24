@@ -88,6 +88,9 @@ FrameGenerator::Impl::Impl(const QByteArray &bytes)
 		nullptr,
 		&FrameGenerator::Impl::Seek);
 
+	if (!_format) {
+		return;
+	}
 	auto error = 0;
 	if ((error = avformat_find_stream_info(_format.get(), nullptr))) {
 		return;

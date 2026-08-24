@@ -160,11 +160,15 @@ bool IsMimeSticker(const QString &mime) {
 		|| IsMimeStickerAnimated(mime);
 }
 
+bool IsMimeSentAsVideo(const QString &mime) {
+	return (mime == u"video/mp4"_q)
+		|| (mime == u"video/quicktime"_q);
+}
+
 bool IsMimeAcceptedForPhotoVideoAlbum(const QString &mime) {
 	return (mime == u"image/jpeg"_q)
 		|| (mime == u"image/png"_q)
-		|| (mime == u"video/mp4"_q)
-		|| (mime == u"video/quicktime"_q);
+		|| IsMimeSentAsVideo(mime);
 }
 
 bool FileIsImage(const QString &name, const QString &mime) {
@@ -326,7 +330,10 @@ bool NameTypeAllowsThumbnail(NameType type) {
 
 bool IsIpRevealingPath(const QString &filepath) {
 	static const auto kExtensions = [] {
-		auto joined = u"htm html svg m4v m3u m3u8 xhtml xml kml kmz"_q;
+		auto joined = u"htm html svg m4v m3u m3u8 xhtml xml kml kmz xspf"_q;
+#ifdef Q_OS_WIN
+		joined += u" wpl"_q;
+#endif // Q_OS_WIN
 #ifdef Q_OS_MAC
 		joined += u" docx dotx docm dotm"_q;
 		joined += u" xlsx xltx xlsm xltm xlsb"_q;

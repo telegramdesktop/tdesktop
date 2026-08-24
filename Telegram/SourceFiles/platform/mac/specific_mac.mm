@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <cstdlib>
 #include <execinfo.h>
+#include <sys/sysctl.h>
 #include <sys/xattr.h>
 
 #include <Cocoa/Cocoa.h>
@@ -262,9 +263,52 @@ bool PreventsQuit(Core::QuitReason reason) {
 				ConfirmQuit::QuitKeysString()));
 }
 
+bool HasTouchBar() {
+#ifdef Q_PROCESSOR_ARM
+	// Apple Silicon Macs have no Touch Bar, except two models.
+	auto length = size_t();
+	if (sysctlbyname("hw.model", nullptr, &length, nullptr, 0) || !length) {
+		return false;
+	}
+	auto bytes = QByteArray(length, Qt::Uninitialized);
+	if (sysctlbyname("hw.model", bytes.data(), &length, nullptr, 0)) {
+		return false;
+	}
+	const auto model = QByteArray(bytes.constData()); // Cut the trailing zero.
+	return (model == "MacBookPro17,1") || (model == "Mac14,7");
+#else // Q_PROCESSOR_ARM
+	return true;
+#endif // !Q_PROCESSOR_ARM
+}
+
 void ActivateThisProcess() {
-	const auto window = Core::App().activeWindow();
+	const auto window = Core::IsAppLaunched()
+		? Core::App().activeWindow()
+		: nullptr;
 	objc_activateProgram(window ? window->widget()->winId() : 0);
+}
+
+bool ScreenshotProtectionSupported() {
+	return true;
+}
+
+void SetWindowScreenshotProtection(not_null<QWidget*> window, bool enabled) {
+	const auto handle = window->internalWinId();
+	if (!handle) {
+		return;
+	}
+	NSView *view = reinterpret_cast<NSView*>(handle);
+	NSWindow *nsWindow = [view window];
+	if (!nsWindow) {
+		return;
+	}
+	// Do not read sharingType back to check this: once it has been set to
+	// NSWindowSharingNone the getter keeps returning that on macOS 26 even
+	// after the window is capturable again. The assignment itself works in
+	// both directions and takes effect immediately.
+	nsWindow.sharingType = enabled
+		? NSWindowSharingNone
+		: NSWindowSharingReadOnly;
 }
 
 void LaunchMaps(const Data::LocationPoint &point, Fn<void()> fail) {

@@ -8,6 +8,8 @@ layout(binding = 2) uniform sampler2D h_texture;
 
 layout(std140, binding = 0) uniform Params {
 	vec2 viewport;
+	// 1.0 when gl_FragCoord.y counts from the bottom (OpenGL).
+	float fragCoordYUp;
 	vec4 roundRect;
 	float roundRadius;
 	vec4 fadeColor;
@@ -28,30 +30,34 @@ float roundedCorner(vec2 fc) {
 }
 
 float shadow(vec2 fc) {
-	vec2 texcoord = fc - roundRect.xy + h_extend.xy;
-	vec2 total = roundRect.zw + h_extend.xy + h_extend.zw;
-	vec2 dividedTexcoord = texcoord / total;
-	float left = h_components.x / h_size.x;
-	float right = 1.0 - h_components.y / h_size.x;
-	float top = h_components.z / h_size.y;
-	float bottom = 1.0 - h_components.w / h_size.y;
-	float sampleX = dividedTexcoord.x < left
-		? dividedTexcoord.x * total.x / h_size.x
-		: dividedTexcoord.x > right
-			? 1.0 - (1.0 - dividedTexcoord.x) * total.x / h_size.x
-			: mix(left, right, (dividedTexcoord.x - left) / (right - left) * (h_size.x - h_components.x - h_components.y) / h_size.x + h_components.x / h_size.x);
-	float sampleY = dividedTexcoord.y < top
-		? dividedTexcoord.y * total.y / h_size.y
-		: dividedTexcoord.y > bottom
-			? 1.0 - (1.0 - dividedTexcoord.y) * total.y / h_size.y
-			: mix(top, bottom, (dividedTexcoord.y - top) / (bottom - top) * (h_size.y - h_components.z - h_components.w) / h_size.y + h_components.z / h_size.y);
-	return texture(h_texture, vec2(
-		clamp(sampleX, 0.0, 1.0),
-		clamp(sampleY, 0.0, 1.0))).a;
+	// Nine-slice sampling of the shadow atlas, the same mapping the OpenGL
+	// renderer uses: the corners are taken pixel to pixel, the edges are
+	// sampled at the middle of the atlas and stretch.
+	vec2 origin = roundRect.xy - vec2(h_extend.x, h_extend.w);
+	vec2 size = roundRect.zw
+		+ vec2(h_extend.x + h_extend.z, h_extend.y + h_extend.w);
+	vec2 corner = h_components.xy;
+	vec2 inside = fc - origin;
+	vec2 fromOther = inside + h_size - size;
+	vec2 uv = vec2(
+		(inside.x < corner.x)
+			? inside.x
+			: (fromOther.x > h_size.x - corner.x)
+				? fromOther.x
+				: (0.5 * h_size.x),
+		(inside.y < corner.y)
+			? inside.y
+			: (fromOther.y > h_size.y - corner.y)
+				? fromOther.y
+				: (0.5 * h_size.y));
+	return texture(h_texture, uv / h_size).a;
 }
 
 void main() {
-	vec2 fc = vec2(gl_FragCoord.x, viewport.y - gl_FragCoord.y);
+	float fragY = (fragCoordYUp > 0.0)
+		? gl_FragCoord.y
+		: (viewport.y - gl_FragCoord.y);
+	vec2 fc = vec2(gl_FragCoord.x, fragY);
 	vec4 result = texture(s_texture, v_texcoord);
 	result = result * (1.0 - fadeColor.a) + fadeColor;
 	float corner = roundedCorner(fc);

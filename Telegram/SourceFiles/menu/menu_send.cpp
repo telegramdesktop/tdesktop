@@ -628,7 +628,9 @@ FillMenuResult AttachSendMenuEffect(
 		? AttachSelectorToMenu(
 			menu,
 			position,
-			st::reactPanelEmojiPan,
+			(details.effectsPan
+				? *details.effectsPan
+				: st::reactPanelEmojiPan),
 			show,
 			LookupPossibleEffects(&show->session()),
 			{ tr::lng_effect_add_title(tr::now) },
@@ -725,6 +727,7 @@ FillMenuResult FillSendMenu(
 		&& (details.spoiler == SpoilerState::None)
 		&& (details.caption == CaptionState::None)
 		&& (details.photoQuality == PhotoQualityState::None)
+		&& (details.cover == CoverState::None)
 		&& !details.price.has_value();
 	if (empty || !action) {
 		return FillMenuResult::Skipped;
@@ -768,6 +771,7 @@ FillMenuResult FillSendMenu(
 		&& ((details.spoiler != SpoilerState::None)
 			|| (details.caption != CaptionState::None)
 			|| (details.photoQuality != PhotoQualityState::None)
+			|| (details.cover != CoverState::None)
 			|| details.price.has_value())) {
 		menu->addSeparator(&st::expandedMenuSeparator);
 	}
@@ -806,6 +810,18 @@ FillMenuResult FillSendMenu(
 				: ActionType::CaptionUp
 			}, details); },
 			above ? &icons.menuBelow : &icons.menuAbove);
+	}
+	if (details.cover != CoverState::None) {
+		menu->addAction(
+			tr::lng_context_edit_cover(tr::now),
+			[=] { action({ .type = ActionType::EditCover }, details); },
+			&icons.menuCover);
+		if (details.cover == CoverState::Has) {
+			menu->addAction(
+				tr::lng_context_clear_cover(tr::now),
+				[=] { action({ .type = ActionType::RemoveCover }, details); },
+				&icons.menuCoverRemove);
+		}
 	}
 	if (details.price) {
 		menu->addAction(

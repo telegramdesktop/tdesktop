@@ -97,6 +97,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_dialogs_widget.h"
 #include "styles/style_info.h"
 #include "styles/style_window.h"
 #include "base/qt/qt_common_adapters.h"
@@ -436,6 +437,7 @@ Widget::Widget(
 	_scroll->setOverscrollTypes(
 		_stories ? OverscrollType::Virtual : OverscrollType::Real,
 		OverscrollType::Real);
+	_scroll->setOverscrollPullDistances(st::dialogsStoriesFull.height, 0);
 	_innerList = _scroll->setOwnedWidget(
 		object_ptr<Ui::VerticalLayout>(this));
 	_inner = _innerList->add(object_ptr<InnerWidget>(
@@ -537,6 +539,26 @@ Widget::Widget(
 	}) | rpl::on_next([=](ChatTypeFilter filter) {
 		auto copy = _searchState;
 		copy.filter = filter;
+		applySearchState(copy);
+	}, lifetime());
+	_inner->changeSearchFromArchiveRequests(
+	) | rpl::filter([=](bool fromArchive) {
+		return (_searchState.fromArchive != fromArchive)
+			&& (_searchState.tab == ChatSearchTab::MyMessages);
+	}) | rpl::on_next([=](bool fromArchive) {
+		auto copy = _searchState;
+		copy.fromArchive = fromArchive;
+		applySearchState(copy);
+	}, lifetime());
+	_inner->resetSearchRestrictionsRequests(
+	) | rpl::filter([=] {
+		return (_searchState.tab == ChatSearchTab::MyMessages)
+			&& ((_searchState.filter != ChatTypeFilter::All)
+				|| !_searchState.fromArchive);
+	}) | rpl::on_next([=] {
+		auto copy = _searchState;
+		copy.filter = ChatTypeFilter::All;
+		copy.fromArchive = true;
 		applySearchState(copy);
 	}, lifetime());
 	_inner->cancelSearchRequests(
@@ -1169,6 +1191,12 @@ void Widget::scrollToDefaultChecked(bool verytop) {
 }
 
 void Widget::setupScrollUpButton() {
+	// The button floats over the bottom of the list, but it is created long
+	// before it, so the scroll has to order the two - and it is an overlay,
+	// not something laid out beside the list.
+	_scroll->setVisualTabOrder(true);
+	_scrollToTop->setVisualTabOrderOverlay(true);
+
 	_scrollToTop->setClickedCallback([=] { scrollToDefaultChecked(); });
 	_scrollToTop->setAccessibleName(tr::lng_sr_scroll_to_top(tr::now));
 	trackScroll(_scrollToTop);
@@ -1213,20 +1241,15 @@ void Widget::setupTopBarSuggestions() {
 			auto on = rpl::combine(
 				controller()->activeChatsFilter(),
 				_openedFolderOrForumChanges.events_starting_with(false),
-				widthValue() | rpl::map(
-					_1 >= st::columnMinimalWidthLeft
-				) | rpl::distinct_until_changed(),
 				_searchStateForTopBarSuggestion.events_starting_with(
 					!_searchState.query.isEmpty()),
 				_jumpToDate->toggledValue()
 			) | rpl::map([=](
 					FilterId id,
 					bool folderOrForum,
-					bool wide,
 					bool search,
 					bool searchInPeer) {
 				return !folderOrForum
-					&& wide
 					&& !search
 					&& !searchInPeer
 					&& (id == owner->chatsFilters().defaultId());
@@ -1285,6 +1308,7 @@ void Widget::updateTopBarSuggestions() {
 
 bool Widget::communityOverlaysShown() const {
 	return _openedCommunity
+		&& !_openedForum
 		&& (_inner->state() == WidgetState::Default);
 }
 
@@ -1568,8 +1592,12 @@ void Widget::setupDownloadBar() {
 						return;
 					}
 				}
-				if (first) {
+				if (first && first->isHistoryEntry()) {
 					controller()->showMessage(first);
+				} else if (first) {
+					controller()->showSection(
+						Info::Downloads::Make(
+							controller()->session().user()));
 				}
 			}, _downloadBar->lifetime());
 
@@ -1793,6 +1821,10 @@ void Widget::setupStories() {
 
 void Widget::storiesToggleExplicitExpand(bool expand) {
 	if (_storiesExplicitExpand == expand) {
+		if (!expand && _scroll->position().overscroll < 0) {
+			_scroll->setOverscrollDefaults(0, 0);
+			_scroll->returnToOverscrollDefaults();
+		}
 		return;
 	}
 	_storiesExplicitExpand = expand;
@@ -2100,10 +2132,18 @@ void Widget::updateSuggestions(anim::type animated) {
 		} else {
 			_suggestions = nullptr;
 			_hidingSuggestions.clear();
+			stopWidthAnimation();
 			storiesExplicitCollapse();
 			updateControlsVisibility();
 			_scroll->show();
 		}
+	} else if (!suggest
+		&& !_hidingSuggestions.empty()
+		&& (animated == anim::type::instant)) {
+		_hidingSuggestions.clear();
+		stopWidthAnimation();
+		updateControlsVisibility();
+		_scroll->show();
 	} else if (suggest && !_suggestions) {
 		_hidingSuggestions.clear();
 		if (animated == anim::type::normal) {
@@ -2221,6 +2261,7 @@ void Widget::changeOpenedSubsection(
 	destroyChildListCanvas();
 	change();
 	refreshTopBars();
+	updateSuggestions(anim::type::instant);
 	updateControlsVisibility(true);
 	_peerSearch.clear();
 	_api.request(base::take(_topicSearchRequest)).cancel();
@@ -2268,8 +2309,7 @@ void Widget::storiesExplicitCollapse() {
 		storiesToggleExplicitExpand(false);
 	} else if (_stories) {
 		using Type = Ui::ElasticScroll::OverscrollType;
-		_scroll->setOverscrollDefaults(0, 0);
-		_scroll->setOverscrollTypes(Type::None, Type::Real);
+		_scroll->clearOverscroll();
 		_scroll->setOverscrollTypes(
 			_stories->isHidden() ? Type::Real : Type::Virtual,
 			Type::Real);
@@ -2291,7 +2331,7 @@ void Widget::collectStoriesUserpicsViews(Data::StorySourcesList list) {
 		? _storiesUserpicsViewsHidden
 		: _storiesUserpicsViewsShown;
 	map.clear();
-	auto &owner = session().data();
+	const auto &owner = session().data();
 	for (const auto &source : owner.stories().sources(list)) {
 		if (const auto peer = owner.peerLoaded(source.id)) {
 			if (auto view = peer->activeUserpicView(); view.cloud) {
@@ -2662,7 +2702,11 @@ void Widget::scrollToDefault(bool verytop) {
 			this,
 			QPoint(),
 			QRect(0, top, wideGeometry.width(), skip));
-		if (_chatFilters && !_chatFilters->isHidden()) {
+		if (_chatFilters
+			&& _searchState.query.isEmpty()
+			&& !_openedForum
+			&& !_searchState.community
+			&& !searchInPeer()) {
 			Ui::RenderWidget(
 				p,
 				_chatFilters,
@@ -2715,13 +2759,6 @@ void Widget::updateStoriesVisibility() {
 	const auto widthAnimation = !_widthAnimationCache.isNull();
 	const auto suggestionsAnimation = widthAnimation
 		&& (!_suggestions || !_hidingSuggestions.empty());
-	const auto hiddenInstant = _showAnimation
-		|| _openedForum
-		|| _openedCommunity
-		|| (widthAnimation && !suggestionsAnimation)
-		|| _childList
-		|| _stories->empty()
-		|| (_scroll->position().overscroll < -st::dialogsFilterSkip);
 	const auto hiddenAnimated = _searchHasFocus
 		|| _searchSuggestionsLocked
 		|| !_searchState.query.isEmpty()
@@ -2730,17 +2767,29 @@ void Widget::updateStoriesVisibility() {
 		|| (_openedFolder
 			&& _subsectionTopBar
 			&& _subsectionTopBar->searchMode());
+	const auto pulledDown = _scroll->position().overscroll
+		< -st::dialogsFilterSkip;
+	const auto hiddenInstant = _showAnimation
+		|| _openedForum
+		|| _openedCommunity
+		|| (widthAnimation && !suggestionsAnimation)
+		|| _childList
+		|| _stories->empty()
+		|| (pulledDown && hiddenAnimated);
 	const auto hidden = hiddenInstant || hiddenAnimated;
 	const auto changed = (_stories->toggledHidden() != hidden);
+	if (changed
+		&& hidden
+		&& (_storiesExplicitExpand
+			|| _storiesExplicitExpandValue.current() > 0)) {
+		storiesExplicitCollapse();
+	}
 	_stories->setToggledHidden(hiddenInstant, hiddenAnimated);
 	if (changed) {
 		using Type = Ui::ElasticScroll::OverscrollType;
 		if (hidden) {
-			_scroll->setOverscrollDefaults(0, 0);
+			_scroll->clearOverscroll();
 			_scroll->setOverscrollTypes(Type::Real, Type::Real);
-			if (_scroll->position().overscroll < 0) {
-				_scroll->scrollToY(0);
-			}
 			_scroll->update();
 		} else {
 			_scroll->setOverscrollDefaults(0, 0);
@@ -2984,6 +3033,7 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 		? _openedCommunity->channel().get()
 		: nullptr;
 	const auto filter = _searchState.filter;
+	const auto fromArchive = _searchState.fromArchive;
 	const auto fromStartType = SearchRequestType{
 		.start = true,
 		.peer = (inPeer != nullptr),
@@ -3028,6 +3078,7 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 			_searchQueryTab = tab;
 			_searchQueryCommunity = community;
 			_searchQueryFilter = filter;
+			_searchQueryFromArchive = fromArchive;
 			process->nextRate = 0;
 			process->full = false;
 			_migratedProcess.full = false;
@@ -3040,7 +3091,8 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 		|| _searchQueryTags != inTags
 		|| _searchQueryTab != tab
 		|| _searchQueryCommunity != community
-		|| _searchQueryFilter != filter) {
+		|| _searchQueryFilter != filter
+		|| _searchQueryFromArchive != fromArchive) {
 		const auto process = currentSearchProcess();
 		_searchQuery = query;
 		_searchQueryFrom = fromPeer;
@@ -3048,6 +3100,7 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 		_searchQueryTab = tab;
 		_searchQueryCommunity = community;
 		_searchQueryFilter = filter;
+		_searchQueryFromArchive = fromArchive;
 		process->nextRate = 0;
 		process->full = false;
 		_migratedProcess.full = false;
@@ -3421,7 +3474,13 @@ void Widget::requestMessages(bool fromStart) {
 	const auto community = (_searchQueryTab == ChatSearchTab::ThisCommunity)
 		? _searchQueryCommunity
 		: nullptr;
-	const auto flags = (community ? Flag::f_community : Flag::f_folder_id)
+	const auto restrictFolder = (_searchQueryTab == ChatSearchTab::Archive)
+		|| !_searchQueryFromArchive;
+	const auto flags = (community
+		? Flag::f_community
+		: restrictFolder
+		? Flag::f_folder_id
+		: Flag())
 		| (_searchQueryFilter == ChatTypeFilter::Private
 			? Flag::f_users_only
 			: _searchQueryFilter == ChatTypeFilter::Groups
@@ -4023,8 +4082,11 @@ bool Widget::applySearchState(SearchState state) {
 		: false;
 	if (queryEmptyChanged || tabChanged) {
 		state.filter = ChatTypeFilter::All;
+		state.fromArchive = true;
 	}
 	const auto filterChanged = (_searchState.filter != state.filter);
+	const auto fromArchiveChanged = (_searchState.fromArchive
+		!= state.fromArchive);
 
 	if (forum) {
 		if (_openedForum == forum) {
@@ -4039,9 +4101,10 @@ bool Widget::applySearchState(SearchState state) {
 			return false;
 		}
 	} else if ((folder && folder == _openedFolder)
-		|| (community
+		|| (peer
 			&& _openedCommunity
-			&& community == _openedCommunity->channel())) {
+			&& (!community
+				|| community == _openedCommunity->channel()))) {
 		showSearchInTopBar(anim::type::normal);
 	} else if (peer && (_layout != Layout::Main)) {
 		return false;
@@ -4113,6 +4176,7 @@ bool Widget::applySearchState(SearchState state) {
 		|| communityChanged
 		|| fromPeerChanged
 		|| filterChanged
+		|| fromArchiveChanged
 		|| tagsChanged
 		|| tabChanged) {
 		clearSearchCache(searchCleared);

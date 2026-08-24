@@ -359,7 +359,7 @@ void CheckChatThemeWallPaper(not_null<SessionController*> controller) {
 	}
 	const auto background = Background();
 	auto cloud = background->themeObject().cloud;
-	if (cloud.emoticon.isEmpty() || cloud.settings.empty()) {
+	if (cloud.settings.empty()) {
 		return;
 	}
 	auto used = ChatThemeVariant(cloud, IsNightMode());

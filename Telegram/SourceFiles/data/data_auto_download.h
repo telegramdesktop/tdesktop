@@ -118,6 +118,10 @@ private:
 
 };
 
+void SetDefaultsForSource(Full &data, Source source);
+void SetDisabledForSource(Full &data, Source source);
+[[nodiscard]] bool HasEnabledTypes(const Full &data, Source source);
+
 [[nodiscard]] bool Should(
 	const Full &data,
 	not_null<PeerData*> peer,

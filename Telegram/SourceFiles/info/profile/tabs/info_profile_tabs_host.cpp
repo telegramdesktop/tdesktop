@@ -8,13 +8,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/tabs/info_profile_tabs_host.h"
 
 #include "info/profile/tabs/info_profile_tabs_strip.h"
+#include "info/profile/tabs/adapters/info_profile_tab_media.h"
+#include "apiwrap.h"
+#include "base/call_delayed.h"
 #include "base/options.h"
+#include "core/ui_integration.h"
+#include "data/data_changes.h"
+#include "data/data_channel.h"
+#include "data/data_forum_topic.h"
+#include "data/data_peer.h"
+#include "data/data_saved_sublist.h"
+#include "info/info_controller.h"
+#include "info/media/info_media_buttons.h"
+#include "lang/lang_keys.h"
+#include "main/main_session.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/effects/slide_animation.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
+#include "window/window_session_controller.h"
 #include "styles/style_basic.h"
 #include "styles/style_info.h"
+#include "styles/style_menu_icons.h"
 
 namespace Info::Profile {
 namespace {
@@ -41,22 +59,32 @@ TabsHost::TabsHost(not_null<QWidget*> parent, Descriptor descriptor)
 , _strip(Ui::CreateChild<TabsStrip>(this, st::infoProfileTabsStrip))
 , _stripWeak(_strip)
 , _body(Ui::CreateChild<Ui::RpWidget>(this)) {
+	_strip->setTextContext(Core::TextContext({
+		.session = &_context.peer->session(),
+		.customEmojiLoopLimit = 1,
+	}));
 	_strip->show();
 	_body->show();
 	if (_tabs.empty()) {
 		return;
 	}
-	_stripTitles.assign(_tabs.size(), QString());
+	_stripTitles.assign(_tabs.size(), TextWithEntities());
 	_tabsShown.assign(_tabs.size(), false);
+	refreshOrder();
 	wireStripTitles();
 	wireTabsVisibility();
+	wireMainTab();
+	_strip->contextMenuRequests(
+	) | rpl::on_next([this](const QString &id) {
+		showTabMenu(id);
+	}, lifetime());
 	_strip->activated(
 	) | rpl::on_next([this](const QString &id) {
 		_userChosenTab = true;
 		_pendingRestoreId = QString();
 		if (id == _activeId) {
-			// The viewport filler grows after the first scroll collapses
-			// the cover, so settle with a second queued pass.
+			// The scroll range changes while the cover collapses,
+			// so settle the exact position with a second queued pass.
 			const auto fire = [this] {
 				_scrollToRequests.fire({ 0, -1 });
 			};
@@ -100,6 +128,9 @@ void TabsHost::syncBodyNow() {
 	const auto widget = active->widget();
 	if (!widget->isHidden() && _body->height() != widget->height()) {
 		_body->resize(_body->width(), widget->height());
+		// setVisibleTopBottom clamps to the page height, so a page that
+		// grew after the last push keeps a stale short visible bottom.
+		pushViewportToActive();
 	}
 }
 
@@ -120,6 +151,42 @@ void TabsHost::syncHeightNow() {
 	resizeToWidth(width());
 }
 
+void TabsHost::scheduleVisibilitySync() {
+	if (_visibilitySyncQueued) {
+		return;
+	}
+	_visibilitySyncQueued = true;
+	InvokeQueued(this, [=] {
+		if (_visibilitySyncQueued) {
+			syncVisibilityNow();
+		}
+	});
+}
+
+void TabsHost::syncStripVisibility() {
+	if (_syncedTabsShown == _tabsShown) {
+		return;
+	}
+	refreshOrder();
+	syncStripTitles();
+}
+
+void TabsHost::syncVisibilityNow() {
+	_visibilitySyncQueued = false;
+	scheduleHeightSync();
+	syncStripVisibility();
+	if (!_pendingRestoreId.isEmpty()) {
+		const auto i = ranges::find(
+			_tabs,
+			_pendingRestoreId,
+			&MediaTabDescriptor::id);
+		if (i != end(_tabs) && _tabsShown[i - begin(_tabs)]) {
+			restoreActiveTab(base::take(_pendingRestoreId));
+		}
+	}
+	ensureActiveVisible();
+}
+
 TabsHost::~TabsHost() {
 	// Lists notify their delegates while being destroyed, so the tab
 	// widgets must die before the adapters owning those delegates.
@@ -130,7 +197,7 @@ void TabsHost::wireStripTitles() {
 	for (auto i = 0; i != int(_tabs.size()); ++i) {
 		rpl::duplicate(
 			_tabs[i].title
-		) | rpl::on_next([this, i](QString text) {
+		) | rpl::on_next([this, i](TextWithEntities text) {
 			if (_stripTitles[i] != text) {
 				_stripTitles[i] = std::move(text);
 				syncStripTitles();
@@ -146,23 +213,220 @@ void TabsHost::wireTabsVisibility() {
 		) | rpl::on_next([this, i](bool shown) {
 			if (_tabsShown[i] != shown) {
 				_tabsShown[i] = shown;
-				syncStripTitles();
-				if (shown
-					&& !_pendingRestoreId.isEmpty()
-					&& (_tabs[i].id == _pendingRestoreId)) {
-					restoreActiveTab(base::take(_pendingRestoreId));
-				}
-				ensureActiveVisible();
-				scheduleHeightSync();
+				scheduleVisibilitySync();
 			}
 		}, lifetime());
 	}
 }
 
+void TabsHost::wireMainTab() {
+	const auto peer = _context.peer;
+	peer->session().changes().peerFlagsValue(
+		peer,
+		Data::PeerUpdate::Flag::MainProfileTab
+	) | rpl::on_next([this] {
+		if (refreshOrder()) {
+			syncStripTitles();
+			ensureActiveVisible();
+		}
+	}, lifetime());
+}
+
+bool TabsHost::refreshOrder() {
+	const auto main = _context.peer->mainProfileTab();
+	const auto mainTabIndex = [&] {
+		if (main == Data::ProfileTab::None) {
+			return -1;
+		}
+		auto fallback = -1;
+		for (auto i = 0; i != int(_tabs.size()); ++i) {
+			if (_tabs[i].profileTab != main) {
+				continue;
+			} else if (_tabsShown[i]) {
+				return i;
+			} else if (fallback < 0) {
+				fallback = i;
+			}
+		}
+		return fallback;
+	}();
+	if (!_order.empty() && _mainTabIndex == mainTabIndex) {
+		return false;
+	}
+	_mainTabIndex = mainTabIndex;
+	_order.resize(_tabs.size());
+	for (auto index = 0; index != int(_order.size()); ++index) {
+		_order[index] = index;
+	}
+	if (mainTabIndex > 0) {
+		std::rotate(
+			begin(_order),
+			begin(_order) + mainTabIndex,
+			begin(_order) + mainTabIndex + 1);
+	}
+	return true;
+}
+
+int TabsHost::displayPosition(int index) const {
+	return int(ranges::find(_order, index) - begin(_order));
+}
+
+int TabsHost::firstVisibleIndex() const {
+	for (const auto i : _order) {
+		if (_tabsShown[i]) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+bool TabsHost::canSetMainTab(Data::ProfileTab tab) const {
+	if (tab == Data::ProfileTab::None || _context.topic || _context.sublist) {
+		return false;
+	} else if (const auto channel = _context.peer->asBroadcast()) {
+		return channel->canEditInformation();
+	}
+	return _context.peer->isSelf()
+		&& ((tab == Data::ProfileTab::Posts)
+			|| (tab == Data::ProfileTab::Gifts));
+}
+
+Fn<void()> TabsHost::openInWindowFor(const MediaTabDescriptor &tab) const {
+	if (!tab.sharedMediaType) {
+		return nullptr;
+	}
+	const auto peer = _context.sublist
+		? _context.sublist->sublistPeer()
+		: _context.peer;
+	const auto separateId = Media::SeparateId(
+		peer,
+		_context.topic ? _context.topic->rootId() : MsgId(),
+		*tab.sharedMediaType);
+	if (!separateId) {
+		return nullptr;
+	}
+	const auto window = _context.controller->parentController();
+	return [=] { window->showInNewWindow(separateId); };
+}
+
+void TabsHost::showTabMenu(const QString &id) {
+	using Type = Storage::SharedMediaType;
+
+	const auto strip = _stripWeak.get();
+	const auto i = ranges::find(_tabs, id, &MediaTabDescriptor::id);
+	if (!strip || i == end(_tabs)) {
+		return;
+	}
+	const auto tab = i->profileTab;
+	const auto index = int(i - begin(_tabs));
+	const auto mediaType = i->sharedMediaType;
+	const auto expand = (mediaType == Type::PhotoVideo);
+	const auto collapse = (mediaType == Type::Photo)
+		|| (mediaType == Type::Video);
+	const auto setAsMain = canSetMainTab(tab)
+		&& (index != firstVisibleIndex());
+	const auto openInWindow = openInWindowFor(*i);
+	if (!expand && !collapse && !setAsMain && !openInWindow) {
+		return;
+	}
+	_menu = base::make_unique_q<Ui::PopupMenu>(
+		strip,
+		st::popupMenuWithIcons);
+	const auto addAction = Ui::Menu::CreateAddActionCallback(_menu);
+	if (expand || collapse) {
+		addAction(
+			(expand
+				? tr::lng_context_archive_expand(tr::now)
+				: tr::lng_context_archive_collapse(tr::now)),
+			[=] { SetMediaTabsExpanded(expand); },
+			(expand ? &st::menuIconExpand : &st::menuIconCollapse));
+	}
+	if (setAsMain) {
+		addAction(
+			tr::lng_profile_tab_set_as_main(tr::now),
+			crl::guard(this, [=] { setMainTab(tab); }),
+			&st::menuIconReorder);
+	}
+	if (openInWindow) {
+		addAction(
+			tr::lng_context_new_window(tr::now),
+			crl::guard(this, [=] {
+				base::call_delayed(
+					st::popupMenuWithIcons.showDuration,
+					crl::guard(this, openInWindow));
+			}),
+			&st::menuIconNewWindow);
+	}
+	_menu->popup(QCursor::pos());
+}
+
+QString TabsHost::mediaTabShownId(Storage::SharedMediaType type) const {
+	const auto i = ranges::find(
+		_tabs,
+		std::optional<Storage::SharedMediaType>(type),
+		&MediaTabDescriptor::sharedMediaType);
+	return ((i != end(_tabs)) && _tabsShown[i - begin(_tabs)])
+		? i->id
+		: QString();
+}
+
+std::optional<Storage::SharedMediaType> TabsHost::activeMediaType() const {
+	const auto i = ranges::find(_tabs, _activeId, &MediaTabDescriptor::id);
+	return (i != end(_tabs))
+		? i->sharedMediaType
+		: std::nullopt;
+}
+
+QString TabsHost::mediaSplitCounterpart() const {
+	using Type = Storage::SharedMediaType;
+
+	const auto active = activeMediaType();
+	if (!active) {
+		return QString();
+	} else if (*active == Type::PhotoVideo) {
+		const auto photos = mediaTabShownId(Type::Photo);
+		return photos.isEmpty() ? mediaTabShownId(Type::Video) : photos;
+	} else if (*active == Type::Photo || *active == Type::Video) {
+		return mediaTabShownId(Type::PhotoVideo);
+	}
+	return QString();
+}
+
+bool TabsHost::mediaSplitSwitching() const {
+	using Type = Storage::SharedMediaType;
+
+	const auto active = activeMediaType();
+	if (!active) {
+		return false;
+	} else if (*active == Type::PhotoVideo) {
+		return MediaTabsExpanded();
+	} else if (*active == Type::Photo || *active == Type::Video) {
+		return !MediaTabsExpanded();
+	}
+	return false;
+}
+
+void TabsHost::setMainTab(Data::ProfileTab tab) {
+	const auto peer = _context.peer;
+	const auto sending = Data::ProfileTabToMTP(tab);
+	if (const auto channel = peer->asChannel()) {
+		peer->session().api().request(MTPchannels_SetMainProfileTab(
+			channel->inputChannel(),
+			sending
+		)).send();
+	} else {
+		peer->session().api().request(
+			MTPaccount_SetMainProfileTab(sending)
+		).send();
+	}
+	peer->setMainProfileTab(tab);
+}
+
 void TabsHost::syncStripTitles() {
+	_syncedTabsShown = _tabsShown;
 	auto stripTabs = std::vector<StripTab>();
 	stripTabs.reserve(_tabs.size());
-	for (auto i = 0; i != int(_tabs.size()); ++i) {
+	for (const auto i : _order) {
 		if (!_tabsShown[i]) {
 			continue;
 		}
@@ -184,14 +448,7 @@ void TabsHost::syncStripTitles() {
 }
 
 void TabsHost::ensureActiveVisible() {
-	const auto firstVisible = [&] {
-		for (auto i = 0; i != int(_tabs.size()); ++i) {
-			if (_tabsShown[i]) {
-				return i;
-			}
-		}
-		return -1;
-	}();
+	const auto firstVisible = firstVisibleIndex();
 	const auto activeIndex = _activeId.isEmpty()
 		? -1
 		: int(ranges::find(_tabs, _activeId, &MediaTabDescriptor::id)
@@ -202,6 +459,17 @@ void TabsHost::ensureActiveVisible() {
 	if (activeVisible
 		&& (_userChosenTab || activeIndex == firstVisible)) {
 		return;
+	}
+	if (!activeVisible && (activeIndex >= 0)) {
+		const auto counterpart = mediaSplitCounterpart();
+		if (!counterpart.isEmpty()) {
+			activateTab(counterpart);
+			return;
+		} else if (mediaSplitSwitching()) {
+			return;
+		} else if (_userChosenTab) {
+			_pendingRestoreId = _activeId;
+		}
 	}
 	if (firstVisible >= 0) {
 		if (activeIndex != firstVisible) {
@@ -246,10 +514,15 @@ Fn<void()> TabsHost::prepareSwitch(bool toNextTab) {
 	if (active >= int(_tabs.size())) {
 		return nullptr;
 	}
+	const auto position = displayPosition(active);
+	if (position >= int(_order.size())) {
+		return nullptr;
+	}
 	const auto delta = toNextTab ? 1 : -1;
-	for (auto i = active + delta
-		; i >= 0 && i < int(_tabs.size())
-		; i += delta) {
+	for (auto p = position + delta
+		; p >= 0 && p < int(_order.size())
+		; p += delta) {
+		const auto i = _order[p];
 		if (!_tabsShown[i]) {
 			continue;
 		}
@@ -263,6 +536,9 @@ Fn<void()> TabsHost::prepareSwitch(bool toNextTab) {
 }
 
 void TabsHost::activateTab(const QString &id, bool animated) {
+	// Visibility changes reach the strip through a queued sync, so it may
+	// not know yet about a tab that is already marked as shown.
+	syncStripVisibility();
 	if (_activeId == id) {
 		_strip->setActiveTab(id);
 		return;
@@ -332,12 +608,6 @@ void TabsHost::activateTab(const QString &id, bool animated) {
 		if (raw->parentWidget() != _body) {
 			raw->setParent(_body);
 		}
-		_body->widthValue(
-		) | rpl::on_next([raw](int newWidth) {
-			if (!raw->isHidden()) {
-				raw->resizeToWidth(newWidth);
-			}
-		}, raw->lifetime());
 		raw->heightValue(
 		) | rpl::on_next([this, raw](int) {
 			if (!raw->isHidden()) {
@@ -346,7 +616,7 @@ void TabsHost::activateTab(const QString &id, bool animated) {
 		}, raw->lifetime());
 	}
 	raw->show();
-	raw->resizeToWidth(_body->width());
+	active->resizeToWidth(_body->width());
 	_body->resize(_body->width(), raw->height());
 
 	_activeTab = active;
@@ -380,7 +650,8 @@ void TabsHost::activateTab(const QString &id, bool animated) {
 			startSlideAnimation(
 				std::move(wasCache),
 				active,
-				previousIndex > int(it - begin(_tabs)));
+				displayPosition(previousIndex)
+					> displayPosition(int(it - begin(_tabs))));
 		}
 		previous->widget()->hide();
 	}
@@ -431,10 +702,22 @@ void TabsHost::startSlideAnimation(
 }
 
 void TabsHost::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+	if (const auto active = _activeTab.current()) {
+		const auto widget = active->widget();
+		const auto bottom = _body->y() + _body->height();
+		const auto filler = QRect(0, bottom, width(), height() - bottom);
+		if (!filler.isEmpty() && filler.intersects(e->rect())) {
+			p.setClipRect(filler);
+			p.translate(_body->pos() + widget->pos());
+			active->paintOverflow(p);
+			p.resetTransform();
+			p.setClipping(false);
+		}
+	}
 	if (!_slideAnimation) {
 		return;
 	}
-	auto p = QPainter(this);
 	p.fillRect(_slideRect, st::windowBg);
 	_slideAnimation->paintFrame(
 		p,
@@ -444,12 +727,19 @@ void TabsHost::paintEvent(QPaintEvent *e) {
 }
 
 void TabsHost::pushViewportToActive() {
-	if (const auto active = _activeTab.current()) {
-		active->setTopOverlay((_visibleTop >= 0) ? _stripHeight : 0);
-		active->setVisibleRegion(
-			_visibleTop - _stripHeight,
-			_visibleBottom - _stripHeight);
+	const auto active = _activeTab.current();
+	if (!active) {
+		return;
 	}
+	if (_body->width() < st::infoMediaTabsMinBodyWidth) {
+		_viewportPushPending = true;
+		return;
+	}
+	_viewportPushPending = false;
+	active->setTopOverlay((_visibleTop >= 0) ? _stripHeight : 0);
+	active->setVisibleRegion(
+		_visibleTop - _stripHeight,
+		_visibleBottom - _stripHeight);
 }
 
 rpl::producer<MediaTabContent*> TabsHost::activeTabValue() const {
@@ -460,15 +750,36 @@ rpl::producer<Ui::ScrollToRequest> TabsHost::scrollToRequests() const {
 	return _scrollToRequests.events();
 }
 
-rpl::producer<TabTopBarBindings> TabsHost::activeTabBindings() const {
+rpl::producer<TabTopBarBindings> TabsHost::activeTabBindings() {
 	return _activeTab.value(
-	) | rpl::map([](MediaTabContent *tab) {
-		return tab ? tab->topBarBindings() : TabTopBarBindings();
+	) | rpl::map([=](MediaTabContent *tab) {
+		_searching = false;
+		auto result = tab ? tab->topBarBindings() : TabTopBarBindings();
+		if (auto apply = base::take(result.applySearchQuery)) {
+			result.applySearchQuery = crl::guard(this, [=](QString query) {
+				_searching = !query.isEmpty();
+				apply(query);
+				if (_searching) {
+					scrollToBodyTop();
+				}
+			});
+		}
+		return result;
 	});
+}
+
+void TabsHost::scrollToBodyTop() {
+	if (_visibleTop >= 0) {
+		_scrollToRequests.fire({ 0, -1 });
+	}
 }
 
 not_null<Ui::RpWidget*> TabsHost::stripWidget() const {
 	return _strip;
+}
+
+void TabsHost::trackVerticalScroll(rpl::producer<> scrolls) {
+	_strip->trackVerticalScroll(std::move(scrolls));
 }
 
 void TabsHost::returnStrip() {
@@ -487,44 +798,67 @@ void TabsHost::setVisibleRegion(int top, int bottom) {
 	if (_visibleTop == top && _visibleBottom == bottom) {
 		return;
 	}
-	const auto heightChanged = ((_visibleBottom - _visibleTop)
-		!= (bottom - top));
 	_visibleTop = top;
 	_visibleBottom = bottom;
 	pushViewportToActive();
-	if (heightChanged) {
-		const auto want = std::max(
-			_stripHeight + _body->height(),
-			bottom - top);
-		if (want != height()) {
-			scheduleHeightSync();
-		}
+	if (_keepMinHeight) {
+		scheduleHeightSync();
+	}
+}
+
+void TabsHost::setScrolledToTop(bool scrolledToTop) {
+	if (_scrolledToTop == scrolledToTop) {
+		return;
+	}
+	_scrolledToTop = scrolledToTop;
+	if (_keepMinHeight && scrolledToTop) {
+		scheduleHeightSync();
 	}
 }
 
 int TabsHost::resizeGetHeight(int newWidth) {
+	_body->resizeToWidth(std::max(newWidth, 1));
+	if (const auto active = _activeTab.current()) {
+		active->resizeToWidth(_body->width());
+		syncBodyNow();
+	}
+	if (_viewportPushPending && _body->width() >= st::infoMediaTabsMinBodyWidth) {
+		_viewportPushPending = false;
+		InvokeQueued(this, [this] { pushViewportToActive(); });
+	}
 	if (!ranges::contains(_tabsShown, true)) {
 		return 0;
 	}
-	if (const auto strip = _stripWeak.get()
-		; strip && strip->parentWidget() == this) {
-		const auto stripWidth = std::min(strip->naturalWidth(), newWidth);
-		strip->resizeToWidth(stripWidth);
-		strip->moveToLeft((newWidth - stripWidth) / 2, 0);
+	if (const auto strip = _stripWeak.get()) {
+		if (strip->parentWidget() == this) {
+			const auto stripWidth = std::min(
+				strip->naturalWidth(),
+				newWidth);
+			strip->resizeToWidth(stripWidth);
+			strip->moveToLeft((newWidth - stripWidth) / 2, 0);
+		}
+		// The saved messages page floats the strip from birth, so the
+		// reserved height must follow a lent out strip as well.
 		_stripHeight = strip->height();
 	}
 	const auto bodyTop = _stripHeight;
-	_body->resizeToWidth(std::max(newWidth, 1));
 	_body->moveToLeft(0, bodyTop);
 
 	const auto natural = bodyTop + _body->height();
-	const auto viewport = _visibleBottom - _visibleTop;
-	if (_keepMinHeight
-		&& ((natural >= _keepMinHeight)
-			|| (_visibleBottom <= std::max(natural, viewport)))) {
-		_keepMinHeight = 0;
+	const auto span = _visibleBottom - _visibleTop;
+	_searchContentFits = _searching && !_scrolledToTop && (natural < span);
+	if (_searchContentFits) {
+		_keepMinHeight = span;
+	} else if (_keepMinHeight) {
+		// Growing filler would add scroll room on every scroll to bottom.
+		_keepMinHeight = std::min(
+			_keepMinHeight,
+			std::max(_visibleBottom, 0));
+		if ((natural >= _keepMinHeight) || _scrolledToTop) {
+			_keepMinHeight = 0;
+		}
 	}
-	return std::max({ natural, viewport, _keepMinHeight });
+	return std::max(natural, _keepMinHeight);
 }
 
 } // namespace Info::Profile

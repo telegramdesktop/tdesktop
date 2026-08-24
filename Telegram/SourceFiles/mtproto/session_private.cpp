@@ -51,6 +51,9 @@ constexpr auto kRequestConfigTimeout = 8 * crl::time(1000);
 
 // Don't try to handle messages larger than this size.
 constexpr auto kMaxMessageLength = 16 * 1024 * 1024;
+constexpr auto kMaxUnpackedMessageLength = 32 * 1024 * 1024;
+constexpr auto kUnpackedChunkSize = 1024 * 1024;
+constexpr auto kMaxGzipNesting = 64;
 
 // How much time passed from send till we resend request or check its state.
 constexpr auto kCheckSentRequestTimeout = 10 * crl::time(1000);
@@ -275,7 +278,7 @@ void SessionPrivate::checkSentRequests() {
 	auto nextTimeout = kCheckSentRequestTimeout;
 	{
 		QReadLocker locker(_sessionData->haveSentMutex());
-		auto &haveSent = _sessionData->haveSentMap();
+		const auto &haveSent = _sessionData->haveSentMap();
 		for (const auto &[msgId, request] : haveSent) {
 			if (request->lastSentTime <= checkTime) {
 				// Need to check state.
@@ -684,7 +687,8 @@ void SessionPrivate::tryToSend() {
 			: _instance->systemVersion();
 		const auto appVersion = ComputeAppVersion();
 		const auto proxyType = _options->proxy.type;
-		const auto mtprotoProxy = (proxyType == ProxyData::Type::Mtproto);
+		const auto mtprotoProxy = (proxyType == ProxyData::Type::Mtproto)
+			|| (proxyType == ProxyData::Type::Web);
 		const auto clientProxyFields = mtprotoProxy
 			? MTP_inputClientProxy(
 				MTP_string(_options->proxy.host),
@@ -1031,7 +1035,8 @@ void SessionPrivate::connectToServer(bool afterConfig) {
 			return;
 		}
 	}
-	if (_options->proxy.type == ProxyData::Type::Mtproto) {
+	if (_options->proxy.type == ProxyData::Type::Mtproto
+		|| _options->proxy.type == ProxyData::Type::Web) {
 		// host, port, secret for mtproto proxy are taken from proxy.
 		appendTestConnection(DcOptions::Variants::Tcp, {}, 0, {});
 	} else {
@@ -1402,12 +1407,13 @@ void SessionPrivate::handleReceived() {
 			msgId,
 			needAck);
 		if (registered == ReceivedIdsManager::Result::Success) {
+			auto unpackedBudget = kMaxUnpackedMessageLength;
 			res = handleOneReceived(from, end, msgId, {
 				.outerMsgId = msgId,
 				.serverSalt = serverSalt,
 				.serverTime = serverTime,
 				.badTime = badTime,
-			});
+			}, unpackedBudget, 0);
 		} else if (registered == ReceivedIdsManager::Result::TooOld) {
 			res = HandleResult::ResetSession;
 		}
@@ -1455,18 +1461,35 @@ SessionPrivate::HandleResult SessionPrivate::handleOneReceived(
 		const mtpPrime *from,
 		const mtpPrime *end,
 		uint64 msgId,
-		OuterInfo info) {
+		OuterInfo info,
+		int &unpackedBudget,
+		int gzipDepth) {
 	Expects(from < end);
 
 	switch (mtpTypeId(*from)) {
 
 	case mtpc_gzip_packed: {
 		DEBUG_LOG(("Message Info: gzip container"));
-		mtpBuffer response = ungzip(++from, end);
+		if (gzipDepth >= kMaxGzipNesting) {
+			LOG(("RPC Error: gzip nesting exceeds %1."
+				).arg(kMaxGzipNesting));
+			return HandleResult::RestartConnection;
+		}
+		auto response = ungzip(
+			++from,
+			end,
+			unpackedBudget);
 		if (response.empty()) {
 			return HandleResult::RestartConnection;
 		}
-		return handleOneReceived(response.data(), response.data() + response.size(), msgId, info);
+		unpackedBudget -= int(response.size() * sizeof(mtpPrime));
+		return handleOneReceived(
+			response.data(),
+			response.data() + response.size(),
+			msgId,
+			info,
+			unpackedBudget,
+			gzipDepth + 1);
 	}
 
 	case mtpc_msg_container: {
@@ -1521,7 +1544,13 @@ SessionPrivate::HandleResult SessionPrivate::handleOneReceived(
 				inMsgId.v,
 				needAck);
 			if (registered == ReceivedIdsManager::Result::Success) {
-				res = handleOneReceived(from, otherEnd, inMsgId.v, info);
+				res = handleOneReceived(
+					from,
+					otherEnd,
+					inMsgId.v,
+					info,
+					unpackedBudget,
+					gzipDepth);
 				info.badTime = false;
 			} else if (registered == ReceivedIdsManager::Result::TooOld) {
 				res = HandleResult::ResetSession;
@@ -1848,10 +1877,19 @@ SessionPrivate::HandleResult SessionPrivate::handleOneReceived(
 		mtpTypeId typeId = from[0];
 		if (typeId == mtpc_gzip_packed) {
 			DEBUG_LOG(("RPC Info: gzip container"));
-			response = ungzip(++from, end);
+			if (gzipDepth >= kMaxGzipNesting) {
+				LOG(("RPC Error: gzip nesting exceeds %1."
+					).arg(kMaxGzipNesting));
+				return HandleResult::RestartConnection;
+			}
+			response = ungzip(
+				++from,
+				end,
+				unpackedBudget);
 			if (response.empty()) {
 				return HandleResult::RestartConnection;
 			}
+			unpackedBudget -= int(response.size() * sizeof(mtpPrime));
 			typeId = response[0];
 		} else {
 			response.resize(end - from);
@@ -2022,52 +2060,76 @@ SessionPrivate::HandleResult SessionPrivate::handleBindResponse(
 	Unexpected("Result of BoundKeyCreator::handleBindResponse.");
 }
 
-mtpBuffer SessionPrivate::ungzip(const mtpPrime *from, const mtpPrime *end) const {
-	mtpBuffer result; // * 4 because of mtpPrime type
-	result.resize(0);
-
+mtpBuffer SessionPrivate::ungzip(
+		const mtpPrime *from,
+		const mtpPrime *end,
+		int sizeLimit) const {
+	if (sizeLimit <= 0) {
+		LOG(("RPC Error: unpacked gzip data exceeds %1 bytes."
+			).arg(kMaxUnpackedMessageLength));
+		return {};
+	}
 	MTPstring packed;
 	if (!packed.read(from, end)) { // read packed string as serialized mtp string type
 		LOG(("RPC Error: could not read gziped bytes."));
-		return result;
+		return {};
 	}
-	uint32 packedLen = packed.v.size(), unpackedChunk = packedLen;
+	const auto packedLen = uint32(packed.v.size());
 
-	z_stream stream;
-	stream.zalloc = 0;
-	stream.zfree = 0;
-	stream.opaque = 0;
-	stream.avail_in = 0;
-	stream.next_in = 0;
-	int res = inflateInit2(&stream, 16 + MAX_WBITS);
+	auto stream = z_stream{};
+	const auto res = inflateInit2(&stream, 16 + MAX_WBITS);
 	if (res != Z_OK) {
 		LOG(("RPC Error: could not init zlib stream, code: %1").arg(res));
-		return result;
+		return {};
 	}
+	const auto guard = gsl::finally([&] { inflateEnd(&stream); });
 	stream.avail_in = packedLen;
 	stream.next_in = reinterpret_cast<Bytef*>(packed.v.data());
 
-	stream.avail_out = 0;
-	while (!stream.avail_out) {
-		result.resize(result.size() + unpackedChunk);
-		stream.avail_out = unpackedChunk * sizeof(mtpPrime);
-		stream.next_out = (Bytef*)&result[result.size() - unpackedChunk];
-		int res = inflate(&stream, Z_NO_FLUSH);
+	auto result = mtpBuffer();
+	while (true) {
+		const auto unpackedLength = int(
+			result.size() * sizeof(mtpPrime));
+		if (unpackedLength >= sizeLimit) {
+			auto extra = Bytef();
+			stream.avail_out = 1;
+			stream.next_out = &extra;
+			const auto res = inflate(&stream, Z_NO_FLUSH);
+			if (res == Z_STREAM_END && stream.avail_out == 1) {
+				stream.avail_out = 0;
+				break;
+			}
+			LOG(("RPC Error: unpacked gzip data exceeds %1 bytes."
+				).arg(kMaxUnpackedMessageLength));
+			return {};
+		}
+		const auto chunkSize = std::min(
+			kUnpackedChunkSize,
+			sizeLimit - unpackedLength);
+		const auto oldSize = result.size();
+		result.resize(oldSize + chunkSize / sizeof(mtpPrime));
+		stream.avail_out = static_cast<uInt>(chunkSize);
+		stream.next_out = reinterpret_cast<Bytef*>(result.data() + oldSize);
+		const auto res = inflate(&stream, Z_NO_FLUSH);
 		if (res != Z_OK && res != Z_STREAM_END) {
-			inflateEnd(&stream);
 			LOG(("RPC Error: could not unpack gziped data, code: %1").arg(res));
 			DEBUG_LOG(("RPC Error: bad gzip: %1").arg(Logs::mb(packed.v.constData(), packedLen).str()));
-			return mtpBuffer();
+			return {};
+		} else if (res == Z_STREAM_END) {
+			break;
+		} else if (stream.avail_out) {
+			LOG(("RPC Error: incomplete gzip data."));
+			return {};
 		}
 	}
 	if (stream.avail_out & 0x03) {
-		uint32 badSize = result.size() * sizeof(mtpPrime) - stream.avail_out;
+		const auto badSize = result.size() * sizeof(mtpPrime)
+			- stream.avail_out;
 		LOG(("RPC Error: bad length of unpacked data %1").arg(badSize));
 		DEBUG_LOG(("RPC Error: bad unpacked data %1").arg(Logs::mb(result.data(), badSize).str()));
-		return mtpBuffer();
+		return {};
 	}
 	result.resize(result.size() - (stream.avail_out >> 2));
-	inflateEnd(&stream);
 	if (!result.size()) {
 		LOG(("RPC Error: bad length of unpacked data 0"));
 	}

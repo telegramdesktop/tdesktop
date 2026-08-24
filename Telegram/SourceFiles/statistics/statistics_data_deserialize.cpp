@@ -97,6 +97,13 @@ Data::StatisticalChart StatisticalChartFromJSON(const QByteArray &json) {
 		}
 		result.measure();
 	}
+	if (result.x.empty()
+		|| ranges::any_of(result.lines, [&](const auto &line) {
+			return line.y.size() != result.x.size();
+		})) {
+		LOG(("API Error: Mismatched columns from stats graph received."));
+		return {};
+	}
 	if (result.maxValue == result.minValue) {
 		if (result.minValue) {
 			result.minValue = 0;

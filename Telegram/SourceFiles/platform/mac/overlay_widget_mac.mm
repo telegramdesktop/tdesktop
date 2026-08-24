@@ -109,6 +109,7 @@ void MacOverlayWidgetHelper::updateStyles(bool fullscreen) {
 	[window setTitleVisibility:NSWindowTitleHidden];
 	[window setTitlebarAppearsTransparent:YES];
 	[window setStyleMask:[window styleMask] | NSWindowStyleMaskFullSizeContentView];
+	[window setHasShadow:!fullscreen];
 	if (@available(macOS 12.0, *)) {
 		_data->topNotchSkip = [[window screen] safeAreaInsets].top;
 	}

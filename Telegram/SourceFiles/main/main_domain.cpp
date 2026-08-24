@@ -257,7 +257,7 @@ void Domain::updateUnreadBadge() {
 }
 
 void Domain::scheduleUpdateUnreadBadge() {
-	if (_unreadBadgeUpdateScheduled) {
+	if (_unreadBadgeUpdateScheduled || Core::Quitting()) {
 		return;
 	}
 	_unreadBadgeUpdateScheduled = true;
@@ -362,9 +362,11 @@ void Domain::watchSession(not_null<Account*> account) {
 	}) | rpl::on_next([=] {
 		scheduleUpdateUnreadBadge();
 		closeAccountWindows(account);
-		crl::on_main(&Core::App(), [=] {
-			removeRedundantAccounts();
-		});
+		if (!Core::Quitting()) {
+			crl::on_main(&Core::App(), [=] {
+				removeRedundantAccounts();
+			});
+		}
 	}, account->lifetime());
 }
 

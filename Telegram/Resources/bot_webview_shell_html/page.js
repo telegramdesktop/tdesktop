@@ -48,6 +48,14 @@
 	};
 	const shellToken = TDESKTOP_SHELL_TOKEN_PLACEHOLDER;
 	const nativeMessageType = 'tdesktop_external_bot_webapp';
+	const frameSandbox = [
+		'allow-scripts',
+		'allow-same-origin',
+		'allow-popups',
+		'allow-forms',
+		'allow-modals',
+		'allow-storage-access-by-user-activation'
+	].join(' ');
 	const maxPendingEvents = 64;
 	let iframe = null;
 	let frameLoaded = false;
@@ -942,6 +950,7 @@
 		const generation = ++frameGeneration;
 		pendingEvents.splice(0);
 		const next = document.createElement('iframe');
+		next.setAttribute('sandbox', frameSandbox);
 		next.setAttribute('allow', 'clipboard-read; clipboard-write; fullscreen');
 		next.referrerPolicy = 'no-referrer';
 		next.addEventListener('load', function() {

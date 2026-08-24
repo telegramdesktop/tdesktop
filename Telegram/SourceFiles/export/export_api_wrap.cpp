@@ -336,6 +336,7 @@ void VisitRichBlock(
 		break;
 	case Kind::Video:
 	case Kind::Audio:
+	case Kind::File:
 		VisitRichDocument(message, block.documentId, callbacks);
 		VisitRichCaption(message, block.caption, callbacks);
 		break;
@@ -384,6 +385,11 @@ void VisitRichBlock(
 	case Kind::Map:
 	case Kind::InputMap:
 		VisitRichCaption(message, block.caption, callbacks);
+		break;
+	case Kind::ButtonRow:
+		for (auto &button : block.buttons) {
+			VisitRichText(message, button, callbacks);
+		}
 		break;
 	case Kind::Unsupported:
 	case Kind::Divider:
@@ -2426,7 +2432,7 @@ void ApiWrap::resumeMessagesSlice() {
 		: static_cast<AbstractMessagesProcess*>(_chatProcess.get());
 	Expects(process->slice.has_value());
 
-	auto &list = process->slice->list;
+	const auto &list = process->slice->list;
 	while (process->hydrationIndex < list.size()) {
 		const auto index = process->hydrationIndex;
 		const auto &message = list[index];
@@ -2486,12 +2492,12 @@ void ApiWrap::hydrateMessageDone(
 		error("Unexpected rich message hydration result.");
 		return;
 	}
-	auto &list = process->slice->list;
+	const auto &list = process->slice->list;
 	if (index < 0 || index >= list.size()) {
 		error("Unexpected rich message hydration result.");
 		return;
 	}
-	auto &message = list[index];
+	const auto &message = list[index];
 	if (message.id != rawId
 		|| !message.richMessage
 		|| !message.richMessage->part) {

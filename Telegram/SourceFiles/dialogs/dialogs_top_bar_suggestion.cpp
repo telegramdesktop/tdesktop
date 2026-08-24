@@ -11,17 +11,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/call_delayed.h"
 #include "core/application.h"
+#include "core/core_settings.h"
 #include "data/components/gift_auctions.h"
 #include "data/components/promo_suggestions.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
 #include "dialogs/suggestions/suggestion.h"
 #include "dialogs/ui/dialogs_top_bar_suggestion_content.h"
 #include "main/main_session.h"
+#include "mainwindow.h"
 #include "ui/ui_utility.h"
 #include "ui/wrap/slide_wrap.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
-#include "styles/style_dialogs.h"
+#include "styles/style_basic.h"
+#include "styles/style_window.h"
 
 namespace Dialogs {
 namespace {
@@ -34,6 +37,19 @@ namespace {
 }
 
 } // namespace
+
+Fn<void()> ExpandChatsListCallback(not_null<Ui::RpWidget*> widget) {
+	return [=] {
+		const auto controller = FindSessionController(widget);
+		const auto nochat = !controller->mainSectionShown();
+		const auto body = controller->widget()->bodyWidget()->width()
+			- controller->filtersWidth();
+		Core::App().settings().updateDialogsWidthRatio(
+			st::columnMinimalWidthLeft / float64(std::max(body, 1)),
+			nochat);
+		Core::App().saveSettingsDelayed();
+	};
+}
 
 rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 		not_null<Ui::RpWidget*> parent,
@@ -79,6 +95,8 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 						Window::GifPauseReason::Layer); });
 				state->content->setCollapseProgress(
 					rpl::duplicate(childListShown));
+				state->content->setNarrowExpandCallback(
+					ExpandChatsListCallback(parent));
 			}
 			return state->content;
 		};

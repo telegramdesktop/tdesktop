@@ -25,6 +25,7 @@ struct MessageMoneyRestriction;
 
 namespace Data {
 class Thread;
+class CommunityInfo;
 class Forum;
 class ForumTopic;
 class SavedSublist;
@@ -451,5 +452,34 @@ private:
 	const not_null<Data::SavedMessages*> _monoforum;
 	FnMut<void(not_null<Data::SavedSublist*>)> _callback;
 	Fn<bool(not_null<Data::SavedSublist*>)> _filter;
+
+};
+
+[[nodiscard]] Data::CommunityInfo *JoinedCommunityChats(
+	not_null<PeerData*> peer);
+
+class ChooseCommunityChatBoxController final
+	: public PeerListController
+	, public base::has_weak_ptr {
+public:
+	ChooseCommunityChatBoxController(
+		not_null<Data::CommunityInfo*> community,
+		FnMut<void(not_null<Data::Thread*>)> callback,
+		Fn<bool(not_null<Data::Thread*>)> filter = nullptr);
+
+	Main::Session &session() const override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+
+	void prepare() override;
+	std::unique_ptr<PeerListRow> createSearchRow(PeerListRowId id) override;
+
+private:
+	void refreshRows(bool initial = false);
+	[[nodiscard]] std::unique_ptr<PeerListRow> createRow(
+		not_null<History*> history);
+
+	const not_null<Data::CommunityInfo*> _community;
+	FnMut<void(not_null<Data::Thread*>)> _callback;
+	Fn<bool(not_null<Data::Thread*>)> _filter;
 
 };

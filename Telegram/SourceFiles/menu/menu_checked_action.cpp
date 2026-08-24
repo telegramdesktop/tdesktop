@@ -44,13 +44,21 @@ constexpr auto kPremiumStarRightSkip = 10;
 
 [[nodiscard]] style::Menu PatchedActiveStyle(
 		const style::Menu &base,
-		bool active) {
+		bool active,
+		int premiumStarSize,
+		bool withShortcut) {
 	auto result = base;
 	if (active) {
 		result.itemFg = st::windowActiveTextFg;
 		result.itemFgOver = st::windowActiveTextFg;
 		result.itemFgShortcut = st::windowActiveTextFg;
 		result.itemFgShortcutOver = st::windowActiveTextFg;
+	}
+	if (premiumStarSize > 0 && withShortcut) {
+		result.itemPadding.setRight(result.itemRightSkip
+			+ style::ConvertScale(kPremiumStarRightSkip)
+			+ premiumStarSize
+			+ result.itemRightSkip);
 	}
 	return result;
 }
@@ -92,14 +100,19 @@ ActiveColorAction::ActiveColorAction(
 	const style::icon *icon,
 	bool active,
 	int premiumStarSize)
-: OwnedMenuStyle(PatchedActiveStyle(st, active))
+: OwnedMenuStyle(PatchedActiveStyle(
+	st,
+	active,
+	premiumStarSize,
+	action->text().contains(QChar('\t'))))
 , Ui::Menu::Action(parent, OwnedMenuStyle::value, action, icon, icon)
 , _activeIcon(icon)
 , _active(active)
 , _premiumStar((premiumStarSize > 0)
 	? PremiumStarImage(premiumStarSize)
 	: QImage()) {
-	if (premiumStarSize > 0) {
+	if (premiumStarSize > 0
+		&& !action->text().contains(QChar('\t'))) {
 		setMinWidth(minWidth()
 			+ OwnedMenuStyle::value.itemRightSkip
 			+ style::ConvertScale(kPremiumStarRightSkip)

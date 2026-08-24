@@ -37,6 +37,7 @@ struct ComposeAiBoxArgs {
 	Fn<void(not_null<Ui::RpWidget*>, Fn<void(Api::SendOptions)>)> setupMenu;
 	std::shared_ptr<const Iv::RichPage> richSource;
 	Fn<void(std::shared_ptr<const Iv::RichPage>)> applyRich;
+	bool allowPrompt = false;
 };
 
 void ComposeAiBox(not_null<Ui::GenericBox*> box, ComposeAiBoxArgs &&args);

@@ -1895,8 +1895,23 @@ bool PeerData::canManageRanks() const {
 		return chat->amCreator()
 			|| (chat->adminRights() & ChatAdminRight::ManageRanks);
 	} else if (const auto channel = asChannel()) {
+		if (channel->isCommunity()) {
+			return false;
+		}
 		return channel->amCreator()
 			|| (channel->adminRights() & ChatAdminRight::ManageRanks);
+	}
+	return false;
+}
+
+bool PeerData::canManageWelcomeMessages() const {
+	if (const auto chat = asChat()) {
+		return chat->amCreator()
+			|| (chat->adminRights() & ChatAdminRight::ManageWelcomeMessages);
+	} else if (const auto channel = asChannel()) {
+		return channel->amCreator()
+			|| (channel->adminRights()
+				& ChatAdminRight::ManageWelcomeMessages);
 	}
 	return false;
 }
@@ -2046,6 +2061,17 @@ int PeerData::peerGiftsCount() const {
 		return channel->peerGiftsCount();
 	}
 	return 0;
+}
+
+void PeerData::setMainProfileTab(Data::ProfileTab tab) {
+	if (_mainProfileTab != tab) {
+		_mainProfileTab = tab;
+		session().changes().peerUpdated(this, UpdateFlag::MainProfileTab);
+	}
+}
+
+Data::ProfileTab PeerData::mainProfileTab() const {
+	return _mainProfileTab;
 }
 
 MTPInputPeer PeerData::input() const {
@@ -2251,6 +2277,44 @@ std::optional<uint8> ColorIndexFromColor(const MTPPeerColor *color) {
 	}, [](const auto &) -> std::optional<uint8> {
 		return std::nullopt;
 	});
+}
+
+ProfileTab ParseProfileTab(const MTPProfileTab *tab) {
+	if (!tab) {
+		return ProfileTab::None;
+	}
+	return tab->match([](const MTPDprofileTabPosts &) {
+		return ProfileTab::Posts;
+	}, [](const MTPDprofileTabGifts &) {
+		return ProfileTab::Gifts;
+	}, [](const MTPDprofileTabMedia &) {
+		return ProfileTab::Media;
+	}, [](const MTPDprofileTabFiles &) {
+		return ProfileTab::Files;
+	}, [](const MTPDprofileTabMusic &) {
+		return ProfileTab::Music;
+	}, [](const MTPDprofileTabVoice &) {
+		return ProfileTab::Voice;
+	}, [](const MTPDprofileTabLinks &) {
+		return ProfileTab::Links;
+	}, [](const MTPDprofileTabGifs &) {
+		return ProfileTab::Gifs;
+	});
+}
+
+MTPProfileTab ProfileTabToMTP(ProfileTab tab) {
+	switch (tab) {
+	case ProfileTab::Posts: return MTP_profileTabPosts();
+	case ProfileTab::Gifts: return MTP_profileTabGifts();
+	case ProfileTab::Media: return MTP_profileTabMedia();
+	case ProfileTab::Files: return MTP_profileTabFiles();
+	case ProfileTab::Music: return MTP_profileTabMusic();
+	case ProfileTab::Voice: return MTP_profileTabVoice();
+	case ProfileTab::Links: return MTP_profileTabLinks();
+	case ProfileTab::Gifs: return MTP_profileTabGifs();
+	case ProfileTab::None: break;
+	}
+	Unexpected("Tab in Data::ProfileTabToMTP.");
 }
 
 bool IsBotUserCreatesTopics(not_null<PeerData*> peer) {

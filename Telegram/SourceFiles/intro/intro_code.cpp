@@ -56,10 +56,10 @@ CodeWidget::CodeWidget(
 			: tr::lng_intro_fragment_title();
 	}) | rpl::flatten_latest());
 
-	account->setHandleLoginCode([=](const QString &code) {
+	account->setHandleLoginCode(crl::guard(this, [=](const QString &code) {
 		_code->setCode(code);
 		_code->requestCode();
-	});
+	}));
 
 	_code->codeCollected(
 	) | rpl::on_next([=](const QString &code) {

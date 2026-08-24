@@ -10,8 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_prepare.h"
 #include "ui/widgets/shadow.h"
 #include "ui/painter.h"
-#include "styles/style_media_view.h"
-#include "styles/style_widgets.h"
 
 namespace Media::View {
 namespace {

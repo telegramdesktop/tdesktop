@@ -33,9 +33,16 @@ SingleMediaPreview *SingleMediaPreview::Create(
 			&file.information->media)) {
 		preview = file.videoCover
 			? file.videoCover->preview
-			: video->thumbnail;
+			: (video->thumbnail.isNull()
+				|| !video->modifications.geometry)
+			? video->thumbnail
+			: Editor::ImageModified(
+				video->thumbnail,
+				video->modifications.geometry);
 		animated = true;
-		animationPreview = video->isGifv;
+		// The animated preview plays the file itself, which knows nothing
+		// about the crop or the rotation, so show the edited frame instead.
+		animationPreview = video->isGifv && !video->modifications.geometry;
 	}
 	if (preview.isNull()) {
 		return nullptr;
@@ -54,7 +61,10 @@ SingleMediaPreview *SingleMediaPreview::Create(
 		file.spoiler,
 		animationPreview ? file.path : QString(),
 		type);
+	result->setModifyAllowed(file.canEditVideo());
 	result->setCanShowHighQualityBadge(file.canUseHighQualityPhoto());
+	result->setCanShowAnimatedBadge(file.hasAnimatedEditScene());
+	result->setVideoQuality(file.videoQuality());
 	return result;
 }
 

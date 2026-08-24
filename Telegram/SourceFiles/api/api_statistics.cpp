@@ -44,27 +44,6 @@ namespace {
 			tlUnmuted.vpart().v / tlUnmuted.vtotal().v * 100.,
 			0.,
 			100.);
-	using Recent = MTPPostInteractionCounters;
-	auto recentMessages = ranges::views::all(
-		data.vrecent_posts_interactions().v
-	) | ranges::views::transform([&](const Recent &tl) {
-		return tl.match([&](const MTPDpostInteractionCountersStory &data) {
-			return Data::StatisticsMessageInteractionInfo{
-				.storyId = data.vstory_id().v,
-				.viewsCount = data.vviews().v,
-				.forwardsCount = data.vforwards().v,
-				.reactionsCount = data.vreactions().v,
-			};
-		}, [&](const MTPDpostInteractionCountersMessage &data) {
-			return Data::StatisticsMessageInteractionInfo{
-				.messageId = data.vmsg_id().v,
-				.viewsCount = data.vviews().v,
-				.forwardsCount = data.vforwards().v,
-				.reactionsCount = data.vreactions().v,
-			};
-		});
-	}) | ranges::to_vector;
-
 	return {
 		.startDate = data.vperiod().data().vmin_date().v,
 		.endDate = data.vperiod().data().vmax_date().v,
@@ -119,45 +98,38 @@ namespace {
 
 		.storyReactionsByEmotionGraph = StatisticalGraphFromTL(
 			data.vstory_reactions_by_emotion_graph()),
+	};
+}
 
-		.recentMessageInteractions = std::move(recentMessages),
+[[nodiscard]] Data::StatisticsLists ChannelListsFromTL(
+		const MTPDstats_broadcastStats &data) {
+	using Recent = MTPPostInteractionCounters;
+
+	return {
+		.recentMessageInteractions = ranges::views::all(
+			data.vrecent_posts_interactions().v
+		) | ranges::views::transform([&](const Recent &tl) {
+			return tl.match([&](const MTPDpostInteractionCountersStory &data) {
+				return Data::StatisticsMessageInteractionInfo{
+					.storyId = data.vstory_id().v,
+					.viewsCount = data.vviews().v,
+					.forwardsCount = data.vforwards().v,
+					.reactionsCount = data.vreactions().v,
+				};
+			}, [&](const MTPDpostInteractionCountersMessage &data) {
+				return Data::StatisticsMessageInteractionInfo{
+					.messageId = data.vmsg_id().v,
+					.viewsCount = data.vviews().v,
+					.forwardsCount = data.vforwards().v,
+					.reactionsCount = data.vreactions().v,
+				};
+			});
+		}) | ranges::to_vector,
 	};
 }
 
 [[nodiscard]] Data::SupergroupStatistics SupergroupStatisticsFromTL(
 		const MTPDstats_megagroupStats &data) {
-	using Senders = MTPStatsGroupTopPoster;
-	using Administrators = MTPStatsGroupTopAdmin;
-	using Inviters = MTPStatsGroupTopInviter;
-
-	auto topSenders = ranges::views::all(
-		data.vtop_posters().v
-	) | ranges::views::transform([&](const Senders &tl) {
-		return Data::StatisticsMessageSenderInfo{
-			.userId = UserId(tl.data().vuser_id().v),
-			.sentMessageCount = tl.data().vmessages().v,
-			.averageCharacterCount = tl.data().vavg_chars().v,
-		};
-	}) | ranges::to_vector;
-	auto topAdministrators = ranges::views::all(
-		data.vtop_admins().v
-	) | ranges::views::transform([&](const Administrators &tl) {
-		return Data::StatisticsAdministratorActionsInfo{
-			.userId = UserId(tl.data().vuser_id().v),
-			.deletedMessageCount = tl.data().vdeleted().v,
-			.bannedUserCount = tl.data().vkicked().v,
-			.restrictedUserCount = tl.data().vbanned().v,
-		};
-	}) | ranges::to_vector;
-	auto topInviters = ranges::views::all(
-		data.vtop_inviters().v
-	) | ranges::views::transform([&](const Inviters &tl) {
-		return Data::StatisticsInviterInfo{
-			.userId = UserId(tl.data().vuser_id().v),
-			.addedMemberCount = tl.data().vinvitations().v,
-		};
-	}) | ranges::to_vector;
-
 	return {
 		.startDate = data.vperiod().data().vmin_date().v,
 		.endDate = data.vperiod().data().vmax_date().v,
@@ -190,10 +162,43 @@ namespace {
 
 		.weekGraph = StatisticalGraphFromTL(
 			data.vweekdays_graph()),
+	};
+}
 
-		.topSenders = std::move(topSenders),
-		.topAdministrators = std::move(topAdministrators),
-		.topInviters = std::move(topInviters),
+[[nodiscard]] Data::StatisticsLists SupergroupListsFromTL(
+		const MTPDstats_megagroupStats &data) {
+	using Senders = MTPStatsGroupTopPoster;
+	using Administrators = MTPStatsGroupTopAdmin;
+	using Inviters = MTPStatsGroupTopInviter;
+
+	return {
+		.topSenders = ranges::views::all(
+			data.vtop_posters().v
+		) | ranges::views::transform([&](const Senders &tl) {
+			return Data::StatisticsMessageSenderInfo{
+				.userId = UserId(tl.data().vuser_id().v),
+				.sentMessageCount = tl.data().vmessages().v,
+				.averageCharacterCount = tl.data().vavg_chars().v,
+			};
+		}) | ranges::to_vector,
+		.topAdministrators = ranges::views::all(
+			data.vtop_admins().v
+		) | ranges::views::transform([&](const Administrators &tl) {
+			return Data::StatisticsAdministratorActionsInfo{
+				.userId = UserId(tl.data().vuser_id().v),
+				.deletedMessageCount = tl.data().vdeleted().v,
+				.bannedUserCount = tl.data().vkicked().v,
+				.restrictedUserCount = tl.data().vbanned().v,
+			};
+		}) | ranges::to_vector,
+		.topInviters = ranges::views::all(
+			data.vtop_inviters().v
+		) | ranges::views::transform([&](const Inviters &tl) {
+			return Data::StatisticsInviterInfo{
+				.userId = UserId(tl.data().vuser_id().v),
+				.addedMemberCount = tl.data().vinvitations().v,
+			};
+		}) | ranges::to_vector,
 	};
 }
 
@@ -212,7 +217,9 @@ rpl::producer<rpl::no_value, QString> Statistics::request() {
 				MTP_flags(MTPstats_GetBroadcastStats::Flags(0)),
 				channel()->inputChannel()
 			)).done([=](const MTPstats_BroadcastStats &result) {
-				_channelStats = ChannelStatisticsFromTL(result.data());
+				const auto &data = result.data();
+				_channelStats = ChannelStatisticsFromTL(data);
+				_lists = ChannelListsFromTL(data);
 				consumer.put_done();
 			}).fail([=](const MTP::Error &error) {
 				consumer.put_error_copy(error.type());
@@ -224,6 +231,7 @@ rpl::producer<rpl::no_value, QString> Statistics::request() {
 			)).done([=](const MTPstats_MegagroupStats &result) {
 				const auto &data = result.data();
 				_supergroupStats = SupergroupStatisticsFromTL(data);
+				_lists = SupergroupListsFromTL(data);
 				channel()->owner().processUsers(data.vusers());
 				consumer.put_done();
 			}).fail([=](const MTP::Error &error) {
@@ -275,6 +283,10 @@ Data::ChannelStatistics Statistics::channelStats() const {
 
 Data::SupergroupStatistics Statistics::supergroupStats() const {
 	return _supergroupStats;
+}
+
+Data::StatisticsLists Statistics::lists() const {
+	return _lists;
 }
 
 PublicForwards::PublicForwards(

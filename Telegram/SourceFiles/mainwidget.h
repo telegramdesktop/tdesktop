@@ -85,6 +85,7 @@ struct SectionShow;
 enum class Column;
 class HistoryHider;
 struct SeparateId;
+struct SavedChat;
 } // namespace Window
 
 namespace Calls {
@@ -98,6 +99,7 @@ class Changelogs;
 } // namespace Core
 
 extern const char kForceComposeSearchOneColumn[];
+extern const char kOptionUseNewChatView[];
 
 class MainWidget final
 	: public Ui::RpWidget
@@ -143,6 +145,7 @@ public:
 		const SectionShow &params);
 	void updateColumnLayout();
 	bool stackIsEmpty() const;
+	[[nodiscard]] std::vector<Window::SavedChat> chatStackForSave() const;
 	bool showBackFromStack(const SectionShow &params);
 	void orderWidgets();
 	QPixmap grabForShowAnimation(const Window::SectionSlideParams &params);
@@ -266,7 +269,8 @@ private:
 	void exportTopBarHeightUpdated();
 
 	Window::SectionSlideParams prepareShowAnimation(
-		bool willHaveTopBarShadow);
+		bool willHaveTopBarShadow,
+		bool fromBottom);
 	void showNewSection(
 		std::shared_ptr<Window::SectionMemento> memento,
 		const SectionShow &params);
@@ -275,7 +279,9 @@ private:
 	Window::SectionSlideParams prepareThirdSectionAnimation(Window::SectionWidget *section);
 
 	// All this methods use the prepareShowAnimation().
-	Window::SectionSlideParams prepareMainSectionAnimation(Window::SectionWidget *section);
+	Window::SectionSlideParams prepareMainSectionAnimation(
+		Window::SectionWidget *section,
+		bool fromBottom);
 	Window::SectionSlideParams prepareHistoryAnimation(PeerId historyPeerId);
 	Window::SectionSlideParams prepareDialogsAnimation();
 

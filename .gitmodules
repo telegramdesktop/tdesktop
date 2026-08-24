@@ -93,10 +93,16 @@
 	url = https://github.com/desktop-app/lib_translate
 [submodule "Telegram/ThirdParty/cmark-gfm"]
 	path = Telegram/ThirdParty/cmark-gfm
-	url = https://github.com/github/cmark-gfm.git
+	url = https://github.com/desktop-app/cmark-gfm.git
 [submodule "Telegram/ThirdParty/MicroTeX"]
 	path = Telegram/ThirdParty/MicroTeX
 	url = https://github.com/desktop-app/MicroTeX.git
 [submodule "Telegram/ThirdParty/TooManyCooks"]
 	path = Telegram/ThirdParty/TooManyCooks
 	url = https://github.com/tzcnt/TooManyCooks.git
+[submodule "Telegram/ThirdParty/libcbor"]
+	path = Telegram/ThirdParty/libcbor
+	url = https://github.com/PJK/libcbor.git
+[submodule "Telegram/ThirdParty/libfido2"]
+	path = Telegram/ThirdParty/libfido2
+	url = https://github.com/Yubico/libfido2.git

@@ -60,6 +60,16 @@ rpl::producer<TextWithEntities> ForwardedMessagePhrase(
 	}
 }
 
+QString ForwardedMessagePhraseIcon(
+		const ForwardedMessagePhraseArgs &args) {
+	const auto toSelf = (args.toCount <= 1)
+		&& args.to1
+		&& args.to1->isSelf();
+	return toSelf
+		? u"toast/saved_messages"_q
+		: u"toast/forward"_q;
+}
+
 Ui::Toast::ClickHandlerFilter ForwardedToSavedMessagesFilter(
 		not_null<Main::Session*> session) {
 	return [=](const ClickHandlerPtr &, Qt::MouseButton) {

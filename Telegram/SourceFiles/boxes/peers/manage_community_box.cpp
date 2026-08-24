@@ -36,7 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
-#include "styles/style_boxes.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -142,6 +141,7 @@ void ManageCommunityBox(
 					Ui::PeerUserpicShape::Forum),
 				st::editPeerPhotoMargins));
 		photo = photoWrap->entity();
+		photo->setVideoAllowed(true);
 		photo->showCustomOnChosen();
 		const auto cache = row->lifetime().make_state<
 			Ui::CommunityUserpicEffect>();
@@ -164,7 +164,7 @@ void ManageCommunityBox(
 				row,
 				object_ptr<Ui::InputField>(
 					row,
-					st::editPeerTitleField,
+					st::defaultInputField,
 					tr::lng_community_create_name(),
 					community->name()),
 				st::editPeerTitleMargins));
@@ -324,10 +324,13 @@ void ManageCommunityBox(
 			if (onlyAdmins != wasOnlyAdmins) {
 				SaveCommunityWhoCanAddChats(community, onlyAdmins);
 			}
-			if (auto image = photo->takeResultImage(); !image.isNull()) {
-				community->session().api().peerPhoto().upload(
-					community,
-					{ std::move(image) });
+			auto image = photo->takeResultImage();
+			auto video = photo->takeResultVideo();
+			if (!image.isNull()) {
+				community->session().api().peerPhoto().upload(community, {
+					.image = std::move(image),
+					.video = std::move(video),
+				});
 			}
 			box->closeBox();
 		});

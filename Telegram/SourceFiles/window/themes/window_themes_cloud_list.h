@@ -60,17 +60,20 @@ public:
 	bool checkRippleStartPosition(QPoint position) const override;
 
 	void setColors(const Colors &colors);
-	void setPreview(QImage preview, const QColor &outline);
+	void setEmoji(EmojiPtr emoji);
 
 private:
 	void paintNotSupported(QPainter &p, int left, int top, int outerWidth);
 	void paintWithColors(QPainter &p, int left, int top, int outerWidth);
+	void paintEmoji(QPainter &p, int outerWidth);
 	void paintOutline(QPainter &p, int outerWidth);
+	void checkedChangedHook(anim::type animated) override;
 	void validateBackgroundCache(int width);
+	void ensureContrast();
 
 	std::optional<Colors> _colors;
-	QImage _preview;
-	QColor _outline;
+	Ui::RadioView _radio;
+	EmojiPtr _emoji = nullptr;
 	QImage _backgroundFull;
 	QImage _backgroundCache;
 	int _backgroundCacheWidth = -1;
@@ -106,7 +109,7 @@ private:
 	void setup();
 	[[nodiscard]] std::vector<Data::CloudTheme> collectAll() const;
 	void rebuildUsing(std::vector<Data::CloudTheme> &&list);
-	void requestPreview(Element &element);
+	void requestPattern(Element &element);
 	bool applyChangesFrom(std::vector<Data::CloudTheme> &&list);
 	bool removeStaleUsing(const std::vector<Data::CloudTheme> &list);
 	bool insertTillLimit(

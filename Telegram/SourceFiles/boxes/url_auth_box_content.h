@@ -26,9 +26,11 @@ struct Result {
 
 class SwitchableUserpicButton final : public Ui::RippleButton {
 public:
-	SwitchableUserpicButton(
-		not_null<Ui::RpWidget*> parent,
-		int size);
+	[[nodiscard]] static int Size();
+	[[nodiscard]] static int MaxWidth();
+	[[nodiscard]] static int Skip();
+
+	explicit SwitchableUserpicButton(not_null<Ui::RpWidget*> parent);
 
 	void setExpanded(bool expanded);
 	void setUserpic(not_null<Ui::RpWidget*>);

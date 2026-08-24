@@ -21,6 +21,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "styles/style_chat.h"
 
+namespace {
+
+bool IsOrdinaryUnpaidCreditsInvoice(const Data::Invoice &invoice) {
+	return invoice.currency == Ui::kCreditsCurrency
+		&& invoice.receiptMsgId == 0
+		&& !invoice.isTest
+		&& !invoice.isPaidMedia;
+}
+
+TextSelection ClampSelection(TextSelection selection, uint16 length) {
+	return (selection == FullSelection)
+		? selection
+		: TextSelection{
+			qMin(selection.from, length),
+			qMin(selection.to, length),
+		};
+}
+
+} // namespace
+
 namespace HistoryView {
 
 Invoice::Invoice(
@@ -34,8 +54,8 @@ Invoice::Invoice(
 }
 
 void Invoice::fillFromData(not_null<Data::Invoice*> invoice) {
-	const auto isCreditsCurrency = false;
-	if (invoice->photo && !isCreditsCurrency) {
+	_statusVisible = !IsOrdinaryUnpaidCreditsInvoice(*invoice);
+	if (invoice->photo) {
 		const auto spoiler = false;
 		_attach = std::make_unique<Photo>(
 			_parent,
@@ -45,33 +65,32 @@ void Invoice::fillFromData(not_null<Data::Invoice*> invoice) {
 	} else {
 		_attach = nullptr;
 	}
-	auto labelText = [&] {
-		if (invoice->receiptMsgId) {
-			if (invoice->isTest) {
-				return tr::lng_payments_receipt_label_test(tr::now);
+	if (_statusVisible) {
+		auto labelText = [&] {
+			if (invoice->receiptMsgId) {
+				if (invoice->isTest) {
+					return tr::lng_payments_receipt_label_test(tr::now);
+				}
+				return tr::lng_payments_receipt_label(tr::now);
+			} else if (invoice->isTest) {
+				return tr::lng_payments_invoice_label_test(tr::now);
 			}
-			return tr::lng_payments_receipt_label(tr::now);
-		} else if (invoice->isTest) {
-			return tr::lng_payments_invoice_label_test(tr::now);
-		}
-		return tr::lng_payments_invoice_label(tr::now);
-	};
-	auto statusText = TextWithEntities {
-		Ui::FillAmountAndCurrency(invoice->amount, invoice->currency),
-		EntitiesInText()
-	};
-	statusText.entities.push_back({
-		EntityType::Bold,
-		0,
-		int(statusText.text.size()) });
-	statusText.text += ' ' + labelText().toUpper();
-	if (isCreditsCurrency) {
-		statusText = {};
+			return tr::lng_payments_invoice_label(tr::now);
+		};
+		auto statusText = TextWithEntities {
+			Ui::FillAmountAndCurrency(invoice->amount, invoice->currency),
+			EntitiesInText()
+		};
+		statusText.entities.push_back({
+			EntityType::Bold,
+			0,
+			int(statusText.text.size()) });
+		statusText.text += ' ' + labelText().toUpper();
+		_status.setMarkedText(
+			st::defaultTextStyle,
+			statusText,
+			Ui::ItemTextOptions(_parent->data()));
 	}
-	_status.setMarkedText(
-		st::defaultTextStyle,
-		statusText,
-		Ui::ItemTextOptions(_parent->data()));
 
 	_receiptMsgId = invoice->receiptMsgId;
 
@@ -88,36 +107,49 @@ void Invoice::fillFromData(not_null<Data::Invoice*> invoice) {
 			invoice->title,
 			Ui::WebpageTextTitleOptions());
 	}
+	_titleTextLength = _title.length();
+	_descriptionTextLength = _description.length();
+}
+
+void Invoice::assignBottomInfoSkipBlock() {
+	_title.removeSkipBlock();
+	_description.removeSkipBlock();
+	_status.removeSkipBlock();
+	if (_attach) {
+		return;
+	}
+	const auto width = _parent->skipBlockWidth();
+	const auto height = _parent->skipBlockHeight();
+	if (_statusVisible) {
+		_status.updateSkipBlock(width, height);
+	} else if (_descriptionTextLength) {
+		_description.updateSkipBlock(width, height);
+	} else if (_titleTextLength) {
+		_title.updateSkipBlock(width, height);
+	}
 }
 
 QSize Invoice::countOptimalSize() {
+	assignBottomInfoSkipBlock();
 	auto lineHeight = UnitedLineHeight();
-
-	if (_attach) {
-		if (_status.hasSkipBlock()) {
-			_status.removeSkipBlock();
-		}
-	} else {
-		_status.updateSkipBlock(
-			_parent->skipBlockWidth(),
-			_parent->skipBlockHeight());
-	}
 
 	// init dimensions
 	auto skipBlockWidth = _parent->skipBlockWidth();
 	auto maxWidth = skipBlockWidth;
 	auto minHeight = 0;
 
-	auto titleMinHeight = _title.isEmpty() ? 0 : lineHeight;
+	auto titleMinHeight = _titleTextLength ? lineHeight : 0;
 	// enable any count of lines in game description / message
 	auto descMaxLines = 4096;
-	auto descriptionMinHeight = _description.isEmpty() ? 0 : qMin(_description.minHeight(), descMaxLines * lineHeight);
+	auto descriptionMinHeight = _descriptionTextLength
+		? qMin(_description.minHeight(), descMaxLines * lineHeight)
+		: 0;
 
-	if (!_title.isEmpty()) {
+	if (_titleTextLength) {
 		accumulate_max(maxWidth, _title.maxWidth());
 		minHeight += titleMinHeight;
 	}
-	if (!_description.isEmpty()) {
+	if (_descriptionTextLength) {
 		accumulate_max(maxWidth, _description.maxWidth());
 		minHeight += descriptionMinHeight;
 	}
@@ -133,9 +165,11 @@ QSize Invoice::countOptimalSize() {
 		}
 		accumulate_max(maxWidth, maxMediaWidth);
 		minHeight += _attach->minHeight() - bubble.top() - bubble.bottom();
-	} else {
+	} else if (_statusVisible) {
 		accumulate_max(maxWidth, _status.maxWidth());
 		minHeight += st::mediaInBubbleSkip + _status.minHeight();
+	} else if (!_titleTextLength && !_descriptionTextLength) {
+		minHeight += _parent->skipBlockHeight();
 	}
 	auto padding = inBubblePadding();
 	maxWidth += padding.left() + padding.right();
@@ -150,7 +184,7 @@ QSize Invoice::countCurrentSize(int newWidth) {
 	auto lineHeight = UnitedLineHeight();
 
 	auto newHeight = 0;
-	if (_title.isEmpty()) {
+	if (!_titleTextLength) {
 		_titleHeight = 0;
 	} else {
 		if (_title.countHeight(innerWidth) < 2 * st::webPageTitleFont->height) {
@@ -161,7 +195,7 @@ QSize Invoice::countCurrentSize(int newWidth) {
 		newHeight += _titleHeight;
 	}
 
-	if (_description.isEmpty()) {
+	if (!_descriptionTextLength) {
 		_descriptionHeight = 0;
 	} else {
 		_descriptionHeight = _description.countHeight(innerWidth);
@@ -179,8 +213,10 @@ QSize Invoice::countCurrentSize(int newWidth) {
 		if (isBubbleBottom() && _attach->customInfoLayout() && _attach->width() + _parent->skipBlockWidth() > innerWidth + bubble.left() + bubble.right()) {
 			newHeight += bottomInfoPadding();
 		}
-	} else {
+	} else if (_statusVisible) {
 		newHeight += st::mediaInBubbleSkip + _status.countHeight(innerWidth);
+	} else if (!_titleTextLength && !_descriptionTextLength) {
+		newHeight += _parent->skipBlockHeight();
 	}
 	auto padding = inBubblePadding();
 	newHeight += padding.top() + padding.bottom();
@@ -190,12 +226,12 @@ QSize Invoice::countCurrentSize(int newWidth) {
 
 TextSelection Invoice::toDescriptionSelection(
 		TextSelection selection) const {
-	return UnshiftItemSelection(selection, _title);
+	return UnshiftItemSelection(selection, _titleTextLength);
 }
 
 TextSelection Invoice::fromDescriptionSelection(
 		TextSelection selection) const {
-	return ShiftItemSelection(selection, _title);
+	return ShiftItemSelection(selection, _titleTextLength);
 }
 
 void Invoice::refreshParentId(not_null<HistoryItem*> realParent) {
@@ -264,22 +300,24 @@ void Invoice::draw(Painter &p, const PaintContext &context) const {
 		).withSelection(context.selected()
 			? FullSelection
 			: TextSelection()));
-		auto pixwidth = _attach->width();
+		if (_statusVisible) {
+			auto pixwidth = _attach->width();
 
-		auto available = _status.maxWidth();
-		auto statusW = available + 2 * st::msgDateImgPadding.x();
-		auto statusH = st::msgDateFont->height + 2 * st::msgDateImgPadding.y();
-		auto statusX = st::msgDateImgDelta;
-		auto statusY = st::msgDateImgDelta;
+			auto available = _status.maxWidth();
+			auto statusW = available + 2 * st::msgDateImgPadding.x();
+			auto statusH = st::msgDateFont->height + 2 * st::msgDateImgPadding.y();
+			auto statusX = st::msgDateImgDelta;
+			auto statusY = st::msgDateImgDelta;
 
-		Ui::FillRoundRect(p, style::rtlrect(statusX, statusY, statusW, statusH, pixwidth), sti->msgDateImgBg, sti->msgDateImgBgCorners);
+			Ui::FillRoundRect(p, style::rtlrect(statusX, statusY, statusW, statusH, pixwidth), sti->msgDateImgBg, sti->msgDateImgBgCorners);
 
-		p.setFont(st::msgDateFont);
-		p.setPen(st->msgDateImgFg());
-		_status.drawLeftElided(p, statusX + st::msgDateImgPadding.x(), statusY + st::msgDateImgPadding.y(), available, pixwidth);
+			p.setFont(st::msgDateFont);
+			p.setPen(st->msgDateImgFg());
+			_status.drawLeftElided(p, statusX + st::msgDateImgPadding.x(), statusY + st::msgDateImgPadding.y(), available, pixwidth);
+		}
 
 		p.translate(-attachLeft, -attachTop);
-	} else {
+	} else if (_statusVisible) {
 		p.setPen(stm->historyTextFg);
 		_status.drawLeft(p, padding.left(), tshift + st::mediaInBubbleSkip, paintw, width());
 	}
@@ -313,8 +351,9 @@ TextState Invoice::textState(QPoint point, StateRequest request) const {
 				paintw,
 				width(),
 				titleRequest));
+			result.symbol = qMin(result.symbol, _titleTextLength);
 		} else if (point.y() >= tshift + _titleHeight) {
-			symbolAdd += _title.length();
+			symbolAdd += _titleTextLength;
 		}
 		tshift += _titleHeight;
 	}
@@ -325,8 +364,9 @@ TextState Invoice::textState(QPoint point, StateRequest request) const {
 				paintw,
 				width(),
 				request.forText()));
+			result.symbol = qMin(result.symbol, _descriptionTextLength);
 		} else if (point.y() >= tshift + _descriptionHeight) {
-			symbolAdd += _description.length();
+			symbolAdd += _descriptionTextLength;
 		}
 		tshift += _descriptionHeight;
 	}
@@ -348,14 +388,22 @@ TextState Invoice::textState(QPoint point, StateRequest request) const {
 }
 
 TextSelection Invoice::adjustSelection(TextSelection selection, TextSelectType type) const {
-	if (!_descriptionHeight || selection.to <= _title.length()) {
-		return _title.adjustSelection(selection, type);
+	if (!_descriptionHeight || selection.to <= _titleTextLength) {
+		return ClampSelection(
+			_title.adjustSelection(selection, type),
+			_titleTextLength);
 	}
-	auto descriptionSelection = _description.adjustSelection(toDescriptionSelection(selection), type);
-	if (selection.from >= _title.length()) {
+	auto descriptionSelection = ClampSelection(
+		_description.adjustSelection(
+			toDescriptionSelection(selection),
+			type),
+		_descriptionTextLength);
+	if (selection.from >= _titleTextLength) {
 		return fromDescriptionSelection(descriptionSelection);
 	}
-	auto titleSelection = _title.adjustSelection(selection, type);
+	auto titleSelection = ClampSelection(
+		_title.adjustSelection(selection, type),
+		_titleTextLength);
 	return { titleSelection.from, fromDescriptionSelection(descriptionSelection).to };
 }
 
@@ -383,9 +431,17 @@ void Invoice::unloadHeavyPart() {
 }
 
 TextForMimeData Invoice::selectedText(TextSelection selection) const {
-	auto titleResult = _title.toTextForMimeData(selection);
+	const auto titleSelection = (selection == FullSelection)
+		? TextSelection{ 0, _titleTextLength }
+		: ClampSelection(selection, _titleTextLength);
+	const auto descriptionSelection = (selection == FullSelection)
+		? TextSelection{ 0, _descriptionTextLength }
+		: ClampSelection(
+			toDescriptionSelection(selection),
+			_descriptionTextLength);
+	auto titleResult = _title.toTextForMimeData(titleSelection);
 	auto descriptionResult = _description.toTextForMimeData(
-		toDescriptionSelection(selection));
+		descriptionSelection);
 	if (titleResult.empty()) {
 		return descriptionResult;
 	} else if (descriptionResult.empty()) {

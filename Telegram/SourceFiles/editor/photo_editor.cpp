@@ -89,11 +89,13 @@ constexpr auto kDefaultBrushSizeRatio = 0.9;
 struct BrushState {
 	std::array<Brush, 5> brushes = DefaultBrushes();
 	Brush::Tool tool = Brush::Tool::Pen;
+	bool fillShapes = false;
 };
 
 [[nodiscard]] QByteArray Serialize(
 		const std::array<Brush, 5> &brushes,
-		Brush::Tool tool) {
+		Brush::Tool tool,
+		bool fillShapes) {
 	auto result = QByteArray();
 	auto stream = QDataStream(&result, QIODevice::WriteOnly);
 	stream.setVersion(QDataStream::Qt_5_3);
@@ -109,6 +111,7 @@ struct BrushState {
 			<< qint32(brush.sizeRatio * kPrecision)
 			<< brush.color;
 	}
+	stream << qint32(fillShapes ? 1 : 0);
 	stream.device()->close();
 
 	return result;
@@ -157,6 +160,13 @@ struct BrushState {
 				result.brushes[index].color = color;
 			}
 			result.brushes[index].tool = tool;
+		}
+		if (!stream.atEnd()) {
+			auto fillShapes = qint32(0);
+			stream >> fillShapes;
+			if (stream.status() == QDataStream::Ok) {
+				result.fillShapes = (fillShapes == 1);
+			}
 		}
 		return result;
 	}
@@ -229,9 +239,12 @@ PhotoEditor::PhotoEditor(
 	_controllers,
 	_modifications,
 	data,
-	photo->size()))
+	photo->size(),
+	Deserialize(Core::App().settings().photoEditorBrush()).fillShapes))
 , _brushes(Deserialize(Core::App().settings().photoEditorBrush()).brushes)
 , _brushTool(Deserialize(Core::App().settings().photoEditorBrush()).tool)
+, _shapesFilled(
+	Deserialize(Core::App().settings().photoEditorBrush()).fillShapes)
 , _colorPicker(std::make_unique<ColorPicker>(
 	this,
 	std::move(show),
@@ -315,6 +328,42 @@ PhotoEditor::PhotoEditor(
 		_content->createTextItem();
 	}, lifetime());
 
+	_controls->shapeRequests(
+	) | rpl::on_next([=](const ShapeRequest &request) {
+		if (request.action == ShapeRequest::Action::Cancel) {
+			_content->disarmShapeTool();
+			return;
+		}
+		const auto tool = ((_brushTool == Brush::Tool::Eraser)
+			|| (_brushTool == Brush::Tool::Blur))
+			? Brush::Tool::Pen
+			: _brushTool;
+		const auto &brush = _brushes[ToolIndex(tool)];
+		if (request.action == ShapeRequest::Action::Immediate) {
+			_content->createShapeItem(request.shape, brush, _shapesFilled);
+		} else {
+			_content->armShapeTool(request.shape, brush, _shapesFilled);
+		}
+	}, lifetime());
+
+	_content->shapeToolStates(
+	) | rpl::on_next([=](bool active) {
+		_controls->setShapeToolActive(active);
+	}, lifetime());
+
+	_controls->shapesFillChanges(
+	) | rpl::on_next([=](bool fill) {
+		_shapesFilled = fill;
+		const auto serialized = Serialize(
+			_brushes,
+			_brushTool,
+			_shapesFilled);
+		if (Core::App().settings().photoEditorBrush() != serialized) {
+			Core::App().settings().setPhotoEditorBrush(serialized);
+			Core::App().saveSettingsDelayed();
+		}
+	}, lifetime());
+
 	_controls->doneRequests(
 	) | rpl::on_next([=] {
 		const auto mode = _mode.current().mode;
@@ -351,6 +400,7 @@ PhotoEditor::PhotoEditor(
 
 	_colorPicker->toolClicks(
 	) | rpl::on_next([=] {
+		_content->disarmShapeTool();
 		_content->clearSelection();
 	}, lifetime());
 
@@ -359,13 +409,18 @@ PhotoEditor::PhotoEditor(
 		if (_textItemSelected || _textEditing) {
 			_content->setSelectedTextColor(brush.color);
 			_content->setTextColor(brush.color);
+		} else if (_shapeItemSelected) {
+			_content->applyBrushToSelectedShape(brush);
 		} else {
 			_content->applyBrush(brush);
 			_content->setTextColor(brush.color);
 
 			_brushTool = brush.tool;
 			_brushes[ToolIndex(brush.tool)] = brush;
-			const auto serialized = Serialize(_brushes, _brushTool);
+			const auto serialized = Serialize(
+				_brushes,
+				_brushTool,
+				_shapesFilled);
 			if (Core::App().settings().photoEditorBrush() != serialized) {
 				Core::App().settings().setPhotoEditorBrush(serialized);
 				Core::App().saveSettingsDelayed();
@@ -378,7 +433,7 @@ PhotoEditor::PhotoEditor(
 		_textEditing = editing;
 		if (_textEditing) {
 			_colorPicker->setToolSelectionVisible(false);
-		} else if (!_textItemSelected) {
+		} else if (!_textItemSelected && !_shapeItemSelected) {
 			const auto &brush = _brushes[ToolIndex(_brushTool)];
 			_colorPicker->setColor(brush.color);
 			_colorPicker->setToolSelectionVisible(true);
@@ -400,7 +455,25 @@ PhotoEditor::PhotoEditor(
 	_content->textItemDeselections(
 	) | rpl::on_next([=] {
 		_textItemSelected = false;
-		if (_textEditing) {
+		if (_textEditing || _shapeItemSelected) {
+			return;
+		}
+		const auto &brush = _brushes[ToolIndex(_brushTool)];
+		_colorPicker->setColor(brush.color);
+		_colorPicker->setToolSelectionVisible(true);
+	}, lifetime());
+
+	_content->shapeItemSelections(
+	) | rpl::on_next([=](const QColor &color) {
+		_shapeItemSelected = true;
+		_colorPicker->setToolSelectionVisible(false);
+		_colorPicker->setColor(color);
+	}, lifetime());
+
+	_content->shapeItemDeselections(
+	) | rpl::on_next([=] {
+		_shapeItemSelected = false;
+		if (_textEditing || _textItemSelected) {
 			return;
 		}
 		const auto &brush = _brushes[ToolIndex(_brushTool)];

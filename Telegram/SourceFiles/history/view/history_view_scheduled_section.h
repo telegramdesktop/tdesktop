@@ -33,6 +33,7 @@ namespace Api {
 struct MessageToSend;
 struct SendOptions;
 struct SendAction;
+struct VideoCoverEdit;
 } // namespace Api
 
 namespace Ui {
@@ -238,7 +239,8 @@ private:
 		not_null<HistoryItem*> item,
 		Api::SendOptions options,
 		mtpRequestId *const saveEditMsgRequestId,
-		bool spoilered);
+		bool spoilered,
+		Api::VideoCoverEdit videoCover);
 	void highlightSingleNewMessage(const Data::MessagesSlice &slice);
 	void chooseAttach();
 	[[nodiscard]] SendMenu::Details sendMenuDetails() const override;
@@ -326,6 +328,10 @@ public:
 
 	[[nodiscard]] not_null<History*> getHistory() const {
 		return _history;
+	}
+
+	[[nodiscard]] const Data::ForumTopic *forumTopic() const {
+		return _forumTopic;
 	}
 
 	[[nodiscard]] not_null<ListMemento*> list() {

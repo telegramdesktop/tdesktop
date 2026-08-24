@@ -161,6 +161,7 @@ public:
 	void setCurrentPeer(PeerData *peer);
 	void provideRecentEmoji(
 		const std::vector<EmojiStatusId> &customRecentList);
+	void setMarkedCustomIds(const base::flat_set<DocumentId> &ids);
 	void setSearchRightReserved(int value);
 
 	void hideFinished();
@@ -203,6 +204,7 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 private:
 	class Tab {
@@ -293,7 +295,7 @@ private:
 	not_null<GifsListWidget*> gifs() const;
 	not_null<StickersListWidget*> masks() const;
 
-	void reinstallSwipe(not_null<Ui::RpWidget*> widget);
+	void reinstallSwipe(not_null<Inner*> widget);
 
 	const style::EmojiPan &_st;
 	const ComposeFeatures _features;
@@ -394,6 +396,11 @@ public:
 	virtual void afterShown() {
 	}
 	virtual void beforeHiding() {
+	}
+	[[nodiscard]] virtual bool canConsumeHorizontalScroll(
+			QPoint position,
+			int delta) {
+		return false;
 	}
 	[[nodiscard]] virtual base::unique_qptr<Ui::PopupMenu> fillContextMenu(
 			const SendMenu::Details &details) {

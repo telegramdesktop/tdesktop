@@ -151,6 +151,8 @@ private:
 	QSize countCurrentSize(int newWidth) override;
 
 	bool needInfoDisplay() const;
+	int bottomInfoWidth() const;
+	int bottomInfoHeight() const;
 	int additionalWidth(
 		const TopicButton *topic,
 		const Reply *reply,
@@ -171,7 +173,7 @@ private:
 	const HistoryMessageForwarded *getDisplayedForwardedInfo() const;
 
 	std::unique_ptr<Content> _content;
-	Ui::Text::String _ephemeralText;
+	Ui::Text::String _ephemeralText = { 1 };
 	QSize _contentSize;
 	int _topAdded = 0;
 	bool _additionalOnTop = false;

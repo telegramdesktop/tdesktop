@@ -66,6 +66,7 @@ private:
 	base::unique_qptr<PhotoEditorControls> _controls;
 	std::array<Brush, 5> _brushes;
 	Brush::Tool _brushTool = Brush::Tool::Pen;
+	bool _shapesFilled = false;
 	const std::unique_ptr<ColorPicker> _colorPicker;
 
 	rpl::variable<PhotoEditorMode> _mode = PhotoEditorMode{
@@ -74,6 +75,7 @@ private:
 	};
 	bool _textItemSelected = false;
 	bool _textEditing = false;
+	bool _shapeItemSelected = false;
 	rpl::event_stream<PhotoModifications> _done;
 	rpl::event_stream<> _cancel;
 

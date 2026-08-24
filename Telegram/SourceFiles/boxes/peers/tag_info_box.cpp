@@ -27,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "window/section_widget.h"
 #include "window/themes/window_theme.h"
-#include "styles/style_boxes.h"
 #include "styles/style_calls.h"
 #include "styles/style_chat.h"
 #include "styles/style_info.h"
@@ -235,7 +234,7 @@ void TagPreviewsWidget::paintPreview(
 		QSize(rect.width(), window()->height()),
 		local);
 
-	auto &cache = (previewRole == BadgeRole::User)
+	const auto &cache = (previewRole == BadgeRole::User)
 		? _leftCache
 		: _rightCache;
 	if (cache.isNull()) {

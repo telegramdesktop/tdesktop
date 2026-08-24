@@ -73,6 +73,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_interactions.h"
 #include "core/shortcuts.h"
 #include "core/application.h"
+#include "core/core_screenshot_protection.h"
 #include "core/click_handler_types.h"
 #include "core/file_utilities.h"
 #include "core/ui_integration.h"
@@ -122,12 +123,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/cloud_password/settings_cloud_password_start.h"
 #include "settings/cloud_password/settings_cloud_password_email_confirm.h"
 #include "settings/sections/settings_main.h"
-#include "styles/style_chat.h"
 #include "settings/sections/settings_premium.h"
 #include "settings/sections/settings_privacy_security.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
-#include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h" // st::boxLabel
 
@@ -563,8 +562,10 @@ void SessionNavigation::resolveChannelById(
 		ChannelId channelId,
 		Fn<void(not_null<ChannelData*>)> done) {
 	if (const auto channel = _session->data().channelLoaded(channelId)) {
-		done(channel);
-		return;
+		if (!channel->isForbidden() || channel->isPublic()) {
+			done(channel);
+			return;
+		}
 	}
 	const auto fail = crl::guard(this, [=] {
 		uiShow()->showToast(tr::lng_error_post_link_invalid(tr::now));
@@ -578,7 +579,12 @@ void SessionNavigation::resolveChannelById(
 		result.match([&](const auto &data) {
 			const auto peer = _session->data().processChats(data.vchats());
 			if (peer && peer->id == peerFromChannel(channelId)) {
-				done(peer->asChannel());
+				const auto channel = peer->asChannel();
+				if (channel->isForbidden() && !channel->isPublic()) {
+					fail();
+				} else {
+					done(channel);
+				}
 			} else {
 				fail();
 			}
@@ -1285,7 +1291,7 @@ void SessionNavigation::showRepliesForMessage(
 			if (comments && !item) {
 				return;
 			}
-			auto &groups = _session->data().groups();
+			const auto &groups = _session->data().groups();
 			if (const auto group = item ? groups.find(item) : nullptr) {
 				item = group->items.front();
 			}
@@ -1910,6 +1916,18 @@ void SessionController::init() {
 		handleDrawToReplyRequest(std::move(request));
 	}, lifetime());
 	setupShortcuts();
+	setupScreenshotProtection();
+}
+
+void SessionController::setupScreenshotProtection() {
+	Core::App().screenshotProtection().addReason(activeChatValue(
+	) | rpl::map([](Dialogs::Key key) {
+		const auto peer = key.peer();
+		return peer
+			? (Data::AllowsForwardingValue(peer)
+				| rpl::map(!rpl::mappers::_1))
+			: (rpl::single(false) | rpl::type_erased);
+	}) | rpl::flatten_latest(), lifetime());
 }
 
 void SessionController::setupShortcuts() {
@@ -2466,6 +2484,8 @@ bool SessionController::switchInlineQuery(
 		if (to.section == Section::Replies) {
 			const auto commentId = MsgId();
 			showRepliesForMessage(history, topicRootId, commentId, params);
+		} else if (const auto sublist = thread->asSublist()) {
+			showSublist(sublist, MsgId(), params);
 		} else {
 			showPeerHistory(history->peer, params);
 		}
@@ -2481,8 +2501,13 @@ bool SessionController::switchInlineQuery(
 		.key = thread,
 		.section = (thread->asTopic()
 			? Dialogs::EntryState::Section::Replies
+			: thread->asSublist()
+			? Dialogs::EntryState::Section::SavedSublist
 			: Dialogs::EntryState::Section::History),
-		.currentReplyTo = { .topicRootId = thread->topicRootId() },
+		.currentReplyTo = {
+			.topicRootId = thread->topicRootId(),
+			.monoforumPeerId = thread->monoforumPeerId(),
+		},
 	};
 	return switchInlineQuery(entryState, bot, query);
 }
@@ -2804,7 +2829,8 @@ void SessionController::showPeer(not_null<PeerData*> peer, MsgId msgId) {
 		const auto clickedChannel = peer->asChannel();
 		if (!clickedChannel->isPublic()
 			&& !clickedChannel->amIn()
-			&& (!currentPeer->isChannel()
+			&& (!currentPeer
+				|| !currentPeer->isChannel()
 				|| currentPeer->asChannel()->discussionLink()
 					!= clickedChannel)) {
 			MainWindowShow(this).showToast(peer->isMegagroup()
@@ -3164,7 +3190,7 @@ void SessionController::cancelUploadLayer(not_null<HistoryItem*> item) {
 		if (const auto item = data.message(itemId)) {
 			if (!item->isEditingMedia()) {
 				const auto history = item->history();
-				item->destroy();
+				data.destroyMessageWithCacheCleanup(item);
 				history->requestChatListMessage();
 			} else {
 				item->returnSavedMedia();

@@ -95,6 +95,7 @@ private:
 	NSView * __weak _nativeView = nil;
 
 	MainWindowObserver *_observer = nullptr;
+	RootTouchBar *_touchBar = nil;
 
 };
 
@@ -199,16 +200,29 @@ void MainWindow::Private::initTouchBar(
 	[NSApplication sharedApplication]
 		.automaticCustomizeTouchBarMenuItemEnabled = true;
 
+	_touchBar = [[RootTouchBar alloc]
+		init:_markdownState.value()
+		controller:controller
+		domain:(&Core::App().domain())];
 	[window
 		performSelectorOnMainThread:@selector(setTouchBar:)
-		withObject:[[[RootTouchBar alloc]
-			init:_markdownState.value()
-			controller:controller
-			domain:(&Core::App().domain())] autorelease]
+		withObject:_touchBar
 		waitUntilDone:true];
 }
 
 MainWindow::Private::~Private() {
+	[_touchBar invalidate];
+	[_touchBar release];
+	_touchBar = nil;
+	if (_nativeWindow) {
+		[_nativeWindow setTouchBar:nil];
+	}
+	@autoreleasepool {
+		[[[NSWorkspace sharedWorkspace] notificationCenter]
+			removeObserver:_observer];
+		[[NSDistributedNotificationCenter defaultCenter]
+			removeObserver:_observer];
+	}
 	[_observer release];
 }
 

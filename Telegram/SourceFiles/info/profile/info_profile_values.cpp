@@ -366,6 +366,13 @@ rpl::producer<bool> IsContactValue(not_null<UserData*> user) {
 	});
 }
 
+bool CanReportBot(not_null<UserData*> user) {
+	return user->isBot()
+		&& !user->isSelf()
+		&& !user->isSupport()
+		&& !user->isVerifyCodes();
+}
+
 [[nodiscard]] rpl::producer<QString> InviteToChatButton(
 		not_null<UserData*> user) {
 	if (!user->isBot()

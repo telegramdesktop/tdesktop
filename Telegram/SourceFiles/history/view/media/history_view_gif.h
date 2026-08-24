@@ -248,7 +248,7 @@ private:
 	mutable std::unique_ptr<Image> _videoThumbnailFrame;
 	QString _downloadSize;
 	struct {
-		Ui::Text::String text;
+		Ui::Text::String text = { 1 };
 		bool onTop = false;
 		int topAdded = 0;
 	} _ephemeral;
@@ -269,6 +269,7 @@ private:
 	mutable bool _seeking : 1 = false;
 	mutable bool _smallGroupPart : 1 = false;
 	const bool _sensitiveSpoiler : 1 = false;
+	const bool _ttlCover : 1 = false;
 	const bool _hasVideoCover : 1 = false;
 
 };

@@ -27,15 +27,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/layers/layer_widget.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/rp_widget.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
-#include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_editor.h"
 #include "styles/style_layers.h"
 
 #include <QtCore/QBuffer>
@@ -47,6 +46,8 @@ constexpr auto kStickerSide = 512;
 constexpr auto kPreviewSide = 256;
 constexpr auto kWebpQuality = 95;
 constexpr auto kMaxEmojis = 7;
+constexpr auto kMaxOriginalRatio = 3.;
+constexpr auto kSquareRatioEpsilon = 0.01;
 
 [[nodiscard]] int SideForType(Data::StickersType type) {
 	return (type == Data::StickersType::Emoji)
@@ -77,8 +78,10 @@ protected:
 	void paintEvent(QPaintEvent *e) override {
 		auto p = QPainter(this);
 		auto hq = PainterHighQualityEnabler(p);
-		const auto target = QRect(0, 0, width(), height());
-		p.drawImage(target, _image);
+		const auto fitted = _image.size().scaled(
+			size(),
+			Qt::KeepAspectRatio);
+		p.drawImage(style::centerrect(rect(), Rect(fitted)), _image);
 	}
 
 private:
@@ -86,37 +89,33 @@ private:
 
 };
 
-void OpenPhotoEditorForImage(
-		std::shared_ptr<ChatHelpers::Show> show,
-		QImage image,
-		int side,
-		Fn<void(QImage&&)> onDone) {
-	if (image.isNull()) {
-		show->showToast(tr::lng_stickers_create_open_failed(tr::now));
-		return;
-	}
-	const auto sessionController = show->resolveWindow();
-	if (!sessionController) {
-		show->showToast(tr::lng_stickers_create_open_failed(tr::now));
-		return;
-	}
-	const auto windowController = &sessionController->window();
-	const auto parentWidget = sessionController->widget();
+struct EditorState {
+	std::shared_ptr<Image> canvas;
+	Editor::PhotoModifications modifications;
+	int side = 0;
+	float64 originalRatio = 0.;
+};
 
-	if (image.width() <= 0
+[[nodiscard]] std::shared_ptr<EditorState> PrepareEditorState(
+		QImage image,
+		int side) {
+	if (image.isNull()
+		|| image.width() <= 0
 		|| image.height() <= 0
 		|| (image.width() > 10 * image.height())
 		|| (image.height() > 10 * image.width())) {
-		show->showToast(tr::lng_stickers_create_open_failed(tr::now));
-		return;
+		return nullptr;
 	}
+	const auto ratio = std::clamp(
+		image.width() / float64(image.height()),
+		1. / kMaxOriginalRatio,
+		kMaxOriginalRatio);
 
 	auto canvas = QImage(
 		side,
 		side,
 		QImage::Format_ARGB32_Premultiplied);
 	canvas.fill(Qt::transparent);
-	const auto baseImage = std::make_shared<Image>(std::move(canvas));
 
 	auto scene = std::make_shared<Editor::Scene>(
 		QRectF(0, 0, side, side));
@@ -126,38 +125,57 @@ void OpenPhotoEditorForImage(
 	const auto fitted = userSize.scaled(
 		QSize(side, side),
 		Qt::KeepAspectRatio);
-	const auto handle = st::photoEditorItemHandleSize;
-	const auto itemSize = (userSize.width() >= userSize.height())
-		? int((fitted.height() + handle)
-			* userSize.width() / float64(userSize.height()))
-		: (fitted.width() + handle);
 	auto itemData = Editor::ItemBase::Data{
 		.initialZoom = 1.0,
 		.zPtr = scene->lastZ(),
-		.size = itemSize,
+		.size = fitted.width(),
 		.x = side / 2,
 		.y = side / 2,
 		.imageSize = userSize,
+		.contentMargins = false,
 	};
 	auto imageItem = std::make_shared<Editor::ItemImage>(
 		QPixmap(userPixmap),
 		std::move(itemData));
+	imageItem->setUndoable(false);
 	scene->addItem(std::move(imageItem));
 
-	auto modifications = Editor::PhotoModifications{
-		.crop = QRect(0, 0, side, side),
-		.paint = std::move(scene),
-	};
+	return std::make_shared<EditorState>(EditorState{
+		.canvas = std::make_shared<Image>(std::move(canvas)),
+		.modifications = Editor::PhotoModifications{
+			.crop = QRect(0, 0, side, side),
+			.paint = std::move(scene),
+		},
+		.side = side,
+		.originalRatio = (std::abs(ratio - 1.) < kSquareRatioEpsilon)
+			? 0.
+			: ratio,
+	});
+}
+
+void ShowPhotoEditor(
+		std::shared_ptr<ChatHelpers::Show> show,
+		std::shared_ptr<EditorState> state,
+		Fn<void(QImage&&)> onDone) {
+	const auto sessionController = show->resolveWindow();
+	if (!sessionController) {
+		show->showToast(tr::lng_stickers_create_open_failed(tr::now));
+		return;
+	}
+	const auto windowController = &sessionController->window();
+	const auto parentWidget = sessionController->widget();
+	const auto side = state->side;
 
 	auto editor = base::make_unique_q<Editor::PhotoEditor>(
 		parentWidget,
 		windowController,
-		baseImage,
-		std::move(modifications),
+		state->canvas,
+		state->modifications,
 		Editor::EditorData{
-			.exactSize = QSize(side, side),
+			.exactSize = Size(side),
 			.cropType = Editor::EditorData::CropType::RoundedRect,
 			.cropMode = Editor::EditorData::CropMode::Mask,
+			.originalRatio = state->originalRatio,
 			.keepAspectRatio = true,
 			.fixedCrop = true,
 		});
@@ -165,11 +183,14 @@ void OpenPhotoEditorForImage(
 
 	auto applyModifications = [=, done = std::move(onDone)](
 			const Editor::PhotoModifications &mods) mutable {
-		auto result = Editor::ImageModified(baseImage->original(), mods);
-		if (result.size() != QSize(side, side)) {
+		state->modifications = mods;
+		auto result = Editor::ImageModified(state->canvas->original(), mods);
+		const auto target = result.size().scaled(
+			Size(side),
+			Qt::KeepAspectRatio);
+		if (!target.isEmpty() && (result.size() != target)) {
 			result = result.scaled(
-				side,
-				side,
+				target,
 				Qt::IgnoreAspectRatio,
 				Qt::SmoothTransformation);
 		}
@@ -225,11 +246,14 @@ void OpenPhotoEditorForImage(
 	return image;
 }
 
-[[nodiscard]] QByteArray EncodeWebp(QImage image, int side) {
-	if (image.size() != QSize(side, side)) {
+[[nodiscard]] QSize FittedStickerSize(QSize size, int side) {
+	return size.scaled(Size(side), Qt::KeepAspectRatio).expandedTo(Size(1));
+}
+
+[[nodiscard]] QByteArray EncodeWebp(QImage image, QSize size) {
+	if (image.size() != size) {
 		image = image.scaled(
-			side,
-			side,
+			size,
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation);
 		image = Sharpened(std::move(image));
@@ -278,13 +302,23 @@ void LoadStickerImage(
 namespace Api {
 namespace {
 
+struct CreateMediaArgs {
+	std::shared_ptr<ChatHelpers::Show> show;
+	StickerSetIdentifier set;
+	QImage image;
+	Data::StickersType type = Data::StickersType::Stickers;
+	std::vector<EmojiPtr> emoji;
+	Fn<void(std::vector<EmojiPtr>)> back;
+	Fn<void(MTPmessages_StickerSet)> done;
+};
+
 void CreateMediaBox(
 		not_null<Ui::GenericBox*> box,
-		std::shared_ptr<ChatHelpers::Show> show,
-		StickerSetIdentifier set,
-		QImage image,
-		Data::StickersType type,
-		Fn<void(MTPmessages_StickerSet)> done) {
+		CreateMediaArgs args) {
+	const auto show = args.show;
+	const auto type = args.type;
+	const auto back = args.back;
+	auto image = std::move(args.image);
 	const auto isEmoji = (type == Data::StickersType::Emoji);
 	const auto side = SideForType(type);
 	struct State {
@@ -307,6 +341,7 @@ void CreateMediaBox(
 			: tr::lng_stickers_create_emoji_about(tr::now)),
 		.maxSelected = kMaxEmojis,
 		.allowExpand = true,
+		.initialSelected = std::move(args.emoji),
 	};
 	const auto metrics = ChatHelpers::EmojiPickerOverlay::EstimateMetrics(
 		pickerDescriptor.aboutText);
@@ -355,8 +390,9 @@ void CreateMediaBox(
 
 	Ui::AddSkip(inner);
 
-	const auto startUpload = [=, set = std::move(set), done = std::move(done)](
-			) mutable {
+	const auto startUpload = [=,
+			set = std::move(args.set),
+			done = std::move(args.done)]() mutable {
 		if (state->uploading.current()) {
 			return;
 		}
@@ -369,7 +405,8 @@ void CreateMediaBox(
 				tr::lng_stickers_create_emoji_required(tr::now));
 			return;
 		}
-		const auto bytes = EncodeWebp(image, side);
+		const auto dimensions = FittedStickerSize(image.size(), side);
+		const auto bytes = EncodeWebp(image, dimensions);
 		if (bytes.isEmpty()) {
 			show->showToast(
 				tr::lng_stickers_create_upload_failed(tr::now));
@@ -387,6 +424,7 @@ void CreateMediaBox(
 			session,
 			set,
 			bytes,
+			dimensions,
 			emoji,
 			type);
 
@@ -419,7 +457,12 @@ void CreateMediaBox(
 			tr::lng_box_done()),
 		startUpload);
 	state->addButton = addButton;
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	box->addButton(tr::lng_cancel(), [=] {
+		if (back) {
+			back(picker->selected());
+		}
+		box->closeBox();
+	});
 
 	{
 		using namespace Info::Statistics;
@@ -439,26 +482,49 @@ void CreateMediaBox(
 	}, box->lifetime());
 }
 
+void ShowEditorThenCreate(
+		std::shared_ptr<ChatHelpers::Show> show,
+		StickerSetIdentifier set,
+		std::shared_ptr<EditorState> state,
+		Data::StickersType type,
+		std::vector<EmojiPtr> emoji,
+		Fn<void(MTPmessages_StickerSet)> done) {
+	ShowPhotoEditor(show, state, [=](QImage &&prepared) {
+		show->showBox(Box(CreateMediaBox, CreateMediaArgs{
+			.show = show,
+			.set = set,
+			.image = std::move(prepared),
+			.type = type,
+			.emoji = emoji,
+			.back = [=](std::vector<EmojiPtr> chosen) {
+				ShowEditorThenCreate(show, set, state, type, chosen, done);
+			},
+			.done = done,
+		}));
+	});
+}
+
 void RunImageEditorAndCreate(
 		std::shared_ptr<ChatHelpers::Show> show,
 		StickerSetIdentifier set,
 		QImage image,
 		Data::StickersType type,
 		Fn<void(MTPmessages_StickerSet)> done) {
-	OpenPhotoEditorForImage(
-		show,
-		std::move(image),
-		kStickerSide,
-		[=, set = std::move(set), done = std::move(done)](
-				QImage &&prepared) mutable {
-			show->showBox(Box(
-				CreateMediaBox,
-				show,
-				std::move(set),
-				std::move(prepared),
-				type,
-				std::move(done)));
-		});
+	auto state = PrepareEditorState(std::move(image), kStickerSide);
+	if (!state) {
+		show->showToast(tr::lng_stickers_create_open_failed(tr::now));
+		return;
+	}
+	if (type != Data::StickersType::Stickers) {
+		state->originalRatio = 0.;
+	}
+	ShowEditorThenCreate(
+		std::move(show),
+		std::move(set),
+		std::move(state),
+		type,
+		{},
+		std::move(done));
 }
 
 void ChooseImageThenCreate(

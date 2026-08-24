@@ -592,17 +592,38 @@ private:
 		style::MarkdownDetails &my,
 		const style::MarkdownDetails &original) const;
 	void make(
+		style::MarkdownEmbedPost &my,
+		const style::MarkdownEmbedPost &original) const;
+	void make(
+		style::MarkdownPlaceholder &my,
+		const style::MarkdownPlaceholder &original) const;
+	void make(
 		style::MarkdownPhoto &my,
 		const style::MarkdownPhoto &original) const;
 	void make(
 		style::MarkdownAudio &my,
 		const style::MarkdownAudio &original) const;
 	void make(
+		style::MarkdownChannelButton &my,
+		const style::MarkdownChannelButton &original) const;
+	void make(
+		style::MarkdownChannel &my,
+		const style::MarkdownChannel &original) const;
+	void make(
+		style::MarkdownRelatedArticle &my,
+		const style::MarkdownRelatedArticle &original) const;
+	void make(
 		style::MarkdownGroupedMedia &my,
 		const style::MarkdownGroupedMedia &original) const;
 	void make(
 		style::MarkdownFailure &my,
 		const style::MarkdownFailure &original) const;
+	void make(
+		style::MarkdownButtonRow &my,
+		const style::MarkdownButtonRow &original) const;
+	void make(
+		style::MarkdownInlineButton &my,
+		const style::MarkdownInlineButton &original) const;
 	void make(style::Markdown &my, const style::Markdown &original) const;
 	void make(
 		style::TwoIconButton &my,

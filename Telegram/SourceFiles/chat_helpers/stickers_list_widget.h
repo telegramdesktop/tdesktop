@@ -51,6 +51,7 @@ enum class Notification;
 } // namespace Media::Clip
 
 namespace style {
+struct ComposeIcons;
 struct EmojiPan;
 struct FlatLabel;
 struct PopupMenu;
@@ -116,6 +117,9 @@ public:
 
 	void afterShown() override;
 	void beforeHiding() override;
+	[[nodiscard]] bool canConsumeHorizontalScroll(
+		QPoint position,
+		int delta) override;
 
 	void refreshStickers();
 
@@ -545,6 +549,7 @@ private:
 	not_null<LocalStickersManager*> localSetsManager,
 	Fn<void(uint64 setId)> remove,
 	Fn<void()> repaint,
-	const style::PopupMenu &menuSt);
+	const style::PopupMenu &menuSt,
+	const style::ComposeIcons &icons);
 
 } // namespace ChatHelpers

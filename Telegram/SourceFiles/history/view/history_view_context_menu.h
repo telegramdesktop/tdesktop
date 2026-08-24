@@ -21,6 +21,7 @@ class SessionShow;
 } // namespace Main
 
 namespace Ui {
+class DropdownMenu;
 class PopupMenu;
 class Show;
 enum class ReportReason;
@@ -150,6 +151,11 @@ void AddEmojiPacksAction(
 	EmojiPacksSource source,
 	not_null<Window::SessionController*> controller);
 void AddEmojiPacksAction(
+	not_null<Ui::DropdownMenu*> menu,
+	std::vector<StickerSetIdentifier> packIds,
+	EmojiPacksSource source,
+	not_null<Window::SessionController*> controller);
+void AddEmojiPacksAction(
 	not_null<Ui::PopupMenu*> menu,
 	not_null<HistoryItem*> item,
 	EmojiPacksSource source,
@@ -161,6 +167,9 @@ void AddSelectRestrictionAction(
 void AddEphemeralMessageActions(
 	not_null<Ui::PopupMenu*> menu,
 	std::shared_ptr<Ui::Show> show,
+	not_null<HistoryItem*> item);
+void AddEphemeralAboutAction(
+	not_null<Ui::PopupMenu*> menu,
 	not_null<HistoryItem*> item);
 
 [[nodiscard]] TextWithEntities TransribedText(not_null<HistoryItem*> item);

@@ -89,6 +89,7 @@ enum class ChannelDataFlag : uint64 {
 	HasActiveVideoStream = (1ULL << 45),
 	Community = (1ULL << 46),
 	CommunityCollapsed = (1ULL << 47),
+	HasWelcomeMessages = (1ULL << 48),
 };
 inline constexpr bool is_flag_type(ChannelDataFlag) { return true; };
 using ChannelDataFlags = base::flags<ChannelDataFlag>;
@@ -294,6 +295,9 @@ public:
 	}
 	[[nodiscard]] bool starsPerMessageKnown() const {
 		return flags() & Flag::StarsPerMessageKnown;
+	}
+	[[nodiscard]] bool hasWelcomeMessages() const {
+		return flags() & Flag::HasWelcomeMessages;
 	}
 	[[nodiscard]] bool useSubsectionTabs() const;
 
@@ -620,8 +624,8 @@ private:
 	RestrictionFlags _defaultRestrictions;
 	AdminRightFlags _adminRights;
 	RestrictionFlags _restrictions;
-	TimeId _restrictedUntil;
-	TimeId _subscriptionUntilDate;
+	TimeId _restrictedUntil = 0;
+	TimeId _subscriptionUntilDate = 0;
 
 	std::vector<Data::UnavailableReason> _unavailableReasons;
 	std::unique_ptr<InvitePeek> _invitePeek;

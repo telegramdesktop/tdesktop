@@ -130,6 +130,7 @@ namespace {
 		.recordMediaMessage = !videoStream,
 		.editMessageStars = videoStream,
 		.emojiOnlyPanel = videoStream,
+		.richEditor = false,
 	};
 }
 
@@ -398,6 +399,7 @@ bool ReplyArea::sendExistingDocument(
 
 	Api::SendExistingDocument(std::move(messageToSend), document, localId);
 
+	_controls->clearFieldAfterStickerSend();
 	_controls->cancelReplyMessage();
 	finishSending();
 	return true;
@@ -608,6 +610,7 @@ Fn<SendMenu::Details()> ReplyArea::sendMenuDetails() const {
 			.commentPriceMin = (call
 				? uint64(call->canManage() ? call->messagesMinPrice() : 0)
 				: std::optional<uint64>()),
+			.effectsPan = &st::storiesReactionsPan,
 			.effectAllowed = (!_data.videoStream
 				&& _data.peer
 				&& _data.peer->isUser()),

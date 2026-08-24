@@ -19,12 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Iv::Markdown {
 namespace {
 
-[[nodiscard]] QString ExtensionError(
-		const QString &prefix,
-		const char *name) {
-	return u"%1-%2"_q.arg(prefix, QString::fromUtf8(name));
-}
-
 void AddWarning(ParserState *state, QString warning) {
 	if (state && state->warnings && !warning.isEmpty()) {
 		state->warnings->push_back(std::move(warning));
@@ -220,7 +214,6 @@ void MarkMaskRange(std::vector<bool> *mask, const SourceRange &range) {
 		|| RawTypeString(node) != u"tasklist"_q) {
 		return false;
 	}
-	(void)cmark_gfm_extensions_get_tasklist_item_checked(node);
 	return true;
 }
 
@@ -604,6 +597,150 @@ void EnsureCmarkExtensionsRegistered() {
 	});
 }
 
+// cmark allocates a couple of hundred bytes of heap for every node it
+// creates, and several markdown constructs create multiple nodes per
+// input byte (nested block quotes, dense lists, emphasis runs), so a
+// hostile multi-megabyte source transiently allocates gigabytes on the
+// main thread before any post-parse limit is consulted. Parsing runs
+// under this budget instead: when the running total crosses the limit,
+// the allocator raises an abort flag and keeps serving allocations, and
+// the parser polls that flag at checkpoints
+// (cmark_parser_set_allocation_abort_flag) chosen so that stopping
+// there leaves every temporary on a normal cleanup path. Nothing is
+// unwound from inside the parser, so nothing is leaked or half-freed,
+// and cmark_parser_finish() frees the partial tree and returns NULL.
+constexpr auto kCmarkParseMemoryLimit = std::size_t(128) * 1024 * 1024;
+
+// Headroom between the flag tripping and the next parser checkpoint:
+// one checkpoint gap can still finish a single inline step or grow a
+// content buffer bounded by the maximal line, so this keeps the real
+// peak close to the limit.
+constexpr auto kCmarkParseMemoryReserve = std::size_t(8) * 1024 * 1024;
+
+static_assert(
+	kCmarkParseMemoryLimit > kCmarkParseMemoryReserve,
+	"the trip threshold limit - reserve must not wrap");
+
+struct CmarkBudget {
+	cmark_mem base; // must stay the first member: nodes store &base
+	cmark_mem *fallback = nullptr;
+	int *abortFlag = nullptr;
+	std::size_t used = 0;
+	std::size_t limit = 0;
+};
+
+// Outlives every parsed tree: nodes keep the cmark_mem pointer they
+// were created with, and freeing them after the parse goes through the
+// same table. Parsed trees exist only on the main thread, one at a time.
+CmarkBudget BudgetInstance = {
+	{},
+	nullptr,
+	nullptr,
+	0,
+	0,
+};
+
+// Every budgeted allocation is prefixed with this header so that free
+// and realloc know the exact accounted size without any platform
+// specific usable-size API (which is not available everywhere the
+// project builds). The size and alignment keep the payload exactly as
+// aligned as the underlying allocator's own result.
+struct alignas(16) CmarkAllocationHeader {
+	std::size_t size = 0; // accounted bytes: header + payload
+};
+
+static_assert(sizeof(CmarkAllocationHeader) == 16, "keep payload aligned");
+
+void *BudgetCalloc(std::size_t count, std::size_t size) {
+	auto &budget = BudgetInstance;
+	const auto payload = count * size;
+	const auto total = payload + sizeof(CmarkAllocationHeader);
+	// Compare in additive form so no subtraction can wrap; the additions
+	// cannot overflow, because cmark allocation sizes stay far below
+	// SIZE_MAX.
+	if (budget.abortFlag
+		&& budget.used + total
+			> budget.limit - kCmarkParseMemoryReserve) {
+		*budget.abortFlag = 1;
+	}
+	const auto header = static_cast<CmarkAllocationHeader *>(
+		budget.fallback->calloc(1, total));
+	budget.used += total;
+	header->size = total;
+	return header + 1;
+}
+
+void *BudgetRealloc(void *ptr, std::size_t size) {
+	auto &budget = BudgetInstance;
+	const auto oldHeader = ptr
+		? static_cast<CmarkAllocationHeader *>(ptr) - 1
+		: nullptr;
+	const auto oldTotal = oldHeader ? oldHeader->size : 0;
+	const auto total = size + sizeof(CmarkAllocationHeader);
+	if (budget.abortFlag
+		&& budget.used + total
+			> oldTotal + budget.limit - kCmarkParseMemoryReserve) {
+		*budget.abortFlag = 1;
+	}
+	const auto header = static_cast<CmarkAllocationHeader *>(
+		budget.fallback->realloc(oldHeader, total));
+	if (total >= oldTotal) {
+		budget.used += total - oldTotal;
+	} else {
+		budget.used -= oldTotal - total;
+	}
+	header->size = total;
+	return header + 1;
+}
+
+void BudgetFree(void *ptr) {
+	auto &budget = BudgetInstance;
+	if (!ptr) {
+		return;
+	}
+	const auto header = static_cast<CmarkAllocationHeader *>(ptr) - 1;
+	// Accounting stays exact whether or not a parse is running: every
+	// wrapped allocation added exactly its total, so freeing one can
+	// always subtract it back.
+	budget.used -= header->size;
+	budget.fallback->free(header);
+}
+
+cmark_node *RunUnguardedCmarkParse(
+		int parserOptions,
+		const char *data,
+		std::size_t size,
+		int *abortFlag) {
+	constexpr auto kExtensions = std::array<const char *, 5>{
+		"table",
+		"strikethrough",
+		"autolink",
+		"tagfilter",
+		"tasklist",
+	};
+	const auto parser = cmark_parser_new_with_mem(
+		parserOptions,
+		&BudgetInstance.base);
+	if (!parser) {
+		return nullptr;
+	}
+	cmark_parser_set_allocation_abort_flag(parser, abortFlag);
+	for (const auto name : kExtensions) {
+		const auto extension = cmark_find_syntax_extension(name);
+		if (!extension
+			|| !cmark_parser_attach_syntax_extension(parser, extension)) {
+			cmark_parser_free(parser);
+			return nullptr;
+		}
+	}
+	cmark_parser_feed(parser, data, size);
+	// On an aborted parse finish() frees the partial tree itself and
+	// leaves the parser in a clean reusable state.
+	const auto root = cmark_parser_finish(parser);
+	cmark_parser_free(parser);
+	return root;
+}
+
 } // namespace
 
 void ParserDeleter::operator()(cmark_parser *parser) const {
@@ -618,42 +755,38 @@ void NodeDeleter::operator()(cmark_node *node) const {
 	}
 }
 
-bool AttachExtensions(cmark_parser *parser, QString *error) {
-	if (!parser) {
-		if (error) {
-			*error = u"cmark-parser-failed"_q;
-		}
-		return false;
-	}
+BudgetedParseResult RunBudgetedCmarkParse(
+		const QByteArray &source,
+		int parserOptions) {
 	EnsureCmarkExtensionsRegistered();
-	constexpr auto kExtensions = std::array<const char *, 5>{
-		"table",
-		"strikethrough",
-		"autolink",
-		"tagfilter",
-		"tasklist",
-	};
-	for (const auto name : kExtensions) {
-		const auto extension = cmark_find_syntax_extension(name);
-		if (!extension) {
-			if (error) {
-				*error = ExtensionError(u"cmark-extension-missing"_q, name);
-			}
-			return false;
-		}
-		if (!cmark_parser_attach_syntax_extension(parser, extension)) {
-			if (error) {
-				*error = ExtensionError(
-					u"cmark-extension-attach-failed"_q,
-					name);
-			}
-			return false;
-		}
-	}
-	if (error) {
-		error->clear();
-	}
-	return true;
+
+	auto abortFlag = int(0);
+
+	auto &budget = BudgetInstance;
+	budget.fallback = cmark_get_default_mem_allocator();
+	budget.base.calloc = &BudgetCalloc;
+	budget.base.realloc = &BudgetRealloc;
+	budget.base.free = &BudgetFree;
+	budget.used = 0;
+	budget.limit = kCmarkParseMemoryLimit;
+	budget.abortFlag = &abortFlag;
+
+	const auto root = RunUnguardedCmarkParse(
+		parserOptions,
+		source.constData(),
+		std::size_t(source.size()),
+		&abortFlag);
+
+	// Detach the flag before returning: the returned tree keeps
+	// allocating lazily through this allocator while Telegram walks it
+	// (getters like cmark_node_get_literal copy literals on first
+	// call), and past this return the flag's storage no longer exists.
+	budget.abortFlag = nullptr;
+
+	auto result = BudgetedParseResult();
+	result.overMemoryLimit = (abortFlag != 0);
+	result.root = result.overMemoryLimit ? nullptr : root;
+	return result;
 }
 
 bool CollectScanMetadata(

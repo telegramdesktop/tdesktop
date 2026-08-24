@@ -56,6 +56,7 @@ using PeerTypes = base::flags<PeerType>;
 } // namespace InlineBots
 
 namespace Main {
+class Session;
 class SessionShow;
 } // namespace Main
 
@@ -117,6 +118,9 @@ void PeerMenuShareContactBox(
 	not_null<UserData*> user);
 void PeerMenuAddChannelMembers(
 	not_null<Window::SessionNavigation*> navigation,
+	not_null<ChannelData*> channel);
+void PeerMenuUngroupCommunity(
+	not_null<Window::SessionController*> controller,
 	not_null<ChannelData*> channel);
 void PeerMenuCreatePoll(
 	not_null<Window::SessionController*> controller,
@@ -245,6 +249,13 @@ void ToggleMessagePinned(
 	not_null<Window::SessionNavigation*> navigation,
 	FullMsgId itemId,
 	bool pin);
+[[nodiscard]] MessageIdsList MessagesToUnpin(
+	not_null<Main::Session*> session,
+	const MessageIdsList &items);
+void UnpinMessages(
+	not_null<Window::SessionNavigation*> navigation,
+	MessageIdsList items,
+	Fn<void()> onConfirmed = nullptr);
 void TogglePinnedThread(
 	not_null<Window::SessionController*> controller,
 	not_null<Dialogs::Entry*> entry,
@@ -262,6 +273,7 @@ void UnpinAllMessages(
 
 [[nodiscard]] bool IsUnreadThread(not_null<Data::Thread*> thread);
 void MarkAsReadThread(not_null<Data::Thread*> thread);
+void MarkAsReadChatList(not_null<Dialogs::MainList*> list);
 
 void AddSeparatorAndShiftUp(const PeerMenuCallback &addAction);
 

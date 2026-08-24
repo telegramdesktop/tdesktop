@@ -21,8 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
-#include "styles/style_boxes.h"
-#include "styles/style_dialogs.h"
+#include "styles/style_userpic_button.h"
 
 namespace Dialogs::TopBarSuggestions {
 namespace {
@@ -49,15 +48,17 @@ void Activate(ActivateArgs args) {
 		Ui::UserpicButton::Role::ChoosePhoto,
 		st::uploadUserpicButton);
 	content->setLeadingWidget(upload);
+	upload->setVideoAllowed(true);
 	upload->chosenImages() | rpl::on_next([=](
 			Ui::UserpicButton::ChosenImage &&chosen) {
 		if (chosen.type == Ui::UserpicButton::ChosenType::Set) {
 			session->api().peerPhoto().upload(
 				session->user(),
 				{
-					std::move(chosen.image),
-					chosen.markup.documentId,
-					chosen.markup.colors,
+					.image = std::move(chosen.image),
+					.markupDocumentId = chosen.markup.documentId,
+					.markupColors = chosen.markup.colors,
+					.video = std::move(chosen.video),
 				});
 		}
 	}, upload->lifetime());

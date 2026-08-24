@@ -19,7 +19,7 @@ auto SharedMedia::enforceLists(Key key)
 	}
 	result = _lists.emplace(key, Lists {}).first;
 	for (auto index = 0; index != kSharedMediaTypeCount; ++index) {
-		auto &list = result->second[index];
+		const auto &list = result->second[index];
 		auto type = static_cast<SharedMediaType>(index);
 
 		list.sliceUpdated(
@@ -91,15 +91,29 @@ void SharedMedia::add(SharedMediaAddSlice &&query) {
 }
 
 void SharedMedia::remove(SharedMediaRemoveOne &&query) {
-	auto peerIt = _lists.lower_bound({ query.peerId, MsgId(0) });
-	while (peerIt != end(_lists) && peerIt->first.peerId == query.peerId) {
+	const auto removeByIt = [&](const auto i) {
 		for (auto index = 0; index != kSharedMediaTypeCount; ++index) {
 			auto type = static_cast<SharedMediaType>(index);
 			if (query.types.test(type)) {
-				peerIt->second[index].removeOne(query.messageId);
+				i->second[index].removeOne(query.messageId);
 			}
 		}
-		++peerIt;
+	};
+	const auto peerIt = _lists.find({ query.peerId, MsgId(0) });
+	if (peerIt != end(_lists)) {
+		removeByIt(peerIt);
+	}
+	const auto topicIt = query.topicRootId
+		? _lists.find({ query.peerId, query.topicRootId })
+		: end(_lists);
+	if (topicIt != end(_lists)) {
+		removeByIt(topicIt);
+	}
+	const auto monoforumPeerIt = query.monoforumPeerId
+		? _lists.find({ query.peerId, MsgId(), query.monoforumPeerId })
+		: end(_lists);
+	if (monoforumPeerIt != end(_lists)) {
+		removeByIt(monoforumPeerIt);
 	}
 	_oneRemoved.fire(std::move(query));
 }

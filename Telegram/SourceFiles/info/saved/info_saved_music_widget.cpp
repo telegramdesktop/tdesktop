@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "styles/style_credits.h" // giftListAbout
 #include "styles/style_info.h"
-#include "styles/style_layers.h"
 
 namespace Info::Saved {
 

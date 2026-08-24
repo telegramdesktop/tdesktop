@@ -157,6 +157,7 @@ struct HistoryMessageRichPageSource
 : RuntimeComponent<HistoryMessageRichPageSource, HistoryItem> {
 	std::shared_ptr<const Iv::RichPage> page;
 	std::shared_ptr<const Iv::RichPage> fullPage;
+	base::flat_map<QByteArray, HistoryMessageMarkupButton> buttonRecords;
 	std::optional<Data::FileOriginCloudDraft> draftOrigin;
 	uint64 fullPageVersion = 0;
 	bool canEdit = false;
@@ -827,6 +828,13 @@ struct HistoryServiceCommunityAdded
 	rpl::lifetime lifetime;
 };
 
+struct HistoryServiceJoinedViaCommunity
+: RuntimeComponent<HistoryServiceJoinedViaCommunity, HistoryItem> {
+	ChannelId communityId = 0;
+	ChannelData *community = nullptr;
+	rpl::lifetime lifetime;
+};
+
 struct HistoryServiceGameScore
 : RuntimeComponent<HistoryServiceGameScore, HistoryItem>
 , HistoryServiceDependentData {
@@ -887,8 +895,8 @@ struct HistoryServiceSelfDestruct
 	using Type = HistorySelfDestructType;
 
 	Type type = Type::Photo;
-	std::variant<crl::time, TimeToLiveSingleView> timeToLive = crl::time();
-	std::variant<crl::time, TimeToLiveSingleView> destructAt = crl::time();
+	std::variant<TimeId, TimeToLiveSingleView> timeToLive = TimeId();
+	std::variant<TimeId, TimeToLiveSingleView> destructAt = TimeId();
 };
 
 struct HistoryServiceOngoingCall
@@ -952,6 +960,9 @@ class HistoryDocumentVoice
 	static constexpr float64 kFloatToIntMultiplier = 65536.;
 
 public:
+	HistoryDocumentVoice &operator=(HistoryDocumentVoice &&other);
+	~HistoryDocumentVoice();
+
 	void ensurePlayback(const HistoryView::Document *interfaces) const;
 	void checkPlaybackFinished() const;
 

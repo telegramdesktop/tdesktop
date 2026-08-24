@@ -36,7 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/top_background_gradient.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
-#include "styles/style_boxes.h"
 #include "styles/style_credits.h"
 #include "styles/style_layers.h"
 

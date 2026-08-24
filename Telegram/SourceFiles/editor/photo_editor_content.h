@@ -32,14 +32,21 @@ public:
 	void applyMode(const PhotoEditorMode &mode);
 	void applyBrush(const Brush &brush);
 	void createTextItem();
+	void createShapeItem(ShapeType shape, const Brush &brush, bool fill);
+	void armShapeTool(ShapeType shape, const Brush &brush, bool fill);
+	void disarmShapeTool();
 	void clearSelection();
 	void setTextColor(const QColor &color);
 	void setSelectedTextColor(const QColor &color);
+	void applyBrushToSelectedShape(const Brush &brush);
 
 	[[nodiscard]] rpl::producer<QColor> textColorRequests() const;
 	[[nodiscard]] rpl::producer<QColor> textItemSelections() const;
 	[[nodiscard]] rpl::producer<> textItemDeselections() const;
 	[[nodiscard]] rpl::producer<bool> textEditStates() const;
+	[[nodiscard]] rpl::producer<QColor> shapeItemSelections() const;
+	[[nodiscard]] rpl::producer<> shapeItemDeselections() const;
+	[[nodiscard]] rpl::producer<bool> shapeToolStates() const;
 	void applyAspectRatio(float64 ratio);
 	void save(PhotoModifications &modifications);
 

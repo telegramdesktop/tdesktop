@@ -28,7 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_saved_sublist.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
-#include "styles/style_info.h"
 #include "styles/style_overview.h"
 
 namespace Info::Media {
@@ -133,6 +132,7 @@ bool Provider::sectionHasFloatingHeader() {
 	case Type::Photo:
 	case Type::GIF:
 	case Type::Video:
+	case Type::PhotoVideo:
 	case Type::RoundFile:
 	case Type::RoundVoiceFile:
 	case Type::MusicFile:
@@ -149,6 +149,7 @@ QString Provider::sectionTitle(not_null<const BaseLayout*> item) {
 	case Type::Photo:
 	case Type::GIF:
 	case Type::Video:
+	case Type::PhotoVideo:
 	case Type::RoundFile:
 	case Type::RoundVoiceFile:
 	case Type::File:
@@ -173,6 +174,7 @@ bool Provider::sectionItemBelongsHere(
 	case Type::Photo:
 	case Type::GIF:
 	case Type::Video:
+	case Type::PhotoVideo:
 	case Type::RoundFile:
 	case Type::RoundVoiceFile:
 	case Type::File:
@@ -515,6 +517,13 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 		return nullptr;
 	case Type::Video:
 		if (const auto file = getFile()) {
+			return std::make_unique<Video>(delegate, item, file, options());
+		}
+		return nullptr;
+	case Type::PhotoVideo:
+		if (const auto photo = getPhoto()) {
+			return std::make_unique<Photo>(delegate, item, photo, options());
+		} else if (const auto file = getFile()) {
 			return std::make_unique<Video>(delegate, item, file, options());
 		}
 		return nullptr;

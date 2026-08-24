@@ -27,6 +27,8 @@ inline bool SkipTaskbarSupported() {
 	return false;
 }
 
+[[nodiscard]] bool HasTouchBar();
+
 void ActivateThisProcess();
 
 inline uint64 ActivationWindowId(not_null<QWidget*> window) {
@@ -34,6 +36,10 @@ inline uint64 ActivationWindowId(not_null<QWidget*> window) {
 }
 
 inline void ActivateOtherProcess(uint64 processId, uint64 windowId) {
+}
+
+inline bool WaitForProcessExit(uint64 processId, crl::time timeout) {
+	return true;
 }
 
 inline QString ApplicationIconName() {

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "storage/storage_shared_media.h"
+#include "window/window_separate_id.h"
 
 namespace Ui {
 class AbstractButton;
@@ -30,6 +31,11 @@ using Type = Storage::SharedMediaType;
 [[nodiscard]] tr::phrase<lngtag_count> MediaTextPhrase(Type type);
 
 [[nodiscard]] Fn<QString(int)> MediaText(Type type);
+
+[[nodiscard]] Window::SeparateId SeparateId(
+	not_null<PeerData*> peer,
+	MsgId topicRootId,
+	Type type);
 
 [[nodiscard]] not_null<Ui::SlideWrap<Ui::SettingsButton>*> AddCountedButton(
 	Ui::VerticalLayout *parent,

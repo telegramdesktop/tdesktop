@@ -95,11 +95,15 @@ Widget::Widget(
 	_inner->setScrollHeightValue(scrollHeightValue());
 	_inner->scrollToRequests(
 	) | rpl::on_next([this](Ui::ScrollToRequest request) {
+		const auto reserve = innerTopReserve();
 		if (request.ymin < 0) {
 			scrollTopRestore(
-				qMin(scrollTopSave(), request.ymax));
+				qMin(scrollTopSave(), request.ymax + reserve));
 		} else {
-			scrollTo(request);
+			scrollTo({
+				request.ymin + reserve,
+				(request.ymax < 0) ? -1 : (request.ymax + reserve),
+			});
 		}
 	}, lifetime());
 

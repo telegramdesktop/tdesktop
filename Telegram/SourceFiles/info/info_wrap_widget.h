@@ -243,6 +243,7 @@ private:
 
 	std::vector<StackItem> _historyStack;
 	rpl::event_stream<> _removeRequests;
+	bool _shortcutsSetup = false;
 
 	rpl::event_stream<rpl::producer<int>> _desiredHeights;
 	rpl::event_stream<rpl::producer<bool>> _desiredShadowVisibilities;

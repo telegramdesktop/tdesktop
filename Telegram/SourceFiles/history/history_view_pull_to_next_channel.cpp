@@ -9,34 +9,37 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "base/call_delayed.h"
-#include "base/event_filter.h"
 #include "base/platform/base_platform_haptic.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "data/components/sponsored_messages.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_chat_filters.h"
+#include "data/data_folder.h"
+#include "data/data_forum.h"
+#include "data/data_forum_topic.h"
 #include "data/data_messages.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
-#include "data/components/sponsored_messages.h"
 #include "dialogs/dialogs_indexed_list.h"
 #include "dialogs/dialogs_main_list.h"
 #include "dialogs/dialogs_row.h"
 #include "history/history.h"
-#include "history/history_inner_widget.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "storage/storage_shared_media.h"
 #include "support/support_preload.h"
 #include "ui/chat/chat_style.h"
 #include "ui/widgets/elastic_scroll.h"
+#include "ui/dynamic_image.h"
+#include "ui/dynamic_thumbnails.h"
 #include "ui/rect.h"
 #include "ui/rp_widget.h"
-#include "ui/ui_utility.h"
 #include "ui/userpic_view.h"
+#include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_dialogs.h"
 
 namespace HistoryView {
 namespace {
@@ -50,24 +53,77 @@ constexpr auto kReleaseHideDuration = crl::time(250);
 constexpr auto kPanelDuration = crl::time(320);
 constexpr auto kBounceDuration = crl::time(400);
 
-[[nodiscard]] History *FindNextUnreadChannel(
-		not_null<Window::SessionController*> controller,
-		not_null<PeerData*> current) {
-	auto &data = controller->session().data();
-	const auto filterId = controller->activeChatsFilterCurrent();
-	const auto list = filterId
-		? data.chatsFilters().chatsList(filterId)
-		: data.chatsList();
+[[nodiscard]] int PullThreshold() {
+	// The pull sides stretch with a soft linear stiffness that reaches
+	// a given height in about half the finger travel of the log curve
+	// used before, so a doubled threshold keeps a comparable gesture
+	// length and avoids accidental triggers.
+	return st::historyPullNextThreshold * 2;
+}
+
+[[nodiscard]] History *FindInList(
+		not_null<Dialogs::MainList*> list,
+		not_null<History*> current) {
 	for (const auto &row : list->indexed()->all()) {
 		const auto history = row->history();
-		if (!history) {
+		if (!history || history == current) {
 			continue;
 		}
 		const auto peer = history->peer;
-		if (peer != current
-			&& peer->isBroadcast()
-			&& history->unreadCount() > 0) {
+		if (peer->isBroadcast()
+			&& (history->unreadCount() > 0)
+			&& !history->useTopPromotion()
+			&& peer->computeUnavailableReason().isEmpty()) {
 			return history;
+		}
+	}
+	return nullptr;
+}
+
+[[nodiscard]] History *FindNextUnreadChannel(
+		not_null<Window::SessionController*> controller,
+		not_null<History*> current) {
+	auto &data = controller->session().data();
+	const auto filterId = controller->activeChatsFilterCurrent();
+	const auto currentList = filterId
+		? data.chatsFilters().chatsList(filterId)
+		: data.chatsList();
+	if (const auto history = FindInList(currentList, current)) {
+		return history;
+	}
+	for (const auto &filter : data.chatsFilters().list()) {
+		const auto id = filter.id();
+		if (!id || id == filterId) {
+			continue;
+		}
+		if (const auto history = FindInList(
+				data.chatsFilters().chatsList(id),
+				current)) {
+			return history;
+		}
+	}
+	if (filterId) {
+		if (const auto history = FindInList(data.chatsList(), current)) {
+			return history;
+		}
+	}
+	if (const auto folder = data.folderLoaded(Data::Folder::kId)) {
+		if (const auto history = FindInList(folder->chatsList(), current)) {
+			return history;
+		}
+	}
+	return nullptr;
+}
+
+[[nodiscard]] Data::ForumTopic *FindNextUnreadTopic(
+		not_null<Data::ForumTopic*> current) {
+	for (const auto &row : current->forum()->topicsList()->indexed()->all()) {
+		const auto topic = row->topic();
+		if (!topic || topic == current) {
+			continue;
+		}
+		if (Window::IsUnreadThread(topic)) {
+			return topic;
 		}
 	}
 	return nullptr;
@@ -181,21 +237,35 @@ class PullToNextChannel::Indicator final : public Ui::RpWidget {
 public:
 	Indicator(
 		not_null<QWidget*> parent,
-		not_null<const Ui::ChatStyle*> st);
+		not_null<const Ui::ChatStyle*> st,
+		Fn<bool()> paused);
+	~Indicator();
 
-	void setData(float64 offset, bool ready, History *next);
+	void setHistoryData(float64 offset, bool ready, History *next);
+	void setTopicData(
+		float64 offset,
+		bool ready,
+		Data::ForumTopic *next,
+		const QString &completed);
 	void hideNow();
 
 private:
+	void setProgress(float64 offset, bool ready);
+	void clearTopicImage();
 	void paintEvent(QPaintEvent *e) override;
 
 	const not_null<const Ui::ChatStyle*> _st;
+	const Fn<bool()> _paused;
 
+	Mode _mode = Mode::None;
 	float64 _offset = 0.;
 	bool _ready = false;
-	History *_next = nullptr;
+	base::weak_ptr<History> _next;
+	base::weak_ptr<Data::ForumTopic> _topic;
 	QString _name;
+	QString _topicCompleted;
 	Ui::PeerUserpicView _userpic;
+	std::shared_ptr<Ui::DynamicImage> _topicImage;
 	Ui::Animations::Simple _releaseProgress;
 	Ui::Animations::Simple _bounce;
 
@@ -203,19 +273,31 @@ private:
 
 PullToNextChannel::Indicator::Indicator(
 	not_null<QWidget*> parent,
-	not_null<const Ui::ChatStyle*> st)
+	not_null<const Ui::ChatStyle*> st,
+	Fn<bool()> paused)
 : RpWidget(parent)
-, _st(st) {
+, _st(st)
+, _paused(std::move(paused)) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 	setAttribute(Qt::WA_TranslucentBackground);
 	hide();
 }
 
-void PullToNextChannel::Indicator::setData(
+PullToNextChannel::Indicator::~Indicator() {
+	clearTopicImage();
+}
+
+void PullToNextChannel::Indicator::setHistoryData(
 		float64 offset,
 		bool ready,
 		History *next) {
-	if (_next != next) {
+	if (_mode != Mode::History) {
+		clearTopicImage();
+		_topic = nullptr;
+		_topicCompleted = QString();
+		_mode = Mode::History;
+	}
+	if (_next.get() != next) {
 		_next = next;
 		_userpic = {};
 		_name = next ? next->peer->name() : QString();
@@ -223,6 +305,56 @@ void PullToNextChannel::Indicator::setData(
 			next->peer->loadUserpic();
 		}
 	}
+	setProgress(offset, ready);
+}
+
+void PullToNextChannel::Indicator::setTopicData(
+		float64 offset,
+		bool ready,
+		Data::ForumTopic *next,
+		const QString &completed) {
+	if (_mode != Mode::Topic
+		|| _topic.get() != next
+		|| (!next && _topicImage)) {
+		clearTopicImage();
+		_mode = Mode::Topic;
+		_next = nullptr;
+		_topic = next;
+		_userpic = {};
+		_name = next ? next->title() : QString();
+		if (next) {
+			const auto textFg = [st = _st] {
+				return st->msgServiceFg()->c;
+			};
+			_topicImage = next->iconId()
+				? Ui::MakeEmojiThumbnail(
+					&next->owner(),
+					Data::SerializeCustomEmojiId(next->iconId()),
+					_paused,
+					textFg)
+				: Ui::MakeEmojiThumbnail(
+					&next->owner(),
+					Data::TopicIconEmojiEntity({
+						.title = next->isGeneral()
+							? Data::ForumGeneralIconTitle()
+							: next->title(),
+						.colorId = next->isGeneral()
+							? Data::ForumGeneralIconColor(textFg())
+							: next->colorId(),
+					}),
+					_paused,
+					textFg);
+			_topicImage->subscribeToUpdates(
+				crl::guard(this, [=] { update(); }));
+		}
+	}
+	_topicCompleted = completed;
+	setProgress(offset, ready);
+}
+
+void PullToNextChannel::Indicator::setProgress(
+		float64 offset,
+		bool ready) {
 	_offset = offset;
 	if (_ready != ready) {
 		const auto from = _releaseProgress.value(_ready ? 1. : 0.);
@@ -251,11 +383,25 @@ void PullToNextChannel::Indicator::setData(
 	update();
 }
 
+void PullToNextChannel::Indicator::clearTopicImage() {
+	if (_topicImage) {
+		_topicImage->subscribeToUpdates(nullptr);
+		_topicImage = nullptr;
+	}
+}
+
 void PullToNextChannel::Indicator::hideNow() {
 	_offset = 0.;
 	_ready = false;
 	_releaseProgress.stop();
 	_bounce.stop();
+	if (_mode == Mode::Topic) {
+		clearTopicImage();
+		_topic = nullptr;
+		_name = QString();
+		_topicCompleted = QString();
+		_mode = Mode::None;
+	}
 	hide();
 }
 
@@ -263,6 +409,12 @@ void PullToNextChannel::Indicator::paintEvent(QPaintEvent *e) {
 	const auto offset = _offset;
 	if (offset <= st::lineWidth) {
 		return;
+	}
+	const auto next = _next.get();
+	const auto topic = _topic.get();
+	if (_mode == Mode::Topic && !topic) {
+		clearTopicImage();
+		_topic = nullptr;
 	}
 
 	auto p = QPainter(this);
@@ -339,9 +491,13 @@ void PullToNextChannel::Indicator::paintEvent(QPaintEvent *e) {
 		}
 	}
 
-	const auto name = _next
-		? _name
-		: tr::lng_pull_no_unread_channels(tr::now);
+	const auto name = (_mode == Mode::History)
+		? (next
+			? _name
+			: tr::lng_pull_no_unread_channels(tr::now))
+		: (_mode == Mode::Topic)
+		? (topic ? _name : _topicCompleted)
+		: QString();
 	if (release > 0. && !name.isEmpty()) {
 		const auto nameFont = st::historyPullNextNameFont;
 		const auto centerWidth = width() - st::historyScroll.width;
@@ -382,12 +538,15 @@ void PullToNextChannel::Indicator::paintEvent(QPaintEvent *e) {
 			+ bounceOffset;
 		const auto avRect = QRectF(cx - size / 2., top, size, size);
 		p.setOpacity(alpha);
-		if (_next) {
-			const auto count = _next->unreadCount();
-			const auto badgeShown = (count > 0) && (release > 0.);
+		if (next || topic) {
+			const auto count = next
+				? next->unreadCount()
+				: topic->chatListUnreadState().messages;
+			const auto badgeShown = (release > 0.)
+				&& (next ? (count > 0) : Window::IsUnreadThread(topic));
 			const auto font = st::historyPullNextBadgeFont;
 			const auto badgeHeight = float64(st::historyPullNextBadge);
-			const auto string = badgeShown
+			const auto string = (count > 0)
 				? ((count > 999) ? u"999+"_q : QString::number(count))
 				: QString();
 			const auto badgeWidth = badgeShown
@@ -422,7 +581,17 @@ void PullToNextChannel::Indicator::paintEvent(QPaintEvent *e) {
 				q.translate(rect::center(avRect));
 				q.scale(size / avatar, size / avatar);
 				q.translate(-avatar / 2., -avatar / 2.);
-				_next->peer->paintUserpic(q, _userpic, 0, 0, int(avatar), true);
+				if (next) {
+					next->peer->paintUserpic(
+						q,
+						_userpic,
+						0,
+						0,
+						int(avatar),
+						true);
+				} else if (_topicImage) {
+					q.drawImage(0, 0, _topicImage->image(int(avatar)));
+				}
 				q.restore();
 
 				if (badgeShown) {
@@ -466,12 +635,15 @@ class PullToNextChannel::HintOverlay final : public Ui::RpWidget {
 public:
 	explicit HintOverlay(not_null<QWidget*> parent);
 
-	void setData(bool visible, bool ready, History *next);
+	void setData(bool visible, bool ready, Mode mode, bool hasCandidate);
+	void hideAnimated();
 	void hideNow();
 
 private:
+	void toggle(bool visible);
 	void paintEvent(QPaintEvent *e) override;
 
+	Mode _mode = Mode::None;
 	bool _visible = false;
 	bool _ready = false;
 	bool _has = false;
@@ -489,34 +661,48 @@ PullToNextChannel::HintOverlay::HintOverlay(not_null<QWidget*> parent)
 void PullToNextChannel::HintOverlay::setData(
 		bool visible,
 		bool ready,
-		History *next) {
-	_has = (next != nullptr);
-	const auto want = visible && _has;
-	if (_visible != want) {
-		_visible = want;
-		_panel.start([=] {
-			update();
-			if (!_panel.animating() && !_visible) {
-				hide();
-			}
-		}, want ? 0. : 1., want ? 1. : 0., kPanelDuration, anim::easeOutQuint);
-	}
+		Mode mode,
+		bool hasCandidate) {
+	_mode = mode;
+	_has = hasCandidate;
+	toggle(visible && _has);
 	if (_ready != ready) {
+		const auto from = _releaseProgress.value(_ready ? 1. : 0.);
 		_ready = ready;
 		_releaseProgress.start(
 			[=] { update(); },
-			ready ? 0. : 1.,
+			from,
 			ready ? 1. : 0.,
 			ready ? kReleaseShowDuration : kReleaseHideDuration,
 			ready ? anim::easeOutQuint : anim::sineInOut);
 	}
-	if (want && isHidden()) {
+	update();
+}
+
+void PullToNextChannel::HintOverlay::toggle(bool visible) {
+	if (_visible == visible) {
+		return;
+	}
+	const auto from = _panel.value(_visible ? 1. : 0.);
+	_visible = visible;
+	_panel.start([=] {
+		update();
+		if (!_panel.animating() && !_visible) {
+			hide();
+		}
+	}, from, visible ? 1. : 0., kPanelDuration, anim::easeOutQuint);
+	if (visible && isHidden()) {
 		show();
 	}
 	update();
 }
 
+void PullToNextChannel::HintOverlay::hideAnimated() {
+	toggle(false);
+}
+
 void PullToNextChannel::HintOverlay::hideNow() {
+	_mode = Mode::None;
 	_visible = false;
 	_ready = false;
 	_panel.stop();
@@ -545,8 +731,11 @@ void PullToNextChannel::HintOverlay::paintEvent(QPaintEvent *e) {
 	p.setPen(st::windowSubTextFg);
 	if (release < 1.) {
 		p.setOpacity(panel * (1. - release));
+		const auto text = (_mode == Mode::Topic)
+			? tr::lng_pull_next_topic(tr::now)
+			: tr::lng_pull_next_channel(tr::now);
 		const auto pull = font->elided(
-			tr::lng_pull_next_channel(tr::now),
+			text,
 			avail);
 		p.drawText(
 			QRectF(0., top - slide * release, width(), font->height),
@@ -555,8 +744,11 @@ void PullToNextChannel::HintOverlay::paintEvent(QPaintEvent *e) {
 	}
 	if (release > 0.) {
 		p.setOpacity(panel * release);
+		const auto text = (_mode == Mode::Topic)
+			? tr::lng_release_next_topic(tr::now)
+			: tr::lng_release_next_channel(tr::now);
 		const auto rel = font->elided(
-			tr::lng_release_next_channel(tr::now),
+			text,
 			avail);
 		p.drawText(
 			QRectF(0., top + slide * (1. - release), width(), font->height),
@@ -568,11 +760,19 @@ void PullToNextChannel::HintOverlay::paintEvent(QPaintEvent *e) {
 PullToNextChannel::PullToNextChannel(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Ui::ElasticScroll*> scroll,
-	not_null<Window::SessionController*> controller)
+	not_null<Window::SessionController*> controller,
+	Fn<bool()> loadedAtBottom)
 : _parent(parent)
 , _scroll(scroll)
 , _controller(controller)
-, _indicator(base::make_unique_q<Indicator>(scroll, controller->chatStyle()))
+, _loadedAtBottom(std::move(loadedAtBottom))
+, _indicator(base::make_unique_q<Indicator>(
+	scroll,
+	controller->chatStyle(),
+	[=] {
+		return controller->isGifPausedAtLeastFor(
+			Window::GifPauseReason::Any);
+	}))
 , _hint(base::make_unique_q<HintOverlay>(parent)) {
 	rpl::combine(
 		_scroll->positionValue(),
@@ -584,7 +784,7 @@ PullToNextChannel::PullToNextChannel(
 	}, _lifetime);
 
 	_dwellTimer.setCallback([=] {
-		if (_pulling && _pull >= float64(st::historyPullNextThreshold)) {
+		if (_pulling && _pull >= float64(PullThreshold())) {
 			_reached = true;
 			_peakPull = _pull;
 			base::Platform::Haptic();
@@ -596,54 +796,119 @@ PullToNextChannel::PullToNextChannel(
 
 PullToNextChannel::~PullToNextChannel() = default;
 
-void PullToNextChannel::attachToContent(not_null<HistoryInner*>) {
-	reset();
-}
-
 void PullToNextChannel::setHistory(History *history) {
-	if (_history == history) {
+	const auto mode = history ? Mode::History : Mode::None;
+	if (_mode == mode && _history.get() == history) {
 		return;
 	}
+	reset(anim::type::instant);
+	_topic = nullptr;
+	_nextTopic = nullptr;
 	_history = history;
-	reset();
+	_mode = mode;
+	updatePullCurve();
+}
+
+void PullToNextChannel::setTopic(Data::ForumTopic *topic) {
+	const auto mode = topic ? Mode::Topic : Mode::None;
+	if (_mode == mode && _topic.get() == topic) {
+		return;
+	}
+	reset(anim::type::instant);
+	_history = nullptr;
+	_next = nullptr;
+	_topic = topic;
+	_mode = mode;
+	updatePullCurve();
+}
+
+void PullToNextChannel::updatePullCurve() {
+	_scroll->setOverscrollPullDistances(0, active() ? PullThreshold() : 0);
 }
 
 bool PullToNextChannel::active() const {
-	return Core::App().settings().pullToNextChannel()
-		&& _history
-		&& _history->peer->isBroadcast()
-		&& atBottom()
-		&& !_controller->session().sponsoredMessages().hasUnshownFor(_history);
+	switch (_mode) {
+	case Mode::History: {
+		const auto history = _history.get();
+		return Core::App().settings().pullToNextChannel()
+			&& history
+			&& history->peer->isBroadcast()
+			&& atBottom()
+			&& !_controller->session().sponsoredMessages().hasUnshownFor(
+				history);
+	}
+	case Mode::Topic:
+		return Core::App().settings().pullToNextChannel()
+			&& _topic
+			&& atBottom();
+	case Mode::None:
+		return false;
+	}
+	Unexpected("Mode in PullToNextChannel::active.");
 }
 
 bool PullToNextChannel::atBottom() const {
-	return (_scroll->scrollTop() >= _scroll->scrollTopMax())
-		&& _history->loadedAtBottom();
+	if (_scroll->scrollTop() < _scroll->scrollTopMax()) {
+		return false;
+	} else if (_loadedAtBottom) {
+		return _loadedAtBottom();
+	}
+	const auto history = _history.get();
+	return history && history->loadedAtBottom();
 }
 
 void PullToNextChannel::handleOverscroll(
 		Ui::ElasticScrollPosition position,
 		Ui::ElasticScrollMovement movement) {
 	using Phase = Ui::ElasticScrollMovement;
+	updatePullCurve();
 	const auto pull = std::max(position.overscroll, 0);
-	const auto threshold = st::historyPullNextThreshold;
+	const auto threshold = PullThreshold();
 	if (!_pulling) {
 		if (movement != Phase::Progress || pull <= 0 || !active()) {
 			return;
 		}
-		_pulling = true;
-		_committed = false;
-		_next = FindNextUnreadChannel(_controller, _history->peer);
-		if (_next) {
-			if (!_next->isReadyFor(ShowAtUnreadMsgId)) {
-				[[maybe_unused]] const auto id = Support::SendPreloadRequest(
-					_next,
-					[] {});
+		if (_mode == Mode::History) {
+			const auto history = _history.get();
+			if (!history) {
+				return;
 			}
-			PreloadPinnedBar(_next);
+			_pulling = true;
+			_committed = false;
+			_next = FindNextUnreadChannel(_controller, history);
+			if (const auto next = _next.get()) {
+				if (!next->isReadyFor(ShowAtUnreadMsgId)) {
+					[[maybe_unused]] const auto id = Support::SendPreloadRequest(
+						next,
+						[] {});
+				}
+				PreloadPinnedBar(next);
+			}
+		} else if (_mode == Mode::Topic) {
+			const auto current = _topic.get();
+			if (!current) {
+				return;
+			}
+			const auto forum = current->forum();
+			const auto completed = tr::lng_pull_no_unread_topics(
+				tr::now,
+				lt_group,
+				forum->peer()->name());
+			const auto next = FindNextUnreadTopic(current);
+			if (!next && !forum->topicsList()->loaded()) {
+				forum->requestTopics();
+				return;
+			}
+			_pulling = true;
+			_committed = false;
+			_nextTopic = next;
+			_topicCompleted = completed;
+		} else {
+			return;
 		}
 	}
 	_pull = pull;
+	_holding = (movement == Phase::Progress);
 	const auto reached = (pull >= threshold);
 	if (_reached) {
 		// Collapse on a peak-relative reverse, not down to the threshold.
@@ -670,26 +935,54 @@ void PullToNextChannel::handleOverscroll(
 	_dwellTimer.cancel();
 	if (!_committed) {
 		_committed = true;
-		const auto next = _next;
-		if (_reached
-			&& next
-			&& (next->unreadCount() > 0)
-			&& active()) {
-			_pulling = false;
-			_jumping = true;
-			_scroll->setContentBottomInset(int(base::SafeRound(_effective)));
-			crl::on_main(_parent.get(), [=] { jumpWhenReady(next, 0); });
-			return;
+		if (_mode == Mode::History) {
+			const auto next = _next.get();
+			if (_reached
+				&& next
+				&& (next->unreadCount() > 0)
+				&& active()) {
+				_pulling = false;
+				_jumping = true;
+				_scroll->setContentBottomInset(
+					int(base::SafeRound(_effective)));
+				const auto weak = _next;
+				crl::on_main(_parent.get(), [=] { jumpWhenReady(weak, 0); });
+				return;
+			}
+		} else if (_mode == Mode::Topic) {
+			const auto current = _topic.get();
+			const auto next = _nextTopic.get();
+			if (_reached
+				&& current
+				&& next
+				&& (_topic.get() == current)
+				&& (_nextTopic.get() == next)
+				&& (next != current)
+				&& (next->forum() == current->forum())
+				&& Window::IsUnreadThread(next)
+				&& active()) {
+				_pulling = false;
+				_jumping = true;
+				_scroll->setContentBottomInset(
+					int(base::SafeRound(_effective)));
+				const auto weakCurrent = _topic;
+				const auto weakNext = _nextTopic;
+				crl::on_main(_parent.get(), [=] {
+					jumpToTopic(weakCurrent, weakNext);
+				});
+				return;
+			}
 		}
 	}
 	if (pull <= 0) {
-		reset();
+		reset(anim::type::normal);
 	}
 }
 
 void PullToNextChannel::clearState() {
 	_dwellTimer.cancel();
 	_pulling = false;
+	_holding = false;
 	_committed = false;
 	_jumping = false;
 	_reached = false;
@@ -697,14 +990,20 @@ void PullToNextChannel::clearState() {
 	_pull = 0.;
 	_expandTo = false;
 	_next = nullptr;
+	_nextTopic = nullptr;
+	_topicCompleted = QString();
 }
 
-void PullToNextChannel::reset() {
+void PullToNextChannel::reset(anim::type animated) {
 	_expand.stop();
 	clearState();
 	_scroll->setContentBottomInset(0);
 	_indicator->hideNow();
-	_hint->hideNow();
+	if (animated == anim::type::instant) {
+		_hint->hideNow();
+	} else {
+		_hint->hideAnimated();
+	}
 }
 
 void PullToNextChannel::startExpand(bool ready) {
@@ -720,7 +1019,7 @@ void PullToNextChannel::startExpand(bool ready) {
 
 void PullToNextChannel::pushIndicator() {
 	const auto card = float64(st::historyPullNextExpand);
-	const auto threshold = float64(st::historyPullNextThreshold);
+	const auto threshold = float64(PullThreshold());
 	const auto expand = _expand.value(_expandTo ? 1. : 0.);
 	const auto effective = std::min(
 		float64(st::historyPullNextMaxHeight),
@@ -728,8 +1027,23 @@ void PullToNextChannel::pushIndicator() {
 	_effective = effective;
 	_scroll->setContentBottomInset(std::max(0, int(base::SafeRound(
 		_jumping ? effective : (effective - _pull)))));
-	_indicator->setData(effective, _reached, _next);
-	_hint->setData(_pull > 0., _reached, _next);
+	if (_mode == Mode::History) {
+		const auto next = _next.get();
+		_indicator->setHistoryData(effective, _reached, next);
+		_hint->setData(hintVisible(), _reached, _mode, next != nullptr);
+	} else if (_mode == Mode::Topic) {
+		const auto next = _nextTopic.get();
+		_indicator->setTopicData(
+			effective,
+			_reached,
+			next,
+			_topicCompleted);
+		_hint->setData(hintVisible(), _reached, _mode, next != nullptr);
+	}
+}
+
+bool PullToNextChannel::hintVisible() const {
+	return _holding && (_pull > 0.);
 }
 
 void PullToNextChannel::updateGeometry() {
@@ -750,8 +1064,12 @@ void PullToNextChannel::updateGeometry() {
 }
 
 void PullToNextChannel::jumpWhenReady(
-		not_null<History*> next,
+		base::weak_ptr<History> weak,
 		crl::time waited) {
+	const auto next = weak.get();
+	if (!next) {
+		return;
+	}
 	constexpr auto kInterval = crl::time(100);
 	constexpr auto kMaxWait = crl::time(1500);
 	constexpr auto kPinnedMaxWait = crl::time(600);
@@ -762,7 +1080,7 @@ void PullToNextChannel::jumpWhenReady(
 		return;
 	}
 	base::call_delayed(kInterval, _parent.get(), [=] {
-		jumpWhenReady(next, waited + kInterval);
+		jumpWhenReady(weak, waited + kInterval);
 	});
 }
 
@@ -770,6 +1088,29 @@ void PullToNextChannel::jumpTo(not_null<History*> history) {
 	auto params = Window::SectionShow(Window::SectionShow::Way::ClearStack);
 	params.slideFromBottom = true;
 	_controller->showPeerHistory(history, params);
+}
+
+void PullToNextChannel::jumpToTopic(
+		base::weak_ptr<Data::ForumTopic> weakCurrent,
+		base::weak_ptr<Data::ForumTopic> weakNext) {
+	const auto current = weakCurrent.get();
+	const auto next = weakNext.get();
+	if (!_jumping
+		|| _mode != Mode::Topic
+		|| !current
+		|| !next
+		|| (_topic.get() != current)
+		|| (_nextTopic.get() != next)
+		|| (next == current)
+		|| (next->forum() != current->forum())
+		|| !Window::IsUnreadThread(next)
+		|| !active()) {
+		reset(anim::type::normal);
+		return;
+	}
+	auto params = Window::SectionShow(Window::SectionShow::Way::ClearStack);
+	params.slideFromBottom = true;
+	_controller->showTopic(next, ShowAtUnreadMsgId, params);
 }
 
 } // namespace HistoryView

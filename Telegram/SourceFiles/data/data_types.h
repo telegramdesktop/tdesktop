@@ -46,6 +46,8 @@ struct UploadState {
 	int64 offset = 0;
 	int64 size = 0;
 	bool waitingForAlbum = false;
+	bool preparing = false;
+	float64 prepareProgress = 0.;
 };
 
 Storage::Cache::Key DocumentCacheKey(int32 dcId, uint64 id);

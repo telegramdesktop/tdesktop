@@ -8,6 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "iv/editor/iv_editor_clipboard.h"
+#include "iv/editor/iv_editor_page_blocks.h"
+#include "iv/editor/iv_editor_page_list.h"
+#include "iv/editor/iv_editor_page_path.h"
 #include "iv/iv_rich_page.h"
 #include "iv/markdown/iv_markdown_prepare.h"
 
@@ -36,107 +39,16 @@ public:
 		FullRebuild,
 	};
 
-	enum class InsertBlockType : uchar {
-		Heading,
-		Blockquote,
-		Code,
-		Math,
-		Footer,
-		Divider,
-		Anchor,
-		OrderedList,
-		BulletList,
-		TaskList,
-		Pullquote,
-		Photo,
-		Video,
-		Audio,
-		Details,
-		Table,
-		Map,
-	};
+	using InsertBlockType = Editor::InsertBlockType;
+	using InsertAction = Editor::InsertAction;
 
-	struct InsertAction {
-		InsertBlockType type;
-		int headingLevel = 1;
-		double latitude = 0.;
-		double longitude = 0.;
-	};
-
-	enum class BlockContainerKind : uchar {
-		Root,
-		BlockChildren,
-		ListItemChildren,
-	};
-
-	struct BlockContainerStep {
-		BlockContainerKind kind = BlockContainerKind::BlockChildren;
-		int blockIndex = -1;
-		int listItemIndex = -1;
-
-		friend inline bool operator==(
-				const BlockContainerStep &a,
-				const BlockContainerStep &b) {
-			return (a.kind == b.kind)
-				&& (a.blockIndex == b.blockIndex)
-				&& (a.listItemIndex == b.listItemIndex);
-		}
-	};
-
-	struct BlockContainerPath {
-		std::vector<BlockContainerStep> steps;
-
-		friend inline bool operator==(
-				const BlockContainerPath &a,
-				const BlockContainerPath &b) {
-			return (a.steps == b.steps);
-		}
-	};
-
-	struct BlockPath {
-		BlockContainerPath container;
-		int index = -1;
-
-		friend inline bool operator==(
-				const BlockPath &a,
-				const BlockPath &b) {
-			return (a.container == b.container)
-				&& (a.index == b.index);
-		}
-	};
-
-	struct ReplaceTarget {
-		BlockPath path;
-		RichPage::BlockKind kind = RichPage::BlockKind::Unsupported;
-		uint64 mediaId = 0;
-		int itemIndex = -1;
-	};
-
-	enum class LeafKind : uchar {
-		BlockText,
-		BlockCaption,
-		ListItemText,
-		TableCellText,
-		MathFormula,
-	};
-
-	struct LeafPath {
-		LeafKind kind = LeafKind::BlockText;
-		BlockPath block;
-		int listItemIndex = -1;
-		int tableRowIndex = -1;
-		int tableCellIndex = -1;
-
-		friend inline bool operator==(
-				const LeafPath &a,
-				const LeafPath &b) {
-			return (a.kind == b.kind)
-				&& (a.block == b.block)
-				&& (a.listItemIndex == b.listItemIndex)
-				&& (a.tableRowIndex == b.tableRowIndex)
-				&& (a.tableCellIndex == b.tableCellIndex);
-		}
-	};
+	using BlockContainerKind = Editor::BlockContainerKind;
+	using BlockContainerStep = Editor::BlockContainerStep;
+	using BlockContainerPath = Editor::BlockContainerPath;
+	using BlockPath = Editor::BlockPath;
+	using ReplaceTarget = Editor::ReplaceTarget;
+	using LeafKind = Editor::LeafKind;
+	using LeafPath = Editor::LeafPath;
 
 	struct Snapshot {
 		RichPage richPage;
@@ -205,13 +117,13 @@ public:
 		bool singleCell = false;
 		bool canSplitCell = false;
 		bool canUniteCells = false;
-		bool canDeleteRows = false;
-		bool canDeleteColumns = false;
-		bool canDeleteTable = false;
 		int selectedRows = 0;
 		int selectedColumns = 0;
+		int totalRows = 0;
+		int totalColumns = 0;
 		bool bordered = false;
 		bool striped = false;
+		bool compact = false;
 	};
 
 	struct ListSelectionInfo {
@@ -220,6 +132,8 @@ public:
 		bool wholeList = false;
 		bool singleItem = false;
 		bool reversed = false;
+		// Every item of the whole list renders with listOrderedType.
+		bool listOrderedUniform = false;
 		bool allOrderedDecimal = false;
 		bool allOrderedLowerAlpha = false;
 		bool allOrderedUpperAlpha = false;
@@ -227,13 +141,11 @@ public:
 		bool allOrderedUpperRoman = false;
 		int selectedItems = 0;
 		RichPage::ListKind listKind = RichPage::ListKind::Bullet;
+		Markdown::PreparedOrderedListType listOrderedType
+			= Markdown::PreparedOrderedListType::Decimal;
 	};
 
-	enum class ListStyle : uchar {
-		Ordered,
-		Bullet,
-		Task,
-	};
+	using ListStyle = Editor::ListStyle;
 
 	State();
 	State(
@@ -242,6 +154,7 @@ public:
 		RichMessageLimits limits = {});
 
 	[[nodiscard]] const RichPage &richPage() const;
+	[[nodiscard]] const RichMessageLimits &limits() const;
 	[[nodiscard]] bool articleEmpty() const;
 	[[nodiscard]] const Markdown::MarkdownArticleContent &prepared() const;
 	[[nodiscard]] const std::vector<TextNodeDescriptor> &textNodes() const;
@@ -257,6 +170,7 @@ public:
 	[[nodiscard]] auto activePreparedLeafSource() const
 	-> std::optional<Markdown::PreparedEditLeafSource>;
 	[[nodiscard]] int textNodeCount() const;
+	[[nodiscard]] bool lastBlockOwnsLastTextNode() const;
 	[[nodiscard]] int activeTextOrdinal() const;
 	[[nodiscard]] bool setActiveTextByOrdinal(int ordinal);
 	[[nodiscard]] TextWithEntities activeText() const;
@@ -272,21 +186,54 @@ public:
 	[[nodiscard]] std::optional<int> previousEditableOrdinal() const;
 	[[nodiscard]] std::optional<int> nextEditableOrdinal() const;
 	[[nodiscard]] std::optional<int> firstTableCellOrdinalFromActiveTitle() const;
+	[[nodiscard]] std::optional<int> adjacentRowTableCellOrdinal(
+		bool down) const;
+	[[nodiscard]] std::optional<int> tableTitleOrdinalFromActiveCell() const;
+	[[nodiscard]] std::optional<int> ordinalAfterActiveTable() const;
 	[[nodiscard]] BoundaryTarget activeBoundaryTarget(bool forward) const;
 	[[nodiscard]] std::vector<BoundaryTarget> boundarySteps(
 		bool forward) const;
+	[[nodiscard]] bool blockActionExpandsToActiveLine(
+		InsertBlockType type) const;
 	[[nodiscard]] bool isActiveTopLevelParagraph() const;
 	[[nodiscard]] bool isActiveTopLevelParagraphOrHeading() const;
+	[[nodiscard]] bool hasActiveListItemSurface() const;
+	[[nodiscard]] bool hasActiveListItemExtraLine() const;
 	[[nodiscard]] bool activeSurfaceAllowsSeparateLineFormula() const;
 	[[nodiscard]] bool activeLeafUsesQuoteCaptionColor() const;
 	[[nodiscard]] bool activeLeafUsesQuotePlaceholderColor() const;
 	[[nodiscard]] bool activeBlockBodyCanEscape() const;
 	[[nodiscard]] std::optional<int> moveActiveSpecialBlockDown();
-	[[nodiscard]] std::optional<int> submitActiveSingleLineField();
 	[[nodiscard]] std::optional<int> escapeActiveBlockBody();
 	[[nodiscard]] BoundaryTarget removeTemporaryDownParagraphAndMove();
-	[[nodiscard]] std::optional<int> handleActiveHeadingEnter();
-	[[nodiscard]] std::optional<int> handleActiveListEnter();
+	enum class EnterPosition : uchar {
+		End,
+		Beginning,
+		Middle,
+	};
+	struct ActiveEnterContext {
+		EnterPosition position = EnterPosition::End;
+		TextWithEntities head;
+		TextWithEntities tail;
+	};
+	[[nodiscard]] std::optional<int> submitActiveSingleLineField(
+		const ActiveEnterContext &context);
+	[[nodiscard]] std::optional<int> handleActiveHeadingEnter(
+		const ActiveEnterContext &context);
+	[[nodiscard]] std::optional<int> handleActiveFooterEnter(
+		const ActiveEnterContext &context);
+	[[nodiscard]] std::optional<int> handleActiveListEnter(
+		const ActiveEnterContext &context);
+	[[nodiscard]] std::optional<int> appendActiveParagraphToPreviousList();
+	[[nodiscard]] std::optional<int> sinkActiveListItem();
+	[[nodiscard]] std::optional<int> liftActiveListItem();
+	[[nodiscard]] std::optional<int> liftActiveListLineOrItem();
+	[[nodiscard]] std::optional<int> resetActiveBlockToParagraph();
+	[[nodiscard]] std::optional<int> escapeEmptyActiveBlockLine();
+	[[nodiscard]] std::optional<int> handleActiveParagraphEnter(
+		const ActiveEnterContext &context);
+	[[nodiscard]] std::optional<int> handleActiveQuoteEnter(
+		const ActiveEnterContext &context);
 	[[nodiscard]] std::optional<int> removeActiveOwnerAndSelectAdjacent(
 		bool forward);
 	[[nodiscard]] std::optional<int> removeStructuralSelection(
@@ -296,6 +243,9 @@ public:
 		const Markdown::PreparedEditListItemSource &source);
 	[[nodiscard]] bool toggleDetailsOpen(
 		const Markdown::PreparedEditBlockSource &source);
+	[[nodiscard]] bool toggleQuoteCollapsed(
+		const Markdown::PreparedEditBlockSource &source,
+		bool *movedCaret);
 	[[nodiscard]] ListSelectionInfo listSelectionInfo(
 		const Markdown::PreparedEditListItemRange &range) const;
 	[[nodiscard]] std::optional<Markdown::PreparedEditListItemRange>
@@ -374,6 +324,9 @@ public:
 	[[nodiscard]] bool setTableStriped(
 		const Markdown::PreparedEditTableCellRange &range,
 		bool striped);
+	[[nodiscard]] bool setTableCompact(
+		const Markdown::PreparedEditTableCellRange &range,
+		bool compact);
 	[[nodiscard]] std::optional<int> ensureTrailingParagraphActive();
 
 	// Inserts an empty paragraph at the very start of the top-level blocks
@@ -415,9 +368,38 @@ public:
 	[[nodiscard]] DisplayMathEditResult editActiveDisplayMath(
 		QString source,
 		bool separateLine);
+	[[nodiscard]] auto inlineButtonAt(int ordinal, int offset) const
+	-> std::optional<Markdown::InlineTextObjectButtonData>;
+	[[nodiscard]] ApplyResult editInlineButtonAt(
+		int ordinal,
+		int offset,
+		Markdown::InlineTextObjectButtonData data);
+	[[nodiscard]] const RichPage::Button *rowButtonAt(
+		const Markdown::PreparedEditBlockSource &source,
+		int index) const;
+	[[nodiscard]] ApplyResult editRowButtonAt(
+		const Markdown::PreparedEditBlockSource &source,
+		int index,
+		RichPage::Button button);
+	struct RowButtonRemoveResult {
+		ApplyResult result = ApplyResult::Failed;
+		std::optional<int> caretOrdinal;
+		bool removedRow = false;
+	};
+	[[nodiscard]] RowButtonRemoveResult removeRowButtonAt(
+		const Markdown::PreparedEditBlockSource &source,
+		int index);
+	[[nodiscard]] std::optional<RichPage::ButtonAlignment> rowAlignment(
+		const Markdown::PreparedEditBlockSource &source) const;
+	[[nodiscard]] ApplyResult setRowAlignment(
+		const Markdown::PreparedEditBlockSource &source,
+		RichPage::ButtonAlignment alignment);
+	[[nodiscard]] ApplyResult addRowButton(
+		const Markdown::PreparedEditBlockSource &source,
+		RichPage::Button button);
 	[[nodiscard]] ParagraphBoundaryJoinResult joinActiveParagraphBoundary(
 		bool forward);
-	[[nodiscard]] bool insertBlockAfterActive(
+	bool insertBlockAfterActive(
 		InsertAction action,
 		std::optional<ActiveTextInsertContext> context = std::nullopt);
 	[[nodiscard]] ActiveTextBlockActionResult applyActiveTextBlockAction(
@@ -462,6 +444,9 @@ public:
 		Underline,
 		StrikeOut,
 		Spoiler,
+		Subscript,
+		Superscript,
+		Marked,
 		PlainText,
 	};
 	struct TextNodeSpan {
@@ -513,6 +498,10 @@ public:
 		const Markdown::PreparedEditSelection &selection,
 		RichPage::GroupedMediaIntent intent);
 	[[nodiscard]] bool ungroupGroupedMediaBlock(const BlockPath &path);
+	[[nodiscard]] bool canUngroupGroupedMediaBlocks(
+		const Markdown::PreparedEditSelection &selection) const;
+	[[nodiscard]] bool ungroupGroupedMediaBlocks(
+		const Markdown::PreparedEditSelection &selection);
 	[[nodiscard]] bool removeGroupedItem(
 		const BlockPath &path,
 		int itemIndex);
@@ -552,7 +541,7 @@ private:
 		int columnTill = -1;
 	};
 
-	struct ActiveNonPullquoteQuote {
+	struct ActiveQuote {
 		BlockPath path;
 		bool activeLeafIsLastEditableBodyLeaf = false;
 	};
@@ -697,10 +686,10 @@ private:
 	[[nodiscard]] Result applyCheckedMutation(
 		Result failure,
 		Callback &&callback);
-	[[nodiscard]] std::optional<int> activateRebuiltLeaf(
+	std::optional<int> activateRebuiltLeaf(
 		const LeafPath &path);
 	[[nodiscard]] InsertionAnchor resolveActiveInsertionTarget() const;
-	[[nodiscard]] std::optional<int> normalizeTextOnlyListItemForInsertion(
+	std::optional<int> normalizeTextOnlyListItemForInsertion(
 		const BlockContainerPath &container);
 	[[nodiscard]] std::optional<int> normalizeTextOnlyQuoteSurface(
 		const BlockContainerPath &container,
@@ -718,8 +707,8 @@ private:
 		int index);
 	[[nodiscard]] auto resolveActiveTextInsertTarget()
 	-> std::optional<ActiveTextInsertTarget>;
-	[[nodiscard]] auto activeNonPullquoteQuote() const
-	-> std::optional<ActiveNonPullquoteQuote>;
+	[[nodiscard]] auto activeQuote(bool pullquote) const
+	-> std::optional<ActiveQuote>;
 	[[nodiscard]] auto activeListItemSurface() const
 	-> std::optional<ActiveListItemSurface>;
 	[[nodiscard]] std::optional<LeafPath> leafAfterUnwrappingBlockChildren(
@@ -728,11 +717,62 @@ private:
 	[[nodiscard]] bool unwrapActiveCodeBlockUnchecked(
 		const ActiveTextInsertContext &context,
 		ActiveTextSelectionTarget *target);
-	[[nodiscard]] bool unwrapActiveBlockquoteUnchecked(
+	[[nodiscard]] bool unwrapActiveQuoteUnchecked(
+		bool pullquote,
+		const ActiveTextInsertContext &context,
+		ActiveTextSelectionTarget *target);
+	[[nodiscard]] bool convertActiveHeadingOrFooterUnchecked(
+		InsertAction action,
 		const ActiveTextInsertContext &context,
 		ActiveTextSelectionTarget *target);
 	[[nodiscard]] bool joinActiveParagraphBoundaryUnchecked(
 		bool forward,
+		ActiveTextSelectionTarget *target);
+	[[nodiscard]] bool canJoinActiveTextBlockBoundary(bool forward) const;
+	[[nodiscard]] bool canJoinActiveListItemBoundary() const;
+	[[nodiscard]] bool joinActiveListItemBoundaryUnchecked(
+		ActiveTextSelectionTarget *target);
+	[[nodiscard]] bool removeBlankListItemBeforeBoundary(
+		RichPage::Block &owner,
+		const BlockPath &list,
+		int itemIndex,
+		ActiveTextSelectionTarget *target);
+	struct NextListItem {
+		BlockPath list;
+		int index = -1;
+	};
+	[[nodiscard]] std::optional<NextListItem> nextListItemAfterActive(
+		const ActiveListItemSurface &surface) const;
+	[[nodiscard]] bool canJoinActiveListItemForward() const;
+	[[nodiscard]] bool joinActiveListItemForwardUnchecked(
+		ActiveTextSelectionTarget *target);
+	[[nodiscard]] std::optional<int> resetActiveBlockToParagraphUnchecked();
+	[[nodiscard]] std::optional<int> escapeEmptyActiveBlockLineUnchecked();
+	[[nodiscard]] std::optional<BlockPath> activeLineContainerBlock() const;
+	[[nodiscard]] bool canLiftActiveLineOutOfContainer() const;
+	[[nodiscard]] bool liftActiveLineOutOfContainerUnchecked(
+		ActiveTextSelectionTarget *target);
+	[[nodiscard]] bool canJoinBlockAfterActiveContainer() const;
+	[[nodiscard]] bool joinBlockAfterActiveContainerUnchecked(
+		ActiveTextSelectionTarget *target);
+	[[nodiscard]] bool canRemoveEmptyBlockBeforeActive() const;
+	[[nodiscard]] bool removeEmptyBlockBeforeActiveUnchecked(
+		ActiveTextSelectionTarget *target);
+	[[nodiscard]] std::optional<BlockPath> listBeforeActiveParagraph() const;
+	[[nodiscard]] std::optional<NextListItem> deepestLastItem(
+		BlockPath list) const;
+	void mergeListWithNextSibling(const BlockPath &list);
+	struct ListJoin {
+		BlockPath list;
+		int itemsFrom = 0;
+		int itemsCount = 0;
+	};
+	[[nodiscard]] std::optional<ListJoin> joinListWithSiblings(
+		const BlockPath &list,
+		bool startExplicit);
+	void joinInsertedListWithSiblings(bool startExplicit);
+	[[nodiscard]] bool canJoinActiveParagraphIntoPreviousList() const;
+	[[nodiscard]] bool joinActiveParagraphIntoPreviousListUnchecked(
 		ActiveTextSelectionTarget *target);
 	[[nodiscard]] auto normalizeActiveListItemSurface()
 	-> std::optional<ActiveListItemSurface>;
@@ -758,7 +798,8 @@ private:
 	[[nodiscard]] std::optional<int> insertLeadingParagraphActiveUnchecked(
 		bool focusInserted);
 	[[nodiscard]] std::optional<int> moveActiveSpecialBlockDownUnchecked();
-	[[nodiscard]] std::optional<int> submitActiveSingleLineFieldUnchecked();
+	[[nodiscard]] std::optional<int> submitActiveSingleLineFieldUnchecked(
+		const ActiveEnterContext &context);
 	[[nodiscard]] std::optional<int> escapeActiveBlockBodyUnchecked();
 	[[nodiscard]] std::optional<BlockPath> activeBlockBodyEscapeBlock() const;
 	[[nodiscard]] BoundaryTarget boundaryTargetForLeaf(
@@ -775,8 +816,36 @@ private:
 	[[nodiscard]] BoundaryTarget materializeBoundaryTarget(
 		const RebuiltBoundaryTarget &target) const;
 	[[nodiscard]] BoundaryTarget removeTemporaryDownParagraphAndMoveUnchecked();
-	[[nodiscard]] std::optional<int> handleActiveHeadingEnterUnchecked();
-	[[nodiscard]] std::optional<int> handleActiveListEnterUnchecked();
+	[[nodiscard]] std::optional<int> handleActiveHeadingEnterUnchecked(
+		const ActiveEnterContext &context);
+	[[nodiscard]] std::optional<int> handleActiveFooterEnterUnchecked(
+		const ActiveEnterContext &context);
+	[[nodiscard]] std::optional<int> handleActiveListEnterUnchecked(
+		const ActiveEnterContext &context);
+	[[nodiscard]] std::optional<int> sinkActiveListItemUnchecked();
+	[[nodiscard]] std::optional<int> liftActiveListItemUnchecked();
+	[[nodiscard]] std::optional<int>
+		appendActiveParagraphToPreviousListUnchecked();
+	[[nodiscard]] std::optional<int> splitActiveLineIntoListItem();
+	[[nodiscard]] std::optional<int> splitActiveLineIntoListItemUnchecked();
+	[[nodiscard]] std::optional<LeafPath> rebasedActiveListItemLeaf(
+		const BlockPath &list,
+		int itemIndex) const;
+	[[nodiscard]] std::optional<LeafPath> rebasedListItemLeaf(
+		const LeafPath &leaf,
+		const BlockPath &list,
+		int itemIndex) const;
+	[[nodiscard]] std::optional<int> handleActiveParagraphEnterUnchecked(
+		const ActiveEnterContext &context);
+	[[nodiscard]] std::optional<int> handleActiveQuoteEnterUnchecked(
+		const ActiveEnterContext &context);
+	[[nodiscard]] std::optional<int> handleActiveBlockEnterUnchecked(
+		RichPage::BlockKind kind,
+		const ActiveEnterContext &context);
+	[[nodiscard]] std::optional<int> handleEnterAtBlockUnchecked(
+		const BlockContainerPath &container,
+		int index,
+		const ActiveEnterContext &context);
 	[[nodiscard]] bool insertBlocksAfterActiveUnchecked(
 		std::vector<RichPage::Block> blocks,
 		std::optional<ActiveTextInsertContext> context = std::nullopt);
@@ -795,10 +864,30 @@ private:
 		const Markdown::PreparedEditSelection &selection,
 		InsertBlockType type,
 		BoundaryTarget *destination = nullptr);
+	[[nodiscard]] bool unwrapMatchingListBlockSelection(
+		const Markdown::PreparedEditSelection &selection,
+		InsertBlockType type,
+		BoundaryTarget *destination = nullptr);
 	[[nodiscard]] bool unwrapMatchingListItemWrapper(
 		const Markdown::PreparedEditSelection &selection,
 		InsertBlockType type,
 		BoundaryTarget *destination = nullptr);
+	[[nodiscard]] bool unwrapListItemIntoParent(
+		const BlockPath &listPath,
+		int itemIndex,
+		bool materializeEmptyItem,
+		BoundaryTarget *destination = nullptr);
+	[[nodiscard]] bool unwrapListItemRangeIntoParent(
+		const BlockPath &listPath,
+		int from,
+		int till,
+		bool materializeEmptyItem,
+		BoundaryTarget *destination = nullptr,
+		StructuralBlockRange *unwrapped = nullptr);
+	[[nodiscard]] bool wrapStructuralListItemSelection(
+		const Markdown::PreparedEditSelection &selection,
+		InsertAction action,
+		BoundaryTarget *destination);
 	[[nodiscard]] std::vector<RichPage::Block> takeListItemBlocksForUnwrap(
 		RichPage::ListItem *item);
 	void adoptLeadingParagraphListItemText(RichPage::ListItem *item) const;
@@ -809,7 +898,7 @@ private:
 	[[nodiscard]] bool insertBlocksAfterActiveWithContextUnchecked(
 		std::vector<RichPage::Block> &blocks,
 		const ActiveTextInsertContext &context);
-	[[nodiscard]] RichPage::RichText *seedInsertedBlocks(
+	void seedInsertedBlocks(
 		std::vector<RichPage::Block> &blocks,
 		TextWithEntities text);
 	[[nodiscard]] RichPage::RichText *seedInsertedBlock(
@@ -867,9 +956,16 @@ private:
 		const BlockPath &path,
 		int itemIndex,
 		std::vector<BoundaryTarget> *steps) const;
+	[[nodiscard]] auto preparedSelectionForBlockRange(
+		const StructuralBlockRange &range) const
+	-> Markdown::PreparedEditSelection;
 	[[nodiscard]] Markdown::PreparedEditSelection preparedSelectionForListItem(
 		const BlockPath &path,
 		int itemIndex) const;
+	[[nodiscard]] Markdown::PreparedEditSelection preparedSelectionForListItems(
+		const BlockPath &path,
+		int from,
+		int till) const;
 	[[nodiscard]] bool shouldRemoveActiveOwnerDirectly(
 		const TextNodeDescriptor &descriptor) const;
 	[[nodiscard]] bool descriptorBelongsToBlock(
@@ -885,34 +981,7 @@ private:
 	[[nodiscard]] QString nextAnchorId() const;
 	[[nodiscard]] RichPage::Block makeBlock(InsertAction action) const;
 
-	[[nodiscard]] static TextWithEntities MakeText(QString text);
-	[[nodiscard]] static RichPage::Block MakeParagraphBlock();
-	[[nodiscard]] static RichPage::Block MakeFooterBlock();
-	[[nodiscard]] static RichPage::Block MakeHeadingBlock(int level);
-	[[nodiscard]] static RichPage::Block MakeQuoteBlock(bool pullquote);
-	[[nodiscard]] static RichPage::Block MakeCodeBlock();
-	[[nodiscard]] static RichPage::Block MakeMathBlock();
-	[[nodiscard]] static RichPage::Block MakeDividerBlock();
-	[[nodiscard]] static RichPage::Block MakeAnchorBlock(QString anchorId);
-	[[nodiscard]] static RichPage::Block MakeListBlock(
-		RichPage::ListKind kind,
-		RichPage::TaskState taskState = RichPage::TaskState::None);
-	[[nodiscard]] static RichPage::ListItem MakeParagraphListItem(
-		RichPage::TaskState taskState);
-	[[nodiscard]] static RichPage::Block MakeDetailsBlock();
-	[[nodiscard]] static RichPage::Block MakeTableBlock();
-	[[nodiscard]] static RichPage::Block MakeMediaBlock(
-		RichPage::BlockKind kind);
-	[[nodiscard]] static RichPage::Block MakeMapBlock(
-		double latitude,
-		double longitude);
-	[[nodiscard]] static bool RichTextIsEmpty(const RichPage::RichText &text);
-	[[nodiscard]] static bool ListItemIsEmpty(
-		const RichPage::ListItem &item);
-	[[nodiscard]] static bool BlockIsEmpty(const RichPage::Block &block);
-	[[nodiscard]] static bool StripWrapperEntityInEditMode(EntityType type);
-	[[nodiscard]] static TextWithEntities StripEditModeWrapperEntities(
-		TextWithEntities text);
+
 
 	std::shared_ptr<RichPage> _richPage;
 	std::shared_ptr<Markdown::MediaRuntime> _mediaRuntime;
@@ -931,14 +1000,12 @@ enum class RequestMediaType : uchar {
 	PhotoVideo,
 	Audio,
 	PhotoVideoAudio,
+	File,
 };
 
 struct MediaUploadState {
 	bool uploading = false;
 };
 
-[[nodiscard]] bool CanEditRichPage(const RichPage &page);
-[[nodiscard]] bool CanEditRichPage(
-	const std::shared_ptr<const RichPage> &page);
 
 } // namespace Iv::Editor

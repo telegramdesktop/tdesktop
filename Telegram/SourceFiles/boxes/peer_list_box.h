@@ -200,6 +200,7 @@ public:
 	}
 
 	virtual bool useForumLikeUserpic() const;
+	[[nodiscard]] virtual bool paintCommunityUserpicEffect() const;
 
 	enum class StatusType {
 		Online,
@@ -333,6 +334,7 @@ private:
 	std::pair<uint64, uint64> _userpicKey;
 	std::unique_ptr<Ui::RippleAnimation> _ripple;
 	std::unique_ptr<Ui::RoundImageCheckbox> _checkbox;
+	std::unique_ptr<Ui::CommunityUserpicEffect> _communityUserpicEffect;
 	Ui::Text::String _name;
 	Ui::Text::String _status;
 	Ui::PeerBadge _badge;

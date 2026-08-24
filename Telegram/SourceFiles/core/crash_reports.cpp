@@ -67,6 +67,8 @@ FILE *ReportFile = nullptr;
 int ReportFileNo = 0;
 
 void SafeWriteChar(char ch) {
+	if (!ReportFile) return;
+
 	fwrite(&ch, 1, 1, ReportFile);
 }
 

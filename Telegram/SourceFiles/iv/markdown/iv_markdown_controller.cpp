@@ -147,10 +147,6 @@ struct PageHistoryTarget {
 	QString hash;
 };
 
-[[nodiscard]] bool IsReadableLocalFile(const QFileInfo &info) {
-	return info.exists() && info.isFile() && info.isReadable();
-}
-
 struct ReadSource {
 	QString path;
 	QString name;
@@ -160,6 +156,7 @@ struct ReadSource {
 		return !path.isEmpty();
 	}
 };
+
 [[nodiscard]] ReadSource ReadLocalSource(
 		const QString &path,
 		const MarkdownParseLimits &limits) {
@@ -576,10 +573,7 @@ void Controller::updateOptions(OpenOptions options) {
 	}
 	refreshTitle();
 	if (!initialFragment.isEmpty() && _preview) {
-		const auto scrolled = ScrollMarkdownPreviewToAnchor(
-			_preview.get(),
-			initialFragment);
-		static_cast<void>(scrolled);
+		ScrollMarkdownPreviewToAnchor(_preview.get(), initialFragment);
 	}
 	if (_window && _window->isActiveWindow() && _preview) {
 		_preview->setFocus();

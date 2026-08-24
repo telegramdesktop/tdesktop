@@ -23,6 +23,9 @@ struct TabTopBarBindings {
 	rpl::producer<bool> searchEnabledByContent;
 	Fn<void(SelectionAction)> selectionAction;
 	Fn<void(QString)> applySearchQuery;
+	rpl::producer<bool> groupByRoleState;
+	Fn<void(bool)> setGroupByRole;
+	rpl::producer<bool> groupByRoleAvailable;
 };
 
 } // namespace Info::Profile

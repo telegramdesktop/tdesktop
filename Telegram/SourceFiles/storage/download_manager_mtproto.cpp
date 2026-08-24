@@ -178,7 +178,7 @@ void DownloadManagerMtproto::checkSendNextAfterSuccess(MTP::DcId dcId) {
 }
 
 bool DownloadManagerMtproto::trySendNextPart(MTP::DcId dcId, Queue &queue) {
-	auto &balanceData = _balanceData[dcId];
+	const auto &balanceData = _balanceData[dcId];
 	const auto &sessions = balanceData.sessions;
 	const auto bestIndex = [&] {
 		const auto proj = [](const DcSessionBalanceData &data) {

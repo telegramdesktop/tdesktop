@@ -390,9 +390,13 @@ select {
 	border-bottom: 0;
 	pointer-events: none;
 }
-#root.fullscreen #back,
 #root.fullscreen #title-row {
 	display: none !important;
+}
+#root.fullscreen #back {
+	position: fixed;
+	top: var(--fullscreen-control-top);
+	left: var(--fullscreen-control-right);
 }
 #root.fullscreen .title-control {
 	width: var(--fullscreen-control-width);

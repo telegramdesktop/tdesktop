@@ -646,7 +646,7 @@ void PlaybackSponsored::update() {
 	}
 
 	const auto [now, state] = computeState();
-	const auto message = (_data->state.itemIndex < _data->list.size())
+	const auto message = (state.itemIndex < _data->list.size())
 		? &_data->list[state.itemIndex]
 		: nullptr;
 	const auto duration = message
@@ -668,7 +668,11 @@ void PlaybackSponsored::update() {
 		}
 	} else if (_data->state.leftTillShow <= 0
 		&& state.leftTillShow <= -duration) {
-		hide(now);
+		if (duration) {
+			hide(now);
+		} else {
+			finish();
+		}
 	} else {
 		if (state.leftTillShow <= 0 && duration) {
 			_allowCloseAt = now + state.leftTillShow + message->durationMin;
@@ -682,7 +686,6 @@ void PlaybackSponsored::update() {
 			: (state.leftTillShow + duration));
 	}
 }
-
 
 void PlaybackSponsored::show(const Data::SponsoredMessage &data) {
 	_widget = std::make_unique<Message>(
@@ -716,13 +719,13 @@ void PlaybackSponsored::showPremiumPromo() {
 }
 
 void PlaybackSponsored::hide(crl::time now) {
-	Expects(_widget != nullptr);
-
-	_widget->fadeOut([this, raw = _widget.get()] {
-		if (_widget.get() == raw) {
-			_widget = nullptr;
-		}
-	});
+	if (_widget) {
+		_widget->fadeOut([this, raw = _widget.get()] {
+			if (_widget.get() == raw) {
+				_widget = nullptr;
+			}
+		});
+	}
 
 	++_data->state.itemIndex;
 	_data->state.leftTillShow = std::max(

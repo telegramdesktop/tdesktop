@@ -85,6 +85,7 @@ public:
 		not_null<Main::Session*> session,
 		StickerSetIdentifier set,
 		QByteArray webpBytes,
+		QSize dimensions,
 		QString emoji,
 		Data::StickersType type = Data::StickersType::Stickers);
 	~StickerUpload();
@@ -105,6 +106,7 @@ private:
 	const not_null<Main::Session*> _session;
 	StickerSetIdentifier _set;
 	QByteArray _bytes;
+	QSize _dimensions;
 	QString _emoji;
 	Data::StickersType _type = Data::StickersType::Stickers;
 	MTP::Sender _api;

@@ -26,6 +26,7 @@ struct ReactionId;
 namespace Ui {
 struct BubbleRounding;
 class RoundCheckbox;
+struct TornEdgeCache;
 } // namespace Ui
 
 namespace HistoryView {
@@ -100,8 +101,11 @@ struct HistoryMessageRichPage
 
 	Iv::Markdown::MarkdownArticle article;
 	Iv::Markdown::MarkdownArticleThinkingPaintCache thinkingPaintCache;
+	std::unique_ptr<Ui::TornEdgeCache> tornEdges;
 	rpl::lifetime highlightReadyLifetime;
 	int paletteVersion = -1;
+	TimeId registeredFormattedDateUpdate = 0;
+	bool hasUnsupportedBlocks = false;
 	mutable ClickHandlerPtr handler;
 	mutable std::optional<Iv::Markdown::MarkdownArticleHorizontalScrollHit> handlerHorizontalScrollHit;
 	mutable QPoint handlerHorizontalScrollPoint;
@@ -112,6 +116,15 @@ struct HistoryMessageRichPage
 	mutable Iv::Markdown::MediaActivation handlerMediaActivation;
 	mutable Iv::Markdown::PreparedPlaceholderBlockId handlerPlaceholderId;
 	mutable QPoint handlerPlaceholderPoint;
+	mutable Iv::Markdown::MarkdownArticleButtonRowHit handlerButtonRow;
+	mutable ClickHandlerPtr handlerButtonRowHandler;
+	mutable Iv::Markdown::MarkdownArticleButtonRowHit pressedButtonRow;
+	mutable ClickHandlerPtr pressedButtonRowHandler;
+	mutable std::optional<Iv::Markdown::PreparedEditListItemSource>
+		handlerTaskItem;
+	mutable std::optional<QPoint> handlerInlineButtonPoint;
+	mutable ClickHandlerPtr handlerInlineButtonHandler;
+	mutable ClickHandlerPtr pressedInlineButtonHandler;
 };
 
 enum class BadgeRole : uchar {
@@ -186,7 +199,10 @@ public:
 		QPoint point,
 		StateRequest request) const override;
 	void updatePressed(QPoint point) override;
-	bool consumeHorizontalScroll(QPoint position, int delta) override;
+	bool consumeHorizontalScroll(
+		QPoint position,
+		int delta,
+		Qt::ScrollPhase phase) override;
 	[[nodiscard]] bool canConsumeHorizontalScroll(
 		QPoint position,
 		int delta) const override;
@@ -441,6 +457,8 @@ private:
 	bool hasVisibleText() const override;
 	[[nodiscard]] int visibleTextLength() const;
 	[[nodiscard]] int visibleMediaTextLength() const;
+	[[nodiscard]] int bottomInfoHeight() const;
+	[[nodiscard]] bool usesMessageInfoLayout() const;
 	[[nodiscard]] bool needInfoDisplay() const;
 	[[nodiscard]] bool invertMedia() const;
 	[[nodiscard]] bool hasFastReply() const;

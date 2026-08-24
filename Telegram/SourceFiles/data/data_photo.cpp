@@ -205,6 +205,21 @@ void PhotoData::cancel() {
 	}
 }
 
+void PhotoData::clearLocalCache() {
+	auto keys = base::flat_set<Storage::Cache::Key>();
+	for (auto &file : _images) {
+		if (const auto key = file.location.file().cacheKey()) {
+			keys.emplace(key);
+		}
+		if (file.loader) {
+			file.loader->cancel();
+		}
+	}
+	for (const auto &key : keys) {
+		_owner->cache().remove(key);
+	}
+}
+
 float64 PhotoData::progress() const {
 	if (uploading()) {
 		if (uploadingData->size > 0) {

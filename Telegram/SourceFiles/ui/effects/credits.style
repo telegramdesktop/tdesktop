@@ -322,6 +322,8 @@ uniqueGiftSubtitleTop: 170px;
 uniqueGiftUserpicTop: 48px;
 uniqueGiftUserpicSize: 80px;
 uniqueGiftBottom: 20px;
+uniqueGiftMessagePadding: margins(uniqueGiftBottom, 10px, uniqueGiftBottom, 10px);
+uniqueGiftMessagePlaceholderOpacity: 0.7;
 uniqueCloseButton: IconButton(boxTitleClose) {
 	icon: icon {{ "box_button_close", videoPlayIconFg }};
 	iconOver: icon {{ "box_button_close", videoPlayIconFg }};
@@ -575,6 +577,7 @@ auctionBidUserpic: UserpicButton(defaultUserpicButton) {
 }
 auctionBidName: FlatLabel(defaultFlatLabel) {
 	style: semiboldTextStyle;
+	maxHeight: 20px;
 }
 auctionBidStars: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;

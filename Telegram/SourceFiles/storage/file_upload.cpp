@@ -21,9 +21,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_location.h"
 #include "core/application.h"
 #include "core/mime_type.h"
+#include "media/media_video_encode.h"
 #include "main/main_session.h"
 #include "storage/storage_account.h"
 #include "apiwrap.h"
+
+#include <QtCore/QFileInfo>
 
 namespace Storage {
 namespace {
@@ -96,6 +99,8 @@ struct Uploader::Entry {
 	ushort docPartsSent = 0;
 	ushort docPartsCount = 0;
 	ushort docPartsWaiting = 0;
+	bool preparing = false;
+	std::shared_ptr<std::atomic<bool>> cancelPreparing;
 
 };
 
@@ -117,11 +122,13 @@ Uploader::Entry::Entry(
 : itemId(itemId)
 , file(file)
 , parts((file->type == SendMediaType::Photo
-	|| file->type == SendMediaType::Secure)
+	|| file->type == SendMediaType::Secure
+	|| file->type == SendMediaType::SecondaryFile)
 		? &file->fileparts
 		: &file->thumbparts)
 , partsOfId((file->type == SendMediaType::Photo
-	|| file->type == SendMediaType::Secure)
+	|| file->type == SendMediaType::Secure
+	|| file->type == SendMediaType::SecondaryFile)
 		? file->id
 		: file->thumbId) {
 	if (file->type == SendMediaType::File
@@ -266,14 +273,16 @@ void Uploader::sendProgressUpdate(
 		Api::SendProgressType type,
 		int progress) {
 	const auto history = item->history();
-	auto &manager = _api->session().sendProgressManager();
-	manager.update(history, type, progress);
-	if (const auto replyTo = item->replyToTop()) {
-		if (history->peer->isMegagroup()) {
-			manager.update(history, replyTo, type, progress);
+	if (!item->isEphemeral()) {
+		auto &manager = _api->session().sendProgressManager();
+		manager.update(history, type, progress);
+		if (const auto replyTo = item->replyToTop()) {
+			if (history->peer->isMegagroup()) {
+				manager.update(history, replyTo, type, progress);
+			}
+		} else if (history->isForum()) {
+			manager.update(history, item->topicRootId(), type, progress);
 		}
-	} else if (history->isForum()) {
-		manager.update(history, item->topicRootId(), type, progress);
 	}
 	_api->session().data().requestItemRepaint(item);
 }
@@ -293,6 +302,7 @@ FullMsgId Uploader::currentUploadId() const {
 void Uploader::upload(
 		FullMsgId itemId,
 		const std::shared_ptr<FilePrepareResult> &file) {
+	auto preparing = false;
 	if (file->type == SendMediaType::Photo) {
 		const auto photo = session().data().processPhoto(
 			file->photo,
@@ -313,6 +323,11 @@ void Uploader::upload(
 					file->thumbbytes));
 		document->uploadingData = std::make_unique<Data::UploadState>(
 			document->size);
+		preparing = (file->animationJob != nullptr)
+			|| (file->videoSource != nullptr);
+		if (preparing) {
+			document->uploadingData->preparing = true;
+		}
 		if (const auto active = document->activeMediaView()) {
 			if (!file->goodThumbnail.isNull()) {
 				active->setGoodThumbnail(std::move(file->goodThumbnail));
@@ -328,12 +343,13 @@ void Uploader::upload(
 					std::move(file->goodThumbnailBytes),
 					Data::kImageCacheTag));
 		}
-		if (!file->content.isEmpty()) {
+		if (!preparing && !file->content.isEmpty()) {
 			document->setDataAndCache(file->content);
 		}
-		if (!file->filepath.isEmpty()) {
+		if (!preparing && !file->filepath.isEmpty()) {
 			document->setLocation(Core::FileLocation(file->filepath));
-		} else if (!file->content.isEmpty()
+		} else if (!preparing
+			&& !file->content.isEmpty()
 			&& !document->saveToCache()
 			&& !document->useStreamingLoader()
 			&& Core::App().canSaveFileWithoutAskingForPath()) {
@@ -360,6 +376,155 @@ void Uploader::upload(
 		}
 	}
 	_queue.push_back({ itemId, file });
+	if (preparing) {
+		_queue.back().preparing = true;
+		startTranscode(itemId);
+	} else if (!_nextTimer.isActive()) {
+		maybeSend();
+	}
+}
+
+void Uploader::startTranscode(FullMsgId itemId) {
+	_transcodeQueue.push_back(itemId);
+	maybeStartTranscode();
+}
+
+void Uploader::maybeStartTranscode() {
+	if (_transcodeRunning) {
+		return;
+	}
+	while (!_transcodeQueue.empty()) {
+		const auto itemId = _transcodeQueue.front();
+		_transcodeQueue.pop_front();
+		const auto i = ranges::find(_queue, itemId, &Entry::itemId);
+		if (i == end(_queue) || !i->preparing) {
+			continue;
+		}
+		_transcodeRunning = true;
+		runTranscode(itemId);
+		return;
+	}
+}
+
+void Uploader::runTranscode(FullMsgId itemId) {
+	const auto i = ranges::find(_queue, itemId, &Entry::itemId);
+	Assert(i != end(_queue));
+	auto &entry = *i;
+	const auto file = entry.file;
+	const auto source = file->videoSource;
+	const auto job = file->animationJob;
+	const auto cancel = std::make_shared<std::atomic<bool>>(false);
+	entry.cancelPreparing = cancel;
+	crl::async([=, weak = base::make_weak(this)]() mutable {
+		auto lastReported = -1.;
+		const auto progress = [&](float64 value) {
+			if (value - lastReported >= 0.01 || value >= 1.) {
+				lastReported = value;
+				crl::on_main(weak, [=] {
+					updatePrepareProgress(itemId, value);
+				});
+			}
+			return !cancel->load();
+		};
+		auto bytes = QByteArray();
+		auto path = QString();
+		if (job) {
+			auto result = Media::Encode::Run(
+				Media::Encode::Job(*job),
+				progress);
+			if (result.bytes.isEmpty() && !cancel->load()) {
+				auto fallback = Media::Encode::Job(*job);
+				fallback.overlay.erase(
+					ranges::remove_if(
+						fallback.overlay,
+						[](const Media::Encode::Layer &layer) {
+							return !std::get_if<QImage>(&layer);
+						}),
+					end(fallback.overlay));
+				result = Media::Encode::Run(std::move(fallback), nullptr);
+			}
+			bytes = std::move(result.bytes);
+		} else if (source) {
+			path = Media::Encode::TranscodeVideo(*source, progress).path;
+		}
+		crl::on_main([=, bytes = std::move(bytes)]() mutable {
+			const auto strong = weak.get();
+			if (!strong) {
+				if (!path.isEmpty()) {
+					QFile::remove(path);
+				}
+				return;
+			}
+			strong->_transcodeRunning = false;
+			if (cancel->load()) {
+				if (!path.isEmpty()) {
+					QFile::remove(path);
+				}
+			} else {
+				strong->finishTranscode(itemId, std::move(bytes), path);
+			}
+			strong->maybeStartTranscode();
+		});
+	});
+}
+
+void Uploader::updatePrepareProgress(FullMsgId itemId, float64 progress) {
+	const auto i = ranges::find(_queue, itemId, &Entry::itemId);
+	if (i == end(_queue) || !i->preparing) {
+		return;
+	}
+	const auto document = session().data().document(i->file->id);
+	if (document->uploadingData) {
+		document->uploadingData->prepareProgress = progress;
+	}
+	_documentProgress.fire_copy(itemId);
+}
+
+void Uploader::finishTranscode(
+		FullMsgId itemId,
+		QByteArray bytes,
+		const QString &path) {
+	const auto i = ranges::find(_queue, itemId, &Entry::itemId);
+	if (i == end(_queue) || !i->preparing) {
+		if (!path.isEmpty()) {
+			QFile::remove(path);
+		}
+		return;
+	}
+	auto &entry = *i;
+	const auto file = entry.file;
+	const auto document = session().data().document(file->id);
+	auto size = int64();
+	if (!path.isEmpty()) {
+		size = QFileInfo(path).size();
+		file->content = QByteArray();
+		file->filepath = path;
+		file->transcodedTempPath = path;
+		document->setLocation(Core::FileLocation(path));
+	} else if (!bytes.isEmpty()) {
+		size = int64(bytes.size());
+		file->content = bytes;
+		file->filepath = QString();
+		document->setDataAndCache(bytes);
+	}
+	if (size <= 0) {
+		failed(itemId);
+		return;
+	}
+	file->filesize = size;
+	document->size = size;
+	if (document->uploadingData) {
+		document->uploadingData->size = size;
+		document->uploadingData->offset = 0;
+		document->uploadingData->preparing = false;
+		document->uploadingData->prepareProgress = 1.;
+	}
+
+	entry.preparing = false;
+	entry.cancelPreparing = nullptr;
+	entry.setDocSize(size);
+
+	_documentProgress.fire_copy(itemId);
 	if (!_nextTimer.isActive()) {
 		maybeSend();
 	}
@@ -368,6 +533,9 @@ void Uploader::upload(
 void Uploader::failed(FullMsgId itemId) {
 	const auto i = ranges::find(_queue, itemId, &Entry::itemId);
 	if (i != end(_queue)) {
+		if (i->cancelPreparing) {
+			i->cancelPreparing->store(true);
+		}
 		const auto entry = std::move(*i);
 		_queue.erase(i);
 		notifyFailed(entry);
@@ -375,6 +543,7 @@ void Uploader::failed(FullMsgId itemId) {
 		if (const auto video = _videoWaitingCover.take(*coverId)) {
 			const auto document = session().data().document(video->id);
 			if (document->uploading()) {
+				document->uploadingData->preparing = false;
 				document->status = FileUploadFailed;
 			}
 			_documentFailed.fire_copy(video->fullId);
@@ -384,6 +553,7 @@ void Uploader::failed(FullMsgId itemId) {
 		_videoIdToCoverId.remove(video->fullId);
 		const auto document = session().data().document(video->id);
 		if (document->uploading()) {
+			document->uploadingData->preparing = false;
 			document->status = FileUploadFailed;
 		}
 		_documentFailed.fire_copy(video->fullId);
@@ -406,9 +576,12 @@ void Uploader::notifyFailed(const Entry &entry) {
 		|| type == SendMediaType::Round) {
 		const auto document = session().data().document(entry.file->id);
 		if (document->uploading()) {
+			document->uploadingData->preparing = false;
 			document->status = FileUploadFailed;
 		}
 		_documentFailed.fire_copy(entry.itemId);
+	} else if (type == SendMediaType::SecondaryFile) {
+		_secondaryFileFailed.fire_copy(entry.itemId);
 	} else if (type == SendMediaType::Secure) {
 		_secureFailed.fire_copy(entry.itemId);
 	} else {
@@ -445,7 +618,7 @@ QByteArray Uploader::readDocPart(not_null<Entry*> entry) {
 		}
 		return result;
 	};
-	auto &content = entry->file->content;
+	const auto &content = entry->file->content;
 	if (!content.isEmpty()) {
 		const auto offset = entry->docPartsSent * entry->docPartSize;
 		return checked(content.mid(offset, entry->docPartSize));
@@ -501,6 +674,9 @@ Uploader::Entry *Uploader::chooseEntryForNextRequest() {
 	}
 
 	for (auto i = begin(_queue); i != end(_queue); ++i) {
+		if (i->preparing) {
+			continue;
+		}
 		if (i->partsSent < i->parts->size()
 			|| i->docPartsSent < i->docPartsCount) {
 			return &*i;
@@ -728,6 +904,12 @@ void Uploader::cancelAllRequests() {
 }
 
 void Uploader::clear() {
+	for (auto &entry : _queue) {
+		if (entry.cancelPreparing) {
+			entry.cancelPreparing->store(true);
+		}
+	}
+	_transcodeQueue.clear();
 	_queue.clear();
 	cancelAllRequests();
 	stopSessions();
@@ -813,6 +995,12 @@ void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 				entry.docSentSize);
 		}
 		_documentProgress.fire_copy(itemId);
+	} else if (entry.file->type == SendMediaType::SecondaryFile) {
+		_secondaryFileProgress.fire_copy({
+			.fullId = itemId,
+			.offset = entry.sentSize,
+			.size = entry.file->partssize,
+		});
 	} else if (entry.file->type == SendMediaType::Secure) {
 		_secureProgress.fire_copy({
 			.fullId = itemId,
@@ -910,6 +1098,19 @@ void Uploader::finishFront() {
 		} else {
 			_photoReady.fire(std::move(ready));
 		}
+	} else if (entry.file->type == SendMediaType::SecondaryFile) {
+		_secondaryFileReady.fire({
+			.id = entry.file->id,
+			.fullId = entry.itemId,
+			.info = {
+				.file = MTP_inputFile(
+					MTP_long(entry.file->id),
+					MTP_int(entry.parts->size()),
+					MTP_string(entry.file->filename),
+					MTP_bytes(entry.file->filemd5)),
+			},
+			.options = options,
+		});
 	} else if (entry.file->type == SendMediaType::File
 		|| entry.file->type == SendMediaType::ThemeFile
 		|| entry.file->type == SendMediaType::Audio

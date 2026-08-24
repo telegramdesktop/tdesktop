@@ -28,7 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "ui/controls/who_reacted_context_action.h"
 #include "apiwrap.h"
-#include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 
 namespace Api {
@@ -459,7 +458,7 @@ bool UpdateUserpics(
 		not_null<State*> state,
 		not_null<HistoryItem*> item,
 		const std::vector<PeerWithReaction> &ids) {
-	auto &owner = item->history()->owner();
+	const auto &owner = item->history()->owner();
 
 	struct ResolvedPeer {
 		PeerData *peer = nullptr;

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QGraphicsScene>
 #include <QGraphicsSceneMouseEvent>
+#include <QtWidgets/QApplication>
 #include <QtMath>
 
 namespace Editor {
@@ -364,12 +365,21 @@ void ItemCanvas::handleMousePressEvent(
 	addStrokePoint(_lastPoint, now);
 	_contentRect = QRectF(_lastPoint, _lastPoint) + _brushMargins;
 	_drawing = true;
+	_dragging = false;
 }
 
 void ItemCanvas::handleMouseMoveEvent(
 		not_null<QGraphicsSceneMouseEvent*> e) {
 	if (!_drawing) {
 		return;
+	}
+	if (!_dragging) {
+		const auto delta = e->screenPos()
+			- e->buttonDownScreenPos(Qt::LeftButton);
+		if (delta.manhattanLength() < QApplication::startDragDistance()) {
+			return;
+		}
+		_dragging = true;
 	}
 	const auto scenePos = e->scenePos();
 	if (!IsValidPoint(scenePos)) {
@@ -393,7 +403,7 @@ void ItemCanvas::handleMouseReleaseEvent(
 	drawIncrementalStroke();
 	drawArrowHead();
 	update(_rectToUpdate);
-	if (_contentRect.isValid()) {
+	if ((_currentStroke.size() >= 2) && _contentRect.isValid()) {
 		const auto scaledContentRect = QRectF(
 			_contentRect.x() * style::DevicePixelRatio(),
 			_contentRect.y() * style::DevicePixelRatio(),
@@ -453,6 +463,7 @@ bool ItemCanvas::collidesWithPath(
 
 void ItemCanvas::cancelDrawing() {
 	_drawing = false;
+	_dragging = false;
 	_currentStroke.clear();
 	_lastRenderedIndex = 0;
 	_lastPointTime = 0;

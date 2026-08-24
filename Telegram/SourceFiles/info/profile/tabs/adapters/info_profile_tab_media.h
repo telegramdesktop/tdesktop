@@ -12,6 +12,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Info::Profile {
 
+extern const char kOptionProfileMediaTabsExpanded[];
+
+[[nodiscard]] bool MediaTabsExpanded();
+[[nodiscard]] rpl::producer<bool> MediaTabsExpandedValue();
+void SetMediaTabsExpanded(bool expanded);
+
 [[nodiscard]] MediaTabDescriptor MakeMediaTabDescriptor(
 	Storage::SharedMediaType type,
 	rpl::producer<bool> shown);

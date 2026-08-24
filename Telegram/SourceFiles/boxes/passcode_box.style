@@ -1,0 +1,39 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "boxes/boxes.style";
+using "ui/boxes/choose_date_time.style";
+
+passcodePadding: margins(0px, 0px, 0px, 5px);
+passcodeTextLine: 28px;
+passcodeLittleSkip: 5px;
+passcodeAboutSkip: 7px;
+passcodeSkip: 23px;
+autolockWidth: 256px;
+autolockButton: Checkbox(defaultBoxCheckbox) {
+	width: 200px;
+}
+passcodeTextStyle: TextStyle(defaultTextStyle) {
+	lineHeight: 20px;
+}
+termsContent: FlatLabel(defaultFlatLabel) {
+	minWidth: 285px;
+}
+transferCheckWidth: 320px;
+scheduleTimeSeparator: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px);
+	}
+}
+scheduleTimeSeparatorPadding: margins(2px, 0px, 2px, 0px);
+autolockDateField: InputField(scheduleDateField) {
+	heightMin: 22px;
+}
+autolockTimeField: InputField(scheduleTimeField) {
+	heightMin: 20px;
+}
+autolockTimeWidth: 52px;

@@ -32,16 +32,22 @@ public:
 			QSize physicalSize,
 			int ratio,
 			PaintToImage &&paintToImage) {
-		if (_images.size() > kLimit && !_images.contains(rowId)) {
-			_images.clear();
+		if ((_images.size() > kLimit || _memory > kMemoryLimit)
+			&& !_images.contains(rowId)) {
+			clear();
 		}
-		auto &image = _images[rowId];
-		if (image.size() != physicalSize) {
-			image = QImage(physicalSize, QImage::Format_RGB32);
-			image.setDevicePixelRatio(ratio);
-			paintToImage(image);
+		if (const auto i = _images.find(rowId)
+			; i != end(_images) && i->second.size() == physicalSize) {
+			p.drawImage(0, 0, i->second);
+			return;
 		}
+		auto image = QImage(physicalSize, QImage::Format_RGB32);
+		image.setDevicePixelRatio(ratio);
+		paintToImage(image);
 		p.drawImage(0, 0, image);
+		auto &slot = _images[rowId];
+		_memory += image.sizeInBytes() - slot.sizeInBytes();
+		slot = std::move(image);
 	}
 
 	void invalidate(uint64 rowId);
@@ -49,9 +55,11 @@ public:
 
 private:
 	static constexpr auto kLimit = 256;
+	static constexpr auto kMemoryLimit = 32 * 1024 * 1024;
 
 	base::flat_map<uint64, QImage> _images;
 	base::Timer _stopTimer;
+	int64 _memory = 0;
 	bool _scrolling = false;
 
 };

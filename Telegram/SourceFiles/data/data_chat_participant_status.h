@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+class PeerData;
+
 namespace ChatHelpers {
 class Show;
 } // namespace ChatHelpers
@@ -41,6 +43,7 @@ enum class ChatAdminRight {
 	ManageRanks = (1 << 18),
 	ProcessJoinRequests = (1 << 19),
 	ManageLinkedPeers = (1 << 20),
+	ManageWelcomeMessages = (1 << 21),
 };
 inline constexpr bool is_flag_type(ChatAdminRight) { return true; }
 using ChatAdminRights = base::flags<ChatAdminRight>;
@@ -110,6 +113,7 @@ struct AdminRightsSetOptions {
 	bool isCommunity : 1 = false;
 	bool anyoneCanAddMembers : 1 = false;
 	bool canProcessJoinRequests : 1 = false;
+	bool isBot : 1 = false;
 };
 
 struct RestrictionsSetOptions {

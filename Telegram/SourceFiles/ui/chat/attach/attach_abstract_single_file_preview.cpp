@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_chat_style.h"
 
 namespace Ui {
 
@@ -160,7 +161,7 @@ void AbstractSingleFilePreview::paintEvent(QPaintEvent *e) {
 			PainterHighQualityEnabler hq(p);
 			p.drawEllipse(inner);
 		}
-		auto &icon = _data.fileIsAudio
+		const auto &icon = _data.fileIsAudio
 			? (_data.fileThumb.isNull()
 				? _st.files.iconPlay
 				: st::historyFileThumbPlay)

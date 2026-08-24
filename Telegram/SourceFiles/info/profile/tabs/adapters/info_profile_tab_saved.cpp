@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/saved/info_saved_sublist_inline.h"
 #include "lang/lang_keys.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/rp_widget.h"
 #include "ui/ui_utility.h"
 #include "styles/style_info.h"
@@ -32,6 +33,7 @@ public:
 		not_null<AbstractController*> parent,
 		not_null<Data::SavedSublist*> sublist)
 	: AbstractController(parent->parentController())
+	, _parent(parent)
 	, _key(sublist) {
 	}
 
@@ -44,8 +46,12 @@ public:
 	::Info::Section section() const override {
 		return ::Info::Section(::Info::Section::Type::SavedSublists);
 	}
+	style::color listBackground() const override {
+		return _parent->listBackground();
+	}
 
 private:
+	const not_null<AbstractController*> _parent;
 	const Key _key;
 
 };
@@ -79,15 +85,6 @@ public:
 				_saved.paintBackground(p, clip);
 			}
 		}, host->lifetime());
-		host->widthValue(
-		) | rpl::on_next([this](int newWidth) {
-			_width = newWidth;
-			updateSavedGeometry();
-		}, host->lifetime());
-		host->sizeValue(
-		) | rpl::on_next([this](QSize size) {
-			_skeleton->setGeometry(QRect(QPoint(), size));
-		}, host->lifetime());
 		rpl::duplicate(
 			_saved.firstSliceLoaded
 		) | rpl::on_next([this] {
@@ -105,6 +102,15 @@ public:
 
 	not_null<Ui::RpWidget*> widget() override {
 		return _host.data();
+	}
+	void resizeToWidth(int newWidth) override {
+		if (_width == newWidth) {
+			updateHostHeight();
+			return;
+		}
+		_width = newWidth;
+		_host->resize(newWidth, _host->height());
+		updateSavedGeometry();
 	}
 	TabTopBarBindings topBarBindings() override {
 		return {
@@ -133,6 +139,12 @@ public:
 
 	void deactivated() override {
 		_saved.selectionAction(SelectionAction::Clear);
+	}
+
+	void paintOverflow(QPainter &p) override {
+		if (!skeletonShown()) {
+			_saved.paintBackground(p, QRect());
+		}
 	}
 
 	void setVisibleRegion(int top, int bottom) override {
@@ -164,6 +176,9 @@ private:
 		if (_host->height() != height) {
 			_host->resize(_host->width(), height);
 		}
+		if (_skeleton) {
+			_skeleton->setGeometry(Rect(_host->size()));
+		}
 	}
 
 	const not_null<PeerData*> _countPeer;
@@ -184,7 +199,7 @@ MediaTabDescriptor MakeSavedTabDescriptor(not_null<PeerData*> peer) {
 	using namespace rpl::mappers;
 	return {
 		.id = u"saved"_q,
-		.title = tr::lng_media_type_saved(),
+		.title = tr::lng_media_type_saved(tr::marked),
 		.shown = SavedSublistCountValue(peer) | rpl::map(_1 > 0),
 		.factory = [](MediaTabContext context) {
 			return std::make_unique<SavedTabAdapter>(std::move(context));

@@ -44,7 +44,7 @@ void MarkdownArticleScrollForwarder::handleWheel(
 		QWheelEvent *e,
 		QPoint articleTopLeft) {
 	if (!article) {
-		(void)_scrollDirectionLock.update(e->phase(), {});
+		_scrollDirectionLock.update(e->phase(), {});
 		e->ignore();
 		return;
 	}
@@ -59,9 +59,10 @@ void MarkdownArticleScrollForwarder::handleWheel(
 		return;
 	}
 	if (horizontal) {
-		(void)article->consumeHorizontalScroll(
+		article->consumeHorizontalScroll(
 			local,
-			int(std::round(delta.x())));
+			int(std::round(delta.x())),
+			e->phase());
 		e->accept();
 	} else {
 		e->ignore();
@@ -91,7 +92,7 @@ bool MarkdownArticleScrollForwarder::handleMouseMove(
 		return false;
 	}
 	if (article) {
-		(void)article->updateHorizontalScroll(e->pos() - articleTopLeft);
+		article->updateHorizontalScroll(e->pos() - articleTopLeft);
 	}
 	e->accept();
 	return true;
@@ -106,7 +107,7 @@ bool MarkdownArticleScrollForwarder::handleMouseRelease(
 	}
 	_mouseDrag = false;
 	if (article) {
-		(void)article->updateHorizontalScroll(e->pos() - articleTopLeft);
+		article->updateHorizontalScroll(e->pos() - articleTopLeft);
 		article->endHorizontalScroll();
 	}
 	e->accept();
@@ -165,7 +166,7 @@ bool MarkdownArticleScrollForwarder::handleTouch(
 	} break;
 	case QEvent::TouchUpdate:
 		if (_touchScroll) {
-			(void)article->updateHorizontalScroll(local);
+			article->updateHorizontalScroll(local);
 			e->accept();
 		} else if (_pendingTouchPoint) {
 			const auto delta = local - *_pendingTouchPoint;
@@ -181,7 +182,7 @@ bool MarkdownArticleScrollForwarder::handleTouch(
 				*base::take(_pendingTouchPoint),
 				true);
 			if (_touchScroll) {
-				(void)article->updateHorizontalScroll(local);
+				article->updateHorizontalScroll(local);
 				e->accept();
 			}
 		}

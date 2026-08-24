@@ -7,15 +7,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/tabs/adapters/info_profile_tab_peer_lists.h"
 
+#include "data/components/recent_shared_media_gifts.h"
 #include "data/data_channel.h"
+#include "data/data_document.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "info/common_groups/info_common_groups_inner_widget.h"
 #include "info/info_controller.h"
 #include "info/peer_gifts/info_peer_gifts_widget.h"
 #include "info/profile/info_profile_values.h"
 #include "info/similar_peers/info_similar_peers_widget.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/rp_widget.h"
 
@@ -36,6 +41,9 @@ public:
 	}
 	TabTopBarBindings topBarBindings() override {
 		return _bindings();
+	}
+	void resizeToWidth(int newWidth) override {
+		_content->resizeToWidth(newWidth);
 	}
 	void setVisibleRegion(int top, int bottom) override {
 		_content->setVisibleTopBottom(top, bottom);
@@ -61,7 +69,7 @@ MediaTabDescriptor MakeCommonGroupsTabDescriptor(
 	using namespace rpl::mappers;
 	return {
 		.id = u"common-groups"_q,
-		.title = tr::lng_media_type_groups(),
+		.title = tr::lng_media_type_groups(tr::marked),
 		.shown = CommonGroupsCountValue(user) | rpl::map(_1 > 0),
 		.factory = [=](MediaTabContext context) {
 			auto content = object_ptr<CommonGroups::InnerWidget>(
@@ -95,7 +103,7 @@ MediaTabDescriptor MakeSimilarPeersTabDescriptor(
 	const auto channel = (peer->asBroadcast() != nullptr);
 	return {
 		.id = u"similar"_q,
-		.title = tr::lng_media_type_similar(),
+		.title = tr::lng_media_type_similar(tr::marked),
 		.shown = SimilarPeersCountValue(peer) | rpl::map(_1 > 0),
 		.factory = [=](MediaTabContext context) {
 			auto content = SimilarPeers::MakeSimilarPeersInner(
@@ -149,6 +157,9 @@ public:
 	not_null<Ui::RpWidget*> widget() override {
 		return _content.data();
 	}
+	void resizeToWidth(int newWidth) override {
+		_content->resizeToWidth(newWidth);
+	}
 	TabTopBarBindings topBarBindings() override {
 		const auto peer = _peer;
 		return {
@@ -179,17 +190,54 @@ private:
 
 };
 
+[[nodiscard]] rpl::producer<TextWithEntities> RecentGiftsValue(
+		not_null<PeerData*> peer) {
+	using namespace rpl::mappers;
+	return PeerGiftsCountValue(
+		peer
+	) | rpl::filter(
+		_1 > 0
+	) | rpl::take(1) | rpl::map([=](int) {
+		return rpl::producer<TextWithEntities>([=](auto consumer) {
+			peer->session().recentSharedGifts().request(peer, [=](
+					std::vector<Data::SavedStarGift> gifts) {
+				auto result = TextWithEntities();
+				for (const auto &gift : gifts) {
+					if (result.empty()) {
+						result.append(' ');
+					}
+					result.append(
+						Data::SingleCustomEmoji(gift.info.document->id));
+				}
+				consumer.put_next(std::move(result));
+			});
+			return rpl::lifetime();
+		});
+	}) | rpl::flatten_latest();
+}
+
+[[nodiscard]] rpl::producer<TextWithEntities> GiftsTabTitleValue(
+		not_null<PeerData*> peer) {
+	return rpl::combine(
+		tr::lng_media_type_gifts(tr::marked),
+		rpl::single(TextWithEntities()) | rpl::then(RecentGiftsValue(peer))
+	) | rpl::map([](TextWithEntities title, TextWithEntities gifts) {
+		return title.append(std::move(gifts));
+	});
+}
+
 MediaTabDescriptor MakeGiftsTabDescriptor(not_null<PeerData*> peer) {
 	using namespace rpl::mappers;
 	return {
 		.id = u"gifts"_q,
-		.title = tr::lng_media_type_gifts(),
+		.title = GiftsTabTitleValue(peer),
 		.shown = PeerGiftsCountValue(peer) | rpl::map(_1 > 0),
 		.factory = [=](MediaTabContext context) {
 			return std::make_unique<GiftsTabAdapter>(
 				std::move(context),
 				peer);
 		},
+		.profileTab = Data::ProfileTab::Gifts,
 	};
 }
 

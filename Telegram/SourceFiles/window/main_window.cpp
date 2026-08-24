@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_window_title.h"
 #include "history/history.h"
 #include "info/media/info_media_widget.h" // SharedMediaTitle.
+#include "window/window_saved_windows.h"
 #include "window/window_separate_id.h"
 #include "window/window_session_controller.h"
 #include "window/window_lock_widgets.h"
@@ -85,6 +86,9 @@ base::options::toggle OptionNewWindowsSizeAsFirst({
 base::options::toggle OptionDisableTouchbar({
 	.id = kOptionDisableTouchbar,
 	.name = "Disable Touch Bar (macOS only).",
+#ifdef Q_OS_MAC
+	.defaultValue = !Platform::HasTouchBar(),
+#endif // Q_OS_MAC
 	.scope = [] {
 #ifdef Q_OS_MAC
 		return true;
@@ -682,6 +686,11 @@ void MainWindow::recountGeometryConstraints() {
 }
 
 WindowPosition MainWindow::initialPosition() const {
+	if (const auto saved = Core::App().savedWindows()) {
+		if (const auto restored = saved->restorePositionFor(id())) {
+			return Core::AdjustToScale(*restored, u"Window"_q);
+		}
+	}
 	const auto active = Core::App().activeWindow();
 	return (!active || active == &controller())
 		? Core::AdjustToScale(
@@ -886,8 +895,13 @@ void MainWindow::savePosition(Qt::WindowState state) {
 
 	if (state == Qt::WindowMinimized
 		|| !isVisible()
-		|| !Core::App().savingPositionFor(&controller())
 		|| !positionInited()) {
+		return;
+	}
+	if (const auto saved = Core::App().savedWindows()) {
+		saved->scheduleSave();
+	}
+	if (!Core::App().savingPositionFor(&controller())) {
 		return;
 	}
 
@@ -938,6 +952,53 @@ WindowPosition MainWindow::withScreenInPosition(
 		this,
 		{ st::windowMinWidth, st::windowMinHeight },
 		u"Window"_q);
+}
+
+WindowPosition MainWindow::countPositionForSave() {
+	auto result = WindowPosition{ .scale = cScale() };
+	const auto handle = windowHandle();
+	const auto state = handle ? handle->windowState() : Qt::WindowNoState;
+	const auto windowScreen = screen();
+	const auto screenGeometry = windowScreen
+		? windowScreen->geometry()
+		: QRect();
+	if (windowScreen) {
+		result.moncrc = Platform::ScreenNameChecksum(windowScreen->name());
+	}
+	if (state == Qt::WindowMaximized || state == Qt::WindowFullScreen) {
+		result.maximized = 1;
+		const auto normal = normalGeometry();
+		result.x = normal.x() - screenGeometry.x();
+		result.y = normal.y() - screenGeometry.y();
+		result.w = normal.width();
+		result.h = normal.height();
+		return result;
+	}
+	const auto rect = body()->mapToGlobal(body()->rect());
+	result.x = rect.x();
+	result.y = rect.y();
+	result.w = rect.width() - (_rightColumn ? _rightColumn->width() : 0);
+	result.h = rect.height();
+	result = withScreenInPosition(result);
+	result.x -= screenGeometry.x();
+	result.y -= screenGeometry.y();
+	return result;
+}
+
+void MainWindow::applySavedPosition(const Core::WindowPosition &position) {
+	const auto geometry = countInitialGeometry(
+		Core::AdjustToScale(position, u"Window"_q));
+	const auto handle = windowHandle();
+	const auto state = handle ? handle->windowState() : Qt::WindowNoState;
+	if (position.maximized) {
+		setGeometry(geometry);
+		setWindowState(Qt::WindowMaximized);
+	} else {
+		if (state == Qt::WindowMaximized || state == Qt::WindowFullScreen) {
+			setWindowState(Qt::WindowNoState);
+		}
+		setGeometry(geometry);
+	}
 }
 
 bool MainWindow::minimizeToTray() {

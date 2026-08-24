@@ -241,7 +241,7 @@ void ResolvePhoneAction::prepare() {
 			_st.widthMin,
 			_st.widthMax);
 		if (!no.isEmpty()) {
-			_below = Ui::Text::String(w);
+			_below = Ui::Text::String(w - rect::m::sum::h(padding));
 		}
 		_above.setMarkedText(_st.itemStyle, { above }, options);
 		_below.setMarkedText(_st.itemStyle, { below }, options);

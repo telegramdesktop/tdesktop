@@ -41,10 +41,8 @@ void ProxyRotationManager::settingsChanged() {
 }
 
 void ProxyRotationManager::handleConnectionStateChanged(
-		not_null<Main::Account*> account,
-		int32 state) {
-	(void)account;
-	(void)state;
+		not_null<Main::Account*>,
+		int32) {
 	reevaluate();
 }
 
@@ -153,16 +151,23 @@ void ProxyRotationManager::pruneRemovedEntries() {
 void ProxyRotationManager::updateProbeOrder() {
 	const auto &settings = App().settings().proxy();
 	const auto currentIndex = settings.indexInList(settings.selected());
+	const auto canCheck = [&](int index) {
+		return index >= 0
+			&& index < int(settings.list().size())
+			&& settings.list()[index].type != MTP::ProxyData::Type::Web;
+	};
 	_probeOrder.clear();
 	_probeOrder.reserve(settings.list().size());
 	for (const auto index : settings.proxyRotationPreferredIndices()) {
-		if (index == currentIndex) {
+		if (index == currentIndex || !canCheck(index)) {
 			continue;
 		}
 		_probeOrder.push_back(index);
 	}
 	for (auto i = 0, count = int(settings.list().size()); i != count; ++i) {
-		if (i == currentIndex || ranges::contains(_probeOrder, i)) {
+		if (i == currentIndex
+			|| !canCheck(i)
+			|| ranges::contains(_probeOrder, i)) {
 			continue;
 		}
 		_probeOrder.push_back(i);

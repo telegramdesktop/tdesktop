@@ -47,6 +47,7 @@ constexpr auto kExpandDuration = crl::time(300);
 constexpr auto kScaleDuration = crl::time(120);
 constexpr auto kFullDuration = kExpandDuration + kScaleDuration;
 constexpr auto kExpandDelay = crl::time(40);
+constexpr auto kAcceptClicksAfter = crl::time(300);
 constexpr auto kDefaultColumns = 8;
 constexpr auto kMinNonTransparentColumns = 7;
 
@@ -877,11 +878,22 @@ void Selector::paintEvent(QPaintEvent *e) {
 	}
 }
 
+void Selector::showEvent(QShowEvent *e) {
+	_shownAt = crl::now();
+}
+
 void Selector::mouseMoveEvent(QMouseEvent *e) {
 	if (!_strip) {
 		return;
 	}
 	setSelected(lookupSelectedIndex(e->pos()));
+}
+
+bool Selector::inVisibleArea(QPoint position) const {
+	return !_strip
+		|| _expandScheduled
+		|| _outerWithBubble.isEmpty()
+		|| _outerWithBubble.contains(position);
 }
 
 int Selector::lookupSelectedIndex(QPoint position) const {
@@ -921,14 +933,23 @@ void Selector::leaveEventHook(QEvent *e) {
 }
 
 void Selector::mousePressEvent(QMouseEvent *e) {
-	if (!_strip) {
+	if (!inVisibleArea(e->pos())) {
+		e->ignore();
+		return;
+	} else if (!_strip) {
 		return;
 	}
 	_pressed = lookupSelectedIndex(e->pos());
 }
 
 void Selector::mouseReleaseEvent(QMouseEvent *e) {
-	if (!_strip) {
+	if (!inVisibleArea(e->pos())) {
+		e->ignore();
+		return;
+	} else if (!_strip) {
+		return;
+	} else if (crl::now() < _shownAt + kAcceptClicksAfter) {
+		_pressed = -1;
 		return;
 	}
 	if (_pressed != lookupSelectedIndex(e->pos())) {

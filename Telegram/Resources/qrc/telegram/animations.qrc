@@ -48,6 +48,7 @@
     <file alias="camera_outline.tgs">../../animations/camera_outline.tgs</file>
     <file alias="photo_suggest_icon.tgs">../../animations/photo_suggest_icon.tgs</file>
     <file alias="toast/saved_messages.tgs">../../animations/toast/saved_messages.tgs</file>
+    <file alias="toast/forward.tgs">../../animations/toast/forward.tgs</file>
     <file alias="toast/tagged.tgs">../../animations/toast/tagged.tgs</file>
     <file alias="my_gifts_empty.tgs">../../animations/my_gifts_empty.tgs</file>
     <file alias="toast/chats_filter_in.tgs">../../animations/toast/chats_filter_in.tgs</file>
@@ -113,6 +114,7 @@
     <file alias="swipe_unpin.tgs">../../animations/swipe_action/unpin.tgs</file>
     <file alias="swipe_read.tgs">../../animations/swipe_action/read.tgs</file>
     <file alias="swipe_unread.tgs">../../animations/swipe_action/unread.tgs</file>
+    <file alias="swipe_ungroup.tgs">../../animations/swipe_action/ungroup.tgs</file>
     <file alias="craft_progress.tgs">../../animations/craft_progress.tgs</file>
     <file alias="cleaning_cache.tgs">../../animations/cleaning_cache.tgs</file>
   </qresource>

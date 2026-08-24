@@ -23,7 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
 #include "styles/style_giveaway.h"
-#include "styles/style_layers.h"
 #include "styles/style_settings.h"
 
 namespace Settings {

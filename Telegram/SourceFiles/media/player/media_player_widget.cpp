@@ -37,8 +37,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "styles/style_media_player.h"
-#include "styles/style_media_view.h"
-#include "styles/style_chat.h" // expandedMenuSeparator.
 
 namespace Media {
 namespace Player {

@@ -4,12 +4,17 @@ layout(location = 0) out vec4 fragColor;
 
 layout(std140, binding = 0) uniform Params {
 	vec2 viewport;
+	// 1.0 when gl_FragCoord.y counts from the bottom (OpenGL).
+	float fragCoordYUp;
 	vec4 roundRect;
 	float roundRadius;
 };
 
 float roundedCorner() {
-	vec2 fragCoord = vec2(gl_FragCoord.x, viewport.y - gl_FragCoord.y);
+	float fragY = (fragCoordYUp > 0.0)
+		? gl_FragCoord.y
+		: (viewport.y - gl_FragCoord.y);
+	vec2 fragCoord = vec2(gl_FragCoord.x, fragY);
 	vec2 rectHalf = roundRect.zw / 2.0;
 	vec2 rectCenter = roundRect.xy + rectHalf;
 	vec2 fromRectCenter = abs(fragCoord - rectCenter);

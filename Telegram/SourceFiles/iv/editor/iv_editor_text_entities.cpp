@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/editor/iv_editor_text_entities.h"
 
+#include "ui/text/text_utilities.h"
+
 #include "iv/markdown/iv_markdown_prepare_serialize.h"
 #include "iv/markdown/iv_markdown_prepare_links.h"
 #include "ui/widgets/fields/input_field.h"
@@ -24,27 +26,26 @@ struct FormulaReplacement {
 	QString source;
 };
 
-struct TextRange {
-	int offset = 0;
-	int length = 0;
-};
-
-[[nodiscard]] bool RangeInsideText(
-		const QString &text,
-		int offset,
-		int length) {
-	return (offset >= 0)
-		&& (length >= 0)
-		&& (offset <= text.size())
-		&& (length <= text.size() - offset);
-}
-
-[[nodiscard]] bool IsFormulaObjectSpan(
+[[nodiscard]] bool IsInlineObjectSpan(
 		const QString &text,
 		const EntityInText &entity) {
 	return (entity.length() == 1)
 		&& RangeInsideText(text, entity.offset(), entity.length())
 		&& (text[entity.offset()] == QChar::ObjectReplacementCharacter);
+}
+
+[[nodiscard]] bool IsInlineObjectEntity(const EntityInText &entity) {
+	return (entity.type() == EntityType::CustomEmoji)
+		&& Markdown::ParseInlineTextObjectEntity(entity.data()).has_value();
+}
+
+[[nodiscard]] bool IsInlineButtonEntity(const EntityInText &entity) {
+	if (entity.type() != EntityType::CustomEmoji) {
+		return false;
+	}
+	const auto parsed = Markdown::ParseInlineTextObjectEntity(entity.data());
+	return parsed
+		&& (parsed->kind == Markdown::InlineTextObjectKind::Button);
 }
 
 [[nodiscard]] std::optional<Markdown::InlineTextObjectFormulaData>
@@ -140,10 +141,53 @@ FormulaDataFromEntity(const EntityInText &entity) {
 	return std::nullopt;
 }
 
+void AdjustEntitiesForReplacement(
+		EntitiesInText *entities,
+		int from,
+		int oldLength,
+		int newLength) {
+	for (auto i = entities->begin(); i != entities->end();) {
+		if (const auto adjusted = AdjustEntityForReplacement(
+				*i,
+				from,
+				oldLength,
+				newLength)) {
+			*i++ = *adjusted;
+		} else {
+			i = entities->erase(i);
+		}
+	}
+}
+
+void AdjustTagsForReplacement(
+		TextWithTags::Tags *tags,
+		int from,
+		int oldLength,
+		int newLength) {
+	for (auto i = tags->begin(); i != tags->end();) {
+		if (const auto adjusted = AdjustTagForReplacement(
+				*i,
+				from,
+				oldLength,
+				newLength)) {
+			*i++ = *adjusted;
+		} else {
+			i = tags->erase(i);
+		}
+	}
+}
+
+[[nodiscard]] bool IsInlineObjectTag(QStringView tag) {
+	return Ui::InputField::IsCustomEmojiLink(tag)
+		&& Markdown::ParseInlineTextObjectEntity(
+			Ui::InputField::CustomEmojiEntityData(tag)).has_value();
+}
+
 [[nodiscard]] QString TagsWithoutIvEditorTags(QStringView tags) {
 	auto result = QList<QStringView>();
 	for (const auto &tag : TextUtilities::SplitTags(tags)) {
 		if (!Ui::InputField::IsInstantViewEditorTag(tag)
+			&& !IsInlineObjectTag(tag)
 			&& !tag.startsWith(QChar('#'))) {
 			result.push_back(tag);
 		}
@@ -376,10 +420,6 @@ void SortTags(TextWithTags::Tags *tags) {
 	});
 }
 
-[[nodiscard]] bool TagContains(QStringView tags, QStringView tagId) {
-	return TextUtilities::SplitTags(tags).contains(tagId);
-}
-
 [[nodiscard]] bool TagContainsOtherThan(QStringView tags, QStringView tagId) {
 	for (const auto &tag : TextUtilities::SplitTags(tags)) {
 		if (tag != tagId) {
@@ -433,6 +473,29 @@ void MergeRanges(std::vector<TextRange> *ranges);
 				tag.offset,
 				tag.length,
 				link));
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] EntitiesInText InlineObjectEntitiesFromTags(
+		const TextWithTags::Tags &tags,
+		const QString &text) {
+	auto result = EntitiesInText();
+	result.reserve(tags.size());
+	for (const auto &tag : tags) {
+		if (tag.length <= 0 || !RangeInsideText(text, tag.offset, tag.length)) {
+			continue;
+		}
+		for (const auto &single : TextUtilities::SplitTags(tag.id)) {
+			if (!IsInlineObjectTag(single)) {
+				continue;
+			}
+			result.push_back(EntityInText(
+				EntityType::CustomEmoji,
+				tag.offset,
+				tag.length,
+				Ui::InputField::CustomEmojiEntityData(single)));
 		}
 	}
 	return result;
@@ -525,20 +588,156 @@ void SortEntities(EntitiesInText *entities) {
 		});
 }
 
+[[nodiscard]] bool CoveredByInlineObject(
+		const EntitiesInText &entities,
+		int position) {
+	for (const auto &entity : entities) {
+		if (IsInlineObjectEntity(entity)
+			&& (entity.offset() <= position)
+			&& (position < entity.offset() + entity.length())) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void RemoveOrphanInlineObjects(QString *text, EntitiesInText *entities) {
+	for (auto position = int(text->size()); position != 0;) {
+		--position;
+		if (text->at(position) != QChar::ObjectReplacementCharacter
+			|| CoveredByInlineObject(*entities, position)) {
+			continue;
+		}
+		AdjustEntitiesForReplacement(entities, position, 1, 0);
+		text->remove(position, 1);
+	}
+}
+
 } // namespace
+
+bool RangeInsideText(
+		const QString &text,
+		int offset,
+		int length) {
+	return (offset >= 0)
+		&& (length >= 0)
+		&& (offset <= text.size())
+		&& (length <= text.size() - offset);
+}
+
+bool TagContains(QStringView tags, QStringView tagId) {
+	return TextUtilities::SplitTags(tags).contains(tagId);
+}
+
+bool HasFullTextTag(
+		const TextWithTags &textWithTags,
+		const QString &tag) {
+	if (tag.isEmpty() || textWithTags.text.isEmpty()) {
+		return false;
+	}
+	auto ranges = std::vector<TextRange>();
+	ranges.reserve(textWithTags.tags.size());
+	for (const auto &existing : textWithTags.tags) {
+		if (existing.length <= 0
+			|| !RangeInsideText(
+				textWithTags.text,
+				existing.offset,
+				existing.length)
+			|| !TagContains(existing.id, tag)) {
+			continue;
+		}
+		ranges.push_back({
+			.offset = existing.offset,
+			.length = existing.length,
+		});
+	}
+	if (ranges.empty()) {
+		return false;
+	}
+	std::sort(ranges.begin(), ranges.end(), [](const auto &a, const auto &b) {
+		if (a.offset != b.offset) {
+			return a.offset < b.offset;
+		}
+		return a.length < b.length;
+	});
+	auto coveredTill = 0;
+	for (const auto &range : ranges) {
+		if (range.offset > coveredTill) {
+			return false;
+		}
+		coveredTill = std::max(coveredTill, range.offset + range.length);
+		if (coveredTill >= textWithTags.text.size()) {
+			return true;
+		}
+	}
+	return (coveredTill >= textWithTags.text.size());
+}
+
+bool SplitTextSpan(
+		const TextWithEntities &text,
+		int from,
+		int till,
+		TextWithEntities *before,
+		TextWithEntities *selected,
+		TextWithEntities *after) {
+	if (!before || !selected || !after) {
+		return false;
+	}
+	const auto textSize = int(text.text.size());
+	from = std::clamp(from, 0, textSize);
+	till = std::clamp(till, from, textSize);
+	if (from >= till) {
+		return false;
+	}
+	*before = Ui::Text::Mid(text, 0, from);
+	*selected = Ui::Text::Mid(text, from, till - from);
+	if (selected->text.isEmpty()) {
+		return false;
+	}
+	*after = Ui::Text::Mid(text, till);
+	return true;
+}
+
+std::vector<TextWithEntities> SplitFieldText(
+		TextWithEntities text) {
+	auto result = std::vector<TextWithEntities>();
+	auto left = std::move(text);
+	auto consumed = 0;
+	while (!left.text.isEmpty() && consumed < kMaxCommittedFieldLength) {
+		auto part = TextWithEntities();
+		const auto limit = std::min(
+			kMaxRichTextNodeLength,
+			kMaxCommittedFieldLength - consumed);
+		if (!TextUtilities::CutPart(part, left, limit)
+			|| part.text.isEmpty()) {
+			break;
+		}
+		consumed += part.text.size();
+		result.push_back(std::move(part));
+	}
+	return result;
+}
 
 RichTextEditorConversion ConvertRichTextToEditorTags(TextWithEntities text) {
 	auto formulas = std::vector<FormulaReplacement>();
+	auto buttonTags = TextWithTags::Tags();
 	auto entities = EntitiesInText();
 	entities.reserve(text.entities.size());
 
 	for (const auto &entity : text.entities) {
 		const auto formula = FormulaDataFromEntity(entity);
-		if (formula && IsFormulaObjectSpan(text.text, entity)) {
+		if (formula && IsInlineObjectSpan(text.text, entity)) {
 			formulas.push_back({
 				.offset = entity.offset(),
 				.length = entity.length(),
 				.source = EditorSourceForFormula(*formula),
+			});
+		} else if (IsInlineButtonEntity(entity)
+			&& IsInlineObjectSpan(text.text, entity)) {
+			buttonTags.push_back({
+				.offset = entity.offset(),
+				.length = 1,
+				.id = Ui::InputField::CustomEmojiLink(entity.data()),
 			});
 		} else {
 			entities.push_back(entity);
@@ -559,28 +758,21 @@ RichTextEditorConversion ConvertRichTextToEditorTags(TextWithEntities text) {
 	for (const auto &formula : formulas) {
 		const auto newLength = formula.source.size();
 
-		for (auto i = entities.begin(); i != entities.end();) {
-			if (const auto adjusted = AdjustEntityForReplacement(
-					*i,
-					formula.offset,
-					formula.length,
-					newLength)) {
-				*i++ = *adjusted;
-			} else {
-				i = entities.erase(i);
-			}
-		}
-		for (auto i = mathTags.begin(); i != mathTags.end();) {
-			if (const auto adjusted = AdjustTagForReplacement(
-					*i,
-					formula.offset,
-					formula.length,
-					newLength)) {
-				*i++ = *adjusted;
-			} else {
-				i = mathTags.erase(i);
-			}
-		}
+		AdjustEntitiesForReplacement(
+			&entities,
+			formula.offset,
+			formula.length,
+			newLength);
+		AdjustTagsForReplacement(
+			&mathTags,
+			formula.offset,
+			formula.length,
+			newLength);
+		AdjustTagsForReplacement(
+			&buttonTags,
+			formula.offset,
+			formula.length,
+			newLength);
 
 		text.text.replace(formula.offset, formula.length, formula.source);
 		if (newLength > 0) {
@@ -604,6 +796,7 @@ RichTextEditorConversion ConvertRichTextToEditorTags(TextWithEntities text) {
 	RemoveRangesFromTags(&ivTags, mathTags);
 	OverlayTags(&tags, ivTags, text.text);
 	OverlayTags(&tags, mathTags, text.text);
+	OverlayTags(&tags, buttonTags, text.text);
 	SortTags(&tags);
 	tags = TextUtilities::SimplifyTags(tags);
 
@@ -682,6 +875,11 @@ TextWithEntities ConvertEditorTagsToRichText(TextWithTags text) {
 			text.text)) {
 		entities.push_back(entity);
 	}
+	for (const auto &entity : InlineObjectEntitiesFromTags(
+			text.tags,
+			text.text)) {
+		entities.push_back(entity);
+	}
 
 	auto mathRanges = MathRangesWithoutIntersections(text.tags, text.text);
 	for (auto i = mathRanges.rbegin(); i != mathRanges.rend(); ++i) {
@@ -704,17 +902,7 @@ TextWithEntities ConvertEditorTagsToRichText(TextWithTags text) {
 				.trimmedTex = trimmedSource,
 			},
 		});
-		for (auto j = entities.begin(); j != entities.end();) {
-			if (const auto adjusted = AdjustEntityForReplacement(
-					*j,
-					i->offset,
-					i->length,
-					1)) {
-				*j++ = *adjusted;
-			} else {
-				j = entities.erase(j);
-			}
-		}
+		AdjustEntitiesForReplacement(&entities, i->offset, i->length, 1);
 		text.text.replace(
 			i->offset,
 			i->length,
@@ -727,10 +915,30 @@ TextWithEntities ConvertEditorTagsToRichText(TextWithTags text) {
 	}
 
 	SortEntities(&entities);
+	RemoveOrphanInlineObjects(&text.text, &entities);
 	return {
 		.text = text.text,
 		.entities = entities,
 	};
+}
+
+auto ButtonDataFromEntity(const EntityInText &entity)
+-> std::optional<Markdown::InlineTextObjectButtonData> {
+	if (entity.type() != EntityType::CustomEmoji) {
+		return std::nullopt;
+	}
+	return ButtonDataFromEntity(entity.data());
+}
+
+auto ButtonDataFromEntity(QStringView data)
+-> std::optional<Markdown::InlineTextObjectButtonData> {
+	const auto parsed = Markdown::ParseInlineTextObjectEntity(data);
+	if (!parsed) {
+		return std::nullopt;
+	}
+	const auto button = std::get_if<
+		Markdown::InlineTextObjectButtonData>(&parsed->data);
+	return button ? std::make_optional(*button) : std::nullopt;
 }
 
 } // namespace Iv::Editor

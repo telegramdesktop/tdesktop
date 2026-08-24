@@ -7,19 +7,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "api/api_common.h"
 #include "base/basic_types.h"
+#include "data/data_msg_id.h"
 #include "menu/menu_send_details.h"
 #include <rpl/producer.h>
 
 #include <memory>
+#include <optional>
 
+class DocumentData;
 class HistoryItem;
 class PeerData;
+class PhotoData;
 
-namespace Data {
-struct Draft;
-} // namespace Data
+namespace Api {
+struct SendAction;
+} // namespace Api
 
 namespace Main {
 class Session;
@@ -34,8 +37,11 @@ class Show;
 } // namespace ChatHelpers
 
 namespace Ui {
+class InputField;
 class SendButton;
 } // namespace Ui
+
+class QMimeData;
 
 namespace Iv {
 struct RichPage;
@@ -43,19 +49,56 @@ struct RichPage;
 
 namespace Iv::Editor {
 
-using ThreadFieldDraftReader = Fn<std::unique_ptr<::Data::Draft>()>;
-using ThreadFieldDraftSaver = Fn<void(std::unique_ptr<::Data::Draft>)>;
-using ThreadFieldMigratedAway = Fn<void()>;
+struct ComposeBoxOptions {
+	enum class Scope {
+		Thread,
+		Detached,
+	};
+	enum class SubmitPolicy {
+		Immediate,
+		Schedule,
+	};
 
-[[nodiscard]] bool CheckRichMessagesPremium(
-	not_null<Window::SessionController*> controller);
+	Scope scope = Scope::Thread;
+	std::shared_ptr<QMimeData> initialPaste;
+	SubmitPolicy submitPolicy = SubmitPolicy::Immediate;
+	Fn<void(TextWithTags)> returnText;
+	bool welcomeTemplates = false;
+};
+
+[[nodiscard]] std::shared_ptr<ChatHelpers::Show> ActiveWindowShow(
+	not_null<Main::Session*> session);
 void ShowRichMessagesPremiumToast(std::shared_ptr<ChatHelpers::Show> show);
 [[nodiscard]] bool CanAuthorRichMessages(not_null<Main::Session*> session);
+[[nodiscard]] bool SessionPremium(not_null<Main::Session*> session);
+[[nodiscard]] rpl::producer<bool> AmPremiumValue(
+	not_null<Main::Session*> session);
+[[nodiscard]] rpl::producer<int> StarsPerMessageValue(
+	not_null<Main::Session*> session,
+	not_null<PeerData*> peer);
+[[nodiscard]] bool IsEmojiDocument(not_null<DocumentData*> document);
+[[nodiscard]] bool PremiumEmojiForbidden(
+	not_null<Main::Session*> session,
+	not_null<PeerData*> peer,
+	not_null<DocumentData*> document);
+[[nodiscard]] bool AllowEmojiWithoutPremium(
+	not_null<PeerData*> peer,
+	DocumentData *exactEmoji = nullptr);
+void InsertCustomEmoji(
+	not_null<Ui::InputField*> field,
+	not_null<DocumentData*> document);
+[[nodiscard]] PhotoData *UsablePhoto(
+	not_null<Main::Session*> session,
+	uint64 id);
+[[nodiscard]] DocumentData *UsableDocument(
+	not_null<Main::Session*> session,
+	uint64 id);
 void OfferRichMessagePremiumChoice(
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<Main::Session*> session,
 	const RichPage &page,
-	Fn<void()> sendWithoutFormatting);
+	Fn<void()> sendWithoutFormatting,
+	bool save = false);
 void SetupSendLockBadge(
 	not_null<Ui::SendButton*> button,
 	QPoint position,
@@ -64,43 +107,31 @@ void ShowComposeBox(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
 	Api::SendAction action,
-	SendMenu::Details sendMenuDetails);
+	SendMenu::Details sendMenuDetails,
+	TextWithTags fieldText = {},
+	Fn<void()> onMigrated = nullptr,
+	ComposeBoxOptions options = {});
 void ShowEditBox(
 	not_null<Window::SessionController*> controller,
 	not_null<HistoryItem*> item);
 void ShowEditFromFieldBox(
 	not_null<Window::SessionController*> controller,
 	not_null<HistoryItem*> item,
-	Api::SendAction action);
+	Api::SendAction action,
+	std::optional<TextWithTags> fieldTextOverride = std::nullopt,
+	Fn<void()> fieldMigratedOverride = nullptr);
+[[nodiscard]] bool HasEditWindowFor(
+	not_null<Main::Session*> session,
+	FullMsgId itemId);
+[[nodiscard]] bool ActivateEditWindowFor(
+	not_null<Main::Session*> session,
+	FullMsgId itemId);
 [[nodiscard]] bool IsComposeBoxOpen(
 	not_null<Main::Session*> session,
 	PeerId peerId,
 	MsgId topicRootId,
 	PeerId monoforumPeerId);
-[[nodiscard]] bool SaveOpenComposeDraftThenEdit(
-	not_null<Main::Session*> session,
-	PeerId peerId,
-	MsgId topicRootId,
-	PeerId monoforumPeerId,
-	Fn<void()> onSaved);
-[[nodiscard]] bool RequestCloseOpenEditWindowThenCompose(
-	not_null<Main::Session*> session,
-	not_null<PeerData*> peer,
-	Fn<void()> onClosed);
 [[nodiscard]] rpl::producer<bool> FieldVisibleValue(
-	not_null<Main::Session*> session,
-	PeerId peerId,
-	MsgId topicRootId,
-	PeerId monoforumPeerId);
-void RegisterThreadFieldBridge(
-	not_null<Main::Session*> session,
-	PeerId peerId,
-	MsgId topicRootId,
-	PeerId monoforumPeerId,
-	ThreadFieldDraftReader readDraft,
-	ThreadFieldDraftSaver saveDraft,
-	ThreadFieldMigratedAway migratedAway);
-void UnregisterThreadFieldBridge(
 	not_null<Main::Session*> session,
 	PeerId peerId,
 	MsgId topicRootId,

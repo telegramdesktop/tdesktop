@@ -8,12 +8,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "info/profile/tabs/info_profile_tab_top_bar_bindings.h"
+#include "storage/storage_shared_media.h"
 
 class PeerData;
+class QPainter;
 
 namespace Data {
 class ForumTopic;
 class SavedSublist;
+enum class ProfileTab : uchar;
 } // namespace Data
 
 namespace Ui {
@@ -44,6 +47,8 @@ public:
 	[[nodiscard]] virtual not_null<Ui::RpWidget*> widget() = 0;
 	[[nodiscard]] virtual TabTopBarBindings topBarBindings() = 0;
 
+	virtual void resizeToWidth(int newWidth) = 0;
+
 	virtual void deactivated() {
 	}
 
@@ -51,6 +56,10 @@ public:
 	}
 
 	virtual void setTopOverlay(int height) {
+	}
+
+	// Painter is translated to tab widget origin, clipped to filler.
+	virtual void paintOverflow(QPainter &p) {
 	}
 
 	virtual void saveScrollState(QByteArray &out) {
@@ -61,9 +70,11 @@ public:
 
 struct MediaTabDescriptor {
 	QString id;
-	rpl::producer<QString> title;
+	rpl::producer<TextWithEntities> title;
 	rpl::producer<bool> shown;
+	std::optional<Storage::SharedMediaType> sharedMediaType;
 	Fn<std::unique_ptr<MediaTabContent>(MediaTabContext)> factory;
+	Data::ProfileTab profileTab = {};
 };
 
 } // namespace Info::Profile

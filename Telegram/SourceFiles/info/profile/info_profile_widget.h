@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 class ForumTopic;
+class SavedMessages;
 } // namespace Data
 
 namespace Info::Profile {
@@ -38,6 +39,7 @@ public:
 		Origin origin = { v::null });
 	explicit Memento(not_null<Data::ForumTopic*> topic);
 	explicit Memento(not_null<Data::SavedSublist*> sublist);
+	explicit Memento(not_null<Data::SavedMessages*> savedMessages);
 
 	object_ptr<ContentWidget> createWidget(
 		QWidget *parent,
@@ -90,6 +92,9 @@ public:
 	void setInnerFocus() override;
 	void enableBackButton() override;
 	void showFinished() override;
+	void checkBeforeCloseByEscape(Fn<void()> close) override;
+	bool searchAvailable() const override;
+	void showSearch() override;
 
 	rpl::producer<QString> title() override;
 	rpl::producer<Dialogs::Stories::Content> titleStories() override;

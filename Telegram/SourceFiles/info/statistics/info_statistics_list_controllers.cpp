@@ -52,7 +52,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 #include "styles/style_statistics.h"
-#include "styles/style_window.h"
 #include "styles/style_chat.h"
 
 namespace Info::Statistics {
@@ -125,7 +124,7 @@ struct PublicForwardsDescriptor final {
 struct MembersDescriptor final {
 	not_null<Main::Session*> session;
 	Fn<void(not_null<PeerData*>)> showPeerInfo;
-	Data::SupergroupStatistics data;
+	Data::StatisticsLists data;
 };
 
 struct BoostsDescriptor final {
@@ -217,7 +216,7 @@ private:
 
 	const not_null<Main::Session*> _session;
 	Fn<void(not_null<PeerData*>)> _showPeerInfo;
-	Data::SupergroupStatistics _data;
+	Data::StatisticsLists _data;
 	int _limit = 0;
 
 };
@@ -1429,7 +1428,7 @@ void AddPublicForwards(
 }
 
 void AddMembersList(
-		Data::SupergroupStatistics data,
+		Data::StatisticsLists data,
 		not_null<Ui::VerticalLayout*> container,
 		Fn<void(not_null<PeerData*>)> showPeerInfo,
 		not_null<PeerData*> peer,

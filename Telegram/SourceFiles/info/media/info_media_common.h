@@ -13,6 +13,10 @@ namespace Storage {
 enum class SharedMediaType : signed char;
 } // namespace Storage
 
+namespace Ui {
+class RowsScrollCache;
+} // namespace Ui
+
 namespace Info::Media {
 
 using Type = Storage::SharedMediaType;
@@ -56,6 +60,9 @@ struct ListContext {
 	not_null<ListSelectedMap*> dragSelected;
 	ListDragSelectAction dragSelectAction = ListDragSelectAction::None;
 	BaseLayout *draggedItem = nullptr;
+	Ui::RowsScrollCache *scrollCache = nullptr;
+	const BaseLayout *hoveredItem = nullptr;
+	style::color bg;
 };
 
 struct ListScrollTopState {
@@ -93,6 +100,9 @@ using UniversalMsgId = MsgId;
 	not_null<const HistoryItem*> item);
 [[nodiscard]] UniversalMsgId GetUniversalId(
 	not_null<const BaseLayout*> layout);
+
+// Downloads and global media mix peers, so message ids collide there.
+[[nodiscard]] uint64 GetLayoutCacheKey(not_null<const BaseLayout*> layout);
 
 bool ChangeItemSelection(
 	ListSelectedMap &selected,

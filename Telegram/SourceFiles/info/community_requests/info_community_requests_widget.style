@@ -1,0 +1,44 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "boxes/boxes.style";
+
+communityRequestsTitlePadding: margins(0px, 8px, 0px, -4px);
+requestSuggestStyle: TextStyle(defaultTextStyle) {
+	font: contactsStatusFont;
+}
+requestSuggestPosition: point(74px, 30px);
+requestSuggestBadgeSize: 16px;
+requestSuggestBadgeBorder: 1px;
+requestSuggestBadgeSkip: point(-4px, 2px);
+requestMembersStyle: TextStyle(defaultTextStyle) {
+	font: font(11px);
+}
+requestMembersTop: 11px;
+requestMembersRightSkip: 14px;
+requestMembersPadding: margins(5px, 0px, 5px, 1px);
+requestMembersIcon: IconEmoji {
+	icon: icon{{ "community/requests_members", contactsStatusFg }};
+	padding: margins(0px, 4px, 4px, 0px);
+	useIconColor: false;
+}
+requestPillsSkip: 5px;
+requestHiddenIcon: IconEmoji {
+	icon: icon{{ "community/requests_hidden", contactsStatusFg }};
+	padding: margins(0px, 4px, 0px, 0px);
+	useIconColor: false;
+}
+messageOwnerInfoSkip: 12px;
+requestsSectionBottomMargin: margins(12px, 10px, 12px, 10px);
+requestsAddAllButton: RoundButton(defaultActiveButton) {
+	height: 32px;
+	textTop: 7px;
+}
+requestsDeclineAllButton: RoundButton(defaultLightButton) {
+	height: 32px;
+	textTop: 7px;
+}

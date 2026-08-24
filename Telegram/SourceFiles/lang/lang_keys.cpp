@@ -68,6 +68,19 @@ bool langFirstNameGoesSecond() {
 	return fullname.indexOf(kLastName) < fullname.indexOf(kFirstName);
 }
 
+QString langFullName(
+		const QString &firstName,
+		const QString &lastName) {
+	if (firstName.isEmpty()) {
+		return lastName;
+	} else if (lastName.isEmpty()) {
+		return firstName;
+	}
+	return langFirstNameGoesSecond()
+		? (lastName + u' ' + firstName)
+		: (firstName + u' ' + lastName);
+}
+
 QString langDayOfMonth(const QDate &date) {
 	auto day = date.day();
 	return langDateMaybeWithYear(date, [&](int month, int year) {

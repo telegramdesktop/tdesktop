@@ -415,6 +415,7 @@ private:
 	void setTabbedPanel(std::unique_ptr<TabbedPanel> panel);
 	void updateField();
 	void fieldChanged();
+	[[nodiscard]] bool suppressSendAction() const;
 	void fieldFocused();
 	void fieldResized();
 
@@ -511,6 +512,7 @@ private:
 	void clearOverStates();
 	void chooseAttach(std::optional<bool> overrideSendImagesAsPhotos = {});
 	void sendButtonClicked();
+	void stopStreamedDraft();
 	void newItemAdded(not_null<HistoryItem*> item);
 	void maybeMarkReactionsRead(not_null<HistoryItem*> item);
 
@@ -542,7 +544,8 @@ private:
 	bool showSendRichDraftError(
 		bool ignoreSlowmodeCountdown,
 		Fn<void(int starsApproved)> withPaymentApproved = nullptr,
-		Api::SendOptions options = {});
+		Api::SendOptions options = {},
+		bool ephemeral = false);
 
 	void sendingFilesConfirmed(
 		std::shared_ptr<Ui::PreparedBundle> bundle,
@@ -575,6 +578,11 @@ private:
 	void initExpandButton();
 	void updateExpandButtonVisibility();
 	void updateExpandButtonGeometry();
+	[[nodiscard]] bool canShowRichEditor() const;
+	void showRichEditor();
+	void initDiscardRichDraftButton();
+	void updateDiscardRichDraftVisibility();
+	void updateDiscardRichDraftGeometry();
 	[[nodiscard]] bool canSendAiComposeDirect() const;
 
 	[[nodiscard]] MsgId resolveReplyToTopicRootId();
@@ -706,16 +714,20 @@ private:
 
 	void unregisterDraftSources();
 	void registerDraftSource();
-	void unregisterThreadFieldBridge();
-	void registerThreadFieldBridge();
+	void untrackThreadFieldVisibility();
+	void trackThreadFieldVisibility();
 	[[nodiscard]] Data::Draft *cloudDraft() const;
 	[[nodiscard]] std::shared_ptr<const Iv::RichPage> shownRichMessage() const;
 	[[nodiscard]] bool isComposeBoxOpen() const;
+	[[nodiscard]] bool hasEditDraft() const;
 	[[nodiscard]] bool bypassNormalDraftHandling() const;
 	[[nodiscard]] bool shouldShowRichDraftPreview() const;
-	[[nodiscard]] std::unique_ptr<Data::Draft> readThreadFieldDraft() const;
-	void saveThreadFieldDraft(std::unique_ptr<Data::Draft> draft);
+	void clearRichDraft();
 	void migrateFieldToRichEditor();
+	void migrateSupportFieldToRichEditor();
+	void offerRichPaste(not_null<const QMimeData*> data);
+	void showRichEditorWithPaste(std::shared_ptr<QMimeData> data);
+
 	void setHistory(History *history);
 	void setEditMsgId(MsgId msgId);
 
@@ -751,6 +763,7 @@ private:
 	bool updateCmdStartShown();
 	void updateSendButtonType();
 	[[nodiscard]] bool showRecordButton() const;
+	[[nodiscard]] bool showStopButton() const;
 	[[nodiscard]] bool showInlineBotCancel() const;
 	void refreshSilentToggle();
 	void setupFastButtonMode();
@@ -771,6 +784,7 @@ private:
 	void injectSponsoredMessages() const;
 
 	bool kbWasHidden() const;
+	[[nodiscard]] bool forceReplyPending() const;
 
 	void switchToSearch(QString query);
 
@@ -786,6 +800,7 @@ private:
 	FullReplyTo _processingReplyTo;
 	HistoryItem *_processingReplyItem = nullptr;
 
+	std::shared_ptr<QMimeData> _pendingRichPaste;
 	MsgId _editMsgId = 0;
 	std::shared_ptr<Data::PhotoMedia> _photoEditMedia;
 	bool _canReplaceMedia = false;
@@ -900,6 +915,7 @@ private:
 	HistoryView::Controls::ComposeAiButton * const _aiButton = nullptr;
 	Ui::IconButton * const _sendAsFile = nullptr;
 	Ui::IconButton * const _expand = nullptr;
+	Ui::IconButton * const _discardRichDraft = nullptr;
 	object_ptr<Ui::FlatButton> _unblock;
 	object_ptr<Ui::FlatButton> _botStart;
 	object_ptr<Ui::FlatButton> _joinChannel;
@@ -981,7 +997,7 @@ private:
 	bool _saveDraftText = false;
 	base::Timer _saveDraftTimer;
 	base::Timer _saveCloudDraftTimer;
-	rpl::lifetime _threadFieldBridgeLifetime;
+	rpl::lifetime _threadFieldVisibleLifetime;
 
 	HistoryView::InfoTooltip _topToast;
 	HistoryView::AnchoredTooltip _hiddenSenderTooltip;

@@ -14,6 +14,9 @@ namespace Iv::Markdown {
 
 inline constexpr auto kNativeIvLinkSpecialColorIndex = 9;
 
+static_assert(Iv::kTextDiffInsertedColorIndex
+	== kNativeIvLinkSpecialColorIndex + 1);
+
 struct PreparedIvRichText {
 	TextWithEntities text;
 	std::vector<PreparedLink> links;
@@ -27,7 +30,7 @@ struct NativeIvRichTextContext {
 	bool dropClickHandlers = false;
 };
 
-[[nodiscard]] bool PrepareNativeIvPlainPlaceholderBlock(
+bool PrepareNativeIvPlainPlaceholderBlock(
 	QString label,
 	std::vector<PreparedBlock> *result);
 [[nodiscard]] bool PrepareNativeIvPhotoBlock(
@@ -38,7 +41,7 @@ struct NativeIvRichTextContext {
 	const Iv::RichPage::Block &data,
 	std::vector<PreparedBlock> *result,
 	NativeIvPrepareState *state);
-[[nodiscard]] bool PrepareNativeIvAudioBlock(
+[[nodiscard]] bool PrepareNativeIvDocumentBlock(
 	const Iv::RichPage::Block &data,
 	std::vector<PreparedBlock> *result,
 	NativeIvPrepareState *state);
@@ -51,6 +54,10 @@ struct NativeIvRichTextContext {
 	std::vector<PreparedBlock> *result,
 	NativeIvPrepareState *state);
 [[nodiscard]] bool PrepareNativeIvGroupedMediaBlock(
+	const Iv::RichPage::Block &data,
+	std::vector<PreparedBlock> *result,
+	NativeIvPrepareState *state);
+[[nodiscard]] bool PrepareNativeIvButtonRowBlock(
 	const Iv::RichPage::Block &data,
 	std::vector<PreparedBlock> *result,
 	NativeIvPrepareState *state);

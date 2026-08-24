@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/editor_layer_widget.h"
 #include "editor/photo_editor.h"
 #include "editor/photo_editor_layer_widget.h"
+#include "editor/video/video_editor_layer.h"
 #include "history/history_drag_area.h"
 #include "history/history_item.h"
 #include "history/history.h"
@@ -67,7 +68,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
-#include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -514,6 +514,7 @@ void EditCaptionBox::rebuildPreview() {
 		if (media && !_asFile) {
 			media->setSendWay(currentSendWay());
 			media->setCanShowHighQualityBadge(file.canUseHighQualityPhoto());
+			media->setCanShowAnimatedBadge(false);
 			_content.reset(media);
 		} else {
 			_content.reset(Ui::CreateChild<Ui::SingleFilePreview>(
@@ -780,8 +781,15 @@ void EditCaptionBox::showMenu(QPoint globalPos, bool forceTopRight) {
 	const auto canDraw = !_preparedList.files.empty()
 		? (_preparedList.files.front().type == Type::Photo)
 		: (_isPhoto && !_asFile);
+	const auto canEditVideo = !_asFile
+		&& !_preparedList.files.empty()
+		&& _preparedList.files.front().canEditVideo();
 	if (canDraw) {
 		_previewMenu->addAction(tr::lng_context_draw(tr::now), [=] {
+			_photoEditorOpens.fire({});
+		}, &st::menuIconDraw);
+	} else if (canEditVideo) {
+		_previewMenu->addAction(tr::lng_context_edit_video(tr::now), [=] {
 			_photoEditorOpens.fire({});
 		}, &st::menuIconDraw);
 	}
@@ -858,7 +866,24 @@ void EditCaptionBox::setupPhotoEditorEventHandler() {
 			&& (!_photoMedia
 				|| !_photoMedia->image(Data::PhotoSize::Large))) {
 			return;
-		} else if (!*openedOnce) {
+		}
+		if (!_preparedList.files.empty()
+			&& _preparedList.files.front().canEditVideo()) {
+			Editor::OpenWithPreparedVideoFile(
+				this,
+				controller->uiShow(),
+				&_preparedList,
+				0,
+				st::sendMediaPreviewSize,
+				[=](bool ok) {
+					if (ok) {
+						rebuildPreview();
+					}
+				},
+				PhotoSideLimit(true));
+			return;
+		}
+		if (!*openedOnce) {
 			*openedOnce = true;
 			controller->session().settings().incrementPhotoEditorHintShown();
 			controller->session().saveSettings();
@@ -873,7 +898,11 @@ void EditCaptionBox::setupPhotoEditorEventHandler() {
 				controller->uiShow(),
 				&_preparedList.files.front(),
 				st::sendMediaPreviewSize,
-				[=](bool ok) { if (ok) rebuildPreview(); },
+				[=](bool ok) {
+					if (ok) {
+						rebuildPreview();
+					}
+				},
 				PhotoSideLimit(true));
 		} else {
 			EditPhotoImage(
@@ -1091,6 +1120,7 @@ bool EditCaptionBox::setPreparedList(Ui::PreparedList &&list) {
 		if (const auto video = std::get_if<Video>(
 				&file->information->media)) {
 			video->isGifv = false;
+			video->modifications.gif = false;
 		}
 	}
 	if (invalidForAlbum) {

@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_boxes.h"
 #include "styles/style_giveaway.h"
-#include "styles/style_settings.h"
 
 namespace Ui {
 namespace {
@@ -210,7 +209,7 @@ void SelectCountriesBox(
 	});
 	multiSelect->setItemRemovedCallback([=](uint64 itemId) {
 		auto &list = state->resultList;
-		auto &button = buttons[itemId];
+		const auto &button = buttons[itemId];
 		const auto it = ranges::find(list, button.iso2);
 		if (it != end(list)) {
 			list.erase(it);

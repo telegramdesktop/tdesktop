@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/effects/animated_string.h"
 #include "ui/effects/animations.h"
+#include "ui/effects/drifting_particles.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/shake_animation.h"
 #include "ui/emoji_config.h"
@@ -40,8 +41,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "ui/widgets/tooltip.h"
 #include "window/window_session_controller.h"
+#include "styles/style_background_preview_box.h"
 #include "styles/style_boxes.h"
+#include "styles/style_edit_peer_members.h"
 #include "styles/style_layers.h"
+#include "styles/style_settings_local_storage.h"
 
 #include <QtCore/QStorageInfo>
 
@@ -283,111 +287,46 @@ not_null<Ui::SlideWrap<Ui::VerticalLayout>*> AddIslandWrap(
 		+ u" GB"_q;
 }
 
-[[nodiscard]] QImage GenerateCompleteStar(int size, float64 k) {
-	const auto ratio = style::DevicePixelRatio();
-	auto image = QImage(
-		size * ratio,
-		size * ratio,
-		QImage::Format_ARGB32_Premultiplied);
-	image.setDevicePixelRatio(ratio);
-	image.fill(Qt::transparent);
-
-	auto p = QPainter(&image);
-	auto hq = PainterHighQualityEnabler(p);
-	p.setPen(Qt::NoPen);
-	p.setBrush(Qt::white);
-
-	const auto half = size / 2.;
-	const auto mid = half * k;
-	auto path = QPainterPath();
-	path.moveTo(0, half);
-	path.lineTo(mid, mid);
-	path.lineTo(half, 0);
-	path.lineTo(size - mid, mid);
-	path.lineTo(size, half);
-	path.lineTo(size - mid, size - mid);
-	path.lineTo(half, size);
-	path.lineTo(mid, size - mid);
-	path.closeSubpath();
-	p.drawPath(path);
-
-	return image;
-}
-
 class CompleteParticles final {
 public:
+	CompleteParticles();
+
 	void paint(
 		QPainter &p,
 		QRect rect,
 		QPointF center,
 		float64 alpha,
-		crl::time now,
 		bool paused);
 
 private:
-	struct Particle {
-		float64 x = 0.;
-		float64 y = 0.;
-		float64 vecX = 0.;
-		float64 vecY = 0.;
-		float64 inProgress = 0.;
-		float64 baseAlpha = 0.;
-		crl::time lifeTime = 0;
-		int starIndex = 0;
-	};
-
-	void regenerate(Particle &particle, QPointF center, crl::time now);
-	[[nodiscard]] const QImage &star(int index);
-
-	std::vector<Particle> _particles;
-	std::array<QImage, 3> _stars;
+	Ui::DriftingParticles _particles;
 	QImage _layer;
-	std::array<float64, 3> _angle = { { 0., 0., 0. } };
-	crl::time _prevTime = 0;
-	crl::time _pausedAt = 0;
-	crl::time _pauseOffset = 0;
 
 };
 
-const QImage &CompleteParticles::star(int index) {
-	auto &image = _stars[index];
-	if (image.isNull()) {
-		const int sizes[] = {
-			st::localStorageCompleteStar1,
-			st::localStorageCompleteStar2,
-			st::localStorageCompleteStar3,
-		};
-		image = GenerateCompleteStar(sizes[index], 0.85);
+CompleteParticles::CompleteParticles()
+: _particles([] {
+	const int sizes[] = {
+		st::localStorageCompleteStar1,
+		st::localStorageCompleteStar2,
+		st::localStorageCompleteStar3,
+	};
+	auto sprites = std::vector<Ui::DriftingSprite>();
+	sprites.reserve(std::size(sizes));
+	for (const auto size : sizes) {
+		sprites.push_back({
+			.image = Ui::FourPointStarImage({ .size = size }),
+		});
 	}
-	return image;
-}
-
-void CompleteParticles::regenerate(
-		Particle &particle,
-		QPointF center,
-		crl::time now) {
-	auto bytes = std::array<uchar, 8>();
-	base::RandomFill(bytes.data(), bytes.size());
-	auto index = 0;
-	const auto next = [&] { return bytes[index++] / 255.; };
-
-	particle.starIndex = std::min(2, int(next() * 3.));
-	particle.lifeTime = now + 2000 + crl::time(next() * 1000.);
-
-	const auto field = float64(st::localStorageCompleteField);
-	const auto exclude = float64(st::localStorageCompleteExclude);
-	const auto radius = next() * (field - exclude) + exclude;
-	const auto angle = next() * 2. * M_PI;
-	particle.x = center.x() + radius * std::sin(angle);
-	particle.y = center.y() + radius * std::cos(angle);
-
-	const auto direction = std::atan2(
-		particle.y - center.y(),
-		particle.x - center.x());
-	particle.vecX = std::cos(direction);
-	particle.vecY = std::sin(direction);
-	particle.baseAlpha = (50 + int(next() * 50.)) / 100.;
-	particle.inProgress = 0.;
+	return Ui::DriftingParticles::Config{
+		.sprites = std::move(sprites),
+		.count = kCompleteParticlesCount,
+		.speed = float64(st::localStorageCompleteSpeed),
+		.excludeRadius = float64(st::localStorageCompleteExclude),
+		.orbit = true,
+		.checkBounds = true,
+	};
+}()) {
 }
 
 void CompleteParticles::paint(
@@ -395,44 +334,16 @@ void CompleteParticles::paint(
 		QRect rect,
 		QPointF center,
 		float64 alpha,
-		crl::time now,
 		bool paused) {
 	if (alpha <= 0.) {
 		return;
-	} else if (_particles.empty()) {
-		_particles.resize(kCompleteParticlesCount);
 	}
-
-	if (paused) {
-		if (!_pausedAt) {
-			_pausedAt = now;
-		}
-		now = _pausedAt - _pauseOffset;
-	} else {
-		if (_pausedAt) {
-			_pauseOffset += now - _pausedAt;
-			_pausedAt = 0;
-		}
-		now -= _pauseOffset;
-	}
-
-	if (!_prevTime) {
-		_prevTime = now;
-		for (auto &particle : _particles) {
-			regenerate(particle, center, now);
-		}
-	}
-	const auto diff = std::clamp(
-		now - _prevTime,
-		crl::time(4),
-		crl::time(50));
-	_prevTime = now;
-
-	if (!paused) {
-		_angle[0] += 360. * (diff / 40000.);
-		_angle[1] += 360. * (diff / 50000.);
-		_angle[2] += 360. * (diff / 60000.);
-	}
+	const auto field = float64(st::localStorageCompleteField);
+	_particles.setGeometry(
+		Rect(center.x() - field / 2., center.y() - field / 2., Size(field)),
+		rect,
+		QRectF());
+	_particles.setPaused(paused);
 
 	const auto ratio = style::DevicePixelRatio();
 	const auto pixelSize = rect.size() * ratio;
@@ -443,50 +354,9 @@ void CompleteParticles::paint(
 	_layer.fill(Qt::transparent);
 
 	auto lp = QPainter(&_layer);
-	auto hq = PainterHighQualityEnabler(lp);
-	const auto speed = st::localStorageCompleteSpeed * (diff / 660.);
-	for (auto &particle : _particles) {
-		const auto radians = _angle[particle.starIndex] * M_PI / 180.;
-		const auto cosA = std::cos(radians);
-		const auto sinA = std::sin(radians);
-		const auto dx = particle.x - center.x();
-		const auto dy = particle.y - center.y();
-		const auto drawX = center.x() + dx * cosA - dy * sinA;
-		const auto drawY = center.y() + dx * sinA + dy * cosA;
-
-		auto outProgress = 0.;
-		if (particle.lifeTime - now < 200) {
-			outProgress = std::clamp(
-				1. - (particle.lifeTime - now) / 150.,
-				0.,
-				1.);
-		}
-		const auto t = particle.inProgress - 1.;
-		const auto scale = t * t * (3. * t + 2.) + 1.;
-		const auto &image = star(particle.starIndex);
-		const auto side = image.width() / float64(ratio);
-
-		lp.save();
-		lp.setOpacity(particle.baseAlpha * (1. - outProgress));
-		lp.translate(drawX - rect.x(), drawY - rect.y());
-		lp.scale(scale, scale);
-		lp.drawImage(QPointF(-side / 2., -side / 2.), image);
-		lp.restore();
-
-		if (!paused) {
-			particle.x += particle.vecX * speed;
-			particle.y += particle.vecY * speed;
-			if (particle.inProgress < 1.) {
-				particle.inProgress = std::min(
-					particle.inProgress + diff / 200.,
-					1.);
-			}
-		}
-		if (now > particle.lifeTime
-			|| !rect.contains(QPoint(int(drawX), int(drawY)))) {
-			regenerate(particle, center, now);
-		}
-	}
+	lp.translate(-rect.x(), -rect.y());
+	_particles.paint(lp);
+	lp.resetTransform();
 	lp.setOpacity(1.);
 	lp.setCompositionMode(QPainter::CompositionMode_SourceIn);
 	auto gradient = QLinearGradient(
@@ -496,7 +366,7 @@ void CompleteParticles::paint(
 	gradient.setColorAt(0.07, QColor(0x6e, 0xd5, 0x56));
 	gradient.setColorAt(0.93, QColor(0x41, 0xba, 0x71));
 	gradient.setColorAt(1., QColor(0x41, 0xba, 0x71, 0));
-	lp.fillRect(QRect(QPoint(), rect.size()), gradient);
+	lp.fillRect(Rect(rect.size()), gradient);
 	lp.end();
 
 	p.setOpacity(alpha);
@@ -1114,13 +984,7 @@ void LocalStorage::Chart::paintEvent(QPaintEvent *e) {
 	p.restore();
 
 	if (complete > 0.) {
-		_completeParticles.paint(
-			p,
-			rect(),
-			center,
-			complete,
-			crl::now(),
-			paused());
+		_completeParticles.paint(p, rect(), center, complete, paused());
 
 		auto gradient = QLinearGradient(
 			QPointF(center.x(), center.y() - outer),
@@ -1625,6 +1489,10 @@ bool LocalStorage::paintOuter(
 void LocalStorage::showFinished() {
 	Section::showFinished();
 
+	_shown = true;
+	if (auto pending = base::take(_pendingStats)) {
+		update(std::move(pending->stats), std::move(pending->statsBig));
+	}
 	if (_clearButton) {
 		controller()->checkHighlightControl(
 			u"storage/clear-cache"_q,
@@ -1653,6 +1521,13 @@ void LocalStorage::updateRow(
 void LocalStorage::update(
 		Database::Stats &&stats,
 		Database::Stats &&statsBig) {
+	if (!_shown && !isVisible()) {
+		_pendingStats = PendingStats{
+			.stats = std::move(stats),
+			.statsBig = std::move(statsBig),
+		};
+		return;
+	}
 	_stats = std::move(stats);
 	_statsBig = std::move(statsBig);
 	for (const auto &entry : _rows) {

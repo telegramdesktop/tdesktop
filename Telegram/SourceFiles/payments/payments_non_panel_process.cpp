@@ -160,26 +160,30 @@ void ProcessCreditsReceipt(
 }
 
 Fn<void(NonPanelPaymentForm)> ProcessNonPanelPaymentFormFactory(
-		not_null<Window::SessionController*> controller,
+		base::weak_ptr<Window::SessionController> controller,
 		Fn<void(CheckoutResult)> maybeReturnToBot) {
 	return [=](NonPanelPaymentForm form) {
+		const auto strong = controller.get();
+		if (!strong) {
+			return;
+		}
 		using CreditsFormDataPtr = std::shared_ptr<CreditsFormData>;
 		using CreditsReceiptPtr = std::shared_ptr<CreditsReceiptData>;
 		v::match(form, [&](const CreditsFormDataPtr &form) {
 			ProcessCreditsPayment(
-				controller->uiShow(),
-				controller->content().get(),
+				strong->uiShow(),
+				strong->content().get(),
 				form,
 				maybeReturnToBot);
-			controller->window().activate();
+			strong->window().activate();
 		}, [&](const CreditsReceiptPtr &receipt) {
-			ProcessCreditsReceipt(controller, receipt, maybeReturnToBot);
+			ProcessCreditsReceipt(strong, receipt, maybeReturnToBot);
 		}, [](RealFormPresentedNotification) {});
 	};
 }
 
 Fn<void(NonPanelPaymentForm)> ProcessNonPanelPaymentFormFactory(
-		not_null<Window::SessionController*> controller,
+		base::weak_ptr<Window::SessionController> controller,
 		not_null<HistoryItem*> item) {
 	return IsCreditsInvoice(item)
 		? ProcessNonPanelPaymentFormFactory(controller)

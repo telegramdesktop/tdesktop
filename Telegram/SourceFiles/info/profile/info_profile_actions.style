@@ -1,0 +1,69 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "info/info.style";
+
+infoProfileLabeledPadding: margins(23px, 9px, 20px, 7px);
+infoProfileLabeledUsernamePadding: margins(23px, 9px, 20px, 7px);
+infoProfilePersonalChannelPadding: margins(79px, 9px, 20px, 7px);
+infoProfileLabeledButtonQrRightSkip: 0px;
+infoIconInformation: icon {{ "info/info_information", infoIconFg }};
+infoIconAddMember: icon {{ "info/info_add_member", infoIconFg }};
+infoIconEmojiStatusAccess: icon {{ "menu/read_reactions", infoIconFg, point(4px, 4px) }};
+infoIconShare: icon {{ "info/info_share", infoIconFg }};
+infoIconEdit: icon {{ "info/info_edit", infoIconFg }};
+infoIconDelete: icon {{ "info/info_delete", infoIconFg }};
+infoIconLeave: icon {{ "info/info_leave", infoIconFg }};
+infoIconPrivacyPolicy: icon {{ "menu/2sv_off", infoIconFg, point(4px, 4px) }};
+infoIconSettings: icon {{ "menu/manage", infoIconFg, point(4px, 4px) }};
+infoChannelMembersIconPosition: point(20px, 4px);
+infoChannelAdminsIconPosition: point(24px, 7px);
+infoEarnCreditsIconPosition: point(24px, 7px);
+infoEarnCurrencyIconPosition: point(20px, 3px);
+infoOpenAppMargin: margins(16px, 12px, 16px, 12px);
+infoPersonalChannelIconPosition: point(25px, 12px);
+infoPersonalChannelNameLabel: FlatLabel(infoProfileStatus) {
+	textFg: windowBoldFg;
+	style: semiboldTextStyle;
+	maxHeight: 20px;
+}
+infoPersonalChannelDateSkip: 20px;
+infoPersonalChannelDateLabel: FlatLabel(infoProfileStatus) {
+	textFg: dialogsDateFg;
+	style: TextStyle(semiboldTextStyle) {
+		font: dialogsDateFont;
+	}
+	maxHeight: 20px;
+}
+infoPersonalChannelUserpicSkip: -5px;
+infoMainButtonAttention: SettingsButton(infoMainButton) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
+}
+infoBlockButtonSkip: 8px;
+infoSharedMediaCountButton: SettingsCountButton(managePeerButton) {
+	button: infoSharedMediaButton;
+	iconPosition: point(20px, 4px);
+	label: defaultSettingsRightLabel;
+	labelPosition: point(24px, 10px);
+}
+infoHoursState: FlatLabel(infoLabeled) {
+	minWidth: 0px;
+}
+infoHoursValue: FlatLabel(infoHoursState) {
+	textFg: windowSubTextFg;
+	align: align(topright);
+}
+infoHoursDayLabel: infoHoursState;
+infoHoursOuter: RoundButton(defaultActiveButton) {
+	textBg: transparent;
+	textBgOver: transparent;
+	ripple: defaultRippleAnimationBgOver;
+}
+infoHoursOuterMargin: margins(8px, 4px, 8px, 4px);
+infoHoursDaySkip: 6px;
+infoHoursArrowSize: 4px;

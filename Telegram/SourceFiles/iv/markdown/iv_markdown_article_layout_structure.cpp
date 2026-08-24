@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/markdown/iv_markdown_article_text.h"
 
 #include "lang/lang_keys.h"
+#include "ui/text/text_renderer.h" // Ui::Text::kQuoteCollapsedLines
+
 #include "styles/style_iv.h"
 
 #include <algorithm>
@@ -20,7 +22,7 @@ namespace {
 		const Ui::Text::String &leaf,
 		const QRect &textRect,
 		const style::TextStyle &style) {
-	const auto lines = leaf.countLinesGeometry(textRect.width(), true);
+	const auto lines = leaf.countLinesGeometry(textRect.width());
 	return textRect.y() + (lines.empty()
 		? TextLineBaseline(style)
 		: lines.front().baseline);
@@ -40,7 +42,7 @@ namespace {
 	switch (kind) {
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::Document:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -58,6 +60,7 @@ namespace {
 	case PreparedBlockKind::DisplayMath:
 	case PreparedBlockKind::Table:
 	case PreparedBlockKind::Placeholder:
+	case PreparedBlockKind::ButtonRow:
 	case PreparedBlockKind::EmbedPost:
 		return false;
 	}
@@ -152,6 +155,15 @@ void RecenterPullquoteChild(
 	RefreshLogicalGeometry(block);
 }
 
+[[nodiscard]] int TextBandWidth(
+		const style::Markdown &st,
+		int width,
+		bool useArticleBands) {
+	return useArticleBands
+		? PaddedWidth(width, st.textPadding)
+		: std::max(width, 1);
+}
+
 [[nodiscard]] QRect BlockBand(
 		PreparedBlockKind kind,
 		const style::Markdown &st,
@@ -171,12 +183,9 @@ void RecenterPullquoteChild(
 		const style::Markdown &st,
 		int width,
 		LayoutContext context) {
-	if (!context.useArticleBands) {
-		return std::max(width, 1);
-	}
-	return UsesMediaBand(kind)
+	return (context.useArticleBands && UsesMediaBand(kind))
 		? PaddedWidth(width, st.mediaPadding)
-		: PaddedWidth(width, st.textPadding);
+		: TextBandWidth(st, width, context.useArticleBands);
 }
 
 [[nodiscard]] bool IsRelatedArticlesHeader(
@@ -206,6 +215,8 @@ void PrepareNestedContext(
 	context->articleLeft = left;
 	context->articleWidth = std::max(width, 1);
 	context->listItemContentShift = 0;
+	context->collapsibleQuoteLines = 0;
+	context->collapsibleQuoteCollapsed = false;
 }
 
 [[nodiscard]] bool TextEmptyForLayout(
@@ -266,6 +277,7 @@ void PrepareNestedContext(
 	block.supplementary = prepared.supplementary;
 	block.pullquote = prepared.pullquote;
 	block.quoteAuthor = prepared.quoteAuthor;
+	block.footer = prepared.footer;
 	block.flowTextAlign = FlowTextAlign(prepared.flowAlignment);
 	return block;
 }
@@ -282,11 +294,12 @@ void PrepareNestedContext(
 	case PreparedBlockKind::Heading:
 	case PreparedBlockKind::CodeBlock:
 	case PreparedBlockKind::Rule:
+	case PreparedBlockKind::ButtonRow:
 	case PreparedBlockKind::DisplayMath:
 	case PreparedBlockKind::Table:
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::Document:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -327,6 +340,8 @@ void RefreshLogicalGeometry(LaidOutBlock *block) {
 		.actionRect = block->actionRect,
 		.markerRect = block->markerRect,
 		.contentRect = block->contentRect,
+		.collapseControlRect = block->collapseControlRect,
+		.buttonRowControlRect = block->buttonRowControlRect,
 		.formulaRect = block->formulaRect,
 		.tableRect = block->tableRect,
 		.mediaRect = block->mediaRect,
@@ -349,6 +364,8 @@ void ClearBlockGeometry(LaidOutBlock *block) {
 	block->actionRect = QRect();
 	block->markerRect = QRect();
 	block->contentRect = QRect();
+	block->collapseControlRect = QRect();
+	block->buttonRowControlRect = QRect();
 	block->formulaRect = QRect();
 	block->tableRect = QRect();
 	block->mediaRect = QRect();
@@ -381,24 +398,8 @@ void ClearBlockGeometry(LaidOutBlock *block) {
 		const style::TextStyle &textStyle,
 		int width) {
 	return std::max(
-		leaf.countHeight(width, true),
+		leaf.countHeight(width),
 		TextLineHeight(textStyle));
-}
-
-[[nodiscard]] bool TextNeedsRetainedLeaf(const QString &text) {
-	for (const auto ch : text) {
-		if (!Ui::Text::IsTrimmed(ch)
-			&& !Ui::Text::IsReplacedBySpace(ch)) {
-			return true;
-		}
-	}
-	return false;
-}
-
-[[nodiscard]] bool MissingRetainedLeaf(
-		const QString &text,
-		const Ui::Text::String &leaf) {
-	return TextNeedsRetainedLeaf(text) && leaf.isEmpty();
 }
 
 struct WidthAnalysisNode {
@@ -411,6 +412,7 @@ struct WidthAnalysisNode {
 	int scrollOwnerOverflowWidth = 1;
 	int scrollViewportMinimumWidth = 1;
 	int outerScrollViewportMinimumWidth = 1;
+	int inlineButtonWidthCap = 0;
 	bool ownerEligible = false;
 	bool chosenScrollOwner = false;
 	bool subtreeNeedsScrollOwner = false;
@@ -492,11 +494,12 @@ void FinalizeOwnerSelection(
 	case PreparedBlockKind::Heading:
 	case PreparedBlockKind::CodeBlock:
 	case PreparedBlockKind::Rule:
+	case PreparedBlockKind::ButtonRow:
 	case PreparedBlockKind::DisplayMath:
 	case PreparedBlockKind::Table:
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::Document:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -581,6 +584,108 @@ void FinalizeOwnerSelection(
 		: details.bodyPadding;
 }
 
+[[nodiscard]] int BlockTextFrameWidth(
+		const PreparedBlock &block,
+		const style::Markdown &st,
+		int width,
+		LayoutContext context) {
+	const auto bands = context.useArticleBands;
+	switch (block.kind) {
+	case PreparedBlockKind::Details: {
+		const auto band = BlockBandWidth(block.kind, st, width, context);
+		const auto padding = DetailsHeaderPadding(context, st);
+		const auto icon = st.details.icon.empty()
+			? 0
+			: TextLineHeight(st.details.summaryStyle);
+		const auto iconSkip = icon ? st.details.iconSkip : 0;
+		const auto action = context.editMode
+			? DetailsStateReserveWidth(st)
+			: 0;
+		const auto actionSkip = action ? st.details.stateSkip : 0;
+		return std::max(
+			band
+				- padding.left()
+				- padding.right()
+				- icon
+				- iconSkip
+				- actionSkip
+				- action,
+			1);
+	}
+	// Nested media frames are derived from prepared data (paddings and
+	// the doubled intrinsic width), matching the geometry computed before
+	// the runtime media view substitutes its self-chosen size; that size
+	// exists only in the layout walk, so these are exact upper bounds.
+	case PreparedBlockKind::Photo:
+		return bands
+			? TextBandWidth(st, width, true)
+			: LimitedMediaWidth(
+				PaddedWidth(width, st.photo.padding),
+				block.photo.width);
+	case PreparedBlockKind::Video:
+		return bands
+			? TextBandWidth(st, width, true)
+			: LimitedMediaWidth(
+				PaddedWidth(width, st.photo.padding),
+				block.video.media.width);
+	case PreparedBlockKind::Map:
+		return bands
+			? TextBandWidth(st, width, true)
+			: PaddedWidth(width, st.photo.padding);
+	case PreparedBlockKind::GroupedMedia:
+		return bands
+			? TextBandWidth(st, width, true)
+			: PaddedWidth(width, st.groupedMedia.padding);
+	case PreparedBlockKind::Document:
+		return bands
+			? TextBandWidth(st, width, true)
+			: PaddedWidth(width, st.audio.padding);
+	case PreparedBlockKind::Channel:
+		return bands
+			? TextBandWidth(st, width, true)
+			: PaddedWidth(width, st.channel.padding);
+	case PreparedBlockKind::Table:
+		return std::max(
+			TextBandWidth(st, width, bands)
+				- st.table.cellPadding.left()
+				- st.table.cellPadding.right()
+				- 2 * TableBorder(block.tableBordered, st),
+			1);
+	case PreparedBlockKind::CodeBlock:
+		return std::max(
+			TextBandWidth(st, width, bands)
+				- HorizontalMarginsWidth(BlockquotePadding(st.code.pre)),
+			1);
+	case PreparedBlockKind::Paragraph:
+	case PreparedBlockKind::Thinking:
+	case PreparedBlockKind::Heading:
+	case PreparedBlockKind::Rule:
+	case PreparedBlockKind::ButtonRow:
+	case PreparedBlockKind::List:
+	case PreparedBlockKind::ListItem:
+	case PreparedBlockKind::Quote:
+	case PreparedBlockKind::DisplayMath:
+	case PreparedBlockKind::RelatedArticle:
+	case PreparedBlockKind::EmbedPost:
+	case PreparedBlockKind::Placeholder:
+		return TextBandWidth(st, width, bands);
+	}
+	return TextBandWidth(st, width, bands);
+}
+
+[[nodiscard]] int BlockInlineButtonWidthCap(
+		const PreparedBlock &block,
+		const style::Markdown &st,
+		int blockWidth,
+		int width,
+		LayoutContext context) {
+	return std::min({
+		std::max(blockWidth, 1),
+		BlockTextFrameWidth(block, st, width, context),
+		st.inlineButton.maxWidth,
+	});
+}
+
 [[nodiscard]] const WidthAnalysisNode *NextActiveScrollOwner(
 		const WidthAnalysisNode &analysis,
 		const WidthAnalysisNode *activeScrollOwner) {
@@ -657,14 +762,22 @@ void FinalizeOwnerSelection(
 					- st.relatedArticle.headerPadding.right(),
 				1);
 		}
-		result.push_back(AnalyzeBlock(
+		blockContext.inlineButtonWidthCap = BlockInlineButtonWidthCap(
+			block,
+			st,
+			blockWidth,
+			width,
+			context);
+		auto node = AnalyzeBlock(
 			block,
 			formulas,
 			inlineFormulaObjects,
 			mediaRuntime,
 			st,
 			blockWidth,
-			blockContext));
+			blockContext);
+		node.inlineButtonWidthCap = blockContext.inlineButtonWidthCap;
+		result.push_back(std::move(node));
 	}
 	return result;
 }
@@ -880,7 +993,8 @@ void FinalizeOwnerSelection(
 			analysis.scrollOwnerOverflowWidth,
 			analysis.outerScrollViewportMinimumWidth,
 		});
-		analysis.ownerEligible = !prepared.children.empty();
+		analysis.ownerEligible = !prepared.children.empty()
+			&& !context.listItemDepth;
 	} break;
 	case PreparedBlockKind::ListItem: {
 		const auto markerWidth = std::max(
@@ -929,7 +1043,7 @@ void FinalizeOwnerSelection(
 			analysis.scrollOwnerOverflowWidth,
 			analysis.outerScrollViewportMinimumWidth,
 		});
-		analysis.ownerEligible = !prepared.children.empty();
+		analysis.ownerEligible = false;
 	} break;
 	case PreparedBlockKind::Quote: {
 		const auto depthDelta = std::max(
@@ -1194,10 +1308,24 @@ void FinalizeOwnerSelection(
 			contentOverhead + analysis.contentPreferredWidth);
 		analysis.ownerEligible = !prepared.children.empty();
 	} break;
+	case PreparedBlockKind::ButtonRow: {
+		const auto minimum = std::max(
+			ButtonRowMinWidth(
+				int(prepared.buttonRow.buttons.size()),
+				st.buttonRow)
+				+ (context.editMode ? ButtonRowControlReserve() : 0),
+			1);
+		analysis.contentMinimumWidth = minimum;
+		analysis.contentPreferredWidth = minimum;
+		analysis.outerMinimumWidth = minimum;
+		analysis.outerPreferredWidth = minimum;
+		analysis.scrollOwnerMinimumWidth = minimum;
+		analysis.ownerEligible = false;
+	} break;
 	case PreparedBlockKind::Rule:
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::Document:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -1268,6 +1396,16 @@ void FinalizeOwnerSelection(
 					- st.relatedArticle.headerPadding.left()
 					- st.relatedArticle.headerPadding.right(),
 				1);
+		}
+		const auto inlineButtonWidthCap = BlockInlineButtonWidthCap(
+			preparedBlock,
+			st,
+			blockWidth,
+			width,
+			context);
+		if (block.carriesInlineButton
+			&& (block.inlineButtonWidthCap != inlineButtonWidthCap)) {
+			return std::nullopt;
 		}
 		auto analysis = AnalyzeRetainedBlock(
 			preparedBlock,
@@ -1513,7 +1651,8 @@ void FinalizeOwnerSelection(
 			analysis.scrollOwnerOverflowWidth,
 			analysis.outerScrollViewportMinimumWidth,
 		});
-		analysis.ownerEligible = !prepared.children.empty();
+		analysis.ownerEligible = !prepared.children.empty()
+			&& !context.listItemDepth;
 	} break;
 	case PreparedBlockKind::ListItem: {
 		if (prepared.children.size() != block.children.size()) {
@@ -1572,7 +1711,7 @@ void FinalizeOwnerSelection(
 			analysis.scrollOwnerOverflowWidth,
 			analysis.outerScrollViewportMinimumWidth,
 		});
-		analysis.ownerEligible = !prepared.children.empty();
+		analysis.ownerEligible = false;
 	} break;
 	case PreparedBlockKind::Quote: {
 		const auto depthDelta = std::max(
@@ -1847,10 +1986,24 @@ void FinalizeOwnerSelection(
 			contentOverhead + analysis.contentPreferredWidth);
 		analysis.ownerEligible = !prepared.children.empty();
 	} break;
+	case PreparedBlockKind::ButtonRow: {
+		const auto minimum = std::max(
+			ButtonRowMinWidth(
+				int(prepared.buttonRow.buttons.size()),
+				st.buttonRow)
+				+ (context.editMode ? ButtonRowControlReserve() : 0),
+			1);
+		analysis.contentMinimumWidth = minimum;
+		analysis.contentPreferredWidth = minimum;
+		analysis.outerMinimumWidth = minimum;
+		analysis.outerPreferredWidth = minimum;
+		analysis.scrollOwnerMinimumWidth = minimum;
+		analysis.ownerEligible = false;
+	} break;
 	case PreparedBlockKind::Rule:
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::Document:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -2070,6 +2223,8 @@ using LayoutListChildCallback = std::function<std::optional<int>(
 			= context.taskMarkerRippleRuntimeFactory(*prepared.editListItem);
 	}
 	if (ordered) {
+		auto markerContext = context;
+		markerContext.rtl = false;
 		BuildOrReusePlainTextLeaf(
 			&block.marker,
 			CachedTextLeafSlot::Marker,
@@ -2077,7 +2232,7 @@ using LayoutListChildCallback = std::function<std::optional<int>(
 			st.body,
 			markerText,
 			PlainTextMinResizeWidth(st.body),
-			context);
+			markerContext);
 	}
 	const auto bottom = LayoutListItemBlockGeometry(
 		prepared,
@@ -2133,6 +2288,8 @@ using LayoutListChildCallback = std::function<std::optional<int>(
 			LayoutContext childContext,
 			bool tight) -> std::optional<int> {
 		const auto &child = prepared.children[index];
+		childContext.inlineButtonWidthCap
+			= analysis.children[index].inlineButtonWidthCap;
 		auto laidOut = (child.kind == PreparedBlockKind::ListItem)
 			? LayoutListItemBlock(
 				child,
@@ -2166,6 +2323,8 @@ using LayoutListChildCallback = std::function<std::optional<int>(
 				childLogicalWidth,
 				childContext);
 		const auto bottom = BlockBottom(laidOut);
+		laidOut.inlineButtonWidthCap = childContext.inlineButtonWidthCap;
+		laidOut.carriesInlineButton = PreparedBlockHasInlineButton(child);
 		block.children.push_back(std::move(laidOut));
 		return bottom;
 	};
@@ -2279,6 +2438,8 @@ using LayoutListChildCallback = std::function<std::optional<int>(
 			context);
 	}
 	if (context.editMode) {
+		auto actionContext = context;
+		actionContext.rtl = false;
 		BuildOrReusePlainTextLeaf(
 			&block.actionLeaf,
 			CachedTextLeafSlot::Action,
@@ -2286,7 +2447,7 @@ using LayoutListChildCallback = std::function<std::optional<int>(
 			details.summaryStyle,
 			DetailsStateText(prepared.detailsOpen),
 			PlainTextMinResizeWidth(details.summaryStyle),
-			context);
+			actionContext);
 	}
 	const auto bottom = LayoutDetailsBlockGeometry(
 		prepared,
@@ -2444,6 +2605,17 @@ using LayoutListChildCallback = std::function<std::optional<int>(
 			context);
 	case PreparedBlockKind::Rule:
 		return LayoutRuleBlock(prepared, st, left, top, width);
+	case PreparedBlockKind::ButtonRow:
+		return LayoutButtonRowBlock(
+			prepared,
+			formulas,
+			inlineFormulaObjects,
+			mediaRuntime,
+			st,
+			left,
+			top,
+			width,
+			context);
 	case PreparedBlockKind::List:
 		return LayoutListBlock(
 			prepared,
@@ -2539,8 +2711,8 @@ using LayoutListChildCallback = std::function<std::optional<int>(
 			top,
 			width,
 			context);
-	case PreparedBlockKind::Audio:
-		return LayoutAudioBlock(
+	case PreparedBlockKind::Document:
+		return LayoutDocumentBlock(
 			prepared,
 			formulas,
 			inlineFormulaObjects,
@@ -2663,6 +2835,7 @@ int LayoutBlocks(
 		const auto next = NextVisibleBlock(prepared, i);
 		auto blockContext = context;
 		blockContext.preparedPath.push_back(i);
+		blockContext.inlineButtonWidthCap = analysis[i].inlineButtonWidthCap;
 		if (HideEmptyQuoteAuthorBlock(block, blockContext)) {
 			blocks->push_back(HiddenQuoteAuthorBlock(block));
 			continue;
@@ -2730,6 +2903,8 @@ int LayoutBlocks(
 			RefreshLogicalGeometry(&laidOut);
 		}
 		y = BlockBottom(laidOut);
+		laidOut.inlineButtonWidthCap = blockContext.inlineButtonWidthCap;
+		laidOut.carriesInlineButton = PreparedBlockHasInlineButton(block);
 		blocks->push_back(std::move(laidOut));
 		if (!anchorOnly) {
 			previous = &block;
@@ -2825,7 +3000,7 @@ int LayoutBlocks(
 	} else if (ordered) {
 		markerTextWidth = std::max(block->marker.maxWidth(), 1);
 		markerTextHeight = std::max(
-			block->marker.countHeight(markerTextWidth, true),
+			block->marker.countHeight(markerTextWidth),
 			bodyLineHeight);
 	}
 	ClearBlockGeometry(block);
@@ -2838,7 +3013,9 @@ int LayoutBlocks(
 		currentScrollOwner,
 		logicalWidth);
 	block->markerWidth = std::max(list.markerWidth, markerTextWidth);
-	const auto bodyLeft = left + block->markerWidth + list.markerSkip;
+	const auto bodyLeft = context.rtl
+		? left
+		: (left + block->markerWidth + list.markerSkip);
 	const auto bodyWidth = std::max(
 		width - block->markerWidth - list.markerSkip,
 		1);
@@ -2887,13 +3064,18 @@ int LayoutBlocks(
 		(bodyLineHeight - markerTextHeight) / 2,
 		0);
 	if (task) {
+		const auto markerLeft = context.rtl
+			? (left + width - list.taskCheck.diameter)
+			: left;
 		block->markerRect = QRect(
-			left,
+			markerLeft,
 			markerTop,
 			list.taskCheck.diameter,
 			list.taskCheck.diameter);
 	} else if (ordered) {
-		const auto markerLeft = left + block->markerWidth - markerTextWidth;
+		const auto markerLeft = context.rtl
+			? (left + width - block->markerWidth)
+			: (left + block->markerWidth - markerTextWidth);
 		const auto markerLeafBaseline = LeafFirstLineBaseline(
 			block->marker,
 			QRect(0, 0, markerTextWidth, markerTextHeight),
@@ -2904,7 +3086,10 @@ int LayoutBlocks(
 			markerTextWidth,
 			markerTextHeight);
 	} else {
-		block->markerCenter = BulletMarkerCenter(left, markerBaseline, st);
+		const auto center = BulletMarkerCenter(left, markerBaseline, st);
+		block->markerCenter = context.rtl
+			? QPoint(left + width - (center.x() - left), center.y())
+			: center;
 	}
 	block->contentRect = QRect(bodyLeft, top, bodyWidth, rowHeight);
 	block->horizontalScrollMax = scrollOwner
@@ -2958,7 +3143,7 @@ int LayoutBlocks(
 	const auto markerColumn = context.listItemContentShift;
 	const auto step = std::max(st.textPadding.left(), markerColumn);
 	const auto indent = depthDelta * step - markerColumn;
-	const auto listLeft = left + indent;
+	const auto listLeft = context.rtl ? left : (left + indent);
 	const auto listWidth = std::max(width - indent, 1);
 	const auto currentScrollOwner = NextActiveScrollOwner(
 		analysis,
@@ -3116,6 +3301,10 @@ int LayoutBlocks(
 	childContext.hideEmptyQuoteAuthor = QuoteBodyEmptyForLayout(
 		prepared,
 		childContext);
+	if (!prepared.collapseToggleId.isEmpty()) {
+		childContext.collapsibleQuoteLines = Ui::Text::kQuoteCollapsedLines;
+		childContext.collapsibleQuoteCollapsed = prepared.collapsed;
+	}
 	const auto childBottom = layoutNestedBlocks(
 		prepared.children,
 		&block->children,
@@ -3129,6 +3318,14 @@ int LayoutBlocks(
 	if (!childBottom) {
 		return std::nullopt;
 	}
+	block->collapseToggleId = prepared.collapseToggleId;
+	block->collapsed = prepared.collapsed;
+	block->collapsedAtomic = context.editMode
+		&& prepared.collapsed
+		&& !prepared.collapseToggleId.isEmpty();
+	block->collapsedLinesExceeded = !block->children.empty()
+		&& !block->children.front().quoteAuthor
+		&& block->children.front().collapsedLinesExceeded;
 	const auto contentHeight = std::max(
 		*childBottom - contentTop,
 		prepared.children.empty()
@@ -3197,6 +3394,9 @@ int LayoutBlocks(
 		}
 	}
 	block->outer = QRect(outerLeft, top, outerWidth, quoteHeight);
+	block->collapseControlRect = QuoteHasCollapseControl(*block)
+		? QuoteCollapseControlRect(block->outer, st.body.blockquote)
+		: QRect();
 	block->contentRect = QRect(
 		finalContentLeft,
 		contentTop,
@@ -3235,6 +3435,7 @@ int LayoutBlocks(
 		return std::nullopt;
 	}
 	ClearBlockGeometry(block);
+	block->rtl = context.rtl;
 	const auto &details = st.details;
 	const auto headerPadding = DetailsHeaderPadding(context, st);
 	const auto bodyPadding = DetailsBodyPadding(context, st);
@@ -3251,10 +3452,12 @@ int LayoutBlocks(
 	const auto iconSkip = iconWidth ? details.iconSkip : 0;
 	const auto actionSkip = actionWidth ? details.stateSkip : 0;
 	const auto actionZoneWidth = actionSkip + actionWidth;
-	const auto textLeft = left
-		+ headerPadding.left()
-		+ iconWidth
-		+ iconSkip;
+	const auto textLeft = context.rtl
+		? (left + headerPadding.right() + actionZoneWidth)
+		: (left
+			+ headerPadding.left()
+			+ iconWidth
+			+ iconSkip);
 	block->textWidth = std::max(
 		headerWidth
 			- headerPadding.left()
@@ -3286,8 +3489,11 @@ int LayoutBlocks(
 		+ headerPadding.bottom();
 	block->headerRect = QRect(left, top, headerWidth, headerHeight);
 	if (iconWidth > 0 && iconHeight > 0) {
+		const auto iconLeft = context.rtl
+			? (left + headerWidth - headerPadding.left() - iconWidth)
+			: (left + headerPadding.left());
 		block->iconRect = QRect(
-			left + headerPadding.left(),
+			iconLeft,
 			top + (headerHeight - iconHeight) / 2,
 			iconWidth,
 			iconHeight);
@@ -3299,8 +3505,11 @@ int LayoutBlocks(
 		block->textWidth,
 		summaryHeight);
 	if (actionZoneWidth > 0 && actionHeight > 0) {
+		const auto actionLeft = context.rtl
+			? (left + headerPadding.right())
+			: (left + headerWidth - headerPadding.right() - actionZoneWidth);
 		block->actionRect = QRect(
-			left + headerWidth - headerPadding.right() - actionZoneWidth,
+			actionLeft,
 			top + headerPadding.top()
 				+ std::max((headerContentHeight - actionHeight) / 2, 0),
 			actionZoneWidth,
@@ -3315,7 +3524,9 @@ int LayoutBlocks(
 		activeScrollOwner);
 	auto bottom = top + headerHeight;
 	if (!prepared.collapsed) {
-		const auto childLeft = left + bodyPadding.left();
+		const auto childLeft = context.rtl
+			? (left + bodyPadding.right())
+			: (left + bodyPadding.left());
 		const auto childTop = bottom + bodyPadding.top();
 		const auto childWidth = std::max(
 			headerWidth
@@ -3614,11 +3825,12 @@ int LayoutBlocks(
 	case PreparedBlockKind::Heading:
 	case PreparedBlockKind::CodeBlock:
 	case PreparedBlockKind::Rule:
+	case PreparedBlockKind::ButtonRow:
 	case PreparedBlockKind::DisplayMath:
 	case PreparedBlockKind::Table:
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::Document:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -3743,7 +3955,9 @@ int LayoutBlocks(
 [[nodiscard]] const style::TextStyle &LaidOutFlowTextStyle(
 		const LaidOutBlock &block,
 		const style::Markdown &st) {
-	if (block.kind != PreparedBlockKind::Heading) {
+	if (block.footer) {
+		return st.footer;
+	} else if (block.kind != PreparedBlockKind::Heading) {
 		return st.body;
 	}
 	switch (std::clamp(block.headingLevel, 1, 6)) {
@@ -3759,7 +3973,8 @@ int LayoutBlocks(
 
 [[nodiscard]] int BlockContentMaxRight(
 		const LaidOutBlock &block,
-		const style::Markdown &st) {
+		const style::Markdown &st,
+		bool rtl) {
 	const auto outerRight = block.outer.x() + block.outer.width();
 	const auto textRight = [&] {
 		const auto &leaf = block.placeholderLeaf.isEmpty()
@@ -3773,7 +3988,7 @@ int LayoutBlocks(
 	const auto childrenRight = [&] {
 		auto result = 0;
 		for (const auto &child : block.children) {
-			result = std::max(result, BlockContentMaxRight(child, st));
+			result = std::max(result, BlockContentMaxRight(child, st, rtl));
 		}
 		return result;
 	};
@@ -3810,6 +4025,8 @@ int LayoutBlocks(
 			outerRight);
 	case PreparedBlockKind::Rule:
 		return block.outer.x();
+	case PreparedBlockKind::ButtonRow:
+		return outerRight;
 	case PreparedBlockKind::DisplayMath: {
 		if (!block.textRect.isEmpty()) {
 			return outerRight;
@@ -3834,11 +4051,13 @@ int LayoutBlocks(
 	case PreparedBlockKind::List:
 		return std::min(childrenRight(), outerRight);
 	case PreparedBlockKind::ListItem:
-		return std::min(
-			std::max(
-				block.outer.x() + block.markerWidth,
-				childrenRight()),
-			outerRight);
+		return rtl
+			? outerRight
+			: std::min(
+				std::max(
+					block.outer.x() + block.markerWidth,
+					childrenRight()),
+				outerRight);
 	case PreparedBlockKind::Quote:
 		return block.pullquote
 			? outerRight
@@ -3848,7 +4067,7 @@ int LayoutBlocks(
 				outerRight);
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::Document:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -4039,7 +4258,8 @@ std::optional<int> RecountLaidOutBlocks(
 
 int ArticleContentMaxRight(
 		const std::vector<LaidOutBlock> &blocks,
-		const style::Markdown &st) {
+		const style::Markdown &st,
+		bool rtl) {
 	auto result = 0;
 	for (const auto &block : blocks) {
 		const auto bandPadding = UsesMediaBand(block.kind)
@@ -4047,7 +4267,7 @@ int ArticleContentMaxRight(
 			: st.textPadding;
 		result = std::max(
 			result,
-			BlockContentMaxRight(block, st) - bandPadding.left());
+			BlockContentMaxRight(block, st, rtl) - bandPadding.left());
 	}
 	return result;
 }

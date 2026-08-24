@@ -30,6 +30,7 @@ public:
 		bool flipped,
 		const QSizeF &scaledImageSize);
 	[[nodiscard]] QRect saveCropRect();
+	[[nodiscard]] QRect paintRect() const;
 	[[nodiscard]] style::margins cropMargins() const;
 	void setAspectRatio(float64 ratio);
 	void setCornersLevel(RoundedCornersLevel level);

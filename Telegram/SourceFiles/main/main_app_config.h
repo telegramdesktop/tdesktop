@@ -84,6 +84,7 @@ public:
 	[[nodiscard]] float64 currencyWithdrawRate() const;
 	[[nodiscard]] float64 starsSellRate() const;
 	[[nodiscard]] float64 currencySellRate() const;
+	[[nodiscard]] bool starsSpendTopupInvoiceDisabled() const;
 	[[nodiscard]] bool paidMessagesAvailable() const;
 	[[nodiscard]] int paidMessageStarsMax() const;
 	[[nodiscard]] int paidMessageCommission() const;

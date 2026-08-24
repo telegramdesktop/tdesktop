@@ -15,10 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <crl/crl_on_main.h>
 #include <rpl/variable.h>
 
+#include "api/api_common.h"
 #include "api/api_sending.h"
 #include "api/api_editing.h"
 #include "apiwrap.h"
-#include "base/algorithm.h"
 #include "base/flat_map.h"
 #include "base/timer.h"
 #include "base/weak_qptr.h"
@@ -26,22 +26,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_preview_box.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "core/application.h"
-#include "data/data_file_origin.h"
+#include "core/core_settings.h"
 #include "core/shortcuts.h"
 #include "data/components/ephemeral_messages.h"
+#include "data/components/welcome_messages.h"
+#include "data/data_changes.h"
+#include "data/data_chat_participant_status.h"
 #include "data/data_drafts.h"
 #include "data/data_document.h"
+#include "data/data_file_origin.h"
+#include "data/data_forum_topic.h"
 #include "data/data_location.h"
+#include "data/data_peer_values.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_premium_limits.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "data/stickers/data_custom_emoji.h"
+#include "data/stickers/data_stickers.h"
+#include "history/view/history_view_schedule_box.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
 #include "iv/iv_cached_media.h"
 #include "iv/editor/iv_editor_box.h"
+#include "iv/editor/iv_editor_clipboard_import.h"
 #include "iv/editor/iv_editor_state.h"
 #include "iv/editor/iv_editor_widget.h"
 #include "iv/iv_instance.h"
@@ -49,8 +60,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/iv_rich_page.h"
 #include "lang/lang_keys.h"
 #include "main/main_app_config.h"
+#include "main/main_domain.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
+#include "mainwindow.h"
 #include "menu/menu_send.h"
 #include "settings/sections/settings_premium.h"
 #include "storage/file_upload.h"
@@ -107,9 +120,6 @@ struct ComposeThreadKey {
 struct ComposeThreadEntry {
 	std::weak_ptr<ArticleSession> articleSession;
 	rpl::variable<bool> fieldVisible = false;
-	ThreadFieldDraftReader readDraft;
-	ThreadFieldDraftSaver saveDraft;
-	ThreadFieldMigratedAway migratedAway;
 };
 
 [[nodiscard]] ComposeThreadKey ComposeKey(
@@ -150,12 +160,6 @@ struct ComposeThreadEntry {
 	return (i != end(threads)) ? &i->second : nullptr;
 }
 
-void SetComposeFieldVisible(
-		const ComposeThreadKey &key,
-		bool visible) {
-	ComposeThreadEntryFor(key).fieldVisible.force_assign(visible);
-}
-
 enum class AttachmentState : uchar {
 	Uploading,
 	Finalizing,
@@ -167,6 +171,7 @@ enum class AttachmentInsertMode : uchar {
 	Normal,
 	ClipboardPaste,
 	ReplaceBlock,
+	Deferred,
 };
 
 struct PreparedDocumentInfo {
@@ -239,7 +244,32 @@ private:
 [[nodiscard]] bool AcceptedPreparedFileType(PreparedFileType type) {
 	return (type == PreparedFileType::Photo)
 		|| (type == PreparedFileType::Video)
-		|| (type == PreparedFileType::Music);
+		|| (type == PreparedFileType::Music)
+		|| (type == PreparedFileType::File);
+}
+
+[[nodiscard]] PreparedFileType NormalizePreparedFileType(
+		PreparedFileType type,
+		RequestMediaType requestType,
+		bool replacing) {
+	if (type == PreparedFileType::Music) {
+		return type;
+	}
+	switch (requestType) {
+	case RequestMediaType::File:
+	case RequestMediaType::Audio:
+		return PreparedFileType::File;
+	case RequestMediaType::PhotoVideo:
+		return (type == PreparedFileType::Photo
+			|| type == PreparedFileType::Video)
+			? type
+			: PreparedFileType::File;
+	case RequestMediaType::PhotoVideoAudio:
+		return (!replacing && type == PreparedFileType::None)
+			? PreparedFileType::File
+			: type;
+	}
+	Unexpected("Request media type.");
 }
 
 [[nodiscard]] bool CanUseRichMessages(not_null<Main::Session*> session) {
@@ -256,7 +286,7 @@ enum class RichMessagePosting {
 		not_null<Main::Session*> session) {
 	const auto value = session->appConfig().get<QString>(
 		u"rich_message_posting"_q,
-		u"disabled"_q);
+		u"premium"_q);
 	if (value == u"enabled"_q) {
 		return RichMessagePosting::Enabled;
 	} else if (value == u"premium"_q) {
@@ -270,6 +300,7 @@ enum class RichMessagePosting {
 	case RichPage::BlockKind::Photo:
 	case RichPage::BlockKind::Video:
 	case RichPage::BlockKind::Audio:
+	case RichPage::BlockKind::File:
 		return true;
 	default:
 		return false;
@@ -344,6 +375,8 @@ template <typename Container>
 		return RichPage::BlockKind::Video;
 	case PreparedFileType::Music:
 		return RichPage::BlockKind::Audio;
+	case PreparedFileType::File:
+		return RichPage::BlockKind::File;
 	default:
 		return RichPage::BlockKind::Unsupported;
 	}
@@ -361,11 +394,14 @@ template <typename Container>
 		return RichPage::BlockKind::Unsupported;
 	}
 	const auto info = DocumentInfoFromPrepared(prepared.document);
-	if (info.video) {
-		return RichPage::BlockKind::Video;
-	}
 	if (info.audio) {
 		return RichPage::BlockKind::Audio;
+	}
+	if (prepared.forceFile) {
+		return RichPage::BlockKind::File;
+	}
+	if (info.video) {
+		return RichPage::BlockKind::Video;
 	}
 	return RichPage::BlockKind::Unsupported;
 }
@@ -518,6 +554,9 @@ template <typename Container>
 	const auto sendType = (file.type == PreparedFileType::Photo)
 		? SendMediaType::Photo
 		: SendMediaType::File;
+	const auto forceFile = (file.type == PreparedFileType::File);
+	const auto sendLargePhotos = (sendType == SendMediaType::Photo)
+		|| file.sendLargePhotos;
 	return {
 		.session = session,
 		.filepath = file.path,
@@ -536,8 +575,8 @@ template <typename Container>
 		.caption = TextWithTags(),
 		.spoiler = file.spoiler,
 		.album = std::make_shared<SendingAlbum>(),
-		.forceFile = false,
-		.sendLargePhotos = file.sendLargePhotos,
+		.forceFile = forceFile,
+		.sendLargePhotos = sendLargePhotos,
 		.idOverride = 0,
 		.displayName = file.displayName,
 	};
@@ -552,44 +591,50 @@ public:
 		not_null<PeerData*> peer,
 		Api::SendAction action,
 		SendMenu::Details sendMenuDetails,
+		TextWithTags fieldText,
+		Fn<void()> onMigrated,
+		ComposeBoxOptions options,
 		base::weak_ptr<Window::SessionController> controller) {
 		const auto history = action.history;
-		const auto topicRootId = action.replyTo.topicRootId;
-		const auto monoforumPeerId = action.replyTo.monoforumPeerId;
-		const auto composeKey = ComposeKey(
-			session,
-			history->peer->id,
-			topicRootId,
-			monoforumPeerId);
-		if (const auto entry = LookupComposeThreadEntry(composeKey)) {
-			if (const auto existing = entry->articleSession.lock()) {
-				SetComposeFieldVisible(composeKey, true);
-				existing->focusWindow();
-				return;
-			}
-		}
-		const auto cloudDraft = history->cloudDraft(topicRootId, monoforumPeerId);
-		const auto hasRichDraft = (cloudDraft && cloudDraft->hasRichMessage());
-		const auto page = hasRichDraft
-			? std::make_shared<RichPage>(*cloudDraft->richMessage)
-			: std::make_shared<RichPage>();
-		if (!hasRichDraft) {
+		auto composeThreadKey = std::optional<ComposeThreadKey>();
+		auto page = std::make_shared<RichPage>();
+		auto hasRichDraft = false;
+		if (options.scope == ComposeBoxOptions::Scope::Thread) {
+			const auto topicRootId = action.replyTo.topicRootId;
+			const auto monoforumPeerId = action.replyTo.monoforumPeerId;
+			const auto composeKey = ComposeKey(
+				session,
+				history->peer->id,
+				topicRootId,
+				monoforumPeerId);
 			if (const auto entry = LookupComposeThreadEntry(composeKey)) {
-				if (entry->readDraft) {
-					if (const auto draft = entry->readDraft()) {
-						const auto &withTags = draft->textWithTags;
-						auto migrated = SplitTextIntoRichPage({
-							withTags.text,
-							TextUtilities::ConvertTextTagsToEntities(
-								withTags.tags),
-						});
-						if (!migrated.blocks.empty()) {
-							*page = std::move(migrated);
-							if (entry->migratedAway) {
-								entry->migratedAway();
-							}
-						}
-					}
+				if (const auto existing = entry->articleSession.lock()) {
+					existing->focusWindow();
+					return;
+				}
+			}
+			const auto cloudDraft = history->cloudDraft(
+				topicRootId,
+				monoforumPeerId);
+			hasRichDraft = cloudDraft && cloudDraft->hasRichMessage();
+			if (hasRichDraft) {
+				page = std::make_shared<RichPage>(*cloudDraft->richMessage);
+			}
+			composeThreadKey = composeKey;
+		}
+		if (!fieldText.empty()) {
+			auto migrated = SplitTextIntoRichPage(fieldText);
+			if (!migrated.blocks.empty()) {
+				if (hasRichDraft) {
+					page->blocks.insert(
+						page->blocks.end(),
+						std::make_move_iterator(migrated.blocks.begin()),
+						std::make_move_iterator(migrated.blocks.end()));
+				} else {
+					*page = std::move(migrated);
+				}
+				if (onMigrated) {
+					onMigrated();
 				}
 			}
 		}
@@ -601,8 +646,9 @@ public:
 			std::move(page),
 			std::move(action),
 			std::move(sendMenuDetails),
+			std::move(options),
 			std::nullopt,
-			composeKey,
+			std::move(composeThreadKey),
 			std::move(controller)));
 		articleSession->showWindow();
 	}
@@ -611,6 +657,9 @@ public:
 		not_null<HistoryItem*> item,
 		std::shared_ptr<const RichPage> richPage,
 		base::weak_ptr<Window::SessionController> controller) {
+		if (ActivateEditWindow(&item->history()->session(), item->fullId())) {
+			return;
+		}
 		if (!richPage || !CanEditRichPage(richPage)) {
 			if (const auto window = item->history()->session().tryResolveWindow(
 					item->history()->peer)) {
@@ -626,6 +675,7 @@ public:
 			std::make_shared<RichPage>(*richPage),
 			std::nullopt,
 			{},
+			{},
 			EditedItemSnapshot{
 				.item = item,
 				.inlinePage = item->richPage(),
@@ -640,29 +690,18 @@ public:
 	static void ShowEditFromField(
 			not_null<HistoryItem*> item,
 			Api::SendAction action,
+			std::optional<TextWithTags> fieldTextOverride,
+			Fn<void()> fieldMigratedOverride,
 			base::weak_ptr<Window::SessionController> controller) {
 		const auto session = &item->history()->session();
-		const auto topicRootId = action.replyTo.topicRootId;
-		const auto monoforumPeerId = action.replyTo.monoforumPeerId;
-		const auto composeKey = ComposeKey(
-			session,
-			item->history()->peer->id,
-			topicRootId,
-			monoforumPeerId);
+		if (ActivateEditWindow(session, item->fullId())) {
+			return;
+		}
 		auto page = std::make_shared<RichPage>();
-		if (const auto entry = LookupComposeThreadEntry(composeKey)) {
-			if (entry->readDraft) {
-				if (const auto draft = entry->readDraft()) {
-					const auto &withTags = draft->textWithTags;
-					*page = SplitTextIntoRichPage({
-						withTags.text,
-						TextUtilities::ConvertTextTagsToEntities(
-							withTags.tags),
-					});
-				}
-			}
-			if (entry->migratedAway) {
-				entry->migratedAway();
+		if (fieldTextOverride) {
+			*page = SplitTextIntoRichPage(*fieldTextOverride);
+			if (fieldMigratedOverride) {
+				fieldMigratedOverride();
 			}
 		}
 		auto articleSession = std::shared_ptr<ArticleSession>(new ArticleSession(
@@ -672,6 +711,7 @@ public:
 			item->fullId(),
 			std::move(page),
 			std::move(action),
+			{},
 			{},
 			EditedItemSnapshot{
 				.item = item,
@@ -686,8 +726,16 @@ public:
 
 	~ArticleSession() {
 		_submitDeferred = false;
-		for (const auto &attachment : _attachments) {
-			_session->uploader().cancel(attachment.uploadId);
+		auto attachments = base::take(_attachments);
+		_mediaBatches.clear();
+		for (const auto &attachment : attachments) {
+			if (attachment.state != AttachmentState::Ready) {
+				_session->uploader().cancel(attachment.uploadId);
+			}
+			if (attachment.finalizationRequestId) {
+				_session->api().request(
+					attachment.finalizationRequestId).cancel();
+			}
 		}
 	}
 
@@ -703,6 +751,7 @@ private:
 		RichPage::BlockKind blockKind = RichPage::BlockKind::Unsupported;
 		uint64 localMediaId = 0;
 		AttachmentState state = AttachmentState::Uploading;
+		mtpRequestId finalizationRequestId = 0;
 		QString caption;
 		QString filename;
 		QString filemime;
@@ -758,6 +807,7 @@ private:
 		int order = 0;
 		AttachmentInsertMode insertMode = AttachmentInsertMode::Normal;
 		std::optional<State::ReplaceTarget> replaceTarget;
+		RequestMediaType requestType = RequestMediaType::PhotoVideoAudio;
 	};
 
 	struct EditedItemSnapshot {
@@ -780,6 +830,7 @@ private:
 		std::shared_ptr<RichPage> page,
 		std::optional<Api::SendAction> action,
 		SendMenu::Details sendMenuDetails,
+		ComposeBoxOptions composeOptions,
 		std::optional<EditedItemSnapshot> edited,
 		std::optional<ComposeThreadKey> composeThreadKey,
 		base::weak_ptr<Window::SessionController> controller = {})
@@ -793,6 +844,7 @@ private:
 	, _articleId(articleId)
 	, _composeAction(std::move(action))
 	, _sendMenuDetails(std::move(sendMenuDetails))
+	, _composeOptions(std::move(composeOptions))
 	, _edited(std::move(edited))
 	, _composeThreadKey(std::move(composeThreadKey))
 	, _page(page ? std::move(page) : std::make_shared<RichPage>())
@@ -865,12 +917,6 @@ private:
 		entry.fieldVisible.force_assign(false);
 	}
 
-	[[nodiscard]] ComposeThreadEntry *composeThreadEntry() const {
-		return _composeThreadKey
-			? LookupComposeThreadEntry(*_composeThreadKey)
-			: nullptr;
-	}
-
 	[[nodiscard]] ::Data::FileOrigin composeDraftOrigin() const {
 		return _composeThreadKey
 			? ComposeDraftOrigin(*_composeThreadKey)
@@ -883,14 +929,103 @@ private:
 			: composeDraftOrigin();
 	}
 
+	[[nodiscard]] bool detachedCompose() const {
+		return _composeOptions.scope
+			== ComposeBoxOptions::Scope::Detached;
+	}
+
+	[[nodiscard]] bool welcomeTemplatesCompose() const {
+		return (_mode == Mode::Compose)
+			&& _composeOptions.welcomeTemplates
+			&& _composeAction;
+	}
+
+	[[nodiscard]] bool welcomeTemplatesLimitReached() const {
+		Expects(_composeAction.has_value());
+
+		const auto history = _composeAction->history;
+		return _session->welcomeMessages().count(history)
+			>= ::Data::WelcomeMessagesLimit(_session);
+	}
+
+	void showWelcomeTemplatesLimitToast() const {
+		showToast(tr::lng_business_limit_reached(
+			tr::now,
+			lt_count,
+			::Data::WelcomeMessagesLimit(_session)));
+	}
+
+	void dropDetachedReturnText() {
+		if (detachedCompose()) {
+			_composeOptions.returnText = nullptr;
+		}
+	}
+
+	bool deliverDetachedReturnText() {
+		Expects(detachedCompose());
+
+		if (hasPendingPreparation()) {
+			return false;
+		}
+		auto result = TextWithTags();
+		if (!_state->articleEmpty()) {
+			const auto simple = SerializeAsSimple(_state->richPage(), _session);
+			if (!simple) {
+				return false;
+			}
+			result = {
+				simple->text,
+				TextUtilities::ConvertEntitiesToTextTags(simple->entities),
+			};
+		}
+		const auto callback = base::take(_composeOptions.returnText);
+		if (callback && !result.empty()) {
+			callback(std::move(result));
+		}
+		return true;
+	}
+
+	[[nodiscard]] bool showDetachedScheduleBox() {
+		if (!detachedCompose()
+			|| _composeOptions.submitPolicy
+				!= ComposeBoxOptions::SubmitPolicy::Schedule
+			|| _submitOptions.scheduled) {
+			return false;
+		} else if (_scheduleBox) {
+			return true;
+		}
+		const auto show = resolveShow();
+		if (!show) {
+			return true;
+		}
+		const auto generation = ++_scheduleBoxGeneration;
+		const auto weak = base::make_weak(this);
+		auto box = HistoryView::PrepareScheduleBox(
+			base::make_weak(show->toastParent()),
+			show,
+			_sendMenuDetails,
+			[weak, generation](Api::SendOptions options) {
+				if (const auto session = weak.get()) {
+					if (session->_scheduleBoxGeneration != generation) {
+						return;
+					}
+					++session->_scheduleBoxGeneration;
+					session->_scheduleBox.reset();
+					session->requestSubmit(std::move(options));
+				}
+			},
+			_submitOptions);
+		_scheduleBox = show->show(std::move(box));
+		return true;
+	}
+
 	[[nodiscard]] bool submitWouldBeEphemeral(
 			const std::optional<TextWithEntities> &simple) const {
 		if (!_composeAction) {
 			return false;
 		} else if (!simple) {
-			const auto id = _composeAction->replyTo.messageId;
-			const auto target = _session->data().message(id);
-			return target && target->isEphemeral();
+			return _session->ephemeralMessages().isEphemeralBotReply(
+				_composeAction->replyTo.messageId);
 		}
 		auto message = Api::MessageToSend(*_composeAction);
 		message.textWithTags = {
@@ -906,6 +1041,7 @@ private:
 		if (_mode != Mode::Compose
 			|| !_composeAction
 			|| _submitOptions.scheduled
+			|| welcomeTemplatesCompose()
 			|| submitWouldBeEphemeral(simple)) {
 			return true;
 		}
@@ -938,6 +1074,9 @@ private:
 			showEmptySubmittedPageToast();
 			return false;
 		}
+		if (showDetachedScheduleBox()) {
+			return false;
+		}
 		auto simple = SerializeAsSimple(_state->richPage(), _session);
 		const auto weak = base::make_weak(this);
 		const auto withPaymentApproved = [weak](int approved) {
@@ -953,14 +1092,6 @@ private:
 			}
 			return submitSimpleText(std::move(*simple));
 		}
-		if (_mode == Mode::Compose && _composeAction) {
-			const auto replyToId = _composeAction->replyTo.messageId;
-			const auto target = _session->data().message(replyToId);
-			if (target && target->isEphemeral()) {
-				showToast(tr::lng_ephemeral_reply_text_only(tr::now));
-				return false;
-			}
-		}
 		if (!CanUseRichMessages(_session)) {
 			const auto page = _state->richPage();
 			if (!RichPageIsFlattenSafe(page)) {
@@ -975,13 +1106,18 @@ private:
 					if (const auto strong = weak.get()) {
 						strong->submitWithoutFormatting(page);
 					}
-				});
+				},
+				_mode == Mode::Edit);
 			return false;
 		}
 		auto page = std::shared_ptr<const RichPage>(
 			std::make_shared<RichPage>(_state->richPage()));
 		if (const auto error = ValidateRichMessage(*page, _limits)) {
 			showRichMessageLimitToast(*error);
+			return false;
+		}
+		if (welcomeTemplatesCompose() && welcomeTemplatesLimitReached()) {
+			showWelcomeTemplatesLimitToast();
 			return false;
 		}
 		_submittedPage = page;
@@ -1014,18 +1150,36 @@ private:
 				showToast(tr::lng_edit_error(tr::now));
 				return false;
 			}
+			if (welcomeTemplatesCompose()) {
+				if (!_composeAction->history->peer
+						->canManageWelcomeMessages()) {
+					return false;
+				} else if (welcomeTemplatesLimitReached()) {
+					showWelcomeTemplatesLimitToast();
+					return false;
+				}
+				cancelRichDraftAutosave();
+				dropDetachedReturnText();
+				_session->welcomeMessages().send(
+					_composeAction->history,
+					std::move(text));
+				return true;
+			}
 			auto action = *_composeAction;
 			action.options = _submitOptions;
-			action.clearDraft = true;
-			action.history->clearCloudDraft(
-				action.replyTo.topicRootId,
-				action.replyTo.monoforumPeerId);
+			action.clearDraft = !detachedCompose();
+			if (action.clearDraft) {
+				action.history->clearCloudDraft(
+					action.replyTo.topicRootId,
+					action.replyTo.monoforumPeerId);
+			}
 			auto message = Api::MessageToSend(action);
 			message.textWithTags = {
 				text.text,
 				TextUtilities::ConvertEntitiesToTextTags(text.entities),
 			};
 			cancelRichDraftAutosave();
+			dropDetachedReturnText();
 			_session->api().sendMessage(std::move(message));
 			return true;
 		}
@@ -1038,13 +1192,15 @@ private:
 			not_null{ item },
 			text,
 			::Data::WebPageDraft{ .removed = true },
-			_submitOptions,
+			editMessageOptions(not_null{ item }),
 			[weak = base::make_weak(this)](mtpRequestId) {
 			},
 			[weak = base::make_weak(this)](
 					const QString &error,
 					mtpRequestId) {
-				if (const auto session = weak.get()) {
+				if (error == u"MESSAGE_NOT_MODIFIED"_q) {
+					return;
+				} else if (const auto session = weak.get()) {
 					session->showToast(error.isEmpty()
 						? tr::lng_edit_error(tr::now)
 						: error);
@@ -1077,11 +1233,16 @@ private:
 
 	[[nodiscard]] bool cancelRequested() {
 		_submitDeferred = false;
-		return true;
+		return detachedCompose()
+			? deliverDetachedReturnText()
+			: true;
 	}
 
 	[[nodiscard]] bool changedCancelRequested() {
 		_submitDeferred = false;
+		if (detachedCompose()) {
+			return deliverDetachedReturnText();
+		}
 		if (!_composeAction || !_composeThreadKey) {
 			return true;
 		}
@@ -1092,17 +1253,13 @@ private:
 	[[nodiscard]] bool discardRequested() {
 		_submitDeferred = false;
 		cancelRichDraftAutosave();
+		dropDetachedReturnText();
 		if (!_composeAction || !_composeThreadKey) {
 			return true;
 		}
 		const auto topicRootId = _composeThreadKey->draftKey.topicRootId();
 		const auto monoforumPeerId = _composeThreadKey->draftKey.monoforumPeerId();
 		const auto history = _composeAction->history;
-		if (const auto entry = composeThreadEntry()) {
-			if (entry->saveDraft) {
-				entry->saveDraft(nullptr);
-			}
-		}
 		history->clearCloudDraft(topicRootId, monoforumPeerId);
 		if (const auto thread = history->threadFor(topicRootId, monoforumPeerId)) {
 			const auto cloudDraft = history->createCloudDraft(
@@ -1118,6 +1275,15 @@ private:
 
 	[[nodiscard]] HistoryItem *currentSubmittedItem() const {
 		return _session->data().message(_articleId);
+	}
+
+	[[nodiscard]] Api::SendOptions editMessageOptions(
+			not_null<HistoryItem*> item) const {
+		auto options = _submitOptions;
+		options.scheduled = item->isScheduled() ? item->date() : 0;
+		options.scheduleRepeatPeriod = item->scheduleRepeatPeriod();
+		options.shortcutId = item->shortcutId();
+		return options;
 	}
 
 	[[nodiscard]] HistoryItem *ensureComposeLocalItem() {
@@ -1140,6 +1306,11 @@ private:
 		}
 		if (action.options.shortcutId) {
 			flags |= MessageFlag::ShortcutMessage;
+		}
+		if (!action.options.scheduled
+			&& !action.options.shortcutId
+			&& submitWouldBeEphemeral(std::nullopt)) {
+			flags |= MessageFlag::Ephemeral;
 		}
 		const auto starsPaid = std::min(
 			peer->starsPerMessageChecked(),
@@ -1168,6 +1339,9 @@ private:
 
 	[[nodiscard]] bool applySubmittedLocalState(
 			const std::shared_ptr<const RichPage> &page) {
+		if (welcomeTemplatesCompose()) {
+			return true;
+		}
 		const auto item = (_mode == Mode::Compose)
 			? ensureComposeLocalItem()
 			: currentSubmittedItem();
@@ -1300,6 +1474,7 @@ private:
 			return true;
 		case RichPage::BlockKind::Video:
 		case RichPage::BlockKind::Audio:
+		case RichPage::BlockKind::File:
 			if (!attachment.serverDocument || !attachment.serverMediaId) {
 				return false;
 			}
@@ -1419,6 +1594,35 @@ private:
 			failSubmittedWork(true);
 			return;
 		}
+		if (welcomeTemplatesCompose()) {
+			if (!_composeAction->history->peer
+					->canManageWelcomeMessages()) {
+				finishSubmittedWork();
+				return;
+			} else if (welcomeTemplatesLimitReached()) {
+				showWelcomeTemplatesLimitToast();
+				finishSubmittedWork();
+				restartRichDraftAutosave();
+				return;
+			}
+			dropDetachedReturnText();
+			const auto session = _session;
+			_session->welcomeMessages().sendRich(
+				_composeAction->history,
+				[session, page = _submittedPage] {
+					auto serialized = SerializeInputRichMessage(
+						session,
+						*page,
+						SerializeInputRichMessageMode::FinalSubmit);
+					const auto success = (serialized.status
+						== SerializeInputRichMessageStatus::Success);
+					return (success && serialized.value)
+						? std::move(serialized.value)
+						: std::optional<MTPInputRichMessage>();
+				});
+			finishSubmittedWork();
+			return;
+		}
 		const auto item = currentSubmittedItem();
 		if (!item) {
 			finishSubmittedWork();
@@ -1428,10 +1632,13 @@ private:
 		if (_mode == Mode::Compose) {
 			auto action = *_composeAction;
 			action.options = _submitOptions;
-			action.clearDraft = true;
-			action.history->clearCloudDraft(
-				action.replyTo.topicRootId,
-				action.replyTo.monoforumPeerId);
+			action.clearDraft = !detachedCompose();
+			if (action.clearDraft) {
+				action.history->clearCloudDraft(
+					action.replyTo.topicRootId,
+					action.replyTo.monoforumPeerId);
+			}
+			dropDetachedReturnText();
 			_session->api().sendRichMessage(
 				item,
 				*richMessage.value,
@@ -1451,7 +1658,7 @@ private:
 				}
 				return std::optional<MTPInputRichMessage>();
 			},
-			_submitOptions,
+			editMessageOptions(not_null{ item }),
 			[weak = base::make_weak(this)](mtpRequestId) {
 				if (const auto session = weak.get()) {
 					session->finishSubmittedWork();
@@ -1460,9 +1667,11 @@ private:
 			[weak = base::make_weak(this)](const QString &error, mtpRequestId) {
 				if (const auto session = weak.get()) {
 					session->restoreEditedItem();
-					session->showToast(error.isEmpty()
-						? tr::lng_edit_error(tr::now)
-						: error);
+					if (error != u"MESSAGE_NOT_MODIFIED"_q) {
+						session->showToast(error.isEmpty()
+							? tr::lng_edit_error(tr::now)
+							: error);
+					}
 					session->finishSubmittedWork();
 				}
 			});
@@ -1522,14 +1731,21 @@ private:
 			? FileDialog::PhotoVideoFilesFilter()
 			: (type == RequestMediaType::Audio)
 			? FileDialog::AudioFilesFilter()
+			: (type == RequestMediaType::File)
+			? FileDialog::AllFilesFilter()
 			: FileDialog::PhotoVideoAudioFilesFilter();
-		auto callback = [weak, editorPointer, replaceTarget = std::move(
-				replaceTarget)](FileDialog::OpenResult &&result) mutable {
+		auto callback = [
+			weak,
+			editorPointer,
+			type,
+			replaceTarget = std::move(replaceTarget)
+		](FileDialog::OpenResult &&result) mutable {
 			if (const auto session = weak.get()) {
 				session->handleMediaDialogResult(
 					editorPointer,
 					std::move(result),
-					std::move(replaceTarget));
+					std::move(replaceTarget),
+					type);
 			}
 		};
 		if (replacing) {
@@ -1577,6 +1793,46 @@ private:
 		});
 	}
 
+	[[nodiscard]] ::Data::Thread *titleThread() const {
+		if (_composeAction) {
+			return _composeAction->history->threadFor(
+				_composeAction->replyTo.topicRootId,
+				_composeAction->replyTo.monoforumPeerId);
+		} else if (_edited) {
+			const auto item = _edited->item;
+			if (const auto topic = item->topic()) {
+				return topic;
+			} else if (const auto sublist = item->savedSublist()) {
+				return sublist;
+			}
+			return item->history();
+		}
+		return nullptr;
+	}
+
+	[[nodiscard]] QString windowTitle() const {
+		const auto word = (_mode == Mode::Compose)
+			? tr::lng_article_editor_title(tr::now)
+			: tr::lng_article_editor_title_editing(tr::now);
+		const auto settings = Core::App().settings().windowTitleContent();
+		const auto thread = settings.hideChatName ? nullptr : titleThread();
+		const auto topic = thread ? thread->asTopic() : nullptr;
+		const auto name = !thread
+			? QString()
+			: topic
+			? topic->title()
+			: thread->owningHistory()->peer->isSelf()
+			? tr::lng_saved_messages(tr::now)
+			: thread->owningHistory()->peer->name();
+		const auto user = (!settings.hideAccountName
+			&& Core::App().domain().accountsAuthedCount() > 1)
+			? st::wrap_rtl(_session->user()->name())
+			: QString();
+		return word
+			+ (name.isEmpty() ? QString() : u" · "_q + st::wrap_rtl(name))
+			+ (user.isEmpty() ? QString() : u" @ "_q + user);
+	}
+
 	void showWindow() {
 		_backgroundHold = shared_from_this();
 		registerLiveAndTrackSession();
@@ -1585,7 +1841,14 @@ private:
 			.session = _session,
 			.peer = _peer,
 			.state = _state,
+			.title = windowTitle(),
 			.submitType = _submitType,
+			.centerOver = [&] {
+				const auto controller = _controller.get();
+				return controller
+					? controller->widget()->geometry()
+					: QRect();
+			}(),
 			.discarded = _composeAction
 				? Fn<bool()>([session = shared_from_this()] {
 					return session->discardRequested();
@@ -1633,6 +1896,16 @@ private:
 					QPointer<Widget>(editor.get()),
 					std::move(list),
 					std::move(target));
+			},
+			.prepareDeferredMedia = [session = shared_from_this()](
+					not_null<Widget*> editor,
+					PreparedList list,
+					Fn<void(
+						std::vector<std::optional<RichPage::Block>>)> done) {
+				session->prepareDeferredMedia(
+					QPointer<Widget>(editor.get()),
+					std::move(list),
+					std::move(done));
 			},
 			.requestPhotoEditSource = [session = shared_from_this()](
 					uint64 photoId,
@@ -1711,9 +1984,6 @@ private:
 			// the cloud-to-local clear branch.
 			syncFieldWithCloudDraftAfterClose();
 		}
-		if (const auto continuation = base::take(_onWindowClosedContinuation)) {
-			continuation();
-		}
 	}
 
 public:
@@ -1727,16 +1997,16 @@ public:
 		}
 	}
 
-	[[nodiscard]] static bool SaveOpenComposeDraftThen(
+	[[nodiscard]] static ArticleSession *FindEditWindow(
 		not_null<Main::Session*> session,
-		PeerId peerId,
-		MsgId topicRootId,
-		PeerId monoforumPeerId,
-		Fn<void()> onSaved);
-	[[nodiscard]] static bool RequestCloseOpenEditWindowThen(
+		FullMsgId itemId);
+
+	[[nodiscard]] static bool ActivateEditWindow(
 		not_null<Main::Session*> session,
-		not_null<PeerData*> peer,
-		Fn<void()> onClosed);
+		FullMsgId itemId);
+
+	[[nodiscard]] static std::shared_ptr<ChatHelpers::Show> ActiveShow(
+		not_null<Main::Session*> session);
 
 private:
 	// Registry of all editor sessions that currently own a window, so that
@@ -1786,6 +2056,12 @@ private:
 		}
 		cancelRichDraftAutosave();
 		cancelCloseWithDraftSave(_closeDraftSaveGeneration);
+		if (detachedCompose()
+			&& _composeOptions.returnText
+			&& !_submittedPage
+			&& !_submitApiRequested) {
+			deliverDetachedReturnText();
+		}
 		const auto sync = _composeAction
 			&& _composeThreadKey
 			&& !_submittedPage
@@ -1804,8 +2080,6 @@ private:
 		_windowHost = nullptr;
 		_editorShow = nullptr;
 		_backgroundHold = nullptr;
-		_closeDraftSaveContinuation = nullptr;
-		_onWindowClosedContinuation = nullptr;
 		if (sync) {
 			syncFieldWithCloudDraftAfterClose();
 			const auto history = _composeAction->history;
@@ -1820,34 +2094,73 @@ private:
 	void handleMediaDialogResult(
 		QPointer<Widget> editor,
 		FileDialog::OpenResult &&result,
-		std::optional<State::ReplaceTarget> replaceTarget) {
+		std::optional<State::ReplaceTarget> replaceTarget,
+		RequestMediaType requestType) {
 		auto showError = [=](tr::phrase<> phrase) {
 			showToast(phrase(tr::now));
 		};
-		auto list = Storage::PreparedFileFromFilesDialog(
-			std::move(result),
-			[](const PreparedList &) {
-				return true;
-			},
-			showError,
-			st::sendMediaPreviewSize,
-			_session->premium());
-		if (!list) {
+		if (replaceTarget) {
+			auto list = Storage::PreparedFileFromFilesDialog(
+				std::move(result),
+				[](const PreparedList &) {
+					return true;
+				},
+				showError,
+				st::sendMediaPreviewSize,
+				true);
+			if (!list) {
+				return;
+			}
+			if (CountAcceptedPreparedFiles(*list) != 1) {
+				showToast(tr::lng_send_media_invalid_files(tr::now));
+				return;
+			}
+			applyPreparedList(
+				editor,
+				std::move(*list),
+				++_prepareBatchId,
+				AttachmentInsertMode::ReplaceBlock,
+				std::nullopt,
+				std::move(replaceTarget),
+				std::nullopt,
+				requestType);
 			return;
 		}
-		if (replaceTarget && CountAcceptedPreparedFiles(*list) != 1) {
-			showToast(tr::lng_send_media_invalid_files(tr::now));
+
+		const auto show = resolveShow();
+		const auto peer = _peer;
+		auto list = result.remoteContent.isEmpty()
+			? Storage::PrepareMediaList(
+				result.paths,
+				st::sendMediaPreviewSize,
+				true,
+				[show, peer](const PreparedList &rejected) {
+					if (show && show->valid()) {
+						::Data::ShowSendError(
+							show,
+							peer,
+							rejected,
+							std::nullopt,
+							true,
+							true);
+					}
+				})
+			: Storage::PrepareMediaFromImage(
+				QImage(),
+				std::move(result.remoteContent),
+				st::sendMediaPreviewSize);
+		if (list.files.empty() && list.filesToProcess.empty()) {
 			return;
 		}
 		applyPreparedList(
 			editor,
-			std::move(*list),
+			std::move(list),
 			++_prepareBatchId,
-			replaceTarget
-				? AttachmentInsertMode::ReplaceBlock
-				: AttachmentInsertMode::Normal,
+			AttachmentInsertMode::Normal,
 			std::nullopt,
-			std::move(replaceTarget));
+			std::nullopt,
+			std::nullopt,
+			requestType);
 	}
 
 	void applyPreparedMedia(
@@ -1976,11 +2289,15 @@ private:
 	}
 
 	void cancelMediaUploadByMediaId(uint64 mediaId) {
+		auto uploadId = FullMsgId();
 		for (const auto &attachment : _attachments) {
 			if (mediaIdMatchesAttachment(mediaId, attachment)) {
-				eraseAttachment(attachment.uploadId);
-				return;
+				uploadId = attachment.uploadId;
+				break;
 			}
+		}
+		if (uploadId) {
+			eraseAttachment(uploadId);
 		}
 	}
 
@@ -2055,15 +2372,54 @@ private:
 		AttachmentInsertMode insertMode = AttachmentInsertMode::Normal,
 		std::optional<PreparedMediaPasteTarget> insertTarget = std::nullopt,
 		std::optional<State::ReplaceTarget> replaceTarget = std::nullopt,
-		std::optional<State::BlockPath> groupAnchor = std::nullopt) {
+		std::optional<State::BlockPath> groupAnchor = std::nullopt,
+		RequestMediaType requestType = RequestMediaType::PhotoVideoAudio) {
 		const auto effectiveInsertMode = replaceTarget
 			? AttachmentInsertMode::ReplaceBlock
 			: insertMode;
 		const auto replacing = IsReplacing(effectiveInsertMode, replaceTarget);
-		if (const auto accepted = CountAcceptedPreparedFiles(list);
-			accepted && exceedsMediaLimitWith(replacing ? 0 : accepted)) {
-			showRichMessageLimitToast(RichMessageLimitError::Media);
-			return;
+		const auto reservesPrefix = !replacing
+			&& (requestType != RequestMediaType::PhotoVideoAudio);
+		auto totalCount = int(list.files.size() + list.filesToProcess.size());
+		if (reservesPrefix) {
+			const auto freeSlots = std::max(
+				_limits.maxMedia
+					- CountRichPageMedia(_state->richPage())
+					- pendingAttachmentPlaceholders(),
+				0);
+			const auto retainedCount = std::min(totalCount, freeSlots);
+			if (retainedCount < totalCount) {
+				const auto retainedPrepared = std::min(
+					retainedCount,
+					int(list.files.size()));
+				list.files.erase(
+					list.files.begin() + retainedPrepared,
+					list.files.end());
+				list.filesToProcess.erase(
+					list.filesToProcess.begin()
+						+ (retainedCount - retainedPrepared),
+					list.filesToProcess.end());
+				totalCount = retainedCount;
+				showRichMessageLimitToast(RichMessageLimitError::Media);
+			}
+		} else {
+			auto accepted = replacing
+				? CountAcceptedPreparedFiles(list)
+				: totalCount;
+			if (groupAnchor) {
+				accepted = int(list.filesToProcess.size());
+				for (const auto &file : list.files) {
+					if (file.type == PreparedFileType::Photo
+						|| file.type == PreparedFileType::Video) {
+						++accepted;
+					}
+				}
+			}
+			if (accepted
+				&& exceedsMediaLimitWith(replacing ? 0 : accepted)) {
+				showRichMessageLimitToast(RichMessageLimitError::Media);
+				return;
+			}
 		}
 		if (replacing) {
 			if (!list.files.empty()) {
@@ -2073,7 +2429,8 @@ private:
 					batchId,
 					0,
 					effectiveInsertMode,
-					std::move(replaceTarget));
+					std::move(replaceTarget),
+					requestType);
 			} else if (!list.filesToProcess.empty()) {
 				_prepareQueue.push_back({
 					.editor = editor,
@@ -2082,13 +2439,12 @@ private:
 					.order = 0,
 					.insertMode = effectiveInsertMode,
 					.replaceTarget = std::move(replaceTarget),
+					.requestType = requestType,
 				});
 				enqueueNextPrepare();
 			}
 			return;
 		}
-		const auto totalCount = int(
-			list.files.size() + list.filesToProcess.size());
 		if (totalCount > 0) {
 			_mediaBatches.push_back({
 				.id = batchId,
@@ -2107,7 +2463,8 @@ private:
 				batchId,
 				order++,
 				effectiveInsertMode,
-				replaceTarget);
+				replaceTarget,
+				requestType);
 		}
 		for (auto &file : list.filesToProcess) {
 			_prepareQueue.push_back({
@@ -2117,6 +2474,7 @@ private:
 				.order = order++,
 				.insertMode = effectiveInsertMode,
 				.replaceTarget = replaceTarget,
+				.requestType = requestType,
 			});
 		}
 		enqueueNextPrepare();
@@ -2136,7 +2494,8 @@ private:
 				queued.batchId,
 				queued.order,
 				queued.insertMode,
-				std::move(queued.replaceTarget));
+				std::move(queued.replaceTarget),
+				queued.requestType);
 		}
 		if (_prepareQueue.empty()) {
 			maybeContinueDeferredSubmit();
@@ -2146,7 +2505,7 @@ private:
 		_prepareQueue.pop_front();
 		const auto weak = base::make_weak(this);
 		_preparing = true;
-		const auto sideLimit = PhotoSideLimit();
+		const auto sideLimit = PhotoSideLimit(true);
 		crl::async([weak, queued = std::move(queued), sideLimit]() mutable {
 			Storage::PrepareDetails(
 				queued.file,
@@ -2168,7 +2527,8 @@ private:
 			queued.batchId,
 			queued.order,
 			queued.insertMode,
-			std::move(queued.replaceTarget));
+			std::move(queued.replaceTarget),
+			queued.requestType);
 		enqueueNextPrepare();
 	}
 
@@ -2178,20 +2538,34 @@ private:
 		uint64 batchId,
 		int order,
 		AttachmentInsertMode insertMode,
-		std::optional<State::ReplaceTarget> replaceTarget) {
+		std::optional<State::ReplaceTarget> replaceTarget,
+		RequestMediaType requestType) {
+		const auto replacing = IsReplacing(insertMode, replaceTarget);
+		file.type = NormalizePreparedFileType(
+			file.type,
+			requestType,
+			replacing);
+		const auto batch = findMediaBatch(batchId);
+		if (batch
+			&& batch->groupAnchor
+			&& file.type != PreparedFileType::Photo
+			&& file.type != PreparedFileType::Video) {
+			markMediaBatchItemSkipped(batchId, order);
+			flushMediaBatch(batchId);
+			showUnsupportedMediaToast(batchId);
+			return;
+		}
 		if (!AcceptedPreparedFileType(file.type)) {
-			if (!IsReplacing(insertMode, replaceTarget)) {
+			if (!replacing) {
 				markMediaBatchItemSkipped(batchId, order);
 				flushMediaBatch(batchId);
 			}
 			showUnsupportedMediaToast(batchId);
 			return;
 		}
-		const auto additionalMedia = IsReplacing(insertMode, replaceTarget)
-			? 0
-			: 1;
+		const auto additionalMedia = replacing ? 0 : 1;
 		if (exceedsMediaLimitWith(additionalMedia)) {
-			if (!IsReplacing(insertMode, replaceTarget)) {
+			if (!replacing) {
 				markMediaBatchItemSkipped(batchId, order);
 				flushMediaBatch(batchId);
 			}
@@ -2205,6 +2579,65 @@ private:
 			order,
 			insertMode,
 			std::move(replaceTarget));
+	}
+
+	void prepareDeferredMedia(
+			QPointer<Widget> editor,
+			PreparedList list,
+			Fn<void(std::vector<std::optional<RichPage::Block>>)> done) {
+		const auto count = int(list.files.size());
+		if (!count) {
+			done({});
+			return;
+		}
+		const auto batchId = ++_prepareBatchId;
+		auto &pending = _deferredBatches[batchId];
+		pending.results.resize(count);
+		pending.left = count;
+		pending.done = std::move(done);
+		for (auto i = 0; i != count; ++i) {
+			prepareAttachment(
+				editor,
+				std::move(list.files[i]),
+				batchId,
+				i,
+				AttachmentInsertMode::Deferred,
+				std::nullopt);
+		}
+	}
+
+	void pendingDeferredUpload(uint64 batchId, FullMsgId uploadId) {
+		const auto i = _deferredBatches.find(batchId);
+		if (i != end(_deferredBatches)) {
+			i->second.uploads.push_back(uploadId);
+		}
+	}
+
+	void deferredAttachmentReady(
+			uint64 batchId,
+			int order,
+			std::optional<RichPage::Block> block) {
+		const auto i = _deferredBatches.find(batchId);
+		if (i == end(_deferredBatches)) {
+			return;
+		}
+		auto &pending = i->second;
+		if (order >= 0 && order < int(pending.results.size())) {
+			pending.results[order] = std::move(block);
+		}
+		if (--pending.left > 0) {
+			return;
+		}
+		auto callback = std::move(pending.done);
+		auto results = std::move(pending.results);
+		auto uploads = std::move(pending.uploads);
+		_deferredBatches.erase(i);
+		if (callback) {
+			callback(std::move(results));
+		}
+		for (const auto &uploadId : uploads) {
+			_deferredUploads.remove(uploadId);
+		}
 	}
 
 	void prepareAttachment(
@@ -2257,6 +2690,26 @@ private:
 		_pendingAttachmentPrepareCount = std::max(
 			_pendingAttachmentPrepareCount - 1,
 			0);
+		if (insertMode == AttachmentInsertMode::Deferred) {
+			auto block = std::optional<RichPage::Block>();
+			if (prepared && editor) {
+				const auto uploadId = createAttachmentUpload(
+					std::move(meta),
+					std::move(prepared),
+					std::move(originalImage));
+				if (uploadId && !_attachments.empty()) {
+					block = makeAttachmentBlock(_attachments.back());
+					_deferredUploads.emplace(*uploadId);
+					pendingDeferredUpload(batchId, *uploadId);
+				}
+			}
+			if (!block) {
+				showAttachmentFailedToast();
+			}
+			deferredAttachmentReady(batchId, order, std::move(block));
+			maybeContinueDeferredSubmit();
+			return;
+		}
 		if (!prepared) {
 			if (!IsReplacing(insertMode, replaceTarget)) {
 				markMediaBatchItemSkipped(batchId, order);
@@ -2274,7 +2727,11 @@ private:
 			maybeContinueDeferredSubmit();
 			return;
 		}
-		if (meta.blockKind != BlockKindForPreparedResult(*prepared)) {
+		const auto resolved = BlockKindForPreparedResult(*prepared);
+		const auto compatible = (meta.blockKind == resolved)
+			|| (RichBlockIsDocumentRow(meta.blockKind)
+				&& RichBlockIsDocumentRow(resolved));
+		if (!compatible) {
 			if (!IsReplacing(insertMode, replaceTarget)) {
 				markMediaBatchItemSkipped(batchId, order);
 				flushMediaBatch(batchId);
@@ -2283,6 +2740,7 @@ private:
 			maybeContinueDeferredSubmit();
 			return;
 		}
+		meta.blockKind = resolved;
 		const auto replacing = IsReplacing(insertMode, replaceTarget);
 		if (exceedsMediaLimitWith(replacing ? 0 : 1)) {
 			if (!replacing) {
@@ -2314,10 +2772,17 @@ private:
 		AttachmentInsertMode insertMode,
 		std::optional<State::ReplaceTarget> replaceTarget,
 		QImage originalImage) {
+		const auto replacing = IsReplacing(insertMode, replaceTarget);
+		const auto skipBatchItem = [&] {
+			if (!replacing) {
+				markMediaBatchItemSkipped(batchId, order);
+				flushMediaBatch(batchId);
+			}
+		};
 		if (!editor) {
+			skipBatchItem();
 			return;
 		}
-		const auto replacing = IsReplacing(insertMode, replaceTarget);
 		_editor = editor;
 		const auto blockKind = meta.blockKind;
 		const auto uploadId = createAttachmentUpload(
@@ -2325,10 +2790,12 @@ private:
 			std::move(prepared),
 			std::move(originalImage));
 		if (!uploadId) {
+			skipBatchItem();
 			return;
 		}
 		const auto attachment = findAttachment(*uploadId);
 		if (!attachment) {
+			skipBatchItem();
 			return;
 		}
 		if (!replacing) {
@@ -2449,12 +2916,14 @@ private:
 			block.spoiler = attachment.spoiler;
 			block.autoplay = attachment.autoplay;
 			block.loop = attachment.loop;
-		} else if (attachment.blockKind == RichPage::BlockKind::Audio) {
+		} else if (RichBlockIsDocumentRow(attachment.blockKind)) {
 			block.documentId = attachment.localMediaId;
 			block.audioTitle = attachment.audioTitle;
 			block.audioPerformer = attachment.audioPerformer;
-			block.audioFileName = attachment.audioFileName;
 			block.audioDuration = attachment.audioDuration;
+			block.fileName = attachment.audioFileName.isEmpty()
+				? attachment.filename
+				: attachment.audioFileName;
 		}
 		return block;
 	}
@@ -2479,7 +2948,7 @@ private:
 		return item;
 	}
 
-	[[nodiscard]] RichPage::Block makeGroupedAttachmentBlock(
+	[[nodiscard]] std::vector<RichPage::Block> makeGroupedAttachmentBlocks(
 			const std::vector<FullMsgId> &uploadIds) const {
 		auto block = RichPage::Block();
 		block.kind = RichPage::BlockKind::GroupedMedia;
@@ -2507,7 +2976,7 @@ private:
 		if (captionCount == 1) {
 			block.caption = ToRichText(std::move(caption));
 		}
-		return block;
+		return SplitGroupedMediaBlock(std::move(block));
 	}
 
 	[[nodiscard]] RichPage::Block makeMapBlock(::Data::InputVenue venue) const {
@@ -2543,7 +3012,9 @@ private:
 		}, _lifetime);
 		_session->uploader().documentReady(
 		) | rpl::on_next([=](const Storage::UploadedMedia &data) {
-			if (const auto attachment = findAttachment(data.fullId)) {
+			const auto attachment = findAttachment(data.fullId);
+			if (attachment
+				&& attachment->state == AttachmentState::Uploading) {
 				finalizeUploadedDocument(*attachment, data);
 			}
 		}, _lifetime);
@@ -2636,21 +3107,23 @@ private:
 			: QVector<MTPDocumentAttribute>(
 				1,
 				MTP_documentAttributeFilename(MTP_string(attachment.filename)));
-		_session->api().request(MTPmessages_UploadMedia(
-			MTP_flags(0),
-			MTPstring(),
-			_peer->input(),
-			MTP_inputMediaUploadedDocument(
-				MTP_flags(flags),
-				data.info.file,
-				data.info.thumb.value_or(MTPInputFile()),
-				MTP_string(attachment.filemime),
-				MTP_vector<MTPDocumentAttribute>(std::move(attributes)),
-				MTP_vector<MTPInputDocument>(std::move(stickers)),
-				data.info.videoCover.value_or(MTPInputPhoto()),
-				MTP_int(0),
-				MTP_int(0))
-		)).done([weak = base::make_weak(this), uploadId = attachment.uploadId](
+		attachment.finalizationRequestId = _session->api().request(
+			MTPmessages_UploadMedia(
+				MTP_flags(0),
+				MTPstring(),
+				_peer->input(),
+				MTP_inputMediaUploadedDocument(
+					MTP_flags(flags),
+					data.info.file,
+					data.info.thumb.value_or(MTPInputFile()),
+					MTP_string(attachment.filemime),
+					MTP_vector<MTPDocumentAttribute>(std::move(attributes)),
+					MTP_vector<MTPInputDocument>(std::move(stickers)),
+					data.info.videoCover.value_or(MTPInputPhoto()),
+					MTP_int(0),
+					MTP_int(0))
+			)
+		).done([weak = base::make_weak(this), uploadId = attachment.uploadId](
 				const MTPMessageMedia &result) {
 			if (const auto session = weak.get()) {
 				session->applyUploadedDocumentResult(uploadId, result);
@@ -2740,9 +3213,12 @@ private:
 		FullMsgId uploadId,
 		const MTPMessageMedia &result) {
 		const auto attachment = findAttachment(uploadId);
-		if (!attachment) {
+		if (!attachment
+			|| attachment->state != AttachmentState::Finalizing
+			|| !attachment->finalizationRequestId) {
 			return;
 		}
+		base::take(attachment->finalizationRequestId);
 		auto ok = false;
 		auto failed = false;
 		const auto fail = [&] {
@@ -2810,13 +3286,22 @@ private:
 	}
 
 	void markAttachmentFailed(FullMsgId uploadId) {
-		if (const auto attachment = findAttachment(uploadId)) {
-			attachment->state = AttachmentState::Failed;
-			showAttachmentFailedToast();
-			requestEditorUpdate();
-			retryRichDraftCloseSaveIfNeeded();
-			maybeContinueSubmittedRequest();
+		const auto attachment = findAttachment(uploadId);
+		if (!attachment
+			|| attachment->state == AttachmentState::Ready
+			|| attachment->state == AttachmentState::Failed) {
+			return;
 		}
+		const auto requestId = base::take(
+			attachment->finalizationRequestId);
+		attachment->state = AttachmentState::Failed;
+		if (requestId) {
+			_session->api().request(requestId).cancel();
+		}
+		showAttachmentFailedToast();
+		requestEditorUpdate();
+		retryRichDraftCloseSaveIfNeeded();
+		maybeContinueSubmittedRequest();
 	}
 
 	void requestEditorUpdate() {
@@ -2888,6 +3373,8 @@ private:
 			auto attachment = AttachmentRecord{
 				.type = (kind == RichPage::BlockKind::Audio)
 					? PreparedFileType::Music
+					: (kind == RichPage::BlockKind::File)
+					? PreparedFileType::File
 					: PreparedFileType::Video,
 				.blockKind = kind,
 				.state = AttachmentState::Ready,
@@ -2900,11 +3387,11 @@ private:
 				.origin = origin,
 				.serverDocument = document.get(),
 			};
-			if (kind == RichPage::BlockKind::Audio) {
+			if (RichBlockIsDocumentRow(kind)) {
 				attachment.audioTitle = block.audioTitle;
 				attachment.audioPerformer = block.audioPerformer;
-				attachment.audioFileName = block.audioFileName;
 				attachment.audioDuration = block.audioDuration;
+				attachment.filename = block.fileName;
 			}
 			refreshAttachmentInput(attachment);
 			_attachments.push_back(std::move(attachment));
@@ -2919,7 +3406,8 @@ private:
 			}
 		} break;
 		case RichPage::BlockKind::Video:
-		case RichPage::BlockKind::Audio: {
+		case RichPage::BlockKind::Audio:
+		case RichPage::BlockKind::File: {
 			const auto document = block.document
 				? block.document
 				: _session->data().document(block.documentId).get();
@@ -3040,13 +3528,13 @@ private:
 		}
 	}
 	void editorCreated(not_null<Widget*> editor);
+	void applyInitialPaste();
 	void cancelRichDraftAutosave();
 	void restartRichDraftAutosave();
 	void handleRichDraftAutosave(Widget::AutosaveEvent event);
 	[[nodiscard]] std::optional<::Data::Draft> prepareRichDraftForAutosave() const;
 	void saveRichDraftNow();
 	void startCloseWithDraftSave();
-	void startCloseWithDraftSaveThen(Fn<void()> continuation);
 	void saveRichDraftForClose(uint64 generation);
 	void retryRichDraftCloseSaveIfNeeded();
 	void closeWithDraftSaveDone(uint64 generation);
@@ -3140,6 +3628,20 @@ private:
 		item.blockKind = blockKind;
 	}
 
+	void detachMediaBatchUpload(FullMsgId uploadId) {
+		for (auto &batch : _mediaBatches) {
+			for (auto &item : batch.items) {
+				if (item.uploadId != uploadId) {
+					continue;
+				}
+				item.uploadId = FullMsgId();
+				if (item.state == MediaBatchItemState::Ready) {
+					item.state = MediaBatchItemState::Skipped;
+				}
+			}
+		}
+	}
+
 	void eraseAttachment(FullMsgId uploadId) {
 		const auto i = std::find_if(
 			_attachments.begin(),
@@ -3150,10 +3652,17 @@ private:
 		if (i == _attachments.end()) {
 			return;
 		}
-		if (i->state != AttachmentState::Ready) {
-			_session->uploader().cancel(i->uploadId);
-		}
+		const auto erasedUploadId = i->uploadId;
+		const auto state = i->state;
+		const auto finalizationRequestId = i->finalizationRequestId;
+		detachMediaBatchUpload(erasedUploadId);
 		_attachments.erase(i);
+		if (state != AttachmentState::Ready) {
+			_session->uploader().cancel(erasedUploadId);
+		}
+		if (finalizationRequestId) {
+			_session->api().request(finalizationRequestId).cancel();
+		}
 	}
 
 	[[nodiscard]] bool hasUninsertedMediaBatchUpload(
@@ -3170,27 +3679,26 @@ private:
 	}
 
 	void abandonMediaBatch(uint64 batchId) {
-		const auto batch = findMediaBatch(batchId);
-		if (!batch) {
+		const auto i = std::find_if(
+			_mediaBatches.begin(),
+			_mediaBatches.end(),
+			[=](const MediaBatch &batch) {
+				return batch.id == batchId;
+			});
+		if (i == _mediaBatches.end()) {
 			return;
 		}
-		for (auto &item : batch->items) {
+		auto uploadIds = std::vector<FullMsgId>();
+		for (const auto &item : i->items) {
 			if (item.state == MediaBatchItemState::Ready
 				&& item.uploadId) {
-				eraseAttachment(item.uploadId);
-			}
-			if (item.state != MediaBatchItemState::Inserted) {
-				item.state = MediaBatchItemState::Skipped;
+				uploadIds.push_back(item.uploadId);
 			}
 		}
-		_mediaBatches.erase(
-			std::remove_if(
-				_mediaBatches.begin(),
-				_mediaBatches.end(),
-				[=](const MediaBatch &batch) {
-					return batch.id == batchId;
-				}),
-			_mediaBatches.end());
+		_mediaBatches.erase(i);
+		for (const auto &uploadId : uploadIds) {
+			eraseAttachment(uploadId);
+		}
 		maybeContinueDeferredSubmit();
 	}
 
@@ -3231,7 +3739,11 @@ private:
 					}
 				}
 			} else {
-				blocks.push_back(makeGroupedAttachmentBlock(uploadIds));
+				auto grouped = makeGroupedAttachmentBlocks(uploadIds);
+				blocks.insert(
+					blocks.end(),
+					std::make_move_iterator(grouped.begin()),
+					std::make_move_iterator(grouped.end()));
 			}
 			emittedUploadIds.insert(
 				emittedUploadIds.end(),
@@ -3248,7 +3760,8 @@ private:
 					continue;
 				}
 				const auto itemHasCaption = !attachment->caption.isEmpty();
-				if (itemHasCaption && hasCaption) {
+				if (int(subrun.size()) >= Ui::MaxAlbumItems()
+					|| (itemHasCaption && hasCaption)) {
 					appendSubrun(subrun);
 					subrun.clear();
 					hasCaption = false;
@@ -3277,7 +3790,7 @@ private:
 				++batch->nextIndex;
 				continue;
 			}
-			if (item.blockKind == RichPage::BlockKind::Audio) {
+			if (RichBlockIsDocumentRow(item.blockKind)) {
 				blocks.push_back(makeAttachmentBlock(*attachment));
 				emittedUploadIds.push_back(item.uploadId);
 				item.state = MediaBatchItemState::Inserted;
@@ -3308,7 +3821,7 @@ private:
 					waitingBeforeBoundary = true;
 					break;
 				}
-				if (candidate.blockKind == RichPage::BlockKind::Audio) {
+				if (RichBlockIsDocumentRow(candidate.blockKind)) {
 					break;
 				}
 				if (!IsPhotoVideoRichMessageKind(candidate.blockKind)) {
@@ -3464,7 +3977,8 @@ private:
 					&& mediaIdMatchesAttachment(block.documentId, attachment))
 				|| groupedMediaBlockMatchesAttachment(block, attachment);
 		case RichPage::BlockKind::Audio:
-			return (block.kind == RichPage::BlockKind::Audio)
+		case RichPage::BlockKind::File:
+			return RichBlockIsDocumentRow(block.kind)
 				&& mediaIdMatchesAttachment(block.documentId, attachment);
 		default:
 			return false;
@@ -3536,19 +4050,19 @@ private:
 		for (auto &attachment : _attachments) {
 			refreshAttachmentLocators(page, attachment);
 		}
-		for (auto i = _attachments.begin(); i != _attachments.end();) {
-			if (!i->blockLocators.empty()) {
-				++i;
+		auto uploadIds = std::vector<FullMsgId>();
+		for (const auto &attachment : _attachments) {
+			if (!attachment.blockLocators.empty()) {
 				continue;
 			}
-			if (hasUninsertedMediaBatchUpload(i->uploadId)) {
-				++i;
+			if (hasUninsertedMediaBatchUpload(attachment.uploadId)
+				|| _deferredUploads.contains(attachment.uploadId)) {
 				continue;
 			}
-			if (i->state != AttachmentState::Ready) {
-				_session->uploader().cancel(i->uploadId);
-			}
-			i = _attachments.erase(i);
+			uploadIds.push_back(attachment.uploadId);
+		}
+		for (const auto &uploadId : uploadIds) {
+			eraseAttachment(uploadId);
 		}
 	}
 
@@ -3619,7 +4133,14 @@ private:
 			++result;
 		}
 		for (const auto &queued : _prepareQueue) {
-			if (AcceptedPreparedFileType(queued.file.type)
+			const auto replacing = IsReplacing(
+				queued.insertMode,
+				queued.replaceTarget);
+			const auto type = NormalizePreparedFileType(
+				queued.file.type,
+				queued.requestType,
+				replacing);
+			if (AcceptedPreparedFileType(type)
 				|| !queued.file.information) {
 				++result;
 			}
@@ -3687,6 +4208,9 @@ private:
 		case RichMessageLimitError::TableColumns:
 			showToast(tr::lng_article_limit_columns(tr::now));
 			return;
+		case RichMessageLimitError::Buttons:
+			showToast(tr::lng_article_limit_buttons(tr::now));
+			return;
 		}
 		showToast(tr::lng_edit_error(tr::now));
 	}
@@ -3744,6 +4268,7 @@ private:
 	const FullMsgId _articleId;
 	std::optional<Api::SendAction> _composeAction;
 	const SendMenu::Details _sendMenuDetails;
+	ComposeBoxOptions _composeOptions;
 	const std::optional<EditedItemSnapshot> _edited;
 	const std::optional<ComposeThreadKey> _composeThreadKey;
 	const std::shared_ptr<RichPage> _page;
@@ -3757,8 +4282,6 @@ private:
 	QPointer<Widget> _editor;
 	std::unique_ptr<WindowHost> _windowHost;
 	std::shared_ptr<ArticleSession> _backgroundHold;
-	Fn<void()> _closeDraftSaveContinuation;
-	Fn<void()> _onWindowClosedContinuation;
 	std::shared_ptr<const RichPage> _submittedPage;
 	std::vector<AttachmentRecord> _attachments;
 	base::flat_map<uint64, QImage> _originalMediaImages;
@@ -3767,12 +4290,22 @@ private:
 	std::vector<MediaBatch> _mediaBatches;
 	TaskQueue _attachmentPrepareQueue;
 	base::Timer _richDraftAutosaveTimer;
+	base::weak_qptr<Ui::GenericBox> _scheduleBox;
 	base::weak_qptr<Ui::GenericBox> _closeDraftSaveBox;
 	rpl::lifetime _editorAutosaveLifetime;
 	rpl::lifetime _photoEditSourceLifetime;
 	rpl::lifetime _lifetime;
+	struct DeferredMediaBatch {
+		std::vector<std::optional<RichPage::Block>> results;
+		std::vector<FullMsgId> uploads;
+		Fn<void(std::vector<std::optional<RichPage::Block>>)> done;
+		int left = 0;
+	};
+	base::flat_map<uint64, DeferredMediaBatch> _deferredBatches;
+	base::flat_set<FullMsgId> _deferredUploads;
 	uint64 _prepareBatchId = 0;
 	uint64 _rejectedToastBatchId = 0;
+	uint64 _scheduleBoxGeneration = 0;
 	uint64 _closeDraftSaveGeneration = 0;
 	mtpRequestId _closeDraftSaveRequestId = 0;
 	int _pendingAttachmentPrepareCount = 0;
@@ -3787,9 +4320,7 @@ private:
 
 void ArticleSession::editorCreated(not_null<Widget*> editor) {
 	_editor = editor;
-	if (!_composeAction || !_composeThreadKey) {
-		return;
-	}
+	applyInitialPaste();
 	_editorAutosaveLifetime.destroy();
 	editor->autosaveEvents(
 	) | rpl::on_next([weak = weak_from_this()](Widget::AutosaveEvent event) {
@@ -3797,6 +4328,22 @@ void ArticleSession::editorCreated(not_null<Widget*> editor) {
 			session->handleRichDraftAutosave(event);
 		}
 	}, _editorAutosaveLifetime);
+}
+
+void ArticleSession::applyInitialPaste() {
+	const auto data = base::take(_composeOptions.initialPaste);
+	if (!data || !_editor) {
+		return;
+	}
+	const auto limits = _state->limits();
+	const auto used = CountRichPageBlocks(_state->richPage());
+	auto imported = BlocksFromMimeData(_session, data.get(), limits, used);
+	if (!imported && data->hasText()) {
+		imported = BlocksFromMarkdown(data->text(), limits, used);
+	}
+	if (imported && !imported->blocks.empty()) {
+		_editor->insertPreparedBlocks(std::move(imported->blocks));
+	}
 }
 
 void ArticleSession::cancelRichDraftAutosave() {
@@ -3810,6 +4357,9 @@ void ArticleSession::restartRichDraftAutosave() {
 }
 
 void ArticleSession::handleRichDraftAutosave(Widget::AutosaveEvent event) {
+	if (event.type == Widget::AutosaveEventType::StructuralMutation) {
+		refreshAttachmentLocatorsAndDropMissing();
+	}
 	if (!_composeAction
 		|| !_composeThreadKey
 		|| !_windowHost
@@ -3873,7 +4423,7 @@ std::optional<::Data::Draft> ArticleSession::prepareRichDraftForAutosave() const
 		_session,
 		*richMessage,
 		SerializeInputRichMessageMode::Draft);
-	if (serialized.status == SerializeInputRichMessageStatus::Failed) {
+	if (serialized.status != SerializeInputRichMessageStatus::Success) {
 		return std::nullopt;
 	}
 	draft.richMessage = std::move(richMessage);
@@ -3925,11 +4475,6 @@ void ArticleSession::startCloseWithDraftSave() {
 	const auto generation = ++_closeDraftSaveGeneration;
 	showCloseDraftSavingBox(generation);
 	saveRichDraftForClose(generation);
-}
-
-void ArticleSession::startCloseWithDraftSaveThen(Fn<void()> continuation) {
-	_closeDraftSaveContinuation = std::move(continuation);
-	startCloseWithDraftSave();
 }
 
 void ArticleSession::saveRichDraftForClose(uint64 generation) {
@@ -4010,9 +4555,6 @@ void ArticleSession::closeWithDraftSaveDone(uint64 generation) {
 	if (_windowHost) {
 		_windowHost->close();
 	}
-	if (const auto continuation = base::take(_closeDraftSaveContinuation)) {
-		continuation();
-	}
 }
 
 void ArticleSession::closeWithDraftSaveFailed(uint64 generation, QString error) {
@@ -4031,7 +4573,6 @@ void ArticleSession::closeNowWithoutDraftSave(uint64 generation) {
 	if (!_closeDraftSaveActive || generation != _closeDraftSaveGeneration) {
 		return;
 	}
-	_closeDraftSaveContinuation = nullptr;
 	_closeDraftSaveActive = false;
 	_closeDraftSaveWaiting = false;
 	_closeDraftSaveRequestId = 0;
@@ -4045,7 +4586,6 @@ void ArticleSession::cancelCloseWithDraftSave(uint64 generation) {
 	if (!_closeDraftSaveActive || generation != _closeDraftSaveGeneration) {
 		return;
 	}
-	_closeDraftSaveContinuation = nullptr;
 	_closeDraftSaveActive = false;
 	_closeDraftSaveWaiting = false;
 	_closeDraftSaveRequestId = 0;
@@ -4134,45 +4674,62 @@ void ArticleSession::showCloseDraftSaveFailedBox(
 	}));
 }
 
-bool ArticleSession::SaveOpenComposeDraftThen(
+ArticleSession *ArticleSession::FindEditWindow(
 		not_null<Main::Session*> session,
-		PeerId peerId,
-		MsgId topicRootId,
-		PeerId monoforumPeerId,
-		Fn<void()> onSaved) {
-	const auto entry = LookupComposeThreadEntry(
-		ComposeKey(session, peerId, topicRootId, monoforumPeerId));
-	const auto strong = entry
-		? entry->articleSession.lock()
-		: nullptr;
-	if (!strong) {
-		return false;
-	}
-	strong->startCloseWithDraftSaveThen(std::move(onSaved));
-	return true;
-}
-
-bool ArticleSession::RequestCloseOpenEditWindowThen(
-		not_null<Main::Session*> session,
-		not_null<PeerData*> peer,
-		Fn<void()> onClosed) {
+		FullMsgId itemId) {
 	for (const auto &weak : Live()) {
 		const auto strong = weak.lock();
 		if (!strong
 			|| strong->_mode != Mode::Edit
 			|| strong->_session != session
-			|| strong->_peer != peer
+			|| strong->_articleId != itemId
 			|| !strong->_windowHost) {
 			continue;
 		}
-		strong->_onWindowClosedContinuation = std::move(onClosed);
-		strong->_windowHost->activateClose();
+		return strong.get();
+	}
+	return nullptr;
+}
+
+bool ArticleSession::ActivateEditWindow(
+		not_null<Main::Session*> session,
+		FullMsgId itemId) {
+	if (const auto found = FindEditWindow(session, itemId)) {
+		found->focusWindow();
 		return true;
 	}
 	return false;
 }
 
+std::shared_ptr<ChatHelpers::Show> ArticleSession::ActiveShow(
+		not_null<Main::Session*> session) {
+	const auto active = QApplication::activeWindow();
+	if (!active) {
+		return nullptr;
+	}
+	for (const auto &weak : Live()) {
+		const auto strong = weak.lock();
+		if (!strong
+			|| strong->_session != session
+			|| !strong->_windowHost) {
+			continue;
+		}
+		const auto show = strong->_editorShow;
+		if (show
+			&& show->valid()
+			&& (show->toastParent()->window() == active)) {
+			return show;
+		}
+	}
+	return nullptr;
+}
+
 } // namespace
+
+std::shared_ptr<ChatHelpers::Show> ActiveWindowShow(
+		not_null<Main::Session*> session) {
+	return ArticleSession::ActiveShow(session);
+}
 
 void ShowRichMessagesPremiumToast(std::shared_ptr<ChatHelpers::Show> show) {
 	if (!show) {
@@ -4248,7 +4805,8 @@ void OfferRichMessagePremiumChoice(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Main::Session*> session,
 		const RichPage &page,
-		Fn<void()> sendWithoutFormatting) {
+		Fn<void()> sendWithoutFormatting,
+		bool save) {
 	if (!show) {
 		return;
 	}
@@ -4328,7 +4886,9 @@ void OfferRichMessagePremiumChoice(
 		const auto plain = box->addRow(
 			object_ptr<Ui::RoundButton>(
 				box,
-				tr::lng_article_premium_choice_plain(),
+				(save
+					? tr::lng_article_premium_choice_plain_save()
+					: tr::lng_article_premium_choice_plain()),
 				st::defaultLightButton),
 			st::boxRowPadding,
 			style::al_justify);
@@ -4362,28 +4922,99 @@ bool CanAuthorRichMessages(not_null<Main::Session*> session) {
 	return RichMessagePostingMode(session) != RichMessagePosting::Disabled;
 }
 
-bool CheckRichMessagesPremium(
-		not_null<Window::SessionController*> controller) {
-	if (!CanAuthorRichMessages(&controller->session())) {
-		return false;
+bool SessionPremium(not_null<Main::Session*> session) {
+	return session->premium();
+}
+
+rpl::producer<bool> AmPremiumValue(not_null<Main::Session*> session) {
+	return ::Data::AmPremiumValue(session);
+}
+
+rpl::producer<int> StarsPerMessageValue(
+		not_null<Main::Session*> session,
+		not_null<PeerData*> peer) {
+	return session->changes().peerFlagsValue(
+		peer,
+		::Data::PeerUpdate::Flag::StarsPerMessage
+	) | rpl::map([=] {
+		return peer->starsPerMessageChecked();
+	});
+}
+
+bool IsEmojiDocument(not_null<DocumentData*> document) {
+	const auto info = document->sticker();
+	return info && (info->setType == ::Data::StickersType::Emoji);
+}
+
+bool PremiumEmojiForbidden(
+		not_null<Main::Session*> session,
+		not_null<PeerData*> peer,
+		not_null<DocumentData*> document) {
+	return document->isPremiumEmoji()
+		&& !session->premium()
+		&& !::Data::AllowEmojiWithoutPremium(peer, document);
+}
+
+bool AllowEmojiWithoutPremium(
+		not_null<PeerData*> peer,
+		DocumentData *exactEmoji) {
+	return ::Data::AllowEmojiWithoutPremium(peer, exactEmoji);
+}
+
+void InsertCustomEmoji(
+		not_null<Ui::InputField*> field,
+		not_null<DocumentData*> document) {
+	::Data::InsertCustomEmoji(field, document);
+}
+
+PhotoData *UsablePhoto(not_null<Main::Session*> session, uint64 id) {
+	if (!id) {
+		return nullptr;
 	}
-	if (CanUseRichMessages(&controller->session())) {
-		return true;
+	const auto photo = session->data().photo(PhotoId(id));
+	if (photo->isNull() || photo->fileReference().isEmpty()) {
+		return nullptr;
 	}
-	ShowRichMessagesPremiumToast(controller->uiShow());
-	return false;
+	const auto input = photo->mtpInput();
+	return (input.type() == mtpc_inputPhoto
+		&& input.c_inputPhoto().vaccess_hash().v)
+		? photo.get()
+		: nullptr;
+}
+
+DocumentData *UsableDocument(not_null<Main::Session*> session, uint64 id) {
+	if (!id) {
+		return nullptr;
+	}
+	const auto document = session->data().document(DocumentId(id));
+	if (document->isNull()
+		|| !document->hasRemoteLocation()
+		|| document->fileReference().isEmpty()) {
+		return nullptr;
+	}
+	const auto input = document->mtpInput();
+	return (input.type() == mtpc_inputDocument
+		&& input.c_inputDocument().vaccess_hash().v)
+		? document.get()
+		: nullptr;
 }
 
 void ShowComposeBox(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer,
 		Api::SendAction action,
-		SendMenu::Details sendMenuDetails) {
+		SendMenu::Details sendMenuDetails,
+		TextWithTags fieldText,
+		Fn<void()> onMigrated,
+		ComposeBoxOptions options) {
 	ArticleSession::ShowCompose(
 		&controller->session(),
 		peer,
 		std::move(action),
 		std::move(sendMenuDetails),
+		std::move(fieldText),
+		std::move(onMigrated),
+		std::move(options),
 		base::make_weak(controller));
 }
 
@@ -4393,13 +5024,9 @@ void ShowEditBox(
 	if (!CanAuthorRichMessages(&controller->session())) {
 		return;
 	}
-	if (!CanUseRichMessages(&controller->session())) {
-		ShowRichMessagesPremiumToast(controller->uiShow());
-		return;
-	}
 	const auto weak = base::make_weak(controller);
 	const auto itemId = item->fullId();
-	Core::App().iv().resolveRichMessage(controller, item, [=](
+	Core::App().iv().resolveRichMessage(&controller->session(), item, [=](
 			std::shared_ptr<const RichPage> page) {
 		const auto strong = weak.get();
 		const auto current = strong
@@ -4422,10 +5049,14 @@ void ShowEditBox(
 void ShowEditFromFieldBox(
 		not_null<Window::SessionController*> controller,
 		not_null<HistoryItem*> item,
-		Api::SendAction action) {
+		Api::SendAction action,
+		std::optional<TextWithTags> fieldTextOverride,
+		Fn<void()> fieldMigratedOverride) {
 	ArticleSession::ShowEditFromField(
 		item,
 		std::move(action),
+		std::move(fieldTextOverride),
+		std::move(fieldMigratedOverride),
 		base::make_weak(controller));
 }
 
@@ -4439,28 +5070,16 @@ bool IsComposeBoxOpen(
 	return entry && !entry->articleSession.expired();
 }
 
-bool SaveOpenComposeDraftThenEdit(
+bool HasEditWindowFor(
 		not_null<Main::Session*> session,
-		PeerId peerId,
-		MsgId topicRootId,
-		PeerId monoforumPeerId,
-		Fn<void()> onSaved) {
-	return ArticleSession::SaveOpenComposeDraftThen(
-		session,
-		peerId,
-		topicRootId,
-		monoforumPeerId,
-		std::move(onSaved));
+		FullMsgId itemId) {
+	return ArticleSession::FindEditWindow(session, itemId) != nullptr;
 }
 
-bool RequestCloseOpenEditWindowThenCompose(
+bool ActivateEditWindowFor(
 		not_null<Main::Session*> session,
-		not_null<PeerData*> peer,
-		Fn<void()> onClosed) {
-	return ArticleSession::RequestCloseOpenEditWindowThen(
-		session,
-		peer,
-		std::move(onClosed));
+		FullMsgId itemId) {
+	return ArticleSession::ActivateEditWindow(session, itemId);
 }
 
 rpl::producer<bool> FieldVisibleValue(
@@ -4471,33 +5090,6 @@ rpl::producer<bool> FieldVisibleValue(
 	return ComposeThreadEntryFor(
 		ComposeKey(session, peerId, topicRootId, monoforumPeerId)
 	).fieldVisible.value();
-}
-
-void RegisterThreadFieldBridge(
-		not_null<Main::Session*> session,
-		PeerId peerId,
-		MsgId topicRootId,
-		PeerId monoforumPeerId,
-		ThreadFieldDraftReader readDraft,
-		ThreadFieldDraftSaver saveDraft,
-		ThreadFieldMigratedAway migratedAway) {
-	auto &entry = ComposeThreadEntryFor(
-		ComposeKey(session, peerId, topicRootId, monoforumPeerId));
-	entry.readDraft = std::move(readDraft);
-	entry.saveDraft = std::move(saveDraft);
-	entry.migratedAway = std::move(migratedAway);
-}
-
-void UnregisterThreadFieldBridge(
-		not_null<Main::Session*> session,
-		PeerId peerId,
-		MsgId topicRootId,
-		PeerId monoforumPeerId) {
-	auto &entry = ComposeThreadEntryFor(
-		ComposeKey(session, peerId, topicRootId, monoforumPeerId));
-	entry.readDraft = nullptr;
-	entry.saveDraft = nullptr;
-	entry.migratedAway = nullptr;
 }
 
 void CloseAllWindows() {

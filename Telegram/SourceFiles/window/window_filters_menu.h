@@ -22,12 +22,16 @@ namespace Ui {
 class VerticalLayout;
 class VerticalLayoutReorder;
 enum class FilterIcon : uchar;
+enum class ChatsFiltersTabsMode;
 class PopupMenu;
+template <typename Widget>
+class SlideWrap;
 } // namespace Ui
 
 namespace Window {
 
 class SessionController;
+class FolderFavoriteButton;
 
 class FiltersMenu final {
 public:
@@ -40,11 +44,16 @@ private:
 	void setup();
 	void refresh();
 	void setupList();
+	void updateFavorite();
+	void createFavorite();
+	void destroyFavorite();
 	void applyReorder(
 		not_null<Ui::RpWidget*> widget,
 		int oldPosition,
 		int newPosition);
 	[[nodiscard]] bool premium() const;
+	[[nodiscard]] Ui::ChatsFiltersTabsMode tabsMode() const;
+	[[nodiscard]] const style::SideBarButton &buttonStyle() const;
 	[[nodiscard]] base::unique_qptr<Ui::SideBarButton> prepareAll();
 	[[nodiscard]] base::unique_qptr<Ui::SideBarButton> prepareButton(
 		not_null<Ui::VerticalLayout*> container,
@@ -73,6 +82,7 @@ private:
 	Ui::VerticalLayout *_list = nullptr;
 	std::unique_ptr<Ui::VerticalLayoutReorder> _reorder;
 	base::unique_qptr<Ui::SideBarButton> _setup;
+	base::unique_qptr<Ui::SlideWrap<FolderFavoriteButton>> _favorite;
 	base::flat_map<FilterId, base::unique_qptr<Ui::SideBarButton>> _filters;
 	base::weak_qptr<Ui::SideBarButton> _tabStop;
 	rpl::variable<bool> _includeMuted;

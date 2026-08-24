@@ -275,7 +275,6 @@ void DocumentMedia::videoThumbnailWanted(Data::FileOrigin origin) {
 
 void DocumentMedia::setVideoThumbnail(QByteArray content) {
 	_videoThumbnailBytes = std::move(content);
-	_videoThumbnailBytes.detach();
 }
 
 void DocumentMedia::checkStickerLarge() {
@@ -335,6 +334,12 @@ void DocumentMedia::automaticLoad(
 	const auto loadFromCloud = shouldLoadFromCloud
 		? LoadFromCloudOrLocal
 		: LoadFromLocalOnly;
+	if (_owner->loading()) {
+		if (loadFromCloud == LoadFromCloudOrLocal) {
+			_owner->permitLoadFromCloud();
+		}
+		return;
+	}
 	_owner->save(
 		origin,
 		filename,

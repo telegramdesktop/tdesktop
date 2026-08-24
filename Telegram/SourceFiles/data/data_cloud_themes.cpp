@@ -63,6 +63,19 @@ constexpr auto kGiftThemesLimit = 24;
 
 bool IsTestingColors/* = false*/;
 
+[[nodiscard]] Window::SessionController *ChatThemeWindow(
+		not_null<Main::Session*> session) {
+	const auto &windows = session->windows();
+	if (windows.empty()) {
+		return nullptr;
+	}
+	const auto primary = ranges::find_if(windows, [](
+			not_null<Window::SessionController*> window) {
+		return window->isPrimary();
+	});
+	return (primary != end(windows)) ? *primary : windows.front();
+}
+
 } // namespace
 
 CloudTheme CloudTheme::Parse(
@@ -308,14 +321,23 @@ void CloudThemes::reloadCurrent() {
 
 void CloudThemes::applyUpdate(const MTPTheme &theme) {
 	theme.match([&](const MTPDtheme &data) {
-		const auto cloud = CloudTheme::Parse(_session, data);
+		const auto cloud = CloudTheme::Parse(_session, data, true);
 		const auto &object = Window::Theme::Background()->themeObject();
-		if ((cloud.id != object.cloud.id)
-			|| (cloud.documentId == object.cloud.documentId)
-			|| !cloud.documentId) {
+		if (cloud.id != object.cloud.id) {
+			return;
+		} else if (cloud.documentId
+			&& (cloud.documentId != object.cloud.documentId)) {
+			applyFromDocument(cloud);
+			return;
+		} else if (cloud.settings.empty()) {
 			return;
 		}
-		applyFromDocument(cloud);
+		auto updated = object;
+		updated.cloud = cloud;
+		Window::Theme::Background()->setThemeObject(updated);
+		if (const auto controller = ChatThemeWindow(_session)) {
+			Window::Theme::CheckChatThemeWallPaper(controller);
+		}
 	});
 	scheduleReload();
 }
@@ -819,17 +841,10 @@ void CloudThemes::checkAppliedChatTheme() {
 	if (!fresh) {
 		return;
 	}
-	const auto &windows = _session->windows();
-	if (windows.empty()) {
+	const auto controller = ChatThemeWindow(_session);
+	if (!controller) {
 		return;
 	}
-	const auto primary = ranges::find_if(windows, [](
-			not_null<Window::SessionController*> window) {
-		return window->isPrimary();
-	});
-	const auto controller = (primary != end(windows))
-		? *primary
-		: windows.front();
 	if (!SameThemeSettings(cloud.settings, fresh->settings)) {
 		ApplyChatTheme(
 			controller,

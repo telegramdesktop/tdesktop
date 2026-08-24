@@ -388,6 +388,8 @@ QString UrlToLocal(const QUrl &url) {
 	return result;
 }
 
+namespace Unfused {
+
 bool UnsafeShowOpenWithDropdown(const QString &filepath) {
 	@autoreleasepool {
 
@@ -565,5 +567,6 @@ void UnsafeLaunch(const QString &filepath) {
 	}
 }
 
+} // namespace Unfused
 } // namespace File
 } // namespace Platform

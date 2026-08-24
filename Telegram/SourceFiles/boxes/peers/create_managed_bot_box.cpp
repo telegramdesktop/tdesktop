@@ -26,8 +26,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/vertical_list.h"
 
-#include "styles/style_boxes.h"
+#include "styles/style_edit_peer_members.h"
 #include "styles/style_layers.h"
+#include "styles/style_userpic_button.h"
 
 void CreateManagedBotBox(
 		not_null<Ui::GenericBox*> box,

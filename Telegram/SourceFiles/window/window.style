@@ -17,6 +17,20 @@ windowDefaultHeight: 600px;
 windowBigDefaultWidth: 1024px;
 windowBigDefaultHeight: 768px;
 
+windowShellMinWidth: 240px;
+windowShellMinHeight: 160px;
+windowShellLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	size: size(32px, 32px);
+	color: windowSubTextFg;
+	thickness: 3px;
+}
+windowShellUnavailableLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	align: align(top);
+	minWidth: 160px;
+}
+windowShellUnavailablePadding: margins(24px, 24px, 24px, 24px);
+
 columnMinimalWidthLeft: 260px;
 columnMaximalWidthLeft: 540px;
 columnMinimalWidthMain: 380px;
@@ -84,48 +98,9 @@ notifyFadeRight: icon {{ "fade_horizontal", notificationBg }};
 
 titleUnreadCounterTop: 6px;
 
-mainMenuWidth: 274px;
-mainMenuCoverHeight: 134px;
-mainMenuUserpicLeft: 24px;
-mainMenuUserpicTop: 20px;
 mainMenuUserpic: UserpicButton(defaultUserpicButton) {
 	size: size(48px, 48px);
 	photoSize: 48px;
-}
-mainMenuCloudButton: IconButton {
-	width: 48px;
-	height: 48px;
-
-	icon: icon {
-//		{ "menu_cloud", mainMenuCloudFg },
-	};
-	iconPosition: point(22px, 22px);
-}
-mainMenuCloudSize: 32px;
-mainMenuResetScaleFont: font(20px semibold);
-mainMenuResetScaleLeft: 36px;
-mainMenuResetScaleRight: 12px;
-mainMenuResetScaleTop: 2px;
-mainMenuResetScaleIconLeft: 5px;
-mainMenuCoverNameLeft: 26px;
-mainMenuCoverNameTop: 84px;
-mainMenuCoverStatusLeft: mainMenuCoverNameLeft;
-mainMenuCoverStatusTop: 103px;
-mainMenuSkip: 6px;
-mainMenuFooterHeightMin: 80px;
-mainMenu: Menu(defaultMenu) {
-	itemFg: windowBoldFg;
-	itemFgOver: windowBoldFgOver;
-	itemStyle: semiboldTextStyle;
-	itemIconPosition: point(26px, 8px);
-	itemPadding: margins(76px, 13px, 28px, 13px);
-	itemToggle: Toggle(defaultMenuToggle) {
-		toggledFg: mainMenuCoverBg;
-	}
-	itemToggleOver: Toggle(defaultMenuToggleOver) {
-		toggledFg: mainMenuCoverBg;
-	}
-	itemToggleShift: 11px;
 }
 mainMenuButton: SettingsButton(defaultSettingsButton) {
 	style: semiboldTextStyle;
@@ -142,7 +117,6 @@ mainMenuAccountLine: 2px;
 mainMenuBadgeFont: font(11px bold);
 mainMenuBadgeSize: 18px;
 
-mainMenuFooterLeft: 25px;
 mainMenuTelegramLabel: FlatLabel(defaultFlatLabel) {
 	align: align(left);
 	textFg: windowSubTextFg;
@@ -153,15 +127,11 @@ mainMenuTelegramLabel: FlatLabel(defaultFlatLabel) {
 		linkFg: windowSubTextFg;
 	}
 }
-mainMenuTelegramBottom: 38px;
 mainMenuVersionLabel: FlatLabel(mainMenuTelegramLabel) {
 	style: defaultTextStyle;
 }
-mainMenuVersionBottom: 17px;
 
-mainMenuToggleSize: 6px;
 mainMenuToggleFourStrokes: 3px;
-mainMenuTogglePosition: point(30px, 30px);
 
 themeEditorSampleSize: size(90px, 51px);
 themeEditorMargin: margins(17px, 10px, 17px, 10px);
@@ -267,6 +237,15 @@ windowFiltersButton: SideBarButton(defaultSideBarButton) {
 	badgePosition: point(3px, 7px);
 	iconPosition: point(-1px, 6px);
 }
+windowFiltersButtonTextOnly: SideBarButton(windowFiltersButton) {
+	textTop: 15px;
+	minHeight: 44px;
+	badgePosition: point(15px, 1px);
+}
+windowFiltersButtonIconsOnly: SideBarButton(windowFiltersButton) {
+	iconPosition: point(-1px, -1px);
+	minHeight: 54px;
+}
 windowFiltersMainMenu: SideBarButton(windowFiltersButton) {
 	icon: icon {{ "dialogs/dialogs_menu", sideBarIconFg }};
 	iconPosition: point(-1px, -1px);
@@ -297,14 +276,23 @@ windowFilterSmallRemove: IconButton(notifyClose) {
 }
 windowFilterSmallRemoveRight: 10px;
 windowFilterNameInput: InputField(defaultInputField) {
-	textMargins: margins(0px, 26px, 87px, 4px);
+	textMargins: margins(0px, 26px, 52px, 4px);
 }
-windowFilterNameEmojiPosition: point(-65px, 22px);
-windowFilterNameCharsLimitRightPosition: point(75px, 27px);
+windowFilterNameInputPadding: margins(86px, 0px, 22px, 10px);
+windowFilterNameEmojiPosition: point(-30px, 22px);
+windowFilterNameCharsLimitRightPosition: point(40px, 27px);
 windowFilterStaticTitlePosition: point(0px, 5px);
-windowFilterIconToggleSize: size(36px, 36px);
-windowFilterIconTogglePosition: point(-4px, 18px);
-windwoFilterIconPanelPosition: point(-2px, -1px);
+windowFilterIconUserpicSize: 44px;
+windowFilterIconUserpicSkip: 20px;
+windowFilterIconUserpicTop: 9px;
+windowFilterIconUserpicBadge: 16px;
+windowFilterIconUserpicBadgePosition: point(30px, 30px);
+windowFilterIconUserpicBadgeBorder: 2px;
+windowFilterIconUserpicBadgeIcon: icon {{ "chat/paid_edit-14x14", windowFgActive }};
+windowFilterIconFlyUp: 24px;
+windowFilterIconFlyDuration: 270;
+windowFilterIconScaleOutDuration: 160;
+windwoFilterIconPanelPosition: point(2px, -1px);
 windowFilterIconSingle: size(44px, 42px);
 windowFilterIconPadding: margins(10px, 36px, 10px, 8px);
 windowFilterIconHeaderPosition: point(18px, 14px);

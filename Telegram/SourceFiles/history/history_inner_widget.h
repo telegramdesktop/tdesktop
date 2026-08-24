@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/dragging_scroll_manager.h"
 #include "ui/widgets/middle_click_autoscroll.h"
 #include "ui/widgets/tooltip.h"
-#include "ui/widgets/scroll_area.h"
+#include "ui/widgets/elastic_scroll.h"
 #include "ui/userpic_view.h"
 #include "history/history_message_selection.h"
 #include "history/history_inner_widget_accessibility.h"
@@ -150,7 +150,6 @@ public:
 	Ui::ChatPaintContext preparePaintContext(const QRect &clip) const;
 
 	using CollapseGap = Ui::CollapseGap;
-	void setCollapseGaps(std::vector<CollapseGap> gaps);
 
 	void messagesReceived(
 		not_null<PeerData*> peer,
@@ -160,15 +159,12 @@ public:
 		const QVector<MTPMessage> &messages);
 
 	[[nodiscard]] TextForMimeData getSelectedText() const;
+	[[nodiscard]] Iv::RichPageBlocksSlice getSelectedRichBlocks() const;
 
 	void touchScrollUpdated(const QPoint &screenPos);
 
 	void setItemsRevealHeight(int revealHeight);
 	void changeItemsRevealHeight(int revealHeight);
-	void setPullBottomInset(int inset);
-	[[nodiscard]] int pullBottomInset() const {
-		return _pullBottomInset;
-	}
 	void checkActivation();
 	void recountHistoryGeometry(bool initial = false);
 	void updateSize();
@@ -185,8 +181,13 @@ public:
 		-> HistoryView::TopBarWidget::SelectedState;
 	void clearSelected(bool onlyTextSelection = false);
 	[[nodiscard]] MessageIdsList getSelectedItems() const;
+	[[nodiscard]] MessageIdsList getSelectedForwardItems() const;
+	[[nodiscard]] auto getSelectedEphemeral() const
+		-> std::vector<not_null<HistoryItem*>>;
 	[[nodiscard]] bool hasSelectedItems() const;
 	[[nodiscard]] HistoryView::SelectionModeResult inSelectionMode() const;
+	[[nodiscard]] HistoryView::SelectionModeResult inSelectionMode(
+		const Element *view) const;
 	[[nodiscard]] bool elementIntersectsRange(
 		not_null<const Element*> view,
 		int from,
@@ -275,7 +276,7 @@ public:
 	bool tooltipWindowActive() const override;
 
 	void onParentGeometryChanged();
-	bool consumeScrollAction(QPoint delta);
+	bool consumeScrollAction(QPoint delta, Qt::ScrollPhase phase);
 
 	[[nodiscard]] Fn<HistoryView::ElementDelegate*()> elementDelegateFactory(
 		FullMsgId itemId) const;
@@ -319,6 +320,8 @@ private:
 	void playPauseFocusedMedia();
 	void setAccessibilityFocusedItem(int index, HistoryItem *item);
 	void announceAccessibilityFocus(int index);
+	void checkAnnounceFirstMessages();
+	void announceAccessibilityFocusedChild();
 	void applyAccessibilityFocus(int index, bool announceAlways);
 	[[nodiscard]] auto computeActiveColumns(int row) const
 		-> const std::vector<HistoryView::MessageSubItem> &;
@@ -567,6 +570,7 @@ private:
 	int _accessibilityFocusedIndex = -1;
 	HistoryItem *_accessibilityFocusedItem = nullptr;
 	HistoryItem *_accessibilitySelectionAnchor = nullptr;
+	bool _announceFirstMessages = false;
 	mutable base::flat_map<
 		not_null<const HistoryItem*>,
 		quintptr> _accessibilityIdentities;
@@ -589,7 +593,6 @@ private:
 	int _historyMarginTop = 0;
 	int _historyMarginBottom = 0;
 	int _revealHeight = 0;
-	int _pullBottomInset = 0;
 	int _forumThreadBarWidth = 0;
 	Ui::PeerUserpicView _forumThreadBarUserpicView;
 
@@ -600,6 +603,9 @@ private:
 	// With migrated history we perhaps do not need to display
 	// the first _history message date (just skip it by height).
 	int _historySkipHeight = 0;
+
+	FullMsgId _prependAnchorId;
+	int _prependAnchorDateHeight = 0;
 
 	std::unique_ptr<HistoryView::AboutView> _aboutView;
 	std::unique_ptr<HistoryView::EmptyPainter> _emptyPainter;
@@ -709,9 +715,10 @@ private:
 	std::unique_ptr<HistoryView::ElementOverlayHost> _overlayHost;
 
 	void setupThanosEffect();
+	void collapseGapsUpdated();
+	[[nodiscard]] const std::vector<CollapseGap> &collapseGaps() const;
 
 	std::unique_ptr<Ui::ThanosEffectController> _thanosController;
-	std::vector<CollapseGap> _collapseGaps;
 
 };
 

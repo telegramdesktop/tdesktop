@@ -14,6 +14,7 @@ class PeerData;
 namespace Info::Profile {
 
 [[nodiscard]] MediaTabDescriptor MakeMembersTabDescriptor(
-	not_null<PeerData*> peer);
+	not_null<PeerData*> peer,
+	rpl::producer<bool> shown);
 
 } // namespace Info::Profile

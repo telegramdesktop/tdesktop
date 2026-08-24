@@ -438,7 +438,10 @@ QRect Service::innerGeometry() const {
 	return countGeometry();
 }
 
-bool Service::consumeHorizontalScroll(QPoint position, int delta) {
+bool Service::consumeHorizontalScroll(
+		QPoint position,
+		int delta,
+		Qt::ScrollPhase phase) {
 	if (const auto media = this->media()) {
 		return media->consumeHorizontalScroll(position, delta);
 	}

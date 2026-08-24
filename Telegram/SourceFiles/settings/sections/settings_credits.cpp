@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_earn.h"
 #include "api/api_statistics.h"
 #include "base/call_delayed.h"
+#include "base/invoke_queued.h"
 #include "boxes/gift_credits_box.h"
 #include "boxes/gift_premium_box.h"
 #include "boxes/star_gift_box.h"
@@ -56,19 +57,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/slider_natural_width.h"
+#include "ui/widgets/sliding_tabs.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
-#include "styles/style_chat_helpers.h"
 #include "styles/style_credits.h"
 #include "styles/style_giveaway.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
 #include "styles/style_settings.h"
-#include "styles/style_statistics.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_channel_earn.h"
 
@@ -283,7 +283,6 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 	Ui::AddSkip(content, st::lineWidth * 6);
 
 	const auto fill = [=](
-			not_null<PeerData*> premiumBot,
 			const Data::CreditsStatusSlice &fullSlice,
 			const Data::CreditsStatusSlice &inSlice,
 			const Data::CreditsStatusSlice &outSlice) {
@@ -333,12 +332,15 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 			}, shadow->lifetime());
 		}
 
+		auto tabBySection = std::vector<int>{ 0 };
 		slider->entity()->addSection(fullTabText);
 		if (hasIn) {
 			slider->entity()->addSection(inTabText);
+			tabBySection.push_back(1);
 		}
 		if (hasOut) {
 			slider->entity()->addSection(outTabText);
+			tabBySection.push_back(2);
 		}
 
 		{
@@ -350,35 +352,15 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 				+ rect::m::sum::h(st::creditsHistoryTabsSliderPadding));
 		}
 
-		const auto fullWrap = inner->add(
-			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-				inner,
-				object_ptr<Ui::VerticalLayout>(inner)));
-		const auto inWrap = inner->add(
-			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-				inner,
-				object_ptr<Ui::VerticalLayout>(inner)));
-		const auto outWrap = inner->add(
-			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-				inner,
-				object_ptr<Ui::VerticalLayout>(inner)));
+		const auto tabs = inner->add(
+			object_ptr<Ui::SlidingTabs>(inner, 3, st::windowBg));
+		const auto fullTab = tabs->tab(0);
+		const auto inTab = tabs->tab(1);
+		const auto outTab = tabs->tab(2);
 
-		rpl::single(0) | rpl::then(
-			slider->entity()->sectionActivated()
+		slider->entity()->sectionActivated(
 		) | rpl::on_next([=](int index) {
-			if (index == 0) {
-				fullWrap->toggle(true, anim::type::instant);
-				inWrap->toggle(false, anim::type::instant);
-				outWrap->toggle(false, anim::type::instant);
-			} else if (index == 1) {
-				inWrap->toggle(true, anim::type::instant);
-				fullWrap->toggle(false, anim::type::instant);
-				outWrap->toggle(false, anim::type::instant);
-			} else {
-				outWrap->toggle(true, anim::type::instant);
-				fullWrap->toggle(false, anim::type::instant);
-				inWrap->toggle(false, anim::type::instant);
-			}
+			tabs->showTab(tabBySection[index]);
 		}, inner->lifetime());
 
 		const auto window = controller()->parentController();
@@ -395,7 +377,7 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 		Info::Statistics::AddCreditsHistoryList(
 			window->uiShow(),
 			fullSlice,
-			fullWrap->entity(),
+			fullTab,
 			entryClicked,
 			self,
 			true,
@@ -403,7 +385,7 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 		Info::Statistics::AddCreditsHistoryList(
 			window->uiShow(),
 			inSlice,
-			inWrap->entity(),
+			inTab,
 			entryClicked,
 			self,
 			true,
@@ -411,7 +393,7 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 		Info::Statistics::AddCreditsHistoryList(
 			window->uiShow(),
 			outSlice,
-			outWrap->entity(),
+			outTab,
 			std::move(entryClicked),
 			self,
 			false,
@@ -434,12 +416,8 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 		apiFull->request({}, [=](Data::CreditsStatusSlice fullSlice) {
 			apiIn->request({}, [=](Data::CreditsStatusSlice inSlice) {
 				apiOut->request({}, [=](Data::CreditsStatusSlice outSlice) {
-					::Api::PremiumPeerBot(
-						&controller()->session()
-					) | rpl::on_next([=](not_null<PeerData*> bot) {
-						fill(bot, fullSlice, inSlice, outSlice);
-						apiLifetime->destroy();
-					}, *apiLifetime);
+					fill(fullSlice, inSlice, outSlice);
+					InvokeQueued(container, [=] { apiLifetime->destroy(); });
 				}, kFirstPageLimit);
 			}, kFirstPageLimit);
 		}, kFirstPageLimit);

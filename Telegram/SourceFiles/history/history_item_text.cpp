@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_item_text.h"
 
+#include "data/data_forum_topic.h"
 #include "data/data_groups.h"
 #include "data/data_media_types.h"
 #include "data/data_peer.h"
@@ -24,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text.h"
 #include "ui/text/text_entity.h"
 #include "ui/text/text_options.h"
+#include "ui/text/text_utilities.h"
 
 namespace {
 
@@ -94,6 +96,38 @@ TextForMimeData HistoryItemMainText(not_null<HistoryItem*> item) {
 	return result;
 }
 
+[[nodiscard]] TextWithEntities StripIconEmoji(TextWithEntities text) {
+	auto i = text.entities.begin();
+	while (i != text.entities.end()) {
+		if (i->type() != EntityType::CustomEmoji
+			|| !Ui::Text::TryMakeSimpleEmoji(i->data())) {
+			++i;
+			continue;
+		}
+		const auto offset = i->offset();
+		const auto length = i->length();
+		text.text.remove(offset, length);
+		i = text.entities.erase(i);
+		const auto index = int(i - text.entities.begin());
+		for (auto &entity : text.entities) {
+			const auto till = entity.offset() + entity.length();
+			if (entity.offset() >= offset + length) {
+				entity.shiftLeft(length);
+			} else if (till > offset) {
+				entity.shrinkFromRight(std::min(till - offset, length));
+			}
+		}
+		i = text.entities.begin() + index;
+	}
+	text.entities.erase(
+		ranges::remove_if(text.entities, [](const EntityInText &entity) {
+			return (entity.length() <= 0);
+		}),
+		text.entities.end());
+	TextUtilities::Trim(text);
+	return text;
+}
+
 TextForMimeData BracketedSelectedCopyLabel(TextWithEntities label) {
 	label = TextUtilities::SingleLine(label);
 	if (label.empty()) {
@@ -108,7 +142,7 @@ TextForMimeData BracketedSelectedCopyLabel(TextWithEntities label) {
 }
 
 TextForMimeData SelectedCopyMediaLabel(not_null<Data::Media*> media) {
-	return BracketedSelectedCopyLabel(media->toPreview({
+	return BracketedSelectedCopyLabel(StripIconEmoji(media->toPreview({
 		.hideSender = true,
 		.hideCaption = true,
 		.ignoreMessageText = true,
@@ -116,7 +150,7 @@ TextForMimeData SelectedCopyMediaLabel(not_null<Data::Media*> media) {
 		.ignoreGroup = true,
 		.ignoreTopic = true,
 		.translated = true,
-	}).text);
+	}).text));
 }
 
 bool UsesSelectedCopyPlaceholder(not_null<Data::Media*> media) {
@@ -328,6 +362,19 @@ std::optional<SelectedCopyReplyContext> ReplyContextForSelectedCopy(
 	if (!reply) {
 		return std::nullopt;
 	}
+	const auto &fields = reply->fields();
+	const auto hasExternalProvenance = fields.externalSenderId
+		|| !fields.externalSenderName.isEmpty()
+		|| !fields.externalPostAuthor.isEmpty();
+	if (item->history()->isForum()
+		&& reply->topicPost()
+		&& !hasExternalProvenance
+		&& item->replyToFullId() == FullMsgId(
+			item->history()->peer->id,
+			item->topicRootId())
+		&& !reply->manualQuote()) {
+		return std::nullopt;
+	}
 	const auto replyPointer = not_null{ reply };
 	const auto senderName = ReplySenderNameForSelectedCopy(
 		item,
@@ -335,11 +382,10 @@ std::optional<SelectedCopyReplyContext> ReplyContextForSelectedCopy(
 	if (senderName.isEmpty()) {
 		return std::nullopt;
 	}
-	const auto &fields = reply->fields();
 	auto quote = (reply->manualQuote() && !fields.quote.empty())
 		? TextUtilities::SingleLine(fields.quote)
-		: LimitNonExactReplyPreview(ReplyPreviewTextForSelectedCopy(
-			replyPointer));
+		: LimitNonExactReplyPreview(StripIconEmoji(
+			ReplyPreviewTextForSelectedCopy(replyPointer)));
 	return SelectedCopyReplyContext{
 		.senderName = senderName,
 		.quote = TextForMimeData::WithExpandedLinks(quote),
@@ -360,10 +406,51 @@ TextForMimeData HistorySelectedItemPlainWrappedText(
 	return result;
 }
 
+std::vector<not_null<Data::ForumTopic*>> TopicsForSelectedCopy(
+		const std::vector<HistorySelectedTextEntry> &entries) {
+	if (entries.size() < 2) {
+		return {};
+	}
+	const auto history = entries.front().item->history();
+	if (!history->isForum()) {
+		return {};
+	}
+	auto result = std::vector<not_null<Data::ForumTopic*>>();
+	result.reserve(entries.size());
+	auto firstRootId = MsgId();
+	auto multipleRoots = false;
+	for (const auto &entry : entries) {
+		if (entry.item->history() != history) {
+			return {};
+		}
+		const auto topic = entry.item->topic();
+		if (!topic || topic->title().isEmpty()) {
+			return {};
+		}
+		if (result.empty()) {
+			firstRootId = topic->rootId();
+		} else if (topic->rootId() != firstRootId) {
+			multipleRoots = true;
+		}
+		result.push_back(not_null{ topic });
+	}
+	if (!multipleRoots) {
+		return {};
+	}
+	return result;
+}
+
 } // namespace
 
 TextForMimeData HistoryItemText(not_null<HistoryItem*> item) {
 	return AppendExtraCopyText(item, HistoryItemMainText(item));
+}
+
+Iv::RichPageBlocksSlice HistoryItemRichBlocks(not_null<HistoryItem*> item) {
+	const auto page = item->richPage();
+	return page
+		? Iv::RichPageBlocksSlice{ .blocks = page->blocks, .rtl = page->rtl }
+		: Iv::RichPageBlocksSlice();
 }
 
 TextForMimeData HistoryGroupText(not_null<const Data::Group*> group) {
@@ -410,6 +497,8 @@ TextForMimeData HistoryGroupText(not_null<const Data::Group*> group) {
 		return (++first == end) ? result : TextForMimeData();
 	}();
 }
+
+namespace {
 
 TextForMimeData HistoryItemTextForSelectedCopy(not_null<HistoryItem*> item) {
 	const auto media = item->media();
@@ -487,6 +576,48 @@ TextForMimeData HistorySelectedItemWrappedText(
 		result.append(u"\n> "_q).append(std::move(context->quote));
 		if (!body.empty()) {
 			result.append('\n').append(std::move(body));
+		}
+	}
+	return result;
+}
+
+} // namespace
+
+TextForMimeData HistorySelectedItemsText(
+		const std::vector<HistorySelectedTextEntry> &entries,
+		bool richContext) {
+	const auto topics = TopicsForSelectedCopy(entries);
+	auto result = TextForMimeData();
+	const auto separator = u"\n"_q;
+	for (auto i = 0, count = int(entries.size()); i != count; ++i) {
+		const auto &entry = entries[i];
+		if (!topics.empty()
+			&& (!i || topics[i]->rootId() != topics[i - 1]->rootId())) {
+			result
+				.append(u"[--- "_q)
+				.append(tr::lng_sr_chat_topic(tr::now))
+				.append(u" \""_q)
+				.append(topics[i]->title())
+				.append(u"\" ---]"_q)
+				.append(separator);
+		}
+		auto body = TextForMimeData();
+		if (entry.group) {
+			const auto group = not_null<const Data::Group*>{ entry.group };
+			body = richContext
+				? HistoryGroupTextForSelectedCopy(group)
+				: HistoryGroupText(group);
+		} else {
+			body = richContext
+				? HistoryItemTextForSelectedCopy(entry.item)
+				: HistoryItemText(entry.item);
+		}
+		result.append(HistorySelectedItemWrappedText(
+			entry.item,
+			std::move(body),
+			richContext));
+		if (i + 1 != count) {
+			result.append(separator);
 		}
 	}
 	return result;

@@ -132,8 +132,8 @@ using MediaBlockReusePool = std::unordered_map<
 		return block.photo.id;
 	case PreparedBlockKind::Video:
 		return block.video.id;
-	case PreparedBlockKind::Audio:
-		return block.audio.id;
+	case PreparedBlockKind::Document:
+		return block.document.id;
 	case PreparedBlockKind::Map:
 		return block.map.id;
 	case PreparedBlockKind::Channel:
@@ -167,14 +167,14 @@ using MediaBlockReusePool = std::unordered_map<
 			.height = block.video.media.height,
 			.spoiler = block.video.media.spoiler,
 		};
-	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::Document:
 		return MediaReuseKey{
 			.kind = block.kind,
-			.backingId = block.audio.documentId,
-			.duration = block.audio.duration,
-			.title = block.audio.title,
-			.performer = block.audio.performer,
-			.fileName = block.audio.fileName,
+			.backingId = block.document.documentId,
+			.duration = block.document.duration,
+			.title = block.document.title,
+			.performer = block.document.performer,
+			.fileName = block.document.fileName,
 		};
 	case PreparedBlockKind::Map:
 		return MediaReuseKey{

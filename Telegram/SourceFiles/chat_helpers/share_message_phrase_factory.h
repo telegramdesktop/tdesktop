@@ -28,6 +28,9 @@ struct ForwardedMessagePhraseArgs final {
 [[nodiscard]] rpl::producer<TextWithEntities> ForwardedMessagePhrase(
 	const ForwardedMessagePhraseArgs &args);
 
+[[nodiscard]] QString ForwardedMessagePhraseIcon(
+	const ForwardedMessagePhraseArgs &args);
+
 [[nodiscard]] Ui::Toast::ClickHandlerFilter ForwardedToSavedMessagesFilter(
 	not_null<Main::Session*> session);
 

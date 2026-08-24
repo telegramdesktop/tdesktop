@@ -24,6 +24,7 @@ public:
 	Key key() const override;
 	PeerData *migrated() const override;
 	::Info::Section section() const override;
+	style::color listBackground() const override;
 
 	rpl::producer<SparseIdsMergedSlice> mediaSource(
 		SparseIdsMergedSlice::UniversalMsgId aroundId,
@@ -39,6 +40,7 @@ private:
 	[[nodiscard]] SearchQuery produceSearchQuery(
 		const QString &query) const;
 
+	const not_null<AbstractController*> _parent;
 	const Key _key;
 	const ::Info::Section _section;
 	PeerData * const _migrated = nullptr;

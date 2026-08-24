@@ -20,6 +20,7 @@ MediaSubController::MediaSubController(
 	PeerData *migrated,
 	bool withSearch)
 : AbstractController(parent->parentController())
+, _parent(parent)
 , _key(parent->key())
 , _section(mediaType)
 , _migrated(migrated) {
@@ -34,6 +35,10 @@ MediaSubController::~MediaSubController() = default;
 
 Key MediaSubController::key() const {
 	return _key;
+}
+
+style::color MediaSubController::listBackground() const {
+	return _parent->listBackground();
 }
 
 PeerData *MediaSubController::migrated() const {

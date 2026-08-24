@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #endif // !Q_OS_WIN && !Q_OS_MAC
 
 #include <QImage>
+#include <cmath>
 #include <limits>
 #include <new>
 
@@ -338,6 +339,14 @@ void IODeleter::operator()(AVIOContext *value) {
 	}
 }
 
+void RestrictToCustomIO(AVFormatContext *format) {
+	// We always read the media through custom IO callbacks, so ffmpeg must
+	// never resolve a protocol on its own. An empty whitelist makes demuxers
+	// like dash / hls refuse to open the external segment URLs they may
+	// reference, closing an IP-leak / local-file-read vector.
+	av_opt_set(format, "protocol_whitelist", "", 0);
+}
+
 FormatPointer MakeFormatPointer(
 		void *opaque,
 		int(*read)(void *opaque, uint8_t *buffer, int bufferSize),
@@ -359,6 +368,7 @@ FormatPointer MakeFormatPointer(
 	}
 	result->pb = io.get();
 	result->flags |= AVFMT_FLAG_CUSTOM_IO;
+	RestrictToCustomIO(result);
 
 	auto options = (AVDictionary*)nullptr;
 	const auto guard = gsl::finally([&] { av_dict_free(&options); });
@@ -732,9 +742,12 @@ int ReadRotationFromMetadata(not_null<AVStream*> stream) {
 		AV_PKT_DATA_DISPLAYMATRIX);
 	if (displaymatrix) {
 		const auto matrix = (int32_t*)displaymatrix->data;
-		if (const auto result = NormalizeRotation(
-				-base::SafeRound(av_display_rotation_get(matrix)))) {
-			return result;
+		const auto angle = av_display_rotation_get(matrix);
+		if (std::isfinite(angle)) {
+			if (const auto result = NormalizeRotation(
+					-base::SafeRound(angle))) {
+				return result;
+			}
 		}
 	}
 	const auto rotateTag = av_dict_get(

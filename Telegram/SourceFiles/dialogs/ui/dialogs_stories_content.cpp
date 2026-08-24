@@ -28,9 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/dynamic_thumbnails.h"
 #include "ui/painter.h"
 #include "window/window_session_controller.h"
-#include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
-#include "styles/style_media_stories.h"
 
 namespace Dialogs::Stories {
 namespace {

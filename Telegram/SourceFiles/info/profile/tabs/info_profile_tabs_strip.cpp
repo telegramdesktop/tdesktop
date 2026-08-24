@@ -22,6 +22,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Info::Profile {
 namespace {
 
+constexpr auto kScrollDuration = crl::time(150);
+constexpr auto kVerticalScrollGrace = crl::time(250);
+constexpr auto kVerticalScrollRest = crl::time(1000);
+
 void PaintIslandOutline(
 		QPainter &p,
 		const QRectF &island,
@@ -52,9 +56,24 @@ void PaintIslandOutline(
 TabsStrip::TabsStrip(QWidget *parent, const style::ProfileTabsStrip &st)
 : RpWidget(parent)
 , _st(st)
-, _shadow(st::infoProfileTabsShadow) {
+, _shadow(st::infoProfileTabsShadow)
+, _lastCursorPosition(QCursor::pos()) {
 	setObjectName(u"profileTabsStrip"_q);
 	setMouseTracking(true);
+
+	style::PaletteChanged() | rpl::on_next([=] {
+		invalidate();
+	}, lifetime());
+}
+
+void TabsStrip::setTextContext(Ui::Text::MarkedContext context) {
+	_context = std::move(context);
+	_context.repaint = [=] { invalidate(); };
+}
+
+void TabsStrip::invalidate() {
+	_contentValid = false;
+	update();
 }
 
 void TabsStrip::setTabs(std::vector<StripTab> tabs) {
@@ -74,7 +93,11 @@ void TabsStrip::setTabs(std::vector<StripTab> tabs) {
 		Assert(!tab.id.isEmpty());
 
 		auto button = Button();
-		button.text.setText(_st.style, tab.text);
+		button.text.setMarkedText(
+			_st.style,
+			tab.text,
+			kMarkupTextOptions,
+			_context);
 		const auto width = _st.tabPadding.left()
 			+ button.text.maxWidth()
 			+ _st.tabPadding.right();
@@ -100,7 +123,7 @@ void TabsStrip::setTabs(std::vector<StripTab> tabs) {
 			+ _st.skip
 			+ _st.margin.right()));
 	resizeToWidth(width());
-	update();
+	invalidate();
 }
 
 void TabsStrip::setActiveTab(const QString &id) {
@@ -116,8 +139,31 @@ void TabsStrip::setActiveTab(const QString &id) {
 	setActive(i - begin(_buttons));
 }
 
+void TabsStrip::trackVerticalScroll(rpl::producer<> scrolls) {
+	std::move(scrolls) | rpl::on_next([=] {
+		markVerticalScroll();
+	}, lifetime());
+}
+
+void TabsStrip::markVerticalScroll() {
+	_verticalScrollAt = crl::now();
+	updatePointerAimed();
+}
+
+void TabsStrip::updatePointerAimed() {
+	const auto cursor = QCursor::pos();
+	if (cursor != _lastCursorPosition) {
+		_lastCursorPosition = cursor;
+		_pointerAimed = rect().contains(mapFromGlobal(cursor));
+	}
+}
+
 rpl::producer<QString> TabsStrip::activated() const {
 	return _activated.events();
+}
+
+rpl::producer<QString> TabsStrip::contextMenuRequests() const {
+	return _contextMenuRequests.events();
 }
 
 QRect TabsStrip::islandRect() const {
@@ -166,7 +212,7 @@ void TabsStrip::setActive(int index) {
 	if (index < 0) {
 		_activeAnimation.stop();
 		_wasActive = -1;
-		update();
+		invalidate();
 		return;
 	}
 	const auto to = highlightRect(index);
@@ -181,14 +227,14 @@ void TabsStrip::setActive(int index) {
 		_activeTo = to;
 		_wasActive = previous;
 		_activeAnimation.start(
-			[=] { update(); },
+			[=] { invalidate(); },
 			0.,
 			1.,
 			_st.duration,
 			anim::easeOutQuint);
 	}
 	scrollToTab(index);
-	update();
+	invalidate();
 }
 
 void TabsStrip::scrollToTab(int index) {
@@ -204,15 +250,16 @@ void TabsStrip::scrollToTab(int index) {
 	const auto visibleTill = visibleFrom + interior;
 	if ((visibleTill < geometry.x() + geometry.width() + added)
 		|| (visibleFrom + added > geometry.x())) {
-		_scrollTo = std::clamp(
-			geometry.x() + (geometry.width() / 2) - (interior / 2),
-			0,
-			_scrollMax);
-		_scrollAnimation.start([=] {
-			_scroll = _scrollAnimation.value(_scrollTo);
-			update();
-		}, _scroll, _scrollTo, crl::time(150), anim::easeOutCirc);
+		scrollTo(geometry.x() + (geometry.width() / 2) - (interior / 2));
 	}
+}
+
+void TabsStrip::scrollTo(float64 value) {
+	_scrollTo = std::clamp(value, 0., _scrollMax * 1.);
+	_scrollAnimation.start([=] {
+		_scroll = _scrollAnimation.value(_scrollTo);
+		invalidate();
+	}, _scroll, _scrollTo, kScrollDuration, anim::easeOutCirc);
 }
 
 int TabsStrip::resizeGetHeight(int newWidth) {
@@ -221,6 +268,7 @@ int TabsStrip::resizeGetHeight(int newWidth) {
 		- _st.margin.right()
 		- 2 * _st.skip;
 	_scrollMax = std::max(_fullWidth - interior, 0);
+	_scrollTo = std::clamp(_scrollTo, 0., _scrollMax * 1.);
 	if (_scroll > _scrollMax) {
 		_scroll = _scrollMax;
 		_scrollAnimation.stop();
@@ -244,7 +292,7 @@ void TabsStrip::mouseMoveEvent(QMouseEvent *e) {
 			_dragscroll + _dragx - mousex,
 			0.,
 			_scrollMax * 1.);
-		update();
+		invalidate();
 		return;
 	} else if (_pressx > 0 && std::abs(_pressx - mousex) > drag) {
 		_dragx = _pressx;
@@ -276,7 +324,7 @@ void TabsStrip::addRipple(int index, QPoint position) {
 		button.ripple = std::make_unique<Ui::RippleAnimation>(
 			_st.ripple,
 			Ui::RippleAnimation::RoundRectMask(size, size.height() / 2),
-			[=] { update(); });
+			[=] { invalidate(); });
 	}
 	const auto highlight = highlightRect(index).translated(
 		contentOrigin());
@@ -291,34 +339,54 @@ void TabsStrip::stopPressedRipple() {
 	}
 }
 
+bool TabsStrip::wheelScrollsTabs(Qt::ScrollPhase phase) const {
+	const auto rest = _pointerAimed
+		? kVerticalScrollGrace
+		: kVerticalScrollRest;
+	return (phase == Qt::NoScrollPhase)
+		&& (crl::now() >= _verticalScrollAt + rest);
+}
+
+void TabsStrip::wheelScrollBy(float64 delta) {
+	const auto from = _scrollAnimation.animating() ? _scrollTo : _scroll;
+	const auto to = std::clamp(from + delta, 0., _scrollMax * 1.);
+	if (to != from) {
+		scrollTo(to);
+	}
+}
+
 void TabsStrip::wheelEvent(QWheelEvent *e) {
+	updatePointerAimed();
+
 	const auto delta = Ui::ScrollDeltaF(e);
 
 	const auto phase = e->phase();
 	const auto horizontal = (std::abs(delta.x()) > std::abs(delta.y()));
-	if (phase == Qt::NoScrollPhase) {
-		_locked = std::nullopt;
-	} else if (phase == Qt::ScrollBegin) {
+	if (phase == Qt::NoScrollPhase || phase == Qt::ScrollBegin) {
 		_locked = std::nullopt;
 	} else if (!_locked) {
 		_locked = horizontal ? Qt::Horizontal : Qt::Vertical;
 	}
-	if (horizontal) {
+	if (_scrollMax <= 0) {
+		markVerticalScroll();
+		e->ignore();
+	} else if (horizontal) {
 		if (_locked == Qt::Vertical) {
 			return;
 		}
 		e->accept();
+		_scrollAnimation.stop();
+		_scroll = std::clamp(_scroll - delta.x(), 0., _scrollMax * 1.);
+		invalidate();
+	} else if (_locked == Qt::Horizontal) {
+		e->accept();
+	} else if (wheelScrollsTabs(phase)) {
+		e->accept();
+		wheelScrollBy(-delta.y());
 	} else {
-		if (_locked == Qt::Horizontal) {
-			e->accept();
-		} else {
-			e->ignore();
-		}
-		return;
+		markVerticalScroll();
+		e->ignore();
 	}
-	_scrollAnimation.stop();
-	_scroll = std::clamp(_scroll - delta.x(), 0., _scrollMax * 1.);
-	update();
 }
 
 void TabsStrip::mousePressEvent(QMouseEvent *e) {
@@ -330,6 +398,13 @@ void TabsStrip::mousePressEvent(QMouseEvent *e) {
 	_pressx = e->pos().x();
 	if (_pressed >= 0) {
 		addRipple(_pressed, e->pos());
+	}
+}
+
+void TabsStrip::contextMenuEvent(QContextMenuEvent *e) {
+	const auto index = indexAt(e->pos());
+	if (index >= 0) {
+		_contextMenuRequests.fire_copy(_buttons[index].tab.id);
 	}
 }
 
@@ -362,13 +437,34 @@ void TabsStrip::paintEvent(QPaintEvent *e) {
 	p.setBrush(_st.bg);
 	p.setPen(Qt::NoPen);
 	p.drawRoundedRect(island, radius, radius);
-	PaintIslandOutline(p, QRectF(island), radius, _st.bg);
+
+	validateContent(island);
 
 	auto clip = QPainterPath();
 	clip.addRoundedRect(QRectF(island), radius, radius);
 	p.setClipPath(clip);
+	p.drawImage(island.topLeft(), _content);
+	p.setClipping(false);
 
-	const auto origin = contentOrigin();
+	PaintIslandOutline(p, QRectF(island), radius, _st.bg);
+}
+
+void TabsStrip::validateContent(QRect island) {
+	const auto ratio = style::DevicePixelRatio();
+	const auto size = island.size() * ratio;
+	if (_contentValid && _content.size() == size) {
+		return;
+	} else if (_content.size() != size) {
+		_content = QImage(size, QImage::Format_ARGB32_Premultiplied);
+		_content.setDevicePixelRatio(ratio);
+	}
+	_contentValid = true;
+	_content.fill(Qt::transparent);
+
+	auto p = QPainter(&_content);
+	auto hq = PainterHighQualityEnabler(p);
+
+	const auto origin = contentOrigin() - island.topLeft();
 	const auto progress = _activeAnimation.value(1.);
 	const auto animating = _activeAnimation.animating();
 	if (_active >= 0) {
@@ -386,7 +482,7 @@ void TabsStrip::paintEvent(QPaintEvent *e) {
 			continue;
 		}
 		const auto highlight = highlightRect(i).translated(origin);
-		button.ripple->paint(p, highlight.x(), highlight.y(), width());
+		button.ripple->paint(p, highlight.x(), highlight.y(), island.width());
 		if (button.ripple->empty()) {
 			button.ripple.reset();
 		}
@@ -409,6 +505,7 @@ void TabsStrip::paintEvent(QPaintEvent *e) {
 				+ button.geometry.topLeft()
 				+ QPoint(_st.tabPadding.left(), textTop),
 			.availableWidth = button.text.maxWidth(),
+			.now = crl::now(),
 		});
 	}
 
@@ -416,26 +513,20 @@ void TabsStrip::paintEvent(QPaintEvent *e) {
 		const auto &icon = st::defaultEmojiSuggestions;
 		const auto &c = _st.bg->c;
 		constexpr auto kF = 0.5;
+		const auto height = island.height();
 		const auto rightWidth = icon.fadeRight.width();
 		const auto opacityRight = (_scrollMax - _scroll)
 			/ (rightWidth * kF);
 		p.setOpacity(std::clamp(opacityRight, 0., 1.));
 		icon.fadeRight.fill(
 			p,
-			QRect(
-				island.x() + island.width() - rightWidth,
-				island.y(),
-				rightWidth,
-				island.height()),
+			QRect(island.width() - rightWidth, 0, rightWidth, height),
 			c);
 
 		const auto leftWidth = icon.fadeLeft.width();
 		const auto opacityLeft = _scroll / (leftWidth * kF);
 		p.setOpacity(std::clamp(opacityLeft, 0., 1.));
-		icon.fadeLeft.fill(
-			p,
-			QRect(island.x(), island.y(), leftWidth, island.height()),
-			c);
+		icon.fadeLeft.fill(p, QRect(0, 0, leftWidth, height), c);
 	}
 }
 

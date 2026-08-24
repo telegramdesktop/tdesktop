@@ -18,8 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/painter.h"
+#include "styles/style_add_contact_box.h"
 #include "styles/style_layers.h"
-#include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 
 #include <QtGui/QGuiApplication>

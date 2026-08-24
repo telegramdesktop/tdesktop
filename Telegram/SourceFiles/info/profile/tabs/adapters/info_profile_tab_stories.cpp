@@ -39,6 +39,7 @@ public:
 		not_null<AbstractController*> parent,
 		not_null<PeerData*> peer)
 	: AbstractController(parent->parentController())
+	, _parent(parent)
 	, _key(Stories::Tag(peer)) {
 	}
 
@@ -51,8 +52,12 @@ public:
 	::Info::Section section() const override {
 		return ::Info::Section(::Info::Section::Type::Stories);
 	}
+	style::color listBackground() const override {
+		return _parent->listBackground();
+	}
 
 private:
+	const not_null<AbstractController*> _parent;
 	const Key _key;
 
 };
@@ -66,12 +71,6 @@ public:
 		const auto host = _host.data();
 		_list = Ui::CreateChild<Media::ListWidget>(host, &_subController);
 		_list->show();
-		host->widthValue(
-		) | rpl::on_next([this](int newWidth) {
-			_list->resizeToWidth(std::max(
-				newWidth - st::infoMediaTabsRightSkip,
-				1));
-		}, host->lifetime());
 		_list->heightValue(
 		) | rpl::on_next([this](int newHeight) {
 			_host->resize(_host->width(), newHeight);
@@ -87,6 +86,14 @@ public:
 
 	not_null<Ui::RpWidget*> widget() override {
 		return _host.data();
+	}
+	void resizeToWidth(int newWidth) override {
+		if (_host->width() != newWidth) {
+			_list->resizeToWidth(std::max(
+				newWidth - st::infoMediaTabsRightSkip,
+				1));
+		}
+		_host->resize(newWidth, _list->height());
 	}
 	TabTopBarBindings topBarBindings() override {
 		const auto channel = _peer->isChannel();
@@ -148,12 +155,13 @@ MediaTabDescriptor MakeStoriesTabDescriptor(not_null<PeerData*> peer) {
 	return {
 		.id = u"stories"_q,
 		.title = (peer->isChannel()
-			? tr::lng_media_type_posts()
-			: tr::lng_media_type_stories()),
+			? tr::lng_media_type_posts(tr::marked)
+			: tr::lng_media_type_stories(tr::marked)),
 		.shown = StoriesCountValue(peer) | rpl::map(_1 > 0),
 		.factory = [](MediaTabContext context) {
 			return std::make_unique<StoriesTabAdapter>(std::move(context));
 		},
+		.profileTab = Data::ProfileTab::Posts,
 	};
 }
 

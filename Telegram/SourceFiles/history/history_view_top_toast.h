@@ -17,6 +17,7 @@ class Session;
 } // namespace Main
 
 namespace Ui {
+class ElasticScroll;
 class ImportantTooltip;
 class ScrollArea;
 } // namespace Ui
@@ -48,6 +49,10 @@ public:
 	void show(
 		not_null<QWidget*> scroll,
 		rpl::producer<> scrolls,
+		QRect globalArea,
+		TextWithEntities text);
+	void show(
+		not_null<Ui::ElasticScroll*> scroll,
 		QRect globalArea,
 		TextWithEntities text);
 	void hide();

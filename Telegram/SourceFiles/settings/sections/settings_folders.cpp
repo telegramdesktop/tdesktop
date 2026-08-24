@@ -50,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
+#include "styles/style_stickers_box.h"
 
 namespace Settings {
 namespace {
@@ -633,7 +634,7 @@ not_null<Ui::VerticalLayout*> SetupFoldersList(
 		auto removeRequests = std::vector<MTPmessages_UpdateDialogFilter>();
 		auto removeChatlistRequests = std::vector<MTPchatlists_LeaveChatlist>();
 
-		auto &realFilters = session->data().chatsFilters();
+		const auto &realFilters = session->data().chatsFilters();
 		const auto &list = realFilters.list();
 		order.reserve(state->rows.size());
 		for (auto &row : state->rows) {
@@ -1118,7 +1119,6 @@ void BuildViewSection(SectionBuilder &builder) {
 		wrap->toggleOn(controller->enoughSpaceForFiltersValue());
 		const auto content = wrap->entity();
 
-		Ui::AddDivider(content);
 		Ui::AddSkip(content);
 		const auto title = Ui::AddSubsectionTitle(
 			content,
@@ -1149,8 +1149,6 @@ void BuildViewSection(SectionBuilder &builder) {
 			Core::App().settings().setChatFiltersHorizontal(value);
 			Core::App().saveSettingsDelayed();
 		});
-		Ui::AddSkip(content);
-		Ui::AddSkip(content);
 
 		return SectionBuilder::WidgetToAdd{};
 	}, [] {
@@ -1159,6 +1157,42 @@ void BuildViewSection(SectionBuilder &builder) {
 			.title = tr::lng_filters_view_subtitle(tr::now),
 			.keywords = { u"view"_q, u"layout"_q, u"tabs"_q },
 		};
+	});
+
+	builder.add([](const WidgetContext &ctx) {
+		const auto content = ctx.container;
+
+		Ui::AddSkip(content);
+		Ui::AddSubsectionTitle(
+			content,
+			tr::lng_filters_tabs_subtitle());
+
+		using Mode = Ui::ChatsFiltersTabsMode;
+		const auto modeGroup = std::make_shared<Ui::RadioenumGroup<Mode>>(
+			Core::App().settings().chatFiltersTabsMode());
+		const auto addMode = [&](Mode value, const QString &text) {
+			content->add(
+				object_ptr<Ui::Radioenum<Mode>>(
+					content,
+					modeGroup,
+					value,
+					text,
+					st::settingsSendType),
+				st::settingsSendTypePadding);
+		};
+		addMode(Mode::Default, tr::lng_filters_tabs_default(tr::now));
+		addMode(Mode::TextOnly, tr::lng_filters_tabs_text(tr::now));
+		addMode(Mode::TextAndIcons, tr::lng_filters_tabs_text_icons(tr::now));
+		addMode(Mode::IconsOnly, tr::lng_filters_tabs_icons(tr::now));
+
+		modeGroup->setChangedCallback([=](Mode value) {
+			Core::App().settings().setChatFiltersTabsMode(value);
+			Core::App().saveSettingsDelayed();
+		});
+		Ui::AddSkip(content);
+		Ui::AddSkip(content);
+
+		return SectionBuilder::WidgetToAdd{};
 	});
 }
 

@@ -30,5 +30,8 @@ namespace Dialogs {
 	rpl::producer<> prepareCollapseSnapshot)
 -> rpl::producer<Ui::SlideWrap<Ui::RpWidget>*>;
 
+[[nodiscard]] Fn<void()> ExpandChatsListCallback(
+	not_null<Ui::RpWidget*> widget);
+
 } // namespace Dialogs
 

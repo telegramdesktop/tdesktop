@@ -47,31 +47,13 @@ namespace {
 	using Type = Storage::SharedMediaType;
 	return (type == Type::Photo)
 		|| (type == Type::Video)
+		|| (type == Type::PhotoVideo)
 		|| (type == Type::File)
 		|| (type == Type::MusicFile)
 		|| (type == Type::Link)
 		|| (type == Type::RoundVoiceFile)
 		|| (type == Type::GIF)
 		|| (type == Type::Poll);
-}
-
-[[nodiscard]] Window::SeparateId SeparateId(
-		not_null<PeerData*> peer,
-		MsgId topicRootId,
-		Storage::SharedMediaType type) {
-	if (peer->isSelf() || !SeparateSupported(type)) {
-		return { nullptr };
-	}
-	const auto topic = topicRootId
-		? peer->forumTopicFor(topicRootId)
-		: nullptr;
-	if (topicRootId && !topic) {
-		return { nullptr };
-	}
-	const auto thread = topic
-			? (Data::Thread*)topic
-		: peer->owner().history(peer);
-	return { thread, type };
 }
 
 void AddContextMenuToButton(
@@ -106,6 +88,7 @@ void AddContextMenuToButton(
 tr::phrase<lngtag_count> MediaTextPhrase(Type type) {
 	switch (type) {
 	case Type::Photo: return tr::lng_profile_photos;
+	case Type::PhotoVideo: return tr::lng_profile_media;
 	case Type::GIF: return tr::lng_profile_gifs;
 	case Type::Video: return tr::lng_profile_videos;
 	case Type::File: return tr::lng_profile_files;
@@ -121,6 +104,25 @@ Fn<QString(int)> MediaText(Type type) {
 	return [phrase = MediaTextPhrase(type)](int count) {
 		return phrase(tr::now, lt_count, count);
 	};
+}
+
+Window::SeparateId SeparateId(
+		not_null<PeerData*> peer,
+		MsgId topicRootId,
+		Storage::SharedMediaType type) {
+	if (peer->isSelf() || !SeparateSupported(type)) {
+		return { nullptr };
+	}
+	const auto topic = topicRootId
+		? peer->forumTopicFor(topicRootId)
+		: nullptr;
+	if (topicRootId && !topic) {
+		return { nullptr };
+	}
+	const auto thread = topic
+			? (Data::Thread*)topic
+		: peer->owner().history(peer);
+	return { thread, type };
 }
 
 not_null<Ui::SlideWrap<Ui::SettingsButton>*> AddCountedButton(

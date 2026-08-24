@@ -49,6 +49,7 @@ class LinkButton;
 class RoundButton;
 class RpWindow;
 class LayerManager;
+class ImportantTooltip;
 } // namespace Ui
 
 namespace Ui::GL {
@@ -316,6 +317,7 @@ private:
 
 	[[nodiscard]] auto scaledRecognitionRect(QPoint position)
 	const -> std::optional<Platform::TextRecognition::RectWithText>;
+	[[nodiscard]] bool recognitionTakesMouse(QPoint position) const;
 	void updateRecognitionSelection(QPoint position);
 	void clearRecognitionSelection();
 	bool copyRecognitionSelection();
@@ -419,6 +421,10 @@ private:
 	void updateControls();
 	void updateControlsGeometry();
 	void updateNavigationControlsGeometry();
+	void refreshTtlBadge(TimeId destroyAt);
+	void updateTtlBadgePosition();
+	void markTimedMediaRead();
+	void checkSingleViewMediaBurn();
 
 	void fillContextMenuActions(const Ui::Menu::MenuCallback &addAction);
 
@@ -442,7 +448,10 @@ private:
 	void findCurrent();
 
 	void updateCursor();
-	void setZoomLevel(int newZoom, bool force = false);
+	void setZoomLevel(
+		int newZoom,
+		bool force = false,
+		std::optional<QPoint> anchor = std::nullopt);
 
 	void updatePlaybackState();
 	void refreshSystemMediaControls();
@@ -509,10 +518,13 @@ private:
 	void waitingAnimationCallback();
 	bool updateControlsAnimation(crl::time now);
 
-	void zoomIn();
-	void zoomOut();
+	void zoomIn(std::optional<QPoint> anchor = std::nullopt);
+	void zoomOut(std::optional<QPoint> anchor = std::nullopt);
 	void zoomReset();
-	void zoomUpdate(int32 &newZoom);
+	void zoomUpdate(
+		int32 &newZoom,
+		std::optional<QPoint> anchor = std::nullopt);
+	[[nodiscard]] QPoint zoomAnchor(QPointF globalPosition) const;
 
 	void paintRadialLoading(not_null<Renderer*> renderer);
 	void paintRadialLoadingContent(
@@ -609,7 +621,11 @@ private:
 
 	Window::SessionController *findWindow(bool switchTo = true) const;
 
+	void refreshScreenshotProtection();
+	[[nodiscard]] bool contentNeedsScreenshotProtection() const;
+
 	bool _opengl = false;
+	bool _screenshotProtected = false;
 	const std::unique_ptr<Ui::GL::Window> _wrap;
 	const not_null<Ui::RpWindow*> _window;
 	const std::unique_ptr<Platform::OverlayWidgetHelper> _helper;
@@ -696,6 +712,7 @@ private:
 	int _minUsedTop = 0; // Geometry without top notch on macOS.
 	int _maxUsedHeight = 0;
 	int _x = 0, _y = 0, _w = 0, _h = 0;
+	bool _photoRedisplayQueued = false;
 	int _xStart = 0, _yStart = 0;
 	int _zoom = 0; // < 0 - out, 0 - none, > 0 - in
 	float64 _zoomToScreen = 0.; // for documents
@@ -826,6 +843,12 @@ private:
 	// _saveMsgAnimation -> _saveMsgTimer -> _saveMsgAnimation.
 	Ui::Animations::Simple _saveMsgAnimation;
 	base::Timer _saveMsgTimer;
+	base::Timer _ttlTimer;
+	std::unique_ptr<Ui::RpWidget> _ttlBadge;
+	std::unique_ptr<Ui::ImportantTooltip> _ttlTooltip;
+	FullMsgId _ttlBadgeItem;
+	TimeId _ttlBadgeDestroyAt = 0;
+	bool _ttlDeferredClose = false;
 
 	QString _chapterText;
 	QRect _chapterRect;

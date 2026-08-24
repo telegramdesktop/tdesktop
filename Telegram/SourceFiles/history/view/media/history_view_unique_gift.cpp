@@ -11,9 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/star_gift_box.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "core/click_handler_types.h"
+#include "core/ui_integration.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_birthday.h"
-#include "data/data_media_types.h"
 #include "data/data_session.h"
 #include "data/data_star_gift.h"
 #include "data/data_web_page.h"
@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_premium_gift.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_element.h"
+#include "history/view/history_view_text_helper.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "info/peer_gifts/info_peer_gifts_common.h"
@@ -31,8 +32,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ministar_particles.h"
 #include "ui/effects/premium_stars_colored.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/effects/unique_gift_message_bubble.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
+#include "ui/dynamic_image.h"
+#include "ui/dynamic_thumbnails.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "ui/rect.h"
@@ -117,6 +121,42 @@ private:
 
 };
 
+class UniqueGiftMessagePart final : public MediaGenericPart {
+public:
+	UniqueGiftMessagePart(
+		not_null<Element*> parent,
+		const TextWithEntities &text,
+		const QString &placeholder,
+		std::shared_ptr<Ui::DynamicImage> image);
+
+	void draw(
+		Painter &p,
+		not_null<const MediaGeneric*> owner,
+		const PaintContext &context,
+		int outerWidth) const override;
+	TextState textState(
+		QPoint point,
+		StateRequest request,
+		int outerWidth) const override;
+
+	bool hasHeavyPart() override;
+	void unloadHeavyPart() override;
+
+	QSize countOptimalSize() override;
+	QSize countCurrentSize(int newWidth) override;
+
+private:
+	[[nodiscard]] int resolveLayout(int outerWidth);
+
+	const not_null<Element*> _parent;
+	Ui::Text::String _text;
+	const std::shared_ptr<Ui::DynamicImage> _image;
+	Ui::UniqueGiftMessageBubble::Layout _layout;
+	bool _placeholder = false;
+	mutable bool _subscribed = false;
+
+};
+
 TextBubblePart::TextBubblePart(
 	TextWithEntities text,
 	QMargins margins,
@@ -175,6 +215,112 @@ void TextBubblePart::setupPen(
 
 int TextBubblePart::elisionLines() const {
 	return 1;
+}
+
+UniqueGiftMessagePart::UniqueGiftMessagePart(
+	not_null<Element*> parent,
+	const TextWithEntities &text,
+	const QString &placeholder,
+	std::shared_ptr<Ui::DynamicImage> image)
+: _parent(parent)
+, _text(
+	st::chatUniqueTextStyle,
+	(text.empty() ? tr::marked(placeholder) : text),
+	kMarkupTextOptions,
+	0,
+	Core::TextContext({
+		.session = &parent->history()->session(),
+		.repaint = [parent] { parent->customEmojiRepaint(); },
+	}))
+, _image(std::move(image))
+, _placeholder(text.empty()) {
+	InitElementTextPart(parent, _text);
+}
+
+void UniqueGiftMessagePart::draw(
+		Painter &p,
+		not_null<const MediaGeneric*> owner,
+		const PaintContext &context,
+		int outerWidth) const {
+	Ui::UniqueGiftMessageBubble::Paint(
+		p,
+		st::chatUniqueMessageBubble,
+		_layout);
+	if (!_subscribed) {
+		_subscribed = true;
+		const auto raw = _parent;
+		_image->subscribeToUpdates([raw] { raw->repaint(); });
+		raw->history()->owner().registerHeavyViewPart(raw);
+	}
+	p.drawImage(
+		_layout.avatar.topLeft(),
+		_image->image(st::chatUniqueMessageBubble.avatarSize));
+
+	auto textColor = QColor(Qt::white);
+	if (_placeholder) {
+		textColor.setAlphaF(st::uniqueGiftMessagePlaceholderOpacity);
+	}
+	p.setPen(textColor);
+	_parent->prepareCustomEmojiPaint(p, context, _text);
+	_text.draw(p, {
+		.position = _layout.text.topLeft(),
+		.outerWidth = outerWidth,
+		.availableWidth = _layout.text.width(),
+		.align = style::al_topleft,
+		.palette = &context.st->serviceTextPalette(),
+		.pre = context.messageStyle()->preCache.get(),
+		.blockquote = context.quoteCache(
+			_parent->contentColorCollectible(),
+			_parent->contentColorIndex()),
+		.spoiler = Ui::Text::DefaultSpoilerCache(),
+		.now = context.now,
+		.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
+		.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
+		.selection = context.selection,
+		.elisionLines = 0,
+	});
+}
+
+TextState UniqueGiftMessagePart::textState(
+		QPoint point,
+		StateRequest request,
+		int outerWidth) const {
+	point -= _layout.text.topLeft();
+	auto forText = request.forText();
+	forText.align = style::al_topleft;
+	return TextState(
+		nullptr,
+		_text.getState(point, _layout.text.width(), forText));
+}
+
+bool UniqueGiftMessagePart::hasHeavyPart() {
+	return _subscribed;
+}
+
+void UniqueGiftMessagePart::unloadHeavyPart() {
+	_text.unloadPersistentAnimation();
+	if (_subscribed) {
+		_subscribed = false;
+		_image->subscribeToUpdates(nullptr);
+	}
+}
+
+QSize UniqueGiftMessagePart::countOptimalSize() {
+	const auto height = resolveLayout(st::chatUniqueGiftMaxWidth);
+	return { _layout.sectionWidth, height };
+}
+
+QSize UniqueGiftMessagePart::countCurrentSize(int newWidth) {
+	return { newWidth, resolveLayout(newWidth) };
+}
+
+int UniqueGiftMessagePart::resolveLayout(int outerWidth) {
+	_layout = Ui::UniqueGiftMessageBubble::ResolveLayout(
+		st::chatUniqueMessageBubble,
+		st::chatUniqueMessagePadding,
+		outerWidth,
+		_text);
+	return _layout.sectionHeight;
 }
 
 ButtonPart::ButtonPart(
@@ -317,7 +463,7 @@ QSize ButtonPart::countCurrentSize(int newWidth) {
 auto GenerateUniqueGiftMedia(
 	not_null<Element*> parent,
 	Element *replacing,
-	std::shared_ptr<Data::UniqueGift> gift)
+	UniqueGiftMediaDescriptor descriptor)
 -> Fn<void(
 		not_null<MediaGeneric*>,
 		Fn<void(std::unique_ptr<MediaGenericPart>)>)> {
@@ -340,10 +486,8 @@ auto GenerateUniqueGiftMedia(
 		};
 
 		const auto item = parent->data();
-		const auto itemMedia = item->media();
-		const auto fields = itemMedia ? itemMedia->gift() : nullptr;
-		const auto upgrade = fields && fields->upgrade;
-		const auto outgoing = upgrade ? !item->out() : item->out();
+		const auto gift = descriptor.gift;
+		const auto outgoing = descriptor.upgrade ? !item->out() : item->out();
 
 		const auto white = QColor(255, 255, 255);
 		const auto sticker = [=] {
@@ -413,31 +557,48 @@ auto GenerateUniqueGiftMedia(
 			st::chatUniqueTextPadding + tableAddedMargins,
 			[c = gift->backdrop.textColor](const auto&) { return c; },
 			[](const auto&) { return QColor(255, 255, 255); }));
+		if (!descriptor.message.empty()
+			|| !descriptor.messagePlaceholder.isEmpty()) {
+			auto image = descriptor.messageAuthor
+				? Ui::MakeUserpicThumbnail(descriptor.messageAuthor, true)
+				: Ui::MakeHiddenAuthorThumbnail();
+			push(std::make_unique<UniqueGiftMessagePart>(
+				parent,
+				descriptor.message,
+				descriptor.messagePlaceholder,
+				std::move(image)));
+		}
 
-		auto link = OpenStarGiftLink(parent->data());
-		push(std::make_unique<ButtonPart>(
-			tr::lng_sticker_premium_view(tr::now),
-			st::chatUniqueButtonPadding,
-			[=] { parent->repaint(); },
-			std::move(link),
-			anim::with_alpha(gift->backdrop.patternColor, 0.75)));
+		if (descriptor.skipViewAction) {
+			push(std::make_unique<LambdaGenericPart>(
+				QSize(0, st::chatUniqueButtonPadding.bottom()),
+				nullptr));
+		} else {
+			auto link = OpenStarGiftLink(item);
+			push(std::make_unique<ButtonPart>(
+				tr::lng_sticker_premium_view(tr::now),
+				st::chatUniqueButtonPadding,
+				[=] { parent->repaint(); },
+				std::move(link),
+				anim::with_alpha(gift->backdrop.patternColor, 0.75)));
+		}
 	};
 }
 
 auto UniqueGiftBg(
 	not_null<Element*> view,
-	std::shared_ptr<Data::UniqueGift> gift)
+	std::shared_ptr<Data::UniqueGift> gift,
+	std::shared_ptr<UniqueGiftBgCache> cache)
 -> Fn<void(
 		Painter&,
 		const Ui::ChatPaintContext&,
 		not_null<const MediaGeneric*>)> {
 	struct State {
-		QImage bg;
-		base::flat_map<float64, QImage> cache;
 		std::unique_ptr<Ui::Text::CustomEmoji> pattern;
-		QImage badgeCache;
-		Info::PeerGifts::GiftBadge badgeKey;
 	};
+	if (!cache) {
+		cache = std::make_shared<UniqueGiftBgCache>();
+	}
 	const auto state = std::make_shared<State>();
 	state->pattern = view->history()->owner().customEmojiManager().create(
 		gift->pattern.document,
@@ -477,16 +638,15 @@ auto UniqueGiftBg(
 		p.setPen(Qt::NoPen);
 		p.drawRoundedRect(inner, radius, radius);
 
-		const auto width = media->width();
-		const auto shift = width / 12;
-		const auto doubled = width + 2 * shift;
-		const auto top = (webpreview ? 2 : 1) * (-shift);
-		const auto outer = QRect(-shift, top, doubled, doubled);
-		p.setClipRect(inner);
+		const auto shift = media->width() / 12;
+		const auto outer = full.marginsAdded(Margins(shift));
+		auto clipPath = QPainterPath();
+		clipPath.addRoundedRect(inner, radius, radius);
+		p.setClipPath(clipPath);
 		Ui::PaintBgPoints(
 			p,
 			Ui::PatternBgPoints(),
-			state->cache,
+			cache->patternCache,
 			state->pattern.get(),
 			*gift,
 			outer);
@@ -507,16 +667,16 @@ auto UniqueGiftBg(
 			.bg2 = (burned ? burnedBg : gift->backdrop.patternColor),
 			.fg = (burned ? st::white->c : gift->backdrop.textColor),
 		};
-		if (state->badgeCache.isNull() || state->badgeKey != badge) {
-			state->badgeKey = badge;
-			state->badgeCache = ValidateRotatedBadge(badge, padding);
+		if (cache->badgeCache.isNull() || cache->badgeKey != badge) {
+			cache->badgeKey = badge;
+			cache->badgeCache = ValidateRotatedBadge(badge, padding);
 		}
-		const auto badgeRatio = state->badgeCache.devicePixelRatio();
-		const auto badgeWidth = state->badgeCache.width() / badgeRatio;
+		const auto badgeRatio = cache->badgeCache.devicePixelRatio();
+		const auto badgeWidth = cache->badgeCache.width() / badgeRatio;
 		p.drawImage(
 			inner.x() + inner.width() - badgeWidth,
 			inner.y(),
-			state->badgeCache);
+			cache->badgeCache);
 		p.setClipping(false);
 	};
 }

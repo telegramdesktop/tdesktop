@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/userpic_view.h"
 #include "styles/style_editor.h"
 #include "styles/style_basic.h"
-#include "styles/style_dialogs.h"
 
 namespace Editor {
 namespace {
@@ -586,6 +585,10 @@ void Crop::setCornersLevel(RoundedCornersLevel level) {
 	_painterPath.addRect(_innerRect);
 	_painterPath.addPath(cropPath());
 	update();
+}
+
+QRect Crop::paintRect() const {
+	return _cropPaint.toRect();
 }
 
 QRect Crop::saveCropRect() {

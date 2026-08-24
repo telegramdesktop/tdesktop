@@ -129,7 +129,8 @@ CommunityInfo::CommunityInfo(not_null<ChannelData*> channel)
 	&channel->session(),
 	FilterId(),
 	channel->owner().maxPinnedChatsLimitValue(
-		static_cast<Data::Folder*>(nullptr))) {
+		static_cast<Data::Folder*>(nullptr)))
+, _collapsedInChatLists(channel->collapsedInDialogs()) {
 	_channel->session().changes().peerUpdates(
 		PeerUpdate::Flag::Name
 	) | rpl::filter([=](const PeerUpdate &update) {
@@ -227,26 +228,40 @@ bool CommunityInfo::collapsedInDialogs() const {
 	return _channel->collapsedInDialogs();
 }
 
-void CommunityInfo::moveHistory(
-		not_null<History*> history,
-		bool nowCollapsed) {
-	if (!history->inChatList()) {
-		history->updateChatListSortPosition();
-		history->updateChatListExistence();
-		return;
-	}
-	auto &owner = _channel->owner();
-	const auto wasList = nowCollapsed
-		? owner.chatsList(history->folder())
-		: chatsList();
-	history->removeFromChatList(0, wasList);
-	history->updateChatListSortPosition();
-}
-
 void CommunityInfo::collapsedChanged() {
+	// The channel flag is already flipped when this runs, while rows and
+	// pinned state of the linked histories still live in the old lists.
+	// _collapsedInChatLists feeds Data::Session::chatsListFor(), so it
+	// must keep naming the old list until every linked history is removed
+	// from it (the unpin inside removeFromChatList and the pinned-index
+	// reindex of not-yet-moved siblings resolve lists through it), and
+	// flip exactly once before the histories are re-added to the new one.
 	const auto nowCollapsed = collapsedInDialogs();
+	auto &owner = _channel->owner();
+	auto moved = base::flat_set<not_null<History*>>();
+	const auto removeAll = [&](
+			const base::flat_set<not_null<History*>> &from) {
+		for (const auto &history : from) {
+			if (history->inChatList()) {
+				const auto wasList = _collapsedInChatLists
+					? chatsList()
+					: owner.chatsList(history->folder());
+				history->removeFromChatList(0, wasList);
+				moved.emplace(history);
+			}
+		}
+	};
+	removeAll(_histories);
+	removeAll(_otherHistories);
+	_collapsedInChatLists = nowCollapsed;
+	for (const auto &history : moved) {
+		history->updateChatListSortPosition();
+	}
 	for (const auto &history : _histories) {
-		moveHistory(history, nowCollapsed);
+		if (!moved.contains(history)) {
+			history->updateChatListSortPosition();
+			history->updateChatListExistence();
+		}
 	}
 	ensureRowInChatList();
 	repaintRow();

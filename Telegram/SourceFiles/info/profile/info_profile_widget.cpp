@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "info/info_controller.h"
-#include "styles/style_info.h"
+#include "base/event_filter.h"
 
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QScrollBar>
@@ -67,6 +67,10 @@ Memento::Memento(not_null<Data::ForumTopic*> topic)
 
 Memento::Memento(not_null<Data::SavedSublist*> sublist)
 : ContentMemento(sublist->owningHistory()->peer, nullptr, sublist, 0) {
+}
+
+Memento::Memento(not_null<Data::SavedMessages*> savedMessages)
+: ContentMemento(savedMessages) {
 }
 
 Info::Section Memento::section() const {
@@ -117,15 +121,12 @@ Widget::Widget(
 	}
 
 	_inner->scrollToRequests(
-	) | rpl::on_next([this, tabs](Ui::ScrollToRequest request) {
+	) | rpl::on_next([this](Ui::ScrollToRequest request) {
+		const auto reserve = innerTopReserve();
 		if (request.ymin < 0) {
 			scrollTopRestore(
-				qMin(scrollTopSave(), request.ymax));
-		} else if (!tabs) {
-			scrollTo(request);
+				qMin(scrollTopSave(), request.ymax + reserve));
 		} else {
-			// Inner coordinates miss the flexible cover top padding.
-			const auto reserve = innerTopReserve();
 			scrollTo({
 				request.ymin + reserve,
 				(request.ymax < 0) ? -1 : (request.ymax + reserve),
@@ -188,6 +189,24 @@ Widget::Widget(
 			_pinnedToBottom->heightValue(),
 			heightValue()
 		) | rpl::on_next(processHeight, _pinnedToBottom->lifetime());
+	}
+
+	if (const auto host = _inner->tabsHost()) {
+		const auto wheels = lifetime().make_state<rpl::event_stream<>>();
+		base::install_event_filter(scroll()->viewport(), [=](
+				not_null<QEvent*> e) {
+			if (e->type() == QEvent::Wheel) {
+				wheels->fire({});
+			}
+			return base::EventFilterResult::Continue;
+		});
+		host->trackVerticalScroll(rpl::merge(
+			scroll()->scrollTopChanges() | rpl::to_empty,
+			wheels->events()));
+		scroll()->scrollTopValue(
+		) | rpl::on_next([=](int scrollTop) {
+			host->setScrolledToTop(scrollTop <= 0);
+		}, lifetime());
 	}
 
 	setupTabsStripFloat();
@@ -286,6 +305,20 @@ void Widget::showFinished() {
 	_inner->showFinished();
 }
 
+void Widget::checkBeforeCloseByEscape(Fn<void()> close) {
+	_inner->checkBeforeCloseByEscape([=] {
+		ContentWidget::checkBeforeCloseByEscape(close);
+	});
+}
+
+bool Widget::searchAvailable() const {
+	return _inner->searchAvailable();
+}
+
+void Widget::showSearch() {
+	_inner->showSearch();
+}
+
 rpl::producer<QString> Widget::title() {
 	if (const auto topic = controller()->key().topic()) {
 		return topic->peer()->isBot()
@@ -296,7 +329,9 @@ rpl::producer<QString> Widget::title() {
 		return tr::lng_profile_direct_messages();
 	}
 	const auto peer = controller()->key().peer();
-	if (const auto user = peer->asUser()) {
+	if (controller()->key().savedMessages()) {
+		return tr::lng_saved_messages();
+	} else if (const auto user = peer->asUser()) {
 		return (user->isBot() && !user->isSupport())
 			? tr::lng_info_bot_title()
 			: tr::lng_info_user_title();
@@ -325,6 +360,12 @@ bool Widget::showInternal(not_null<ContentMemento*> memento) {
 		return false;
 	}
 	if (auto profileMemento = dynamic_cast<Memento*>(memento.get())) {
+		if (profileMemento->savedMessages()
+			!= controller()->key().savedMessages()) {
+			// The Saved Messages page and the self profile page
+			// are built differently, so a new content is required.
+			return false;
+		}
 		restoreState(profileMemento);
 		return true;
 	}
@@ -340,7 +381,10 @@ void Widget::setInternalState(
 }
 
 std::shared_ptr<ContentMemento> Widget::doCreateMemento() {
-	auto result = std::make_shared<Memento>(controller());
+	const auto savedMessages = controller()->key().savedMessages();
+	auto result = savedMessages
+		? std::make_shared<Memento>(savedMessages)
+		: std::make_shared<Memento>(controller());
 	saveState(result.get());
 	return result;
 }

@@ -83,6 +83,7 @@ void List::adjustByName(not_null<Row*> row) {
 
 void List::adjustByDate(not_null<Row*> row) {
 	Expects(_sortMode == SortMode::Date);
+	Expects(row->index() >= 0 && row->index() < _rows.size());
 
 	if (_frozen) {
 		const auto canAdjustWhileFrozen = _pendingAdjust.empty()

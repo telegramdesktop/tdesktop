@@ -36,6 +36,12 @@ void test(not_null<Ui::RpWindow*> window, not_null<Ui::RpWidget*> widget);
 };
 
 class App final : public QApplication, public QAbstractNativeEventFilter {
+private:
+	auto createEventNestingLevel() {
+		incrementEventNestingLevel();
+		return gsl::finally([=] { decrementEventNestingLevel(); });
+	}
+
 public:
 	using QApplication::QApplication;
 
@@ -55,11 +61,6 @@ private:
 		int loopNestingLevel = 0;
 		FnMut<void()> callable;
 	};
-
-	auto createEventNestingLevel() {
-		incrementEventNestingLevel();
-		return gsl::finally([=] { decrementEventNestingLevel(); });
-	}
 
 	void checkForEmptyLoopNestingLevel();
 	void processPostponedCalls(int level);

@@ -23,7 +23,15 @@ void SparseIdsList::Slice::merge(
 	Expects(moreNoSkipRange.from <= range.till);
 	Expects(range.from <= moreNoSkipRange.till);
 
-	messages.merge(std::begin(moreMessages), std::end(moreMessages));
+	const auto begin = std::begin(moreMessages);
+	const auto end = std::end(moreMessages);
+	if (begin != end) {
+		if (std::next(begin) == end) {
+			messages.insert(*begin);
+		} else {
+			messages.merge(begin, end);
+		}
+	}
 	range = {
 		qMin(range.from, moreNoSkipRange.from),
 		qMax(range.till, moreNoSkipRange.till)
@@ -159,7 +167,7 @@ void SparseIdsList::removeOne(MsgId messageId) {
 			return slice.messages.remove(messageId);
 		});
 	}
-	if (_count) {
+	if (_count && *_count > 0) {
 		--*_count;
 	}
 }
@@ -168,6 +176,33 @@ void SparseIdsList::removeAll() {
 	_slices.clear();
 	_slices.emplace(base::flat_set<MsgId>{}, MsgRange { 0, ServerMaxMsgId });
 	_count = 0;
+}
+
+std::optional<int> SparseIdsList::countAfter(
+		MsgId tillId,
+		int limit,
+		Fn<bool(MsgId)> counts) const {
+	if (_slices.empty()) {
+		return std::nullopt;
+	}
+	const auto &bottom = *(_slices.end() - 1);
+	if (bottom.range.till != ServerMaxMsgId) {
+		return std::nullopt;
+	} else if ((bottom.range.from > tillId) && (bottom.range.from != 0)) {
+		return std::nullopt;
+	}
+	const auto from = bottom.messages.upper_bound(tillId);
+	const auto till = bottom.messages.end();
+	if (std::distance(from, till) > limit) {
+		return std::nullopt;
+	}
+	auto result = 0;
+	for (auto i = from; i != till; ++i) {
+		if (counts(*i)) {
+			++result;
+		}
+	}
+	return result;
 }
 
 void SparseIdsList::invalidateBottom() {

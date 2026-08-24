@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/tabs/adapters/info_profile_tab_media.h"
 
+#include "base/options.h"
 #include "data/data_forum_topic.h"
 #include "data/data_peer.h"
 #include "data/data_saved_sublist.h"
@@ -15,18 +16,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "info/info_controller.h"
 #include "info/media/info_media_buttons.h"
+#include "info/media/info_media_empty_widget.h"
 #include "info/media/info_media_list_widget.h"
 #include "info/profile/info_profile_values.h"
 #include "info/profile/tabs/adapters/info_profile_tab_sub_controller.h"
 #include "info/profile/tabs/info_profile_tab_skeleton.h"
 #include "lang/lang_keys.h"
+#include "ui/text/text_utilities.h"
 #include "ui/effects/animations.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/rp_widget.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "window/window_session_controller.h"
-#include "styles/style_basic.h"
 #include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
 
@@ -34,6 +37,19 @@ namespace Info::Profile {
 namespace {
 
 using SharedMediaType = Storage::SharedMediaType;
+
+base::options::toggle MediaTabsExpandedOption({
+	.id = kOptionProfileMediaTabsExpanded,
+	.name = "Split profile media tab into photos and videos.",
+	.description = "Show separate photo and video tabs in profiles instead "
+		"of a single combined media tab.",
+});
+
+[[nodiscard]] bool MediaTabGrid(SharedMediaType type) {
+	return (type == SharedMediaType::Photo)
+		|| (type == SharedMediaType::Video)
+		|| (type == SharedMediaType::PhotoVideo);
+}
 
 [[nodiscard]] bool MediaTabSearchable(SharedMediaType type) {
 	return (type == SharedMediaType::File)
@@ -43,12 +59,13 @@ using SharedMediaType = Storage::SharedMediaType;
 
 [[nodiscard]] rpl::producer<QString> MediaTabTitle(SharedMediaType type) {
 	switch (type) {
+	case SharedMediaType::PhotoVideo: return tr::lng_media_type_media();
 	case SharedMediaType::Photo: return tr::lng_media_type_photos();
 	case SharedMediaType::Video: return tr::lng_media_type_videos();
 	case SharedMediaType::File: return tr::lng_media_type_files();
-	case SharedMediaType::MusicFile: return tr::lng_media_type_songs();
-	case SharedMediaType::Link: return tr::lng_media_type_links();
-	case SharedMediaType::RoundVoiceFile: return tr::lng_media_type_audios();
+	case SharedMediaType::MusicFile: return tr::lng_all_music();
+	case SharedMediaType::Link: return tr::lng_all_links();
+	case SharedMediaType::RoundVoiceFile: return tr::lng_all_voice();
 	case SharedMediaType::GIF: return tr::lng_media_type_gifs();
 	case SharedMediaType::Poll: return tr::lng_media_type_polls();
 	default: Unexpected("type in MediaTabTitle");
@@ -57,6 +74,19 @@ using SharedMediaType = Storage::SharedMediaType;
 
 [[nodiscard]] QString MediaTabId(SharedMediaType type) {
 	return u"media:"_q + QString::number(int(type));
+}
+
+[[nodiscard]] Data::ProfileTab MediaProfileTab(SharedMediaType type) {
+	switch (type) {
+	case SharedMediaType::PhotoVideo:
+	case SharedMediaType::Photo: return Data::ProfileTab::Media;
+	case SharedMediaType::File: return Data::ProfileTab::Files;
+	case SharedMediaType::MusicFile: return Data::ProfileTab::Music;
+	case SharedMediaType::RoundVoiceFile: return Data::ProfileTab::Voice;
+	case SharedMediaType::Link: return Data::ProfileTab::Links;
+	case SharedMediaType::GIF: return Data::ProfileTab::Gifs;
+	default: return Data::ProfileTab::None;
+	}
 }
 
 class MediaTabAdapter final : public MediaTabContent {
@@ -83,22 +113,14 @@ public:
 		_list->show();
 		_skeleton = CreateTabSkeleton(host, _type);
 		_skeleton->show();
-		host->widthValue(
-		) | rpl::on_next([this](int newWidth) {
-			_list->resizeToWidth(std::max(
-				newWidth - st::infoMediaTabsRightSkip,
-				1));
+		_empty = Ui::CreateChild<Media::EmptyWidget>(host);
+		_empty->setType(_type);
+		_empty->setSearchQuery(QString());
+		_empty->hide();
+		_empty->setFullHeight(_fullHeight.value());
+		_empty->heightValue(
+		) | rpl::on_next([this](int) {
 			updateHostHeight();
-		}, host->lifetime());
-		host->sizeValue(
-		) | rpl::on_next([this](QSize size) {
-			_skeleton->setGeometry(QRect(
-				QPoint(),
-				QSize(
-					std::max(
-						size.width() - st::infoMediaTabsRightSkip,
-						1),
-					size.height())));
 		}, host->lifetime());
 		_list->heightValue(
 		) | rpl::on_next([this](int newHeight) {
@@ -121,6 +143,18 @@ public:
 	not_null<Ui::RpWidget*> widget() override {
 		return _host.data();
 	}
+	void resizeToWidth(int newWidth) override {
+		if (_host->width() != newWidth) {
+			_host->resize(newWidth, _host->height());
+			_list->resizeToWidth(std::max(
+				newWidth - st::infoMediaTabsRightSkip,
+				1));
+			if (_empty) {
+				_empty->resizeToWidth(newWidth);
+			}
+		}
+		updateHostHeight();
+	}
 	TabTopBarBindings topBarBindings() override {
 		return {
 			.title = MediaTabTitle(_type) | rpl::map([](const QString &text) {
@@ -137,8 +171,7 @@ public:
 					? phrase(tr::now, lt_count, count)
 					: QString() };
 			}),
-			.fillMenu = ((_type == SharedMediaType::Photo
-				|| _type == SharedMediaType::Video)
+			.fillMenu = (MediaTabGrid(_type)
 				? Fn<void(const Ui::Menu::MenuCallback&)>(crl::guard(
 					base::make_weak(_list),
 					[this](const Ui::Menu::MenuCallback &addAction) {
@@ -157,6 +190,7 @@ public:
 				base::make_weak(_list),
 				[this](const QString &query) {
 					_subController.applySearchQuery(query);
+					_empty->setSearchQuery(query);
 				}),
 		};
 	}
@@ -164,9 +198,11 @@ public:
 	void deactivated() override {
 		_list->selectionAction(SelectionAction::Clear);
 		_subController.applySearchQuery(QString());
+		_empty->setSearchQuery(QString());
 	}
 
 	void setVisibleRegion(int top, int bottom) override {
+		_fullHeight = bottom - top;
 		_list->setExternalViewportHeight(bottom - top);
 		_list->setVisibleTopBottom(top, bottom);
 	}
@@ -182,17 +218,36 @@ private:
 	}
 
 	void updateHostHeight() {
-		const auto height = skeletonShown()
-			? st::infoMediaSkeletonMinHeight
-			: _list->height();
+		auto height = 0;
+		if (skeletonShown()) {
+			if (_empty) {
+				_empty->hide();
+			}
+			height = st::infoMediaSkeletonMinHeight;
+		} else if (_empty && (_list->height() <= 0)) {
+			_empty->moveToLeft(0, 0);
+			_empty->show();
+			height = _empty->height();
+		} else {
+			if (_empty) {
+				_empty->hide();
+			}
+			height = _list->height();
+		}
 		if (_host->height() != height) {
 			_host->resize(_host->width(), height);
+		}
+		if (_skeleton) {
+			_skeleton->setGeometry(Rect(QSize(
+				std::max(
+					_host->width() - st::infoMediaTabsRightSkip,
+					1),
+				_host->height())));
 		}
 	}
 
 	void fillMenu(const Ui::Menu::MenuCallback &addAction) {
-		if (_type != SharedMediaType::Photo
-			&& _type != SharedMediaType::Video) {
+		if (!MediaTabGrid(_type)) {
 			return;
 		}
 		const auto list = _list;
@@ -213,8 +268,8 @@ private:
 			controller->showCalendar({
 				.chat = Dialogs::Key(peer->owner().history(peer)),
 				.date = QDate::currentDate(),
-				.mediaPhoto = (type == SharedMediaType::Photo),
-				.mediaVideo = (type == SharedMediaType::Video),
+				.mediaPhoto = (type != SharedMediaType::Video),
+				.mediaVideo = (type != SharedMediaType::Photo),
 				.customJump = crl::guard(
 					base::make_weak(list),
 					[=](FullMsgId id, Fn<void()> close) {
@@ -233,6 +288,8 @@ private:
 	MediaSubController _subController;
 	object_ptr<Ui::RpWidget> _host;
 	Media::ListWidget *_list = nullptr;
+	Media::EmptyWidget *_empty = nullptr;
+	rpl::variable<int> _fullHeight = 0;
 	int _topOverlay = 0;
 	object_ptr<Ui::RpWidget> _skeleton = { nullptr };
 	bool _listLoaded = false;
@@ -241,18 +298,38 @@ private:
 
 } // namespace
 
+const char kOptionProfileMediaTabsExpanded[] = "profile-media-tabs-expanded";
+
+bool MediaTabsExpanded() {
+	return MediaTabsExpandedOption.value();
+}
+
+rpl::producer<bool> MediaTabsExpandedValue() {
+	return rpl::single(rpl::empty) | rpl::then(
+		MediaTabsExpandedOption.changes()
+	) | rpl::map([] {
+		return MediaTabsExpandedOption.value();
+	});
+}
+
+void SetMediaTabsExpanded(bool expanded) {
+	MediaTabsExpandedOption.set(expanded);
+}
+
 MediaTabDescriptor MakeMediaTabDescriptor(
 		SharedMediaType type,
 		rpl::producer<bool> shown) {
 	return {
 		.id = MediaTabId(type),
-		.title = MediaTabTitle(type),
+		.title = MediaTabTitle(type) | rpl::map(Ui::Text::WithEntities),
 		.shown = std::move(shown),
+		.sharedMediaType = type,
 		.factory = [type](MediaTabContext context) {
 			return std::make_unique<MediaTabAdapter>(
 				std::move(context),
 				type);
 		},
+		.profileTab = MediaProfileTab(type),
 	};
 }
 

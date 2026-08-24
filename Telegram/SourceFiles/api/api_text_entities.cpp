@@ -69,6 +69,10 @@ using namespace TextUtilities;
 	return MTP_inputMessageEntityMentionName(offset, length, input);
 }
 
+[[nodiscard]] bool IsInternalUrl(const QString &url) {
+	return url.startsWith(u"internal:"_q, Qt::CaseInsensitive);
+}
+
 } // namespace
 
 EntitiesInText EntitiesFromMTP(
@@ -138,11 +142,15 @@ EntitiesInText EntitiesFromMTP(
 				qs(d.vlanguage()),
 			});
 		}, [&](const MTPDmessageEntityTextUrl &d) {
+			const auto url = qs(d.vurl());
+			if (IsInternalUrl(url)) {
+				return;
+			}
 			result.push_back({
 				EntityType::CustomUrl,
 				d.voffset().v,
 				d.vlength().v,
-				qs(d.vurl()),
+				url,
 			});
 		}, [&](const MTPDmessageEntityMentionName &d) {
 			if (!session) {
@@ -309,13 +317,13 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 		case EntityType::CustomUrl: {
 			const auto external = UrlClickHandler::ExternalUrlFromInternalUrl(
 				entity.data());
-			v.push_back(
-				MTP_messageEntityTextUrl(
+			const auto url = external.isEmpty() ? entity.data() : external;
+			if (!IsInternalUrl(url)) {
+				v.push_back(MTP_messageEntityTextUrl(
 					offset,
 					length,
-					MTP_string(external.isEmpty()
-						? entity.data()
-						: external)));
+					MTP_string(url)));
+			}
 		} break;
 		case EntityType::Email: {
 			v.push_back(MTP_messageEntityEmail(offset, length));

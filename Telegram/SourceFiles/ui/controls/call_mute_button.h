@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/cross_line.h"
 #include "ui/effects/gradient.h"
 #include "ui/effects/radial_animation.h"
-#include "ui/widgets/call_button.h"
+#include "ui/controls/call_button.h"
 #include "ui/widgets/tooltip.h"
 #include "lottie/lottie_icon.h"
 

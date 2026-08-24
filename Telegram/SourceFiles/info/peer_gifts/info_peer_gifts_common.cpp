@@ -41,7 +41,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_credits.h"
 #include "styles/style_layers.h"
 #include "styles/style_overview.h"
-#include "styles/style_premium.h"
 
 namespace Info::PeerGifts {
 namespace {
@@ -1003,13 +1002,17 @@ void GiftButton::paint(QPainter &p, float64 craftProgress) {
 	}
 
 	auto percentSkip = 0;
+	const auto statusShift = _userpic
+		? st::giftBoxUserpicSize + st::giftBoxUserpicSkip
+		: 0;
 	v::match(_descriptor, [](const GiftTypePremium &) {
 	}, [&](const GiftTypeStars &data) {
 		if (!unique || _mode == Mode::Craft || _mode == Mode::CraftPreview) {
 		} else if (data.pinned && _mode != Mode::Selection) {
 			auto hq = PainterHighQualityEnabler(p);
 			const auto &icon = st::giftBoxPinIcon;
-			const auto skip = st::giftBoxUserpicSkip;
+			const auto skip = st::giftBoxUserpicSkip
+				+ statusShift;
 			const auto add = (st::giftBoxUserpicSize - icon.width()) / 2;
 			p.setPen(Qt::NoPen);
 			p.setBrush(unique->backdrop.patternColor);
@@ -1027,7 +1030,9 @@ void GiftButton::paint(QPainter &p, float64 craftProgress) {
 					QColor(255, 255, 255));
 			}
 			const auto size = _tonIcon.size() / _tonIcon.devicePixelRatio();
-			const auto skip = st::giftBoxUserpicSkip + inset;
+			const auto skip = st::giftBoxUserpicSkip
+				+ inset
+				+ statusShift;
 			const auto add = (st::giftBoxUserpicSize - size.width()) / 2;
 			p.setPen(Qt::NoPen);
 			p.setBrush(unique->backdrop.patternColor);

@@ -39,8 +39,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/background_box.h"
 #include "core/application.h"
 #include "webview/webview_common.h"
-#include "styles/style_widgets.h"
-#include "styles/style_chat.h"
 
 #include <QtCore/QBuffer>
 #include <QtCore/QJsonDocument>

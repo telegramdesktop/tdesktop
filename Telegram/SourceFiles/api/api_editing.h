@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "api/api_common.h"
+
 #include <optional>
 
 class HistoryItem;
@@ -20,9 +22,6 @@ class Error;
 } // namespace MTP
 
 namespace Api {
-
-struct SendOptions;
-struct RemoteFileInfo;
 
 const auto kDefaultEditMessagesErrors = {
 	u"MESSAGE_ID_INVALID"_q,
@@ -58,7 +57,8 @@ mtpRequestId EditTextMessage(
 	SendOptions options,
 	Fn<void(mtpRequestId requestId)> done,
 	Fn<void(const QString &error, mtpRequestId requestId)> fail,
-	bool spoilered);
+	bool spoilered,
+	VideoCoverEdit videoCover = {});
 mtpRequestId EditRichMessage(
 	not_null<HistoryItem*> item,
 	Fn<std::optional<MTPInputRichMessage>()> richMessage,

@@ -52,6 +52,10 @@ public:
 	rpl::producer<SparseIdsListResult> query(SparseIdsListQuery &&query) const;
 	rpl::producer<SparseIdsSliceUpdate> sliceUpdated() const;
 	SparseIdsListResult snapshot(const SparseIdsListQuery &query) const;
+	[[nodiscard]] std::optional<int> countAfter(
+		MsgId tillId,
+		int limit,
+		Fn<bool(MsgId)> counts) const;
 	bool empty() const;
 
 private:

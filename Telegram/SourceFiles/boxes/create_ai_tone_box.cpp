@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_compose_ai_box.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h"
 
@@ -387,7 +388,23 @@ not_null<Ui::AbstractButton*> AddAiToneIconPreview(
 
 namespace {
 
-void SetupToneBox(
+void SetToneSubmitPending(
+		const QPointer<Ui::RoundButton> &button,
+		bool pending) {
+	if (!button) {
+		return;
+	}
+	if (pending) {
+		button->clearState();
+	}
+	button->setDisabled(pending);
+	button->setAttribute(Qt::WA_TransparentForMouseEvents, pending);
+	button->setTextFgOverride(pending
+		? anim::color(st::activeButtonBg, st::activeButtonFg, 0.5)
+		: std::optional<QColor>());
+}
+
+QPointer<Ui::RoundButton> SetupToneBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
 		DocumentId initialEmojiId,
@@ -565,6 +582,7 @@ void SetupToneBox(
 
 	const auto submitBtn = box->addButton(std::move(submitLabel), save);
 	submitBtn->setFullRadius(true);
+	return submitBtn;
 }
 
 } // namespace
@@ -573,7 +591,12 @@ void CreateAiToneBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
 		Fn<void(Data::AiComposeTone)> saved) {
-	SetupToneBox(
+	struct State {
+		QPointer<Ui::RoundButton> submitButton;
+		bool pending = false;
+	};
+	const auto state = box->lifetime().make_state<State>();
+	state->submitButton = SetupToneBox(
 		box,
 		session,
 		DocumentId(0),
@@ -586,6 +609,11 @@ void CreateAiToneBox(
 				const QString &name,
 				const QString &prompt,
 				bool displayAuthor) {
+			if (state->pending) {
+				return;
+			}
+			state->pending = true;
+			SetToneSubmitPending(state->submitButton, true);
 			session->data().aiComposeTones().create(
 				name,
 				prompt,
@@ -600,6 +628,8 @@ void CreateAiToneBox(
 					}
 				}),
 				crl::guard(box, [=](const MTP::Error &error) {
+					state->pending = false;
+					SetToneSubmitPending(state->submitButton, false);
 					if (error.type() == u"TONES_SAVED_TOO_MANY"_q) {
 						ShowAiComposeToneLimitError(box->uiShow(), session);
 					} else if (!MTP::IgnoreError(error)) {

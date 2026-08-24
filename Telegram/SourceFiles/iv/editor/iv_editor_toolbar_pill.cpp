@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 
 #include "styles/palette.h"
-#include "styles/style_dialogs.h"
 #include "styles/style_iv.h"
 
 namespace Iv::Editor {

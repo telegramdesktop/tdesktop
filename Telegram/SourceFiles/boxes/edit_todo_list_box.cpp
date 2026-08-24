@@ -45,11 +45,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/ui_utility.h"
 #include "window/window_session_controller.h"
-#include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h" // defaultComposeFiles.
 #include "styles/style_layers.h"
 #include "styles/style_polls.h"
-#include "styles/style_settings.h"
 
 namespace {
 
@@ -71,6 +69,7 @@ public:
 	[[nodiscard]] bool isValid() const;
 	[[nodiscard]] std::vector<TodoListItem> toTodoListItems() const;
 	void focusFirst();
+	void focusLast();
 
 	[[nodiscard]] rpl::producer<int> addedCount() const;
 	[[nodiscard]] rpl::producer<not_null<QWidget*>> scrollToWidget() const;
@@ -581,6 +580,12 @@ void Tasks::focusFirst() {
 	FocusAtEnd((_list.begin() + locked)->get()->field());
 }
 
+void Tasks::focusLast() {
+	Expects(!_list.empty());
+
+	_list.back()->setFocus();
+}
+
 bool Tasks::correctShadows() const {
 	// Last one should be without shadow.
 	const auto noShadow = ranges::find(
@@ -765,14 +770,21 @@ void Tasks::initTaskField(not_null<Task*> task, TextWithEntities text) {
 		_scrollToWidget.fire_copy(field);
 	}, field->lifetime());
 	field->tabbed(
-	) | rpl::on_next([=](not_null<bool*> handled) {
+	) | rpl::on_next([=](not_null<Ui::InputField::TabbedRequest*> request) {
 		const auto index = findField(field);
-		if (index + 1 < _list.size()) {
+		if (request->backward) {
+			const auto locked = _existingLocked ? _existingCount : 0;
+			if (index > locked) {
+				_list[index - 1]->setFocus();
+			} else {
+				_tabbed.fire({});
+			}
+		} else if (index + 1 < _list.size()) {
 			_list[index + 1]->setFocus();
 		} else {
 			_tabbed.fire({});
 		}
-		*handled = true;
+		request->handled = true;
 	}, field->lifetime());
 	base::install_event_filter(field, [=](not_null<QEvent*> event) {
 		if (event->type() != QEvent::KeyPress
@@ -1043,9 +1055,13 @@ object_ptr<Ui::RpWidget> EditTodoListBox::setupContent() {
 			st::createPollLimitPadding));
 
 	title->tabbed(
-	) | rpl::on_next([=](not_null<bool*> handled) {
-		tasks->focusFirst();
-		*handled = true;
+	) | rpl::on_next([=](not_null<Ui::InputField::TabbedRequest*> request) {
+		if (request->backward) {
+			tasks->focusLast();
+		} else {
+			tasks->focusFirst();
+		}
+		request->handled = true;
 	}, title->lifetime());
 
 	Ui::AddSkip(container);

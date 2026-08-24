@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings_proxy.h"
 #include "media/media_common.h"
 #include "dialogs/ui/dialogs_quick_action.h"
+#include "ui/widgets/chat_filters_tabs_mode.h"
 #include "window/themes/window_themes_embedded.h"
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "base/flags.h"
@@ -1003,6 +1004,11 @@ public:
 	[[nodiscard]] rpl::producer<bool> chatFiltersHorizontalChanges() const;
 	void setChatFiltersHorizontal(bool value);
 
+	[[nodiscard]] Ui::ChatsFiltersTabsMode chatFiltersTabsMode() const;
+	[[nodiscard]] auto chatFiltersTabsModeValue() const
+	-> rpl::producer<Ui::ChatsFiltersTabsMode>;
+	void setChatFiltersTabsMode(Ui::ChatsFiltersTabsMode value);
+
 	[[nodiscard]] Media::VideoQuality videoQuality() const;
 	void setVideoQuality(Media::VideoQuality quality);
 
@@ -1198,6 +1204,8 @@ private:
 	rpl::variable<int> _ivZoom = 0;
 	Media::VideoQuality _videoQuality;
 	rpl::variable<bool> _chatFiltersHorizontal = false;
+	rpl::variable<Ui::ChatsFiltersTabsMode> _chatFiltersTabsMode
+		= Ui::ChatsFiltersTabsMode::Default;
 	base::flat_map<QByteArray, QByteArray> _prefs;
 
 	bool _tabbedReplacedWithInfo = false; // per-window

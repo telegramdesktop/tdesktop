@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/statistics_common.h"
 #include "ui/effects/animation_value_f.h"
 #include "ui/painter.h"
-#include "styles/style_boxes.h"
+#include "styles/style_basic.h"
 #include "styles/style_statistics.h"
 
 namespace Statistic {

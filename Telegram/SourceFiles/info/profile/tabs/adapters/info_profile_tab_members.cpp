@@ -28,10 +28,6 @@ public:
 		const auto host = _host.data();
 		_members = Ui::CreateChild<Members>(host, context.controller, true);
 		_members->show();
-		host->widthValue(
-		) | rpl::on_next([this](int newWidth) {
-			_members->resizeToWidth(newWidth);
-		}, host->lifetime());
 		_members->heightValue(
 		) | rpl::on_next([this](int newHeight) {
 			_host->resize(_host->width(), newHeight);
@@ -57,6 +53,12 @@ public:
 
 	not_null<Ui::RpWidget*> widget() override {
 		return _host.data();
+	}
+	void resizeToWidth(int newWidth) override {
+		if (_host->width() != newWidth) {
+			_members->resizeToWidth(newWidth);
+		}
+		_host->resize(newWidth, _members->height());
 	}
 	TabTopBarBindings topBarBindings() override {
 		using namespace rpl::mappers;
@@ -86,6 +88,13 @@ public:
 						_members->applySearchQuery(query);
 					}
 				}),
+			.groupByRoleState = _members->groupByRoleValue(),
+			.setGroupByRole = crl::guard(
+				base::make_weak(_members),
+				[this](bool grouped) {
+					_members->setGroupByRole(grouped);
+				}),
+			.groupByRoleAvailable = _members->groupByRoleAvailableValue(),
 		};
 	}
 
@@ -110,12 +119,13 @@ private:
 
 } // namespace
 
-MediaTabDescriptor MakeMembersTabDescriptor(not_null<PeerData*> peer) {
-	using namespace rpl::mappers;
+MediaTabDescriptor MakeMembersTabDescriptor(
+		not_null<PeerData*> peer,
+		rpl::producer<bool> shown) {
 	return {
 		.id = u"members"_q,
-		.title = tr::lng_profile_participants_section(),
-		.shown = MembersCountValue(peer) | rpl::map(_1 > 0),
+		.title = tr::lng_profile_participants_section(tr::marked),
+		.shown = std::move(shown),
 		.factory = [](MediaTabContext context) {
 			return std::make_unique<MembersTabAdapter>(std::move(context));
 		},

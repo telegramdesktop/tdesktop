@@ -14,8 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/text/text_utilities.h"
 #include "window/window_session_controller.h"
-#include "styles/style_dialogs.h"
-#include "styles/style_layers.h"
 
 namespace Dialogs::TopBarSuggestions {
 namespace {

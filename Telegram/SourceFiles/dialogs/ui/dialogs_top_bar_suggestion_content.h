@@ -96,6 +96,8 @@ public:
 		not_null<Ui::RpWidget*> parent,
 		Fn<bool()> emojiPaused = nullptr);
 
+	void setClickedCallback(Fn<void()> callback);
+	void setNarrowExpandCallback(Fn<void()> callback);
 	void setContent(
 		TextWithEntities title,
 		TextWithEntities description,
@@ -145,6 +147,8 @@ private:
 	rpl::lifetime _leadingWidgetLifetime;
 	Fn<void()> _hideCallback;
 	Fn<bool()> _emojiPaused;
+	Fn<void()> _suggestionClickCallback;
+	Fn<void()> _narrowExpandCallback;
 
 	int _leftPadding = 0;
 	TopBarSuggestionGeometry _geometry;

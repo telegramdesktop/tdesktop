@@ -40,7 +40,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_menu_icons.h"
 
 namespace ChatHelpers {
 
@@ -539,7 +538,7 @@ TabbedSelector::TabbedSelector(
 
 TabbedSelector::~TabbedSelector() = default;
 
-void TabbedSelector::reinstallSwipe(not_null<Ui::RpWidget*> widget) {
+void TabbedSelector::reinstallSwipe(not_null<Inner*> widget) {
 	_swipeLifetime.destroy();
 
 	auto update = [=](Ui::Controls::SwipeContextData data) {
@@ -566,6 +565,14 @@ void TabbedSelector::reinstallSwipe(not_null<Ui::RpWidget*> widget) {
 		if (!_tabsSlider) {
 			return Ui::Controls::SwipeHandlerFinishData();
 		}
+		const auto horizontalDelta = (data.direction == Qt::LeftToRight)
+			? 1
+			: -1;
+		if (widget->canConsumeHorizontalScroll(
+				data.cursorPosition,
+				horizontalDelta)) {
+			return Ui::Controls::SwipeHandlerFinishData();
+		}
 		const auto activeSection = _tabsSlider->activeSection();
 		const auto isToLeft = data.direction == Qt::RightToLeft;
 		if ((isToLeft && activeSection > 0)
@@ -589,6 +596,15 @@ void TabbedSelector::reinstallSwipe(not_null<Ui::RpWidget*> widget) {
 		.update = std::move(update),
 		.init = std::move(init),
 		.dontStart = nullptr,
+		.skipWheelEvent = [=](not_null<QWheelEvent*> event) {
+			const auto delta = Ui::ScrollDelta(event);
+			if (std::abs(delta.x()) <= std::abs(delta.y())) {
+				return false;
+			}
+			return widget->canConsumeHorizontalScroll(
+				widget->mapFromGlobal(event->globalPosition().toPoint()),
+				delta.x());
+		},
 		.onLifetime = &_swipeLifetime,
 	});
 }
@@ -779,6 +795,10 @@ void TabbedSelector::resizeEvent(QResizeEvent *e) {
 	update();
 }
 
+void TabbedSelector::contextMenuEvent(QContextMenuEvent *e) {
+	e->accept();
+}
+
 void TabbedSelector::updateScrollGeometry(QSize oldSize) {
 	auto scrollWidth = width() - st::emojiPanRadius;
 	auto scrollHeight = height() - scrollTop() - scrollBottom();
@@ -845,8 +865,12 @@ void TabbedSelector::paintEvent(QPaintEvent *e) {
 		paintSlideFrame(p);
 		if (!_a_slide.animating()) {
 			_slideAnimation.reset();
-			afterShown();
-			_slideFinished.fire({});
+			InvokeQueued(this, [=] {
+				if (!_slideAnimation) {
+					afterShown();
+					_slideFinished.fire({});
+				}
+			});
 		}
 	} else {
 		paintContent(p);
@@ -1088,6 +1112,16 @@ void TabbedSelector::provideRecentEmoji(
 		if (tab.type() == SelectorTab::Emoji) {
 			const auto emoji = static_cast<EmojiListWidget*>(tab.widget());
 			emoji->provideRecent(customRecentList);
+		}
+	}
+}
+
+void TabbedSelector::setMarkedCustomIds(
+		const base::flat_set<DocumentId> &ids) {
+	for (const auto &tab : _tabs) {
+		if (tab.type() == SelectorTab::Emoji) {
+			const auto emoji = static_cast<EmojiListWidget*>(tab.widget());
+			emoji->setMarkedCustomIds(ids);
 		}
 	}
 }

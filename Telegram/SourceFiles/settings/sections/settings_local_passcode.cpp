@@ -159,47 +159,23 @@ void LocalPasscodeEnter::setupContent() {
 
 	Ui::AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
 
-	const auto addField = [&](rpl::producer<QString> &&text) {
-		const auto &st = st::settingLocalPasscodeInputField;
-		auto container = object_ptr<Ui::RpWidget>(content);
-		container->resize(container->width(), st.heightMin);
-		const auto field = Ui::CreateChild<Ui::PasswordInput>(
-			container.data(),
-			st,
-			std::move(text));
-
-		container->geometryValue(
-		) | rpl::on_next([=](const QRect &r) {
-			field->moveToLeft((r.width() - field->width()) / 2, 0);
-		}, container->lifetime());
-
-		content->add(std::move(container));
-		return field;
-	};
-
-	const auto addError = [&](not_null<Ui::PasswordInput*> input) {
-		const auto error = content->add(
-			object_ptr<Ui::FlatLabel>(
-				content,
-				tr::lng_language_name(tr::now),
-				st::settingLocalPasscodeError),
-			st::changePhoneDescriptionPadding,
-			style::al_top);
-		error->hide();
-		QObject::connect(input.get(), &Ui::MaskedInputField::changed, [=] {
-			error->hide();
-		});
-		return error;
-	};
-
-	const auto newPasscode = addField(isCreate
-		? tr::lng_passcode_enter_first()
-		: tr::lng_passcode_enter());
+	const auto newPasscode = CloudPassword::AddPasswordField(
+		content,
+		isCreate
+			? tr::lng_passcode_enter_first()
+			: tr::lng_passcode_enter(),
+		QString());
 
 	const auto reenterPasscode = isCheck
 		? (Ui::PasswordInput*)(nullptr)
-		: addField(tr::lng_passcode_confirm_new());
-	const auto error = addError(isCheck ? newPasscode : reenterPasscode);
+		: CloudPassword::AddPasswordField(
+			content,
+			tr::lng_passcode_confirm_new(),
+			QString()).get();
+	const auto error = CloudPassword::AddError(
+		content,
+		isCheck ? newPasscode.get() : reenterPasscode);
+	error->setText(tr::lng_language_name(tr::now));
 
 	const auto button = content->add(
 		object_ptr<Ui::RoundButton>(

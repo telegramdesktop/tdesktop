@@ -9,8 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "boxes/connection_box.h"
+#include "main/main_domain.h"
+#include "storage/localstorage.h"
+#include "storage/storage_domain.h"
 #include "window/window_controller.h"
 #include "ui/layers/generic_box.h"
+#include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/vertical_list.h"
@@ -29,6 +35,7 @@ namespace Core {
 namespace {
 
 constexpr auto kAutomationKey = std::string_view("automation.enabled");
+constexpr auto kProxyUndoDuration = crl::time(8000);
 
 struct WindowEntry {
 	not_null<Window::Controller*> controller;
@@ -211,6 +218,240 @@ void RequestEnableAutomation() {
 	return Pack(object);
 }
 
+[[nodiscard]] QByteArray HandleLock() {
+	if (!App().domain().local().hasLocalPasscode()) {
+		return Error(u"no local passcode set"_q);
+	}
+	const auto already = App().passcodeLocked();
+	if (!already) {
+		App().lockByPasscode();
+	}
+	auto object = QJsonObject();
+	object.insert(u"ok"_q, true);
+	object.insert(u"locked"_q, true);
+	object.insert(u"changed"_q, !already);
+	return Pack(object);
+}
+
+[[nodiscard]] QString ProxyTypeName(MTP::ProxyData::Type type) {
+	switch (type) {
+	case MTP::ProxyData::Type::Socks5: return u"socks5"_q;
+	case MTP::ProxyData::Type::Http: return u"http"_q;
+	case MTP::ProxyData::Type::Mtproto: return u"mtproto"_q;
+	case MTP::ProxyData::Type::Web: return u"web"_q;
+	case MTP::ProxyData::Type::None: break;
+	}
+	return u"none"_q;
+}
+
+[[nodiscard]] QString ProxyModeName(MTP::ProxyData::Settings settings) {
+	switch (settings) {
+	case MTP::ProxyData::Settings::Enabled: return u"enabled"_q;
+	case MTP::ProxyData::Settings::Disabled: return u"disabled"_q;
+	case MTP::ProxyData::Settings::System: break;
+	}
+	return u"system"_q;
+}
+
+[[nodiscard]] QString ProxyLabel(const MTP::ProxyData &proxy) {
+	return ProxyTypeName(proxy.type)
+		+ u" "_q
+		+ proxy.host
+		+ u":"_q
+		+ QString::number(proxy.port);
+}
+
+void ShowProxyToast(const QString &text, Fn<void()> undo) {
+	const auto window = App().activePrimaryWindow();
+	if (!window) {
+		return;
+	}
+	auto content = TextWithEntities{ text + u" "_q };
+	content.append(Ui::Text::Link(u"Undo"_q));
+	const auto instance
+		= std::make_shared<base::weak_ptr<Ui::Toast::Instance>>();
+	*instance = window->uiShow()->showToast({
+		.text = std::move(content),
+		.filter = [=](const auto &...) {
+			undo();
+			if (const auto strong = instance->get()) {
+				strong->hideAnimated();
+			}
+			return false;
+		},
+		.duration = kProxyUndoDuration,
+	});
+}
+
+[[nodiscard]] int ProxyIndexByArgument(const QString &argument) {
+	const auto &proxies = App().settings().proxy();
+	auto ok = false;
+	const auto index = argument.toInt(&ok);
+	if (ok) {
+		return (index >= 0 && index < int(proxies.list().size()))
+			? index
+			: -1;
+	}
+	const auto proxy = ProxiesBoxController::ProxyFromLink(argument);
+	return proxy ? proxies.indexInList(proxy) : -1;
+}
+
+[[nodiscard]] QByteArray HandleProxyList() {
+	const auto &proxies = App().settings().proxy();
+	const auto selected = proxies.selected();
+	auto list = QJsonArray();
+	auto index = 0;
+	for (const auto &proxy : proxies.list()) {
+		auto object = QJsonObject();
+		object.insert(u"id"_q, index++);
+		object.insert(u"type"_q, ProxyTypeName(proxy.type));
+		object.insert(u"host"_q, proxy.host);
+		object.insert(u"port"_q, int(proxy.port));
+		object.insert(u"selected"_q, (proxy == selected));
+		list.append(object);
+	}
+	auto object = QJsonObject();
+	object.insert(u"ok"_q, true);
+	object.insert(u"mode"_q, ProxyModeName(proxies.settings()));
+	object.insert(u"enabled"_q, proxies.isEnabled());
+	object.insert(u"proxies"_q, list);
+	return Pack(object);
+}
+
+[[nodiscard]] QByteArray HandleProxyAdd(const QString &link) {
+	const auto proxy = ProxiesBoxController::ProxyFromLink(link);
+	if (proxy.type == MTP::ProxyData::Type::None) {
+		return Error(u"invalid proxy link"_q);
+	} else if (!proxy) {
+		const auto status = proxy.status();
+		return Error((status == MTP::ProxyData::Status::Unsupported)
+			? u"unsupported proxy"_q
+			: (status == MTP::ProxyData::Status::IncorrectSecret)
+			? u"incorrect proxy secret"_q
+			: u"invalid proxy"_q);
+	}
+	auto &proxies = App().settings().proxy();
+	auto object = QJsonObject();
+	object.insert(u"ok"_q, true);
+	const auto already = proxies.indexInList(proxy);
+	if (already >= 0) {
+		object.insert(u"id"_q, already);
+		object.insert(u"added"_q, false);
+		return Pack(object);
+	}
+	proxies.addToList(proxy);
+	Local::writeSettings();
+	ShowProxyToast(u"Proxy added: "_q + ProxyLabel(proxy), [=] {
+		auto &current = App().settings().proxy();
+		const auto selected = (current.selected() == proxy);
+		if (current.removeFromList(proxy) && selected) {
+			App().setCurrentProxy(
+				MTP::ProxyData(),
+				MTP::ProxyData::Settings::System);
+		}
+		Local::writeSettings();
+	});
+	object.insert(u"id"_q, proxies.indexInList(proxy));
+	object.insert(u"added"_q, true);
+	return Pack(object);
+}
+
+[[nodiscard]] QByteArray HandleProxyRemove(const QString &argument) {
+	const auto index = ProxyIndexByArgument(argument);
+	if (index < 0) {
+		return Error(u"no such proxy"_q);
+	}
+	auto &proxies = App().settings().proxy();
+	const auto proxy = proxies.list()[index];
+	const auto wasSelected = (proxies.selected() == proxy);
+	const auto wasSettings = proxies.settings();
+	if (!proxies.removeFromList(proxy)) {
+		return Error(u"no such proxy"_q);
+	}
+	if (wasSelected) {
+		if (wasSettings == MTP::ProxyData::Settings::Enabled) {
+			App().setCurrentProxy(
+				MTP::ProxyData(),
+				MTP::ProxyData::Settings::System);
+		} else {
+			proxies.setSelected(MTP::ProxyData());
+		}
+	}
+	Local::writeSettings();
+	ShowProxyToast(u"Proxy removed: "_q + ProxyLabel(proxy), [=] {
+		auto &current = App().settings().proxy();
+		if (current.indexInList(proxy) < 0) {
+			current.insertToList(index, proxy);
+		}
+		if (wasSelected) {
+			App().setCurrentProxy(proxy, wasSettings);
+		}
+		Local::writeSettings();
+	});
+	auto object = QJsonObject();
+	object.insert(u"ok"_q, true);
+	object.insert(u"removed"_q, index);
+	return Pack(object);
+}
+
+[[nodiscard]] QByteArray HandleProxySelect(MTP::ProxyData proxy) {
+	auto &proxies = App().settings().proxy();
+	const auto wasSelected = proxies.selected();
+	const auto wasSettings = proxies.settings();
+	App().setCurrentProxy(proxy, MTP::ProxyData::Settings::Enabled);
+	Local::writeSettings();
+	ShowProxyToast(u"Proxy enabled: "_q + ProxyLabel(proxy), [=] {
+		App().setCurrentProxy(wasSelected, wasSettings);
+		Local::writeSettings();
+	});
+	auto object = QJsonObject();
+	object.insert(u"ok"_q, true);
+	object.insert(u"selected"_q, proxies.indexInList(proxy));
+	return Pack(object);
+}
+
+[[nodiscard]] QByteArray HandleProxyUse(const QString &argument) {
+	const auto index = ProxyIndexByArgument(argument);
+	if (index < 0) {
+		return Error(u"no such proxy"_q);
+	}
+	return HandleProxySelect(App().settings().proxy().list()[index]);
+}
+
+[[nodiscard]] QByteArray HandleProxyNext() {
+	const auto &proxies = App().settings().proxy();
+	const auto count = int(proxies.list().size());
+	if (!count) {
+		return Error(u"no proxies configured"_q);
+	}
+	const auto current = proxies.indexInList(proxies.selected());
+	return HandleProxySelect(proxies.list()[(current + 1) % count]);
+}
+
+[[nodiscard]] QByteArray HandleProxyToggle() {
+	auto &proxies = App().settings().proxy();
+	const auto wasSelected = proxies.selected();
+	const auto wasSettings = proxies.settings();
+	if (!proxies.isEnabled()) {
+		if (!wasSelected && proxies.list().empty()) {
+			return Error(u"no proxies configured"_q);
+		}
+		return HandleProxySelect(wasSelected
+			? wasSelected
+			: proxies.list().back());
+	}
+	App().setCurrentProxy(wasSelected, MTP::ProxyData::Settings::Disabled);
+	Local::writeSettings();
+	ShowProxyToast(u"Proxy disabled."_q, [=] {
+		App().setCurrentProxy(wasSelected, wasSettings);
+		Local::writeSettings();
+	});
+	auto object = QJsonObject();
+	object.insert(u"ok"_q, true);
+	object.insert(u"enabled"_q, false);
+	return Pack(object);
+}
+
 } // namespace
 
 QByteArray HandleExternalControl(const QString &command) {
@@ -236,6 +477,20 @@ QByteArray HandleExternalControl(const QString &command) {
 		return HandleActivate(command.mid(9).toInt());
 	} else if (command == u"cycle"_q) {
 		return HandleCycle();
+	} else if (command == u"lock"_q) {
+		return HandleLock();
+	} else if (command == u"proxies"_q) {
+		return HandleProxyList();
+	} else if (command.startsWith(u"proxy-add:"_q)) {
+		return HandleProxyAdd(command.mid(10));
+	} else if (command.startsWith(u"proxy-remove:"_q)) {
+		return HandleProxyRemove(command.mid(13));
+	} else if (command.startsWith(u"proxy-use:"_q)) {
+		return HandleProxyUse(command.mid(10));
+	} else if (command == u"proxy-next"_q) {
+		return HandleProxyNext();
+	} else if (command == u"proxy-toggle"_q) {
+		return HandleProxyToggle();
 	}
 	return Error(u"unknown control command"_q);
 }

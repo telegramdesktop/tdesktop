@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "layout/layout_selection.h"
 #include "storage/storage_shared_media.h"
-#include "styles/style_info.h"
 #include "styles/style_overview.h"
 
 namespace Info::Saved {
@@ -251,7 +250,11 @@ rpl::producer<not_null<BaseLayout*>> MusicProvider::layoutRemoved() {
 }
 
 BaseLayout *MusicProvider::lookupLayout(const HistoryItem *item) {
-	return nullptr;
+	if (!item) {
+		return nullptr;
+	}
+	const auto i = _layouts.find(item);
+	return (i != _layouts.end()) ? i->second.item.get() : nullptr;
 }
 
 bool MusicProvider::isMyItem(not_null<const HistoryItem*> item) {

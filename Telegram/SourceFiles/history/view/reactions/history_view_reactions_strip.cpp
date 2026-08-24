@@ -379,7 +379,15 @@ bool Strip::checkIconLoaded(ReactionDocument &entry) const {
 	const auto size = (entry.media == _mainReactionMedia)
 		? MainReactionSize()
 		: _finalSize;
-	entry.icon = _iconFactory(entry.media.get(), size);
+	auto icon = _iconFactory(entry.media.get(), size);
+	if (!entry.media->loaded()) {
+		// A checked read of the file location in the icon factory
+		// could unload the media in case the cache file was removed,
+		// so instead of keeping a blank icon start the load again.
+		entry.media->checkStickerLarge();
+		return false;
+	}
+	entry.icon = std::move(icon);
 	entry.media = nullptr;
 	return true;
 }
@@ -433,6 +441,9 @@ void Strip::checkIcons() {
 	if (all) {
 		_loadCacheLifetime.destroy();
 		loadIcons();
+		if (_update) {
+			_update();
+		}
 	}
 }
 
@@ -455,14 +466,21 @@ void Strip::resolveMainReactionIcon() {
 	_mainReactionMedia->checkStickerLarge();
 	if (_mainReactionMedia->loaded()) {
 		setMainReactionIcon();
-	} else if (!_mainReactionLifetime) {
-		main->session().downloaderTaskFinished(
-		) | rpl::filter([=] {
-			return _mainReactionMedia->loaded();
-		}) | rpl::take(1) | rpl::on_next([=] {
-			setMainReactionIcon();
-		}, _mainReactionLifetime);
+	} else {
+		waitMainReactionIcon();
 	}
+}
+
+void Strip::waitMainReactionIcon() {
+	if (_mainReactionLifetime) {
+		return;
+	}
+	_mainReactionMedia->owner()->session().downloaderTaskFinished(
+	) | rpl::filter([=] {
+		return _mainReactionMedia->loaded();
+	}) | rpl::take(1) | rpl::on_next([=] {
+		setMainReactionIcon();
+	}, _mainReactionLifetime);
 }
 
 void Strip::setMainReactionIcon() {
@@ -471,9 +489,13 @@ void Strip::setMainReactionIcon() {
 	_mainReactionLifetime.destroy();
 	ranges::fill(_validEmoji, false);
 	loadIcons();
-
-	Assert(_mainReactionMedia->loaded());
-
+	if (!_mainReactionMedia->loaded()) {
+		// A checked read of the file location in the icon factory
+		// could unload the media in case the cache file was removed,
+		// loadIcons() restarted the load, wait for it to finish.
+		waitMainReactionIcon();
+		return;
+	}
 	const auto i = _loadCache.find(_mainReactionMedia->owner());
 	if (i != end(_loadCache) && i->second.icon) {
 		const auto &icon = i->second.icon;
@@ -483,11 +505,15 @@ void Strip::setMainReactionIcon() {
 		}
 	}
 	_mainReactionImage = QImage();
-
-	Assert(_mainReactionMedia->loaded());
 	_mainReactionIcon = DefaultIconFactory(
 		_mainReactionMedia.get(),
 		MainReactionSize());
+	if (!_mainReactionMedia->loaded()) {
+		// Same unload could happen in this factory call as well.
+		_mainReactionIcon = nullptr;
+		_mainReactionMedia->checkStickerLarge();
+		waitMainReactionIcon();
+	}
 }
 
 bool Strip::onlyMainEmojiVisible() const {
@@ -552,11 +578,16 @@ IconFactory CachedIconFactory::createMethod() {
 	return [=](not_null<Data::DocumentMedia*> media, int size) {
 		const auto owned = media->owner()->createMediaView();
 		const auto i = _cache.find(owned);
-		return (i != end(_cache))
-			? i->second
-			: _cache.emplace(
-				owned,
-				DefaultIconFactory(media, size)).first->second;
+		if (i != end(_cache)) {
+			return i->second;
+		}
+		auto result = DefaultIconFactory(media, size);
+		if (media->loaded()) {
+			// The factory could unload the media in case its cache
+			// file was removed, don't cache a blank icon in that case.
+			_cache.emplace(owned, result);
+		}
+		return result;
 	};
 }
 

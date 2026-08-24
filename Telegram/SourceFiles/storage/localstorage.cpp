@@ -1069,7 +1069,7 @@ void writeTheme(const Window::Theme::Saved &saved) {
 	const auto &cache = saved.cache;
 	const auto tag = QString(kThemeNewPathRelativeTag);
 	auto chatTheme = QByteArray();
-	if (!object.cloud.emoticon.isEmpty() && !object.cloud.settings.empty()) {
+	if (!object.cloud.settings.empty()) {
 		auto stream = QDataStream(&chatTheme, QIODevice::WriteOnly);
 		stream.setVersion(QDataStream::Qt_5_1);
 		stream
@@ -1319,7 +1319,7 @@ std::vector<Lang::Language> readRecentLanguages() {
 Window::Theme::Object ReadThemeContent() {
 	using namespace Window::Theme;
 
-	auto &themeKey = IsNightMode() ? _themeKeyNight : _themeKeyDay;
+	const auto &themeKey = IsNightMode() ? _themeKeyNight : _themeKeyDay;
 	if (!themeKey) {
 		return Object();
 	}

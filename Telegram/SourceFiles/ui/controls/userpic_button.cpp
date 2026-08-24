@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "editor/photo_editor_common.h"
 #include "editor/photo_editor_layer_widget.h"
+#include "editor/video/video_editor_layer.h"
 #include "info/userpic/info_userpic_emoji_builder_common.h"
 #include "info/userpic/info_userpic_emoji_builder_menu_item.h"
 #include "media/streaming/media_streaming_instance.h"
@@ -52,10 +53,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "api/api_peer_photo.h"
-#include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
-#include "styles/style_premium.h"
+#include "styles/style_userpic_button.h"
 
 #include <QtGui/QClipboard>
 #include <QtGui/QGuiApplication>
@@ -247,10 +247,16 @@ void UserpicButton::prepare() {
 	}
 }
 
+void UserpicButton::setVideoAllowed(bool allowed) {
+	_videoAllowed = allowed;
+}
+
 void UserpicButton::showCustomOnChosen() {
 	chosenImages(
 	) | rpl::on_next([=](ChosenImage &&chosen) {
 		showCustom(std::move(chosen.image));
+		// After showCustom, which clears any previously picked clip.
+		_resultVideo = std::move(chosen.video);
 	}, lifetime());
 }
 
@@ -313,6 +319,13 @@ void UserpicButton::choosePhotoLocally() {
 			_chosenImages.fire({ std::move(image), type });
 		};
 	};
+	const auto mediaCallback = [=](ChosenType type) {
+		return [=](Editor::ProfileMedia &&media) {
+			auto chosen = ChosenImage{ std::move(media.image), type };
+			chosen.video = std::move(media.video);
+			_chosenImages.fire(std::move(chosen));
+		};
+	};
 	const auto editorData = [=](ChosenType type) {
 		const auto user = _peer ? _peer->asUser() : nullptr;
 		const auto name = (user && !user->firstName.isEmpty())
@@ -338,21 +351,33 @@ void UserpicButton::choosePhotoLocally() {
 			.confirm = ((type == ChosenType::Suggest)
 				? tr::lng_profile_suggest_button(tr::now)
 				: tr::lng_profile_set_photo_button(tr::now)),
+			.confirmVideo = ((type == ChosenType::Suggest)
+				? tr::lng_profile_suggest_button(tr::now)
+				: tr::lng_profile_video_confirm_button(tr::now)),
 			.cropType = (useForumShape()
 				? Editor::EditorData::CropType::RoundedRect
 				: Editor::EditorData::CropType::Ellipse),
 			.keepAspectRatio = true,
+			.forOtherUser = (user && !user->isSelf()),
 		};
 	};
 	const auto chooseFile = [=](ChosenType type) {
 		base::call_delayed(
 			_st.changeButton.ripple.hideDuration,
 			crl::guard(this, [=] {
-				PrepareProfilePhotoFromFile(
-					this,
-					_window,
-					editorData(type),
-					callback(type));
+				if (_videoAllowed) {
+					Editor::PrepareProfileMediaFromFile(
+						this,
+						_window,
+						editorData(type),
+						mediaCallback(type));
+				} else {
+					PrepareProfilePhotoFromFile(
+						this,
+						_window,
+						editorData(type),
+						callback(type));
+				}
 			}));
 	};
 	const auto user = _peer ? _peer->asUser() : nullptr;
@@ -373,7 +398,7 @@ void UserpicButton::choosePhotoLocally() {
 				? Api::PeerPhoto::EmojiListType::Profile
 				: Api::PeerPhoto::EmojiListType::Group),
 			done,
-			_peer ? (_peer->isForum() && !_peer->isBot()) : false);
+			useForumShape());
 	};
 	const auto addFromClipboard = [=](ChosenType type, tr::phrase<> text) {
 		if (const auto data = QGuiApplication::clipboard()->mimeData()) {
@@ -421,7 +446,11 @@ void UserpicButton::choosePhotoLocally() {
 	} else {
 		const auto hasCamera = IsCameraAvailable();
 		if (hasCamera || _controller) {
-			_menu->addAction(tr::lng_attach_file(tr::now), [=] {
+			// Say what can actually be picked, which depends on the caller.
+			const auto choose = _videoAllowed
+				? tr::lng_attach_photo_or_video(tr::now)
+				: tr::lng_attach_file(tr::now);
+			_menu->addAction(choose, [=] {
 				chooseFile(ChosenType::Set);
 			}, &st::menuIconPhoto);
 			if (hasCamera) {
@@ -757,9 +786,12 @@ QPoint UserpicButton::countPhotoPosition() const {
 }
 
 QImage UserpicButton::prepareRippleMask() const {
-	return Ui::RippleAnimation::EllipseMask(QSize(
-		_st.photoSize,
-		_st.photoSize));
+	const auto size = QSize(_st.photoSize, _st.photoSize);
+	return useForumShape()
+		? Ui::RippleAnimation::RoundRectMask(
+			size,
+			int(_st.photoSize * Ui::ForumUserpicRadiusMultiplier()))
+		: Ui::RippleAnimation::EllipseMask(size);
 }
 
 QPoint UserpicButton::prepareRippleStartPosition() const {
@@ -970,9 +1002,8 @@ void UserpicButton::processNewPeerPhoto() {
 bool UserpicButton::useForumShape() const {
 	return (_shape == PeerUserpicShape::Forum)
 		|| (_peer
-			&& _peer->isForum()
 			&& _shape == PeerUserpicShape::Auto
-			&& !_peer->isBot());
+			&& _peer->userpicShape() == PeerUserpicShape::Forum);
 }
 
 void UserpicButton::grabOldUserpic() {
@@ -1121,6 +1152,8 @@ void UserpicButton::showCustom(QImage &&image) {
 	_userpic.setDevicePixelRatio(style::DevicePixelRatio());
 	_userpicUniqueKey = {};
 	_result = std::move(image);
+	// A plain still replaces whatever clip was picked before it.
+	_resultVideo = nullptr;
 
 	startNewPhotoShowing();
 }
@@ -1138,6 +1171,7 @@ void UserpicButton::showSource(Source source) {
 	_source = source;
 
 	_result = QImage();
+	_resultVideo = nullptr;
 
 	processPeerPhoto();
 	setupPeerViewers();

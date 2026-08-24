@@ -38,7 +38,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "window/notifications_manager.h"
-#include "styles/style_chat.h"
 
 namespace {
 
@@ -371,25 +370,16 @@ void UserData::setName(
 		const QString &newUsername) {
 	bool changeName = !newFirstName.isEmpty() || !newLastName.isEmpty();
 
-	QString newFullName;
 	if (changeName && newFirstName.trimmed().isEmpty()) {
 		firstName = newLastName;
 		lastName = QString();
-		newFullName = firstName;
 	} else {
 		if (changeName) {
 			firstName = newFirstName;
 			lastName = newLastName;
 		}
-		newFullName = lastName.isEmpty()
-			? firstName
-			: tr::lng_full_name(
-				tr::now,
-				lt_first_name,
-				firstName,
-				lt_last_name,
-				lastName);
 	}
+	const auto newFullName = langFullName(firstName, lastName);
 	updateNameDelayed(newFullName, newPhoneName, newUsername);
 }
 
@@ -938,6 +928,7 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	user->setAbout(qs(update.vabout().value_or_empty()));
 	user->setCommonChatsCount(update.vcommon_chats_count().v);
 	user->setPeerGiftsCount(update.vstargifts_count().value_or_empty());
+	user->setMainProfileTab(Data::ParseProfileTab(update.vmain_tab()));
 	user->checkFolder(update.vfolder_id().value_or_empty());
 	if (const auto theme = update.vtheme()) {
 		theme->match([&](const MTPDchatTheme &data) {

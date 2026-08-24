@@ -17,7 +17,7 @@ constexpr auto kStopTimeout = crl::time(120);
 RowsScrollCache::RowsScrollCache(Fn<void()> stopped) {
 	_stopTimer.setCallback([=] {
 		_scrolling = false;
-		_images.clear();
+		clear();
 		stopped();
 	});
 }
@@ -29,12 +29,14 @@ void RowsScrollCache::markScrolling() {
 
 void RowsScrollCache::invalidate(uint64 rowId) {
 	if (const auto i = _images.find(rowId); i != end(_images)) {
+		_memory -= i->second.sizeInBytes();
 		_images.erase(i);
 	}
 }
 
 void RowsScrollCache::clear() {
 	_images.clear();
+	_memory = 0;
 }
 
 } // namespace Ui

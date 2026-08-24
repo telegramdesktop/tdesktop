@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/ttl_media_layer_widget.h"
 
 #include "base/event_filter.h"
+#include "core/application.h"
+#include "core/core_screenshot_protection.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "editor/editor_layer_widget.h"
@@ -378,6 +380,9 @@ void ShowTTLMediaLayerWidget(
 		parent,
 		std::move(preview));
 	layer->lifetime().add([] { ::Media::Player::instance()->stop(); });
+	Core::App().screenshotProtection().addReason(
+		rpl::single(true),
+		layer->lifetime());
 	base::install_event_filter(layer.get(), [=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::KeyPress) {
 			const auto k = static_cast<QKeyEvent*>(e.get());

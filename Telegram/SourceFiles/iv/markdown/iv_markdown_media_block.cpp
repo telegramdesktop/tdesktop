@@ -61,7 +61,7 @@ void SetPlainTextLeaf(
 		const style::TextStyle &textStyle,
 		int width) {
 	return std::max(
-		leaf.countHeight(width, true),
+		leaf.countHeight(width),
 		TextLineHeight(textStyle));
 }
 
@@ -69,7 +69,7 @@ void SetPlainTextLeaf(
 		const Ui::Text::String &leaf,
 		const QRect &textRect,
 		const style::TextStyle &textStyle) {
-	const auto lines = leaf.countLinesGeometry(textRect.width(), true);
+	const auto lines = leaf.countLinesGeometry(textRect.width());
 	return textRect.y() + (lines.empty()
 		? TextLineBaseline(textStyle)
 		: lines.front().baseline);
@@ -568,13 +568,13 @@ std::shared_ptr<MediaBlock> CreateVideoMediaBlock(
 	return nullptr;
 }
 
-std::shared_ptr<MediaBlock> CreateAudioMediaBlock(
-		const PreparedAudioBlockData &prepared,
+std::shared_ptr<MediaBlock> CreateDocumentMediaBlock(
+		const PreparedDocumentBlockData &prepared,
 		const std::shared_ptr<MediaRuntime> &mediaRuntime,
 		const style::Markdown &st) {
 	if (mediaRuntime) {
 		if (const auto hosted = mediaRuntime->hostedMediaBlockFactory()) {
-			if (const auto block = hosted->createAudio(prepared)) {
+			if (const auto block = hosted->createDocument(prepared)) {
 				block->setLayoutStyle(st);
 				return block;
 			}

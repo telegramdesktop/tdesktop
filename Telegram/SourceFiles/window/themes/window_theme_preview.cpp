@@ -20,8 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_theme.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/message_bubble.h"
+#include "styles/style_chat_style.h"
 #include "styles/style_widgets.h"
-#include "styles/style_window.h"
 #include "styles/style_media_view.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
@@ -448,7 +448,7 @@ void Generator::paintHistoryList() {
 	_historyBottom -= st::historyPaddingBottom;
 	_p->setClipping(true);
 	for (auto i = _bubbles.size(); i != 0;) {
-		auto &bubble = _bubbles[--i];
+		const auto &bubble = _bubbles[--i];
 		if (bubble.width > 0) {
 			paintBubble(bubble);
 		} else {
