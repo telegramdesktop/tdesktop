@@ -470,8 +470,12 @@ stickerSetBoxRemoveButton: RoundButton(attentionBoxButton) {
 	style: semiboldTextStyle;
 }
 stickerSetBoxMenu: IconButton(boxTitleClose) {
+	width: 40px;
+
 	icon: icon {{ "title_menu_dots", boxTitleCloseFg }};
 	iconOver: icon {{ "title_menu_dots", boxTitleCloseFgOver }};
+
+	rippleAreaPosition: point(0px, 4px);
 }
 stickerSetBoxBadgeSkip: 6px;
 stickersRowDisabledOpacity: 0.4;
