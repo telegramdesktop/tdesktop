@@ -56,6 +56,7 @@ protected:
 	void focusInEvent(QFocusEvent *e) override;
 	void focusOutEvent(QFocusEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
+	bool eventHook(QEvent *e) override;
 
 private:
 	void setText(const QString &text);
@@ -111,6 +112,7 @@ private:
 	bool _inside = false;
 	bool _selecting = false;
 	bool _dragWasInactive = false;
+	bool _windowActive = true;
 	QPoint _lastMousePos;
 	QPoint _trippleClickPoint;
 	base::Timer _trippleClickTimer;

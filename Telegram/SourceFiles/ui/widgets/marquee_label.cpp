@@ -125,6 +125,16 @@ void MarqueeLabel::hideEvent(QHideEvent *e) {
 	refreshMarqueeState();
 }
 
+bool MarqueeLabel::eventHook(QEvent *e) {
+	const auto type = e->type();
+	if ((type == QEvent::WindowActivate)
+		|| (type == QEvent::WindowDeactivate)) {
+		_windowActive = (type == QEvent::WindowActivate);
+		refreshMarqueeState();
+	}
+	return RpWidget::eventHook(e);
+}
+
 bool MarqueeLabel::paused() const {
 	return _selectable
 		&& (_inside
@@ -147,6 +157,7 @@ void MarqueeLabel::refreshMarqueeState() {
 	}
 	const auto scroll = _overflown
 		&& isVisible()
+		&& _windowActive
 		&& !anim::Disabled()
 		&& !paused();
 	if (scroll && !_marquee.animating()) {
@@ -159,7 +170,7 @@ void MarqueeLabel::refreshMarqueeState() {
 		_marquee.start();
 	} else if (!scroll && _marquee.animating()) {
 		_marquee.stop();
-		if (!paused()) {
+		if (!paused() && _windowActive) {
 			_offset = 0.;
 		}
 		update();
