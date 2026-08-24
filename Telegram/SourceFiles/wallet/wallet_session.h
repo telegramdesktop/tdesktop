@@ -20,6 +20,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_fee_estimator.h"
 #include "wallet/wallet_stream.h"
 
+namespace wallet_engine {
+struct WalletUpdate;
+} // namespace wallet_engine
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -30,6 +34,7 @@ class SeparatePanel;
 
 namespace Wallet {
 
+class Engine;
 class Onramp;
 class Rates;
 
@@ -160,7 +165,9 @@ private:
 	void pollTick();
 	void updatePollingState();
 	void applyStreamRefresh(StreamRefresh wanted);
-	void applyAccountState(const Gram::AccountState &state);
+	void updateEngineClient();
+	void requestEngineRefresh();
+	void applyEngineUpdate(const wallet_engine::WalletUpdate &update);
 	void mergeHistory(std::vector<Gram::TransferItem> &&items);
 	void requestHistory(int offset);
 	void requestHistoryFallback(int offset);
@@ -183,6 +190,7 @@ private:
 
 	const not_null<Main::Session*> _session;
 	Api _api;
+	const std::unique_ptr<Engine> _engine;
 	const std::unique_ptr<FeeEstimator> _feeEstimator;
 	const std::unique_ptr<Rates> _rates;
 	const std::unique_ptr<Onramp> _onramp;
@@ -199,6 +207,7 @@ private:
 	rpl::variable<int64> _balanceNano = 0;
 	rpl::variable<bool> _stateKnown = false;
 	Gram::AccountState _lastState;
+	Gram::AccountStatus _engineStatus = Gram::AccountStatus::NonExisting;
 	crl::time _stateRefreshedAt = 0;
 	std::vector<Gram::TransferItem> _history;
 	rpl::event_stream<> _historyUpdates;
@@ -228,6 +237,9 @@ private:
 	bool _stateRequestPending = false;
 	bool _historyRequestPending = false;
 	bool _pendingCheckPending = false;
+	QString _engineClientAddress;
+	bool _engineStopping = false;
+	bool _engineRefreshPending = false;
 	std::vector<Fn<void(const Gram::AccountState &)>> _stateDone;
 	std::vector<Fn<void(const Gram::ApiError &)>> _stateFail;
 	std::vector<Fn<void()>> _historyDone;

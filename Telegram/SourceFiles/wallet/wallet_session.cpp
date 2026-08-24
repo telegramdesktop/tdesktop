@@ -16,11 +16,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "storage/storage_account.h"
 #include "ui/widgets/separate_panel.h"
+#include "wallet/wallet_engine.h"
 #include "wallet/wallet_onramp.h"
 #include "wallet/wallet_rates.h"
 
+#include "wallet_engine.hpp"
+
 namespace Wallet {
 namespace {
+
+namespace engine = wallet_engine;
 
 constexpr auto kPollInterval = 5 * crl::time(1000);
 constexpr auto kHistoryPageLimit = 20;
@@ -31,6 +36,8 @@ constexpr auto kEmptyProofFreshness = 60 * crl::time(1000);
 constexpr auto kStreamResyncInterval = 30 * crl::time(1000);
 constexpr auto kSendValidUntilOffset = TimeId(300);
 constexpr auto kSendRetryClockMargin = TimeId(60);
+constexpr auto kEngineProviderBase = "https://toncenter.com";
+constexpr auto kEngineRequestTimeoutMs = uint64(15000);
 
 [[nodiscard]] bool SameCollectibles(
 		const std::vector<Gram::NftItem> &was,
@@ -51,6 +58,7 @@ constexpr auto kSendRetryClockMargin = TimeId(60);
 Session::Session(not_null<Main::Session*> session)
 : _session(session)
 , _api(session)
+, _engine(std::make_unique<Engine>(session, &_api))
 , _feeEstimator(MakeFeeEstimator(&_api))
 , _rates(std::make_unique<Rates>(session))
 , _onramp(std::make_unique<Onramp>(session))
@@ -111,6 +119,7 @@ bool Session::applyKey(
 	_walletId = walletId;
 	_address = Gram::WalletV5Address(_keyPair->publicKey, walletId);
 	_keyState = state;
+	updateEngineClient();
 	return true;
 }
 
@@ -247,6 +256,7 @@ void Session::clearNetworkState() {
 	++_networkGeneration;
 	_balanceNano = 0;
 	_lastState = Gram::AccountState();
+	_engineStatus = Gram::AccountStatus::NonExisting;
 	_stateKnown = false;
 	_stateRefreshedAt = 0;
 	_history.clear();
@@ -276,6 +286,130 @@ void Session::clearNetworkState() {
 	_stateDone.clear();
 	_stateFail.clear();
 	_historyDone.clear();
+	updateEngineClient();
+}
+
+void Session::updateEngineClient() {
+	const auto wanted = (_keyState.current() != KeyState::None)
+		? addressFriendly(false)
+		: QString();
+	if (_engineStopping) {
+		return;
+	}
+	if (const auto client = _engine->client()) {
+		if (wanted == _engineClientAddress) {
+			return;
+		}
+		_engineStopping = true;
+		_engine->runQuick([client] {
+			client->cancel_refresh();
+		}, [] {}, [](EngineError) {});
+		_engine->stopClient([=, this] {
+			_engineStopping = false;
+			_engineClientAddress = QString();
+			updateEngineClient();
+		});
+		return;
+	}
+	if (wanted.isEmpty()) {
+		return;
+	}
+	const auto address = wanted.toStdString();
+	const auto &key = _keyPair->publicKey;
+	const auto config = engine::WalletClientConfig{
+		.record_id = "watch-" + address,
+		.address = address,
+		.public_key = std::vector<uint8_t>(
+			key.constData(),
+			key.constData() + key.size()),
+		.local_secret_ref = std::nullopt,
+		.network = engine::Network::kMainnet,
+		.send_validity_seconds = 300,
+		.resolution_margin_seconds = 60,
+		.providers = engine::ProviderConfig{
+			.toncenter_base_url = kEngineProviderBase,
+			.request_timeout_ms = kEngineRequestTimeoutMs,
+		},
+	};
+	try {
+		_engine->startClient(config);
+		_engineClientAddress = wanted;
+	} catch (const std::exception &e) {
+		const auto what = QString::fromUtf8(e.what());
+		const auto message = what.isEmpty()
+			? QString::fromUtf8(typeid(e).name())
+			: what;
+		LOG(("Wallet Error: engine client start failed: %1").arg(message));
+	}
+}
+
+void Session::requestEngineRefresh() {
+	if (_engineRefreshPending || _engineStopping || !_engine->client()) {
+		return;
+	}
+	_engineRefreshPending = true;
+	const auto client = _engine->client();
+	const auto generation = _networkGeneration;
+	_engine->run([client] {
+		return client->refresh();
+	}, [=, this](engine::WalletUpdate update) {
+		_engineRefreshPending = false;
+		if (generation != _networkGeneration) {
+			return;
+		}
+		applyEngineUpdate(update);
+	}, [=, this](EngineError error) {
+		_engineRefreshPending = false;
+		if (generation != _networkGeneration) {
+			return;
+		}
+		LOG(("Wallet Error: engine refresh failed: %1, "
+			"keeping last-good state.").arg(error.message));
+	});
+}
+
+void Session::applyEngineUpdate(const engine::WalletUpdate &update) {
+	if (update.outcome != engine::WalletOperationOutcome::kCompleted) {
+		LOG(("Wallet: engine refresh outcome %1, keeping last-good state."
+			).arg(int(update.outcome)));
+		return;
+	}
+	const auto &snapshot = update.snapshot;
+	if (snapshot.account_resource.phase != engine::ResourcePhase::kReady
+		|| !snapshot.account) {
+		return;
+	}
+	const auto &account = *snapshot.account;
+	auto ok = false;
+	const auto balance = QString::fromStdString(
+		account.balance_nanograms).toLongLong(&ok);
+	if (!ok) {
+		LOG(("Wallet Error: engine balance parse failed: %1"
+			).arg(QString::fromStdString(account.balance_nanograms)));
+		return;
+	}
+	auto mapped = _engineStatus;
+	switch (account.status) {
+	case engine::AccountStatus::kNonexistent:
+		mapped = Gram::AccountStatus::NonExisting;
+		break;
+	case engine::AccountStatus::kUninitialized:
+		mapped = Gram::AccountStatus::Uninit;
+		break;
+	case engine::AccountStatus::kActive:
+		mapped = Gram::AccountStatus::Active;
+		break;
+	case engine::AccountStatus::kFrozen:
+		mapped = Gram::AccountStatus::Frozen;
+		break;
+	case engine::AccountStatus::kUnknown:
+		LOG(("Wallet: engine account status unknown, keeping last-good."));
+		break;
+	}
+	_balanceNano = balance;
+	_engineStatus = mapped;
+	_stateKnown = true;
+	_stateRefreshedAt = crl::now();
 }
 
 void Session::refreshState(
@@ -319,7 +453,7 @@ void Session::refreshState(
 				}
 				return;
 			}
-			applyAccountState(*state);
+			_lastState = *state;
 			checkPendingBySeqno(*state);
 			for (const auto &callback : stateDone) {
 				callback(*state);
@@ -337,13 +471,6 @@ void Session::refreshState(
 				callback(error);
 			}
 		});
-}
-
-void Session::applyAccountState(const Gram::AccountState &state) {
-	_lastState = state;
-	_balanceNano = state.balanceNano;
-	_stateKnown = true;
-	_stateRefreshedAt = crl::now();
 }
 
 void Session::refreshHistory(Fn<void()> done) {
@@ -770,8 +897,8 @@ void Session::pollTick() {
 	const auto stale = [&](crl::time at) {
 		return !at || (crl::now() - at >= kStreamResyncInterval);
 	};
-	if ((!streaming || stale(_stateRefreshedAt)) && !_stateRequestPending) {
-		refreshState();
+	if ((!streaming || stale(_stateRefreshedAt)) && !_engineRefreshPending) {
+		requestEngineRefresh();
 	}
 	if ((!streaming || stale(_historyRefreshedAt))
 		&& !_historyRequestPending) {
@@ -785,7 +912,7 @@ void Session::pollTick() {
 
 void Session::applyStreamRefresh(StreamRefresh wanted) {
 	if (wanted.state) {
-		refreshState();
+		requestEngineRefresh();
 	}
 	if (wanted.history) {
 		refreshHistory();
@@ -808,7 +935,7 @@ rpl::producer<bool> Session::stateKnownValue() const {
 }
 
 Gram::AccountStatus Session::status() const {
-	return _lastState.status;
+	return _engineStatus;
 }
 
 const std::vector<Gram::TransferItem> &Session::history() const {
@@ -1053,7 +1180,7 @@ void Session::finishPending() {
 	_pending.reset();
 	_sendState = SendState::Idle;
 	updatePollingState();
-	refreshState();
+	requestEngineRefresh();
 	refreshHistory();
 }
 
