@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/country_select_box.h"
 
 #include "base/event_filter.h"
-#include "base/invoke_queued.h"
 #include "countries/countries_instance.h"
 #include "lang/lang_keys.h"
 #include "ui/accessible/ui_accessible_item.h"
@@ -334,14 +333,6 @@ void CountrySelectBox::Inner::focusInEvent(QFocusEvent *e) {
 		setSelected(0, Announce::No);
 	}
 	RpWidget::focusInEvent(e);
-	if (_selected >= 0) {
-		const auto index = _selected;
-		InvokeQueued(this, [=] {
-			if (_selected == index && hasFocus()) {
-				accessibilityChildFocused(index);
-			}
-		});
-	}
 }
 
 void CountrySelectBox::Inner::paintEvent(QPaintEvent *e) {
@@ -759,7 +750,7 @@ void CountrySelectBox::Inner::accessibilityChildSetFocus(quintptr identity) {
 		// The rows are virtual (no real QWidget), so the screen reader's
 		// SetFocus can't move real keyboard focus to a row. Translate it
 		// into our internal selection, then either announce it directly or
-		// grab keyboard focus (focusInEvent announces the selected row).
+		// grab keyboard focus (taking it announces the row by itself).
 		_mouseSelection = false;
 		setSelected(index, hasFocus() ? Announce::Always : Announce::No);
 		scrollToRow(index);
