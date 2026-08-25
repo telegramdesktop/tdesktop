@@ -6086,7 +6086,9 @@ void ChatWidget::searchInTopic() {
 		using Activation = HistoryView::ComposeSearch::Activation;
 		_composeSearch->activations(
 		) | rpl::on_next([=](Activation activation) {
-			showAtPosition(activation.item->position());
+			auto params = Window::SectionShow();
+			params.highlight = Window::SearchHighlightId(activation.query);
+			showAtPosition(activation.item->position(), {}, params);
 		}, _composeSearch->lifetime());
 
 		_composeSearch->destroyRequests(
