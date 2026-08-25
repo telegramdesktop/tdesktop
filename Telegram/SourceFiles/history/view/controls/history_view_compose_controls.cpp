@@ -2285,8 +2285,10 @@ void ComposeControls::offerRichPaste(not_null<const QMimeData*> data) {
 		|| isEditingMessage()) {
 		return;
 	}
-	const auto offer = ChatHelpers::MimeDataRichPasteOffer(session, data);
-	if (!offer) {
+	const auto decision = ChatHelpers::MimeDataRichPasteOffer(
+		session,
+		data);
+	if (!decision) {
 		return;
 	}
 	const auto copy = ChatHelpers::CloneMimeData(data);
@@ -2304,9 +2306,25 @@ void ComposeControls::offerRichPaste(not_null<const QMimeData*> data) {
 			.session = session,
 			.parent = parent,
 			.cancel = _field->changes(),
-			.offer = *offer,
+			.offer = decision->offer,
 			.action = crl::guard(_wrap.get(), [=] {
-				if (_field->getTextWithTags() == now) {
+				const auto unchanged = (_field->getTextWithTags() == now);
+				if (decision->offer == ChatHelpers::RichPasteOffer::Field) {
+					if (!unchanged) {
+						return;
+					}
+					const auto &markdown = decision->markdown;
+					const auto from = std::min(position, anchor);
+					_field->setTextWithTags(ChatHelpers::TextWithTagsReplaced(
+						was,
+						from,
+						std::max(position, anchor),
+						markdown));
+					_field->setCursorPosition(
+						from + int(markdown.text.size()));
+					return;
+				}
+				if (unchanged) {
 					_field->setTextWithTags(was);
 					auto cursor = _field->textCursor();
 					cursor.setPosition(anchor);

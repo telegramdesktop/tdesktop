@@ -839,9 +839,26 @@ namespace {
 constexpr auto kMaxMarkdownImportLength = 256 * 1024;
 constexpr auto kMaxMarkdownQuoteDepth = 8;
 
+struct MarkdownBlocksBuilder {
+	int budget = 0;
+	bool truncated = false;
+	bool marked = false;
+	bool beyondComposeField = false;
+
+	[[nodiscard]] bool allot() {
+		if (budget > 0) {
+			--budget;
+			return true;
+		}
+		truncated = true;
+		return false;
+	}
+};
+
 struct MarkdownInlineState {
 	TextWithTags text;
 	bool marked = false;
+	bool beyondComposeField = false;
 };
 
 [[nodiscard]] QString WithMarkdownTag(const QString &tag, QStringView added) {
@@ -948,16 +965,17 @@ void ParseMarkdownInline(
 		QStringView applied;
 		bool wordBounded = false;
 		QStringView appliedNested;
+		bool beyondComposeField = false;
 	};
 	static const auto kMarkers = std::array{
-		Marker{ u"***", u"**", false, u"__" },
-		Marker{ u"___", u"**", true, u"__" },
+		Marker{ u"***", u"**", false, u"__", true },
+		Marker{ u"___", u"**", true, u"__", true },
 		Marker{ u"**", u"**" },
 		Marker{ u"__", u"__", true },
 		Marker{ u"~~", u"~~" },
 		Marker{ u"||", u"||" },
-		Marker{ u"*", u"__", true },
-		Marker{ u"_", u"__", true },
+		Marker{ u"*", u"__", true, QStringView(), true },
+		Marker{ u"_", u"__", true, QStringView(), true },
 	};
 	auto literalFrom = 0;
 	auto i = 0;
@@ -975,6 +993,7 @@ void ParseMarkdownInline(
 			flush(i);
 			AppendMarkdownRun(state, text.mid(i + 1, 1), tag);
 			state.marked = true;
+			state.beyondComposeField = true;
 			i += 2;
 			literalFrom = i;
 			continue;
@@ -1002,6 +1021,7 @@ void ParseMarkdownInline(
 					text.mid(i + 1, closer - i - 1),
 					WithMarkdownTag(tag, url));
 				state.marked = true;
+				state.beyondComposeField = true;
 				i = closer + 1;
 				literalFrom = i;
 				continue;
@@ -1029,6 +1049,7 @@ void ParseMarkdownInline(
 						inner,
 						WithMarkdownTag(tag, url));
 					state.marked = true;
+					state.beyondComposeField = true;
 					i = closeParen + 1;
 					literalFrom = i;
 					continue;
@@ -1067,6 +1088,9 @@ void ParseMarkdownInline(
 					text.mid(contentFrom, closer - contentFrom),
 					applied);
 				state.marked = true;
+				if (marker.beyondComposeField) {
+					state.beyondComposeField = true;
+				}
 				i = closer + int(marker.marker.size());
 				literalFrom = i;
 				matched = true;
@@ -1083,11 +1107,13 @@ void ParseMarkdownInline(
 
 [[nodiscard]] TextWithTags MarkdownInlineText(
 		QStringView line,
-		bool *marked) {
+		MarkdownBlocksBuilder *to) {
 	auto state = MarkdownInlineState();
 	ParseMarkdownInline(state, line, QString());
-	if (state.marked && marked) {
-		*marked = true;
+	if (to) {
+		to->marked = to->marked || state.marked;
+		to->beyondComposeField = to->beyondComposeField
+			|| state.beyondComposeField;
 	}
 	return std::move(state.text);
 }
@@ -1230,21 +1256,6 @@ struct MarkdownListMarker {
 		: RichPage::TableAlignment::Left;
 }
 
-struct MarkdownBlocksBuilder {
-	int budget = 0;
-	bool truncated = false;
-	bool marked = false;
-
-	[[nodiscard]] bool allot() {
-		if (budget > 0) {
-			--budget;
-			return true;
-		}
-		truncated = true;
-		return false;
-	}
-};
-
 void ParseMarkdownBlocks(
 	MarkdownBlocksBuilder &builder,
 	std::vector<RichPage::Block> &out,
@@ -1257,7 +1268,7 @@ void ParseMarkdownBlocks(
 	auto block = RichPage::Block();
 	block.kind = RichPage::BlockKind::Paragraph;
 	block.text.text = ConvertImportedText(
-		MarkdownInlineText(line, &builder.marked));
+		MarkdownInlineText(line, &builder));
 	return block;
 }
 
@@ -1331,7 +1342,7 @@ void ParseMarkdownBlocks(
 			block.headingLevel = headingLevel;
 			block.text.text = ConvertImportedText(MarkdownInlineText(
 				trimmed.mid(headingLevel + 1).trimmed(),
-				&builder.marked));
+				&builder));
 			out.push_back(std::move(block));
 			builder.marked = true;
 			++index;
@@ -1381,6 +1392,7 @@ void ParseMarkdownBlocks(
 			}
 			out.push_back(std::move(block));
 			builder.marked = true;
+			builder.beyondComposeField = true;
 			continue;
 		}
 		if (trimmed.contains(u'|')
@@ -1411,7 +1423,7 @@ void ParseMarkdownBlocks(
 									MarkdownInlineText(
 										QStringView(full)
 											.left(kMaxCellLength),
-										&builder.marked)),
+										&builder)),
 							},
 							.header = isHeader,
 							.alignment = (i < separators.size())
@@ -1509,7 +1521,7 @@ void ParseMarkdownBlocks(
 				entry.taskState = item->task;
 				entry.text.text = ConvertImportedText(MarkdownInlineText(
 					itemLine.mid(item->contentFrom),
-					&builder.marked));
+					&builder));
 				list.listItems.push_back(std::move(entry));
 				builder.marked = true;
 				++index;
@@ -1525,7 +1537,7 @@ void ParseMarkdownBlocks(
 			block.kind = RichPage::BlockKind::Heading;
 			block.headingLevel = 1;
 			block.text.text = ConvertImportedText(
-				MarkdownInlineText(trimmed, &builder.marked));
+				MarkdownInlineText(trimmed, &builder));
 			out.push_back(std::move(block));
 			builder.marked = true;
 			index += 2;
@@ -1544,7 +1556,8 @@ void ParseMarkdownBlocks(
 std::optional<BlocksImportResult> BlocksFromMarkdown(
 		const QString &text,
 		const RichMessageLimits &limits,
-		int usedBlocks) {
+		int usedBlocks,
+		bool *beyondComposeField) {
 	const auto budget = limits.maxBlocks - usedBlocks - 1;
 	if (text.isEmpty()
 		|| (text.size() > kMaxMarkdownImportLength)
@@ -1560,9 +1573,33 @@ std::optional<BlocksImportResult> BlocksFromMarkdown(
 	if (blocks.empty() || !builder.marked) {
 		return std::nullopt;
 	}
+	if (beyondComposeField) {
+		*beyondComposeField = builder.beyondComposeField;
+	}
 	return BlocksImportResult{
 		.blocks = std::move(blocks),
 		.truncated = builder.truncated,
+	};
+}
+
+std::optional<TextWithTags> ComposeFieldMarkdown(
+		not_null<Main::Session*> session,
+		const QString &text,
+		const RichMessageLimits &limits) {
+	auto beyondComposeField = false;
+	auto imported = BlocksFromMarkdown(text, limits, 0, &beyondComposeField);
+	if (!imported || !beyondComposeField) {
+		return std::nullopt;
+	}
+	auto page = RichPage();
+	page.blocks = std::move(imported->blocks);
+	const auto simple = SerializeAsSimple(page, session);
+	if (!simple) {
+		return std::nullopt;
+	}
+	return TextWithTags{
+		.text = simple->text,
+		.tags = TextUtilities::ConvertEntitiesToTextTags(simple->entities),
 	};
 }
 

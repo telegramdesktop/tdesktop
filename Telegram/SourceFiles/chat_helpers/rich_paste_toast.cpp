@@ -30,7 +30,7 @@ constexpr auto kToastDuration = 9 * crl::time(1000);
 
 } // namespace
 
-std::optional<RichPasteOffer> MimeDataRichPasteOffer(
+std::optional<RichPasteDecision> MimeDataRichPasteOffer(
 		not_null<Main::Session*> session,
 		not_null<const QMimeData*> data) {
 	if (!Iv::Editor::CanAuthorRichMessages(session)) {
@@ -38,13 +38,49 @@ std::optional<RichPasteOffer> MimeDataRichPasteOffer(
 	}
 	const auto limits = Iv::ResolveRichMessageLimits(session);
 	if (Iv::Editor::MimeDataHasRichStructure(session, data, limits)) {
-		return RichPasteOffer::Editor;
-	} else if (!data->hasHtml()
-		&& data->hasText()
-		&& Iv::Editor::TextHasMarkdownStructure(data->text(), limits)) {
-		return RichPasteOffer::Markdown;
+		return RichPasteDecision{ .offer = RichPasteOffer::Editor };
+	} else if (data->hasHtml() || !data->hasText()) {
+		return std::nullopt;
+	}
+	const auto text = data->text();
+	if (auto markdown = Iv::Editor::ComposeFieldMarkdown(
+			session,
+			text,
+			limits)) {
+		return RichPasteDecision{
+			.offer = RichPasteOffer::Field,
+			.markdown = std::move(*markdown),
+		};
+	} else if (Iv::Editor::TextHasMarkdownStructure(text, limits)) {
+		return RichPasteDecision{ .offer = RichPasteOffer::Markdown };
 	}
 	return std::nullopt;
+}
+
+TextWithTags TextWithTagsReplaced(
+		const TextWithTags &original,
+		int from,
+		int till,
+		const TextWithTags &with) {
+	auto result = TextWithTags();
+	result.text = original.text.mid(0, from)
+		+ with.text
+		+ original.text.mid(till);
+	const auto shift = int(with.text.size()) - (till - from);
+	for (const auto &tag : original.tags) {
+		if (tag.offset + tag.length <= from) {
+			result.tags.push_back(tag);
+		}
+	}
+	for (const auto &tag : with.tags) {
+		result.tags.push_back({ from + tag.offset, tag.length, tag.id });
+	}
+	for (const auto &tag : original.tags) {
+		if (tag.offset >= till) {
+			result.tags.push_back({ tag.offset + shift, tag.length, tag.id });
+		}
+	}
+	return result;
 }
 
 std::shared_ptr<QMimeData> CloneMimeData(not_null<const QMimeData*> data) {
@@ -58,12 +94,17 @@ std::shared_ptr<QMimeData> CloneMimeData(not_null<const QMimeData*> data) {
 void ShowRichPasteToast(RichPasteToastArgs &&args) {
 	const auto session = args.session;
 	const auto undo = (args.offer == RichPasteOffer::Plain);
+	const auto field = (args.offer == RichPasteOffer::Field);
 	const auto markdown = (args.offer == RichPasteOffer::Markdown);
-	const auto locked = !undo && !Iv::Editor::SessionPremium(session);
+	const auto locked = !undo
+		&& !field
+		&& !Iv::Editor::SessionPremium(session);
 	const auto button = locked
 		? QString()
 		: undo
 		? tr::lng_rich_paste_toast_undo(tr::now)
+		: field
+		? tr::lng_rich_paste_toast_apply(tr::now)
 		: tr::lng_rich_paste_toast_open(tr::now);
 	auto text = tr::bold(undo
 		? tr::lng_rich_paste_toast_markdown(tr::now)
@@ -77,6 +118,8 @@ void ShowRichPasteToast(RichPasteToastArgs &&args) {
 			tr::marked)
 		: undo
 		? tr::lng_rich_paste_toast_plain(tr::now, tr::rich)
+		: field
+		? tr::lng_rich_paste_toast_field(tr::now, tr::rich)
 		: markdown
 		? tr::lng_rich_paste_toast_editor_markdown(tr::now, tr::rich)
 		: tr::lng_rich_paste_toast_editor(tr::now, tr::rich));

@@ -91,7 +91,13 @@ struct BlocksImportResult {
 [[nodiscard]] std::optional<BlocksImportResult> BlocksFromMarkdown(
 	const QString &text,
 	const RichMessageLimits &limits,
-	int usedBlocks);
+	int usedBlocks,
+	bool *beyondComposeField = nullptr);
+
+[[nodiscard]] std::optional<TextWithTags> ComposeFieldMarkdown(
+	not_null<Main::Session*> session,
+	const QString &text,
+	const RichMessageLimits &limits);
 
 [[nodiscard]] bool MimeDataLooksLikeExportedHtml(
 	not_null<const QMimeData*> data);
