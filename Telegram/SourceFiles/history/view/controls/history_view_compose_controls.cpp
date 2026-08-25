@@ -3350,6 +3350,7 @@ void ComposeControls::fieldChanged() {
 	const auto commandShown = updateBotCommandShown();
 	const auto menuRefreshed = refreshBotMenuButton();
 	const auto likeShown = updateLikeShown();
+	_fieldCharsCountManager.setCount(Ui::ComputeFieldCharacterCount(_field));
 	// Must repeat the rule from updateControlsVisibility().
 	const auto hideExtra = hideExtraButtons()
 		|| isEditingMessage()
@@ -5367,7 +5368,8 @@ bool ComposeControls::hasSendableContent() const {
 }
 
 bool ComposeControls::hideExtraButtons() const {
-	return shouldShowRichDraftPreview();
+	return _fieldCharsCountManager.isLimitExceeded()
+		|| shouldShowRichDraftPreview();
 }
 
 bool ComposeControls::refreshBotMenuButton() {
