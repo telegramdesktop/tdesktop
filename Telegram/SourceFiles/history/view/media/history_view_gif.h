@@ -43,6 +43,7 @@ namespace HistoryView {
 class Photo;
 class Reply;
 class TranscribeButton;
+class VideoMessageSeek;
 
 using TtlRoundPaintCallback = Fn<void(
 	QPainter&,
@@ -256,8 +257,7 @@ private:
 	mutable QImage _roundingMask;
 	mutable crl::time _videoPosition = 0;
 	std::shared_ptr<VoiceSeekClickHandler> _seekl;
-	mutable Ui::Animations::Simple _seekAnimation;
-	float64 _seekingCurrent = 0.;
+	std::unique_ptr<VideoMessageSeek> _roundSeek;
 	QPoint _seekPressPoint;
 	mutable QImage _seekLastFrame;
 	mutable TimeId _videoTimestamp = 0;

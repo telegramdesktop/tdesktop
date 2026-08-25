@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_ephemeral_plate.h"
 #include "history/view/media/history_view_media_common.h"
 #include "history/view/media/history_view_media_spoiler.h"
+#include "history/view/media/history_view_video_message_seek.h"
 #include "history/view/media/history_view_video_status.h"
 #include "window/window_session_controller.h"
 #include "core/application.h" // Application::showDocument.
@@ -75,8 +76,6 @@ constexpr auto kMaxGifForwardedBarLines = 4;
 constexpr auto kUseNonBlurredThreshold = 240;
 constexpr auto kMaxInlineArea = 1920 * 1080;
 constexpr auto kMaxInstantViewInlineArea = 1920 * 1920;
-constexpr auto kSeekAnimationDuration = crl::time(200);
-constexpr auto kSeekTrackOpacity = 0.2;
 
 using ::Media::ValidFrameSize;
 
@@ -237,10 +236,13 @@ Gif::Gif(
 
 	setStatusSize(Ui::FileStatusSizeReady);
 
-	if (_data->isVideoMessage() && (!media || !media->ttlSeconds())) {
-		_seekl = std::make_shared<VoiceSeekClickHandler>(
-			_data,
-			[](FullMsgId) {});
+	if (_data->isVideoMessage()) {
+		_roundSeek = std::make_unique<VideoMessageSeek>([=] { repaint(); });
+		if (!media || !media->ttlSeconds()) {
+			_seekl = std::make_shared<VoiceSeekClickHandler>(
+				_data,
+				[](FullMsgId) {});
+		}
 	}
 
 	if (_spoiler) {
@@ -868,7 +870,9 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			const auto mediaUnread = item->hasUnreadMediaFlag();
 			const auto statusText = _seeking
 				? Ui::FormatDurationText(1 + int64(base::SafeRound(
-					(1. - _seekingCurrent) * _data->duration() / 1000.)))
+					(1. - _roundSeek->progress())
+						* _data->duration()
+						/ 1000.)))
 				: _statusText;
 			auto statusW = st::normalFont->width(statusText) + 2 * st::msgDateImgPadding.x();
 			auto statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
@@ -1089,55 +1093,14 @@ void Gif::paintRoundPlaybackProgress(
 		const PaintContext &context,
 		QRect rthumb,
 		bool inTTLViewer) const {
-	const auto st = context.st;
 	const auto playback = videoPlayback();
-	const auto seekAmount = _seekAnimation.value(_seeking ? 1. : 0.);
-	const auto value = _seeking
-		? _seekingCurrent
-		: playback
-		? playback->value()
-		: (seekAmount > 0.)
-		? _seekingCurrent
-		: 0.;
-	if (value <= 0. && seekAmount <= 0.) {
-		return;
-	}
-	auto pen = st->historyVideoMessageProgressFg()->p;
-	const auto was = p.pen();
-	pen.setWidth(st::radialLine);
-	pen.setCapStyle(Qt::RoundCap);
-	p.setPen(pen);
-
-	const auto from = arc::kQuarterLength;
-	const auto normalInset = 1.5 * st::radialLine;
-	const auto seekInset = st::historyVideoMessageSeekInset;
-	const auto stepInside = normalInset
-		+ (seekInset - normalInset) * seekAmount;
-	const auto arcRect = QRectF(rthumb) - Margins(stepInside);
-	auto hq = PainterHighQualityEnabler(p);
-	if (seekAmount > 0.) {
-		p.setOpacity(kSeekTrackOpacity * seekAmount);
-		p.drawArc(arcRect, 0, arc::kFullLength);
-	}
-	p.setOpacity(st::historyVideoMessageProgressOpacity);
-	const auto len = std::round(arc::kFullLength
-		* (inTTLViewer ? (1. - value) : -value));
-	p.drawArc(arcRect, from, len);
-	if (seekAmount > 0.) {
-		const auto dotSize = float64(st::historyVideoMessageSeekDotSize);
-		const auto angle = M_PI / 2. - value * 2. * M_PI;
-		const auto radius = arcRect.width() / 2.;
-		const auto center = arcRect.center();
-		const auto cx = center.x() + radius * cos(angle);
-		const auto cy = center.y() - radius * sin(angle);
-		p.setOpacity(seekAmount);
-		p.setPen(Qt::NoPen);
-		p.setBrush(st->historyVideoMessageProgressFg());
-		p.drawEllipse(QPointF(cx, cy), dotSize / 2., dotSize / 2.);
-	}
-	p.setBrush(Qt::NoBrush);
-	p.setPen(was);
-	p.setOpacity(1.);
+	_roundSeek->paint(
+		p,
+		context,
+		rthumb,
+		_seeking,
+		playback ? playback->value() : -1.,
+		inTTLViewer);
 }
 
 void Gif::drawSpoilerTag(
@@ -1580,21 +1543,17 @@ void Gif::clickHandlerPressedChanged(
 		if (pressed && !_seeking) {
 			_seekPressPoint = QPoint(-1, -1);
 			if (const auto playback = videoPlayback()) {
-				_seekingCurrent = playback->value();
+				_roundSeek->setProgress(playback->value());
 			}
 		} else if (!pressed) {
 			if (_seeking) {
 				if (isRoundSeekable()) {
 					::Media::Player::instance()->finishSeeking(
 						AudioMsgId::Type::Voice,
-						_seekingCurrent);
+						_roundSeek->progress());
 				}
 				_seeking = false;
-				_seekAnimation.start(
-					[=] { repaint(); },
-					1.,
-					0.,
-					kSeekAnimationDuration);
+				_roundSeek->toggleShown(false);
 			} else if (_seekPressPoint != QPoint()) {
 				_seekPressPoint = QPoint();
 				::Media::Player::instance()->playPauseCancelClicked(
@@ -1651,21 +1610,17 @@ void Gif::updatePressed(QPoint point) {
 		_seekPressPoint = QPoint();
 		::Media::Player::instance()->startSeeking(
 			AudioMsgId::Type::Voice);
-		_seekAnimation.start(
-			[=] { repaint(); },
-			0.,
-			1.,
-			kSeekAnimationDuration);
+		_roundSeek->toggleShown(true);
 	}
 
 	const auto center = rthumb.center();
 	const auto dx = float64(point.x() - center.x());
 	const auto dy = float64(point.y() - center.y());
 	const auto angle = atan2(-dy, dx);
-	_seekingCurrent = std::clamp(
+	_roundSeek->setProgress(std::clamp(
 		fmod((M_PI / 2. - angle) / (2. * M_PI) + 1., 1.),
 		0.,
-		1.);
+		1.));
 	repaint();
 }
 
