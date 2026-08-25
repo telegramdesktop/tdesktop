@@ -802,6 +802,10 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 	Expects(_viewsCapacity.empty());
 
 	if (_thanosController) {
+		// Main history drops the view before itemRemoved() fires.
+		_thanosController->commitAnnouncedRemovals([&](FullMsgId id) {
+			return ranges::find(_slice.ids, id) == end(_slice.ids);
+		});
 		_thanosController->clearPreCaptured();
 	}
 

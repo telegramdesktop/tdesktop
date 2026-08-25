@@ -61,6 +61,7 @@ void ThanosEffectController::captureItemsBatch(
 		if (const auto view = _delegate.viewForItem(item)) {
 			const auto top = _delegate.itemTop(view);
 			const auto height = view->height();
+			_announcedRemoval.emplace(item->fullId());
 			if (captureView(view, height, top)) {
 				_preCaptured.emplace(item->fullId(), PreCapturedView{
 					.height = height,
@@ -74,9 +75,25 @@ void ThanosEffectController::captureItemsBatch(
 
 void ThanosEffectController::clearPreCaptured() {
 	_preCaptured.clear();
+	_announcedRemoval.clear();
 	if (!_collapseAnimation.animating()) {
 		_restoreScrollPending = false;
 		_wasAtBottom = false;
+	}
+}
+
+void ThanosEffectController::commitAnnouncedRemovals(
+		Fn<bool(FullMsgId)> removed) {
+	auto list = std::vector<FullMsgId>();
+	for (const auto &id : _announcedRemoval) {
+		if (removed(id)) {
+			list.push_back(id);
+		}
+	}
+	for (const auto &id : list) {
+		if (const auto item = _session->data().message(id)) {
+			captureOnRemoval(item);
+		}
 	}
 }
 
@@ -92,6 +109,7 @@ void ThanosEffectController::captureOnRemoval(
 	if (!view) {
 		return;
 	}
+	_announcedRemoval.remove(item->fullId());
 	_removalHeight += view->height();
 	if (const auto it = _preCaptured.find(item->fullId());
 		it != end(_preCaptured)) {

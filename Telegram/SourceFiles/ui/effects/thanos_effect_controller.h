@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/animations.h"
 #include "base/flat_map.h"
+#include "base/flat_set.h"
 
 namespace Main {
 class Session;
@@ -63,6 +64,7 @@ public:
 	~ThanosEffectController();
 
 	void captureOnRemoval(not_null<const HistoryItem*> item);
+	void commitAnnouncedRemovals(Fn<bool(FullMsgId)> removed);
 	void clearPreCaptured();
 	void pinScroll();
 	void shiftGaps(int delta);
@@ -110,6 +112,7 @@ private:
 
 	std::unique_ptr<ThanosEffect> _thanosEffect;
 	base::flat_map<FullMsgId, PreCapturedView> _preCaptured;
+	base::flat_set<FullMsgId> _announcedRemoval;
 	std::vector<CollapseGap> _renderGaps;
 
 	std::vector<CollapseGapState> _collapseGaps;
