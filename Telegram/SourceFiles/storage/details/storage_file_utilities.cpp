@@ -38,14 +38,14 @@ public:
 	explicit WriteManager(crl::weak_on_thread<WriteManager> weak);
 
 	void write(WriteEntry &&entry);
-	void writeSync(WriteEntry &&entry);
+	[[nodiscard]] bool writeSync(WriteEntry &&entry);
 	void writeSyncAll();
 
 private:
 	void scheduleWrite();
 	void writeScheduled();
 	bool writeOneScheduledNow();
-	void writeNow(WriteEntry &&entry);
+	bool writeNow(WriteEntry &&entry);
 
 	template <typename File>
 	[[nodiscard]] bool open(File &file, const WriteEntry &entry, char postfix);
@@ -63,7 +63,7 @@ private:
 class AsyncWriteManager final {
 public:
 	void write(WriteEntry &&entry);
-	void writeSync(WriteEntry &&entry);
+	[[nodiscard]] bool writeSync(WriteEntry &&entry);
 	void sync();
 	void stop();
 
@@ -87,15 +87,15 @@ void WriteManager::write(WriteEntry &&entry) {
 	scheduleWrite();
 }
 
-void WriteManager::writeSync(WriteEntry &&entry) {
+bool WriteManager::writeSync(WriteEntry &&entry) {
 	const auto i = ranges::find(_scheduled, entry.base, &WriteEntry::base);
 	if (i != end(_scheduled)) {
 		_scheduled.erase(i);
 	}
-	writeNow(std::move(entry));
+	return writeNow(std::move(entry));
 }
 
-void WriteManager::writeNow(WriteEntry &&entry) {
+bool WriteManager::writeNow(WriteEntry &&entry) {
 	const auto path = [&](char postfix) {
 		return this->path(entry, postfix);
 	};
@@ -103,37 +103,48 @@ void WriteManager::writeNow(WriteEntry &&entry) {
 		return this->open(file, entry, postfix);
 	};
 	const auto write = [&](auto &file) {
-		file.write(entry.data);
-		file.write(entry.md5);
+		return file.write(entry.data) == entry.data.size()
+			&& file.write(entry.md5) == entry.md5.size();
 	};
 	const auto safe = path('s');
 	const auto simple = path('0');
 	const auto backup = path('1');
 	QSaveFile save;
 	if (open(save, 's')) {
-		write(save);
+		const auto written = write(save);
 		if (save.commit()) {
 			QFile::remove(simple);
 			QFile::remove(backup);
-			return;
+			const auto ok = written
+				&& (save.error() == QFileDevice::NoError);
+			if (!ok) {
+				LOG(("Storage Error: Could not write '%1'.").arg(safe));
+			}
+			return ok;
 		}
 		LOG(("Storage Error: Could not commit '%1'.").arg(safe));
 	}
 	QFile plain;
 	if (open(plain, '0')) {
-		write(plain);
+		const auto written = write(plain);
 		base::Platform::FlushFileData(plain);
 		plain.close();
 
+		const auto ok = written
+			&& (plain.error() == QFileDevice::NoError);
+		if (!ok) {
+			LOG(("Storage Error: Could not write '%1'.").arg(simple));
+		}
 		QFile::remove(backup);
 		if (base::Platform::RenameWithOverwrite(simple, safe)) {
-			return;
+			return ok;
 		}
 		QFile::remove(safe);
 		LOG(("Storage Error: Could not rename '%1' to '%2', removing.").arg(
 			simple,
 			safe));
 	}
+	return false;
 }
 
 void WriteManager::writeSyncAll() {
@@ -208,15 +219,17 @@ void AsyncWriteManager::write(WriteEntry &&entry) {
 	});
 }
 
-void AsyncWriteManager::writeSync(WriteEntry &&entry) {
+bool AsyncWriteManager::writeSync(WriteEntry &&entry) {
 	Expects(!_finished);
 
 	if (!_manager) {
 		_manager.emplace();
 	}
+	auto result = false;
 	_manager->with_sync([&](WriteManager &manager) {
-		manager.writeSync(std::move(entry));
+		result = manager.writeSync(std::move(entry));
 	});
+	return result;
 }
 
 void AsyncWriteManager::sync() {
@@ -425,9 +438,9 @@ void FileWriteDescriptor::writeEncrypted(
 	writeData(PrepareEncrypted(data, key));
 }
 
-void FileWriteDescriptor::finish() {
+bool FileWriteDescriptor::finish() {
 	if (!_stream.device()) {
-		return;
+		return _result;
 	}
 
 	_stream.setDevice(nullptr);
@@ -445,10 +458,11 @@ void FileWriteDescriptor::finish() {
 		.md5 = QByteArray((const char*)_md5.result(), 0x10)
 	};
 	if (_sync) {
-		Manager.writeSync(std::move(entry));
+		_result = Manager.writeSync(std::move(entry));
 	} else {
 		Manager.write(std::move(entry));
 	}
+	return _result;
 }
 
 [[nodiscard]] QByteArray PrepareEncrypted(

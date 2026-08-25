@@ -235,10 +235,13 @@ public:
 	// Per-key encrypted records owned by the wallet engine bridge
 	// (protected secrets and the send journal). Broken reports a record
 	// that exists but cannot be read; it is kept on disk, never silently
-	// dropped, so corruption can't masquerade as absence.
+	// dropped, so corruption can't masquerade as absence. The write
+	// reports whether the record durably reached disk.
 	[[nodiscard]] WalletEngineValue readWalletEngineValue(
 		const QString &key);
-	void writeWalletEngineValue(const QString &key, const QByteArray &bytes);
+	[[nodiscard]] bool writeWalletEngineValue(
+		const QString &key,
+		const QByteArray &bytes);
 	bool removeWalletEngineValue(const QString &key);
 
 	[[nodiscard]] bool encrypt(

@@ -565,14 +565,17 @@ public:
 			const engine::ProtectedSecretStore &request) override {
 		const auto key = SecretStorageKey(request.secret_ref);
 		const auto value = SerializeSecretRecord(request);
-		const auto done = storage([=](Storage::Account &local) {
-			local.writeWalletEngineValue(key, value);
-			return true;
+		const auto written = storage([=](Storage::Account &local) {
+			return local.writeWalletEngineValue(key, value);
 		});
-		if (!done) {
+		if (!written) {
 			throw HostFailed(
 				engine::ProtectedSecretHostErrorKind::kUnavailable,
 				u"wallet engine storage is unavailable"_q);
+		} else if (!*written) {
+			throw HostFailed(
+				engine::ProtectedSecretHostErrorKind::kUnavailable,
+				u"wallet engine storage write failed"_q);
 		}
 	}
 
@@ -630,6 +633,7 @@ public:
 			bool applied = false;
 			std::optional<QByteArray> current;
 			bool corrupt = false;
+			bool writeFailed = false;
 		};
 		const auto outcome = storage([=](Storage::Account &local) {
 			using State = Storage::WalletEngineValue::State;
@@ -651,7 +655,9 @@ public:
 					};
 				}
 			}
-			local.writeWalletEngineValue(storageKey, replacement);
+			if (!local.writeWalletEngineValue(storageKey, replacement)) {
+				return Outcome{ .writeFailed = true };
+			}
 			return Outcome{ .applied = true };
 		});
 		if (!outcome) {
@@ -662,6 +668,10 @@ public:
 			throw HostFailed(
 				engine::JournalHostErrorKind::kCorruptData,
 				u"stored journal record is unreadable"_q);
+		} else if (outcome->writeFailed) {
+			throw HostFailed(
+				engine::JournalHostErrorKind::kUnavailable,
+				u"wallet engine storage write failed"_q);
 		}
 		auto result = engine::JournalCompareExchangeResult{
 			.applied = outcome->applied,

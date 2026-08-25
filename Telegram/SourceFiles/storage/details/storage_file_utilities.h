@@ -69,9 +69,14 @@ public:
 		EncryptedDescriptor &data,
 		const MTP::AuthKeyPtr &key);
 
+	// Commits the buffered bytes: sync descriptors report whether the
+	// record durably reached disk, async writes are fire-and-forget and
+	// report true. Idempotent - a repeated call (as from the destructor)
+	// returns the remembered result.
+	bool finish();
+
 private:
 	void init(const QString &name);
-	void finish();
 
 	const QString _basePath;
 	QBuffer _buffer;
@@ -81,6 +86,7 @@ private:
 	HashMd5 _md5;
 	int _fullSize = 0;
 	bool _sync = false;
+	bool _result = true;
 
 };
 
