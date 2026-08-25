@@ -652,6 +652,8 @@ PRIVATE
     ui/widgets/continuous_sliders.h
     ui/widgets/discrete_sliders.cpp
     ui/widgets/discrete_sliders.h
+    ui/widgets/glare_tooltip.cpp
+    ui/widgets/glare_tooltip.h
     ui/widgets/gradient_round_button.cpp
     ui/widgets/gradient_round_button.h
     ui/widgets/horizontal_fit_container.cpp

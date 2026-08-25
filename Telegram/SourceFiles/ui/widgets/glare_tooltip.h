@@ -7,43 +7,52 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
-#include "ui/effects/animations.h"
 #include "base/timer.h"
+#include "ui/effects/animations.h"
+#include "ui/rp_widget.h"
 
 namespace style {
 struct ImportantTooltip;
 } // namespace style
 
-namespace Data {
-struct EmojiStatusCollectible;
-} // namespace Data
+namespace Ui {
 
-namespace Info::Profile {
+struct GlareTooltipColors {
+	QColor edge;
+	QColor center;
+	QColor rim;
+	QColor text;
+};
 
-class BadgeTooltip final : public Ui::RpWidget {
+class GlareTooltip final : public RpWidget {
 public:
-	BadgeTooltip(
+	GlareTooltip(
 		not_null<QWidget*> parent,
-		std::shared_ptr<Data::EmojiStatusCollectible> collectible,
-		not_null<QWidget*> pointTo);
+		const style::ImportantTooltip &st,
+		const style::font &font,
+		const QString &text,
+		GlareTooltipColors colors);
+
+	void trackWidget(not_null<QWidget*> pointTo);
+	void pointAt(QRect area, QRect within);
 
 	void fade(bool shown);
 	void finishAnimating();
 	void setOpacity(float64 opacity);
+	void stopGlare();
 
 	[[nodiscard]] crl::time glarePeriod() const;
+	[[nodiscard]] crl::time glaresDuration(int glares) const;
 
 private:
 	void paintEvent(QPaintEvent *e) override;
-	void setupGeometry(not_null<QWidget*> pointTo);
 	void prepareImage();
 	void showGlare();
 
 	const style::ImportantTooltip &_st;
-	std::shared_ptr<Data::EmojiStatusCollectible> _collectible;
 	QString _text;
 	const style::font &_font;
+	GlareTooltipColors _colors;
 	QSize _inner;
 	QSize _outer;
 	int _stroke = 0;
@@ -54,8 +63,8 @@ private:
 	crl::time _glareDuration = 0;
 	base::Timer _glareTimer;
 
-	Ui::Animations::Simple _showAnimation;
-	Ui::Animations::Simple _glareAnimation;
+	Animations::Simple _showAnimation;
+	Animations::Simple _glareAnimation;
 
 	QImage _image;
 	int _glareRight = 0;
@@ -65,6 +74,7 @@ private:
 
 	bool _shown = false;
 	float64 _opacity = 1.;
+
 };
 
-} // namespace Info::Profile
+} // namespace Ui

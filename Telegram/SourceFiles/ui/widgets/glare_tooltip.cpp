@@ -5,15 +5,15 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "info/profile/info_profile_badge_tooltip.h"
+#include "ui/widgets/glare_tooltip.h"
 
-#include "data/data_emoji_statuses.h"
 #include "base/event_filter.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
-#include "styles/style_info.h"
 
-namespace Info::Profile {
+#include "styles/style_widgets.h"
+
+namespace Ui {
 namespace {
 
 constexpr auto kGlareDurationStep = crl::time(320);
@@ -21,15 +21,17 @@ constexpr auto kGlareTimeout = crl::time(1000);
 
 } // namespace
 
-BadgeTooltip::BadgeTooltip(
+GlareTooltip::GlareTooltip(
 	not_null<QWidget*> parent,
-	std::shared_ptr<Data::EmojiStatusCollectible> collectible,
-	not_null<QWidget*> pointTo)
-: Ui::RpWidget(parent)
-, _st(st::infoGiftTooltip)
-, _collectible(std::move(collectible))
-, _text(_collectible->title)
-, _font(st::infoGiftTooltipFont)
+	const style::ImportantTooltip &st,
+	const style::font &font,
+	const QString &text,
+	GlareTooltipColors colors)
+: RpWidget(parent)
+, _st(st)
+, _text(text)
+, _font(font)
+, _colors(std::move(colors))
 , _inner(_font->width(_text), _font->height)
 , _outer(_inner.grownBy(_st.padding))
 , _stroke(st::lineWidth)
@@ -40,10 +42,9 @@ BadgeTooltip::BadgeTooltip(
 , _glareDuration(_glareRange * kGlareDurationStep / _glareSize)
 , _glareTimer([=] { showGlare(); }) {
 	resize(_full + QSize(0, _st.shift));
-	setupGeometry(pointTo);
 }
 
-void BadgeTooltip::fade(bool shown) {
+void GlareTooltip::fade(bool shown) {
 	if (_shown == shown) {
 		return;
 	}
@@ -61,7 +62,7 @@ void BadgeTooltip::fade(bool shown) {
 	}, _shown ? 0. : 1., _shown ? 1. : 0., _st.duration, anim::easeInCirc);
 }
 
-void BadgeTooltip::showGlare() {
+void GlareTooltip::showGlare() {
 	_glareAnimation.start([=] {
 		update();
 		if (!_glareAnimation.animating()) {
@@ -70,23 +71,32 @@ void BadgeTooltip::showGlare() {
 	}, 0., 1., _glareDuration);
 }
 
-void BadgeTooltip::finishAnimating() {
+void GlareTooltip::stopGlare() {
+	_glareTimer.cancel();
+	_glareAnimation.stop();
+}
+
+void GlareTooltip::finishAnimating() {
 	_showAnimation.stop();
 	if (!_shown) {
 		hide();
 	}
 }
 
-void BadgeTooltip::setOpacity(float64 opacity) {
+void GlareTooltip::setOpacity(float64 opacity) {
 	_opacity = opacity;
 	update();
 }
 
-crl::time BadgeTooltip::glarePeriod() const {
+crl::time GlareTooltip::glarePeriod() const {
 	return _glareDuration + kGlareTimeout;
 }
 
-void BadgeTooltip::paintEvent(QPaintEvent *e) {
+crl::time GlareTooltip::glaresDuration(int glares) const {
+	return glares * glarePeriod() - (_st.duration * 3) / 2;
+}
+
+void GlareTooltip::paintEvent(QPaintEvent *e) {
 	const auto glare = _glareAnimation.value(0.);
 	_glareRight = anim::interpolate(0, _glareRange, glare);
 	prepareImage();
@@ -99,7 +109,7 @@ void BadgeTooltip::paintEvent(QPaintEvent *e) {
 	p.drawImage(0, top, _image);
 }
 
-void BadgeTooltip::setupGeometry(not_null<QWidget*> pointTo) {
+void GlareTooltip::trackWidget(not_null<QWidget*> pointTo) {
 	auto widget = pointTo.get();
 	const auto parent = parentWidget();
 
@@ -109,20 +119,9 @@ void BadgeTooltip::setupGeometry(not_null<QWidget*> pointTo) {
 			hide();
 			return setGeometry({});
 		}
-		const auto rect = Ui::MapFrom(parent, pointTo, pointTo->rect());
-		const auto point = QPoint(rect.center().x(), rect.y());
-		const auto left = point.x() - (width() / 2);
-		const auto skip = _st.padding.left();
-		setGeometry(
-			std::min(std::max(left, skip), parent->width() - width() - skip),
-			std::max(point.y() - height() - _st.margin.bottom(), skip),
-			width(),
-			height());
-		const auto arrowMiddle = point.x() - x();
-		if (_arrowMiddle != arrowMiddle) {
-			_arrowMiddle = arrowMiddle;
-			update();
-		}
+		pointAt(
+			MapFrom(parent, pointTo, pointTo->rect()),
+			parent->rect());
 	};
 	refresh();
 	while (widget && widget != parent) {
@@ -139,7 +138,26 @@ void BadgeTooltip::setupGeometry(not_null<QWidget*> pointTo) {
 	}
 }
 
-void BadgeTooltip::prepareImage() {
+void GlareTooltip::pointAt(QRect area, QRect within) {
+	const auto point = QPoint(area.center().x(), area.y());
+	const auto skip = _st.padding.left();
+	setGeometry(
+		std::min(
+			std::max(point.x() - (width() / 2), within.x() + skip),
+			within.x() + within.width() - width() - skip),
+		std::max(
+			point.y() - height() - _st.margin.bottom(),
+			within.y() + skip),
+		width(),
+		height());
+	const auto arrowMiddle = point.x() - x();
+	if (_arrowMiddle != arrowMiddle) {
+		_arrowMiddle = arrowMiddle;
+		update();
+	}
+}
+
+void GlareTooltip::prepareImage() {
 	const auto ratio = style::DevicePixelRatio();
 	const auto arrow = _st.arrow;
 	const auto size = _full * ratio;
@@ -189,25 +207,25 @@ void BadgeTooltip::prepareImage() {
 	if (gtill > 0) {
 		auto gradient = QLinearGradient(gfrom, 0, gtill, 0);
 		gradient.setStops({
-			{ 0., _collectible->edgeColor },
-			{ 0.5, _collectible->centerColor },
-			{ 1., _collectible->edgeColor },
+			{ 0., _colors.edge },
+			{ 0.5, _colors.center },
+			{ 1., _colors.edge },
 		});
 		p.setBrush(gradient);
 	} else {
-		p.setBrush(_collectible->edgeColor);
+		p.setBrush(_colors.edge);
 	}
 	p.translate(_skip, _skip);
 	p.drawPath(path);
 	p.setCompositionMode(QPainter::CompositionMode_Source);
 	p.setBrush(Qt::NoBrush);
-	auto copy = _collectible->textColor;
+	auto copy = _colors.rim;
 	copy.setAlpha(0);
 	if (gtill > 0) {
 		auto gradient = QLinearGradient(gfrom, 0, gtill, 0);
 		gradient.setStops({
 			{ 0., copy },
-			{ 0.5, _collectible->textColor },
+			{ 0.5, _colors.rim },
 			{ 1., copy },
 		});
 		p.setPen(QPen(gradient, _stroke));
@@ -217,8 +235,8 @@ void BadgeTooltip::prepareImage() {
 	p.drawPath(path);
 	p.setCompositionMode(QPainter::CompositionMode_SourceOver);
 	p.setFont(_font);
-	p.setPen(QColor(255, 255, 255));
+	p.setPen(_colors.text);
 	p.drawText(_st.padding.left(), _st.padding.top() + _font->ascent, _text);
 }
 
-} // namespace Info::Profile
+} // namespace Ui

@@ -49,7 +49,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/video/video_editor_layer.h"
 #include "history/history.h"
 #include "info/info_memento.h"
-#include "info/profile/info_profile_badge_tooltip.h"
 #include "info/profile/info_profile_badge.h"
 #include "info/profile/info_profile_birthday_effect.h"
 #include "info/profile/info_profile_cover.h" // LargeCustomEmojiMargins
@@ -88,6 +87,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/top_background_gradient.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/glare_tooltip.h"
 #include "ui/widgets/horizontal_fit_container.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/marquee_label.h"
@@ -1689,14 +1689,21 @@ void TopBar::setupUniqueBadgeTooltip() {
 		if (!collectible || _localCollectible) {
 			return;
 		}
-		_badgeTooltip = std::make_unique<BadgeTooltip>(
+		_badgeTooltip = std::make_unique<Ui::GlareTooltip>(
 			this,
-			collectible,
-			widget);
+			st::infoGiftTooltip,
+			st::infoGiftTooltipFont,
+			collectible->title,
+			Ui::GlareTooltipColors{
+				.edge = collectible->edgeColor,
+				.center = collectible->centerColor,
+				.rim = collectible->textColor,
+				.text = QColor(255, 255, 255),
+			});
+		_badgeTooltip->trackWidget(widget);
 		const auto raw = _badgeTooltip.get();
 		raw->fade(true);
-		_badgeTooltipHide->callOnce(kGiftBadgeGlares * raw->glarePeriod()
-			- st::infoGiftTooltip.duration * 1.5);
+		_badgeTooltipHide->callOnce(raw->glaresDuration(kGiftBadgeGlares));
 		raw->setOpacity(_progress.current());
 	}, lifetime());
 
@@ -1719,7 +1726,7 @@ void TopBar::hideBadgeTooltip() {
 			const auto i = ranges::find(
 				_badgeOldTooltips,
 				raw,
-				&std::unique_ptr<BadgeTooltip>::get);
+				&std::unique_ptr<Ui::GlareTooltip>::get);
 			if (i != end(_badgeOldTooltips)) {
 				_badgeOldTooltips.erase(i);
 			}

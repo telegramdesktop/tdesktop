@@ -438,8 +438,11 @@ walletIntroEmoji: IconEmoji {
 	padding: margins(0px, 1px, 4px, 0px);
 	useIconColor: true;
 }
-walletIntroTooltipMaxWidth: 236px;
-walletIntroTooltipSkip: 8px;
+walletIntroTooltip: ImportantTooltip(defaultImportantTooltip) {
+	padding: margins(8px, 3px, 8px, 5px);
+	margin: margins(4px, 4px, 4px, 8px);
+}
+walletIntroTooltipFont: font(11px semibold);
 
 walletCurrencyRowHeight: 36px;
 walletCurrencyRowPadding: margins(24px, 9px, 24px, 0px);

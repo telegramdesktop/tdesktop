@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_content.h"
 
 #include "base/event_filter.h"
+#include "base/timer.h"
 #include "base/unixtime.h"
 #include "core/credits_amount.h"
 #include "core/file_utilities.h"
@@ -45,12 +46,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/discrete_sliders.h"
+#include "ui/widgets/glare_tooltip.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/multi_select.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
-#include "ui/widgets/tooltip.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
@@ -111,6 +112,7 @@ constexpr auto kCardMotionPart = 0.55;
 constexpr auto kIntroTooltipShownPref = "wallet_intro_tooltip_shown"_cs;
 constexpr auto kIntroToastShownPref = "wallet_intro_toast_shown"_cs;
 constexpr auto kIntroToastDuration = 4 * crl::time(1000);
+constexpr auto kWalletIntroGlares = 2;
 constexpr auto kCommentMaxBytes = 960;
 constexpr auto kFeeFiatDecimals = 5;
 constexpr auto kMaxFiatUnits = 999'999'999LL;
@@ -187,6 +189,7 @@ private:
 	Ui::VerticalLayout *_pinnedInner = nullptr;
 	Ui::RpWidget *_pinnedBalance = nullptr;
 	Ui::PlainShadow *_headerShadow = nullptr;
+	Ui::SlideWrap<> *_headerBottomSkip = nullptr;
 	Ui::SlideWrap<Ui::SettingsSlider> *_tabsWrap = nullptr;
 	Ui::PlainShadow *_tabsShadow = nullptr;
 	Ui::PlainShadow *_stripShadow = nullptr;
@@ -260,6 +263,7 @@ public:
 		float64 progress,
 		int outerWidth,
 		int titleRight) const;
+	[[nodiscard]] QRect markRect() const;
 
 private:
 	[[nodiscard]] QRectF amountRect(
@@ -2633,51 +2637,65 @@ void WalletHowItWorksBox(not_null<Ui::GenericBox*> box) {
 void SetupIntroTooltip(
 		not_null<Ui::RpWidget*> parent,
 		not_null<Ui::RpWidget*> card,
+		Fn<QRect()> markRect,
 		rpl::producer<> moves) {
 	struct State {
-		Ui::ImportantTooltip *tooltip = nullptr;
-		bool dismissed = false;
+		Ui::GlareTooltip *tooltip = nullptr;
+		base::Timer hide;
+		bool started = false;
+		bool finished = false;
 	};
 	const auto state = parent->lifetime().make_state<State>();
-	state->tooltip = Ui::CreateChild<Ui::ImportantTooltip>(
+	state->tooltip = Ui::CreateChild<Ui::GlareTooltip>(
 		parent.get(),
-		Ui::MakeTooltipWithClose(
-			parent,
-			tr::lng_wallet_intro_text() | rpl::map(WalletIntroText),
-			st::walletIntroTooltipMaxWidth,
-			st::defaultImportantTooltipLabel,
-			st::importantTooltipHide,
-			st::defaultImportantTooltip.padding,
-			[=] {
-				state->dismissed = true;
-				state->tooltip->toggleAnimated(false);
-			}),
-		st::historyRecordTooltip);
-	state->tooltip->toggleFast(false);
+		st::walletIntroTooltip,
+		st::walletIntroTooltipFont,
+		tr::lng_wallet_intro_text(tr::now),
+		Ui::GlareTooltipColors{
+			.edge = st::windowActiveTextFg->c,
+			.center = anim::color(
+				st::windowActiveTextFg,
+				st::activeButtonFg,
+				0.35),
+			.rim = st::activeButtonFg->c,
+			.text = st::activeButtonFg->c,
+		});
+	state->tooltip->finishAnimating();
+	const auto finish = [=] {
+		if (state->finished) {
+			return;
+		}
+		state->finished = true;
+		state->hide.cancel();
+		state->tooltip->stopGlare();
+		state->tooltip->fade(false);
+	};
+	state->hide.setCallback(finish);
 
 	rpl::merge(
 		card->geometryValue() | rpl::to_empty,
 		parent->widthValue() | rpl::to_empty,
 		std::move(moves)
 	) | rpl::on_next([=] {
-		if (state->dismissed
-			|| card->rect().isEmpty()
-			|| !parent->width()) {
+		if (state->finished || !parent->width()) {
 			return;
 		}
-		const auto area = Ui::MapFrom(parent, card, card->rect());
-		const auto qr = CardQrRect(area.width());
-		const auto countPosition = [=](QSize size) {
-			return QPoint(
-				area.x() + (area.width() - size.width()) / 2,
-				area.y()
-					+ qr.y()
-					+ qr.height()
-					+ st::walletIntroTooltipSkip);
-		};
-		state->tooltip->pointAt(area, RectPart::Bottom, countPosition);
-		state->tooltip->toggleFast(true);
-		state->tooltip->updateGeometry();
+		const auto mark = markRect();
+		if (mark.isEmpty()) {
+			if (state->started) {
+				finish();
+			}
+			return;
+		}
+		state->tooltip->pointAt(
+			mark,
+			Ui::MapFrom(parent, card, card->rect()));
+		if (!state->started) {
+			state->started = true;
+			state->tooltip->fade(true);
+			state->hide.callOnce(
+				state->tooltip->glaresDuration(kWalletIntroGlares));
+		}
 	}, parent->lifetime());
 }
 
@@ -4610,14 +4628,20 @@ void BalanceInk::refresh() {
 		- st::walletCardMargin.left()
 		- st::walletCardMargin.right();
 	const auto qrLeft = CardQrRect(cardWidth).x();
-	const auto available = qrLeft
+	const auto tickerWidth = majorFont->width(ticker);
+	const auto availableWithTicker = qrLeft
 		- st::walletCardContentSkip
 		- st::walletCardContentLeft
 		- majorLeft
 		- minorFont->width(minor)
 		- st::walletCardTickerSkip
-		- majorFont->width(ticker);
+		- tickerWidth;
 	const auto full = Info::ChannelEarn::MajorPart(_balance);
+	const auto tickerShown = (availableWithTicker > 0)
+		&& (majorFont->width(full) <= availableWithTicker);
+	const auto available = tickerShown
+		? availableWithTicker
+		: (availableWithTicker + st::walletCardTickerSkip + tickerWidth);
 	const auto major = (available > 0)
 		? majorFont->elided(full, available)
 		: full;
@@ -4633,10 +4657,12 @@ void BalanceInk::refresh() {
 
 	_tickerLeft = minorLeft
 		+ minorFont->width(minor)
-		+ st::walletCardTickerSkip;
+		+ (tickerShown ? st::walletCardTickerSkip : 0);
 	_ticker = QPainterPath();
-	_ticker.addText(0, majorFont->ascent, majorFont, ticker);
-	_amountWidth = _tickerLeft + majorFont->width(ticker);
+	if (tickerShown) {
+		_ticker.addText(0, majorFont->ascent, majorFont, ticker);
+	}
+	_amountWidth = _tickerLeft + (tickerShown ? tickerWidth : 0);
 
 	_fiat = QPainterPath();
 	_fiat.addText(0, fiatFont->ascent, fiatFont, _fiatText);
@@ -4780,6 +4806,16 @@ QRect BalanceInk::boundingRect(
 	const auto amount = amountRect(progress, outerWidth, titleRight);
 	const auto fiat = fiatRect(progress, outerWidth, titleRight);
 	return amount.united(fiat).toAlignedRect();
+}
+
+QRect BalanceInk::markRect() const {
+	return QRect(
+		qRound(BalanceStartLeft()),
+		st::walletCardTopSkip
+			+ st::walletCardBalanceTop
+			+ int(base::SafeRound(_markTop)),
+		st::walletCardMarkSize,
+		st::walletCardMarkSize);
 }
 
 Card::Card(
@@ -4934,6 +4970,11 @@ Content::~Content() {
 	_show->session().wallet().stopPolling();
 }
 
+[[nodiscard]] bool HistoryShown(not_null<Main::Session*> session) {
+	const auto wallet = &session->wallet();
+	return !wallet->history().empty() || wallet->pendingSend().has_value();
+}
+
 [[nodiscard]] rpl::producer<bool> HistoryShownValue(
 		not_null<Main::Session*> session) {
 	const auto wallet = &session->wallet();
@@ -4941,8 +4982,7 @@ Content::~Content() {
 		wallet->historyUpdates(),
 		wallet->sendStateValue() | rpl::to_empty
 	)) | rpl::map([=] {
-		return !wallet->history().empty()
-			|| wallet->pendingSend().has_value();
+		return HistoryShown(session);
 	}) | rpl::distinct_until_changed();
 }
 
@@ -4953,6 +4993,20 @@ Content::~Content() {
 		wallet->collectiblesUpdates()
 	) | rpl::map([=] {
 		return !wallet->collectibles().empty();
+	}) | rpl::distinct_until_changed();
+}
+
+[[nodiscard]] bool BannerShown(not_null<Main::Session*> session) {
+	return session->wallet().phraseUnviewed() && HistoryShown(session);
+}
+
+[[nodiscard]] rpl::producer<bool> BannerShownValue(
+		not_null<Main::Session*> session) {
+	return rpl::combine(
+		session->wallet().phraseUnviewedValue(),
+		HistoryShownValue(session)
+	) | rpl::map([](bool unviewed, bool history) {
+		return unviewed && history;
 	}) | rpl::distinct_until_changed();
 }
 
@@ -4992,7 +5046,7 @@ void Content::setupContent() {
 			column,
 			object_ptr<Ui::VerticalLayout>(column)));
 	const auto bannerInner = bannerWrap->entity();
-	Ui::AddSkip(bannerInner, st::walletBannerTopSkip);
+	Ui::AddSkip(bannerInner, st::walletAboutTopSkip);
 	Settings::AddButtonWithIcon(
 		bannerInner,
 		tr::lng_wallet_protect_banner(),
@@ -5001,7 +5055,8 @@ void Content::setupContent() {
 	)->addClickHandler([=] {
 		WalletRevealFlow(_show);
 	});
-	bannerWrap->toggleOn(wallet->phraseUnviewedValue());
+	Ui::AddSkip(bannerInner, st::walletBannerTopSkip);
+	bannerWrap->toggleOn(BannerShownValue(&_show->session()));
 	bannerWrap->finishAnimating();
 
 	const auto wrap = column->add(
@@ -5009,14 +5064,7 @@ void Content::setupContent() {
 			column,
 			object_ptr<Ui::VerticalLayout>(column)));
 	const auto about = wrap->entity();
-	Ui::AddSkip(about, st::walletBannerTopSkip);
-	about->add(Ui::CreateSlideSkipWidget(
-		about,
-		st::walletAboutTopSkip - st::walletBannerTopSkip)
-	)->toggleOn(wallet->phraseUnviewedValue(
-	) | rpl::map([](bool unviewed) {
-		return !unviewed;
-	}))->finishAnimating();
+	Ui::AddSkip(about, st::walletAboutTopSkip);
 	const auto addEntry = [&](
 			rpl::producer<QString> title,
 			rpl::producer<QString> text,
@@ -5078,12 +5126,14 @@ void Content::setupContent() {
 	rowsTopSkip->toggleOn(rpl::combine(
 		std::move(collectiblesShown),
 		wallet->collectiblesTabValue(),
-		HistoryShownValue(&_show->session())
+		HistoryShownValue(&_show->session()),
+		BannerShownValue(&_show->session())
 	) | rpl::map([](
 			bool available,
 			bool collectibles,
-			bool history) {
-		return available && (collectibles || history);
+			bool history,
+			bool banner) {
+		return available && (collectibles || history) && !banner;
 	}));
 	rowsTopSkip->finishAnimating();
 
@@ -5096,9 +5146,11 @@ void Content::setupContent() {
 		list->clear();
 		const auto &history = wallet->history();
 		const auto &pending = wallet->pendingSend();
-		if (!history.empty() || pending) {
+		if (HistoryShown(&_show->session())) {
 			if (wallet->collectibles().empty()) {
-				Ui::AddSkip(list, st::walletRowsTopSkip);
+				if (!BannerShown(&_show->session())) {
+					Ui::AddSkip(list, st::walletRowsTopSkip);
+				}
 				Ui::AddSubsectionTitle(list, tr::lng_wallet_rows_title());
 				Ui::AddSkip(list);
 			}
@@ -5126,7 +5178,8 @@ void Content::setupContent() {
 	rpl::merge(
 		wallet->historyUpdates(),
 		wallet->collectiblesUpdates(),
-		wallet->sendStateValue() | rpl::to_empty
+		wallet->sendStateValue() | rpl::to_empty,
+		wallet->phraseUnviewedValue() | rpl::to_empty
 	) | rpl::on_next(rebuildList, list->lifetime());
 	listWrap->toggleOn(TransactionsShownValue(&_show->session()));
 	listWrap->finishAnimating();
@@ -5174,7 +5227,9 @@ void Content::setupContent() {
 	const auto local = &_show->session().local();
 	if (!local->readPref<bool>(kIntroTooltipShownPref)) {
 		local->writePref<bool>(kIntroTooltipShownPref, true);
-		SetupIntroTooltip(this, _card, _pinned->heightValue() | rpl::to_empty);
+		SetupIntroTooltip(this, _card, [=] {
+			return (collapseProgress() > 0.) ? QRect() : _ink->markRect();
+		}, _pinned->heightValue() | rpl::to_empty);
 	}
 }
 
@@ -5263,6 +5318,9 @@ void Content::setupPinned() {
 		send->setFullWidth(width - left);
 		send->moveToLeft(left, 0, width);
 	}, buttons->lifetime());
+
+	_headerBottomSkip = _pinnedInner->add(
+		Ui::CreateSlideSkipWidget(_pinnedInner, st::walletRowsTopSkip / 2));
 
 	_headerShadow = Ui::CreateChild<Ui::PlainShadow>(this);
 
@@ -5434,6 +5492,7 @@ void Content::setupTabs(rpl::producer<bool> collectiblesShown) {
 	std::move(collectiblesShown) | rpl::on_next([=](bool shown) {
 		_tabsShown = shown;
 		_tabsWrap->toggle(shown, anim::type::instant);
+		_headerBottomSkip->toggle(!shown, anim::type::instant);
 		_tabsShadow->setVisible(shown);
 		updateRegions();
 	}, lifetime());
@@ -5546,14 +5605,7 @@ void Content::updatePinned() {
 	_pinnedInner->moveToLeft(0, height - max, width());
 	_pinned->setGeometry(0, 0, width(), height);
 	const auto progress = collapseProgress();
-	const auto backgroundExtension = _tabsShown
-		? 0
-		: qRound((st::walletRowsTopSkip / 2.) * (1. - progress));
-	_pinnedBackground->setGeometry(
-		0,
-		0,
-		width(),
-		height + backgroundExtension);
+	_pinnedBackground->setGeometry(0, 0, width(), height);
 	const auto motion = std::clamp(progress / kCardMotionPart, 0., 1.);
 	const auto opacity = 1.
 		- std::clamp(progress / kCardFadePart, 0., 1.);
