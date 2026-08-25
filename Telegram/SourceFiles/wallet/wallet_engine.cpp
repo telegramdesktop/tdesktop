@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QUrl>
 
+#include <array>
 #include <condition_variable>
 #include <deque>
 #include <mutex>
@@ -158,6 +159,83 @@ struct SecretRecord {
 	};
 }
 
+// The MTProto toncenter proxy serializes empty JSON maps as arrays: it
+// answers "metadata":[] where real toncenter emits "metadata":{}, and a
+// present [] in a field the engine's toncenter NFT schema types as a map
+// fails the engine's strict deserialization (its serde default covers
+// only an absent key). By the owner's decision of 2026-08-25 this
+// normalization explicitly overrides the bridge-adds-no-semantics rule
+// for this case only: an empty [] right after one of the schema's four
+// map-typed keys - metadata, content, collection_content, extra - is
+// rewritten to {}, every other byte untouched. Delete this seam when the
+// server proxy emits {} faithfully or the engine gains a tolerant
+// deserializer, whichever lands first.
+[[nodiscard]] QByteArray NormalizeNftEmptyMaps(const QByteArray &body) {
+	const auto keys = std::array{
+		QLatin1String("metadata"),
+		QLatin1String("content"),
+		QLatin1String("collection_content"),
+		QLatin1String("extra"),
+	};
+	const auto data = body.constData();
+	const auto size = qsizetype(body.size());
+	const auto isSpace = [](char ch) {
+		return (ch == ' ') || (ch == '\t') || (ch == '\r') || (ch == '\n');
+	};
+	const auto skipSpace = [&](qsizetype position) {
+		while (position < size && isSpace(data[position])) {
+			++position;
+		}
+		return position;
+	};
+	auto result = body;
+	auto rewrite = (char*)nullptr;
+	auto position = qsizetype();
+	while (position < size) {
+		if (data[position++] != '"') {
+			continue;
+		}
+		const auto from = position;
+		while (position < size && data[position] != '"') {
+			position += (data[position] == '\\') ? 2 : 1;
+		}
+		if (position >= size) {
+			break;
+		}
+		const auto token = QLatin1String(data + from, int(position - from));
+		++position;
+		auto known = false;
+		for (const auto &key : keys) {
+			if (token == key) {
+				known = true;
+				break;
+			}
+		}
+		if (!known) {
+			continue;
+		}
+		auto lookahead = skipSpace(position);
+		if (lookahead >= size || data[lookahead] != ':') {
+			continue;
+		}
+		lookahead = skipSpace(lookahead + 1);
+		if (lookahead >= size || data[lookahead] != '[') {
+			continue;
+		}
+		const auto open = lookahead;
+		lookahead = skipSpace(lookahead + 1);
+		if (lookahead >= size || data[lookahead] != ']') {
+			continue;
+		}
+		if (!rewrite) {
+			rewrite = result.data();
+		}
+		rewrite[open] = '{';
+		rewrite[lookahead] = '}';
+	}
+	return result;
+}
+
 } // namespace
 
 // Implements the engine's HTTP callback over the main-thread MTProto proxy
@@ -235,6 +313,7 @@ public:
 			.query = parsed.query(),
 			.payload = ToByteArray(request.body),
 		};
+		const auto normalize = (gram.endpoint == u"/api/v3/nft/items"_q);
 		const auto requestUrl = request.url;
 		crl::on_main(_weak, [=, api = _api] {
 			{
@@ -255,7 +334,9 @@ public:
 				Complete(pending, engine::HttpResponse{
 					.status = 200,
 					.headers = {},
-					.body = ToByteVector(bytes),
+					.body = ToByteVector(normalize
+						? NormalizeNftEmptyMaps(bytes)
+						: bytes),
 					.final_url = requestUrl,
 				});
 			}, [=](const Gram::ApiError &error) {
