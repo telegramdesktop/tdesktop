@@ -5531,7 +5531,7 @@ void ListWidget::setupThanosEffect() {
 				return scroll;
 			},
 			.scrollToY = [=](int y) {
-				scroll->scrollToY(y);
+				_delegate->listScrollTo(y);
 			},
 			.collapseGapsUpdated = [=] { collapseGapsUpdated(); },
 		},
