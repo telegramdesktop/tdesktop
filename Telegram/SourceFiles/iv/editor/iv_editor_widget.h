@@ -558,6 +558,9 @@ private:
 		int ordinal,
 		int offset,
 		const Markdown::InlineTextObjectButtonData &button);
+	void rememberInlineFieldTrim(const QString &full, int left, int length);
+	[[nodiscard]] QString inlineFieldTrimmedLeft() const;
+	[[nodiscard]] QString inlineFieldTrimmedRight() const;
 	[[nodiscard]] int richOffsetForFieldPosition(int position) const;
 	[[nodiscard]] int fieldTextOffsetForCursorPosition(int position) const;
 	[[nodiscard]] int cursorPositionForFieldTextOffset(int offset) const;
@@ -1021,6 +1024,9 @@ private:
 	std::optional<style::owned_color> _inlineFieldPlaceholderColorOverride;
 	std::optional<InlineFieldStyleKey> _activeFieldStyleKey;
 	std::optional<State::LeafPath> _fieldLeaf;
+	std::optional<State::LeafPath> _fieldTrimmedLeaf;
+	QString _fieldTrimmedLeft;
+	QString _fieldTrimmedRight;
 	State::FieldMode _fieldMode = State::FieldMode::Rich;
 	QPointer<Ui::Emoji::SuggestionsController> _fieldSuggestions;
 	int _articleHeight = 0;

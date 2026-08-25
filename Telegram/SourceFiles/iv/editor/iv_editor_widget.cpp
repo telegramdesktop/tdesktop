@@ -642,6 +642,23 @@ struct InlineFieldTrimResult {
 	int left = 0;
 };
 
+[[nodiscard]] TextWithTags RestoreInlineFieldEdges(
+		TextWithTags text,
+		const QString &left,
+		const QString &right) {
+	if (text.text.isEmpty() || (left.isEmpty() && right.isEmpty())) {
+		return text;
+	}
+	if (!left.isEmpty()) {
+		text.text = left + text.text;
+		for (auto &tag : text.tags) {
+			tag.offset += int(left.size());
+		}
+	}
+	text.text += right;
+	return text;
+}
+
 [[nodiscard]] InlineFieldTrimResult TrimInlineFieldText(
 		TextWithTags text,
 		bool trimLeft) {
@@ -6971,6 +6988,10 @@ void Widget::setInlineFieldFromActiveState(int selectionFrom, int selectionTo) {
 				Ui::InputField::HistoryAction::Clear);
 		}
 		trimmedLeft = trimmed.left;
+		rememberInlineFieldTrim(
+			_state->activeRawText(),
+			trimmed.left,
+			int(trimmed.text.text.size()));
 		clearArticleEditableHeightOverride();
 	} else {
 		const auto activeText = ConvertRichTextToEditorTags(
@@ -6996,6 +7017,10 @@ void Widget::setInlineFieldFromActiveState(int selectionFrom, int selectionTo) {
 			activeText.replacements,
 			selectionTo);
 		trimmedLeft = trimmed.left;
+		rememberInlineFieldTrim(
+			activeText.text.text,
+			trimmed.left,
+			int(trimmed.text.text.size()));
 	}
 	cursorSelectionFrom -= trimmedLeft;
 	cursorSelectionTo -= trimmedLeft;
@@ -7604,9 +7629,33 @@ int Widget::cursorPositionForFieldTextOffset(int offset) const {
 	return from;
 }
 
+void Widget::rememberInlineFieldTrim(
+		const QString &full,
+		int left,
+		int length) {
+	_fieldTrimmedLeft = full.mid(0, left);
+	_fieldTrimmedRight = full.mid(left + length);
+	_fieldTrimmedLeaf = _state->activeLeafPath();
+}
+
+QString Widget::inlineFieldTrimmedLeft() const {
+	const auto active = _state->activeLeafPath();
+	return (_fieldTrimmedLeaf && active && (*_fieldTrimmedLeaf == *active))
+		? _fieldTrimmedLeft
+		: QString();
+}
+
+QString Widget::inlineFieldTrimmedRight() const {
+	const auto active = _state->activeLeafPath();
+	return (_fieldTrimmedLeaf && active && (*_fieldTrimmedLeaf == *active))
+		? _fieldTrimmedRight
+		: QString();
+}
+
 int Widget::richOffsetForFieldPosition(int position) const {
-	return int(ConvertEditorTagsToRichText(
-		_field->getTextWithTagsPart(0, position)).text.size());
+	return int(inlineFieldTrimmedLeft().size())
+		+ int(ConvertEditorTagsToRichText(
+			_field->getTextWithTagsPart(0, position)).text.size());
 }
 
 int Widget::richOffsetForFieldOffset(
@@ -7625,10 +7674,18 @@ ApplyResult Widget::applyFieldTextToState() {
 	if (_settingField || _field->isHidden()) {
 		return ApplyResult::Unchanged;
 	}
+	const auto left = inlineFieldTrimmedLeft();
+	const auto right = inlineFieldTrimmedRight();
 	if (_state->activeFieldMode() == State::FieldMode::Raw) {
-		return _state->applyActiveRawText(_field->getLastText());
+		const auto raw = _field->getLastText();
+		return _state->applyActiveRawText(raw.isEmpty()
+			? raw
+			: (left + raw + right));
 	}
-	const auto text = _field->getTextWithAppliedMarkdown();
+	const auto text = RestoreInlineFieldEdges(
+		_field->getTextWithAppliedMarkdown(),
+		left,
+		right);
 	return _state->applyActiveText(ConvertEditorTagsToRichText(text));
 }
 
