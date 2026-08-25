@@ -2168,8 +2168,6 @@ PRIVATE
     wallet/wallet_content.h
     wallet/wallet_engine.cpp
     wallet/wallet_engine.h
-    wallet/wallet_engine_smoke.cpp
-    wallet/wallet_engine_smoke.h
     wallet/wallet_fee_estimator.cpp
     wallet/wallet_fee_estimator.h
     wallet/wallet_fiat.cpp
