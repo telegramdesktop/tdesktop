@@ -76,6 +76,7 @@ constexpr auto kMaxGifForwardedBarLines = 4;
 constexpr auto kUseNonBlurredThreshold = 240;
 constexpr auto kMaxInlineArea = 1920 * 1080;
 constexpr auto kMaxInstantViewInlineArea = 1920 * 1920;
+constexpr auto kSeekPreviewInterval = crl::time(100);
 
 using ::Media::ValidFrameSize;
 
@@ -617,6 +618,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	const auto canStartPlay = autoplay
 		&& !_streamed
 		&& !activeRoundPlaying
+		&& !_seeking
 		&& !fullHiddenBySpoiler;
 	const auto shouldBePlaying = !autoplayUnderCursor() || underCursor();
 	if (!shouldBePlaying && _videoTimestamp != 0) {
@@ -662,7 +664,9 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 
 	const auto skipDrawingContent = context.skipDrawingParts
 		== PaintContext::SkipDrawingParts::Content;
-	const auto drawStreamed = streamed && (shouldBePlaying || !_videoCover);
+	const auto drawStreamed = streamed
+		&& (shouldBePlaying || !_videoCover)
+		&& (activeRoundPlaying || !_seeking);
 	if (drawStreamed && !skipDrawingContent && !fullHiddenBySpoiler) {
 		if (!_seekLastFrame.isNull()) {
 			_seekLastFrame = QImage();
@@ -1607,9 +1611,30 @@ QRect Gif::roundThumbRect() const {
 	return style::rtlrect(usex + paintx, painty, usew, painth, width());
 }
 
+void Gif::captureRoundSeekFrame() const {
+	// Restart would flash cover thumbnail in place of shown frame.
+	const auto streamed = activeRoundStreamed();
+	if (!streamed) {
+		return;
+	}
+	const auto size = roundThumbRect().size();
+	auto request = ::Media::Streaming::FrameRequest{
+		.outer = (ScaledInstantViewMediaSize(
+			size,
+			HostedInstantViewMediaPixelScale(_parent))
+			* style::DevicePixelRatio()),
+		.blurredBackground = true,
+	};
+	validateRoundingMask(request.outer);
+	request.mask = _roundingMask;
+	_seekLastFrame = streamed->frame(request);
+}
+
 void Gif::startRoundSeeking() {
+	captureRoundSeekFrame();
 	_seeking = true;
 	_seekPressPoint = QPoint();
+	_seekPreviewTime = 0;
 	::Media::Player::instance()->startSeeking(AudioMsgId::Type::Voice);
 	_roundSeek->setGrabbed(true);
 }
@@ -1623,7 +1648,19 @@ void Gif::updateRoundSeeking(QRect rthumb, QPoint point) {
 		fmod((M_PI / 2. - angle) / (2. * M_PI) + 1., 1.),
 		0.,
 		1.);
+	const auto changed = (now != _roundSeek->progress());
 	_roundSeek->setDraggedProgress(now);
+	// Piled up restarts would cancel each other before showing a frame.
+	if (changed && activeRoundStreamed()) {
+		const auto ms = crl::now();
+		if (ms - _seekPreviewTime >= kSeekPreviewInterval) {
+			_seekPreviewTime = ms;
+			captureRoundSeekFrame();
+			::Media::Player::instance()->updateSeeking(
+				AudioMsgId::Type::Voice,
+				now);
+		}
+	}
 	repaint();
 }
 
@@ -2333,7 +2370,8 @@ bool Gif::roundSeekShown() const {
 }
 
 bool Gif::isRoundSeekable() const {
-	if (!activeRoundStreamed()) {
+	// Player goes not-ready while a seek is applied.
+	if (!activeRoundStreamed() && !_seeking) {
 		return false;
 	}
 	const auto state = ::Media::Player::instance()->getState(

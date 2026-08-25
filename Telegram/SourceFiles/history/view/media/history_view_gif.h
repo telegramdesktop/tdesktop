@@ -163,6 +163,7 @@ private:
 	[[nodiscard]] bool isRoundSeekable() const;
 	[[nodiscard]] bool roundSeekShown() const;
 	[[nodiscard]] QRect roundThumbRect() const;
+	void captureRoundSeekFrame() const;
 	void startRoundSeeking();
 	void updateRoundSeeking(QRect rthumb, QPoint point);
 
@@ -262,6 +263,7 @@ private:
 	mutable crl::time _videoPosition = 0;
 	std::shared_ptr<VoiceSeekClickHandler> _seekl;
 	std::unique_ptr<VideoMessageSeek> _roundSeek;
+	crl::time _seekPreviewTime = 0;
 	QPoint _seekPressPoint;
 	mutable QPoint _seekStatePoint;
 	mutable QImage _seekLastFrame;
