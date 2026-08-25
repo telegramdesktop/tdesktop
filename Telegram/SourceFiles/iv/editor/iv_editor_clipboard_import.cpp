@@ -693,6 +693,25 @@ std::vector<RichPage::Block> ConvertImportedBlocks(
 		|| (kind == Kind::Quote);
 }
 
+// Plain text lists read the same in the field, task checkboxes do not.
+[[nodiscard]] bool MarkdownBlocksCarryStructure(
+		const std::vector<RichPage::Block> &blocks) {
+	for (const auto &block : blocks) {
+		if (block.kind == RichPage::BlockKind::List) {
+			for (const auto &item : block.listItems) {
+				if (item.taskState != RichPage::TaskState::None
+					|| MarkdownBlocksCarryStructure(item.blocks)) {
+					return true;
+				}
+			}
+		} else if (!BlockKindFitsComposeField(block.kind)
+			|| MarkdownBlocksCarryStructure(block.blocks)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 } // namespace
 
 TableImportLimits TableImportLimitsFor(
@@ -785,7 +804,7 @@ bool TextHasMarkdownStructure(
 		const QString &text,
 		const RichMessageLimits &limits) {
 	const auto imported = BlocksFromMarkdown(text, limits, 0);
-	return imported && RichBlocksCarryStructure(imported->blocks);
+	return imported && MarkdownBlocksCarryStructure(imported->blocks);
 }
 
 std::optional<BlocksImportResult> BlocksFromMimeData(
