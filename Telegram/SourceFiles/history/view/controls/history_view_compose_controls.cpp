@@ -2282,8 +2282,11 @@ void ComposeControls::offerRichPaste(not_null<const QMimeData*> data) {
 	if (!_history
 		|| !_pasteToastParent
 		|| !canShowRichEditor()
-		|| isEditingMessage()
-		|| !ChatHelpers::MimeDataLosesRichFormatting(session, data)) {
+		|| isEditingMessage()) {
+		return;
+	}
+	const auto offer = ChatHelpers::MimeDataRichPasteOffer(session, data);
+	if (!offer) {
 		return;
 	}
 	const auto copy = ChatHelpers::CloneMimeData(data);
@@ -2301,6 +2304,7 @@ void ComposeControls::offerRichPaste(not_null<const QMimeData*> data) {
 			.session = session,
 			.parent = parent,
 			.cancel = _field->changes(),
+			.offer = *offer,
 			.action = crl::guard(_wrap.get(), [=] {
 				if (_field->getTextWithTags() == now) {
 					_field->setTextWithTags(was);

@@ -1446,10 +1446,11 @@ void HistoryWidget::initExpandButton() {
 }
 
 void HistoryWidget::offerRichPaste(not_null<const QMimeData*> data) {
-	if (!_history
-		|| !canShowRichEditor()
-		|| editingMessage()
-		|| !ChatHelpers::MimeDataLosesRichFormatting(&session(), data)) {
+	if (!_history || !canShowRichEditor() || editingMessage()) {
+		return;
+	}
+	const auto offer = ChatHelpers::MimeDataRichPasteOffer(&session(), data);
+	if (!offer) {
 		return;
 	}
 	const auto copy = ChatHelpers::CloneMimeData(data);
@@ -1466,6 +1467,7 @@ void HistoryWidget::offerRichPaste(not_null<const QMimeData*> data) {
 			.session = &session(),
 			.parent = _scroll.data(),
 			.cancel = _field->changes(),
+			.offer = *offer,
 			.action = crl::guard(this, [=] {
 				if (_field->getTextWithTags() == now) {
 					_field->setTextWithTags(was);

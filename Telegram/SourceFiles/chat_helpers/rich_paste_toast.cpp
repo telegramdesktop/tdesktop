@@ -30,19 +30,21 @@ constexpr auto kToastDuration = 9 * crl::time(1000);
 
 } // namespace
 
-bool MimeDataLosesRichFormatting(
+std::optional<RichPasteOffer> MimeDataRichPasteOffer(
 		not_null<Main::Session*> session,
 		not_null<const QMimeData*> data) {
 	if (!Iv::Editor::CanAuthorRichMessages(session)) {
-		return false;
+		return std::nullopt;
 	}
 	const auto limits = Iv::ResolveRichMessageLimits(session);
 	if (Iv::Editor::MimeDataHasRichStructure(session, data, limits)) {
-		return true;
-	}
-	return !data->hasHtml()
+		return RichPasteOffer::Editor;
+	} else if (!data->hasHtml()
 		&& data->hasText()
-		&& Iv::Editor::TextHasMarkdownStructure(data->text(), limits);
+		&& Iv::Editor::TextHasMarkdownStructure(data->text(), limits)) {
+		return RichPasteOffer::Markdown;
+	}
+	return std::nullopt;
 }
 
 std::shared_ptr<QMimeData> CloneMimeData(not_null<const QMimeData*> data) {
@@ -55,16 +57,17 @@ std::shared_ptr<QMimeData> CloneMimeData(not_null<const QMimeData*> data) {
 
 void ShowRichPasteToast(RichPasteToastArgs &&args) {
 	const auto session = args.session;
-	const auto editor = (args.offer == RichPasteOffer::Editor);
-	const auto locked = editor && !Iv::Editor::SessionPremium(session);
+	const auto undo = (args.offer == RichPasteOffer::Plain);
+	const auto markdown = (args.offer == RichPasteOffer::Markdown);
+	const auto locked = !undo && !Iv::Editor::SessionPremium(session);
 	const auto button = locked
 		? QString()
-		: editor
-		? tr::lng_rich_paste_toast_open(tr::now)
-		: tr::lng_rich_paste_toast_undo(tr::now);
-	auto text = tr::bold(editor
-		? tr::lng_rich_paste_toast(tr::now)
-		: tr::lng_rich_paste_toast_markdown(tr::now)
+		: undo
+		? tr::lng_rich_paste_toast_undo(tr::now)
+		: tr::lng_rich_paste_toast_open(tr::now);
+	auto text = tr::bold(undo
+		? tr::lng_rich_paste_toast_markdown(tr::now)
+		: tr::lng_rich_paste_toast(tr::now)
 	).append('\n').append(locked
 		? tr::lng_rich_paste_toast_premium(
 			tr::now,
@@ -72,9 +75,11 @@ void ShowRichPasteToast(RichPasteToastArgs &&args) {
 			tr::link(tr::bold(
 				tr::lng_rich_paste_toast_premium_link(tr::now))),
 			tr::marked)
-		: editor
-		? tr::lng_rich_paste_toast_editor(tr::now, tr::rich)
-		: tr::lng_rich_paste_toast_plain(tr::now, tr::rich));
+		: undo
+		? tr::lng_rich_paste_toast_plain(tr::now, tr::rich)
+		: markdown
+		? tr::lng_rich_paste_toast_editor_markdown(tr::now, tr::rich)
+		: tr::lng_rich_paste_toast_editor(tr::now, tr::rich));
 	auto filter = Ui::Toast::ClickHandlerFilter();
 	if (locked) {
 		filter = [=](const ClickHandlerPtr &handler, Qt::MouseButton mouse) {

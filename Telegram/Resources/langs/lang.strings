@@ -8740,6 +8740,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_rich_paste_toast" = "Pasted as plain text";
 "lng_rich_paste_toast_editor" = "Restore formatting in editor";
+"lng_rich_paste_toast_editor_markdown" = "Apply Markdown formatting in editor";
 "lng_rich_paste_toast_markdown" = "Pasted with Markdown formatting";
 "lng_rich_paste_toast_plain" = "Paste as plain text instead";
 "lng_rich_paste_toast_premium" = "{link} to preserve formatting when pasting.";
