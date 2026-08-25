@@ -425,6 +425,34 @@ jobs:
           git config --global user.email "you@example.com"
           git config --global user.name "Sample"
 
+      # The image ships Visual Studio without ATL and breakpad's dump_syms
+      # needs atlbase.h. Modifies the existing install, because the
+      # generated vcxproj hardcodes $(VSInstallDir)\VC\atlmfc. Warns
+      # instead of failing: a warm cache restores dump_syms prebuilt.
+      - name: Visual Studio ATL component.
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          # A line per installed product, the latest one comes first.
+          $path = @(& $vswhere -latest -products '*' -property installationPath)[0]
+          $header = Join-Path $path 'VC\atlmfc\include\atlbase.h'
+          if (Test-Path $header) {
+            Write-Host "ATL is already installed in $path."
+            exit 0
+          }
+          # Through the bootstrapper, like the arm64 build tools in win.yml:
+          # vs_installer.exe of the image answers this modify with 87.
+          $exe = Join-Path $env:RUNNER_TEMP 'vs_enterprise.exe'
+          Invoke-WebRequest -Uri https://aka.ms/vs/18/stable/vs_enterprise.exe -OutFile $exe
+          $p = Start-Process -FilePath $exe -Wait -PassThru -ArgumentList `
+            'modify','--installPath',"`"$path`"", `
+            '--add','Microsoft.VisualStudio.Component.VC.ATL', `
+            '--quiet','--wait','--norestart','--nocache'
+          Remove-Item $exe -Force -ErrorAction SilentlyContinue
+          if (-not (Test-Path $header)) {
+            Write-Host "::warning::The installer exited with $($p.ExitCode) and left $path without ATL, breakpad will fail on a cold cache."
+          }
+
       # Pinned to a commit (master as of 2026-04-01): this job holds the
       # platform-signing credentials and the OIDC token, a floating tag
       # would let a third party run code next to them.
@@ -762,7 +790,7 @@ jobs:
             "$(random_key)" > DesktopPrivate/alpha_private.h
 
       - name: Free up some disk space.
-        run: find Libraries '(' '(' ! '(' -name '*.a' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -perm +111 ')' -type f ')' -o -empty ')' -delete
+        run: find Libraries '(' '(' ! '(' -name '*.a' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -perm +111 ')' -type f ')' -o -empty ')' -delete
 
       - name: Save Libraries cache.
         if: steps.cache-libs.outputs.cache-hit != 'true'
