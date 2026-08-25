@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
 #include "ui/unread_badge.h"
+#include "ui/controls/button_context_menu.h"
 #include "ui/ui_utility.h"
 #include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
@@ -375,12 +376,14 @@ bool TopBarWidget::createMenu(
 	});
 	_menuButton = button;
 	button->setForceRippled(true);
+	Ui::KeepHoveredWhileShown(button, _menu.get());
 	return true;
 }
 
 void TopBarWidget::unrippleMenuButton() {
 	if (const auto button = _menuButton.get()) {
 		button->setForceRippled(false);
+		Ui::SendSynteticMouseEvent(button, QEvent::MouseMove, Qt::NoButton);
 	}
 }
 
