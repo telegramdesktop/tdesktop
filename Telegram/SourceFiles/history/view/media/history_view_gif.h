@@ -131,6 +131,14 @@ public:
 	[[nodiscard]] static bool CanPlayInline(not_null<DocumentData*> document);
 
 private:
+	enum class Action : uchar {
+		None, // Sending without upload or waiting for album.
+		Open,
+		Cancel,
+		Download,
+		Streaming, // No center icon, click opens player.
+	};
+
 	struct Streamed;
 
 	void validateVideoThumbnail() const;
@@ -147,10 +155,12 @@ private:
 	void dataMediaCreated() const;
 
 	[[nodiscard]] bool autoplayEnabled() const;
+	[[nodiscard]] bool autoplayEligible(bool fullFeatured) const;
 	[[nodiscard]] bool autoplayUnderCursor() const;
-	[[nodiscard]] bool underCursor() const;
+	[[nodiscard]] bool underCursor(bool fullFeatured) const;
 	[[nodiscard]] int maxInlineArea() const;
 	[[nodiscard]] bool canPlayInline() const;
+	[[nodiscard]] float64 revealedProgress() const;
 
 	void playAnimation(bool autoplay) override;
 	QSize countOptimalSize() override;
@@ -236,7 +246,8 @@ private:
 		QPoint point,
 		StateRequest request,
 		QPoint position) const;
-	[[nodiscard]] ClickHandlerPtr currentVideoLink() const;
+	[[nodiscard]] Action currentAction(bool fullFeatured) const;
+	[[nodiscard]] ClickHandlerPtr currentVideoLink(bool fullFeatured) const;
 
 	void togglePollingStory(bool enabled) const;
 

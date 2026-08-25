@@ -525,8 +525,8 @@ bool Gif::autoplayUnderCursor() const {
 	return (_videoTimestamp || _hasVideoCover);
 }
 
-bool Gif::underCursor() const {
-	return ClickHandler::getActive() == currentVideoLink();
+bool Gif::underCursor(bool fullFeatured) const {
+	return ClickHandler::getActive() == currentVideoLink(fullFeatured);
 }
 
 bool Gif::autoplayEnabled() const {
@@ -537,6 +537,30 @@ bool Gif::autoplayEnabled() const {
 		_data->session().settings().autoDownload(),
 		_realParent->history()->peer,
 		_data);
+}
+
+bool Gif::autoplayEligible(bool fullFeatured) const {
+	ensureDataMediaCreated();
+	return fullFeatured
+		&& autoplayEnabled()
+		&& _dataMedia->canBePlayed()
+		&& canPlayInline()
+		&& !(_data->uploading() && _data->uploadingData->preparing);
+}
+
+float64 Gif::revealedProgress() const {
+	const auto item = _parent->data();
+	const auto isRound = _data->isVideoMessage();
+	const auto inTTLViewer = _parent->delegate()->elementContext()
+		== Context::TTLViewer;
+	return ((isRound || _ttlCover)
+		&& item->media()
+		&& item->media()->ttlSeconds()
+		&& !inTTLViewer)
+		? 0.
+		: (!isRound && _spoiler)
+		? _spoiler->revealAnimation.value(_spoiler->revealed ? 1. : 0.)
+		: 1.;
 }
 
 bool Gif::hideMessageText() const {
@@ -555,11 +579,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
 	const auto cornerDownload = downloadInCorner();
-	const auto canBePlayed = _dataMedia->canBePlayed();
-	const auto autoplay = autoplayEnabled()
-		&& canBePlayed
-		&& canPlayInline()
-		&& !(_data->uploading() && _data->uploadingData->preparing);
+	const auto autoplay = autoplayEligible(true);
 	const auto activeRoundPlaying = activeRoundStreamed();
 
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
@@ -602,14 +622,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 
 	const auto inTTLViewer = _parent->delegate()->elementContext()
 		== Context::TTLViewer;
-	const auto revealed = ((isRound || _ttlCover)
-			&& item->media()
-			&& item->media()->ttlSeconds()
-			&& !inTTLViewer)
-		? 0
-		: (!isRound && _spoiler)
-		? _spoiler->revealAnimation.value(_spoiler->revealed ? 1. : 0.)
-		: 1.;
+	const auto revealed = revealedProgress();
 	const auto fullHiddenBySpoiler = (revealed == 0.);
 	if (revealed < 1.) {
 		validateSpoilerImageCache(rthumb.size(), rounding);
@@ -620,7 +633,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		&& !activeRoundPlaying
 		&& !_seeking
 		&& !fullHiddenBySpoiler;
-	const auto shouldBePlaying = !autoplayUnderCursor() || underCursor();
+	const auto shouldBePlaying = !autoplayUnderCursor() || underCursor(true);
 	if (!shouldBePlaying && _videoTimestamp != 0) {
 		const_cast<Gif*>(this)->stopAnimation();
 	} else if (canStartPlay) {
@@ -793,17 +806,14 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 
 		p.setOpacity(radialOpacity);
 		const auto icon = [&]() -> const style::icon * {
-			if (streamingMode && !_data->uploading()) {
-				return nullptr;
-			} else if ((loaded || canBePlayed) && (!radial || cornerDownload)) {
-				return &sti->historyFileThumbPlay;
-			} else if (radial || _data->loading()) {
-				if (!item->isSending() || _data->uploading()) {
-					return &sti->historyFileThumbCancel;
-				}
-				return nullptr;
+			switch (currentAction(true)) {
+			case Action::None:
+			case Action::Streaming: return nullptr;
+			case Action::Open: return &sti->historyFileThumbPlay;
+			case Action::Cancel: return &sti->historyFileThumbCancel;
+			case Action::Download: return &sti->historyFileThumbDownload;
 			}
-			return &sti->historyFileThumbDownload;
+			Unexpected("Action in Gif::draw.");
 		}();
 		if (ttlCovered && !radial && !_data->loading()) {
 			paintTtlFire(p, inner);
@@ -1472,7 +1482,7 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 			_seekStatePoint = point;
 			result.link = _seekl;
 		} else {
-			result.link = currentVideoLink();
+			result.link = currentVideoLink(true);
 		}
 	}
 	const auto checkBottomInfo = !inWebPage
@@ -1717,25 +1727,19 @@ void Gif::drawGrouped(
 	const auto sti = context.imageStyle();
 	_smallGroupPart = !fullFeaturedGrouped(sides);
 	const auto cornerDownload = !_smallGroupPart && downloadInCorner();
-	const auto canBePlayed = _dataMedia->canBePlayed();
 
-	const auto revealed = _spoiler
-		? _spoiler->revealAnimation.value(_spoiler->revealed ? 1. : 0.)
-		: 1.;
+	const auto revealed = revealedProgress();
 	const auto fullHiddenBySpoiler = (revealed == 0.);
 	if (revealed < 1.) {
 		validateSpoilerImageCache(geometry.size(), rounding);
 	}
 
-	const auto autoplay = !_smallGroupPart
-		&& autoplayEnabled()
-		&& canBePlayed
-		&& canPlayInline()
-		&& !(_data->uploading() && _data->uploadingData->preparing);
+	const auto autoplay = autoplayEligible(!_smallGroupPart);
 	const auto canStartPlay = autoplay
 		&& !_streamed
 		&& !fullHiddenBySpoiler;
-	const auto shouldBePlaying = !autoplayUnderCursor() || underCursor();
+	const auto shouldBePlaying = !autoplayUnderCursor()
+		|| underCursor(!_smallGroupPart);
 	if (!shouldBePlaying && _videoTimestamp != 0) {
 		const_cast<Gif*>(this)->stopAnimation();
 	} else if (canStartPlay) {
@@ -1801,7 +1805,7 @@ void Gif::drawGrouped(
 			}
 			p.drawImage(geometry, streamed->frame(request));
 			const auto paused = context.paused
-				|| (autoplayUnderCursor() && !underCursor());
+				|| (autoplayUnderCursor() && !underCursor(!_smallGroupPart));
 			if (!paused) {
 				streamed->markFrameShown();
 			}
@@ -1872,17 +1876,15 @@ void Gif::drawGrouped(
 		const auto icon = [&]() -> const style::icon * {
 			if (_data->waitingForAlbum()) {
 				return &sti->historyFileThumbWaiting;
-			} else if (streamingMode && !_data->uploading()) {
-				return nullptr;
-			} else if ((loaded || canBePlayed) && (!radial || cornerDownload)) {
-				return &sti->historyFileThumbPlay;
-			} else if (radial || _data->loading()) {
-				if (!item->isSending() || _data->uploading()) {
-					return &sti->historyFileThumbCancel;
-				}
-				return nullptr;
 			}
-			return &sti->historyFileThumbDownload;
+			switch (currentAction(!_smallGroupPart)) {
+			case Action::None:
+			case Action::Streaming: return nullptr;
+			case Action::Open: return &sti->historyFileThumbPlay;
+			case Action::Cancel: return &sti->historyFileThumbCancel;
+			case Action::Download: return &sti->historyFileThumbDownload;
+			}
+			Unexpected("Action in Gif::drawGrouped.");
 		}();
 		const auto previous = _data->waitingForAlbum()
 			? &sti->historyFileThumbCancel
@@ -1930,7 +1932,8 @@ TextState Gif::getStateGrouped(
 	if (!geometry.contains(point)) {
 		return {};
 	}
-	if (!_smallGroupPart) {
+	const auto fullFeatured = fullFeaturedGrouped(sides);
+	if (fullFeatured) {
 		const auto state = cornerStatusTextState(
 			point,
 			request,
@@ -1943,24 +1946,42 @@ TextState Gif::getStateGrouped(
 
 	auto link = (_spoiler && !_spoiler->revealed)
 		? (_sensitiveSpoiler ? spoilerTagLink() : _spoiler->link)
-		: currentVideoLink();
+		: currentVideoLink(fullFeatured);
 	return TextState(_parent, std::move(link));
 }
 
-ClickHandlerPtr Gif::currentVideoLink() const {
-	return _data->uploading()
-		? _cancell
-		: _realParent->isSending()
-		? nullptr
-		: dataLoaded()
-		? _openl
-		: (_data->loading() && _smallGroupPart)
-		? _cancell
-		: _dataMedia->canBePlayed()
-		? _openl
-		: _data->loading()
-		? _cancell
-		: _savel;
+Gif::Action Gif::currentAction(bool fullFeatured) const {
+	ensureDataMediaCreated();
+	if (_data->waitingForAlbum()) {
+		return Action::None;
+	} else if (_data->uploading()) {
+		return Action::Cancel;
+	} else if (_realParent->isSending()) {
+		return Action::None;
+	} else if (_streamed
+		|| activeRoundStreamed()
+		|| autoplayEligible(fullFeatured)) {
+		return Action::Streaming;
+	}
+	const auto cornerDownload = fullFeatured && downloadInCorner();
+	if ((dataLoaded() || _dataMedia->canBePlayed())
+		&& (!_data->displayLoading() || cornerDownload)) {
+		return Action::Open;
+	} else if (_data->loading()) {
+		return Action::Cancel;
+	}
+	return Action::Download;
+}
+
+ClickHandlerPtr Gif::currentVideoLink(bool fullFeatured) const {
+	switch (currentAction(fullFeatured)) {
+	case Action::None: return nullptr;
+	case Action::Open:
+	case Action::Streaming: return _openl;
+	case Action::Cancel: return _cancell;
+	case Action::Download: return _savel;
+	}
+	Unexpected("Action in Gif::currentVideoLink.");
 }
 
 void Gif::ensureDataMediaCreated() const {
