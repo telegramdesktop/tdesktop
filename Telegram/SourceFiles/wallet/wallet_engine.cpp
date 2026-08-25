@@ -35,8 +35,8 @@ template <typename Kind>
 struct HostErrorFor;
 
 template <>
-struct HostErrorFor<engine::HttpHostErrorKind> {
-	using Failed = engine::http_host_error::Failed;
+struct HostErrorFor<engine::StatuslessHostErrorKind> {
+	using Failed = engine::statusless_host_error::Failed;
 };
 
 template <>
@@ -238,18 +238,20 @@ struct SecretRecord {
 
 } // namespace
 
-// Implements the engine's HTTP callback over the main-thread MTProto proxy
-// transport. execute_http() blocks the calling engine worker until the
-// answer arrives, the engine-supplied timeout expires, the request is
-// cancelled, or the Engine closes.
-class Engine::HttpHost final : public engine::WalletHttpHost {
+// Implements the engine's status-less provider callback over the main-thread
+// MTProto proxy transport. execute_statusless() blocks the calling engine
+// worker until the provider body arrives, the engine-supplied timeout
+// expires, the request is cancelled, or the Engine closes. It hands the
+// engine the body and nothing else: the proxy carries no status code, no
+// response headers and no final URL, so the bridge asserts none of them.
+class Engine::StatuslessHost final : public engine::WalletStatuslessHost {
 public:
-	HttpHost(base::weak_ptr<Engine> weak, not_null<Api*> api)
+	StatuslessHost(base::weak_ptr<Engine> weak, not_null<Api*> api)
 	: _weak(weak)
 	, _api(api) {
 	}
 
-	[[nodiscard]] engine::HttpResponse execute_http(
+	[[nodiscard]] std::vector<uint8_t> execute_statusless(
 			const engine::HttpRequest &request) override {
 		const auto id = request.id.value;
 		const auto url = QString::fromStdString(request.url);
@@ -259,11 +261,11 @@ public:
 			auto lock = std::lock_guard(_mutex);
 			if (_closed) {
 				throw HostFailed(
-					engine::HttpHostErrorKind::kCancelled,
+					engine::StatuslessHostErrorKind::kCancelled,
 					u"wallet engine is closing"_q);
 			} else if (_cancelledEarly.remove(id)) {
 				throw HostFailed(
-					engine::HttpHostErrorKind::kCancelled,
+					engine::StatuslessHostErrorKind::kCancelled,
 					u"cancelled before start"_q);
 			}
 			base = _baseUrl;
@@ -274,13 +276,13 @@ public:
 		// contracts (see startClient) that toncenter_base_url names the
 		// provider the proxy actually serves, in canonical form. Anything
 		// outside that base would be silently re-routed to the proxy's
-		// upstream — reject it instead of lying about the origin in the
-		// final_url echo below.
+		// upstream — reject it as a policy violation instead of executing
+		// a request the engine believes reached the configured origin.
 		if (base.isEmpty()
 			|| !url.startsWith(base)
 			|| !url.mid(base.size()).startsWith(u"/api/"_q)) {
 			throw HostFailed(
-				engine::HttpHostErrorKind::kPolicyViolation,
+				engine::StatuslessHostErrorKind::kPolicyViolation,
 				u"request outside the configured provider base"_q);
 		}
 		const auto parsed = QUrl(url);
@@ -289,7 +291,7 @@ public:
 			|| encodedPath.contains(u".."_q)
 			|| encodedPath.contains(u"//"_q)) {
 			throw HostFailed(
-				engine::HttpHostErrorKind::kPolicyViolation,
+				engine::StatuslessHostErrorKind::kPolicyViolation,
 				u"unexpected request path"_q);
 		}
 		const auto pending = std::make_shared<Pending>();
@@ -297,11 +299,11 @@ public:
 			auto lock = std::lock_guard(_mutex);
 			if (_closed) {
 				throw HostFailed(
-					engine::HttpHostErrorKind::kCancelled,
+					engine::StatuslessHostErrorKind::kCancelled,
 					u"wallet engine is closing"_q);
 			} else if (_cancelledEarly.remove(id)) {
 				throw HostFailed(
-					engine::HttpHostErrorKind::kCancelled,
+					engine::StatuslessHostErrorKind::kCancelled,
 					u"cancelled before start"_q);
 			}
 			const auto [i, inserted] = _pending.emplace(id, pending);
@@ -314,7 +316,6 @@ public:
 			.payload = ToByteArray(request.body),
 		};
 		const auto normalize = (gram.endpoint == u"/api/v3/nft/items"_q);
-		const auto requestUrl = request.url;
 		crl::on_main(_weak, [=, api = _api] {
 			{
 				auto lock = std::lock_guard(pending->mutex);
@@ -324,25 +325,21 @@ public:
 			}
 			// The MTProto toncenter proxy surfaces a success body or a
 			// parsed error string only: provider status codes, response
-			// headers and request headers never cross it. So a delivered
-			// body is always the 200 success case, retry classification
-			// can never see 429 / Retry-After, and every non-timeout
-			// failure lands in kOther. Revisit if the proxy schema ever
-			// carries status codes or headers.
+			// headers and request headers never cross it. The status-less
+			// transport is the exact shape for that, so a delivered body
+			// is presented as a body and nothing more. It also means the
+			// bridge cannot classify provider throttling — a 429 and its
+			// Retry-After never reach it — so every failure the proxy does
+			// not mark as a timeout is kOther with a bounded diagnostic.
 			const auto requestId = api->request(gram, [=](
 					const QByteArray &bytes) {
-				Complete(pending, engine::HttpResponse{
-					.status = 200,
-					.headers = {},
-					.body = ToByteVector(normalize
-						? NormalizeNftEmptyMaps(bytes)
-						: bytes),
-					.final_url = requestUrl,
-				});
+				Complete(pending, ToByteVector(normalize
+					? NormalizeNftEmptyMaps(bytes)
+					: bytes));
 			}, [=](const Gram::ApiError &error) {
 				const auto kind = Api::IsTimeoutError(error)
-					? engine::HttpHostErrorKind::kTimeout
-					: engine::HttpHostErrorKind::kOther;
+					? engine::StatuslessHostErrorKind::kTimeout
+					: engine::StatuslessHostErrorKind::kOther;
 				Fail(pending, kind, u"MTP %1: %2"_q
 					.arg(error.code)
 					.arg(error.message));
@@ -368,7 +365,7 @@ public:
 		if (!pending->done) {
 			pending->done = true;
 			pending->error = { {
-				engine::HttpHostErrorKind::kTimeout,
+				engine::StatuslessHostErrorKind::kTimeout,
 				u"request timeout expired"_q,
 			} };
 		}
@@ -384,10 +381,10 @@ public:
 			cancelTransport(pending);
 			throw HostFailed(pending->error->first, pending->error->second);
 		}
-		return std::move(*pending->response);
+		return std::move(*pending->body);
 	}
 
-	void cancel_http(const engine::HttpRequestId &id) override {
+	void cancel_statusless(const engine::HttpRequestId &id) override {
 		auto lock = std::lock_guard(_mutex);
 		if (_closed) {
 			return;
@@ -396,7 +393,7 @@ public:
 		if (i != _pending.end()) {
 			Fail(
 				i->second,
-				engine::HttpHostErrorKind::kCancelled,
+				engine::StatuslessHostErrorKind::kCancelled,
 				u"cancelled"_q);
 		} else {
 			if (_cancelledEarly.size() >= kMaxTrackedEarlyCancels) {
@@ -428,7 +425,7 @@ public:
 		for (const auto &[id, entry] : pending) {
 			Fail(
 				entry,
-				engine::HttpHostErrorKind::kCancelled,
+				engine::StatuslessHostErrorKind::kCancelled,
 				u"client replaced"_q);
 		}
 	}
@@ -446,7 +443,7 @@ public:
 		for (const auto &[id, entry] : pending) {
 			Fail(
 				entry,
-				engine::HttpHostErrorKind::kCancelled,
+				engine::StatuslessHostErrorKind::kCancelled,
 				u"wallet engine is closing"_q);
 		}
 	}
@@ -455,27 +452,28 @@ private:
 	struct Pending {
 		std::mutex mutex;
 		std::condition_variable ready;
-		std::optional<engine::HttpResponse> response;
-		std::optional<std::pair<engine::HttpHostErrorKind, QString>> error;
+		std::optional<std::vector<uint8_t>> body;
+		std::optional<
+			std::pair<engine::StatuslessHostErrorKind, QString>> error;
 		mtpRequestId requestId = 0;
 		bool done = false;
 	};
 
 	static void Complete(
 			const std::shared_ptr<Pending> &pending,
-			engine::HttpResponse &&response) {
+			std::vector<uint8_t> &&body) {
 		auto lock = std::lock_guard(pending->mutex);
 		if (pending->done) {
 			return;
 		}
 		pending->done = true;
-		pending->response = std::move(response);
+		pending->body = std::move(body);
 		pending->ready.notify_all();
 	}
 
 	static void Fail(
 			const std::shared_ptr<Pending> &pending,
-			engine::HttpHostErrorKind kind,
+			engine::StatuslessHostErrorKind kind,
 			const QString &diagnostic) {
 		auto lock = std::lock_guard(pending->mutex);
 		if (pending->done) {
@@ -771,7 +769,7 @@ struct Engine::Worker {
 
 Engine::Engine(not_null<Main::Session*> session, not_null<Api*> api)
 : _session(session)
-, _httpHost(std::make_shared<HttpHost>(base::make_weak(this), api))
+, _statuslessHost(std::make_shared<StatuslessHost>(base::make_weak(this), api))
 , _platformHost(std::make_shared<PlatformHost>(
 	base::make_weak(this),
 	session)) {
@@ -782,7 +780,7 @@ Engine::~Engine() {
 	// main thread again, then run a best-effort client shutdown and join.
 	// The send journal is durable, so an interrupted shutdown is recovered
 	// by resolve_pending() on the next launch by the engine's own design.
-	_httpHost->close();
+	_statuslessHost->close();
 	_platformHost->close();
 	const auto client = base::take(_client);
 	if (!_worker) {
@@ -824,9 +822,12 @@ auto Engine::lifecycle()
 void Engine::startClient(const engine::WalletClientConfig &config) {
 	Expects(!_client);
 
-	_httpHost->startClient(
+	_statuslessHost->startClient(
 		QString::fromStdString(config.providers.toncenter_base_url));
-	_client = engine::WalletClient::init(config, _httpHost, _platformHost);
+	_client = engine::WalletClient::new_statusless(
+		config,
+		_statuslessHost,
+		_platformHost);
 }
 
 auto Engine::client() const

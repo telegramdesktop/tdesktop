@@ -58,7 +58,9 @@ public:
 	// only validates the config, so it runs on the main thread. The
 	// config's toncenter_base_url must name the provider the MTProto
 	// proxy actually serves, in canonical form (lowercase host, no
-	// default port) — the transport certifies it in final_url.
+	// default port): the status-less transport reports no final URL, so
+	// this contract and the host's own origin check are the only origin
+	// guarantee the engine has.
 	void startClient(const wallet_engine::WalletClientConfig &config);
 	[[nodiscard]] auto client() const
 		-> std::shared_ptr<wallet_engine::WalletClient>;
@@ -99,7 +101,7 @@ public:
 	}
 
 private:
-	class HttpHost;
+	class StatuslessHost;
 	class PlatformHost;
 	struct Worker;
 
@@ -147,7 +149,7 @@ private:
 	void workerLoop();
 
 	const not_null<Main::Session*> _session;
-	std::shared_ptr<HttpHost> _httpHost;
+	std::shared_ptr<StatuslessHost> _statuslessHost;
 	std::shared_ptr<PlatformHost> _platformHost;
 	std::shared_ptr<wallet_engine::WalletLifecycle> _lifecycle;
 	std::shared_ptr<wallet_engine::WalletClient> _client;
