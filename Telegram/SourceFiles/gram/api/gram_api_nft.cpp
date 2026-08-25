@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonValue>
 #include <QtCore/QStringView>
 
-#include <algorithm>
 #include <array>
 
 namespace Gram {
@@ -118,53 +117,31 @@ constexpr auto kFragmentCollections = std::array{
 	if (domain.isString()) {
 		result.domain = domain.toString();
 	}
-	const auto collectionContent = object.value(u"collection"_q)
-		.toObject()
-		.value(u"collection_content"_q)
-		.toObject()
-		.value(u"uri"_q);
-	if (collectionContent.isString()) {
-		result.collectionContentUri = collectionContent.toString();
-	}
 	result.contentUriHttps = result.contentUri.startsWith(u"https://"_q);
-	result.collectionContentUriHttps
-		= result.collectionContentUri.startsWith(u"https://"_q);
 	result.onSale = object.value(u"on_sale"_q).toBool();
+	ClassifyNftKind(result);
+	return result;
+}
+
+} // namespace
+
+void ClassifyNftKind(NftItem &item) {
 	// Numbers and usernames each live in one authoritative Fragment
 	// collection, so the on-chain collection address is the authenticity
 	// gate for them. Gifts mint one collection per model, which no address
 	// list can enumerate, so a gift content URI only nominates a candidate
 	// slug; the wallet trusts it after payments.getUniqueStarGift returns
 	// this exact item's address as the resolved gift's gift_address.
-	if (const auto entry = FragmentEntry(result.collection)) {
-		result.kind = entry->kind;
-		result.key = FragmentSlug(result.contentUri, entry->segment);
+	if (const auto entry = FragmentEntry(item.collection)) {
+		item.kind = entry->kind;
+		item.key = FragmentSlug(item.contentUri, entry->segment);
 	} else {
-		auto slug = FragmentSlug(result.contentUri, u"gift");
+		auto slug = FragmentSlug(item.contentUri, u"gift");
 		if (!slug.isEmpty()) {
-			result.kind = NftKind::TelegramGift;
-			result.key = std::move(slug);
+			item.kind = NftKind::TelegramGift;
+			item.key = std::move(slug);
 		}
 	}
-	return result;
-}
-
-} // namespace
-
-HttpRequest NftItemsByOwnerRequest(
-		const QString &owner,
-		int limit,
-		int offset) {
-	auto result = HttpRequest();
-	result.post = false;
-	result.endpoint = u"/api/v3/nft/items"_q;
-	result.query = u"owner_address="_q
-		+ ApiDetails::PercentEncoded(owner)
-		+ u"&limit="_q
-		+ QString::number(std::clamp(limit, 0, 100))
-		+ u"&offset="_q
-		+ QString::number(std::max(offset, 0));
-	return result;
 }
 
 HttpRequest NftItemByAddressRequest(const Address &item) {
@@ -222,11 +199,6 @@ std::optional<NftDescriptor> ParseNftDescriptor(const QByteArray &json) {
 		result.imageUrl = image.toString();
 	}
 	return result;
-}
-
-std::optional<NftDescriptor> ParseNftCollectionDescriptor(
-		const QByteArray &json) {
-	return ParseNftDescriptor(json);
 }
 
 } // namespace Gram

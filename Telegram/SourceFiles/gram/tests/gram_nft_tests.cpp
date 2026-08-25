@@ -18,32 +18,11 @@ namespace Gram::Tests {
 namespace {
 
 const auto kOwner1Raw = u"0:9DA971AF38D2F03ABDF308D5F91636A97E5A2B07A66C39D71D7CBAE3B032EDDC"_q;
-const auto kOwner1Enc = u"0%3A9DA971AF38D2F03ABDF308D5F91636A97E5A2B07A66C39D71D7CBAE3B032EDDC"_q;
 
 } // namespace
 
 std::vector<Check> NftChecks() {
 	return {
-		{ u"nft_builder_items_by_owner"_q, [] {
-			const auto paged = CheckRequest(
-				NftItemsByOwnerRequest(kOwner1Raw, 50, 0),
-				false,
-				u"/api/v3/nft/items"_q,
-				u"owner_address="_q + kOwner1Enc + u"&limit=50&offset=0"_q,
-				QByteArray());
-			if (!paged.isEmpty()) {
-				return u"paged: "_q + paged;
-			}
-			const auto clamped = CheckRequest(
-				NftItemsByOwnerRequest(kOwner1Raw, 150, -3),
-				false,
-				u"/api/v3/nft/items"_q,
-				u"owner_address="_q + kOwner1Enc + u"&limit=100&offset=0"_q,
-				QByteArray());
-			return clamped.isEmpty()
-				? QString()
-				: (u"clamped: "_q + clamped);
-		} },
 		{ u"nft_builder_item_by_address"_q, [] {
 			const auto raw = u"0:CA0CFD519F763102B5BEC9D9E3AF4359"
 				u"2EA362FB773FA319EA09C4F162C171E0"_q;
@@ -400,8 +379,6 @@ std::vector<Check> NftChecks() {
 			}
 			const auto uri =
 				u"https://nft.fragment.com/gift/deskcalendar-45754.json"_q;
-			const auto collectionUri =
-				u"https://nft.fragment.com/collection/deskcalendar.json"_q;
 			const auto &item = page->list.front();
 			if (item.contentUri != uri) {
 				return u"contentUri: got "_q
@@ -422,14 +399,6 @@ std::vector<Check> NftChecks() {
 					u"into payments.getUniqueStarGift, so the server's own "
 					u"capitalization of it is not derivable from any committed "
 					u"byte and is deliberately not asserted"_q;
-			} else if (item.collectionContentUri != collectionUri) {
-				return u"collectionContentUri: got "_q
-					+ item.collectionContentUri
-					+ u", expected "_q
-					+ collectionUri;
-			} else if (!item.collectionContentUriHttps) {
-				return u"collectionContentUriHttps: got false for "_q
-					+ collectionUri;
 			}
 			const auto nested = QByteArray(
 				"{\"nft_items\":[{"
@@ -610,6 +579,66 @@ std::vector<Check> NftChecks() {
 			}
 			return QString();
 		} },
+		{ u"nft_classify_kind_direct"_q, [] {
+			const auto foreignRaw = u"0:0C8F3FCC4ABD589206A2CDF1469E3709"
+				u"2C1ADAD272FBE7DB97104569C16F0FF2"_q;
+			const auto foreignCollection = ParseAddress(foreignRaw);
+			if (!foreignCollection) {
+				return u"address parse failed: "_q + foreignRaw;
+			}
+			auto gift = NftItem();
+			gift.collection = foreignCollection->address;
+			gift.contentUri =
+				u"https://nft.fragment.com/gift/deskcalendar-45754.json"_q;
+			ClassifyNftKind(gift);
+			if (gift.kind != NftKind::TelegramGift) {
+				return u"gift kind: got "_q
+					+ QString::number(int(gift.kind))
+					+ u", expected TelegramGift; every gift model mints its "
+					u"own collection contract, so the gift uri nominates the "
+					u"candidate whatever collection holds the item"_q;
+			} else if (gift.key != u"deskcalendar-45754"_q) {
+				return u"gift key: got "_q
+					+ gift.key
+					+ u", expected deskcalendar-45754"_q;
+			}
+			const auto numberRaw = u"0:0E41DC1DC3C9067ED24248580E12B335"
+				u"9818D83DEE0304FABCF80845EAFAFDB2"_q;
+			const auto numberCollection = ParseAddress(numberRaw);
+			if (!numberCollection) {
+				return u"address parse failed: "_q + numberRaw;
+			}
+			const auto numberUri =
+				u"https://nft.fragment.com/number/88807684929.json"_q;
+			auto number = NftItem();
+			number.collection = numberCollection->address;
+			number.contentUri = numberUri;
+			ClassifyNftKind(number);
+			if (number.kind != NftKind::TelegramNumber) {
+				return u"number kind: got "_q
+					+ QString::number(int(number.kind))
+					+ u", expected TelegramNumber"_q;
+			} else if (number.key != u"88807684929"_q) {
+				return u"number key: got "_q
+					+ number.key
+					+ u", expected 88807684929"_q;
+			}
+			auto forged = NftItem();
+			forged.collection = foreignCollection->address;
+			forged.contentUri = numberUri;
+			ClassifyNftKind(forged);
+			if (forged.kind != NftKind::Generic || !forged.key.isEmpty()) {
+				return u"forged number: got kind "_q
+					+ QString::number(int(forged.kind))
+					+ u" key "_q
+					+ forged.key
+					+ u", expected Generic with none; numbers and usernames "
+					u"each have exactly one authoritative Fragment "
+					u"collection, so the address still gates them and only "
+					u"a gift uri nominates without one"_q;
+			}
+			return QString();
+		} },
 		{ u"nft_descriptor_fixtures"_q, [] {
 			const auto name = u"fragment-gift-deskcalendar-45754.json"_q;
 			const auto bytes = ReadFixture(name);
@@ -634,26 +663,6 @@ std::vector<Check> NftChecks() {
 					+ gift->imageUrl
 					+ u", expected "_q
 					+ giftImage;
-			}
-			const auto second = u"fragment-collection-deskcalendar.json"_q;
-			const auto secondBytes = ReadFixture(second);
-			if (secondBytes.isEmpty()) {
-				return u"fixture read failed: "_q + second;
-			}
-			const auto collection = ParseNftCollectionDescriptor(secondBytes);
-			const auto collectionImage =
-				u"https://nft.fragment.com/collection/deskcalendar.webp"_q;
-			if (!collection) {
-				return u"collection: parse failed"_q;
-			} else if (collection->name != u"Desk Calendars"_q) {
-				return u"collection name: got "_q
-					+ collection->name
-					+ u", expected Desk Calendars"_q;
-			} else if (collection->imageUrl != collectionImage) {
-				return u"collection image: got "_q
-					+ collection->imageUrl
-					+ u", expected "_q
-					+ collectionImage;
 			}
 			return QString();
 		} },

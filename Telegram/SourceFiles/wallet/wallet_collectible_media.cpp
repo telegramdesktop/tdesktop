@@ -125,7 +125,6 @@ struct CollectibleMedia::Entry {
 	base::flat_map<int, QImage> prepared;
 	PaintRoundImageCallback giftPaint;
 	std::unique_ptr<FileLoader> loader;
-	std::unique_ptr<FileLoader> collectionLoader;
 	bool resolveStarted = false;
 };
 
@@ -162,14 +161,12 @@ void CollectibleMedia::resolveFromRecord(
 	}
 	entry->record = record;
 	entry->fallback = FallbackTitle(record);
+	entry->collectionName = record.collectionName;
 	_changed.fire_copy(entry->address);
 	if (record.kind == Gram::NftKind::TelegramGift && !record.key.isEmpty()) {
 		requestGift(entry, record.key);
 	} else if (record.contentUriHttps) {
 		startDescriptorLoad(entry, record.contentUri);
-	}
-	if (record.collectionContentUriHttps) {
-		startCollectionLoad(entry, record.collectionContentUri);
 	}
 }
 
@@ -283,19 +280,6 @@ void CollectibleMedia::startDescriptorLoad(
 		crl::on_main(this, [=] {
 			startImageLoad(entry, image);
 		});
-	});
-}
-
-void CollectibleMedia::startCollectionLoad(
-		not_null<Entry*> entry,
-		const QString &url) {
-	startLoad(entry->collectionLoader, url, [=](QByteArray bytes) {
-		const auto descriptor = Gram::ParseNftCollectionDescriptor(bytes);
-		if (!descriptor) {
-			return;
-		}
-		entry->collectionName = descriptor->name;
-		_changed.fire_copy(entry->address);
 	});
 }
 

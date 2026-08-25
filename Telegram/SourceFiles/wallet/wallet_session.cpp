@@ -29,7 +29,6 @@ namespace engine = wallet_engine;
 
 constexpr auto kPollInterval = 5 * crl::time(1000);
 constexpr auto kHistoryPageLimit = 20;
-constexpr auto kCollectiblesPageLimit = 50;
 constexpr auto kCollectiblesPollInterval = 60 * crl::time(1000);
 constexpr auto kForcedCollectiblesInterval = 10 * crl::time(1000);
 constexpr auto kEmptyProofFreshness = 60 * crl::time(1000);
@@ -46,7 +45,8 @@ constexpr auto kEngineRequestTimeoutMs = uint64(15000);
 		return false;
 	}
 	for (auto i = 0, count = int(was.size()); i != count; ++i) {
-		if (was[i].address != now[i].address) {
+		if (was[i].address != now[i].address
+			|| was[i].collectionName != now[i].collectionName) {
 			return false;
 		}
 	}
@@ -127,7 +127,58 @@ constexpr auto kEngineRequestTimeoutMs = uint64(15000);
 	return std::vector<QString>(words.begin(), words.end());
 }
 
+[[nodiscard]] std::optional<Gram::NftItem> CollectibleFromEngine(
+		const engine::NftItem &item) {
+	const auto parsed = Gram::ParseAddress(
+		QString::fromStdString(item.address));
+	if (!parsed) {
+		LOG(("Wallet Error: engine nft address is not parseable."));
+		return std::nullopt;
+	}
+	const auto addressOrEmpty = [](const std::optional<std::string> &value) {
+		if (!value) {
+			return Gram::Address();
+		}
+		const auto parsed = Gram::ParseAddress(
+			QString::fromStdString(*value));
+		return parsed ? parsed->address : Gram::Address();
+	};
+	const auto contentValue = [&](const std::string &key) {
+		const auto i = item.content.find(key);
+		return (i != item.content.end())
+			? QString::fromStdString(i->second)
+			: QString();
+	};
+	auto result = Gram::NftItem();
+	result.address = parsed->address;
+	result.collection = addressOrEmpty(item.collection_address);
+	result.realOwner = addressOrEmpty(item.real_owner);
+	result.index = QString::fromStdString(item.index);
+	result.contentUri = contentValue("uri");
+	result.domain = contentValue("domain");
+	result.contentUriHttps = result.contentUri.startsWith(u"https://"_q);
+	result.onSale = item.on_sale;
+	if (item.collection && item.collection->name) {
+		result.collectionName = QString::fromStdString(
+			*item.collection->name);
+	}
+	Gram::ClassifyNftKind(result);
+	return result;
+}
+
 } // namespace
+
+std::vector<Gram::NftItem> CollectiblesFromEngine(
+		const engine::NftList &list) {
+	auto result = std::vector<Gram::NftItem>();
+	result.reserve(list.items.size());
+	for (const auto &item : list.items) {
+		if (auto mapped = CollectibleFromEngine(item)) {
+			result.push_back(std::move(*mapped));
+		}
+	}
+	return result;
+}
 
 Session::Session(not_null<Main::Session*> session)
 : _session(session)
@@ -447,7 +498,6 @@ void Session::clearNetworkState() {
 	_historyLoadedOffset = 0;
 	_historyRefreshedAt = 0;
 	_collectibles.clear();
-	_collectiblesLoading.clear();
 	_collectiblesTab = false;
 	_collectiblesRefreshedAt = 0;
 	_collectiblesCompletedAt = 0;
@@ -484,6 +534,8 @@ void Session::updateEngineClient() {
 		_engineStopping = true;
 		_engine->runQuick([client] {
 			client->cancel_refresh();
+			client->cancel_refresh_nfts();
+			client->cancel_load_more_nfts();
 		}, [] {}, [](EngineError) {});
 		_engine->stopClient([=, this] {
 			_engineStopping = false;
@@ -824,59 +876,66 @@ void Session::refreshCollectibles(bool force) {
 			&& (crl::now() - _collectiblesRefreshedAt < interval))) {
 		return;
 	}
+	if (_engineStopping || !_engine->client()) {
+		return;
+	}
 	_collectiblesRefreshedAt = crl::now();
-	requestCollectibles(0);
+	requestCollectibles(false);
 }
 
-void Session::requestCollectibles(int offset) {
+void Session::requestCollectibles(bool more) {
+	const auto client = _engine->client();
+	if (_engineStopping || !client) {
+		return;
+	}
 	_collectiblesRequestPending = true;
 	const auto generation = _networkGeneration;
-	_api.request(
-		Gram::NftItemsByOwnerRequest(
-			addressFriendly(false),
-			kCollectiblesPageLimit,
-			offset),
-		[=](const QByteArray &json) {
-			if (generation != _networkGeneration) {
-				return;
-			}
-			_collectiblesRequestPending = false;
-			auto page = Gram::ParseNftItems(json, kCollectiblesPageLimit);
-			if (!page) {
-				_collectiblesLoading.clear();
-				return;
-			}
-			applyCollectiblesPage(offset, std::move(*page));
-		},
-		[=](const Gram::ApiError &) {
-			if (generation != _networkGeneration) {
-				return;
-			}
-			_collectiblesRequestPending = false;
-			_collectiblesLoading.clear();
-		});
+	_engine->run([client, more] {
+		return more
+			? client->load_more_nfts()
+			: client->refresh_nfts();
+	}, [=, this](engine::WalletUpdate update) {
+		_collectiblesRequestPending = false;
+		if (generation != _networkGeneration) {
+			return;
+		}
+		applyCollectiblesUpdate(update, more);
+	}, [=, this](EngineError error) {
+		_collectiblesRequestPending = false;
+		if (generation != _networkGeneration) {
+			return;
+		}
+		LOG(("Wallet Error: engine nft %1 failed: %2, "
+			"keeping last-good collectibles."
+			).arg(more ? u"load_more"_q : u"refresh"_q
+			).arg(error.message));
+	});
 }
 
-void Session::applyCollectiblesPage(int offset, Gram::NftPage &&page) {
+void Session::applyCollectiblesUpdate(
+		const engine::WalletUpdate &update,
+		bool more) {
 #ifdef _DEBUG
 	if (_collectiblesInjected) {
-		_collectiblesLoading.clear();
 		return;
 	}
 #endif // _DEBUG
-	if (!offset) {
-		_collectiblesLoading.clear();
+	if (update.outcome != engine::WalletOperationOutcome::kCompleted) {
+		LOG(("Wallet: engine nft outcome %1, keeping last-good collectibles."
+			).arg(int(update.outcome)));
+		return;
 	}
-	_collectiblesLoading.insert(
-		_collectiblesLoading.end(),
-		std::make_move_iterator(page.list.begin()),
-		std::make_move_iterator(page.list.end()));
-	if (page.hasNext) {
-		requestCollectibles(offset + kCollectiblesPageLimit);
+	const auto &nfts = update.snapshot.nfts;
+	const auto &resource = more ? nfts.pagination_resource : nfts.resource;
+	if (resource.phase != engine::ResourcePhase::kReady) {
+		return;
+	}
+	if (nfts.has_more) {
+		requestCollectibles(true);
 		return;
 	}
 	_collectiblesCompletedAt = crl::now();
-	auto loaded = base::take(_collectiblesLoading);
+	auto loaded = CollectiblesFromEngine(nfts);
 	if (SameCollectibles(_collectibles, loaded)) {
 		return;
 	}
@@ -944,7 +1003,6 @@ void Session::injectDebugHistory(std::vector<Gram::TransferItem> items) {
 
 void Session::injectDebugCollectibles(std::vector<Gram::NftItem> items) {
 	_collectiblesInjected = true;
-	_collectiblesLoading.clear();
 	setCollectibles(std::move(items));
 }
 

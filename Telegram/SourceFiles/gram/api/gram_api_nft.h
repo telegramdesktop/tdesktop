@@ -31,12 +31,11 @@ struct NftItem {
 	Address realOwner;
 	QString index;
 	QString contentUri;
-	QString collectionContentUri;
 	QString domain;
 	QString key;
+	QString collectionName;
 	NftKind kind = NftKind::Generic;
 	bool contentUriHttps = false;
-	bool collectionContentUriHttps = false;
 	bool onSale = false;
 };
 
@@ -50,17 +49,12 @@ struct NftDescriptor {
 	QString imageUrl;
 };
 
-[[nodiscard]] HttpRequest NftItemsByOwnerRequest(
-	const QString &owner,
-	int limit,
-	int offset);
 [[nodiscard]] HttpRequest NftItemByAddressRequest(const Address &item);
 [[nodiscard]] std::optional<NftPage> ParseNftItems(
 	const QByteArray &json,
 	int limit);
 [[nodiscard]] std::optional<NftDescriptor> ParseNftDescriptor(
 	const QByteArray &json);
-[[nodiscard]] std::optional<NftDescriptor> ParseNftCollectionDescriptor(
-	const QByteArray &json);
+void ClassifyNftKind(NftItem &item);
 
 } // namespace Gram

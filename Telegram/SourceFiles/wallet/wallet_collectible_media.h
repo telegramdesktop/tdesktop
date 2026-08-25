@@ -74,7 +74,6 @@ private:
 		Fn<void(QByteArray)> done);
 	void startImageLoad(not_null<Entry*> entry, const QString &url);
 	void startDescriptorLoad(not_null<Entry*> entry, const QString &url);
-	void startCollectionLoad(not_null<Entry*> entry, const QString &url);
 	[[nodiscard]] Entry *find(const Gram::Address &item) const;
 	[[nodiscard]] const QImage &preparedFor(
 		not_null<Entry*> entry,

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_stream.h"
 
 namespace wallet_engine {
+struct NftList;
 struct WalletDescriptor;
 struct WalletUpdate;
 } // namespace wallet_engine
@@ -73,6 +74,9 @@ struct SendArgs {
 	bool bounce = true;
 	bool simulateStaleSeqno = false;
 };
+
+[[nodiscard]] std::vector<Gram::NftItem> CollectiblesFromEngine(
+	const wallet_engine::NftList &list);
 
 class Session final {
 public:
@@ -179,8 +183,10 @@ private:
 	void requestHistoryFallback(int offset);
 	void applyHistoryPage(int offset, Gram::HistoryPage &&page);
 	void refreshCollectibles(bool force = false);
-	void requestCollectibles(int offset);
-	void applyCollectiblesPage(int offset, Gram::NftPage &&page);
+	void requestCollectibles(bool more);
+	void applyCollectiblesUpdate(
+		const wallet_engine::WalletUpdate &update,
+		bool more);
 	void setCollectibles(std::vector<Gram::NftItem> &&list);
 	void checkPendingByMessage();
 	void checkPendingBySeqno(const Gram::AccountState &state);
@@ -218,7 +224,6 @@ private:
 	crl::time _historyRefreshedAt = 0;
 
 	std::vector<Gram::NftItem> _collectibles;
-	std::vector<Gram::NftItem> _collectiblesLoading;
 	rpl::event_stream<> _collectiblesUpdates;
 	rpl::variable<bool> _collectiblesTab = false;
 	crl::time _collectiblesRefreshedAt = 0;
