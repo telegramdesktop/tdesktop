@@ -4446,7 +4446,6 @@ void WalletKeysBackupBox(
 		box->closeBox();
 		return;
 	}
-	const auto count = kImportWordCountLong;
 	box->setTitle(tr::lng_wallet_keys_title());
 	const auto container = box->verticalLayout();
 	Ui::AddSkip(container);
@@ -4458,11 +4457,7 @@ void WalletKeysBackupBox(
 		WalletRevealFlow(show);
 	});
 	Ui::AddSkip(container);
-	Ui::AddDividerText(
-		container,
-		tr::lng_wallet_keys_phrase_about(
-			lt_count,
-			rpl::single(count * 1.) | tr::to_count()));
+	Ui::AddDividerText(container, tr::lng_wallet_keys_phrase_about());
 	Ui::AddSkip(container);
 	const auto deleteAndChoose = [=] {
 		const auto wallet = &show->session().wallet();
@@ -4490,7 +4485,7 @@ void WalletKeysBackupBox(
 			return;
 		}
 		show->showBox(Ui::MakeConfirmBox({
-			.text = tr::lng_wallet_delete_text(tr::now, lt_count, count),
+			.text = tr::lng_wallet_delete_text(tr::now),
 			.confirmed = [=](Fn<void()> close) {
 				close();
 				deleteAndChoose();

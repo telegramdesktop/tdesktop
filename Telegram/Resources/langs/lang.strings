@@ -8821,8 +8821,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_sent_toast" = "🎉 Grams have been sent to {address}.";
 "lng_wallet_keys_title" = "Keys & Backup";
 "lng_wallet_keys_show_phrase" = "Show Recovery Phrase";
-"lng_wallet_keys_phrase_about#one" = "You can transfer your wallet to another device by copying your {count}-word recovery phrase.";
-"lng_wallet_keys_phrase_about#other" = "You can transfer your wallet to another device by copying your {count}-word recovery phrase.";
+"lng_wallet_keys_phrase_about" = "You can transfer your wallet to another device by copying your recovery phrase.";
 "lng_wallet_keys_delete" = "Delete Wallet";
 "lng_wallet_phrase_intro_title" = "Recovery Phrase";
 "lng_wallet_phrase_intro_text" = "Your Secret Recovery Phrase is the key to back up your wallet. Keep it secret and secure at all times.";
@@ -8834,8 +8833,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_phrase_text#other" = "Write down these {count} words in order and store them safely. If you lose them, you lose access to your Wallet.";
 "lng_wallet_protect_banner" = "Protect your wallet";
 "lng_wallet_delete_title" = "Delete Wallet?";
-"lng_wallet_delete_text#one" = "You'll lose access to your funds unless you've saved your {count}-word recovery phrase.";
-"lng_wallet_delete_text#other" = "You'll lose access to your funds unless you've saved your {count}-word recovery phrase.";
+"lng_wallet_delete_text" = "You'll lose access to your funds unless you've saved your recovery phrase.";
 "lng_wallet_delete_confirm" = "Delete Anyway";
 "lng_wallet_replace_title" = "How do you want to replace the old wallet?";
 "lng_wallet_replace_create" = "Create a New Wallet";

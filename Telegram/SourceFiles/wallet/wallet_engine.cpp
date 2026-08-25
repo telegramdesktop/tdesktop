@@ -767,9 +767,12 @@ void Engine::Execute(
 	try {
 		job();
 	} catch (const std::exception &e) {
-		// Typed engine errors are lifted from Rust through their default
-		// constructors, so what() is empty for them; fall back to the
-		// dynamic type name and let consumers dispatch on `underlying`.
+		// Engine errors lifted from Rust always carry a non-empty
+		// what(): the Rust Display text, or the qualified variant
+		// name for a family that doesn't export Display. The typeid
+		// fallback guards a foreign exception with an empty what().
+		// Either way the message is log-only and consumers dispatch
+		// by rethrowing `underlying`.
 		const auto what = QString::fromUtf8(e.what());
 		const auto error = EngineError{
 			.message = what.isEmpty()
