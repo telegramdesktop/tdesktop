@@ -2829,7 +2829,7 @@ int ListWidget::resizeGetHeight(int newWidth) {
 	_itemsWidth = newWidth;
 	_itemsHeight = newHeight - _itemsRevealHeight;
 	if (_thanosController) {
-		_thanosController->clearRemovalHeight();
+		_thanosController->flushRemovals(_itemsHeight);
 	}
 	const auto collapseGapTotal = collapseGapsTotal();
 	const auto about = aboutView();
@@ -3031,10 +3031,6 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		std::min(st::msgMaxWidth / 2, width() / 2));
 
 	auto clip = e->rect();
-
-	if (_thanosController) {
-		_thanosController->clearRemovalHeight();
-	}
 
 	auto collapseGapTotal = 0;
 	for (const auto &gap : collapseGaps()) {
@@ -5446,9 +5442,6 @@ int ListWidget::collapseGapsTotal() const {
 	for (const auto &gap : collapseGaps()) {
 		result += gap.height;
 	}
-	if (_thanosController) {
-		result = std::max(result - _thanosController->removalHeight(), 0);
-	}
 	return result;
 }
 
@@ -5521,6 +5514,7 @@ void ListWidget::setupThanosEffect() {
 			.visibleAreaTop = [=] { return _visibleTop; },
 			.visibleAreaBottom = [=] { return _visibleBottom; },
 			.contentWidth = [=] { return width(); },
+			.contentHeight = [=] { return _itemsHeight; },
 			.preparePaintContext = [=](QRect clip) {
 				return preparePaintContext(clip);
 			},

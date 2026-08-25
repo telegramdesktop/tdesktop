@@ -21,6 +21,7 @@ namespace {
 constexpr auto kBaseDuration = crl::time(400);
 constexpr auto kPerPixelDuration = float64(0.15);
 constexpr auto kMaxDuration = crl::time(600);
+constexpr auto kPendingAttempts = 4;
 
 } // namespace
 
@@ -82,7 +83,7 @@ void ThanosEffectController::clearPreCaptured() {
 }
 
 void ThanosEffectController::resetScrollBaseline() {
-	if (!_collapseAnimation.animating()) {
+	if (_pending.empty() && !_collapseAnimation.animating()) {
 		_restoreScrollPending = false;
 		_wasAtBottom = false;
 	}
@@ -116,16 +117,12 @@ void ThanosEffectController::captureOnRemoval(
 		return;
 	}
 	_announcedRemoval.remove(item->fullId());
-	_removalHeight += view->height();
 	if (const auto it = _preCaptured.find(item->fullId());
 		it != end(_preCaptured)) {
 		const auto saved = it->second;
 		_preCaptured.erase(it);
 		if (saved.top >= 0) {
-			startCollapseAnimation(
-				saved.height,
-				saved.top,
-				saved.dateHeight);
+			notePendingRemoval(saved.height, saved.top, saved.dateHeight);
 		}
 		return;
 	}
@@ -136,14 +133,63 @@ void ThanosEffectController::captureOnRemoval(
 	if ((!item->isRegular() && !item->isEphemeral())
 		|| item->isService()
 		|| top < 0
-		|| height <= 0
 		|| _delegate.contentWidth() <= 0) {
 		return;
 	}
 	[[maybe_unused]] const auto dissolved = captureView(view, height, top);
 
 	ensureScrollBaseline();
-	startCollapseAnimation(height, top, dateHeight);
+	notePendingRemoval(height, top, dateHeight);
+}
+
+void ThanosEffectController::notePendingRemoval(
+		int height,
+		int top,
+		int dateHeight) {
+	if (_pending.empty()) {
+		_pendingContentHeight = _delegate.contentHeight();
+		_pendingAttempts = 0;
+	}
+	const auto scrollBottom = _delegate.scrollTop()
+		+ _delegate.scrollWidget()->height();
+	_pending.push_back({
+		.top = top,
+		.height = height,
+		.dateHeight = dateHeight,
+		.below = (top - _gapsShift >= scrollBottom),
+	});
+}
+
+void ThanosEffectController::flushRemovals(int contentHeight) {
+	const auto guard = gsl::finally([&] { resetScrollBaseline(); });
+	if (_pending.empty()) {
+		return;
+	}
+	auto left = _pendingContentHeight - contentHeight;
+	if (left <= 0) {
+		// Grouped media relayouts a pass later than item removal.
+		if (++_pendingAttempts > kPendingAttempts) {
+			_pending.clear();
+		}
+		return;
+	}
+	const auto pending = base::take(_pending);
+	auto assumed = 0;
+	for (const auto &removal : pending) {
+		assumed += removal.height;
+	}
+	for (auto i = 0, count = int(pending.size()); i != count; ++i) {
+		const auto &removal = pending[i];
+		const auto share = (i + 1 == count)
+			? left
+			: (assumed > 0)
+			? int(int64(removal.height) * left / assumed)
+			: 0;
+		left -= share;
+		if (!removal.below) {
+			startCollapseAnimation(share, removal.top, removal.dateHeight);
+		}
+	}
 }
 
 void ThanosEffectController::ensureScrollBaseline() {
@@ -247,13 +293,6 @@ void ThanosEffectController::startCollapseAnimation(
 		int itemTop,
 		int dateHeight) {
 	if (height <= 0) {
-		return;
-	}
-
-	const auto scrollTop = _delegate.scrollTop();
-	const auto scrollBottom = scrollTop + _delegate.scrollWidget()->height();
-
-	if (itemTop >= scrollBottom) {
 		return;
 	}
 
