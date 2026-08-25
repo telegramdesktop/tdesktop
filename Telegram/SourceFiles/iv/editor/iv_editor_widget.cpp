@@ -7604,6 +7604,11 @@ int Widget::cursorPositionForFieldTextOffset(int offset) const {
 	return from;
 }
 
+int Widget::richOffsetForFieldPosition(int position) const {
+	return int(ConvertEditorTagsToRichText(
+		_field->getTextWithTagsPart(0, position)).text.size());
+}
+
 int Widget::richOffsetForFieldOffset(
 		const TextWithEntities &text,
 		int offset) const {
@@ -7698,11 +7703,16 @@ ApplyResult Widget::applyMathEditResult(
 		insertPreparedBlock(std::move(block));
 		return ApplyResult::Changed;
 	}
+	auto restoreOrdinal = -1;
+	auto restoreOffset = 0;
 	const auto committed = recordMutationTransaction([&] {
 		_field->commitMarkdownTagEdit(
 			request.range,
 			Ui::InputField::kTagIvMath,
 			source);
+		restoreOrdinal = _state->activeTextOrdinal();
+		restoreOffset = richOffsetForFieldPosition(
+			request.range.from + int(source.size()));
 		const auto committed = commitInlineField();
 		if (committed != ApplyResult::Failed) {
 			_pendingOrdinal = -1;
@@ -7714,6 +7724,9 @@ ApplyResult Widget::applyMathEditResult(
 	});
 	if (committed != ApplyResult::Failed) {
 		refreshAfterInlineFieldCommit(committed);
+		if (restoreOrdinal >= 0) {
+			activateTextOrdinal(restoreOrdinal, restoreOffset);
+		}
 	}
 	return committed;
 }
@@ -7785,12 +7798,18 @@ ApplyResult Widget::applyButtonEditResult(
 	if (serialized.isEmpty()) {
 		return ApplyResult::Unchanged;
 	}
+	auto restoreOrdinal = -1;
+	auto restoreOffset = 0;
 	const auto committed = recordMutationTransaction([&] {
+		const auto cursor = _field->textCursor();
+		const auto position = cursor.selectionStart() + 1;
 		Ui::InsertCustomEmojiAtCursor(
 			_field.get(),
-			_field->textCursor(),
+			cursor,
 			QString(QChar::ObjectReplacementCharacter),
 			Ui::InputField::CustomEmojiLink(serialized));
+		restoreOrdinal = _state->activeTextOrdinal();
+		restoreOffset = richOffsetForFieldPosition(position);
 		const auto committed = commitInlineField();
 		if (committed != ApplyResult::Failed) {
 			_pendingOrdinal = -1;
@@ -7802,6 +7821,9 @@ ApplyResult Widget::applyButtonEditResult(
 	});
 	if (committed != ApplyResult::Failed) {
 		refreshAfterInlineFieldCommit(committed);
+		if (restoreOrdinal >= 0) {
+			activateTextOrdinal(restoreOrdinal, restoreOffset);
+		}
 	}
 	return committed;
 }

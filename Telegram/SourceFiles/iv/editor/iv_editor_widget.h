@@ -558,6 +558,7 @@ private:
 		int ordinal,
 		int offset,
 		const Markdown::InlineTextObjectButtonData &button);
+	[[nodiscard]] int richOffsetForFieldPosition(int position) const;
 	[[nodiscard]] int fieldTextOffsetForCursorPosition(int position) const;
 	[[nodiscard]] int cursorPositionForFieldTextOffset(int offset) const;
 	[[nodiscard]] int richOffsetForFieldOffset(
