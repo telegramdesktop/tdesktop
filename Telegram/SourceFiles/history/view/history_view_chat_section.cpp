@@ -2539,23 +2539,29 @@ void ChatWidget::sendTextWithTags(
 		.ignoreRestrictions = ephemeral,
 	};
 	request.messagesCount = ComputeSendingMessagesCount(_history, request);
-	const auto error = GetErrorForSending(_peer, request);
-	if (error) {
-		Data::ShowSendErrorToast(controller(), _peer, error);
-		return;
-	}
-	if (!ephemeral) {
-		const auto withPaymentApproved = [=](int approved) {
-			auto copy = options;
-			copy.starsApproved = approved;
-			sendTextWithTags(textWithTags, useCurrentWebPageDraft, copy, done);
-		};
-		const auto checked = checkSendPayment(
-			request.messagesCount,
-			message.action.options,
-			withPaymentApproved);
-		if (!checked) {
+	if (_canSendMessages) {
+		const auto error = GetErrorForSending(_peer, request);
+		if (error) {
+			Data::ShowSendErrorToast(controller(), _peer, error);
 			return;
+		}
+		if (!ephemeral) {
+			const auto withPaymentApproved = [=](int approved) {
+				auto copy = options;
+				copy.starsApproved = approved;
+				sendTextWithTags(
+					textWithTags,
+					useCurrentWebPageDraft,
+					copy,
+					done);
+			};
+			const auto checked = checkSendPayment(
+				request.messagesCount,
+				message.action.options,
+				withPaymentApproved);
+			if (!checked) {
+				return;
+			}
 		}
 	}
 
@@ -4682,9 +4688,16 @@ void ChatWidget::listDeleteRequest() {
 
 void ChatWidget::listTryProcessKeyInput(not_null<QKeyEvent*> e) {
 	const auto key = e->key();
-	if ((key == Qt::Key_Return || key == Qt::Key_Enter)
-		&& _bottom->botStartShown()) {
-		sendBotStartCommand();
+	if (key == Qt::Key_Return || key == Qt::Key_Enter) {
+		if (_bottom->botStartShown()) {
+			sendBotStartCommand();
+		}
+		if (!_canSendMessages
+			&& Ui::InputField::ShouldSubmit(
+				Core::App().settings().sendSubmitWay(),
+				e->modifiers())) {
+			send({});
+		}
 	} else if ((key == Qt::Key_O)
 		&& (e->modifiers() == Qt::ControlModifier)) {
 		if (!_choosingAttach) {

@@ -3875,8 +3875,8 @@ void ListWidget::keyPressEvent(QKeyEvent *e) {
 			|| (key == Qt::Key_PageDown))) {
 		_scrollKeyEvents.fire(std::move(e));
 	} else if (((key == Qt::Key_O)
-		&& (e->modifiers() == Qt::ControlModifier))
-		|| (!(e->modifiers() & ~Qt::ShiftModifier)
+		&& (modifiers == Qt::ControlModifier))
+		|| (!(modifiers & ~Qt::ShiftModifier)
 			&& key != Qt::Key_Shift)) {
 		_delegate->listTryProcessKeyInput(e);
 	} else {
