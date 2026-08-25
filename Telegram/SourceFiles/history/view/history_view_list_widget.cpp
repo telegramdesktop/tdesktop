@@ -1263,7 +1263,18 @@ void ListWidget::showAtPosition(
 			return showAtPositionNow(position, params, done);
 		});
 	} else if (!showAtPositionNow(position, params, done)) {
+		const auto targetAbove = isBelowPosition(position);
+		const auto targetBelow = isAbovePosition(position);
 		showAroundPosition(position, [=] {
+			if ((targetAbove || targetBelow)
+				&& (params.animated != anim::type::instant)) {
+				if (const auto to = scrollTopForPosition(position)) {
+					const auto screen = _visibleBottom - _visibleTop;
+					_delegate->listScrollTo(targetAbove
+						? (*to + screen)
+						: (*to - screen));
+				}
+			}
 			return showAtPositionNow(position, params, done);
 		});
 	}
