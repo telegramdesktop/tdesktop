@@ -2179,7 +2179,8 @@ void ResolveAndShowUniqueGift(
 		std::shared_ptr<ChatHelpers::Show> show,
 		const QString &slug,
 		::Settings::CreditsEntryBoxStyleOverrides st,
-		Fn<void(QString)> fail) {
+		Fn<void(QString)> fail,
+		Fn<bool(const Data::StarGift &)> validate) {
 	struct Request {
 		base::weak_ptr<Main::Session> weak;
 		QString slug;
@@ -2208,6 +2209,12 @@ void ResolveAndShowUniqueGift(
 		const auto &data = result.data();
 		session->data().processUsers(data.vusers());
 		if (const auto gift = Api::FromTL(session, data.vgift())) {
+			if (validate && !validate(*gift)) {
+				if (fail) {
+					fail(u"GIFT_ADDRESS_MISMATCH"_q);
+				}
+				return;
+			}
 			Core::App().hideMediaView();
 
 			using namespace ::Settings;
@@ -2234,8 +2241,14 @@ void ResolveAndShowUniqueGift(
 void ResolveAndShowUniqueGift(
 		std::shared_ptr<ChatHelpers::Show> show,
 		const QString &slug,
-		Fn<void(QString)> fail) {
-	ResolveAndShowUniqueGift(std::move(show), slug, {}, std::move(fail));
+		Fn<void(QString)> fail,
+		Fn<bool(const Data::StarGift &)> validate) {
+	ResolveAndShowUniqueGift(
+		std::move(show),
+		slug,
+		{},
+		std::move(fail),
+		std::move(validate));
 }
 
 TimeId ParseVideoTimestamp(QStringView value) {

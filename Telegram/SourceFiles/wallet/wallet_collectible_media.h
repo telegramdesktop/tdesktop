@@ -17,11 +17,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class FileLoader;
 class Painter;
 
+namespace Data {
+struct UniqueGift;
+} // namespace Data
+
 namespace Main {
 class Session;
 } // namespace Main
 
 namespace Wallet {
+
+[[nodiscard]] bool UniqueGiftMatchesAddress(
+	const std::shared_ptr<Data::UniqueGift> &unique,
+	const Gram::Address &address);
 
 struct CollectibleView {
 	QString name;

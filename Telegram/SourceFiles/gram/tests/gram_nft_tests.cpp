@@ -411,9 +411,10 @@ std::vector<Check> NftChecks() {
 			} else if (item.kind != NftKind::TelegramGift) {
 				return u"kind: got "_q
 					+ QString::number(int(item.kind))
-					+ u", expected TelegramGift; the kind comes from "
-					u"collection_address alone, and deskcalendar is one gift "
-					u"model's collection, not the Telegram gift collection"_q;
+					+ u", expected TelegramGift; the kind comes from the "
+					u"content.uri nft.fragment.com/<segment>/ shape, because "
+					u"each gift model mints its own collection contract and "
+					u"no address list can enumerate them"_q;
 			} else if (item.key != u"deskcalendar-45754"_q) {
 				return u"key: got "_q
 					+ item.key
@@ -452,17 +453,18 @@ std::vector<Check> NftChecks() {
 					+ u" items, expected 1"_q;
 			}
 			const auto &nestedItem = nestedPage->list.front();
-			if (nestedItem.kind != NftKind::TelegramGift) {
+			if (nestedItem.kind != NftKind::Generic) {
 				return u"nested slug: got kind "_q
 					+ QString::number(int(nestedItem.kind))
-					+ u", expected TelegramGift; the gift collection address "
-					u"classifies the item whatever its content.uri holds"_q;
+					+ u", expected Generic; a remainder that leaves "
+					u"[a-zA-Z0-9._-] - the only class the app's "
+					u"t.me/nft/<slug> handler accepts - yields no slug, and "
+					u"without a resolvable slug the gift kind is useless, so "
+					u"the item stays Generic"_q;
 			} else if (!nestedItem.key.isEmpty()) {
 				return u"nested slug: got key "_q
 					+ nestedItem.key
-					+ u", expected none; a remainder that leaves "
-					u"[a-zA-Z0-9._-] - the only class the app's "
-					u"t.me/nft/<slug> handler accepts - yields no key"_q;
+					+ u", expected none"_q;
 			}
 			const auto foreign = QByteArray(
 				"{\"nft_items\":[{"
@@ -486,21 +488,21 @@ std::vector<Check> NftChecks() {
 					+ u" items, expected 1"_q;
 			}
 			const auto &other = synthetic->list.front();
-			if (other.kind != NftKind::Generic) {
+			if (other.kind != NftKind::TelegramGift) {
 				return u"foreign collection: got kind "_q
 					+ QString::number(int(other.kind))
-					+ u", expected Generic; collection_address is the "
-					u"authoritative signal because a collection contract's "
-					u"address_book.domain is not a stable label - the "
-					u"usernames collection's reads realsaltlake.t.me"_q;
-			} else if (!other.key.isEmpty()) {
+					+ u", expected TelegramGift; a gift uri nominates a "
+					u"candidate whatever its collection, because every gift "
+					u"model mints its own collection contract. The uri is "
+					u"item-controlled, so the wallet shows the gift view "
+					u"only after payments.getUniqueStarGift resolves the "
+					u"slug and the reply's gift_address equals this exact "
+					u"item's address; a forged uri fails that binding and "
+					u"lands in the generic preview fallback"_q;
+			} else if (other.key != u"deskcalendar-45754"_q) {
 				return u"foreign collection: got key "_q
 					+ other.key
-					+ u", expected none; content.uri is item-controlled "
-					u"content naming arbitrary hosts (50 distinct https hosts "
-					u"in one owner's listing), so it never classifies - a gift "
-					u"from another model's collection is Generic with no key, "
-					u"which is the documented behaviour and not a bug"_q;
+					+ u", expected deskcalendar-45754"_q;
 			}
 			return QString();
 		} },
@@ -576,6 +578,35 @@ std::vector<Check> NftChecks() {
 					+ FormatRaw(username.realOwner).toUpper()
 					+ u", expected "_q
 					+ owner;
+			}
+			const auto forged = QByteArray(
+				"{\"nft_items\":[{"
+					"\"address\":\"0:CA0CFD519F763102B5BEC9D9E3AF4359"
+						"2EA362FB773FA319EA09C4F162C171E0\","
+					"\"index\":\"1\","
+					"\"collection_address\":"
+						"\"0:0C8F3FCC4ABD589206A2CDF1469E3709"
+						"2C1ADAD272FBE7DB97104569C16F0FF2\","
+					"\"content\":{\"uri\":\"https://nft.fragment.com/"
+						"number/88807684929.json\"},"
+					"\"on_sale\":false,"
+					"\"real_owner\":null"
+				"}]}");
+			const auto forgedPage = ParseNftItems(forged, 100);
+			if (!forgedPage || int(forgedPage->list.size()) != 1) {
+				return u"forged number: parse failed"_q;
+			}
+			const auto &fake = forgedPage->list.front();
+			if (fake.kind != NftKind::Generic || !fake.key.isEmpty()) {
+				return u"forged number: got kind "_q
+					+ QString::number(int(fake.kind))
+					+ u" key "_q
+					+ fake.key
+					+ u", expected Generic with none; numbers and "
+					u"usernames have exactly one authoritative Fragment "
+					u"collection each, so a real-shaped uri under any "
+					u"other collection is forged metadata and must not "
+					u"classify"_q;
 			}
 			return QString();
 		} },

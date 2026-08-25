@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/compose/compose_show.h"
 #include "core/local_url_handlers.h"
 #include "data/data_file_origin.h"
+#include "data/data_star_gift.h"
 #include "gram/api/gram_api_nft.h"
 #include "gram/ton/gram_address.h"
 #include "lang/lang_keys.h"
@@ -305,6 +306,7 @@ void Activate(
 		const Gram::NftItem &item) {
 	if (item.kind == Gram::NftKind::TelegramGift && !item.key.isEmpty()) {
 		const auto weak = std::weak_ptr(media);
+		const auto address = item.address;
 		Core::ResolveAndShowUniqueGift(
 			std::make_shared<PanelChatShow>(show),
 			item.key,
@@ -314,6 +316,9 @@ void Activate(
 					show->showBox(
 						Box(CollectiblePreviewBox, strong, item));
 				}
+			},
+			[=](const Data::StarGift &gift) {
+				return UniqueGiftMatchesAddress(gift.unique, address);
 			});
 		return;
 	}

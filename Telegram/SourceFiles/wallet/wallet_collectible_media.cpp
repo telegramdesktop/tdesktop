@@ -96,6 +96,16 @@ namespace {
 
 } // namespace
 
+bool UniqueGiftMatchesAddress(
+		const std::shared_ptr<Data::UniqueGift> &unique,
+		const Gram::Address &address) {
+	if (!unique) {
+		return false;
+	}
+	const auto parsed = Gram::ParseAddress(unique->giftAddress);
+	return parsed && (parsed->address == address);
+}
+
 TextWithEntities CollectibleTitleText(const CollectibleView &view) {
 	auto result = Ui::Text::Semibold(view.name);
 	if (!view.number.isEmpty()) {
@@ -192,7 +202,8 @@ void CollectibleMedia::requestGift(
 		const auto &data = result.data();
 		session->data().processUsers(data.vusers());
 		const auto gift = ::Api::FromTL(session, data.vgift());
-		if (!gift || !gift->unique) {
+		if (!gift
+			|| !UniqueGiftMatchesAddress(gift->unique, entry->address)) {
 			fallback();
 			return;
 		}

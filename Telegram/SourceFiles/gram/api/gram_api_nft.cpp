@@ -27,12 +27,6 @@ struct FragmentCollection {
 
 constexpr auto kFragmentCollections = std::array{
 	FragmentCollection{
-		u"0:4C71F300665314AF55B75FC91D130DDF"
-		u"24C5006961F8F9772613947945F14863",
-		u"gift",
-		NftKind::TelegramGift,
-	},
-	FragmentCollection{
 		u"0:0E41DC1DC3C9067ED24248580E12B335"
 		u"9818D83DEE0304FABCF80845EAFAFDB2",
 		u"number",
@@ -136,9 +130,21 @@ constexpr auto kFragmentCollections = std::array{
 	result.collectionContentUriHttps
 		= result.collectionContentUri.startsWith(u"https://"_q);
 	result.onSale = object.value(u"on_sale"_q).toBool();
+	// Numbers and usernames each live in one authoritative Fragment
+	// collection, so the on-chain collection address is the authenticity
+	// gate for them. Gifts mint one collection per model, which no address
+	// list can enumerate, so a gift content URI only nominates a candidate
+	// slug; the wallet trusts it after payments.getUniqueStarGift returns
+	// this exact item's address as the resolved gift's gift_address.
 	if (const auto entry = FragmentEntry(result.collection)) {
 		result.kind = entry->kind;
 		result.key = FragmentSlug(result.contentUri, entry->segment);
+	} else {
+		auto slug = FragmentSlug(result.contentUri, u"gift");
+		if (!slug.isEmpty()) {
+			result.kind = NftKind::TelegramGift;
+			result.key = std::move(slug);
+		}
 	}
 	return result;
 }
