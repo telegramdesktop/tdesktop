@@ -953,7 +953,7 @@ void ParseMarkdownInline(
 		Marker{ u"***", u"**", false, u"__" },
 		Marker{ u"___", u"**", true, u"__" },
 		Marker{ u"**", u"**" },
-		Marker{ u"__", u"**", true },
+		Marker{ u"__", u"__", true },
 		Marker{ u"~~", u"~~" },
 		Marker{ u"||", u"||" },
 		Marker{ u"*", u"__", true },
