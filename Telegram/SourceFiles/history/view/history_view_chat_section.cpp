@@ -4553,6 +4553,9 @@ void ChatWidget::setPinnedVisibility(bool shown) {
 
 void ChatWidget::showAnimatedHook(
 		const Window::SectionSlideParams &params) {
+	if (!params.fromBottom) {
+		_topBar->show();
+	}
 	_topBar->setAnimatingMode(true);
 	_topControls->setAnimatingMode(true);
 	if (params.withTopBarShadow && !params.fromBottom) {
