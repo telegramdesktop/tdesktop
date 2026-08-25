@@ -66,6 +66,7 @@ public:
 	void captureOnRemoval(not_null<const HistoryItem*> item);
 	void commitAnnouncedRemovals(Fn<bool(FullMsgId)> removed);
 	void clearPreCaptured();
+	void resetScrollBaseline();
 	void pinScroll();
 	void shiftGaps(int delta);
 	void notePrependBaseline(int contentHeight);

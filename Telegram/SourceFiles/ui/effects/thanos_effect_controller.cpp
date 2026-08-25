@@ -56,6 +56,8 @@ void ThanosEffectController::captureItemsBatch(
 	if (!anyFound) {
 		return;
 	}
+	_preCaptured.clear();
+	_announcedRemoval.clear();
 	ensureScrollBaseline();
 	for (const auto &item : items) {
 		if (const auto view = _delegate.viewForItem(item)) {
@@ -76,6 +78,10 @@ void ThanosEffectController::captureItemsBatch(
 void ThanosEffectController::clearPreCaptured() {
 	_preCaptured.clear();
 	_announcedRemoval.clear();
+	resetScrollBaseline();
+}
+
+void ThanosEffectController::resetScrollBaseline() {
 	if (!_collapseAnimation.animating()) {
 		_restoreScrollPending = false;
 		_wasAtBottom = false;

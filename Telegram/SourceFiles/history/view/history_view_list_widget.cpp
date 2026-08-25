@@ -806,7 +806,7 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 		_thanosController->commitAnnouncedRemovals([&](FullMsgId id) {
 			return ranges::find(_slice.ids, id) == end(_slice.ids);
 		});
-		_thanosController->clearPreCaptured();
+		_thanosController->resetScrollBaseline();
 	}
 
 	saveScrollState();
