@@ -825,6 +825,19 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 		1
 	) - 1;
 
+	auto shiftAnchor = (HistoryItem*)nullptr;
+	auto shiftAnchorBottom = 0;
+	if (_thanosController && !_thanosController->renderGaps().empty()) {
+		for (const auto &view : _items) {
+			const auto id = view->data()->fullId();
+			if (ranges::find(_slice.ids, id) != end(_slice.ids)) {
+				shiftAnchor = view->data();
+				shiftAnchorBottom = view->y() + view->height();
+				break;
+			}
+		}
+	}
+
 	auto destroyingBarElement = _bar.element;
 	auto clearingOverElement = _overElement;
 	_itemsKnownTillEnd = (_slice.skippedAfter == 0);
@@ -874,6 +887,14 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 	updateAroundPositionFromNearest(nearestIndex);
 
 	updateItemsGeometry();
+
+	if (shiftAnchor) {
+		// Prepended slice moves every item, gap coordinate follows it.
+		if (const auto view = viewForItem(shiftAnchor)) {
+			_thanosController->shiftGaps(
+				view->y() + view->height() - shiftAnchorBottom);
+		}
+	}
 
 	if (clearingOverElement) {
 		_overElement = nullptr;
