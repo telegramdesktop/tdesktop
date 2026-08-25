@@ -517,8 +517,20 @@ project, apply the ordinary project-selection rules from `process-inbox`.
 First apply the scope filter, before any disposition. A coverage follow-up
 exists to prove **the source task's own change**, so run the revert test on each entry: if
 reverting that task's diff could not change the outcome, the entry is about
-pre-existing behavior and no coverage task is created for it. Untested code the
-run passed on the way, a neighbouring feature, a parameter range the acceptance
+pre-existing behavior and no coverage task is created for it.
+
+The same filter drops a re-run of portable behavior on a second host. An entry
+naming another platform survives only when the source diff carries one of the
+platform-sensitive mechanisms `pipeline.md` lists for `Unverified:` — the
+build/link/toolchain surface, `#ifdef` or platform-API code, filesystem path
+semantics, process/thread/event-loop ordering, or acceptance criteria stated
+per platform. Name that mechanism in the receipt. Portable C++, localization
+values, layout and pure logic are verified once on any capable host: record the
+entry as out of scope and create no task, however the source result worded its
+`Unverified:` line. One implement task must not spawn a family of
+verify-on-each-platform successors.
+
+Untested code the run passed on the way, a neighbouring feature, a parameter range the acceptance
 never named, a pre-existing bug the performer noticed: record the observation in
 the receipt and stop there. If it deserves work it must earn its own task on its
 own merits, through the ordinary discovered-follow-up planner and with its own

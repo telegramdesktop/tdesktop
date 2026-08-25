@@ -829,12 +829,32 @@ context, branch, overlay and build before it can measure what this process is
 already holding, so writing one you could have closed trades minutes for days.
 
 What legitimately belongs here is a gap this checkout cannot close: one that
-needs another platform or architecture, a second account, funded external
-value, real server-backed cloud state, a purpose-built bot, or hardware this
-machine does not have. Write it to be
+needs a second account, funded external value, real server-backed cloud state,
+a purpose-built bot, or hardware this machine does not have. Write it to be
 routable — the exact behavior that shipped without verification, and precisely
 what closing it would require — so the scheduler can record it rather than
 queueing work that would be unstartable the moment it entered the queue.
+
+Another platform or architecture qualifies only when the diff carries a
+platform-sensitive mechanism. Having executed on one host is not itself a gap.
+Portable C++, localization values, layout and styling, and pure logic behave
+the same everywhere the project builds, so one green run on any capable host
+verifies them and this line reads `none`. Name the mechanism before writing a
+platform exposure, and only these count:
+
+- the build, link, or toolchain surface itself — compiler flags and the
+  diagnostics they enable, CMake platform branches, ABI and symbol resolution;
+- code under `#ifdef` or a platform API, including a platform-specific
+  implementation of a portable interface;
+- filesystem path semantics, case sensitivity, file locking, permissions;
+- process, thread, or event-loop ordering, including teardown and shutdown;
+- anything the task's acceptance criteria state per platform.
+
+A diff with none of these is verified once. Do not write a platform exposure
+for it, and never write one merely because a batch plan named a host other
+than the one that claimed the task. Cross-platform code is verified once,
+approved, and left alone; a second host re-measuring the same portable
+mechanism buys no evidence and costs a whole task.
 
 Scope it to this task's own change, with its acceptance criteria as the boundary.
 `Unverified:` is for behavior **this diff** shipped without proof — apply the same
