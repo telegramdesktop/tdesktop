@@ -123,3 +123,24 @@ tool is actually exposed in the current session. Preserve the same policy:
 `auto` uses the already planned overlay fallback, while `required` reports the
 exact unverified interaction. Driver availability never permits skipping the
 selected runtime, overlay, account-safety, evidence, or other safety checks.
+
+## Concurrent routing lane
+
+The shared skill's discovered-follow-up routing and pending-task consolidation
+publish through the checkout's `routing/<tag>` worktree
+(`workspace.py route-ensure`, `route-publish`, `consolidate-publish
+--routing`), never the slot, so they run beside the active performer. In
+Claude Code run these two workers as BACKGROUND Agent calls: a background
+child's completion notification is delivered to the scheduler session, which
+validates the landed publication and updates its batch records before acting
+on it. Keep at most one routing worker and one consolidation worker in flight;
+performers and every other leaf stay synchronous foreground calls. Never end
+the invocation while a routing or consolidation is unlanded; after a crash,
+`route-ensure` reports the unpublished commit and `route-publish
+--source-task <id>` with no paths resumes the publication.
+
+A performer that resumes one of its own stalled leaves must never end its turn
+to await that leaf's reply — the reply is delivered to the scheduler, not the
+performer. After resuming a leaf, keep validating its expected artifacts
+in-turn, or relaunch the phase fresh in the foreground; ending the turn while
+any child or command is pending is the stall this rule exists to prevent.

@@ -285,6 +285,55 @@ def sync_branch_worktree(config, worktree_key, branch_key, label):
 		run_git(worktree, "merge", "--ff-only", "master")
 
 
+def routing_worktree_config(args, create=False):
+	config = repository_config(args, create=create)
+	tag = config["checkout_tag"]
+	branch = f"routing/{tag}"
+	worktree = Path(config["worktrees_root"]) / f"{tag}-routing"
+	linked_worktree(config, worktree, branch, create, "routing AI worktree")
+	return {
+		**config,
+		"routing_worktree": str(worktree),
+		"routing_branch": branch,
+	}
+
+
+def sync_routing_worktree(config):
+	sync_branch_worktree(
+		config,
+		"routing_worktree",
+		"routing_branch",
+		"ai-tdesktop routing worktree",
+	)
+
+
+def sync_routing_canonical(config):
+	update_main_from_origin(config)
+	sync_routing_worktree(config)
+
+
+def routing_unpublished_count(config):
+	worktree = Path(config["routing_worktree"])
+	counts = run_git(
+		worktree,
+		"rev-list",
+		"--left-right",
+		"--count",
+		f"master...{config['routing_branch']}",
+	).stdout.strip().split()
+	return int(counts[1])
+
+
+def publish_routing(config, validate=None):
+	return publish_worktree(
+		config,
+		"routing_worktree",
+		"routing_branch",
+		"ai-tdesktop routing worktree",
+		validate,
+	)
+
+
 def has_origin(path):
 	return run_git(path, "remote", "get-url", "origin", check=False).returncode == 0
 
@@ -3907,6 +3956,10 @@ def command_task_content_digest(args):
 
 def command_consolidate_publish(args):
 	config = worktree_config(args, create=True)
+	if getattr(args, "routing", False):
+		routing = routing_worktree_config(args, create=True)
+		config["slot_worktree"] = routing["routing_worktree"]
+		config["slot_branch"] = routing["routing_branch"]
 	slot = Path(config["slot_worktree"])
 	if not TASK_ID_PATTERN.fullmatch(args.source_task):
 		raise WorkspaceError(f"Invalid source task: {args.source_task!r}")
@@ -4324,6 +4377,90 @@ def command_ensure(args):
 	print(json.dumps(config, indent=2, sort_keys=True))
 
 
+def command_route_ensure(args):
+	config = routing_worktree_config(args, create=True)
+	worktree = Path(config["routing_worktree"])
+	dirty = changed_paths(worktree)
+	unpublished = routing_unpublished_count(config)
+	if not dirty and not unpublished:
+		sync_routing_canonical(config)
+	print(json.dumps({
+		**config,
+		"routing_dirty": dirty,
+		"routing_unpublished": unpublished,
+	}, indent=2, sort_keys=True))
+
+
+def command_route_publish(args):
+	config = routing_worktree_config(args, create=True)
+	worktree = Path(config["routing_worktree"])
+	if not TASK_ID_PATTERN.fullmatch(args.source_task):
+		raise WorkspaceError(f"Invalid source task: {args.source_task!r}")
+	changes = changed_paths(worktree)
+	if not changes:
+		if not routing_unpublished_count(config):
+			raise WorkspaceError("The routing worktree has nothing to publish")
+		published = publish_routing(config)
+		print(json.dumps({
+			"committed": False,
+			"published": bool(published),
+			"routing_branch": config["routing_branch"],
+		}, indent=2, sort_keys=True))
+		return
+	if not args.paths:
+		raise WorkspaceError("Publication paths are required when changes exist")
+	paths = sorted({normalized_publish_path(value) for value in args.paths})
+	marker = f"tasks/{args.source_task}/work/discovered-routed.md"
+	if not path_is_covered(marker, paths):
+		raise WorkspaceError(
+			"The discovered-routed marker is not covered by a publication path"
+		)
+	unexpected = [path for path in changes if not path_is_covered(path, paths)]
+	if unexpected:
+		raise WorkspaceError(
+			"Routing worktree changes are outside the explicit publication paths: "
+			+ ", ".join(unexpected)
+		)
+	for path in paths:
+		if (worktree / path).exists() or any(
+			path_is_covered(change, [path]) for change in changes
+		):
+			run_git(worktree, "add", "-A", "--", path)
+	unstaged = literal_paths(worktree, "diff", "--name-only")
+	untracked = literal_paths(
+		worktree,
+		"ls-files",
+		"--others",
+		"--exclude-standard",
+	)
+	if unstaged or untracked:
+		raise WorkspaceError(
+			"Routing worktree changes remain unstaged: "
+			+ ", ".join(sorted(set(unstaged + untracked)))
+		)
+	committed = run_git(
+		worktree,
+		"diff",
+		"--cached",
+		"--quiet",
+		check=False,
+	).returncode != 0
+	if committed:
+		run_git(
+			worktree,
+			"commit",
+			"-m",
+			f"Route follow-ups from {args.source_task}",
+		)
+	published = publish_routing(config)
+	print(json.dumps({
+		"committed": committed,
+		"published": bool(published),
+		"routing_branch": config["routing_branch"],
+		"routing_worktree": config["routing_worktree"],
+	}, indent=2, sort_keys=True))
+
+
 def command_inbox_ensure(args):
 	config = inbox_worktree_config(args, create=True)
 	print(json.dumps(config, indent=2, sort_keys=True))
@@ -4650,8 +4787,23 @@ def parse_args():
 	)
 	inbox_publish.set_defaults(handler=command_inbox_publish)
 
+	route_ensure = subparsers.add_parser("route-ensure")
+	add_common_arguments(route_ensure)
+	route_ensure.set_defaults(handler=command_route_ensure)
+
+	route_publish = subparsers.add_parser("route-publish")
+	add_common_arguments(route_publish)
+	route_publish.add_argument("--source-task", required=True)
+	route_publish.add_argument(
+		"--path",
+		action="append",
+		dest="paths",
+	)
+	route_publish.set_defaults(handler=command_route_publish)
+
 	consolidate_publish = subparsers.add_parser("consolidate-publish")
 	add_common_arguments(consolidate_publish)
+	consolidate_publish.add_argument("--routing", action="store_true")
 	consolidate_publish.add_argument("--source-task", required=True)
 	consolidate_publish.add_argument("--receipt")
 	consolidate_publish.add_argument(

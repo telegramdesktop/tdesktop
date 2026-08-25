@@ -35,13 +35,14 @@ branch and then resume the returned performer. After Phase 1, let the performer
 publish a task-local Block and continue non-dependent batch work. Never create,
 route, or execute branch-integration work as a queue task.
 
-Apply the shared skill's pending-task consolidation phase too. At each eligible
-clean AI-slot boundary, recover an older `pending_consolidations` marker or
-consolidate newly routed tasks in one fresh foreground Agent. Give it the
-effective frozen batch, keep its queue scan and merge reasoning outside this
-scheduler context, and require it to read the complete shared consolidation
-reference. Never run consolidation inside the performer or discovery-routing
-Agent, and defer it while the active task owns dirty local phase state.
+Apply the shared skill's pending-task consolidation phase too. Recover an
+older `pending_consolidations` marker or consolidate newly routed tasks in one
+fresh Agent that publishes through the routing worktree, running beside the
+active task per the shared skill's concurrent lane. Give it the effective
+frozen batch, keep its queue scan and merge reasoning outside this scheduler
+context, and require it to read the complete shared consolidation reference.
+Never run consolidation inside the performer or discovery-routing Agent, and
+keep at most one consolidation in flight.
 
 Every inbox worker, performer, split-routing Agent, discovered-task routing
 Agent, and pending-task consolidation Agent must be told in its initial prompt

@@ -80,11 +80,11 @@ markers mean discovery routing published new tasks but its separate
 consolidation pass did not finish. Spawn the consolidation worker described
 below with the source task and batch ids recorded in the marker, then refresh
 the queue. A repeated pre-commit race may remain pending for the next
-invocation; record that marker as attempted and do not spin. If a task is
-already active, its expected local phase files make the shared AI slot unsafe
-for consolidation: freeze and finish that active task first, then recover all
-pending markers at its clean canonical `Approve`, `Block`, or completed split
-routing boundary before selecting more work.
+invocation; record that marker as attempted and do not spin. Consolidation publishes
+through the checkout's routing worktree (`route-ensure`,
+`consolidate-publish --routing`), so an active task's slot phase files do not
+defer recovery: recover pending markers whenever no other routing or
+consolidation transaction is in flight.
 
 After recovering pending consolidations and before freezing a new batch, route
 this checkout's `own_split_required` task, when any, through the dedicated split
@@ -450,9 +450,13 @@ artifact-based assessment.
 
 ## Route discovered follow-ups
 
-After every canonical `Approve` or `Block`, read `work/result.md`. Route before
-selecting more shared work whenever it lacks `work/discovered-routed.md` and
-either says `Discovered: present` or carries a non-`none` `Unverified:` value.
+After every canonical `Approve` or `Block`, read `work/result.md`. Route
+whenever it lacks `work/discovered-routed.md` and either says
+`Discovered: present` or carries a non-`none` `Unverified:` value. Routing runs
+beside task selection, not before it: spawn the worker, then continue
+selecting and starting recorded batch work immediately. Keep at most one
+routing worker in flight, and never reach the invocation's normal stop while
+any routing or consolidation is unlanded.
 Both are unfinished work leaving the pipeline; the only difference is that
 `Discovered:` names work nobody has started and `Unverified:` names behavior that
 already shipped without proof. An approved task whose unverified behavior was
@@ -465,6 +469,16 @@ in `.agents/skills/process-inbox/SKILL.md`, but not to call `prepare`,
 `finalize`, or `abort`. Its immutable input is the result, not the inbox. It
 must not edit Telegram source, start tasks, or implement work. Give it the
 current ordered `batch_task_ids` for the pending consolidation marker.
+
+The worker edits and publishes through the checkout's routing worktree, never
+the slot: it starts from `workspace.py route-ensure` (which creates and syncs
+the `routing/<tag>` worktree), writes every artifact there, and publishes with
+`workspace.py route-publish --source-task <id> --path <path> ...`, which
+stages exactly the named paths, commits `Route follow-ups from <id>`, and
+rebases onto canonical master before pushing. The slot worktree stays
+untouched, so an active performer's local phase state never conflicts. After a
+crash, an unpublished routing commit is resumed by rerunning
+`route-publish --source-task <id>` with no paths.
 
 The worker must deduplicate existing tasks, create independently testable
 unclaimed `todo` tasks and justified project updates, write a discovery
@@ -578,7 +592,8 @@ coverage task already measured a deviation, route only the repair with the
 measured expected and actual values; do not create another measurement of the
 same gap.
 
-After validating the discovery receipt, append only the task ids created from
+After the routing lands on canonical master and its discovery receipt
+validates, append only the task ids created from
 that result to `discovered_task_ids` and `batch_task_ids`, preserving routing
 order. This is the only way the frozen batch grows. Apply the same rule
 transitively when a discovered task later reports its own follow-ups.
@@ -588,7 +603,9 @@ queue refreshes do not join the batch.
 ## Consolidate pending tasks after discovery
 
 Whenever discovery routing publishes `work/consolidation-pending.md`, run one
-fresh consolidation pass before selecting the next task. Do not run it for a
+fresh consolidation pass once that routing has landed; it runs beside the next
+task, publishing through the routing worktree with
+`consolidate-publish --routing`, with at most one consolidation in flight. Do not run it for a
 receipt-only routing or a routing that only reused existing tasks. Do not reuse
 the performer or routing worker: spawn one disposable worker with
 `fork_turns: "none"`, instruct it not to delegate, and give it `source_root`,
@@ -612,11 +629,9 @@ this invocation, and continue without treating the optimization as a blocker.
 If the worker created a commit that cannot be published safely, preserve it and
 hard-stop exactly as for discovery routing.
 
-At every clean canonical `Approve`, `Block`, or completed split routing
-boundary, process any older
-pending marker deferred by an active startup task before selecting more work,
-then process the marker just created by that task's routing. Attempt each marker
-at most once per invocation.
+Process any older pending marker whenever no consolidation is in flight, then
+the marker created by the newest routing, in publication order. Attempt each
+marker at most once per invocation.
 
 For each published old-to-new mapping, rewrite `batch_task_ids` by placing the
 replacement at the earliest position occupied by any of its sources and removing
