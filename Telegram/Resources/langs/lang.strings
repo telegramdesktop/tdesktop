@@ -5513,6 +5513,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_gift_send" = "Send Another Gift";
 "lng_context_charge_fee" = "Charge Fee";
 "lng_context_remove_fee" = "Remove Fee";
+"lng_context_monoforum_ban" = "Ban user from channel";
+"lng_context_monoforum_unban" = "Unban user in channel";
 "lng_context_fee_now" = "{name} pays {amount} per message.";
 "lng_context_fee_free" = "{name} can send messages for free.";
 
