@@ -1016,6 +1016,8 @@ PRIVATE
     history/view/media/history_view_unsupported_notice.h
     history/view/media/history_view_userpic_suggestion.cpp
     history/view/media/history_view_userpic_suggestion.h
+    history/view/media/history_view_video_status.cpp
+    history/view/media/history_view_video_status.h
     history/view/media/history_view_web_page.cpp
     history/view/media/history_view_web_page.h
     history/view/reactions/history_view_reactions.cpp

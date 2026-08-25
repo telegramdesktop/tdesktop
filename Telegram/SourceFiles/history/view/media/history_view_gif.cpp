@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_ephemeral_plate.h"
 #include "history/view/media/history_view_media_common.h"
 #include "history/view/media/history_view_media_spoiler.h"
+#include "history/view/media/history_view_video_status.h"
 #include "window/window_session_controller.h"
 #include "core/application.h" // Application::showDocument.
 #include "core/core_settings.h"
@@ -1073,70 +1074,14 @@ void Gif::paintTimestampMark(
 	if (_videoTimestamp <= 0 && _videoPosition < crl::time(200)) {
 		return;
 	}
-	const auto convert = [](Ui::BubbleCornerRounding rounding) {
-		return (rounding == Ui::BubbleCornerRounding::Small)
-			? Ui::BubbleRadiusSmall()
-			: (rounding == Ui::BubbleCornerRounding::Large)
-			? Ui::BubbleRadiusLarge()
-			: 0;
-	};
-	const auto radiusl = rounding
-		? convert(rounding->bottomLeft)
-		: st::roundRadiusSmall;
-	const auto radiusr = rounding
-		? convert(rounding->bottomRight)
-		: st::roundRadiusSmall;
-	const auto line = st::historyVideoTimestampProgressLine;
-	const auto duration = _data->duration();
-	const auto position = (_videoPosition > 0)
-		? _videoPosition
-		: (_videoTimestamp * crl::time(1000));
-	if (rthumb.height() <= line
-		|| rthumb.width() <= radiusl + radiusr
-		|| position > duration) {
-		return;
-	}
-	auto hq = PainterHighQualityEnabler(p);
-	const auto used = rthumb.width() - radiusl - radiusr;
-	const auto progress = position / float64(duration);
-	const auto edge = radiusl + int(base::SafeRound(used * progress));
-	const auto top = rthumb.y() + rthumb.height() - line;
-	p.save();
-	p.setPen(Qt::NoPen);
-	if (edge > 0) {
-		p.setBrush(st::windowBgActive);
-
-		p.save();
-		p.setClipRect(
-			rthumb.x(),
-			top,
-			edge,
-			line,
-			Qt::IntersectClip);
-		p.drawRoundedRect(
-			rthumb.x(),
-			top - 2 * radiusl,
-			edge + radiusl,
-			line + 2 * radiusl,
-			radiusl,
-			radiusl);
-		p.restore();
-	}
-	if (const auto width = rthumb.width() - edge; width > 0) {
-		const auto left = rthumb.x() + edge;
-		p.setBrush(st::mediaviewPlaybackProgressFg);
-		p.save();
-		p.setClipRect(left, top, width, line, Qt::IntersectClip);
-		p.drawRoundedRect(
-			left - radiusr,
-			top - 2 * radiusr,
-			width + radiusr,
-			line + 2 * radiusr,
-			radiusr,
-			radiusr);
-		p.restore();
-	}
-	p.restore();
+	PaintVideoTimestampMark(
+		p,
+		rthumb,
+		rounding,
+		((_videoPosition > 0)
+			? _videoPosition
+			: (_videoTimestamp * crl::time(1000))),
+		_data->duration());
 }
 
 void Gif::paintRoundPlaybackProgress(
@@ -1366,43 +1311,23 @@ void Gif::drawCornerStatus(
 		return;
 	}
 	const auto own = activeOwnStreamed();
-	const auto st = context.st;
-	const auto sti = context.imageStyle();
-	const auto text = (own && !own->frozenStatusText.isEmpty())
-		? own->frozenStatusText
-		: _statusText;
-	const auto padding = st::msgDateImgPadding;
-	const auto radial = _animation && _animation->radial.animating();
-	const auto cornerDownload = downloadInCorner() && !dataLoaded() && !_data->loadedInMediaCache();
-	const auto cornerMute = _streamed && _data->isVideoFile() && !cornerDownload;
-	const auto addLeft = cornerDownload ? (st::historyVideoDownloadSize + 2 * padding.y()) : 0;
-	const auto addRight = cornerMute ? st::historyVideoMuteSize : 0;
-	const auto downloadWidth = cornerDownload ? st::normalFont->width(_downloadSize) : 0;
-	const auto statusW = std::max(downloadWidth, st::normalFont->width(text)) + 2 * padding.x() + addLeft + addRight;
-	const auto statusH = cornerDownload ? (st::historyVideoDownloadSize + 2 * padding.y()) : (st::normalFont->height + 2 * padding.y());
-	const auto statusX = position.x() + st::msgDateImgDelta + padding.x();
-	const auto statusY = position.y() + st::msgDateImgDelta + padding.y();
-	const auto around = style::rtlrect(statusX - padding.x(), statusY - padding.y(), statusW, statusH, width());
-	const auto statusTextTop = statusY + (cornerDownload ? (((statusH - 2 * st::normalFont->height) / 3) - padding.y()) : 0);
-	Ui::FillRoundRect(p, around, sti->msgDateImgBg, sti->msgDateImgBgCorners);
-	p.setFont(st::normalFont);
-	p.setPen(st->msgDateImgFg());
-	p.drawTextLeft(statusX + addLeft, statusTextTop, width(), text, statusW - 2 * padding.x());
-	if (cornerDownload) {
-		const auto downloadTextTop = statusY + st::normalFont->height + (2 * (statusH - 2 * st::normalFont->height) / 3) - padding.y();
-		p.drawTextLeft(statusX + addLeft, downloadTextTop, width(), _downloadSize, statusW - 2 * padding.x());
-		const auto inner = QRect(statusX + padding.y() - padding.x(), statusY, st::historyVideoDownloadSize, st::historyVideoDownloadSize);
-		const auto &icon = _data->loading()
-			? sti->historyVideoCancel
-			: sti->historyVideoDownload;
-		icon.paintInCenter(p, inner);
-		if (radial) {
-			QRect rinner(inner.marginsRemoved(QMargins(st::historyVideoRadialLine, st::historyVideoRadialLine, st::historyVideoRadialLine, st::historyVideoRadialLine)));
-			_animation->radial.draw(p, rinner, st::historyVideoRadialLine, sti->historyFileThumbRadialFg);
-		}
-	} else if (cornerMute) {
-		sti->historyVideoMessageMute.paint(p, statusX - padding.x() - padding.y() + statusW - addRight, statusY - padding.y() + (statusH - st::historyVideoMessageMute.height()) / 2, width());
-	}
+	const auto download = downloadInCorner()
+		&& !dataLoaded()
+		&& !_data->loadedInMediaCache();
+	PaintVideoCornerStatus(p, context, {
+		.text = ((own && !own->frozenStatusText.isEmpty())
+			? own->frozenStatusText
+			: _statusText),
+		.downloadSize = _downloadSize,
+		.position = position,
+		.outerWidth = width(),
+		.radial = ((_animation && _animation->radial.animating())
+			? &_animation->radial
+			: nullptr),
+		.download = download,
+		.loading = _data->loading(),
+		.mute = (_streamed && _data->isVideoFile() && !download),
+	});
 }
 
 TextState Gif::cornerStatusTextState(
@@ -1413,11 +1338,7 @@ TextState Gif::cornerStatusTextState(
 	if (!needCornerStatusDisplay() || !downloadInCorner() || dataLoaded()) {
 		return result;
 	}
-	const auto padding = st::msgDateImgPadding;
-	const auto statusX = position.x() + st::msgDateImgDelta + padding.x();
-	const auto statusY = position.y() + st::msgDateImgDelta + padding.y();
-	const auto inner = QRect(statusX + padding.y() - padding.x(), statusY, st::historyVideoDownloadSize, st::historyVideoDownloadSize);
-	if (inner.contains(point)) {
+	if (VideoCornerDownloadRect(position).contains(point)) {
 		result.link = _data->loading() ? _cancell : _savel;
 	}
 	return result;
