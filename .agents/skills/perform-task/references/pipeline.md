@@ -368,10 +368,31 @@ affected by the task.
 
 ### Initial review fanout
 
-The initial review always includes one independent **general** reviewer and all
-five standard lenses. Start them together when capacity permits; under a slot
-limit, keep the complete set queued and start the next lens as soon as a slot
-opens. The general reviewer and lenses do not read one another's findings.
+The initial review of a task **that produced a source diff** includes one
+independent **general** reviewer and all five standard lenses. Start them
+together when capacity permits; under a slot limit, keep the complete set
+queued and start the next lens as soon as a slot opens. The general reviewer
+and lenses do not read one another's findings.
+
+A task on the `already-satisfied` path has no diff, and the fanout does not
+apply to it — see `### Already-satisfied outcome`. Review exists to judge code
+this task wrote; where it wrote none, the general reviewer alone confirms the
+current code and the evidence contract, and a lens runs only when the existing
+subject named in assessment needs its risk-specific judgement. Do not convene
+lenses to review a measurement contract. A defective oracle is not a review
+finding: it fails or vacuously passes its own check, and the evidence loop
+repairs it in place, which is cheaper and more reliable than a review round
+arguing about it in advance.
+
+Bound that path hard. One review round decides it. If the general reviewer
+requires changes, make them and re-review only what changed; a second required-
+changes verdict whose findings are all in the measurement contract ends the
+review and hands the remaining items to the evidence loop as check repairs. A
+verification task must never run a third review round, and never a convergence
+assessment on a contract it can simply execute. The cost of getting this wrong
+is not theoretical: a no-diff task that runs the full fanout to convergence
+spends hours reviewing a test design before taking a single measurement, and
+ends where it began — with the code unchanged and the behaviour confirmed.
 
 The general reviewer reads every changed file in full and owns correctness,
 completeness, adjacent integration, unintended regressions, proportionality,
@@ -547,8 +568,17 @@ When inspection finds the requested outcome already present, do not manufacture
 a source edit. Assessment records that candidate outcome and designs direct
 evidence. The mandatory general review independently confirms the relevant
 current code and the evidence contract; specialists run only when the existing
-subject needs their risk-specific judgement. Run the ordinary evidence loop
-against `RUN_REF == BASE_REF`.
+subject needs their risk-specific judgement, and the initial five-lens fanout
+does not run at all. Run the ordinary evidence loop against
+`RUN_REF == BASE_REF`.
+
+A task expected to land here — anything whose job is to verify code that
+already shipped — spends its budget on measuring, not on deliberating. Get to
+the first run quickly: a proportionate plan, one general review, then execute.
+The single review round bound in `### Initial review fanout` governs; the
+adaptive machinery for sizing an implementation's risk has no subject here,
+because nothing is being implemented. If measurement is cheap enough to take,
+taking it always beats reasoning about whether it would pass.
 
 Approval without a source commit requires all of:
 
