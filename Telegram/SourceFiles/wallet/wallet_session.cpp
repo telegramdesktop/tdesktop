@@ -456,6 +456,7 @@ bool Session::applyDescriptor(
 		std::move(descriptor));
 	_address = parsed->raw;
 	_keyState = state;
+	updateListsGate();
 	updateEngineClient();
 	return true;
 }
@@ -495,6 +496,7 @@ void Session::create(Fn<void(LifecycleError)> done) {
 		return;
 	}
 	_lifecyclePending = true;
+	updateListsGate();
 	const auto lifecycle = _engine->lifecycle();
 	const auto recordId = NewRecordId();
 	_engine->run([lifecycle, recordId] {
@@ -504,6 +506,7 @@ void Session::create(Fn<void(LifecycleError)> done) {
 		});
 	}, [=, this](engine::CreatedWallet created) {
 		_lifecyclePending = false;
+		updateListsGate();
 		const auto applied = applyDescriptor(
 			std::move(created.descriptor),
 			KeyState::Created);
@@ -522,6 +525,7 @@ void Session::create(Fn<void(LifecycleError)> done) {
 		}
 	}, [=, this](EngineError error) {
 		_lifecyclePending = false;
+		updateListsGate();
 		LOG(("Wallet Error: engine create_wallet failed: %1"
 			).arg(error.message));
 		if (done) {
@@ -548,6 +552,7 @@ void Session::import(
 		recovery.push_back(word.trimmed().toLower().toStdString());
 	}
 	_lifecyclePending = true;
+	updateListsGate();
 	const auto lifecycle = _engine->lifecycle();
 	const auto recordId = NewRecordId();
 	_engine->run([lifecycle, recordId, recovery = std::move(recovery)] {
@@ -558,6 +563,7 @@ void Session::import(
 		});
 	}, [=, this](engine::WalletDescriptor descriptor) {
 		_lifecyclePending = false;
+		updateListsGate();
 		const auto applied = applyDescriptor(
 			std::move(descriptor),
 			KeyState::Imported);
@@ -576,6 +582,7 @@ void Session::import(
 		}
 	}, [=, this](EngineError error) {
 		_lifecyclePending = false;
+		updateListsGate();
 		LOG(("Wallet Error: engine import_wallet failed: %1"
 			).arg(error.message));
 		if (done) {
@@ -602,10 +609,12 @@ void Session::remove(Fn<void(LifecycleError)> done) {
 		return;
 	}
 	_lifecyclePending = true;
+	updateListsGate();
 	const auto lifecycle = _engine->lifecycle();
 	const auto descriptor = *_descriptor;
 	const auto cleared = [=, this] {
 		_lifecyclePending = false;
+		updateListsGate();
 		_session->local().writeWallet(Storage::WalletStored());
 		_descriptor = nullptr;
 		_address = QString();
@@ -626,6 +635,7 @@ void Session::remove(Fn<void(LifecycleError)> done) {
 			return;
 		}
 		_lifecyclePending = false;
+		updateListsGate();
 		LOG(("Wallet Error: engine delete_wallet failed: %1"
 			).arg(error.message));
 		if (done) {
@@ -714,6 +724,8 @@ void Session::clearNetworkState() {
 	_collectiblesRefreshedAt = 0;
 	_collectiblesCompletedAt = 0;
 	_collectiblesRequestPending = false;
+	_collectiblesHasMore = false;
+	_collectiblesPaged = false;
 #ifdef _DEBUG
 	_historyInjected = false;
 	_collectiblesInjected = false;
@@ -729,7 +741,10 @@ void Session::clearNetworkState() {
 	_previewNextArgs.reset();
 	_previewNextDone = nullptr;
 	_historyDone.clear();
+	_historyFirstSlice = SliceState::Pending;
+	_collectiblesFirstSlice = SliceState::Pending;
 	updateEngineClient();
+	updateListsGate();
 }
 
 void Session::updateEngineClient() {
@@ -952,6 +967,17 @@ void Session::applyEngineActivity(
 	const auto &resource = more
 		? activity.pagination_resource
 		: activity.resource;
+	if (!more) {
+		// The cold-open gate waits for the first slice of each list. The
+		// activity leg carries its own phase, so a terminal one settles the
+		// history half whether or not the rows changed; kIdle and kLoading
+		// are still in flight and leave it pending.
+		if (resource.phase == engine::ResourcePhase::kReady) {
+			setHistoryFirstSlice(SliceState::Ready);
+		} else if (resource.phase == engine::ResourcePhase::kFailed) {
+			setHistoryFirstSlice(SliceState::Failed);
+		}
+	}
 	if (resource.phase != engine::ResourcePhase::kReady) {
 		return;
 	}
@@ -996,6 +1022,7 @@ void Session::refreshCollectibles(bool force) {
 		: kCollectiblesPollInterval;
 	if (_keyState.current() == KeyState::None
 		|| _collectiblesRequestPending
+		|| _collectiblesPaged
 		|| (_collectiblesRefreshedAt
 			&& (crl::now() - _collectiblesRefreshedAt < interval))) {
 		return;
@@ -1005,6 +1032,20 @@ void Session::refreshCollectibles(bool force) {
 	}
 	_collectiblesRefreshedAt = crl::now();
 	requestCollectibles(false);
+}
+
+bool Session::collectiblesHasNext() const {
+	return _collectiblesHasMore;
+}
+
+void Session::loadMoreCollectibles() {
+	ensureLoaded();
+	if (_keyState.current() == KeyState::None
+		|| _collectiblesRequestPending
+		|| !_collectiblesHasMore) {
+		return;
+	}
+	requestCollectibles(true);
 }
 
 void Session::requestCollectibles(bool more) {
@@ -1033,6 +1074,9 @@ void Session::requestCollectibles(bool more) {
 			"keeping last-good collectibles."
 			).arg(more ? u"load_more"_q : u"refresh"_q
 			).arg(error.message));
+		if (!more) {
+			setCollectiblesFirstSlice(SliceState::Failed);
+		}
 	});
 }
 
@@ -1044,26 +1088,40 @@ void Session::applyCollectiblesUpdate(
 		return;
 	}
 #endif // _DEBUG
-	if (update.outcome != engine::WalletOperationOutcome::kCompleted) {
+	const auto &nfts = update.snapshot.nfts;
+	if (update.outcome == engine::WalletOperationOutcome::kSkipped) {
+		_collectiblesHasMore = nfts.has_more;
+		if (!more) {
+			setCollectiblesFirstSlice(SliceState::Failed);
+		}
+		return;
+	} else if (update.outcome
+		== engine::WalletOperationOutcome::kSuperseded) {
+		if (!more) {
+			setCollectiblesFirstSlice(SliceState::Failed);
+		}
+		return;
+	}
+	const auto &resource = more ? nfts.pagination_resource : nfts.resource;
+	if ((update.outcome != engine::WalletOperationOutcome::kCompleted)
+		|| (resource.phase != engine::ResourcePhase::kReady)) {
 		LOG(("Wallet: engine nft outcome %1, keeping last-good collectibles."
 			).arg(int(update.outcome)));
+		if (!more) {
+			setCollectiblesFirstSlice(SliceState::Failed);
+		}
 		return;
 	}
-	const auto &nfts = update.snapshot.nfts;
-	const auto &resource = more ? nfts.pagination_resource : nfts.resource;
-	if (resource.phase != engine::ResourcePhase::kReady) {
-		return;
-	}
-	if (nfts.has_more) {
-		requestCollectibles(true);
-		return;
-	}
+	_collectiblesHasMore = nfts.has_more;
+	_collectiblesPaged = more;
 	_collectiblesCompletedAt = crl::now();
 	auto loaded = CollectiblesFromEngine(nfts);
-	if (SameCollectibles(_collectibles, loaded)) {
-		return;
+	if (!SameCollectibles(_collectibles, loaded)) {
+		setCollectibles(std::move(loaded));
 	}
-	setCollectibles(std::move(loaded));
+	if (!more) {
+		setCollectiblesFirstSlice(SliceState::Ready);
+	}
 }
 
 void Session::setCollectibles(std::vector<Gram::NftItem> &&list) {
@@ -1075,6 +1133,46 @@ void Session::setCollectibles(std::vector<Gram::NftItem> &&list) {
 		_collectibleInfo[item.address] = item;
 	}
 	_collectiblesUpdates.fire({});
+}
+
+void Session::setHistoryFirstSlice(SliceState state) {
+	if ((_historyFirstSlice == state)
+		|| (_historyFirstSlice == SliceState::Ready)) {
+		return;
+	}
+	_historyFirstSlice = state;
+	updateListsGate();
+}
+
+void Session::setCollectiblesFirstSlice(SliceState state) {
+	if ((_collectiblesFirstSlice == state)
+		|| (_collectiblesFirstSlice == SliceState::Ready)) {
+		return;
+	}
+	_collectiblesFirstSlice = state;
+	updateListsGate();
+}
+
+void Session::updateListsGate() {
+	_listsGated = listsLoading()
+		&& ((_historyFirstSlice == SliceState::Pending)
+			|| (_collectiblesFirstSlice == SliceState::Pending));
+	_listsStateUpdates.fire({});
+}
+
+bool Session::listsLoading() const {
+	// A wallet that does not exist and is not being created has nothing to
+	// load, so it keeps the immediate presentation, including right after a
+	// failed create.
+	return (_keyState.current() != KeyState::None) || _lifecyclePending;
+}
+
+bool Session::listsConfirmedEmpty() const {
+	return !listsLoading()
+		|| ((_historyFirstSlice == SliceState::Ready)
+			&& _history.empty()
+			&& (_collectiblesFirstSlice == SliceState::Ready)
+			&& _collectibles.empty());
 }
 
 void Session::resolveCollectibleInfo(
@@ -1301,6 +1399,24 @@ rpl::producer<> Session::historyUpdates() const {
 	return _historyUpdates.events();
 }
 
+bool Session::listsGated() const {
+	return _listsGated.current();
+}
+
+rpl::producer<bool> Session::listsGatedValue() const {
+	return _listsGated.value();
+}
+
+rpl::producer<bool> Session::listsConfirmedEmptyValue() const {
+	return rpl::single(rpl::empty) | rpl::then(rpl::merge(
+		historyUpdates(),
+		collectiblesUpdates(),
+		_listsStateUpdates.events()
+	)) | rpl::map([=, this] {
+		return listsConfirmedEmpty();
+	}) | rpl::distinct_until_changed();
+}
+
 const std::vector<Gram::NftItem> &Session::collectibles() const {
 	return _collectibles;
 }
@@ -1318,7 +1434,11 @@ rpl::producer<bool> Session::collectiblesTabValue() const {
 }
 
 void Session::setCollectiblesTab(bool value) {
-	_collectiblesTab = value && !_collectibles.empty();
+	const auto tab = value && !_collectibles.empty();
+	if (!tab) {
+		_collectiblesPaged = false;
+	}
+	_collectiblesTab = tab;
 }
 
 SendState Session::sendState() const {

@@ -129,6 +129,11 @@ walletRowAmountMinorSkip: 0px;
 walletRowMarkSize: 15px;
 walletRowIconMargin: margins(5px, 3px, 0px, 0px);
 walletRowsHintHeight: 44px;
+walletListsLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	size: size(56px, 56px);
+	color: windowSubTextFg;
+	thickness: 4px;
+}
 
 walletTabsSlider: SettingsSlider(defaultTabsSlider) {
 	padding: 12px;

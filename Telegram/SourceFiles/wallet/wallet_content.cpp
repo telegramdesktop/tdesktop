@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_content.h"
 
 #include "base/event_filter.h"
+#include "base/invoke_queued.h"
 #include "base/timer.h"
 #include "base/unixtime.h"
 #include "core/credits_amount.h"
@@ -170,6 +171,7 @@ private:
 	void setupBalance();
 	void setupTabs(rpl::producer<bool> collectiblesShown);
 	void setupStrip();
+	void setupListsLoading();
 	void updateRegions();
 	void updatePinned();
 	void checkLoadMore();
@@ -180,6 +182,7 @@ private:
 
 	const std::shared_ptr<Main::SessionShow> _show;
 	object_ptr<Ui::ScrollArea> _scroll;
+	SingleQueuedInvokation _loadMoreCheck;
 	std::unique_ptr<BalanceInk> _ink;
 	base::unique_qptr<Ui::RpWidget> _titleBalance;
 	Ui::RpWidget *_container = nullptr;
@@ -194,6 +197,7 @@ private:
 	Ui::PlainShadow *_tabsShadow = nullptr;
 	Ui::PlainShadow *_stripShadow = nullptr;
 	Ui::RpWidget *_strip = nullptr;
+	Ui::RpWidget *_listsLoading = nullptr;
 	Ui::FixedHeightWidget *_cardPlaceholder = nullptr;
 	Card *_card = nullptr;
 	Ui::AbstractButton *_cardQr = nullptr;
@@ -4955,7 +4959,8 @@ Content::Content(
 	std::shared_ptr<Main::SessionShow> show)
 : RpWidget(parent)
 , _show(std::move(show))
-, _scroll(this, st::defaultScrollArea) {
+, _scroll(this, st::defaultScrollArea)
+, _loadMoreCheck([this] { checkLoadMore(); }) {
 	auto &wallet = _show->session().wallet();
 	if (wallet.keyState() == KeyState::None) {
 		wallet.create(nullptr);
@@ -4972,7 +4977,8 @@ Content::~Content() {
 
 [[nodiscard]] bool HistoryShown(not_null<Main::Session*> session) {
 	const auto wallet = &session->wallet();
-	return !wallet->history().empty() || wallet->pendingSend().has_value();
+	return !wallet->listsGated()
+		&& (!wallet->history().empty() || wallet->pendingSend().has_value());
 }
 
 [[nodiscard]] rpl::producer<bool> HistoryShownValue(
@@ -4980,7 +4986,8 @@ Content::~Content() {
 	const auto wallet = &session->wallet();
 	return rpl::single(rpl::empty) | rpl::then(rpl::merge(
 		wallet->historyUpdates(),
-		wallet->sendStateValue() | rpl::to_empty
+		wallet->sendStateValue() | rpl::to_empty,
+		wallet->listsGatedValue() | rpl::to_empty
 	)) | rpl::map([=] {
 		return HistoryShown(session);
 	}) | rpl::distinct_until_changed();
@@ -4989,10 +4996,11 @@ Content::~Content() {
 [[nodiscard]] rpl::producer<bool> CollectiblesShownValue(
 		not_null<Main::Session*> session) {
 	const auto wallet = &session->wallet();
-	return rpl::single(rpl::empty) | rpl::then(
-		wallet->collectiblesUpdates()
-	) | rpl::map([=] {
-		return !wallet->collectibles().empty();
+	return rpl::single(rpl::empty) | rpl::then(rpl::merge(
+		wallet->collectiblesUpdates(),
+		wallet->listsGatedValue() | rpl::to_empty
+	)) | rpl::map([=] {
+		return !wallet->listsGated() && !wallet->collectibles().empty();
 	}) | rpl::distinct_until_changed();
 }
 
@@ -5039,6 +5047,7 @@ void Content::setupContent() {
 	setupBalance();
 	setupTabs(rpl::duplicate(collectiblesShown));
 	setupStrip();
+	setupListsLoading();
 
 	const auto media = std::make_shared<CollectibleMedia>(&_show->session());
 	const auto bannerWrap = column->add(
@@ -5114,9 +5123,10 @@ void Content::setupContent() {
 
 	wrap->toggleOn(rpl::combine(
 		HistoryShownValue(&_show->session()),
-		wallet->collectiblesTabValue()
-	) | rpl::map([](bool history, bool collectibles) {
-		return !history && !collectibles;
+		wallet->collectiblesTabValue(),
+		wallet->listsConfirmedEmptyValue()
+	) | rpl::map([](bool history, bool collectibles, bool confirmedEmpty) {
+		return confirmedEmpty && !history && !collectibles;
 	}));
 	wrap->finishAnimating();
 
@@ -5173,13 +5183,13 @@ void Content::setupContent() {
 		if (const auto width = list->width()) {
 			list->resizeToWidth(width);
 		}
-		checkLoadMore();
 	};
 	rpl::merge(
 		wallet->historyUpdates(),
 		wallet->collectiblesUpdates(),
 		wallet->sendStateValue() | rpl::to_empty,
-		wallet->phraseUnviewedValue() | rpl::to_empty
+		wallet->phraseUnviewedValue() | rpl::to_empty,
+		wallet->listsGatedValue() | rpl::to_empty
 	) | rpl::on_next(rebuildList, list->lifetime());
 	listWrap->toggleOn(TransactionsShownValue(&_show->session()));
 	listWrap->finishAnimating();
@@ -5194,7 +5204,7 @@ void Content::setupContent() {
 
 	_scroll->scrolls(
 	) | rpl::on_next([=] {
-		checkLoadMore();
+		_loadMoreCheck.call();
 	}, lifetime());
 
 	_scroll->scrollTopValue(
@@ -5212,6 +5222,7 @@ void Content::setupContent() {
 	_column->entity()->heightValue(
 	) | rpl::on_next([=] {
 		updateRegions();
+		_loadMoreCheck.call();
 	}, lifetime());
 
 	_pinnedBackground->raise();
@@ -5533,6 +5544,27 @@ void Content::setupStrip() {
 	}, lifetime());
 }
 
+void Content::setupListsLoading() {
+	_listsLoading = Ui::CreateChild<Ui::RpWidget>(this);
+	_listsLoading->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	const auto &loading = st::walletListsLoading;
+	const auto side = loading.size.height() + 2 * loading.thickness;
+	const auto indicator = Info::Statistics::InfiniteRadialAnimationWidget(
+		_listsLoading,
+		side,
+		&loading);
+	indicator->setAttribute(Qt::WA_TransparentForMouseEvents);
+	Info::Statistics::AddChildToWidgetCenter(_listsLoading, indicator);
+
+	_show->session().wallet().listsGatedValue(
+	) | rpl::on_next([=](bool gated) {
+		indicator->setVisible(gated);
+		_listsLoading->setVisible(gated);
+		updateRegions();
+	}, lifetime());
+}
+
 int Content::pinnedMax() const {
 	return _pinnedInner->height();
 }
@@ -5571,6 +5603,9 @@ void Content::updateRegions() {
 		scrollTop,
 		width(),
 		std::max(0, height() - scrollTop - stripHeight));
+	if (_listsLoading && !_listsLoading->isHidden()) {
+		_listsLoading->setGeometry(0, max, width(), height() - max);
+	}
 
 	const auto body = Ui::MapFrom(window(), this, rect());
 	_titleBalance->setGeometry(
@@ -5674,11 +5709,22 @@ void Content::updatePinned() {
 
 void Content::checkLoadMore() {
 	auto &wallet = _show->session().wallet();
-	if (!wallet.historyHasNext() || wallet.collectiblesTab()) {
+	if (wallet.listsGated()) {
+		return;
+	}
+	const auto collectibles = wallet.collectiblesTab();
+	const auto hasNext = collectibles
+		? wallet.collectiblesHasNext()
+		: wallet.historyHasNext();
+	if (!hasNext) {
 		return;
 	}
 	if (_scroll->scrollTop() + _scroll->height() >= _scroll->scrollTopMax()) {
-		wallet.loadMoreHistory();
+		if (collectibles) {
+			wallet.loadMoreCollectibles();
+		} else {
+			wallet.loadMoreHistory();
+		}
 	}
 }
 
@@ -5688,7 +5734,7 @@ void Content::focusInEvent(QFocusEvent *e) {
 
 void Content::resizeEvent(QResizeEvent *e) {
 	updateRegions();
-	checkLoadMore();
+	_loadMoreCheck.call();
 }
 
 void Content::paintEvent(QPaintEvent *e) {

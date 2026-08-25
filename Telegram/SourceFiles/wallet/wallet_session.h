@@ -164,6 +164,9 @@ public:
 	[[nodiscard]] AccountStatus status() const;
 	[[nodiscard]] const std::vector<TransferItem> &history() const;
 	[[nodiscard]] rpl::producer<> historyUpdates() const;
+	[[nodiscard]] bool listsGated() const;
+	[[nodiscard]] rpl::producer<bool> listsGatedValue() const;
+	[[nodiscard]] rpl::producer<bool> listsConfirmedEmptyValue() const;
 
 	void refreshHistory(Fn<void()> done = nullptr);
 	[[nodiscard]] bool historyHasNext() const;
@@ -174,6 +177,8 @@ public:
 	[[nodiscard]] bool collectiblesTab() const;
 	[[nodiscard]] rpl::producer<bool> collectiblesTabValue() const;
 	void setCollectiblesTab(bool value);
+	[[nodiscard]] bool collectiblesHasNext() const;
+	void loadMoreCollectibles();
 	void resolveCollectibleInfo(
 		const QString &item,
 		Fn<void(const Gram::NftItem &)> done);
@@ -222,6 +227,12 @@ public:
 	[[nodiscard]] const std::optional<PendingSendInfo> &pendingSend() const;
 
 private:
+	enum class SliceState {
+		Pending,
+		Failed,
+		Ready,
+	};
+
 	void ensureLoaded();
 	bool applyDescriptor(
 		wallet_engine::WalletDescriptor descriptor,
@@ -249,6 +260,11 @@ private:
 		Fn<void(FeeResult)> done,
 		bool retried = false);
 	void resolvePending();
+	void setHistoryFirstSlice(SliceState state);
+	void setCollectiblesFirstSlice(SliceState state);
+	void updateListsGate();
+	[[nodiscard]] bool listsLoading() const;
+	[[nodiscard]] bool listsConfirmedEmpty() const;
 	void finishPending();
 
 	const not_null<Main::Session*> _session;
@@ -280,10 +296,17 @@ private:
 	crl::time _collectiblesRefreshedAt = 0;
 	crl::time _collectiblesCompletedAt = 0;
 	bool _collectiblesRequestPending = false;
+	bool _collectiblesHasMore = false;
+	bool _collectiblesPaged = false;
 	base::flat_map<QString, Gram::NftItem> _collectibleInfo;
 	base::flat_map<
 		QString,
 		std::vector<Fn<void(const Gram::NftItem &)>>> _collectibleInfoWaiters;
+
+	SliceState _historyFirstSlice = SliceState::Pending;
+	SliceState _collectiblesFirstSlice = SliceState::Pending;
+	rpl::variable<bool> _listsGated = true;
+	rpl::event_stream<> _listsStateUpdates;
 #ifdef _DEBUG
 	bool _historyInjected = false;
 	bool _collectiblesInjected = false;
