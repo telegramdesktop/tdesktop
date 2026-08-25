@@ -425,34 +425,52 @@ jobs:
           git config --global user.email "you@example.com"
           git config --global user.name "Sample"
 
-      # The image ships Visual Studio without ATL and breakpad's dump_syms
-      # needs atlbase.h. Modifies the existing install, because the
-      # generated vcxproj hardcodes $(VSInstallDir)\VC\atlmfc. Warns
-      # instead of failing: a warm cache restores dump_syms prebuilt.
+      # Visual Studio 2026 ships ATL for its current toolset, but this job
+      # deliberately selects the v143 14.44 compatibility toolset. Install
+      # that matching ATL package so a cold dependency cache can build
+      # breakpad's dump_syms instead of relying on a cached binary.
       - name: Visual Studio ATL component.
         shell: pwsh
         run: |
-          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-          # A line per installed product, the latest one comes first.
-          $path = @(& $vswhere -latest -products '*' -property installationPath)[0]
-          $header = Join-Path $path 'VC\atlmfc\include\atlbase.h'
-          if (Test-Path $header) {
-            Write-Host "ATL is already installed in $path."
-            exit 0
-          }
-          # Through the bootstrapper, like the arm64 build tools in win.yml:
-          # vs_installer.exe of the image answers this modify with 87.
-          $exe = Join-Path $env:RUNNER_TEMP 'vs_enterprise.exe'
-          Invoke-WebRequest -Uri https://aka.ms/vs/18/stable/vs_enterprise.exe -OutFile $exe
-          $p = Start-Process -FilePath $exe -Wait -PassThru -ArgumentList `
-            'modify','--installPath',"`"$path`"", `
-            '--add','Microsoft.VisualStudio.Component.VC.ATL', `
-            '--quiet','--wait','--norestart','--nocache'
-          Remove-Item $exe -Force -ErrorAction SilentlyContinue
-          if (-not (Test-Path $header)) {
-            Write-Host "::warning::The installer exited with $($p.ExitCode) and left $path without ATL, breakpad will fail on a cold cache."
+          $installer = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer'
+          $vswhere = Join-Path $installer 'vswhere.exe'
+          $setup = Join-Path $installer 'setup.exe'
+          if (-not (Test-Path $vswhere) -or -not (Test-Path $setup)) {
+            throw "Visual Studio Installer is incomplete at $installer."
           }
 
+          $toolsComponent = 'Microsoft.VisualStudio.Component.VC.14.44.17.14.x86.x64'
+          $atlComponent = 'Microsoft.VisualStudio.Component.VC.14.44.17.14.ATL'
+          $path = @(& $vswhere -latest -products '*' -requires $toolsComponent -property installationPath)[0]
+          if (-not $path) {
+            throw "No Visual Studio instance provides $toolsComponent."
+          }
+
+          $toolset = Get-ChildItem (Join-Path $path 'VC\Tools\MSVC') -Directory `
+            | Where-Object { $_.Name -like '14.44.*' } `
+            | Sort-Object Name -Descending `
+            | Select-Object -First 1
+          if (-not $toolset) {
+            throw "The selected Visual Studio instance has no 14.44 toolset."
+          }
+          $header = Join-Path $toolset.FullName 'atlmfc\include\atlbase.h'
+          if (Test-Path $header) {
+            Write-Host "ATL is already installed for $($toolset.Name)."
+            exit 0
+          }
+
+          $process = Start-Process -FilePath $setup -Wait -PassThru -ArgumentList @(
+            'modify',
+            '--installPath', "`"$path`"",
+            '--add', $atlComponent,
+            '--quiet', '--norestart', '--nocache'
+          )
+          if ($process.ExitCode -notin @(0, 3010)) {
+            throw "Visual Studio Installer exited with $($process.ExitCode)."
+          }
+          if (-not (Test-Path $header)) {
+            throw "$atlComponent completed without installing $header."
+          }
       # Pinned to a commit (master as of 2026-04-01): this job holds the
       # platform-signing credentials and the OIDC token, a floating tag
       # would let a third party run code next to them.
@@ -462,6 +480,18 @@ jobs:
           arch: x64
           sdk: ${{ env.SDK }}
           toolset: '14.44'
+
+      - name: Verify Visual Studio ATL component.
+        shell: pwsh
+        run: |
+          $atlInclude = Join-Path $env:VCToolsInstallDir 'atlmfc\include'
+          $header = Join-Path $atlInclude 'atlbase.h'
+          if (-not (Test-Path $header)) {
+            throw "The selected toolset has no ATL header at $header."
+          }
+          if (($env:INCLUDE -split ';') -notcontains $atlInclude) {
+            throw "The selected toolset did not add $atlInclude to INCLUDE."
+          }
 
       - name: NuGet sources.
         run: |
