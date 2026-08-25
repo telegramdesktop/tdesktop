@@ -1608,7 +1608,7 @@ void ChatWidget::setupComposeControls() {
 
 	_composeControls->scrollToMaxRequests(
 	) | rpl::on_next([=] {
-		listScrollTo(_scroll->scrollTopMax());
+		send({});
 	}, lifetime());
 
 	_composeControls->sendVoiceRequests(
