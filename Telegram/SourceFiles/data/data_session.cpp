@@ -1870,7 +1870,6 @@ void Session::setupChannelLeavingViewer() {
 		} else {
 			if (const auto history = historyLoaded(channel->id)) {
 				history->removeJoinedMessage();
-				history->clear(History::ClearType::Unload);
 				history->updateChatListExistence();
 				history->updateChatListSortPosition();
 				if (!history->inChatList()) {

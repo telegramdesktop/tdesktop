@@ -734,18 +734,12 @@ void ChatParticipants::requestSelf(not_null<ChannelData*> channel) {
 				finalize(inviter, data.vdate().v);
 			}, [&](const MTPDchannelParticipantBanned &data) {
 				LOG(("API Error: Got self banned participant."));
-				if (channel->amIn()) {
-					channel->privateErrorReceived();
-				}
 				finalize();
 			}, [&](const MTPDchannelParticipant &data) {
 				LOG(("API Error: Got self regular participant."));
 				finalize();
 			}, [&](const MTPDchannelParticipantLeft &data) {
 				LOG(("API Error: Got self left participant."));
-				if (channel->amIn()) {
-					channel->privateErrorReceived();
-				}
 				finalize();
 			});
 		});
