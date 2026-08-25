@@ -902,7 +902,7 @@ void AddHistoryRow(
 }
 
 [[nodiscard]] HistoryRowContent RowContentFromPending(
-		const PendingSend &pending) {
+		const PendingSendInfo &pending) {
 	return {
 		.title = ShortAddress(pending.destination),
 		.subtitle = tr::lng_wallet_row_pending(tr::now),
@@ -915,7 +915,7 @@ void AddHistoryRow(
 }
 
 [[nodiscard]] Gram::TransferItem ItemFromPending(
-		const PendingSend &pending) {
+		const PendingSendInfo &pending) {
 	auto result = Gram::TransferItem();
 	result.incoming = false;
 	result.counterparty = pending.destination;
@@ -1180,7 +1180,6 @@ void AddFeeTableRow(
 		not_null<Ui::TableLayout*> table,
 		not_null<Main::Session*> session,
 		int64 feeNano,
-		bool approximate,
 		bool alignMarkToDigits = false) {
 	auto helper = Ui::Text::CustomEmojiHelper();
 	auto descriptor = Ui::Text::PaletteDependentEmoji{
@@ -1207,9 +1206,6 @@ void AddFeeTableRow(
 	) | rpl::map([=](FiatRate rate) {
 		auto fee = diamond;
 		fee.append(QChar(' '));
-		if (approximate) {
-			fee.append(QChar('~'));
-		}
 		fee.append(Ui::FormatTonAmount(feeNano).full);
 		fee.append(QChar(' '));
 		fee.append(Ui::Text::Colorized(
@@ -1269,7 +1265,7 @@ void AddDetailsTable(
 	const auto pending
 		= (item.status == Gram::TransferItem::Status::Pending);
 	if (item.feeNano > 0 && !pending) {
-		AddFeeTableRow(table, session, item.feeNano, false, true);
+		AddFeeTableRow(table, session, item.feeNano, true);
 	}
 	Ui::AddTableRow(
 		table,
@@ -2808,7 +2804,6 @@ struct SendFlow {
 	QString displayForm;
 	int64 amountNano = 0;
 	int64 feeNano = 0;
-	bool feeApproximate = true;
 	QString comment;
 };
 
@@ -2900,6 +2895,27 @@ not_null<Ui::FlatLabel*> AddSendFlowLabel(
 	return field;
 }
 
+[[nodiscard]] QString SendErrorText(SendError error) {
+	switch (error) {
+	case SendError::None:
+		return QString();
+	case SendError::InsufficientBalance:
+		return tr::lng_wallet_send_error_insufficient(tr::now);
+	case SendError::InsufficientFees:
+		return tr::lng_wallet_send_error_fees(tr::now);
+	case SendError::PreviousUnresolved:
+		return tr::lng_wallet_send_error_unresolved(tr::now);
+	case SendError::AlreadySending:
+		return tr::lng_wallet_send_error_in_progress(tr::now);
+	case SendError::SigningUnavailable:
+		return tr::lng_wallet_send_error_signing(tr::now);
+	case SendError::InvalidRequest:
+	case SendError::Failed:
+		return tr::lng_wallet_send_error_failed(tr::now);
+	}
+	Unexpected("Error value in SendErrorText.");
+}
+
 void WalletSendConfirmBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
@@ -2930,8 +2946,7 @@ void WalletSendConfirmBox(
 	AddFeeTableRow(
 		table,
 		&show->session(),
-		flow.feeNano,
-		flow.feeApproximate);
+		flow.feeNano);
 	Ui::AddTableRow(
 		table,
 		tr::lng_wallet_details_date(),
@@ -2968,15 +2983,15 @@ void WalletSendConfirmBox(
 			.comment = text,
 			.bounce = flow.bounce,
 		};
-		wallet->send(args, [=](QString error) {
+		wallet->send(args, [=](SendError error) {
 			if (!show->valid()) {
 				return;
 			}
-			if (!error.isEmpty()) {
+			if (error != SendError::None) {
 				if (weak.get()) {
 					state->confirmButtonBusy = false;
 				}
-				show->showToast(error);
+				show->showToast(SendErrorText(error));
 				return;
 			}
 			show->hideLayer();
@@ -3126,12 +3141,12 @@ void WalletSendBox(
 		rpl::variable<bool> invalid = false;
 		rpl::variable<int64> amount = 0;
 		rpl::variable<int64> fee = 0;
+		rpl::variable<bool> previewInsufficient = false;
 		rpl::variable<bool> insufficient = false;
 		rpl::variable<bool> canSend = false;
 		rpl::variable<FiatRate> rate;
 		rpl::variable<bool> entryFiat = false;
 		QString previousCurrency;
-		bool feeApproximate = true;
 		bool settingUnitText = false;
 		Fn<void()> swapUnit;
 	};
@@ -3297,6 +3312,10 @@ void WalletSendBox(
 	const auto refreshFee = [=] {
 		if (!state->flow) {
 			return;
+		} else if (state->amount.current() <= 0) {
+			state->previewInsufficient = false;
+			state->fee = 0;
+			return;
 		}
 		auto args = SendArgs{
 			.destination = state->flow->destination,
@@ -3304,9 +3323,12 @@ void WalletSendBox(
 			.bounce = state->flow->bounce,
 		};
 		wallet->estimateFee(args, crl::guard(box, [=](FeeResult result) {
-			if (result.error.isEmpty()) {
-				state->feeApproximate = result.approximate;
+			if (result.error == SendError::None) {
 				state->fee = result.feeNano;
+				state->previewInsufficient = false;
+			} else if (result.error == SendError::InsufficientBalance
+				|| result.error == SendError::InsufficientFees) {
+				state->previewInsufficient = true;
 			}
 		}));
 	};
@@ -3316,10 +3338,17 @@ void WalletSendBox(
 	state->insufficient = rpl::combine(
 		state->amount.value(),
 		state->fee.value(),
+		state->previewInsufficient.value(),
 		wallet->balanceNanoValue(),
 		wallet->stateKnownValue()
-	) | rpl::map([](int64 amount, int64 fee, int64 balance, bool known) {
-		return known && (amount > 0) && (amount > balance - fee);
+	) | rpl::map([](
+			int64 amount,
+			int64 fee,
+			bool preview,
+			int64 balance,
+			bool known) {
+		return (amount > 0)
+			&& (preview || (known && amount > balance - fee));
 	});
 	state->canSend = rpl::combine(
 		state->amount.value(),
@@ -3394,7 +3423,6 @@ void WalletSendBox(
 		auto next = *state->flow;
 		next.amountNano = state->amount.current();
 		next.feeNano = state->fee.current();
-		next.feeApproximate = state->feeApproximate;
 		next.comment = commentField->getLastText().trimmed();
 		box->uiShow()->showBox(Box(
 			WalletSendConfirmBox,
@@ -5076,6 +5104,7 @@ void Content::setupContent() {
 				Ui::AddSkip(list);
 			}
 			const auto shown = pending
+				&& !pending->messageHashNorm.isEmpty()
 				&& ranges::any_of(history, [&](
 						const Gram::TransferItem &item) {
 					return item.externalHashNorm

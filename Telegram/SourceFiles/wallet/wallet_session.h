@@ -13,9 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "gram/api/gram_api_history.h"
 #include "gram/api/gram_api_nft.h"
 #include "gram/ton/gram_address.h"
-#include "gram/wallet/gram_wallet_v5.h"
 #include "wallet/wallet_api.h"
-#include "wallet/wallet_fee_estimator.h"
 #include "wallet/wallet_stream.h"
 
 namespace wallet_engine {
@@ -50,17 +48,30 @@ enum class LifecycleError {
 	Failed,
 };
 
+enum class SendError {
+	None,
+	InvalidRequest,
+	InsufficientBalance,
+	InsufficientFees,
+	PreviousUnresolved,
+	AlreadySending,
+	SigningUnavailable,
+	Failed,
+};
+
 enum class SendState {
 	Idle,
 	Sending,
 	Pending,
-	Failed,
 };
 
-struct PendingSend {
+struct FeeResult {
+	int64 feeNano = 0;
+	SendError error = SendError::None;
+};
+
+struct PendingSendInfo {
 	QByteArray messageHashNorm;
-	quint32 signedSeqno = 0;
-	TimeId validUntil = 0;
 	TimeId posted = 0;
 	int64 amountNano = 0;
 	Gram::Address destination;
@@ -72,7 +83,6 @@ struct SendArgs {
 	int64 amountNano = 0;
 	QString comment;
 	bool bounce = true;
-	bool simulateStaleSeqno = false;
 };
 
 [[nodiscard]] std::vector<Gram::NftItem> CollectiblesFromEngine(
@@ -161,10 +171,10 @@ public:
 	void setPanel(std::unique_ptr<Ui::SeparatePanel> panel);
 
 	void estimateFee(const SendArgs &args, Fn<void(FeeResult)> done);
-	void send(SendArgs args, Fn<void(QString)> done);
+	void send(SendArgs args, Fn<void(SendError)> done);
 	[[nodiscard]] SendState sendState() const;
 	[[nodiscard]] rpl::producer<SendState> sendStateValue() const;
-	[[nodiscard]] const std::optional<PendingSend> &pendingSend() const;
+	[[nodiscard]] const std::optional<PendingSendInfo> &pendingSend() const;
 
 private:
 	void ensureLoaded();
@@ -188,18 +198,16 @@ private:
 		const wallet_engine::WalletUpdate &update,
 		bool more);
 	void setCollectibles(std::vector<Gram::NftItem> &&list);
-	void checkPendingByMessage();
-	void checkPendingBySeqno(const Gram::AccountState &state);
+	void startPreview(
+		SendArgs args,
+		Fn<void(FeeResult)> done,
+		bool retried = false);
+	void resolvePending();
 	void finishPending();
-	[[nodiscard]] bool pendingExpired() const;
-	[[nodiscard]] Gram::TransferRequest buildTransferRequest(
-		const SendArgs &args,
-		quint32 seqno) const;
 
 	const not_null<Main::Session*> _session;
 	Api _api;
 	const std::unique_ptr<Engine> _engine;
-	const std::unique_ptr<FeeEstimator> _feeEstimator;
 	const std::unique_ptr<Rates> _rates;
 	const std::unique_ptr<Onramp> _onramp;
 	const std::unique_ptr<Stream> _stream;
@@ -213,7 +221,6 @@ private:
 
 	rpl::variable<int64> _balanceNano = 0;
 	rpl::variable<bool> _stateKnown = false;
-	Gram::AccountState _lastState;
 	Gram::AccountStatus _engineStatus = Gram::AccountStatus::NonExisting;
 	crl::time _stateRefreshedAt = 0;
 	std::vector<Gram::TransferItem> _history;
@@ -242,7 +249,7 @@ private:
 	int _networkGeneration = 0;
 	bool _stateRequestPending = false;
 	bool _historyRequestPending = false;
-	bool _pendingCheckPending = false;
+	bool _resolveRequestPending = false;
 	QString _engineClientAddress;
 	bool _engineStopping = false;
 	bool _engineRefreshPending = false;
@@ -252,7 +259,11 @@ private:
 	std::vector<Fn<void()>> _historyDone;
 
 	rpl::variable<SendState> _sendState = SendState::Idle;
-	std::optional<PendingSend> _pending;
+	std::optional<PendingSendInfo> _pending;
+	bool _sendUnresolved = false;
+	bool _previewPending = false;
+	std::optional<SendArgs> _previewNextArgs;
+	Fn<void(FeeResult)> _previewNextDone;
 
 	std::unique_ptr<Ui::SeparatePanel> _panel;
 

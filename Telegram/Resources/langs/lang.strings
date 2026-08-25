@@ -8853,7 +8853,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_create_error" = "Couldn't create a wallet. Please try again.";
 "lng_wallet_phrase_error" = "Couldn't show the recovery phrase. Please try again.";
 "lng_wallet_delete_error" = "Couldn't delete the wallet. Please try again.";
-"lng_wallet_send_unavailable" = "Sending is temporarily unavailable.";
+"lng_wallet_send_error_insufficient" = "You don't have enough Grams for this transfer.";
+"lng_wallet_send_error_fees" = "You don't have enough Grams to cover the network fee.";
+"lng_wallet_send_error_unresolved" = "Your previous transfer is not confirmed yet. Please wait for it to complete.";
+"lng_wallet_send_error_in_progress" = "Another transfer is already in progress.";
+"lng_wallet_send_error_signing" = "This wallet can't sign transfers on this device.";
+"lng_wallet_send_error_failed" = "The transfer could not be completed. Please try again.";
 "lng_wallet_receive_copy_hint" = "Click to copy address";
 "lng_wallet_buy_title" = "Buy Grams";
 "lng_wallet_buy_button" = "Buy with card or crypto";

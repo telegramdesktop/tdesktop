@@ -8,9 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_session.h"
 
 #include "base/unixtime.h"
-#include "gram/ton/gram_message.h"
-#include "gram/wallet/gram_wallet_v5.h"
-#include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "storage/storage_account.h"
 #include "ui/widgets/separate_panel.h"
@@ -33,8 +30,6 @@ constexpr auto kCollectiblesPollInterval = 60 * crl::time(1000);
 constexpr auto kForcedCollectiblesInterval = 10 * crl::time(1000);
 constexpr auto kEmptyProofFreshness = 60 * crl::time(1000);
 constexpr auto kStreamResyncInterval = 30 * crl::time(1000);
-constexpr auto kSendValidUntilOffset = TimeId(300);
-constexpr auto kSendRetryClockMargin = TimeId(60);
 constexpr auto kEngineProviderBase = "https://toncenter.com";
 constexpr auto kEngineRequestTimeoutMs = uint64(15000);
 
@@ -120,6 +115,100 @@ constexpr auto kEngineRequestTimeoutMs = uint64(15000);
 	return false;
 }
 
+[[nodiscard]] SendError SendErrorFrom(const EngineError &error) {
+	if (!error.underlying) {
+		return SendError::Failed;
+	}
+	try {
+		std::rethrow_exception(error.underlying);
+	} catch (const engine::wallet_client_error::LocalSigningUnavailable &) {
+		return SendError::SigningUnavailable;
+	} catch (const engine::wallet_client_error::InsufficientBalance &) {
+		return SendError::InsufficientBalance;
+	} catch (const engine::wallet_client_error::InsufficientBalanceForFees &) {
+		return SendError::InsufficientFees;
+	} catch (const engine::wallet_client_error
+			::PreviousSubmissionUnresolved &) {
+		return SendError::PreviousUnresolved;
+	} catch (const engine::wallet_client_error::WalletSeqnoNotAdvanced &) {
+		return SendError::PreviousUnresolved;
+	} catch (const engine::wallet_client_error::SendAlreadyInProgress &) {
+		return SendError::AlreadySending;
+	} catch (const engine::wallet_client_error
+			::SendPreviewAlreadyInProgress &) {
+		return SendError::AlreadySending;
+	} catch (const engine::wallet_client_error::InvalidSendRequest &) {
+		return SendError::InvalidRequest;
+	} catch (...) {
+	}
+	return SendError::Failed;
+}
+
+[[nodiscard]] bool IsSubmissionUnknown(const EngineError &error) {
+	if (!error.underlying) {
+		return false;
+	}
+	try {
+		std::rethrow_exception(error.underlying);
+	} catch (const engine::wallet_client_error::SubmissionUnknown &) {
+		return true;
+	} catch (...) {
+	}
+	return false;
+}
+
+[[nodiscard]] bool IsPreviewKilled(const EngineError &error) {
+	if (!error.underlying) {
+		return false;
+	}
+	try {
+		std::rethrow_exception(error.underlying);
+	} catch (const engine::wallet_client_error::StateUnavailable &) {
+		return true;
+	} catch (...) {
+	}
+	return false;
+}
+
+[[nodiscard]] engine::SendIntent IntentFromArgs(const SendArgs &args) {
+	auto message = engine::SendMessage{
+		.destination = Gram::FormatFriendly(
+			args.destination,
+			args.bounce).toStdString(),
+		.amount = engine::SendAmount(engine::SendAmount::kExact{
+			.nanograms = QString::number(args.amountNano).toStdString(),
+		}),
+		.body = (args.comment.isEmpty()
+			? engine::SendMessageBody(engine::SendMessageBody::kEmpty{})
+			: engine::SendMessageBody(engine::SendMessageBody::kComment{
+				.text = args.comment.toStdString(),
+			})),
+		.bounce = args.bounce,
+		.state_init = std::nullopt,
+	};
+	return engine::SendIntent{
+		.expiration = engine::SendExpiration(
+			engine::SendExpiration::kEngineDefault{}),
+		.messages = { std::move(message) },
+	};
+}
+
+[[nodiscard]] bool TerminalSendPhase(engine::SendPhase phase) {
+	switch (phase) {
+	case engine::SendPhase::kIdle:
+	case engine::SendPhase::kConfirmed:
+	case engine::SendPhase::kReplaced:
+	case engine::SendPhase::kSequenceNumberConsumed:
+	case engine::SendPhase::kExpired:
+	case engine::SendPhase::kSuperseded:
+	case engine::SendPhase::kFailed:
+	case engine::SendPhase::kCancelled:
+		return true;
+	default:
+		return false;
+	}
+}
+
 [[nodiscard]] std::vector<QString> SplitPhrase(const std::string &phrase) {
 	const auto words = QString::fromStdString(phrase).split(
 		QChar(' '),
@@ -184,7 +273,6 @@ Session::Session(not_null<Main::Session*> session)
 : _session(session)
 , _api(session)
 , _engine(std::make_unique<Engine>(session, &_api))
-, _feeEstimator(MakeFeeEstimator(&_api))
 , _rates(std::make_unique<Rates>(session))
 , _onramp(std::make_unique<Onramp>(session))
 , _stream(std::make_unique<Stream>(&_api, [=](StreamRefresh wanted) {
@@ -431,6 +519,7 @@ bool Session::provenEmpty() const {
 		&& !_historyHasNext
 		&& _collectibles.empty()
 		&& !_pending
+		&& !_sendUnresolved
 		&& (_sendState.current() != SendState::Sending)
 		&& fresh(_stateRefreshedAt)
 		&& fresh(_historyRefreshedAt)
@@ -487,7 +576,6 @@ void Session::revealPhrase(
 void Session::clearNetworkState() {
 	++_networkGeneration;
 	_balanceNano = 0;
-	_lastState = Gram::AccountState();
 	_engineStatus = Gram::AccountStatus::NonExisting;
 	_stateKnown = false;
 	_stateRefreshedAt = 0;
@@ -513,7 +601,9 @@ void Session::clearNetworkState() {
 	_stream->stop();
 	_stateRequestPending = false;
 	_historyRequestPending = false;
-	_pendingCheckPending = false;
+	_sendUnresolved = false;
+	_previewNextArgs.reset();
+	_previewNextDone = nullptr;
 	_stateDone.clear();
 	_stateFail.clear();
 	_historyDone.clear();
@@ -536,6 +626,8 @@ void Session::updateEngineClient() {
 			client->cancel_refresh();
 			client->cancel_refresh_nfts();
 			client->cancel_load_more_nfts();
+			client->cancel_send_preview();
+			client->cancel_send();
 		}, [] {}, [](EngineError) {});
 		_engine->stopClient([=, this] {
 			_engineStopping = false;
@@ -604,6 +696,11 @@ void Session::applyEngineUpdate(const engine::WalletUpdate &update) {
 		return;
 	}
 	const auto &snapshot = update.snapshot;
+	const auto wasUnresolved = _sendUnresolved;
+	_sendUnresolved = !TerminalSendPhase(snapshot.send.phase);
+	if (_sendUnresolved && !wasUnresolved) {
+		updatePollingState();
+	}
 	if (snapshot.account_resource.phase != engine::ResourcePhase::kReady
 		|| !snapshot.account) {
 		return;
@@ -682,8 +779,6 @@ void Session::refreshState(
 				}
 				return;
 			}
-			_lastState = *state;
-			checkPendingBySeqno(*state);
 			for (const auto &callback : stateDone) {
 				callback(*state);
 			}
@@ -1101,7 +1196,7 @@ void Session::stopPolling() {
 }
 
 void Session::updatePollingState() {
-	const auto wanted = (_pollingCount > 0) || (_pending && !pendingExpired());
+	const auto wanted = (_pollingCount > 0) || _pending || _sendUnresolved;
 	if (!wanted) {
 		_pollTimer.cancel();
 	} else if (!_pollTimer.isActive()) {
@@ -1140,8 +1235,8 @@ void Session::pollTick() {
 		refreshHistory();
 	}
 	refreshCollectibles();
-	if (_pending && !_pendingCheckPending) {
-		checkPendingByMessage();
+	if ((_pending || _sendUnresolved) && !_resolveRequestPending) {
+		resolvePending();
 	}
 }
 
@@ -1209,123 +1304,212 @@ rpl::producer<SendState> Session::sendStateValue() const {
 	return _sendState.value();
 }
 
-const std::optional<PendingSend> &Session::pendingSend() const {
+const std::optional<PendingSendInfo> &Session::pendingSend() const {
 	return _pending;
 }
 
 void Session::estimateFee(const SendArgs &args, Fn<void(FeeResult)> done) {
 	ensureLoaded();
-	if (_keyState.current() == KeyState::None) {
+	if (_keyState.current() == KeyState::None
+		|| args.amountNano <= 0
+		|| args.destination.hash.isEmpty()) {
 		if (done) {
-			done(FeeResult{ .error = u"No wallet."_q });
+			done(FeeResult{ .error = SendError::InvalidRequest });
 		}
 		return;
 	}
-	const auto knownSeqno = Gram::SeqnoFromStateData(
-		_lastState.dataBoc).value_or(0);
-	auto request = FeeRequest{
-		.publicKey = PublicKeyBytes(*_descriptor),
-		.transfer = buildTransferRequest(args, knownSeqno),
-		.attachStateInit = (_lastState.status != Gram::AccountStatus::Active),
-	};
-	_feeEstimator->estimate(request, std::move(done));
+	if (_engineStopping || !_engine->client()) {
+		if (done) {
+			done(FeeResult{ .error = SendError::Failed });
+		}
+		return;
+	}
+	if (_previewPending) {
+		_previewNextArgs = args;
+		_previewNextDone = std::move(done);
+		const auto client = _engine->client();
+		_engine->runQuick([client] {
+			client->cancel_send_preview();
+		}, [] {}, [](EngineError) {});
+		return;
+	}
+	startPreview(args, std::move(done));
 }
 
-void Session::send(SendArgs args, Fn<void(QString)> done) {
+void Session::startPreview(
+		SendArgs args,
+		Fn<void(FeeResult)> done,
+		bool retried) {
+	_previewPending = true;
+	const auto client = _engine->client();
+	const auto generation = _networkGeneration;
+	auto request = engine::SendPreviewRequest{
+		.intent = IntentFromArgs(args),
+	};
+	_engine->run([client, request = std::move(request)] {
+		return client->preview_send(request);
+	}, [=, this](engine::SendPreview preview) {
+		_previewPending = false;
+		if (_previewNextArgs) {
+			startPreview(
+				*base::take(_previewNextArgs),
+				base::take(_previewNextDone));
+			return;
+		}
+		if (generation != _networkGeneration) {
+			return;
+		}
+		if (done) {
+			done(FeeResult{
+				.feeNano = QString::fromStdString(
+					preview.emulation.wallet_fees_nanograms).toLongLong(),
+			});
+		}
+	}, [=, this](EngineError error) {
+		_previewPending = false;
+		if (_previewNextArgs) {
+			startPreview(
+				*base::take(_previewNextArgs),
+				base::take(_previewNextDone));
+			return;
+		}
+		if (generation != _networkGeneration) {
+			return;
+		}
+		// The engine's cancel_send_preview is momentary: it kills the
+		// currently active preview, so a cancel that outlived its target
+		// kills the latest request. Every legitimate cancellation stashes
+		// a next pair first, bumps the generation or raises
+		// _engineStopping, so this failure shape with an empty stash and
+		// a fresh generation is a stale kill. Retry once.
+		if (!retried
+			&& IsPreviewKilled(error)
+			&& !_engineStopping
+			&& _engine->client()) {
+			startPreview(args, done, true);
+			return;
+		}
+		LOG(("Wallet Error: engine preview_send failed: %1"
+			).arg(error.message));
+		if (done) {
+			done(FeeResult{ .error = SendErrorFrom(error) });
+		}
+	});
+}
+
+void Session::send(SendArgs args, Fn<void(SendError)> done) {
 	ensureLoaded();
 	if (_keyState.current() == KeyState::None) {
 		if (done) {
-			done(u"No wallet."_q);
+			done(SendError::Failed);
 		}
 		return;
 	}
 	if (args.amountNano <= 0 || args.destination.hash.isEmpty()) {
 		if (done) {
-			done(u"Invalid send parameters."_q);
+			done(SendError::InvalidRequest);
 		}
 		return;
 	}
-	LOG(("Wallet Error: legacy send refused, "
-		"no signing key until the engine send lands."));
-	if (done) {
-		done(tr::lng_wallet_send_unavailable(tr::now));
-	}
-}
-
-void Session::checkPendingByMessage() {
-	if (!_pending || _pendingCheckPending) {
+	if (_sendState.current() != SendState::Idle) {
+		if (done) {
+			done(SendError::AlreadySending);
+		}
 		return;
 	}
-	_pendingCheckPending = true;
+	if (_engineStopping || !_engine->client()) {
+		if (done) {
+			done(SendError::Failed);
+		}
+		return;
+	}
+	_sendState = SendState::Sending;
+	const auto client = _engine->client();
 	const auto generation = _networkGeneration;
-	_api.request(
-		Gram::TransactionsByMessageRequest(_pending->messageHashNorm),
-		[=](const QByteArray &json) {
-			if (generation != _networkGeneration) {
-				return;
-			}
-			_pendingCheckPending = false;
-			if (!_pending) {
-				return;
-			}
-			if (const auto found = Gram::ParseTransactionsByMessageFound(
-					json)) {
-				if (*found) {
-					finishPending();
-				}
-			}
-		},
-		[=](const Gram::ApiError &) {
-			if (generation != _networkGeneration) {
-				return;
-			}
-			_pendingCheckPending = false;
-		});
+	const auto destination = args.destination;
+	const auto amountNano = args.amountNano;
+	const auto comment = args.comment.trimmed();
+	const auto recordPending = [=, this](QByteArray messageHashNorm) {
+		_pending = PendingSendInfo{
+			.messageHashNorm = std::move(messageHashNorm),
+			.posted = base::unixtime::now(),
+			.amountNano = amountNano,
+			.destination = destination,
+			.comment = comment,
+		};
+		_sendState = SendState::Pending;
+		updatePollingState();
+		requestEngineRefresh();
+		refreshHistory();
+		if (done) {
+			done(SendError::None);
+		}
+	};
+	auto request = engine::SendRequest{
+		.operation_id = NewRecordId(),
+		.force = false,
+		.intent = IntentFromArgs(args),
+	};
+	_engine->run([client, request = std::move(request)] {
+		return client->send(request);
+	}, [=, this](engine::SendResult result) {
+		if (generation != _networkGeneration) {
+			return;
+		}
+		recordPending(QByteArray::fromBase64(
+			QByteArray::fromStdString(result.message_hash)));
+	}, [=, this](EngineError error) {
+		if (generation != _networkGeneration) {
+			return;
+		}
+		LOG(("Wallet Error: engine send failed: %1").arg(error.message));
+		if (IsSubmissionUnknown(error)) {
+			recordPending(QByteArray());
+			return;
+		}
+		_sendState = SendState::Idle;
+		if (done) {
+			done(SendErrorFrom(error));
+		}
+	});
 }
 
-void Session::checkPendingBySeqno(const Gram::AccountState &state) {
-	if (!_pending) {
+void Session::resolvePending() {
+	if (_resolveRequestPending || _engineStopping || !_engine->client()) {
 		return;
 	}
-	const auto seqno = Gram::SeqnoFromStateData(state.dataBoc);
-	if (seqno && (*seqno > _pending->signedSeqno)) {
-		finishPending();
-	}
+	_resolveRequestPending = true;
+	const auto client = _engine->client();
+	const auto generation = _networkGeneration;
+	_engine->run([client] {
+		return client->resolve_pending();
+	}, [=, this](engine::SendSnapshot snapshot) {
+		_resolveRequestPending = false;
+		if (generation != _networkGeneration) {
+			return;
+		}
+		if (TerminalSendPhase(snapshot.phase)
+			&& _sendState.current() != SendState::Sending) {
+			finishPending();
+		}
+	}, [=, this](EngineError error) {
+		_resolveRequestPending = false;
+		if (generation != _networkGeneration) {
+			return;
+		}
+		LOG(("Wallet Error: engine resolve_pending failed: %1, "
+			"keeping last-good state.").arg(error.message));
+	});
 }
 
 void Session::finishPending() {
-	const auto seqno = _pending ? _pending->signedSeqno : quint32(0);
-	LOG(("Wallet: transfer landed, seqno %1.").arg(seqno));
+	LOG(("Wallet: pending send resolved."));
 	_pending.reset();
+	_sendUnresolved = false;
 	_sendState = SendState::Idle;
 	updatePollingState();
 	requestEngineRefresh();
 	refreshHistory();
-}
-
-bool Session::pendingExpired() const {
-	return _pending
-		&& (base::unixtime::now()
-			> _pending->validUntil + kSendRetryClockMargin);
-}
-
-Gram::TransferRequest Session::buildTransferRequest(
-		const SendArgs &args,
-		quint32 seqno) const {
-	auto message = Gram::TransferMessage{
-		.destination = args.destination,
-		.bounce = args.bounce,
-		.amountNano = args.amountNano,
-		.body = (args.comment.isEmpty()
-			? std::nullopt
-			: std::optional(Gram::BuildCommentBody(args.comment))),
-	};
-	return Gram::TransferRequest{
-		.messages = { std::move(message) },
-		.seqno = seqno,
-		.walletId = Gram::kDefaultWalletId,
-		.validUntil = base::unixtime::now() + kSendValidUntilOffset,
-	};
 }
 
 } // namespace Wallet

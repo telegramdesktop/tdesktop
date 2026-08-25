@@ -879,37 +879,15 @@ auto GenerateCodes() {
 			.comment = u"tdesktop test"_q,
 		};
 		wallet.estimateFee(args, [](Wallet::FeeResult result) {
-			Ui::Toast::Show(result.error.isEmpty()
+			Ui::Toast::Show((result.error == Wallet::SendError::None)
 				? u"Fee estimate: ~%1 TON"_q
 					.arg(Ui::FormatTonAmount(result.feeNano).full)
-				: u"Fee error: %1"_q.arg(result.error));
+				: u"Fee error: %1"_q.arg(int(result.error)));
 		});
-		wallet.send(args, [](QString error) {
-			Ui::Toast::Show(error.isEmpty()
+		wallet.send(args, [](Wallet::SendError error) {
+			Ui::Toast::Show((error == Wallet::SendError::None)
 				? u"Sent, pending confirmation."_q
-				: error);
-		});
-	});
-	codes.emplace(u"walletsendstale"_q, [](SessionController *window) {
-		if (!window) {
-			return;
-		}
-		auto &wallet = window->session().wallet();
-		const auto address = wallet.address();
-		if (!address) {
-			Ui::Toast::Show(u"No wallet."_q);
-			return;
-		}
-		auto args = Wallet::SendArgs{
-			.destination = *address,
-			.amountNano = int64(10'000'000),
-			.comment = u"tdesktop test"_q,
-			.simulateStaleSeqno = true,
-		};
-		wallet.send(std::move(args), [](QString error) {
-			Ui::Toast::Show(error.isEmpty()
-				? u"Sent, pending confirmation."_q
-				: error);
+				: u"Send error: %1"_q.arg(int(error)));
 		});
 	});
 	codes.emplace(u"walletviewed"_q, [](SessionController *window) {
