@@ -1098,6 +1098,7 @@ void Gif::paintRoundPlaybackProgress(
 		p,
 		context,
 		rthumb,
+		roundSeekShown(),
 		_seeking,
 		playback ? playback->value() : -1.,
 		inTTLViewer);
@@ -1464,6 +1465,7 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 				? _openl
 				: _spoiler->link;
 		} else if (_seekl && isRoundSeekable()) {
+			_seekStatePoint = point;
 			result.link = _seekl;
 		} else {
 			result.link = currentVideoLink();
@@ -1545,6 +1547,12 @@ void Gif::clickHandlerPressedChanged(
 			if (const auto playback = videoPlayback()) {
 				_roundSeek->setProgress(playback->value());
 			}
+			const auto rthumb = roundThumbRect();
+			if (roundSeekShown()
+				&& _roundSeek->grabPoint(rthumb, _seekStatePoint)) {
+				startRoundSeeking();
+				updateRoundSeeking(rthumb, _seekStatePoint);
+			}
 		} else if (!pressed) {
 			if (_seeking) {
 				if (isRoundSeekable()) {
@@ -1553,7 +1561,8 @@ void Gif::clickHandlerPressedChanged(
 						_roundSeek->progress());
 				}
 				_seeking = false;
-				_roundSeek->toggleShown(false);
+				_roundSeek->setGrabbed(false);
+				repaint();
 			} else if (_seekPressPoint != QPoint()) {
 				_seekPressPoint = QPoint();
 				::Media::Player::instance()->playPauseCancelClicked(
@@ -1573,10 +1582,7 @@ void Gif::clickHandlerPressedChanged(
 	}
 }
 
-void Gif::updatePressed(QPoint point) {
-	if (!_seeking && _seekPressPoint == QPoint()) {
-		return;
-	}
+QRect Gif::roundThumbRect() const {
 	const auto item = _parent->data();
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 	const auto unwrapped = isUnwrapped();
@@ -1592,36 +1598,55 @@ void Gif::updatePressed(QPoint point) {
 			usex = width() - usew;
 		}
 	}
+	if (_ephemeral.onTop) {
+		painty += _ephemeral.topAdded;
+		painth -= _ephemeral.topAdded;
+	}
 	accumulate_min(usew, painth);
 	if (rtl()) usex = width() - usex - usew;
-	const auto rthumb = QRect(
-		style::rtlrect(usex + paintx, painty, usew, painth, width()));
+	return style::rtlrect(usex + paintx, painty, usew, painth, width());
+}
 
-	if (!_seeking) {
-		if (_seekPressPoint == QPoint(-1, -1)) {
-			_seekPressPoint = point;
-			return;
-		}
-		if ((point - _seekPressPoint).manhattanLength()
-				<= QApplication::startDragDistance()) {
-			return;
-		}
-		_seeking = true;
-		_seekPressPoint = QPoint();
-		::Media::Player::instance()->startSeeking(
-			AudioMsgId::Type::Voice);
-		_roundSeek->toggleShown(true);
-	}
+void Gif::startRoundSeeking() {
+	_seeking = true;
+	_seekPressPoint = QPoint();
+	::Media::Player::instance()->startSeeking(AudioMsgId::Type::Voice);
+	_roundSeek->setGrabbed(true);
+}
 
+void Gif::updateRoundSeeking(QRect rthumb, QPoint point) {
 	const auto center = rthumb.center();
 	const auto dx = float64(point.x() - center.x());
 	const auto dy = float64(point.y() - center.y());
 	const auto angle = atan2(-dy, dx);
-	_roundSeek->setProgress(std::clamp(
+	const auto now = std::clamp(
 		fmod((M_PI / 2. - angle) / (2. * M_PI) + 1., 1.),
 		0.,
-		1.));
+		1.);
+	_roundSeek->setDraggedProgress(now);
 	repaint();
+}
+
+void Gif::updatePressed(QPoint point) {
+	if (!_seeking && _seekPressPoint == QPoint()) {
+		return;
+	}
+	const auto rthumb = roundThumbRect();
+	if (!_seeking) {
+		if (_seekPressPoint == QPoint(-1, -1)) {
+			_seekPressPoint = point;
+			return;
+		} else if ((point - _seekPressPoint).manhattanLength()
+				<= QApplication::startDragDistance()) {
+			return;
+		} else if (!_roundSeek->grabPoint(rthumb, _seekPressPoint)) {
+			// Angle from near the center jumps on the smallest move.
+			_seekPressPoint = QPoint();
+			return;
+		}
+		startRoundSeeking();
+	}
+	updateRoundSeeking(rthumb, point);
 }
 
 bool Gif::fullFeaturedGrouped(RectParts sides) const {
@@ -2212,6 +2237,9 @@ void Gif::unloadHeavyPart() {
 	}
 	_thumbCache = QImage();
 	_seekLastFrame = QImage();
+	if (_roundSeek) {
+		_roundSeek->unloadHeavyPart();
+	}
 	_videoThumbnailFrame = nullptr;
 	togglePollingStory(false);
 }
@@ -2292,6 +2320,16 @@ int Gif::surroundingHeight(
 
 ::Media::Streaming::Instance *Gif::activeRoundStreamed() const {
 	return ::Media::Player::instance()->roundVideoStreamed(_parent->data());
+}
+
+bool Gif::roundSeekShown() const {
+	if (!_seekl) {
+		return false;
+	} else if (_seeking) {
+		return true;
+	}
+	const auto streamed = activeRoundStreamed();
+	return streamed && streamed->paused();
 }
 
 bool Gif::isRoundSeekable() const {

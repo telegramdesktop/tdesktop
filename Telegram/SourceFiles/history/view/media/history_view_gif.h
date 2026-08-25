@@ -160,7 +160,11 @@ private:
 	Streamed *activeOwnStreamed() const;
 	::Media::Streaming::Instance *activeCurrentStreamed() const;
 	::Media::View::PlaybackProgress *videoPlayback() const;
-	bool isRoundSeekable() const;
+	[[nodiscard]] bool isRoundSeekable() const;
+	[[nodiscard]] bool roundSeekShown() const;
+	[[nodiscard]] QRect roundThumbRect() const;
+	void startRoundSeeking();
+	void updateRoundSeeking(QRect rthumb, QPoint point);
 
 	void createStreamedPlayer();
 	void checkStreamedIsStarted() const;
@@ -259,6 +263,7 @@ private:
 	std::shared_ptr<VoiceSeekClickHandler> _seekl;
 	std::unique_ptr<VideoMessageSeek> _roundSeek;
 	QPoint _seekPressPoint;
+	mutable QPoint _seekStatePoint;
 	mutable QImage _seekLastFrame;
 	mutable TimeId _videoTimestamp = 0;
 	mutable std::optional<Ui::BubbleRounding> _thumbCacheRounding;
