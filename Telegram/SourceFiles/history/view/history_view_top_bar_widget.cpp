@@ -816,7 +816,7 @@ void TopBarWidget::mousePressEvent(QMouseEvent *e) {
 		if ((_animatingMode && _back->rect().contains(e->pos()))
 			|| archiveTop) {
 			if (!rootChatsListBar()) {
-				backClicked();
+				InvokeQueued(this, [=] { backClicked(); });
 			}
 		} else {
 			infoClicked();
