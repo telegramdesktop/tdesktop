@@ -352,6 +352,12 @@ void LayerWidget::doSetInnerFocus() {
 }
 
 void LayerWidget::paintEvent(QPaintEvent *e) {
+	if (!_contentWrap) {
+		// parentResized() may have moved the content out into a MoveMemento
+		// and only queued hideSpecialLayer(), and LayerStackWidget renders
+		// us synchronously through Ui::Shadow::grab() during transitions.
+		return;
+	}
 	auto p = QPainter(this);
 
 	const auto clip = e->rect();
