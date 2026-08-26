@@ -2787,6 +2787,9 @@ void SetupThemeSettings(
 		std::move(label),
 		st::settingsButton,
 		{ &st::menuIconFont });
+	const auto themeLifetime = container->lifetime().make_state<
+		rpl::lifetime
+	>();
 	fontButton->setClickedCallback([=] {
 		const auto save = [=](QString chosen) {
 			*family = chosen;
@@ -2795,8 +2798,11 @@ void SetupThemeSettings(
 			Core::Restart();
 		};
 
+		// Not container->lifetime(): that outlives the box, so every tap
+		// left another dead background subscription behind in it.
+		themeLifetime->destroy();
 		const auto theme = std::shared_ptr<Ui::ChatTheme>(
-			Window::Theme::DefaultChatThemeOn(container->lifetime()));
+			Window::Theme::DefaultChatThemeOn(*themeLifetime));
 		const auto generateBg = [=] {
 			const auto size = st::boxWidth;
 			const auto ratio = style::DevicePixelRatio();
