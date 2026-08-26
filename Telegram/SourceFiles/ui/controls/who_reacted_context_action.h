@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
-class DropdownMenu;
 class PopupMenu;
 
 struct WhoReadParticipant {
@@ -167,28 +166,9 @@ public:
 		Fn<void()> refillTopActions = nullptr,
 		int addedToBottom = 0,
 		Fn<void()> appendBottomActions = nullptr);
-	void populate(
-		not_null<DropdownMenu*> menu,
-		const WhoReadContent &content,
-		Fn<void()> refillTopActions = nullptr,
-		int addedToBottom = 0,
-		Fn<void()> appendBottomActions = nullptr);
-
-	void populatePreloader(
-		not_null<DropdownMenu*> menu,
-		std::vector<WhoReactedEntryData> entries,
-		Fn<void()> appendBottomActions = nullptr);
 
 private:
-	template <typename Menu>
-	void populateTo(
-		not_null<Menu*> menu,
-		const WhoReadContent &content,
-		Fn<void()> refillTopActions,
-		int addedToBottom,
-		Fn<void()> appendBottomActions);
-	template <typename Menu>
-	void applyScrollBarSkip(not_null<Menu*> menu);
+	void applyScrollBarSkip(not_null<PopupMenu*> menu);
 	void applyMinimalWidth();
 
 	const Text::CustomEmojiFactory _customEmojiFactory;

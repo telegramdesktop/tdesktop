@@ -652,16 +652,6 @@ whoReadMenu: PopupMenu(popupMenuExpandedSeparator) {
 	scrollPadding: margins(0px, 6px, 0px, 4px);
 	maxHeight: 400px;
 }
-whoReadDropdownMenu: DropdownMenu(dropdownMenuWithIcons) {
-	wrap: InnerDropdown(defaultInnerDropdown) {
-		scrollPadding: margins(0px, 6px, 0px, 4px);
-	}
-	menu: Menu(menuWithIcons) {
-		separator: expandedMenuSeparator;
-	}
-}
-whoReadDropdownMenuMaxHeight: 400px;
-whoReadDropdownMenuSkip: 24px;
 whoReadNameWithDateTop: 3px;
 whoReadDateTop: 20px;
 whoReadDateSkip: 15px;
