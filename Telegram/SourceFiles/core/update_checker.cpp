@@ -717,7 +717,16 @@ bool UnpackUpdate(const QString &filepath) {
 	input.close();
 
 	if (Updates::IsV2UpdateFile(compressed)) {
-		return UnpackUpdateV2(filepath, compressed);
+		if (UnpackUpdateV2(filepath, compressed)) {
+			return true;
+		} else if (BuildIsCanary) {
+			return false;
+		}
+		// A v1 file whose RSA signature happens to begin with the magic
+		// bytes lands here too, so a failed v2 parse falls through to the
+		// v1 path below: it accepts nothing without a valid RSA signature
+		// over these same bytes.
+		LOG(("Update Info: trying v1 unpacking for a file with v2 magic."));
 	} else if (BuildIsCanary) {
 		// The channel policy lives in the v2 envelope only, a classical
 		// RSA package has no channel and would let any official v1 file
