@@ -2611,7 +2611,16 @@ void HistoryItem::applyEdition(const MTPDmessageService &message) {
 	const auto nowSublist = savedSublist();
 	if (wasSublist && nowSublist != wasSublist) {
 		wasSublist->removeOne(this);
-		nowSublist->applyMaybeLast(this);
+
+		// removeOne() only drops the id from the message list, it does not
+		// clear _lastMessage / _lastServerMessage / _chatListMessage. After
+		// the switch History::itemRemoved() notifies only savedSublist(),
+		// so the old sublist would keep a raw pointer to an item it never
+		// hears about again.
+		wasSublist->applyItemRemoved(id);
+		if (nowSublist) {
+			nowSublist->applyMaybeLast(this);
+		}
 	}
 }
 
