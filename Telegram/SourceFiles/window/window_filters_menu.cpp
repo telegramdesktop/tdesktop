@@ -52,13 +52,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Window {
 namespace {
 
-// The folder tabs container, exposed as a list to screen readers.
+// The folder tabs container, exposed as a tab control to screen readers.
 class TabListLayout final : public Ui::VerticalLayout {
 public:
 	using Ui::VerticalLayout::VerticalLayout;
 
 	QAccessible::Role accessibilityRole() override {
-		return QAccessible::List;
+		return QAccessible::PageTabList;
 	}
 	Qt::FocusPolicy accessibilityFocusPolicy() override {
 		// Let the accessibility layer decide focusability (like PopupMenu),
@@ -576,8 +576,8 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 		return On(PowerSaving::kEmojiChat)
 			|| _session->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
 	};
-	// A real folder (id >= 0), locked or not, is a selectable list item; only
-	// the "Edit" button (id < 0) stays a plain button. Establish this before
+	// A real folder (id >= 0), locked or not, is a selectable tab; only the
+	// "Edit" button (id < 0) stays a plain button. Establish this before
 	// inserting the widget - insertion shows the child immediately, so
 	// configuring the role up front avoids a transient or separately-announced
 	// role change.
@@ -593,7 +593,7 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 		}),
 		paused);
 	prepared->setLocked(locked);
-	prepared->setIsListItem(listItem);
+	prepared->setIsPageTab(listItem);
 	prepared->setShowIcon(mode != Ui::ChatsFiltersTabsMode::TextOnly);
 	prepared->setShowText(mode != Ui::ChatsFiltersTabsMode::IconsOnly);
 	auto added = toBeginning
