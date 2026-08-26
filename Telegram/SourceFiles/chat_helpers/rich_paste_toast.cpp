@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/rich_paste_toast.h"
 
 #include "boxes/premium_preview_box.h"
+#include "chat_helpers/message_field.h"
 #include "iv/editor/iv_editor_clipboard_import.h"
 #include "iv/editor/iv_editor_session.h"
 #include "iv/iv_rich_page.h"
@@ -33,7 +34,8 @@ constexpr auto kToastDuration = 9 * crl::time(1000);
 std::optional<RichPasteDecision> MimeDataRichPasteOffer(
 		not_null<Main::Session*> session,
 		not_null<const QMimeData*> data) {
-	if (!Iv::Editor::CanAuthorRichMessages(session)) {
+	if (PasteAsPlainTextRequested()
+		|| !Iv::Editor::CanAuthorRichMessages(session)) {
 		return std::nullopt;
 	}
 	const auto limits = Iv::ResolveRichMessageLimits(session);
