@@ -384,6 +384,10 @@ private:
 
 	const not_null<AbstractController*> _controller;
 	const std::unique_ptr<ListProvider> _provider;
+
+	// Cached: we can outlive the controller, and this never changes.
+	const bool _sectionsSortedById = false;
+
 	SingleQueuedInvokation _checkMoveToOtherViewer;
 
 	base::flat_set<not_null<const BaseLayout*>> _heavyLayouts;

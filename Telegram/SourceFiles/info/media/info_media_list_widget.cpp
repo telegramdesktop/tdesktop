@@ -164,6 +164,8 @@ ListWidget::ListWidget(
 : RpWidget(parent)
 , _controller(controller)
 , _provider(MakeProvider(_controller))
+, _sectionsSortedById(!controller->isDownloads()
+	&& !controller->isGlobalMedia())
 , _checkMoveToOtherViewer([=] { checkMoveToOtherViewer(); })
 , _rowsScrollCache([=] { update(); })
 , _dateBadge(std::make_unique<DateBadge>(
@@ -2661,7 +2663,7 @@ std::vector<ListSection>::iterator ListWidget::findSectionByItem(
 	if (_sections.size() < 2) {
 		return _sections.begin();
 	}
-	Assert(!_controller->isDownloads() && !_controller->isGlobalMedia());
+	Assert(_sectionsSortedById);
 	return ranges::lower_bound(
 		_sections,
 		GetUniversalId(item),
