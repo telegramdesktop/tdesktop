@@ -23,6 +23,10 @@ namespace {
 	return u"details-"_q + QString::number(++state->nextGeneratedId);
 }
 
+[[nodiscard]] QString QuoteToggleId(PrepareState *state) {
+	return u"quote-"_q + QString::number(++state->nextGeneratedId);
+}
+
 [[nodiscard]] int CappedListDepth(int depth) {
 	return std::min(depth, std::max(PrepareLimitsForIv().visualListDepth, 0));
 }
@@ -675,6 +679,30 @@ void PrepareFootnotes(PrepareState *state) {
 	return block;
 }
 
+[[nodiscard]] std::vector<PreparedBlock> PrepareBlockquoteHtmlBlocks(
+		const MarkdownNode &node,
+		PrepareContext context,
+		PrepareState *state) {
+	auto block = PreparedBlock();
+	block.kind = PreparedBlockKind::Quote;
+	block.actualDepth = context.quoteDepth;
+	block.visualDepth = CappedQuoteDepth(block.actualDepth);
+	block.depthClamped = (block.actualDepth > block.visualDepth);
+	if (node.quoteCollapsed) {
+		block.collapseToggleId = QuoteToggleId(state);
+		block.collapsed = true;
+	}
+	if (!node.detailsBody.isEmpty()) {
+		AppendRichBlock(
+			&block.children,
+			PreparedBlockKind::Paragraph,
+			0,
+			TextWithEntities::Simple(node.detailsBody),
+			std::vector<PreparedLink>());
+	}
+	return { std::move(block) };
+}
+
 [[nodiscard]] std::vector<PreparedBlock> PrepareFallbackBlocks(
 		const MarkdownNode &node,
 		PrepareContext context,
@@ -684,6 +712,8 @@ void PrepareFootnotes(PrepareState *state) {
 			return {};
 		} else if (node.htmlBlockKind == HtmlBlockKind::Details) {
 			return PrepareDetailsBlocks(node, state);
+		} else if (node.htmlBlockKind == HtmlBlockKind::Blockquote) {
+			return PrepareBlockquoteHtmlBlocks(node, context, state);
 		}
 	}
 	if (!node.children.empty()) {

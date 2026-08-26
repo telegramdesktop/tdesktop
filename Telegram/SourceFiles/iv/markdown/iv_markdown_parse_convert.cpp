@@ -472,6 +472,41 @@ void RecordCapabilities(cmark_node *node, ParserState *state) {
 	return result;
 }
 
+struct ParsedBlockquoteBlock {
+	QString body;
+	bool collapsed = false;
+	bool ok = false;
+};
+
+[[nodiscard]] bool ParseBlockquoteCollapsedAttribute(QString attributes) {
+	const auto trimmed = attributes.trimmed();
+	if (trimmed.isEmpty()) {
+		return false;
+	}
+	const auto lower = trimmed.toLower();
+	return lower.contains(u"expandable"_q) || lower.contains(u"collapsed"_q);
+}
+
+[[nodiscard]] ParsedBlockquoteBlock ParseBlockquoteHtmlBlock(QString raw) {
+	auto result = ParsedBlockquoteBlock();
+	raw = raw.trimmed();
+	if (!raw.startsWith(u"<blockquote"_q, Qt::CaseInsensitive)
+		|| !raw.endsWith(u"</blockquote>"_q, Qt::CaseInsensitive)) {
+		return result;
+	}
+	const auto openingEnd = raw.indexOf(QChar('>'));
+	if (openingEnd < 0) {
+		return result;
+	}
+	const auto openingAttributes = raw.mid(11, openingEnd - 11);
+	result.collapsed = ParseBlockquoteCollapsedAttribute(openingAttributes);
+	result.body = raw.mid(
+		openingEnd + 1,
+		raw.size() - openingEnd - 14).trimmed();
+	result.ok = true;
+	return result;
+}
+
 [[nodiscard]] QString PlainText(const MarkdownNode &node) {
 	auto result = node.text;
 	for (const auto &child : node.children) {
@@ -523,6 +558,21 @@ void FillNodeAttributes(
 				AddWarning(
 					state,
 					u"Malformed details block at %1:%2"_q.arg(
+						out->range.startLine
+					).arg(
+						out->range.startColumn));
+			}
+		} else if (trimmed.startsWith(u"<blockquote"_q, Qt::CaseInsensitive)) {
+			const auto quote = ParseBlockquoteHtmlBlock(out->raw);
+			if (quote.ok) {
+				out->htmlBlockKind = HtmlBlockKind::Blockquote;
+				out->detailsBody = quote.body;
+				out->quoteCollapsed = quote.collapsed;
+			} else {
+				out->htmlBlockKind = HtmlBlockKind::Unsupported;
+				AddWarning(
+					state,
+					u"Malformed blockquote block at %1:%2"_q.arg(
 						out->range.startLine
 					).arg(
 						out->range.startColumn));

@@ -81,6 +81,7 @@ enum class HtmlBlockKind {
 	None,
 	Comment,
 	Details,
+	Blockquote,
 	Unsupported,
 };
 
@@ -122,6 +123,7 @@ struct MarkdownNode {
 	bool autolink = false;
 	bool tableHeader = false;
 	bool detailsOpen = false;
+	bool quoteCollapsed = false;
 };
 
 struct MathFormula {

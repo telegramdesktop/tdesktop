@@ -78,6 +78,7 @@ namespace {
 	case HtmlBlockKind::None: return u"None"_q;
 	case HtmlBlockKind::Comment: return u"Comment"_q;
 	case HtmlBlockKind::Details: return u"Details"_q;
+	case HtmlBlockKind::Blockquote: return u"Blockquote"_q;
 	case HtmlBlockKind::Unsupported: return u"Unsupported"_q;
 	}
 	return u"None"_q;
@@ -232,6 +233,7 @@ void DumpNode(
 	AddBoolAttribute(&line, u"autolink"_q, node.autolink);
 	AddBoolAttribute(&line, u"tableHeader"_q, node.tableHeader);
 	AddBoolAttribute(&line, u"detailsOpen"_q, node.detailsOpen);
+	AddBoolAttribute(&line, u"quoteCollapsed"_q, node.quoteCollapsed);
 	if (!node.tableAlignments.empty()) {
 		AddStringAttribute(
 			&line,
