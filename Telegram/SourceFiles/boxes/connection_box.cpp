@@ -2373,16 +2373,27 @@ object_ptr<Ui::BoxContent> ProxiesBoxController::editItemBox(int id) {
 void ProxiesBoxController::replaceItemWith(
 		std::vector<Item>::iterator which,
 		std::vector<Item>::iterator with) {
+	// Read before the erase below: _list is a vector, so erasing `which`
+	// shifts everything after it and leaves `with` naming the wrong item.
+	const auto withId = with->id;
+	const auto withDeleted = with->deleted;
+
+	if (which->deleted) {
+		// A deleted item is not in the settings list at all, so it has to
+		// go back in before it can be removed - the same restore-first
+		// order replaceItemValue() uses right below.
+		restoreItem(which->id);
+	}
 	const auto removed = _settings.removeFromList(which->data);
 	Assert(removed);
 
 	_views.fire({ which->id });
 	_list.erase(which);
 
-	if (with->deleted) {
-		restoreItem(with->id);
+	if (withDeleted) {
+		restoreItem(withId);
 	}
-	applyItem(with->id);
+	applyItem(withId);
 	saveDelayed();
 }
 
