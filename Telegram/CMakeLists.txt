@@ -1584,6 +1584,8 @@ PRIVATE
     menu/menu_item_download_files.h
     menu/menu_item_rate_transcribe_session.cpp
     menu/menu_item_rate_transcribe_session.h
+    menu/menu_mark_as_read.cpp
+    menu/menu_mark_as_read.h
     menu/menu_mute.cpp
     menu/menu_mute.h
     menu/menu_send.cpp

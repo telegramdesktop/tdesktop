@@ -92,17 +92,6 @@ void AddSenderUserpicModerateAction(
 	HistoryItem *moderateItem,
 	const PeerMenuCallback &addAction);
 
-void MenuAddMarkAsReadAllChatsAction(
-	not_null<Main::Session*> session,
-	std::shared_ptr<Ui::Show> show,
-	const PeerMenuCallback &addAction);
-
-void MenuAddMarkAsReadChatListAction(
-	not_null<Window::SessionController*> controller,
-	Fn<not_null<Dialogs::MainList*>()> &&list,
-	const PeerMenuCallback &addAction,
-	Fn<Dialogs::UnreadState()> customUnreadState = nullptr);
-
 void PeerMenuExportChat(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer);
@@ -270,10 +259,6 @@ void HidePinnedBar(
 void UnpinAllMessages(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<Data::Thread*> thread);
-
-[[nodiscard]] bool IsUnreadThread(not_null<Data::Thread*> thread);
-void MarkAsReadThread(not_null<Data::Thread*> thread);
-void MarkAsReadChatList(not_null<Dialogs::MainList*> list);
 
 void AddSeparatorAndShiftUp(const PeerMenuCallback &addAction);
 
