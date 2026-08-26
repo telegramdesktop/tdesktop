@@ -54,7 +54,6 @@ bool ShowReactionPreview(
 	FullMsgId origin,
 	Data::ReactionId reactionId,
 	bool emojiPreview = false,
-	Fn<void(ReactionPreviewMenu)> setupMenu = nullptr,
-	std::optional<QPoint> menuAnchorGlobal = std::nullopt);
+	Fn<void(ReactionPreviewMenu)> setupMenu = nullptr);
 
 } // namespace HistoryView
