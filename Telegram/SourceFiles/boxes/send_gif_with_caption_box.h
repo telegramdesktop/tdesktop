@@ -33,6 +33,8 @@ class Show;
 
 namespace Ui {
 
+struct PreparedList;
+
 class GenericBox;
 class InputField;
 
@@ -54,7 +56,7 @@ void SendGifWithCaptionBox(
 	not_null<PeerData*> peer,
 	const SendMenu::Details &details,
 	TextWithTags initialText,
-	Fn<void(Api::SendOptions, TextWithTags)> done,
+	Fn<void(Api::SendOptions, TextWithTags, Ui::PreparedList&&)> done,
 	Fn<void(TextWithTags)> cancelled);
 
 void SendGifWithCaption(
@@ -63,6 +65,6 @@ void SendGifWithCaption(
 	not_null<DocumentData*> document,
 	not_null<PeerData*> peer,
 	const SendMenu::Details &details,
-	Fn<void(Api::SendOptions, TextWithTags)> send);
+	Fn<void(Api::SendOptions, TextWithTags, Ui::PreparedList&&)> send);
 
 } // namespace Ui

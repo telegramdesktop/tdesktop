@@ -2484,7 +2484,14 @@ void HistoryWidget::fileChosen(ChatHelpers::FileChosen &&data) {
 				sendMenuDetails(),
 				crl::guard(this, [=](
 						Api::SendOptions options,
-						TextWithTags caption) {
+						TextWithTags caption,
+						Ui::PreparedList &&edited) {
+					if (!edited.files.empty()) {
+						sendingFilesConfirmed(
+							Ui::MakeSingleFileBundle(std::move(edited)),
+							options);
+						return;
+					}
 					controller()->sendingAnimation().appendSending(from);
 					auto messageToSend = Api::MessageToSend(
 						prepareSendAction(options));
