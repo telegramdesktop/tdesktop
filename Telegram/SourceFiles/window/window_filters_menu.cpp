@@ -342,6 +342,26 @@ bool FiltersMenu::listFocused() const {
 	return false;
 }
 
+void FiltersMenu::parkListTabStop() {
+	// Once focus leaves the list, park the roving Tab-stop back on the
+	// active folder, so the next Tab from outside enters the list on it and
+	// not on the folder the arrows last browsed. Deferred, because focus
+	// may be merely moving to another folder - by the time this runs that
+	// folder holds focus and has taken the stop already.
+	crl::on_main(&_outer, [=] {
+		// Checked here rather than when scheduling: the reader may have
+		// been stopped in between, and then the folders stay out of the
+		// Tab chain.
+		if (listFocused() || !Ui::ScreenReaderModeActive()) {
+			return;
+		}
+		const auto i = _filters.find(_activeFilterId);
+		if (i != end(_filters)) {
+			setListTabStop(i->second.get());
+		}
+	});
+}
+
 void FiltersMenu::refresh() {
 	const auto filters = &_session->session().data().chatsFilters();
 	if (!filters->has() || _ignoreRefresh) {
@@ -662,6 +682,9 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 		base::install_event_filter(raw, [=](not_null<QEvent*> event) {
 			if (event->type() == QEvent::FocusIn) {
 				setListTabStop(raw);
+				return base::EventFilterResult::Continue;
+			} else if (event->type() == QEvent::FocusOut) {
+				parkListTabStop();
 				return base::EventFilterResult::Continue;
 			} else if (event->type() != QEvent::KeyPress) {
 				return base::EventFilterResult::Continue;
