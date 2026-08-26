@@ -1238,7 +1238,13 @@ void OverlayWidget::updateGeometry(bool inMove) {
 }
 
 void OverlayWidget::updateGeometryToScreen(bool inMove) {
-	const auto available = _window->screen()->geometry();
+	// When the last monitor is removed QGuiApplication has no screens at
+	// all, so screen() is nullptr.
+	const auto screen = _window->screen();
+	if (!screen) {
+		return;
+	}
+	const auto available = screen->geometry();
 	if (_window->geometry() == available) {
 		return;
 	}
