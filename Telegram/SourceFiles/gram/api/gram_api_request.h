@@ -8,15 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/basic_types.h"
-#include "gram/ton/gram_address.h"
 
 #include <QtCore/QByteArray>
 #include <QtCore/QString>
 
 #include <optional>
-
-class QJsonObject;
-class QJsonValue;
 
 namespace Gram {
 
@@ -39,14 +35,6 @@ struct ApiError {
 
 namespace Gram::ApiDetails {
 
-[[nodiscard]] std::optional<Address> ParseAddressValue(
-	const QJsonValue &value);
-[[nodiscard]] std::optional<int64> ParseInt64String(
-	const QJsonValue &value);
-[[nodiscard]] std::optional<quint64> ParseUint64String(
-	const QJsonValue &value);
-[[nodiscard]] QByteArray DecodeAnyBase64(const QString &text);
 [[nodiscard]] QString PercentEncoded(const QString &value);
-[[nodiscard]] bool ComputeSuccess(const QJsonObject &description);
 
 } // namespace Gram::ApiDetails

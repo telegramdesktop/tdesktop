@@ -29,7 +29,7 @@ public:
 	Stream(not_null<Api*> api, Fn<void(StreamRefresh)> refresh);
 	~Stream();
 
-	void start(const Gram::Address &address);
+	void start(const QString &address);
 	void stop();
 
 	[[nodiscard]] bool healthy() const;
@@ -65,7 +65,7 @@ private:
 	void scheduleRenew(TimeId expires);
 	void want(StreamRefresh wanted);
 	void flush();
-	[[nodiscard]] bool mine(const std::vector<Gram::Address> &accounts) const;
+	[[nodiscard]] bool mine(const std::vector<QString> &accounts) const;
 
 	const not_null<Api*> _api;
 	const Fn<void(StreamRefresh)> _refresh;
@@ -74,7 +74,7 @@ private:
 	base::Timer _renewTimer;
 	base::Timer _coalesceTimer;
 	base::Timer _keepaliveTimer;
-	Gram::Address _address;
+	QString _address;
 	QString _addressFriendly;
 	StreamRefresh _wanted;
 	crl::time _lastFrameAt = 0;

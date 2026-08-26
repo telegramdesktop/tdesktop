@@ -31,13 +31,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio_track.h"
 #include "settings/sections/settings_folders.h"
 #include "storage/storage_account.h"
+#include "wallet/wallet_address.h"
 #include "wallet/wallet_session.h"
-#include "gram/ton/gram_address.h"
-#include "gram/api/gram_api_history.h"
 #include "ui/controls/ton_common.h"
 #include "api/api_updates.h"
 #include "base/qt/qt_common_adapters.h"
-#include "base/unixtime.h"
 #include "base/custom_app_icon.h"
 #include "base/options.h"
 #include "boxes/abstract_box.h" // Ui::show().
@@ -811,20 +809,22 @@ auto GenerateCodes() {
 		LOG(("Wallet: address UQ: %1, EQ: %2, raw: %3"
 			).arg(wallet.addressFriendly(false)
 			).arg(wallet.addressFriendly(true)
-			).arg(Gram::FormatRaw(*address)));
+			).arg(*address));
 		Ui::Toast::Show(u"Address: %1"_q.arg(wallet.addressFriendly(false)));
 	});
 	codes.emplace(u"walletbalance"_q, [](SessionController *window) {
 		if (!window) {
 			return;
 		}
-		window->session().wallet().refreshState([](
-				const Gram::AccountState &state) {
+		const auto wallet = &window->session().wallet();
+		if (wallet->keyState() == Wallet::KeyState::None) {
+			Ui::Toast::Show(u"No wallet."_q);
+			return;
+		}
+		wallet->refreshHistory([=] {
 			Ui::Toast::Show(u"Balance: %1 TON (status %2)"_q
-				.arg(Ui::FormatTonAmount(state.balanceNano).full)
-				.arg(int(state.status)));
-		}, [](const Gram::ApiError &error) {
-			Ui::Toast::Show(u"Balance error: %1"_q.arg(error.message));
+				.arg(Ui::FormatTonAmount(wallet->balanceNano()).full)
+				.arg(int(wallet->status())));
 		});
 	});
 	codes.emplace(u"wallethistory"_q, [](SessionController *window) {
@@ -841,7 +841,7 @@ auto GenerateCodes() {
 					).arg(item.incoming ? u"in"_q : u"out"_q
 					).arg(Ui::FormatTonAmount(item.amountNano).full
 					).arg(Ui::FormatTonAmount(item.feeNano).full
-					).arg(Gram::FormatFriendly(item.counterparty, false)
+					).arg(Wallet::FormatFriendly(item.counterparty, false)
 					).arg(item.date
 					).arg(item.lt
 					).arg(int(item.status)));
@@ -923,66 +923,6 @@ auto GenerateCodes() {
 		});
 	});
 #ifdef _DEBUG
-	codes.emplace(u"wallethistoryfixture"_q, [](SessionController *window) {
-		if (!window) {
-			return;
-		}
-		const auto weak = base::make_weak(window);
-		FileDialog::GetOpenPath(
-			Core::App().getFileDialogParent(),
-			"Open traces fixture",
-			"Traces JSON (*.json)",
-			[weak](const FileDialog::OpenResult &result) {
-				const auto strong = weak.get();
-				if (!strong || result.paths.isEmpty()) {
-					return;
-				}
-				auto file = QFile(result.paths.front());
-				if (!file.open(QIODevice::ReadOnly)) {
-					Ui::Toast::Show(u"Could not open fixture."_q);
-					return;
-				}
-				const auto json = file.readAll();
-				auto &wallet = strong->session().wallet();
-				auto candidates = std::vector<Gram::Address>();
-				const auto acc2 = u"0:BC1B748F5D26B74D857798FF4DD4252A2B79CF51B232AE41BE1F19E8CD9547B7"_q;
-				for (const auto &raw : { kAcc1Raw, acc2 }) {
-					if (const auto parsed = Gram::ParseAddress(raw)) {
-						candidates.push_back(parsed->address);
-					}
-				}
-				if (const auto own = wallet.address()) {
-					candidates.push_back(*own);
-				}
-				auto items = std::vector<Gram::TransferItem>();
-				for (const auto &self : candidates) {
-					if (auto page = Gram::ParseTraces(json, self, 20)) {
-						if (!page->list.empty()) {
-							items = std::move(page->list);
-							break;
-						}
-					}
-				}
-				if (items.empty()) {
-					Ui::Toast::Show(u"No items parsed from fixture."_q);
-					return;
-				}
-				auto demo = items.front();
-				demo.date = base::unixtime::now();
-				demo.lt = demo.lt + 1;
-				demo.traceId = demo.traceId + "-demo-now";
-				auto demoPending = items.front();
-				demoPending.status = Gram::TransferItem::Status::Pending;
-				demoPending.date = base::unixtime::now();
-				demoPending.lt = demoPending.lt + 2;
-				demoPending.traceId = demoPending.traceId + "-demo-pending";
-				items.push_back(std::move(demo));
-				items.push_back(std::move(demoPending));
-				const auto count = int(items.size());
-				wallet.injectDebugHistory(std::move(items));
-				Ui::Toast::Show(u"Injected %1 history items."_q.arg(count));
-			});
-	});
 	codes.emplace(u"walletcollectiblesfixture"_q, [](
 			SessionController *window) {
 		if (!window) {

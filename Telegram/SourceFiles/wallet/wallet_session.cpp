@@ -46,8 +46,8 @@ constexpr auto kEngineRequestTimeoutMs = uint64(15000);
 }
 
 [[nodiscard]] bool SameHistory(
-		const std::vector<Gram::TransferItem> &was,
-		const std::vector<Gram::TransferItem> &now) {
+		const std::vector<TransferItem> &was,
+		const std::vector<TransferItem> &now) {
 	if (was.size() != now.size()) {
 		return false;
 	}
@@ -208,7 +208,7 @@ constexpr auto kEngineRequestTimeoutMs = uint64(15000);
 
 [[nodiscard]] engine::SendIntent IntentFromArgs(const SendArgs &args) {
 	auto message = engine::SendMessage{
-		.destination = Gram::FormatFriendly(
+		.destination = FormatFriendly(
 			args.destination,
 			args.bounce).toStdString(),
 		.amount = engine::SendAmount(engine::SendAmount::kExact{
@@ -252,21 +252,41 @@ constexpr auto kEngineRequestTimeoutMs = uint64(15000);
 	return std::vector<QString>(words.begin(), words.end());
 }
 
+[[nodiscard]] QString NormalizeWord(const QString &word) {
+	return word.trimmed().toLower();
+}
+
+[[nodiscard]] const std::vector<QString> &Wordlist() {
+	static const auto result = [] {
+		auto list = std::vector<QString>();
+		try {
+			const auto words = engine::mnemonic_wordlist();
+			list.reserve(words.size());
+			for (const auto &word : words) {
+				list.push_back(QString::fromStdString(word));
+			}
+			std::sort(list.begin(), list.end());
+		} catch (...) {
+			LOG(("Wallet Error: cannot read the engine wordlist."));
+			list.clear();
+		}
+		return list;
+	}();
+	return result;
+}
+
 [[nodiscard]] std::optional<Gram::NftItem> CollectibleFromEngine(
 		const engine::NftItem &item) {
-	const auto parsed = Gram::ParseAddress(
+	const auto address = CanonicalAddress(
 		QString::fromStdString(item.address));
-	if (!parsed) {
+	if (address.isEmpty()) {
 		LOG(("Wallet Error: engine nft address is not parseable."));
 		return std::nullopt;
 	}
 	const auto addressOrEmpty = [](const std::optional<std::string> &value) {
-		if (!value) {
-			return Gram::Address();
-		}
-		const auto parsed = Gram::ParseAddress(
-			QString::fromStdString(*value));
-		return parsed ? parsed->address : Gram::Address();
+		return value
+			? CanonicalAddress(QString::fromStdString(*value))
+			: QString();
 	};
 	const auto contentValue = [&](const std::string &key) {
 		const auto i = item.content.find(key);
@@ -275,7 +295,7 @@ constexpr auto kEngineRequestTimeoutMs = uint64(15000);
 			: QString();
 	};
 	auto result = Gram::NftItem();
-	result.address = parsed->address;
+	result.address = address;
 	result.collection = addressOrEmpty(item.collection_address);
 	result.realOwner = addressOrEmpty(item.real_owner);
 	result.index = QString::fromStdString(item.index);
@@ -291,7 +311,7 @@ constexpr auto kEngineRequestTimeoutMs = uint64(15000);
 	return result;
 }
 
-[[nodiscard]] std::optional<Gram::TransferItem> HistoryItemFromEngine(
+[[nodiscard]] std::optional<TransferItem> HistoryItemFromEngine(
 		const engine::ActivityItem &item) {
 	const auto amount = DecimalInt64(item.amount_nanograms);
 	const auto fee = DecimalInt64(item.transaction_fee_nanograms);
@@ -301,16 +321,13 @@ constexpr auto kEngineRequestTimeoutMs = uint64(15000);
 			).arg(QString::fromStdString(item.id)));
 		return std::nullopt;
 	}
-	auto result = Gram::TransferItem();
-	result.kind = Gram::TransferItem::Kind::Transfer;
+	auto result = TransferItem();
+	result.kind = TransferItem::Kind::Transfer;
 	result.incoming
 		= (item.direction == engine::ActivityDirection::kReceived);
 	if (item.counterparty) {
-		const auto parsed = Gram::ParseAddress(
+		result.counterparty = CanonicalAddress(
 			QString::fromStdString(*item.counterparty));
-		if (parsed) {
-			result.counterparty = parsed->address;
-		}
 	}
 	result.amountNano = *amount;
 	result.feeNano = *fee;
@@ -322,16 +339,16 @@ constexpr auto kEngineRequestTimeoutMs = uint64(15000);
 	result.traceId = QByteArray::fromBase64(
 		QByteArray::fromStdString(item.transaction_hash));
 	result.status = (item.status == engine::ActivityStatus::kSuccess)
-		? Gram::TransferItem::Status::Success
-		: Gram::TransferItem::Status::Failure;
+		? TransferItem::Status::Success
+		: TransferItem::Status::Failure;
 	return result;
 }
 
 } // namespace
 
-std::vector<Gram::TransferItem> HistoryFromEngine(
+std::vector<TransferItem> HistoryFromEngine(
 		const std::vector<engine::ActivityItem> &items) {
-	auto result = std::vector<Gram::TransferItem>();
+	auto result = std::vector<TransferItem>();
 	result.reserve(items.size());
 	for (const auto &item : items) {
 		if (auto mapped = HistoryItemFromEngine(item)) {
@@ -349,6 +366,31 @@ std::vector<Gram::NftItem> CollectiblesFromEngine(
 		if (auto mapped = CollectibleFromEngine(item)) {
 			result.push_back(std::move(*mapped));
 		}
+	}
+	return result;
+}
+
+bool IsWordlistWord(const QString &word) {
+	const auto &list = Wordlist();
+	const auto normalized = NormalizeWord(word);
+	return std::binary_search(list.begin(), list.end(), normalized);
+}
+
+std::vector<QString> WordlistSuggestions(
+		const QString &prefix,
+		int limit) {
+	auto result = std::vector<QString>();
+	const auto normalized = NormalizeWord(prefix);
+	if (normalized.isEmpty() || limit <= 0) {
+		return result;
+	}
+	const auto &list = Wordlist();
+	auto i = std::lower_bound(list.begin(), list.end(), normalized);
+	while (i != list.end()
+		&& int(result.size()) != limit
+		&& i->startsWith(normalized)) {
+		result.push_back(*i);
+		++i;
 	}
 	return result;
 }
@@ -404,7 +446,7 @@ void Session::ensureLoaded() {
 bool Session::applyDescriptor(
 		engine::WalletDescriptor descriptor,
 		KeyState state) {
-	const auto parsed = Gram::ParseAddress(
+	const auto parsed = ParseAddress(
 		QString::fromStdString(descriptor.address));
 	if (!parsed) {
 		LOG(("Wallet Error: engine descriptor address is not parseable."));
@@ -412,7 +454,7 @@ bool Session::applyDescriptor(
 	}
 	_descriptor = std::make_unique<engine::WalletDescriptor>(
 		std::move(descriptor));
-	_address = parsed->address;
+	_address = parsed->raw;
 	_keyState = state;
 	updateEngineClient();
 	return true;
@@ -428,7 +470,7 @@ rpl::producer<KeyState> Session::keyStateValue() {
 	return _keyState.value();
 }
 
-std::optional<Gram::Address> Session::address() {
+std::optional<QString> Session::address() {
 	ensureLoaded();
 	if (_keyState.current() == KeyState::None) {
 		return std::nullopt;
@@ -441,7 +483,7 @@ QString Session::addressFriendly(bool bounceable) {
 	if (_keyState.current() == KeyState::None) {
 		return QString();
 	}
-	return Gram::FormatFriendly(_address, bounceable);
+	return FormatFriendly(_address, bounceable);
 }
 
 void Session::create(Fn<void(LifecycleError)> done) {
@@ -566,7 +608,7 @@ void Session::remove(Fn<void(LifecycleError)> done) {
 		_lifecyclePending = false;
 		_session->local().writeWallet(Storage::WalletStored());
 		_descriptor = nullptr;
-		_address = Gram::Address();
+		_address = QString();
 		_keyState = KeyState::None;
 		_phraseUnviewed = false;
 		clearNetworkState();
@@ -660,7 +702,7 @@ void Session::revealPhrase(
 void Session::clearNetworkState() {
 	++_networkGeneration;
 	_balanceNano = 0;
-	_engineStatus = Gram::AccountStatus::NonExisting;
+	_engineStatus = AccountStatus::NonExisting;
 	_stateKnown = false;
 	_stateRefreshedAt = 0;
 	_history.clear();
@@ -682,13 +724,10 @@ void Session::clearNetworkState() {
 	_pollingCount = 0;
 	_pollTimer.cancel();
 	_stream->stop();
-	_stateRequestPending = false;
 	_historyRequestPending = false;
 	_sendUnresolved = false;
 	_previewNextArgs.reset();
 	_previewNextDone = nullptr;
-	_stateDone.clear();
-	_stateFail.clear();
 	_historyDone.clear();
 	updateEngineClient();
 }
@@ -835,16 +874,16 @@ void Session::applyEngineUpdate(const engine::WalletUpdate &update) {
 	auto mapped = _engineStatus;
 	switch (account.status) {
 	case engine::AccountStatus::kNonexistent:
-		mapped = Gram::AccountStatus::NonExisting;
+		mapped = AccountStatus::NonExisting;
 		break;
 	case engine::AccountStatus::kUninitialized:
-		mapped = Gram::AccountStatus::Uninit;
+		mapped = AccountStatus::Uninit;
 		break;
 	case engine::AccountStatus::kActive:
-		mapped = Gram::AccountStatus::Active;
+		mapped = AccountStatus::Active;
 		break;
 	case engine::AccountStatus::kFrozen:
-		mapped = Gram::AccountStatus::Frozen;
+		mapped = AccountStatus::Frozen;
 		break;
 	case engine::AccountStatus::kUnknown:
 		LOG(("Wallet: engine account status unknown, keeping last-good."));
@@ -854,65 +893,6 @@ void Session::applyEngineUpdate(const engine::WalletUpdate &update) {
 	_engineStatus = mapped;
 	_stateKnown = true;
 	_stateRefreshedAt = crl::now();
-}
-
-void Session::refreshState(
-		Fn<void(const Gram::AccountState &)> done,
-		Fn<void(const Gram::ApiError &)> fail) {
-	ensureLoaded();
-	if (_keyState.current() == KeyState::None) {
-		if (fail) {
-			fail(Gram::ApiError{ .message = u"No wallet."_q });
-		}
-		return;
-	}
-	if (done) {
-		_stateDone.push_back(std::move(done));
-	}
-	if (fail) {
-		_stateFail.push_back(std::move(fail));
-	}
-	if (_stateRequestPending) {
-		return;
-	}
-	_stateRequestPending = true;
-	const auto generation = _networkGeneration;
-	_api.request(
-		Gram::AddressInformationRequest(addressFriendly(false)),
-		[=](const QByteArray &json) {
-			if (generation != _networkGeneration) {
-				return;
-			}
-			_stateRequestPending = false;
-			const auto stateDone = base::take(_stateDone);
-			const auto stateFail = base::take(_stateFail);
-			const auto state = Gram::ParseAccountState(json);
-			if (!state) {
-				LOG(("Wallet Error: Failed to parse account state."));
-				const auto error = Gram::ApiError{
-					.message = u"Failed to parse account state."_q,
-				};
-				for (const auto &callback : stateFail) {
-					callback(error);
-				}
-				return;
-			}
-			for (const auto &callback : stateDone) {
-				callback(*state);
-			}
-		},
-		[=](const Gram::ApiError &error) {
-			if (generation != _networkGeneration) {
-				return;
-			}
-			_stateRequestPending = false;
-			const auto stateFail = base::take(_stateFail);
-			_stateDone.clear();
-			LOG(("Wallet Error: addressInformation: %1").arg(error.message));
-			for (const auto &callback : stateFail) {
-				callback(error);
-			}
-		});
 }
 
 void Session::refreshHistory(Fn<void()> done) {
@@ -984,7 +964,7 @@ void Session::applyEngineActivity(
 	setHistory(std::move(loaded));
 }
 
-void Session::setHistory(std::vector<Gram::TransferItem> &&list) {
+void Session::setHistory(std::vector<TransferItem> &&list) {
 	_history = std::move(list);
 	_historyUpdates.fire({});
 }
@@ -1092,21 +1072,20 @@ void Session::setCollectibles(std::vector<Gram::NftItem> &&list) {
 		_collectiblesTab = false;
 	}
 	for (const auto &item : _collectibles) {
-		_collectibleInfo[Gram::FormatRaw(item.address)] = item;
+		_collectibleInfo[item.address] = item;
 	}
 	_collectiblesUpdates.fire({});
 }
 
 void Session::resolveCollectibleInfo(
-		const Gram::Address &item,
+		const QString &item,
 		Fn<void(const Gram::NftItem &)> done) {
-	const auto key = Gram::FormatRaw(item);
-	const auto i = _collectibleInfo.find(key);
+	const auto i = _collectibleInfo.find(item);
 	if (i != end(_collectibleInfo)) {
 		done(i->second);
 		return;
 	}
-	auto &waiters = _collectibleInfoWaiters[key];
+	auto &waiters = _collectibleInfoWaiters[item];
 	const auto first = waiters.empty();
 	waiters.push_back(std::move(done));
 	if (!first) {
@@ -1114,12 +1093,13 @@ void Session::resolveCollectibleInfo(
 	}
 	const auto finish = [=](Gram::NftItem found, bool remember) {
 		if (remember) {
-			_collectibleInfo[key] = found;
+			_collectibleInfo[item] = found;
 		}
-		for (const auto &callback : base::take(_collectibleInfoWaiters[key])) {
+		auto &waiting = _collectibleInfoWaiters[item];
+		for (const auto &callback : base::take(waiting)) {
 			callback(found);
 		}
-		_collectibleInfoWaiters.remove(key);
+		_collectibleInfoWaiters.remove(item);
 	};
 	_api.request(
 		Gram::NftItemByAddressRequest(item),
@@ -1141,7 +1121,7 @@ void Session::resolveCollectibleInfo(
 }
 
 #ifdef _DEBUG
-void Session::injectDebugHistory(std::vector<Gram::TransferItem> items) {
+void Session::injectDebugHistory(std::vector<TransferItem> items) {
 	_historyInjected = true;
 	setHistory(std::move(items));
 }
@@ -1309,11 +1289,11 @@ rpl::producer<bool> Session::stateKnownValue() const {
 	return _stateKnown.value();
 }
 
-Gram::AccountStatus Session::status() const {
+AccountStatus Session::status() const {
 	return _engineStatus;
 }
 
-const std::vector<Gram::TransferItem> &Session::history() const {
+const std::vector<TransferItem> &Session::history() const {
 	return _history;
 }
 
@@ -1357,7 +1337,7 @@ void Session::estimateFee(const SendArgs &args, Fn<void(FeeResult)> done) {
 	ensureLoaded();
 	if (_keyState.current() == KeyState::None
 		|| args.amountNano <= 0
-		|| args.destination.hash.isEmpty()) {
+		|| args.destination.isEmpty()) {
 		if (done) {
 			done(FeeResult{ .error = SendError::InvalidRequest });
 		}
@@ -1450,7 +1430,7 @@ void Session::send(SendArgs args, Fn<void(SendError)> done) {
 		}
 		return;
 	}
-	if (args.amountNano <= 0 || args.destination.hash.isEmpty()) {
+	if (args.amountNano <= 0 || args.destination.isEmpty()) {
 		if (done) {
 			done(SendError::InvalidRequest);
 		}

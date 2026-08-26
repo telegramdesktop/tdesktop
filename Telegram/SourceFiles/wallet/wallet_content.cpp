@@ -16,10 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "dialogs/ui/dialogs_pill.h"
-#include "gram/api/gram_api_history.h"
-#include "gram/crypto/gram_mnemonic.h"
-#include "gram/ton/gram_address.h"
-#include "gram/ton/gram_transfer_link.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
 #include "info/channel_statistics/earn/earn_format.h"
 #include "info/channel_statistics/earn/earn_icons.h"
@@ -65,6 +61,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/round_rect.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
+#include "wallet/wallet_address.h"
 #include "wallet/wallet_collectible_media.h"
 #include "wallet/wallet_collectibles.h"
 #include "wallet/wallet_fiat.h"
@@ -403,7 +400,7 @@ struct HistoryRowContent {
 	RowAvatar avatar = RowAvatar::Out;
 	PeerData *peer = nullptr;
 	bool itemAmount = false;
-	Gram::Address collectible;
+	QString collectible;
 };
 
 [[nodiscard]] QString ShortAddressForm(const QString &full) {
@@ -412,11 +409,11 @@ struct HistoryRowContent {
 		+ full.right(kShortAddressChars);
 }
 
-[[nodiscard]] QString ShortAddress(const Gram::Address &address) {
-	if (address.hash.isEmpty()) {
+[[nodiscard]] QString ShortAddress(const QString &address) {
+	if (address.isEmpty()) {
 		return QString();
 	}
-	const auto full = Gram::FormatFriendly(address, true);
+	const auto full = FormatFriendly(address, true);
 	return ShortAddressForm(full);
 }
 
@@ -554,7 +551,7 @@ void PaintHistoryRowChipSurface(
 		int outerWidth,
 		const HistoryRowChipState &state,
 		const std::shared_ptr<CollectibleMedia> &media,
-		const Gram::Address &address) {
+		const QString &address) {
 	const auto side = st::walletRowIconSize;
 	const auto radius = st::walletCollectibleThumbRadius;
 	const auto plate = std::min(state.natural, outerWidth);
@@ -630,7 +627,7 @@ void AddHistoryRowChip(
 		not_null<Ui::VerticalLayout*> inner,
 		not_null<HistoryRowButton*> button,
 		std::shared_ptr<CollectibleMedia> media,
-		Gram::Address address) {
+		QString address) {
 	Ui::AddSkip(inner, st::walletChipTopSkip);
 	const auto chip = inner->add(object_ptr<Ui::FixedHeightWidget>(
 		inner,
@@ -678,7 +675,7 @@ void AddHistoryRowChip(
 		PaintHistoryRowChipSurface(p, chip->width(), *state, media, address);
 		p.translate(-origin);
 	});
-	const auto mine = [=](const Gram::Address &changed) {
+	const auto mine = [=](const QString &changed) {
 		return (changed == address);
 	};
 	media->changed(
@@ -803,19 +800,19 @@ void AddHistoryRow(
 	}, wrap->lifetime());
 }
 
-[[nodiscard]] bool ShowsCollectible(const Gram::TransferItem &item) {
-	return (item.kind == Gram::TransferItem::Kind::Collectible)
-		&& (item.status == Gram::TransferItem::Status::Success)
-		&& !item.collectible.hash.isEmpty();
+[[nodiscard]] bool ShowsCollectible(const TransferItem &item) {
+	return (item.kind == TransferItem::Kind::Collectible)
+		&& (item.status == TransferItem::Status::Success)
+		&& !item.collectible.isEmpty();
 }
 
 [[nodiscard]] HistoryRowContent RowContentFromItem(
-		const Gram::TransferItem &item,
+		const TransferItem &item,
 		not_null<Main::Session*> session) {
-	using Kind = Gram::TransferItem::Kind;
+	using Kind = TransferItem::Kind;
 	const auto date = langDateTime(base::unixtime::parse(item.date));
 	if (ShowsCollectible(item)) {
-		const auto hasCounterparty = !item.counterparty.hash.isEmpty();
+		const auto hasCounterparty = !item.counterparty.isEmpty();
 		const auto kindText = item.incoming
 			? tr::lng_wallet_row_collectible_in(tr::now)
 			: tr::lng_wallet_row_collectible_out(tr::now);
@@ -832,7 +829,7 @@ void AddHistoryRow(
 		};
 	}
 	const auto pending
-		= (item.status == Gram::TransferItem::Status::Pending);
+		= (item.status == TransferItem::Status::Pending);
 	if (item.kind == Kind::CardTopUp) {
 		return {
 			.title = tr::lng_wallet_row_card_topup(tr::now),
@@ -868,7 +865,7 @@ void AddHistoryRow(
 	}
 	const auto contract = (item.kind == Kind::ContractInteraction);
 	const auto collectible = (item.kind == Kind::Collectible);
-	const auto hasCounterparty = !item.counterparty.hash.isEmpty();
+	const auto hasCounterparty = !item.counterparty.isEmpty();
 	const auto kindText = contract
 		? tr::lng_wallet_row_smart_contract(tr::now)
 		: collectible
@@ -914,21 +911,21 @@ void AddHistoryRow(
 	};
 }
 
-[[nodiscard]] Gram::TransferItem ItemFromPending(
+[[nodiscard]] TransferItem ItemFromPending(
 		const PendingSendInfo &pending) {
-	auto result = Gram::TransferItem();
+	auto result = TransferItem();
 	result.incoming = false;
 	result.counterparty = pending.destination;
 	result.amountNano = pending.amountNano;
 	result.comment = pending.comment;
 	result.date = pending.posted;
-	result.status = Gram::TransferItem::Status::Pending;
+	result.status = TransferItem::Status::Pending;
 	return result;
 }
 
 void AddDetailsAmountHeader(
 		not_null<Ui::GenericBox*> box,
-		const Gram::TransferItem &item,
+		const TransferItem &item,
 		int topSkip,
 		rpl::producer<FiatRate> rate = nullptr) {
 	const auto container = box->addRow(
@@ -961,7 +958,7 @@ void AddDetailsAmountHeader(
 		st::walletDetailsAmountMinorLabel);
 	minor->setMarkedText(std::move(minorText), helper.context());
 	const auto pending
-		= (item.status == Gram::TransferItem::Status::Pending);
+		= (item.status == TransferItem::Status::Pending);
 	const auto &color = pending
 		? st::windowSubTextFg
 		: item.incoming
@@ -1023,7 +1020,7 @@ void AddDetailsCollectibleHeader(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
 		std::shared_ptr<CollectibleMedia> media,
-		const Gram::TransferItem &item) {
+		const TransferItem &item) {
 	const auto container = box->addRow(
 		object_ptr<Ui::RpWidget>(box),
 		style::margins(
@@ -1065,10 +1062,10 @@ void AddDetailsCollectibleHeader(
 	collection->hide();
 	collection->setClickedCallback([=] {
 		const auto contract = media->collection(address);
-		if (!contract.hash.isEmpty()) {
+		if (!contract.isEmpty()) {
 			UrlClickHandler::Open(Core::TonExplorerUrl(
 				session,
-				Gram::FormatFriendly(contract, true)));
+				FormatFriendly(contract, true)));
 		}
 	});
 	collection->paintRequest(
@@ -1087,7 +1084,7 @@ void AddDetailsCollectibleHeader(
 		collectionLabel->moveToLeft(0, 0, collection->width());
 	}, collection->lifetime());
 	const auto relayout = [=] {
-		const auto hasCollection = !media->collection(address).hash.isEmpty();
+		const auto hasCollection = !media->collection(address).isEmpty();
 		collection->setVisible(hasCollection);
 		const auto nameTop = st::walletDetailsCollectibleSize
 			+ st::walletDetailsCollectibleNameSkip;
@@ -1113,7 +1110,7 @@ void AddDetailsCollectibleHeader(
 		name->setMarkedText(CollectibleTitleText(view));
 		name->resizeToNaturalWidth(available);
 		const auto contract = media->collection(address);
-		if (!contract.hash.isEmpty()) {
+		if (!contract.isEmpty()) {
 			collectionLabel->setText(view.collectionName.isEmpty()
 				? ShortAddress(contract)
 				: view.collectionName);
@@ -1121,7 +1118,7 @@ void AddDetailsCollectibleHeader(
 		}
 		relayout();
 	};
-	const auto mine = [=](const Gram::Address &changed) {
+	const auto mine = [=](const QString &changed) {
 		return (changed == address);
 	};
 	media->changed(
@@ -1161,7 +1158,7 @@ void AddDetailsCollectibleHeader(
 
 void AddDetailsComment(
 		not_null<Ui::GenericBox*> box,
-		const Gram::TransferItem &item) {
+		const TransferItem &item) {
 	const auto comment = item.comment.trimmed();
 	if (comment.isEmpty()) {
 		return;
@@ -1222,7 +1219,7 @@ void AddFeeTableRow(
 void AddDetailsTable(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
-		const Gram::TransferItem &item) {
+		const TransferItem &item) {
 	const auto wrap = box->addRow(
 		object_ptr<Ui::PaddingWrap<Ui::TableLayout>>(
 			box,
@@ -1237,8 +1234,8 @@ void AddDetailsTable(
 		bg->paint(p, wrap->rect());
 	}, wrap->lifetime());
 	const auto table = wrap->entity();
-	if (!item.counterparty.hash.isEmpty()) {
-		const auto address = Gram::FormatFriendly(item.counterparty, true);
+	if (!item.counterparty.isEmpty()) {
+		const auto address = FormatFriendly(item.counterparty, true);
 		auto label = (item.incoming
 			? tr::lng_wallet_details_sender()
 			: tr::lng_wallet_details_recipient());
@@ -1263,7 +1260,7 @@ void AddDetailsTable(
 		}
 	}
 	const auto pending
-		= (item.status == Gram::TransferItem::Status::Pending);
+		= (item.status == TransferItem::Status::Pending);
 	if (item.feeNano > 0 && !pending) {
 		AddFeeTableRow(table, session, item.feeNano, true);
 	}
@@ -2698,7 +2695,7 @@ void SetupIntroTooltip(
 void WalletTransactionBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
-		Gram::TransferItem item,
+		TransferItem item,
 		std::shared_ptr<CollectibleMedia> media) {
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::walletDetailsBox);
@@ -2762,7 +2759,7 @@ void WalletTransactionBox(
 
 void ShowWalletTransactionBox(
 		std::shared_ptr<Main::SessionShow> show,
-		const Gram::TransferItem &item,
+		const TransferItem &item,
 		std::shared_ptr<CollectibleMedia> media = nullptr) {
 	show->showBox(Box(
 		WalletTransactionBox,
@@ -2799,7 +2796,7 @@ void ApplyCommentLimit(not_null<Ui::InputField*> field) {
 }
 
 struct SendFlow {
-	Gram::Address destination;
+	QString destination;
 	bool bounce = true;
 	QString displayForm;
 	int64 amountNano = 0;
@@ -2812,21 +2809,23 @@ struct SendFlow {
 	auto address = text;
 	auto amountNano = int64(0);
 	auto comment = QString();
-	if (const auto link = Gram::ParseTransferLink(text)) {
+	if (const auto link = ParseTransferLink(text)) {
 		address = link->address;
 		amountNano = link->amountNano;
 		comment = link->comment.trimmed();
 	}
-	const auto parsed = Gram::ParseAddress(address);
+	const auto parsed = ParseAddress(address);
 	if (!parsed || parsed->testnet) {
 		return std::nullopt;
 	}
+	const auto friendly = FormatFriendly(parsed->raw, parsed->bounceable);
+	if (friendly.isEmpty()) {
+		return std::nullopt;
+	}
 	return SendFlow{
-		.destination = parsed->address,
+		.destination = parsed->raw,
 		.bounce = parsed->bounceable,
-		.displayForm = (parsed->friendly
-			? address
-			: Gram::FormatFriendly(parsed->address, parsed->bounceable)),
+		.displayForm = (parsed->friendly ? address : friendly),
 		.amountNano = amountNano,
 		.comment = (CommentFits(comment) ? comment : QString()),
 	};
@@ -2925,10 +2924,10 @@ void WalletSendConfirmBox(
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
 
-	auto item = Gram::TransferItem();
+	auto item = TransferItem();
 	item.incoming = false;
 	item.amountNano = flow.amountNano;
-	item.status = Gram::TransferItem::Status::Success;
+	item.status = TransferItem::Status::Success;
 	AddDetailsAmountHeader(
 		box,
 		item,
@@ -4007,7 +4006,7 @@ void WalletImportBox(
 		const auto count = state->count.current();
 		for (auto i = 0; i != count; ++i) {
 			const auto word = wordAt(i);
-			if (word.isEmpty() || !Gram::IsWordlistWord(word)) {
+			if (word.isEmpty() || !IsWordlistWord(word)) {
 				return false;
 			}
 		}
@@ -4186,7 +4185,7 @@ void WalletImportBox(
 		const auto typed = wordAt(index);
 		auto words = typed.isEmpty()
 			? std::vector<QString>()
-			: Gram::WordlistSuggestions(typed, kImportSuggestionsLimit);
+			: WordlistSuggestions(typed, kImportSuggestionsLimit);
 		if (!field->hasFocus()
 			|| words.empty()
 			|| (words.size() == 1 && words.front() == typed)) {

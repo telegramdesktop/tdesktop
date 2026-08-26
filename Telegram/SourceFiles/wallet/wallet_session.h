@@ -9,10 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/flat_map.h"
 #include "base/timer.h"
-#include "gram/api/gram_api_account.h"
-#include "gram/api/gram_api_history.h"
 #include "gram/api/gram_api_nft.h"
-#include "gram/ton/gram_address.h"
+#include "wallet/wallet_address.h"
 #include "wallet/wallet_api.h"
 #include "wallet/wallet_stream.h"
 
@@ -43,6 +41,13 @@ enum class KeyState {
 	Imported,
 };
 
+enum class AccountStatus {
+	NonExisting,
+	Uninit,
+	Active,
+	Frozen,
+};
+
 enum class LifecycleError {
 	None,
 	InvalidPhrase,
@@ -66,6 +71,41 @@ enum class SendState {
 	Pending,
 };
 
+struct TransferItem {
+	enum class Status {
+		Success,
+		Failure,
+		Pending,
+	};
+	enum class Kind {
+		Transfer,
+		ContractInteraction,
+		Collectible,
+		CardTopUp,
+		PeerTransfer,
+	};
+
+	Kind kind = Kind::Transfer;
+	bool incoming = false;
+	QString counterparty;
+	QString counterpartyName;
+	quint64 counterpartyPeer = 0;
+	QString collectible;
+	QString collectibleName;
+	QString collectibleImageUrl;
+	QString provider;
+	int64 amountNano = 0;
+	int64 feeNano = 0;
+	QString comment;
+	bool commentEncrypted = false;
+	QByteArray encryptedPayload;
+	TimeId date = 0;
+	quint64 lt = 0;
+	QByteArray traceId;
+	QByteArray externalHashNorm;
+	Status status = Status::Success;
+};
+
 struct FeeResult {
 	int64 feeNano = 0;
 	SendError error = SendError::None;
@@ -74,22 +114,27 @@ struct FeeResult {
 struct PendingSendInfo {
 	TimeId posted = 0;
 	int64 amountNano = 0;
-	Gram::Address destination;
+	QString destination;
 	QString comment;
 };
 
 struct SendArgs {
-	Gram::Address destination;
+	QString destination;
 	int64 amountNano = 0;
 	QString comment;
 	bool bounce = true;
 };
 
-[[nodiscard]] std::vector<Gram::TransferItem> HistoryFromEngine(
+[[nodiscard]] std::vector<TransferItem> HistoryFromEngine(
 	const std::vector<wallet_engine::ActivityItem> &items);
 
 [[nodiscard]] std::vector<Gram::NftItem> CollectiblesFromEngine(
 	const wallet_engine::NftList &list);
+
+[[nodiscard]] bool IsWordlistWord(const QString &word);
+[[nodiscard]] std::vector<QString> WordlistSuggestions(
+	const QString &prefix,
+	int limit);
 
 class Session final {
 public:
@@ -98,7 +143,7 @@ public:
 
 	[[nodiscard]] KeyState keyState();
 	[[nodiscard]] rpl::producer<KeyState> keyStateValue();
-	[[nodiscard]] std::optional<Gram::Address> address();
+	[[nodiscard]] std::optional<QString> address();
 	[[nodiscard]] QString addressFriendly(bool bounceable = false);
 
 	void create(Fn<void(LifecycleError)> done);
@@ -116,13 +161,10 @@ public:
 	[[nodiscard]] int64 balanceNano() const;
 	[[nodiscard]] rpl::producer<int64> balanceNanoValue() const;
 	[[nodiscard]] rpl::producer<bool> stateKnownValue() const;
-	[[nodiscard]] Gram::AccountStatus status() const;
-	[[nodiscard]] const std::vector<Gram::TransferItem> &history() const;
+	[[nodiscard]] AccountStatus status() const;
+	[[nodiscard]] const std::vector<TransferItem> &history() const;
 	[[nodiscard]] rpl::producer<> historyUpdates() const;
 
-	void refreshState(
-		Fn<void(const Gram::AccountState &)> done = nullptr,
-		Fn<void(const Gram::ApiError &)> fail = nullptr);
 	void refreshHistory(Fn<void()> done = nullptr);
 	[[nodiscard]] bool historyHasNext() const;
 	void loadMoreHistory();
@@ -133,10 +175,10 @@ public:
 	[[nodiscard]] rpl::producer<bool> collectiblesTabValue() const;
 	void setCollectiblesTab(bool value);
 	void resolveCollectibleInfo(
-		const Gram::Address &item,
+		const QString &item,
 		Fn<void(const Gram::NftItem &)> done);
 #ifdef _DEBUG
-	void injectDebugHistory(std::vector<Gram::TransferItem> items);
+	void injectDebugHistory(std::vector<TransferItem> items);
 	void injectDebugCollectibles(std::vector<Gram::NftItem> items);
 	void debugRawRequest(
 		const Gram::HttpRequest &request,
@@ -195,7 +237,7 @@ private:
 	void applyEngineActivity(
 		const wallet_engine::WalletUpdate &update,
 		bool more);
-	void setHistory(std::vector<Gram::TransferItem> &&list);
+	void setHistory(std::vector<TransferItem> &&list);
 	void refreshCollectibles(bool force = false);
 	void requestCollectibles(bool more);
 	void applyCollectiblesUpdate(
@@ -221,13 +263,13 @@ private:
 	rpl::variable<KeyState> _keyState = KeyState::None;
 	rpl::variable<bool> _phraseUnviewed = false;
 	std::unique_ptr<wallet_engine::WalletDescriptor> _descriptor;
-	Gram::Address _address;
+	QString _address;
 
 	rpl::variable<int64> _balanceNano = 0;
 	rpl::variable<bool> _stateKnown = false;
-	Gram::AccountStatus _engineStatus = Gram::AccountStatus::NonExisting;
+	AccountStatus _engineStatus = AccountStatus::NonExisting;
 	crl::time _stateRefreshedAt = 0;
-	std::vector<Gram::TransferItem> _history;
+	std::vector<TransferItem> _history;
 	rpl::event_stream<> _historyUpdates;
 	bool _historyHasNext = false;
 	crl::time _historyRefreshedAt = 0;
@@ -250,15 +292,12 @@ private:
 
 	int _pollingCount = 0;
 	int _networkGeneration = 0;
-	bool _stateRequestPending = false;
 	bool _historyRequestPending = false;
 	bool _resolveRequestPending = false;
 	QString _engineClientAddress;
 	bool _engineStopping = false;
 	bool _engineRefreshPending = false;
 	bool _lifecyclePending = false;
-	std::vector<Fn<void(const Gram::AccountState &)>> _stateDone;
-	std::vector<Fn<void(const Gram::ApiError &)>> _stateFail;
 	std::vector<Fn<void()>> _historyDone;
 
 	rpl::variable<SendState> _sendState = SendState::Idle;

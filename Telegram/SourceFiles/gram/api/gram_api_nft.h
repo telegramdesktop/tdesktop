@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/basic_types.h"
 #include "gram/api/gram_api_request.h"
-#include "gram/ton/gram_address.h"
 
 #include <QtCore/QString>
 
@@ -26,9 +25,10 @@ enum class NftKind {
 };
 
 struct NftItem {
-	Address address;
-	Address collection;
-	Address realOwner;
+	// Canonical raw addresses, lowercase `workchain:64-hex`.
+	QString address;
+	QString collection;
+	QString realOwner;
 	QString index;
 	QString contentUri;
 	QString domain;
@@ -49,7 +49,7 @@ struct NftDescriptor {
 	QString imageUrl;
 };
 
-[[nodiscard]] HttpRequest NftItemByAddressRequest(const Address &item);
+[[nodiscard]] HttpRequest NftItemByAddressRequest(const QString &item);
 [[nodiscard]] std::optional<NftPage> ParseNftItems(
 	const QByteArray &json,
 	int limit);

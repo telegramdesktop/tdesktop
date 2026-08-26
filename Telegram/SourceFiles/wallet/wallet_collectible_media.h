@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_map.h"
 #include "base/weak_ptr.h"
 #include "gram/api/gram_api_nft.h"
-#include "gram/ton/gram_address.h"
 
 #include <memory>
 
@@ -47,19 +46,19 @@ public:
 	explicit CollectibleMedia(not_null<Main::Session*> session);
 	~CollectibleMedia();
 
-	void resolve(const Gram::Address &item);
+	void resolve(const QString &item);
 
-	[[nodiscard]] CollectibleView view(const Gram::Address &item) const;
-	[[nodiscard]] Gram::Address collection(const Gram::Address &item) const;
+	[[nodiscard]] CollectibleView view(const QString &item) const;
+	[[nodiscard]] QString collection(const QString &item) const;
 	void paint(
 		Painter &p,
-		const Gram::Address &item,
+		const QString &item,
 		QRect rect,
 		int outerWidth,
 		int radius);
 
-	[[nodiscard]] rpl::producer<Gram::Address> changed() const;
-	[[nodiscard]] rpl::producer<Gram::Address> repaint() const;
+	[[nodiscard]] rpl::producer<QString> changed() const;
+	[[nodiscard]] rpl::producer<QString> repaint() const;
 
 private:
 	struct Entry;
@@ -74,15 +73,15 @@ private:
 		Fn<void(QByteArray)> done);
 	void startImageLoad(not_null<Entry*> entry, const QString &url);
 	void startDescriptorLoad(not_null<Entry*> entry, const QString &url);
-	[[nodiscard]] Entry *find(const Gram::Address &item) const;
+	[[nodiscard]] Entry *find(const QString &item) const;
 	[[nodiscard]] const QImage &preparedFor(
 		not_null<Entry*> entry,
 		int side,
 		int radius);
 
 	const not_null<Main::Session*> _session;
-	rpl::event_stream<Gram::Address> _changed;
-	rpl::event_stream<Gram::Address> _repaint;
+	rpl::event_stream<QString> _changed;
+	rpl::event_stream<QString> _repaint;
 	base::flat_map<QString, std::unique_ptr<Entry>> _map;
 
 };

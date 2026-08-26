@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unixtime.h"
 #include "core/websocket_client.h"
+#include "wallet/wallet_address.h"
 #include "wallet/wallet_api.h"
 
 namespace Wallet {
@@ -46,7 +47,7 @@ Stream::~Stream() {
 	stop();
 }
 
-void Stream::start(const Gram::Address &address) {
+void Stream::start(const QString &address) {
 	if (_started) {
 		if (_address == address) {
 			return;
@@ -54,7 +55,7 @@ void Stream::start(const Gram::Address &address) {
 		stop();
 	}
 	_address = address;
-	_addressFriendly = Gram::FormatFriendly(address, false);
+	_addressFriendly = FormatFriendly(address, false);
 	_started = true;
 	_retryAttempt = 0;
 	acquire();
@@ -279,8 +280,11 @@ void Stream::flush() {
 	}
 }
 
-bool Stream::mine(const std::vector<Gram::Address> &accounts) const {
-	return ranges::contains(accounts, _address);
+bool Stream::mine(const std::vector<QString> &accounts) const {
+	return ranges::any_of(accounts, [&](const QString &account) {
+		const auto canonical = CanonicalAddress(account);
+		return !canonical.isEmpty() && (canonical == _address);
+	});
 }
 
 #ifdef _DEBUG

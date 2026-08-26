@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_star_gift.h"
 #include "gram/api/gram_api_nft.h"
-#include "gram/ton/gram_address.h"
 #include "lang/lang_keys.h"
 #include "main/session/session_show.h"
 #include "main/main_session.h"
@@ -286,7 +285,7 @@ void CollectiblePreviewBox(
 	};
 	apply();
 
-	const auto mine = [=](const Gram::Address &changed) {
+	const auto mine = [=](const QString &changed) {
 		return (changed == address);
 	};
 	media->changed(
@@ -346,7 +345,7 @@ void AddRow(
 	};
 	apply();
 
-	const auto mine = [=](const Gram::Address &changed) {
+	const auto mine = [=](const QString &changed) {
 		return (changed == address);
 	};
 	media->changed(

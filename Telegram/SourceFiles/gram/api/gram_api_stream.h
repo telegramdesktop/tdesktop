@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "gram/ton/gram_address.h"
-
 #include <QtCore/QByteArray>
 #include <QtCore/QString>
 
@@ -30,9 +28,14 @@ enum class StreamEventKind {
 	TraceInvalidated,
 };
 
+// StreamEvent::accounts carries the provider's account strings
+// verbatim, deduplicated by string. A frame may name the same account
+// in raw or in user-friendly form, and both are kept as distinct
+// entries; normalizing them to decide whether one of them is ours is
+// Wallet::Stream::mine()'s job, not this parser's.
 struct StreamEvent {
 	StreamEventKind kind = StreamEventKind::Unknown;
-	std::vector<Address> accounts;
+	std::vector<QString> accounts;
 };
 
 [[nodiscard]] std::optional<StreamEndpoint> ParseStreamEndpoint(

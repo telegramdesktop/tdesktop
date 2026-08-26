@@ -1,40 +1,4 @@
 {
-  "task": "2026/07/24/generate-walletkit-golden-vectors",
-  "kitCommit": "3ed85b16aa8b9db328641224027d99d54182c2cb",
-  "versions": {
-    "node": "v22.16.0",
-    "tonCore": "0.63.1",
-    "tonCrypto": "3.3.0",
-    "walletkit": "1.1.0-beta.0"
-  },
-  "inputs": {
-    "mnemonicRef": "walletkit src/contracts/w5/WalletV5R1.fixture.ts lines 24-49",
-    "mnemonic": "hospital stove relief fringe tongue always charge angry urge sentence again match nerve inquiry senior coconut label tumble carry category beauty bean road solution",
-    "walletId": 2147483409,
-    "seqno": 5,
-    "validUntil": 1753300000,
-    "amountNano": "10000000",
-    "comment": "test",
-    "sendMode": 3,
-    "destination": "EQDSLOFVamNZzdy4LulclcCBEFkRReZ7WscBCLAw3Pg53kAk",
-    "stateInitAttached": true,
-    "authType": "external",
-    "domain": "none"
-  },
-  "vectors": {
-    "signedTransferBocB64": "te6cckECGQEAA20AA+eIAaRZwqrUxrObuXBd0rkrgQIgsiKLzPa1jgIRYGG58HO8EY5tLO3P///iLRAnhAAAAAC00BHY9Iuffj0D2hAPA3uvTYEkSyXNwmBl9ntjuMg1sk3dp9PrWrRTO4B0UMTp9p27Au+bCPax1NlTOOoNZiJYXAEVFgEU/wD0pBP0vPLICwICASADDgIBSAQFAtzQINdJwSCRW49jINcLHyCCEGV4dG69IYIQc2ludL2wkl8D4IIQZXh0brqOtIAg1yEB0HTXIfpAMPpE+Cj6RDBYvZFb4O1E0IEBQdch9AWDB/QOb6ExkTDhgEDXIXB/2zzgMSDXSYECgLmRMOBw4hEQAgEgBg0CASAHCgIBbggJABmtznaiaEAg65Drhf/AABmvHfaiaEAQ65DrhY/AAgFICwwAF7Ml+1E0HHXIdcLH4AARsmL7UTQ1woAgABm+Xw9qJoQICg65D6AsAQLyDwEeINcLH4IQc2lnbrry4Ip/EAHmjvDtou37IYMI1yICgwjXIyCAINch0x/TH9Mf7UTQ0gDTHyDTH9P/1woACvkBQMz5EJoolF8K2zHh8sCH3wKzUAew8tCEUSW68uCFUDa68uCG+CO78tCIIpL4AN4BpH/IygDLHwHPFsntVCCS+A/ecNs82BED9u2i7fsC9AQhbpJsIY5MAiHXOTBwlCHHALOOLQHXKCB2HkNsINdJwAjy4JMg10rAAvLgkyDXHQbHEsIAUjCw8tCJ10zXOTABpOhsEoQHu/Lgk9dKwADy4JPtVeLSAAHAAJFb4OvXLAgUIJFwlgHXLAgcEuJSELHjDyDXShITFACWAfpAAfpE+Cj6RDBYuvLgke1E0IEBQdcY9AUEnX/IygBABIMH9FPy4IuOFAODB/Rb8uCMItcKACFuAbOw8tCQ4shQA88WEvQAye1UAHIw1ywIJI4tIfLgktIA7UTQ0gBRE7ry0I9UUDCRMZwBgQFA1yHXCgDy4I7iyMoAWM8Wye1Uk/LAjeIAEJNb2zHh10zQAFGAAAAAP///iPtiKFC12OKKcReMu/HIUYEqzNUPPYADRTVWeQjKQmDeoAIKDsPIbQMXGAAAAHZiAGkWcKq1Mazm7lwXdK5K4ECILIii8z2tY4CEWBhufBzvHMS0AAAAAAAAAAAAAAAAAAAAAAAAdGVzdLS0IHQ=",
-    "signedTransferFakeBocB64": "te6cckECGQEAA20AA+eIAaRZwqrUxrObuXBd0rkrgQIgsiKLzPa1jgIRYGG58HO8EY5tLO3P///iLRAnhAAAAACyFZg/O+orCxToNGC1rAgGUfyu3Q9JvIfQVtnAYxkrvkjDUrdKiRpPJUKmKt6uQstRgdjWTjgq9ABJyP56pyyQTAEVFgEU/wD0pBP0vPLICwICASADDgIBSAQFAtzQINdJwSCRW49jINcLHyCCEGV4dG69IYIQc2ludL2wkl8D4IIQZXh0brqOtIAg1yEB0HTXIfpAMPpE+Cj6RDBYvZFb4O1E0IEBQdch9AWDB/QOb6ExkTDhgEDXIXB/2zzgMSDXSYECgLmRMOBw4hEQAgEgBg0CASAHCgIBbggJABmtznaiaEAg65Drhf/AABmvHfaiaEAQ65DrhY/AAgFICwwAF7Ml+1E0HHXIdcLH4AARsmL7UTQ1woAgABm+Xw9qJoQICg65D6AsAQLyDwEeINcLH4IQc2lnbrry4Ip/EAHmjvDtou37IYMI1yICgwjXIyCAINch0x/TH9Mf7UTQ0gDTHyDTH9P/1woACvkBQMz5EJoolF8K2zHh8sCH3wKzUAew8tCEUSW68uCFUDa68uCG+CO78tCIIpL4AN4BpH/IygDLHwHPFsntVCCS+A/ecNs82BED9u2i7fsC9AQhbpJsIY5MAiHXOTBwlCHHALOOLQHXKCB2HkNsINdJwAjy4JMg10rAAvLgkyDXHQbHEsIAUjCw8tCJ10zXOTABpOhsEoQHu/Lgk9dKwADy4JPtVeLSAAHAAJFb4OvXLAgUIJFwlgHXLAgcEuJSELHjDyDXShITFACWAfpAAfpE+Cj6RDBYuvLgke1E0IEBQdcY9AUEnX/IygBABIMH9FPy4IuOFAODB/Rb8uCMItcKACFuAbOw8tCQ4shQA88WEvQAye1UAHIw1ywIJI4tIfLgktIA7UTQ0gBRE7ry0I9UUDCRMZwBgQFA1yHXCgDy4I7iyMoAWM8Wye1Uk/LAjeIAEJNb2zHh10zQAFGAAAAAP///iPtiKFC12OKKcReMu/HIUYEqzNUPPYADRTVWeQjKQmDeoAIKDsPIbQMXGAAAAHZiAGkWcKq1Mazm7lwXdK5K4ECILIii8z2tY4CEWBhufBzvHMS0AAAAAAAAAAAAAAAAAAAAAAAAdGVzdJ8cG/I=",
-    "normalizedExtHashHex": "65fd0f5b5a0d9e40c3447b65248900dfdf2d1d56ad748e29994e85f40af26ce6",
-    "normalizedExtHashFakeHex": "a671a581091ff561d6a07d9a46490537bbcc4b01f6192bbca2fded0ac557f7f3",
-    "w5CodeCellHashHex": "20834b7b72b112147e1b2fb457b84e74d1a30f04f737d4f62a668e9552d2b72f",
-    "secretKeyHex": "9d659a6c2234db7f6e4f977e6e8653b9f5946d557163f31034011375d8f3f97df6c450a16bb1c514e22f1977e390a3025599aa1e7b00068a6aacf2119484c1bd",
-    "publicKeyHex": "f6c450a16bb1c514e22f1977e390a3025599aa1e7b00068a6aacf2119484c1bd"
-  },
-  "observations": {
-    "normalizedHashesMatch": false,
-    "expectedMatch": false,
-    "note": "normalization strips init/importFee/src only; the W5 body embeds the signature, so real vs FakeSign bodies (and their normalized hashes) differ"
-  },
   "apiCaptures": {
     "task": "2026/08/06/probe-toncenter-nft-and-dns-endpoints",
     "captured": "2026-08-06",
@@ -188,15 +152,6 @@
         "bytes": 45
       },
       {
-        "file": "api-transactions-owner1.json",
-        "task": "2026/08/06/probe-collectible-metadata-and-date-sources",
-        "captured": "2026-08-06",
-        "method": "GET",
-        "endpoint": "/api/v3/transactions",
-        "query": "account=0%3A9DA971AF38D2F03ABDF308D5F91636A97E5A2B07A66C39D71D7CBAE3B032EDDC&limit=20&offset=0",
-        "bytes": 45531
-      },
-      {
         "file": "api-transactions-latest.json",
         "task": "2026/08/06/probe-collectible-metadata-and-date-sources",
         "captured": "2026-08-06",
@@ -339,34 +294,6 @@
         "url": "https://nft.fragment.com/gift/deskcalendar-45754-notanitem.json",
         "mechanism": "DownloadLocation{PlainUrlLocation} -> CreateFileLoader -> webFileLoader",
         "bytes": 468
-      }
-    ]
-  },
-  "derivedFixtures": {
-    "note": "fixtures produced by editing a committed body rather than by a request; not wire captures",
-    "files": [
-      {
-        "file": "api-nft-received-traces-unindexed.json",
-        "task": "2026/08/06/port-toncenter-nft-and-name-parsers",
-        "derivedFrom": "api-nft-received-traces.json",
-        "transform": "the metadata block rewritten to the shape this deployment's proxy serves for an nft_items entry - \"is_indexed\": false with token_info carrying only type and nft_index; every other byte unchanged",
-        "encodes": "the production metadata shape measured by 2026/08/06/probe-collectible-metadata-and-date-sources in api-traces-owner1-limit5.json and, bare, in api-metadata-address-gift.json",
-        "bytes": 31259
-      }
-    ]
-  },
-  "kitTraceExports": {
-    "note": "byte-preserving copies of kit/packages/walletkit/data/*.json, fetched by that repo's data.sh with curl against public https://toncenter.com/api/v3 with an API key - toncenter's own answers, not captures from the MTProto proxy this app talks to, which is why they carry no apiCaptures.requests entry",
-    "files": [
-      {
-        "file": "api-nft-received-traces.json",
-        "enrichment": "its metadata block reads \"is_indexed\": true with the item's name, image and three extra._image_* imgproxy URLs - a shape this deployment does not serve: 2026/08/06/probe-collectible-metadata-and-date-sources measured 306 metadata entries across 32 answered bodies with zero name and zero image, and every nft_items entry \"is_indexed\": false",
-        "bytes": 32690
-      },
-      {
-        "file": "api-nft-sent-traces.json",
-        "enrichment": "same enriched metadata shape as api-nft-received-traces.json, and the same verdict: this deployment does not serve it",
-        "bytes": 32996
       }
     ]
   }

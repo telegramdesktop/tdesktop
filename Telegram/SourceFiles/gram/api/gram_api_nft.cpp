@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Gram {
 namespace {
 
+constexpr auto kRawHashChars = 64;
+
 struct FragmentCollection {
 	const char16_t *raw = nullptr;
 	const char16_t *segment = nullptr;
@@ -39,20 +41,43 @@ constexpr auto kFragmentCollections = std::array{
 	},
 };
 
-[[nodiscard]] std::optional<Address> ParseRawAddress(const QJsonValue &value) {
+[[nodiscard]] bool IsHash64(const QString &text) {
+	if (text.size() != kRawHashChars) {
+		return false;
+	}
+	for (const auto ch : text) {
+		const auto code = ch.unicode();
+		const auto hex = (code >= '0' && code <= '9')
+			|| (code >= 'a' && code <= 'f')
+			|| (code >= 'A' && code <= 'F');
+		if (!hex) {
+			return false;
+		}
+	}
+	return true;
+}
+
+[[nodiscard]] QString CanonicalRawAddress(const QJsonValue &value) {
 	if (!value.isString()) {
-		return std::nullopt;
+		return QString();
 	}
-	const auto parsed = ParseAddress(value.toString());
-	if (!parsed) {
-		return std::nullopt;
+	const auto text = value.toString();
+	const auto colon = text.indexOf(QChar(':'));
+	if (colon < 0) {
+		return QString();
 	}
-	return parsed->address;
+	const auto hash = text.mid(colon + 1);
+	auto ok = false;
+	const auto workchain = text.left(colon).toInt(&ok, 10);
+	if (!ok || !IsHash64(hash)) {
+		return QString();
+	}
+	return QString::number(workchain) + u":"_q + hash.toLower();
 }
 
 [[nodiscard]] const FragmentCollection *FragmentEntry(
-		const Address &collection) {
-	const auto raw = FormatRaw(collection).toUpper();
+		const QString &collection) {
+	const auto raw = collection.toUpper();
 	for (const auto &entry : kFragmentCollections) {
 		if (raw == QStringView(entry.raw)) {
 			return &entry;
@@ -91,23 +116,19 @@ constexpr auto kFragmentCollections = std::array{
 }
 
 [[nodiscard]] std::optional<NftItem> ParseNftItem(const QJsonObject &object) {
-	const auto address = ParseRawAddress(object.value(u"address"_q));
-	if (!address) {
+	const auto address = CanonicalRawAddress(object.value(u"address"_q));
+	if (address.isEmpty()) {
 		return std::nullopt;
 	}
 	auto result = NftItem();
-	result.address = *address;
+	result.address = address;
 	const auto index = object.value(u"index"_q);
 	if (index.isString()) {
 		result.index = index.toString();
 	}
-	if (const auto collection = ParseRawAddress(
-			object.value(u"collection_address"_q))) {
-		result.collection = *collection;
-	}
-	if (const auto owner = ParseRawAddress(object.value(u"real_owner"_q))) {
-		result.realOwner = *owner;
-	}
+	result.collection = CanonicalRawAddress(
+		object.value(u"collection_address"_q));
+	result.realOwner = CanonicalRawAddress(object.value(u"real_owner"_q));
 	const auto content = object.value(u"content"_q).toObject();
 	const auto uri = content.value(u"uri"_q);
 	if (uri.isString()) {
@@ -144,12 +165,11 @@ void ClassifyNftKind(NftItem &item) {
 	}
 }
 
-HttpRequest NftItemByAddressRequest(const Address &item) {
+HttpRequest NftItemByAddressRequest(const QString &item) {
 	auto result = HttpRequest();
 	result.post = false;
 	result.endpoint = u"/api/v3/nft/items"_q;
-	result.query = u"address="_q
-		+ ApiDetails::PercentEncoded(FormatRaw(item).toUpper());
+	result.query = u"address="_q + ApiDetails::PercentEncoded(item.toUpper());
 	return result;
 }
 

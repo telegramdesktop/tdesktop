@@ -2158,6 +2158,8 @@ PRIVATE
     ui/unread_badge.h
     ui/peer/video_userpic_player.cpp
     ui/peer/video_userpic_player.h
+    wallet/wallet_address.cpp
+    wallet/wallet_address.h
     wallet/wallet_api.cpp
     wallet/wallet_api.h
     wallet/wallet_collectible_media.cpp

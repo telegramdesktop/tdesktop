@@ -22,18 +22,6 @@ struct Check {
 	Fn<QString()> run;
 };
 
-[[nodiscard]] inline QString CompareHex(
-		const QByteArray &got,
-		const QByteArray &expectedHex) {
-	if (got == QByteArray::fromHex(expectedHex)) {
-		return QString();
-	}
-	return u"got "_q
-		+ QString::fromLatin1(got.toHex())
-		+ u", expected "_q
-		+ QString::fromLatin1(expectedHex);
-}
-
 [[nodiscard]] inline QString CheckRequest(
 		const HttpRequest &got,
 		bool post,
@@ -70,12 +58,6 @@ struct Check {
 	return file.readAll().trimmed();
 }
 
-[[nodiscard]] std::vector<Check> CryptoChecks();
-[[nodiscard]] std::vector<Check> KeyChecks();
-[[nodiscard]] std::vector<Check> MnemonicChecks();
-[[nodiscard]] std::vector<Check> TonChecks();
-[[nodiscard]] std::vector<Check> LinkChecks();
-[[nodiscard]] std::vector<Check> WalletChecks();
 [[nodiscard]] std::vector<Check> ApiChecks();
 [[nodiscard]] std::vector<Check> RatesChecks();
 [[nodiscard]] std::vector<Check> NftChecks();

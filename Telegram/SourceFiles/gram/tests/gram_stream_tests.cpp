@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "gram/tests/gram_tests.h"
 
 #include "gram/api/gram_api_stream.h"
-#include "gram/ton/gram_address.h"
 
 #include <QtCore/QJsonArray>
 #include <QtCore/QJsonDocument>
@@ -23,6 +22,15 @@ const auto kAccountRaw = u"0:9DA971AF38D2F03ABDF308D5F91636A9"
 	u"7E5A2B07A66C39D71D7CBAE3B032EDDC"_q;
 const auto kOtherRaw = u"0:CA0CFD519F763102B5BEC9D9E3AF4359"
 	u"2EA362FB773FA319EA09C4F162C171E0"_q;
+
+// The non-bounceable user-friendly forms of the two accounts above,
+// derived from the TEP-2 encoding and recorded in the task evidence
+// rather than computed here: the parser no longer converts between the
+// two representations, so nothing in this file can produce them.
+const auto kAccountFriendly =
+	u"UQCdqXGvONLwOr3zCNX5FjapflorB6ZsOdcdfLrjsDLt3AF4"_q;
+const auto kOtherFriendly =
+	u"UQDKDP1Rn3YxArW-ydnjr0NZLqNi-3c_oxnqCcTxYsFx4NjV"_q;
 const auto kTraceHash = u"HCSgz9CwJYQJXdDbo03QVft6KJ7RtG5js9Br8qPDCJ4="_q;
 const auto kSecret = u"f4ke-streaming-secret-0123456789"_q;
 
@@ -36,13 +44,13 @@ const auto kSecret = u"f4ke-streaming-secret-0123456789"_q;
 	return u"Invalid"_q;
 }
 
-[[nodiscard]] QString Printed(const std::vector<Address> &accounts) {
+[[nodiscard]] QString Printed(const std::vector<QString> &accounts) {
 	auto result = QString();
-	for (const auto &address : accounts) {
+	for (const auto &account : accounts) {
 		if (!result.isEmpty()) {
 			result += u", "_q;
 		}
-		result += FormatRaw(address);
+		result += account;
 	}
 	return result.isEmpty() ? u"none"_q : result;
 }
@@ -50,7 +58,7 @@ const auto kSecret = u"f4ke-streaming-secret-0123456789"_q;
 [[nodiscard]] QString CheckEvent(
 		const StreamEvent &event,
 		StreamEventKind kind,
-		const std::vector<Address> &accounts) {
+		const std::vector<QString> &accounts) {
 	if (event.kind != kind) {
 		return u"kind: got "_q
 			+ KindName(event.kind)
@@ -283,40 +291,42 @@ std::vector<Check> StreamChecks() {
 			return QString();
 		} },
 		{ u"stream_event_account_state"_q, [] {
-			const auto parsed = ParseAddress(kAccountRaw);
-			if (!parsed) {
-				return u"address parse failed: "_q + kAccountRaw;
-			}
+			// The claim this check makes: the parser carries the account
+			// string the provider sent, verbatim. It does not parse it, it
+			// does not fold a user-friendly form into the raw one, and it
+			// does not reject a value that is not an address at all.
+			// Deciding which of those strings is ours moved out of td_gram
+			// and into Wallet::Stream::mine().
 			const auto raw = CheckEvent(
 				ParseStreamEvent(AccountStateFrame(kAccountRaw)),
 				StreamEventKind::AccountState,
-				{ parsed->address });
+				{ kAccountRaw });
 			if (!raw.isEmpty()) {
 				return u"raw: "_q + raw;
 			}
-			const auto friendly = FormatFriendly(parsed->address, false);
-			const auto matched = CheckEvent(
-				ParseStreamEvent(AccountStateFrame(friendly)),
+			const auto friendly = CheckEvent(
+				ParseStreamEvent(AccountStateFrame(kAccountFriendly)),
 				StreamEventKind::AccountState,
-				{ parsed->address });
-			if (!matched.isEmpty()) {
-				return u"friendly: "_q + matched;
+				{ kAccountFriendly });
+			if (!friendly.isEmpty()) {
+				return u"friendly: "_q + friendly;
 			}
-			const auto unresolved = CheckEvent(
+			const auto unparsed = CheckEvent(
 				ParseStreamEvent(AccountStateFrame(u"address"_q)),
 				StreamEventKind::AccountState,
-				{});
-			return unresolved.isEmpty()
+				{ u"address"_q });
+			return unparsed.isEmpty()
 				? QString()
-				: (u"unresolved: "_q + unresolved);
+				: (u"unparsed: "_q + unparsed);
 		} },
 		{ u"stream_event_transactions"_q, [] {
-			const auto first = ParseAddress(kAccountRaw);
-			const auto second = ParseAddress(kOtherRaw);
-			if (!first || !second) {
-				return u"address parse failed"_q;
-			}
-			const auto friendly = FormatFriendly(second->address, false);
+			// The claim this check makes: accounts are deduplicated by
+			// string and by nothing else. The same raw account twice
+			// collapses to one entry, while an account named in raw and in
+			// user-friendly form stays two entries, because the parser no
+			// longer normalizes one representation into the other. That
+			// normalization moved to Wallet::Stream::mine(). A value that
+			// is not a non-empty string stays the only thing skipped.
 			const auto frame = (u"{\"type\":\"transactions\","
 				u"\"finality\":\"pending\","
 				u"\"trace_external_hash_norm\":\""_q
@@ -326,13 +336,23 @@ std::vector<Check> StreamChecks() {
 				+ u"\"},{\"account\":\""_q
 				+ kAccountRaw
 				+ u"\"},{\"account\":\""_q
-				+ friendly
+				+ kAccountFriendly
+				+ u"\"},{\"account\":\""_q
+				+ kOtherRaw
+				+ u"\"},{\"account\":\""_q
+				+ kOtherFriendly
 				+ u"\"},{\"account\":\"nonsense\"},"
-				u"{\"account\":42},{}]}"_q).toUtf8();
+				u"{\"account\":\"\"},{\"account\":42},{}]}"_q).toUtf8();
 			const auto deduped = CheckEvent(
 				ParseStreamEvent(frame),
 				StreamEventKind::Transactions,
-				{ first->address, second->address });
+				{
+					kAccountRaw,
+					kAccountFriendly,
+					kOtherRaw,
+					kOtherFriendly,
+					u"nonsense"_q,
+				});
 			if (!deduped.isEmpty()) {
 				return u"deduped: "_q + deduped;
 			}
@@ -412,11 +432,12 @@ std::vector<Check> StreamChecks() {
 			return QString();
 		} },
 		{ u"stream_subscribe_message"_q, [] {
-			const auto parsed = ParseAddress(kAccountRaw);
-			if (!parsed) {
-				return u"address parse failed: "_q + kAccountRaw;
-			}
-			const auto account = FormatFriendly(parsed->address, false);
+			// The claim this check makes: the subscribe payload carries the
+			// account string it is handed, verbatim. The wallet subscribes
+			// with the derived non-bounceable user-friendly form, which is
+			// also the form the provider echoes back in its frames, and
+			// td_gram no longer converts between representations at all.
+			const auto account = kAccountFriendly;
 			const auto message = StreamSubscribeMessage(account, 7);
 			if (message.contains('\n')) {
 				return u"not compact: "_q + QString::fromUtf8(message);

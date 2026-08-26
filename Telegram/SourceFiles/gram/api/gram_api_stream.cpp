@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "gram/api/gram_api_stream.h"
 
-#include "gram/api/gram_api_request.h"
+#include "base/basic_types.h"
 
 #include <QtCore/QJsonArray>
 #include <QtCore/QJsonDocument>
@@ -32,14 +32,19 @@ const auto kTraceHash = u"trace_external_hash_norm"_q;
 const auto kAccountStateChange = u"account_state_change"_q;
 const auto kTraceInvalidated = u"trace_invalidated"_q;
 
-void AppendAccount(std::vector<Address> &accounts, const QJsonValue &value) {
-	const auto address = ApiDetails::ParseAddressValue(value);
-	if (!address) {
+void AppendAccount(
+		std::vector<QString> &accounts,
+		const QJsonValue &value) {
+	if (!value.isString()) {
 		return;
 	}
-	const auto i = std::find(accounts.begin(), accounts.end(), *address);
+	const auto account = value.toString();
+	if (account.isEmpty()) {
+		return;
+	}
+	const auto i = std::find(accounts.begin(), accounts.end(), account);
 	if (i == accounts.end()) {
-		accounts.push_back(*address);
+		accounts.push_back(account);
 	}
 }
 

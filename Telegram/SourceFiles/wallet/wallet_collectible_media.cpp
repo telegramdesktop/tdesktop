@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_prepare.h"
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
+#include "wallet/wallet_address.h"
 #include "wallet/wallet_session.h"
 
 #include <QtCore/QUrl>
@@ -46,7 +47,7 @@ namespace {
 	}
 	const auto slug = UriSlug(item.contentUri);
 	return slug.isEmpty()
-		? Gram::FormatFriendly(item.address, true)
+		? FormatFriendly(item.address, true)
 		: slug;
 }
 
@@ -115,7 +116,7 @@ TextWithEntities CollectibleTitleText(const CollectibleView &view) {
 }
 
 struct CollectibleMedia::Entry {
-	Gram::Address address;
+	QString address;
 	Gram::NftItem record;
 	QString fallback;
 	QString name;
@@ -134,12 +135,12 @@ CollectibleMedia::CollectibleMedia(not_null<Main::Session*> session)
 
 CollectibleMedia::~CollectibleMedia() = default;
 
-void CollectibleMedia::resolve(const Gram::Address &item) {
-	auto &pointer = _map[Gram::FormatRaw(item)];
+void CollectibleMedia::resolve(const QString &item) {
+	auto &pointer = _map[item];
 	if (!pointer) {
 		pointer = std::make_unique<Entry>();
 		pointer->address = item;
-		pointer->fallback = Gram::FormatFriendly(item, true);
+		pointer->fallback = FormatFriendly(item, true);
 	}
 	const auto entry = pointer.get();
 	if (entry->resolveStarted) {
@@ -155,7 +156,7 @@ void CollectibleMedia::resolve(const Gram::Address &item) {
 void CollectibleMedia::resolveFromRecord(
 		not_null<Entry*> entry,
 		const Gram::NftItem &record) {
-	if (record.address.hash.isEmpty()) {
+	if (record.address.isEmpty()) {
 		entry->resolveStarted = false;
 		return;
 	}
@@ -283,10 +284,10 @@ void CollectibleMedia::startDescriptorLoad(
 	});
 }
 
-CollectibleView CollectibleMedia::view(const Gram::Address &item) const {
+CollectibleView CollectibleMedia::view(const QString &item) const {
 	const auto entry = find(item);
 	if (!entry) {
-		const auto title = SplitNumberTail(Gram::FormatFriendly(item, true));
+		const auto title = SplitNumberTail(FormatFriendly(item, true));
 		return { title.first, title.second, QString() };
 	} else if (!entry->number.isEmpty()) {
 		return {
@@ -309,14 +310,14 @@ CollectibleView CollectibleMedia::view(const Gram::Address &item) const {
 	};
 }
 
-Gram::Address CollectibleMedia::collection(const Gram::Address &item) const {
+QString CollectibleMedia::collection(const QString &item) const {
 	const auto entry = find(item);
-	return entry ? entry->record.collection : Gram::Address();
+	return entry ? entry->record.collection : QString();
 }
 
 void CollectibleMedia::paint(
 		Painter &p,
-		const Gram::Address &item,
+		const QString &item,
 		QRect rect,
 		int outerWidth,
 		int radius) {
@@ -342,17 +343,17 @@ void CollectibleMedia::paint(
 	p.drawRoundedRect(rect, radius, radius);
 }
 
-rpl::producer<Gram::Address> CollectibleMedia::changed() const {
+rpl::producer<QString> CollectibleMedia::changed() const {
 	return _changed.events();
 }
 
-rpl::producer<Gram::Address> CollectibleMedia::repaint() const {
+rpl::producer<QString> CollectibleMedia::repaint() const {
 	return _repaint.events();
 }
 
 CollectibleMedia::Entry *CollectibleMedia::find(
-		const Gram::Address &item) const {
-	const auto i = _map.find(Gram::FormatRaw(item));
+		const QString &item) const {
+	const auto i = _map.find(item);
 	return (i != end(_map)) ? i->second.get() : nullptr;
 }
 

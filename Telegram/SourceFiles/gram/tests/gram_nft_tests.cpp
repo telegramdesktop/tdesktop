@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "gram/tests/gram_tests.h"
 
 #include "gram/api/gram_api_nft.h"
-#include "gram/ton/gram_address.h"
 
 #include <QtCore/QUrl>
 
@@ -24,14 +23,10 @@ const auto kOwner1Raw = u"0:9DA971AF38D2F03ABDF308D5F91636A97E5A2B07A66C39D71D7C
 std::vector<Check> NftChecks() {
 	return {
 		{ u"nft_builder_item_by_address"_q, [] {
-			const auto raw = u"0:CA0CFD519F763102B5BEC9D9E3AF4359"
-				u"2EA362FB773FA319EA09C4F162C171E0"_q;
-			const auto parsed = ParseAddress(raw);
-			if (!parsed) {
-				return u"address parse failed: "_q + raw;
-			}
+			const auto raw = u"0:ca0cfd519f763102b5bec9d9e3af4359"
+				u"2ea362fb773fa319ea09c4f162c171e0"_q;
 			return CheckRequest(
-				NftItemByAddressRequest(parsed->address),
+				NftItemByAddressRequest(raw),
 				false,
 				u"/api/v3/nft/items"_q,
 				u"address=0%3ACA0CFD519F763102B5BEC9D9E3AF4359"
@@ -66,16 +61,16 @@ std::vector<Check> NftChecks() {
 				u"2C1ADAD272FBE7DB97104569C16F0FF2"_q;
 			const auto uri = u"http://192.236.162.114/nft/1.json"_q;
 			const auto &item = page->list.front();
-			if (FormatRaw(item.address).toUpper() != address) {
+			if (item.address.toUpper() != address) {
 				return u"address: got "_q
-					+ FormatRaw(item.address).toUpper()
+					+ item.address.toUpper()
 					+ u", expected "_q
 					+ address;
 			} else if (item.index != u"1076"_q) {
 				return u"index: got "_q + item.index + u", expected 1076"_q;
-			} else if (FormatRaw(item.collection).toUpper() != collection) {
+			} else if (item.collection.toUpper() != collection) {
 				return u"collection: got "_q
-					+ FormatRaw(item.collection).toUpper()
+					+ item.collection.toUpper()
 					+ u", expected "_q
 					+ collection;
 			} else if (item.contentUri != uri) {
@@ -93,9 +88,9 @@ std::vector<Check> NftChecks() {
 					+ u", expected Generic"_q;
 			} else if (!item.key.isEmpty()) {
 				return u"key: got "_q + item.key + u", expected none"_q;
-			} else if (FormatRaw(item.realOwner).toUpper() != kOwner1Raw) {
+			} else if (item.realOwner.toUpper() != kOwner1Raw) {
 				return u"realOwner: got "_q
-					+ FormatRaw(item.realOwner).toUpper()
+					+ item.realOwner.toUpper()
 					+ u", expected "_q
 					+ kOwner1Raw;
 			}
@@ -241,7 +236,7 @@ std::vector<Check> NftChecks() {
 					return u"contentUriHttps pairing: got "_q
 						+ (item.contentUriHttps ? u"true"_q : u"false"_q)
 						+ u" for "_q
-						+ FormatRaw(item.address).toUpper()
+						+ item.address.toUpper()
 						+ u" with uri "_q
 						+ item.contentUri
 						+ u", expected "_q
@@ -307,7 +302,7 @@ std::vector<Check> NftChecks() {
 			}
 			auto firstCount = 0;
 			for (const auto &item : first->list) {
-				if (!item.collection.hash.isEmpty()) {
+				if (!item.collection.isEmpty()) {
 					continue;
 				}
 				++firstCount;
@@ -315,13 +310,13 @@ std::vector<Check> NftChecks() {
 					return u"owner1 null-collection: got kind "_q
 						+ QString::number(int(item.kind))
 						+ u" for "_q
-						+ FormatRaw(item.address).toUpper()
+						+ item.address.toUpper()
 						+ u", expected Generic"_q;
 				} else if (!item.key.isEmpty()) {
 					return u"owner1 null-collection: got key "_q
 						+ item.key
 						+ u" for "_q
-						+ FormatRaw(item.address).toUpper()
+						+ item.address.toUpper()
 						+ u", expected none"_q;
 				}
 			}
@@ -342,14 +337,14 @@ std::vector<Check> NftChecks() {
 			}
 			auto secondCount = 0;
 			for (const auto &item : second->list) {
-				if (!item.collection.hash.isEmpty()) {
+				if (!item.collection.isEmpty()) {
 					continue;
 				}
 				++secondCount;
 				if (item.kind != NftKind::Generic || !item.key.isEmpty()) {
 					return u"owner2 null-collection: expected Generic with "
 						u"no key for "_q
-						+ FormatRaw(item.address).toUpper();
+						+ item.address.toUpper();
 				}
 			}
 			if (secondCount != 3) {
@@ -538,13 +533,13 @@ std::vector<Check> NftChecks() {
 					+ u", expected katrinakaif.t.me"_q;
 			} else if (!username.onSale) {
 				return u"usernames onSale: got false, expected true"_q;
-			} else if (FormatRaw(username.realOwner).toUpper() == sale) {
+			} else if (username.realOwner.toUpper() == sale) {
 				return u"usernames realOwner: got the sale contract, so the "
 					u"parser read owner_address or sale_contract_address "
 					u"instead of real_owner"_q;
-			} else if (FormatRaw(username.realOwner).toUpper() != owner) {
+			} else if (username.realOwner.toUpper() != owner) {
 				return u"usernames realOwner: got "_q
-					+ FormatRaw(username.realOwner).toUpper()
+					+ username.realOwner.toUpper()
 					+ u", expected "_q
 					+ owner;
 			}
@@ -580,14 +575,10 @@ std::vector<Check> NftChecks() {
 			return QString();
 		} },
 		{ u"nft_classify_kind_direct"_q, [] {
-			const auto foreignRaw = u"0:0C8F3FCC4ABD589206A2CDF1469E3709"
-				u"2C1ADAD272FBE7DB97104569C16F0FF2"_q;
-			const auto foreignCollection = ParseAddress(foreignRaw);
-			if (!foreignCollection) {
-				return u"address parse failed: "_q + foreignRaw;
-			}
+			const auto foreignRaw = u"0:0c8f3fcc4abd589206a2cdf1469e3709"
+				u"2c1adad272fbe7db97104569c16f0ff2"_q;
 			auto gift = NftItem();
-			gift.collection = foreignCollection->address;
+			gift.collection = foreignRaw;
 			gift.contentUri =
 				u"https://nft.fragment.com/gift/deskcalendar-45754.json"_q;
 			ClassifyNftKind(gift);
@@ -602,16 +593,12 @@ std::vector<Check> NftChecks() {
 					+ gift.key
 					+ u", expected deskcalendar-45754"_q;
 			}
-			const auto numberRaw = u"0:0E41DC1DC3C9067ED24248580E12B335"
-				u"9818D83DEE0304FABCF80845EAFAFDB2"_q;
-			const auto numberCollection = ParseAddress(numberRaw);
-			if (!numberCollection) {
-				return u"address parse failed: "_q + numberRaw;
-			}
+			const auto numberRaw = u"0:0e41dc1dc3c9067ed24248580e12b335"
+				u"9818d83dee0304fabcf80845eafafdb2"_q;
 			const auto numberUri =
 				u"https://nft.fragment.com/number/88807684929.json"_q;
 			auto number = NftItem();
-			number.collection = numberCollection->address;
+			number.collection = numberRaw;
 			number.contentUri = numberUri;
 			ClassifyNftKind(number);
 			if (number.kind != NftKind::TelegramNumber) {
@@ -624,7 +611,7 @@ std::vector<Check> NftChecks() {
 					+ u", expected 88807684929"_q;
 			}
 			auto forged = NftItem();
-			forged.collection = foreignCollection->address;
+			forged.collection = foreignRaw;
 			forged.contentUri = numberUri;
 			ClassifyNftKind(forged);
 			if (forged.kind != NftKind::Generic || !forged.key.isEmpty()) {
