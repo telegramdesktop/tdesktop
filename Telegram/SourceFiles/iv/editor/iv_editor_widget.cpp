@@ -7487,9 +7487,7 @@ std::optional<Widget::ButtonEditRequest> Widget::rowButtonEditRequest(
 bool Widget::handleIvClipboardMime(
 		not_null<const QMimeData*> data,
 		Ui::InputField::MimeAction action) {
-	const auto modifiers = QApplication::keyboardModifiers();
-	if ((modifiers & Qt::ControlModifier)
-		&& (modifiers & Qt::ShiftModifier)) {
+	if (PasteAsPlainTextRequested()) {
 		return false;
 	}
 	const auto insertContext = ClipboardPasteInsertContext(
