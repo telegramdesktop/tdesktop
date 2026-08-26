@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/gl/gl_detection.h"
 #include "ui/chat/chat_style_radius.h"
 #include "ui/controls/compose_ai_button_factory.h"
+#include "ui/controls/swipe_handler.h"
 #include "base/options.h"
 #include "boxes/moderate_messages_box.h"
 #include "core/application.h"
@@ -449,6 +450,7 @@ void SetupExperimental(
 				Ui::GL::kOptionEnableVulkanRhi,
 				Core::kOptionFreeType,
 				Ui::kOptionQScroller,
+				Ui::Controls::kOptionInvertGestures,
 				Window::kOptionDisableTouchbar,
 				Window::kOptionNewWindowsSizeAsFirst,
 			}

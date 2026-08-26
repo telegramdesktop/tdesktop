@@ -17,6 +17,8 @@ class ScrollArea;
 
 namespace Ui::Controls {
 
+extern const char kOptionInvertGestures[];
+
 struct SwipeContextData;
 struct SwipeBackResult;
 struct SwipeHandlerInitData;

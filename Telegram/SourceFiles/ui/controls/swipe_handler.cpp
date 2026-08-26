@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/qt/qt_common_adapters.h"
 #include "base/event_filter.h"
+#include "base/options.h"
 #include "ui/chat/chat_style.h"
 #include "ui/controls/swipe_handler_data.h"
 #include "ui/painter.h"
@@ -24,6 +25,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui::Controls {
 namespace {
+
+base::options::toggle InvertGestures({
+	.id = kOptionInvertGestures,
+	.name = "Invert gestures",
+	.description = "Swap left and right trackpad swipe direction. "
+		"Enable this if horizontal swipes go the wrong way with natural "
+		"scrolling on Wayland compositors such as GNOME or Sway.",
+	.scope = base::options::linux,
+});
 
 constexpr auto kSwipeSlow = 0.2;
 
@@ -73,6 +83,8 @@ private:
 };
 
 } // namespace
+
+const char kOptionInvertGestures[] = "invert-gestures";
 
 void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 	static constexpr auto kThresholdWidth = 50;
@@ -378,7 +390,10 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 			if (cancel) {
 				processEnd();
 			} else {
-				const auto invert = (w->inverted() ? -1 : 1);
+				const auto invert = (w->inverted()
+					== InvertGestures.value())
+					? 1
+					: -1;
 				const auto delta = Ui::ScrollDeltaF(w) * invert;
 				updateWith({
 					.globalCursor = w->globalPosition().toPoint(),
