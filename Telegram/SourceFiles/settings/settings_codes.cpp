@@ -589,8 +589,13 @@ void RunWalletStall(not_null<SessionController*> window) {
 			.arg(round)
 			.arg(bound)
 			.arg(wallet->debugPendingCount()));
+		// The stall seam matches by endpoint, and after this migration the
+		// request that carries history is the engine's activity read. Its URL
+		// is composed inside wallet-engine (src/engine/activity.rs 191) and
+		// reaches Wallet::Api as this exact path, so no Telegram-side request
+		// builder can name it - the literal is the only source.
 		wallet->debugStallNextRequest(
-			Gram::TracesRequest(QString(), 0, 0).endpoint,
+			u"/api/v2/getTransactions"_q,
 			onSwallowed);
 		if (round == 1) {
 			wallet->startPolling();

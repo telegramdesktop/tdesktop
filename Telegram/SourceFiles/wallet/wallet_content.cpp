@@ -5103,14 +5103,7 @@ void Content::setupContent() {
 				Ui::AddSubsectionTitle(list, tr::lng_wallet_rows_title());
 				Ui::AddSkip(list);
 			}
-			const auto shown = pending
-				&& !pending->messageHashNorm.isEmpty()
-				&& ranges::any_of(history, [&](
-						const Gram::TransferItem &item) {
-					return item.externalHashNorm
-						== pending->messageHashNorm;
-				});
-			if (pending && !shown) {
+			if (pending) {
 				const auto item = ItemFromPending(*pending);
 				AddHistoryRow(list, RowContentFromPending(*pending), [=] {
 					ShowWalletTransactionBox(_show, item);

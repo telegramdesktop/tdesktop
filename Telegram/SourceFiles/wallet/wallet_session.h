@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_stream.h"
 
 namespace wallet_engine {
+struct ActivityItem;
 struct NftList;
 struct WalletDescriptor;
 struct WalletUpdate;
@@ -71,7 +72,6 @@ struct FeeResult {
 };
 
 struct PendingSendInfo {
-	QByteArray messageHashNorm;
 	TimeId posted = 0;
 	int64 amountNano = 0;
 	Gram::Address destination;
@@ -84,6 +84,9 @@ struct SendArgs {
 	QString comment;
 	bool bounce = true;
 };
+
+[[nodiscard]] std::vector<Gram::TransferItem> HistoryFromEngine(
+	const std::vector<wallet_engine::ActivityItem> &items);
 
 [[nodiscard]] std::vector<Gram::NftItem> CollectiblesFromEngine(
 	const wallet_engine::NftList &list);
@@ -188,10 +191,11 @@ private:
 	void updateEngineClient();
 	void requestEngineRefresh();
 	void applyEngineUpdate(const wallet_engine::WalletUpdate &update);
-	void mergeHistory(std::vector<Gram::TransferItem> &&items);
-	void requestHistory(int offset);
-	void requestHistoryFallback(int offset);
-	void applyHistoryPage(int offset, Gram::HistoryPage &&page);
+	void requestMoreActivity();
+	void applyEngineActivity(
+		const wallet_engine::WalletUpdate &update,
+		bool more);
+	void setHistory(std::vector<Gram::TransferItem> &&list);
 	void refreshCollectibles(bool force = false);
 	void requestCollectibles(bool more);
 	void applyCollectiblesUpdate(
@@ -225,9 +229,7 @@ private:
 	crl::time _stateRefreshedAt = 0;
 	std::vector<Gram::TransferItem> _history;
 	rpl::event_stream<> _historyUpdates;
-	bool _historyErrorLogged = false;
 	bool _historyHasNext = false;
-	int _historyLoadedOffset = 0;
 	crl::time _historyRefreshedAt = 0;
 
 	std::vector<Gram::NftItem> _collectibles;
@@ -241,6 +243,7 @@ private:
 		QString,
 		std::vector<Fn<void(const Gram::NftItem &)>>> _collectibleInfoWaiters;
 #ifdef _DEBUG
+	bool _historyInjected = false;
 	bool _collectiblesInjected = false;
 	int _debugClearedPollingCount = 0;
 #endif // _DEBUG

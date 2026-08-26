@@ -25,13 +25,49 @@ namespace {
 namespace engine = wallet_engine;
 
 constexpr auto kPollInterval = 5 * crl::time(1000);
-constexpr auto kHistoryPageLimit = 20;
 constexpr auto kCollectiblesPollInterval = 60 * crl::time(1000);
 constexpr auto kForcedCollectiblesInterval = 10 * crl::time(1000);
 constexpr auto kEmptyProofFreshness = 60 * crl::time(1000);
 constexpr auto kStreamResyncInterval = 30 * crl::time(1000);
 constexpr auto kEngineProviderBase = "https://toncenter.com";
 constexpr auto kEngineRequestTimeoutMs = uint64(15000);
+
+[[nodiscard]] std::optional<int64> DecimalInt64(const std::string &value) {
+	auto ok = false;
+	const auto result = QString::fromStdString(value).toLongLong(&ok);
+	return ok ? std::make_optional(result) : std::nullopt;
+}
+
+[[nodiscard]] std::optional<uint64> DecimalUint64(
+		const std::string &value) {
+	auto ok = false;
+	const auto result = QString::fromStdString(value).toULongLong(&ok);
+	return ok ? std::make_optional(result) : std::nullopt;
+}
+
+[[nodiscard]] bool SameHistory(
+		const std::vector<Gram::TransferItem> &was,
+		const std::vector<Gram::TransferItem> &now) {
+	if (was.size() != now.size()) {
+		return false;
+	}
+	for (auto i = 0, count = int(was.size()); i != count; ++i) {
+		const auto &a = was[i];
+		const auto &b = now[i];
+		if (a.traceId != b.traceId
+			|| a.lt != b.lt
+			|| a.incoming != b.incoming
+			|| a.amountNano != b.amountNano
+			|| a.feeNano != b.feeNano
+			|| a.date != b.date
+			|| a.status != b.status
+			|| a.comment != b.comment
+			|| a.counterparty != b.counterparty) {
+			return false;
+		}
+	}
+	return true;
+}
 
 [[nodiscard]] bool SameCollectibles(
 		const std::vector<Gram::NftItem> &was,
@@ -255,7 +291,55 @@ constexpr auto kEngineRequestTimeoutMs = uint64(15000);
 	return result;
 }
 
+[[nodiscard]] std::optional<Gram::TransferItem> HistoryItemFromEngine(
+		const engine::ActivityItem &item) {
+	const auto amount = DecimalInt64(item.amount_nanograms);
+	const auto fee = DecimalInt64(item.transaction_fee_nanograms);
+	const auto lt = DecimalUint64(item.logical_time);
+	if (!amount || !fee || !lt) {
+		LOG(("Wallet Error: engine activity item %1 has a bad number."
+			).arg(QString::fromStdString(item.id)));
+		return std::nullopt;
+	}
+	auto result = Gram::TransferItem();
+	result.kind = Gram::TransferItem::Kind::Transfer;
+	result.incoming
+		= (item.direction == engine::ActivityDirection::kReceived);
+	if (item.counterparty) {
+		const auto parsed = Gram::ParseAddress(
+			QString::fromStdString(*item.counterparty));
+		if (parsed) {
+			result.counterparty = parsed->address;
+		}
+	}
+	result.amountNano = *amount;
+	result.feeNano = *fee;
+	if (item.comment) {
+		result.comment = QString::fromStdString(*item.comment);
+	}
+	result.date = TimeId(item.timestamp);
+	result.lt = *lt;
+	result.traceId = QByteArray::fromBase64(
+		QByteArray::fromStdString(item.transaction_hash));
+	result.status = (item.status == engine::ActivityStatus::kSuccess)
+		? Gram::TransferItem::Status::Success
+		: Gram::TransferItem::Status::Failure;
+	return result;
+}
+
 } // namespace
+
+std::vector<Gram::TransferItem> HistoryFromEngine(
+		const std::vector<engine::ActivityItem> &items) {
+	auto result = std::vector<Gram::TransferItem>();
+	result.reserve(items.size());
+	for (const auto &item : items) {
+		if (auto mapped = HistoryItemFromEngine(item)) {
+			result.push_back(std::move(*mapped));
+		}
+	}
+	return result;
+}
 
 std::vector<Gram::NftItem> CollectiblesFromEngine(
 		const engine::NftList &list) {
@@ -581,9 +665,7 @@ void Session::clearNetworkState() {
 	_stateRefreshedAt = 0;
 	_history.clear();
 	_historyUpdates.fire({});
-	_historyErrorLogged = false;
 	_historyHasNext = false;
-	_historyLoadedOffset = 0;
 	_historyRefreshedAt = 0;
 	_collectibles.clear();
 	_collectiblesTab = false;
@@ -591,6 +673,7 @@ void Session::clearNetworkState() {
 	_collectiblesCompletedAt = 0;
 	_collectiblesRequestPending = false;
 #ifdef _DEBUG
+	_historyInjected = false;
 	_collectiblesInjected = false;
 #endif // _DEBUG
 	_collectiblesUpdates.fire({});
@@ -624,6 +707,7 @@ void Session::updateEngineClient() {
 		_engineStopping = true;
 		_engine->runQuick([client] {
 			client->cancel_refresh();
+			client->cancel_load_more_activity();
 			client->cancel_refresh_nfts();
 			client->cancel_load_more_nfts();
 			client->cancel_send_preview();
@@ -665,7 +749,16 @@ void Session::updateEngineClient() {
 }
 
 void Session::requestEngineRefresh() {
-	if (_engineRefreshPending || _engineStopping || !_engine->client()) {
+	if (_engineRefreshPending) {
+		return;
+	}
+	const auto finishHistoryWaiters = [this] {
+		for (const auto &callback : base::take(_historyDone)) {
+			callback();
+		}
+	};
+	if (_engineStopping || !_engine->client()) {
+		finishHistoryWaiters();
 		return;
 	}
 	_engineRefreshPending = true;
@@ -676,20 +769,30 @@ void Session::requestEngineRefresh() {
 	}, [=, this](engine::WalletUpdate update) {
 		_engineRefreshPending = false;
 		if (generation != _networkGeneration) {
+			finishHistoryWaiters();
 			return;
 		}
 		applyEngineUpdate(update);
+		finishHistoryWaiters();
 	}, [=, this](EngineError error) {
 		_engineRefreshPending = false;
 		if (generation != _networkGeneration) {
+			finishHistoryWaiters();
 			return;
 		}
 		LOG(("Wallet Error: engine refresh failed: %1, "
 			"keeping last-good state.").arg(error.message));
+		finishHistoryWaiters();
 	});
 }
 
 void Session::applyEngineUpdate(const engine::WalletUpdate &update) {
+	// refresh() publishes its account and activity legs independently and
+	// reports kPartiallyCompleted when exactly one of them failed, so the
+	// outcome gate below belongs to the account write only. The activity
+	// list carries its own ResourceState and is applied on that phase; a
+	// failed, cancelled or superseded leg never reaches kReady.
+	applyEngineActivity(update, false);
 	if (update.outcome != engine::WalletOperationOutcome::kCompleted) {
 		LOG(("Wallet: engine refresh outcome %1, keeping last-good state."
 			).arg(int(update.outcome)));
@@ -699,6 +802,21 @@ void Session::applyEngineUpdate(const engine::WalletUpdate &update) {
 	const auto wasUnresolved = _sendUnresolved;
 	_sendUnresolved = !TerminalSendPhase(snapshot.send.phase);
 	if (_sendUnresolved && !wasUnresolved) {
+		updatePollingState();
+	}
+	if (_pending
+		&& !_sendUnresolved
+		&& _sendState.current() != SendState::Sending) {
+		// refresh() awaits resolve_pending() before it reads activity, so
+		// the update that carries the confirmed row carries this terminal
+		// phase too. Dropping the local projection right here, instead of
+		// waiting for the poll tick that calls resolvePending(), keeps the
+		// pending row and the confirmed row from being rendered together.
+		// finishPending() is not reused: its trailing requestEngineRefresh()
+		// would enqueue a redundant refresh for the update being applied.
+		LOG(("Wallet: pending send resolved."));
+		_pending.reset();
+		_sendState = SendState::Idle;
 		updatePollingState();
 	}
 	if (snapshot.account_resource.phase != engine::ResourcePhase::kReady
@@ -808,137 +926,67 @@ void Session::refreshHistory(Fn<void()> done) {
 	if (done) {
 		_historyDone.push_back(std::move(done));
 	}
-	if (_historyRequestPending) {
+	requestEngineRefresh();
+}
+
+void Session::requestMoreActivity() {
+	const auto client = _engine->client();
+	if (_engineStopping || !client) {
 		return;
 	}
-	requestHistory(0);
-}
-
-void Session::requestHistory(int offset) {
 	_historyRequestPending = true;
 	const auto generation = _networkGeneration;
-	_api.request(
-		Gram::TracesRequest(
-			addressFriendly(false),
-			kHistoryPageLimit,
-			offset),
-		[=](const QByteArray &json) {
-			if (generation != _networkGeneration) {
-				return;
-			}
-			_historyRequestPending = false;
-			auto page = Gram::ParseTraces(json, _address, kHistoryPageLimit);
-			if (!page) {
-				if (!_historyErrorLogged) {
-					_historyErrorLogged = true;
-					LOG(("Wallet: traces unavailable (parse failed), "
-						"using transactions fallback."));
-				}
-				requestHistoryFallback(offset);
-				return;
-			}
-			_historyErrorLogged = false;
-			applyHistoryPage(offset, std::move(*page));
-			for (const auto &callback : base::take(_historyDone)) {
-				callback();
-			}
-		},
-		[=](const Gram::ApiError &error) {
-			if (generation != _networkGeneration) {
-				return;
-			}
-			_historyRequestPending = false;
-			if (!_historyErrorLogged) {
-				_historyErrorLogged = true;
-				LOG(("Wallet: traces unavailable (%1), "
-					"using transactions fallback.").arg(error.message));
-			}
-			requestHistoryFallback(offset);
-		});
-}
-
-void Session::requestHistoryFallback(int offset) {
-	_historyRequestPending = true;
-	const auto generation = _networkGeneration;
-	_api.request(
-		Gram::TransactionsRequest(
-			addressFriendly(false),
-			kHistoryPageLimit,
-			offset),
-		[=](const QByteArray &json) {
-			if (generation != _networkGeneration) {
-				return;
-			}
-			_historyRequestPending = false;
-			if (auto page = Gram::ParseTransactions(
-					json,
-					_address,
-					kHistoryPageLimit)) {
-				applyHistoryPage(offset, std::move(*page));
-			}
-			for (const auto &callback : base::take(_historyDone)) {
-				callback();
-			}
-		},
-		[=](const Gram::ApiError &) {
-			if (generation != _networkGeneration) {
-				return;
-			}
-			_historyRequestPending = false;
-			for (const auto &callback : base::take(_historyDone)) {
-				callback();
-			}
-		});
-}
-
-void Session::mergeHistory(std::vector<Gram::TransferItem> &&items) {
-	auto changed = false;
-	for (auto &item : items) {
-		const auto matches = [&](const Gram::TransferItem &existing) {
-			return item.traceId.isEmpty()
-				? (existing.traceId.isEmpty() && (existing.lt == item.lt))
-				: (existing.traceId == item.traceId);
-		};
-		const auto i = ranges::find_if(_history, matches);
-		if (i == _history.end()) {
-			_history.push_back(std::move(item));
-			changed = true;
-		} else {
-			const auto differs = (i->status != item.status)
-				|| (i->date != item.date)
-				|| (i->lt != item.lt)
-				|| (i->amountNano != item.amountNano)
-				|| (i->comment != item.comment);
-			if (differs) {
-				*i = std::move(item);
-				changed = true;
-			}
+	_engine->run([client] {
+		return client->load_more_activity();
+	}, [=, this](engine::WalletUpdate update) {
+		_historyRequestPending = false;
+		if (generation != _networkGeneration) {
+			return;
 		}
-	}
-	if (changed) {
-		ranges::sort(_history, [](
-				const Gram::TransferItem &a,
-				const Gram::TransferItem &b) {
-			return (a.date != b.date) ? (a.date > b.date) : (a.lt > b.lt);
-		});
-		_historyUpdates.fire({});
-	}
+		if (update.outcome
+			!= engine::WalletOperationOutcome::kCompleted) {
+			LOG(("Wallet: engine activity page outcome %1, "
+				"keeping last-good history.").arg(int(update.outcome)));
+			return;
+		}
+		applyEngineActivity(update, true);
+	}, [=, this](EngineError error) {
+		_historyRequestPending = false;
+		if (generation != _networkGeneration) {
+			return;
+		}
+		LOG(("Wallet Error: engine load_more_activity failed: %1, "
+			"keeping last-good history.").arg(error.message));
+	});
 }
 
-void Session::applyHistoryPage(int offset, Gram::HistoryPage &&page) {
-	// The offset ladder counts SERVER rows (traces or transactions), not
-	// mapped items. Only a page that extends the current tail (request
-	// offset == _historyLoadedOffset) may update _historyHasNext or advance
-	// the ladder; the offset-0 poll therefore stops mattering as soon as a
-	// deeper page was consumed, and can never clobber a deeper "no more".
-	if (offset == _historyLoadedOffset) {
-		_historyHasNext = page.hasNext;
-		if (page.hasNext) {
-			_historyLoadedOffset += kHistoryPageLimit;
-		}
+void Session::applyEngineActivity(
+		const engine::WalletUpdate &update,
+		bool more) {
+#ifdef _DEBUG
+	if (_historyInjected) {
+		return;
 	}
-	mergeHistory(std::move(page.list));
+#endif // _DEBUG
+	const auto &activity = update.snapshot.activity;
+	const auto &resource = more
+		? activity.pagination_resource
+		: activity.resource;
+	if (resource.phase != engine::ResourcePhase::kReady) {
+		return;
+	}
+	_historyHasNext = activity.has_more;
 	_historyRefreshedAt = crl::now();
+	auto loaded = HistoryFromEngine(activity.items);
+	if (SameHistory(_history, loaded)) {
+		return;
+	}
+	setHistory(std::move(loaded));
+}
+
+void Session::setHistory(std::vector<Gram::TransferItem> &&list) {
+	_history = std::move(list);
+	_historyUpdates.fire({});
 }
 
 bool Session::historyHasNext() const {
@@ -949,10 +997,11 @@ void Session::loadMoreHistory() {
 	ensureLoaded();
 	if (_keyState.current() == KeyState::None
 		|| _historyRequestPending
+		|| _engineRefreshPending
 		|| !_historyHasNext) {
 		return;
 	}
-	requestHistory(_historyLoadedOffset);
+	requestMoreActivity();
 }
 
 void Session::refreshCollectibles(bool force) {
@@ -1093,7 +1142,8 @@ void Session::resolveCollectibleInfo(
 
 #ifdef _DEBUG
 void Session::injectDebugHistory(std::vector<Gram::TransferItem> items) {
-	mergeHistory(std::move(items));
+	_historyInjected = true;
+	setHistory(std::move(items));
 }
 
 void Session::injectDebugCollectibles(std::vector<Gram::NftItem> items) {
@@ -1227,12 +1277,10 @@ void Session::pollTick() {
 	const auto stale = [&](crl::time at) {
 		return !at || (crl::now() - at >= kStreamResyncInterval);
 	};
-	if ((!streaming || stale(_stateRefreshedAt)) && !_engineRefreshPending) {
+	if (!streaming
+		|| stale(_stateRefreshedAt)
+		|| stale(_historyRefreshedAt)) {
 		requestEngineRefresh();
-	}
-	if ((!streaming || stale(_historyRefreshedAt))
-		&& !_historyRequestPending) {
-		refreshHistory();
 	}
 	refreshCollectibles();
 	if ((_pending || _sendUnresolved) && !_resolveRequestPending) {
@@ -1241,11 +1289,8 @@ void Session::pollTick() {
 }
 
 void Session::applyStreamRefresh(StreamRefresh wanted) {
-	if (wanted.state) {
+	if (wanted.state || wanted.history) {
 		requestEngineRefresh();
-	}
-	if (wanted.history) {
-		refreshHistory();
 	}
 	if (wanted.collectibles) {
 		refreshCollectibles(true);
@@ -1429,9 +1474,8 @@ void Session::send(SendArgs args, Fn<void(SendError)> done) {
 	const auto destination = args.destination;
 	const auto amountNano = args.amountNano;
 	const auto comment = args.comment.trimmed();
-	const auto recordPending = [=, this](QByteArray messageHashNorm) {
+	const auto recordPending = [=, this] {
 		_pending = PendingSendInfo{
-			.messageHashNorm = std::move(messageHashNorm),
 			.posted = base::unixtime::now(),
 			.amountNano = amountNano,
 			.destination = destination,
@@ -1440,7 +1484,6 @@ void Session::send(SendArgs args, Fn<void(SendError)> done) {
 		_sendState = SendState::Pending;
 		updatePollingState();
 		requestEngineRefresh();
-		refreshHistory();
 		if (done) {
 			done(SendError::None);
 		}
@@ -1452,19 +1495,18 @@ void Session::send(SendArgs args, Fn<void(SendError)> done) {
 	};
 	_engine->run([client, request = std::move(request)] {
 		return client->send(request);
-	}, [=, this](engine::SendResult result) {
+	}, [=, this](engine::SendResult) {
 		if (generation != _networkGeneration) {
 			return;
 		}
-		recordPending(QByteArray::fromBase64(
-			QByteArray::fromStdString(result.message_hash)));
+		recordPending();
 	}, [=, this](EngineError error) {
 		if (generation != _networkGeneration) {
 			return;
 		}
 		LOG(("Wallet Error: engine send failed: %1").arg(error.message));
 		if (IsSubmissionUnknown(error)) {
-			recordPending(QByteArray());
+			recordPending();
 			return;
 		}
 		_sendState = SendState::Idle;
@@ -1509,7 +1551,6 @@ void Session::finishPending() {
 	_sendState = SendState::Idle;
 	updatePollingState();
 	requestEngineRefresh();
-	refreshHistory();
 }
 
 } // namespace Wallet
