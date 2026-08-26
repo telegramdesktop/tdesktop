@@ -379,9 +379,12 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallBarContentByCall(
 			return RegenerateUserpics(state, call, userpicSize);
 		}) | rpl::on_next(pushNext, lifetime);
 
+		// The only stream here not owned by the call, so it can fire
+		// after the call was destroyed.
+		const auto weakCall = base::make_weak(call);
 		call->peer()->session().downloaderTaskFinished(
 		) | rpl::filter([=] {
-			return state->someUserpicsNotLoaded;
+			return weakCall && state->someUserpicsNotLoaded;
 		}) | rpl::on_next([=] {
 			for (const auto &userpic : state->userpics) {
 				if (userpic.peer->userpicUniqueKey(userpic.view)
