@@ -385,6 +385,39 @@ void AppendWalletRefreshSelfTest(
 				u"an unstarted settle explains itself by name instead "
 				"of reading as a bare not ready"_q,
 				details);
+			const auto atMs = kWalletRefreshWindow * 4;
+			const auto staleAtMs = atMs - kWalletRefreshWindow * 2;
+			const auto stale = ReadWalletRefresh({
+				.atMs = atMs,
+				.historyAtMs = staleAtMs,
+				.stateAtMs = staleAtMs,
+			});
+			NoteVerdict(u"stale"_q, stale);
+			Check(
+				stale.state == WalletRefreshState::Stale,
+				u"a stamp that was written but fell outside the window "
+				"is refused as stale, never reported as ready"_q,
+				stale.observation);
+			const auto edgeAtMs = atMs - kWalletRefreshWindow;
+			const auto edge = ReadWalletRefresh({
+				.atMs = atMs,
+				.historyAtMs = edgeAtMs,
+				.stateAtMs = edgeAtMs,
+			});
+			NoteVerdict(u"window edge"_q, edge);
+			Check(
+				edge.state == WalletRefreshState::Ready,
+				u"a stamp exactly the window old is still ready, so "
+				"stale begins past the window and not at it"_q,
+				edge.observation);
+			const auto unfilled = ReadWalletRefresh(
+				WalletFreshnessReading());
+			NoteVerdict(u"unfilled"_q, unfilled);
+			Check(
+				unfilled.state == WalletRefreshState::Unreadable,
+				u"a reading the caller never filled in is refused as "
+				"unreadable, never treated as fresh"_q,
+				unfilled.observation);
 		},
 	});
 
