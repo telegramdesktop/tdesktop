@@ -187,6 +187,7 @@ VideoEditor::VideoEditor(
 	VideoEditorDescriptor descriptor)
 : RpWidget(parent)
 , _path(descriptor.path)
+, _content(descriptor.content)
 , _dimensions(descriptor.dimensions)
 , _duration(std::max(descriptor.duration, crl::time(1)))
 , _data(descriptor.data)
@@ -248,6 +249,7 @@ void VideoEditor::setupTimeline() {
 		_controls.get(),
 		VideoTimelineDescriptor{
 			.path = _path,
+			.content = _content,
 			.dimensions = _dimensions,
 			.duration = _duration,
 			.maxDuration = _data.maxDuration,
@@ -520,7 +522,9 @@ void VideoEditor::setupControls() {
 void VideoEditor::setupStreaming() {
 	using namespace Media::Streaming;
 
-	auto loader = MakeFileLoader(_path);
+	auto loader = _path.isEmpty()
+		? MakeBytesLoader(_content)
+		: MakeFileLoader(_path);
 	if (!loader) {
 		return;
 	}
@@ -612,6 +616,7 @@ void VideoEditor::refreshCoverPreview() {
 
 	const auto cover = _cover;
 	const auto path = _path;
+	const auto content = _content;
 	const auto dimensions = _dimensions;
 	const auto side = st::videoEditorBubbleSize
 		* style::DevicePixelRatio()
@@ -623,7 +628,12 @@ void VideoEditor::refreshCoverPreview() {
 	mods.geometry.crop = _crop->saveCropRect();
 
 	crl::async([=, weak = base::make_weak(this)] {
-		auto preview = ExtractCoverImage(path, mods, dimensions, side);
+		auto preview = ExtractCoverImage(
+			path,
+			content,
+			mods,
+			dimensions,
+			side);
 		crl::on_main(weak, [=, preview = std::move(preview)]() mutable {
 			_bubbleBusy = false;
 			if (!preview.isNull() && cover == _bubbleCover) {

@@ -34,6 +34,7 @@ class VideoQualitySlider;
 
 struct VideoEditorDescriptor {
 	QString path;
+	QByteArray content;
 	QSize dimensions;
 	crl::time duration = 0;
 	VideoEditorData data;
@@ -82,6 +83,7 @@ private:
 	void keyPressEvent(QKeyEvent *e) override;
 
 	const QString _path;
+	const QByteArray _content;
 	const QSize _dimensions;
 	const crl::time _duration = 0;
 	const VideoEditorData _data;

@@ -633,6 +633,7 @@ void ShowVideoEditorThenCreate(
 		crl::async([=, weak = base::make_weak(parentWidget)] {
 			auto preview = Editor::ExtractCoverImage(
 				path,
+				QByteArray(),
 				mods,
 				dimensions,
 				kPreviewSide);

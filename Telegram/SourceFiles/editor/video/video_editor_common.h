@@ -55,6 +55,7 @@ struct VideoEditorData {
 
 [[nodiscard]] QImage ExtractCoverImage(
 	const QString &path,
+	const QByteArray &content,
 	const VideoModifications &modifications,
 	QSize dimensions,
 	int side);

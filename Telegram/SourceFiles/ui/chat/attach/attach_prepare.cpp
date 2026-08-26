@@ -259,11 +259,11 @@ bool PreparedFile::canEditVideo() const {
 	using Video = PreparedFileInformation::Video;
 	const auto video = std::get_if<Video>(&information->media);
 	// Soundless clips are sent as GIFs, but stay editable; isVideoFile() is
-	// too narrow here. Playback streams from a real file on disk.
+	// too narrow here. Playback streams either from a file or from bytes.
 	return (type == PreparedFile::Type::Video)
 		&& video
 		&& !video->isWebmSticker
-		&& !path.isEmpty();
+		&& (!path.isEmpty() || !content.isEmpty());
 }
 
 bool PreparedFile::sendsVideoAsGif() const {

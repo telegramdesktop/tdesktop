@@ -100,6 +100,7 @@ void PrepareProfileVideo(
 		]() mutable {
 			auto preview = ExtractCoverImage(
 				path,
+				QByteArray(),
 				mods,
 				info.dimensions,
 				kProfileVideoSide);
@@ -225,6 +226,7 @@ void OpenWithPreparedVideoFile(
 		return;
 	}
 	const auto path = file->path;
+	const auto content = file->content;
 	const auto dimensions = video->thumbnail.size();
 	if (!AcceptableDimensions(dimensions)) {
 		doneCallback(false);
@@ -265,6 +267,7 @@ void OpenWithPreparedVideoFile(
 		})] {
 			auto frame = Media::Video::ExtractFrame(
 				path,
+				content,
 				mods.cover,
 				dimensions);
 			auto details = Storage::ComputeVideoDetails(
@@ -286,6 +289,7 @@ void OpenWithPreparedVideoFile(
 		parent,
 		VideoEditorDescriptor{
 			.path = path,
+			.content = content,
 			.dimensions = dimensions,
 			.duration = video->duration,
 			.data = VideoEditorData{ .allowQuality = true },

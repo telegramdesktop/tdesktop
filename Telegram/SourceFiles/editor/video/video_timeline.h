@@ -15,6 +15,7 @@ namespace Editor {
 
 struct VideoTimelineDescriptor {
 	QString path;
+	QByteArray content;
 	QSize dimensions;
 	crl::time duration = 0;
 

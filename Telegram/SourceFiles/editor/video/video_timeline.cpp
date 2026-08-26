@@ -183,9 +183,10 @@ void VideoTimeline::reloadFrames() {
 	_framesCancel = cancel;
 
 	const auto path = _descriptor.path;
+	const auto content = _descriptor.content;
 	const auto box = _framesBox * style::DevicePixelRatio();
 	crl::async([=, weak = base::make_weak(this)] {
-		Media::Video::ExtractFrames(path, {
+		Media::Video::ExtractFrames(path, content, {
 			.positions = positions,
 			.box = box,
 			.cover = true,
