@@ -2299,6 +2299,9 @@ void ProxiesBoxController::openBrowser(int id) {
 
 void ProxiesBoxController::setDeleted(int id, bool deleted) {
 	auto item = findById(id);
+	if (item->deleted == deleted) {
+		return;
+	}
 	item->deleted = deleted;
 
 	if (deleted) {
