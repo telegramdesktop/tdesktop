@@ -51,6 +51,15 @@ void LogSettle(const QString &name, bool settled) {
 		.arg(WalletRefreshSettleDetails(name)));
 }
 
+void NoteVerdict(
+		const QString &label,
+		const WalletRefreshVerdict &verdict) {
+	Note(u"wallet readiness self-test: %1 state=%2 observation=%3"_q
+		.arg(label)
+		.arg(WalletRefreshStateName(verdict.state))
+		.arg(verdict.observation));
+}
+
 [[nodiscard]] QString PublicReadOut(const Wallet::Session &wallet) {
 	auto stateKnown = false;
 	auto lifetime = rpl::lifetime();
@@ -233,6 +242,7 @@ void AppendWalletRefreshSelfTest(
 		},
 		.then = [=] {
 			const auto verdict = observe();
+			NoteVerdict(u"positive"_q, verdict);
 			Check(
 				verdict.ready(),
 				u"an engine refresh reached kReady and stamped both "
@@ -280,6 +290,11 @@ void AppendWalletRefreshSelfTest(
 		},
 		.then = [=] {
 			const auto verdict = observe();
+			NoteVerdict(u"negative"_q, verdict);
+			Note(u"wallet readiness self-test: negative drained=%1 "
+				"drainedAfterMs=%2"_q
+				.arg(state->drained ? 1 : 0)
+				.arg(qint64(state->drainedAfterMs)));
 			Check(
 				verdict.state == WalletRefreshState::Unstamped,
 				u"the drained completion stamped neither wallet "
@@ -288,6 +303,7 @@ void AppendWalletRefreshSelfTest(
 					.arg(qint64(state->drainedAfterMs))
 					.arg(verdict.observation)
 					.arg(readOut()));
+			Note(readOut());
 		},
 		.timeout = crl::time(90000),
 		.timeoutDetails = [=] {
@@ -319,6 +335,7 @@ void AppendWalletRefreshSelfTest(
 		},
 		.then = [=] {
 			const auto verdict = observe();
+			NoteVerdict(u"recovery"_q, verdict);
 			Check(
 				verdict.state == WalletRefreshState::Ready,
 				u"the cleared wallet recovered: a later engine refresh "
@@ -341,6 +358,7 @@ void AppendWalletRefreshSelfTest(
 				.historyAtMs = 0,
 				.stateAtMs = 0,
 			});
+			NoteVerdict(u"refusal text"_q, zeroed);
 			Check(
 				zeroed.state == WalletRefreshState::Unstamped,
 				u"a reading whose stamps were never written is refused "
@@ -357,6 +375,8 @@ void AppendWalletRefreshSelfTest(
 				zeroed.observation);
 			const auto details = WalletRefreshSettleDetails(
 				u"self-test-unstarted"_q);
+			Note(u"wallet readiness self-test: refusal text unstarted %1"_q
+				.arg(details));
 			const auto explained = details.contains(
 				u"self-test-unstarted"_q)
 				&& details.contains(u"not started"_q);
