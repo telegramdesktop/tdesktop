@@ -2490,23 +2490,15 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 		const auto filterId = _filterId;
 		const auto origin = e->pos()
 			- QPoint(0, filteredOffset() + result.top);
-		// The ripple may be parked in _rightButtons, which is owned by us
-		// and outlives the Row: _filterResultsGlobal is cleared on every
-		// query change. So never capture the Row pointer here.
+		// The ripple can be parked in _rightButtons, which is owned by us and
+		// outlives the Row, so hold the row weakly rather than raw.
 		const auto weakThis = base::make_weak(this);
-		const auto weakEntry = base::make_weak(row->entry());
-		const auto updateCallback = [weakThis, weakEntry, filterId] {
+		const auto weakRow = base::make_weak(row);
+		const auto updateCallback = [weakThis, weakRow, filterId] {
 			const auto that = weakThis.get();
-			const auto entry = weakEntry.get();
-			if (!that || !entry) {
-				return;
-			}
-			const auto i = ranges::find(
-				that->_filterResults,
-				Key(entry),
-				&FilterResult::key);
-			if (i != that->_filterResults.end()) {
-				that->repaintDialogRow(filterId, i->row);
+			const auto strong = weakRow.get();
+			if (that && strong) {
+				that->repaintDialogRow(filterId, strong);
 			}
 		};
 		if (addRightButtonRipple(origin, updateCallback)) {
@@ -2569,11 +2561,26 @@ bool InnerWidget::addRightButtonRipple(QPoint origin, Fn<void()> updateCallback)
 	}
 	const auto size = _pressedRightButtonData->bg.size()
 		/ style::DevicePixelRatio();
-	if (!_pressedRightButtonData->ripple) {
-		_pressedRightButtonData->ripple = std::make_unique<Ui::RippleAnimation>(
-			_pressedRightButtonData->st->button.ripple,
+	// The ripple outlives the row it was created for: it is owned per peer by
+	// _rightButtons, which is cleared only on a palette change. Keep the
+	// callback in the button and refresh it on every press, so a ripple never
+	// keeps calling the one captured on the very first press.
+	//
+	// Capturing the RightButton raw is safe: _rightButtons is a node based
+	// unordered_map, so inserting more buttons never invalidates pointers to
+	// the existing ones, and the only thing that removes this one - clear()
+	// above - destroys the ripple that holds this callback along with it.
+	const auto data = _pressedRightButtonData;
+	data->rippleUpdate = std::move(updateCallback);
+	if (!data->ripple) {
+		data->ripple = std::make_unique<Ui::RippleAnimation>(
+			data->st->button.ripple,
 			Ui::RippleAnimation::RoundRectMask(size, size.height() / 2),
-			std::move(updateCallback));
+			[=] {
+				if (const auto &callback = data->rippleUpdate) {
+					callback();
+				}
+			});
 	}
 	const auto shift = QPoint(
 		width() - size.width() - _pressedRightButtonData->st->margin.right(),
