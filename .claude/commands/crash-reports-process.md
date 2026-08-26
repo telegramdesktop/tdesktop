@@ -147,12 +147,21 @@ The verdict is one of exactly three values:
 - **`needs-discussion`** — real, but the fix is large, spans subsystems, or
   cannot be shown not to regress something. Do not half-implement it. Write the
   diagnosis and what the options are.
-- **`fixed`** — the path is confirmed and the fix is small and obviously safe
-  (a guard, a lifetime prune, a missing handler). Describe the change precisely
-  enough for someone else to make it: file, function, what to change, why it is
-  safe. Also write it as a patch hint to `<run>/triage/results/<gid>.patch`
-  (`git diff` format against the target branch) — the main session treats it as
-  a hint, not as something to apply blindly.
+- **`fixed`** — the path is confirmed, the fix is small and obviously safe (a
+  guard, a lifetime prune, a missing handler), **and it costs nothing
+  measurable on any path that was not already crashing**. These commits land
+  without review, so a fix that adds work to a healthy path — an extra
+  allocation or copy, work moved into a hotter loop, a cheap step reordered
+  after an expensive one, a cache made less effective — is `needs-discussion`
+  however correct it is. Judge that against the *common* input, not the one in
+  the dump: the crashing case is by definition the rare one, and a change that
+  is a huge win there can still be a loss everywhere else. If the change alters
+  how much work is done or when, say so explicitly, with the sizes involved.
+  Describe the change precisely enough for someone else to make it: file,
+  function, what to change, why it is safe. Also write it as a patch hint to
+  `<run>/triage/results/<gid>.patch` (`git diff` format against the target
+  branch) — the main session treats it as a hint, not as something to apply
+  blindly.
 
 Every agent writes its full reasoning to `<run>/triage/results/<gid>.md` and
 returns a compact structured object: `gid`, `verdict`, `confidence`
@@ -163,8 +172,12 @@ form lives in the file.
 The verify agent is told the diagnosis and the proposed change, and is asked to
 break them: can the null actually occur on that path, does the guard change
 behaviour anyone depends on, does the code still look like that on the target
-branch, does the patch contradict the surrounding invariants? It returns
-`refuted` (bool) with a reason. A `fixed` verdict that is refuted becomes
+branch, does the patch contradict the surrounding invariants, and **does it
+make the common case slower** — an added allocation or copy, more work per
+iteration, an expensive call now reached on a path that used to skip it? Cost
+the *typical* input rather than the crashing one, and refute on a real
+regression there even when the fix is correct. It returns `refuted` (bool)
+with a reason. A `fixed` verdict that is refuted becomes
 `needs-discussion`, carrying the refutation as its note.
 
 ## Phase 3 — apply and commit, serially
@@ -172,7 +185,12 @@ branch, does the patch contradict the surrounding invariants? It returns
 Back in the main session, after each wave:
 
 1. For each confirmed `fixed`, make the edit yourself in the working tree,
-   reading `<run>/triage/results/<gid>.md` for the detail. Apply the change to
+   reading `<run>/triage/results/<gid>.md` for the detail. Re-ask the
+   performance question before you commit — you are the last check, and the
+   agent costed the change against the crashing input, which is the rare one.
+   If the fix turns out to slow a healthy path, either find the shape that
+   does not (usually: apply the cheap operation to whichever side is smaller)
+   or drop the group to `needs-discussion`. Apply the change to
    the target branch's current code, not to the tag's — check the surrounding
    code first, since the file may have moved on. Use the `.patch` as a hint
    only.
