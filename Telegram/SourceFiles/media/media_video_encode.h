@@ -80,6 +80,25 @@ struct Result {
 	}
 };
 
+struct SourceInfo {
+	QSize coded;
+	QSize display;
+	int rotation = 0;
+	crl::time duration = 0;
+	float64 fps = 0.;
+	int64 fileSize = 0;
+	int64 videoBitrate = 0;
+	int64 audioBitrate = 0;
+	int audioChannels = 0;
+	bool videoRemuxable = false;
+	bool audioRemuxable = false;
+	bool hasAudio = false;
+
+	[[nodiscard]] bool empty() const {
+		return coded.isEmpty();
+	}
+};
+
 struct TranscodeResult {
 	QString path;
 	QImage cover;
@@ -104,6 +123,13 @@ struct TranscodeResult {
 [[nodiscard]] TranscodeResult TranscodeVideo(
 	const VideoSource &source,
 	Fn<bool(float64)> progress = nullptr);
+
+[[nodiscard]] SourceInfo ProbeSource(const QString &path);
+
+// Zero when nothing can be guessed.
+[[nodiscard]] int64 EstimateTranscodedSize(
+	const VideoSource &source,
+	const SourceInfo &info);
 
 [[nodiscard]] int64 MaxTranscodeSourceSize();
 

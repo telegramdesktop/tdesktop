@@ -46,6 +46,18 @@ constexpr auto kStaleTempTimeout = 24 * 60 * 60;
 
 constexpr auto kMp3InMp4MinFrequency = 16'000;
 
+// MAX_FRAME_RATE in openh264, a faster source overshoots by the ratio.
+constexpr auto kRateControlFps = 60.;
+
+// Measured: silence costs this much of the nominal 64 kbps.
+constexpr auto kSilentAudioBitrate = 7'000;
+
+// Measured mp4 overhead: fixed boxes plus per-sample tables.
+constexpr auto kContainerBytes = 2'000;
+constexpr auto kContainerBytesPerVideoFrame = 12;
+constexpr auto kContainerBytesPerAudioFrame = 10;
+constexpr auto kAudioFrameSamples = 1'024;
+
 // Broken source timestamps would grow silent track without bound.
 constexpr auto kMaxSilentAudioFill = crl::time(4 * 60 * 60 * 1000);
 constexpr auto kSilentAudioFillMargin = crl::time(1000);
@@ -1249,6 +1261,146 @@ QSize DownscaledSize(QSize original, int targetShorterSide) {
 	return QSize(
 		std::max(EvenDown(int(base::SafeRound(width * scale))), 2),
 		std::max(EvenDown(int(base::SafeRound(height * scale))), 2));
+}
+
+SourceInfo ProbeSource(const QString &path) {
+	auto result = SourceInfo();
+	result.fileSize = QFileInfo(path).size();
+	if (result.fileSize <= 0) {
+		return result;
+	}
+	auto wrap = ReadFileWrap();
+	wrap.file.setFileName(path);
+	if (!wrap.file.open(QIODevice::ReadOnly)) {
+		return result;
+	}
+	auto input = MakeFormatPointer(
+		&wrap,
+		&ReadFileWrap::Read,
+		nullptr,
+		&ReadFileWrap::Seek);
+	if (!input) {
+		return result;
+	} else if (AvErrorWrap(avformat_find_stream_info(input.get(), nullptr))) {
+		return result;
+	}
+	const auto videoId = av_find_best_stream(
+		input.get(),
+		AVMEDIA_TYPE_VIDEO,
+		-1,
+		-1,
+		nullptr,
+		0);
+	if (videoId < 0) {
+		return result;
+	}
+	const auto videoStream = input->streams[videoId];
+	const auto videoParameters = videoStream->codecpar;
+	result.coded = QSize(videoParameters->width, videoParameters->height);
+	if (result.coded.isEmpty()) {
+		return result;
+	}
+	result.rotation = ReadRotationFromMetadata(videoStream);
+	result.display = TransposeSizeByRotation(result.coded, result.rotation);
+	result.duration = (input->duration > 0)
+		? PtsToTime(input->duration, kUniversalTimeBase)
+		: crl::time(0);
+	const auto guessed = av_guess_frame_rate(
+		input.get(),
+		videoStream,
+		nullptr);
+	result.fps = (guessed.num > 0 && guessed.den > 0) ? av_q2d(guessed) : 0.;
+	result.videoBitrate = (videoParameters->bit_rate > 0)
+		? videoParameters->bit_rate
+		: input->bit_rate;
+	result.videoRemuxable = (videoParameters->codec_id == AV_CODEC_ID_H264)
+		|| (videoParameters->codec_id == AV_CODEC_ID_HEVC);
+
+	const auto audioId = av_find_best_stream(
+		input.get(),
+		AVMEDIA_TYPE_AUDIO,
+		-1,
+		videoId,
+		nullptr,
+		0);
+	if (audioId >= 0) {
+		const auto audioParameters = input->streams[audioId]->codecpar;
+		const auto codecId = audioParameters->codec_id;
+		result.hasAudio = true;
+		result.audioChannels = audioParameters->ch_layout.nb_channels;
+		result.audioBitrate = audioParameters->bit_rate;
+		result.audioRemuxable = (codecId == AV_CODEC_ID_AAC)
+			|| ((codecId == AV_CODEC_ID_MP3)
+				&& (audioParameters->sample_rate >= kMp3InMp4MinFrequency));
+	}
+	return result;
+}
+
+int64 EstimateTranscodedSize(
+		const VideoSource &source,
+		const SourceInfo &info) {
+	if (info.empty()) {
+		return 0;
+	}
+	const auto plan = PlanGeometry(source, info.coded, info.rotation);
+	const auto target = plan.target;
+	if (target.isEmpty()) {
+		return 0;
+	}
+	const auto limiting = (source.fpsLimit > 0.)
+		&& (info.fps > source.fpsLimit * 1.05);
+	const auto fps = SanitizedFps(limiting ? source.fpsLimit : info.fps);
+	const auto total = info.duration;
+	const auto trimmed = (source.from > 0)
+		|| ((source.till > 0) && (!total || source.till < total));
+	const auto span = TranscodedDuration(source, total);
+	if (span <= 0) {
+		return 0;
+	}
+	const auto seconds = span / 1000.;
+	const auto copyVideo = !plan.bake
+		&& !trimmed
+		&& !limiting
+		&& (target == info.coded)
+		&& info.videoRemuxable;
+	if (copyVideo && info.videoBitrate <= 0) {
+		// Frames are remuxed as they are, so the file barely changes.
+		return info.fileSize;
+	}
+	const auto videoBitrate = [&] {
+		if (copyVideo) {
+			return float64(info.videoBitrate);
+		}
+		const auto wanted = int64(TargetBitrate(target, fps));
+		// Quality mode never spends much more than the source did.
+		const auto bitrate = (info.videoBitrate > 0)
+			? std::min(wanted, info.videoBitrate)
+			: wanted;
+		return bitrate * std::min(kRateControlFps / fps, 1.);
+	}();
+	const auto silent = !source.removeAudio
+		&& !info.hasAudio
+		&& source.silentAudio;
+	const auto audioBitrate = [&]() -> float64 {
+		if (source.removeAudio || !info.hasAudio) {
+			return silent ? kSilentAudioBitrate : 0.;
+		} else if (info.audioRemuxable && info.audioBitrate > 0) {
+			return float64(info.audioBitrate);
+		}
+		return kAudioBitratePerChannel
+			* std::clamp(info.audioChannels, 1, 2);
+	}();
+	const auto container = kContainerBytes
+		+ kContainerBytesPerVideoFrame * seconds * fps
+		+ ((audioBitrate > 0. && !silent)
+			? (kContainerBytesPerAudioFrame
+				* seconds
+				* kAudioFrequency
+				/ kAudioFrameSamples)
+			: 0.);
+	const auto bytes = (videoBitrate + audioBitrate) * seconds / 8.
+		+ container;
+	return std::max(int64(base::SafeRound(bytes)), int64(1));
 }
 
 namespace {
