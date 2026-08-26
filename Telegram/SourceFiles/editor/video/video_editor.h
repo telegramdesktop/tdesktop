@@ -65,6 +65,8 @@ private:
 	void setupControls();
 	void setupTimeline();
 	void setupQuality();
+	void setupSizeEstimate();
+	void refreshSizeEstimate();
 	void refreshQualityLevels();
 	void handleUpdate(Media::Streaming::Update &&update);
 	void restart(crl::time position);
@@ -89,6 +91,8 @@ private:
 	const VideoEditorData _data;
 
 	const VideoModifications _initial;
+
+	Media::Encode::SourceInfo _source;
 
 	PhotoModifications _geometry;
 	crl::time _from = 0;

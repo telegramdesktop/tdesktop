@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/painter.h"
+#include "ui/text/format_values.h"
 #include "styles/style_editor.h"
 
 #include <QtGui/QPainterPath>
@@ -215,6 +216,7 @@ VideoEditor::VideoEditor(
 	setupControls();
 	setupTimeline();
 	setupQuality();
+	setupSizeEstimate();
 	setupStreaming();
 	setupTapToPause();
 	refreshCoverPreview();
@@ -223,6 +225,7 @@ VideoEditor::VideoEditor(
 	_crop->changes(
 	) | rpl::on_next([=] {
 		refreshQualityLevels();
+		refreshSizeEstimate();
 		invalidateCoverPreview();
 	}, _crop->lifetime());
 
@@ -286,6 +289,7 @@ void VideoEditor::setupTimeline() {
 		_from = _timeline->from();
 		_till = _timeline->till();
 		_cover = _timeline->cover();
+		refreshSizeEstimate();
 		seek(edge);
 	}, _timeline->lifetime());
 
@@ -330,6 +334,43 @@ void VideoEditor::setupQuality() {
 	_quality = base::make_unique_q<VideoQualitySlider>(_controls.get());
 	refreshQualityLevels();
 	_quality->setValue(_initial.quality);
+	_quality->valueChanges(
+	) | rpl::on_next([=] {
+		refreshSizeEstimate();
+	}, _quality->lifetime());
+}
+
+void VideoEditor::setupSizeEstimate() {
+	const auto path = _path;
+	crl::async([=, weak = base::make_weak(this)] {
+		auto info = Media::Encode::ProbeSource(path);
+		crl::on_main(weak, [=, info = std::move(info)]() mutable {
+			_source = std::move(info);
+			refreshSizeEstimate();
+		});
+	});
+}
+
+void VideoEditor::refreshSizeEstimate() {
+	if (!_timeline || _source.empty()) {
+		return;
+	}
+	const auto modifications = collect();
+	const auto transcoded = _data.transcodeAlways
+		|| VideoEdited(
+			modifications,
+			_dimensions,
+			_duration,
+			_source.hasAudio);
+	const auto bytes = transcoded
+		? Media::Encode::EstimateTranscodedSize(
+			ComposeVideoSource(_path, modifications, _data, false),
+			_source)
+		: _source.fileSize;
+	_timeline->setSizeLabel((bytes > 0)
+		? ((transcoded ? QString::fromUtf8("~") : QString())
+			+ Ui::FormatSizeText(bytes))
+		: QString());
 }
 
 void VideoEditor::refreshQualityLevels() {
@@ -490,11 +531,13 @@ void VideoEditor::setupControls() {
 			_geometry.angle -= 360;
 		}
 		applyGeometry();
+		refreshSizeEstimate();
 		invalidateCoverPreview();
 	});
 	_flip->setClickedCallback([=] {
 		_geometry.flipped = !_geometry.flipped;
 		applyGeometry();
+		refreshSizeEstimate();
 		invalidateCoverPreview();
 	});
 	if (_gifButton) {
@@ -508,6 +551,7 @@ void VideoEditor::setupControls() {
 		_gifButton->setClickedCallback([=] {
 			_gif = !_gif;
 			refresh();
+			refreshSizeEstimate();
 		});
 	}
 	_cancelButton->setClickedCallback([=] {

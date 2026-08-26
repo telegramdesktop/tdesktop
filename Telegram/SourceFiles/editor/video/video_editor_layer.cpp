@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "chat_helpers/compose/compose_show.h"
 #include "core/file_utilities.h"
+#include "core/mime_type.h"
 #include "data/data_session.h"
 #include "editor/editor_layer_widget.h"
 #include "editor/photo_editor_layer_widget.h"
@@ -52,6 +53,7 @@ VideoEditorData ProfileVideoEditorData(EditorData data) {
 		.minDuration = kProfileVideoMinDuration,
 		.fpsLimit = kProfileVideoFps,
 		.removeAudio = true,
+		.transcodeAlways = true,
 	};
 }
 
@@ -227,6 +229,10 @@ void OpenWithPreparedVideoFile(
 	}
 	const auto path = file->path;
 	const auto content = file->content;
+	// Anything the server would not take as a video is re-encoded anyway.
+	const auto transcodeAlways = !Core::IsMimeSentAsVideo(
+		file->information->filemime)
+		&& (file->size < Media::Encode::MaxTranscodeSourceSize());
 	const auto dimensions = video->thumbnail.size();
 	if (!AcceptableDimensions(dimensions)) {
 		doneCallback(false);
@@ -292,7 +298,10 @@ void OpenWithPreparedVideoFile(
 			.content = content,
 			.dimensions = dimensions,
 			.duration = video->duration,
-			.data = VideoEditorData{ .allowQuality = true },
+			.data = VideoEditorData{
+				.allowQuality = true,
+				.transcodeAlways = transcodeAlways,
+			},
 			.initial = video->modifications,
 		});
 	const auto raw = editor.get();

@@ -224,6 +224,8 @@ videoTimelineFg: mediaviewControlFg;
 videoTimelineDimBg: mediaviewCaptionBg;
 videoTimelinePlaceholderBg: mediaviewPipPlaybackInactive;
 videoTimelineDurationFg: mediaviewCaptionFg;
+videoTimelineSizeFg: mediaviewCaptionFg;
+videoTimelineSizeSkip: 12px;
 videoTimelineDurationStyle: TextStyle(defaultTextStyle) {
 	font: font(12px semibold);
 }

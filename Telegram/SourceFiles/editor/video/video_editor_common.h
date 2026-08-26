@@ -35,6 +35,8 @@ struct VideoEditorData {
 	bool removeAudio = false;
 	bool allowQuality = false;
 	bool webmSticker = false;
+	// Set when the file is re-encoded even with no modifications at all.
+	bool transcodeAlways = false;
 };
 
 [[nodiscard]] QSize EditedFrameSize(
