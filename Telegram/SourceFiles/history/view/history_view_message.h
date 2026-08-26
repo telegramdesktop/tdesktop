@@ -510,8 +510,8 @@ private:
 	void psaTooltipToggled(bool shown) const;
 	void invalidateTextDependentCache() override;
 
-	bool textAppearValidate(not_null<TextAppearing*> appearing);
-	bool textAppearCheckLine(not_null<TextAppearing*> appearing);
+	bool textAppearValidate();
+	bool textAppearCheckLine();
 	void textAppearStartWidthAnimation(not_null<TextAppearing*> appearing);
 	void textAppearStartHeightAnimation(
 		not_null<TextAppearing*> appearing,
