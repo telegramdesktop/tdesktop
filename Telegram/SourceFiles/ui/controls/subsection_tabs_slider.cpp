@@ -474,7 +474,7 @@ SubsectionButton::SubsectionButton(
 : RippleButton(parent, st::defaultRippleAnimationBgOver)
 , _delegate(delegate)
 , _data(std::move(data)) {
-	setIsListItem(true);
+	setIsPageTab(true);
 }
 
 AccessibilityState SubsectionButton::accessibilityState() const {
@@ -926,7 +926,7 @@ bool SubsectionSlider::buttonKeyPressed(
 }
 
 QAccessible::Role SubsectionSlider::accessibilityRole() {
-	return QAccessible::List;
+	return QAccessible::PageTabList;
 }
 
 Qt::FocusPolicy SubsectionSlider::accessibilityFocusPolicy() {
