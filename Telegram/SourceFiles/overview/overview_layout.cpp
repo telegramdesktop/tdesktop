@@ -145,22 +145,47 @@ private:
 		image.setDevicePixelRatio(ratio);
 		return image;
 	}
-	// Scale first, crop the small result after. Cutting the frame out at the
-	// source resolution deep copies the whole cut region, which for a
-	// 12000x9000 photo in a square cell is a few hundred megabytes. Expanding
-	// to the box applies exactly the same scale factor the crop-then-scale
-	// order did, so the visible pixels don't change.
-	auto result = image.scaled(
+	// Both orders apply the same scale factor, so the visible pixels are the
+	// same either way - but the intermediate they build is not. Cropping
+	// first deep copies the cut region at source resolution, a few hundred
+	// megabytes for a 12000x9000 photo in a square cell. Expanding to the
+	// box first avoids that, but blows up the other way on an extreme aspect
+	// ratio: a 2560x26 panorama expands to about 35000x360. Take whichever
+	// intermediate is smaller.
+	const auto wide = (image.width() * height > image.height() * width);
+	const auto cropWidth = wide
+		? ((image.height() * width) / height)
+		: image.width();
+	const auto cropHeight = wide
+		? image.height()
+		: ((image.width() * height) / width);
+	const auto expanded = image.size().scaled(
 		width,
 		height,
-		Qt::KeepAspectRatioByExpanding,
-		Qt::SmoothTransformation);
-	if (result.width() != width || result.height() != height) {
-		result = result.copy(
-			(result.width() - width) / 2,
-			(result.height() - height) / 2,
+		Qt::KeepAspectRatioByExpanding);
+	const auto cropFirst = (int64(cropWidth) * cropHeight)
+		< (int64(expanded.width()) * expanded.height());
+	auto result = QImage();
+	if (cropFirst) {
+		result = image.copy(
+			(image.width() - cropWidth) / 2,
+			(image.height() - cropHeight) / 2,
+			cropWidth,
+			cropHeight
+		).scaled(width, height, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+	} else {
+		result = image.scaled(
 			width,
-			height);
+			height,
+			Qt::KeepAspectRatioByExpanding,
+			Qt::SmoothTransformation);
+		if (result.width() != width || result.height() != height) {
+			result = result.copy(
+				(result.width() - width) / 2,
+				(result.height() - height) / 2,
+				width,
+				height);
+		}
 	}
 	result.setDevicePixelRatio(ratio);
 	return result;
