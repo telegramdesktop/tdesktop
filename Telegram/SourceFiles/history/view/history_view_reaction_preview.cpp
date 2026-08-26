@@ -119,27 +119,23 @@ struct PreviewPlacement {
 	const auto top = (anchor.y() + panel.height() > bottom)
 		? (anchor.y() - panel.height())
 		: anchor.y();
-	const auto contentAndGap = content.height() + gap;
-	const auto panelAndGap = panel.height() + gap;
-	const auto above = fit(top - contentAndGap, height, available.top(), bottom)
-		+ contentAndGap;
-	const auto below = fit(top, height, available.top(), bottom);
-	const auto contentAbove = (std::abs(above - top) <= std::abs(below - top));
 	const auto blockLeft = fit(
 		left - (width - panel.width()) / 2,
 		width,
 		available.left(),
 		right);
+	const auto blockTop = fit(
+		top - gap - content.height(),
+		height,
+		available.top(),
+		bottom);
 	const auto contentLeft = blockLeft + (width - content.width()) / 2;
 	const auto panelLeft = blockLeft + (width - panel.width()) / 2;
-	const auto panelTop = contentAbove ? above : below;
-	const auto contentTop = contentAbove
-		? (panelTop - contentAndGap)
-		: (panelTop + panelAndGap);
+	const auto panelTop = blockTop + content.height() + gap;
 	return {
 		.contentShift = QPoint(
 			contentLeft - (outer.width() - content.width()) / 2,
-			contentTop - (outer.height() - content.height()) / 2),
+			blockTop - (outer.height() - content.height()) / 2),
 		.menuPosition = QPoint(panelLeft, panelTop)
 			- rect::m::pos::tl(args.menuPadding),
 	};
