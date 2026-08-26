@@ -183,8 +183,16 @@ void AlbumPreview::prepareThumbs(gsl::span<Ui::PreparedFile> items) {
 			this,
 			[=] { update(); },
 			[=](QRect rect) { update(rect); },
-			[=] { changeThumbByIndex(orderIndex(thumbUnderCursor())); },
-			[=] { deleteThumbByIndex(orderIndex(thumbUnderCursor())); }));
+			[=] {
+				if (const auto thumb = thumbUnderCursor()) {
+					changeThumbByIndex(orderIndex(thumb));
+				}
+			},
+			[=] {
+				if (const auto thumb = thumbUnderCursor()) {
+					deleteThumbByIndex(orderIndex(thumb));
+				}
+			}));
 		if (_thumbs.back()->isCompressedSticker()) {
 			_hasMixedFileHeights = true;
 		}
