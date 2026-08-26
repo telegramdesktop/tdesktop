@@ -225,8 +225,10 @@ Back in the main session, after each wave:
    PY
    ```
 
-   Anything listed is a verdict you dropped — go back and finish it. Run the
-   same check with the full group list before Phase 4.
+   Anything listed is a verdict you dropped — go back and finish it. Before
+   Phase 4, run it once more over every group the run actually selected —
+   never the full group list, since under `--limit` the groups left for a
+   later run have no ledger entry by design and would all read as dropped.
 
 Under `--dry-run`, do phases 1–2 and record nothing, commit nothing.
 
