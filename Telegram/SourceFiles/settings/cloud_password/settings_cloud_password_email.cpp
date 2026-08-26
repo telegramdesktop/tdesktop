@@ -99,7 +99,9 @@ void Email::setupContent() {
 	AddSkipInsteadOfField(content);
 
 	const auto send = [=](Fn<void()> close) {
-		Expects(!_requestLifetime);
+		if (_requestLifetime) {
+			return;
+		}
 
 		const auto data = stepData();
 
