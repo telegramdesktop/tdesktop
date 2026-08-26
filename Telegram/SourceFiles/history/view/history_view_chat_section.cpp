@@ -6056,6 +6056,8 @@ void ChatWidget::searchRequested() {
 		_composeSearch->setInnerFocus();
 	} else if (_sublist) {
 		controller()->searchInChat(_sublist);
+	} else if (mode() == Mode::History) {
+		controller()->searchInChat(_history);
 	} else if (!preventsClose(crl::guard(this, [=] { searchInTopic(); }))) {
 		searchInTopic();
 	}
@@ -6116,43 +6118,49 @@ bool ChatWidget::searchInChatEmbedded(
 			_composeSearch->setInnerFocus();
 			return true;
 		}
-		const auto update = [=] {
-			if (_composeSearch) {
-				_composeControls->hide();
-			} else {
-				_composeControls->show();
-			}
-			updateBotKeyboard();
-			updateControlsGeometry();
-		};
-		_composeSearch = std::make_unique<ComposeSearch>(
-			this,
-			controller(),
-			_history,
-			searchFrom,
-			query);
-		_composeSearch->setCalendarChat(Dialogs::Key(_history));
-
-		update();
-		doSetInnerFocus();
-
-		using Activation = ComposeSearch::Activation;
-		_composeSearch->activations(
-		) | rpl::on_next([=](Activation activation) {
-			auto params = Window::SectionShow(
-				Window::SectionShow::Way::Forward,
-				anim::type::instant);
-			params.highlight = Window::SearchHighlightId(activation.query);
-			showAtPosition(activation.item->position(), {}, params);
-		}, _composeSearch->lifetime());
-
-		_composeSearch->destroyRequests(
-		) | rpl::take(1) | rpl::on_next([=] {
-			_composeSearch = nullptr;
+		const auto search = crl::guard(this, [=] {
+			const auto update = [=] {
+				if (_composeSearch) {
+					_composeControls->hide();
+				} else {
+					_composeControls->show();
+				}
+				updateBotKeyboard();
+				updateControlsGeometry();
+			};
+			_composeSearch = std::make_unique<ComposeSearch>(
+				this,
+				controller(),
+				_history,
+				searchFrom,
+				query);
+			_composeSearch->setCalendarChat(Dialogs::Key(_history));
 
 			update();
 			doSetInnerFocus();
-		}, _composeSearch->lifetime());
+
+			using Activation = ComposeSearch::Activation;
+			_composeSearch->activations(
+			) | rpl::on_next([=](Activation activation) {
+				auto params = Window::SectionShow(
+					Window::SectionShow::Way::Forward,
+					anim::type::instant);
+				params.highlight = Window::SearchHighlightId(
+					activation.query);
+				showAtPosition(activation.item->position(), {}, params);
+			}, _composeSearch->lifetime());
+
+			_composeSearch->destroyRequests(
+			) | rpl::take(1) | rpl::on_next([=] {
+				_composeSearch = nullptr;
+
+				update();
+				doSetInnerFocus();
+			}, _composeSearch->lifetime());
+		});
+		if (!preventsClose(search)) {
+			search();
+		}
 		return true;
 	}
 	if (sublist != _sublist) {
