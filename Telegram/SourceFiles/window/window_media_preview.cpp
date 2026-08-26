@@ -60,8 +60,8 @@ MediaPreviewWidget::MediaPreviewWidget(
 QRect MediaPreviewWidget::updateArea() const {
 	const auto size = currentDimensions();
 	const auto position = QPoint(
-		(width() - size.width()) / 2 + _contentShift.x(),
-		(height() - size.height()) / 2 + _contentShift.y());
+		(width() - size.width()) / 2,
+		(height() - size.height()) / 2 + _contentShiftY);
 	const auto premium = _document && _document->isPremiumSticker();
 	const auto adjusted = position
 		- (premium
@@ -179,8 +179,8 @@ void MediaPreviewWidget::resizeEvent(QResizeEvent *e) {
 QPoint MediaPreviewWidget::innerPosition(QSize size) const {
 	if (!_document || !_document->isPremiumSticker()) {
 		return QPoint(
-			(width() - size.width()) / 2 + _contentShift.x(),
-			(height() - size.height()) / 2 + _contentShift.y());
+			(width() - size.width()) / 2,
+			(height() - size.height()) / 2 + _contentShiftY);
 	}
 	const auto outer = size * kPremiumMultiplier;
 	const auto shift = size.width() * kPremiumShift;
@@ -193,8 +193,8 @@ QPoint MediaPreviewWidget::innerPosition(QSize size) const {
 QPoint MediaPreviewWidget::outerPosition(QSize size) const {
 	const auto outer = size * kPremiumMultiplier;
 	return QPoint(
-		(width() - outer.width()) / 2 + _contentShift.x(),
-		(height() - outer.height()) / 2 + _contentShift.y());
+		(width() - outer.width()) / 2,
+		(height() - outer.height()) / 2 + _contentShiftY);
 }
 
 void MediaPreviewWidget::showPreview(
@@ -325,14 +325,15 @@ void MediaPreviewWidget::setHideEmoji(bool hide) {
 	}
 }
 
-void MediaPreviewWidget::setContentShift(QPoint shift) {
-	_contentShift = shift;
+void MediaPreviewWidget::setContentShift(int y) {
+	_contentShiftY = y;
 	_cachedSize = QSize();
 	update();
 }
 
-QSize MediaPreviewWidget::contentSize() const {
-	return currentDimensions();
+int MediaPreviewWidget::contentBottom() const {
+	const auto s = currentDimensions();
+	return (height() + s.height()) / 2 + _contentShiftY;
 }
 
 QSize MediaPreviewWidget::currentDimensions() const {
@@ -349,7 +350,7 @@ QSize MediaPreviewWidget::currentDimensions() const {
 	if (_photo) {
 		result = QSize(_photo->width(), _photo->height());
 		const auto skip = st::mediaPreviewPhotoSkip;
-		const auto shiftSkip = 2 * std::abs(_contentShift.y());
+		const auto shiftSkip = 2 * std::abs(_contentShiftY);
 		box = QSize(width() - 2 * skip, height() - 2 * skip - shiftSkip);
 	} else {
 		result = _document->dimensions;

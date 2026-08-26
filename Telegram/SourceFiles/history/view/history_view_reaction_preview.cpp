@@ -165,13 +165,13 @@ Fn<void()> SetupPreviewMenu(
 		}
 		menuRaw->showFast();
 		const auto gap = st::defaultMenu.itemPadding.top();
-		const auto shift = -(gap + menuRaw->height()) / 2;
-		mediaPreviewRaw->setContentShift({ 0, shift });
+		const auto menuH = menuRaw->height();
+		const auto shift = -(gap + menuH) / 2;
+		mediaPreviewRaw->setContentShift(shift);
 
-		const auto contentHeight = mediaPreviewRaw->contentSize().height();
-		wrapRaw->move(
-			(size.width() - menuRaw->width()) / 2,
-			(size.height() + contentHeight) / 2 + shift + gap);
+		const auto menuX = (size.width() - menuRaw->width()) / 2;
+		const auto menuY = mediaPreviewRaw->contentBottom() + gap;
+		wrapRaw->move(menuX, menuY);
 		wrapRaw->show(anim::type::normal);
 		wrapRaw->raise();
 	};
