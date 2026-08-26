@@ -150,11 +150,13 @@ void Controller::showAccount(
 	const auto prevSessionUniqueId = prevSession
 		? prevSession->uniqueId()
 		: 0;
+	// Weak: the account can be destroyed by removeRedundantAccounts()
+	// before this subscription fires again.
 	const auto accountBeforeIntro = (prevAccount
 		&& prevAccount != account
 		&& prevAccount->sessionExists())
-		? prevAccount
-		: nullptr;
+		? base::make_weak(prevAccount)
+		: base::weak_ptr<Main::Account>();
 	_accountLifetime.destroy();
 	_id.account = account;
 	Core::App().checkWindowId(this);
@@ -209,7 +211,9 @@ void Controller::showAccount(
 			session->updates().updateOnline(crl::now());
 		} else {
 			sideBarChanged();
-			setupIntro(accountBeforeIntro, std::move(oldContentCache));
+			setupIntro(
+				accountBeforeIntro.get(),
+				std::move(oldContentCache));
 			_widget.updateGlobalMenu();
 		}
 
