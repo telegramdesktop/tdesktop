@@ -1444,7 +1444,7 @@ void StickerSetBox::Inner::mouseMoveEvent(QMouseEvent *e) {
 		&& _dragging.index < _pack.size()
 		&& _dragging.lastSelected >= 0
 		&& !draggedAnimating) {
-		for (auto i = 0; i < _pack.size(); i++) {
+		for (auto i = 0; i < _elements.size(); i++) {
 			if (i == _dragging.index) {
 				continue;
 			}
@@ -1595,7 +1595,17 @@ void StickerSetBox::Inner::requestReorder(
 }
 
 void StickerSetBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
-	if (_dragging.index >= 0 && !isDraggedAnimating()) {
+	if (_dragging.index >= 0
+		&& _dragging.lastSelected < 0
+		&& !isDraggedAnimating()) {
+		// A press without a following move leaves lastSelected == -1,
+		// always so for mask sets, where updateSelected() forces it.
+		// Reordering to -1 would rotate past _elements.begin().
+		_dragging = {};
+		_dragging.enabled = true;
+		_shiftAnimations.clear();
+		update();
+	} else if (_dragging.index >= 0 && !isDraggedAnimating()) {
 		const auto fromPos = mapFromGlobal(e->globalPos()) - _dragging.point;
 		const auto toPos = posFromIndex(_dragging.lastSelected);
 		const auto document = _pack[_dragging.index];
@@ -2032,7 +2042,10 @@ int32 StickerSetBox::Inner::stickerFromGlobalPos(const QPoint &p) const {
 	int32 col = (l.x() >= _padding.left()) ? qFloor((l.x() - _padding.left()) / _singleSize.width()) : -1;
 	if (row >= 0 && col >= 0 && col < _perRow) {
 		int32 result = row * _perRow + col;
-		return (result < _pack.size()) ? result : -1;
+		// _elements, not _pack: premium stickers are skipped from _elements
+		// when the account cannot buy premium, so _pack is the longer list
+		// and only _elements is painted and indexed.
+		return (result < _elements.size()) ? result : -1;
 	}
 	return -1;
 }
@@ -2065,6 +2078,9 @@ void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 	for (int32 i = from; i < to; ++i) {
 		for (int32 j = 0; j < _perRow; ++j) {
 			int32 index = i * _perRow + j;
+			if (index >= _elements.size()) {
+				break;
+			}
 
 			if (lastIndex >= 0) {
 				if (_dragging.index == index) {
@@ -2080,9 +2096,6 @@ void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 					paintSticker(p, index, pos, paused, now);
 					continue;
 				}
-			}
-			if (index >= _elements.size()) {
-				break;
 			}
 			const auto pos = QPoint(
 				_padding.left() + j * _singleSize.width(),
