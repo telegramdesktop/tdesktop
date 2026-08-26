@@ -654,7 +654,7 @@ whoReadMenu: PopupMenu(popupMenuExpandedSeparator) {
 }
 whoReadDropdownMenu: DropdownMenu(dropdownMenuWithIcons) {
 	wrap: InnerDropdown(defaultInnerDropdown) {
-		scrollPadding: margins(0px, 8px, 0px, 8px);
+		scrollPadding: margins(0px, 6px, 0px, 4px);
 	}
 	menu: Menu(menuWithIcons) {
 		separator: expandedMenuSeparator;
