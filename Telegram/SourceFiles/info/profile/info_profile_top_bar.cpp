@@ -1682,11 +1682,11 @@ void TopBar::setupUniqueBadgeTooltip() {
 		const auto id = (collectible && widget && premium)
 			? collectible->id
 			: uint64();
-		if (_badgeCollectibleId == id) {
+		if (_badgeTooltip && _badgeCollectibleId == id) {
 			return;
 		}
 		hideBadgeTooltip();
-		if (!collectible || _localCollectible) {
+		if (!id || _localCollectible) {
 			return;
 		}
 		_badgeTooltip = std::make_unique<Ui::GlareTooltip>(
@@ -1700,6 +1700,7 @@ void TopBar::setupUniqueBadgeTooltip() {
 				.rim = collectible->textColor,
 				.text = QColor(255, 255, 255),
 			});
+		_badgeCollectibleId = id;
 		_badgeTooltip->trackWidget(widget);
 		const auto raw = _badgeTooltip.get();
 		raw->fade(true);
@@ -1714,6 +1715,7 @@ void TopBar::setupUniqueBadgeTooltip() {
 
 void TopBar::hideBadgeTooltip() {
 	_badgeTooltipHide->cancel();
+	_badgeCollectibleId = 0;
 	if (auto old = base::take(_badgeTooltip)) {
 		const auto raw = old.get();
 		_badgeOldTooltips.push_back(std::move(old));
