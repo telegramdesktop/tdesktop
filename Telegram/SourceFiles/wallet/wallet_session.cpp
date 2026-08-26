@@ -949,11 +949,6 @@ void Session::requestMoreActivity() {
 void Session::applyEngineActivity(
 		const engine::WalletUpdate &update,
 		bool more) {
-#ifdef _DEBUG
-	if (_historyInjected) {
-		return;
-	}
-#endif // _DEBUG
 	const auto &activity = update.snapshot.activity;
 	const auto &resource = more
 		? activity.pagination_resource
@@ -974,6 +969,18 @@ void Session::applyEngineActivity(
 	}
 	_historyHasNext = activity.has_more;
 	_historyRefreshedAt = crl::now();
+#ifdef _DEBUG
+	// The pin suppresses publication only, so it has to stay below both
+	// writes above: an injected run still has to re-stamp
+	// _historyRefreshedAt from every live activity leg, or pollTick()'s
+	// stale() sees a frozen stamp and fires requestEngineRefresh() on
+	// every 5 s tick instead of the 30 s stream-resync cadence. It also
+	// has to stay below the kReady gate, so a failed or superseded leg
+	// never stamps freshness.
+	if (_historyInjected) {
+		return;
+	}
+#endif // _DEBUG
 	auto loaded = HistoryFromEngine(activity.items);
 	if (SameHistory(_history, loaded)) {
 		return;
