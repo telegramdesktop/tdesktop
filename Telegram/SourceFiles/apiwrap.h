@@ -602,6 +602,11 @@ private:
 		not_null<PeerData*> peer,
 		bool justClear,
 		bool revoke);
+	void deleteHistory(
+		not_null<PeerData*> peer,
+		bool justClear,
+		bool revoke,
+		int retries);
 	void applyAffectedMessages(
 		const MTPmessages_AffectedMessages &result) const;
 
