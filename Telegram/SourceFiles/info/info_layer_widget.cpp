@@ -152,6 +152,12 @@ void LayerWidget::setContentHeight(int height) {
 }
 
 void LayerWidget::showFinished() {
+	if (!_contentWrap) {
+		// parentResized() may have moved the content out into a
+		// MoveMemento and only queued hideSpecialLayer(), so we stay
+		// alive with no content for at least one event loop turn.
+		return;
+	}
 	floatPlayerShowVisible();
 	_contentWrap->showFast();
 }
