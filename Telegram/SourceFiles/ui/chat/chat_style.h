@@ -732,6 +732,11 @@ private:
 	rpl::event_stream<> _paletteChanged;
 
 	rpl::lifetime _defaultPaletteChangeLifetime;
+	// Every icon this palette copy owns, collected by make(): they are
+	// withPalette() copies of it, so assignPalette() resets exactly these
+	// instead of every icon in the process.
+	mutable std::vector<not_null<style::icon*>> _ownedIcons;
+
 	rpl::lifetime _colorIndicesLifetime;
 
 };
