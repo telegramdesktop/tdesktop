@@ -141,30 +141,29 @@ private:
 	const auto ratio = style::DevicePixelRatio();
 	width *= ratio;
 	height *= ratio;
-	const auto finalize = [&](QImage result) {
-		result = result.scaled(
-			width,
-			height,
-			Qt::IgnoreAspectRatio,
-			Qt::SmoothTransformation);
-		result.setDevicePixelRatio(ratio);
-		return result;
-	};
-	if (image.width() * height == image.height() * width) {
-		if (image.width() != width) {
-			return finalize(std::move(image));
-		}
+	if (image.width() == width && image.height() == height) {
 		image.setDevicePixelRatio(ratio);
 		return image;
-	} else if (image.width() * height > image.height() * width) {
-		const auto use = (image.height() * width) / height;
-		const auto skip = (image.width() - use) / 2;
-		return finalize(image.copy(skip, 0, use, image.height()));
-	} else {
-		const auto use = (image.width() * height) / width;
-		const auto skip = (image.height() - use) / 2;
-		return finalize(image.copy(0, skip, image.width(), use));
 	}
+	// Scale first, crop the small result after. Cutting the frame out at the
+	// source resolution deep copies the whole cut region, which for a
+	// 12000x9000 photo in a square cell is a few hundred megabytes. Expanding
+	// to the box applies exactly the same scale factor the crop-then-scale
+	// order did, so the visible pixels don't change.
+	auto result = image.scaled(
+		width,
+		height,
+		Qt::KeepAspectRatioByExpanding,
+		Qt::SmoothTransformation);
+	if (result.width() != width || result.height() != height) {
+		result = result.copy(
+			(result.width() - width) / 2,
+			(result.height() - height) / 2,
+			width,
+			height);
+	}
+	result.setDevicePixelRatio(ratio);
+	return result;
 }
 
 void PaintSensitiveTag(Painter &p, QRect r) {
