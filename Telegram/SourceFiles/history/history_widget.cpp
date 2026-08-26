@@ -11447,6 +11447,13 @@ HistoryWidget::~HistoryWidget() {
 
 		session().data().itemVisibilitiesUpdated();
 	}
+	// Destroy the list while our own children are still alive: ~HistoryInner
+	// destroys the about view item, which fires itemRemoved() and reenters
+	// updateTopBarSelection(). Left to ~QWidget's deleteChildren() that
+	// happens after _topBar, an earlier child, was already deleted.
+	_list = nullptr;
+	_scroll->takeWidget<HistoryInner>().destroy();
+
 	_subsectionTabsLifetime.destroy();
 	_subsectionTopicsLifetime.destroy();
 	_subsectionTabs = nullptr;
