@@ -219,10 +219,9 @@ VideoEditor::VideoEditor(
 	setupTapToPause();
 	refreshCoverPreview();
 
-	_crop->events(
-	) | rpl::filter([](not_null<QEvent*> e) {
-		return (e->type() == QEvent::MouseButtonRelease);
-	}) | rpl::on_next([=] {
+	// The crop only reaches its saved rect after its own release handler.
+	_crop->changes(
+	) | rpl::on_next([=] {
 		refreshQualityLevels();
 		invalidateCoverPreview();
 	}, _crop->lifetime());
@@ -577,13 +576,10 @@ void VideoEditor::setupTapToPause() {
 			}
 		} else if (type == QEvent::MouseButtonRelease) {
 			const auto tapped = state->pressed.has_value() && !state->moved;
-			const auto dragged = state->pressed.has_value() && state->moved;
 			state->pressed = std::nullopt;
 			state->moved = false;
 			if (tapped) {
 				togglePause();
-			} else if (dragged) {
-				invalidateCoverPreview();
 			}
 		}
 	}, lifetime());

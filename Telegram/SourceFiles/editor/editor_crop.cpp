@@ -384,7 +384,11 @@ void Crop::mouseReleaseEvent(QMouseEvent *e) {
 		setGridVisible(false, true);
 	}
 	clearDownState();
+	const auto was = saveCropRect();
 	convertCropPaintToOriginal();
+	if (saveCropRect() != was) {
+		_changes.fire({});
+	}
 }
 
 void Crop::computeDownState(const QPoint &p) {
