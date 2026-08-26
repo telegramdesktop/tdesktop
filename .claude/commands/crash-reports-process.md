@@ -192,6 +192,23 @@ Back in the main session, after each wave:
    The ledger keys on a version-independent signature, so a crash decided today
    is skipped automatically in every later run. Recording is what makes waves
    resumable — never defer it to the end of the run.
+4. **Reconcile before starting the next wave.** Applying and recording are
+   separate steps done per group, so a group can silently fall through between
+   them. Assert that every gid the wave returned now has a ledger entry:
+
+   ```bash
+   python3 - <<'PY'
+   import json
+   led = json.load(open("<ledger path>"))
+   groups = json.load(open("<run>/triage/groups.json"))["groups"]
+   todo = [g["gid"] for g in groups
+           if g["gid"] in {<this wave's gids>} and g["key"] not in led]
+   print("unrecorded:", todo or "none")
+   PY
+   ```
+
+   Anything listed is a verdict you dropped — go back and finish it. Run the
+   same check with the full group list before Phase 4.
 
 Under `--dry-run`, do phases 1–2 and record nothing, commit nothing.
 
