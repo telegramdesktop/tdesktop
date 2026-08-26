@@ -555,6 +555,11 @@ void SubsectionButton::focusInEvent(QFocusEvent *e) {
 	RippleButton::focusInEvent(e);
 }
 
+void SubsectionButton::focusOutEvent(QFocusEvent *e) {
+	_delegate->buttonBlurred(this);
+	RippleButton::focusOutEvent(e);
+}
+
 void SubsectionButton::keyPressEvent(QKeyEvent *e) {
 	// Arrows and Home/End move focus between the tabs; everything else
 	// (including Enter and Space, which activate) goes to the button.
@@ -893,6 +898,17 @@ void SubsectionSlider::buttonFocused(not_null<SubsectionButton*> button) {
 	const auto from = _vertical ? button->y() : button->x();
 	const auto size = _vertical ? button->height() : button->width();
 	_requestShown.fire({ from, from + size });
+}
+
+void SubsectionSlider::buttonBlurred(not_null<SubsectionButton*> button) {
+	// Once focus leaves the strip, park the roving Tab stop back on the
+	// active tab, so the next Tab from outside enters on it and not on the
+	// tab the arrows last browsed. Deferred, because focus may be merely
+	// moving to another tab - by the time this runs that tab holds focus
+	// and keeps the stop.
+	crl::on_main(this, [=] {
+		refreshAccessibilityFocus();
+	});
 }
 
 bool SubsectionSlider::buttonKeyPressed(

@@ -49,6 +49,7 @@ public:
 	virtual bool buttonSelected(
 		not_null<const SubsectionButton*> button) = 0;
 	virtual void buttonFocused(not_null<SubsectionButton*> button) = 0;
+	virtual void buttonBlurred(not_null<SubsectionButton*> button) = 0;
 	virtual bool buttonKeyPressed(
 		not_null<SubsectionButton*> button,
 		not_null<QKeyEvent*> e) = 0;
@@ -82,6 +83,7 @@ protected:
 
 	void contextMenuEvent(QContextMenuEvent *e) override;
 	void focusInEvent(QFocusEvent *e) override;
+	void focusOutEvent(QFocusEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
 
 	const not_null<SubsectionButtonDelegate*> _delegate;
@@ -119,6 +121,7 @@ public:
 	Text::MarkedContext buttonContext() override;
 	bool buttonSelected(not_null<const SubsectionButton*> button) override;
 	void buttonFocused(not_null<SubsectionButton*> button) override;
+	void buttonBlurred(not_null<SubsectionButton*> button) override;
 	bool buttonKeyPressed(
 		not_null<SubsectionButton*> button,
 		not_null<QKeyEvent*> e) override;
