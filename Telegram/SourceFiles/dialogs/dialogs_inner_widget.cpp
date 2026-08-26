@@ -2490,7 +2490,25 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 		const auto filterId = _filterId;
 		const auto origin = e->pos()
 			- QPoint(0, filteredOffset() + result.top);
-		const auto updateCallback = [=] { repaintDialogRow(filterId, row); };
+		// The ripple may be parked in _rightButtons, which is owned by us
+		// and outlives the Row: _filterResultsGlobal is cleared on every
+		// query change. So never capture the Row pointer here.
+		const auto weakThis = base::make_weak(this);
+		const auto weakEntry = base::make_weak(row->entry());
+		const auto updateCallback = [weakThis, weakEntry, filterId] {
+			const auto that = weakThis.get();
+			const auto entry = weakEntry.get();
+			if (!that || !entry) {
+				return;
+			}
+			const auto i = ranges::find(
+				that->_filterResults,
+				Key(entry),
+				&FilterResult::key);
+			if (i != that->_filterResults.end()) {
+				that->repaintDialogRow(filterId, i->row);
+			}
+		};
 		if (addRightButtonRipple(origin, updateCallback)) {
 		} else if (_pressedTopicJump) {
 			row->addTopicJumpRipple(
