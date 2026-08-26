@@ -2277,9 +2277,12 @@ auto ListWidget::findViewForPinnedTracking(int top) const
 			top,
 			std::less<>(),
 			&Element::y);
-		return (first == end(_items) || (*first)->y() > top)
-			? first - 1
-			: first;
+		if (first == end(_items) || (*first)->y() > top) {
+			// 'top' may be above the first item, then lower_bound()
+			// returns begin() and 'first - 1' would read _items[-1].
+			return (first == begin(_items)) ? first : (first - 1);
+		}
+		return first;
 	};
 	const auto findView = [&](int top)
 	-> std::pair<std::vector<not_null<Element*>>::const_iterator, int> {
