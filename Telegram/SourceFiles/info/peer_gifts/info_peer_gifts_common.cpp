@@ -1011,13 +1011,14 @@ void GiftButton::paint(QPainter &p, float64 craftProgress) {
 		} else if (data.pinned && _mode != Mode::Selection) {
 			auto hq = PainterHighQualityEnabler(p);
 			const auto &icon = st::giftBoxPinIcon;
-			const auto skip = st::giftBoxUserpicSkip
-				+ statusShift;
+			const auto skip = st::giftBoxUserpicSkip;
 			const auto add = (st::giftBoxUserpicSize - icon.width()) / 2;
 			p.setPen(Qt::NoPen);
 			p.setBrush(unique->backdrop.patternColor);
 			const auto rect = QRect(
-				QPoint(extend.left() + skip, extend.top() + skip),
+				QPoint(
+					extend.left() + skip + statusShift,
+					extend.top() + skip),
 				QSize(icon.width() + 2 * add, icon.height() + 2 * add));
 			p.drawEllipse(rect);
 			icon.paintInCenter(p, rect);
@@ -1030,18 +1031,18 @@ void GiftButton::paint(QPainter &p, float64 craftProgress) {
 					QColor(255, 255, 255));
 			}
 			const auto size = _tonIcon.size() / _tonIcon.devicePixelRatio();
-			const auto skip = st::giftBoxUserpicSkip
-				+ inset
-				+ statusShift;
+			const auto skip = st::giftBoxUserpicSkip + inset;
 			const auto add = (st::giftBoxUserpicSize - size.width()) / 2;
 			p.setPen(Qt::NoPen);
 			p.setBrush(unique->backdrop.patternColor);
 			const auto rect = QRect(
-				QPoint(extend.left() + skip, extend.top() + skip),
+				QPoint(
+					extend.left() + skip + statusShift,
+					extend.top() + skip),
 				QSize(size.width() + 2 * add, size.height() + 2 * add));
 			p.drawEllipse(rect);
 			p.drawImage(
-				extend.left() + skip + add,
+				extend.left() + skip + statusShift + add,
 				extend.top() + skip + add,
 				_tonIcon);
 			percentSkip += st::giftBoxUserpicSize;
