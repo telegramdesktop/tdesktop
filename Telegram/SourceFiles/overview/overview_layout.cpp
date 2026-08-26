@@ -542,10 +542,24 @@ void Photo::setPixFrom(not_null<Image*> image) {
 	Expects(_width > 0 && _height > 0);
 
 	auto img = image->original();
-	if (!_goodLoaded) {
+
+	// Blur allocates and detaches by the source pixel count, and 'image'
+	// can be a full size photo, because image(PhotoSize::Small) falls back
+	// to a larger size when no small one is available. So blur whichever of
+	// the source and the result has fewer pixels: a huge photo is scaled
+	// down first, while a small inline thumbnail is still blurred before it
+	// is upscaled, which keeps the placeholder looking the way it did.
+	const auto ratio = style::DevicePixelRatio();
+	const auto blurAfterCrop = (img.width() * img.height())
+		> ((_width * ratio) * (_height * ratio));
+	if (!_goodLoaded && !blurAfterCrop) {
 		img = Images::Blur(std::move(img));
 	}
-	_pix = CropMediaFrame(std::move(img), _width, _height);
+	img = CropMediaFrame(std::move(img), _width, _height);
+	if (!_goodLoaded && blurAfterCrop) {
+		img = Images::Blur(std::move(img));
+	}
+	_pix = std::move(img);
 
 	// In case we have inline thumbnail we can unload all images and we still
 	// won't get a blank image in the media viewer when the photo is opened.
