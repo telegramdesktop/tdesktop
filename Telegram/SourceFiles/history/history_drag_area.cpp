@@ -115,9 +115,17 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 	const auto moveToTop = [=](not_null<DragArea*> w) {
 		w->move(st::dragMargin.left(), st::dragMargin.top());
 	};
+	// Relayouting the container can synthesize a mouse move, and Qt
+	// re-dispatches Enter/Leave for it before qt_last_mouse_receiver is
+	// updated, so the container gets the same Leave again. That comes back
+	// here and keeps firing while the areas play their hide animation,
+	// until the recursion overflows the stack.
+	const auto updatingGeometry = lifetime.make_state<bool>(false);
 	const auto updateAttachGeometry = crl::guard(container, [=] {
-		if (updateControlsGeometry) {
+		if (updateControlsGeometry && !*updatingGeometry) {
+			*updatingGeometry = true;
 			updateControlsGeometry();
+			*updatingGeometry = false;
 		}
 
 		switch (*attachDragState) {
