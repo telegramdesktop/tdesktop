@@ -191,6 +191,8 @@ struct PreparedBundle {
 	std::vector<PreparedGroup> groups,
 	SendFilesWay way,
 	bool ctrlShiftEnter);
+[[nodiscard]] std::shared_ptr<PreparedBundle> MakeSingleFileBundle(
+	PreparedList &&list);
 
 [[nodiscard]] int MaxAlbumItems();
 [[nodiscard]] bool ValidateThumbDimensions(int width, int height);

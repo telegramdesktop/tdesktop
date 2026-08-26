@@ -505,6 +505,16 @@ std::shared_ptr<PreparedBundle> PrepareFilesBundle(
 	});
 }
 
+std::shared_ptr<PreparedBundle> MakeSingleFileBundle(PreparedList &&list) {
+	const auto way = SendFilesWay();
+	const auto slowmode = false;
+	const auto ctrlShiftEnter = false;
+	return PrepareFilesBundle(
+		DivideByGroups(std::move(list), way, slowmode),
+		way,
+		ctrlShiftEnter);
+}
+
 int MaxAlbumItems() {
 	return kMaxAlbumCount;
 }
