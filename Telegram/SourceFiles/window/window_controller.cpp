@@ -555,9 +555,15 @@ void Controller::invokeForSessionController(
 }
 
 QPoint Controller::getPointForCallPanelCenter() const {
-	return _widget.isActive()
-		? _widget.geometry().center()
-		: _widget.screen()->geometry().center();
+	if (_widget.isActive()) {
+		return _widget.geometry().center();
+	}
+	// When the last monitor is removed QGuiApplication has no screens at
+	// all, so screen() is nullptr.
+	const auto screen = _widget.screen();
+	return screen
+		? screen->geometry().center()
+		: _widget.geometry().center();
 }
 
 void Controller::showLogoutConfirmation() {
