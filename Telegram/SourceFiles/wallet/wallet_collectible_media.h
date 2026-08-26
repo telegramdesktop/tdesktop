@@ -28,7 +28,7 @@ namespace Wallet {
 
 [[nodiscard]] bool UniqueGiftMatchesAddress(
 	const std::shared_ptr<Data::UniqueGift> &unique,
-	const Gram::Address &address);
+	const QString &address);
 
 struct CollectibleView {
 	QString name;

@@ -99,12 +99,18 @@ namespace {
 
 bool UniqueGiftMatchesAddress(
 		const std::shared_ptr<Data::UniqueGift> &unique,
-		const Gram::Address &address) {
-	if (!unique) {
+		const QString &address) {
+	if (!unique || address.isEmpty()) {
 		return false;
 	}
-	const auto parsed = Gram::ParseAddress(unique->giftAddress);
-	return parsed && (parsed->address == address);
+	// Both sides name the same on-chain address, but they are produced by
+	// different canonicalizers: NftItem::address lowercases the hash, while
+	// the engine's parser decides its own case, so compare case-insensitively
+	// rather than depending on either one.
+	const auto parsed = ParseAddress(unique->giftAddress);
+	return parsed
+		&& !parsed->raw.isEmpty()
+		&& !parsed->raw.compare(address, Qt::CaseInsensitive);
 }
 
 TextWithEntities CollectibleTitleText(const CollectibleView &view) {
