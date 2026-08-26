@@ -174,6 +174,7 @@ private:
 	void setupListsLoading();
 	void updateRegions();
 	void updatePinned();
+	void updateVisibleArea();
 	void checkLoadMore();
 	[[nodiscard]] int pinnedMax() const;
 	[[nodiscard]] int pinnedMin() const;
@@ -690,7 +691,7 @@ void AddHistoryRowChip(
 	) | rpl::filter(mine) | rpl::on_next(refresh, chip->lifetime());
 	media->repaint(
 	) | rpl::filter(mine) | rpl::on_next(repaint, chip->lifetime());
-	media->resolve(address);
+	media->resolveBackground(address);
 	refresh();
 }
 
@@ -5210,6 +5211,7 @@ void Content::setupContent() {
 	_scroll->scrollTopValue(
 	) | rpl::on_next([=](int) {
 		updatePinned();
+		updateVisibleArea();
 	}, lifetime());
 
 	Ui::ResizeFitChild(_container, _column);
@@ -5627,6 +5629,12 @@ void Content::updateRegions() {
 		_strip->setGeometry(0, stripTop, width(), st::walletRowsHintHeight);
 	}
 	_headerShadow->setGeometry(0, 0, width(), st::lineWidth);
+	updateVisibleArea();
+}
+
+void Content::updateVisibleArea() {
+	const auto top = _scroll->scrollTop();
+	_column->setVisibleTopBottom(top, top + _scroll->height());
 }
 
 void Content::updatePinned() {

@@ -8,10 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/flat_map.h"
+#include "base/timer.h"
 #include "base/weak_ptr.h"
 #include "gram/api/gram_api_nft.h"
 
 #include <memory>
+#include <vector>
 
 class FileLoader;
 class Painter;
@@ -47,6 +49,8 @@ public:
 	~CollectibleMedia();
 
 	void resolve(const QString &item);
+	void resolveBackground(const QString &item);
+	void setListWindow(std::vector<QString> ordered);
 
 	[[nodiscard]] CollectibleView view(const QString &item) const;
 	[[nodiscard]] QString collection(const QString &item) const;
@@ -61,6 +65,15 @@ public:
 	[[nodiscard]] rpl::producer<QString> repaint() const;
 
 private:
+	enum class State : uchar {
+		None,
+		Sticky,
+		Window,
+		Background,
+		Flight,
+		Done,
+		Failed,
+	};
 	struct Entry;
 
 	void resolveFromRecord(
@@ -78,11 +91,37 @@ private:
 		not_null<Entry*> entry,
 		int side,
 		int radius);
+	[[nodiscard]] not_null<Entry*> prepare(const QString &item);
+	[[nodiscard]] Entry *takeNextQueued();
+	void checkStartNext();
+	void startChain(not_null<Entry*> entry);
+	void finishChain(not_null<Entry*> entry, State state);
+	void scheduleTimeoutCheck();
+	void checkTimeouts();
 
 	const not_null<Main::Session*> _session;
+	base::Timer _timeoutTimer;
 	rpl::event_stream<QString> _changed;
 	rpl::event_stream<QString> _repaint;
 	base::flat_map<QString, std::unique_ptr<Entry>> _map;
+
+	// The sticky lane is what a surface the user asked for waits on — a
+	// details box, an opened collectible. It is never pruned and is always
+	// drained first. The window lane is a projection of the collectibles
+	// list's visible plus preload range, replaced whole on every change,
+	// which is what keeps a fast scroll's landing point off the back of the
+	// queue behind the rows it flew past. The background lane is drained
+	// last and holds bulk enqueues nobody is looking at: history row chips
+	// are built for every loaded transaction whatever the active tab, so
+	// without a lane of their own they would starve the visible rows.
+	std::vector<QString> _sticky;
+	std::vector<QString> _window;
+	std::vector<QString> _background;
+	int _stickyCursor = 0;
+	int _windowCursor = 0;
+	int _backgroundCursor = 0;
+	int _inFlight = 0;
+	bool _starting = false;
 
 };
 

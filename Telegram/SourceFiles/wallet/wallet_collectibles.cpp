@@ -37,6 +37,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Wallet {
 namespace {
 
+constexpr auto kPreloadScreens = 3;
+
 constexpr auto kTitleTextOptions = TextParseOptions{
 	TextParseMarkdown,
 	0,
@@ -96,6 +98,33 @@ public:
 
 private:
 	const std::shared_ptr<Main::SessionShow> _show;
+
+};
+
+class CollectiblesList final : public Ui::VerticalLayout {
+public:
+	CollectiblesList(
+		QWidget *parent,
+		std::shared_ptr<Main::SessionShow> show,
+		std::shared_ptr<CollectibleMedia> media);
+
+	void rebuild();
+
+protected:
+	void visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) override;
+
+private:
+	void refreshWindow();
+
+	const std::shared_ptr<Main::SessionShow> _show;
+	const std::shared_ptr<CollectibleMedia> _media;
+	std::vector<QString> _addresses;
+	int _visibleTop = 0;
+	int _visibleBottom = 0;
+	int _windowFrom = -1;
+	int _windowTill = -1;
 
 };
 
@@ -244,6 +273,7 @@ void CollectiblePreviewBox(
 	box->setNoContentMargin(true);
 
 	const auto address = item.address;
+	media->resolve(address);
 	const auto artwork = box->addRow(
 		object_ptr<Ui::FixedHeightWidget>(
 			box,
@@ -358,7 +388,60 @@ void AddRow(
 	row->setClickedCallback([=] {
 		Activate(show, media, item);
 	});
-	media->resolve(address);
+}
+
+CollectiblesList::CollectiblesList(
+	QWidget *parent,
+	std::shared_ptr<Main::SessionShow> show,
+	std::shared_ptr<CollectibleMedia> media)
+: VerticalLayout(parent)
+, _show(std::move(show))
+, _media(std::move(media)) {
+}
+
+void CollectiblesList::rebuild() {
+	clear();
+	_addresses.clear();
+	const auto wallet = &_show->session().wallet();
+	for (const auto &item : wallet->collectibles()) {
+		AddRow(this, _media, _show, item);
+		_addresses.push_back(item.address);
+	}
+	Ui::AddSkip(this, st::walletRowsTopSkip);
+	if (const auto width = this->width()) {
+		resizeToWidth(width);
+	}
+	_windowFrom = _windowTill = -1;
+	refreshWindow();
+}
+
+void CollectiblesList::visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) {
+	_visibleTop = visibleTop;
+	_visibleBottom = visibleBottom;
+	VerticalLayout::visibleTopBottomUpdated(visibleTop, visibleBottom);
+	refreshWindow();
+}
+
+void CollectiblesList::refreshWindow() {
+	const auto count = int(_addresses.size());
+	const auto row = st::walletCollectibleRowHeight;
+	const auto page = std::max(_visibleBottom - _visibleTop, 0);
+	const auto till = _visibleBottom + page * kPreloadScreens;
+	const auto from = std::clamp(_visibleTop / row, 0, count);
+	const auto last = std::clamp((till + row - 1) / row, from, count);
+	if (_windowFrom == from && _windowTill == last) {
+		return;
+	}
+	_windowFrom = from;
+	_windowTill = last;
+	auto ordered = std::vector<QString>();
+	ordered.reserve(last - from);
+	for (auto i = from; i != last; ++i) {
+		ordered.push_back(_addresses[i]);
+	}
+	_media->setListWindow(std::move(ordered));
 }
 
 } // namespace
@@ -367,21 +450,16 @@ void AddCollectiblesList(
 		not_null<Ui::VerticalLayout*> container,
 		std::shared_ptr<Main::SessionShow> show,
 		std::shared_ptr<CollectibleMedia> media) {
-	const auto session = &show->session();
-	const auto wallet = &session->wallet();
-	const auto rebuild = [=] {
-		container->clear();
-		for (const auto &item : wallet->collectibles()) {
-			AddRow(container, media, show, item);
-		}
-		Ui::AddSkip(container, st::walletRowsTopSkip);
-		if (const auto width = container->width()) {
-			container->resizeToWidth(width);
-		}
-	};
-	rebuild();
+	const auto wallet = &show->session().wallet();
+	const auto list = container->add(object_ptr<CollectiblesList>(
+		container,
+		std::move(show),
+		std::move(media)));
+	list->rebuild();
 	wallet->collectiblesUpdates(
-	) | rpl::on_next(rebuild, container->lifetime());
+	) | rpl::on_next([=] {
+		list->rebuild();
+	}, list->lifetime());
 }
 
 } // namespace Wallet

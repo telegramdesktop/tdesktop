@@ -28,6 +28,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Wallet {
 namespace {
 
+constexpr auto kResolveBudget = 10;
+constexpr auto kChainTimeout = 60 * crl::time(1000);
+
 [[nodiscard]] QString UriSlug(const QString &uri) {
 	if (uri.isEmpty()) {
 		return QString();
@@ -132,38 +135,197 @@ struct CollectibleMedia::Entry {
 	base::flat_map<int, QImage> prepared;
 	PaintRoundImageCallback giftPaint;
 	std::unique_ptr<FileLoader> loader;
-	bool resolveStarted = false;
+	crl::time deadline = 0;
+	State state = State::None;
 };
 
 CollectibleMedia::CollectibleMedia(not_null<Main::Session*> session)
-: _session(session) {
+: _session(session)
+, _timeoutTimer([=] { checkTimeouts(); }) {
 }
 
-CollectibleMedia::~CollectibleMedia() = default;
+CollectibleMedia::~CollectibleMedia() {
+	// A loader still running self-cancels in ~webFileLoader and delivers its
+	// `done` synchronously, so the chain handlers must not reach the lanes.
+	_starting = true;
+	for (const auto &[raw, entry] : _map) {
+		if (const auto loader = base::take(entry->loader)) {
+			loader->cancel();
+		}
+	}
+}
 
-void CollectibleMedia::resolve(const QString &item) {
+not_null<CollectibleMedia::Entry*> CollectibleMedia::prepare(
+		const QString &item) {
 	auto &pointer = _map[item];
 	if (!pointer) {
 		pointer = std::make_unique<Entry>();
 		pointer->address = item;
 		pointer->fallback = FormatFriendly(item, true);
 	}
-	const auto entry = pointer.get();
-	if (entry->resolveStarted) {
+	return pointer.get();
+}
+
+void CollectibleMedia::resolve(const QString &item) {
+	const auto entry = prepare(item);
+	if (entry->state != State::None
+		&& entry->state != State::Window
+		&& entry->state != State::Background) {
 		return;
 	}
-	entry->resolveStarted = true;
-	_session->wallet().resolveCollectibleInfo(item, crl::guard(this, [=](
-			const Gram::NftItem &record) {
-		resolveFromRecord(entry, record);
-	}));
+	entry->state = State::Sticky;
+	_sticky.push_back(item);
+	checkStartNext();
+}
+
+void CollectibleMedia::resolveBackground(const QString &item) {
+	const auto entry = prepare(item);
+	if (entry->state != State::None) {
+		return;
+	}
+	entry->state = State::Background;
+	_background.push_back(item);
+	checkStartNext();
+}
+
+void CollectibleMedia::setListWindow(std::vector<QString> ordered) {
+	for (const auto &item : _window) {
+		const auto entry = find(item);
+		if (entry && entry->state == State::Window) {
+			entry->state = State::None;
+		}
+	}
+	_window.clear();
+	_windowCursor = 0;
+	_window.reserve(ordered.size());
+	for (const auto &item : ordered) {
+		const auto entry = prepare(item);
+		if (entry->state == State::None) {
+			entry->state = State::Window;
+			_window.push_back(item);
+		} else if (entry->state == State::Background) {
+			// Listed by the window, still owned by the background lane: the
+			// window drains first, and the claim survives the reset loop.
+			_window.push_back(item);
+		}
+	}
+	checkStartNext();
+}
+
+void CollectibleMedia::checkStartNext() {
+	if (_starting) {
+		return;
+	}
+	_starting = true;
+	const auto guard = gsl::finally([&] { _starting = false; });
+	while (_inFlight < kResolveBudget) {
+		const auto entry = takeNextQueued();
+		if (!entry) {
+			break;
+		}
+		startChain(entry);
+	}
+	scheduleTimeoutCheck();
+}
+
+CollectibleMedia::Entry *CollectibleMedia::takeNextQueued() {
+	const auto take = [&](
+			std::vector<QString> &queue,
+			int &cursor,
+			State state,
+			bool alsoBackground = false) -> Entry* {
+		while (cursor < int(queue.size())) {
+			const auto entry = find(queue[cursor++]);
+			if (entry
+				&& ((entry->state == state)
+					|| (alsoBackground
+						&& (entry->state == State::Background)))) {
+				return entry;
+			}
+		}
+		queue.clear();
+		cursor = 0;
+		return nullptr;
+	};
+	if (const auto entry = take(_sticky, _stickyCursor, State::Sticky)) {
+		return entry;
+	}
+	if (const auto entry = take(_window, _windowCursor, State::Window, true)) {
+		return entry;
+	}
+	return take(_background, _backgroundCursor, State::Background);
+}
+
+void CollectibleMedia::startChain(not_null<Entry*> entry) {
+	entry->state = State::Flight;
+	entry->deadline = crl::now() + kChainTimeout;
+	++_inFlight;
+	_session->wallet().resolveCollectibleInfo(
+		entry->address,
+		crl::guard(this, [=](const Gram::NftItem &record) {
+			resolveFromRecord(entry, record);
+		}));
+}
+
+void CollectibleMedia::finishChain(not_null<Entry*> entry, State state) {
+	if (entry->state != State::Flight) {
+		return;
+	}
+	entry->state = state;
+	--_inFlight;
+	checkStartNext();
+}
+
+void CollectibleMedia::scheduleTimeoutCheck() {
+	auto earliest = crl::time(0);
+	for (const auto &[raw, entry] : _map) {
+		if (entry->state == State::Flight
+			&& (!earliest || entry->deadline < earliest)) {
+			earliest = entry->deadline;
+		}
+	}
+	if (!earliest) {
+		_timeoutTimer.cancel();
+		return;
+	}
+	const auto now = crl::now();
+	_timeoutTimer.callOnce((earliest > now) ? (earliest - now) : crl::time(0));
+}
+
+void CollectibleMedia::checkTimeouts() {
+	// Only a callback reaches finishChain, and the web legs have no transfer
+	// timeout of their own, so a host that answers the handshake and then
+	// goes silent would hold its slot for the rest of the session. Expiring
+	// entries are collected before anything is finished, because finishing
+	// one drains the lanes and stamps fresh deadlines on the chains that
+	// start; the entries themselves are stable, only their states are not.
+	const auto now = crl::now();
+	auto expired = std::vector<not_null<Entry*>>();
+	for (const auto &[raw, entry] : _map) {
+		if (entry->state == State::Flight && now >= entry->deadline) {
+			expired.push_back(entry.get());
+		}
+	}
+	for (const auto &entry : expired) {
+		if (entry->state != State::Flight) {
+			continue;
+		} else if (const auto loader = entry->loader.get()) {
+			loader->cancel();
+		}
+		entry->loader = nullptr;
+		finishChain(entry, State::Failed);
+	}
+	scheduleTimeoutCheck();
 }
 
 void CollectibleMedia::resolveFromRecord(
 		not_null<Entry*> entry,
 		const Gram::NftItem &record) {
+	if (entry->state != State::Flight) {
+		return;
+	}
 	if (record.address.isEmpty()) {
-		entry->resolveStarted = false;
+		finishChain(entry, State::None);
 		return;
 	}
 	entry->record = record;
@@ -174,6 +336,8 @@ void CollectibleMedia::resolveFromRecord(
 		requestGift(entry, record.key);
 	} else if (record.contentUriHttps) {
 		startDescriptorLoad(entry, record.contentUri);
+	} else {
+		finishChain(entry, State::Done);
 	}
 }
 
@@ -193,10 +357,13 @@ void CollectibleMedia::requestGift(
 		}
 		_changed.fire_copy(entry->address);
 		_repaint.fire_copy(entry->address);
+		finishChain(entry, State::Done);
 	};
 	const auto fallback = [=] {
 		if (entry->record.contentUriHttps) {
 			startDescriptorLoad(entry, entry->record.contentUri);
+		} else {
+			finishChain(entry, State::Done);
 		}
 	};
 	session->api().request(MTPpayments_GetUniqueStarGift(
@@ -259,29 +426,39 @@ void CollectibleMedia::startLoad(
 void CollectibleMedia::startImageLoad(
 		not_null<Entry*> entry,
 		const QString &url) {
+	if (entry->state != State::Flight) {
+		return;
+	}
 	startLoad(entry->loader, url, [=](QByteArray bytes) {
 		if (bytes.isEmpty()) {
+			finishChain(entry, State::Failed);
 			return;
 		}
 		entry->imageBytes = std::move(bytes);
 		entry->prepared.clear();
 		_changed.fire_copy(entry->address);
 		_repaint.fire_copy(entry->address);
+		finishChain(entry, State::Done);
 	});
 }
 
 void CollectibleMedia::startDescriptorLoad(
 		not_null<Entry*> entry,
 		const QString &url) {
+	if (entry->state != State::Flight) {
+		return;
+	}
 	startLoad(entry->loader, url, [=](QByteArray bytes) {
 		const auto descriptor = Gram::ParseNftDescriptor(bytes);
 		if (!descriptor) {
+			finishChain(entry, State::Failed);
 			return;
 		}
 		entry->name = descriptor->name;
 		_changed.fire_copy(entry->address);
 		const auto image = descriptor->imageUrl;
 		if (!image.startsWith(u"https://"_q)) {
+			finishChain(entry, State::Done);
 			return;
 		}
 		crl::on_main(this, [=] {
