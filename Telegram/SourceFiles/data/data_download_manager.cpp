@@ -1125,13 +1125,15 @@ void DownloadManager::detach(SessionData &data, DownloadedId &id) {
 	id.object->item = now;
 	_loaded.emplace(now);
 
-	// One item may have several downloaded entries, so it leaves _loaded
-	// only when the last of them was detached.
+	// One item may have several downloaded entries, so it leaves _loaded -
+	// and the downloads list - only when the last of them was detached.
+	// Reporting it removed while another entry still holds it would drop a
+	// row that is still backed by a file.
 	if (!ranges::contains(data.downloaded, was.get(), ByItem)) {
 		_loaded.remove(was);
+		_loadedRemoved.fire_copy(was);
 	}
 
-	_loadedRemoved.fire_copy(was);
 	_loadedAdded.fire_copy(&id);
 }
 
