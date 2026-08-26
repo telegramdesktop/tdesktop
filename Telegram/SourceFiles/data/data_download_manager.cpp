@@ -563,12 +563,14 @@ void DownloadManager::deleteFiles(const std::vector<GlobalMsgId> &ids) {
 					.documentId = document ? document->id : DocumentId(),
 					.itemId = id.itemId,
 				});
-				_loaded.remove(item);
 				_generated.remove(item);
 				if (document) {
 					_generatedDocuments.remove(document);
 				}
 				data.downloaded.erase(k);
+				if (!ranges::contains(data.downloaded, item, ByItem)) {
+					_loaded.remove(item);
+				}
 				_loadedRemoved.fire_copy(item);
 
 				descriptor.sessions.emplace(session);
@@ -1022,7 +1024,7 @@ void DownloadManager::changed(not_null<const HistoryItem*> item) {
 		Assert(i != end(data.downloaded));
 
 		if (!ItemContainsMedia(*i->object)) {
-			detach(*i);
+			detach(data, *i);
 		}
 	}
 	if (_loading.contains(item) || _loadingDone.contains(item)) {
@@ -1033,9 +1035,16 @@ void DownloadManager::changed(not_null<const HistoryItem*> item) {
 void DownloadManager::removed(not_null<const HistoryItem*> item) {
 	if (_loaded.contains(item)) {
 		auto &data = sessionData(item);
-		const auto i = ranges::find(data.downloaded, item.get(), ByItem);
+		auto i = ranges::find(data.downloaded, item.get(), ByItem);
 		Assert(i != end(data.downloaded));
-		detach(*i);
+
+		// One item may be referenced by several downloaded entries, and
+		// every one of them must be detached, or the rest keep pointing
+		// at the destroyed HistoryItem.
+		do {
+			detach(data, *i);
+			i = ranges::find(data.downloaded, item.get(), ByItem);
+		} while (i != end(data.downloaded));
 	}
 	if (_loading.contains(item) || _loadingDone.contains(item)) {
 		auto &data = sessionData(item);
@@ -1088,17 +1097,21 @@ not_null<HistoryItem*> DownloadManager::generateItem(
 	return result;
 }
 
-void DownloadManager::detach(DownloadedId &id) {
+void DownloadManager::detach(SessionData &data, DownloadedId &id) {
 	Expects(id.object != nullptr);
-	Expects(_loaded.contains(id.object->item));
 	Expects(!_generated.contains(id.object->item));
 
 	// Maybe generate new document?
 	const auto was = id.object->item;
 	const auto now = regenerateItem(*id.object);
-	_loaded.remove(was);
-	_loaded.emplace(now);
 	id.object->item = now;
+	_loaded.emplace(now);
+
+	// One item may have several downloaded entries, so it leaves _loaded
+	// only when the last of them was detached.
+	if (!ranges::contains(data.downloaded, was.get(), ByItem)) {
+		_loaded.remove(was);
+	}
 
 	_loadedRemoved.fire_copy(was);
 	_loadedAdded.fire_copy(&id);
