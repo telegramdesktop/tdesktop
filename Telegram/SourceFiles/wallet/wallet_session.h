@@ -249,7 +249,9 @@ private:
 		const wallet_engine::WalletUpdate &update,
 		bool more);
 	void setHistory(std::vector<TransferItem> &&list);
+	void noteHistoryClientAbsent();
 	void refreshCollectibles(bool force = false);
+	void noteCollectiblesClientAbsent();
 	void requestCollectibles(bool more);
 	void applyCollectiblesUpdate(
 		const wallet_engine::WalletUpdate &update,
@@ -260,6 +262,7 @@ private:
 		Fn<void(FeeResult)> done,
 		bool retried = false);
 	void resolvePending();
+	void setLifecyclePending(bool pending);
 	void setHistoryFirstSlice(SliceState state);
 	void setCollectiblesFirstSlice(SliceState state);
 	void updateListsGate();
@@ -298,6 +301,8 @@ private:
 	bool _collectiblesRequestPending = false;
 	bool _collectiblesHasMore = false;
 	bool _collectiblesPaged = false;
+	int _collectiblesClientAttempts = 0;
+	int _historyClientAttempts = 0;
 	base::flat_map<QString, Gram::NftItem> _collectibleInfo;
 	base::flat_map<
 		QString,

@@ -27,6 +27,8 @@ namespace engine = wallet_engine;
 constexpr auto kPollInterval = 5 * crl::time(1000);
 constexpr auto kCollectiblesPollInterval = 60 * crl::time(1000);
 constexpr auto kForcedCollectiblesInterval = 10 * crl::time(1000);
+constexpr auto kCollectiblesClientAttempts = 3;
+constexpr auto kHistoryClientAttempts = 3;
 constexpr auto kEmptyProofFreshness = 60 * crl::time(1000);
 constexpr auto kStreamResyncInterval = 30 * crl::time(1000);
 constexpr auto kEngineProviderBase = "https://toncenter.com";
@@ -425,6 +427,14 @@ Ui::SeparatePanel *Session::panel() const {
 
 void Session::setPanel(std::unique_ptr<Ui::SeparatePanel> panel) {
 	_panel = std::move(panel);
+	if (!_panel) {
+		// _collectiblesPaged is a fact about one overview's scroll
+		// position, so it ends with the panel that owned it: otherwise
+		// the periodic refresh stays refused for the rest of the
+		// session and a collectible received while the panel was closed
+		// never appears.
+		_collectiblesPaged = false;
+	}
 }
 
 void Session::ensureLoaded() {
@@ -495,8 +505,7 @@ void Session::create(Fn<void(LifecycleError)> done) {
 		}
 		return;
 	}
-	_lifecyclePending = true;
-	updateListsGate();
+	setLifecyclePending(true);
 	const auto lifecycle = _engine->lifecycle();
 	const auto recordId = NewRecordId();
 	_engine->run([lifecycle, recordId] {
@@ -505,11 +514,10 @@ void Session::create(Fn<void(LifecycleError)> done) {
 			.network = engine::Network::kMainnet,
 		});
 	}, [=, this](engine::CreatedWallet created) {
-		_lifecyclePending = false;
-		updateListsGate();
 		const auto applied = applyDescriptor(
 			std::move(created.descriptor),
 			KeyState::Created);
+		setLifecyclePending(false);
 		if (!applied) {
 			if (done) {
 				done(LifecycleError::Failed);
@@ -524,8 +532,7 @@ void Session::create(Fn<void(LifecycleError)> done) {
 			done(LifecycleError::None);
 		}
 	}, [=, this](EngineError error) {
-		_lifecyclePending = false;
-		updateListsGate();
+		setLifecyclePending(false);
 		LOG(("Wallet Error: engine create_wallet failed: %1"
 			).arg(error.message));
 		if (done) {
@@ -551,8 +558,7 @@ void Session::import(
 	for (const auto &word : words) {
 		recovery.push_back(word.trimmed().toLower().toStdString());
 	}
-	_lifecyclePending = true;
-	updateListsGate();
+	setLifecyclePending(true);
 	const auto lifecycle = _engine->lifecycle();
 	const auto recordId = NewRecordId();
 	_engine->run([lifecycle, recordId, recovery = std::move(recovery)] {
@@ -562,11 +568,10 @@ void Session::import(
 			.recovery_words = recovery,
 		});
 	}, [=, this](engine::WalletDescriptor descriptor) {
-		_lifecyclePending = false;
-		updateListsGate();
 		const auto applied = applyDescriptor(
 			std::move(descriptor),
 			KeyState::Imported);
+		setLifecyclePending(false);
 		if (!applied) {
 			if (done) {
 				done(LifecycleError::Failed);
@@ -581,8 +586,7 @@ void Session::import(
 			done(LifecycleError::None);
 		}
 	}, [=, this](EngineError error) {
-		_lifecyclePending = false;
-		updateListsGate();
+		setLifecyclePending(false);
 		LOG(("Wallet Error: engine import_wallet failed: %1"
 			).arg(error.message));
 		if (done) {
@@ -608,13 +612,11 @@ void Session::remove(Fn<void(LifecycleError)> done) {
 		}
 		return;
 	}
-	_lifecyclePending = true;
-	updateListsGate();
+	setLifecyclePending(true);
 	const auto lifecycle = _engine->lifecycle();
 	const auto descriptor = *_descriptor;
 	const auto cleared = [=, this] {
-		_lifecyclePending = false;
-		updateListsGate();
+		setLifecyclePending(false);
 		_session->local().writeWallet(Storage::WalletStored());
 		_descriptor = nullptr;
 		_address = QString();
@@ -634,8 +636,7 @@ void Session::remove(Fn<void(LifecycleError)> done) {
 			cleared();
 			return;
 		}
-		_lifecyclePending = false;
-		updateListsGate();
+		setLifecyclePending(false);
 		LOG(("Wallet Error: engine delete_wallet failed: %1"
 			).arg(error.message));
 		if (done) {
@@ -654,6 +655,7 @@ bool Session::provenEmpty() const {
 		&& _history.empty()
 		&& !_historyHasNext
 		&& _collectibles.empty()
+		&& !_collectiblesHasMore
 		&& !_pending
 		&& !_sendUnresolved
 		&& (_sendState.current() != SendState::Sending)
@@ -726,6 +728,8 @@ void Session::clearNetworkState() {
 	_collectiblesRequestPending = false;
 	_collectiblesHasMore = false;
 	_collectiblesPaged = false;
+	_collectiblesClientAttempts = 0;
+	_historyClientAttempts = 0;
 #ifdef _DEBUG
 	_historyInjected = false;
 	_collectiblesInjected = false;
@@ -812,6 +816,7 @@ void Session::requestEngineRefresh() {
 		}
 	};
 	if (_engineStopping || !_engine->client()) {
+		noteHistoryClientAbsent();
 		finishHistoryWaiters();
 		return;
 	}
@@ -836,6 +841,7 @@ void Session::requestEngineRefresh() {
 		}
 		LOG(("Wallet Error: engine refresh failed: %1, "
 			"keeping last-good state.").arg(error.message));
+		setHistoryFirstSlice(SliceState::Failed);
 		finishHistoryWaiters();
 	});
 }
@@ -1028,10 +1034,43 @@ void Session::refreshCollectibles(bool force) {
 		return;
 	}
 	if (_engineStopping || !_engine->client()) {
+		noteCollectiblesClientAbsent();
 		return;
 	}
 	_collectiblesRefreshedAt = crl::now();
 	requestCollectibles(false);
+}
+
+void Session::noteHistoryClientAbsent() {
+	// History rides the engine refresh now, so an engine client that never
+	// starts would leave this leg of the cold-open gate pending forever.
+	// Bound it exactly like the collectibles leg: after a few poll rounds
+	// without a client, settle the slice so the gate can open.
+	if (_historyFirstSlice != SliceState::Pending) {
+		return;
+	}
+	++_historyClientAttempts;
+	if (_historyClientAttempts < kHistoryClientAttempts) {
+		return;
+	}
+	LOG(("Wallet: no engine client after %1 history attempts, "
+		"resolving the first slice."
+		).arg(_historyClientAttempts));
+	setHistoryFirstSlice(SliceState::Failed);
+}
+
+void Session::noteCollectiblesClientAbsent() {
+	if (_collectiblesFirstSlice != SliceState::Pending) {
+		return;
+	}
+	++_collectiblesClientAttempts;
+	if (_collectiblesClientAttempts < kCollectiblesClientAttempts) {
+		return;
+	}
+	LOG(("Wallet: no engine client after %1 collectibles attempts, "
+		"resolving the first slice."
+		).arg(_collectiblesClientAttempts));
+	setCollectiblesFirstSlice(SliceState::Failed);
 }
 
 bool Session::collectiblesHasNext() const {
@@ -1095,12 +1134,6 @@ void Session::applyCollectiblesUpdate(
 			setCollectiblesFirstSlice(SliceState::Failed);
 		}
 		return;
-	} else if (update.outcome
-		== engine::WalletOperationOutcome::kSuperseded) {
-		if (!more) {
-			setCollectiblesFirstSlice(SliceState::Failed);
-		}
-		return;
 	}
 	const auto &resource = more ? nfts.pagination_resource : nfts.resource;
 	if ((update.outcome != engine::WalletOperationOutcome::kCompleted)
@@ -1113,7 +1146,7 @@ void Session::applyCollectiblesUpdate(
 		return;
 	}
 	_collectiblesHasMore = nfts.has_more;
-	_collectiblesPaged = more;
+	_collectiblesPaged = more && (_panel != nullptr);
 	_collectiblesCompletedAt = crl::now();
 	auto loaded = CollectiblesFromEngine(nfts);
 	if (!SameCollectibles(_collectibles, loaded)) {
@@ -1133,6 +1166,14 @@ void Session::setCollectibles(std::vector<Gram::NftItem> &&list) {
 		_collectibleInfo[item.address] = item;
 	}
 	_collectiblesUpdates.fire({});
+}
+
+void Session::setLifecyclePending(bool pending) {
+	if (_lifecyclePending == pending) {
+		return;
+	}
+	_lifecyclePending = pending;
+	updateListsGate();
 }
 
 void Session::setHistoryFirstSlice(SliceState state) {
@@ -1355,12 +1396,25 @@ void Session::pollTick() {
 	const auto stale = [&](crl::time at) {
 		return !at || (crl::now() - at >= kStreamResyncInterval);
 	};
+	// The engine dispatches to one serial worker, so a first-slice NFT
+	// read enqueued behind the account refresh waits out that refresh's
+	// whole round trip. While the gated area is still waiting on that
+	// slice, ask for it first; once the gate has opened, the account
+	// refresh goes first again, because it is what the balance card and
+	// the account status are waiting on.
+	const auto collectiblesFirst = _listsGated.current()
+		&& (_collectiblesFirstSlice == SliceState::Pending);
+	if (collectiblesFirst) {
+		refreshCollectibles();
+	}
 	if (!streaming
 		|| stale(_stateRefreshedAt)
 		|| stale(_historyRefreshedAt)) {
 		requestEngineRefresh();
 	}
-	refreshCollectibles();
+	if (!collectiblesFirst) {
+		refreshCollectibles();
+	}
 	if ((_pending || _sendUnresolved) && !_resolveRequestPending) {
 		resolvePending();
 	}
