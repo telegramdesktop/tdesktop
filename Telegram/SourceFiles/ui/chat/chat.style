@@ -652,6 +652,8 @@ whoReadMenu: PopupMenu(popupMenuExpandedSeparator) {
 	scrollPadding: margins(0px, 6px, 0px, 4px);
 	maxHeight: 400px;
 }
+reactionPreviewInMenuSize: 120px;
+reactionPreviewInMenuSkip: 8px;
 whoReadNameWithDateTop: 3px;
 whoReadDateTop: 20px;
 whoReadDateSkip: 15px;
