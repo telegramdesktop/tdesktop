@@ -369,9 +369,17 @@ VideoDetails ComputeVideoDetails(
 		.originalDimensions = preview.size(),
 		.shownDimensions = PrepareShownDimensions(preview, sideLimit),
 	};
-	result.preview = Images::Blur(Images::Opaque(std::move(preview)))
-		.scaledToWidth(
-			previewWidth * style::DevicePixelRatio(),
+	// Blur whichever of the source and the result has fewer pixels. Blurring
+	// a full resolution frame allocates and works by the source pixel count,
+	// and washes the blur out in proportion to how much is scaled away, so a
+	// 4K video ended up with a far sharper preview than a small one.
+	const auto width = previewWidth * style::DevicePixelRatio();
+	auto opaque = Images::Opaque(std::move(preview));
+	result.preview = (opaque.width() > width)
+		? Images::Blur(
+			opaque.scaledToWidth(width, Qt::SmoothTransformation))
+		: Images::Blur(std::move(opaque)).scaledToWidth(
+			width,
 			Qt::SmoothTransformation);
 	Assert(!result.preview.isNull());
 	result.preview.setDevicePixelRatio(style::DevicePixelRatio());
