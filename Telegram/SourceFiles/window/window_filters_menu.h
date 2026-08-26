@@ -69,6 +69,7 @@ private:
 	void moveToFilter(int delta);
 	void moveToFilterEdge(int delta);
 	void setListTabStop(not_null<Ui::SideBarButton*> stop);
+	void parkListTabStop();
 	[[nodiscard]] bool listFocused() const;
 	void openFiltersSettings();
 	void setupDragAndDrop();
