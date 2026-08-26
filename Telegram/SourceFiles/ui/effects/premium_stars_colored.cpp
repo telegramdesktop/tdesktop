@@ -167,7 +167,10 @@ void CollectibleEmoji::prepareFrame() {
 	auto random = std::optional<base::BufferedRandom<uint32>>();
 	const auto now = crl::now();
 	for (auto &star : _stars) {
-		if (star.deathTime <= now) {
+		// crl::now() is not strictly monotonic everywhere: on Windows it is
+		// built on QueryPerformanceCounter, which steps backwards on some
+		// old machines. A star born "in the future" is restarted.
+		if (star.deathTime <= now || star.birthTime > now) {
 			if (!random) {
 				random.emplace(kStarsCount * 10);
 			}
