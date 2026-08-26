@@ -239,6 +239,15 @@ void FiltersMenu::setupMainMenuIcon() {
 			? &st::windowFiltersMainMenuUnread
 			: &st::windowFiltersMainMenuUnreadMuted;
 		_menu.setIconOverride(icon, icon);
+		// The unread dot is only painted - surface it to a screen reader
+		// through the button's description.
+		const auto description = state.count
+			? tr::lng_sr_menu_unread_other_accounts(tr::now)
+			: QString();
+		if (_menu.accessibleDescription() != description) {
+			_menu.setAccessibleDescription(description);
+			_menu.accessibilityDescriptionChanged();
+		}
 	}, _outer.lifetime());
 }
 
