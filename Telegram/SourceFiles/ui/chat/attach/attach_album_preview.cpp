@@ -175,6 +175,7 @@ void AlbumPreview::prepareThumbs(gsl::span<Ui::PreparedFile> items) {
 	const auto layout = generateOrderedLayout();
 	_thumbs.reserve(count);
 	for (auto i = 0; i != count; ++i) {
+		const auto self = std::make_shared<AlbumThumbnail*>(nullptr);
 		_thumbs.push_back(std::make_unique<AlbumThumbnail>(
 			_st,
 			items[i],
@@ -183,16 +184,15 @@ void AlbumPreview::prepareThumbs(gsl::span<Ui::PreparedFile> items) {
 			this,
 			[=] { update(); },
 			[=](QRect rect) { update(rect); },
-			[=] {
-				if (const auto thumb = thumbUnderCursor()) {
-					changeThumbByIndex(orderIndex(thumb));
-				}
-			},
-			[=] {
-				if (const auto thumb = thumbUnderCursor()) {
-					deleteThumbByIndex(orderIndex(thumb));
-				}
-			}));
+			// Bound to the thumb that owns the button, not to whatever is
+			// under the cursor when the callback runs: editing is delayed by
+			// the ripple hide duration, and keyboard activation has no
+			// cursor over the thumb at all. Bound by pointer and not by
+			// index, because takeOrder() permutes _thumbs in place - so the
+			// slot this one was built in can hold another thumb later.
+			[=] { changeThumbByIndex(orderIndex(*self)); },
+			[=] { deleteThumbByIndex(orderIndex(*self)); }));
+		*self = _thumbs.back().get();
 		if (_thumbs.back()->isCompressedSticker()) {
 			_hasMixedFileHeights = true;
 		}
