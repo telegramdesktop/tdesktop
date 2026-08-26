@@ -6052,7 +6052,9 @@ void ChatWidget::setupShortcuts() {
 }
 
 void ChatWidget::searchRequested() {
-	if (_sublist) {
+	if (_composeSearch) {
+		_composeSearch->setInnerFocus();
+	} else if (_sublist) {
 		controller()->searchInChat(_sublist);
 	} else if (!preventsClose(crl::guard(this, [=] { searchInTopic(); }))) {
 		searchInTopic();
