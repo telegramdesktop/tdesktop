@@ -19,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QUuid>
 
+#include <limits>
+
 namespace Wallet {
 namespace {
 
@@ -50,25 +52,7 @@ constexpr auto kEngineRequestTimeoutMs = uint64(15000);
 [[nodiscard]] bool SameHistory(
 		const std::vector<TransferItem> &was,
 		const std::vector<TransferItem> &now) {
-	if (was.size() != now.size()) {
-		return false;
-	}
-	for (auto i = 0, count = int(was.size()); i != count; ++i) {
-		const auto &a = was[i];
-		const auto &b = now[i];
-		if (a.traceId != b.traceId
-			|| a.lt != b.lt
-			|| a.incoming != b.incoming
-			|| a.amountNano != b.amountNano
-			|| a.feeNano != b.feeNano
-			|| a.date != b.date
-			|| a.status != b.status
-			|| a.comment != b.comment
-			|| a.counterparty != b.counterparty) {
-			return false;
-		}
-	}
-	return true;
+	return (was == now);
 }
 
 [[nodiscard]] bool SameCollectibles(
@@ -315,10 +299,11 @@ constexpr auto kEngineRequestTimeoutMs = uint64(15000);
 
 [[nodiscard]] std::optional<TransferItem> HistoryItemFromEngine(
 		const engine::ActivityItem &item) {
+	constexpr auto kMaxTimestamp = uint64(std::numeric_limits<TimeId>::max());
 	const auto amount = DecimalInt64(item.amount_nanograms);
 	const auto fee = DecimalInt64(item.transaction_fee_nanograms);
 	const auto lt = DecimalUint64(item.logical_time);
-	if (!amount || !fee || !lt) {
+	if (!amount || !fee || !lt || (item.timestamp > kMaxTimestamp)) {
 		LOG(("Wallet Error: engine activity item %1 has a bad number."
 			).arg(QString::fromStdString(item.id)));
 		return std::nullopt;

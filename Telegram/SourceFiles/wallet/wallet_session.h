@@ -104,6 +104,10 @@ struct TransferItem {
 	QByteArray traceId;
 	QByteArray externalHashNorm;
 	Status status = Status::Success;
+
+	friend bool operator==(
+		const TransferItem &,
+		const TransferItem &) = default;
 };
 
 struct FeeResult {
