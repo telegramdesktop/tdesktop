@@ -3189,8 +3189,13 @@ void Session::scheduleNextTTLs() {
 	const auto now = base::unixtime::now();
 
 	// Set timer not more than for 24 hours.
-	const auto maxTimeout = TimeId(86400);
-	const auto timeout = std::min(std::max(now, nearest) - now, maxTimeout);
+	//
+	// In 64-bit and floored at zero: after the OS corrects a badly wrong
+	// clock unixtime::now() can come back wrapped, and the int32 subtraction
+	// then overflows into a negative interval, which base::Timer asserts on.
+	const auto maxTimeout = crl::time(86400);
+	const auto delay = crl::time(nearest) - crl::time(now);
+	const auto timeout = std::min(std::max(delay, crl::time(0)), maxTimeout);
 	_ttlCheckTimer.callOnce(timeout * crl::time(1000));
 }
 
