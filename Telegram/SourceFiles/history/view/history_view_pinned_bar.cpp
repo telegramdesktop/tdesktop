@@ -232,6 +232,7 @@ rpl::producer<HistoryItem*> PinnedBarItemWithCustomButton(
 
 		struct State {
 			bool hasCustomButton = false;
+			HistoryItem *pushed = nullptr;
 			base::has_weak_ptr guard;
 			rpl::lifetime lifetime;
 			FullMsgId resolvedId;
@@ -251,6 +252,7 @@ rpl::producer<HistoryItem*> PinnedBarItemWithCustomButton(
 				return;
 			}
 			state->hasCustomButton = possiblyHasCustomButton;
+			state->pushed = item;
 			consumer.put_next(item.get());
 		};
 
@@ -263,6 +265,7 @@ rpl::producer<HistoryItem*> PinnedBarItemWithCustomButton(
 			state->lifetime.destroy();
 			state->resolvedId = fullId;
 			invalidate_weak_ptrs(&state->guard);
+			const auto had = (base::take(state->pushed) != nullptr);
 
 			const auto messageFlag = [=](not_null<HistoryItem*> item) {
 				using Update = Data::MessageUpdate;
@@ -276,6 +279,7 @@ rpl::producer<HistoryItem*> PinnedBarItemWithCustomButton(
 						state->lifetime.destroy();
 						invalidate_weak_ptrs(&state->guard);
 						state->hasCustomButton = false;
+						state->pushed = nullptr;
 						consumer.put_next(nullptr);
 					} else {
 						pushUnique(update.item);
@@ -285,17 +289,28 @@ rpl::producer<HistoryItem*> PinnedBarItemWithCustomButton(
 			};
 			if (const auto item = session->data().message(fullId)) {
 				messageFlag(item);
-				return;
+			} else {
+				const auto resolved = crl::guard(&state->guard, [=] {
+					if (const auto item = session->data().message(fullId)) {
+						messageFlag(item);
+					}
+				});
+				session->api().requestMessageData(
+					session->data().peer(fullId.peer),
+					fullId.msg,
+					resolved);
 			}
-			const auto resolved = crl::guard(&state->guard, [=] {
-				if (const auto item = session->data().message(fullId)) {
-					messageFlag(item);
-				}
-			});
-			session->api().requestMessageData(
-				session->data().peer(fullId.peer),
-				fullId.msg,
-				resolved);
+			if (had && !state->pushed) {
+				// We dropped the subscription that watched the pushed item
+				// for Destroyed and nothing above replaced it, so the
+				// consumer must not be left holding that pointer with nobody
+				// to clear it. Resolving first means an already loaded item
+				// pushes straight over it, and the bar rebuilds its right
+				// button once instead of crossfading a default one in and
+				// back out on every switch.
+				state->hasCustomButton = false;
+				consumer.put_next(nullptr);
+			}
 		}, lifetime);
 		return lifetime;
 	});
