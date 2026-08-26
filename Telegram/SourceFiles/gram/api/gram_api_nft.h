@@ -37,6 +37,10 @@ struct NftItem {
 	NftKind kind = NftKind::Generic;
 	bool contentUriHttps = false;
 	bool onSale = false;
+
+	friend bool operator==(
+		const NftItem &,
+		const NftItem &) = default;
 };
 
 struct NftPage {

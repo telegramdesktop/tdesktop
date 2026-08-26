@@ -58,16 +58,7 @@ constexpr auto kEngineRequestTimeoutMs = uint64(15000);
 [[nodiscard]] bool SameCollectibles(
 		const std::vector<Gram::NftItem> &was,
 		const std::vector<Gram::NftItem> &now) {
-	if (was.size() != now.size()) {
-		return false;
-	}
-	for (auto i = 0, count = int(was.size()); i != count; ++i) {
-		if (was[i].address != now[i].address
-			|| was[i].collectionName != now[i].collectionName) {
-			return false;
-		}
-	}
-	return true;
+	return (was == now);
 }
 
 [[nodiscard]] std::string NewRecordId() {
