@@ -59,6 +59,10 @@ public:
 	[[nodiscard]] not_null<HistoryView::Element*> view() const;
 	[[nodiscard]] const QString &pageUrl() const;
 	[[nodiscard]] bool needsViewRequestBridge() const;
+
+	// Fired while the view is still alive, so owners of medias parented to
+	// it can drop them in time. See State::handleItemDeath().
+	[[nodiscard]] rpl::producer<> itemDeath() const;
 	void registerViewRequestBridge(MediaBlockHost *host);
 	void unregisterViewRequestBridge(MediaBlockHost *host);
 
