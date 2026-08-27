@@ -74,6 +74,7 @@ private:
 
 	bool _shown = false;
 	float64 _opacity = 1.;
+	rpl::lifetime _trackLifetime;
 
 };
 

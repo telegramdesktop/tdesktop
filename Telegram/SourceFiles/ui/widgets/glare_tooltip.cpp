@@ -110,6 +110,8 @@ void GlareTooltip::paintEvent(QPaintEvent *e) {
 }
 
 void GlareTooltip::trackWidget(not_null<QWidget*> pointTo) {
+	_trackLifetime.destroy();
+
 	auto widget = pointTo.get();
 	const auto parent = parentWidget();
 
@@ -125,7 +127,7 @@ void GlareTooltip::trackWidget(not_null<QWidget*> pointTo) {
 	};
 	refresh();
 	while (widget && widget != parent) {
-		base::install_event_filter(this, widget, [=](not_null<QEvent*> e) {
+		base::install_event_filter(widget, [=](not_null<QEvent*> e) {
 			if (e->type() == QEvent::Resize
 				|| e->type() == QEvent::Move
 				|| e->type() == QEvent::ZOrderChange) {
@@ -133,7 +135,7 @@ void GlareTooltip::trackWidget(not_null<QWidget*> pointTo) {
 				raise();
 			}
 			return base::EventFilterResult::Continue;
-		});
+		}, _trackLifetime);
 		widget = widget->parentWidget();
 	}
 }
