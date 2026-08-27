@@ -1723,8 +1723,9 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 
 	const auto hasGesture = context.gestureHorizontal.translation
 		&& (context.gestureHorizontal.msgBareId == item->fullId().msg.bare);
+	const auto gestureShift = context.gestureHorizontal.visualTranslation();
 	if (hasGesture) {
-		p.translate(context.gestureHorizontal.translation, 0);
+		p.translate(gestureShift, 0);
 	}
 	const auto selectionModeResult = delegate()->elementInSelectionMode(this);
 	const auto selectionTranslation = (selectionModeResult.progress > 0)
@@ -2228,10 +2229,9 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		}
 	}
 	if (hasGesture) {
-		p.translate(-context.gestureHorizontal.translation, 0);
+		p.translate(-gestureShift, 0);
 		if (context.reactionInfo && context.reactionInfo->effectPaint) {
-			const auto shift = context.gestureHorizontal.translation;
-			context.reactionInfo->effectOffset += QPoint(shift, 0);
+			context.reactionInfo->effectOffset += QPoint(gestureShift, 0);
 		}
 
 		constexpr auto kShiftRatio = 1.5;
@@ -2239,13 +2239,17 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		constexpr auto kMaxHeightRatio = 3.5;
 		constexpr auto kStrokeWidth = 2.;
 		constexpr auto kWaveWidth = 10.;
+		const auto mirrored = !context.gestureHorizontal.inverted;
 		const auto isLeftSize = !context.outbg
 			|| (delegate()->elementChatMode() == ElementChatMode::Wide);
 		const auto ratio = std::min(context.gestureHorizontal.ratio, 1.);
 		const auto reachRatio = context.gestureHorizontal.reachRatio;
 		const auto size = st::historyFastShareSize;
+		const auto bubbleRight = mirrored
+			? (width() - g.x())
+			: rect::right(g);
 		const auto outerWidth = st::historySwipeIconSkip
-			+ (isLeftSize ? rect::right(g) : width())
+			+ (isLeftSize ? bubbleRight : width())
 			+ ((g.height() < size * kMaxHeightRatio)
 				? rightActionSize().value_or(QSize()).width()
 				: 0);
@@ -2274,6 +2278,10 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		pen.setWidthF(strokeWidth - (1. * (reachScale / kBouncePart)));
 		const auto arcRect = rect - Margins(strokeWidth);
 		p.save();
+		if (mirrored) {
+			p.translate(width(), 0);
+			p.scale(-1., 1.);
+		}
 		{
 			auto hq = PainterHighQualityEnabler(p);
 			p.setPen(Qt::NoPen);
