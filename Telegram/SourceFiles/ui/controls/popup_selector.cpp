@@ -14,8 +14,8 @@
 #include "styles/style_widgets.h"
 
 #include <QtGui/QScreen>
+#include <QtGui/QWindow>
 #include <QtWidgets/QApplication>
-#include <private/qapplication_p.h>
 
 namespace Ui {
 
@@ -269,25 +269,8 @@ bool PopupSelector::eventFilter(QObject *obj, QEvent *e) {
 		|| type == QEvent::TouchUpdate
 		|| type == QEvent::TouchEnd) {
 		if (obj == windowHandle() && isActiveWindow()) {
-			const auto event = static_cast<QTouchEvent*>(e);
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 			e->setAccepted(
-				QApplicationPrivate::translateRawTouchEvent(
-					this,
-					event->device(),
-					event->touchPoints(),
-					event->timestamp()));
-#elif QT_VERSION < QT_VERSION_CHECK(6, 2, 0)
-			e->setAccepted(
-				QApplicationPrivate::translateRawTouchEvent(
-					this,
-					event->pointingDevice(),
-					const_cast<QList<QEventPoint> &>(event->points()),
-					event->timestamp()));
-#else
-			e->setAccepted(
-				QApplicationPrivate::translateRawTouchEvent(this, event));
-#endif
+				_touchForward.handle(this, static_cast<QTouchEvent*>(e)));
 			return e->isAccepted();
 		}
 	}
