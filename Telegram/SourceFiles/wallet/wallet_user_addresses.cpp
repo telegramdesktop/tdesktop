@@ -1,0 +1,168 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+#include "wallet/wallet_user_addresses.h"
+
+#include "base/flat_map.h"
+#include "base/flat_set.h"
+#include "data/data_session.h"
+#include "data/data_user.h"
+#include "main/main_session.h"
+#include "wallet/wallet_address.h"
+
+namespace Wallet {
+namespace {
+
+constexpr auto kUserAddressesPerRequest = 100;
+
+[[nodiscard]] std::vector<std::vector<UserId>> ChunkUserIds(
+		const std::vector<UserId> &ids) {
+	auto result = std::vector<std::vector<UserId>>();
+	auto added = base::flat_set<UserId>();
+	added.reserve(ids.size());
+	for (const auto id : ids) {
+		if (!added.emplace(id).second) {
+			continue;
+		} else if (result.empty()
+			|| int(result.back().size()) == kUserAddressesPerRequest) {
+			result.emplace_back();
+		}
+		result.back().push_back(id);
+	}
+	return result;
+}
+
+[[nodiscard]] base::flat_map<UserId, QString> ChunkAnswer(
+		const std::vector<UserId> &asked,
+		const QVector<MTPWalletUserAddress> &reply) {
+	auto result = base::flat_map<UserId, QString>();
+	result.reserve(asked.size());
+	for (const auto id : asked) {
+		result.emplace(id, QString());
+	}
+	for (const auto &entry : reply) {
+		const auto &data = entry.data();
+		const auto id = UserId(data.vuser_id());
+		const auto i = result.find(id);
+		if (i == end(result)) {
+			LOG(("Wallet Error: wallet.getUserAddresses answered about "
+				"user %1, which was not asked about."
+				).arg(id.bare));
+			continue;
+		}
+		auto address = CanonicalAddress(qs(data.vaddress()));
+		if (address.isEmpty()) {
+			LOG(("Wallet Error: wallet.getUserAddresses answered with "
+				"an unusable address for user %1."
+				).arg(id.bare));
+		}
+		i->second = std::move(address);
+	}
+	return result;
+}
+
+} // namespace
+
+UserAddresses::UserAddresses(not_null<Main::Session*> session)
+: _session(session)
+, _api(&session->mtp()) {
+}
+
+void UserAddresses::resolve(std::vector<UserId> ids, Fn<void()> done) {
+	const auto job = std::make_shared<Job>();
+	job->done = std::move(done);
+	if (_unavailable) {
+		finish(job);
+		return;
+	}
+	auto pending = std::vector<UserId>();
+	pending.reserve(ids.size());
+	for (const auto id : ids) {
+		const auto user = _session->data().userLoaded(id);
+		if (user && !user->gramAddress()) {
+			pending.push_back(id);
+		}
+	}
+	auto chunks = ChunkUserIds(pending);
+	job->chunks = int(chunks.size());
+	if (!job->chunks) {
+		finish(job);
+		return;
+	}
+	for (auto &chunk : chunks) {
+		sendChunk(job, std::move(chunk));
+	}
+}
+
+UserAddress UserAddresses::known(UserId id) const {
+	const auto user = _session->data().userLoaded(id);
+	if (!user || !user->gramAddress()) {
+		return {};
+	}
+	const auto &address = *user->gramAddress();
+	if (address.isEmpty()) {
+		return { .state = UserAddressState::Absent };
+	}
+	return {
+		.state = UserAddressState::Known,
+		.address = address,
+	};
+}
+
+bool UserAddresses::unavailable() const {
+	return _unavailable;
+}
+
+void UserAddresses::sendChunk(
+		const std::shared_ptr<Job> &job,
+		std::vector<UserId> ids) {
+	auto users = MTP_vector_from_range(ids
+		| ranges::views::transform([&](UserId id) {
+			return _session->data().userLoaded(id)->inputUser();
+		}));
+	_api.request(MTPwallet_GetUserAddresses(
+		std::move(users)
+	)).done([=](const MTPVector<MTPWalletUserAddress> &result) {
+		applyChunk(ids, result.v);
+		finishChunk(job);
+	}).fail([=](const MTP::Error &error) {
+		if (error.type() == u"WALLET_UNAVAILABLE"_q) {
+			LOG(("Wallet Error: wallet.getUserAddresses is unavailable."));
+			_unavailable = true;
+		} else {
+			LOG(("Wallet Error: wallet.getUserAddresses failed: %1"
+				).arg(error.type()));
+		}
+		finishChunk(job);
+	}).send();
+}
+
+void UserAddresses::applyChunk(
+		const std::vector<UserId> &asked,
+		const QVector<MTPWalletUserAddress> &reply) {
+	for (const auto &[id, address] : ChunkAnswer(asked, reply)) {
+		if (const auto user = _session->data().userLoaded(id)) {
+			user->setGramAddress(address);
+		}
+	}
+}
+
+void UserAddresses::finishChunk(const std::shared_ptr<Job> &job) {
+	Expects(job->chunks > 0);
+
+	if (!--job->chunks) {
+		finish(job);
+	}
+}
+
+void UserAddresses::finish(const std::shared_ptr<Job> &job) {
+	if (const auto done = base::take(job->done)) {
+		done();
+	}
+}
+
+} // namespace Wallet

@@ -2182,6 +2182,8 @@ PRIVATE
     wallet/wallet_session.h
     wallet/wallet_stream.cpp
     wallet/wallet_stream.h
+    wallet/wallet_user_addresses.cpp
+    wallet/wallet_user_addresses.h
     webauthn/cable.h
     webauthn/cable_box.cpp
     webauthn/cable_box.h

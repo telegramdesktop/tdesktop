@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_peer_photo.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
+#include "wallet/wallet_address.h"
 #include "window/notifications_manager.h"
 
 namespace {
@@ -238,6 +239,14 @@ QString UserData::privateForwardName() const {
 
 void UserData::setPrivateForwardName(const QString &name) {
 	_privateForwardName = name;
+}
+
+const std::optional<QString> &UserData::gramAddress() const {
+	return _gramAddress;
+}
+
+void UserData::setGramAddress(QString address) {
+	_gramAddress = std::move(address);
 }
 
 bool UserData::hasActiveStories() const {
@@ -956,6 +965,10 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	user->setTranslationDisabled(update.is_translations_disabled());
 	user->setPrivateForwardName(
 		update.vprivate_forward_name().value_or_empty());
+	const auto gram = update.vgram_address();
+	user->setGramAddress(gram
+		? Wallet::CanonicalAddress(qs(*gram))
+		: QString());
 
 	if (const auto info = user->botInfo.get()) {
 		const auto group = update.vbot_group_admin_rights()

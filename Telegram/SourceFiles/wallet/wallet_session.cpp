@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_engine.h"
 #include "wallet/wallet_onramp.h"
 #include "wallet/wallet_rates.h"
+#include "wallet/wallet_user_addresses.h"
 
 #include "wallet_engine.hpp"
 
@@ -272,6 +273,7 @@ Session::Session(not_null<Main::Session*> session)
 , _engine(std::make_unique<Engine>(session, &_api))
 , _rates(std::make_unique<Rates>(session))
 , _onramp(std::make_unique<Onramp>(session))
+, _userAddresses(std::make_unique<UserAddresses>(session))
 , _stream(std::make_unique<Stream>(&_api, [=](StreamRefresh wanted) {
 	applyStreamRefresh(wanted);
 }))
@@ -288,6 +290,10 @@ Onramp &Session::onramp() {
 
 Rates &Session::rates() {
 	return *_rates;
+}
+
+UserAddresses &Session::userAddresses() {
+	return *_userAddresses;
 }
 
 Ui::SeparatePanel *Session::panel() const {

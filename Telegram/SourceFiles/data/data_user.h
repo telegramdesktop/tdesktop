@@ -288,6 +288,14 @@ public:
 	[[nodiscard]] QString privateForwardName() const;
 	void setPrivateForwardName(const QString &name);
 
+	// Disengaged means no source has answered about this user yet; engaged
+	// and empty means a source answered and this user has no wallet; engaged
+	// and non-empty is the canonical raw address. Every write is an answer,
+	// never a nullopt: Data::ApplyUserUpdate() writes userFull.gram_address,
+	// Wallet::UserAddresses the wallet.getUserAddresses batch.
+	[[nodiscard]] const std::optional<QString> &gramAddress() const;
+	void setGramAddress(QString address);
+
 	[[nodiscard]] bool hasActiveStories() const;
 	[[nodiscard]] bool hasUnreadStories() const;
 	[[nodiscard]] bool hasActiveVideoStream() const;
@@ -350,6 +358,7 @@ private:
 	std::vector<Data::UnavailableReason> _unavailableReasons;
 	QString _phone;
 	QString _privateForwardName;
+	std::optional<QString> _gramAddress;
 	std::unique_ptr<Ui::BotVerifyDetails> _botVerifyDetails;
 	Data::StarsRating _starsRating;
 

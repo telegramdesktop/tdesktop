@@ -35,6 +35,7 @@ namespace Wallet {
 class Engine;
 class Onramp;
 class Rates;
+class UserAddresses;
 
 enum class Presence {
 	Unknown,
@@ -193,6 +194,7 @@ public:
 
 	[[nodiscard]] Onramp &onramp();
 	[[nodiscard]] Rates &rates();
+	[[nodiscard]] UserAddresses &userAddresses();
 
 	[[nodiscard]] Ui::SeparatePanel *panel() const;
 	void setPanel(std::unique_ptr<Ui::SeparatePanel> panel);
@@ -240,6 +242,7 @@ private:
 	const std::unique_ptr<Engine> _engine;
 	const std::unique_ptr<Rates> _rates;
 	const std::unique_ptr<Onramp> _onramp;
+	const std::unique_ptr<UserAddresses> _userAddresses;
 	const std::unique_ptr<Stream> _stream;
 	base::Timer _pollTimer;
 
