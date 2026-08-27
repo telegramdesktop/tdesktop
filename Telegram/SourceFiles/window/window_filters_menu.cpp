@@ -733,15 +733,8 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 				return;
 			}
 			if (e->type() == QEvent::ContextMenu) {
-				// A menu asked for from the keyboard opens at the mouse
-				// cursor, which may sit nowhere near the folder (or outside
-				// the window altogether) - anchor it on the folder instead.
 				const auto event = static_cast<QContextMenuEvent*>(e.get());
-				const auto keyboard = (event->reason()
-					== QContextMenuEvent::Keyboard);
-				showMenu(keyboard
-					? raw->mapToGlobal(raw->rect().center())
-					: QCursor::pos(), id);
+				showMenu(Ui::ContextMenuPosition(raw, event), id);
 			} else if (e->type() == QEvent::DragEnter) {
 				using namespace Storage;
 				const auto d = static_cast<QDragEnterEvent*>(e.get());
