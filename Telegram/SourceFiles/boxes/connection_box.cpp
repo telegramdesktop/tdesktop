@@ -1225,6 +1225,10 @@ void ProxiesBox::setupContent() {
 			_proxyRotationOptions->entity(),
 			st::settingsSlider),
 		st::settingsBigScalePadding);
+	// Picks one of a few textual timeout options, not a displayed section -
+	// a radio group to accessibility.
+	_proxyRotationTimeout->setAccessibilityMode(
+		Ui::DiscreteSlider::AccessibilityMode::Radio);
 	for (const auto seconds : Core::SettingsProxy::kProxyRotationTimeouts) {
 		_proxyRotationTimeout->addSection(
 			tr::lng_proxy_auto_switch_timeout(
