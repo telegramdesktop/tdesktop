@@ -3954,7 +3954,34 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 	if (_menu->empty()) {
 		_menu = nullptr;
 	} else {
-		_menu->popup(e->globalPos());
+		// A keyboard-invoked event carries the center of an empty input
+		// method rect for a position, which may sit nowhere near the row -
+		// anchor the menu under the selected row instead, at the position
+		// showPeerMenu computes for the events it synthesizes.
+		const auto rowBottom = [&] {
+			if (_state == WidgetState::Default) {
+				if (_selected) {
+					return _selected->top() + _selected->height();
+				}
+			} else if (_state == WidgetState::Filtered) {
+				if (base::in_range(_filteredSelected, 0, _filterResults.size())) {
+					const auto &result = _filterResults[_filteredSelected];
+					return filteredOffset() + result.top + result.row->height();
+				} else if (base::in_range(_previewSelected, 0, _previewResults.size())) {
+					return previewOffset() + (_previewSelected + 1) * _st->height;
+				} else if (base::in_range(_searchedSelected, 0, _searchResults.size())) {
+					return searchedOffset() + (_searchedSelected + 1) * _st->height;
+				}
+			}
+			return -1;
+		}();
+		const auto &padding = st::defaultDialogRow.padding;
+		const auto position = (fromMouse || rowBottom < 0)
+			? e->globalPos()
+			: mapToGlobal(QPoint(
+				width() - padding.right(),
+				rowBottom + padding.bottom()));
+		_menu->popup(position);
 		e->accept();
 	}
 }
@@ -5763,7 +5790,15 @@ bool InnerWidget::chooseRow(
 				? &st::mediaPlayerMenuCheck
 				: nullptr);
 		}
-		_menu->popup(QCursor::pos());
+		// The filter link is chosen with Enter as well as with a click, and
+		// there is no event here to tell them apart - anchor the menu on the
+		// link itself, which is where a click's cursor sits anyway.
+		const auto left = width()
+			- _chatTypeFilterWidth
+			- 2 * st::searchedBarPosition.x();
+		_menu->popup(mapToGlobal(QPoint(
+			left + _chatTypeFilterWidth / 2,
+			searchedOffset() - st::searchedBarHeight / 2)));
 		return true;
 	}
 	const auto modifyChosenRow = [&](
