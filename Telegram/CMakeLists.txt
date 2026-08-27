@@ -1580,6 +1580,8 @@ PRIVATE
     menu/menu_antispam_validator.h
     menu/menu_dock.cpp
     menu/menu_dock.h
+    menu/menu_emoji_status.cpp
+    menu/menu_emoji_status.h
     menu/menu_item_download_files.cpp
     menu/menu_item_download_files.h
     menu/menu_item_rate_transcribe_session.cpp

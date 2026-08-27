@@ -3231,6 +3231,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_emoji_set_download" = "Download {size}";
 "lng_emoji_set_loading" = "{percent}, {progress}";
 "lng_emoji_color_all" = "Choose color for all emoji";
+"lng_emoji_status_remove" = "Remove Status";
+"lng_emoji_status_set_done" = "Emoji status set. {link}";
+"lng_emoji_status_remove_done" = "Emoji status removed. {link}";
+"lng_emoji_status_undo" = "Undo";
 "lng_emoji_copy" = "Copy emoji";
 "lng_emoji_view_pack" = "View pack";
 "lng_emoji_remove_recent" = "Remove from Recent";

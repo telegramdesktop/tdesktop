@@ -71,6 +71,7 @@ ComposeIcons {
 	menuSetShare: icon;
 	menuSetCopyLink: icon;
 	menuSetRemove: icon;
+	menuEmojiStatus: icon;
 	menuEmojiCopy: icon;
 	menuEmojiViewPack: icon;
 	menuEmojiRemoveRecent: icon;
@@ -730,6 +731,7 @@ defaultComposeIcons: ComposeIcons {
 	menuSetShare: menuIconShare;
 	menuSetCopyLink: menuIconLink;
 	menuSetRemove: menuIconDelete;
+	menuEmojiStatus: menuIconEmoji;
 	menuEmojiCopy: menuIconCopy;
 	menuEmojiViewPack: menuIconShowAll;
 	menuEmojiRemoveRecent: menuIconCancel;

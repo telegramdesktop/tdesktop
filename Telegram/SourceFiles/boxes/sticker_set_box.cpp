@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mainwindow.h"
 #include "media/clip/media_clip_reader.h"
+#include "menu/menu_emoji_status.h"
 #include "menu/menu_send.h"
 #include "mtproto/sender.h"
 #include "settings/sections/settings_premium.h"
@@ -1749,6 +1750,11 @@ void StickerSetBox::Inner::contextMenuEvent(QContextMenuEvent *e) {
 		st::popupMenuWithIcons);
 	const auto details = _show->sendMenuDetails();
 	if (setType() == Data::StickersType::Emoji) {
+		EmojiStatusMenu::AddSetAsStatusAction(
+			Ui::Menu::CreateAddActionCallback(_menu.get()),
+			_show,
+			chosenDocument,
+			&st::menuIconEmoji);
 		if (const auto t = PrepareTextFromEmoji(chosenDocument); !t.empty()) {
 			_menu->addAction(tr::lng_mediaview_copy(tr::now), [=] {
 				if (auto data = TextUtilities::MimeDataFromText(t)) {
