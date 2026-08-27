@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/linux/base_linux_xcb_utilities.h"
 #include "base/platform/linux/base_linux_xdp_utilities.h"
 #include "base/platform/linux/base_linux_app_launch_context.h"
+#include "base/platform/base_platform_process.h"
 #include "lang/lang_keys.h"
 #include "core/launcher.h"
 #include "core/sandbox.h"
@@ -836,6 +837,16 @@ void NewVersionLaunched(int oldVersion) {
 
 QImage DefaultApplicationIcon() {
 	return Window::Logo();
+}
+
+void ActivateThisProcess() {
+	const auto window = Core::IsAppLaunched()
+		? Core::App().activeWindow()
+		: nullptr;
+	if (window) {
+		base::Platform::ActivateThisProcessWindow(
+			window->widget()->winId());
+	}
 }
 
 QString ApplicationIconName() {
