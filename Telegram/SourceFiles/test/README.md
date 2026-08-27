@@ -193,9 +193,7 @@ runner->captureAndInspect(
 		return widget->property("contentGeneration").toInt() > 0;
 	},
 	[](QWidget *widget, const QImage &image) {
-		Test::Note(u"composer size=%1x%2 image=%3x%4"_q
-			.arg(widget->width())
-			.arg(widget->height())
+		Test::Note(u"composer image=%1x%2"_q
 			.arg(image.width())
 			.arg(image.height()));
 		const auto content = widget->childrenRect();
