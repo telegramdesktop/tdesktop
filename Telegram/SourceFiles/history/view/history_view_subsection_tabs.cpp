@@ -639,6 +639,9 @@ void SubsectionTabs::startFillingSlider(
 			if (badges.mention) {
 				parts.push_back(tr::lng_sr_chat_mention(tr::now));
 			}
+			if (i >= fixedCount && i < fixedCount + pinnedCount) {
+				parts.push_back(tr::lng_sr_chat_pinned(tr::now));
+			}
 			const auto name = parts.join(u", "_q);
 			const auto tab = slider->buttonAt(i);
 			if (tab->accessibleName() != name) {
