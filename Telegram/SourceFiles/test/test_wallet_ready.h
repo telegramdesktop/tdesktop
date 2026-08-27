@@ -26,14 +26,16 @@ class Runner;
 //
 // Wallet::Session::refreshHistory(done) cannot stand in for it. Its
 // ensureLoaded() is what sends the very first wallet.getState, but the
-// callback says nothing about the answer: refreshHistory() runs |done| at
-// once when the presence is not Ready, and otherwise queues it on
-// _historyDone, which requestEngineRefresh()'s local finishHistoryWaiters()
-// drains on every outcome — immediately when the engine has no client, on
-// the engine error path, and in both engine callbacks when the refresh was
-// superseded by a network generation bump. The server owns the wallet now
-// and the engine holds no client for it at all, so that completion is
-// unconditional and carries no information whatsoever.
+// callback says nothing about that answer: refreshHistory() runs |done| at
+// once when the presence is not Ready or the lane is paged, and otherwise
+// queues it on _historyDone, which finishHistoryWaiters() drains when the
+// wallet.getTransactions it issued answers or fails. So on a Ready presence
+// the completion does wait for a real round trip — of the transaction
+// history lane, which stamps _historyRefreshedAt. applyState() and
+// applyEngineUpdate() both write _stateRefreshedAt, and the engine holds no
+// client for a server-owned wallet, so applyState() is the only writer that
+// ever runs. That completion therefore still carries no wallet-state
+// freshness information whatsoever.
 //
 // Nothing outside Wallet::Session can read the stamp: it is private and has
 // no accessor. pollTick()'s stale() cannot stand in for it either, because
@@ -145,9 +147,11 @@ struct WalletRefreshVerdict {
 // The negative case is the point: debugClearNetworkState() zeroes the stamp,
 // cancels the outstanding wallet.getState and stops the poll, so nothing can
 // restamp the field; it leaves the presence alone, so the refreshHistory()
-// after it still runs its body and queues the observed callback. With no
-// engine client that callback is drained on the spot, and the completion
-// therefore fires with nothing stamped.
+// after it still runs its body and queues the observed callback. That
+// callback is drained when the wallet.getTransactions it issued answers or
+// fails, so the completion arrives after a network round trip that the stage
+// timeout has to cover, and that round trip stamps _historyRefreshedAt,
+// never the _stateRefreshedAt this self-test reads.
 //
 // This routine does mutate the session: it starts polling, issues refreshes
 // and clears and restores network state. That is why it is a named

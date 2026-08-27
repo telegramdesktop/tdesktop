@@ -265,10 +265,12 @@ void AppendWalletRefreshSelfTest(
 			// stream, so nothing can restamp the field while the state
 			// is cleared. It deliberately leaves the presence alone, so
 			// the refreshHistory() below still runs its body and queues
-			// the callback; the engine holds no client for a
-			// server-owned wallet, so requestEngineRefresh() drains that
-			// queue on the spot and the completion fires with nothing
-			// stamped.
+			// the callback; that queue is now drained by a real
+			// wallet.getTransactions answering or failing, so the
+			// completion arrives after a network round trip instead of on
+			// the spot and the stage timeout is what covers it. That round
+			// trip stamps only _historyRefreshedAt, so the field this test
+			// reads is still unstamped when the completion fires.
 			wallet->debugClearNetworkState();
 			state->clearedAt = crl::now();
 			wallet->refreshHistory([=] {
