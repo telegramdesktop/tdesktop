@@ -476,8 +476,8 @@ void PaintRow(
 		&& !context.quickActionContext->ripple
 		&& (history->peer->id.value
 			== context.quickActionContext->data.msgBareId)) {
-		swipeTranslation = context.quickActionContext->data.exactTranslation
-			* -2;
+		swipeTranslation
+			= context.quickActionContext->data.visualExactTranslation() * -2;
 	}
 	if (swipeTranslation) {
 		p.translate(-swipeTranslation, 0);
