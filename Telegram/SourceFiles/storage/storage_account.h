@@ -228,7 +228,6 @@ public:
 	void writeBotStorage(PeerId botId, const QByteArray &serialized);
 	[[nodiscard]] QByteArray readBotStorage(PeerId botId);
 
-	void writeWallet(const WalletStored &data);
 	[[nodiscard]] std::optional<WalletStored> readWallet();
 	[[nodiscard]] bool hasWalletWithUnviewedPhrase();
 

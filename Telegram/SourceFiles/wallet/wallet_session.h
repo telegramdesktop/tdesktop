@@ -150,7 +150,6 @@ public:
 	[[nodiscard]] rpl::producer<Presence> presenceValue();
 	[[nodiscard]] std::optional<QString> address();
 	[[nodiscard]] QString addressFriendly(bool bounceable = false);
-	[[nodiscard]] QByteArray publicKey() const;
 	[[nodiscard]] WalletCapabilities capabilities() const;
 
 	void refreshState();
@@ -255,7 +254,6 @@ private:
 	rpl::variable<int64> _balanceNano = 0;
 	rpl::variable<Presence> _presence = Presence::Unknown;
 	WalletCapabilities _capabilities;
-	QByteArray _publicKey;
 	AccountStatus _engineStatus = AccountStatus::NonExisting;
 	mtpRequestId _stateRequestId = 0;
 	crl::time _stateRequestedAt = 0;

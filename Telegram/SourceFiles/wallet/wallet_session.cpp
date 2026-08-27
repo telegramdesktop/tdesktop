@@ -48,8 +48,6 @@ constexpr auto kStateFailuresBeforeStated = 2;
 constexpr auto kTransactionsPerPage = 50;
 constexpr auto kForcedCollectiblesInterval = 10 * crl::time(1000);
 constexpr auto kStreamResyncInterval = 30 * crl::time(1000);
-constexpr auto kEngineProviderBase = "https://toncenter.com";
-constexpr auto kEngineRequestTimeoutMs = uint64(15000);
 
 [[nodiscard]] std::optional<int64> DecimalInt64(const std::string &value) {
 	auto ok = false;
@@ -452,10 +450,6 @@ QString Session::addressFriendly(bool bounceable) {
 	return FormatFriendly(_address, bounceable);
 }
 
-QByteArray Session::publicKey() const {
-	return _publicKey;
-}
-
 WalletCapabilities Session::capabilities() const {
 	return _capabilities;
 }
@@ -499,7 +493,6 @@ void Session::applyState(const MTPWalletState &state) {
 	_stateFailures = 0;
 	const auto clear = [&] {
 		_address = QString();
-		_publicKey = QByteArray();
 		_balanceNano = 0;
 		_capabilities = WalletCapabilities();
 	};
@@ -512,7 +505,6 @@ void Session::applyState(const MTPWalletState &state) {
 			return;
 		}
 		_address = parsed->raw;
-		_publicKey = data.vpublic_key().v;
 		_balanceNano = int64(data.vbalance().v);
 		_capabilities = WalletCapabilities{
 			.backupEnabled = data.is_backup_enabled(),

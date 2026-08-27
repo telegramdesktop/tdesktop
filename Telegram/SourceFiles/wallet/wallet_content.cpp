@@ -34,7 +34,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "storage/storage_account.h"
 #include "storage/storage_domain.h"
-#include "ui/boxes/confirm_box.h"
 #include "ui/controls/feature_list.h"
 #include "ui/controls/table_rows.h"
 #include "ui/controls/ton_common.h"

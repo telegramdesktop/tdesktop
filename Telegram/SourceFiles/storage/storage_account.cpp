@@ -3749,39 +3749,6 @@ QByteArray Account::readBotStorage(PeerId botId) {
 	return result;
 }
 
-void Account::writeWallet(const WalletStored &data) {
-	if (data.recordId.isEmpty()) {
-		if (_walletKey) {
-			ClearKey(_walletKey, _basePath);
-			_walletKey = 0;
-			writeMapDelayed();
-		}
-		return;
-	}
-	if (!_walletKey) {
-		_walletKey = GenerateKey(_basePath);
-		writeMapQueued();
-	}
-	const auto size = quint32(sizeof(quint32))
-		+ Serialize::stringSize(data.recordId)
-		+ Serialize::stringSize(data.address)
-		+ Serialize::bytearraySize(data.publicKey)
-		+ quint32(sizeof(qint32))
-		+ Serialize::stringSize(data.secretRef)
-		+ quint32(sizeof(qint32));
-	EncryptedDescriptor wallet(size);
-	wallet.stream
-		<< quint32(kWalletFormatVersion)
-		<< data.recordId
-		<< data.address
-		<< data.publicKey
-		<< qint32(data.network)
-		<< data.secretRef
-		<< qint32(data.phraseViewed ? 1 : 0);
-	FileWriteDescriptor file(_walletKey, _basePath, true);
-	file.writeEncrypted(wallet, _localKey);
-}
-
 std::optional<WalletStored> Account::readWallet() {
 	if (!_walletKey) {
 		return std::nullopt;
