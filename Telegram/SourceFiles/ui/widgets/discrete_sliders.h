@@ -66,10 +66,13 @@ public:
 
 	// A slider whose sections form a numeric scale (e.g. a count of 1..5)
 	// presents itself as a single slider element with a range value instead
-	// of a strip of tabs.
+	// of a strip of tabs, and one whose sections are a few exclusive textual
+	// options presents them as a group of radio buttons, read the way a
+	// classic settings group announces its choices.
 	enum class AccessibilityMode {
 		Tabs,
 		Value,
+		Radio,
 	};
 	void setAccessibilityMode(AccessibilityMode mode);
 

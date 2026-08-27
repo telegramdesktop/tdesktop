@@ -323,6 +323,9 @@ void DiscreteSlider::keyPressEvent(QKeyEvent *e) {
 		}
 		return;
 	}
+	// A radio group moves with the same arrows as the tabs: Radiobutton only
+	// accepts the arrows matching the group's layout, and this strip is
+	// horizontal - Up / Down stay free, e.g. for scrolling the page.
 	if ((key == forward || key == backward) && count > 0) {
 		const auto current = (_accessibilitySelected >= 0)
 			? _accessibilitySelected
@@ -478,9 +481,11 @@ void DiscreteSlider::setAccessibilitySelected(int index, Announce announce) {
 }
 
 QAccessible::Role DiscreteSlider::accessibilityRole() {
-	return (_accessibilityMode == AccessibilityMode::Value)
-		? QAccessible::Slider
-		: QAccessible::PageTabList;
+	switch (_accessibilityMode) {
+	case AccessibilityMode::Value: return QAccessible::Slider;
+	case AccessibilityMode::Radio: return QAccessible::Grouping;
+	}
+	return QAccessible::PageTabList;
 }
 
 bool DiscreteSlider::accessibilitySelectionList() const {
@@ -499,7 +504,9 @@ std::optional<Qt::Orientation> DiscreteSlider::accessibilityOrientation() const 
 }
 
 QAccessible::Role DiscreteSlider::accessibilityChildRole() const {
-	return QAccessible::PageTab;
+	return (_accessibilityMode == AccessibilityMode::Radio)
+		? QAccessible::RadioButton
+		: QAccessible::PageTab;
 }
 
 QAccessible::State DiscreteSlider::accessibilityChildState(int index) const {
@@ -510,6 +517,11 @@ QAccessible::State DiscreteSlider::accessibilityChildState(int index) const {
 	}
 	if (index == _activeIndex) {
 		state.selected = true;
+		if (_accessibilityMode == AccessibilityMode::Radio) {
+			// The platform reads a radio button's checked flag where other
+			// selection items report selected; keep the two in sync.
+			state.checked = true;
+		}
 	}
 	if (index == _accessibilitySelected) {
 		state.active = true;
