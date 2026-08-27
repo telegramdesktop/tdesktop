@@ -91,6 +91,10 @@ rpl::producer<int> DiscreteSlider::accessibilitySectionBrowsed() const {
 	return _accessibilitySectionBrowsed.events();
 }
 
+void DiscreteSlider::setAccessibilityActivateOnBrowse(bool activate) {
+	_accessibilityActivateOnBrowse = activate;
+}
+
 int DiscreteSlider::sectionsCount() const {
 	return int(_sections.size());
 }
@@ -304,12 +308,27 @@ void DiscreteSlider::keyPressEvent(QKeyEvent *e) {
 		browseAndActivate(0);
 	} else if (key == Qt::Key_End && count > 0) {
 		browseAndActivate(count - 1);
+	} else if (!e->isAutoRepeat()
+		&& !_accessibilityActivateOnBrowse
+		&& (key == Qt::Key_Space
+			|| key == Qt::Key_Return
+			|| key == Qt::Key_Enter)
+		&& _accessibilitySelected >= 0
+		&& _accessibilitySelected < count) {
+		// Only an opted-out strip needs the explicit commit step.
+		activateSectionByAccessibility(_accessibilitySelected);
 	} else {
 		RpWidget::keyPressEvent(e);
 	}
 }
 
 void DiscreteSlider::browseAndActivate(int index) {
+	// An opted-out strip (see setAccessibilityActivateOnBrowse) only moves
+	// the browse position, keeping activation on Enter / Space.
+	if (!_accessibilityActivateOnBrowse) {
+		setAccessibilitySelected(index, Announce::Always);
+		return;
+	}
 	// A native Windows tab control switches to the tab the arrows land on
 	// right away, with no separate Enter / Space step, and what the screen
 	// reader announces is the focus moving onto that tab - which by then
