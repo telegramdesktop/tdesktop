@@ -35,7 +35,7 @@ namespace Core {
 namespace {
 
 constexpr auto kAutomationKey = std::string_view("automation.enabled");
-constexpr auto kProxyUndoDuration = crl::time(8000);
+constexpr auto kUndoDuration = crl::time(8000);
 
 struct WindowEntry {
 	not_null<Window::Controller*> controller;
@@ -261,7 +261,7 @@ void RequestEnableAutomation() {
 		+ QString::number(proxy.port);
 }
 
-void ShowProxyToast(const QString &text, Fn<void()> undo) {
+void ShowUndoToast(const QString &text, Fn<void()> undo) {
 	const auto window = App().activePrimaryWindow();
 	if (!window) {
 		return;
@@ -279,7 +279,7 @@ void ShowProxyToast(const QString &text, Fn<void()> undo) {
 			}
 			return false;
 		},
-		.duration = kProxyUndoDuration,
+		.duration = kUndoDuration,
 	});
 }
 
@@ -341,7 +341,7 @@ void ShowProxyToast(const QString &text, Fn<void()> undo) {
 	}
 	proxies.addToList(proxy);
 	Local::writeSettings();
-	ShowProxyToast(u"Proxy added: "_q + ProxyLabel(proxy), [=] {
+	ShowUndoToast(u"Proxy added: "_q + ProxyLabel(proxy), [=] {
 		auto &current = App().settings().proxy();
 		const auto selected = (current.selected() == proxy);
 		if (current.removeFromList(proxy) && selected) {
@@ -378,7 +378,7 @@ void ShowProxyToast(const QString &text, Fn<void()> undo) {
 		}
 	}
 	Local::writeSettings();
-	ShowProxyToast(u"Proxy removed: "_q + ProxyLabel(proxy), [=] {
+	ShowUndoToast(u"Proxy removed: "_q + ProxyLabel(proxy), [=] {
 		auto &current = App().settings().proxy();
 		if (current.indexInList(proxy) < 0) {
 			current.insertToList(index, proxy);
@@ -400,7 +400,7 @@ void ShowProxyToast(const QString &text, Fn<void()> undo) {
 	const auto wasSettings = proxies.settings();
 	App().setCurrentProxy(proxy, MTP::ProxyData::Settings::Enabled);
 	Local::writeSettings();
-	ShowProxyToast(u"Proxy enabled: "_q + ProxyLabel(proxy), [=] {
+	ShowUndoToast(u"Proxy enabled: "_q + ProxyLabel(proxy), [=] {
 		App().setCurrentProxy(wasSelected, wasSettings);
 		Local::writeSettings();
 	});
@@ -442,7 +442,7 @@ void ShowProxyToast(const QString &text, Fn<void()> undo) {
 	}
 	App().setCurrentProxy(wasSelected, MTP::ProxyData::Settings::Disabled);
 	Local::writeSettings();
-	ShowProxyToast(u"Proxy disabled."_q, [=] {
+	ShowUndoToast(u"Proxy disabled."_q, [=] {
 		App().setCurrentProxy(wasSelected, wasSettings);
 		Local::writeSettings();
 	});
