@@ -2266,6 +2266,8 @@ void SetupChatListQuickAction(
 					? tr::lng_settings_quick_dialog_action_pin
 					: (value == Dialogs::Ui::QuickDialogAction::Read)
 					? tr::lng_settings_quick_dialog_action_read
+					: (value == Dialogs::Ui::QuickDialogAction::Delete)
+					? tr::lng_settings_quick_dialog_action_delete
 					: (value == Dialogs::Ui::QuickDialogAction::Archive)
 					? tr::lng_settings_quick_dialog_action_archive
 					: tr::lng_settings_quick_dialog_action_disabled)();
