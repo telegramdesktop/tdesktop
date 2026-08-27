@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_map.h"
 #include "base/timer.h"
 #include "gram/api/gram_api_nft.h"
+#include "mtproto/sender.h"
 #include "wallet/wallet_address.h"
 #include "wallet/wallet_api.h"
 #include "wallet/wallet_stream.h"
@@ -17,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace wallet_engine {
 struct ActivityItem;
 struct NftList;
-struct WalletDescriptor;
 struct WalletUpdate;
 } // namespace wallet_engine
 
@@ -35,10 +35,17 @@ class Engine;
 class Onramp;
 class Rates;
 
-enum class KeyState {
-	None,
-	Created,
-	Imported,
+enum class Presence {
+	Unknown,
+	Provisioning,
+	Missing,
+	Unavailable,
+	Ready,
+};
+
+struct WalletCapabilities {
+	bool backupEnabled = false;
+	bool canExportPhrase = false;
 };
 
 enum class AccountStatus {
@@ -135,32 +142,24 @@ struct SendArgs {
 [[nodiscard]] std::vector<Gram::NftItem> CollectiblesFromEngine(
 	const wallet_engine::NftList &list);
 
-[[nodiscard]] bool IsWordlistWord(const QString &word);
-[[nodiscard]] std::vector<QString> WordlistSuggestions(
-	const QString &prefix,
-	int limit);
-
 class Session final {
 public:
 	explicit Session(not_null<Main::Session*> session);
 	~Session();
 
-	[[nodiscard]] KeyState keyState();
-	[[nodiscard]] rpl::producer<KeyState> keyStateValue();
+	[[nodiscard]] Presence presence();
+	[[nodiscard]] rpl::producer<Presence> presenceValue();
 	[[nodiscard]] std::optional<QString> address();
 	[[nodiscard]] QString addressFriendly(bool bounceable = false);
+	[[nodiscard]] QByteArray publicKey() const;
+	[[nodiscard]] WalletCapabilities capabilities() const;
 
-	void create(Fn<void(LifecycleError)> done);
-	void import(std::vector<QString> words, Fn<void(LifecycleError)> done);
-	void remove(Fn<void(LifecycleError)> done);
+	void refreshState();
+	void applyUpdate(const MTPDupdateWalletState &data);
+
 	void revealPhrase(
 		Fn<void(std::vector<QString>)> done,
 		Fn<void(LifecycleError)> fail);
-	[[nodiscard]] bool provenEmpty() const;
-
-	[[nodiscard]] bool phraseUnviewed();
-	[[nodiscard]] rpl::producer<bool> phraseUnviewedValue();
-	void markPhraseViewed();
 
 	[[nodiscard]] int64 balanceNano() const;
 	[[nodiscard]] rpl::producer<int64> balanceNanoValue() const;
@@ -171,6 +170,7 @@ public:
 	[[nodiscard]] bool listsGated() const;
 	[[nodiscard]] rpl::producer<bool> listsGatedValue() const;
 	[[nodiscard]] rpl::producer<bool> listsConfirmedEmptyValue() const;
+	[[nodiscard]] rpl::producer<bool> stateUnreachableValue() const;
 
 	void refreshHistory(Fn<void()> done = nullptr);
 	[[nodiscard]] bool historyHasNext() const;
@@ -208,21 +208,14 @@ public:
 	[[nodiscard]] const std::optional<PendingSendInfo> &pendingSend() const;
 
 private:
-	enum class SliceState {
-		Pending,
-		Failed,
-		Ready,
-	};
-
 	void ensureLoaded();
-	bool applyDescriptor(
-		wallet_engine::WalletDescriptor descriptor,
-		KeyState state);
+	void requestState();
+	void applyState(const MTPWalletState &state);
+	void setPresence(Presence presence);
 	void clearNetworkState();
 	void pollTick();
 	void updatePollingState();
 	void applyStreamRefresh(StreamRefresh wanted);
-	void updateEngineClient();
 	void requestEngineRefresh();
 	void applyEngineUpdate(const wallet_engine::WalletUpdate &update);
 	void requestMoreActivity();
@@ -230,9 +223,7 @@ private:
 		const wallet_engine::WalletUpdate &update,
 		bool more);
 	void setHistory(std::vector<TransferItem> &&list);
-	void noteHistoryClientAbsent();
 	void refreshCollectibles(bool force = false);
-	void noteCollectiblesClientAbsent();
 	void requestCollectibles(bool more);
 	void applyCollectiblesUpdate(
 		const wallet_engine::WalletUpdate &update,
@@ -243,16 +234,13 @@ private:
 		Fn<void(FeeResult)> done,
 		bool retried = false);
 	void resolvePending();
-	void setLifecyclePending(bool pending);
-	void setHistoryFirstSlice(SliceState state);
-	void setCollectiblesFirstSlice(SliceState state);
 	void updateListsGate();
-	[[nodiscard]] bool listsLoading() const;
 	[[nodiscard]] bool listsConfirmedEmpty() const;
 	void finishPending();
 
 	const not_null<Main::Session*> _session;
 	Api _api;
+	MTP::Sender _stateApi;
 	const std::unique_ptr<Engine> _engine;
 	const std::unique_ptr<Rates> _rates;
 	const std::unique_ptr<Onramp> _onramp;
@@ -260,15 +248,18 @@ private:
 	base::Timer _pollTimer;
 
 	bool _loaded = false;
-	rpl::variable<KeyState> _keyState = KeyState::None;
-	rpl::variable<bool> _phraseUnviewed = false;
-	std::unique_ptr<wallet_engine::WalletDescriptor> _descriptor;
 	QString _address;
 
 	rpl::variable<int64> _balanceNano = 0;
-	rpl::variable<bool> _stateKnown = false;
+	rpl::variable<Presence> _presence = Presence::Unknown;
+	WalletCapabilities _capabilities;
+	QByteArray _publicKey;
 	AccountStatus _engineStatus = AccountStatus::NonExisting;
+	mtpRequestId _stateRequestId = 0;
+	crl::time _stateRequestedAt = 0;
 	crl::time _stateRefreshedAt = 0;
+	int _stateFailures = 0;
+	bool _stateUnreachable = false;
 	std::vector<TransferItem> _history;
 	rpl::event_stream<> _historyUpdates;
 	bool _historyHasNext = false;
@@ -282,15 +273,11 @@ private:
 	bool _collectiblesRequestPending = false;
 	bool _collectiblesHasMore = false;
 	bool _collectiblesPaged = false;
-	int _collectiblesClientAttempts = 0;
-	int _historyClientAttempts = 0;
 	base::flat_map<QString, Gram::NftItem> _collectibleInfo;
 	base::flat_map<
 		QString,
 		std::vector<Fn<void(const Gram::NftItem &)>>> _collectibleInfoWaiters;
 
-	SliceState _historyFirstSlice = SliceState::Pending;
-	SliceState _collectiblesFirstSlice = SliceState::Pending;
 	rpl::variable<bool> _listsGated = true;
 	rpl::event_stream<> _listsStateUpdates;
 #ifdef _DEBUG
@@ -301,10 +288,7 @@ private:
 	int _networkGeneration = 0;
 	bool _historyRequestPending = false;
 	bool _resolveRequestPending = false;
-	QString _engineClientAddress;
-	bool _engineStopping = false;
 	bool _engineRefreshPending = false;
-	bool _lifecyclePending = false;
 	std::vector<Fn<void()>> _historyDone;
 
 	rpl::variable<SendState> _sendState = SendState::Idle;

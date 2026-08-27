@@ -68,6 +68,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
+#include "wallet/wallet_session.h"
 #include "iv/editor/iv_editor_session.h"
 #include "ui/boxes/confirm_box.h"
 #include "apiwrap.h"
@@ -2882,6 +2883,11 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateStarsBalance: {
 		const auto &data = update.c_updateStarsBalance();
 		_session->credits().apply(data);
+	} break;
+
+	case mtpc_updateWalletState: {
+		const auto &data = update.c_updateWalletState();
+		_session->wallet().applyUpdate(data);
 	} break;
 
 	case mtpc_updatePaidReactionPrivacy: {

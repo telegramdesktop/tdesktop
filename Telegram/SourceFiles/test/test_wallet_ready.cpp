@@ -35,12 +35,9 @@ struct Watch {
 [[nodiscard]] QString Describe(
 		const WalletFreshnessReading &reading,
 		crl::time window) {
-	return u"at=%1 historyAtMs=%2 stateAtMs=%3 historyAgeMs=%4 "
-		"stateAgeMs=%5 windowMs=%6"_q
+	return u"at=%1 stateAtMs=%2 stateAgeMs=%3 windowMs=%4"_q
 		.arg(qint64(reading.atMs))
-		.arg(qint64(reading.historyAtMs))
 		.arg(qint64(reading.stateAtMs))
-		.arg(qint64(reading.atMs - reading.historyAtMs))
 		.arg(qint64(reading.atMs - reading.stateAtMs))
 		.arg(qint64(window));
 }
@@ -63,17 +60,10 @@ void NoteVerdict(
 		.arg(WalletRefreshStateName(verdict.state)));
 }
 
-[[nodiscard]] QString PublicReadOut(const Wallet::Session &wallet) {
-	auto stateKnown = false;
-	auto lifetime = rpl::lifetime();
-	wallet.stateKnownValue(
-	) | rpl::on_next([&](bool value) {
-		stateKnown = value;
-	}, lifetime);
-	return u"provenEmpty=%1 stateKnown=%2 balanceNano=%3 history=%4 "
-		"hasNext=%5 collectibles=%6 sendState=%7"_q
-		.arg(wallet.provenEmpty() ? 1 : 0)
-		.arg(stateKnown ? 1 : 0)
+[[nodiscard]] QString PublicReadOut(Wallet::Session &wallet) {
+	return u"presence=%1 balanceNano=%2 history=%3 hasNext=%4 "
+		"collectibles=%5 sendState=%6"_q
+		.arg(int(wallet.presence()))
 		.arg(qint64(wallet.balanceNano()))
 		.arg(int(wallet.history().size()))
 		.arg(wallet.historyHasNext() ? 1 : 0)
@@ -102,21 +92,15 @@ WalletRefreshVerdict ReadWalletRefresh(
 		crl::time window) {
 	const auto observation = Describe(reading, window);
 	if (reading.atMs <= 0
-		|| reading.historyAtMs < 0
 		|| reading.stateAtMs < 0
-		|| reading.historyAtMs > reading.atMs
 		|| reading.stateAtMs > reading.atMs) {
 		return { WalletRefreshState::Unreadable, observation };
-	} else if (!reading.historyAtMs || !reading.stateAtMs) {
-		const auto which = !reading.historyAtMs
-			? (!reading.stateAtMs ? u"both"_q : u"history"_q)
-			: u"state"_q;
+	} else if (!reading.stateAtMs) {
 		return {
 			WalletRefreshState::Unstamped,
-			observation + u" unstamped=%1"_q.arg(which),
+			observation + u" unstamped=state"_q,
 		};
-	} else if ((reading.atMs - reading.historyAtMs > window)
-		|| (reading.atMs - reading.stateAtMs > window)) {
+	} else if (reading.atMs - reading.stateAtMs > window) {
 		return { WalletRefreshState::Stale, observation };
 	}
 	return { WalletRefreshState::Ready, observation };
@@ -223,18 +207,16 @@ void AppendWalletRefreshSelfTest(
 			if (!wallet) {
 				return;
 			}
-			// refreshHistory() comes before anything reads _keyState,
-			// because its ensureLoaded() is what populates that field:
-			// keyState(), startPolling() and debugClearNetworkState()
-			// all answer for KeyState::None on a session nothing has
+			// refreshHistory() is the first touch because its
+			// ensureLoaded() is what sends the first wallet.getState:
+			// presence(), startPolling() and debugClearNetworkState()
+			// all answer for Presence::Unknown on a session nothing has
 			// touched yet, and debugClearNetworkState() early-returns
-			// on exactly that value.
+			// on anything but Ready. Nothing here reads the presence
+			// either: that request has only just gone out, so the answer
+			// deciding it cannot have arrived and a gate on it would
+			// refuse a healthy fixture. The settle below is the wait.
 			wallet->refreshHistory();
-			const auto key = wallet->keyState();
-			Check(
-				key != Wallet::KeyState::None,
-				u"fixture gate: the test account has a wallet"_q,
-				u"keyState=%1"_q.arg(int(key)));
 			wallet->startPolling();
 		},
 		.until = [=] {
@@ -248,9 +230,16 @@ void AppendWalletRefreshSelfTest(
 			NoteVerdict(u"positive"_q, verdict);
 			Check(
 				verdict.ready(),
-				u"an engine refresh reached kReady and stamped both "
-				"wallet freshness fields"_q,
+				u"the server's wallet state was applied recently, "
+				"stamping the wallet freshness field"_q,
 				verdict.observation);
+			const auto presence = state->wallet
+				? int(state->wallet->presence())
+				: -1;
+			Check(
+				presence == int(Wallet::Presence::Ready),
+				u"fixture gate: the test account has a wallet"_q,
+				u"presence=%1"_q.arg(presence));
 			Note(readOut());
 		},
 		.timeout = kWalletSettleTimeout + kDefaultStageTimeout,
@@ -267,20 +256,19 @@ void AppendWalletRefreshSelfTest(
 			if (!wallet) {
 				return;
 			}
-			// Engine::run() always answers on a later main thread turn,
-			// so no engine callback can land inside this block and the
-			// order below is decided rather than raced. The first
-			// refresh puts one in flight and sets _engineRefreshPending;
-			// the clear bumps _networkGeneration, zeroes both stamps and
-			// clears _historyDone, which is why the observed callback
-			// has to be queued after it — a callback queued before is
-			// discarded, not drained; the second refreshHistory() then
-			// parks that callback on the still-outstanding superseded
-			// refresh, because requestEngineRefresh() returns at
-			// _engineRefreshPending. The clear also zeroes the polling
-			// count, cancels the poll timer and stops the stream, so
-			// nothing else can refresh while the state is cleared.
-			wallet->refreshHistory();
+			// The clear bumps _networkGeneration, zeroes the stamp and
+			// _stateRequestedAt, cancels the outstanding wallet.getState
+			// and clears _historyDone — which is why the observed
+			// callback has to be queued after it, since a callback
+			// queued before is discarded, not drained. It also zeroes
+			// the polling count, cancels the poll timer and stops the
+			// stream, so nothing can restamp the field while the state
+			// is cleared. It deliberately leaves the presence alone, so
+			// the refreshHistory() below still runs its body and queues
+			// the callback; the engine holds no client for a
+			// server-owned wallet, so requestEngineRefresh() drains that
+			// queue on the spot and the completion fires with nothing
+			// stamped.
 			wallet->debugClearNetworkState();
 			state->clearedAt = crl::now();
 			wallet->refreshHistory([=] {
@@ -296,8 +284,8 @@ void AppendWalletRefreshSelfTest(
 			NoteVerdict(u"negative"_q, verdict);
 			Check(
 				verdict.state == WalletRefreshState::Unstamped,
-				u"the drained completion stamped neither wallet "
-				"freshness field"_q,
+				u"the drained completion left the wallet freshness "
+				"field unstamped"_q,
 				u"drained=1 drainedAfterMs=%1 %2 %3"_q
 					.arg(qint64(state->drainedAfterMs))
 					.arg(verdict.observation)
@@ -318,9 +306,11 @@ void AppendWalletRefreshSelfTest(
 		.run = [=] {
 			// debugRestoreNetworkState() restores the polling count and
 			// calls updatePollingState(), which takes a pollTick()
-			// immediately, so the first tick after it is read while both
-			// stamps are still zero. That is run 1's reading, reproduced
-			// on demand and refused by the same predicate.
+			// immediately, so the first tick after it is read while the
+			// stamp is still zero. That is run 1's reading, reproduced
+			// on demand and refused by the same predicate. The clear
+			// zeroed _stateRequestedAt too, so that tick's refreshState()
+			// is not held off by the floor and re-asks at once.
 			if (const auto wallet = state->wallet) {
 				wallet->debugRestoreNetworkState();
 			}
@@ -336,8 +326,8 @@ void AppendWalletRefreshSelfTest(
 			NoteVerdict(u"recovery"_q, verdict);
 			Check(
 				verdict.state == WalletRefreshState::Ready,
-				u"the cleared wallet recovered: a later engine refresh "
-				"stamped both freshness fields again"_q,
+				u"the cleared wallet recovered: a later wallet.getState "
+				"stamped the freshness field again"_q,
 				verdict.observation);
 			Note(readOut());
 		},
@@ -353,7 +343,6 @@ void AppendWalletRefreshSelfTest(
 		.run = [] {
 			const auto zeroed = ReadWalletRefresh({
 				.atMs = crl::now(),
-				.historyAtMs = 0,
 				.stateAtMs = 0,
 			});
 			NoteVerdict(u"refusal text"_q, zeroed);
@@ -363,7 +352,6 @@ void AppendWalletRefreshSelfTest(
 				"as unstamped, never reported as ready"_q,
 				zeroed.observation);
 			const auto named = zeroed.observation.contains(u"at="_q)
-				&& zeroed.observation.contains(u"historyAgeMs="_q)
 				&& zeroed.observation.contains(u"stateAgeMs="_q)
 				&& zeroed.observation.contains(u"windowMs="_q);
 			Check(
@@ -385,7 +373,6 @@ void AppendWalletRefreshSelfTest(
 			const auto staleAtMs = atMs - kWalletRefreshWindow * 2;
 			const auto stale = ReadWalletRefresh({
 				.atMs = atMs,
-				.historyAtMs = staleAtMs,
 				.stateAtMs = staleAtMs,
 			});
 			NoteVerdict(u"stale"_q, stale);
@@ -397,7 +384,6 @@ void AppendWalletRefreshSelfTest(
 			const auto edgeAtMs = atMs - kWalletRefreshWindow;
 			const auto edge = ReadWalletRefresh({
 				.atMs = atMs,
-				.historyAtMs = edgeAtMs,
 				.stateAtMs = edgeAtMs,
 			});
 			NoteVerdict(u"window edge"_q, edge);

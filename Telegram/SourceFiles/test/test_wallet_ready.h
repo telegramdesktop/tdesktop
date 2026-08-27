@@ -19,59 +19,58 @@ namespace Test {
 
 class Runner;
 
-// Wallet::Session::refreshHistory(done) queues |done| on _historyDone, and
-// requestEngineRefresh()'s local finishHistoryWaiters() drains that queue on
-// every outcome: immediately when the engine is stopping or has no client,
-// on the engine error path, in both engine callbacks when the refresh was
-// superseded by a network generation bump, and after applyEngineUpdate() —
-// which itself returns at its outcome gate for anything but kCompleted, and
-// whose applyEngineActivity() leg writes nothing unless the activity
-// resource phase is kReady. A completed refreshHistory(done) callback
-// therefore carries no information about whether _historyRefreshedAt and
-// _stateRefreshedAt were written.
+// Wallet::Session::_stateRefreshedAt is the one field that says the
+// server's wallet state reached this client, and it is what this predicate
+// measures. applyState() stamps it, and applyState() is the single apply
+// path for both the wallet.getState answer and a pushed updateWalletState.
 //
-// Nothing outside Wallet::Session can read those two stamps: both are
-// private and neither has an accessor. pollTick()'s stale() cannot stand in
-// for one either, because stale(0) is permanently true, so an unstamped run
-// is byte-indistinguishable from a genuinely stale one.
+// Wallet::Session::refreshHistory(done) cannot stand in for it. Its
+// ensureLoaded() is what sends the very first wallet.getState, but the
+// callback says nothing about the answer: refreshHistory() runs |done| at
+// once when the presence is not Ready, and otherwise queues it on
+// _historyDone, which requestEngineRefresh()'s local finishHistoryWaiters()
+// drains on every outcome — immediately when the engine has no client, on
+// the engine error path, and in both engine callbacks when the refresh was
+// superseded by a network generation bump. The server owns the wallet now
+// and the engine holds no client for it at all, so that completion is
+// unconditional and carries no information whatsoever.
+//
+// Nothing outside Wallet::Session can read the stamp: it is private and has
+// no accessor. pollTick()'s stale() cannot stand in for it either, because
+// stale(0) is permanently true, so an unstamped run is byte-indistinguishable
+// from a genuinely stale one.
 //
 // Run 1 of 2026/08/26/repair-and-retune-wallet-history-debug-scenarios lost
 // a full normal campaign run to exactly that. Its fixture gate waited on the
-// refreshHistory(done) completion, which arrived with both stamps still
-// zero, and the row behind it read "atMs=9957 historyAgeMs=9957
-// stateAgeMs=9957" — every age equal to the row's own timestamp, because an
-// unwritten stamp reads crl::now() - 0.
+// refreshHistory(done) completion, which arrived with the stamp still zero,
+// and the row behind it read "atMs=9957 stateAgeMs=9957" — the age equal to
+// the row's own timestamp, because an unwritten stamp reads crl::now() - 0.
 //
-// WalletFreshnessReading carries the raw stamps rather than ages, so "never
-// written" is the exact test !historyAtMs || !stateAtMs instead of a margin
-// heuristic that refuses a genuine early stamp. A caller holding only ages
-// converts losslessly by passing atMs - age: an unwritten stamp's age equals
-// atMs, which maps back to exactly 0.
-//
-// provenEmpty() is the only public read-out whose truth implies both stamps
-// were written, because its fresh() lambda short-circuits on `completed &&`
-// and fresh(0) is false. It certifies more than this predicate asks and lags
-// it: it additionally demands an empty, zero-balance, non-paging,
-// non-sending wallet and fresh(_collectiblesCompletedAt), which a separate
-// engine round trip writes. A false answer attributes to no particular term,
-// and _sendUnresolved is the one term of that conjunction with no public
-// read-out at all.
+// WalletFreshnessReading carries the raw stamp rather than an age, so "never
+// written" is the exact test !stateAtMs instead of a margin heuristic that
+// refuses a genuine early stamp. A caller holding only an age converts
+// losslessly by passing atMs - age: an unwritten stamp's age equals atMs,
+// which maps back to exactly 0.
 //
 // A wallet readiness wait is a FIXTURE GATE for a scenario whose subject
-// is not the wallet refresh path itself: reverting such a diff cannot
+// is not the wallet state lane itself: reverting such a diff cannot
 // change the reading, so a refusal makes the run a harness or environment
 // failure (TEST_FLAW) and the acceptance criteria N/A, never a product
-// FAIL. When the diff under test touches requestEngineRefresh(),
-// applyEngineUpdate(), applyEngineActivity() or clearNetworkState(), the
-// readiness condition itself is the behavior under test and a refusal is a
-// product FAIL — README.md's stage contract states the same exception.
+// FAIL. When the diff under test touches refreshState(), requestState(),
+// applyState(), applyUpdate() or clearNetworkState(), the readiness
+// condition itself is the behavior under test and a refusal is a product
+// FAIL — README.md's stage contract states the same exception.
 
 // The window pollTick()'s stale() uses (kStreamResyncInterval), so "ready"
-// means the poll itself would not call this reading stale.
+// means the poll itself would not call this reading stale. refreshState()
+// floors its own requests at twice that, so a stamp between one and two
+// windows old reads Stale until the next unfloored tick replaces it — which
+// is what the settle deadline below has to outlast.
 inline constexpr auto kWalletRefreshWindow = 30 * crl::time(1000);
 
-// Twelve 5s poll ticks plus margin — well past the one or two engine round
-// trips a settle needs, so an unreachable proxy ends the wait, not hangs it.
+// Fifteen 5s poll ticks — past refreshState()'s own request floor, so a
+// settle that has to wait a whole floor out still resolves inside it, and an
+// unreachable server ends the wait instead of hanging it.
 inline constexpr auto kWalletSettleTimeout = crl::time(75000);
 
 enum class WalletRefreshState {
@@ -83,13 +82,12 @@ enum class WalletRefreshState {
 
 [[nodiscard]] QString WalletRefreshStateName(WalletRefreshState state);
 
-// One observation of both stamps taken at one instant: |atMs| is crl::now()
-// at the reading, and each stamp is that field's raw value. A stamp of 0
+// One observation of the stamp taken at one instant: |atMs| is crl::now()
+// at the reading, and |stateAtMs| is that field's raw value. A stamp of 0
 // means the field was never written; -1 means the caller supplied nothing.
 // Both are refused, never treated as fresh.
 struct WalletFreshnessReading {
 	crl::time atMs = 0;
-	crl::time historyAtMs = -1;
 	crl::time stateAtMs = -1;
 };
 
@@ -142,16 +140,14 @@ struct WalletRefreshVerdict {
 
 // Appends the instrument's own positive / negative / recovery / refusal-text
 // self-test, plus its teardown, as five stages on |runner|. |resolve| hands
-// back the session and |reading| takes one observation of its two stamps.
+// back the session and |reading| takes one observation of its stamp.
 //
-// The negative case is the point: refreshHistory() goes out first, so a
-// refresh is in flight and _engineRefreshPending is set; then
-// debugClearNetworkState() bumps _networkGeneration, zeroes both stamps and
-// clears _historyDone — which is why the observed callback must be queued
-// after it, since a callback queued before is discarded, not drained; then
-// refreshHistory(done) parks that callback on the still-outstanding
-// superseded refresh, because requestEngineRefresh() returns at
-// _engineRefreshPending. The completion then fires with nothing stamped.
+// The negative case is the point: debugClearNetworkState() zeroes the stamp,
+// cancels the outstanding wallet.getState and stops the poll, so nothing can
+// restamp the field; it leaves the presence alone, so the refreshHistory()
+// after it still runs its body and queues the observed callback. With no
+// engine client that callback is drained on the spot, and the completion
+// therefore fires with nothing stamped.
 //
 // This routine does mutate the session: it starts polling, issues refreshes
 // and clears and restores network state. That is why it is a named

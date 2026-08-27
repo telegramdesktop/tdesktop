@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unixtime.h"
 #include "main/main_session.h"
-#include "storage/storage_account.h"
 #include "ui/widgets/separate_panel.h"
 #include "wallet/wallet_engine.h"
 #include "wallet/wallet_onramp.h"
@@ -28,10 +27,21 @@ namespace engine = wallet_engine;
 
 constexpr auto kPollInterval = 5 * crl::time(1000);
 constexpr auto kCollectiblesPollInterval = 60 * crl::time(1000);
+// The server reads the balance from toncenter and caches it for about
+// thirty seconds, so two reads inside one such window return the same
+// answer. This floor is twice that window: whatever jitter the poll tick,
+// a stream hint and a pushed update add between two requests, the later
+// one can never land inside the cache window the earlier one filled.
+constexpr auto kStateRefreshInterval = 60 * crl::time(1000);
+// A wallet.getState that fails for anything but WALLET_UNAVAILABLE leaves the
+// presence at Unknown, which is also what "the first request has not answered
+// yet" reads as, so the cold-open gate would otherwise stay closed on an
+// unlabelled indicator for as long as the server keeps failing. After this
+// many consecutive failed attempts the lane stops claiming to be loading and
+// settles to a stated face; the 60-second floor keeps retrying underneath and
+// one applied state clears the latch again.
+constexpr auto kStateFailuresBeforeStated = 2;
 constexpr auto kForcedCollectiblesInterval = 10 * crl::time(1000);
-constexpr auto kCollectiblesClientAttempts = 3;
-constexpr auto kHistoryClientAttempts = 3;
-constexpr auto kEmptyProofFreshness = 60 * crl::time(1000);
 constexpr auto kStreamResyncInterval = 30 * crl::time(1000);
 constexpr auto kEngineProviderBase = "https://toncenter.com";
 constexpr auto kEngineRequestTimeoutMs = uint64(15000);
@@ -63,69 +73,6 @@ constexpr auto kEngineRequestTimeoutMs = uint64(15000);
 
 [[nodiscard]] std::string NewRecordId() {
 	return QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString();
-}
-
-[[nodiscard]] QByteArray PublicKeyBytes(
-		const engine::WalletDescriptor &descriptor) {
-	const auto &key = descriptor.public_key;
-	return QByteArray(
-		reinterpret_cast<const char*>(key.data()),
-		key.size());
-}
-
-[[nodiscard]] Storage::WalletStored StoredFromDescriptor(
-		const engine::WalletDescriptor &descriptor,
-		bool phraseViewed) {
-	return Storage::WalletStored{
-		.recordId = QString::fromStdString(descriptor.record_id),
-		.address = QString::fromStdString(descriptor.address),
-		.publicKey = PublicKeyBytes(descriptor),
-		.network = qint32(descriptor.network),
-		.secretRef = QString::fromStdString(descriptor.secret_ref.value),
-		.phraseViewed = phraseViewed,
-	};
-}
-
-[[nodiscard]] engine::WalletDescriptor DescriptorFromStored(
-		const Storage::WalletStored &stored) {
-	const auto &key = stored.publicKey;
-	return engine::WalletDescriptor{
-		.record_id = stored.recordId.toStdString(),
-		.address = stored.address.toStdString(),
-		.public_key = std::vector<uint8_t>(
-			key.constData(),
-			key.constData() + key.size()),
-		.network = engine::Network(stored.network),
-		.secret_ref = engine::ProtectedSecretRef{
-			.value = stored.secretRef.toStdString(),
-		},
-	};
-}
-
-[[nodiscard]] LifecycleError LifecycleErrorFrom(const EngineError &error) {
-	if (!error.underlying) {
-		return LifecycleError::Failed;
-	}
-	try {
-		std::rethrow_exception(error.underlying);
-	} catch (const engine::wallet_lifecycle_error::InvalidRecoveryPhrase &) {
-		return LifecycleError::InvalidPhrase;
-	} catch (...) {
-	}
-	return LifecycleError::Failed;
-}
-
-[[nodiscard]] bool SecretAlreadyGone(const EngineError &error) {
-	if (!error.underlying) {
-		return false;
-	}
-	try {
-		std::rethrow_exception(error.underlying);
-	} catch (const engine::wallet_lifecycle_error::ProtectedSecretHost &e) {
-		return e.kind == engine::ProtectedSecretHostErrorKind::kNotFound;
-	} catch (...) {
-	}
-	return false;
 }
 
 [[nodiscard]] SendError SendErrorFrom(const EngineError &error) {
@@ -220,36 +167,6 @@ constexpr auto kEngineRequestTimeoutMs = uint64(15000);
 	default:
 		return false;
 	}
-}
-
-[[nodiscard]] std::vector<QString> SplitPhrase(const std::string &phrase) {
-	const auto words = QString::fromStdString(phrase).split(
-		QChar(' '),
-		Qt::SkipEmptyParts);
-	return std::vector<QString>(words.begin(), words.end());
-}
-
-[[nodiscard]] QString NormalizeWord(const QString &word) {
-	return word.trimmed().toLower();
-}
-
-[[nodiscard]] const std::vector<QString> &Wordlist() {
-	static const auto result = [] {
-		auto list = std::vector<QString>();
-		try {
-			const auto words = engine::mnemonic_wordlist();
-			list.reserve(words.size());
-			for (const auto &word : words) {
-				list.push_back(QString::fromStdString(word));
-			}
-			std::sort(list.begin(), list.end());
-		} catch (...) {
-			LOG(("Wallet Error: cannot read the engine wordlist."));
-			list.clear();
-		}
-		return list;
-	}();
-	return result;
 }
 
 [[nodiscard]] std::optional<Gram::NftItem> CollectibleFromEngine(
@@ -348,34 +265,10 @@ std::vector<Gram::NftItem> CollectiblesFromEngine(
 	return result;
 }
 
-bool IsWordlistWord(const QString &word) {
-	const auto &list = Wordlist();
-	const auto normalized = NormalizeWord(word);
-	return std::binary_search(list.begin(), list.end(), normalized);
-}
-
-std::vector<QString> WordlistSuggestions(
-		const QString &prefix,
-		int limit) {
-	auto result = std::vector<QString>();
-	const auto normalized = NormalizeWord(prefix);
-	if (normalized.isEmpty() || limit <= 0) {
-		return result;
-	}
-	const auto &list = Wordlist();
-	auto i = std::lower_bound(list.begin(), list.end(), normalized);
-	while (i != list.end()
-		&& int(result.size()) != limit
-		&& i->startsWith(normalized)) {
-		result.push_back(*i);
-		++i;
-	}
-	return result;
-}
-
 Session::Session(not_null<Main::Session*> session)
 : _session(session)
 , _api(session)
+, _stateApi(&session->mtp())
 , _engine(std::make_unique<Engine>(session, &_api))
 , _rates(std::make_unique<Rates>(session))
 , _onramp(std::make_unique<Onramp>(session))
@@ -418,48 +311,22 @@ void Session::ensureLoaded() {
 		return;
 	}
 	_loaded = true;
-	const auto stored = _session->local().readWallet();
-	if (!stored) {
-		return;
-	}
-	if (applyDescriptor(
-			DescriptorFromStored(*stored),
-			stored->phraseViewed ? KeyState::Imported : KeyState::Created)) {
-		_phraseUnviewed = !stored->phraseViewed;
-	}
+	refreshState();
 }
 
-bool Session::applyDescriptor(
-		engine::WalletDescriptor descriptor,
-		KeyState state) {
-	const auto parsed = ParseAddress(
-		QString::fromStdString(descriptor.address));
-	if (!parsed) {
-		LOG(("Wallet Error: engine descriptor address is not parseable."));
-		return false;
-	}
-	_descriptor = std::make_unique<engine::WalletDescriptor>(
-		std::move(descriptor));
-	_address = parsed->raw;
-	_keyState = state;
-	updateListsGate();
-	updateEngineClient();
-	return true;
-}
-
-KeyState Session::keyState() {
+Presence Session::presence() {
 	ensureLoaded();
-	return _keyState.current();
+	return _presence.current();
 }
 
-rpl::producer<KeyState> Session::keyStateValue() {
+rpl::producer<Presence> Session::presenceValue() {
 	ensureLoaded();
-	return _keyState.value();
+	return _presence.value();
 }
 
 std::optional<QString> Session::address() {
 	ensureLoaded();
-	if (_keyState.current() == KeyState::None) {
+	if (_presence.current() != Presence::Ready) {
 		return std::nullopt;
 	}
 	return _address;
@@ -467,232 +334,117 @@ std::optional<QString> Session::address() {
 
 QString Session::addressFriendly(bool bounceable) {
 	ensureLoaded();
-	if (_keyState.current() == KeyState::None) {
+	if (_presence.current() != Presence::Ready) {
 		return QString();
 	}
 	return FormatFriendly(_address, bounceable);
 }
 
-void Session::create(Fn<void(LifecycleError)> done) {
-	ensureLoaded();
-	if (_keyState.current() != KeyState::None || _lifecyclePending) {
-		if (done) {
-			done(LifecycleError::Failed);
-		}
-		return;
-	}
-	setLifecyclePending(true);
-	const auto lifecycle = _engine->lifecycle();
-	const auto recordId = NewRecordId();
-	_engine->run([lifecycle, recordId] {
-		return lifecycle->create_wallet(engine::CreateWalletRequest{
-			.record_id = recordId,
-			.network = engine::Network::kMainnet,
-		});
-	}, [=, this](engine::CreatedWallet created) {
-		const auto applied = applyDescriptor(
-			std::move(created.descriptor),
-			KeyState::Created);
-		setLifecyclePending(false);
-		if (!applied) {
-			if (done) {
-				done(LifecycleError::Failed);
-			}
-			return;
-		}
-		_session->local().writeWallet(
-			StoredFromDescriptor(*_descriptor, false));
-		_phraseUnviewed = true;
-		pollTick();
-		if (done) {
-			done(LifecycleError::None);
-		}
-	}, [=, this](EngineError error) {
-		setLifecyclePending(false);
-		LOG(("Wallet Error: engine create_wallet failed: %1"
-			).arg(error.message));
-		if (done) {
-			done(LifecycleErrorFrom(error));
-		}
-	});
+QByteArray Session::publicKey() const {
+	return _publicKey;
 }
 
-void Session::import(
-		std::vector<QString> words,
-		Fn<void(LifecycleError)> done) {
-	ensureLoaded();
-	if (_keyState.current() != KeyState::None
-		|| _lifecyclePending
-		|| words.empty()) {
-		if (done) {
-			done(LifecycleError::Failed);
-		}
-		return;
-	}
-	auto recovery = std::vector<std::string>();
-	recovery.reserve(words.size());
-	for (const auto &word : words) {
-		recovery.push_back(word.trimmed().toLower().toStdString());
-	}
-	setLifecyclePending(true);
-	const auto lifecycle = _engine->lifecycle();
-	const auto recordId = NewRecordId();
-	_engine->run([lifecycle, recordId, recovery = std::move(recovery)] {
-		return lifecycle->import_wallet(engine::ImportWalletRequest{
-			.record_id = recordId,
-			.network = engine::Network::kMainnet,
-			.recovery_words = recovery,
-		});
-	}, [=, this](engine::WalletDescriptor descriptor) {
-		const auto applied = applyDescriptor(
-			std::move(descriptor),
-			KeyState::Imported);
-		setLifecyclePending(false);
-		if (!applied) {
-			if (done) {
-				done(LifecycleError::Failed);
-			}
-			return;
-		}
-		_session->local().writeWallet(
-			StoredFromDescriptor(*_descriptor, true));
-		_phraseUnviewed = false;
-		pollTick();
-		if (done) {
-			done(LifecycleError::None);
-		}
-	}, [=, this](EngineError error) {
-		setLifecyclePending(false);
-		LOG(("Wallet Error: engine import_wallet failed: %1"
-			).arg(error.message));
-		if (done) {
-			done(LifecycleErrorFrom(error));
-		}
-	});
+WalletCapabilities Session::capabilities() const {
+	return _capabilities;
 }
 
-void Session::remove(Fn<void(LifecycleError)> done) {
-	ensureLoaded();
-	if (!_descriptor) {
-		_session->local().writeWallet(Storage::WalletStored());
-		_keyState = KeyState::None;
-		_phraseUnviewed = false;
-		clearNetworkState();
-		if (done) {
-			done(LifecycleError::None);
-		}
-		return;
-	} else if (_lifecyclePending) {
-		if (done) {
-			done(LifecycleError::Failed);
-		}
+void Session::refreshState() {
+	if ((_presence.current() == Presence::Unavailable) || _stateRequestId) {
 		return;
 	}
-	setLifecyclePending(true);
-	const auto lifecycle = _engine->lifecycle();
-	const auto descriptor = *_descriptor;
-	const auto cleared = [=, this] {
-		setLifecyclePending(false);
-		_session->local().writeWallet(Storage::WalletStored());
-		_descriptor = nullptr;
+	// The later of the two stamps is what the floor measures from, so a
+	// pushed updateWalletState postpones the next request instead of only
+	// failing to trigger one: the push genuinely replaces a poll round
+	// rather than riding beside it.
+	const auto since = std::max(_stateRequestedAt, _stateRefreshedAt);
+	if (since && (crl::now() - since < kStateRefreshInterval)) {
+		return;
+	}
+	requestState();
+}
+
+void Session::requestState() {
+	_stateRequestedAt = crl::now();
+	_stateRequestId = _stateApi.request(MTPwallet_GetState(
+	)).done([=](const MTPWalletState &result) {
+		_stateRequestId = 0;
+		applyState(result);
+	}).fail([=](const MTP::Error &error) {
+		_stateRequestId = 0;
+		if (error.type() == u"WALLET_UNAVAILABLE"_q) {
+			LOG(("Wallet Error: the server has no wallet for this account."));
+			setPresence(Presence::Unavailable);
+			return;
+		}
+		LOG(("Wallet Error: wallet.getState failed: %1").arg(error.type()));
+		++_stateFailures;
+		updateListsGate();
+	}).send();
+}
+
+void Session::applyState(const MTPWalletState &state) {
+	_stateRefreshedAt = crl::now();
+	_stateFailures = 0;
+	const auto clear = [&] {
 		_address = QString();
-		_keyState = KeyState::None;
-		_phraseUnviewed = false;
-		clearNetworkState();
-		if (done) {
-			done(LifecycleError::None);
-		}
+		_publicKey = QByteArray();
+		_balanceNano = 0;
+		_capabilities = WalletCapabilities();
 	};
-	_engine->run([lifecycle, descriptor] {
-		lifecycle->delete_wallet(descriptor);
-	}, cleared, [=, this](EngineError error) {
-		if (SecretAlreadyGone(error)) {
-			LOG(("Wallet Warning: engine secret already gone, "
-				"dropping the wallet record."));
-			cleared();
+	state.match([&](const MTPDwalletState &data) {
+		const auto parsed = ParseAddress(qs(data.vaddress()));
+		if (!parsed) {
+			LOG(("Wallet Error: server wallet address is not parseable."));
+			clear();
+			setPresence(Presence::Missing);
 			return;
 		}
-		setLifecyclePending(false);
-		LOG(("Wallet Error: engine delete_wallet failed: %1"
-			).arg(error.message));
-		if (done) {
-			done(LifecycleErrorFrom(error));
-		}
+		_address = parsed->raw;
+		_publicKey = data.vpublic_key().v;
+		_balanceNano = int64(data.vbalance().v);
+		_capabilities = WalletCapabilities{
+			.backupEnabled = data.is_backup_enabled(),
+			.canExportPhrase = data.is_can_export_phrase(),
+		};
+		setPresence(Presence::Ready);
+	}, [&](const MTPDwalletStateEmpty &data) {
+		clear();
+		setPresence(data.is_provisioning()
+			? Presence::Provisioning
+			: Presence::Missing);
 	});
 }
 
-bool Session::provenEmpty() const {
-	const auto now = crl::now();
-	const auto fresh = [&](crl::time completed) {
-		return completed && (now - completed <= kEmptyProofFreshness);
-	};
-	return _stateKnown.current()
-		&& (_balanceNano.current() == 0)
-		&& _history.empty()
-		&& !_historyHasNext
-		&& _collectibles.empty()
-		&& !_collectiblesHasMore
-		&& !_pending
-		&& !_sendUnresolved
-		&& (_sendState.current() != SendState::Sending)
-		&& fresh(_stateRefreshedAt)
-		&& fresh(_historyRefreshedAt)
-		&& fresh(_collectiblesCompletedAt);
+void Session::applyUpdate(const MTPDupdateWalletState &data) {
+	applyState(data.vstate());
 }
 
-bool Session::phraseUnviewed() {
-	ensureLoaded();
-	return _phraseUnviewed.current();
-}
-
-rpl::producer<bool> Session::phraseUnviewedValue() {
-	ensureLoaded();
-	return _phraseUnviewed.value();
-}
-
-void Session::markPhraseViewed() {
-	ensureLoaded();
-	auto stored = _session->local().readWallet();
-	if (stored && !stored->phraseViewed) {
-		stored->phraseViewed = true;
-		_session->local().writeWallet(*stored);
+void Session::setPresence(Presence presence) {
+	if (_presence.current() == presence) {
+		return;
 	}
-	_phraseUnviewed = false;
+	_presence = presence;
+	updateListsGate();
+	updatePollingState();
 }
 
 void Session::revealPhrase(
 		Fn<void(std::vector<QString>)> done,
 		Fn<void(LifecycleError)> fail) {
-	ensureLoaded();
-	if (!_descriptor) {
-		if (fail) {
-			fail(LifecycleError::Failed);
-		}
-		return;
+	LOG(("Wallet Error: the recovery phrase is owned by the server now."));
+	if (fail) {
+		fail(LifecycleError::Failed);
 	}
-	const auto lifecycle = _engine->lifecycle();
-	const auto descriptor = *_descriptor;
-	_engine->run([lifecycle, descriptor] {
-		return lifecycle->reveal_recovery_phrase(descriptor);
-	}, [=](engine::RecoveryPhrase phrase) {
-		if (done) {
-			done(SplitPhrase(phrase.phrase));
-		}
-	}, [=](EngineError error) {
-		LOG(("Wallet Error: engine reveal_recovery_phrase failed: %1"
-			).arg(error.message));
-		if (fail) {
-			fail(LifecycleErrorFrom(error));
-		}
-	});
 }
 
 void Session::clearNetworkState() {
 	++_networkGeneration;
 	_balanceNano = 0;
 	_engineStatus = AccountStatus::NonExisting;
-	_stateKnown = false;
+	_stateApi.request(base::take(_stateRequestId)).cancel();
+	_stateRequestedAt = 0;
 	_stateRefreshedAt = 0;
+	_stateFailures = 0;
 	_history.clear();
 	_historyUpdates.fire({});
 	_historyHasNext = false;
@@ -704,8 +456,6 @@ void Session::clearNetworkState() {
 	_collectiblesRequestPending = false;
 	_collectiblesHasMore = false;
 	_collectiblesPaged = false;
-	_collectiblesClientAttempts = 0;
-	_historyClientAttempts = 0;
 	_collectiblesUpdates.fire({});
 	_pending.reset();
 	_sendState = SendState::Idle;
@@ -717,65 +467,7 @@ void Session::clearNetworkState() {
 	_previewNextArgs.reset();
 	_previewNextDone = nullptr;
 	_historyDone.clear();
-	_historyFirstSlice = SliceState::Pending;
-	_collectiblesFirstSlice = SliceState::Pending;
-	updateEngineClient();
 	updateListsGate();
-}
-
-void Session::updateEngineClient() {
-	const auto wanted = _descriptor
-		? QString::fromStdString(_descriptor->address)
-		: QString();
-	if (_engineStopping) {
-		return;
-	}
-	if (const auto client = _engine->client()) {
-		if (wanted == _engineClientAddress) {
-			return;
-		}
-		_engineStopping = true;
-		_engine->runQuick([client] {
-			client->cancel_refresh();
-			client->cancel_load_more_activity();
-			client->cancel_refresh_nfts();
-			client->cancel_load_more_nfts();
-			client->cancel_send_preview();
-			client->cancel_send();
-		}, [] {}, [](EngineError) {});
-		_engine->stopClient([=, this] {
-			_engineStopping = false;
-			_engineClientAddress = QString();
-			updateEngineClient();
-		});
-		return;
-	}
-	if (wanted.isEmpty()) {
-		return;
-	}
-	const auto config = engine::WalletClientConfig{
-		.record_id = _descriptor->record_id,
-		.address = _descriptor->address,
-		.public_key = _descriptor->public_key,
-		.local_secret_ref = _descriptor->secret_ref,
-		.network = _descriptor->network,
-		.send_validity_seconds = 300,
-		.resolution_margin_seconds = 60,
-		.providers = engine::ProviderConfig{
-			.toncenter_base_url = kEngineProviderBase,
-			.request_timeout_ms = kEngineRequestTimeoutMs,
-		},
-	};
-	try {
-		_engine->startClient(config);
-		_engineClientAddress = wanted;
-	} catch (const std::exception &e) {
-		const auto what = QString::fromUtf8(e.what());
-		const auto message = what.isEmpty()
-			? QString::fromUtf8(typeid(e).name())
-			: what;
-		LOG(("Wallet Error: engine client start failed: %1").arg(message));
-	}
 }
 
 void Session::requestEngineRefresh() {
@@ -787,8 +479,7 @@ void Session::requestEngineRefresh() {
 			callback();
 		}
 	};
-	if (_engineStopping || !_engine->client()) {
-		noteHistoryClientAbsent();
+	if (!_engine->client()) {
 		finishHistoryWaiters();
 		return;
 	}
@@ -813,7 +504,6 @@ void Session::requestEngineRefresh() {
 		}
 		LOG(("Wallet Error: engine refresh failed: %1, "
 			"keeping last-good state.").arg(error.message));
-		setHistoryFirstSlice(SliceState::Failed);
 		finishHistoryWaiters();
 	});
 }
@@ -884,13 +574,12 @@ void Session::applyEngineUpdate(const engine::WalletUpdate &update) {
 	}
 	_balanceNano = balance;
 	_engineStatus = mapped;
-	_stateKnown = true;
 	_stateRefreshedAt = crl::now();
 }
 
 void Session::refreshHistory(Fn<void()> done) {
 	ensureLoaded();
-	if (_keyState.current() == KeyState::None) {
+	if (_presence.current() != Presence::Ready) {
 		if (done) {
 			done();
 		}
@@ -904,7 +593,7 @@ void Session::refreshHistory(Fn<void()> done) {
 
 void Session::requestMoreActivity() {
 	const auto client = _engine->client();
-	if (_engineStopping || !client) {
+	if (!client) {
 		return;
 	}
 	_historyRequestPending = true;
@@ -940,17 +629,6 @@ void Session::applyEngineActivity(
 	const auto &resource = more
 		? activity.pagination_resource
 		: activity.resource;
-	if (!more) {
-		// The cold-open gate waits for the first slice of each list. The
-		// activity leg carries its own phase, so a terminal one settles the
-		// history half whether or not the rows changed; kIdle and kLoading
-		// are still in flight and leave it pending.
-		if (resource.phase == engine::ResourcePhase::kReady) {
-			setHistoryFirstSlice(SliceState::Ready);
-		} else if (resource.phase == engine::ResourcePhase::kFailed) {
-			setHistoryFirstSlice(SliceState::Failed);
-		}
-	}
 	if (resource.phase != engine::ResourcePhase::kReady) {
 		return;
 	}
@@ -974,7 +652,7 @@ bool Session::historyHasNext() const {
 
 void Session::loadMoreHistory() {
 	ensureLoaded();
-	if (_keyState.current() == KeyState::None
+	if (_presence.current() != Presence::Ready
 		|| _historyRequestPending
 		|| _engineRefreshPending
 		|| !_historyHasNext) {
@@ -988,51 +666,18 @@ void Session::refreshCollectibles(bool force) {
 	const auto interval = force
 		? kForcedCollectiblesInterval
 		: kCollectiblesPollInterval;
-	if (_keyState.current() == KeyState::None
+	if (_presence.current() != Presence::Ready
 		|| _collectiblesRequestPending
 		|| _collectiblesPaged
 		|| (_collectiblesRefreshedAt
 			&& (crl::now() - _collectiblesRefreshedAt < interval))) {
 		return;
 	}
-	if (_engineStopping || !_engine->client()) {
-		noteCollectiblesClientAbsent();
+	if (!_engine->client()) {
 		return;
 	}
 	_collectiblesRefreshedAt = crl::now();
 	requestCollectibles(false);
-}
-
-void Session::noteHistoryClientAbsent() {
-	// History rides the engine refresh now, so an engine client that never
-	// starts would leave this leg of the cold-open gate pending forever.
-	// Bound it exactly like the collectibles leg: after a few poll rounds
-	// without a client, settle the slice so the gate can open.
-	if (_historyFirstSlice != SliceState::Pending) {
-		return;
-	}
-	++_historyClientAttempts;
-	if (_historyClientAttempts < kHistoryClientAttempts) {
-		return;
-	}
-	LOG(("Wallet: no engine client after %1 history attempts, "
-		"resolving the first slice."
-		).arg(_historyClientAttempts));
-	setHistoryFirstSlice(SliceState::Failed);
-}
-
-void Session::noteCollectiblesClientAbsent() {
-	if (_collectiblesFirstSlice != SliceState::Pending) {
-		return;
-	}
-	++_collectiblesClientAttempts;
-	if (_collectiblesClientAttempts < kCollectiblesClientAttempts) {
-		return;
-	}
-	LOG(("Wallet: no engine client after %1 collectibles attempts, "
-		"resolving the first slice."
-		).arg(_collectiblesClientAttempts));
-	setCollectiblesFirstSlice(SliceState::Failed);
 }
 
 bool Session::collectiblesHasNext() const {
@@ -1041,7 +686,7 @@ bool Session::collectiblesHasNext() const {
 
 void Session::loadMoreCollectibles() {
 	ensureLoaded();
-	if (_keyState.current() == KeyState::None
+	if (_presence.current() != Presence::Ready
 		|| _collectiblesRequestPending
 		|| !_collectiblesHasMore) {
 		return;
@@ -1051,7 +696,7 @@ void Session::loadMoreCollectibles() {
 
 void Session::requestCollectibles(bool more) {
 	const auto client = _engine->client();
-	if (_engineStopping || !client) {
+	if (!client) {
 		return;
 	}
 	_collectiblesRequestPending = true;
@@ -1075,9 +720,6 @@ void Session::requestCollectibles(bool more) {
 			"keeping last-good collectibles."
 			).arg(more ? u"load_more"_q : u"refresh"_q
 			).arg(error.message));
-		if (!more) {
-			setCollectiblesFirstSlice(SliceState::Failed);
-		}
 	});
 }
 
@@ -1087,9 +729,6 @@ void Session::applyCollectiblesUpdate(
 	const auto &nfts = update.snapshot.nfts;
 	if (update.outcome == engine::WalletOperationOutcome::kSkipped) {
 		_collectiblesHasMore = nfts.has_more;
-		if (!more) {
-			setCollectiblesFirstSlice(SliceState::Failed);
-		}
 		return;
 	}
 	const auto &resource = more ? nfts.pagination_resource : nfts.resource;
@@ -1097,9 +736,6 @@ void Session::applyCollectiblesUpdate(
 		|| (resource.phase != engine::ResourcePhase::kReady)) {
 		LOG(("Wallet: engine nft outcome %1, keeping last-good collectibles."
 			).arg(int(update.outcome)));
-		if (!more) {
-			setCollectiblesFirstSlice(SliceState::Failed);
-		}
 		return;
 	}
 	_collectiblesHasMore = nfts.has_more;
@@ -1108,9 +744,6 @@ void Session::applyCollectiblesUpdate(
 	auto loaded = CollectiblesFromEngine(nfts);
 	if (!SameCollectibles(_collectibles, loaded)) {
 		setCollectibles(std::move(loaded));
-	}
-	if (!more) {
-		setCollectiblesFirstSlice(SliceState::Ready);
 	}
 }
 
@@ -1125,52 +758,20 @@ void Session::setCollectibles(std::vector<Gram::NftItem> &&list) {
 	_collectiblesUpdates.fire({});
 }
 
-void Session::setLifecyclePending(bool pending) {
-	if (_lifecyclePending == pending) {
-		return;
-	}
-	_lifecyclePending = pending;
-	updateListsGate();
-}
-
-void Session::setHistoryFirstSlice(SliceState state) {
-	if ((_historyFirstSlice == state)
-		|| (_historyFirstSlice == SliceState::Ready)) {
-		return;
-	}
-	_historyFirstSlice = state;
-	updateListsGate();
-}
-
-void Session::setCollectiblesFirstSlice(SliceState state) {
-	if ((_collectiblesFirstSlice == state)
-		|| (_collectiblesFirstSlice == SliceState::Ready)) {
-		return;
-	}
-	_collectiblesFirstSlice = state;
-	updateListsGate();
-}
-
 void Session::updateListsGate() {
-	_listsGated = listsLoading()
-		&& ((_historyFirstSlice == SliceState::Pending)
-			|| (_collectiblesFirstSlice == SliceState::Pending));
+	const auto presence = _presence.current();
+	const auto unknown = (presence == Presence::Unknown);
+	_stateUnreachable = unknown
+		&& (_stateFailures >= kStateFailuresBeforeStated);
+	_listsGated = (unknown && !_stateUnreachable)
+		|| (presence == Presence::Provisioning);
 	_listsStateUpdates.fire({});
 }
 
-bool Session::listsLoading() const {
-	// A wallet that does not exist and is not being created has nothing to
-	// load, so it keeps the immediate presentation, including right after a
-	// failed create.
-	return (_keyState.current() != KeyState::None) || _lifecyclePending;
-}
-
 bool Session::listsConfirmedEmpty() const {
-	return !listsLoading()
-		|| ((_historyFirstSlice == SliceState::Ready)
-			&& _history.empty()
-			&& (_collectiblesFirstSlice == SliceState::Ready)
-			&& _collectibles.empty());
+	return !_listsGated.current()
+		&& _history.empty()
+		&& _collectibles.empty();
 }
 
 void Session::resolveCollectibleInfo(
@@ -1218,7 +819,7 @@ void Session::resolveCollectibleInfo(
 
 #ifdef _DEBUG
 void Session::debugClearNetworkState() {
-	if (_keyState.current() == KeyState::None) {
+	if (_presence.current() != Presence::Ready) {
 		return;
 	}
 	_debugClearedPollingCount = _pollingCount;
@@ -1252,7 +853,7 @@ void Session::updatePollingState() {
 		_pollTimer.callEach(kPollInterval);
 		pollTick();
 	}
-	if (wanted && (_keyState.current() != KeyState::None)) {
+	if (wanted && (_presence.current() == Presence::Ready)) {
 		_stream->start(_address);
 	} else {
 		_stream->stop();
@@ -1265,43 +866,34 @@ bool Session::pollingRequested() const {
 
 void Session::pollTick() {
 	ensureLoaded();
-	if (_keyState.current() == KeyState::None) {
-		return;
-	}
 	updatePollingState();
 	if (!_pollTimer.isActive()) {
+		return;
+	}
+	refreshState();
+	if (_presence.current() != Presence::Ready) {
 		return;
 	}
 	const auto streaming = _stream->healthy();
 	const auto stale = [&](crl::time at) {
 		return !at || (crl::now() - at >= kStreamResyncInterval);
 	};
-	// The engine dispatches to one serial worker, so a first-slice NFT
-	// read enqueued behind the account refresh waits out that refresh's
-	// whole round trip. While the gated area is still waiting on that
-	// slice, ask for it first; once the gate has opened, the account
-	// refresh goes first again, because it is what the balance card and
-	// the account status are waiting on.
-	const auto collectiblesFirst = _listsGated.current()
-		&& (_collectiblesFirstSlice == SliceState::Pending);
-	if (collectiblesFirst) {
-		refreshCollectibles();
-	}
 	if (!streaming
 		|| stale(_stateRefreshedAt)
 		|| stale(_historyRefreshedAt)) {
 		requestEngineRefresh();
 	}
-	if (!collectiblesFirst) {
-		refreshCollectibles();
-	}
+	refreshCollectibles();
 	if ((_pending || _sendUnresolved) && !_resolveRequestPending) {
 		resolvePending();
 	}
 }
 
 void Session::applyStreamRefresh(StreamRefresh wanted) {
-	if (wanted.state || wanted.history) {
+	if (wanted.state) {
+		refreshState();
+	}
+	if (wanted.history) {
 		requestEngineRefresh();
 	}
 	if (wanted.collectibles) {
@@ -1318,7 +910,9 @@ rpl::producer<int64> Session::balanceNanoValue() const {
 }
 
 rpl::producer<bool> Session::stateKnownValue() const {
-	return _stateKnown.value();
+	return _presence.value() | rpl::map([](Presence presence) {
+		return (presence == Presence::Ready);
+	});
 }
 
 AccountStatus Session::status() const {
@@ -1339,6 +933,14 @@ bool Session::listsGated() const {
 
 rpl::producer<bool> Session::listsGatedValue() const {
 	return _listsGated.value();
+}
+
+rpl::producer<bool> Session::stateUnreachableValue() const {
+	return rpl::single(rpl::empty) | rpl::then(
+		_listsStateUpdates.events()
+	) | rpl::map([=, this] {
+		return _stateUnreachable;
+	}) | rpl::distinct_until_changed();
 }
 
 rpl::producer<bool> Session::listsConfirmedEmptyValue() const {
@@ -1389,7 +991,7 @@ const std::optional<PendingSendInfo> &Session::pendingSend() const {
 
 void Session::estimateFee(const SendArgs &args, Fn<void(FeeResult)> done) {
 	ensureLoaded();
-	if (_keyState.current() == KeyState::None
+	if (_presence.current() != Presence::Ready
 		|| args.amountNano <= 0
 		|| args.destination.isEmpty()) {
 		if (done) {
@@ -1397,9 +999,9 @@ void Session::estimateFee(const SendArgs &args, Fn<void(FeeResult)> done) {
 		}
 		return;
 	}
-	if (_engineStopping || !_engine->client()) {
+	if (!_engine->client()) {
 		if (done) {
-			done(FeeResult{ .error = SendError::Failed });
+			done(FeeResult{ .error = SendError::SigningUnavailable });
 		}
 		return;
 	}
@@ -1458,12 +1060,11 @@ void Session::startPreview(
 		// The engine's cancel_send_preview is momentary: it kills the
 		// currently active preview, so a cancel that outlived its target
 		// kills the latest request. Every legitimate cancellation stashes
-		// a next pair first, bumps the generation or raises
-		// _engineStopping, so this failure shape with an empty stash and
-		// a fresh generation is a stale kill. Retry once.
+		// a next pair first or bumps the generation, so this failure shape
+		// with an empty stash and a fresh generation is a stale kill.
+		// Retry once.
 		if (!retried
 			&& IsPreviewKilled(error)
-			&& !_engineStopping
 			&& _engine->client()) {
 			startPreview(args, done, true);
 			return;
@@ -1478,7 +1079,7 @@ void Session::startPreview(
 
 void Session::send(SendArgs args, Fn<void(SendError)> done) {
 	ensureLoaded();
-	if (_keyState.current() == KeyState::None) {
+	if (_presence.current() != Presence::Ready) {
 		if (done) {
 			done(SendError::Failed);
 		}
@@ -1496,9 +1097,9 @@ void Session::send(SendArgs args, Fn<void(SendError)> done) {
 		}
 		return;
 	}
-	if (_engineStopping || !_engine->client()) {
+	if (!_engine->client()) {
 		if (done) {
-			done(SendError::Failed);
+			done(SendError::SigningUnavailable);
 		}
 		return;
 	}
@@ -1551,7 +1152,7 @@ void Session::send(SendArgs args, Fn<void(SendError)> done) {
 }
 
 void Session::resolvePending() {
-	if (_resolveRequestPending || _engineStopping || !_engine->client()) {
+	if (_resolveRequestPending || !_engine->client()) {
 		return;
 	}
 	_resolveRequestPending = true;
