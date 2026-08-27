@@ -233,6 +233,10 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 				? st::dialogsSearchTabs
 				: st::chatsFiltersTabs));
 	slider->setAccessibleName(tr::lng_filters_title(tr::now));
+	// Switching a folder reloads the whole chat list, and a locked premium
+	// folder opens an upsell on activation - so the arrows only browse the
+	// folder tabs, committing on Enter / Space.
+	slider->setAccessibilityActivateOnBrowse(false);
 	const auto state = wrap->lifetime().make_state<State>();
 	const auto reassignUnreadValue = [=] {
 		state->reorderLifetime.destroy();
