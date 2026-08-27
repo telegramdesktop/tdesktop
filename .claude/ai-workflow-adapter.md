@@ -58,6 +58,15 @@ This file adapts harness mechanics and removes unnecessary text normalization.
   same stateful worker, resume that id; never create a duplicate performer or
   duplicate an agent whose writes may still be in flight. Never launch a
   nested `claude` process from Bash.
+- Before relaunching a phase whose leaf stalled, establish that the original
+  leaf is finished. A leaf left running still lands its writes, and two runs of
+  one phase append to the same artifact with no conflict and no warning, so the
+  verdict that survives is decided by write order rather than by judgment. When
+  the original cannot be confirmed dead, point the relaunch at a distinct
+  artifact and reconcile the two deliberately. A phase artifact carrying two
+  passes that disagree is this failure, not a reviewer changing its mind:
+  re-read it before acting, and never treat the last block as authoritative
+  merely because it is last.
 - If the first real leaf Agent is rejected before work begins because nested
   delegation is unavailable, use the shared same-session fallback. Do not
   treat mere presence of the Agent tool as a successful delegation probe.
