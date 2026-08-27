@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h" // Ui::show().
 
 #ifdef _DEBUG
+#include "base/unixtime.h"
 #include "data/data_file_origin.h"
 #include "gram/api/gram_api_nft.h"
 #include "gram/api/gram_api_request.h"
@@ -51,6 +52,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_log.h"
 #include "ui/image/image_location.h"
 #include "wallet/wallet_api.h"
+
+#include "wallet_engine.hpp"
 #endif // _DEBUG
 
 #include <zlib.h>
@@ -727,6 +730,85 @@ void RunWalletBurst(not_null<SessionController*> window) {
 			});
 	}
 }
+
+[[nodiscard]] std::vector<wallet_engine::ActivityItem> WalletHistoryFixture() {
+	const auto now = base::unixtime::now();
+	constexpr auto kDay = 24 * 60 * 60;
+	const auto acc2 = std::string(
+		"0:BC1B748F5D26B74D857798FF4DD4252A2B79CF51B232AE41BE1F19E8CD9547B7");
+	const auto hash = [](const char *seed) {
+		return QByteArray(seed).toBase64().toStdString();
+	};
+	return {
+		{
+			.id = "fixture-1",
+			.transaction_hash = hash("fixture-1"),
+			.logical_time = "1000",
+			.timestamp = uint64(now - 6 * kDay),
+			.direction = wallet_engine::ActivityDirection::kSent,
+			.amount_nanograms = "2500000000",
+			.transaction_fee_nanograms = "3500000",
+			.status = wallet_engine::ActivityStatus::kSuccess,
+			.comment = "fixture oldest row",
+			.counterparty = kAcc1Raw.toStdString(),
+		},
+		{
+			.id = "fixture-2",
+			.transaction_hash = hash("fixture-2"),
+			.logical_time = "4000",
+			.timestamp = uint64(now - 1 * kDay),
+			.direction = wallet_engine::ActivityDirection::kReceived,
+			.amount_nanograms = "12000000000",
+			.transaction_fee_nanograms = "1200000",
+			.status = wallet_engine::ActivityStatus::kSuccess,
+			.counterparty = acc2,
+		},
+		{
+			.id = "fixture-3",
+			.transaction_hash = hash("fixture-3"),
+			.logical_time = "2000",
+			.timestamp = uint64(now - 3 * kDay),
+			.direction = wallet_engine::ActivityDirection::kSent,
+			.amount_nanograms = "750000000",
+			.transaction_fee_nanograms = "4100000",
+			.status = wallet_engine::ActivityStatus::kFailed,
+			.comment = "fixture failed row",
+			.counterparty = acc2,
+		},
+		{
+			.id = "fixture-4",
+			.transaction_hash = hash("fixture-4"),
+			.logical_time = "3000",
+			.timestamp = uint64(now - 5 * kDay),
+			.direction = wallet_engine::ActivityDirection::kReceived,
+			.amount_nanograms = "40000000",
+			.transaction_fee_nanograms = "900000",
+			.status = wallet_engine::ActivityStatus::kSuccess,
+			.counterparty = kAcc1Raw.toStdString(),
+		},
+	};
+}
+
+void RunWalletHistoryFixture(not_null<SessionController*> window) {
+	auto list = Wallet::HistoryFromEngine(WalletHistoryFixture());
+	if (list.empty()) {
+		Ui::Toast::Show(u"No items mapped from fixture."_q);
+		return;
+	}
+	auto demo = list.front();
+	demo.date = base::unixtime::now();
+	demo.lt = demo.lt + 1;
+	demo.traceId = demo.traceId + "-demo-now";
+	auto demoPending = list.front();
+	demoPending.status = Wallet::TransferItem::Status::Pending;
+	demoPending.date = base::unixtime::now();
+	demoPending.lt = demoPending.lt + 2;
+	demoPending.traceId = demoPending.traceId + "-demo-pending";
+	list.insert(list.begin(), { demo, demoPending });
+	const auto count = int(list.size());
+	window->session().wallet().injectDebugHistory(std::move(list));
+	Ui::Toast::Show(u"Injected %1 history items."_q.arg(count));
+}
 #endif // _DEBUG
 
 auto GenerateCodes() {
@@ -923,6 +1005,12 @@ auto GenerateCodes() {
 		});
 	});
 #ifdef _DEBUG
+	codes.emplace(u"walletfixturehistory"_q, [](SessionController *window) {
+		if (!window) {
+			return;
+		}
+		RunWalletHistoryFixture(window);
+	});
 	codes.emplace(u"walletcollectiblesfixture"_q, [](
 			SessionController *window) {
 		if (!window) {
