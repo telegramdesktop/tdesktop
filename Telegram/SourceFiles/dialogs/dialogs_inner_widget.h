@@ -176,7 +176,8 @@ public:
 	bool chooseRow(
 		Qt::KeyboardModifiers modifiers = {},
 		MsgId pressedTopicRootId = {},
-		PeerId pressedSublistPeerId = {});
+		PeerId pressedSublistPeerId = {},
+		bool fromMouse = false);
 	bool processKeyDispatch(QKeyEvent *e);
 
 	void scrollToEntry(const RowDescriptor &entry);
