@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "storage/localstorage.h"
 #include "storage/storage_domain.h"
+#include "window/themes/window_theme.h"
 #include "window/window_controller.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
@@ -27,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QWidget>
+#include <QtCore/QFileInfo>
 #include <QtCore/QJsonArray>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
@@ -36,6 +38,7 @@ namespace {
 
 constexpr auto kAutomationKey = std::string_view("automation.enabled");
 constexpr auto kUndoDuration = crl::time(8000);
+constexpr auto kThemeFileSizeLimit = 5 * 1024 * 1024;
 
 struct WindowEntry {
 	not_null<Window::Controller*> controller;
@@ -118,7 +121,8 @@ void RequestEnableAutomation() {
 			box,
 			u"An external program is trying to control "
 			u"Telegram Desktop over the local socket — read open "
-			u"windows and activate them.\n\nEnable local "
+			u"windows and activate them, change the proxy, the theme "
+			u"and lock the app.\n\nEnable local "
 			u"automation? While it is on, anything running under your "
 			u"user account can control the app."_q,
 			[=] {
@@ -452,6 +456,129 @@ void ShowUndoToast(const QString &text, Fn<void()> undo) {
 	return Pack(object);
 }
 
+[[nodiscard]] QString ThemeName(const Window::Theme::Object &object) {
+	if (object.cloud.id) {
+		return object.cloud.title.isEmpty()
+			? u"cloud theme"_q
+			: object.cloud.title;
+	} else if (object.pathAbsolute.isEmpty()) {
+		return u"default"_q;
+	}
+	return QFileInfo(object.pathAbsolute).fileName();
+}
+
+[[nodiscard]] bool ThemeRestorable(const Window::Theme::Object &object) {
+	return Window::Theme::IsEmbeddedTheme(object.pathAbsolute)
+		|| (!object.cloud.id && QFileInfo(object.pathAbsolute).isFile());
+}
+
+void RestoreTheme(const Window::Theme::Object &object) {
+	using namespace Window::Theme;
+	if (IsEmbeddedTheme(object.pathAbsolute)) {
+		ApplyDefaultWithPath(object.pathAbsolute);
+	} else if (!Apply(object.pathAbsolute)) {
+		return;
+	}
+	KeepApplied();
+}
+
+[[nodiscard]] QByteArray ThemeBlocked() {
+	return App().passcodeLocked()
+		? Error(u"application is locked"_q)
+		: Window::Theme::Background()->editingTheme()
+		? Error(u"theme editor is open"_q)
+		: QByteArray();
+}
+
+[[nodiscard]] QByteArray HandleTheme() {
+	using namespace Window::Theme;
+	const auto &current = Background()->themeObject();
+	auto object = QJsonObject();
+	object.insert(u"ok"_q, true);
+	object.insert(u"path"_q, current.pathAbsolute);
+	object.insert(u"embedded"_q, IsEmbeddedTheme(current.pathAbsolute));
+	object.insert(u"night"_q, IsNightMode());
+	object.insert(u"editing"_q, Background()->editingTheme().has_value());
+	if (const auto id = current.cloud.id) {
+		object.insert(u"cloud"_q, QString::number(id));
+	}
+	return Pack(object);
+}
+
+[[nodiscard]] QByteArray HandleThemeApply(const QString &argument) {
+	using namespace Window::Theme;
+	if (const auto blocked = ThemeBlocked(); !blocked.isNull()) {
+		return blocked;
+	}
+	const auto decoded = QByteArray::fromBase64Encoding(
+		argument.toLatin1(),
+		QByteArray::Base64Encoding
+			| QByteArray::AbortOnBase64DecodingErrors);
+	if (!decoded) {
+		return Error(u"theme path must be base64 of a UTF-8 path"_q);
+	}
+	// A NUL would pass the extension check below and be cut off by open().
+	const auto path = QString::fromUtf8(*decoded);
+	const auto broken = path.isEmpty()
+		|| (path.toUtf8() != *decoded)
+		|| ranges::any_of(path, [](QChar ch) { return ch.unicode() < 0x20; });
+	if (broken) {
+		return Error(u"theme path must be base64 of a UTF-8 path"_q);
+	} else if (!path.endsWith(u".tdesktop-theme"_q, Qt::CaseInsensitive)
+		&& !path.endsWith(u".tdesktop-palette"_q, Qt::CaseInsensitive)) {
+		return Error(u"theme file name must end with "
+			u".tdesktop-theme or .tdesktop-palette"_q);
+	}
+	const auto info = QFileInfo(path);
+	if (path.startsWith(u":"_q) || !info.isAbsolute()) {
+		return Error(u"theme path must be an absolute file path"_q);
+	} else if (!info.isFile()) {
+		// Also keeps a fifo or a device from blocking the main thread.
+		return Error(u"theme file not found"_q);
+	} else if (info.size() > kThemeFileSizeLimit) {
+		return Error(u"theme file is too large"_q);
+	}
+	const auto was = Background()->themeObject();
+	if (!Apply(path)) {
+		return Error(u"could not load the theme file"_q);
+	}
+	KeepApplied();
+	const auto now = Background()->themeObject();
+	if (now.pathAbsolute != was.pathAbsolute && ThemeRestorable(was)) {
+		ShowUndoToast(u"Theme applied: "_q + ThemeName(now), [=] {
+			RestoreTheme(was);
+		});
+	}
+	auto object = QJsonObject();
+	object.insert(u"ok"_q, true);
+	object.insert(u"path"_q, now.pathAbsolute);
+	return Pack(object);
+}
+
+[[nodiscard]] QByteArray HandleThemeReset() {
+	using namespace Window::Theme;
+	if (const auto blocked = ThemeBlocked(); !blocked.isNull()) {
+		return blocked;
+	}
+	const auto was = Background()->themeObject();
+	const auto target = IsNightMode() ? NightThemePath() : QString();
+	const auto changed = (was.pathAbsolute != target) || (was.cloud.id != 0);
+	if (changed) {
+		ResetToSomeDefault();
+		KeepApplied();
+		if (ThemeRestorable(was)) {
+			ShowUndoToast(u"Theme reset to default."_q, [=] {
+				RestoreTheme(was);
+			});
+		}
+	}
+	auto object = QJsonObject();
+	object.insert(u"ok"_q, true);
+	object.insert(u"path"_q, Background()->themeObject().pathAbsolute);
+	object.insert(u"changed"_q, changed);
+	return Pack(object);
+}
+
 } // namespace
 
 QByteArray HandleExternalControl(const QString &command) {
@@ -491,6 +618,12 @@ QByteArray HandleExternalControl(const QString &command) {
 		return HandleProxyNext();
 	} else if (command == u"proxy-toggle"_q) {
 		return HandleProxyToggle();
+	} else if (command == u"theme"_q) {
+		return HandleTheme();
+	} else if (command.startsWith(u"theme-apply:"_q)) {
+		return HandleThemeApply(command.mid(12));
+	} else if (command == u"theme-reset"_q) {
+		return HandleThemeReset();
 	}
 	return Error(u"unknown control command"_q);
 }
