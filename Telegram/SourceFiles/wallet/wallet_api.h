@@ -33,18 +33,6 @@ public:
 
 	[[nodiscard]] static bool IsTimeoutError(const Gram::ApiError &error);
 
-#ifdef _DEBUG
-	void debugRawRequest(
-		const Gram::HttpRequest &request,
-		Fn<void(const QByteArray &)> done,
-		Fn<void(const Gram::ApiError &)> fail);
-	void debugStallNextRequest(
-		const QString &endpoint,
-		Fn<void()> swallowed);
-	void debugReleaseStalledAnswer();
-	[[nodiscard]] int debugPendingCount() const;
-	[[nodiscard]] static crl::time DebugRequestTimeout();
-#endif // _DEBUG
 
 	[[nodiscard]] bool hasPendingRequests() const;
 
@@ -62,11 +50,6 @@ private:
 	void scheduleTimeoutCheck();
 	void checkTimeouts();
 	void checkIdleSession();
-#ifdef _DEBUG
-	[[nodiscard]] bool debugSwallowed(
-		mtpRequestId requestId,
-		Fn<void()> deliver);
-#endif // _DEBUG
 
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
@@ -74,12 +57,6 @@ private:
 	base::Timer _timeoutTimer;
 	int _pendingCount = 0;
 	std::vector<Sent> _sent;
-#ifdef _DEBUG
-	QString _debugSwallowEndpoint;
-	Fn<void()> _debugSwallowNotify;
-	mtpRequestId _debugSwallowedId = 0;
-	Fn<void()> _debugSwallowedAnswer;
-#endif // _DEBUG
 
 };
 

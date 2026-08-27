@@ -86,19 +86,6 @@ void Stream::acquire() {
 	}
 	_api->cancelRequest(base::take(_acquireId));
 	_state = State::Acquiring;
-#ifdef _DEBUG
-	++_debugAcquireCount;
-	if (_debugFailAcquires) {
-		failed();
-		return;
-	} else if (_debugFakeEndpoint) {
-		const auto now = crl::now();
-		_state = State::Live;
-		_liveSince = now;
-		_lastFrameAt = now;
-		return;
-	}
-#endif // _DEBUG
 	const auto generation = _generation;
 	_acquireId = _api->requestStreamingUrl([=](
 			const QString &url,
@@ -287,33 +274,5 @@ bool Stream::mine(const std::vector<QString> &accounts) const {
 	});
 }
 
-#ifdef _DEBUG
-void Stream::debugUseFakeEndpoint() {
-	_debugFakeEndpoint = true;
-}
-
-void Stream::debugFailAcquires(bool fail) {
-	_debugFailAcquires = fail;
-}
-
-void Stream::debugDeliverFrame(const QByteArray &frame) {
-	if (_state != State::Live) {
-		return;
-	}
-	handleFrame(frame);
-}
-
-void Stream::debugDropConnection() {
-	handleClosed();
-}
-
-void Stream::debugExpireNow() {
-	acquire();
-}
-
-int Stream::debugAcquireCount() const {
-	return _debugAcquireCount;
-}
-#endif // _DEBUG
 
 } // namespace Wallet

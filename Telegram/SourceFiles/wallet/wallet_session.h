@@ -187,31 +187,8 @@ public:
 		const QString &item,
 		Fn<void(const Gram::NftItem &)> done);
 #ifdef _DEBUG
-	void injectDebugHistory(std::vector<TransferItem> items);
-	void injectDebugCollectibles(std::vector<Gram::NftItem> items);
-	void debugRawRequest(
-		const Gram::HttpRequest &request,
-		Fn<void(const QByteArray &)> done,
-		Fn<void(const Gram::ApiError &)> fail);
-	void debugProductRequest(
-		const Gram::HttpRequest &request,
-		Fn<void(const QByteArray &)> done,
-		Fn<void(const Gram::ApiError &)> fail);
-	void debugStallNextRequest(
-		const QString &endpoint,
-		Fn<void()> swallowed);
-	void debugReleaseStalledAnswer();
 	void debugClearNetworkState();
 	void debugRestoreNetworkState();
-	void debugSetRefreshAges(crl::time age);
-	[[nodiscard]] int debugPendingCount() const;
-	void debugStreamUseFakeEndpoint();
-	void debugStreamFailAcquires(bool fail);
-	void debugStreamDeliverFrame(const QByteArray &frame);
-	void debugStreamDropConnection();
-	void debugStreamExpireNow();
-	[[nodiscard]] bool debugStreamHealthy() const;
-	[[nodiscard]] int debugStreamAcquireCount() const;
 #endif
 
 	void startPolling();
@@ -317,8 +294,6 @@ private:
 	rpl::variable<bool> _listsGated = true;
 	rpl::event_stream<> _listsStateUpdates;
 #ifdef _DEBUG
-	bool _historyInjected = false;
-	bool _collectiblesInjected = false;
 	int _debugClearedPollingCount = 0;
 #endif // _DEBUG
 

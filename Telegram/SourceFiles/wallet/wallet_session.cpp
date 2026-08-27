@@ -706,10 +706,6 @@ void Session::clearNetworkState() {
 	_collectiblesPaged = false;
 	_collectiblesClientAttempts = 0;
 	_historyClientAttempts = 0;
-#ifdef _DEBUG
-	_historyInjected = false;
-	_collectiblesInjected = false;
-#endif // _DEBUG
 	_collectiblesUpdates.fire({});
 	_pending.reset();
 	_sendState = SendState::Idle;
@@ -960,18 +956,6 @@ void Session::applyEngineActivity(
 	}
 	_historyHasNext = activity.has_more;
 	_historyRefreshedAt = crl::now();
-#ifdef _DEBUG
-	// The pin suppresses publication only, so it has to stay below both
-	// writes above: an injected run still has to re-stamp
-	// _historyRefreshedAt from every live activity leg, or pollTick()'s
-	// stale() sees a frozen stamp and fires requestEngineRefresh() on
-	// every 5 s tick instead of the 30 s stream-resync cadence. It also
-	// has to stay below the kReady gate, so a failed or superseded leg
-	// never stamps freshness.
-	if (_historyInjected) {
-		return;
-	}
-#endif // _DEBUG
 	auto loaded = HistoryFromEngine(activity.items);
 	if (SameHistory(_history, loaded)) {
 		return;
@@ -1001,11 +985,6 @@ void Session::loadMoreHistory() {
 
 void Session::refreshCollectibles(bool force) {
 	ensureLoaded();
-#ifdef _DEBUG
-	if (_collectiblesInjected) {
-		return;
-	}
-#endif // _DEBUG
 	const auto interval = force
 		? kForcedCollectiblesInterval
 		: kCollectiblesPollInterval;
@@ -1105,11 +1084,6 @@ void Session::requestCollectibles(bool more) {
 void Session::applyCollectiblesUpdate(
 		const engine::WalletUpdate &update,
 		bool more) {
-#ifdef _DEBUG
-	if (_collectiblesInjected) {
-		return;
-	}
-#endif // _DEBUG
 	const auto &nfts = update.snapshot.nfts;
 	if (update.outcome == engine::WalletOperationOutcome::kSkipped) {
 		_collectiblesHasMore = nfts.has_more;
@@ -1243,40 +1217,6 @@ void Session::resolveCollectibleInfo(
 }
 
 #ifdef _DEBUG
-void Session::injectDebugHistory(std::vector<TransferItem> items) {
-	_historyInjected = true;
-	setHistory(std::move(items));
-}
-
-void Session::injectDebugCollectibles(std::vector<Gram::NftItem> items) {
-	_collectiblesInjected = true;
-	setCollectibles(std::move(items));
-}
-
-void Session::debugRawRequest(
-		const Gram::HttpRequest &request,
-		Fn<void(const QByteArray &)> done,
-		Fn<void(const Gram::ApiError &)> fail) {
-	_api.debugRawRequest(request, std::move(done), std::move(fail));
-}
-
-void Session::debugProductRequest(
-		const Gram::HttpRequest &request,
-		Fn<void(const QByteArray &)> done,
-		Fn<void(const Gram::ApiError &)> fail) {
-	_api.request(request, std::move(done), std::move(fail));
-}
-
-void Session::debugStallNextRequest(
-		const QString &endpoint,
-		Fn<void()> swallowed) {
-	_api.debugStallNextRequest(endpoint, std::move(swallowed));
-}
-
-void Session::debugReleaseStalledAnswer() {
-	_api.debugReleaseStalledAnswer();
-}
-
 void Session::debugClearNetworkState() {
 	if (_keyState.current() == KeyState::None) {
 		return;
@@ -1290,49 +1230,6 @@ void Session::debugRestoreNetworkState() {
 	updatePollingState();
 }
 
-void Session::debugSetRefreshAges(crl::time age) {
-	const auto stamp = crl::now() - age;
-	const auto set = [&](crl::time &field) {
-		if (field) {
-			field = stamp;
-		}
-	};
-	set(_stateRefreshedAt);
-	set(_historyRefreshedAt);
-	set(_collectiblesCompletedAt);
-}
-
-int Session::debugPendingCount() const {
-	return _api.debugPendingCount();
-}
-
-void Session::debugStreamUseFakeEndpoint() {
-	_stream->debugUseFakeEndpoint();
-}
-
-void Session::debugStreamFailAcquires(bool fail) {
-	_stream->debugFailAcquires(fail);
-}
-
-void Session::debugStreamDeliverFrame(const QByteArray &frame) {
-	_stream->debugDeliverFrame(frame);
-}
-
-void Session::debugStreamDropConnection() {
-	_stream->debugDropConnection();
-}
-
-void Session::debugStreamExpireNow() {
-	_stream->debugExpireNow();
-}
-
-bool Session::debugStreamHealthy() const {
-	return _stream->healthy();
-}
-
-int Session::debugStreamAcquireCount() const {
-	return _stream->debugAcquireCount();
-}
 #endif
 
 void Session::startPolling() {

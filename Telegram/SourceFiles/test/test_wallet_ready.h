@@ -31,11 +31,9 @@ class Runner;
 // _stateRefreshedAt were written.
 //
 // Nothing outside Wallet::Session can read those two stamps: both are
-// private and neither has an accessor. debugSetRefreshAges() cannot stand in
-// for one, because its `if (field)` guard silently no-ops on a stamp still
-// at zero; pollTick()'s stale() cannot either, because stale(0) is
-// permanently true, so an unstamped run is byte-indistinguishable from a
-// genuinely stale one.
+// private and neither has an accessor. pollTick()'s stale() cannot stand in
+// for one either, because stale(0) is permanently true, so an unstamped run
+// is byte-indistinguishable from a genuinely stale one.
 //
 // Run 1 of 2026/08/26/repair-and-retune-wallet-history-debug-scenarios lost
 // a full normal campaign run to exactly that. Its fixture gate waited on the

@@ -71,11 +71,6 @@ mtpRequestId Api::request(
 				done(bytes);
 			}
 		};
-#ifdef _DEBUG
-		if (debugSwallowed(requestId, deliver)) {
-			return;
-		}
-#endif // _DEBUG
 		deliver();
 	}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
 		const auto deliver = [=] {
@@ -89,11 +84,6 @@ mtpRequestId Api::request(
 				});
 			}
 		};
-#ifdef _DEBUG
-		if (debugSwallowed(requestId, deliver)) {
-			return;
-		}
-#endif // _DEBUG
 		deliver();
 	}).send();
 	_sent.push_back({
@@ -103,13 +93,6 @@ mtpRequestId Api::request(
 		.fail = fail,
 	});
 	scheduleTimeoutCheck();
-#ifdef _DEBUG
-	if (!_debugSwallowEndpoint.isEmpty()
-		&& (request.endpoint == _debugSwallowEndpoint)) {
-		_debugSwallowEndpoint = QString();
-		_debugSwallowedId = id;
-	}
-#endif // _DEBUG
 	return id;
 }
 
@@ -156,70 +139,6 @@ void Api::cancelRequest(mtpRequestId requestId) {
 	}
 }
 
-#ifdef _DEBUG
-void Api::debugRawRequest(
-		const Gram::HttpRequest &request,
-		Fn<void(const QByteArray &)> done,
-		Fn<void(const Gram::ApiError &)> fail) {
-	++_pendingCount;
-	_killSessionTimer.cancel();
-	_api.request(
-		ToncenterRequest(request)
-	).toDC(shiftedDcId()).done([=](
-			const MTPtoncenter_ApiResponse &result) {
-		requestFinished();
-		if (done) {
-			done(result.data().vresponse().data().vdata().v);
-		}
-	}).fail([=](const MTP::Error &error) {
-		requestFinished();
-		if (fail) {
-			fail(Gram::ApiError{
-				.code = error.code(),
-				.message = error.type(),
-			});
-		}
-	}).send();
-}
-
-void Api::debugStallNextRequest(
-		const QString &endpoint,
-		Fn<void()> swallowed) {
-	_debugSwallowEndpoint = endpoint;
-	_debugSwallowNotify = std::move(swallowed);
-	_debugSwallowedId = 0;
-	_debugSwallowedAnswer = nullptr;
-}
-
-void Api::debugReleaseStalledAnswer() {
-	if (const auto answer = base::take(_debugSwallowedAnswer)) {
-		LOG(("Wallet: DEBUG releasing the swallowed toncenter answer."));
-		answer();
-	}
-}
-
-int Api::debugPendingCount() const {
-	return _pendingCount;
-}
-
-crl::time Api::DebugRequestTimeout() {
-	return kRequestTimeout;
-}
-
-bool Api::debugSwallowed(mtpRequestId requestId, Fn<void()> deliver) {
-	if (!_debugSwallowedId || (_debugSwallowedId != requestId)) {
-		return false;
-	}
-	_debugSwallowedId = 0;
-	_debugSwallowedAnswer = std::move(deliver);
-	LOG(("Wallet: DEBUG swallowed the answer of request %1."
-		).arg(requestId));
-	if (const auto notify = base::take(_debugSwallowNotify)) {
-		notify();
-	}
-	return true;
-}
-#endif // _DEBUG
 
 bool Api::hasPendingRequests() const {
 	return _pendingCount > 0;

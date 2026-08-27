@@ -34,14 +34,6 @@ public:
 
 	[[nodiscard]] bool healthy() const;
 
-#ifdef _DEBUG
-	void debugUseFakeEndpoint();
-	void debugFailAcquires(bool fail);
-	void debugDeliverFrame(const QByteArray &frame);
-	void debugDropConnection();
-	void debugExpireNow();
-	[[nodiscard]] int debugAcquireCount() const;
-#endif // _DEBUG
 
 private:
 	enum class State {
@@ -85,11 +77,6 @@ private:
 	int _retryAttempt = 0;
 	quint32 _messageId = 0;
 	bool _started = false;
-#ifdef _DEBUG
-	int _debugAcquireCount = 0;
-	bool _debugFakeEndpoint = false;
-	bool _debugFailAcquires = false;
-#endif // _DEBUG
 
 };
 
