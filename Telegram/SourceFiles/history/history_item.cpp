@@ -2623,11 +2623,15 @@ void HistoryItem::applyEdition(const MTPDmessageService &message) {
 			nowSublist->applyMaybeLast(this);
 		}
 	}
-	if (wasTopic && wasTopic != topic()) {
+	const auto nowTopic = topic();
+	if (wasTopic && nowTopic != wasTopic) {
 		// createServiceFromMtp() above rebuilds the service data that
 		// topicRootId() reads, so the item may have just left wasTopic -
 		// which History::itemRemoved() would then never tell about it.
 		wasTopic->applyItemRemoved(id);
+		if (nowTopic) {
+			nowTopic->applyMaybeLast(this);
+		}
 	}
 }
 
