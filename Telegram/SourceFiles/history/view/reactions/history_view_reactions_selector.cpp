@@ -939,6 +939,7 @@ void Selector::mousePressEvent(QMouseEvent *e) {
 	} else if (!_strip) {
 		return;
 	}
+	_shownAt = 0;
 	_pressed = lookupSelectedIndex(e->pos());
 }
 
@@ -948,7 +949,8 @@ void Selector::mouseReleaseEvent(QMouseEvent *e) {
 		return;
 	} else if (!_strip) {
 		return;
-	} else if (crl::now() < _shownAt + kAcceptClicksAfter) {
+	} else if (e->button() == Qt::RightButton
+		&& crl::now() < _shownAt + kAcceptClicksAfter) {
 		_pressed = -1;
 		return;
 	}
