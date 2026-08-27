@@ -152,13 +152,15 @@ bool DiscriminatingScan::report() {
 	Check(
 		discriminates,
 		_name + u" discriminates"_q,
-		u"the walk matched no %1, so its %2 count of %3 over %4 examined "
-		u"items cannot tell absence from an enumeration that never reaches "
-		u"the subject"_q
-			.arg(_controlWhat)
-			.arg(_subjectWhat)
-			.arg(_subjects)
-			.arg(_examined));
+		discriminates
+			? QString()
+			: u"the walk matched no %1, so its %2 count of %3 over %4 examined "
+			u"items cannot tell absence from an enumeration that never reaches "
+			u"the subject"_q
+				.arg(_controlWhat)
+				.arg(_subjectWhat)
+				.arg(_subjects)
+				.arg(_examined));
 	return discriminates;
 }
 

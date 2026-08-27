@@ -238,7 +238,7 @@ clicking.
 | --- | --- |
 | `test_agent.h` | Runtime gate, startup scale override, sticky named events, scenario start. |
 | `test_runner.h` | Stages, bounded waits, exact-widget actions, prepared capture/inspection, watchdog (`TDESKTOP_TEST_WATCHDOG` in seconds) and termination. |
-| `test_log.h` | Absolute flushed logs, steps, notes, checks, tolerances, geometry, completion markers. |
+| `test_log.h` | Absolute flushed logs, steps, notes, checks whose `details` are printed on the passing verdict as well as the failing one, tolerances, geometry, completion markers. |
 | `test_probe.h` | Append-only observation records read only through a declared window, and scans that must match a control before a zero counts as absence. |
 | `test_widgets.h` | Safe typed discovery, live object/action publication, input, and postponed-call settlement. |
 | `test_capture.h` | In-process grabs, paint-root validation, mapped rects, blank detection, crops, zoom, contact sheets. |
@@ -252,6 +252,25 @@ clicking.
 | `test_open_handoff.h` | Inspect and assert the document-open branch without handing anything to the OS. |
 | `test_transfer.h` | Observe document save/failure transitions and assert duplicate or failed transfer behavior. |
 | `test_scenario.cpp` | The only permanent overlay slot; the repository version remains a no-op. |
+
+`Test::Check`'s third argument is an observation, not a failure excuse. It is
+printed on both verdicts — `TEST_RESULT: PASS: <what> - <details>` and
+`TEST_RESULT: FAIL: <what> - <details>` — so a green log says what each check
+was made against and a passing run can be audited without re-running it. Pass
+the values the check judged: the measured geometry, the observed identity, the
+window and the rows behind the verdict. Text that is only true after a failure
+stays conditional at the call site — `ok ? QString() : u"out of tolerance"_q` —
+which leaves the passing line exactly `TEST_RESULT: PASS: <what>`, the same
+line an empty `details` produces. Do not emit a `Note` beside a check only to
+print a reading that check's own `details` could carry; that duplication is
+what this argument replaces. Where the failure text cannot double as a true
+passing observation, the `details` stay conditional and an adjacent `Note`
+remains the carrier — `CheckBlockedLaunchesExactly` suppresses its mismatch
+text on a pass and keeps its `Test::Note(u"blocked launch record: [...]")`,
+which is what `test_launch_fuse.h` promises. None of this loosens a refusal:
+failure text still has to name what it judged, and an undecidable reading is
+still refused rather than printed as a `Note` a reader would take as a
+measurement.
 
 Read the selected module's header before using it; the contracts there are
 more precise than the summary above. Search this directory before writing a
@@ -370,6 +389,7 @@ need them.
 | Media reading frozen at position `0`, with the length equal to the document's declared duration | Undecodable fixture document — often a synthetic upload left on the shared test account — accepted on metadata alone; the app debug log shows `Streaming Error: Error in avformat_open_input`. | Select the fixture with the playability probe: play each candidate and accept only one whose position strictly advances, then reuse that document everywhere. |
 | A premise fails against a row its own fixture had to create, or a check passes without ever reaching its subject | The oracle read the probe's whole history, or bracketed a slice by wall time, so rows from an earlier stage or a slow neighbouring surface answered it. | Record through `Test::Probe`, take `mark()` immediately before the action, and query only `...Since(mark)`; there is no whole-history accessor to fall back to. |
 | A sweep reports a confident `found=0` that no repair ever changes | The enumeration structurally cannot reach the subject, so the zero was guaranteed before the run started and measures nothing. | Count through `Test::DiscriminatingScan` and feed it a known-present control; `report()` refuses to certify a zero the walk cannot tell from absence. |
+| A green log that does not say what its checks were made against, so a passing run cannot be audited after the fact | The reading was handed to `Test::Check` as `details` back when `details` was written only on the failing branch, or worked around by folding it into `what` or by emitting a `Note` beside the check that a reader then has to re-correlate by position. | Pass the reading as `Check`'s third argument: it is printed on the passing verdict too, as `TEST_RESULT: PASS: <what> - <details>`. Keep only failure-only text behind `ok ? QString() : ...`, which still prints the bare passing line. |
 
 Classify a sound assertion against changed behavior as an implementation bug,
 not a test flaw. Classify a wrong fixture, target, readiness model, event
