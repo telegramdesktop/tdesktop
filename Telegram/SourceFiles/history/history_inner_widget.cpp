@@ -1707,15 +1707,14 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			const auto hasTranslation = context.gestureHorizontal.translation
 				&& (context.gestureHorizontal.msgBareId
 					== item->fullId().msg.bare);
+			const auto shift = context.gestureHorizontal.visualTranslation();
 			if (hasTranslation) {
-				p.translate(context.gestureHorizontal.translation, 0);
+				p.translate(shift, 0);
 				update(
 					QRect(
-						st::historyPhotoLeft
-							+ context.gestureHorizontal.translation,
+						st::historyPhotoLeft + std::min(shift, 0),
 						userpicTop,
-						st::msgPhotoSize
-							- context.gestureHorizontal.translation,
+						st::msgPhotoSize + std::abs(shift),
 						st::msgPhotoSize));
 			}
 			if (const auto from = item->displayFrom()) {
@@ -1754,7 +1753,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				Unexpected("Corrupt forwarded information in message.");
 			}
 			if (hasTranslation) {
-				p.translate(-_gestureHorizontal.translation, 0);
+				p.translate(-shift, 0);
 			}
 		}
 		return true;
