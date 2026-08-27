@@ -1,3 +1,13 @@
+7.1.3 (27.08.26)
+
+- Add emoji status actions to the custom emoji context menu.
+- Add slash menu with insertable blocks to the article editor.
+- Add ban and unban of users in channel direct messages.
+- Show reaction preview above the menu of who reacted list.
+- Highlight the search query when jumping to a found message.
+- Convert QuickTime videos to mp4 when sending them as GIFs.
+- Crash fixes.
+
 7.1.2 (24.08.26)
 
 - Show who reacted preview next to the cursor.
