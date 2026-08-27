@@ -968,7 +968,12 @@ void FileLoadTask::process(ProcessArgs &&args) {
 			auto coverWidth = video->thumbnail.width();
 			auto coverHeight = video->thumbnail.height();
 			auto realSeconds = video->duration / 1000.;
-			const auto convert = !Core::IsMimeSentAsVideo(filemime)
+			const auto gif = video->modifications.gif && !_forceFile;
+			const auto convertForGif = gif
+				&& video->isGifv
+				&& (filemime != u"video/mp4"_q);
+			const auto convert = (!Core::IsMimeSentAsVideo(filemime)
+					|| convertForGif)
 				&& !video->isWebmSticker
 				&& (filesize < Media::Encode::MaxTranscodeSourceSize());
 			if (!_forceFile
@@ -1028,10 +1033,8 @@ void FileLoadTask::process(ProcessArgs &&args) {
 					crl::time(0),
 					video->duration);
 			}
-			const auto gif = video->modifications.gif && !_forceFile;
 			if (!_forceFile) {
-				// A video without sound is what the servers read as a GIF.
-				if (gif && !_album) {
+				if (gif && !_album && (filemime == u"video/mp4"_q)) {
 					attributes.push_back(MTP_documentAttributeAnimated());
 				}
 				auto flags = MTPDdocumentAttributeVideo::Flags(0);
