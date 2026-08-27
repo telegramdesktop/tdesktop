@@ -117,7 +117,9 @@ MTPInputMedia PrepareUploadedDocument(
 	const auto ttlSeconds = item->media()
 		? item->media()->ttlSeconds()
 		: 0;
-	const auto silent = item->groupId() || document->isSilentVideo();
+	const auto animated = (document->type == AnimatedDocument);
+	const auto silent = !animated
+		&& (item->groupId() || document->isSilentVideo());
 	const auto flags = (spoiler ? Flag::f_spoiler : Flag())
 		| (info.thumb ? Flag::f_thumb : Flag())
 		| (silent ? Flag::f_nosound_video : Flag())
