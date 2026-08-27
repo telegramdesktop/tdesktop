@@ -31,6 +31,18 @@ This file adapts harness mechanics and removes unnecessary text normalization.
   five-minute stall windows in the shared references are Codex-only mechanics
   and do not apply in Claude Code. Leaves still write their progress files
   (they are cheap resumability evidence), but the performer never polls them.
+- A leaf's return value IS its report. Never tell a leaf to send its findings
+  back through `SendMessage`, and never wait on one to do so. A leaf has no
+  address for its parent: an agent *type* such as `general-purpose` is not a
+  reachable name, so the call fails, and a leaf that treats that failure as
+  fatal loses work the foreground return would have delivered for free.
+- Never arm a watcher, `Monitor`, background wait, or artifact poll around a
+  leaf, and never end the turn holding one. A performer's turn ends only at a
+  real task boundary — approved, genuinely blocked, split-required, or a global
+  hard stop. Ending it with a progress report instead is a stall: the scheduler
+  receives that report, the performer receives nothing, and the phase is
+  stranded until a human or the scheduler resumes it. If a leaf's artifact has
+  not landed, relaunch that phase in the foreground and wait for it in-turn.
 - Run independent leaves that truly share one step — the surviving specialist
   reviews in an iteration, or assessed-disjoint implementation units — as
   parallel Agent calls in a single message so they run concurrently and all
