@@ -7,10 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "wallet/wallet_content.h"
 
+#include "api/api_cloud_password.h"
+#include "apiwrap.h"
 #include "base/event_filter.h"
 #include "base/invoke_queued.h"
 #include "base/timer.h"
 #include "base/unixtime.h"
+#include "boxes/passcode_box.h"
 #include "core/credits_amount.h"
 #include "core/file_utilities.h"
 #include "core/ton_explorer_url.h"
@@ -3589,6 +3592,59 @@ void WalletPhraseBox(
 	box->addButton(tr::lng_about_done(), [=] { box->closeBox(); });
 }
 
+void RequestPhraseReveal(
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<Ui::GenericBox*> warning,
+		std::optional<Core::CloudPasswordResult> password,
+		base::weak_qptr<PasscodeBox> passcode,
+		Fn<void()> unblock) {
+	show->session().wallet().revealPhrase(
+		std::move(password),
+		crl::guard(warning, [=](std::vector<QString> words) {
+			if (passcode) {
+				passcode->closeBox();
+			}
+			warning->closeBox();
+			show->showBox(Box(WalletPhraseBox, show, std::move(words)));
+		}),
+		crl::guard(warning, [=](const QString &error) {
+			unblock();
+			if (passcode && passcode->handleCustomCheckError(error)) {
+				return;
+			}
+			show->showToast(tr::lng_wallet_phrase_error(tr::now));
+		}));
+}
+
+void StartPhraseReveal(
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<Ui::GenericBox*> warning,
+		Fn<void()> unblock) {
+	const auto session = &show->session();
+	session->api().cloudPassword().reload();
+	session->api().cloudPassword().state(
+	) | rpl::take(
+		1
+	) | rpl::on_next([=](const Core::CloudPasswordState &state) {
+		if (!state.hasPassword) {
+			RequestPhraseReveal(show, warning, std::nullopt, nullptr, unblock);
+			return;
+		}
+		auto fields = PasscodeBox::CloudFields::From(state);
+		fields.customTitle = tr::lng_wallet_phrase_password_title();
+		fields.customDescription = tr::lng_wallet_phrase_password_description(
+			tr::now);
+		fields.customSubmitButton = tr::lng_passcode_submit();
+		fields.customCheckCallback = [=](
+				const Core::CloudPasswordResult &result,
+				base::weak_qptr<PasscodeBox> passcode) {
+			RequestPhraseReveal(show, warning, result, passcode, unblock);
+		};
+		show->showBox(Box<PasscodeBox>(session, fields));
+		unblock();
+	}, warning->lifetime());
+}
+
 void WalletPhraseWarningBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show) {
@@ -3649,14 +3705,7 @@ void WalletPhraseWarningBox(
 			return;
 		}
 		*revealing = true;
-		show->session().wallet().revealPhrase(crl::guard(box, [=](
-				std::vector<QString> words) {
-			box->closeBox();
-			show->showBox(Box(WalletPhraseBox, show, std::move(words)));
-		}), crl::guard(box, [=](LifecycleError) {
-			*revealing = false;
-			show->showToast(tr::lng_wallet_phrase_error(tr::now));
-		}));
+		StartPhraseReveal(show, box, [=] { *revealing = false; });
 	});
 }
 

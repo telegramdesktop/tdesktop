@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/flat_map.h"
 #include "base/timer.h"
+#include "core/core_cloud_password.h"
 #include "gram/api/gram_api_nft.h"
 #include "mtproto/sender.h"
 #include "wallet/wallet_address.h"
@@ -53,12 +54,6 @@ enum class AccountStatus {
 	Uninit,
 	Active,
 	Frozen,
-};
-
-enum class LifecycleError {
-	None,
-	InvalidPhrase,
-	Failed,
 };
 
 enum class SendError {
@@ -158,8 +153,9 @@ public:
 	void applyUpdate(const MTPDupdateWalletState &data);
 
 	void revealPhrase(
+		std::optional<Core::CloudPasswordResult> password,
 		Fn<void(std::vector<QString>)> done,
-		Fn<void(LifecycleError)> fail);
+		Fn<void(const QString &error)> fail);
 
 	[[nodiscard]] int64 balanceNano() const;
 	[[nodiscard]] rpl::producer<int64> balanceNanoValue() const;

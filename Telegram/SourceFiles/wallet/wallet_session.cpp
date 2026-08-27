@@ -429,12 +429,36 @@ void Session::setPresence(Presence presence) {
 }
 
 void Session::revealPhrase(
+		std::optional<Core::CloudPasswordResult> password,
 		Fn<void(std::vector<QString>)> done,
-		Fn<void(LifecycleError)> fail) {
-	LOG(("Wallet Error: the recovery phrase is owned by the server now."));
-	if (fail) {
-		fail(LifecycleError::Failed);
-	}
+		Fn<void(const QString &error)> fail) {
+	using Flag = MTPwallet_exportSecretPhrase::Flag;
+	const auto checked = password && *password;
+	_stateApi.request(MTPwallet_ExportSecretPhrase(
+		MTP_flags(checked ? Flag::f_password : Flag(0)),
+		checked ? password->result : MTP_inputCheckPasswordEmpty()
+	)).done([=](const MTPwallet_SecretPhrase &result) {
+		const auto &list = result.data().vwords().v;
+		auto words = std::vector<QString>();
+		words.reserve(list.size());
+		for (const auto &word : list) {
+			words.push_back(qs(word));
+		}
+		if (words.size() < 2) {
+			LOG(("Wallet Error: wallet.exportSecretPhrase sent no words."));
+			if (fail) {
+				fail(u"PHRASE_EMPTY"_q);
+			}
+		} else if (done) {
+			done(std::move(words));
+		}
+	}).fail([=](const MTP::Error &error) {
+		LOG(("Wallet Error: wallet.exportSecretPhrase failed: %1"
+			).arg(error.type()));
+		if (fail) {
+			fail(error.type());
+		}
+	}).handleFloodErrors().send();
 }
 
 void Session::clearNetworkState() {

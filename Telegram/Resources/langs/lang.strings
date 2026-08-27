@@ -8834,6 +8834,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_phrase_text#one" = "Write down this {count} word and store it safely. If you lose it, you lose access to your Wallet.";
 "lng_wallet_phrase_text#other" = "Write down these {count} words in order and store them safely. If you lose them, you lose access to your Wallet.";
 "lng_wallet_phrase_error" = "Couldn't show the recovery phrase. Please try again.";
+"lng_wallet_phrase_password_title" = "Two-step verification";
+"lng_wallet_phrase_password_description" = "Please enter your password to view your recovery phrase.";
 "lng_wallet_send_error_insufficient" = "You don't have enough Grams for this transfer.";
 "lng_wallet_send_error_fees" = "You don't have enough Grams to cover the network fee.";
 "lng_wallet_send_error_unresolved" = "Your previous transfer is not confirmed yet. Please wait for it to complete.";
