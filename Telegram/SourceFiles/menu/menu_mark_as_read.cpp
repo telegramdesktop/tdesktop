@@ -39,6 +39,10 @@ constexpr auto kMaxUnreadWithoutConfirmation = 1000;
 		: MarkAsReadMuted::Skip;
 }
 
+[[nodiscard]] bool SkipMutedThread(not_null<Data::Thread*> thread) {
+	return thread->muted() && !thread->chatListUnreadState().mentions;
+}
+
 [[nodiscard]] Dialogs::UnreadState MarkAsReadUnreadState(
 		not_null<Dialogs::MainList*> list,
 		MarkAsReadMuted muted) {
@@ -47,7 +51,8 @@ constexpr auto kMaxUnreadWithoutConfirmation = 1000;
 		const auto history = row->history();
 		if (!history) {
 			continue;
-		} else if ((muted == MarkAsReadMuted::Skip) && history->muted()) {
+		} else if ((muted == MarkAsReadMuted::Skip)
+			&& SkipMutedThread(history)) {
 			continue;
 		}
 		result += history->chatListUnreadState();
@@ -79,7 +84,7 @@ void MarkAsReadThread(
 		history->owner().histories().readInbox(history);
 	};
 	if (!IsUnreadThread(thread)
-		|| ((muted == MarkAsReadMuted::Skip) && thread->muted())) {
+		|| ((muted == MarkAsReadMuted::Skip) && SkipMutedThread(thread))) {
 		return;
 	} else if (const auto forum = thread->asForum()) {
 		forum->enumerateTopics([=](not_null<Data::ForumTopic*> topic) {
@@ -116,6 +121,9 @@ void AddAllChatsAction(
 		std::shared_ptr<Ui::Show> show,
 		const Ui::Menu::MenuCallback &addAction) {
 	const auto owner = &session->data();
+	if (!owner->unreadWithMentionsBadge()) {
+		return;
+	}
 	const auto muted = MarkAsReadMutedMode();
 	const auto unreadState = MarkAsReadAllChatsState(owner, muted);
 	if (!unreadState.messages && !unreadState.marks && !unreadState.chats) {
