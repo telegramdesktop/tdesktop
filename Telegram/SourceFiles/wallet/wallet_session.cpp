@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_session.h"
 
 #include "base/unixtime.h"
+#include "data/data_peer_id.h"
+#include "data/data_session.h"
 #include "main/main_session.h"
 #include "ui/widgets/separate_panel.h"
 #include "wallet/wallet_engine.h"
@@ -42,6 +44,8 @@ constexpr auto kStateRefreshInterval = 60 * crl::time(1000);
 // settles to a stated face; the 60-second floor keeps retrying underneath and
 // one applied state clears the latch again.
 constexpr auto kStateFailuresBeforeStated = 2;
+// The largest limit wallet.getTransactions documents.
+constexpr auto kTransactionsPerPage = 50;
 constexpr auto kForcedCollectiblesInterval = 10 * crl::time(1000);
 constexpr auto kStreamResyncInterval = 30 * crl::time(1000);
 constexpr auto kEngineProviderBase = "https://toncenter.com";
@@ -240,6 +244,97 @@ constexpr auto kEngineRequestTimeoutMs = uint64(15000);
 	return result;
 }
 
+// The TL declares tx_hash as an unqualified string and states no encoding,
+// while ExplorerTransactionUrl() hexes whatever is stored here straight into
+// a URL path with no validation and no escaping. The shape is therefore
+// decided here, and a string of neither recognized shape stores nothing: an
+// empty traceId hides the explorer entry instead of pointing it at a hash
+// this client cannot be sure of. Base64 of 32 bytes is 43 or 44 characters
+// and can therefore never also be 64 hex digits, so the two tests cannot
+// collide and their order is a cheapness choice, not a correctness one.
+[[nodiscard]] QByteArray TransactionHashFromServer(const QString &value) {
+	constexpr auto kHashBytes = 32;
+	const auto latin = value.toLatin1();
+	const auto hex = (latin.size() == 2 * kHashBytes)
+		&& ranges::all_of(latin, [](char ch) {
+			return (ch >= '0' && ch <= '9')
+				|| (ch >= 'a' && ch <= 'f')
+				|| (ch >= 'A' && ch <= 'F');
+		});
+	if (hex) {
+		return QByteArray::fromHex(latin);
+	}
+	const auto decode = [&](QByteArray::Base64Option encoding) {
+		return QByteArray::fromBase64Encoding(
+			latin,
+			encoding | QByteArray::AbortOnBase64DecodingErrors);
+	};
+	auto standard = decode(QByteArray::Base64Encoding);
+	if (standard && (standard.decoded.size() == kHashBytes)) {
+		return std::move(standard.decoded);
+	}
+	auto url = decode(QByteArray::Base64UrlEncoding);
+	if (url && (url.decoded.size() == kHashBytes)) {
+		return std::move(url.decoded);
+	}
+	LOG(("Wallet Error: wallet.getTransactions sent an unusable tx_hash."));
+	return QByteArray();
+}
+
+[[nodiscard]] TransferItem HistoryItemFromServer(
+		const MTPWalletTransaction &item) {
+	const auto &data = item.data();
+	auto result = TransferItem();
+	result.incoming = data.is_incoming();
+	result.amountNano = data.vamount().v;
+	result.feeNano = data.vfee().v;
+	result.date = data.vdate().v;
+	// A failure is a settled outcome and it wins over pending: a transaction
+	// the server has marked failed will never confirm, so telling the reader
+	// to keep waiting for it would be the worst of the readings available.
+	// Both flags at once can only mean the server has not yet dropped the row
+	// from its pending set, which is bookkeeping rather than a state to act
+	// on; the row then shows its fee, which a failed transaction did pay.
+	result.status = data.is_failed()
+		? TransferItem::Status::Failure
+		: data.is_pending()
+		? TransferItem::Status::Pending
+		: TransferItem::Status::Success;
+	data.vpeer().match([&](const MTPDwalletTransactionPeerUser &data) {
+		// counterparty stays empty on purpose: the server sends no address
+		// for a user counterparty and the client must not synthesize one.
+		// AddDetailsTable guards its sender / recipient row on a non-empty
+		// address, so such a transfer's details sheet honestly shows no
+		// address row rather than one the chain never named.
+		result.kind = TransferItem::Kind::PeerTransfer;
+		result.counterpartyPeer = peerFromUser(data.vuser_id()).value;
+	}, [&](const MTPDwalletTransactionPeerAddress &data) {
+		result.counterparty = CanonicalAddress(qs(data.vaddress()));
+		if (result.counterparty.isEmpty()) {
+			LOG(("Wallet Error: wallet.getTransactions sent an unusable "
+				"counterparty address."));
+		}
+	}, [](const MTPDwalletTransactionPeerUnsupported &) {
+		// Nothing is written, because the defaults are the row: a
+		// Kind::Transfer with no counterparty renders through
+		// RowContentFromItem's fall-through as a Deposit or a Withdrawal by
+		// direction, with the date and the amount. That is exactly the
+		// graceful degradation this constructor exists for, so no lang key
+		// is invented for it.
+	});
+	if (const auto comment = data.vcomment()) {
+		result.comment = qs(*comment);
+	}
+	if (const auto hash = data.vtx_hash()) {
+		result.traceId = TransactionHashFromServer(qs(*hash));
+	}
+	// id, lt and every collectible / provider / encrypted-comment member are
+	// left at their defaults: the record has no id field, the server sends
+	// nothing for the rest, and lt's only reader is the wallethistory Debug
+	// log line, which prints the honest zero instead of a synthesized time.
+	return result;
+}
+
 } // namespace
 
 std::vector<TransferItem> HistoryFromEngine(
@@ -250,6 +345,16 @@ std::vector<TransferItem> HistoryFromEngine(
 		if (auto mapped = HistoryItemFromEngine(item)) {
 			result.push_back(std::move(*mapped));
 		}
+	}
+	return result;
+}
+
+std::vector<TransferItem> HistoryFromServer(
+		const QVector<MTPWalletTransaction> &list) {
+	auto result = std::vector<TransferItem>();
+	result.reserve(list.size());
+	for (const auto &item : list) {
+		result.push_back(HistoryItemFromServer(item));
 	}
 	return result;
 }
@@ -303,11 +408,12 @@ Ui::SeparatePanel *Session::panel() const {
 void Session::setPanel(std::unique_ptr<Ui::SeparatePanel> panel) {
 	_panel = std::move(panel);
 	if (!_panel) {
-		// _collectiblesPaged is a fact about one overview's scroll
-		// position, so it ends with the panel that owned it: otherwise
-		// the periodic refresh stays refused for the rest of the
-		// session and a collectible received while the panel was closed
-		// never appears.
+		// _historyPaged and _collectiblesPaged are facts about one
+		// overview's scroll position, so they end with the panel that
+		// owned them: otherwise the periodic refresh stays refused for
+		// the rest of the session and a transaction or a collectible
+		// received while the panel was closed never appears.
+		_historyPaged = false;
 		_collectiblesPaged = false;
 	}
 }
@@ -430,8 +536,19 @@ void Session::setPresence(Presence presence) {
 		return;
 	}
 	_presence = presence;
+	if (presence != Presence::Ready) {
+		// clearHistory() cancels the request in flight, so a refreshHistory()
+		// issued while the wallet was Ready would never run its done and its
+		// caller would wait forever. Draining here is exactly what
+		// refreshHistory() itself does for a presence that is not Ready.
+		clearHistory();
+		finishHistoryWaiters();
+	}
 	updateListsGate();
 	updatePollingState();
+	if (presence == Presence::Ready) {
+		refreshHistory();
+	}
 }
 
 void Session::revealPhrase(
@@ -475,10 +592,7 @@ void Session::clearNetworkState() {
 	_stateRequestedAt = 0;
 	_stateRefreshedAt = 0;
 	_stateFailures = 0;
-	_history.clear();
-	_historyUpdates.fire({});
-	_historyHasNext = false;
-	_historyRefreshedAt = 0;
+	clearHistory();
 	_collectibles.clear();
 	_collectiblesTab = false;
 	_collectiblesRefreshedAt = 0;
@@ -492,7 +606,6 @@ void Session::clearNetworkState() {
 	_pollingCount = 0;
 	_pollTimer.cancel();
 	_stream->stop();
-	_historyRequestPending = false;
 	_sendUnresolved = false;
 	_previewNextArgs.reset();
 	_previewNextDone = nullptr;
@@ -501,16 +614,7 @@ void Session::clearNetworkState() {
 }
 
 void Session::requestEngineRefresh() {
-	if (_engineRefreshPending) {
-		return;
-	}
-	const auto finishHistoryWaiters = [this] {
-		for (const auto &callback : base::take(_historyDone)) {
-			callback();
-		}
-	};
-	if (!_engine->client()) {
-		finishHistoryWaiters();
+	if (_engineRefreshPending || !_engine->client()) {
 		return;
 	}
 	_engineRefreshPending = true;
@@ -521,30 +625,20 @@ void Session::requestEngineRefresh() {
 	}, [=, this](engine::WalletUpdate update) {
 		_engineRefreshPending = false;
 		if (generation != _networkGeneration) {
-			finishHistoryWaiters();
 			return;
 		}
 		applyEngineUpdate(update);
-		finishHistoryWaiters();
 	}, [=, this](EngineError error) {
 		_engineRefreshPending = false;
 		if (generation != _networkGeneration) {
-			finishHistoryWaiters();
 			return;
 		}
 		LOG(("Wallet Error: engine refresh failed: %1, "
 			"keeping last-good state.").arg(error.message));
-		finishHistoryWaiters();
 	});
 }
 
 void Session::applyEngineUpdate(const engine::WalletUpdate &update) {
-	// refresh() publishes its account and activity legs independently and
-	// reports kPartiallyCompleted when exactly one of them failed, so the
-	// outcome gate below belongs to the account write only. The activity
-	// list carries its own ResourceState and is applied on that phase; a
-	// failed, cancelled or superseded leg never reaches kReady.
-	applyEngineActivity(update, false);
 	if (update.outcome != engine::WalletOperationOutcome::kCompleted) {
 		LOG(("Wallet: engine refresh outcome %1, keeping last-good state."
 			).arg(int(update.outcome)));
@@ -609,7 +703,7 @@ void Session::applyEngineUpdate(const engine::WalletUpdate &update) {
 
 void Session::refreshHistory(Fn<void()> done) {
 	ensureLoaded();
-	if (_presence.current() != Presence::Ready) {
+	if ((_presence.current() != Presence::Ready) || _historyPaged) {
 		if (done) {
 			done();
 		}
@@ -618,61 +712,97 @@ void Session::refreshHistory(Fn<void()> done) {
 	if (done) {
 		_historyDone.push_back(std::move(done));
 	}
-	requestEngineRefresh();
-}
-
-void Session::requestMoreActivity() {
-	const auto client = _engine->client();
-	if (!client) {
-		return;
-	}
-	_historyRequestPending = true;
-	const auto generation = _networkGeneration;
-	_engine->run([client] {
-		return client->load_more_activity();
-	}, [=, this](engine::WalletUpdate update) {
-		_historyRequestPending = false;
-		if (generation != _networkGeneration) {
-			return;
-		}
-		if (update.outcome
-			!= engine::WalletOperationOutcome::kCompleted) {
-			LOG(("Wallet: engine activity page outcome %1, "
-				"keeping last-good history.").arg(int(update.outcome)));
-			return;
-		}
-		applyEngineActivity(update, true);
-	}, [=, this](EngineError error) {
-		_historyRequestPending = false;
-		if (generation != _networkGeneration) {
-			return;
-		}
-		LOG(("Wallet Error: engine load_more_activity failed: %1, "
-			"keeping last-good history.").arg(error.message));
-	});
-}
-
-void Session::applyEngineActivity(
-		const engine::WalletUpdate &update,
-		bool more) {
-	const auto &activity = update.snapshot.activity;
-	const auto &resource = more
-		? activity.pagination_resource
-		: activity.resource;
-	if (resource.phase != engine::ResourcePhase::kReady) {
-		return;
-	}
-	_historyHasNext = activity.has_more;
-	_historyRefreshedAt = crl::now();
-	auto loaded = HistoryFromEngine(activity.items);
-	if (SameHistory(_history, loaded)) {
-		return;
-	}
-	setHistory(std::move(loaded));
+	requestTransactions(false);
 }
 
 void Session::setHistory(std::vector<TransferItem> &&list) {
 	_history = std::move(list);
+	_historyUpdates.fire({});
+}
+
+void Session::requestTransactions(bool more) {
+	if (_historyRequestId) {
+		return;
+	}
+	_historyRequestedAt = crl::now();
+	// The inbound and outbound flags stay unset on purpose: the overview
+	// shows one undivided feed and offers no direction filter, so asking the
+	// server for half of the list would invent a UI this task does not add.
+	// They stay available for a filter that is actually designed.
+	_historyRequestId = _stateApi.request(MTPwallet_GetTransactions(
+		MTP_flags(0),
+		MTP_string(more ? _historyNextOffset : QString()),
+		MTP_int(kTransactionsPerPage)
+	)).done([=](const MTPwallet_Transactions &result) {
+		_historyRequestId = 0;
+		applyTransactions(result, more);
+		finishHistoryWaiters();
+	}).fail([=](const MTP::Error &error) {
+		_historyRequestId = 0;
+		LOG(("Wallet Error: wallet.getTransactions failed: %1"
+			).arg(error.type()));
+		if (!more) {
+			_historyUnreachable = true;
+		}
+		_historySettled = true;
+		updateListsGate();
+		finishHistoryWaiters();
+	}).handleAllErrors().send();
+}
+
+void Session::applyTransactions(
+		const MTPwallet_Transactions &result,
+		bool more) {
+	const auto &data = result.data();
+	// The peers are stored before anything resolves one, because a row whose
+	// user is missing from Data::Session falls through to the address
+	// presentation and paints a plain Deposit or Withdrawal row. That is
+	// also the legitimate row for two other server inputs, so a dropped
+	// users vector would look exactly like a working client.
+	_session->data().processUsers(data.vusers());
+	_session->data().processChats(data.vchats());
+	const auto next = data.vnext_offset();
+	// An empty next_offset is byte-identical to a first-page request, so
+	// paging on it would read the same rows forever. It ends the list exactly
+	// as an absent one does; the value itself is opaque and never parsed.
+	_historyNextOffset = next ? qs(*next) : QString();
+	_historyHasNext = !_historyNextOffset.isEmpty();
+	_historyRefreshedAt = crl::now();
+	_historyUnreachable = false;
+	_historyPaged = more && (_panel != nullptr);
+	auto loaded = HistoryFromServer(data.vtransactions().v);
+	if (more) {
+		if (!loaded.empty()) {
+			auto list = _history;
+			list.insert(
+				end(list),
+				std::make_move_iterator(begin(loaded)),
+				std::make_move_iterator(end(loaded)));
+			setHistory(std::move(list));
+		}
+	} else if (!SameHistory(_history, loaded)) {
+		setHistory(std::move(loaded));
+	}
+	_historySettled = true;
+	updateListsGate();
+}
+
+void Session::finishHistoryWaiters() {
+	for (const auto &callback : base::take(_historyDone)) {
+		callback();
+	}
+}
+
+void Session::clearHistory() {
+	_stateApi.request(base::take(_historyRequestId)).cancel();
+	_history.clear();
+	_historyHasNext = false;
+	_historyNextOffset = QString();
+	_historyRefreshedAt = 0;
+	_historyRequestedAt = 0;
+	_historySettled = false;
+	_historyUnreachable = false;
+	_historyPaged = false;
 	_historyUpdates.fire({});
 }
 
@@ -683,12 +813,11 @@ bool Session::historyHasNext() const {
 void Session::loadMoreHistory() {
 	ensureLoaded();
 	if (_presence.current() != Presence::Ready
-		|| _historyRequestPending
-		|| _engineRefreshPending
+		|| _historyRequestId
 		|| !_historyHasNext) {
 		return;
 	}
-	requestMoreActivity();
+	requestTransactions(true);
 }
 
 void Session::refreshCollectibles(bool force) {
@@ -791,16 +920,20 @@ void Session::setCollectibles(std::vector<Gram::NftItem> &&list) {
 void Session::updateListsGate() {
 	const auto presence = _presence.current();
 	const auto unknown = (presence == Presence::Unknown);
-	_stateUnreachable = unknown
-		&& (_stateFailures >= kStateFailuresBeforeStated);
+	const auto ready = (presence == Presence::Ready);
+	_stateUnreachable = (unknown
+		&& (_stateFailures >= kStateFailuresBeforeStated))
+		|| (ready && _historyUnreachable);
 	_listsGated = (unknown && !_stateUnreachable)
-		|| (presence == Presence::Provisioning);
+		|| (presence == Presence::Provisioning)
+		|| (ready && !_historySettled);
 	_listsStateUpdates.fire({});
 }
 
 bool Session::listsConfirmedEmpty() const {
 	return !_listsGated.current()
 		&& _history.empty()
+		&& !_historyHasNext
 		&& _collectibles.empty();
 }
 
@@ -908,10 +1041,20 @@ void Session::pollTick() {
 	const auto stale = [&](crl::time at) {
 		return !at || (crl::now() - at >= kStreamResyncInterval);
 	};
-	if (!streaming
-		|| stale(_stateRefreshedAt)
-		|| stale(_historyRefreshedAt)) {
+	if (!streaming || stale(_stateRefreshedAt)) {
 		requestEngineRefresh();
+	}
+	// The history leg deliberately carries no !streaming disjunct. Every
+	// refresh that disjunct reaches above self-floors, but refreshHistory()
+	// does not: a stream hint means a transaction touched this address and
+	// flooring it would delay a just-received transfer. With the disjunct the
+	// lane would send a real wallet.getTransactions on every tick for the
+	// whole time the stream is not live, which is every cold open, acquire,
+	// reconnect and backoff. stale() is true for a zero stamp, so the first
+	// tick still requests at once and the lane then settles to one request
+	// per resync interval, plus the unfloored stream hints.
+	if (stale(std::max(_historyRequestedAt, _historyRefreshedAt))) {
+		refreshHistory();
 	}
 	refreshCollectibles();
 	if ((_pending || _sendUnresolved) && !_resolveRequestPending) {
@@ -924,7 +1067,7 @@ void Session::applyStreamRefresh(StreamRefresh wanted) {
 		refreshState();
 	}
 	if (wanted.history) {
-		requestEngineRefresh();
+		refreshHistory();
 	}
 	if (wanted.collectibles) {
 		refreshCollectibles(true);

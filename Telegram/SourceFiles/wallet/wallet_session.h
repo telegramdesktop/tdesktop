@@ -135,6 +135,9 @@ struct SendArgs {
 [[nodiscard]] std::vector<TransferItem> HistoryFromEngine(
 	const std::vector<wallet_engine::ActivityItem> &items);
 
+[[nodiscard]] std::vector<TransferItem> HistoryFromServer(
+	const QVector<MTPWalletTransaction> &list);
+
 [[nodiscard]] std::vector<Gram::NftItem> CollectiblesFromEngine(
 	const wallet_engine::NftList &list);
 
@@ -216,11 +219,11 @@ private:
 	void applyStreamRefresh(StreamRefresh wanted);
 	void requestEngineRefresh();
 	void applyEngineUpdate(const wallet_engine::WalletUpdate &update);
-	void requestMoreActivity();
-	void applyEngineActivity(
-		const wallet_engine::WalletUpdate &update,
-		bool more);
 	void setHistory(std::vector<TransferItem> &&list);
+	void requestTransactions(bool more);
+	void applyTransactions(const MTPwallet_Transactions &result, bool more);
+	void finishHistoryWaiters();
+	void clearHistory();
 	void refreshCollectibles(bool force = false);
 	void requestCollectibles(bool more);
 	void applyCollectiblesUpdate(
@@ -258,6 +261,11 @@ private:
 	crl::time _stateRequestedAt = 0;
 	crl::time _stateRefreshedAt = 0;
 	int _stateFailures = 0;
+	// Set when the wallet cannot be read at all, from either of two sources:
+	// a wallet state that stayed unknown for kStateFailuresBeforeStated reads,
+	// or a failed first transaction page of a wallet that does exist. Both
+	// make the overview paint the unreachable face instead of the empty one.
+	// The public accessor keeps the state-only name it shipped with.
 	bool _stateUnreachable = false;
 	std::vector<TransferItem> _history;
 	rpl::event_stream<> _historyUpdates;
@@ -285,9 +293,14 @@ private:
 
 	int _pollingCount = 0;
 	int _networkGeneration = 0;
-	bool _historyRequestPending = false;
+	mtpRequestId _historyRequestId = 0;
 	bool _resolveRequestPending = false;
 	bool _engineRefreshPending = false;
+	bool _historySettled = false;
+	bool _historyUnreachable = false;
+	bool _historyPaged = false;
+	crl::time _historyRequestedAt = 0;
+	QString _historyNextOffset;
 	std::vector<Fn<void()>> _historyDone;
 
 	rpl::variable<SendState> _sendState = SendState::Idle;
