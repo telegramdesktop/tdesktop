@@ -535,14 +535,25 @@ pre-existing behavior and no coverage task is created for it.
 
 The same filter drops a re-run of portable behavior on a second host. An entry
 naming another platform survives only when the source diff carries one of the
-platform-sensitive mechanisms `pipeline.md` lists for `Unverified:` — the
-build/link/toolchain surface, `#ifdef` or platform-API code, filesystem path
-semantics, process/thread/event-loop ordering, or acceptance criteria stated
-per platform. Name that mechanism in the receipt. Portable C++, localization
-values, layout and pure logic are verified once on any capable host: record the
-entry as out of scope and create no task, however the source result worded its
-`Unverified:` line. One implement task must not spawn a family of
-verify-on-each-platform successors.
+non-trivial platform-specific mechanisms `pipeline.md` lists for `Unverified:`
+— `#ifdef` or platform-API code, filesystem path semantics,
+process/thread/event-loop ordering, or acceptance criteria stated per platform
+— *and* the entry states a concrete reason to suspect that platform gets it
+wrong. Name that mechanism and that suspicion in the receipt. The bare
+existence of a platform-specific surface is not a suspicion.
+
+Never route a task whose purpose is to confirm that another platform still
+builds or links. Every platform is built and tested before anything merges to
+`dev` or ships, so a build break surfaces there immediately and for free,
+while the task costs hours. This covers a dependency or submodule pin that
+another platform's toolchain consumes, compiler flags and their diagnostics,
+CMake platform branches, and ABI or symbol resolution — however the source
+result worded its `Unverified:` line, and even when a capable host is idle.
+Record it in the discovery receipt only.
+
+Portable C++, localization values, layout and pure logic are verified once on
+any capable host: record the entry as out of scope and create no task. One
+implement task must not spawn a family of verify-on-each-platform successors.
 
 Untested code the run passed on the way, a neighbouring feature, a parameter range the acceptance
 never named, a pre-existing bug the performer noticed: record the observation in

@@ -865,20 +865,30 @@ routable — the exact behavior that shipped without verification, and precisely
 what closing it would require — so the scheduler can record it rather than
 queueing work that would be unstartable the moment it entered the queue.
 
-Another platform or architecture qualifies only when the diff carries a
-platform-sensitive mechanism. Having executed on one host is not itself a gap.
+Another platform or architecture qualifies only when the diff carries
+non-trivial platform-specific code *and* you can state a concrete reason to
+suspect that platform gets it wrong. Having executed on one host is not itself
+a gap, and neither is the bare existence of a platform-specific surface.
 Portable C++, localization values, layout and styling, and pure logic behave
 the same everywhere the project builds, so one green run on any capable host
-verifies them and this line reads `none`. Name the mechanism before writing a
-platform exposure, and only these count:
+verifies them and this line reads `none`. Name the mechanism and the suspicion
+before writing a platform exposure, and only these count:
 
-- the build, link, or toolchain surface itself — compiler flags and the
-  diagnostics they enable, CMake platform branches, ABI and symbol resolution;
 - code under `#ifdef` or a platform API, including a platform-specific
   implementation of a portable interface;
 - filesystem path semantics, case sensitivity, file locking, permissions;
 - process, thread, or event-loop ordering, including teardown and shutdown;
 - anything the task's acceptance criteria state per platform.
+
+Whether the change still compiles and links on another platform is never such
+a gap. Every platform is built and tested before anything merges to `dev` or
+ships, and a build or link break is loud, immediate and free to find: the
+compiler names the file and the line the first time that platform builds.
+An `Unverified:` line for it buys a multi-hour task to learn what the next
+build reports in seconds. This holds for a dependency or submodule pin that
+another platform's toolchain consumes, for compiler flags and the diagnostics
+they enable, for CMake platform branches, and for ABI and symbol resolution.
+Say what moved in the result prose if it is worth saying; do not write it here.
 
 A diff with none of these is verified once. Do not write a platform exposure
 for it, and never write one merely because a batch plan named a host other
