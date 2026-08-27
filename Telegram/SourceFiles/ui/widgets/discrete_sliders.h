@@ -57,6 +57,13 @@ public:
 	// owners of a scrollable slider can bring that section into view.
 	[[nodiscard]] rpl::producer<int> accessibilitySectionBrowsed() const;
 
+	// Whether the arrows switch to the tab they land on right away (the
+	// default - native Windows tab controls do) or only browse, committing
+	// on Enter / Space. Turn it off where a switch is expensive or has side
+	// effects, like the folder tabs: they reload the whole chat list, and a
+	// locked premium folder opens an upsell on activation.
+	void setAccessibilityActivateOnBrowse(bool activate);
+
 	[[nodiscard]] int sectionsCount() const;
 	[[nodiscard]] int lookupSectionLeft(int index) const;
 
@@ -168,6 +175,7 @@ private:
 	int _selected = 0;
 	int _accessibilitySelected = -1;
 	quintptr _lastAccessibilityToken = 0;
+	bool _accessibilityActivateOnBrowse = true;
 	Ui::Animations::Simple _a_left;
 	Ui::Animations::Simple _a_width;
 

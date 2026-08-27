@@ -91,6 +91,10 @@ rpl::producer<int> DiscreteSlider::accessibilitySectionBrowsed() const {
 	return _accessibilitySectionBrowsed.events();
 }
 
+void DiscreteSlider::setAccessibilityActivateOnBrowse(bool activate) {
+	_accessibilityActivateOnBrowse = activate;
+}
+
 int DiscreteSlider::sectionsCount() const {
 	return int(_sections.size());
 }
@@ -240,9 +244,10 @@ void DiscreteSlider::mouseReleaseEvent(QMouseEvent *e) {
 	if (_selectOnPress || index == pressed) {
 		setActiveSection(index);
 		// With the focus here the arrows go on from the clicked section, so
-		// the browse position follows it, announced only if it moved. A
-		// click never takes the focus.
-		if (hasFocus()) {
+		// the browse position follows it, announced only if it moved - on a
+		// strip that activates on browse; an opted-out one keeps browsing
+		// apart from activation. A click never takes the focus.
+		if (hasFocus() && _accessibilityActivateOnBrowse) {
 			setAccessibilitySelected(index, Announce::OnChange);
 		}
 	}
@@ -321,12 +326,27 @@ void DiscreteSlider::keyPressEvent(QKeyEvent *e) {
 		browseAndActivate(0);
 	} else if (key == Qt::Key_End && count > 0) {
 		browseAndActivate(count - 1);
+	} else if (!e->isAutoRepeat()
+		&& !_accessibilityActivateOnBrowse
+		&& (key == Qt::Key_Space
+			|| key == Qt::Key_Return
+			|| key == Qt::Key_Enter)
+		&& _accessibilitySelected >= 0
+		&& _accessibilitySelected < count) {
+		// Only an opted-out strip needs the explicit commit step.
+		activateSectionByAccessibility(_accessibilitySelected);
 	} else {
 		RpWidget::keyPressEvent(e);
 	}
 }
 
 void DiscreteSlider::browseAndActivate(int index) {
+	// An opted-out strip (see setAccessibilityActivateOnBrowse) only moves
+	// the browse position, keeping activation on Enter / Space.
+	if (!_accessibilityActivateOnBrowse) {
+		setAccessibilitySelected(index, Announce::Always);
+		return;
+	}
 	// A native Windows tab control switches to the tab the arrows land on
 	// right away, with no separate Enter / Space step, and what the screen
 	// reader announces is the focus moving onto that tab - which by then
