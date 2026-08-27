@@ -51,13 +51,16 @@ void LogSettle(const QString &name, bool settled) {
 		.arg(WalletRefreshSettleDetails(name)));
 }
 
+// The observation is deliberately not printed here: every caller passes
+// it to the neighbouring Check as its |details|, which the harness prints
+// on the passing verdict too, so noting it would log the same reading
+// twice. Only the label and the state name are carried nowhere else.
 void NoteVerdict(
 		const QString &label,
 		const WalletRefreshVerdict &verdict) {
-	Note(u"wallet readiness self-test: %1 state=%2 observation=%3"_q
+	Note(u"wallet readiness self-test: %1 state=%2"_q
 		.arg(label)
-		.arg(WalletRefreshStateName(verdict.state))
-		.arg(verdict.observation));
+		.arg(WalletRefreshStateName(verdict.state)));
 }
 
 [[nodiscard]] QString PublicReadOut(const Wallet::Session &wallet) {
@@ -291,10 +294,6 @@ void AppendWalletRefreshSelfTest(
 		.then = [=] {
 			const auto verdict = observe();
 			NoteVerdict(u"negative"_q, verdict);
-			Note(u"wallet readiness self-test: negative drained=%1 "
-				"drainedAfterMs=%2"_q
-				.arg(state->drained ? 1 : 0)
-				.arg(qint64(state->drainedAfterMs)));
 			Check(
 				verdict.state == WalletRefreshState::Unstamped,
 				u"the drained completion stamped neither wallet "
@@ -303,7 +302,6 @@ void AppendWalletRefreshSelfTest(
 					.arg(qint64(state->drainedAfterMs))
 					.arg(verdict.observation)
 					.arg(readOut()));
-			Note(readOut());
 		},
 		.timeout = crl::time(90000),
 		.timeoutDetails = [=] {
@@ -375,8 +373,6 @@ void AppendWalletRefreshSelfTest(
 				zeroed.observation);
 			const auto details = WalletRefreshSettleDetails(
 				u"self-test-unstarted"_q);
-			Note(u"wallet readiness self-test: refusal text unstarted %1"_q
-				.arg(details));
 			const auto explained = details.contains(
 				u"self-test-unstarted"_q)
 				&& details.contains(u"not started"_q);
