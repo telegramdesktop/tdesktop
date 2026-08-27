@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/side_bar_button.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
@@ -432,7 +433,13 @@ void ChatsFiltersTabs::contextMenuEvent(QContextMenuEvent *e) {
 		const auto browsed = accessibilityBrowsedSection();
 		const auto index = (browsed >= 0) ? browsed : activeSection();
 		if (!_lockedFrom || index < _lockedFrom) {
-			_contextMenuRequested.fire_copy(index);
+			_contextMenuRequested.fire({
+				.index = index,
+				.position = ContextMenuPosition(
+					this,
+					e,
+					accessibilityChildRect(index)),
+			});
 		}
 		return;
 	}
@@ -451,7 +458,10 @@ void ChatsFiltersTabs::contextMenuEvent(QContextMenuEvent *e) {
 		index++;
 		return true;
 	});
-	_contextMenuRequested.fire_copy(index);
+	_contextMenuRequested.fire({
+		.index = index,
+		.position = QCursor::pos(),
+	});
 }
 
 QString ChatsFiltersTabs::accessibilityChildName(int index) const {
@@ -489,7 +499,8 @@ void ChatsFiltersTabs::activateSectionByAccessibility(int index) {
 	}
 }
 
-rpl::producer<int> ChatsFiltersTabs::contextMenuRequested() const {
+auto ChatsFiltersTabs::contextMenuRequested() const
+-> rpl::producer<ChatsFiltersTabMenuRequest> {
 	return _contextMenuRequested.events();
 }
 
