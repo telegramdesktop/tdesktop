@@ -3955,7 +3955,9 @@ int LayoutBlocks(
 [[nodiscard]] const style::TextStyle &LaidOutFlowTextStyle(
 		const LaidOutBlock &block,
 		const style::Markdown &st) {
-	if (block.footer) {
+	if (block.quoteAuthor) {
+		return st.quoteAuthorStyle;
+	} else if (block.footer) {
 		return st.footer;
 	} else if (block.kind != PreparedBlockKind::Heading) {
 		return st.body;
