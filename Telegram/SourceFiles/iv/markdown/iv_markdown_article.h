@@ -415,6 +415,7 @@ public:
 	void invalidateLayout();
 	[[nodiscard]] int maxWidth() const;
 	[[nodiscard]] int lastLayoutWidth() const;
+	[[nodiscard]] int contentDemandedWidth() const;
 	[[nodiscard]] bool hasMissingMediaBlocks() const;
 	int resizeGetHeight(int width);
 	[[nodiscard]] auto countRevealLinesGeometry(int width)

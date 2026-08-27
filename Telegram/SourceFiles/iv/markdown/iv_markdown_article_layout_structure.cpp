@@ -4272,4 +4272,16 @@ int ArticleContentMaxRight(
 	return result;
 }
 
+int ArticleHorizontalOverflow(const std::vector<LaidOutBlock> &blocks) {
+	auto result = 0;
+	for (const auto &block : blocks) {
+		result = std::max({
+			result,
+			block.horizontalScrollMax,
+			ArticleHorizontalOverflow(block.children),
+		});
+	}
+	return result;
+}
+
 } // namespace Iv::Markdown
