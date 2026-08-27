@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <memory>
 #include <vector>
 
-class FileLoader;
 class Painter;
 
 namespace Data {
@@ -78,14 +77,34 @@ private:
 
 	void resolveFromRecord(
 		not_null<Entry*> entry,
+		const Gram::NftItem &record,
+		int generation);
+	void refreshFromCollectibles();
+	void refreshFromRecord(
+		not_null<Entry*> entry,
 		const Gram::NftItem &record);
-	void requestGift(not_null<Entry*> entry, const QString &slug);
+	bool applyRecord(
+		not_null<Entry*> entry,
+		const Gram::NftItem &record);
+	void startArtwork(not_null<Entry*> entry);
+	void clearArtwork(not_null<Entry*> entry);
+	void requestGift(
+		not_null<Entry*> entry,
+		const QString &slug,
+		int generation);
 	void startLoad(
-		std::unique_ptr<FileLoader> &slot,
+		not_null<Entry*> entry,
 		const QString &url,
+		int generation,
 		Fn<void(QByteArray)> done);
-	void startImageLoad(not_null<Entry*> entry, const QString &url);
-	void startDescriptorLoad(not_null<Entry*> entry, const QString &url);
+	void startImageLoad(
+		not_null<Entry*> entry,
+		const QString &url,
+		int generation);
+	void startDescriptorLoad(
+		not_null<Entry*> entry,
+		const QString &url,
+		int generation);
 	[[nodiscard]] Entry *find(const QString &item) const;
 	[[nodiscard]] const QImage &preparedFor(
 		not_null<Entry*> entry,
@@ -96,6 +115,7 @@ private:
 	void checkStartNext();
 	void startChain(not_null<Entry*> entry);
 	void finishChain(not_null<Entry*> entry, State state);
+	void requeue(not_null<Entry*> entry);
 	void scheduleTimeoutCheck();
 	void checkTimeouts();
 
@@ -104,6 +124,7 @@ private:
 	rpl::event_stream<QString> _changed;
 	rpl::event_stream<QString> _repaint;
 	base::flat_map<QString, std::unique_ptr<Entry>> _map;
+	rpl::lifetime _lifetime;
 
 	// The sticky lane is what a surface the user asked for waits on — a
 	// details box, an opened collectible. It is never pruned and is always

@@ -54,6 +54,20 @@ constexpr auto kChainTimeout = 60 * crl::time(1000);
 		: slug;
 }
 
+// The four members startArtwork()'s branches read. A record change that
+// leaves all four alone cannot change which gift or which descriptor the
+// entry would fetch, so re-queueing it could only re-issue a request that
+// already answered. This list exists to mirror the branch bodies below and
+// must be extended together with them.
+[[nodiscard]] bool SameArtworkSource(
+		const Gram::NftItem &was,
+		const Gram::NftItem &now) {
+	return (was.kind == now.kind)
+		&& (was.key == now.key)
+		&& (was.contentUri == now.contentUri)
+		&& (was.contentUriHttps == now.contentUriHttps);
+}
+
 [[nodiscard]] std::pair<QString, QString> SplitNumberTail(
 		const QString &name) {
 	const auto hash = name.lastIndexOf('#');
@@ -132,16 +146,22 @@ struct CollectibleMedia::Entry {
 	QString number;
 	QString collectionName;
 	QByteArray imageBytes;
+	int artworkGeneration = 0;
 	base::flat_map<int, QImage> prepared;
 	PaintRoundImageCallback giftPaint;
 	std::unique_ptr<FileLoader> loader;
 	crl::time deadline = 0;
 	State state = State::None;
+	bool sticky = false;
 };
 
 CollectibleMedia::CollectibleMedia(not_null<Main::Session*> session)
 : _session(session)
 , _timeoutTimer([=] { checkTimeouts(); }) {
+	_session->wallet().collectiblesUpdates(
+	) | rpl::on_next([=] {
+		refreshFromCollectibles();
+	}, _lifetime);
 }
 
 CollectibleMedia::~CollectibleMedia() {
@@ -168,6 +188,7 @@ not_null<CollectibleMedia::Entry*> CollectibleMedia::prepare(
 
 void CollectibleMedia::resolve(const QString &item) {
 	const auto entry = prepare(item);
+	entry->sticky = true;
 	if (entry->state != State::None
 		&& entry->state != State::Window
 		&& entry->state != State::Background) {
@@ -260,10 +281,11 @@ void CollectibleMedia::startChain(not_null<Entry*> entry) {
 	entry->state = State::Flight;
 	entry->deadline = crl::now() + kChainTimeout;
 	++_inFlight;
+	const auto generation = entry->artworkGeneration;
 	_session->wallet().resolveCollectibleInfo(
 		entry->address,
 		crl::guard(this, [=](const Gram::NftItem &record) {
-			resolveFromRecord(entry, record);
+			resolveFromRecord(entry, record, generation);
 		}));
 }
 
@@ -273,6 +295,25 @@ void CollectibleMedia::finishChain(not_null<Entry*> entry, State state) {
 	}
 	entry->state = state;
 	--_inFlight;
+	checkStartNext();
+}
+
+void CollectibleMedia::requeue(not_null<Entry*> entry) {
+	// A finished entry sits in no lane any more, so a refetch has to claim
+	// one again. The sticky claim is the only one that outlives a chain and
+	// is restored here; everything else goes to the background lane, out of
+	// which the list rebuild that follows the same update lifts the rows
+	// that are actually on screen back into the window.
+	if (entry->state == State::Flight) {
+		finishChain(entry, State::None);
+	}
+	if (entry->sticky) {
+		entry->state = State::Sticky;
+		_sticky.push_back(entry->address);
+	} else {
+		entry->state = State::Background;
+		_background.push_back(entry->address);
+	}
 	checkStartNext();
 }
 
@@ -320,30 +361,94 @@ void CollectibleMedia::checkTimeouts() {
 
 void CollectibleMedia::resolveFromRecord(
 		not_null<Entry*> entry,
-		const Gram::NftItem &record) {
-	if (entry->state != State::Flight) {
+		const Gram::NftItem &record,
+		int generation) {
+	// A refresh that lands mid-chain orphans this callback: it applies the
+	// fresh record itself, stamps a new generation and re-queues the entry,
+	// so the answer this chain was sent for describes a record that is gone
+	// and its slot has already been handed back.
+	if (entry->state != State::Flight
+		|| entry->artworkGeneration != generation) {
 		return;
-	}
-	if (record.address.isEmpty()) {
+	} else if (record.address.isEmpty()) {
 		finishChain(entry, State::None);
 		return;
 	}
+	applyRecord(entry, record);
+	startArtwork(entry);
+}
+
+void CollectibleMedia::refreshFromCollectibles() {
+	{
+		// Apply the whole update before draining the lanes: finishing an
+		// orphaned chain frees a slot, and starting the next chain from the
+		// middle of the loop would hand that slot to a row the loop has not
+		// reached yet, ahead of the ones it has already re-queued.
+		_starting = true;
+		const auto guard = gsl::finally([&] { _starting = false; });
+		for (const auto &item : _session->wallet().collectibles()) {
+			if (const auto entry = find(item.address)) {
+				refreshFromRecord(entry, item);
+			}
+		}
+	}
+	checkStartNext();
+}
+
+void CollectibleMedia::refreshFromRecord(
+		not_null<Entry*> entry,
+		const Gram::NftItem &record) {
+	if (applyRecord(entry, record)) {
+		requeue(entry);
+	}
+}
+
+bool CollectibleMedia::applyRecord(
+		not_null<Entry*> entry,
+		const Gram::NftItem &record) {
+	if (record == entry->record) {
+		return false;
+	}
+	const auto artwork = !SameArtworkSource(entry->record, record);
 	entry->record = record;
 	entry->fallback = FallbackTitle(record);
 	entry->collectionName = record.collectionName;
+	if (artwork) {
+		clearArtwork(entry);
+	}
 	_changed.fire_copy(entry->address);
+	if (artwork) {
+		_repaint.fire_copy(entry->address);
+	}
+	return artwork;
+}
+
+void CollectibleMedia::startArtwork(not_null<Entry*> entry) {
+	const auto &record = entry->record;
+	const auto generation = entry->artworkGeneration;
 	if (record.kind == Gram::NftKind::TelegramGift && !record.key.isEmpty()) {
-		requestGift(entry, record.key);
+		requestGift(entry, record.key, generation);
 	} else if (record.contentUriHttps) {
-		startDescriptorLoad(entry, record.contentUri);
+		startDescriptorLoad(entry, record.contentUri, generation);
 	} else {
 		finishChain(entry, State::Done);
 	}
 }
 
+void CollectibleMedia::clearArtwork(not_null<Entry*> entry) {
+	++entry->artworkGeneration;
+	entry->loader = nullptr;
+	entry->name.clear();
+	entry->number.clear();
+	entry->giftPaint = nullptr;
+	entry->imageBytes.clear();
+	entry->prepared.clear();
+}
+
 void CollectibleMedia::requestGift(
 		not_null<Entry*> entry,
-		const QString &slug) {
+		const QString &slug,
+		int generation) {
 	const auto session = _session;
 	const auto apply = [=](const std::shared_ptr<Data::UniqueGift> &unique) {
 		entry->giftPaint = GenerateGiftUniqueUserpicCallback(
@@ -361,7 +466,7 @@ void CollectibleMedia::requestGift(
 	};
 	const auto fallback = [=] {
 		if (entry->record.contentUriHttps) {
-			startDescriptorLoad(entry, entry->record.contentUri);
+			startDescriptorLoad(entry, entry->record.contentUri, generation);
 		} else {
 			finishChain(entry, State::Done);
 		}
@@ -370,6 +475,9 @@ void CollectibleMedia::requestGift(
 		MTP_string(slug)
 	)).done(crl::guard(this, [=](
 			const MTPpayments_UniqueStarGift &result) {
+		if (entry->artworkGeneration != generation) {
+			return;
+		}
 		const auto &data = result.data();
 		session->data().processUsers(data.vusers());
 		const auto gift = ::Api::FromTL(session, data.vgift());
@@ -380,15 +488,22 @@ void CollectibleMedia::requestGift(
 		}
 		apply(gift->unique);
 	})).fail(crl::guard(this, [=](const MTP::Error &) {
+		if (entry->artworkGeneration != generation) {
+			return;
+		}
 		fallback();
 	})).send();
 }
 
 void CollectibleMedia::startLoad(
-		std::unique_ptr<FileLoader> &slot,
+		not_null<Entry*> entry,
 		const QString &url,
+		int generation,
 		Fn<void(QByteArray)> done) {
-	slot = CreateFileLoader(
+	if (entry->artworkGeneration != generation) {
+		return;
+	}
+	entry->loader = CreateFileLoader(
 		_session,
 		DownloadLocation{ PlainUrlLocation{ url } },
 		Data::FileOrigin(),
@@ -400,23 +515,27 @@ void CollectibleMedia::startLoad(
 		LoadFromCloudOrLocal,
 		false,
 		0);
-	const auto raw = slot.get();
-	const auto clear = &slot;
+	const auto raw = entry->loader.get();
+	const auto finish = [=](QByteArray bytes) {
+		if (entry->artworkGeneration != generation) {
+			return;
+		}
+		crl::on_main(this, [=] {
+			if (entry->artworkGeneration == generation) {
+				entry->loader = nullptr;
+			}
+		});
+		done(bytes);
+	};
 	raw->updates() | rpl::on_next_error_done([] {
 	}, [=](FileLoader::Error error) {
-		crl::on_main(this, [=] {
-			*clear = nullptr;
-		});
-		done(QByteArray());
+		finish(QByteArray());
 	}, [=] {
-		crl::on_main(this, [=] {
-			*clear = nullptr;
-		});
 		// The loader dies on the next main loop turn and its bytes do not
 		// outlive it, so hand out a copy the consumer owns: the artwork is
 		// kept and decoded lazily, on the first paint of each thumbnail.
 		const auto &loaded = raw->bytes();
-		done(raw->cancelled()
+		finish(raw->cancelled()
 			? QByteArray()
 			: QByteArray(loaded.constData(), loaded.size()));
 	}, raw->lifetime());
@@ -425,11 +544,12 @@ void CollectibleMedia::startLoad(
 
 void CollectibleMedia::startImageLoad(
 		not_null<Entry*> entry,
-		const QString &url) {
+		const QString &url,
+		int generation) {
 	if (entry->state != State::Flight) {
 		return;
 	}
-	startLoad(entry->loader, url, [=](QByteArray bytes) {
+	startLoad(entry, url, generation, [=](QByteArray bytes) {
 		if (bytes.isEmpty()) {
 			finishChain(entry, State::Failed);
 			return;
@@ -444,11 +564,12 @@ void CollectibleMedia::startImageLoad(
 
 void CollectibleMedia::startDescriptorLoad(
 		not_null<Entry*> entry,
-		const QString &url) {
+		const QString &url,
+		int generation) {
 	if (entry->state != State::Flight) {
 		return;
 	}
-	startLoad(entry->loader, url, [=](QByteArray bytes) {
+	startLoad(entry, url, generation, [=](QByteArray bytes) {
 		const auto descriptor = Gram::ParseNftDescriptor(bytes);
 		if (!descriptor) {
 			finishChain(entry, State::Failed);
@@ -462,7 +583,7 @@ void CollectibleMedia::startDescriptorLoad(
 			return;
 		}
 		crl::on_main(this, [=] {
-			startImageLoad(entry, image);
+			startImageLoad(entry, image, generation);
 		});
 	});
 }
