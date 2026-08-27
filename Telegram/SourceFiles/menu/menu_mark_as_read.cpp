@@ -191,10 +191,7 @@ void AddChatListAction(
 		const Ui::Menu::MenuCallback &addAction,
 		Fn<Dialogs::UnreadState()> customUnreadState) {
 	// There is no async to make weak from controller.
-	const auto muted = MarkAsReadMutedMode();
-	const auto unreadState = (muted == MarkAsReadMuted::Skip)
-		? MarkAsReadUnreadState(list(), muted)
-		: customUnreadState
+	const auto unreadState = customUnreadState
 		? customUnreadState()
 		: list()->unreadState();
 	if (!unreadState.messages && !unreadState.marks && !unreadState.chats) {
@@ -204,7 +201,7 @@ void AddChatListAction(
 	auto callback = [=] {
 		if (unreadState.messages > kMaxUnreadWithoutConfirmation) {
 			auto boxCallback = [=](Fn<void()> &&close) {
-				MarkAsReadChatList(list(), muted);
+				MarkAsReadChatList(list());
 				close();
 			};
 			controller->show(
@@ -214,7 +211,7 @@ void AddChatListAction(
 				}),
 				Ui::LayerOption::CloseOther);
 		} else {
-			MarkAsReadChatList(list(), muted);
+			MarkAsReadChatList(list());
 		}
 	};
 	addAction(
