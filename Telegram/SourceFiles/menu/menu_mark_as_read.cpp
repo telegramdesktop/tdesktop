@@ -7,7 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "menu/menu_mark_as_read.h"
 
-#include "base/options.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "data/data_folder.h"
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
@@ -28,21 +29,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 
 namespace MarkAsReadMenu {
-
-const char kOptionMarkAsReadMutedChats[] = "mark-as-read-muted-chats";
-
 namespace {
 
 constexpr auto kMaxUnreadWithoutConfirmation = 1000;
 
-base::options::toggle MarkAsReadMutedChats({
-	.id = kOptionMarkAsReadMutedChats,
-	.name = "Mark muted chats as read",
-	.description = "Let \"Mark all chats as read\" read muted chats as well.",
-});
-
 [[nodiscard]] MarkAsReadMuted MarkAsReadMutedMode() {
-	return MarkAsReadMutedChats.value()
+	return Core::App().settings().includeMutedCounter()
 		? MarkAsReadMuted::Include
 		: MarkAsReadMuted::Skip;
 }

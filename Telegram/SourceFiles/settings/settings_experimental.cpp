@@ -45,7 +45,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "menu/menu_mark_as_read.h"
 #include "media/player/media_player_instance.h"
 #include "mtproto/session_private.h"
 #include "webview/webview_embed.h"
@@ -389,7 +388,6 @@ void SetupExperimental(
 				Dialogs::kOptionForumHideChatsList,
 				Dialogs::kOptionDialogsUnreadOnTop,
 				Dialogs::Ui::kOptionDialogsMuteIcon,
-				MarkAsReadMenu::kOptionMarkAsReadMutedChats,
 				kOptionUseNewChatView,
 				kOptionAutoScrollInactiveChat,
 				kModerateCommonGroups,

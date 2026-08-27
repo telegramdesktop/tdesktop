@@ -32,8 +32,6 @@ class SessionController;
 
 namespace MarkAsReadMenu {
 
-extern const char kOptionMarkAsReadMutedChats[];
-
 enum class MarkAsReadMuted : uchar {
 	Include,
 	Skip,
