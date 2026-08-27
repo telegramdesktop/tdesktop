@@ -38,6 +38,11 @@ struct SubsectionTabs {
 	bool reorder = false;
 };
 
+struct SubsectionTabMenuRequest {
+	int index = 0;
+	QPoint position; // Global coordinates for showing the menu.
+};
+
 class SubsectionButtonDelegate {
 public:
 	virtual bool buttonPaused() = 0;
@@ -110,7 +115,8 @@ public:
 
 	[[nodiscard]] int sectionsCount() const;
 	[[nodiscard]] rpl::producer<int> sectionActivated() const;
-	[[nodiscard]] rpl::producer<int> sectionContextMenu() const;
+	[[nodiscard]] auto sectionContextMenu() const
+		-> rpl::producer<SubsectionTabMenuRequest>;
 	[[nodiscard]] int lookupSectionPosition(int index) const;
 
 	bool buttonPaused() override;
@@ -191,7 +197,7 @@ protected:
 	bool _reorderAllowed = false;
 
 	rpl::event_stream<int> _sectionActivated;
-	rpl::event_stream<int> _sectionContextMenu;
+	rpl::event_stream<SubsectionTabMenuRequest> _sectionContextMenu;
 	Fn<bool()> _paused;
 
 	rpl::event_stream<ScrollToRequest> _requestShown;

@@ -342,9 +342,12 @@ void SubsectionTabs::setupSlider(
 		return _reordering > 0;
 	});
 
-	slider->sectionContextMenu() | rpl::on_next([=](int index) {
-		if (index >= 0 && index < _slice.size()) {
-			showThreadContextMenu(_slice[index].thread);
+	slider->sectionContextMenu() | rpl::on_next([=](
+			Ui::SubsectionTabMenuRequest request) {
+		if (request.index >= 0 && request.index < _slice.size()) {
+			showThreadContextMenu(
+				_slice[request.index].thread,
+				request.position);
 		}
 	}, slider->lifetime());
 
@@ -666,7 +669,9 @@ void SubsectionTabs::startFillingSlider(
 	startScrollChecking(scroll, slider, vertical);
 }
 
-void SubsectionTabs::showThreadContextMenu(not_null<Data::Thread*> thread) {
+void SubsectionTabs::showThreadContextMenu(
+		not_null<Data::Thread*> thread,
+		QPoint position) {
 	_menu = nullptr;
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		activeWidget(),
@@ -683,7 +688,7 @@ void SubsectionTabs::showThreadContextMenu(not_null<Data::Thread*> thread) {
 	if (_menu->empty()) {
 		_menu = nullptr;
 	} else {
-		_menu->popup(QCursor::pos());
+		_menu->popup(position);
 	}
 }
 

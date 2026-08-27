@@ -118,7 +118,9 @@ private:
 		not_null<Ui::ScrollArea*> scroll,
 		not_null<Ui::SubsectionSlider*> slider,
 		bool vertical);
-	void showThreadContextMenu(not_null<Data::Thread*> thread);
+	void showThreadContextMenu(
+		not_null<Data::Thread*> thread,
+		QPoint position);
 	void applyReorder(
 		not_null<Ui::RpWidget*> widget,
 		int oldPosition,

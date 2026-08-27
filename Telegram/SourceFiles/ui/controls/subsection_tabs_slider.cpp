@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_three_state_icon.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/screen_reader_mode.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/dynamic_image.h"
 #include "ui/unread_badge_paint.h"
@@ -788,7 +789,8 @@ rpl::producer<int> SubsectionSlider::sectionActivated() const {
 	return _sectionActivated.events();
 }
 
-rpl::producer<int> SubsectionSlider::sectionContextMenu() const {
+auto SubsectionSlider::sectionContextMenu() const
+-> rpl::producer<SubsectionTabMenuRequest> {
 	return _sectionContextMenu.events();
 }
 
@@ -866,7 +868,10 @@ void SubsectionSlider::buttonContextMenu(
 		&std::unique_ptr<SubsectionButton>::get);
 	Assert(i != end(_tabs));
 
-	_sectionContextMenu.fire(int(i - begin(_tabs)));
+	_sectionContextMenu.fire({
+		.index = int(i - begin(_tabs)),
+		.position = ContextMenuPosition(button, e),
+	});
 	e->accept();
 }
 
