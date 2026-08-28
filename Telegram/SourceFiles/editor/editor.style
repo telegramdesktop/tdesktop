@@ -89,6 +89,9 @@ photoEditorStickersButton: IconButton(photoEditorRotateButton) {
 }
 photoEditorStickersIconActive: icon {{ "settings/settings_stickers", photoEditorButtonIconFgActive }};
 
+photoEditorTextButtonSize: size(42px, 42px);
+photoEditorTextButtonGlyphSkip: 3px;
+
 photoEditorShapesButton: IconButton(photoEditorRotateButton) {
 	icon: icon {{ "photo_editor/shapes-28x28", photoEditorButtonIconFg }};
 	iconOver: icon {{ "photo_editor/shapes-28x28", photoEditorButtonIconFgOver }};
