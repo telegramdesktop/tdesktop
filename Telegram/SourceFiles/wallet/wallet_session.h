@@ -51,6 +51,20 @@ struct WalletCapabilities {
 	bool canExportPhrase = false;
 };
 
+// The two terms the overview's empty face takes from the lists gate. One
+// updateListsGate() call can change both, and the face is derived through a
+// single rpl::combine argument, so publishing them as one value is what
+// keeps a face from being resolved once from a new term against a stale one
+// before the second arrives.
+struct ListsEmptyState {
+	bool confirmedEmpty = false;
+	bool unreachable = false;
+
+	friend bool operator==(
+		const ListsEmptyState &,
+		const ListsEmptyState &) = default;
+};
+
 enum class AccountStatus {
 	NonExisting,
 	Uninit,
@@ -169,8 +183,7 @@ public:
 	[[nodiscard]] rpl::producer<> historyUpdates() const;
 	[[nodiscard]] bool listsGated() const;
 	[[nodiscard]] rpl::producer<bool> listsGatedValue() const;
-	[[nodiscard]] rpl::producer<bool> listsConfirmedEmptyValue() const;
-	[[nodiscard]] rpl::producer<bool> stateUnreachableValue() const;
+	[[nodiscard]] rpl::producer<ListsEmptyState> listsEmptyStateValue() const;
 
 	void refreshHistory(Fn<void()> done = nullptr);
 	[[nodiscard]] bool historyHasNext() const;
@@ -266,7 +279,6 @@ private:
 	// a failed first transaction page of a wallet that does exist, or a wallet
 	// state whose address the parser refused. All three make the overview
 	// paint the unreachable face instead of the empty one.
-	// The public accessor keeps the state-only name it shipped with.
 	bool _stateUnreachable = false;
 	std::vector<TransferItem> _history;
 	rpl::event_stream<> _historyUpdates;

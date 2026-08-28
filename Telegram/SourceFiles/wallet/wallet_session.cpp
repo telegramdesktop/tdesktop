@@ -1123,21 +1123,16 @@ rpl::producer<bool> Session::listsGatedValue() const {
 	return _listsGated.value();
 }
 
-rpl::producer<bool> Session::stateUnreachableValue() const {
-	return rpl::single(rpl::empty) | rpl::then(
-		_listsStateUpdates.events()
-	) | rpl::map([=, this] {
-		return _stateUnreachable;
-	}) | rpl::distinct_until_changed();
-}
-
-rpl::producer<bool> Session::listsConfirmedEmptyValue() const {
+rpl::producer<ListsEmptyState> Session::listsEmptyStateValue() const {
 	return rpl::single(rpl::empty) | rpl::then(rpl::merge(
 		historyUpdates(),
 		collectiblesUpdates(),
 		_listsStateUpdates.events()
 	)) | rpl::map([=, this] {
-		return listsConfirmedEmpty();
+		return ListsEmptyState{
+			.confirmedEmpty = listsConfirmedEmpty(),
+			.unreachable = _stateUnreachable,
+		};
 	}) | rpl::distinct_until_changed();
 }
 

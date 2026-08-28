@@ -4467,20 +4467,18 @@ void Content::setupContent() {
 	auto emptyFace = rpl::combine(
 		HistoryShownValue(&_show->session()),
 		wallet->collectiblesTabValue(),
-		wallet->listsConfirmedEmptyValue(),
-		wallet->presenceValue(),
-		wallet->stateUnreachableValue()
+		wallet->listsEmptyStateValue(),
+		wallet->presenceValue()
 	) | rpl::map([](
 			bool history,
 			bool collectibles,
-			bool confirmedEmpty,
-			Presence presence,
-			bool unreachable) {
-		return (!confirmedEmpty || history || collectibles)
+			ListsEmptyState lists,
+			Presence presence) {
+		return (!lists.confirmedEmpty || history || collectibles)
 			? EmptyFace::None
 			: (presence == Presence::Unavailable)
 			? EmptyFace::Unavailable
-			: (unreachable || (presence == Presence::AddressUnreadable))
+			: (lists.unreachable || (presence == Presence::AddressUnreadable))
 			? EmptyFace::Unreachable
 			: EmptyFace::About;
 	});
