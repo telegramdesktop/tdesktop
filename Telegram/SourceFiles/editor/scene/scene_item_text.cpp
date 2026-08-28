@@ -346,9 +346,8 @@ void ItemText::renderContent() {
 	const auto pixWidth = m.contentWidth + 2 * m.padding;
 	const auto pixHeight = m.contentHeight + 2 * m.padding;
 
-	auto textColor = _color;
+	const auto textColor = EffectiveTextColor(_color, _textStyle);
 	auto bgColor = QColor(Qt::transparent);
-	const auto brightness = ComputeBrightness(_color);
 	const auto hasBackground =
 		(_textStyle == TextStyle::Framed)
 		|| (_textStyle == TextStyle::SemiTransparent);
@@ -356,12 +355,10 @@ void ItemText::renderContent() {
 	switch (_textStyle) {
 	case TextStyle::Framed:
 		bgColor = _color;
-		textColor = (brightness >= kBrightnessFramedThreshold)
-			? QColor(0, 0, 0)
-			: QColor(255, 255, 255);
 		break;
 	case TextStyle::SemiTransparent:
-		bgColor = (brightness >= kBrightnessSemiTransparentThreshold)
+		bgColor = (ComputeBrightness(_color)
+				>= kBrightnessSemiTransparentThreshold)
 			? QColor(0, 0, 0, kSemiTransparentAlpha)
 			: QColor(255, 255, 255, kSemiTransparentAlpha);
 		break;
