@@ -756,7 +756,14 @@ void Session::applyTransactions(
 	_historyHasNext = !_historyNextOffset.isEmpty();
 	_historyRefreshedAt = crl::now();
 	_historyUnreachable = false;
-	_historyPaged = more && (_panel != nullptr);
+	// checkLoadMore() pages only the transactions tab, but the answer is a
+	// round trip late, so a page landing after the reader moved to
+	// Collectibles would re-arm the term setCollectiblesTab() just released
+	// and refuse the head refresh for a list nobody is looking at.
+	// collectiblesTab() is the effective selection, never the raw request.
+	_historyPaged = more
+		&& (_panel != nullptr)
+		&& !collectiblesTab();
 	auto loaded = HistoryFromServer(data.vtransactions().v);
 	if (more) {
 		if (!loaded.empty()) {
@@ -1150,6 +1157,8 @@ void Session::setCollectiblesTab(bool value) {
 	// so the head refresh a switch releases truncates nothing the reader
 	// can still see. The clear follows tab, the effective selection, so
 	// asking for a tab that cannot be shown deselects and clears nothing.
+	// applyTransactions() reads that same effective selection before it
+	// arms the history term, so a page landing later cannot undo this clear.
 	if (tab) {
 		_historyPaged = false;
 	} else {

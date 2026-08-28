@@ -321,6 +321,19 @@ private:
 	return groups.join(QChar(' '));
 }
 
+// The sheet's address presentation is the friendly form, so a raw address
+// the engine cannot convert is a reading this sheet does not have and
+// builds no row, exactly as an Absent answer builds none. Substituting the
+// raw form would show a different kind of address without saying so.
+[[nodiscard]] std::optional<QString> DetailsFriendlyAddress(
+		const QString &raw) {
+	const auto friendly = FormatFriendly(raw, true);
+	if (friendly.isEmpty()) {
+		return std::nullopt;
+	}
+	return friendly;
+}
+
 [[nodiscard]] TextWithEntities DetailsAddressValue(
 		const QString &address) {
 	auto result = tr::marked();
@@ -1265,11 +1278,9 @@ void AddPeerCounterpartyRows(
 		if (answer.state != UserAddressState::Known) {
 			return;
 		}
-		InsertAddressTableRow(
-			table,
-			position,
-			show,
-			FormatFriendly(answer.address, true));
+		if (const auto address = DetailsFriendlyAddress(answer.address)) {
+			InsertAddressTableRow(table, position, show, *address);
+		}
 	}));
 }
 
@@ -1292,28 +1303,29 @@ void AddDetailsTable(
 	}, wrap->lifetime());
 	const auto table = wrap->entity();
 	if (!item.counterparty.isEmpty()) {
-		const auto address = FormatFriendly(item.counterparty, true);
-		auto label = (item.incoming
-			? tr::lng_wallet_details_sender()
-			: tr::lng_wallet_details_recipient());
-		if (item.counterpartyName.isEmpty()) {
-			Ui::AddTableRow(
-				table,
-				std::move(label),
-				AddressValueLabel(table, box->uiShow(), address));
-		} else {
-			Ui::AddTableRow(
-				table,
-				std::move(label),
-				NameValueLabel(
+		if (const auto address = DetailsFriendlyAddress(item.counterparty)) {
+			auto label = (item.incoming
+				? tr::lng_wallet_details_sender()
+				: tr::lng_wallet_details_recipient());
+			if (item.counterpartyName.isEmpty()) {
+				Ui::AddTableRow(
 					table,
-					box->uiShow(),
-					item.counterpartyName,
-					address));
-			Ui::AddTableRow(
-				table,
-				tr::lng_wallet_details_address(),
-				AddressValueLabel(table, box->uiShow(), address));
+					std::move(label),
+					AddressValueLabel(table, box->uiShow(), *address));
+			} else {
+				Ui::AddTableRow(
+					table,
+					std::move(label),
+					NameValueLabel(
+						table,
+						box->uiShow(),
+						item.counterpartyName,
+						*address));
+				Ui::AddTableRow(
+					table,
+					tr::lng_wallet_details_address(),
+					AddressValueLabel(table, box->uiShow(), *address));
+			}
 		}
 	} else if (item.kind == TransferItem::Kind::PeerTransfer
 		&& item.counterpartyPeer) {
