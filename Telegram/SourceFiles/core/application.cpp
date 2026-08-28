@@ -371,6 +371,9 @@ void Application::run() {
 	}, _lifetime);
 
 	DEBUG_LOG(("Application Info: inited..."));
+	LOG(("Qt version: %1 (compiled with %2)").arg(
+		QString::fromLatin1(qVersion()),
+		QString::fromLatin1(QT_VERSION_STR)));
 
 	DEBUG_LOG(("Application Info: starting app..."));
 
