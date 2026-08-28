@@ -45,7 +45,8 @@ public:
 	void resolve(std::vector<UserId> ids, Fn<void()> done);
 
 	// Unknown for an id no source has answered for, including one
-	// Data::Session cannot hand back, which is never sent.
+	// Data::Session cannot hand back, which is never sent. A chunk already
+	// in flight never overwrites an answer that landed after it was sent.
 	[[nodiscard]] UserAddress known(UserId id) const;
 
 	// True once the API refused this account. That is a fact about the

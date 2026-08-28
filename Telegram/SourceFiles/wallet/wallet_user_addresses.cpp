@@ -141,11 +141,19 @@ void UserAddresses::sendChunk(
 	}).send();
 }
 
+// A chunk's answer is only as fresh as the moment the chunk was sent.
+// resolve() sends an id only while nothing has answered about it, and an
+// answer is never taken back, so a value engaged when the reply lands was
+// written after this chunk left and is the newer answer — it wins for
+// every id the chunk answers about, not only the ones its reply stayed
+// silent about. A chunk's silence still records absence for every id that
+// is still unanswered when the reply lands.
 void UserAddresses::applyChunk(
 		const std::vector<UserId> &asked,
 		const QVector<MTPWalletUserAddress> &reply) {
 	for (const auto &[id, address] : ChunkAnswer(asked, reply)) {
-		if (const auto user = _session->data().userLoaded(id)) {
+		const auto user = _session->data().userLoaded(id);
+		if (user && !user->gramAddress()) {
 			user->setGramAddress(address);
 		}
 	}
