@@ -522,7 +522,11 @@ void Launcher::initQtMessageLogging() {
 		if (OriginalMessageHandler) {
 			OriginalMessageHandler(type, context, msg);
 		}
-		if (Logs::DebugEnabled() || !Logs::started()) {
+		// Warnings carry RHI and DirectComposition diagnostics of user reports.
+		if (Logs::DebugEnabled()
+			|| !Logs::started()
+			|| type == QtWarningMsg
+			|| type == QtCriticalMsg) {
 			if (!Logs::WritingEntry()) {
 				// Sometimes Qt logs something inside our own logging.
 				LOG((msg));
