@@ -930,7 +930,7 @@ void Scene::setupTextProxy(
 
 void Scene::createTextAtCenter(int rotation, bool flipped) {
 	if (_textEdit.proxy) {
-		return;
+		finishTextEditing(true);
 	}
 
 	const auto generation = ++_textEditGeneration;
