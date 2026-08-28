@@ -1,3 +1,7 @@
+7.2 (28.08.26)
+
+- First version of v2 update system.
+
 7.1.5 (02.09.26)
 
 - Fix crash on Linux.
