@@ -1248,10 +1248,15 @@ TranscodeResult TranscodeVideo(
 		? PtsToTime(input->duration, kUniversalTimeBase)
 		: crl::time(0);
 
+	// Container duration counts audio tail, editor timeline does not.
+	const auto shownDuration = (inVideoStream->duration != AV_NOPTS_VALUE)
+		? PtsToTime(inVideoStream->duration, inVideoStream->time_base)
+		: totalDuration;
+
 	const auto from = std::max(source.from, crl::time(0));
 	const auto till = (source.till > from) ? source.till : crl::time(0);
 	const auto trimmed = (from > 0)
-		|| (till > 0 && (!totalDuration || till < totalDuration));
+		|| (till > 0 && (!shownDuration || till < shownDuration));
 	const auto span = till
 		? (till - from)
 		: ((totalDuration > from) ? (totalDuration - from) : crl::time(0));
