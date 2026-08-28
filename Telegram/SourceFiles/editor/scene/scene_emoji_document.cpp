@@ -97,6 +97,71 @@ void ReplaceEmoji(QTextDocument *doc) {
 	cursor.endEditBlock();
 }
 
+void SanitizeRange(QTextDocument *doc, int from, int to) {
+	to = std::min(to, doc->characterCount() - 1);
+	if (from >= to) {
+		return;
+	}
+	QSignalBlocker blocker(doc);
+	auto cursor = QTextCursor(doc);
+	cursor.joinPreviousEditBlock();
+
+	struct Range {
+		int from = 0;
+		int to = 0;
+	};
+	auto resets = std::vector<Range>();
+	auto removals = std::vector<int>();
+	auto block = doc->findBlock(from);
+	while (block.isValid() && (block.position() < to)) {
+		auto it = block.begin();
+		while (!it.atEnd()) {
+			const auto fragment = it.fragment();
+			++it;
+			if (!fragment.isValid()) {
+				continue;
+			}
+			const auto start = fragment.position();
+			const auto end = start + fragment.length();
+			if ((end <= from) || (start >= to)) {
+				continue;
+			}
+			const auto format = fragment.charFormat();
+			if (format.isImageFormat()
+				&& Ui::Emoji::FromUrl(format.toImageFormat().name())) {
+				continue;
+			}
+			resets.push_back({
+				.from = std::max(start, from),
+				.to = std::min(end, to),
+			});
+			const auto text = fragment.text();
+			for (auto i = 0; i != int(text.size()); ++i) {
+				if (text[i] == QChar::ObjectReplacementCharacter) {
+					removals.push_back(start + i);
+				}
+			}
+		}
+		block = block.next();
+	}
+	for (const auto &range : resets) {
+		cursor.setPosition(range.from);
+		cursor.setPosition(range.to, QTextCursor::KeepAnchor);
+		cursor.setCharFormat(QTextCharFormat());
+	}
+	if (!resets.empty()) {
+		cursor.setPosition(from);
+		cursor.setPosition(to, QTextCursor::KeepAnchor);
+		cursor.setBlockFormat(QTextBlockFormat());
+	}
+	for (auto i = removals.rbegin(); i != removals.rend(); ++i) {
+		cursor.setPosition(*i);
+		cursor.setPosition(*i + 1, QTextCursor::KeepAnchor);
+		cursor.removeSelectedText();
+	}
+	cursor.endEditBlock();
+}
+
 QString RecoverTextFromDocument(QTextDocument *doc) {
 	auto result = QString();
 	auto block = doc->begin();
@@ -119,9 +184,9 @@ QString RecoverTextFromDocument(QTextDocument *doc) {
 						const auto name = format.toImageFormat().name();
 						if (const auto emoji = Ui::Emoji::FromUrl(name)) {
 							result += emoji->text();
-							continue;
 						}
 					}
+					continue;
 				}
 				result += ch;
 			}

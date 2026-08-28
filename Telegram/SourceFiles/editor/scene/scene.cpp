@@ -982,10 +982,14 @@ void Scene::createTextAtCenter(int rotation, bool flipped) {
 	adjustWidth();
 	proxy->setRotation(flipped ? -rotation : rotation);
 
-	QObject::connect(emojiDoc, &QTextDocument::contentsChanged, [=] {
-		ReplaceEmoji(emojiDoc);
-		adjustWidth();
-	});
+	QObject::connect(
+		emojiDoc,
+		&QTextDocument::contentsChange,
+		[=](int position, int removed, int added) {
+			SanitizeRange(emojiDoc, position, position + added);
+			ReplaceEmoji(emojiDoc);
+			adjustWidth();
+		});
 
 	QGraphicsScene::addItem(proxy);
 	proxy->setZValue((*_lastZ)++);
@@ -1067,10 +1071,14 @@ void Scene::startTextEditing(ItemText *item) {
 	};
 	adjustWidth();
 
-	QObject::connect(emojiDoc, &QTextDocument::contentsChanged, [=] {
-		ReplaceEmoji(emojiDoc);
-		adjustWidth();
-	});
+	QObject::connect(
+		emojiDoc,
+		&QTextDocument::contentsChange,
+		[=](int position, int removed, int added) {
+			SanitizeRange(emojiDoc, position, position + added);
+			ReplaceEmoji(emojiDoc);
+			adjustWidth();
+		});
 
 	const auto scale = item->scale() * item->editScale();
 	proxy->setRotation(flipped ? -item->rotation() : item->rotation());
