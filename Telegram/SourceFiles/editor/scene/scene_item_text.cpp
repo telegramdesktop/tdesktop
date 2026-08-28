@@ -71,20 +71,13 @@ struct PreparedLayout {
 		const QSize &imageSize,
 		TextStyle style,
 		const QVector<QTextLayout::FormatRange> &formats = {}) {
-	const auto hasBackground = (style == TextStyle::Framed)
-		|| (style == TextStyle::SemiTransparent);
-	const auto padding = hasBackground ? int(fontSize * kPaddingFactor) : 0;
-	const auto shortSide = std::min(imageSize.width(), imageSize.height());
-	const auto textMaxWidth = std::max(
-		int(shortSide * kMaxWidthFactor) - 2 * padding,
-		kMinContentWidth);
+	const auto spec = ComputeTextLayoutSpec(fontSize, imageSize, style);
+	const auto textMaxWidth = spec.maxTextWidth;
 
 	auto option = QTextOption();
 	option.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
 
-	auto layout = std::make_unique<QTextLayout>(
-		processedText,
-		TextFont(fontSize));
+	auto layout = std::make_unique<QTextLayout>(processedText, spec.font);
 	layout->setTextOption(option);
 	if (!formats.isEmpty()) {
 		layout->setFormats(formats);
@@ -112,7 +105,7 @@ struct PreparedLayout {
 				int(std::ceil(maxWidth)),
 				kMinContentWidth),
 			.contentHeight = int(std::ceil(totalHeight)),
-			.padding = padding,
+			.padding = spec.padding,
 			.textMaxWidth = textMaxWidth,
 		},
 	};
@@ -268,6 +261,23 @@ QPainterPath BuildConnectedBackground(
 }
 
 } // namespace
+
+TextLayoutSpec ComputeTextLayoutSpec(
+		float64 fontSize,
+		const QSize &imageSize,
+		TextStyle style) {
+	const auto hasBackground = (style == TextStyle::Framed)
+		|| (style == TextStyle::SemiTransparent);
+	const auto padding = hasBackground ? int(fontSize * kPaddingFactor) : 0;
+	const auto shortSide = std::min(imageSize.width(), imageSize.height());
+	return {
+		.font = TextFont(fontSize),
+		.padding = padding,
+		.maxTextWidth = std::max(
+			int(shortSide * kMaxWidthFactor) - 2 * padding,
+			kMinContentWidth),
+	};
+}
 
 QColor EffectiveTextColor(const QColor &color, TextStyle style) {
 	if (style != TextStyle::Framed) {

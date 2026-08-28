@@ -153,8 +153,6 @@ bool SkipMouseEvent(not_null<QGraphicsSceneMouseEvent*> event) {
 	return event->isAccepted() || (event->button() == Qt::RightButton);
 }
 
-constexpr auto kPaddingFactor = 0.4;
-constexpr auto kMaxWidthFactor = 0.8;
 constexpr auto kMinWidthFactor = 0.16;
 constexpr auto kIdealWidthExtra = 2;
 constexpr auto kScaleThreshold = 0.01;
@@ -908,22 +906,19 @@ void Scene::setTextEditing(bool editing, bool notify) {
 void Scene::setupTextProxy(
 		QGraphicsTextItem *proxy,
 		const QColor &color,
-		float64 fontSize) {
+		const TextLayoutSpec &spec) {
 	proxy->setTextInteractionFlags(Qt::TextEditorInteraction);
 	proxy->setDefaultTextColor(color);
 
 	auto *emojiDoc = new EmojiDocument(proxy);
 	emojiDoc->setDocumentMargin(0);
 	proxy->setDocument(emojiDoc);
-
-	auto font = QFont();
-	font.setPixelSize(int(fontSize));
-	font.setWeight(QFont::DemiBold);
-	proxy->setFont(font);
+	proxy->setFont(spec.font);
 
 	{
 		auto option = emojiDoc->defaultTextOption();
 		option.setAlignment(Qt::AlignCenter);
+		option.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
 		emojiDoc->setDefaultTextOption(option);
 	}
 }
@@ -941,23 +936,25 @@ void Scene::createTextAtCenter(int rotation, bool flipped) {
 	_textEditStyle = _textStyle;
 	_textEdit.flipped = flipped;
 
+	const auto spec = ComputeTextLayoutSpec(
+		_textFontSize,
+		sceneRect().size().toSize(),
+		_textEditStyle);
+
 	_textEdit.proxy.reset(new TextEditProxy());
 	const auto proxy = _textEdit.proxy.get();
 	setupTextProxy(
 		proxy,
 		EffectiveTextColor(_textColor, _textEditStyle),
-		_textFontSize);
+		spec);
 
 	const auto emojiDoc = proxy->document();
 	const auto shortSide = std::min(
 		sceneRect().width(),
 		sceneRect().height());
-	const auto padding = int(_textFontSize * kPaddingFactor);
-	const auto maxTextWidth = std::max(
-		int(shortSide * kMaxWidthFactor) - 2 * padding,
-		1);
+	const auto maxTextWidth = spec.maxTextWidth;
 	const auto minTextWidth = std::clamp(
-		int(shortSide * kMinWidthFactor) - 2 * padding,
+		int(shortSide * kMinWidthFactor) - 2 * spec.padding,
 		1,
 		maxTextWidth);
 	const auto sceneCenter = sceneRect().center();
@@ -1031,12 +1028,17 @@ void Scene::startTextEditing(ItemText *item) {
 	_textEditStyle = item->textStyle();
 	_textEdit.flipped = item->flipped();
 
+	const auto spec = ComputeTextLayoutSpec(
+		item->fontSize(),
+		sceneRect().size().toSize(),
+		item->textStyle());
+
 	_textEdit.proxy.reset(new TextEditProxy());
 	const auto proxy = _textEdit.proxy.get();
 	setupTextProxy(
 		proxy,
 		EffectiveTextColor(item->color(), item->textStyle()),
-		item->fontSize());
+		spec);
 
 	proxy->setPlainText(item->text());
 	ReplaceEmoji(proxy->document());
@@ -1045,12 +1047,9 @@ void Scene::startTextEditing(ItemText *item) {
 	const auto shortSide = std::min(
 		sceneRect().width(),
 		sceneRect().height());
-	const auto padding = int(item->fontSize() * kPaddingFactor);
-	const auto maxTextWidth = std::max(
-		int(shortSide * kMaxWidthFactor) - 2 * padding,
-		1);
+	const auto maxTextWidth = spec.maxTextWidth;
 	const auto minTextWidth = std::clamp(
-		int(shortSide * kMinWidthFactor) - 2 * padding,
+		int(shortSide * kMinWidthFactor) - 2 * spec.padding,
 		1,
 		maxTextWidth);
 	const auto anchor = item->scenePos();

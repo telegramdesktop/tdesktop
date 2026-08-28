@@ -18,6 +18,17 @@ namespace Editor {
 
 [[nodiscard]] QColor EffectiveTextColor(const QColor &color, TextStyle style);
 
+struct TextLayoutSpec {
+	QFont font;
+	int padding = 0;
+	int maxTextWidth = 0;
+};
+
+[[nodiscard]] TextLayoutSpec ComputeTextLayoutSpec(
+	float64 fontSize,
+	const QSize &imageSize,
+	TextStyle style);
+
 class ItemText : public ItemBase {
 public:
 	enum { Type = ItemBase::Type + 2 };

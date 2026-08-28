@@ -26,6 +26,7 @@ class ItemCanvas;
 class ItemShape;
 class ItemText;
 class NumberedItem;
+struct TextLayoutSpec;
 
 class Scene final : public QGraphicsScene {
 public:
@@ -122,7 +123,7 @@ private:
 	void setupTextProxy(
 		QGraphicsTextItem *proxy,
 		const QColor &color,
-		float64 fontSize);
+		const TextLayoutSpec &spec);
 
 	const std::shared_ptr<ItemCanvas> _canvas;
 	const std::shared_ptr<float64> _lastZ;
