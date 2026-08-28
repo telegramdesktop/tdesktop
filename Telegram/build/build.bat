@@ -143,7 +143,7 @@ if %BetaChannel% neq 0 (
 set "IsccNameParam="
 if "%TDESKTOP_RELEASE_KEYVAULT%" equ "" set "TDESKTOP_RELEASE_KEYVAULT=tdesktop-release-kv"
 if "%TDESKTOP_RELEASE_CLOUD_KEY_ID%" equ "" set "TDESKTOP_RELEASE_CLOUD_KEY_ID=rc-2026a"
-if "%TDESKTOP_RELEASE_LOCAL_KEY%" equ "" set "TDESKTOP_RELEASE_LOCAL_KEY=%HomePath%\..\..\DesktopPrivate\release-local.pem"
+if "%TDESKTOP_RELEASE_LOCAL_KEY%" equ "" set "TDESKTOP_RELEASE_LOCAL_KEY=%HomePath%\..\..\DesktopPrivate\modern\release-local.pem"
 if "%TDESKTOP_RELEASE_LOCAL_KEY_ID%" equ "" set "TDESKTOP_RELEASE_LOCAL_KEY_ID=rl-2026a"
 if "%TDESKTOP_UPDATE_V2%" equ "1" (
   if %AlphaVersion% neq 0 (

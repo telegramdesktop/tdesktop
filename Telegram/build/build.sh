@@ -72,7 +72,7 @@ if [ "$TDESKTOP_UPDATE_V2" == "1" ]; then
     V2Suffix="-beta"
   fi
   UpdateKeysLoc="$FullScriptPath/../Resources/update"
-  ReleaseLocalKey="${TDESKTOP_RELEASE_LOCAL_KEY:-$FullScriptPath/../../../DesktopPrivate/release-local.pem}"
+  ReleaseLocalKey="${TDESKTOP_RELEASE_LOCAL_KEY:-$FullScriptPath/../../../DesktopPrivate/modern/release-local.pem}"
   ReleaseLocalKeyId="${TDESKTOP_RELEASE_LOCAL_KEY_ID:-rl-2026a}"
   ReleaseCloudVault="${TDESKTOP_RELEASE_KEYVAULT:-tdesktop-release-kv}"
   ReleaseCloudKeyId="${TDESKTOP_RELEASE_CLOUD_KEY_ID:-rc-2026a}"
