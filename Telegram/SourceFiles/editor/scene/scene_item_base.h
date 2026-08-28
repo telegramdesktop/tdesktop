@@ -120,7 +120,7 @@ protected:
 
 	using Action = void(ItemBase::*)();
 	void performForSelectedItems(Action action);
-	void actionFlip();
+	virtual void actionFlip();
 	void actionDelete();
 	void actionDuplicate();
 	void raiseToTop();

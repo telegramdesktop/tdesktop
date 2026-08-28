@@ -633,6 +633,9 @@ void ItemText::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 	_contextMenu->popup(event->screenPos());
 }
 
+void ItemText::actionFlip() {
+}
+
 void ItemText::performFlip() {
 	update();
 }

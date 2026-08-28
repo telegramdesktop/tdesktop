@@ -67,6 +67,7 @@ public:
 protected:
 	void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) override;
 	void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
+	void actionFlip() override;
 	void performFlip() override;
 	std::shared_ptr<ItemBase> duplicate(ItemBase::Data data) const override;
 
