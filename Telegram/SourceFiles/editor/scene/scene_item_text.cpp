@@ -490,17 +490,16 @@ void ItemText::paint(
 		).translated(
 			(rect.width() - pixmapSize.width()) / 2.,
 			(rect.height() - pixmapSize.height()) / 2.);
+		p->save();
+		p->setRenderHint(QPainter::SmoothPixmapTransform);
 		if (flipped()) {
-			p->save();
 			const auto center = resultRect.center();
 			p->translate(center);
 			p->scale(-1, 1);
 			p->translate(-center);
-			p->drawPixmap(resultRect.toRect(), _pixmap);
-			p->restore();
-		} else {
-			p->drawPixmap(resultRect.toRect(), _pixmap);
 		}
+		p->drawPixmap(resultRect, _pixmap, QRectF(_pixmap.rect()));
+		p->restore();
 	}
 	ItemBase::paint(p, option, w);
 }
