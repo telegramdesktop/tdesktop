@@ -67,6 +67,14 @@ This file adapts harness mechanics and removes unnecessary text normalization.
   passes that disagree is this failure, not a reviewer changing its mind:
   re-read it before acting, and never treat the last block as authoritative
   merely because it is last.
+- Verify any cross-task code claim on the current branch before asserting it in
+  a worker's prompt. A task reading `approved` means its AI record is approved
+  on canonical master; it does not mean its commit is on this source checkout's
+  branch, because another checkout may have performed it on its own. Telling a
+  performer that a defect is already fixed, or a symbol already present, when it
+  is not, invites a design built on a fact that is false here — `source-lineage`
+  covers declared `depends_on`, not the informal context a prompt carries.
+  Prefer naming the claim and asking the worker to check it.
 - If the first real leaf Agent is rejected before work begins because nested
   delegation is unavailable, use the shared same-session fallback. Do not
   treat mere presence of the Agent tool as a successful delegation probe.
