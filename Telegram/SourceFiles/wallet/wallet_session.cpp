@@ -535,6 +535,7 @@ void Session::setPresence(Presence presence) {
 		// refreshHistory() itself does for a presence that is not Ready.
 		clearHistory();
 		finishHistoryWaiters();
+		clearCollectibles();
 	}
 	updateListsGate();
 	updatePollingState();
@@ -585,14 +586,8 @@ void Session::clearNetworkState() {
 	_stateRefreshedAt = 0;
 	_stateFailures = 0;
 	clearHistory();
-	_collectibles.clear();
-	_collectiblesTab = false;
-	_collectiblesRefreshedAt = 0;
-	_collectiblesCompletedAt = 0;
 	_collectiblesRequestPending = false;
-	_collectiblesHasMore = false;
-	_collectiblesPaged = false;
-	_collectiblesUpdates.fire({});
+	clearCollectibles();
 	_pending.reset();
 	_sendState = SendState::Idle;
 	_pollingCount = 0;
@@ -798,6 +793,16 @@ void Session::clearHistory() {
 	_historyUpdates.fire({});
 }
 
+void Session::clearCollectibles() {
+	_collectibles.clear();
+	_collectiblesRefreshedAt = 0;
+	_collectiblesCompletedAt = 0;
+	_collectiblesHasMore = false;
+	_collectiblesPaged = false;
+	_collectiblesTab = false;
+	_collectiblesUpdates.fire({});
+}
+
 bool Session::historyHasNext() const {
 	return _historyHasNext;
 }
@@ -877,6 +882,9 @@ void Session::requestCollectibles(bool more) {
 void Session::applyCollectiblesUpdate(
 		const engine::WalletUpdate &update,
 		bool more) {
+	if (_presence.current() != Presence::Ready) {
+		return;
+	}
 	const auto &nfts = update.snapshot.nfts;
 	if (update.outcome == engine::WalletOperationOutcome::kSkipped) {
 		_collectiblesHasMore = nfts.has_more;

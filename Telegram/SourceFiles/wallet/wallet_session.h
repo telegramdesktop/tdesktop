@@ -224,6 +224,7 @@ private:
 	void applyTransactions(const MTPwallet_Transactions &result, bool more);
 	void finishHistoryWaiters();
 	void clearHistory();
+	void clearCollectibles();
 	void refreshCollectibles(bool force = false);
 	void requestCollectibles(bool more);
 	void applyCollectiblesUpdate(
