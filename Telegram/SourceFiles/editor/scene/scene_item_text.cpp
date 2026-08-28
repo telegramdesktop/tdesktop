@@ -381,27 +381,9 @@ void ItemText::renderContent() {
 				m.contentWidth,
 				m.padding,
 				_fontSize);
-			if (_textStyle == TextStyle::SemiTransparent) {
-				auto opaque = bgColor;
-				opaque.setAlpha(255);
-				auto mask = QPixmap(pixmap.size());
-				mask.setDevicePixelRatio(dpr);
-				mask.fill(Qt::transparent);
-				{
-					auto mp = QPainter(&mask);
-					auto mhq = PainterHighQualityEnabler(mp);
-					mp.setPen(Qt::NoPen);
-					mp.setBrush(opaque);
-					mp.drawPath(bgPath);
-				}
-				p.setOpacity(bgColor.alphaF());
-				p.drawPixmap(0, 0, mask);
-				p.setOpacity(1.0);
-			} else {
-				p.setPen(Qt::NoPen);
-				p.setBrush(bgColor);
-				p.drawPath(bgPath);
-			}
+			p.setPen(Qt::NoPen);
+			p.setBrush(bgColor);
+			p.drawPath(bgPath);
 		}
 
 		const auto lineShift = _fontSize * kLineShiftFactor;
