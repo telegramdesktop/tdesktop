@@ -14,6 +14,9 @@ ItemImage::ItemImage(
 	ItemBase::Data data)
 : ItemBase(std::move(data))
 , _pixmap(std::move(pixmap)) {
+	if (flipped()) {
+		performFlip();
+	}
 	setAspectRatio(_pixmap.isNull()
 		? 1.0
 		: (_pixmap.height() / float64(_pixmap.width())));
