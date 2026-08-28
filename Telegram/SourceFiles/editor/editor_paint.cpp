@@ -57,6 +57,7 @@ constexpr auto kMaxItemZoom = 10.;
 constexpr auto kCanvasZoomStepFine = 1.015;
 constexpr auto kZoomSmoothTau = 60.;
 constexpr auto kZoomMaxFrameDelta = crl::time(64);
+constexpr auto kTextBakeDelay = crl::time(300);
 
 std::shared_ptr<Scene> EnsureScene(
 		PhotoModifications &mods,
@@ -115,7 +116,12 @@ Paint::Paint(
 	_scene->textEditStates(
 	) | rpl::on_next([=](bool editing) {
 		_textEditing = editing;
+		if (editing) {
+			_textBakeTimer.cancel();
+		}
 	}, lifetime());
+
+	_textBakeTimer.setCallback([=] { bakeTextScales(); });
 
 	// Undo / Redo.
 	controllers->undoController->performRequestChanges(
@@ -240,8 +246,19 @@ bool Paint::zoomSceneItemsByFactor(float64 factor) {
 		}
 	} else if (applied) {
 		_zoomAtLimit = false;
+		_textBakeTimer.callOnce(kTextBakeDelay);
 	}
 	return applied;
+}
+
+void Paint::bakeTextScales() {
+	for (const auto &item : _scene->items()) {
+		if (item->isNormalStatus()
+			&& (item->type() == ItemText::Type)
+			&& item->isVisible()) {
+			static_cast<ItemText*>(item.get())->bakeScale();
+		}
+	}
 }
 
 void Paint::zoomCanvas(float64 factor, QPoint viewportPoint, bool animated) {

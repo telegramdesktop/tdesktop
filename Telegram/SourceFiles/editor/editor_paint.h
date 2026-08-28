@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/timer.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 
@@ -86,6 +87,7 @@ private:
 
 	ItemBase::Data itemBaseData() const;
 	void applyViewTransform();
+	void bakeTextScales();
 
 	void clearRedoList();
 
@@ -123,6 +125,7 @@ private:
 	rpl::variable<bool> _hasUndo = true;
 	rpl::variable<bool> _hasRedo = true;
 	rpl::variable<bool> _textEditing = false;
+	base::Timer _textBakeTimer;
 
 
 };
