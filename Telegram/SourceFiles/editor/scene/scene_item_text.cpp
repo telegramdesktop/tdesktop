@@ -574,6 +574,11 @@ void ItemText::setTextStyle(TextStyle style) {
 }
 
 void ItemText::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) {
+	if ((event->button() != Qt::LeftButton)
+		|| !contentRect().contains(event->pos())) {
+		ItemBase::mouseDoubleClickEvent(event);
+		return;
+	}
 	if (const auto s = static_cast<Scene*>(scene())) {
 		s->startTextEditing(this);
 	}
