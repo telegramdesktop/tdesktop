@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "ui/painter.h"
 #include "ui/widgets/popup_menu.h"
+#include "styles/style_media_player.h"
 #include "styles/style_media_view.h"
 #include "styles/style_menu_icons.h"
 
@@ -601,13 +602,10 @@ void ItemText::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 			TextStyle style,
 			const style::icon *icon) {
 		const auto checked = (_textStyle == style);
-		auto action = _contextMenu->addAction(
+		_contextMenu->addAction(
 			text,
 			[=] { setTextStyle(style); },
-			icon);
-		if (checked) {
-			action->setChecked(true);
-		}
+			checked ? &st::mediaPlayerMenuCheck : icon);
 	};
 	add(
 		tr::lng_photo_editor_text_style_plain(tr::now),
