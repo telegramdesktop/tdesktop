@@ -111,16 +111,19 @@ if %Build64% neq 0 (
   set "UpdateFile=tx64upd%AppVersion%"
   set "SetupFile=tsetup-x64.%AppVersionStrFull%.exe"
   set "PortableFile=tportable-x64.%AppVersionStrFull%.zip"
+  set "DeployFolder=tx64"
   set "DumpSymsPath=%SolutionPath%\..\..\Libraries\win64\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe"
 ) else if %BuildARM% neq 0 (
   set "UpdateFile=tarm64upd%AppVersion%"
   set "SetupFile=tsetup-arm64.%AppVersionStrFull%.exe"
   set "PortableFile=tportable-arm64.%AppVersionStrFull%.zip"
+  set "DeployFolder=tarm64"
   set "DumpSymsPath=%SolutionPath%\..\..\Libraries\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe"
 ) else (
   set "UpdateFile=tupdate%AppVersion%"
   set "SetupFile=tsetup.%AppVersionStrFull%.exe"
   set "PortableFile=tportable.%AppVersionStrFull%.zip"
+  set "DeployFolder=tsetup"
   set "DumpSymsPath=%SolutionPath%\..\..\Libraries\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe"
 )
 
@@ -151,16 +154,19 @@ if "%TDESKTOP_UPDATE_V2%" equ "1" (
     set "UpdateFile=td-update-win-x64-%AppVersion%%V2Suffix%"
     set "SetupFile=td-setup-win-x64-%AppVersionStr%%V2Suffix%.exe"
     set "PortableFile=td-portable-win-x64-%AppVersionStr%%V2Suffix%.zip"
+    set "DeployFolder=win-x64"
     set "IsccNameParam=/dMyOutputBaseFilename=td-setup-win-x64-%AppVersionStr%%V2Suffix%"
   ) else if %BuildARM% neq 0 (
     set "UpdateFile=td-update-win-arm-%AppVersion%%V2Suffix%"
     set "SetupFile=td-setup-win-arm-%AppVersionStr%%V2Suffix%.exe"
     set "PortableFile=td-portable-win-arm-%AppVersionStr%%V2Suffix%.zip"
+    set "DeployFolder=win-arm"
     set "IsccNameParam=/dMyOutputBaseFilename=td-setup-win-arm-%AppVersionStr%%V2Suffix%"
   ) else (
     set "UpdateFile=td-update-win-x86-%AppVersion%%V2Suffix%"
     set "SetupFile=td-setup-win-x86-%AppVersionStr%%V2Suffix%.exe"
     set "PortableFile=td-portable-win-x86-%AppVersionStr%%V2Suffix%.zip"
+    set "DeployFolder=win-x86"
     set "IsccNameParam=/dMyOutputBaseFilename=td-setup-win-x86-%AppVersionStr%%V2Suffix%"
   )
 )
@@ -368,13 +374,7 @@ if %BuildUWP% neq 0 (
   rmdir "%DeployPath%\%BinaryName%"
 )
 
-if %Build64% neq 0 (
-  set "FinalDeployPath=%FinalReleasePath%\%AppVersionStrMajor%\%AppVersionStrFull%\tx64"
-) else if %BuildARM% neq 0 (
-  set "FinalDeployPath=%FinalReleasePath%\%AppVersionStrMajor%\%AppVersionStrFull%\tarm64"
-) else (
-  set "FinalDeployPath=%FinalReleasePath%\%AppVersionStrMajor%\%AppVersionStrFull%\tsetup"
-)
+set "FinalDeployPath=%FinalReleasePath%\%AppVersionStrMajor%\%AppVersionStrFull%\!DeployFolder!"
 
 if %BuildUWP% equ 0 (
   echo.

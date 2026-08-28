@@ -192,62 +192,77 @@ files.append({
   'mime': 'application/x-gzip',
   'label': 'Source code (tar.gz, full)',
 })
-files.append({
-  'local': 'tsetup.' + version_full + '.exe',
-  'remote': 'tsetup.' + version_full + '.exe',
-  'backup_folder': 'tsetup',
-  'mime': 'application/octet-stream',
-  'label': 'Windows 32 bit: Installer',
-})
-files.append({
-  'local': 'tportable.' + version_full + '.zip',
-  'remote': 'tportable.' + version_full + '.zip',
-  'backup_folder': 'tsetup',
-  'mime': 'application/zip',
-  'label': 'Windows 32 bit: Portable',
-})
-files.append({
-  'local': 'tsetup-x64.' + version_full + '.exe',
-  'remote': 'tsetup-x64.' + version_full + '.exe',
-  'backup_folder': 'tx64',
-  'mime': 'application/octet-stream',
-  'label': 'Windows 64 bit: Installer',
-})
-files.append({
-  'local': 'tportable-x64.' + version_full + '.zip',
-  'remote': 'tportable-x64.' + version_full + '.zip',
-  'backup_folder': 'tx64',
-  'mime': 'application/zip',
-  'label': 'Windows 64 bit: Portable',
-})
-files.append({
-  'local': 'tsetup-arm64.' + version_full + '.exe',
-  'remote': 'tsetup-arm64.' + version_full + '.exe',
-  'backup_folder': 'tarm64',
-  'mime': 'application/octet-stream',
-  'label': 'Windows on ARM: Installer',
-})
-files.append({
-  'local': 'tportable-arm64.' + version_full + '.zip',
-  'remote': 'tportable-arm64.' + version_full + '.zip',
-  'backup_folder': 'tarm64',
-  'mime': 'application/zip',
-  'label': 'Windows on ARM: Portable',
-})
-files.append({
-  'local': 'tsetup.' + version_full + '.dmg',
-  'remote': 'tsetup.' + version_full + '.dmg',
-  'backup_folder': 'tmac',
-  'mime': 'application/octet-stream',
-  'label': 'macOS 10.13+: Installer',
-})
-files.append({
-  'local': 'tsetup.' + version_full + '.tar.xz',
-  'remote': 'tsetup.' + version_full + '.tar.xz',
-  'backup_folder': 'tlinux',
-  'mime': 'application/octet-stream',
-  'label': 'Linux 64 bit: Binary',
-})
+
+# TDESKTOP_UPDATE_V2=1 renames every built and deployed artifact and moves
+# them to the arch-explicit platform folders, see the same switch in
+# build.sh, build.bat and deploy.sh. The release assets are uploaded from
+# those exact files, so they follow the same names and folders.
+update_v2 = (os.environ.get('TDESKTOP_UPDATE_V2') == '1')
+v2_suffix = '-beta' if beta == 1 else ''
+win_x86_folder = 'win-x86' if update_v2 else 'tsetup'
+win_x64_folder = 'win-x64' if update_v2 else 'tx64'
+win_arm_folder = 'win-arm' if update_v2 else 'tarm64'
+mac_folder = 'mac' if update_v2 else 'tmac'
+linux_folder = 'linux-x64' if update_v2 else 'tlinux'
+
+def appendFile(v1_name, v2_name, backup_folder, mime, label):
+  name = v2_name if update_v2 else v1_name
+  files.append({
+    'local': name,
+    'remote': name,
+    'backup_folder': backup_folder,
+    'mime': mime,
+    'label': label,
+  })
+
+appendFile(
+  'tsetup.' + version_full + '.exe',
+  'td-setup-win-x86-' + version + v2_suffix + '.exe',
+  win_x86_folder,
+  'application/octet-stream',
+  'Windows 32 bit: Installer')
+appendFile(
+  'tportable.' + version_full + '.zip',
+  'td-portable-win-x86-' + version + v2_suffix + '.zip',
+  win_x86_folder,
+  'application/zip',
+  'Windows 32 bit: Portable')
+appendFile(
+  'tsetup-x64.' + version_full + '.exe',
+  'td-setup-win-x64-' + version + v2_suffix + '.exe',
+  win_x64_folder,
+  'application/octet-stream',
+  'Windows 64 bit: Installer')
+appendFile(
+  'tportable-x64.' + version_full + '.zip',
+  'td-portable-win-x64-' + version + v2_suffix + '.zip',
+  win_x64_folder,
+  'application/zip',
+  'Windows 64 bit: Portable')
+appendFile(
+  'tsetup-arm64.' + version_full + '.exe',
+  'td-setup-win-arm-' + version + v2_suffix + '.exe',
+  win_arm_folder,
+  'application/octet-stream',
+  'Windows on ARM: Installer')
+appendFile(
+  'tportable-arm64.' + version_full + '.zip',
+  'td-portable-win-arm-' + version + v2_suffix + '.zip',
+  win_arm_folder,
+  'application/zip',
+  'Windows on ARM: Portable')
+appendFile(
+  'tsetup.' + version_full + '.dmg',
+  'td-setup-mac-' + version + v2_suffix + '.dmg',
+  mac_folder,
+  'application/octet-stream',
+  'macOS 10.13+: Installer')
+appendFile(
+  'tsetup.' + version_full + '.tar.xz',
+  'td-setup-linux-x64-' + version + v2_suffix + '.tar.xz',
+  linux_folder,
+  'application/octet-stream',
+  'Linux 64 bit: Binary')
 
 r = requests.get(url + 'repos/telegramdesktop/tdesktop/releases/tags/v' + version)
 

@@ -78,6 +78,19 @@ if [ "$TDESKTOP_UPDATE_V2" == "1" ]; then
   ReleaseCloudKeyId="${TDESKTOP_RELEASE_CLOUD_KEY_ID:-rc-2026a}"
 fi
 
+# The per-target deploy folder, both under the local backup and, through
+# deploy.sh, on the remote. The classical name is a plain "t" before the
+# build target, the v2 one names the architecture. Every place that
+# writes into the backup reads this one variable.
+BackupFolder="t$BuildTarget"
+if [ "$TDESKTOP_UPDATE_V2" == "1" ]; then
+  if [ "$BuildTarget" == "linux" ]; then
+    BackupFolder="linux-x64"
+  elif [ "$BuildTarget" == "mac" ]; then
+    BackupFolder="mac"
+  fi
+fi
+
 PackUpdate() {
   if [ "$TDESKTOP_UPDATE_V2" == "1" ]; then
     "./Packer" "$@" -version $VersionForPacker -channel $UpdateChannel \
@@ -213,9 +226,9 @@ if [ "$BuildTarget" == "linux" ]; then
     fi
   fi
 
-  BackupPath="/media/psf/backup/tdesktop/$AppVersionStrMajor/$AppVersionStrFull/t$BuildTarget"
+  BackupPath="/media/psf/backup/tdesktop/$AppVersionStrMajor/$AppVersionStrFull/$BackupFolder"
   if [ ! -d "/media/psf/backup/tdesktop" ]; then
-    BackupPath="/mnt/c/Telegram/Projects/backup/tdesktop/$AppVersionStrMajor/$AppVersionStrFull/t$BuildTarget"
+    BackupPath="/mnt/c/Telegram/Projects/backup/tdesktop/$AppVersionStrMajor/$AppVersionStrFull/$BackupFolder"
     if [ ! -d "/mnt/c/Telegram/Projects/backup/tdesktop" ]; then
       Error "Backup folder not found!"
     fi
@@ -528,12 +541,12 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
     mv "$ReleasePath/$SetupFile" "$DeployPath/"
 
     if [ "$BuildTarget" == "mac" ]; then
-      mkdir -p "$BackupPath/tmac"
-      cp "$DeployPath/$UpdateFileAMD64" "$BackupPath/tmac/"
-      cp "$DeployPath/$UpdateFileARM64" "$BackupPath/tmac/"
-      cp "$DeployPath/$SetupFile" "$BackupPath/tmac/"
+      mkdir -p "$BackupPath/$BackupFolder"
+      cp "$DeployPath/$UpdateFileAMD64" "$BackupPath/$BackupFolder/"
+      cp "$DeployPath/$UpdateFileARM64" "$BackupPath/$BackupFolder/"
+      cp "$DeployPath/$SetupFile" "$BackupPath/$BackupFolder/"
       if [ "$AlphaVersion" != "0" ]; then
-        cp -v "$DeployPath/$AlphaKeyFile" "$BackupPath/tmac/"
+        cp -v "$DeployPath/$AlphaKeyFile" "$BackupPath/$BackupFolder/"
       fi
     fi
   elif [ "$BuildTarget" == "macstore" ]; then
