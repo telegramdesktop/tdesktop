@@ -32,6 +32,11 @@ PRIVATE
     desktop-app::external_openssl
 )
 
+if (WIN32 AND DESKTOP_APP_WIN7_BASELINE)
+    # WindowsApp.lib is off the link line, WinRT stubs come from lib_base.
+    target_link_libraries(test_update_verify PRIVATE desktop-app::lib_base)
+endif()
+
 set_target_properties(test_update_verify PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 add_dependencies(Telegram test_update_verify)

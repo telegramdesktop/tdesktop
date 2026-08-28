@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/layer_manager.h"
 #include "ui/text/text_utilities.h"
 #include "ui/chat/chat_style.h"
+#include "ui/platform/ui_platform_utility.h"
 #include "ui/platform/ui_platform_window_title.h"
 #include "ui/toast/toast.h"
 #include "ui/text/format_values.h"
@@ -749,17 +750,21 @@ OverlayWidget::OverlayWidget()
 			DEBUG_LOG(("Viewer Pos: Moved to %1, %2")
 				.arg(position.x())
 				.arg(position.y()));
-			if (_windowed) {
-				savePosition();
-			} else {
+			// Native maximize moves before state change, don't save that geometry.
+			if (!_windowed) {
 				moveToScreen(true);
+			} else if (!Platform::IsWindows()
+				|| !Ui::Platform::IsMaximizedNatively(_window)) {
+				savePosition();
 			}
 		} else if (type == QEvent::Resize) {
 			const auto size = static_cast<QResizeEvent*>(e.get())->size();
 			DEBUG_LOG(("Viewer Pos: Resized to %1, %2")
 				.arg(size.width())
 				.arg(size.height()));
-			if (_windowed) {
+			if (_windowed
+				&& (!Platform::IsWindows()
+					|| !Ui::Platform::IsMaximizedNatively(_window))) {
 				savePosition();
 			}
 		} else if (type == QEvent::Close
@@ -786,6 +791,21 @@ OverlayWidget::OverlayWidget()
 				if (_fullscreen || _windowed) {
 					_fullscreen = _windowed = false;
 					savePosition();
+					if constexpr (Platform::IsWindows()) {
+						// Aero Snap maximizes inside move loop, convert to full screen after.
+						InvokeQueued(_window, [=] {
+							if (!_fullscreen
+								&& !_windowed
+								&& _window->isMaximized()) {
+								_helper->clearState();
+								_fullscreen = true;
+								_restoreFromSystemNormal = true;
+								_window->showFullScreen();
+								savePosition();
+								_helper->clearState();
+							}
+						});
+					}
 				}
 			} else if (_fullscreen || _windowed) {
 			} else if (state == Qt::WindowFullScreen) {
@@ -1059,6 +1079,19 @@ void OverlayWidget::setupWindow() {
 	_window->setAttribute(Qt::WA_NoSystemBackground, true);
 	_window->setAttribute(Qt::WA_TranslucentBackground, true);
 
+	// System maximize means full screen here, system restore leaves it.
+	_window->systemCommandRequests(
+	) | rpl::on_next([=](not_null<Ui::Platform::SystemCommandRequest*> r) {
+		using Command = Ui::Platform::SystemCommand;
+		if (r->command == Command::Maximize && !_fullscreen) {
+			r->handled = true;
+			toggleFullScreen(true);
+		} else if (r->command == Command::Restore && _fullscreen) {
+			r->handled = true;
+			toggleFullScreen(false);
+		}
+	}, lifetime());
+
 	_window->setMinimumSize(
 		{ st::mediaviewMinWidth, st::mediaviewMinHeight });
 
@@ -1243,6 +1276,12 @@ void OverlayWidget::updateGeometryToScreen(bool inMove) {
 	const auto screen = _window->screen();
 	if (!screen) {
 		return;
+	}
+	if constexpr (Platform::IsWindows()) {
+		// Qt sets screen rect in showFullScreen(), earlier one makes DWM shift content.
+		if (!_window->isHidden() && !_window->isFullScreen()) {
+			return;
+		}
 	}
 	const auto available = screen->geometry();
 	if (_window->geometry() == available) {
@@ -3151,11 +3190,17 @@ void OverlayWidget::toggleFullScreen(bool fullscreen) {
 		updateGeometry();
 		_helper->afterShow(_fullscreen);
 	} else if (_fullscreen) {
+		_restoreFromSystemNormal = false;
 		updateGeometry();
 		_window->showFullScreen();
 	} else {
 		_wasWindowedMode = false;
 		_window->showNormal();
+		if (base::take(_restoreFromSystemNormal)) {
+			// Native maximize restored pre-drag rect, keep it over drag-end one.
+			_normalGeometry = _window->body()->mapToGlobal(
+				_window->body()->rect());
+		}
 		updateGeometry();
 		_wasWindowedMode = true;
 	}
