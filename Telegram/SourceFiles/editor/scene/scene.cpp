@@ -1088,9 +1088,13 @@ void Scene::startTextEditing(ItemText *item) {
 
 	const auto raw = static_cast<TextEditProxy*>(proxy);
 	raw->onFinish = crl::guard(this, [=] {
-		if (generation == _textEditGeneration) {
-			finishTextEditing(true);
+		if ((generation != _textEditGeneration) || !_textEdit.proxy) {
+			return;
 		}
+		// Focus loss with cleared text cancels instead of removing.
+		const auto empty = RecoverTextFromDocument(
+			_textEdit.proxy->document()).trimmed().isEmpty();
+		finishTextEditing(!empty);
 	});
 	raw->onCancel = crl::guard(this, [=] {
 		if (generation == _textEditGeneration) {
