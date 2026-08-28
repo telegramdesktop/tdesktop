@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene.h"
 #include "editor/scene/scene_emoji_document.h"
 #include "editor/scene/scene_item_text.h"
+#include "lang/lang_keys.h"
 #include "ui/painter.h"
 #include "styles/style_editor.h"
 
@@ -26,6 +27,11 @@ namespace {
 constexpr auto kMinWidthFactor = 0.16;
 constexpr auto kIdealWidthExtra = 2;
 constexpr auto kScaleThreshold = 0.01;
+constexpr auto kPlaceholderOpacity = 0.38;
+
+[[nodiscard]] QString PlaceholderText() {
+	return tr::lng_photo_editor_text_placeholder(tr::now);
+}
 
 class TextEditProxy final : public QGraphicsTextItem {
 public:
@@ -64,6 +70,9 @@ public:
 			const QStyleOptionGraphicsItem *option,
 			QWidget *widget) override {
 		paintBackground(painter);
+		if (document()->isEmpty()) {
+			paintPlaceholder(painter);
+		}
 		QGraphicsTextItem::paint(painter, option, widget);
 	}
 
@@ -93,6 +102,34 @@ private:
 		}
 		auto lines = std::vector<TextBackgroundLine>();
 		const auto doc = document();
+		if (doc->isEmpty()) {
+			const auto metrics = QFontMetrics(font());
+			const auto width = float64(
+				metrics.horizontalAdvance(PlaceholderText()));
+			const auto total = std::max(textWidth(), width);
+			const auto alignment = doc->defaultTextOption().alignment();
+			const auto left = (alignment & Qt::AlignLeft)
+				? 0.
+				: (alignment & Qt::AlignRight)
+				? (total - width)
+				: (total - width) / 2.;
+			lines.push_back({
+				.left = left,
+				.top = 0.,
+				.right = left + width,
+				.bottom = float64(metrics.height()),
+			});
+			const auto path = BuildTextBackgroundPath(
+				std::move(lines),
+				_fontSize);
+			painter->save();
+			PainterHighQualityEnabler hq(*painter);
+			painter->setPen(Qt::NoPen);
+			painter->setBrush(bg);
+			painter->drawPath(path);
+			painter->restore();
+			return;
+		}
 		for (auto block = doc->begin()
 			; block.isValid()
 			; block = block.next()) {
@@ -123,6 +160,24 @@ private:
 		painter->setPen(Qt::NoPen);
 		painter->setBrush(bg);
 		painter->drawPath(path);
+		painter->restore();
+	}
+
+	void paintPlaceholder(QPainter *painter) {
+		auto color = defaultTextColor();
+		color.setAlphaF(color.alphaF() * kPlaceholderOpacity);
+		painter->save();
+		painter->setPen(color);
+		painter->setFont(font());
+		const auto alignment = document()->defaultTextOption().alignment();
+		painter->drawText(
+			QRectF(
+				0,
+				0,
+				textWidth(),
+				float64(QFontMetrics(font()).height())),
+			int(alignment | Qt::AlignTop),
+			PlaceholderText());
 		painter->restore();
 	}
 
@@ -312,7 +367,13 @@ void TextEditController::createAtCenter(int rotation, bool flipped) {
 		if (int(emojiDoc->textWidth()) != maxTextWidth) {
 			emojiDoc->setTextWidth(maxTextWidth);
 		}
-		const auto ideal = int(std::ceil(emojiDoc->idealWidth()));
+		auto ideal = int(std::ceil(emojiDoc->idealWidth()));
+		if (emojiDoc->isEmpty()) {
+			ideal = std::max(
+				ideal,
+				QFontMetrics(proxy->font()).horizontalAdvance(
+					PlaceholderText()));
+		}
 		const auto width = std::clamp(
 			ideal + kIdealWidthExtra,
 			minTextWidth,
@@ -419,7 +480,13 @@ void TextEditController::startEditing(ItemText *item) {
 		if (int(emojiDoc->textWidth()) != maxTextWidth) {
 			emojiDoc->setTextWidth(maxTextWidth);
 		}
-		const auto ideal = int(std::ceil(emojiDoc->idealWidth()));
+		auto ideal = int(std::ceil(emojiDoc->idealWidth()));
+		if (emojiDoc->isEmpty()) {
+			ideal = std::max(
+				ideal,
+				QFontMetrics(proxy->font()).horizontalAdvance(
+					PlaceholderText()));
+		}
 		const auto width = std::clamp(
 			ideal + kIdealWidthExtra,
 			minTextWidth,

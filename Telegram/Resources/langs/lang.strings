@@ -7927,6 +7927,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_photo_editor_text_style_framed" = "Framed";
 "lng_photo_editor_text_style_semi_transparent" = "Semi-Transparent";
 "lng_photo_editor_text_style_opaque" = "Opaque";
+"lng_photo_editor_text_placeholder" = "Add Text";
 "lng_photo_editor_font" = "Font";
 "lng_photo_editor_font_default" = "Default";
 "lng_photo_editor_font_italic" = "Italic";
