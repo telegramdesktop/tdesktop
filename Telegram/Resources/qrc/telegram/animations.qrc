@@ -29,6 +29,7 @@
     <file alias="writing.tgs">../../animations/writing.tgs</file>
     <file alias="hours.tgs">../../animations/hours.tgs</file>
     <file alias="phone.tgs">../../animations/phone.tgs</file>
+    <file alias="call_rate.tgs">../../animations/call_rate.tgs</file>
     <file alias="chat_link.tgs">../../animations/chat_link.tgs</file>
     <file alias="diamond.tgs">../../animations/diamond.tgs</file>
     <file alias="collectible_username.tgs">../../animations/collectible_username.tgs</file>

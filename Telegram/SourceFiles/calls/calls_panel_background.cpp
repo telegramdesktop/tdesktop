@@ -20,6 +20,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/top_background_gradient.h"
 
 namespace Calls {
+namespace {
+
+constexpr auto kDarkOverlayOpacity = 0.14;
+constexpr auto kDarkenAboveLightness = 0.3;
+
+} // namespace
 
 PanelBackground::PanelBackground(
 	not_null<PeerData*> peer,
@@ -215,6 +221,13 @@ std::optional<QColor> PanelBackground::textColorOverride(
 		return st::groupCallMembersFg->c;
 	}
 	return std::nullopt;
+}
+
+QColor PanelBackground::cardOverlay() const {
+	const auto base = edgeColor().value_or(st::callBgOpaque->c);
+	return (base.lightnessF() > kDarkenAboveLightness)
+		? QColor(0, 0, 0, anim::interpolate(0, 255, kDarkOverlayOpacity))
+		: st::callIconBg->c;
 }
 
 rpl::lifetime &PanelBackground::lifetime() {

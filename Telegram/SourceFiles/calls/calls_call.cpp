@@ -622,7 +622,78 @@ crl::time Call::getDurationMs() const {
 	return _startTime ? (crl::now() - _startTime) : 0;
 }
 
+void Call::takeRatingToPanel() {
+	Expects(_ratingRequested);
+
+	_ratingInPanel = true;
+}
+
+void Call::setRating(int rating) {
+	_rating = rating;
+}
+
+void Call::finishRating() {
+	if (!_ratingInPanel) {
+		return;
+	}
+	_ratingInPanel = false;
+	_ratingRequested = false;
+	if (_rating > 0 && _id && _accessHash) {
+		const auto session = &_user->session();
+		session->api().request(MTPphone_SetCallRating(
+			MTP_flags(0),
+			MTP_inputPhoneCall(
+				MTP_long(_id),
+				MTP_long(_accessHash)),
+			MTP_int(_rating),
+			MTP_string()
+		)).done([=](const MTPUpdates &updates) {
+			session->api().applyUpdates(updates);
+		}).send();
+	}
+	_delegate->callFinished(this);
+}
+
+void Call::showRatingBox() {
+	Expects(_ratingRequested);
+
+	_ratingRequested = false;
+
+	const auto window = Core::App().windowFor(::Window::SeparateId(_user));
+	const auto session = &_user->session();
+	const auto callId = _id;
+	const auto callAccessHash = _accessHash;
+	auto owned = Box<Ui::RateCallBox>(Core::App().settings().sendSubmitWay());
+	const auto box = window
+		? window->show(std::move(owned))
+		: Ui::show(std::move(owned));
+	const auto sender = box->lifetime().make_state<MTP::Sender>(
+		&session->mtp());
+	box->sends(
+	) | rpl::take(
+		1 // Instead of keeping requestId.
+	) | rpl::on_next([=](const Ui::RateCallBox::Result &r) {
+		sender->request(MTPphone_SetCallRating(
+			MTP_flags(0),
+			MTP_inputPhoneCall(
+				MTP_long(callId),
+				MTP_long(callAccessHash)),
+			MTP_int(r.rating),
+			MTP_string(r.comment)
+		)).done([=](const MTPUpdates &updates) {
+			session->api().applyUpdates(updates);
+			box->closeBox();
+		}).fail([=] {
+			box->closeBox();
+		}).send();
+	}, box->lifetime());
+}
+
 void Call::hangup(Data::GroupCall *migrateCall, const QString &migrateSlug) {
+	if (_ratingInPanel) {
+		finishRating();
+		return;
+	}
 	const auto state = _state.current();
 	if (state == State::Busy
 		|| state == State::MigrationHangingUp) {
@@ -807,36 +878,10 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 			}
 		}
 		if (data.is_need_rating() && _id && _accessHash) {
-			const auto window = Core::App().windowFor(
-				::Window::SeparateId(_user));
-			const auto session = &_user->session();
-			const auto callId = _id;
-			const auto callAccessHash = _accessHash;
-			auto owned = Box<Ui::RateCallBox>(
-				Core::App().settings().sendSubmitWay());
-			const auto box = window
-				? window->show(std::move(owned))
-				: Ui::show(std::move(owned));
-			const auto sender = box->lifetime().make_state<MTP::Sender>(
-				&session->mtp());
-			box->sends(
-			) | rpl::take(
-				1 // Instead of keeping requestId.
-			) | rpl::on_next([=](const Ui::RateCallBox::Result &r) {
-				sender->request(MTPphone_SetCallRating(
-					MTP_flags(0),
-					MTP_inputPhoneCall(
-						MTP_long(callId),
-						MTP_long(callAccessHash)),
-					MTP_int(r.rating),
-					MTP_string(r.comment)
-				)).done([=](const MTPUpdates &updates) {
-					session->api().applyUpdates(updates);
-					box->closeBox();
-				}).fail([=] {
-					box->closeBox();
-				}).send();
-			}, box->lifetime());
+			_ratingRequested = true;
+		}
+		if (const auto duration = data.vduration()) {
+			_discardedDuration = duration->v;
 		}
 		const auto reason = data.vreason();
 		if (reason
@@ -853,6 +898,9 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 			setState(State::Ended);
 		} else {
 			setState(State::EndedByOtherDevice);
+		}
+		if (_ratingRequested && !_ratingInPanel) {
+			showRatingBox();
 		}
 	} return true;
 
