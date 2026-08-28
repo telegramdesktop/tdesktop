@@ -64,6 +64,15 @@ public:
 	// locked premium folder opens an upsell on activation.
 	void setAccessibilityActivateOnBrowse(bool activate);
 
+	// A slider whose sections form a numeric scale (e.g. a count of 1..5)
+	// presents itself as a single slider element with a range value instead
+	// of a strip of tabs.
+	enum class AccessibilityMode {
+		Tabs,
+		Value,
+	};
+	void setAccessibilityMode(AccessibilityMode mode);
+
 	[[nodiscard]] int sectionsCount() const;
 	[[nodiscard]] int lookupSectionLeft(int index) const;
 
@@ -72,6 +81,9 @@ public:
 	bool accessibilitySelectionList() const override;
 	Qt::FocusPolicy accessibilityFocusPolicy() override;
 	std::optional<Qt::Orientation> accessibilityOrientation() const override;
+	QString accessibilityValue() const override;
+	std::optional<AccessibilityValueRange> accessibilityValueRange() const override;
+	void accessibilitySetValue(double value) override;
 	QAccessible::Role accessibilityChildRole() const override;
 	QAccessible::State accessibilityChildState(int index) const override;
 	int accessibilityChildCount() const override;
@@ -159,6 +171,9 @@ private:
 	void setSelectedSection(int index);
 	void setAccessibilitySelected(int index, Announce announce);
 	void browseAndActivate(int index);
+	void changeValueTo(int index);
+	[[nodiscard]] double sectionValue(int index) const;
+	[[nodiscard]] int sectionByValue(double value) const;
 
 	std::vector<Section> _sections;
 	Fn<bool()> _paused;
@@ -173,6 +188,7 @@ private:
 	int _selected = 0;
 	int _accessibilitySelected = -1;
 	bool _accessibilityActivateOnBrowse = true;
+	AccessibilityMode _accessibilityMode = AccessibilityMode::Tabs;
 	Ui::Animations::Simple _a_left;
 	Ui::Animations::Simple _a_width;
 

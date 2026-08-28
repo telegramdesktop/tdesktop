@@ -1567,6 +1567,9 @@ void BuildSystemIntegrationAndAdvancedSection(SectionBuilder &builder) {
 		const auto countSlider = advancedWrap->add(
 			object_ptr<Ui::SettingsSlider>(advancedWrap, st::settingsSlider),
 			st::settingsBigScalePadding);
+		// Picks a count, not a displayed section - a slider to accessibility.
+		countSlider->setAccessibilityMode(
+			Ui::DiscreteSlider::AccessibilityMode::Value);
 		for (int i = 0; i != kMaxNotificationsCount; ++i) {
 			countSlider->addSection(QString::number(i + 1));
 		}

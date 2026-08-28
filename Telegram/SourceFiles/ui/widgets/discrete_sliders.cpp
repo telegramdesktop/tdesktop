@@ -22,9 +22,16 @@ DiscreteSlider::DiscreteSlider(QWidget *parent, bool snapToLabel)
 DiscreteSlider::~DiscreteSlider() = default;
 
 void DiscreteSlider::setActiveSection(int index) {
+	const auto changed = (_activeIndex != index);
 	_activeIndex = index;
 	activateCallback();
 	setSelectedSection(index);
+	// The value a screen reader follows changes with the active section
+	// whatever activated it, a click included; the other modes announce
+	// their tabs or radio buttons through the focus instead.
+	if (changed && _accessibilityMode == AccessibilityMode::Value) {
+		accessibilityValueChanged();
+	}
 }
 
 void DiscreteSlider::activateCallback() {
@@ -93,6 +100,10 @@ rpl::producer<int> DiscreteSlider::accessibilitySectionBrowsed() const {
 
 void DiscreteSlider::setAccessibilityActivateOnBrowse(bool activate) {
 	_accessibilityActivateOnBrowse = activate;
+}
+
+void DiscreteSlider::setAccessibilityMode(AccessibilityMode mode) {
+	_accessibilityMode = mode;
 }
 
 int DiscreteSlider::sectionsCount() const {
@@ -281,7 +292,9 @@ void DiscreteSlider::focusInEvent(QFocusEvent *e) {
 	const auto count = int(_sections.size());
 	const auto tab = (e->reason() == Qt::TabFocusReason)
 		|| (e->reason() == Qt::BacktabFocusReason);
-	if (count > 0 && (tab || _accessibilitySelected < 0)) {
+	if (count > 0
+		&& _accessibilityMode != AccessibilityMode::Value
+		&& (tab || _accessibilitySelected < 0)) {
 		setAccessibilitySelected(
 			std::clamp(_activeIndex, 0, count - 1),
 			Announce::No);
@@ -298,6 +311,25 @@ void DiscreteSlider::keyPressEvent(QKeyEvent *e) {
 	// Sections are painted mirrored in RTL, so arrows move by visual order.
 	const auto forward = style::RightToLeft() ? Qt::Key_Left : Qt::Key_Right;
 	const auto backward = style::RightToLeft() ? Qt::Key_Right : Qt::Key_Left;
+	if (_accessibilityMode == AccessibilityMode::Value && count > 0) {
+		// A native slider changes its value with the arrows right away (Up
+		// increases, like Right) and announces through the value change.
+		const auto delta = (key == forward || key == Qt::Key_Up)
+			? 1
+			: (key == backward || key == Qt::Key_Down)
+			? -1
+			: 0;
+		if (delta) {
+			changeValueTo(std::clamp(_activeIndex + delta, 0, count - 1));
+		} else if (key == Qt::Key_Home) {
+			changeValueTo(0);
+		} else if (key == Qt::Key_End) {
+			changeValueTo(count - 1);
+		} else {
+			RpWidget::keyPressEvent(e);
+		}
+		return;
+	}
 	if ((key == forward || key == backward) && count > 0) {
 		const auto current = (_accessibilitySelected >= 0)
 			? _accessibilitySelected
@@ -345,6 +377,80 @@ void DiscreteSlider::browseAndActivate(int index) {
 	}
 }
 
+void DiscreteSlider::changeValueTo(int index) {
+	if (index != _activeIndex) {
+		setActiveSection(index);
+	}
+}
+
+QString DiscreteSlider::accessibilityValue() const {
+	const auto count = int(_sections.size());
+	if (_accessibilityMode != AccessibilityMode::Value || !count) {
+		return QString();
+	}
+	// A screen reader reads a slider's value from the textual Value pattern
+	// (the way the media volume slider reports "100%"), so the current label
+	// goes there as well as into the numeric range below.
+	return _sections[std::clamp(_activeIndex, 0, count - 1)].label.toString();
+}
+
+std::optional<AccessibilityValueRange> DiscreteSlider::accessibilityValueRange() const {
+	const auto count = int(_sections.size());
+	if (_accessibilityMode != AccessibilityMode::Value || !count) {
+		return std::nullopt;
+	}
+	return AccessibilityValueRange{
+		.current = sectionValue(std::clamp(_activeIndex, 0, count - 1)),
+		.minimum = sectionValue(0),
+		.maximum = sectionValue(count - 1),
+		.step = 1., // Steps between sections may be uneven; 1 is advisory.
+	};
+}
+
+void DiscreteSlider::accessibilitySetValue(double value) {
+	// UIA delivers RangeValue.SetValue on a background thread; hop to the
+	// main thread before touching any widget state.
+	crl::on_main(this, [=] {
+		const auto count = int(_sections.size());
+		if (_accessibilityMode != AccessibilityMode::Value || !count) {
+			return;
+		}
+		// A request outside the range is ignored, as the setter's contract
+		// says: not every platform checks before forwarding it, and none
+		// of them checks for NaN.
+		if (!std::isfinite(value)
+			|| value < sectionValue(0)
+			|| value > sectionValue(count - 1)) {
+			return;
+		}
+		changeValueTo(sectionByValue(value));
+	});
+}
+
+double DiscreteSlider::sectionValue(int index) const {
+	Expects(index >= 0 && index < _sections.size());
+
+	// A numeric scale usually labels its sections with the numbers
+	// themselves (e.g. 1..5); fall back to the ordinal position otherwise.
+	auto ok = false;
+	const auto parsed = _sections[index].label.toString().toDouble(&ok);
+	return ok ? parsed : (index + 1.);
+}
+
+int DiscreteSlider::sectionByValue(double value) const {
+	auto result = 0;
+	auto best = 0.;
+	const auto count = int(_sections.size());
+	for (auto i = 0; i != count; ++i) {
+		const auto distance = std::abs(sectionValue(i) - value);
+		if (!i || distance < best) {
+			best = distance;
+			result = i;
+		}
+	}
+	return result;
+}
+
 void DiscreteSlider::activateSectionByAccessibility(int index) {
 	const auto previous = _activeIndex;
 	setActiveSection(index);
@@ -383,13 +489,16 @@ void DiscreteSlider::setAccessibilitySelected(int index, Announce announce) {
 }
 
 QAccessible::Role DiscreteSlider::accessibilityRole() {
-	return QAccessible::PageTabList;
+	return (_accessibilityMode == AccessibilityMode::Value)
+		? QAccessible::Slider
+		: QAccessible::PageTabList;
 }
 
 bool DiscreteSlider::accessibilitySelectionList() const {
 	// Grants the sections the platform selection item pattern, which is what
 	// a screen reader reads "selected" / "not selected" from while browsing.
-	return true;
+	// A value slider has no child items to select.
+	return _accessibilityMode != AccessibilityMode::Value;
 }
 
 Qt::FocusPolicy DiscreteSlider::accessibilityFocusPolicy() {
@@ -423,7 +532,11 @@ QAccessible::State DiscreteSlider::accessibilityChildState(int index) const {
 }
 
 int DiscreteSlider::accessibilityChildCount() const {
-	return int(_sections.size());
+	// A value slider is a single element - its sections are points on the
+	// scale, not children to browse.
+	return (_accessibilityMode == AccessibilityMode::Value)
+		? 0
+		: int(_sections.size());
 }
 
 QString DiscreteSlider::accessibilityChildName(int index) const {
