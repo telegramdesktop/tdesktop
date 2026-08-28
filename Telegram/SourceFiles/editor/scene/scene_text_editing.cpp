@@ -287,8 +287,10 @@ void TextEditController::createAtCenter(int rotation, bool flipped) {
 		emojiDoc,
 		&QTextDocument::contentsChange,
 		[=](int position, int removed, int added) {
-			SanitizeRange(emojiDoc, position, position + added);
-			ReplaceEmojiInRange(emojiDoc, position, position + added);
+			if (!emojiDoc->availableRedoSteps()) {
+				SanitizeRange(emojiDoc, position, position + added);
+				ReplaceEmojiInRange(emojiDoc, position, position + added);
+			}
 			adjustWidth();
 		});
 
@@ -387,8 +389,10 @@ void TextEditController::startEditing(ItemText *item) {
 		emojiDoc,
 		&QTextDocument::contentsChange,
 		[=](int position, int removed, int added) {
-			SanitizeRange(emojiDoc, position, position + added);
-			ReplaceEmojiInRange(emojiDoc, position, position + added);
+			if (!emojiDoc->availableRedoSteps()) {
+				SanitizeRange(emojiDoc, position, position + added);
+				ReplaceEmojiInRange(emojiDoc, position, position + added);
+			}
 			adjustWidth();
 		});
 
