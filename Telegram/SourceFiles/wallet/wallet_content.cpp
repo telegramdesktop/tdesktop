@@ -72,6 +72,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_onramp.h"
 #include "wallet/wallet_rates.h"
 #include "wallet/wallet_session.h"
+#include "wallet/wallet_user_addresses.h"
 #include "window/themes/window_theme.h"
 
 #include <QtCore/QUrl>
@@ -386,6 +387,23 @@ private:
 		return false;
 	});
 	return result;
+}
+
+void InsertAddressTableRow(
+		not_null<Ui::TableLayout*> table,
+		int position,
+		std::shared_ptr<Ui::Show> show,
+		const QString &address) {
+	table->insertRow(
+		position,
+		object_ptr<Ui::FlatLabel>(
+			table,
+			tr::lng_wallet_details_address(),
+			table->st().defaultLabel),
+		AddressValueLabel(table, std::move(show), address),
+		st::giveawayGiftCodeLabelMargin,
+		st::giveawayGiftCodeValueMargin);
+	table->resizeToWidth(table->widthNoMargins());
 }
 
 enum class RowAvatar {
@@ -1222,6 +1240,39 @@ void AddFeeTableRow(
 		helper.context());
 }
 
+void AddPeerCounterpartyRows(
+		not_null<Ui::GenericBox*> box,
+		not_null<Ui::TableLayout*> table,
+		not_null<Main::Session*> session,
+		const TransferItem &item) {
+	const auto peer = session->data().peerLoaded(
+		PeerId(item.counterpartyPeer));
+	if (!peer) {
+		return;
+	}
+	Ui::AddTableRow(
+		table,
+		(item.incoming
+			? tr::lng_wallet_details_sender()
+			: tr::lng_wallet_details_recipient()),
+		rpl::single(tr::marked(peer->name())));
+	const auto position = table->rowsCount();
+	const auto show = box->uiShow();
+	const auto addresses = &session->wallet().userAddresses();
+	const auto userId = peerToUser(peer->id);
+	addresses->resolve({ userId }, crl::guard(table, [=] {
+		const auto answer = addresses->known(userId);
+		if (answer.state != UserAddressState::Known) {
+			return;
+		}
+		InsertAddressTableRow(
+			table,
+			position,
+			show,
+			FormatFriendly(answer.address, true));
+	}));
+}
+
 void AddDetailsTable(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
@@ -1264,6 +1315,14 @@ void AddDetailsTable(
 				tr::lng_wallet_details_address(),
 				AddressValueLabel(table, box->uiShow(), address));
 		}
+	} else if (item.kind == TransferItem::Kind::PeerTransfer
+		&& item.counterpartyPeer) {
+		// A peer transfer carries no counterparty address at all: the
+		// server sends none for a user counterparty and the mapping
+		// synthesizes nothing, so this sheet names the same user the row
+		// named and asks the per-user address store for the address half,
+		// which may answer that the user has no wallet, or answer late.
+		AddPeerCounterpartyRows(box, table, session, item);
 	}
 	const auto pending
 		= (item.status == TransferItem::Status::Pending);

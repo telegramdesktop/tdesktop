@@ -301,9 +301,9 @@ constexpr auto kStreamResyncInterval = 30 * crl::time(1000);
 	data.vpeer().match([&](const MTPDwalletTransactionPeerUser &data) {
 		// counterparty stays empty on purpose: the server sends no address
 		// for a user counterparty and the client must not synthesize one.
-		// AddDetailsTable guards its sender / recipient row on a non-empty
-		// address, so such a transfer's details sheet honestly shows no
-		// address row rather than one the chain never named.
+		// The details sheet builds its sender / recipient row from the peer
+		// instead and takes the address half from the per-user address
+		// store, which answers only for a user the chain has named.
 		result.kind = TransferItem::Kind::PeerTransfer;
 		result.counterpartyPeer = peerFromUser(data.vuser_id()).value;
 	}, [&](const MTPDwalletTransactionPeerAddress &data) {
@@ -1137,7 +1137,14 @@ rpl::producer<bool> Session::collectiblesTabValue() const {
 
 void Session::setCollectiblesTab(bool value) {
 	const auto tab = value && !_collectibles.empty();
-	if (!tab) {
+	// Each lane's paged term is a fact about one visible list and ends with
+	// that view: the tab strip scrolls the returning list back to its top,
+	// so the head refresh a switch releases truncates nothing the reader
+	// can still see. The clear follows tab, the effective selection, so
+	// asking for a tab that cannot be shown deselects and clears nothing.
+	if (tab) {
+		_historyPaged = false;
+	} else {
 		_collectiblesPaged = false;
 	}
 	_collectiblesTab = tab;
