@@ -42,6 +42,7 @@ enum class TextStyle : uchar {
 	Framed,
 	SemiTransparent,
 	Plain,
+	Opaque,
 };
 
 enum class TextTypeface : uchar {

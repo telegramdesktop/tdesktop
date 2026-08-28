@@ -430,13 +430,19 @@ QColor TextBackgroundColor(const QColor &color, TextStyle style) {
 			: QColor(255, 255, 255, kSemiTransparentAlpha);
 	case TextStyle::Plain:
 		return QColor(Qt::transparent);
+	case TextStyle::Opaque:
+		return (ComputeBrightness(color)
+				>= kBrightnessSemiTransparentThreshold)
+			? QColor(0, 0, 0)
+			: QColor(255, 255, 255);
 	}
 	Unexpected("Text style in TextBackgroundColor.");
 }
 
 int TextBackgroundPadding(float64 fontSize, TextStyle style) {
 	const auto hasBackground = (style == TextStyle::Framed)
-		|| (style == TextStyle::SemiTransparent);
+		|| (style == TextStyle::SemiTransparent)
+		|| (style == TextStyle::Opaque);
 	return hasBackground ? int(fontSize * kPaddingFactor) : 0;
 }
 
@@ -853,6 +859,10 @@ void ItemText::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 		tr::lng_photo_editor_text_style_semi_transparent(tr::now),
 		TextStyle::SemiTransparent,
 		&st::mediaMenuIconTextStyleSemiTransparent);
+	add(
+		tr::lng_photo_editor_text_style_opaque(tr::now),
+		TextStyle::Opaque,
+		&st::mediaMenuIconTextStyleOpaque);
 
 	auto fonts = std::make_unique<Ui::PopupMenu>(
 		_contextMenu.get(),
