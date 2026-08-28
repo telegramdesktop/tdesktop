@@ -70,7 +70,7 @@ public:
 	void cancelTextEditing();
 
 	void startTextEditing(ItemText *item);
-	void createTextAtCenter(int rotation);
+	void createTextAtCenter(int rotation, bool flipped);
 	void setTextColor(const QColor &color);
 	void setSelectedTextColor(const QColor &color);
 	void setSelectedShapeBrush(const QColor &color, float64 strokeWidth);
@@ -141,6 +141,7 @@ private:
 	struct {
 		std::weak_ptr<NumberedItem> item;
 		base::unique_qptr<QGraphicsTextItem> proxy;
+		bool flipped = false;
 	} _textEdit;
 
 	struct {

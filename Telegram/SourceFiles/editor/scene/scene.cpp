@@ -926,7 +926,7 @@ void Scene::setupTextProxy(
 	}
 }
 
-void Scene::createTextAtCenter(int rotation) {
+void Scene::createTextAtCenter(int rotation, bool flipped) {
 	if (_textEdit.proxy) {
 		return;
 	}
@@ -937,6 +937,7 @@ void Scene::createTextAtCenter(int rotation) {
 	cancelDrawing();
 	setTextEditing(true);
 	_textEditStyle = _textStyle;
+	_textEdit.flipped = flipped;
 
 	_textEdit.proxy.reset(new TextEditProxy());
 	const auto proxy = _textEdit.proxy.get();
@@ -968,12 +969,16 @@ void Scene::createTextAtCenter(int rotation) {
 			minTextWidth,
 			maxTextWidth);
 		proxy->setTextWidth(width);
+		if (flipped) {
+			proxy->setTransform(
+				QTransform().translate(width, 0).scale(-1, 1));
+		}
 		const auto anchor = QPointF(width / 2., 0.);
 		proxy->setTransformOriginPoint(anchor);
 		proxy->setPos(sceneCenter - anchor);
 	};
 	adjustWidth();
-	proxy->setRotation(rotation);
+	proxy->setRotation(flipped ? -rotation : rotation);
 
 	QObject::connect(emojiDoc, &QTextDocument::contentsChanged, [=] {
 		ReplaceEmoji(emojiDoc);
@@ -1016,6 +1021,7 @@ void Scene::startTextEditing(ItemText *item) {
 	cancelDrawing();
 	setTextEditing(true);
 	_textEditStyle = int(item->textStyle());
+	_textEdit.flipped = item->flipped();
 
 	_textEdit.proxy.reset(new TextEditProxy());
 	const auto proxy = _textEdit.proxy.get();
@@ -1040,6 +1046,7 @@ void Scene::startTextEditing(ItemText *item) {
 		1,
 		maxTextWidth);
 	const auto anchor = item->scenePos();
+	const auto flipped = item->flipped();
 	const auto adjustWidth = [=] {
 		emojiDoc->setTextWidth(maxTextWidth);
 		const auto ideal = int(std::ceil(emojiDoc->idealWidth()));
@@ -1048,6 +1055,10 @@ void Scene::startTextEditing(ItemText *item) {
 			minTextWidth,
 			maxTextWidth);
 		proxy->setTextWidth(width);
+		if (flipped) {
+			proxy->setTransform(
+				QTransform().translate(width, 0).scale(-1, 1));
+		}
 		const auto center = proxy->boundingRect().center();
 		proxy->setTransformOriginPoint(center);
 		proxy->setPos(anchor - center);
@@ -1060,7 +1071,7 @@ void Scene::startTextEditing(ItemText *item) {
 	});
 
 	const auto scale = item->editScale();
-	proxy->setRotation(item->rotation());
+	proxy->setRotation(flipped ? -item->rotation() : item->rotation());
 	if (std::abs(scale - 1.) > kScaleThreshold) {
 		proxy->setScale(scale);
 	}
@@ -1104,7 +1115,10 @@ void Scene::finishTextEditing(bool save, bool notify) {
 		: QString();
 	const auto proxyRect = _textEdit.proxy->boundingRect();
 	const auto proxyCenter = _textEdit.proxy->mapToScene(proxyRect.center());
-	const auto proxyRotation = int(_textEdit.proxy->rotation());
+	const auto flipped = std::exchange(_textEdit.flipped, false);
+	const auto proxyRotation = int(flipped
+		? -_textEdit.proxy->rotation()
+		: _textEdit.proxy->rotation());
 	const auto lockedItem = _textEdit.item.lock();
 	auto *existingItem = lockedItem
 		? static_cast<ItemText*>(lockedItem.get())
@@ -1143,6 +1157,7 @@ void Scene::finishTextEditing(bool save, bool notify) {
 				.size = size,
 				.x = int(proxyCenter.x()),
 				.y = int(proxyCenter.y()),
+				.flipped = flipped,
 				.rotation = proxyRotation,
 				.imageSize = imageSize,
 			};

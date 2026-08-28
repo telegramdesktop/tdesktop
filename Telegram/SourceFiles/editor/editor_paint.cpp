@@ -442,7 +442,7 @@ void Paint::applyBrushToSelectedShape(const Brush &brush) {
 
 void Paint::createTextItem() {
 	disarmShapeTool();
-	_scene->createTextAtCenter(-_transform.angle);
+	_scene->createTextAtCenter(-_transform.angle, _transform.flipped);
 }
 
 void Paint::createShapeItem(ShapeType shape, const Brush &brush, bool fill) {
