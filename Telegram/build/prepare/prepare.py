@@ -59,6 +59,7 @@ thirdPartyDir = os.path.realpath(os.path.join(rootDir, 'ThirdParty'))
 usedPrefix = os.path.realpath(os.path.join(libsDir, 'local'))
 
 optionsList = [
+    'qt5',
     'qt6',
     'skip-release',
     'build-stackwalk',
@@ -520,7 +521,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout aec474953ff7ee9b6e4cd9b8658288ea86d124f3
+    git checkout 5b3873e197f387e7e757ef03aa7cd9441353b179
 mac:
     sed -i '' "s/10.13/$MACOSX_DEPLOYMENT_TARGET/g" macos_meson_*.txt
     git clone https://github.com/desktop-app/qt6_highsierra_patches.git qt6_highsierra
@@ -1581,10 +1582,18 @@ release:
     lipo -create Release.arm64/libcrashpad_client.a Release.x86_64/libcrashpad_client.a -output Release/libcrashpad_client.a
 """)
 
-if qt < '6':
-    if win:
-        stage('tg_angle', """
-win:
+if win and qt >= '6':
+    # Windows 7 and 8 support for qtbase, and the ANGLE backend Qt 6 dropped.
+    stage('qt6_windows7', """
+win32_win64:
+    git clone https://github.com/desktop-app/qt6_windows7_patches.git qt6_windows7
+    cd qt6_windows7
+    git checkout 4366991164017d68c0dfc32e01c603da0e5c50e9
+""")
+
+if win:
+    stage('tg_angle', """
+win32_win64:
     git clone https://github.com/desktop-app/tg_angle.git
     cd tg_angle
     git checkout f62ce7f6efe014cf1f7d95830c505fd2ac1c49e0
@@ -1596,6 +1605,7 @@ release:
     cmake --build out --config Release
 """)
 
+if qt < '6':
     stage('qt_' + qt, """
     git clone -b v$QT-lts-lgpl https://github.com/qt/qt5.git qt_$QT
     cd qt_$QT
@@ -1670,6 +1680,8 @@ else: # qt > '6'
     cd qt_$QT
     git submodule update --init --recursive --progress qtbase qtimageformats qtshadertools qtsvg
 depends:patches/qtbase_""" + qt + """/*.patch
+win32_win64:
+depends:qt6_windows7/*.patch
 mac:
     if [ -d "../patches/qt6_highsierra" ]; then
         find "$PWD/../patches/qt6_highsierra" -maxdepth 1 -name "*.patch" -print0 | sort -z | xargs -0 git -C qtbase apply -v
@@ -1713,8 +1725,17 @@ mac:
 win:
     cd qtbase
     setlocal enabledelayedexpansion
+win32_win64:
+    for %%i in (..\\..\\qt6_windows7\\*.patch) do (
+        git apply %%i --ignore-whitespace -v
+        if errorlevel 1 (
+            echo ERROR: Applying patch %%~nxi failed!
+            exit /b 1
+        )
+    )
+win:
     for /r %%i in (..\\..\\patches\\qtbase_%QT%\\*) do (
-        git apply %%i -v
+        git apply %%i --ignore-whitespace -v
         if errorlevel 1 (
             echo ERROR: Applying patch %%~nxi failed!
             exit /b 1
@@ -1749,9 +1770,25 @@ win:
         -system-webp ^
         -system-zlib ^
         -system-libjpeg ^
+win32_win64:
+    # ANGLE is restored by qt6_windows7 series, tracing pulls Windows 10 ETW.
+        -trace no ^
+        -feature-egl ^
+win32:
+    # qioring_win.cpp static_asserts on 64-bit pointers, so no IoRing on x86.
+        -no-feature-windows-ioring ^
+win:
         -platform win32-msvc ^
         -D ZLIB_WINAPI ^
         -- ^
+win32_win64:
+        -D EGL_INCLUDE_DIR:PATH="%LIBS_DIR%\\tg_angle\\include" ^
+        -D EGL_LIBRARY:FILEPATH="%LIBS_DIR%\\tg_angle\\out\\Release\\tg_angle.lib" ^
+        -D HAVE_EGL:BOOL=ON ^
+        -D GLESv2_INCLUDE_DIR:PATH="%LIBS_DIR%\\tg_angle\\include" ^
+        -D GLESv2_LIBRARY:FILEPATH="%LIBS_DIR%\\tg_angle\\out\\Release\\tg_angle.lib" ^
+        -D HAVE_GLESv2:BOOL=ON ^
+win:
         -D OPENSSL_FOUND=1 ^
         -D OPENSSL_INCLUDE_DIR="%OPENSSL_DIR%\\include" ^
         -D LIB_EAY_DEBUG="%OPENSSL_LIBS_DIR%.dbg\\libcrypto.lib" ^
