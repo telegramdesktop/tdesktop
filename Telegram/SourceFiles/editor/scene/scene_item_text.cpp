@@ -60,11 +60,17 @@ float64 ComputeBrightness(const QColor &color) {
 		+ color.blue() * 0.0722) / 255.;
 }
 
-LayoutMetrics ComputeMetrics(
-		const QString &text,
+struct PreparedLayout {
+	std::unique_ptr<QTextLayout> layout;
+	LayoutMetrics metrics;
+};
+
+[[nodiscard]] PreparedLayout PrepareLayout(
+		const QString &processedText,
 		float64 fontSize,
 		const QSize &imageSize,
-		TextStyle style) {
+		TextStyle style,
+		const QVector<QTextLayout::FormatRange> &formats = {}) {
 	const auto hasBackground = (style == TextStyle::Framed)
 		|| (style == TextStyle::SemiTransparent);
 	const auto padding = hasBackground ? int(fontSize * kPaddingFactor) : 0;
@@ -73,22 +79,22 @@ LayoutMetrics ComputeMetrics(
 		int(shortSide * kMaxWidthFactor) - 2 * padding,
 		kMinContentWidth);
 
-	const auto font = TextFont(fontSize);
-
-	auto processedText = text;
-	processedText.replace('\n', QChar::LineSeparator);
-
 	auto option = QTextOption();
 	option.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
 
-	auto layout = QTextLayout(processedText, font);
-	layout.setTextOption(option);
-	layout.beginLayout();
+	auto layout = std::make_unique<QTextLayout>(
+		processedText,
+		TextFont(fontSize));
+	layout->setTextOption(option);
+	if (!formats.isEmpty()) {
+		layout->setFormats(formats);
+	}
+	layout->beginLayout();
 
 	auto totalHeight = 0.;
 	auto maxWidth = 0.;
 	while (true) {
-		auto line = layout.createLine();
+		auto line = layout->createLine();
 		if (!line.isValid()) {
 			break;
 		}
@@ -97,13 +103,18 @@ LayoutMetrics ComputeMetrics(
 		totalHeight += line.height();
 		maxWidth = std::max(maxWidth, float64(line.naturalTextWidth()));
 	}
-	layout.endLayout();
+	layout->endLayout();
 
 	return {
-		.contentWidth = std::max(int(std::ceil(maxWidth)), kMinContentWidth),
-		.contentHeight = int(std::ceil(totalHeight)),
-		.padding = padding,
-		.textMaxWidth = textMaxWidth,
+		.layout = std::move(layout),
+		.metrics = {
+			.contentWidth = std::max(
+				int(std::ceil(maxWidth)),
+				kMinContentWidth),
+			.contentHeight = int(std::ceil(totalHeight)),
+			.padding = padding,
+			.textMaxWidth = textMaxWidth,
+		},
 	};
 }
 
@@ -290,20 +301,10 @@ void ItemText::renderContent() {
 		return;
 	}
 
-	const auto m = ComputeMetrics(_text, _fontSize, _imageSize, _textStyle);
-	const auto pixWidth = m.contentWidth + 2 * m.padding;
-	const auto pixHeight = m.contentHeight + 2 * m.padding;
-
 	const auto font = TextFont(_fontSize);
 
 	auto processedText = _text;
 	processedText.replace('\n', QChar::LineSeparator);
-
-	auto option = QTextOption();
-	option.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
-
-	auto layout = QTextLayout(processedText, font);
-	layout.setTextOption(option);
 
 	struct EmojiPos {
 		int start = 0;
@@ -333,20 +334,17 @@ void ItemText::renderContent() {
 			}
 		}
 	}
-	layout.setFormats(emojiFormats);
 
-	layout.beginLayout();
-	auto y = 0.;
-	while (true) {
-		auto line = layout.createLine();
-		if (!line.isValid()) {
-			break;
-		}
-		line.setLineWidth(m.textMaxWidth);
-		line.setPosition(QPointF(0, y));
-		y += line.height();
-	}
-	layout.endLayout();
+	const auto prepared = PrepareLayout(
+		processedText,
+		_fontSize,
+		_imageSize,
+		_textStyle,
+		emojiFormats);
+	const auto &m = prepared.metrics;
+	const auto &layout = *prepared.layout;
+	const auto pixWidth = m.contentWidth + 2 * m.padding;
+	const auto pixHeight = m.contentHeight + 2 * m.padding;
 
 	auto textColor = _color;
 	auto bgColor = QColor(Qt::transparent);
@@ -488,7 +486,11 @@ QSize ItemText::computeContentSize(
 	}
 	auto processedText = text;
 	processedText.replace('\n', QChar::LineSeparator);
-	const auto m = ComputeMetrics(processedText, fontSize, imageSize, style);
+	const auto m = PrepareLayout(
+		processedText,
+		fontSize,
+		imageSize,
+		style).metrics;
 	return QSize(
 		m.contentWidth + 2 * m.padding,
 		m.contentHeight + 2 * m.padding);
