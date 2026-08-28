@@ -12,19 +12,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene_item_shape.h"
 #include "editor/scene/scene_item_sticker.h"
 #include "editor/scene/scene_item_text.h"
-#include "editor/scene/scene_emoji_document.h"
+#include "editor/scene/scene_text_editing.h"
 #include "ui/image/image_prepare.h"
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
 #include "styles/style_editor.h"
 
-#include <QGraphicsSceneContextMenuEvent>
 #include <QGraphicsSceneMouseEvent>
-#include <QGraphicsTextItem>
-#include <QGraphicsView>
-#include <QTextBlock>
-#include <QTextCursor>
-#include <QTextDocument>
 #include <QtMath>
 
 namespace Editor {
@@ -155,134 +149,17 @@ bool SkipMouseEvent(not_null<QGraphicsSceneMouseEvent*> event) {
 	return event->isAccepted() || (event->button() == Qt::RightButton);
 }
 
-constexpr auto kMinWidthFactor = 0.16;
-constexpr auto kIdealWidthExtra = 2;
-constexpr auto kScaleThreshold = 0.01;
 constexpr auto kShapeDragThreshold = 4.;
 constexpr auto kShapeSnapAngle = 45.;
 constexpr auto kDraftShapeOpacity = 0.5;
-
-class TextEditProxy final : public QGraphicsTextItem {
-public:
-	using QGraphicsTextItem::QGraphicsTextItem;
-
-	Fn<void()> onFinish;
-	Fn<void()> onCancel;
-
-	void setStyleInfo(
-			TextStyle style,
-			const QColor &color,
-			float64 fontSize) {
-		prepareGeometryChange();
-		_style = style;
-		_color = color;
-		_fontSize = fontSize;
-		update();
-	}
-
-	void setStyleColor(const QColor &color) {
-		_color = color;
-		update();
-	}
-
-	QRectF boundingRect() const override {
-		const auto pad = float64(TextBackgroundPadding(_fontSize, _style));
-		return QGraphicsTextItem::boundingRect().adjusted(
-			-pad,
-			-pad,
-			pad,
-			pad);
-	}
-
-	void paint(
-			QPainter *painter,
-			const QStyleOptionGraphicsItem *option,
-			QWidget *widget) override {
-		paintBackground(painter);
-		QGraphicsTextItem::paint(painter, option, widget);
-	}
-
-protected:
-	void keyPressEvent(QKeyEvent *event) override {
-		if (event->key() == Qt::Key_Escape) {
-			fire(onCancel);
-			return;
-		}
-		QGraphicsTextItem::keyPressEvent(event);
-	}
-
-	void focusOutEvent(QFocusEvent *event) override {
-		QGraphicsTextItem::focusOutEvent(event);
-		fire(onFinish);
-	}
-
-	void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override {
-		event->accept();
-	}
-
-private:
-	void paintBackground(QPainter *painter) {
-		const auto bg = TextBackgroundColor(_color, _style);
-		if (bg.alpha() <= 0) {
-			return;
-		}
-		auto lines = std::vector<TextBackgroundLine>();
-		const auto doc = document();
-		for (auto block = doc->begin()
-			; block.isValid()
-			; block = block.next()) {
-			const auto layout = block.layout();
-			if (!layout) {
-				continue;
-			}
-			const auto origin = layout->position();
-			for (auto i = 0; i < layout->lineCount(); ++i) {
-				const auto line = layout->lineAt(i);
-				const auto left = origin.x() + line.x();
-				const auto top = origin.y() + line.y();
-				lines.push_back({
-					.left = left,
-					.top = top,
-					.right = left + float64(line.naturalTextWidth()),
-					.bottom = top + float64(line.height()),
-				});
-			}
-		}
-		if (lines.empty()) {
-			return;
-		}
-		const auto path = BuildTextBackgroundPath(
-			std::move(lines),
-			_fontSize);
-		painter->save();
-		PainterHighQualityEnabler hq(*painter);
-		painter->setPen(Qt::NoPen);
-		painter->setBrush(bg);
-		painter->drawPath(path);
-		painter->restore();
-	}
-
-	void fire(Fn<void()> &callback) {
-		if (!callback) {
-			return;
-		}
-		const auto cb = std::exchange(callback, nullptr);
-		onFinish = nullptr;
-		onCancel = nullptr;
-		crl::on_main(cb);
-	}
-
-	TextStyle _style = TextStyle::Plain;
-	QColor _color;
-	float64 _fontSize = 0.;
-};
 
 } // namespace
 
 Scene::Scene(const QRectF &rect)
 : QGraphicsScene(rect)
 , _canvas(std::make_shared<ItemCanvas>())
-, _lastZ(std::make_shared<float64>(9000.)) {
+, _lastZ(std::make_shared<float64>(9000.))
+, _textEdit(std::make_unique<TextEditController>(this)) {
 	QGraphicsScene::addItem(_canvas.get());
 	_canvas->clearPixmap();
 
@@ -449,16 +326,12 @@ Scene::Scene(const QRectF &rect)
 }
 
 void Scene::cancelDrawing() {
-	if (_textEdit.proxy) {
-		finishTextEditing(false);
-	}
+	_textEdit->finishEditing(false);
 	_canvas->cancelDrawing();
 }
 
 void Scene::cancelTextEditing() {
-	if (_textEdit.proxy) {
-		finishTextEditing(false, false);
-	}
+	_textEdit->finishEditing(false, false);
 }
 
 void Scene::addItem(ItemPtr item) {
@@ -506,15 +379,12 @@ void Scene::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 			return;
 		}
 	}
-	if (_textEdit.proxy) {
-		const auto clickOnProxy = _textEdit.proxy->contains(
-			_textEdit.proxy->mapFromScene(event->scenePos()));
-		if (!clickOnProxy) {
-			finishTextEditing(true);
-			QGraphicsScene::mousePressEvent(event);
-			capturePlacements();
-			return;
-		}
+	if (_textEdit->editing()
+		&& !_textEdit->proxyContains(event->scenePos())) {
+		_textEdit->finishEditing(true);
+		QGraphicsScene::mousePressEvent(event);
+		capturePlacements();
+		return;
 	}
 
 	QGraphicsScene::mousePressEvent(event);
@@ -533,7 +403,7 @@ void Scene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
 	}
 	QGraphicsScene::mouseReleaseEvent(event);
 	commitPlacements();
-	if (SkipMouseEvent(event) || _textEdit.proxy) {
+	if (SkipMouseEvent(event) || _textEdit->editing()) {
 		return;
 	}
 	_canvas->handleMouseReleaseEvent(event);
@@ -546,7 +416,7 @@ void Scene::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 		return;
 	}
 	QGraphicsScene::mouseMoveEvent(event);
-	if (SkipMouseEvent(event) || _textEdit.proxy) {
+	if (SkipMouseEvent(event) || _textEdit->editing()) {
 		return;
 	}
 	_canvas->handleMouseMoveEvent(event);
@@ -563,9 +433,7 @@ void Scene::setPendingShape(std::optional<PendingShape> pending) {
 	_shapeTool.pending = std::move(pending);
 	const auto now = _shapeTool.pending.has_value();
 	if (now) {
-		if (_textEdit.proxy) {
-			finishTextEditing(true);
-		}
+		_textEdit->finishEditing(true);
 		clearSelection();
 		clearFocus();
 	}
@@ -726,22 +594,11 @@ void Scene::setTextDefaults(
 		const QColor &color,
 		float64 fontSize,
 		TextStyle style) {
-	_textColor = color;
-	_textFontSize = fontSize;
-	_textStyle = style;
+	_textEdit->setDefaults(color, fontSize, style);
 }
 
 void Scene::setTextColor(const QColor &color) {
-	if (_textEdit.proxy) {
-		_textEdit.color = color;
-		_textEdit.proxy->setDefaultTextColor(EffectiveTextColor(
-			color,
-			_textEditStyle));
-		static_cast<TextEditProxy*>(
-			_textEdit.proxy.get())->setStyleColor(color);
-	} else {
-		_textColor = color;
-	}
+	_textEdit->setColor(color);
 }
 
 void Scene::setSelectedTextColor(const QColor &color) {
@@ -765,7 +622,7 @@ void Scene::setSelectedShapeBrush(
 }
 
 rpl::producer<QColor> Scene::textColorRequests() const {
-	return _textColorRequests.events();
+	return _textEdit->colorRequests();
 }
 
 rpl::producer<QColor> Scene::textItemSelections() const {
@@ -777,7 +634,7 @@ rpl::producer<> Scene::textItemDeselections() const {
 }
 
 rpl::producer<bool> Scene::textEditStates() const {
-	return _textEditStates.events();
+	return _textEdit->editStates();
 }
 
 rpl::producer<QColor> Scene::shapeItemSelections() const {
@@ -836,6 +693,15 @@ void Scene::releaseAnimations() {
 
 std::shared_ptr<float64> Scene::lastZ() const {
 	return _lastZ;
+}
+
+Scene::ItemPtr Scene::itemShared(QGraphicsItem *item) const {
+	const auto it = _itemsByPointer.find(item);
+	return (it != end(_itemsByPointer)) ? it->second : nullptr;
+}
+
+float64 Scene::currentZoom() const {
+	return _currentZoom;
 }
 
 void Scene::updateZoom(float64 zoom) {
@@ -946,9 +812,7 @@ void Scene::clearRedoList() {
 }
 
 void Scene::save(SaveState state) {
-	if (_textEdit.proxy) {
-		finishTextEditing(true);
-	}
+	_textEdit->finishEditing(true);
 
 	removeIf([](const ItemPtr &item) {
 		return item->isRemovedStatus()
@@ -975,321 +839,12 @@ void Scene::restore(SaveState state) {
 	cancelDrawing();
 }
 
-void Scene::setTextEditing(bool editing, bool notify) {
-	if (_textEditing == editing) {
-		return;
-	}
-	_textEditing = editing;
-	if (notify) {
-		_textEditStates.fire_copy(editing);
-	}
-}
-
-void Scene::setupTextProxy(
-		QGraphicsTextItem *proxy,
-		const QColor &color,
-		const TextLayoutSpec &spec) {
-	proxy->setTextInteractionFlags(Qt::TextEditorInteraction);
-	proxy->setDefaultTextColor(color);
-
-	auto *emojiDoc = new EmojiDocument(proxy);
-	emojiDoc->setDocumentMargin(0);
-	proxy->setDocument(emojiDoc);
-	proxy->setFont(spec.font);
-
-	{
-		auto option = emojiDoc->defaultTextOption();
-		option.setAlignment(Qt::AlignCenter);
-		option.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
-		emojiDoc->setDefaultTextOption(option);
-	}
-}
-
 void Scene::createTextAtCenter(int rotation, bool flipped) {
-	if (_textEdit.proxy) {
-		finishTextEditing(true);
-	}
-
-	const auto generation = ++_textEditGeneration;
-
-	clearSelection();
-	cancelDrawing();
-	setTextEditing(true);
-	_textEditStyle = _textStyle;
-	_textEdit.flipped = flipped;
-
-	const auto spec = ComputeTextLayoutSpec(
-		_textFontSize,
-		sceneRect().size().toSize(),
-		_textEditStyle);
-
-	_textEdit.proxy.reset(new TextEditProxy());
-	const auto proxy = _textEdit.proxy.get();
-	setupTextProxy(
-		proxy,
-		EffectiveTextColor(_textColor, _textEditStyle),
-		spec);
-	static_cast<TextEditProxy*>(proxy)->setStyleInfo(
-		_textEditStyle,
-		_textColor,
-		_textFontSize);
-
-	const auto emojiDoc = proxy->document();
-	const auto shortSide = std::min(
-		sceneRect().width(),
-		sceneRect().height());
-	const auto maxTextWidth = spec.maxTextWidth;
-	const auto minTextWidth = std::clamp(
-		int(shortSide * kMinWidthFactor) - 2 * spec.padding,
-		1,
-		maxTextWidth);
-	const auto sceneCenter = sceneRect().center();
-	const auto adjustWidth = [=] {
-		if (int(emojiDoc->textWidth()) != maxTextWidth) {
-			emojiDoc->setTextWidth(maxTextWidth);
-		}
-		const auto ideal = int(std::ceil(emojiDoc->idealWidth()));
-		const auto width = std::clamp(
-			ideal + kIdealWidthExtra,
-			minTextWidth,
-			maxTextWidth);
-		if (int(proxy->textWidth()) != width) {
-			proxy->setTextWidth(width);
-		}
-		if (flipped) {
-			proxy->setTransform(
-				QTransform().translate(width, 0).scale(-1, 1));
-		}
-		const auto anchor = QPointF(width / 2., 0.);
-		proxy->setTransformOriginPoint(anchor);
-		proxy->setPos(sceneCenter - anchor);
-	};
-	adjustWidth();
-	proxy->setRotation(flipped ? -rotation : rotation);
-
-	QObject::connect(
-		emojiDoc,
-		&QTextDocument::contentsChange,
-		[=](int position, int removed, int added) {
-			SanitizeRange(emojiDoc, position, position + added);
-			ReplaceEmojiInRange(emojiDoc, position, position + added);
-			adjustWidth();
-		});
-
-	QGraphicsScene::addItem(proxy);
-	proxy->setZValue((*_lastZ)++);
-	proxy->setFocus();
-	if (!views().isEmpty()) {
-		views().first()->setFocus();
-	}
-
-	const auto raw = static_cast<TextEditProxy*>(proxy);
-	raw->onFinish = crl::guard(this, [=] {
-		if (generation == _textEditGeneration) {
-			finishTextEditing(true);
-		}
-	});
-	raw->onCancel = crl::guard(this, [=] {
-		if (generation == _textEditGeneration) {
-			finishTextEditing(false);
-		}
-	});
-
-	_textEdit.item.reset();
-	_textColorRequests.fire_copy(_textColor);
+	_textEdit->createAtCenter(rotation, flipped);
 }
 
 void Scene::startTextEditing(ItemText *item) {
-	if (_textEdit.proxy) {
-		finishTextEditing(true);
-	}
-	if (!item) {
-		return;
-	}
-
-	const auto generation = ++_textEditGeneration;
-
-	cancelDrawing();
-	setTextEditing(true);
-	_textEditStyle = item->textStyle();
-	_textEdit.flipped = item->flipped();
-
-	const auto spec = ComputeTextLayoutSpec(
-		item->fontSize(),
-		sceneRect().size().toSize(),
-		item->textStyle());
-
-	_textEdit.proxy.reset(new TextEditProxy());
-	const auto proxy = _textEdit.proxy.get();
-	setupTextProxy(
-		proxy,
-		EffectiveTextColor(item->color(), item->textStyle()),
-		spec);
-	static_cast<TextEditProxy*>(proxy)->setStyleInfo(
-		item->textStyle(),
-		item->color(),
-		item->fontSize());
-
-	proxy->setPlainText(item->text());
-	ReplaceEmoji(proxy->document());
-
-	const auto emojiDoc = proxy->document();
-	const auto shortSide = std::min(
-		sceneRect().width(),
-		sceneRect().height());
-	const auto maxTextWidth = spec.maxTextWidth;
-	const auto minTextWidth = std::clamp(
-		int(shortSide * kMinWidthFactor) - 2 * spec.padding,
-		1,
-		maxTextWidth);
-	const auto anchor = item->scenePos();
-	const auto flipped = item->flipped();
-	const auto adjustWidth = [=] {
-		if (int(emojiDoc->textWidth()) != maxTextWidth) {
-			emojiDoc->setTextWidth(maxTextWidth);
-		}
-		const auto ideal = int(std::ceil(emojiDoc->idealWidth()));
-		const auto width = std::clamp(
-			ideal + kIdealWidthExtra,
-			minTextWidth,
-			maxTextWidth);
-		if (int(proxy->textWidth()) != width) {
-			proxy->setTextWidth(width);
-		}
-		if (flipped) {
-			proxy->setTransform(
-				QTransform().translate(width, 0).scale(-1, 1));
-		}
-		const auto center = proxy->boundingRect().center();
-		proxy->setTransformOriginPoint(center);
-		proxy->setPos(anchor - center);
-	};
-	adjustWidth();
-
-	QObject::connect(
-		emojiDoc,
-		&QTextDocument::contentsChange,
-		[=](int position, int removed, int added) {
-			SanitizeRange(emojiDoc, position, position + added);
-			ReplaceEmojiInRange(emojiDoc, position, position + added);
-			adjustWidth();
-		});
-
-	const auto scale = item->scale() * item->editScale();
-	proxy->setRotation(flipped ? -item->rotation() : item->rotation());
-	if (std::abs(scale - 1.) > kScaleThreshold) {
-		proxy->setScale(scale);
-	}
-
-	QGraphicsScene::addItem(proxy);
-	proxy->setZValue((*_lastZ)++);
-	proxy->setFocus();
-
-	auto cursor = proxy->textCursor();
-	cursor.select(QTextCursor::Document);
-	proxy->setTextCursor(cursor);
-
-	item->setVisible(false);
-
-	const auto raw = static_cast<TextEditProxy*>(proxy);
-	raw->onFinish = crl::guard(this, [=] {
-		if ((generation != _textEditGeneration) || !_textEdit.proxy) {
-			return;
-		}
-		// Focus loss with cleared text cancels instead of removing.
-		const auto empty = RecoverTextFromDocument(
-			_textEdit.proxy->document()).trimmed().isEmpty();
-		finishTextEditing(!empty);
-	});
-	raw->onCancel = crl::guard(this, [=] {
-		if (generation == _textEditGeneration) {
-			finishTextEditing(false);
-		}
-	});
-
-	const auto it = _itemsByPointer.find(item);
-	_textEdit.item = (it != end(_itemsByPointer))
-		? it->second
-		: std::weak_ptr<NumberedItem>();
-	_textColorRequests.fire_copy(item->color());
-}
-
-void Scene::finishTextEditing(bool save, bool notify) {
-	if (!_textEdit.proxy) {
-		return;
-	}
-
-	const auto text = save
-		? RecoverTextFromDocument(_textEdit.proxy->document()).trimmed()
-		: QString();
-	const auto proxyRect = _textEdit.proxy->boundingRect();
-	const auto proxyCenter = _textEdit.proxy->mapToScene(proxyRect.center());
-	const auto flipped = std::exchange(_textEdit.flipped, false);
-	const auto proxyRotation = int(flipped
-		? -_textEdit.proxy->rotation()
-		: _textEdit.proxy->rotation());
-	const auto lockedItem = _textEdit.item.lock();
-	auto *existingItem = lockedItem
-		? static_cast<ItemText*>(lockedItem.get())
-		: (ItemText*)(nullptr);
-
-	const auto raw = static_cast<TextEditProxy*>(_textEdit.proxy.get());
-	raw->onFinish = nullptr;
-	raw->onCancel = nullptr;
-	QGraphicsScene::removeItem(_textEdit.proxy.get());
-	_textEdit.proxy = nullptr;
-	_textEdit.item.reset();
-	const auto stagedColor = base::take(_textEdit.color);
-	setTextEditing(false, notify);
-
-	const auto defaultStyle = _textStyle;
-
-	if (!text.isEmpty()) {
-		if (existingItem) {
-			if (stagedColor) {
-				existingItem->setColor(*stagedColor);
-			}
-			existingItem->setText(text);
-			existingItem->setVisible(true);
-		} else {
-			const auto imageSize = sceneRect().size().toSize();
-			const auto contentSize = ItemText::computeContentSize(
-				text,
-				_textFontSize,
-				imageSize,
-				defaultStyle);
-			const auto zoom = (_currentZoom > 0.) ? _currentZoom : 1.;
-			const auto handleInflate = int(
-				std::ceil(st::photoEditorItemHandleSize / zoom));
-			const auto size = std::max(
-				contentSize.width() + handleInflate,
-				1);
-			auto data = ItemBase::Data{
-				.initialZoom = zoom,
-				.zPtr = _lastZ,
-				.size = size,
-				.x = int(proxyCenter.x()),
-				.y = int(proxyCenter.y()),
-				.flipped = flipped,
-				.rotation = proxyRotation,
-				.imageSize = imageSize,
-			};
-			auto item = std::make_shared<ItemText>(
-				text,
-				stagedColor.value_or(_textColor),
-				_textFontSize,
-				defaultStyle,
-				imageSize,
-				std::move(data));
-			addItem(item);
-		}
-	} else if (existingItem) {
-		if (save) {
-			removeItem(existingItem);
-		} else {
-			existingItem->setVisible(true);
-		}
-	}
+	_textEdit->startEditing(item);
 }
 
 Scene::~Scene() {

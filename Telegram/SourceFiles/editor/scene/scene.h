@@ -7,14 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <base/unique_qptr.h>
 #include <editor/photo_editor_inner_common.h>
 #include <editor/scene/scene_item_base.h>
 
 #include <QGraphicsScene>
 
 class QGraphicsSceneMouseEvent;
-class QGraphicsTextItem;
 
 namespace Ui {
 class RpWidget;
@@ -26,7 +24,7 @@ class ItemCanvas;
 class ItemShape;
 class ItemText;
 class NumberedItem;
-struct TextLayoutSpec;
+class TextEditController;
 
 class Scene final : public QGraphicsScene {
 public:
@@ -67,6 +65,8 @@ public:
 	[[nodiscard]] rpl::producer<> removesItem() const;
 
 	[[nodiscard]] std::shared_ptr<float64> lastZ() const;
+	[[nodiscard]] ItemPtr itemShared(QGraphicsItem *item) const;
+	[[nodiscard]] float64 currentZoom() const;
 
 	void updateZoom(float64 zoom);
 
@@ -118,15 +118,10 @@ private:
 	[[nodiscard]] std::shared_ptr<ItemShape> createShape(
 		int size,
 		const QPointF &center) const;
-	void finishTextEditing(bool save, bool notify = true);
-	void setTextEditing(bool editing, bool notify = true);
-	void setupTextProxy(
-		QGraphicsTextItem *proxy,
-		const QColor &color,
-		const TextLayoutSpec &spec);
 
 	const std::shared_ptr<ItemCanvas> _canvas;
 	const std::shared_ptr<float64> _lastZ;
+	const std::unique_ptr<TextEditController> _textEdit;
 	Fn<QImage(QRect)> _blurSource;
 
 	std::vector<ItemPtr> _items;
@@ -136,18 +131,6 @@ private:
 	float64 _lastLineZ = 0.;
 	float64 _currentZoom = 1.;
 	int _itemNumber = 0;
-
-	QColor _textColor;
-	float64 _textFontSize = 0.;
-	TextStyle _textStyle = TextStyle::Plain;
-	TextStyle _textEditStyle = TextStyle::Plain;
-
-	struct {
-		std::weak_ptr<NumberedItem> item;
-		base::unique_qptr<QGraphicsTextItem> proxy;
-		std::optional<QColor> color;
-		bool flipped = false;
-	} _textEdit;
 
 	struct {
 		std::optional<PendingShape> pending;
@@ -159,17 +142,13 @@ private:
 	} _shapeTool;
 
 	rpl::event_stream<> _addsItem, _removesItem;
-	rpl::event_stream<QColor> _textColorRequests;
 	rpl::event_stream<QColor> _textItemSelections;
 	rpl::event_stream<> _textItemDeselections;
-	rpl::event_stream<bool> _textEditStates;
 	rpl::event_stream<QColor> _shapeItemSelections;
 	rpl::event_stream<> _shapeItemDeselections;
 	rpl::event_stream<bool> _pendingShapeStates;
 	ItemText *_selectedTextItem = nullptr;
 	ItemShape *_selectedShapeItem = nullptr;
-	bool _textEditing = false;
-	int _textEditGeneration = 0;
 	rpl::lifetime _lifetime;
 
 };
