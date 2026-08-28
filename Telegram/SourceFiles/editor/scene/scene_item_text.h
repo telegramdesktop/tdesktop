@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/timer.h"
 #include "base/unique_qptr.h"
 #include "editor/scene/scene_item_base.h"
 
@@ -66,9 +65,6 @@ public:
 	void restore(SaveState state) override;
 
 protected:
-	void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
-	void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
-	void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 	void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) override;
 	void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
 	void performFlip() override;
@@ -84,12 +80,6 @@ private:
 	QSize _imageSize;
 	QPixmap _pixmap;
 	base::unique_qptr<Ui::PopupMenu> _contextMenu;
-	QPointF _textStyleClickItemPosition;
-	TextStyle _textStyleClickInitialStyle = TextStyle::Plain;
-	base::Timer _textStyleClickTimer;
-	bool _textStyleClickCandidate = false;
-	bool _textStyleClickDragging = false;
-	bool _textStyleClickChanged = false;
 
 	struct SavedText {
 		QString text;
