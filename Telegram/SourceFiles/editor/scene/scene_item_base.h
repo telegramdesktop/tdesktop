@@ -79,6 +79,7 @@ public:
 		float64 size = 0.;
 		float64 aspectRatio = 1.;
 		float64 bend = 0.;
+		float64 fontSize = 0.;
 		bool flipped = false;
 
 		friend inline bool operator==(

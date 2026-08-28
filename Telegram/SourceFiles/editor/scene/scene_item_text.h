@@ -74,6 +74,10 @@ public:
 	void setTextStyle(TextStyle style);
 
 	[[nodiscard]] float64 editScale() const;
+	void bakeScale();
+
+	[[nodiscard]] Placement placement() const override;
+	void applyPlacement(const Placement &placement) override;
 
 	[[nodiscard]] static QSize computeContentSize(
 		const QString &text,
@@ -86,6 +90,7 @@ public:
 
 protected:
 	void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) override;
+	void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 	void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
 	void actionFlip() override;
 	void performFlip() override;

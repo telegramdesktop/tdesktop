@@ -813,6 +813,12 @@ void Scene::clearRedoList() {
 
 void Scene::save(SaveState state) {
 	_textEdit->finishEditing(true);
+	for (const auto &item : _items) {
+		if (item->isNormalStatus()
+			&& (item->type() == ItemText::Type)) {
+			static_cast<ItemText*>(item.get())->bakeScale();
+		}
+	}
 
 	removeIf([](const ItemPtr &item) {
 		return item->isRemovedStatus()

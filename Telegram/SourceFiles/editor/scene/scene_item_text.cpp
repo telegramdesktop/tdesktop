@@ -481,8 +481,9 @@ void ItemText::renderContent() {
 	const auto handleMargin = std::max(
 		innerRect().width() - contentRect().width(),
 		0.);
-	setAspectRatio(
-		(pixHeight + handleMargin) / float64(pixWidth + handleMargin));
+	applyStretch(
+		pixWidth + handleMargin,
+		pixHeight + handleMargin);
 }
 
 QSize ItemText::computeContentSize(
@@ -583,6 +584,31 @@ float64 ItemText::editScale() const {
 	return std::max(size() - handleMargin, 1.) / natural.width();
 }
 
+void ItemText::bakeScale() {
+	const auto factor = editScale() * scale();
+	if (_text.isEmpty() || (std::abs(factor - 1.) < 0.001)) {
+		return;
+	}
+	_fontSize = std::max(_fontSize * factor, 1.);
+	setScale(1.);
+	renderContent();
+	update();
+}
+
+ItemBase::Placement ItemText::placement() const {
+	auto result = ItemBase::placement();
+	result.fontSize = _fontSize;
+	return result;
+}
+
+void ItemText::applyPlacement(const Placement &placement) {
+	if ((placement.fontSize > 0.) && (placement.fontSize != _fontSize)) {
+		_fontSize = placement.fontSize;
+		renderContent();
+	}
+	ItemBase::applyPlacement(placement);
+}
+
 TextStyle ItemText::textStyle() const {
 	return _textStyle;
 }
@@ -594,6 +620,15 @@ void ItemText::setTextStyle(TextStyle style) {
 	_textStyle = style;
 	renderContent();
 	update();
+}
+
+void ItemText::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
+	const auto resized = isHandling()
+		&& (event->button() == Qt::LeftButton);
+	ItemBase::mouseReleaseEvent(event);
+	if (resized) {
+		bakeScale();
+	}
 }
 
 void ItemText::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) {
