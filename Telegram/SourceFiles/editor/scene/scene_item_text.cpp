@@ -43,6 +43,8 @@ constexpr auto kLinePadVFactor = 1. / 8.;
 constexpr auto kMergeRadiusFactor = 1.5;
 constexpr auto kLineShiftFactor = 1. / 7.;
 
+constexpr auto kNoWrapWidth = 1e9;
+
 struct LayoutMetrics {
 	int contentWidth = 0;
 	int contentHeight = 0;
@@ -134,7 +136,7 @@ struct PreparedLayout {
 		if (!line.isValid()) {
 			break;
 		}
-		line.setLineWidth(textMaxWidth);
+		line.setLineWidth(kNoWrapWidth);
 		line.setPosition(QPointF(0, totalHeight));
 		totalHeight += line.height();
 		maxWidth = std::max(maxWidth, float64(line.naturalTextWidth()));

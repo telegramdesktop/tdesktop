@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QTextBlock>
 #include <QTextCursor>
+#include <QTextLayout>
 
 namespace Editor {
 
@@ -169,6 +170,43 @@ void SanitizeRange(QTextDocument *doc, int from, int to) {
 	cursor.endEditBlock();
 }
 
+namespace {
+
+struct RecoveredBlock {
+	QString text;
+	std::vector<int> offsets;
+};
+
+[[nodiscard]] RecoveredBlock RecoverBlock(const QTextBlock &block) {
+	auto result = RecoveredBlock();
+	auto it = block.begin();
+	while (!it.atEnd()) {
+		const auto fragment = it.fragment();
+		++it;
+		if (!fragment.isValid()) {
+			continue;
+		}
+		const auto text = fragment.text();
+		const auto format = fragment.charFormat();
+		for (const auto &ch : text) {
+			result.offsets.push_back(int(result.text.size()));
+			if (ch == QChar::ObjectReplacementCharacter) {
+				if (format.isImageFormat()) {
+					const auto name = format.toImageFormat().name();
+					if (const auto emoji = Ui::Emoji::FromUrl(name)) {
+						result.text += emoji->text();
+					}
+				}
+				continue;
+			}
+			result.text += ch;
+		}
+	}
+	return result;
+}
+
+} // namespace
+
 QString RecoverTextFromDocument(QTextDocument *doc) {
 	auto result = QString();
 	auto block = doc->begin();
@@ -176,28 +214,46 @@ QString RecoverTextFromDocument(QTextDocument *doc) {
 		if (block != doc->begin()) {
 			result += '\n';
 		}
-		auto it = block.begin();
-		while (!it.atEnd()) {
-			const auto fragment = it.fragment();
-			if (!fragment.isValid()) {
-				++it;
-				continue;
-			}
-			const auto text = fragment.text();
-			const auto format = fragment.charFormat();
-			for (const auto &ch : text) {
-				if (ch == QChar::ObjectReplacementCharacter) {
-					if (format.isImageFormat()) {
-						const auto name = format.toImageFormat().name();
-						if (const auto emoji = Ui::Emoji::FromUrl(name)) {
-							result += emoji->text();
-						}
-					}
-					continue;
+		result += RecoverBlock(block).text;
+		block = block.next();
+	}
+	return result;
+}
+
+QString RecoverWrappedTextFromDocument(QTextDocument *doc) {
+	auto result = QString();
+	auto block = doc->begin();
+	while (block.isValid()) {
+		if (block != doc->begin()) {
+			result += '\n';
+		}
+		const auto recovered = RecoverBlock(block);
+		const auto layout = block.layout();
+		const auto lineCount = layout ? layout->lineCount() : 0;
+		if (lineCount <= 1) {
+			result += recovered.text;
+		} else {
+			const auto offsetAt = [&](int position) {
+				return ((position >= 0)
+					&& (position < int(recovered.offsets.size())))
+					? recovered.offsets[position]
+					: int(recovered.text.size());
+			};
+			for (auto i = 0; i != lineCount; ++i) {
+				const auto from = offsetAt(
+					layout->lineAt(i).textStart());
+				const auto till = ((i + 1) < lineCount)
+					? offsetAt(layout->lineAt(i + 1).textStart())
+					: int(recovered.text.size());
+				if (i > 0) {
+					result += '\n';
 				}
-				result += ch;
+				auto slice = recovered.text.mid(from, till - from);
+				if (slice.endsWith(QChar(QChar::LineSeparator))) {
+					slice.chop(1);
+				}
+				result += slice;
 			}
-			++it;
 		}
 		block = block.next();
 	}

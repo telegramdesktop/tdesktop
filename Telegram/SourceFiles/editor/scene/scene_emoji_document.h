@@ -24,5 +24,6 @@ void ReplaceEmoji(QTextDocument *doc);
 void ReplaceEmojiInRange(QTextDocument *doc, int from, int to);
 void SanitizeRange(QTextDocument *doc, int from, int to);
 [[nodiscard]] QString RecoverTextFromDocument(QTextDocument *doc);
+[[nodiscard]] QString RecoverWrappedTextFromDocument(QTextDocument *doc);
 
 } // namespace Editor

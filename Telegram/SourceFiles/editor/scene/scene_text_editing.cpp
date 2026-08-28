@@ -326,6 +326,10 @@ int TextEditController::sessionMinTextWidth() const {
 		spec.maxTextWidth);
 }
 
+int TextEditController::sessionWrapWidth() const {
+	return std::max(sessionMaxTextWidth(), _edit.maxWidthFloor);
+}
+
 void TextEditController::applyAutoShrink() {
 	const auto proxy = _edit.proxy.get();
 	if (!proxy) {
@@ -339,7 +343,7 @@ void TextEditController::applyAutoShrink() {
 		1.);
 	const auto doc = proxy->document();
 	while (_edit.fontSize > minFontSize) {
-		const auto maxWidth = sessionMaxTextWidth();
+		const auto maxWidth = sessionWrapWidth();
 		if (int(doc->textWidth()) != maxWidth) {
 			doc->setTextWidth(maxWidth);
 		}
@@ -400,6 +404,7 @@ void TextEditController::createAtCenter(int rotation, bool flipped) {
 	_editAlignment = _defaultAlignment;
 	_edit.flipped = flipped;
 	_edit.fontSize = _defaultFontSize;
+	_edit.maxWidthFloor = 0;
 
 	const auto sceneRect = _scene->sceneRect();
 	const auto spec = ComputeTextLayoutSpec(
@@ -424,7 +429,7 @@ void TextEditController::createAtCenter(int rotation, bool flipped) {
 	const auto sceneCenter = sceneRect.center();
 	const auto adjustWidth = [=] {
 		applyAutoShrink();
-		const auto maxTextWidth = sessionMaxTextWidth();
+		const auto maxTextWidth = sessionWrapWidth();
 		const auto minTextWidth = sessionMinTextWidth();
 		if (int(emojiDoc->textWidth()) != maxTextWidth) {
 			emojiDoc->setTextWidth(maxTextWidth);
@@ -529,11 +534,14 @@ void TextEditController::startEditing(ItemText *item) {
 	ReplaceEmoji(proxy->document());
 
 	const auto emojiDoc = proxy->document();
+	emojiDoc->setTextWidth(-1);
+	_edit.maxWidthFloor = int(std::ceil(emojiDoc->idealWidth()))
+		+ kIdealWidthExtra;
 	const auto anchor = item->scenePos();
 	const auto flipped = item->flipped();
 	const auto adjustWidth = [=] {
 		applyAutoShrink();
-		const auto maxTextWidth = sessionMaxTextWidth();
+		const auto maxTextWidth = sessionWrapWidth();
 		const auto minTextWidth = sessionMinTextWidth();
 		if (int(emojiDoc->textWidth()) != maxTextWidth) {
 			emojiDoc->setTextWidth(maxTextWidth);
@@ -615,7 +623,8 @@ void TextEditController::finishEditing(bool save, bool notify) {
 	}
 
 	const auto text = save
-		? RecoverTextFromDocument(_edit.proxy->document()).trimmed()
+		? RecoverWrappedTextFromDocument(
+			_edit.proxy->document()).trimmed()
 		: QString();
 	const auto proxyRect = _edit.proxy->boundingRect();
 	const auto proxyCenter = _edit.proxy->mapToScene(proxyRect.center());

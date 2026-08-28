@@ -51,6 +51,7 @@ private:
 	void applyAutoShrink();
 	[[nodiscard]] int sessionMaxTextWidth() const;
 	[[nodiscard]] int sessionMinTextWidth() const;
+	[[nodiscard]] int sessionWrapWidth() const;
 	void setupProxy(
 		QGraphicsTextItem *proxy,
 		const QColor &color,
@@ -74,6 +75,7 @@ private:
 		base::unique_qptr<QGraphicsTextItem> proxy;
 		std::optional<QColor> color;
 		float64 fontSize = 0.;
+		int maxWidthFloor = 0;
 		bool flipped = false;
 	} _edit;
 
