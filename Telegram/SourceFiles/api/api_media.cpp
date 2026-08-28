@@ -20,6 +20,7 @@ MTPVector<MTPDocumentAttribute> ComposeSendingDocumentAttributes(
 	const auto filenameAttribute = MTP_documentAttributeFilename(
 		MTP_string(document->filename()));
 	const auto dimensions = document->dimensions;
+	const auto animated = (document->type == AnimatedDocument);
 	auto attributes = QVector<MTPDocumentAttribute>(1, filenameAttribute);
 	if (dimensions.width() > 0 && dimensions.height() > 0) {
 		if (document->hasDuration() && !document->hasMimeType(u"image/gif"_q)) {
@@ -31,7 +32,7 @@ MTPVector<MTPDocumentAttribute> ComposeSendingDocumentAttributes(
 			if (document->supportsStreaming()) {
 				flags |= VideoFlag::f_supports_streaming;
 			}
-			if (document->isSilentVideo()) {
+			if (!animated && document->isSilentVideo()) {
 				flags |= VideoFlag::f_nosound;
 			}
 			const auto video = document->video();
@@ -53,7 +54,7 @@ MTPVector<MTPDocumentAttribute> ComposeSendingDocumentAttributes(
 				MTP_int(dimensions.height())));
 		}
 	}
-	if (document->type == AnimatedDocument) {
+	if (animated) {
 		attributes.push_back(MTP_documentAttributeAnimated());
 	} else if (document->type == StickerDocument && document->sticker()) {
 		attributes.push_back(MTP_documentAttributeSticker(
