@@ -2281,11 +2281,37 @@ if (WIN32)
     #     $<IF:${release},"Appending compatibility manifest.","Finalizing build.">
     # )
 
-    if (QT_VERSION LESS 6)
+    if (QT_VERSION LESS 6 OR DESKTOP_APP_WIN7_BASELINE)
         target_link_libraries(Telegram PRIVATE desktop-app::win_directx_helper)
     endif()
 
+    if (DESKTOP_APP_WIN7_BASELINE)
+        # ANGLE loads d3dcompiler_47.dll from modules folder next to exe.
+        if (build_win64)
+            set(d3d_modules_subdir x64)
+        else()
+            set(d3d_modules_subdir x86)
+        endif()
+        set(d3d_modules_dir $<TARGET_FILE_DIR:Telegram>/modules/${d3d_modules_subdir}/d3d)
+        add_custom_command(TARGET Telegram POST_BUILD
+        COMMAND
+            ${CMAKE_COMMAND} -E make_directory ${d3d_modules_dir}
+        COMMAND
+            ${CMAKE_COMMAND} -E copy_if_different
+            ${cmake_helpers_loc}/win_directx_helper/modules/${d3d_modules_subdir}/d3d/d3dcompiler_47.dll
+            ${d3d_modules_dir}/d3dcompiler_47.dll
+        COMMENT
+            "Copying d3dcompiler_47.dll for ANGLE."
+        VERBATIM
+        )
+    endif()
+
     target_link_options(Telegram PRIVATE /PDBPAGESIZE:8192)
+
+    if (DESKTOP_APP_WIN7_BASELINE)
+        # The loader reads the subsystem version as the minimal Windows.
+        target_link_options(Telegram PRIVATE /SUBSYSTEM:WINDOWS,6.01)
+    endif()
 elseif (APPLE)
     if (NOT DESKTOP_APP_USE_PACKAGED)
         target_link_libraries(Telegram PRIVATE desktop-app::external_iconv)
@@ -2575,6 +2601,9 @@ if (NOT DESKTOP_APP_DISABLE_AUTOUPDATE AND NOT build_macstore AND NOT build_wins
         else()
             target_link_options(Updater PRIVATE -municode)
         endif()
+        if (DESKTOP_APP_WIN7_BASELINE)
+            target_link_options(Updater PRIVATE /SUBSYSTEM:WINDOWS,6.01)
+        endif()
     elseif (APPLE)
         add_custom_command(TARGET Updater
         POST_BUILD
@@ -2609,6 +2638,12 @@ if (NOT DESKTOP_APP_DISABLE_AUTOUPDATE AND NOT build_macstore AND NOT build_wins
 
         if (DESKTOP_APP_USE_PACKAGED)
             target_compile_definitions(Packer PRIVATE PACKER_USE_PACKAGED)
+        endif()
+
+        if (WIN32 AND DESKTOP_APP_WIN7_BASELINE)
+            # WindowsApp.lib is off the link line, WinRT stubs come from lib_base.
+            target_link_libraries(Packer PRIVATE desktop-app::lib_base)
+            target_link_options(Packer PRIVATE /SUBSYSTEM:CONSOLE,6.01)
         endif()
 
         set_target_properties(Packer PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_folder})
