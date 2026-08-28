@@ -152,13 +152,20 @@ stop if it is destroyed.
 
 | Helper | Use |
 | --- | --- |
-| `Click` | Left press and release at the center or a supplied local point. |
+| `Click` | Left press and release at the center or a supplied local point, then a `QEvent::Leave` to that same widget, so `Ui::AbstractButton::isOver()` is false on it and a `RoundButton` repaints its normal `textBg`. Send it the widget that accepts the press — an ignored press propagates to the ancestor that takes it and the leave does not, so a click aimed at a non-accepting child leaves that ancestor hovered. |
 | `TypeText` | Key press/release per Unicode grapheme; surrogate pairs and joined emoji stay intact. |
 | `CommitText` | One `QInputMethodEvent` commit when insertion, custom emoji, or IME semantics matter more than physical keys. |
 | `PressKey` | Escape, Return, arrows, shortcuts, and other key behavior. Send to the widget that owns the event route, often the raw editor or top `BoxLayerWidget`, not a wrapper. |
-| `Drag` | Left-button press, interpolated moves with `buttons()==LeftButton`, and release. |
+| `Drag` | Left-button press, interpolated moves with `buttons()==LeftButton`, and release, then the same `QEvent::Leave` as `Click`. |
 | `Wheel` | A real wheel event; `QPoint(0, -120)` is one conventional downward step. |
 | `Settle` | Wrap programmatic mutations such as `InputField::setText`; drains postponed fixups after the action. |
+
+The harness has no pointer. No helper produces a hover, and every
+measurement is taken as if no cursor exists — assert a hovered state by
+setting it deliberately, not by relying on a click's residue. A press also
+starts a `RippleButton` ripple that decays over its style's
+`showDuration + hideDuration`; finish it with `finishAnimating()` or wait
+it out before measuring a fill.
 
 Timers, queued invokes, animations, network callbacks, and reactive streams
 still require condition waits. `Settle` is not a replacement for readiness.
@@ -240,6 +247,7 @@ clicking.
 | `test_probe.h` | Append-only observation records read only through a declared window, each carrying the time it was recorded; keyed issue/answer rows correlated into one round trip by key rather than by list position, refusing every reading it cannot positively pair; and scans that must match a control before a zero counts as absence. |
 | `test_widgets.h` | Safe typed discovery, live object/action publication, input, and postponed-call settlement. |
 | `test_capture.h` | In-process grabs, paint-root validation, mapped rects, blank detection, crops, zoom, contact sheets. |
+| `test_hover.h` | The input helpers' own self-test: a clicked-then-dragged and a never-touched `Ui::RoundButton` measured against the two fills their style names, proving a completed synthetic click and drag leave no hover. |
 | `test_ink.h` | Derived paint bands, colour separation, ink scans, counts, and contrast reports. |
 | `test_style.h` | Wait for palette/style samples to stabilize and assert a recorded baseline still holds. |
 | `test_panel.h` | Distinguish a live `Ui::SeparatePanel` from its faded/squeezed show-animation cache. |
@@ -378,6 +386,7 @@ need them.
 | Expected mismatch reported as timeout | Product outcome was put in `until`. | Wait only for propagation/generation; assert and log the outcome in `then`/`captureAndInspect`. |
 | Blank or partial screenshot | Wrong paint owner, animation cache, or viewport clipping. | Use prepared capture, `PanelShowSettled`, the owning ancestor, or `CaptureMappedRect`. |
 | Old palette/colour sampled | Style had not settled or moved between reference and target. | Use `StyleSettled` and `StyleBaseline`. |
+| A clicked button's measured fill matches no style constant, or `DeriveBand` returns `ok=0` with no rows for a widget plainly on screen | The reading was taken while the widget was still hovered by an earlier synthetic click, so it painted `textBgOver` where the check named `textBg`; before the input helpers delivered a leave this latched for the whole process. | Take the reading through helpers that leave the target pointerless (`Click`/`Drag` deliver a `QEvent::Leave`), and when a hovered reading is what is wanted, set the hover deliberately and name the fill the state actually implies. Confirm the instrument with the `test_hover.h` self-test. |
 | Emoji split or custom entity absent | UTF-16 code units or the wrong editor event route were synthesized. | Use grapheme-safe `TypeText` or one `CommitText` on the raw editor. |
 | Drag/wheel/cancel has no effect | Wrapper received an event owned by a child, presentation, or viewport. | Target the real event owner and use `Drag`, `Wheel`, or `PressKey`. |
 | Test reaches a real external action | Missing expectation/fuse or mock seam. | Declare the exact blocked launch, mock the transport/payment boundary, and assert zero real calls. |

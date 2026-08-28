@@ -1963,6 +1963,8 @@ PRIVATE
     test/test_custom_emoji.h
     test/test_history_fixtures.cpp
     test/test_history_fixtures.h
+    test/test_hover.cpp
+    test/test_hover.h
     test/test_ink.cpp
     test/test_ink.h
     test/test_launch_fuse.cpp
