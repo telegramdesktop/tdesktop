@@ -27,7 +27,8 @@ struct TextLayoutSpec {
 [[nodiscard]] TextLayoutSpec ComputeTextLayoutSpec(
 	float64 fontSize,
 	const QSize &imageSize,
-	TextStyle style);
+	TextStyle style,
+	TextTypeface typeface);
 
 struct TextBackgroundLine {
 	float64 left = 0;
@@ -53,6 +54,7 @@ public:
 		const QColor &color,
 		float64 fontSize,
 		TextStyle style,
+		TextTypeface typeface,
 		const QSize &imageSize,
 		ItemBase::Data data);
 
@@ -73,6 +75,9 @@ public:
 	[[nodiscard]] TextStyle textStyle() const;
 	void setTextStyle(TextStyle style);
 
+	[[nodiscard]] TextTypeface typeface() const;
+	void setTypeface(TextTypeface typeface);
+
 	[[nodiscard]] float64 editScale() const;
 	void bakeScale();
 
@@ -83,7 +88,8 @@ public:
 		const QString &text,
 		float64 fontSize,
 		const QSize &imageSize,
-		TextStyle style);
+		TextStyle style,
+		TextTypeface typeface);
 
 	void save(SaveState state) override;
 	void restore(SaveState state) override;
@@ -103,6 +109,7 @@ private:
 	QColor _color;
 	float64 _fontSize;
 	TextStyle _textStyle = TextStyle::Plain;
+	TextTypeface _typeface = TextTypeface::Default;
 	QSize _imageSize;
 	QPixmap _pixmap;
 	base::unique_qptr<Ui::PopupMenu> _contextMenu;
@@ -112,6 +119,7 @@ private:
 		QColor color;
 		float64 fontSize = 0.;
 		TextStyle textStyle = TextStyle::Plain;
+		TextTypeface typeface = TextTypeface::Default;
 	};
 	SavedText _savedState, _keepedState;
 };

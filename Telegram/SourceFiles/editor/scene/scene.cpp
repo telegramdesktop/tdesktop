@@ -593,8 +593,9 @@ void Scene::applyBrush(const QColor &color, float64 size, Brush::Tool tool) {
 void Scene::setTextDefaults(
 		const QColor &color,
 		float64 fontSize,
-		TextStyle style) {
-	_textEdit->setDefaults(color, fontSize, style);
+		TextStyle style,
+		TextTypeface typeface) {
+	_textEdit->setDefaults(color, fontSize, style, typeface);
 }
 
 void Scene::setTextColor(const QColor &color) {

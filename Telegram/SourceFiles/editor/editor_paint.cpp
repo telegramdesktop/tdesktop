@@ -98,7 +98,8 @@ Paint::Paint(
 		_scene->setTextDefaults(
 			QColor(255, 255, 255),
 			shortSide / kDefaultFontSizeDivisor,
-			TextStyle::Plain);
+			TextStyle::Plain,
+			TextTypeface::Default);
 	}
 
 	keepResult();

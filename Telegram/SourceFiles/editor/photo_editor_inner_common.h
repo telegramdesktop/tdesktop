@@ -44,6 +44,14 @@ enum class TextStyle : uchar {
 	Plain,
 };
 
+enum class TextTypeface : uchar {
+	Default,
+	Italic,
+	Serif,
+	Condensed,
+	Monospace,
+};
+
 enum class ShapeType : uchar {
 	Circle,
 	Rectangle,

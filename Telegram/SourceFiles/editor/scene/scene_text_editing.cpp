@@ -155,10 +155,12 @@ not_null<QGraphicsScene*> TextEditController::graphicsScene() const {
 void TextEditController::setDefaults(
 		const QColor &color,
 		float64 fontSize,
-		TextStyle style) {
+		TextStyle style,
+		TextTypeface typeface) {
 	_defaultColor = color;
 	_defaultFontSize = fontSize;
 	_defaultStyle = style;
+	_defaultTypeface = typeface;
 }
 
 void TextEditController::setColor(const QColor &color) {
@@ -231,13 +233,15 @@ void TextEditController::createAtCenter(int rotation, bool flipped) {
 	_scene->cancelDrawing();
 	setEditingState(true);
 	_editStyle = _defaultStyle;
+	_editTypeface = _defaultTypeface;
 	_edit.flipped = flipped;
 
 	const auto sceneRect = _scene->sceneRect();
 	const auto spec = ComputeTextLayoutSpec(
 		_defaultFontSize,
 		sceneRect.size().toSize(),
-		_editStyle);
+		_editStyle,
+		_editTypeface);
 
 	_edit.proxy.reset(new TextEditProxy());
 	const auto proxy = _edit.proxy.get();
@@ -330,13 +334,15 @@ void TextEditController::startEditing(ItemText *item) {
 	_scene->cancelDrawing();
 	setEditingState(true);
 	_editStyle = item->textStyle();
+	_editTypeface = item->typeface();
 	_edit.flipped = item->flipped();
 
 	const auto sceneRect = _scene->sceneRect();
 	const auto spec = ComputeTextLayoutSpec(
 		item->fontSize(),
 		sceneRect.size().toSize(),
-		item->textStyle());
+		item->textStyle(),
+		item->typeface());
 
 	_edit.proxy.reset(new TextEditProxy());
 	const auto proxy = _edit.proxy.get();
@@ -475,7 +481,8 @@ void TextEditController::finishEditing(bool save, bool notify) {
 				text,
 				_defaultFontSize,
 				imageSize,
-				defaultStyle);
+				defaultStyle,
+				_defaultTypeface);
 			const auto currentZoom = _scene->currentZoom();
 			const auto zoom = (currentZoom > 0.) ? currentZoom : 1.;
 			const auto handleInflate = int(
@@ -498,6 +505,7 @@ void TextEditController::finishEditing(bool save, bool notify) {
 				stagedColor.value_or(_defaultColor),
 				_defaultFontSize,
 				defaultStyle,
+				_defaultTypeface,
 				imageSize,
 				std::move(data));
 			_scene->addItem(item);

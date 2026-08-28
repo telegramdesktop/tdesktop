@@ -24,7 +24,11 @@ class TextEditController final {
 public:
 	explicit TextEditController(not_null<Scene*> scene);
 
-	void setDefaults(const QColor &color, float64 fontSize, TextStyle style);
+	void setDefaults(
+		const QColor &color,
+		float64 fontSize,
+		TextStyle style,
+		TextTypeface typeface);
 	void setColor(const QColor &color);
 
 	void createAtCenter(int rotation, bool flipped);
@@ -51,6 +55,8 @@ private:
 	float64 _defaultFontSize = 0.;
 	TextStyle _defaultStyle = TextStyle::Plain;
 	TextStyle _editStyle = TextStyle::Plain;
+	TextTypeface _defaultTypeface = TextTypeface::Default;
+	TextTypeface _editTypeface = TextTypeface::Default;
 
 	struct {
 		std::weak_ptr<NumberedItem> item;

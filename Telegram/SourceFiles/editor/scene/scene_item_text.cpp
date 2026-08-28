@@ -47,10 +47,30 @@ struct LayoutMetrics {
 	int textMaxWidth = 0;
 };
 
-QFont TextFont(float64 fontSize) {
+constexpr auto kCondensedStretch = 78;
+
+QFont TextFont(float64 fontSize, TextTypeface typeface) {
 	auto font = QFont();
 	font.setPixelSize(std::max(int(fontSize), 1));
 	font.setWeight(QFont::DemiBold);
+	switch (typeface) {
+	case TextTypeface::Default:
+		break;
+	case TextTypeface::Italic:
+		font.setItalic(true);
+		break;
+	case TextTypeface::Serif:
+		font.setStyleHint(QFont::Serif);
+		font.setFamily(u"serif"_q);
+		break;
+	case TextTypeface::Condensed:
+		font.setStretch(kCondensedStretch);
+		break;
+	case TextTypeface::Monospace:
+		font.setStyleHint(QFont::Monospace);
+		font.setFamily(u"monospace"_q);
+		break;
+	}
 	return font;
 }
 
@@ -70,8 +90,13 @@ struct PreparedLayout {
 		float64 fontSize,
 		const QSize &imageSize,
 		TextStyle style,
+		TextTypeface typeface,
 		const QVector<QTextLayout::FormatRange> &formats = {}) {
-	const auto spec = ComputeTextLayoutSpec(fontSize, imageSize, style);
+	const auto spec = ComputeTextLayoutSpec(
+		fontSize,
+		imageSize,
+		style,
+		typeface);
 	const auto textMaxWidth = spec.maxTextWidth;
 
 	auto option = QTextOption();
@@ -303,11 +328,12 @@ int TextBackgroundPadding(float64 fontSize, TextStyle style) {
 TextLayoutSpec ComputeTextLayoutSpec(
 		float64 fontSize,
 		const QSize &imageSize,
-		TextStyle style) {
+		TextStyle style,
+		TextTypeface typeface) {
 	const auto padding = TextBackgroundPadding(fontSize, style);
 	const auto shortSide = std::min(imageSize.width(), imageSize.height());
 	return {
-		.font = TextFont(fontSize),
+		.font = TextFont(fontSize, typeface),
 		.padding = padding,
 		.maxTextWidth = std::max(
 			int(shortSide * kMaxWidthFactor) - 2 * padding,
@@ -329,6 +355,7 @@ ItemText::ItemText(
 	const QColor &color,
 	float64 fontSize,
 	TextStyle style,
+	TextTypeface typeface,
 	const QSize &imageSize,
 	ItemBase::Data data)
 : ItemBase(std::move(data))
@@ -336,6 +363,7 @@ ItemText::ItemText(
 , _color(color)
 , _fontSize(fontSize)
 , _textStyle(style)
+, _typeface(typeface)
 , _imageSize(imageSize) {
 	renderContent();
 }
@@ -347,7 +375,7 @@ void ItemText::renderContent() {
 		return;
 	}
 
-	const auto font = TextFont(_fontSize);
+	const auto font = TextFont(_fontSize, _typeface);
 
 	auto processedText = _text;
 	processedText.replace('\n', QChar::LineSeparator);
@@ -386,6 +414,7 @@ void ItemText::renderContent() {
 		_fontSize,
 		_imageSize,
 		_textStyle,
+		_typeface,
 		emojiFormats);
 	const auto &m = prepared.metrics;
 	const auto &layout = *prepared.layout;
@@ -490,7 +519,8 @@ QSize ItemText::computeContentSize(
 		const QString &text,
 		float64 fontSize,
 		const QSize &imageSize,
-		TextStyle style) {
+		TextStyle style,
+		TextTypeface typeface) {
 	if (text.isEmpty()) {
 		return {};
 	}
@@ -500,7 +530,8 @@ QSize ItemText::computeContentSize(
 		processedText,
 		fontSize,
 		imageSize,
-		style).metrics;
+		style,
+		typeface).metrics;
 	return QSize(
 		m.contentWidth + 2 * m.padding,
 		m.contentHeight + 2 * m.padding);
@@ -574,7 +605,8 @@ float64 ItemText::editScale() const {
 		_text,
 		_fontSize,
 		_imageSize,
-		_textStyle);
+		_textStyle,
+		_typeface);
 	if (natural.width() <= 0) {
 		return 1.;
 	}
@@ -618,6 +650,19 @@ void ItemText::setTextStyle(TextStyle style) {
 		return;
 	}
 	_textStyle = style;
+	renderContent();
+	update();
+}
+
+TextTypeface ItemText::typeface() const {
+	return _typeface;
+}
+
+void ItemText::setTypeface(TextTypeface typeface) {
+	if (_typeface == typeface) {
+		return;
+	}
+	_typeface = typeface;
 	renderContent();
 	update();
 }
@@ -674,6 +719,38 @@ void ItemText::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 		TextStyle::SemiTransparent,
 		&st::mediaMenuIconTextStyleSemiTransparent);
 
+	auto fonts = std::make_unique<Ui::PopupMenu>(
+		_contextMenu.get(),
+		st::mediaviewPopupMenu);
+	const auto addFont = [&](
+			const QString &text,
+			TextTypeface typeface) {
+		const auto checked = (_typeface == typeface);
+		fonts->addAction(
+			text,
+			[=] { setTypeface(typeface); },
+			checked ? &st::mediaPlayerMenuCheck : nullptr);
+	};
+	addFont(
+		tr::lng_photo_editor_font_default(tr::now),
+		TextTypeface::Default);
+	addFont(
+		tr::lng_photo_editor_font_italic(tr::now),
+		TextTypeface::Italic);
+	addFont(
+		tr::lng_photo_editor_font_serif(tr::now),
+		TextTypeface::Serif);
+	addFont(
+		tr::lng_photo_editor_font_condensed(tr::now),
+		TextTypeface::Condensed);
+	addFont(
+		tr::lng_photo_editor_font_monospace(tr::now),
+		TextTypeface::Monospace);
+	_contextMenu->addAction(
+		tr::lng_photo_editor_font(tr::now),
+		std::move(fonts),
+		&st::mediaMenuIconFont);
+
 	_contextMenu->addSeparator();
 
 	_contextMenu->addAction(
@@ -701,6 +778,7 @@ std::shared_ptr<ItemBase> ItemText::duplicate(ItemBase::Data data) const {
 		_color,
 		_fontSize,
 		_textStyle,
+		_typeface,
 		_imageSize,
 		std::move(data));
 }
@@ -713,6 +791,7 @@ void ItemText::save(SaveState state) {
 		.color = _color,
 		.fontSize = _fontSize,
 		.textStyle = _textStyle,
+		.typeface = _typeface,
 	};
 }
 
@@ -724,11 +803,13 @@ void ItemText::restore(SaveState state) {
 	const auto changed = (_text != saved.text)
 		|| (_color != saved.color)
 		|| (_fontSize != saved.fontSize)
-		|| (_textStyle != saved.textStyle);
+		|| (_textStyle != saved.textStyle)
+		|| (_typeface != saved.typeface);
 	_text = saved.text;
 	_color = saved.color;
 	_fontSize = saved.fontSize;
 	_textStyle = saved.textStyle;
+	_typeface = saved.typeface;
 	if (changed) {
 		renderContent();
 	}

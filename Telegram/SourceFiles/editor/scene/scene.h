@@ -47,7 +47,8 @@ public:
 	void setTextDefaults(
 		const QColor &color,
 		float64 fontSize,
-		TextStyle style);
+		TextStyle style,
+		TextTypeface typeface);
 
 	void setPendingShape(std::optional<PendingShape> pending);
 	void updatePendingShapeBrush(const QColor &color, float64 strokeWidth);
