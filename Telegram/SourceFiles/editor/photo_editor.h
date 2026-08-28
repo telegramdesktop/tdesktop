@@ -67,6 +67,7 @@ private:
 	std::array<Brush, 5> _brushes;
 	Brush::Tool _brushTool = Brush::Tool::Pen;
 	bool _shapesFilled = false;
+	TextPrefs _textPrefs;
 	const std::unique_ptr<ColorPicker> _colorPicker;
 
 	rpl::variable<PhotoEditorMode> _mode = PhotoEditorMode{

@@ -599,6 +599,14 @@ void Scene::setTextDefaults(
 	_textEdit->setDefaults(color, fontSize, style, typeface, alignment);
 }
 
+void Scene::applyTextPrefs(const TextPrefs &prefs) {
+	_textEdit->applyPrefs(prefs);
+}
+
+void Scene::noteTextItemPrefs(not_null<ItemText*> item) {
+	_textEdit->noteItemPrefs(item);
+}
+
 void Scene::setTextColor(const QColor &color) {
 	_textEdit->setColor(color);
 }
@@ -625,6 +633,10 @@ void Scene::setSelectedShapeBrush(
 
 rpl::producer<QColor> Scene::textColorRequests() const {
 	return _textEdit->colorRequests();
+}
+
+rpl::producer<TextPrefs> Scene::textPrefsUsed() const {
+	return _textEdit->prefsUsed();
 }
 
 rpl::producer<QColor> Scene::textItemSelections() const {

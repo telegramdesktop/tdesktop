@@ -36,11 +36,13 @@ public:
 	void armShapeTool(ShapeType shape, const Brush &brush, bool fill);
 	void disarmShapeTool();
 	void clearSelection();
+	void applyTextPrefs(const TextPrefs &prefs);
 	void setTextColor(const QColor &color);
 	void setSelectedTextColor(const QColor &color);
 	void applyBrushToSelectedShape(const Brush &brush);
 
 	[[nodiscard]] rpl::producer<QColor> textColorRequests() const;
+	[[nodiscard]] rpl::producer<TextPrefs> textPrefsUsed() const;
 	[[nodiscard]] rpl::producer<QColor> textItemSelections() const;
 	[[nodiscard]] rpl::producer<> textItemDeselections() const;
 	[[nodiscard]] rpl::producer<bool> textEditStates() const;

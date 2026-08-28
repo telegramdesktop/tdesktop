@@ -753,6 +753,13 @@ void ItemText::bakeScale() {
 	setScale(1.);
 	renderContent();
 	update();
+	notifyPrefsUsed();
+}
+
+void ItemText::notifyPrefsUsed() {
+	if (const auto s = static_cast<Scene*>(scene())) {
+		s->noteTextItemPrefs(this);
+	}
 }
 
 ItemBase::Placement ItemText::placement() const {
@@ -844,7 +851,10 @@ void ItemText::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 		const auto checked = (_textStyle == style);
 		_contextMenu->addAction(
 			text,
-			[=] { setTextStyle(style); },
+			[=] {
+				setTextStyle(style);
+				notifyPrefsUsed();
+			},
 			checked ? &st::mediaPlayerMenuCheck : icon);
 	};
 	add(
@@ -873,7 +883,10 @@ void ItemText::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 		const auto checked = (_typeface == typeface);
 		fonts->addAction(
 			text,
-			[=] { setTypeface(typeface); },
+			[=] {
+				setTypeface(typeface);
+				notifyPrefsUsed();
+			},
 			checked ? &st::mediaPlayerMenuCheck : nullptr);
 	};
 	addFont(
@@ -905,6 +918,7 @@ void ItemText::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 	align->setActionTriggered([=] {
 		const auto next = NextAlignment(_alignment);
 		setAlignment(next);
+		notifyPrefsUsed();
 		alignRaw->cycle(next);
 	});
 	align->setPreventClose(true);

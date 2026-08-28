@@ -164,6 +164,38 @@ void TextEditController::setDefaults(
 	_defaultAlignment = alignment;
 }
 
+void TextEditController::applyPrefs(const TextPrefs &prefs) {
+	_defaultStyle = prefs.style;
+	_defaultTypeface = prefs.typeface;
+	_defaultAlignment = prefs.alignment;
+	if (prefs.sizeRatio > 0.) {
+		const auto rect = _scene->sceneRect();
+		const auto shortSide = std::min(rect.width(), rect.height());
+		_defaultFontSize = std::max(prefs.sizeRatio * shortSide, 1.);
+	}
+}
+
+void TextEditController::noteItemPrefs(not_null<ItemText*> item) {
+	_defaultStyle = item->textStyle();
+	_defaultTypeface = item->typeface();
+	_defaultAlignment = item->alignment();
+	_defaultFontSize = item->fontSize();
+	firePrefs();
+}
+
+void TextEditController::firePrefs() {
+	const auto rect = _scene->sceneRect();
+	const auto shortSide = std::min(rect.width(), rect.height());
+	_prefsUsed.fire({
+		.style = _defaultStyle,
+		.typeface = _defaultTypeface,
+		.alignment = _defaultAlignment,
+		.sizeRatio = (shortSide > 0.)
+			? (_defaultFontSize / shortSide)
+			: 0.,
+	});
+}
+
 void TextEditController::setColor(const QColor &color) {
 	if (_edit.proxy) {
 		_edit.color = color;
@@ -191,6 +223,10 @@ rpl::producer<QColor> TextEditController::colorRequests() const {
 
 rpl::producer<bool> TextEditController::editStates() const {
 	return _editStates.events();
+}
+
+rpl::producer<TextPrefs> TextEditController::prefsUsed() const {
+	return _prefsUsed.events();
 }
 
 void TextEditController::setEditingState(bool editing, bool notify) {
@@ -520,6 +556,7 @@ void TextEditController::finishEditing(bool save, bool notify) {
 				imageSize,
 				std::move(data));
 			_scene->addItem(item);
+			firePrefs();
 		}
 	} else if (existingItem) {
 		if (save) {

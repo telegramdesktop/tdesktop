@@ -509,6 +509,10 @@ void Paint::clearSelection() {
 	_scene->clearSelection();
 }
 
+void Paint::applyTextPrefs(const TextPrefs &prefs) {
+	_scene->applyTextPrefs(prefs);
+}
+
 void Paint::setTextColor(const QColor &color) {
 	_scene->setTextColor(color);
 }
@@ -519,6 +523,10 @@ void Paint::setSelectedTextColor(const QColor &color) {
 
 rpl::producer<QColor> Paint::textColorRequests() const {
 	return _scene->textColorRequests();
+}
+
+rpl::producer<TextPrefs> Paint::textPrefsUsed() const {
+	return _scene->textPrefsUsed();
 }
 
 rpl::producer<QColor> Paint::textItemSelections() const {

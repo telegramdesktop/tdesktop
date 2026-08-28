@@ -30,6 +30,8 @@ public:
 		TextStyle style,
 		TextTypeface typeface,
 		TextAlignment alignment);
+	void applyPrefs(const TextPrefs &prefs);
+	void noteItemPrefs(not_null<ItemText*> item);
 	void setColor(const QColor &color);
 
 	void createAtCenter(int rotation, bool flipped);
@@ -41,9 +43,11 @@ public:
 
 	[[nodiscard]] rpl::producer<QColor> colorRequests() const;
 	[[nodiscard]] rpl::producer<bool> editStates() const;
+	[[nodiscard]] rpl::producer<TextPrefs> prefsUsed() const;
 
 private:
 	void setEditingState(bool editing, bool notify = true);
+	void firePrefs();
 	void setupProxy(
 		QGraphicsTextItem *proxy,
 		const QColor &color,
@@ -71,6 +75,7 @@ private:
 
 	rpl::event_stream<QColor> _colorRequests;
 	rpl::event_stream<bool> _editStates;
+	rpl::event_stream<TextPrefs> _prefsUsed;
 	bool _editingState = false;
 	int _generation = 0;
 

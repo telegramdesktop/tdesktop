@@ -108,6 +108,7 @@ protected:
 
 private:
 	void renderContent();
+	void notifyPrefsUsed();
 
 	QString _text;
 	QColor _color;

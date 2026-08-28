@@ -59,6 +59,17 @@ enum class TextAlignment : uchar {
 	Right,
 };
 
+struct TextPrefs {
+	TextStyle style = TextStyle::Plain;
+	TextTypeface typeface = TextTypeface::Default;
+	TextAlignment alignment = TextAlignment::Center;
+	float64 sizeRatio = 0.;
+
+	friend inline bool operator==(
+		const TextPrefs &,
+		const TextPrefs &) = default;
+};
+
 enum class ShapeType : uchar {
 	Circle,
 	Rectangle,

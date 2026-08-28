@@ -50,6 +50,8 @@ public:
 		TextStyle style,
 		TextTypeface typeface,
 		TextAlignment alignment);
+	void applyTextPrefs(const TextPrefs &prefs);
+	void noteTextItemPrefs(not_null<ItemText*> item);
 
 	void setPendingShape(std::optional<PendingShape> pending);
 	void updatePendingShapeBrush(const QColor &color, float64 strokeWidth);
@@ -82,6 +84,7 @@ public:
 	void setSelectedShapeBrush(const QColor &color, float64 strokeWidth);
 
 	[[nodiscard]] rpl::producer<QColor> textColorRequests() const;
+	[[nodiscard]] rpl::producer<TextPrefs> textPrefsUsed() const;
 	[[nodiscard]] rpl::producer<QColor> textItemSelections() const;
 	[[nodiscard]] rpl::producer<> textItemDeselections() const;
 	[[nodiscard]] rpl::producer<bool> textEditStates() const;

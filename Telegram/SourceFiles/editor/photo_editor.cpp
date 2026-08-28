@@ -90,12 +90,44 @@ struct BrushState {
 	std::array<Brush, 5> brushes = DefaultBrushes();
 	Brush::Tool tool = Brush::Tool::Pen;
 	bool fillShapes = false;
+	TextPrefs textPrefs;
 };
+
+[[nodiscard]] TextStyle TextStyleFromSerialized(qint32 value) {
+	switch (value) {
+	case int(TextStyle::Framed): return TextStyle::Framed;
+	case int(TextStyle::SemiTransparent): return TextStyle::SemiTransparent;
+	case int(TextStyle::Plain): return TextStyle::Plain;
+	case int(TextStyle::Opaque): return TextStyle::Opaque;
+	}
+	return TextStyle::Plain;
+}
+
+[[nodiscard]] TextTypeface TypefaceFromSerialized(qint32 value) {
+	switch (value) {
+	case int(TextTypeface::Default): return TextTypeface::Default;
+	case int(TextTypeface::Italic): return TextTypeface::Italic;
+	case int(TextTypeface::Serif): return TextTypeface::Serif;
+	case int(TextTypeface::Condensed): return TextTypeface::Condensed;
+	case int(TextTypeface::Monospace): return TextTypeface::Monospace;
+	}
+	return TextTypeface::Default;
+}
+
+[[nodiscard]] TextAlignment AlignmentFromSerialized(qint32 value) {
+	switch (value) {
+	case int(TextAlignment::Center): return TextAlignment::Center;
+	case int(TextAlignment::Left): return TextAlignment::Left;
+	case int(TextAlignment::Right): return TextAlignment::Right;
+	}
+	return TextAlignment::Center;
+}
 
 [[nodiscard]] QByteArray Serialize(
 		const std::array<Brush, 5> &brushes,
 		Brush::Tool tool,
-		bool fillShapes) {
+		bool fillShapes,
+		const TextPrefs &textPrefs) {
 	auto result = QByteArray();
 	auto stream = QDataStream(&result, QIODevice::WriteOnly);
 	stream.setVersion(QDataStream::Qt_5_3);
@@ -112,6 +144,11 @@ struct BrushState {
 			<< brush.color;
 	}
 	stream << qint32(fillShapes ? 1 : 0);
+	stream
+		<< qint32(int(textPrefs.style))
+		<< qint32(int(textPrefs.typeface))
+		<< qint32(int(textPrefs.alignment))
+		<< qint32(textPrefs.sizeRatio * kPrecision);
 	stream.device()->close();
 
 	return result;
@@ -166,6 +203,23 @@ struct BrushState {
 			stream >> fillShapes;
 			if (stream.status() == QDataStream::Ok) {
 				result.fillShapes = (fillShapes == 1);
+			}
+		}
+		if (!stream.atEnd()) {
+			auto style = qint32(0);
+			auto typeface = qint32(0);
+			auto alignment = qint32(0);
+			auto sizeRatio = qint32(0);
+			stream >> style >> typeface >> alignment >> sizeRatio;
+			if (stream.status() == QDataStream::Ok) {
+				result.textPrefs = {
+					.style = TextStyleFromSerialized(style),
+					.typeface = TypefaceFromSerialized(typeface),
+					.alignment = AlignmentFromSerialized(alignment),
+					.sizeRatio = (sizeRatio > 0)
+						? (sizeRatio / float64(kPrecision))
+						: 0.,
+				};
 			}
 		}
 		return result;
@@ -245,6 +299,7 @@ PhotoEditor::PhotoEditor(
 , _brushTool(Deserialize(Core::App().settings().photoEditorBrush()).tool)
 , _shapesFilled(
 	Deserialize(Core::App().settings().photoEditorBrush()).fillShapes)
+, _textPrefs(Deserialize(Core::App().settings().photoEditorBrush()).textPrefs)
 , _colorPicker(std::make_unique<ColorPicker>(
 	this,
 	std::move(show),
@@ -357,7 +412,8 @@ PhotoEditor::PhotoEditor(
 		const auto serialized = Serialize(
 			_brushes,
 			_brushTool,
-			_shapesFilled);
+			_shapesFilled,
+			_textPrefs);
 		if (Core::App().settings().photoEditorBrush() != serialized) {
 			Core::App().settings().setPhotoEditorBrush(serialized);
 			Core::App().saveSettingsDelayed();
@@ -420,11 +476,30 @@ PhotoEditor::PhotoEditor(
 			const auto serialized = Serialize(
 				_brushes,
 				_brushTool,
-				_shapesFilled);
+				_shapesFilled,
+				_textPrefs);
 			if (Core::App().settings().photoEditorBrush() != serialized) {
 				Core::App().settings().setPhotoEditorBrush(serialized);
 				Core::App().saveSettingsDelayed();
 			}
+		}
+	}, lifetime());
+
+	_content->applyTextPrefs(_textPrefs);
+	_content->textPrefsUsed(
+	) | rpl::on_next([=](const TextPrefs &prefs) {
+		if (_textPrefs == prefs) {
+			return;
+		}
+		_textPrefs = prefs;
+		const auto serialized = Serialize(
+			_brushes,
+			_brushTool,
+			_shapesFilled,
+			_textPrefs);
+		if (Core::App().settings().photoEditorBrush() != serialized) {
+			Core::App().settings().setPhotoEditorBrush(serialized);
+			Core::App().saveSettingsDelayed();
 		}
 	}, lifetime());
 
