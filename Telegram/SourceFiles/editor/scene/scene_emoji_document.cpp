@@ -56,6 +56,8 @@ void ReplaceEmoji(QTextDocument *doc) {
 	QSignalBlocker blocker(doc);
 	const auto fontHeight = QFontMetrics(doc->defaultFont()).height();
 	auto cursor = QTextCursor(doc);
+	// Merge with the triggering command, so undo skips replacements.
+	cursor.joinPreviousEditBlock();
 	auto block = doc->begin();
 	while (block.isValid()) {
 		auto text = block.text();
@@ -92,6 +94,7 @@ void ReplaceEmoji(QTextDocument *doc) {
 		}
 		block = block.next();
 	}
+	cursor.endEditBlock();
 }
 
 QString RecoverTextFromDocument(QTextDocument *doc) {
