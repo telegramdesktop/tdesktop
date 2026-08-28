@@ -30,7 +30,11 @@ constexpr auto kSecondsInDay = 86400;
 int OnlinePhraseChangeInSeconds(LastseenStatus status, TimeId now) {
 	const auto till = status.onlineTill();
 	if (till > now) {
-		return till - now;
+		// base::unixtime::now() may wrap negative after a huge local clock
+		// jump while the app is running, then till - now overflows int32.
+		return int(std::min(
+			int64(till) - int64(now),
+			int64(std::numeric_limits<int>::max())));
 	} else if (status.isHidden()) {
 		return std::numeric_limits<int>::max();
 	}
