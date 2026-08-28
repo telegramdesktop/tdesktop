@@ -42,6 +42,7 @@ enum class Presence {
 	Provisioning,
 	Missing,
 	Unavailable,
+	AddressUnreadable,
 	Ready,
 };
 
@@ -259,10 +260,11 @@ private:
 	crl::time _stateRequestedAt = 0;
 	crl::time _stateRefreshedAt = 0;
 	int _stateFailures = 0;
-	// Set when the wallet cannot be read at all, from either of two sources:
+	// Set when the wallet cannot be read at all, from any of three sources:
 	// a wallet state that stayed unknown for kStateFailuresBeforeStated reads,
-	// or a failed first transaction page of a wallet that does exist. Both
-	// make the overview paint the unreachable face instead of the empty one.
+	// a failed first transaction page of a wallet that does exist, or a wallet
+	// state whose address the parser refused. All three make the overview
+	// paint the unreachable face instead of the empty one.
 	// The public accessor keeps the state-only name it shipped with.
 	bool _stateUnreachable = false;
 	std::vector<TransferItem> _history;

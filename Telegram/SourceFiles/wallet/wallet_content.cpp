@@ -3147,6 +3147,7 @@ void WalletSendBox(
 		rpl::variable<int64> amount = 0;
 		rpl::variable<int64> fee = 0;
 		rpl::variable<bool> previewInsufficient = false;
+		rpl::variable<SendError> previewError = SendError::None;
 		rpl::variable<bool> insufficient = false;
 		rpl::variable<bool> canSend = false;
 		rpl::variable<FiatRate> rate;
@@ -3319,6 +3320,7 @@ void WalletSendBox(
 			return;
 		} else if (state->amount.current() <= 0) {
 			state->previewInsufficient = false;
+			state->previewError = SendError::None;
 			state->fee = 0;
 			return;
 		}
@@ -3328,13 +3330,28 @@ void WalletSendBox(
 			.bounce = state->flow->bounce,
 		};
 		wallet->estimateFee(args, crl::guard(box, [=](FeeResult result) {
-			if (result.error == SendError::None) {
+			switch (result.error) {
+			case SendError::None:
 				state->fee = result.feeNano;
 				state->previewInsufficient = false;
-			} else if (result.error == SendError::InsufficientBalance
-				|| result.error == SendError::InsufficientFees) {
+				state->previewError = SendError::None;
+				return;
+			case SendError::InsufficientBalance:
+			case SendError::InsufficientFees:
 				state->previewInsufficient = true;
+				state->previewError = SendError::None;
+				return;
+			case SendError::InvalidRequest:
+			case SendError::PreviousUnresolved:
+			case SendError::AlreadySending:
+			case SendError::SigningUnavailable:
+			case SendError::Failed:
+				state->fee = 0;
+				state->previewInsufficient = false;
+				state->previewError = result.error;
+				return;
 			}
+			Unexpected("Error value in the send box fee estimate.");
 		}));
 	};
 	state->amount.value() | rpl::on_next([=] {
@@ -3359,9 +3376,19 @@ void WalletSendBox(
 		state->amount.value(),
 		state->insufficient.value(),
 		state->expanded.value(),
-		wallet->stateKnownValue()
-	) | rpl::map([](int64 amount, bool insufficient, bool valid, bool known) {
-		return valid && known && (amount > 0) && !insufficient;
+		wallet->stateKnownValue(),
+		state->previewError.value()
+	) | rpl::map([](
+			int64 amount,
+			bool insufficient,
+			bool valid,
+			bool known,
+			SendError error) {
+		return valid
+			&& known
+			&& (amount > 0)
+			&& !insufficient
+			&& (error == SendError::None);
 	});
 
 	auto balanceLayout = object_ptr<Ui::VerticalLayout>(inner);
@@ -3393,6 +3420,23 @@ void WalletSendBox(
 				st::walletSendErrorLabel)));
 	insufficientWrap->toggleOn(state->insufficient.value());
 	insufficientWrap->finishAnimating();
+	const auto refusalWrap = balance->add(
+		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
+			balance,
+			object_ptr<Ui::FlatLabel>(
+				balance,
+				state->previewError.value() | rpl::filter([](
+						SendError error) {
+					return (error != SendError::None);
+				}) | rpl::map([](SendError error) {
+					return SendErrorText(error);
+				}),
+				st::walletSendErrorLabel)));
+	refusalWrap->toggleOn(state->previewError.value() | rpl::map([](
+			SendError error) {
+		return (error != SendError::None);
+	}));
+	refusalWrap->finishAnimating();
 	const auto depositWrap = balance->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			balance,
@@ -4366,7 +4410,7 @@ void Content::setupContent() {
 			? EmptyFace::None
 			: (presence == Presence::Unavailable)
 			? EmptyFace::Unavailable
-			: unreachable
+			: (unreachable || (presence == Presence::AddressUnreadable))
 			? EmptyFace::Unreachable
 			: EmptyFace::About;
 	});

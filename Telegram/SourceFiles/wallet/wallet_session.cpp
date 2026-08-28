@@ -501,7 +501,7 @@ void Session::applyState(const MTPWalletState &state) {
 		if (!parsed) {
 			LOG(("Wallet Error: server wallet address is not parseable."));
 			clear();
-			setPresence(Presence::Missing);
+			setPresence(Presence::AddressUnreadable);
 			return;
 		}
 		_address = parsed->raw;
@@ -915,7 +915,8 @@ void Session::updateListsGate() {
 	const auto ready = (presence == Presence::Ready);
 	_stateUnreachable = (unknown
 		&& (_stateFailures >= kStateFailuresBeforeStated))
-		|| (ready && _historyUnreachable);
+		|| (ready && _historyUnreachable)
+		|| (presence == Presence::AddressUnreadable);
 	_listsGated = (unknown && !_stateUnreachable)
 		|| (presence == Presence::Provisioning)
 		|| (ready && !_historySettled);
