@@ -465,7 +465,7 @@ HistoryWidget::HistoryWidget(
 	}, _field->lifetime());
 	_field->cancelled(
 	) | rpl::on_next([=] {
-		if (_peer->amMonoforumAdmin()) {
+		if (_peer && _peer->amMonoforumAdmin()) {
 			QWidget::setEnabled(false);
 			crl::on_main([=] {
 				QWidget::setEnabled(true);
