@@ -533,6 +533,9 @@ const QString &ItemText::text() const {
 }
 
 void ItemText::setText(const QString &text) {
+	if (_text == text) {
+		return;
+	}
 	_text = text;
 	renderContent();
 	update();
@@ -543,6 +546,9 @@ const QColor &ItemText::color() const {
 }
 
 void ItemText::setColor(const QColor &color) {
+	if (_color == color) {
+		return;
+	}
 	_color = color;
 	renderContent();
 	update();
@@ -572,6 +578,9 @@ TextStyle ItemText::textStyle() const {
 }
 
 void ItemText::setTextStyle(TextStyle style) {
+	if (_textStyle == style) {
+		return;
+	}
 	_textStyle = style;
 	renderContent();
 	update();
@@ -667,11 +676,17 @@ void ItemText::restore(SaveState state) {
 		return;
 	}
 	const auto &saved = (state == SaveState::Keep) ? _keepedState : _savedState;
+	const auto changed = (_text != saved.text)
+		|| (_color != saved.color)
+		|| (_fontSize != saved.fontSize)
+		|| (_textStyle != saved.textStyle);
 	_text = saved.text;
 	_color = saved.color;
 	_fontSize = saved.fontSize;
 	_textStyle = saved.textStyle;
-	renderContent();
+	if (changed) {
+		renderContent();
+	}
 	ItemBase::restore(state);
 }
 
