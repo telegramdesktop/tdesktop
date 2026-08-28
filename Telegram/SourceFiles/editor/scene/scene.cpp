@@ -647,7 +647,7 @@ void Scene::applyBrush(const QColor &color, float64 size, Brush::Tool tool) {
 void Scene::setTextDefaults(
 		const QColor &color,
 		float64 fontSize,
-		int style) {
+		TextStyle style) {
 	_textColor = color;
 	_textFontSize = fontSize;
 	_textStyle = style;
@@ -658,7 +658,7 @@ void Scene::setTextColor(const QColor &color) {
 		_textEdit.color = color;
 		_textEdit.proxy->setDefaultTextColor(EffectiveTextColor(
 			color,
-			static_cast<TextStyle>(_textEditStyle)));
+			_textEditStyle));
 	} else {
 		_textColor = color;
 	}
@@ -945,9 +945,7 @@ void Scene::createTextAtCenter(int rotation, bool flipped) {
 	const auto proxy = _textEdit.proxy.get();
 	setupTextProxy(
 		proxy,
-		EffectiveTextColor(
-			_textColor,
-			static_cast<TextStyle>(_textEditStyle)),
+		EffectiveTextColor(_textColor, _textEditStyle),
 		_textFontSize);
 
 	const auto emojiDoc = proxy->document();
@@ -1030,7 +1028,7 @@ void Scene::startTextEditing(ItemText *item) {
 
 	cancelDrawing();
 	setTextEditing(true);
-	_textEditStyle = int(item->textStyle());
+	_textEditStyle = item->textStyle();
 	_textEdit.flipped = item->flipped();
 
 	_textEdit.proxy.reset(new TextEditProxy());
@@ -1155,7 +1153,7 @@ void Scene::finishTextEditing(bool save, bool notify) {
 	const auto stagedColor = base::take(_textEdit.color);
 	setTextEditing(false, notify);
 
-	const auto defaultStyle = static_cast<TextStyle>(_textStyle);
+	const auto defaultStyle = _textStyle;
 
 	if (!text.isEmpty()) {
 		if (existingItem) {

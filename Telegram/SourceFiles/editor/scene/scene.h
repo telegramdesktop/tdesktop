@@ -45,7 +45,10 @@ public:
 	~Scene();
 	void applyBrush(const QColor &color, float64 size, Brush::Tool tool);
 	void setBlurSource(Fn<QImage(QRect)> source);
-	void setTextDefaults(const QColor &color, float64 fontSize, int style);
+	void setTextDefaults(
+		const QColor &color,
+		float64 fontSize,
+		TextStyle style);
 
 	void setPendingShape(std::optional<PendingShape> pending);
 	void updatePendingShapeBrush(const QColor &color, float64 strokeWidth);
@@ -135,8 +138,8 @@ private:
 
 	QColor _textColor;
 	float64 _textFontSize = 0.;
-	int _textStyle = 0;
-	int _textEditStyle = 0;
+	TextStyle _textStyle = TextStyle::Plain;
+	TextStyle _textEditStyle = TextStyle::Plain;
 
 	struct {
 		std::weak_ptr<NumberedItem> item;

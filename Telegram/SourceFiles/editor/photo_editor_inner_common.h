@@ -38,6 +38,12 @@ struct Brush {
 	Tool tool = Tool::Pen;
 };
 
+enum class TextStyle : uchar {
+	Framed,
+	SemiTransparent,
+	Plain,
+};
+
 enum class ShapeType : uchar {
 	Circle,
 	Rectangle,

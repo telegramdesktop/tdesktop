@@ -16,12 +16,6 @@ class PopupMenu;
 
 namespace Editor {
 
-enum class TextStyle : uchar {
-	Framed,
-	SemiTransparent,
-	Plain,
-};
-
 [[nodiscard]] QColor EffectiveTextColor(const QColor &color, TextStyle style);
 
 class ItemText : public ItemBase {
