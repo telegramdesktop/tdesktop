@@ -53,17 +53,24 @@ QVariant EmojiDocument::loadResource(int type, const QUrl &name) {
 }
 
 void ReplaceEmoji(QTextDocument *doc) {
+	ReplaceEmojiInRange(doc, 0, doc->characterCount());
+}
+
+void ReplaceEmojiInRange(QTextDocument *doc, int from, int to) {
+	constexpr auto kEmojiScanMargin = 32;
+
 	QSignalBlocker blocker(doc);
 	const auto fontHeight = QFontMetrics(doc->defaultFont()).height();
 	auto cursor = QTextCursor(doc);
 	// Merge with the triggering command, so undo skips replacements.
 	cursor.joinPreviousEditBlock();
-	auto block = doc->begin();
-	while (block.isValid()) {
+	from = std::max(from - kEmojiScanMargin, 0);
+	auto block = doc->findBlock(from);
+	while (block.isValid() && (block.position() <= to)) {
 		auto text = block.text();
 		auto start = text.constData();
 		auto end = start + text.size();
-		auto ch = start;
+		auto ch = start + std::max(from - block.position(), 0);
 		while (ch < end) {
 			auto emojiLength = 0;
 			const auto emoji = Ui::Emoji::Find(ch, end, &emojiLength);

@@ -987,7 +987,7 @@ void Scene::createTextAtCenter(int rotation, bool flipped) {
 		&QTextDocument::contentsChange,
 		[=](int position, int removed, int added) {
 			SanitizeRange(emojiDoc, position, position + added);
-			ReplaceEmoji(emojiDoc);
+			ReplaceEmojiInRange(emojiDoc, position, position + added);
 			adjustWidth();
 		});
 
@@ -1076,7 +1076,7 @@ void Scene::startTextEditing(ItemText *item) {
 		&QTextDocument::contentsChange,
 		[=](int position, int removed, int added) {
 			SanitizeRange(emojiDoc, position, position + added);
-			ReplaceEmoji(emojiDoc);
+			ReplaceEmojiInRange(emojiDoc, position, position + added);
 			adjustWidth();
 		});
 
