@@ -5969,6 +5969,12 @@ void ListWidget::overrideChatMode(std::optional<ElementChatMode> mode) {
 }
 
 ListWidget::~ListWidget() {
+	// Stop listening to session events before any member is destroyed:
+	// ~TranslateTracker reverts translations still in flight, which fires
+	// viewResizeRequest() back into this half-destroyed widget and through
+	// the delegate reaches listScrollTo() when its scroll is already gone.
+	lifetime().destroy();
+
 	// Destroy child widgets first, because they may invoke leaveEvent-s.
 	_emptyInfo = nullptr;
 	if (const auto raw = _menu.release()) {
