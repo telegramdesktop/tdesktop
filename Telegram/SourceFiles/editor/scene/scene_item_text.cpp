@@ -41,7 +41,6 @@ constexpr auto kCornerRadiusFactor = 1. / 3.;
 constexpr auto kLinePadHFactor = 1. / 3.;
 constexpr auto kLinePadVFactor = 1. / 8.;
 constexpr auto kMergeRadiusFactor = 1.5;
-constexpr auto kLineShiftFactor = 1. / 7.;
 
 constexpr auto kNoWrapWidth = 1e9;
 
@@ -571,7 +570,6 @@ void ItemText::renderContent() {
 			p.drawPath(bgPath);
 		}
 
-		const auto lineShift = _fontSize * kLineShiftFactor;
 		const auto lineCount = layout.lineCount();
 		p.setPen(textColor);
 		for (auto i = 0; i < lineCount; ++i) {
@@ -580,10 +578,7 @@ void ItemText::renderContent() {
 				m.contentWidth,
 				line.naturalTextWidth(),
 				_alignment);
-			const auto yShift = (i < lineCount - 1) ? -lineShift : 0.;
-			line.draw(
-				&p,
-				QPointF(m.padding + xOffset, m.padding + yShift));
+			line.draw(&p, QPointF(m.padding + xOffset, m.padding));
 		}
 
 		p.setRenderHint(QPainter::SmoothPixmapTransform, true);
@@ -614,9 +609,6 @@ void ItemText::renderContent() {
 				m.contentWidth,
 				line.naturalTextWidth(),
 				_alignment);
-			const auto yShift = (lineIndex < lineCount - 1)
-				? -lineShift
-				: 0.;
 			const auto x = line.cursorToX(ep.start);
 			const auto nextX = line.cursorToX(drawEnd);
 			const auto glyphWidth = float64(nextX - x);
@@ -625,7 +617,6 @@ void ItemText::renderContent() {
 				+ x
 				+ (glyphWidth - emojiSize) / 2.;
 			const auto drawY = m.padding
-				+ yShift
 				+ line.y()
 				+ (line.height() - emojiSize) / 2.;
 			p.save();
