@@ -39,7 +39,6 @@ constexpr auto kBrightnessSemiTransparentThreshold = 0.25;
 constexpr auto kSemiTransparentAlpha = 0x99;
 constexpr auto kCornerRadiusFactor = 1. / 3.;
 constexpr auto kLinePadHFactor = 1. / 3.;
-constexpr auto kLinePadVFactor = 1. / 8.;
 constexpr auto kMergeRadiusFactor = 1.5;
 
 constexpr auto kNoWrapWidth = 1e9;
@@ -287,7 +286,6 @@ QPainterPath BuildTextBackgroundPath(
 		std::vector<TextBackgroundLine> lines,
 		float64 fontSize) {
 	const auto linePadH = fontSize * kLinePadHFactor;
-	const auto linePadV = fontSize * kLinePadVFactor;
 	const auto cornerRadius = fontSize * kCornerRadiusFactor;
 	const auto mergeRadius = cornerRadius * kMergeRadiusFactor;
 
@@ -296,9 +294,9 @@ QPainterPath BuildTextBackgroundPath(
 	for (const auto &line : lines) {
 		rects.push_back({
 			.left = line.left - linePadH,
-			.top = line.top - linePadV,
+			.top = line.top,
 			.right = line.right + linePadH,
-			.bottom = line.bottom + linePadV,
+			.bottom = line.bottom,
 		});
 	}
 
