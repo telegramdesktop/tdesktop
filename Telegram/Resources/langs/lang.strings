@@ -7932,6 +7932,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_photo_editor_font_serif" = "Serif";
 "lng_photo_editor_font_condensed" = "Condensed";
 "lng_photo_editor_font_monospace" = "Monospace";
+"lng_photo_editor_align" = "Alignment";
 
 "lng_photo_editor_crop_original" = "Original";
 "lng_photo_editor_crop_square" = "Square";

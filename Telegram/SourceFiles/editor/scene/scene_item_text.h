@@ -55,6 +55,7 @@ public:
 		float64 fontSize,
 		TextStyle style,
 		TextTypeface typeface,
+		TextAlignment alignment,
 		const QSize &imageSize,
 		ItemBase::Data data);
 
@@ -77,6 +78,9 @@ public:
 
 	[[nodiscard]] TextTypeface typeface() const;
 	void setTypeface(TextTypeface typeface);
+
+	[[nodiscard]] TextAlignment alignment() const;
+	void setAlignment(TextAlignment alignment);
 
 	[[nodiscard]] float64 editScale() const;
 	void bakeScale();
@@ -110,6 +114,7 @@ private:
 	float64 _fontSize;
 	TextStyle _textStyle = TextStyle::Plain;
 	TextTypeface _typeface = TextTypeface::Default;
+	TextAlignment _alignment = TextAlignment::Center;
 	QSize _imageSize;
 	QPixmap _pixmap;
 	base::unique_qptr<Ui::PopupMenu> _contextMenu;
@@ -120,6 +125,7 @@ private:
 		float64 fontSize = 0.;
 		TextStyle textStyle = TextStyle::Plain;
 		TextTypeface typeface = TextTypeface::Default;
+		TextAlignment alignment = TextAlignment::Center;
 	};
 	SavedText _savedState, _keepedState;
 };

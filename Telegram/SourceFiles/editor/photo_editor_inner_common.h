@@ -52,6 +52,12 @@ enum class TextTypeface : uchar {
 	Monospace,
 };
 
+enum class TextAlignment : uchar {
+	Center,
+	Left,
+	Right,
+};
+
 enum class ShapeType : uchar {
 	Circle,
 	Rectangle,

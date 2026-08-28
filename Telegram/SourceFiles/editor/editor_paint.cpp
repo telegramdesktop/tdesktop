@@ -99,7 +99,8 @@ Paint::Paint(
 			QColor(255, 255, 255),
 			shortSide / kDefaultFontSizeDivisor,
 			TextStyle::Plain,
-			TextTypeface::Default);
+			TextTypeface::Default,
+			TextAlignment::Center);
 	}
 
 	keepResult();

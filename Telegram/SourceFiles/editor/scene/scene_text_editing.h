@@ -28,7 +28,8 @@ public:
 		const QColor &color,
 		float64 fontSize,
 		TextStyle style,
-		TextTypeface typeface);
+		TextTypeface typeface,
+		TextAlignment alignment);
 	void setColor(const QColor &color);
 
 	void createAtCenter(int rotation, bool flipped);
@@ -46,7 +47,8 @@ private:
 	void setupProxy(
 		QGraphicsTextItem *proxy,
 		const QColor &color,
-		const TextLayoutSpec &spec);
+		const TextLayoutSpec &spec,
+		TextAlignment alignment);
 	[[nodiscard]] not_null<QGraphicsScene*> graphicsScene() const;
 
 	const not_null<Scene*> _scene;
@@ -57,6 +59,8 @@ private:
 	TextStyle _editStyle = TextStyle::Plain;
 	TextTypeface _defaultTypeface = TextTypeface::Default;
 	TextTypeface _editTypeface = TextTypeface::Default;
+	TextAlignment _defaultAlignment = TextAlignment::Center;
+	TextAlignment _editAlignment = TextAlignment::Center;
 
 	struct {
 		std::weak_ptr<NumberedItem> item;

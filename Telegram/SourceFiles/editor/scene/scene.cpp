@@ -594,8 +594,9 @@ void Scene::setTextDefaults(
 		const QColor &color,
 		float64 fontSize,
 		TextStyle style,
-		TextTypeface typeface) {
-	_textEdit->setDefaults(color, fontSize, style, typeface);
+		TextTypeface typeface,
+		TextAlignment alignment) {
+	_textEdit->setDefaults(color, fontSize, style, typeface, alignment);
 }
 
 void Scene::setTextColor(const QColor &color) {

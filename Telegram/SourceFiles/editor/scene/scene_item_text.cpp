@@ -10,9 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene.h"
 #include "editor/scene/scene_emoji_document.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
 #include "ui/emoji_config.h"
 #include "ui/painter.h"
+#include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/popup_menu.h"
+#include "styles/style_editor.h"
 #include "styles/style_media_player.h"
 #include "styles/style_media_view.h"
 #include "styles/style_menu_icons.h"
@@ -72,6 +75,21 @@ QFont TextFont(float64 fontSize, TextTypeface typeface) {
 		break;
 	}
 	return font;
+}
+
+[[nodiscard]] float64 AlignOffset(
+		int contentWidth,
+		float64 lineWidth,
+		TextAlignment alignment) {
+	switch (alignment) {
+	case TextAlignment::Center:
+		return (contentWidth - lineWidth) / 2.;
+	case TextAlignment::Left:
+		return 0.;
+	case TextAlignment::Right:
+		return contentWidth - lineWidth;
+	}
+	Unexpected("Alignment in AlignOffset.");
 }
 
 float64 ComputeBrightness(const QColor &color) {
@@ -144,21 +162,118 @@ struct LineRect {
 	[[nodiscard]] float64 width() const { return right - left; }
 };
 
+[[nodiscard]] TextAlignment NextAlignment(TextAlignment alignment) {
+	switch (alignment) {
+	case TextAlignment::Left: return TextAlignment::Center;
+	case TextAlignment::Center: return TextAlignment::Right;
+	case TextAlignment::Right: return TextAlignment::Left;
+	}
+	Unexpected("Alignment in NextAlignment.");
+}
+
+[[nodiscard]] int AlignRestFrame(TextAlignment alignment) {
+	switch (alignment) {
+	case TextAlignment::Left: return 20;
+	case TextAlignment::Center: return 0;
+	case TextAlignment::Right: return 40;
+	}
+	Unexpected("Alignment in AlignRestFrame.");
+}
+
+struct AlignFrames {
+	int from = 0;
+	int to = 0;
+};
+
+[[nodiscard]] AlignFrames AlignTransitionFrames(
+		TextAlignment from,
+		TextAlignment to) {
+	if (from == TextAlignment::Left) {
+		return (to == TextAlignment::Center)
+			? AlignFrames{ 20, 0 }
+			: AlignFrames{ 20, 40 };
+	} else if (from == TextAlignment::Center) {
+		return (to == TextAlignment::Left)
+			? AlignFrames{ 0, 20 }
+			: AlignFrames{ 60, 40 };
+	}
+	return (to == TextAlignment::Left)
+		? AlignFrames{ 40, 20 }
+		: AlignFrames{ 40, 60 };
+}
+
+class AlignAction final : public Ui::Menu::Action {
+public:
+	AlignAction(
+		not_null<Ui::Menu::Menu*> parent,
+		const style::Menu &st,
+		not_null<QAction*> action,
+		TextAlignment alignment);
+
+	void cycle(TextAlignment alignment);
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+
+	const std::unique_ptr<Lottie::Icon> _icon;
+	TextAlignment _alignment;
+
+};
+
+AlignAction::AlignAction(
+	not_null<Ui::Menu::Menu*> parent,
+	const style::Menu &st,
+	not_null<QAction*> action,
+	TextAlignment alignment)
+: Ui::Menu::Action(parent, st, action, nullptr, nullptr)
+, _icon(Lottie::MakeIcon({
+	.path = u":/animations/photo_editor_text_align.tgs"_q,
+	.color = &st::mediaviewMenuFg,
+	.sizeOverride = QSize(
+		st::photoEditorAlignIconSize,
+		st::photoEditorAlignIconSize),
+	.frame = AlignRestFrame(alignment),
+}))
+, _alignment(alignment) {
+}
+
+void AlignAction::cycle(TextAlignment alignment) {
+	if (_alignment == alignment) {
+		return;
+	}
+	const auto frames = AlignTransitionFrames(_alignment, alignment);
+	_alignment = alignment;
+	_icon->animate([=] { update(); }, frames.from, frames.to);
+}
+
+void AlignAction::paintEvent(QPaintEvent *e) {
+	auto p = Painter(this);
+	const auto selected = isSelected();
+	paintBackground(p, selected);
+	paintRipple(p, 0, 0);
+	p.setPen(selected ? st().itemFgOver : st().itemFg);
+	paintText(p);
+	const auto position = st().itemIconPosition;
+	_icon->paint(p, position.x(), position.y());
+}
+
 QPainterPath BuildConnectedBackground(
 		const QTextLayout &layout,
 		int contentWidth,
 		int padding,
-		float64 fontSize) {
-	const auto centerX = padding + contentWidth / 2.;
+		float64 fontSize,
+		TextAlignment alignment) {
 	auto lines = std::vector<TextBackgroundLine>();
 	lines.reserve(layout.lineCount());
 	for (auto i = 0; i < layout.lineCount(); ++i) {
 		const auto line = layout.lineAt(i);
-		const auto hw = float64(line.naturalTextWidth()) / 2.;
+		const auto width = float64(line.naturalTextWidth());
+		const auto left = padding
+			+ AlignOffset(contentWidth, width, alignment);
 		lines.push_back({
-			.left = centerX - hw,
+			.left = left,
 			.top = padding + float64(line.y()),
-			.right = centerX + hw,
+			.right = left + width,
 			.bottom = padding + float64(line.y() + line.height()),
 		});
 	}
@@ -356,6 +471,7 @@ ItemText::ItemText(
 	float64 fontSize,
 	TextStyle style,
 	TextTypeface typeface,
+	TextAlignment alignment,
 	const QSize &imageSize,
 	ItemBase::Data data)
 : ItemBase(std::move(data))
@@ -364,6 +480,7 @@ ItemText::ItemText(
 , _fontSize(fontSize)
 , _textStyle(style)
 , _typeface(typeface)
+, _alignment(alignment)
 , _imageSize(imageSize) {
 	renderContent();
 }
@@ -439,7 +556,8 @@ void ItemText::renderContent() {
 				layout,
 				m.contentWidth,
 				m.padding,
-				_fontSize);
+				_fontSize,
+				_alignment);
 			p.setPen(Qt::NoPen);
 			p.setBrush(bgColor);
 			p.drawPath(bgPath);
@@ -450,8 +568,10 @@ void ItemText::renderContent() {
 		p.setPen(textColor);
 		for (auto i = 0; i < lineCount; ++i) {
 			const auto line = layout.lineAt(i);
-			const auto xOffset =
-				(m.contentWidth - line.naturalTextWidth()) / 2.;
+			const auto xOffset = AlignOffset(
+				m.contentWidth,
+				line.naturalTextWidth(),
+				_alignment);
 			const auto yShift = (i < lineCount - 1) ? -lineShift : 0.;
 			line.draw(
 				&p,
@@ -482,8 +602,10 @@ void ItemText::renderContent() {
 			const auto lineStart = line.textStart();
 			const auto lineEnd = lineStart + line.textLength();
 			const auto drawEnd = std::min(ep.start + ep.length, lineEnd);
-			const auto xOffset =
-				(m.contentWidth - line.naturalTextWidth()) / 2.;
+			const auto xOffset = AlignOffset(
+				m.contentWidth,
+				line.naturalTextWidth(),
+				_alignment);
 			const auto yShift = (lineIndex < lineCount - 1)
 				? -lineShift
 				: 0.;
@@ -667,6 +789,19 @@ void ItemText::setTypeface(TextTypeface typeface) {
 	update();
 }
 
+TextAlignment ItemText::alignment() const {
+	return _alignment;
+}
+
+void ItemText::setAlignment(TextAlignment alignment) {
+	if (_alignment == alignment) {
+		return;
+	}
+	_alignment = alignment;
+	renderContent();
+	update();
+}
+
 void ItemText::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
 	const auto resized = isHandling()
 		&& (event->button() == Qt::LeftButton);
@@ -751,6 +886,20 @@ void ItemText::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 		std::move(fonts),
 		&st::mediaMenuIconFont);
 
+	auto align = base::make_unique_q<AlignAction>(
+		_contextMenu->menu(),
+		_contextMenu->st().menu,
+		new QAction(tr::lng_photo_editor_align(tr::now), _contextMenu.get()),
+		_alignment);
+	const auto alignRaw = align.get();
+	align->setActionTriggered([=] {
+		const auto next = NextAlignment(_alignment);
+		setAlignment(next);
+		alignRaw->cycle(next);
+	});
+	align->setPreventClose(true);
+	_contextMenu->addAction(std::move(align));
+
 	_contextMenu->addSeparator();
 
 	_contextMenu->addAction(
@@ -779,6 +928,7 @@ std::shared_ptr<ItemBase> ItemText::duplicate(ItemBase::Data data) const {
 		_fontSize,
 		_textStyle,
 		_typeface,
+		_alignment,
 		_imageSize,
 		std::move(data));
 }
@@ -792,6 +942,7 @@ void ItemText::save(SaveState state) {
 		.fontSize = _fontSize,
 		.textStyle = _textStyle,
 		.typeface = _typeface,
+		.alignment = _alignment,
 	};
 }
 
@@ -804,12 +955,14 @@ void ItemText::restore(SaveState state) {
 		|| (_color != saved.color)
 		|| (_fontSize != saved.fontSize)
 		|| (_textStyle != saved.textStyle)
-		|| (_typeface != saved.typeface);
+		|| (_typeface != saved.typeface)
+		|| (_alignment != saved.alignment);
 	_text = saved.text;
 	_color = saved.color;
 	_fontSize = saved.fontSize;
 	_textStyle = saved.textStyle;
 	_typeface = saved.typeface;
+	_alignment = saved.alignment;
 	if (changed) {
 		renderContent();
 	}

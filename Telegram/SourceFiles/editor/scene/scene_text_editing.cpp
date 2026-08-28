@@ -102,14 +102,13 @@ private:
 			}
 			const auto origin = layout->position();
 			for (auto i = 0; i < layout->lineCount(); ++i) {
-				const auto line = layout->lineAt(i);
-				const auto left = origin.x() + line.x();
-				const auto top = origin.y() + line.y();
+				// naturalTextRect includes draw-time alignment shift.
+				const auto rect = layout->lineAt(i).naturalTextRect();
 				lines.push_back({
-					.left = left,
-					.top = top,
-					.right = left + float64(line.naturalTextWidth()),
-					.bottom = top + float64(line.height()),
+					.left = origin.x() + rect.left(),
+					.top = origin.y() + rect.top(),
+					.right = origin.x() + rect.right(),
+					.bottom = origin.y() + rect.bottom(),
 				});
 			}
 		}
@@ -156,11 +155,13 @@ void TextEditController::setDefaults(
 		const QColor &color,
 		float64 fontSize,
 		TextStyle style,
-		TextTypeface typeface) {
+		TextTypeface typeface,
+		TextAlignment alignment) {
 	_defaultColor = color;
 	_defaultFontSize = fontSize;
 	_defaultStyle = style;
 	_defaultTypeface = typeface;
+	_defaultAlignment = alignment;
 }
 
 void TextEditController::setColor(const QColor &color) {
@@ -205,7 +206,8 @@ void TextEditController::setEditingState(bool editing, bool notify) {
 void TextEditController::setupProxy(
 		QGraphicsTextItem *proxy,
 		const QColor &color,
-		const TextLayoutSpec &spec) {
+		const TextLayoutSpec &spec,
+		TextAlignment alignment) {
 	proxy->setTextInteractionFlags(Qt::TextEditorInteraction);
 	proxy->setDefaultTextColor(color);
 
@@ -216,7 +218,11 @@ void TextEditController::setupProxy(
 
 	{
 		auto option = emojiDoc->defaultTextOption();
-		option.setAlignment(Qt::AlignCenter);
+		option.setAlignment((alignment == TextAlignment::Left)
+			? Qt::AlignLeft
+			: (alignment == TextAlignment::Right)
+			? Qt::AlignRight
+			: Qt::AlignCenter);
 		option.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
 		emojiDoc->setDefaultTextOption(option);
 	}
@@ -234,6 +240,7 @@ void TextEditController::createAtCenter(int rotation, bool flipped) {
 	setEditingState(true);
 	_editStyle = _defaultStyle;
 	_editTypeface = _defaultTypeface;
+	_editAlignment = _defaultAlignment;
 	_edit.flipped = flipped;
 
 	const auto sceneRect = _scene->sceneRect();
@@ -248,7 +255,8 @@ void TextEditController::createAtCenter(int rotation, bool flipped) {
 	setupProxy(
 		proxy,
 		EffectiveTextColor(_defaultColor, _editStyle),
-		spec);
+		spec,
+		_editAlignment);
 	static_cast<TextEditProxy*>(proxy)->setStyleInfo(
 		_editStyle,
 		_defaultColor,
@@ -335,6 +343,7 @@ void TextEditController::startEditing(ItemText *item) {
 	setEditingState(true);
 	_editStyle = item->textStyle();
 	_editTypeface = item->typeface();
+	_editAlignment = item->alignment();
 	_edit.flipped = item->flipped();
 
 	const auto sceneRect = _scene->sceneRect();
@@ -349,7 +358,8 @@ void TextEditController::startEditing(ItemText *item) {
 	setupProxy(
 		proxy,
 		EffectiveTextColor(item->color(), item->textStyle()),
-		spec);
+		spec,
+		_editAlignment);
 	static_cast<TextEditProxy*>(proxy)->setStyleInfo(
 		item->textStyle(),
 		item->color(),
@@ -506,6 +516,7 @@ void TextEditController::finishEditing(bool save, bool notify) {
 				_defaultFontSize,
 				defaultStyle,
 				_defaultTypeface,
+				_defaultAlignment,
 				imageSize,
 				std::move(data));
 			_scene->addItem(item);
