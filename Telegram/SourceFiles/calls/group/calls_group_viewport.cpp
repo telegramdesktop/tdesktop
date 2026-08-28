@@ -356,6 +356,18 @@ void Viewport::remove(const VideoEndpoint &endpoint) {
 	}
 }
 
+void Viewport::removeByRow(not_null<MembersRow*> row) {
+	auto endpoints = std::vector<VideoEndpoint>();
+	for (const auto &tile : _tiles) {
+		if (tile->row().get() == row.get()) {
+			endpoints.push_back(tile->endpoint());
+		}
+	}
+	for (const auto &endpoint : endpoints) {
+		remove(endpoint);
+	}
+}
+
 void Viewport::prepareLargeChangeAnimation() {
 	if (!wide()) {
 		return;

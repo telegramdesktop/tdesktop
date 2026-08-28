@@ -1255,6 +1255,14 @@ void Panel::setupVideo(not_null<Viewport*> viewport) {
 		}
 	}, viewport->lifetime());
 
+	// Tiles keep a raw row pointer and the members list deletes the rows
+	// of participants missing after a full reload before the call marks
+	// their endpoints inactive, so drop such tiles while the row lives.
+	_members->rowRemoved(
+	) | rpl::on_next([=](not_null<MembersRow*> row) {
+		viewport->removeByRow(row);
+	}, viewport->lifetime());
+
 	viewport->pinToggled(
 	) | rpl::on_next([=](bool pinned) {
 		_call->pinVideoEndpoint(pinned
