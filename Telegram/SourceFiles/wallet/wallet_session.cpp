@@ -528,6 +528,14 @@ void Session::setPresence(Presence presence) {
 		return;
 	}
 	_presence = presence;
+	// The gate is recomputed before the lanes are drained, because both
+	// drains publish into the same derived faces the gate does: a face
+	// evaluated between them reads emptied lists under the gate this
+	// wallet held while it was Ready, which was never true of it. Doing it
+	// first costs nothing — for a presence that is not Ready every term
+	// in updateListsGate() that reads the history lane is conjoined with
+	// `ready`, so it writes the same two values before the drain as after.
+	updateListsGate();
 	if (presence != Presence::Ready) {
 		// clearHistory() cancels the request in flight, so a refreshHistory()
 		// issued while the wallet was Ready would never run its done and its
@@ -537,7 +545,6 @@ void Session::setPresence(Presence presence) {
 		finishHistoryWaiters();
 		clearCollectibles();
 	}
-	updateListsGate();
 	updatePollingState();
 	if (presence == Presence::Ready) {
 		refreshHistory();
