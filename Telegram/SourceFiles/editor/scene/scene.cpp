@@ -1072,7 +1072,7 @@ void Scene::startTextEditing(ItemText *item) {
 		adjustWidth();
 	});
 
-	const auto scale = item->editScale();
+	const auto scale = item->scale() * item->editScale();
 	proxy->setRotation(flipped ? -item->rotation() : item->rotation());
 	if (std::abs(scale - 1.) > kScaleThreshold) {
 		proxy->setScale(scale);

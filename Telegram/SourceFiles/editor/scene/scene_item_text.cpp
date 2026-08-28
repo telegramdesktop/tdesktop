@@ -560,7 +560,10 @@ float64 ItemText::editScale() const {
 	if (natural.width() <= 0) {
 		return 1.;
 	}
-	return size() / natural.width();
+	const auto handleMargin = std::max(
+		innerRect().width() - contentRect().width(),
+		0.);
+	return std::max(size() - handleMargin, 1.) / natural.width();
 }
 
 TextStyle ItemText::textStyle() const {
