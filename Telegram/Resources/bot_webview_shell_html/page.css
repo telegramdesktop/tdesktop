@@ -33,10 +33,11 @@ select {
 	--shell-pad-right: 12px;
 	--shell-pad-bottom: 12px;
 	--shell-pad-left: 12px;
-	--shadow-pad-top: 12px;
-	--shadow-pad-right: 14px;
-	--shadow-pad-bottom: 16px;
-	--shadow-pad-left: 14px;
+	--shadow-pad-top: 0px;
+	--shadow-pad-right: 0px;
+	--shadow-pad-bottom: 0px;
+	--shadow-pad-left: 0px;
+	--resize-handle: 8px;
 	--header-height: 60px;
 	--title-pad-top: 0px;
 	--title-pad-right: 0px;
@@ -95,11 +96,7 @@ select {
 	flex-direction: column;
 	border-radius: var(--shell-radius);
 	background: var(--body-bg, #ffffff);
-	box-shadow:
-		0 0 0 1px rgba(0, 0, 0, 0.08),
-		0 1px 2px rgba(0, 0, 0, 0.18),
-		0 3px 8px -1px rgba(0, 0, 0, 0.16),
-		0 8px 14px -5px rgba(0, 0, 0, 0.20);
+	box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.10);
 	overflow: hidden;
 }
 #root.no-window-alpha #shell {
@@ -431,58 +428,58 @@ select {
 }
 .resize-handle[data-resize-edge="top"] {
 	top: 0;
-	left: var(--shadow-pad-left);
-	right: var(--shadow-pad-right);
-	height: var(--shadow-pad-top);
+	left: var(--resize-handle);
+	right: var(--resize-handle);
+	height: var(--resize-handle);
 	cursor: ns-resize;
 }
 .resize-handle[data-resize-edge="bottom"] {
 	bottom: 0;
-	left: var(--shadow-pad-left);
-	right: var(--shadow-pad-right);
-	height: var(--shadow-pad-bottom);
+	left: var(--resize-handle);
+	right: var(--resize-handle);
+	height: var(--resize-handle);
 	cursor: ns-resize;
 }
 .resize-handle[data-resize-edge="left"] {
-	top: var(--shadow-pad-top);
-	bottom: var(--shadow-pad-bottom);
+	top: var(--resize-handle);
+	bottom: var(--resize-handle);
 	left: 0;
-	width: var(--shadow-pad-left);
+	width: var(--resize-handle);
 	cursor: ew-resize;
 }
 .resize-handle[data-resize-edge="right"] {
-	top: var(--shadow-pad-top);
-	bottom: var(--shadow-pad-bottom);
+	top: var(--resize-handle);
+	bottom: var(--resize-handle);
 	right: 0;
-	width: var(--shadow-pad-right);
+	width: var(--resize-handle);
 	cursor: ew-resize;
 }
 .resize-handle[data-resize-edge="top-left"] {
 	top: 0;
 	left: 0;
-	width: var(--shadow-pad-left);
-	height: var(--shadow-pad-top);
+	width: var(--resize-handle);
+	height: var(--resize-handle);
 	cursor: nwse-resize;
 }
 .resize-handle[data-resize-edge="top-right"] {
 	top: 0;
 	right: 0;
-	width: var(--shadow-pad-right);
-	height: var(--shadow-pad-top);
+	width: var(--resize-handle);
+	height: var(--resize-handle);
 	cursor: nesw-resize;
 }
 .resize-handle[data-resize-edge="bottom-left"] {
 	bottom: 0;
 	left: 0;
-	width: var(--shadow-pad-left);
-	height: var(--shadow-pad-bottom);
+	width: var(--resize-handle);
+	height: var(--resize-handle);
 	cursor: nesw-resize;
 }
 .resize-handle[data-resize-edge="bottom-right"] {
 	right: 0;
 	bottom: 0;
-	width: var(--shadow-pad-right);
-	height: var(--shadow-pad-bottom);
+	width: var(--resize-handle);
+	height: var(--resize-handle);
 	cursor: nwse-resize;
 }
 #menu.visible {
