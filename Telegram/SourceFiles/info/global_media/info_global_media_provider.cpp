@@ -600,9 +600,17 @@ GlobalMediaKey Provider::sliceKey(Data::MessagePosition aroundId) const {
 
 void Provider::itemRemoved(not_null<const HistoryItem*> item) {
 	const auto id = item->fullId();
-	if (const auto i = _layouts.find(id); i != end(_layouts)) {
-		_layoutRemoved.fire(i->second.item.get());
-		_layouts.erase(i);
+	const auto i = _layouts.find(id);
+	if (i == end(_layouts)) {
+		return;
+	}
+	_layoutRemoved.fire(i->second.item.get());
+	// The list widget handles layoutRemoved() synchronously and may
+	// refresh its height from there, which can reach refreshViewer()
+	// -> refreshRows() -> fillSections() -> clearStaleLayouts() before
+	// we get back here, erasing this very entry, so look it up again.
+	if (const auto j = _layouts.find(id); j != end(_layouts)) {
+		_layouts.erase(j);
 	}
 }
 
