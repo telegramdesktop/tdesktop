@@ -280,9 +280,7 @@ QPainterPath BuildConnectedBackground(
 	return BuildTextBackgroundPath(std::move(lines), fontSize);
 }
 
-} // namespace
-
-QPainterPath BuildTextBackgroundPath(
+[[nodiscard]] QPainterPath BuildGroupBackgroundPath(
 		std::vector<TextBackgroundLine> lines,
 		float64 fontSize) {
 	const auto linePadH = fontSize * kLinePadHFactor;
@@ -416,6 +414,31 @@ QPainterPath BuildTextBackgroundPath(
 	}
 	path.closeSubpath();
 	return path;
+}
+
+} // namespace
+
+QPainterPath BuildTextBackgroundPath(
+		std::vector<TextBackgroundLine> lines,
+		float64 fontSize) {
+	auto result = QPainterPath();
+	auto group = std::vector<TextBackgroundLine>();
+	const auto flush = [&] {
+		if (!group.empty()) {
+			result.addPath(BuildGroupBackgroundPath(
+				base::take(group),
+				fontSize));
+		}
+	};
+	for (const auto &line : lines) {
+		if ((line.right - line.left) < 1.) {
+			flush();
+		} else {
+			group.push_back(line);
+		}
+	}
+	flush();
+	return result;
 }
 
 QColor TextBackgroundColor(const QColor &color, TextStyle style) {
