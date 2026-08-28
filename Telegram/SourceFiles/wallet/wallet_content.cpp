@@ -416,7 +416,6 @@ void InsertAddressTableRow(
 		AddressValueLabel(table, std::move(show), address),
 		st::giveawayGiftCodeLabelMargin,
 		st::giveawayGiftCodeValueMargin);
-	table->resizeToWidth(table->widthNoMargins());
 }
 
 enum class RowAvatar {
