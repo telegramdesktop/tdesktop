@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene_item_text.h"
 #include "editor/scene/scene_emoji_document.h"
 #include "ui/image/image_prepare.h"
+#include "ui/painter.h"
 #include "ui/rp_widget.h"
 #include "styles/style_editor.h"
 
@@ -21,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsTextItem>
 #include <QGraphicsView>
+#include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QtMath>
@@ -167,6 +169,39 @@ public:
 	Fn<void()> onFinish;
 	Fn<void()> onCancel;
 
+	void setStyleInfo(
+			TextStyle style,
+			const QColor &color,
+			float64 fontSize) {
+		prepareGeometryChange();
+		_style = style;
+		_color = color;
+		_fontSize = fontSize;
+		update();
+	}
+
+	void setStyleColor(const QColor &color) {
+		_color = color;
+		update();
+	}
+
+	QRectF boundingRect() const override {
+		const auto pad = float64(TextBackgroundPadding(_fontSize, _style));
+		return QGraphicsTextItem::boundingRect().adjusted(
+			-pad,
+			-pad,
+			pad,
+			pad);
+	}
+
+	void paint(
+			QPainter *painter,
+			const QStyleOptionGraphicsItem *option,
+			QWidget *widget) override {
+		paintBackground(painter);
+		QGraphicsTextItem::paint(painter, option, widget);
+	}
+
 protected:
 	void keyPressEvent(QKeyEvent *event) override {
 		if (event->key() == Qt::Key_Escape) {
@@ -186,6 +221,47 @@ protected:
 	}
 
 private:
+	void paintBackground(QPainter *painter) {
+		const auto bg = TextBackgroundColor(_color, _style);
+		if (bg.alpha() <= 0) {
+			return;
+		}
+		auto lines = std::vector<TextBackgroundLine>();
+		const auto doc = document();
+		for (auto block = doc->begin()
+			; block.isValid()
+			; block = block.next()) {
+			const auto layout = block.layout();
+			if (!layout) {
+				continue;
+			}
+			const auto origin = layout->position();
+			for (auto i = 0; i < layout->lineCount(); ++i) {
+				const auto line = layout->lineAt(i);
+				const auto left = origin.x() + line.x();
+				const auto top = origin.y() + line.y();
+				lines.push_back({
+					.left = left,
+					.top = top,
+					.right = left + float64(line.naturalTextWidth()),
+					.bottom = top + float64(line.height()),
+				});
+			}
+		}
+		if (lines.empty()) {
+			return;
+		}
+		const auto path = BuildTextBackgroundPath(
+			std::move(lines),
+			_fontSize);
+		painter->save();
+		PainterHighQualityEnabler hq(*painter);
+		painter->setPen(Qt::NoPen);
+		painter->setBrush(bg);
+		painter->drawPath(path);
+		painter->restore();
+	}
+
 	void fire(Fn<void()> &callback) {
 		if (!callback) {
 			return;
@@ -195,6 +271,10 @@ private:
 		onCancel = nullptr;
 		crl::on_main(cb);
 	}
+
+	TextStyle _style = TextStyle::Plain;
+	QColor _color;
+	float64 _fontSize = 0.;
 };
 
 } // namespace
@@ -657,6 +737,8 @@ void Scene::setTextColor(const QColor &color) {
 		_textEdit.proxy->setDefaultTextColor(EffectiveTextColor(
 			color,
 			_textEditStyle));
+		static_cast<TextEditProxy*>(
+			_textEdit.proxy.get())->setStyleColor(color);
 	} else {
 		_textColor = color;
 	}
@@ -947,6 +1029,10 @@ void Scene::createTextAtCenter(int rotation, bool flipped) {
 		proxy,
 		EffectiveTextColor(_textColor, _textEditStyle),
 		spec);
+	static_cast<TextEditProxy*>(proxy)->setStyleInfo(
+		_textEditStyle,
+		_textColor,
+		_textFontSize);
 
 	const auto emojiDoc = proxy->document();
 	const auto shortSide = std::min(
@@ -1039,6 +1125,10 @@ void Scene::startTextEditing(ItemText *item) {
 		proxy,
 		EffectiveTextColor(item->color(), item->textStyle()),
 		spec);
+	static_cast<TextEditProxy*>(proxy)->setStyleInfo(
+		item->textStyle(),
+		item->color(),
+		item->fontSize());
 
 	proxy->setPlainText(item->text());
 	ReplaceEmoji(proxy->document());

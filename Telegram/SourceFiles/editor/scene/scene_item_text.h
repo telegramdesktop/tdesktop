@@ -29,6 +29,21 @@ struct TextLayoutSpec {
 	const QSize &imageSize,
 	TextStyle style);
 
+struct TextBackgroundLine {
+	float64 left = 0;
+	float64 top = 0;
+	float64 right = 0;
+	float64 bottom = 0;
+};
+
+[[nodiscard]] QPainterPath BuildTextBackgroundPath(
+	std::vector<TextBackgroundLine> lines,
+	float64 fontSize);
+[[nodiscard]] QColor TextBackgroundColor(
+	const QColor &color,
+	TextStyle style);
+[[nodiscard]] int TextBackgroundPadding(float64 fontSize, TextStyle style);
+
 class ItemText : public ItemBase {
 public:
 	enum { Type = ItemBase::Type + 2 };

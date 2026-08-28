@@ -124,21 +124,40 @@ QPainterPath BuildConnectedBackground(
 		int contentWidth,
 		int padding,
 		float64 fontSize) {
+	const auto centerX = padding + contentWidth / 2.;
+	auto lines = std::vector<TextBackgroundLine>();
+	lines.reserve(layout.lineCount());
+	for (auto i = 0; i < layout.lineCount(); ++i) {
+		const auto line = layout.lineAt(i);
+		const auto hw = float64(line.naturalTextWidth()) / 2.;
+		lines.push_back({
+			.left = centerX - hw,
+			.top = padding + float64(line.y()),
+			.right = centerX + hw,
+			.bottom = padding + float64(line.y() + line.height()),
+		});
+	}
+	return BuildTextBackgroundPath(std::move(lines), fontSize);
+}
+
+} // namespace
+
+QPainterPath BuildTextBackgroundPath(
+		std::vector<TextBackgroundLine> lines,
+		float64 fontSize) {
 	const auto linePadH = fontSize * kLinePadHFactor;
 	const auto linePadV = fontSize * kLinePadVFactor;
 	const auto cornerRadius = fontSize * kCornerRadiusFactor;
 	const auto mergeRadius = cornerRadius * kMergeRadiusFactor;
-	const auto centerX = padding + contentWidth / 2.;
 
 	auto rects = std::vector<LineRect>();
-	for (auto i = 0; i < layout.lineCount(); ++i) {
-		const auto line = layout.lineAt(i);
-		const auto hw = float64(line.naturalTextWidth()) / 2. + linePadH;
+	rects.reserve(lines.size());
+	for (const auto &line : lines) {
 		rects.push_back({
-			.left = centerX - hw,
-			.top = padding + float64(line.y()) - linePadV,
-			.right = centerX + hw,
-			.bottom = padding + float64(line.y() + line.height()) + linePadV,
+			.left = line.left - linePadH,
+			.top = line.top - linePadV,
+			.right = line.right + linePadH,
+			.bottom = line.bottom + linePadV,
 		});
 	}
 
@@ -260,15 +279,32 @@ QPainterPath BuildConnectedBackground(
 	return path;
 }
 
-} // namespace
+QColor TextBackgroundColor(const QColor &color, TextStyle style) {
+	switch (style) {
+	case TextStyle::Framed:
+		return color;
+	case TextStyle::SemiTransparent:
+		return (ComputeBrightness(color)
+				>= kBrightnessSemiTransparentThreshold)
+			? QColor(0, 0, 0, kSemiTransparentAlpha)
+			: QColor(255, 255, 255, kSemiTransparentAlpha);
+	case TextStyle::Plain:
+		return QColor(Qt::transparent);
+	}
+	Unexpected("Text style in TextBackgroundColor.");
+}
+
+int TextBackgroundPadding(float64 fontSize, TextStyle style) {
+	const auto hasBackground = (style == TextStyle::Framed)
+		|| (style == TextStyle::SemiTransparent);
+	return hasBackground ? int(fontSize * kPaddingFactor) : 0;
+}
 
 TextLayoutSpec ComputeTextLayoutSpec(
 		float64 fontSize,
 		const QSize &imageSize,
 		TextStyle style) {
-	const auto hasBackground = (style == TextStyle::Framed)
-		|| (style == TextStyle::SemiTransparent);
-	const auto padding = hasBackground ? int(fontSize * kPaddingFactor) : 0;
+	const auto padding = TextBackgroundPadding(fontSize, style);
 	const auto shortSide = std::min(imageSize.width(), imageSize.height());
 	return {
 		.font = TextFont(fontSize),
@@ -357,24 +393,8 @@ void ItemText::renderContent() {
 	const auto pixHeight = m.contentHeight + 2 * m.padding;
 
 	const auto textColor = EffectiveTextColor(_color, _textStyle);
-	auto bgColor = QColor(Qt::transparent);
-	const auto hasBackground =
-		(_textStyle == TextStyle::Framed)
-		|| (_textStyle == TextStyle::SemiTransparent);
-
-	switch (_textStyle) {
-	case TextStyle::Framed:
-		bgColor = _color;
-		break;
-	case TextStyle::SemiTransparent:
-		bgColor = (ComputeBrightness(_color)
-				>= kBrightnessSemiTransparentThreshold)
-			? QColor(0, 0, 0, kSemiTransparentAlpha)
-			: QColor(255, 255, 255, kSemiTransparentAlpha);
-		break;
-	case TextStyle::Plain:
-		break;
-	}
+	const auto bgColor = TextBackgroundColor(_color, _textStyle);
+	const auto hasBackground = (bgColor.alpha() > 0);
 
 	const auto dpr = style::DevicePixelRatio();
 	auto pixmap = QPixmap(QSize(pixWidth, pixHeight) * dpr);
