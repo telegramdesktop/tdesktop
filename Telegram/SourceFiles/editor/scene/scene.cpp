@@ -964,13 +964,17 @@ void Scene::createTextAtCenter(int rotation, bool flipped) {
 		maxTextWidth);
 	const auto sceneCenter = sceneRect().center();
 	const auto adjustWidth = [=] {
-		emojiDoc->setTextWidth(maxTextWidth);
+		if (int(emojiDoc->textWidth()) != maxTextWidth) {
+			emojiDoc->setTextWidth(maxTextWidth);
+		}
 		const auto ideal = int(std::ceil(emojiDoc->idealWidth()));
 		const auto width = std::clamp(
 			ideal + kIdealWidthExtra,
 			minTextWidth,
 			maxTextWidth);
-		proxy->setTextWidth(width);
+		if (int(proxy->textWidth()) != width) {
+			proxy->setTextWidth(width);
+		}
 		if (flipped) {
 			proxy->setTransform(
 				QTransform().translate(width, 0).scale(-1, 1));
@@ -1054,13 +1058,17 @@ void Scene::startTextEditing(ItemText *item) {
 	const auto anchor = item->scenePos();
 	const auto flipped = item->flipped();
 	const auto adjustWidth = [=] {
-		emojiDoc->setTextWidth(maxTextWidth);
+		if (int(emojiDoc->textWidth()) != maxTextWidth) {
+			emojiDoc->setTextWidth(maxTextWidth);
+		}
 		const auto ideal = int(std::ceil(emojiDoc->idealWidth()));
 		const auto width = std::clamp(
 			ideal + kIdealWidthExtra,
 			minTextWidth,
 			maxTextWidth);
-		proxy->setTextWidth(width);
+		if (int(proxy->textWidth()) != width) {
+			proxy->setTextWidth(width);
+		}
 		if (flipped) {
 			proxy->setTransform(
 				QTransform().translate(width, 0).scale(-1, 1));
