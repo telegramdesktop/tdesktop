@@ -141,6 +141,7 @@ private:
 	struct {
 		std::weak_ptr<NumberedItem> item;
 		base::unique_qptr<QGraphicsTextItem> proxy;
+		std::optional<QColor> color;
 		bool flipped = false;
 	} _textEdit;
 

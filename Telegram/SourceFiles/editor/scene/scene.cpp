@@ -654,11 +654,13 @@ void Scene::setTextDefaults(
 }
 
 void Scene::setTextColor(const QColor &color) {
-	_textColor = color;
 	if (_textEdit.proxy) {
+		_textEdit.color = color;
 		_textEdit.proxy->setDefaultTextColor(EffectiveTextColor(
 			color,
 			static_cast<TextStyle>(_textEditStyle)));
+	} else {
+		_textColor = color;
 	}
 }
 
@@ -1134,12 +1136,16 @@ void Scene::finishTextEditing(bool save, bool notify) {
 	QGraphicsScene::removeItem(_textEdit.proxy.get());
 	_textEdit.proxy = nullptr;
 	_textEdit.item.reset();
+	const auto stagedColor = base::take(_textEdit.color);
 	setTextEditing(false, notify);
 
 	const auto defaultStyle = static_cast<TextStyle>(_textStyle);
 
 	if (!text.isEmpty()) {
 		if (existingItem) {
+			if (stagedColor) {
+				existingItem->setColor(*stagedColor);
+			}
 			existingItem->setText(text);
 			existingItem->setVisible(true);
 		} else {
@@ -1167,7 +1173,7 @@ void Scene::finishTextEditing(bool save, bool notify) {
 			};
 			auto item = std::make_shared<ItemText>(
 				text,
-				_textColor,
+				stagedColor.value_or(_textColor),
 				_textFontSize,
 				defaultStyle,
 				imageSize,
