@@ -728,6 +728,16 @@ float64 ItemText::fontSize() const {
 	return _fontSize;
 }
 
+void ItemText::setFontSize(float64 fontSize) {
+	fontSize = std::max(fontSize, 1.);
+	if (_fontSize == fontSize) {
+		return;
+	}
+	_fontSize = fontSize;
+	renderContent();
+	update();
+}
+
 float64 ItemText::editScale() const {
 	const auto natural = computeContentSize(
 		_text,

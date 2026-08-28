@@ -72,6 +72,7 @@ public:
 	void setColor(const QColor &color);
 
 	[[nodiscard]] float64 fontSize() const;
+	void setFontSize(float64 fontSize);
 
 	[[nodiscard]] TextStyle textStyle() const;
 	void setTextStyle(TextStyle style);

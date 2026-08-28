@@ -48,6 +48,9 @@ public:
 private:
 	void setEditingState(bool editing, bool notify = true);
 	void firePrefs();
+	void applyAutoShrink();
+	[[nodiscard]] int sessionMaxTextWidth() const;
+	[[nodiscard]] int sessionMinTextWidth() const;
 	void setupProxy(
 		QGraphicsTextItem *proxy,
 		const QColor &color,
@@ -70,6 +73,7 @@ private:
 		std::weak_ptr<NumberedItem> item;
 		base::unique_qptr<QGraphicsTextItem> proxy;
 		std::optional<QColor> color;
+		float64 fontSize = 0.;
 		bool flipped = false;
 	} _edit;
 

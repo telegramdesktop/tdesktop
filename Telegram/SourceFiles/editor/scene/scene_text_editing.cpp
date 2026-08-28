@@ -32,6 +32,9 @@ constexpr auto kPlaceholderOpacity = 0.38;
 [[nodiscard]] QString PlaceholderText() {
 	return tr::lng_photo_editor_text_placeholder(tr::now);
 }
+constexpr auto kAutoShrinkHeightFactor = 1. / 3.;
+constexpr auto kAutoShrinkStep = 0.9;
+constexpr auto kMinFontSizeFactor = 1. / 50.;
 
 class TextEditProxy final : public QGraphicsTextItem {
 public:
@@ -53,6 +56,12 @@ public:
 
 	void setStyleColor(const QColor &color) {
 		_color = color;
+		update();
+	}
+
+	void setStyleFontSize(float64 fontSize) {
+		prepareGeometryChange();
+		_fontSize = fontSize;
 		update();
 	}
 
@@ -294,6 +303,63 @@ void TextEditController::setEditingState(bool editing, bool notify) {
 	}
 }
 
+int TextEditController::sessionMaxTextWidth() const {
+	const auto rect = _scene->sceneRect();
+	return ComputeTextLayoutSpec(
+		_edit.fontSize,
+		rect.size().toSize(),
+		_editStyle,
+		_editTypeface).maxTextWidth;
+}
+
+int TextEditController::sessionMinTextWidth() const {
+	const auto rect = _scene->sceneRect();
+	const auto spec = ComputeTextLayoutSpec(
+		_edit.fontSize,
+		rect.size().toSize(),
+		_editStyle,
+		_editTypeface);
+	const auto shortSide = std::min(rect.width(), rect.height());
+	return std::clamp(
+		int(shortSide * kMinWidthFactor) - 2 * spec.padding,
+		1,
+		spec.maxTextWidth);
+}
+
+void TextEditController::applyAutoShrink() {
+	const auto proxy = _edit.proxy.get();
+	if (!proxy) {
+		return;
+	}
+	const auto rect = _scene->sceneRect();
+	const auto shortSide = std::min(rect.width(), rect.height());
+	const auto maxHeight = shortSide * kAutoShrinkHeightFactor;
+	const auto minFontSize = std::max(
+		shortSide * kMinFontSizeFactor,
+		1.);
+	const auto doc = proxy->document();
+	while (_edit.fontSize > minFontSize) {
+		const auto maxWidth = sessionMaxTextWidth();
+		if (int(doc->textWidth()) != maxWidth) {
+			doc->setTextWidth(maxWidth);
+		}
+		if (doc->size().height() <= maxHeight) {
+			break;
+		}
+		_edit.fontSize = std::max(
+			_edit.fontSize * kAutoShrinkStep,
+			minFontSize);
+		const auto spec = ComputeTextLayoutSpec(
+			_edit.fontSize,
+			rect.size().toSize(),
+			_editStyle,
+			_editTypeface);
+		proxy->setFont(spec.font);
+		static_cast<TextEditProxy*>(proxy)->setStyleFontSize(
+			_edit.fontSize);
+	}
+}
+
 void TextEditController::setupProxy(
 		QGraphicsTextItem *proxy,
 		const QColor &color,
@@ -333,6 +399,7 @@ void TextEditController::createAtCenter(int rotation, bool flipped) {
 	_editTypeface = _defaultTypeface;
 	_editAlignment = _defaultAlignment;
 	_edit.flipped = flipped;
+	_edit.fontSize = _defaultFontSize;
 
 	const auto sceneRect = _scene->sceneRect();
 	const auto spec = ComputeTextLayoutSpec(
@@ -354,16 +421,11 @@ void TextEditController::createAtCenter(int rotation, bool flipped) {
 		_defaultFontSize);
 
 	const auto emojiDoc = proxy->document();
-	const auto shortSide = std::min(
-		sceneRect.width(),
-		sceneRect.height());
-	const auto maxTextWidth = spec.maxTextWidth;
-	const auto minTextWidth = std::clamp(
-		int(shortSide * kMinWidthFactor) - 2 * spec.padding,
-		1,
-		maxTextWidth);
 	const auto sceneCenter = sceneRect.center();
 	const auto adjustWidth = [=] {
+		applyAutoShrink();
+		const auto maxTextWidth = sessionMaxTextWidth();
+		const auto minTextWidth = sessionMinTextWidth();
 		if (int(emojiDoc->textWidth()) != maxTextWidth) {
 			emojiDoc->setTextWidth(maxTextWidth);
 		}
@@ -442,6 +504,7 @@ void TextEditController::startEditing(ItemText *item) {
 	_editTypeface = item->typeface();
 	_editAlignment = item->alignment();
 	_edit.flipped = item->flipped();
+	_edit.fontSize = item->fontSize();
 
 	const auto sceneRect = _scene->sceneRect();
 	const auto spec = ComputeTextLayoutSpec(
@@ -466,17 +529,12 @@ void TextEditController::startEditing(ItemText *item) {
 	ReplaceEmoji(proxy->document());
 
 	const auto emojiDoc = proxy->document();
-	const auto shortSide = std::min(
-		sceneRect.width(),
-		sceneRect.height());
-	const auto maxTextWidth = spec.maxTextWidth;
-	const auto minTextWidth = std::clamp(
-		int(shortSide * kMinWidthFactor) - 2 * spec.padding,
-		1,
-		maxTextWidth);
 	const auto anchor = item->scenePos();
 	const auto flipped = item->flipped();
 	const auto adjustWidth = [=] {
+		applyAutoShrink();
+		const auto maxTextWidth = sessionMaxTextWidth();
+		const auto minTextWidth = sessionMinTextWidth();
 		if (int(emojiDoc->textWidth()) != maxTextWidth) {
 			emojiDoc->setTextWidth(maxTextWidth);
 		}
@@ -565,6 +623,9 @@ void TextEditController::finishEditing(bool save, bool notify) {
 	const auto proxyRotation = int(flipped
 		? -_edit.proxy->rotation()
 		: _edit.proxy->rotation());
+	const auto sessionFontSize = (_edit.fontSize > 0.)
+		? _edit.fontSize
+		: _defaultFontSize;
 	const auto lockedItem = _edit.item.lock();
 	auto *existingItem = lockedItem
 		? static_cast<ItemText*>(lockedItem.get())
@@ -586,13 +647,14 @@ void TextEditController::finishEditing(bool save, bool notify) {
 			if (stagedColor) {
 				existingItem->setColor(*stagedColor);
 			}
+			existingItem->setFontSize(sessionFontSize);
 			existingItem->setText(text);
 			existingItem->setVisible(true);
 		} else {
 			const auto imageSize = _scene->sceneRect().size().toSize();
 			const auto contentSize = ItemText::computeContentSize(
 				text,
-				_defaultFontSize,
+				sessionFontSize,
 				imageSize,
 				defaultStyle,
 				_defaultTypeface);
@@ -616,7 +678,7 @@ void TextEditController::finishEditing(bool save, bool notify) {
 			auto item = std::make_shared<ItemText>(
 				text,
 				stagedColor.value_or(_defaultColor),
-				_defaultFontSize,
+				sessionFontSize,
 				defaultStyle,
 				_defaultTypeface,
 				_defaultAlignment,
