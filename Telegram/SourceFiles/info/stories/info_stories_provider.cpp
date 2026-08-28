@@ -286,15 +286,17 @@ void Provider::storyRemoved(not_null<Data::Story*> story) {
 
 	const auto id = story->id();
 	if (const auto i = _layouts.find(id); i != end(_layouts)) {
-		_peer->owner().stories().unregisterPolling(
-			story,
-			Data::Stories::Polling::Chat);
 		_layoutRemoved.fire(i->second.item.get());
 		// The list widget handles layoutRemoved() synchronously and may
 		// refresh its height from there, which can reach refreshViewer()
 		// -> refreshRows() -> fillSections() -> clearStaleLayouts() before
-		// we get back here, erasing this very entry, so look it up again.
+		// we get back here, erasing this very entry (and unregistering
+		// its polling), so look it up again and unregister only if we
+		// are the ones erasing it.
 		if (const auto j = _layouts.find(id); j != end(_layouts)) {
+			_peer->owner().stories().unregisterPolling(
+				story,
+				Data::Stories::Polling::Chat);
 			_layouts.erase(j);
 		}
 	}
