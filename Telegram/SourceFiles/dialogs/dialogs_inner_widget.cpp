@@ -6549,6 +6549,13 @@ void InnerWidget::keyPressEvent(QKeyEvent *e) {
 	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
 		chooseRow();
 		return;
+	} else if (Ui::ScreenReaderModeActive()
+		&& (e->key() == Qt::Key_Tab || e->key() == Qt::Key_Backtab)) {
+		// Do not trap keyboard focus inside the chat list: let Tab and
+		// Shift+Tab move to the neighbouring controls so a screen reader
+		// user can leave the list.
+		e->ignore();
+		return;
 	}
 	// Leave unhandled keys (e.g. typed characters) for the parent
 	// Dialogs::Widget, whose keyPressEvent redirects them to search.
