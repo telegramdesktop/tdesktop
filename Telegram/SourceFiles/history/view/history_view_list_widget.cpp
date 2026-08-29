@@ -6614,6 +6614,70 @@ void ListWidget::accessibilityChildActivate(quintptr identity) {
 	});
 }
 
+bool ListWidget::accessibilityChildSubItemSupportsActions(
+		int row,
+		int column) const {
+	const auto barIndex = accessibilityUnreadBarIndex();
+	if (barIndex >= 0 && row == barIndex) {
+		return false;
+	}
+	const auto &active = computeActiveColumns(row);
+	if (column < 0 || column >= int(active.size())) {
+		return false;
+	}
+	const auto type = active[column];
+	return (type == HistoryView::MessageSubItem::Reply)
+		|| (type == HistoryView::MessageSubItem::MediaType)
+		|| (type == HistoryView::MessageSubItem::Download)
+		|| (type == HistoryView::MessageSubItem::Played)
+		|| (type == HistoryView::MessageSubItem::WebSite)
+		|| (type == HistoryView::MessageSubItem::WebTitle)
+		|| (type == HistoryView::MessageSubItem::WebDescription);
+}
+
+void ListWidget::accessibilityChildSubItemActivate(
+		quintptr identity,
+		int column) {
+	crl::on_main(this, [=] {
+		const auto index = accessibilityChildIndexByIdentity(identity);
+		if (index < 0) {
+			return;
+		}
+		const auto barIndex = accessibilityUnreadBarIndex();
+		if (barIndex >= 0 && index == barIndex) {
+			return;
+		}
+		const auto elements = accessibleElements();
+		const auto elementIndex = (barIndex >= 0 && index > barIndex)
+			? (index - 1)
+			: index;
+		if (elementIndex < 0 || elementIndex >= int(elements.size())) {
+			return;
+		}
+		const auto &active = computeActiveColumns(index);
+		if (column < 0 || column >= int(active.size())) {
+			return;
+		}
+		const auto type = active[column];
+		const auto item = elements[elementIndex]->data();
+		if (!item) {
+			return;
+		}
+		if (type == HistoryView::MessageSubItem::Reply) {
+			const auto reply = item->replyTo();
+			if (reply.messageId) {
+				const auto peer = controller()->session().data().peer(
+					reply.messageId.peer);
+				if (peer) {
+					controller()->showPeerHistory(peer, reply.messageId.msg);
+				}
+			}
+		} else {
+			applyAccessibilityFocus(index, true);
+		}
+	});
+}
+
 void ConfirmDeleteSelectedItems(not_null<ListWidget*> widget) {
 	const auto items = widget->getSelectedItems();
 	if (items.empty()) {
