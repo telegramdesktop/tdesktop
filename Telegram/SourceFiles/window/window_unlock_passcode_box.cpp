@@ -79,6 +79,9 @@ void Submit(
 	case PasscodeAttempt::Started:
 		field->setDisabled(true);
 		return;
+	case PasscodeAttempt::Panic:
+		Core::App().logout();
+		return;
 	}
 }
 

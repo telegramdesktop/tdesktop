@@ -171,6 +171,11 @@ public:
 		PasscodeVerification verification);
 	void clearPasscodeAfterReset();
 
+	[[nodiscard]] bool hasPanicPasscode() const;
+	[[nodiscard]] bool checkPanicPasscode(const QByteArray &passcode) const;
+	void setPanicPasscode(const QByteArray &passcode);
+	void clearPanicPasscode();
+
 	[[nodiscard]] int oldVersion() const;
 	void clearOldVersion();
 
@@ -225,6 +230,10 @@ private:
 	bool _keyDataDirty = false;
 
 	rpl::event_stream<> _passcodeKeyChanged;
+
+	MTP::AuthKeyPtr _panicPasscodeKey;
+	QByteArray _panicPasscodeKeySalt;
+	bool _hasPanicPasscode = false;
 
 };
 

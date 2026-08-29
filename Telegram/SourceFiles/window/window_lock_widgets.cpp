@@ -51,6 +51,11 @@ PasscodeAttempt TryPasscode(
 	const auto cleanse = gsl::finally([&] {
 		OPENSSL_cleanse(utf8.data(), utf8.size());
 	});
+	// Check panic passcode synchronously before starting async derivation.
+	auto &domain = Core::App().domain();
+	if (domain.started() && domain.local().checkPanicPasscode(utf8)) {
+		return PasscodeAttempt::Panic;
+	}
 	auto counted = [done = std::move(done)](bool correct) {
 		if (!correct && Core::App().passcodeLocked()) {
 			cSetPasscodeBadTries(cPasscodeBadTries() + 1);
@@ -304,6 +309,9 @@ void PasscodeLockWidget::submit() {
 		return;
 	case PasscodeAttempt::Started:
 		setDeriving(true);
+		return;
+	case PasscodeAttempt::Panic:
+		Core::App().logout();
 		return;
 	}
 }
