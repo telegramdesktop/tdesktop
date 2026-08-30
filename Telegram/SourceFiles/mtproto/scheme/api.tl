@@ -2295,7 +2295,7 @@ onrampQuote#7a8011e9 base_currency:string base_amount:string crypto_currency:str
 onrampSession#d1e42e24 provider:string session_id:string url:string expires_date:int = OnrampSession;
 
 walletStateEmpty#9cb9b2ec flags:# provisioning:flags.0?true = WalletState;
-walletState#95c5346b flags:# backup_enabled:flags.0?true can_export_phrase:flags.1?true address:string public_key:bytes balance:long = WalletState;
+walletState#95c5346b flags:# backup_enabled:flags.0?true can_export_phrase:flags.1?true can_enable_backup:flags.2?true address:string public_key:bytes balance:long = WalletState;
 
 walletUserAddress#1ce00108 user_id:long address:string = WalletUserAddress;
 
@@ -2307,7 +2307,14 @@ walletTransaction#6f9986a1 flags:# incoming:flags.0?true pending:flags.1?true fa
 
 wallet.transactions#4322d5a5 flags:# balance:long transactions:Vector<WalletTransaction> next_offset:flags.0?string chats:Vector<Chat> users:Vector<User> = wallet.Transactions;
 
-wallet.secretPhrase#bd3b4f91 words:Vector<string> = wallet.SecretPhrase;
+wallet.secretPhraseParts#e6d0ef01 token:string dcs:Vector<int> = wallet.SecretPhraseParts;
+
+wallet.encryptedSecretPhrasePart#18e82537 data:bytes = wallet.EncryptedSecretPhrasePart;
+
+wallet.holderDc#f9d612ef dc:int public_key:bytes = wallet.HolderDc;
+
+inputWalletNew#63a440dc = InputWalletReplacement;
+inputWalletImported#330c560c public_key:bytes = InputWalletReplacement;
 
 ---functions---
 
@@ -2993,7 +3000,7 @@ payments.getOnrampBaseCurrencies#1c8bedf3 provider:string crypto_currency:string
 payments.getOnrampAvailability#2ec29951 flags:# provider:string crypto_currency:string base_currency:flags.0?string = OnrampAvailability;
 payments.getOnrampLimits#80e851fd flags:# provider:string crypto_currency:string base_currency:string payment_method:flags.0?string = OnrampLimits;
 payments.getOnrampQuote#e06645fa flags:# provider:string crypto_currency:string base_currency:string base_amount:flags.0?string crypto_amount:flags.1?string payment_method:flags.2?string = OnrampQuote;
-payments.createOnrampSession#9e5826d8 flags:# provider:string crypto_currency:string address:string payment_method:flags.0?string base_currency:flags.1?string base_amount:flags.2?string memo:flags.3?string theme:flags.4?string success_return_url:flags.5?string fail_return_url:flags.6?string = OnrampSession;
+payments.createOnrampSession#a2197cf6 flags:# provider:string crypto_currency:string address:string payment_method:flags.0?string base_currency:flags.1?string base_amount:flags.2?string memo:flags.3?string theme:flags.4?string success_return_url:flags.5?string fail_return_url:flags.6?string crypto_amount:flags.7?string = OnrampSession;
 
 stickers.createStickerSet#9021ab67 flags:# masks:flags.0?true emojis:flags.5?true text_color:flags.6?true user_id:InputUser title:string short_name:string thumb:flags.2?InputDocument stickers:Vector<InputStickerSetItem> software:flags.3?string = messages.StickerSet;
 stickers.removeStickerFromSet#f7760f51 sticker:InputDocument = messages.StickerSet;
@@ -3163,6 +3170,11 @@ toncenter.getStreamingUrl#cdaf63c7 = toncenter.StreamingUrl;
 wallet.getState#ab83b33a = WalletState;
 wallet.getUserAddresses#b7b6174b id:Vector<InputUser> = Vector<WalletUserAddress>;
 wallet.getTransactions#a8830a83 flags:# inbound:flags.0?true outbound:flags.1?true offset:string limit:int = wallet.Transactions;
-wallet.exportSecretPhrase#48d8b16e flags:# password:flags.0?InputCheckPasswordSRP = wallet.SecretPhrase;
+wallet.exportSecretPhrase#9077c9ac flags:# password:flags.0?InputCheckPasswordSRP = wallet.SecretPhraseParts;
+wallet.fetchEncryptedSecretPhrasePart#f53925cf token:string public_key:bytes = wallet.EncryptedSecretPhrasePart;
+wallet.replaceWallet#d8c72eec flags:# wallet:InputWalletReplacement password:flags.0?InputCheckPasswordSRP = WalletState;
+wallet.disableBackup#199e1f1 flags:# password:flags.0?InputCheckPasswordSRP = WalletState;
+wallet.getBackupHolderDcs#d179d494 = Vector<wallet.HolderDc>;
+wallet.enableBackup#81a2b0f3 flags:# parts:Vector<bytes> password:flags.0?InputCheckPasswordSRP = WalletState;
 
 // LAYER 231
