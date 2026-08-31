@@ -3705,6 +3705,31 @@ void WalletPhraseBox(
 	box->addButton(tr::lng_about_done(), [=] { box->closeBox(); });
 }
 
+[[nodiscard]] TextWithEntities PhraseCheckAbout(const QString &error) {
+	auto result = tr::marked();
+	const auto prefixes = {
+		u"PASSWORD_TOO_FRESH_"_q,
+		u"SESSION_TOO_FRESH_"_q,
+	};
+	for (const auto &prefix : prefixes) {
+		if (!error.startsWith(prefix)) {
+			continue;
+		}
+		const auto seconds = error.mid(prefix.size()).toInt();
+		if (seconds > 0) {
+			result.append(tr::lng_wallet_phrase_check_wait(
+				tr::now,
+				lt_duration,
+				tr::marked(Ui::FormatResetCloudPasswordIn(seconds)),
+				tr::marked)
+			).append(QChar('\n')).append(QChar('\n'));
+		}
+		break;
+	}
+	result.append(tr::lng_wallet_phrase_check_about(tr::now, tr::marked));
+	return result;
+}
+
 void RequestPhraseReveal(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::GenericBox*> warning,
@@ -3725,6 +3750,16 @@ void RequestPhraseReveal(
 			if (passcode && passcode->handleCustomCheckError(error)) {
 				return;
 			}
+			if (auto box = PrePasswordErrorBox(
+					error,
+					&show->session(),
+					PhraseCheckAbout(error))) {
+				if (passcode) {
+					passcode->closeBox();
+				}
+				show->showBox(std::move(box));
+				return;
+			}
 			show->showToast(tr::lng_wallet_phrase_error(tr::now));
 		}));
 }
@@ -3734,6 +3769,10 @@ void StartPhraseReveal(
 		not_null<Ui::GenericBox*> warning,
 		Fn<void()> unblock) {
 	const auto session = &show->session();
+	if (session->wallet().revealsLocally()) {
+		RequestPhraseReveal(show, warning, std::nullopt, nullptr, unblock);
+		return;
+	}
 	session->api().cloudPassword().reload();
 	session->api().cloudPassword().state(
 	) | rpl::take(

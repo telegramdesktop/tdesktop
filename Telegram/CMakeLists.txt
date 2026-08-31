@@ -2168,6 +2168,8 @@ PRIVATE
     wallet/wallet_collectibles.h
     wallet/wallet_content.cpp
     wallet/wallet_content.h
+    wallet/wallet_custody.cpp
+    wallet/wallet_custody.h
     wallet/wallet_engine.cpp
     wallet/wallet_engine.h
     wallet/wallet_fiat.cpp
@@ -2176,6 +2178,8 @@ PRIVATE
     wallet/wallet_onramp.h
     wallet/wallet_panel.cpp
     wallet/wallet_panel.h
+    wallet/wallet_phrase_shares.cpp
+    wallet/wallet_phrase_shares.h
     wallet/wallet_rates.cpp
     wallet/wallet_rates.h
     wallet/wallet_session.cpp

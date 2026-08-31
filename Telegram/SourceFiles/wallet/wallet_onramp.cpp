@@ -345,7 +345,8 @@ void Onramp::createSession(const OnrampSessionArgs &args) {
 			: QString()),
 		MTP_string(argsSnapshot.failReturnUrl
 			? *argsSnapshot.failReturnUrl
-			: QString())
+			: QString()),
+		MTP_string() // crypto_amount
 	)).done([=](const MTPOnrampSession &result) {
 		apply(_hostedSession, generation, ParseHostedSession(result));
 	}).fail([=](const MTP::Error &error) {

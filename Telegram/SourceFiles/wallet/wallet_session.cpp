@@ -11,9 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_id.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
+#include "tde2e/tde2e_api.h"
 #include "ui/widgets/separate_panel.h"
 #include "wallet/wallet_engine.h"
 #include "wallet/wallet_onramp.h"
+#include "wallet/wallet_phrase_shares.h"
 #include "wallet/wallet_rates.h"
 #include "wallet/wallet_user_addresses.h"
 
@@ -36,6 +38,7 @@ constexpr auto kCollectiblesPollInterval = 60 * crl::time(1000);
 // a stream hint and a pushed update add between two requests, the later
 // one can never land inside the cache window the earlier one filled.
 constexpr auto kStateRefreshInterval = 60 * crl::time(1000);
+constexpr auto kShareFetchTimeout = 60 * crl::time(1000);
 // A wallet.getState that fails for anything but WALLET_UNAVAILABLE leaves the
 // presence at Unknown, which is also what "the first request has not answered
 // yet" reads as, so the cold-open gate would otherwise stay closed on an
@@ -76,6 +79,117 @@ constexpr auto kStreamResyncInterval = 30 * crl::time(1000);
 
 [[nodiscard]] std::string NewRecordId() {
 	return QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString();
+}
+
+[[nodiscard]] CustodyRecord RecordFromDescriptor(
+		const engine::WalletDescriptor &descriptor) {
+	return CustodyRecord{
+		.recordId = QString::fromStdString(descriptor.record_id),
+		.address = QString::fromStdString(descriptor.address),
+		.publicKey = QByteArray(
+			reinterpret_cast<const char*>(descriptor.public_key.data()),
+			descriptor.public_key.size()),
+		.network = int(descriptor.network),
+		.secretRef = QString::fromStdString(descriptor.secret_ref.value),
+	};
+}
+
+[[nodiscard]] engine::WalletDescriptor DescriptorFromRecord(
+		const CustodyRecord &record) {
+	return engine::WalletDescriptor{
+		.record_id = record.recordId.toStdString(),
+		.address = record.address.toStdString(),
+		.public_key = std::vector<uint8_t>(
+			record.publicKey.constData(),
+			record.publicKey.constData() + record.publicKey.size()),
+		.network = engine::Network(record.network),
+		.secret_ref = engine::ProtectedSecretRef{
+			.value = record.secretRef.toStdString(),
+		},
+	};
+}
+
+struct ShareFetch {
+	TdE2E::TemporaryKeyPair keys;
+	std::vector<QByteArray> shares;
+	std::vector<mtpRequestId> requests;
+	Fn<void(const QString &)> fail;
+	int pending = 0;
+};
+
+struct Restored {
+	engine::WalletDescriptor descriptor;
+	std::vector<QString> words;
+};
+
+[[nodiscard]] std::vector<QString> SplitWords(const QString &phrase) {
+	const auto list = phrase.split(QChar(' '), Qt::SkipEmptyParts);
+	return std::vector<QString>(list.begin(), list.end());
+}
+
+[[nodiscard]] QString LifecycleErrorName(const EngineError &error) {
+	if (!error.underlying) {
+		return u"unknown"_q;
+	}
+	try {
+		std::rethrow_exception(error.underlying);
+	} catch (const engine::wallet_lifecycle_error::InvalidRecordId &) {
+		return u"InvalidRecordId"_q;
+	} catch (const engine::wallet_lifecycle_error::InvalidRecoveryPhrase &) {
+		return u"InvalidRecoveryPhrase"_q;
+	} catch (const engine::wallet_lifecycle_error::AddressDerivationFailed &) {
+		return u"AddressDerivationFailed"_q;
+	} catch (const engine::wallet_lifecycle_error::SecretWalletMismatch &) {
+		return u"SecretWalletMismatch"_q;
+	} catch (const engine::wallet_lifecycle_error::ProtectedSecretHost &) {
+		return u"ProtectedSecretHost"_q;
+	} catch (...) {
+	}
+	return u"unknown"_q;
+}
+
+[[nodiscard]] std::optional<std::vector<int>> ParseHolderDcs(
+		const MTPDwallet_secretPhraseParts &data) {
+	const auto &list = data.vdcs().v;
+	if (data.vtoken().v.isEmpty() || list.isEmpty()) {
+		return std::nullopt;
+	}
+	auto result = std::vector<int>();
+	result.reserve(list.size());
+	for (const auto &dc : list) {
+		if (dc.v <= 0 || ranges::contains(result, dc.v)) {
+			return std::nullopt;
+		}
+		result.push_back(dc.v);
+	}
+	return result;
+}
+
+void FailShareFetch(
+		MTP::Sender &api,
+		base::Timer &deadline,
+		const std::shared_ptr<ShareFetch> &state,
+		const QString &error) {
+	deadline.cancel();
+	for (auto &id : state->requests) {
+		api.request(base::take(id)).cancel();
+	}
+	if (const auto fail = base::take(state->fail)) {
+		fail(error);
+	}
+}
+
+[[nodiscard]] bool OpenSharePart(
+		const std::shared_ptr<ShareFetch> &state,
+		int index,
+		const QByteArray &data) {
+	auto share = PhraseShares::DecryptShare(state->keys, data);
+	if (!share) {
+		LOG(("Wallet Error: share part %1 could not be opened.").arg(index));
+		return false;
+	}
+	state->shares[index] = std::move(*share);
+	return true;
 }
 
 [[nodiscard]] SendError SendErrorFrom(const EngineError &error) {
@@ -454,6 +568,10 @@ WalletCapabilities Session::capabilities() const {
 	return _capabilities;
 }
 
+QByteArray Session::publicKey() const {
+	return _publicKey;
+}
+
 void Session::refreshState() {
 	if ((_presence.current() == Presence::Unavailable) || _stateRequestId) {
 		return;
@@ -493,6 +611,7 @@ void Session::applyState(const MTPWalletState &state) {
 	_stateFailures = 0;
 	const auto clear = [&] {
 		_address = QString();
+		_publicKey = QByteArray();
 		_balanceNano = 0;
 		_capabilities = WalletCapabilities();
 	};
@@ -505,10 +624,12 @@ void Session::applyState(const MTPWalletState &state) {
 			return;
 		}
 		_address = parsed->raw;
+		_publicKey = data.vpublic_key().v;
 		_balanceNano = int64(data.vbalance().v);
 		_capabilities = WalletCapabilities{
 			.backupEnabled = data.is_backup_enabled(),
 			.canExportPhrase = data.is_can_export_phrase(),
+			.canEnableBackup = data.is_can_enable_backup(),
 		};
 		setPresence(Presence::Ready);
 	}, [&](const MTPDwalletStateEmpty &data) {
@@ -551,37 +672,272 @@ void Session::setPresence(Presence presence) {
 	}
 }
 
+bool Session::revealsLocally() {
+	ensureLoaded();
+	return (_presence.current() == Presence::Ready)
+		&& (_publicKey.size() == kCustodyPublicKeySize)
+		&& (custody().matching(_publicKey) != nullptr);
+}
+
 void Session::revealPhrase(
 		std::optional<Core::CloudPasswordResult> password,
 		Fn<void(std::vector<QString>)> done,
 		Fn<void(const QString &error)> fail) {
+	ensureLoaded();
+	if (_phraseRevealing) {
+		LOG(("Wallet Error: reveal requested while another is in flight."));
+		if (fail) {
+			fail(u"PHRASE_BUSY"_q);
+		}
+		return;
+	}
+	if (_presence.current() != Presence::Ready
+		|| _publicKey.size() != kCustodyPublicKeySize) {
+		LOG(("Wallet Error: reveal requested without a settled wallet key."));
+		if (fail) {
+			fail(u"PHRASE_STATE_UNKNOWN"_q);
+		}
+		return;
+	}
+	_phraseRevealing = true;
+	// Every path below ends in exactly one of these two calls, which is
+	// what clears the guard, so none of them is fenced by _networkGeneration:
+	// a reveal owns no network-derived state, and dropping its callback
+	// would either orphan a just-stored engine secret or leave the guard
+	// set for the rest of the session.
+	done = [this, done = std::move(done)](std::vector<QString> words) {
+		_phraseRevealing = false;
+		if (done) {
+			done(std::move(words));
+		}
+	};
+	fail = [this, fail = std::move(fail)](const QString &error) {
+		_phraseRevealing = false;
+		if (fail) {
+			fail(error);
+		}
+	};
+	if (const auto record = custody().matching(_publicKey)) {
+		revealLocally(*record, done, fail);
+	} else {
+		revealFromShares(std::move(password), done, fail);
+	}
+}
+
+void Session::revealLocally(
+		const CustodyRecord &record,
+		Fn<void(std::vector<QString>)> done,
+		Fn<void(const QString &)> fail) {
+	const auto lifecycle = _engine->lifecycle();
+	const auto descriptor = DescriptorFromRecord(record);
+	_engine->run([lifecycle, descriptor] {
+		return lifecycle->reveal_recovery_phrase(descriptor);
+	}, [=](engine::RecoveryPhrase phrase) {
+		auto words = SplitWords(QString::fromStdString(phrase.phrase));
+		if (words.size() < 2) {
+			LOG(("Wallet Error: local phrase reveal produced no words."));
+			fail(u"PHRASE_EMPTY"_q);
+			return;
+		}
+		done(std::move(words));
+	}, [=](EngineError error) {
+		LOG(("Wallet Error: local phrase reveal failed: %1"
+			).arg(LifecycleErrorName(error)));
+		fail(u"PHRASE_LOCAL_FAILED"_q);
+	});
+}
+
+void Session::revealFromShares(
+		std::optional<Core::CloudPasswordResult> password,
+		Fn<void(std::vector<QString>)> done,
+		Fn<void(const QString &)> fail) {
 	using Flag = MTPwallet_exportSecretPhrase::Flag;
 	const auto checked = password && *password;
 	_stateApi.request(MTPwallet_ExportSecretPhrase(
 		MTP_flags(checked ? Flag::f_password : Flag(0)),
 		checked ? password->result : MTP_inputCheckPasswordEmpty()
-	)).done([=](const MTPwallet_SecretPhrase &result) {
-		const auto &list = result.data().vwords().v;
-		auto words = std::vector<QString>();
-		words.reserve(list.size());
-		for (const auto &word : list) {
-			words.push_back(qs(word));
+	)).done([=, this](const MTPwallet_SecretPhraseParts &result) {
+		const auto &data = result.data();
+		const auto dcs = ParseHolderDcs(data);
+		if (!dcs) {
+			LOG(("Wallet Error: wallet.exportSecretPhrase answered "
+				"%1 holder(s).").arg(data.vdcs().v.size()));
+			fail(u"PHRASE_PARTS_INVALID"_q);
+			return;
 		}
-		if (words.size() < 2) {
-			LOG(("Wallet Error: wallet.exportSecretPhrase sent no words."));
-			if (fail) {
-				fail(u"PHRASE_EMPTY"_q);
-			}
-		} else if (done) {
-			done(std::move(words));
-		}
+		fetchShareParts(qs(data.vtoken()), *dcs, done, fail);
 	}).fail([=](const MTP::Error &error) {
 		LOG(("Wallet Error: wallet.exportSecretPhrase failed: %1"
 			).arg(error.type()));
-		if (fail) {
-			fail(error.type());
-		}
+		fail(error.type());
 	}).handleFloodErrors().send();
+}
+
+void Session::fetchShareParts(
+		const QString &token,
+		std::vector<int> dcs,
+		Fn<void(std::vector<QString>)> done,
+		Fn<void(const QString &)> fail) {
+	auto keys = TdE2E::TemporaryKeyPair::Generate();
+	if (!keys) {
+		LOG(("Wallet Error: could not generate an ephemeral key."));
+		fail(u"PHRASE_PARTS_INVALID"_q);
+		return;
+	}
+	const auto count = int(dcs.size());
+	const auto state = std::make_shared<ShareFetch>(ShareFetch{
+		.keys = std::move(*keys),
+		.shares = std::vector<QByteArray>(count),
+		.requests = std::vector<mtpRequestId>(count),
+		.fail = fail,
+		.pending = count,
+	});
+	const auto publicKey = state->keys.publicKey();
+	for (auto i = 0; i != count; ++i) {
+		state->requests[i] = _stateApi.request(
+			MTPwallet_FetchEncryptedSecretPhrasePart(
+				MTP_string(token),
+				MTP_bytes(publicKey))
+		).done([=, this](const MTPwallet_EncryptedSecretPhrasePart &result) {
+			if (!state->fail) {
+				return;
+			}
+			state->requests[i] = 0;
+			if (!OpenSharePart(state, i, result.data().vdata().v)) {
+				FailShareFetch(
+					_stateApi,
+					_shareFetchTimer,
+					state,
+					u"PHRASE_PART_INVALID"_q);
+				return;
+			} else if (--state->pending) {
+				return;
+			}
+			_shareFetchTimer.cancel();
+			const auto seed = PhraseShares::CombineShares(state->shares);
+			if (!seed) {
+				LOG(("Wallet Error: %1 share parts do not combine."
+					).arg(state->shares.size()));
+				FailShareFetch(
+					_stateApi,
+					_shareFetchTimer,
+					state,
+					u"PHRASE_PART_INVALID"_q);
+				return;
+			}
+			restoreFromWords(
+				SplitWords(QString::fromUtf8(*seed)),
+				done,
+				base::take(state->fail));
+		}).fail([=, this](const MTP::Error &error) {
+			if (!state->fail) {
+				return;
+			}
+			state->requests[i] = 0;
+			LOG(("Wallet Error: wallet.fetchEncryptedSecretPhrasePart "
+				"failed: %1").arg(error.type()));
+			FailShareFetch(_stateApi, _shareFetchTimer, state, error.type());
+		}).handleFloodErrors().toDC(dcs[i]).send();
+	}
+	const auto weak = std::weak_ptr<ShareFetch>(state);
+	_shareFetchTimer.setCallback([this, weak] {
+		const auto state = weak.lock();
+		if (!state || !state->fail) {
+			return;
+		}
+		LOG(("Wallet Error: share fetch timed out with %1 part(s) pending."
+			).arg(state->pending));
+		FailShareFetch(_stateApi, _shareFetchTimer, state, u"PHRASE_TIMEOUT"_q);
+	});
+	_shareFetchTimer.callOnce(kShareFetchTimeout);
+}
+
+void Session::restoreFromWords(
+		std::vector<QString> words,
+		Fn<void(std::vector<QString>)> done,
+		Fn<void(const QString &)> fail) {
+	if (words.size() < 2) {
+		LOG(("Wallet Error: reconstructed phrase has no words."));
+		fail(u"PHRASE_EMPTY"_q);
+		return;
+	}
+	const auto lifecycle = _engine->lifecycle();
+	const auto expected = _publicKey;
+	auto recoveryWords = std::vector<std::string>();
+	recoveryWords.reserve(words.size());
+	for (const auto &word : words) {
+		recoveryWords.push_back(word.toStdString());
+	}
+	auto request = engine::ImportWalletRequest{
+		.record_id = NewRecordId(),
+		.network = engine::Network::kMainnet,
+		.recovery_words = std::move(recoveryWords),
+	};
+	_engine->run([
+		lifecycle,
+		request = std::move(request),
+		words = std::move(words)
+	]() mutable {
+		auto descriptor = lifecycle->import_wallet(request);
+		return Restored{ std::move(descriptor), std::move(words) };
+	}, [=, this](Restored restored) {
+		const auto record = RecordFromDescriptor(restored.descriptor);
+		if (record.publicKey != expected) {
+			LOG(("Wallet Error: restored phrase derives another key."));
+			_engine->run([lifecycle, descriptor = restored.descriptor] {
+				lifecycle->delete_wallet(descriptor);
+			}, [=] {
+				fail(u"PHRASE_KEY_MISMATCH"_q);
+			}, [=](EngineError) {
+				LOG(("Wallet Error: delete_wallet after a key mismatch "
+					"failed."));
+				fail(u"PHRASE_KEY_MISMATCH"_q);
+			});
+			return;
+		}
+		if (!persistCustody(record)) {
+			_engine->run([lifecycle, descriptor = restored.descriptor] {
+				lifecycle->delete_wallet(descriptor);
+			}, [] {}, [](EngineError) {});
+		}
+		done(std::move(restored.words));
+	}, [=](EngineError error) {
+		LOG(("Wallet Error: import_wallet failed: %1"
+			).arg(LifecycleErrorName(error)));
+		fail(u"PHRASE_IMPORT_FAILED"_q);
+	});
+}
+
+const CustodyStore &Session::custody() {
+	if (!_custody) {
+		_custody = ReadCustodyStore(_session->local());
+		if (!_custody) {
+			LOG(("Wallet Error: custody store unreadable, treating as empty."));
+			_custody = CustodyStore();
+		}
+	}
+	return *_custody;
+}
+
+bool Session::persistCustody(const CustodyRecord &record) {
+	auto store = custody();
+	store.records.erase(
+		ranges::remove(
+			store.records,
+			record.publicKey,
+			&CustodyRecord::publicKey),
+		end(store.records));
+	for (auto &existing : store.records) {
+		existing.active = false;
+	}
+	store.records.push_back(record);
+	store.records.back().active = true;
+	if (!WriteCustodyStore(_session->local(), store)) {
+		LOG(("Wallet Error: custody record write failed."));
+		return false;
+	}
+	_custody = std::move(store);
+	return true;
 }
 
 void Session::clearNetworkState() {

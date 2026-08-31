@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "wallet/wallet_address.h"
 #include "wallet/wallet_api.h"
+#include "wallet/wallet_custody.h"
 #include "wallet/wallet_stream.h"
 
 namespace wallet_engine {
@@ -49,6 +50,11 @@ enum class Presence {
 struct WalletCapabilities {
 	bool backupEnabled = false;
 	bool canExportPhrase = false;
+	bool canEnableBackup = false;
+
+	friend bool operator==(
+		const WalletCapabilities &,
+		const WalletCapabilities &) = default;
 };
 
 // The two terms the overview's empty face takes from the lists gate. One
@@ -166,6 +172,8 @@ public:
 	[[nodiscard]] std::optional<QString> address();
 	[[nodiscard]] QString addressFriendly(bool bounceable = false);
 	[[nodiscard]] WalletCapabilities capabilities() const;
+	[[nodiscard]] QByteArray publicKey() const;
+	[[nodiscard]] bool revealsLocally();
 
 	void refreshState();
 	void applyUpdate(const MTPDupdateWalletState &data);
@@ -226,6 +234,25 @@ private:
 	void requestState();
 	void applyState(const MTPWalletState &state);
 	void setPresence(Presence presence);
+	void revealLocally(
+		const CustodyRecord &record,
+		Fn<void(std::vector<QString>)> done,
+		Fn<void(const QString &)> fail);
+	void revealFromShares(
+		std::optional<Core::CloudPasswordResult> password,
+		Fn<void(std::vector<QString>)> done,
+		Fn<void(const QString &)> fail);
+	void fetchShareParts(
+		const QString &token,
+		std::vector<int> dcs,
+		Fn<void(std::vector<QString>)> done,
+		Fn<void(const QString &)> fail);
+	void restoreFromWords(
+		std::vector<QString> words,
+		Fn<void(std::vector<QString>)> done,
+		Fn<void(const QString &)> fail);
+	[[nodiscard]] const CustodyStore &custody();
+	[[nodiscard]] bool persistCustody(const CustodyRecord &record);
 	void clearNetworkState();
 	void pollTick();
 	void updatePollingState();
@@ -262,13 +289,17 @@ private:
 	const std::unique_ptr<UserAddresses> _userAddresses;
 	const std::unique_ptr<Stream> _stream;
 	base::Timer _pollTimer;
+	base::Timer _shareFetchTimer;
 
 	bool _loaded = false;
 	QString _address;
+	QByteArray _publicKey;
 
 	rpl::variable<int64> _balanceNano = 0;
 	rpl::variable<Presence> _presence = Presence::Unknown;
 	WalletCapabilities _capabilities;
+	std::optional<CustodyStore> _custody;
+	bool _phraseRevealing = false;
 	AccountStatus _engineStatus = AccountStatus::NonExisting;
 	mtpRequestId _stateRequestId = 0;
 	crl::time _stateRequestedAt = 0;
