@@ -24,6 +24,10 @@ class PhotoMedia;
 } // namespace Data
 
 namespace Media {
+struct VideoQuality;
+} // namespace Media
+
+namespace Media {
 namespace View {
 class PlaybackProgress;
 } // namespace View
@@ -128,7 +132,11 @@ public:
 	bool enforceBubbleWidth() const override;
 	int bubbleWidthLimit() const override;
 
-	[[nodiscard]] static bool CanPlayInline(not_null<DocumentData*> document);
+	[[nodiscard]] static DocumentData *ChooseInlineQuality(
+		not_null<DocumentData*> document,
+		HistoryItem *context,
+		int maxArea,
+		::Media::VideoQuality request);
 
 private:
 	enum class Action : uchar {
