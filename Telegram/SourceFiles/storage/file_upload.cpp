@@ -351,6 +351,7 @@ void Uploader::upload(
 		} else if (!preparing
 			&& !file->content.isEmpty()
 			&& !document->saveToCache()
+			&& !document->forbidsFileSave()
 			&& !document->useStreamingLoader()
 			&& Core::App().canSaveFileWithoutAskingForPath()) {
 			const auto path = DocumentFileNameForSave(document);

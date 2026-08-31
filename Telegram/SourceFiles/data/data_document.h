@@ -137,6 +137,10 @@ public:
 	void permitLoadFromCloud();
 	[[nodiscard]] QString loadingFilePath() const;
 	[[nodiscard]] bool displayLoading() const;
+
+	void setForbidsFileSave();
+	[[nodiscard]] bool forbidsFileSave() const;
+
 	void save(
 		Data::FileOrigin origin,
 		const QString &toFile,
@@ -336,6 +340,7 @@ private:
 		UseTextColor = 0x0800,
 		StoryDocument = 0x1000,
 		SilentVideo = 0x2000,
+		FileSaveForbidden = 0x4000,
 	};
 	using Flags = base::flags<Flag>;
 	friend constexpr bool is_flag_type(Flag) { return true; };
