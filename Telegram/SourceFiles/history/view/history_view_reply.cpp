@@ -472,7 +472,9 @@ void Reply::update(
 	if (_displaying) {
 		setLinkFrom(view, data);
 		const auto media = message ? message->media() : nullptr;
-		if (!media || !media->hasReplyPreview() || !media->hasSpoiler()) {
+		if (!media
+			|| !media->hasReplyPreview()
+			|| !media->hasSpoilerForPreview()) {
 			_spoiler = nullptr;
 		} else if (!_spoiler) {
 			_spoiler = std::make_unique<Ui::SpoilerAnimation>(repaint);

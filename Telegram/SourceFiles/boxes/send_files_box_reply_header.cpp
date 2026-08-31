@@ -309,7 +309,7 @@ void ReplyPillHeader::paintEvent(QPaintEvent *e) {
 	const auto media = _shownMessage->media();
 	const auto hasPreview = media && media->hasReplyPreview();
 	const auto preview = hasPreview ? media->replyPreview() : nullptr;
-	const auto spoilered = media && media->hasSpoiler();
+	const auto spoilered = media && media->hasSpoilerForPreview();
 	if (!spoilered) {
 		_previewSpoiler = nullptr;
 	} else if (!_previewSpoiler) {

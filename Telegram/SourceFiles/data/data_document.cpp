@@ -1562,7 +1562,7 @@ Image *DocumentData::getReplyPreview(
 
 Image *DocumentData::getReplyPreview(not_null<HistoryItem*> item) {
 	const auto media = item->media();
-	const auto spoiler = media && media->hasSpoiler();
+	const auto spoiler = media && media->hasSpoilerForPreview();
 	return getReplyPreview(item->fullId(), item->history()->peer, spoiler);
 }
 

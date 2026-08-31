@@ -158,7 +158,7 @@ QImage PreviewImage::image(int size) {
 			return ContentWithPreview(
 				item,
 				media->replyPreview(),
-				media->hasSpoiler(),
+				media->hasSpoilerForPreview(),
 				repaint);
 		});
 	}) | rpl::flatten_latest();
