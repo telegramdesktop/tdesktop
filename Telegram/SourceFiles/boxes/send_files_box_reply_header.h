@@ -63,6 +63,7 @@ private:
 	Ui::Text::String _shownMessageName;
 	Ui::Text::String _shownMessageText;
 	std::unique_ptr<Ui::SpoilerAnimation> _previewSpoiler;
+	QImage _spoilerCache;
 	bool _repaintScheduled = false;
 
 	Ui::Animations::Simple _showAnimation;

@@ -264,6 +264,28 @@ auto CreateBackgroundGiftInstance(
 		Data::CustomEmojiSizeTag::Normal);
 }
 
+void FillPreviewSpoiler(
+		QPainter &p,
+		QRect rect,
+		const QPixmap &preview,
+		const Ui::SpoilerMessFrame &frame,
+		QImage &cache) {
+	const auto ratio = style::DevicePixelRatio();
+	const auto full = rect.size() * ratio;
+	if (cache.size() != full) {
+		cache = QImage(full, QImage::Format_ARGB32_Premultiplied);
+		cache.setDevicePixelRatio(ratio);
+	}
+	cache.fill(Qt::transparent);
+	const auto to = QRect(QPoint(), rect.size());
+	auto q = QPainter(&cache);
+	Ui::FillSpoilerRect(q, to, frame);
+	q.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+	q.drawPixmap(to, preview);
+	q.end();
+	p.drawImage(rect, cache);
+}
+
 void FillBackgroundEmoji(
 		QPainter &p,
 		const QRect &rect,
@@ -957,13 +979,15 @@ void Reply::paint(
 					p.drawPixmap(to.x(), to.y(), preview);
 					if (_spoiler) {
 						view->clearCustomEmojiRepaint();
-						Ui::FillSpoilerRect(
+						FillPreviewSpoiler(
 							p,
 							to,
+							preview,
 							Ui::DefaultImageSpoiler().frame(
 								_spoiler->index(
 									context.now,
-									pausedSpoiler)));
+									pausedSpoiler)),
+							_spoilerCache);
 					}
 				}
 			}
