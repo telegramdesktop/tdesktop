@@ -1156,9 +1156,33 @@ QSize DownscaledSize(QSize original, int targetShorterSide) {
 		std::max(EvenDown(int(base::SafeRound(height * scale))), 2));
 }
 
-TranscodeResult TranscodeVideo(
-		const VideoSource &source,
-		Fn<bool(float64)> progress) {
+namespace {
+
+struct ReadPlan {
+	VideoSource source;
+	bool ignoreEditList = false;
+};
+
+struct TranscodeAttempt {
+	TranscodeResult result;
+	// Demuxer restarts timeline for each edit list entry.
+	bool timelineRestarted = false;
+};
+
+// Range was measured in the edit list timeline, so it is dropped with it.
+[[nodiscard]] ReadPlan SampleTablePlan(VideoSource source) {
+	source.from = 0;
+	source.till = 0;
+	return {
+		.source = std::move(source),
+		.ignoreEditList = true,
+	};
+}
+
+[[nodiscard]] TranscodeAttempt TranscodeVideoAttempt(
+		const ReadPlan &readPlan,
+		const Fn<bool(float64)> &progress) {
+	const auto &source = readPlan.source;
 	const auto sourceSize = !source.bytes.isEmpty()
 		? int64(source.bytes.size())
 		: QFileInfo(source.path).size();
@@ -1177,7 +1201,8 @@ TranscodeResult TranscodeVideo(
 			&inBytesWrap,
 			&ReadBytesWrap::Read,
 			nullptr,
-			&ReadBytesWrap::Seek);
+			&ReadBytesWrap::Seek,
+			{ .ignoreEditList = readPlan.ignoreEditList });
 	} else {
 		inFileWrap.file.setFileName(source.path);
 		if (!inFileWrap.file.open(QIODevice::ReadOnly)) {
@@ -1187,7 +1212,8 @@ TranscodeResult TranscodeVideo(
 			&inFileWrap,
 			&ReadFileWrap::Read,
 			nullptr,
-			&ReadFileWrap::Seek);
+			&ReadFileWrap::Seek,
+			{ .ignoreEditList = readPlan.ignoreEditList });
 	}
 	if (!input) {
 		return {};
@@ -1448,6 +1474,7 @@ TranscodeResult TranscodeVideo(
 		: int64(0);
 
 	auto lastVideoPts = int64(-1);
+	auto lastMuxedDts = int64(AV_NOPTS_VALUE);
 	auto lastEmittedOut = crl::time(-1);
 	auto emitted = 0;
 	auto failed = false;
@@ -1653,6 +1680,13 @@ TranscodeResult TranscodeVideo(
 					outVideoStream->time_base);
 				packet->stream_index = outVideoStream->index;
 				packet->pos = -1;
+				if (packet->dts != AV_NOPTS_VALUE) {
+					if (lastMuxedDts != AV_NOPTS_VALUE
+						&& packet->dts <= lastMuxedDts) {
+						return { .timelineRestarted = true };
+					}
+					lastMuxedDts = packet->dts;
+				}
 				if (packet->pts != AV_NOPTS_VALUE) {
 					lastVideoPts = std::max(
 						lastVideoPts,
@@ -1794,7 +1828,19 @@ TranscodeResult TranscodeVideo(
 	result.coverOffset = coverOffset;
 	temp.setAutoRemove(false);
 	succeeded = true;
-	return result;
+	return { .result = std::move(result) };
+}
+
+} // namespace
+
+TranscodeResult TranscodeVideo(
+		const VideoSource &source,
+		Fn<bool(float64)> progress) {
+	auto attempt = TranscodeVideoAttempt({ .source = source }, progress);
+	if (attempt.timelineRestarted) {
+		attempt = TranscodeVideoAttempt(SampleTablePlan(source), progress);
+	}
+	return attempt.result;
 }
 
 QSize TranscodedSize(const VideoSource &source, QSize displaySize) {
