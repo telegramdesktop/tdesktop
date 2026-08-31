@@ -214,6 +214,20 @@ The debug build runs in portable mode out of `out/Debug/`. Three sibling folders
 - `real_TelegramForcePortable` — the user's real data, preserved so manual use survives. Once it
   exists, NO flow step may ever delete, rename, move, overwrite, or write into it.
 
+Fixture secrets ride in the golden folder beside `tdata`. Today that is `2svpassword.txt`, the
+test account's two-step-verification (cloud) password, which the server requires on every
+destructive wallet method (`wallet.exportSecretPhrase`, `wallet.replaceWallet`,
+`wallet.enableBackup`, `wallet.disableBackup`). A scenario reads it at runtime with
+`Test::TwoStepPassword()` (trimmed; `std::nullopt` when absent; the live copy is read first, then
+the golden sibling) and types it into the product's own `PasscodeBox`, so the real SRP path
+computes the proof. The value stays inside the process: never in overlay code, `work/`,
+`evidence/`, logs, notes, receipts, prompts, or an environment variable recorded anywhere. When a
+selected check needs it, the file is a prerequisite gated by existence (never by value) before the
+campaign is authored, and its absence is a task blocker: publish the task-local `Block` naming
+`2svpassword.txt` as the exact missing input instead of running a degraded campaign, exporting
+the legs as coverage debt, hand-building the SRP, or driving the answer. A scenario that still
+reaches a missing file at runtime refuses with a named fixture gate, never a product FAIL.
+
 **SETUP — run at the START of every test run, with NO app instance alive. It is idempotent: the
 first SETUP after a crash moves leftover crash files and can refuse before launch; after successful
 relocation, the next SETUP finds nothing left to move.**

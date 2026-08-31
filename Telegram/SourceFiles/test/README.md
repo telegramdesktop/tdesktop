@@ -282,7 +282,7 @@ clicking.
 
 | Module | Facilities |
 | --- | --- |
-| `test_agent.h` | Runtime gate, startup scale override, sticky named events, scenario start. |
+| `test_agent.h` | Runtime gate, startup scale override, sticky named events, scenario start, account fixture secrets (`TwoStepPassword()` reads `2svpassword.txt`). |
 | `test_runner.h` | Stages, bounded waits, exact-widget actions, prepared capture/inspection, first-class gated skips (`skipReason`), `onFinish` release hook (and its finish-release self-test), watchdog (`TDESKTOP_TEST_WATCHDOG` in seconds) and termination. |
 | `test_gated_stage.h` | The first-class gated skip's own self-test: a stage whose `skipReason` returns a reason, writing one `TEST_RESULT: N/A:` row and skipping `run`, `until` and `then` without waiting - its never-ready `until` under a one-second timeout is the falsifier - beside a stage whose gate returns an empty string and runs normally in the tick that begins it. |
 | `test_log.h` | Absolute flushed logs, steps, notes, checks whose `details` are printed on the passing verdict as well as the failing one, tolerances, geometry, completion markers, N/A rows for stages that did not apply, and their count. One `LogRaw` call always writes exactly one physical line, whatever it is handed: every character Python's `str.splitlines()` breaks on - U+000A, U+000B, U+000C, U+000D, U+001C, U+001D, U+001E, U+0085, U+2028, U+2029, and so a CRLF pair as its two code points - is written as a visible `\uXXXX` escape, so a record carrying a break stays one row the external readers' line grammar reads whole and cannot mistake for a completion, while text with no separator is passed through byte for byte and the escape adds no trailing whitespace. |
@@ -363,6 +363,33 @@ shared one accumulated. One overlay rebuilt grab-check-save by hand after
    postpone all visuals to the end, after later actions have replaced them.
 7. Finish with guards: no undeclared OS launch, no real payment/network call
    when mocked, expected callbacks exactly once, and no leftover expectation.
+
+## Account fixture secrets
+
+The golden `test_TelegramForcePortable` folder may carry secrets beside
+`tdata`. Today that is `2svpassword.txt`: the test account's two-step
+verification (cloud) password, which the server demands on every destructive
+wallet method (`PASSWORD_MISSING` without it, `SRP_ID_INVALID` for a
+fabricated proof). A scenario reads it at runtime through
+`Test::TwoStepPassword()` — whitespace-trimmed, `std::nullopt` when the file
+is absent or blank, always `std::nullopt` outside test-agent mode — and the
+generic `Test::FixtureSecret(name)` reads any sibling file the same way. Both
+look in the live portable folder first and then in the golden sibling, so a
+file added to the golden folder after a marked live copy was made is still
+found.
+
+Type the value into the product's own `PasscodeBox` so the real SRP path
+computes the proof; never assemble an `InputCheckPasswordSRP` by hand. When a
+selected check needs the password, the file's presence is gated before the
+scenario is authored and its absence blocks the task (`pipeline.md`, Phase 3
+step 5); a scenario that still reaches a missing file at runtime refuses with
+a named fixture gate (`fixture gate: 2svpassword.txt absent`), never a
+product FAIL, and never substitutes a driven answer for the leg. The value
+never leaves the process: no overlay literal, `Note`, check `details`,
+capture, evidence file, `work/` artifact, receipt, prompt, or environment
+variable recorded anywhere may carry it. The overlay is published into the
+task repository with the result, so a literal there is a leak, not a
+convenience.
 
 ## Media fixtures and fixture gates
 

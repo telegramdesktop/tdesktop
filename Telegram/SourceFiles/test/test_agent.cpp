@@ -13,8 +13,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings.h"
 #include "ui/style/style_core_scale.h"
 
+#include <QtCore/QFile>
+
 namespace Test {
 namespace {
+
+[[nodiscard]] std::optional<QString> ReadTrimmed(const QString &path) {
+	auto file = QFile(path);
+	if (!file.open(QIODevice::ReadOnly)) {
+		return std::nullopt;
+	}
+	const auto value = QString::fromUtf8(file.readAll()).trimmed();
+	if (value.isEmpty()) {
+		return std::nullopt;
+	}
+	return value;
+}
 
 [[nodiscard]] base::flat_set<QString> &FiredEvents() {
 	static auto result = base::flat_set<QString>();
@@ -64,6 +78,19 @@ bool HasFired(const QString &event) {
 	return Active() && FiredEvents().contains(event);
 }
 
+std::optional<QString> FixtureSecret(const QString &name) {
+	if (!Active()) {
+		return std::nullopt;
+	} else if (auto live = ReadTrimmed(cWorkingDir() + name)) {
+		return live;
+	}
+	return ReadTrimmed(cExeDir() + u"test_TelegramForcePortable/"_q + name);
+}
+
+std::optional<QString> TwoStepPassword() {
+	return FixtureSecret(u"2svpassword.txt"_q);
+}
+
 } // namespace Test
 
 #else // _DEBUG
@@ -82,6 +109,14 @@ void Fire(const QString &) {
 
 bool HasFired(const QString &) {
 	return false;
+}
+
+std::optional<QString> FixtureSecret(const QString &) {
+	return std::nullopt;
+}
+
+std::optional<QString> TwoStepPassword() {
+	return std::nullopt;
 }
 
 } // namespace Test

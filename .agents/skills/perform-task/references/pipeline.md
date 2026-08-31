@@ -127,6 +127,18 @@ Before planning or editing:
    unselected instrument is irrelevant. An unavailable selected platform or
    stage is either replaced by an equally direct instrument or recorded under
    `Unverified:` with its expected exposure; never silently weaken the oracle.
+   A selected check that must pass the account's two-step verification has
+   the `2svpassword.txt` fixture (`Telegram/SourceFiles/test/README.md`,
+   "Account fixture secrets") as a prerequisite. Gate its presence — existence
+   only, never its value — before Phase 4 editing and again before the
+   evidence campaign. When it is absent, do not author, build, launch, or
+   degrade the campaign around it and do not export the legs as coverage
+   debt: publish the task-local `Block` at once — `Blocker-Type: test`,
+   `Unverified:` naming the password-gated checks, `work/test.md` carrying a
+   `## Recovery exhaustion` section that states no automatic strategy can
+   supply an account secret and that a hand-built SRP or a driven answer is
+   not a substitute for those legs — with any retained implementation intact,
+   so a retry after the file appears resumes at the first incomplete boundary.
 7. For a new run require successful source preparation, then initialize local
    recovery state (`source-begin` also prepares a fresh baseline):
 
@@ -692,6 +704,11 @@ Before an instrument runs, gate only its own prerequisites:
 - a Telegram build needs the matching configured Debug tree;
 - a Telegram launch additionally needs the exact executable, golden portable
   account, safe path-scoped process control, and test harness;
+- a check that must pass the account's two-step verification needs the
+  `2svpassword.txt` fixture, read at runtime through `Test::TwoStepPassword()`
+  (`Telegram/SourceFiles/test/README.md`, "Account fixture secrets"); its
+  absence is the task blocker of Phase 3 step 5, never a degraded run, and
+  the value never enters overlay code, artifacts, logs, or prompts;
 - Computer Use needs the separate capability gate;
 - another platform's unavailable toolchain is recorded as an exact
   `Unverified:` exposure, not simulated by an unrelated local command.
