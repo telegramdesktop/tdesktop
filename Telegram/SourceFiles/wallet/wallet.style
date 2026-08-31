@@ -306,6 +306,54 @@ walletPhraseWordLabel: FlatLabel(defaultFlatLabel) {
 }
 walletPasscodeFieldMargin: margins(22px, 16px, 22px, 0px);
 walletPasscodeErrorMargin: margins(22px, 8px, 22px, 8px);
+walletReplaceButtonMargin: margins(22px, 12px, 22px, 0px);
+walletReplaceTitleLabel: FlatLabel(boxTitle) {
+	minWidth: 120px;
+	maxHeight: 0px;
+}
+walletReplaceTitleMargin: margins(22px, 16px, 22px, 4px);
+walletImportToggleMargin: margins(22px, 8px, 22px, 4px);
+walletImportField: InputField(walletSendAddressField) {
+	textMargins: margins(34px, 10px, 76px, 2px);
+}
+walletImportFieldMargin: margins(22px, 4px, 22px, 4px);
+walletImportNumberLeft: 10px;
+walletImportNumberTop: 10px;
+walletImportClear: CrossButton {
+	width: 22px;
+	height: 22px;
+
+	cross: CrossAnimation {
+		size: 22px;
+		skip: 6px;
+		stroke: 1.5;
+		minScale: 0.3;
+	}
+	crossFg: boxTitleCloseFg;
+	crossFgOver: boxTitleCloseFgOver;
+	crossPosition: point(0px, 0px);
+
+	duration: 150;
+	loadingPeriod: 1000;
+	ripple: defaultRippleAnimationBgOver;
+}
+walletImportClearPosition: point(11px, 7px);
+walletImportErrorLabel: FlatLabel(walletSendErrorLabel) {
+	minWidth: 120px;
+}
+walletImportErrorSkip: 12px;
+walletImportSuggestionsSkip: 2px;
+walletImportSuggestionsPadding: margins(4px, 4px, 4px, 4px);
+walletImportSuggestionRowHeight: 28px;
+walletImportSuggestionRowPadding: margins(8px, 0px, 8px, 0px);
+walletImportPaste: RoundButton(defaultTableSmallButton) {
+	width: -24px;
+	height: 26px;
+	radius: 13px;
+	textTop: 4px;
+	style: semiboldTextStyle;
+}
+walletImportPasteTop: 5px;
 
 walletCollectiblePreviewTitle: FlatLabel(walletPhraseTitleLabel) {
 	palette: walletCollectibleTitlePalette;

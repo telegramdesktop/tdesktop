@@ -162,6 +162,11 @@ struct SendArgs {
 [[nodiscard]] std::vector<Gram::NftItem> CollectiblesFromEngine(
 	const wallet_engine::NftList &list);
 
+[[nodiscard]] bool IsWordlistWord(const QString &word);
+[[nodiscard]] std::vector<QString> WordlistSuggestions(
+	const QString &prefix,
+	int limit);
+
 class Session final {
 public:
 	explicit Session(not_null<Main::Session*> session);
@@ -181,6 +186,15 @@ public:
 	void revealPhrase(
 		std::optional<Core::CloudPasswordResult> password,
 		Fn<void(std::vector<QString>)> done,
+		Fn<void(const QString &error)> fail);
+	void replaceWithNew(
+		std::optional<Core::CloudPasswordResult> password,
+		Fn<void()> done,
+		Fn<void(const QString &error)> fail);
+	void replaceWithImported(
+		std::vector<QString> words,
+		std::optional<Core::CloudPasswordResult> password,
+		Fn<void()> done,
 		Fn<void(const QString &error)> fail);
 
 	[[nodiscard]] int64 balanceNano() const;
@@ -253,6 +267,19 @@ private:
 		Fn<void(const QString &)> fail);
 	[[nodiscard]] const CustodyStore &custody();
 	[[nodiscard]] bool persistCustody(const CustodyRecord &record);
+	void sendReplaceWallet(
+		const MTPInputWalletReplacement &wallet,
+		std::optional<Core::CloudPasswordResult> password,
+		Fn<void(const MTPWalletState &)> applied,
+		Fn<void(const QString &)> fail);
+	void finishConfirmedReplace(
+		std::optional<CustodyRecord> oldRecord,
+		std::optional<CustodyRecord> newActive,
+		const MTPWalletState &state,
+		Fn<void()> done,
+		Fn<void(const QString &)> fail);
+	void parkStaleActiveRecords();
+	void removeCustodyRecord(const QByteArray &publicKey);
 	void clearNetworkState();
 	void pollTick();
 	void updatePollingState();
@@ -300,6 +327,7 @@ private:
 	WalletCapabilities _capabilities;
 	std::optional<CustodyStore> _custody;
 	bool _phraseRevealing = false;
+	bool _replacing = false;
 	AccountStatus _engineStatus = AccountStatus::NonExisting;
 	mtpRequestId _stateRequestId = 0;
 	crl::time _stateRequestedAt = 0;

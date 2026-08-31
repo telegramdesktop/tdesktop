@@ -127,6 +127,29 @@ struct Restored {
 	return std::vector<QString>(list.begin(), list.end());
 }
 
+[[nodiscard]] QString NormalizeWord(const QString &word) {
+	return word.trimmed().toLower();
+}
+
+[[nodiscard]] const std::vector<QString> &Wordlist() {
+	static const auto result = [] {
+		auto list = std::vector<QString>();
+		try {
+			const auto words = engine::mnemonic_wordlist();
+			list.reserve(words.size());
+			for (const auto &word : words) {
+				list.push_back(QString::fromStdString(word));
+			}
+			std::sort(list.begin(), list.end());
+		} catch (...) {
+			LOG(("Wallet Error: cannot read the engine wordlist."));
+			list.clear();
+		}
+		return list;
+	}();
+	return result;
+}
+
 [[nodiscard]] QString LifecycleErrorName(const EngineError &error) {
 	if (!error.underlying) {
 		return u"unknown"_q;
@@ -483,6 +506,31 @@ std::vector<Gram::NftItem> CollectiblesFromEngine(
 	return result;
 }
 
+bool IsWordlistWord(const QString &word) {
+	const auto &list = Wordlist();
+	const auto normalized = NormalizeWord(word);
+	return std::binary_search(list.begin(), list.end(), normalized);
+}
+
+std::vector<QString> WordlistSuggestions(
+		const QString &prefix,
+		int limit) {
+	auto result = std::vector<QString>();
+	const auto normalized = NormalizeWord(prefix);
+	if (normalized.isEmpty() || limit <= 0) {
+		return result;
+	}
+	const auto &list = Wordlist();
+	auto i = std::lower_bound(list.begin(), list.end(), normalized);
+	while (i != list.end()
+		&& int(result.size()) != limit
+		&& i->startsWith(normalized)) {
+		result.push_back(*i);
+		++i;
+	}
+	return result;
+}
+
 Session::Session(not_null<Main::Session*> session)
 : _session(session)
 , _api(session)
@@ -631,6 +679,7 @@ void Session::applyState(const MTPWalletState &state) {
 			.canExportPhrase = data.is_can_export_phrase(),
 			.canEnableBackup = data.is_can_enable_backup(),
 		};
+		parkStaleActiveRecords();
 		setPresence(Presence::Ready);
 	}, [&](const MTPDwalletStateEmpty &data) {
 		clear();
@@ -684,7 +733,7 @@ void Session::revealPhrase(
 		Fn<void(std::vector<QString>)> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
-	if (_phraseRevealing) {
+	if (_phraseRevealing || _replacing) {
 		LOG(("Wallet Error: reveal requested while another is in flight."));
 		if (fail) {
 			fail(u"PHRASE_BUSY"_q);
@@ -938,6 +987,257 @@ bool Session::persistCustody(const CustodyRecord &record) {
 	}
 	_custody = std::move(store);
 	return true;
+}
+
+void Session::replaceWithNew(
+		std::optional<Core::CloudPasswordResult> password,
+		Fn<void()> done,
+		Fn<void(const QString &error)> fail) {
+	ensureLoaded();
+	// A replace and a reveal must never overlap: a shares-restore that
+	// finished after a replace landed would write an active custody record
+	// for the replaced key and show stale words. Both flows write the same
+	// custody store, so each one's busy check refuses the other.
+	if (_replacing || _phraseRevealing) {
+		LOG(("Wallet Error: replace requested while another is in flight."));
+		if (fail) {
+			fail(u"REPLACE_BUSY"_q);
+		}
+		return;
+	}
+	if (_presence.current() != Presence::Ready
+		|| _publicKey.size() != kCustodyPublicKeySize) {
+		LOG(("Wallet Error: replace requested without a settled wallet key."));
+		if (fail) {
+			fail(u"REPLACE_STATE_UNKNOWN"_q);
+		}
+		return;
+	}
+	_replacing = true;
+	done = [this, done = std::move(done)] {
+		_replacing = false;
+		if (done) {
+			done();
+		}
+	};
+	fail = [this, fail = std::move(fail)](const QString &error) {
+		_replacing = false;
+		if (fail) {
+			fail(error);
+		}
+	};
+	auto oldRecord = std::optional<CustodyRecord>();
+	if (const auto record = custody().matching(_publicKey)) {
+		oldRecord = *record;
+	}
+	sendReplaceWallet(
+		MTP_inputWalletNew(),
+		std::move(password),
+		[=, this](const MTPWalletState &state) {
+			finishConfirmedReplace(oldRecord, std::nullopt, state, done, fail);
+		},
+		fail);
+}
+
+void Session::replaceWithImported(
+		std::vector<QString> words,
+		std::optional<Core::CloudPasswordResult> password,
+		Fn<void()> done,
+		Fn<void(const QString &error)> fail) {
+	ensureLoaded();
+	if (_replacing || _phraseRevealing) {
+		LOG(("Wallet Error: replace requested while another is in flight."));
+		if (fail) {
+			fail(u"REPLACE_BUSY"_q);
+		}
+		return;
+	}
+	if (_presence.current() != Presence::Ready
+		|| _publicKey.size() != kCustodyPublicKeySize) {
+		LOG(("Wallet Error: replace requested without a settled wallet key."));
+		if (fail) {
+			fail(u"REPLACE_STATE_UNKNOWN"_q);
+		}
+		return;
+	}
+	_replacing = true;
+	done = [this, done = std::move(done)] {
+		_replacing = false;
+		if (done) {
+			done();
+		}
+	};
+	fail = [this, fail = std::move(fail)](const QString &error) {
+		_replacing = false;
+		if (fail) {
+			fail(error);
+		}
+	};
+	auto oldRecord = std::optional<CustodyRecord>();
+	if (const auto record = custody().matching(_publicKey)) {
+		oldRecord = *record;
+	}
+	const auto lifecycle = _engine->lifecycle();
+	auto recoveryWords = std::vector<std::string>();
+	recoveryWords.reserve(words.size());
+	for (const auto &word : words) {
+		recoveryWords.push_back(word.toStdString());
+	}
+	auto request = engine::ImportWalletRequest{
+		.record_id = NewRecordId(),
+		.network = engine::Network::kMainnet,
+		.recovery_words = std::move(recoveryWords),
+	};
+	_engine->run([lifecycle, request = std::move(request)]() mutable {
+		return lifecycle->import_wallet(request);
+	}, [=, this](engine::WalletDescriptor descriptor) {
+		const auto record = RecordFromDescriptor(descriptor);
+		sendReplaceWallet(
+			MTP_inputWalletImported(MTP_bytes(record.publicKey)),
+			password,
+			[=, this](const MTPWalletState &state) {
+				const auto answered = (state.type() == mtpc_walletState)
+					? state.c_walletState().vpublic_key().v
+					: QByteArray();
+				if (answered != record.publicKey) {
+					LOG(("Wallet Error: wallet.replaceWallet answered "
+						"another key."));
+					_engine->run([lifecycle, descriptor] {
+						lifecycle->delete_wallet(descriptor);
+					}, [=] {
+						fail(u"REPLACE_KEY_MISMATCH"_q);
+					}, [=](EngineError) {
+						LOG(("Wallet Error: delete_wallet after a key "
+							"mismatch failed."));
+						fail(u"REPLACE_KEY_MISMATCH"_q);
+					});
+					return;
+				}
+				finishConfirmedReplace(oldRecord, record, state, done, fail);
+			},
+			[=, this](const QString &error) {
+				_engine->run([lifecycle, descriptor] {
+					lifecycle->delete_wallet(descriptor);
+				}, [=] {
+					fail(error);
+				}, [=](EngineError) {
+					LOG(("Wallet Error: delete_wallet after a failed "
+						"replace failed."));
+					fail(error);
+				});
+			});
+	}, [=](EngineError error) {
+		const auto name = LifecycleErrorName(error);
+		LOG(("Wallet Error: import_wallet failed: %1").arg(name));
+		fail((name == u"InvalidRecoveryPhrase"_q)
+			? u"REPLACE_INVALID_PHRASE"_q
+			: u"REPLACE_IMPORT_FAILED"_q);
+	});
+}
+
+void Session::sendReplaceWallet(
+		const MTPInputWalletReplacement &wallet,
+		std::optional<Core::CloudPasswordResult> password,
+		Fn<void(const MTPWalletState &)> applied,
+		Fn<void(const QString &)> fail) {
+	using Flag = MTPwallet_replaceWallet::Flag;
+	const auto checked = password && *password;
+	_stateApi.request(MTPwallet_ReplaceWallet(
+		MTP_flags(checked ? Flag::f_password : Flag(0)),
+		wallet,
+		checked ? password->result : MTP_inputCheckPasswordEmpty()
+	)).done([=](const MTPWalletState &result) {
+		applied(result);
+	}).fail([=](const MTP::Error &error) {
+		LOG(("Wallet Error: wallet.replaceWallet failed: %1"
+			).arg(error.type()));
+		fail(error.type());
+	}).handleFloodErrors().send();
+}
+
+void Session::finishConfirmedReplace(
+		std::optional<CustodyRecord> oldRecord,
+		std::optional<CustodyRecord> newActive,
+		const MTPWalletState &state,
+		Fn<void()> done,
+		Fn<void(const QString &)> fail) {
+	applyState(state);
+	const auto lifecycle = _engine->lifecycle();
+	if (newActive) {
+		auto sameKeyRow = std::optional<CustodyRecord>();
+		const auto row = custody().matching(newActive->publicKey);
+		if (row && row->recordId != newActive->recordId) {
+			sameKeyRow = *row;
+		}
+		if (!persistCustody(*newActive)) {
+			_engine->run([
+				lifecycle,
+				descriptor = DescriptorFromRecord(*newActive)
+			] {
+				lifecycle->delete_wallet(descriptor);
+			}, [] {}, [](EngineError) {});
+			done();
+			return;
+		}
+		if (sameKeyRow) {
+			_engine->run([
+				lifecycle,
+				descriptor = DescriptorFromRecord(*sameKeyRow)
+			] {
+				lifecycle->delete_wallet(descriptor);
+			}, [] {}, [](EngineError) {
+				LOG(("Wallet Error: delete_wallet of a superseded record "
+					"failed."));
+			});
+		}
+	}
+	if (oldRecord && (oldRecord->publicKey != _publicKey)) {
+		removeCustodyRecord(oldRecord->publicKey);
+		_engine->run([
+			lifecycle,
+			descriptor = DescriptorFromRecord(*oldRecord)
+		] {
+			lifecycle->delete_wallet(descriptor);
+		}, [] {}, [](EngineError) {
+			LOG(("Wallet Error: delete_wallet of the replaced wallet "
+				"failed."));
+		});
+	}
+	done();
+}
+
+void Session::parkStaleActiveRecords() {
+	auto store = custody();
+	auto changed = false;
+	for (auto &record : store.records) {
+		if (record.active && record.publicKey != _publicKey) {
+			record.active = false;
+			changed = true;
+		}
+	}
+	if (!changed) {
+		return;
+	}
+	if (!WriteCustodyStore(_session->local(), store)) {
+		LOG(("Wallet Error: custody parking write failed."));
+		return;
+	}
+	_custody = std::move(store);
+}
+
+void Session::removeCustodyRecord(const QByteArray &publicKey) {
+	auto store = custody();
+	store.records.erase(
+		ranges::remove(
+			store.records,
+			publicKey,
+			&CustodyRecord::publicKey),
+		end(store.records));
+	if (!WriteCustodyStore(_session->local(), store)) {
+		LOG(("Wallet Error: custody record removal write failed."));
+		return;
+	}
+	_custody = std::move(store);
 }
 
 void Session::clearNetworkState() {
