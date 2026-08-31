@@ -2037,7 +2037,7 @@ mac:
 win_mac:
     git clone https://github.com/i582/wallet-engine.git
     cd wallet-engine
-    git checkout bea742cccbc983f745263ef5b95e9e48e9659b32
+    git checkout 0dbd381aac9a74e4a22d069e1836ddc4b843343d
 win:
     SET "RUSTUP_HOME=%THIRDPARTY_DIR%\\rust\\rustup"
     SET "CARGO_HOME=%THIRDPARTY_DIR%\\rust\\cargo"
