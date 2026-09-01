@@ -34,6 +34,7 @@ namespace {
 
 constexpr auto kDaysInWeek = 7;
 constexpr auto kThumbnailsPerPaint = 4;
+constexpr auto kKeepMonthsAround = 2;
 constexpr auto kTooltipDelay = crl::time(1000);
 constexpr auto kJumpDelay = 2 * crl::time(1000);
 
@@ -542,6 +543,7 @@ private:
 	void setSelected(int selected);
 	void setPressed(int pressed);
 	void loadDynamicImages();
+	void releaseDistantImages();
 
 	int rowsLeft() const;
 	int rowsTop() const;
@@ -705,6 +707,7 @@ CalendarBox::Inner::Inner(
 void CalendarBox::Inner::monthChanged(QDate month) {
 	setSelected(kEmptySelection);
 	_ripples.clear();
+	releaseDistantImages();
 	loadDynamicImages();
 	resizeToCurrent();
 	update();
@@ -734,6 +737,30 @@ void CalendarBox::Inner::loadDynamicImages() {
 				setDynamicImage(imageDate, std::move(image));
 			}));
 	}
+}
+
+void CalendarBox::Inner::releaseDistantImages() {
+	const auto current = _context->month();
+	const auto from = current.addMonths(-kKeepMonthsAround);
+	const auto till = current.addMonths(kKeepMonthsAround + 1);
+	const auto release = [](auto from, auto till) {
+		for (auto i = from; i != till; ++i) {
+			if (i->second.subscribed) {
+				i->second.image->subscribeToUpdates(nullptr);
+			}
+		}
+	};
+	auto outdated = _dynamicImageStates.lower_bound(from);
+	release(begin(_dynamicImageStates), outdated);
+	_dynamicImageStates.erase(begin(_dynamicImageStates), outdated);
+	outdated = _dynamicImageStates.lower_bound(till);
+	release(outdated, end(_dynamicImageStates));
+	_dynamicImageStates.erase(outdated, end(_dynamicImageStates));
+
+	auto months = ranges::lower_bound(_requestedMonths, from);
+	_requestedMonths.erase(begin(_requestedMonths), months);
+	months = ranges::lower_bound(_requestedMonths, till);
+	_requestedMonths.erase(months, end(_requestedMonths));
 }
 
 void CalendarBox::Inner::resizeToCurrent() {

@@ -10,6 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "storage/storage_shared_media.h"
 
+class DocumentData;
+class PhotoData;
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -69,14 +72,25 @@ private:
 		TimeId offsetDate = 0;
 	};
 
+	struct MonthDay {
+		TimeId date = 0;
+		MsgId msgId = 0;
+		FullMsgId origin;
+		PhotoData *photo = nullptr;
+		DocumentData *document = nullptr;
+	};
+
 	struct MonthData {
-		std::vector<DayThumbnail> cache;
+		std::vector<MonthDay> cache;
 		std::vector<Fn<void(std::vector<DayThumbnail>)>> callbacks;
 		mtpRequestId requestId = 0;
 		MonthState state;
 		bool loaded = false;
 	};
 
+	[[nodiscard]] std::vector<DayThumbnail> thumbnails(
+		const MonthData &data) const;
+	void finishMonth(MonthData &data);
 	void performMonthRequest(const MonthKey &key);
 	void processMonthData(
 		const MonthKey &key,

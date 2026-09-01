@@ -43,7 +43,7 @@ void SearchCalendarController::monthThumbnails(
 
 	if (const auto it = _months.find(key); it != _months.end()) {
 		if (it->second.loaded) {
-			onFinish(it->second.cache);
+			onFinish(thumbnails(it->second));
 			return;
 		}
 	}
@@ -122,12 +122,7 @@ void SearchCalendarController::performMonthRequest(const MonthKey &key) {
 	}).fail([=] {
 		auto &data = _months[key];
 		data.requestId = 0;
-		data.loaded = true;
-		auto callbacks = std::move(data.callbacks);
-		data.callbacks.clear();
-		for (const auto &callback : callbacks) {
-			callback(data.cache);
-		}
+		finishMonth(data);
 	}).send();
 }
 
@@ -147,43 +142,38 @@ void SearchCalendarController::processMonthData(
 	};
 
 	// Representative messages of the page give the thumbnail for each day.
-	auto dayImages = base::flat_map<
-		TimeId,
-		std::shared_ptr<Ui::DynamicImage>>();
+	auto dayMedia = base::flat_map<TimeId, MonthDay>();
 	for (const auto &fullId : messages) {
 		const auto item = _session->data().message(fullId);
 		if (!item || !inTargetMonth(item->date())) {
 			continue;
 		}
 		const auto dayStart = dayStartOf(item->date());
-		if (dayImages.contains(dayStart)) {
+		if (dayMedia.contains(dayStart)) {
 			continue;
 		}
 		const auto media = item->media();
 		if (!media) {
 			continue;
 		}
-		auto image = std::shared_ptr<Ui::DynamicImage>();
+		auto day = MonthDay{ .origin = item->fullId() };
 		if (const auto photo = media->photo()) {
-			image = Ui::MakePhotoThumbnail(photo, item->fullId(), true);
+			day.photo = photo;
 		} else if (const auto document = media->document()) {
 			if (document->isVideoFile()) {
-				image = Ui::MakeDocumentThumbnail(
-					document,
-					item->fullId(),
-					true);
+				day.document = document;
 			}
 		}
-		if (image) {
-			dayImages.emplace(dayStart, std::move(image));
+		if (day.photo || day.document) {
+			dayMedia.emplace(dayStart, day);
 		}
 	}
 
 	// Periods are authoritative: they provide the newest message of each day.
 	auto &data = _months[key];
 	auto seenDays = base::flat_set<TimeId>();
-	for (const auto &thumb : data.cache) {
-		seenDays.emplace(thumb.date);
+	for (const auto &day : data.cache) {
+		seenDays.emplace(day.date);
 	}
 	for (const auto &period : periods) {
 		if (!period.maxMsgId || !inTargetMonth(period.date)) {
@@ -193,16 +183,15 @@ void SearchCalendarController::processMonthData(
 		if (seenDays.contains(dayStart)) {
 			continue;
 		}
-		const auto i = dayImages.find(dayStart);
-		if (i == dayImages.end()) {
+		const auto i = dayMedia.find(dayStart);
+		if (i == dayMedia.end()) {
 			continue;
 		}
 		seenDays.emplace(dayStart);
-		data.cache.push_back(DayThumbnail{
-			.date = dayStart,
-			.image = i->second,
-			.msgId = period.maxMsgId,
-		});
+		auto day = i->second;
+		day.date = dayStart;
+		day.msgId = period.maxMsgId;
+		data.cache.push_back(day);
 	}
 
 	const auto month = QDate(key.year, key.month, 1);
@@ -213,11 +202,31 @@ void SearchCalendarController::processMonthData(
 		return;
 	}
 
+	finishMonth(data);
+}
+
+std::vector<DayThumbnail> SearchCalendarController::thumbnails(
+		const MonthData &data) const {
+	auto result = std::vector<DayThumbnail>();
+	result.reserve(data.cache.size());
+	for (const auto &day : data.cache) {
+		auto image = day.photo
+			? Ui::MakePhotoThumbnail(day.photo, day.origin, true)
+			: Ui::MakeDocumentThumbnail(day.document, day.origin, true);
+		result.push_back({
+			.date = day.date,
+			.image = std::move(image),
+			.msgId = day.msgId,
+		});
+	}
+	return result;
+}
+
+void SearchCalendarController::finishMonth(MonthData &data) {
 	data.loaded = true;
-	auto callbacks = std::move(data.callbacks);
-	data.callbacks.clear();
+	auto callbacks = base::take(data.callbacks);
 	for (const auto &callback : callbacks) {
-		callback(data.cache);
+		callback(thumbnails(data));
 	}
 }
 
@@ -238,9 +247,9 @@ std::optional<MsgId> SearchCalendarController::resolveMsgIdByDate(
 	const auto dayStart = base::unixtime::serialize(
 		QDateTime(parsed, QTime()));
 
-	for (const auto &thumb : it->second.cache) {
-		if (thumb.date == dayStart) {
-			return thumb.msgId;
+	for (const auto &day : it->second.cache) {
+		if (day.date == dayStart) {
+			return day.msgId;
 		}
 	}
 
