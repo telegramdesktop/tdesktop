@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_common.h"
 #include "base/weak_ptr.h"
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Info {
 class AbstractController;
 } // namespace Info
@@ -226,6 +230,7 @@ private:
 		const SliceUpdate &update) const;
 
 	const not_null<AbstractController*> _controller;
+	const not_null<Main::Session*> _session;
 	const Type _type = {};
 	const bool _onlyForwardable = false;
 

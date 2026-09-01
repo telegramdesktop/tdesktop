@@ -61,6 +61,11 @@ bool DeliverAndSettle(
 	return (widget.get() != nullptr);
 }
 
+void DeliverPointerLeave(const base::weak_qptr<QWidget> &widget) {
+	auto leave = QEvent(QEvent::Leave);
+	DeliverAndSettle(widget, leave);
+}
+
 } // namespace
 
 QWidget *FindByObjectName(
@@ -169,6 +174,7 @@ void Click(not_null<QWidget*> widget, std::optional<QPoint> point) {
 		Qt::NoButton,
 		Qt::NoModifier);
 	DeliverAndSettle(alive, release);
+	DeliverPointerLeave(alive);
 }
 
 void TypeText(not_null<QWidget*> widget, const QString &text) {
@@ -240,6 +246,7 @@ void Drag(
 	}
 	auto release = makeEvent(QEvent::MouseButtonRelease, to, Qt::LeftButton);
 	DeliverAndSettle(alive, release);
+	DeliverPointerLeave(alive);
 }
 
 void Wheel(

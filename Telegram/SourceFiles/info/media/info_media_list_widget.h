@@ -225,6 +225,11 @@ private:
 	void start();
 	int recountHeight();
 	void refreshHeight();
+	void refreshHeightAfterRemoval();
+	void removeLayoutFromSections(not_null<BaseLayout*> layout);
+	bool removeItemFromSection(
+		not_null<const HistoryItem*> item,
+		std::vector<ListSection>::iterator i);
 	void subscribeToSession(
 		not_null<Main::Session*> session,
 		rpl::lifetime &lifetime);
@@ -367,6 +372,7 @@ private:
 	void updateReorder(const QPoint &globalPos);
 	void finishReorder();
 	void cancelReorder();
+	void dropReorderState();
 	void updateShiftAnimations();
 	[[nodiscard]] int itemIndexFromPoint(QPoint point) const;
 	[[nodiscard]] QRect itemGeometryByIndex(int index);
@@ -378,6 +384,10 @@ private:
 
 	const not_null<AbstractController*> _controller;
 	const std::unique_ptr<ListProvider> _provider;
+
+	// Cached: we can outlive the controller, and this never changes.
+	const bool _sectionsSortedById = false;
+
 	SingleQueuedInvokation _checkMoveToOtherViewer;
 
 	base::flat_set<not_null<const BaseLayout*>> _heavyLayouts;

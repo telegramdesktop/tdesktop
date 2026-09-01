@@ -1113,9 +1113,16 @@ void Panel::migrationInviteUsers(std::vector<InviteRequest> users) {
 }
 
 void Panel::enlargeVideo() {
+	// This is called from videoEndpointLargeValue(), so it can happen at any
+	// moment - including while the last monitor is being removed, when
+	// QGuiApplication has no screens at all and screen() is nullptr.
+	const auto screen = window()->screen();
+	if (!screen) {
+		return;
+	}
 	_lastSmallGeometry = window()->geometry();
 
-	const auto available = window()->screen()->availableGeometry();
+	const auto available = screen->availableGeometry();
 	const auto width = std::max(
 		window()->width(),
 		std::max(
@@ -1246,6 +1253,14 @@ void Panel::setupVideo(not_null<Viewport*> viewport) {
 			// Remove sync.
 			viewport->remove(update.endpoint);
 		}
+	}, viewport->lifetime());
+
+	// Tiles keep a raw row pointer and the members list deletes the rows
+	// of participants missing after a full reload before the call marks
+	// their endpoints inactive, so drop such tiles while the row lives.
+	_members->rowRemoved(
+	) | rpl::on_next([=](not_null<MembersRow*> row) {
+		viewport->removeByRow(row);
 	}, viewport->lifetime());
 
 	viewport->pinToggled(

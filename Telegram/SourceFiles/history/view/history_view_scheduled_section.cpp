@@ -1094,19 +1094,27 @@ bool ScheduledWidget::returnTabbedSelector() {
 }
 
 std::shared_ptr<Window::SectionMemento> ScheduledWidget::createMemento() {
+	auto result = createIdentityMementoTyped();
+	saveState(result.get());
+	return result;
+}
+
+auto ScheduledWidget::createIdentityMemento()
+-> std::shared_ptr<Window::SectionMemento> {
+	return createIdentityMementoTyped();
+}
+
+auto ScheduledWidget::createIdentityMementoTyped()
+-> std::shared_ptr<ScheduledMemento> {
 	if (_forumTopic) {
 		if (const auto forum = history()->asForum()) {
 			const auto rootId = _forumTopic->topicRootId();
 			if (const auto topic = forum->topicFor(rootId)) {
-				auto result = std::make_shared<ScheduledMemento>(topic);
-				saveState(result.get());
-				return result;
+				return std::make_shared<ScheduledMemento>(topic);
 			}
 		}
 	}
-	auto result = std::make_shared<ScheduledMemento>(history());
-	saveState(result.get());
-	return result;
+	return std::make_shared<ScheduledMemento>(history());
 }
 
 void ScheduledWidget::saveState(not_null<ScheduledMemento*> memento) {

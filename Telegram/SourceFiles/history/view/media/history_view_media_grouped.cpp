@@ -339,7 +339,10 @@ Media *GroupedMedia::partMediaAt(QPoint point) const {
 }
 
 Media *GroupedMedia::lookupSpoilerTagMedia() const {
-	if (_parts.empty()) {
+	// Only Photo and Gif parts implement the spoiler tag methods, and they
+	// are the only kinds a Mode::Grid group holds. A Mode::Column group is
+	// built from Document parts, which would hit the base class Unexpected().
+	if (_parts.empty() || _mode == Mode::Column) {
 		return nullptr;
 	}
 	const auto media = _parts.front().content.get();

@@ -485,6 +485,7 @@ TopBar::TopBar(
 	bindStatus();
 
 	_title->setContextCopyText(tr::lng_profile_copy_fullname(tr::now));
+	_title->setSelectable(true);
 
 	auto badgeUpdates = rpl::producer<rpl::empty_value>();
 	if (_badge) {
@@ -1831,9 +1832,21 @@ auto TopBar::effectiveCollectible() const
 		: _peer->emojiStatusId().collectible;
 }
 
-void TopBar::paintEdges(QPainter &p, const QBrush &brush) const {
+bool TopBar::clipTouchesRoundedCorners(const QRect &clip) const {
+	if (!_roundEdges) {
+		return false;
+	}
+	const auto radius = st::boxRadius;
+	return (clip.top() < radius)
+		&& ((clip.left() < radius) || (clip.right() >= width() - radius));
+}
+
+void TopBar::paintEdges(
+		QPainter &p,
+		const QRect &clip,
+		const QBrush &brush) const {
 	const auto r = rect();
-	if (_roundEdges) {
+	if (clipTouchesRoundedCorners(clip)) {
 		auto hq = PainterHighQualityEnabler(p);
 		const auto radius = st::boxRadius;
 		p.setPen(Qt::NoPen);
@@ -1843,15 +1856,15 @@ void TopBar::paintEdges(QPainter &p, const QBrush &brush) const {
 			radius,
 			radius);
 	} else {
-		p.fillRect(r, brush);
+		p.fillRect(r.intersected(clip), brush);
 	}
 }
 
-void TopBar::paintEdges(QPainter &p) const {
+void TopBar::paintEdges(QPainter &p, const QRect &clip) const {
 	if (!_solidBg) {
-		paintEdges(p, st::boxDividerBg);
+		paintEdges(p, clip, st::boxDividerBg);
 	} else {
-		paintEdges(p, *_solidBg);
+		paintEdges(p, clip, *_solidBg);
 	}
 }
 
@@ -2843,6 +2856,7 @@ void TopBar::paintUserpic(QPainter &p, const QRect &geometry) {
 void TopBar::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 	const auto geometry = userpicGeometry();
+	const auto clipBounds = e->region().boundingRect();
 
 	if (_hasGradientBg && _cachedGradient.isNull()) {
 		const auto collectible = effectiveCollectible();
@@ -2869,7 +2883,7 @@ void TopBar::paintEvent(QPaintEvent *e) {
 		}
 	}
 	if (!_hasGradientBg) {
-		paintEdges(p);
+		paintEdges(p, clipBounds);
 	} else {
 		const auto x = (width()
 			- _cachedGradient.width() / style::DevicePixelRatio())
@@ -2877,7 +2891,7 @@ void TopBar::paintEvent(QPaintEvent *e) {
 		const auto y = (height()
 			- _cachedGradient.height() / style::DevicePixelRatio())
 				/ 2;
-		if (_roundEdges) {
+		if (clipTouchesRoundedCorners(clipBounds)) {
 			if (_cachedClipPath.isEmpty()) {
 				const auto radius = st::boxRadius;
 				_cachedClipPath.addRoundedRect(
@@ -2894,13 +2908,12 @@ void TopBar::paintEvent(QPaintEvent *e) {
 		}
 	}
 	if (_patternEmoji && _patternEmoji->ready()) {
-		paintAnimatedPattern(p, rect(), geometry);
+		paintAnimatedPattern(p, clipBounds, geometry);
 	}
 
-	const auto clipBounds = e->region().boundingRect();
 	if (clipBounds.bottom() >= geometry.top()
 		&& clipBounds.top() <= geometry.bottom()) {
-		paintPinnedToTopGifts(p, rect(), geometry);
+		paintPinnedToTopGifts(p, clipBounds, geometry);
 	}
 
 	if (clipBounds.intersects(geometry)) {
@@ -3257,7 +3270,7 @@ void TopBar::setupAnimatedPattern(const QRect &userpicGeometry) {
 
 void TopBar::paintAnimatedPattern(
 		QPainter &p,
-		const QRect &rect,
+		const QRect &clip,
 		const QRect &userpicGeometry) {
 	if (!_patternEmoji || !_patternEmoji->ready()) {
 		return;
@@ -3373,14 +3386,17 @@ void TopBar::paintAnimatedPattern(
 			alpha = alpha * collapseProgress;
 		}
 
+		const auto target = QRectF(
+			x - scaledHalfWidth,
+			y - scaledHalfHeight,
+			scaledHalfWidth * 2,
+			scaledHalfHeight * 2);
+		if (!target.intersects(QRectF(clip))) {
+			continue;
+		}
+
 		p.setOpacity(alpha);
-		p.drawImage(
-			QRectF(
-				x - scaledHalfWidth,
-				y - scaledHalfHeight,
-				scaledHalfWidth * 2,
-				scaledHalfHeight * 2),
-			_basePatternImage);
+		p.drawImage(target, _basePatternImage);
 	}
 	p.setOpacity(1.);
 }
@@ -3621,7 +3637,7 @@ QPointF TopBar::calculateGiftPosition(
 
 void TopBar::paintPinnedToTopGifts(
 		QPainter &p,
-		const QRect &rect,
+		const QRect &clip,
 		const QRect &userpicRect) {
 	if (_pinnedToTopGifts.empty() || _source == Source::Preview) {
 		return;
@@ -3686,15 +3702,24 @@ void TopBar::paintPinnedToTopGifts(
 			const auto resultPos = QPointF(
 				giftPos.x() - halfFrameSize,
 				giftPos.y() - halfFrameSize);
-			if (!gift.bg.isNull()) {
-				const auto bgSize = gift.bg.width()
-					/ style::DevicePixelRatio();
-				const auto bgPos = QPointF(
+			auto target = QRectF(resultPos, QSizeF(frameSize, frameSize));
+			auto bgPos = QPointF();
+			const auto bgSize = gift.bg.isNull()
+				? 0
+				: (gift.bg.width() / style::DevicePixelRatio());
+			if (bgSize > 0) {
+				bgPos = QPointF(
 					resultPos.x() + (frameSize - bgSize) / 2.,
 					resultPos.y() + (frameSize - bgSize) / 2.);
-				p.drawImage(bgPos, gift.bg);
+				target = target.united(
+					QRectF(bgPos, QSizeF(bgSize, bgSize)));
 			}
-			p.drawImage(resultPos, frameToRender);
+			if (target.intersects(QRectF(clip))) {
+				if (bgSize > 0) {
+					p.drawImage(bgPos, gift.bg);
+				}
+				p.drawImage(resultPos, frameToRender);
+			}
 		}
 	}
 	p.setOpacity(1.);

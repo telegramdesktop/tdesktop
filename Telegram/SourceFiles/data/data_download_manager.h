@@ -165,7 +165,7 @@ private:
 		-> std::pair<SessionData*, std::vector<DownloadingId>::iterator>;
 	void changed(not_null<const HistoryItem*> item);
 	void removed(not_null<const HistoryItem*> item);
-	void detach(DownloadedId &id);
+	void detach(SessionData &data, DownloadedId &id);
 	void untrack(not_null<Main::Session*> session);
 	void remove(
 		SessionData &data,

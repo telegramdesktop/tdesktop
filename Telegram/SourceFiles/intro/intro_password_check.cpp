@@ -197,6 +197,15 @@ void PasswordCheckWidget::requestPasswordData() {
 }
 
 void PasswordCheckWidget::passwordChecked() {
+	if (!_passwordState.mtp.request) {
+		if (_passwordState.mtp.unknownAlgorithm) {
+			// Switched to an algorithm this build cannot compute.
+			return serverError();
+		}
+		// The password was removed after this step was created, which is the
+		// same situation the PASSWORD_EMPTY error reports.
+		return goBack();
+	}
 	const auto check = Core::ComputeCloudPasswordCheck(
 		_passwordState.mtp.request,
 		_passwordHash);
@@ -386,6 +395,9 @@ void PasswordCheckWidget::submit() {
 	} else {
 		hideError();
 
+		if (!_passwordState.mtp.request) {
+			return serverError();
+		}
 		const auto password = _pwdField->getLastText().toUtf8();
 		_passwordHash = Core::ComputeCloudPasswordHash(
 			_passwordState.mtp.request.algo,

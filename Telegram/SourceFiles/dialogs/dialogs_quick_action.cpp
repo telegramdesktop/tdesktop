@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "main/main_session.h"
+#include "menu/menu_mark_as_read.h"
 #include "menu/menu_mute.h"
 #include "ui/toast/toast.h"
 #include "window/window_peer_menu.h"
@@ -84,7 +85,7 @@ const style::font &SwipeActionFont(
 		|| action == Dialogs::Ui::QuickDialogAction::Pin) {
 		return nullptr;
 	} else if (action == Dialogs::Ui::QuickDialogAction::Read
-		&& Window::IsUnreadThread(history)) {
+		&& MarkAsReadMenu::IsUnreadThread(history)) {
 		return nullptr;
 	}
 	return info->channel();
@@ -134,11 +135,11 @@ void PerformQuickDialogAction(
 			});
 		}
 	} else if (action == Dialogs::Ui::QuickDialogAction::Read) {
-		if (Window::IsUnreadThread(history)) {
+		if (MarkAsReadMenu::IsUnreadThread(history)) {
 			if (const auto info = QuickActionCommunity(history)) {
-				Window::MarkAsReadChatList(info->chatsList());
+				MarkAsReadMenu::MarkAsReadChatList(info->chatsList());
 			} else {
-				Window::MarkAsReadThread(history);
+				MarkAsReadMenu::MarkAsReadThread(history);
 			}
 			controller->showToast(
 				tr::lng_quick_dialog_action_toast_read_success(tr::now));
@@ -209,7 +210,7 @@ Ui::QuickDialogActionLabel ResolveQuickDialogLabel(
 			? Ui::QuickDialogActionLabel::Unpin
 			: Ui::QuickDialogActionLabel::Pin;
 	} else if (action == Dialogs::Ui::QuickDialogAction::Read) {
-		const auto unread = Window::IsUnreadThread(history);
+		const auto unread = MarkAsReadMenu::IsUnreadThread(history);
 		if (history->isForum() && !unread) {
 			return Ui::QuickDialogActionLabel::Disabled;
 		}

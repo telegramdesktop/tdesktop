@@ -168,7 +168,12 @@ void GiftCreditsBox(
 		box->verticalLayout(),
 		peer,
 		CreditsAmount(),
-		[=] { gifted(); box->uiShow()->hideLayer(); },
+		[=] {
+			if (const auto onstack = gifted) {
+				onstack();
+			}
+			box->uiShow()->hideLayer();
+		},
 		box->showFinishes(),
 		tr::lng_credits_summary_options_subtitle(),
 		{});

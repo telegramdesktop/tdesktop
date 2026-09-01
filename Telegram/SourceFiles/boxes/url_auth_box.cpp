@@ -628,9 +628,14 @@ void RequestUrl(
 			state->anotherSession = (*accountResult).anotherSession;
 			(*accountResult).setOnUserChanged(reloadRequest);
 		}));
-		state->box->boxClosing() | rpl::on_next([=] {
+		if (const auto strong = state->box.get()) {
+			strong->boxClosing() | rpl::on_next([=] {
+				requestDecline();
+			}, state->boxDeclineLifetime);
+		} else {
+			// Closed inside show(), so boxClosing() has already passed.
 			requestDecline();
-		}, state->boxDeclineLifetime);
+		}
 	};
 	if (!matchCodesFirst || matchCodes.isEmpty()) {
 		showAuthBox();
@@ -671,9 +676,14 @@ void RequestUrl(
 				isApp);
 		}),
 		Ui::LayerOption::KeepOther);
-	matchCodesBox->boxClosing() | rpl::on_next([=] {
+	if (const auto strong = matchCodesBox.get()) {
+		strong->boxClosing() | rpl::on_next([=] {
+			requestDecline();
+		}, state->matchCodesBoxDeclineLifetime);
+	} else {
+		// Closed inside show(), so boxClosing() has already passed.
 		requestDecline();
-	}, state->matchCodesBoxDeclineLifetime);
+	}
 }
 
 } // namespace UrlAuthBox

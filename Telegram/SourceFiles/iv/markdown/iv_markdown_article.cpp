@@ -3839,6 +3839,7 @@ public:
 
 	[[nodiscard]] int maxWidth();
 	[[nodiscard]] int lastLayoutWidth() const;
+	[[nodiscard]] int contentDemandedWidth() const;
 	[[nodiscard]] bool hasMissingMediaBlocks() const;
 
 	int resizeGetHeight(int width);
@@ -4185,6 +4186,7 @@ private:
 	int _width = -1;
 	int _relayoutWidth = 1;
 	int _laidOutWidth = 0;
+	int _horizontalOverflow = 0;
 	int _height = 0;
 	int _layoutGeneration = 0;
 	TimeId _nextFormattedDateUpdate = 0;
@@ -4584,6 +4586,10 @@ int MarkdownArticle::Impl::maxWidth() {
 
 int MarkdownArticle::Impl::lastLayoutWidth() const {
 	return _laidOutWidth;
+}
+
+int MarkdownArticle::Impl::contentDemandedWidth() const {
+	return _laidOutWidth + _horizontalOverflow;
 }
 
 bool MarkdownArticle::Impl::hasMissingMediaBlocks() const {
@@ -5596,6 +5602,7 @@ void MarkdownArticle::Impl::invalidateLayout() {
 void MarkdownArticle::Impl::invalidateGeometry() {
 	_width = -1;
 	_laidOutWidth = 0;
+	_horizontalOverflow = 0;
 	_height = 0;
 	captureScrollState();
 	clearPendingHighlightBlockPointers();
@@ -6588,6 +6595,7 @@ void MarkdownArticle::Impl::finalizeRelayout(int heightBottom) {
 		std::max(
 			ArticleContentMaxRight(_blocks, layoutStyle(), contentRtl()) + page.right(),
 			page.left() + page.right() + 1));
+	_horizontalOverflow = ArticleHorizontalOverflow(_blocks);
 	pruneTaskMarkerRuntimes();
 	prunePlaceholderRuntimes();
 	pruneButtonRowRuntimes();
@@ -6926,6 +6934,10 @@ int MarkdownArticle::maxWidth() const {
 
 int MarkdownArticle::lastLayoutWidth() const {
 	return _impl->lastLayoutWidth();
+}
+
+int MarkdownArticle::contentDemandedWidth() const {
+	return _impl->contentDemandedWidth();
 }
 
 bool MarkdownArticle::hasMissingMediaBlocks() const {

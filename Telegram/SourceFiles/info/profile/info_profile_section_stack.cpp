@@ -240,7 +240,7 @@ void SectionStack::finalize() {
 		// A toggle landing inside a layout resize pass is skipped there,
 		// leaving the rows below the separator overlapped by it.
 		InvokeQueued(layout, [=] {
-			layout->resizeToWidth(layout->width());
+			layout->resizeToWidth(layout->widthNoMargins());
 		});
 	}, _layout->lifetime());
 }

@@ -52,7 +52,10 @@ endif()
 configure_file(
     ${cbor_loc}/src/cbor/configuration.h.in
     ${fido2_gen}/cbor/configuration.h)
-file(WRITE ${fido2_gen}/cbor/cbor_export.h "#ifndef CBOR_EXPORT_H
+# file(CONFIGURE), not file(WRITE): the latter rewrites the header on every
+# cmake run even when nothing changed, and a fresh mtime here recompiles all of
+# libcbor/libfido2 and webauthn_common.cpp, then relinks Telegram.
+file(CONFIGURE OUTPUT ${fido2_gen}/cbor/cbor_export.h CONTENT "#ifndef CBOR_EXPORT_H
 #define CBOR_EXPORT_H
 #define CBOR_EXPORT
 #define CBOR_NO_EXPORT
@@ -60,7 +63,7 @@ file(WRITE ${fido2_gen}/cbor/cbor_export.h "#ifndef CBOR_EXPORT_H
 #define CBOR_DEPRECATED_EXPORT
 #define CBOR_DEPRECATED_NO_EXPORT
 #endif
-")
+" @ONLY)
 
 # --- Sources. ---
 file(GLOB cbor_sources CONFIGURE_DEPENDS
@@ -206,7 +209,8 @@ target_compile_definitions(lib_fido2 PRIVATE ${fido2_definitions})
 # src/ is private too: its webauthn.h would shadow the Windows SDK header of
 # that name (webauthn_win.cpp needs the SDK one). A generated forwarding fido.h
 # exposes the API without putting src/ on the include path.
-file(WRITE ${fido2_gen}/fido.h "#include \"${fido2_src}/fido.h\"\n")
+file(CONFIGURE OUTPUT ${fido2_gen}/fido.h
+    CONTENT "#include \"${fido2_src}/fido.h\"\n" @ONLY)
 
 target_include_directories(lib_fido2
 PRIVATE

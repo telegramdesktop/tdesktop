@@ -220,6 +220,39 @@ enum class ToolbarActionId : uchar {
 	return image;
 }
 
+} // namespace
+
+void PaintPremiumStar(QPainter &p, QRect inner, std::optional<QColor> halo) {
+	const auto star = PremiumStarImage();
+	const auto side = st::ivEditorToolbarPremiumStarSize;
+	const auto skip = st::ivEditorToolbarPremiumStarSkip;
+	const auto outline = st::ivEditorToolbarPremiumStarOutline;
+	const auto at = QPoint(
+		inner.left() + inner.width() - side - skip.x(),
+		inner.top() + inner.height() - side - skip.y());
+	const auto ring = [&](auto &&paint) {
+		paint(at - QPoint(outline, 0));
+		paint(at + QPoint(outline, 0));
+		paint(at - QPoint(0, outline));
+		paint(at + QPoint(0, outline));
+	};
+	if (halo) {
+		const auto image = style::colorizeImage(star, *halo);
+		ring([&](QPoint position) {
+			p.drawImage(position, image);
+		});
+	} else {
+		p.setCompositionMode(QPainter::CompositionMode_DestinationOut);
+		ring([&](QPoint position) {
+			p.drawImage(position, star);
+		});
+		p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+	}
+	p.drawImage(at, star);
+}
+
+namespace {
+
 template <typename Button>
 void SetupToolbarButtonState(
 		not_null<Button*> button,
@@ -628,20 +661,7 @@ void ToolbarStarButton::validateFrame() {
 		icon->paint(p, position, width());
 	}
 	if (!_premium) {
-		const auto star = PremiumStarImage();
-		const auto side = st::ivEditorToolbarPremiumStarSize;
-		const auto skip = st::ivEditorToolbarPremiumStarSkip;
-		const auto outline = st::ivEditorToolbarPremiumStarOutline;
-		const auto at = QPoint(
-			width() - side - skip.x(),
-			height() - side - skip.y());
-		p.setCompositionMode(QPainter::CompositionMode_DestinationOut);
-		p.drawImage(at - QPoint(outline, 0), star);
-		p.drawImage(at + QPoint(outline, 0), star);
-		p.drawImage(at - QPoint(0, outline), star);
-		p.drawImage(at + QPoint(0, outline), star);
-		p.setCompositionMode(QPainter::CompositionMode_SourceOver);
-		p.drawImage(at, star);
+		PaintPremiumStar(p, rect());
 	}
 }
 
@@ -1718,6 +1738,7 @@ void WindowHost::Impl::setupWindow(ShowWindowDescriptor &&descriptor) {
 				return show->paused(ChatHelpers::PauseReason::Layer);
 			},
 			.requestMedia = std::move(descriptor.requestMedia),
+			.requestMap = descriptor.requestMap,
 			.applyPreparedMedia = std::move(descriptor.applyPreparedMedia),
 			.prepareDeferredMedia = std::move(
 				descriptor.prepareDeferredMedia),

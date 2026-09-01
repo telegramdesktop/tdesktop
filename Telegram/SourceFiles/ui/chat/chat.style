@@ -453,8 +453,13 @@ historyTranscribeRadialAnimation: InfiniteRadialAnimation(defaultInfiniteRadialA
 
 historyVideoMessageMuteSize: 25px;
 historyVideoMessageProgressOpacity: 0.72;
-historyVideoMessageSeekInset: 12px;
-historyVideoMessageSeekDotSize: 13px;
+historyVideoMessageSeekInset: 18px;
+historyVideoMessageSeekLine: 5px;
+historyVideoMessageSeekDotSize: 16px;
+historyVideoMessageSeekDotSizeMin: 6px;
+historyVideoMessageSeekDotSizeGrabbed: 22px;
+historyVideoMessageSeekGrabBand: 40px;
+historyVideoMessageSeekShadowOpacity: 0.16;
 
 historyAdminLogEmptyWidth: 260px;
 historyAdminLogEmptyPadding: margins(10px, 12px, 10px, 12px);
@@ -647,16 +652,8 @@ whoReadMenu: PopupMenu(popupMenuExpandedSeparator) {
 	scrollPadding: margins(0px, 6px, 0px, 4px);
 	maxHeight: 400px;
 }
-whoReadDropdownMenu: DropdownMenu(dropdownMenuWithIcons) {
-	wrap: InnerDropdown(defaultInnerDropdown) {
-		scrollPadding: margins(0px, 8px, 0px, 8px);
-	}
-	menu: Menu(menuWithIcons) {
-		separator: expandedMenuSeparator;
-	}
-}
-whoReadDropdownMenuMaxHeight: 400px;
-whoReadDropdownMenuSkip: 24px;
+reactionPreviewInMenuSize: 120px;
+reactionPreviewInMenuSkip: 8px;
 whoReadNameWithDateTop: 3px;
 whoReadDateTop: 20px;
 whoReadDateSkip: 15px;

@@ -465,7 +465,7 @@ HistoryWidget::HistoryWidget(
 	}, _field->lifetime());
 	_field->cancelled(
 	) | rpl::on_next([=] {
-		if (_peer->amMonoforumAdmin()) {
+		if (_peer && _peer->amMonoforumAdmin()) {
 			QWidget::setEnabled(false);
 			crl::on_main([=] {
 				QWidget::setEnabled(true);
@@ -1446,10 +1446,13 @@ void HistoryWidget::initExpandButton() {
 }
 
 void HistoryWidget::offerRichPaste(not_null<const QMimeData*> data) {
-	if (!_history
-		|| !canShowRichEditor()
-		|| editingMessage()
-		|| !ChatHelpers::MimeDataLosesRichFormatting(&session(), data)) {
+	if (!_history || !canShowRichEditor() || editingMessage()) {
+		return;
+	}
+	const auto decision = ChatHelpers::MimeDataRichPasteOffer(
+		&session(),
+		data);
+	if (!decision) {
 		return;
 	}
 	const auto copy = ChatHelpers::CloneMimeData(data);
@@ -1466,8 +1469,25 @@ void HistoryWidget::offerRichPaste(not_null<const QMimeData*> data) {
 			.session = &session(),
 			.parent = _scroll.data(),
 			.cancel = _field->changes(),
+			.offer = decision->offer,
 			.action = crl::guard(this, [=] {
-				if (_field->getTextWithTags() == now) {
+				const auto unchanged = (_field->getTextWithTags() == now);
+				if (decision->offer == ChatHelpers::RichPasteOffer::Field) {
+					if (!unchanged) {
+						return;
+					}
+					const auto &markdown = decision->markdown;
+					const auto from = std::min(position, anchor);
+					_field->setTextWithTags(ChatHelpers::TextWithTagsReplaced(
+						was,
+						from,
+						std::max(position, anchor),
+						markdown));
+					_field->setCursorPosition(
+						from + int(markdown.text.size()));
+					return;
+				}
+				if (unchanged) {
 					_field->setTextWithTags(was);
 					auto cursor = _field->textCursor();
 					cursor.setPosition(anchor);
@@ -11427,6 +11447,13 @@ HistoryWidget::~HistoryWidget() {
 
 		session().data().itemVisibilitiesUpdated();
 	}
+	// Destroy the list while our own children are still alive: ~HistoryInner
+	// destroys the about view item, which fires itemRemoved() and reenters
+	// updateTopBarSelection(). Left to ~QWidget's deleteChildren() that
+	// happens after _topBar, an earlier child, was already deleted.
+	_list = nullptr;
+	_scroll->takeWidget<HistoryInner>().destroy();
+
 	_subsectionTabsLifetime.destroy();
 	_subsectionTopicsLifetime.destroy();
 	_subsectionTabs = nullptr;

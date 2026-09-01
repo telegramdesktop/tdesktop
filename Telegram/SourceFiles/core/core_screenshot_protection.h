@@ -18,13 +18,17 @@ public:
 	ScreenshotProtection();
 	~ScreenshotProtection();
 
-	void addReason(rpl::producer<bool> active);
-	void addReason(rpl::producer<bool> active, rpl::lifetime &lifetime);
+	// Window shows protected content itself.
+	void addContentReason(rpl::producer<bool> active, rpl::lifetime &lifetime);
+
+	// Only context around the window is protected, not the window content.
+	void addAmbientReason(rpl::producer<bool> active, rpl::lifetime &lifetime);
 
 	[[nodiscard]] bool active() const;
 	[[nodiscard]] rpl::producer<bool> activeValue() const;
 
 private:
+	void addReason(rpl::producer<bool> active, rpl::lifetime &lifetime);
 	void refresh();
 	void apply(bool enabled);
 

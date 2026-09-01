@@ -12,6 +12,9 @@ substitutions. Resolve, start or resume, implement, verify, and publish only
 the named task. Do not continue with other queue work, route discoveries, or
 consolidate pending tasks afterward; those post-result phases belong to the
 `continue` scheduler.
+If assessment or review convergence proves the task intrinsically broad,
+publish the shared `split-required` result with retained source state and stop;
+do not create its replacement tasks in this command.
 
 Apply the shared pipeline's conditional `[ai] ` commit-subject rule exactly;
 decide it per commit, require it only when all changes and the purpose are

@@ -130,7 +130,7 @@ struct ColorDescription {
 		not_null<AVFormatContext*> output,
 		QSize size,
 		int64 bitrate,
-		int gopSize,
+		float64 fps,
 		ColorDescription color) {
 	auto encoderCodec = avcodec_find_encoder_by_name("libopenh264");
 	if (!encoderCodec) {
@@ -154,11 +154,13 @@ struct ColorDescription {
 	encoder->codec_type = AVMEDIA_TYPE_VIDEO;
 	encoder->width = size.width();
 	encoder->height = size.height();
+	const auto rate = SanitizedFps(fps);
 	encoder->time_base = kVideoTimeBase;
-	encoder->framerate = AVRational{ 0, 1 };
+	// Without this libopenh264 reads time base and caps at 60 fps.
+	encoder->framerate = av_d2q(rate, 1000000);
 	encoder->pix_fmt = AV_PIX_FMT_YUV420P;
 	encoder->bit_rate = bitrate;
-	encoder->gop_size = gopSize;
+	encoder->gop_size = int(base::SafeRound(rate));
 	encoder->color_range = color.range;
 	encoder->color_primaries = color.primaries;
 	encoder->color_trc = color.transfer;
@@ -797,7 +799,7 @@ private:
 		output.get(),
 		target,
 		bitrate ? int64(bitrate) : int64(TargetBitrate(target, fps)),
-		int(base::SafeRound(fps)),
+		fps,
 		ColorDescription());
 	if (!video.codec) {
 		return {};
@@ -1248,10 +1250,15 @@ TranscodeResult TranscodeVideo(
 		? PtsToTime(input->duration, kUniversalTimeBase)
 		: crl::time(0);
 
+	// Container duration counts audio tail, editor timeline does not.
+	const auto shownDuration = (inVideoStream->duration != AV_NOPTS_VALUE)
+		? PtsToTime(inVideoStream->duration, inVideoStream->time_base)
+		: totalDuration;
+
 	const auto from = std::max(source.from, crl::time(0));
 	const auto till = (source.till > from) ? source.till : crl::time(0);
 	const auto trimmed = (from > 0)
-		|| (till > 0 && (!totalDuration || till < totalDuration));
+		|| (till > 0 && (!shownDuration || till < shownDuration));
 	const auto span = till
 		? (till - from)
 		: ((totalDuration > from) ? (totalDuration - from) : crl::time(0));
@@ -1337,7 +1344,7 @@ TranscodeResult TranscodeVideo(
 			output.get(),
 			target,
 			bitrate,
-			int(base::SafeRound(SanitizedFps(fps))),
+			fps,
 			ReadColorDescription(inVideoStream->codecpar, plan.bake));
 		if (!video.codec) {
 			return {};

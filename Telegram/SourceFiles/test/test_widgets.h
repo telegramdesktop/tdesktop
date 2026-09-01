@@ -105,11 +105,39 @@ void PublishLiveAction(
 // need bounded waits. If a drained call destroys the target widget, the
 // helper skips its remaining events and returns.
 //
+// Pointer model: the harness has no pointer, so Click and Drag end
+// with a QEvent::Leave, which leaves the widget they were given
+// pointerless. Give them the widget that accepts the press: an ignored
+// mouse event walks up the parent chain in QApplication::notify, so a
+// click aimed at a non-accepting child sets Over on the ancestor
+// button that took the press while the leave reaches only the child,
+// and that ancestor stays hovered. The leave is also inert while
+// StateFlag::Down is still set, because leaveEventHook returns before
+// setOver on that branch. Without the leave
+// Ui::AbstractButton::mousePressEvent's
+// checkIfOver() latches StateFlag::Over for the rest of the process,
+// Ui::RoundButton::paintEvent keeps painting textBgOver, and a later
+// Test::DeriveBand under the style's normal fill returns ok=0 with no
+// rows — an absence reading for a widget plainly on screen. Qt does
+// not re-deliver an unhandled Leave to ancestors the way it
+// re-delivers an ignored mouse or key event, so the leave stays on the
+// target — but on the target it is an ordinary event. It runs that
+// widget's own leaveEventHook, its direct parent's
+// enterFromChildEvent, every subscriber of the target's
+// RpWidget::events() stream, and every installed event filter. Two
+// that matter: Ui::Menu::ItemBase deselects a menu entry on Leave, so
+// clicking one no longer leaves it highlighted; and Ui::Tooltip keeps
+// an application-wide filter for the life of the process, so any
+// synthetic click starts its hide-by-leave timer. A widget that was
+// never hovered keeps its Over unchanged, because setOver returns
+// early on an unchanged value.
+//
 // Use Test::Settle for programmatic mutations; SettlePostponedCalls
 // remains the bare drain.
 
 // Synthesizes a full mouse press + release on the widget, at its center by
-// default. Drives the same event path as a real click.
+// default, then a QEvent::Leave, so a completed click leaves no hover
+// behind. Drives the same event path as a real click.
 void Click(not_null<QWidget*> widget, std::optional<QPoint> point = {});
 
 // Synthesizes key press + release pairs carrying one Unicode grapheme at a
@@ -122,6 +150,8 @@ void CommitText(not_null<QWidget*> widget, const QString &text);
 
 // Synthesizes a left-button drag in widget-local coordinates. Intermediate
 // mouse moves retain Qt::LeftButton in buttons(), matching a real drag.
+// Like Click, it ends with a QEvent::Leave, so the drag leaves no hover
+// behind.
 void Drag(
 	not_null<QWidget*> widget,
 	QPoint from,

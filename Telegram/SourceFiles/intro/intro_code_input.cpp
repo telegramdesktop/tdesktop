@@ -168,6 +168,9 @@ CodeInput::CodeInput(QWidget *parent)
 : Ui::RpWidget(parent) {
 	setFocusPolicy(Qt::StrongFocus);
 	setAttribute(Qt::WA_InputMethodEnabled);
+	setInputMethodHints(Qt::ImhDigitsOnly
+		| Qt::ImhNoPredictiveText
+		| Qt::ImhSensitiveData);
 }
 
 QString CodeInput::accessibilityName() {
@@ -348,17 +351,6 @@ void CodeInput::findEmptyAndPerform(const Fn<void(int)> &callback) {
 			callback(i);
 			break;
 		}
-	}
-}
-
-QVariant CodeInput::inputMethodQuery(Qt::InputMethodQuery query) const {
-	switch (query) {
-	case Qt::ImEnabled:
-		return true;
-	case Qt::ImHints:
-		return int(Qt::ImhDigitsOnly | Qt::ImhNoPredictiveText);
-	default:
-		return RpWidget::inputMethodQuery(query);
 	}
 }
 

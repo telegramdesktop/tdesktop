@@ -78,8 +78,10 @@ void CheckNoBlockedLaunchExpectations(const QString &what) {
 	Check(
 		live.empty(),
 		what,
-		u"declared but never blocked: %1"_q.arg(
-			QStringList(live.begin(), live.end()).join(u"; "_q)));
+		live.empty()
+			? QString()
+			: u"declared but never blocked: %1"_q.arg(
+				QStringList(live.begin(), live.end()).join(u"; "_q)));
 }
 
 void CheckBlockedLaunchesExactly(
@@ -91,9 +93,11 @@ void CheckBlockedLaunchesExactly(
 	Check(
 		same,
 		what,
-		u"expected [%1] but recorded [%2]"_q.arg(
-			EntriesText(expected),
-			EntriesText(actual)));
+		same
+			? QString()
+			: u"expected [%1] but recorded [%2]"_q.arg(
+				EntriesText(expected),
+				EntriesText(actual)));
 }
 
 void CheckNoBlockedLaunches(const QString &what) {

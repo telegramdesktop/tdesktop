@@ -86,6 +86,7 @@ struct Instance::Streamed {
 	AudioMsgId id;
 	Streaming::Instance instance;
 	View::PlaybackProgress progress;
+	QSize videoSize;
 	bool clearing = false;
 	rpl::lifetime lifetime;
 };
@@ -1195,20 +1196,54 @@ void Instance::startSeeking(AudioMsgId::Type type) {
 	_seekingChanges.fire({ .seeking = Seeking::Start, .type = type });
 }
 
+crl::time Instance::streamedDuration(not_null<Streamed*> streamed) const {
+	const auto known = [](crl::time duration) {
+		return (duration > 0)
+			&& (duration != kTimeUnknown)
+			&& (duration != kDurationUnavailable);
+	};
+	const auto &info = streamed->instance.info();
+	if (known(info.audio.state.duration)) {
+		return info.audio.state.duration;
+	} else if (known(info.video.state.duration)) {
+		return info.video.state.duration;
+	}
+	// Information is reset while a seek is being applied.
+	const auto document = streamed->id.audio();
+	const auto duration = document ? document->duration() : 0;
+	return known(duration) ? duration : 0;
+}
+
+void Instance::seekStreamed(
+		not_null<Data*> data,
+		float64 progress,
+		bool keepPaused) {
+	const auto streamed = data->streamed.get();
+	if (!streamed) {
+		return;
+	}
+	const auto duration = streamedDuration(streamed);
+	if (duration <= 0) {
+		return;
+	}
+	const auto position = crl::time(base::SafeRound(
+		std::clamp(progress, 0., 1.) * duration));
+	streamed->instance.play(streamingOptions(streamed->id, position));
+	if (keepPaused && streamed->instance.active()) {
+		streamed->instance.pause();
+	}
+	emitUpdate(data->type);
+}
+
+void Instance::updateSeeking(AudioMsgId::Type type, float64 progress) {
+	if (const auto data = getData(type)) {
+		seekStreamed(data, progress, true);
+	}
+}
+
 void Instance::finishSeeking(AudioMsgId::Type type, float64 progress) {
 	if (const auto data = getData(type)) {
-		if (const auto streamed = data->streamed.get()) {
-			const auto &info = streamed->instance.info();
-			const auto duration = info.audio.state.duration;
-			if (duration != kTimeUnknown) {
-				const auto position = crl::time(base::SafeRound(
-					std::clamp(progress, 0., 1.) * duration));
-				streamed->instance.play(streamingOptions(
-					streamed->id,
-					position));
-				emitUpdate(type);
-			}
-		}
+		seekStreamed(data, progress, false);
 	}
 	cancelSeeking(type);
 	_seekingChanges.fire({ .seeking = Seeking::Finish, .type = type });
@@ -1408,7 +1443,11 @@ void Instance::handleStreamingUpdate(
 					float64) {
 				requestRoundVideoRepaint();
 			});
-			requestRoundVideoResize();
+			// Applying a seek restarts the player without a size change.
+			if (data->streamed->videoSize != update.video.size) {
+				data->streamed->videoSize = update.video.size;
+				requestRoundVideoResize();
+			}
 		}
 		emitUpdate(data->type);
 	}, [&](PreloadedVideo) {

@@ -1,6 +1,6 @@
 ---
 name: perform-task
-description: Resolve, start or resume, implement, review, test, and publish exactly one existing ai-tdesktop task by short slug or full dated id, including rare blocked unfinished work. Use when the user invokes $perform-task or /perform-task with a known task name, or when the continue scheduler delegates one selected task. Selects task-specific review specialists and evidence instruments without selecting additional work.
+description: Resolve, start or resume, implement, review, test, and publish exactly one existing ai-tdesktop task by short slug or full dated id, including rare blocked retries and split-required results. Use when the user invokes $perform-task or /perform-task with a known task name, or when the continue scheduler delegates one selected task. Runs standard review lenses with fast applicability bailouts and selects task-specific domain and evidence instruments without selecting additional work.
 ---
 
 # Perform One AI Task
@@ -10,7 +10,8 @@ before any other host-specific delegation rule and apply its substitutions.
 
 Own exactly one task through its retained change, or a proved
 `already-satisfied` outcome, and a canonical AI `Approve` or exceptional
-`Block`. Do not process the inbox, split the task, drain the queue,
+`Block`, or a canonical `Split-required` result. Do not process the inbox,
+create replacement tasks, drain the queue,
 select a follow-up, or consolidate pending tasks afterward. The `continue`
 scheduler isolates discovery routing and queue consolidation in fresh workers
 after this performer returns.
@@ -62,6 +63,9 @@ Inspect the resolved task, readiness, `other_active_task`, status, and owner.
 
 - If another task is already `in-progress` for this checkout, stop.
 - If this task is `approved`, report its completed result and stop.
+- If it is `split-required`, report its published split proposal and stop. A
+  direct invocation leaves routing to the human; a scheduler invocation returns
+  control so `continue` can launch the dedicated split worker.
 - If it is owned by another checkout, stop. Cross-checkout restart is a rare
   explicit human reassignment, never an implicit steal.
 - If its dependencies are unfinished, report them and stop without starting.
@@ -109,7 +113,7 @@ the scheduler may continue work that does not depend on it.
 ## Run and publish
 
 Execute `references/pipeline.md` exactly. A task that changes the repository
-produces:
+and is approved produces:
 
 1. one or more tested source implementation-attempt commits, each with an
    exact one-line subject using the pipeline's conditional `[ai] ` prefix,
@@ -119,9 +123,28 @@ produces:
 3. one canonical `Approve <full-task-id>` commit containing all final AI
    artifacts and state.
 
-New and unfinished tasks use the single adaptive `implement` path. During
-assessment, select one mandatory general review, every specialist review whose
-failure surface is present, and a falsifiable evidence plan. The evidence loop
+New and unfinished tasks use the single adaptive `implement` path. Assessment
+must first confirm that the request is one cohesive implementation/review/test
+unit. If it contains independently useful and independently testable product
+boundaries, record `Scope: split-required` and a concrete split proposal before
+source edits. The same result may arise later from the bounded convergence
+assessment when the retained implementation proves that one review/evidence
+campaign is not coherent. Do not force the broad request through smaller
+implementation phases and call it one task. The independent assessment has
+veto authority over further implementation, not authority to create, retire,
+or rewrite tasks. The performer writes the split result, preserves any owned
+implementation and source refs, and publishes it with
+`finish --status split-required`. The checkout scheduler owns the later queue
+mutation and implementation transfer. A direct invocation returns the
+published proposal to the human.
+
+For a cohesive task, use one mandatory general review, all five standard review
+lenses, and a falsifiable evidence plan. On the initial implementation the
+general reviewer and all lenses inspect the task and complete diff without
+seeing one another's findings. A lens may return a compact
+`NOT_APPLICABLE` immediately after that scan when it proves the diff affects no
+mechanism it owns; otherwise it reads the relevant changed files and adjacent
+code and returns `CLEAN` or `FINDINGS`. The evidence loop
 may use static readings, commands and artifacts, unit tests, a standalone probe
 or component binary, a Telegram Debug build with logged assertions, an in-app
 overlay, Computer Use, screenshots, or any necessary combination. Do not
@@ -129,13 +152,23 @@ require a portable account, Telegram executable, or desktop unless a selected
 check uses it. Do not weaken a runtime or visual check merely because another
 instrument is cheaper.
 
-The assessment's selection is provisional until implementation exists. The
-general reviewer examines the complete diff and evidence plan, may require a
-missing specialist or stronger instrument, and cannot defer a concern to an
-optional reviewer. Review fixes receive targeted re-review instead of an
-unconditional replay of every lens. A task whose desired outcome was already
-present may finish without a source commit only after the same general review
-and evidence loop prove `Outcome: already-satisfied`.
+The general reviewer examines every changed file in full and the evidence plan,
+may reject an unsupported `NOT_APPLICABLE`, require a named domain specialist
+or stronger instrument, and cannot defer its own concern. Its approval and
+every clean or proved-not-applicable lens result carry forward. A fix
+invalidates only the findings, changed invariants, specialists, validations,
+and evidence checks it actually affects. Review fixes receive a focused general
+delta review plus only those invalidated specialists; they do not restart the
+full review or evidence design.
+
+Automatic replay is bounded. If two review verdicts need changes, findings are
+not converging, or a fix expands the architecture or owned paths, run the
+pipeline's independent convergence assessment instead of another broad round.
+It chooses a bounded focused repair, a coherent replan, or `RESCOPE_REQUIRED`;
+unresolved findings are never approved merely to meet the bound. A task whose
+desired outcome was already present may finish without a source commit only
+after the same general review and evidence loop prove
+`Outcome: already-satisfied`.
 
 Only a genuine exhausted task blocker produces a
 canonical `Block <full-task-id>` commit. Agent interruption, tool loss, and
@@ -146,10 +179,16 @@ A repeated evidence setup failure is not exhausted recovery by itself. Follow
 the shared directness ladder: forbid the failed command, fixture, probe, or
 capture technique and make the next run closer to the changed surface. The configured
 test-run cap closes one campaign: preserve prior passes, isolate the unmet
-checks, and start a focused recovery campaign unless a fresh assessment proves
-every direct strategy exhausted. The cap and a `TEST_FLAW` can never by
-themselves publish `BLOCKED`; the former two-identical-signature shortcut must
-not be used.
+checks, and start at most one focused recovery campaign unless a fresh
+assessment proves every direct strategy exhausted. A second campaign cap or a
+repeated non-converging focused signature stops automatic work for an explicit
+human/convergence decision; it does not start another campaign. A cap and a
+`TEST_FLAW` can never by themselves publish `BLOCKED` or approval.
+
+A pre-Runner crash or DeadlockDetector event is not an evidence setup failure merely
+because the scenario did not start. Apply the shared crash diagnostics and debugger
+fallback before changing an account fixture. An empty or unusable dump requires live
+debugging after at most one confirmation run; it never supports a fixture verdict.
 
 A locked macOS session is not an environment stop or evidence blocker for a
 selected Telegram runtime check. Skip interactive Computer Use and complete

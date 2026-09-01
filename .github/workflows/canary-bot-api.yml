@@ -1,0 +1,68 @@
+# Builds the Bot API server image the canary publish job runs, from a
+# pinned tdlib/telegram-bot-api ref, and pushes it to this org's GHCR.
+# After a run, set the repository variable CANARY_BOT_API_IMAGE to the
+# printed digest-pinned reference. Rebuild deliberately on upgrades,
+# never track a third-party image: the publish job hands this container
+# the bot token and every published update file.
+#
+# The job runs in the 'canary' environment so only the refs that
+# environment admits can dispatch it, exactly like the publish job that
+# consumes the image.
+
+name: Canary Bot API image.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: full 40-hex tdlib/telegram-bot-api commit to build (the project has no tags; take the "Update version to X.Y" commit of a release)
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+
+  build:
+    name: Build and push
+    runs-on: depot-ubuntu-latest-32
+    environment: canary
+
+    steps:
+      - name: Validate the ref.
+        env:
+          REF: ${{ inputs.ref }}
+        run: |
+          if ! [[ "$REF" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Pass a full 40-hex commit, got '$REF'."
+            exit 1
+          fi
+
+      - name: Clone.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Log in to GHCR.
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push.
+        id: push
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        env:
+          # The build record the action uploads by default is not a zip
+          # artifact and breaks a download-all of the run's artifacts.
+          DOCKER_BUILD_RECORD_UPLOAD: false
+        with:
+          context: .github/telegram-bot-api
+          push: true
+          build-args: TELEGRAM_BOT_API_REF=${{ inputs.ref }}
+          tags: ghcr.io/${{ github.repository_owner }}/telegram-bot-api:${{ inputs.ref }}
+
+      - name: Print the reference to pin.
+        run: |
+          echo "Set the repository variable CANARY_BOT_API_IMAGE to:"
+          echo "ghcr.io/${{ github.repository_owner }}/telegram-bot-api@${{ steps.push.outputs.digest }}"

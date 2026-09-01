@@ -23,12 +23,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_list_widget.h"
 #include "history/view/controls/history_view_suggest_options.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_reaction_preview.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
 #include "history/history_item_text.h"
-#include "history/view/history_view_reaction_preview.h"
 #include "history/view/history_view_schedule_box.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/menu/history_view_poll_menu.h"
@@ -39,7 +39,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/editor/iv_editor_session.h"
 #include "iv/iv_rich_message_html_export.h"
 #include "ui/effects/ripple_animation.h"
-#include "ui/widgets/dropdown_menu.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
@@ -1650,180 +1649,6 @@ void EditTagBox(
 	return result;
 }
 
-[[nodiscard]] Fn<void(Ui::WhoReadParticipant)> MakeParticipantChosen(
-		not_null<Window::SessionController*> controller,
-		not_null<HistoryItem*> item) {
-	const auto itemId = item->fullId();
-	const auto originPeer = item->history()->peer;
-	return [=](Ui::WhoReadParticipant who) {
-		const auto participant = originPeer->owner().peer(PeerId(who.id));
-		Reactions::ShowReactionParticipantInfo(
-			controller,
-			participant,
-			originPeer,
-			itemId.msg,
-			who.dateReacted);
-	};
-}
-
-[[nodiscard]] Fn<void()> MakeShowAllReactionsChosen(
-		not_null<Window::SessionController*> controller,
-		FullMsgId itemId,
-		Data::ReactionId id) {
-	return [=] {
-		if (const auto item = controller->session().data().message(itemId)) {
-			controller->showSection(std::make_shared<Info::Memento>(
-				nullptr,
-				itemId,
-				HistoryView::Reactions::DefaultSelectedTab(item, id)));
-		}
-	};
-}
-
-template <typename Menu>
-[[nodiscard]] int AppendReactionPackAction(
-		not_null<Menu*> menu,
-		const Data::ReactionId &id,
-		not_null<Window::SessionController*> controller) {
-	const auto custom = id.custom();
-	if (!custom) {
-		return 0;
-	}
-	const auto owner = &controller->session().data();
-	const auto sticker = owner->document(custom)->sticker();
-	if (!sticker || !sticker->set.id) {
-		return 0;
-	}
-	AddEmojiPacksAction(
-		menu,
-		{ sticker->set },
-		EmojiPacksSource::Reaction,
-		controller);
-	return 2;
-}
-
-[[nodiscard]] QString WidestReactionDate(TimeId around) {
-	const auto parsed = base::unixtime::parse(around);
-	const auto day = langDayOfMonthShort(parsed.date());
-	const auto &font = st::whoReadDateStyle.font;
-	auto result = QString();
-	const auto check = [&](const QString &date) {
-		if (font->width(date) > font->width(result)) {
-			result = date;
-		}
-	};
-	for (const auto &time : {
-		QLocale().toString(parsed.time(), QLocale::ShortFormat),
-		QLocale().toString(QTime(23, 59), QLocale::ShortFormat),
-	}) {
-		check(tr::lng_mediaview_today(tr::now, lt_time, time));
-		check(tr::lng_mediaview_yesterday(tr::now, lt_time, time));
-		check(tr::lng_mediaview_date_time(
-			tr::now,
-			lt_date,
-			day,
-			lt_time,
-			time));
-	}
-	return result;
-}
-
-[[nodiscard]] auto ReactionPreviewPreloaderEntries(
-		not_null<HistoryItem*> item,
-		const Data::ReactionId &id)
--> std::vector<Ui::WhoReactedEntryData> {
-	const auto entryHeight = st::defaultWhoRead.photoSkip * 2
-		+ st::defaultWhoRead.photoSize;
-	const auto &list = item->reactions();
-	const auto i = ranges::find(list, id, &Data::MessageReaction::id);
-	const auto count = std::clamp(
-		(i != end(list)) ? i->count : 1,
-		1,
-		st::whoReadDropdownMenuMaxHeight / entryHeight + 1);
-
-	const auto &recent = item->recentReactions();
-	const auto j = recent.find(id);
-	const auto known = (j != end(recent)) ? int(j->second.size()) : 0;
-	const auto date = WidestReactionDate(item->date());
-	const auto customEntityData = Data::ReactionEntityData(id);
-	auto result = std::vector<Ui::WhoReactedEntryData>();
-	result.reserve(count);
-	for (auto k = 0; k != count; ++k) {
-		result.push_back({
-			.text = (k < known) ? j->second[k].peer->name() : QString(),
-			.date = date,
-			.customEntityData = customEntityData,
-		});
-	}
-	return result;
-}
-
-[[nodiscard]] bool ShowReactionPreviewMenu(
-		not_null<QWidget*> context,
-		not_null<HistoryItem*> item,
-		const Data::ReactionId &id,
-		not_null<Window::SessionController*> controller) {
-	if (id.paid()) {
-		return false;
-	}
-	struct State {
-		int addedToBottom = 0;
-	};
-	const auto itemId = item->fullId();
-	const auto participantChosen = MakeParticipantChosen(controller, item);
-	const auto showAllChosen = MakeShowAllReactionsChosen(
-		controller,
-		itemId,
-		id);
-	const auto preloaderEntries = ReactionPreviewPreloaderEntries(item, id);
-	return ShowReactionPreview(controller, itemId, id, false, [=](
-			ReactionPreviewMenu preview) {
-		const auto menu = not_null(preview.menu);
-		const auto refreshGeometry = preview.refreshGeometry;
-		const auto moderateReactionChosen = MakeModerateReactionChosen(
-			controller,
-			itemId,
-			item->history()->peer,
-			preview.hide);
-		using ListMenu = Ui::WhoReactedListMenu;
-		const auto filler = menu->lifetime().make_state<ListMenu>(
-			Data::ReactedMenuFactory(&controller->session()),
-			participantChosen,
-			showAllChosen,
-			moderateReactionChosen);
-		const auto state = menu->lifetime().make_state<State>();
-		const auto appendBottom = [=] {
-			state->addedToBottom = AppendReactionPackAction(
-				menu,
-				id,
-				controller);
-		};
-
-		filler->populatePreloader(
-			menu,
-			preloaderEntries,
-			appendBottom);
-		refreshGeometry();
-
-		Api::WhoReacted(
-			item,
-			id,
-			context,
-			st::defaultWhoRead
-		) | rpl::filter([=](const Ui::WhoReadContent &content) {
-			return content.state != Ui::WhoReadState::Unknown;
-		}) | rpl::on_next([=](Ui::WhoReadContent &&content) {
-			filler->populate(
-				menu,
-				content,
-				nullptr,
-				state->addedToBottom,
-				appendBottom);
-			refreshGeometry();
-		}, menu->lifetime());
-	});
-}
-
 } // namespace
 
 std::optional<QString> CurrentVoiceTimecode(FullMsgId itemId) {
@@ -2884,15 +2709,22 @@ void ShowWhoReactedMenu(
 	if (item->reactionsAreTags()) {
 		ShowTagMenu(menu, position, context, item, id, controller);
 		return;
-	} else if (ShowReactionPreviewMenu(context, item, id, controller)) {
-		return;
 	}
 
 	struct State {
 		int addedToBottom = 0;
 	};
 	const auto itemId = item->fullId();
-	const auto participantChosen = MakeParticipantChosen(controller, item);
+	const auto participantChosen = [=](Ui::WhoReadParticipant who) {
+		const auto originPeer = item->history()->peer;
+		const auto participant = originPeer->owner().peer(PeerId(who.id));
+		Reactions::ShowReactionParticipantInfo(
+			controller,
+			participant,
+			originPeer,
+			itemId.msg,
+			who.dateReacted);
+	};
 	const auto moderateReactionChosen = MakeModerateReactionChosen(
 		controller,
 		itemId,
@@ -2902,10 +2734,15 @@ void ShowWhoReactedMenu(
 				(*menu)->hideMenu();
 			}
 		});
-	const auto showAllChosen = MakeShowAllReactionsChosen(
-		controller,
-		itemId,
-		id);
+	const auto showAllChosen = [=, itemId = item->fullId()]{
+		if (const auto item = controller->session().data().message(itemId)) {
+			controller->showSection(std::make_shared<Info::Memento>(
+				nullptr,
+				itemId,
+				HistoryView::Reactions::DefaultSelectedTab(item, id)));
+		}
+	};
+	const auto owner = &controller->session().data();
 	const auto filler = lifetime.make_state<Ui::WhoReactedListMenu>(
 		Data::ReactedMenuFactory(&controller->session()),
 		participantChosen,
@@ -2922,10 +2759,19 @@ void ShowWhoReactedMenu(
 	}) | rpl::on_next([=, &lifetime](Ui::WhoReadContent &&content) {
 		const auto creating = !*menu;
 		const auto appendBottom = [=] {
-			state->addedToBottom = AppendReactionPackAction(
-				not_null(menu->get()),
-				id,
-				controller);
+			state->addedToBottom = 0;
+			if (const auto custom = id.custom()) {
+				if (const auto set = owner->document(custom)->sticker()) {
+					if (set->set.id) {
+						state->addedToBottom = 2;
+						AddEmojiPacksAction(
+							menu->get(),
+							{ set->set },
+							EmojiPacksSource::Reaction,
+							controller);
+					}
+				}
+			}
 		};
 		if (creating) {
 			*menu = base::make_unique_q<Ui::PopupMenu>(
@@ -2940,7 +2786,16 @@ void ShowWhoReactedMenu(
 			state->addedToBottom,
 			appendBottom);
 		if (creating) {
-			(*menu)->popup(position);
+			if (!(*menu)->empty() && AttachReactionPreviewToMenu(
+					not_null(menu->get()),
+					controller,
+					position,
+					itemId,
+					id)) {
+				(*menu)->popupPrepared();
+			} else {
+				(*menu)->popup(position);
+			}
 		}
 	}, lifetime);
 }
@@ -2982,9 +2837,8 @@ std::vector<StickerSetIdentifier> CollectEmojiPacks(
 	return result;
 }
 
-template <typename Menu>
-void AddEmojiPacksActionTo(
-		not_null<Menu*> menu,
+void AddEmojiPacksAction(
+		not_null<Ui::PopupMenu*> menu,
 		std::vector<StickerSetIdentifier> packIds,
 		EmojiPacksSource source,
 		not_null<Window::SessionController*> controller) {
@@ -3058,7 +2912,7 @@ void AddEmojiPacksActionTo(
 	}();
 	auto button = base::make_unique_q<Ui::Menu::MultilineAction>(
 		menu->menu(),
-		menu->menu()->st(),
+		menu->st().menu,
 		st::historyHasCustomEmoji,
 		st::historyHasCustomEmojiPosition,
 		std::move(text));
@@ -3078,22 +2932,6 @@ void AddEmojiPacksActionTo(
 			Data::StickersType::Emoji));
 	});
 	menu->addAction(std::move(button));
-}
-
-void AddEmojiPacksAction(
-		not_null<Ui::PopupMenu*> menu,
-		std::vector<StickerSetIdentifier> packIds,
-		EmojiPacksSource source,
-		not_null<Window::SessionController*> controller) {
-	AddEmojiPacksActionTo(menu, std::move(packIds), source, controller);
-}
-
-void AddEmojiPacksAction(
-		not_null<Ui::DropdownMenu*> menu,
-		std::vector<StickerSetIdentifier> packIds,
-		EmojiPacksSource source,
-		not_null<Window::SessionController*> controller) {
-	AddEmojiPacksActionTo(menu, std::move(packIds), source, controller);
 }
 
 void AddEmojiPacksAction(

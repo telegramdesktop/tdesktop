@@ -527,6 +527,11 @@ bool ScreenshotProtectionSupported() {
 	return true;
 }
 
+bool AmbientScreenshotProtectionSupported() {
+	// Display affinity hides the window from the viewer, not just captures.
+	return false;
+}
+
 void SetWindowScreenshotProtection(not_null<QWidget*> window, bool enabled) {
 	const auto handle = window->internalWinId();
 	if (!handle) {

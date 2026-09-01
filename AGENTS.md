@@ -173,6 +173,25 @@ user to close that checkout's Telegram/debugger before rebuilding.
 1. **Always use Debug builds** - Release builds are extremely heavy
 2. **Don't build Release configuration** - it's too heavy for testing
 
+## Debug-Only Code
+
+Production translation units stay free of debug machinery. The permanent test
+harness lives in `Telegram/SourceFiles/test/`, and the disposable `-testagent`
+overlay owns per-task instrumentation; production code carries at most a thin
+single-call seam (a `Test::Fire()`-style waitpoint or a live-object
+publication at a construction seam).
+
+- Do not add `#ifdef _DEBUG` blocks, debug-only types, debug state, mutexes,
+  counters, or observation structs to production headers or sources. When a
+  behavior cannot be observed without such machinery, that is a harness gap:
+  extend the `test/` helpers or the overlay instead.
+- Never commit debugging machinery interleaved with working code in the same
+  translation unit. A permanent helper belongs under `test/`; a temporary one
+  belongs in the overlay and is never retained.
+- Exceptions exist — a few `#ifdef _DEBUG` hooks are deliberately kept in
+  production files — but they are exceptions and each new one needs a solid,
+  stated reason. "The test needed it" is not one.
+
 ## Text File Format
 
 - On Windows, keep project text files with CRLF line endings.
@@ -194,6 +213,9 @@ user to close that checkout's Telegram/debugger before rebuilding.
   mixed commit must not use `[ai] `. Do not count the disposable test overlay or
   external AI task artifacts. Every other commit must not contain `[ai]`
   anywhere.
+- The `[ai] ` prefix marks the commit's scope, never its authorship. It does
+  not mean "authored by an AI": an AI-authored product fix takes a plain
+  subject, and a workflow-only commit takes the prefix no matter who wrote it.
 - For ordinary work not associated with an AI task, add a short plain-language body only when the subject can't carry it (what was done, not the technical how) — a line or two at most.
 - Never add a `Co-Authored-By:` line or any tool/assistant attribution trailer.
 - Never add `Autotask:`/attempt or other internal run markers. A commit owned by

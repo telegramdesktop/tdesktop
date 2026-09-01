@@ -590,22 +590,26 @@ void RaiseAboveSiblings(not_null<QWidget*> card) {
 		wrap->deleteLater();
 		notify(OfferChoice::Detached);
 	}));
+	controller->activeChatValue(
+	) | rpl::on_next([=](Dialogs::Key key) {
+		if (key && !*notified) {
+			close();
+			notify(OfferChoice::Dismiss);
+		}
+	}, wrap->lifetime());
 	const auto desired = std::make_shared<bool>(false);
-	rpl::combine(
-		controller->activeChatValue(),
-		rpl::single(
-			controller->mainSectionShown()
-		) | rpl::then(controller->mainSectionShownChanges())
-	) | rpl::map([](Dialogs::Key key, bool section) {
-		return !key && !section;
-	}) | rpl::distinct_until_changed(
-	) | rpl::on_next([=](bool show) {
-		*desired = show;
-		if (!show) {
+	rpl::single(
+		controller->mainSectionShown()
+	) | rpl::then(
+		controller->mainSectionShownChanges()
+	) | rpl::distinct_until_changed(
+	) | rpl::on_next([=](bool section) {
+		*desired = !section;
+		if (section) {
 			wrap->hide(anim::type::normal);
 		} else {
 			base::call_delayed(st::slideDuration, wrap, [=] {
-				if (*desired) {
+				if (*desired && !*notified) {
 					wrap->show(anim::type::normal);
 				}
 			});

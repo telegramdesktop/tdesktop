@@ -2544,6 +2544,7 @@ void HistoryItem::applyEdition(const MTPDmessageService &message) {
 	const auto wasNfr = Get<HistoryServiceNoForwardsRequest>();
 	const auto wasActionTaken = wasNfr && wasNfr->actionTaken;
 	const auto wasSublist = savedSublist();
+	const auto wasTopic = topic();
 	if (message.vaction().type() == mtpc_messageActionHistoryClear) {
 		const auto wasGrouped = history()->owner().groups().isGrouped(this);
 		setReplyMarkup({}, true);
@@ -2611,7 +2612,26 @@ void HistoryItem::applyEdition(const MTPDmessageService &message) {
 	const auto nowSublist = savedSublist();
 	if (wasSublist && nowSublist != wasSublist) {
 		wasSublist->removeOne(this);
-		nowSublist->applyMaybeLast(this);
+
+		// removeOne() only drops the id from the message list, it does not
+		// clear _lastMessage / _lastServerMessage / _chatListMessage. After
+		// the switch History::itemRemoved() notifies only savedSublist(),
+		// so the old sublist would keep a raw pointer to an item it never
+		// hears about again.
+		wasSublist->applyItemRemoved(id);
+		if (nowSublist) {
+			nowSublist->applyMaybeLast(this);
+		}
+	}
+	const auto nowTopic = topic();
+	if (wasTopic && nowTopic != wasTopic) {
+		// createServiceFromMtp() above rebuilds the service data that
+		// topicRootId() reads, so the item may have just left wasTopic -
+		// which History::itemRemoved() would then never tell about it.
+		wasTopic->applyItemRemoved(id);
+		if (nowTopic) {
+			nowTopic->applyMaybeLast(this);
+		}
 	}
 }
 
@@ -3999,16 +4019,22 @@ bool HistoryItem::changeViewsCount(int count) {
 	return true;
 }
 
-void HistoryItem::setForwardsCount(int count) {
+bool HistoryItem::changeForwardsCount(int count) {
 	const auto views = Get<HistoryMessageViews>();
 	if (!views
 		|| views->forwardsCount == count
 		|| (count >= 0 && views->forwardsCount > count)) {
-		return;
+		return false;
 	}
 
 	views->forwardsCount = count;
-	history()->owner().notifyItemDataChange(this);
+	return true;
+}
+
+void HistoryItem::setForwardsCount(int count) {
+	if (changeForwardsCount(count)) {
+		history()->owner().notifyItemDataChange(this);
+	}
 }
 
 void HistoryItem::setPostAuthor(const QString &postAuthor) {
@@ -4035,7 +4061,7 @@ void HistoryItem::setPostAuthor(const QString &postAuthor) {
 	history()->owner().requestItemResize(this);
 }
 
-void HistoryItem::setReplies(HistoryMessageRepliesData &&data) {
+void HistoryItem::setReplies(HistoryMessageRepliesData &&data, bool notify) {
 	if (data.isNull) {
 		return;
 	}
@@ -4071,6 +4097,12 @@ void HistoryItem::setReplies(HistoryMessageRepliesData &&data) {
 	views->commentsMegagroupId = channelId;
 	views->commentsInboxReadTillId = readTillId;
 	views->commentsMaxId = maxId;
+	if (!notify) {
+		// Called while the item is still being constructed: fill the cached
+		// text, but publish nothing about an item that does not exist yet.
+		updateRepliesText(views);
+		return;
+	}
 	if (wasUnread != areCommentsUnread()) {
 		history()->owner().requestItemRepaint(this);
 	}
@@ -4092,29 +4124,34 @@ void HistoryItem::clearReplies() {
 	history()->owner().requestItemResize(this);
 }
 
+bool HistoryItem::updateRepliesText(not_null<HistoryMessageViews*> views) {
+	if (!views->commentsMegagroupId) {
+		return false;
+	}
+	views->replies.text = (views->replies.count > 0)
+		? tr::lng_comments_open_count(
+			tr::now,
+			lt_count_short,
+			views->replies.count)
+		: tr::lng_comments_open_none(tr::now);
+	views->replies.textWidth = st::semiboldFont->width(
+		views->replies.text);
+	views->repliesSmall.text = (views->replies.count > 0)
+		? Lang::FormatCountToShort(views->replies.count).string
+		: QString();
+	const auto hadText = (views->repliesSmall.textWidth > 0);
+	views->repliesSmall.textWidth = (views->replies.count > 0)
+		? st::semiboldFont->width(views->repliesSmall.text)
+		: 0;
+	const auto hasText = (views->repliesSmall.textWidth > 0);
+	return (hasText != hadText);
+}
+
 void HistoryItem::refreshRepliesText(
 		not_null<HistoryMessageViews*> views,
 		bool forceResize) {
-	if (views->commentsMegagroupId) {
-		views->replies.text = (views->replies.count > 0)
-			? tr::lng_comments_open_count(
-				tr::now,
-				lt_count_short,
-				views->replies.count)
-			: tr::lng_comments_open_none(tr::now);
-		views->replies.textWidth = st::semiboldFont->width(
-			views->replies.text);
-		views->repliesSmall.text = (views->replies.count > 0)
-			? Lang::FormatCountToShort(views->replies.count).string
-			: QString();
-		const auto hadText = (views->repliesSmall.textWidth > 0);
-		views->repliesSmall.textWidth = (views->replies.count > 0)
-			? st::semiboldFont->width(views->repliesSmall.text)
-			: 0;
-		const auto hasText = (views->repliesSmall.textWidth > 0);
-		if (hasText != hadText) {
-			forceResize = true;
-		}
+	if (updateRepliesText(views)) {
+		forceResize = true;
 	}
 	if (forceResize) {
 		history()->owner().requestItemResize(this);
@@ -4157,7 +4194,9 @@ void HistoryItem::setReplyFields(
 		bool isForumPost) {
 	if (isScheduled()) {
 		return;
-	} else if (const auto data = GetServiceDependentData()) {
+	}
+	const auto wasTopic = topic();
+	if (const auto data = GetServiceDependentData()) {
 		if ((data->topId != replyToTop) && !IsServerMsgId(data->topId)) {
 			data->topId = replyToTop;
 			if (isForumPost) {
@@ -4174,6 +4213,13 @@ void HistoryItem::setReplyFields(
 	}
 	if (const auto topic = this->topic()) {
 		topic->maybeSetLastMessage(this);
+	}
+	if (wasTopic && wasTopic != this->topic()) {
+		// The reply fields decide topicRootId(), so the item may have just
+		// left wasTopic. History::itemRemoved() later notifies only the
+		// current topic(), so without this the old one keeps a raw pointer
+		// to an item it will never hear about again.
+		wasTopic->applyItemRemoved(id);
 	}
 }
 
@@ -4947,8 +4993,11 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 				}
 			}
 		}
-		setForwardsCount(config.forwardsCount);
-		setReplies(std::move(config.replies));
+		// Not the notifying variants: publishing item data changes from
+		// inside new HistoryItem() lets a listener re-enter and reach a
+		// half-constructed item, or a widget that is being torn down.
+		changeForwardsCount(config.forwardsCount);
+		setReplies(std::move(config.replies), false);
 	}
 	if (const auto edited = Get<HistoryMessageEdited>()) {
 		edited->date = config.editDate;
@@ -8097,7 +8146,7 @@ void HistoryItem::processAction(const MTPMessageAction &action) {
 void HistoryItem::setSelfDestruct(
 		HistorySelfDestructType type,
 		TimeId ttlSeconds) {
-	UpdateComponents(HistoryServiceSelfDestruct::Bit());
+	AddComponents(HistoryServiceSelfDestruct::Bit());
 	const auto selfdestruct = Get<HistoryServiceSelfDestruct>();
 	if (ttlSeconds == TimeId(0x7FFFFFFF)) {
 		selfdestruct->timeToLive = TimeToLiveSingleView();
@@ -8148,7 +8197,7 @@ void HistoryItem::applyMediaContentsRead(TimeId readDate) {
 	if (media->ttlSecondsSingleView() || !readDate || readDate + ttl <= now) {
 		clearMediaAsExpired();
 	} else {
-		UpdateComponents(HistoryServiceSelfDestruct::Bit());
+		AddComponents(HistoryServiceSelfDestruct::Bit());
 		const auto selfdestruct = Get<HistoryServiceSelfDestruct>();
 		selfdestruct->timeToLive = ttl;
 		selfdestruct->type = media->document()

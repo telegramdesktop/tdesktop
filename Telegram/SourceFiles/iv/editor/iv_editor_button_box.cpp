@@ -410,6 +410,9 @@ void EditRichButtonBox(
 					: QString())),
 			st::markdownLinkFieldPadding));
 	const auto url = urlWrap->entity();
+	url->setInputMethodHints(Qt::ImhUrlCharactersOnly
+		| Qt::ImhNoAutoUppercase
+		| Qt::ImhNoPredictiveText);
 	const auto copyWrap = payloadHost->add(
 		object_ptr<Ui::SlideWrap<Ui::InputField>>(
 			payloadHost,

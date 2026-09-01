@@ -859,7 +859,13 @@ Reader::Reader(
 	_loader->parts(
 	) | rpl::on_next([=](LoadedPart &&part) {
 		if (_attachedDownloader) {
+			const auto weak = base::make_weak(this);
 			_partsForDownloader.fire_copy(part);
+			if (!weak) {
+				// Reader can be destroyed synchronously, if this part
+				// finished the streamed file downloader owning it.
+				return;
+			}
 		}
 		if (_streamingActive) {
 			_loadedParts.emplace(std::move(part));

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/version.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
+#include "data/data_thread.h"
 #include "history/history.h"
 #include "main/main_session.h"
 #include "storage/serialize_common.h"
@@ -140,23 +141,38 @@ void RecentPeers::applyLocal(QByteArray serialized) {
 
 std::vector<not_null<Thread*>> RecentPeers::collectChatOpenHistory() const {
 	_session->local().readSearchSuggestions();
-	return _opens;
+	auto result = std::vector<not_null<Thread*>>();
+	result.reserve(_opens.size());
+	for (const auto &weak : _opens) {
+		if (const auto thread = weak.get()) {
+			result.push_back(thread);
+		}
+	}
+	return result;
 }
 
 void RecentPeers::chatOpenPush(not_null<Thread*> thread) {
-	const auto i = ranges::find(_opens, thread);
+	_opens.erase(
+		ranges::remove(_opens, nullptr, &base::weak_ptr<Thread>::get),
+		end(_opens));
+	const auto i = ranges::find(
+		_opens,
+		thread.get(),
+		&base::weak_ptr<Thread>::get);
 	if (i == end(_opens)) {
 		while (_opens.size() >= kMaxRememberedOpenChats) {
 			_opens.pop_back();
 		}
-		_opens.insert(begin(_opens), thread);
+		_opens.insert(begin(_opens), base::make_weak(thread));
 	} else if (i != begin(_opens)) {
 		ranges::rotate(begin(_opens), i, i + 1);
 	}
 }
 
 void RecentPeers::chatOpenRemove(not_null<Thread*> thread) {
-	_opens.erase(ranges::remove(_opens, thread), end(_opens));
+	_opens.erase(
+		ranges::remove(_opens, thread.get(), &base::weak_ptr<Thread>::get),
+		end(_opens));
 }
 
 void RecentPeers::chatOpenKeepUserpics(

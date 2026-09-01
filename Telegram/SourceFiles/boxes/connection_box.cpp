@@ -498,6 +498,9 @@ HostInput::HostInput(
 	rpl::producer<QString> placeholder,
 	const QString &val)
 : MaskedInputField(parent, st, std::move(placeholder), val) {
+	setInputMethodHints(Qt::ImhUrlCharactersOnly
+		| Qt::ImhNoAutoUppercase
+		| Qt::ImhNoPredictiveText);
 }
 
 void HostInput::correctValue(
@@ -541,6 +544,10 @@ Base64UrlInput::Base64UrlInput(
 	rpl::producer<QString> placeholder,
 	const QString &val)
 : MaskedInputField(parent, st, std::move(placeholder), val) {
+	setInputMethodHints(Qt::ImhLatinOnly
+		| Qt::ImhNoAutoUppercase
+		| Qt::ImhNoPredictiveText
+		| Qt::ImhSensitiveData);
 	static const auto RegExp = QRegularExpression("^[a-zA-Z0-9_\\-]+$");
 	if (!RegExp.match(val).hasMatch()) {
 		setText(QString());
@@ -1616,13 +1623,19 @@ void ProxyBox::setupTypes() {
 				label),
 			st::proxyEditTypePadding);
 	}
+	auto warning = _type->value(
+	) | rpl::map([](Type type) {
+		return (type == Type::Web)
+			? tr::lng_proxy_web_warning(tr::now)
+			: tr::lng_proxy_sponsor_warning(tr::now);
+	});
 	_aboutSponsored = _content->add(object_ptr<Ui::SlideWrap<>>(
 		_content,
 		object_ptr<Ui::PaddingWrap<>>(
 			_content,
 			object_ptr<Ui::FlatLabel>(
 				_content,
-				tr::lng_proxy_sponsor_warning(tr::now),
+				std::move(warning),
 				st::boxDividerLabel),
 			st::proxyAboutSponsorPadding)));
 }
@@ -1674,6 +1687,9 @@ void ProxyBox::setupWebAddress(const ProxyData &data) {
 			tr::lng_proxy_web_host_ph(),
 			(data.type == Type::Web) ? data.host : QString()),
 		st::proxyEditInputPadding);
+	_webHost->setInputMethodHints(Qt::ImhUrlCharactersOnly
+		| Qt::ImhNoAutoUppercase
+		| Qt::ImhNoPredictiveText);
 }
 
 void ProxyBox::setupCredentials(const ProxyData &data) {
@@ -1690,6 +1706,8 @@ void ProxyBox::setupCredentials(const ProxyData &data) {
 			tr::lng_connection_user_ph(),
 			data.user),
 		st::proxyEditInputPadding);
+	_user->setInputMethodHints(Qt::ImhNoAutoUppercase
+		| Qt::ImhNoPredictiveText);
 
 	auto passwordWrap = object_ptr<Ui::RpWidget>(credentials);
 	_password = Ui::CreateChild<Ui::PasswordInput>(
@@ -2075,7 +2093,9 @@ void ProxiesBoxController::ShowApplyConfirmation(
 			table->addRow(
 				object_ptr<Ui::FlatLabel>(
 					table,
-					tr::lng_proxy_sponsor_warning(),
+					(type == Type::Web)
+						? tr::lng_proxy_web_warning()
+						: tr::lng_proxy_sponsor_warning(),
 					st::proxyApplyBoxSponsorLabel),
 				object_ptr<Ui::RpWidget>(nullptr),
 				st::proxyApplyBoxSponsorMargin,
@@ -2279,6 +2299,9 @@ void ProxiesBoxController::openBrowser(int id) {
 
 void ProxiesBoxController::setDeleted(int id, bool deleted) {
 	auto item = findById(id);
+	if (item->deleted == deleted) {
+		return;
+	}
 	item->deleted = deleted;
 
 	if (deleted) {
@@ -2350,16 +2373,27 @@ object_ptr<Ui::BoxContent> ProxiesBoxController::editItemBox(int id) {
 void ProxiesBoxController::replaceItemWith(
 		std::vector<Item>::iterator which,
 		std::vector<Item>::iterator with) {
+	// Read before the erase below: _list is a vector, so erasing `which`
+	// shifts everything after it and leaves `with` naming the wrong item.
+	const auto withId = with->id;
+	const auto withDeleted = with->deleted;
+
+	if (which->deleted) {
+		// A deleted item is not in the settings list at all, so it has to
+		// go back in before it can be removed - the same restore-first
+		// order replaceItemValue() uses right below.
+		restoreItem(which->id);
+	}
 	const auto removed = _settings.removeFromList(which->data);
 	Assert(removed);
 
 	_views.fire({ which->id });
 	_list.erase(which);
 
-	if (with->deleted) {
-		restoreItem(with->id);
+	if (withDeleted) {
+		restoreItem(withId);
 	}
-	applyItem(with->id);
+	applyItem(withId);
 	saveDelayed();
 }
 

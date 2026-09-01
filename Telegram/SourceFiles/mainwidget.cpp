@@ -1465,6 +1465,7 @@ void MainWidget::showHistory(
 		session().data().hideShownSpoilers();
 		if (params.activation != anim::activation::background) {
 			_controller->window().activate();
+			_controller->window().hideSettingsAndLayer();
 		}
 		return;
 	} else if (showHistoryInDifferentWindow(peerId, params, showAtMsgId)) {
@@ -2253,11 +2254,6 @@ std::vector<Window::SavedChat> MainWidget::chatStackForSave() const {
 		const auto rootId = (chat && thread && thread->asHistory())
 			? chat->id().repliesRootId
 			: MsgId();
-		const auto known = !chat
-			&& (dynamic_cast<HistoryView::PinnedWidget*>(_mainSection.data())
-				|| dynamic_cast<HistoryView::ScheduledWidget*>(
-					_mainSection.data())
-				|| dynamic_cast<AdminLog::Widget*>(_mainSection.data()));
 		if (rootId) {
 			const auto peer = chat->id().history->peer;
 			result.push_back(Window::SavedChat{
@@ -2268,8 +2264,11 @@ std::vector<Window::SavedChat> MainWidget::chatStackForSave() const {
 					? entry.fullId.msg
 					: MsgId()),
 			});
-		} else if (known) {
-			pushSection(_mainSection->createMemento().get());
+		} else if (const auto memento
+				= _mainSection->createIdentityMemento()) {
+			// createMemento() would "take" the state of a section that
+			// stays alive, so only an identity memento can be used here.
+			pushSection(memento.get());
 		} else {
 			push(thread, entry.fullId.msg);
 		}

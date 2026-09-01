@@ -148,7 +148,9 @@ AlbumThumbnail::AlbumThumbnail(
 
 	const auto duration = st::historyAttach.ripple.hideDuration;
 	_editMedia->setClickedCallback([=] {
-		base::call_delayed(duration, parent, editCallback);
+		// Guarded by the button, which dies with this thumbnail, so the
+		// delayed edit is dropped instead of firing for a thumb that is gone.
+		base::call_delayed(duration, _editMedia.data(), editCallback);
 	});
 	_deleteMedia->setClickedCallback(deleteCallback);
 

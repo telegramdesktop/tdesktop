@@ -53,6 +53,13 @@ if (WIN32)
     )
 endif()
 
+include(cmake/generate_update_keys.cmake)
+generate_update_keys(Telegram ${res_loc}/update)
+
+if (DESKTOP_APP_TEST_APPS OR DESKTOP_APP_SPECIAL_TARGET)
+    include(cmake/test_update_verify.cmake)
+endif()
+
 set_target_properties(Telegram PROPERTIES AUTOMOC ON)
 
 target_link_libraries(Telegram
@@ -588,8 +595,13 @@ PRIVATE
     core/shortcuts.h
     core/ui_integration.cpp
     core/ui_integration.h
+    core/update_channel.h
     core/update_checker.cpp
     core/update_checker.h
+    core/update_keys.cpp
+    core/update_keys.h
+    core/update_verify.cpp
+    core/update_verify.h
     core/utils.cpp
     core/utils.h
     core/version.h
@@ -1016,6 +1028,10 @@ PRIVATE
     history/view/media/history_view_unsupported_notice.h
     history/view/media/history_view_userpic_suggestion.cpp
     history/view/media/history_view_userpic_suggestion.h
+    history/view/media/history_view_video_message_seek.cpp
+    history/view/media/history_view_video_message_seek.h
+    history/view/media/history_view_video_status.cpp
+    history/view/media/history_view_video_status.h
     history/view/media/history_view_web_page.cpp
     history/view/media/history_view_web_page.h
     history/view/reactions/history_view_reactions.cpp
@@ -1576,10 +1592,14 @@ PRIVATE
     menu/menu_antispam_validator.h
     menu/menu_dock.cpp
     menu/menu_dock.h
+    menu/menu_emoji_status.cpp
+    menu/menu_emoji_status.h
     menu/menu_item_download_files.cpp
     menu/menu_item_download_files.h
     menu/menu_item_rate_transcribe_session.cpp
     menu/menu_item_rate_transcribe_session.h
+    menu/menu_mark_as_read.cpp
+    menu/menu_mark_as_read.h
     menu/menu_mute.cpp
     menu/menu_mute.h
     menu/menu_send.cpp
@@ -1943,12 +1963,18 @@ PRIVATE
     test/test_custom_emoji.h
     test/test_history_fixtures.cpp
     test/test_history_fixtures.h
+    test/test_hover.cpp
+    test/test_hover.h
     test/test_ink.cpp
     test/test_ink.h
     test/test_launch_fuse.cpp
     test/test_launch_fuse.h
+    test/test_layer_root.cpp
+    test/test_layer_root.h
     test/test_log.cpp
     test/test_log.h
+    test/test_menu.cpp
+    test/test_menu.h
     test/test_messages.cpp
     test/test_messages.h
     test/test_open_handoff.cpp
@@ -2538,7 +2564,11 @@ if (NOT DESKTOP_APP_DISABLE_AUTOUPDATE AND NOT build_macstore AND NOT build_wins
         PRIVATE
             _other/packer.cpp
             _other/packer.h
+            core/update_verify.cpp
+            core/update_verify.h
         )
+
+        target_include_directories(Packer PRIVATE ${src_loc})
 
         target_link_libraries(Packer
         PRIVATE

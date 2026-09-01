@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/stickers_box.h"
 #include "lang/lang_keys.h"
 #include "layout/layout_position.h"
+#include "menu/menu_emoji_status.h"
 #include "data/data_emoji_statuses.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
@@ -2026,6 +2027,11 @@ void EmojiListWidget::fillRecentMenu(
 		const auto sticker = document->sticker();
 		const auto emoji = sticker->alt;
 		const auto setId = sticker->set.id;
+		EmojiStatusMenu::AddSetAsStatusAction(
+			addAction,
+			_show,
+			document,
+			&st().icons.menuEmojiStatus);
 		if (!emoji.isEmpty()) {
 			auto data = TextForMimeData{ emoji, { emoji } };
 			data.rich.entities.push_back({

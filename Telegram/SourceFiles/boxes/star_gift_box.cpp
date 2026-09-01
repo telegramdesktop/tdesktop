@@ -143,6 +143,7 @@ constexpr auto kPriceTabCollectibles = -2;
 constexpr auto kSentToastDuration = 3 * crl::time(1000);
 constexpr auto kSwitchUpgradeCoverInterval = 3 * crl::time(1000);
 constexpr auto kUpgradeDoneToastDuration = 4 * crl::time(1000);
+constexpr auto kMessageRestrictedToastDuration = 4 * crl::time(1000);
 constexpr auto kResellPriceCacheLifetime = 60 * crl::time(1000);
 
 using namespace HistoryView;
@@ -2273,6 +2274,16 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 }
 
 } // namespace
+
+rpl::producer<bool> StarGiftMessageAllowedValue(not_null<PeerData*> peer) {
+	peer->updateFull();
+	return peer->session().changes().peerFlagsValue(
+		peer,
+		Data::PeerUpdate::Flag::StarsPerMessage
+	) | rpl::map([=] {
+		return peer->starsPerMessageChecked() == 0;
+	});
+}
 
 not_null<InputField*> AddStarGiftMessageField(
 		std::shared_ptr<ChatHelpers::Show> show,
@@ -4560,12 +4571,23 @@ void ShowGiftTransferredToast(
 
 bool ShowGiftErrorToast(
 		std::shared_ptr<Ui::Show> show,
-		const MTP::Error &error) {
-	if (error.type() == u"STARGIFT_ALREADY_BURNED"_q) {
+		const QString &type) {
+	if (type == u"STARGIFT_ALREADY_BURNED"_q) {
 		show->showToast(tr::lng_gift_burned_message(tr::now));
+		return true;
+	} else if (type == u"STARGIFT_MESSAGE_INVALID"_q) {
+		show->showToast(
+			tr::lng_gift_send_message_restricted(tr::now),
+			kMessageRestrictedToastDuration);
 		return true;
 	}
 	return false;
+}
+
+bool ShowGiftErrorToast(
+		std::shared_ptr<Ui::Show> show,
+		const MTP::Error &error) {
+	return ShowGiftErrorToast(show, error.type());
 }
 
 CreditsAmount StarsFromTon(
@@ -4997,13 +5019,7 @@ void SendGiftBox(
 		.randomId = base::RandomValue<uint64>(),
 		.upgraded = disallowLimited && (costToUpgrade > 0) && !disallowUnique,
 	};
-	peer->updateFull();
-	state->messageAllowed = peer->session().changes().peerFlagsValue(
-		peer,
-		Data::PeerUpdate::Flag::StarsPerMessage
-	) | rpl::map([=] {
-		return peer->starsPerMessageChecked() == 0;
-	});
+	state->messageAllowed = StarGiftMessageAllowedValue(peer);
 
 	auto cost = state->details.value(
 	) | rpl::map([](const GiftSendDetails &details) {

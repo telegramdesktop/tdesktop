@@ -97,6 +97,7 @@ public:
 		rpl::producer<bool> pinned,
 		bool self);
 	void remove(const VideoEndpoint &endpoint);
+	void removeByRow(not_null<MembersRow*> row);
 	void showLarge(const VideoEndpoint &endpoint);
 
 	[[nodiscard]] bool requireARGB32() const;

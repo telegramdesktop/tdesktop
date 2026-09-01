@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_credits.h"
 #include "base/unixtime.h"
 #include "boxes/send_credits_box.h"
+#include "boxes/star_gift_box.h"
 #include "data/components/credits.h"
 #include "data/data_credits.h"
 #include "data/data_photo.h"
@@ -90,7 +91,7 @@ void ProcessCreditsPayment(
 							std::max(form->starGiftPerUserLimit, 1),
 							tr::rich),
 					});
-				} else {
+				} else if (!Ui::ShowGiftErrorToast(show, *error)) {
 					show->showToast(*error);
 				}
 				if (onstack) {

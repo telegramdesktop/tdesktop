@@ -1246,14 +1246,18 @@ void SendFilesBox::addMenuButton() {
 		_menu = base::make_unique_q<Ui::PopupMenu>(top, tabbed.menu);
 		_menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
 		const auto position = QCursor::pos();
-		SendMenu::FillSendMenu(
+		const auto result = SendMenu::FillSendMenu(
 			_menu.get(),
 			_show,
 			_sendMenuDetails(),
 			_sendMenuCallback,
 			&_st.tabbed.icons,
 			position);
-		_menu->popup(position);
+		if (result != SendMenu::FillMenuResult::Prepared) {
+			_menu = nullptr;
+			return true;
+		}
+		_menu->popupPrepared();
 		return true;
 	});
 }

@@ -21,6 +21,14 @@ until that frozen-and-derived batch reaches the scheduler's normal stop
 condition or a global hard stop. Do not stop on your own because a compact
 is approaching.
 
+Apply the shared `split-required` result and routing phase. A performer publishes
+that state; this parent launches one fresh blocking split worker that reads the
+complete shared split reference, creates and publishes the replacements, and
+retires the source task. Replace the source id in the frozen batch with those
+replacements. When retained implementation exists, start the checkout-owned
+carrier first so the helper transfers its sealed source state; do not reset or
+checkpoint that work.
+
 Apply the shared skill's pending-task consolidation phase too. At each
 eligible clean AI-slot boundary, recover an older `pending_consolidations`
 marker or consolidate newly routed tasks in one fresh blocking
@@ -30,9 +38,9 @@ the complete shared consolidation reference. Never run consolidation inside
 the performer or discovery-routing worker, and defer it while the active
 task owns dirty local phase state.
 
-Every inbox worker, performer, discovered-task routing worker, and
-pending-task consolidation worker must be told in its initial prompt to
-read `.grok/ai-workflow-adapter.md` completely before the applicable shared
+Every inbox worker, performer, split-routing worker, discovered-task routing
+worker, and pending-task consolidation worker must be told in its initial prompt
+to read `.grok/ai-workflow-adapter.md` completely before the applicable shared
 skill or reference. Use `spawn_subagent` with `background: false` for those
 workers. A continue-spawned performer is at depth 1 and must run every
 phase leaf as a same-session checklist. Do not start Grok subprocesses

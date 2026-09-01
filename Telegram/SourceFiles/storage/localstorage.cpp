@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_instance.h"
 
 #include <QtCore/QDirIterator>
+#include <QtCore/QSaveFile>
 
 #ifndef Q_OS_WIN
 #include <unistd.h>
@@ -583,6 +584,55 @@ QString readAutoupdatePrefix() {
 	static const auto RegExp = QRegularExpression("/+$");
 	auto result = readAutoupdatePrefixRaw();
 	return result.replace(RegExp, QString());
+}
+
+QString updateManifestFile() {
+	Expects(!Core::UpdaterDisabled());
+
+	return cWorkingDir() + "tdata/update-manifest";
+}
+
+// The file holds the detached 64-byte root Ed25519 signature followed by
+// the manifest JSON verbatim. The content is attacker-reachable bytes as
+// far as readers are concerned: the caller verifies it against the pinned
+// root key after reading.
+void writeUpdateManifest(
+		const QByteArray &manifest,
+		const QByteArray &signature) {
+	if (Core::UpdaterDisabled()
+		|| signature.size() != 64
+		|| manifest.isEmpty()) {
+		return;
+	}
+	QSaveFile f(updateManifestFile());
+	if (!f.open(QIODevice::WriteOnly)
+		|| f.write(signature) != signature.size()
+		|| f.write(manifest) != manifest.size()
+		|| !f.commit()) {
+		LOG(("Storage Error: Could not write the update manifest."));
+	}
+}
+
+bool readUpdateManifest(QByteArray *manifest, QByteArray *signature) {
+	Expects(manifest != nullptr && signature != nullptr);
+
+	if (Core::UpdaterDisabled()) {
+		return false;
+	}
+	QFile f(updateManifestFile());
+	if (!f.open(QIODevice::ReadOnly)) {
+		return false;
+	}
+	constexpr auto kSignatureSize = 64;
+	constexpr auto kMaxManifestSize = 256 * 1024;
+	const auto content = f.readAll();
+	if (content.size() <= kSignatureSize
+		|| content.size() > kSignatureSize + kMaxManifestSize) {
+		return false;
+	}
+	*signature = content.left(kSignatureSize);
+	*manifest = content.mid(kSignatureSize);
+	return true;
 }
 
 void writeBackground(const Data::WallPaper &paper, const QImage &image) {

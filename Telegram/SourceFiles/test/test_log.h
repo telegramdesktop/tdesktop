@@ -20,8 +20,22 @@ namespace Test {
 void LogRaw(const QString &line);
 
 void Step(const QString &text);
-void Pass(const QString &text);
+// A PASS and a FAIL line have the same shape: |details| is appended after
+// " - " on both verdicts, and an empty |details| produces exactly
+// "TEST_RESULT: <verdict>: <text>", with no separator and no empty suffix.
+void Pass(const QString &text, const QString &details = QString());
 void Fail(const QString &text, const QString &details = QString());
+
+// |details| is an observation - the reading the verdict was made against -
+// and it is printed whether the check holds or not, so a green log says what
+// each check reached and a passing run can be audited without re-running it.
+// It used to be written only on the failing branch, which is what attempt 2
+// of 2026/08/26/add-wallet-refresh-readiness-helper was spent on: that
+// self-test passed its observations here, printed none of them, and two of
+// its acceptance criteria could not be read from its own green log.
+// Text that is only true after a failure is therefore conditional at the
+// call site - ok ? QString() : u"out of tolerance"_q - which leaves the
+// passing line exactly "TEST_RESULT: PASS: <what>".
 void Check(bool ok, const QString &what, const QString &details = QString());
 void Note(const QString &text);
 

@@ -477,6 +477,7 @@ private:
 	void refreshInfoSkipBlock(HistoryItem *textItem);
 	[[nodiscard]] int monospaceMaxWidth() const;
 	[[nodiscard]] int bubbleTextWidth(int bubbleWidth) const;
+	[[nodiscard]] int richPageDemandedTextWidth() const;
 	[[nodiscard]] int bubbleTextualWidth() const;
 
 	void ensureSummarizeButton() const;
@@ -510,8 +511,8 @@ private:
 	void psaTooltipToggled(bool shown) const;
 	void invalidateTextDependentCache() override;
 
-	bool textAppearValidate(not_null<TextAppearing*> appearing);
-	bool textAppearCheckLine(not_null<TextAppearing*> appearing);
+	bool textAppearValidate();
+	bool textAppearCheckLine();
 	void textAppearStartWidthAnimation(not_null<TextAppearing*> appearing);
 	void textAppearStartHeightAnimation(
 		not_null<TextAppearing*> appearing,

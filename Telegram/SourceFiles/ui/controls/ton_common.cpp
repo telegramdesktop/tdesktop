@@ -215,6 +215,8 @@ not_null<Ui::InputField*> CreateTonAmountInput(
 		(amount > 0
 			? FormatTonAmount(amount, TonFormatFlag::Simple).full
 			: QString()));
+	result->setInputMethodHints(Qt::ImhFormattedNumbersOnly
+		| Qt::ImhNoPredictiveText);
 	const auto lastAmountValue = std::make_shared<QString>();
 	result->changes() | rpl::on_next([=] {
 		Ui::PostponeCall(result, [=] {

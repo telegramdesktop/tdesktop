@@ -1,0 +1,1643 @@
+# Canary channel: single Release+LTO build per platform (Windows x64,
+# universal macOS, Linux x64 through docker), signed, packed as v2
+# updates and published via a local Bot API server.
+#
+# Each repository builds exactly ONE lane from its own branch: the
+# public repository builds canary-public from 'public-canary', the
+# private one builds canary-private from 'private-canary'. The lane
+# follows repository visibility and can be overridden with the
+# repository variable CANARY_CHANNEL ("public" or "private"); the branch
+# name must then be '<lane>-canary', so a branch pushed to the wrong
+# repository is refused, and the private lane refuses to run from a
+# public repository no matter what. A repository holds only its own
+# lane's secrets, and its 'canary' environment admits only its own
+# branch.
+#
+# Infrastructure this workflow needs before its first real run, all under
+# the 'canary' environment unless noted. Placeholders, do not invent values:
+#
+# Both repositories:
+#   vars.CANARY_CHANNEL
+#       Optional lane override, see above. Normally left unset.
+#   secrets.CANARY_API_ID / secrets.CANARY_API_HASH
+#       Production Telegram API credentials for the canary app builds.
+#   secrets.CANARY_BOT_TOKEN
+#       Bot admin in this lane's channel (posts files, edits metadata).
+#   secrets.AZURE_CLIENT_ID / secrets.AZURE_TENANT_ID
+#       This lane's Entra federated credential for OIDC az login
+#       (id-token: write).
+#   secrets.AZURE_KEYVAULT_NAME
+#       Key Vault holding this lane's canary ES256 key.
+#   secrets.SM_API_KEY / secrets.SM_CLIENT_CERT_FILE_B64 /
+#   secrets.SM_CLIENT_CERT_PASSWORD / secrets.SM_HOST /
+#   secrets.SM_KEYPAIR_ALIAS
+#       DigiCert KeyLocker (smctl) for Windows Authenticode.
+#   secrets.MACOS_CERTIFICATE_P12_B64 / secrets.MACOS_CERTIFICATE_PASSWORD /
+#   secrets.MACOS_KEYCHAIN_PASSWORD / secrets.MACOS_SIGN_IDENTITY
+#       Developer ID Application certificate for codesign.
+#   secrets.NOTARY_APPLE_ID / secrets.NOTARY_TEAM_ID / secrets.NOTARY_PASSWORD
+#       notarytool credentials.
+#   secrets.R2_ACCOUNT_ID / secrets.R2_ACCESS_KEY_ID /
+#   secrets.R2_SECRET_ACCESS_KEY / vars.R2_SYMBOLS_BUCKET
+#       Cloudflare R2 bucket for breakpad symbols (upload placeholder).
+#   vars.CANARY_COUNTER_BASE
+#       Optional offset added to github.run_number for the build counter
+#       (to stay above counters published by an earlier workflow).
+#   vars.CANARY_CPPGIR_MIRROR
+#       Optional git URL replacing https://gitlab.com/mnauw/cppgir.git
+#       for the Linux job's nested submodule clone. gitlab.com refuses
+#       (HTTP 403) the Depot runners this workflow uses; a mirror of
+#       that repository on github.com is the way around it.
+#   vars.CANARY_BOT_API_IMAGE
+#       Digest-pinned Bot API server image built from a pinned
+#       tdlib/telegram-bot-api ref by canary-bot-api.yml, e.g.
+#       ghcr.io/<org>/telegram-bot-api@sha256:<digest>. Never point this
+#       at a third-party image: the container handles the bot token and
+#       every published update file.
+#
+# Public repository only:
+#   vars.CANARY_PUBLIC_CHANNEL_ID
+#       Public channel id for the Bot API calls, bare or in the -100
+#       form — the version job normalises it.
+#   vars.CANARY_PUBLIC_CHANNEL_USERNAME
+#       Public channel username compiled into canary-public builds.
+#   vars.CANARY_METADATA_MSG_ID_WIN64 / _MAC / _LINUX
+#       Fixed ids of the three per-platform metadata messages in the
+#       public channel (each platform's builds compile in their own id;
+#       the mac message serves both mac and armac).
+#   vars.CANARY_SIGNING_KEY_ID
+#       Manifest key id embedded in the update ("cp-2026a").
+#   vars.CANARY_AZURE_KEY_NAME
+#       Key Vault key name holding that key ("canary-public-2026a");
+#       defaults to CANARY_SIGNING_KEY_ID when unset.
+#
+# Private repository only:
+#   vars.CANARY_PRIVATE_CHANNEL_ID
+#       Bare numeric id of the private channel: it is compiled into
+#       canary-private builds for discovery, so unlike the public one it
+#       must stay bare even though publishing uses the -100 form.
+#   vars.CANARY_PRIVATE_METADATA_MSG_ID_WIN64 / _MAC / _LINUX
+#       Fixed ids of the three per-platform metadata messages in the
+#       private channel.
+#   vars.CANARY_PRIVATE_SIGNING_KEY_ID
+#       Manifest key id embedded in the update ("cx-2026a").
+#   vars.CANARY_PRIVATE_AZURE_KEY_NAME
+#       Key Vault key name holding that key ("canary-private-2026a");
+#       defaults to CANARY_PRIVATE_SIGNING_KEY_ID when unset.
+#   vars.CANARY_ALLOW_UNSIGNED
+#       Bring-up only: "1" publishes without Windows/macOS platform
+#       signatures (the v2 envelope is still signed, and the posts say
+#       "UNSIGNED test build"). Honoured on both lanes, so on the public
+#       one it puts unsigned binaries in front of real subscribers —
+#       remove the variable the moment KeyLocker and the Apple
+#       certificate exist.
+#
+# Every platform publishes on its own as soon as its build is done
+# (publish-win64 / publish-mac / publish-linux): a failing or slow build
+# on one platform never holds the others back. Each platform owns one
+# metadata message and is its only writer, so nothing is ever read back
+# or merged. The counter is github.run_number, monotonic per workflow.
+#
+# Publishing no-ops cleanly while CANARY_BOT_TOKEN is absent, so the
+# workflow can run before the bots/channels/KeyLocker exist.
+
+name: Canary.
+
+on:
+  push:
+    branches:
+      - public-canary
+      - private-canary
+
+concurrency:
+  group: canary-publish
+  cancel-in-progress: false
+
+# The OIDC token that mints Key Vault signatures is granted per job to
+# the three packing jobs only, nothing else can request it.
+permissions:
+  contents: read
+
+jobs:
+
+  version:
+    name: Version
+    runs-on: depot-ubuntu-latest
+    environment: canary
+    # Belt and braces next to the environment branch policy: the secrets
+    # are never even requested from a run that is not a push to a canary
+    # branch (the lane check below then pins the branch to the lane).
+    if: >-
+      github.event_name == 'push'
+      && (github.ref == 'refs/heads/public-canary'
+      || github.ref == 'refs/heads/private-canary')
+
+    permissions:
+      contents: read
+      actions: read
+
+    outputs:
+      channel: ${{ steps.compute.outputs.channel }}
+      chat_id: ${{ steps.compute.outputs.chat_id }}
+      base: ${{ steps.compute.outputs.base }}
+      commit: ${{ steps.compute.outputs.commit }}
+      counter: ${{ steps.compute.outputs.counter }}
+      previous: ${{ steps.compute.outputs.previous }}
+      publish: ${{ steps.compute.outputs.publish }}
+      unsigned: ${{ steps.compute.outputs.unsigned }}
+      version_str: ${{ steps.compute.outputs.version_str }}
+      suffix: ${{ steps.compute.outputs.suffix }}
+      folder: ${{ steps.compute.outputs.folder }}
+
+    steps:
+      - name: Clone.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # Full history: the changelog walks commits and the pipeline
+          # must survive force-pushes and rebases of the lane's branch.
+          fetch-depth: 0
+
+      - name: Compute canary version.
+        id: compute
+        env:
+          BOT_TOKEN: ${{ secrets.CANARY_BOT_TOKEN }}
+          PUBLIC_CHANNEL: ${{ vars.CANARY_PUBLIC_CHANNEL_ID }}
+          PRIVATE_CHANNEL: ${{ vars.CANARY_PRIVATE_CHANNEL_ID }}
+          PUBLIC_MSG_IDS: ${{ vars.CANARY_METADATA_MSG_ID_WIN64 }} ${{ vars.CANARY_METADATA_MSG_ID_MAC }} ${{ vars.CANARY_METADATA_MSG_ID_LINUX }}
+          PRIVATE_MSG_IDS: ${{ vars.CANARY_PRIVATE_METADATA_MSG_ID_WIN64 }} ${{ vars.CANARY_PRIVATE_METADATA_MSG_ID_MAC }} ${{ vars.CANARY_PRIVATE_METADATA_MSG_ID_LINUX }}
+          CHANNEL_OVERRIDE: ${{ vars.CANARY_CHANNEL }}
+          ALLOW_UNSIGNED: ${{ vars.CANARY_ALLOW_UNSIGNED }}
+          COUNTER_BASE: ${{ vars.CANARY_COUNTER_BASE }}
+          REPO_IS_PRIVATE: ${{ github.event.repository.private }}
+          BOT_API_IMAGE: ${{ vars.CANARY_BOT_API_IMAGE }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # A re-run of an older run would read the live counter and
+          # republish old code as a newer version: only the current tip
+          # of the lane's branch may become a canary.
+          if [ "$GITHUB_SHA" != "$(git rev-parse "origin/$GITHUB_REF_NAME")" ]; then
+            echo "::error::$GITHUB_SHA is not the tip of $GITHUB_REF_NAME, refusing to publish old code as a new version."
+            exit 1
+          fi
+
+          CHANNEL="$CHANNEL_OVERRIDE"
+          if [ -z "$CHANNEL" ]; then
+            if [ "$REPO_IS_PRIVATE" = "true" ]; then
+              CHANNEL=private
+            else
+              CHANNEL=public
+            fi
+          fi
+          case "$CHANNEL" in
+            public|private) ;;
+            *)
+              echo "::error::Bad CANARY_CHANNEL value '$CHANNEL'."
+              exit 1
+              ;;
+          esac
+          if [ "$CHANNEL" = "private" ] && [ "$REPO_IS_PRIVATE" != "true" ]; then
+            echo "::error::The private canary lane only builds from the private repository."
+            exit 1
+          fi
+          if [ "$GITHUB_REF_NAME" != "$CHANNEL-canary" ]; then
+            echo "::error::Branch '$GITHUB_REF_NAME' is not this repository's $CHANNEL lane branch ('$CHANNEL-canary'), refusing to build it here."
+            exit 1
+          fi
+          echo "channel=$CHANNEL" >> $GITHUB_OUTPUT
+          if [ "$CHANNEL" = "public" ]; then
+            CHAT_ID="$PUBLIC_CHANNEL"
+            MSG_IDS="$PUBLIC_MSG_IDS"
+          else
+            CHAT_ID="$PRIVATE_CHANNEL"
+            MSG_IDS="$PRIVATE_MSG_IDS"
+          fi
+
+          # Either lane's id may be stored the way Telegram clients show
+          # it (bare, which is also the form compiled into canary-private
+          # builds) or already in the -100 form the Bot API requires.
+          # Normalised here once; the publish jobs take the result as an
+          # output instead of repeating the rule.
+          case "$CHAT_ID" in
+            ''|-100*) ;;
+            *) CHAT_ID="-100${CHAT_ID#-}" ;;
+          esac
+          echo "chat_id=$CHAT_ID" >> $GITHUB_OUTPUT
+
+          while IFS=' ' read -r name value; do
+            [ "$name" = "AppVersion" ] && BASE="$value"
+            [ "$name" = "AppVersionStr" ] && VERSION_STR="$value"
+          done < Telegram/build/version
+          # File names always carry all three components (7.0.0, never
+          # 7.0): that is AppVersionStr, while AppVersionStrSmall drops a
+          # zero patch.
+          if ! [[ "$VERSION_STR" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::AppVersionStr '$VERSION_STR' is not a three-component version."
+            exit 1
+          fi
+          echo "base=$BASE" >> $GITHUB_OUTPUT
+          echo "version_str=$VERSION_STR" >> $GITHUB_OUTPUT
+          echo "commit=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+          PUBLISH=false
+          if [ -n "$BOT_TOKEN" ]; then
+            PUBLISH=true
+          fi
+          echo "publish=$PUBLISH" >> $GITHUB_OUTPUT
+
+          # Bring-up escape hatch: publish builds without platform
+          # signatures (the v2 envelope is still signed). Set per lane in
+          # that lane's environment, so the public lane needs its own
+          # deliberate opt-in — which still means unsigned binaries in a
+          # channel real people subscribe to.
+          UNSIGNED=false
+          if [ "$ALLOW_UNSIGNED" = "1" ]; then
+            UNSIGNED=true
+            echo "::warning::CANARY_ALLOW_UNSIGNED=1: this run publishes canary-$CHANNEL binaries WITHOUT platform signatures."
+          fi
+          echo "unsigned=$UNSIGNED" >> $GITHUB_OUTPUT
+
+          # The counter is the workflow run number: monotonic per workflow
+          # and repository, never reused, independent of branch history
+          # and of anything stored in the channel. Ordering is the u64
+          # (base << 32 | counter), so it never needs to restart at a base
+          # bump. A re-run of the same tip yields the same counter, which
+          # clients that already installed it simply ignore.
+          if ! [[ "${COUNTER_BASE:-0}" =~ ^[0-9]+$ ]]; then
+            echo "::error::CANARY_COUNTER_BASE must be a non-negative integer."
+            exit 1
+          fi
+          COUNTER=$((GITHUB_RUN_NUMBER + ${COUNTER_BASE:-0}))
+
+          # File names: td-update-{os}-{arch}-{base}{suffix} and
+          # td-portable-{os}[-{arch}]-{version_str}{suffix}.{ext}, with the
+          # archive's top-level folder named after the lane.
+          SUFFIX="-canary-$COUNTER"
+          FOLDER="td-canary"
+          if [ "$CHANNEL" = "private" ]; then
+            SUFFIX="$SUFFIX-private"
+            FOLDER="$FOLDER-private"
+          fi
+          echo "suffix=$SUFFIX" >> $GITHUB_OUTPUT
+          echo "folder=$FOLDER" >> $GITHUB_OUTPUT
+
+          # The changelog covers the commits since the previous completed
+          # run of this workflow on the branch (a platform that skipped a
+          # run misses a few lines, nothing more).
+          PREVIOUS=$(curl -sf \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/canary.yml/runs?branch=$GITHUB_REF_NAME&status=completed&per_page=5" \
+            | jq -r --argjson id "$GITHUB_RUN_ID" \
+              '[.workflow_runs[] | select(.id != $id)][0].head_sha // empty' \
+            || true)
+
+          if [ "$PUBLISH" = "true" ]; then
+            if [ -z "$CHAT_ID" ] || [ "$CHAT_ID" = "-100" ]; then
+              echo "::error::The lane's channel id is required when publishing."
+              exit 1
+            fi
+            set -- $MSG_IDS
+            if [ "$#" != 3 ]; then
+              echo "::error::All three per-platform metadata message ids (WIN64, MAC, LINUX) are required when publishing."
+              exit 1
+            fi
+            if ! [[ "$BOT_API_IMAGE" =~ ^ghcr\.io/[A-Za-z0-9._/-]+@sha256:[0-9a-f]{64}$ ]]; then
+              echo "::error::vars.CANARY_BOT_API_IMAGE must be a digest-pinned ghcr.io reference."
+              exit 1
+            fi
+          fi
+          echo "counter=$COUNTER" >> $GITHUB_OUTPUT
+          echo "previous=$PREVIOUS" >> $GITHUB_OUTPUT
+          echo "Canary lane: canary-$CHANNEL, version $BASE #$COUNTER (publish: $PUBLISH)"
+
+  windows:
+    name: Windows x64 (${{ needs.version.outputs.channel }})
+    runs-on: depot-windows-latest-32
+    needs: version
+    environment: canary
+
+    permissions:
+      contents: read
+      id-token: write
+
+    # win-arm64 is phase 2: add an arch matrix here together with the
+    # windows-11-arm runner and the VS ARM64 build tools steps from
+    # win.yml when the canary channels grow an arm feed.
+
+    outputs:
+      signed: ${{ steps.sign.outputs.signed }}
+
+    env:
+      PREPARE_PATH: "Telegram/build/prepare/prepare.py"
+
+    defaults:
+      run:
+        shell: cmd
+
+    steps:
+      - name: Prepare directories.
+        run: |
+          mkdir %userprofile%\TBuild\Libraries
+          mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
+          echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
+          echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries\win64>>%GITHUB_ENV%
+
+      - name: Get repository name.
+        shell: bash
+        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
+
+      - name: Git auth through the TBuild symlink.
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          # actions/checkout persists its auth header in the repository's
+          # local git config, which does not take effect for a checkout
+          # path that goes through the TBuild directory symlink: on the
+          # public repository the fetch needs no credentials, on the
+          # private one it fails with "could not read Username". The same
+          # header passed through the environment applies to every git
+          # call of the checkout step regardless of the path.
+          BASIC=$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)
+          echo "::add-mask::$BASIC"
+          echo "GIT_AUTH_HEADER=AUTHORIZATION: basic $BASIC" >> $GITHUB_ENV
+
+      - name: Clone.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        env:
+          GIT_CONFIG_COUNT: 1
+          GIT_CONFIG_KEY_0: http.https://github.com/.extraheader
+          GIT_CONFIG_VALUE_0: ${{ env.GIT_AUTH_HEADER }}
+        with:
+          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
+
+      - name: Submodules.
+        shell: bash
+        run: |
+          # Separate from the clone on purpose: with submodules enabled
+          # actions/checkout adds its own Authorization header on top of
+          # the one above and GitHub rejects the duplicate. The submodules
+          # are public repositories and need no credentials.
+          #
+          # Not recursive: the only nested submodule any build needs is
+          # cmake/external/glib/cppgir, which cmake/external adds under
+          # if (LINUX) — so Windows and macOS never compile it. Skipping
+          # it keeps gitlab.com, which regularly answers 403 to cloud
+          # runners, out of these jobs; the other nested submodules are
+          # documentation (range-v3 gh-pages, libcbor doxygen-theme).
+          cd $TBUILD/$REPO_NAME
+          git submodule update --init --depth=1
+
+      - name: Read canary configuration.
+        shell: bash
+        run: |
+          echo "CANARY_COUNTER=${{ needs.version.outputs.counter }}" >> $GITHUB_ENV
+          if [ "${{ needs.version.outputs.channel }}" = "public" ]; then
+            echo "CANARY_SUFFIX=${{ needs.version.outputs.suffix }}" >> $GITHUB_ENV
+            echo "CANARY_VERSION=${{ needs.version.outputs.version_str }}" >> $GITHUB_ENV
+            echo "CANARY_FOLDER=${{ needs.version.outputs.folder }}" >> $GITHUB_ENV
+            echo "CANARY_KEY_ID=${{ vars.CANARY_SIGNING_KEY_ID }}" >> $GITHUB_ENV
+            echo "CANARY_AZ_KEY=${{ vars.CANARY_AZURE_KEY_NAME || vars.CANARY_SIGNING_KEY_ID }}" >> $GITHUB_ENV
+            echo "CANARY_DEFINES=-D TDESKTOP_UPDATE_CHANNEL=canary-public -D TDESKTOP_CANARY_PUBLIC_CHANNEL=${{ vars.CANARY_PUBLIC_CHANNEL_USERNAME }} -D TDESKTOP_CANARY_METADATA_MSG_ID=${{ vars.CANARY_METADATA_MSG_ID_WIN64 }}" >> $GITHUB_ENV
+          else
+            echo "CANARY_SUFFIX=${{ needs.version.outputs.suffix }}" >> $GITHUB_ENV
+            echo "CANARY_VERSION=${{ needs.version.outputs.version_str }}" >> $GITHUB_ENV
+            echo "CANARY_FOLDER=${{ needs.version.outputs.folder }}" >> $GITHUB_ENV
+            echo "CANARY_KEY_ID=${{ vars.CANARY_PRIVATE_SIGNING_KEY_ID }}" >> $GITHUB_ENV
+            echo "CANARY_AZ_KEY=${{ vars.CANARY_PRIVATE_AZURE_KEY_NAME || vars.CANARY_PRIVATE_SIGNING_KEY_ID }}" >> $GITHUB_ENV
+            echo "CANARY_DEFINES=-D TDESKTOP_UPDATE_CHANNEL=canary-private -D TDESKTOP_CANARY_PRIVATE_CHANNEL_ID=${{ vars.CANARY_PRIVATE_CHANNEL_ID }} -D TDESKTOP_CANARY_METADATA_MSG_ID=${{ vars.CANARY_PRIVATE_METADATA_MSG_ID_WIN64 }}" >> $GITHUB_ENV
+          fi
+
+      - name: First set up.
+        shell: bash
+        run: |
+          DOCPATH=$TBUILD/$REPO_NAME/docs/building-win.md
+          SDK="$(grep "SDK version" $DOCPATH | sed -r 's/.*\*\*(.*)\*\* SDK version.*/\1/')"
+          echo "SDK=$SDK" >> $GITHUB_ENV
+
+          sed -i '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/${_Zi}//' "$PROGRAMFILES"/CMake/share/cmake*/Modules/Platform/Windows-MSVC.cmake
+
+          echo "$(sha256sum $TBUILD/$REPO_NAME/$PREPARE_PATH | awk '{ print $1 }')" >> CACHE_KEY.txt
+          echo "$SDK" >> CACHE_KEY.txt
+          echo "CACHE_KEY=$(sha256sum CACHE_KEY.txt | awk '{ print $1 }')" >> $GITHUB_ENV
+
+          echo "Configurate git for cherry-picks."
+          git config --global user.email "you@example.com"
+          git config --global user.name "Sample"
+
+      # Visual Studio 2026 ships ATL for its current toolset, but this job
+      # deliberately selects the v143 14.44 compatibility toolset. Install
+      # that matching ATL package so a cold dependency cache can build
+      # breakpad's dump_syms instead of relying on a cached binary.
+      - name: Visual Studio ATL component.
+        shell: pwsh
+        run: |
+          $installer = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer'
+          $vswhere = Join-Path $installer 'vswhere.exe'
+          $setup = Join-Path $installer 'setup.exe'
+          if (-not (Test-Path $vswhere) -or -not (Test-Path $setup)) {
+            throw "Visual Studio Installer is incomplete at $installer."
+          }
+
+          $toolsComponent = 'Microsoft.VisualStudio.Component.VC.14.44.17.14.x86.x64'
+          $atlComponent = 'Microsoft.VisualStudio.Component.VC.14.44.17.14.ATL'
+          $path = @(& $vswhere -latest -products '*' -requires $toolsComponent -property installationPath)[0]
+          if (-not $path) {
+            throw "No Visual Studio instance provides $toolsComponent."
+          }
+
+          $toolset = Get-ChildItem (Join-Path $path 'VC\Tools\MSVC') -Directory `
+            | Where-Object { $_.Name -like '14.44.*' } `
+            | Sort-Object Name -Descending `
+            | Select-Object -First 1
+          if (-not $toolset) {
+            throw "The selected Visual Studio instance has no 14.44 toolset."
+          }
+          $header = Join-Path $toolset.FullName 'atlmfc\include\atlbase.h'
+          if (Test-Path $header) {
+            Write-Host "ATL is already installed for $($toolset.Name)."
+            exit 0
+          }
+
+          $process = Start-Process -FilePath $setup -Wait -PassThru -ArgumentList @(
+            'modify',
+            '--installPath', "`"$path`"",
+            '--add', $atlComponent,
+            '--quiet', '--norestart', '--nocache'
+          )
+          if ($process.ExitCode -notin @(0, 3010)) {
+            throw "Visual Studio Installer exited with $($process.ExitCode)."
+          }
+          if (-not (Test-Path $header)) {
+            throw "$atlComponent completed without installing $header."
+          }
+      # Pinned to a commit (master as of 2026-04-01): this job holds the
+      # platform-signing credentials and the OIDC token, a floating tag
+      # would let a third party run code next to them.
+      - uses: Eden-CI/msvc-dev-cmd@1bd71f95d6f3d1b2b3395b335cc63bcdc90cf223
+        name: Native Tools Command Prompt.
+        with:
+          arch: x64
+          sdk: ${{ env.SDK }}
+          toolset: '14.44'
+
+      - name: Verify Visual Studio ATL component.
+        shell: pwsh
+        run: |
+          $atlInclude = Join-Path $env:VCToolsInstallDir 'atlmfc\include'
+          $header = Join-Path $atlInclude 'atlbase.h'
+          if (-not (Test-Path $header)) {
+            throw "The selected toolset has no ATL header at $header."
+          }
+          if (($env:INCLUDE -split ';') -notcontains $atlInclude) {
+            throw "The selected toolset did not add $atlInclude to INCLUDE."
+          }
+
+      - name: NuGet sources.
+        run: |
+          nuget sources Disable -Name "Microsoft Visual Studio Offline Packages"
+          nuget sources Add -Source https://api.nuget.org/v3/index.json & exit 0
+
+      # The caches are restored/saved explicitly (not via the combined
+      # actions/cache) because the combined action only saves in a post
+      # step gated on job success: any later build or packing failure
+      # would discard hours of library builds. The explicit saves below
+      # run right after the libraries are pruned, before the fragile
+      # steps.
+      - name: ThirdParty cache.
+        id: cache-third-party
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ${{ env.TBUILD }}\ThirdParty
+          key: ${{ runner.OS }}-${{ runner.arch }}-third-party-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-${{ runner.arch }}-third-party-
+
+      - name: Libraries cache.
+        id: cache-libs
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\*
+            !${{ env.LibrariesPath }}\cache_keys
+            !${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\*
+            !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.OS }}-x64-libs-v2rel-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-x64-libs-v2rel-
+
+      - name: Qt cache.
+        id: cache-qt
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.OS }}-x64-qtrel-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-x64-qtrel-
+
+      - name: Libraries.
+        run: |
+          %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat silent
+
+      - name: Generate a stub DesktopPrivate.
+        shell: bash
+        run: |
+          # The Packer target includes packer_private.h at build time, but
+          # v2 canary packing never uses the v1 RSA keys, so random junk
+          # is enough (same approach as the nightly Release builds).
+          mkdir -p $TBUILD/DesktopPrivate
+          random_key() {
+            printf -- '-----BEGIN RSA PRIVATE KEY-----\\n%s\\n-----END RSA PRIVATE KEY-----\\n' \
+              "$(head -c 96 /dev/urandom | base64 | tr -d '\n')"
+          }
+          printf 'const char *PrivateKey = "%s";\nconst char *PrivateBetaKey = "%s";\n' \
+            "$(random_key)" "$(random_key)" > $TBUILD/DesktopPrivate/packer_private.h
+          printf 'static const char *AlphaPrivateKey = "%s";\n' \
+            "$(random_key)" > $TBUILD/DesktopPrivate/alpha_private.h
+
+      - name: Free up some disk space.
+        shell: bash
+        run: find $LibrariesPath '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -path '*/nv-codec-headers/*' ')' -type f ')' -o -empty ')' -delete
+
+      - name: Save ThirdParty cache.
+        if: steps.cache-third-party.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ${{ env.TBUILD }}\ThirdParty
+          key: ${{ steps.cache-third-party.outputs.cache-primary-key }}
+
+      - name: Save Libraries cache.
+        if: steps.cache-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\*
+            !${{ env.LibrariesPath }}\cache_keys
+            !${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\*
+            !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ steps.cache-libs.outputs.cache-primary-key }}
+
+      - name: Save Qt cache.
+        if: steps.cache-qt.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ steps.cache-qt.outputs.cache-primary-key }}
+
+      - name: Telegram Desktop build.
+        run: |
+          cd %TBUILD%\%REPO_NAME%\Telegram
+
+          call configure.bat ^
+          x64 ^
+          -D TDESKTOP_API_ID=${{ secrets.CANARY_API_ID }} ^
+          -D TDESKTOP_API_HASH=${{ secrets.CANARY_API_HASH }} ^
+          -D CMAKE_CONFIGURATION_TYPES=Release ^
+          -D DESKTOP_APP_SPECIAL_TARGET=win64 ^
+          -D DESKTOP_APP_ENABLE_LTO=ON ^
+          -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF ^
+          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF ^
+          -D TDESKTOP_CANARY_COUNTER=%CANARY_COUNTER% ^
+          -D TDESKTOP_CANARY_COMMIT=${{ needs.version.outputs.commit }} ^
+          %CANARY_DEFINES%
+
+          cmake --build ..\out --config Release --parallel
+
+      - name: Dump debug symbols.
+        shell: bash
+        run: |
+          # Pre-strip (PDBs are separate on Windows anyway): breakpad
+          # layout MODULE/DEBUG_ID/MODULE.sym for the crash server.
+          cd $TBUILD/$REPO_NAME/out/Release
+          DUMP=$TBUILD/Libraries/win64/breakpad/src/tools/windows/dump_syms/Release/dump_syms.exe
+          mkdir -p symbols
+          for MODULE in Telegram Updater; do
+            "$DUMP" $MODULE.pdb > $MODULE.sym
+            DEBUG_ID=$(head -n 1 $MODULE.sym | awk '{ print $4 }')
+            mkdir -p symbols/$MODULE.pdb/$DEBUG_ID
+            mv $MODULE.sym symbols/$MODULE.pdb/$DEBUG_ID/
+          done
+          # TODO(canary-infra): upload out/Release/symbols/ to R2, e.g.
+          # aws s3 sync symbols/ s3://$R2_SYMBOLS_BUCKET/ \
+          #   --endpoint-url https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com
+
+      - name: Sign binaries.
+        id: sign
+        shell: bash
+        env:
+          SM_API_KEY: ${{ secrets.SM_API_KEY }}
+          SM_CLIENT_CERT_FILE_B64: ${{ secrets.SM_CLIENT_CERT_FILE_B64 }}
+          SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
+          SM_HOST: ${{ secrets.SM_HOST }}
+          SM_KEYPAIR_ALIAS: ${{ secrets.SM_KEYPAIR_ALIAS }}
+        run: |
+          cd $TBUILD/$REPO_NAME/out/Release
+          if [ -z "$SM_API_KEY" ]; then
+            if [ "${{ needs.version.outputs.publish }}" = "true" ] \
+              && [ "${{ needs.version.outputs.unsigned }}" != "true" ]; then
+              echo "::error::Publishing requires the KeyLocker secrets, unsigned binaries never ship."
+              exit 1
+            fi
+            echo "::warning::KeyLocker secrets absent, leaving binaries unsigned."
+            echo "signed=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          # TODO(canary-infra): install the DigiCert KeyLocker tools once
+          # the account exists. The signing itself is:
+          echo "$SM_CLIENT_CERT_FILE_B64" | base64 -d > /tmp/keylocker.p12
+          export SM_CLIENT_CERT_FILE=/tmp/keylocker.p12
+          smctl sign --keypair-alias "$SM_KEYPAIR_ALIAS" --input Telegram.exe
+          smctl sign --keypair-alias "$SM_KEYPAIR_ALIAS" --input Updater.exe
+          # Both binaries are verified here, on the exact bytes that get
+          # packed: Updater.exe travels only inside the update envelope,
+          # the publish job can re-check just the portable's Telegram.exe.
+          signtool verify /pa /all Telegram.exe
+          signtool verify /pa /all Updater.exe
+          echo "signed=true" >> $GITHUB_OUTPUT
+
+      - name: Azure login for update signing.
+        if: needs.version.outputs.publish == 'true'
+        uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Pack v2 update and portable.
+        shell: bash
+        run: |
+          cd $TBUILD/$REPO_NAME/out/Release
+          BASE=${{ needs.version.outputs.base }}
+          # Unlike releases, canary does not bundle d3dcompiler_47.dll:
+          # the release copy is a pinned known-good build for Windows 7,
+          # while CI would grab whatever the runner's SDK ships. Canary
+          # machines use the system compiler dll.
+          ./Packer.exe -path Telegram.exe -path Updater.exe \
+            -target win64 \
+            -version $BASE \
+            -channel canary-${{ needs.version.outputs.channel }} \
+            -counter $CANARY_COUNTER \
+            -keys-loc ../../Telegram/Resources/update \
+            -emit-signing-input signing-input.bin
+          if [ "${{ needs.version.outputs.publish }}" = "true" ]; then
+            python3 ../../Telegram/build/sign_update.py \
+              --input signing-input.bin \
+              --output canary.sig \
+              --az-vault "${{ secrets.AZURE_KEYVAULT_NAME }}" \
+              --az-key "$CANARY_AZ_KEY"
+            ./Packer.exe -channel canary-${{ needs.version.outputs.channel }} \
+              -keys-loc ../../Telegram/Resources/update \
+              -unsigned td-update-win-x64-$BASE$CANARY_SUFFIX.unsigned \
+              -embed-signatures $CANARY_KEY_ID:canary.sig
+            rm td-update-win-x64-$BASE$CANARY_SUFFIX.unsigned signing-input.bin canary.sig
+            UPDATE=td-update-win-x64-$BASE$CANARY_SUFFIX
+          else
+            echo "::warning::No publish secrets, keeping the unsigned envelope only."
+            UPDATE=td-update-win-x64-$BASE$CANARY_SUFFIX.unsigned
+          fi
+
+          # The first-install artifact is a portable-style archive (like
+          # the alpha builds): the TelegramForcePortable folder keeps the
+          # canary's tdata next to the binary, never touching a normal
+          # installation. The .keep file stops unpackers that skip empty
+          # folders from dropping it.
+          PORTABLE=td-portable-win-x64-$CANARY_VERSION$CANARY_SUFFIX.zip
+          rm -rf portable
+          mkdir -p portable/$CANARY_FOLDER/TelegramForcePortable
+          touch portable/$CANARY_FOLDER/TelegramForcePortable/.keep
+          cp Telegram.exe portable/$CANARY_FOLDER/
+          (cd portable && 7z a -mx9 ../$PORTABLE $CANARY_FOLDER/)
+
+          mkdir -p artifact/update artifact/portable
+          mv $UPDATE artifact/update/
+          mv $PORTABLE artifact/portable/
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        name: Upload the update.
+        with:
+          name: canary-win64
+          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}\out\Release\artifact\update\
+          retention-days: 7
+
+      # The portable is its own artifact so its link can be handed to a
+      # user in an issue; on the private lane it is transport to the
+      # publish job only.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        name: Upload the portable.
+        with:
+          name: canary-win64-portable
+          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}\out\Release\artifact\portable\
+          retention-days: 7
+
+  # Two single-arch builds, lipo'd back together by the 'macos' job
+  # below: half the wall clock and half the peak linker memory of one
+  # x86_64;arm64 compile. All of the signing still happens there, once.
+  macos-build:
+    name: macOS ${{ matrix.arch }} (${{ needs.version.outputs.channel }})
+    runs-on: depot-macos-latest
+    needs: version
+    environment: canary
+
+    permissions:
+      contents: read
+
+    strategy:
+      fail-fast: true
+      matrix:
+        arch: [x86_64, arm64]
+
+    env:
+      PREPARE_PATH: "Telegram/build/prepare/prepare.py"
+
+    steps:
+      - name: Get repository name.
+        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
+
+      - name: Clone.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # Not recursive, see the Windows job: nothing macOS compiles
+          # lives in a nested submodule, and recursing would clone
+          # cppgir from gitlab.com once per arch of this matrix.
+          submodules: true
+          path: ${{ env.REPO_NAME }}
+
+      - name: Read canary configuration.
+        run: |
+          echo "CANARY_COUNTER=${{ needs.version.outputs.counter }}" >> $GITHUB_ENV
+          if [ "${{ needs.version.outputs.channel }}" = "public" ]; then
+            echo "CANARY_DEFINES=-D TDESKTOP_UPDATE_CHANNEL=canary-public -D TDESKTOP_CANARY_PUBLIC_CHANNEL=${{ vars.CANARY_PUBLIC_CHANNEL_USERNAME }} -D TDESKTOP_CANARY_METADATA_MSG_ID=${{ vars.CANARY_METADATA_MSG_ID_MAC }}" >> $GITHUB_ENV
+          else
+            echo "CANARY_DEFINES=-D TDESKTOP_UPDATE_CHANNEL=canary-private -D TDESKTOP_CANARY_PRIVATE_CHANNEL_ID=${{ vars.CANARY_PRIVATE_CHANNEL_ID }} -D TDESKTOP_CANARY_METADATA_MSG_ID=${{ vars.CANARY_PRIVATE_METADATA_MSG_ID_MAC }}" >> $GITHUB_ENV
+          fi
+
+      - name: First set up.
+        run: |
+          sudo chown -R `whoami`:admin /usr/local/share
+
+          brew update
+          brew upgrade || true
+          brew install automake libtool meson nasm ninja pkg-config
+
+          sudo mdutil -a -i off
+
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      # Restore/save is explicit (not the combined actions/cache): the
+      # combined action saves in a post step gated on job success, so
+      # every failed signing or packing attempt was discarding the full
+      # library build. The save below runs right after the prune step.
+      # The key has no architecture: prepare.py builds every macOS
+      # library universal, so both halves share one tree (and, on a cold
+      # cache, race to save it - the loser only warns).
+      - name: Libraries cache.
+        id: cache-libs
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            Libraries
+            ThirdParty
+          key: ${{ runner.OS }}-libsrel-${{ hashFiles(format('{0}/{1}', env.REPO_NAME, env.PREPARE_PATH)) }}
+          restore-keys: ${{ runner.OS }}-libsrel-
+
+      - name: Libraries.
+        run: |
+          ./$REPO_NAME/Telegram/build/prepare/mac.sh silent
+
+      - name: Generate a stub DesktopPrivate.
+        run: |
+          mkdir -p DesktopPrivate
+          random_key() {
+            printf -- '-----BEGIN RSA PRIVATE KEY-----\\n%s\\n-----END RSA PRIVATE KEY-----\\n' \
+              "$(head -c 96 /dev/urandom | base64 | tr -d '\n')"
+          }
+          printf 'const char *PrivateKey = "%s";\nconst char *PrivateBetaKey = "%s";\n' \
+            "$(random_key)" "$(random_key)" > DesktopPrivate/packer_private.h
+          printf 'static const char *AlphaPrivateKey = "%s";\n' \
+            "$(random_key)" > DesktopPrivate/alpha_private.h
+
+      - name: Free up some disk space.
+        run: find Libraries '(' '(' ! '(' -name '*.a' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -perm +111 ')' -type f ')' -o -empty ')' -delete
+
+      - name: Save Libraries cache.
+        if: steps.cache-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            Libraries
+            ThirdParty
+          key: ${{ steps.cache-libs.outputs.cache-primary-key }}
+
+      - name: Telegram Desktop build.
+        run: |
+          cd $REPO_NAME/Telegram
+
+          # Report every failing file in one run rather than the first.
+          defaults write com.apple.dt.Xcode IDEBuildingContinueBuildingAfterErrors -bool YES
+
+          # Only DESKTOP_APP_MAC_ARCH picks thin crashpad_handler.
+          #
+          # No LTO on the macOS canary: the full-LTO x86_64 link of the
+          # universal app took 4h39m on the Depot runner (arm64: 8 min),
+          # turning a ~40 minute job into 5+ hours. Release builds keep
+          # LTO on the release machine; revisit with ThinLTO or a larger
+          # runner if the canary binaries need to match exactly.
+          ./configure.sh \
+          -D CMAKE_CONFIGURATION_TYPES=Release \
+          -D CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO \
+          -D CMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} \
+          -D DESKTOP_APP_MAC_ARCH=${{ matrix.arch }} \
+          -D TDESKTOP_API_ID=${{ secrets.CANARY_API_ID }} \
+          -D TDESKTOP_API_HASH=${{ secrets.CANARY_API_HASH }} \
+          -D DESKTOP_APP_SPECIAL_TARGET=mac \
+          -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF \
+          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF \
+          -D TDESKTOP_CANARY_COUNTER=$CANARY_COUNTER \
+          -D TDESKTOP_CANARY_COMMIT=${{ needs.version.outputs.commit }} \
+          $CANARY_DEFINES
+
+          cmake --build ../out --config Release --parallel
+
+      - name: Dump debug symbols.
+        run: |
+          cd $REPO_NAME/out/Release
+          DUMP=../../../Libraries/breakpad/src/tools/mac/dump_syms/build/Release/dump_syms
+          mkdir -p symbols
+          for MODULE in Telegram Updater; do
+            BINARY=Telegram.app/Contents/MacOS/Telegram
+            if [ "$MODULE" = "Updater" ]; then
+              BINARY=Telegram.app/Contents/Frameworks/Updater
+            fi
+            "$DUMP" -a ${{ matrix.arch }} "$BINARY" > $MODULE.sym 2>/dev/null
+            DEBUG_ID=$(head -n 1 $MODULE.sym | awk '{ print $4 }')
+            mkdir -p symbols/$MODULE/$DEBUG_ID
+            mv $MODULE.sym symbols/$MODULE/$DEBUG_ID/
+          done
+          # TODO(canary-infra): upload symbols/ to R2 (see the Windows job).
+
+      - name: Pack the half for transport.
+        run: |
+          cd $REPO_NAME/out/Release
+          for ENTRY in Telegram.app Packer; do
+            if [ ! -e "$ENTRY" ]; then
+              echo "::error::$ENTRY not found after the build."
+              exit 1
+            fi
+          done
+
+          # Stripped here: the universal app is lipo'd from these.
+          for BINARY in MacOS/Telegram Frameworks/Updater Helpers/crashpad_handler; do
+            strip Telegram.app/Contents/$BINARY
+          done
+
+          # A tar, because upload-artifact resolves symlinks and drops
+          # the executable bit, and an .app bundle survives neither.
+          mkdir -p transport
+          tar -cf transport/mac-${{ matrix.arch }}.tar Telegram.app Packer
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        name: Upload the half.
+        with:
+          name: canary-mac-build-${{ matrix.arch }}
+          path: ${{ env.REPO_NAME }}/out/Release/transport/mac-${{ matrix.arch }}.tar
+          retention-days: 1
+
+  macos:
+    name: macOS universal (${{ needs.version.outputs.channel }})
+    runs-on: depot-macos-latest
+    needs: [version, macos-build]
+    environment: canary
+
+    permissions:
+      contents: read
+      id-token: write
+
+    outputs:
+      signed: ${{ steps.sign.outputs.signed }}
+
+    steps:
+      - name: Get repository name.
+        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
+
+      # notarytool and stapler come from Xcode, not the Command Line
+      # Tools, just like in the build jobs.
+      - name: Select Xcode.
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      # No submodules: this job signs and packs, it never compiles.
+      - name: Clone.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          path: ${{ env.REPO_NAME }}
+
+      - name: Read canary configuration.
+        run: |
+          echo "CANARY_COUNTER=${{ needs.version.outputs.counter }}" >> $GITHUB_ENV
+          if [ "${{ needs.version.outputs.channel }}" = "public" ]; then
+            echo "CANARY_SUFFIX=${{ needs.version.outputs.suffix }}" >> $GITHUB_ENV
+            echo "CANARY_VERSION=${{ needs.version.outputs.version_str }}" >> $GITHUB_ENV
+            echo "CANARY_FOLDER=${{ needs.version.outputs.folder }}" >> $GITHUB_ENV
+            echo "CANARY_KEY_ID=${{ vars.CANARY_SIGNING_KEY_ID }}" >> $GITHUB_ENV
+            echo "CANARY_AZ_KEY=${{ vars.CANARY_AZURE_KEY_NAME || vars.CANARY_SIGNING_KEY_ID }}" >> $GITHUB_ENV
+          else
+            echo "CANARY_SUFFIX=${{ needs.version.outputs.suffix }}" >> $GITHUB_ENV
+            echo "CANARY_VERSION=${{ needs.version.outputs.version_str }}" >> $GITHUB_ENV
+            echo "CANARY_FOLDER=${{ needs.version.outputs.folder }}" >> $GITHUB_ENV
+            echo "CANARY_KEY_ID=${{ vars.CANARY_PRIVATE_SIGNING_KEY_ID }}" >> $GITHUB_ENV
+            echo "CANARY_AZ_KEY=${{ vars.CANARY_PRIVATE_AZURE_KEY_NAME || vars.CANARY_PRIVATE_SIGNING_KEY_ID }}" >> $GITHUB_ENV
+          fi
+
+      - name: Download the x86_64 half.
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: canary-mac-build-x86_64
+          path: ${{ env.REPO_NAME }}/out/Release/transport
+
+      - name: Download the arm64 half.
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: canary-mac-build-arm64
+          path: ${{ env.REPO_NAME }}/out/Release/transport
+
+      - name: Assemble the universal app.
+        run: |
+          # The mirror image of build.sh, which lipo -thins one universal
+          # bundle: here two thin bundles are lipo -created into it. The
+          # universal app installs, the thin ones become the updates.
+          cd $REPO_NAME/out/Release
+          for ARCH in x86_64 arm64; do
+            rm -rf unpack.$ARCH Telegram.$ARCH.app
+            mkdir unpack.$ARCH
+            tar -xf transport/mac-$ARCH.tar -C unpack.$ARCH
+            mv unpack.$ARCH/Telegram.app Telegram.$ARCH.app
+          done
+
+          # Packer runs here, so do not bet on the runner architecture.
+          lipo -create unpack.arm64/Packer unpack.x86_64/Packer -output Packer
+          chmod +x Packer
+          rm -rf unpack.x86_64 unpack.arm64 transport
+
+          # Same Mach-O list as build.sh, everything else is the same in
+          # both halves, so the arm64 bundle is the template.
+          BINARIES="MacOS/Telegram Frameworks/Updater Helpers/crashpad_handler"
+          rm -rf Telegram.app
+          cp -R Telegram.arm64.app Telegram.app
+          for BINARY in $BINARIES; do
+            lipo -create Telegram.arm64.app/Contents/$BINARY \
+              Telegram.x86_64.app/Contents/$BINARY \
+              -output Telegram.app/Contents/$BINARY
+          done
+
+          # A new Mach-O outside that list would silently stay arm64-only
+          # and break every Intel Mac. lipo errors out on the rest.
+          while IFS= read -r -d '' FILE; do
+            INFO=$(lipo -info "$FILE" 2>/dev/null) || continue
+            case "$INFO" in
+              *x86_64*) ;;
+              *)
+                echo "::error::$FILE is not universal, add it to BINARIES."
+                exit 1
+                ;;
+            esac
+          done < <(find Telegram.app -type f -perm +111 -print0)
+
+      - name: Sign and notarize.
+        id: sign
+        env:
+          CERTIFICATE_P12_B64: ${{ secrets.MACOS_CERTIFICATE_P12_B64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.MACOS_KEYCHAIN_PASSWORD }}
+          SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          NOTARY_TEAM_ID: ${{ secrets.NOTARY_TEAM_ID }}
+          NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+        run: |
+          cd $REPO_NAME/out/Release
+          if [ -z "$CERTIFICATE_P12_B64" ]; then
+            if [ "${{ needs.version.outputs.publish }}" = "true" ] \
+              && [ "${{ needs.version.outputs.unsigned }}" != "true" ]; then
+              echo "::error::Publishing requires the signing certificate, unsigned apps never ship."
+              exit 1
+            fi
+            echo "::warning::No signing certificate, leaving the apps unsigned."
+            echo "signed=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "$CERTIFICATE_P12_B64" | base64 -d > /tmp/certificate.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security import /tmp/certificate.p12 -k build.keychain \
+            -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" build.keychain
+
+          for BUNDLE in Telegram.x86_64.app Telegram.arm64.app Telegram.app; do
+            codesign --force --deep --timestamp --options runtime \
+              --sign "$SIGN_IDENTITY" \
+              --entitlements ../../Telegram/Telegram/Telegram.entitlements \
+              "$BUNDLE"
+            codesign --verify --deep --strict "$BUNDLE"
+            ditto -c -k --keepParent "$BUNDLE" notarize.zip
+            xcrun notarytool submit notarize.zip --wait \
+              --apple-id "$NOTARY_APPLE_ID" \
+              --team-id "$NOTARY_TEAM_ID" \
+              --password "$NOTARY_PASSWORD"
+            xcrun stapler staple "$BUNDLE"
+            xcrun stapler validate "$BUNDLE"
+            spctl --assess --type execute --verbose=2 "$BUNDLE"
+            rm notarize.zip
+          done
+          echo "signed=true" >> $GITHUB_OUTPUT
+
+      - name: Azure login for update signing.
+        if: needs.version.outputs.publish == 'true'
+        uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Pack v2 updates.
+        run: |
+          cd $REPO_NAME/out/Release
+          BASE=${{ needs.version.outputs.base }}
+          for ARCH in x86_64 arm64; do
+            SHORT=x64
+            if [ "$ARCH" = "arm64" ]; then SHORT=arm; fi
+
+            # The thinned bundle is packed under the canonical app name,
+            # so the file paths inside the update match the install.
+            rm -rf update_pack
+            mkdir update_pack
+            cp -R Telegram.$ARCH.app update_pack/Telegram.app
+            cp Packer update_pack/
+            cd update_pack
+            ./Packer -path Telegram.app \
+              -arch $ARCH \
+              -version $BASE \
+              -channel canary-${{ needs.version.outputs.channel }} \
+              -counter $CANARY_COUNTER \
+              -keys-loc ../../../Telegram/Resources/update \
+              -emit-signing-input signing-input.bin
+            if [ "${{ needs.version.outputs.publish }}" = "true" ]; then
+              python3 ../../../Telegram/build/sign_update.py \
+                --input signing-input.bin \
+                --output canary.sig \
+                --az-vault "${{ secrets.AZURE_KEYVAULT_NAME }}" \
+                --az-key "$CANARY_AZ_KEY"
+              ./Packer -channel canary-${{ needs.version.outputs.channel }} \
+                -keys-loc ../../../Telegram/Resources/update \
+                -unsigned td-update-mac-$SHORT-$BASE$CANARY_SUFFIX.unsigned \
+                -embed-signatures $CANARY_KEY_ID:canary.sig
+              rm td-update-mac-$SHORT-$BASE$CANARY_SUFFIX.unsigned signing-input.bin canary.sig
+              mv td-update-mac-$SHORT-$BASE$CANARY_SUFFIX ../
+            else
+              echo "::warning::No publish secrets, keeping the unsigned envelope only."
+              mv td-update-mac-$SHORT-$BASE$CANARY_SUFFIX.unsigned ../
+            fi
+            cd ..
+            rm -rf update_pack
+          done
+
+          # Portable-style first-install archive from the stapled
+          # universal app, with tdata forced next to the bundle. The
+          # .keep file stops unpackers that skip empty folders from
+          # dropping TelegramForcePortable.
+          PORTABLE=td-portable-mac-$CANARY_VERSION$CANARY_SUFFIX.zip
+          rm -rf portable
+          mkdir -p portable/$CANARY_FOLDER/TelegramForcePortable
+          touch portable/$CANARY_FOLDER/TelegramForcePortable/.keep
+          cp -R Telegram.app portable/$CANARY_FOLDER/
+          (cd portable && zip -q -r ../$PORTABLE $CANARY_FOLDER)
+
+          mkdir -p artifact/update artifact/portable
+          mv td-update-mac-*-$BASE$CANARY_SUFFIX* artifact/update/
+          mv $PORTABLE artifact/portable/
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        name: Upload the updates.
+        with:
+          name: canary-mac
+          path: ${{ env.REPO_NAME }}/out/Release/artifact/update/
+          retention-days: 7
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        name: Upload the portable.
+        with:
+          name: canary-mac-portable
+          path: ${{ env.REPO_NAME }}/out/Release/artifact/portable/
+          retention-days: 7
+
+  linux:
+    name: Linux x64 (${{ needs.version.outputs.channel }})
+    runs-on: depot-ubuntu-latest-32
+    needs: version
+    environment: canary
+
+    permissions:
+      contents: read
+      id-token: write
+
+    env:
+      IMAGE_TAG: tdesktop:centos_env
+
+    steps:
+      - name: Clone.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          submodules: true
+
+      - name: Nested submodules.
+        env:
+          CPPGIR_MIRROR: ${{ vars.CANARY_CPPGIR_MIRROR }}
+        run: |
+          # This platform is the only one that compiles cppgir
+          # (cmake/external adds glib under if (LINUX)), so it is the
+          # only job that clones from gitlab.com. Recursing here instead
+          # of in the checkout keeps the documentation-only nested
+          # submodules (range-v3 gh-pages, libcbor doxygen-theme) out.
+          #
+          # gitlab.com answers 403 to the Depot runners every job here
+          # uses, while GitHub-hosted runners reach it fine, so the clone
+          # can be pointed at a mirror of cppgir without touching
+          # .gitmodules, which belongs to desktop-app/cmake_helpers.
+          if [ -n "$CPPGIR_MIRROR" ]; then
+            git config --global \
+              url."$CPPGIR_MIRROR".insteadOf https://gitlab.com/mnauw/cppgir.git
+          fi
+          git -C cmake submodule update --init --recursive --depth=1
+
+      - name: Read canary configuration.
+        run: |
+          echo "CANARY_COUNTER=${{ needs.version.outputs.counter }}" >> $GITHUB_ENV
+          if [ "${{ needs.version.outputs.channel }}" = "public" ]; then
+            echo "CANARY_SUFFIX=${{ needs.version.outputs.suffix }}" >> $GITHUB_ENV
+            echo "CANARY_VERSION=${{ needs.version.outputs.version_str }}" >> $GITHUB_ENV
+            echo "CANARY_FOLDER=${{ needs.version.outputs.folder }}" >> $GITHUB_ENV
+            echo "CANARY_KEY_ID=${{ vars.CANARY_SIGNING_KEY_ID }}" >> $GITHUB_ENV
+            echo "CANARY_AZ_KEY=${{ vars.CANARY_AZURE_KEY_NAME || vars.CANARY_SIGNING_KEY_ID }}" >> $GITHUB_ENV
+            echo "CANARY_DEFINES=-D TDESKTOP_UPDATE_CHANNEL=canary-public -D TDESKTOP_CANARY_PUBLIC_CHANNEL=${{ vars.CANARY_PUBLIC_CHANNEL_USERNAME }} -D TDESKTOP_CANARY_METADATA_MSG_ID=${{ vars.CANARY_METADATA_MSG_ID_LINUX }}" >> $GITHUB_ENV
+          else
+            echo "CANARY_SUFFIX=${{ needs.version.outputs.suffix }}" >> $GITHUB_ENV
+            echo "CANARY_VERSION=${{ needs.version.outputs.version_str }}" >> $GITHUB_ENV
+            echo "CANARY_FOLDER=${{ needs.version.outputs.folder }}" >> $GITHUB_ENV
+            echo "CANARY_KEY_ID=${{ vars.CANARY_PRIVATE_SIGNING_KEY_ID }}" >> $GITHUB_ENV
+            echo "CANARY_AZ_KEY=${{ vars.CANARY_PRIVATE_AZURE_KEY_NAME || vars.CANARY_PRIVATE_SIGNING_KEY_ID }}" >> $GITHUB_ENV
+            echo "CANARY_DEFINES=-D TDESKTOP_UPDATE_CHANNEL=canary-private -D TDESKTOP_CANARY_PRIVATE_CHANNEL_ID=${{ vars.CANARY_PRIVATE_CHANNEL_ID }} -D TDESKTOP_CANARY_METADATA_MSG_ID=${{ vars.CANARY_PRIVATE_METADATA_MSG_ID_LINUX }}" >> $GITHUB_ENV
+          fi
+
+      - name: First set up.
+        run: |
+          # The template only needs Jinja2: the distro package replaces
+          # the curl-piped poetry installer linux.yml uses, so no code
+          # from an unpinned URL runs in a job that later signs.
+          sudo apt update
+          sudo apt install -y python3-jinja2
+          cd Telegram/build/docker/centos_env
+          DOCKERFILE=$(DEBUG= python3 gen_dockerfile.py)
+          echo "$DOCKERFILE" > Dockerfile
+          rm -rf __pycache__
+
+      - name: Free up some disk space.
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
+        with:
+          tool-cache: true
+          # The default large-packages cleanup apt-removes azure-cli,
+          # which the azure/login step below needs for update signing.
+          large-packages: false
+
+      - name: Set up Docker Buildx.
+        id: setup-buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
+
+      # Restore/save is explicit (not the combined actions/cache): the
+      # combined action saves in a post step gated on job success, so
+      # every failed build or packing attempt was discarding the whole
+      # docker layer cache. The save runs right after "Move cache.".
+      - name: Libraries cache.
+        id: cache-libs
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ${{ runner.temp }}/.buildx-cache
+            ${{ runner.temp }}/.mount-cache
+          key: ${{ runner.OS }}-libsrel-${{ hashFiles('Telegram/build/docker/centos_env/**') }}
+          restore-keys: ${{ runner.OS }}-libsrel-
+
+      - name: Restore Docker cache mounts.
+        uses: reproducible-containers/buildkit-cache-dance@5422eac04292c961a382e0f584ea0f03ad9da723
+        with:
+          builder: ${{ steps.setup-buildx.outputs.name }}
+          cache-dir: ${{ runner.temp }}/.mount-cache
+          dockerfile: Telegram/build/docker/centos_env/Dockerfile
+          skip-extraction: ${{ steps.cache-libs.outputs.cache-hit }}
+
+      - name: Libraries.
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        env:
+          # The build record the action uploads by default is not a zip
+          # artifact and breaks a download-all of the run's artifacts.
+          DOCKER_BUILD_RECORD_UPLOAD: false
+        with:
+          context: Telegram/build/docker/centos_env
+          load: true
+          tags: ${{ env.IMAGE_TAG }}
+          cache-from: type=local,src=${{ runner.temp }}/.buildx-cache
+          cache-to: type=local,dest=${{ runner.temp }}/.buildx-cache-new,mode=max
+
+      - name: Move cache.
+        run: |
+          rm -rf ${{ runner.temp }}/.buildx-cache
+          mv ${{ runner.temp }}/.buildx-cache{-new,}
+
+      # The saved .mount-cache is the restored one, not the state after
+      # this run's docker build (cache-dance only extracts in its post
+      # step, which is also success-gated): slightly stale ccache/dnf
+      # mounts only cost time when the Dockerfile hash changes, while
+      # the fresh layer cache above carries the actual library builds.
+      - name: Save Libraries cache.
+        if: steps.cache-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ${{ runner.temp }}/.buildx-cache
+            ${{ runner.temp }}/.mount-cache
+          key: ${{ steps.cache-libs.outputs.cache-primary-key }}
+
+      - name: Generate a stub DesktopPrivate.
+        run: |
+          mkdir -p ../DesktopPrivate
+          random_key() {
+            printf -- '-----BEGIN RSA PRIVATE KEY-----\\n%s\\n-----END RSA PRIVATE KEY-----\\n' \
+              "$(head -c 96 /dev/urandom | base64 | tr -d '\n')"
+          }
+          printf 'const char *PrivateKey = "%s";\nconst char *PrivateBetaKey = "%s";\n' \
+            "$(random_key)" "$(random_key)" > ../DesktopPrivate/packer_private.h
+          printf 'static const char *AlphaPrivateKey = "%s";\n' \
+            "$(random_key)" > ../DesktopPrivate/alpha_private.h
+
+      - name: Telegram Desktop build.
+        run: |
+          docker run --rm \
+          -u $(id -u) \
+          -v $PWD:/usr/src/tdesktop \
+          -v $PWD/../DesktopPrivate:/usr/src/DesktopPrivate \
+          -e CONFIG=Release \
+          -e KEEP_GOING=1 \
+          $IMAGE_TAG \
+          /usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh \
+          -D CMAKE_CONFIGURATION_TYPES=Release \
+          -D DESKTOP_APP_ENABLE_LTO=ON \
+          -D TDESKTOP_API_ID=${{ secrets.CANARY_API_ID }} \
+          -D TDESKTOP_API_HASH=${{ secrets.CANARY_API_HASH }} \
+          -D DESKTOP_APP_SPECIAL_TARGET=linux \
+          -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF \
+          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF \
+          -D TDESKTOP_CANARY_COUNTER=$CANARY_COUNTER \
+          -D TDESKTOP_CANARY_COMMIT=${{ needs.version.outputs.commit }} \
+          $CANARY_DEFINES
+
+      - name: Dump debug symbols.
+        run: |
+          cd out/Release
+          mkdir -p symbols
+          # dump_syms is built into the centos_env image (breakpad), so
+          # it runs there against the same binaries mounted from the
+          # host; the release flow copies the tool out by hand instead.
+          for MODULE in Telegram Updater; do
+            docker run --rm \
+              -u $(id -u) \
+              -v $PWD:/out -w /out \
+              $IMAGE_TAG \
+              dump_syms $MODULE > $MODULE.sym
+            DEBUG_ID=$(head -n 1 $MODULE.sym | awk '{ print $4 }')
+            mkdir -p symbols/$MODULE/$DEBUG_ID
+            mv $MODULE.sym symbols/$MODULE/$DEBUG_ID/
+          done
+          # TODO(canary-infra): upload symbols/ to R2 (see the Windows job).
+          ../../Telegram/build/minidebug.sh Telegram
+
+      - name: Verify the update trust chain.
+        run: |
+          # The focused verification test and the Packer round-trip run
+          # against the exact binaries built for this canary, including
+          # the committed trust files against the pinned root.
+          out/Release/test_update_verify
+          Telegram/build/canary_test_fixtures.sh out/Release/Packer "$RUNNER_TEMP/fixtures"
+
+      - name: Azure login for update signing.
+        if: needs.version.outputs.publish == 'true'
+        uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Pack v2 update.
+        run: |
+          cd out/Release
+          ./Packer -path Telegram -path Updater \
+            -version ${{ needs.version.outputs.base }} \
+            -channel canary-${{ needs.version.outputs.channel }} \
+            -counter $CANARY_COUNTER \
+            -keys-loc ../../Telegram/Resources/update \
+            -emit-signing-input signing-input.bin
+          if [ "${{ needs.version.outputs.publish }}" = "true" ]; then
+            python3 ../../Telegram/build/sign_update.py \
+              --input signing-input.bin \
+              --output canary.sig \
+              --az-vault "${{ secrets.AZURE_KEYVAULT_NAME }}" \
+              --az-key "$CANARY_AZ_KEY"
+            ./Packer -channel canary-${{ needs.version.outputs.channel }} \
+              -keys-loc ../../Telegram/Resources/update \
+              -unsigned td-update-linux-x64-${{ needs.version.outputs.base }}$CANARY_SUFFIX.unsigned \
+              -embed-signatures $CANARY_KEY_ID:canary.sig
+            rm td-update-linux-x64-${{ needs.version.outputs.base }}$CANARY_SUFFIX.unsigned signing-input.bin canary.sig
+            UPDATE=td-update-linux-x64-${{ needs.version.outputs.base }}$CANARY_SUFFIX
+          else
+            echo "::warning::No publish secrets, keeping the unsigned envelope only."
+            UPDATE=td-update-linux-x64-${{ needs.version.outputs.base }}$CANARY_SUFFIX.unsigned
+          fi
+
+          # Portable-style first-install archive, tdata forced next to
+          # the binary. The .keep file stops unpackers that skip empty
+          # folders from dropping TelegramForcePortable.
+          PORTABLE=td-portable-linux-x64-$CANARY_VERSION$CANARY_SUFFIX.tar.xz
+          rm -rf portable
+          mkdir -p portable/$CANARY_FOLDER/TelegramForcePortable
+          touch portable/$CANARY_FOLDER/TelegramForcePortable/.keep
+          cp Telegram Updater portable/$CANARY_FOLDER/
+          tar -cJf $PORTABLE -C portable $CANARY_FOLDER
+
+          mkdir -p artifact/update artifact/portable
+          mv $UPDATE artifact/update/
+          mv $PORTABLE artifact/portable/
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        name: Upload the update.
+        with:
+          name: canary-linux
+          path: out/Release/artifact/update/
+          retention-days: 7
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        name: Upload the portable.
+        with:
+          name: canary-linux-portable
+          path: out/Release/artifact/portable/
+          retention-days: 7
+
+  publish-win64:
+    name: Publish win64 (${{ needs.version.outputs.channel }})
+    runs-on: depot-ubuntu-latest
+    needs: [version, windows]
+    if: needs.version.outputs.publish == 'true'
+    environment: canary
+
+    permissions:
+      contents: read
+      packages: read
+
+    services:
+      # Built from a pinned tdlib/telegram-bot-api ref by the
+      # canary-bot-api.yml workflow and referenced by digest: this
+      # container handles the bot token and the published files, so no
+      # third-party image is acceptable here.
+      telegram-bot-api:
+        image: ${{ vars.CANARY_BOT_API_IMAGE }}
+        credentials:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          TELEGRAM_API_ID: ${{ secrets.CANARY_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.CANARY_API_HASH }}
+          TELEGRAM_LOCAL: 1
+        ports:
+          - 8081:8081
+
+    env:
+      BOT_API: http://localhost:8081
+      BOT_TOKEN: ${{ secrets.CANARY_BOT_TOKEN }}
+
+    steps:
+      - name: Clone.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Download the update.
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: canary-win64
+          path: artifacts/update
+
+      - name: Download the portable.
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: canary-win64-portable
+          path: artifacts/portable
+
+      - name: Verify the platform signature.
+        if: needs.version.outputs.unsigned != 'true'
+        run: |
+          # Publishing unsigned binaries is never allowed: this is a hard
+          # gate, not a warning. Both binaries inside the update envelope
+          # were verified with signtool right after signing in the build
+          # job; here the portable's Telegram.exe is re-checked as the
+          # publish-side witness.
+          sudo apt-get update && sudo apt-get install -y osslsigncode
+          unzip -q artifacts/portable/td-portable-win-x64-*.zip -d /tmp/winapp
+          if ! osslsigncode verify /tmp/winapp/${{ needs.version.outputs.folder }}/Telegram.exe; then
+            echo "::error::The portable Telegram.exe is not Authenticode-signed."
+            exit 1
+          fi
+
+      - name: Publish.
+        env:
+          CHANNEL: ${{ needs.version.outputs.channel }}
+          CHAT_ID: ${{ needs.version.outputs.chat_id }}
+          PUBLIC_MSG_ID: ${{ vars.CANARY_METADATA_MSG_ID_WIN64 }}
+          PRIVATE_MSG_ID: ${{ vars.CANARY_PRIVATE_METADATA_MSG_ID_WIN64 }}
+          PLATFORMS: win64
+          BASE: ${{ needs.version.outputs.base }}
+          COUNTER: ${{ needs.version.outputs.counter }}
+          COMMIT: ${{ needs.version.outputs.commit }}
+          VERSION_STR: ${{ needs.version.outputs.version_str }}
+          PREVIOUS: ${{ needs.version.outputs.previous }}
+          SIGNED: ${{ needs.windows.outputs.signed }}
+          KEYS_LOC: Telegram/Resources/update
+          UPDATE_DIR: artifacts/update
+          PORTABLE_DIR: artifacts/portable
+        run: |
+          if [ "$CHANNEL" = "public" ]; then
+            export MSG_ID="$PUBLIC_MSG_ID"
+          else
+            export MSG_ID="$PRIVATE_MSG_ID"
+          fi
+          Telegram/build/canary_publish.sh
+
+  publish-mac:
+    name: Publish mac (${{ needs.version.outputs.channel }})
+    runs-on: depot-ubuntu-latest
+    needs: [version, macos]
+    if: needs.version.outputs.publish == 'true'
+    environment: canary
+
+    permissions:
+      contents: read
+      packages: read
+
+    services:
+      # Built from a pinned tdlib/telegram-bot-api ref by the
+      # canary-bot-api.yml workflow and referenced by digest: this
+      # container handles the bot token and the published files, so no
+      # third-party image is acceptable here.
+      telegram-bot-api:
+        image: ${{ vars.CANARY_BOT_API_IMAGE }}
+        credentials:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          TELEGRAM_API_ID: ${{ secrets.CANARY_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.CANARY_API_HASH }}
+          TELEGRAM_LOCAL: 1
+        ports:
+          - 8081:8081
+
+    env:
+      BOT_API: http://localhost:8081
+      BOT_TOKEN: ${{ secrets.CANARY_BOT_TOKEN }}
+
+    steps:
+      - name: Clone.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Download the update.
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: canary-mac
+          path: artifacts/update
+
+      - name: Download the portable.
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: canary-mac-portable
+          path: artifacts/portable
+
+      - name: Verify the platform signature.
+        if: needs.version.outputs.unsigned != 'true'
+        run: |
+          # The build job ran codesign --verify, stapler validate and
+          # spctl --assess on every bundle; this is the publish-side
+          # witness. TODO(canary-infra): pin an apple-codesign (rcodesign)
+          # release for full signature + staple verification on Linux:
+          #   rcodesign verify /tmp/macapp/Telegram/Telegram.app
+          unzip -q artifacts/portable/td-portable-mac-*.zip -d /tmp/macapp
+          if [ ! -d "/tmp/macapp/${{ needs.version.outputs.folder }}/Telegram.app/Contents/_CodeSignature" ]; then
+            echo "::error::The portable Telegram.app has no code signature."
+            exit 1
+          fi
+
+      - name: Publish.
+        env:
+          CHANNEL: ${{ needs.version.outputs.channel }}
+          CHAT_ID: ${{ needs.version.outputs.chat_id }}
+          PUBLIC_MSG_ID: ${{ vars.CANARY_METADATA_MSG_ID_MAC }}
+          PRIVATE_MSG_ID: ${{ vars.CANARY_PRIVATE_METADATA_MSG_ID_MAC }}
+          PLATFORMS: mac armac
+          BASE: ${{ needs.version.outputs.base }}
+          COUNTER: ${{ needs.version.outputs.counter }}
+          COMMIT: ${{ needs.version.outputs.commit }}
+          VERSION_STR: ${{ needs.version.outputs.version_str }}
+          PREVIOUS: ${{ needs.version.outputs.previous }}
+          SIGNED: ${{ needs.macos.outputs.signed }}
+          KEYS_LOC: Telegram/Resources/update
+          UPDATE_DIR: artifacts/update
+          PORTABLE_DIR: artifacts/portable
+        run: |
+          if [ "$CHANNEL" = "public" ]; then
+            export MSG_ID="$PUBLIC_MSG_ID"
+          else
+            export MSG_ID="$PRIVATE_MSG_ID"
+          fi
+          Telegram/build/canary_publish.sh
+
+  publish-linux:
+    name: Publish linux (${{ needs.version.outputs.channel }})
+    runs-on: depot-ubuntu-latest
+    needs: [version, linux]
+    if: needs.version.outputs.publish == 'true'
+    environment: canary
+
+    permissions:
+      contents: read
+      packages: read
+
+    services:
+      # Built from a pinned tdlib/telegram-bot-api ref by the
+      # canary-bot-api.yml workflow and referenced by digest: this
+      # container handles the bot token and the published files, so no
+      # third-party image is acceptable here.
+      telegram-bot-api:
+        image: ${{ vars.CANARY_BOT_API_IMAGE }}
+        credentials:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          TELEGRAM_API_ID: ${{ secrets.CANARY_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.CANARY_API_HASH }}
+          TELEGRAM_LOCAL: 1
+        ports:
+          - 8081:8081
+
+    env:
+      BOT_API: http://localhost:8081
+      BOT_TOKEN: ${{ secrets.CANARY_BOT_TOKEN }}
+
+    steps:
+      - name: Clone.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Download the update.
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: canary-linux
+          path: artifacts/update
+
+      - name: Download the portable.
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: canary-linux-portable
+          path: artifacts/portable
+
+      - name: Publish.
+        env:
+          CHANNEL: ${{ needs.version.outputs.channel }}
+          CHAT_ID: ${{ needs.version.outputs.chat_id }}
+          PUBLIC_MSG_ID: ${{ vars.CANARY_METADATA_MSG_ID_LINUX }}
+          PRIVATE_MSG_ID: ${{ vars.CANARY_PRIVATE_METADATA_MSG_ID_LINUX }}
+          PLATFORMS: linux
+          BASE: ${{ needs.version.outputs.base }}
+          COUNTER: ${{ needs.version.outputs.counter }}
+          COMMIT: ${{ needs.version.outputs.commit }}
+          VERSION_STR: ${{ needs.version.outputs.version_str }}
+          PREVIOUS: ${{ needs.version.outputs.previous }}
+          SIGNED: true
+          KEYS_LOC: Telegram/Resources/update
+          UPDATE_DIR: artifacts/update
+          PORTABLE_DIR: artifacts/portable
+        run: |
+          if [ "$CHANNEL" = "public" ]; then
+            export MSG_ID="$PUBLIC_MSG_ID"
+          else
+            export MSG_ID="$PRIVATE_MSG_ID"
+          fi
+          Telegram/build/canary_publish.sh

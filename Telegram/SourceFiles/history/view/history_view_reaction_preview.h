@@ -12,6 +12,7 @@ class PhotoData;
 
 namespace Ui {
 class DropdownMenu;
+class PopupMenu;
 class RpWidget;
 } // namespace Ui
 
@@ -24,13 +25,6 @@ class SessionController;
 } // namespace Window
 
 namespace HistoryView {
-
-struct ReactionPreviewMenu {
-	Ui::DropdownMenu *menu = nullptr;
-	Fn<void()> refreshGeometry;
-
-	Fn<void()> hide;
-};
 
 bool ShowStickerPreview(
 	not_null<Window::SessionController*> controller,
@@ -53,7 +47,13 @@ bool ShowReactionPreview(
 	not_null<Window::SessionController*> controller,
 	FullMsgId origin,
 	Data::ReactionId reactionId,
-	bool emojiPreview = false,
-	Fn<void(ReactionPreviewMenu)> setupMenu = nullptr);
+	bool emojiPreview = false);
+
+[[nodiscard]] bool AttachReactionPreviewToMenu(
+	not_null<Ui::PopupMenu*> menu,
+	not_null<Window::SessionController*> controller,
+	QPoint desiredPosition,
+	FullMsgId origin,
+	const Data::ReactionId &reactionId);
 
 } // namespace HistoryView

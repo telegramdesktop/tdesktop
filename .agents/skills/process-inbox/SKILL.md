@@ -63,6 +63,10 @@ paths. Follow `superseded_by` chains to their live task when deduplicating,
 resolving prior receipt references, or checking whether a same-digest result
 still exists. New dependencies and project links must name the final live task,
 never an alias. A dated slug occupied by an alias still counts as a collision.
+Some retired oversized tasks instead have `split.yaml`, whose `split_into`
+list resolves to several live successors. Treat the retained directory as
+history, deduplicate against all live successors, and never put the split id in
+a new dependency or project link. A split path is also permanently occupied.
 
 Use one disposable leaf planner when the harness supports delegation; instruct
 it not to delegate. Otherwise perform the same work locally. The planner may
@@ -108,8 +112,38 @@ essential context, and use a standalone task only when no project does.
 Do not create generic holding projects such as `fixes`. A release batch of
 unrelated regressions normally becomes standalone tasks or tasks in existing
 domain projects. Group requests into one task only when they form one cohesive,
-independently testable behavior. Split work until every task is implementable
-in one pass and has an exact observable acceptance result.
+independently testable behavior that can be implemented, reviewed, and tested
+as one normal pass.
+
+Split at product boundaries, not arbitrary file or line-count boundaries. A
+request needs multiple tasks when two or more parts have their own useful
+outcome and acceptance oracle, when a later part can consume an earlier part as
+a stable dependency, or when the parts require materially different context,
+failure analysis, or evidence setup. New network, persistence, concurrency or
+ownership machinery plus application lifecycle/UI integration are especially
+strong split signals when each can be exercised independently. Shared project
+context, overlapping files, or one eventual feature does not by itself justify
+paying one review and test loop over their combined implementation.
+
+Do not over-split inseparable changes: keep a small API and its only caller
+together when neither has a meaningful standalone result, and keep one atomic
+behavior together when separating it would leave an unbuildable or untestable
+intermediate state. For every proposed task, state the one shipped boundary it
+owns and the direct evidence that can approve it without first implementing a
+sibling. If that sentence needs several independent outcomes or several
+unrelated instruments, split again.
+
+This is the first scope gate, not an irrevocable ruling. Inbox planning uses the
+request plus light source inspection and deliberately does not construct the
+implementation plan. The later independent perform-task assessment sees exact
+files, APIs, phases, ownership boundaries, and evidence design; it may veto the
+single-task shape when that richer proof exposes independently shippable and
+testable boundaries. That veto does not mean task sizing is based on elapsed
+time or diff length, and it does not authorize the performer to mutate the
+queue itself. The performer publishes `split-required`; the checkout scheduler
+then launches a dedicated deep split transaction that creates replacements,
+rewrites dependencies and project links, and retires the source with a durable
+multi-target split record.
 
 Project slugs are unique across `projects/` and `projects/archive/`. When a
 request belongs to an archived project, restore it before routing to it:
@@ -184,6 +218,15 @@ launches with `-testagent -noupdate`, so no task needs to require either flag.
 Every such criterion costs a performer real time and proves nothing about the
 product.
 
+Never write an acceptance criterion that can only be satisfied by adding
+debug machinery to production code — `#ifdef _DEBUG` blocks, debug-only
+types, observation structs, counters, or hooks in product translation units.
+Observability belongs to the disposable overlay and the permanent
+`Telegram/SourceFiles/test/` helpers (see "Debug-Only Code" in the source
+checkout's `AGENTS.md`). A request whose proof seems to demand production
+instrumentation is misdesigned: route the product behavior, and let the
+performer's harness own how it is observed.
+
 Create `state.yaml` in this exact field order:
 
 ```yaml
@@ -197,11 +240,13 @@ claimed_at: null
 claim_order: null
 lease_until: null
 phase: null
+carried_from: null
 inbox_receipt: receipts/YYYY/MM/DD/<receipt>.md
 ```
 
 Do not write a `model` field. It records which model finished the task, so only
-`finish` writes it, at the canonical `Approve` or `Block` boundary; a task
+`finish` writes it, at the canonical `Approve`, `Block`, or `Split-required`
+boundary; a task
 carrying one before it is claimed is malformed.
 
 Use a project slug instead of `null` when routed to a project. Use a YAML list
@@ -236,9 +281,9 @@ Create one tracked Markdown receipt under `receipts/YYYY/MM/DD/`. Include:
 - deduplication decisions.
 
 Before writing, search receipts for the same digest. If it was already fully
-processed and every referenced task either has live state or has a durable alias
-chain reaching live state, create nothing and reuse that receipt for
-finalization.
+processed and every referenced task either has live state, has a durable alias
+chain reaching live state, or has a durable split record whose successors all
+resolve to live state, create nothing and reuse that receipt for finalization.
 
 ## Validate and publish
 

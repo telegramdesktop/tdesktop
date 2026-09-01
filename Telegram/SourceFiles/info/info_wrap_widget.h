@@ -225,8 +225,11 @@ private:
 	const bool _isSeparatedWindow = false;
 
 	rpl::variable<Wrap> _wrap;
+	// Declared before _content, so that it outlives it: the content widgets
+	// hold the controller by a raw pointer and are destroyed first.
 	std::unique_ptr<Controller> _controller;
 	object_ptr<ContentWidget> _content = { nullptr };
+	bool _mementoTaken = false;
 	int _additionalScroll = 0;
 	int _maxVisibleHeight = 0;
 	bool _expanding = false;

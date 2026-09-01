@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_map.h"
 #include "iv/editor/iv_editor_button_box.h"
 #include "iv/editor/iv_editor_clipboard_import.h"
+#include "iv/editor/iv_editor_insert_suggestions.h"
 #include "iv/editor/iv_editor_state.h"
 #include "iv/markdown/iv_markdown_article.h"
 #include "ui/style/style_core_types.h"
@@ -96,6 +97,7 @@ struct WidgetServices {
 		QPointer<QWidget>,
 		std::optional<State::ReplaceTarget>,
 		RequestMediaType)> requestMedia;
+	Fn<void(not_null<Widget*>, QPointer<QWidget>, rpl::producer<>)> requestMap;
 	Fn<void(not_null<Widget*>, Ui::PreparedList, PreparedMediaPasteTarget)>
 		applyPreparedMedia;
 	Fn<void(
@@ -556,6 +558,10 @@ private:
 		int ordinal,
 		int offset,
 		const Markdown::InlineTextObjectButtonData &button);
+	void rememberInlineFieldTrim(const QString &full, int left, int length);
+	[[nodiscard]] QString inlineFieldTrimmedLeft() const;
+	[[nodiscard]] QString inlineFieldTrimmedRight() const;
+	[[nodiscard]] int richOffsetForFieldPosition(int position) const;
 	[[nodiscard]] int fieldTextOffsetForCursorPosition(int position) const;
 	[[nodiscard]] int cursorPositionForFieldTextOffset(int offset) const;
 	[[nodiscard]] int richOffsetForFieldOffset(
@@ -615,6 +621,10 @@ private:
 
 	[[nodiscard]] bool handleFieldInputRule(QKeyEvent *e);
 	[[nodiscard]] bool undoLastInputRule();
+
+	[[nodiscard]] bool handleInsertSuggestionsKey(QKeyEvent *e);
+	void applyInsertSuggestion(InsertSuggestionCommand command);
+	void requestMapInsert();
 	struct VerticalNavigationTarget {
 		int ordinal = -1;
 		int offset = 0;
@@ -981,6 +991,8 @@ private:
 		QPointer<QWidget>,
 		std::optional<State::ReplaceTarget>,
 		RequestMediaType)> _requestMedia;
+	const Fn<void(not_null<Widget*>, QPointer<QWidget>, rpl::producer<>)>
+		_requestMap;
 	const Fn<void(not_null<Widget*>, Ui::PreparedList, PreparedMediaPasteTarget)>
 		_applyPreparedMedia;
 	const Fn<void(
@@ -1012,6 +1024,9 @@ private:
 	std::optional<style::owned_color> _inlineFieldPlaceholderColorOverride;
 	std::optional<InlineFieldStyleKey> _activeFieldStyleKey;
 	std::optional<State::LeafPath> _fieldLeaf;
+	std::optional<State::LeafPath> _fieldTrimmedLeaf;
+	QString _fieldTrimmedLeft;
+	QString _fieldTrimmedRight;
 	State::FieldMode _fieldMode = State::FieldMode::Rich;
 	QPointer<Ui::Emoji::SuggestionsController> _fieldSuggestions;
 	int _articleHeight = 0;
@@ -1030,6 +1045,7 @@ private:
 		QString text;
 	};
 	std::optional<InputRuleUndo> _inputRuleUndo;
+	std::unique_ptr<InsertSuggestionsController> _insertSuggestions;
 	std::vector<HistoryEntry> _history;
 	int _historyIndex = -1;
 	std::vector<RetainedLeafField> _retainedLeafFields;

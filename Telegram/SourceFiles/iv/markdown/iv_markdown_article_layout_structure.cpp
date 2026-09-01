@@ -3955,7 +3955,9 @@ int LayoutBlocks(
 [[nodiscard]] const style::TextStyle &LaidOutFlowTextStyle(
 		const LaidOutBlock &block,
 		const style::Markdown &st) {
-	if (block.footer) {
+	if (block.quoteAuthor) {
+		return st.quoteAuthorStyle;
+	} else if (block.footer) {
 		return st.footer;
 	} else if (block.kind != PreparedBlockKind::Heading) {
 		return st.body;
@@ -4268,6 +4270,18 @@ int ArticleContentMaxRight(
 		result = std::max(
 			result,
 			BlockContentMaxRight(block, st, rtl) - bandPadding.left());
+	}
+	return result;
+}
+
+int ArticleHorizontalOverflow(const std::vector<LaidOutBlock> &blocks) {
+	auto result = 0;
+	for (const auto &block : blocks) {
+		result = std::max({
+			result,
+			block.horizontalScrollMax,
+			ArticleHorizontalOverflow(block.children),
+		});
 	}
 	return result;
 }

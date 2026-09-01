@@ -113,6 +113,7 @@ namespace {
 constexpr auto kSaveCloudDraftTimeout = 1000;
 
 constexpr auto kSmallDelayMs = 5;
+constexpr auto kDeleteHistoryRetryLimit = 8;
 constexpr auto kReadFeaturedSetsTimeout = crl::time(1000);
 constexpr auto kFileLoaderQueueStopTimeout = crl::time(5000);
 constexpr auto kStickersByEmojiInvalidateTimeout = crl::time(6 * 1000);
@@ -2205,6 +2206,14 @@ void ApiWrap::deleteHistory(
 		not_null<PeerData*> peer,
 		bool justClear,
 		bool revoke) {
+	deleteHistory(peer, justClear, revoke, 0);
+}
+
+void ApiWrap::deleteHistory(
+		not_null<PeerData*> peer,
+		bool justClear,
+		bool revoke,
+		int retries) {
 	auto deleteTillId = MsgId(0);
 	const auto history = _session->data().history(peer);
 	if (justClear) {
@@ -2222,10 +2231,19 @@ void ApiWrap::deleteHistory(
 			}
 		}
 		if (!history->lastMessageKnown()) {
+			if (retries >= kDeleteHistoryRetryLimit) {
+				// The entry keeps coming back without a known last message
+				// - offline, or a flood wait. Give up instead of spinning
+				// requests forever.
+				return;
+			}
 			history->owner().histories().requestDialogEntry(history, [=] {
-				Expects(history->lastMessageKnown());
-
-				deleteHistory(peer, justClear, revoke);
+				// The last message may be not known here again: callbacks
+				// of one dialog entry request are invoked back to back and
+				// an earlier one could destroy a client-side last message,
+				// which makes it unknown. deleteHistory() just requests
+				// the entry once more in that case.
+				deleteHistory(peer, justClear, revoke, retries + 1);
 			});
 			return;
 		}

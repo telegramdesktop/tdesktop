@@ -53,8 +53,18 @@ ScreenshotProtection::ScreenshotProtection() {
 
 ScreenshotProtection::~ScreenshotProtection() = default;
 
-void ScreenshotProtection::addReason(rpl::producer<bool> active) {
-	addReason(std::move(active), _lifetime);
+void ScreenshotProtection::addContentReason(
+		rpl::producer<bool> active,
+		rpl::lifetime &lifetime) {
+	addReason(std::move(active), lifetime);
+}
+
+void ScreenshotProtection::addAmbientReason(
+		rpl::producer<bool> active,
+		rpl::lifetime &lifetime) {
+	if (Platform::AmbientScreenshotProtectionSupported()) {
+		addReason(std::move(active), lifetime);
+	}
 }
 
 void ScreenshotProtection::addReason(

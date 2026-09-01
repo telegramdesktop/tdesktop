@@ -1315,6 +1315,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_proxy_sponsor" = "Proxy sponsor";
 "lng_proxy_sponsor_about" = "This channel is shown by your proxy server.\nTo remove this channel from your chat list,\ndisable the proxy in Telegram Settings.";
 "lng_proxy_sponsor_warning" = "This proxy may display a sponsored channel in your chat list. This doesn't reveal any of your Telegram traffic.";
+"lng_proxy_web_warning" = "This WEB proxy runs a web page from its provider in the background while you're connected. Only use it if you trust the provider. It may also display a sponsored channel in your chat list. This doesn't reveal any of your Telegram traffic.";
 "lng_proxy_add_from_clipboard" = "Add proxy from clipboard";
 "lng_proxy_add_from_clipboard_good_toast" = "Proxy was added from clipboard.";
 "lng_proxy_add_from_clipboard_failed_toast" = "This is not a proxy link.";
@@ -3230,6 +3231,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_emoji_set_download" = "Download {size}";
 "lng_emoji_set_loading" = "{percent}, {progress}";
 "lng_emoji_color_all" = "Choose color for all emoji";
+"lng_emoji_status_remove" = "Remove Status";
+"lng_emoji_status_set_done" = "Emoji status set. {link}";
+"lng_emoji_status_remove_done" = "Emoji status removed. {link}";
+"lng_emoji_status_undo" = "Undo";
 "lng_emoji_copy" = "Copy emoji";
 "lng_emoji_view_pack" = "View pack";
 "lng_emoji_remove_recent" = "Remove from Recent";
@@ -4250,6 +4255,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_send_anonymous_about" = "You can hide your name and message from visitors to {user}'s profile. {recipient} will still see your name and message.";
 "lng_gift_send_anonymous_about_paid" = "You can hide your name from visitors to {user}'s profile. {recipient} will still see your name.";
 "lng_gift_send_anonymous_about_channel" = "You can hide your name and message from all visitors of this channel except its admins.";
+"lng_gift_send_message_restricted" = "This user doesn't accept gifts with comments. Please remove the comment and try again.";
 "lng_gift_send_unique" = "Make Unique for {price}";
 "lng_gift_send_unique_about" = "Enable this to let {user} turn your gift into a unique collectible. {link}";
 "lng_gift_send_unique_about_channel" = "Enable this to let the admins of {name} turn your gift into a unique collectible. {link}";
@@ -5512,6 +5518,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_gift_send" = "Send Another Gift";
 "lng_context_charge_fee" = "Charge Fee";
 "lng_context_remove_fee" = "Remove Fee";
+"lng_context_monoforum_ban" = "Ban user from channel";
+"lng_context_monoforum_unban" = "Unban user in channel";
 "lng_context_fee_now" = "{name} pays {amount} per message.";
 "lng_context_fee_free" = "{name} can send messages for free.";
 
@@ -8737,11 +8745,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_rich_paste_toast" = "Pasted as plain text";
 "lng_rich_paste_toast_editor" = "Restore formatting in editor";
+"lng_rich_paste_toast_editor_markdown" = "Apply Markdown formatting in editor";
+"lng_rich_paste_toast_field" = "Apply Markdown formatting";
 "lng_rich_paste_toast_markdown" = "Pasted with Markdown formatting";
 "lng_rich_paste_toast_plain" = "Paste as plain text instead";
 "lng_rich_paste_toast_premium" = "{link} to preserve formatting when pasting.";
 "lng_rich_paste_toast_premium_link" = "Subscribe to Premium";
 "lng_rich_paste_toast_open" = "Open";
 "lng_rich_paste_toast_undo" = "Undo";
+"lng_rich_paste_toast_apply" = "Apply";
 
 // Keys finished

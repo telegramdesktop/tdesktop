@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/animations.h"
 #include "base/flat_map.h"
+#include "base/flat_set.h"
 
 namespace Main {
 class Session;
@@ -47,6 +48,7 @@ public:
 		Fn<int()> visibleAreaTop;
 		Fn<int()> visibleAreaBottom;
 		Fn<int()> contentWidth;
+		Fn<int()> contentHeight;
 		Fn<ChatPaintContext(QRect)> preparePaintContext;
 		Fn<QWidget*()> window;
 		Fn<int()> scrollTop;
@@ -63,7 +65,10 @@ public:
 	~ThanosEffectController();
 
 	void captureOnRemoval(not_null<const HistoryItem*> item);
+	void commitAnnouncedRemovals(Fn<bool(FullMsgId)> removed);
+	void flushRemovals(int contentHeight);
 	void clearPreCaptured();
+	void resetScrollBaseline();
 	void pinScroll();
 	void shiftGaps(int delta);
 	void notePrependBaseline(int contentHeight);
@@ -72,18 +77,18 @@ public:
 	[[nodiscard]] const std::vector<CollapseGap> &renderGaps() const {
 		return _renderGaps;
 	}
-	[[nodiscard]] int removalHeight() const {
-		return _removalHeight;
-	}
-	void clearRemovalHeight() {
-		_removalHeight = 0;
-	}
-
 private:
 	struct PreCapturedView {
 		int height = 0;
 		int top = 0;
 		int dateHeight = 0;
+	};
+
+	struct PendingRemoval {
+		int top = 0;
+		int height = 0;
+		int dateHeight = 0;
+		bool below = false;
 	};
 
 	struct CollapseGapState {
@@ -100,6 +105,7 @@ private:
 		not_null<const HistoryView::Element*> view,
 		int viewHeight,
 		int viewTop);
+	void notePendingRemoval(int height, int top, int dateHeight);
 	void startCollapseAnimation(int height, int itemTop, int dateHeight);
 	void collapseAnimationCallback();
 	void syncCollapseGapsToHost();
@@ -110,6 +116,7 @@ private:
 
 	std::unique_ptr<ThanosEffect> _thanosEffect;
 	base::flat_map<FullMsgId, PreCapturedView> _preCaptured;
+	base::flat_set<FullMsgId> _announcedRemoval;
 	std::vector<CollapseGap> _renderGaps;
 
 	std::vector<CollapseGapState> _collapseGaps;
@@ -119,7 +126,9 @@ private:
 	int _gapsShift = 0;
 	int _prependBaseline = 0;
 	bool _prependPending = false;
-	int _removalHeight = 0;
+	std::vector<PendingRemoval> _pending;
+	int _pendingContentHeight = 0;
+	int _pendingAttempts = 0;
 
 	int _savedScrollTop = 0;
 	bool _restoreScrollPending = false;

@@ -868,7 +868,7 @@ bool WrapWidget::showInternal(
 		not_null<Window::SectionMemento*> memento,
 		const Window::SectionShow &params) {
 	if (auto infoMemento = dynamic_cast<Memento*>(memento.get())) {
-		if (!_controller || infoMemento->stackSize() > 1) {
+		if (_mementoTaken || infoMemento->stackSize() > 1) {
 			return false;
 		}
 		auto content = infoMemento->content();
@@ -907,8 +907,13 @@ std::shared_ptr<Window::SectionMemento> WrapWidget::createMemento() {
 	}
 	stack.push_back(_content->createMemento());
 
-	// We're not in valid state anymore and supposed to be destroyed.
-	_controller = nullptr;
+	// We're not in valid state anymore and supposed to be destroyed. The
+	// controller used to be destroyed right here, but the content widgets
+	// hold it by a raw pointer and outlive this call - MainWidget::showHistory
+	// takes the memento, shows the history and only then destroys the section.
+	// It is destroyed with us instead, after _content, which is declared
+	// after it.
+	_mementoTaken = true;
 
 	return std::make_shared<Memento>(std::move(stack));
 }
@@ -962,7 +967,7 @@ void WrapWidget::showNewContent(
 	auto newController = createController(
 		_controller->parentController(),
 		memento);
-	if (_controller && newController) {
+	if (newController) {
 		newController->takeStepData(_controller.get());
 	}
 	auto newContent = object_ptr<ContentWidget>(nullptr);

@@ -247,7 +247,13 @@ void Provider::remove(not_null<const HistoryItem*> item) {
 	_elements.erase(ranges::remove_if(_elements, proj), end(_elements));
 	if (const auto i = _layouts.find(item); i != end(_layouts)) {
 		_layoutRemoved.fire(i->second.item.get());
-		_layouts.erase(i);
+		// The list widget handles layoutRemoved() synchronously and may
+		// refresh its height from there, which can reach refreshViewer()
+		// -> refreshRows() -> fillSections() -> clearStaleLayouts() before
+		// we get back here, erasing this very entry, so look it up again.
+		if (const auto j = _layouts.find(item); j != end(_layouts)) {
+			_layouts.erase(j);
+		}
 	}
 	refreshPostponed(false);
 }

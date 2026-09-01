@@ -98,6 +98,13 @@ notifyFadeRight: icon {{ "fade_horizontal", notificationBg }};
 
 titleUnreadCounterTop: 6px;
 
+titleSubWidgetLeft: icon {{ "fade_horizontal", titleBgActive }};
+titleSubWidgetRight: icon {{ "fade_horizontal-flip_horizontal", titleBgActive }};
+titleSubWidgetStyle: TextStyle(defaultTextStyle) {
+	font: font(10px semibold);
+	linkUnderline: kLinkUnderlineNever;
+}
+
 mainMenuUserpic: UserpicButton(defaultUserpicButton) {
 	size: size(48px, 48px);
 	photoSize: 48px;

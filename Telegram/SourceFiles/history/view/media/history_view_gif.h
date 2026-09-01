@@ -24,6 +24,10 @@ class PhotoMedia;
 } // namespace Data
 
 namespace Media {
+struct VideoQuality;
+} // namespace Media
+
+namespace Media {
 namespace View {
 class PlaybackProgress;
 } // namespace View
@@ -43,6 +47,7 @@ namespace HistoryView {
 class Photo;
 class Reply;
 class TranscribeButton;
+class VideoMessageSeek;
 
 using TtlRoundPaintCallback = Fn<void(
 	QPainter&,
@@ -127,9 +132,21 @@ public:
 	bool enforceBubbleWidth() const override;
 	int bubbleWidthLimit() const override;
 
-	[[nodiscard]] static bool CanPlayInline(not_null<DocumentData*> document);
+	[[nodiscard]] static DocumentData *ChooseInlineQuality(
+		not_null<DocumentData*> document,
+		HistoryItem *context,
+		int maxArea,
+		::Media::VideoQuality request);
 
 private:
+	enum class Action : uchar {
+		None, // Sending without upload or waiting for album.
+		Open,
+		Cancel,
+		Download,
+		Streaming, // No center icon, click opens player.
+	};
+
 	struct Streamed;
 
 	void validateVideoThumbnail() const;
@@ -146,10 +163,12 @@ private:
 	void dataMediaCreated() const;
 
 	[[nodiscard]] bool autoplayEnabled() const;
+	[[nodiscard]] bool autoplayEligible(bool fullFeatured) const;
 	[[nodiscard]] bool autoplayUnderCursor() const;
-	[[nodiscard]] bool underCursor() const;
+	[[nodiscard]] bool underCursor(bool fullFeatured) const;
 	[[nodiscard]] int maxInlineArea() const;
 	[[nodiscard]] bool canPlayInline() const;
+	[[nodiscard]] float64 revealedProgress() const;
 
 	void playAnimation(bool autoplay) override;
 	QSize countOptimalSize() override;
@@ -159,7 +178,12 @@ private:
 	Streamed *activeOwnStreamed() const;
 	::Media::Streaming::Instance *activeCurrentStreamed() const;
 	::Media::View::PlaybackProgress *videoPlayback() const;
-	bool isRoundSeekable() const;
+	[[nodiscard]] bool isRoundSeekable() const;
+	[[nodiscard]] bool roundSeekShown() const;
+	[[nodiscard]] QRect roundThumbRect() const;
+	void captureRoundSeekFrame() const;
+	void startRoundSeeking();
+	void updateRoundSeeking(QRect rthumb, QPoint point);
 
 	void createStreamedPlayer();
 	void checkStreamedIsStarted() const;
@@ -230,7 +254,8 @@ private:
 		QPoint point,
 		StateRequest request,
 		QPoint position) const;
-	[[nodiscard]] ClickHandlerPtr currentVideoLink() const;
+	[[nodiscard]] Action currentAction(bool fullFeatured) const;
+	[[nodiscard]] ClickHandlerPtr currentVideoLink(bool fullFeatured) const;
 
 	void togglePollingStory(bool enabled) const;
 
@@ -256,9 +281,10 @@ private:
 	mutable QImage _roundingMask;
 	mutable crl::time _videoPosition = 0;
 	std::shared_ptr<VoiceSeekClickHandler> _seekl;
-	mutable Ui::Animations::Simple _seekAnimation;
-	float64 _seekingCurrent = 0.;
+	std::unique_ptr<VideoMessageSeek> _roundSeek;
+	crl::time _seekPreviewTime = 0;
 	QPoint _seekPressPoint;
+	mutable QPoint _seekStatePoint;
 	mutable QImage _seekLastFrame;
 	mutable TimeId _videoTimestamp = 0;
 	mutable std::optional<Ui::BubbleRounding> _thumbCacheRounding;

@@ -712,6 +712,7 @@ storiesEmojiPan: EmojiPan(defaultEmojiPan) {
 		menuSetShare: icon {{ "menu/share", storiesComposeWhiteText }};
 		menuSetCopyLink: icon {{ "menu/link", storiesComposeWhiteText }};
 		menuSetRemove: icon {{ "menu/delete", storiesComposeWhiteText }};
+		menuEmojiStatus: icon {{ "menu/emoji", storiesComposeWhiteText }};
 		menuEmojiCopy: icon {{ "menu/copy", storiesComposeWhiteText }};
 		menuEmojiViewPack: icon {{ "menu/all_media", storiesComposeWhiteText }};
 		menuEmojiRemoveRecent: icon {{ "menu/cancel", storiesComposeWhiteText }};

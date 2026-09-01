@@ -450,6 +450,11 @@ std::shared_ptr<Window::SectionMemento> PinnedWidget::createMemento() {
 	return result;
 }
 
+auto PinnedWidget::createIdentityMemento()
+-> std::shared_ptr<Window::SectionMemento> {
+	return std::make_shared<PinnedMemento>(thread());
+}
+
 bool PinnedWidget::showMessage(
 		PeerId peerId,
 		const Window::SectionShow &params,

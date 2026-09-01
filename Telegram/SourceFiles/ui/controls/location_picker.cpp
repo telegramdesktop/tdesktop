@@ -763,6 +763,10 @@ LocationPicker::LocationPicker(Descriptor &&descriptor)
 	std::move(
 		descriptor.closeRequests
 	) | rpl::on_next([=] {
+		// Close the webview before the panel: destroying the widget tree
+		// calls DestroyWindow() on the HWND the WebView2 controller is
+		// still attached to, which re-enters the window procedure.
+		base::take(_webview);
 		_window = nullptr;
 		delete this;
 	}, _lifetime);
@@ -1349,6 +1353,10 @@ void LocationPicker::activate() {
 
 void LocationPicker::close() {
 	crl::on_main(this, [=] {
+		// Close the webview before the panel: destroying the widget tree
+		// calls DestroyWindow() on the HWND the WebView2 controller is
+		// still attached to, which re-enters the window procedure.
+		base::take(_webview);
 		_window = nullptr;
 		delete this;
 	});

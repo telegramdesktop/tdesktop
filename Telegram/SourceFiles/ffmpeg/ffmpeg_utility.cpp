@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QImage>
 #include <cmath>
+#include <cstdlib>
 #include <limits>
 #include <new>
 
@@ -93,8 +94,8 @@ struct AlignedFrameStorageLayout {
 };
 
 void AlignedImageBufferCleanupHandler(void *data) {
-	const auto buffer = static_cast<uchar*>(data);
-	delete[] buffer;
+	// Paired with the ::malloc() in CreateFrameStorage().
+	::free(data);
 }
 
 [[nodiscard]] bool ComputeAlignedFrameStorageLayout(
@@ -797,7 +798,11 @@ QImage CreateFrameStorage(QSize size) {
 	if (!ComputeAlignedFrameStorageLayout(size, &layout)) {
 		return {};
 	}
-	const auto buffer = new (std::nothrow) uchar[layout.totalBytes];
+	// Not `new (std::nothrow)`: the operator new handler installed by
+	// CrashReports fires from inside operator new before the nothrow
+	// wrapper can return nullptr, so a recoverable out-of-memory here
+	// aborted the process instead of taking the null path below.
+	const auto buffer = static_cast<uchar*>(::malloc(layout.totalBytes));
 	if (!buffer) {
 		return {};
 	}

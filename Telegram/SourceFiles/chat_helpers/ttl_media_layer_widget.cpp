@@ -380,7 +380,7 @@ void ShowTTLMediaLayerWidget(
 		parent,
 		std::move(preview));
 	layer->lifetime().add([] { ::Media::Player::instance()->stop(); });
-	Core::App().screenshotProtection().addReason(
+	Core::App().screenshotProtection().addContentReason(
 		rpl::single(true),
 		layer->lifetime());
 	base::install_event_filter(layer.get(), [=](not_null<QEvent*> e) {

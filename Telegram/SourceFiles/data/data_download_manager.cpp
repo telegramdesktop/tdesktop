@@ -555,20 +555,31 @@ void DownloadManager::deleteFiles(const std::vector<GlobalMsgId> &ids) {
 				cancel(data, j);
 			}
 
-			const auto k = ranges::find(data.downloaded, item, ByItem);
-			if (k != end(data.downloaded)) {
-				const auto document = k->object->document;
-				descriptor.files.emplace(k->path, DocumentDescriptor{
+			// Addressed by item, and one item may own several downloaded
+			// files, so every one of them goes. Removing just the first left
+			// the rest on disk while loadedRemoved already hid the row.
+			auto erased = false;
+			for (auto k = 0; k != int(data.downloaded.size());) {
+				if (ByItem(data.downloaded[k]) != item) {
+					++k;
+					continue;
+				}
+				const auto &entry = data.downloaded[k];
+				const auto document = entry.object->document;
+				descriptor.files.emplace(entry.path, DocumentDescriptor{
 					.sessionUniqueId = id.sessionUniqueId,
 					.documentId = document ? document->id : DocumentId(),
 					.itemId = id.itemId,
 				});
-				_loaded.remove(item);
-				_generated.remove(item);
 				if (document) {
 					_generatedDocuments.remove(document);
 				}
-				data.downloaded.erase(k);
+				data.downloaded.erase(begin(data.downloaded) + k);
+				erased = true;
+			}
+			if (erased) {
+				_generated.remove(item);
+				_loaded.remove(item);
 				_loadedRemoved.fire_copy(item);
 
 				descriptor.sessions.emplace(session);
@@ -1018,12 +1029,21 @@ void DownloadManager::cancel(
 void DownloadManager::changed(not_null<const HistoryItem*> item) {
 	if (_loaded.contains(item)) {
 		auto &data = sessionData(item);
-		const auto i = ranges::find(data.downloaded, item.get(), ByItem);
-		Assert(i != end(data.downloaded));
 
-		if (!ItemContainsMedia(*i->object)) {
-			detach(*i);
+		// One item may be referenced by several downloaded entries, each
+		// with its own object, so all of them have to be re-checked.
+		// Indexed, because detach() emits and the list can move under us.
+		auto found = false;
+		for (auto i = 0; i != int(data.downloaded.size()); ++i) {
+			if (ByItem(data.downloaded[i]) != item.get()) {
+				continue;
+			}
+			found = true;
+			if (!ItemContainsMedia(*data.downloaded[i].object)) {
+				detach(data, data.downloaded[i]);
+			}
 		}
+		Assert(found);
 	}
 	if (_loading.contains(item) || _loadingDone.contains(item)) {
 		check(item);
@@ -1033,9 +1053,16 @@ void DownloadManager::changed(not_null<const HistoryItem*> item) {
 void DownloadManager::removed(not_null<const HistoryItem*> item) {
 	if (_loaded.contains(item)) {
 		auto &data = sessionData(item);
-		const auto i = ranges::find(data.downloaded, item.get(), ByItem);
+		auto i = ranges::find(data.downloaded, item.get(), ByItem);
 		Assert(i != end(data.downloaded));
-		detach(*i);
+
+		// One item may be referenced by several downloaded entries, and
+		// every one of them must be detached, or the rest keep pointing
+		// at the destroyed HistoryItem.
+		do {
+			detach(data, *i);
+			i = ranges::find(data.downloaded, item.get(), ByItem);
+		} while (i != end(data.downloaded));
 	}
 	if (_loading.contains(item) || _loadingDone.contains(item)) {
 		auto &data = sessionData(item);
@@ -1088,19 +1115,25 @@ not_null<HistoryItem*> DownloadManager::generateItem(
 	return result;
 }
 
-void DownloadManager::detach(DownloadedId &id) {
+void DownloadManager::detach(SessionData &data, DownloadedId &id) {
 	Expects(id.object != nullptr);
-	Expects(_loaded.contains(id.object->item));
 	Expects(!_generated.contains(id.object->item));
 
 	// Maybe generate new document?
 	const auto was = id.object->item;
 	const auto now = regenerateItem(*id.object);
-	_loaded.remove(was);
-	_loaded.emplace(now);
 	id.object->item = now;
+	_loaded.emplace(now);
 
-	_loadedRemoved.fire_copy(was);
+	// One item may have several downloaded entries, so it leaves _loaded -
+	// and the downloads list - only when the last of them was detached.
+	// Reporting it removed while another entry still holds it would drop a
+	// row that is still backed by a file.
+	if (!ranges::contains(data.downloaded, was.get(), ByItem)) {
+		_loaded.remove(was);
+		_loadedRemoved.fire_copy(was);
+	}
+
 	_loadedAdded.fire_copy(&id);
 }
 

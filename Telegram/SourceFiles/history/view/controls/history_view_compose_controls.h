@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 #include "base/timer.h"
 #include "chat_helpers/compose/compose_features.h"
+#include "chat_helpers/field_characters_count_manager.h"
 #include "dialogs/dialogs_key.h"
 #include "history/view/controls/compose_controls_common.h"
 #include "ui/round_rect.h"
@@ -587,6 +588,7 @@ private:
 	std::unique_ptr<Ui::SilentToggle> _silent;
 	std::unique_ptr<Controls::TTLButton> _ttlInfo;
 	base::unique_qptr<Controls::CharactersLimitLabel> _charsLimitation;
+	FieldCharsCountManager _fieldCharsCountManager;
 	base::unique_qptr<Ui::IconButton> _scheduled;
 	base::unique_qptr<Ui::IconButton> _giftToUser;
 	base::unique_qptr<Ui::IconButton> _toggleSuggestPost;

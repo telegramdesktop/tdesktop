@@ -17,7 +17,14 @@ namespace ChatHelpers {
 
 enum class RichPasteOffer : uchar {
 	Editor,
+	Markdown,
+	Field,
 	Plain,
+};
+
+struct RichPasteDecision {
+	RichPasteOffer offer = RichPasteOffer::Editor;
+	TextWithTags markdown;
 };
 
 struct RichPasteToastArgs {
@@ -29,9 +36,15 @@ struct RichPasteToastArgs {
 	Fn<void()> action;
 };
 
-[[nodiscard]] bool MimeDataLosesRichFormatting(
+[[nodiscard]] std::optional<RichPasteDecision> MimeDataRichPasteOffer(
 	not_null<Main::Session*> session,
 	not_null<const QMimeData*> data);
+
+[[nodiscard]] TextWithTags TextWithTagsReplaced(
+	const TextWithTags &original,
+	int from,
+	int till,
+	const TextWithTags &with);
 
 [[nodiscard]] std::shared_ptr<QMimeData> CloneMimeData(
 	not_null<const QMimeData*> data);

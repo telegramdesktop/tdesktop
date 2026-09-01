@@ -209,7 +209,15 @@ MimeImageData ReadMimeImage(not_null<const QMimeData*> data) {
 			};
 		}
 	} else if (data->hasImage()) {
-		return { .image = qvariant_cast<QImage>(data->imageData()) };
+		auto image = qvariant_cast<QImage>(data->imageData());
+		// The same area limit Images::Read() applies to files: a huge
+		// image can't be scaled down for the preview, because the smooth
+		// scale converts the whole source first, needing a second full
+		// size buffer, which fails in a 32 bit process.
+		if (qint64(image.width()) * image.height() > Images::kReadMaxArea) {
+			return {};
+		}
+		return { .image = std::move(image) };
 	}
 	return {};
 }

@@ -1848,7 +1848,10 @@ QPoint Application::getPointForCallPanelCenter() const {
 	if (const auto window = activeWindow()) {
 		return window->getPointForCallPanelCenter();
 	}
-	return QGuiApplication::primaryScreen()->geometry().center();
+	// When the last monitor is removed QGuiApplication has no screens at
+	// all, so primaryScreen() is nullptr.
+	const auto primary = QGuiApplication::primaryScreen();
+	return primary ? primary->geometry().center() : QPoint();
 }
 
 bool Application::isSharingScreen() const {
@@ -1895,8 +1898,8 @@ void Application::unregisterLeaveSubscription(not_null<QWidget*> widget) {
 		if (i != end(_leaveFilters)) {
 			i->second.registered = std::move(
 				i->second.registered
-			) | ranges::actions::remove_if([&](QPointer<QWidget> widget) {
-				const auto pointer = widget.data();
+			) | ranges::actions::remove_if([&](QPointer<QWidget> weak) {
+				const auto pointer = weak.data();
 				return !pointer || (pointer == widget);
 			});
 		}

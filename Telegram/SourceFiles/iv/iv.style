@@ -113,6 +113,19 @@ ivEditorToolbarPremiumStarSize: 11px;
 ivEditorToolbarPremiumStarSkip: point(5px, 7px);
 ivEditorToolbarPremiumStarOutline: 2px;
 ivEditorStyleMenuPremiumStarSize: 16px;
+ivEditorSuggestionsMaxRows: 5;
+ivEditorSuggestionsSkip: 4px;
+ivEditorSuggestionsShortcutSkip: 12px;
+ivEditorSuggestionsPadding: margins(0px, 5px, 0px, 5px);
+ivEditorSuggestionsQueryPadding: margins(4px, 2px, 4px, 2px);
+ivEditorSuggestionsQueryRadius: 4px;
+ivEditorSuggestionsRadius: 8px;
+ivEditorSuggestionsScroll: ScrollArea(defaultSolidScroll) {
+	deltax: 3px;
+	deltat: 4px;
+	deltab: 4px;
+	width: 10px;
+}
 ivEditorPillShadow: BoxShadow {
 	blurRadius: 3px;
 	offset: point(0px, 1px);

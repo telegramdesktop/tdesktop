@@ -13,10 +13,10 @@ This file adapts harness mechanics and removes unnecessary text normalization.
   prompt containing exact repository, task, artifact, and input paths. Do not
   rely on the parent conversation being inherited.
 - Tell every disposable phase leaf Agent not to delegate and never to commit.
-  Publication-owning orchestrators — `process-inbox`, `perform-task`, discovered
-  routing, and pending-task consolidation — follow the shared workflow's exact
-  helper, commit, and publication contract instead. Preserve its single-writer
-  and one-stateful-performer constraints.
+  Publication-owning orchestrators — `process-inbox`, `perform-task`, split
+  routing, discovered routing, and pending-task consolidation — follow the
+  shared workflow's exact helper, commit, and publication contract instead.
+  Preserve its single-writer and one-stateful-performer constraints.
 - Every phase leaf and the performer inherit the parent model, as the shared
   workflow says. Do not pass a model override on the Agent call: its family
   aliases already resolve to the newest permitted model of that family, so an
@@ -31,11 +31,24 @@ This file adapts harness mechanics and removes unnecessary text normalization.
   five-minute stall windows in the shared references are Codex-only mechanics
   and do not apply in Claude Code. Leaves still write their progress files
   (they are cheap resumability evidence), but the performer never polls them.
-- Run independent leaves that truly share one step — the selected specialist
+- A leaf's return value IS its report. Never tell a leaf to send its findings
+  back through `SendMessage`, and never wait on one to do so. A leaf has no
+  address for its parent: an agent *type* such as `general-purpose` is not a
+  reachable name, so the call fails, and a leaf that treats that failure as
+  fatal loses work the foreground return would have delivered for free.
+- Never arm a watcher, `Monitor`, background wait, or artifact poll around a
+  leaf, and never end the turn holding one. A performer's turn ends only at a
+  real task boundary — approved, genuinely blocked, split-required, or a global
+  hard stop. Ending it with a progress report instead is a stall: the scheduler
+  receives that report, the performer receives nothing, and the phase is
+  stranded until a human or the scheduler resumes it. If a leaf's artifact has
+  not landed, relaunch that phase in the foreground and wait for it in-turn.
+- Run independent leaves that truly share one step — the surviving specialist
   reviews in an iteration, or assessed-disjoint implementation units — as
   parallel Agent calls in a single message so they run concurrently and all
-  return together. Run the mandatory general reviewer only after the selected
-  specialist reports exist.
+  return together. The mandatory general reviewer is not one of them: it runs
+  alone before them to emit the retirement list, and alone again after their
+  reports exist to own the verdict.
 - A long Debug build may run as background Bash; the harness re-invokes the
   session when a background command exits, so do not poll its log with sleep
   loops either.
@@ -45,12 +58,21 @@ This file adapts harness mechanics and removes unnecessary text normalization.
   same stateful worker, resume that id; never create a duplicate performer or
   duplicate an agent whose writes may still be in flight. Never launch a
   nested `claude` process from Bash.
+- Before relaunching a phase whose leaf stalled, establish that the original
+  leaf is finished. A leaf left running still lands its writes, and two runs of
+  one phase append to the same artifact with no conflict and no warning, so the
+  verdict that survives is decided by write order rather than by judgment. When
+  the original cannot be confirmed dead, point the relaunch at a distinct
+  artifact and reconcile the two deliberately. A phase artifact carrying two
+  passes that disagree is this failure, not a reviewer changing its mind:
+  re-read it before acting, and never treat the last block as authoritative
+  merely because it is last.
 - If the first real leaf Agent is rejected before work begins because nested
   delegation is unavailable, use the shared same-session fallback. Do not
   treat mere presence of the Agent tool as a successful delegation probe.
-- Whenever an Agent is asked to run `process-inbox`, `perform-task`,
-  discovered-task routing, or pending-task consolidation — the orchestrating
-  roles — explicitly tell it to read this adapter completely before the
+- Whenever an Agent is asked to run `process-inbox`, `perform-task`, split-task
+  routing, discovered-task routing, or pending-task consolidation — the
+  orchestrating roles — explicitly tell it to read this adapter completely before the
   applicable shared skill or reference. Do NOT tell leaf phase agents to read
   this adapter: their phase prompts are self-contained and already carry the
   leaf rules (no delegation, no commits, progress and reply contracts); an
@@ -122,3 +144,24 @@ tool is actually exposed in the current session. Preserve the same policy:
 `auto` uses the already planned overlay fallback, while `required` reports the
 exact unverified interaction. Driver availability never permits skipping the
 selected runtime, overlay, account-safety, evidence, or other safety checks.
+
+## Concurrent routing lane
+
+The shared skill's discovered-follow-up routing and pending-task consolidation
+publish through the checkout's `routing/<tag>` worktree
+(`workspace.py route-ensure`, `route-publish`, `consolidate-publish
+--routing`), never the slot, so they run beside the active performer. In
+Claude Code run these two workers as BACKGROUND Agent calls: a background
+child's completion notification is delivered to the scheduler session, which
+validates the landed publication and updates its batch records before acting
+on it. Keep at most one routing worker and one consolidation worker in flight;
+performers and every other leaf stay synchronous foreground calls. Never end
+the invocation while a routing or consolidation is unlanded; after a crash,
+`route-ensure` reports the unpublished commit and `route-publish
+--source-task <id>` with no paths resumes the publication.
+
+A performer that resumes one of its own stalled leaves must never end its turn
+to await that leaf's reply — the reply is delivered to the scheduler, not the
+performer. After resuming a leaf, keep validating its expected artifacts
+in-turn, or relaunch the phase fresh in the foreground; ending the turn while
+any child or command is pending is the stall this rule exists to prevent.

@@ -32,9 +32,9 @@ resumability, and AI publication. This file adapts harness mechanics.
   consolidation, and phase leaves. Do not restrict `capability_mode`;
   those workers need shell plus writes.
 - Tell every disposable phase leaf not to delegate and never to commit.
-  Publication-owning orchestrators — `process-inbox`, `perform-task`,
-  discovered routing, and pending-task consolidation — follow the shared
-  workflow's exact helper, commit, and publication contract. Preserve its
+  Publication-owning orchestrators — `process-inbox`, `perform-task`, split
+  routing, discovered routing, and pending-task consolidation — follow the
+  shared workflow's exact helper, commit, and publication contract. Preserve its
   single-writer and one-stateful-performer constraints.
 - When a blocking call returns without its required artifact, retry that
   disposable worker once in a fresh `spawn_subagent` with more specific
@@ -57,8 +57,8 @@ nested-delegation probe.
 This session is the scheduler only. Do not plan or implement Telegram
 changes here.
 
-Spawn each inbox worker, performer, discovery-routing worker, and
-pending-task consolidation worker as a blocking `spawn_subagent`. Tell
+Spawn each inbox worker, performer, split-routing worker, discovery-routing
+worker, and pending-task consolidation worker as a blocking `spawn_subagent`. Tell
 every one of those workers, in its initial prompt, to read this adapter
 completely before the applicable shared skill or reference.
 
@@ -81,11 +81,12 @@ This session is the orchestrator and may spawn leaves.
 
 - Run each leaf as one blocking `spawn_subagent` with a self-contained
   prompt. Do not tell leaf phase agents to read this adapter.
-- Spawn independent leaves that truly share one step — the selected
+- Spawn independent leaves that truly share one step — the surviving
   specialist reviews in an iteration, or assessed-disjoint implementation
-  units — as parallel `spawn_subagent` calls in a single message. Run the
-  mandatory general reviewer only after the selected specialist reports
-  exist.
+  units — as parallel `spawn_subagent` calls in a single message. The
+  mandatory general reviewer is not one of them: it runs alone before them
+  to emit the retirement list, and alone again after their reports exist to
+  own the verdict.
 - If the first real leaf is rejected before work begins because nested
   delegation is unavailable, use the shared same-session fallback for
   the rest of the run.
@@ -132,8 +133,9 @@ invocation resume it.
 
 The only scheduler state that is not already on disk is the frozen batch
 (`invocation_mode`, `initial_batch_task_ids`, `batch_task_ids`,
-`discovered_task_ids`, `attempted_blocked`, consolidation records). After
-a compact, recover those lists from the compact summary and the last
+`discovered_task_ids`, `attempted_blocked`, consolidation records, and ordered
+split records with carrier ids). After a compact, recover those lists from the
+compact summary and the last
 scheduler notes. Do not take a fresh queue snapshot and freeze a new
 batch. A later queue id that was never in this invocation's batch stays
 out, exactly as the shared skill says.

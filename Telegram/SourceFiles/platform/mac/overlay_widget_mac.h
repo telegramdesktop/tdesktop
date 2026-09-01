@@ -29,6 +29,7 @@ public:
 		Fn<void(bool)> maximize);
 	~MacOverlayWidgetHelper();
 
+	bool skipTitleHitTest(QPoint position) override;
 	void beforeShow(bool fullscreen) override;
 	void afterShow(bool fullscreen) override;
 	void notifyFileDialogShown(bool shown) override;
@@ -44,6 +45,7 @@ private:
 
 	void activate(Control control);
 	void resolveNative();
+	void updateNativeMovable();
 	void updateStyles(bool fullscreen);
 	void refreshButtons(bool fullscreen);
 

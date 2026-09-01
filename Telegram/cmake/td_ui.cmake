@@ -520,6 +520,8 @@ PRIVATE
     ui/controls/swipe_handler_data.h
     ui/controls/tabbed_search.cpp
     ui/controls/tabbed_search.h
+    ui/controls/title_sub_widget.cpp
+    ui/controls/title_sub_widget.h
     ui/controls/ton_common.cpp
     ui/controls/ton_common.h
     ui/controls/ttl_media.cpp

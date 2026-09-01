@@ -153,8 +153,12 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	void paintEdges(QPainter &p, const QBrush &brush) const;
-	void paintEdges(QPainter &p) const;
+	[[nodiscard]] bool clipTouchesRoundedCorners(const QRect &clip) const;
+	void paintEdges(
+		QPainter &p,
+		const QRect &clip,
+		const QBrush &brush) const;
+	void paintEdges(QPainter &p, const QRect &clip) const;
 	void updateLabelsPosition();
 	[[nodiscard]] int titleMostLeft() const;
 	[[nodiscard]] int statusMostLeft() const;
@@ -187,7 +191,7 @@ private:
 	void setupAnimatedPattern(const QRect &userpicGeometry = QRect());
 	void paintAnimatedPattern(
 		QPainter &p,
-		const QRect &rect,
+		const QRect &clip,
 		const QRect &userpicGeometry);
 	void setupPinnedToTopGifts(
 		not_null<Window::SessionController*> controller);
@@ -196,7 +200,7 @@ private:
 		const std::vector<Data::SavedStarGift> &gifts);
 	void paintPinnedToTopGifts(
 		QPainter &p,
-		const QRect &rect,
+		const QRect &clip,
 		const QRect &userpicGeometry);
 	[[nodiscard]] QPointF calculateGiftPosition(
 		int position,

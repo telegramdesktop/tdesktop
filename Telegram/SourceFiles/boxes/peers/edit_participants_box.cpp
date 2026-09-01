@@ -1581,7 +1581,11 @@ void ParticipantsBoxController::unload() {
 	if (const auto requestId = base::take(_loadRequestId)) {
 		_api.request(requestId).cancel();
 	}
+	if (const auto requestId = base::take(_adminsRequestId)) {
+		_api.request(requestId).cancel();
+	}
 	_allLoaded = false;
+	_adminsPreloaded = false;
 	_offset = 0;
 }
 
@@ -1590,6 +1594,7 @@ void ParticipantsBoxController::rebuild() {
 		prepareChatRows(chat);
 	} else {
 		loadMoreRows();
+		preloadAdmins();
 	}
 	refreshRows();
 }
@@ -2711,6 +2716,48 @@ void ParticipantsBoxController::applyRoleSectionHeaders() {
 	}
 }
 
+void ParticipantsBoxController::preloadAdmins() {
+	if (_adminsPreloaded
+		|| _adminsRequestId
+		|| !_groupByRole.current()
+		|| (_role != Role::Profile && _role != Role::Members)) {
+		return;
+	}
+	const auto channel = _peer->asChannel();
+	if (!channel || !channel->canViewAdmins()) {
+		return;
+	}
+	const auto offset = 0;
+	const auto participantsHash = uint64(0);
+	_adminsRequestId = _api.request(MTPchannels_GetParticipants(
+		channel->inputChannel(),
+		MTP_channelParticipantsAdmins(),
+		MTP_int(offset),
+		MTP_int(channel->session().serverConfig().chatSizeMax),
+		MTP_long(participantsHash)
+	)).done([=](const MTPchannels_ChannelParticipants &result) {
+		_adminsRequestId = 0;
+		_adminsPreloaded = true;
+		result.match([&](const MTPDchannels_channelParticipants &data) {
+			const auto &[availableCount, list]
+				= Api::ChatParticipants::Parse(channel, data);
+			for (const auto &data : list) {
+				if (const auto participant = _additional.applyParticipant(
+						data)) {
+					appendRow(participant);
+				}
+			}
+		}, [](const MTPDchannels_channelParticipantsNotModified &) {
+			LOG(("API Error: "
+				"channels.channelParticipantsNotModified received!"));
+		});
+		resort();
+		refreshRows();
+	}).fail([=] {
+		_adminsRequestId = 0;
+	}).send();
+}
+
 void ParticipantsBoxController::resort() {
 	if (_groupByRole.current()) {
 		if (_onlineSorter) {
@@ -2735,6 +2782,7 @@ void ParticipantsBoxController::setGroupByRole(bool grouped) {
 		return;
 	}
 	_groupByRole = grouped;
+	preloadAdmins();
 	resort();
 }
 

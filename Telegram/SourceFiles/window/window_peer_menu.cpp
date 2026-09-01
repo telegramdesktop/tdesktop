@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/call_delayed.h"
 #include "menu/menu_check_item.h"
+#include "menu/menu_mark_as_read.h"
 #include "boxes/about_box.h"
 #include "boxes/share_box.h"
 #include "boxes/star_gift_box.h"
@@ -196,7 +197,6 @@ const char kOptionViewProfileInChatsListContextMenu[]
 namespace {
 
 constexpr auto kArchivedToastDuration = crl::time(5000);
-constexpr auto kMaxUnreadWithoutConfirmation = 1000;
 
 [[nodiscard]] bool InsideCollapsedCommunity(History *history) {
 	// A member chat hidden inside a collapsed community lives in that
@@ -323,6 +323,7 @@ private:
 	void addThemeEdit();
 	void addToggleNoForwards();
 	void addBlockUser();
+	void addBanFromChannel();
 	void addViewDiscussion();
 	void addDirectMessages();
 	void addToggleTopicClosed();
@@ -702,7 +703,7 @@ void Filler::addToggleFolder() {
 
 void Filler::addToggleUnreadMark() {
 	const auto peer = _peer;
-	const auto unread = IsUnreadThread(_thread);
+	const auto unread = MarkAsReadMenu::IsUnreadThread(_thread);
 	const auto history = _request.key.history();
 	if (!_thread || !_thread->canToggleUnread(unread)) {
 		return;
@@ -723,9 +724,9 @@ void Filler::addToggleUnreadMark() {
 				: nullptr;
 			if (info) {
 				// Mark every chat inside the community as read.
-				MarkAsReadChatList(info->chatsList());
+				MarkAsReadMenu::MarkAsReadChatList(info->chatsList());
 			} else {
-				MarkAsReadThread(thread);
+				MarkAsReadMenu::MarkAsReadThread(thread);
 			}
 		} else if (const auto sublist = thread->asSublist()) {
 			peer->owner().histories().changeSublistUnreadMark(sublist, true);
@@ -969,6 +970,53 @@ void Filler::addBlockUser() {
 	if (user->blockStatus() == UserData::BlockStatus::Unknown) {
 		user->session().api().requestFullPeer(user);
 	}
+}
+
+void Filler::addBanFromChannel() {
+	const auto sublist = _sublist;
+	const auto parent = sublist ? sublist->parentChat() : nullptr;
+	const auto broadcast = parent ? parent->monoforumBroadcast() : nullptr;
+	if (!broadcast) {
+		return;
+	}
+	const auto participant = sublist->sublistPeer();
+	if (!broadcast->canRestrictParticipant(participant)) {
+		return;
+	}
+	const auto api = &broadcast->session().api();
+	const auto show = _controller->uiShow();
+	const auto banned = std::make_shared<rpl::variable<bool>>(false);
+	*banned = api->chatParticipants().kickedValue(broadcast, participant);
+	const auto label = [](bool banned) {
+		return banned
+			? tr::lng_context_monoforum_unban(tr::now)
+			: tr::lng_context_monoforum_ban(tr::now);
+	};
+	const auto action = _addAction(
+		label(banned->current()),
+		[=] {
+			if (banned->current()) {
+				api->chatParticipants().unblock(broadcast, participant);
+				return;
+			}
+			show->show(Ui::MakeConfirmBox({
+				.text = tr::lng_profile_sure_kick_channel(
+					tr::now,
+					lt_user,
+					participant->name()),
+				.confirmed = [=](Fn<void()> close) {
+					api->chatParticipants().kick(
+						broadcast,
+						participant,
+						{ broadcast->restrictions(), 0 });
+					close();
+				},
+				.confirmText = tr::lng_box_remove(),
+			}));
+		},
+		(banned->current() ? &st::menuIconUnblock : &st::menuIconBlock));
+
+	SetActionText(action, banned->value() | rpl::map(label));
 }
 
 void Filler::addViewDiscussion() {
@@ -1864,6 +1912,7 @@ void Filler::fillContextMenuActions() {
 			addBlockUser();
 		}
 	}
+	addBanFromChannel();
 	addClearHistory();
 	addDeleteChat();
 	addLeaveChat();
@@ -1915,6 +1964,7 @@ void Filler::fillProfileActions() {
 	addToggleNoForwards();
 	addToggleFolder();
 	addBlockUser();
+	addBanFromChannel();
 	addReport();
 	addLeaveChat();
 	addDeleteContact();
@@ -2010,7 +2060,7 @@ void Filler::fillArchiveActions() {
 			}, inmenu ? &st::menuIconFromMainMenu : &st::menuIconToMainMenu);
 		}
 
-		MenuAddMarkAsReadChatListAction(
+		MarkAsReadMenu::AddChatListAction(
 			controller,
 			[folder = _folder] { return folder->chatsList(); },
 			_addAction);
@@ -2046,6 +2096,7 @@ void Filler::fillSavedSublistActions() {
 void Filler::fillMonoforumPeerActions() {
 	Expects(_sublist != nullptr);
 
+	addBanFromChannel();
 	addToggleFee();
 }
 
@@ -4192,94 +4243,6 @@ void UnpinAllMessages(
 		Ui::LayerOption::CloseOther);
 }
 
-void MenuAddMarkAsReadAllChatsAction(
-		not_null<Main::Session*> session,
-		std::shared_ptr<Ui::Show> show,
-		const PeerMenuCallback &addAction) {
-	auto callback = [=, owner = &session->data()] {
-		auto boxCallback = [=](Fn<void()> &&close) {
-			close();
-
-			MarkAsReadChatList(owner->chatsList());
-			if (const auto folder = owner->folderLoaded(Data::Folder::kId)) {
-				MarkAsReadChatList(folder->chatsList());
-			}
-		};
-		show->show(
-			Box([=](not_null<Ui::GenericBox*> box) {
-				Ui::AddSkip(box->verticalLayout());
-				Ui::AddSkip(box->verticalLayout());
-				const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
-					box->verticalLayout(),
-					session->user(),
-					st::mainMenuUserpic);
-				Ui::IconWithTitle(
-					box->verticalLayout(),
-					userpic,
-					Ui::CreateChild<Ui::FlatLabel>(
-						box->verticalLayout(),
-						Info::Profile::NameValue(session->user()),
-						box->getDelegate()->style().title));
-				auto text = rpl::combine(
-					tr::lng_context_mark_read_all_sure(),
-					tr::lng_context_mark_read_all_sure_2(
-						tr::rich)
-				) | rpl::map([](QString t1, TextWithEntities t2) {
-					return TextWithEntities()
-						.append(std::move(t1))
-						.append('\n')
-						.append('\n')
-						.append(std::move(t2));
-				});
-				Ui::ConfirmBox(box, {
-					.text = std::move(text),
-					.confirmed = std::move(boxCallback),
-					.confirmStyle = &st::attentionBoxButton,
-				});
-			}),
-			Ui::LayerOption::CloseOther);
-	};
-	addAction(
-		tr::lng_context_mark_read_all(tr::now),
-		std::move(callback),
-		&st::menuIconMarkRead);
-}
-
-void MenuAddMarkAsReadChatListAction(
-		not_null<Window::SessionController*> controller,
-		Fn<not_null<Dialogs::MainList*>()> &&list,
-		const PeerMenuCallback &addAction,
-		Fn<Dialogs::UnreadState()> customUnreadState) {
-	// There is no async to make weak from controller.
-	const auto unreadState = customUnreadState
-		? customUnreadState()
-		: list()->unreadState();
-	if (!unreadState.messages && !unreadState.marks && !unreadState.chats) {
-		return;
-	}
-
-	auto callback = [=] {
-		if (unreadState.messages > kMaxUnreadWithoutConfirmation) {
-			auto boxCallback = [=](Fn<void()> &&close) {
-				MarkAsReadChatList(list());
-				close();
-			};
-			controller->show(
-				Ui::MakeConfirmBox({
-					tr::lng_context_mark_read_sure(),
-					std::move(boxCallback)
-				}),
-				Ui::LayerOption::CloseOther);
-		} else {
-			MarkAsReadChatList(list());
-		}
-	};
-	addAction(
-		tr::lng_context_mark_read(tr::now),
-		std::move(callback),
-		&st::menuIconMarkRead);
-}
-
 void ToggleHistoryArchived(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<History*> history,
@@ -4572,42 +4535,6 @@ void AddSenderUserpicModerateAction(
 			.isAttention = true,
 		});
 	}
-}
-
-bool IsUnreadThread(not_null<Data::Thread*> thread) {
-	return thread->chatListBadgesState().unread;
-}
-
-void MarkAsReadThread(not_null<Data::Thread*> thread) {
-	const auto readHistory = [&](not_null<History*> history) {
-		history->owner().histories().readInbox(history);
-	};
-	if (!IsUnreadThread(thread)) {
-		return;
-	} else if (const auto forum = thread->asForum()) {
-		forum->enumerateTopics([](not_null<Data::ForumTopic*> topic) {
-			MarkAsReadThread(topic);
-		});
-	} else if (const auto history = thread->asHistory()) {
-		readHistory(history);
-		if (const auto migrated = history->migrateSibling()) {
-			readHistory(migrated);
-		}
-	} else if (const auto topic = thread->asTopic()) {
-		topic->readTillEnd();
-	} else if (const auto sublist = thread->asSublist()) {
-		sublist->readTillEnd();
-	}
-}
-
-void MarkAsReadChatList(not_null<Dialogs::MainList*> list) {
-	auto mark = std::vector<not_null<History*>>();
-	for (const auto &row : list->indexed()->all()) {
-		if (const auto history = row->history()) {
-			mark.push_back(history);
-		}
-	}
-	ranges::for_each(mark, MarkAsReadThread);
 }
 
 void AddSeparatorAndShiftUp(const PeerMenuCallback &addAction) {

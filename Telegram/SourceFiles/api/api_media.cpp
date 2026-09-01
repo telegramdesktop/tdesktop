@@ -20,6 +20,7 @@ MTPVector<MTPDocumentAttribute> ComposeSendingDocumentAttributes(
 	const auto filenameAttribute = MTP_documentAttributeFilename(
 		MTP_string(document->filename()));
 	const auto dimensions = document->dimensions;
+	const auto animated = (document->type == AnimatedDocument);
 	auto attributes = QVector<MTPDocumentAttribute>(1, filenameAttribute);
 	if (dimensions.width() > 0 && dimensions.height() > 0) {
 		if (document->hasDuration() && !document->hasMimeType(u"image/gif"_q)) {
@@ -31,7 +32,7 @@ MTPVector<MTPDocumentAttribute> ComposeSendingDocumentAttributes(
 			if (document->supportsStreaming()) {
 				flags |= VideoFlag::f_supports_streaming;
 			}
-			if (document->isSilentVideo()) {
+			if (!animated && document->isSilentVideo()) {
 				flags |= VideoFlag::f_nosound;
 			}
 			const auto video = document->video();
@@ -53,7 +54,7 @@ MTPVector<MTPDocumentAttribute> ComposeSendingDocumentAttributes(
 				MTP_int(dimensions.height())));
 		}
 	}
-	if (document->type == AnimatedDocument) {
+	if (animated) {
 		attributes.push_back(MTP_documentAttributeAnimated());
 	} else if (document->type == StickerDocument && document->sticker()) {
 		attributes.push_back(MTP_documentAttributeSticker(
@@ -117,7 +118,9 @@ MTPInputMedia PrepareUploadedDocument(
 	const auto ttlSeconds = item->media()
 		? item->media()->ttlSeconds()
 		: 0;
-	const auto silent = item->groupId() || document->isSilentVideo();
+	const auto animated = (document->type == AnimatedDocument);
+	const auto silent = !animated
+		&& (item->groupId() || document->isSilentVideo());
 	const auto flags = (spoiler ? Flag::f_spoiler : Flag())
 		| (info.thumb ? Flag::f_thumb : Flag())
 		| (silent ? Flag::f_nosound_video : Flag())
