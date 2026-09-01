@@ -86,10 +86,26 @@ private:
 		mtpRequestId requestId = 0;
 		MonthState state;
 		bool loaded = false;
+		bool deferred = false;
 	};
+
+	[[nodiscard]] std::optional<MonthKey> requestingNewest() const;
+	void sendDeferredRequests();
 
 	[[nodiscard]] std::vector<DayThumbnail> thumbnails(
 		const MonthData &data) const;
+	[[nodiscard]] base::flat_map<TimeId, MonthDay> collectDayMedia(
+		const std::vector<FullMsgId> &messages) const;
+	void fillMonth(
+		const MonthKey &key,
+		const std::vector<CalendarPeriod> &periods,
+		const base::flat_map<TimeId, MonthDay> &dayMedia);
+	void fillCoveredMonths(
+		const MonthKey &key,
+		const std::vector<CalendarPeriod> &periods,
+		const base::flat_map<TimeId, MonthDay> &dayMedia,
+		TimeId offsetDate,
+		bool noMoreData);
 	void finishMonth(MonthData &data);
 	void performMonthRequest(const MonthKey &key);
 	void processMonthData(
@@ -97,6 +113,7 @@ private:
 		const std::vector<CalendarPeriod> &periods,
 		const std::vector<FullMsgId> &messages,
 		TimeId minDate,
+		TimeId offsetDate,
 		bool noMoreData);
 
 	const not_null<Main::Session*> _session;

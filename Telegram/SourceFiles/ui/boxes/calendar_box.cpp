@@ -719,7 +719,7 @@ void CalendarBox::Inner::loadDynamicImages() {
 		return;
 	}
 	const auto currentMonth = _context->month();
-	for (auto shift = -1; shift != 2; ++shift) {
+	for (const auto shift : { 0, -1, 1 }) {
 		const auto month = currentMonth.addMonths(shift);
 		const auto first = currentMonth.daysTo(month);
 		const auto last = first + month.daysInMonth() - 1;

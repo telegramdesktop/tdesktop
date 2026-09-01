@@ -20,6 +20,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/dynamic_thumbnails.h"
 
 namespace Api {
+namespace {
+
+[[nodiscard]] TimeId DayStartOf(TimeId date) {
+	return base::unixtime::serialize(
+		QDateTime(base::unixtime::parse(date).date(), QTime()));
+}
+
+} // namespace
 
 SearchCalendarController::SearchCalendarController(
 	not_null<Main::Session*> session,
@@ -51,7 +59,40 @@ void SearchCalendarController::monthThumbnails(
 	auto &data = _months[key];
 	data.callbacks.push_back(std::move(onFinish));
 
-	if (!data.requestId) {
+	if (!data.requestId && !data.deferred) {
+		const auto newest = requestingNewest();
+		if (newest && key < *newest) {
+			data.deferred = true;
+		} else {
+			performMonthRequest(key);
+		}
+	}
+}
+
+std::optional<SearchCalendarController::MonthKey>
+SearchCalendarController::requestingNewest() const {
+	auto result = std::optional<MonthKey>();
+	for (const auto &[key, data] : _months) {
+		if (data.requestId && (!result || *result < key)) {
+			result = key;
+		}
+	}
+	return result;
+}
+
+void SearchCalendarController::sendDeferredRequests() {
+	auto keys = std::vector<MonthKey>();
+	for (const auto &[key, data] : _months) {
+		if (data.deferred && !data.loaded && !data.requestId) {
+			keys.push_back(key);
+		}
+	}
+	for (const auto &key : keys) {
+		auto &data = _months[key];
+		if (data.loaded || data.requestId) {
+			continue;
+		}
+		data.deferred = false;
 		performMonthRequest(key);
 	}
 }
@@ -66,6 +107,9 @@ void SearchCalendarController::performMonthRequest(const MonthKey &key) {
 		QTime(23, 59, 59)));
 
 	auto &data = _months[key];
+	const auto usedDate = data.state.offsetDate
+		? data.state.offsetDate
+		: endDate;
 
 	data.requestId = _api.request(
 		MTPmessages_GetSearchResultsCalendar(
@@ -74,7 +118,7 @@ void SearchCalendarController::performMonthRequest(const MonthKey &key) {
 			MTPInputPeer(),
 			filter,
 			MTP_int(data.state.offsetId),
-			MTP_int(data.state.offsetDate ? data.state.offsetDate : endDate)
+			MTP_int(usedDate)
 	)).done([=](const MTPmessages_SearchResultsCalendar &result) {
 		auto &data = _months[key];
 		data.requestId = 0;
@@ -118,38 +162,27 @@ void SearchCalendarController::performMonthRequest(const MonthKey &key) {
 			periods,
 			messageIds,
 			fields.vmin_date().v,
+			usedDate,
 			noMoreData);
 	}).fail([=] {
 		auto &data = _months[key];
 		data.requestId = 0;
 		finishMonth(data);
+		sendDeferredRequests();
 	}).send();
 }
 
-void SearchCalendarController::processMonthData(
-		const MonthKey &key,
-		const std::vector<CalendarPeriod> &periods,
-		const std::vector<FullMsgId> &messages,
-		TimeId minDate,
-		bool noMoreData) {
-	const auto inTargetMonth = [&](TimeId date) {
-		const auto parsed = base::unixtime::parse(date).date();
-		return (parsed.year() == key.year) && (parsed.month() == key.month);
-	};
-	const auto dayStartOf = [&](TimeId date) {
-		return base::unixtime::serialize(
-			QDateTime(base::unixtime::parse(date).date(), QTime()));
-	};
-
-	// Representative messages of the page give the thumbnail for each day.
-	auto dayMedia = base::flat_map<TimeId, MonthDay>();
+auto SearchCalendarController::collectDayMedia(
+	const std::vector<FullMsgId> &messages) const
+-> base::flat_map<TimeId, MonthDay> {
+	auto result = base::flat_map<TimeId, MonthDay>();
 	for (const auto &fullId : messages) {
 		const auto item = _session->data().message(fullId);
-		if (!item || !inTargetMonth(item->date())) {
+		if (!item) {
 			continue;
 		}
-		const auto dayStart = dayStartOf(item->date());
-		if (dayMedia.contains(dayStart)) {
+		const auto dayStart = DayStartOf(item->date());
+		if (result.contains(dayStart)) {
 			continue;
 		}
 		const auto media = item->media();
@@ -165,10 +198,16 @@ void SearchCalendarController::processMonthData(
 			}
 		}
 		if (day.photo || day.document) {
-			dayMedia.emplace(dayStart, day);
+			result.emplace(dayStart, day);
 		}
 	}
+	return result;
+}
 
+void SearchCalendarController::fillMonth(
+		const MonthKey &key,
+		const std::vector<CalendarPeriod> &periods,
+		const base::flat_map<TimeId, MonthDay> &dayMedia) {
 	// Periods are authoritative: they provide the newest message of each day.
 	auto &data = _months[key];
 	auto seenDays = base::flat_set<TimeId>();
@@ -176,10 +215,13 @@ void SearchCalendarController::processMonthData(
 		seenDays.emplace(day.date);
 	}
 	for (const auto &period : periods) {
-		if (!period.maxMsgId || !inTargetMonth(period.date)) {
+		const auto parsed = base::unixtime::parse(period.date).date();
+		if (!period.maxMsgId
+			|| parsed.year() != key.year
+			|| parsed.month() != key.month) {
 			continue;
 		}
-		const auto dayStart = dayStartOf(period.date);
+		const auto dayStart = DayStartOf(period.date);
 		if (seenDays.contains(dayStart)) {
 			continue;
 		}
@@ -193,7 +235,61 @@ void SearchCalendarController::processMonthData(
 		day.msgId = period.maxMsgId;
 		data.cache.push_back(day);
 	}
+}
 
+void SearchCalendarController::fillCoveredMonths(
+		const MonthKey &key,
+		const std::vector<CalendarPeriod> &periods,
+		const base::flat_map<TimeId, MonthDay> &dayMedia,
+		TimeId offsetDate,
+		bool noMoreData) {
+	auto oldest = TimeId();
+	auto months = base::flat_set<QDate>();
+	for (const auto &period : periods) {
+		if (!oldest || period.date < oldest) {
+			oldest = period.date;
+		}
+		const auto parsed = base::unixtime::parse(period.date).date();
+		months.emplace(QDate(parsed.year(), parsed.month(), 1));
+	}
+	if (!oldest) {
+		return;
+	}
+	const auto oldestDay = base::unixtime::parse(oldest).date();
+	for (const auto &month : months) {
+		if (month.year() == key.year && month.month() == key.month) {
+			continue;
+		} else if (!noMoreData && month <= oldestDay) {
+			continue;
+		} else if (base::unixtime::serialize(QDateTime(
+				month.addMonths(1),
+				QTime())) > offsetDate) {
+			continue;
+		}
+		const auto covered = MonthKey{
+			.peerId = key.peerId,
+			.year = month.year(),
+			.month = month.month(),
+		};
+		if (_months[covered].loaded || _months[covered].requestId) {
+			continue;
+		}
+		fillMonth(covered, periods, dayMedia);
+		finishMonth(_months[covered]);
+	}
+}
+
+void SearchCalendarController::processMonthData(
+		const MonthKey &key,
+		const std::vector<CalendarPeriod> &periods,
+		const std::vector<FullMsgId> &messages,
+		TimeId minDate,
+		TimeId offsetDate,
+		bool noMoreData) {
+	const auto dayMedia = collectDayMedia(messages);
+	fillMonth(key, periods, dayMedia);
+
+	auto &data = _months[key];
 	const auto month = QDate(key.year, key.month, 1);
 	const auto covered = noMoreData
 		|| (minDate && base::unixtime::parse(minDate).date() < month);
@@ -203,6 +299,8 @@ void SearchCalendarController::processMonthData(
 	}
 
 	finishMonth(data);
+	fillCoveredMonths(key, periods, dayMedia, offsetDate, noMoreData);
+	sendDeferredRequests();
 }
 
 std::vector<DayThumbnail> SearchCalendarController::thumbnails(
@@ -225,8 +323,12 @@ std::vector<DayThumbnail> SearchCalendarController::thumbnails(
 void SearchCalendarController::finishMonth(MonthData &data) {
 	data.loaded = true;
 	auto callbacks = base::take(data.callbacks);
+	if (callbacks.empty()) {
+		return;
+	}
+	const auto list = thumbnails(data);
 	for (const auto &callback : callbacks) {
-		callback(thumbnails(data));
+		callback(list);
 	}
 }
 
