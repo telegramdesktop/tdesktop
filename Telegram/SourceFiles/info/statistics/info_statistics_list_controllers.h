@@ -65,7 +65,8 @@ void AddCreditsHistoryList(
 	not_null<PeerData*> peer,
 	bool in,
 	bool out,
-	bool subscription = false);
+	bool subscription = false,
+	bool currency = false);
 
 [[nodiscard]] not_null<Ui::SlideWrap<Ui::SettingsButton>*> AddShowMoreButton(
 	not_null<Ui::VerticalLayout*> container,

@@ -282,6 +282,8 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 
 	Ui::AddSkip(content, st::lineWidth * 6);
 
+	const auto currency = (_creditsType == CreditsType::Ton);
+
 	const auto fill = [=](
 			const Data::CreditsStatusSlice &fullSlice,
 			const Data::CreditsStatusSlice &inSlice,
@@ -381,7 +383,9 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 			entryClicked,
 			self,
 			true,
-			true);
+			true,
+			false,
+			currency);
 		Info::Statistics::AddCreditsHistoryList(
 			window->uiShow(),
 			inSlice,
@@ -389,7 +393,9 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 			entryClicked,
 			self,
 			true,
-			false);
+			false,
+			false,
+			currency);
 		Info::Statistics::AddCreditsHistoryList(
 			window->uiShow(),
 			outSlice,
@@ -397,7 +403,9 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 			std::move(entryClicked),
 			self,
 			false,
-			true);
+			true,
+			false,
+			currency);
 
 		Ui::AddSkip(inner);
 		Ui::AddSkip(inner);
@@ -409,10 +417,21 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 	{
 		using Api = Api::CreditsHistory;
 		constexpr auto kFirstPageLimit = 20;
-		const auto c = (_creditsType == CreditsType::Ton);
-		const auto apiFull = apiLifetime->make_state<Api>(self, true, true, c);
-		const auto apiIn = apiLifetime->make_state<Api>(self, true, false, c);
-		const auto apiOut = apiLifetime->make_state<Api>(self, false, true, c);
+		const auto apiFull = apiLifetime->make_state<Api>(
+			self,
+			true,
+			true,
+			currency);
+		const auto apiIn = apiLifetime->make_state<Api>(
+			self,
+			true,
+			false,
+			currency);
+		const auto apiOut = apiLifetime->make_state<Api>(
+			self,
+			false,
+			true,
+			currency);
 		apiFull->request({}, [=](Data::CreditsStatusSlice fullSlice) {
 			apiIn->request({}, [=](Data::CreditsStatusSlice inSlice) {
 				apiOut->request({}, [=](Data::CreditsStatusSlice outSlice) {
