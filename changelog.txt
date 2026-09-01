@@ -1,3 +1,7 @@
+7.2.4 (01.09.26)
+
+- First update with revoked signing key.
+
 7.2.3 (01.09.26)
 
 - First update with rotated signing key.
