@@ -130,7 +130,7 @@ BoxShellButtons ReadBoxButtons(QWidget *box, const QString &label) {
 	}
 	result.root = root.widget;
 	auto unusable = QString();
-	for (const auto button : ShellButtons(root.widget)) {
+	for (const auto button : ShellButtons(root.widget.data())) {
 		++result.shellButtons;
 		if (dynamic_cast<Ui::RoundButton*>(button)) {
 			++result.shellRoundButtons;
@@ -157,7 +157,7 @@ BoxShellButtons ReadBoxButtons(QWidget *box, const QString &label) {
 					"%3, so clicking it would do nothing at all"_q
 					.arg(
 						label,
-						WidgetDescription(root.widget),
+						WidgetDescription(root.widget.data()),
 						visible ? u"disabled"_q : u"hidden"_q);
 			}
 		} else if (!result.match) {
@@ -168,7 +168,7 @@ BoxShellButtons ReadBoxButtons(QWidget *box, const QString &label) {
 		result.refusal = unusable.isEmpty()
 			? u"no direct child of %1 carries the label \"%2\"; its %3 "
 				"shell button(s) are [%4]"_q
-				.arg(WidgetDescription(root.widget), label)
+				.arg(WidgetDescription(root.widget.data()), label)
 				.arg(result.shellButtons)
 				.arg(result.labels.join(u", "_q))
 			: unusable;
@@ -186,7 +186,9 @@ QString BoxButtonDetails(QWidget *box, const QString &label) {
 		"shellRoundButtons=%5 contentRoundButtons=%6 labels=[%7]"_q
 		.arg(
 			reading.identity,
-			reading.root ? WidgetDescription(reading.root) : u"unresolved"_q,
+			reading.root
+				? WidgetDescription(reading.root.data())
+				: u"unresolved"_q,
 			label)
 		.arg(reading.shellButtons)
 		.arg(reading.shellRoundButtons)
@@ -213,15 +215,20 @@ bool ClickBoxButton(QWidget *box, const QString &label) {
 	// whose clearClosingLayers() erases the Ui::BoxLayerWidget out of its
 	// unique_ptr vector (layer_widget.cpp:944-977) and deletes the shell
 	// with every button on it. A WidgetDescription taken after the click
-	// would read freed memory.
-	const auto matchText = WidgetDescription(reading.match);
-	const auto rootText = WidgetDescription(reading.root);
-	const auto alive = base::make_weak(reading.match);
-	Click(reading.match);
+	// would read freed memory. The reading now reports that destruction
+	// itself: BoxShellButtons::match is a QPointer<QWidget>, so survived= is
+	// matched() on this same reading rather than a second weak guard beside
+	// it. That is also why the two descriptions are still taken first - the
+	// way the reading reports the death is by answering null, and afterwards
+	// it has nothing left to hand WidgetDescription, which takes
+	// not_null<QWidget*>.
+	const auto matchText = WidgetDescription(reading.match.data());
+	const auto rootText = WidgetDescription(reading.root.data());
+	Click(reading.match.data());
 	Note(u"clicked box shell button \"%1\" %2 under %3, survived=%4 "
 		"shellButtons=%5 contentRoundButtons=%6 labels=[%7]"_q
 		.arg(label, matchText, rootText)
-		.arg(alive ? 1 : 0)
+		.arg(reading.matched() ? 1 : 0)
 		.arg(reading.shellButtons)
 		.arg(reading.contentRoundButtons)
 		.arg(reading.labels.join(u", "_q)));
@@ -231,12 +238,21 @@ bool ClickBoxButton(QWidget *box, const QString &label) {
 void AppendBoxButtonClickSelfTest(not_null<Runner*> runner) {
 	struct State {
 		Fixture fixture;
+		BoxShellButtons closedReading;
+		QString closedMatchText;
+		QString closedRootText;
+		QString closedIdentityBefore;
+		QStringList closedLabelsBefore;
 		int fired = 0;
 		bool built = false;
 		bool closedClicked = false;
 		bool closedAlive = false;
 		int closedFailuresBefore = 0;
 		int closedFailuresAfter = 0;
+		int closedShellButtonsBefore = 0;
+		int closedContentRoundButtonsBefore = 0;
+		bool closedMatchedBefore = false;
+		bool closedMatchedSameTurn = true;
 	};
 	// Leaked on purpose, the way the harness's other self-tests leak theirs:
 	// the stages outlive this call. The teardown stage releases the fixture,
@@ -286,7 +302,7 @@ void AppendBoxButtonClickSelfTest(not_null<Runner*> runner) {
 				return;
 			}
 			const auto root = PaintingLayerRoot(box);
-			const auto shell = ShellButtons(root.widget);
+			const auto shell = ShellButtons(root.widget.data());
 			auto reachable = 0;
 			for (const auto button : shell) {
 				if (box->isAncestorOf(button)) {
@@ -449,9 +465,42 @@ void AppendBoxButtonClickSelfTest(not_null<Runner*> runner) {
 					details());
 				return;
 			}
+			// This reading is taken to be kept, not to be used here: the
+			// stage asserts on this very object one runner tick later,
+			// after the click has deleted the shell it names. Both
+			// identities are formatted now, while it is still matched,
+			// because the way it reports that death is by answering null,
+			// and WidgetDescription takes not_null<QWidget*>, whose
+			// Expects is a crash and not a refusal - afterwards there is
+			// nothing left to hand it, so the |then| prints what was
+			// recorded here. The click really does destroy the shell
+			// inside this same turn: closeBox() reaches
+			// LayerStackWidget::prepareAnimation, which calls
+			// clearOldWidgets() synchronously on both of its branches
+			// (layer_widget.cpp:663-671), and _closingLayers holds
+			// std::unique_ptrs (layer_widget.h:296), so the erase is a
+			// plain delete - the same fact boxAliveRightAfter=0 below
+			// already measures through a base::weak_qptr. ReadBoxButtons
+			// logs nothing, so taking it ahead of the FailureCount()
+			// bracket cannot move the number that bracket is about.
+			state->closedReading = ReadBoxButtons(box, kCloseLabel);
+			state->closedMatchedBefore = state->closedReading.matched();
+			state->closedIdentityBefore = state->closedReading.identity;
+			state->closedLabelsBefore = state->closedReading.labels;
+			state->closedShellButtonsBefore
+				= state->closedReading.shellButtons;
+			state->closedContentRoundButtonsBefore
+				= state->closedReading.contentRoundButtons;
+			if (state->closedMatchedBefore) {
+				state->closedMatchText = WidgetDescription(
+					state->closedReading.match.data());
+				state->closedRootText = WidgetDescription(
+					state->closedReading.root.data());
+			}
 			state->closedFailuresBefore = FailureCount();
 			state->closedClicked = ClickBoxButton(box, kCloseLabel);
 			state->closedAlive = (state->fixture.box.get() != nullptr);
+			state->closedMatchedSameTurn = state->closedReading.matched();
 			state->closedFailuresAfter = FailureCount();
 		},
 		.then = [=] {
@@ -477,6 +526,58 @@ void AppendBoxButtonClickSelfTest(not_null<Runner*> runner) {
 				u"failures before=%1 after=%2"_q
 					.arg(state->closedFailuresBefore)
 					.arg(state->closedFailuresAfter));
+			Check(
+				state->closedMatchedBefore
+					&& !state->closedMatchedSameTurn
+					&& !state->closedReading.matched()
+					&& (state->closedReading.match == nullptr)
+					&& (state->closedReading.root == nullptr),
+				u"the retained reading reports its own subject's "
+				"destruction: it matched before the click and answers "
+				"matched()==false after it, in that same turn and again a "
+				"runner tick later in this |then|, because "
+				"BoxShellButtons::match is a QPointer<QWidget>"_q,
+				u"matchedBefore=%1 matchedSameTurn=%2 matchedLater=%3 "
+				"match=[%4] root=[%5]"_q
+					.arg(state->closedMatchedBefore ? 1 : 0)
+					.arg(state->closedMatchedSameTurn ? 1 : 0)
+					.arg(state->closedReading.matched() ? 1 : 0)
+					.arg(state->closedMatchText, state->closedRootText));
+			Check(
+				(state->closedReading.identity
+					== state->closedIdentityBefore)
+					&& (state->closedReading.labels
+						== state->closedLabelsBefore)
+					&& (state->closedReading.shellButtons
+						== state->closedShellButtonsBefore)
+					&& (state->closedReading.contentRoundButtons
+						== state->closedContentRoundButtonsBefore)
+					&& !state->closedLabelsBefore.isEmpty()
+					&& (state->closedShellButtonsBefore > 0),
+				u"the non-widget fields of that same reading are values "
+				"and are unchanged and printable after the shell is gone, "
+				"which is what a post-destruction reading has left to "
+				"report"_q,
+				u"identity=%1 shellButtons=%2 (before %3) "
+				"contentRoundButtons=%4 (before %5) labels=[%6] "
+				"(before [%7])"_q
+					.arg(state->closedReading.identity)
+					.arg(state->closedReading.shellButtons)
+					.arg(state->closedShellButtonsBefore)
+					.arg(state->closedReading.contentRoundButtons)
+					.arg(state->closedContentRoundButtonsBefore)
+					.arg(
+						state->closedReading.labels.join(u", "_q),
+						state->closedLabelsBefore.join(u", "_q)));
+			Check(
+				!state->closedMatchText.isEmpty()
+					&& !state->closedRootText.isEmpty(),
+				u"the identities the log prints were formatted while the "
+				"reading was matched; nothing is formatted from the "
+				"reading after the click, because it hands back no "
+				"pointer to format"_q,
+				u"match=[%1] root=[%2]"_q
+					.arg(state->closedMatchText, state->closedRootText));
 		},
 	});
 

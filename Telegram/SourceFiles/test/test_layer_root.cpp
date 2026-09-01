@@ -89,7 +89,7 @@ void SelfTestBoxContent(not_null<Ui::GenericBox*> box, bool noContentMargin) {
 		.arg(
 			WidgetDescription(box),
 			root.resolved()
-				? WidgetDescription(root.widget)
+				? WidgetDescription(root.widget.data())
 				: root.refusal);
 }
 
@@ -218,7 +218,7 @@ void AppendPaintingLayerRootSelfTest(not_null<Runner*> runner) {
 				u"a box inside a layer resolves to the Ui::BoxLayerWidget "
 				"that paints it, which is its direct parent"_q,
 				root.resolved()
-					? WidgetDescription(root.widget)
+					? WidgetDescription(root.widget.data())
 					: root.refusal);
 			const auto grandchild = state->fixture.grandchild.get();
 			const auto deeper = PaintingLayerRoot(grandchild);
@@ -229,7 +229,7 @@ void AppendPaintingLayerRootSelfTest(not_null<Runner*> runner) {
 				u"the walk climbs past intermediate widgets, not only one "
 				"parent"_q,
 				deeper.resolved()
-					? WidgetDescription(deeper.widget)
+					? WidgetDescription(deeper.widget.data())
 					: deeper.refusal);
 			auto probe = PreparedWidgetCapture();
 			const auto refused = box && !probe.prepare(box);
@@ -259,7 +259,7 @@ void AppendPaintingLayerRootSelfTest(not_null<Runner*> runner) {
 		u"layer_root_box"_q,
 		[=] {
 			return state->built
-				? PaintingLayerRoot(state->fixture.box.get()).widget
+				? PaintingLayerRoot(state->fixture.box.get()).widget.data()
 				: nullptr;
 		},
 		[=](QWidget *widget) {

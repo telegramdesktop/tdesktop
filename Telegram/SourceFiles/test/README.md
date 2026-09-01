@@ -33,6 +33,13 @@ Use `Runner::actOnWidget` when an action depends on a widget that may appear
 asynchronously. It polls the resolver and optional readiness predicate, keeps
 a `QPointer` to the exact accepted object, and invokes the action once. This
 removes both the eager-`.run` crash and the “resolve again in `.then`” race.
+The same rule is built into the harness's widget-carrying readings:
+`Test::BoxShellButtons`, `Test::WindowMappedCapture` and
+`Test::PaintingLayerRootResult` hold `QPointer<QWidget>`, so a reading kept
+across a stage boundary answers `matched()` / `resolved()` false once its
+subject is destroyed and still prints its counts, labels, identity and
+refusal; format a `WidgetDescription` of the pointer while the reading is
+still matched, because there is nothing to format afterwards.
 
 The generic startup waits are opt-in:
 
@@ -253,7 +260,7 @@ clicking.
 | `test_widgets.h` | Safe typed discovery, live object/action publication, input, postponed-call settlement, and QPA-injected window activation. |
 | `test_capture.h` | In-process grabs, paint-root validation, mapped rects, blank detection, painting-layer-root resolution for boxes inside a layer, crops, zoom, contact sheets, window-mapped capture for widgets that paint no opaque background of their own. |
 | `test_layer_root.h` | The painting-layer-root resolver's own self-test: a plain `Ui::GenericBox` accepted as its own render root beside one that cleared `Qt::WA_OpaquePaintEvent`, refused and then captured through its `Ui::BoxLayerWidget`. |
-| `test_via_window.h` | The window-mapped capture's own self-test: a real `Ui::Toast` whose bare prepared grab is refused in the turn it is created, beside the window-cropped frame of the same rect that the harness accepts, and a flat fixture region proving a blank frame is a `Note` and never a FAIL. |
+| `test_via_window.h` | The window-mapped capture's own self-test: a real `Ui::Toast` whose bare prepared grab is refused in the turn it is created, beside the window-cropped frame of the same rect that the harness accepts, and a flat fixture region proving a blank frame is a `Note` and never a FAIL; a sixth stage builds an offscreen `Qt::WA_DontShowOnScreen` top level, reads it, destroys it inside the same `.run`, and shows the retained reading answering `resolved()` false with its identity, mapped rect and refusal intact. |
 | `test_hover.h` | The input helpers' own self-test: a clicked-then-dragged and a never-touched `Ui::RoundButton` measured against the two fills their style names, proving a completed synthetic click and drag leave no hover. |
 | `test_activation.h` | The window-activation helper's own self-test: the application deliberately de-activated and re-activated through the same QPA seam inside one stage, the wrapper-versus-inner `hasFocus()` contrast and the wrapper-versus-`rawTextEdit()` typing contrast measured on one real `Ui::InputField`. |
 | `test_box_button.h` | Click a box's shell footer button by label, rooted at `Test::PaintingLayerRoot`, with its own self-test: a content-rooted `Ui::RoundButton` search that reaches none of the footer buttons beside the rooted search that finds and clicks one, and a named refusal for a label no shell button carries. |

@@ -112,10 +112,21 @@ bool CaptureMappedRect(
 // (ui/widgets/popup_menu.cpp:126), so the blank-root refusal never applies to
 // it and it needs no layer root at all.
 //
-// |widget| is non-null exactly when |refusal| is empty: a caller cannot take
-// the pointer without being handed the reason there is none.
+// |widget| is non-null exactly when |refusal| is empty at the moment the
+// reading is taken: a caller cannot take the pointer without being handed
+// the reason there is none. It is a QPointer<QWidget>, which is what makes
+// a reading safe to keep: it can only go from non-null to null and never
+// back, so once the layer stack destroys the resolved Ui::BoxLayerWidget
+// resolved() answers false on the very object the caller is still holding,
+// instead of handing back a pointer into freed memory. |refusal| is a value
+// and does not change with it - a reading that resolved and then lost its
+// widget answers resolved() == false with an empty |refusal|, so a caller
+// that needs to print something prints what it recorded while the reading
+// was still resolved. WindowMappedCapture below carries the same type and
+// the same contract; the two structs really do mean the same thing by
+// "resolved".
 struct PaintingLayerRootResult {
-	QWidget *widget = nullptr;
+	QPointer<QWidget> widget;
 	QString refusal;
 
 	[[nodiscard]] bool resolved() const {
@@ -158,10 +169,21 @@ bool CaptureInLayerRoot(not_null<QWidget*> box, const QString &name);
 // walk above refuses one), or its rect does not map inside that window.
 //
 // ReadViaWindow takes no grab and |window| is non-null exactly when
-// |refusal| is empty; GrabViaWindow and ViaWindowReady take exactly one
-// grab, so a poll costs one grab per tick.
+// |refusal| is empty at the moment the reading is taken; GrabViaWindow and
+// ViaWindowReady take exactly one grab, so a poll costs one grab per tick.
+//
+// |window| is a QPointer<QWidget>, which is what a retained reading rests
+// on: a caller may keep this value for as long as it likes, and once the
+// window it named is destroyed resolved() answers false on the very same
+// object rather than handing back a pointer into freed memory. |mapped|,
+// |identity| and |refusal| are values and stay valid for the whole run -
+// they are what a reading whose window is gone has left to print, and the
+// caller must print those recorded fields instead of re-formatting a
+// pointer it no longer has, because WidgetDescription takes
+// not_null<QWidget*> and its Expects is a crash and not a refusal.
+// Test::PaintingLayerRootResult above carries the same type and contract.
 struct WindowMappedCapture {
-	QWidget *window = nullptr;
+	QPointer<QWidget> window;
 	QRect mapped;
 	QString refusal;
 	QString identity;

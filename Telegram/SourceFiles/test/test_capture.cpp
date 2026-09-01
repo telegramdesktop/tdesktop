@@ -216,7 +216,7 @@ constexpr auto kWalkedChainHead = 3;
 		u"this capture only corroborates it%4"_q
 		.arg(reading.identity.isEmpty() ? u"<none>"_q : reading.identity)
 		.arg(reading.window
-			? WidgetDescription(reading.window)
+			? WidgetDescription(reading.window.data())
 			: u"<none>"_q)
 		.arg(RectText(reading.mapped))
 		.arg(reading.refusal.isEmpty()
@@ -438,7 +438,7 @@ bool CaptureInLayerRoot(not_null<QWidget*> box, const QString &name) {
 		Fail(u"capture %1"_q.arg(name), root.refusal);
 		return false;
 	}
-	return CaptureMappedRect(root.widget, box, box->rect(), name);
+	return CaptureMappedRect(root.widget.data(), box, box->rect(), name);
 }
 
 WindowMappedCapture ReadViaWindow(QWidget *widget) {
@@ -478,7 +478,7 @@ WindowMappedCapture ReadViaWindow(QWidget *widget) {
 QImage GrabViaWindow(QWidget *widget) {
 	const auto reading = ReadViaWindow(widget);
 	return reading.resolved()
-		? GrabRect(reading.window, reading.mapped)
+		? GrabRect(reading.window.data(), reading.mapped)
 		: QImage();
 }
 
@@ -497,7 +497,7 @@ bool CaptureViaWindow(not_null<QWidget*> widget, const QString &name) {
 		return false;
 	}
 	LogGeometry(name, QRect(widget->mapToGlobal(QPoint()), widget->size()));
-	const auto image = GrabRect(reading.window, reading.mapped);
+	const auto image = GrabRect(reading.window.data(), reading.mapped);
 	if (LooksBlank(image)) {
 		Note(u"capture %1 declined a blank frame: %2"_q
 			.arg(name, ViaWindowText(reading)));

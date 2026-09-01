@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_widgets.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/labels.h"
+#include "ui/qt_object_factory.h"
 #include "ui/rp_widget.h"
 #include "window/window_controller.h"
 
@@ -61,6 +62,21 @@ struct Fixture {
 		.arg(ViaWindowDetails(toast));
 }
 
+// Two tones, so a window-mapped crop of the region keeps a luma spread above
+// kBlankSpreadThreshold whatever is fading in over it. With one tone the
+// positive leg would rest on whatever the widget under measurement managed
+// to paint, which is exactly the thing under measurement.
+void PaintTwoTone(not_null<Ui::RpWidget*> widget) {
+	const auto raw = widget.get();
+	raw->paintOn([=](QPainter &p) {
+		const auto half = raw->height() / 2;
+		p.fillRect(QRect(0, 0, raw->width(), half), st::attentionButtonFg);
+		p.fillRect(
+			QRect(0, half, raw->width(), raw->height() - half),
+			st::windowBgOver);
+	});
+}
+
 [[nodiscard]] bool BuildFixture(Fixture &fixture) {
 	const auto window = Core::App().activePrimaryWindow();
 	if (!window) {
@@ -75,19 +91,7 @@ struct Fixture {
 	// the toast is.
 	fixture.backdrop = base::make_unique_q<Ui::RpWidget>(top);
 	const auto backdrop = fixture.backdrop.get();
-	backdrop->paintOn([=](QPainter &p) {
-		// Two tones, so the window-mapped crop keeps a luma spread above
-		// kBlankSpreadThreshold at every fade level. With one tone the
-		// positive leg would rest on whatever the toast itself managed to
-		// paint, which is exactly the thing under measurement.
-		const auto half = backdrop->height() / 2;
-		p.fillRect(
-			QRect(0, 0, backdrop->width(), half),
-			st::attentionButtonFg);
-		p.fillRect(
-			QRect(0, half, backdrop->width(), backdrop->height() - half),
-			st::windowBgOver);
-	});
+	PaintTwoTone(backdrop);
 	backdrop->show();
 
 	fixture.toast = Ui::Toast::Show(top, {
@@ -128,6 +132,40 @@ struct Fixture {
 	return true;
 }
 
+// Qt::WA_DontShowOnScreen is what makes a second top level safe here.
+// QWidgetPrivate::show_sys() takes an early return for it
+// (qwidget.cpp:7886-7903): it marks the widget mapped and never calls
+// window->setVisible(true), so the QWidgetWindow QWidgetPrivate::create()
+// made is never shown and can take neither activation nor focus from the
+// primary window. Test::ResolveActivationWindow (test_widgets.cpp:89-102)
+// only ever selects a top level whose QWindow::isVisible() is true, so it
+// cannot select this one either. QWidget::show() still sets
+// WA_WState_Visible on the widget and on its children, which is all
+// ReadViaWindow's visibility gate asks for, and the reading takes no grab.
+// Qt::WA_QuitOnClose is cleared because ~QWidget still runs
+// close_helper(CloseNoEvent) for a created, visible top level
+// (qwidget.cpp:1468-1470), and that path can reach
+// QGuiApplicationPrivate::emitLastWindowClosed() and maybeQuit()
+// (qwidget.cpp:8316-8326); the primary window keeps that branch false
+// today, but a fixture must not depend on a neighbour to avoid quitting
+// the run.
+[[nodiscard]] base::unique_qptr<Ui::RpWidget> BuildOffscreenWindow(
+		QPointer<QWidget> &child) {
+	auto result = base::make_unique_q<Ui::RpWidget>(nullptr);
+	const auto window = result.get();
+	window->setAttribute(Qt::WA_DontShowOnScreen);
+	window->setAttribute(Qt::WA_QuitOnClose, false);
+	const auto side = st::defaultActiveButton.height * kFlatBands;
+	window->resize(side, side);
+	PaintTwoTone(window);
+	const auto inner = Ui::CreateChild<Ui::RpWidget>(window);
+	inner->setGeometry(0, side / 4, side, side / 2);
+	inner->show();
+	window->show();
+	child = inner;
+	return result;
+}
+
 } // namespace
 
 void AppendCaptureViaWindowSelfTest(not_null<Runner*> runner) {
@@ -142,6 +180,19 @@ void AppendCaptureViaWindowSelfTest(not_null<Runner*> runner) {
 		bool viaBlank = false;
 		bool saved = false;
 		bool blankSaved = false;
+		WindowMappedCapture retained;
+		WindowActivation activationBefore;
+		WindowActivation activationDuring;
+		WindowActivation activationAfter;
+		QString retainedWindowText;
+		QString retainedIdentityBefore;
+		QRect retainedMappedBefore;
+		int retainedFailuresBefore = 0;
+		int retainedFailuresAfter = 0;
+		bool retainedBuilt = false;
+		bool retainedResolvedBefore = false;
+		bool retainedResolvedSameTurn = true;
+		bool retainedReadyBefore = false;
 	};
 	// Leaked on purpose, the way the harness's other self-tests leak theirs:
 	// the stages outlive this call. The teardown stage releases the fixture,
@@ -341,6 +392,128 @@ void AppendCaptureViaWindowSelfTest(not_null<Runner*> runner) {
 				u"none of these refusals logged a failure: a refusal is a "
 				"returned value the caller decides about"_q,
 				u"failures before=%1 after=%2"_q.arg(before).arg(after));
+		},
+	});
+
+	runner->add({
+		.name = u"via-window self-test: a retained reading reports its own "
+			"window's destruction"_q,
+		.run = [=] {
+			// The whole fixture lives and dies inside this one turn: it is
+			// built, read and destroyed here, so nothing it creates can
+			// reach a neighbouring stage. The activation reading is taken
+			// three times - before the fixture exists, while it is shown,
+			// and after it is gone - because a top level that stole
+			// activation would do it while it was up, and a before/after
+			// pair alone could not see that. It is taken through
+			// ReadWindowActivation, which is pure and does not move
+			// ActivationAttempts() - only ForceWindowActive does
+			// (test_widgets.cpp:385-401) - and the window activation
+			// self-test asserts deltas of that counter, so this stage must
+			// never call ForceWindowActive or ClearWindowActive.
+			state->activationBefore = ReadWindowActivation();
+			state->retainedFailuresBefore = FailureCount();
+			auto child = QPointer<QWidget>();
+			auto window = BuildOffscreenWindow(child);
+			state->retainedBuilt = (child != nullptr);
+			if (state->retainedBuilt) {
+				state->retained = ReadViaWindow(child.data());
+				state->retainedResolvedBefore = state->retained.resolved();
+				state->retainedIdentityBefore = state->retained.identity;
+				state->retainedMappedBefore = state->retained.mapped;
+				if (state->retainedResolvedBefore) {
+					state->retainedWindowText = WidgetDescription(
+						state->retained.window.data());
+					state->retainedReadyBefore = ViaWindowReady(child.data());
+				}
+			}
+			state->activationDuring = ReadWindowActivation();
+			window = nullptr;
+			state->retainedResolvedSameTurn = state->retained.resolved();
+			state->activationAfter = ReadWindowActivation();
+			state->retainedFailuresAfter = FailureCount();
+			Check(
+				state->retainedBuilt && state->retainedResolvedBefore,
+				u"fixture gate: an offscreen top level and its visible "
+				"child were built and ReadViaWindow resolved the child "
+				"against that window"_q,
+				u"built=%1 resolved=%2 identity=%3 window=%4 mapped=%5,%6 "
+				"%7x%8 readyBeforeDestroy=%9"_q
+					.arg(state->retainedBuilt ? 1 : 0)
+					.arg(state->retainedResolvedBefore ? 1 : 0)
+					.arg(
+						state->retainedIdentityBefore,
+						state->retainedWindowText)
+					.arg(state->retainedMappedBefore.x())
+					.arg(state->retainedMappedBefore.y())
+					.arg(state->retainedMappedBefore.width())
+					.arg(state->retainedMappedBefore.height())
+					.arg(state->retainedReadyBefore ? 1 : 0));
+		},
+		.then = [=] {
+			if (!state->retainedBuilt || !state->retainedResolvedBefore) {
+				return;
+			}
+			Check(
+				!state->retainedResolvedSameTurn
+					&& !state->retained.resolved()
+					&& (state->retained.window == nullptr),
+				u"the retained reading answers resolved()==false once its "
+				"own window is destroyed, in that same turn and again a "
+				"runner tick later in this |then|, instead of handing back "
+				"a stale pointer"_q,
+				u"resolvedBefore=%1 resolvedSameTurn=%2 resolvedLater=%3 "
+				"window=[%4]"_q
+					.arg(state->retainedResolvedBefore ? 1 : 0)
+					.arg(state->retainedResolvedSameTurn ? 1 : 0)
+					.arg(state->retained.resolved() ? 1 : 0)
+					.arg(state->retainedWindowText));
+			Check(
+				(state->retained.identity == state->retainedIdentityBefore)
+					&& (state->retained.mapped
+						== state->retainedMappedBefore)
+					&& !state->retained.identity.isEmpty()
+					&& !state->retained.mapped.isEmpty()
+					&& state->retained.refusal.isEmpty(),
+				u"its identity, mapped rect and refusal are values and are "
+				"unchanged and printable after the window is gone, which is "
+				"what such a reading has left to report"_q,
+				u"identity=%1 mapped=%2,%3 %4x%5 refusal=[%6]"_q
+					.arg(state->retained.identity)
+					.arg(state->retained.mapped.x())
+					.arg(state->retained.mapped.y())
+					.arg(state->retained.mapped.width())
+					.arg(state->retained.mapped.height())
+					.arg(state->retained.refusal));
+			Check(
+				(state->activationDuring.focusWindowSet
+					== state->activationBefore.focusWindowSet)
+					&& (state->activationDuring.activeWindow
+						== state->activationBefore.activeWindow)
+					&& (state->activationAfter.focusWindowSet
+						== state->activationBefore.focusWindowSet)
+					&& (state->activationAfter.activeWindow
+						== state->activationBefore.activeWindow)
+					&& (state->activationAfter.attempts
+						== state->activationBefore.attempts),
+				u"the offscreen fixture took no activation from the primary "
+				"window while it was up and gave none back when it went, "
+				"and moved no activation attempt counter, so a neighbouring "
+				"activation-sensitive stage is measurably undisturbed"_q,
+				u"before=[%1] during=[%2] after=[%3]"_q
+					.arg(
+						WindowActivationDetails(state->activationBefore),
+						WindowActivationDetails(state->activationDuring),
+						WindowActivationDetails(state->activationAfter)));
+			Check(
+				state->retainedFailuresAfter
+					== state->retainedFailuresBefore,
+				u"building, reading and destroying that fixture logged no "
+				"failure of its own: the reading reports the destruction as "
+				"a returned value"_q,
+				u"failures before=%1 after=%2"_q
+					.arg(state->retainedFailuresBefore)
+					.arg(state->retainedFailuresAfter));
 		},
 	});
 

@@ -9,10 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/basic_types.h"
 
+#include <QtCore/QPointer>
 #include <QtCore/QString>
 #include <QtCore/QStringList>
-
-class QWidget;
+#include <QtWidgets/QWidget>
 
 namespace Test {
 
@@ -45,15 +45,16 @@ class Runner;
 // still-settling layer stays in the scenario, per the README flake row that
 // already covers it.
 //
-// |match| is non-null exactly when |refusal| is empty: a caller cannot take
-// the pointer without being handed the reason there is none.
+// |match| is non-null exactly when |refusal| is empty at the moment the
+// reading is taken: a caller cannot take the pointer without being handed
+// the reason there is none.
 //
 // The helper and its self-test share one module for the reason
 // test_menu.h:56-62 states: a facility that appends Runner stages cannot
 // live in test_capture.h, because test_runner.cpp already includes it.
 struct BoxShellButtons {
-	QWidget *root = nullptr;
-	QWidget *match = nullptr;
+	QPointer<QWidget> root;
+	QPointer<QWidget> match;
 	int shellButtons = 0;
 	int shellRoundButtons = 0;
 	int contentRoundButtons = 0;
@@ -67,14 +68,23 @@ struct BoxShellButtons {
 };
 
 // One reading, taken once, so a pass and a refusal print the same fields.
-// Its counts, labels, refusal and identity stay valid for the whole run;
-// |root| and |match| do not. They are raw pointers into the layer stack,
-// and a footer callback that closes its box deletes the shell and every
-// button on it synchronously (box_layer_widget.h:85-87 through
-// layer_widget.cpp:944-977) - so read them in the turn they were taken and
-// never across a stage boundary. PopupMenuReading (test_menu.h:63-72),
-// whose wording this follows, carries no widget pointer and needs no such
-// caveat.
+// Its counts, labels, refusal and identity are values and stay valid for
+// the whole run; |root| and |match| are QPointer<QWidget>, so they stay
+// valid too - as answers rather than as pointers. A footer callback that
+// closes its box deletes the shell and every button on it synchronously
+// (box_layer_widget.h:85-87 through layer_widget.cpp:944-977), and the
+// reading survives that: matched() answers false from that moment on, on
+// the very object the caller is still holding, with its counts, labels,
+// refusal and identity intact and printable. So a reading may be kept for
+// as long as the caller wants it - across turns and across stages - and it
+// reports its own subject's death instead of pretending to still have one.
+// What a caller still owes is the other half: format
+// WidgetDescription(|match|) and WidgetDescription(|root|) while the
+// reading is matched, because those take not_null<QWidget*>, whose Expects
+// is a crash and not a refusal, and there is nothing left to format
+// afterwards - print the recorded text, not the pointer. PopupMenuReading
+// (test_menu.h:63-72), whose wording this follows, carries no widget
+// pointer at all.
 [[nodiscard]] BoxShellButtons ReadBoxButtons(
 	QWidget *box,
 	const QString &label);

@@ -43,10 +43,27 @@ class Runner;
 // (ui/toast/toast.cpp:32-34), no expiry timer ever arms, and teardown owns
 // the hide.
 //
+// A third subject has a fixture of its own, built and destroyed inside a
+// single stage: an unparented Ui::RpWidget carrying Qt::WA_DontShowOnScreen
+// with one visible child, whose ReadViaWindow reading is kept across the
+// destruction of that top level. It is what proves such a reading is safe
+// to retain: resolved() answers false on the very object the stage is still
+// holding, while its identity, mapped rect and refusal stay intact and
+// printable, and the window it named is printed from the text recorded
+// while the reading was still resolved. That top level is never shown on
+// the desktop - QWidgetPrivate::show_sys() takes an early return for
+// Qt::WA_DontShowOnScreen (qwidget.cpp:7886-7903) and never calls
+// window->setVisible(true) - so Test::ResolveActivationWindow, which only
+// ever selects a top level whose QWindow::isVisible() is true, can never
+// select it. The stage measures that rather than asserting it: it reads
+// Test::ReadWindowActivation before, during and after, and Checks that the
+// focus window, the active window and the attempt counter are all where
+// they were. It calls neither ForceWindowActive nor ClearWindowActive.
+//
 // It needs no session, no chats list, no network and no account fixture. The
 // only thing it asks of the process is a primary window to parent the fixture
 // to, and a missing one is reported as a named fixture gate instead of
-// crashing. It appends its own teardown as the last of its five stages, and
+// crashing. It appends its own teardown as the last of its six stages, and
 // it emits no deliberate failure: every structural refusal it demonstrates is
 // observed through the pure ReadViaWindow / ViaWindowReady readings, which
 // log nothing, and asserted as a passing Check whose details carry the
