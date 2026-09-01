@@ -1,3 +1,17 @@
+7.1.4 (01.09.26)
+
+- Widen rich message bubbles to fit wide content.
+- Choose fitting quality for video autoplay in channels.
+- Disable gift messages for recipients who charge for messages.
+- Fix glitches in the call panel, profile info and chat list menu.
+- Fix self-destructing media appearing in previews and downloads.
+- Fix unneeded re-encoding and quality issues when sending edited videos.
+- Fix sponsored messages hiding the userpic of the post above them.
+- Fix TON transactions history showing Stars entries after the first page.
+- Fix stealth mode not opening the chosen story from a profile.
+- Fix window activation from the tray on X11.
+- Crash fixes.
+
 7.1.3 (27.08.26)
 
 - Add emoji status actions to the custom emoji context menu.
