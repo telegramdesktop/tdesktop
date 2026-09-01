@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_prepare.h"
 #include "lang/lang_keys.h"
 #include "base/flat_map.h"
+#include "base/flat_set.h"
 #include "styles/style_boxes.h"
 #include "styles/style_calendar_box.h"
 #include "styles/style_chat.h"
@@ -563,7 +564,6 @@ private:
 
 	struct DynamicImageState {
 		std::shared_ptr<DynamicImage> image;
-		bool requested = false;
 		bool animationFinished = false;
 		anim::value animation;
 		crl::time animationStart = 0;
@@ -575,6 +575,7 @@ private:
 
 	std::map<int, std::unique_ptr<RippleAnimation>> _ripples;
 	base::flat_map<QDate, DynamicImageState> _dynamicImageStates;
+	base::flat_set<QDate> _requestedMonths;
 	Ui::Animations::Basic _animation;
 
 	Fn<void(QDate)> _dateChosenCallback;
@@ -709,9 +710,6 @@ CalendarBox::Inner::Inner(
 void CalendarBox::Inner::monthChanged(QDate month) {
 	setSelected(kEmptySelection);
 	_ripples.clear();
-	for (auto &[date, state] : _dynamicImageStates) {
-		state.requested = false;
-	}
 	loadDynamicImages();
 	resizeToCurrent();
 	update();
@@ -723,32 +721,23 @@ void CalendarBox::Inner::loadDynamicImages() {
 		return;
 	}
 	const auto currentMonth = _context->month();
-	const auto prevMonth = currentMonth.addMonths(-1);
-	const auto nextMonth = currentMonth.addMonths(1);
-
-	const auto matchesMonth = [&](const QDate &d, const QDate &month) {
-		return d.year() == month.year() && d.month() == month.month();
-	};
-	const auto from = -_context->daysShift();
-	const auto till = from + _context->rowsCount() * kDaysInWeek;
-	for (auto i = from; i != till; ++i) {
-		const auto date = _context->dateFromIndex(i);
-		if (matchesMonth(date, currentMonth)
-			|| matchesMonth(date, prevMonth)
-			|| matchesMonth(date, nextMonth)) {
-			auto &state = _dynamicImageStates[date];
-			if (state.image || state.requested) {
-				continue;
-			}
-			state.requested = true;
-			_dynamicImageForDate(
-				date,
-				crl::guard(this, [=](
-						QDate imageDate,
-						std::shared_ptr<DynamicImage> image) {
-					setDynamicImage(imageDate, std::move(image));
-				}));
+	for (auto shift = -1; shift != 2; ++shift) {
+		const auto month = currentMonth.addMonths(shift);
+		const auto first = currentMonth.daysTo(month);
+		const auto last = first + month.daysInMonth() - 1;
+		if (last < _context->minDayIndex()
+			|| first > _context->maxDayIndex()) {
+			continue;
+		} else if (!_requestedMonths.emplace(month).second) {
+			continue;
 		}
+		_dynamicImageForDate(
+			month,
+			crl::guard(this, [=](
+					QDate imageDate,
+					std::shared_ptr<DynamicImage> image) {
+				setDynamicImage(imageDate, std::move(image));
+			}));
 	}
 }
 
