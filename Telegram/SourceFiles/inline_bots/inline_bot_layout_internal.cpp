@@ -183,6 +183,7 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 	if (loaded
 		&& !_gif
 		&& !_gif.isBad()
+		&& !_inlineOverCap
 		&& CanPlayInline(document)) {
 		auto that = const_cast<Gif*>(this);
 		that->_gif = preview.makeAnimation([=](
@@ -444,9 +445,7 @@ void Gif::clipCallback(Media::Clip::Notification notification) {
 			} else if (_gif->ready() && !_gif->started()) {
 				const auto size = QSize(_gif->width(), _gif->height());
 				if (!ValidFrameSize(size, kMaxInlineArea)) {
-					if (!size.isEmpty()) {
-						getShownDocument()->dimensions = size;
-					}
+					_inlineOverCap = true;
 					_gif.reset();
 				} else {
 					_gif->start({
@@ -1770,7 +1769,7 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 		_documentMedia->automaticLoad(fileOrigin(), nullptr);
 
 		bool loaded = _documentMedia->loaded(), displayLoading = document->displayLoading();
-		if (loaded && !_gif && !_gif.isBad()) {
+		if (loaded && !_gif && !_gif.isBad() && !_inlineOverCap) {
 			auto that = const_cast<Game*>(this);
 			that->_gif = Media::Clip::MakeReader(
 				_documentMedia->owner()->location(),
@@ -1961,9 +1960,7 @@ void Game::clipCallback(Media::Clip::Notification notification) {
 			} else if (_gif->ready() && !_gif->started()) {
 				const auto size = QSize(_gif->width(), _gif->height());
 				if (!ValidFrameSize(size, kMaxInlineArea)) {
-					if (!size.isEmpty()) {
-						getResultDocument()->dimensions = size;
-					}
+					_inlineOverCap = true;
 					_gif.reset();
 				} else {
 					_gif->start({

@@ -128,6 +128,7 @@ private:
 	ClickHandlerPtr _delete;
 	mutable QImage _thumb;
 	mutable bool _thumbGood = false;
+	bool _inlineOverCap = false;
 
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 
@@ -473,6 +474,7 @@ private:
 	mutable std::shared_ptr<Data::DocumentMedia> _documentMedia;
 	mutable QImage _thumb;
 	mutable bool _thumbGood = false;
+	bool _inlineOverCap = false;
 	mutable std::unique_ptr<Ui::RadialAnimation> _radial;
 	Ui::Text::String _title, _description;
 

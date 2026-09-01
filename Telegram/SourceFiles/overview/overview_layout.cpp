@@ -2592,9 +2592,7 @@ void Gif::clipCallback(Media::Clip::Notification notification) {
 			} else if (_gif->ready() && !_gif->started()) {
 				const auto size = QSize(_gif->width(), _gif->height());
 				if (!ValidFrameSize(size, kMaxInlineArea)) {
-					if (!size.isEmpty()) {
-						_data->dimensions = size;
-					}
+					_inlineOverCap = true;
 					_gif.reset();
 				} else {
 					_gif->start({
@@ -2684,6 +2682,7 @@ void Gif::paint(
 	if (loaded
 		&& !_gif
 		&& !_gif.isBad()
+		&& !_inlineOverCap
 		&& CanPlayInline(document)) {
 		auto that = const_cast<Gif*>(this);
 		that->_gif = preview.makeAnimation([=](
