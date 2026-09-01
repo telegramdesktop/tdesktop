@@ -35,8 +35,8 @@ UpdateKeysLoc="$FullScriptPath/../Resources/update"
 
 # Update signing settings. Edit these directly when rotating keys, they are
 # the single source of truth (no environment overrides).
-ReleaseLocalKey="$FullScriptPath/../../../DesktopPrivate/modern/release-local-2026b.pem"
-ReleaseLocalKeyId="rl-2026b"
+ReleaseLocalKey="$FullScriptPath/../../../DesktopPrivate/modern/release-local.pem"
+ReleaseLocalKeyId="rl-2026a"
 ReleaseCloudVault="tdesktop-release-kv"
 ReleaseCloudKeyId="rc-2026a"
 ReleaseCloudKeyName="release-2026a"
