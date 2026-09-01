@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/buttons.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/empty_userpic.h"
@@ -1164,11 +1165,13 @@ void ShowBuyResaleGiftBox(
 		struct State {
 			rpl::variable<TextWithEntities> message;
 			rpl::variable<bool> hideName;
+			rpl::variable<bool> messageAllowed;
 			std::shared_ptr<ResaleGiftAttemptState> attempt;
 			bool confirmationOpen = false;
 		};
 		const auto state = box->lifetime().make_state<State>();
 		state->hideName = to->isSelf();
+		state->messageAllowed = Ui::StarGiftMessageAllowedValue(to);
 		state->attempt = attempt;
 
 		box->setStyle(st::giftBox);
@@ -1187,14 +1190,16 @@ void ShowBuyResaleGiftBox(
 		auto message = rpl::combine(
 			state->message.value(),
 			tr::lng_gift_send_message_preview(),
-			state->hideName.value()
+			state->hideName.value(),
+			state->messageAllowed.value()
 		) | rpl::map([sender = show->session().user()](
-			TextWithEntities text,
-			QString placeholder,
-			bool hidden) {
+				TextWithEntities text,
+				QString placeholder,
+				bool hidden,
+				bool allowed) {
 			return Ui::UniqueGiftCoverMessage{
-				.text = std::move(text),
-				.placeholder = std::move(placeholder),
+				.text = allowed ? std::move(text) : tr::marked(),
+				.placeholder = allowed ? std::move(placeholder) : QString(),
 				.sender = sender,
 				.hidden = hidden,
 			};
@@ -1206,9 +1211,15 @@ void ShowBuyResaleGiftBox(
 			initialCost,
 			std::move(message)));
 
+		const auto messageWrap = container->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				container,
+				object_ptr<Ui::VerticalLayout>(container)));
+		messageWrap->toggleOn(state->messageAllowed.value());
+		messageWrap->finishAnimating();
 		const auto field = Ui::AddStarGiftMessageField(
 			show,
-			container,
+			messageWrap->entity(),
 			box->getDelegate()->outerContainer(),
 			tr::lng_gift_send_message(),
 			QString());
@@ -1220,7 +1231,9 @@ void ShowBuyResaleGiftBox(
 			};
 		}, field->lifetime());
 		box->setFocusCallback([=] {
-			field->setFocusFast();
+			if (state->messageAllowed.current()) {
+				field->setFocusFast();
+			}
 		});
 
 		Ui::AddDivider(container);
@@ -1239,11 +1252,18 @@ void ShowBuyResaleGiftBox(
 			? tr::lng_gift_send_anonymous_self()
 			: to->isBroadcast()
 			? tr::lng_gift_send_anonymous_about_channel()
-			: tr::lng_gift_send_anonymous_about(
-				lt_user,
-				rpl::single(to->shortName()),
-				lt_recipient,
-				rpl::single(to->shortName())));
+			: rpl::conditional(
+				state->messageAllowed.value(),
+				tr::lng_gift_send_anonymous_about(
+					lt_user,
+					rpl::single(to->shortName()),
+					lt_recipient,
+					rpl::single(to->shortName())),
+				tr::lng_gift_send_anonymous_about_paid(
+					lt_user,
+					rpl::single(to->shortName()),
+					lt_recipient,
+					rpl::single(to->shortName()))));
 
 		const auto button = box->addButton(rpl::single(QString()), [=] {
 			if (state->confirmationOpen || state->attempt->inFlight) {
@@ -1260,7 +1280,9 @@ void ShowBuyResaleGiftBox(
 					.slug = gift->slug,
 					.recipient = to,
 					.gift = gift,
-					.message = state->message.current(),
+					.message = state->messageAllowed.current()
+						? state->message.current()
+						: tr::marked(),
 					.hideName = state->hideName.current(),
 					.currency = initiallyTon
 						? CreditsType::Ton
