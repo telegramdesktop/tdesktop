@@ -4927,12 +4927,16 @@ void WalletConflictBox(
 	const auto state = box->lifetime().make_state<State>();
 	const auto wallet = &show->session().wallet();
 
+	box->setStyle(st::walletConflictBox);
+	Ui::AddSkip(box->verticalLayout(), st::walletConflictBoxTopSkip);
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,
 			tr::lng_wallet_conflict_text(),
 			st::boxLabel),
 		st::boxRowPadding);
+	Ui::AddSkip(box->verticalLayout());
+	Ui::AddSkip(box->verticalLayout());
 
 	const auto content = box->verticalLayout()->add(
 		object_ptr<Ui::VerticalLayout>(box->verticalLayout()));
@@ -4960,6 +4964,7 @@ void WalletConflictBox(
 					st::defaultLightButton),
 				st::boxRowPadding,
 				style::al_justify);
+			exportOld->setFullRadius(true);
 			exportOld->setClickedCallback([=] {
 				WalletRevealFlow(show, key);
 			});
@@ -4971,6 +4976,7 @@ void WalletConflictBox(
 					st::attentionBoxButton),
 				st::boxRowPadding,
 				style::al_justify);
+			switchNow->setFullRadius(true);
 			switchNow->setClickedCallback([=] {
 				if (state->busy) {
 					return;
@@ -5008,10 +5014,10 @@ void WalletConflictBox(
 			st::defaultLightButton),
 		st::boxRowPadding,
 		style::al_justify);
+	cancel->setFullRadius(true);
 	cancel->setClickedCallback([=] {
 		box->closeBox();
 	});
-	Ui::AddSkip(box->verticalLayout());
 }
 
 void WalletKeysBackupBox(
