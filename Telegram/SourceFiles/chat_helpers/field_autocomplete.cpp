@@ -1109,7 +1109,9 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 				if (media->loaded()) {
 					if (info->isLottie() && !sticker.lottie) {
 						setupLottie(sticker);
-					} else if (info->isWebm() && !sticker.webm) {
+					} else if (info->isWebm()
+						&& !sticker.webm
+						&& !sticker.webm.isBad()) {
 						setupWebm(sticker);
 					}
 				}

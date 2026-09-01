@@ -643,7 +643,7 @@ void Sticker::prepareThumbnail() const {
 	if (sticker && _dataMedia->loaded()) {
 		if (!_lottie && sticker->isLottie()) {
 			setupLottie();
-		} else if (!_webm && sticker->isWebm()) {
+		} else if (!_webm && !_webm.isBad() && sticker->isWebm()) {
 			setupWebm();
 		}
 	}

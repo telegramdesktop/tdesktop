@@ -442,11 +442,10 @@ State Reader::state() const {
 void Reader::stop() {
 	if (Workers.size() <= _threadIndex) {
 		error();
+		return;
 	}
-	if (_state != State::Error) {
-		Workers[_threadIndex]->manager.stop(this);
-		_width = _height = 0;
-	}
+	Workers[_threadIndex]->manager.stop(this);
+	_width = _height = 0;
 }
 
 void Reader::error() {
@@ -768,7 +767,6 @@ bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, c
 		if (it != _readerPointers.cend()) {
 			it.key()->error();
 			callback(it.key(), Notification::Reinit);
-			_readerPointers.erase(it);
 		}
 		return false;
 	} else if (result == ProcessResult::Finished) {

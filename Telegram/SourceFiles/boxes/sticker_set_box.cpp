@@ -2401,7 +2401,9 @@ void StickerSetBox::Inner::paintSticker(
 	} else if (media->loaded()) {
 		if (sticker->isLottie() && !element.lottie) {
 			const_cast<Inner*>(this)->setupLottie(index);
-		} else if (sticker->isWebm() && !element.webm) {
+		} else if (sticker->isWebm()
+			&& !element.webm
+			&& !element.webm.isBad()) {
 			const_cast<Inner*>(this)->setupWebm(index);
 		}
 	}
