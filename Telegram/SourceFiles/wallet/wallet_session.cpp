@@ -261,6 +261,9 @@ struct Restored {
 		const std::vector<QByteArray> &holderKeys,
 		const std::vector<QString> &words) {
 	const auto seed = PhraseShares::SeedFromWords(words);
+	if (seed.isEmpty()) {
+		return std::nullopt;
+	}
 	const auto shares = PhraseShares::SplitSeed(seed, int(holderKeys.size()));
 	auto result = std::vector<QByteArray>();
 	result.reserve(holderKeys.size());

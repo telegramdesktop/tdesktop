@@ -14,6 +14,9 @@ class TemporaryKeyPair;
 namespace Wallet::PhraseShares {
 
 inline constexpr auto kPublicKeySize = 32;
+// The server stores every seed as a fixed 215-byte space-padded field,
+// so a shorter phrase is right-padded with spaces to fill it.
+inline constexpr auto kSeedLength = 215;
 inline constexpr auto kDecryptedKeyPartId = uint32(0x8b90dd08);
 
 // Opens one holder part: the sender's public key, then the ciphertext of a
@@ -25,7 +28,8 @@ inline constexpr auto kDecryptedKeyPartId = uint32(0x8b90dd08);
 [[nodiscard]] std::optional<QByteArray> CombineShares(
 	const std::vector<QByteArray> &shares);
 
-// The words joined by single spaces, UTF-8: the seed that gets split.
+// The words joined by single spaces, UTF-8, right-padded with spaces to
+// kSeedLength bytes: the seed that gets split. Empty if the join is longer.
 [[nodiscard]] QByteArray SeedFromWords(const std::vector<QString> &words);
 
 // Returns count shares of the seed's length whose XOR is the seed; all but

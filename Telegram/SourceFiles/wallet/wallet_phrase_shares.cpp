@@ -81,7 +81,13 @@ std::optional<QByteArray> CombineShares(
 }
 
 QByteArray SeedFromWords(const std::vector<QString> &words) {
-	return QStringList(words.begin(), words.end()).join(QChar(' ')).toUtf8();
+	const auto joined = QStringList(words.begin(), words.end())
+		.join(QChar(' '))
+		.toUtf8();
+	if (joined.size() > kSeedLength) {
+		return QByteArray();
+	}
+	return joined.leftJustified(kSeedLength, ' ');
 }
 
 std::vector<QByteArray> SplitSeed(const QByteArray &seed, int count) {
