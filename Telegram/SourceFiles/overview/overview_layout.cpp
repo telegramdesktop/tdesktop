@@ -53,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_chat_style.h"
 #include "styles/style_overview.h"
 
 namespace Overview::Layout {
@@ -140,30 +141,54 @@ private:
 	const auto ratio = style::DevicePixelRatio();
 	width *= ratio;
 	height *= ratio;
-	const auto finalize = [&](QImage result) {
-		result = result.scaled(
-			width,
-			height,
-			Qt::IgnoreAspectRatio,
-			Qt::SmoothTransformation);
-		result.setDevicePixelRatio(ratio);
-		return result;
-	};
-	if (image.width() * height == image.height() * width) {
-		if (image.width() != width) {
-			return finalize(std::move(image));
-		}
+	if (image.width() == width && image.height() == height) {
 		image.setDevicePixelRatio(ratio);
 		return image;
-	} else if (image.width() * height > image.height() * width) {
-		const auto use = (image.height() * width) / height;
-		const auto skip = (image.width() - use) / 2;
-		return finalize(image.copy(skip, 0, use, image.height()));
-	} else {
-		const auto use = (image.width() * height) / width;
-		const auto skip = (image.height() - use) / 2;
-		return finalize(image.copy(0, skip, image.width(), use));
 	}
+	// Both orders apply the same scale factor, so the visible pixels are the
+	// same either way - but the intermediate they build is not. Cropping
+	// first deep copies the cut region at source resolution, a few hundred
+	// megabytes for a 12000x9000 photo in a square cell. Expanding to the
+	// box first avoids that, but blows up the other way on an extreme aspect
+	// ratio: a 2560x26 panorama expands to about 35000x360. Take whichever
+	// intermediate is smaller.
+	const auto wide = (image.width() * height > image.height() * width);
+	const auto cropWidth = wide
+		? ((image.height() * width) / height)
+		: image.width();
+	const auto cropHeight = wide
+		? image.height()
+		: ((image.width() * height) / width);
+	const auto expanded = image.size().scaled(
+		width,
+		height,
+		Qt::KeepAspectRatioByExpanding);
+	const auto cropFirst = (int64(cropWidth) * cropHeight)
+		< (int64(expanded.width()) * expanded.height());
+	auto result = QImage();
+	if (cropFirst) {
+		result = image.copy(
+			(image.width() - cropWidth) / 2,
+			(image.height() - cropHeight) / 2,
+			cropWidth,
+			cropHeight
+		).scaled(width, height, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+	} else {
+		result = image.scaled(
+			width,
+			height,
+			Qt::KeepAspectRatioByExpanding,
+			Qt::SmoothTransformation);
+		if (result.width() != width || result.height() != height) {
+			result = result.copy(
+				(result.width() - width) / 2,
+				(result.height() - height) / 2,
+				width,
+				height);
+		}
+	}
+	result.setDevicePixelRatio(ratio);
+	return result;
 }
 
 void PaintSensitiveTag(Painter &p, QRect r) {
@@ -225,6 +250,10 @@ void ItemBase::invalidateCache() {
 	if (_check) {
 		_check->invalidateCache();
 	}
+}
+
+bool ItemBase::selectionConsumesClick(QPoint) const {
+	return true;
 }
 
 void ItemBase::paintCheckbox(
@@ -537,10 +566,24 @@ void Photo::setPixFrom(not_null<Image*> image) {
 	Expects(_width > 0 && _height > 0);
 
 	auto img = image->original();
-	if (!_goodLoaded) {
+
+	// Blur allocates and detaches by the source pixel count, and 'image'
+	// can be a full size photo, because image(PhotoSize::Small) falls back
+	// to a larger size when no small one is available. So blur whichever of
+	// the source and the result has fewer pixels: a huge photo is scaled
+	// down first, while a small inline thumbnail is still blurred before it
+	// is upscaled, which keeps the placeholder looking the way it did.
+	const auto ratio = style::DevicePixelRatio();
+	const auto blurAfterCrop = (img.width() * img.height())
+		> ((_width * ratio) * (_height * ratio));
+	if (!_goodLoaded && !blurAfterCrop) {
 		img = Images::Blur(std::move(img));
 	}
-	_pix = CropMediaFrame(std::move(img), _width, _height);
+	img = CropMediaFrame(std::move(img), _width, _height);
+	if (!_goodLoaded && blurAfterCrop) {
+		img = Images::Blur(std::move(img));
+	}
+	_pix = std::move(img);
 
 	// In case we have inline thumbnail we can unload all images and we still
 	// won't get a blank image in the media viewer when the photo is opened.
@@ -1073,7 +1116,7 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 
 		if (radial) {
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
-			auto &bg = selected ? st::historyFileInRadialFgSelected : st::historyFileInRadialFg;
+			const auto &bg = selected ? st::historyFileInRadialFgSelected : st::historyFileInRadialFg;
 			_radial->draw(p, rinner, st::msgFileRadialLine, bg);
 		}
 
@@ -1323,6 +1366,7 @@ Document::Document(
 	parent->fullId()))
 , _st(st)
 , _generic(::Layout::DocumentGenericPreview::Create(_data))
+, _externalLoading(std::move(fields.externalLoading))
 , _forceFileLayout(fields.forceFileLayout)
 , _date(langDateTime(base::unixtime::parse(fields.dateOverride
 	? fields.dateOverride
@@ -1339,6 +1383,11 @@ Document::Document(
 	AddComponents(Info::Bit());
 
 	setDocumentLinks(_data);
+	if (auto cancel = std::move(fields.externalCancel)) {
+		_cancell = std::make_shared<LambdaClickHandler>(crl::guard(
+			this,
+			[cancel = std::move(cancel)] { cancel(); }));
+	}
 
 	_status.update(
 		Ui::FileStatusSizeReady,
@@ -1374,7 +1423,7 @@ Document::Document(
 
 bool Document::downloadInCorner() const {
 	return _data->isAudioFile()
-		&& parent()->allowsForward()
+		&& parent()->allowsMediaDownloadControls()
 		&& _data->canBeStreamed()
 		&& !_data->inappPlaybackFailed();
 }
@@ -1397,7 +1446,8 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 
 	_dataMedia->automaticLoad(parent()->fullId(), parent());
 	const auto loaded = dataLoaded();
-	const auto displayLoading = _data->displayLoading();
+	const auto displayLoading = externalLoading().has_value()
+		|| _data->displayLoading();
 
 	if (displayLoading) {
 		ensureRadial();
@@ -1482,7 +1532,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 
 			if (radial && !cornerDownload) {
 				auto rinner = inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine));
-				auto &bg = selected ? st::historyFileInRadialFgSelected : st::historyFileInRadialFg;
+				const auto &bg = selected ? st::historyFileInRadialFgSelected : st::historyFileInRadialFg;
 				_radial->draw(p, rinner, st::msgFileRadialLine, bg);
 			}
 
@@ -1511,7 +1561,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 					st::roundRadiusSmall);
 			}
 
-			if (radial || (!loaded && !_data->loading())) {
+			if (radial || (!loaded && !activeLoading())) {
 				QRect inner(rthumb.x() + (rthumb.width() - _st.songThumbSize) / 2, rthumb.y() + (rthumb.height() - _st.songThumbSize) / 2, _st.songThumbSize, _st.songThumbSize);
 				if (clip.intersects(inner)) {
 					auto radialOpacity = (radial && loaded && !_data->uploading()) ? _radial->opacity() : 1;
@@ -1521,7 +1571,9 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 							? st::msgDateImgBgSelected
 							: _generic.selected);
 					} else {
-						auto over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
+						auto over = ClickHandler::showAsActive(activeLoading()
+							? _cancell
+							: _savel);
 						p.setBrush(anim::brush(
 							wthumb ? st::msgDateImgBg : _generic.dark,
 							wthumb ? st::msgDateImgBgOver : _generic.over,
@@ -1536,7 +1588,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 
 					p.setOpacity(radialOpacity);
 					auto icon = ([loaded, this, selected] {
-						if (loaded || _data->loading()) {
+						if (loaded || activeLoading()) {
 							return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
 						}
 						return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
@@ -1676,6 +1728,8 @@ QImage Document::dragPreviewImage() {
 void Document::drawCornerDownload(QPainter &p, bool selected, const PaintContext *context) const {
 	if (dataLoaded()
 		|| _data->loadedInMediaCache()
+		|| selected
+		|| context->selecting
 		|| !downloadInCorner()) {
 		return;
 	}
@@ -1788,7 +1842,7 @@ TextState Document::getState(
 			_width);
 
 		if (rthumb.contains(point)) {
-			const auto link = (_data->loading() || _data->uploading())
+			const auto link = (activeLoading() || _data->uploading())
 				? _cancell
 				: loaded
 				? _openl
@@ -1807,7 +1861,7 @@ TextState Document::getState(
 				return { parent(), _msgl };
 			}
 		}
-		if (!_data->loading() && !_data->isNull()) {
+		if (!activeLoading() && !_data->isNull()) {
 			auto leftofnamerect = style::rtlrect(
 				0,
 				st::linksBorder,
@@ -1829,6 +1883,23 @@ TextState Document::getState(
 		}
 	}
 	return {};
+}
+
+bool Document::selectionConsumesClick(QPoint point) const {
+	if (!songLayout()) {
+		return true;
+	}
+	if (const auto state = cornerDownloadTextState(point, StateRequest());
+		state.link) {
+		return false;
+	}
+	const auto inner = style::rtlrect(
+		_st.songPadding.left(),
+		_st.songPadding.top(),
+		_st.songThumbSize,
+		_st.songThumbSize,
+		_width);
+	return !inner.contains(point);
 }
 
 const style::RoundCheckbox &Document::checkboxStyle() const {
@@ -1856,16 +1927,36 @@ void Document::clearHeavyPart() {
 	_dataMedia = nullptr;
 }
 
+auto Document::externalLoading() const
+-> std::optional<DocumentExternalLoading> {
+	return _externalLoading ? _externalLoading() : std::nullopt;
+}
+
+bool Document::activeLoading() const {
+	return externalLoading().has_value() || _data->loading();
+}
+
 float64 Document::dataProgress() const {
+	if (const auto external = externalLoading()) {
+		return (external->total > 0)
+			? std::clamp(
+				external->ready / float64(external->total),
+				0.,
+				1.)
+			: 0.;
+	}
 	ensureDataMediaCreated();
 	return _dataMedia->progress();
 }
 
 bool Document::dataFinished() const {
-	return !_data->loading();
+	return !activeLoading();
 }
 
 bool Document::dataLoaded() const {
+	if (externalLoading()) {
+		return false;
+	}
 	ensureDataMediaCreated();
 	return _dataMedia->loaded();
 }
@@ -1885,7 +1976,10 @@ bool Document::updateStatusText() {
 	auto showPause = false;
 	auto statusSize = int64();
 	auto realDuration = TimeId();
-	if (_data->status == FileDownloadFailed
+	const auto external = externalLoading();
+	if (external) {
+		statusSize = external->ready;
+	} else if (_data->status == FileDownloadFailed
 		|| _data->status == FileUploadFailed) {
 		statusSize = Ui::FileStatusSizeFailed;
 	} else if (_data->uploading()) {
@@ -1914,7 +2008,7 @@ bool Document::updateStatusText() {
 	if (statusSize != _status.size()) {
 		_status.update(
 			statusSize,
-			_data->size,
+			external ? external->total : _data->size,
 			isSong ? (_data->duration() / 1000) : -1,
 			realDuration);
 	}
@@ -1961,7 +2055,7 @@ Link::Link(
 	}
 	while (lnk > 0 && till > from) {
 		--lnk;
-		auto &entity = entities.at(lnk);
+		const auto &entity = entities.at(lnk);
 		auto type = entity.type();
 		if (type != EntityType::Url && type != EntityType::CustomUrl && type != EntityType::Email) {
 			++lnk;
@@ -2457,6 +2551,13 @@ QSize Gif::countFrameSize() const {
 	auto frameh = animating ? _gif->height() : contentHeight();
 	const auto height = st::inlineMediaHeight;
 	const auto maxSize = st::maxStickerSize;
+	if (framew <= 0 || frameh <= 0) {
+		framew = contentWidth();
+		frameh = contentHeight();
+	}
+	if (framew <= 0 || frameh <= 0) {
+		return { _width, height };
+	}
 	if (framew * height > frameh * _width) {
 		if (framew < maxSize || frameh > height) {
 			if (frameh > height || (framew * height / frameh) <= maxSize) {
@@ -2665,7 +2766,7 @@ void Gif::paint(
 			const auto margin = st::msgFileRadialLine;
 			const auto rinner = inner
 				- QMargins(margin, margin, margin, margin);
-			auto &bg = selected
+			const auto &bg = selected
 				? st::historyFileInRadialFgSelected
 				: st::historyFileInRadialFg;
 			_radial->draw(p, rinner, st::msgFileRadialLine, bg);

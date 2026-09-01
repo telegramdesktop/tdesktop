@@ -6,7 +6,10 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/editor/iv_editor_state.h"
+#include "iv/editor/iv_editor_page_media.h"
+#include "iv/editor/iv_editor_page_table_grid.h"
 #include "iv/editor/iv_editor_text_entities.h"
+#include "iv/markdown/iv_markdown_prepare_serialize.h"
 #include "lang/lang_keys.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/fields/input_field.h"
@@ -60,34 +63,6 @@ using TextFormattingAction = State::TextFormattingAction;
 using TextSelectionDropResult = State::TextSelectionDropResult;
 using TextNodeSpan = State::TextNodeSpan;
 
-struct TextRange {
-	int offset = 0;
-	int length = 0;
-};
-
-constexpr auto kMaxRichTextNodeLength = 16000;
-constexpr auto kMaxCommittedFieldLength = 256 * 1024;
-
-[[nodiscard]] std::vector<TextWithEntities> SplitFieldText(
-		TextWithEntities text) {
-	auto result = std::vector<TextWithEntities>();
-	auto left = std::move(text);
-	auto consumed = 0;
-	while (!left.text.isEmpty() && consumed < kMaxCommittedFieldLength) {
-		auto part = TextWithEntities();
-		const auto limit = std::min(
-			kMaxRichTextNodeLength,
-			kMaxCommittedFieldLength - consumed);
-		if (!TextUtilities::CutPart(part, left, limit)
-			|| part.text.isEmpty()) {
-			break;
-		}
-		consumed += part.text.size();
-		result.push_back(std::move(part));
-	}
-	return result;
-}
-
 [[nodiscard]] TextWithEntities JoinText(
 		TextWithEntities before,
 		TextWithEntities selected,
@@ -119,14 +94,30 @@ void ExpandInsertContextToActiveLine(State::ActiveTextInsertContext &context) {
 	context.after = std::move(newAfter);
 }
 
-[[nodiscard]] bool RangeInsideText(
-		const QString &text,
-		int offset,
-		int length) {
-	return (offset >= 0)
-		&& (length >= 0)
-		&& (offset <= text.size())
-		&& ((offset + length) <= text.size());
+[[nodiscard]] bool IsListInsertType(State::InsertBlockType type) {
+	return (type == State::InsertBlockType::OrderedList)
+		|| (type == State::InsertBlockType::BulletList)
+		|| (type == State::InsertBlockType::TaskList);
+}
+
+[[nodiscard]] std::vector<TextWithEntities> SplitTextIntoLines(
+		const TextWithEntities &text) {
+	auto result = std::vector<TextWithEntities>();
+	const auto size = int(text.text.size());
+	auto from = 0;
+	while (from <= size) {
+		const auto found = text.text.indexOf('\n', from);
+		const auto till = (found < 0) ? size : found;
+		auto part = Ui::Text::Mid(text, from, till - from);
+		if (!part.text.trimmed().isEmpty()) {
+			result.push_back(std::move(part));
+		}
+		if (found < 0) {
+			break;
+		}
+		from = found + 1;
+	}
+	return result;
 }
 
 [[nodiscard]] const QString *FormattingActionTag(
@@ -142,6 +133,12 @@ void ExpandInsertContextToActiveLine(State::ActiveTextInsertContext &context) {
 		return &Ui::InputField::kTagStrikeOut;
 	case TextFormattingAction::Spoiler:
 		return &Ui::InputField::kTagSpoiler;
+	case TextFormattingAction::Subscript:
+		return &Ui::InputField::kTagIvSubscript;
+	case TextFormattingAction::Superscript:
+		return &Ui::InputField::kTagIvSuperscript;
+	case TextFormattingAction::Marked:
+		return &Ui::InputField::kTagIvMarked;
 	case TextFormattingAction::PlainText:
 		return nullptr;
 	}
@@ -154,14 +151,29 @@ void ExpandInsertContextToActiveLine(State::ActiveTextInsertContext &context) {
 		Ui::InputField::kTagIvMath);
 }
 
-[[nodiscard]] QString TagWithAddedDroppingMath(
+[[nodiscard]] QString TagWithoutOppositeScript(
+		const QString &tag,
+		const QString &added) {
+	if (added == Ui::InputField::kTagIvSubscript) {
+		return TextUtilities::TagWithRemoved(
+			tag,
+			Ui::InputField::kTagIvSuperscript);
+	} else if (added == Ui::InputField::kTagIvSuperscript) {
+		return TextUtilities::TagWithRemoved(
+			tag,
+			Ui::InputField::kTagIvSubscript);
+	}
+	return tag;
+}
+
+[[nodiscard]] QString TagWithAddedDroppingConflicts(
 		const QString &tag,
 		const QString &added) {
 	if (added == Ui::InputField::kTagIvMath) {
 		return Ui::InputField::kTagIvMath;
 	}
 	return TextUtilities::TagWithAdded(
-		TagWithoutInstantViewMath(tag),
+		TagWithoutOppositeScript(TagWithoutInstantViewMath(tag), added),
 		added);
 }
 
@@ -174,54 +186,6 @@ void SortTags(TextWithTags::Tags *tags) {
 		}
 		return a.id < b.id;
 	});
-}
-
-[[nodiscard]] bool TagContains(QStringView tags, QStringView tagId) {
-	return TextUtilities::SplitTags(tags).contains(tagId);
-}
-
-[[nodiscard]] bool HasFullTextTag(
-		const TextWithTags &textWithTags,
-		const QString &tag) {
-	if (tag.isEmpty() || textWithTags.text.isEmpty()) {
-		return false;
-	}
-	auto ranges = std::vector<TextRange>();
-	ranges.reserve(textWithTags.tags.size());
-	for (const auto &existing : textWithTags.tags) {
-		if (existing.length <= 0
-			|| !RangeInsideText(
-				textWithTags.text,
-				existing.offset,
-				existing.length)
-			|| !TagContains(existing.id, tag)) {
-			continue;
-		}
-		ranges.push_back({
-			.offset = existing.offset,
-			.length = existing.length,
-		});
-	}
-	if (ranges.empty()) {
-		return false;
-	}
-	std::sort(ranges.begin(), ranges.end(), [](const auto &a, const auto &b) {
-		if (a.offset != b.offset) {
-			return a.offset < b.offset;
-		}
-		return a.length < b.length;
-	});
-	auto coveredTill = 0;
-	for (const auto &range : ranges) {
-		if (range.offset > coveredTill) {
-			return false;
-		}
-		coveredTill = std::max(coveredTill, range.offset + range.length);
-		if (coveredTill >= textWithTags.text.size()) {
-			return true;
-		}
-	}
-	return (coveredTill >= textWithTags.text.size());
 }
 
 void OverlayTag(
@@ -278,7 +242,7 @@ void OverlayTag(
 			result.push_back({
 				.offset = middleFrom,
 				.length = middleTill - middleFrom,
-				.id = TagWithAddedDroppingMath(tag.id, overlay.id),
+				.id = TagWithAddedDroppingConflicts(tag.id, overlay.id),
 			});
 			coveredTill = middleTill;
 		}
@@ -319,72 +283,6 @@ void RemoveTagFromSelection(
 	*tags = std::move(result);
 }
 
-[[nodiscard]] bool SplitTextSpan(
-		const TextWithEntities &text,
-		int from,
-		int till,
-		TextWithEntities *before,
-		TextWithEntities *selected,
-		TextWithEntities *after) {
-	if (!before || !selected || !after) {
-		return false;
-	}
-	const auto textSize = int(text.text.size());
-	from = std::clamp(from, 0, textSize);
-	till = std::clamp(till, from, textSize);
-	if (from >= till) {
-		return false;
-	}
-	*before = Ui::Text::Mid(text, 0, from);
-	*selected = Ui::Text::Mid(text, from, till - from);
-	if (selected->text.isEmpty()) {
-		return false;
-	}
-	*after = Ui::Text::Mid(text, till);
-	return true;
-}
-
-[[nodiscard]] bool MediaBlockSupportsSpoiler(const Block &block) {
-	switch (block.kind) {
-	case BlockKind::Photo:
-	case BlockKind::Video:
-	case BlockKind::Audio:
-	case BlockKind::Map:
-		return true;
-	case BlockKind::GroupedMedia:
-		return ranges::any_of(
-			block.mediaItems,
-			[](const RichPage::GroupedMediaItem &item) {
-				return (item.kind == BlockKind::Photo)
-					|| (item.kind == BlockKind::Video)
-					|| (item.kind == BlockKind::Audio)
-					|| (item.kind == BlockKind::Map);
-			});
-	default:
-		return false;
-	}
-}
-
-[[nodiscard]] bool MediaBlockHasSpoiler(const Block &block) {
-	if (block.kind == BlockKind::GroupedMedia) {
-		auto any = false;
-		for (const auto &item : block.mediaItems) {
-			if ((item.kind != BlockKind::Photo)
-				&& (item.kind != BlockKind::Video)
-				&& (item.kind != BlockKind::Audio)
-				&& (item.kind != BlockKind::Map)) {
-				continue;
-			}
-			any = true;
-			if (!item.spoiler) {
-				return false;
-			}
-		}
-		return any;
-	}
-	return block.spoiler;
-}
-
 bool SetMediaBlockSpoiler(Block *block, bool enabled) {
 	if (!block || !MediaBlockSupportsSpoiler(*block)) {
 		return false;
@@ -410,220 +308,26 @@ bool SetMediaBlockSpoiler(Block *block, bool enabled) {
 	return false;
 }
 
-[[nodiscard]] bool IsPhotoVideoBlockKind(BlockKind kind) {
-	return (kind == BlockKind::Photo) || (kind == BlockKind::Video);
-}
-
 [[nodiscard]] bool IsReplaceableMediaBlockKind(BlockKind kind) {
-	return IsPhotoVideoBlockKind(kind) || (kind == BlockKind::Audio);
+	return IsPhotoVideoBlockKind(kind)
+		|| (kind == BlockKind::Audio)
+		|| (kind == BlockKind::File);
 }
 
-[[nodiscard]] bool IsTaskList(const std::vector<ListItem> &items) {
-	return std::any_of(
-		items.begin(),
-		items.end(),
-		[](const ListItem &item) {
-			return item.taskState != TaskState::None;
-		});
+[[nodiscard]] bool ValidRowButtonIndex(const Block *owner, int index) {
+	return owner
+		&& (owner->kind == BlockKind::ButtonRow)
+		&& (index >= 0)
+		&& (index < int(owner->buttons.size()));
 }
 
-[[nodiscard]] bool IsTaskList(const ClipboardListItemsData &data) {
-	return data.taskList || IsTaskList(data.items);
+[[nodiscard]] RichPage::Button NormalizedRowButton(RichPage::Button button) {
+	button.text.text = Markdown::NormalizeRichButtonLabel(
+		std::move(button.text.text));
+	button.button.text = button.text.text.text;
+	return button;
 }
 
-[[nodiscard]] PreparedOrderedListType ResolvePreparedOrderedListType(
-		const std::optional<QString> &type) {
-	if (!type.has_value()) {
-		return PreparedOrderedListType::Decimal;
-	}
-	const auto &value = *type;
-	if (value == u"a"_q
-		|| value.compare(u"lower-alpha"_q, Qt::CaseInsensitive) == 0
-		|| value.compare(u"lower-latin"_q, Qt::CaseInsensitive) == 0) {
-		return PreparedOrderedListType::LowerAlpha;
-	} else if (value == u"A"_q
-		|| value.compare(u"upper-alpha"_q, Qt::CaseInsensitive) == 0
-		|| value.compare(u"upper-latin"_q, Qt::CaseInsensitive) == 0) {
-		return PreparedOrderedListType::UpperAlpha;
-	} else if (value == u"i"_q
-		|| value.compare(u"lower-roman"_q, Qt::CaseInsensitive) == 0) {
-		return PreparedOrderedListType::LowerRoman;
-	} else if (value == u"I"_q
-		|| value.compare(u"upper-roman"_q, Qt::CaseInsensitive) == 0) {
-		return PreparedOrderedListType::UpperRoman;
-	}
-	return PreparedOrderedListType::Decimal;
-}
-
-[[nodiscard]] std::optional<QString> StoredOrderedListType(
-		PreparedOrderedListType type,
-		bool explicitDecimal = false) {
-	switch (type) {
-	case PreparedOrderedListType::LowerAlpha:
-		return u"a"_q;
-	case PreparedOrderedListType::UpperAlpha:
-		return u"A"_q;
-	case PreparedOrderedListType::LowerRoman:
-		return u"i"_q;
-	case PreparedOrderedListType::UpperRoman:
-		return u"I"_q;
-	case PreparedOrderedListType::Decimal:
-		return explicitDecimal ? std::make_optional(u"1"_q) : std::nullopt;
-	}
-	return explicitDecimal ? std::make_optional(u"1"_q) : std::nullopt;
-}
-
-[[nodiscard]] int OrderedListSequenceStart(const Block &block) {
-	return block.orderedList.start.value_or(
-		block.orderedList.reversed ? int(block.listItems.size()) : 1);
-}
-
-[[nodiscard]] int OrderedListSequenceStep(const Block &block) {
-	return block.orderedList.reversed ? -1 : 1;
-}
-
-[[nodiscard]] std::optional<int> EffectiveOrderedItemValue(
-		const Block &block,
-		int itemIndex) {
-	if (block.kind != BlockKind::List
-		|| block.listKind != ListKind::Ordered
-		|| itemIndex < 0
-		|| itemIndex >= int(block.listItems.size())) {
-		return std::nullopt;
-	}
-	auto next = OrderedListSequenceStart(block);
-	const auto step = OrderedListSequenceStep(block);
-	for (auto i = 0; i <= itemIndex; ++i) {
-		const auto value = block.listItems[i].number.value.value_or(next);
-		if (i == itemIndex) {
-			return value;
-		}
-		next = value + step;
-	}
-	return std::nullopt;
-}
-
-[[nodiscard]] bool ClearOrderedListRawMarkers(
-		Block *block,
-		int from,
-		int till) {
-	if (!block
-		|| block->kind != BlockKind::List
-		|| block->listKind != ListKind::Ordered) {
-		return false;
-	}
-	auto changed = false;
-	from = std::clamp(from, 0, int(block->listItems.size()));
-	till = std::clamp(till, from, int(block->listItems.size()));
-	for (auto i = from; i != till; ++i) {
-		auto &item = block->listItems[i];
-		if (item.number.num.has_value()) {
-			item.number.num = std::nullopt;
-			changed = true;
-		}
-	}
-	return changed;
-}
-
-[[nodiscard]] bool ClearOrderedListRawMarkers(Block *block) {
-	return block
-		? ClearOrderedListRawMarkers(block, 0, int(block->listItems.size()))
-		: false;
-}
-
-[[nodiscard]] bool ClearOrderedTaskStates(Block *block) {
-	if (!block || block->kind != BlockKind::List) {
-		return false;
-	}
-	auto changed = false;
-	for (auto &item : block->listItems) {
-		if (item.taskState != TaskState::None) {
-			item.taskState = TaskState::None;
-			changed = true;
-		}
-	}
-	return changed;
-}
-
-[[nodiscard]] bool ClearOrderedListData(ListItem *item) {
-	if (!item) {
-		return false;
-	}
-	const auto changed = item->number.num.has_value()
-		|| item->number.value.has_value()
-		|| item->number.type.has_value();
-	item->number = {};
-	return changed;
-}
-
-[[nodiscard]] bool ResetNonOrderedListMetadata(Block *block) {
-	if (!block || block->kind != BlockKind::List) {
-		return false;
-	}
-	auto changed = (block->orderedList != OrderedListData());
-	block->orderedList = {};
-	for (auto &item : block->listItems) {
-		changed = ClearOrderedListData(&item) || changed;
-	}
-	return changed;
-}
-
-void NormalizeInsertedOrderedListMetadata(Block *block) {
-	if (!block) {
-		return;
-	}
-	for (auto &child : block->blocks) {
-		NormalizeInsertedOrderedListMetadata(&child);
-	}
-	for (auto &item : block->listItems) {
-		for (auto &child : item.blocks) {
-			NormalizeInsertedOrderedListMetadata(&child);
-		}
-	}
-	if (block->kind != BlockKind::List) {
-		return;
-	}
-	if (block->listKind != ListKind::Ordered) {
-		(void)ResetNonOrderedListMetadata(block);
-	}
-}
-
-void NormalizeInsertedOrderedListMetadata(std::vector<Block> *blocks) {
-	if (!blocks) {
-		return;
-	}
-	for (auto &block : *blocks) {
-		NormalizeInsertedOrderedListMetadata(&block);
-	}
-}
-
-[[nodiscard]] ListStyle CurrentListStyle(const Block &block) {
-	return (block.listKind == ListKind::Ordered)
-		? ListStyle::Ordered
-		: IsTaskList(block.listItems)
-		? ListStyle::Task
-		: ListStyle::Bullet;
-}
-
-[[nodiscard]] PreparedOrderedListType EffectiveOrderedListType(
-		const Block &block,
-		const ListItem &item) {
-	return item.number.type.has_value()
-		? ResolvePreparedOrderedListType(item.number.type)
-		: ResolvePreparedOrderedListType(block.orderedList.type);
-}
-
-[[nodiscard]] bool ListBlockMatchesClipboardData(
-		const Block &block,
-		const ClipboardListItemsData &data) {
-	if (block.kind != BlockKind::List
-		|| block.listKind != data.listKind
-		|| IsTaskList(block.listItems) != IsTaskList(data)) {
-		return false;
-	}
-	return (block.listKind != ListKind::Ordered)
-		|| (block.orderedList == data.orderedList);
-}
 
 [[nodiscard]] std::optional<uint64> ReplaceTargetMediaId(const Block &block) {
 	switch (block.kind) {
@@ -631,6 +335,7 @@ void NormalizeInsertedOrderedListMetadata(std::vector<Block> *blocks) {
 		return block.photoId ? std::make_optional(block.photoId) : std::nullopt;
 	case BlockKind::Video:
 	case BlockKind::Audio:
+	case BlockKind::File:
 		return block.documentId
 			? std::make_optional(block.documentId)
 			: std::nullopt;
@@ -671,90 +376,9 @@ void NormalizeInsertedOrderedListMetadata(std::vector<Block> *blocks) {
 		&& (*mediaId == target.mediaId);
 }
 
-[[nodiscard]] std::optional<RichPage::GroupedMediaItem>
-GroupedItemFromPhotoVideoBlock(const Block &block) {
-	if (!IsPhotoVideoBlockKind(block.kind)) {
-		return std::nullopt;
-	}
-	auto result = RichPage::GroupedMediaItem();
-	result.kind = block.kind;
-	result.photo = block.photo;
-	result.document = block.document;
-	result.photoId = block.photoId;
-	result.documentId = block.documentId;
-	result.width = block.width;
-	result.height = block.height;
-	result.autoplay = block.autoplay;
-	result.loop = block.loop;
-	result.spoiler = block.spoiler;
-	return result;
-}
-
-[[nodiscard]] std::optional<Block> PhotoVideoBlockFromGroupedItem(
-		const RichPage::GroupedMediaItem &item) {
-	if (!IsPhotoVideoBlockKind(item.kind)) {
-		return std::nullopt;
-	}
-	auto result = Block();
-	result.kind = item.kind;
-	result.photo = item.photo;
-	result.document = item.document;
-	result.photoId = item.photoId;
-	result.documentId = item.documentId;
-	result.width = item.width;
-	result.height = item.height;
-	result.autoplay = item.autoplay;
-	result.loop = item.loop;
-	result.spoiler = item.spoiler;
-	return result;
-}
-
-[[nodiscard]] bool GroupingRichTextIsEmpty(const RichText &text) {
-	return text.text.text.trimmed().isEmpty()
-		&& text.anchorId.isEmpty()
-		&& text.anchorIds.empty();
-}
-
 [[nodiscard]] bool BlockHasGroupingCaptionOrAnchor(const Block &block) {
 	return !GroupingRichTextIsEmpty(block.caption)
 		|| !block.anchorId.isEmpty();
-}
-
-[[nodiscard]] bool HasValidGroupingCaptionAndAnchorSource(
-		const std::vector<Block> &blocks,
-		int from,
-		int till) {
-	auto found = false;
-	for (auto i = from; i != till; ++i) {
-		if (!BlockHasGroupingCaptionOrAnchor(blocks[i])) {
-			continue;
-		} else if (found) {
-			return false;
-		}
-		found = true;
-	}
-	return true;
-}
-
-[[nodiscard]] BlockContainerPath BlockChildrenContainer(BlockPath path) {
-	auto result = std::move(path.container);
-	result.steps.push_back({
-		.kind = BlockContainerKind::BlockChildren,
-		.blockIndex = path.index,
-	});
-	return result;
-}
-
-[[nodiscard]] BlockContainerPath ListItemChildrenContainer(
-		BlockPath path,
-		int itemIndex) {
-	auto result = std::move(path.container);
-	result.steps.push_back({
-		.kind = BlockContainerKind::ListItemChildren,
-		.blockIndex = path.index,
-		.listItemIndex = itemIndex,
-	});
-	return result;
 }
 
 [[nodiscard]] bool ContainerStartsWith(
@@ -773,29 +397,6 @@ GroupedItemFromPhotoVideoBlock(const Block &block) {
 		}
 	}
 	return true;
-}
-
-[[nodiscard]] PreparedBlockContainerPath ToPreparedBlockContainerPath(
-		const BlockContainerPath &path) {
-	auto result = PreparedBlockContainerPath();
-	result.steps.reserve(path.steps.size());
-	for (const auto &step : path.steps) {
-		auto converted = PreparedBlockContainerStep();
-		converted.blockIndex = step.blockIndex;
-		converted.listItemIndex = step.listItemIndex;
-		switch (step.kind) {
-		case BlockContainerKind::Root:
-			continue;
-		case BlockContainerKind::BlockChildren:
-			converted.kind = PreparedBlockContainerKind::BlockChildren;
-			break;
-		case BlockContainerKind::ListItemChildren:
-			converted.kind = PreparedBlockContainerKind::ListItemChildren;
-			break;
-		}
-		result.steps.push_back(converted);
-	}
-	return result;
 }
 
 [[nodiscard]] bool ContainerHasPrefix(
@@ -944,245 +545,6 @@ GroupedItemFromPhotoVideoBlock(const Block &block) {
 		: std::nullopt;
 }
 
-using TableGridOccupancyRow = std::vector<char>;
-using TableGridOccupancy = std::vector<TableGridOccupancyRow>;
-
-struct TableGridCellReference {
-	int rowIndex = -1;
-	int cellIndex = -1;
-	int rowFrom = -1;
-	int rowTill = -1;
-	int columnFrom = -1;
-	int columnTill = -1;
-};
-
-struct TableGrid {
-	std::vector<TableGridCellReference> cells;
-	TableGridOccupancy occupancy;
-	int rowCount = 0;
-	int columnCount = 0;
-};
-
-[[nodiscard]] int NormalizeTableSpan(int span) {
-	return std::max(span, 1);
-}
-
-[[nodiscard]] int ClampTableRowspan(
-		int rawRowspan,
-		int row,
-		int rowCount) {
-	if ((row < 0) || (row >= rowCount) || (rowCount <= 0)) {
-		return 0;
-	}
-	const auto remainingRows = int64(rowCount) - row;
-	return int(std::min<int64>(NormalizeTableSpan(rawRowspan), remainingRows));
-}
-
-[[nodiscard]] int ClampTableColspan(
-		int rawColspan,
-		int column,
-		int maxColumns) {
-	if ((column < 0) || (column >= maxColumns) || (maxColumns <= 0)) {
-		return 0;
-	}
-	const auto remainingColumns = int64(maxColumns) - column;
-	return int(std::min<int64>(
-		NormalizeTableSpan(rawColspan),
-		remainingColumns));
-}
-
-[[nodiscard]] bool CanOccupyTableSlots(
-		const TableGridOccupancy &occupancy,
-		int row,
-		int column,
-		int rowspan,
-		int colspan) {
-	if ((row < 0)
-		|| (column < 0)
-		|| (rowspan <= 0)
-		|| (colspan <= 0)
-		|| (row >= int(occupancy.size()))) {
-		return false;
-	}
-	const auto rowLimit = int(std::min<int64>(
-		int64(row) + rowspan,
-		occupancy.size()));
-	const auto columnLimit64 = int64(column) + colspan;
-	if (columnLimit64 <= column) {
-		return false;
-	}
-	const auto columnLimit = int(std::min<int64>(
-		columnLimit64,
-		std::numeric_limits<int>::max()));
-	for (auto currentRow = row; currentRow < rowLimit; ++currentRow) {
-		const auto &occupied = occupancy[currentRow];
-		const auto occupiedLimit = std::min(columnLimit, int(occupied.size()));
-		for (auto currentColumn = column;
-			currentColumn < occupiedLimit;
-			++currentColumn) {
-			if (occupied[currentColumn]) {
-				return false;
-			}
-		}
-	}
-	return true;
-}
-
-[[nodiscard]] int FirstAvailableTableColumn(
-		const TableGridOccupancy &occupancy,
-		int row,
-		int rowspan,
-		int colspan,
-		int maxColumns) {
-	if ((row < 0)
-		|| (row >= int(occupancy.size()))
-		|| (rowspan <= 0)
-		|| (colspan <= 0)
-		|| (maxColumns <= 0)) {
-		return -1;
-	}
-	for (auto column = 0; column < maxColumns; ++column) {
-		const auto effectiveColspan = ClampTableColspan(
-			colspan,
-			column,
-			maxColumns);
-		if (effectiveColspan <= 0) {
-			continue;
-		}
-		if (CanOccupyTableSlots(
-				occupancy,
-				row,
-				column,
-				rowspan,
-				effectiveColspan)) {
-			return column;
-		}
-	}
-	return -1;
-}
-
-void MarkTableSlots(
-		TableGridOccupancy *occupancy,
-		int row,
-		int column,
-		int rowspan,
-		int colspan) {
-	if ((row < 0)
-		|| (column < 0)
-		|| (rowspan <= 0)
-		|| (colspan <= 0)
-		|| (row >= int(occupancy->size()))) {
-		return;
-	}
-	const auto rowLimit = int(std::min<int64>(
-		int64(row) + rowspan,
-		occupancy->size()));
-	const auto columnLimit64 = int64(column) + colspan;
-	if (columnLimit64 <= column) {
-		return;
-	}
-	const auto columnLimit = int(std::min<int64>(
-		columnLimit64,
-		std::numeric_limits<int>::max()));
-	for (auto currentRow = row; currentRow < rowLimit; ++currentRow) {
-		auto &occupied = (*occupancy)[currentRow];
-		if (columnLimit > int(occupied.size())) {
-			occupied.resize(columnLimit, false);
-		}
-		for (auto currentColumn = column;
-			currentColumn < columnLimit;
-			++currentColumn) {
-			occupied[currentColumn] = true;
-		}
-	}
-}
-
-[[nodiscard]] int TableGridColumnCount(
-		const TableGridOccupancy &occupancy) {
-	auto result = 0;
-	for (const auto &row : occupancy) {
-		result = std::max(result, int(row.size()));
-	}
-	return result;
-}
-
-[[nodiscard]] TableGrid BuildTableGrid(
-		const Block &table,
-		const Markdown::MarkdownPrepareTableRenderLimits &limits) {
-	auto result = TableGrid();
-	result.rowCount = std::min(int(table.tableRows.size()), limits.maxRows);
-	if (result.rowCount < 0) {
-		result.rowCount = 0;
-	}
-	result.occupancy = TableGridOccupancy(result.rowCount);
-	auto occupiedSlotCountSoFar = int64(0);
-
-	for (auto rowIndex = 0; rowIndex != result.rowCount; ++rowIndex) {
-		const auto &row = table.tableRows[rowIndex];
-		for (auto cellIndex = 0, cellCount = int(row.cells.size());
-				cellIndex != cellCount;
-				++cellIndex) {
-			const auto &cell = row.cells[cellIndex];
-			const auto normalizedColspan = NormalizeTableSpan(cell.colspan);
-			const auto rowspan = ClampTableRowspan(
-				cell.rowspan,
-				rowIndex,
-				result.rowCount);
-			if (rowspan <= 0) {
-				continue;
-			}
-			const auto column = FirstAvailableTableColumn(
-				result.occupancy,
-				rowIndex,
-				rowspan,
-				normalizedColspan,
-				limits.maxColumns);
-			if (column < 0) {
-				continue;
-			}
-			const auto colspan = ClampTableColspan(
-				normalizedColspan,
-				column,
-				limits.maxColumns);
-			if (colspan <= 0) {
-				continue;
-			}
-			const auto occupiedSlotGrowth = int64(rowspan) * colspan;
-			if (occupiedSlotGrowth > limits.maxCells
-				|| (occupiedSlotCountSoFar + occupiedSlotGrowth)
-					> limits.maxCells) {
-				continue;
-			}
-			result.cells.push_back({
-				.rowIndex = rowIndex,
-				.cellIndex = cellIndex,
-				.rowFrom = rowIndex,
-				.rowTill = rowIndex + rowspan,
-				.columnFrom = column,
-				.columnTill = column + colspan,
-			});
-			MarkTableSlots(
-				&result.occupancy,
-				rowIndex,
-				column,
-				rowspan,
-				colspan);
-			occupiedSlotCountSoFar += occupiedSlotGrowth;
-		}
-	}
-	result.columnCount = TableGridColumnCount(result.occupancy);
-	return result;
-}
-
-template <typename Range>
-[[nodiscard]] bool TableGridCellIntersectsRange(
-		const TableGridCellReference &cell,
-		const Range &range) {
-	return (cell.rowFrom < range.rowTill)
-		&& (cell.rowTill > range.rowFrom)
-		&& (cell.columnFrom < range.columnTill)
-		&& (cell.columnTill > range.columnFrom);
-}
 
 template <typename Range>
 [[nodiscard]] bool TableGridCellContainedInRange(
@@ -1192,20 +554,6 @@ template <typename Range>
 		&& (cell.rowTill <= range.rowTill)
 		&& (cell.columnFrom >= range.columnFrom)
 		&& (cell.columnTill <= range.columnTill);
-}
-
-template <typename Range>
-[[nodiscard]] std::vector<TableGridCellReference> SelectedTableGridCells(
-		const TableGrid &grid,
-		const Range &range) {
-	auto result = std::vector<TableGridCellReference>();
-	result.reserve(grid.cells.size());
-	for (const auto &cell : grid.cells) {
-		if (TableGridCellIntersectsRange(cell, range)) {
-			result.push_back(cell);
-		}
-	}
-	return result;
 }
 
 template <typename Range>
@@ -1355,127 +703,6 @@ void InsertTableCellBeforeVisualColumn(
 		std::move(insertedCell));
 }
 
-[[nodiscard]] bool BlockCanOwnChildContainer(const Block &block) {
-	return (block.kind == BlockKind::Quote)
-		|| (block.kind == BlockKind::Details);
-}
-
-[[nodiscard]] bool BlockSupportsBlockText(const Block &block) {
-	switch (block.kind) {
-	case BlockKind::Heading:
-	case BlockKind::Paragraph:
-	case BlockKind::Footer:
-	case BlockKind::Code:
-	case BlockKind::Quote:
-	case BlockKind::Table:
-	case BlockKind::Details:
-		return true;
-	default:
-		return false;
-	}
-}
-
-[[nodiscard]] bool BlockSupportsBlockCaption(const Block &block) {
-	switch (block.kind) {
-	case BlockKind::Quote:
-	case BlockKind::Photo:
-	case BlockKind::Video:
-	case BlockKind::Audio:
-	case BlockKind::Map:
-	case BlockKind::GroupedMedia:
-		return true;
-	default:
-		return false;
-	}
-}
-
-[[nodiscard]] bool StringIsEmpty(const QString &text) {
-	return text.trimmed().isEmpty();
-}
-
-[[nodiscard]] bool RichTextHasVisibleText(const RichText &text) {
-	return !StringIsEmpty(text.text.text);
-}
-
-void MergeRichTextAnchors(RichText *target, RichText source) {
-	if (!target) {
-		return;
-	}
-	if (!source.anchorId.isEmpty()) {
-		if (target->anchorId.isEmpty()) {
-			target->anchorId = std::move(source.anchorId);
-		} else {
-			target->anchorIds.push_back(std::move(source.anchorId));
-		}
-	}
-	for (auto &anchorId : source.anchorIds) {
-		if (!anchorId.isEmpty()) {
-			target->anchorIds.push_back(std::move(anchorId));
-		}
-	}
-}
-
-[[nodiscard]] bool JoinableTextBlockKind(BlockKind kind) {
-	return (kind == BlockKind::Heading)
-		|| (kind == BlockKind::Paragraph)
-		|| (kind == BlockKind::Footer);
-}
-
-[[nodiscard]] int AppendParagraphSeam(Block *destination, Block &&source) {
-	auto updated = std::move(destination->text.text);
-	const auto seamOffset = int(updated.text.size());
-	updated.append(std::move(source.text.text));
-	destination->text.text = std::move(updated);
-	MergeRichTextAnchors(&destination->text, std::move(source.text));
-	if (!source.anchorId.isEmpty()) {
-		auto anchor = RichText();
-		anchor.anchorId = std::move(source.anchorId);
-		MergeRichTextAnchors(&destination->text, std::move(anchor));
-	}
-	return seamOffset;
-}
-
-[[nodiscard]] bool CanEditBlocks(const std::vector<Block> &blocks);
-
-[[nodiscard]] bool CanEditBlock(const Block &block) {
-	switch (block.kind) {
-	case BlockKind::Heading:
-	case BlockKind::Paragraph:
-	case BlockKind::Footer:
-	case BlockKind::Code:
-	case BlockKind::Divider:
-	case BlockKind::Anchor:
-	case BlockKind::GroupedMedia:
-	case BlockKind::Photo:
-	case BlockKind::Video:
-	case BlockKind::Audio:
-	case BlockKind::Math:
-	case BlockKind::Table:
-	case BlockKind::Map:
-		return true;
-	case BlockKind::Quote:
-	case BlockKind::Details:
-		return CanEditBlocks(block.blocks);
-	case BlockKind::List:
-		return ranges::all_of(block.listItems, [](const ListItem &item) {
-			return CanEditBlocks(item.blocks);
-		});
-	case BlockKind::Unsupported:
-	case BlockKind::Thinking:
-	case BlockKind::AuthorDate:
-	case BlockKind::Embed:
-	case BlockKind::EmbedPost:
-	case BlockKind::Channel:
-	case BlockKind::RelatedArticles:
-		return false;
-	}
-	return false;
-}
-
-[[nodiscard]] bool CanEditBlocks(const std::vector<Block> &blocks) {
-	return ranges::all_of(blocks, &CanEditBlock);
-}
-
 } // namespace
 
 State::State()
@@ -1493,6 +720,7 @@ State::State(
 		_richPage->blocks.push_back(MakeParagraphBlock());
 	}
 	StripEditModeWrapperEntities(_richPage->blocks);
+	DegradeEditModeButtons(_richPage->blocks);
 	rebuild();
 }
 
@@ -1515,6 +743,10 @@ auto State::tableRenderLimits() const
 	return Markdown::PrepareTableRenderLimitsForRichMessage(_limits);
 }
 
+const RichMessageLimits &State::limits() const {
+	return _limits;
+}
+
 template <typename Result, typename Callback>
 Result State::applyCheckedMutation(Result failure, Callback &&callback) {
 	_lastLimitError = std::nullopt;
@@ -1528,6 +760,9 @@ Result State::applyCheckedMutation(Result failure, Callback &&callback) {
 	const auto outcome = callback(candidate);
 	if (!outcome.apply) {
 		return outcome.result;
+	}
+	if (DegradeEditModeButtons(candidate._richPage->blocks)) {
+		candidate.rebuildPrepared();
 	}
 	if (const auto error = ValidateRichMessage(*candidate._richPage, _limits)) {
 		_lastLimitError = error;
@@ -1703,6 +938,12 @@ TextWithEntities State::activeText() const {
 ApplyResult State::applyActiveText(TextWithEntities text) {
 	_lastLimitError = std::nullopt;
 	_lastPreparedMutationKind = PreparedMutationKind::None;
+	DegradeEditModeInlineButtons(text);
+	if (const auto descriptor = textNode(_activeTextOrdinal)) {
+		if (descriptor->leaf.kind == LeafKind::TableCellText) {
+			DegradeBlockOnlyEntities(text);
+		}
+	}
 	return applyActiveTextWithLocalLimit(std::move(text));
 }
 
@@ -1820,6 +1061,7 @@ QString State::activePlaceholderText() const {
 		case BlockKind::Photo:
 		case BlockKind::Video:
 		case BlockKind::Audio:
+		case BlockKind::File:
 		case BlockKind::Map:
 		case BlockKind::GroupedMedia:
 			return tr::lng_photo_caption(tr::now);
@@ -2211,15 +1453,19 @@ bool State::canGroupPhotoVideoBlocks(
 	if (!blocks) {
 		return false;
 	}
+	auto sources = 0;
+	auto captioned = 0;
 	for (auto i = range->from; i != range->till; ++i) {
-		if (!IsPhotoVideoBlockKind((*blocks)[i].kind)) {
-			return false;
+		const auto &block = (*blocks)[i];
+		if (!IsGroupableMediaBlock(block)) {
+			continue;
+		}
+		++sources;
+		if (BlockHasGroupingCaptionOrAnchor(block)) {
+			++captioned;
 		}
 	}
-	return HasValidGroupingCaptionAndAnchorSource(
-		*blocks,
-		range->from,
-		range->till);
+	return (sources > 1) && (captioned < 2);
 }
 
 bool State::groupPhotoVideoBlocks(
@@ -2239,14 +1485,31 @@ bool State::groupPhotoVideoBlocks(
 		}
 		auto items = std::vector<RichPage::GroupedMediaItem>();
 		items.reserve(range->till - range->from);
+		auto kept = std::vector<Block>();
+		auto keptBeforeMedia = 0;
+		auto seenMedia = false;
 		auto captionSource = std::optional<int>();
 		for (auto i = range->from; i != range->till; ++i) {
-			const auto item = GroupedItemFromPhotoVideoBlock((*blocks)[i]);
-			if (!item) {
+			auto &block = (*blocks)[i];
+			if (!IsGroupableMediaBlock(block)) {
+				if (!seenMedia) {
+					++keptBeforeMedia;
+				}
+				kept.push_back(std::move(block));
+				continue;
+			}
+			seenMedia = true;
+			if (block.kind == BlockKind::GroupedMedia) {
+				items.insert(
+					items.end(),
+					block.mediaItems.begin(),
+					block.mediaItems.end());
+			} else if (const auto item = GroupedItemFromPhotoVideoBlock(block)) {
+				items.push_back(*item);
+			} else {
 				return CheckedMutationResult<bool>{ .result = false };
 			}
-			items.push_back(*item);
-			if (!BlockHasGroupingCaptionOrAnchor((*blocks)[i])) {
+			if (!BlockHasGroupingCaptionOrAnchor(block)) {
 				continue;
 			} else if (captionSource) {
 				return CheckedMutationResult<bool>{ .result = false };
@@ -2262,10 +1525,28 @@ bool State::groupPhotoVideoBlocks(
 			grouped.caption = std::move(source.caption);
 			grouped.anchorId = std::move(source.anchorId);
 		}
+		auto groupedBlocks = SplitGroupedMediaBlock(std::move(grouped));
+		auto replacement = std::vector<Block>();
+		replacement.reserve(kept.size() + groupedBlocks.size());
+		replacement.insert(
+			replacement.end(),
+			std::make_move_iterator(kept.begin()),
+			std::make_move_iterator(kept.begin() + keptBeforeMedia));
+		replacement.insert(
+			replacement.end(),
+			std::make_move_iterator(groupedBlocks.begin()),
+			std::make_move_iterator(groupedBlocks.end()));
+		replacement.insert(
+			replacement.end(),
+			std::make_move_iterator(kept.begin() + keptBeforeMedia),
+			std::make_move_iterator(kept.end()));
 		blocks->erase(
 			blocks->begin() + range->from,
 			blocks->begin() + range->till);
-		blocks->insert(blocks->begin() + range->from, std::move(grouped));
+		blocks->insert(
+			blocks->begin() + range->from,
+			std::make_move_iterator(replacement.begin()),
+			std::make_move_iterator(replacement.end()));
 		candidate.rebuild();
 		return CheckedMutationResult<bool>{
 			.apply = true,
@@ -2303,6 +1584,81 @@ bool State::ungroupGroupedMediaBlock(const BlockPath &path) {
 			blocks->begin() + path.index,
 			std::make_move_iterator(emitted.begin()),
 			std::make_move_iterator(emitted.end()));
+		candidate.rebuild();
+		return CheckedMutationResult<bool>{
+			.apply = true,
+			.result = true,
+		};
+	});
+}
+
+bool State::canUngroupGroupedMediaBlocks(
+		const PreparedEditSelection &selection) const {
+	if (selection.kind != PreparedEditSelectionKind::Blocks) {
+		return false;
+	}
+	const auto range = validateBlockRange(selection.blocks);
+	if (!range) {
+		return false;
+	}
+	const auto blocks = blockContainer(range->container);
+	if (!blocks) {
+		return false;
+	}
+	for (auto i = range->from; i != range->till; ++i) {
+		const auto &block = (*blocks)[i];
+		if (block.kind == BlockKind::GroupedMedia
+			&& IsGroupableMediaBlock(block)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool State::ungroupGroupedMediaBlocks(
+		const PreparedEditSelection &selection) {
+	return applyCheckedMutation(false, [selection](State &candidate) {
+		if (!candidate.canUngroupGroupedMediaBlocks(selection)) {
+			return CheckedMutationResult<bool>{ .result = false };
+		}
+		const auto range = candidate.validateBlockRange(selection.blocks);
+		if (!range) {
+			return CheckedMutationResult<bool>{ .result = false };
+		}
+		auto *blocks = candidate.blockContainer(range->container);
+		if (!blocks) {
+			return CheckedMutationResult<bool>{ .result = false };
+		}
+		auto replacement = std::vector<Block>();
+		replacement.reserve(range->till - range->from);
+		for (auto i = range->from; i != range->till; ++i) {
+			auto &block = (*blocks)[i];
+			if (block.kind != BlockKind::GroupedMedia
+				|| !IsGroupableMediaBlock(block)) {
+				replacement.push_back(std::move(block));
+				continue;
+			}
+			auto first = true;
+			for (const auto &item : block.mediaItems) {
+				auto single = PhotoVideoBlockFromGroupedItem(item);
+				if (!single) {
+					return CheckedMutationResult<bool>{ .result = false };
+				}
+				if (first) {
+					single->caption = std::move(block.caption);
+					single->anchorId = std::move(block.anchorId);
+					first = false;
+				}
+				replacement.push_back(std::move(*single));
+			}
+		}
+		blocks->erase(
+			blocks->begin() + range->from,
+			blocks->begin() + range->till);
+		blocks->insert(
+			blocks->begin() + range->from,
+			std::make_move_iterator(replacement.begin()),
+			std::make_move_iterator(replacement.end()));
 		candidate.rebuild();
 		return CheckedMutationResult<bool>{
 			.apply = true,
@@ -2395,7 +1751,14 @@ bool State::addItemsToGroupedMedia(
 			group.mediaItems.end(),
 			std::make_move_iterator(appended.begin()),
 			std::make_move_iterator(appended.end()));
-		blocks->erase(blocks->begin() + from, blocks->begin() + till);
+		auto groupedBlocks = SplitGroupedMediaBlock(std::move(group));
+		blocks->erase(
+			blocks->begin() + path.index,
+			blocks->begin() + till);
+		blocks->insert(
+			blocks->begin() + path.index,
+			std::make_move_iterator(groupedBlocks.begin()),
+			std::make_move_iterator(groupedBlocks.end()));
 		candidate.rebuild();
 		return CheckedMutationResult<bool>{
 			.apply = true,
@@ -2408,13 +1771,25 @@ bool State::setGroupedMediaIntent(
 		const BlockPath &path,
 		RichPage::GroupedMediaIntent intent) {
 	return applyCheckedMutation(false, [path, intent](State &candidate) {
-		auto *current = candidate.block(path);
-		if (!current || current->kind != BlockKind::GroupedMedia) {
-			return CheckedMutationResult<bool>{ .result = false };
-		} else if (current->mediaIntent == intent) {
+		auto *blocks = candidate.blockContainer(path.container);
+		if (!blocks
+			|| path.index < 0
+			|| path.index >= int(blocks->size())) {
 			return CheckedMutationResult<bool>{ .result = false };
 		}
-		current->mediaIntent = intent;
+		auto &current = (*blocks)[path.index];
+		if (current.kind != BlockKind::GroupedMedia) {
+			return CheckedMutationResult<bool>{ .result = false };
+		} else if (current.mediaIntent == intent) {
+			return CheckedMutationResult<bool>{ .result = false };
+		}
+		current.mediaIntent = intent;
+		auto groupedBlocks = SplitGroupedMediaBlock(std::move(current));
+		blocks->erase(blocks->begin() + path.index);
+		blocks->insert(
+			blocks->begin() + path.index,
+			std::make_move_iterator(groupedBlocks.begin()),
+			std::make_move_iterator(groupedBlocks.end()));
 		candidate.rebuild();
 		return CheckedMutationResult<bool>{
 			.apply = true,
@@ -2587,6 +1962,40 @@ bool State::toggleDetailsOpen(
 	return true;
 }
 
+bool State::toggleQuoteCollapsed(
+		const Markdown::PreparedEditBlockSource &source,
+		bool *movedCaret) {
+	const auto path = convertBlockPath(source);
+	if (!path) {
+		return false;
+	}
+	auto owner = block(*path);
+	if (!owner || !RichBlockquoteIsCollapsible(*owner)) {
+		return false;
+	}
+	const auto activeLeaf = activeLeafPath();
+	auto quoteOrdinal = textNodeCount();
+	for (auto i = 0, count = textNodeCount(); i != count; ++i) {
+		if (_textNodes[i].leaf.block == *path) {
+			quoteOrdinal = i;
+			break;
+		}
+	}
+	owner->collapsed = !owner->collapsed;
+	rebuild();
+	if (activeLeaf
+		&& (textOrdinalForLeafPath(*activeLeaf) >= 0)
+		&& activateRebuiltLeaf(*activeLeaf)) {
+		return true;
+	}
+	*movedCaret = true;
+	const auto nearest = std::min(quoteOrdinal, textNodeCount() - 1);
+	if (!setActiveTextByOrdinal(nearest)) {
+		ensureActiveTextOrdinal();
+	}
+	return true;
+}
+
 State::ListSelectionInfo State::listSelectionInfo(
 		const PreparedEditListItemRange &range) const {
 	const auto validated = validateListItemRange(range);
@@ -2608,6 +2017,14 @@ State::ListSelectionInfo State::listSelectionInfo(
 	if (owner->listKind != ListKind::Ordered) {
 		return result;
 	}
+	result.listOrderedType = ResolvePreparedOrderedListType(
+		owner->orderedList.type);
+	result.listOrderedUniform = ranges::all_of(
+		owner->listItems,
+		[&](const ListItem &item) {
+			return EffectiveOrderedListType(*owner, item)
+				== result.listOrderedType;
+		});
 	result.allOrderedDecimal = true;
 	result.allOrderedLowerAlpha = true;
 	result.allOrderedUpperAlpha = true;
@@ -2709,7 +2126,8 @@ bool State::setListStyle(
 		break;
 	case ListStyle::Bullet:
 		owner->listKind = ListKind::Bullet;
-		changed = ResetNonOrderedListMetadata(owner) || changed;
+		changed = true;
+		ResetNonOrderedListMetadata(owner);
 		for (auto &item : owner->listItems) {
 			if (item.taskState != TaskState::None) {
 				item.taskState = TaskState::None;
@@ -2749,15 +2167,12 @@ bool State::setListOrderedType(
 	const auto stored = StoredOrderedListType(type);
 	if (owner->orderedList.type != stored) {
 		owner->orderedList.type = stored;
-		for (auto &item : owner->listItems) {
-			if (!item.number.type.has_value()
-				&& item.number.num.has_value()) {
-				item.number.num = std::nullopt;
-			}
-		}
 		changed = true;
 	}
+	// Item overrides would shadow the new list type.
+	changed = ClearOrderedListItemTypes(owner) || changed;
 	if (changed) {
+		ClearOrderedListRawMarkers(owner);
 		rebuild();
 	}
 	return true;
@@ -2777,7 +2192,7 @@ bool State::setListOrderedReversed(
 	auto changed = false;
 	if (owner->orderedList.reversed != reversed) {
 		owner->orderedList.reversed = reversed;
-		(void)ClearOrderedListRawMarkers(owner);
+		ClearOrderedListRawMarkers(owner);
 		changed = true;
 	}
 	if (changed) {
@@ -2849,6 +2264,7 @@ State::TableSelectionInfo State::tableSelectionInfo(
 		.totalColumns = grid.columnCount,
 		.bordered = owner->bordered,
 		.striped = owner->striped,
+		.compact = owner->compact,
 	};
 	for (const auto &reference : selected) {
 		const auto &cell = owner->tableRows[reference.rowIndex].cells[
@@ -3104,6 +2520,7 @@ std::shared_ptr<const RichPage> State::richPageForTableSelection(
 	table.kind = BlockKind::Table;
 	table.bordered = owner->bordered;
 	table.striped = owner->striped;
+	table.compact = owner->compact;
 	table.tableRows.resize(rowTill - rowFrom);
 	for (const auto &reference : references) {
 		auto cell = owner->tableRows[reference.rowIndex]
@@ -3744,6 +3161,24 @@ bool State::setTableStriped(
 	return true;
 }
 
+bool State::setTableCompact(
+		const Markdown::PreparedEditTableCellRange &range,
+		bool compact) {
+	const auto validated = validateTableCellRange(range);
+	if (!validated) {
+		return false;
+	}
+	auto owner = block(validated->block);
+	if (!owner || owner->kind != BlockKind::Table) {
+		return false;
+	}
+	if (owner->compact != compact) {
+		owner->compact = compact;
+		rebuild();
+	}
+	return true;
+}
+
 int State::activeTextLength() const {
 	return activeRawText().size();
 }
@@ -3891,6 +3326,14 @@ bool State::isActiveTopLevelParagraphOrHeading() const {
 
 bool State::hasActiveListItemSurface() const {
 	return activeListItemSurface().has_value();
+}
+
+bool State::hasActiveListItemExtraLine() const {
+	const auto descriptor = textNode(_activeTextOrdinal);
+	return descriptor
+		&& (descriptor->leaf.kind == LeafKind::BlockText)
+		&& (descriptor->leaf.block.index >= 1)
+		&& activeListItemSurface().has_value();
 }
 
 bool State::activeSurfaceAllowsSeparateLineFormula() const {
@@ -4140,6 +3583,41 @@ bool State::joinActiveParagraphBoundaryUnchecked(
 	return true;
 }
 
+bool State::removeBlankListItemBeforeBoundary(
+		Block &owner,
+		const BlockPath &list,
+		int itemIndex,
+		ActiveTextSelectionTarget *target) {
+	const auto previousIndex = itemIndex - 1;
+	const auto children = ListItemChildrenContainer(list, previousIndex);
+	auto landing = std::optional<LeafPath>();
+	for (const auto &node : _textNodes) {
+		const auto &leaf = node.leaf;
+		if (((leaf.kind == LeafKind::ListItemText)
+			&& (leaf.block == list)
+			&& (leaf.listItemIndex == previousIndex))
+			|| ContainerHasPrefix(leaf.block.container, children)) {
+			landing = leaf;
+		}
+	}
+	if (!landing) {
+		return false;
+	}
+	owner.listItems.erase(owner.listItems.begin() + itemIndex);
+	rebuild();
+	if (!activateRebuiltLeaf(*landing)) {
+		return false;
+	}
+	const auto text = richText(*landing);
+	const auto offset = text ? int(text->text.text.size()) : 0;
+	*target = {
+		.leaf = *landing,
+		.selectionFrom = offset,
+		.selectionTo = offset,
+	};
+	return true;
+}
+
 bool State::joinActiveListItemBoundaryUnchecked(
 		ActiveTextSelectionTarget *target) {
 	if (!target || !canJoinActiveListItemBoundary()) {
@@ -4154,12 +3632,36 @@ bool State::joinActiveListItemBoundaryUnchecked(
 	if (!owner || owner->kind != BlockKind::List || !item) {
 		return false;
 	}
+	const auto &steps = surface->path.container.steps;
+	if (!steps.empty()
+		&& steps.back().kind == BlockContainerKind::ListItemChildren) {
+		if (!liftActiveListItemUnchecked()) {
+			return false;
+		}
+		const auto lifted = textNode(_activeTextOrdinal);
+		if (!lifted) {
+			return false;
+		}
+		*target = {
+			.leaf = lifted->leaf,
+			.selectionFrom = 0,
+			.selectionTo = 0,
+		};
+		return true;
+	}
 	clearTemporaryDownParagraph();
 	if (surface->itemIndex > 0) {
 		const auto previousIndex = surface->itemIndex - 1;
 		const auto previous = listItem(surface->path, previousIndex);
 		if (!previous) {
 			return false;
+		}
+		if (ListItemIsBlankLine(*item)) {
+			return removeBlankListItemBeforeBoundary(
+				*owner,
+				surface->path,
+				surface->itemIndex,
+				target);
 		}
 		auto merged = takeListItemBlocksForUnwrap(previous);
 		previous->anchorId = QString();
@@ -4188,7 +3690,7 @@ bool State::joinActiveListItemBoundaryUnchecked(
 		owner->listItems.erase(
 			owner->listItems.begin() + surface->itemIndex);
 		rebuild();
-		(void)destinationTargetForInsertedBlocks(
+		focusInsertedBlocks(
 			ListItemChildrenContainer(surface->path, previousIndex),
 			destinationIndex,
 			count);
@@ -4218,27 +3720,755 @@ bool State::joinActiveListItemBoundaryUnchecked(
 	return true;
 }
 
+auto State::nextListItemAfterActive(
+		const ActiveListItemSurface &surface) const
+-> std::optional<NextListItem> {
+	const auto item = listItem(surface.path, surface.itemIndex);
+	if (!item) {
+		return std::nullopt;
+	} else if (!item->blocks.empty()
+		&& item->blocks.back().kind == BlockKind::List
+		&& !item->blocks.back().listItems.empty()) {
+		return NextListItem{
+			.list = {
+				.container = ListItemChildrenContainer(
+					surface.path,
+					surface.itemIndex),
+				.index = int(item->blocks.size()) - 1,
+			},
+			.index = 0,
+		};
+	}
+	auto path = surface.path;
+	auto index = surface.itemIndex;
+	while (true) {
+		const auto owner = block(path);
+		if (!owner || owner->kind != BlockKind::List) {
+			return std::nullopt;
+		} else if (index + 1 < int(owner->listItems.size())) {
+			return NextListItem{ .list = path, .index = index + 1 };
+		}
+		const auto &steps = path.container.steps;
+		if (steps.empty()
+			|| steps.back().kind != BlockContainerKind::ListItemChildren) {
+			return std::nullopt;
+		}
+		auto parent = BlockPath{ .index = steps.back().blockIndex };
+		parent.container.steps.assign(steps.begin(), steps.end() - 1);
+		const auto parentIndex = steps.back().listItemIndex;
+		const auto parentItem = listItem(parent, parentIndex);
+		if (!parentItem
+			|| path.index + 1 != int(parentItem->blocks.size())) {
+			return std::nullopt;
+		}
+		path = parent;
+		index = parentIndex;
+	}
+}
+
+bool State::canJoinActiveListItemForward() const {
+	const auto surface = activeListItemSurface();
+	if (!surface) {
+		return false;
+	}
+	const auto descriptor = textNode(_activeTextOrdinal);
+	const auto item = listItem(surface->path, surface->itemIndex);
+	if (!descriptor || !item) {
+		return false;
+	} else if (descriptor->leaf.kind == LeafKind::BlockText) {
+		const auto index = descriptor->leaf.block.index;
+		if (index < 0 || index >= int(item->blocks.size())) {
+			return false;
+		}
+		const auto trailing = int(item->blocks.size()) - 1 - index;
+		const auto nested = (trailing == 1)
+			&& (item->blocks.back().kind == BlockKind::List);
+		if (trailing != 0 && !nested) {
+			return false;
+		}
+	} else if (descriptor->leaf.kind != LeafKind::ListItemText) {
+		return false;
+	}
+	return nextListItemAfterActive(*surface).has_value();
+}
+
+bool State::joinActiveListItemForwardUnchecked(
+		ActiveTextSelectionTarget *target) {
+	if (!target || !canJoinActiveListItemForward()) {
+		return false;
+	}
+	const auto descriptor = textNode(_activeTextOrdinal);
+	if (!descriptor) {
+		return false;
+	}
+	auto destination = descriptor->leaf;
+	const auto surface = normalizeActiveListItemSurface();
+	if (!surface) {
+		return false;
+	}
+	if (destination.kind == LeafKind::ListItemText) {
+		destination = LeafPath{
+			.kind = LeafKind::BlockText,
+			.block = {
+				.container = ListItemChildrenContainer(
+					surface->path,
+					surface->itemIndex),
+				.index = 0,
+			},
+		};
+	} else if (destination.kind != LeafKind::BlockText) {
+		return false;
+	}
+	const auto index = destination.block.index;
+	const auto next = nextListItemAfterActive(*surface);
+	if (!next) {
+		return false;
+	}
+	const auto nextList = block(next->list);
+	if (!nextList
+		|| nextList->kind != BlockKind::List
+		|| next->index < 0
+		|| next->index >= int(nextList->listItems.size())) {
+		return false;
+	}
+	clearTemporaryDownParagraph();
+	auto taken = takeListItemBlocksForUnwrap(
+		&nextList->listItems[next->index]);
+	nextList->listItems.erase(nextList->listItems.begin() + next->index);
+	if (nextList->listItems.empty()) {
+		const auto blocks = blockContainer(next->list.container);
+		if (!blocks
+			|| next->list.index < 0
+			|| next->list.index >= int(blocks->size())) {
+			return false;
+		}
+		blocks->erase(blocks->begin() + next->list.index);
+	}
+	const auto item = listItem(surface->path, surface->itemIndex);
+	if (!item || index < 0 || index >= int(item->blocks.size())) {
+		return false;
+	}
+	auto &paragraph = item->blocks[index];
+	auto seamOffset = int(paragraph.text.text.text.size());
+	if (!taken.empty() && taken.front().kind == BlockKind::Paragraph) {
+		seamOffset = AppendParagraphSeam(
+			&paragraph,
+			std::move(taken.front()));
+		taken.erase(taken.begin());
+	}
+	if (!taken.empty()) {
+		item->blocks.insert(
+			item->blocks.begin() + index + 1,
+			std::make_move_iterator(taken.begin()),
+			std::make_move_iterator(taken.end()));
+	}
+	rebuild();
+	if (!activateRebuiltLeaf(destination)) {
+		return false;
+	}
+	*target = {
+		.leaf = destination,
+		.selectionFrom = seamOffset,
+		.selectionTo = seamOffset,
+	};
+	return true;
+}
+
+std::optional<int> State::escapeEmptyActiveBlockLine() {
+	return applyCheckedMutation(std::optional<int>(), [](State &candidate) {
+		const auto result = candidate.escapeEmptyActiveBlockLineUnchecked();
+		return CheckedMutationResult<std::optional<int>>{
+			.apply = result.has_value(),
+			.result = result,
+		};
+	});
+}
+
+std::optional<int> State::escapeEmptyActiveBlockLineUnchecked() {
+	const auto descriptor = textNode(_activeTextOrdinal);
+	if (!descriptor || descriptor->leaf.kind != LeafKind::BlockText) {
+		return std::nullopt;
+	}
+	const auto path = descriptor->leaf.block;
+	const auto &steps = path.container.steps;
+	if (steps.empty()
+		|| steps.back().kind != BlockContainerKind::BlockChildren) {
+		return std::nullopt;
+	}
+	const auto owner = block(path);
+	if (!owner
+		|| owner->kind != BlockKind::Paragraph
+		|| !owner->blocks.empty()
+		|| !owner->anchorId.isEmpty()
+		|| !RichTextIsEmpty(owner->text)) {
+		return std::nullopt;
+	}
+	const auto blocks = blockContainer(path.container);
+	if (!blocks
+		|| path.index < 0
+		|| path.index + 1 != int(blocks->size())) {
+		return std::nullopt;
+	}
+	auto parentPath = BlockPath{ .index = steps.back().blockIndex };
+	parentPath.container.steps.assign(steps.begin(), steps.end() - 1);
+	clearTemporaryDownParagraph();
+	blocks->erase(blocks->begin() + path.index);
+	auto removed = false;
+	if (blocks->empty()) {
+		const auto parent = blockContainer(parentPath.container);
+		if (!parent
+			|| parentPath.index < 0
+			|| parentPath.index >= int(parent->size())) {
+			return std::nullopt;
+		}
+		if (BlockIsEmpty((*parent)[parentPath.index])) {
+			parent->erase(parent->begin() + parentPath.index);
+			removed = true;
+		}
+	}
+	const auto paragraph = reuseOrInsertParagraph(
+		parentPath.container,
+		parentPath.index + (removed ? 0 : 1));
+	if (!paragraph) {
+		return std::nullopt;
+	}
+	rebuild();
+	return activateRebuiltLeaf(paragraph->leaf);
+}
+
+std::optional<int> State::resetActiveBlockToParagraph() {
+	return applyCheckedMutation(std::optional<int>(), [](State &candidate) {
+		const auto result = candidate.resetActiveBlockToParagraphUnchecked();
+		return CheckedMutationResult<std::optional<int>>{
+			.apply = result.has_value(),
+			.result = result,
+		};
+	});
+}
+
+std::optional<int> State::resetActiveBlockToParagraphUnchecked() {
+	const auto descriptor = textNode(_activeTextOrdinal);
+	if (!descriptor || descriptor->leaf.kind != LeafKind::BlockText) {
+		return std::nullopt;
+	}
+	const auto leaf = descriptor->leaf;
+	const auto owner = block(leaf.block);
+	if (!owner
+		|| ((owner->kind != BlockKind::Heading)
+			&& (owner->kind != BlockKind::Footer))) {
+		return std::nullopt;
+	}
+	clearTemporaryDownParagraph();
+	owner->kind = BlockKind::Paragraph;
+	owner->headingLevel = 0;
+	rebuild();
+	return activateRebuiltLeaf(leaf);
+}
+
+std::optional<State::BlockPath> State::activeLineContainerBlock() const {
+	const auto descriptor = textNode(_activeTextOrdinal);
+	if (!descriptor || descriptor->leaf.kind != LeafKind::BlockText) {
+		return std::nullopt;
+	}
+	const auto &steps = descriptor->leaf.block.container.steps;
+	if (steps.empty()
+		|| steps.back().kind != BlockContainerKind::BlockChildren) {
+		return std::nullopt;
+	}
+	auto result = BlockPath{ .index = steps.back().blockIndex };
+	result.container.steps.assign(steps.begin(), steps.end() - 1);
+	return result;
+}
+
+bool State::canLiftActiveLineOutOfContainer() const {
+	const auto descriptor = textNode(_activeTextOrdinal);
+	const auto container = activeLineContainerBlock();
+	if (!descriptor || !container) {
+		return false;
+	}
+	const auto owner = block(descriptor->leaf.block);
+	return owner
+		&& JoinableTextBlockKind(owner->kind)
+		&& (descriptor->leaf.block.index == 0);
+}
+
+bool State::liftActiveLineOutOfContainerUnchecked(
+		ActiveTextSelectionTarget *target) {
+	if (!target || !canLiftActiveLineOutOfContainer()) {
+		return false;
+	}
+	const auto descriptor = textNode(_activeTextOrdinal);
+	const auto containerPath = activeLineContainerBlock();
+	if (!descriptor || !containerPath) {
+		return false;
+	}
+	const auto path = descriptor->leaf.block;
+	const auto blocks = blockContainer(path.container);
+	const auto parent = blockContainer(containerPath->container);
+	if (!blocks
+		|| !parent
+		|| blocks->empty()
+		|| containerPath->index < 0
+		|| containerPath->index >= int(parent->size())) {
+		return false;
+	}
+	clearTemporaryDownParagraph();
+	auto lifted = std::move((*blocks)[0]);
+	blocks->erase(blocks->begin());
+	if (blocks->empty()
+		&& BlockIsEmpty((*parent)[containerPath->index])) {
+		parent->erase(parent->begin() + containerPath->index);
+	}
+	parent->insert(parent->begin() + containerPath->index, std::move(lifted));
+	const auto destination = LeafPath{
+		.kind = LeafKind::BlockText,
+		.block = {
+			.container = containerPath->container,
+			.index = containerPath->index,
+		},
+	};
+	rebuild();
+	if (!activateRebuiltLeaf(destination)) {
+		return false;
+	}
+	*target = {
+		.leaf = destination,
+		.selectionFrom = 0,
+		.selectionTo = 0,
+	};
+	return true;
+}
+
+bool State::canJoinBlockAfterActiveContainer() const {
+	const auto descriptor = textNode(_activeTextOrdinal);
+	const auto containerPath = activeLineContainerBlock();
+	if (!descriptor || !containerPath) {
+		return false;
+	}
+	const auto owner = block(descriptor->leaf.block);
+	const auto blocks = blockContainer(descriptor->leaf.block.container);
+	if (!owner
+		|| !blocks
+		|| (owner->kind != BlockKind::Paragraph)
+		|| (descriptor->leaf.block.index + 1 != int(blocks->size()))) {
+		return false;
+	}
+	auto nextPath = *containerPath;
+	++nextPath.index;
+	const auto next = block(nextPath);
+	return next
+		&& JoinableTextBlockKind(next->kind)
+		&& next->blocks.empty();
+}
+
+bool State::joinBlockAfterActiveContainerUnchecked(
+		ActiveTextSelectionTarget *target) {
+	if (!target || !canJoinBlockAfterActiveContainer()) {
+		return false;
+	}
+	const auto descriptor = textNode(_activeTextOrdinal);
+	const auto containerPath = activeLineContainerBlock();
+	if (!descriptor || !containerPath) {
+		return false;
+	}
+	const auto destination = descriptor->leaf;
+	const auto parent = blockContainer(containerPath->container);
+	if (!parent || containerPath->index + 1 >= int(parent->size())) {
+		return false;
+	}
+	clearTemporaryDownParagraph();
+	auto taken = std::move((*parent)[containerPath->index + 1]);
+	parent->erase(parent->begin() + containerPath->index + 1);
+	const auto owner = block(destination.block);
+	if (!owner) {
+		return false;
+	}
+	const auto seamOffset = AppendParagraphSeam(owner, std::move(taken));
+	rebuild();
+	if (!activateRebuiltLeaf(destination)) {
+		return false;
+	}
+	*target = {
+		.leaf = destination,
+		.selectionFrom = seamOffset,
+		.selectionTo = seamOffset,
+	};
+	return true;
+}
+
+bool State::canRemoveEmptyBlockBeforeActive() const {
+	const auto descriptor = textNode(_activeTextOrdinal);
+	if (!descriptor
+		|| descriptor->leaf.kind != LeafKind::BlockText
+		|| descriptor->leaf.block.index < 1) {
+		return false;
+	}
+	auto path = descriptor->leaf.block;
+	--path.index;
+	const auto previous = block(path);
+	return previous
+		&& JoinableTextBlockKind(previous->kind)
+		&& previous->blocks.empty()
+		&& previous->anchorId.isEmpty()
+		&& RichTextIsEmpty(previous->text);
+}
+
+bool State::removeEmptyBlockBeforeActiveUnchecked(
+		ActiveTextSelectionTarget *target) {
+	if (!target || !canRemoveEmptyBlockBeforeActive()) {
+		return false;
+	}
+	const auto descriptor = textNode(_activeTextOrdinal);
+	if (!descriptor) {
+		return false;
+	}
+	auto destination = descriptor->leaf;
+	const auto blocks = blockContainer(destination.block.container);
+	if (!blocks || destination.block.index >= int(blocks->size())) {
+		return false;
+	}
+	clearTemporaryDownParagraph();
+	blocks->erase(blocks->begin() + destination.block.index - 1);
+	--destination.block.index;
+	rebuild();
+	if (!activateRebuiltLeaf(destination)) {
+		return false;
+	}
+	*target = {
+		.leaf = destination,
+		.selectionFrom = 0,
+		.selectionTo = 0,
+	};
+	return true;
+}
+
+std::optional<State::BlockPath> State::listBeforeActiveParagraph() const {
+	const auto descriptor = textNode(_activeTextOrdinal);
+	if (!descriptor || descriptor->leaf.kind != LeafKind::BlockText) {
+		return std::nullopt;
+	}
+	const auto &path = descriptor->leaf.block;
+	const auto owner = block(path);
+	if (!owner || owner->kind != BlockKind::Paragraph || path.index < 1) {
+		return std::nullopt;
+	}
+	auto result = path;
+	--result.index;
+	const auto previous = block(result);
+	return (previous
+		&& previous->kind == BlockKind::List
+		&& !previous->listItems.empty())
+		? std::make_optional(result)
+		: std::nullopt;
+}
+
+auto State::deepestLastItem(BlockPath list) const
+-> std::optional<NextListItem> {
+	while (true) {
+		const auto owner = block(list);
+		if (!owner
+			|| owner->kind != BlockKind::List
+			|| owner->listItems.empty()) {
+			return std::nullopt;
+		}
+		const auto index = int(owner->listItems.size()) - 1;
+		const auto &item = owner->listItems[index];
+		if (!item.blocks.empty()
+			&& item.blocks.back().kind == BlockKind::List
+			&& !item.blocks.back().listItems.empty()) {
+			list = BlockPath{
+				.container = ListItemChildrenContainer(list, index),
+				.index = int(item.blocks.size()) - 1,
+			};
+			continue;
+		}
+		return NextListItem{ .list = list, .index = index };
+	}
+}
+
+std::optional<int> State::appendActiveParagraphToPreviousList() {
+	return applyCheckedMutation(std::optional<int>(), [](State &candidate) {
+		const auto result
+			= candidate.appendActiveParagraphToPreviousListUnchecked();
+		return CheckedMutationResult<std::optional<int>>{
+			.apply = result.has_value(),
+			.result = result,
+		};
+	});
+}
+
+std::optional<int> State::appendActiveParagraphToPreviousListUnchecked() {
+	const auto listPath = listBeforeActiveParagraph();
+	const auto descriptor = textNode(_activeTextOrdinal);
+	if (!listPath || !descriptor) {
+		return std::nullopt;
+	}
+	const auto paragraphPath = descriptor->leaf.block;
+	const auto blocks = blockContainer(paragraphPath.container);
+	if (!blocks
+		|| paragraphPath.index < 0
+		|| paragraphPath.index >= int(blocks->size())) {
+		return std::nullopt;
+	}
+	clearTemporaryDownParagraph();
+	auto paragraph = std::move((*blocks)[paragraphPath.index]);
+	blocks->erase(blocks->begin() + paragraphPath.index);
+	const auto list = block(*listPath);
+	if (!list || list->kind != BlockKind::List) {
+		return std::nullopt;
+	}
+	auto item = ListItem();
+	item.blocks.push_back(std::move(paragraph));
+	adoptLeadingParagraphListItemText(&item);
+	AdoptListItemMarkers(*list, &item);
+	const auto itemIndex = int(list->listItems.size());
+	const auto inlineText = item.blocks.empty();
+	list->listItems.push_back(std::move(item));
+	const auto target = inlineText
+		? LeafPath{
+			.kind = LeafKind::ListItemText,
+			.block = *listPath,
+			.listItemIndex = itemIndex,
+		}
+		: LeafPath{
+			.kind = LeafKind::BlockText,
+			.block = {
+				.container = ListItemChildrenContainer(*listPath, itemIndex),
+				.index = 0,
+			},
+		};
+	rebuild();
+	return activateRebuiltLeaf(target);
+}
+
+void State::mergeListWithNextSibling(const BlockPath &list) {
+	const auto blocks = blockContainer(list.container);
+	if (!blocks
+		|| list.index < 0
+		|| list.index + 1 >= int(blocks->size())) {
+		return;
+	}
+	auto &first = (*blocks)[list.index];
+	auto &second = (*blocks)[list.index + 1];
+	if (!ListsJoinable(first, second)) {
+		return;
+	}
+	DropOrderedItemNumbers(second.listItems);
+	first.listItems.insert(
+		first.listItems.end(),
+		std::make_move_iterator(second.listItems.begin()),
+		std::make_move_iterator(second.listItems.end()));
+	blocks->erase(blocks->begin() + list.index + 1);
+}
+
+auto State::joinListWithSiblings(const BlockPath &list, bool startExplicit)
+-> std::optional<ListJoin> {
+	const auto blocks = blockContainer(list.container);
+	if (!blocks
+		|| list.index < 0
+		|| list.index >= int(blocks->size())
+		|| (*blocks)[list.index].kind != BlockKind::List) {
+		return std::nullopt;
+	}
+	const auto joinNext = (list.index + 1 < int(blocks->size()))
+		&& ListsJoinSeamlessly(
+			(*blocks)[list.index],
+			(*blocks)[list.index + 1],
+			false);
+	const auto joinPrevious = (list.index > 0)
+		&& ListsJoinSeamlessly(
+			(*blocks)[list.index - 1],
+			(*blocks)[list.index],
+			startExplicit);
+	if (!joinNext && !joinPrevious) {
+		return std::nullopt;
+	}
+	const auto join = [&](int index) {
+		auto &first = (*blocks)[index];
+		auto &second = (*blocks)[index + 1];
+		first.listItems.insert(
+			first.listItems.end(),
+			std::make_move_iterator(second.listItems.begin()),
+			std::make_move_iterator(second.listItems.end()));
+		blocks->erase(blocks->begin() + index + 1);
+	};
+	auto result = ListJoin{
+		.list = list,
+		.itemsCount = int((*blocks)[list.index].listItems.size()),
+	};
+	if (joinNext) {
+		join(list.index);
+	}
+	if (joinPrevious) {
+		result.itemsFrom = int((*blocks)[list.index - 1].listItems.size());
+		--result.list.index;
+		join(list.index - 1);
+	}
+	return result;
+}
+
+bool State::blockActionExpandsToActiveLine(InsertBlockType type) const {
+	if (!BlockConversionExpandsToActiveLine(type)) {
+		return false;
+	} else if (!IsListInsertType(type)) {
+		return true;
+	}
+	const auto leaf = activeLeafPath();
+	return leaf && (leaf->kind != LeafKind::ListItemText);
+}
+
+void State::joinInsertedListWithSiblings(bool startExplicit) {
+	const auto leaf = activeLeafPath();
+	if (!leaf || leaf->kind != LeafKind::ListItemText) {
+		return;
+	}
+	const auto joined = joinListWithSiblings(leaf->block, startExplicit);
+	if (!joined) {
+		return;
+	}
+	const auto target = LeafPath{
+		.kind = LeafKind::ListItemText,
+		.block = joined->list,
+		.listItemIndex = joined->itemsFrom + leaf->listItemIndex,
+	};
+	rebuild();
+	activateRebuiltLeaf(target);
+}
+
+bool State::canJoinActiveParagraphIntoPreviousList() const {
+	const auto listPath = listBeforeActiveParagraph();
+	return listPath && deepestLastItem(*listPath).has_value();
+}
+
+bool State::joinActiveParagraphIntoPreviousListUnchecked(
+		ActiveTextSelectionTarget *target) {
+	if (!target || !canJoinActiveParagraphIntoPreviousList()) {
+		return false;
+	}
+	const auto listPath = listBeforeActiveParagraph();
+	const auto descriptor = textNode(_activeTextOrdinal);
+	if (!listPath || !descriptor) {
+		return false;
+	}
+	const auto deepest = deepestLastItem(*listPath);
+	const auto paragraphPath = descriptor->leaf.block;
+	if (!deepest) {
+		return false;
+	}
+	clearTemporaryDownParagraph();
+	const auto blocks = blockContainer(paragraphPath.container);
+	if (!blocks
+		|| paragraphPath.index < 0
+		|| paragraphPath.index >= int(blocks->size())) {
+		return false;
+	}
+	auto paragraph = std::move((*blocks)[paragraphPath.index]);
+	blocks->erase(blocks->begin() + paragraphPath.index);
+	const auto item = listItem(deepest->list, deepest->index);
+	if (!item) {
+		return false;
+	}
+	auto destination = LeafPath();
+	auto seamOffset = 0;
+	if (item->blocks.empty()) {
+		seamOffset = AppendRichTextSeam(&item->text, std::move(paragraph));
+		destination = LeafPath{
+			.kind = LeafKind::ListItemText,
+			.block = deepest->list,
+			.listItemIndex = deepest->index,
+		};
+	} else {
+		const auto last = int(item->blocks.size()) - 1;
+		if (item->blocks[last].kind == BlockKind::Paragraph) {
+			seamOffset = AppendParagraphSeam(
+				&item->blocks[last],
+				std::move(paragraph));
+			destination = LeafPath{
+				.kind = LeafKind::BlockText,
+				.block = {
+					.container = ListItemChildrenContainer(
+						deepest->list,
+						deepest->index),
+					.index = last,
+				},
+			};
+		} else {
+			item->blocks.push_back(std::move(paragraph));
+			destination = LeafPath{
+				.kind = LeafKind::BlockText,
+				.block = {
+					.container = ListItemChildrenContainer(
+						deepest->list,
+						deepest->index),
+					.index = last + 1,
+				},
+			};
+		}
+	}
+	mergeListWithNextSibling(*listPath);
+	rebuild();
+	if (!activateRebuiltLeaf(destination)) {
+		return false;
+	}
+	*target = {
+		.leaf = destination,
+		.selectionFrom = seamOffset,
+		.selectionTo = seamOffset,
+	};
+	return true;
+}
+
 State::ParagraphBoundaryJoinResult State::joinActiveParagraphBoundary(
 		bool forward) {
 	auto failure = ParagraphBoundaryJoinResult{
 		.result = ApplyResult::Failed,
 	};
 	return applyCheckedMutation(failure, [forward](State &candidate) {
-		const auto textJoin = candidate.canJoinActiveTextBlockBoundary(
-			forward);
-		const auto listJoin = !textJoin
+		const auto dropEmpty = !forward
+			&& candidate.canRemoveEmptyBlockBeforeActive();
+		const auto textJoin = !dropEmpty
+			&& candidate.canJoinActiveTextBlockBoundary(forward);
+		const auto listJoin = !dropEmpty
+			&& !textJoin
+			&& (forward
+				? candidate.canJoinActiveListItemForward()
+				: candidate.canJoinActiveListItemBoundary());
+		const auto listAppend = !dropEmpty
+			&& !textJoin
+			&& !listJoin
 			&& !forward
-			&& candidate.canJoinActiveListItemBoundary();
-		if (!textJoin && !listJoin) {
+			&& candidate.canJoinActiveParagraphIntoPreviousList();
+		const auto containerStep = !dropEmpty
+			&& !textJoin
+			&& !listJoin
+			&& !listAppend
+			&& (forward
+				? candidate.canJoinBlockAfterActiveContainer()
+				: candidate.canLiftActiveLineOutOfContainer());
+		if (!dropEmpty
+			&& !textJoin
+			&& !listJoin
+			&& !listAppend
+			&& !containerStep) {
 			return CheckedMutationResult<ParagraphBoundaryJoinResult>{
 				.result = { .result = ApplyResult::Unchanged },
 			};
 		}
 		auto target = ActiveTextSelectionTarget();
-		const auto joined = textJoin
+		const auto joined = dropEmpty
+			? candidate.removeEmptyBlockBeforeActiveUnchecked(&target)
+			: containerStep
+			? (forward
+				? candidate.joinBlockAfterActiveContainerUnchecked(&target)
+				: candidate.liftActiveLineOutOfContainerUnchecked(&target))
+			: textJoin
 			? candidate.joinActiveParagraphBoundaryUnchecked(
 				forward,
 				&target)
+			: listAppend
+			? candidate.joinActiveParagraphIntoPreviousListUnchecked(&target)
+			: forward
+			? candidate.joinActiveListItemForwardUnchecked(&target)
 			: candidate.joinActiveListItemBoundaryUnchecked(&target);
 		if (!joined) {
 			return CheckedMutationResult<ParagraphBoundaryJoinResult>{
@@ -5764,7 +5994,7 @@ auto State::normalizeActiveListItemSurface()
 	return surface;
 }
 
-RichText *State::seedInsertedBlocks(
+void State::seedInsertedBlocks(
 		std::vector<Block> &blocks,
 		TextWithEntities text) {
 	for (auto &block : blocks) {
@@ -5774,10 +6004,9 @@ RichText *State::seedInsertedBlocks(
 				combined.append(target->text);
 				target->text = std::move(combined);
 			}
-			return target;
+			return;
 		}
 	}
-	return nullptr;
 }
 
 RichText *State::seedInsertedBlock(Block &block) {
@@ -5814,6 +6043,7 @@ RichText *State::seedInsertedBlock(Block &block) {
 	case BlockKind::Photo:
 	case BlockKind::Video:
 	case BlockKind::Audio:
+	case BlockKind::File:
 	case BlockKind::Map:
 		return &block.caption;
 	default:
@@ -5836,18 +6066,16 @@ bool State::appendInsertedTrailingText(
 		|| insertAt + count > int(blocks->size())) {
 		return false;
 	}
-	auto &last = (*blocks)[insertAt + count - 1];
-	if (last.kind == BlockKind::List) {
-		const auto taskState = last.listItems.empty()
-			? TaskState::None
-			: last.listItems.back().taskState;
-		auto item = MakeParagraphListItem(taskState);
-		Assert(!item.blocks.empty());
-		item.blocks.front().text.text = std::move(text);
-		last.listItems.push_back(std::move(item));
-		return true;
+	const auto paragraphIndex = insertAt + count;
+	if (paragraphIndex < int(blocks->size())
+		&& (*blocks)[paragraphIndex].kind == BlockKind::Paragraph
+		&& !BlockIsEmpty((*blocks)[paragraphIndex])) {
+		clearTemporaryDownParagraph();
+		blocks->insert(
+			blocks->begin() + paragraphIndex,
+			MakeParagraphBlock());
 	}
-	const auto paragraph = reuseOrInsertParagraph(container, insertAt + count);
+	const auto paragraph = reuseOrInsertParagraph(container, paragraphIndex);
 	if (!paragraph) {
 		return false;
 	}
@@ -6099,6 +6327,7 @@ std::optional<int> State::submitActiveSingleLineFieldUnchecked(
 		case BlockKind::Photo:
 		case BlockKind::Video:
 		case BlockKind::Audio:
+		case BlockKind::File:
 		case BlockKind::Map:
 		case BlockKind::GroupedMedia:
 			if (context.position == EnterPosition::Middle) {
@@ -6155,13 +6384,10 @@ std::optional<int> State::submitActiveSingleLineFieldUnchecked(
 		}
 		return std::nullopt;
 	} else if (leaf.kind == LeafKind::TableCellText) {
-		const auto ordinal = textNodeOrdinal(leaf);
-		for (auto i = ordinal + 1, count = textNodeCount(); i != count; ++i) {
-			const auto &candidate = _textNodes[i].leaf;
-			if (candidate.block == leaf.block
-				&& candidate.kind == LeafKind::TableCellText) {
-				return activate(candidate);
-			}
+		if (const auto below = adjacentRowTableCellOrdinal(true)) {
+			return setActiveTextByOrdinal(*below)
+				? std::make_optional(_activeTextOrdinal)
+				: std::nullopt;
 		}
 		return paragraphAfterBlock();
 	}
@@ -6542,7 +6768,7 @@ std::optional<int> State::handleActiveListEnterUnchecked(
 				== blocks[paragraphIndex].text.text.text.size());
 		clearTemporaryDownParagraph();
 		auto next = ListItem();
-		next.taskState = item->taskState;
+		next.taskState = SplitTaskState(item->taskState);
 		if (split) {
 			blocks[paragraphIndex].text.text = context.head;
 			auto paragraph = MakeParagraphBlock();
@@ -6554,8 +6780,10 @@ std::optional<int> State::handleActiveListEnterUnchecked(
 			std::make_move_iterator(blocks.begin() + moveFrom),
 			std::make_move_iterator(blocks.end()));
 		blocks.erase(blocks.begin() + moveFrom, blocks.end());
-		if (next.blocks.empty()) {
-			next.blocks.push_back(MakeParagraphBlock());
+		if (next.blocks.empty()
+			|| next.blocks.front().kind != BlockKind::Paragraph) {
+			// Item paints its first block on marker line.
+			next.blocks.insert(next.blocks.begin(), MakeParagraphBlock());
 		}
 		const auto insertedCount = int(next.blocks.size());
 		owner->listItems.insert(
@@ -6572,44 +6800,43 @@ std::optional<int> State::handleActiveListEnterUnchecked(
 	}
 	auto target = std::optional<LeafPath>();
 	if (itemStart) {
-		const auto first = (surface->itemIndex == 1)
-			? listItem(surface->path, 0)
-			: nullptr;
-		const auto startEscape = first
-			&& ListItemIsEmpty(*first)
-			&& (first->blocks.empty()
-				|| ((first->blocks.size() == 1)
-					&& (first->blocks.front().kind
-						== BlockKind::Paragraph)));
+		// Enter may not touch items the caret does not stand in.
 		clearTemporaryDownParagraph();
-		if (startEscape) {
-			owner->listItems.erase(owner->listItems.begin());
-			if (const auto paragraph = reuseOrInsertParagraph(
-					surface->path.container,
-					surface->path.index)) {
-				target = paragraph->leaf;
-			}
-		} else {
-			owner->listItems.insert(
-				owner->listItems.begin() + surface->itemIndex,
-				MakeParagraphListItem(item->taskState));
-			target = LeafPath{
-				.kind = LeafKind::BlockText,
-				.block = {
-					.container = ListItemChildrenContainer(
-						surface->path,
-						surface->itemIndex + 1),
-					.index = 0,
-				},
-			};
-		}
+		owner->listItems.insert(
+			owner->listItems.begin() + surface->itemIndex,
+			MakeParagraphListItem(SplitTaskState(item->taskState)));
+		target = LeafPath{
+			.kind = LeafKind::BlockText,
+			.block = {
+				.container = ListItemChildrenContainer(
+					surface->path,
+					surface->itemIndex + 1),
+				.index = 0,
+			},
+		};
 	} else {
-		const auto trailingEmpty = (surface->itemIndex + 1
-				== int(owner->listItems.size()))
-			&& (item->blocks.size() == 1)
+		const auto itemEmpty = (item->blocks.size() == 1)
 			&& (item->blocks.front().kind == BlockKind::Paragraph)
 			&& ListItemIsEmpty(*item);
-		if (trailingEmpty) {
+		const auto trailingEmpty = itemEmpty
+			&& (surface->itemIndex + 1 == int(owner->listItems.size()));
+		const auto &steps = surface->path.container.steps;
+		const auto nested = !steps.empty()
+			&& (steps.back().kind == BlockContainerKind::ListItemChildren);
+		if (itemEmpty && nested) {
+			return liftActiveListItemUnchecked();
+		} else if (itemEmpty && !trailingEmpty) {
+			clearTemporaryDownParagraph();
+			if (!unwrapListItemIntoParent(
+					surface->path,
+					surface->itemIndex,
+					true)) {
+				return std::nullopt;
+			}
+			return (_activeTextOrdinal >= 0)
+				? std::make_optional(_activeTextOrdinal)
+				: std::nullopt;
+		} else if (trailingEmpty) {
 			clearTemporaryDownParagraph();
 			owner->listItems.erase(
 				owner->listItems.begin() + surface->itemIndex);
@@ -6638,7 +6865,7 @@ std::optional<int> State::handleActiveListEnterUnchecked(
 			clearTemporaryDownParagraph();
 			owner->listItems.insert(
 				owner->listItems.begin() + surface->itemIndex + 1,
-				MakeParagraphListItem(item->taskState));
+				MakeParagraphListItem(SplitTaskState(item->taskState)));
 			target = LeafPath{
 				.kind = LeafKind::BlockText,
 				.block = {
@@ -6657,6 +6884,287 @@ std::optional<int> State::handleActiveListEnterUnchecked(
 	return activateRebuiltLeaf(*target);
 }
 
+std::optional<int> State::sinkActiveListItem() {
+	return applyCheckedMutation(std::optional<int>(), [](State &candidate) {
+		const auto result = candidate.sinkActiveListItemUnchecked();
+		return CheckedMutationResult<std::optional<int>>{
+			.apply = result.has_value(),
+			.result = result,
+		};
+	});
+}
+
+std::optional<int> State::sinkActiveListItemUnchecked() {
+	const auto surface = activeListItemSurface();
+	if (!surface) {
+		return std::nullopt;
+	}
+	const auto itemIndex = surface->itemIndex;
+	if (itemIndex < 1) {
+		return std::nullopt;
+	}
+	auto *owner = block(surface->path);
+	if (!owner
+		|| owner->kind != BlockKind::List
+		|| itemIndex >= int(owner->listItems.size())) {
+		return std::nullopt;
+	}
+	const auto listKind = owner->listKind;
+	clearTemporaryDownParagraph();
+	normalizeTextOnlyListItemForInsertion(
+		ListItemChildrenContainer(surface->path, itemIndex - 1));
+	owner = block(surface->path);
+	if (!owner || itemIndex >= int(owner->listItems.size())) {
+		return std::nullopt;
+	}
+	auto moved = std::move(owner->listItems[itemIndex]);
+	DropOrderedItemNumber(&moved);
+	owner->listItems.erase(owner->listItems.begin() + itemIndex);
+	auto &previous = owner->listItems[itemIndex - 1];
+	if (previous.blocks.empty()) {
+		previous.blocks.push_back(MakeParagraphBlock());
+	}
+	auto nestedIndex = int(previous.blocks.size()) - 1;
+	if (nestedIndex < 0
+		|| previous.blocks[nestedIndex].kind != BlockKind::List) {
+		auto nested = Block();
+		nested.kind = BlockKind::List;
+		nested.listKind = listKind;
+		previous.blocks.push_back(std::move(nested));
+		nestedIndex = int(previous.blocks.size()) - 1;
+	} else {
+		AdoptListItemMarkers(previous.blocks[nestedIndex], &moved);
+	}
+	auto &nested = previous.blocks[nestedIndex];
+	nested.listItems.push_back(std::move(moved));
+	const auto target = rebasedActiveListItemLeaf(
+		BlockPath{
+			.container = ListItemChildrenContainer(
+				surface->path,
+				itemIndex - 1),
+			.index = nestedIndex,
+		},
+		int(nested.listItems.size()) - 1);
+	if (!target) {
+		return std::nullopt;
+	}
+	rebuild();
+	return activateRebuiltLeaf(*target);
+}
+
+std::optional<int> State::liftActiveListItem() {
+	return applyCheckedMutation(std::optional<int>(), [](State &candidate) {
+		const auto result = candidate.liftActiveListItemUnchecked();
+		return CheckedMutationResult<std::optional<int>>{
+			.apply = result.has_value(),
+			.result = result,
+		};
+	});
+}
+
+std::optional<int> State::liftActiveListLineOrItem() {
+	if (const auto line = splitActiveLineIntoListItem()) {
+		return line;
+	}
+	return liftActiveListItem();
+}
+
+std::optional<int> State::splitActiveLineIntoListItem() {
+	return applyCheckedMutation(std::optional<int>(), [](State &candidate) {
+		const auto result = candidate.splitActiveLineIntoListItemUnchecked();
+		return CheckedMutationResult<std::optional<int>>{
+			.apply = result.has_value(),
+			.result = result,
+		};
+	});
+}
+
+std::optional<int> State::splitActiveLineIntoListItemUnchecked() {
+	const auto descriptor = textNode(_activeTextOrdinal);
+	const auto surface = activeListItemSurface();
+	if (!descriptor
+		|| !surface
+		|| descriptor->leaf.kind != LeafKind::BlockText
+		|| descriptor->leaf.block.index < 1) {
+		return std::nullopt;
+	}
+	const auto index = descriptor->leaf.block.index;
+	auto *blocks = blockContainer(descriptor->leaf.block.container);
+	auto *owner = block(surface->path);
+	const auto item = listItem(surface->path, surface->itemIndex);
+	if (!blocks
+		|| !owner
+		|| !item
+		|| owner->kind != BlockKind::List
+		|| index >= int(blocks->size())) {
+		return std::nullopt;
+	}
+	clearTemporaryDownParagraph();
+	auto moved = ListItem();
+	moved.blocks.assign(
+		std::make_move_iterator(blocks->begin() + index),
+		std::make_move_iterator(blocks->end()));
+	blocks->erase(blocks->begin() + index, blocks->end());
+	adoptLeadingParagraphListItemText(item);
+	adoptLeadingParagraphListItemText(&moved);
+	AdoptListItemMarkers(*owner, &moved);
+	const auto movedIndex = surface->itemIndex + 1;
+	const auto inlineText = moved.blocks.empty();
+	owner->listItems.insert(
+		owner->listItems.begin() + movedIndex,
+		std::move(moved));
+	const auto target = inlineText
+		? LeafPath{
+			.kind = LeafKind::ListItemText,
+			.block = surface->path,
+			.listItemIndex = movedIndex,
+		}
+		: LeafPath{
+			.kind = LeafKind::BlockText,
+			.block = {
+				.container = ListItemChildrenContainer(
+					surface->path,
+					movedIndex),
+				.index = 0,
+			},
+		};
+	rebuild();
+	return activateRebuiltLeaf(target);
+}
+
+std::optional<int> State::liftActiveListItemUnchecked() {
+	const auto surface = activeListItemSurface();
+	if (!surface) {
+		return std::nullopt;
+	}
+	auto *owner = block(surface->path);
+	const auto itemIndex = surface->itemIndex;
+	if (!owner
+		|| owner->kind != BlockKind::List
+		|| itemIndex < 0
+		|| itemIndex >= int(owner->listItems.size())) {
+		return std::nullopt;
+	}
+	const auto &steps = surface->path.container.steps;
+	if (steps.empty()
+		|| steps.back().kind != BlockContainerKind::ListItemChildren) {
+		// Only last item may leave its list by depth change.
+		if (itemIndex + 1 != int(owner->listItems.size())) {
+			return std::nullopt;
+		}
+		clearTemporaryDownParagraph();
+		if (!unwrapListItemIntoParent(surface->path, itemIndex, true)) {
+			return std::nullopt;
+		}
+		return (_activeTextOrdinal >= 0)
+			? std::make_optional(_activeTextOrdinal)
+			: std::nullopt;
+	}
+	auto parentPath = BlockPath{ .index = steps.back().blockIndex };
+	parentPath.container.steps.assign(steps.begin(), steps.end() - 1);
+	const auto parentItemIndex = steps.back().listItemIndex;
+	const auto parentList = block(parentPath);
+	if (!parentList
+		|| parentList->kind != BlockKind::List
+		|| parentItemIndex < 0
+		|| parentItemIndex >= int(parentList->listItems.size())) {
+		return std::nullopt;
+	}
+	clearTemporaryDownParagraph();
+	auto sourceLeaf = LeafPath();
+	if (const auto descriptor = textNode(_activeTextOrdinal)) {
+		sourceLeaf = descriptor->leaf;
+	}
+	if (itemIndex + 1 < int(owner->listItems.size())
+		&& (sourceLeaf.kind == LeafKind::ListItemText)) {
+		normalizeTextOnlyListItemForInsertion(
+			ListItemChildrenContainer(surface->path, itemIndex));
+		owner = block(surface->path);
+		if (!owner || itemIndex >= int(owner->listItems.size())) {
+			return std::nullopt;
+		}
+		auto &item = owner->listItems[itemIndex];
+		if (item.blocks.empty()) {
+			item.blocks.push_back(MakeParagraphBlock());
+		}
+	}
+	if (!owner->listItems[itemIndex].blocks.empty()
+		&& (sourceLeaf.kind == LeafKind::ListItemText)) {
+		sourceLeaf = LeafPath{ .kind = LeafKind::BlockText };
+		sourceLeaf.block.index = 0;
+	}
+	auto moved = std::move(owner->listItems[itemIndex]);
+	DropOrderedItemNumber(&moved);
+	if (itemIndex + 1 < int(owner->listItems.size())) {
+		auto rest = Block();
+		rest.kind = BlockKind::List;
+		rest.listKind = owner->listKind;
+		rest.listItems = std::vector<ListItem>(
+			std::make_move_iterator(
+				owner->listItems.begin() + itemIndex + 1),
+			std::make_move_iterator(owner->listItems.end()));
+		owner->listItems.erase(
+			owner->listItems.begin() + itemIndex + 1,
+			owner->listItems.end());
+		DropOrderedItemNumbers(rest.listItems);
+		moved.blocks.push_back(std::move(rest));
+	}
+	owner->listItems.erase(owner->listItems.begin() + itemIndex);
+	if (owner->listItems.empty()) {
+		const auto blocks = blockContainer(surface->path.container);
+		if (!blocks
+			|| surface->path.index < 0
+			|| surface->path.index >= int(blocks->size())) {
+			return std::nullopt;
+		}
+		blocks->erase(blocks->begin() + surface->path.index);
+	}
+	AdoptListItemMarkers(*parentList, &moved);
+	parentList->listItems.insert(
+		parentList->listItems.begin() + parentItemIndex + 1,
+		std::move(moved));
+	const auto target = rebasedListItemLeaf(
+		sourceLeaf,
+		parentPath,
+		parentItemIndex + 1);
+	if (!target) {
+		return std::nullopt;
+	}
+	rebuild();
+	return activateRebuiltLeaf(*target);
+}
+
+std::optional<State::LeafPath> State::rebasedActiveListItemLeaf(
+		const BlockPath &list,
+		int itemIndex) const {
+	const auto descriptor = textNode(_activeTextOrdinal);
+	return descriptor
+		? rebasedListItemLeaf(descriptor->leaf, list, itemIndex)
+		: std::nullopt;
+}
+
+std::optional<State::LeafPath> State::rebasedListItemLeaf(
+		const LeafPath &leaf,
+		const BlockPath &list,
+		int itemIndex) const {
+	if (leaf.kind == LeafKind::ListItemText) {
+		return LeafPath{
+			.kind = LeafKind::ListItemText,
+			.block = list,
+			.listItemIndex = itemIndex,
+		};
+	} else if (leaf.kind == LeafKind::BlockText) {
+		return LeafPath{
+			.kind = LeafKind::BlockText,
+			.block = {
+				.container = ListItemChildrenContainer(list, itemIndex),
+				.index = leaf.block.index,
+			},
+		};
+	}
+	return std::nullopt;
+}
+
 std::optional<int> State::handleActiveQuoteEnter(
 		const ActiveEnterContext &context) {
 	return applyCheckedMutation(std::optional<int>(), [=](State &candidate) {
@@ -6671,9 +7179,6 @@ std::optional<int> State::handleActiveQuoteEnter(
 
 std::optional<int> State::handleActiveQuoteEnterUnchecked(
 		const ActiveEnterContext &context) {
-	if (context.position == EnterPosition::End) {
-		return std::nullopt;
-	}
 	const auto descriptor = textNode(_activeTextOrdinal);
 	if (!descriptor || descriptor->leaf.kind != LeafKind::BlockText) {
 		return std::nullopt;
@@ -6785,7 +7290,7 @@ bool State::pasteClipboardListItemsAfterActive(
 			};
 
 			const auto makeParagraph = [](TextWithEntities text) {
-				auto paragraph = State::MakeParagraphBlock();
+				auto paragraph = MakeParagraphBlock();
 				paragraph.text.text = std::move(text);
 				return paragraph;
 			};
@@ -6839,8 +7344,8 @@ bool State::pasteClipboardListItemsAfterActive(
 			case OriginalParagraphSide::None:
 				break;
 			}
-			const auto keepLeading = !State::ListItemIsEmpty(leading);
-			const auto keepTrailing = !State::ListItemIsEmpty(trailing);
+			const auto keepLeading = !ListItemIsEmpty(leading);
+			const auto keepTrailing = !ListItemIsEmpty(trailing);
 			if (originalItemSide == OriginalItemSide::None) {
 				if (keepLeading) {
 					originalItemSide = OriginalItemSide::Leading;
@@ -6894,11 +7399,15 @@ bool State::pasteClipboardListItemsAfterActive(
 			candidate.ensureActiveTextOrdinal();
 			return true;
 		}();
-		const auto applied = sameList
-			? true
-			: candidate.insertBlocksAfterActiveUnchecked(
+		auto applied = sameList;
+		if (!sameList) {
+			applied = candidate.insertBlocksAfterActiveUnchecked(
 				std::move(blocks),
 				std::move(context));
+			if (applied) {
+				candidate.joinInsertedListWithSiblings(false);
+			}
+		}
 		return CheckedMutationResult<bool>{
 			.apply = applied,
 			.result = applied,
@@ -6939,12 +7448,37 @@ bool State::wrapStructuralBlockSelection(
 		break;
 	case InsertBlockType::OrderedList:
 	case InsertBlockType::BulletList:
+	case InsertBlockType::TaskList: {
 		if (wrapper.kind != BlockKind::List || wrapper.listItems.empty()) {
 			return false;
 		}
-		wrapper.listItems.front().blocks = std::move(data->blocks);
-		adoptLeadingParagraphListItemText(&wrapper.listItems.front());
+		const auto taskState = wrapper.listItems.front().taskState;
+		auto items = std::vector<ListItem>();
+		items.reserve(data->blocks.size());
+		for (auto &block : data->blocks) {
+			if (block.kind == BlockKind::List) {
+				for (auto &item : block.listItems) {
+					item.number = {};
+					if (taskState == TaskState::None) {
+						item.taskState = TaskState::None;
+					} else if (item.taskState == TaskState::None) {
+						item.taskState = TaskState::Unchecked;
+					}
+					items.push_back(std::move(item));
+				}
+				continue;
+			}
+			auto item = ListItem();
+			item.taskState = taskState;
+			item.blocks.push_back(std::move(block));
+			adoptLeadingParagraphListItemText(&item);
+			items.push_back(std::move(item));
+		}
+		if (!items.empty()) {
+			wrapper.listItems = std::move(items);
+		}
 		break;
+	}
 	default:
 		return false;
 	}
@@ -6957,11 +7491,16 @@ bool State::wrapStructuralBlockSelection(
 			&insertAt)) {
 		return false;
 	}
+	const auto joined = joinListWithSiblings(
+		BlockPath{ .container = container, .index = insertAt },
+		action.orderedStartExplicit);
 	rebuild();
-	const auto target = destinationTargetForInsertedBlocks(
-		container,
-		insertAt,
-		1);
+	const auto target = joined
+		? destinationTargetForInsertedListItems(
+			joined->list,
+			joined->itemsFrom,
+			joined->itemsCount)
+		: destinationTargetForInsertedBlocks(container, insertAt, 1);
 	if (destination) {
 		*destination = target;
 	}
@@ -7074,32 +7613,97 @@ bool State::unwrapMatchingListItemWrapper(
 		return false;
 	}
 	const auto range = validateListItemRange(selection.listItems);
-	if (!range || (range->from + 1 != range->till)) {
+	if (!range) {
 		return false;
 	}
 	auto *owner = block(range->block);
 	auto *parent = blockContainer(range->block.container);
 	const auto matches = [&](const Block &block) {
+		if (block.kind != BlockKind::List) {
+			return false;
+		}
+		const auto style = CurrentListStyle(block);
 		switch (type) {
 		case InsertBlockType::OrderedList:
-			return (block.kind == BlockKind::List)
-				&& (block.listKind == ListKind::Ordered);
+			return (style == ListStyle::Ordered);
 		case InsertBlockType::BulletList:
-			return (block.kind == BlockKind::List)
-				&& (block.listKind == ListKind::Bullet);
+			return (style == ListStyle::Bullet);
+		case InsertBlockType::TaskList:
+			return (style == ListStyle::Task);
 		default:
 			return false;
 		}
 	};
-	if (!owner || !parent || !matches(*owner) || IsTaskList(owner->listItems)) {
+	if (!owner || !parent || !matches(*owner)) {
 		return false;
 	}
 	clearTemporaryDownParagraph();
-	return unwrapListItemIntoParent(
+	return unwrapListItemRangeIntoParent(
 		range->block,
 		range->from,
+		range->till,
 		false,
 		destination);
+}
+
+bool State::unwrapMatchingListBlockSelection(
+		const Markdown::PreparedEditSelection &selection,
+		InsertBlockType type,
+		BoundaryTarget *destination) {
+	if (selection.kind != PreparedEditSelectionKind::Blocks) {
+		return false;
+	}
+	const auto range = validateBlockRange(selection.blocks);
+	if (!range) {
+		return false;
+	}
+	auto *parent = blockContainer(range->container);
+	if (!parent
+		|| range->from < 0
+		|| range->till > int(parent->size())
+		|| range->till <= range->from) {
+		return false;
+	}
+	const auto matches = [&](const Block &block) {
+		if (block.kind != BlockKind::List || block.listItems.empty()) {
+			return false;
+		}
+		const auto style = CurrentListStyle(block);
+		switch (type) {
+		case InsertBlockType::OrderedList:
+			return (style == ListStyle::Ordered);
+		case InsertBlockType::BulletList:
+			return (style == ListStyle::Bullet);
+		case InsertBlockType::TaskList:
+			return (style == ListStyle::Task);
+		default:
+			return false;
+		}
+	};
+	for (auto i = range->from; i != range->till; ++i) {
+		if (!matches((*parent)[i])) {
+			return false;
+		}
+	}
+	clearTemporaryDownParagraph();
+	auto target = BoundaryTarget();
+	for (auto i = range->till - 1; i >= range->from; --i) {
+		const auto path = BlockPath{ range->container, i };
+		const auto owner = block(path);
+		if (!owner
+			|| !unwrapListItemRangeIntoParent(
+				path,
+				0,
+				int(owner->listItems.size()),
+				false,
+				&target)) {
+			return false;
+		}
+	}
+	if (destination) {
+		*destination = target;
+	}
+	return true;
 }
 
 bool State::unwrapListItemIntoParent(
@@ -7107,29 +7711,53 @@ bool State::unwrapListItemIntoParent(
 		int itemIndex,
 		bool materializeEmptyItem,
 		BoundaryTarget *destination) {
+	return unwrapListItemRangeIntoParent(
+		listPath,
+		itemIndex,
+		itemIndex + 1,
+		materializeEmptyItem,
+		destination);
+}
+
+bool State::unwrapListItemRangeIntoParent(
+		const BlockPath &listPath,
+		int from,
+		int till,
+		bool materializeEmptyItem,
+		BoundaryTarget *destination,
+		StructuralBlockRange *unwrapped) {
 	auto *owner = block(listPath);
 	auto *parent = blockContainer(listPath.container);
 	if (!owner
 		|| !parent
-		|| itemIndex < 0
-		|| itemIndex >= int(owner->listItems.size())
+		|| from < 0
+		|| till <= from
+		|| till > int(owner->listItems.size())
 		|| listPath.index < 0
 		|| listPath.index >= int(parent->size())) {
 		return false;
 	}
-	const auto hasLeading = (itemIndex > 0);
-	const auto hasTrailing = (itemIndex + 1 < int(owner->listItems.size()));
+	const auto hasLeading = (from > 0);
+	const auto hasTrailing = (till < int(owner->listItems.size()));
 	const auto leadingStart = (owner->listKind == ListKind::Ordered
-		&& hasLeading)
+		&& hasLeading
+		&& owner->orderedList.reversed)
 		? EffectiveOrderedItemValue(*owner, 0)
 		: std::optional<int>();
 	const auto trailingStart = (owner->listKind == ListKind::Ordered
 		&& hasTrailing)
-		? EffectiveOrderedItemValue(*owner, itemIndex + 1)
+		? EffectiveOrderedItemValue(*owner, till)
 		: std::optional<int>();
-	auto inserted = takeListItemBlocksForUnwrap(&owner->listItems[itemIndex]);
-	if (materializeEmptyItem && inserted.empty()) {
-		inserted.push_back(MakeParagraphBlock());
+	auto inserted = std::vector<Block>();
+	for (auto i = from; i != till; ++i) {
+		auto blocks = takeListItemBlocksForUnwrap(&owner->listItems[i]);
+		if (materializeEmptyItem && blocks.empty()) {
+			blocks.push_back(MakeParagraphBlock());
+		}
+		inserted.insert(
+			inserted.end(),
+			std::make_move_iterator(blocks.begin()),
+			std::make_move_iterator(blocks.end()));
 	}
 	auto trailing = std::optional<Block>();
 	if (hasTrailing) {
@@ -7141,13 +7769,12 @@ bool State::unwrapListItemIntoParent(
 			trailing->orderedList.start = trailingStart;
 		}
 		trailing->listItems = std::vector<ListItem>(
-			std::make_move_iterator(
-				owner->listItems.begin() + itemIndex + 1),
+			std::make_move_iterator(owner->listItems.begin() + till),
 			std::make_move_iterator(owner->listItems.end()));
 	}
 	if (hasLeading) {
 		owner->listItems.erase(
-			owner->listItems.begin() + itemIndex,
+			owner->listItems.begin() + from,
 			owner->listItems.end());
 		if (leadingStart.has_value()) {
 			owner->orderedList.start = leadingStart;
@@ -7157,6 +7784,13 @@ bool State::unwrapListItemIntoParent(
 	}
 	auto insertAt = listPath.index + (hasLeading ? 1 : 0);
 	const auto insertedCount = int(inserted.size());
+	if (unwrapped) {
+		*unwrapped = StructuralBlockRange{
+			.container = listPath.container,
+			.from = insertAt,
+			.till = insertAt + insertedCount,
+		};
+	}
 	parent->insert(
 		parent->begin() + insertAt,
 		std::make_move_iterator(inserted.begin()),
@@ -7176,6 +7810,38 @@ bool State::unwrapListItemIntoParent(
 		*destination = target;
 	}
 	return true;
+}
+
+bool State::wrapStructuralListItemSelection(
+		const Markdown::PreparedEditSelection &selection,
+		InsertAction action,
+		BoundaryTarget *destination) {
+	if (selection.kind != PreparedEditSelectionKind::ListItems) {
+		return false;
+	}
+	const auto range = validateListItemRange(selection.listItems);
+	if (!range) {
+		return false;
+	}
+	const auto owner = block(range->block);
+	if (!owner || owner->kind != BlockKind::List) {
+		return false;
+	}
+	clearTemporaryDownParagraph();
+	auto unwrapped = StructuralBlockRange();
+	if (!unwrapListItemRangeIntoParent(
+			range->block,
+			range->from,
+			range->till,
+			true,
+			nullptr,
+			&unwrapped)) {
+		return false;
+	}
+	return wrapStructuralBlockSelection(
+		preparedSelectionForBlockRange(unwrapped),
+		action,
+		destination);
 }
 
 bool State::replaceStructuralSelectionWithBlock(
@@ -7287,11 +7953,19 @@ bool State::replaceStructuralSelectionWithBlock(
 			}
 			return true;
 		}
-		if (selection.kind == PreparedEditSelectionKind::Blocks) {
-			if (!candidate.wrapStructuralBlockSelection(
+		if (selection.kind == PreparedEditSelectionKind::Blocks
+			|| selection.kind == PreparedEditSelectionKind::ListItems) {
+			const auto wrapped = (selection.kind
+				== PreparedEditSelectionKind::ListItems)
+				? candidate.wrapStructuralListItemSelection(
 					selection,
 					action,
-					&target)) {
+					&target)
+				: candidate.wrapStructuralBlockSelection(
+					selection,
+					action,
+					&target);
+			if (!wrapped) {
 				_lastLimitError = candidate._lastLimitError;
 				return false;
 			}
@@ -7306,11 +7980,16 @@ bool State::replaceStructuralSelectionWithBlock(
 		break;
 	case InsertBlockType::OrderedList:
 	case InsertBlockType::BulletList:
+	case InsertBlockType::TaskList:
 		if (selection.kind == PreparedEditSelectionKind::TableRows
 			|| selection.kind == PreparedEditSelectionKind::TableCells) {
 			return false;
 		}
 		if (candidate.unwrapMatchingListItemWrapper(
+				selection,
+				action.type,
+				&target)
+			|| candidate.unwrapMatchingListBlockSelection(
 				selection,
 				action.type,
 				&target)) {
@@ -7321,6 +8000,50 @@ bool State::replaceStructuralSelectionWithBlock(
 				*destination = target;
 			}
 			return true;
+		}
+		if (selection.kind == PreparedEditSelectionKind::ListItems) {
+			const auto style = (action.type == InsertBlockType::OrderedList)
+				? ListStyle::Ordered
+				: (action.type == InsertBlockType::TaskList)
+				? ListStyle::Task
+				: ListStyle::Bullet;
+			const auto validated = candidate.validateListItemRange(
+				selection.listItems);
+			const auto owner = validated
+				? candidate.block(validated->block)
+				: nullptr;
+			if (!owner || (owner->kind != BlockKind::List)) {
+				return false;
+			}
+			if (destination) {
+				*destination = {
+					.action = BoundaryTarget::Action::StructuralSelection,
+					.structuralSelection = selection,
+				};
+			}
+			if (CurrentListStyle(*owner) == style) {
+				return true;
+			}
+			if (!candidate.setListStyle(selection.listItems, style)) {
+				return false;
+			}
+			if (const auto joined = candidate.joinListWithSiblings(
+					validated->block,
+					false)) {
+				candidate.rebuild();
+				if (destination) {
+					const auto shift = joined->itemsFrom;
+					*destination = {
+						.action = BoundaryTarget::Action::StructuralSelection,
+						.structuralSelection
+							= candidate.preparedSelectionForListItems(
+								joined->list,
+								validated->from + shift,
+								validated->till + shift),
+					};
+				}
+			}
+			return commitValidatedCandidate(std::move(candidate));
 		}
 		if (selection.kind == PreparedEditSelectionKind::Blocks) {
 			if (!candidate.wrapStructuralBlockSelection(
@@ -7419,10 +8142,7 @@ bool State::toggleCodeBlockForStructuralSelection(
 				return CheckedMutationResult<bool>{ .result = false };
 			}
 			candidate.rebuild();
-			(void)candidate.destinationTargetForInsertedBlocks(
-				range->container,
-				insertAt,
-				1);
+			candidate.focusInsertedBlocks(range->container, insertAt, 1);
 			return CheckedMutationResult<bool>{
 				.apply = true,
 				.result = true,
@@ -7949,9 +8669,7 @@ State::TextSelectionDropResult State::moveTextSelectionToDropTarget(
 				int selectionTo) {
 			candidate.rebuild();
 			const auto ordinal = candidate.textOrdinalForLeafPath(leaf);
-			if (ordinal >= 0) {
-				(void)candidate.setActiveTextByOrdinal(ordinal);
-			} else {
+			if (ordinal < 0 || !candidate.setActiveTextByOrdinal(ordinal)) {
 				candidate.ensureActiveTextOrdinal();
 			}
 			result.result = ApplyResult::Changed;
@@ -8135,14 +8853,14 @@ State::TextSelectionDropResult State::moveTextSelectionToDropTarget(
 }
 
 void State::insertHeading1AfterActive() {
-	(void)insertBlockAfterActive({
+	insertBlockAfterActive({
 		.type = InsertBlockType::Heading,
 		.headingLevel = 1,
 	});
 }
 
 void State::insertBlockquoteAfterActive() {
-	(void)insertBlockAfterActive({
+	insertBlockAfterActive({
 		.type = InsertBlockType::Blockquote,
 	});
 }
@@ -8188,7 +8906,7 @@ bool State::insertBlocksAfterActiveWithContextUnchecked(
 		}
 		current->text = context.before;
 	}
-	(void)seedInsertedBlocks(blocks, context.selected);
+	seedInsertedBlocks(blocks, context.selected);
 	if (removeSource) {
 		destination->erase(destination->begin() + insertAt);
 	}
@@ -8212,18 +8930,6 @@ bool State::insertBlocksAfterActiveWithContextUnchecked(
 	return true;
 }
 
-bool State::BlockConversionExpandsToActiveLine(InsertBlockType type) {
-	switch (type) {
-	case InsertBlockType::Heading:
-	case InsertBlockType::Blockquote:
-	case InsertBlockType::Pullquote:
-	case InsertBlockType::Code:
-	case InsertBlockType::Footer:
-		return true;
-	default:
-		return false;
-	}
-}
 
 State::ActiveTextBlockActionResult State::applyActiveTextBlockAction(
 		InsertAction action,
@@ -8283,8 +8989,35 @@ State::ActiveTextBlockActionResult State::applyActiveTextBlockAction(
 		const auto cursorInLine = hadSelection
 			? 0
 			: (beforeSize - (lineStart + 1));
+		const auto selectedSize = int(context.selected.text.size());
 		auto blocks = std::vector<Block>();
-		blocks.push_back(candidate.makeBlock(action));
+		auto made = candidate.makeBlock(action);
+		auto lines = IsListInsertType(action.type)
+			? SplitTextIntoLines(context.selected)
+			: std::vector<TextWithEntities>();
+		if ((lines.size() > 1)
+			&& (made.kind == BlockKind::List)
+			&& (made.listItems.size() == 1)) {
+			const auto sample = made.listItems.front();
+			made.listItems.clear();
+			for (auto &line : lines) {
+				auto item = sample;
+				item.text.text = std::move(line);
+				made.listItems.push_back(std::move(item));
+			}
+			context.selected = TextWithEntities();
+
+			if (context.before.text.endsWith('\n')) {
+				context.before = Ui::Text::Mid(
+					context.before,
+					0,
+					int(context.before.text.size()) - 1);
+			}
+			if (context.after.text.startsWith('\n')) {
+				context.after = Ui::Text::Mid(context.after, 1);
+			}
+		}
+		blocks.push_back(std::move(made));
 		const auto applied = candidate.insertBlocksAfterActiveUnchecked(
 			std::move(blocks),
 			context);
@@ -8292,6 +9025,10 @@ State::ActiveTextBlockActionResult State::applyActiveTextBlockAction(
 			return CheckedMutationResult<ActiveTextBlockActionResult>{
 				.result = result,
 			};
+		}
+		if (IsListInsertType(action.type)) {
+			candidate.joinInsertedListWithSiblings(
+				action.orderedStartExplicit);
 		}
 		const auto descriptor = candidate.textNode(candidate._activeTextOrdinal);
 		if (!descriptor) {
@@ -8305,9 +9042,7 @@ State::ActiveTextBlockActionResult State::applyActiveTextBlockAction(
 				.result = ApplyResult::Changed,
 				.destinationLeaf = descriptor->leaf,
 				.selectionFrom = (hadSelection ? 0 : cursorInLine),
-				.selectionTo = (hadSelection
-					? int(context.selected.text.size())
-					: cursorInLine),
+				.selectionTo = (hadSelection ? selectedSize : cursorInLine),
 			},
 		};
 	});
@@ -8364,7 +9099,7 @@ bool State::insertBlockAfterActive(
 		std::optional<ActiveTextInsertContext> context) {
 	return applyCheckedMutation(false, [action, context = std::move(context)](
 			State &candidate) mutable {
-		if (context && BlockConversionExpandsToActiveLine(action.type)) {
+		if (context && candidate.blockActionExpandsToActiveLine(action.type)) {
 			ExpandInsertContextToActiveLine(*context);
 		}
 		auto blocks = std::vector<Block>();
@@ -8389,6 +9124,10 @@ bool State::insertBlockAfterActive(
 		const auto applied = candidate.insertBlocksAfterActiveUnchecked(
 			std::move(blocks),
 			std::move(context));
+		if (applied && IsListInsertType(action.type)) {
+			candidate.joinInsertedListWithSiblings(
+				action.orderedStartExplicit);
+		}
 		return CheckedMutationResult<bool>{
 			.apply = applied,
 			.result = applied,
@@ -8593,6 +9332,218 @@ State::DisplayMathEditResult State::editActiveDisplayMath(
 				.selectionFrom = selectionFrom,
 				.selectionTo = selectionTo,
 			},
+		};
+	});
+}
+
+auto State::inlineButtonAt(int ordinal, int offset) const
+-> std::optional<Markdown::InlineTextObjectButtonData> {
+	const auto descriptor = textNode(ordinal);
+	const auto text = descriptor ? richText(descriptor->leaf) : nullptr;
+	if (!text) {
+		return std::nullopt;
+	}
+	for (const auto &entity : text->text.entities) {
+		if (entity.offset() != offset) {
+			continue;
+		} else if (auto button = ButtonDataFromEntity(entity)) {
+			return button;
+		}
+	}
+	return std::nullopt;
+}
+
+ApplyResult State::editInlineButtonAt(
+		int ordinal,
+		int offset,
+		Markdown::InlineTextObjectButtonData data) {
+	data.label = Markdown::NormalizeRichButtonLabel(std::move(data.label));
+	auto serialized = Markdown::SerializeInlineTextObjectEntity({
+		.kind = Markdown::InlineTextObjectKind::Button,
+		.data = std::move(data),
+	});
+	if (serialized.isEmpty()) {
+		return ApplyResult::Unchanged;
+	}
+	return applyCheckedMutation(ApplyResult::Failed, [
+		ordinal,
+		offset,
+		serialized = std::move(serialized)
+	](State &candidate) {
+		const auto descriptor = candidate.textNode(ordinal);
+		const auto text = descriptor
+			? candidate.richText(descriptor->leaf)
+			: nullptr;
+		if (!text) {
+			return CheckedMutationResult<ApplyResult>{
+				.result = ApplyResult::Unchanged,
+			};
+		}
+		for (auto &entity : text->text.entities) {
+			if ((entity.offset() != offset)
+				|| !ButtonDataFromEntity(entity)) {
+				continue;
+			} else if (entity.data() == serialized) {
+				return CheckedMutationResult<ApplyResult>{
+					.result = ApplyResult::Unchanged,
+				};
+			}
+			entity = EntityInText(
+				EntityType::CustomEmoji,
+				entity.offset(),
+				entity.length(),
+				serialized);
+			candidate.rebuild();
+			return CheckedMutationResult<ApplyResult>{
+				.apply = true,
+				.result = ApplyResult::Changed,
+			};
+		}
+		return CheckedMutationResult<ApplyResult>{
+			.result = ApplyResult::Unchanged,
+		};
+	});
+}
+
+const RichPage::Button *State::rowButtonAt(
+		const Markdown::PreparedEditBlockSource &source,
+		int index) const {
+	const auto path = convertBlockPath(source);
+	const auto owner = path ? block(*path) : nullptr;
+	if (!ValidRowButtonIndex(owner, index)) {
+		return nullptr;
+	}
+	return &owner->buttons[index];
+}
+
+ApplyResult State::editRowButtonAt(
+		const Markdown::PreparedEditBlockSource &source,
+		int index,
+		RichPage::Button button) {
+	button = NormalizedRowButton(std::move(button));
+	return applyCheckedMutation(ApplyResult::Failed, [
+		source,
+		index,
+		button = std::move(button)
+	](State &candidate) {
+		const auto path = candidate.convertBlockPath(source);
+		const auto owner = path ? candidate.block(*path) : nullptr;
+		if (!ValidRowButtonIndex(owner, index)) {
+			return CheckedMutationResult<ApplyResult>{
+				.result = ApplyResult::Unchanged,
+			};
+		}
+		auto &entry = owner->buttons[index];
+		auto updated = entry;
+		updated.text.text = button.text.text;
+		updated.button.text = button.button.text;
+		updated.button.type = button.button.type;
+		updated.button.data = button.button.data;
+		updated.button.visual.color = button.button.visual.color;
+		if (entry == updated) {
+			return CheckedMutationResult<ApplyResult>{
+				.result = ApplyResult::Unchanged,
+			};
+		}
+		entry = std::move(updated);
+		candidate.rebuild();
+		return CheckedMutationResult<ApplyResult>{
+			.apply = true,
+			.result = ApplyResult::Changed,
+		};
+	});
+}
+
+State::RowButtonRemoveResult State::removeRowButtonAt(
+		const Markdown::PreparedEditBlockSource &source,
+		int index) {
+	const auto path = convertBlockPath(source);
+	const auto owner = path ? block(*path) : nullptr;
+	if (!ValidRowButtonIndex(owner, index)) {
+		return { .result = ApplyResult::Unchanged };
+	} else if (owner->buttons.size() == 1) {
+		return {
+			.result = ApplyResult::Changed,
+			.caretOrdinal = removeBlock(*path, true),
+			.removedRow = true,
+		};
+	}
+	const auto result = applyCheckedMutation(ApplyResult::Failed, [
+		source,
+		index
+	](State &candidate) {
+		const auto path = candidate.convertBlockPath(source);
+		const auto owner = path ? candidate.block(*path) : nullptr;
+		if (!ValidRowButtonIndex(owner, index)) {
+			return CheckedMutationResult<ApplyResult>{
+				.result = ApplyResult::Unchanged,
+			};
+		}
+		owner->buttons.erase(owner->buttons.begin() + index);
+		candidate.rebuild();
+		return CheckedMutationResult<ApplyResult>{
+			.apply = true,
+			.result = ApplyResult::Changed,
+		};
+	});
+	return { .result = result };
+}
+
+std::optional<RichPage::ButtonAlignment> State::rowAlignment(
+		const Markdown::PreparedEditBlockSource &source) const {
+	const auto path = convertBlockPath(source);
+	const auto owner = path ? block(*path) : nullptr;
+	if (!owner || (owner->kind != BlockKind::ButtonRow)) {
+		return std::nullopt;
+	}
+	return owner->buttonAlignment;
+}
+
+ApplyResult State::setRowAlignment(
+		const Markdown::PreparedEditBlockSource &source,
+		RichPage::ButtonAlignment alignment) {
+	return applyCheckedMutation(ApplyResult::Failed, [
+		source,
+		alignment
+	](State &candidate) {
+		const auto path = candidate.convertBlockPath(source);
+		const auto owner = path ? candidate.block(*path) : nullptr;
+		if (!owner
+			|| (owner->kind != BlockKind::ButtonRow)
+			|| (owner->buttonAlignment == alignment)) {
+			return CheckedMutationResult<ApplyResult>{
+				.result = ApplyResult::Unchanged,
+			};
+		}
+		owner->buttonAlignment = alignment;
+		candidate.rebuild();
+		return CheckedMutationResult<ApplyResult>{
+			.apply = true,
+			.result = ApplyResult::Changed,
+		};
+	});
+}
+
+ApplyResult State::addRowButton(
+		const Markdown::PreparedEditBlockSource &source,
+		RichPage::Button button) {
+	button = NormalizedRowButton(std::move(button));
+	return applyCheckedMutation(ApplyResult::Failed, [
+		source,
+		button = std::move(button)
+	](State &candidate) {
+		const auto path = candidate.convertBlockPath(source);
+		const auto owner = path ? candidate.block(*path) : nullptr;
+		if (!owner || (owner->kind != BlockKind::ButtonRow)) {
+			return CheckedMutationResult<ApplyResult>{
+				.result = ApplyResult::Unchanged,
+			};
+		}
+		owner->buttons.push_back(button);
+		candidate.rebuild();
+		return CheckedMutationResult<ApplyResult>{
+			.apply = true,
+			.result = ApplyResult::Changed,
 		};
 	});
 }
@@ -9059,6 +10010,9 @@ void State::rebuildTextNodes(
 			appendBlockTextNode(path, LeafKind::BlockText);
 			break;
 		case BlockKind::Quote:
+			if (block.collapsed && RichBlockquoteIsCollapsible(block)) {
+				break;
+			}
 			if (block.blocks.empty()) {
 				appendBlockTextNode(
 					path,
@@ -9092,6 +10046,7 @@ void State::rebuildTextNodes(
 		case BlockKind::Photo:
 		case BlockKind::Video:
 		case BlockKind::Audio:
+		case BlockKind::File:
 		case BlockKind::Map:
 		case BlockKind::GroupedMedia:
 			appendBlockTextNode(path, LeafKind::BlockCaption);
@@ -9128,6 +10083,17 @@ void State::rebuildTextNodes(
 			break;
 		}
 	}
+}
+
+bool State::lastBlockOwnsLastTextNode() const {
+	if (_textNodes.empty()) {
+		return false;
+	}
+	const auto path = BlockPath{
+		.container = BlockContainerPath(),
+		.index = int(_richPage->blocks.size()) - 1,
+	};
+	return descriptorBelongsToBlock(_textNodes.back(), path);
 }
 
 void State::appendBlockTextNode(
@@ -9551,6 +10517,7 @@ void State::collectBoundarySteps(
 		case BlockKind::Photo:
 		case BlockKind::Video:
 		case BlockKind::Audio:
+		case BlockKind::File:
 		case BlockKind::Map:
 		case BlockKind::GroupedMedia:
 			appendBoundaryTextStep({
@@ -9714,9 +10681,28 @@ PreparedEditSelection State::preparedSelectionForBlock(
 	};
 }
 
+PreparedEditSelection State::preparedSelectionForBlockRange(
+		const StructuralBlockRange &range) const {
+	return {
+		.kind = PreparedEditSelectionKind::Blocks,
+		.blocks = {
+			.container = ToPreparedBlockContainerPath(range.container),
+			.from = range.from,
+			.till = range.till,
+		},
+	};
+}
+
 PreparedEditSelection State::preparedSelectionForListItem(
 		const BlockPath &path,
 		int itemIndex) const {
+	return preparedSelectionForListItems(path, itemIndex, itemIndex + 1);
+}
+
+PreparedEditSelection State::preparedSelectionForListItems(
+		const BlockPath &path,
+		int from,
+		int till) const {
 	return {
 		.kind = PreparedEditSelectionKind::ListItems,
 		.listItems = {
@@ -9724,8 +10710,8 @@ PreparedEditSelection State::preparedSelectionForListItem(
 				.container = ToPreparedBlockContainerPath(path.container),
 				.index = path.index,
 			},
-			.from = itemIndex,
-			.till = itemIndex + 1,
+			.from = from,
+			.till = till,
 		},
 	};
 }
@@ -9919,8 +10905,11 @@ Block State::makeBlock(InsertAction action) const {
 		return MakeHeadingBlock(action.headingLevel);
 	case InsertBlockType::Blockquote:
 		return MakeQuoteBlock(false);
-	case InsertBlockType::Code:
-		return MakeCodeBlock();
+	case InsertBlockType::Code: {
+		auto result = MakeCodeBlock();
+		result.language = action.codeLanguage;
+		return result;
+	}
 	case InsertBlockType::Math:
 		return MakeMathBlock();
 	case InsertBlockType::Footer:
@@ -9929,12 +10918,19 @@ Block State::makeBlock(InsertAction action) const {
 		return MakeDividerBlock();
 	case InsertBlockType::Anchor:
 		return MakeAnchorBlock(nextAnchorId());
-	case InsertBlockType::OrderedList:
-		return MakeListBlock(ListKind::Ordered);
+	case InsertBlockType::OrderedList: {
+		auto result = MakeListBlock(ListKind::Ordered);
+		if (action.orderedStart != 1) {
+			result.orderedList.start = action.orderedStart;
+		}
+		return result;
+	}
 	case InsertBlockType::BulletList:
 		return MakeListBlock(ListKind::Bullet);
 	case InsertBlockType::TaskList:
-		return MakeListBlock(ListKind::Bullet, TaskState::Unchecked);
+		return MakeListBlock(
+			ListKind::Bullet,
+			action.taskChecked ? TaskState::Checked : TaskState::Unchecked);
 	case InsertBlockType::Pullquote:
 		return MakeQuoteBlock(true);
 	case InsertBlockType::Photo:
@@ -9953,250 +10949,6 @@ Block State::makeBlock(InsertAction action) const {
 	return MakeParagraphBlock();
 }
 
-TextWithEntities State::MakeText(QString text) {
-	auto result = TextWithEntities();
-	result.text = std::move(text);
-	return result;
-}
 
-Block State::MakeParagraphBlock() {
-	auto block = Block();
-	block.kind = BlockKind::Paragraph;
-	return block;
-}
-
-Block State::MakeFooterBlock() {
-	auto block = Block();
-	block.kind = BlockKind::Footer;
-	return block;
-}
-
-Block State::MakeHeadingBlock(int level) {
-	auto block = Block();
-	block.kind = BlockKind::Heading;
-	block.headingLevel = std::clamp(level, 1, 6);
-	return block;
-}
-
-Block State::MakeQuoteBlock(bool pullquote) {
-	auto block = Block();
-	block.kind = BlockKind::Quote;
-	block.pullquote = pullquote;
-	return block;
-}
-
-Block State::MakeCodeBlock() {
-	auto block = Block();
-	block.kind = BlockKind::Code;
-	return block;
-}
-
-Block State::MakeMathBlock() {
-	auto block = Block();
-	block.kind = BlockKind::Math;
-	return block;
-}
-
-Block State::MakeDividerBlock() {
-	auto block = Block();
-	block.kind = BlockKind::Divider;
-	return block;
-}
-
-Block State::MakeAnchorBlock(QString anchorId) {
-	auto block = Block();
-	block.kind = BlockKind::Anchor;
-	block.anchorId = std::move(anchorId);
-	return block;
-}
-
-Block State::MakeListBlock(ListKind kind, TaskState taskState) {
-	auto block = Block();
-	block.kind = BlockKind::List;
-	block.listKind = kind;
-	auto item = ListItem();
-	item.taskState = taskState;
-	block.listItems.push_back(std::move(item));
-	if (kind != ListKind::Ordered) {
-		block.orderedList = {};
-	}
-	return block;
-}
-
-ListItem State::MakeParagraphListItem(TaskState taskState) {
-	auto item = ListItem();
-	item.taskState = taskState;
-	item.number = {};
-	item.blocks.push_back(MakeParagraphBlock());
-	return item;
-}
-
-Block State::MakeDetailsBlock() {
-	auto block = Block();
-	block.kind = BlockKind::Details;
-	block.blocks.push_back(MakeParagraphBlock());
-	return block;
-}
-
-Block State::MakeTableBlock() {
-	auto block = Block();
-	block.kind = BlockKind::Table;
-	block.bordered = true;
-	block.tableRows.reserve(3);
-	for (auto rowIndex = 0; rowIndex != 3; ++rowIndex) {
-		auto row = RichPage::TableRow();
-		row.cells.reserve(3);
-		for (auto cellIndex = 0; cellIndex != 3; ++cellIndex) {
-			auto cell = TableCell();
-			cell.header = (rowIndex == 0);
-			row.cells.push_back(std::move(cell));
-		}
-		block.tableRows.push_back(std::move(row));
-	}
-	return block;
-}
-
-Block State::MakeMediaBlock(BlockKind kind) {
-	auto block = Block();
-	block.kind = kind;
-	return block;
-}
-
-Block State::MakeMapBlock(double latitude, double longitude) {
-	auto block = Block();
-	block.kind = BlockKind::Map;
-	block.latitude = latitude;
-	block.longitude = longitude;
-	return block;
-}
-
-bool State::RichTextIsEmpty(const RichText &text) {
-	return StringIsEmpty(text.text.text)
-		&& text.anchorId.isEmpty()
-		&& text.anchorIds.empty();
-}
-
-bool State::ListItemIsEmpty(const ListItem &item) {
-	if (!RichTextIsEmpty(item.text) || !item.anchorId.isEmpty()) {
-		return false;
-	}
-	for (const auto &block : item.blocks) {
-		if (!BlockIsEmpty(block)) {
-			return false;
-		}
-	}
-	return true;
-}
-
-bool State::BlockIsEmpty(const Block &block) {
-	if (!RichTextIsEmpty(block.text)
-		|| !RichTextIsEmpty(block.caption)
-		|| !StringIsEmpty(block.formula)
-		|| !block.language.isEmpty()
-		|| !block.anchorId.isEmpty()
-		|| !block.url.isEmpty()
-		|| !block.html.isEmpty()
-		|| !block.author.isEmpty()
-		|| !block.username.isEmpty()
-		|| !block.channelTitle.isEmpty()
-		|| !block.audioTitle.isEmpty()
-		|| !block.audioPerformer.isEmpty()
-		|| !block.audioFileName.isEmpty()
-		|| block.photo
-		|| block.document
-		|| block.peer
-		|| block.photoId
-		|| block.documentId
-		|| block.channelId
-		|| block.accessHash
-		|| block.latitude != 0.
-		|| block.longitude != 0.
-		|| !block.mediaItems.empty()) {
-		return false;
-	}
-	for (const auto &child : block.blocks) {
-		if (!BlockIsEmpty(child)) {
-			return false;
-		}
-	}
-	for (const auto &item : block.listItems) {
-		if (!ListItemIsEmpty(item)) {
-			return false;
-		}
-	}
-	for (const auto &row : block.tableRows) {
-		for (const auto &cell : row.cells) {
-			if (!RichTextIsEmpty(cell.text)) {
-				return false;
-			}
-		}
-	}
-	return true;
-}
-
-bool State::StripWrapperEntityInEditMode(EntityType type) {
-	switch (type) {
-	case EntityType::Url:
-	case EntityType::Email:
-	case EntityType::Hashtag:
-	case EntityType::Cashtag:
-	case EntityType::Mention:
-	case EntityType::BotCommand:
-	case EntityType::Phone:
-	case EntityType::BankCard:
-		return true;
-	default:
-		return false;
-	}
-}
-
-TextWithEntities State::StripEditModeWrapperEntities(TextWithEntities text) {
-	auto filtered = EntitiesInText();
-	filtered.reserve(text.entities.size());
-	for (const auto &entity : text.entities) {
-		if (!StripWrapperEntityInEditMode(entity.type())) {
-			filtered.push_back(entity);
-		}
-	}
-	text.entities = std::move(filtered);
-	return text;
-}
-
-void State::StripEditModeWrapperEntities(RichPage::RichText &text) {
-	const auto strip = ranges::any_of(
-		text.text.entities,
-		[](const EntityInText &entity) {
-			return StripWrapperEntityInEditMode(entity.type());
-		});
-	if (strip) {
-		text.text = StripEditModeWrapperEntities(std::move(text.text));
-	}
-}
-
-void State::StripEditModeWrapperEntities(
-		std::vector<RichPage::Block> &blocks) {
-	for (auto &block : blocks) {
-		StripEditModeWrapperEntities(block.text);
-		StripEditModeWrapperEntities(block.caption);
-		StripEditModeWrapperEntities(block.blocks);
-		for (auto &item : block.listItems) {
-			StripEditModeWrapperEntities(item.text);
-			StripEditModeWrapperEntities(item.blocks);
-		}
-		for (auto &row : block.tableRows) {
-			for (auto &cell : row.cells) {
-				StripEditModeWrapperEntities(cell.text);
-			}
-		}
-	}
-}
-
-bool CanEditRichPage(const RichPage &page) {
-	return CanEditBlocks(page.blocks);
-}
-
-bool CanEditRichPage(const std::shared_ptr<const RichPage> &page) {
-	return page && CanEditRichPage(*page);
-}
 
 } // namespace Iv::Editor

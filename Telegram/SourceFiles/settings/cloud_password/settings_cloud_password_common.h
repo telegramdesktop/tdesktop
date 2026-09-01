@@ -10,6 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_variant.h"
 #include "ui/widgets/box_content_divider.h"
 
+#include "styles/style_boxes.h"
+#include "styles/style_settings.h"
+
 namespace Ui {
 class FlatLabel;
 class InputField;
@@ -57,7 +60,8 @@ void SetupHeader(
 [[nodiscard]] not_null<Ui::PasswordInput*> AddPasswordField(
 	not_null<Ui::VerticalLayout*> content,
 	rpl::producer<QString> &&placeholder,
-	const QString &text);
+	const QString &text,
+	const style::InputField &st = st::settingLocalPasscodeInputField);
 
 [[nodiscard]] not_null<Ui::InputField*> AddWrappedField(
 	not_null<Ui::VerticalLayout*> content,
@@ -66,7 +70,9 @@ void SetupHeader(
 
 [[nodiscard]] not_null<Ui::FlatLabel*> AddError(
 	not_null<Ui::VerticalLayout*> content,
-	Ui::PasswordInput *input);
+	Ui::PasswordInput *input,
+	const style::FlatLabel &st = st::settingLocalPasscodeError,
+	const style::margins &padding = st::changePhoneDescriptionPadding);
 
 [[nodiscard]] not_null<Ui::RoundButton*> AddDoneButton(
 	not_null<Ui::VerticalLayout*> content,

@@ -61,6 +61,20 @@ void InvalidateInlineFormulaRasterCache(
 	int devicePixelRatio,
 	const style::Markdown &st);
 
+struct InlineButtonPaintState {
+	const style::Markdown *st = nullptr;
+	std::unique_ptr<Ui::RippleAnimation> ripple;
+	Fn<void()> repaint;
+	QSize rippleSize;
+	QRect rippleRect;
+	QPoint pressPoint;
+	int widthCap = 0;
+	bool pressPending = false;
+	bool editMode = false;
+	bool bubbleGradient = false;
+	RichButtonLoading buttonLoading;
+};
+
 void SetTextLeaf(
 	Ui::Text::String *leaf,
 	const style::TextStyle &textStyle,
@@ -68,11 +82,22 @@ void SetTextLeaf(
 	const TextWithEntities &text,
 	const std::vector<PreparedFormulaSlot> *formulas,
 	InlineFormulaObjectCache *inlineFormulaObjects,
+	const std::shared_ptr<InlineButtonPaintState> &inlineButtonPaintState,
+	int inlineButtonWidthCap,
 	const std::shared_ptr<MediaRuntime> &mediaRuntime,
 	int minResizeWidth,
 	bool rtl,
 	Fn<void()> repaint = nullptr,
 	Fn<void(QRect)> repaintRect = nullptr,
-	Fn<bool(const ClickContext&)> spoilerLinkFilter = nullptr);
+	Fn<bool(const ClickContext&)> spoilerLinkFilter = nullptr,
+	bool richButtonLabel = false);
+
+[[nodiscard]] bool TextHasInlineButton(const TextWithEntities &text);
+
+[[nodiscard]] std::unique_ptr<Ui::Text::CustomEmoji> MakeInlineButtonObject(
+	QStringView data,
+	const style::TextStyle &textStyle,
+	const style::Markdown &st,
+	const Ui::Text::MarkedContext &context);
 
 } // namespace Iv::Markdown

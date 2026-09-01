@@ -87,7 +87,7 @@ protected:
 	void threadSafeReady();
 
 	// Single threaded.
-	void writeChunk(bytes::const_span data, int totalSize);
+	void writeChunk(bytes::const_span data, int64 totalSize);
 
 private:
 	virtual void startLoading() = 0;
@@ -114,6 +114,12 @@ class DedicatedLoader : public AbstractDedicatedLoader {
 public:
 	struct Location {
 		QString username;
+
+		// When channelId is set the channel is used directly with the
+		// cached accessHash instead of resolving username.
+		uint64 channelId = 0;
+		uint64 accessHash = 0;
+
 		int32 postId = 0;
 	};
 	struct File {
@@ -156,8 +162,11 @@ void ResolveChannel(
 	Fn<void(const MTPInputChannel &channel)> done,
 	Fn<void()> fail);
 
+// With a non-zero messageId only the message with that exact id counts,
+// the server may answer a getMessages request with a different message.
 std::optional<MTPMessage> GetMessagesElement(
-	const MTPmessages_Messages &list);
+	const MTPmessages_Messages &list,
+	int messageId = 0);
 
 void StartDedicatedLoader(
 	not_null<MTP::WeakInstance*> mtp,

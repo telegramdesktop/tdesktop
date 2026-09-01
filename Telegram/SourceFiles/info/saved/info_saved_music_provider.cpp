@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "layout/layout_selection.h"
 #include "storage/storage_shared_media.h"
-#include "styles/style_info.h"
 #include "styles/style_overview.h"
 
 namespace Info::Saved {
@@ -223,9 +222,17 @@ std::vector<ListSection> MusicProvider::fillSections(
 }
 
 void MusicProvider::itemRemoved(not_null<const HistoryItem*> item) {
-	if (const auto i = _layouts.find(item); i != end(_layouts)) {
-		_layoutRemoved.fire(i->second.item.get());
-		_layouts.erase(i);
+	const auto i = _layouts.find(item);
+	if (i == end(_layouts)) {
+		return;
+	}
+	_layoutRemoved.fire(i->second.item.get());
+	// The list widget handles layoutRemoved() synchronously and may
+	// refresh its height from there, which can reach refreshViewer()
+	// -> refreshRows() -> fillSections() -> clearStaleLayouts() before
+	// we get back here, erasing this very entry, so look it up again.
+	if (const auto j = _layouts.find(item); j != end(_layouts)) {
+		_layouts.erase(j);
 	}
 }
 
@@ -251,7 +258,11 @@ rpl::producer<not_null<BaseLayout*>> MusicProvider::layoutRemoved() {
 }
 
 BaseLayout *MusicProvider::lookupLayout(const HistoryItem *item) {
-	return nullptr;
+	if (!item) {
+		return nullptr;
+	}
+	const auto i = _layouts.find(item);
+	return (i != _layouts.end()) ? i->second.item.get() : nullptr;
 }
 
 bool MusicProvider::isMyItem(not_null<const HistoryItem*> item) {

@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_widgets.h"
 #include "ui/dynamic_thumbnails.h"
+#include "ui/rect.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/menu/menu_common.h"
 #include "ui/widgets/popup_menu.h"
@@ -50,12 +51,22 @@ constexpr auto kStickerSide = 512;
 		MTPstring());
 }
 
+[[nodiscard]] QSize DimensionsForType(
+		QSize dimensions,
+		Data::StickersType type) {
+	if (!dimensions.isEmpty()) {
+		return dimensions;
+	}
+	return Size(SideForType(type));
+}
+
 [[nodiscard]] std::shared_ptr<FilePrepareResult> PrepareStickerWebp(
 		MTP::DcId dcId,
 		DocumentId id,
 		const QByteArray &bytes,
+		QSize dimensions,
 		Data::StickersType type) {
-	const auto side = SideForType(type);
+	const auto size = DimensionsForType(dimensions, type);
 	const auto filename = (type == Data::StickersType::Emoji)
 		? u"emoji.webp"_q
 		: u"sticker.webp"_q;
@@ -63,8 +74,8 @@ constexpr auto kStickerSide = 512;
 		1,
 		MTP_documentAttributeFilename(MTP_string(filename)));
 	attributes.push_back(MTP_documentAttributeImageSize(
-		MTP_int(side),
-		MTP_int(side)));
+		MTP_int(size.width()),
+		MTP_int(size.height())));
 
 	auto result = MakePreparedFile({
 		.id = id,
@@ -359,11 +370,13 @@ StickerUpload::StickerUpload(
 	not_null<Main::Session*> session,
 	StickerSetIdentifier set,
 	QByteArray webpBytes,
+	QSize dimensions,
 	QString emoji,
 	Data::StickersType type)
 : _session(session)
 , _set(std::move(set))
 , _bytes(std::move(webpBytes))
+, _dimensions(dimensions)
 , _emoji(std::move(emoji))
 , _type(type)
 , _api(&session->mtp()) {
@@ -388,6 +401,7 @@ void StickerUpload::start(
 		_session->mtp().mainDcId(),
 		_documentId,
 		_bytes,
+		_dimensions,
 		_type);
 	_uploadId = FullMsgId(
 		_session->userPeerId(),
@@ -470,7 +484,7 @@ void StickerUpload::uploadReady(const MTPInputFile &file) {
 	_uploadLifetime.destroy();
 	_uploadId = FullMsgId();
 
-	const auto side = SideForType(_type);
+	const auto size = DimensionsForType(_dimensions, _type);
 	auto attributes = QVector<MTPDocumentAttribute>();
 	attributes.push_back(MTP_documentAttributeSticker(
 		MTP_flags(0),
@@ -478,8 +492,8 @@ void StickerUpload::uploadReady(const MTPInputFile &file) {
 		MTP_inputStickerSetEmpty(),
 		MTPMaskCoords()));
 	attributes.push_back(MTP_documentAttributeImageSize(
-		MTP_int(side),
-		MTP_int(side)));
+		MTP_int(size.width()),
+		MTP_int(size.height())));
 
 	const auto media = MTP_inputMediaUploadedDocument(
 		MTP_flags(0),

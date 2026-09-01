@@ -108,6 +108,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_channel_earn.h" // st::channelEarnCurrencyCommonMargins
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
+#include "styles/style_info_profile_actions.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h" // settingsButtonRightSkip.
@@ -3157,12 +3158,12 @@ void ActionsFiller::fillUserActions(not_null<UserData*> user) {
 		addEditContactAction(user);
 		addDeleteContactAction(user);
 	}
+	if (CanReportBot(user)) {
+		addBotCommandActions(user);
+		_wrap->add(CreateSkipWidget(_wrap, st::infoBlockButtonSkip));
+		addReportAction();
+	}
 	if (!user->isSelf() && !user->isSupport() && !user->isVerifyCodes()) {
-		if (user->isBot()) {
-			addBotCommandActions(user);
-			_wrap->add(CreateSkipWidget(_wrap, st::infoBlockButtonSkip));
-			addReportAction();
-		}
 		addBlockAction(user);
 	}
 }

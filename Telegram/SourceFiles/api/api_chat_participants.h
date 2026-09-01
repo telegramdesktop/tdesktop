@@ -138,6 +138,10 @@ public:
 		not_null<ChannelData*> channel,
 		not_null<PeerData*> participant);
 
+	[[nodiscard]] rpl::producer<bool> kickedValue(
+		not_null<ChannelData*> channel,
+		not_null<PeerData*> participant);
+
 	void loadSimilarPeers(not_null<PeerData*> peer);
 
 	struct Peers {
@@ -185,6 +189,17 @@ private:
 		not_null<ChannelData*>,
 		not_null<PeerData*>>;
 	base::flat_map<KickRequest, mtpRequestId> _kickRequests;
+
+	struct Kicked {
+		rpl::variable<bool> value = false;
+		mtpRequestId requestId = 0;
+	};
+	void applyKicked(
+		not_null<ChannelData*> channel,
+		not_null<PeerData*> participant,
+		bool kicked);
+
+	base::flat_map<KickRequest, std::unique_ptr<Kicked>> _kicked;
 
 	base::flat_map<not_null<PeerData*>, SimilarPeers> _similar;
 	rpl::event_stream<not_null<PeerData*>> _similarLoaded;

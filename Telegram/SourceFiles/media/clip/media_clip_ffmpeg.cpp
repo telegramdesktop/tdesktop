@@ -224,14 +224,20 @@ bool FFMpegReaderImplementation::renderFrame(
 			memcpy(d + i * dbpl, s + i * sbpl, bpl);
 		}
 	} else {
-		if ((_swsSize != toSize) || (_frame->format != -1 && _frame->format != _codecContext->pix_fmt) || !_swsContext) {
-			_swsSize = toSize;
-			_swsContext = sws_getCachedContext(_swsContext, _frame->width, _frame->height, AVPixelFormat(_frame->format), toSize.width(), toSize.height(), AV_PIX_FMT_BGRA, 0, nullptr, nullptr, nullptr);
+		_swsContext = FFmpeg::MakeSwscalePointer(
+			QSize(_frame->width, _frame->height),
+			format,
+			toSize,
+			AV_PIX_FMT_BGRA,
+			&_swsContext);
+		if (!_swsContext) {
+			LOG(("Gif Error: Unable to create sws context %1").arg(logData()));
+			return false;
 		}
 		// AV_NUM_DATA_POINTERS defined in AVFrame struct
 		uint8_t *toData[AV_NUM_DATA_POINTERS] = { to.bits(), nullptr };
 		int toLinesize[AV_NUM_DATA_POINTERS] = { int(to.bytesPerLine()), 0 };
-		sws_scale(_swsContext, _frame->data, _frame->linesize, 0, _frame->height, toData, toLinesize);
+		sws_scale(_swsContext.get(), _frame->data, _frame->linesize, 0, _frame->height, toData, toLinesize);
 	}
 	if (hasAlpha) {
 		FFmpeg::PremultiplyInplace(to);
@@ -276,6 +282,7 @@ bool FFMpegReaderImplementation::start(Mode mode, crl::time &positionMs) {
 		return false;
 	}
 	_fmtContext->pb = _ioContext;
+	FFmpeg::RestrictToCustomIO(_fmtContext);
 
 	int res = 0;
 	char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
@@ -381,6 +388,10 @@ bool FFMpegReaderImplementation::inspectAt(crl::time &positionMs) {
 	return true;
 }
 
+bool FFMpegReaderImplementation::hasAudio() const {
+	return _hasAudioStream;
+}
+
 bool FFMpegReaderImplementation::isGifv() const {
 	if (_hasAudioStream) {
 		return false;
@@ -413,7 +424,6 @@ QString FFMpegReaderImplementation::logData() const {
 
 FFMpegReaderImplementation::~FFMpegReaderImplementation() {
 	if (_codecContext) avcodec_free_context(&_codecContext);
-	if (_swsContext) sws_freeContext(_swsContext);
 	if (_opened) {
 		avformat_close_input(&_fmtContext);
 	}

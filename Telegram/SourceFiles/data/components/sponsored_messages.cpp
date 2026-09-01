@@ -238,6 +238,69 @@ void SponsoredMessages::inject(
 	}
 }
 
+auto SponsoredMessages::injectState(not_null<History*> history)
+-> std::optional<InjectState> {
+	if (!canHaveFor(history)) {
+		return std::nullopt;
+	}
+	const auto it = _data.find(history);
+	if (it == end(_data)) {
+		return std::nullopt;
+	}
+	auto &list = it->second;
+	if (!list.postsBetween) {
+		return std::nullopt;
+	}
+	const auto entryIt = ranges::find_if(list.entries, [](const Entry &e) {
+		return e.item == nullptr;
+	});
+	if (entryIt == end(list.entries)) {
+		if (!list.entries.empty()) {
+			list.showedAll = true;
+		}
+		return std::nullopt;
+	}
+	return InjectState{
+		.lastInjected = (entryIt != begin(list.entries))
+			? (entryIt - 1)->item.get()
+			: nullptr,
+		.postsBetween = list.postsBetween,
+		.injectedAny = (list.injectedCount > 0),
+	};
+}
+
+HistoryItem *SponsoredMessages::injectItem(
+		not_null<History*> history,
+		not_null<HistoryItem*> after) {
+	const auto it = _data.find(history);
+	if (it == end(_data)) {
+		return nullptr;
+	}
+	auto &list = it->second;
+	if (!list.postsBetween) {
+		return nullptr;
+	}
+	const auto entryIt = ranges::find_if(list.entries, [](const Entry &e) {
+		return e.item == nullptr;
+	});
+	if (entryIt == end(list.entries)) {
+		return nullptr;
+	}
+	// SponsoredMessages::Details can be requested within
+	// the constructor of HistoryItem, so itemFullId is used as a key.
+	entryIt->itemFullId = FullMsgId(
+		history->peer->id,
+		_session->data().nextLocalMessageId());
+	const auto makedMessage = history->makeMessage(
+		entryIt->itemFullId.msg,
+		entryIt->sponsored.from,
+		entryIt->sponsored.textWithEntities,
+		after.get());
+	entryIt->item.reset(makedMessage.get());
+	list.injectedCount++;
+	return entryIt->item.get();
+}
+
 bool SponsoredMessages::canHaveFor(not_null<History*> history) const {
 	if (history->peer->isChannel()) {
 		return true;
@@ -272,7 +335,7 @@ void SponsoredMessages::request(not_null<History*> history, Fn<void()> done) {
 	{
 		const auto it = _data.find(history);
 		if (it != end(_data)) {
-			auto &list = it->second;
+			const auto &list = it->second;
 			// Don't rebuild currently displayed messages.
 			const auto proj = [](const Entry &e) {
 				return e.item != nullptr;
@@ -324,7 +387,7 @@ void SponsoredMessages::requestForVideo(
 	{
 		const auto it = _dataForVideo.find(peer);
 		if (it != end(_dataForVideo)) {
-			auto &list = it->second;
+			const auto &list = it->second;
 			// Don't rebuild currently displayed messages.
 			const auto proj = [](const Entry &e) {
 				return e.item != nullptr;
@@ -455,7 +518,7 @@ FullMsgId SponsoredMessages::fillTopBar(
 		not_null<Ui::RpWidget*> widget) {
 	const auto it = _data.find(history);
 	if (it != end(_data)) {
-		auto &list = it->second;
+		const auto &list = it->second;
 		if (!list.entries.empty()) {
 			const auto &entry = list.entries.front();
 			const auto fullId = entry.itemFullId;
@@ -646,7 +709,7 @@ const SponsoredMessages::Entry *SponsoredMessages::find(
 	if (it == end(_data)) {
 		return nullptr;
 	}
-	auto &list = it->second;
+	const auto &list = it->second;
 	const auto entryIt = ranges::find_if(list.entries, [&](const Entry &e) {
 		return e.itemFullId == fullId;
 	});

@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "media/streaming/media_streaming_common.h"
 #include "base/platform/base_platform_info.h"
+#include "styles/style_basic.h"
 #include "styles/style_media_view.h"
 #include "styles/style_widgets.h"
 
@@ -25,7 +26,8 @@ using namespace Ui::GL;
 
 struct PipUniforms {
 	float viewport[2];
-	float _pad0[2];
+	float fragCoordYUp;
+	float _pad0;
 	float roundRect[4];
 	float roundRadius;
 	float _pad1[3];
@@ -37,16 +39,29 @@ struct PipUniforms {
 };
 static_assert(sizeof(PipUniforms) % 16 == 0);
 
+// The NDC Y flip stays at offset 12 in every block, see NdcFlipY().
 struct ImageUniforms {
 	float viewport[2];
 	float g_opacity;
+	float flipY;
 	float o_opacity;
+	float _pad0[3];
 };
 static_assert(sizeof(ImageUniforms) % 16 == 0);
 
 [[nodiscard]] QShader LoadShader(const QString &name) {
 	return Ui::Rhi::ShaderFromFile(
 		u":/shaders/"_q + name + u".qsb"_q);
+}
+
+// Vulkan is the only backend with the NDC Y axis pointing down.
+[[nodiscard]] float NdcFlipY(not_null<QRhi*> rhi) {
+	return rhi->isYUpInNDC() ? 1.f : -1.f;
+}
+
+// OpenGL is the only backend with gl_FragCoord.y counting from the bottom.
+[[nodiscard]] float FragCoordYUp(not_null<QRhi*> rhi) {
+	return rhi->isYUpInFramebuffer() ? 1.f : 0.f;
 }
 
 [[nodiscard]] QRhiGraphicsPipeline *CreatePipeline(
@@ -725,6 +740,11 @@ void Pip::RendererRhi::paintTransformedContent(
 	if (const auto shift = (geometry.rotation / 90); shift != 0) {
 		std::rotate(begin(rect), begin(rect) + shift, end(rect));
 	}
+	if (const auto flipY = NdcFlipY(_rhi); flipY < 0.f) {
+		for (auto &corner : rect) {
+			corner[1] = -corner[1];
+		}
+	}
 	const auto xscale = 1.f / geometry.inner.width();
 	const auto yscale = 1.f / geometry.inner.height();
 	const float coords[] = {
@@ -761,6 +781,7 @@ void Pip::RendererRhi::paintTransformedContent(
 	PipUniforms uniforms{};
 	uniforms.viewport[0] = _viewport.width() * _factor;
 	uniforms.viewport[1] = _viewport.height() * _factor;
+	uniforms.fragCoordYUp = FragCoordYUp(_rhi);
 	uniforms.roundRect[0] = roundRect.left();
 	uniforms.roundRect[1] = roundRect.top();
 	uniforms.roundRect[2] = roundRect.width();
@@ -904,6 +925,7 @@ void Pip::RendererRhi::paintButton(
 	uniforms.viewport[1] = _viewport.height() * _factor;
 	uniforms.g_opacity = float(shown);
 	uniforms.o_opacity = float(over);
+	uniforms.flipY = NdcFlipY(_rhi);
 	_rub->updateDynamicBuffer(
 		_uniformBuffer, uOffset, sizeof(ImageUniforms), &uniforms);
 
@@ -1079,6 +1101,7 @@ void Pip::RendererRhi::paintUsingRaster(
 	uniforms.viewport[0] = _viewport.width() * _factor;
 	uniforms.viewport[1] = _viewport.height() * _factor;
 	uniforms.g_opacity = 1.0f;
+	uniforms.flipY = NdcFlipY(_rhi);
 
 	_rub->updateDynamicBuffer(
 		_uniformBuffer,

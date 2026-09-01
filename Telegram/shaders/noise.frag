@@ -69,5 +69,7 @@ void main() {
 	vec2 texCoord = v_texcoord * dimensions / grainsize;
 	vec2 rotated = rotateTexCoords(texCoord, noiseCoordRotation);
 	float noise = pnoise3D(vec3(rotated, 0.0));
-	fragColor = vec4(noise * 0.5 + 0.5);
+	// The consumer decodes this back with value * 4 - 2, the values
+	// are almost always within [-2, 2].
+	fragColor = vec4(clamp((noise + 2.0) * 0.25, 0.0, 1.0));
 }

@@ -3,6 +3,7 @@ Debug/
 Release/
 /ThirdParty/
 /Telegram/build/target
+/Telegram/build/ai-machine-tag
 /Telegram/tests/
 /Telegram/gyp/tests/*.test
 /Telegram/out/
@@ -44,6 +45,8 @@ stage
 /snap/gui/*.png
 /snap/gui/*.desktop
 /snap/plugins/__pycache__
+__pycache__/
+*.pyc
 
 /Telegram/*.user.*
 *.txt.user

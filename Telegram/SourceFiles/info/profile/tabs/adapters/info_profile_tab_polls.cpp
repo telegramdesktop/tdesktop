@@ -135,6 +135,12 @@ public:
 		_polls.setSearchQuery(QString());
 	}
 
+	void paintOverflow(QPainter &p) override {
+		if (!skeletonShown()) {
+			_polls.paintBackground(p, QRect());
+		}
+	}
+
 	void setVisibleRegion(int top, int bottom) override {
 		const auto height = bottom - top;
 		if (_viewportHeight != height) {

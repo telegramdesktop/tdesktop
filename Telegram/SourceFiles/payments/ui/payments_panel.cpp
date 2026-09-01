@@ -442,7 +442,10 @@ void Panel::showEditCardByUrl(
 	auto bottomText = canSaveInformation
 		? rpl::producer<QString>()
 		: tr::lng_payments_processed_by(lt_provider, rpl::single(provider));
-	if (!showWebview(url, true, std::move(bottomText))) {
+	if (!showWebview(
+			url,
+			WebviewMode::PaymentMethod,
+			std::move(bottomText))) {
 		const auto available = Webview::Availability();
 		if (available.error != Webview::Available::Error::None) {
 			showWebviewError(
@@ -493,8 +496,9 @@ void Panel::hideWebviewProgress() {
 
 bool Panel::showWebview(
 		const QString &url,
-		bool allowBack,
+		WebviewMode mode,
 		rpl::producer<QString> bottomText) {
+	_webviewMode = mode;
 	const auto params = _delegate->panelWebviewThemeParams();
 	if (!_webview && !createWebview(params)) {
 		return false;
@@ -503,7 +507,7 @@ bool Panel::showWebview(
 	_widget->hideLayer(anim::type::instant);
 	updateThemeParams(params);
 	_webview->window.navigate(url);
-	_widget->setBackAllowed(allowBack);
+	_widget->setBackAllowed(mode == WebviewMode::PaymentMethod);
 	if (bottomText) {
 		const auto &padding = st::paymentsPanelPadding;
 		const auto label = CreateChild<FlatLabel>(
@@ -598,6 +602,9 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 	}, _webview->lifetime);
 
 	raw->setMessageHandler([=](const QJsonDocument &message) {
+		if (_webviewMode != WebviewMode::PaymentMethod) {
+			return;
+		}
 		const auto save = _saveWebviewInformation
 			&& _saveWebviewInformation->checked();
 		_delegate->panelWebviewMessage(message, save);

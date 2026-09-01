@@ -29,7 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_dialogs.h"
 
 namespace SendFiles {
 namespace {
@@ -310,7 +309,7 @@ void ReplyPillHeader::paintEvent(QPaintEvent *e) {
 	const auto media = _shownMessage->media();
 	const auto hasPreview = media && media->hasReplyPreview();
 	const auto preview = hasPreview ? media->replyPreview() : nullptr;
-	const auto spoilered = media && media->hasSpoiler();
+	const auto spoilered = media && media->hasSpoilerForPreview();
 	if (!spoilered) {
 		_previewSpoiler = nullptr;
 	} else if (!_previewSpoiler) {
@@ -329,18 +328,21 @@ void ReplyPillHeader::paintEvent(QPaintEvent *e) {
 			pillCenterY - st::historyReplyPreview / 2,
 			st::historyReplyPreview,
 			st::historyReplyPreview);
-		p.drawPixmap(to.x(), to.y(), preview->pixSingle(
+		const auto pixmap = preview->pixSingle(
 			preview->size() / style::DevicePixelRatio(),
 			{
 				.options = Images::Option::RoundSmall,
 				.outer = to.size(),
-			}));
+			});
+		p.drawPixmap(to.x(), to.y(), pixmap);
 		if (_previewSpoiler) {
-			Ui::FillSpoilerRect(
+			HistoryView::FillPreviewSpoiler(
 				p,
 				to,
+				pixmap,
 				Ui::DefaultImageSpoiler().frame(
-					_previewSpoiler->index(crl::now(), p.inactive())));
+					_previewSpoiler->index(crl::now(), p.inactive())),
+				_spoilerCache);
 		}
 	}
 

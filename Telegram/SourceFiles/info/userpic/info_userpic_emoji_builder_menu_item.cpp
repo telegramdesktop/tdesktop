@@ -22,8 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/menu/menu_common.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_session_controller.h"
-#include "styles/style_boxes.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_userpic_button.h"
 
 #include <random>
 

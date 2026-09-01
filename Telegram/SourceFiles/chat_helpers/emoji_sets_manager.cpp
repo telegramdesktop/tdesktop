@@ -134,7 +134,10 @@ int64 GetDownloadSize(int id) {
 MTP::DedicatedLoader::Location GetDownloadLocation(int id) {
 	const auto username = kCloudLocationUsername.utf16();
 	const auto i = ranges::find(kSets, id, &Set::id);
-	return MTP::DedicatedLoader::Location{ username, i->postId };
+	return MTP::DedicatedLoader::Location{
+		.username = username,
+		.postId = i->postId,
+	};
 }
 
 SetState ComputeState(int id) {

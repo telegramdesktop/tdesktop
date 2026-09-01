@@ -148,6 +148,8 @@ bool update() {
 		} else {
 			if (versionNum == 0x7FFFFFFF) { // alpha version
 
+			} else if (versionNum == 0x7FFFFFFE) { // v2 canary version
+
 			} else if (!ReadFile(versionFile, &versionLen, sizeof(DWORD), &readLen, NULL) || readLen != sizeof(DWORD) || versionLen > 63) {
 				versionNum = 0;
 			} else if (!ReadFile(versionFile, versionStr, versionLen, &readLen, NULL) || readLen != versionLen) {
@@ -276,7 +278,7 @@ bool update() {
 }
 
 void updateRegistry() {
-	if (versionNum && versionNum != 0x7FFFFFFF) {
+	if (versionNum && versionNum != 0x7FFFFFFF && versionNum != 0x7FFFFFFE) {
 		writeLog(L"Updating registry..");
 		versionStr[versionLen / 2] = 0;
 		HKEY rkey;

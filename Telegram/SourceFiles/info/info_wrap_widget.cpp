@@ -53,8 +53,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "menu/menu_send.h"
 #include "styles/style_chat.h" // popupMenuExpandedSeparator
 #include "styles/style_info.h"
-#include "styles/style_profile.h"
-#include "styles/style_menu_icons.h"
 #include "styles/style_layers.h"
 
 namespace Info {
@@ -254,37 +252,29 @@ void WrapWidget::injectActivePeerProfile(not_null<PeerData*> peer) {
 		? _historyStack.front().section->section().type()
 		: _controller->section().type();
 	const auto firstSectionMediaType = [&] {
-		if (firstSectionType == Section::Type::Profile
-			|| firstSectionType == Section::Type::SavedSublists
-			|| firstSectionType == Section::Type::Downloads) {
+		if (firstSectionType != Section::Type::Media
+			&& firstSectionType != Section::Type::GlobalMedia) {
 			return Section::MediaType::kCount;
 		}
 		return hasStackHistory()
 			? _historyStack.front().section->section().mediaType()
 			: _controller->section().mediaType();
 	}();
-	const auto savedSublistsInfo = peer->savedSublistsInfo();
-	const auto sharedMediaInfo = peer->sharedMediaInfo();
-	const auto expectedType = savedSublistsInfo
-		? Section::Type::SavedSublists
-		: sharedMediaInfo
-		? Section::Type::Media
-		: Section::Type::Profile;
-	const auto expectedMediaType = savedSublistsInfo
-		? Section::MediaType::kCount
-		: sharedMediaInfo
-		? Section::MediaType::Photo
+	const auto firstSavedMessages = hasStackHistory()
+		? _historyStack.front().section->savedMessages()
+		: _controller->key().savedMessages();
+	auto expected = Memento::Default(peer);
+	const auto expectedContent = expected->content();
+	const auto expectedSection = expectedContent->section();
+	const auto expectedMediaType = (expectedSection.type()
+		== Section::Type::Media)
+		? expectedSection.mediaType()
 		: Section::MediaType::kCount;
-	if (firstSectionType != expectedType
+	if (firstSectionType != expectedSection.type()
 		|| firstSectionMediaType != expectedMediaType
+		|| firstSavedMessages != expectedContent->savedMessages()
 		|| firstPeer != peer) {
-		auto section = savedSublistsInfo
-			? Section(Section::Type::SavedSublists)
-			: sharedMediaInfo
-			? Section(Section::MediaType::Photo)
-			: Section(Section::Type::Profile);
-		injectActiveProfileMemento(std::move(
-			Memento(peer, section).takeStack().front()));
+		injectActiveProfileMemento(expected->takeStack().front());
 	}
 }
 
@@ -506,6 +496,13 @@ void WrapWidget::setupTopBarMenuToggle() {
 		}, _topBar->lifetime());
 	} else if (key.giftsPeer()) {
 		addTopBarMenuButton();
+	} else if (section.type() == Section::Type::Statistics) {
+		_content->topBarMenuFilledChanges(
+		) | rpl::on_next([=] {
+			if (!_topBarMenuToggle) {
+				addTopBarMenuButton();
+			}
+		}, _topBar->lifetime());
 	}
 }
 
@@ -871,7 +868,7 @@ bool WrapWidget::showInternal(
 		not_null<Window::SectionMemento*> memento,
 		const Window::SectionShow &params) {
 	if (auto infoMemento = dynamic_cast<Memento*>(memento.get())) {
-		if (!_controller || infoMemento->stackSize() > 1) {
+		if (_mementoTaken || infoMemento->stackSize() > 1) {
 			return false;
 		}
 		auto content = infoMemento->content();
@@ -910,8 +907,13 @@ std::shared_ptr<Window::SectionMemento> WrapWidget::createMemento() {
 	}
 	stack.push_back(_content->createMemento());
 
-	// We're not in valid state anymore and supposed to be destroyed.
-	_controller = nullptr;
+	// We're not in valid state anymore and supposed to be destroyed. The
+	// controller used to be destroyed right here, but the content widgets
+	// hold it by a raw pointer and outlive this call - MainWidget::showHistory
+	// takes the memento, shows the history and only then destroys the section.
+	// It is destroyed with us instead, after _content, which is declared
+	// after it.
+	_mementoTaken = true;
 
 	return std::make_shared<Memento>(std::move(stack));
 }
@@ -942,11 +944,11 @@ bool WrapWidget::returnToFirstStackFrame(
 	if (!hasStackHistory()) {
 		return false;
 	}
-	auto firstPeer = _historyStack.front().section->peer();
-	auto firstSection = _historyStack.front().section->section();
-	if (firstPeer == memento->peer()
-		&& firstSection.type() == memento->section().type()
-		&& firstSection.type() == Section::Type::Profile) {
+	const auto first = _historyStack.front().section.get();
+	if (first->peer() == memento->peer()
+		&& first->savedMessages() == memento->savedMessages()
+		&& first->section().type() == memento->section().type()
+		&& first->section().type() == Section::Type::Profile) {
 		_historyStack.resize(1);
 		_controller->showBackFromStack();
 		return true;
@@ -965,7 +967,7 @@ void WrapWidget::showNewContent(
 	auto newController = createController(
 		_controller->parentController(),
 		memento);
-	if (_controller && newController) {
+	if (newController) {
 		newController->takeStepData(_controller.get());
 	}
 	auto newContent = object_ptr<ContentWidget>(nullptr);

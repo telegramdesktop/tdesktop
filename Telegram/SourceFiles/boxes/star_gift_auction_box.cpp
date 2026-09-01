@@ -69,7 +69,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_premium.h"
-#include "styles/style_settings.h"
 #include "styles/style_widgets.h"
 
 #include <QtWidgets/QApplication>
@@ -1281,9 +1280,9 @@ void AuctionGotGiftsBox(
 					}
 					return result;
 				};
-				auto &models = state->data.models;
-				auto &patterns = state->data.patterns;
-				auto &backdrops = state->data.backdrops;
+				const auto &models = state->data.models;
+				const auto &patterns = state->data.patterns;
+				const auto &backdrops = state->data.backdrops;
 				consumer.put_next(cover({
 					.title = info.resellTitle,
 					.model = models[index(state->modelIndices, models)],

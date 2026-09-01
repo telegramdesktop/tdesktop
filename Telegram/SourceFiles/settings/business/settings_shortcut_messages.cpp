@@ -239,7 +239,8 @@ private:
 		not_null<HistoryItem*> item,
 		Api::SendOptions options,
 		mtpRequestId *const saveEditMsgRequestId,
-		bool spoilered);
+		bool spoilered,
+		Api::VideoCoverEdit videoCover);
 	void chooseAttach(std::optional<bool> overrideSendImagesAsPhotos);
 	[[nodiscard]] FullReplyTo replyTo() const;
 	void doSetInnerFocus();
@@ -679,7 +680,12 @@ void ShortcutMessages::setupComposeControls() {
 		if (const auto item = _session->data().message(data.fullId)) {
 			if (item->isBusinessShortcut()) {
 				const auto spoiler = data.spoilered;
-				edit(item, data.options, saveEditMsgRequestId, spoiler);
+				edit(
+					item,
+					data.options,
+					saveEditMsgRequestId,
+					spoiler,
+					data.videoCover);
 			}
 		}
 	}, lifetime());
@@ -738,6 +744,7 @@ void ShortcutMessages::setupComposeControls() {
 		}
 	}, lifetime());
 
+	_composeControls->setPasteToastParent(_scroll.get());
 	_composeControls->setMimeDataHook([=](
 			not_null<const QMimeData*> data,
 			Ui::InputField::MimeAction action) {
@@ -769,7 +776,7 @@ void ShortcutMessages::setupComposeControls() {
 
 	_composeControls->height(
 	) | rpl::on_next([=](int height) {
-		const auto wasMax = (_scroll->scrollTopMax() == _scroll->scrollTop());
+		const auto wasMax = (_scroll->scrollTop() >= _scroll->scrollTopMax());
 		_controlsWrap->resize(width(), height - st::boxRadius);
 		updateComposeControlsPosition();
 		if (wasMax) {
@@ -1221,7 +1228,8 @@ void ShortcutMessages::edit(
 		not_null<HistoryItem*> item,
 		Api::SendOptions options,
 		mtpRequestId *const saveEditMsgRequestId,
-		bool spoilered) {
+		bool spoilered,
+		Api::VideoCoverEdit videoCover) {
 	if (*saveEditMsgRequestId) {
 		return;
 	}
@@ -1291,7 +1299,8 @@ void ShortcutMessages::edit(
 		options,
 		crl::guard(this, done),
 		crl::guard(this, fail),
-		spoilered);
+		spoilered,
+		videoCover);
 
 	_composeControls->hidePanelsAnimated();
 	doSetInnerFocus();
@@ -1486,6 +1495,7 @@ bool ShortcutMessages::sendExistingDocument(
 		document,
 		localId);
 
+	_composeControls->clearFieldAfterStickerSend();
 	_composeControls->cancelReplyMessage();
 	finishSending();
 	return true;

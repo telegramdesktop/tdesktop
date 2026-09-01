@@ -20,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "ui/text/custom_emoji_helper.h"
 #include "styles/style_layers.h"
-#include "styles/style_chat_helpers.h"
 
 namespace Ui {
 namespace {

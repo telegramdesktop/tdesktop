@@ -37,7 +37,8 @@ void SetupStealthMode(
 void AddStealthModeMenu(
 	const Ui::Menu::MenuCallback &add,
 	not_null<PeerData*> peer,
-	not_null<Window::SessionController*> controller);
+	not_null<Window::SessionController*> controller,
+	Fn<void()> onActivated = nullptr);
 
 [[nodiscard]] QString TimeLeftText(int left);
 

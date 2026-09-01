@@ -294,6 +294,12 @@ void Viewport::add(
 		rpl::producer<QSize> trackSize,
 		rpl::producer<bool> pinned,
 		bool self) {
+	// Tiles are added async (see Panel::setupVideo), so a quick
+	// deactivate + activate of the same endpoint queues two additions,
+	// while the removal between them is a no-op (no tile added yet).
+	// A duplicate tile is never removed afterwards and outlives both
+	// its member row and its video track, crashing the GL renderer.
+	remove(endpoint);
 	_tiles.push_back(std::make_unique<VideoTile>(
 		endpoint,
 		track,
@@ -347,6 +353,18 @@ void Viewport::remove(const VideoEndpoint &endpoint) {
 		startLargeChangeAnimation();
 	} else {
 		updateTilesGeometry();
+	}
+}
+
+void Viewport::removeByRow(not_null<MembersRow*> row) {
+	auto endpoints = std::vector<VideoEndpoint>();
+	for (const auto &tile : _tiles) {
+		if (tile->row().get() == row.get()) {
+			endpoints.push_back(tile->endpoint());
+		}
+	}
+	for (const auto &endpoint : endpoints) {
+		remove(endpoint);
 	}
 }
 

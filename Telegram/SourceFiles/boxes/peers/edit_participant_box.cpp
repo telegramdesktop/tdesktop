@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "apiwrap.h"
 #include "main/main_session.h"
+#include "styles/style_edit_peer_members.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
@@ -432,6 +433,7 @@ ChatAdminRightsInfo EditAdminBox::defaultRights() const {
 			| Flag::PinMessages
 			| Flag::ManageCall
 			| Flag::ManageRanks
+			| Flag::ManageWelcomeMessages
 			| (CanProcessJoinRequests(peer(), user())
 				? Flag::ProcessJoinRequests
 				: Flag())) }
@@ -445,6 +447,7 @@ ChatAdminRightsInfo EditAdminBox::defaultRights() const {
 			| Flag::InviteByLinkOrAdd
 			| Flag::ManageCall
 			| Flag::ManageDirect
+			| Flag::ManageWelcomeMessages
 			| Flag::BanUsers) };
 }
 
@@ -587,6 +590,7 @@ void EditAdminBox::prepare() {
 		.isCommunity = (channel && channel->isCommunity()),
 		.anyoneCanAddMembers = anyoneCanAddMembers,
 		.canProcessJoinRequests = canProcessJoinRequests,
+		.isBot = user()->isBot(),
 	};
 	Ui::AddSubsectionTitle(inner, tr::lng_rights_edit_admin_header());
 	auto [checkboxes, getChecked, changes, highlightWidget] = CreateEditAdminRights(

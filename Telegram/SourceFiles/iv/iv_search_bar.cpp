@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/palette.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
-#include "styles/style_dialogs.h"
 #include "styles/style_iv.h"
 #include "styles/style_widgets.h"
 

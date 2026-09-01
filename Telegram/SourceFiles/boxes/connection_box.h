@@ -46,6 +46,8 @@ public:
 		Type type,
 		const QMap<QString, QString> &fields);
 
+	[[nodiscard]] static ProxyData ProxyFromLink(const QString &link);
+
 	static object_ptr<Ui::BoxContent> CreateOwningBox(
 		not_null<Main::Account*> account,
 		const QString &highlightId = QString());
@@ -58,8 +60,10 @@ public:
 		Connecting,
 		Online,
 		Checking,
+		NotTested,
 		Available,
-		Unavailable
+		Unavailable,
+		WaitingForBrowser,
 	};
 	struct ItemView {
 		int id = 0;
@@ -71,6 +75,8 @@ public:
 		bool deleted = false;
 		bool supportsShare = false;
 		bool supportsCalls = false;
+		bool web = false;
+		bool canOpenBrowser = false;
 		ItemState state = ItemState::Checking;
 
 	};
@@ -81,6 +87,7 @@ public:
 	void shareItem(int id, bool qr);
 	void shareItems();
 	void applyItem(int id);
+	void openBrowser(int id);
 	object_ptr<Ui::BoxContent> editItemBox(int id);
 	object_ptr<Ui::BoxContent> addNewItemBox();
 	bool setProxySettings(ProxyData::Settings value);

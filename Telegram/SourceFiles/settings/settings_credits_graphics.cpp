@@ -98,6 +98,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/ui_utility.h"
 #include "window/window_session_controller.h"
+#include "styles/style_boxes.h"
 #include "styles/style_calls.h"
 #include "styles/style_channel_earn.h"
 #include "styles/style_chat.h"
@@ -321,7 +322,7 @@ void AddViewMediaHandler(
 			fake.push_back(std::make_unique<Data::MediaPhoto>(
 				state->item,
 				owner->photo(item.id),
-				false)); // spoiler
+				Data::MediaPhoto::Args()));
 		} else {
 			const auto document = owner->document(item.id);
 			const auto item = state->item;
@@ -1395,6 +1396,25 @@ void GenericCreditsEntryCover(
 		: e.barePeerId
 		? owner->peer(PeerId(e.barePeerId)).get()
 		: nullptr;
+	auto message = rpl::producer<Ui::UniqueGiftCoverMessage>();
+	if (uniqueGift && e.hasGiftComment && !e.description.empty()) {
+		auto sender = static_cast<PeerData*>(session->user().get());
+		auto hidden = true;
+		if (!e.anonymous && e.bareGiftMessageAuthorId) {
+			const auto loaded = owner->peerLoaded(
+				PeerId(e.bareGiftMessageAuthorId));
+			if (loaded && !loaded->isServiceUser()) {
+				sender = loaded;
+				hidden = false;
+			}
+		}
+		message = rpl::single(Ui::UniqueGiftCoverMessage{
+			.text = e.description,
+			.placeholder = QString(),
+			.sender = sender,
+			.hidden = hidden,
+		});
+	}
 	if (uniqueGift) {
 		const auto forceTon = e.giftResaleForceTon;
 		const auto cover = Ui::UniqueGiftCover{ *uniqueGift };
@@ -1413,6 +1433,7 @@ void GenericCreditsEntryCover(
 				: rpl::producer<QString>(),
 			.resalePrice = UniqueGiftResalePrice(e.uniqueGift, forceTon),
 			.resaleClick = resaleClick,
+			.message = std::move(message),
 		});
 		if (e.bareGiftOwnerId == session->userPeerId().value) {
 			if (const auto fromId = PeerId(e.barePeerId)) {
@@ -1469,7 +1490,7 @@ void GenericCreditsEntryCover(
 			? st::creditsHistoryEntryStarGiftSize
 			: st::creditsHistoryEntryGiftStickerSize));
 		const auto state = icon->lifetime().make_state<State>();
-		auto &packs = session->giftBoxStickersPacks();
+		const auto &packs = session->giftBoxStickersPacks();
 		const auto document = starGiftSticker
 			? starGiftSticker
 			: e.credits.ton()
@@ -2813,6 +2834,7 @@ Data::CreditsHistoryEntry SavedStarGiftEntry(
 		.bareGiftStickerId = data.info.document->id,
 		.bareGiftOwnerId = ownerId.value,
 		.bareGiftHostId = hostId.value,
+		.bareGiftMessageAuthorId = data.anonymous ? 0 : data.fromId.value,
 		.bareActorId = data.fromId.value,
 		.bareEntryOwnerId = chatGiftPeer ? chatGiftPeer->id.value : 0,
 		.giftChannelSavedId = data.manageId.chatSavedId(),
@@ -2836,6 +2858,7 @@ Data::CreditsHistoryEntry SavedStarGiftEntry(
 		.savedToProfile = !data.hidden,
 		.fromGiftsList = true,
 		.canUpgradeGift = data.upgradable,
+		.hasGiftComment = !data.message.empty(),
 		.in = data.mine,
 		.gift = true,
 	};
@@ -2924,6 +2947,9 @@ void ShowStarGiftViewBox(
 		.bareGiftHostId = hostId.value,
 		.bareGiftReleasedById = (data.stargiftReleasedBy
 			? data.stargiftReleasedBy->id.value
+			: 0),
+		.bareGiftMessageAuthorId = (data.messageAuthor
+			? data.messageAuthor->id.value
 			: 0),
 		.bareActorId = (toChannel ? data.channelFrom->id.value : 0),
 		.bareEntryOwnerId = (toChannel ? data.channel->id.value : 0),

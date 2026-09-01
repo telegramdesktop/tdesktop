@@ -45,8 +45,6 @@ namespace Window {
 class SessionNavigation;
 } // namespace Window
 
-struct HistoryMessageMarkupData;
-
 struct PreparedServiceText {
 	TextWithEntities text;
 	std::vector<ClickHandlerPtr> links;
@@ -68,7 +66,6 @@ enum class MediaCheckResult {
 	Unsupported,
 	Empty,
 	HasExpiredMediaTimeToLive,
-	HasUnsupportedTimeToLive,
 	HasStoryMention,
 };
 [[nodiscard]] MediaCheckResult CheckMessageMedia(
@@ -86,9 +83,23 @@ using OnStackUsers = std::array<UserData*, kMaxUnreadReactions>;
 void CheckReactionNotificationSchedule(
 	not_null<HistoryItem*> item,
 	const OnStackUsers &wasUsers);
+[[nodiscard]] PollData *LookupNotificationPoll(
+	not_null<const HistoryItem*> item);
 void CheckPollVoteNotificationSchedule(
 	not_null<HistoryItem*> item,
 	const std::vector<not_null<PeerData*>> &wasRecentVoters);
+
+// History::destroyMessage clears the notification manager for a destroyed
+// item only when this accepts it, so it has to stay a superset of every
+// scheduler guard that can accept a !isHistoryEntry() item - today only
+// CheckPollVoteNotificationSchedule, whose own creator() check is
+// deliberately not repeated here. An item some scheduler accepts but this
+// rejects stays behind in Manager::_queuedNotifications and in
+// Notification::_item, raw pointers that only Manager::doClearFromItem
+// unlinks.
+[[nodiscard]] bool CanHoldItemNotification(
+	not_null<const HistoryItem*> item);
+
 [[nodiscard]] MessageFlags NewForwardedFlags(
 	not_null<PeerData*> peer,
 	PeerId from,
@@ -100,7 +111,6 @@ void CheckPollVoteNotificationSchedule(
 [[nodiscard]] TextWithEntities EnsureNonEmpty(
 	const TextWithEntities &text = TextWithEntities());
 [[nodiscard]] TextWithEntities UnsupportedMessageText();
-[[nodiscard]] HistoryMessageMarkupData UnsupportedMessageMarkup();
 
 void RequestDependentMessageItem(
 	not_null<HistoryItem*> item,
@@ -128,6 +138,18 @@ void RequestDependentMessageStory(
 	not_null<History*> history,
 	FullReplyTo replyTo);
 [[nodiscard]] bool LookupReplyIsTopicPost(HistoryItem *replyTo);
+[[nodiscard]] bool CanReplyToEphemeral(not_null<const HistoryItem*> item);
+[[nodiscard]] bool IsAnchoredEphemeral(not_null<const HistoryItem*> item);
+
+struct ForwardRange {
+	std::vector<not_null<HistoryItem*>> items;
+	bool fromEphemeral = false;
+};
+[[nodiscard]] std::vector<ForwardRange> CollectForwardRanges(
+	const std::vector<not_null<HistoryItem*>> &items);
+[[nodiscard]] QVector<MTPint> ForwardRangeIds(
+	not_null<Main::Session*> session,
+	const ForwardRange &range);
 [[nodiscard]] bool ShowEphemeralReplyTextOnlyError(
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<Main::Session*> session,

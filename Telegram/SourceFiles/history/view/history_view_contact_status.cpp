@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/tooltip.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/layers/generic_box.h"
 #include "ui/toast/toast.h"
@@ -21,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/generic_box.h"
+#include "ui/ui_utility.h"
 #include "chat_helpers/message_field.h" // PaidSendButtonText
 #include "core/click_handler_types.h"
 #include "core/ui_integration.h"
@@ -41,10 +43,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/sections/settings_premium.h"
 #include "window/window_peer_menu.h"
 #include "window/window_controller.h"
+#include "window/main_window.h"
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
 #include "api/api_blocked_peers.h"
 #include "main/main_session.h"
+#include "base/timer.h"
 #include "base/unixtime.h"
 #include "boxes/peers/edit_contact_box.h"
 #include "styles/style_chat.h"
@@ -52,9 +56,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_widgets.h"
 
 namespace HistoryView {
 namespace {
+
+constexpr auto kAddTooltipDelay = crl::time(1000);
 
 [[nodiscard]] bool BarCurrentlyHidden(not_null<PeerData*> peer) {
 	const auto settings = peer->barSettings();
@@ -219,7 +226,10 @@ private:
 
 class ContactStatus::Bar final : public Ui::RpWidget {
 public:
-	Bar(QWidget *parent, const QString &name);
+	Bar(
+		QWidget *parent,
+		not_null<QWidget*> tooltipParent,
+		const QString &name);
 
 	void showState(
 		State state,
@@ -239,8 +249,12 @@ public:
 private:
 	int resizeGetHeight(int newWidth) override;
 
+	void refreshAddText(int newWidth);
+	void showAddTooltip();
+	void hideAddTooltip();
 	void emojiStatusRepaint();
 
+	const not_null<QWidget*> _tooltipParent;
 	QString _name;
 	object_ptr<Ui::FlatButton> _add;
 	object_ptr<Ui::FlatButton> _unarchive;
@@ -255,7 +269,11 @@ private:
 	object_ptr<Ui::PaddingWrap<Ui::FlatLabel>> _emojiStatusInfo;
 	object_ptr<Ui::PlainShadow> _emojiStatusShadow;
 	object_ptr<Ui::RippleButton> _setBotPhoto;
+	base::unique_qptr<Ui::ImportantTooltip> _addTooltip;
+	base::Timer _addTooltipTimer;
 	bool _emojiStatusRepaintScheduled = false;
+	bool _addWithName = false;
+	bool _addElided = false;
 	bool _narrow = false;
 	rpl::event_stream<> _emojiStatusClicks;
 
@@ -284,8 +302,10 @@ void ContactStatus::BgButton::paintEvent(QPaintEvent *e) {
 
 ContactStatus::Bar::Bar(
 	QWidget *parent,
+	not_null<QWidget*> tooltipParent,
 	const QString &name)
 : RpWidget(parent)
+, _tooltipParent(tooltipParent)
 , _name(name)
 , _add(
 	this,
@@ -331,6 +351,21 @@ ContactStatus::Bar::Bar(
 	_unarchiveIcon->setAccessibleName(tr::lng_new_contact_unarchive(tr::now));
 	_reportIcon->setAccessibleName(tr::lng_report_spam(tr::now));
 	_requestChatInfo->setAttribute(Qt::WA_TransparentForMouseEvents);
+	_addTooltipTimer.setCallback([=] {
+		showAddTooltip();
+	});
+	_add->events(
+	) | rpl::on_next([=](not_null<QEvent*> e) {
+		const auto type = e->type();
+		if (type == QEvent::Enter) {
+			if (_addElided) {
+				_addTooltipTimer.callOnce(kAddTooltipDelay);
+			}
+		} else if (type == QEvent::Leave
+			|| type == QEvent::MouseButtonPress) {
+			hideAddTooltip();
+		}
+	}, _add->lifetime());
 	_emojiStatusInfo->paintRequest(
 	) | rpl::on_next([=, raw = _emojiStatusInfo.data()](QRect clip) {
 		_emojiStatusRepaintScheduled = false;
@@ -385,9 +420,7 @@ void ContactStatus::Bar::showState(
 		});
 	}
 	_emojiStatusInfo->setVisible(has);
-	_add->setText((type == Type::Add)
-		? tr::lng_new_contact_add_name(tr::now, lt_user, _name).toUpper()
-		: tr::lng_new_contact_add(tr::now).toUpper());
+	_addWithName = (type == Type::Add);
 	_report->setText((type == Type::ReportSpam)
 		? tr::lng_report_spam_and_leave(tr::now).toUpper()
 		: tr::lng_report_spam(tr::now).toUpper());
@@ -446,7 +479,77 @@ rpl::producer<> ContactStatus::Bar::setBotPhotoClicks() const {
 	return _setBotPhoto->clicks() | rpl::to_empty;
 }
 
+void ContactStatus::Bar::refreshAddText(int newWidth) {
+	const auto compose = [](const QString &name) {
+		return tr::lng_new_contact_add_name(tr::now, lt_user, name).toUpper();
+	};
+	auto text = tr::lng_new_contact_add(tr::now).toUpper();
+	auto elided = false;
+	if (_addWithName) {
+		const auto font = st::historyContactStatusButton.font;
+		const auto available = newWidth
+			- _close->width()
+			- 2 * st::historyContactStatusMinSkip;
+		const auto name = _name.toUpper();
+		text = compose(name);
+		if (available > 0 && font->width(text) > available) {
+			elided = true;
+			const auto rest = font->width(compose(QString()));
+			text = compose(font->elided(
+				name,
+				std::max(available - rest, 0),
+				Qt::ElideMiddle));
+			if (font->width(text) > available) {
+				text = font->elided(text, available);
+			}
+		}
+	}
+	_add->setText(text);
+	_addElided = elided;
+	if (!elided) {
+		hideAddTooltip();
+	}
+}
+
+void ContactStatus::Bar::showAddTooltip() {
+	if (!_addElided || !_add->isVisible()) {
+		return;
+	}
+	const auto parent = _tooltipParent.get();
+	if (!_addTooltip) {
+		_addTooltip = base::make_unique_q<Ui::ImportantTooltip>(
+			parent,
+			Ui::MakeNiceTooltipLabel(
+				parent,
+				rpl::single(TextWithEntities{ _name }),
+				std::max(
+					std::min(
+						st::boxWideWidth,
+						parent->width()
+							- 2 * st::historyContactStatusMinSkip),
+					st::defaultImportantTooltipLabel.minWidth
+						+ st::lineWidth),
+				st::defaultImportantTooltipLabel),
+			st::defaultImportantTooltip);
+		_addTooltip->setAttribute(Qt::WA_TransparentForMouseEvents);
+		_addTooltip->toggleFast(false);
+	}
+	_addTooltip->pointAt(
+		Ui::MapFrom(parent, _add.data(), _add->rect()),
+		RectPart::Bottom);
+	_addTooltip->raise();
+	_addTooltip->toggleAnimated(true);
+}
+
+void ContactStatus::Bar::hideAddTooltip() {
+	_addTooltipTimer.cancel();
+	if (_addTooltip) {
+		_addTooltip->toggleAnimated(false);
+	}
+}
+
 int ContactStatus::Bar::resizeGetHeight(int newWidth) {
+	refreshAddText(newWidth);
 	_close->moveToRight(0, 0, newWidth);
 	const auto narrow = (newWidth < _close->width() * 2);
 	if (_narrow != narrow) {
@@ -648,7 +751,10 @@ ContactStatus::ContactStatus(
 	not_null<PeerData*> peer,
 	bool showInForum)
 : _controller(window)
-, _inner(Ui::CreateChild<Bar>(parent.get(), peer->shortName()))
+, _inner(Ui::CreateChild<Bar>(
+	parent.get(),
+	window->widget()->body(),
+	peer->shortName()))
 , _bar(parent, object_ptr<Bar>::fromRaw(_inner)) {
 	FinalizeSetBotPhotoFirstOpenState(peer);
 	setupState(peer, showInForum);

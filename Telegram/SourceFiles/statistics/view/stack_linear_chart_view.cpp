@@ -48,7 +48,7 @@ inline float64 InterpolationRatio(float64 from, float64 to, float64 result) {
 
 [[nodiscard]] Limits FindAdditionalZoomedOutXIndices(const PaintContext &c) {
 	constexpr auto kOffset = int(1);
-	auto &xPercentage = c.chartData.xPercentage;
+	const auto &xPercentage = c.chartData.xPercentage;
 	auto leftResult = 0.;
 	{
 		auto i = std::max(int(c.xIndices.min) - kOffset, 0);

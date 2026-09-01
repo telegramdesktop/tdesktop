@@ -86,7 +86,7 @@ constexpr auto kLogEntryPreviewLines = 2;
 			result.push_back(std::make_unique<Data::MediaPhoto>(
 				parent,
 				*photo,
-				spoiler));
+				Data::MediaPhoto::Args{ .spoiler = spoiler }));
 		} else {
 			return {};
 		}
@@ -427,9 +427,11 @@ QSize WebPage::countOptimalSize() {
 			kMarkupTextOptions,
 			context);
 	} else if (sponsored && !sponsored->buttonText.isEmpty()) {
-		_openButton.setText(
-			st::semiboldTextStyle,
-			tr::upper(sponsored->buttonText));
+		auto phrase = TextWithEntities{ tr::upper(sponsored->buttonText) };
+		if (!sponsored->isLinkInternal) {
+			phrase.append(st::historyExternalLinkIcon);
+		}
+		_openButton.setMarkedText(st::semiboldTextStyle, std::move(phrase));
 	}
 
 	const auto padding = inBubblePadding() + innerMargin();

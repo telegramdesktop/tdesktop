@@ -7,12 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
-#include "ui/rows_scroll_cache.h"
-#include "ui/widgets/tooltip.h"
-#include "info/media/info_media_widget.h"
+#include "base/invoke_queued.h"
+#include "info/global_media/info_global_media_provider.h"
 #include "info/media/info_media_common.h"
+#include "info/media/info_media_widget.h"
 #include "overview/overview_layout_delegate.h"
+#include "ui/widgets/tooltip.h"
+#include "ui/rows_scroll_cache.h"
+#include "ui/rp_widget.h"
+
+#include <optional>
 
 class DeleteMessagesBox;
 
@@ -55,6 +59,16 @@ class ListSection;
 class ListProvider;
 class ListZoom;
 
+struct GlobalMediaSliceRow {
+	Data::MessagePosition position;
+	QRect geometry;
+};
+
+struct GlobalMediaSliceView {
+	GlobalMedia::GlobalMediaSliceSnapshot slice;
+	std::vector<GlobalMediaSliceRow> rows;
+};
+
 class ListWidget final
 	: public Ui::RpWidget
 	, public Overview::Layout::Delegate
@@ -70,8 +84,23 @@ public:
 	void restart();
 
 	rpl::producer<int> scrollToRequests() const;
+	[[nodiscard]] std::optional<int> fullCount() const;
+	[[nodiscard]] rpl::producer<std::optional<int>> fullCountValue() const;
+	[[nodiscard]] auto globalMediaSliceView() const
+		-> const std::optional<GlobalMediaSliceView> &;
+	[[nodiscard]] auto globalMediaSliceViewValue() const
+		-> rpl::producer<std::optional<GlobalMediaSliceView>>;
+	[[nodiscard]] rpl::producer<> globalMediaSliceRefreshStarts() const;
+	[[nodiscard]] bool globalMediaSliceRefreshInProgress() const;
+	void setGlobalMediaEmbeddedViewport();
 	rpl::producer<SelectedItems> selectedListValue() const;
+	void setPreloadEnabled(bool enabled);
+	[[nodiscard]] int heightForFirstRows(int count) const;
+	[[nodiscard]] bool allRowsDisplayed() const;
+	[[nodiscard]] bool hasRows() const;
 	void selectionAction(SelectionAction action);
+	void setSelectOnClick(bool enabled);
+	void setSelectedLimit(int limit);
 
 	struct ReorderDescriptor {
 		Fn<void(int old, int pos, Fn<void()> done, Fn<void()> fail)> save;
@@ -196,6 +225,11 @@ private:
 	void start();
 	int recountHeight();
 	void refreshHeight();
+	void refreshHeightAfterRemoval();
+	void removeLayoutFromSections(not_null<BaseLayout*> layout);
+	bool removeItemFromSection(
+		not_null<const HistoryItem*> item,
+		std::vector<ListSection>::iterator i);
 	void subscribeToSession(
 		not_null<Main::Session*> session,
 		rpl::lifetime &lifetime);
@@ -217,6 +251,10 @@ private:
 	void itemLayoutChanged(not_null<const HistoryItem*> item);
 
 	void refreshRows();
+	[[nodiscard]] GlobalMedia::Provider *globalMediaProvider() const;
+	[[nodiscard]] auto computeGlobalMediaSliceView() const
+		-> std::optional<GlobalMediaSliceView>;
+	void invalidateGlobalMediaSliceView();
 	void markStoryMsgsSelected();
 	void trackSession(not_null<Main::Session*> session);
 
@@ -305,6 +343,8 @@ private:
 		Qt::MouseButton button);
 	void mouseActionCancel();
 	void performDrag();
+	[[nodiscard]] bool selectionConsumesClick(
+		const MouseState &state) const;
 	[[nodiscard]] style::cursor computeMouseCursor() const;
 	void showContextMenu(
 		QContextMenuEvent *e,
@@ -332,6 +372,7 @@ private:
 	void updateReorder(const QPoint &globalPos);
 	void finishReorder();
 	void cancelReorder();
+	void dropReorderState();
 	void updateShiftAnimations();
 	[[nodiscard]] int itemIndexFromPoint(QPoint point) const;
 	[[nodiscard]] QRect itemGeometryByIndex(int index);
@@ -344,6 +385,11 @@ private:
 	const not_null<AbstractController*> _controller;
 	const std::unique_ptr<ListProvider> _provider;
 
+	// Cached: we can outlive the controller, and this never changes.
+	const bool _sectionsSortedById = false;
+
+	SingleQueuedInvokation _checkMoveToOtherViewer;
+
 	base::flat_set<not_null<const BaseLayout*>> _heavyLayouts;
 	bool _heavyLayoutsInvalidated = false;
 	std::vector<Section> _sections;
@@ -351,8 +397,16 @@ private:
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
+	bool _preloadEnabled = true;
 	ListScrollTopState _scrollTopState;
 	rpl::event_stream<int> _scrollToRequests;
+	rpl::event_stream<std::optional<int>> _fullCountUpdates;
+	std::optional<GlobalMediaSliceView> _globalMediaSliceView;
+	rpl::event_stream<std::optional<GlobalMediaSliceView>>
+		_globalMediaSliceViewChanges;
+	rpl::event_stream<> _globalMediaSliceRefreshStarts;
+	bool _globalMediaSliceRefreshInProgress = false;
+	bool _globalMediaEmbeddedViewport = false;
 
 	std::unique_ptr<ListZoom> _zoom;
 
@@ -372,6 +426,7 @@ private:
 	style::cursor _cursor = style::cur_default;
 	DragSelectAction _dragSelectAction = DragSelectAction::None;
 	bool _wasSelectedText = false; // was some text selected in current drag action
+	bool _selectOnClick = false;
 
 	const std::unique_ptr<DateBadge> _dateBadge;
 	int _topOverlayHeight = 0;

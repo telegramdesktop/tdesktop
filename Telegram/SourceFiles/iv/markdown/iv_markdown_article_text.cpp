@@ -6,16 +6,24 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/markdown/iv_markdown_article_text.h"
+#include "api/api_bot.h"
+#include "base/weak_ptr.h"
+#include "core/click_handler_types.h"
 #include "iv/markdown/iv_markdown_article_layout_blocks.h"
+#include "iv/markdown/iv_markdown_button_row.h"
 #include "iv/markdown/iv_markdown_prepare_links.h"
 #include "iv/markdown/iv_markdown_prepare_serialize.h"
 #include "lang/lang_keys.h"
+#include "ui/effects/animation_value.h"
 #include "ui/style/style_core.h"
 #include "ui/style/style_core_scale.h"
 #include "ui/text/text_custom_emoji.h"
+#include "ui/text/text_utilities.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/dynamic_image.h"
+#include "ui/emoji_config.h"
 #include "ui/integration.h"
+#include "ui/painter.h"
 
 #include "styles/palette.h"
 #include "styles/style_iv.h"
@@ -42,6 +50,12 @@ constexpr auto kIvMarkedTextOptionsRtl = TextParseOptions{
 	0,
 	Qt::RightToLeft,
 };
+
+constexpr auto kInlineButtonLabelProbeStart = 32;
+constexpr auto kInlineButtonLabelSpanCutsMax
+	= 2 * kInlineButtonLabelProbeStart;
+
+using ButtonColor = HistoryMessageMarkupButton::Color;
 
 struct PreparedLinkExternalData {
 	ClickHandler::TextEntity entity;
@@ -111,6 +125,8 @@ struct PreparedLinkExternalData {
 		return link.target;
 	case PreparedLinkKind::RejectedRelative:
 	case PreparedLinkKind::ToggleDetails:
+	case PreparedLinkKind::ToggleBlockquote:
+	case PreparedLinkKind::RichPageButton:
 		return QString();
 	}
 	return QString();
@@ -123,6 +139,8 @@ struct PreparedLinkExternalData {
 	switch (link.kind) {
 	case PreparedLinkKind::RejectedRelative:
 	case PreparedLinkKind::ToggleDetails:
+	case PreparedLinkKind::ToggleBlockquote:
+	case PreparedLinkKind::RichPageButton:
 		return QString();
 	case PreparedLinkKind::External:
 	case PreparedLinkKind::InstantViewPage:
@@ -479,6 +497,104 @@ private:
 
 };
 
+class InlineButtonPlainEmoji final : public Ui::Text::CustomEmoji {
+public:
+	InlineButtonPlainEmoji(EmojiPtr emoji, int size);
+
+	int width() override;
+	QString entityData() override;
+	std::optional<Ui::Text::CustomEmojiVerticalMetrics> vertical(
+		const style::TextStyle &textStyle) override;
+	void paint(QPainter &p, const Context &context) override;
+	void unload() override;
+	bool ready() override;
+	bool readyInDefaultState() override;
+
+private:
+	const EmojiPtr _emoji = nullptr;
+	QImage _frame;
+	int _size = 1;
+
+};
+
+class InlineButtonScaledEmoji final : public Ui::Text::CustomEmoji {
+public:
+	InlineButtonScaledEmoji(
+		std::unique_ptr<Ui::Text::CustomEmoji> wrapped,
+		int size);
+
+	int width() override;
+	QString entityData() override;
+	std::optional<Ui::Text::CustomEmojiVerticalMetrics> vertical(
+		const style::TextStyle &textStyle) override;
+	void paint(QPainter &p, const Context &context) override;
+	void unload() override;
+	bool ready() override;
+	bool readyInDefaultState() override;
+
+private:
+	const std::unique_ptr<Ui::Text::CustomEmoji> _wrapped;
+	QImage _frame;
+	int _size = 1;
+
+};
+
+class InlineButtonObject final : public Ui::Text::CustomEmoji {
+public:
+	InlineButtonObject(
+		const InlineTextObjectButtonData &data,
+		const style::TextStyle &textStyle,
+		const style::Markdown &st,
+		const Ui::Text::MarkedContext &context,
+		std::shared_ptr<InlineButtonPaintState> paintState,
+		int widthCap);
+
+	int width() override;
+	QString entityData() override;
+	std::optional<Ui::Text::CustomEmojiVerticalMetrics> vertical(
+		const style::TextStyle &textStyle) override;
+	QString replacementText() override;
+	EntitiesInText replacementEntities() override;
+	Ui::Text::CustomEmojiSemantics semantics() override;
+	void paint(QPainter &p, const Context &context) override;
+	void unload() override;
+	bool ready() override;
+	bool readyInDefaultState() override;
+
+private:
+	[[nodiscard]] const style::Markdown &resolvedStyle() const;
+	[[nodiscard]] bool labelWouldOverflowIcon(
+		const style::Markdown &st) const;
+	void paintContent(
+		QPainter &p,
+		QPoint position,
+		QColor color,
+		const style::Markdown &st,
+		const Context &context) const;
+
+	const QString _entityData;
+	const QString _replacementText;
+	const EntitiesInText _labelEntities;
+	const QByteArray _loadingKey;
+	const style::Markdown *_st = nullptr;
+	const style::icon *_icon = nullptr;
+	const std::shared_ptr<InlineButtonPaintState> _paintState;
+	Ui::Text::String _label;
+	Ui::Text::CustomEmojiVerticalMetrics _vertical;
+	int _width = 1;
+	int _height = 1;
+	int _labelWidth = 0;
+	int _labelLeft = 0;
+	int _labelTop = 0;
+	int _iconLeft = 0;
+	int _lineTopSkip = 0;
+	int _lineHeight = 0;
+	ButtonColor _color = ButtonColor::Normal;
+	bool _disabled = false;
+	bool _labelHasParagraphBreak = false;
+
+};
+
 [[nodiscard]] QString InlineFormulaDisplayFallbackText(
 		const PreparedFormulaMeasurementSignature &signature,
 		const MeasuredFormula &measured) {
@@ -515,9 +631,699 @@ FindInlineFormulaMeasuredData(
 	return nullptr;
 }
 
+[[nodiscard]] Ui::Text::CustomEmojiVerticalMetrics CenteredVerticalMetrics(
+		const style::TextStyle &textStyle,
+		int height) {
+	const auto top = std::max((TextLineHeight(textStyle) - height) / 2, 0);
+	const auto ascent = TextLineAscent(textStyle) - top;
+	return {
+		.ascent = ascent,
+		.descent = height - ascent,
+	};
+}
+
+[[nodiscard]] int InlineButtonPillHeight(
+		const style::TextStyle &textStyle,
+		const style::MarkdownInlineButton &st) {
+	return std::min(
+		textStyle.font->height,
+		st.labelStyle.font->height + 2 * st.verticalPadding);
+}
+
+[[nodiscard]] int InlineButtonEmojiSize(
+		const style::TextStyle &textStyle,
+		const style::MarkdownInlineButton &st) {
+	return std::max(
+		InlineButtonPillHeight(textStyle, st) - 2 * st.verticalPadding,
+		1);
+}
+
+[[nodiscard]] int InlineButtonLabelWidthCap(
+		const style::MarkdownInlineButton &st,
+		int buttonWidthCap,
+		int trailing) {
+	return std::max(buttonWidthCap - st.padding - trailing, 0);
+}
+
+[[nodiscard]] int InlineButtonWidthCap(
+		const style::MarkdownInlineButton &st,
+		const std::shared_ptr<InlineButtonPaintState> &paintState,
+		int bandWidthCap) {
+	const auto published = (bandWidthCap > 0)
+		? bandWidthCap
+		: (paintState ? paintState->widthCap : 0);
+	return (published > 0) ? std::min(st.maxWidth, published) : st.maxWidth;
+}
+
+[[nodiscard]] RichButtonPillColors ResolveInlineButtonColors(
+		ButtonColor color,
+		const style::Markdown &st) {
+	const auto &inlineSt = st.inlineButton;
+	const auto tint = [&](const style::color &fg) {
+		return RichButtonPillColors{
+			.bg = anim::with_alpha(fg->c, inlineSt.tintBgOpacity),
+			.ripple = anim::with_alpha(
+				fg->c,
+				st.buttonRow.tintRippleOpacity),
+			.fg = fg->c,
+		};
+	};
+	switch (color) {
+	case ButtonColor::Primary:
+		return PrimaryPillColors(
+			st,
+			inlineSt.primaryBg->c,
+			st.buttonRow.primaryRipple->c);
+	case ButtonColor::Success:
+		return tint(inlineSt.successFg);
+	case ButtonColor::Danger:
+		return tint(inlineSt.dangerFg);
+	}
+	return tint(inlineSt.defaultFg);
+}
+
+[[nodiscard]] std::optional<InlineTextObjectButtonData> InlineButtonDataFor(
+		QStringView data) {
+	const auto parsed = ParseInlineTextObjectEntity(data);
+	if (!parsed || parsed->kind != InlineTextObjectKind::Button) {
+		return std::nullopt;
+	}
+	const auto button = std::get_if<InlineTextObjectButtonData>(&parsed->data);
+	return button
+		? std::make_optional(*button)
+		: std::nullopt;
+}
+
+[[nodiscard]] auto ActionableInlineButtonDataFor(QStringView data)
+-> std::optional<InlineTextObjectButtonData> {
+	auto result = InlineButtonDataFor(data);
+	if (result
+		&& (result->type == HistoryMessageMarkupButton::Type::Disabled)) {
+		return std::nullopt;
+	}
+	return result;
+}
+
+[[nodiscard]] bool InlineButtonActionable(QStringView data) {
+	return ActionableInlineButtonDataFor(data).has_value();
+}
+
+[[nodiscard]] HistoryMessageMarkupButton InlineButtonRecord(
+		const InlineTextObjectButtonData &button) {
+	auto result = HistoryMessageMarkupButton(
+		button.type,
+		button.label.text,
+		HistoryMessageMarkupButton::Visual{ .color = button.color },
+		button.data,
+		QString(),
+		button.buttonId);
+	result.peerTypes = button.peerTypes;
+	return result;
+}
+
+void ActivateInlineButton(QStringView data, ClickContext context) {
+	const auto button = ActionableInlineButtonDataFor(data);
+	if (!button) {
+		return;
+	}
+	const auto record = InlineButtonRecord(*button);
+	const auto my = context.other.value<ClickHandlerContext>();
+	Api::ActivateRichPageBotButton(my, record);
+}
+
+[[nodiscard]] QString InlineButtonPlainEmojiPrefix() {
+	return u"iv-markdown:inline-button-emoji:"_q;
+}
+
+// MarkInlineButtonPlainEmoji marks the plain emoji of a label, and
+// InlineButtonLabelEmojiCrosses answers whether a planned removal can change
+// what it marks; the guard is sound only while it visits exactly the positions
+// the marking walk lands on, so the two share one traversal rather than two
+// look-alike loops that can drift. Both details below are load-bearing: `ch`
+// moves past the whole match before the callback runs, so a callback that
+// declines the match still leaves the walk past it, and a miss advances by one
+// code unit rather than by one code point.
+template <typename Callback>
+void EnumerateInlineButtonLabelEmoji(
+		const QString &text,
+		Callback &&callback) {
+	const auto start = text.constData();
+	const auto finish = start + text.size();
+	auto ch = start;
+	while (ch != finish) {
+		auto length = 0;
+		const auto emoji = Ui::Emoji::Find(ch, finish, &length);
+		if (!emoji) {
+			++ch;
+			continue;
+		}
+		const auto from = int(ch - start);
+		ch += length;
+		if (!callback(from, length, emoji)) {
+			return;
+		}
+	}
+}
+
+[[nodiscard]] TextWithEntities MarkInlineButtonPlainEmoji(
+		TextWithEntities label) {
+	const auto till = [](const EntityInText &entity) {
+		return entity.offset() + entity.length();
+	};
+	auto i = label.entities.begin();
+	EnumerateInlineButtonLabelEmoji(label.text, [&](
+			int from,
+			int length,
+			EmojiPtr emoji) {
+		while (i != label.entities.end() && till(*i) <= from) {
+			++i;
+		}
+		if (i != label.entities.end() && i->offset() < from + length) {
+			return true;
+		}
+		i = label.entities.insert(i, EntityInText(
+			EntityType::CustomEmoji,
+			from,
+			length,
+			InlineButtonPlainEmojiPrefix() + emoji->text()));
+		return true;
+	});
+	return label;
+}
+
+struct InlineButtonLabelCodePoint {
+	uint ucs4 = 0;
+	int length = 1;
+};
+
+// InlineButtonLabelStrongCut and InlineButtonLabelSpanKeep have to agree on
+// which character is the first strong one: the scan keeps a span's prefix
+// through its own first strong character precisely so that StringDirection
+// and the strong cut still find that same character over the shortened label.
+// Two look-alike decode loops can drift apart; one shared pair cannot.
+[[nodiscard]] InlineButtonLabelCodePoint InlineButtonLabelCodePointAt(
+		QStringView text,
+		int i) {
+	auto result = InlineButtonLabelCodePoint{
+		.ucs4 = uint(text.at(i).unicode()),
+	};
+	if (QChar::isHighSurrogate(result.ucs4) && (i + 1 < int(text.size()))) {
+		const auto low = text.at(i + 1).unicode();
+		if (QChar::isLowSurrogate(low)) {
+			result.ucs4 = QChar::surrogateToUcs4(result.ucs4, low);
+			result.length = 2;
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] Qt::LayoutDirection InlineButtonLabelStrongDirection(
+		uint ucs4) {
+	const auto direction = QChar::direction(ucs4);
+	return (direction == QChar::DirL)
+		? Qt::LeftToRight
+		: (direction == QChar::DirR || direction == QChar::DirAL)
+		? Qt::RightToLeft
+		: Qt::LayoutDirectionAuto;
+}
+
+[[nodiscard]] bool InlineButtonLabelCharKept(
+		QChar ch,
+		InlineButtonLabelCodePoint point) {
+	return !Ui::Text::IsBad(ch)
+		&& !Ui::Text::IsDiacritic(ch)
+		&& ((point.length == 2)
+			? (point.ucs4 < 0xE0000)
+			: !QChar::isSurrogate(point.ucs4));
+}
+
+[[nodiscard]] int InlineButtonLabelStrongCut(
+		const TextWithEntities &label,
+		int cut) {
+	// A Ui::Text::String takes its first paragraph's direction from the first
+	// character of strong direction in that paragraph and falls back to the
+	// interface direction when there is none, and a line whose paragraph
+	// direction opposes the alignment is drawn shifted by the width it did
+	// not use. A prefix that dropped the label's only strong character would
+	// therefore draw the same glyphs at a different x — but only when that
+	// character resolves to the direction the fallback would not have picked.
+	const auto &text = label.text;
+	const auto size = int(text.size());
+	auto i = 0;
+	while (i < size) {
+		const auto ch = text.at(i);
+		if (ch.unicode() == QChar::LineFeed) {
+			return cut;
+		}
+		const auto point = InlineButtonLabelCodePointAt(text, i);
+		const auto strong = InlineButtonLabelStrongDirection(point.ucs4);
+		if (strong != Qt::LayoutDirectionAuto) {
+			return (strong == style::LayoutDirection())
+				? cut
+				: std::max(cut, i + point.length);
+		}
+		i += point.length;
+	}
+	return cut;
+}
+
+[[nodiscard]] int InlineButtonLabelCut(
+		const TextWithEntities &label,
+		int position) {
+	const auto size = int(label.text.size());
+	if (position >= size) {
+		return size;
+	}
+	auto result = InlineButtonLabelStrongCut(label, position);
+	// Ui::Text::Mid truncates an entity that straddles the range end instead
+	// of dropping it, so a CustomEmoji entity that starts inside the drawn
+	// region and ends past the cut would be rewritten and would change
+	// visible glyphs; the cut moves past its end instead. The list is not
+	// ordered by offset and this one forward pass does not need it to be.
+	// What it needs is that no two entities partially overlap, and the
+	// producers nest them: AddEntity in iv_rich_page.cpp pushes a container
+	// after the entities it encloses, so an entry with an earlier offset
+	// than one before it is one that contains it and reaches at least as
+	// far. Moving the cut can therefore never expose an entity the pass
+	// already walked past.
+	for (const auto &entity : label.entities) {
+		const auto till = entity.offset() + entity.length();
+		if ((entity.offset() < result) && (till > result)) {
+			result = till;
+		}
+	}
+	return std::min(result, size);
+}
+
+[[nodiscard]] Ui::Text::MarkedContext InlineButtonLabelContext(
+		const Ui::Text::MarkedContext &context,
+		int emojiSize) {
+	auto result = context;
+	result.customEmojiFactory = [
+		parent = context.customEmojiFactory,
+		emojiSize
+	](
+			QStringView data,
+			const Ui::Text::MarkedContext &context
+	) -> std::unique_ptr<Ui::Text::CustomEmoji> {
+		const auto prefix = InlineButtonPlainEmojiPrefix();
+		if (data.startsWith(prefix)) {
+			const auto text = data.mid(prefix.size());
+			const auto emoji = Ui::Emoji::Find(text);
+			return emoji
+				? std::make_unique<InlineButtonPlainEmoji>(emoji, emojiSize)
+				: nullptr;
+		}
+		return Ui::Text::MakeWrappedEmoji<InlineButtonScaledEmoji>(
+			parent ? parent(data, context) : nullptr,
+			emojiSize);
+	};
+	return result;
+}
+
+[[nodiscard]] Ui::Text::String MakeInlineButtonLabel(
+		const TextWithEntities &label,
+		const style::TextStyle &labelStyle,
+		const Ui::Text::MarkedContext &context) {
+	auto result = Ui::Text::String();
+	result.setMarkedText(
+		labelStyle,
+		MarkInlineButtonPlainEmoji(label),
+		kIvMarkedTextOptions,
+		context);
+	return result;
+}
+
+[[nodiscard]] int InlineButtonLabelSpanKeep(
+		QStringView span,
+		bool trimmableEnd) {
+	// The text engine draws a CustomEmoji entity as one object of one width
+	// whatever it covers, and BidiAlgorithm::infoAt reads every covered
+	// character as an object replacement character, so the covered text
+	// contributes no glyph, no advance and no direction. It does decide two
+	// other things: BlockParser::createBlock emits the block only if it kept
+	// at least one of those characters, and StringDirection reads them raw,
+	// so the first one of strong direction still resolves the paragraph
+	// direction. Keep the span's own text through both, and keep all of it
+	// when a character of strong direction is one the parser may skip.
+	// A kept prefix may end on a trimmable parsed character only when the
+	// caller has proven the parser's trailing trim cannot reach it — a
+	// character the parser keeps and does not trim survives after the span
+	// in the spliced label, and BlockParser::trimSourceRange moves only the
+	// two ends of the string it is handed — which is what `trimmableEnd`
+	// asserts. A span with no parsed character at all still yields 0
+	// whatever the caller proved: keeping a character the parser skips
+	// would invent an object where none exists.
+	const auto size = int(span.size());
+	auto keepable = 0;
+	auto trimmable = 0;
+	auto i = 0;
+	while (i != size) {
+		const auto ch = span.at(i);
+		const auto point = InlineButtonLabelCodePointAt(span, i);
+		const auto kept = InlineButtonLabelCharKept(ch, point);
+		const auto strong = InlineButtonLabelStrongDirection(point.ucs4);
+		if (strong != Qt::LayoutDirectionAuto) {
+			return kept ? (i + point.length) : 0;
+		} else if (!keepable && kept && !Ui::Text::IsTrimmed(ch)) {
+			keepable = i + point.length;
+		} else if (!trimmable && kept) {
+			trimmable = i + point.length;
+		}
+		i += point.length;
+	}
+	return keepable
+		? keepable
+		: trimmableEnd
+		? trimmable
+		: 0;
+}
+
+[[nodiscard]] bool InlineButtonLabelEmojiCrosses(
+		const QString &text,
+		const std::vector<int> &borders) {
+	// MarkInlineButtonPlainEmoji walks the label left to right and asks
+	// Ui::Emoji::Find at every position it lands on, so removing text can
+	// change what it marks only by carrying that walk over one of the
+	// positions the removal joins: a match starting before such a position
+	// and ending after it hides the emoji behind it from the walk, or stops
+	// hiding one. Running the very same walk here — over the label before the
+	// removal against both ends of every planned cut, and over the spliced
+	// text against every seam — answers that at every position the real walk
+	// can reach, so no match crosses undetected, including one that starts
+	// before the span. `borders` is ascending.
+	auto border = borders.begin();
+	auto crosses = false;
+	EnumerateInlineButtonLabelEmoji(text, [&](
+			int from,
+			int length,
+			EmojiPtr) {
+		while ((border != borders.end()) && (*border <= from)) {
+			++border;
+		}
+		if ((border != borders.end()) && (*border < from + length)) {
+			crosses = true;
+			return false;
+		}
+		return true;
+	});
+	return crosses;
+}
+
+[[nodiscard]] bool InlineButtonLabelSpanCandidate(
+		const EntityInText &entity) {
+	return (entity.type() == EntityType::CustomEmoji)
+		&& (entity.length() > kInlineButtonLabelProbeStart)
+		&& !entity.data().isEmpty();
+}
+
+[[nodiscard]] std::vector<int> InlineButtonLabelEntityOrder(
+		const EntitiesInText &entities) {
+	auto result = std::vector<int>(entities.size());
+	for (auto i = 0, count = int(result.size()); i != count; ++i) {
+		result[i] = i;
+	}
+	ranges::sort(result, ranges::less(), [&](int i) {
+		return entities[i].offset();
+	});
+	return result;
+}
+
+[[nodiscard]] std::vector<bool> InlineButtonLabelIntersected(
+		const EntitiesInText &entities,
+		const std::vector<int> &order) {
+	// A candidate may be shortened only when no other entity overlaps it, and
+	// the list is not ordered by offset (see InlineButtonLabelCut), so the
+	// test cannot look at neighbours only. Asking it one candidate at a time
+	// is quadratic in a label the sender sizes; two sweeps in offset order
+	// answer it for the whole list at once. An entity is overlapped when one
+	// before it in that order reaches past its start, or one after it starts
+	// before its end.
+	const auto count = int(order.size());
+	auto result = std::vector<bool>(count, false);
+	auto reached = std::numeric_limits<int>::min();
+	for (auto i = 0; i != count; ++i) {
+		const auto &entity = entities[order[i]];
+		if (entity.offset() < reached) {
+			result[order[i]] = true;
+		}
+		reached = std::max(reached, entity.offset() + entity.length());
+	}
+	auto nearest = std::numeric_limits<int>::max();
+	for (auto i = count; i != 0;) {
+		const auto &entity = entities[order[--i]];
+		if (nearest < entity.offset() + entity.length()) {
+			result[order[i]] = true;
+		}
+		nearest = std::min(nearest, entity.offset());
+	}
+	return result;
+}
+
+[[nodiscard]] int InlineButtonLabelLastSolid(
+		const TextWithEntities &label,
+		const std::vector<int> &order) {
+	// A kept trimmable span end is safe only while the parser's trailing
+	// trim cannot reach it, and trimSourceRange moves only the two ends of
+	// the string it is handed — so the end is safe exactly when a character
+	// the parser keeps and does not trim survives after the span in the
+	// spliced label. The witness is searched only in text no planned cut
+	// can remove: outside every candidate span, because a later candidate's
+	// own cut may drop any character inside it. Text between spans and in
+	// non-candidate entities survives the splice verbatim, which is what
+	// makes the answer valid for the spliced label while it is computed
+	// over the original one. `order` is the entity indices in offset order.
+	const auto text = QStringView(label.text);
+	const auto size = int(text.size());
+	auto entity = order.begin();
+	const auto end = order.end();
+	auto skipTill = 0;
+	auto last = -1;
+	auto i = 0;
+	while (i < size) {
+		while ((entity != end)
+			&& (label.entities[*entity].offset() <= i)) {
+			const auto &excluded = label.entities[*entity];
+			if (InlineButtonLabelSpanCandidate(excluded)) {
+				skipTill = std::max(
+					skipTill,
+					excluded.offset() + excluded.length());
+			}
+			++entity;
+		}
+		if (i < skipTill) {
+			i = skipTill;
+			continue;
+		}
+		const auto ch = text.at(i);
+		const auto point = InlineButtonLabelCodePointAt(text, i);
+		if (InlineButtonLabelCharKept(ch, point)
+			&& !Ui::Text::IsTrimmed(ch)) {
+			last = i;
+		}
+		i += point.length;
+	}
+	return last;
+}
+
+struct InlineButtonLabelSpanCut {
+	int index = 0;
+	int offset = 0;
+	int keep = 0;
+	int length = 0;
+};
+
+[[nodiscard]] TextWithEntities ShortenInlineButtonLabelSpans(
+		TextWithEntities label,
+		const Ui::Text::MarkedContext &context) {
+	// This walk runs for every label, before any search, so the candidate
+	// count is what keeps an ordinary one out of it. A span of at most
+	// kInlineButtonLabelProbeStart characters is never a candidate: it cannot
+	// be what leaves the prefix search unbounded, because an accepted prefix
+	// carries at most `available / emojiSize` objects, so a label whose every
+	// span is that short is bounded by width exactly as in the shipped build.
+	// The rewrite is all or nothing over the candidates themselves and not
+	// only over how many there are: the whole label is declined as soon as
+	// one candidate cannot be brought under kInlineButtonLabelProbeStart
+	// characters, and declined again past kInlineButtonLabelSpanCutsMax of
+	// them. A span left whole absorbs the search that the shortened ones
+	// before it no longer trip — every character removed ahead of it pulls it
+	// under a probe that used to land in front of it, and the straddle snap
+	// then jumps to its end. So either every CustomEmoji entity carrying data
+	// in the label the search is handed covers at most
+	// kInlineButtonLabelProbeStart characters, or that label reaches the
+	// search exactly as the shipped build hands it and no input is made worse
+	// than it is today. The count cap is 2 * kInlineButtonLabelProbeStart
+	// because a shortened span draws as one object, so a prefix holding k of
+	// them measures at least k * emojiSize, kInlineButtonLabelProbeStart *
+	// emojiSize is already more than the pill can ever draw, and probe
+	// lengths start at kInlineButtonLabelProbeStart and double while the
+	// search accepts the second prefix wider than the cap, so a prefix made
+	// of shortened spans is accepted at twice that many of them at the
+	// latest. That inequality is checked per scale rather than guaranteed by
+	// construction — the cap is a .style pixel while emojiSize follows the
+	// label font's height, so they do not scale together: 448 > 408 at 100 %
+	// and 640 > 612 at 150 %. Where it does not hold, under a small markdown
+	// text style, the only effect is that a label is declined which the
+	// search could have bounded, which is the shipped behaviour. A span
+	// whose every parsed character is trimmable is admitted with its first
+	// parsed character kept only when a witness — a character the parser
+	// keeps and does not trim, in text no planned cut can remove — survives
+	// after the span in the spliced label (see InlineButtonLabelLastSolid).
+	const auto &entities = label.entities;
+	const auto candidates = ranges::count_if(
+		entities,
+		InlineButtonLabelSpanCandidate);
+	if (!candidates || (candidates > kInlineButtonLabelSpanCutsMax)) {
+		return label;
+	}
+	const auto order = InlineButtonLabelEntityOrder(entities);
+	const auto intersected = InlineButtonLabelIntersected(entities, order);
+	const auto lastSolid = InlineButtonLabelLastSolid(label, order);
+	auto cuts = std::vector<InlineButtonLabelSpanCut>();
+	for (const auto i : order) {
+		const auto &entity = entities[i];
+		if (!InlineButtonLabelSpanCandidate(entity)) {
+			continue;
+		} else if (intersected[i]) {
+			return label;
+		}
+		const auto offset = entity.offset();
+		const auto length = entity.length();
+		const auto keep = InlineButtonLabelSpanKeep(
+			QStringView(label.text).mid(offset, length),
+			lastSolid >= offset + length);
+		if (!keep
+			|| (keep > kInlineButtonLabelProbeStart)
+			|| !Ui::Text::MakeCustomEmoji(entity.data(), context)) {
+			return label;
+		}
+		cuts.push_back({
+			.index = i,
+			.offset = offset,
+			.keep = keep,
+			.length = length,
+		});
+	}
+	auto borders = std::vector<int>();
+	borders.reserve(2 * cuts.size());
+	for (const auto &cut : cuts) {
+		borders.push_back(cut.offset + cut.keep);
+		borders.push_back(cut.offset + cut.length);
+	}
+	if (InlineButtonLabelEmojiCrosses(label.text, borders)) {
+		return label;
+	}
+	auto text = QString();
+	auto seams = std::vector<int>();
+	text.reserve(label.text.size());
+	seams.reserve(cuts.size());
+	auto copied = 0;
+	for (const auto &cut : cuts) {
+		const auto kept = cut.offset + cut.keep;
+		text.append(QStringView(label.text).mid(copied, kept - copied));
+		seams.push_back(int(text.size()));
+		copied = cut.offset + cut.length;
+	}
+	text.append(QStringView(label.text).mid(copied));
+	if (InlineButtonLabelEmojiCrosses(text, seams)) {
+		return label;
+	}
+	auto removed = 0;
+	auto cut = cuts.begin();
+	for (const auto i : order) {
+		auto &entity = label.entities[i];
+		while ((cut != cuts.end())
+			&& (cut->offset + cut->length <= entity.offset())) {
+			removed += cut->length - cut->keep;
+			++cut;
+		}
+		if (removed) {
+			entity.shiftRight(-removed);
+		}
+		if ((cut != cuts.end()) && (cut->index == i)) {
+			entity.shrinkFromRight(cut->length - cut->keep);
+		}
+	}
+	label.text = std::move(text);
+	return label;
+}
+
+[[nodiscard]] Ui::Text::String MakeBoundedInlineButtonLabel(
+		const TextWithEntities &label,
+		const style::TextStyle &labelStyle,
+		const Ui::Text::MarkedContext &context,
+		int emojiSize,
+		int widthCap) {
+	// The renderer lays the whole string out on every paint even though the
+	// pill can only ever draw `available` pixels of it, so the label is built
+	// from a prefix instead. Probe lengths double until one measures wider
+	// than the pill can draw, and the prefix after that one is accepted, so
+	// everything the renderer reaches — the line break, the elision cut and
+	// the ellipsis — sits inside the half the shorter probe already covered,
+	// with more than a pill-width of identical content behind it. A prefix
+	// alone cannot bound a custom-emoji span, which draws as one object of
+	// one width however many characters it covers: the search has to step
+	// past the whole span before its width test can trip, so the span is what
+	// makes the accepted prefix long. The spans are therefore shortened
+	// first, once, for every label. That walk asks Ui::Text::MakeCustomEmoji
+	// at most once per candidate span, and that question registers a session
+	// instance and can post messages.getCustomEmojiDocuments, so the walk's
+	// candidate cap is what bounds the fetching — and the accepted prefix may
+	// still drop a span the walk resolved. The one input this does not
+	// render like the shipped build, on either exit, is a span running into
+	// the parser's 32 768-character cap: the text behind it that the capped
+	// parse never reached becomes visible, and the pill grows to fit it.
+	// A probe cut snapped to a shortened span's end can leave the span's
+	// kept trimmable character last in the probe's string, where the
+	// parser's trailing trim eats it and drops the object from that probe.
+	// That only lowers the probe's measured width, so the search runs a
+	// probe longer, never shorter, and the accepted prefix stays
+	// pixel-identical to the whole-label build: the dropped object lies
+	// past everything the renderer reaches, behind the first half that
+	// already measured wider than the pill can draw.
+	const auto resolved = ResolveRichButtonLabelDates(
+		label,
+		context.formattedDateFactory);
+	const auto nested = InlineButtonLabelContext(context, emojiSize);
+	const auto shortened = ShortenInlineButtonLabelSpans(resolved, nested);
+	const auto available = std::max(widthCap, 1);
+	const auto size = int(shortened.text.size());
+	auto exceeded = false;
+	auto length = kInlineButtonLabelProbeStart;
+	while (true) {
+		const auto cut = InlineButtonLabelCut(shortened, length);
+		if (cut >= size) {
+			return MakeInlineButtonLabel(shortened, labelStyle, nested);
+		}
+		auto result = MakeInlineButtonLabel(
+			Ui::Text::Mid(shortened, 0, cut),
+			labelStyle,
+			nested);
+		if (result.maxWidth() > available) {
+			if (exceeded) {
+				return result;
+			}
+			exceeded = true;
+		}
+		length = 2 * cut;
+	}
+}
+
 } // namespace
 
 ClickHandlerPtr CreatePreparedLinkHandler(PreparedLink link) {
+	// A rich-page button link is deliberately not a PreparedLinkClickHandler:
+	// ExtractPreparedLink therefore refuses it, a hit carries only
+	// state.link, and both hosts activate that through the generic
+	// ActivateClickHandler arm the inline pill already uses. That is why this
+	// one kind gets no arm in the three prepared-link routers.
+	if (link.kind == PreparedLinkKind::RichPageButton) {
+		return std::make_shared<LambdaClickHandler>(
+			[data = std::move(link.target)](ClickContext context) {
+				ActivateInlineButton(data, std::move(context));
+			});
+	}
 	return std::make_shared<PreparedLinkClickHandler>(std::move(link));
 }
 
@@ -1042,6 +1848,358 @@ bool InlineIvImageObject::readyInDefaultState() {
 	return true;
 }
 
+InlineButtonPlainEmoji::InlineButtonPlainEmoji(EmojiPtr emoji, int size)
+: _emoji(emoji)
+, _size(std::max(size, 1)) {
+}
+
+int InlineButtonPlainEmoji::width() {
+	return _size;
+}
+
+QString InlineButtonPlainEmoji::entityData() {
+	return InlineButtonPlainEmojiPrefix() + _emoji->text();
+}
+
+auto InlineButtonPlainEmoji::vertical(const style::TextStyle &textStyle)
+-> std::optional<Ui::Text::CustomEmojiVerticalMetrics> {
+	return CenteredVerticalMetrics(textStyle, _size);
+}
+
+void InlineButtonPlainEmoji::paint(QPainter &p, const Context &context) {
+	if (_frame.isNull()) {
+		const auto ratio = style::DevicePixelRatio();
+		const auto large = Ui::Emoji::GetSizeLarge();
+		_frame = QImage(
+			QSize(large, large),
+			QImage::Format_ARGB32_Premultiplied);
+		_frame.setDevicePixelRatio(ratio);
+		_frame.fill(Qt::transparent);
+		{
+			auto q = QPainter(&_frame);
+			Ui::Emoji::Draw(q, _emoji, large, 0, 0);
+		}
+		_frame = _frame.scaled(
+			QSize(_size, _size) * ratio,
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation);
+	}
+	p.drawImage(context.position, _frame);
+}
+
+void InlineButtonPlainEmoji::unload() {
+	_frame = QImage();
+}
+
+bool InlineButtonPlainEmoji::ready() {
+	return true;
+}
+
+bool InlineButtonPlainEmoji::readyInDefaultState() {
+	return true;
+}
+
+InlineButtonScaledEmoji::InlineButtonScaledEmoji(
+	std::unique_ptr<Ui::Text::CustomEmoji> wrapped,
+	int size)
+: _wrapped(std::move(wrapped))
+, _size(std::max(size, 1)) {
+}
+
+int InlineButtonScaledEmoji::width() {
+	return _size;
+}
+
+QString InlineButtonScaledEmoji::entityData() {
+	return _wrapped->entityData();
+}
+
+auto InlineButtonScaledEmoji::vertical(const style::TextStyle &textStyle)
+-> std::optional<Ui::Text::CustomEmojiVerticalMetrics> {
+	return CenteredVerticalMetrics(textStyle, _size);
+}
+
+void InlineButtonScaledEmoji::paint(QPainter &p, const Context &context) {
+	const auto ratio = style::DevicePixelRatio();
+
+	// A normal-size custom emoji advances by st::emojiSize plus twice
+	// st::emojiPadding, but it draws AdjustCustomEmojiSize(st::emojiSize)
+	// with its top-left exactly at the position it is handed, so its drawn
+	// box is not its advance and a frame sized from the advance would wrap
+	// the glyph in a transparent border. This wrapper reports both width()
+	// and vertical()->height() as _size, so the renderer paints the wrapped
+	// object at the advance box's own top-left instead of at the padded
+	// position, and rasterizing exactly the drawn box and stretching it
+	// across that whole box is what lets neighbouring pieces tile.
+	const auto drawn = Ui::Text::AdjustCustomEmojiSize(st::emojiSize);
+	const auto full = QSize(drawn, drawn) * ratio;
+	if (_frame.size() != full) {
+		_frame = QImage(full, QImage::Format_ARGB32_Premultiplied);
+		_frame.setDevicePixelRatio(ratio);
+	}
+	_frame.fill(Qt::transparent);
+	{
+		auto q = QPainter(&_frame);
+		q.translate(-context.position);
+		_wrapped->paint(q, context);
+	}
+	auto hq = PainterHighQualityEnabler(p);
+	p.drawImage(QRect(context.position, QSize(_size, _size)), _frame);
+}
+
+void InlineButtonScaledEmoji::unload() {
+	_frame = QImage();
+	_wrapped->unload();
+}
+
+bool InlineButtonScaledEmoji::ready() {
+	return _wrapped->ready();
+}
+
+bool InlineButtonScaledEmoji::readyInDefaultState() {
+	return _wrapped->readyInDefaultState();
+}
+
+InlineButtonObject::InlineButtonObject(
+	const InlineTextObjectButtonData &data,
+	const style::TextStyle &textStyle,
+	const style::Markdown &st,
+	const Ui::Text::MarkedContext &context,
+	std::shared_ptr<InlineButtonPaintState> paintState,
+	int widthCap)
+: _entityData(SerializeInlineTextObjectEntity({
+	.kind = InlineTextObjectKind::Button,
+	.data = data,
+}))
+, _replacementText(data.label.text)
+, _labelEntities(Ui::Text::Filtered(
+	data.label,
+	{ EntityType::CustomEmoji }).entities)
+, _loadingKey(RichButtonLoadingKey(InlineButtonRecord(data)))
+, _st(&st)
+, _icon(RichButtonIcon(data.type))
+, _paintState(std::move(paintState))
+, _label(MakeBoundedInlineButtonLabel(
+	data.label,
+	st.inlineButton.labelStyle,
+	context,
+	InlineButtonEmojiSize(textStyle, st.inlineButton),
+	InlineButtonLabelWidthCap(
+		st.inlineButton,
+		st.inlineButton.maxWidth,
+		st.inlineButton.padding)))
+, _color(data.color)
+, _disabled(data.type == HistoryMessageMarkupButton::Type::Disabled)
+, _labelHasParagraphBreak(
+	ranges::any_of(data.label.text, Ui::Text::IsNewline)) {
+	const auto &inlineSt = st.inlineButton;
+	const auto padding = inlineSt.padding;
+	_height = InlineButtonPillHeight(textStyle, inlineSt);
+	const auto inset = _icon
+		? std::max((_height - _icon->height()) / 2, 0)
+		: 0;
+	const auto trailing = _icon
+		? (2 * inset + _icon->width())
+		: padding;
+	const auto buttonWidthCap = InlineButtonWidthCap(
+		inlineSt,
+		_paintState,
+		widthCap);
+	_labelWidth = std::min(
+		_label.maxWidth(),
+		InlineButtonLabelWidthCap(inlineSt, buttonWidthCap, trailing));
+	_width = std::max(_height, padding + _labelWidth + trailing);
+	_vertical = CenteredVerticalMetrics(textStyle, _height);
+	_lineTopSkip = TextLineAscent(textStyle) - _vertical.ascent;
+	_lineHeight = TextLineHeight(textStyle);
+	_labelLeft = padding;
+	_labelTop = std::clamp(
+		_vertical.ascent - inlineSt.labelStyle.font->ascent,
+		0,
+		std::max(_height - inlineSt.labelStyle.font->height, 0));
+	_iconLeft = _icon ? (_width - inset - _icon->width()) : 0;
+}
+
+int InlineButtonObject::width() {
+	return _width;
+}
+
+QString InlineButtonObject::entityData() {
+	return _entityData;
+}
+
+auto InlineButtonObject::vertical(const style::TextStyle &)
+-> std::optional<Ui::Text::CustomEmojiVerticalMetrics> {
+	return _vertical;
+}
+
+QString InlineButtonObject::replacementText() {
+	return _replacementText;
+}
+
+EntitiesInText InlineButtonObject::replacementEntities() {
+	return _labelEntities;
+}
+
+Ui::Text::CustomEmojiSemantics InlineButtonObject::semantics() {
+	return {
+		.isEmoji = false,
+		.isRealCustomEmoji = false,
+		.exportEntity = false,
+		.unloadPersistentAnimation = true,
+		.allowCustomEmojiClick = !_disabled,
+	};
+}
+
+const style::Markdown &InlineButtonObject::resolvedStyle() const {
+	return (_paintState && _paintState->st) ? *_paintState->st : *_st;
+}
+
+bool InlineButtonObject::labelWouldOverflowIcon(
+		const style::Markdown &st) const {
+	return _icon
+		&& ((_labelWidth < _label.maxWidth()) || _labelHasParagraphBreak)
+		&& (_labelWidth < st.inlineButton.labelStyle.font->elidew);
+}
+
+void InlineButtonObject::paintContent(
+		QPainter &p,
+		QPoint position,
+		QColor color,
+		const style::Markdown &st,
+		const Context &context) const {
+	if (_icon) {
+		_icon->paintInCenter(
+			p,
+			QRect(
+				position.x() + _iconLeft,
+				position.y(),
+				_icon->width(),
+				_height),
+			color);
+	}
+	if (_label.isEmpty() || labelWouldOverflowIcon(st)) {
+		return;
+	}
+	const auto available = std::max(_labelWidth, 1);
+	p.setPen(color);
+	_label.draw(p, {
+		.position = position + QPoint(_labelLeft, _labelTop),
+		.availableWidth = available,
+		.geometry = Ui::Text::SimpleGeometry(available, 1, 0, false),
+		.palette = &st.textPalette,
+		.now = context.now,
+		.paused = context.paused,
+		.elisionLines = 1,
+	});
+}
+
+void InlineButtonObject::paint(QPainter &p, const Context &context) {
+	const auto &markdownSt = resolvedStyle();
+	const auto &st = markdownSt.inlineButton;
+	const auto position = context.position;
+	const auto rect = QRect(position, QSize(_width, _height));
+	const auto radius = _height / 2;
+	const auto state = _paintState.get();
+	const auto lineRect = QRect(
+		rect.x(),
+		rect.y() - _lineTopSkip,
+		_width,
+		_lineHeight);
+	if (state
+		&& state->pressPending
+		&& lineRect.contains(state->pressPoint)) {
+		state->pressPending = false;
+		if (!_disabled) {
+			state->rippleRect = rect;
+			AddPillRipple(
+				&state->ripple,
+				&state->rippleSize,
+				rect.size(),
+				state->pressPoint - rect.topLeft(),
+				state->repaint);
+		}
+	}
+	const auto ripple = (state
+		&& state->ripple
+		&& (state->rippleRect == rect))
+		? state->ripple.get()
+		: nullptr;
+	const auto loading = state
+		? RichButtonLoadingActive(state->buttonLoading, _loadingKey)
+		: nullptr;
+	const auto fillPill = [&](
+			QPainter &q,
+			const RichButtonPillColors &colors,
+			bool eraseRipple) {
+		auto hq = PainterHighQualityEnabler(q);
+		q.setPen(Qt::NoPen);
+		q.setBrush(colors.bg);
+		q.drawRoundedRect(rect, radius, radius);
+		if (ripple) {
+			const auto mode = q.compositionMode();
+			if (eraseRipple) {
+				q.setCompositionMode(
+					QPainter::CompositionMode_DestinationOut);
+			}
+			ripple->paint(
+				q,
+				rect.x(),
+				rect.y(),
+				rect.x() * 2 + rect.width(),
+				&colors.ripple);
+			q.setCompositionMode(mode);
+		}
+	};
+	p.save();
+	const auto colors = (state && state->bubbleGradient)
+		? BubbleGradientPillColors(
+			markdownSt,
+			st.tintBgOpacity,
+			(_color == ButtonColor::Primary))
+		: ResolveInlineButtonColors(_color, markdownSt);
+	if (colors.punchOut) {
+		PaintPunchedOutPill(
+			p,
+			rect,
+			_disabled ? st.disabledPrimaryOpacity : 1.,
+			[&](QPainter &q) {
+				fillPill(q, colors, colors.punchOut);
+				if (loading) {
+					PaintRichButtonLoading(q, loading, colors, rect, radius);
+				}
+			},
+			[&](QPainter &q, QColor fg) {
+				paintContent(q, position, fg, markdownSt, context);
+			});
+	} else {
+		const auto primary = (_color == ButtonColor::Primary);
+		fillPill(p, colors, false);
+		if (loading) {
+			PaintRichButtonLoading(p, loading, colors, rect, radius);
+		}
+		if (_disabled) {
+			p.setOpacity(p.opacity() * (primary
+				? st.disabledPrimaryOpacity
+				: st.disabledOpacity));
+		}
+		paintContent(p, position, colors.fg, markdownSt, context);
+	}
+	p.restore();
+}
+
+void InlineButtonObject::unload() {
+	_label.unloadPersistentAnimation();
+}
+
+bool InlineButtonObject::ready() {
+	return true;
+}
+
+bool InlineButtonObject::readyInDefaultState() {
+	return true;
+}
+
 std::unique_ptr<Ui::Text::CustomEmoji> InlineFormulaObjectCache::create(
 		const InlineTextObjectFormulaData &data,
 		const style::TextStyle &textStyle,
@@ -1151,6 +2309,13 @@ void InvalidateInlineFormulaRasterCache(
 	}
 }
 
+bool TextHasInlineButton(const TextWithEntities &text) {
+	return ranges::any_of(text.entities, [](const EntityInText &entity) {
+		return (entity.type() == EntityType::CustomEmoji)
+			&& InlineButtonDataFor(entity.data()).has_value();
+	});
+}
+
 void SetTextLeaf(
 		Ui::Text::String *leaf,
 		const style::TextStyle &textStyle,
@@ -1158,12 +2323,15 @@ void SetTextLeaf(
 		const TextWithEntities &text,
 		const std::vector<PreparedFormulaSlot> *formulas,
 		InlineFormulaObjectCache *inlineFormulaObjects,
+		const std::shared_ptr<InlineButtonPaintState> &inlineButtonPaintState,
+		int inlineButtonWidthCap,
 		const std::shared_ptr<MediaRuntime> &mediaRuntime,
 		int minResizeWidth,
 		bool rtl,
 		Fn<void()> repaint,
 		Fn<void(QRect)> repaintRect,
-		Fn<bool(const ClickContext&)> spoilerLinkFilter) {
+		Fn<bool(const ClickContext&)> spoilerLinkFilter,
+		bool richButtonLabel) {
 	*leaf = Ui::Text::String(TextMinResizeWidth(minResizeWidth));
 	auto context = mediaRuntime
 		? mediaRuntime->textContext()
@@ -1175,6 +2343,8 @@ void SetTextLeaf(
 	context.customEmojiFactory = [
 		formulas,
 		inlineFormulaObjects,
+		inlineButtonPaintState,
+		inlineButtonWidthCap,
 		mediaRuntime,
 		repaintRect = std::move(repaintRect),
 		originalCustomEmojiFactory = std::move(originalCustomEmojiFactory),
@@ -1224,15 +2394,60 @@ void SetTextLeaf(
 				context.repaint,
 				repaintRect);
 		}
+		case InlineTextObjectKind::Button: {
+			const auto button = std::get_if<InlineTextObjectButtonData>(
+				&parsed->data);
+			if (!button) {
+				return std::unique_ptr<Ui::Text::CustomEmoji>();
+			}
+			return std::make_unique<InlineButtonObject>(
+				*button,
+				*textStyle,
+				*st,
+				context,
+				inlineButtonPaintState,
+				inlineButtonWidthCap);
+		}
 		}
 		return std::unique_ptr<Ui::Text::CustomEmoji>();
 	};
+	const auto resolved = richButtonLabel
+		? ResolveRichButtonLabelDates(text, context.formattedDateFactory)
+		: TextWithEntities();
 	leaf->setMarkedText(
 		textStyle,
-		text,
+		richButtonLabel ? resolved : text,
 		rtl ? kIvMarkedTextOptionsRtl : kIvMarkedTextOptions,
 		context);
 	SetTextLeafSpoilerLinkFilter(leaf, std::move(spoilerLinkFilter));
+	if (inlineButtonPaintState
+		&& !inlineButtonPaintState->editMode
+		&& ranges::any_of(text.entities, [](const EntityInText &entity) {
+			return (entity.type() == EntityType::CustomEmoji)
+				&& InlineButtonActionable(entity.data());
+		})) {
+		leaf->setCustomEmojiClickHandler(
+			InlineButtonActionable,
+			ActivateInlineButton);
+	}
+}
+
+std::unique_ptr<Ui::Text::CustomEmoji> MakeInlineButtonObject(
+		QStringView data,
+		const style::TextStyle &textStyle,
+		const style::Markdown &st,
+		const Ui::Text::MarkedContext &context) {
+	const auto button = InlineButtonDataFor(data);
+	if (!button) {
+		return nullptr;
+	}
+	return std::make_unique<InlineButtonObject>(
+		*button,
+		textStyle,
+		st,
+		context,
+		nullptr,
+		0);
 }
 
 } // namespace Iv::Markdown

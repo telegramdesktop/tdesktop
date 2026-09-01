@@ -1,6 +1,6 @@
 ---
 description: Learn from corrections — examine staged vs unstaged diffs and optionally distill insights into AGENTS.md or REVIEW.md
-allowed-tools: Read, Edit, Bash(git diff:*), Bash(git status:*), Bash(git log:*), Bash(ls:*), AskUserQuestion
+allowed-tools: Read, Edit, Bash(git diff:*), Bash(git status:*), Bash(git log:*), Bash(ls:*), Bash(python3 .agents/skills/process-inbox/scripts/workspace.py:*), Bash(python .agents/skills/process-inbox/scripts/workspace.py:*), Bash(py -3 .agents/skills/process-inbox/scripts/workspace.py:*), AskUserQuestion
 ---
 
 # Reflect — Learn from Corrections
@@ -13,7 +13,9 @@ You are a reflection agent. Your job is to examine the difference between what a
 
 `$ARGUMENTS` = "$ARGUMENTS"
 
-If `$ARGUMENTS` is provided, it is a task name (project name from the `/task` workflow). This means the agent was working within `.ai/<task-name>/` and you should read the task context for deeper understanding of what the agent was trying to do.
+If `$ARGUMENTS` is provided, it is a short or full task name from the external
+`ai-tdesktop` workflow. Resolve it with the workspace helper and read that
+task's durable context before judging the correction.
 
 If `$ARGUMENTS` is empty, skip the task context step — just work from the diffs alone.
 
@@ -38,11 +40,12 @@ If either diff is empty, tell the user and stop. Both diffs must be non-empty fo
 
 ### Task context (only if `$ARGUMENTS` is non-empty)
 
-The task name is `$ARGUMENTS`. Read the task's project context:
+Resolve the task and read its context:
 
-1. Read `.ai/$ARGUMENTS/about.md` — the project-level description of what this feature does.
-2. Find the latest task iteration folder: list `.ai/$ARGUMENTS/` and pick the folder with the highest letter (`a`, `b`, `c`, ...).
-3. Read `.ai/$ARGUMENTS/<latest-letter>/context.md` — the detailed implementation context the agent was working from.
+1. Run `python3 .agents/skills/process-inbox/scripts/workspace.py resolve --name "$ARGUMENTS"` (use the host's Python 3 command).
+2. Read the resolved task's `task.md` and `work/context.md` from the returned AI slot worktree.
+3. When `project` is non-null, also read `projects/<project>/project.md`, or
+   `projects/archive/<project>/project.md` when the project has been archived.
 
 This helps you distinguish between:
 - **Task-specific mistakes** — the agent misunderstood this particular feature's requirements or made a wrong choice within the specific problem. These are NOT documentation-worthy.

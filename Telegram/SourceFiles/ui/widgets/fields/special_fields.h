@@ -81,6 +81,7 @@ private:
 	QString _additionalPlaceholder;
 	rpl::event_stream<not_null<QKeyEvent*>> _frontBackspaceEvent;
 	GroupsCallback _groupsCallback;
+	bool _addingToNumber = false;
 
 };
 

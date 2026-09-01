@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_custom_emoji.h"
 #include "ui/rp_widget.h"
 
-#include "styles/style_widgets.h"
 
 #include <QtGui/QPainter>
 

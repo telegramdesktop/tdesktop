@@ -30,7 +30,7 @@ constexpr auto kCameraDistance = 100.f;
 struct alignas(16) SharedUniforms {
 	float mvp[16];
 	float world[16];
-	float resolution[4];
+	float resolution[4]; // width, height, fragCoordYUp, _
 	float misc[4]; // time, night, alpha, _
 };
 static_assert(sizeof(SharedUniforms) == 160);
@@ -255,6 +255,7 @@ void DiamondRenderer::render(
 	memcpy(shared.world, world.constData(), sizeof(shared.world));
 	shared.resolution[0] = float(pixelSize.width());
 	shared.resolution[1] = float(pixelSize.height());
+	shared.resolution[2] = rhi->isYUpInFramebuffer() ? 1.f : 0.f;
 	shared.misc[0] = _state.time;
 	shared.misc[1] = _state.night ? 1.f : 0.f;
 	shared.misc[2] = _state.alpha;

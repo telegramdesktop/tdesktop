@@ -25,6 +25,7 @@ namespace Ui {
 namespace {
 
 constexpr auto kDigitNone = int(-1);
+constexpr auto kMaxDigitsCount = 32;
 
 [[nodiscard]] int Circular(int left, int right) {
 	return ((left % right) + right) % right;
@@ -167,6 +168,9 @@ CodeInput::CodeInput(QWidget *parent)
 : Ui::RpWidget(parent) {
 	setFocusPolicy(Qt::StrongFocus);
 	setAttribute(Qt::WA_InputMethodEnabled);
+	setInputMethodHints(Qt::ImhDigitsOnly
+		| Qt::ImhNoPredictiveText
+		| Qt::ImhSensitiveData);
 }
 
 QString CodeInput::accessibilityName() {
@@ -178,6 +182,7 @@ QString CodeInput::accessibilityValue() const {
 }
 
 void CodeInput::setDigitsCountMax(int digitsCount) {
+	digitsCount = std::clamp(digitsCount, 1, kMaxDigitsCount);
 	_digitsCountMax = digitsCount;
 
 	_digits.clear();
@@ -346,17 +351,6 @@ void CodeInput::findEmptyAndPerform(const Fn<void(int)> &callback) {
 			callback(i);
 			break;
 		}
-	}
-}
-
-QVariant CodeInput::inputMethodQuery(Qt::InputMethodQuery query) const {
-	switch (query) {
-	case Qt::ImEnabled:
-		return true;
-	case Qt::ImHints:
-		return int(Qt::ImhDigitsOnly | Qt::ImhNoPredictiveText);
-	default:
-		return RpWidget::inputMethodQuery(query);
 	}
 }
 

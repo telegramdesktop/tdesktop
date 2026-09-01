@@ -76,5 +76,6 @@ private:
 };
 
 bool CloseActiveWindow();
+bool MinimizeActiveWindow();
 
 } // namespace Iv::Editor

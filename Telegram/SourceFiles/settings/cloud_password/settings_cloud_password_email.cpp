@@ -88,6 +88,9 @@ void Email::setupContent() {
 		content,
 		tr::lng_cloud_password_email(),
 		currentStepDataEmail);
+	newInput->setInputMethodHints(Qt::ImhEmailCharactersOnly
+		| Qt::ImhNoAutoUppercase
+		| Qt::ImhNoPredictiveText);
 	const auto error = AddError(content, nullptr);
 	newInput->changes(
 	) | rpl::on_next([=] {
@@ -96,7 +99,9 @@ void Email::setupContent() {
 	AddSkipInsteadOfField(content);
 
 	const auto send = [=](Fn<void()> close) {
-		Expects(!_requestLifetime);
+		if (_requestLifetime) {
+			return;
+		}
 
 		const auto data = stepData();
 

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "history/history_item_reply_markup.h"
 #include "iv/markdown/iv_markdown_document.h"
 #include "iv/markdown/iv_markdown_math_renderer.h"
 
@@ -35,6 +36,7 @@ enum class PreparedBlockKind {
 	Heading,
 	CodeBlock,
 	Rule,
+	ButtonRow,
 	List,
 	ListItem,
 	Quote,
@@ -43,7 +45,7 @@ enum class PreparedBlockKind {
 	Details,
 	Photo,
 	Video,
-	Audio,
+	Document,
 	Map,
 	Channel,
 	GroupedMedia,
@@ -61,6 +63,8 @@ enum class PreparedLinkKind {
 	LocalFile,
 	RejectedRelative,
 	ToggleDetails,
+	ToggleBlockquote,
+	RichPageButton,
 };
 
 struct PreparedLink {
@@ -77,6 +81,7 @@ struct PreparedLink {
 enum class InlineTextObjectKind {
 	Formula,
 	IvImage,
+	Button,
 };
 
 struct InlineTextObjectFormulaData {
@@ -91,11 +96,24 @@ struct InlineTextObjectIvImageData {
 	QString replacementText;
 };
 
+struct InlineTextObjectButtonData {
+	TextWithEntities label;
+	QByteArray data;
+	int64 buttonId = 0;
+	HistoryMessageMarkupButton::Type type
+		= HistoryMessageMarkupButton::Type::Disabled;
+	HistoryMessageMarkupButton::Color color
+		= HistoryMessageMarkupButton::Color::Normal;
+	InlineBots::PeerTypes peerTypes = 0;
+	bool link = false;
+};
+
 struct InlineTextObjectEntity {
 	InlineTextObjectKind kind = InlineTextObjectKind::Formula;
 	std::variant<
 		InlineTextObjectFormulaData,
-		InlineTextObjectIvImageData> data = InlineTextObjectFormulaData();
+		InlineTextObjectIvImageData,
+		InlineTextObjectButtonData> data = InlineTextObjectFormulaData();
 };
 
 enum class PreparedTableCellVerticalAlignment {
@@ -599,7 +617,7 @@ struct PreparedVideoBlockData {
 	bool editMode = false;
 };
 
-struct PreparedAudioBlockData {
+struct PreparedDocumentBlockData {
 	PreparedMediaBlockId id;
 	uint64 documentId = 0;
 	QString title;
@@ -644,11 +662,30 @@ struct PreparedGroupedMediaBlockData {
 	bool editMode = false;
 };
 
+enum class PlaceholderIntent : uchar {
+	EmbedView,
+	UnsupportedBlock,
+};
+
 struct PreparedPlaceholderBlockData {
 	PreparedPlaceholderBlockId id;
+	PlaceholderIntent intent = PlaceholderIntent::EmbedView;
 	QString label;
 	QString copyText;
 	std::optional<EmbedRequest> embed;
+};
+
+struct PreparedButtonRowButton {
+	TextWithEntities text;
+	HistoryMessageMarkupButton button = HistoryMessageMarkupButton(
+		HistoryMessageMarkupButton::Type::Disabled,
+		QString(),
+		{});
+};
+
+struct PreparedButtonRowBlockData {
+	PreparedMediaBlockId id;
+	std::vector<PreparedButtonRowButton> buttons;
 };
 
 struct PreparedRelatedArticleBlockData {
@@ -678,15 +715,17 @@ struct PreparedBlock {
 	QString codeLanguage;
 	QString formulaTex;
 	QString anchorId;
+	QString collapseToggleId;
 	std::vector<QString> anchorIds;
 	PreparedPhotoBlockData photo;
 	PreparedVideoBlockData video;
-	PreparedAudioBlockData audio;
+	PreparedDocumentBlockData document;
 	PreparedMapBlockData map;
 	PreparedChannelBlockData channel;
 	PreparedGroupedMediaBlockData groupedMedia;
 	PreparedEmbedPostBlockData embedPost;
 	PreparedPlaceholderBlockData placeholder;
+	PreparedButtonRowBlockData buttonRow;
 	PreparedRelatedArticleBlockData relatedArticle;
 	ListKind listKind = ListKind::Bullet;
 	ListDelimiter listDelimiter = ListDelimiter::None;
@@ -702,6 +741,7 @@ struct PreparedBlock {
 	int tableColumnCount = 0;
 	bool tableBordered = true;
 	bool tableStriped = false;
+	bool tableCompact = false;
 	bool collapsed = false;
 	bool detailsOpen = false;
 	bool depthClamped = false;
@@ -806,6 +846,7 @@ struct NativeInstantViewPrepareRequest {
 	std::optional<MarkdownPrepareDimensions> dimensionsOverride;
 	std::optional<MarkdownPrepareTableRenderLimits> tableRenderLimits;
 	bool editMode = false;
+	bool unsupportedBlockNotices = false;
 };
 
 struct MarkdownArticleContent {

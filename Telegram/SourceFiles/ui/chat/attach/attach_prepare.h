@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "editor/photo_editor_common.h"
+#include "editor/video/video_editor_common.h"
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/rect_part.h"
 
@@ -43,8 +44,11 @@ struct PreparedFileInformation {
 		bool isGifv = false;
 		bool isWebmSticker = false;
 		bool supportsStreaming = false;
+		bool hasAudio = false;
 		crl::time duration = -1;
+		// Always the raw frame at |modifications.cover|, never modified.
 		QImage thumbnail;
+		Editor::VideoModifications modifications;
 	};
 
 	QString filemime;
@@ -84,7 +88,15 @@ struct PreparedFile {
 	[[nodiscard]] bool isVideoFile() const;
 	[[nodiscard]] bool isGifv() const;
 	[[nodiscard]] bool canUseHighQualityPhoto() const;
+	[[nodiscard]] bool hasAnimatedEditScene() const;
+	[[nodiscard]] bool sendsVideoAsGif() const;
 
+	[[nodiscard]] bool canEditVideo() const;
+
+	[[nodiscard]] int videoQuality() const;
+
+	// Assigned on demand, so deferred work can find this entry back.
+	int64 id = 0;
 	QString path;
 	QString displayName;
 	TextWithTags caption;
@@ -96,8 +108,10 @@ struct PreparedFile {
 	QSize shownDimensions;
 	QSize originalDimensions;
 	Type type = Type::File;
+	crl::time ttlSeconds = 0;
 	bool spoiler = false;
 	bool sendLargePhotos = false;
+	std::shared_ptr<Media::Encode::Job> animationJob;
 };
 
 [[nodiscard]] bool CanBeInAlbumType(PreparedFile::Type type, AlbumType album);
@@ -185,5 +199,15 @@ void PaintHighQualityBadge(
 	const style::ComposeControls &st,
 	QRect rect,
 	RectPart origin = RectPart::BottomLeft);
+
+void PaintAnimatedBadge(
+	QPainter &p,
+	const style::ComposeControls &st,
+	QRect rect,
+	RectPart origin = RectPart::BottomRight);
+
+void PaintMediaTtlBadge(QPainter &p, QRect preview, crl::time ttlSeconds);
+
+void PaintVideoQualityBadge(QPainter &p, QRect preview, int quality);
 
 } // namespace Ui

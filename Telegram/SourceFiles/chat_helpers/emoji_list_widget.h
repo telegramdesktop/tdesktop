@@ -216,6 +216,7 @@ private:
 		DocumentData *thumbnailDocument = nullptr;
 		QString title;
 		std::vector<CustomOne> list;
+		mutable std::unique_ptr<Ui::Text::CustomEmoji> shortcutIcon;
 		mutable std::unique_ptr<Ui::RippleAnimation> ripple;
 		bool painted = false;
 		bool expanded = false;
@@ -475,7 +476,8 @@ private:
 	[[nodiscard]] not_null<Ui::Text::CustomEmoji*> resolveCustomEmoji(
 		EmojiStatusId id,
 		not_null<DocumentData*> document,
-		uint64 setId);
+		uint64 setId,
+		bool search = false);
 	[[nodiscard]] Ui::Text::CustomEmoji *resolveCustomRecent(
 		Core::RecentEmojiId customId);
 	[[nodiscard]] not_null<Ui::Text::CustomEmoji*> resolveCustomRecent(
@@ -483,6 +485,7 @@ private:
 	[[nodiscard]] not_null<Ui::Text::CustomEmoji*> resolveCustomRecent(
 		EmojiStatusId id);
 	[[nodiscard]] Fn<void()> repaintCallback(
+		EmojiStatusId id,
 		DocumentId documentId,
 		uint64 setId);
 

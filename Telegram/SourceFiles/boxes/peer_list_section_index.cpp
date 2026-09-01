@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_section_index.h"
 
 #include "ui/painter.h"
-#include "styles/style_boxes.h"
 #include "styles/style_layers.h"
+#include "styles/style_peer_list_section_index.h"
 
 namespace {
 

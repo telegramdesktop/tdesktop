@@ -74,6 +74,7 @@ private:
 	[[nodiscard]] float64 arrowHeadLength() const;
 
 	bool _drawing = false;
+	bool _dragging = false;
 	std::vector<StrokePoint> _currentStroke;
 	int _lastRenderedIndex = 0;
 	float64 _zoom = 1.0;

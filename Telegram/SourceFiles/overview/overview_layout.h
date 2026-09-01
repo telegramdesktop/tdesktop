@@ -69,6 +69,12 @@ public:
 		return _parent;
 	}
 
+	[[nodiscard]] virtual DocumentData *getDocument() const {
+		return nullptr;
+	}
+
+	[[nodiscard]] virtual bool selectionConsumesClick(QPoint point) const;
+
 	void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) override;
 
@@ -191,7 +197,7 @@ private:
 
 };
 
-struct Info : RuntimeComponent<Info, LayoutItemBase> {
+struct Info : RuntimeComponent<Info, AbstractLayoutItem> {
 	int top = 0;
 };
 
@@ -392,6 +398,10 @@ public:
 		QPoint point,
 		StateRequest request) const override;
 
+	[[nodiscard]] DocumentData *getDocument() const override {
+		return _data;
+	}
+
 	void clearHeavyPart() override;
 
 protected:
@@ -421,10 +431,17 @@ private:
 
 };
 
+struct DocumentExternalLoading {
+	int64 ready = 0;
+	int64 total = 0;
+};
+
 struct DocumentFields {
 	not_null<DocumentData*> document;
 	TimeId dateOverride = 0;
 	bool forceFileLayout = false;
+	Fn<std::optional<DocumentExternalLoading>()> externalLoading;
+	Fn<void()> externalCancel;
 };
 
 class Document final : public RadialProgressItem {
@@ -441,6 +458,11 @@ public:
 	TextState getState(
 		QPoint point,
 		StateRequest request) const override;
+	[[nodiscard]] bool selectionConsumesClick(QPoint point) const override;
+
+	[[nodiscard]] DocumentData *getDocument() const override {
+		return _data;
+	}
 
 	void clearHeavyPart() override;
 
@@ -463,6 +485,9 @@ private:
 	[[nodiscard]] bool songLayout() const;
 	void ensureDataMediaCreated() const;
 	void paintThumbnail(Painter &p, QRect rthumb, bool wthumb, bool withExt);
+	[[nodiscard]] auto externalLoading() const
+	-> std::optional<DocumentExternalLoading>;
+	[[nodiscard]] bool activeLoading() const;
 
 	not_null<DocumentData*> _data;
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
@@ -471,6 +496,7 @@ private:
 
 	const style::OverviewFileLayout &_st;
 	const ::Layout::DocumentGenericPreview _generic;
+	const Fn<std::optional<DocumentExternalLoading>()> _externalLoading;
 
 	bool _thumbLoaded = false;
 	bool _forceFileLayout = false;

@@ -22,6 +22,7 @@ namespace Ui {
 class VerticalLayout;
 class VerticalLayoutReorder;
 enum class FilterIcon : uchar;
+enum class ChatsFiltersTabsMode;
 class PopupMenu;
 template <typename Widget>
 class SlideWrap;
@@ -51,6 +52,8 @@ private:
 		int oldPosition,
 		int newPosition);
 	[[nodiscard]] bool premium() const;
+	[[nodiscard]] Ui::ChatsFiltersTabsMode tabsMode() const;
+	[[nodiscard]] const style::SideBarButton &buttonStyle() const;
 	[[nodiscard]] base::unique_qptr<Ui::SideBarButton> prepareAll();
 	[[nodiscard]] base::unique_qptr<Ui::SideBarButton> prepareButton(
 		not_null<Ui::VerticalLayout*> container,

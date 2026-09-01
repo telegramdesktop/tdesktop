@@ -23,7 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_saved_sublist.h"
 #include "lang/lang_keys.h"
 #include "window/window_session_controller.h"
-#include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
 
 namespace Info::Media {

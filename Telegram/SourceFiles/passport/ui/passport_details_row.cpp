@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/ui/passport_details_row.h"
 
 #include "lang/lang_keys.h"
+#include "base/invoke_queued.h"
 #include "base/platform/base_platform_info.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/fields/masked_input_field.h"
@@ -51,6 +52,7 @@ PostcodeInput::PostcodeInput(
 	rpl::producer<QString> placeholder,
 	const QString &val)
 : MaskedInputField(parent, st, std::move(placeholder), val) {
+	setInputMethodHints(Qt::ImhLatinOnly | Qt::ImhNoPredictiveText);
 	static const auto RegExp = QRegularExpression("^[a-zA-Z0-9\\-]+$");
 	if (!RegExp.match(val).hasMatch()) {
 		setText(QString());
@@ -137,7 +139,11 @@ private:
 
 class DateInput final : public MaskedInputField {
 public:
-	using MaskedInputField::MaskedInputField;
+	DateInput(
+		QWidget *parent,
+		const style::InputField &st,
+		rpl::producer<QString> placeholder,
+		const QString &val);
 
 	void setMaxValue(int value);
 
@@ -180,6 +186,7 @@ protected:
 
 private:
 	void setInnerFocus();
+	void setFocusQueued(const object_ptr<DateInput> &field);
 	void putNext(const object_ptr<DateInput> &field, QChar ch);
 	void erasePrevious(const object_ptr<DateInput> &field);
 	int resizeInner(int left, int top, int width) override;
@@ -457,6 +464,15 @@ QString GetYear(const QString &value) {
 	return QString();
 }
 
+DateInput::DateInput(
+	QWidget *parent,
+	const style::InputField &st,
+	rpl::producer<QString> placeholder,
+	const QString &val)
+: MaskedInputField(parent, st, std::move(placeholder), val) {
+	setInputMethodHints(Qt::ImhDigitsOnly | Qt::ImhNoPredictiveText);
+}
+
 void DateInput::setMaxValue(int value) {
 	_maxValue = value;
 	_maxDigits = 0;
@@ -618,13 +634,24 @@ DateRow::DateRow(
 	}, lifetime());
 }
 
+void DateRow::setFocusQueued(const object_ptr<DateInput> &field) {
+	// Focusing synchronously closes an open IME composition, which on Windows
+	// makes QWindowsInputContext::reset() re-send the commit to the field we
+	// came from, whose correctValue() calls us again, until the stack
+	// overflows. Ui::TimeInput::setFocusQueued() breaks the same loop the
+	// same way - and unlike a re-entrancy flag it still lets a chained
+	// overflow digit reach the field after the next one.
+	const auto raw = field.data();
+	InvokeQueued(raw, [raw] { raw->setFocus(); });
+}
+
 void DateRow::putNext(const object_ptr<DateInput> &field, QChar ch) {
 	field->setCursorPosition(0);
 	if (ch.unicode()) {
 		field->setText(ch + field->getLastText());
 		field->setCursorPosition(1);
 	}
-	field->setFocus();
+	setFocusQueued(field);
 }
 
 void DateRow::erasePrevious(const object_ptr<DateInput> &field) {
@@ -633,7 +660,7 @@ void DateRow::erasePrevious(const object_ptr<DateInput> &field) {
 		field->setCursorPosition(text.size() - 1);
 		field->setText(text.mid(0, text.size() - 1));
 	}
-	field->setFocus();
+	setFocusQueued(field);
 }
 
 bool DateRow::setFocusFast() {

@@ -38,13 +38,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/peer_bubble.h"
-#include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_credits.h"
 #include "styles/style_giveaway.h"
 #include "styles/style_info.h" // inviteLinkSubscribeBoxTerms
 #include "styles/style_layers.h"
-#include "styles/style_premium.h"
 #include "styles/style_settings.h"
 
 namespace Ui {

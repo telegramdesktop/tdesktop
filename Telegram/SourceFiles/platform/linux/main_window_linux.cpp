@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/main_window_linux.h"
 
-#include "styles/style_window.h"
 #include "platform/linux/specific_linux.h"
 #include "history/history.h"
 #include "history/history_widget.h"
@@ -523,6 +522,9 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {
 		}
 	} else if (obj == this && t == QEvent::Hide) {
 		_exposed = false;
+		if (IsX11()) {
+			destroy();
+		}
 	} else if (obj == this && t == QEvent::ThemeChange) {
 		updateWindowIcon();
 	}

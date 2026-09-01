@@ -18,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/color_contrast.h"
 #include "ui/top_background_gradient.h"
-#include "styles/style_calls.h"
 
 namespace Calls {
 

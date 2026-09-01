@@ -76,7 +76,8 @@ void PromoSuggestions::refreshTopPromotion() {
 			return {};
 		}
 		const auto &proxy = Core::App().settings().proxy().selected();
-		if (proxy.type != MTP::ProxyData::Type::Mtproto) {
+		if (proxy.type != MTP::ProxyData::Type::Mtproto
+			&& proxy.type != MTP::ProxyData::Type::Web) {
 			return {};
 		}
 		return { proxy.host, proxy.port };

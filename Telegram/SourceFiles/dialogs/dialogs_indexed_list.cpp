@@ -33,6 +33,7 @@ RowsByLetter IndexedList::addToEnd(Key key) {
 		}
 		result.letters.emplace(ch, j->second.addToEnd(key));
 	}
+	++_dateVersion;
 	return result;
 }
 
@@ -54,11 +55,7 @@ Row *IndexedList::addByName(Key key) {
 
 void IndexedList::adjustByDate(const RowsByLetter &links) {
 	_list.adjustByDate(links.main);
-	for (const auto &[ch, row] : links.letters) {
-		if (auto it = _index.find(ch); it != _index.cend()) {
-			it->second.adjustByDate(row);
-		}
-	}
+	++_dateVersion;
 }
 
 bool IndexedList::updateHeights(float64 narrowRatio) {
@@ -71,11 +68,7 @@ bool IndexedList::updateHeight(Key key, float64 narrowRatio) {
 
 void IndexedList::moveToTop(Key key) {
 	if (_list.moveToTop(key)) {
-		for (const auto &ch : key.entry()->chatListFirstLetters()) {
-			if (auto it = _index.find(ch); it != _index.cend()) {
-				it->second.moveToTop(key);
-			}
-		}
+		++_dateVersion;
 	}
 }
 
@@ -192,6 +185,7 @@ void IndexedList::adjustNames(
 			history->addChatListEntryByLetter(filterId, ch, row);
 		}
 	}
+	++_dateVersion;
 }
 
 void IndexedList::freeze() {
@@ -221,6 +215,20 @@ void IndexedList::remove(Key key, Row *replacedBy) {
 void IndexedList::clear() {
 	_list.clear();
 	_index.clear();
+}
+
+const List *IndexedList::filtered(QChar ch) const {
+	const auto i = _index.find(ch);
+	if (i == _index.end()) {
+		return nullptr;
+	}
+	auto &list = i->second;
+	if (_sortMode == SortMode::Date
+		&& list.dateOrderVersion() != _dateVersion) {
+		list.sortByDate();
+		list.markDateOrderVersion(_dateVersion);
+	}
+	return &list;
 }
 
 std::vector<not_null<Row*>> IndexedList::filtered(

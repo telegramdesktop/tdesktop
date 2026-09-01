@@ -351,6 +351,11 @@ QString AudioFilesFilter() {
 		+ AllFilesFilter();
 }
 
+QString MusicFilesFilter() {
+	return u"Audio files (*.mp3 *.m4a *.flac *.ogg *.wav *.aac *.opus);;"_q
+		+ AllFilesFilter();
+}
+
 const QString &Tmp() {
 	static const auto tmp = u"tmp"_q;
 	return tmp;

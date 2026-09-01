@@ -1212,7 +1212,7 @@ private:
 	Media::VideoQuality _videoQuality;
 	rpl::variable<bool> _chatFiltersHorizontal = false;
 	rpl::variable<Ui::ChatsFiltersTabsMode> _chatFiltersTabsMode
-		= Ui::ChatsFiltersTabsMode::TextOnly;
+		= Ui::ChatsFiltersTabsMode::Default;
 	base::flat_map<QByteArray, QByteArray> _prefs;
 
 	bool _tabbedReplacedWithInfo = false; // per-window

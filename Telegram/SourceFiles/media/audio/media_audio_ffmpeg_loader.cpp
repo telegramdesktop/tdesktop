@@ -48,6 +48,7 @@ bool AbstractFFMpegLoader::open(crl::time positionMs, float64 speed) {
 		return false;
 	}
 	fmtContext->pb = ioContext;
+	FFmpeg::RestrictToCustomIO(fmtContext);
 
 	if (AvErrorWrap error = avformat_open_input(&fmtContext, 0, 0, 0)) {
 		ioBuffer = nullptr;

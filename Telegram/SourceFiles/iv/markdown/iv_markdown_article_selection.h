@@ -20,6 +20,7 @@ enum class SelectableSegmentKind {
 	Placeholder,
 	Photo,
 	Media,
+	ButtonRow,
 };
 
 struct SelectableSegment {
@@ -64,6 +65,13 @@ struct PaintSearchSegmentRanges {
 	}
 };
 
+[[nodiscard]] int CompareSelectionPositions(
+	MarkdownArticleSelectionPosition a,
+	MarkdownArticleSelectionPosition b);
+[[nodiscard]] MarkdownArticleSelection NormalizeSelection(
+	MarkdownArticleSelection selection);
+[[nodiscard]] MarkdownArticleSelectionEndpoint MakeSelectionEndpoint(
+	const MarkdownArticleHitTestResult &result);
 void CollectSelectableSegments(
 	std::vector<LaidOutBlock> *blocks,
 	std::vector<SelectableSegment> *segments);

@@ -42,8 +42,28 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kCenterSizeMultiplier = 1.6;
+constexpr auto kMaxLandingWait = 3 * crl::time(1000);
 
 using Strip = HistoryView::Reactions::Strip;
+
+[[nodiscard]] int PlainIconSize() {
+	return Data::FrameSizeFromTag(Data::CustomEmojiSizeTag::Large)
+		/ style::DevicePixelRatio();
+}
+
+[[nodiscard]] int CenterIconSize() {
+	const auto rough = int(base::SafeRound(
+		st::reactStripImage * kCenterSizeMultiplier));
+	return rough + (((rough - PlainIconSize()) % 2) ? 1 : 0);
+}
+
+[[nodiscard]] float64 PlainIconScale() {
+	return PlainIconSize() / float64(CenterIconSize());
+}
+
+[[nodiscard]] float64 CenterIconMultiplier() {
+	return CenterIconSize() / float64(st::reactStripImage);
+}
 
 class StripPreview final : public Ui::RpWidget {
 public:
@@ -53,6 +73,7 @@ public:
 	void setHiddenIndex(int index);
 	[[nodiscard]] int slotCount() const;
 	[[nodiscard]] QRect slotGeometry(int index) const;
+	[[nodiscard]] QRect plainIconGeometry(int index) const;
 	[[nodiscard]] rpl::producer<int> clicks() const;
 
 protected:
@@ -76,6 +97,7 @@ private:
 	Strip _strip;
 	std::unique_ptr<Ui::ChatTheme> _theme;
 	std::vector<Data::Reaction> _list;
+	base::flat_set<not_null<DocumentData*>> _centered;
 	QImage _islandCache;
 	QImage _pillCache;
 	int _selectedCount = 0;
@@ -94,10 +116,17 @@ StripPreview::StripPreview(QWidget *parent)
 	st::reactionCornerShadow,
 	st::reactStripHeight)
 , _strip(
-		_st,
-		QRect(0, 0, st::reactStripSize, st::reactStripSize),
-		int(base::SafeRound(st::reactStripImage * kCenterSizeMultiplier)),
-		[=] { update(); })
+	_st,
+	QRect(0, 0, st::reactStripSize, st::reactStripSize),
+	CenterIconSize(),
+	crl::guard(this, [=] { update(); }),
+	[=](not_null<Data::DocumentMedia*> media, int) {
+		return HistoryView::Reactions::DefaultIconFactory(
+			media,
+			(_centered.contains(media->owner())
+				? CenterIconSize()
+				: PlainIconSize()));
+	})
 , _theme(Window::Theme::DefaultChatThemeOn(lifetime())) {
 	setMouseTracking(true);
 
@@ -129,10 +158,15 @@ void StripPreview::setList(
 	_selectedCount = selectedCount;
 	auto pointers = std::vector<not_null<const Data::Reaction*>>();
 	pointers.reserve(_list.size());
+	_centered.clear();
 	for (auto &reaction : _list) {
-		if (const auto center = reaction.centerIcon) {
+		const auto center = reaction.centerIcon;
+		if (center && center != reaction.selectAnimation) {
 			reaction.appearAnimation = center;
 			reaction.selectAnimation = center;
+			_centered.emplace(center);
+		} else {
+			reaction.centerIcon = nullptr;
 		}
 		pointers.push_back(&reaction);
 	}
@@ -180,6 +214,15 @@ QRect StripPreview::slotGeometry(int index) const {
 		inner.y() + (st::reactStripHeight - st::reactStripSize) / 2,
 		st::reactStripSize,
 		st::reactStripSize);
+}
+
+QRect StripPreview::plainIconGeometry(int index) const {
+	const auto full = CenterIconSize();
+	const auto size = PlainIconSize();
+	const auto shift = (st::reactStripSize - full) / 2 + (full - size) / 2;
+	return QRect(
+		slotGeometry(index).topLeft() + QPoint(shift, shift),
+		QSize(size, size));
 }
 
 rpl::producer<int> StripPreview::clicks() const {
@@ -311,7 +354,11 @@ void StripPreview::paintEvent(QPaintEvent *e) {
 			p.setOpacity((i < _selectedCount)
 				? 1.
 				: st::settingsReactionsFillerOpacity);
-			_strip.paintOne(p, i, position, 1.);
+			_strip.paintOne(
+				p,
+				i,
+				position,
+				(_list[i].centerIcon ? 1. : PlainIconScale()));
 		}
 		position += QPoint(st::reactStripSize, 0);
 	}
@@ -556,7 +603,12 @@ void ReactionsSettingsBox(
 		StripPreview *preview = nullptr;
 		std::unique_ptr<Ui::ReactionFlyAnimation> fly;
 		Ui::RpWidget *flyLayer = nullptr;
+		QRect flyArea;
+		QRect flyRepaintArea;
+		crl::time flyFinishedAt = 0;
 		int flyIndex = -1;
+		bool flyCustom = false;
+		bool flyLanded = false;
 		Fn<void()> refresh;
 	};
 
@@ -629,11 +681,7 @@ void ReactionsSettingsBox(
 		return false;
 	};
 
-	const auto container = box->verticalLayout();
-	container->paintRequest(
-	) | rpl::on_next([=](QRect clip) {
-		QPainter(container).fillRect(clip, st::windowBgOver);
-	}, container->lifetime());
+	const auto container = pinnedToTop;
 	using TabbedSelector = ChatHelpers::TabbedSelector;
 	const auto island = container->add(
 		object_ptr<Ui::VerticalLayout>(container),
@@ -673,6 +721,19 @@ void ReactionsSettingsBox(
 			- 2 * st::boxRadius,
 		st::emojiPanMinHeight);
 	Ui::AddSkip(container, st::localStorageIslandMargin.top());
+
+	rpl::combine(
+		box->getDelegate()->contentHeightMaxValue(),
+		state->preview->heightValue()
+	) | rpl::on_next([=](int contentHeight, int) {
+		const auto outside = container->height() - selector->height();
+		selector->resize(
+			selector->width(),
+			std::clamp(
+				contentHeight - outside,
+				st::emojiPanMinHeight / 2,
+				st::emojiPanMinHeight));
+	}, box->lifetime());
 
 	{
 		auto recentIds = std::vector<DocumentId>();
@@ -741,8 +802,24 @@ void ReactionsSettingsBox(
 		selector->setMarkedCustomIds(marked);
 	};
 
+	for (const auto &id : selectedIds()) {
+		const auto customId = id.custom();
+		if (!customId || reactions->lookupTemporary(id)) {
+			continue;
+		}
+		session->data().customEmojiManager().resolve(
+			customId
+		) | rpl::on_next_error([=](not_null<DocumentData*>) {
+			state->refresh();
+		}, [] {}, box->lifetime());
+	}
+
 	const auto finishFly = [=] {
 		state->fly = nullptr;
+		state->flyArea = QRect();
+		state->flyRepaintArea = QRect();
+		state->flyFinishedAt = 0;
+		state->flyLanded = false;
 		state->flyIndex = -1;
 		if (state->flyLayer) {
 			state->flyLayer->hide();
@@ -770,30 +847,54 @@ void ReactionsSettingsBox(
 					return;
 				}
 				auto p = QPainter(layer);
-				const auto slot = Ui::MapFrom(
-					layer,
-					state->preview,
-					state->preview->slotGeometry(state->flyIndex));
-				const auto size = st::reactStripImage;
-				const auto target = QRect(
-					slot.topLeft() + QPoint(
-						(slot.width() - size) / 2,
-						(slot.height() - size) / 2),
-					QSize(size, size));
+				const auto preview = state->preview;
+				const auto index = state->flyIndex;
+				const auto target = state->flyCustom
+					? Ui::MapFrom(
+						layer,
+						preview,
+						preview->plainIconGeometry(index))
+					: [&] {
+						const auto slot = Ui::MapFrom(
+							layer,
+							preview,
+							preview->slotGeometry(index));
+						const auto size = st::reactStripImage;
+						return QRect(
+							slot.topLeft() + QPoint(
+								(slot.width() - size) / 2,
+								(slot.height() - size) / 2),
+							QSize(size, size));
+					}();
 				const auto flying = state->fly->flying();
-				state->fly->paintGetArea(
+				const auto area = state->fly->paintGetArea(
 					p,
 					QPoint(),
 					target,
 					st::windowFg->c,
 					clip,
 					crl::now());
+				state->flyRepaintArea = area.united(state->flyArea);
+				state->flyArea = area;
 				if (flying && !state->fly->flying()) {
 					state->preview->setHiddenIndex(-1);
 				}
-				if (state->fly->finished()) {
+				if (state->fly->finished() && !state->flyLanded) {
+					const auto now = crl::now();
+					if (!state->flyFinishedAt) {
+						state->flyFinishedAt = now;
+					}
+					if (state->fly->centerInDefaultState()
+						|| (now - state->flyFinishedAt
+							>= kMaxLandingWait)) {
+						state->flyLanded = true;
+					} else {
+						layer->update(state->flyRepaintArea);
+					}
+				}
+				if (state->flyLanded) {
 					crl::on_main(layer, [=] {
-						if (state->fly && state->fly->finished()) {
+						if (state->flyLanded) {
 							finishFly();
 						}
 					});
@@ -801,6 +902,7 @@ void ReactionsSettingsBox(
 			}, layer->lifetime());
 		}
 		state->flyIndex = index;
+		state->flyCustom = (id.custom() != 0);
 		state->preview->setHiddenIndex(index);
 		state->flyLayer->raise();
 		state->flyLayer->show();
@@ -812,11 +914,16 @@ void ReactionsSettingsBox(
 				.flyFrom = state->flyLayer->mapFromGlobal(
 					from.globalStartGeometry),
 				.flyUp = st::settingsReactionsFlyUp,
-				.centerSizeMultiplier = kCenterSizeMultiplier,
+				.centerSizeMultiplier = CenterIconMultiplier(),
 				.flyKeepSize = true,
 			},
-			[=] { state->flyLayer->update(); },
-			st::reactStripImage,
+			[=] {
+				const auto layer = state->flyLayer;
+				layer->update(state->flyRepaintArea.isEmpty()
+					? layer->rect()
+					: state->flyRepaintArea);
+			},
+			(id.custom() ? PlainIconSize() : int(st::reactStripImage)),
 			Data::CustomEmojiSizeTag::Large);
 	};
 

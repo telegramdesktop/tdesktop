@@ -150,28 +150,16 @@ void Controller::showAccount(
 	const auto prevSessionUniqueId = prevSession
 		? prevSession->uniqueId()
 		: 0;
+	// Weak: the account can be destroyed by removeRedundantAccounts()
+	// before this subscription fires again.
 	const auto accountBeforeIntro = (prevAccount
 		&& prevAccount != account
 		&& prevAccount->sessionExists())
-		? prevAccount
-		: nullptr;
+		? base::make_weak(prevAccount)
+		: base::weak_ptr<Main::Account>();
 	_accountLifetime.destroy();
 	_id.account = account;
 	Core::App().checkWindowId(this);
-
-	const auto updateOnlineOfPrevSesssion = crl::guard(account, [=] {
-		if (!prevSessionUniqueId) {
-			return;
-		}
-		for (auto &[index, account] : _id.account->domain().accounts()) {
-			if (const auto anotherSession = account->maybeSession()) {
-				if (anotherSession->uniqueId() == prevSessionUniqueId) {
-					anotherSession->updates().updateOnline(crl::now());
-					return;
-				}
-			}
-		}
-	});
 
 	if (!isPrimary()) {
 		_id.account->sessionChanges(
@@ -223,11 +211,25 @@ void Controller::showAccount(
 			session->updates().updateOnline(crl::now());
 		} else {
 			sideBarChanged();
-			setupIntro(accountBeforeIntro, std::move(oldContentCache));
+			setupIntro(
+				accountBeforeIntro.get(),
+				std::move(oldContentCache));
 			_widget.updateGlobalMenu();
 		}
 
-		crl::on_main(updateOnlineOfPrevSesssion);
+		crl::on_main(this, [=] {
+			if (!prevSessionUniqueId) {
+				return;
+			}
+			for (auto &[index, account] : _id.account->domain().accounts()) {
+				if (const auto anotherSession = account->maybeSession()) {
+					if (anotherSession->uniqueId() == prevSessionUniqueId) {
+						anotherSession->updates().updateOnline(crl::now());
+						return;
+					}
+				}
+			}
+		});
 	}, _accountLifetime);
 }
 
@@ -553,9 +555,15 @@ void Controller::invokeForSessionController(
 }
 
 QPoint Controller::getPointForCallPanelCenter() const {
-	return _widget.isActive()
-		? _widget.geometry().center()
-		: _widget.screen()->geometry().center();
+	if (_widget.isActive()) {
+		return _widget.geometry().center();
+	}
+	// When the last monitor is removed QGuiApplication has no screens at
+	// all, so screen() is nullptr.
+	const auto screen = _widget.screen();
+	return screen
+		? screen->geometry().center()
+		: _widget.geometry().center();
 }
 
 void Controller::showLogoutConfirmation() {

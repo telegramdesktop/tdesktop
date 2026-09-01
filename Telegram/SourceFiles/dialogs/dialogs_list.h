@@ -59,6 +59,13 @@ public:
 	bool updateHeight(Key key, float64 narrowRatio);
 	bool updateHeights(float64 narrowRatio);
 	bool remove(Key key, Row *replacedBy = nullptr);
+	void sortByDate();
+	[[nodiscard]] uint64 dateOrderVersion() const {
+		return _dateOrderVersion;
+	}
+	void markDateOrderVersion(uint64 version) {
+		_dateOrderVersion = version;
+	}
 
 	using const_iterator = std::vector<not_null<Row*>>::const_iterator;
 	using iterator = const_iterator;
@@ -79,7 +86,6 @@ public:
 private:
 	void adjustByName(not_null<Row*> row);
 	[[nodiscard]] bool sortedByDate() const;
-	void sortByDate();
 	void rotate(
 		std::vector<not_null<Row*>>::iterator first,
 		std::vector<not_null<Row*>>::iterator middle,
@@ -87,6 +93,7 @@ private:
 
 	SortMode _sortMode = SortMode();
 	FilterId _filterId = 0;
+	uint64 _dateOrderVersion = 0;
 	float64 _narrowRatio = 0.;
 	bool _frozen = false;
 	std::vector<not_null<Row*>> _rows;

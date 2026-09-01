@@ -125,7 +125,7 @@ void SortPreparedIvRichText(PreparedIvRichText *text) {
 	return result;
 }
 
-[[nodiscard]] bool AddNativeIvPreparedLink(
+void AddNativeIvPreparedLink(
 		TextWithEntities *text,
 		std::vector<PreparedLink> *links,
 		int from,
@@ -133,11 +133,11 @@ void SortPreparedIvRichText(PreparedIvRichText *text) {
 		QString target,
 		uint64 webpageId = 0) {
 	if (!length || target.isEmpty()) {
-		return true;
+		return;
 	}
 	const auto index = links->size() + 1;
 	if (index > std::numeric_limits<uint16>::max()) {
-		return true;
+		return;
 	}
 	auto prepared = PreparedLink();
 	if (webpageId) {
@@ -150,7 +150,7 @@ void SortPreparedIvRichText(PreparedIvRichText *text) {
 	}
 	if (prepared.kind == PreparedLinkKind::RejectedRelative
 		|| prepared.kind == PreparedLinkKind::LocalFile) {
-		return true;
+		return;
 	}
 	FinalizePreparedUrlLink(&prepared, QStringView(text->text).mid(from, length));
 	if (prepared.kind == PreparedLinkKind::InstantViewPage) {
@@ -166,7 +166,28 @@ void SortPreparedIvRichText(PreparedIvRichText *text) {
 		length,
 		InternalLinkData(uint16(index))));
 	links->push_back(std::move(prepared));
-	return true;
+}
+
+void AddNativeIvRichPageButtonLink(
+		TextWithEntities *text,
+		std::vector<PreparedLink> *links,
+		int from,
+		int length,
+		QString data) {
+	const auto index = links->size() + 1;
+	if (index > std::numeric_limits<uint16>::max()) {
+		return;
+	}
+	text->entities.push_back(EntityInText(
+		EntityType::CustomUrl,
+		from,
+		length,
+		InternalLinkData(uint16(index))));
+	links->push_back(PreparedLink{
+		.index = uint16(index),
+		.kind = PreparedLinkKind::RichPageButton,
+		.target = std::move(data),
+	});
 }
 
 void AddNativeIvBlockAnchor(
@@ -223,7 +244,7 @@ void RememberCanonicalInlineFormula(
 	if (!formula) {
 		return;
 	}
-	(void)state->rememberFormula(
+	state->rememberFormula(
 		MathKind::Inline,
 		formula->trimmedTex,
 		context.textSize,
@@ -236,33 +257,63 @@ void AppendCanonicalNativeIvRichText(
 		PreparedIvRichText *result,
 		NativeIvPrepareState *state,
 		NativeIvRichTextContext context) {
+	// A link-styled inline button stops being an object here: its normalized
+	// label becomes real characters of this text and, when it is actionable,
+	// one ordinary rich-page link over exactly those characters. The label's
+	// dates are resolved at the same time, because a surviving FormattedDate
+	// entity would be given its own internal index by the block parser, would
+	// win over the enclosing link index, and would become a second click
+	// target inside the link.
+	auto spliced = std::optional<TextWithEntities>();
+	auto buttons = std::vector<InlineLinkButtonSpan>();
+	if (!state->editMode && TextHasInlineLinkButton(text.text)) {
+		const auto &runtime = state->result.mediaRuntime;
+		spliced = text.text;
+		buttons = ExpandInlineLinkButtons(
+			&*spliced,
+			RichButtonLabelDates::Resolve,
+			runtime
+				? runtime->textContext().formattedDateFactory
+				: Ui::Text::FormattedDateFactory());
+	}
+	const auto &source = spliced ? *spliced : text.text;
 	const auto shift = result->text.text.size();
-	result->text.text.append(text.text.text);
+	result->text.text.append(source.text);
 	result->text.entities.reserve(
-		result->text.entities.size() + text.text.entities.size());
-	for (const auto &entity : text.text.entities) {
-		if (context.dropClickHandlers
-			&& DropNativeIvClickHandlerEntity(entity.type())) {
+		result->text.entities.size() + source.entities.size());
+	auto linkRanges = std::vector<std::pair<int, int>>();
+	for (const auto &entity : source.entities) {
+		const auto takesLink = DropNativeIvClickHandlerEntity(entity.type());
+		if (context.dropClickHandlers && takesLink) {
 			continue;
 		}
+		const auto offset = entity.offset();
+		const auto length = (offset < 0
+			|| entity.length() <= 0
+			|| offset >= source.text.size())
+			? 0
+			: std::min(entity.length(), int(source.text.size()) - offset);
+		const auto collect = takesLink && length && !buttons.empty();
 		if (entity.type() == EntityType::CustomUrl) {
-			if (entity.offset() < 0
-				|| entity.length() <= 0
-				|| entity.offset() >= text.text.text.size()) {
+			if (!length) {
 				continue;
 			}
-			const auto length = std::min(
-				entity.length(),
-				int(text.text.text.size()) - entity.offset());
 			const auto decoded = Iv::DecodeRichPageLinkUrl(entity.data());
-			(void)AddNativeIvPreparedLink(
+			const auto count = result->links.size();
+			AddNativeIvPreparedLink(
 				&result->text,
 				&result->links,
-				shift + entity.offset(),
+				shift + offset,
 				length,
 				decoded ? decoded->url : entity.data(),
 				decoded ? decoded->webpageId : 0);
+			if (collect && result->links.size() > count) {
+				linkRanges.push_back({ offset, offset + length });
+			}
 			continue;
+		}
+		if (collect) {
+			linkRanges.push_back({ offset, offset + length });
 		}
 		RememberCanonicalInlineFormula(entity, state, context);
 		result->text.entities.push_back(EntityInText(
@@ -270,6 +321,32 @@ void AppendCanonicalNativeIvRichText(
 			entity.offset() + shift,
 			entity.length(),
 			entity.data()));
+	}
+	if (context.dropClickHandlers) {
+		return;
+	}
+	// A button span nested inside one of this text's own links keeps no link
+	// of its own: a block carries a single link index, so the inner link would
+	// close the enclosing one and everything after it would stop being a link
+	// at all. A range is recorded only for an entity that reaches the text
+	// engine with a link index of its own — a CustomUrl only when it was
+	// really registered above — so a span skipped here stays clickable
+	// through the enclosing link, exactly as the replaced object character.
+	for (auto &button : buttons) {
+		const auto till = button.offset + button.length;
+		const auto nested = ranges::any_of(linkRanges, [&](
+				std::pair<int, int> range) {
+			return (button.offset < range.second) && (range.first < till);
+		});
+		if (nested) {
+			continue;
+		}
+		AddNativeIvRichPageButtonLink(
+			&result->text,
+			&result->links,
+			shift + button.offset,
+			button.length,
+			std::move(button.data));
 	}
 }
 
@@ -355,6 +432,18 @@ void ApplyEmptyMediaCaptionPlaceholder(
 		return;
 	}
 	block->editPlaceholderText = tr::lng_photo_caption(tr::now);
+}
+
+[[nodiscard]] TableAlignment NativeIvButtonRowAlignment(
+		Iv::RichPage::ButtonAlignment alignment) {
+	using Alignment = Iv::RichPage::ButtonAlignment;
+	switch (alignment) {
+	case Alignment::Stretch: return TableAlignment::None;
+	case Alignment::Left: return TableAlignment::Left;
+	case Alignment::Center: return TableAlignment::Center;
+	case Alignment::Right: return TableAlignment::Right;
+	}
+	Unexpected("Alignment in NativeIvButtonRowAlignment.");
 }
 
 } // namespace
@@ -500,14 +589,16 @@ bool PrepareNativeIvVideoBlock(
 	return true;
 }
 
-bool PrepareNativeIvAudioBlock(
+bool PrepareNativeIvDocumentBlock(
 		const Iv::RichPage::Block &data,
 		std::vector<PreparedBlock> *result,
 		NativeIvPrepareState *state) {
 	if (!CanonicalDocumentId(data)) {
 		return state->editMode
 			? PrepareNativeIvCanonicalPlaceholderBlock(
-				u"Audio"_q,
+				((data.kind == Iv::RichPage::BlockKind::Audio)
+					? u"Audio"_q
+					: u"File"_q),
 				data.caption,
 				data.anchorId,
 				result,
@@ -521,7 +612,7 @@ bool PrepareNativeIvAudioBlock(
 	}
 	SortPreparedIvRichText(&caption);
 	auto block = PreparedBlock();
-	block.kind = PreparedBlockKind::Audio;
+	block.kind = PreparedBlockKind::Document;
 	block.text = std::move(caption.text);
 	block.links = std::move(caption.links);
 	block.anchorId = data.anchorId.isEmpty() ? std::move(anchorId) : data.anchorId;
@@ -529,12 +620,12 @@ bool PrepareNativeIvAudioBlock(
 	block.supplementary = true;
 	block.forceTextSegment = state->editMode;
 	ApplyEmptyMediaCaptionPlaceholder(&block, state);
-	block.audio.id = GeneratePreparedMediaBlockId(state);
-	block.audio.documentId = CanonicalDocumentId(data);
-	block.audio.title = data.audioTitle;
-	block.audio.performer = data.audioPerformer;
-	block.audio.fileName = data.audioFileName;
-	block.audio.duration = data.audioDuration;
+	block.document.id = GeneratePreparedMediaBlockId(state);
+	block.document.documentId = CanonicalDocumentId(data);
+	block.document.title = data.audioTitle;
+	block.document.performer = data.audioPerformer;
+	block.document.fileName = data.fileName;
+	block.document.duration = data.audioDuration;
 	result->push_back(std::move(block));
 	return true;
 }
@@ -646,6 +737,28 @@ bool PrepareNativeIvGroupedMediaBlock(
 	ApplyEmptyMediaCaptionPlaceholder(&block, state);
 	block.groupedMedia.caption = block.text;
 	block.groupedMedia.editMode = state->editMode;
+	result->push_back(std::move(block));
+	return true;
+}
+
+bool PrepareNativeIvButtonRowBlock(
+		const Iv::RichPage::Block &data,
+		std::vector<PreparedBlock> *result,
+		NativeIvPrepareState *state) {
+	if (data.buttons.empty()) {
+		return true;
+	}
+	auto block = PreparedBlock();
+	block.kind = PreparedBlockKind::ButtonRow;
+	block.flowAlignment = NativeIvButtonRowAlignment(data.buttonAlignment);
+	block.buttonRow.id = GeneratePreparedMediaBlockId(state);
+	block.buttonRow.buttons.reserve(data.buttons.size());
+	for (const auto &button : data.buttons) {
+		block.buttonRow.buttons.push_back({
+			.text = NormalizeRichButtonLabel(button.text.text),
+			.button = button.button,
+		});
+	}
 	result->push_back(std::move(block));
 	return true;
 }

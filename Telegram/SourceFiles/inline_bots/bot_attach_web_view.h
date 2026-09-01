@@ -343,6 +343,13 @@ private:
 	const WebViewButton _button;
 	const WebViewSource _source;
 
+	// Requests that only drive this instance's own UI go through _api, so
+	// that they are cancelled when the instance is destroyed. Requests that
+	// must reach the server even if the mini app closes (sending data,
+	// granting permissions) are sent through _session->api() instead and
+	// must not touch anything owned by this instance in their handlers.
+	MTP::Sender _api;
+
 	std::optional<ShowArgs> _botFullWaitingArgs;
 
 	BotAppData *_app = nullptr;
@@ -431,6 +438,9 @@ public:
 	[[nodiscard]] rpl::producer<> popularAppBotsLoaded() const;
 
 private:
+	void destroyDeferred(
+		std::vector<std::unique_ptr<WebViewInstance>> instances);
+
 	void resolveUsername(
 		std::shared_ptr<Ui::Show> show,
 		Fn<void(not_null<PeerData*>)> done);
@@ -481,6 +491,7 @@ private:
 	};
 	base::flat_map<uint64, JoinChatWebView> _joinChatWebViews;
 	std::vector<std::unique_ptr<WebViewInstance>> _instances;
+	std::vector<std::unique_ptr<WebViewInstance>> _closing;
 
 	std::vector<not_null<UserData*>> _popularAppBots;
 	mtpRequestId _popularAppBotsRequestId = 0;

@@ -31,10 +31,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
-#include "data/data_community.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "base/qt/qt_key_modifiers.h"
 #include "base/unixtime.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -372,7 +372,7 @@ void PeerListBox::peerListSetRowChecked(
 		peerListUpdateRow(row);
 
 		// This call deletes row from _searchRows.
-		if (_select && trackSelected) {
+		if (_select && trackSelected && !base::IsShiftPressed()) {
 			_select->entity()->clearQuery();
 		}
 	} else {
@@ -747,11 +747,7 @@ void PeerListRow::refreshStatus() {
 		setStatusText(tr::lng_group_status(tr::now));
 	} else if (const auto channel = peer()->asChannel()) {
 		if (channel->isCommunity()) {
-			const auto info = channel->communityInfo();
-			const auto count = info ? int(info->histories().size()) : 0;
-			setStatusText(count
-				? tr::lng_community_chats(tr::now, lt_count, count)
-				: tr::lng_community_status(tr::now));
+			setStatusText(tr::lng_community_status(tr::now));
 		} else {
 			setStatusText(tr::lng_channel_status(tr::now));
 		}

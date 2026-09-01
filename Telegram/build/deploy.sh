@@ -84,31 +84,73 @@ elif [ "$BuildTarget" == "linux" ]; then
 else
   Error "Can't deploy here"
 fi
-MacDeployPath="$BackupPath/$AppVersionStrMajor/$AppVersionStrFull/tmac"
+DeployPath="$BackupPath/$AppVersionStrMajor/$AppVersionStrFull"
+
+# One name per platform folder. The same value is the subfolder of the
+# local backup that build.sh / build.bat wrote into and, through the
+# relative rsync at the end, the folder on the remote.
+MacRemoteFolder="tmac"
+WinRemoteFolder="tsetup"
+Win64RemoteFolder="tx64"
+WinArmRemoteFolder="tarm64"
+LinuxRemoteFolder="tlinux"
+
 MacUpdateFile="tmacupd$AppVersion"
 ARMacUpdateFile="tarmacupd$AppVersion"
 MacSetupFile="tsetup.$AppVersionStrFull.dmg"
-MacRemoteFolder="tmac"
-WinDeployPath="$BackupPath/$AppVersionStrMajor/$AppVersionStrFull/tsetup"
 WinUpdateFile="tupdate$AppVersion"
 WinSetupFile="tsetup.$AppVersionStrFull.exe"
 WinPortableFile="tportable.$AppVersionStrFull.zip"
-WinRemoteFolder="tsetup"
-Win64DeployPath="$BackupPath/$AppVersionStrMajor/$AppVersionStrFull/tx64"
 Win64UpdateFile="tx64upd$AppVersion"
 Win64SetupFile="tsetup-x64.$AppVersionStrFull.exe"
 Win64PortableFile="tportable-x64.$AppVersionStrFull.zip"
-Win64RemoteFolder="tx64"
-WinArmDeployPath="$BackupPath/$AppVersionStrMajor/$AppVersionStrFull/tarm64"
 WinArmUpdateFile="tarm64upd$AppVersion"
 WinArmSetupFile="tsetup-arm64.$AppVersionStrFull.exe"
 WinArmPortableFile="tportable-arm64.$AppVersionStrFull.zip"
-WinArmRemoteFolder="tarm64"
-LinuxDeployPath="$BackupPath/$AppVersionStrMajor/$AppVersionStrFull/tlinux"
 LinuxUpdateFile="tlinuxupd$AppVersion"
 LinuxSetupFile="tsetup.$AppVersionStrFull.tar.xz"
-LinuxRemoteFolder="tlinux"
-DeployPath="$BackupPath/$AppVersionStrMajor/$AppVersionStrFull"
+
+# Deploys the v2-named files built with the same switch in build.sh /
+# build.bat (updates, installers and portables alike) into the v2
+# platform folders.
+if [ "$TDESKTOP_UPDATE_V2" == "1" ]; then
+  if [ "$AlphaVersion" != "0" ]; then
+    Error "The v2 update format has no alpha channel."
+  fi
+  case "$AppVersionStr" in
+    *.*.*) ;;
+    *) Error "AppVersionStr '$AppVersionStr' must have three components for the v2 names." ;;
+  esac
+  V2Suffix=""
+  if [ "$BetaChannel" != "0" ]; then
+    V2Suffix="-beta"
+  fi
+  MacUpdateFile="td-update-mac-x64-$AppVersion$V2Suffix"
+  ARMacUpdateFile="td-update-mac-arm-$AppVersion$V2Suffix"
+  MacSetupFile="td-setup-mac-$AppVersionStr$V2Suffix.dmg"
+  WinUpdateFile="td-update-win-x86-$AppVersion$V2Suffix"
+  WinSetupFile="td-setup-win-x86-$AppVersionStr$V2Suffix.exe"
+  WinPortableFile="td-portable-win-x86-$AppVersionStr$V2Suffix.zip"
+  Win64UpdateFile="td-update-win-x64-$AppVersion$V2Suffix"
+  Win64SetupFile="td-setup-win-x64-$AppVersionStr$V2Suffix.exe"
+  Win64PortableFile="td-portable-win-x64-$AppVersionStr$V2Suffix.zip"
+  WinArmUpdateFile="td-update-win-arm-$AppVersion$V2Suffix"
+  WinArmSetupFile="td-setup-win-arm-$AppVersionStr$V2Suffix.exe"
+  WinArmPortableFile="td-portable-win-arm-$AppVersionStr$V2Suffix.zip"
+  LinuxUpdateFile="td-update-linux-x64-$AppVersion$V2Suffix"
+  LinuxSetupFile="td-setup-linux-x64-$AppVersionStr$V2Suffix.tar.xz"
+  MacRemoteFolder="mac"
+  WinRemoteFolder="win-x86"
+  Win64RemoteFolder="win-x64"
+  WinArmRemoteFolder="win-arm"
+  LinuxRemoteFolder="linux-x64"
+fi
+
+MacDeployPath="$DeployPath/$MacRemoteFolder"
+WinDeployPath="$DeployPath/$WinRemoteFolder"
+Win64DeployPath="$DeployPath/$Win64RemoteFolder"
+WinArmDeployPath="$DeployPath/$WinArmRemoteFolder"
+LinuxDeployPath="$DeployPath/$LinuxRemoteFolder"
 
 if [ "$AlphaVersion" != "0" ]; then
   if [ "$DeployTarget" == "win" ]; then
@@ -206,28 +248,28 @@ $FullScriptPath/../../../DesktopPrivate/mount.sh
 
 declare -a Files
 if [ "$DeployMac" == "1" ]; then
-  Files+=("tmac/$MacUpdateFile" "tmac/$ARMacUpdateFile" "tmac/$MacSetupFile")
+  Files+=("$MacRemoteFolder/$MacUpdateFile" "$MacRemoteFolder/$ARMacUpdateFile" "$MacRemoteFolder/$MacSetupFile")
 fi
 if [ "$DeployWin" == "1" ]; then
-  Files+=("tsetup/$WinUpdateFile" "tsetup/$WinPortableFile")
+  Files+=("$WinRemoteFolder/$WinUpdateFile" "$WinRemoteFolder/$WinPortableFile")
   if [ "$AlphaVersion" == "0" ]; then
-    Files+=("tsetup/$WinSetupFile")
+    Files+=("$WinRemoteFolder/$WinSetupFile")
   fi
 fi
 if [ "$DeployWin64" == "1" ]; then
-  Files+=("tx64/$Win64UpdateFile" "tx64/$Win64PortableFile")
+  Files+=("$Win64RemoteFolder/$Win64UpdateFile" "$Win64RemoteFolder/$Win64PortableFile")
   if [ "$AlphaVersion" == "0" ]; then
-    Files+=("tx64/$Win64SetupFile")
+    Files+=("$Win64RemoteFolder/$Win64SetupFile")
   fi
 fi
 if [ "$DeployWinArm" == "1" ]; then
-  Files+=("tarm64/$WinArmUpdateFile" "tarm64/$WinArmPortableFile")
+  Files+=("$WinArmRemoteFolder/$WinArmUpdateFile" "$WinArmRemoteFolder/$WinArmPortableFile")
   if [ "$AlphaVersion" == "0" ]; then
-    Files+=("tarm64/$WinArmSetupFile")
+    Files+=("$WinArmRemoteFolder/$WinArmSetupFile")
   fi
 fi
 if [ "$DeployLinux" == "1" ]; then
-  Files+=("tlinux/$LinuxUpdateFile" "tlinux/$LinuxSetupFile")
+  Files+=("$LinuxRemoteFolder/$LinuxUpdateFile" "$LinuxRemoteFolder/$LinuxSetupFile")
 fi
 cd $DeployPath
 rsync -avR --no-g --progress ${Files[@]} "$FullScriptPath/../../../DesktopPrivate/remote/files"

@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "ui/painter.h"
 #include "ui/widgets/popup_menu.h"
-#include "styles/style_editor.h"
 #include "styles/style_media_view.h"
 #include "styles/style_menu_icons.h"
 

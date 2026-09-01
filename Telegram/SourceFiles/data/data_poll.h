@@ -30,7 +30,7 @@ struct PollMedia {
 	QString url;
 
 	explicit operator bool() const {
-		return photo || document || geo || !url.isEmpty();
+		return photo || document || geo || webpage || !url.isEmpty();
 	}
 };
 

@@ -84,13 +84,15 @@ QSize UnwrappedMedia::countCurrentSize(int newWidth) {
 		return { newWidth, newHeight };
 	}
 	if (_parent->hasRightLayout()) {
-		// Add some height to isolated emoji for the timestamp info.
-		const auto infoHeight = st::msgDateImgPadding.y() * 2
-			+ st::msgDateFont->height;
+		const auto infoHeight = bottomInfoHeight();
 		const auto minimal = std::min(
 			st::largeEmojiSize + 2 * st::largeEmojiOutline,
 			_contentSize.height());
-		accumulate_max(newHeight, minimal + st::msgDateImgDelta + infoHeight);
+		accumulate_max(
+			newHeight,
+			minimal + (infoHeight
+				? (st::msgDateImgDelta + infoHeight)
+				: 0));
 	}
 	accumulate_max(newWidth, _parent->reactionsOptimalWidth());
 	_topAdded = 0;
@@ -124,11 +126,11 @@ QSize UnwrappedMedia::countCurrentSize(int newWidth) {
 			_topAdded = surrounding.height + st::msgMargin.bottom();
 			newHeight += _topAdded;
 		} else {
-			const auto infoHeight = st::msgDateImgPadding.y() * 2
-				+ st::msgDateFont->height;
+			const auto infoHeight = bottomInfoHeight();
 			const auto minimal = surrounding.height
-				+ st::msgDateImgDelta
-				+ infoHeight;
+				+ (infoHeight
+					? (st::msgDateImgDelta + infoHeight)
+					: 0);
 			newHeight = std::max(newHeight, minimal);
 		}
 		const auto availw = newWidth
@@ -163,8 +165,7 @@ void UnwrappedMedia::draw(Painter &p, const PaintContext &context) const {
 			_contentSize.height(),
 			(height()
 				- _topAdded
-				- st::msgDateImgPadding.y() * 2
-				- st::msgDateFont->height))
+				- bottomInfoHeight()))
 		: _contentSize.height();
 	const auto inner = QRect(usex, usey, usew, useh);
 	if (context.skipDrawingParts != PaintContext::SkipDrawingParts::Content) {
@@ -420,16 +421,17 @@ PointState UnwrappedMedia::pointState(QPoint point) const {
 		usex = width() - usex - usew;
 	}
 
-	const auto datey = height() - st::msgDateImgPadding.y() * 2
-		- st::msgDateFont->height;
+	const auto infoHeight = bottomInfoHeight();
+	const auto datey = height() - infoHeight;
 	const auto usey = rightAligned ? _topAdded : (height() - _contentSize.height());
 	const auto useh = rightAligned
 		? std::max(_contentSize.height(), datey)
 		: _contentSize.height();
 	const auto inner = QRect(usex, usey, usew, useh);
 
-	// Rectangle of date bubble.
-	if (point.x() < calculateFullRight(inner) && point.y() > datey) {
+	if (infoHeight
+		&& point.x() < calculateFullRight(inner)
+		&& point.y() > datey) {
 		return PointState::Inside;
 	}
 
@@ -458,7 +460,7 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 	const auto useh = rightAligned
 		? std::max(
 			_contentSize.height(),
-			height() - st::msgDateImgPadding.y() * 2 - st::msgDateFont->height)
+			height() - bottomInfoHeight())
 		: _contentSize.height();
 	const auto inner = QRect(usex, usey, usew, useh);
 
@@ -640,30 +642,33 @@ QRect UnwrappedMedia::contentRectForReactions() const {
 	const auto useh = rightAligned
 		? std::max(
 			_contentSize.height(),
-			height() - st::msgDateImgPadding.y() * 2 - st::msgDateFont->height)
+			height() - bottomInfoHeight())
 		: _contentSize.height();
 	return QRect(usex, usey, usew, useh);
 }
 
 std::optional<int> UnwrappedMedia::reactionButtonCenterOverride() const {
+	if (_parent->hidesBottomInfo()) {
+		return std::nullopt;
+	}
 	const auto fullRight = calculateFullRight(contentRectForReactions());
 	const auto right = fullRight
-		- _parent->infoWidth()
-		- st::msgDateImgPadding.x() * 2
-		- st::msgReplyPadding.left();
+		- bottomInfoWidth();
 	return right - st::reactionCornerSize.width() / 2;
 }
 
 QPoint UnwrappedMedia::resolveCustomInfoRightBottom() const {
 	const auto inner = contentRectForReactions();
 	const auto fullBottom = inner.y() + inner.height();
+	if (_parent->hidesBottomInfo()) {
+		return QPoint(inner.x() + inner.width(), fullBottom);
+	}
 	const auto fullRight = calculateFullRight(inner);
 	const auto skipx = st::msgDateImgPadding.x();
 	const auto skipy = st::msgDateImgPadding.y();
-	const auto infoWidth = _parent->infoWidth()
-		+ st::msgDateImgPadding.x() * 2
-		+ st::msgReplyPadding.left();
-	return QPoint(fullRight - skipx - infoWidth, fullBottom - skipy);
+	return QPoint(
+		fullRight - skipx - bottomInfoWidth(),
+		fullBottom - skipy);
 }
 
 std::unique_ptr<StickerPlayer> UnwrappedMedia::stickerTakePlayer(
@@ -674,9 +679,7 @@ std::unique_ptr<StickerPlayer> UnwrappedMedia::stickerTakePlayer(
 
 int UnwrappedMedia::calculateFullRight(const QRect &inner) const {
 	const auto rightAligned = _parent->hasRightLayout();
-	const auto infoWidth = _parent->infoWidth()
-		+ st::msgDateImgPadding.x() * 2
-		+ st::msgReplyPadding.left();
+	const auto infoWidth = bottomInfoWidth();
 	const auto rightActionSize = _parent->rightActionSize();
 	const auto rightSkip = st::msgPadding.left()
 		+ (_parent->hasFromPhoto()
@@ -732,12 +735,27 @@ bool UnwrappedMedia::needInfoDisplay() const {
 			&& _content->alwaysShowOutTimestamp());
 }
 
+int UnwrappedMedia::bottomInfoWidth() const {
+	return _parent->hidesBottomInfo()
+		? 0
+		: (st::msgReplyPadding.left()
+			+ _parent->infoWidth()
+			+ 2 * st::msgDateImgPadding.x());
+}
+
+int UnwrappedMedia::bottomInfoHeight() const {
+	return _parent->hidesBottomInfo()
+		? 0
+		: (2 * st::msgDateImgPadding.y()
+			+ st::msgDateFont->height);
+}
+
 int UnwrappedMedia::additionalWidth(
 		const TopicButton *topic,
 		const Reply *reply,
 		const HistoryMessageVia *via,
 		const HistoryMessageForwarded *forwarded) const {
-	auto result = st::msgReplyPadding.left() + _parent->infoWidth() + 2 * st::msgDateImgPadding.x();
+	auto result = bottomInfoWidth();
 	if (topic) {
 		accumulate_max(result, 2 * st::msgReplyPadding.left() + topic->name.maxWidth() + st::topicButtonArrowSkip + st::topicButtonPadding.right());
 	}

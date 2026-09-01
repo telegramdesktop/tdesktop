@@ -303,7 +303,9 @@ rpl::producer<rpl::no_value, QString> CloudPassword::check(
 		)).done([=](const MTPaccount_Password &result) {
 			const auto latestState = ProcessMtpState(result);
 			const auto input = [&] {
-				if (password.isEmpty()) {
+				if (password.isEmpty() || !latestState.hasPassword) {
+					// Without a password the algorithm is the null variant
+					// and ComputeCloudPasswordHash() aborts on it.
 					return Core::CloudPasswordResult{
 						MTP_inputCheckPasswordEmpty()
 					};

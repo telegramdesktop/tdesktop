@@ -30,6 +30,7 @@ class ComposeWithAi final {
 public:
 	struct ToneRef {
 		QString defaultTone;
+		QString customPrompt;
 		uint64 id = 0;
 		uint64 accessHash = 0;
 	};
@@ -46,6 +47,9 @@ public:
 		}
 		void setCustomTone(uint64 id, uint64 accessHash) {
 			tone = ToneRef{ .id = id, .accessHash = accessHash };
+		}
+		void setCustomPrompt(const QString &prompt) {
+			tone = ToneRef{ .customPrompt = prompt };
 		}
 	};
 
@@ -74,7 +78,10 @@ public:
 
 	explicit ComposeWithAi(not_null<ApiWrap*> api);
 
-	[[nodiscard]] mtpRequestId request(
+	[[nodiscard]] static MTPInputAiComposeTone SerializeTone(
+		const std::optional<ToneRef> &tone);
+
+	mtpRequestId request(
 		Request request,
 		Fn<void(Result &&)> done,
 		Fn<void(const MTP::Error &)> fail = nullptr);

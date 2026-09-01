@@ -29,10 +29,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
-#include "styles/style_channel_earn.h"
 #include "styles/style_chat.h"
 #include "styles/style_credits.h"
-#include "styles/style_giveaway.h"
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
 
@@ -170,7 +168,12 @@ void GiftCreditsBox(
 		box->verticalLayout(),
 		peer,
 		CreditsAmount(),
-		[=] { gifted(); box->uiShow()->hideLayer(); },
+		[=] {
+			if (const auto onstack = gifted) {
+				onstack();
+			}
+			box->uiShow()->hideLayer();
+		},
 		box->showFinishes(),
 		tr::lng_credits_summary_options_subtitle(),
 		{});

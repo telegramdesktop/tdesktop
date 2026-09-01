@@ -107,6 +107,7 @@ private:
 	bool listIsLessInOrder(
 		not_null<HistoryItem*> first,
 		not_null<HistoryItem*> second) override;
+	bool listInvertedOrder() override;
 	void listSelectionChanged(
 		HistoryView::SelectedItems &&items) override;
 	void listMarkReadTill(not_null<HistoryItem*> item) override;
@@ -224,7 +225,7 @@ private:
 	bool _newPollButtonShown = true;
 
 	std::unique_ptr<Lottie::Icon> _emptyIcon;
-	Ui::Text::String _emptyText;
+	Ui::Text::String _emptyText = { 1 };
 	bool _emptyAnimated = false;
 
 	QImage _bg;
@@ -365,7 +366,8 @@ void ListWidget::Inner::updateGeometry(QRect rect) {
 		return;
 	}
 	_inlineViewportHeight = rect.height();
-	_list->resizeToWidth(rect.width(), rect.height());
+	// Short inline list would sink to bottom of viewport.
+	_list->resizeToWidth(rect.width(), _scroll ? rect.height() : 0);
 	if (!_viewerRefreshed) {
 		_viewerRefreshed = true;
 		_list->refreshViewer();
@@ -567,13 +569,17 @@ bool ListWidget::Inner::listIsLessInOrder(
 		not_null<HistoryItem*> first,
 		not_null<HistoryItem*> second) {
 	if (first->isRegular() && second->isRegular()) {
-		return first->id < second->id;
+		return first->id > second->id;
 	} else if (first->isRegular()) {
-		return true;
-	} else if (second->isRegular()) {
 		return false;
+	} else if (second->isRegular()) {
+		return true;
 	}
-	return first->id < second->id;
+	return first->id > second->id;
+}
+
+bool ListWidget::Inner::listInvertedOrder() {
+	return true;
 }
 
 void ListWidget::Inner::listSelectionChanged(
@@ -896,11 +902,10 @@ bool ListWidget::Inner::cornerButtonsIgnoreVisibility() {
 }
 
 std::optional<bool> ListWidget::Inner::cornerButtonsDownShown() {
-	const auto top = _scroll->scrollTop() + st::historyToDownShownAfter;
-	if (top < _scroll->scrollTopMax()) {
+	if (_scroll->scrollTop() > st::historyToDownShownAfter) {
 		return true;
-	} else if (_list->loadedAtBottomKnown()) {
-		return !_list->loadedAtBottom();
+	} else if (_list->loadedAtTopKnown()) {
+		return !_list->loadedAtTop();
 	}
 	return std::nullopt;
 }

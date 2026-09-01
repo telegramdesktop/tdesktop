@@ -9,10 +9,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
+// Values are serialized in Core::Settings, don't change them.
 enum class ChatsFiltersTabsMode {
-	TextOnly = 0,
+	Default = 0,
 	TextAndIcons = 1,
 	IconsOnly = 2,
+	TextOnly = 3,
 };
+
+[[nodiscard]] inline ChatsFiltersTabsMode HorizontalChatsFiltersTabsMode(
+		ChatsFiltersTabsMode mode) {
+	return (mode == ChatsFiltersTabsMode::Default)
+		? ChatsFiltersTabsMode::TextOnly
+		: mode;
+}
+
+[[nodiscard]] inline ChatsFiltersTabsMode VerticalChatsFiltersTabsMode(
+		ChatsFiltersTabsMode mode) {
+	return (mode == ChatsFiltersTabsMode::Default)
+		? ChatsFiltersTabsMode::TextAndIcons
+		: mode;
+}
 
 } // namespace Ui

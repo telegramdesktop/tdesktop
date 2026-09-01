@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_filters_menu.h"
 
+#include "menu/menu_mark_as_read.h"
 #include "mainwindow.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
@@ -16,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "base/event_filter.h"
 #include "base/options.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "core/ui_integration.h"
 #include "data/data_session.h"
 #include "data/data_chat_filters.h"
@@ -43,7 +46,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
-#include "styles/style_layers.h" // attentionBoxButton
 #include "styles/style_menu_icons.h"
 
 #include <QtGui/QtEvents>
@@ -123,6 +125,13 @@ void FiltersMenu::setup() {
 
 	_outer.setAttribute(Qt::WA_OpaquePaintEvent);
 	_outer.show();
+
+	// Keep the sidebar's Tab chain in visual order: the main menu button
+	// above the scroll area, and inside it the folders list (entered at
+	// its roving Tab-stop), the favorite link and the edit button - even
+	// as folders are reordered and the favorite appears or disappears.
+	_outer.setVisualTabOrder(true);
+	_container->setVisualTabOrder(true);
 	_outer.paintRequest(
 	) | rpl::on_next([=](QRect clip) {
 		auto p = QPainter(&_outer);
@@ -178,6 +187,23 @@ void FiltersMenu::setup() {
 	_menu.setClickedCallback([=] {
 		_session->widget()->showMainMenu();
 	});
+
+	Core::App().settings().chatFiltersTabsModeValue(
+	) | rpl::skip(1) | rpl::on_next([=] {
+		if (!_list) {
+			return;
+		}
+		_setup = prepareButton(
+			_container,
+			-1,
+			{ TextWithEntities{ tr::lng_filters_setup(tr::now) } },
+			Ui::FilterIcon::Edit);
+		if (_favorite) {
+			_favorite = nullptr;
+			updateFavorite();
+		}
+		refresh();
+	}, _outer.lifetime());
 }
 
 void FiltersMenu::setupDragAndDrop() {
@@ -291,23 +317,21 @@ void FiltersMenu::moveToFilterEdge(int delta) {
 }
 
 void FiltersMenu::setListTabStop(not_null<Ui::SideBarButton*> stop) {
-	// Single source of truth for the list's roving Tab-stop, wired between the
-	// main menu and the edit button. Promote `stop` to the only TabFocus item
-	// and demote the previous one, so Tab/Shift+Tab always leave the list the
-	// same way regardless of which folder is focused.
+	// Single source of truth for the list's roving Tab-stop: promote `stop`
+	// to the only TabFocus item and demote the previous one, so Tab always
+	// enters the list at the same folder. Its position in the Tab chain
+	// comes from the containers' visual order (see setup()).
 	if (const auto previous = _tabStop.get(); previous && previous != stop) {
 		previous->setFocusPolicy(Qt::ClickFocus);
 	}
 	stop->setFocusPolicy(Qt::TabFocus);
 	_tabStop = stop.get();
-	QWidget::setTabOrder(&_menu, stop.get());
-	const auto favorite = _favorite ? _favorite->entity() : nullptr;
-	if (favorite) {
-		QWidget::setTabOrder(stop.get(), favorite);
-		QWidget::setTabOrder(favorite, _setup.get());
-	} else {
-		QWidget::setTabOrder(stop.get(), _setup.get());
-	}
+
+	// The Tab-stop moved outside of any layout change, so a Tab entering
+	// the sidebar from outside would still walk to the demoted button's
+	// old chain position - rewire the visual order right away.
+	_outer.refreshVisualTabOrder();
+	_container->refreshVisualTabOrder();
 }
 
 bool FiltersMenu::listFocused() const {
@@ -470,7 +494,7 @@ void FiltersMenu::createFavorite() {
 				object_ptr<FolderFavoriteButton>(
 					_container,
 					_session,
-					st::windowFiltersButton))));
+					buttonStyle()))));
 	_favorite->toggle(false, anim::type::instant);
 	_favorite->setFinishedCallback([=] {
 		if (_favorite && !_favorite->toggled()) {
@@ -497,6 +521,21 @@ void FiltersMenu::destroyFavorite() {
 
 bool FiltersMenu::premium() const {
 	return _session->session().user()->isPremium();
+}
+
+Ui::ChatsFiltersTabsMode FiltersMenu::tabsMode() const {
+	return Ui::VerticalChatsFiltersTabsMode(
+		Core::App().settings().chatFiltersTabsMode());
+}
+
+const style::SideBarButton &FiltersMenu::buttonStyle() const {
+	using Mode = Ui::ChatsFiltersTabsMode;
+	switch (tabsMode()) {
+	case Mode::TextOnly: return st::windowFiltersButtonTextOnly;
+	case Mode::TextAndIcons: return st::windowFiltersButton;
+	case Mode::IconsOnly: return st::windowFiltersButtonIconsOnly;
+	}
+	return st::windowFiltersButton;
 }
 
 base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareAll() {
@@ -527,10 +566,11 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 	// configuring the role up front avoids a transient or separately-announced
 	// role change.
 	const auto listItem = (id >= 0);
+	const auto mode = tabsMode();
 	auto prepared = object_ptr<Ui::SideBarButton>(
 		container,
 		id ? title.text : TextWithEntities{ tr::lng_filters_all(tr::now) },
-		st::windowFiltersButton,
+		buttonStyle(),
 		Core::TextContext({
 			.session = &_session->session(),
 			.customEmojiLoopLimit = isStatic ? -1 : 0,
@@ -538,6 +578,8 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 		paused);
 	prepared->setLocked(locked);
 	prepared->setIsListItem(listItem);
+	prepared->setShowIcon(mode != Ui::ChatsFiltersTabsMode::TextOnly);
+	prepared->setShowText(mode != Ui::ChatsFiltersTabsMode::IconsOnly);
 	auto added = toBeginning
 		? container->insert(0, std::move(prepared))
 		: container->add(std::move(prepared));
@@ -721,7 +763,7 @@ void FiltersMenu::showMenu(QPoint position, FilterId id) {
 		auto filteredChats = [=] {
 			return _session->session().data().chatsFilters().chatsList(id);
 		};
-		Window::MenuAddMarkAsReadChatListAction(
+		MarkAsReadMenu::AddChatListAction(
 			_session,
 			std::move(filteredChats),
 			addAction);
@@ -741,7 +783,7 @@ void FiltersMenu::showMenu(QPoint position, FilterId id) {
 				session,
 				session->data().chatsList()->unreadState());
 		};
-		Window::MenuAddMarkAsReadChatListAction(
+		MarkAsReadMenu::AddChatListAction(
 			_session,
 			[=] { return _session->session().data().chatsList(); },
 			addAction,

@@ -247,7 +247,13 @@ void Provider::remove(not_null<const HistoryItem*> item) {
 	_elements.erase(ranges::remove_if(_elements, proj), end(_elements));
 	if (const auto i = _layouts.find(item); i != end(_layouts)) {
 		_layoutRemoved.fire(i->second.item.get());
-		_layouts.erase(i);
+		// The list widget handles layoutRemoved() synchronously and may
+		// refresh its height from there, which can reach refreshViewer()
+		// -> refreshRows() -> fillSections() -> clearStaleLayouts() before
+		// we get back here, erasing this very entry, so look it up again.
+		if (const auto j = _layouts.find(item); j != end(_layouts)) {
+			_layouts.erase(j);
+		}
 	}
 	refreshPostponed(false);
 }
@@ -443,16 +449,36 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 	};
 
 	using namespace Overview::Layout;
-	auto &songSt = st::overviewFileLayout;
+	const auto &songSt = st::overviewFileLayout;
 	if (const auto file = getFile()) {
+		auto fields = DocumentFields{
+			.document = file,
+			.dateOverride = Data::DateFromDownloadDate(element.started),
+			.forceFileLayout = true,
+		};
+		const auto item = element.item;
+		auto &manager = Core::App().downloadManager();
+		if (manager.loadingExternalState(item).has_value()) {
+			fields.externalLoading = [item]()
+			-> std::optional<DocumentExternalLoading> {
+				auto &manager = Core::App().downloadManager();
+				const auto state = manager.loadingExternalState(item);
+				if (!state || state->done) {
+					return std::nullopt;
+				}
+				return DocumentExternalLoading{
+					.ready = state->ready,
+					.total = state->total,
+				};
+			};
+			fields.externalCancel = [item] {
+				Core::App().downloadManager().cancelLoadingExternal(item);
+			};
+		}
 		return std::make_unique<Document>(
 			delegate,
 			element.item,
-			DocumentFields{
-				.document = file,
-				.dateOverride = Data::DateFromDownloadDate(element.started),
-				.forceFileLayout = true,
-			},
+			std::move(fields),
 			songSt);
 	}
 	return nullptr;

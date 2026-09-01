@@ -110,7 +110,7 @@ CreatingKeyType Dcenter::acquireKeyCreation(DcType type) {
 	QReadLocker lock(&_mutex);
 	const auto keyType = TemporaryKeyTypeByDcType(type);
 	const auto index = IndexByType(keyType);
-	auto &key = _temporaryKeys[index];
+	const auto &key = _temporaryKeys[index];
 	if (key != nullptr) {
 		return CreatingKeyType::None;
 	}

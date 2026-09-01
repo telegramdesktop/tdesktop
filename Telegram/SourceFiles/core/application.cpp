@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt_signal_producer.h"
 #include "base/timer.h"
 #include "base/unixtime.h"
+#include "core/core_screenshot_protection.h"
 #include "core/core_settings.h"
 #include "core/update_checker.h"
 #include "core/shortcuts.h"
@@ -64,10 +65,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/view/media_view_open_common.h"
 #include "mtproto/mtproto_dc_options.h"
 #include "mtproto/mtproto_config.h"
+#include "mtproto/web_proxy/web_proxy_transport.h"
 #include "media/audio/media_audio_track.h"
 #include "media/player/media_player_instance.h"
 #include "media/player/media_player_float.h"
 #include "media/clip/media_clip_reader.h" // For Media::Clip::Finish().
+#include "media/media_video_encode.h"
 #include "media/system_media_controls_manager.h"
 #include "window/notifications_manager.h"
 #include "window/themes/window_theme.h"
@@ -84,6 +87,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/payments_checkout_process.h"
 #include "export/export_manager.h"
 #include "webrtc/webrtc_environment.h"
+#include "window/window_saved_windows.h"
 #include "window/window_separate_id.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
@@ -94,7 +98,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/accessible/ui_accessible_factory.h"
 #include "ui/boxes/confirm_box.h"
 #include "core/cached_webview_availability.h"
-#include "styles/style_window.h"
+#include "test/test_agent.h"
 
 #include <QtCore/QStandardPaths>
 #include <QtCore/QMimeDatabase>
@@ -158,6 +162,7 @@ Application::Application()
 , _platformIntegration(Platform::Integration::Create())
 , _batterySaving(std::make_unique<base::BatterySaving>())
 , _mediaDevices(std::make_unique<Webrtc::Environment>())
+, _screenshotProtection(std::make_unique<ScreenshotProtection>())
 , _databases(std::make_unique<Storage::Databases>())
 , _animationsManager(std::make_unique<Ui::Animations::Manager>())
 , _clearEmojiImageLoaderTimer([=] { clearEmojiSourceImages(); })
@@ -206,6 +211,36 @@ Application::Application()
 			UpdateChecker().setMtproto(session);
 		}
 	}, _lifetime);
+
+	MTP::WebProxy::Transport::StateChanges(
+	) | rpl::on_next([=](
+			const MTP::WebProxy::Transport::StateChange &change) {
+		using State = MTP::WebProxy::Transport::State;
+		if (change.state != State::WaitingForBrowser) {
+			if (_webProxyFallbackBox) {
+				_webProxyFallbackBox->closeBox();
+			}
+			return;
+		}
+		const auto &proxy = settings().proxy();
+		if (_webProxyFallbackBox
+			|| !proxy.isEnabled()
+			|| proxy.selected() != change.proxy) {
+			return;
+		}
+		_webProxyFallbackBox = Ui::show(Ui::MakeConfirmBox({
+			.text = tr::lng_proxy_web_fallback(tr::now),
+			.confirmed = [=] {
+				const auto &current = settings().proxy();
+				if (current.isEnabled()
+					&& current.selected() == change.proxy) {
+					MTP::WebProxy::Transport::OpenBrowser(change.proxy);
+				}
+			},
+			.confirmText = tr::lng_proxy_web_open(tr::now),
+			.cancelText = tr::lng_cancel(tr::now),
+		}));
+	}, _lifetime);
 }
 
 void Application::closeAdditionalWindows() {
@@ -220,6 +255,9 @@ void Application::closeAdditionalWindows() {
 }
 
 Application::~Application() {
+	if (_savedWindows) {
+		_savedWindows->writeNow();
+	}
 	if (_saveSettingsTimer && _saveSettingsTimer->isActive()) {
 		Local::writeSettings();
 	}
@@ -242,6 +280,7 @@ Application::~Application() {
 
 	_private->proxyRotation = nullptr;
 	_domain->finish();
+	MTP::WebProxy::Transport::Shutdown();
 
 	Local::finish();
 
@@ -273,6 +312,8 @@ void Application::run() {
 	style::SetCustomFont(settings().customFontFamily());
 	style::internal::StartFonts();
 
+	Test::ApplyStartupOverrides();
+
 	ValidateScale();
 
 	refreshGlobalProxy(); // Depends on app settings being read.
@@ -300,11 +341,12 @@ void Application::run() {
 	Ui::InitTextOptions();
 	Ui::StartCachedCorners();
 	Ui::Emoji::Init();
-	Ui::PreloadTextSpoilerMask();
+	Ui::PreloadTextSpoilerMask(_lifetime);
 	startShortcuts();
 	startEmojiImageLoader();
 	startSystemDarkModeViewer();
 	Media::Player::start(_audio.get());
+	Media::Encode::ClearStaleTempFiles();
 
 	if (MediaControlsManager::Supported()) {
 		_mediaControlsManager = std::make_unique<MediaControlsManager>();
@@ -336,6 +378,8 @@ void Application::run() {
 	// Check now to avoid re-entrance later.
 	[[maybe_unused]] const auto &webviewAvailability
 		= Core::CachedWebviewAvailability();
+
+	_savedWindows = std::make_unique<Window::SavedWindows>(this);
 
 	_windows.emplace(nullptr, std::make_unique<Window::Controller>());
 	setLastActiveWindow(_windows.front().second.get());
@@ -424,6 +468,11 @@ void Application::run() {
 	}
 
 	processCreatedWindow(_lastActivePrimaryWindow);
+
+	_savedWindows->startRestore();
+
+	Test::Fire(u"launch_finished"_q);
+	Test::Start();
 }
 
 void Application::autoRegisterUrlScheme() {
@@ -450,6 +499,12 @@ void Application::checkWindowId(not_null<Window::Controller*> window) {
 			_windows.emplace(id, std::move(found));
 			break;
 		}
+	}
+	if (_savedWindows) {
+		_savedWindows->scheduleSave();
+	}
+	if (!_lastActiveWindow) {
+		setLastActiveWindow(window);
 	}
 }
 
@@ -532,6 +587,9 @@ void Application::enumerateWindows(Fn<void(
 
 void Application::processCreatedWindow(
 		not_null<Window::Controller*> window) {
+	if (_savedWindows) {
+		_savedWindows->attachToWindow(window);
+	}
 	window->openInMediaViewRequests(
 	) | rpl::start_to_stream(_openInMediaViewRequests, window->lifetime());
 }
@@ -1142,6 +1200,9 @@ bool Application::canApplyLangPackWithoutRestart() const {
 }
 
 void Application::checkStartUrls() {
+	if (_setupEmailLock.current()) {
+		return;
+	}
 	if (!Core::App().passcodeLocked()) {
 		cRefStartUrls() = ranges::views::all(
 			cRefStartUrls()
@@ -1262,6 +1323,7 @@ void Application::lockByPasscode() {
 	if (_mediaView) {
 		_mediaView->close();
 	}
+	_calls->hidePanelLayers();
 }
 
 void Application::maybeLockByPasscode() {
@@ -1313,6 +1375,7 @@ rpl::producer<bool> Application::passcodeLockValue() const {
 
 void Application::lockBySetupEmail() {
 	_setupEmailLock = true;
+	closeAdditionalWindows();
 	enumerateWindows([&](not_null<Window::Controller*> w) {
 		w->setupSetupEmailLock();
 	});
@@ -1323,6 +1386,7 @@ void Application::unlockSetupEmail() {
 	enumerateWindows([&](not_null<Window::Controller*> w) {
 		w->clearSetupEmailLock();
 	});
+	checkStartUrls();
 }
 
 bool Application::someSessionExists() const {
@@ -1578,6 +1642,9 @@ void Application::setLastActiveWindow(Window::Controller *window) {
 }
 
 void Application::closeWindow(not_null<Window::Controller*> window) {
+	if (_savedWindows) {
+		_savedWindows->windowClosed(window);
+	}
 	const auto stackIt = ranges::find(_windowStack, window);
 	const auto nextFromStack = _windowStack.empty()
 		? nullptr
@@ -1630,6 +1697,9 @@ void Application::closeWindow(not_null<Window::Controller*> window) {
 		&& _lastActiveWindow) {
 		domain().activate(&_lastActiveWindow->account());
 	}
+	if (_savedWindows) {
+		_savedWindows->scheduleSave();
+	}
 }
 
 void Application::closeChatFromWindows(not_null<PeerData*> peer) {
@@ -1662,6 +1732,10 @@ void Application::windowActivated(not_null<Window::Controller*> window) {
 
 	setLastActiveWindow(window);
 
+	if (_savedWindows) {
+		_savedWindows->windowActivated();
+	}
+
 	if (window->isPrimary()) {
 		_lastActivePrimaryWindow = window;
 	}
@@ -1682,13 +1756,33 @@ void Application::windowActivated(not_null<Window::Controller*> window) {
 	}
 }
 
+bool Application::closeOtherWindows() {
+	const auto keep = _lastActivePrimaryWindow
+		? _lastActivePrimaryWindow
+		: activeWindow();
+	auto toClose = std::vector<not_null<Window::Controller*>>();
+	for (const auto &[id, window] : _windows) {
+		if (window.get() != keep) {
+			toClose.push_back(window.get());
+		}
+	}
+	for (const auto &window : toClose) {
+		window->close();
+	}
+	if (keep && !toClose.empty()) {
+		keep->activate();
+	}
+	return !toClose.empty();
+}
+
 bool Application::closeActiveWindow() {
 	if (_mediaView && _mediaView->isActive()) {
 		_mediaView->close();
 		return true;
 	} else if (_iv->closeActive()
 		|| Iv::Editor::CloseActiveWindow()
-		|| calls().closeCurrentActiveCall()) {
+		|| calls().closeCurrentActiveCall()
+		|| (_savedWindows && _savedWindows->closeActiveShell())) {
 		return true;
 	} else if (const auto window = activeWindow()) {
 		if (window->widget()->isActive()) {
@@ -1704,10 +1798,11 @@ bool Application::minimizeActiveWindow() {
 		_mediaView->minimize();
 		return true;
 	} else if (_iv->minimizeActive()
+		|| Iv::Editor::MinimizeActiveWindow()
 		|| calls().minimizeCurrentActiveCall()) {
 		return true;
-	} else {
-		if (const auto window = activeWindow()) {
+	} else if (const auto window = activeWindow()) {
+		if (window->widget()->isActive()) {
 			window->minimize();
 			return true;
 		}
@@ -1753,7 +1848,10 @@ QPoint Application::getPointForCallPanelCenter() const {
 	if (const auto window = activeWindow()) {
 		return window->getPointForCallPanelCenter();
 	}
-	return QGuiApplication::primaryScreen()->geometry().center();
+	// When the last monitor is removed QGuiApplication has no screens at
+	// all, so primaryScreen() is nullptr.
+	const auto primary = QGuiApplication::primaryScreen();
+	return primary ? primary->geometry().center() : QPoint();
 }
 
 bool Application::isSharingScreen() const {
@@ -1800,8 +1898,8 @@ void Application::unregisterLeaveSubscription(not_null<QWidget*> widget) {
 		if (i != end(_leaveFilters)) {
 			i->second.registered = std::move(
 				i->second.registered
-			) | ranges::actions::remove_if([&](QPointer<QWidget> widget) {
-				const auto pointer = widget.data();
+			) | ranges::actions::remove_if([&](QPointer<QWidget> weak) {
+				const auto pointer = weak.data();
 				return !pointer || (pointer == widget);
 			});
 		}
@@ -1814,6 +1912,15 @@ void Application::postponeCall(FnMut<void()> &&callable) {
 }
 
 void Application::refreshGlobalProxy() {
+	const auto &proxySettings = settings().proxy();
+	const auto proxy = proxySettings.isEnabled()
+		? proxySettings.selected()
+		: MTP::ProxyData();
+	if (proxy.type == MTP::ProxyData::Type::Web && proxy.valid()) {
+		MTP::WebProxy::Transport::Activate(proxy);
+	} else {
+		MTP::WebProxy::Transport::Deactivate();
+	}
 	Sandbox::Instance().refreshGlobalProxy();
 }
 
@@ -1914,6 +2021,12 @@ void Application::startShortcuts() {
 		});
 		request->check(Command::Close) && request->handle([=] {
 			return closeActiveWindow();
+		});
+		request->check(Command::ReopenClosedWindow) && request->handle([=] {
+			return _savedWindows && _savedWindows->reopenLastClosed();
+		});
+		request->check(Command::CloseOtherWindows) && request->handle([=] {
+			return closeOtherWindows();
 		});
 	}, _lifetime);
 }

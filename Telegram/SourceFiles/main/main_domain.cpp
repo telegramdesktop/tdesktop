@@ -413,6 +413,19 @@ bool Domain::removePasscodeIfEmpty() {
 void Domain::removeRedundantAccounts() {
 	Expects(started());
 
+	for (const auto &one : _accounts) {
+		if (one.account->destroyingSession()) {
+			// We were invoked from a crl::on_main drain that a nested
+			// event dispatch started from inside that account's own
+			// destroySession(). Erasing it now would free the object
+			// under its own stack frame. Retry after unwinding.
+			crl::on_main(&Core::App(), [=] {
+				removeRedundantAccounts();
+			});
+			return;
+		}
+	}
+
 	const auto was = _accounts.size();
 	for (auto i = _accounts.begin(); i != _accounts.end();) {
 		if (Core::App().separateWindowFor(not_null(i->account.get()))

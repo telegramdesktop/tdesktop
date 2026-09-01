@@ -9,7 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unixtime.h"
 #include "core/application.h"
+#include "core/ui_integration.h"
 #include "data/components/passkeys.h"
+#include "data/data_passkey_deserialize.h"
 #include "data/data_session.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "lang/lang_keys.h"
@@ -197,13 +199,30 @@ void Passkeys::setupContent() {
 					const auto popup = Ui::CreateChild<Ui::PopupMenu>(
 						menu,
 						st::popupMenuWithIcons);
-					const auto handler = [=, id = passkey.id] {
+					const auto id = passkey.id;
+					const auto name = passkey.name;
+					const auto emojiId = passkey.softwareEmojiId;
+					const auto handler = [=] {
+						auto named = emojiId
+							? Ui::Text::SingleCustomEmoji(
+								Data::SerializeCustomEmojiId(emojiId)
+							).append(' ')
+							: tr::marked();
+						named.append(tr::bold(name));
+						auto about = name.isEmpty()
+							? tr::lng_settings_passkeys_delete_sure_about(
+								tr::marked)
+							: tr::lng_settings_passkeys_delete_sure_about_name(
+								lt_name,
+								rpl::single(std::move(named)),
+								tr::marked);
 						ctrl->show(Ui::MakeConfirmBox({
 							.text = rpl::combine(
-								tr::lng_settings_passkeys_delete_sure_about(),
+								std::move(about),
 								tr::lng_settings_passkeys_delete_sure_about2()
-							) | rpl::map([](QString a, QString b) {
-								return a + "\n\n" + b;
+							) | rpl::map([](TextWithEntities a, QString b) {
+								a.append("\n\n").append(b);
+								return a;
 							}),
 							.confirmed = [=](Fn<void()> close) {
 								session->passkeys().deletePasskey(
@@ -213,6 +232,9 @@ void Passkeys::setupContent() {
 							},
 							.confirmText = tr::lng_box_delete(),
 							.confirmStyle = &st::attentionBoxButton,
+							.labelContext = Core::TextContext({
+								.session = session,
+							}),
 							.title
 								= tr::lng_settings_passkeys_delete_sure_title(),
 						}));
@@ -458,25 +480,26 @@ void PasskeysNoneBox(
 		button->resizeToWidth(box->width()
 			- st.buttonPadding.left()
 			- st.buttonPadding.left());
+		const auto show = box->uiShow();
 		button->setClickedCallback([=] {
-			session->passkeys().initRegistration([=](
+			session->passkeys().initRegistration(crl::guard(box, [=](
 					const Data::Passkey::RegisterData &data) {
-				Platform::WebAuthn::RegisterKey(data, [=](
+				Platform::WebAuthn::RegisterKey(data, crl::guard(box, [=](
 						Platform::WebAuthn::RegisterResult result) {
 					if (!result.success) {
 						using Error = Platform::WebAuthn::Error;
 						if (result.error == Error::UnsignedBuild) {
-							box->uiShow()->showToast(
+							show->showToast(
 								tr::lng_settings_passkeys_unsigned_error(
 									tr::now));
 						}
 						return;
 					}
-					session->passkeys().registerPasskey(result, [=] {
-						box->closeBox();
-					});
-				});
-			});
+					session->passkeys().registerPasskey(
+						result,
+						crl::guard(box, [=] { box->closeBox(); }));
+				}));
+			}));
 		});
 		if (!canRegister) {
 			button->setAttribute(Qt::WA_TransparentForMouseEvents);

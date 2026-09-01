@@ -68,7 +68,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "styles/style_chat.h"
 #include "styles/style_info.h"
-#include "styles/style_menu_icons.h"
 
 #include <QtGui/QWindow>
 
@@ -582,6 +581,7 @@ void TopBarWidget::paintTopBar(Painter &p) {
 			&& _activeChat.section != Section::SavedSublist)
 		|| (_activeChat.section == Section::Scheduled)
 		|| (_activeChat.section == Section::Pinned)
+		|| (_activeChat.section == Section::WelcomeMessages)
 		|| communityChatsListBar()) {
 		auto text = (_activeChat.section == Section::Scheduled)
 			? ((peer && peer->isSelf())
@@ -589,6 +589,8 @@ void TopBarWidget::paintTopBar(Painter &p) {
 				: tr::lng_scheduled_messages(tr::now))
 			: (_activeChat.section == Section::Pinned)
 			? _customTitleText
+			: (_activeChat.section == Section::WelcomeMessages)
+			? tr::lng_welcome_messages_title(tr::now)
 			: folder
 			? folder->chatListName()
 			: peer->isSelf()
@@ -814,7 +816,7 @@ void TopBarWidget::mousePressEvent(QMouseEvent *e) {
 		if ((_animatingMode && _back->rect().contains(e->pos()))
 			|| archiveTop) {
 			if (!rootChatsListBar()) {
-				backClicked();
+				InvokeQueued(this, [=] { backClicked(); });
 			}
 		} else {
 			infoClicked();
@@ -831,9 +833,7 @@ void TopBarWidget::infoClicked() {
 	} else if (const auto sublist = key.sublist()) {
 		_controller->showSection(std::make_shared<Info::Memento>(sublist));
 	} else if (key.peer()->savedSublistsInfo()) {
-		_controller->showSection(std::make_shared<Info::Memento>(
-			key.peer(),
-			Info::Section::Type::SavedSublists));
+		_controller->showSection(Info::Memento::Default(key.peer()));
 	} else if (key.peer()->sharedMediaInfo()) {
 		_controller->showSection(std::make_shared<Info::Memento>(
 			key.peer(),
@@ -1029,10 +1029,24 @@ bool TopBarWidget::communityChatsListBar() const {
 	return channel && channel->isCommunity();
 }
 
+bool TopBarWidget::communityUserpicShown() const {
+	if (_narrowRatio > 0.) {
+		return false;
+	}
+	return true;
+}
+
+const style::UserpicButton &TopBarWidget::infoButtonStyle() const {
+	return communityChatsListBar()
+		? st::topBarCommunityInfoButton
+		: st::topBarInfoButton;
+}
+
 void TopBarWidget::refreshInfoButton() {
 	if (_activeChat.key.topic()
 		|| (_activeChat.section == Section::ChatsList
-			&& !rootChatsListBar())) {
+			&& !rootChatsListBar()
+			&& !communityChatsListBar())) {
 		_info.destroy();
 	} else if (const auto peer = _activeChat.key.peer()) {
 		const auto sublist = _activeChat.key.sublist();
@@ -1043,7 +1057,7 @@ void TopBarWidget::refreshInfoButton() {
 			infoPeer->userpicPaintingPeer(),
 			Ui::UserpicButton::Role::Custom,
 			Ui::UserpicButton::Source::PeerPhoto,
-			st::topBarInfoButton,
+			infoButtonStyle(),
 			infoPeer->userpicShape());
 		info->showSavedMessagesOnSelf(true);
 		info->showMyNotesOnSelf(true);
@@ -1082,6 +1096,16 @@ void TopBarWidget::updateSearchVisibility() {
 		|| (_activeChat.section == Section::SavedSublist
 			&& _activeChat.key.sublist());
 	_search->setVisible(searchAllowedMode && !_chooseForReportReason);
+}
+
+void TopBarWidget::updateInfoButtonVisibility() {
+	if (!_info) {
+		return;
+	}
+	const auto shown = (communityChatsListBar() && !rootChatsListBar())
+		? communityUserpicShown()
+		: (_controller->adaptive().isOneColumn() || !_primaryWindow);
+	_info->setVisible(!_chooseForReportReason && shown);
 }
 
 void TopBarWidget::updateControlsGeometry() {
@@ -1178,7 +1202,7 @@ void TopBarWidget::updateControlsGeometry() {
 	}
 	if (_info && !_info->isHidden()) {
 		if (_back->isHidden() && _narrowRatio > 0.) {
-			const auto &infoSt = st::topBarInfoButton;
+			const auto &infoSt = infoButtonStyle();
 			const auto middle = (_narrowWidth - infoSt.photoSize) / 2;
 			_leftTaken = anim::interpolate(
 				_leftTaken,
@@ -1257,6 +1281,8 @@ void TopBarWidget::setAnimatingMode(bool enabled) {
 		_animatingMode = enabled;
 		setAttribute(Qt::WA_OpaquePaintEvent, !_animatingMode);
 		finishAnimating();
+	} else if (!enabled) {
+		finishAnimating();
 	}
 }
 
@@ -1281,10 +1307,7 @@ void TopBarWidget::updateControlsVisibility() {
 			|| !_controller->content()->stackIsEmpty());
 	_back->setVisible(backVisible && !_chooseForReportReason);
 	_cancelChoose->setVisible(_chooseForReportReason.has_value());
-	if (_info) {
-		_info->setVisible(!_chooseForReportReason
-			&& (isOneColumn || !_primaryWindow));
-	}
+	updateInfoButtonVisibility();
 	if (_unreadBadge) {
 		_unreadBadge->setVisible(!_chooseForReportReason
 			&& !rootChatsListBar());
@@ -1317,6 +1340,8 @@ void TopBarWidget::updateControlsVisibility() {
 		? !_activeChat.key.folder()
 		: (section == Section::Scheduled)
 		? (hasPollsMenu || hasTodoListsMenu)
+		: (section == Section::WelcomeMessages)
+		? true
 		: (section == Section::Replies)
 		? (hasPollsMenu || hasTodoListsMenu || hasTopicMenu)
 		: (section == Section::ChatsList)

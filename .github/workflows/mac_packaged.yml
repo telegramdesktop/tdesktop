@@ -2,6 +2,10 @@ name: MacOS Packaged.
 
 on:
   push:
+    # Pushes to the canary branches run only canary.yml, see there.
+    branches-ignore:
+      - public-canary
+      - private-canary
     paths-ignore:
       - 'docs/**'
       - '**.md'
@@ -183,3 +187,4 @@ jobs:
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ env.REPO_NAME }}/build/artifact/
+          retention-days: 1

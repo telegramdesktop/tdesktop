@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "media/media_video_encode.h"
+
 namespace Editor {
 
 class Scene;
@@ -34,11 +36,14 @@ struct EditorData {
 
 	TextWithEntities about;
 	QString confirm;
+	QString confirmVideo;
 	QSize exactSize;
 	CropType cropType = CropType::Rect;
 	CropMode cropMode = CropMode::Hint;
+	float64 originalRatio = 0.;
 	bool keepAspectRatio = false;
 	bool fixedCrop = false;
+	bool forOtherUser = false;
 };
 
 struct PhotoModifications {
@@ -58,6 +63,10 @@ struct PhotoModifications {
 
 [[nodiscard]] QImage ImageModified(
 	QImage image,
+	const PhotoModifications &mods);
+
+[[nodiscard]] Media::Encode::Job ComposeAnimatedJob(
+	const QImage &image,
 	const PhotoModifications &mods);
 
 void ApplyShapeMask(QImage &image, const PhotoModifications &mods);

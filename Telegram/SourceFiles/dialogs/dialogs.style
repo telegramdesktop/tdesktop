@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 using "ui/basic.style";
 
+using "chat_helpers/chat_helpers.style"; // GroupCallUserpics
 using "ui/layers/layers.style"; // boxRoundShadow
 using "ui/widgets/widgets.style";
 
@@ -191,6 +192,7 @@ dialogsCallBadgeSkip: point(-3px, -3px);
 
 dialogsSubscriptionBadgeSize: 16px;
 dialogsSubscriptionBadgeSkip: point(-4px, -4px);
+dialogsSubscriptionBadgeOutlineTwice: 3px;
 
 dialogsCommunityBadgeSize: 16px;
 dialogsCommunityBadgeSkip: point(-3px, -3px);
@@ -202,6 +204,7 @@ dialogsTTLBadgeInnerMargins: margins(2px, 2px, 2px, 2px);
 // Relative to a photo place, not a whole userpic place.
 dialogsTTLBadgeSkip: point(1px, 1px);
 dialogsCommunityHiddenBadgeIcon: icon{{ "community/requests_hidden", premiumButtonFg }};
+dialogsCommunityHiddenBadgePadding: 4px;
 
 dialogsSpeakingStrokeNumerator: 16px;
 dialogsSpeakingDenominator: 8.;
@@ -223,36 +226,6 @@ dialogsTextPaletteOver: TextPalette(defaultTextPalette) {
 }
 dialogsTextPaletteActive: TextPalette(defaultTextPalette) {
 	linkFg: dialogsTextFgServiceActive;
-	monoFg: dialogsTextFgActive;
-	spoilerFg: dialogsTextFgActive;
-}
-dialogsTextPaletteDraft: TextPalette(defaultTextPalette) {
-	linkFg: dialogsDraftFg;
-	monoFg: dialogsTextFg;
-	spoilerFg: dialogsTextFg;
-}
-dialogsTextPaletteDraftOver: TextPalette(defaultTextPalette) {
-	linkFg: dialogsDraftFgOver;
-	monoFg: dialogsTextFgOver;
-	spoilerFg: dialogsTextFgOver;
-}
-dialogsTextPaletteDraftActive: TextPalette(defaultTextPalette) {
-	linkFg: dialogsDraftFgActive;
-	monoFg: dialogsTextFgActive;
-	spoilerFg: dialogsTextFgActive;
-}
-dialogsTextPaletteTaken: TextPalette(defaultTextPalette) {
-	linkFg: boxTextFgGood;
-	monoFg: dialogsTextFg;
-	spoilerFg: dialogsTextFg;
-}
-dialogsTextPaletteTakenOver: TextPalette(defaultTextPalette) {
-	linkFg: boxTextFgGood;
-	monoFg: dialogsTextFgOver;
-	spoilerFg: dialogsTextFgOver;
-}
-dialogsTextPaletteTakenActive: TextPalette(defaultTextPalette) {
-	linkFg: dialogsDraftFgActive;
 	monoFg: dialogsTextFgActive;
 	spoilerFg: dialogsTextFgActive;
 }
@@ -318,27 +291,7 @@ dialogsMenuToggle: IconButton {
 	rippleAreaSize: 40px;
 	ripple: defaultRippleAnimationBgOver;
 }
-dialogsMenuToggleUnread: icon {
-	{ "dialogs/dialogs_menu_unread", dialogsMenuIconFg },
-	{ "dialogs/dialogs_menu_unread_dot", dialogsUnreadBg },
-};
-dialogsMenuToggleUnreadMuted: icon {
-	{ "dialogs/dialogs_menu_unread", dialogsMenuIconFg },
-	{ "dialogs/dialogs_menu_unread_dot", dialogsMenuIconFg },
-};
 
-dialogsLock: IconButton {
-	width: 36px;
-	height: 38px;
-
-	icon: icon {{ "dialogs/dialogs_lock_off", dialogsMenuIconFg }};
-	iconOver: icon {{ "dialogs/dialogs_lock_off", dialogsMenuIconFgOver }};
-	iconPosition: point(-1px, -1px);
-
-	ripple: emptyRippleAnimation;
-}
-dialogsUnlockIcon: icon {{ "dialogs/dialogs_lock_on", dialogsMenuIconFg }};
-dialogsUnlockIconOver: icon {{ "dialogs/dialogs_lock_on", dialogsMenuIconFgOver }};
 dialogsCalendar: IconButton {
 	width: 32px;
 	height: 35px;
@@ -351,11 +304,6 @@ dialogsSearchFrom: IconButton(dialogsCalendar) {
 	width: 29px;
 	icon: icon {{ "dialogs/dialogs_search_from", dialogsMenuIconFg }};
 	iconOver: icon {{ "dialogs/dialogs_search_from", dialogsMenuIconFgOver }};
-}
-dialogsSearchForNarrowFilters: IconButton(dialogsMenuToggle) {
-	icon: icon {{ "top_bar_search", menuIconFg }};
-	iconOver: icon {{ "top_bar_search", menuIconFgOver }};
-	iconPosition: point(4px, 4px);
 }
 
 dialogsFilter: InputField(defaultInputField) {
@@ -442,16 +390,6 @@ dialogsChannelIcon: ThreeStateIcon {
 	over: icon {{ "dialogs/dialogs_channel", dialogsChatIconFgOver, point(3px, 4px) }};
 	active: icon {{ "dialogs/dialogs_channel", dialogsChatIconFgActive, point(3px, 4px) }};
 }
-dialogsBotIcon: ThreeStateIcon {
-	icon: icon {{ "dialogs/dialogs_bot", dialogsChatIconFg, point(1px, 3px) }};
-	over: icon {{ "dialogs/dialogs_bot", dialogsChatIconFgOver, point(1px, 3px) }};
-	active: icon {{ "dialogs/dialogs_bot", dialogsChatIconFgActive, point(1px, 3px) }};
-}
-dialogsForumIcon: ThreeStateIcon {
-	icon: icon {{ "dialogs/dialogs_forum", dialogsChatIconFg, point(1px, 4px) }};
-	over: icon {{ "dialogs/dialogs_forum", dialogsChatIconFgOver, point(1px, 4px) }};
-	active: icon {{ "dialogs/dialogs_forum", dialogsChatIconFgActive, point(1px, 4px) }};
-}
 dialogsArchiveUserpic: icon {{ "archive_userpic", historyPeerUserpicFg }};
 dialogsRepliesUserpic: icon {{ "replies_userpic", historyPeerUserpicFg }};
 dialogsInaccessibleUserpic: icon {{ "dialogs/inaccessible_userpic", historyPeerUserpicFg }};
@@ -459,11 +397,6 @@ dialogsHiddenAuthorUserpic: icon {{ "dialogs/avatar_hidden", premiumButtonFg }};
 dialogsMyNotesUserpic: icon {{ "dialogs/avatar_notes", historyPeerUserpicFg }};
 
 dialogsSendStateSkip: 20px;
-dialogsSendingIcon: ThreeStateIcon {
-	icon: icon {{ "dialogs/dialogs_sending", dialogsSendingIconFg, point(8px, 4px) }};
-	over: icon {{ "dialogs/dialogs_sending", dialogsSendingIconFgOver, point(8px, 4px) }};
-	active: icon {{ "dialogs/dialogs_sending", dialogsSendingIconFgActive, point(8px, 4px) }};
-}
 dialogsSentIcon: ThreeStateIcon {
 	icon: icon {{ "dialogs/dialogs_sent", dialogsSentIconFg, point(10px, 4px) }};
 	over: icon {{ "dialogs/dialogs_sent", dialogsSentIconFgOver, point(10px, 4px) }};
@@ -479,11 +412,6 @@ dialogsPinnedIcon: ThreeStateIcon {
 	over: icon {{ "dialogs/dialogs_pinned", dialogsUnreadBgMutedOver }};
 	active: icon {{ "dialogs/dialogs_pinned", dialogsUnreadBgMutedActive }};
 }
-dialogsLockIcon: ThreeStateIcon {
-	icon: icon {{ "emoji/premium_lock", dialogsUnreadBgMuted, point(4px, 0px) }};
-	over: icon {{ "emoji/premium_lock", dialogsUnreadBgMutedOver, point(4px, 0px) }};
-	active: icon {{ "emoji/premium_lock", dialogsUnreadBgMutedActive, point(4px, 0px) }};
-}
 
 dialogsVerifiedColors: VerifiedBadge {
 	height: 20px;
@@ -492,9 +420,6 @@ dialogsVerifiedColors: VerifiedBadge {
 }
 dialogsVerifiedColorsOver: VerifiedBadge(dialogsVerifiedColors) {
 	color: dialogsVerifiedIconBgOver;
-}
-dialogsVerifiedColorsActive: VerifiedBadge(dialogsVerifiedColors) {
-	color: dialogsVerifiedIconBgActive;
 }
 
 dialogsVerifiedIcon: icon {
@@ -539,34 +464,7 @@ dialogsUpdateButton: FlatButton {
 		color: activeButtonBgRipple;
 	}
 }
-dialogsInstallUpdate: icon {{ "install_update", activeButtonFg }};
-dialogsInstallUpdateOver: icon {{ "install_update", activeButtonFgOver }};
-dialogsInstallUpdateIconSkip: 7px;
-dialogsInstallUpdateIconSize: 20px;
-dialogsInstallUpdateIconInnerMargin: 5px;
-dialogsInstallUpdateIconSide1: 5px;
-dialogsInstallUpdateIconSide2: 3px;
 
-dialogsLoadMoreButton: FlatButton(dialogsUpdateButton) {
-	color: lightButtonFg;
-	overColor: lightButtonFg;
-	bgColor: lightButtonBg;
-	overBgColor: lightButtonBgOver;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: lightButtonBgRipple;
-	}
-
-	height: 36px;
-	textTop: 9px;
-	font: semiboldFont;
-	overFont: semiboldFont;
-}
-dialogsLoadMore: icon {{ "install_update-flip_vertical", lightButtonFg }};
-dialogsLoadMoreLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
-	color: lightButtonFg;
-	thickness: 3px;
-	size: size(12px, 12px);
-}
 
 dialogsSearchInHeight: 38px;
 dialogsSearchInPhotoSize: 28px;
@@ -612,10 +510,6 @@ dialogsMiniForward: DialogsMiniIcon {
 	skipMedia: 2px;
 }
 
-dialogsMiniReplyIcon: IconEmoji {
-	icon: icon {{ "mini_forward-flip_horizontal", attentionButtonFg }};
-	padding: margins(0px, 2px, 0px, 0px);
-}
 
 dialogsMiniPollIcon: IconEmoji {
 	icon: icon {{ "dialogs/dialogs_chatlist_poll-18x18", dialogsTextFg }};
@@ -645,8 +539,20 @@ dialogsMiniInvoiceIcon: IconEmoji {
 	icon: icon {{ "payments/payment_card-18x18", dialogsTextFg }};
 	padding: margins(0px, 1px, 3px, 0px);
 }
-dialogsMiniCallIcon: IconEmoji {
-	icon: icon {{ "profile/call-18x18", dialogsTextFg }};
+dialogsMiniCallOutgoingIcon: IconEmoji {
+	icon: icon {{ "dialogs/dialogs_chatlist_call_outgoing-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 3px, 0px);
+}
+dialogsMiniCallIncomingIcon: IconEmoji {
+	icon: icon {{ "dialogs/dialogs_chatlist_call_incoming-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 3px, 0px);
+}
+dialogsMiniVideoCallOutgoingIcon: IconEmoji {
+	icon: icon {{ "dialogs/dialogs_chatlist_video_call_outgoing-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 3px, 0px);
+}
+dialogsMiniVideoCallIncomingIcon: IconEmoji {
+	icon: icon {{ "dialogs/dialogs_chatlist_video_call_incoming-18x18", dialogsTextFg }};
 	padding: margins(0px, 1px, 3px, 0px);
 }
 dialogsMiniStoryIcon: IconEmoji {
@@ -697,53 +603,7 @@ dialogsUnreadReactionMuted: ThreeStateIcon {
 	over: icon{{ "dialogs/dialogs_chatlist_reaction-18x18", dialogsUnreadBgMutedOver }};
 	active: icon{{ "dialogs/dialogs_chatlist_reaction-18x18", dialogsUnreadBgMutedActive }};
 }
-dialogsUnreadPoll: ThreeStateIcon {
-	icon: icon{{ "dialogs/dialogs_chatlist_poll-18x18", dialogsPollIconFg }};
-	over: icon{{ "dialogs/dialogs_chatlist_poll-18x18", dialogsPollIconFg }};
-	active: icon{{ "dialogs/dialogs_chatlist_poll-18x18", dialogsNameFgActive }};
-}
-dialogsUnreadPollMuted: ThreeStateIcon {
-	icon: icon{{ "dialogs/dialogs_chatlist_poll-18x18", dialogsUnreadBgMuted }};
-	over: icon{{ "dialogs/dialogs_chatlist_poll-18x18", dialogsUnreadBgMutedOver }};
-	active: icon{{ "dialogs/dialogs_chatlist_poll-18x18", dialogsUnreadBgMutedActive }};
-}
-dialogsUnreadMentionBadge: ThreeStateIcon {
-	icon: icon{{ "dialogs/dialogs_chatlist_mention-13x13", dialogsUnreadFg }};
-	over: icon{{ "dialogs/dialogs_chatlist_mention-13x13", dialogsUnreadFgOver }};
-	active: icon{{ "dialogs/dialogs_chatlist_mention-13x13", dialogsUnreadFgActive }};
-}
-dialogsUnreadMentionBadgeMuted: ThreeStateIcon {
-	icon: icon{{ "dialogs/dialogs_chatlist_mention-13x13", dialogsUnreadFg }};
-	over: icon{{ "dialogs/dialogs_chatlist_mention-13x13", dialogsUnreadFgOver }};
-	active: icon{{ "dialogs/dialogs_chatlist_mention-13x13", dialogsUnreadFgActive }};
-}
-dialogsUnreadReactionBadge: ThreeStateIcon {
-	icon: icon{{ "dialogs/dialogs_chatlist_reaction-13x13", dialogsUnreadFg }};
-	over: icon{{ "dialogs/dialogs_chatlist_reaction-13x13", dialogsUnreadFgOver }};
-	active: icon{{ "dialogs/dialogs_chatlist_reaction-13x13", dialogsUnreadFgActive }};
-}
-dialogsUnreadReactionBadgeMuted: ThreeStateIcon {
-	icon: icon{{ "dialogs/dialogs_chatlist_reaction-13x13", dialogsUnreadFg }};
-	over: icon{{ "dialogs/dialogs_chatlist_reaction-13x13", dialogsUnreadFgOver }};
-	active: icon{{ "dialogs/dialogs_chatlist_reaction-13x13", dialogsUnreadFgActive }};
-}
-dialogsUnreadPollBadge: ThreeStateIcon {
-	icon: icon{{ "dialogs/dialogs_chatlist_poll-13x13", dialogsUnreadFg }};
-	over: icon{{ "dialogs/dialogs_chatlist_poll-13x13", dialogsUnreadFgOver }};
-	active: icon{{ "dialogs/dialogs_chatlist_poll-13x13", dialogsUnreadFgActive }};
-}
-dialogsUnreadPollBadgeMuted: ThreeStateIcon {
-	icon: icon{{ "dialogs/dialogs_chatlist_poll-13x13", dialogsUnreadFg }};
-	over: icon{{ "dialogs/dialogs_chatlist_poll-13x13", dialogsUnreadFgOver }};
-	active: icon{{ "dialogs/dialogs_chatlist_poll-13x13", dialogsUnreadFgActive }};
-}
 
-dialogsMuteIcon: ThreeStateIcon {
-	icon: icon{{ "dialogs/dialogs_mute", dialogsUnreadBgMuted }};
-	over: icon{{ "dialogs/dialogs_mute", dialogsUnreadBgMutedOver }};
-	active: icon{{ "dialogs/dialogs_mute", dialogsUnreadBgMutedActive }};
-}
-dialogsMuteIconSkip: 4px;
 
 downloadBarHeight: 46px;
 downloadArrow: icon{{ "fast_to_original", menuIconFg }};
@@ -993,6 +853,13 @@ dialogsTopBarSuggestionAboutStyle: TextStyle(defaultTextStyle) {
 	font: font(11px);
 }
 dialogsTopBarSuggestionMargins: margins(8px, 8px, 8px, 8px);
+dialogsTopBarSuggestionIconPadding: 12px;
+dialogsTopBarSuggestionUserpics: GroupCallUserpics {
+	size: 25px;
+	shift: 8px;
+	stroke: 2px;
+	align: align(left);
+}
 dialogsTopBarSuggestionShadow: BoxShadow {
 	blurRadius: 3px;
 	offset: point(0px, 1px);
@@ -1002,11 +869,6 @@ dialogsRequestsBubbleIconSize: 26px;
 dialogsRequestsBubbleIconRadius: 6px;
 dialogsRequestsBubbleIconBg: dialogsBgActive;
 dialogsRequestsBubbleIcon: icon{{ "chat/filled_requests-20x20", dialogsNameFgActive }};
-dialogsCommunityRequestsBubbleHeight: 44px;
-dialogsCommunityRequestsBubbleIconMargin: 9px;
-dialogsCommunityRequestsBubbleTextSkip: 48px;
-dialogsCommunityRequestsBubbleRightInset: 9px;
-dialogsCommunityRequestsBubbleRadius: 11px;
 dialogsSuggestionDeniedAuthLottie: size(70px, 70px);
 dialogsSuggestionDeniedAuthLottieCircle: size(90px, 90px);
 dialogsSuggestionDeniedAuthLottieMargins: margins(10px, 10px, 10px, 10px);
@@ -1081,4 +943,23 @@ dialogsUnconfirmedAuthButtonNo: RoundButton(dialogsUnconfirmedAuthButton) {
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: attentionButtonBgRipple;
 	}
+}
+
+restoreWindowsOfferPadding: margins(
+	dialogsTopBarLeftPadding,
+	6px,
+	dialogsTopBarLeftPadding,
+	8px);
+restoreWindowsOfferPosition: point(10px, 10px);
+restoreWindowsOfferSkip: 2px;
+restoreWindowsOfferButtonSkip: 6px;
+restoreWindowsOfferQuestionStyle: TextStyle(defaultTextStyle) {
+	font: font(12px semibold);
+}
+restoreWindowsOfferClose: IconButton(dialogsCancelSearchInPeer) {
+	width: 28px;
+	height: 29px;
+	iconPosition: point(5px, 6px);
+	rippleAreaPosition: point(0px, 1px);
+	rippleAreaSize: 28px;
 }

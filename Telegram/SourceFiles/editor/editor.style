@@ -89,6 +89,21 @@ photoEditorStickersButton: IconButton(photoEditorRotateButton) {
 }
 photoEditorStickersIconActive: icon {{ "settings/settings_stickers", photoEditorButtonIconFgActive }};
 
+photoEditorShapesButton: IconButton(photoEditorRotateButton) {
+	icon: icon {{ "photo_editor/shapes-28x28", photoEditorButtonIconFg }};
+	iconOver: icon {{ "photo_editor/shapes-28x28", photoEditorButtonIconFgOver }};
+}
+photoEditorShapesIconActive: icon {{ "photo_editor/shapes-28x28", photoEditorButtonIconFgActive }};
+photoEditorShapeCircle: icon {{ "photo_editor/shape_circle-24x24", mediaviewMenuFg }};
+photoEditorShapeCircleFill: icon {{ "photo_editor/shape_circle_fill-24x24", mediaviewMenuFg }};
+photoEditorShapeRectangle: icon {{ "photo_editor/shape_rectangle-24x24", mediaviewMenuFg }};
+photoEditorShapeRectangleFill: icon {{ "photo_editor/shape_rectangle_fill-24x24", mediaviewMenuFg }};
+photoEditorShapeStar: icon {{ "photo_editor/shape_star-24x24", mediaviewMenuFg }};
+photoEditorShapeStarFill: icon {{ "photo_editor/shape_star_fill-24x24", mediaviewMenuFg }};
+photoEditorShapeBubble: icon {{ "photo_editor/shape_bubble-24x24", mediaviewMenuFg }};
+photoEditorShapeBubbleFill: icon {{ "photo_editor/shape_bubble_fill-24x24", mediaviewMenuFg }};
+photoEditorShapeArrow: icon {{ "photo_editor/shape_arrow-24x24", mediaviewMenuFg }};
+
 photoEditorCropRatioButton: IconButton(photoEditorRotateButton) {
 	icon: icon {{ "photo_editor/ratio-23x23", photoEditorButtonIconFg, point(0px, 1px) }};
 	iconOver: icon {{ "photo_editor/ratio-23x23", photoEditorButtonIconFgOver, point(0px, 1px) }};
@@ -111,6 +126,28 @@ photoEditorCornersMenuAboutLabel: FlatLabel(defaultFlatLabel) {
 photoEditorCornersMenuAboutPosition: point(12px, 4px);
 
 photoEditorMenuSubmenuArrow: icon {{ "menu/submenu_arrow", groupCallMemberNotJoinedStatus }};
+
+photoEditorMenuCheck: Check(defaultCheck) {
+	untoggledFg: groupCallMemberNotJoinedStatus;
+	toggledFg: groupCallActiveFg;
+	icon: icon {{ "default_checkbox_check", groupCallMembersFg, point(4px, 7px) }};
+}
+photoEditorMenuCheckLabel: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+	}
+	minWidth: 100px;
+	textFg: groupCallMembersFg;
+}
+photoEditorShapeFillDuration: 160;
+photoEditorShapeFillRadius: 13px;
+photoEditorMenuRoundCheckUntoggledFg: groupCallMemberNotJoinedStatus;
+photoEditorMenuRoundCheck: RoundCheckbox(defaultRoundCheckbox) {
+	size: 20px;
+	border: groupCallActiveFg;
+	bgActive: groupCallActiveFg;
+	check: icon {{ "default_checkbox_check", groupCallMembersFg, point(3px, 6px) }};
+}
 
 photoEditorCropRatioMenu: PopupMenu(mediaviewPopupMenu) {
 	menu: Menu(mediaviewMenu) {
@@ -165,3 +202,74 @@ photoEditorCropPointSize: 10px;
 photoEditorCropMinSize: 20px;
 
 photoEditorItemHandleSize: 10px;
+
+videoTimelineStripHeight: 54px;
+videoTimelineLabelHeight: 18px;
+// Wide enough to hold the cover dot without it touching either side.
+videoTimelineLabelSkip: 17px;
+videoTimelineHeight: videoTimelineLabelHeight + videoTimelineLabelSkip + videoTimelineStripHeight;
+videoTimelineDotSize: 5px;
+videoTimelineDotActiveSize: 9px;
+videoTimelineDotSkip: 2px;
+videoTimelineDotFg: callAnswerBg;
+videoTimelineRadius: 6px;
+videoTimelineHandleWidth: 11px;
+videoTimelineHandleGripWidth: 2px;
+videoTimelineHandleGripHeight: 16px;
+videoTimelineHandleHitSlop: 12px;
+videoTimelinePlayheadWidth: 3px;
+videoTimelinePlayheadOutline: 1px;
+videoTimelinePlayheadOverflow: 5px;
+videoTimelineFg: mediaviewControlFg;
+videoTimelineDimBg: mediaviewCaptionBg;
+videoTimelinePlaceholderBg: mediaviewPipPlaybackInactive;
+videoTimelineDurationFg: mediaviewCaptionFg;
+videoTimelineDurationStyle: TextStyle(defaultTextStyle) {
+	font: font(12px semibold);
+}
+
+videoEditorGifButton: IconButton(photoEditorRotateButton) {
+	icon: icon {{ "photo_editor/gif", photoEditorButtonIconFg }};
+	iconOver: icon {{ "photo_editor/gif", photoEditorButtonIconFgOver }};
+}
+videoEditorGifIconActive: icon {
+	{ "photo_editor/gif", photoEditorButtonIconFgActive }
+};
+
+videoQualitySliderDotSize: 7px;
+videoQualitySliderDotActiveSize: 11px;
+videoQualitySliderLineWidth: 2px;
+videoQualitySliderLineGap: 4px;
+videoQualitySliderLabelSkip: 5px;
+videoQualitySliderSideSkip: 18px;
+videoQualitySliderFg: mediaviewPipPlaybackInactive;
+videoQualitySliderActiveFg: mediaviewControlFg;
+videoQualitySliderLabelFg: mediaviewCaptionFg;
+videoQualitySliderLabelActiveFg: mediaviewControlFg;
+videoQualitySliderStyle: TextStyle(defaultTextStyle) {
+	font: font(12px semibold);
+}
+// videoQualitySliderDotActiveSize + videoQualitySliderLabelSkip + font height
+videoQualitySliderHeight: 32px;
+
+videoEditorTimelineTop: 10px;
+videoEditorHintSkip: 8px;
+videoEditorQualitySkip: 6px;
+videoEditorBarSkip: 12px;
+videoEditorBarBottomSkip: 16px;
+videoEditorContentSkip: 20px;
+videoEditorHint: FlatLabel(defaultFlatLabel) {
+	textFg: mediaviewCaptionFg;
+	align: align(top);
+}
+
+videoEditorBubbleSize: 62px;
+videoEditorBubbleSkip: 8px;
+videoEditorBubbleBorder: 2px;
+videoEditorFlashFg: mediaviewControlFg;
+videoEditorPlayIcon: icon {{ "player/player_play", mediaviewControlFg }};
+videoEditorPlayBadgeSize: 68px;
+videoEditorPlayBadgeBg: mediaviewCaptionBg;
+videoEditorAbout: FlatLabel(photoEditorAbout) {
+}
+videoEditorAboutMargin: margins(10px, 10px, 10px, 0px);

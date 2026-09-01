@@ -165,8 +165,8 @@ using BigNumContext = openssl::Context;
 		}
 		StartPermutationElement(); {
 			S(""
-				"\x00\x0d\x00\x12\x00\x10\x04\x03\x08\x04\x04\x01\x05\x03"
-				"\x08\x05\x05\x01\x08\x06\x06\x01"_q);
+				"\x00\x0d\x00\x18\x00\x16\x09\x04\x09\x05\x09\x06\x04\x03"
+				"\x08\x04\x04\x01\x05\x03\x08\x05\x05\x01\x08\x06\x06\x01"_q);
 		}
 		StartPermutationElement(); {
 			S(""
@@ -211,7 +211,7 @@ using BigNumContext = openssl::Context;
 			S("\x00\x00\x01\x00\x01"_q);
 			R(1);
 			S("\x00\x20"_q);
-			R(32);
+			K();
 			OpenScope();
 			E();
 			CloseScope();
@@ -247,7 +247,7 @@ using BigNumContext = openssl::Context;
 }
 
 [[nodiscard]] bytes::vector GeneratePublicKey() {
-	const auto context = EVP_PKEY_CTX_new_id(NID_ED25519, nullptr);
+	const auto context = EVP_PKEY_CTX_new_id(NID_X25519, nullptr);
 	if (!context) {
 		return {};
 	}

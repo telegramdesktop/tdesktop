@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 struct ClickHandlerContext;
 class HistoryItem;
+struct HistoryMessageMarkupButton;
 
 namespace Window {
 class SessionController;
@@ -16,17 +17,17 @@ class SessionController;
 
 namespace Api {
 
+using BotButtonLookup = Fn<const HistoryMessageMarkupButton*()>;
+
 void SendBotCallbackData(
 	not_null<Window::SessionController*> controller,
 	not_null<HistoryItem*> item,
-	int row,
-	int column);
+	BotButtonLookup lookup);
 
 void SendBotCallbackDataWithPassword(
 	not_null<Window::SessionController*> controller,
 	not_null<HistoryItem*> item,
-	int row,
-	int column);
+	BotButtonLookup lookup);
 
 bool SwitchInlineBotButtonReceived(
 	not_null<Window::SessionController*> controller,
@@ -34,6 +35,10 @@ bool SwitchInlineBotButtonReceived(
 	UserData *samePeerBot = nullptr,
 	MsgId samePeerReplyTo = 0);
 
+void ActivateBotButton(ClickHandlerContext context, BotButtonLookup lookup);
 void ActivateBotCommand(ClickHandlerContext context, int row, int column);
+void ActivateRichPageBotButton(
+	ClickHandlerContext context,
+	const HistoryMessageMarkupButton &button);
 
 } // namespace Api

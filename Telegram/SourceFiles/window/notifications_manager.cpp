@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_config.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
+#include "history/history_item_helpers.h"
 #include "history/view/history_view_chat_section.h"
 #include "lang/lang_keys.h"
 #include "data/notify/data_notify_settings.h"
@@ -95,6 +96,16 @@ base::options::toggle OptionGNotification({
 	},
 });
 
+base::options::toggle OptionMacModernNotifications({
+	.id = kOptionMacModernNotifications,
+	.name = "Modern macOS notifications",
+	.description = "Use UserNotifications framework"
+		" for native notifications (macOS 10.14+)."
+		" System asks for notifications permission on first launch.",
+	.scope = base::options::macos,
+	.restartRequired = true,
+});
+
 base::options::toggle HideReplyButtonOption({
 	.id = kOptionHideReplyButton,
 	.name = "Hide reply button",
@@ -165,13 +176,15 @@ base::options::toggle HideReplyButtonOption({
 }
 
 [[nodiscard]] bool AllowNotificationActions(not_null<PeerData*> peer) {
-	return Platform::IsMac() && peer->isNotificationsUser();
+	return (Platform::IsMac() || Platform::IsLinux())
+		&& peer->isNotificationsUser();
 }
 
 } // namespace
 
 const char kOptionCustomNotification[] = "custom-notification";
 const char kOptionGNotification[] = "gnotification";
+const char kOptionMacModernNotifications[] = "mac-modern-notifications";
 const char kOptionHideReplyButton[] = "hide-reply-button";
 
 struct System::Waiter {
@@ -1210,8 +1223,7 @@ TextWithEntities Manager::ComposePollVoteNotification(
 	if (hideContent) {
 		return tr::lng_poll_vote_notext(tr::now, tr::marked);
 	}
-	const auto media = item->media();
-	const auto poll = media ? media->poll() : nullptr;
+	const auto poll = LookupNotificationPoll(item);
 	if (!poll) {
 		return tr::lng_poll_vote_notext(tr::now, tr::marked);
 	}
@@ -1673,11 +1685,15 @@ QRect NotificationDisplayRect(Window::Controller *controller) {
 		}
 	}
 
-	return screen
-		? screen->availableGeometry()
-		: controller
-		? controller->widget()->desktopRect()
-		: QGuiApplication::primaryScreen()->availableGeometry();
+	if (screen) {
+		return screen->availableGeometry();
+	} else if (controller) {
+		return controller->widget()->desktopRect();
+	}
+	// When the last monitor is removed QGuiApplication has no screens at
+	// all, so primaryScreen() is nullptr.
+	const auto primary = QGuiApplication::primaryScreen();
+	return primary ? primary->availableGeometry() : QRect();
 }
 
 } // namespace Notifications

@@ -64,6 +64,11 @@ private:
 	class DeviceBar;
 	class ClearButton;
 
+	struct PendingStats {
+		Database::Stats stats;
+		Database::Stats statsBig;
+	};
+
 	void setupContent();
 	void updateChart();
 	void updateCategoryPercents();
@@ -115,6 +120,8 @@ private:
 
 	Database::Stats _stats;
 	Database::Stats _statsBig;
+	std::optional<PendingStats> _pendingStats;
+	bool _shown = false;
 
 	base::flat_map<uint16, not_null<Ui::SlideWrap<Row>*>> _rows;
 	std::array<bool, kChartPartsCount> _selected

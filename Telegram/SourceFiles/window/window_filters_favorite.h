@@ -22,6 +22,7 @@ namespace Ui {
 class DynamicImage;
 class GenericBox;
 class PopupMenu;
+enum class ChatsFiltersTabsMode;
 } // namespace Ui
 
 namespace Window {
@@ -56,6 +57,8 @@ private:
 	};
 
 	void paintEvent(QPaintEvent *e) override;
+
+	[[nodiscard]] Ui::ChatsFiltersTabsMode tabsMode() const;
 
 	void resolvePeer(const QString &usernameOrPhone, bool phone);
 	void resolveInvite(const QString &hash);

@@ -12,11 +12,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_corner_buttons.h"
 #include "history/view/history_view_list_widget.h"
 #include "history/history_item_helpers.h"
+#include "history/history_view_top_toast.h"
 #include "data/data_messages.h"
+#include "data/data_report.h"
 #include "ui/controls/swipe_handler_data.h"
 #include "base/timer.h"
 
 class History;
+class BotKeyboard;
 enum class SendMediaType;
 struct SendingAlbum;
 
@@ -28,6 +31,7 @@ namespace Api {
 struct MessageToSend;
 struct SendOptions;
 struct SendAction;
+struct VideoCoverEdit;
 } // namespace Api
 
 namespace Storage {
@@ -35,12 +39,13 @@ namespace Storage {
 
 namespace Ui {
 class ElasticScroll;
+class InnerDropdown;
 class PlainShadow;
-class FlatButton;
-class PinnedBar;
+class ScrollArea;
 struct PreparedList;
 struct PreparedBundle;
 class SendFilesWay;
+class ChooseThemeController;
 } // namespace Ui
 
 namespace Profile {
@@ -61,6 +66,11 @@ class ForumTopic;
 struct DrawToReplyRequest;
 } // namespace Data
 
+namespace Support {
+class Autocomplete;
+struct Contact;
+} // namespace Support
+
 namespace HistoryView {
 
 namespace Controls {
@@ -72,14 +82,19 @@ class TopBarWidget;
 class ChatMemento;
 class ComposeControls;
 class ComposeSearch;
+class TopControls;
 class SendActionPainter;
 class StickerToast;
-class TopicReopenBar;
 class EmptyPainter;
-class PinnedTracker;
-class TranslateBar;
+class PullToNextChannel;
 class SubsectionTabs;
 class SelfForwardsTagger;
+class SuggestOptionsBar;
+class AboutView;
+class BottomControls;
+class PaidReactionToast;
+class PullToNextChannel;
+enum class SuggestMode;
 
 struct ChatViewId {
 	not_null<History*> history;
@@ -103,6 +118,9 @@ public:
 	[[nodiscard]] ChatViewId id() const {
 		return _id;
 	}
+	[[nodiscard]] not_null<PeerData*> peer() const {
+		return _peer;
+	}
 	Dialogs::RowDescriptor activeChat() const override;
 	bool preventsClose(Fn<void()> &&continueCallback) const override;
 
@@ -125,6 +143,8 @@ public:
 
 	Window::SectionActionResult sendBotCommand(
 		Bot::SendCommandRequest request) override;
+	Window::SectionActionResult hideSingleUseKeyboard(
+		FullMsgId replyToId) override;
 
 	bool searchInChatEmbedded(
 		QString query,
@@ -133,6 +153,20 @@ public:
 
 	bool confirmSendingFiles(const QStringList &files) override;
 	bool confirmSendingFiles(not_null<const QMimeData*> data) override;
+	bool notify_switchInlineBotButtonReceived(
+		const QString &query,
+		UserData *samePeerBot,
+		MsgId samePeerReplyTo) override;
+
+	bool showChooseReportMessages(
+		not_null<PeerData*> peer,
+		Data::ReportInput &&reportInput,
+		Fn<void(std::vector<MsgId>)> &&done) override;
+	bool clearChooseReportMessages() override;
+	bool toggleChooseChatTheme(
+		not_null<PeerData*> peer,
+		std::optional<bool> show = std::nullopt) override;
+	[[nodiscard]] Ui::ChatTheme *customChatTheme() const override;
 
 	void setInternalState(
 		const QRect &geometry,
@@ -165,8 +199,12 @@ public:
 		not_null<HistoryItem*> second) override;
 	void listSelectionChanged(SelectedItems &&items) override;
 	void listMarkReadTill(not_null<HistoryItem*> item) override;
+	void listItemsAddedToEnd(
+		const std::vector<not_null<Element*>> &items,
+		int addedCount) override;
 	void listMarkContentsRead(
 		const base::flat_set<not_null<HistoryItem*>> &items) override;
+	bool listAllowsReadEffect(not_null<const Element*> view) override;
 	MessagesBarData listMessagesBar(
 		const std::vector<not_null<Element*>> &elements,
 		bool markLastAsRead) override;
@@ -213,6 +251,7 @@ public:
 	base::unique_qptr<Ui::PopupMenu> listFillSenderUserpicMenu(
 		PeerId userpicPeerId) override;
 	Ui::ElasticScroll *listScrollArea() const override;
+	bool listShowForumThreadBars() const override;
 
 	// CornerButtonsDelegate delegate.
 	void cornerButtonsShowAtPosition(
@@ -225,8 +264,22 @@ public:
 	bool cornerButtonsHas(CornerButtonType type) override;
 
 private:
+	enum class Mode {
+		Sublist,
+		Replies,
+		History,
+	};
+	[[nodiscard]] Mode mode() const;
+	[[nodiscard]] bool unreadMessagesBelowBottom() const;
+
+	void setChooseReportMessagesDetails(
+		Data::ReportInput reportInput,
+		Fn<void(std::vector<MsgId>)> callback);
+	void activateChooseForReport();
+
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
+	[[nodiscard]] bool contentOverlapped(const QRect &globalRect) override;
 
 	void showAnimatedHook(
 		const Window::SectionSlideParams &params) override;
@@ -240,6 +293,19 @@ private:
 		Fn<void(int)> withPaymentApproved);
 
 	void markLoaded();
+	void requestSponsoredMessages();
+	void injectSponsoredMessages();
+	[[nodiscard]] bool injectNextSponsoredMessage();
+	[[nodiscard]] bool appendSponsoredMessages();
+	[[nodiscard]] bool showAppendedSponsored();
+	void requestMessageData(MsgId msgId);
+	void messageDataReceived(not_null<PeerData*> peer, MsgId msgId);
+	void clearSupportPreloadRequest();
+	void checkSupportPreload(bool force = false);
+	void handleSupportSwitch(not_null<History*> updated);
+	void supportInitAutocomplete();
+	void supportInsertText(const QString &text);
+	void supportShareContact(Support::Contact contact);
 	[[nodiscard]] rpl::producer<Data::MessagesSlice> repliesSource(
 		Data::MessagePosition aroundId,
 		int limitBefore,
@@ -248,13 +314,19 @@ private:
 		Data::MessagePosition aroundId,
 		int limitBefore,
 		int limitAfter);
+	[[nodiscard]] rpl::producer<Data::MessagesSlice> historySource(
+		Data::MessagePosition aroundId,
+		int limitBefore,
+		int limitAfter);
 
 	void onScroll();
+	void scrollToCurrentVoiceMessage(FullMsgId fromId, FullMsgId toId);
 	void closeCurrent();
 	void unreadCountUpdated();
 	void updateInnerVisibleArea();
 	void updateControlsGeometry();
 	void updateAdaptiveLayout();
+	void saveHistoryScrollState(const ListMemento &state);
 	void saveState(not_null<ChatMemento*> memento);
 	void restoreState(not_null<ChatMemento*> memento);
 	void setReplies(std::shared_ptr<Data::RepliesList> replies);
@@ -274,19 +346,13 @@ private:
 	void setupSwipeReplyAndBack();
 
 	void setupRoot();
-	void setupRootView();
 	void setupTopicViewer();
 	void subscribeToTopic();
 	void subscribeToSublist();
-	void subscribeToPinnedMessages();
 	void setTopic(Data::ForumTopic *topic);
-
-	void setupOpenChatButton();
-	void setupAboutHiddenAuthor();
 
 	void setupDragArea();
 	void setupShortcuts();
-	void setupTranslateBar();
 
 	void searchRequested();
 	void searchInTopic();
@@ -321,14 +387,68 @@ private:
 		not_null<HistoryItem*> item,
 		Api::SendOptions options,
 		mtpRequestId *const saveEditMsgRequestId,
-		bool spoilered);
+		bool spoilered,
+		Api::VideoCoverEdit videoCover);
 	void chooseAttach(std::optional<bool> overrideSendImagesAsPhotos);
 	[[nodiscard]] SendMenu::Details sendMenuDetails() const override;
 	bool processChosenSticker(ChatHelpers::FileChosen &&chosen) override;
 	[[nodiscard]] FullReplyTo replyTo() const;
+	[[nodiscard]] FullReplyTo keyboardReplyTo() const;
+	[[nodiscard]] MsgId resolveTopicRootId(const FullReplyTo &replyTo) const;
+	[[nodiscard]] MsgId resolvedTopicRootId() const;
+	[[nodiscard]] Data::ForumTopic *resolvedTopic();
+	void refreshCanSendMessages();
+	void refreshResolvedTopicRootState();
+	void setKeyboardReplyTo(HistoryItem *item);
+	[[nodiscard]] SuggestOptions suggestOptions(
+		bool skipNoAdminCheck = false) const;
+	void applySuggestOptions(
+		SuggestOptions suggest,
+		SuggestMode suggestMode);
+	bool cancelSuggestPost();
+	[[nodiscard]] bool realReplyOrEditActive() const;
+	[[nodiscard]] FullMsgId keyboardSourceId() const;
+	[[nodiscard]] HistoryItem *keyboardSourceItem() const;
+	[[nodiscard]] bool keyboardRowsVisible() const;
+	[[nodiscard]] FullMsgId keyboardSourceIdForHiddenState() const;
+	[[nodiscard]] bool keyboardUiSuppressedByReplyOrEdit() const;
+	[[nodiscard]] int computeMaxFieldHeightForKeyboard(
+		int contentTop,
+		int bottom) const;
+	[[nodiscard]] bool itemBelongsToKeyboardView(
+		not_null<const HistoryItem*> item) const;
+	[[nodiscard]] MsgId keyboardHiddenId() const;
+	void setKeyboardHiddenId(MsgId id);
+	void clearKeyboardHiddenId();
+	[[nodiscard]] bool keyboardUsed() const;
+	void markKeyboardUsed();
+	void showKeyboardReplyToExternal();
+	void hideKeyboardReplyToExternal();
+	void updateKeyboardUiState(bool hasMarkup, bool suppress);
+	void resetRepliesKeyboardState();
+	void clearRepliesKeyboardState();
+	void setRepliesKeyboardState(MsgId id);
+	void updateBotKeyboard(History *h = nullptr, bool force = false);
+	void toggleBotKeyboard(bool manual = true);
+	void maybeUpdateLastKeyboardFromSlice(
+		const Data::MessagesSlice &slice,
+		bool force = false);
+	void botCallbackSent(not_null<HistoryItem*> item);
+	[[nodiscard]] bool kbWasHidden() const;
+	[[nodiscard]] bool lastForceReplyReplied(const FullMsgId &replyTo) const;
+	[[nodiscard]] bool lastForceReplyReplied() const;
+	bool cancelReply(bool lastKeyboardUsed = false);
+	void sendBotCommand(
+		Bot::SendCommandRequest request,
+		Api::SendOptions options);
+	void refreshSuggestPostToggle();
+	void refreshSuggestFromDraft();
 	[[nodiscard]] HistoryItem *lookupRepliesRoot() const;
 	[[nodiscard]] Data::ForumTopic *lookupTopic();
 	[[nodiscard]] bool computeAreComments() const;
+	void setMembersShowAreaActive(bool active);
+	void showMembersDropdown();
+	[[nodiscard]] int countMembersDropdownHeightMax() const;
 	void orderWidgets();
 
 	void pushReplyReturn(not_null<HistoryItem*> item);
@@ -336,17 +456,8 @@ private:
 	void recountChatWidth();
 	void replyToMessage(FullReplyTo id);
 	void refreshTopBarActiveChat();
+	void handlePeerMigration();
 	void refreshUnreadCountBadge(std::optional<int> count);
-
-	void hidePinnedMessage();
-	void updatePinnedViewer();
-	void setupPinnedTracker();
-	void checkPinnedBarState();
-	void clearHidingPinnedBar();
-	void refreshPinnedBarButton(bool many, HistoryItem *item);
-	void checkLastPinnedClickedIdReset(
-		int wasScrollTop,
-		int nowScrollTop);
 
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
 	bool confirmSendingFiles(
@@ -371,11 +482,6 @@ private:
 		std::shared_ptr<Ui::PreparedBundle> bundle,
 		Api::SendOptions options);
 
-	void sendBotCommandWithOptions(
-		const QString &command,
-		const FullMsgId &context,
-		Api::SendOptions options);
-
 	bool sendExistingDocument(
 		not_null<DocumentData*> document,
 		Api::MessageToSend messageToSend,
@@ -394,22 +500,54 @@ private:
 		std::optional<MsgId> localMessageId);
 
 	void validateSubsectionTabs() override;
+	void updateSubsectionTabsGeometry();
 	void setupEmptyPainter();
-	void refreshJoinGroupButton();
+	void refreshAboutView(bool force = false);
+	void checkSuggestToGigagroup();
+	void showAboutTopPromotion();
+	void showInfoTooltip(
+		const TextWithEntities &text,
+		Fn<void()> hiddenCallback);
+	void updateControlsVisibility();
+	void unblockUser();
+	void sendBotStartCommand();
+	bool clearMaybeSendStart();
+	void checkMaybeSendBotStart();
+	void joinChannelAction();
+	void joinGroupAction();
+	void toggleMuteUnmute();
+	void reportSelectedMessages();
+	void updateTopBarChooseForReport();
+	[[nodiscard]] bool isChoosingTheme() const;
 	[[nodiscard]] bool emptyShown() const;
 	[[nodiscard]] bool showSlowmodeError();
+	[[nodiscard]] bool showScheduleSendError();
 
 	const not_null<History*> _history;
 	const not_null<PeerData*> _peer;
 	ChatViewId _id;
 
 	MsgId _repliesRootId = 0;
+	MsgId _repliesKeyboardRootId = 0;
+	MsgId _repliesKeyboardId = 0;
+	MsgId _repliesKeyboardHiddenId = 0;
 	HistoryItem *_repliesRoot = nullptr;
 	Data::ForumTopic *_topic = nullptr;
+	mutable Data::ForumTopic *_creatingBotTopic = nullptr;
 	mutable bool _newTopicDiscarded = false;
 	std::shared_ptr<Data::RepliesList> _replies;
 	rpl::lifetime _repliesLifetime;
 	rpl::variable<bool> _areComments = false;
+	bool _repliesKeyboardInited = false;
+	bool _repliesKeyboardUsed = false;
+
+	struct ChooseMessagesForReport {
+		Data::ReportInput reportInput;
+		Fn<void(std::vector<MsgId>)> callback;
+		bool active = false;
+	};
+	std::unique_ptr<ChooseMessagesForReport> _chooseForReport;
+	std::unique_ptr<Ui::ChooseThemeController> _chooseTheme;
 
 	Data::SavedSublist *_sublist = nullptr;
 	PeerId _monoforumPeerId;
@@ -419,47 +557,51 @@ private:
 	QPointer<ListWidget> _inner;
 	object_ptr<TopBarWidget> _topBar;
 	object_ptr<Ui::PlainShadow> _topBarShadow;
-	std::unique_ptr<Ui::RpWidget> _topBars;
+	object_ptr<Ui::InnerDropdown> _membersDropdown = { nullptr };
+	base::Timer _membersDropdownShowTimer;
+	std::unique_ptr<HistoryView::PaidReactionToast> _paidReactionToast;
+	std::unique_ptr<HistoryView::TopControls> _topControls;
+	rpl::variable<bool> _suggestPostToggleShown = false;
+	rpl::variable<bool> _suggestPostToggleActive = false;
+	rpl::variable<bool> _botKeyboardShownToggleShown = false;
+	rpl::variable<bool> _botKeyboardHideToggleShown = false;
+	rpl::variable<bool> _botCommandStartExtraGuard = true;
+	rpl::variable<QString> _botKeyboardPlaceholder;
 	std::unique_ptr<ComposeControls> _composeControls;
+	std::unique_ptr<SuggestOptionsBar> _suggestOptions;
 	std::unique_ptr<ComposeSearch> _composeSearch;
-	std::unique_ptr<Ui::FlatButton> _joinGroup;
-	std::unique_ptr<Ui::FlatButton> _payForMessage;
-	std::unique_ptr<TopicReopenBar> _topicReopenBar;
-	std::unique_ptr<Ui::FlatButton> _openChatButton;
-	std::unique_ptr<Ui::RpWidget> _aboutHiddenAuthor;
+	std::unique_ptr<HistoryView::BottomControls> _bottom;
+	std::unique_ptr<HistoryView::AboutView> _aboutView;
 	std::unique_ptr<EmptyPainter> _emptyPainter;
 	std::unique_ptr<SubsectionTabs> _subsectionTabs;
 	rpl::lifetime _subsectionTabsLifetime;
 	rpl::lifetime _subsectionCheckLifetime;
 	rpl::lifetime _subsectionTopicsLifetime;
-	bool _canSendTexts = false;
+	bool _canSendMessages = false;
+	rpl::lifetime _canSendMessagesLifetime;
 	bool _skipScrollEvent = false;
 	bool _synteticScrollEvent = false;
 
-	std::unique_ptr<TranslateBar> _translateBar;
-	int _translateBarHeight = 0;
-
-	std::unique_ptr<PinnedTracker> _pinnedTracker;
-	std::unique_ptr<Ui::PinnedBar> _pinnedBar;
-	std::unique_ptr<Ui::PinnedBar> _hidingPinnedBar;
-	int _pinnedBarHeight = 0;
-	FullMsgId _pinnedClickedId;
-	std::optional<FullMsgId> _minPinnedId;
-	bool _pinnedBarHasCustomButton = false;
-	HistoryItem *_shownPinnedItem = nullptr;
-
-	std::unique_ptr<Ui::PinnedBar> _repliesRootView;
-	int _repliesRootViewHeight = 0;
-	bool _repliesRootViewInited = false;
-	bool _repliesRootViewInitScheduled = false;
-	rpl::variable<bool> _repliesRootVisible = false;
-
 	std::unique_ptr<Ui::ElasticScroll> _scroll;
+	std::unique_ptr<PullToNextChannel> _pullToNext;
+	base::unique_qptr<Ui::ScrollArea> _kbScroll;
+	BotKeyboard *_keyboard = nullptr;
+	HistoryItem *_kbReplyTo = nullptr;
+	rpl::event_stream<> _kbReplyToChanges;
+	bool _keyboardReplyExternalVisible = false;
+	std::unique_ptr<Data::MessagesSlice> _repliesLastSlice;
+	bool _ignoreReplyCancelledExternal = false;
+	bool _kbShown = false;
+	bool _fieldHasSendText = false;
 	std::unique_ptr<HistoryView::StickerToast> _stickerToast;
+	InfoTooltip _topToast;
 
 	FullMsgId _lastShownAt;
 	HistoryView::CornerButtons _cornerButtons;
+	std::unique_ptr<Support::Autocomplete> _supportAutocomplete;
 	rpl::lifetime _topicLifetime;
+	rpl::lifetime _historySponsoredPreloading;
+	bool _injectingSponsored = false;
 
 	Ui::Controls::SwipeContextData _gestureHorizontal;
 	Ui::Controls::SwipeBackResult _swipeBackData;
@@ -467,12 +609,18 @@ private:
 	SendPaymentHelper _sendPayment;
 
 	int _lastScrollTop = 0;
-	int _topicReopenBarHeight = 0;
 	int _scrollTopDelta = 0;
+	int _composeControlsTop = 0;
+	crl::time _lastUserScrolled = 0;
 
 	bool _choosingAttach = false;
+	bool _justMarkingAsRead = false;
 
 	bool _loaded = false;
+	bool _maybeSendStart = false;
+	bool _sentFromScheduledTip = false;
+	History *_supportPreloadHistory = nullptr;
+	int _supportPreloadRequest = 0;
 
 	std::unique_ptr<HistoryView::SelfForwardsTagger> _selfForwardsTagger;
 
@@ -515,12 +663,20 @@ public:
 	}
 
 	void setFromTopic(not_null<Data::ForumTopic*> topic);
+	void setFromHistory(not_null<History*> history);
 
 	void setReplyReturns(const QVector<FullMsgId> &list) {
 		_replyReturns = list;
 	}
 	const QVector<FullMsgId> &replyReturns() const {
 		return _replyReturns;
+	}
+
+	void setOriginId(FullMsgId id) {
+		_originId = id;
+	}
+	[[nodiscard]] FullMsgId originId() const {
+		return _originId;
 	}
 
 	Data::ForumTopic *topicForRemoveRequests() const override;
@@ -535,6 +691,15 @@ public:
 	[[nodiscard]] const MessageHighlightId &highlight() const {
 		return _highlight;
 	}
+	[[nodiscard]] bool activateChooseForReport() const {
+		return _activateChooseForReport;
+	}
+	[[nodiscard]] bool sendBotStart() const {
+		return _sendBotStart;
+	}
+	[[nodiscard]] bool maybeSendBotStart() const {
+		return _maybeSendBotStart;
+	}
 
 private:
 	void setupTopicViewer();
@@ -545,6 +710,10 @@ private:
 	ListMemento _list;
 	std::shared_ptr<Data::RepliesList> _replies;
 	QVector<FullMsgId> _replyReturns;
+	FullMsgId _originId;
+	bool _activateChooseForReport = false;
+	bool _sendBotStart = false;
+	bool _maybeSendBotStart = false;
 
 	rpl::lifetime _lifetime;
 

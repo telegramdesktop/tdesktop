@@ -30,7 +30,11 @@ constexpr auto kSecondsInDay = 86400;
 int OnlinePhraseChangeInSeconds(LastseenStatus status, TimeId now) {
 	const auto till = status.onlineTill();
 	if (till > now) {
-		return till - now;
+		// base::unixtime::now() may wrap negative after a huge local clock
+		// jump while the app is running, then till - now overflows int32.
+		return int(std::min(
+			int64(till) - int64(now),
+			int64(std::numeric_limits<int>::max())));
 	} else if (status.isHidden()) {
 		return std::numeric_limits<int>::max();
 	}
@@ -372,6 +376,28 @@ rpl::producer<bool> CanPinMessagesValue(not_null<PeerData*> peer) {
 		return AdminRightValue(channel, ChatAdminRight::EditMessages);
 	}
 	Unexpected("Peer type in CanPinMessagesValue.");
+}
+
+rpl::producer<bool> AllowsForwardingValue(not_null<PeerData*> peer) {
+	if (const auto user = peer->asUser()) {
+		return rpl::combine(
+			PeerFlagValue(user, UserDataFlag::NoForwardsMyEnabled),
+			PeerFlagValue(user, UserDataFlag::NoForwardsPeerEnabled)
+		) | rpl::map([](bool my, bool peer) {
+			return !my && !peer;
+		});
+	} else if (const auto chat = peer->asChat()) {
+		return PeerFlagValue(
+			chat,
+			ChatDataFlag::NoForwards
+		) | rpl::map(!rpl::mappers::_1);
+	} else if (const auto channel = peer->asChannel()) {
+		return PeerFlagValue(
+			channel,
+			ChannelDataFlag::NoForwards
+		) | rpl::map(!rpl::mappers::_1);
+	}
+	return rpl::single(true);
 }
 
 rpl::producer<bool> CanManageGroupCallValue(not_null<PeerData*> peer) {

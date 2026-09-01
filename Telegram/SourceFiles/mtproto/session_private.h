@@ -129,11 +129,16 @@ private:
 		const mtpPrime *from,
 		const mtpPrime *end,
 		uint64 msgId,
-		OuterInfo info);
+		OuterInfo info,
+		int &unpackedBudget,
+		int gzipDepth);
 	[[nodiscard]] HandleResult handleBindResponse(
 		mtpMsgId requestMsgId,
 		const mtpBuffer &response);
-	mtpBuffer ungzip(const mtpPrime *from, const mtpPrime *end) const;
+	mtpBuffer ungzip(
+		const mtpPrime *from,
+		const mtpPrime *end,
+		int sizeLimit) const;
 	void handleMsgsStates(const QVector<MTPlong> &ids, const QByteArray &states);
 
 	// _sessionDataMutex must be locked for read.

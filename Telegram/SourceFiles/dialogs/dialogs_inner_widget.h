@@ -355,6 +355,7 @@ private:
 	void showSponsoredMenu(int peerSearchIndex, QPoint globalPos);
 
 	void clearMouseSelection(bool clearSelection = false);
+	void deselectAllRows();
 	void mousePressReleased(
 		QPoint globalPosition,
 		Qt::MouseButton button,
@@ -613,6 +614,7 @@ private:
 	[[nodiscard]] not_null<Ui::QuickActionContext*> ensureQuickAction(
 		int64 key);
 	void deactivateQuickAction();
+	void updateQuickActionRow(int64 key);
 
 	[[nodiscard]] bool lookupIsInBotAppButton(
 		Row *row,

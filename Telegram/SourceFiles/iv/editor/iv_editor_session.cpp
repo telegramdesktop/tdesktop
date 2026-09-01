@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <crl/crl_on_main.h>
 #include <rpl/variable.h>
 
+#include "api/api_common.h"
 #include "api/api_sending.h"
 #include "api/api_editing.h"
 #include "apiwrap.h"
@@ -26,25 +27,32 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/compose/compose_show.h"
 #include "core/application.h"
 #include "core/core_settings.h"
-#include "data/data_file_origin.h"
 #include "core/shortcuts.h"
 #include "data/components/ephemeral_messages.h"
+#include "data/components/welcome_messages.h"
+#include "data/data_changes.h"
+#include "data/data_chat_participant_status.h"
 #include "data/data_drafts.h"
 #include "data/data_document.h"
+#include "data/data_file_origin.h"
 #include "data/data_forum_topic.h"
 #include "data/data_location.h"
+#include "data/data_peer_values.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_premium_limits.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "data/stickers/data_custom_emoji.h"
+#include "data/stickers/data_stickers.h"
 #include "history/view/history_view_schedule_box.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
 #include "iv/iv_cached_media.h"
 #include "iv/editor/iv_editor_box.h"
+#include "iv/editor/iv_editor_clipboard_import.h"
 #include "iv/editor/iv_editor_state.h"
 #include "iv/editor/iv_editor_widget.h"
 #include "iv/iv_instance.h"
@@ -55,6 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
+#include "mainwindow.h"
 #include "menu/menu_send.h"
 #include "settings/sections/settings_premium.h"
 #include "storage/file_upload.h"
@@ -162,6 +171,7 @@ enum class AttachmentInsertMode : uchar {
 	Normal,
 	ClipboardPaste,
 	ReplaceBlock,
+	Deferred,
 };
 
 struct PreparedDocumentInfo {
@@ -234,7 +244,32 @@ private:
 [[nodiscard]] bool AcceptedPreparedFileType(PreparedFileType type) {
 	return (type == PreparedFileType::Photo)
 		|| (type == PreparedFileType::Video)
-		|| (type == PreparedFileType::Music);
+		|| (type == PreparedFileType::Music)
+		|| (type == PreparedFileType::File);
+}
+
+[[nodiscard]] PreparedFileType NormalizePreparedFileType(
+		PreparedFileType type,
+		RequestMediaType requestType,
+		bool replacing) {
+	if (type == PreparedFileType::Music) {
+		return type;
+	}
+	switch (requestType) {
+	case RequestMediaType::File:
+	case RequestMediaType::Audio:
+		return PreparedFileType::File;
+	case RequestMediaType::PhotoVideo:
+		return (type == PreparedFileType::Photo
+			|| type == PreparedFileType::Video)
+			? type
+			: PreparedFileType::File;
+	case RequestMediaType::PhotoVideoAudio:
+		return (!replacing && type == PreparedFileType::None)
+			? PreparedFileType::File
+			: type;
+	}
+	Unexpected("Request media type.");
 }
 
 [[nodiscard]] bool CanUseRichMessages(not_null<Main::Session*> session) {
@@ -251,7 +286,7 @@ enum class RichMessagePosting {
 		not_null<Main::Session*> session) {
 	const auto value = session->appConfig().get<QString>(
 		u"rich_message_posting"_q,
-		u"disabled"_q);
+		u"premium"_q);
 	if (value == u"enabled"_q) {
 		return RichMessagePosting::Enabled;
 	} else if (value == u"premium"_q) {
@@ -265,6 +300,7 @@ enum class RichMessagePosting {
 	case RichPage::BlockKind::Photo:
 	case RichPage::BlockKind::Video:
 	case RichPage::BlockKind::Audio:
+	case RichPage::BlockKind::File:
 		return true;
 	default:
 		return false;
@@ -339,6 +375,8 @@ template <typename Container>
 		return RichPage::BlockKind::Video;
 	case PreparedFileType::Music:
 		return RichPage::BlockKind::Audio;
+	case PreparedFileType::File:
+		return RichPage::BlockKind::File;
 	default:
 		return RichPage::BlockKind::Unsupported;
 	}
@@ -356,11 +394,14 @@ template <typename Container>
 		return RichPage::BlockKind::Unsupported;
 	}
 	const auto info = DocumentInfoFromPrepared(prepared.document);
-	if (info.video) {
-		return RichPage::BlockKind::Video;
-	}
 	if (info.audio) {
 		return RichPage::BlockKind::Audio;
+	}
+	if (prepared.forceFile) {
+		return RichPage::BlockKind::File;
+	}
+	if (info.video) {
+		return RichPage::BlockKind::Video;
 	}
 	return RichPage::BlockKind::Unsupported;
 }
@@ -513,6 +554,7 @@ template <typename Container>
 	const auto sendType = (file.type == PreparedFileType::Photo)
 		? SendMediaType::Photo
 		: SendMediaType::File;
+	const auto forceFile = (file.type == PreparedFileType::File);
 	const auto sendLargePhotos = (sendType == SendMediaType::Photo)
 		|| file.sendLargePhotos;
 	return {
@@ -533,7 +575,7 @@ template <typename Container>
 		.caption = TextWithTags(),
 		.spoiler = file.spoiler,
 		.album = std::make_shared<SendingAlbum>(),
-		.forceFile = false,
+		.forceFile = forceFile,
 		.sendLargePhotos = sendLargePhotos,
 		.idOverride = 0,
 		.displayName = file.displayName,
@@ -557,7 +599,6 @@ public:
 		auto composeThreadKey = std::optional<ComposeThreadKey>();
 		auto page = std::make_shared<RichPage>();
 		auto hasRichDraft = false;
-		auto fieldTextAdopted = false;
 		if (options.scope == ComposeBoxOptions::Scope::Thread) {
 			const auto topicRootId = action.replyTo.topicRootId;
 			const auto monoforumPeerId = action.replyTo.monoforumPeerId;
@@ -592,15 +633,10 @@ public:
 				} else {
 					*page = std::move(migrated);
 				}
-				fieldTextAdopted = true;
 				if (onMigrated) {
 					onMigrated();
 				}
 			}
-		}
-		if (!fieldTextAdopted
-			&& options.scope == ComposeBoxOptions::Scope::Detached) {
-			(void)base::take(options.returnText);
 		}
 		auto articleSession = std::shared_ptr<ArticleSession>(new ArticleSession(
 			session,
@@ -771,6 +807,7 @@ private:
 		int order = 0;
 		AttachmentInsertMode insertMode = AttachmentInsertMode::Normal;
 		std::optional<State::ReplaceTarget> replaceTarget;
+		RequestMediaType requestType = RequestMediaType::PhotoVideoAudio;
 	};
 
 	struct EditedItemSnapshot {
@@ -897,13 +934,34 @@ private:
 			== ComposeBoxOptions::Scope::Detached;
 	}
 
+	[[nodiscard]] bool welcomeTemplatesCompose() const {
+		return (_mode == Mode::Compose)
+			&& _composeOptions.welcomeTemplates
+			&& _composeAction;
+	}
+
+	[[nodiscard]] bool welcomeTemplatesLimitReached() const {
+		Expects(_composeAction.has_value());
+
+		const auto history = _composeAction->history;
+		return _session->welcomeMessages().count(history)
+			>= ::Data::WelcomeMessagesLimit(_session);
+	}
+
+	void showWelcomeTemplatesLimitToast() const {
+		showToast(tr::lng_business_limit_reached(
+			tr::now,
+			lt_count,
+			::Data::WelcomeMessagesLimit(_session)));
+	}
+
 	void dropDetachedReturnText() {
 		if (detachedCompose()) {
-			(void)base::take(_composeOptions.returnText);
+			_composeOptions.returnText = nullptr;
 		}
 	}
 
-	[[nodiscard]] bool deliverDetachedReturnText() {
+	bool deliverDetachedReturnText() {
 		Expects(detachedCompose());
 
 		if (hasPendingPreparation()) {
@@ -921,7 +979,7 @@ private:
 			};
 		}
 		const auto callback = base::take(_composeOptions.returnText);
-		if (callback) {
+		if (callback && !result.empty()) {
 			callback(std::move(result));
 		}
 		return true;
@@ -966,9 +1024,8 @@ private:
 		if (!_composeAction) {
 			return false;
 		} else if (!simple) {
-			const auto id = _composeAction->replyTo.messageId;
-			const auto target = _session->data().message(id);
-			return target && target->isEphemeral();
+			return _session->ephemeralMessages().isEphemeralBotReply(
+				_composeAction->replyTo.messageId);
 		}
 		auto message = Api::MessageToSend(*_composeAction);
 		message.textWithTags = {
@@ -984,6 +1041,7 @@ private:
 		if (_mode != Mode::Compose
 			|| !_composeAction
 			|| _submitOptions.scheduled
+			|| welcomeTemplatesCompose()
 			|| submitWouldBeEphemeral(simple)) {
 			return true;
 		}
@@ -1034,14 +1092,6 @@ private:
 			}
 			return submitSimpleText(std::move(*simple));
 		}
-		if (_mode == Mode::Compose && _composeAction) {
-			const auto replyToId = _composeAction->replyTo.messageId;
-			const auto target = _session->data().message(replyToId);
-			if (target && target->isEphemeral()) {
-				showToast(tr::lng_ephemeral_reply_text_only(tr::now));
-				return false;
-			}
-		}
 		if (!CanUseRichMessages(_session)) {
 			const auto page = _state->richPage();
 			if (!RichPageIsFlattenSafe(page)) {
@@ -1064,6 +1114,10 @@ private:
 			std::make_shared<RichPage>(_state->richPage()));
 		if (const auto error = ValidateRichMessage(*page, _limits)) {
 			showRichMessageLimitToast(*error);
+			return false;
+		}
+		if (welcomeTemplatesCompose() && welcomeTemplatesLimitReached()) {
+			showWelcomeTemplatesLimitToast();
 			return false;
 		}
 		_submittedPage = page;
@@ -1095,6 +1149,21 @@ private:
 			if (!_composeAction) {
 				showToast(tr::lng_edit_error(tr::now));
 				return false;
+			}
+			if (welcomeTemplatesCompose()) {
+				if (!_composeAction->history->peer
+						->canManageWelcomeMessages()) {
+					return false;
+				} else if (welcomeTemplatesLimitReached()) {
+					showWelcomeTemplatesLimitToast();
+					return false;
+				}
+				cancelRichDraftAutosave();
+				dropDetachedReturnText();
+				_session->welcomeMessages().send(
+					_composeAction->history,
+					std::move(text));
+				return true;
 			}
 			auto action = *_composeAction;
 			action.options = _submitOptions;
@@ -1129,7 +1198,9 @@ private:
 			[weak = base::make_weak(this)](
 					const QString &error,
 					mtpRequestId) {
-				if (const auto session = weak.get()) {
+				if (error == u"MESSAGE_NOT_MODIFIED"_q) {
+					return;
+				} else if (const auto session = weak.get()) {
 					session->showToast(error.isEmpty()
 						? tr::lng_edit_error(tr::now)
 						: error);
@@ -1236,6 +1307,11 @@ private:
 		if (action.options.shortcutId) {
 			flags |= MessageFlag::ShortcutMessage;
 		}
+		if (!action.options.scheduled
+			&& !action.options.shortcutId
+			&& submitWouldBeEphemeral(std::nullopt)) {
+			flags |= MessageFlag::Ephemeral;
+		}
 		const auto starsPaid = std::min(
 			peer->starsPerMessageChecked(),
 			action.options.starsApproved);
@@ -1263,6 +1339,9 @@ private:
 
 	[[nodiscard]] bool applySubmittedLocalState(
 			const std::shared_ptr<const RichPage> &page) {
+		if (welcomeTemplatesCompose()) {
+			return true;
+		}
 		const auto item = (_mode == Mode::Compose)
 			? ensureComposeLocalItem()
 			: currentSubmittedItem();
@@ -1395,6 +1474,7 @@ private:
 			return true;
 		case RichPage::BlockKind::Video:
 		case RichPage::BlockKind::Audio:
+		case RichPage::BlockKind::File:
 			if (!attachment.serverDocument || !attachment.serverMediaId) {
 				return false;
 			}
@@ -1514,6 +1594,35 @@ private:
 			failSubmittedWork(true);
 			return;
 		}
+		if (welcomeTemplatesCompose()) {
+			if (!_composeAction->history->peer
+					->canManageWelcomeMessages()) {
+				finishSubmittedWork();
+				return;
+			} else if (welcomeTemplatesLimitReached()) {
+				showWelcomeTemplatesLimitToast();
+				finishSubmittedWork();
+				restartRichDraftAutosave();
+				return;
+			}
+			dropDetachedReturnText();
+			const auto session = _session;
+			_session->welcomeMessages().sendRich(
+				_composeAction->history,
+				[session, page = _submittedPage] {
+					auto serialized = SerializeInputRichMessage(
+						session,
+						*page,
+						SerializeInputRichMessageMode::FinalSubmit);
+					const auto success = (serialized.status
+						== SerializeInputRichMessageStatus::Success);
+					return (success && serialized.value)
+						? std::move(serialized.value)
+						: std::optional<MTPInputRichMessage>();
+				});
+			finishSubmittedWork();
+			return;
+		}
 		const auto item = currentSubmittedItem();
 		if (!item) {
 			finishSubmittedWork();
@@ -1558,9 +1667,11 @@ private:
 			[weak = base::make_weak(this)](const QString &error, mtpRequestId) {
 				if (const auto session = weak.get()) {
 					session->restoreEditedItem();
-					session->showToast(error.isEmpty()
-						? tr::lng_edit_error(tr::now)
-						: error);
+					if (error != u"MESSAGE_NOT_MODIFIED"_q) {
+						session->showToast(error.isEmpty()
+							? tr::lng_edit_error(tr::now)
+							: error);
+					}
 					session->finishSubmittedWork();
 				}
 			});
@@ -1620,14 +1731,21 @@ private:
 			? FileDialog::PhotoVideoFilesFilter()
 			: (type == RequestMediaType::Audio)
 			? FileDialog::AudioFilesFilter()
+			: (type == RequestMediaType::File)
+			? FileDialog::AllFilesFilter()
 			: FileDialog::PhotoVideoAudioFilesFilter();
-		auto callback = [weak, editorPointer, replaceTarget = std::move(
-				replaceTarget)](FileDialog::OpenResult &&result) mutable {
+		auto callback = [
+			weak,
+			editorPointer,
+			type,
+			replaceTarget = std::move(replaceTarget)
+		](FileDialog::OpenResult &&result) mutable {
 			if (const auto session = weak.get()) {
 				session->handleMediaDialogResult(
 					editorPointer,
 					std::move(result),
-					std::move(replaceTarget));
+					std::move(replaceTarget),
+					type);
 			}
 		};
 		if (replacing) {
@@ -1725,6 +1843,12 @@ private:
 			.state = _state,
 			.title = windowTitle(),
 			.submitType = _submitType,
+			.centerOver = [&] {
+				const auto controller = _controller.get();
+				return controller
+					? controller->widget()->geometry()
+					: QRect();
+			}(),
 			.discarded = _composeAction
 				? Fn<bool()>([session = shared_from_this()] {
 					return session->discardRequested();
@@ -1772,6 +1896,16 @@ private:
 					QPointer<Widget>(editor.get()),
 					std::move(list),
 					std::move(target));
+			},
+			.prepareDeferredMedia = [session = shared_from_this()](
+					not_null<Widget*> editor,
+					PreparedList list,
+					Fn<void(
+						std::vector<std::optional<RichPage::Block>>)> done) {
+				session->prepareDeferredMedia(
+					QPointer<Widget>(editor.get()),
+					std::move(list),
+					std::move(done));
 			},
 			.requestPhotoEditSource = [session = shared_from_this()](
 					uint64 photoId,
@@ -1863,9 +1997,16 @@ public:
 		}
 	}
 
+	[[nodiscard]] static ArticleSession *FindEditWindow(
+		not_null<Main::Session*> session,
+		FullMsgId itemId);
+
 	[[nodiscard]] static bool ActivateEditWindow(
 		not_null<Main::Session*> session,
 		FullMsgId itemId);
+
+	[[nodiscard]] static std::shared_ptr<ChatHelpers::Show> ActiveShow(
+		not_null<Main::Session*> session);
 
 private:
 	// Registry of all editor sessions that currently own a window, so that
@@ -1919,7 +2060,7 @@ private:
 			&& _composeOptions.returnText
 			&& !_submittedPage
 			&& !_submitApiRequested) {
-			(void)deliverDetachedReturnText();
+			deliverDetachedReturnText();
 		}
 		const auto sync = _composeAction
 			&& _composeThreadKey
@@ -1953,34 +2094,73 @@ private:
 	void handleMediaDialogResult(
 		QPointer<Widget> editor,
 		FileDialog::OpenResult &&result,
-		std::optional<State::ReplaceTarget> replaceTarget) {
+		std::optional<State::ReplaceTarget> replaceTarget,
+		RequestMediaType requestType) {
 		auto showError = [=](tr::phrase<> phrase) {
 			showToast(phrase(tr::now));
 		};
-		auto list = Storage::PreparedFileFromFilesDialog(
-			std::move(result),
-			[](const PreparedList &) {
-				return true;
-			},
-			showError,
-			st::sendMediaPreviewSize,
-			_session->premium());
-		if (!list) {
+		if (replaceTarget) {
+			auto list = Storage::PreparedFileFromFilesDialog(
+				std::move(result),
+				[](const PreparedList &) {
+					return true;
+				},
+				showError,
+				st::sendMediaPreviewSize,
+				true);
+			if (!list) {
+				return;
+			}
+			if (CountAcceptedPreparedFiles(*list) != 1) {
+				showToast(tr::lng_send_media_invalid_files(tr::now));
+				return;
+			}
+			applyPreparedList(
+				editor,
+				std::move(*list),
+				++_prepareBatchId,
+				AttachmentInsertMode::ReplaceBlock,
+				std::nullopt,
+				std::move(replaceTarget),
+				std::nullopt,
+				requestType);
 			return;
 		}
-		if (replaceTarget && CountAcceptedPreparedFiles(*list) != 1) {
-			showToast(tr::lng_send_media_invalid_files(tr::now));
+
+		const auto show = resolveShow();
+		const auto peer = _peer;
+		auto list = result.remoteContent.isEmpty()
+			? Storage::PrepareMediaList(
+				result.paths,
+				st::sendMediaPreviewSize,
+				true,
+				[show, peer](const PreparedList &rejected) {
+					if (show && show->valid()) {
+						::Data::ShowSendError(
+							show,
+							peer,
+							rejected,
+							std::nullopt,
+							true,
+							true);
+					}
+				})
+			: Storage::PrepareMediaFromImage(
+				QImage(),
+				std::move(result.remoteContent),
+				st::sendMediaPreviewSize);
+		if (list.files.empty() && list.filesToProcess.empty()) {
 			return;
 		}
 		applyPreparedList(
 			editor,
-			std::move(*list),
+			std::move(list),
 			++_prepareBatchId,
-			replaceTarget
-				? AttachmentInsertMode::ReplaceBlock
-				: AttachmentInsertMode::Normal,
+			AttachmentInsertMode::Normal,
 			std::nullopt,
-			std::move(replaceTarget));
+			std::nullopt,
+			std::nullopt,
+			requestType);
 	}
 
 	void applyPreparedMedia(
@@ -2192,15 +2372,54 @@ private:
 		AttachmentInsertMode insertMode = AttachmentInsertMode::Normal,
 		std::optional<PreparedMediaPasteTarget> insertTarget = std::nullopt,
 		std::optional<State::ReplaceTarget> replaceTarget = std::nullopt,
-		std::optional<State::BlockPath> groupAnchor = std::nullopt) {
+		std::optional<State::BlockPath> groupAnchor = std::nullopt,
+		RequestMediaType requestType = RequestMediaType::PhotoVideoAudio) {
 		const auto effectiveInsertMode = replaceTarget
 			? AttachmentInsertMode::ReplaceBlock
 			: insertMode;
 		const auto replacing = IsReplacing(effectiveInsertMode, replaceTarget);
-		if (const auto accepted = CountAcceptedPreparedFiles(list);
-			accepted && exceedsMediaLimitWith(replacing ? 0 : accepted)) {
-			showRichMessageLimitToast(RichMessageLimitError::Media);
-			return;
+		const auto reservesPrefix = !replacing
+			&& (requestType != RequestMediaType::PhotoVideoAudio);
+		auto totalCount = int(list.files.size() + list.filesToProcess.size());
+		if (reservesPrefix) {
+			const auto freeSlots = std::max(
+				_limits.maxMedia
+					- CountRichPageMedia(_state->richPage())
+					- pendingAttachmentPlaceholders(),
+				0);
+			const auto retainedCount = std::min(totalCount, freeSlots);
+			if (retainedCount < totalCount) {
+				const auto retainedPrepared = std::min(
+					retainedCount,
+					int(list.files.size()));
+				list.files.erase(
+					list.files.begin() + retainedPrepared,
+					list.files.end());
+				list.filesToProcess.erase(
+					list.filesToProcess.begin()
+						+ (retainedCount - retainedPrepared),
+					list.filesToProcess.end());
+				totalCount = retainedCount;
+				showRichMessageLimitToast(RichMessageLimitError::Media);
+			}
+		} else {
+			auto accepted = replacing
+				? CountAcceptedPreparedFiles(list)
+				: totalCount;
+			if (groupAnchor) {
+				accepted = int(list.filesToProcess.size());
+				for (const auto &file : list.files) {
+					if (file.type == PreparedFileType::Photo
+						|| file.type == PreparedFileType::Video) {
+						++accepted;
+					}
+				}
+			}
+			if (accepted
+				&& exceedsMediaLimitWith(replacing ? 0 : accepted)) {
+				showRichMessageLimitToast(RichMessageLimitError::Media);
+				return;
+			}
 		}
 		if (replacing) {
 			if (!list.files.empty()) {
@@ -2210,7 +2429,8 @@ private:
 					batchId,
 					0,
 					effectiveInsertMode,
-					std::move(replaceTarget));
+					std::move(replaceTarget),
+					requestType);
 			} else if (!list.filesToProcess.empty()) {
 				_prepareQueue.push_back({
 					.editor = editor,
@@ -2219,13 +2439,12 @@ private:
 					.order = 0,
 					.insertMode = effectiveInsertMode,
 					.replaceTarget = std::move(replaceTarget),
+					.requestType = requestType,
 				});
 				enqueueNextPrepare();
 			}
 			return;
 		}
-		const auto totalCount = int(
-			list.files.size() + list.filesToProcess.size());
 		if (totalCount > 0) {
 			_mediaBatches.push_back({
 				.id = batchId,
@@ -2244,7 +2463,8 @@ private:
 				batchId,
 				order++,
 				effectiveInsertMode,
-				replaceTarget);
+				replaceTarget,
+				requestType);
 		}
 		for (auto &file : list.filesToProcess) {
 			_prepareQueue.push_back({
@@ -2254,6 +2474,7 @@ private:
 				.order = order++,
 				.insertMode = effectiveInsertMode,
 				.replaceTarget = replaceTarget,
+				.requestType = requestType,
 			});
 		}
 		enqueueNextPrepare();
@@ -2273,7 +2494,8 @@ private:
 				queued.batchId,
 				queued.order,
 				queued.insertMode,
-				std::move(queued.replaceTarget));
+				std::move(queued.replaceTarget),
+				queued.requestType);
 		}
 		if (_prepareQueue.empty()) {
 			maybeContinueDeferredSubmit();
@@ -2305,7 +2527,8 @@ private:
 			queued.batchId,
 			queued.order,
 			queued.insertMode,
-			std::move(queued.replaceTarget));
+			std::move(queued.replaceTarget),
+			queued.requestType);
 		enqueueNextPrepare();
 	}
 
@@ -2315,20 +2538,34 @@ private:
 		uint64 batchId,
 		int order,
 		AttachmentInsertMode insertMode,
-		std::optional<State::ReplaceTarget> replaceTarget) {
+		std::optional<State::ReplaceTarget> replaceTarget,
+		RequestMediaType requestType) {
+		const auto replacing = IsReplacing(insertMode, replaceTarget);
+		file.type = NormalizePreparedFileType(
+			file.type,
+			requestType,
+			replacing);
+		const auto batch = findMediaBatch(batchId);
+		if (batch
+			&& batch->groupAnchor
+			&& file.type != PreparedFileType::Photo
+			&& file.type != PreparedFileType::Video) {
+			markMediaBatchItemSkipped(batchId, order);
+			flushMediaBatch(batchId);
+			showUnsupportedMediaToast(batchId);
+			return;
+		}
 		if (!AcceptedPreparedFileType(file.type)) {
-			if (!IsReplacing(insertMode, replaceTarget)) {
+			if (!replacing) {
 				markMediaBatchItemSkipped(batchId, order);
 				flushMediaBatch(batchId);
 			}
 			showUnsupportedMediaToast(batchId);
 			return;
 		}
-		const auto additionalMedia = IsReplacing(insertMode, replaceTarget)
-			? 0
-			: 1;
+		const auto additionalMedia = replacing ? 0 : 1;
 		if (exceedsMediaLimitWith(additionalMedia)) {
-			if (!IsReplacing(insertMode, replaceTarget)) {
+			if (!replacing) {
 				markMediaBatchItemSkipped(batchId, order);
 				flushMediaBatch(batchId);
 			}
@@ -2342,6 +2579,65 @@ private:
 			order,
 			insertMode,
 			std::move(replaceTarget));
+	}
+
+	void prepareDeferredMedia(
+			QPointer<Widget> editor,
+			PreparedList list,
+			Fn<void(std::vector<std::optional<RichPage::Block>>)> done) {
+		const auto count = int(list.files.size());
+		if (!count) {
+			done({});
+			return;
+		}
+		const auto batchId = ++_prepareBatchId;
+		auto &pending = _deferredBatches[batchId];
+		pending.results.resize(count);
+		pending.left = count;
+		pending.done = std::move(done);
+		for (auto i = 0; i != count; ++i) {
+			prepareAttachment(
+				editor,
+				std::move(list.files[i]),
+				batchId,
+				i,
+				AttachmentInsertMode::Deferred,
+				std::nullopt);
+		}
+	}
+
+	void pendingDeferredUpload(uint64 batchId, FullMsgId uploadId) {
+		const auto i = _deferredBatches.find(batchId);
+		if (i != end(_deferredBatches)) {
+			i->second.uploads.push_back(uploadId);
+		}
+	}
+
+	void deferredAttachmentReady(
+			uint64 batchId,
+			int order,
+			std::optional<RichPage::Block> block) {
+		const auto i = _deferredBatches.find(batchId);
+		if (i == end(_deferredBatches)) {
+			return;
+		}
+		auto &pending = i->second;
+		if (order >= 0 && order < int(pending.results.size())) {
+			pending.results[order] = std::move(block);
+		}
+		if (--pending.left > 0) {
+			return;
+		}
+		auto callback = std::move(pending.done);
+		auto results = std::move(pending.results);
+		auto uploads = std::move(pending.uploads);
+		_deferredBatches.erase(i);
+		if (callback) {
+			callback(std::move(results));
+		}
+		for (const auto &uploadId : uploads) {
+			_deferredUploads.remove(uploadId);
+		}
 	}
 
 	void prepareAttachment(
@@ -2394,6 +2690,26 @@ private:
 		_pendingAttachmentPrepareCount = std::max(
 			_pendingAttachmentPrepareCount - 1,
 			0);
+		if (insertMode == AttachmentInsertMode::Deferred) {
+			auto block = std::optional<RichPage::Block>();
+			if (prepared && editor) {
+				const auto uploadId = createAttachmentUpload(
+					std::move(meta),
+					std::move(prepared),
+					std::move(originalImage));
+				if (uploadId && !_attachments.empty()) {
+					block = makeAttachmentBlock(_attachments.back());
+					_deferredUploads.emplace(*uploadId);
+					pendingDeferredUpload(batchId, *uploadId);
+				}
+			}
+			if (!block) {
+				showAttachmentFailedToast();
+			}
+			deferredAttachmentReady(batchId, order, std::move(block));
+			maybeContinueDeferredSubmit();
+			return;
+		}
 		if (!prepared) {
 			if (!IsReplacing(insertMode, replaceTarget)) {
 				markMediaBatchItemSkipped(batchId, order);
@@ -2411,7 +2727,11 @@ private:
 			maybeContinueDeferredSubmit();
 			return;
 		}
-		if (meta.blockKind != BlockKindForPreparedResult(*prepared)) {
+		const auto resolved = BlockKindForPreparedResult(*prepared);
+		const auto compatible = (meta.blockKind == resolved)
+			|| (RichBlockIsDocumentRow(meta.blockKind)
+				&& RichBlockIsDocumentRow(resolved));
+		if (!compatible) {
 			if (!IsReplacing(insertMode, replaceTarget)) {
 				markMediaBatchItemSkipped(batchId, order);
 				flushMediaBatch(batchId);
@@ -2420,6 +2740,7 @@ private:
 			maybeContinueDeferredSubmit();
 			return;
 		}
+		meta.blockKind = resolved;
 		const auto replacing = IsReplacing(insertMode, replaceTarget);
 		if (exceedsMediaLimitWith(replacing ? 0 : 1)) {
 			if (!replacing) {
@@ -2451,10 +2772,17 @@ private:
 		AttachmentInsertMode insertMode,
 		std::optional<State::ReplaceTarget> replaceTarget,
 		QImage originalImage) {
+		const auto replacing = IsReplacing(insertMode, replaceTarget);
+		const auto skipBatchItem = [&] {
+			if (!replacing) {
+				markMediaBatchItemSkipped(batchId, order);
+				flushMediaBatch(batchId);
+			}
+		};
 		if (!editor) {
+			skipBatchItem();
 			return;
 		}
-		const auto replacing = IsReplacing(insertMode, replaceTarget);
 		_editor = editor;
 		const auto blockKind = meta.blockKind;
 		const auto uploadId = createAttachmentUpload(
@@ -2462,10 +2790,12 @@ private:
 			std::move(prepared),
 			std::move(originalImage));
 		if (!uploadId) {
+			skipBatchItem();
 			return;
 		}
 		const auto attachment = findAttachment(*uploadId);
 		if (!attachment) {
+			skipBatchItem();
 			return;
 		}
 		if (!replacing) {
@@ -2586,12 +2916,14 @@ private:
 			block.spoiler = attachment.spoiler;
 			block.autoplay = attachment.autoplay;
 			block.loop = attachment.loop;
-		} else if (attachment.blockKind == RichPage::BlockKind::Audio) {
+		} else if (RichBlockIsDocumentRow(attachment.blockKind)) {
 			block.documentId = attachment.localMediaId;
 			block.audioTitle = attachment.audioTitle;
 			block.audioPerformer = attachment.audioPerformer;
-			block.audioFileName = attachment.audioFileName;
 			block.audioDuration = attachment.audioDuration;
+			block.fileName = attachment.audioFileName.isEmpty()
+				? attachment.filename
+				: attachment.audioFileName;
 		}
 		return block;
 	}
@@ -2616,7 +2948,7 @@ private:
 		return item;
 	}
 
-	[[nodiscard]] RichPage::Block makeGroupedAttachmentBlock(
+	[[nodiscard]] std::vector<RichPage::Block> makeGroupedAttachmentBlocks(
 			const std::vector<FullMsgId> &uploadIds) const {
 		auto block = RichPage::Block();
 		block.kind = RichPage::BlockKind::GroupedMedia;
@@ -2644,7 +2976,7 @@ private:
 		if (captionCount == 1) {
 			block.caption = ToRichText(std::move(caption));
 		}
-		return block;
+		return SplitGroupedMediaBlock(std::move(block));
 	}
 
 	[[nodiscard]] RichPage::Block makeMapBlock(::Data::InputVenue venue) const {
@@ -3041,6 +3373,8 @@ private:
 			auto attachment = AttachmentRecord{
 				.type = (kind == RichPage::BlockKind::Audio)
 					? PreparedFileType::Music
+					: (kind == RichPage::BlockKind::File)
+					? PreparedFileType::File
 					: PreparedFileType::Video,
 				.blockKind = kind,
 				.state = AttachmentState::Ready,
@@ -3053,11 +3387,11 @@ private:
 				.origin = origin,
 				.serverDocument = document.get(),
 			};
-			if (kind == RichPage::BlockKind::Audio) {
+			if (RichBlockIsDocumentRow(kind)) {
 				attachment.audioTitle = block.audioTitle;
 				attachment.audioPerformer = block.audioPerformer;
-				attachment.audioFileName = block.audioFileName;
 				attachment.audioDuration = block.audioDuration;
+				attachment.filename = block.fileName;
 			}
 			refreshAttachmentInput(attachment);
 			_attachments.push_back(std::move(attachment));
@@ -3072,7 +3406,8 @@ private:
 			}
 		} break;
 		case RichPage::BlockKind::Video:
-		case RichPage::BlockKind::Audio: {
+		case RichPage::BlockKind::Audio:
+		case RichPage::BlockKind::File: {
 			const auto document = block.document
 				? block.document
 				: _session->data().document(block.documentId).get();
@@ -3193,6 +3528,7 @@ private:
 		}
 	}
 	void editorCreated(not_null<Widget*> editor);
+	void applyInitialPaste();
 	void cancelRichDraftAutosave();
 	void restartRichDraftAutosave();
 	void handleRichDraftAutosave(Widget::AutosaveEvent event);
@@ -3403,7 +3739,11 @@ private:
 					}
 				}
 			} else {
-				blocks.push_back(makeGroupedAttachmentBlock(uploadIds));
+				auto grouped = makeGroupedAttachmentBlocks(uploadIds);
+				blocks.insert(
+					blocks.end(),
+					std::make_move_iterator(grouped.begin()),
+					std::make_move_iterator(grouped.end()));
 			}
 			emittedUploadIds.insert(
 				emittedUploadIds.end(),
@@ -3420,7 +3760,8 @@ private:
 					continue;
 				}
 				const auto itemHasCaption = !attachment->caption.isEmpty();
-				if (itemHasCaption && hasCaption) {
+				if (int(subrun.size()) >= Ui::MaxAlbumItems()
+					|| (itemHasCaption && hasCaption)) {
 					appendSubrun(subrun);
 					subrun.clear();
 					hasCaption = false;
@@ -3449,7 +3790,7 @@ private:
 				++batch->nextIndex;
 				continue;
 			}
-			if (item.blockKind == RichPage::BlockKind::Audio) {
+			if (RichBlockIsDocumentRow(item.blockKind)) {
 				blocks.push_back(makeAttachmentBlock(*attachment));
 				emittedUploadIds.push_back(item.uploadId);
 				item.state = MediaBatchItemState::Inserted;
@@ -3480,7 +3821,7 @@ private:
 					waitingBeforeBoundary = true;
 					break;
 				}
-				if (candidate.blockKind == RichPage::BlockKind::Audio) {
+				if (RichBlockIsDocumentRow(candidate.blockKind)) {
 					break;
 				}
 				if (!IsPhotoVideoRichMessageKind(candidate.blockKind)) {
@@ -3636,7 +3977,8 @@ private:
 					&& mediaIdMatchesAttachment(block.documentId, attachment))
 				|| groupedMediaBlockMatchesAttachment(block, attachment);
 		case RichPage::BlockKind::Audio:
-			return (block.kind == RichPage::BlockKind::Audio)
+		case RichPage::BlockKind::File:
+			return RichBlockIsDocumentRow(block.kind)
 				&& mediaIdMatchesAttachment(block.documentId, attachment);
 		default:
 			return false;
@@ -3713,7 +4055,8 @@ private:
 			if (!attachment.blockLocators.empty()) {
 				continue;
 			}
-			if (hasUninsertedMediaBatchUpload(attachment.uploadId)) {
+			if (hasUninsertedMediaBatchUpload(attachment.uploadId)
+				|| _deferredUploads.contains(attachment.uploadId)) {
 				continue;
 			}
 			uploadIds.push_back(attachment.uploadId);
@@ -3790,7 +4133,14 @@ private:
 			++result;
 		}
 		for (const auto &queued : _prepareQueue) {
-			if (AcceptedPreparedFileType(queued.file.type)
+			const auto replacing = IsReplacing(
+				queued.insertMode,
+				queued.replaceTarget);
+			const auto type = NormalizePreparedFileType(
+				queued.file.type,
+				queued.requestType,
+				replacing);
+			if (AcceptedPreparedFileType(type)
 				|| !queued.file.information) {
 				++result;
 			}
@@ -3857,6 +4207,9 @@ private:
 			return;
 		case RichMessageLimitError::TableColumns:
 			showToast(tr::lng_article_limit_columns(tr::now));
+			return;
+		case RichMessageLimitError::Buttons:
+			showToast(tr::lng_article_limit_buttons(tr::now));
 			return;
 		}
 		showToast(tr::lng_edit_error(tr::now));
@@ -3942,6 +4295,14 @@ private:
 	rpl::lifetime _editorAutosaveLifetime;
 	rpl::lifetime _photoEditSourceLifetime;
 	rpl::lifetime _lifetime;
+	struct DeferredMediaBatch {
+		std::vector<std::optional<RichPage::Block>> results;
+		std::vector<FullMsgId> uploads;
+		Fn<void(std::vector<std::optional<RichPage::Block>>)> done;
+		int left = 0;
+	};
+	base::flat_map<uint64, DeferredMediaBatch> _deferredBatches;
+	base::flat_set<FullMsgId> _deferredUploads;
 	uint64 _prepareBatchId = 0;
 	uint64 _rejectedToastBatchId = 0;
 	uint64 _scheduleBoxGeneration = 0;
@@ -3959,6 +4320,7 @@ private:
 
 void ArticleSession::editorCreated(not_null<Widget*> editor) {
 	_editor = editor;
+	applyInitialPaste();
 	_editorAutosaveLifetime.destroy();
 	editor->autosaveEvents(
 	) | rpl::on_next([weak = weak_from_this()](Widget::AutosaveEvent event) {
@@ -3966,6 +4328,22 @@ void ArticleSession::editorCreated(not_null<Widget*> editor) {
 			session->handleRichDraftAutosave(event);
 		}
 	}, _editorAutosaveLifetime);
+}
+
+void ArticleSession::applyInitialPaste() {
+	const auto data = base::take(_composeOptions.initialPaste);
+	if (!data || !_editor) {
+		return;
+	}
+	const auto limits = _state->limits();
+	const auto used = CountRichPageBlocks(_state->richPage());
+	auto imported = BlocksFromMimeData(_session, data.get(), limits, used);
+	if (!imported && data->hasText()) {
+		imported = BlocksFromMarkdown(data->text(), limits, used);
+	}
+	if (imported && !imported->blocks.empty()) {
+		_editor->insertPreparedBlocks(std::move(imported->blocks));
+	}
 }
 
 void ArticleSession::cancelRichDraftAutosave() {
@@ -4045,7 +4423,7 @@ std::optional<::Data::Draft> ArticleSession::prepareRichDraftForAutosave() const
 		_session,
 		*richMessage,
 		SerializeInputRichMessageMode::Draft);
-	if (serialized.status == SerializeInputRichMessageStatus::Failed) {
+	if (serialized.status != SerializeInputRichMessageStatus::Success) {
 		return std::nullopt;
 	}
 	draft.richMessage = std::move(richMessage);
@@ -4296,7 +4674,7 @@ void ArticleSession::showCloseDraftSaveFailedBox(
 	}));
 }
 
-bool ArticleSession::ActivateEditWindow(
+ArticleSession *ArticleSession::FindEditWindow(
 		not_null<Main::Session*> session,
 		FullMsgId itemId) {
 	for (const auto &weak : Live()) {
@@ -4308,13 +4686,50 @@ bool ArticleSession::ActivateEditWindow(
 			|| !strong->_windowHost) {
 			continue;
 		}
-		strong->focusWindow();
+		return strong.get();
+	}
+	return nullptr;
+}
+
+bool ArticleSession::ActivateEditWindow(
+		not_null<Main::Session*> session,
+		FullMsgId itemId) {
+	if (const auto found = FindEditWindow(session, itemId)) {
+		found->focusWindow();
 		return true;
 	}
 	return false;
 }
 
+std::shared_ptr<ChatHelpers::Show> ArticleSession::ActiveShow(
+		not_null<Main::Session*> session) {
+	const auto active = QApplication::activeWindow();
+	if (!active) {
+		return nullptr;
+	}
+	for (const auto &weak : Live()) {
+		const auto strong = weak.lock();
+		if (!strong
+			|| strong->_session != session
+			|| !strong->_windowHost) {
+			continue;
+		}
+		const auto show = strong->_editorShow;
+		if (show
+			&& show->valid()
+			&& (show->toastParent()->window() == active)) {
+			return show;
+		}
+	}
+	return nullptr;
+}
+
 } // namespace
+
+std::shared_ptr<ChatHelpers::Show> ActiveWindowShow(
+		not_null<Main::Session*> session) {
+	return ArticleSession::ActiveShow(session);
+}
 
 void ShowRichMessagesPremiumToast(std::shared_ptr<ChatHelpers::Show> show) {
 	if (!show) {
@@ -4507,6 +4922,83 @@ bool CanAuthorRichMessages(not_null<Main::Session*> session) {
 	return RichMessagePostingMode(session) != RichMessagePosting::Disabled;
 }
 
+bool SessionPremium(not_null<Main::Session*> session) {
+	return session->premium();
+}
+
+rpl::producer<bool> AmPremiumValue(not_null<Main::Session*> session) {
+	return ::Data::AmPremiumValue(session);
+}
+
+rpl::producer<int> StarsPerMessageValue(
+		not_null<Main::Session*> session,
+		not_null<PeerData*> peer) {
+	return session->changes().peerFlagsValue(
+		peer,
+		::Data::PeerUpdate::Flag::StarsPerMessage
+	) | rpl::map([=] {
+		return peer->starsPerMessageChecked();
+	});
+}
+
+bool IsEmojiDocument(not_null<DocumentData*> document) {
+	const auto info = document->sticker();
+	return info && (info->setType == ::Data::StickersType::Emoji);
+}
+
+bool PremiumEmojiForbidden(
+		not_null<Main::Session*> session,
+		not_null<PeerData*> peer,
+		not_null<DocumentData*> document) {
+	return document->isPremiumEmoji()
+		&& !session->premium()
+		&& !::Data::AllowEmojiWithoutPremium(peer, document);
+}
+
+bool AllowEmojiWithoutPremium(
+		not_null<PeerData*> peer,
+		DocumentData *exactEmoji) {
+	return ::Data::AllowEmojiWithoutPremium(peer, exactEmoji);
+}
+
+void InsertCustomEmoji(
+		not_null<Ui::InputField*> field,
+		not_null<DocumentData*> document) {
+	::Data::InsertCustomEmoji(field, document);
+}
+
+PhotoData *UsablePhoto(not_null<Main::Session*> session, uint64 id) {
+	if (!id) {
+		return nullptr;
+	}
+	const auto photo = session->data().photo(PhotoId(id));
+	if (photo->isNull() || photo->fileReference().isEmpty()) {
+		return nullptr;
+	}
+	const auto input = photo->mtpInput();
+	return (input.type() == mtpc_inputPhoto
+		&& input.c_inputPhoto().vaccess_hash().v)
+		? photo.get()
+		: nullptr;
+}
+
+DocumentData *UsableDocument(not_null<Main::Session*> session, uint64 id) {
+	if (!id) {
+		return nullptr;
+	}
+	const auto document = session->data().document(DocumentId(id));
+	if (document->isNull()
+		|| !document->hasRemoteLocation()
+		|| document->fileReference().isEmpty()) {
+		return nullptr;
+	}
+	const auto input = document->mtpInput();
+	return (input.type() == mtpc_inputDocument
+		&& input.c_inputDocument().vaccess_hash().v)
+		? document.get()
+		: nullptr;
+}
+
 void ShowComposeBox(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer,
@@ -4534,7 +5026,7 @@ void ShowEditBox(
 	}
 	const auto weak = base::make_weak(controller);
 	const auto itemId = item->fullId();
-	Core::App().iv().resolveRichMessage(controller, item, [=](
+	Core::App().iv().resolveRichMessage(&controller->session(), item, [=](
 			std::shared_ptr<const RichPage> page) {
 		const auto strong = weak.get();
 		const auto current = strong
@@ -4576,6 +5068,12 @@ bool IsComposeBoxOpen(
 	const auto entry = LookupComposeThreadEntry(
 		ComposeKey(session, peerId, topicRootId, monoforumPeerId));
 	return entry && !entry->articleSession.expired();
+}
+
+bool HasEditWindowFor(
+		not_null<Main::Session*> session,
+		FullMsgId itemId) {
+	return ArticleSession::FindEditWindow(session, itemId) != nullptr;
 }
 
 bool ActivateEditWindowFor(

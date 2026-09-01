@@ -44,7 +44,7 @@ auto GenerateGiveawayStart(
 		using Data = StickerWithBadgePart::Data;
 		const auto sticker = [=] {
 			const auto &session = parent->history()->session();
-			auto &packs = session.giftBoxStickersPacks();
+			const auto &packs = session.giftBoxStickersPacks();
 			return Data{
 				.sticker = packs.lookup(months),
 				.size = st::msgServiceGiftBoxStickerSize,

@@ -11,7 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/options.h"
 #include "base/qthelp_url.h"
 #include "base/weak_ptr.h"
+#include "core/application.h"
 #include "core/click_handler_types.h"
+#include "core/core_settings.h"
 #include "core/local_url_handlers.h"
 #include "data/data_changes.h"
 #include "data/data_file_origin.h"
@@ -39,7 +41,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_filter_icons.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_widgets.h"
-#include "styles/style_window.h"
 
 #include <QtGui/QtEvents>
 
@@ -201,6 +202,9 @@ void EditFolderFavoriteLinkBox(not_null<Ui::GenericBox*> box) {
 		st::defaultInputField,
 		tr::lng_info_link_label(),
 		FavoriteLink.value()));
+	field->setInputMethodHints(Qt::ImhUrlCharactersOnly
+		| Qt::ImhNoAutoUppercase
+		| Qt::ImhNoPredictiveText);
 	box->setFocusCallback([=] { field->setFocusFast(); });
 	const auto submit = [=] {
 		const auto link = field->getLastText().trimmed();
@@ -252,8 +256,17 @@ bool FolderFavoriteButton::shown() const {
 	return _shown.current();
 }
 
+Ui::ChatsFiltersTabsMode FolderFavoriteButton::tabsMode() const {
+	return Ui::VerticalChatsFiltersTabsMode(
+		Core::App().settings().chatFiltersTabsMode());
+}
+
 int FolderFavoriteButton::resizeGetHeight(int newWidth) {
+	using Mode = Ui::ChatsFiltersTabsMode;
 	const auto result = _st.minHeight;
+	if (tabsMode() == Mode::IconsOnly) {
+		return result;
+	}
 	const auto text = std::min(
 		_label.countHeight(newWidth - _st.textSkip * 2),
 		_st.style.font->height * kMaxLabelLines);
@@ -267,19 +280,26 @@ void FolderFavoriteButton::paintEvent(QPaintEvent *e) {
 
 	RippleButton::paintRipple(p, 0, 0);
 
-	if (_thumbnail) {
+	using Mode = Ui::ChatsFiltersTabsMode;
+	const auto mode = tabsMode();
+	if (_thumbnail && mode != Mode::TextOnly) {
 		const auto size = st::foldersFavorite.width();
 		const auto x = (width() - size) / 2;
-		p.drawImage(x, _st.iconPosition.y(), _thumbnail->image(size));
+		const auto y = (_st.iconPosition.y() < 0)
+			? (height() - size) / 2
+			: _st.iconPosition.y();
+		p.drawImage(x, y, _thumbnail->image(size));
 	}
 
-	p.setPen(_st.textFg);
-	_label.draw(p, {
-		.position = { _st.textSkip, _st.textTop },
-		.availableWidth = width() - 2 * _st.textSkip,
-		.align = style::al_top,
-		.elisionLines = kMaxLabelLines,
-	});
+	if (mode != Mode::IconsOnly) {
+		p.setPen(_st.textFg);
+		_label.draw(p, {
+			.position = { _st.textSkip, _st.textTop },
+			.availableWidth = width() - 2 * _st.textSkip,
+			.align = style::al_top,
+			.elisionLines = kMaxLabelLines,
+		});
+	}
 }
 
 void FolderFavoriteButton::setLink(const QString &link) {

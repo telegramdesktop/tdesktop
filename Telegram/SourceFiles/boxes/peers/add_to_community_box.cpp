@@ -8,12 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/add_to_community_box.h"
 
 #include "api/api_communities.h"
+#include "api/api_peer_photo.h"
 #include "apiwrap.h"
+#include "boxes/peers/edit_peer_common.h"
 #include "boxes/peer_list_box.h"
-#include "boxes/peers/manage_community_box.h"
-#include "data/data_changes.h"
+#include "chat_helpers/emoji_suggestions_widget.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "data/data_channel.h"
-#include "data/data_community.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "lang/lang_hardcoded.h"
@@ -21,21 +23,32 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "settings/settings_common.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/controls/userpic_button.h"
+#include "ui/layers/box_content.h"
 #include "ui/layers/generic_box.h"
-#include "ui/vertical_list.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
-#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/painter.h"
+#include "ui/userpic_view.h"
+#include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
-#include "styles/style_boxes.h"
+
+#include "styles/style_add_contact_box.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 
 namespace {
+
+struct CommunityCreationState {
+	QString title;
+	QImage image;
+	bool creating = false;
+};
 
 class Controller final
 	: public PeerListController
@@ -49,19 +62,47 @@ public:
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 
-	[[nodiscard]] rpl::producer<int> countValue() const {
-		return _count.value();
-	}
+	[[nodiscard]] rpl::producer<int> countValue() const;
 
 private:
 	void appendRow(not_null<ChannelData*> community);
-	void updateStatus(not_null<PeerListRow*> row);
 
 	const not_null<PeerData*> _peer;
 	const Fn<void(not_null<ChannelData*>)> _callback;
 	rpl::variable<int> _count = 0;
 
 };
+
+class CommunityIdentityBox final : public Ui::BoxContent {
+public:
+	CommunityIdentityBox(
+		QWidget*,
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<PeerData*> peer);
+
+protected:
+	void prepare() override;
+	void setInnerFocus() override;
+	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	void submit();
+	void createCommunity(bool visible);
+
+	const not_null<Window::SessionNavigation*> _navigation;
+	const not_null<PeerData*> _peer;
+	const std::shared_ptr<CommunityCreationState> _state;
+	object_ptr<Ui::UserpicButton> _photo = { nullptr };
+	object_ptr<Ui::InputField> _title = { nullptr };
+	Ui::CommunityUserpicEffect _effectCache = {};
+
+};
+
+void ChooseVisibilityBox(
+	not_null<Ui::GenericBox*> box,
+	rpl::producer<QString> primaryText,
+	Fn<void(bool visible)> done);
 
 Controller::Controller(
 	not_null<PeerData*> peer,
@@ -70,21 +111,15 @@ Controller::Controller(
 , _callback(std::move(callback)) {
 }
 
+rpl::producer<int> Controller::countValue() const {
+	return _count.value();
+}
+
 Main::Session &Controller::session() const {
 	return _peer->session();
 }
 
 void Controller::prepare() {
-	session().changes().peerUpdates(
-		Data::PeerUpdate::Flag::FullInfo
-	) | rpl::on_next([=](const Data::PeerUpdate &update) {
-		if (const auto row = delegate()->peerListFindRow(
-				update.peer->id.value)) {
-			updateStatus(row);
-			delegate()->peerListUpdateRow(row);
-		}
-	}, lifetime());
-
 	session().api().communities().requestJoinedCommunities(crl::guard(
 		this,
 		[=](const std::vector<not_null<ChannelData*>> &list) {
@@ -107,82 +142,154 @@ void Controller::appendRow(not_null<ChannelData*> community) {
 		return;
 	}
 	auto row = std::make_unique<PeerListRow>(community);
-	updateStatus(row.get());
 	delegate()->peerListAppendRow(std::move(row));
-	if (!community->wasFullUpdated()) {
-		session().api().requestFullPeer(community);
-	}
 }
 
-void Controller::updateStatus(not_null<PeerListRow*> row) {
-	const auto community = row->peer()->asChannel();
-	const auto info = community ? community->communityInfo() : nullptr;
-	const auto count = info ? int(info->linkedPeers().size()) : 0;
-	row->setCustomStatus(count
-		? tr::lng_community_chats(tr::now, lt_count, count)
-		: tr::lng_community_status(tr::now));
-}
-
-void CreateCommunityBox(
-		not_null<Ui::GenericBox*> box,
+CommunityIdentityBox::CommunityIdentityBox(
+		QWidget*,
 		not_null<Window::SessionNavigation*> navigation,
-		not_null<PeerData*> peer) {
-	box->setTitle(tr::lng_community_create_title());
+		not_null<PeerData*> peer)
+: _navigation(navigation)
+, _peer(peer)
+, _state(std::make_shared<CommunityCreationState>()) {
+}
 
-	const auto field = box->addRow(object_ptr<Ui::InputField>(
-		box,
+void CommunityIdentityBox::prepare() {
+	setMouseTracking(true);
+	setTitle(tr::lng_community_create_title());
+
+	_photo.create(
+		this,
+		&_navigation->parentController()->window(),
+		Ui::UserpicButton::Role::ChoosePhoto,
+		st::defaultUserpicButton,
+		Ui::PeerUserpicShape::Forum);
+	_photo->showCustomOnChosen();
+	_title.create(
+		this,
 		st::defaultInputField,
-		tr::lng_community_create_name()));
-	box->setFocusCallback([=] { field->setFocusFast(); });
-	box->addSkip(st::defaultBoxCheckbox.margin.top() + st::defaultVerticalListSkip);
+		tr::lng_community_create_name());
+	_title->setMaxLength(Ui::EditPeer::kMaxGroupChannelTitle);
+	_title->setInstantReplaces(Ui::InstantReplaces::Default());
+	_title->setInstantReplacesEnabled(
+		Core::App().settings().replaceEmojiValue(),
+		Core::App().settings().systemTextReplaceValue());
+	Ui::Emoji::SuggestionsController::Init(
+		getDelegate()->outerContainer(),
+		_title,
+		&_navigation->session());
 
-	const auto hidden = box->addRow(object_ptr<Ui::Checkbox>(
-		box,
-		(peer->isUser()
-			? tr::lng_community_create_hidden_bot
-			: peer->isBroadcast()
-			? tr::lng_community_create_hidden_channel
-			: tr::lng_community_create_hidden)(tr::now),
-		false,
-		st::defaultBoxCheckbox));
+	_title->submits(
+	) | rpl::on_next([=] { submit(); }, _title->lifetime());
 
-	const auto creating = box->lifetime().make_state<bool>(false);
-	const auto submit = [=] {
-		const auto title = field->getLastText().trimmed();
-		if (title.isEmpty()) {
-			field->showError();
-			return;
-		} else if (*creating) {
-			return;
-		}
-		*creating = true;
-		const auto show = navigation->uiShow();
-		navigation->session().api().communities().create(
-			title,
-			QString(),
-			peer,
-			hidden->checked(),
-			crl::guard(box, [=](not_null<ChannelData*> community) {
+	addButton(tr::lng_create_group_next(), [=] { submit(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
+
+	setDimensions(
+		st::boxWideWidth,
+		st::boxPadding.top()
+			+ st::newGroupInfoPadding.top()
+			+ st::defaultUserpicButton.size.height()
+			+ st::boxPadding.bottom()
+			+ st::newGroupInfoPadding.bottom());
+}
+
+void CommunityIdentityBox::setInnerFocus() {
+	_title->setFocusFast();
+}
+
+void CommunityIdentityBox::resizeEvent(QResizeEvent *e) {
+	BoxContent::resizeEvent(e);
+
+	_photo->moveToLeft(
+		st::boxPadding.left() + st::newGroupInfoPadding.left(),
+		st::boxPadding.top() + st::newGroupInfoPadding.top());
+
+	const auto nameLeft = st::defaultUserpicButton.size.width()
+		+ st::newGroupNamePosition.x();
+	_title->resize(
+		width()
+			- st::boxPadding.left()
+			- st::newGroupInfoPadding.left()
+			- st::boxPadding.right()
+			- nameLeft,
+		_title->height());
+	_title->moveToLeft(
+		st::boxPadding.left() + st::newGroupInfoPadding.left() + nameLeft,
+		st::boxPadding.top()
+			+ st::newGroupInfoPadding.top()
+			+ st::newGroupNamePosition.y());
+}
+
+void CommunityIdentityBox::paintEvent(QPaintEvent *e) {
+	BoxContent::paintEvent(e);
+
+	auto p = Painter(this);
+	const auto origin = _photo->mapTo(this, QPoint());
+	Ui::PaintCommunityUserpicEffect(
+		p,
+		_effectCache,
+		origin.x(),
+		origin.y(),
+		_photo->width(),
+		st::windowSubTextFg->c);
+}
+
+void CommunityIdentityBox::submit() {
+	const auto title = _title->getLastText().trimmed();
+	if (title.isEmpty()) {
+		_title->setFocus();
+		_title->showError();
+		return;
+	}
+	_state->title = title;
+	if (auto image = _photo->takeResultImage(); !image.isNull()) {
+		_state->image = std::move(image);
+	}
+	uiShow()->showBox(Box(
+		ChooseVisibilityBox,
+		tr::lng_create_group_create(),
+		crl::guard(
+			this,
+			[=](bool visible) { createCommunity(visible); })));
+}
+
+void CommunityIdentityBox::createCommunity(bool visible) {
+	if (_state->creating) {
+		return;
+	}
+	const auto state = _state;
+	const auto show = uiShow();
+	state->creating = true;
+	_navigation->session().api().communities().create(
+		state->title,
+		QString(),
+		_peer,
+		!visible,
+		crl::guard(
+			this,
+			[state, show](not_null<ChannelData*> community) {
+				if (!state->image.isNull()) {
+					community->session().api().peerPhoto().upload(
+						community,
+						{ std::move(state->image) });
+				}
 				show->hideLayer();
 				show->showToast(tr::lng_community_created(tr::now));
-				ShowManageCommunityBox(navigation, community);
 			}),
-			crl::guard(box, [=](const QString &error) {
-				*creating = false;
+		crl::guard(
+			this,
+			[state, show](const QString &error) {
+				state->creating = false;
 				show->showToast(error.isEmpty()
 					? Lang::Hard::ServerError()
 					: error);
 			}));
-	};
-	field->submits(
-	) | rpl::on_next(submit, field->lifetime());
-
-	box->addButton(tr::lng_create_group_create(), submit);
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
 void ChooseVisibilityBox(
 		not_null<Ui::GenericBox*> box,
+		rpl::producer<QString> primaryText,
 		Fn<void(bool visible)> done) {
 	box->setTitle(tr::lng_community_visibility_title());
 
@@ -229,7 +336,7 @@ void ChooseVisibilityBox(
 			st::editPeerPrivacyLabel),
 		st::editPeerPreHistoryLabelMargins);
 
-	box->addButton(tr::lng_community_add_to(), [=] {
+	box->addButton(std::move(primaryText), [=] {
 		done(group->current() == 1);
 	});
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
@@ -240,9 +347,32 @@ void ChooseVisibilityBox(
 void ShowAddPeerToCommunity(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<ChannelData*> community,
-		not_null<PeerData*> peer) {
+		not_null<PeerData*> peer,
+		Fn<void()> completed) {
+	struct State {
+		base::weak_qptr<Ui::GenericBox> visibility;
+		bool linking = false;
+	};
+	const auto state = completed ? std::make_shared<State>() : nullptr;
 	const auto show = navigation->uiShow();
+	const auto finish = [=] {
+		if (state) {
+			const auto visibility = base::take(state->visibility);
+			if (visibility) {
+				visibility->closeBox();
+			}
+			completed();
+		} else {
+			show->hideLayer();
+		}
+	};
 	const auto add = [=](bool visible) {
+		if (state) {
+			if (state->linking) {
+				return;
+			}
+			state->linking = true;
+		}
 		const auto sure = [=](Fn<void()> &&close) {
 			close();
 			peer->session().api().communities().addPeerLink(
@@ -250,7 +380,7 @@ void ShowAddPeerToCommunity(
 				peer,
 				visible,
 				[=] {
-					show->hideLayer();
+					finish();
 					show->showToast(peer->isUser()
 						? tr::lng_community_add_done_bot(tr::now)
 						: peer->isBroadcast()
@@ -259,10 +389,15 @@ void ShowAddPeerToCommunity(
 				},
 				[=](const QString &error) {
 					if (error == Api::kCommunityRequestCreated.utf16()) {
-						show->hideLayer();
+						finish();
 						show->showToast(
 							tr::lng_community_request_sent(tr::now));
-					} else if (error == Api::kCommunityPeersTooMuch.utf16()) {
+						return;
+					}
+					if (state) {
+						state->linking = false;
+					}
+					if (error == Api::kCommunityPeersTooMuch.utf16()) {
 						show->showToast(
 							Api::CommunityPeersLimitToast(peer));
 					} else {
@@ -277,7 +412,7 @@ void ShowAddPeerToCommunity(
 		if (community->canManageLinkedPeers()) {
 			sure([] {});
 		} else {
-			show->showBox(Ui::MakeConfirmBox({
+			auto args = Ui::ConfirmBoxArgs{
 				.text = (peer->isUser()
 					? tr::lng_community_add_confirm_bot()
 					: peer->isBroadcast()
@@ -286,10 +421,25 @@ void ShowAddPeerToCommunity(
 				.confirmed = sure,
 				.confirmText = tr::lng_community_add_confirm_add(),
 				.title = tr::lng_community_add_to(),
-			}));
+			};
+			if (state) {
+				args.cancelled = [=](Fn<void()> close) {
+					state->linking = false;
+					close();
+				};
+			}
+			show->showBox(Ui::MakeConfirmBox(std::move(args)));
 		}
 	};
-	show->showBox(Box(ChooseVisibilityBox, add));
+	auto box = Box(
+		ChooseVisibilityBox,
+		tr::lng_community_add_to(),
+		add);
+	if (state) {
+		state->visibility = show->show(std::move(box));
+	} else {
+		show->showBox(std::move(box));
+	}
 }
 
 void ShowAddToCommunityBox(
@@ -318,7 +468,7 @@ void ShowAddToCommunityBox(
 			{ &st::menuBlueIconGroupCreate }
 		)->addClickHandler([=] {
 			navigation->uiShow()->showBox(
-				Box(CreateCommunityBox, navigation, peer));
+				Box<CommunityIdentityBox>(navigation, peer));
 		});
 		const auto wrap = above->add(
 			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(

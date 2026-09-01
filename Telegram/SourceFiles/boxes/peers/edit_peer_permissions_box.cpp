@@ -40,12 +40,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_config.h" // megagroupSizeMax
 #include "apiwrap.h"
 #include "settings/settings_common.h"
+#include "styles/style_background_preview_box.h"
+#include "styles/style_edit_peer_members.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
-#include "styles/style_window.h"
 #include "styles/style_settings.h"
 
 namespace {
@@ -136,6 +137,12 @@ constexpr auto kDefaultChargeStars = 10;
 	} else if (options.isGroup) {
 		auto first = std::vector<AdminRightLabel>{
 			{ Flag::ChangeInfo, tr::lng_rights_group_info(tr::now) },
+			{
+				Flag::ManageWelcomeMessages,
+				(options.isBot
+					? tr::lng_rights_group_send_welcome_messages
+					: tr::lng_rights_manage_welcome_messages)(tr::now),
+			},
 			{ Flag::DeleteMessages, tr::lng_rights_group_delete(tr::now) },
 			{ Flag::BanUsers, tr::lng_rights_group_ban(tr::now) },
 			{ Flag::InviteByLinkOrAdd, options.anyoneCanAddMembers
@@ -177,6 +184,12 @@ constexpr auto kDefaultChargeStars = 10;
 	}
 	auto first = std::vector<AdminRightLabel>{
 		{ Flag::ChangeInfo, tr::lng_rights_channel_info(tr::now) },
+		{
+			Flag::ManageWelcomeMessages,
+			(options.isBot
+				? tr::lng_rights_send_welcome_messages
+				: tr::lng_rights_manage_welcome_messages)(tr::now),
+		},
 	};
 	auto messages = std::vector<AdminRightLabel>{
 		{ Flag::PostMessages, tr::lng_rights_channel_post(tr::now) },

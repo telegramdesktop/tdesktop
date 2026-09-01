@@ -16,6 +16,51 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
+using ButtonType = HistoryMessageMarkupButton::Type;
+using ButtonTypeIcon = HistoryMessageMarkupButton::TypeIcon;
+
+struct ButtonTypeIconRow {
+	ButtonType type = ButtonType::Default;
+	ButtonTypeIcon icon = ButtonTypeIcon::None;
+};
+
+constexpr auto kButtonTypeIcons = std::array{
+	ButtonTypeIconRow{ ButtonType::Default, ButtonTypeIcon::None },
+	ButtonTypeIconRow{ ButtonType::Url, ButtonTypeIcon::Url },
+	ButtonTypeIconRow{ ButtonType::Callback, ButtonTypeIcon::None },
+	ButtonTypeIconRow{ ButtonType::CallbackWithPassword, ButtonTypeIcon::None },
+	ButtonTypeIconRow{ ButtonType::RequestPhone, ButtonTypeIcon::None },
+	ButtonTypeIconRow{ ButtonType::RequestLocation, ButtonTypeIcon::None },
+	ButtonTypeIconRow{ ButtonType::RequestPoll, ButtonTypeIcon::None },
+	ButtonTypeIconRow{ ButtonType::RequestPeer, ButtonTypeIcon::None },
+	ButtonTypeIconRow{ ButtonType::SwitchInline, ButtonTypeIcon::SwitchPm },
+	ButtonTypeIconRow{ ButtonType::SwitchInlineSame, ButtonTypeIcon::SwitchPm },
+	ButtonTypeIconRow{ ButtonType::Game, ButtonTypeIcon::None },
+	ButtonTypeIconRow{ ButtonType::Buy, ButtonTypeIcon::Payment },
+	ButtonTypeIconRow{ ButtonType::Auth, ButtonTypeIcon::Url },
+	ButtonTypeIconRow{ ButtonType::UserProfile, ButtonTypeIcon::None },
+	ButtonTypeIconRow{ ButtonType::WebView, ButtonTypeIcon::Webview },
+	ButtonTypeIconRow{ ButtonType::SimpleWebView, ButtonTypeIcon::Webview },
+	ButtonTypeIconRow{ ButtonType::CopyText, ButtonTypeIcon::Copy },
+	ButtonTypeIconRow{ ButtonType::Disabled, ButtonTypeIcon::None },
+	ButtonTypeIconRow{ ButtonType::SuggestDecline, ButtonTypeIcon::None },
+	ButtonTypeIconRow{ ButtonType::SuggestAccept, ButtonTypeIcon::None },
+	ButtonTypeIconRow{ ButtonType::SuggestChange, ButtonTypeIcon::None },
+	ButtonTypeIconRow{ ButtonType::CreateBot, ButtonTypeIcon::None },
+};
+
+[[nodiscard]] constexpr bool ButtonTypeIconsIndexedByType() {
+	for (auto i = 0; i != int(kButtonTypeIcons.size()); ++i) {
+		if (int(kButtonTypeIcons[i].type) != i) {
+			return false;
+		}
+	}
+	return true;
+}
+
+static_assert(kButtonTypeIcons.size() == int(ButtonType::kCount));
+static_assert(ButtonTypeIconsIndexedByType());
+
 [[nodiscard]] HistoryMessageMarkupButton::Visual ParseVisual(
 		const tl::conditional<MTPKeyboardButtonStyle> &style) {
 	if (!style) {
@@ -38,10 +83,162 @@ namespace {
 	};
 }
 
+[[nodiscard]] std::optional<HistoryMessageMarkupButton> ParseButton(
+		const MTPKeyboardButton &button) {
+	using Type = HistoryMessageMarkupButton::Type;
+	const auto &fields = button.data();
+	const auto text = qs(fields.vtext());
+	const auto visual = ParseVisual(fields.vstyle());
+	auto result = std::optional<HistoryMessageMarkupButton>();
+	fields.vtype().match([&](const MTPDbuttonTypeDefault &) {
+		result.emplace(Type::Default, text, visual);
+	}, [&](const MTPDbuttonTypeRequestPhone &) {
+		result.emplace(Type::RequestPhone, text, visual);
+	}, [&](const MTPDbuttonTypeRequestGeoLocation &) {
+		result.emplace(Type::RequestLocation, text, visual);
+	}, [&](const MTPDbuttonTypeRequestPoll &data) {
+		const auto quiz = [&] {
+			if (!data.vquiz()) {
+				return QByteArray();
+			}
+			return data.vquiz()->match([](const MTPDboolTrue &) {
+				return QByteArray(1, 1);
+			}, [](const MTPDboolFalse &) {
+				return QByteArray(1, 0);
+			});
+		}();
+		result.emplace(Type::RequestPoll, text, visual, quiz);
+	}, [&](const MTPDbuttonTypeRequestPeer &data) {
+		data.vpeer_type().match([&](
+				const MTPDrequestPeerTypeCreateBot &create) {
+			auto serialized = QByteArray();
+			{
+				auto stream = QDataStream(&serialized, QIODevice::WriteOnly);
+				stream
+					<< qs(create.vsuggested_name().value_or_empty())
+					<< qs(create.vsuggested_username().value_or_empty());
+			}
+			result.emplace(
+				Type::CreateBot,
+				text,
+				visual,
+				serialized,
+				QString(),
+				int64(data.vbutton_id().v));
+		}, [&](const auto &) {
+			const auto query = RequestPeerQueryFromTL(data);
+			result.emplace(
+				Type::RequestPeer,
+				text,
+				visual,
+				QByteArray(
+					reinterpret_cast<const char*>(&query),
+					sizeof(query)),
+				QString(),
+				int64(data.vbutton_id().v));
+		});
+	}, [&](const MTPDinputButtonTypeRequestPeer &) {
+		LOG(("API Error: inputButtonTypeRequestPeer."));
+		// Should not get those for the users.
+	}, [&](const MTPDbuttonTypeSimpleWebView &data) {
+		result.emplace(Type::SimpleWebView, text, visual, data.vurl().v);
+	});
+	return result;
+}
+
+[[nodiscard]] std::optional<HistoryMessageMarkupButton> ParseButton(
+		const MTPKeyboardInlineButton &button) {
+	const auto &fields = button.data();
+	return ParseInlineButton(
+		fields.vtype(),
+		qs(fields.vtext()),
+		ParseVisual(fields.vstyle()));
+}
+
 } // namespace
 
+HistoryMessageMarkupButton::Visual ParseRichButtonVisual(
+		const tl::conditional<MTPRichButtonStyle> &style) {
+	if (!style) {
+		return {};
+	}
+	using Color = HistoryMessageMarkupButton::Color;
+	const auto &data = style->data();
+	return {
+		.color = (data.is_bg_danger()
+			? Color::Danger
+			: data.is_bg_primary()
+			? Color::Primary
+			: data.is_bg_success()
+			? Color::Success
+			: Color::Normal),
+	};
+}
+
+std::optional<HistoryMessageMarkupButton> ParseInlineButton(
+		const MTPInlineButtonType &type,
+		const QString &text,
+		HistoryMessageMarkupButton::Visual visual) {
+	using Type = HistoryMessageMarkupButton::Type;
+	auto result = std::optional<HistoryMessageMarkupButton>();
+	type.match([&](const MTPDinlineButtonTypeUrl &data) {
+		result.emplace(Type::Url, text, visual, qba(data.vurl()));
+	}, [&](const MTPDinlineButtonTypeUrlAuth &data) {
+		result.emplace(
+			Type::Auth,
+			text,
+			visual,
+			qba(data.vurl()),
+			qs(data.vfwd_text().value_or_empty()),
+			data.vbutton_id().v);
+	}, [&](const MTPDinputInlineButtonTypeUrlAuth &) {
+		LOG(("API Error: inputInlineButtonTypeUrlAuth."));
+		// Should not get those for the users.
+	}, [&](const MTPDinlineButtonTypeWebView &data) {
+		result.emplace(Type::WebView, text, visual, data.vurl().v);
+	}, [&](const MTPDinlineButtonTypeCallback &data) {
+		result.emplace(
+			(data.is_requires_password()
+				? Type::CallbackWithPassword
+				: Type::Callback),
+			text,
+			visual,
+			qba(data.vdata()));
+	}, [&](const MTPDinlineButtonTypeGame &) {
+		result.emplace(Type::Game, text, visual);
+	}, [&](const MTPDinlineButtonTypeBuy &) {
+		result.emplace(Type::Buy, text, visual);
+	}, [&](const MTPDinlineButtonTypeSwitchInline &data) {
+		const auto samePeer = data.is_same_peer();
+		result.emplace(
+			(samePeer ? Type::SwitchInlineSame : Type::SwitchInline),
+			text,
+			visual,
+			qba(data.vquery()));
+		if (!samePeer) {
+			if (const auto types = data.vpeer_types()) {
+				result->peerTypes = PeerTypesFromMTP(*types);
+			}
+		}
+	}, [&](const MTPDinlineButtonTypeUserProfile &data) {
+		result.emplace(
+			Type::UserProfile,
+			text,
+			visual,
+			QByteArray::number(data.vuser_id().v));
+	}, [&](const MTPDinputInlineButtonTypeUserProfile &) {
+		LOG(("API Error: inputInlineButtonTypeUserProfile."));
+		// Should not get those for the users.
+	}, [&](const MTPDinlineButtonTypeCopy &data) {
+		result.emplace(Type::CopyText, text, visual, data.vcopy_text().v);
+	}, [&](const MTPDinlineButtonTypeDisabled &) {
+		result.emplace(Type::Disabled, text, visual);
+	});
+	return result;
+}
+
 RequestPeerQuery RequestPeerQueryFromTL(
-		const MTPDkeyboardButtonRequestPeer &query) {
+		const MTPDbuttonTypeRequestPeer &query) {
 	using Type = RequestPeerQuery::Type;
 	using Restriction = RequestPeerQuery::Restriction;
 	auto result = RequestPeerQuery();
@@ -116,6 +313,18 @@ HistoryMessageMarkupButton::HistoryMessageMarkupButton(
 , buttonId(buttonId) {
 }
 
+bool operator==(
+		const HistoryMessageMarkupButton &a,
+		const HistoryMessageMarkupButton &b) {
+	return (a.type == b.type)
+		&& (a.visual == b.visual)
+		&& (a.text == b.text)
+		&& (a.forwardText == b.forwardText)
+		&& (a.data == b.data)
+		&& (a.buttonId == b.buttonId)
+		&& (a.peerTypes == b.peerTypes);
+}
+
 HistoryMessageMarkupButton *HistoryMessageMarkupButton::Get(
 		not_null<Data::Session*> owner,
 		FullMsgId itemId,
@@ -134,8 +343,71 @@ HistoryMessageMarkupButton *HistoryMessageMarkupButton::Get(
 	return nullptr;
 }
 
-void HistoryMessageMarkupData::fillRows(
-		const QVector<MTPKeyboardButtonRow> &list) {
+bool HistoryMessageMarkupButton::LoadsOnActivate(Type type) {
+	return (type == Type::Callback)
+		|| (type == Type::CallbackWithPassword)
+		|| (type == Type::Game);
+}
+
+HistoryMessageMarkupButton::TypeIcon HistoryMessageMarkupButton::IconOfType(
+		Type type) {
+	Expects(int(type) < int(Type::kCount));
+
+	return kButtonTypeIcons[int(type)].icon;
+}
+
+QByteArray HistoryMessageMarkupButton::RichPageButtonKey(
+		const HistoryMessageMarkupButton &button) {
+	return QByteArray::number(int(button.type))
+		+ ";"
+		+ QByteArray::number(button.buttonId)
+		+ ";"
+		+ QByteArray::number(button.peerTypes.value())
+		+ ";"
+		+ button.data;
+}
+
+QByteArray HistoryMessageMarkupButton::RegisterRichPageButton(
+		not_null<Data::Session*> owner,
+		FullMsgId itemId,
+		const HistoryMessageMarkupButton &button) {
+	const auto item = owner->message(itemId);
+	if (!item) {
+		return QByteArray();
+	}
+	const auto source = item->Get<HistoryMessageRichPageSource>();
+	if (!source) {
+		return QByteArray();
+	}
+	auto key = RichPageButtonKey(button);
+	const auto i = source->buttonRecords.find(key);
+	if (i != end(source->buttonRecords)) {
+		i->second.text = button.text;
+		return key;
+	}
+	auto record = button;
+	record.requestId = 0;
+	source->buttonRecords.emplace(key, std::move(record));
+	return key;
+}
+
+HistoryMessageMarkupButton *HistoryMessageMarkupButton::GetRichPageButton(
+		not_null<Data::Session*> owner,
+		FullMsgId itemId,
+		const QByteArray &key) {
+	if (const auto item = owner->message(itemId)) {
+		if (const auto source = item->Get<HistoryMessageRichPageSource>()) {
+			const auto i = source->buttonRecords.find(key);
+			if (i != end(source->buttonRecords)) {
+				return &i->second;
+			}
+		}
+	}
+	return nullptr;
+}
+
+template <typename Row>
+void HistoryMessageMarkupData::fillRows(const QVector<Row> &list) {
 	rows.clear();
 	if (list.isEmpty()) {
 		return;
@@ -143,163 +415,25 @@ void HistoryMessageMarkupData::fillRows(
 
 	using Type = Button::Type;
 	rows.reserve(list.size());
-	for (const auto &row : list) {
-		row.match([&](const MTPDkeyboardButtonRow &data) {
-			auto row = std::vector<Button>();
-			row.reserve(data.vbuttons().v.size());
-			for (const auto &button : data.vbuttons().v) {
-				button.match([&](const MTPDkeyboardButton &data) {
-					row.emplace_back(
-						Type::Default,
-						qs(data.vtext()),
-						ParseVisual(data.vstyle()));
-				}, [&](const MTPDkeyboardButtonCallback &data) {
-					row.emplace_back(
-						(data.is_requires_password()
-							? Type::CallbackWithPassword
-							: Type::Callback),
-						qs(data.vtext()),
-						ParseVisual(data.vstyle()),
-						qba(data.vdata()));
-				}, [&](const MTPDkeyboardButtonRequestGeoLocation &data) {
-					row.emplace_back(
-						Type::RequestLocation,
-						qs(data.vtext()),
-						ParseVisual(data.vstyle()));
-				}, [&](const MTPDkeyboardButtonRequestPhone &data) {
-					row.emplace_back(
-						Type::RequestPhone,
-						qs(data.vtext()),
-						ParseVisual(data.vstyle()));
-				}, [&](const MTPDkeyboardButtonRequestPeer &data) {
-					data.vpeer_type().match([&](
-							const MTPDrequestPeerTypeCreateBot &createData) {
-						auto serialized = QByteArray();
-						{
-							auto stream = QDataStream(
-								&serialized,
-								QIODevice::WriteOnly);
-							stream
-								<< qs(createData.vsuggested_name()
-									.value_or_empty())
-								<< qs(createData.vsuggested_username()
-									.value_or_empty());
-						}
-						row.emplace_back(
-							Type::CreateBot,
-							qs(data.vtext()),
-							ParseVisual(data.vstyle()),
-							serialized,
-							QString(),
-							int64(data.vbutton_id().v));
-					}, [&](const auto &) {
-						const auto query = RequestPeerQueryFromTL(data);
-						row.emplace_back(
-							Type::RequestPeer,
-							qs(data.vtext()),
-							ParseVisual(data.vstyle()),
-							QByteArray(
-								reinterpret_cast<const char*>(&query),
-								sizeof(query)),
-							QString(),
-							int64(data.vbutton_id().v));
-					});
-				}, [&](const MTPDkeyboardButtonUrl &data) {
-					row.emplace_back(
-						Type::Url,
-						qs(data.vtext()),
-						ParseVisual(data.vstyle()),
-						qba(data.vurl()));
-				}, [&](const MTPDkeyboardButtonSwitchInline &data) {
-					const auto type = data.is_same_peer()
-						? Type::SwitchInlineSame
-						: Type::SwitchInline;
-					row.emplace_back(
-						type,
-						qs(data.vtext()),
-						ParseVisual(data.vstyle()),
-						qba(data.vquery()));
-					if (type == Type::SwitchInline) {
-						// Optimization flag.
-						// Fast check on all new messages if there is a switch button to auto-click it.
-						flags |= ReplyMarkupFlag::HasSwitchInlineButton;
-						if (const auto types = data.vpeer_types()) {
-							row.back().peerTypes = PeerTypesFromMTP(*types);
-						}
-					}
-				}, [&](const MTPDkeyboardButtonGame &data) {
-					row.emplace_back(
-						Type::Game,
-						qs(data.vtext()),
-						ParseVisual(data.vstyle()));
-				}, [&](const MTPDkeyboardButtonBuy &data) {
-					row.emplace_back(
-						Type::Buy,
-						qs(data.vtext()),
-						ParseVisual(data.vstyle()));
-				}, [&](const MTPDkeyboardButtonUrlAuth &data) {
-					row.emplace_back(
-						Type::Auth,
-						qs(data.vtext()),
-						ParseVisual(data.vstyle()),
-						qba(data.vurl()),
-						qs(data.vfwd_text().value_or_empty()),
-						data.vbutton_id().v);
-				}, [&](const MTPDkeyboardButtonRequestPoll &data) {
-					const auto quiz = [&] {
-						if (!data.vquiz()) {
-							return QByteArray();
-						}
-						return data.vquiz()->match([&](const MTPDboolTrue&) {
-							return QByteArray(1, 1);
-						}, [&](const MTPDboolFalse&) {
-							return QByteArray(1, 0);
-						});
-					}();
-					row.emplace_back(
-						Type::RequestPoll,
-						qs(data.vtext()),
-						ParseVisual(data.vstyle()),
-						quiz);
-				}, [&](const MTPDkeyboardButtonUserProfile &data) {
-					row.emplace_back(
-						Type::UserProfile,
-						qs(data.vtext()),
-						ParseVisual(data.vstyle()),
-						QByteArray::number(data.vuser_id().v));
-				}, [&](const MTPDinputKeyboardButtonUrlAuth &data) {
-					LOG(("API Error: inputKeyboardButtonUrlAuth."));
-					// Should not get those for the users.
-				}, [&](const MTPDinputKeyboardButtonUserProfile &data) {
-					LOG(("API Error: inputKeyboardButtonUserProfile."));
-					// Should not get those for the users.
-				}, [&](const MTPDkeyboardButtonWebView &data) {
-					row.emplace_back(
-						Type::WebView,
-						qs(data.vtext()),
-						ParseVisual(data.vstyle()),
-						data.vurl().v);
-				}, [&](const MTPDkeyboardButtonSimpleWebView &data) {
-					row.emplace_back(
-						Type::SimpleWebView,
-						qs(data.vtext()),
-						ParseVisual(data.vstyle()),
-						data.vurl().v);
-				}, [&](const MTPDkeyboardButtonCopy &data) {
-					row.emplace_back(
-						Type::CopyText,
-						qs(data.vtext()),
-						ParseVisual(data.vstyle()),
-						data.vcopy_text().v);
-				}, [&](const MTPDinputKeyboardButtonRequestPeer &data) {
-					LOG(("API Error: inputKeyboardButtonRequestPeer."));
-					// Should not get those for the users.
-				});
+	for (const auto &entry : list) {
+		const auto &buttons = entry.data().vbuttons().v;
+		auto row = std::vector<Button>();
+		row.reserve(buttons.size());
+		for (const auto &button : buttons) {
+			auto parsed = ParseButton(button);
+			if (!parsed) {
+				continue;
 			}
-			if (!row.empty()) {
-				rows.push_back(std::move(row));
+			if (parsed->type == Type::SwitchInline) {
+				// Optimization flag.
+				// Fast check on all new messages if there is a switch button to auto-click it.
+				flags |= ReplyMarkupFlag::HasSwitchInlineButton;
 			}
-		});
+			row.push_back(std::move(*parsed));
+		}
+		if (!row.empty()) {
+			rows.push_back(std::move(row));
+		}
 	}
 	if (rows.size() == 1
 		&& rows.front().size() == 1
@@ -318,11 +452,13 @@ HistoryMessageMarkupData::HistoryMessageMarkupData(
 		flags = (data.is_resize() ? Flag::Resize : Flag())
 			| (data.is_selective() ? Flag::Selective : Flag())
 			| (data.is_single_use() ? Flag::SingleUse : Flag())
-			| (data.is_persistent() ? Flag::Persistent : Flag());
+			| (data.is_persistent() ? Flag::Persistent : Flag())
+			| (data.is_force_reply() ? Flag::ForceReply : Flag());
 		placeholder = qs(data.vplaceholder().value_or_empty());
 		fillRows(data.vrows().v);
 	}, [&](const MTPDreplyInlineMarkup &data) {
-		flags = Flag::Inline;
+		flags = Flag::Inline
+			| (data.is_force_reply() ? Flag::ForceReply : Flag());
 		placeholder = QString();
 		fillRows(data.vrows().v);
 	}, [&](const MTPDreplyKeyboardHide &data) {

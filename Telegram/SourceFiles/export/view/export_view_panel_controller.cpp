@@ -97,6 +97,9 @@ Environment PrepareEnvironment(not_null<Main::Session*> session) {
 }
 
 base::weak_qptr<Ui::BoxContent> SuggestStart(not_null<Main::Session*> session) {
+	if (Core::App().passcodeLocked()) {
+		return {};
+	}
 	ClearSuggestStart(session);
 	return Ui::show(
 		Box<SuggestBox>(session),
@@ -177,7 +180,6 @@ void PanelController::createPanel() {
 		: singlePeer
 		? tr::lng_export_header_chats
 		: tr::lng_export_title)());
-	_panel->setInnerSize(st::exportPanelSize);
 	_panel->closeRequests(
 	) | rpl::on_next([=] {
 		LOG(("Export Info: Panel Hide By Close."));
@@ -216,6 +218,10 @@ void PanelController::showSettings() {
 	) | rpl::on_next([=](Settings &&settings) {
 		*_settings = std::move(settings);
 	}, settings->lifetime());
+
+	auto size = st::exportPanelSize;
+	size.setHeight(size.height() + settings->sizeLimitExtraHeight());
+	_panel->setInnerSize(size);
 
 	_panel->showInner(std::move(settings));
 }

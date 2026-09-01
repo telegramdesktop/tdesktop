@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/fields/input_field.h"
-#include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/buttons.h"
@@ -58,7 +57,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_flexible_scroll.h"
 #include "chat_helpers/stickers_list_widget.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_info.h"
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -112,47 +110,11 @@ struct DecodeOptionsResult {
 	return result;
 }
 
-void AddOption(
+void SetupCopyDeepLink(
 		not_null<Window::Controller*> window,
-		not_null<Ui::VerticalLayout*> container,
-		base::options::option<bool> &option,
-		rpl::producer<> resetClicks,
-		rpl::producer<> reloadOptionsRequests,
-		rpl::producer<QString> query,
-		Fn<void(const QString&, not_null<QWidget*>)> registerHighlight) {
-	const auto name = option.name().isEmpty() ? option.id() : option.name();
-	const auto &description = option.description();
-
-	const auto wrap = container->add(
-		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			container,
-			object_ptr<Ui::VerticalLayout>(container)));
-	const auto inner = wrap->entity();
-
-	auto &lifetime = inner->lifetime();
-	const auto toggles = lifetime.make_state<rpl::event_stream<bool>>();
-	std::move(
-		resetClicks
-	) | rpl::map_to(
-		option.defaultValue()
-	) | rpl::start_to_stream(*toggles, lifetime);
-	std::move(reloadOptionsRequests) | rpl::on_next([=, &option] {
-		toggles->fire_copy(option.value());
-	}, lifetime);
-
-	const auto button = inner->add(object_ptr<Button>(
-		inner,
-		rpl::single(name),
-		(option.relevant()
-			? st::settingsButtonNoIcon
-			: st::settingsOptionDisabled)
-	))->toggleOn(toggles->events_starting_with(option.value()));
-
-	if (registerHighlight) {
-		registerHighlight(u"experimental/"_q + option.id(), button);
-	}
-
-	const auto link = u"tg://settings/experimental/"_q + option.id();
+		not_null<Button*> button,
+		const QString &id) {
+	const auto link = u"tg://settings/experimental/"_q + id;
 	const auto menu
 		= button->lifetime().make_state<base::unique_qptr<Ui::PopupMenu>>();
 	button->events(
@@ -173,6 +135,103 @@ void AddOption(
 		(*menu)->popup(QCursor::pos());
 		e->accept();
 	}, button->lifetime());
+}
+
+[[nodiscard]] not_null<Button*> AddOptionRow(
+		not_null<Ui::VerticalLayout*> container,
+		const QString &name,
+		const QString &description,
+		const style::SettingsButton &st) {
+	if (description.isEmpty()) {
+		return container->add(object_ptr<Button>(
+			container,
+			rpl::single(name),
+			st));
+	}
+	const auto &titlePadding = st::settingsExperimentalTitlePadding;
+	const auto &aboutPadding = st::settingsExperimentalAboutPadding;
+	const auto button = Ui::CreateChild<Button>(
+		container.get(),
+		rpl::single(QString()),
+		st);
+	const auto title = container->add(
+		object_ptr<Ui::FlatLabel>(
+			container,
+			name,
+			st::settingsExperimentalTitle),
+		titlePadding);
+	const auto about = container->add(
+		object_ptr<Ui::FlatLabel>(
+			container,
+			description,
+			st::settingsExperimentalAbout),
+		aboutPadding);
+	title->setAttribute(Qt::WA_TransparentForMouseEvents);
+	about->setAttribute(Qt::WA_TransparentForMouseEvents);
+	rpl::combine(
+		container->widthValue(),
+		title->heightValue(),
+		about->heightValue()
+	) | rpl::on_next([=](int width, int titleHeight, int aboutHeight) {
+		button->resize(width, titlePadding.top()
+			+ titleHeight
+			+ titlePadding.bottom()
+			+ aboutPadding.top()
+			+ aboutHeight
+			+ aboutPadding.bottom());
+	}, button->lifetime());
+	title->topValue(
+	) | rpl::on_next([=](int top) {
+		button->moveToLeft(0, top - titlePadding.top());
+	}, button->lifetime());
+	button->show();
+	return button;
+}
+
+QString AddOption(
+		not_null<Window::Controller*> window,
+		not_null<Ui::VerticalLayout*> container,
+		base::options::option<bool> &option,
+		rpl::producer<> resetClicks,
+		rpl::producer<> reloadOptionsRequests,
+		rpl::producer<QString> query,
+		Fn<void(const QString&, not_null<QWidget*>)> registerHighlight) {
+	const auto name = option.name().isEmpty() ? option.id() : option.name();
+	const auto &description = option.description();
+
+	const auto wrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)),
+		style::margins(),
+		style::al_justify);
+	const auto inner = wrap->entity();
+
+	auto &lifetime = inner->lifetime();
+	const auto toggles = lifetime.make_state<rpl::event_stream<bool>>();
+	std::move(
+		resetClicks
+	) | rpl::map_to(
+		option.defaultValue()
+	) | rpl::start_to_stream(*toggles, lifetime);
+	std::move(reloadOptionsRequests) | rpl::on_next([=, &option] {
+		toggles->fire_copy(option.value());
+	}, lifetime);
+
+	const auto button = AddOptionRow(
+		inner,
+		name,
+		description,
+		(option.relevant()
+			? st::settingsButtonNoIcon
+			: st::settingsOptionDisabled)
+	)->toggleOn(toggles->events_starting_with(option.value()));
+
+	if (registerHighlight) {
+		registerHighlight(u"experimental/"_q + option.id(), button);
+	}
+
+	SetupCopyDeepLink(window, button, option.id());
 
 	const auto restarter = (option.relevant() && option.restartRequired())
 		? button->lifetime().make_state<base::Timer>()
@@ -201,24 +260,20 @@ void AddOption(
 		}
 	}, inner->lifetime());
 
-	if (!description.isEmpty()) {
-		Ui::AddSkip(inner, st::settingsCheckboxesSkip);
-		Ui::AddDividerText(inner, rpl::single(description));
-		Ui::AddSkip(inner, st::settingsCheckboxesSkip);
-	}
-
+	const auto searchable = name + ' ' + description;
+	const auto terms = SearchWords(searchable);
 	std::move(
 		query
 	) | rpl::on_next([=](const QString &text) {
-		const auto trimmed = text.trimmed();
-		const auto matches = trimmed.isEmpty()
-			|| name.contains(trimmed, Qt::CaseInsensitive)
-			|| description.contains(trimmed, Qt::CaseInsensitive);
-		wrap->toggle(matches, anim::type::instant);
+		wrap->toggle(
+			MatchesWords(terms, SearchWords(text)),
+			anim::type::instant);
 	}, wrap->lifetime());
+
+	return searchable;
 }
 
-void AddFavoriteLinkButton(
+QString AddFavoriteLinkButton(
 		not_null<Window::Controller*> window,
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<QString> query,
@@ -233,7 +288,9 @@ void AddFavoriteLinkButton(
 	const auto wrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			container,
-			object_ptr<Ui::VerticalLayout>(container)));
+			object_ptr<Ui::VerticalLayout>(container)),
+		style::margins(),
+		style::al_justify);
 	const auto inner = wrap->entity();
 
 	auto label = rpl::single(
@@ -256,21 +313,19 @@ void AddFavoriteLinkButton(
 		registerHighlight(u"experimental/"_q + option->id(), button);
 	}
 
-	if (!description.isEmpty()) {
-		Ui::AddSkip(inner, st::settingsCheckboxesSkip);
-		Ui::AddDividerText(inner, rpl::single(description));
-		Ui::AddSkip(inner, st::settingsCheckboxesSkip);
-	}
+	SetupCopyDeepLink(window, button, option->id());
 
+	const auto searchable = name + ' ' + description;
+	const auto terms = SearchWords(searchable);
 	std::move(
 		query
 	) | rpl::on_next([=](const QString &text) {
-		const auto trimmed = text.trimmed();
-		const auto matches = trimmed.isEmpty()
-			|| name.contains(trimmed, Qt::CaseInsensitive)
-			|| description.contains(trimmed, Qt::CaseInsensitive);
-		wrap->toggle(matches, anim::type::instant);
+		wrap->toggle(
+			MatchesWords(terms, SearchWords(text)),
+			anim::type::instant);
 	}, wrap->lifetime());
+
+	return searchable;
 }
 
 void SetupExperimental(
@@ -315,7 +370,6 @@ void SetupExperimental(
 	}
 
 	Ui::AddDivider(header);
-	Ui::AddSkip(header, st::settingsCheckboxesSkip);
 
 	rpl::duplicate(
 		query
@@ -323,10 +377,98 @@ void SetupExperimental(
 		headerWrap->toggle(text.trimmed().isEmpty(), anim::type::instant);
 	}, headerWrap->lifetime());
 
-	const auto addToggle = [&](const char name[]) {
-		AddOption(
+	struct Category {
+		QString title;
+		std::vector<const char*> options;
+	};
+	const auto categories = std::vector<Category>{
+		{
+			u"Chats"_q,
+			{
+				Dialogs::kOptionForumHideChatsList,
+				Dialogs::kOptionDialogsUnreadOnTop,
+				Dialogs::Ui::kOptionDialogsMuteIcon,
+				kOptionUseNewChatView,
+				kOptionAutoScrollInactiveChat,
+				kModerateCommonGroups,
+				Info::kClassicProfileScroll,
+			}
+		},
+		{
+			u"Messages"_q,
+			{
+				Ui::kOptionUseSmallMsgBubbleRadius,
+				HistoryView::kOptionUnlimitedMessageWidth,
+				HistoryView::Controls::kOptionMacCmdReplyImmediately,
+				Ui::kOptionHideAiButton,
+				kForceComposeSearchOneColumn,
+			}
+		},
+		{
+			u"Profile"_q,
+			{
+				Window::kOptionViewProfileInChatsListContextMenu,
+				Info::Profile::kOptionShowPeerIdBelowAbout,
+				Info::Profile::kOptionShowChannelJoinedBelowAbout,
+				Info::Profile::kOptionProfileMediaTabs,
+				Info::Profile::kOptionProfileMediaTabsExpanded,
+			}
+		},
+		{
+			u"Stickers and emoji"_q,
+			{
+				ChatHelpers::kOptionTabbedPanelShowOnClick,
+				ChatHelpers::kOptionUnlimitedRecentStickers,
+			}
+		},
+		{
+			u"Media"_q,
+			{
+				Media::Player::kOptionDisableAutoplayNext,
+				Window::kOptionExternalMediaViewer,
+				FFmpeg::kOptionFFmpegMultiThread,
+			}
+		},
+		{
+			u"Notifications"_q,
+			{
+				Window::Notifications::kOptionHideReplyButton,
+				Window::Notifications::kOptionCustomNotification,
+				Window::Notifications::kOptionGNotification,
+				Window::Notifications::kOptionMacModernNotifications,
+			}
+		},
+		{
+			u"Interface"_q,
+			{
+				Core::kOptionFractionalScalingEnabled,
+				Core::kOptionHighDpiDownscale,
+				Ui::GL::kOptionUseQtRhi,
+				Ui::GL::kOptionEnableVulkanRhi,
+				Core::kOptionFreeType,
+				Ui::kOptionQScroller,
+				Window::kOptionDisableTouchbar,
+				Window::kOptionNewWindowsSizeAsFirst,
+			}
+		},
+		{
+			u"System"_q,
+			{
+				MTP::details::kOptionPreferIPv6,
+				Core::kOptionSkipUrlSchemeRegister,
+				Core::kOptionDeadlockDetector,
+				Webview::kOptionWebviewDebugEnabled,
+				Webview::kOptionWebviewLegacyEdge,
+			}
+		},
+	};
+
+	const auto addOption = [&](
+			not_null<Ui::VerticalLayout*> inner,
+			const char name[]) {
+		return AddOption(
 			window,
-			container,
+			inner,
 			base::options::lookup<bool>(name),
 			(reset
 				? (reset->clicks() | rpl::to_empty)
@@ -335,52 +477,59 @@ void SetupExperimental(
 			rpl::duplicate(query),
 			registerHighlight);
 	};
+	const auto addCategory = [&](
+			const QString &title,
+			auto &&fill) {
+		const auto wrap = container->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				container,
+				object_ptr<Ui::VerticalLayout>(container)));
+		const auto inner = wrap->entity();
+		Ui::AddSkip(inner);
+		Ui::AddSubsectionTitle(inner, rpl::single(title));
+		auto searchable = std::vector<QString>();
+		fill(inner, searchable);
+		Ui::AddSkip(inner);
+		Ui::AddDivider(inner);
 
-	addToggle(ChatHelpers::kOptionTabbedPanelShowOnClick);
-	addToggle(Dialogs::kOptionForumHideChatsList);
-	addToggle(Dialogs::kOptionDialogsUnreadOnTop);
-	addToggle(Dialogs::Ui::kOptionDialogsMuteIcon);
-	addToggle(Core::kOptionFractionalScalingEnabled);
-	addToggle(Core::kOptionHighDpiDownscale);
-	addToggle(Ui::GL::kOptionUseQtRhi);
-	addToggle(Window::kOptionViewProfileInChatsListContextMenu);
-	addToggle(Info::Profile::kOptionShowPeerIdBelowAbout);
-	addToggle(Info::Profile::kOptionShowChannelJoinedBelowAbout);
-	addToggle(Info::Profile::kOptionProfileMediaTabs);
-	addToggle(Info::Profile::kOptionProfileMediaTabsExpanded);
-	addToggle(Ui::kOptionUseSmallMsgBubbleRadius);
-	addToggle(Media::Player::kOptionDisableAutoplayNext);
-	addToggle(Webview::kOptionWebviewDebugEnabled);
-	addToggle(Webview::kOptionWebviewLegacyEdge);
-	addToggle(kOptionAutoScrollInactiveChat);
-	addToggle(Window::Notifications::kOptionHideReplyButton);
-	addToggle(Window::Notifications::kOptionCustomNotification);
-	addToggle(Window::Notifications::kOptionGNotification);
-	addToggle(Core::kOptionFreeType);
-	addToggle(Core::kOptionSkipUrlSchemeRegister);
-	addToggle(Core::kOptionDeadlockDetector);
-	addToggle(Window::kOptionExternalMediaViewer);
-	addToggle(Window::kOptionNewWindowsSizeAsFirst);
-	addToggle(MTP::details::kOptionPreferIPv6);
-	if (base::options::lookup<bool>(kOptionFastButtonsMode).value()) {
-		addToggle(kOptionFastButtonsMode);
+		auto terms = std::vector<QStringList>();
+		for (const auto &entry : searchable) {
+			terms.push_back(SearchWords(entry));
+		}
+		rpl::duplicate(
+			query
+		) | rpl::on_next([=](const QString &text) {
+			const auto words = SearchWords(text);
+			const auto matches = words.isEmpty()
+				|| ranges::any_of(terms, [&](const QStringList &entry) {
+					return MatchesWords(entry, words);
+				});
+			wrap->toggle(matches, anim::type::instant);
+		}, wrap->lifetime());
+	};
+
+	for (const auto &category : categories) {
+		addCategory(category.title, [&](
+				not_null<Ui::VerticalLayout*> inner,
+				std::vector<QString> &searchable) {
+			for (const auto name : category.options) {
+				searchable.push_back(addOption(inner, name));
+			}
+		});
 	}
-	addToggle(Window::kOptionDisableTouchbar);
-	addToggle(Info::kClassicProfileScroll);
-	addToggle(kModerateCommonGroups);
-	addToggle(kForceComposeSearchOneColumn);
-	addToggle(ChatHelpers::kOptionUnlimitedRecentStickers);
-	addToggle(Ui::kOptionHideAiButton);
-	addToggle(HistoryView::kOptionUnlimitedMessageWidth);
-	addToggle(HistoryView::Controls::kOptionMacCmdReplyImmediately);
-	addToggle(Ui::kOptionQScroller);
-	addToggle(FFmpeg::kOptionFFmpegMultiThread);
 
-	AddFavoriteLinkButton(
-		window,
-		container,
-		rpl::duplicate(query),
-		registerHighlight);
+	addCategory(u"Other"_q, [&](
+			not_null<Ui::VerticalLayout*> inner,
+			std::vector<QString> &searchable) {
+		if (base::options::lookup<bool>(kOptionFastButtonsMode).value()) {
+			searchable.push_back(addOption(inner, kOptionFastButtonsMode));
+		}
+		searchable.push_back(AddFavoriteLinkButton(
+			window,
+			inner,
+			rpl::duplicate(query),
+			registerHighlight));
+	});
 }
 
 } // namespace
@@ -456,32 +605,17 @@ void Experimental::showFinished() {
 
 base::weak_qptr<Ui::RpWidget> Experimental::createPinnedToTop(
 		not_null<QWidget*> parent) {
-	_searchController = std::make_unique<Ui::SearchFieldController>(
-		_query.current());
-	auto rowView = _searchController->createRowView(
-		parent,
-		st::infoLayerMediaSearch);
-	_searchField = rowView.field;
-
-	const auto searchContainer = Ui::CreateChild<Ui::FixedHeightWidget>(
-		parent.get(),
-		st::infoLayerMediaSearch.height);
-	const auto wrap = rowView.wrap.release();
-	wrap->setParent(searchContainer);
-	wrap->show();
-
-	searchContainer->widthValue(
-	) | rpl::on_next([=](int width) {
-		wrap->resizeToWidth(width);
-		wrap->moveToLeft(0, 0);
-	}, searchContainer->lifetime());
+	auto search = CreateSectionSearchRow(parent, _query.current());
+	_searchController = std::move(search.controller);
+	const auto row = search.row;
+	_searchField = search.field;
 
 	_searchController->queryValue(
 	) | rpl::on_next([=](QString text) {
 		_query = std::move(text);
-	}, searchContainer->lifetime());
+	}, row->lifetime());
 
-	return base::make_weak(not_null<Ui::RpWidget*>{ searchContainer });
+	return base::make_weak(row);
 }
 
 void Experimental::setupContent() {

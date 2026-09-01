@@ -61,6 +61,7 @@ optionsList = [
     'qt6',
     'skip-release',
     'build-stackwalk',
+    'qt-asserts',
 ]
 options = []
 runCommand = []
@@ -253,6 +254,8 @@ def filterByPlatform(commands):
                     inscope = False
                 elif len(scopes) == 1:
                     continue
+            if 'asserts' in scopes:
+                inscope = inscope and 'qt-asserts' in options
             skip = inscope if m.group(1) == '!' else not inscope
         elif not skip and not re.match(r'\s*#', command):
             if m and m.group(2) == 'version':
@@ -455,7 +458,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout b4612b87914e5116e9910ff175d8e11766e96f43
+    git checkout 73a88cdaa13995c8666c956b80e2129ee9b6b34d
 mac:
     git clone https://github.com/desktop-app/qt6_highsierra_patches.git qt6_highsierra
     cd qt6_highsierra
@@ -743,7 +746,7 @@ win:
 
 # Somehow in x86 Debug build dav1d crashes on AV1 10bpc videos.
 stage('dav1d', """
-    git clone -b 1.5.3 https://code.videolan.org/videolan/dav1d.git
+    git clone -b 1.5.4 https://code.videolan.org/videolan/dav1d.git
     cd dav1d
 win32:
     SET "TARGET=x86"
@@ -866,7 +869,7 @@ mac:
 """)
 
 stage('libavif', """
-    git clone -b v1.3.0 https://github.com/AOMediaCodec/libavif.git
+    git clone -b v1.4.2 https://github.com/AOMediaCodec/libavif.git
     cd libavif
 win:
     cmake . ^
@@ -895,7 +898,7 @@ mac:
 """)
 
 stage('libde265', """
-    git clone -b v1.0.16 https://github.com/strukturag/libde265.git
+    git clone -b v1.1.1 https://github.com/strukturag/libde265.git
     cd libde265
 win:
     cmake . ^
@@ -966,7 +969,7 @@ mac:
 """)
 
 stage('libheif', """
-    git clone -b v1.21.2 https://github.com/strukturag/libheif.git
+    git clone -b v1.23.1 https://github.com/strukturag/libheif.git
     cd libheif
 win:
     %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/LIBHEIF_EXPORTS/LIBDE265_STATIC_BUILD/g' libheif/CMakeLists.txt
@@ -977,7 +980,7 @@ win:
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
         -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>" ^
         -DBUILD_SHARED_LIBS=OFF ^
-        -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON ^
+        -DBUILD_DOCUMENTATION=OFF ^
         -DBUILD_TESTING=OFF ^
         -DENABLE_PLUGIN_LOADING=OFF ^
         -DWITH_LIBDE265=ON ^
@@ -1002,7 +1005,7 @@ mac:
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
         -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX \\
         -D BUILD_SHARED_LIBS=OFF \\
-        -D CMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \\
+        -D BUILD_DOCUMENTATION=OFF \\
         -D BUILD_TESTING=OFF \\
         -D ENABLE_PLUGIN_LOADING=OFF \\
         -D WITH_AOM_ENCODER=OFF \\
@@ -1026,7 +1029,7 @@ mac:
 """)
 
 stage('libjxl', """
-    git clone -b v0.11.2 --recursive --shallow-submodules https://github.com/libjxl/libjxl.git
+    git clone -b v0.12.0 --recursive --shallow-submodules https://github.com/libjxl/libjxl.git
     cd libjxl
 """ + setVar("cmake_defines", """
     -DBUILD_SHARED_LIBS=OFF
@@ -1038,7 +1041,6 @@ stage('libjxl', """
     -DJPEGXL_ENABLE_MANPAGES=OFF
     -DJPEGXL_ENABLE_EXAMPLES=OFF
     -DJPEGXL_ENABLE_JNI=OFF
-    -DJPEGXL_ENABLE_JPEGLI_LIBJPEG=OFF
     -DJPEGXL_ENABLE_SJPEG=OFF
     -DJPEGXL_ENABLE_OPENEXR=OFF
     -DJPEGXL_ENABLE_SKCMS=ON
@@ -1175,7 +1177,7 @@ stage('regex', """
 """)
 
 stage('ffmpeg', """
-    git clone -b n6.1.1 https://github.com/FFmpeg/FFmpeg.git ffmpeg
+    git clone -b n6.1.6 https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
 win:
 depends:patches/ffmpeg.patch
@@ -1509,7 +1511,7 @@ if qt < '6':
 win:
     git clone https://github.com/desktop-app/tg_angle.git
     cd tg_angle
-    git checkout d4c3606e47
+    git checkout 48bc60bdb1
     cmake -B out ^
         -DTG_ANGLE_SPECIAL_TARGET=%SPECIAL_TARGET% ^
         -DTG_ANGLE_ZLIB_INCLUDE_PATH=%LIBS_DIR%/zlib
@@ -1600,11 +1602,15 @@ mac:
     sed -i.bak 's/tqtc-//' {qtimageformats,qtsvg}/dependencies.yaml
 
     CONFIGURATIONS=-debug
+    ASSERTS=
 release:
     CONFIGURATIONS=-debug-and-release
+mac_asserts:
+    ASSERTS=-force-asserts
 mac:
     ./configure -prefix "$USED_PREFIX/Qt-$QT" \
         $CONFIGURATIONS \
+        $ASSERTS \
         -force-debug-info \
         -opensource \
         -confirm-license \
@@ -1639,8 +1645,11 @@ win:
     cd ..
 
     SET CONFIGURATIONS=-debug
+    SET ASSERTS=
 release:
     SET CONFIGURATIONS=-debug-and-release
+win_asserts:
+    SET ASSERTS=-force-asserts
 win:
     """ + removeDir('"%LIBS_DIR%\\Qt' + qt + '"') + """
     SET MOZJPEG_DIR=%LIBS_DIR%\\mozjpeg
@@ -1651,6 +1660,7 @@ win:
     SET LCMS2_DIR=%LIBS_DIR%\\liblcms2
     configure -prefix "%LIBS_DIR%\\Qt-%QT%" ^
         %CONFIGURATIONS% ^
+        %ASSERTS% ^
         -force-debug-info ^
         -opensource ^
         -confirm-license ^
@@ -1812,41 +1822,6 @@ mac:
     cmake --build build
     cmake --install build
 """)
-
-stage('protobuf', """
-win:
-    git clone --recursive -b v21.9 https://github.com/protocolbuffers/protobuf
-    cd protobuf
-    git clone https://github.com/abseil/abseil-cpp third_party/abseil-cpp
-    cd third_party/abseil-cpp
-    git checkout 273292d1cf
-    cd ../..
-    mkdir build
-    cd build
-    cmake .. ^
-        -Dprotobuf_BUILD_TESTS=OFF ^
-        -Dprotobuf_BUILD_PROTOBUF_BINARIES=ON ^
-        -Dprotobuf_BUILD_LIBPROTOC=ON ^
-        -Dprotobuf_WITH_ZLIB_DEFAULT=OFF ^
-        -Dprotobuf_DEBUG_POSTFIX=""
-    cmake --build . --config Release
-    cmake --build . --config Debug
-""")
-# mac:
-#     git clone --recursive -b v21.9 https://github.com/protocolbuffers/protobuf
-#     cd protobuf
-#     git clone https://github.com/abseil/abseil-cpp third_party/abseil-cpp
-#     cd third_party/abseil-cpp
-#     git checkout 273292d1cf
-#     cd ../..
-#     mkdir build
-#     cd build
-#     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake .. \
-#         -Dprotobuf_BUILD_TESTS=OFF \
-#         -Dprotobuf_BUILD_PROTOBUF_BINARIES=ON \
-#         -Dprotobuf_BUILD_LIBPROTOC=ON \
-#         -Dprotobuf_WITH_ZLIB_DEFAULT=OFF
-#     cmake --build .
 
 stage('tde2e', """
     git clone https://github.com/tdlib/td.git tde2e

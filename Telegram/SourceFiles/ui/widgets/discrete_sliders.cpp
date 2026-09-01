@@ -67,7 +67,7 @@ void DiscreteSlider::selectSection(int index) {
 		}
 		return;
 	}
-	auto &section = _sections[index];
+	const auto &section = _sections[index];
 	if (section.ripple && !section.ripple->empty()) {
 		return;
 	}

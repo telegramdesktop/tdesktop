@@ -49,6 +49,9 @@ void StartProxyCheck(
 	using Variants = DcOptions::Variants;
 
 	ResetProxyCheckers(v4, v6);
+	if (proxy.type == ProxyData::Type::Web) {
+		return;
+	}
 	const auto connType = (proxy.type == ProxyData::Type::Http)
 		? Variants::Http
 		: Variants::Tcp;

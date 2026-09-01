@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_communities.h"
 #include "apiwrap.h"
+#include "boxes/add_contact_box.h"
 #include "boxes/peer_list_box.h"
 #include "boxes/peers/add_to_community_box.h"
 #include "boxes/peers/community_pending_requests_box.h"
@@ -548,7 +549,7 @@ Main::Session &ChooseChatController::session() const {
 }
 
 void ChooseChatController::prepare() {
-	delegate()->peerListSetTitle(tr::lng_community_add_chat());
+	delegate()->peerListSetTitle(tr::lng_community_add_chat_title());
 	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
 	auto candidates = std::vector<not_null<ChannelData*>>();
 	_session->data().enumerateGroups([&](not_null<PeerData*> peer) {
@@ -761,6 +762,60 @@ void ShowChooseChatToAddBox(
 		community,
 		choose);
 	const auto init = [=](not_null<PeerListBox*> box) {
+		auto above = object_ptr<Ui::VerticalLayout>(box);
+		const auto action = Settings::AddButtonWithIcon(
+			above,
+			tr::lng_community_create_chat(),
+			st::infoCreateDiscussionLinkButton,
+			{ &st::menuBlueIconGroupCreate });
+		const auto weak = base::make_weak(box);
+		const Fn<void(not_null<ChannelData*>)> created = [=](
+				not_null<ChannelData*> createdChannel) {
+			if (!weak) {
+				return;
+			}
+			ShowAddPeerToCommunity(
+				navigation,
+				community,
+				createdChannel,
+				[weak] {
+					if (const auto strong = weak.get()) {
+						strong->closeBox();
+					}
+				});
+		};
+		const auto create = [=](GroupInfoBox::Type type) {
+			if (const auto strong = weak.get()) {
+				strong->uiShow()->showBox(Box<GroupInfoBox>(
+					navigation,
+					type,
+					QString(),
+					created));
+			}
+		};
+		const auto menu = action->lifetime().make_state<
+			base::unique_qptr<Ui::PopupMenu>>();
+		action->addClickHandler([=] {
+			*menu = base::make_unique_q<Ui::PopupMenu>(
+				action,
+				st::popupMenuWithIcons);
+			(*menu)->addAction(
+				tr::lng_create_group_title(tr::now),
+				[=] { create(GroupInfoBox::Type::Megagroup); },
+				&st::menuIconGroups);
+			(*menu)->addAction(
+				tr::lng_create_channel_title(tr::now),
+				[=] { create(GroupInfoBox::Type::Channel); },
+				&st::menuIconChannel);
+			(*menu)->popup(QCursor::pos());
+		});
+		action->events(
+		) | rpl::filter([=](not_null<QEvent*> event) {
+			return (event->type() == QEvent::Enter);
+		}) | rpl::on_next([=] {
+			box->peerListMouseLeftGeometry();
+		}, action->lifetime());
+		box->peerListSetAboveWidget(std::move(above));
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	};
 	navigation->uiShow()->showBox(Box<PeerListBox>(

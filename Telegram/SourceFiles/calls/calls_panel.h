@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/object_ptr.h"
 #include "calls/calls_call.h"
 #include "calls/group/ui/desktop_capture_choose_source.h"
 #include "ui/effects/animations.h"
@@ -42,6 +43,7 @@ template <typename Widget>
 class PaddingWrap;
 class RpWindow;
 class PopupMenu;
+class ImportantTooltip;
 } // namespace Ui
 
 namespace Ui::Toast {
@@ -139,6 +141,13 @@ private:
 	void updateControlsGeometry();
 	void updateHangupGeometry();
 	void updateStatusGeometry();
+	[[nodiscard]] auto bottomButtons() const
+		-> std::vector<not_null<Ui::CallButton*>>;
+	void refreshButtonLabelsShown();
+	void setupButtonTooltip(not_null<Ui::CallButton*> button);
+	void showButtonTooltip(not_null<Ui::CallButton*> button);
+	void hideButtonTooltip();
+	void updateButtonTooltipGeometry();
 	void updateOutgoingVideoBubbleGeometry();
 	void stateChanged(State state);
 	void showControls();
@@ -149,12 +158,15 @@ private:
 	void refreshIncomingGeometry();
 
 	void refreshOutgoingPreviewInBody(State state);
+	void createPinOnTop();
+	[[nodiscard]] QRect pinOnTopRect() const;
 	void toggleFullScreen(bool fullscreen);
 	void createRemoteAudioMute();
 	void createRemoteLowBattery();
 	void showRemoteLowBattery();
 	void refreshAnswerHangupRedialLabel();
 
+	void addPeople();
 	void showDevicesMenu(
 		not_null<QWidget*> button,
 		std::vector<DeviceSelection> types);
@@ -188,6 +200,10 @@ private:
 	base::unique_qptr<Ui::FadeWrap<Ui::CallButton>> _mute;
 	Ui::CallButton *_audioDeviceToggle = nullptr;
 	base::unique_qptr<Ui::FadeWrap<Ui::CallButton>> _addPeople;
+	base::unique_qptr<Ui::IconButton> _pinOnTop;
+	object_ptr<Ui::ImportantTooltip> _buttonTooltip = { nullptr };
+	QPointer<Ui::CallButton> _buttonTooltipFor;
+	bool _buttonLabelsShown = true;
 	base::unique_qptr<Ui::FlatLabel> _name;
 	base::unique_qptr<Ui::FlatLabel> _status;
 	base::unique_qptr<Ui::RpWidget> _conferenceParticipants;
@@ -205,6 +221,7 @@ private:
 	base::Timer _controlsShownForceTimer;
 	std::unique_ptr<QObject> _hideControlsFilter;
 	bool _hideControlsRequested = false;
+	bool _unpinnedMaximized = false;
 	rpl::variable<bool> _fullScreenOrMaximized;
 	Ui::Animations::Simple _controlsShownAnimation;
 	bool _controlsShownForce = false;

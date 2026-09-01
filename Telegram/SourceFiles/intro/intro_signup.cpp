@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
 #include "styles/style_intro.h"
-#include "styles/style_boxes.h"
+#include "styles/style_userpic_button.h"
 
 namespace Intro {
 namespace details {
@@ -125,7 +125,7 @@ void SignupWidget::nameSubmitFail(const MTP::Error &error) {
 		return;
 	}
 
-	auto &err = error.type();
+	const auto &err = error.type();
 	if (err == u"PHONE_NUMBER_FLOOD"_q) {
 		Ui::show(Ui::MakeInformBox(tr::lng_error_phone_flood()));
 	} else if (err == u"PHONE_NUMBER_INVALID"_q

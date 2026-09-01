@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
+#include "styles/style_add_contact_box.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
@@ -676,6 +677,9 @@ void Chatbots::setupContent() {
 	_chooserVisible = !current.bot;
 	_usernameWrap->toggle(_chooserVisible.current(), anim::type::instant);
 	const auto username = usernameWrap->entity();
+	username->setInputMethodHints(Qt::ImhLatinOnly
+		| Qt::ImhNoAutoUppercase
+		| Qt::ImhNoPredictiveText);
 
 	_usernameValue = rpl::single(
 		username->getLastText()

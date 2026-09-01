@@ -1,0 +1,3 @@
+*.min.json -text
+*.sig binary
+*.pem -text

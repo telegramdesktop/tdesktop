@@ -71,6 +71,7 @@ public:
 	[[nodiscard]] bool flying() const;
 	[[nodiscard]] float64 flyingProgress() const;
 	[[nodiscard]] bool finished() const;
+	[[nodiscard]] bool centerInDefaultState();
 
 	[[nodiscard]] ReactionFlyCenter takeCenter();
 

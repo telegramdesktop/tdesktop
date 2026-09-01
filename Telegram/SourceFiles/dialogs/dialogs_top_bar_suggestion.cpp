@@ -23,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
-#include "styles/style_dialogs.h"
+#include "styles/style_basic.h"
 #include "styles/style_window.h"
 
 namespace Dialogs {

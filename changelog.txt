@@ -1,3 +1,84 @@
+7.1.3 (27.08.26)
+
+- Add emoji status actions to the custom emoji context menu.
+- Add slash menu with insertable blocks to the article editor.
+- Add ban and unban of users in channel direct messages.
+- Show reaction preview above the menu of who reacted list.
+- Highlight the search query when jumping to a found message.
+- Convert QuickTime videos to mp4 when sending them as GIFs.
+- Crash fixes.
+
+7.1.2 (24.08.26)
+
+- Show who reacted preview next to the cursor.
+- Improve restoring of opened windows and chats on relaunch.
+- Don't hide content from screenshots while the app is passcode-locked.
+- Fix saving of words with the system spellchecker.
+- Fix sorting of unmuted unread chats in folders.
+- Fix quote staying above the field after sending a message.
+- Fix some WEB proxies not working on Windows.
+- Warn about possible risks when adding a WEB proxy.
+- Crash fixes.
+
+7.1.1 (22.08.26)
+
+- Fix broken chats loading for some users.
+- Minor bug fixes.
+
+7.1 (21.08.26)
+
+- Add welcome messages for groups and channels.
+- Add buttons and file blocks to rich messages.
+- Improve lists, tables and markdown pasting in the rich editor.
+- Add self-destruct timers and single view for photos and videos.
+- Add video profile photos for yourself, chats and channels.
+- Add video editor with trimming, quality and cover frame.
+- Add restoring of opened windows and chats on relaunch.
+- Add sending of music files in the attach menu.
+- Add new WEB proxy type to connection settings.
+- Crash fixes.
+
+7.0.9 (05.08.26)
+
+- Add saving rich messages to HTML and importing them back.
+- Add custom prompt tab to AI editing in the article editor.
+- Add experimental Vulkan rendering option on Linux.
+- Crash fixes.
+
+7.0.8 (03.08.26)
+
+- Fix launch on some Windows 7 machines.
+
+7.0.7 (31.07.26)
+
+- Add geometric shapes to the image editor.
+- Add better passkeys support on Windows, macOS and Linux.
+- Add undo for moving and resizing items in the image editor.
+- Extend chats list pull gesture to unread forum topics.
+- Fix Mini App cookies on Linux.
+- Crash fixes.
+
+7.0.6 (27.07.26)
+
+- Allow muting forever by left click on the profile mute button.
+- Improve tables, tasks and titles in rich message previews.
+- Fix adding admins in communities.
+- Crash fixes.
+
+7.0.5 (23.07.26)
+
+- Improve slideshow preload / animation / swipes in rich messages.
+- Fix stories leaving empty space on chats list top.
+- Fix custom emoji frame size in favorite reactions.
+- Crash fixes.
+
+7.0.4 (20.07.26)
+
+- Enable rich text editor for scheduled messages and quick replies.
+- Upload rich message photos in high quality.
+- Fix crash in some video files viewer.
+- Fix crash in shared files section.
+
 7.0.3 (17.07.26)
 
 - Fix media viewer freezes on macOS.

@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_call.h"
 #include "calls/calls_instance.h"
 #include "core/application.h"
-#include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 
 namespace HistoryView {
@@ -380,9 +379,12 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallBarContentByCall(
 			return RegenerateUserpics(state, call, userpicSize);
 		}) | rpl::on_next(pushNext, lifetime);
 
+		// The only stream here not owned by the call, so it can fire
+		// after the call was destroyed.
+		const auto weakCall = base::make_weak(call);
 		call->peer()->session().downloaderTaskFinished(
 		) | rpl::filter([=] {
-			return state->someUserpicsNotLoaded;
+			return weakCall && state->someUserpicsNotLoaded;
 		}) | rpl::on_next([=] {
 			for (const auto &userpic : state->userpics) {
 				if (userpic.peer->userpicUniqueKey(userpic.view)

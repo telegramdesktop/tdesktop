@@ -42,6 +42,9 @@ void AddPollOptionLinkBox(
 			tr::lng_polls_create_option_link_placeholder(),
 			initial),
 		st::boxRowPadding);
+	field->setInputMethodHints(Qt::ImhUrlCharactersOnly
+		| Qt::ImhNoAutoUppercase
+		| Qt::ImhNoPredictiveText);
 
 	const auto submit = [=] {
 		const auto url = field->getLastText().trimmed();

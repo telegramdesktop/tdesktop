@@ -100,6 +100,7 @@ struct VideoData : public DocumentAdditionalData {
 	QString codec;
 	std::vector<not_null<DocumentData*>> qualities;
 	QSize realVideoSize;
+	crl::time startTs = 0;
 };
 
 using RoundData = VoiceData;
@@ -133,8 +134,13 @@ public:
 		Media::VideoQuality request);
 
 	[[nodiscard]] bool loading() const;
+	void permitLoadFromCloud();
 	[[nodiscard]] QString loadingFilePath() const;
 	[[nodiscard]] bool displayLoading() const;
+
+	void setForbidsFileSave();
+	[[nodiscard]] bool forbidsFileSave() const;
+
 	void save(
 		Data::FileOrigin origin,
 		const QString &toFile,
@@ -168,7 +174,8 @@ public:
 	[[nodiscard]] Image *getReplyPreview(
 		Data::FileOrigin origin,
 		not_null<PeerData*> context,
-		bool spoiler);
+		bool spoiler,
+		bool skipCover = false);
 	[[nodiscard]] Image *getReplyPreview(not_null<HistoryItem*> item);
 	[[nodiscard]] bool replyPreviewLoaded(bool spoiler) const;
 
@@ -333,6 +340,7 @@ private:
 		UseTextColor = 0x0800,
 		StoryDocument = 0x1000,
 		SilentVideo = 0x2000,
+		FileSaveForbidden = 0x4000,
 	};
 	using Flags = base::flags<Flag>;
 	friend constexpr bool is_flag_type(Flag) { return true; };

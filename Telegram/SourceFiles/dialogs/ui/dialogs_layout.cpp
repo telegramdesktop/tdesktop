@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/unread_badge_paint.h"
 #include "ui/unread_counter_format.h"
 #include "styles/style_dialogs.h"
+#include "styles/style_dialogs_layout.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 
@@ -469,16 +470,14 @@ void PaintRow(
 		: context.selected
 		? st::dialogsBgOver
 		: context.currentBg;
-	auto swipeTranslation = 0;
+	auto swipeTranslation = 0.;
 	if (history
 		&& context.quickActionContext
 		&& !context.quickActionContext->ripple
 		&& (history->peer->id.value
 			== context.quickActionContext->data.msgBareId)) {
-		if (context.quickActionContext->data.translation != 0) {
-			swipeTranslation = context.quickActionContext->data.translation
-				* -2;
-		}
+		swipeTranslation = context.quickActionContext->data.exactTranslation
+			* -2;
 	}
 	if (swipeTranslation) {
 		p.translate(-swipeTranslation, 0);
@@ -1015,12 +1014,12 @@ void PaintRow(
 	}
 	if (swipeTranslation) {
 		p.translate(swipeTranslation, 0);
-		const auto swipeActionRect = QRect(
+		const auto swipeActionRect = QRectF(
 			rect::right(geometry) - swipeTranslation,
 			geometry.y(),
 			swipeTranslation,
 			geometry.height());
-		p.setClipRegion(swipeActionRect);
+		p.setClipRect(swipeActionRect);
 		const auto labelType = ResolveQuickDialogLabel(
 			history,
 			context.quickActionContext->action,

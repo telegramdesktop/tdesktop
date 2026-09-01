@@ -7,13 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "storage/storage_databases.h"
-#include "dialogs/dialogs_main_list.h"
-#include "data/data_groups.h"
-#include "data/data_cloud_file.h"
-#include "data/data_star_gift.h"
-#include "history/history_location_manager.h"
+#include "base/invoke_queued.h"
 #include "base/timer.h"
+#include "data/data_cloud_file.h"
+#include "data/data_groups.h"
+#include "data/data_star_gift.h"
+#include "dialogs/dialogs_main_list.h"
+#include "history/history_location_manager.h"
+#include "storage/storage_databases.h"
 
 class Image;
 class HistoryItem;
@@ -435,6 +436,11 @@ public:
 	[[nodiscard]] rpl::producer<> sessionDataAboutToBeCleared() const;
 	void notifyItemsAboutToBeDestroyed(
 		const std::vector<not_null<HistoryItem*>> &items);
+	void destroyMessagesWithCacheCleanup(
+		const std::vector<not_null<HistoryItem*>> &items);
+	void destroyMessageWithCacheCleanup(not_null<HistoryItem*> item);
+	void scheduleItemPhotoCacheClear(not_null<HistoryItem*> item);
+	void clearPhotoCache(not_null<PhotoData*> photo);
 	[[nodiscard]] auto itemsAboutToBeDestroyed() const
 		-> rpl::producer<std::vector<not_null<HistoryItem*>>>;
 	void notifyViewAboutToBeRemoved(
@@ -445,6 +451,8 @@ public:
 	[[nodiscard]] rpl::producer<not_null<const ViewElement*>> viewRemoved() const;
 	void notifyHistoryCleared(not_null<const History*> history);
 	[[nodiscard]] rpl::producer<not_null<const History*>> historyCleared() const;
+	void notifyHistoryAccessLost(not_null<History*> history);
+	[[nodiscard]] rpl::producer<not_null<History*>> historyAccessLost() const;
 	void notifyHistoryChangeDelayed(not_null<History*> history);
 	[[nodiscard]] rpl::producer<not_null<History*>> historyChanged() const;
 	void notifyViewPaidReactionSent(not_null<const ViewElement*> view);
@@ -573,6 +581,9 @@ public:
 	void registerMessageTTL(TimeId when, not_null<HistoryItem*> item);
 	void unregisterMessageTTL(TimeId when, not_null<HistoryItem*> item);
 
+	void registerMediaDestroy(TimeId when, not_null<HistoryItem*> item);
+	void unregisterMediaDestroy(TimeId when, not_null<HistoryItem*> item);
+
 	void registerFormattedDateUpdate(
 		TimeId when,
 		not_null<HistoryView::Element*> view);
@@ -689,8 +700,6 @@ public:
 	[[nodiscard]] auto sublistReadTillUpdates() const
 		-> rpl::producer<SublistReadTillUpdate>;
 
-	void selfDestructIn(not_null<HistoryItem*> item, crl::time delay);
-
 	[[nodiscard]] not_null<PhotoData*> photo(PhotoId id);
 	not_null<PhotoData*> processPhoto(const MTPPhoto &data);
 	not_null<PhotoData*> processPhoto(const MTPDphoto &data);
@@ -802,7 +811,15 @@ public:
 		const MTPBotApp &data);
 
 	[[nodiscard]] not_null<PollData*> poll(PollId id);
-	[[nodiscard]] HistoryItem *findItemForPoll(PollId id) const;
+	// Picks the item a poll update should notify against: the message the
+	// update names, when it is loaded and still carries this poll, else the
+	// oldest regular item among the poll's registered views. Returns null
+	// when only local, fake, scheduled or admin-log copies are registered -
+	// Manager::openNotificationMessage can open none of them, so notifying
+	// against one can only name a chat the vote did not happen in.
+	[[nodiscard]] HistoryItem *findItemForPoll(
+		PollId id,
+		FullMsgId namedId) const;
 	[[nodiscard]] std::vector<not_null<PeerData*>> pollRecentVoters(
 		PollId id) const;
 	not_null<PollData*> processPoll(const MTPPoll &data);
@@ -935,6 +952,9 @@ public:
 	void refreshChatListEntry(Dialogs::Key key);
 	void removeChatListEntry(Dialogs::Key key);
 	void refreshChatListUnreadOnTop();
+	[[nodiscard]] bool dialogsUnreadOnTop() const {
+		return _dialogsUnreadOnTop;
+	}
 	[[nodiscard]] auto chatListEntryRefreshes() const
 		-> rpl::producer<ChatListEntryRefresh>;
 
@@ -1030,11 +1050,13 @@ private:
 	void setupPeerNameViewer();
 	void setupUserIsContactViewer();
 
-	void checkSelfDestructItems();
 	void checkLocalUsersWentOffline();
 
 	void scheduleNextTTLs();
 	void checkTTLs();
+
+	void scheduleNextMediaDestroys();
+	void checkMediaDestroys();
 
 	void scheduleNextFormattedDateUpdate();
 	void checkFormattedDateUpdates();
@@ -1049,6 +1071,7 @@ private:
 	void applyDialog(
 		Folder *requestFolder,
 		const MTPDdialogCommunity &data);
+	void checkPinnedCommunityLoaded(not_null<ChannelData*> channel);
 
 	const Messages *messagesList(PeerId peerId) const;
 	not_null<Messages*> messagesListForInsert(PeerId peerId);
@@ -1154,6 +1177,14 @@ private:
 		const MTPMessageMedia &media,
 		TimeId date,
 		bool invertMedia);
+	[[nodiscard]] bool photoHasItemReferences(
+		not_null<const PhotoData*> photo) const;
+	void schedulePhotoCacheClear(
+		const std::vector<not_null<HistoryItem*>> &items);
+	void updateWebPagePhotoItems(
+		not_null<const WebPageData*> page,
+		const base::flat_set<PhotoData*> &previous);
+	void clearScheduledPhotoCache();
 
 	void setWallpapers(const QVector<MTPWallPaper> &data, uint64 hash);
 	void highlightProcessDone(uint64 processId);
@@ -1179,6 +1210,7 @@ private:
 
 	TimeId _exportAvailableAt = 0;
 	base::weak_qptr<Ui::BoxContent> _exportSuggestion;
+	rpl::lifetime _exportUnlockLifetime;
 
 	rpl::variable<bool> _contactsLoaded = false;
 	rpl::variable<int> _groupFreeTranscribeLevel;
@@ -1214,6 +1246,7 @@ private:
 	rpl::event_stream<not_null<Calls::GroupCall*>> _callPaidReactionSent;
 	rpl::event_stream<not_null<const History*>> _historyUnloaded;
 	rpl::event_stream<not_null<const History*>> _historyCleared;
+	rpl::event_stream<not_null<History*>> _historyAccessLost;
 	base::flat_set<not_null<History*>> _historiesChanged;
 	rpl::event_stream<not_null<History*>> _historyChanged;
 	rpl::event_stream<MegagroupParticipant> _megagroupParticipantRemoved;
@@ -1229,6 +1262,7 @@ private:
 	Dialogs::MainList _chatsList;
 	Dialogs::IndexedList _contactsList;
 	Dialogs::IndexedList _contactsNoChatsList;
+	bool _dialogsUnreadOnTop = false;
 
 	MsgId _localMessageIdCounter = StartClientMsgId;
 	std::unordered_map<PeerId, Messages> _messages;
@@ -1238,6 +1272,11 @@ private:
 	std::map<TimeId, base::flat_set<not_null<HistoryItem*>>> _ttlMessages;
 	base::Timer _ttlCheckTimer;
 
+	std::map<
+		TimeId,
+		base::flat_set<not_null<HistoryItem*>>> _mediaDestroyMessages;
+	base::Timer _mediaDestroyCheckTimer;
+
 	std::map<TimeId, std::vector<base::weak_ptr<HistoryView::Element>>> _formattedDateUpdates;
 	base::Timer _formattedDateTimer;
 
@@ -1246,15 +1285,14 @@ private:
 	base::flat_map<uint64, FullMsgId> _messageByRandomId;
 	base::flat_map<uint64, SentData> _sentMessagesData;
 
-	base::Timer _selfDestructTimer;
-	std::vector<FullMsgId> _selfDestructItems;
-
 	std::unordered_map<
 		PhotoId,
 		std::unique_ptr<PhotoData>> _photos;
 	std::unordered_map<
 		not_null<const PhotoData*>,
-		base::flat_set<not_null<HistoryItem*>>> _photoItems;
+		base::flat_map<not_null<HistoryItem*>, int>> _photoItems;
+	SingleQueuedInvokation _clearPhotoCacheDelayed;
+	std::unordered_set<PhotoData*> _photosScheduledForCacheClear;
 	std::unordered_map<
 		DocumentId,
 		std::unique_ptr<DocumentData>> _documents;
@@ -1266,7 +1304,7 @@ private:
 		std::unique_ptr<WebPageData>> _webpages;
 	std::unordered_map<
 		not_null<const WebPageData*>,
-		base::flat_set<not_null<HistoryItem*>>> _webpageItems;
+		base::flat_map<not_null<HistoryItem*>, int>> _webpageItems;
 	std::unordered_map<
 		not_null<const WebPageData*>,
 		base::flat_set<not_null<ViewElement*>>> _webpageViews;
@@ -1355,6 +1393,8 @@ private:
 		not_null<ChannelData*>,
 		ChannelId>> _postponedMonoforumLinkedIds;
 
+	base::flat_set<ChannelId> _pinnedCommunitiesNotLoaded;
+
 	// This one from `channel`, not `channelFull`.
 	base::flat_map<not_null<const ChannelData*>, int> _commonStarsPerMessage;
 
@@ -1407,7 +1447,7 @@ private:
 	const std::unique_ptr<BusinessInfo> _businessInfo;
 	std::unique_ptr<ShortcutMessages> _shortcutMessages;
 
-	MsgId _nonHistoryEntryId = ShortcutMaxMsgId;
+	MsgId _nonHistoryEntryId = WelcomeMaxMsgId;
 
 	std::unique_ptr<StarsRatingPending> _pendingStarsRating;
 

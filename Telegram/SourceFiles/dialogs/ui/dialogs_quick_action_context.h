@@ -32,6 +32,7 @@ enum class QuickDialogActionLabel {
 	Archive,
 	Unarchive,
 	Delete,
+	Ungroup,
 	Disabled,
 };
 

@@ -189,6 +189,7 @@ NativeInstantViewPrepareResult TryPrepareNativeInstantView(
 	state.tableRenderLimits = request.tableRenderLimits.value_or(
 		PrepareTableRenderLimitsForIv());
 	state.editMode = request.editMode;
+	state.unsupportedBlockNotices = request.unsupportedBlockNotices;
 	const auto finish = [&](NativeInstantViewPrepareResultKind kind, QString reason) {
 		state.result.debug.prepareMs = int(timer.elapsed());
 		return NativeInstantViewPrepareResult{
@@ -218,7 +219,7 @@ NativeInstantViewPrepareResult TryPrepareNativeInstantView(
 				NativeInstantViewPrepareResultKind::Failure,
 				state.result.failure.debugReason);
 		}
-		(void)PrepareNativeIvPlainPlaceholderBlock(
+		PrepareNativeIvPlainPlaceholderBlock(
 			u"Prepare Failed"_q,
 			&state.result.blocks.blocks);
 	}

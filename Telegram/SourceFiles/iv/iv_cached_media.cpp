@@ -31,9 +31,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_grouped.h"
 #include "history/view/media/history_view_photo.h"
 #include "info/profile/info_profile_values.h"
+#include "iv/iv_rich_page.h"
 #include "iv/markdown/iv_markdown_common.h"
 #include "iv/markdown/iv_markdown_history_view_media.h"
 #include "iv/markdown/iv_markdown_prepare.h"
+#include "iv/iv_rich_page.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "media/view/media_view_open_common.h"
@@ -58,6 +60,9 @@ namespace {
 
 constexpr auto kGeoPointScale = 1;
 constexpr auto kGeoPointZoomMin = 13;
+
+static_assert(
+	RichPage::kCollageMaxItems == HistoryView::GroupedMedia::kMaxSize);
 
 enum class CachedPagePhotoImageKind {
 	Thumbnail,
@@ -244,13 +249,17 @@ public:
 
 	void open(Qt::MouseButton button) const override;
 
+	void releaseHeavyData() override;
+
 private:
+	[[nodiscard]] std::shared_ptr<::Data::PhotoMedia> media() const;
+
 	const not_null<Main::Session*> _session;
 	const not_null<PhotoData*> _photo;
 	const ::Data::FileOrigin _origin;
 	const FullMsgId _itemId;
 	const Fn<FullMsgId()> _itemIdResolver;
-	const std::shared_ptr<::Data::PhotoMedia> _media;
+	mutable std::shared_ptr<::Data::PhotoMedia> _media;
 
 };
 
@@ -268,11 +277,18 @@ CachedPagePhotoRuntime::CachedPagePhotoRuntime(
 , _media(photo->createMediaView()) {
 }
 
+std::shared_ptr<::Data::PhotoMedia> CachedPagePhotoRuntime::media() const {
+	if (!_media) {
+		_media = _photo->createMediaView();
+	}
+	return _media;
+}
+
 std::shared_ptr<Ui::DynamicImage> CachedPagePhotoRuntime::thumbnail(
 		QSize size) const {
-	_media->wanted(::Data::PhotoSize::Small, _origin);
+	media()->wanted(::Data::PhotoSize::Small, _origin);
 	return std::make_shared<CachedPagePhotoDynamicImage>(
-		_media,
+		media(),
 		_photo,
 		_origin,
 		CachedPagePhotoImageKind::Thumbnail,
@@ -281,9 +297,9 @@ std::shared_ptr<Ui::DynamicImage> CachedPagePhotoRuntime::thumbnail(
 
 std::shared_ptr<Ui::DynamicImage> CachedPagePhotoRuntime::full(
 		QSize size) const {
-	_media->wanted(::Data::PhotoSize::Large, _origin);
+	media()->wanted(::Data::PhotoSize::Large, _origin);
 	return std::make_shared<CachedPagePhotoDynamicImage>(
-		_media,
+		media(),
 		_photo,
 		_origin,
 		CachedPagePhotoImageKind::Full,
@@ -291,18 +307,18 @@ std::shared_ptr<Ui::DynamicImage> CachedPagePhotoRuntime::full(
 }
 
 bool CachedPagePhotoRuntime::loaded() const {
-	_media->wanted(::Data::PhotoSize::Large, _origin);
-	return _media->loaded();
+	media()->wanted(::Data::PhotoSize::Large, _origin);
+	return media()->loaded();
 }
 
 bool CachedPagePhotoRuntime::loading() const {
-	_media->wanted(::Data::PhotoSize::Large, _origin);
+	media()->wanted(::Data::PhotoSize::Large, _origin);
 	return _photo->displayLoading();
 }
 
 double CachedPagePhotoRuntime::progress() const {
-	_media->wanted(::Data::PhotoSize::Large, _origin);
-	return _media->progress();
+	media()->wanted(::Data::PhotoSize::Large, _origin);
+	return media()->progress();
 }
 
 void CachedPagePhotoRuntime::open(Qt::MouseButton button) const {
@@ -320,6 +336,10 @@ void CachedPagePhotoRuntime::open(Qt::MouseButton button) const {
 			item ? item->sublistPeerId() : PeerId(),
 		});
 	}
+}
+
+void CachedPagePhotoRuntime::releaseHeavyData() {
+	_media = nullptr;
 }
 
 [[nodiscard]] ImageWithLocation CachedPageMapImageData(
@@ -376,11 +396,6 @@ void CachedPagePhotoRuntime::open(Qt::MouseButton button) const {
 	};
 }
 
-[[nodiscard]] bool CanHostNativeIvAudioDocument(
-		not_null<DocumentData*> document) {
-	return document->isAudioFile() || document->isVoiceMessage();
-}
-
 [[nodiscard]] QString CachedPageGroupedMediaCopyText(
 		const Markdown::PreparedGroupedMediaBlockData &prepared) {
 	auto photos = 0;
@@ -400,33 +415,38 @@ void CachedPagePhotoRuntime::open(Qt::MouseButton button) const {
 	return QString();
 }
 
-[[nodiscard]] QString CachedPageAudioTitleText(
-		const Markdown::PreparedAudioBlockData &audio) {
-	if (!audio.title.isEmpty()) {
-		return audio.title;
+[[nodiscard]] QString CachedPageDocumentTitleText(
+		const Markdown::PreparedDocumentBlockData &document,
+		bool audio) {
+	if (audio && !document.title.isEmpty()) {
+		return document.title;
+	} else if (!document.fileName.isEmpty()) {
+		return document.fileName;
 	}
-	if (!audio.fileName.isEmpty()) {
-		return audio.fileName;
-	}
-	return tr::lng_in_dlg_audio_file(tr::now);
+	return audio
+		? tr::lng_in_dlg_audio_file(tr::now)
+		: tr::lng_in_dlg_file(tr::now);
 }
 
-[[nodiscard]] QString CachedPageAudioSubtitleText(
-		const Markdown::PreparedAudioBlockData &audio) {
-	if (!audio.performer.isEmpty()) {
-		return audio.performer;
+[[nodiscard]] QString CachedPageDocumentSubtitleText(
+		const Markdown::PreparedDocumentBlockData &document,
+		bool audio) {
+	if (!audio) {
+		return QString();
+	} else if (!document.performer.isEmpty()) {
+		return document.performer;
 	}
-	if (!audio.fileName.isEmpty()
-		&& audio.fileName != CachedPageAudioTitleText(audio)) {
-		return audio.fileName;
-	}
-	return QString();
+	const auto title = CachedPageDocumentTitleText(document, audio);
+	return (!document.fileName.isEmpty() && document.fileName != title)
+		? document.fileName
+		: QString();
 }
 
-[[nodiscard]] QString CachedPageAudioCopyText(
-		const Markdown::PreparedAudioBlockData &audio) {
-	const auto title = CachedPageAudioTitleText(audio);
-	const auto subtitle = CachedPageAudioSubtitleText(audio);
+[[nodiscard]] QString CachedPageDocumentCopyText(
+		const Markdown::PreparedDocumentBlockData &document,
+		bool audio) {
+	const auto title = CachedPageDocumentTitleText(document, audio);
+	const auto subtitle = CachedPageDocumentSubtitleText(document, audio);
 	return subtitle.isEmpty() ? title : (title + u"\n"_q + subtitle);
 }
 
@@ -453,13 +473,17 @@ public:
 
 	void open(Qt::MouseButton button) const override;
 
+	void releaseHeavyData() override;
+
 private:
+	[[nodiscard]] std::shared_ptr<::Data::DocumentMedia> media() const;
+
 	const not_null<Main::Session*> _session;
 	const not_null<DocumentData*> _document;
 	const ::Data::FileOrigin _origin;
 	const FullMsgId _itemId;
 	const Fn<FullMsgId()> _itemIdResolver;
-	const std::shared_ptr<::Data::DocumentMedia> _media;
+	mutable std::shared_ptr<::Data::DocumentMedia> _media;
 
 };
 
@@ -477,8 +501,16 @@ CachedPageDocumentRuntime::CachedPageDocumentRuntime(
 , _media(document->createMediaView()) {
 }
 
+auto CachedPageDocumentRuntime::media() const
+-> std::shared_ptr<::Data::DocumentMedia> {
+	if (!_media) {
+		_media = _document->createMediaView();
+	}
+	return _media;
+}
+
 bool CachedPageDocumentRuntime::loaded() const {
-	return _media->loaded();
+	return media()->loaded();
 }
 
 bool CachedPageDocumentRuntime::loading() const {
@@ -504,6 +536,10 @@ void CachedPageDocumentRuntime::open(Qt::MouseButton button) const {
 			item ? item->sublistPeerId() : PeerId(),
 		});
 	}
+}
+
+void CachedPageDocumentRuntime::releaseHeavyData() {
+	_media = nullptr;
 }
 
 class CachedPageInlineDocumentImage final : public Ui::DynamicImage {
@@ -655,7 +691,7 @@ QImage CachedPageInlineDocumentImage::resolvedDocumentImage() {
 	}
 	_documentImageRead = true;
 	_document->saveFromDataSilent();
-	auto &location = _document->location(true);
+	const auto &location = _document->location(true);
 	if (location.accessEnable()) {
 		_documentImage = Images::Read({
 			.path = location.name(),
@@ -1268,14 +1304,7 @@ auto CachedPageMediaRuntime::hostedMediaHost(
 		}
 		return _hostedMediaHost;
 	}
-	if (!_session->data().peerLoaded(PeerData::kServiceNotificationsId)) {
-		return nullptr;
-	}
-	const auto history = _session->data().history(
-		PeerData::kServiceNotificationsId);
-	if (!history->peer->isUser()) {
-		return nullptr;
-	}
+	const auto history = _session->data().history(_session->user());
 	if (!_hostedMediaHost) {
 		_hostedMediaHost
 			= std::make_shared<Markdown::IvHistoryViewMediaHost>(
@@ -1388,11 +1417,10 @@ auto CachedPageMediaRuntime::hostedMediaBlockFactory() const
 		},
 		[session = _session, host, origin = fileOrigin()](
 				Window::SessionController *controller,
-				const Markdown::PreparedAudioBlockData &prepared) {
+				const Markdown::PreparedDocumentBlockData &prepared) {
 			const auto document = session->data().document(
 				DocumentId(prepared.documentId));
-			if (document->isNull()
-				|| !CanHostNativeIvAudioDocument(document)) {
+			if (document->isNull()) {
 				return std::shared_ptr<Markdown::MediaBlock>();
 			}
 			host->registerDocument(document);
@@ -1401,10 +1429,11 @@ auto CachedPageMediaRuntime::hostedMediaBlockFactory() const
 				document,
 				::Data::MediaFile::Args{});
 
+			const auto audio = Iv::RichDocumentIsAudio(document);
 			auto descriptor = Markdown::IvHistoryViewMediaDescriptor();
 			descriptor.stableId = prepared.id.value;
-			descriptor.kind = Markdown::IvHistoryViewMediaKind::Audio;
-			descriptor.copyText = CachedPageAudioCopyText(prepared);
+			descriptor.kind = Markdown::IvHistoryViewMediaKind::DocumentRow;
+			descriptor.copyText = CachedPageDocumentCopyText(prepared, audio);
 			descriptor.host = host;
 			descriptor.mediaFactory = [media](
 					not_null<HistoryView::Element*> view) {
@@ -1462,13 +1491,14 @@ auto CachedPageMediaRuntime::hostedMediaBlockFactory() const
 		[session = _session, host, origin = fileOrigin()](
 				Window::SessionController *controller,
 				const Markdown::PreparedGroupedMediaBlockData &prepared) {
-			if (prepared.items.empty()
-				|| (int(prepared.items.size())
-					> HistoryView::GroupedMedia::kMaxSize)) {
-				return std::shared_ptr<Markdown::MediaBlock>();
-			}
 			const auto slideshow = (prepared.intent
 				== Markdown::PreparedGroupedMediaIntent::Slideshow);
+			if (prepared.items.empty()
+				|| (!slideshow
+					&& int(prepared.items.size())
+					> RichPage::kCollageMaxItems)) {
+				return std::shared_ptr<Markdown::MediaBlock>();
+			}
 			auto descriptor = Markdown::IvHistoryViewMediaDescriptor();
 			auto slideFactories = std::vector<
 				Markdown::IvHistoryViewMediaDescriptor::MediaFactory>();
@@ -1495,7 +1525,9 @@ auto CachedPageMediaRuntime::hostedMediaBlockFactory() const
 					medias->push_back(std::make_unique<::Data::MediaPhoto>(
 						host->item(),
 						photo,
-						item.media.spoiler));
+						::Data::MediaPhoto::Args{
+							.spoiler = item.media.spoiler,
+						}));
 					auto runtime = std::make_shared<CachedPagePhotoRuntime>(
 						session,
 						photo,
@@ -1564,6 +1596,7 @@ auto CachedPageMediaRuntime::hostedMediaBlockFactory() const
 			descriptor.copyText = CachedPageGroupedMediaCopyText(prepared);
 			descriptor.host = host;
 			descriptor.editMode = prepared.editMode;
+			descriptor.fileOrigin = origin;
 			if (slideshow) {
 				descriptor.kind = Markdown::IvHistoryViewMediaKind::Slideshow;
 				descriptor.slideMediaFactories = std::move(slideFactories);

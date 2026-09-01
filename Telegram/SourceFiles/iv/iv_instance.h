@@ -7,9 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/weak_ptr.h"
 #include "data/data_msg_id.h"
 #include "iv/iv_delegate.h"
 
+#include <memory>
 #include <vector>
 
 namespace Main {
@@ -31,10 +33,11 @@ namespace Iv {
 
 class Data;
 struct RichPage;
+class RichMessageHtmlExport;
 class Shown;
 class TonSite;
 
-class Instance final {
+class Instance final : public base::has_weak_ptr {
 public:
 	using RichMessageResolved = Fn<void(std::shared_ptr<const RichPage>)>;
 
@@ -72,9 +75,12 @@ public:
 		not_null<HistoryItem*> item,
 		QString initialFragment = QString());
 	void resolveRichMessage(
-		not_null<Window::SessionController*> controller,
+		not_null<Main::Session*> session,
 		not_null<HistoryItem*> item,
 		RichMessageResolved done);
+	void exportRichMessageHtml(
+		not_null<Window::SessionController*> controller,
+		FullMsgId itemId);
 
 	bool showMarkdown(
 		const QString &path,
@@ -146,7 +152,23 @@ private:
 		std::shared_ptr<const RichPage> page,
 		bool notifyCallbacks = true);
 
+	void exportRichMessageHtml(
+		not_null<Window::SessionController*> controller,
+		FullMsgId itemId,
+		const QString &basePath);
+	void eraseSettledHtmlExports();
+
 	void trackSession(not_null<Main::Session*> session);
+
+	// Each markdown window is a parentless top level window, and
+	// Markdown::Controller::active() is that window's isActiveWindow(),
+	// so at most one entry of _markdowns can report itself active. That
+	// lets a single key stand for "the focused markdown window": a caller
+	// acting only on the returned key is not skipping a second focused
+	// window that a scan of the whole map would have found.
+	[[nodiscard]] QString activeMarkdownKey() const;
+	void takeMarkdown(const QString &key);
+
 	void bindMarkdown(
 		const QString &key,
 		not_null<Main::Session*> session,
@@ -156,6 +178,13 @@ private:
 		FullMsgId itemId);
 	void closeMarkdownsForSession(not_null<Main::Session*> session);
 	void closeSessionDataViews(not_null<Main::Session*> session);
+	void cancelRichMessageRequests(not_null<Main::Session*> session);
+	void finishInPageRequest(
+		not_null<Main::Session*> session,
+		mtpRequestId requestId);
+	void cancelInPageRequests(not_null<Main::Session*> session);
+	void cancelIvRequest();
+	void closeLegacyWindows();
 
 	ProcessReceivedPageResult processReceivedPage(
 		not_null<Main::Session*> session,
@@ -167,7 +196,13 @@ private:
 		const RichMessageGeneration &generation,
 		const MTPmessages_Messages &result);
 
+	// Destroys `object` right away when no blocking popup event loop is
+	// running, or otherwise from a clean stack once that loop is finished.
+	void destroyLater(std::shared_ptr<void> object);
+
 	const not_null<Delegate*> _delegate;
+
+	std::vector<std::shared_ptr<void>> _closing;
 
 	std::unique_ptr<Shown> _shown;
 	Main::Session *_shownSession = nullptr;
@@ -189,6 +224,9 @@ private:
 	Main::Session *_ivRequestSession = nullptr;
 	QString _ivRequestUri;
 	mtpRequestId _ivRequestId = 0;
+	base::flat_map<
+		not_null<Main::Session*>,
+		base::flat_set<mtpRequestId>> _inPageRequested;
 
 	std::unique_ptr<TonSite> _tonSite;
 
@@ -201,6 +239,8 @@ private:
 		QString,
 		std::unique_ptr<Markdown::Controller>> _markdowns;
 	base::flat_map<QString, MarkdownBinding> _markdownBindings;
+
+	std::vector<std::unique_ptr<RichMessageHtmlExport>> _htmlExports;
 
 	rpl::lifetime _lifetime;
 

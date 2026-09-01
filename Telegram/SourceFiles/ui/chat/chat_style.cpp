@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_style.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_polls.h"
 #include "styles/style_widgets.h"
@@ -177,7 +178,7 @@ int ColorPatternIndex(
 		return 0;
 	}
 	auto &data = (*indices.colors)[colorIndex];
-	auto &colors = dark ? data.dark : data.light;
+	const auto &colors = dark ? data.dark : data.light;
 	return colors[2] ? 2 : colors[1] ? 1 : 0;
 }
 
@@ -697,7 +698,14 @@ void ChatStyle::clearColorIndexCaches() {
 
 void ChatStyle::assignPalette(not_null<const style::palette*> palette) {
 	*static_cast<style::palette*>(this) = *palette;
-	style::internal::ResetIcons();
+
+	// Only our own icons. style::internal::ResetIcons() would instead reset
+	// every icon in the process - including the app's, which this palette has
+	// nothing to do with - while iterating a registry that the GUI thread may
+	// be mutating, and theme previews build a ChatStyle off the GUI thread.
+	for (const auto &icon : _ownedIcons) {
+		icon->reset();
+	}
 
 	clearColorIndexCaches();
 	for (auto &style : _messageStyles) {
@@ -817,7 +825,7 @@ int ChatStyle::colorPatternIndex(uint8 colorIndex) const {
 		return 0;
 	}
 	auto &data = (*_colorIndices.colors)[colorIndex];
-	auto &colors = _dark ? data.dark : data.light;
+	const auto &colors = _dark ? data.dark : data.light;
 	return colors[2] ? 2 : colors[1] ? 1 : 0;
 }
 
@@ -868,7 +876,7 @@ ColorIndexValues ChatStyle::computeColorIndexValues(
 		return result;
 	}
 	auto &data = (*_colorIndices.colors)[colorIndex];
-	auto &colors = _dark ? data.dark : data.light;
+	const auto &colors = _dark ? data.dark : data.light;
 	if (!colors[0]) {
 		return computeColorIndexValues(
 			selected,
@@ -1122,6 +1130,18 @@ void ChatStyle::make(style::color &my, const style::color &original) const {
 
 void ChatStyle::make(style::icon &my, const style::icon &original) const {
 	my = original.withPalette(*this);
+	if (_collectOwnedIcons) {
+		_ownedIcons.push_back(&my);
+	}
+}
+
+void ChatStyle::forgetOwnedIcons(
+		const std::vector<not_null<style::icon*>> &icons) const {
+	_ownedIcons.erase(
+		ranges::remove_if(_ownedIcons, [&](not_null<style::icon*> icon) {
+			return ranges::contains(icons, icon);
+		}),
+		_ownedIcons.end());
 }
 
 void ChatStyle::make(
@@ -1232,6 +1252,31 @@ void ChatStyle::make(
 }
 
 void ChatStyle::make(
+		style::MarkdownEmbedPost &my,
+		const style::MarkdownEmbedPost &original) const {
+	my = original;
+	make(my.accentFg, original.accentFg);
+	make(my.authorStyle, original.authorStyle);
+	make(my.authorFg, original.authorFg);
+	make(my.dateStyle, original.dateStyle);
+	make(my.dateFg, original.dateFg);
+}
+
+void ChatStyle::make(
+		style::MarkdownPlaceholder &my,
+		const style::MarkdownPlaceholder &original) const {
+	my = original;
+	make(my.bg, original.bg);
+	make(my.bgActive, original.bgActive);
+	make(my.rippleBg, original.rippleBg);
+	make(my.borderFg, original.borderFg);
+	make(my.spinnerFg, original.spinnerFg);
+	make(my.labelStyle, original.labelStyle);
+	make(my.labelFg, original.labelFg);
+	make(my.labelFgActive, original.labelFgActive);
+}
+
+void ChatStyle::make(
 		style::MarkdownPhoto &my,
 		const style::MarkdownPhoto &original) const {
 	my = original;
@@ -1251,6 +1296,45 @@ void ChatStyle::make(
 	make(my.titleFg, original.titleFg);
 	make(my.subtitleStyle, original.subtitleStyle);
 	make(my.subtitleFg, original.subtitleFg);
+}
+
+void ChatStyle::make(
+		style::MarkdownChannelButton &my,
+		const style::MarkdownChannelButton &original) const {
+	my = original;
+	make(my.borderFg, original.borderFg);
+	make(my.bg, original.bg);
+	make(my.textStyle, original.textStyle);
+	make(my.textFg, original.textFg);
+}
+
+void ChatStyle::make(
+		style::MarkdownChannel &my,
+		const style::MarkdownChannel &original) const {
+	my = original;
+	make(my.borderFg, original.borderFg);
+	make(my.bg, original.bg);
+	make(my.titleStyle, original.titleStyle);
+	make(my.titleFg, original.titleFg);
+	make(my.subtitleStyle, original.subtitleStyle);
+	make(my.subtitleFg, original.subtitleFg);
+	make(my.button, original.button);
+}
+
+void ChatStyle::make(
+		style::MarkdownRelatedArticle &my,
+		const style::MarkdownRelatedArticle &original) const {
+	my = original;
+	make(my.borderFg, original.borderFg);
+	make(my.bg, original.bg);
+	make(my.headerBg, original.headerBg);
+	make(my.separatorFg, original.separatorFg);
+	make(my.titleStyle, original.titleStyle);
+	make(my.titleFg, original.titleFg);
+	make(my.subtitleStyle, original.subtitleStyle);
+	make(my.subtitleFg, original.subtitleFg);
+	make(my.footerStyle, original.footerStyle);
+	make(my.footerFg, original.footerFg);
 }
 
 void ChatStyle::make(
@@ -1275,6 +1359,32 @@ void ChatStyle::make(
 }
 
 void ChatStyle::make(
+		style::MarkdownButtonRow &my,
+		const style::MarkdownButtonRow &original) const {
+	my = original;
+	make(my.labelStyle, original.labelStyle);
+	make(my.defaultBg, original.defaultBg);
+	make(my.defaultRipple, original.defaultRipple);
+	make(my.defaultFg, original.defaultFg);
+	make(my.primaryBg, original.primaryBg);
+	make(my.primaryRipple, original.primaryRipple);
+	make(my.primaryFg, original.primaryFg);
+	make(my.successFg, original.successFg);
+	make(my.dangerFg, original.dangerFg);
+}
+
+void ChatStyle::make(
+		style::MarkdownInlineButton &my,
+		const style::MarkdownInlineButton &original) const {
+	my = original;
+	make(my.labelStyle, original.labelStyle);
+	make(my.defaultFg, original.defaultFg);
+	make(my.primaryBg, original.primaryBg);
+	make(my.successFg, original.successFg);
+	make(my.dangerFg, original.dangerFg);
+}
+
+void ChatStyle::make(
 		style::Markdown &my,
 		const style::Markdown &original) const {
 	my = original;
@@ -1292,14 +1402,21 @@ void ChatStyle::make(
 	make(my.code, original.code);
 	make(my.list, original.list);
 	make(my.quotePaintColors, original.quotePaintColors);
+	make(my.quoteAuthorStyle, original.quoteAuthorStyle);
 	make(my.rule, original.rule);
 	make(my.displayMath, original.displayMath);
 	make(my.table, original.table);
 	make(my.details, original.details);
+	make(my.embedPost, original.embedPost);
+	make(my.placeholder, original.placeholder);
 	make(my.photo, original.photo);
 	make(my.audio, original.audio);
+	make(my.channel, original.channel);
+	make(my.relatedArticle, original.relatedArticle);
 	make(my.groupedMedia, original.groupedMedia);
 	make(my.failure, original.failure);
+	make(my.buttonRow, original.buttonRow);
+	make(my.inlineButton, original.inlineButton);
 }
 
 void ChatStyle::make(

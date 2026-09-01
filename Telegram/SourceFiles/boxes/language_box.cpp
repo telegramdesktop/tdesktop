@@ -475,7 +475,7 @@ void Rows::addRipple(Selection selected, QPoint position) {
 	const auto menu = v::is<MenuSelection>(selected);
 	const auto &row = rowBySelection(selected);
 	const auto menuArea = menuToggleArea(&row);
-	auto &ripple = rippleBySelection(&row, selected);
+	const auto &ripple = rippleBySelection(&row, selected);
 	const auto topleft = menu ? menuArea.topLeft() : QPoint(0, row.top);
 	ripple->add(position - topleft);
 }
@@ -645,7 +645,7 @@ void Rows::showMenu(int index) {
 void Rows::setForceRippled(not_null<Row*> row, bool rippled) {
 	if (row->menuToggleForceRippled != rippled) {
 		row->menuToggleForceRippled = rippled;
-		auto &ripple = rippleBySelection(row, MenuSelection{});
+		const auto &ripple = rippleBySelection(row, MenuSelection{});
 		if (row->menuToggleForceRippled) {
 			ensureRippleBySelection(row, MenuSelection{});
 			if (ripple->empty()) {

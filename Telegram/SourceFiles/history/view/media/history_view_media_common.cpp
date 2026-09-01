@@ -10,8 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_sensitive_content.h"
 #include "api/api_views.h"
 #include "apiwrap.h"
+#include "base/unixtime.h"
 #include "inline_bots/bot_attach_web_view.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/cached_round_corners.h"
+#include "ui/chat/chat_style.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
@@ -19,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "data/data_document.h"
@@ -129,6 +133,80 @@ void PaintInterpolatedIcon(
 	p.scale(1. - b_ratio, 1. - b_ratio);
 	a.paintInCenter(p, rect.translated(-rect.center()));
 	p.restore();
+}
+
+std::unique_ptr<Ui::TtlCountdown> MakeTtlCountdown(
+		not_null<HistoryItem*> item,
+		Fn<void()> repaint) {
+	const auto media = item->media();
+	const auto ttl = (media && !media->ttlSecondsSingleView())
+		? media->ttlSeconds()
+		: crl::time();
+	return Ui::MakeTtlCountdown(
+		item->mediaDestroyAt(),
+		ttl,
+		std::move(repaint));
+}
+
+void PaintTtlLabel(
+		Painter &p,
+		QPoint position,
+		int outerWidth,
+		not_null<HistoryItem*> item,
+		const Ui::ChatPaintContext &context) {
+	const auto media = item->media();
+	if (!media || media->ttlSecondsSingleView()) {
+		return;
+	}
+	const auto destroyAt = item->mediaDestroyAt();
+	const auto seconds = (destroyAt > 0)
+		? std::max(destroyAt - base::unixtime::now(), TimeId(0))
+		: TimeId(media->ttlSeconds());
+	if (seconds <= 0) {
+		return;
+	}
+	const auto text = tr::lng_seconds_tiny(tr::now, lt_count, seconds);
+	const auto sti = context.imageStyle();
+	const auto padding = st::msgDateImgPadding;
+	const auto width = st::normalFont->width(text) + 2 * padding.x();
+	const auto height = st::normalFont->height + 2 * padding.y();
+	const auto left = position.x() + st::msgDateImgDelta + padding.x();
+	const auto top = position.y() + st::msgDateImgDelta + padding.y();
+	const auto around = style::rtlrect(
+		left - padding.x(),
+		top - padding.y(),
+		width,
+		height,
+		outerWidth);
+	Ui::FillRoundRect(p, around, sti->msgDateImgBg, sti->msgDateImgBgCorners);
+	p.setFont(st::normalFont);
+	p.setPen(context.st->msgDateImgFg());
+	p.drawTextLeft(left, top, outerWidth, text, width - 2 * padding.x());
+}
+
+void PaintTtlSingleViewBadge(
+		QPainter &p,
+		QRect inner,
+		not_null<HistoryItem*> item,
+		const Ui::ChatPaintContext &context) {
+	const auto media = item->media();
+	if (!media || !media->ttlSecondsSingleView()) {
+		return;
+	}
+	const auto sti = context.imageStyle();
+	const auto &icon = sti->historyVideoMessageTtlIcon;
+	const auto rect = QRect(
+		rect::right(inner) - (icon.width() * 3 / 4),
+		rect::bottom(inner) - (icon.height() * 3 / 4),
+		icon.width(),
+		icon.height());
+	{
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(sti->msgDateImgBg);
+		p.drawEllipse(rect);
+	}
+	icon.paintInCenter(p, rect);
 }
 
 std::unique_ptr<Media> CreateAttach(

@@ -10,6 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_url.h"
 #include "base/qt/qt_string_view.h"
 
+#include <QtCore/QCryptographicHash>
+#include <QtCore/QMessageAuthenticationCode>
+#include <QtCore/QUrl>
+#include <QtNetwork/QHostAddress>
+
 namespace MTP {
 namespace {
 
@@ -143,14 +148,145 @@ namespace {
 	return bytes::make_vector(bytes::make_span(result));
 }
 
+// The WHATWG URL "ends in a number" rule: a host whose last label is
+// all ASCII digits or 0x-prefixed hex is an IPv4 address (possibly in
+// shorthand form like 127.1 or 0x7f.1), so the IP-literal policy below
+// does not depend on QHostAddress recognising every shorthand.
+[[nodiscard]] bool LastLabelIsNumeric(const QString &host) {
+	const auto label = host.mid(host.lastIndexOf('.') + 1);
+	if (label.isEmpty()) {
+		return false;
+	}
+	const auto hex = label.startsWith(u"0x"_q, Qt::CaseInsensitive);
+	const auto digits = hex ? label.mid(2) : label;
+	for (const auto ch : digits) {
+		const auto code = ch.unicode();
+		const auto decimal = (code >= '0' && code <= '9');
+		const auto alpha = (code >= 'a' && code <= 'f')
+			|| (code >= 'A' && code <= 'F');
+		if (!decimal && !(hex && alpha)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+[[nodiscard]] QString ComputeWebProxyBridgeCapability(
+		const QString &host,
+		const QByteArray &key) {
+	const auto context = QByteArray("tdesktop-web-proxy-bridge-v1\n")
+		+ host.toLatin1();
+	return QString::fromLatin1(QMessageAuthenticationCode::hash(
+		context,
+		key,
+		QCryptographicHash::Sha256
+	).toBase64(
+		QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
+}
+
 } // namespace
+
+QString NormalizeWebProxyHost(const QString &value) {
+	const auto input = value.trimmed();
+	if (input.isEmpty()
+		|| input.contains(':')
+		|| input.contains('/')
+		|| input.contains('?')
+		|| input.contains('#')
+		|| input.contains('@')
+		|| input.endsWith('.')) {
+		return QString();
+	}
+	const auto result = QString::fromLatin1(QUrl::toAce(input)).toLower();
+	if (result.isEmpty()
+		|| result.size() > 253
+		|| !result.contains('.')) {
+		return QString();
+	}
+	for (const auto &label : result.split('.')) {
+		if (label.isEmpty()
+			|| label.size() > 63
+			|| label.front() == '-'
+			|| label.back() == '-') {
+			return QString();
+		}
+		for (const auto ch : label) {
+			if (!ch.isLetterOrNumber() && ch != '-') {
+				return QString();
+			}
+		}
+	}
+	if (LastLabelIsNumeric(result)) {
+		return QString();
+	}
+	auto address = QHostAddress();
+	return address.setAddress(result) ? QString() : result;
+}
+
+QString WebProxyBridgeCapability(const ProxyData &proxy) {
+	Expects(proxy.type == ProxyData::Type::Web);
+	Expects(proxy.host == NormalizeWebProxyHost(proxy.host));
+
+#ifndef NDEBUG
+	[[maybe_unused]] static const auto checked = [] {
+		Assert(NormalizeWebProxyHost(u" Proxy.Example.COM "_q)
+			== u"proxy.example.com"_q);
+		Assert(NormalizeWebProxyHost(u"bücher.example"_q)
+			== u"xn--bcher-kva.example"_q);
+		Assert(NormalizeWebProxyHost(u"bücher.de"_q)
+			== u"xn--bcher-kva.de"_q);
+		Assert(NormalizeWebProxyHost(u"xn--strae-oqa.example"_q)
+			== u"xn--strae-oqa.example"_q);
+		Assert(NormalizeWebProxyHost(u"localhost"_q).isEmpty());
+		Assert(NormalizeWebProxyHost(u"127.0.0.1"_q).isEmpty());
+		Assert(NormalizeWebProxyHost(u"127.1"_q).isEmpty());
+		Assert(NormalizeWebProxyHost(u"0x7f.1"_q).isEmpty());
+		Assert(NormalizeWebProxyHost(u"0177.0.0.1"_q).isEmpty());
+		Assert(NormalizeWebProxyHost(u"1.2.3"_q).isEmpty());
+		Assert(NormalizeWebProxyHost(u"site.example:443"_q).isEmpty());
+		Assert(NormalizeWebProxyHost(u"site..example"_q).isEmpty());
+		const auto plain = QByteArray::fromHex(
+			"000102030405060708090a0b0c0d0e0f");
+		const auto padded = QByteArray::fromHex(
+			"dd000102030405060708090a0b0c0d0e0f");
+		Assert(ComputeWebProxyBridgeCapability(
+			u"proxy.example.com"_q,
+			plain) == u"MHLEY5PmW1GWqJkSrlmJpvJUiLhBH_QKy6yKg8a0JPk"_q);
+		Assert(ComputeWebProxyBridgeCapability(
+			u"proxy.example.com"_q,
+			padded) == u"IpJrt3e7sKtzPyoXy6w-Zj6GGEvsvclN66JzQEfPYLA"_q);
+		return true;
+	}();
+#endif // !NDEBUG
+
+	const auto secret = proxy.secretFromMtprotoPassword();
+	Expects(!secret.empty());
+	const auto key = QByteArray(
+		reinterpret_cast<const char*>(secret.data()),
+		int(secret.size()));
+	return ComputeWebProxyBridgeCapability(proxy.host, key);
+}
 
 bool ProxyData::valid() const {
 	return status() == Status::Valid;
 }
 
 ProxyData::Status ProxyData::status() const {
-	if (type == Type::None || host.isEmpty() || !port) {
+	if (type == Type::Web) {
+		if (host != NormalizeWebProxyHost(host)
+			|| port != 443
+			|| !user.isEmpty()) {
+			return Status::Invalid;
+		}
+		const auto result = MtprotoPasswordStatus(password);
+		if (result != Status::Valid) {
+			return result;
+		}
+		const auto secret = secretFromMtprotoPassword();
+		return (secret.size() >= 21 && secret[0] == bytes::type(0xEE))
+			? Status::Unsupported
+			: Status::Valid;
+	} else if (type == Type::None || host.isEmpty() || !port) {
 		return Status::Invalid;
 	} else if (type == Type::Mtproto) {
 		return MtprotoPasswordStatus(password);
@@ -172,7 +308,7 @@ bool ProxyData::tryCustomResolve() const {
 }
 
 bytes::vector ProxyData::secretFromMtprotoPassword() const {
-	Expects(type == Type::Mtproto);
+	Expects(type == Type::Mtproto || type == Type::Web);
 
 	if (IsHexMtprotoPassword(password)) {
 		return SecretFromHexMtprotoPassword(password);
@@ -232,7 +368,8 @@ ProxyData ToDirectIpProxy(const ProxyData &proxy, int ipIndex) {
 QNetworkProxy ToNetworkProxy(const ProxyData &proxy) {
 	if (proxy.type == ProxyData::Type::None) {
 		return QNetworkProxy::DefaultProxy;
-	} else if (proxy.type == ProxyData::Type::Mtproto) {
+	} else if (proxy.type == ProxyData::Type::Mtproto
+		|| proxy.type == ProxyData::Type::Web) {
 		return QNetworkProxy::NoProxy;
 	}
 	return QNetworkProxy(

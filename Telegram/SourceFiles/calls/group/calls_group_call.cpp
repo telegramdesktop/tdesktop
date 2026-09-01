@@ -2591,7 +2591,7 @@ void GroupCall::applySubChainUpdate(
 		int next) {
 	Expects(subchain >= 0 && subchain < kSubChainsCount);
 
-	auto &entry = _subchains[subchain];
+	const auto &entry = _subchains[subchain];
 	auto raw = std::vector<TdE2E::Block>();
 	raw.reserve(blocks.size());
 	for (const auto &block : blocks) {

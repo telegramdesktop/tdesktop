@@ -93,7 +93,7 @@ QRect AbstractMosaicLayout::findRect(int index) const {
 	const auto rows = _rows.size();
 	auto top = 0;
 	for (auto row = 0; row != rows; ++row) {
-		auto &inlineRow = _rows[row];
+		const auto &inlineRow = _rows[row];
 		// if ((top + inlineRow.height) > clip.top()) {
 			auto left = 0;
 			if (row == (rows - 1)) {
@@ -223,7 +223,7 @@ void AbstractMosaicLayout::paint(
 		if (top >= clip.top() + clip.height()) {
 			break;
 		}
-		auto &inlineRow = _rows[row];
+		const auto &inlineRow = _rows[row];
 		if ((top + inlineRow.height) > clip.top()) {
 			auto left = _padding.left();
 			if (row == (rows - 1)) {

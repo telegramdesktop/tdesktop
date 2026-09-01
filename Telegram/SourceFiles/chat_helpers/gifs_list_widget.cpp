@@ -79,7 +79,7 @@ void AddGifAction(
 			Data::FileOriginSavedGifs(),
 			!saved);
 
-		auto &data = document->owner();
+		const auto &data = document->owner();
 		if (saved) {
 			data.stickers().savedGifsRef().remove(index);
 			document->session().local().writeSavedGifs();
@@ -418,7 +418,7 @@ base::unique_qptr<Ui::PopupMenu> GifsListWidget::fillContextMenu(
 			crl::guard(this, [=] {
 				selectInlineResult(selected, {}, true, true);
 			}),
-			&st::menuIconEdit);
+			&icons->menuGifCaption);
 	}
 
 	if (const auto item = _mosaic.maybeItemAt(_selected)) {

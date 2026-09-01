@@ -111,17 +111,64 @@ if %Build64% neq 0 (
   set "UpdateFile=tx64upd%AppVersion%"
   set "SetupFile=tsetup-x64.%AppVersionStrFull%.exe"
   set "PortableFile=tportable-x64.%AppVersionStrFull%.zip"
+  set "DeployFolder=tx64"
   set "DumpSymsPath=%SolutionPath%\..\..\Libraries\win64\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe"
 ) else if %BuildARM% neq 0 (
   set "UpdateFile=tarm64upd%AppVersion%"
   set "SetupFile=tsetup-arm64.%AppVersionStrFull%.exe"
   set "PortableFile=tportable-arm64.%AppVersionStrFull%.zip"
+  set "DeployFolder=tarm64"
   set "DumpSymsPath=%SolutionPath%\..\..\Libraries\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe"
 ) else (
   set "UpdateFile=tupdate%AppVersion%"
   set "SetupFile=tsetup.%AppVersionStrFull%.exe"
   set "PortableFile=tportable.%AppVersionStrFull%.zip"
+  set "DeployFolder=tsetup"
   set "DumpSymsPath=%SolutionPath%\..\..\Libraries\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe"
+)
+
+rem TDESKTOP_UPDATE_V2=1 switches the update packaging to the v2 signed
+rem envelope (2-of-2: the local Ed25519 release key plus the cloud ES256
+rem key through an interactive az login) and every artifact to the v2
+rem names: td-update-win-{arch}-{version}[-beta] and
+rem td-(setup|portable)-win-{arch}-{version_str}[-beta].(exe|zip). Without
+rem the switch the classical v1 update and the classical names are built,
+rem so the stepping-stone releases keep coming out exactly as before.
+set "UpdateChannel=stable"
+set "V2Suffix="
+if %BetaChannel% neq 0 (
+  set "UpdateChannel=beta"
+  set "V2Suffix=-beta"
+)
+set "IsccNameParam="
+if "%TDESKTOP_RELEASE_KEYVAULT%" equ "" set "TDESKTOP_RELEASE_KEYVAULT=tdesktop-release-kv"
+if "%TDESKTOP_RELEASE_CLOUD_KEY_ID%" equ "" set "TDESKTOP_RELEASE_CLOUD_KEY_ID=rc-2026a"
+if "%TDESKTOP_RELEASE_LOCAL_KEY%" equ "" set "TDESKTOP_RELEASE_LOCAL_KEY=%HomePath%\..\..\DesktopPrivate\release-local.pem"
+if "%TDESKTOP_RELEASE_LOCAL_KEY_ID%" equ "" set "TDESKTOP_RELEASE_LOCAL_KEY_ID=rl-2026a"
+if "%TDESKTOP_UPDATE_V2%" equ "1" (
+  if %AlphaVersion% neq 0 (
+    echo The v2 update format has no alpha channel!
+    exit /b 1
+  )
+  if %Build64% neq 0 (
+    set "UpdateFile=td-update-win-x64-%AppVersion%%V2Suffix%"
+    set "SetupFile=td-setup-win-x64-%AppVersionStr%%V2Suffix%.exe"
+    set "PortableFile=td-portable-win-x64-%AppVersionStr%%V2Suffix%.zip"
+    set "DeployFolder=win-x64"
+    set "IsccNameParam=/dMyOutputBaseFilename=td-setup-win-x64-%AppVersionStr%%V2Suffix%"
+  ) else if %BuildARM% neq 0 (
+    set "UpdateFile=td-update-win-arm-%AppVersion%%V2Suffix%"
+    set "SetupFile=td-setup-win-arm-%AppVersionStr%%V2Suffix%.exe"
+    set "PortableFile=td-portable-win-arm-%AppVersionStr%%V2Suffix%.zip"
+    set "DeployFolder=win-arm"
+    set "IsccNameParam=/dMyOutputBaseFilename=td-setup-win-arm-%AppVersionStr%%V2Suffix%"
+  ) else (
+    set "UpdateFile=td-update-win-x86-%AppVersion%%V2Suffix%"
+    set "SetupFile=td-setup-win-x86-%AppVersionStr%%V2Suffix%.exe"
+    set "PortableFile=td-portable-win-x86-%AppVersionStr%%V2Suffix%.zip"
+    set "DeployFolder=win-x86"
+    set "IsccNameParam=/dMyOutputBaseFilename=td-setup-win-x86-%AppVersionStr%%V2Suffix%"
+  )
 )
 set "ReleasePath=%SolutionPath%\Release"
 set "DeployPath=%ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStrFull%"
@@ -178,7 +225,7 @@ if %AlphaVersion% neq 0 (
     echo Deploy folder for version %AppVersionStr% already exists!
     exit /b 1
   )
-  if exist %ReleasePath%\tupdate%AppVersion% (
+  if exist %ReleasePath%\%UpdateFile% (
     echo Update file for version %AppVersion% already exists!
     exit /b 1
   )
@@ -214,11 +261,20 @@ if %BuildUWP% equ 0 (
   call :sign "Updater.exe"
 
   if %AlphaVersion% equ 0 (
-    iscc /dMyAppVersion=%AppVersionStrSmall% /dMyAppVersionZero=%AppVersionStr% /dMyAppVersionFull=%AppVersionStrFull% "/dReleasePath=%ReleasePath%" "/dMyBuildTarget=%BuildTarget%" "%FullScriptPath%setup.iss" || goto error
+    iscc /dMyAppVersion=%AppVersionStrSmall% /dMyAppVersionZero=%AppVersionStr% /dMyAppVersionFull=%AppVersionStrFull% "/dReleasePath=%ReleasePath%" "/dMyBuildTarget=%BuildTarget%" %IsccNameParam% "%FullScriptPath%setup.iss" || goto error
     if not exist "%SetupFile%" goto error
   )
 
-  if %BuildARM% neq 0 (
+  if "%TDESKTOP_UPDATE_V2%" equ "1" (
+    if %BuildARM% neq 0 (
+      call Packer.exe -version %VersionForPacker% -path %BinaryName%.exe -path Updater.exe -target %BuildTarget% -channel %UpdateChannel% -keys-loc "%ResourcesPath%\update" -emit-signing-input signing-input.bin || goto error
+    ) else (
+      call Packer.exe -version %VersionForPacker% -path %BinaryName%.exe -path Updater.exe -path "modules\%Platform%\d3d\d3dcompiler_47.dll" -target %BuildTarget% -channel %UpdateChannel% -keys-loc "%ResourcesPath%\update" -emit-signing-input signing-input.bin || goto error
+    )
+    python "%FullScriptPath%sign_update.py" --input signing-input.bin --output release-cloud.sig --az-vault "%TDESKTOP_RELEASE_KEYVAULT%" --az-key "%TDESKTOP_RELEASE_CLOUD_KEY_ID%" || goto error
+    call Packer.exe -channel %UpdateChannel% -keys-loc "%ResourcesPath%\update" -unsigned "%UpdateFile%.unsigned" -embed-signatures %TDESKTOP_RELEASE_CLOUD_KEY_ID%:release-cloud.sig -local-key "%TDESKTOP_RELEASE_LOCAL_KEY%" -local-key-id %TDESKTOP_RELEASE_LOCAL_KEY_ID% || goto error
+    del signing-input.bin release-cloud.sig "%UpdateFile%.unsigned"
+  ) else if %BuildARM% neq 0 (
     call Packer.exe -version %VersionForPacker% -path %BinaryName%.exe -path Updater.exe -target %BuildTarget% %AlphaBetaParam% || goto error
   ) else (
     call Packer.exe -version %VersionForPacker% -path %BinaryName%.exe -path Updater.exe -path "modules\%Platform%\d3d\d3dcompiler_47.dll" -target %BuildTarget% %AlphaBetaParam% || goto error
@@ -318,13 +374,7 @@ if %BuildUWP% neq 0 (
   rmdir "%DeployPath%\%BinaryName%"
 )
 
-if %Build64% neq 0 (
-  set "FinalDeployPath=%FinalReleasePath%\%AppVersionStrMajor%\%AppVersionStrFull%\tx64"
-) else if %BuildARM% neq 0 (
-  set "FinalDeployPath=%FinalReleasePath%\%AppVersionStrMajor%\%AppVersionStrFull%\tarm64"
-) else (
-  set "FinalDeployPath=%FinalReleasePath%\%AppVersionStrMajor%\%AppVersionStrFull%\tsetup"
-)
+set "FinalDeployPath=%FinalReleasePath%\%AppVersionStrMajor%\%AppVersionStrFull%\!DeployFolder!"
 
 if %BuildUWP% equ 0 (
   echo.

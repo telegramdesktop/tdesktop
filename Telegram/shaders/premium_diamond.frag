@@ -8,7 +8,7 @@ layout(location = 0) out vec4 fragColor;
 layout(std140, binding = 0) uniform Shared {
 	mat4 mvp;
 	mat4 world;
-	vec4 resolution;
+	vec4 resolution; // (width, height, fragCoordYUp, _)
 	vec4 misc; // (time, night, alpha, _)
 };
 
@@ -57,7 +57,10 @@ void main() {
 				discard;
 			}
 			float sweep = phase / visible;
-			vec2 pos = 3.0 * gl_FragCoord.xy / resolution.xy;
+			float fragY = (resolution.z > 0.0)
+				? gl_FragCoord.y
+				: (resolution.y - gl_FragCoord.y);
+			vec2 pos = 3.0 * vec2(gl_FragCoord.x, fragY) / resolution.xy;
 			float diag = pos.x - pos.y;
 			float center = mix(-4.5, 4.5, sweep);
 			float dist = diag - center;

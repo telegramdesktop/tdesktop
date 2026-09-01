@@ -29,6 +29,8 @@ public:
 
 	bool refresh();
 
+	void setDisplayedEmptyOverride(Fn<bool()> value);
+
 	void make(Data::ChatIntro data, bool preview = false);
 
 	[[nodiscard]] auto sendIntroSticker() const
@@ -62,8 +64,11 @@ private:
 
 	void loadCommonGroups();
 
+	[[nodiscard]] bool displayedEmpty() const;
+
 	const not_null<History*> _history;
 	const not_null<ElementDelegate*> _delegate;
+	Fn<bool()> _displayedEmptyOverride;
 	AdminLog::OwnedItem _item;
 
 	DocumentData *_helloChosen = nullptr;

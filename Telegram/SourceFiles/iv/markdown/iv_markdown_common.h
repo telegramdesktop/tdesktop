@@ -21,6 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text.h"
 #include "webview/webview_common.h"
 
+class QFileInfo;
+
 namespace Ui {
 class DynamicImage;
 class Show;
@@ -46,6 +48,8 @@ public:
 	[[nodiscard]] virtual bool loading() const = 0;
 	[[nodiscard]] virtual double progress() const = 0;
 	virtual void open(Qt::MouseButton button) const = 0;
+	virtual void releaseHeavyData() {
+	}
 };
 
 class DocumentRuntime {
@@ -60,6 +64,8 @@ public:
 	[[nodiscard]] virtual bool loading() const = 0;
 	[[nodiscard]] virtual double progress() const = 0;
 	virtual void open(Qt::MouseButton button) const = 0;
+	virtual void releaseHeavyData() {
+	}
 };
 
 class MapRuntime {
@@ -102,7 +108,7 @@ struct PreparedPlaceholderBlockId {
 
 struct PreparedPhotoBlockData;
 struct PreparedVideoBlockData;
-struct PreparedAudioBlockData;
+struct PreparedDocumentBlockData;
 struct PreparedMapBlockData;
 struct PreparedGroupedMediaBlockData;
 
@@ -118,8 +124,8 @@ public:
 		const PreparedVideoBlockData &prepared) const {
 		return nullptr;
 	}
-	[[nodiscard]] virtual std::shared_ptr<MediaBlock> createAudio(
-		const PreparedAudioBlockData &prepared) const {
+	[[nodiscard]] virtual std::shared_ptr<MediaBlock> createDocument(
+		const PreparedDocumentBlockData &prepared) const {
 		return nullptr;
 	}
 	[[nodiscard]] virtual std::shared_ptr<MediaBlock> createMap(
@@ -216,6 +222,7 @@ enum class MediaActivationKind {
 	Document,
 	OpenChannel,
 	JoinChannel,
+	UnsupportedBlock,
 };
 
 struct EmbedRequest {
@@ -272,6 +279,8 @@ struct OpenOptions {
 struct ParseOptions {
 	QString sourceName;
 };
+
+[[nodiscard]] bool IsReadableLocalFile(const QFileInfo &info);
 
 [[nodiscard]] bool LooksLikeMarkdownFile(
 	const QString &fileName,

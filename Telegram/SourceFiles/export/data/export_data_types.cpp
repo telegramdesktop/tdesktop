@@ -67,94 +67,61 @@ std::vector<std::vector<HistoryMessageMarkupButton>> ButtonRowsFromTL(
 		auto row = std::vector<HistoryMessageMarkupButton>();
 		row.reserve(tlRow.data().vbuttons().v.size());
 		for (const auto &button : tlRow.data().vbuttons().v) {
-			button.match([&](const MTPDkeyboardButton &data) {
-				row.push_back({ Type::Default, qs(data.vtext()) });
-			}, [&](const MTPDkeyboardButtonCallback &data) {
-				row.push_back({
-					(data.is_requires_password()
-						? Type::CallbackWithPassword
-						: Type::Callback),
-					qs(data.vtext()),
-					qba(data.vdata())
-				});
-			}, [&](const MTPDkeyboardButtonRequestGeoLocation &data) {
-				row.push_back({ Type::RequestLocation, qs(data.vtext()) });
-			}, [&](const MTPDkeyboardButtonRequestPhone &data) {
-				row.push_back({ Type::RequestPhone, qs(data.vtext()) });
-			}, [&](const MTPDkeyboardButtonRequestPeer &data) {
-				row.push_back({
-					Type::RequestPeer,
-					qs(data.vtext()),
-					QByteArray("unsupported"),
-					QString(),
-					int64(data.vbutton_id().v),
-				});
-			}, [&](const MTPDkeyboardButtonUrl &data) {
+			const auto &fields = button.data();
+			const auto text = qs(fields.vtext());
+			fields.vtype().match([&](const MTPDinlineButtonTypeUrl &data) {
 				row.push_back({
 					Type::Url,
-					qs(data.vtext()),
+					text,
 					qba(data.vurl())
 				});
-			}, [&](const MTPDkeyboardButtonSwitchInline &data) {
-				const auto type = data.is_same_peer()
-					? Type::SwitchInlineSame
-					: Type::SwitchInline;
-				row.push_back({ type, qs(data.vtext()), qba(data.vquery()) });
-			}, [&](const MTPDkeyboardButtonGame &data) {
-				row.push_back({ Type::Game, qs(data.vtext()) });
-			}, [&](const MTPDkeyboardButtonBuy &data) {
-				row.push_back({ Type::Buy, qs(data.vtext()) });
-			}, [&](const MTPDkeyboardButtonUrlAuth &data) {
+			}, [&](const MTPDinlineButtonTypeUrlAuth &data) {
 				row.push_back({
 					Type::Auth,
-					qs(data.vtext()),
+					text,
 					qba(data.vurl()),
 					qs(data.vfwd_text().value_or_empty()),
 					data.vbutton_id().v,
 				});
-			}, [&](const MTPDkeyboardButtonRequestPoll &data) {
-				const auto quiz = [&] {
-					if (!data.vquiz()) {
-						return QByteArray();
-					}
-					return data.vquiz()->match([&](const MTPDboolTrue&) {
-						return QByteArray(1, 1);
-					}, [&](const MTPDboolFalse&) {
-						return QByteArray(1, 0);
-					});
-				}();
-				row.push_back({
-					Type::RequestPoll,
-					qs(data.vtext()),
-					quiz
-				});
-			}, [&](const MTPDkeyboardButtonUserProfile &data) {
-				row.push_back({
-					Type::UserProfile,
-					qs(data.vtext()),
-					QByteArray::number(data.vuser_id().v)
-				});
-			}, [&](const MTPDinputKeyboardButtonUrlAuth &data) {
-			}, [&](const MTPDinputKeyboardButtonUserProfile &data) {
-			}, [&](const MTPDkeyboardButtonWebView &data) {
+			}, [&](const MTPDinputInlineButtonTypeUrlAuth &) {
+			}, [&](const MTPDinlineButtonTypeWebView &data) {
 				row.push_back({
 					Type::WebView,
-					qs(data.vtext()),
+					text,
 					data.vurl().v
 				});
-			}, [&](const MTPDkeyboardButtonSimpleWebView &data) {
+			}, [&](const MTPDinlineButtonTypeCallback &data) {
 				row.push_back({
-					Type::SimpleWebView,
-					qs(data.vtext()),
-					data.vurl().v
+					(data.is_requires_password()
+						? Type::CallbackWithPassword
+						: Type::Callback),
+					text,
+					qba(data.vdata())
 				});
-			}, [&](const MTPDkeyboardButtonCopy &data) {
+			}, [&](const MTPDinlineButtonTypeGame &) {
+				row.push_back({ Type::Game, text });
+			}, [&](const MTPDinlineButtonTypeBuy &) {
+				row.push_back({ Type::Buy, text });
+			}, [&](const MTPDinlineButtonTypeSwitchInline &data) {
+				const auto type = data.is_same_peer()
+					? Type::SwitchInlineSame
+					: Type::SwitchInline;
+				row.push_back({ type, text, qba(data.vquery()) });
+			}, [&](const MTPDinlineButtonTypeUserProfile &data) {
+				row.push_back({
+					Type::UserProfile,
+					text,
+					QByteArray::number(data.vuser_id().v)
+				});
+			}, [&](const MTPDinputInlineButtonTypeUserProfile &) {
+			}, [&](const MTPDinlineButtonTypeCopy &data) {
 				row.push_back({
 					Type::CopyText,
-					qs(data.vtext()),
+					text,
 					data.vcopy_text().v,
 				});
-			}, [&](const MTPDinputKeyboardButtonRequestPeer &data) {
+			}, [&](const MTPDinlineButtonTypeDisabled &) {
+				row.push_back({ Type::Disabled, text });
 			});
 		}
 		if (!row.empty()) {
@@ -166,6 +133,62 @@ std::vector<std::vector<HistoryMessageMarkupButton>> ButtonRowsFromTL(
 }
 
 } // namespace
+
+Utf8String InlineButtonAction::TypeToString(
+		const InlineButtonAction &action) {
+	using Type = InlineButtonAction::Type;
+	switch (action.type) {
+	case Type::Url: return "url";
+	case Type::Auth: return "auth";
+	case Type::WebView: return "web_view";
+	case Type::Callback: return "callback";
+	case Type::CallbackWithPassword: return "callback_with_password";
+	case Type::Game: return "game";
+	case Type::Buy: return "buy";
+	case Type::SwitchInline: return "switch_inline";
+	case Type::SwitchInlineSame: return "switch_inline_same";
+	case Type::UserProfile: return "user_profile";
+	case Type::CopyText: return "copy_text";
+	case Type::Disabled: return "disabled";
+	}
+	Unexpected("Type in InlineButtonAction::Type.");
+}
+
+Utf8String InlineButtonPeerTypeToString(InlineButtonPeerType type) {
+	using Type = InlineButtonPeerType;
+	switch (type) {
+	case Type::SameBotPM: return "same_bot_pm";
+	case Type::PM: return "pm";
+	case Type::Chat: return "chat";
+	case Type::Megagroup: return "megagroup";
+	case Type::Broadcast: return "broadcast";
+	case Type::BotPM: return "bot_pm";
+	}
+	Unexpected("Type in InlineButtonPeerType.");
+}
+
+Utf8String RichButtonStyleToString(RichButtonStyle style) {
+	using Style = RichButtonStyle;
+	switch (style) {
+	case Style::Default: return "default";
+	case Style::Primary: return "primary";
+	case Style::Success: return "success";
+	case Style::Danger: return "danger";
+	case Style::Link: return "link";
+	}
+	Unexpected("Style in RichButtonStyle.");
+}
+
+Utf8String RichButtonAlignmentToString(RichButtonAlignment alignment) {
+	using Alignment = RichButtonAlignment;
+	switch (alignment) {
+	case Alignment::Stretch: return "stretch";
+	case Alignment::Left: return "left";
+	case Alignment::Center: return "center";
+	case Alignment::Right: return "right";
+	}
+	Unexpected("Alignment in RichButtonAlignment.");
+}
 
 QByteArray HistoryMessageMarkupButton::TypeToString(
 		const HistoryMessageMarkupButton &button) {
@@ -188,6 +211,7 @@ QByteArray HistoryMessageMarkupButton::TypeToString(
 	case Type::WebView: return "web_view";
 	case Type::SimpleWebView: return "simple_web_view";
 	case Type::CopyText: return "copy_text";
+	case Type::Disabled: return "disabled";
 	}
 	Unexpected("Type in HistoryMessageMarkupButton::Type.");
 }
@@ -352,6 +376,142 @@ RichBlock ParseRichBlock(const MTPPageBlock &block);
 std::vector<RichBlock> ParseRichBlocks(
 		const QVector<MTPPageBlock> &blocks);
 
+InlineButtonPeerType ParseInlineButtonPeerType(
+		const MTPInlineQueryPeerType &type) {
+	using Type = InlineButtonPeerType;
+	return type.match(
+		[](const MTPDinlineQueryPeerTypeSameBotPM &) {
+			return Type::SameBotPM;
+		}, [](const MTPDinlineQueryPeerTypePM &) {
+			return Type::PM;
+		}, [](const MTPDinlineQueryPeerTypeChat &) {
+			return Type::Chat;
+		}, [](const MTPDinlineQueryPeerTypeMegagroup &) {
+			return Type::Megagroup;
+		}, [](const MTPDinlineQueryPeerTypeBroadcast &) {
+			return Type::Broadcast;
+		}, [](const MTPDinlineQueryPeerTypeBotPM &) {
+			return Type::BotPM;
+		});
+}
+
+std::optional<InlineButtonAction> ParseInlineButtonAction(
+		const MTPInlineButtonType &type) {
+	using Type = InlineButtonAction::Type;
+	auto result = std::optional<InlineButtonAction>();
+	type.match([&](const MTPDinlineButtonTypeUrl &data) {
+		auto &action = result.emplace();
+		action.type = Type::Url;
+		action.url = ParseString(data.vurl());
+	}, [&](const MTPDinlineButtonTypeUrlAuth &data) {
+		auto &action = result.emplace();
+		action.type = Type::Auth;
+		action.url = ParseString(data.vurl());
+		action.buttonId = data.vbutton_id().v;
+		if (const auto forwardText = data.vfwd_text()) {
+			action.forwardText = ParseString(*forwardText);
+		}
+	}, [&](const MTPDinputInlineButtonTypeUrlAuth &) {
+	}, [&](const MTPDinlineButtonTypeWebView &data) {
+		auto &action = result.emplace();
+		action.type = Type::WebView;
+		action.url = ParseString(data.vurl());
+	}, [&](const MTPDinlineButtonTypeCallback &data) {
+		auto &action = result.emplace();
+		action.requiresPassword = data.is_requires_password();
+		action.type = action.requiresPassword
+			? Type::CallbackWithPassword
+			: Type::Callback;
+		action.callbackData = qba(data.vdata());
+	}, [&](const MTPDinlineButtonTypeGame &) {
+		auto &action = result.emplace();
+		action.type = Type::Game;
+	}, [&](const MTPDinlineButtonTypeBuy &) {
+		auto &action = result.emplace();
+		action.type = Type::Buy;
+	}, [&](const MTPDinlineButtonTypeSwitchInline &data) {
+		auto &action = result.emplace();
+		action.samePeer = data.is_same_peer();
+		action.type = action.samePeer
+			? Type::SwitchInlineSame
+			: Type::SwitchInline;
+		action.query = ParseString(data.vquery());
+		if (const auto peerTypes = data.vpeer_types()) {
+			auto &parsed = action.peerTypes.emplace();
+			parsed.reserve(peerTypes->v.size());
+			for (const auto &peerType : peerTypes->v) {
+				parsed.push_back(ParseInlineButtonPeerType(peerType));
+			}
+		}
+	}, [&](const MTPDinlineButtonTypeUserProfile &data) {
+		auto &action = result.emplace();
+		action.type = Type::UserProfile;
+		action.userId = uint64(data.vuser_id().v);
+	}, [&](const MTPDinputInlineButtonTypeUserProfile &) {
+	}, [&](const MTPDinlineButtonTypeCopy &data) {
+		auto &action = result.emplace();
+		action.type = Type::CopyText;
+		action.copyText = ParseString(data.vcopy_text());
+	}, [&](const MTPDinlineButtonTypeDisabled &) {
+		auto &action = result.emplace();
+		action.type = Type::Disabled;
+	});
+	return result;
+}
+
+bool RichButtonLinkStyleAllowed(InlineButtonAction::Type type) {
+	using Type = InlineButtonAction::Type;
+	return (type == Type::Callback)
+		|| (type == Type::CallbackWithPassword)
+		|| (type == Type::Disabled);
+}
+
+std::optional<RichButtonStyle> ParseRichButtonStyle(
+		const tl::conditional<MTPRichButtonStyle> &style,
+		InlineButtonAction::Type actionType,
+		bool inlineButton) {
+	if (!style) {
+		return std::nullopt;
+	}
+	const auto &data = style->data();
+	if (inlineButton
+		&& data.is_link()
+		&& RichButtonLinkStyleAllowed(actionType)) {
+		return RichButtonStyle::Link;
+	}
+	return data.is_bg_danger()
+		? RichButtonStyle::Danger
+		: data.is_bg_primary()
+		? RichButtonStyle::Primary
+		: data.is_bg_success()
+		? RichButtonStyle::Success
+		: RichButtonStyle::Default;
+}
+
+std::optional<RichText> ParseRichButton(
+		const MTPRichText &text,
+		const MTPInlineButtonType &type,
+		const tl::conditional<MTPRichButtonStyle> &style,
+		bool inlineButton) {
+	auto action = ParseInlineButtonAction(type);
+	if (!action) {
+		return std::nullopt;
+	}
+	auto result = RichText();
+	result.type = RichText::Type::Button;
+	result.children.reserve(1);
+	result.children.push_back(ParseRichText(text));
+	auto buttonStyle = ParseRichButtonStyle(
+		style,
+		action->type,
+		inlineButton);
+	result.button = std::make_unique<RichButtonPayload>(RichButtonPayload{
+		.action = std::move(*action),
+		.style = std::move(buttonStyle),
+	});
+	return result;
+}
+
 RichText ParseRichTextWrapper(
 		RichText::Type type,
 		const MTPRichText &child) {
@@ -476,6 +636,15 @@ RichText ParseRichText(const MTPRichText &text) {
 		result.oldChildren.reserve(1);
 		result.oldChildren.push_back(ParseRichText(data.vold_text()));
 		return result;
+	}, [](const MTPDtextButton &data) {
+		if (auto button = ParseRichButton(
+				data.vtext(),
+				data.vtype(),
+				data.vstyle(),
+				true)) {
+			return std::move(*button);
+		}
+		return ParseRichText(data.vtext());
 	});
 }
 
@@ -888,6 +1057,7 @@ RichBlock ParseRichBlock(const MTPPageBlock &block) {
 		auto result = ParseRichTextBlock(Kind::Table, data.vtitle());
 		result.bordered = data.is_bordered();
 		result.striped = data.is_striped();
+		result.compact = data.is_compact();
 		const auto &rows = data.vrows().v;
 		result.tableRows.reserve(rows.size());
 		for (const auto &row : rows) {
@@ -967,6 +1137,33 @@ RichBlock ParseRichBlock(const MTPPageBlock &block) {
 		result.quoteContent = RichQuoteContent::Blocks;
 		result.blocks = ParseRichBlocks(data.vblocks().v);
 		result.quoteCaption = ParseRichText(data.vcaption());
+		return result;
+	}, [](const MTPDpageBlockButtonRow &data) {
+		auto result = ParseRichSupportedBlock(Kind::ButtonRow);
+		result.buttonAlignment = data.is_align_left()
+			? RichButtonAlignment::Left
+			: data.is_align_center()
+			? RichButtonAlignment::Center
+			: data.is_align_right()
+			? RichButtonAlignment::Right
+			: RichButtonAlignment::Stretch;
+		const auto &buttons = data.vbuttons().v;
+		result.buttons.reserve(buttons.size());
+		for (const auto &button : buttons) {
+			const auto &fields = button.data();
+			if (auto parsed = ParseRichButton(
+					fields.vtext(),
+					fields.vtype(),
+					fields.vstyle(),
+					false)) {
+				result.buttons.push_back(std::move(*parsed));
+			}
+		}
+		return result;
+	}, [](const MTPDpageBlockDocument &data) {
+		auto result = ParseRichSupportedBlock(Kind::File);
+		result.documentId = uint64(data.vdocument_id().v);
+		result.caption = ParseRichCaption(data.vcaption());
 		return result;
 	});
 }
@@ -2591,6 +2788,10 @@ ServiceAction ParseServiceAction(
 		}, [](const auto &) {});
 		result.content = content;
 	}, [](const MTPDmessageActionChangeCommunity &) {
+	}, [&](const MTPDmessageActionChatJoinedViaCommunity &data) {
+		auto content = ActionChatJoinedViaCommunity();
+		content.communityId = ChannelId(data.vcommunity_id().v);
+		result.content = content;
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

@@ -320,6 +320,14 @@ void Sandbox::setupScreenScale() {
 }
 
 Sandbox::~Sandbox() {
+	// When WM_ENDSESSION deferred closeApplication() to a main-loop
+	// tick that never came, the Application is still alive here and
+	// would be destroyed by member teardown at base nesting level,
+	// where Ui::PostponeCall bookkeeping is not allowed. Destroy it
+	// inside enter-from-event-loop instead, like a normal quit does.
+	customEnterFromEventLoop([&] {
+		closeApplication();
+	});
 #ifdef Q_OS_MAC
 	Platform::DestroyGlobalMenu();
 #endif // Q_OS_MAC
@@ -596,7 +604,8 @@ void Sandbox::checkForEmptyLoopNestingLevel() {
 	// after. That means we already have exited the nesting loop and
 	// there must not be any postponed calls with that nesting level.
 	if (_loopNestingLevel == _eventNestingLevel) {
-		Assert(_postponedCalls.empty()
+		Assert(_postponedCallsDeferred
+			|| _postponedCalls.empty()
 			|| _postponedCalls.back().loopNestingLevel < _loopNestingLevel);
 		Assert(!_previousLoopNestingLevels.empty());
 
@@ -661,6 +670,9 @@ bool Sandbox::notify(QObject *receiver, QEvent *e) {
 }
 
 void Sandbox::processPostponedCalls(int level) {
+	if (_postponedCallsDeferred) {
+		return;
+	}
 	while (!_postponedCalls.empty()) {
 		auto &last = _postponedCalls.back();
 		if (last.loopNestingLevel != level) {
@@ -670,6 +682,32 @@ void Sandbox::processPostponedCalls(int level) {
 		_postponedCalls.pop_back();
 		taken.callable();
 	}
+}
+
+void Sandbox::drainPostponedCalls() {
+	Expects(QThread::currentThreadId() == _mainThreadId);
+
+	if (!cTestAgent()) {
+		return;
+	}
+	const auto wasDeferred = std::exchange(_postponedCallsDeferred, true);
+	const auto guard = gsl::finally([&] {
+		_postponedCallsDeferred = wasDeferred;
+	});
+	while (!_postponedCalls.empty()) {
+		auto taken = std::move(_postponedCalls.back());
+		_postponedCalls.pop_back();
+		taken.callable();
+	}
+}
+
+void Sandbox::setPostponedCallsDeferred(bool deferred) {
+	Expects(QThread::currentThreadId() == _mainThreadId);
+
+	if (!cTestAgent()) {
+		return;
+	}
+	_postponedCallsDeferred = deferred;
 }
 
 bool Sandbox::nativeEventFilter(

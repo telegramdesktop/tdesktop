@@ -72,68 +72,71 @@ const auto SupportCommands = base::flat_set<Command>{
 };
 
 const auto CommandByName = base::flat_map<QString, Command>{
-	{ u"close_telegram"_q    , Command::Close },
-	{ u"lock_telegram"_q     , Command::Lock },
-	{ u"minimize_telegram"_q , Command::Minimize },
-	{ u"quit_telegram"_q     , Command::Quit },
+	{ u"close_telegram"_q                , Command::Close },
+	{ u"lock_telegram"_q                 , Command::Lock },
+	{ u"minimize_telegram"_q             , Command::Minimize },
+	{ u"quit_telegram"_q                 , Command::Quit },
+	{ u"reopen_closed_window"_q          , Command::ReopenClosedWindow },
+	{ u"close_other_windows"_q           , Command::CloseOtherWindows },
 
-	{ u"media_play"_q        , Command::MediaPlay },
-	{ u"media_pause"_q       , Command::MediaPause },
-	{ u"media_playpause"_q   , Command::MediaPlayPause },
-	{ u"media_stop"_q        , Command::MediaStop },
-	{ u"media_previous"_q    , Command::MediaPrevious },
-	{ u"media_next"_q        , Command::MediaNext },
+	{ u"media_play"_q                    , Command::MediaPlay },
+	{ u"media_pause"_q                   , Command::MediaPause },
+	{ u"media_playpause"_q               , Command::MediaPlayPause },
+	{ u"media_stop"_q                    , Command::MediaStop },
+	{ u"media_previous"_q                , Command::MediaPrevious },
+	{ u"media_next"_q                    , Command::MediaNext },
 
-	{ u"search"_q            , Command::Search },
+	{ u"search"_q                        , Command::Search },
 
-	{ u"previous_chat"_q     , Command::ChatPrevious },
-	{ u"next_chat"_q         , Command::ChatNext },
-	{ u"first_chat"_q        , Command::ChatFirst },
-	{ u"last_chat"_q         , Command::ChatLast },
-	{ u"self_chat"_q         , Command::ChatSelf },
-	{ u"pinned_chat1"_q      , Command::ChatPinned1 },
-	{ u"pinned_chat2"_q      , Command::ChatPinned2 },
-	{ u"pinned_chat3"_q      , Command::ChatPinned3 },
-	{ u"pinned_chat4"_q      , Command::ChatPinned4 },
-	{ u"pinned_chat5"_q      , Command::ChatPinned5 },
-	{ u"pinned_chat6"_q      , Command::ChatPinned6 },
-	{ u"pinned_chat7"_q      , Command::ChatPinned7 },
-	{ u"pinned_chat8"_q      , Command::ChatPinned8 },
+	{ u"previous_chat"_q                 , Command::ChatPrevious },
+	{ u"next_chat"_q                     , Command::ChatNext },
+	{ u"first_chat"_q                    , Command::ChatFirst },
+	{ u"last_chat"_q                     , Command::ChatLast },
+	{ u"self_chat"_q                     , Command::ChatSelf },
+	{ u"pinned_chat1"_q                  , Command::ChatPinned1 },
+	{ u"pinned_chat2"_q                  , Command::ChatPinned2 },
+	{ u"pinned_chat3"_q                  , Command::ChatPinned3 },
+	{ u"pinned_chat4"_q                  , Command::ChatPinned4 },
+	{ u"pinned_chat5"_q                  , Command::ChatPinned5 },
+	{ u"pinned_chat6"_q                  , Command::ChatPinned6 },
+	{ u"pinned_chat7"_q                  , Command::ChatPinned7 },
+	{ u"pinned_chat8"_q                  , Command::ChatPinned8 },
 
-	{ u"previous_folder"_q   , Command::FolderPrevious },
-	{ u"next_folder"_q       , Command::FolderNext },
-	{ u"all_chats"_q         , Command::ShowAllChats },
+	{ u"previous_folder"_q               , Command::FolderPrevious },
+	{ u"next_folder"_q                   , Command::FolderNext },
+	{ u"all_chats"_q                     , Command::ShowAllChats },
 
-	{ u"account1"_q          , Command::ShowAccount1 },
-	{ u"account2"_q          , Command::ShowAccount2 },
-	{ u"account3"_q          , Command::ShowAccount3 },
-	{ u"account4"_q          , Command::ShowAccount4 },
-	{ u"account5"_q          , Command::ShowAccount5 },
-	{ u"account6"_q          , Command::ShowAccount6 },
+	{ u"account1"_q                      , Command::ShowAccount1 },
+	{ u"account2"_q                      , Command::ShowAccount2 },
+	{ u"account3"_q                      , Command::ShowAccount3 },
+	{ u"account4"_q                      , Command::ShowAccount4 },
+	{ u"account5"_q                      , Command::ShowAccount5 },
+	{ u"account6"_q                      , Command::ShowAccount6 },
 
-	{ u"folder1"_q           , Command::ShowFolder1 },
-	{ u"folder2"_q           , Command::ShowFolder2 },
-	{ u"folder3"_q           , Command::ShowFolder3 },
-	{ u"folder4"_q           , Command::ShowFolder4 },
-	{ u"folder5"_q           , Command::ShowFolder5 },
-	{ u"folder6"_q           , Command::ShowFolder6 },
-	{ u"last_folder"_q       , Command::ShowFolderLast },
+	{ u"folder1"_q                       , Command::ShowFolder1 },
+	{ u"folder2"_q                       , Command::ShowFolder2 },
+	{ u"folder3"_q                       , Command::ShowFolder3 },
+	{ u"folder4"_q                       , Command::ShowFolder4 },
+	{ u"folder5"_q                       , Command::ShowFolder5 },
+	{ u"folder6"_q                       , Command::ShowFolder6 },
+	{ u"last_folder"_q                   , Command::ShowFolderLast },
 
-	{ u"show_archive"_q      , Command::ShowArchive },
-	{ u"show_contacts"_q     , Command::ShowContacts },
+	{ u"show_archive"_q                  , Command::ShowArchive },
+	{ u"show_contacts"_q                 , Command::ShowContacts },
 
-	{ u"read_chat"_q         , Command::ReadChat },
+	{ u"read_chat"_q                     , Command::ReadChat },
 
-	{ u"show_chat_menu"_q    , Command::ShowChatMenu },
-	{ u"show_chat_preview"_q , Command::ShowChatPreview },
+	{ u"show_chat_menu"_q                , Command::ShowChatMenu },
+	{ u"show_chat_preview"_q             , Command::ShowChatPreview },
 
-	{ u"record_voice"_q      , Command::RecordVoice },
+	{ u"record_voice"_q                  , Command::RecordVoice },
 
 	// Shortcuts that have no default values.
 	{ u"message"_q                       , Command::JustSendMessage },
 	{ u"message_silently"_q              , Command::SendSilentMessage },
 	{ u"message_scheduled"_q             , Command::ScheduleMessage },
 	{ u"ai_compose_apply"_q              , Command::ComposeAiApplyInPlace },
+	{ u"show_rich_editor"_q              , Command::ShowRichEditor },
 	{ u"toggle_webpage_preview"_q        , Command::ToggleWebPagePreview },
 	{ u"media_viewer_video_fullscreen"_q , Command::MediaViewerFullscreen },
 	{ u"show_scheduled"_q                , Command::ShowScheduled },
@@ -159,6 +162,7 @@ const base::flat_map<Command, QString> &CommandNames() {
 	Command::SendSilentMessage,
 	Command::ScheduleMessage,
 	Command::ComposeAiApplyInPlace,
+	Command::ShowRichEditor,
 	Command::ToggleWebPagePreview,
 	Command::MediaViewerFullscreen,
 	Command::ShowScheduled,
@@ -473,45 +477,47 @@ bool Manager::readCustomFile() {
 void Manager::fillDefaults() {
 	const auto ctrl = Platform::IsMac() ? u"meta"_q : u"ctrl"_q;
 
-	set(u"ctrl+w"_q, Command::Close);
-	set(u"ctrl+f4"_q, Command::Close);
-	set(u"ctrl+l"_q, Command::Lock);
-	set(u"ctrl+m"_q, Command::Minimize);
-	set(u"ctrl+q"_q, Command::Quit);
+	set(u"ctrl+w"_q                  , Command::Close);
+	set(u"ctrl+f4"_q                 , Command::Close);
+	set(u"ctrl+l"_q                  , Command::Lock);
+	set(u"ctrl+m"_q                  , Command::Minimize);
+	set(u"ctrl+q"_q                  , Command::Quit);
+	set(u"ctrl+shift+t"_q            , Command::ReopenClosedWindow);
+	set(u"ctrl+shift+w"_q            , Command::CloseOtherWindows);
 
-	set(u"media play"_q, Command::MediaPlay);
-	set(u"media pause"_q, Command::MediaPause);
-	set(u"toggle media play/pause"_q, Command::MediaPlayPause);
-	set(u"media stop"_q, Command::MediaStop);
-	set(u"media previous"_q, Command::MediaPrevious);
-	set(u"media next"_q, Command::MediaNext);
+	set(u"media play"_q              , Command::MediaPlay);
+	set(u"media pause"_q             , Command::MediaPause);
+	set(u"toggle media play/pause"_q , Command::MediaPlayPause);
+	set(u"media stop"_q              , Command::MediaStop);
+	set(u"media previous"_q          , Command::MediaPrevious);
+	set(u"media next"_q              , Command::MediaNext);
 
-	set(u"ctrl+f"_q, Command::Search);
-	set(u"search"_q, Command::Search);
-	set(u"find"_q, Command::Search);
+	set(u"ctrl+f"_q                  , Command::Search);
+	set(u"search"_q                  , Command::Search);
+	set(u"find"_q                    , Command::Search);
 
-	set(u"ctrl+pgdown"_q, Command::ChatNext);
-	set(u"alt+down"_q, Command::ChatNext);
-	set(u"ctrl+pgup"_q, Command::ChatPrevious);
-	set(u"alt+up"_q, Command::ChatPrevious);
+	set(u"ctrl+pgdown"_q             , Command::ChatNext);
+	set(u"alt+down"_q                , Command::ChatNext);
+	set(u"ctrl+pgup"_q               , Command::ChatPrevious);
+	set(u"alt+up"_q                  , Command::ChatPrevious);
 
-	set(u"ctrl+alt+home"_q, Command::ChatFirst);
-	set(u"ctrl+alt+end"_q, Command::ChatLast);
+	set(u"ctrl+alt+home"_q           , Command::ChatFirst);
+	set(u"ctrl+alt+end"_q            , Command::ChatLast);
 
-	set(u"f5"_q, Command::SupportReloadTemplates);
-	set(u"ctrl+delete"_q, Command::SupportToggleMuted);
-	set(u"ctrl+insert"_q, Command::SupportScrollToCurrent);
-	set(u"ctrl+shift+x"_q, Command::SupportHistoryBack);
-	set(u"ctrl+shift+c"_q, Command::SupportHistoryForward);
+	set(u"f5"_q                      , Command::SupportReloadTemplates);
+	set(u"ctrl+delete"_q             , Command::SupportToggleMuted);
+	set(u"ctrl+insert"_q             , Command::SupportScrollToCurrent);
+	set(u"ctrl+shift+x"_q            , Command::SupportHistoryBack);
+	set(u"ctrl+shift+c"_q            , Command::SupportHistoryForward);
 
-	set(u"ctrl+1"_q, Command::ChatPinned1);
-	set(u"ctrl+2"_q, Command::ChatPinned2);
-	set(u"ctrl+3"_q, Command::ChatPinned3);
-	set(u"ctrl+4"_q, Command::ChatPinned4);
-	set(u"ctrl+5"_q, Command::ChatPinned5);
-	set(u"ctrl+6"_q, Command::ChatPinned6);
-	set(u"ctrl+7"_q, Command::ChatPinned7);
-	set(u"ctrl+8"_q, Command::ChatPinned8);
+	set(u"ctrl+1"_q                  , Command::ChatPinned1);
+	set(u"ctrl+2"_q                  , Command::ChatPinned2);
+	set(u"ctrl+3"_q                  , Command::ChatPinned3);
+	set(u"ctrl+4"_q                  , Command::ChatPinned4);
+	set(u"ctrl+5"_q                  , Command::ChatPinned5);
+	set(u"ctrl+6"_q                  , Command::ChatPinned6);
+	set(u"ctrl+7"_q                  , Command::ChatPinned7);
+	set(u"ctrl+8"_q                  , Command::ChatPinned8);
 
 	auto &&folders = ranges::views::zip(
 		kShowFolder,
@@ -521,20 +527,20 @@ void Manager::fillDefaults() {
 		set(u"%1+%2"_q.arg(ctrl).arg(index), command);
 	}
 
-	set(u"%1+shift+down"_q.arg(ctrl), Command::FolderNext);
-	set(u"%1+shift+up"_q.arg(ctrl), Command::FolderPrevious);
+	set(u"%1+shift+down"_q.arg(ctrl) , Command::FolderNext);
+	set(u"%1+shift+up"_q.arg(ctrl)   , Command::FolderPrevious);
 
-	set(u"ctrl+0"_q, Command::ChatSelf);
+	set(u"ctrl+0"_q                  , Command::ChatSelf);
 
-	set(u"ctrl+9"_q, Command::ShowArchive);
-	set(u"ctrl+j"_q, Command::ShowContacts);
+	set(u"ctrl+9"_q                  , Command::ShowArchive);
+	set(u"ctrl+j"_q                  , Command::ShowContacts);
 
-	set(u"ctrl+r"_q, Command::ReadChat);
+	set(u"ctrl+r"_q                  , Command::ReadChat);
 
-	set(u"ctrl+\\"_q, Command::ShowChatMenu);
-	set(u"ctrl+]"_q, Command::ShowChatPreview);
+	set(u"ctrl+\\"_q                 , Command::ShowChatMenu);
+	set(u"ctrl+]"_q                  , Command::ShowChatPreview);
 
-	set(u"ctrl+r"_q, Command::RecordVoice);
+	set(u"ctrl+r"_q                  , Command::RecordVoice);
 
 	_defaults = keysCurrents();
 }

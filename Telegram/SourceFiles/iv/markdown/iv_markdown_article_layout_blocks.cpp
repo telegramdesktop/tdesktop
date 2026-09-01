@@ -13,8 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "spellcheck/spellcheck_highlight_syntax.h"
 
 #include "lang/lang_keys.h"
+
+#include "styles/style_chat.h"
 #include "styles/style_iv.h"
-#include "styles/style_widgets.h"
 
 #include <algorithm>
 #include <cmath>
@@ -127,12 +128,6 @@ thread_local const LayoutContext *CurrentLayoutContext = nullptr;
 	return st.table.bodyStyle;
 }
 
-[[nodiscard]] int TableBorder(
-		bool bordered,
-		const style::Markdown &st) {
-	return bordered ? st.table.border : 0;
-}
-
 [[nodiscard]] bool TextDependsOnMediaRuntime(
 		const TextWithEntities &text) {
 	for (const auto &entity : text.entities) {
@@ -174,6 +169,7 @@ void SetPlainTextLeaf(
 		bool rtl) {
 	auto result = CachedTextLeafSourceSignature();
 	result.dependsOnMediaRuntime = TextDependsOnMediaRuntime(text);
+	result.dependsOnInlineButtonColumn = TextHasInlineButton(text);
 	result.text = std::move(text);
 	result.minResizeWidth = minResizeWidth;
 	result.styleKey = TextStyleKey(textStyle);
@@ -274,6 +270,9 @@ auto WithCachedTextLeaf(
 		CachedTextLeafSourceSignature source,
 		Builder &&builder,
 		Consumer &&consumer) {
+	if (source.dependsOnInlineButtonColumn) {
+		source.inlineButtonWidthCap = context.inlineButtonWidthCap;
+	}
 	if (const auto pool = context.cachedTextLeafs) {
 		auto i = pool->entries.find(key);
 		if (i == end(pool->entries)
@@ -300,8 +299,11 @@ void BuildOrReuseCachedTextLeaf(
 		Spellchecker::HighlightProcessId *syntaxHighlightProcessId,
 		LayoutContext context,
 		CachedTextLeafKey key,
-		const CachedTextLeafSourceSignature &source,
+		CachedTextLeafSourceSignature source,
 		Builder &&builder) {
+	if (source.dependsOnInlineButtonColumn) {
+		source.inlineButtonWidthCap = context.inlineButtonWidthCap;
+	}
 	if (const auto pool = context.cachedTextLeafs) {
 		if (const auto i = pool->entries.find(key);
 			i != end(pool->entries)
@@ -364,6 +366,8 @@ void BuildOrReuseCachedTextLeaf(
 				prepared.text,
 				formulas,
 				inlineFormulaObjects,
+				context.inlineButtonPaintState,
+				context.inlineButtonWidthCap,
 				mediaRuntime,
 				minResizeWidth,
 				context.rtl,
@@ -488,6 +492,32 @@ void DistributeSpanDelta(
 	}
 }
 
+[[nodiscard]] QMargins TableCellPadding(
+		bool compact,
+		const style::Markdown &st) {
+	const auto &padding = st.table.cellPadding;
+	return compact
+		? QMargins(
+			padding.left(),
+			padding.top() / 2,
+			padding.right(),
+			padding.bottom() / 2)
+		: padding;
+}
+
+[[nodiscard]] int TableCellConstraintWidth(
+		int minimumWidth,
+		int preferredWidth,
+		const style::Markdown &st) {
+	const auto &padding = st.table.cellPadding;
+	const auto paddingWidth = padding.left() + padding.right();
+	return std::max(
+		minimumWidth + paddingWidth,
+		std::min(
+			preferredWidth + paddingWidth,
+			st.table.minColumnWidth));
+}
+
 struct TableCellGeometryData {
 	LaidOutTableCell *cell = nullptr;
 	int minimumWidth = 0;
@@ -516,7 +546,6 @@ struct TableSpannedCellGeometryData {
 		bool *overflowed) {
 	const auto &padding = st.table.cellPadding;
 	const auto border = TableBorder(bordered, st);
-	const auto paddingWidth = padding.left() + padding.right();
 	auto constraints = std::vector<TableCellMinimumWidthConstraint>();
 	for (auto &row : rows) {
 		for (auto &cellData : row.cells) {
@@ -526,9 +555,10 @@ struct TableSpannedCellGeometryData {
 			constraints.push_back({
 				.column = cellData.cell->column,
 				.colspan = cellData.cell->colspan,
-				.minimumWidth = std::max(
-					cellData.minimumWidth + paddingWidth,
-					st.table.minColumnWidth),
+				.minimumWidth = TableCellConstraintWidth(
+					cellData.minimumWidth,
+					cellData.preferredWidth,
+					st),
 			});
 		}
 	}
@@ -663,6 +693,8 @@ void PopulateCodeBlockLeaf(
 		const QString &codeLanguage,
 		const std::vector<PreparedFormulaSlot> *formulas,
 		InlineFormulaObjectCache *inlineFormulaObjects,
+		const std::shared_ptr<InlineButtonPaintState> &inlineButtonPaintState,
+		int inlineButtonWidthCap,
 		const std::shared_ptr<MediaRuntime> &mediaRuntime,
 		const style::Markdown &st,
 		bool allowAsyncSyntaxHighlighting,
@@ -702,6 +734,8 @@ void PopulateCodeBlockLeaf(
 		display,
 		formulas,
 		inlineFormulaObjects,
+		inlineButtonPaintState,
+		inlineButtonWidthCap,
 		mediaRuntime,
 		CodeTextMinResizeWidth(st),
 		false,
@@ -735,6 +769,19 @@ void PopulateCodeBlockLeaf(
 	return result;
 }
 
+[[nodiscard]] int LeafCollapsedLineBottom(
+		const Ui::Text::String &leaf,
+		int width,
+		int lines) {
+	if (lines <= 0) {
+		return 0;
+	}
+	const auto geometry = leaf.countLinesGeometry(width);
+	return (lines < int(geometry.size()))
+		? geometry[lines - 1].bottom
+		: 0;
+}
+
 [[nodiscard]] QRect PaddedBand(
 		int left,
 		int width,
@@ -757,16 +804,6 @@ void PopulateCodeBlockLeaf(
 			context.articleWidth,
 			st.textPadding)
 		: QRect(fallbackLeft, 0, std::max(fallbackWidth, 1), 0);
-}
-
-[[nodiscard]] int LimitedMediaWidth(
-		int availableWidth,
-		int intrinsicWidth) {
-	const auto scaledIntrinsic = style::ConvertScale(intrinsicWidth);
-	const auto limit = (scaledIntrinsic > 0)
-		? (2 * scaledIntrinsic)
-		: availableWidth;
-	return std::clamp(limit, 1, std::max(availableWidth, 1));
 }
 
 void ApplyMediaBlockGeometry(
@@ -849,6 +886,8 @@ void FillMediaCaption(
 		.actionRect = block.actionRect,
 		.markerRect = block.markerRect,
 		.contentRect = block.contentRect,
+		.collapseControlRect = block.collapseControlRect,
+		.buttonRowControlRect = block.buttonRowControlRect,
 		.formulaRect = block.formulaRect,
 		.tableRect = block.tableRect,
 		.mediaRect = block.mediaRect,
@@ -876,6 +915,8 @@ void ClearBlockGeometry(LaidOutBlock *block) {
 	block->actionRect = QRect();
 	block->markerRect = QRect();
 	block->contentRect = QRect();
+	block->collapseControlRect = QRect();
+	block->buttonRowControlRect = QRect();
 	block->formulaRect = QRect();
 	block->tableRect = QRect();
 	block->mediaRect = QRect();
@@ -1248,7 +1289,7 @@ void CopyBlockCachedTextLeafs(
 		break;
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::Document:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
@@ -1270,6 +1311,7 @@ void CopyBlockCachedTextLeafs(
 			&block.placeholderLeaf);
 		break;
 	case PreparedBlockKind::Rule:
+	case PreparedBlockKind::ButtonRow:
 	case PreparedBlockKind::Quote:
 	case PreparedBlockKind::List:
 	case PreparedBlockKind::ListItem:
@@ -1302,6 +1344,22 @@ void CopyBlockCachedTextLeafs(
 }
 
 } // namespace
+
+int TableBorder(
+		bool bordered,
+		const style::Markdown &st) {
+	return bordered ? st.table.border : 0;
+}
+
+int LimitedMediaWidth(
+		int availableWidth,
+		int intrinsicWidth) {
+	const auto scaledIntrinsic = style::ConvertScale(intrinsicWidth);
+	const auto limit = (scaledIntrinsic > 0)
+		? (2 * scaledIntrinsic)
+		: availableWidth;
+	return std::clamp(limit, 1, std::max(availableWidth, 1));
+}
 
 bool TextNeedsRetainedLeaf(const QString &text) {
 	const auto size = int(text.size());
@@ -1362,6 +1420,8 @@ void BuildOrReuseMarkedTextLeaf(
 				text,
 				formulas,
 				inlineFormulaObjects,
+				context.inlineButtonPaintState,
+				context.inlineButtonWidthCap,
 				mediaRuntime,
 				minResizeWidth,
 				context.rtl,
@@ -1681,6 +1741,33 @@ bool IsFlowKind(PreparedBlockKind kind) {
 		|| (kind == PreparedBlockKind::Heading);
 }
 
+bool QuoteHasCollapseControl(const LaidOutBlock &block) {
+	return (block.kind == PreparedBlockKind::Quote)
+		&& !block.collapseToggleId.isEmpty()
+		&& (block.collapsedLinesExceeded || block.collapsedAtomic);
+}
+
+QRect QuoteCollapseControlRect(QRect outer, const style::QuoteStyle &style) {
+	const auto width = std::max(style.expand.width(), style.collapse.width());
+	const auto height = std::max(
+		style.expand.height(),
+		style.collapse.height());
+	const auto skipX = std::max(
+		style.expandPosition.x(),
+		style.collapsePosition.x());
+	const auto skipY = std::max(
+		style.expandPosition.y(),
+		style.collapsePosition.y());
+	if (width <= 0 || height <= 0) {
+		return QRect();
+	}
+	return QRect(
+		outer.x() + outer.width() - width - skipX,
+		outer.y() + outer.height() - height - skipY,
+		width + skipX,
+		height + skipY);
+}
+
 bool IsAnchorOnlyBlock(const PreparedBlock &block) {
 	return (block.kind == PreparedBlockKind::Paragraph)
 		&& !block.anchorId.isEmpty()
@@ -1688,6 +1775,25 @@ bool IsAnchorOnlyBlock(const PreparedBlock &block) {
 		&& block.text.entities.empty()
 		&& block.links.empty()
 		&& block.children.empty();
+}
+
+bool PreparedBlockHasInlineButton(const PreparedBlock &prepared) {
+	if (TextHasInlineButton(prepared.text)) {
+		return true;
+	}
+	for (const auto &row : prepared.tableRows) {
+		for (const auto &cell : row.cells) {
+			if (TextHasInlineButton(cell.text)) {
+				return true;
+			}
+		}
+	}
+	for (const auto &button : prepared.buttonRow.buttons) {
+		if (TextHasInlineButton(button.text)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 QString ListMarkerText(const PreparedBlock &block) {
@@ -1850,6 +1956,8 @@ int FlowBlockPreferredWidth(
 					prepared.text,
 					&formulas,
 					inlineFormulaObjects,
+					context.inlineButtonPaintState,
+					context.inlineButtonWidthCap,
 					mediaRuntime,
 					minResizeWidth,
 					context.rtl,
@@ -1925,6 +2033,8 @@ int FlowBlockContentMinimumWidth(
 				prepared.text,
 				&formulas,
 				inlineFormulaObjects,
+				context.inlineButtonPaintState,
+				context.inlineButtonWidthCap,
 				mediaRuntime,
 				minResizeWidth,
 				context.rtl,
@@ -1971,6 +2081,8 @@ int DetailsSummaryContentMinimumWidth(
 				prepared.text,
 				&formulas,
 				inlineFormulaObjects,
+				context.inlineButtonPaintState,
+				context.inlineButtonWidthCap,
 				mediaRuntime,
 				minResizeWidth,
 				context.rtl,
@@ -2051,6 +2163,8 @@ int CodeBlockPreferredWidth(
 				prepared.codeLanguage,
 				nullptr,
 				nullptr,
+				context.inlineButtonPaintState,
+				context.inlineButtonWidthCap,
 				nullptr,
 				st,
 				context.allowAsyncSyntaxHighlighting,
@@ -2321,6 +2435,8 @@ int TableBlockContentMinimumWidth(
 						prepared.text,
 						&formulas,
 						inlineFormulaObjects,
+						context.inlineButtonPaintState,
+						context.inlineButtonWidthCap,
 						mediaRuntime,
 						minResizeWidth,
 						context.rtl,
@@ -2339,8 +2455,6 @@ int TableBlockContentMinimumWidth(
 			captionMinimum,
 			TableMinimumGridWidth(columnCount, st, prepared.tableBordered));
 	}
-	const auto &padding = st.table.cellPadding;
-	const auto paddingWidth = padding.left() + padding.right();
 	auto constraints = std::vector<TableCellMinimumWidthConstraint>();
 	for (auto rowIndex = 0, rowCount = int(prepared.tableRows.size());
 			rowIndex != rowCount;
@@ -2359,7 +2473,7 @@ int TableBlockContentMinimumWidth(
 			const auto minResizeWidth = TableCellTextMinResizeWidth(
 				textStyle,
 				st);
-			const auto leafMinimum = usePlaceholder
+			const auto cellMinimumWidth = usePlaceholder
 				? WithCachedTextLeaf(
 					context,
 					TableCellCachedTextLeafKey(
@@ -2382,9 +2496,16 @@ int TableBlockContentMinimumWidth(
 							minResizeWidth,
 							context.rtl);
 					},
-					[](const Ui::Text::String &leaf,
+					[&](const Ui::Text::String &leaf,
 							Spellchecker::HighlightProcessId) {
-						return LeafMinimumWidth(leaf);
+						const auto leafMinimum = LeafMinimumWidth(leaf);
+						if (leafMinimum <= 0) {
+							return 0;
+						}
+						return TableCellConstraintWidth(
+							leafMinimum,
+							leaf.maxWidth(),
+							st);
 					})
 				: WithCachedTextLeaf(
 					context,
@@ -2408,6 +2529,8 @@ int TableBlockContentMinimumWidth(
 							cell.text,
 							&formulas,
 							inlineFormulaObjects,
+							context.inlineButtonPaintState,
+							context.inlineButtonWidthCap,
 							mediaRuntime,
 							minResizeWidth,
 							context.rtl,
@@ -2415,17 +2538,22 @@ int TableBlockContentMinimumWidth(
 							context.repaintRect);
 						BindLinks(leaf, cell.links);
 					},
-					[](const Ui::Text::String &leaf,
+					[&](const Ui::Text::String &leaf,
 							Spellchecker::HighlightProcessId) {
-						return LeafMinimumWidth(leaf);
+						const auto leafMinimum = LeafMinimumWidth(leaf);
+						if (leafMinimum <= 0) {
+							return 0;
+						}
+						return TableCellConstraintWidth(
+							leafMinimum,
+							leaf.maxWidth(),
+							st);
 					});
-			if (leafMinimum > 0) {
+			if (cellMinimumWidth > 0) {
 				constraints.push_back({
 					.column = std::max(cell.column, 0),
 					.colspan = std::max(cell.colspan, 1),
-					.minimumWidth = std::max(
-						leafMinimum + paddingWidth,
-						st.table.minColumnWidth),
+					.minimumWidth = cellMinimumWidth,
 				});
 			}
 		}
@@ -2458,8 +2586,6 @@ int RetainedTableBlockMinimumWidth(
 			captionMinimum,
 			TableMinimumGridWidth(columnCount, st, prepared.tableBordered));
 	}
-	const auto &padding = st.table.cellPadding;
-	const auto paddingWidth = padding.left() + padding.right();
 	auto constraints = std::vector<TableCellMinimumWidthConstraint>();
 	const auto rowCount = int(std::min(
 		prepared.tableRows.size(),
@@ -2483,9 +2609,10 @@ int RetainedTableBlockMinimumWidth(
 				constraints.push_back({
 					.column = cell.column,
 					.colspan = cell.colspan,
-					.minimumWidth = std::max(
-						leafMinimum + paddingWidth,
-						st.table.minColumnWidth),
+					.minimumWidth = TableCellConstraintWidth(
+						leafMinimum,
+						displayLeaf.maxWidth(),
+						st),
 				});
 			}
 		}
@@ -2517,6 +2644,8 @@ int BlockSkip(
 		return skips.code;
 	case PreparedBlockKind::Rule:
 		return skips.rule;
+	case PreparedBlockKind::ButtonRow:
+		return skips.buttonRow;
 	case PreparedBlockKind::List:
 	case PreparedBlockKind::ListItem:
 		return skips.paragraph;
@@ -2530,7 +2659,7 @@ int BlockSkip(
 		return skips.photo;
 	case PreparedBlockKind::Video:
 		return skips.video;
-	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::Document:
 		return skips.audio;
 	case PreparedBlockKind::Map:
 		return skips.map;
@@ -2621,6 +2750,8 @@ void RepopulateCodeBlockLeaf(
 		LaidOutBlock &block,
 		const std::vector<PreparedFormulaSlot> *formulas,
 		InlineFormulaObjectCache *inlineFormulaObjects,
+		const std::shared_ptr<InlineButtonPaintState> &inlineButtonPaintState,
+		int inlineButtonWidthCap,
 		const std::shared_ptr<MediaRuntime> &mediaRuntime,
 		const style::Markdown &st,
 		bool allowAsyncSyntaxHighlighting,
@@ -2636,6 +2767,8 @@ void RepopulateCodeBlockLeaf(
 		block.codeLanguage,
 		formulas,
 		inlineFormulaObjects,
+		inlineButtonPaintState,
+		inlineButtonWidthCap,
 		mediaRuntime,
 		st,
 		allowAsyncSyntaxHighlighting,
@@ -2701,6 +2834,8 @@ void UpdateLaidOutLeafContent(
 			*block,
 			formulas,
 			inlineFormulaObjects,
+			context.inlineButtonPaintState,
+			context.inlineButtonWidthCap,
 			mediaRuntime,
 			st,
 			context.allowAsyncSyntaxHighlighting,
@@ -2759,11 +2894,12 @@ void UpdateLaidOutLeafContent(
 	case PreparedBlockKind::Table:
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::Document:
 	case PreparedBlockKind::Map:
 	case PreparedBlockKind::Channel:
 	case PreparedBlockKind::GroupedMedia:
 	case PreparedBlockKind::EmbedPost:
+	case PreparedBlockKind::Placeholder:
 		BuildOrReuseMarkedTextLeaf(
 			&block->leaf,
 			CachedTextLeafSlot::Leaf,
@@ -2816,10 +2952,10 @@ void UpdateLaidOutLeafContent(
 		}
 		break;
 	case PreparedBlockKind::Rule:
+	case PreparedBlockKind::ButtonRow:
 	case PreparedBlockKind::List:
 	case PreparedBlockKind::ListItem:
 	case PreparedBlockKind::Quote:
-	case PreparedBlockKind::Placeholder:
 	case PreparedBlockKind::RelatedArticle:
 		break;
 	}
@@ -2874,6 +3010,8 @@ void UpdateLaidOutLeafContent(
 				prepared.text,
 				formulas,
 				inlineFormulaObjects,
+				context.inlineButtonPaintState,
+				context.inlineButtonWidthCap,
 				mediaRuntime,
 				minResizeWidth,
 				context.rtl,
@@ -2961,6 +3099,14 @@ void UpdateLaidOutLeafContent(
 	bool scrollOwner,
 	LayoutContext context);
 [[nodiscard]] std::optional<int> LayoutPlaceholderBlockGeometry(
+	const PreparedBlock &prepared,
+	LaidOutBlock *block,
+	const style::Markdown &st,
+	int left,
+	int top,
+	int width,
+	LayoutContext context);
+[[nodiscard]] std::optional<int> LayoutButtonRowBlockGeometry(
 	const PreparedBlock &prepared,
 	LaidOutBlock *block,
 	const style::Markdown &st,
@@ -3072,6 +3218,8 @@ LaidOutBlock LayoutFlowBlock(
 					prepared.text,
 					formulas,
 					inlineFormulaObjects,
+					context.inlineButtonPaintState,
+					context.inlineButtonWidthCap,
 					mediaRuntime,
 					FlowBlockMinimumWidth(prepared, st),
 					context.rtl,
@@ -3154,6 +3302,8 @@ LaidOutBlock LayoutCodeBlock(
 				block.codeLanguage,
 				formulas,
 				inlineFormulaObjects,
+				context.inlineButtonPaintState,
+				context.inlineButtonWidthCap,
 				mediaRuntime,
 				st,
 				allowAsyncSyntaxHighlighting,
@@ -3384,19 +3534,33 @@ LaidOutBlock LayoutPlaceholderBlock(
 	}
 	block.supplementary = prepared.supplementary;
 
-	const auto &style = st.placeholder;
-	BuildOrReusePlainTextLeaf(
-		&block.labelLeaf,
-		CachedTextLeafSlot::Label,
-		prepared,
-		style.labelStyle,
-		block.labelText,
-		PlainTextMinResizeWidth(style.labelStyle),
-		context);
-	if (prepared.placeholder.embed) {
-		block.activation.kind = MediaActivationKind::Embed;
-		block.activation.embed = *prepared.placeholder.embed;
+	if (prepared.placeholder.intent == PlaceholderIntent::UnsupportedBlock) {
+		block.activation.kind = MediaActivationKind::UnsupportedBlock;
 		block.activation.placeholderId = block.placeholderId;
+		if (block.placeholderRuntime
+			&& !block.placeholderRuntime->unsupportedCard) {
+			auto card = std::make_unique<Ui::UnsupportedNoticeCard>();
+			card->setTexts(
+				tr::lng_unsupported_block_title(tr::now),
+				tr::lng_unsupported_block_text(tr::now),
+				tr::lng_unsupported_message_update(tr::now));
+			block.placeholderRuntime->unsupportedCard = std::move(card);
+		}
+	} else {
+		const auto &style = st.placeholder;
+		BuildOrReusePlainTextLeaf(
+			&block.labelLeaf,
+			CachedTextLeafSlot::Label,
+			prepared,
+			style.labelStyle,
+			block.labelText,
+			PlainTextMinResizeWidth(style.labelStyle),
+			context);
+		if (prepared.placeholder.embed) {
+			block.activation.kind = MediaActivationKind::Embed;
+			block.activation.embed = *prepared.placeholder.embed;
+			block.activation.placeholderId = block.placeholderId;
+		}
 	}
 	FillMediaCaption(
 		&block,
@@ -3407,6 +3571,61 @@ LaidOutBlock LayoutPlaceholderBlock(
 		st,
 		context);
 	const auto bottom = LayoutPlaceholderBlockGeometry(
+		prepared,
+		&block,
+		st,
+		left,
+		top,
+		width,
+		context);
+	Expects(bottom.has_value());
+	return FinalizeLaidOutBlock(std::move(block));
+}
+
+LaidOutBlock LayoutButtonRowBlock(
+		const PreparedBlock &prepared,
+		std::vector<PreparedFormulaSlot> *formulas,
+		InlineFormulaObjectCache *inlineFormulaObjects,
+		const std::shared_ptr<MediaRuntime> &mediaRuntime,
+		const style::Markdown &st,
+		int left,
+		int top,
+		int width,
+		LayoutContext context) {
+	auto block = LaidOutBlock();
+	ApplyPreparedEditSources(&block, prepared);
+	block.kind = PreparedBlockKind::ButtonRow;
+	block.buttonRowId = prepared.buttonRow.id;
+	if (block.buttonRowId && context.buttonRowRuntimeFactory) {
+		block.buttonRowRuntime = context.buttonRowRuntimeFactory(
+			block.buttonRowId);
+	}
+	const auto &style = st.buttonRow;
+	block.buttons.reserve(prepared.buttonRow.buttons.size());
+	for (const auto &entry : prepared.buttonRow.buttons) {
+		auto button = LaidOutButton();
+		button.type = entry.button.type;
+		button.color = entry.button.visual.color;
+		SetTextLeaf(
+			&button.label,
+			style.labelStyle,
+			st,
+			entry.text,
+			formulas,
+			inlineFormulaObjects,
+			context.inlineButtonPaintState,
+			context.inlineButtonWidthCap,
+			mediaRuntime,
+			PlainTextMinResizeWidth(style.labelStyle),
+			context.rtl,
+			context.repaint,
+			context.repaintRect,
+			nullptr,
+			true);
+		button.fullLabel = button.label.toString();
+		block.buttons.push_back(std::move(button));
+	}
+	const auto bottom = LayoutButtonRowBlockGeometry(
 		prepared,
 		&block,
 		st,
@@ -3580,7 +3799,7 @@ LaidOutBlock LayoutVideoBlock(
 	return FinalizeLaidOutBlock(std::move(block));
 }
 
-LaidOutBlock LayoutAudioBlock(
+LaidOutBlock LayoutDocumentBlock(
 		const PreparedBlock &prepared,
 		std::vector<PreparedFormulaSlot> *formulas,
 		InlineFormulaObjectCache *inlineFormulaObjects,
@@ -3592,7 +3811,7 @@ LaidOutBlock LayoutAudioBlock(
 		LayoutContext context) {
 	auto block = LaidOutBlock();
 	ApplyPreparedEditSources(&block, prepared);
-	block.kind = PreparedBlockKind::Audio;
+	block.kind = PreparedBlockKind::Document;
 	block.anchorId = prepared.anchorId;
 	block.anchorIds = prepared.anchorIds;
 	block.supplementary = prepared.supplementary;
@@ -3801,9 +4020,19 @@ LaidOutBlock LayoutGroupedMediaBlock(
 	const auto &displayLeaf = usePlaceholder
 		? block->placeholderLeaf
 		: block->leaf;
-	const auto height = ResolveEditableHeight(
+	auto height = ResolveEditableHeight(
 		LeafHeight(displayLeaf, textStyle, block->textWidth),
 		context);
+	const auto clipped = prepared.quoteAuthor
+		? 0
+		: LeafCollapsedLineBottom(
+			displayLeaf,
+			block->textWidth,
+			context.collapsibleQuoteLines);
+	block->collapsedLinesExceeded = (clipped > 0);
+	if (clipped > 0 && context.collapsibleQuoteCollapsed) {
+		height = std::min(height, clipped);
+	}
 	block->textRect = QRect(left, top, block->textWidth, height);
 	block->contentRect = QRect(left, top, visibleWidth, height);
 	block->overflowed = (block->textWidth > visibleWidth);
@@ -4220,7 +4449,7 @@ LaidOutBlock LayoutGroupedMediaBlock(
 		st,
 		block->tableBordered,
 		&block->overflowed);
-	const auto &padding = st.table.cellPadding;
+	const auto padding = TableCellPadding(prepared.tableCompact, st);
 	const auto border = TableBorder(block->tableBordered, st);
 	block->tableBorder = border;
 	auto tableWidth = border;
@@ -4321,7 +4550,7 @@ LaidOutBlock LayoutGroupedMediaBlock(
 		for (auto cellIndex = 0, cellCount = int(rowData.cells.size());
 				cellIndex != cellCount;
 				++cellIndex) {
-			auto &cellData = rowData.cells[cellIndex];
+			const auto &cellData = rowData.cells[cellIndex];
 			if (!cellData.cell) {
 				continue;
 			}
@@ -4426,7 +4655,7 @@ LaidOutBlock LayoutGroupedMediaBlock(
 		for (auto cellIndex = 0, cellCount = int(prepared.tableRows[rowIndex].cells.size());
 				cellIndex != cellCount;
 				++cellIndex) {
-			auto &cell = block->tableRows[rowIndex].cells[cellIndex];
+			const auto &cell = block->tableRows[rowIndex].cells[cellIndex];
 			const auto &preparedCell = prepared.tableRows[rowIndex].cells[cellIndex];
 			const auto usePlaceholder = preparedCell.text.text.isEmpty()
 				&& !preparedCell.editPlaceholderText.isEmpty();
@@ -4448,6 +4677,41 @@ LaidOutBlock LayoutGroupedMediaBlock(
 	return block->outer.y() + block->outer.height();
 }
 
+[[nodiscard]] int LayoutUnsupportedNoticeBlockGeometry(
+		LaidOutBlock *block,
+		int left,
+		int top,
+		int width) {
+	Expects(block->placeholderRuntime != nullptr);
+	Expects(block->placeholderRuntime->unsupportedCard != nullptr);
+
+	const auto &runtime = block->placeholderRuntime;
+	const auto card = runtime->unsupportedCard.get();
+	ClearBlockGeometry(block);
+	const auto blockWidth = std::max(width, 1);
+	const auto inset = st::msgServicePadding.left();
+	const auto cardHeight = card->resizeGetHeight(
+		std::max(blockWidth - 2 * inset, 1));
+	const auto height = 2 * st::unsupportedTearAmplitude
+		+ 2 * st::unsupportedGapSkip
+		+ cardHeight;
+	const auto cardLeft = left + (blockWidth - card->width()) / 2;
+	const auto cardTop = top
+		+ st::unsupportedTearAmplitude
+		+ st::unsupportedGapSkip;
+	block->mediaRect = card->buttonRect().translated(cardLeft, cardTop);
+	block->visibleMediaRect = block->mediaRect;
+	if (runtime->ripple
+		&& runtime->rippleSize != block->mediaRect.size()) {
+		runtime->ripple = nullptr;
+		runtime->rippleSize = QSize();
+	}
+	block->contentRect = QRect(left, top, blockWidth, height);
+	block->outer = block->contentRect;
+	FinishBlockGeometry(block);
+	return block->outer.y() + block->outer.height();
+}
+
 [[nodiscard]] std::optional<int> LayoutPlaceholderBlockGeometry(
 		const PreparedBlock &prepared,
 		LaidOutBlock *block,
@@ -4456,8 +4720,13 @@ LaidOutBlock LayoutGroupedMediaBlock(
 		int top,
 		int width,
 		LayoutContext context) {
-	if (!block
-		|| MissingRetainedLeaf(prepared.placeholder.label, block->labelLeaf)) {
+	if (!block) {
+		return std::nullopt;
+	}
+	if (prepared.placeholder.intent == PlaceholderIntent::UnsupportedBlock) {
+		return LayoutUnsupportedNoticeBlockGeometry(block, left, top, width);
+	}
+	if (MissingRetainedLeaf(prepared.placeholder.label, block->labelLeaf)) {
 		return std::nullopt;
 	}
 	ClearBlockGeometry(block);
@@ -4510,6 +4779,59 @@ LaidOutBlock LayoutGroupedMediaBlock(
 		blockWidth,
 		std::max(bottom - top, mediaHeight));
 	block->outer = block->contentRect;
+	FinishBlockGeometry(block);
+	return block->outer.y() + block->outer.height();
+}
+
+// LayoutButtonRowButtons fills every button rect relative to the row origin,
+// so the whole row is translated here by the block's top-left corner. From
+// this point on the button rects live in exactly the same coordinate space
+// as block->outer, which is what paint, hit testing and the ripple local
+// point all assume, and what the retained relayout path keeps true when it
+// re-runs this function at a different width. In the editor the buttons take
+// only the band left of the reserved row control, while block->outer keeps
+// spanning the full width, so no button can ever sit under that control.
+[[nodiscard]] std::optional<int> LayoutButtonRowBlockGeometry(
+		const PreparedBlock &prepared,
+		LaidOutBlock *block,
+		const style::Markdown &st,
+		int left,
+		int top,
+		int width,
+		LayoutContext context) {
+	if (!block) {
+		return std::nullopt;
+	}
+	ClearBlockGeometry(block);
+	const auto &style = st.buttonRow;
+	const auto blockWidth = std::max(width, 1);
+	const auto reserve = context.editMode ? ButtonRowControlReserve() : 0;
+	const auto bandWidth = std::max(blockWidth - reserve, 1);
+	LayoutButtonRowButtons(
+		&block->buttons,
+		prepared.flowAlignment,
+		bandWidth,
+		style);
+	const auto shift = QPoint(left, top);
+	for (auto &button : block->buttons) {
+		button.rect.translate(shift);
+		button.labelRect.translate(shift);
+		if (button.icon) {
+			button.iconRect.translate(shift);
+		}
+		button.logicalRect = button.rect;
+		button.logicalLabelRect = button.labelRect;
+		button.logicalIconRect = button.iconRect;
+	}
+	block->outer = QRect(left, top, blockWidth, style.height);
+	block->contentRect = block->outer;
+	block->buttonRowControlRect = reserve
+		? ButtonRowControlRect(block->outer)
+		: QRect();
+	RefreshButtonRowHandlers(
+		block->buttonRowRuntime,
+		prepared.buttonRow,
+		block->buttons);
 	FinishBlockGeometry(block);
 	return block->outer.y() + block->outer.height();
 }
@@ -4810,6 +5132,15 @@ std::optional<int> RecountSimpleLaidOutBlock(
 			context);
 	case PreparedBlockKind::Rule:
 		return LayoutRuleBlockGeometry(block, st, left, top, width);
+	case PreparedBlockKind::ButtonRow:
+		return LayoutButtonRowBlockGeometry(
+			prepared,
+			block,
+			st,
+			left,
+			top,
+			width,
+			context);
 	case PreparedBlockKind::DisplayMath:
 		return LayoutDisplayMathBlockGeometry(
 			prepared,
@@ -4871,7 +5202,7 @@ std::optional<int> RecountSimpleLaidOutBlock(
 			true,
 			prepared.video.media.width,
 			context);
-	case PreparedBlockKind::Audio:
+	case PreparedBlockKind::Document:
 		if (!block
 			|| !block->mediaBlock
 			|| !block->mediaBlock->alive()) {

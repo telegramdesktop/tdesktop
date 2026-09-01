@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_chat.h"
 
 namespace HistoryView::Controls {
 

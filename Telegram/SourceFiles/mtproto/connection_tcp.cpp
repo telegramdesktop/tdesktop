@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/connection_tcp.h"
 
 #include "mtproto/details/mtproto_abstract_socket.h"
+#include "mtproto/details/mtproto_web_proxy_socket.h"
 #include "base/bytes.h"
 #include "base/openssl_help.h"
 #include "base/random.h"
@@ -514,10 +515,12 @@ void TcpConnection::connectToServer(
 	Expects(_protocol == nullptr);
 	Expects(_protocolDcId == 0);
 
-	const auto secret = (_proxy.type == ProxyData::Type::Mtproto)
+	const auto proxyProtocol = (_proxy.type == ProxyData::Type::Mtproto)
+		|| (_proxy.type == ProxyData::Type::Web);
+	const auto secret = proxyProtocol
 		? _proxy.secretFromMtprotoPassword()
 		: protocolSecret;
-	if (_proxy.type == ProxyData::Type::Mtproto) {
+	if (proxyProtocol) {
 		_address = _proxy.host;
 		_port = _proxy.port;
 		_protocol = Protocol::Create(secret);
@@ -526,11 +529,13 @@ void TcpConnection::connectToServer(
 		_port = port;
 		_protocol = Protocol::Create(secret);
 	}
-	_socket = AbstractSocket::Create(
-		thread(),
-		secret,
-		ToNetworkProxy(_proxy),
-		protocolForFiles);
+	_socket = (_proxy.type == ProxyData::Type::Web)
+		? std::make_unique<WebProxySocket>(thread(), _proxy)
+		: AbstractSocket::Create(
+			thread(),
+			secret,
+			ToNetworkProxy(_proxy),
+			protocolForFiles);
 	_protocolDcId = protocolDcId;
 
 	const auto postfix = _socket->debugPostfix();
@@ -538,7 +543,11 @@ void TcpConnection::connectToServer(
 		.arg(_debugId.toInt())
 		.arg(
 			ProtocolDcDebugId(_protocolDcId),
-			(_proxy.type == ProxyData::Type::Mtproto) ? "mtproxy " : "",
+			(_proxy.type == ProxyData::Type::Mtproto)
+				? "mtproxy "
+				: (_proxy.type == ProxyData::Type::Web)
+				? "webproxy "
+				: "",
 			_address)
 		.arg(_port)
 		.arg(postfix.isEmpty() ? _protocol->debugPostfix() : postfix);

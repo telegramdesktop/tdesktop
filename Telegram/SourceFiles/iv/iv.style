@@ -91,12 +91,14 @@ ivEditorBodyPadding: margins(0px, 8px, 0px, 8px);
 ivEditorToolbarButtonSize: 36px;
 ivEditorEmojiColumnCloseSize: 30px;
 ivEditorToolbarPadding: margins(9px, 10px, 9px, 10px);
-ivEditorToolbarDividerSkip: 6px;
-ivEditorToolbarDividerHeight: 18px;
 ivEditorToolbarGroupsSkip: 6px;
 ivEditorBottomControlsPadding: margins(9px, 10px, 9px, 10px);
 ivEditorPillPadding: 2px;
 ivEditorPillButtonSkip: 6px;
+ivEditorScroll: ScrollArea(boxScroll) {
+	width: ivEditorToolbarPadding.left;
+	deltax: 3px;
+}
 ivEditorBottomCircleSize: 40px;
 ivEditorSendLockBadgeShift: point(-5px, -5px);
 ivComposeSendLockBadgePosition: point(1px, 2px);
@@ -111,6 +113,19 @@ ivEditorToolbarPremiumStarSize: 11px;
 ivEditorToolbarPremiumStarSkip: point(5px, 7px);
 ivEditorToolbarPremiumStarOutline: 2px;
 ivEditorStyleMenuPremiumStarSize: 16px;
+ivEditorSuggestionsMaxRows: 5;
+ivEditorSuggestionsSkip: 4px;
+ivEditorSuggestionsShortcutSkip: 12px;
+ivEditorSuggestionsPadding: margins(0px, 5px, 0px, 5px);
+ivEditorSuggestionsQueryPadding: margins(4px, 2px, 4px, 2px);
+ivEditorSuggestionsQueryRadius: 4px;
+ivEditorSuggestionsRadius: 8px;
+ivEditorSuggestionsScroll: ScrollArea(defaultSolidScroll) {
+	deltax: 3px;
+	deltat: 4px;
+	deltab: 4px;
+	width: 10px;
+}
 ivEditorPillShadow: BoxShadow {
 	blurRadius: 3px;
 	offset: point(0px, 1px);
@@ -118,13 +133,7 @@ ivEditorPillShadow: BoxShadow {
 }
 ivEditorEmojiColumnCloseScrollSkip: 4px;
 ivEditorToolbarUndoIcon: icon {{ "menu/tabs_undo-24x24", menuIconColor }};
-ivEditorToolbarUndoIconOver: icon {{ "menu/tabs_undo-24x24", menuIconColor }};
-ivEditorToolbarUndoIconDisabled: icon {{ "menu/tabs_undo-24x24", windowSubTextFg }};
 ivEditorToolbarRedoIcon: icon {{ "menu/tabs_redo-24x24", menuIconColor }};
-ivEditorToolbarRedoIconOver: icon {{ "menu/tabs_redo-24x24", menuIconColor }};
-ivEditorToolbarRedoIconDisabled: icon {{ "menu/tabs_redo-24x24", windowSubTextFg }};
-ivEditorToolbarOverflowIcon: icon {{ "title_menu_dots", menuIconColor, point(0px, -2px) }};
-ivEditorToolbarOverflowIconOver: icon {{ "title_menu_dots", menuIconColor, point(0px, -2px) }};
 ivEditorToolbarBoldIcon: icon {{ "menu/rich/bold-24x24", menuIconColor }};
 ivEditorToolbarItalicIcon: icon {{ "menu/rich/italic-24x24", menuIconColor }};
 ivEditorToolbarUnderlineIcon: icon {{ "menu/rich/underline-24x24", menuIconColor }};
@@ -135,6 +144,7 @@ ivEditorToolbarSuperscriptIcon: icon {{ "menu/rich/superscript-24x24", menuIconC
 ivEditorToolbarMarkedIcon: icon {{ "menu/rich/marked-24x24", menuIconColor }};
 ivEditorToolbarPlainTextIcon: icon {{ "menu/rich/plain_text-24x24", menuIconColor }};
 ivEditorToolbarLinkIcon: icon {{ "menu/rich/link-24x24", menuIconColor }};
+ivEditorToolbarButtonIcon: icon {{ "menu/rich/button-24x24", menuIconColor }};
 ivEditorBottomDiscardIcon: icon {{ "menu/rich/discard-24x24", menuIconColor }};
 ivEditorBottomCancelIcon: icon {{ "menu/rich/cancel-24x24", menuIconColor }};
 ivEditorPremiumChoiceIcon: icon {{ "menu/article_rich-24x24", windowFgActive }};
@@ -206,10 +216,6 @@ ivEditorBottomSaveSend: SendButton(historySend) {
 	}
 	sendIconFg: windowFgActive;
 }
-ivEditorToolbarOverflowButton: IconButton(ivEditorToolbarButton) {
-	icon: ivEditorToolbarOverflowIcon;
-	iconOver: ivEditorToolbarOverflowIconOver;
-}
 ivEditorEmojiColumnCloseIcon: icon {{ "simple_close", menuIconColor }};
 ivEditorEmojiColumnCloseIconOver: icon {{ "simple_close", menuIconColor }};
 ivEditorEmojiColumnClose: IconButton(ivEditorToolbarButton) {
@@ -259,6 +265,14 @@ ivSummaryAudioIcon: IconEmoji {
 	icon: icon {{ "menu/rich/audio-18x18", dialogsTextFg }};
 	padding: margins(0px, 1px, 3px, 0px);
 }
+ivSummaryTaskCheckedIcon: IconEmoji {
+	icon: icon {{ "menu/rich/task_checked-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 1px, 0px);
+}
+ivSummaryTaskUncheckedIcon: IconEmoji {
+	icon: icon {{ "menu/rich/task_unchecked-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 1px, 0px);
+}
 ivSummaryLocationIcon: IconEmoji {
 	icon: icon {{ "menu/rich/location-18x18", dialogsTextFg }};
 	padding: margins(0px, 1px, 3px, 0px);
@@ -281,6 +295,8 @@ ivEditorMediaAddIcon: icon {{ "menu/rich/media_add-20x20", windowFgActive }};
 ivEditorMediaUploadRadialSize: 44px;
 ivEditorMediaToCollageIcon: icon {{ "menu/rich/to_collage-20x20", windowFgActive }};
 ivEditorMediaToSlideshowIcon: icon {{ "menu/rich/to_slideshow-20x20", windowFgActive }};
+ivEditorButtonRowControlSize: 22px;
+ivEditorButtonRowControlSkip: 4px;
 ivEditorTableAddCellsIcon: icon {{ "menu/rich/table_add_cells-24x24", menuIconColor }};
 ivEditorTableAddRowAboveIcon: icon {{ "menu/rich/table_add_row_above-24x24", menuIconColor }};
 ivEditorTableAddRowBelowIcon: icon {{ "menu/rich/table_add_row_below-24x24", menuIconColor }};
@@ -290,6 +306,7 @@ ivEditorTableHeaderIcon: icon {{ "menu/rich/table_highlight-24x24", menuIconColo
 ivEditorTableHeaderOffIcon: icon {{ "menu/rich/table_highlight_off-24x24", menuIconColor }};
 ivEditorTableBorderlessIcon: icon {{ "menu/rich/table_borderless-24x24", menuIconColor }};
 ivEditorTableStripedIcon: icon {{ "menu/rich/table_striped-24x24", menuIconColor }};
+ivEditorTableCompactIcon: icon {{ "menu/rich/table_compact-24x24", menuIconColor }};
 ivEditorTableAlignmentIcon: icon {{ "menu/rich/table_alignment-24x24", menuIconColor }};
 ivEditorTableAlignLeftIcon: icon {{ "menu/rich/align_left-24x24", menuIconColor }};
 ivEditorTableAlignCenterIcon: icon {{ "menu/rich/align_center-24x24", menuIconColor }};
@@ -297,12 +314,12 @@ ivEditorTableAlignRightIcon: icon {{ "menu/rich/align_right-24x24", menuIconColo
 ivEditorTableAlignTopIcon: icon {{ "menu/rich/align_top-24x24", menuIconColor }};
 ivEditorTableAlignMiddleIcon: icon {{ "menu/rich/align_middle-24x24", menuIconColor }};
 ivEditorTableAlignBottomIcon: icon {{ "menu/rich/align_bottom-24x24", menuIconColor }};
+ivEditorButtonAlignStretchIcon: icon {{ "menu/rich/align_stretch-24x24", menuIconColor }};
 ivEditorTableDeleteCellsIcon: icon {{ "menu/rich/table_delete_cells-24x24", menuIconColor }};
 ivEditorTableDeleteRowsIcon: icon {{ "menu/rich/table_delete_row-24x24", menuIconColor }};
 ivEditorTableDeleteColumnsIcon: icon {{ "menu/rich/table_delete_column-24x24", menuIconColor }};
 ivEditorTableMergeIcon: icon {{ "menu/rich/table_merge-24x24", menuIconColor }};
 ivEditorTableSplitIcon: icon {{ "menu/rich/table_split-24x24", menuIconColor }};
-ivEditorInlineFieldMargins: margins(4px, 0px, 6px, 0px);
 ivEditorMinHeight: boxWidth;
 ivEditorInputField: InputField(defaultInputField) {
 	style: historyTextStyle;
@@ -343,6 +360,7 @@ MarkdownBlockSkips {
 	relatedArticle: pixels;
 	embedPost: pixels;
 	placeholder: pixels;
+	buttonRow: pixels;
 }
 MarkdownList {
 	indent: pixels;
@@ -443,6 +461,42 @@ MarkdownPlaceholder {
 	labelStyle: TextStyle;
 	labelFg: color;
 	labelFgActive: color;
+}
+MarkdownButtonRow {
+	height: pixels;
+	spacing: pixels;
+	padding: pixels;
+	labelMinPadding: pixels;
+	iconExtra: pixels;
+	iconPosition: point;
+	labelStyle: TextStyle;
+	defaultBg: color;
+	defaultBgOpacity: double;
+	defaultRipple: color;
+	defaultRippleOpacity: double;
+	defaultFg: color;
+	primaryBg: color;
+	primaryRipple: color;
+	primaryFg: color;
+	successFg: color;
+	dangerFg: color;
+	tintBgOpacity: double;
+	tintRippleOpacity: double;
+	disabledOpacity: double;
+	disabledPrimaryOpacity: double;
+}
+MarkdownInlineButton {
+	padding: pixels;
+	verticalPadding: pixels;
+	labelStyle: TextStyle;
+	defaultFg: color;
+	primaryBg: color;
+	successFg: color;
+	dangerFg: color;
+	tintBgOpacity: double;
+	disabledOpacity: double;
+	disabledPrimaryOpacity: double;
+	maxWidth: pixels;
 }
 MarkdownPhoto {
 	padding: margins;
@@ -589,6 +643,8 @@ Markdown {
 	relatedArticle: MarkdownRelatedArticle;
 	groupedMedia: MarkdownGroupedMedia;
 	failure: MarkdownFailure;
+	buttonRow: MarkdownButtonRow;
+	inlineButton: MarkdownInlineButton;
 }
 
 defaultMarkdownTextPalette: TextPalette(defaultTextPalette) {
@@ -628,6 +684,7 @@ defaultMarkdownBlockSkips: MarkdownBlockSkips {
 	relatedArticle: 0px;
 	embedPost: 12px;
 	placeholder: 12px;
+	buttonRow: 12px;
 }
 defaultMarkdownList: MarkdownList {
 	indent: 28px;
@@ -688,6 +745,12 @@ ivFormulaSourceField: InputField(defaultInputField) {
 	placeholderShift: -50px;
 	heightMin: 33px;
 }
+ivButtonPreviewMargin: margins(22px, 4px, 22px, 10px);
+ivButtonPreviewOutlineSkip: 2px;
+ivButtonPreviewOutlineStroke: 2px;
+ivButtonPreviewOutlineFg: activeLineFg;
+ivButtonRadioPadding: margins(22px, 5px, 22px, 5px);
+ivButtonPeerRowMargin: margins(0px, 0px, 0px, 10px);
 defaultMarkdownTable: MarkdownTable {
 	cellPadding: margins(8px, 10px, 8px, 10px);
 	border: 1px;
@@ -890,6 +953,54 @@ defaultMarkdownFailure: MarkdownFailure {
 	width: 360px;
 	skip: 12px;
 }
+markdownButtonRowTintBgOpacity: 0.12;
+markdownButtonRowTintRippleOpacity: 0.22;
+defaultMarkdownButtonRowLabelStyle: TextStyle(defaultMarkdownBodyStyle) {
+	font: font(13px semibold);
+	lineHeight: 0px;
+}
+defaultMarkdownButtonRow: MarkdownButtonRow {
+	height: 26px;
+	spacing: 6px;
+	padding: 17px;
+	labelMinPadding: 4px;
+	iconExtra: 10px;
+	iconPosition: point(6px, 5px);
+	labelStyle: defaultMarkdownButtonRowLabelStyle;
+	defaultBg: windowBgOver;
+	defaultBgOpacity: 1.0;
+	defaultRipple: windowBgRipple;
+	defaultRippleOpacity: 1.0;
+	defaultFg: windowBoldFg;
+	primaryBg: activeButtonBg;
+	primaryRipple: activeButtonBgRipple;
+	primaryFg: activeButtonFg;
+	successFg: historyPeer2NameFg;
+	dangerFg: historyPeer1NameFg;
+	tintBgOpacity: markdownButtonRowTintBgOpacity;
+	tintRippleOpacity: markdownButtonRowTintRippleOpacity;
+	disabledOpacity: 0.33;
+	disabledPrimaryOpacity: 0.6;
+}
+markdownInlineButtonDisabledOpacity: 0.55;
+markdownInlineButtonDisabledPrimaryOpacity: 0.6;
+defaultMarkdownInlineButtonLabelStyle: TextStyle(defaultMarkdownBodyStyle) {
+	font: font(12px semibold);
+	lineHeight: 0px;
+}
+defaultMarkdownInlineButton: MarkdownInlineButton {
+	padding: 6px;
+	verticalPadding: 2px;
+	labelStyle: defaultMarkdownInlineButtonLabelStyle;
+	defaultFg: windowActiveTextFg;
+	primaryBg: activeButtonBg;
+	successFg: historyPeer2NameFg;
+	dangerFg: historyPeer1NameFg;
+	tintBgOpacity: markdownButtonRowTintBgOpacity;
+	disabledOpacity: markdownInlineButtonDisabledOpacity;
+	disabledPrimaryOpacity: markdownInlineButtonDisabledPrimaryOpacity;
+	maxWidth: msgMaxWidth - msgPadding.leftRight;
+}
 markdownFootnoteBox: Box(defaultBox) {
 	buttonPadding: margins(0px, 0px, 0px, 0px);
 	buttonHeight: 0px;
@@ -985,6 +1096,8 @@ defaultMarkdown: Markdown {
 	relatedArticle: defaultMarkdownRelatedArticle;
 	groupedMedia: defaultMarkdownGroupedMedia;
 	failure: defaultMarkdownFailure;
+	buttonRow: defaultMarkdownButtonRow;
+	inlineButton: defaultMarkdownInlineButton;
 }
 messageMarkdownBodyStyle: TextStyle(messageTextStyle) {
 	font: font(13px);
@@ -1057,6 +1170,7 @@ messageMarkdownBlockSkips: MarkdownBlockSkips {
 	relatedArticle: 0px;
 	embedPost: 8px;
 	placeholder: 8px;
+	buttonRow: 8px;
 }
 messageMarkdownQuoteBgOpacity: 0.12;
 messageMarkdownDetailsIcon: icon{{ "history_down_arrow", msgInDateFg }};
@@ -1094,6 +1208,26 @@ messageMarkdownNavNextIconOut: icon{{
 messageMarkdownNavNextIconOutSelected: icon{{
 	"box_button_back-flip_horizontal",
 	windowFg
+}};
+messageMarkdownTaskCheckIcon: icon{{
+	"default_checkbox_check",
+	historyFileInIconFg,
+	point(4px, 7px)
+}};
+messageMarkdownTaskCheckIconSelected: icon{{
+	"default_checkbox_check",
+	historyFileInIconFgSelected,
+	point(4px, 7px)
+}};
+messageMarkdownTaskCheckIconOut: icon{{
+	"default_checkbox_check",
+	historyFileOutIconFg,
+	point(4px, 7px)
+}};
+messageMarkdownTaskCheckIconOutSelected: icon{{
+	"default_checkbox_check",
+	historyFileOutIconFgSelected,
+	point(4px, 7px)
 }};
 messageMarkdownList: MarkdownList(defaultMarkdownList) {
 	bulletFg: historyTextInFg;
@@ -1229,7 +1363,9 @@ messageMarkdown: Markdown(defaultMarkdown) {
 	blockSkips: messageMarkdownBlockSkips;
 	list: MarkdownList(messageMarkdownList) {
 		taskCheck: Check(defaultCheck) {
+			untoggledFg: msgInDateFg;
 			toggledFg: msgFileInBg;
+			icon: messageMarkdownTaskCheckIcon;
 		}
 	}
 	quoteIndent: 16px;
@@ -1255,7 +1391,9 @@ messageMarkdownOut: Markdown(messageMarkdown) {
 	list: MarkdownList(messageMarkdownList) {
 		bulletFg: historyTextOutFg;
 		taskCheck: Check(defaultCheck) {
+			untoggledFg: msgOutDateFg;
 			toggledFg: msgFileOutBg;
+			icon: messageMarkdownTaskCheckIconOut;
 		}
 	}
 	quotePaintColors: MarkdownQuotePaintColors(messageMarkdownQuotePaintColors) {
@@ -1306,6 +1444,19 @@ messageMarkdownOut: Markdown(messageMarkdown) {
 	failure: MarkdownFailure(messageMarkdownFailure) {
 		label: messageMarkdownFailureLabelOut;
 	}
+	buttonRow: MarkdownButtonRow(defaultMarkdownButtonRow) {
+		defaultBg: msgOutReplyBarColor;
+		defaultBgOpacity: markdownButtonRowTintBgOpacity;
+		defaultRipple: msgOutReplyBarColor;
+		defaultRippleOpacity: markdownButtonRowTintRippleOpacity;
+		defaultFg: msgOutReplyBarColor;
+		primaryBg: msgOutReplyBarColor;
+		primaryRipple: msgFileOutBg;
+	}
+	inlineButton: MarkdownInlineButton(defaultMarkdownInlineButton) {
+		defaultFg: msgOutReplyBarColor;
+		primaryBg: msgOutReplyBarColor;
+	}
 }
 messageMarkdownSelected: Markdown(messageMarkdown) {
 	textPalette: TextPalette(inTextPaletteSelected) {
@@ -1316,7 +1467,9 @@ messageMarkdownSelected: Markdown(messageMarkdown) {
 	list: MarkdownList(messageMarkdownList) {
 		bulletFg: historyTextInFgSelected;
 		taskCheck: Check(defaultCheck) {
+			untoggledFg: msgInDateFgSelected;
 			toggledFg: msgFileInBgSelected;
+			icon: messageMarkdownTaskCheckIconSelected;
 		}
 	}
 	quotePaintColors: MarkdownQuotePaintColors(messageMarkdownQuotePaintColors) {
@@ -1367,6 +1520,15 @@ messageMarkdownSelected: Markdown(messageMarkdown) {
 	failure: MarkdownFailure(messageMarkdownFailure) {
 		label: messageMarkdownFailureLabelSelected;
 	}
+	buttonRow: MarkdownButtonRow(defaultMarkdownButtonRow) {
+		defaultFg: historyTextInFgSelected;
+		successFg: historyPeer2NameFgSelected;
+		dangerFg: historyPeer1NameFgSelected;
+	}
+	inlineButton: MarkdownInlineButton(defaultMarkdownInlineButton) {
+		successFg: historyPeer2NameFgSelected;
+		dangerFg: historyPeer1NameFgSelected;
+	}
 }
 messageMarkdownOutSelected: Markdown(messageMarkdown) {
 	textPalette: TextPalette(outTextPaletteSelected) {
@@ -1377,7 +1539,9 @@ messageMarkdownOutSelected: Markdown(messageMarkdown) {
 	list: MarkdownList(messageMarkdownList) {
 		bulletFg: historyTextOutFgSelected;
 		taskCheck: Check(defaultCheck) {
+			untoggledFg: msgOutDateFgSelected;
 			toggledFg: msgFileOutBgSelected;
+			icon: messageMarkdownTaskCheckIconOutSelected;
 		}
 	}
 	quotePaintColors: MarkdownQuotePaintColors(messageMarkdownQuotePaintColors) {
@@ -1427,6 +1591,23 @@ messageMarkdownOutSelected: Markdown(messageMarkdown) {
 	}
 	failure: MarkdownFailure(messageMarkdownFailure) {
 		label: messageMarkdownFailureLabelOutSelected;
+	}
+	buttonRow: MarkdownButtonRow(defaultMarkdownButtonRow) {
+		defaultBg: msgOutReplyBarSelColor;
+		defaultBgOpacity: markdownButtonRowTintBgOpacity;
+		defaultRipple: msgOutReplyBarSelColor;
+		defaultRippleOpacity: markdownButtonRowTintRippleOpacity;
+		defaultFg: msgOutReplyBarSelColor;
+		primaryBg: msgOutReplyBarSelColor;
+		primaryRipple: msgFileOutBgSelected;
+		successFg: historyPeer2NameFgSelected;
+		dangerFg: historyPeer1NameFgSelected;
+	}
+	inlineButton: MarkdownInlineButton(defaultMarkdownInlineButton) {
+		defaultFg: msgOutReplyBarSelColor;
+		primaryBg: msgOutReplyBarSelColor;
+		successFg: historyPeer2NameFgSelected;
+		dangerFg: historyPeer1NameFgSelected;
 	}
 }
 aiComposeCardMarkdown: Markdown(messageMarkdown) {

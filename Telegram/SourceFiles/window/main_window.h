@@ -82,6 +82,8 @@ public:
 	[[nodiscard]] QRect desktopRect() const;
 	[[nodiscard]] Core::WindowPosition withScreenInPosition(
 		Core::WindowPosition position) const;
+	[[nodiscard]] Core::WindowPosition countPositionForSave();
+	void applySavedPosition(const Core::WindowPosition &position);
 
 	void init();
 
@@ -193,6 +195,8 @@ protected:
 
 private:
 	void refreshTitleWidget();
+	void setupCanaryTitleLabel();
+	[[nodiscard]] QString nativeTitleSuffix() const;
 	void updateMinimumSize();
 	void updatePalette();
 

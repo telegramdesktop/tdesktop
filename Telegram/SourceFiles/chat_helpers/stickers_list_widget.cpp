@@ -468,7 +468,7 @@ void StickersListWidget::readVisibleFeatured(
 		0,
 		_featuredSetsCount);
 	for (auto i = rowFrom; i < rowTo; ++i) {
-		auto &set = _officialSets[i];
+		const auto &set = _officialSets[i];
 		if (!(set.flags & SetFlag::Unread)) {
 			continue;
 		}
@@ -1748,8 +1748,8 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 
 				widthForTitle -= remove.width();
 			}
-			const auto amCreator
-				= (set.flags & Data::StickersSetFlag::AmCreator);
+			const auto amCreator = _features.openStickerSets
+				&& (set.flags & Data::StickersSetFlag::AmCreator);
 			if (amCreator) {
 				widthForTitle -= badgeWidth
 					+ st::stickersFeaturedUnreadSkip
@@ -1897,7 +1897,7 @@ void StickersListWidget::clearHeavyIn(Set &set, bool clearSavedFrames) {
 }
 
 void StickersListWidget::pauseInvisibleLottieIn(const SectionInfo &info) {
-	auto &set = shownSets()[info.section];
+	const auto &set = shownSets()[info.section];
 	const auto player = set.lottiePlayer.get();
 	if (!player) {
 		return;
@@ -1984,7 +1984,7 @@ void StickersListWidget::ensureLottiePlayer(Set &set) {
 
 	raw->updates(
 	) | rpl::on_next([=] {
-		auto &sets = shownSets();
+		const auto &sets = shownSets();
 		enumerateSections([&](const SectionInfo &info) {
 			if (sets[info.section].lottiePlayer.get() != raw) {
 				return true;
@@ -2085,7 +2085,7 @@ void StickersListWidget::updateSets() {
 		return;
 	}
 	auto repaint = base::take(_repaintSetsIds);
-	auto &sets = shownSets();
+	const auto &sets = shownSets();
 	enumerateSections([&](const SectionInfo &info) {
 		if (repaint.contains(sets[info.section].id)) {
 			updateSet(info);
@@ -2095,7 +2095,7 @@ void StickersListWidget::updateSets() {
 }
 
 void StickersListWidget::updateSet(const SectionInfo &info) {
-	auto &set = shownSets()[info.section];
+	const auto &set = shownSets()[info.section];
 
 	const auto now = crl::now();
 	const auto delay = std::max(
@@ -2454,7 +2454,7 @@ StickersListWidget::createSearchShortcutRipple(int index) {
 		searchShortcutRect(index).size(),
 		st::roundRadiusLarge);
 	return std::make_unique<Ui::RippleAnimation>(
-		st::defaultRippleAnimation,
+		st().searchPackRipple,
 		std::move(mask),
 		[this, setId] {
 			const auto i = ranges::find(_searchShortcutSets, setId, &Set::id);
@@ -2547,7 +2547,7 @@ void StickersListWidget::showStickerSetBox(
 base::unique_qptr<Ui::PopupMenu> StickersListWidget::fillContextMenu(
 		const SendMenu::Details &details) {
 	auto selected = _selected;
-	auto &sets = shownSets();
+	const auto &sets = shownSets();
 	if (v::is_null(selected) || !v::is_null(_pressed)) {
 		return nullptr;
 	}
@@ -2567,7 +2567,7 @@ base::unique_qptr<Ui::PopupMenu> StickersListWidget::fillContextMenu(
 	const auto section = sticker->section;
 	const auto index = sticker->index;
 	Assert(section >= 0 && section < sets.size());
-	auto &set = sets[section];
+	const auto &set = sets[section];
 	Assert(index >= 0 && index < set.stickers.size());
 
 	auto menu = base::make_unique_q<Ui::PopupMenu>(this, st().menu);
@@ -2645,7 +2645,8 @@ base::unique_qptr<Ui::PopupMenu> StickersListWidget::fillSetContextMenu(
 		_localSetsManager.get(),
 		crl::guard(this, [this](uint64 id) { removeSet(id); }),
 		crl::guard(this, [this] { update(); }),
-		st().menu);
+		st().menu,
+		st().icons);
 }
 
 base::unique_qptr<Ui::PopupMenu> FillStickerSetContextMenu(
@@ -2655,7 +2656,8 @@ base::unique_qptr<Ui::PopupMenu> FillStickerSetContextMenu(
 		not_null<LocalStickersManager*> localSetsManager,
 		Fn<void(uint64 setId)> remove,
 		Fn<void()> repaint,
-		const style::PopupMenu &menuSt) {
+		const style::PopupMenu &menuSt,
+		const style::ComposeIcons &icons) {
 	if (set->shortName.isEmpty()
 		|| (set->id == Data::Stickers::MegagroupSetId)
 		|| (set->id == Data::Stickers::CollectibleSetId)) {
@@ -2700,12 +2702,12 @@ base::unique_qptr<Ui::PopupMenu> FillStickerSetContextMenu(
 					repaint();
 				}
 			},
-			&st::menuIconAdd);
+			&icons.menuSetAdd);
 	}
 	menu->addAction(
 		tr::lng_chat_link_share(tr::now),
 		[=] { FastShareLink(show, url); },
-		&st::menuIconShare);
+		&icons.menuSetShare);
 	menu->addAction(
 		tr::lng_context_copy_link(tr::now),
 		[=] {
@@ -2718,13 +2720,13 @@ base::unique_qptr<Ui::PopupMenu> FillStickerSetContextMenu(
 				.iconLottieSize = st::toastLottieIconSize,
 			});
 		},
-		&st::menuIconLink);
+		&icons.menuSetCopyLink);
 	if (installed) {
 		menu->addSeparator();
 		menu->addAction(
 			tr::lng_stickers_remove_pack_confirm(tr::now),
 			[=] { remove(setId); },
-			&st::menuIconDelete);
+			&icons.menuSetRemove);
 	}
 	return menu;
 }
@@ -2769,7 +2771,7 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 		return;
 	}
 
-	auto &sets = shownSets();
+	const auto &sets = shownSets();
 	if (!v::is_null(pressed) && pressed == _selected) {
 		if (std::get_if<OverSearchBack>(&pressed)) {
 			backToSearchResults();
@@ -3552,7 +3554,7 @@ void StickersListWidget::updateSelected() {
 		setSelected(newSelected);
 		return;
 	}
-	auto &sets = shownSets();
+	const auto &sets = shownSets();
 	auto sx = (rtl() ? width() - p.x() : p.x()) - stickersLeft();
 	if (!shownSets().empty()) {
 		auto info = sectionInfoByOffset(p.y());
@@ -3640,7 +3642,7 @@ void StickersListWidget::setSelected(OverState newSelected) {
 			? style::cur_pointer
 			: style::cur_default);
 
-		auto &sets = shownSets();
+		const auto &sets = shownSets();
 		auto updateSelected = [&]() {
 			if (auto sticker = std::get_if<OverSticker>(&_selected)) {
 				rtlupdate(stickerRect(sticker->section, sticker->index));

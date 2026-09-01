@@ -67,9 +67,11 @@ public:
 
 struct MediaGenericDescriptor {
 	int maxWidth = 0;
+	int minWidth = 0;
 	MediaGenericPart::PaintBgFactory paintBgFactory;
 	ClickHandlerPtr fullAreaLink;
 	bool expandCurrentWidth = false;
+	bool fitToContent = false;
 	bool service = false;
 	bool hideServiceText = false;
 };
@@ -148,7 +150,9 @@ private:
 	mutable Part::PaintBg _paintBg;
 	ClickHandlerPtr _fullAreaLink;
 	int _maxWidthCap = 0;
+	int _minWidth = 0;
 	bool _expandCurrentWidth : 1 = false;
+	bool _fitToContent : 1 = false;
 	bool _service : 1 = false;
 	bool _hideServiceText : 1 = false;
 

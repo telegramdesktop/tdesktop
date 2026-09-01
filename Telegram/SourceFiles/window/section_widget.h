@@ -14,7 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 #include "window/window_section_common.h"
 
+#include <optional>
+
 class PeerData;
+class UserData;
 
 namespace ChatHelpers {
 struct FileChosen;
@@ -27,6 +30,7 @@ struct Details;
 
 namespace Data {
 struct ReactionId;
+struct ReportInput;
 class ForumTopic;
 class WallPaper;
 class Session;
@@ -94,6 +98,7 @@ struct SectionSlideParams {
 	bool withTopBarShadow = false;
 	bool withTabs = false;
 	bool withFade = false;
+	bool fromBottom = false;
 
 	explicit operator bool() const {
 		return !oldContentCache.isNull();
@@ -165,6 +170,24 @@ public:
 		return false;
 	}
 
+	virtual bool showChooseReportMessages(
+			not_null<PeerData*> peer,
+			Data::ReportInput &&reportInput,
+			Fn<void(std::vector<MsgId>)> &&done) {
+		return false;
+	}
+	virtual bool clearChooseReportMessages() {
+		return false;
+	}
+	virtual bool toggleChooseChatTheme(
+			not_null<PeerData*> peer,
+			std::optional<bool> show = std::nullopt) {
+		return false;
+	}
+	[[nodiscard]] virtual Ui::ChatTheme *customChatTheme() const {
+		return nullptr;
+	}
+
 	[[nodiscard]] virtual bool preventsClose(
 			Fn<void()> &&continueCallback) const {
 		return false;
@@ -176,6 +199,10 @@ public:
 		return SectionActionResult::Ignore;
 	}
 
+	virtual SectionActionResult hideSingleUseKeyboard(FullMsgId replyToId) {
+		return SectionActionResult::Fallback;
+	}
+
 	virtual bool confirmSendingFiles(const QStringList &files) {
 		return false;
 	}
@@ -183,9 +210,25 @@ public:
 		return false;
 	}
 
+	virtual bool notify_switchInlineBotButtonReceived(
+			const QString &query,
+			UserData *samePeerBot,
+			MsgId samePeerReplyTo) {
+		return false;
+	}
+
 	// Create a memento of that section to store it in the history stack.
 	// This method may modify the section ("take" heavy items).
 	virtual std::shared_ptr<SectionMemento> createMemento();
+
+	// Create a memento that only identifies the section, without taking
+	// anything from it. Unlike createMemento() this doesn't modify the
+	// section, so it is safe to call on the one that stays alive, like
+	// when saving the opened windows state. Null if not supported.
+	[[nodiscard]] virtual auto createIdentityMemento()
+	-> std::shared_ptr<SectionMemento> {
+		return nullptr;
+	}
 
 	void setInnerFocus() {
 		doSetInnerFocus();
@@ -205,6 +248,10 @@ public:
 	}
 
 	virtual void validateSubsectionTabs() {
+	}
+
+	[[nodiscard]] virtual bool contentOverlapped(const QRect &globalRect) {
+		return false;
 	}
 
 	static void PaintBackground(
@@ -229,10 +276,13 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
-	// Temp variable used in resizeEvent() implementation, that is passed
-	// to setGeometryWithTopMoved() to adjust the scroll position with the resize.
-	int topDelta() const {
-		return _topDelta;
+	// A size-changing setGeometryWithTopMoved() can deliver the shift to
+	// the section twice: Ui::RpWidget fires its geometry stream before
+	// QEvent::Resize reaches resizeEvent(), so a section with a consumer
+	// of its own sizeValue() relayouts once for each. A relative applier
+	// must add the shift only once.
+	[[nodiscard]] int takeTopDelta() {
+		return base::take(_topDelta);
 	}
 
 	// Called after the hideChildren() call in showAnimated().
@@ -255,7 +305,6 @@ private:
 
 	std::unique_ptr<SlideAnimation> _showAnimation;
 
-	// Saving here topDelta in setGeometryWithTopMoved() to get it passed to resizeEvent().
 	int _topDelta = 0;
 
 };

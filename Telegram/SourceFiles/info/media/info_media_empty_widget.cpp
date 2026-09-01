@@ -85,6 +85,7 @@ void EmptyWidget::setLoading(bool loading) {
 		return;
 	}
 	_loading = loading;
+	_text->setVisible(!_loading);
 	resizeToWidth(width());
 	update();
 }
@@ -114,6 +115,7 @@ void EmptyWidget::paintEvent(QPaintEvent *e) {
 }
 
 int EmptyWidget::resizeGetHeight(int newWidth) {
+	_text->setVisible(!_loading);
 	if (!_loading) {
 		auto labelTop = _height - st::infoEmptyLabelTop;
 		auto labelWidth = newWidth - 2 * st::infoEmptyLabelSkip;
