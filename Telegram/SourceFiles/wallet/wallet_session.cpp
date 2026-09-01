@@ -51,6 +51,9 @@ constexpr auto kStateFailuresBeforeStated = 2;
 constexpr auto kTransactionsPerPage = 50;
 constexpr auto kForcedCollectiblesInterval = 10 * crl::time(1000);
 constexpr auto kStreamResyncInterval = 30 * crl::time(1000);
+constexpr auto kClientSendValiditySeconds = uint64(300);
+constexpr auto kClientResolutionMarginSeconds = uint64(60);
+constexpr auto kClientRequestTimeoutMs = uint64(15000);
 
 [[nodiscard]] std::optional<int64> DecimalInt64(const std::string &value) {
 	auto ok = false;
@@ -169,6 +172,48 @@ struct Restored {
 	} catch (...) {
 	}
 	return u"unknown"_q;
+}
+
+[[nodiscard]] QString ClientErrorName(std::exception_ptr error) {
+	if (!error) {
+		return u"unknown"_q;
+	}
+	try {
+		std::rethrow_exception(error);
+	} catch (const engine::wallet_client_error::WalletIdentityMismatch &) {
+		return u"WalletIdentityMismatch"_q;
+	} catch (const engine::wallet_client_error::InvalidWalletPublicKey &) {
+		return u"InvalidWalletPublicKey"_q;
+	} catch (const engine::wallet_client_error
+			::InvalidLocalSecretReference &) {
+		return u"InvalidLocalSecretReference"_q;
+	} catch (const engine::wallet_client_error::InvalidProviderBaseUrl &) {
+		return u"InvalidProviderBaseUrl"_q;
+	} catch (...) {
+	}
+	return u"unknown"_q;
+}
+
+[[nodiscard]] engine::WalletClientConfig ClientConfigFromRecord(
+		const CustodyRecord &record) {
+	return engine::WalletClientConfig{
+		.record_id = record.recordId.toStdString(),
+		.address = record.address.toStdString(),
+		.public_key = std::vector<uint8_t>(
+			record.publicKey.constData(),
+			record.publicKey.constData() + record.publicKey.size()),
+		.local_secret_ref = engine::ProtectedSecretRef{
+			.value = record.secretRef.toStdString(),
+		},
+		.network = engine::Network(record.network),
+		.send_validity_seconds = kClientSendValiditySeconds,
+		.resolution_margin_seconds = kClientResolutionMarginSeconds,
+		.providers = engine::ProviderConfig{
+			.toncenter_base_url = "https://toncenter.com",
+			.dns_root_address = std::nullopt,
+			.request_timeout_ms = kClientRequestTimeoutMs,
+		},
+	};
 }
 
 [[nodiscard]] std::optional<std::vector<int>> ParseHolderDcs(
@@ -679,8 +724,8 @@ void Session::applyState(const MTPWalletState &state) {
 			.canExportPhrase = data.is_can_export_phrase(),
 			.canEnableBackup = data.is_can_enable_backup(),
 		};
-		parkStaleActiveRecords();
 		setPresence(Presence::Ready);
+		reconcileCustody();
 	}, [&](const MTPDwalletStateEmpty &data) {
 		clear();
 		setPresence(data.is_provisioning()
@@ -951,10 +996,204 @@ void Session::restoreFromWords(
 		}
 		done(std::move(restored.words));
 	}, [=](EngineError error) {
-		LOG(("Wallet Error: import_wallet failed: %1"
-			).arg(LifecycleErrorName(error)));
-		fail(u"PHRASE_IMPORT_FAILED"_q);
+		const auto name = LifecycleErrorName(error);
+		LOG(("Wallet Error: import_wallet failed: %1").arg(name));
+		fail((name == u"InvalidRecoveryPhrase"_q)
+			? u"PHRASE_INVALID_PHRASE"_q
+			: u"PHRASE_IMPORT_FAILED"_q);
 	});
+}
+
+void Session::restoreFromPhrase(
+		std::vector<QString> words,
+		Fn<void()> done,
+		Fn<void(const QString &error)> fail) {
+	ensureLoaded();
+	if (_phraseRevealing || _replacing) {
+		LOG(("Wallet Error: restore requested while another is in flight."));
+		if (fail) {
+			fail(u"PHRASE_BUSY"_q);
+		}
+		return;
+	}
+	if (_presence.current() != Presence::Ready
+		|| _publicKey.size() != kCustodyPublicKeySize) {
+		LOG(("Wallet Error: restore requested without a settled wallet key."));
+		if (fail) {
+			fail(u"PHRASE_STATE_UNKNOWN"_q);
+		}
+		return;
+	}
+	_phraseRevealing = true;
+	restoreFromWords(std::move(words), [this, done = std::move(done)](
+			std::vector<QString>) {
+		_phraseRevealing = false;
+		if (done) {
+			done();
+		}
+	}, [this, fail = std::move(fail)](const QString &error) {
+		_phraseRevealing = false;
+		if (fail) {
+			fail(error);
+		}
+	});
+}
+
+void Session::restoreFromBackup(
+		std::optional<Core::CloudPasswordResult> password,
+		Fn<void()> done,
+		Fn<void(const QString &error)> fail) {
+	ensureLoaded();
+	if (_phraseRevealing || _replacing) {
+		LOG(("Wallet Error: restore requested while another is in flight."));
+		if (fail) {
+			fail(u"PHRASE_BUSY"_q);
+		}
+		return;
+	}
+	if (_presence.current() != Presence::Ready
+		|| _publicKey.size() != kCustodyPublicKeySize) {
+		LOG(("Wallet Error: restore requested without a settled wallet key."));
+		if (fail) {
+			fail(u"PHRASE_STATE_UNKNOWN"_q);
+		}
+		return;
+	}
+	_phraseRevealing = true;
+	revealFromShares(std::move(password), [this, done = std::move(done)](
+			std::vector<QString>) {
+		_phraseRevealing = false;
+		if (done) {
+			done();
+		}
+	}, [this, fail = std::move(fail)](const QString &error) {
+		_phraseRevealing = false;
+		if (fail) {
+			fail(error);
+		}
+	});
+}
+
+void Session::revealParked(
+		const QByteArray &publicKey,
+		Fn<void(std::vector<QString>)> done,
+		Fn<void(const QString &error)> fail) {
+	ensureLoaded();
+	if (_phraseRevealing || _replacing) {
+		LOG(("Wallet Error: reveal requested while another is in flight."));
+		if (fail) {
+			fail(u"PHRASE_BUSY"_q);
+		}
+		return;
+	}
+	if (_presence.current() != Presence::Ready
+		|| _publicKey.size() != kCustodyPublicKeySize) {
+		LOG(("Wallet Error: reveal requested without a settled wallet key."));
+		if (fail) {
+			fail(u"PHRASE_STATE_UNKNOWN"_q);
+		}
+		return;
+	}
+	const auto record = custody().matching(publicKey);
+	if (!record || publicKey == _publicKey) {
+		LOG(("Wallet Error: parked reveal requested for a non-parked key."));
+		if (fail) {
+			fail(u"PHRASE_STATE_UNKNOWN"_q);
+		}
+		return;
+	}
+	_phraseRevealing = true;
+	done = [this, done = std::move(done)](std::vector<QString> words) {
+		_phraseRevealing = false;
+		if (done) {
+			done(std::move(words));
+		}
+	};
+	fail = [this, fail = std::move(fail)](const QString &error) {
+		_phraseRevealing = false;
+		if (fail) {
+			fail(error);
+		}
+	};
+	revealLocally(*record, done, fail);
+}
+
+void Session::dropParked(
+		const QByteArray &publicKey,
+		Fn<void()> done,
+		Fn<void(const QString &error)> fail) {
+	ensureLoaded();
+	if (_phraseRevealing || _replacing) {
+		LOG(("Wallet Error: drop requested while another is in flight."));
+		if (fail) {
+			fail(u"PHRASE_BUSY"_q);
+		}
+		return;
+	}
+	if (_presence.current() != Presence::Ready
+		|| _publicKey.size() != kCustodyPublicKeySize) {
+		LOG(("Wallet Error: drop requested without a settled wallet key."));
+		if (fail) {
+			fail(u"PHRASE_STATE_UNKNOWN"_q);
+		}
+		return;
+	}
+	const auto record = custody().matching(publicKey);
+	if (!record || publicKey == _publicKey) {
+		LOG(("Wallet Error: drop requested for a non-parked key."));
+		if (fail) {
+			fail(u"PHRASE_STATE_UNKNOWN"_q);
+		}
+		return;
+	}
+	_replacing = true;
+	done = [this, done = std::move(done)] {
+		_replacing = false;
+		if (done) {
+			done();
+		}
+	};
+	fail = [this, fail = std::move(fail)](const QString &error) {
+		_replacing = false;
+		if (fail) {
+			fail(error);
+		}
+	};
+	const auto lifecycle = _engine->lifecycle();
+	_engine->run([lifecycle, descriptor = DescriptorFromRecord(*record)] {
+		lifecycle->delete_wallet(descriptor);
+	}, [=, this] {
+		removeCustodyRecord(publicKey);
+		done();
+	}, [=](EngineError error) {
+		LOG(("Wallet Error: parked delete_wallet failed: %1"
+			).arg(LifecycleErrorName(error)));
+		fail(u"PHRASE_LOCAL_FAILED"_q);
+	});
+}
+
+std::vector<CustodyRecord> Session::parkedRecords() {
+	auto result = std::vector<CustodyRecord>();
+	for (const auto &record : custody().records) {
+		if (record.publicKey != _publicKey) {
+			result.push_back(record);
+		}
+	}
+	ranges::reverse(result);
+	return result;
+}
+
+DeviceCustodyState Session::deviceCustodyState() const {
+	return _deviceCustody.current();
+}
+
+auto Session::deviceCustodyStateValue() const
+-> rpl::producer<DeviceCustodyState> {
+	return _deviceCustody.value();
+}
+
+rpl::producer<> Session::custodyUpdates() const {
+	return _custodyUpdates.events();
 }
 
 const CustodyStore &Session::custody() {
@@ -986,6 +1225,7 @@ bool Session::persistCustody(const CustodyRecord &record) {
 		return false;
 	}
 	_custody = std::move(store);
+	updateDeviceCustodyState();
 	return true;
 }
 
@@ -1206,23 +1446,91 @@ void Session::finishConfirmedReplace(
 	done();
 }
 
-void Session::parkStaleActiveRecords() {
+void Session::reconcileCustody() {
+	if (_publicKey.size() != kCustodyPublicKeySize) {
+		return;
+	}
 	auto store = custody();
 	auto changed = false;
 	for (auto &record : store.records) {
-		if (record.active && record.publicKey != _publicKey) {
-			record.active = false;
+		if (record.publicKey != _publicKey) {
+			if (record.active) {
+				record.active = false;
+				changed = true;
+			}
+		} else if (!record.active) {
+			record.active = true;
 			changed = true;
 		}
 	}
-	if (!changed) {
+	if (store.lastSeenServerKey != _publicKey) {
+		if (!store.lastSeenServerKey.isEmpty()) {
+			LOG(("Wallet Info: server wallet key changed."));
+		}
+		store.lastSeenServerKey = _publicKey;
+		changed = true;
+	}
+	if (changed) {
+		if (WriteCustodyStore(_session->local(), store)) {
+			_custody = std::move(store);
+		} else {
+			LOG(("Wallet Error: custody parking write failed."));
+		}
+	}
+	updateDeviceCustodyState();
+}
+
+void Session::updateDeviceCustodyState() {
+	if (_presence.current() != Presence::Ready
+		|| _publicKey.size() != kCustodyPublicKeySize) {
 		return;
 	}
-	if (!WriteCustodyStore(_session->local(), store)) {
-		LOG(("Wallet Error: custody parking write failed."));
+	const auto &store = custody();
+	const auto conflict = ranges::any_of(
+		store.records,
+		[&](const CustodyRecord &record) {
+			return record.publicKey != _publicKey;
+		});
+	const auto mode = store.matching(_publicKey)
+		? DeviceMode::Full
+		: _capabilities.canExportPhrase
+		? DeviceMode::ReadOnlyRestorable
+		: DeviceMode::ReadOnlyNotRestorable;
+	_deviceCustody = DeviceCustodyState{
+		.mode = mode,
+		.conflict = conflict,
+	};
+	_custodyUpdates.fire({});
+	syncEngineClient();
+}
+
+void Session::syncEngineClient() {
+	const auto ready = (_presence.current() == Presence::Ready)
+		&& (_publicKey.size() == kCustodyPublicKeySize);
+	const auto wanted = ready ? custody().matching(_publicKey) : nullptr;
+	if (_engine->client()) {
+		if ((wanted && _clientRecordId == wanted->recordId)
+			|| _clientStopping) {
+			return;
+		}
+		_clientStopping = true;
+		_engine->stopClient([this] {
+			_clientStopping = false;
+			_clientRecordId = QString();
+			syncEngineClient();
+		});
+		return;
+	} else if (!wanted || _clientStopping) {
 		return;
 	}
-	_custody = std::move(store);
+	try {
+		_engine->startClient(ClientConfigFromRecord(*wanted));
+		_clientRecordId = wanted->recordId;
+		requestEngineRefresh();
+	} catch (...) {
+		LOG(("Wallet Error: engine client start refused: %1"
+			).arg(ClientErrorName(std::current_exception())));
+	}
 }
 
 void Session::removeCustodyRecord(const QByteArray &publicKey) {
@@ -1238,6 +1546,7 @@ void Session::removeCustodyRecord(const QByteArray &publicKey) {
 		return;
 	}
 	_custody = std::move(store);
+	updateDeviceCustodyState();
 }
 
 void Session::clearNetworkState() {
@@ -1274,13 +1583,13 @@ void Session::requestEngineRefresh() {
 		return client->refresh();
 	}, [=, this](engine::WalletUpdate update) {
 		_engineRefreshPending = false;
-		if (generation != _networkGeneration) {
+		if (generation != _networkGeneration || _clientStopping) {
 			return;
 		}
 		applyEngineUpdate(update);
 	}, [=, this](EngineError error) {
 		_engineRefreshPending = false;
-		if (generation != _networkGeneration) {
+		if (generation != _networkGeneration || _clientStopping) {
 			return;
 		}
 		LOG(("Wallet Error: engine refresh failed: %1, "
@@ -1533,13 +1842,13 @@ void Session::requestCollectibles(bool more) {
 			: client->refresh_nfts();
 	}, [=, this](engine::WalletUpdate update) {
 		_collectiblesRequestPending = false;
-		if (generation != _networkGeneration) {
+		if (generation != _networkGeneration || _clientStopping) {
 			return;
 		}
 		applyCollectiblesUpdate(update, more);
 	}, [=, this](EngineError error) {
 		_collectiblesRequestPending = false;
-		if (generation != _networkGeneration) {
+		if (generation != _networkGeneration || _clientStopping) {
 			return;
 		}
 		LOG(("Wallet Error: engine nft %1 failed: %2, "

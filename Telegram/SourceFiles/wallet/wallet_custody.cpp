@@ -14,7 +14,7 @@ namespace Wallet {
 namespace {
 
 const auto kCustodyStorageKey = u"custody/records"_q;
-constexpr auto kCustodyFormatVersion = quint32(1);
+constexpr auto kCustodyFormatVersion = quint32(2);
 constexpr auto kActiveFlag = quint32(1U << 0);
 
 [[nodiscard]] std::optional<CustodyRecord> ReadRecord(
@@ -84,6 +84,16 @@ std::optional<CustodyStore> ReadCustodyStore(Storage::Account &local) {
 		}
 		result.records.push_back(std::move(*record));
 	}
+	if (version >= 2) {
+		stream >> result.lastSeenServerKey;
+		if (!stream.ok()) {
+			return std::nullopt;
+		}
+		if (!result.lastSeenServerKey.isEmpty()
+			&& result.lastSeenServerKey.size() != kCustodyPublicKeySize) {
+			result.lastSeenServerKey = QByteArray();
+		}
+	}
 	return result;
 }
 
@@ -93,6 +103,7 @@ bool WriteCustodyStore(Storage::Account &local, const CustodyStore &store) {
 	for (const auto &record : store.records) {
 		WriteRecord(stream, record);
 	}
+	stream << store.lastSeenServerKey;
 	return local.writeWalletEngineValue(
 		kCustodyStorageKey,
 		std::move(stream).result());

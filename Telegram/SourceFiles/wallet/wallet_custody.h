@@ -26,6 +26,7 @@ struct CustodyRecord {
 
 struct CustodyStore {
 	std::vector<CustodyRecord> records;
+	QByteArray lastSeenServerKey;
 
 	[[nodiscard]] const CustodyRecord *matching(
 		const QByteArray &publicKey) const;

@@ -8862,6 +8862,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_replace_password_description" = "Please enter your password to replace your wallet.";
 "lng_wallet_replace_check_about" = "You can replace your wallet only if you have:";
 "lng_wallet_replace_check_wait" = "You will be able to replace your wallet in {duration}.";
+"lng_wallet_conflict_bar" = "This device holds a different wallet.";
+"lng_wallet_conflict_toast" = "This device holds a different wallet. Please resolve this first.";
+"lng_wallet_readonly_bar" = "This device can view this wallet but can't send from it.";
+"lng_wallet_conflict_text" = "Wallet for this account was changed from another device. You can export your old wallet that is held on this device before switching.";
+"lng_wallet_conflict_export" = "Export old wallet";
+"lng_wallet_conflict_switch" = "Switch now";
+"lng_wallet_keys_restore" = "Restore from recovery phrase";
+"lng_wallet_restore_title" = "Restore Wallet";
+"lng_wallet_restore_text" = "Enter the recovery phrase of this wallet.";
+"lng_wallet_restore_error" = "This recovery phrase belongs to a different wallet.";
+"lng_wallet_restore_password_description" = "Please enter your password to restore your wallet.";
 "lng_wallet_send_error_insufficient" = "You don't have enough Grams for this transfer.";
 "lng_wallet_send_error_fees" = "You don't have enough Grams to cover the network fee.";
 "lng_wallet_send_error_unresolved" = "Your previous transfer is not confirmed yet. Please wait for it to complete.";

@@ -57,6 +57,22 @@ struct WalletCapabilities {
 		const WalletCapabilities &) = default;
 };
 
+enum class DeviceMode {
+	Unknown,
+	Full,
+	ReadOnlyRestorable,
+	ReadOnlyNotRestorable,
+};
+
+struct DeviceCustodyState {
+	DeviceMode mode = DeviceMode::Unknown;
+	bool conflict = false;
+
+	friend bool operator==(
+		const DeviceCustodyState &,
+		const DeviceCustodyState &) = default;
+};
+
 // The two terms the overview's empty face takes from the lists gate. One
 // updateListsGate() call can change both, and the face is derived through a
 // single rpl::combine argument, so publishing them as one value is what
@@ -179,6 +195,11 @@ public:
 	[[nodiscard]] WalletCapabilities capabilities() const;
 	[[nodiscard]] QByteArray publicKey() const;
 	[[nodiscard]] bool revealsLocally();
+	[[nodiscard]] DeviceCustodyState deviceCustodyState() const;
+	[[nodiscard]] auto deviceCustodyStateValue() const
+		-> rpl::producer<DeviceCustodyState>;
+	[[nodiscard]] rpl::producer<> custodyUpdates() const;
+	[[nodiscard]] std::vector<CustodyRecord> parkedRecords();
 
 	void refreshState();
 	void applyUpdate(const MTPDupdateWalletState &data);
@@ -194,6 +215,22 @@ public:
 	void replaceWithImported(
 		std::vector<QString> words,
 		std::optional<Core::CloudPasswordResult> password,
+		Fn<void()> done,
+		Fn<void(const QString &error)> fail);
+	void restoreFromPhrase(
+		std::vector<QString> words,
+		Fn<void()> done,
+		Fn<void(const QString &error)> fail);
+	void restoreFromBackup(
+		std::optional<Core::CloudPasswordResult> password,
+		Fn<void()> done,
+		Fn<void(const QString &error)> fail);
+	void revealParked(
+		const QByteArray &publicKey,
+		Fn<void(std::vector<QString>)> done,
+		Fn<void(const QString &error)> fail);
+	void dropParked(
+		const QByteArray &publicKey,
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail);
 
@@ -278,7 +315,9 @@ private:
 		const MTPWalletState &state,
 		Fn<void()> done,
 		Fn<void(const QString &)> fail);
-	void parkStaleActiveRecords();
+	void reconcileCustody();
+	void updateDeviceCustodyState();
+	void syncEngineClient();
 	void removeCustodyRecord(const QByteArray &publicKey);
 	void clearNetworkState();
 	void pollTick();
@@ -328,6 +367,10 @@ private:
 	std::optional<CustodyStore> _custody;
 	bool _phraseRevealing = false;
 	bool _replacing = false;
+	rpl::variable<DeviceCustodyState> _deviceCustody;
+	rpl::event_stream<> _custodyUpdates;
+	QString _clientRecordId;
+	bool _clientStopping = false;
 	AccountStatus _engineStatus = AccountStatus::NonExisting;
 	mtpRequestId _stateRequestId = 0;
 	crl::time _stateRequestedAt = 0;

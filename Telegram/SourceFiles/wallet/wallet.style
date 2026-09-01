@@ -355,6 +355,14 @@ walletImportPaste: RoundButton(defaultTableSmallButton) {
 }
 walletImportPasteTop: 5px;
 
+walletInfoBarHeight: 36px;
+walletInfoBarLabel: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+	textFg: windowActiveTextFg;
+	minWidth: 80px;
+}
+walletInfoBarLabelSkip: 12px;
+
 walletCollectiblePreviewTitle: FlatLabel(walletPhraseTitleLabel) {
 	palette: walletCollectibleTitlePalette;
 }
