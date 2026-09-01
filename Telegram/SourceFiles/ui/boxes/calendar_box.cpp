@@ -33,6 +33,7 @@ namespace Ui {
 namespace {
 
 constexpr auto kDaysInWeek = 7;
+constexpr auto kThumbnailsPerPaint = 4;
 constexpr auto kTooltipDelay = crl::time(1000);
 constexpr auto kJumpDelay = 2 * crl::time(1000);
 
@@ -556,6 +557,7 @@ private:
 
 	struct DynamicImageState {
 		std::shared_ptr<DynamicImage> image;
+		bool subscribed = false;
 		bool animationFinished = false;
 		anim::value animation;
 		crl::time animationStart = 0;
@@ -568,6 +570,7 @@ private:
 	std::map<int, std::unique_ptr<RippleAnimation>> _ripples;
 	base::flat_map<QDate, DynamicImageState> _dynamicImageStates;
 	base::flat_set<QDate> _requestedMonths;
+	bool _thumbnailsLoadPending = false;
 	Ui::Animations::Basic _animation;
 
 	Fn<void(QDate)> _dateChosenCallback;
@@ -743,7 +746,11 @@ void CalendarBox::Inner::paintEvent(QPaintEvent *e) {
 
 	auto clip = e->rect();
 
+	_thumbnailsLoadPending = false;
 	paintRows(p, clip);
+	if (_thumbnailsLoadPending) {
+		update();
+	}
 }
 
 int CalendarBox::Inner::rowsLeft() const {
@@ -776,6 +783,21 @@ void CalendarBox::Inner::paintRows(QPainter &p, QRect clip) {
 	index += fromRow * kDaysInWeek;
 	const auto innerSkipLeft = (_st.cellSize.width() - _st.cellInner) / 2;
 	const auto innerSkipTop = (_st.cellSize.height() - _st.cellInner) / 2;
+	auto started = 0;
+	const auto subscribed = [&](DynamicImageState &state) {
+		if (state.subscribed) {
+			return true;
+		} else if (started == kThumbnailsPerPaint) {
+			_thumbnailsLoadPending = true;
+			return false;
+		}
+		++started;
+		state.subscribed = true;
+		state.image->subscribeToUpdates(crl::guard(this, [=] {
+			update();
+		}));
+		return true;
+	};
 	for (auto row = fromRow; row != tillRow; ++row, y += rowHeight) {
 		auto x = rowsLeft();
 		const auto fromIndex = index;
@@ -814,7 +836,7 @@ void CalendarBox::Inner::paintRows(QPainter &p, QRect clip) {
 			if (const auto it = _dynamicImageStates.find(date);
 					it != end(_dynamicImageStates)) {
 				auto &state = it->second;
-				if (state.image) {
+				if (state.image && subscribed(state)) {
 					if (!state.animating() && !state.animationFinished) {
 						state.animation = anim::value(0., 1.);
 						state.animationStart = crl::now();
@@ -1051,15 +1073,18 @@ void CalendarBox::Inner::setDateChosenCallback(Fn<void(QDate)> callback) {
 void CalendarBox::Inner::setDynamicImage(
 		QDate date,
 		std::shared_ptr<DynamicImage> image) {
-	auto &state = _dynamicImageStates[date];
-	if (image) {
-		state.image = std::move(image);
-		state.image->subscribeToUpdates(crl::guard(this, [=] {
+	if (!image) {
+		if (_dynamicImageStates.remove(date)) {
 			update();
-		}));
-	} else {
-		_dynamicImageStates.remove(date);
+		}
+		return;
 	}
+	auto &state = _dynamicImageStates[date];
+	if (state.image == image) {
+		return;
+	}
+	state.image = std::move(image);
+	state.subscribed = false;
 	update();
 }
 
