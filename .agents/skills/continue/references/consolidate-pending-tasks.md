@@ -26,16 +26,39 @@ modify Telegram source, build, test, inbox, claim, or task execution state.
 Work only in the clean checkout-specific AI slot after the discovery-routing
 commit has published.
 
-This is one queue-wide optimization pass, not another discovery planner. It may
+This is one optimization pass over the queue's unfinished work, not another
+discovery planner. It may
 replace compatible unclaimed tasks and update their direct dependents, project
 indexes, and one new consolidation receipt. It must not invent new work, alter
 approved history, create or move projects, or change the meaning of a request.
 
 ## Inventory and eligibility
 
-Refresh canonical AI state. Inventory every task's id, status, ownership,
-project, dependencies, and tracked task-directory contents. Partition all
-mergeable work by this exact key:
+Refresh canonical AI state, then inventory only unfinished work. Approved tasks
+are terminal history: they never enter a candidate set, and a task becomes
+claimable only once every dependency is approved, so no approved task can depend
+on unfinished work. Every candidate, every reverse dependency able to veto one,
+every id a retirement could strand, and every cycle a replacement could create
+therefore lies inside the unfinished set. Enumerate that set with one command in
+the AI slot worktree; never walk the queue task by task:
+
+```bash
+grep -Lx 'status: approved' tasks/*/*/*/*/state.yaml
+```
+
+Verify that invariant in the same cheap pass rather than trusting it: one
+`grep -l` over the same live `state.yaml` files names every task declaring a
+given id as a dependency. An approved task among an unfinished id's dependents
+is corrupt canonical state, not a merge decision; write nothing and return
+`BLOCKED` naming that pair. Read into context only the unfinished tasks' ids,
+statuses, ownership, projects, dependencies, and tracked task-directory
+contents, plus `projects/*/tasks.md` for the projects those tasks belong to.
+Approved and retired ids enter this pass only as opaque dependency targets,
+never as directory reads or content comparisons; the size of the finished queue
+is at most a count, never an enumeration. A pass whose cost grows with shipped
+history is wrong even when its conclusion is right.
+
+Partition all mergeable work by this exact key:
 
 1. the same project slug, or `project: null` for every member;
 2. the same scheduler membership: every member is in the current batch, or no
@@ -55,15 +78,20 @@ and relinked without loss.
 Read `task.md` and `state.yaml` completely for every member of each partition
 containing at least two candidates. Read that project's `project.md` and
 `tasks.md`, or the complete standalone candidate set. Inspect dependency and
-reverse-dependency state. A candidate referenced by an `in-progress`, `blocked`,
-approved, claimed, or otherwise non-mergeable task is ineligible; unclaimed
-`todo` dependents may be rewritten atomically with the replacement.
+reverse-dependency state within the unfinished set. A candidate referenced by an
+`in-progress`, `blocked`, claimed, or otherwise non-mergeable unfinished task is
+ineligible; unclaimed `todo` dependents may be rewritten atomically with the
+replacement.
 
-Before selecting a cluster, simulate its replacement in the complete dependency
-graph: remove the cluster, add the stable union of its external dependencies,
-and rewrite every eligible dependent. Reject a cluster if the replacement would
-depend directly or transitively on one of those dependents or if the simulated
-graph contains any cycle. Dependency similarity never overrides this rule.
+Before selecting a cluster, simulate its replacement in the unfinished
+dependency subgraph: remove the cluster, add the stable union of its external
+dependencies, and rewrite every eligible dependent. Reject a cluster if the
+replacement would depend directly or transitively on one of those dependents or
+if the simulated graph contains any cycle. Dependency similarity never overrides
+this rule. Approved dependencies are sinks that can never point back into
+unfinished work, so a cycle cannot leave this subgraph, and the publish helper
+revalidates the complete live graph anyway; loading that graph here buys
+nothing.
 
 ## Aggressive merge decision
 
@@ -185,14 +213,16 @@ this safety check; never produce a partial consolidation.
 Validate that every replacement is an unclaimed `todo`, every source criterion
 and input is accounted for, all dependencies and links exist, project
 boundaries hold, no old id remains as a live dependency or project link, every
-alias chain reaches a live task, every retained-content fingerprint still
-matches, and the complete live dependency graph is acyclic. Preserve native
-line endings without a BOM. Never record source or AI commit hashes.
+alias chain reaches a live task, and every retained-content fingerprint still
+matches. Check the surviving old ids by grepping the unfinished `state.yaml`
+files and `projects/*/tasks.md`, the only places a retired candidate can still
+be named, and leave whole-graph acyclicity to the publish helper. Preserve
+native line endings without a BOM. Never record source or AI commit hashes.
 
 Whether or not anything merged, remove `work/consolidation-pending.md` and write
 `work/consolidation-complete.md` under the source task. It must name the source,
-newly routed ids, local time, examined partitions, concrete reasons for close
-candidates left separate, receipt or `none`, mappings or `none`, and exactly one
+newly routed ids, local time, the unfinished inventory and partitions it
+examined, concrete reasons for close candidates left separate, receipt or `none`, mappings or `none`, and exactly one
 of `STATUS: MERGED` or `STATUS: NO_MERGE`. This marker is the durable no-repeat
 boundary. Only explicit task, project, receipt, and source-marker paths may
 change.
