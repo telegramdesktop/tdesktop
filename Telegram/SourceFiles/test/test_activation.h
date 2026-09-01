@@ -19,13 +19,17 @@ class Runner;
 //
 // The window is the first. QWidget::setFocus() walks the focus_child chain
 // unconditionally, but only its if (f->isActiveWindow()) branch promotes the
-// target to QApplication::focusWidget(), so on a console where the window is
-// never active in Qt's sense setFocus() "succeeds" while every hasFocus()
-// and isActiveWindow() branch keeps reading false - no error, no event, just
-// absence. Test::ForceWindowActive (test/test_widgets.h) injects the
-// activation through the QPA seam the platform plugin itself reports
-// through; runs 2 and 7 of 2026/08/30/replace-wallet-with-new-or-imported
-// paid for it.
+// target to QApplication::focusWidget(), and isActiveWindow() ends in a
+// fallback to QPlatformWindow::isActive() (qwidget.cpp:6723-6725) - so it is
+// the platform window not being active, on a locked or unattended console,
+// that makes setFocus() "succeed" while every hasFocus() and
+// isActiveWindow() branch keeps reading false - no error, no event, just
+// absence. Clearing only the QPA focus window leaves that fallback answering
+// true where the OS window is still active, which is why stage 1 records
+// that half instead of asserting it. Test::ForceWindowActive
+// (test/test_widgets.h) injects the activation through the QPA seam the
+// platform plugin itself reports through; runs 2 and 7 of
+// 2026/08/30/replace-wallet-with-new-or-imported paid for it.
 //
 // The wrapper is the second. Ui::InputField declares its own non-virtual
 // bool hasFocus() const returning _inner->hasFocus(), the inner QTextEdit

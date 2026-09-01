@@ -215,11 +215,25 @@ void AppendWindowActivationSelfTest(not_null<Runner*> runner) {
 					WindowActivationDetails(state->cleared),
 					inactive));
 			Check(
-				!state->inactive.derivedHasFocus,
-				u"with no active window setFocus() never reaches its "
-				"isActiveWindow() branch, so the field is not promoted to "
-				"QApplication::focusWidget() and reads unfocused"_q,
+				!state->inactive.focusWindowSet
+					&& !state->inactive.activeWindow,
+				u"the Qt-level activation this helper owns is gone, so "
+				"every isActiveWindow()-routed and focusWindow()-routed "
+				"branch now reads false"_q,
 				inactive);
+			Note(u"window activation self-test: the cleared half still "
+				"reads derivedHasFocus=%1 focusInsideField=%2 "
+				"focusWidget=%3 - QWidget::isActiveWindow() ends in a "
+				"fallback to QPlatformWindow::isActive() "
+				"(qwidget.cpp:6723-6725), so on a host whose OS window is "
+				"genuinely active it answers true all the same and "
+				"setFocus() (qwidget.cpp:6351) promotes the inner editor as "
+				"usual. The full silence of this signature needs a "
+				"genuinely inactive platform window - a locked or "
+				"unattended console."_q
+				.arg(state->inactive.derivedHasFocus ? 1 : 0)
+				.arg(state->inactive.focusInsideField ? 1 : 0)
+				.arg(state->inactive.focusWidgetClass));
 			Check(
 				state->activation.injected
 					&& state->activation.focusWindowSet,

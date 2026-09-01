@@ -186,10 +186,13 @@ void SettlePostponedCalls();
 //
 // QWidget::setFocus() walks the focus_child chain unconditionally, but only
 // its if (f->isActiveWindow()) branch promotes the target to
-// QApplication::focusWidget(). On an inactive window setFocus() therefore
-// "succeeds" while hasFocus() and isActiveWindow() keep reading false - no
-// error, no event, just absence - and every affordance routed on them
-// silently does nothing. Runs 2 and 7 of
+// QApplication::focusWidget(), and isActiveWindow() ends in a fallback to
+// QPlatformWindow::isActive() (qwidget.cpp:6723-6725) - so it takes the
+// platform window not being active, on a locked or unattended console, for
+// setFocus() to "succeed" while hasFocus() and isActiveWindow() keep reading
+// false - no error, no event, just absence - and every affordance routed on
+// them silently does nothing. Clearing only the QPA focus window does not
+// reproduce that where the OS window is still active. Runs 2 and 7 of
 // 2026/08/30/replace-wallet-with-new-or-imported paid for that.
 // Window::Controller::activate() (window/window_controller.h:118) is not the
 // answer: it asks the window manager, which on a locked console does not
