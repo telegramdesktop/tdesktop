@@ -193,15 +193,12 @@ void FillMonthYearPicker(
 
 class CalendarBox::Context {
 public:
-	Context(QDate month, QDate highlighted);
+	Context(QDate month, QDate highlighted, QDate min, QDate max);
 
 	void setAllowsSelection(bool allowsSelection);
 	[[nodiscard]] bool allowsSelection() const {
 		return _allowsSelection;
 	}
-
-	void setMinDate(QDate date);
-	void setMaxDate(QDate date);
 
 	[[nodiscard]] int minDayIndex() const {
 		return _minDayIndex;
@@ -298,24 +295,20 @@ private:
 
 };
 
-CalendarBox::Context::Context(QDate month, QDate highlighted)
+CalendarBox::Context::Context(
+	QDate month,
+	QDate highlighted,
+	QDate min,
+	QDate max)
 : _firstDayOfWeek(static_cast<int>(QLocale().firstDayOfWeek())) // 1..7
+, _min(min)
+, _max(max)
 , _highlighted(highlighted) {
 	showMonth(month);
 }
 
 void CalendarBox::Context::setAllowsSelection(bool allows) {
 	_allowsSelection = allows;
-}
-
-void CalendarBox::Context::setMinDate(QDate date) {
-	_min = date;
-	applyMonth(_month.current(), true);
-}
-
-void CalendarBox::Context::setMaxDate(QDate date) {
-	_max = date;
-	applyMonth(_month.current(), true);
 }
 
 void CalendarBox::Context::showMonth(QDate month) {
@@ -1208,7 +1201,11 @@ CalendarBox::CalendarBox(QWidget*, CalendarBoxArgs &&args)
 : _st(args.st)
 , _styleColors(args.stColors)
 , _context(
-	std::make_unique<Context>(args.month.value(), args.highlighted.value()))
+	std::make_unique<Context>(
+		args.month.value(),
+		args.highlighted.value(),
+		args.minDate,
+		args.maxDate))
 , _scroll(std::make_unique<ScrollArea>(this, st::calendarScroll))
 , _inner(_scroll->setOwnedWidget(object_ptr<Inner>(
 	this,
@@ -1225,8 +1222,6 @@ CalendarBox::CalendarBox(QWidget*, CalendarBoxArgs &&args)
 , _selectionChanged(std::move(args.selectionChanged)) {
 	_inner->setRequireImage(args.requireImage);
 	_context->setAllowsSelection(args.allowsSelection);
-	_context->setMinDate(args.minDate);
-	_context->setMaxDate(args.maxDate);
 
 	_title->setClickedCallback([=,
 			minDate = args.minDate,
