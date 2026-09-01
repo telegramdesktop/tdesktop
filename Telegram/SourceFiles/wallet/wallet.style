@@ -368,6 +368,12 @@ walletInfoBarLabel: FlatLabel(defaultFlatLabel) {
 }
 walletInfoBarLabelSkip: 12px;
 
+walletBackupQuizField: InputField(walletImportField) {
+	textMargins: margins(34px, 10px, 10px, 2px);
+}
+walletBackupQuizFieldsTopSkip: 12px;
+walletBackupQuizFieldsBottomSkip: 8px;
+
 walletCollectiblePreviewTitle: FlatLabel(walletPhraseTitleLabel) {
 	palette: walletCollectibleTitlePalette;
 }

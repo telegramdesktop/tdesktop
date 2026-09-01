@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "wallet/wallet_phrase_shares.h"
 
+#include "base/random.h"
 #include "mtproto/core_types.h"
 #include "tde2e/tde2e_api.h"
 
@@ -31,6 +32,15 @@ namespace {
 		return std::nullopt;
 	}
 	return share.v;
+}
+
+[[nodiscard]] QByteArray SerializeDecryptedKeyPart(const QByteArray &share) {
+	auto buffer = mtpBuffer();
+	buffer.push_back(mtpPrime(kDecryptedKeyPartId));
+	MTP_bytes(share).write(buffer);
+	return QByteArray(
+		reinterpret_cast<const char*>(buffer.constData()),
+		buffer.size() * sizeof(mtpPrime));
 }
 
 } // namespace
@@ -68,6 +78,48 @@ std::optional<QByteArray> CombineShares(
 		}
 	}
 	return result;
+}
+
+QByteArray SeedFromWords(const std::vector<QString> &words) {
+	return QStringList(words.begin(), words.end()).join(QChar(' ')).toUtf8();
+}
+
+std::vector<QByteArray> SplitSeed(const QByteArray &seed, int count) {
+	Expects(count >= 2 && !seed.isEmpty());
+
+	const auto length = seed.size();
+	auto result = std::vector<QByteArray>(count, QByteArray(length, '\0'));
+	auto last = seed;
+	const auto to = last.data();
+	for (auto i = 0; i != count - 1; ++i) {
+		auto &share = result[i];
+		base::RandomFill(bytes::make_detached_span(share));
+		const auto from = share.constData();
+		for (auto j = 0; j != length; ++j) {
+			to[j] ^= from[j];
+		}
+	}
+	result.back() = std::move(last);
+	return result;
+}
+
+std::optional<QByteArray> EncryptShare(
+		const QByteArray &holderPublicKey,
+		const QByteArray &share) {
+	if (holderPublicKey.size() != kPublicKeySize) {
+		return std::nullopt;
+	}
+	const auto pair = TdE2E::TemporaryKeyPair::Generate();
+	if (!pair) {
+		return std::nullopt;
+	}
+	const auto cipher = pair->encryptForOne(
+		holderPublicKey,
+		SerializeDecryptedKeyPart(share));
+	if (!cipher) {
+		return std::nullopt;
+	}
+	return pair->publicKey() + *cipher;
 }
 
 } // namespace Wallet::PhraseShares

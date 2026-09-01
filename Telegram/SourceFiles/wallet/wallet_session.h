@@ -193,6 +193,7 @@ public:
 	[[nodiscard]] std::optional<QString> address();
 	[[nodiscard]] QString addressFriendly(bool bounceable = false);
 	[[nodiscard]] WalletCapabilities capabilities() const;
+	[[nodiscard]] rpl::producer<WalletCapabilities> capabilitiesValue() const;
 	[[nodiscard]] QByteArray publicKey() const;
 	[[nodiscard]] bool revealsLocally();
 	[[nodiscard]] DeviceCustodyState deviceCustodyState() const;
@@ -231,6 +232,18 @@ public:
 		Fn<void(const QString &error)> fail);
 	void dropParked(
 		const QByteArray &publicKey,
+		Fn<void()> done,
+		Fn<void(const QString &error)> fail);
+	void prepareBackupParts(
+		Fn<void(std::vector<QByteArray>)> done,
+		Fn<void(const QString &error)> fail);
+	void enableBackup(
+		std::vector<QByteArray> parts,
+		std::optional<Core::CloudPasswordResult> password,
+		Fn<void()> done,
+		Fn<void(const QString &error)> fail);
+	void disableBackup(
+		std::optional<Core::CloudPasswordResult> password,
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail);
 
@@ -302,6 +315,7 @@ private:
 		std::vector<QString> words,
 		Fn<void(std::vector<QString>)> done,
 		Fn<void(const QString &)> fail);
+	[[nodiscard]] bool custodyBusy() const;
 	[[nodiscard]] const CustodyStore &custody();
 	[[nodiscard]] bool persistCustody(const CustodyRecord &record);
 	void sendReplaceWallet(
@@ -363,10 +377,11 @@ private:
 
 	rpl::variable<int64> _balanceNano = 0;
 	rpl::variable<Presence> _presence = Presence::Unknown;
-	WalletCapabilities _capabilities;
+	rpl::variable<WalletCapabilities> _capabilities;
 	std::optional<CustodyStore> _custody;
 	bool _phraseRevealing = false;
 	bool _replacing = false;
+	bool _backupChanging = false;
 	rpl::variable<DeviceCustodyState> _deviceCustody;
 	rpl::event_stream<> _custodyUpdates;
 	QString _clientRecordId;

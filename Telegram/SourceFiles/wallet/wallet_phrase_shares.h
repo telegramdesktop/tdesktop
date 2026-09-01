@@ -25,4 +25,19 @@ inline constexpr auto kDecryptedKeyPartId = uint32(0x8b90dd08);
 [[nodiscard]] std::optional<QByteArray> CombineShares(
 	const std::vector<QByteArray> &shares);
 
+// The words joined by single spaces, UTF-8: the seed that gets split.
+[[nodiscard]] QByteArray SeedFromWords(const std::vector<QString> &words);
+
+// Returns count shares of the seed's length whose XOR is the seed; all but
+// the last one are filled from the CSPRNG.
+[[nodiscard]] std::vector<QByteArray> SplitSeed(
+	const QByteArray &seed,
+	int count);
+
+// Seals one holder part: a 32-byte ephemeral public key, then the ciphertext
+// of a TL-serialized mnemonic.decryptedKeyPart carrying the share.
+[[nodiscard]] std::optional<QByteArray> EncryptShare(
+	const QByteArray &holderPublicKey,
+	const QByteArray &share);
+
 } // namespace Wallet::PhraseShares

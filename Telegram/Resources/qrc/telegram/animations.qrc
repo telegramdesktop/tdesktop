@@ -122,5 +122,6 @@
     <file alias="craft_progress.tgs">../../animations/craft_progress.tgs</file>
     <file alias="cleaning_cache.tgs">../../animations/cleaning_cache.tgs</file>
     <file alias="wallet/paper.tgs">../../animations/wallet/paper.tgs</file>
+    <file alias="wallet/test.tgs">../../animations/wallet/test.tgs</file>
   </qresource>
 </RCC>

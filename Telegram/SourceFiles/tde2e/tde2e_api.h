@@ -48,7 +48,8 @@ struct PublicKey {
 
 // A temporary private key with its exported 32-byte public key, for one-shot
 // ECDH envelopes: a peer encrypts to publicKey() and decryptForOne() opens
-// the result. The private key is destroyed with the object.
+// the result; encryptForOne() seals to a peer's public key the same way.
+// The private key is destroyed with the object.
 class TemporaryKeyPair final {
 public:
 	[[nodiscard]] static std::optional<TemporaryKeyPair> Generate();
@@ -63,6 +64,9 @@ public:
 	[[nodiscard]] std::optional<QByteArray> decryptForOne(
 		const QByteArray &peerPublicKey,
 		const QByteArray &encrypted) const;
+	[[nodiscard]] std::optional<QByteArray> encryptForOne(
+		const QByteArray &peerPublicKey,
+		const QByteArray &plain) const;
 
 private:
 	TemporaryKeyPair(PrivateKeyId id, QByteArray publicKey);

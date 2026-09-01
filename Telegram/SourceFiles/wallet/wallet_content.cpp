@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/event_filter.h"
 #include "base/invoke_queued.h"
+#include "base/random.h"
 #include "base/timer.h"
 #include "base/unixtime.h"
 #include "boxes/passcode_box.h"
@@ -110,6 +111,8 @@ constexpr auto kMinus = QChar(0x2212);
 constexpr auto kImportWordCountShort = 12;
 constexpr auto kImportWordCountLong = 24;
 constexpr auto kImportSuggestionsLimit = 3;
+constexpr auto kBackupWriteDownDelay = 30 * crl::time(1000);
+constexpr auto kBackupQuizWordCount = 3;
 constexpr auto kCoverBodyPart = 0.90;
 constexpr auto kCoverTitleScale = 0.05;
 constexpr auto kCardFadePart = 0.45;
@@ -3624,15 +3627,16 @@ void WalletSendBox(
 
 void AddPhraseBoxHeader(
 		not_null<Ui::GenericBox*> box,
+		const QString &lottieName,
 		rpl::producer<QString> title,
-		rpl::producer<QString> text,
+		rpl::producer<TextWithEntities> text,
 		int lottieSize,
 		const style::margins &lottieMargin,
 		const style::margins &textMargin) {
 	auto icon = Settings::CreateLottieIcon(
 		box->verticalLayout(),
 		{
-			.name = u"wallet/paper"_q,
+			.name = lottieName,
 			.sizeOverride = { lottieSize, lottieSize },
 		},
 		lottieMargin);
@@ -3656,25 +3660,10 @@ void AddPhraseBoxHeader(
 		style::al_top);
 }
 
-void WalletPhraseBox(
+void AddPhraseGrid(
 		not_null<Ui::GenericBox*> box,
-		std::shared_ptr<Main::SessionShow> show,
-		std::vector<QString> words) {
-	box->setWidth(st::boxWideWidth);
-	box->setStyle(st::giveawayGiftCodeBox);
-	box->setNoContentMargin(true);
-
+		const std::vector<QString> &words) {
 	const auto count = int(words.size());
-	AddPhraseBoxHeader(
-		box,
-		tr::lng_wallet_phrase_title(),
-		tr::lng_wallet_phrase_text(
-			lt_count,
-			rpl::single(count * 1.) | tr::to_count()),
-		st::walletPhraseGridLottieSize,
-		st::walletPhraseGridLottieMargin,
-		st::walletPhraseGridTextMargin);
-
 	const auto grid = box->addRow(
 		object_ptr<Ui::RpWidget>(box),
 		st::walletPhraseGridPadding);
@@ -3711,6 +3700,30 @@ void WalletPhraseBox(
 				width);
 		}
 	}, grid->lifetime());
+}
+
+void WalletPhraseBox(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<Main::SessionShow> show,
+		std::vector<QString> words) {
+	box->setWidth(st::boxWideWidth);
+	box->setStyle(st::giveawayGiftCodeBox);
+	box->setNoContentMargin(true);
+
+	const auto count = int(words.size());
+	AddPhraseBoxHeader(
+		box,
+		u"wallet/paper"_q,
+		tr::lng_wallet_phrase_title(),
+		tr::lng_wallet_phrase_text(
+			lt_count,
+			rpl::single(count * 1.) | tr::to_count(),
+			tr::marked),
+		st::walletPhraseGridLottieSize,
+		st::walletPhraseGridLottieMargin,
+		st::walletPhraseGridTextMargin);
+
+	AddPhraseGrid(box, words);
 
 	AddBoxCloseButton(box);
 	box->addButton(tr::lng_about_done(), [=] { box->closeBox(); });
@@ -3758,19 +3771,31 @@ void WalletPhraseBox(
 		tr::lng_wallet_replace_check_about);
 }
 
+[[nodiscard]] TextWithEntities BackupCheckAbout(const QString &error) {
+	return EnforcementCheckAbout(
+		error,
+		tr::lng_wallet_backup_check_wait,
+		tr::lng_wallet_backup_check_about);
+}
+
 void RequestPhraseReveal(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::GenericBox*> warning,
 		std::optional<Core::CloudPasswordResult> password,
 		base::weak_qptr<PasscodeBox> passcode,
 		Fn<void()> unblock,
-		std::optional<QByteArray> parkedKey = std::nullopt) {
+		std::optional<QByteArray> parkedKey = std::nullopt,
+		Fn<void(std::vector<QString>)> onWords = nullptr) {
 	const auto done = crl::guard(warning, [=](std::vector<QString> words) {
 		if (passcode) {
 			passcode->closeBox();
 		}
-		warning->closeBox();
-		show->showBox(Box(WalletPhraseBox, show, std::move(words)));
+		if (onWords) {
+			onWords(std::move(words));
+		} else {
+			warning->closeBox();
+			show->showBox(Box(WalletPhraseBox, show, std::move(words)));
+		}
 	});
 	const auto fail = crl::guard(warning, [=](const QString &error) {
 		unblock();
@@ -3801,7 +3826,8 @@ void StartPhraseReveal(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::GenericBox*> warning,
 		Fn<void()> unblock,
-		std::optional<QByteArray> parkedKey = std::nullopt) {
+		std::optional<QByteArray> parkedKey = std::nullopt,
+		Fn<void(std::vector<QString>)> onWords = nullptr) {
 	const auto session = &show->session();
 	if (parkedKey) {
 		RequestPhraseReveal(
@@ -3810,11 +3836,19 @@ void StartPhraseReveal(
 			std::nullopt,
 			nullptr,
 			unblock,
-			parkedKey);
+			parkedKey,
+			onWords);
 		return;
 	}
 	if (session->wallet().revealsLocally()) {
-		RequestPhraseReveal(show, warning, std::nullopt, nullptr, unblock);
+		RequestPhraseReveal(
+			show,
+			warning,
+			std::nullopt,
+			nullptr,
+			unblock,
+			std::nullopt,
+			onWords);
 		return;
 	}
 	session->api().cloudPassword().reload();
@@ -3823,7 +3857,14 @@ void StartPhraseReveal(
 		1
 	) | rpl::on_next([=](const Core::CloudPasswordState &state) {
 		if (!state.hasPassword) {
-			RequestPhraseReveal(show, warning, std::nullopt, nullptr, unblock);
+			RequestPhraseReveal(
+				show,
+				warning,
+				std::nullopt,
+				nullptr,
+				unblock,
+				std::nullopt,
+				onWords);
 			return;
 		}
 		auto fields = PasscodeBox::CloudFields::From(state);
@@ -3834,7 +3875,14 @@ void StartPhraseReveal(
 		fields.customCheckCallback = [=](
 				const Core::CloudPasswordResult &result,
 				base::weak_qptr<PasscodeBox> passcode) {
-			RequestPhraseReveal(show, warning, result, passcode, unblock);
+			RequestPhraseReveal(
+				show,
+				warning,
+				result,
+				passcode,
+				unblock,
+				std::nullopt,
+				onWords);
 		};
 		show->showBox(Box<PasscodeBox>(session, fields));
 		unblock();
@@ -3851,8 +3899,9 @@ void WalletPhraseWarningBox(
 
 	AddPhraseBoxHeader(
 		box,
+		u"wallet/paper"_q,
 		tr::lng_wallet_phrase_intro_title(),
-		tr::lng_wallet_phrase_intro_text(),
+		tr::lng_wallet_phrase_intro_text(tr::marked),
 		st::walletCoverLottieSize,
 		st::walletCoverLottieMargin,
 		st::walletPhraseTextMargin);
@@ -3909,7 +3958,8 @@ void WalletPhraseWarningBox(
 void WalletPasscodeBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
-		std::optional<QByteArray> parkedKey = std::nullopt) {
+		std::optional<QByteArray> parkedKey = std::nullopt,
+		Fn<void()> passed = nullptr) {
 	box->setTitle(tr::lng_passcode_check_title());
 	const auto &fieldSt = st::settingLocalPasscodeInputField;
 	const auto wrap = box->addRow(
@@ -3950,7 +4000,11 @@ void WalletPasscodeBox(
 		if (domain.local().checkPasscode(field->text().toUtf8())) {
 			cSetPasscodeBadTries(0);
 			box->closeBox();
-			show->showBox(Box(WalletPhraseWarningBox, show, parkedKey));
+			if (passed) {
+				passed();
+			} else {
+				show->showBox(Box(WalletPhraseWarningBox, show, parkedKey));
+			}
 		} else {
 			cSetPasscodeBadTries(cPasscodeBadTries() + 1);
 			cSetPasscodeLastTry(crl::now());
@@ -3971,9 +4025,21 @@ void WalletRevealFlow(
 		std::optional<QByteArray> parkedKey = std::nullopt) {
 	const auto &domain = show->session().domain();
 	if (domain.local().hasLocalPasscode()) {
-		show->showBox(Box(WalletPasscodeBox, show, parkedKey));
+		show->showBox(Box(WalletPasscodeBox, show, parkedKey, nullptr));
 	} else {
 		show->showBox(Box(WalletPhraseWarningBox, show, parkedKey));
+	}
+}
+
+void RunLocalPasscodeGate(
+		std::shared_ptr<Main::SessionShow> show,
+		Fn<void()> then) {
+	const auto &domain = show->session().domain();
+	if (domain.local().hasLocalPasscode()) {
+		show->showBox(
+			Box(WalletPasscodeBox, show, std::nullopt, std::move(then)));
+	} else {
+		then();
 	}
 }
 
@@ -3985,7 +4051,8 @@ enum class WalletImportMode {
 void WalletImportBox(
 	not_null<Ui::GenericBox*> box,
 	std::shared_ptr<Main::SessionShow> show,
-	WalletImportMode mode);
+	WalletImportMode mode,
+	Fn<void()> restored = nullptr);
 
 void RequestCustodyRestore(
 		std::shared_ptr<Main::SessionShow> show,
@@ -4049,23 +4116,33 @@ void StartCustodyRestore(
 	}, *lifetime);
 }
 
+enum class KeyActionKind {
+	Plain,
+	Reveal,
+	ResumeAfterRestore,
+};
+
 void RunKeyRequiringAction(
 		std::shared_ptr<Main::SessionShow> show,
 		Fn<void()> action,
-		bool revealAction = false) {
+		KeyActionKind kind = KeyActionKind::Plain) {
 	const auto state = show->session().wallet().deviceCustodyState();
 	if (state.mode == DeviceMode::Full) {
 		action();
 	} else if (state.conflict) {
 		show->showToast(tr::lng_wallet_conflict_toast(tr::now));
 	} else if (state.mode == DeviceMode::ReadOnlyRestorable) {
-		if (revealAction) {
+		if (kind == KeyActionKind::Reveal) {
 			action();
 		} else {
 			StartCustodyRestore(show, std::move(action));
 		}
 	} else if (state.mode == DeviceMode::ReadOnlyNotRestorable) {
-		show->showBox(Box(WalletImportBox, show, WalletImportMode::Restore));
+		show->showBox(Box(
+			WalletImportBox,
+			show,
+			WalletImportMode::Restore,
+			(kind == KeyActionKind::ResumeAfterRestore) ? action : nullptr));
 	}
 }
 
@@ -4176,6 +4253,436 @@ void StartWalletReplace(
 		show->showBox(Box<PasscodeBox>(session, fields));
 		unblock();
 	}, origin->lifetime());
+}
+
+enum class BackupChange {
+	Enable,
+	Disable,
+};
+
+void RequestBackupChange(
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<Ui::GenericBox*> origin,
+		BackupChange change,
+		std::vector<QByteArray> parts,
+		std::optional<Core::CloudPasswordResult> password,
+		base::weak_qptr<PasscodeBox> passcode,
+		Fn<void()> unblock,
+		Fn<void()> done) {
+	const auto succeeded = crl::guard(origin, [=] {
+		unblock();
+		if (passcode) {
+			passcode->closeBox();
+		}
+		done();
+	});
+	const auto fail = crl::guard(origin, [=](const QString &error) {
+		unblock();
+		if (passcode && passcode->handleCustomCheckError(error)) {
+			return;
+		}
+		if (auto box = PrePasswordErrorBox(
+				error,
+				&show->session(),
+				BackupCheckAbout(error))) {
+			if (passcode) {
+				passcode->closeBox();
+			}
+			show->showBox(std::move(box));
+			return;
+		}
+		if (passcode) {
+			passcode->closeBox();
+		}
+		show->showToast((error == u"WALLET_BACKUP_NOT_AVAILABLE"_q)
+			? tr::lng_wallet_backup_unavailable_error(tr::now)
+			: tr::lng_wallet_backup_error(tr::now));
+	});
+	auto &wallet = show->session().wallet();
+	if (change == BackupChange::Disable) {
+		wallet.disableBackup(std::move(password), succeeded, fail);
+	} else {
+		wallet.enableBackup(
+			std::move(parts),
+			std::move(password),
+			succeeded,
+			fail);
+	}
+}
+
+void StartBackupRequest(
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<Ui::GenericBox*> origin,
+		BackupChange change,
+		std::vector<QByteArray> parts,
+		Fn<void()> unblock,
+		Fn<void()> done) {
+	const auto session = &show->session();
+	session->api().cloudPassword().reload();
+	session->api().cloudPassword().state(
+	) | rpl::take(
+		1
+	) | rpl::on_next([=](const Core::CloudPasswordState &state) {
+		if (!state.hasPassword) {
+			RequestBackupChange(
+				show,
+				origin,
+				change,
+				parts,
+				std::nullopt,
+				nullptr,
+				unblock,
+				done);
+			return;
+		}
+		auto fields = PasscodeBox::CloudFields::From(state);
+		fields.customTitle = tr::lng_wallet_phrase_password_title();
+		fields.customDescription = tr::lng_wallet_backup_password_description(
+			tr::now);
+		fields.customSubmitButton = tr::lng_passcode_submit();
+		fields.customCheckCallback = [=](
+				const Core::CloudPasswordResult &result,
+				base::weak_qptr<PasscodeBox> passcode) {
+			RequestBackupChange(
+				show,
+				origin,
+				change,
+				parts,
+				result,
+				passcode,
+				unblock,
+				done);
+		};
+		show->showBox(Box<PasscodeBox>(session, fields));
+		unblock();
+	}, origin->lifetime());
+}
+
+void ShowBackupEnabledToast(std::shared_ptr<Main::SessionShow> show) {
+	show->showToast({
+		.title = tr::lng_wallet_backup_enabled_title(tr::now),
+		.text = { tr::lng_wallet_backup_enabled_text(tr::now) },
+		.icon = &st::toastCheckIcon,
+	});
+}
+
+void StartBackupEnable(
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<Ui::GenericBox*> origin,
+		not_null<bool*> busy) {
+	const auto mode = show->session().wallet().deviceCustodyState().mode;
+	const auto hadCustody = (mode == DeviceMode::Full);
+	const auto upload = crl::guard(origin, [=] {
+		if (*busy) {
+			return;
+		}
+		*busy = true;
+		show->session().wallet().prepareBackupParts(
+			crl::guard(origin, [=](std::vector<QByteArray> parts) {
+				StartBackupRequest(
+					show,
+					origin,
+					BackupChange::Enable,
+					std::move(parts),
+					[=] { *busy = false; },
+					[=] { ShowBackupEnabledToast(show); });
+			}),
+			crl::guard(origin, [=](const QString &) {
+				*busy = false;
+				show->showToast(tr::lng_wallet_backup_error(tr::now));
+			}));
+	});
+	RunKeyRequiringAction(show, [=] {
+		if (hadCustody) {
+			RunLocalPasscodeGate(show, upload);
+		} else {
+			upload();
+		}
+	}, KeyActionKind::ResumeAfterRestore);
+}
+
+void WalletBackupPhraseBox(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<Main::SessionShow> show,
+		std::vector<QString> words,
+		Fn<void(std::vector<QString>)> next) {
+	box->setWidth(st::boxWideWidth);
+	box->setStyle(st::giveawayGiftCodeBox);
+	box->setNoContentMargin(true);
+
+	AddPhraseBoxHeader(
+		box,
+		u"wallet/paper"_q,
+		tr::lng_wallet_backup_phrase_title(),
+		tr::lng_wallet_backup_phrase_text(tr::marked),
+		st::walletPhraseGridLottieSize,
+		st::walletPhraseGridLottieMargin,
+		st::walletPhraseGridTextMargin);
+
+	AddPhraseGrid(box, words);
+
+	AddBoxCloseButton(box);
+	const auto shownAt = crl::now();
+	box->addButton(tr::lng_continue(), [=] {
+		if (crl::now() - shownAt < kBackupWriteDownDelay) {
+			show->showBox(Ui::MakeInformBox({
+				.text = tr::lng_wallet_backup_sure_text(tr::now),
+				.confirmText = tr::lng_wallet_backup_sure_ok(),
+				.title = tr::lng_wallet_backup_sure_title(),
+			}));
+			return;
+		}
+		const auto copy = words;
+		box->closeBox();
+		next(copy);
+	});
+}
+
+[[nodiscard]] std::vector<int> BackupQuizIndices(int count) {
+	auto result = std::vector<int>();
+	while (int(result.size()) < kBackupQuizWordCount) {
+		const auto index = base::RandomIndex(count);
+		if (!ranges::contains(result, index)) {
+			result.push_back(index);
+		}
+	}
+	ranges::sort(result);
+	return result;
+}
+
+[[nodiscard]] rpl::producer<TextWithEntities> BackupQuizText(
+		const std::vector<int> &indices) {
+	const auto number = [](int index) {
+		return rpl::single(tr::bold(QString::number(index + 1)));
+	};
+	return tr::lng_wallet_backup_test_text(
+		lt_index1,
+		number(indices[0]),
+		lt_index2,
+		number(indices[1]),
+		lt_index3,
+		number(indices[2]),
+		tr::marked);
+}
+
+[[nodiscard]] not_null<Ui::InputField*> AddBackupQuizField(
+		not_null<Ui::VerticalLayout*> container,
+		int index) {
+	const auto field = container->add(
+		object_ptr<Ui::InputField>(
+			container,
+			st::walletBackupQuizField,
+			Ui::InputField::Mode::SingleLine),
+		st::walletImportFieldMargin);
+	const auto number = Ui::CreateChild<Ui::FlatLabel>(
+		field,
+		QString::number(index + 1) + QChar('.'),
+		st::walletPhraseNumberLabel);
+	number->setAttribute(Qt::WA_TransparentForMouseEvents);
+	field->widthValue(
+	) | rpl::on_next([=](int width) {
+		number->moveToLeft(
+			st::walletImportNumberLeft,
+			st::walletImportNumberTop,
+			width);
+	}, field->lifetime());
+	return field;
+}
+
+[[nodiscard]] bool BackupQuizAnswerMatches(
+		not_null<Ui::InputField*> field,
+		const QString &word) {
+	const auto entered = field->getLastText().trimmed();
+	return (entered.compare(word.trimmed(), Qt::CaseInsensitive) == 0);
+}
+
+void WalletBackupQuizBox(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<Main::SessionShow> show,
+		std::vector<QString> words,
+		Fn<void()> passed) {
+	Expects(int(words.size()) >= kBackupQuizWordCount);
+
+	box->setWidth(st::boxWideWidth);
+	box->setStyle(st::giveawayGiftCodeBox);
+	box->setNoContentMargin(true);
+
+	struct State {
+		std::vector<Ui::InputField*> fields;
+		std::vector<int> indices;
+		std::vector<bool> wrong;
+	};
+	const auto state = box->lifetime().make_state<State>();
+	state->indices = BackupQuizIndices(int(words.size()));
+	state->wrong.resize(kBackupQuizWordCount, false);
+
+	AddPhraseBoxHeader(
+		box,
+		u"wallet/test"_q,
+		tr::lng_wallet_backup_test_title(),
+		BackupQuizText(state->indices),
+		st::walletPhraseGridLottieSize,
+		st::walletPhraseGridLottieMargin,
+		st::walletPhraseGridTextMargin);
+
+	const auto container = box->verticalLayout();
+	Ui::AddSkip(container, st::walletBackupQuizFieldsTopSkip);
+	for (const auto index : state->indices) {
+		state->fields.push_back(AddBackupQuizField(container, index));
+	}
+	Ui::AddSkip(container, st::walletBackupQuizFieldsBottomSkip);
+
+	AddBoxCloseButton(box);
+	const auto button = box->addButton(tr::lng_continue());
+	const auto allFilled = [=] {
+		return ranges::all_of(state->fields, [](Ui::InputField *field) {
+			return !field->getLastText().trimmed().isEmpty();
+		});
+	};
+	const auto anyWrong = [=] {
+		return ranges::contains(state->wrong, true);
+	};
+	const auto refreshButton = [=] {
+		SetButtonDisabledLook(button.data(), !allFilled() || anyWrong());
+	};
+	const auto submit = [=] {
+		if (!allFilled() || anyWrong()) {
+			return;
+		}
+		for (auto i = 0; i != kBackupQuizWordCount; ++i) {
+			const auto field = state->fields[i];
+			if (!BackupQuizAnswerMatches(field, words[state->indices[i]])) {
+				field->showError();
+				state->wrong[i] = true;
+			}
+		}
+		if (anyWrong()) {
+			refreshButton();
+		} else {
+			passed();
+		}
+	};
+	button->setClickedCallback(submit);
+	refreshButton();
+
+	for (auto i = 0; i != kBackupQuizWordCount; ++i) {
+		const auto field = state->fields[i];
+		field->changes() | rpl::on_next([=] {
+			state->wrong[i] = false;
+			refreshButton();
+		}, field->lifetime());
+		field->submits() | rpl::on_next([=] {
+			if (i + 1 < kBackupQuizWordCount) {
+				state->fields[i + 1]->setFocus();
+			} else {
+				submit();
+			}
+		}, field->lifetime());
+	}
+	box->setFocusCallback([=] {
+		state->fields.front()->setFocusFast();
+	});
+}
+
+void ShowBackupDisabledToast(std::shared_ptr<Main::SessionShow> show) {
+	show->showToast({
+		.title = tr::lng_wallet_backup_disabled_title(tr::now),
+		.text = { tr::lng_wallet_backup_disabled_text(tr::now) },
+		.icon = &st::toastCheckIcon,
+	});
+}
+
+void ShowBackupDisableConfirm(
+		std::shared_ptr<Main::SessionShow> show,
+		base::weak_qptr<Ui::GenericBox> quiz,
+		std::shared_ptr<bool> requesting) {
+	const auto request = [=] {
+		const auto strong = quiz.get();
+		if (!strong || *requesting) {
+			return;
+		}
+		*requesting = true;
+		StartBackupRequest(
+			show,
+			strong,
+			BackupChange::Disable,
+			{},
+			[=] { *requesting = false; },
+			[=] {
+				if (quiz) {
+					quiz->closeBox();
+				}
+				ShowBackupDisabledToast(show);
+			});
+	};
+	show->showBox(Ui::MakeConfirmBox({
+		.text = tr::lng_wallet_backup_final_text(tr::now),
+		.confirmed = [=](Fn<void()> close) {
+			close();
+			request();
+		},
+		.confirmText = tr::lng_wallet_backup_disable_confirm(),
+		.confirmStyle = &st::attentionBoxButton,
+		.title = tr::lng_wallet_backup_disable_title(),
+	}));
+}
+
+void CollectBackupPhrase(
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<Ui::GenericBox*> origin) {
+	const auto showQuiz = [=](std::vector<QString> words) {
+		const auto quiz = std::make_shared<base::weak_qptr<Ui::GenericBox>>();
+		const auto requesting = std::make_shared<bool>(false);
+		*quiz = show->show(Box(WalletBackupQuizBox, show, words, [=] {
+			ShowBackupDisableConfirm(show, *quiz, requesting);
+		}));
+	};
+	const auto showPhrase = [=](std::vector<QString> words) {
+		show->showBox(Box(WalletBackupPhraseBox, show, words, showQuiz));
+	};
+	RunLocalPasscodeGate(show, crl::guard(origin, [=] {
+		StartPhraseReveal(show, origin, [] {}, std::nullopt, showPhrase);
+	}));
+}
+
+void ShowBackupUpdateStub(
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<Ui::GenericBox*> origin) {
+	const auto weak = base::make_weak(origin);
+	show->showBox(Ui::MakeConfirmBox({
+		.text = tr::lng_wallet_backup_update_text(tr::now),
+		.confirmed = [=] {
+			show->showToast(u"Not available yet."_q);
+		},
+		.cancelled = [=](Fn<void()> close) {
+			close();
+			if (const auto strong = weak.get()) {
+				CollectBackupPhrase(show, strong);
+			}
+		},
+		.confirmText = tr::lng_wallet_backup_update_confirm(),
+		.cancelText = tr::lng_wallet_backup_update_later(),
+		.title = tr::lng_wallet_backup_update_title(),
+		.strictCancel = true,
+	}));
+}
+
+void StartBackupDisable(
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<Ui::GenericBox*> origin) {
+	const auto weak = base::make_weak(origin);
+	show->showBox(Ui::MakeConfirmBox({
+		.text = tr::lng_wallet_backup_disable_text(tr::now),
+		.confirmed = [=](Fn<void()> close) {
+			close();
+			if (const auto strong = weak.get()) {
+				ShowBackupUpdateStub(show, strong);
+			}
+		},
+		.confirmText = tr::lng_wallet_backup_disable_confirm(),
+		.confirmStyle = &st::attentionBoxButton,
+		.title = tr::lng_wallet_backup_disable_title(),
+	}));
 }
 
 [[nodiscard]] QStringList SplitPhraseWords(const QString &text) {
@@ -4359,7 +4866,8 @@ struct ImportCover {
 void WalletImportBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
-		WalletImportMode mode) {
+		WalletImportMode mode,
+		Fn<void()> restored) {
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
@@ -4532,12 +5040,17 @@ void WalletImportBox(
 			show->session().wallet().restoreFromPhrase(
 				std::move(words),
 				crl::guard(box, [=] {
-					show->hideLayer();
-					show->showToast({
-						.title = tr::lng_wallet_imported_title(tr::now),
-						.text = { tr::lng_wallet_imported_text(tr::now) },
-						.icon = &st::toastCheckIcon,
-					});
+					if (restored) {
+						box->closeBox();
+						restored();
+					} else {
+						show->hideLayer();
+						show->showToast({
+							.title = tr::lng_wallet_imported_title(tr::now),
+							.text = { tr::lng_wallet_imported_text(tr::now) },
+							.icon = &st::toastCheckIcon,
+						});
+					}
 				}),
 				crl::guard(box, [=](const QString &error) {
 					state->importing = false;
@@ -4913,7 +5426,8 @@ void WalletReplaceBox(
 	import->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
 	import->setClickedCallback([=] {
 		box->closeBox();
-		show->showBox(Box(WalletImportBox, show, WalletImportMode::Replace));
+		show->showBox(
+			Box(WalletImportBox, show, WalletImportMode::Replace, nullptr));
 	});
 	Ui::AddSkip(box->verticalLayout());
 }
@@ -5020,6 +5534,57 @@ void WalletConflictBox(
 	});
 }
 
+void AddBackupSection(
+		not_null<Ui::VerticalLayout*> container,
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<Ui::GenericBox*> box) {
+	auto &wallet = show->session().wallet();
+	const auto busy = box->lifetime().make_state<bool>(false);
+	Ui::AddSubsectionTitle(container, tr::lng_wallet_backup_section());
+	const auto disable = container->add(
+		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+			container,
+			Settings::CreateButtonWithIcon(
+				container,
+				tr::lng_wallet_backup_disable(),
+				st::settingsAttentionButton)));
+	disable->toggleOn(wallet.capabilitiesValue(
+	) | rpl::map([](const WalletCapabilities &capabilities) {
+		return capabilities.backupEnabled;
+	}));
+	disable->finishAnimating();
+	disable->entity()->addClickHandler([=] {
+		RunKeyRequiringAction(show, [=] {
+			StartBackupDisable(show, box);
+		}, KeyActionKind::Reveal);
+	});
+	const auto enable = container->add(
+		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+			container,
+			Settings::CreateButtonWithIcon(
+				container,
+				tr::lng_wallet_backup_enable(),
+				st::settingsButtonNoIcon)));
+	enable->toggleOn(wallet.capabilitiesValue(
+	) | rpl::map([](const WalletCapabilities &capabilities) {
+		return capabilities.canEnableBackup && !capabilities.backupEnabled;
+	}));
+	enable->finishAnimating();
+	enable->entity()->addClickHandler([=] {
+		StartBackupEnable(show, box, busy);
+	});
+	Ui::AddSkip(container);
+	Ui::AddDividerText(container, wallet.capabilitiesValue(
+	) | rpl::map([](const WalletCapabilities &capabilities) {
+		return capabilities.backupEnabled
+			? tr::lng_wallet_backup_about_on()
+			: capabilities.canEnableBackup
+			? tr::lng_wallet_backup_about_off()
+			: tr::lng_wallet_backup_about_unavailable();
+	}) | rpl::flatten_latest());
+	Ui::AddSkip(container);
+}
+
 void WalletKeysBackupBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show) {
@@ -5032,31 +5597,51 @@ void WalletKeysBackupBox(
 	const auto container = box->verticalLayout();
 	Ui::AddSkip(container);
 	Ui::AddSubsectionTitle(container, tr::lng_wallet_keys_phrase_section());
-	if (wallet.capabilities().canExportPhrase || wallet.revealsLocally()) {
-		Settings::AddButtonWithIcon(
+	const auto phrase = container->add(
+		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 			container,
-			tr::lng_wallet_keys_show_phrase(),
-			st::settingsButtonNoIcon
-		)->addClickHandler([=] {
-			RunKeyRequiringAction(show, [=] {
-				WalletRevealFlow(show);
-			}, true);
-		});
-	}
-	const auto mode = wallet.deviceCustodyState().mode;
-	if (mode == DeviceMode::ReadOnlyNotRestorable) {
-		Settings::AddButtonWithIcon(
+			Settings::CreateButtonWithIcon(
+				container,
+				tr::lng_wallet_keys_show_phrase(),
+				st::settingsButtonNoIcon)));
+	phrase->toggleOn(rpl::combine(
+		wallet.capabilitiesValue(),
+		wallet.deviceCustodyStateValue()
+	) | rpl::map([](
+			const WalletCapabilities &capabilities,
+			const DeviceCustodyState &custody) {
+		return capabilities.canExportPhrase
+			|| (custody.mode == DeviceMode::Full);
+	}));
+	phrase->finishAnimating();
+	phrase->entity()->addClickHandler([=] {
+		RunKeyRequiringAction(show, [=] {
+			WalletRevealFlow(show);
+		}, KeyActionKind::Reveal);
+	});
+	const auto restore = container->add(
+		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 			container,
-			tr::lng_wallet_keys_restore(),
-			st::settingsButtonNoIcon
-		)->addClickHandler([=] {
-			show->showBox(
-				Box(WalletImportBox, show, WalletImportMode::Restore));
-		});
-	}
+			Settings::CreateButtonWithIcon(
+				container,
+				tr::lng_wallet_keys_restore(),
+				st::settingsButtonNoIcon)));
+	restore->toggleOn(wallet.deviceCustodyStateValue(
+	) | rpl::map([](const DeviceCustodyState &custody) {
+		return (custody.mode == DeviceMode::ReadOnlyNotRestorable);
+	}));
+	restore->finishAnimating();
+	restore->entity()->addClickHandler([=] {
+		show->showBox(Box(
+			WalletImportBox,
+			show,
+			WalletImportMode::Restore,
+			nullptr));
+	});
 	Ui::AddSkip(container);
 	Ui::AddDividerText(container, tr::lng_wallet_keys_phrase_about());
 	Ui::AddSkip(container);
+	AddBackupSection(container, show, box);
 	Settings::AddButtonWithIcon(
 		container,
 		tr::lng_wallet_keys_delete(),
@@ -6186,8 +6771,11 @@ void Content::setupCustodyBar() {
 		if (*current == Bar::Conflict) {
 			_show->showBox(Box(WalletConflictBox, _show));
 		} else if (*current == Bar::ReadOnly) {
-			_show->showBox(
-				Box(WalletImportBox, _show, WalletImportMode::Restore));
+			_show->showBox(Box(
+				WalletImportBox,
+				_show,
+				WalletImportMode::Restore,
+				nullptr));
 		}
 	});
 

@@ -233,6 +233,47 @@ struct Restored {
 	return result;
 }
 
+[[nodiscard]] std::optional<std::vector<QByteArray>> ParseBackupHolderKeys(
+		const QVector<MTPwallet_HolderDc> &list) {
+	if (list.size() < 2) {
+		return std::nullopt;
+	}
+	auto dcs = std::vector<int>();
+	auto result = std::vector<QByteArray>();
+	dcs.reserve(list.size());
+	result.reserve(list.size());
+	for (const auto &holder : list) {
+		const auto &data = holder.data();
+		const auto dc = data.vdc().v;
+		const auto &key = data.vpublic_key().v;
+		if (dc <= 0
+			|| ranges::contains(dcs, dc)
+			|| key.size() != PhraseShares::kPublicKeySize) {
+			return std::nullopt;
+		}
+		dcs.push_back(dc);
+		result.push_back(key);
+	}
+	return result;
+}
+
+[[nodiscard]] std::optional<std::vector<QByteArray>> SealBackupParts(
+		const std::vector<QByteArray> &holderKeys,
+		const std::vector<QString> &words) {
+	const auto seed = PhraseShares::SeedFromWords(words);
+	const auto shares = PhraseShares::SplitSeed(seed, int(holderKeys.size()));
+	auto result = std::vector<QByteArray>();
+	result.reserve(holderKeys.size());
+	for (auto i = 0, count = int(holderKeys.size()); i != count; ++i) {
+		auto part = PhraseShares::EncryptShare(holderKeys[i], shares[i]);
+		if (!part) {
+			return std::nullopt;
+		}
+		result.push_back(std::move(*part));
+	}
+	return result;
+}
+
 void FailShareFetch(
 		MTP::Sender &api,
 		base::Timer &deadline,
@@ -658,7 +699,11 @@ QString Session::addressFriendly(bool bounceable) {
 }
 
 WalletCapabilities Session::capabilities() const {
-	return _capabilities;
+	return _capabilities.current();
+}
+
+rpl::producer<WalletCapabilities> Session::capabilitiesValue() const {
+	return _capabilities.value();
 }
 
 QByteArray Session::publicKey() const {
@@ -773,12 +818,16 @@ bool Session::revealsLocally() {
 		&& (custody().matching(_publicKey) != nullptr);
 }
 
+bool Session::custodyBusy() const {
+	return _phraseRevealing || _replacing || _backupChanging;
+}
+
 void Session::revealPhrase(
 		std::optional<Core::CloudPasswordResult> password,
 		Fn<void(std::vector<QString>)> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
-	if (_phraseRevealing || _replacing) {
+	if (custodyBusy()) {
 		LOG(("Wallet Error: reveal requested while another is in flight."));
 		if (fail) {
 			fail(u"PHRASE_BUSY"_q);
@@ -1009,7 +1058,7 @@ void Session::restoreFromPhrase(
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
-	if (_phraseRevealing || _replacing) {
+	if (custodyBusy()) {
 		LOG(("Wallet Error: restore requested while another is in flight."));
 		if (fail) {
 			fail(u"PHRASE_BUSY"_q);
@@ -1044,7 +1093,7 @@ void Session::restoreFromBackup(
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
-	if (_phraseRevealing || _replacing) {
+	if (custodyBusy()) {
 		LOG(("Wallet Error: restore requested while another is in flight."));
 		if (fail) {
 			fail(u"PHRASE_BUSY"_q);
@@ -1079,7 +1128,7 @@ void Session::revealParked(
 		Fn<void(std::vector<QString>)> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
-	if (_phraseRevealing || _replacing) {
+	if (custodyBusy()) {
 		LOG(("Wallet Error: reveal requested while another is in flight."));
 		if (fail) {
 			fail(u"PHRASE_BUSY"_q);
@@ -1123,7 +1172,7 @@ void Session::dropParked(
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
-	if (_phraseRevealing || _replacing) {
+	if (custodyBusy()) {
 		LOG(("Wallet Error: drop requested while another is in flight."));
 		if (fail) {
 			fail(u"PHRASE_BUSY"_q);
@@ -1170,6 +1219,205 @@ void Session::dropParked(
 			).arg(LifecycleErrorName(error)));
 		fail(u"PHRASE_LOCAL_FAILED"_q);
 	});
+}
+
+void Session::prepareBackupParts(
+		Fn<void(std::vector<QByteArray>)> done,
+		Fn<void(const QString &error)> fail) {
+	ensureLoaded();
+	if (custodyBusy()) {
+		LOG(("Wallet Error: backup requested while another is in flight."));
+		if (fail) {
+			fail(u"BACKUP_BUSY"_q);
+		}
+		return;
+	}
+	if (_presence.current() != Presence::Ready
+		|| _publicKey.size() != kCustodyPublicKeySize) {
+		LOG(("Wallet Error: backup requested without a settled wallet key."));
+		if (fail) {
+			fail(u"BACKUP_STATE_UNKNOWN"_q);
+		}
+		return;
+	}
+	const auto matching = custody().matching(_publicKey);
+	if (!matching) {
+		LOG(("Wallet Error: backup requested without local custody."));
+		if (fail) {
+			fail(u"BACKUP_NO_CUSTODY"_q);
+		}
+		return;
+	}
+	const auto record = *matching;
+	_backupChanging = true;
+	// Every path below ends in exactly one of these two calls, which is
+	// what clears the guard, so none of them is fenced by _networkGeneration:
+	// a reveal owns no network-derived state, and dropping its callback
+	// would either orphan a just-stored engine secret or leave the guard
+	// set for the rest of the session.
+	done = [this, done = std::move(done)](std::vector<QByteArray> parts) {
+		_backupChanging = false;
+		if (done) {
+			done(std::move(parts));
+		}
+	};
+	fail = [this, fail = std::move(fail)](const QString &error) {
+		_backupChanging = false;
+		if (fail) {
+			fail(error);
+		}
+	};
+	_stateApi.request(MTPwallet_GetBackupHolderDcs(
+	)).done([=, this](const MTPVector<MTPwallet_HolderDc> &result) {
+		const auto keys = ParseBackupHolderKeys(result.v);
+		if (!keys) {
+			LOG(("Wallet Error: wallet.getBackupHolderDcs answered "
+				"%1 holder(s).").arg(result.v.size()));
+			fail(u"BACKUP_HOLDERS_INVALID"_q);
+			return;
+		}
+		revealLocally(record, [=](std::vector<QString> words) {
+			auto parts = SealBackupParts(*keys, words);
+			if (!parts) {
+				LOG(("Wallet Error: backup parts could not be sealed."));
+				fail(u"BACKUP_ENCRYPT_FAILED"_q);
+				return;
+			}
+			done(std::move(*parts));
+		}, fail);
+	}).fail([=](const MTP::Error &error) {
+		LOG(("Wallet Error: wallet.getBackupHolderDcs failed: %1"
+			).arg(error.type()));
+		fail(error.type());
+	}).send();
+}
+
+void Session::disableBackup(
+		std::optional<Core::CloudPasswordResult> password,
+		Fn<void()> done,
+		Fn<void(const QString &error)> fail) {
+	ensureLoaded();
+	if (custodyBusy()) {
+		LOG(("Wallet Error: backup disable requested "
+			"while another is in flight."));
+		if (fail) {
+			fail(u"BACKUP_BUSY"_q);
+		}
+		return;
+	}
+	if (_presence.current() != Presence::Ready
+		|| _publicKey.size() != kCustodyPublicKeySize) {
+		LOG(("Wallet Error: backup disable requested "
+			"without a settled wallet key."));
+		if (fail) {
+			fail(u"BACKUP_STATE_UNKNOWN"_q);
+		}
+		return;
+	}
+	if (!custody().matching(_publicKey)) {
+		LOG(("Wallet Error: backup disable requested without local custody."));
+		if (fail) {
+			fail(u"BACKUP_NO_CUSTODY"_q);
+		}
+		return;
+	}
+	_backupChanging = true;
+	done = [this, done = std::move(done)] {
+		_backupChanging = false;
+		if (done) {
+			done();
+		}
+	};
+	fail = [this, fail = std::move(fail)](const QString &error) {
+		_backupChanging = false;
+		if (fail) {
+			fail(error);
+		}
+	};
+	using Flag = MTPwallet_disableBackup::Flag;
+	const auto checked = password && *password;
+	_stateApi.request(MTPwallet_DisableBackup(
+		MTP_flags(checked ? Flag::f_password : Flag(0)),
+		checked ? password->result : MTP_inputCheckPasswordEmpty()
+	)).done([=, this](const MTPWalletState &result) {
+		applyState(result);
+		done();
+	}).fail([=](const MTP::Error &error) {
+		LOG(("Wallet Error: wallet.disableBackup failed: %1"
+			).arg(error.type()));
+		fail(error.type());
+	}).handleFloodErrors().send();
+}
+
+void Session::enableBackup(
+		std::vector<QByteArray> parts,
+		std::optional<Core::CloudPasswordResult> password,
+		Fn<void()> done,
+		Fn<void(const QString &error)> fail) {
+	ensureLoaded();
+	if (custodyBusy()) {
+		LOG(("Wallet Error: backup enable requested "
+			"while another is in flight."));
+		if (fail) {
+			fail(u"BACKUP_BUSY"_q);
+		}
+		return;
+	}
+	if (_presence.current() != Presence::Ready
+		|| _publicKey.size() != kCustodyPublicKeySize) {
+		LOG(("Wallet Error: backup enable requested "
+			"without a settled wallet key."));
+		if (fail) {
+			fail(u"BACKUP_STATE_UNKNOWN"_q);
+		}
+		return;
+	}
+	if (!custody().matching(_publicKey)) {
+		LOG(("Wallet Error: backup enable requested without local custody."));
+		if (fail) {
+			fail(u"BACKUP_NO_CUSTODY"_q);
+		}
+		return;
+	}
+	if (parts.empty()) {
+		LOG(("Wallet Error: backup enable requested without parts."));
+		if (fail) {
+			fail(u"BACKUP_PARTS_EMPTY"_q);
+		}
+		return;
+	}
+	_backupChanging = true;
+	done = [this, done = std::move(done)] {
+		_backupChanging = false;
+		if (done) {
+			done();
+		}
+	};
+	fail = [this, fail = std::move(fail)](const QString &error) {
+		_backupChanging = false;
+		if (fail) {
+			fail(error);
+		}
+	};
+	auto list = QVector<MTPbytes>();
+	list.reserve(parts.size());
+	for (auto &part : parts) {
+		list.push_back(MTP_bytes(std::move(part)));
+	}
+	using Flag = MTPwallet_enableBackup::Flag;
+	const auto checked = password && *password;
+	_stateApi.request(MTPwallet_EnableBackup(
+		MTP_flags(checked ? Flag::f_password : Flag(0)),
+		MTP_vector<MTPbytes>(std::move(list)),
+		checked ? password->result : MTP_inputCheckPasswordEmpty()
+	)).done([=, this](const MTPWalletState &result) {
+		applyState(result);
+		done();
+	}).fail([=](const MTP::Error &error) {
+		LOG(("Wallet Error: wallet.enableBackup failed: %1"
+			).arg(error.type()));
+		fail(error.type());
+	}).handleFloodErrors().send();
 }
 
 std::vector<CustodyRecord> Session::parkedRecords() {
@@ -1238,7 +1486,7 @@ void Session::replaceWithNew(
 	// finished after a replace landed would write an active custody record
 	// for the replaced key and show stale words. Both flows write the same
 	// custody store, so each one's busy check refuses the other.
-	if (_replacing || _phraseRevealing) {
+	if (custodyBusy()) {
 		LOG(("Wallet Error: replace requested while another is in flight."));
 		if (fail) {
 			fail(u"REPLACE_BUSY"_q);
@@ -1285,7 +1533,7 @@ void Session::replaceWithImported(
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
-	if (_replacing || _phraseRevealing) {
+	if (custodyBusy()) {
 		LOG(("Wallet Error: replace requested while another is in flight."));
 		if (fail) {
 			fail(u"REPLACE_BUSY"_q);
@@ -1493,7 +1741,7 @@ void Session::updateDeviceCustodyState() {
 		});
 	const auto mode = store.matching(_publicKey)
 		? DeviceMode::Full
-		: _capabilities.canExportPhrase
+		: _capabilities.current().canExportPhrase
 		? DeviceMode::ReadOnlyRestorable
 		: DeviceMode::ReadOnlyNotRestorable;
 	_deviceCustody = DeviceCustodyState{

@@ -197,6 +197,37 @@ std::optional<QByteArray> TemporaryKeyPair::decryptForOne(
 	return QByteArray::fromStdString(decrypted.value());
 }
 
+std::optional<QByteArray> TemporaryKeyPair::encryptForOne(
+		const QByteArray &peerPublicKey,
+		const QByteArray &plain) const {
+	if (!_id.v || peerPublicKey.size() != int(sizeof(PublicKey))) {
+		return std::nullopt;
+	}
+	const auto peer = tde2e_api::key_from_public_key(Slice(peerPublicKey));
+	if (!peer.is_ok()) {
+		return std::nullopt;
+	}
+	const auto peerId = peer.value();
+	const auto peerGuard = gsl::finally([=] {
+		tde2e_api::key_destroy(peerId);
+	});
+	const auto shared = tde2e_api::key_from_ecdh(std::int64_t(_id.v), peerId);
+	if (!shared.is_ok()) {
+		return std::nullopt;
+	}
+	const auto sharedId = shared.value();
+	const auto sharedGuard = gsl::finally([=] {
+		tde2e_api::key_destroy(sharedId);
+	});
+	const auto encrypted = tde2e_api::encrypt_message_for_one(
+		sharedId,
+		Slice(plain));
+	if (!encrypted.is_ok()) {
+		return std::nullopt;
+	}
+	return QByteArray::fromStdString(encrypted.value());
+}
+
 Call::Call(UserId myUserId)
 : _myUserId(myUserId) {
 	const auto id = tde2e_api::key_generate_temporary_private_key();
