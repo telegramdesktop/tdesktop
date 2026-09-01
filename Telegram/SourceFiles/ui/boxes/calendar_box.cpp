@@ -18,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/cached_round_corners.h"
 #include "ui/layers/generic_box.h"
 #include "ui/dynamic_image.h"
-#include "ui/image/image_prepare.h"
 #include "lang/lang_keys.h"
 #include "base/flat_map.h"
 #include "base/flat_set.h"
@@ -843,9 +842,7 @@ void CalendarBox::Inner::paintRows(QPainter &p, QRect clip) {
 									- QPointF(side / 2., side / 2.),
 								QSizeF(side, side));
 							p.setOpacity(opacity);
-							p.drawImage(
-								revealRect,
-								Images::Circle(std::move(image)));
+							p.drawImage(revealRect, image);
 							p.setPen(Qt::NoPen);
 							p.setBrush(st::songCoverOverlayFg);
 							p.drawEllipse(revealRect);

@@ -165,10 +165,13 @@ void SearchCalendarController::processMonthData(
 		}
 		auto image = std::shared_ptr<Ui::DynamicImage>();
 		if (const auto photo = media->photo()) {
-			image = Ui::MakePhotoThumbnail(photo, item->fullId());
+			image = Ui::MakePhotoThumbnail(photo, item->fullId(), true);
 		} else if (const auto document = media->document()) {
 			if (document->isVideoFile()) {
-				image = Ui::MakeDocumentThumbnail(document, item->fullId());
+				image = Ui::MakeDocumentThumbnail(
+					document,
+					item->fullId(),
+					true);
 			}
 		}
 		if (image) {
