@@ -80,6 +80,13 @@ constexpr auto kSeekPreviewInterval = crl::time(100);
 
 using ::Media::ValidFrameSize;
 
+[[nodiscard]] QSize InlineFrameSize(not_null<DocumentData*> document) {
+	const auto video = document->video();
+	return (video && !video->realVideoSize.isEmpty())
+		? video->realVideoSize
+		: document->dimensions;
+}
+
 [[nodiscard]] bool IsHostedInstantViewMedia(not_null<const Element*> parent) {
 	return parent->Get<InstantViewMediaRuntime>() != nullptr;
 }
@@ -289,7 +296,7 @@ DocumentData *Gif::ChooseInlineQuality(
 		int maxArea,
 		::Media::VideoQuality request) {
 	const auto fits = [&](not_null<DocumentData*> quality) {
-		return ValidFrameSize(quality->dimensions, maxArea)
+		return ValidFrameSize(InlineFrameSize(quality), maxArea)
 			&& (quality == document
 				|| (quality->useStreamingLoader()
 					&& quality->canBeStreamed()
@@ -331,11 +338,12 @@ int Gif::maxInlineArea() const {
 }
 
 bool Gif::canPlayInline() const {
-	return ChooseInlineQuality(
-		_data,
-		_realParent,
-		maxInlineArea(),
-		Core::App().settings().videoQuality()) != nullptr;
+	return !_inlineOverCap
+		&& ChooseInlineQuality(
+			_data,
+			_realParent,
+			maxInlineArea(),
+			Core::App().settings().videoQuality()) != nullptr;
 }
 
 QSize Gif::sizeForAspectRatio() const {
@@ -2491,6 +2499,9 @@ void Gif::playAnimation(bool autoplay) {
 }
 
 void Gif::createStreamedPlayer() {
+	if (_inlineOverCap) {
+		return;
+	}
 	const auto quality = _data->initialPlaybackVideoQuality(
 		Core::App().settings().videoQuality());
 	const auto chosen = ChooseInlineQuality(
@@ -2621,10 +2632,20 @@ void Gif::repaintStreamedContent() {
 void Gif::streamingReady(::Media::Streaming::Information &&info) {
 	Expects(_streamed != nullptr);
 
-	if (!ValidFrameSize(info.video.size, maxInlineArea())) {
-		if (!info.video.size.isEmpty()) {
-			_streamed->chosen->dimensions = info.video.size;
-		}
+	const auto chosen = _streamed->chosen;
+	const auto measured = info.video.realSize;
+	const auto video = measured.isEmpty() ? nullptr : chosen->video();
+	if (video) {
+		video->realVideoSize = measured;
+	}
+	const auto effective = measured.isEmpty()
+		? InlineFrameSize(chosen)
+		: measured;
+	if (!ValidFrameSize(effective, maxInlineArea())) {
+		// A document with no VideoData can't remember the measurement,
+		// so the refusal is remembered on the element instead. Such a
+		// document never has a quality list, so nothing to step down to.
+		_inlineOverCap = !video;
 		stopAnimation();
 	} else {
 		history()->owner().requestViewResize(_parent);

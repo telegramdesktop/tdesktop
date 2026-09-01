@@ -294,6 +294,7 @@ private:
 	mutable bool _purchasedPriceTag : 1 = false;
 	mutable bool _seeking : 1 = false;
 	mutable bool _smallGroupPart : 1 = false;
+	bool _inlineOverCap : 1 = false;
 	const bool _sensitiveSpoiler : 1 = false;
 	const bool _ttlCover : 1 = false;
 	const bool _hasVideoCover : 1 = false;
