@@ -102,7 +102,7 @@ struct BoxShellButtons {
 // silent no-op.
 bool ClickBoxButton(QWidget *box, const QString &label);
 
-// The self-test builds one real Ui::GenericBox with two addButton footer
+// The self-test builds one real Ui::GenericBox with three addButton footer
 // buttons and a decoy Ui::RoundButton inside its content. The decoy is the
 // control: without it the content-rooted zero would read as "this box has no
 // buttons at all" rather than "the footer row is not in the content".
