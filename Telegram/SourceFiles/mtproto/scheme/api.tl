@@ -2299,11 +2299,11 @@ walletState#95c5346b flags:# backup_enabled:flags.0?true can_export_phrase:flags
 
 walletUserAddress#1ce00108 user_id:long address:string = WalletUserAddress;
 
-walletTransactionPeerUser#d98c5886 user_id:long = WalletTransactionPeer;
+walletTransactionPeerUser#f4e99626 user_id:long address:string = WalletTransactionPeer;
 walletTransactionPeerAddress#7d6f4ebd address:string = WalletTransactionPeer;
 walletTransactionPeerUnsupported#728bed5a = WalletTransactionPeer;
 
-walletTransaction#6f9986a1 flags:# incoming:flags.0?true pending:flags.1?true failed:flags.2?true id:string amount:long fee:long date:int peer:WalletTransactionPeer comment:flags.3?string tx_hash:flags.4?string = WalletTransaction;
+walletTransaction#6f9986a1 flags:# incoming:flags.0?true pending:flags.1?true failed:flags.2?true key_change:flags.5?true id:string amount:long fee:long date:int peer:WalletTransactionPeer comment:flags.3?string tx_hash:flags.4?string = WalletTransaction;
 
 wallet.transactions#4322d5a5 flags:# balance:long transactions:Vector<WalletTransaction> next_offset:flags.0?string chats:Vector<Chat> users:Vector<User> = wallet.Transactions;
 
