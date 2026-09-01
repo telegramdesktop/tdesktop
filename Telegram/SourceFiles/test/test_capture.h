@@ -131,6 +131,52 @@ struct PaintingLayerRootResult {
 // composes and which takes not_null<QWidget*>.
 bool CaptureInLayerRoot(not_null<QWidget*> box, const QString &name);
 
+// The one capture for a widget that paints no opaque background of its own.
+//
+// Ui::Toast::internal::Widget's constructor sets only
+// Qt::WA_TransparentForMouseEvents, never Qt::WA_OpaquePaintEvent nor
+// Qt::WA_NoSystemBackground (ui/toast/toast_widget.cpp:413-441), and while
+// its fade-in opacity is below 1 its paintEvent draws the whole frame into a
+// transparent proxy at that opacity and returns (:585-600). A grab of such a
+// widget holds the harness base and nothing else, at perfectly sane
+// geometry - what run 4 of 2026/08/30/replace-wallet-with-new-or-imported
+// paid for. The repair is to grab the widget's own window and crop it to the
+// widget's rect mapped into that window, because the opaque window behind
+// the fade-in is what holds the real pixels.
+//
+// PreparedWidgetCapture cannot answer this. Its blank-frame refusal fires on
+// every frame such a wrapper can offer, so a poll around it can only end in
+// a stage timeout - the shape test_layer_root.h:24-28 describes for a
+// no-content-margin box.
+//
+// A blank frame here is a Note and never a FAIL, by contract: the decisive
+// oracle for a fade-in wrapper is textual - the joined accessibilityName()
+// of its Ui::FlatLabels (ui/widgets/labels.h:131-133) - and the capture only
+// corroborates it. A structural refusal is still a loud FAIL, because no
+// amount of waiting repairs it: no widget, not visible, empty geometry, the
+// target is its own window (which keeps this off a Ui::PopupMenu just as the
+// walk above refuses one), or its rect does not map inside that window.
+//
+// ReadViaWindow takes no grab and |window| is non-null exactly when
+// |refusal| is empty; GrabViaWindow and ViaWindowReady take exactly one
+// grab, so a poll costs one grab per tick.
+struct WindowMappedCapture {
+	QWidget *window = nullptr;
+	QRect mapped;
+	QString refusal;
+	QString identity;
+
+	[[nodiscard]] bool resolved() const {
+		return window != nullptr;
+	}
+};
+
+[[nodiscard]] WindowMappedCapture ReadViaWindow(QWidget *widget);
+[[nodiscard]] QImage GrabViaWindow(QWidget *widget);
+[[nodiscard]] bool ViaWindowReady(QWidget *widget);
+[[nodiscard]] QString ViaWindowDetails(QWidget *widget);
+bool CaptureViaWindow(not_null<QWidget*> widget, const QString &name);
+
 [[nodiscard]] QImage Crop(const QImage &image, const QRect &pixelRect);
 
 // Nearest-neighbor upscale for readable small-target evidence.
