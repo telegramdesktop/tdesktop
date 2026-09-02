@@ -138,6 +138,7 @@ private:
 	void finish();
 	void callback(Reader *reader, Notification notification);
 	void clear();
+	void deletePrivate(ReaderPrivate *reader);
 
 	QAtomicInt _loadLevel;
 	using ReaderPointers = QMap<Reader*, QAtomicInt>;
@@ -684,6 +685,7 @@ private:
 
 	bool _autoPausedGif = false;
 	bool _started = false;
+	bool _promoted = false;
 	crl::time _videoPausedAtMs = 0;
 
 	friend class Manager;
@@ -722,10 +724,20 @@ void Manager::update(Reader *reader) {
 }
 
 void Manager::stop(Reader *reader) {
-	if (!carries(reader)) return;
-
 	QMutexLocker lock(&_readerPointersMutex);
-	_readerPointers.remove(reader);
+	if (!_readerPointers.remove(reader)) {
+		return;
+	}
+
+	// A private is inserted into _readers only by process()'s prologue,
+	// which sets _promoted in the same critical section this holds. So
+	// under this mutex, and with the _readerPointers entry already gone,
+	// !_promoted means no worker route can still reach the object: the
+	// prologue walks the map it was just removed from, and the worker's
+	// loops walk only _readers, which it never entered.
+	if (reader->_private && !reader->_private->_promoted) {
+		deletePrivate(base::take(reader->_private));
+	}
 	InvokeQueued(this, [=] { process(); });
 }
 
@@ -824,8 +836,7 @@ bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, c
 
 Manager::ResultHandleState Manager::handleResult(ReaderPrivate *reader, ProcessResult result, crl::time ms) {
 	if (!handleProcessResult(reader, result, ms)) {
-		_loadLevel.fetchAndAddRelaxed(-1 * (reader->_width > 0 ? reader->_width * reader->_height : kAverageGifSize));
-		delete reader;
+		deletePrivate(reader);
 		return ResultHandleRemove;
 	}
 
@@ -877,6 +888,7 @@ void Manager::process() {
 			if (it->loadAcquire()) {
 				auto i = _readers.find(it.key()->_private);
 				if (i == _readers.cend()) {
+					it.key()->_private->_promoted = true;
 					_readers.insert(it.key()->_private, 0);
 				} else {
 					i.value() = ms;
@@ -920,8 +932,7 @@ void Manager::process() {
 			QMutexLocker lock(&_readerPointersMutex);
 			auto it = constUnsafeFindReaderPointer(reader);
 			if (it == _readerPointers.cend()) {
-				_loadLevel.fetchAndAddRelaxed(-1 * (reader->_width > 0 ? reader->_width * reader->_height : kAverageGifSize));
-				delete reader;
+				deletePrivate(reader);
 				i = _readers.erase(i);
 				continue;
 			}
@@ -952,15 +963,26 @@ void Manager::clear() {
 	{
 		QMutexLocker lock(&_readerPointersMutex);
 		for (auto it = _readerPointers.begin(), e = _readerPointers.end(); it != e; ++it) {
-			it.key()->_private = nullptr;
+			if (const auto data = base::take(it.key()->_private)) {
+				if (!data->_promoted) {
+					deletePrivate(data);
+				}
+			}
 		}
 		_readerPointers.clear();
 	}
 
-	for (Readers::iterator i = _readers.begin(), e = _readers.end(); i != e; ++i) {
-		delete i.key();
+	for (auto i = _readers.begin(), e = _readers.end(); i != e; ++i) {
+		deletePrivate(i.key());
 	}
 	_readers.clear();
+}
+
+void Manager::deletePrivate(ReaderPrivate *reader) {
+	_loadLevel.fetchAndAddRelaxed(-1 * (reader->_width > 0
+		? reader->_width * reader->_height
+		: kAverageGifSize));
+	delete reader;
 }
 
 Manager::~Manager() {
