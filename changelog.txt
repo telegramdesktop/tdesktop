@@ -1,3 +1,7 @@
+7.1.5 (02.09.26)
+
+- Fix crash on Linux.
+
 7.1.4 (01.09.26)
 
 - Widen rich message bubbles to fit wide content.
