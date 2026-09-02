@@ -2280,6 +2280,7 @@ def parse_test_log(text):
 	steps = []
 	passed = []
 	failed = []
+	skipped = []
 	screenshots = []
 	for line in text.splitlines():
 		if line.startswith("TEST_STEP: "):
@@ -2288,12 +2289,15 @@ def parse_test_log(text):
 			passed.append(line[len("TEST_RESULT: PASS: "):])
 		elif line.startswith("TEST_RESULT: FAIL: "):
 			failed.append(line[len("TEST_RESULT: FAIL: "):])
+		elif line.startswith("TEST_RESULT: N/A: "):
+			skipped.append(line[len("TEST_RESULT: N/A: "):])
 		elif line.startswith("SCREENSHOT: "):
 			screenshots.append(line[len("SCREENSHOT: "):])
 	return {
 		"steps": steps,
 		"pass": passed,
 		"fail": failed,
+		"skipped": skipped,
 		"screenshots": screenshots,
 	}
 

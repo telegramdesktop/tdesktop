@@ -26,6 +26,14 @@ void Step(const QString &text);
 void Pass(const QString &text, const QString &details = QString());
 void Fail(const QString &text, const QString &details = QString());
 
+// A stage or check that did not apply: its gate read false, so nothing was
+// measured. Same grammar as Pass and Fail - "TEST_RESULT: N/A: <what>" with
+// " - <details>" appended when details exist - counted separately from both
+// and never a failure, because a scenario's verdict stays decided by its
+// failure count alone. |details| carries the gate's reason, so a reader can
+// tell a deliberate skip from a missing measurement.
+void Skipped(const QString &what, const QString &details = QString());
+
 // |details| is an observation - the reading the verdict was made against -
 // and it is printed whether the check holds or not, so a green log says what
 // each check reached and a passing run can be audited without re-running it.
@@ -50,6 +58,7 @@ void CheckNear(
 void LogGeometry(const QString &name, const QRect &rect);
 
 [[nodiscard]] int FailureCount();
+[[nodiscard]] int SkippedCount();
 
 // Writes the TEST_COMPLETE marker the external runner waits for, and
 // records when it was written. CompletedAt() is crl::now() at that

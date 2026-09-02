@@ -15,6 +15,7 @@ namespace Test {
 namespace {
 
 auto FailuresCount = 0;
+auto SkippedCountValue = 0;
 auto CompletedAtValue = crl::time(0);
 
 [[nodiscard]] QString EnsuredDir(const QString &path) {
@@ -66,6 +67,13 @@ void Fail(const QString &text, const QString &details) {
 		: u"TEST_RESULT: FAIL: %1 - %2"_q.arg(text, details));
 }
 
+void Skipped(const QString &text, const QString &details) {
+	++SkippedCountValue;
+	LogRaw(details.isEmpty()
+		? u"TEST_RESULT: N/A: %1"_q.arg(text)
+		: u"TEST_RESULT: N/A: %1 - %2"_q.arg(text, details));
+}
+
 void Check(bool ok, const QString &what, const QString &details) {
 	if (ok) {
 		Pass(what, details);
@@ -105,6 +113,10 @@ void LogGeometry(const QString &name, const QRect &rect) {
 
 int FailureCount() {
 	return FailuresCount;
+}
+
+int SkippedCount() {
+	return SkippedCountValue;
 }
 
 void Complete() {

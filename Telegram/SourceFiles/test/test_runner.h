@@ -22,9 +22,13 @@ inline constexpr auto kStartupStageTimeout = crl::time(30000);
 // true (immediately ready when null), then runs |then| assertions/actions.
 // Expected product results belong in |then|, not |until|. A stage past its
 // |timeout| fails the scenario and finishes early — the scenario always ends
-// in TEST_COMPLETE and quit, never a hang.
+// in TEST_COMPLETE and quit, never a hang. A stage whose |skipReason| returns
+// a non-empty string does not apply: the runner writes TEST_RESULT: N/A with
+// that reason, skips |run|, |until| and |then|, and moves to the next stage
+// in the same turn, so a false gate never waits and never times out.
 struct Stage {
 	QString name;
+	Fn<QString()> skipReason;
 	Fn<void()> run;
 	Fn<bool()> until;
 	Fn<void()> then;

@@ -1894,6 +1894,20 @@ class MechanicsTest(unittest.TestCase):
 			self.assertEqual(result["markers"]["screenshots"], ["/tmp/fake.png"])
 			self.assertFalse(result["crash_report_fresh"])
 
+	def test_parse_test_log_lists_skipped_rows_beside_pass_and_fail(self):
+		markers = workspace.parse_test_log("\n".join([
+			"TEST_STEP: gated stage self-test: arm",
+			"TEST_RESULT: N/A: skipped stage - applies=0",
+			"TEST_RESULT: PASS: applied stage - ran=1",
+			"TEST_RESULT: FAIL: other stage - ran=0",
+			"SCREENSHOT: /tmp/fake.png",
+		]))
+		self.assertEqual(markers["skipped"], ["skipped stage - applies=0"])
+		self.assertEqual(markers["pass"], ["applied stage - ran=1"])
+		self.assertEqual(markers["fail"], ["other stage - ran=0"])
+		self.assertEqual(markers["steps"], ["gated stage self-test: arm"])
+		self.assertEqual(markers["screenshots"], ["/tmp/fake.png"])
+
 	def test_test_run_reports_a_death_after_complete(self):
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary)

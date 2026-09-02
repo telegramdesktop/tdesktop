@@ -1965,6 +1965,8 @@ PRIVATE
     test/test_capture.h
     test/test_custom_emoji.cpp
     test/test_custom_emoji.h
+    test/test_gated_stage.cpp
+    test/test_gated_stage.h
     test/test_history_fixtures.cpp
     test/test_history_fixtures.h
     test/test_hover.cpp
@@ -1987,11 +1989,15 @@ PRIVATE
     test/test_panel.h
     test/test_probe.cpp
     test/test_probe.h
+    test/test_rpc_retry.cpp
+    test/test_rpc_retry.h
     test/test_runner.cpp
     test/test_runner.h
     test/test_scenario.cpp
     test/test_style.cpp
     test/test_style.h
+    test/test_text_reads.cpp
+    test/test_text_reads.h
     test/test_transfer.cpp
     test/test_transfer.h
     test/test_via_window.cpp
