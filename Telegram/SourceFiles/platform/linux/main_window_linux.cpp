@@ -522,8 +522,8 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {
 		}
 	} else if (obj == this && t == QEvent::Hide) {
 		_exposed = false;
-		if (IsX11()) {
-			destroy();
+		if (IsX11() && isHidden()) {
+			not_null(windowHandle())->destroy();
 		}
 	} else if (obj == this && t == QEvent::ThemeChange) {
 		updateWindowIcon();
