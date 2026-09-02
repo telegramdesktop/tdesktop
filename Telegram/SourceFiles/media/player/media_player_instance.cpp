@@ -950,6 +950,10 @@ void Instance::stop(AudioMsgId::Type type, bool asFinished) {
 		if (type == AudioMsgId::Type::Song) {
 			_listenTracker->finalize();
 		}
+		// Reset `data->current`, so that subsequent calls to `.getData`
+		// report accurate information on the current state (i.e., not playing).
+		// See #31229 for details.
+		data->current = AudioMsgId();
 		data->resumeOnCallEnd = false;
 		_playerStopped.fire_copy({type});
 	}
