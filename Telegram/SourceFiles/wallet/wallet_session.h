@@ -36,6 +36,7 @@ namespace Wallet {
 class Engine;
 class Onramp;
 class Rates;
+struct ShareFetch;
 class UserAddresses;
 
 enum class Presence {
@@ -371,6 +372,7 @@ private:
 	const std::unique_ptr<Stream> _stream;
 	base::Timer _pollTimer;
 	base::Timer _shareFetchTimer;
+	std::weak_ptr<ShareFetch> _shareFetch;
 
 	bool _loaded = false;
 	QString _address;

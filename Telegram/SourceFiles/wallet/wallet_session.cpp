@@ -26,6 +26,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <limits>
 
 namespace Wallet {
+
+struct ShareFetch {
+	TdE2E::TemporaryKeyPair keys;
+	std::vector<QByteArray> shares;
+	std::vector<mtpRequestId> requests;
+	std::vector<MTP::ShiftedDcId> sessions;
+	Fn<void(const QString &)> fail;
+	int pending = 0;
+};
+
 namespace {
 
 namespace engine = wallet_engine;
@@ -111,14 +121,6 @@ constexpr auto kClientRequestTimeoutMs = uint64(15000);
 		},
 	};
 }
-
-struct ShareFetch {
-	TdE2E::TemporaryKeyPair keys;
-	std::vector<QByteArray> shares;
-	std::vector<mtpRequestId> requests;
-	Fn<void(const QString &)> fail;
-	int pending = 0;
-};
 
 struct Restored {
 	engine::WalletDescriptor descriptor;
@@ -277,15 +279,25 @@ struct Restored {
 	return result;
 }
 
+void FinishShareFetch(
+		MTP::Sender &api,
+		base::Timer &deadline,
+		const std::shared_ptr<ShareFetch> &state) {
+	deadline.cancel();
+	for (auto &id : state->requests) {
+		api.request(base::take(id)).cancel();
+	}
+	for (const auto shiftedDcId : base::take(state->sessions)) {
+		api.instance().killSession(shiftedDcId);
+	}
+}
+
 void FailShareFetch(
 		MTP::Sender &api,
 		base::Timer &deadline,
 		const std::shared_ptr<ShareFetch> &state,
 		const QString &error) {
-	deadline.cancel();
-	for (auto &id : state->requests) {
-		api.request(base::take(id)).cancel();
-	}
+	FinishShareFetch(api, deadline, state);
 	if (const auto fail = base::take(state->fail)) {
 		fail(error);
 	}
@@ -645,6 +657,9 @@ Session::Session(not_null<Main::Session*> session)
 }
 
 Session::~Session() {
+	if (const auto state = _shareFetch.lock()) {
+		FinishShareFetch(_stateApi, _shareFetchTimer, state);
+	}
 	_panel = nullptr;
 }
 
@@ -945,11 +960,13 @@ void Session::fetchShareParts(
 		.keys = std::move(*keys),
 		.shares = std::vector<QByteArray>(count),
 		.requests = std::vector<mtpRequestId>(count),
+		.sessions = std::vector<MTP::ShiftedDcId>(count),
 		.fail = fail,
 		.pending = count,
 	});
 	const auto publicKey = state->keys.publicKey();
 	for (auto i = 0; i != count; ++i) {
+		state->sessions[i] = MTP::ShiftDcId(dcs[i], MTP::kWalletShareDcShift);
 		state->requests[i] = _stateApi.request(
 			MTPwallet_FetchEncryptedSecretPhrasePart(
 				MTP_string(token),
@@ -969,7 +986,7 @@ void Session::fetchShareParts(
 			} else if (--state->pending) {
 				return;
 			}
-			_shareFetchTimer.cancel();
+			FinishShareFetch(_stateApi, _shareFetchTimer, state);
 			const auto seed = PhraseShares::CombineShares(state->shares);
 			if (!seed) {
 				LOG(("Wallet Error: %1 share parts do not combine."
@@ -993,11 +1010,11 @@ void Session::fetchShareParts(
 			LOG(("Wallet Error: wallet.fetchEncryptedSecretPhrasePart "
 				"failed: %1").arg(error.type()));
 			FailShareFetch(_stateApi, _shareFetchTimer, state, error.type());
-		}).handleFloodErrors().toDC(dcs[i]).send();
+		}).handleFloodErrors().toDC(state->sessions[i]).send();
 	}
-	const auto weak = std::weak_ptr<ShareFetch>(state);
-	_shareFetchTimer.setCallback([this, weak] {
-		const auto state = weak.lock();
+	_shareFetch = state;
+	_shareFetchTimer.setCallback([this] {
+		const auto state = _shareFetch.lock();
 		if (!state || !state->fail) {
 			return;
 		}

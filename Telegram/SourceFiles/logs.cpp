@@ -558,6 +558,8 @@ void writeMtp(int32 dc, const QString &v) {
 			return base + "_stream";
 		} else if (shift == MTP::kToncenterDcShift) {
 			return base + "_toncenter";
+		} else if (shift == MTP::kWalletShareDcShift) {
+			return base + "_wallet_share";
 		} else if (MTP::isDownloadDcId(dc)) {
 			const auto index = shift - MTP::kBaseDownloadDcShift;
 			return base + "_download" + QString::number(index);

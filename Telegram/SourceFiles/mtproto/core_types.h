@@ -49,6 +49,7 @@ constexpr auto kExportMediaDcShift = 0x05;
 constexpr auto kGroupCallStreamDcShift = 0x06;
 constexpr auto kStatsDcShift = 0x07;
 constexpr auto kToncenterDcShift = 0x08;
+constexpr auto kWalletShareDcShift = 0x09;
 constexpr auto kMaxMediaDcCount = 0x10;
 constexpr auto kBaseDownloadDcShift = 0x10;
 constexpr auto kBaseUploadDcShift = 0x20;

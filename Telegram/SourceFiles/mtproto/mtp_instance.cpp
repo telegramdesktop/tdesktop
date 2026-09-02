@@ -672,6 +672,9 @@ void Instance::Private::cancel(mtpRequestId requestId) {
 		}
 	}
 	unregisterRequest(requestId);
+	for (auto &[dcId, waiters] : _authWaiters) {
+		waiters.erase(ranges::remove(waiters, requestId), end(waiters));
+	}
 	if (shiftedDcId) {
 		const auto session = getSession(std::abs(*shiftedDcId));
 		session->cancel(requestId, msgId);
@@ -1335,6 +1338,12 @@ void Instance::Private::exportDone(
 		//if (_globalFailHandler && hasAuthorization()) {
 		//	_globalFailHandler(error, response); // auth failed in main dc
 		//}
+		return;
+	}
+
+	const auto waiters = _authWaiters.find(BareDcId(it->second));
+	if (waiters == end(_authWaiters) || waiters->second.empty()) {
+		_authExportRequests.erase(it);
 		return;
 	}
 
