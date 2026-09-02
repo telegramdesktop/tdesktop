@@ -123,6 +123,7 @@ struct TransferItem {
 		Collectible,
 		CardTopUp,
 		PeerTransfer,
+		KeyChange,
 	};
 
 	Kind kind = Kind::Transfer;

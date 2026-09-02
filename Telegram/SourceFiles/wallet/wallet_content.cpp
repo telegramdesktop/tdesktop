@@ -438,6 +438,7 @@ enum class RowAvatar {
 	Out,
 	Card,
 	Contract,
+	KeyChange,
 };
 
 struct HistoryRowContent {
@@ -530,7 +531,9 @@ void SetRowItemAmount(
 void PaintRowAvatar(Painter &p, QRect rect, RowAvatar avatar) {
 	auto hq = PainterHighQualityEnabler(p);
 	const auto in = (avatar == RowAvatar::In);
-	if (avatar == RowAvatar::Contract) {
+	const auto flat = (avatar == RowAvatar::Contract)
+		|| (avatar == RowAvatar::KeyChange);
+	if (flat) {
 		p.setBrush(st::historyPeerArchiveUserpicBg);
 	} else {
 		const auto &top = in
@@ -553,6 +556,8 @@ void PaintRowAvatar(Painter &p, QRect rect, RowAvatar avatar) {
 		? &st::walletRowCardIcon
 		: (avatar == RowAvatar::Contract)
 		? &st::walletRowContractIcon
+		: (avatar == RowAvatar::KeyChange)
+		? &st::walletRowKeyIcon
 		: &st::walletRowArrowOut;
 	icon->paintInCenter(p, rect);
 }
@@ -912,6 +917,19 @@ void AddHistoryRow(
 				.peer = peer,
 			};
 		}
+	}
+	if (item.kind == Kind::KeyChange) {
+		return {
+			.title = tr::lng_wallet_row_key_change(tr::now),
+			.subtitle = (pending
+				? tr::lng_wallet_row_pending(tr::now)
+				: QString()),
+			.date = date,
+			.amountNano = item.amountNano,
+			.incoming = false,
+			.pending = pending,
+			.avatar = RowAvatar::KeyChange,
+		};
 	}
 	const auto contract = (item.kind == Kind::ContractInteraction);
 	const auto collectible = (item.kind == Kind::Collectible);
@@ -1315,7 +1333,12 @@ void AddDetailsTable(
 		bg->paint(p, wrap->rect());
 	}, wrap->lifetime());
 	const auto table = wrap->entity();
-	if (!item.counterparty.isEmpty()) {
+	if (item.kind == TransferItem::Kind::KeyChange) {
+		Ui::AddTableRow(
+			table,
+			tr::lng_wallet_details_operation(),
+			tr::lng_wallet_details_key_change(tr::marked));
+	} else if (!item.counterparty.isEmpty()) {
 		if (const auto address = DetailsFriendlyAddress(item.counterparty)) {
 			auto label = (item.incoming
 				? tr::lng_wallet_details_sender()

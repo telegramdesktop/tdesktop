@@ -524,28 +524,38 @@ void FailShareFetch(
 		: data.is_pending()
 		? TransferItem::Status::Pending
 		: TransferItem::Status::Success;
-	data.vpeer().match([&](const MTPDwalletTransactionPeerUser &data) {
-		// counterparty stays empty on purpose: the server sends no address
-		// for a user counterparty and the client must not synthesize one.
-		// The details sheet builds its sender / recipient row from the peer
-		// instead and takes the address half from the per-user address
-		// store, which answers only for a user the chain has named.
-		result.kind = TransferItem::Kind::PeerTransfer;
-		result.counterpartyPeer = peerFromUser(data.vuser_id()).value;
-	}, [&](const MTPDwalletTransactionPeerAddress &data) {
-		result.counterparty = CanonicalAddress(qs(data.vaddress()));
-		if (result.counterparty.isEmpty()) {
-			LOG(("Wallet Error: wallet.getTransactions sent an unusable "
-				"counterparty address."));
-		}
-	}, [](const MTPDwalletTransactionPeerUnsupported &) {
-		// Nothing is written, because the defaults are the row: a
-		// Kind::Transfer with no counterparty renders through
-		// RowContentFromItem's fall-through as a Deposit or a Withdrawal by
-		// direction, with the date and the amount. That is exactly the
-		// graceful degradation this constructor exists for, so no lang key
-		// is invented for it.
-	});
+	if (data.is_key_change()) {
+		// The peer is not read on purpose: a key change names no
+		// counterparty, and whatever the server puts there (the wallet's
+		// own address, for one) would render the row as a transfer to or
+		// from someone, which is exactly the reading this kind exists to
+		// prevent.
+		result.kind = TransferItem::Kind::KeyChange;
+	} else {
+		data.vpeer().match([&](const MTPDwalletTransactionPeerUser &data) {
+			// counterparty stays empty on purpose: the server sends no
+			// address for a user counterparty and the client must not
+			// synthesize one. The details sheet builds its sender /
+			// recipient row from the peer instead and takes the address
+			// half from the per-user address store, which answers only for
+			// a user the chain has named.
+			result.kind = TransferItem::Kind::PeerTransfer;
+			result.counterpartyPeer = peerFromUser(data.vuser_id()).value;
+		}, [&](const MTPDwalletTransactionPeerAddress &data) {
+			result.counterparty = CanonicalAddress(qs(data.vaddress()));
+			if (result.counterparty.isEmpty()) {
+				LOG(("Wallet Error: wallet.getTransactions sent an unusable "
+					"counterparty address."));
+			}
+		}, [](const MTPDwalletTransactionPeerUnsupported &) {
+			// Nothing is written, because the defaults are the row: a
+			// Kind::Transfer with no counterparty renders through
+			// RowContentFromItem's fall-through as a Deposit or a
+			// Withdrawal by direction, with the date and the amount. That
+			// is exactly the graceful degradation this constructor exists
+			// for, so no lang key is invented for it.
+		});
+	}
 	if (const auto comment = data.vcomment()) {
 		result.comment = qs(*comment);
 	}
