@@ -781,6 +781,9 @@ Options::Options(
 	: nullptr) {
 	auto optionsObj = object_ptr<Ui::VerticalLayout>(container);
 	_optionsLayout = optionsObj.data();
+	// The answers are created as they are needed and can be reordered by
+	// dragging them, so Tab follows the order they are shown in as well.
+	_optionsLayout->setVisualTabOrder(true);
 	container->add(std::move(optionsObj));
 	setupReorder();
 	checkLastOption();
@@ -1623,6 +1626,12 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 
 	auto result = object_ptr<Ui::VerticalLayout>(this);
 	const auto container = result.data();
+
+	// The box fills itself while it is open - an option row is created for
+	// every answer typed - and those rows land at the end of the focus
+	// chain, past the settings below them. Tab follows the box as it is
+	// shown instead: the question, the answers, the settings under them.
+	container->setVisualTabOrder(true);
 
 	const auto updateMedia = [=](
 			const std::shared_ptr<PollMediaState> &media) {
