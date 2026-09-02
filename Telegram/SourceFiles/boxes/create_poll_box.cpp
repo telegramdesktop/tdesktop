@@ -162,7 +162,10 @@ public:
 	[[nodiscard]] rpl::producer<int> usedCount() const;
 	[[nodiscard]] rpl::producer<not_null<QWidget*>> scrollToWidget() const;
 	[[nodiscard]] rpl::producer<> backspaceInFront() const;
-	[[nodiscard]] rpl::producer<bool> tabbed() const;
+	// Fired for a Tab that moves out of the options, so the box decides
+	// where it goes - or leaves it unhandled, to let Tab out of the fields.
+	[[nodiscard]] auto tabbed() const
+		-> rpl::producer<not_null<Ui::InputField::TabbedRequest*>>;
 
 	void handlePaste(
 		not_null<Ui::InputField*> field,
@@ -281,7 +284,7 @@ private:
 	bool _hasCorrect = false;
 	rpl::event_stream<not_null<QWidget*>> _scrollToWidget;
 	rpl::event_stream<> _backspaceInFront;
-	rpl::event_stream<bool> _tabbed;
+	rpl::event_stream<not_null<Ui::InputField::TabbedRequest*>> _tabbed;
 	rpl::lifetime _emojiPanelLifetime;
 
 };
@@ -830,7 +833,8 @@ rpl::producer<> Options::backspaceInFront() const {
 	return _backspaceInFront.events();
 }
 
-rpl::producer<bool> Options::tabbed() const {
+auto Options::tabbed() const
+-> rpl::producer<not_null<Ui::InputField::TabbedRequest*>> {
 	return _tabbed.events();
 }
 
@@ -1101,19 +1105,26 @@ void Options::initOptionField(not_null<Ui::InputField*> field) {
 	}, field->lifetime());
 	field->tabbed(
 	) | rpl::on_next([=](not_null<Ui::InputField::TabbedRequest*> request) {
+		if (request->defaultOrder) {
+			// Left to the box, which leaves it alone as well: the default
+			// order passes through the buttons beside each answer.
+			_tabbed.fire_copy(request);
+			return;
+		}
 		const auto index = findField(field);
 		if (request->backward) {
 			if (index > 0) {
 				_list[index - 1]->setFocus();
+				request->handled = true;
 			} else {
-				_tabbed.fire(true);
+				_tabbed.fire_copy(request);
 			}
 		} else if (index + 1 < _list.size()) {
 			_list[index + 1]->setFocus();
+			request->handled = true;
 		} else {
-			_tabbed.fire(false);
+			_tabbed.fire_copy(request);
 		}
-		request->handled = true;
 	}, field->lifetime());
 	base::install_event_filter(field, [=](not_null<QEvent*> event) {
 		if (event->type() != QEvent::KeyPress
@@ -2771,10 +2782,18 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 				st::boxDividerLabel),
 			st::createPollLimitPadding));
 
+	// Tab walks the fields of the box in the order they are shown and
+	// turns back to the first one at the end. A request for the default
+	// order is left alone: the attach buttons beside the fields, the
+	// settings, the correct answer buttons and the buttons of the box are
+	// Tab stops then, and the ring closed on the fields would keep the
+	// keyboard from ever reaching them.
 	using TabbedRequest = Ui::InputField::TabbedRequest;
 	description->tabbed(
 	) | rpl::on_next([=](not_null<TabbedRequest*> request) {
-		if (request->backward) {
+		if (request->defaultOrder) {
+			return;
+		} else if (request->backward) {
 			question->setFocus();
 		} else {
 			options->focusFirst();
@@ -3080,7 +3099,9 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 
 	question->tabbed(
 	) | rpl::on_next([=](not_null<TabbedRequest*> request) {
-		if (!request->backward) {
+		if (request->defaultOrder) {
+			return;
+		} else if (!request->backward) {
 			description->setFocus();
 		} else if (quiz->toggled()) {
 			solution->setFocus();
@@ -3091,19 +3112,24 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	}, question->lifetime());
 
 	options->tabbed(
-	) | rpl::on_next([=](bool backward) {
-		if (backward) {
+	) | rpl::on_next([=](not_null<TabbedRequest*> request) {
+		if (request->defaultOrder) {
+			return;
+		} else if (request->backward) {
 			description->setFocus();
 		} else if (quiz->toggled()) {
 			solution->setFocus();
 		} else {
 			question->setFocus();
 		}
+		request->handled = true;
 	}, question->lifetime());
 
 	solution->tabbed(
 	) | rpl::on_next([=](not_null<TabbedRequest*> request) {
-		if (request->backward) {
+		if (request->defaultOrder) {
+			return;
+		} else if (request->backward) {
 			options->focusLast();
 		} else {
 			question->setFocus();
