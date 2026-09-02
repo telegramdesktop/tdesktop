@@ -16,7 +16,13 @@ namespace Test {
 [[nodiscard]] QString ScreenshotsDir();
 
 // Appends one line to <EvidenceDir()>/test_log.txt and flushes immediately,
-// so evidence survives any crash or kill.
+// so evidence survives any crash or kill. Exactly one physical line per
+// call, whatever |line| carries: every character Python's str.splitlines()
+// breaks on - which is the grammar the external runner's readers use -
+// is written as a visible \uXXXX escape, so a record whose text had a
+// break stays one row rather than several, and no middle line can be
+// byte-equal to the completion marker. Text with no separator is written
+// byte for byte, and the escape adds no trailing whitespace.
 void LogRaw(const QString &line);
 
 void Step(const QString &text);

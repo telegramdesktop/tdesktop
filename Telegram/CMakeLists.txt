@@ -1979,6 +1979,8 @@ PRIVATE
     test/test_layer_root.h
     test/test_log.cpp
     test/test_log.h
+    test/test_log_lines.cpp
+    test/test_log_lines.h
     test/test_menu.cpp
     test/test_menu.h
     test/test_messages.cpp
