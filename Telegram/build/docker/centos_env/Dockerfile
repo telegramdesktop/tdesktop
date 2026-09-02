@@ -1032,7 +1032,7 @@ export DESTDIR=/usr/src/wallet-engine-cache
 git init wallet-engine
 cd wallet-engine
 git remote add origin https://github.com/i582/wallet-engine.git
-git fetch --depth=1 origin 5ecd3d16106dd9ad0e956642ba9179493b9b0cfa
+git fetch --depth=1 origin 467942571d2a3b21f3bda468190573082c7aa270
 git reset --hard FETCH_HEAD
 cargo rustc -p wallet-engine --lib --release --locked \
 	--target x86_64-unknown-linux-gnu \
