@@ -2302,6 +2302,21 @@ def parse_test_log(text):
 	}
 
 
+def log_marks_complete(text):
+	# Whole-line match, never a substring. A line that merely contains the
+	# literal would otherwise end a live run: a note, stage name or check
+	# detail quoting the marker, or the permanent MTP seam's
+	# "rpc retry code=500 type=TEST_COMPLETE request=0x..." row, whose type
+	# comes straight from a server-sent rpc_error. Trailing whitespace is
+	# dropped so a stray space or a reader that leaves a CR still counts;
+	# leading whitespace is not, because Test::Complete() writes the marker
+	# flush left.
+	return any(
+		line.rstrip() == TEST_COMPLETE_MARKER
+		for line in text.splitlines()
+	)
+
+
 def tail_of_file(path, lines=60):
 	if not path.is_file():
 		return None
@@ -2378,9 +2393,9 @@ def command_test_run(args):
 				last_change = now
 			complete = False
 			if size > 0:
-				complete = TEST_COMPLETE_MARKER in log_path.read_text(
+				complete = log_marks_complete(log_path.read_text(
 					encoding="utf-8", errors="replace"
-				)
+				))
 			if complete and complete_seen_at is None:
 				complete_seen_at = now
 			exit_code = process.poll()
@@ -2408,7 +2423,7 @@ def command_test_run(args):
 		if log_path.is_file()
 		else ""
 	)
-	test_complete = TEST_COMPLETE_MARKER in log_text
+	test_complete = log_marks_complete(log_text)
 	crash_report_fresh = (
 		working.is_file()
 		and working.stat().st_mtime_ns != working_before
