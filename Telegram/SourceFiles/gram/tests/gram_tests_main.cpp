@@ -23,6 +23,7 @@ namespace {
 	append(RatesChecks());
 	append(NftChecks());
 	append(StreamChecks());
+	append(EmulateChecks());
 	return result;
 }
 

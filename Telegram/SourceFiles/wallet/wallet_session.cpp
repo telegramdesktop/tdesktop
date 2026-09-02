@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "data/data_peer_id.h"
 #include "data/data_session.h"
+#include "gram/api/gram_api_emulate.h"
 #include "main/main_session.h"
 #include "tde2e/tde2e_api.h"
 #include "ui/widgets/separate_panel.h"
@@ -34,6 +35,14 @@ struct ShareFetch {
 	std::vector<MTP::ShiftedDcId> sessions;
 	Fn<void(const QString &)> fail;
 	int pending = 0;
+};
+
+struct Session::PreparedRotation {
+	std::vector<QString> words;
+	std::string signedBoc;
+	uint32 seqno = 0;
+	uint64 validUntil = 0;
+	int64 quotedFeeNano = 0;
 };
 
 namespace {
@@ -64,6 +73,12 @@ constexpr auto kStreamResyncInterval = 30 * crl::time(1000);
 constexpr auto kClientSendValiditySeconds = uint64(300);
 constexpr auto kClientResolutionMarginSeconds = uint64(60);
 constexpr auto kClientRequestTimeoutMs = uint64(15000);
+// The throw-away rotation a quote emulates is a validly signed key-change
+// message that leaves the device, and only its expiration bounds a stray
+// replay of it, so it gets the shortest window that comfortably outlives one
+// emulation round trip (the Wallet::Api deadline plus queueing); the fresh
+// prepare keeps the engine's own send validity.
+constexpr auto kRotationQuoteValiditySeconds = uint64(120);
 
 [[nodiscard]] std::optional<int64> DecimalInt64(const std::string &value) {
 	auto ok = false;
@@ -126,6 +141,22 @@ struct Restored {
 	engine::WalletDescriptor descriptor;
 	std::vector<QString> words;
 };
+
+struct ThrowawayRotation {
+	std::string signedBoc;
+};
+
+[[nodiscard]] uint64 RotationValidUntil(uint64 seconds) {
+	return uint64(base::unixtime::now()) + seconds;
+}
+
+[[nodiscard]] engine::PrepareKeyRotationRequest RotationRequest(
+		uint64 seconds) {
+	return engine::PrepareKeyRotationRequest{
+		.valid_until = RotationValidUntil(seconds),
+		.message_kind = engine::KeyRotationMessageKind::kExternal,
+	};
+}
 
 [[nodiscard]] std::vector<QString> SplitWords(const QString &phrase) {
 	const auto list = phrase.split(QChar(' '), Qt::SkipEmptyParts);
@@ -371,6 +402,34 @@ void FailShareFetch(
 	return false;
 }
 
+[[nodiscard]] QString RotationErrorToken(const EngineError &error) {
+	if (!error.underlying) {
+		return u"ROTATION_FAILED"_q;
+	}
+	try {
+		std::rethrow_exception(error.underlying);
+	} catch (const engine::wallet_client_error::KeyRotationUnavailable &) {
+		return u"ROTATION_PREPARE_FAILED"_q;
+	} catch (const engine::wallet_client_error::InvalidProtectedSecret &) {
+		return u"ROTATION_PREPARE_FAILED"_q;
+	} catch (const engine::wallet_client_error::LocalSigningUnavailable &) {
+		return u"ROTATION_SIGNING_UNAVAILABLE"_q;
+	} catch (const engine::wallet_client_error::SendAlreadyInProgress &) {
+		return u"ROTATION_ALREADY_SENDING"_q;
+	} catch (const engine::wallet_client_error
+			::PreviousSubmissionUnresolved &) {
+		return u"ROTATION_ALREADY_SENDING"_q;
+	} catch (const engine::wallet_client_error::WalletSeqnoNotAdvanced &) {
+		return u"ROTATION_ALREADY_SENDING"_q;
+	} catch (const engine::wallet_client_error::InsufficientBalanceForFees &) {
+		return u"ROTATION_FEES"_q;
+	} catch (const engine::wallet_client_error::SendFailed &) {
+		return u"ROTATION_REFUSED"_q;
+	} catch (...) {
+	}
+	return u"ROTATION_FAILED"_q;
+}
+
 [[nodiscard]] engine::SendIntent IntentFromArgs(const SendArgs &args) {
 	auto message = engine::SendMessage{
 		.destination = FormatFriendly(
@@ -541,8 +600,11 @@ void FailShareFetch(
 		// counterparty, and whatever the server puts there (the wallet's
 		// own address, for one) would render the row as a transfer to or
 		// from someone, which is exactly the reading this kind exists to
-		// prevent.
+		// prevent. The direction is decided here, once: a key change is
+		// the wallet's own outgoing transaction whatever the server's
+		// incoming bit says.
 		result.kind = TransferItem::Kind::KeyChange;
+		result.incoming = false;
 	} else {
 		data.vpeer().match([&](const MTPDwalletTransactionPeerUser &data) {
 			// counterparty stays empty on purpose: the server sends no
@@ -847,7 +909,7 @@ bool Session::revealsLocally() {
 }
 
 bool Session::custodyBusy() const {
-	return _phraseRevealing || _replacing || _backupChanging;
+	return _phraseRevealing || _replacing || _backupChanging || _rotating;
 }
 
 void Session::revealPhrase(
@@ -1370,6 +1432,7 @@ void Session::disableBackup(
 		MTP_flags(checked ? Flag::f_password : Flag(0)),
 		checked ? password->result : MTP_inputCheckPasswordEmpty()
 	)).done([=, this](const MTPWalletState &result) {
+		clearRotatedSinceBackup();
 		applyState(result);
 		done();
 	}).fail([=](const MTP::Error &error) {
@@ -1441,6 +1504,7 @@ void Session::enableBackup(
 		MTP_vector<MTPbytes>(std::move(list)),
 		checked ? password->result : MTP_inputCheckPasswordEmpty()
 	)).done([=, this](const MTPWalletState &result) {
+		clearRotatedSinceBackup();
 		applyState(result);
 		done();
 	}).fail([=](const MTP::Error &error) {
@@ -1448,6 +1512,278 @@ void Session::enableBackup(
 			).arg(error.type()));
 		fail(error.type());
 	}).handleFloodErrors().send();
+}
+
+bool Session::rotationOffered() {
+	ensureLoaded();
+	if (_presence.current() != Presence::Ready
+		|| _publicKey.size() != kCustodyPublicKeySize) {
+		return false;
+	}
+	const auto matching = custody().matching(_publicKey);
+	return (matching != nullptr)
+		&& !matching->rotatedSinceBackup
+		&& !custody().pendingRotation
+		&& (_engine->client() != nullptr)
+		&& !_clientStopping;
+}
+
+void Session::quoteRotationFee(Fn<void(FeeResult)> done) {
+	ensureLoaded();
+	if (!rotationOffered()) {
+		if (done) {
+			done(FeeResult{ .error = SendError::SigningUnavailable });
+		}
+		return;
+	} else if (custodyBusy()
+		|| _previewPending
+		|| _sendState.current() != SendState::Idle
+		|| _pending
+		|| _sendUnresolved) {
+		if (done) {
+			done(FeeResult{ .error = SendError::AlreadySending });
+		}
+		return;
+	}
+	_rotating = true;
+	const auto client = _engine->client();
+	const auto generation = _networkGeneration;
+	const auto finish = [=, this](FeeResult result) {
+		_rotating = false;
+		if (done) {
+			done(result);
+		}
+	};
+	const auto failed = [=](const QString &log) {
+		LOG(("Wallet Error: key rotation quote failed: %1").arg(log));
+		finish(FeeResult{ .error = SendError::Failed });
+	};
+	_engine->run([
+		client,
+		request = RotationRequest(kRotationQuoteValiditySeconds)
+	] {
+		auto prepared = client->prepare_key_rotation(request);
+		return ThrowawayRotation{ std::move(prepared.signed_boc) };
+	}, [=, this](ThrowawayRotation throwaway) {
+		if (generation != _networkGeneration) {
+			failed(u"stale generation"_q);
+			return;
+		}
+		_api.request(Gram::EmulateTraceRequest(
+			QString::fromStdString(throwaway.signedBoc)
+		), [=, this](const QByteArray &json) {
+			const auto trace = Gram::ParseEmulatedTrace(json);
+			if (generation != _networkGeneration) {
+				failed(u"stale generation"_q);
+			} else if (!trace
+				|| CanonicalAddress(trace->account) != _address) {
+				failed(u"unusable emulation trace"_q);
+			} else {
+				const auto fee = trace->feeNano;
+				finish(FeeResult{
+					.feeNano = fee,
+					.error = (_balanceNano.current() < fee)
+						? SendError::InsufficientFees
+						: SendError::None,
+				});
+			}
+		}, [=](const Gram::ApiError &error) {
+			failed(u"MTP %1: %2"_q.arg(error.code).arg(error.message));
+		});
+	}, [=, this](EngineError error) {
+		LOG(("Wallet Error: engine prepare_key_rotation (quote) failed: %1"
+			).arg(error.message));
+		finish(FeeResult{ .error = (generation != _networkGeneration)
+			? SendError::Failed
+			: SendErrorFrom(error) });
+	});
+}
+
+void Session::prepareRotation(
+		int64 quotedFeeNano,
+		Fn<void(std::vector<QString>)> done,
+		Fn<void(const QString &error)> fail) {
+	ensureLoaded();
+	if (custodyBusy()) {
+		LOG(("Wallet Error: rotation requested while another is in flight."));
+		if (fail) {
+			fail(u"ROTATION_BUSY"_q);
+		}
+		return;
+	}
+	if (_presence.current() != Presence::Ready
+		|| _publicKey.size() != kCustodyPublicKeySize) {
+		LOG(("Wallet Error: rotation requested "
+			"without a settled wallet key."));
+		if (fail) {
+			fail(u"ROTATION_STATE_UNKNOWN"_q);
+		}
+		return;
+	}
+	const auto matching = custody().matching(_publicKey);
+	if (!matching) {
+		LOG(("Wallet Error: rotation requested without local custody."));
+		if (fail) {
+			fail(u"ROTATION_NO_CUSTODY"_q);
+		}
+		return;
+	}
+	if (matching->rotatedSinceBackup || custody().pendingRotation) {
+		LOG(("Wallet Error: rotation requested "
+			"with one already applied or pending."));
+		if (fail) {
+			fail(u"ROTATION_BUSY"_q);
+		}
+		return;
+	}
+	const auto client = _engine->client();
+	if (!client || _clientStopping) {
+		LOG(("Wallet Error: rotation requested without a signing client."));
+		if (fail) {
+			fail(u"ROTATION_SIGNING_UNAVAILABLE"_q);
+		}
+		return;
+	}
+	if (_sendState.current() != SendState::Idle
+		|| _pending
+		|| _sendUnresolved) {
+		LOG(("Wallet Error: rotation requested while a send is in flight."));
+		if (fail) {
+			fail(u"ROTATION_ALREADY_SENDING"_q);
+		}
+		return;
+	}
+	_rotating = true;
+	fail = [this, fail = std::move(fail)](const QString &error) {
+		_rotating = false;
+		if (fail) {
+			fail(error);
+		}
+	};
+	_engine->run([
+		client,
+		request = RotationRequest(kClientSendValiditySeconds)
+	] {
+		return client->prepare_key_rotation(request);
+	}, [=, this](engine::PreparedKeyRotation prepared) {
+		auto words = SplitWords(QString::fromStdString(
+			prepared.replacement_recovery_phrase.phrase));
+		if (words.size() < 2) {
+			LOG(("Wallet Error: key rotation prepare produced no words."));
+			fail(u"ROTATION_PREPARE_FAILED"_q);
+			return;
+		}
+		_preparedRotation = std::make_unique<PreparedRotation>(
+			PreparedRotation{
+				.words = words,
+				.signedBoc = std::move(prepared.signed_boc),
+				.seqno = prepared.seqno,
+				.validUntil = prepared.valid_until,
+				.quotedFeeNano = quotedFeeNano,
+			});
+		if (done) {
+			done(std::move(words));
+		}
+	}, [=](EngineError error) {
+		LOG(("Wallet Error: engine prepare_key_rotation failed: %1"
+			).arg(error.message));
+		fail(RotationErrorToken(error));
+	});
+}
+
+void Session::abandonRotation() {
+	if (_rotationConfirmed || custody().pendingRotation) {
+		return;
+	}
+	_preparedRotation = nullptr;
+	_rotating = false;
+}
+
+void Session::submitRotation(
+		Fn<void()> confirmed,
+		Fn<void(const QString &error)> fail) {
+	if (_rotationConfirmed) {
+		LOG(("Wallet Error: rotation submitted while another is in flight."));
+		if (fail) {
+			fail(u"ROTATION_BUSY"_q);
+		}
+		return;
+	}
+	if (!_preparedRotation) {
+		LOG(("Wallet Error: rotation submitted without a prepared one."));
+		if (fail) {
+			fail(u"ROTATION_NOT_PREPARED"_q);
+		}
+		return;
+	}
+	const auto refuse = [&](const QString &error) {
+		abandonRotation();
+		if (fail) {
+			fail(error);
+		}
+	};
+	if (uint64(base::unixtime::now()) >= _preparedRotation->validUntil) {
+		LOG(("Wallet Error: rotation submitted after its validity window."));
+		refuse(u"ROTATION_EXPIRED"_q);
+		return;
+	}
+	if (_balanceNano.current() < _preparedRotation->quotedFeeNano) {
+		LOG(("Wallet Error: rotation submitted with a balance below the fee."));
+		refuse(u"ROTATION_FEES"_q);
+		return;
+	}
+	const auto client = _engine->client();
+	if (!client || _clientStopping) {
+		LOG(("Wallet Error: rotation submitted without a signing client."));
+		refuse(u"ROTATION_SIGNING_UNAVAILABLE"_q);
+		return;
+	}
+	// abandonRotation() reads a set _rotationConfirmed as "a submit is in
+	// flight", so the latch is armed with a callable whatever was passed.
+	_rotationConfirmed = [confirmed = std::move(confirmed)] {
+		if (confirmed) {
+			confirmed();
+		}
+	};
+	_rotationFailed = std::move(fail);
+	storePendingRotation([=, this] {
+		const auto awaitResolution = [=, this] {
+			_preparedRotation = nullptr;
+			updatePollingState();
+			requestEngineRefresh();
+		};
+		const auto &pending = *custody().pendingRotation;
+		auto request = engine::SendBocRequest{
+			.operation_id = pending.operationId.toStdString(),
+			.force = false,
+			.signed_boc = std::move(_preparedRotation->signedBoc),
+			.seqno = _preparedRotation->seqno,
+			.valid_until = _preparedRotation->validUntil,
+		};
+		_engine->run([client, request = std::move(request)] {
+			return client->send_boc(request);
+		}, [=, this](engine::SendResult result) {
+			if (TerminalSendPhase(result.phase)) {
+				applyRotationSnapshot(engine::SendSnapshot{
+					.operation_id = std::move(result.operation_id),
+					.phase = result.phase,
+				});
+			} else {
+				awaitResolution();
+			}
+		}, [=, this](EngineError error) {
+			LOG(("Wallet Error: engine send_boc failed: %1"
+				).arg(error.message));
+			if (IsSubmissionUnknown(error)) {
+				awaitResolution();
+				return;
+			}
+			discardPendingRotation();
+			finishRotation(RotationErrorToken(error));
+		});
+	}, [=, this](const QString &error) {
+		finishRotation(error);
+	});
 }
 
 std::vector<CustodyRecord> Session::parkedRecords() {
@@ -1756,6 +2092,9 @@ void Session::reconcileCustody() {
 		}
 	}
 	updateDeviceCustodyState();
+	if (custody().pendingRotation) {
+		updatePollingState();
+	}
 }
 
 void Session::updateDeviceCustodyState() {
@@ -1881,6 +2220,7 @@ void Session::applyEngineUpdate(const engine::WalletUpdate &update) {
 			).arg(int(update.outcome)));
 		return;
 	}
+	applyRotationSnapshot(update.snapshot.send);
 	const auto &snapshot = update.snapshot;
 	const auto wasUnresolved = _sendUnresolved;
 	_sendUnresolved = !TerminalSendPhase(snapshot.send.phase);
@@ -2267,7 +2607,10 @@ void Session::stopPolling() {
 }
 
 void Session::updatePollingState() {
-	const auto wanted = (_pollingCount > 0) || _pending || _sendUnresolved;
+	const auto wanted = (_pollingCount > 0)
+		|| _pending
+		|| _sendUnresolved
+		|| custody().pendingRotation;
 	if (!wanted) {
 		_pollTimer.cancel();
 	} else if (!_pollTimer.isActive()) {
@@ -2315,7 +2658,8 @@ void Session::pollTick() {
 		refreshHistory();
 	}
 	refreshCollectibles();
-	if ((_pending || _sendUnresolved) && !_resolveRequestPending) {
+	if ((_pending || _sendUnresolved || custody().pendingRotation)
+		&& !_resolveRequestPending) {
 		resolvePending();
 	}
 }
@@ -2440,6 +2784,12 @@ void Session::estimateFee(const SendArgs &args, Fn<void(FeeResult)> done) {
 		}
 		return;
 	}
+	if (_rotating || custody().pendingRotation) {
+		if (done) {
+			done(FeeResult{ .error = SendError::AlreadySending });
+		}
+		return;
+	}
 	if (_previewPending) {
 		_previewNextArgs = args;
 		_previewNextDone = std::move(done);
@@ -2526,7 +2876,9 @@ void Session::send(SendArgs args, Fn<void(SendError)> done) {
 		}
 		return;
 	}
-	if (_sendState.current() != SendState::Idle) {
+	if (_sendState.current() != SendState::Idle
+		|| _rotating
+		|| custody().pendingRotation) {
 		if (done) {
 			done(SendError::AlreadySending);
 		}
@@ -2604,6 +2956,7 @@ void Session::resolvePending() {
 			&& _sendState.current() != SendState::Sending) {
 			finishPending();
 		}
+		applyRotationSnapshot(snapshot);
 	}, [=, this](EngineError error) {
 		_resolveRequestPending = false;
 		if (generation != _networkGeneration) {
@@ -2621,6 +2974,241 @@ void Session::finishPending() {
 	_sendState = SendState::Idle;
 	updatePollingState();
 	requestEngineRefresh();
+}
+
+void Session::applyRotationSnapshot(const engine::SendSnapshot &snapshot) {
+	if (!custody().pendingRotation) {
+		return;
+	}
+	const auto operationId = snapshot.operation_id
+		? QString::fromStdString(*snapshot.operation_id)
+		: QString();
+	if (operationId != custody().pendingRotation->operationId) {
+		// A resolve_pending queued on the serial worker before the store
+		// write answers after it, while the send_boc behind it is still
+		// queued, so a journal naming nothing for the pending is conclusive
+		// only when no submit is in flight: with _rotating set the result
+		// of send_boc is the authority, without it (after a restart) the
+		// journal is, and it re-reports even a terminal record with its
+		// operation id, so an empty or foreign one means the broadcast
+		// never reached it.
+		if (!_rotating) {
+			LOG(("Wallet Error: pending rotation has no journal record."));
+			discardPendingRotation();
+			finishRotation(u"ROTATION_FAILED"_q);
+		}
+		return;
+	}
+	switch (snapshot.phase) {
+	case engine::SendPhase::kConfirmed:
+		promotePendingRotation();
+		finishRotation(QString());
+		return;
+	case engine::SendPhase::kReplaced:
+		discardPendingRotation();
+		finishRotation(u"ROTATION_REPLACED"_q);
+		return;
+	case engine::SendPhase::kExpired:
+		discardPendingRotation();
+		finishRotation(u"ROTATION_EXPIRED"_q);
+		return;
+	case engine::SendPhase::kFailed:
+	case engine::SendPhase::kCancelled:
+	case engine::SendPhase::kSuperseded:
+	case engine::SendPhase::kSequenceNumberConsumed:
+		LOG(("Wallet Error: rotation ended in send phase %1."
+			).arg(int(snapshot.phase)));
+		discardPendingRotation();
+		finishRotation(u"ROTATION_FAILED"_q);
+		return;
+	case engine::SendPhase::kIdle:
+	case engine::SendPhase::kValidating:
+	case engine::SendPhase::kAuthorizing:
+	case engine::SendPhase::kPreparing:
+	case engine::SendPhase::kPersisting:
+	case engine::SendPhase::kReadyToSubmit:
+	case engine::SendPhase::kSubmitting:
+	case engine::SendPhase::kSubmissionUnknown:
+	case engine::SendPhase::kSubmitted:
+	case engine::SendPhase::kHandedOff:
+		return;
+	}
+}
+
+void Session::storePendingRotation(
+		Fn<void()> done,
+		Fn<void(const QString &)> fail) {
+	const auto active = custody().matching(_publicKey);
+	if (!active) {
+		LOG(("Wallet Error: rotation stored without local custody."));
+		fail(u"ROTATION_NO_CUSTODY"_q);
+		return;
+	}
+	const auto lifecycle = _engine->lifecycle();
+	const auto expected = _publicKey;
+	const auto address = CanonicalAddress(active->address);
+	auto recoveryWords = std::vector<std::string>();
+	recoveryWords.reserve(_preparedRotation->words.size());
+	for (const auto &word : _preparedRotation->words) {
+		recoveryWords.push_back(word.toStdString());
+	}
+	auto request = engine::ImportWalletRequest{
+		.record_id = NewRecordId(),
+		.network = engine::Network::kMainnet,
+		.recovery_words = std::move(recoveryWords),
+	};
+	_engine->run([lifecycle, request = std::move(request)]() mutable {
+		return lifecycle->import_wallet(request);
+	}, [=, this](engine::WalletDescriptor descriptor) {
+		const auto record = RecordFromDescriptor(descriptor);
+		const auto rollBack = [=, this](const QString &error) {
+			_engine->run([lifecycle, descriptor] {
+				lifecycle->delete_wallet(descriptor);
+			}, [=] {
+				fail(error);
+			}, [=](EngineError) {
+				LOG(("Wallet Error: delete_wallet after a refused rotation "
+					"store failed."));
+				fail(error);
+			});
+		};
+		if (record.publicKey != expected
+			|| CanonicalAddress(record.address) != address) {
+			LOG(("Wallet Error: prepared rotation phrase derives "
+				"another wallet."));
+			rollBack(u"ROTATION_KEY_MISMATCH"_q);
+			return;
+		}
+		auto store = custody();
+		store.pendingRotation = PendingRotation{
+			.recordId = record.recordId,
+			.secretRef = record.secretRef,
+			.operationId = QString::fromStdString(NewRecordId()),
+		};
+		if (!WriteCustodyStore(_session->local(), store)) {
+			LOG(("Wallet Error: pending rotation write failed."));
+			rollBack(u"ROTATION_STORE_FAILED"_q);
+			return;
+		}
+		_custody = std::move(store);
+		done();
+	}, [=](EngineError error) {
+		LOG(("Wallet Error: import_wallet for a rotation failed: %1"
+			).arg(LifecycleErrorName(error)));
+		fail(u"ROTATION_STORE_FAILED"_q);
+	});
+}
+
+void Session::discardPendingRotation() {
+	auto store = custody();
+	const auto pending = base::take(store.pendingRotation);
+	if (!pending) {
+		return;
+	}
+	// delete_wallet re-derives the address from the descriptor's anchor key
+	// and refuses a record that disagrees, and the pending shares both with
+	// the active record by the import-time check, so its descriptor is the
+	// active record's identity under the pending's handle.
+	if (const auto active = store.matching(_publicKey)) {
+		const auto lifecycle = _engine->lifecycle();
+		_engine->run([
+			lifecycle,
+			descriptor = DescriptorFromRecord(CustodyRecord{
+				.recordId = pending->recordId,
+				.address = active->address,
+				.publicKey = active->publicKey,
+				.network = active->network,
+				.secretRef = pending->secretRef,
+			})
+		] {
+			lifecycle->delete_wallet(descriptor);
+		}, [] {}, [](EngineError error) {
+			LOG(("Wallet Error: delete_wallet of a discarded rotation "
+				"failed: %1").arg(LifecycleErrorName(error)));
+		});
+	} else {
+		LOG(("Wallet Error: discarded rotation has no custody record, "
+			"its secret is left in place."));
+	}
+	if (!WriteCustodyStore(_session->local(), store)) {
+		LOG(("Wallet Error: pending rotation removal write failed."));
+		return;
+	}
+	_custody = std::move(store);
+	updatePollingState();
+}
+
+void Session::promotePendingRotation() {
+	auto store = custody();
+	const auto pending = base::take(store.pendingRotation);
+	if (!pending) {
+		return;
+	}
+	const auto i = ranges::find(
+		store.records,
+		_publicKey,
+		&CustodyRecord::publicKey);
+	if (i == end(store.records)) {
+		LOG(("Wallet Error: confirmed rotation has no custody record."));
+		discardPendingRotation();
+		return;
+	}
+	// The record's identity survives and only its engine handle changes,
+	// so the handle to delete is read before the swap, and the swap and
+	// the pending's removal go down in one write: with two, a crash between
+	// them would leave a promoted record beside a stale pending whose
+	// recordId now IS the live one, and the next start's discard would
+	// delete the live secret.
+	const auto lifecycle = _engine->lifecycle();
+	const auto superseded = DescriptorFromRecord(*i);
+	i->recordId = pending->recordId;
+	i->secretRef = pending->secretRef;
+	i->rotatedSinceBackup = true;
+	if (!WriteCustodyStore(_session->local(), store)) {
+		LOG(("Wallet Error: rotation promotion write failed, "
+			"retrying on the next snapshot."));
+		return;
+	}
+	_custody = std::move(store);
+	_engine->run([lifecycle, superseded] {
+		lifecycle->delete_wallet(superseded);
+	}, [] {}, [](EngineError error) {
+		LOG(("Wallet Error: delete_wallet of the rotated-out record "
+			"failed: %1").arg(LifecycleErrorName(error)));
+	});
+	updateDeviceCustodyState();
+	updatePollingState();
+}
+
+void Session::finishRotation(const QString &error) {
+	_rotating = false;
+	_preparedRotation = nullptr;
+	const auto confirmed = base::take(_rotationConfirmed);
+	const auto failed = base::take(_rotationFailed);
+	if (!error.isEmpty()) {
+		if (failed) {
+			failed(error);
+		}
+	} else if (confirmed) {
+		confirmed();
+	}
+}
+
+void Session::clearRotatedSinceBackup() {
+	auto store = custody();
+	const auto i = ranges::find(
+		store.records,
+		_publicKey,
+		&CustodyRecord::publicKey);
+	if (i == end(store.records) || !i->rotatedSinceBackup) {
+		return;
+	}
+	i->rotatedSinceBackup = false;
+	if (!WriteCustodyStore(_session->local(), store)) {
+		LOG(("Wallet Error: rotation guard reset write failed."));
+		return;
+	}
+	_custody = std::move(store);
 }
 
 } // namespace Wallet

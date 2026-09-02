@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace wallet_engine {
 struct ActivityItem;
 struct NftList;
+struct SendSnapshot;
 struct WalletUpdate;
 } // namespace wallet_engine
 
@@ -248,6 +249,16 @@ public:
 		std::optional<Core::CloudPasswordResult> password,
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail);
+	[[nodiscard]] bool rotationOffered();
+	void quoteRotationFee(Fn<void(FeeResult)> done);
+	void prepareRotation(
+		int64 quotedFeeNano,
+		Fn<void(std::vector<QString>)> done,
+		Fn<void(const QString &error)> fail);
+	void abandonRotation();
+	void submitRotation(
+		Fn<void()> confirmed,
+		Fn<void(const QString &error)> fail);
 
 	[[nodiscard]] int64 balanceNano() const;
 	[[nodiscard]] rpl::producer<int64> balanceNanoValue() const;
@@ -361,6 +372,14 @@ private:
 	void updateListsGate();
 	[[nodiscard]] bool listsConfirmedEmpty() const;
 	void finishPending();
+	void applyRotationSnapshot(const wallet_engine::SendSnapshot &snapshot);
+	void storePendingRotation(
+		Fn<void()> done,
+		Fn<void(const QString &)> fail);
+	void discardPendingRotation();
+	void promotePendingRotation();
+	void finishRotation(const QString &error);
+	void clearRotatedSinceBackup();
 
 	const not_null<Main::Session*> _session;
 	Api _api;
@@ -442,6 +461,12 @@ private:
 	bool _previewPending = false;
 	std::optional<SendArgs> _previewNextArgs;
 	Fn<void(FeeResult)> _previewNextDone;
+
+	struct PreparedRotation;
+	std::unique_ptr<PreparedRotation> _preparedRotation;
+	bool _rotating = false;
+	Fn<void()> _rotationConfirmed;
+	Fn<void(const QString &)> _rotationFailed;
 
 	std::unique_ptr<Ui::SeparatePanel> _panel;
 

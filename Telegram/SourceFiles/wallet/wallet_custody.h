@@ -22,11 +22,19 @@ struct CustodyRecord {
 	int network = 1;
 	QString secretRef;
 	bool active = false;
+	bool rotatedSinceBackup = false;
+};
+
+struct PendingRotation {
+	QString recordId;
+	QString secretRef;
+	QString operationId;
 };
 
 struct CustodyStore {
 	std::vector<CustodyRecord> records;
 	QByteArray lastSeenServerKey;
+	std::optional<PendingRotation> pendingRotation;
 
 	[[nodiscard]] const CustodyRecord *matching(
 		const QByteArray &publicKey) const;

@@ -62,5 +62,6 @@ struct Check {
 [[nodiscard]] std::vector<Check> RatesChecks();
 [[nodiscard]] std::vector<Check> NftChecks();
 [[nodiscard]] std::vector<Check> StreamChecks();
+[[nodiscard]] std::vector<Check> EmulateChecks();
 
 } // namespace Gram::Tests

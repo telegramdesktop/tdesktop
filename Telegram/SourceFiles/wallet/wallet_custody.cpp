@@ -14,8 +14,10 @@ namespace Wallet {
 namespace {
 
 const auto kCustodyStorageKey = u"custody/records"_q;
-constexpr auto kCustodyFormatVersion = quint32(2);
+constexpr auto kCustodyFormatVersion = quint32(3);
 constexpr auto kActiveFlag = quint32(1U << 0);
+constexpr auto kRotatedSinceBackupFlag = quint32(1U << 1);
+constexpr auto kPendingRotationFlag = quint32(1U << 0);
 
 [[nodiscard]] std::optional<CustodyRecord> ReadRecord(
 		Serialize::ByteArrayReader &stream) {
@@ -38,6 +40,8 @@ constexpr auto kActiveFlag = quint32(1U << 0);
 	}
 	result.network = network;
 	result.active = ((flags & kActiveFlag) == kActiveFlag);
+	result.rotatedSinceBackup = ((flags & kRotatedSinceBackupFlag)
+		== kRotatedSinceBackupFlag);
 	return result;
 }
 
@@ -50,7 +54,27 @@ void WriteRecord(
 		<< record.publicKey
 		<< qint32(record.network)
 		<< record.secretRef
-		<< quint32(record.active ? kActiveFlag : 0);
+		<< quint32((record.active ? kActiveFlag : 0)
+			| (record.rotatedSinceBackup ? kRotatedSinceBackupFlag : 0));
+}
+
+[[nodiscard]] std::optional<PendingRotation> ReadPendingRotation(
+		Serialize::ByteArrayReader &stream) {
+	auto result = PendingRotation();
+	stream >> result.recordId >> result.secretRef >> result.operationId;
+	if (!stream.ok()
+		|| result.recordId.isEmpty()
+		|| result.secretRef.isEmpty()
+		|| result.operationId.isEmpty()) {
+		return std::nullopt;
+	}
+	return result;
+}
+
+void WritePendingRotation(
+		Serialize::ByteArrayWriter &stream,
+		const PendingRotation &pending) {
+	stream << pending.recordId << pending.secretRef << pending.operationId;
 }
 
 } // namespace
@@ -94,6 +118,20 @@ std::optional<CustodyStore> ReadCustodyStore(Storage::Account &local) {
 			result.lastSeenServerKey = QByteArray();
 		}
 	}
+	if (version >= 3) {
+		auto storeFlags = quint32();
+		stream >> storeFlags;
+		if (!stream.ok()) {
+			return std::nullopt;
+		}
+		if ((storeFlags & kPendingRotationFlag) == kPendingRotationFlag) {
+			auto pending = ReadPendingRotation(stream);
+			if (!pending) {
+				return std::nullopt;
+			}
+			result.pendingRotation = std::move(*pending);
+		}
+	}
 	return result;
 }
 
@@ -104,6 +142,11 @@ bool WriteCustodyStore(Storage::Account &local, const CustodyStore &store) {
 		WriteRecord(stream, record);
 	}
 	stream << store.lastSeenServerKey;
+	const auto &pending = store.pendingRotation;
+	stream << quint32(pending ? kPendingRotationFlag : 0);
+	if (pending) {
+		WritePendingRotation(stream, *pending);
+	}
 	return local.writeWalletEngineValue(
 		kCustodyStorageKey,
 		std::move(stream).result());

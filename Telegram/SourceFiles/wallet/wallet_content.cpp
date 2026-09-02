@@ -926,7 +926,7 @@ void AddHistoryRow(
 				: QString()),
 			.date = date,
 			.amountNano = item.amountNano,
-			.incoming = false,
+			.incoming = item.incoming,
 			.pending = pending,
 			.avatar = RowAvatar::KeyChange,
 		};
@@ -4428,7 +4428,9 @@ void WalletBackupPhraseBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
 		std::vector<QString> words,
-		Fn<void(std::vector<QString>)> next) {
+		Fn<void(std::vector<QString>)> next,
+		rpl::producer<QString> title,
+		rpl::producer<TextWithEntities> text) {
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
@@ -4436,8 +4438,8 @@ void WalletBackupPhraseBox(
 	AddPhraseBoxHeader(
 		box,
 		u"wallet/paper"_q,
-		tr::lng_wallet_backup_phrase_title(),
-		tr::lng_wallet_backup_phrase_text(tr::marked),
+		std::move(title),
+		std::move(text),
 		st::walletPhraseGridLottieSize,
 		st::walletPhraseGridLottieMargin,
 		st::walletPhraseGridTextMargin);
@@ -4455,9 +4457,8 @@ void WalletBackupPhraseBox(
 			}));
 			return;
 		}
-		const auto copy = words;
+		next(words);
 		box->closeBox();
-		next(copy);
 	});
 }
 
@@ -4661,27 +4662,231 @@ void CollectBackupPhrase(
 		}));
 	};
 	const auto showPhrase = [=](std::vector<QString> words) {
-		show->showBox(Box(WalletBackupPhraseBox, show, words, showQuiz));
+		show->showBox(Box(
+			WalletBackupPhraseBox,
+			show,
+			words,
+			showQuiz,
+			tr::lng_wallet_backup_phrase_title(),
+			tr::lng_wallet_backup_phrase_text(tr::marked)));
 	};
 	RunLocalPasscodeGate(show, crl::guard(origin, [=] {
 		StartPhraseReveal(show, origin, [] {}, std::nullopt, showPhrase);
 	}));
 }
 
-void ShowBackupUpdateStub(
+[[nodiscard]] QString RotationQuoteErrorText(SendError error) {
+	return (error == SendError::Failed || error == SendError::InvalidRequest)
+		? tr::lng_wallet_backup_update_quote_error(tr::now)
+		: SendErrorText(error);
+}
+
+[[nodiscard]] QString RotationFeeText(
+		tr::phrase<lngtag_amount, lngtag_fiat> phrase,
+		int64 feeNano,
+		const FiatRate &rate) {
+	return phrase(
+		tr::now,
+		lt_amount,
+		Ui::FormatTonAmount(feeNano).full,
+		lt_fiat,
+		FormatFiat(feeNano, rate, kFeeFiatDecimals, true));
+}
+
+[[nodiscard]] QString RotationFailureReason(const QString &error) {
+	if (error == u"ROTATION_FEES"_q) {
+		return tr::lng_wallet_backup_rotate_reason_fees(tr::now);
+	} else if (error == u"ROTATION_EXPIRED"_q) {
+		return tr::lng_wallet_backup_rotate_reason_expired(tr::now);
+	} else if (error == u"ROTATION_ALREADY_SENDING"_q) {
+		return tr::lng_wallet_backup_rotate_reason_busy(tr::now);
+	} else if (error == u"ROTATION_REFUSED"_q
+		|| error == u"ROTATION_REPLACED"_q
+		|| error == u"ROTATION_FAILED"_q) {
+		return tr::lng_wallet_backup_rotate_reason_unconfirmed(tr::now);
+	}
+	return tr::lng_wallet_backup_rotate_reason_failed(tr::now);
+}
+
+void ShowRotationFailedToast(
 		std::shared_ptr<Main::SessionShow> show,
-		not_null<Ui::GenericBox*> origin) {
-	const auto weak = base::make_weak(origin);
+		const QString &error) {
+	show->showToast({
+		.title = tr::lng_wallet_backup_rotate_failed_title(tr::now),
+		.text = { tr::lng_wallet_backup_rotate_failed_text(
+			tr::now,
+			lt_reason,
+			RotationFailureReason(error)) },
+		.icon = &st::toastCheckIcon,
+	});
+}
+
+void SetBoxBusy(not_null<Ui::GenericBox*> box) {
+	box->clearButtons();
+	const auto button = box->addButton(rpl::single(QString()));
+	SetButtonDisabledLook(button.data(), true);
+	const auto loading = Info::Statistics::InfiniteRadialAnimationWidget(
+		button,
+		st::giveawayGiftCodeBoxButton.height / 2);
+	Info::Statistics::AddChildToWidgetCenter(button.data(), loading);
+	loading->show();
+	box->setCloseByOutsideClick(false);
+	box->setCloseByEscape(false);
+}
+
+struct RotationState {
+	bool submitted = false;
+	base::weak_qptr<Ui::GenericBox> quiz;
+};
+
+void SubmitRotation(
+		std::shared_ptr<Main::SessionShow> show,
+		base::weak_qptr<Ui::GenericBox> origin,
+		not_null<bool*> busy,
+		std::shared_ptr<RotationState> state) {
+	const auto quiz = state->quiz.get();
+	if (!quiz || state->submitted) {
+		return;
+	}
+	state->submitted = true;
+	SetBoxBusy(quiz);
+	const auto closeQuiz = [=] {
+		if (const auto quiz = state->quiz.get()) {
+			quiz->closeBox();
+		}
+	};
+	show->session().wallet().submitRotation([=] {
+		closeQuiz();
+		const auto strong = origin.get();
+		if (!strong) {
+			return;
+		}
+		*busy = true;
+		StartBackupRequest(
+			show,
+			strong,
+			BackupChange::Disable,
+			{},
+			[=] { *busy = false; },
+			[=] { ShowBackupDisabledToast(show); });
+	}, [=](const QString &error) {
+		closeQuiz();
+		ShowRotationFailedToast(show, error);
+	});
+}
+
+void ShowRotationConfirm(
+		std::shared_ptr<Main::SessionShow> show,
+		base::weak_qptr<Ui::GenericBox> origin,
+		not_null<bool*> busy,
+		std::shared_ptr<RotationState> state,
+		int64 feeNano) {
+	if (state->submitted) {
+		return;
+	}
 	show->showBox(Ui::MakeConfirmBox({
-		.text = tr::lng_wallet_backup_update_text(tr::now),
-		.confirmed = [=] {
-			show->showToast(u"Not available yet."_q);
+		.text = tr::lng_wallet_backup_rotate_final_text(
+			tr::now,
+			lt_amount,
+			Ui::FormatTonAmount(feeNano).full),
+		.confirmed = [=](Fn<void()> close) {
+			close();
+			SubmitRotation(show, origin, busy, state);
 		},
 		.cancelled = [=](Fn<void()> close) {
 			close();
-			if (const auto strong = weak.get()) {
-				CollectBackupPhrase(show, strong);
+			if (const auto quiz = state->quiz.get()) {
+				quiz->closeBox();
 			}
+		},
+		.confirmText = tr::lng_wallet_backup_disable_confirm(),
+		.confirmStyle = &st::attentionBoxButton,
+		.title = tr::lng_wallet_backup_disable_title(),
+	}));
+}
+
+void ShowRotationPhrase(
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<Ui::GenericBox*> origin,
+		not_null<bool*> busy,
+		int64 feeNano,
+		std::vector<QString> words) {
+	const auto state = std::make_shared<RotationState>();
+	const auto wallet = &show->session().wallet();
+	const auto weak = base::make_weak(origin);
+	const auto showQuiz = [=](std::vector<QString> words) {
+		const auto quiz = show->show(Box(WalletBackupQuizBox, show, words, [=] {
+			ShowRotationConfirm(show, weak, busy, state, feeNano);
+		}));
+		state->quiz = quiz;
+		quiz->boxClosing() | rpl::on_next([=] {
+			if (!state->submitted) {
+				wallet->abandonRotation();
+			}
+		}, quiz->lifetime());
+	};
+	const auto sheet = show->show(Box(
+		WalletBackupPhraseBox,
+		show,
+		words,
+		showQuiz,
+		tr::lng_wallet_backup_new_phrase_title(),
+		tr::lng_wallet_backup_new_phrase_text(tr::marked)));
+	sheet->boxClosing() | rpl::on_next([=] {
+		if (!state->quiz && !state->submitted) {
+			wallet->abandonRotation();
+		}
+	}, sheet->lifetime());
+}
+
+void StartRotation(
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<Ui::GenericBox*> origin,
+		not_null<bool*> busy,
+		int64 feeNano) {
+	RunLocalPasscodeGate(show, crl::guard(origin, [=] {
+		if (*busy) {
+			return;
+		}
+		*busy = true;
+		const auto weak = base::make_weak(origin);
+		show->session().wallet().prepareRotation(feeNano, [=](
+				std::vector<QString> words) {
+			const auto strong = weak.get();
+			if (!strong) {
+				show->session().wallet().abandonRotation();
+				return;
+			}
+			*busy = false;
+			ShowRotationPhrase(show, strong, busy, feeNano, std::move(words));
+		}, crl::guard(origin, [=](const QString &error) {
+			*busy = false;
+			ShowRotationFailedToast(show, error);
+		}));
+	}));
+}
+
+void ShowBackupUpdateAlert(
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<Ui::GenericBox*> origin,
+		not_null<bool*> busy,
+		int64 feeNano,
+		Fn<void()> notNow) {
+	const auto weak = base::make_weak(origin);
+	const auto rate = show->session().wallet().rates().current();
+	show->showBox(Ui::MakeConfirmBox({
+		.text = tr::lng_wallet_backup_update_text(tr::now)
+			+ u"\n\n"_q
+			+ RotationFeeText(tr::lng_wallet_backup_update_fee, feeNano, rate),
+		.confirmed = [=](Fn<void()> close) {
+			close();
+			if (const auto strong = weak.get()) {
+				StartRotation(show, strong, busy, feeNano);
+			}
+		},
+		.cancelled = [=](Fn<void()> close) {
+			close();
+			notNow();
 		},
 		.confirmText = tr::lng_wallet_backup_update_confirm(),
 		.cancelText = tr::lng_wallet_backup_update_later(),
@@ -4690,16 +4895,71 @@ void ShowBackupUpdateStub(
 	}));
 }
 
+void ShowBackupTopUpAlert(
+		std::shared_ptr<Main::SessionShow> show,
+		int64 feeNano,
+		Fn<void()> notNow) {
+	const auto rate = show->session().wallet().rates().current();
+	show->showBox(Ui::MakeConfirmBox({
+		.text = RotationFeeText(
+			tr::lng_wallet_backup_topup_text,
+			feeNano,
+			rate),
+		.confirmed = [=](Fn<void()> close) {
+			close();
+			ShowWalletReceiveBox(&show->session(), show);
+		},
+		.cancelled = [=](Fn<void()> close) {
+			close();
+			notNow();
+		},
+		.confirmText = tr::lng_wallet_backup_topup_confirm(),
+		.cancelText = tr::lng_wallet_backup_update_later(),
+		.title = tr::lng_wallet_backup_topup_title(),
+		.strictCancel = true,
+	}));
+}
+
+void ShowBackupUpdateFork(
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<Ui::GenericBox*> origin,
+		not_null<bool*> busy) {
+	auto &wallet = show->session().wallet();
+	const auto weak = base::make_weak(origin);
+	const auto collect = [=] {
+		if (const auto strong = weak.get()) {
+			CollectBackupPhrase(show, strong);
+		}
+	};
+	if (!wallet.rotationOffered()) {
+		collect();
+		return;
+	}
+	*busy = true;
+	wallet.quoteRotationFee(crl::guard(origin, [=](FeeResult fee) {
+		*busy = false;
+		if (fee.error == SendError::None) {
+			ShowBackupUpdateAlert(show, origin, busy, fee.feeNano, collect);
+		} else if (fee.error == SendError::InsufficientFees) {
+			ShowBackupTopUpAlert(show, fee.feeNano, collect);
+		} else {
+			show->showToast(RotationQuoteErrorText(fee.error));
+			collect();
+		}
+	}));
+}
+
 void StartBackupDisable(
 		std::shared_ptr<Main::SessionShow> show,
-		not_null<Ui::GenericBox*> origin) {
+		not_null<Ui::GenericBox*> origin,
+		not_null<bool*> busy) {
 	const auto weak = base::make_weak(origin);
 	show->showBox(Ui::MakeConfirmBox({
 		.text = tr::lng_wallet_backup_disable_text(tr::now),
 		.confirmed = [=](Fn<void()> close) {
 			close();
 			if (const auto strong = weak.get()) {
-				ShowBackupUpdateStub(show, strong);
+				ShowBackupUpdateFork(show, strong, busy);
 			}
 		},
 		.confirmText = tr::lng_wallet_backup_disable_confirm(),
@@ -5577,8 +5837,11 @@ void AddBackupSection(
 	}));
 	disable->finishAnimating();
 	disable->entity()->addClickHandler([=] {
+		if (*busy) {
+			return;
+		}
 		RunKeyRequiringAction(show, [=] {
-			StartBackupDisable(show, box);
+			StartBackupDisable(show, box, busy);
 		}, KeyActionKind::Reveal);
 	});
 	const auto enable = container->add(
