@@ -162,16 +162,16 @@ void FileLoader::finishWithBytes(const QByteArray &data) {
 	session->notifyDownloaderTaskFinished();
 }
 
-QImage FileLoader::imageData(int progressiveSizeLimit) const {
+QImage FileLoader::imageData() const {
 	if (_imageData.isNull() && _locationType == UnknownFileLocation) {
-		readImage(progressiveSizeLimit);
+		readImage();
 	}
 	return _imageData;
 }
 
-void FileLoader::readImage(int progressiveSizeLimit) const {
-	const auto buffer = progressiveSizeLimit
-		? QByteArray::fromRawData(_data.data(), progressiveSizeLimit)
+void FileLoader::readImage() const {
+	const auto buffer = _loadSize
+		? QByteArray::fromRawData(_data.data(), _loadSize)
 		: _data;
 	auto read = Images::Read({ .content = buffer });
 	if (!read.image.isNull()) {
