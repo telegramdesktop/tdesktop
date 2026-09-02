@@ -401,10 +401,14 @@ rotation lengthens it. A scenario reads it at runtime through
 returns the words, the address line and `addressRaw`, the address normalized
 through `Wallet::CanonicalAddress` so either form compares; `std::nullopt`
 when the file is absent, has no word line or no address line, and always
-outside test-agent mode. The words are under the same rule as the password:
-typed or compared in process only, never in overlay code, a `Note`, check
-`details`, a capture, an evidence file, a `work/` artifact, a receipt or a
-prompt. Only the COUNT of the words and the address may be recorded.
+outside test-agent mode. The golden sibling is consulted only when the live
+copy is absent or blank — a present but malformed live copy answers
+`std::nullopt` rather than masking a different golden file, because after a
+rotation the live copy is the authority. The words are under the same rule as
+the password: typed or compared in process only, never in overlay code, a
+`Note`, check `details`, a capture, an evidence file, a `work/` artifact, a
+receipt or a prompt. Only the COUNT of the words and the address may be
+recorded.
 
 A campaign that declares it needs the funded wallet is gated on it at
 campaign start, before anything is spent: the file must be present;
@@ -419,14 +423,17 @@ golden wallet never reset it and spend only what a leg needs; state the count
 of live legs the run issued.
 
 After a confirmed key rotation the scenario calls
-`Test::RewriteGramAccountWords(newWords)` from the stage that observed the
-confirmation, before any later leg can cut the run off. It rewrites the word
-lines of every existing copy — the marked live copy AND the golden sibling —
-through `QSaveFile`, keeping the empty line and the address line, and returns
-which copies were written; the stage checks both and re-reads
-`Test::GramAccount()` to compare the count and the words in process. The
-golden write is the one owner-decided exception to the read-only golden
-folder; nothing else in the harness or in a campaign ever writes there.
+`Test::RewriteGramAccountWords(newWords, addressRaw)` from the stage that
+observed the confirmation, before any later leg can cut the run off. It
+rewrites the word lines of every existing copy — the marked live copy AND the
+golden sibling — through `QSaveFile`, keeping the empty line and the address
+line; each copy is parsed on its own and rewritten only when its own address
+is the rotated wallet's (the scenario passes the served raw address); a copy
+naming another wallet is left alone and reported `false`. It returns which
+copies were written; the stage checks both and re-reads `Test::GramAccount()`
+to compare the count and the words in process. The golden write is the one
+owner-decided exception to the read-only golden folder; nothing else in the
+harness or in a campaign ever writes there.
 
 The golden `tdata` is never modified while the file is, so a later campaign's
 P0 reconciles the two before anything else — in process, after the address

@@ -89,6 +89,23 @@ const auto kGramAccountFile = u"test_gram_account.txt"_q;
 		&& file.commit();
 }
 
+[[nodiscard]] bool RewriteCopyWords(
+		const QString &path,
+		const QStringList &lines,
+		const QString &addressRaw) {
+	const auto raw = ReadTrimmed(path);
+	const auto current = raw ? ParseGramAccount(*raw) : std::nullopt;
+	if (!current
+		|| Wallet::CanonicalAddress(current->address) != addressRaw) {
+		return false;
+	}
+	const auto content = (lines.join(u'\n')
+		+ u"\n\n"_q
+		+ current->address
+		+ u"\n"_q).toUtf8();
+	return RewriteExisting(path, content);
+}
+
 [[nodiscard]] base::flat_set<QString> &FiredEvents() {
 	static auto result = base::flat_set<QString>();
 	return result;
@@ -163,24 +180,24 @@ std::optional<GramAccountFixture> GramAccount() {
 }
 
 GramAccountRewrite RewriteGramAccountWords(
-		const std::vector<QString> &words) {
+		const std::vector<QString> &words,
+		const QString &addressRaw) {
 	auto result = GramAccountRewrite();
 	if (!Active()
 		|| words.empty()
+		|| addressRaw.isEmpty()
 		|| !ranges::all_of(words, IsWordLine)) {
 		return result;
 	}
-	const auto current = GramAccount();
-	if (!current) {
-		return result;
-	}
 	const auto lines = QStringList(words.begin(), words.end());
-	const auto content = (lines.join(u'\n')
-		+ u"\n\n"_q
-		+ current->address
-		+ u"\n"_q).toUtf8();
-	result.live = RewriteExisting(LivePath(kGramAccountFile), content);
-	result.golden = RewriteExisting(GoldenPath(kGramAccountFile), content);
+	result.live = RewriteCopyWords(
+		LivePath(kGramAccountFile),
+		lines,
+		addressRaw);
+	result.golden = RewriteCopyWords(
+		GoldenPath(kGramAccountFile),
+		lines,
+		addressRaw);
 	return result;
 }
 
@@ -216,7 +233,9 @@ std::optional<GramAccountFixture> GramAccount() {
 	return std::nullopt;
 }
 
-GramAccountRewrite RewriteGramAccountWords(const std::vector<QString> &) {
+GramAccountRewrite RewriteGramAccountWords(
+		const std::vector<QString> &,
+		const QString &) {
 	return {};
 }
 

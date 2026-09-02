@@ -215,10 +215,11 @@ The debug build runs in portable mode out of `out/Debug/`. Three sibling folders
 - `real_TelegramForcePortable` — the user's real data, preserved so manual use survives. Once it
   exists, NO flow step may ever delete, rename, move, overwrite, or write into it.
 
-Fixture secrets ride in the golden folder beside `tdata`. Today that is `2svpassword.txt`, the
-test account's two-step-verification (cloud) password, which the server requires on every
-destructive wallet method (`wallet.exportSecretPhrase`, `wallet.replaceWallet`,
-`wallet.enableBackup`, `wallet.disableBackup`). A scenario reads it at runtime with
+Fixture secrets ride in the golden folder beside `tdata`: `2svpassword.txt` and
+`test_gram_account.txt` (below). `2svpassword.txt` is the test account's two-step-verification
+(cloud) password, which the server requires on every destructive wallet method
+(`wallet.exportSecretPhrase`, `wallet.replaceWallet`, `wallet.enableBackup`,
+`wallet.disableBackup`). A scenario reads it at runtime with
 `Test::TwoStepPassword()` (trimmed; `std::nullopt` when absent; the live copy is read first, then
 the golden sibling) and types it into the product's own `PasscodeBox`, so the real SRP path
 computes the proof. The value stays inside the process: never in overlay code, `work/`,
@@ -241,16 +242,18 @@ never repaired by `/wallet_reset`, `wallet.replaceWallet` or a minted wallet; an
 cover every planned live leg plus a margin, checked before anything is spent — a shortfall is a
 task-local `Block` naming the address and the amount required, never a driven workaround.
 Campaigns on the golden wallet never reset it and spend only what a leg needs. After a confirmed
-key rotation the scenario rewrites the file's word lines through `Test::RewriteGramAccountWords`
-in BOTH copies — the marked live copy and the golden folder — keeping the empty line and the
-address line; that golden write is the one owner-decided exception to the read-only golden
-folder. Because the golden `tdata` is never modified while the file is, the next campaign's P0
-reconciles them in process (`Telegram/SourceFiles/test/README.md`, "Account fixture secrets"):
-fewer local words than the file restores custody from the file through the product's own import,
-and a differing local reveal with an equal or greater count rewrites the file from the local
-reveal. Never delete or reset the marked live copy while a campaign may have left a rotation in
-flight or unrewritten: SETUP keeps a marked live copy, and only a manual wipe or
-`test-account-reset` discards it — and with it the only copy of a not-yet-rewritten signing half.
+key rotation the scenario rewrites the file's word lines through
+`Test::RewriteGramAccountWords(words, addressRaw)`, which rewrites only a copy whose own address
+is the rotated wallet's, in BOTH copies — the marked live copy and the golden folder — keeping
+the empty line and each copy's own address line; that golden write is the one owner-decided
+exception to the read-only golden folder. Because the golden `tdata` is never modified while the
+file is, the next campaign's P0 reconciles them in process
+(`Telegram/SourceFiles/test/README.md`, "Account fixture secrets"): fewer local words than the
+file restores custody from the file through the product's own import, and a differing local
+reveal with an equal or greater count rewrites the file from the local reveal. Never delete or
+reset the marked live copy while a campaign may have left a rotation in flight or unrewritten:
+SETUP keeps a marked live copy, and only a manual wipe or `test-account-reset` discards it — and
+with it the only copy of a not-yet-rewritten signing half.
 
 **SETUP — run at the START of every test run, with NO app instance alive. It is idempotent: the
 first SETUP after a crash moves leftover crash files and can refuse before launch; after successful

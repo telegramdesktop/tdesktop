@@ -52,14 +52,19 @@ struct GramAccountFixture {
 
 // After a confirmed key rotation: rewrites the word lines of the live copy
 // and of the golden sibling, keeping the empty line and the address line.
-// The golden write is the one owner-decided exception to the read-only
-// golden folder (test/README.md, "Account fixture secrets").
+// Each copy is parsed on its own and rewritten only when its own address,
+// normalized, equals |addressRaw| (the rotated wallet's canonical raw
+// address); a copy naming another wallet is left untouched and reported
+// false. The address line written back is that copy's own. The golden
+// write is the one owner-decided exception to the read-only golden folder
+// (test/README.md, "Account fixture secrets").
 struct GramAccountRewrite {
 	bool live = false;
 	bool golden = false;
 };
 [[nodiscard]] GramAccountRewrite RewriteGramAccountWords(
-	const std::vector<QString> &words);
+	const std::vector<QString> &words,
+	const QString &addressRaw);
 
 // Builds the scenario registered by test/test_scenario.cpp and starts it on
 // the event loop. Runs at the end of Application::run(). No-op unless
