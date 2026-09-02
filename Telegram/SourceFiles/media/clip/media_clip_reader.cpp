@@ -868,8 +868,13 @@ void Manager::process() {
 	auto ms = crl::now(), minms = ms + 86400 * crl::time(1000);
 	{
 		QMutexLocker lock(&_readerPointersMutex);
+		auto livePrivates = 0;
 		for (auto it = _readerPointers.begin(), e = _readerPointers.end(); it != e; ++it) {
-			if (it->loadAcquire() && it.key()->_private != nullptr) {
+			if (it.key()->_private == nullptr) {
+				continue;
+			}
+			++livePrivates;
+			if (it->loadAcquire()) {
 				auto i = _readers.find(it.key()->_private);
 				if (i == _readers.cend()) {
 					_readers.insert(it.key()->_private, 0);
@@ -889,7 +894,7 @@ void Manager::process() {
 				it->storeRelease(0);
 			}
 		}
-		checkAllReaders = (_readers.size() > _readerPointers.size());
+		checkAllReaders = (_readers.size() > livePrivates);
 	}
 
 	for (auto i = _readers.begin(), e = _readers.end(); i != e;) {
