@@ -788,12 +788,21 @@ bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, c
 		}
 		return false;
 	}
+	if (result == ProcessResult::Started) {
+		// Manager::deletePrivate() releases the real frame area for any
+		// private whose _width is set, and ReaderPrivate::start() sets it
+		// in the statement before it returns Started. So this upgrade of
+		// the Manager::append() placeholder has to happen even when the
+		// owning Reader is already gone - below the guard it would leave
+		// the worker's load level permanently short of what it released.
+		_loadLevel.fetchAndAddRelaxed(
+			reader->_width * reader->_height - kAverageGifSize);
+	}
 	if (it == _readerPointers.cend()) {
 		return false;
 	}
 
 	if (result == ProcessResult::Started) {
-		_loadLevel.fetchAndAddRelaxed(reader->_width * reader->_height - kAverageGifSize);
 		it.key()->_durationMs = reader->_durationMs;
 	}
 	// See if we need to pause GIF because it is not displayed right now.
