@@ -139,6 +139,16 @@ Before planning or editing:
    supply an account secret and that a hand-built SRP or a driven answer is
    not a substitute for those legs — with any retained implementation intact,
    so a retry after the file appears resumes at the first incomplete boundary.
+   A selected check that the task declares needs the funded golden wallet
+   additionally has the `test_gram_account.txt` fixture (same README
+   section) as a prerequisite, gated by existence only at the same two
+   points; at campaign start the served `walletState.address` must equal the
+   file's address or the run FAILS — never repaired by `/wallet_reset` or a
+   minted wallet — and the balance must cover every planned live leg plus a
+   margin, checked before anything is spent. A missing file or a shortfall
+   is the same task-local `Block` — `Blocker-Type: test`, naming the address
+   and the amount required, `Unverified:` naming the funded-wallet checks —
+   never a driven workaround and never a minted wallet.
 7. For a new run require successful source preparation, then initialize local
    recovery state (`source-begin` also prepares a fresh baseline):
 
@@ -709,6 +719,16 @@ Before an instrument runs, gate only its own prerequisites:
   (`Telegram/SourceFiles/test/README.md`, "Account fixture secrets"); its
   absence is the task blocker of Phase 3 step 5, never a degraded run, and
   the value never enters overlay code, artifacts, logs, or prompts;
+- a check that the task declares needs the funded golden wallet needs the
+  `test_gram_account.txt` fixture, read at runtime through
+  `Test::GramAccount()` (same README section): the file present, the served
+  `walletState.address` equal to the file's at campaign start (a mismatch
+  FAILS the run, never `/wallet_reset`), and the balance covering every
+  planned live leg plus a margin before any spend — a missing file or a
+  shortfall is the task-local `Block` of Phase 3 step 5 (`Blocker-Type:
+  test`, the address and the amount required), never a driven workaround
+  and never a minted wallet, and the words never enter overlay code,
+  artifacts, logs, or prompts;
 - Computer Use needs the separate capability gate;
 - another platform's unavailable toolchain is recorded as an exact
   `Unverified:` exposure, not simulated by an unrelated local command.

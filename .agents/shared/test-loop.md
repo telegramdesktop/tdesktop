@@ -207,7 +207,8 @@ data.
 The debug build runs in portable mode out of `out/Debug/`. Three sibling folders matter:
 
 - `test_TelegramForcePortable` — the golden test account, prepared by the user. Read-only SOURCE,
-  never modified by tests. (Its presence is the launch gate; the wrapper aborts if it is missing.)
+  never modified by tests, except the word lines of `test_gram_account.txt` after a confirmed key
+  rotation (below). (Its presence is the launch gate; the wrapper aborts if it is missing.)
 - `TelegramForcePortable` — the LIVE folder the app actually uses (its presence is what puts the
   build in portable mode). A marker file named `testing` directly inside it marks it as a
   disposable test copy; a live folder WITHOUT the marker is the user's real data.
@@ -227,6 +228,29 @@ campaign is authored, and its absence is a task blocker: publish the task-local 
 `2svpassword.txt` as the exact missing input instead of running a degraded campaign, exporting
 the legs as coverage debt, hand-building the SRP, or driving the answer. A scenario that still
 reaches a missing file at runtime refuses with a named fixture gate, never a product FAIL.
+
+The same folder carries `test_gram_account.txt`, the owner's funded golden wallet: the word lines
+until the first empty line, then the address as the app shows it, never a fixed count. A scenario
+reads it with `Test::GramAccount()` under the same read rule (the live copy first, then the golden
+sibling; `std::nullopt` when absent or malformed) and the words stay inside the process exactly
+like the password; only their COUNT and the address may be recorded. A campaign that declares it
+needs the funded wallet is gated on it: the file's existence (never its value) before the campaign
+is authored, its absence the same task-local `Block` naming `test_gram_account.txt`; at campaign
+start `GramAccount()->addressRaw` must equal `*wallet.address()` — a mismatch FAILS the run and is
+never repaired by `/wallet_reset`, `wallet.replaceWallet` or a minted wallet; and the balance must
+cover every planned live leg plus a margin, checked before anything is spent — a shortfall is a
+task-local `Block` naming the address and the amount required, never a driven workaround.
+Campaigns on the golden wallet never reset it and spend only what a leg needs. After a confirmed
+key rotation the scenario rewrites the file's word lines through `Test::RewriteGramAccountWords`
+in BOTH copies — the marked live copy and the golden folder — keeping the empty line and the
+address line; that golden write is the one owner-decided exception to the read-only golden
+folder. Because the golden `tdata` is never modified while the file is, the next campaign's P0
+reconciles them in process (`Telegram/SourceFiles/test/README.md`, "Account fixture secrets"):
+fewer local words than the file restores custody from the file through the product's own import,
+and a differing local reveal with an equal or greater count rewrites the file from the local
+reveal. Never delete or reset the marked live copy while a campaign may have left a rotation in
+flight or unrewritten: SETUP keeps a marked live copy, and only a manual wipe or
+`test-account-reset` discards it — and with it the only copy of a not-yet-rewritten signing half.
 
 **SETUP — run at the START of every test run, with NO app instance alive. It is idempotent: the
 first SETUP after a crash moves leftover crash files and can refuse before launch; after successful
@@ -272,7 +296,10 @@ either carries the `testing` marker or coexists with `real_...` (step 3). If the
 breaks mid-loop (login screen, `AUTH_KEY_DUPLICATED`), delete the MARKED live folder (that deletion
 takes the Crashpad database under `tdata/dumps/completed/` with it, so copy out any dump worth
 keeping first), re-run SETUP for a fresh golden copy, and retry once; if it is still broken the run
-is UNRECOVERABLE. Never delete or alter `test_...` or `real_...` under any circumstances.
+is UNRECOVERABLE — except a marked live copy that may hold a key rotation in flight or a
+not-yet-rewritten `test_gram_account.txt`, which the flow never deletes (the funded-wallet rule
+above): stop and report instead. Never delete or alter `test_...` or `real_...` under any
+circumstances.
 
 **Serialize app runs.** Never have two `Telegram.exe` instances alive against this account at once —
 concurrent reuse of one auth key can trigger a server-side session reset. Before SETUP, launching, or

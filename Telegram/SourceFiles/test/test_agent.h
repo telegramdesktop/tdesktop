@@ -39,6 +39,28 @@ void Fire(const QString &event);
 // missing file is a named fixture gate, never a product FAIL.
 [[nodiscard]] std::optional<QString> TwoStepPassword();
 
+// "test_gram_account.txt": the owner's funded golden wallet: the word
+// lines before the first empty line, then the address as the app shows
+// it. |words| exist only to be typed or compared in process; never copy
+// them anywhere. |addressRaw| is the canonical raw form for comparison.
+struct GramAccountFixture {
+	std::vector<QString> words;
+	QString address;
+	QString addressRaw;
+};
+[[nodiscard]] std::optional<GramAccountFixture> GramAccount();
+
+// After a confirmed key rotation: rewrites the word lines of the live copy
+// and of the golden sibling, keeping the empty line and the address line.
+// The golden write is the one owner-decided exception to the read-only
+// golden folder (test/README.md, "Account fixture secrets").
+struct GramAccountRewrite {
+	bool live = false;
+	bool golden = false;
+};
+[[nodiscard]] GramAccountRewrite RewriteGramAccountWords(
+	const std::vector<QString> &words);
+
 // Builds the scenario registered by test/test_scenario.cpp and starts it on
 // the event loop. Runs at the end of Application::run(). No-op unless
 // Active(), a scenario is registered, and the portable data folder carries

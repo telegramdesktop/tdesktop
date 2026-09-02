@@ -282,7 +282,7 @@ clicking.
 
 | Module | Facilities |
 | --- | --- |
-| `test_agent.h` | Runtime gate, startup scale override, sticky named events, scenario start, account fixture secrets (`TwoStepPassword()` reads `2svpassword.txt`). |
+| `test_agent.h` | Runtime gate, startup scale override, sticky named events, scenario start, account fixture secrets (`TwoStepPassword()` reads `2svpassword.txt`, `GramAccount()` reads `test_gram_account.txt`). |
 | `test_runner.h` | Stages, bounded waits, exact-widget actions, prepared capture/inspection, first-class gated skips (`skipReason`), `onFinish` release hook (and its finish-release self-test), watchdog (`TDESKTOP_TEST_WATCHDOG` in seconds) and termination. |
 | `test_gated_stage.h` | The first-class gated skip's own self-test: a stage whose `skipReason` returns a reason, writing one `TEST_RESULT: N/A:` row and skipping `run`, `until` and `then` without waiting - its never-ready `until` under a one-second timeout is the falsifier - beside a stage whose gate returns an empty string and runs normally in the tick that begins it. |
 | `test_log.h` | Absolute flushed logs, steps, notes, checks whose `details` are printed on the passing verdict as well as the failing one, tolerances, geometry, completion markers, N/A rows for stages that did not apply, and their count. One `LogRaw` call always writes exactly one physical line, whatever it is handed: every character Python's `str.splitlines()` breaks on - U+000A, U+000B, U+000C, U+000D, U+001C, U+001D, U+001E, U+0085, U+2028, U+2029, and so a CRLF pair as its two code points - is written as a visible `\uXXXX` escape, so a record carrying a break stays one row the external readers' line grammar reads whole and cannot mistake for a completion, while text with no separator is passed through byte for byte and the escape adds no trailing whitespace. |
@@ -367,10 +367,11 @@ shared one accumulated. One overlay rebuilt grab-check-save by hand after
 ## Account fixture secrets
 
 The golden `test_TelegramForcePortable` folder may carry secrets beside
-`tdata`. Today that is `2svpassword.txt`: the test account's two-step
-verification (cloud) password, which the server demands on every destructive
-wallet method (`PASSWORD_MISSING` without it, `SRP_ID_INVALID` for a
-fabricated proof). A scenario reads it at runtime through
+`tdata`. Today those are `2svpassword.txt` and `test_gram_account.txt`.
+`2svpassword.txt` is the test account's two-step verification (cloud)
+password, which the server demands on every destructive wallet method
+(`PASSWORD_MISSING` without it, `SRP_ID_INVALID` for a fabricated proof). A
+scenario reads it at runtime through
 `Test::TwoStepPassword()` — whitespace-trimmed, `std::nullopt` when the file
 is absent or blank, always `std::nullopt` outside test-agent mode — and the
 generic `Test::FixtureSecret(name)` reads any sibling file the same way. Both
@@ -390,6 +391,55 @@ capture, evidence file, `work/` artifact, receipt, prompt, or environment
 variable recorded anywhere may carry it. The overlay is published into the
 task repository with the result, so a literal there is a leak, not a
 convenience.
+
+`test_gram_account.txt` is the owner's funded golden wallet: the test
+account's server-created wallet, recorded by hand and funded at its address.
+The format is the word lines until the first empty line, then the address as
+the app shows it; never assume a fixed word count, because a confirmed key
+rotation lengthens it. A scenario reads it at runtime through
+`Test::GramAccount()` — the live copy first, then the golden sibling — which
+returns the words, the address line and `addressRaw`, the address normalized
+through `Wallet::CanonicalAddress` so either form compares; `std::nullopt`
+when the file is absent, has no word line or no address line, and always
+outside test-agent mode. The words are under the same rule as the password:
+typed or compared in process only, never in overlay code, a `Note`, check
+`details`, a capture, an evidence file, a `work/` artifact, a receipt or a
+prompt. Only the COUNT of the words and the address may be recorded.
+
+A campaign that declares it needs the funded wallet is gated on it at
+campaign start, before anything is spent: the file must be present;
+`GramAccount()->addressRaw` must equal `*wallet.address()` once
+`WalletRefreshSettled` accepted the served state — a mismatch FAILS the run
+and is never repaired by `/wallet_reset`, `wallet.replaceWallet` or a minted
+wallet; and the balance must cover every planned live leg plus a margin — a
+shortfall refuses with a named fixture gate (`fixture gate: golden wallet
+balance short`) and the performer publishes the task-local Block naming the
+address and the amount required, never a driven workaround. Campaigns on the
+golden wallet never reset it and spend only what a leg needs; state the count
+of live legs the run issued.
+
+After a confirmed key rotation the scenario calls
+`Test::RewriteGramAccountWords(newWords)` from the stage that observed the
+confirmation, before any later leg can cut the run off. It rewrites the word
+lines of every existing copy — the marked live copy AND the golden sibling —
+through `QSaveFile`, keeping the empty line and the address line, and returns
+which copies were written; the stage checks both and re-reads
+`Test::GramAccount()` to compare the count and the words in process. The
+golden write is the one owner-decided exception to the read-only golden
+folder; nothing else in the harness or in a campaign ever writes there.
+
+The golden `tdata` is never modified while the file is, so a later campaign's
+P0 reconciles the two before anything else — in process, after the address
+gate has already passed: (a) the local reveal has FEWER words than the file:
+the golden `tdata` predates a confirmed rotation, so restore custody from the
+file's words through the product's own import
+(`Wallet::Session::restoreFromPhrase`) before any other stage; (b) the local
+reveal differs from the file with an equal or greater count: the live copy
+was promoted after a chain-confirmed rotation but the rewrite was cut off, so
+rewrite the file from the local reveal. Never delete or reset the marked live
+copy while a campaign may have left a rotation in flight or unrewritten: SETUP
+keeps a marked live copy, and only a manual wipe or `test-account-reset`
+discards it — and with it the only copy of a not-yet-rewritten signing half.
 
 ## Media fixtures and fixture gates
 

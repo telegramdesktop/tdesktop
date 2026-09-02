@@ -10,13 +10,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #ifdef _DEBUG
 
 #include "test/test_log.h"
-#include "settings.h"
 #include "ui/style/style_core_scale.h"
+#include "wallet/wallet_address.h"
+#include "settings.h"
 
 #include <QtCore/QFile>
+#include <QtCore/QSaveFile>
 
 namespace Test {
 namespace {
+
+const auto kGramAccountFile = u"test_gram_account.txt"_q;
+
+[[nodiscard]] QString LivePath(const QString &name) {
+	return cWorkingDir() + name;
+}
+
+[[nodiscard]] QString GoldenPath(const QString &name) {
+	return cExeDir() + u"test_TelegramForcePortable/"_q + name;
+}
 
 [[nodiscard]] std::optional<QString> ReadTrimmed(const QString &path) {
 	auto file = QFile(path);
@@ -28,6 +40,53 @@ namespace {
 		return std::nullopt;
 	}
 	return value;
+}
+
+[[nodiscard]] std::optional<GramAccountFixture> ParseGramAccount(
+		const QString &raw) {
+	auto result = GramAccountFixture();
+	auto wordsEnded = false;
+	for (const auto &line : raw.split(u'\n')) {
+		const auto trimmed = line.trimmed();
+		if (!wordsEnded) {
+			if (trimmed.isEmpty()) {
+				wordsEnded = true;
+			} else {
+				result.words.push_back(trimmed);
+			}
+		} else if (!trimmed.isEmpty()) {
+			result.address = trimmed;
+			break;
+		}
+	}
+	if (result.words.empty() || result.address.isEmpty()) {
+		return std::nullopt;
+	}
+	return result;
+}
+
+[[nodiscard]] bool IsWordLine(const QString &word) {
+	if (word.isEmpty()) {
+		return false;
+	}
+	for (const auto ch : word) {
+		if (ch.isSpace()) {
+			return false;
+		}
+	}
+	return true;
+}
+
+[[nodiscard]] bool RewriteExisting(
+		const QString &path,
+		const QByteArray &content) {
+	if (!QFile::exists(path)) {
+		return false;
+	}
+	auto file = QSaveFile(path);
+	return file.open(QIODevice::WriteOnly)
+		&& (file.write(content) == content.size())
+		&& file.commit();
 }
 
 [[nodiscard]] base::flat_set<QString> &FiredEvents() {
@@ -81,14 +140,48 @@ bool HasFired(const QString &event) {
 std::optional<QString> FixtureSecret(const QString &name) {
 	if (!Active()) {
 		return std::nullopt;
-	} else if (auto live = ReadTrimmed(cWorkingDir() + name)) {
+	} else if (auto live = ReadTrimmed(LivePath(name))) {
 		return live;
 	}
-	return ReadTrimmed(cExeDir() + u"test_TelegramForcePortable/"_q + name);
+	return ReadTrimmed(GoldenPath(name));
 }
 
 std::optional<QString> TwoStepPassword() {
 	return FixtureSecret(u"2svpassword.txt"_q);
+}
+
+std::optional<GramAccountFixture> GramAccount() {
+	const auto raw = FixtureSecret(kGramAccountFile);
+	if (!raw) {
+		return std::nullopt;
+	}
+	auto result = ParseGramAccount(*raw);
+	if (result) {
+		result->addressRaw = Wallet::CanonicalAddress(result->address);
+	}
+	return result;
+}
+
+GramAccountRewrite RewriteGramAccountWords(
+		const std::vector<QString> &words) {
+	auto result = GramAccountRewrite();
+	if (!Active()
+		|| words.empty()
+		|| !ranges::all_of(words, IsWordLine)) {
+		return result;
+	}
+	const auto current = GramAccount();
+	if (!current) {
+		return result;
+	}
+	const auto lines = QStringList(words.begin(), words.end());
+	const auto content = (lines.join(u'\n')
+		+ u"\n\n"_q
+		+ current->address
+		+ u"\n"_q).toUtf8();
+	result.live = RewriteExisting(LivePath(kGramAccountFile), content);
+	result.golden = RewriteExisting(GoldenPath(kGramAccountFile), content);
+	return result;
 }
 
 } // namespace Test
@@ -117,6 +210,14 @@ std::optional<QString> FixtureSecret(const QString &) {
 
 std::optional<QString> TwoStepPassword() {
 	return std::nullopt;
+}
+
+std::optional<GramAccountFixture> GramAccount() {
+	return std::nullopt;
+}
+
+GramAccountRewrite RewriteGramAccountWords(const std::vector<QString> &) {
+	return {};
 }
 
 } // namespace Test
