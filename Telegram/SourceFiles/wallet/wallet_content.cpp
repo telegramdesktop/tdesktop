@@ -4524,7 +4524,8 @@ void WalletBackupQuizBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
 		std::vector<QString> words,
-		Fn<void()> passed) {
+		Fn<void()> passed,
+		Fn<void(Fn<void()> lock)> publishLock) {
 	Expects(int(words.size()) >= kBackupQuizWordCount);
 
 	box->setWidth(st::boxWideWidth);
@@ -4567,7 +4568,9 @@ void WalletBackupQuizBox(
 		return ranges::contains(state->wrong, true);
 	};
 	const auto refreshButton = [=] {
-		SetButtonDisabledLook(button.data(), !allFilled() || anyWrong());
+		if (const auto raw = button.data()) {
+			SetButtonDisabledLook(raw, !allFilled() || anyWrong());
+		}
 	};
 	const auto submit = [=] {
 		if (!allFilled() || anyWrong()) {
@@ -4606,6 +4609,18 @@ void WalletBackupQuizBox(
 	box->setFocusCallback([=] {
 		state->fields.front()->setFocusFast();
 	});
+	if (publishLock) {
+		publishLock([=] {
+			for (const auto field : state->fields) {
+				field->setDisabled(true);
+			}
+			// A disabled field takes no focus, and with the focus left on
+			// the layer stack Escape closes the box past
+			// setCloseByEscape(false), so the box holds it itself.
+			box->setFocusCallback(nullptr);
+			box->setInnerFocus();
+		});
+	}
 }
 
 void ShowBackupDisabledToast(std::shared_ptr<Main::SessionShow> show) {
@@ -4659,7 +4674,7 @@ void CollectBackupPhrase(
 		const auto requesting = std::make_shared<bool>(false);
 		*quiz = show->show(Box(WalletBackupQuizBox, show, words, [=] {
 			ShowBackupDisableConfirm(show, *quiz, requesting);
-		}));
+		}, nullptr));
 	};
 	const auto showPhrase = [=](std::vector<QString> words) {
 		show->showBox(Box(
@@ -4737,6 +4752,7 @@ void SetBoxBusy(not_null<Ui::GenericBox*> box) {
 struct RotationState {
 	bool submitted = false;
 	base::weak_qptr<Ui::GenericBox> quiz;
+	Fn<void()> lockQuiz;
 };
 
 void SubmitRotation(
@@ -4749,6 +4765,7 @@ void SubmitRotation(
 		return;
 	}
 	state->submitted = true;
+	state->lockQuiz();
 	SetBoxBusy(quiz);
 	const auto closeQuiz = [=] {
 		if (const auto quiz = state->quiz.get()) {
@@ -4817,6 +4834,8 @@ void ShowRotationPhrase(
 	const auto showQuiz = [=](std::vector<QString> words) {
 		const auto quiz = show->show(Box(WalletBackupQuizBox, show, words, [=] {
 			ShowRotationConfirm(show, weak, busy, state, feeNano);
+		}, [=](Fn<void()> lock) {
+			state->lockQuiz = std::move(lock);
 		}));
 		state->quiz = quiz;
 		quiz->boxClosing() | rpl::on_next([=] {

@@ -1767,7 +1767,7 @@ void Session::submitRotation(
 				applyRotationSnapshot(engine::SendSnapshot{
 					.operation_id = std::move(result.operation_id),
 					.phase = result.phase,
-				});
+				}, false);
 			} else {
 				awaitResolution();
 			}
@@ -2220,7 +2220,7 @@ void Session::applyEngineUpdate(const engine::WalletUpdate &update) {
 			).arg(int(update.outcome)));
 		return;
 	}
-	applyRotationSnapshot(update.snapshot.send);
+	applyRotationSnapshot(update.snapshot.send, false);
 	const auto &snapshot = update.snapshot;
 	const auto wasUnresolved = _sendUnresolved;
 	_sendUnresolved = !TerminalSendPhase(snapshot.send.phase);
@@ -2956,7 +2956,7 @@ void Session::resolvePending() {
 			&& _sendState.current() != SendState::Sending) {
 			finishPending();
 		}
-		applyRotationSnapshot(snapshot);
+		applyRotationSnapshot(snapshot, true);
 	}, [=, this](EngineError error) {
 		_resolveRequestPending = false;
 		if (generation != _networkGeneration) {
@@ -2976,7 +2976,9 @@ void Session::finishPending() {
 	requestEngineRefresh();
 }
 
-void Session::applyRotationSnapshot(const engine::SendSnapshot &snapshot) {
+void Session::applyRotationSnapshot(
+		const engine::SendSnapshot &snapshot,
+		bool journalAuthoritative) {
 	if (!custody().pendingRotation) {
 		return;
 	}
@@ -2984,15 +2986,20 @@ void Session::applyRotationSnapshot(const engine::SendSnapshot &snapshot) {
 		? QString::fromStdString(*snapshot.operation_id)
 		: QString();
 	if (operationId != custody().pendingRotation->operationId) {
-		// A resolve_pending queued on the serial worker before the store
-		// write answers after it, while the send_boc behind it is still
-		// queued, so a journal naming nothing for the pending is conclusive
-		// only when no submit is in flight: with _rotating set the result
-		// of send_boc is the authority, without it (after a restart) the
-		// journal is, and it re-reports even a terminal record with its
-		// operation id, so an empty or foreign one means the broadcast
-		// never reached it.
-		if (!_rotating) {
+		// A journal naming nothing for the pending is conclusive only from
+		// a successful standalone resolve_pending(): refresh() swallows the
+		// failure of its own embedded resolve (refresh.rs:28) and still
+		// reports kCompleted with the client's fresh, empty send snapshot,
+		// so an update's kIdle is not journal-derived, and the result of
+		// send_boc speaks for its own submission only. Even the standalone
+		// answer waits for no submit to be in flight: a resolve_pending
+		// queued on the serial worker before the store write answers after
+		// it, while the send_boc behind it is still queued, so with
+		// _rotating set the result of send_boc is the authority. Without it
+		// (after a restart) the journal is, and it re-reports even a
+		// terminal record with its operation id, so an empty or foreign one
+		// means the broadcast never reached it.
+		if (journalAuthoritative && !_rotating) {
 			LOG(("Wallet Error: pending rotation has no journal record."));
 			discardPendingRotation();
 			finishRotation(u"ROTATION_FAILED"_q);

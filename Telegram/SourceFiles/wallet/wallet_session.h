@@ -372,7 +372,9 @@ private:
 	void updateListsGate();
 	[[nodiscard]] bool listsConfirmedEmpty() const;
 	void finishPending();
-	void applyRotationSnapshot(const wallet_engine::SendSnapshot &snapshot);
+	void applyRotationSnapshot(
+		const wallet_engine::SendSnapshot &snapshot,
+		bool journalAuthoritative);
 	void storePendingRotation(
 		Fn<void()> done,
 		Fn<void(const QString &)> fail);
