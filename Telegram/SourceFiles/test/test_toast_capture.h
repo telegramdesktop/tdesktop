@@ -140,13 +140,24 @@ void CheckToastReads(
 // sentinel-bearing surface it paints and a real Ui::Toast of its own.
 //
 // The surface is two horizontal bands of two high-contrast tones chosen so
-// that nothing a toast-rooted frame can hold comes near either of them:
-// such a frame carries st::windowBg, blends of st::toastBg over it and
-// white st::toastFg label ink, all of which lie on or beside the segment
-// between those two colours, while each sentinel tone is at least 72
-// channel units from every point of it. The two tones also keep a
-// window-mapped crop of the same rect clear of the blank threshold without
-// resting on the toast's own paint, which is the reason
+// that nothing a toast-rooted frame can hold comes near either of them on
+// any palette, and not merely on the one the tones were picked against.
+// Such a frame carries st::windowBg, blends of st::toastBg over it and
+// st::toastFg label ink, every one of which is a grey or within a few
+// channel units of one, as is every antialiased mixture of them; and
+// Test::ChannelDelta is the maximum absolute per-channel difference, so
+// the nearest grey to a colour sits exactly half that colour's own channel
+// span away. Both tones span nearly the whole range, which puts every grey
+// at least 95 channel units from either and every near-grey at least about
+// 92 - far outside the counter's 40-unit tolerance, whether the theme is
+// light or dark. Stage 1 measures that instead of trusting it: a named
+// fixture gate reports the separation from st::windowBg, from the settled
+// toast blend and from st::toastFg, and FAILs if the smallest of them
+// drops below twice the tolerance, so a palette that ever breaks the
+// argument says so in the log rather than flipping the counter's verdict
+// on a correct frame. The two tones also keep a window-mapped crop of the
+// same rect clear of the blank threshold without resting on the toast's
+// own paint - their lightness is 160 against 96 - which is the reason
 // test_via_window.cpp:65-68 gives for using two. No account fixture
 // secret, wallet phrase, password or hint is read, painted or named
 // anywhere: the only text the self-test paints is its own literal.

@@ -38,11 +38,12 @@ constexpr auto kToastSettledMinPermille = 300;
 constexpr auto kToastSettledToleranceDivisor = 16;
 constexpr auto kToastSettledToleranceMin = 4;
 constexpr auto kSentinelTolerance = 40;
+constexpr auto kSentinelMinSeparation = 2 * kSentinelTolerance;
 
 const auto kToastText = u"Harness toast subtree"_q;
 const auto kOtherText = u"Harness toast elsewhere"_q;
-const auto kFirstSentinel = QColor(255, 0, 255);
-const auto kSecondSentinel = QColor(0, 48, 0);
+const auto kFirstSentinel = QColor(255, 255, 65);
+const auto kSecondSentinel = QColor(192, 0, 192);
 
 [[nodiscard]] QColor SettledToastBackground() {
 	const auto over = st::toastBg->c;
@@ -66,6 +67,67 @@ const auto kSecondSentinel = QColor(0, 48, 0);
 	return std::max(
 		kToastSettledToleranceMin,
 		SettledSeparation() / kToastSettledToleranceDivisor);
+}
+
+struct SentinelSeparation {
+	QColor blend;
+	int windowBg = 0;
+	int settled = 0;
+	int toastFg = 0;
+	int minimum = 0;
+};
+
+// Why the sentinel counter cannot be flipped by a palette, and why the
+// number is measured here instead of asserted in a comment. Every colour a
+// toast-rooted frame can hold is a grey or within a few channel units of
+// one: Ui::GrabWidgetToImage fills the frame with st::windowBg, the toast
+// paints st::toastBg's settled blend over that, its label paints
+// st::toastFg ink, and every antialiased mixture lies between them.
+// ChannelDelta is the maximum absolute per-channel difference
+// (test_ink.cpp:96-104), so the nearest grey to a colour sits exactly half
+// that colour's own channel span away: kFirstSentinel spans 190 and
+// kSecondSentinel spans 192, which puts every grey at least 95 from either
+// and every near-grey at least about 92, in a light palette and a dark one
+// alike. An earlier pair was picked against one palette and collided with
+// the other theme's harness base, which is what this gate exists to say out
+// loud rather than fold into a verdict on a correct frame.
+[[nodiscard]] SentinelSeparation MeasureSentinelSeparation() {
+	const auto distance = [](QColor color) {
+		return std::min(
+			ChannelDelta(color, kFirstSentinel),
+			ChannelDelta(color, kSecondSentinel));
+	};
+	auto result = SentinelSeparation{
+		.blend = SettledToastBackground(),
+	};
+	result.windowBg = distance(st::windowBg->c);
+	result.settled = distance(result.blend);
+	result.toastFg = distance(st::toastFg->c);
+	result.minimum = std::min({
+		result.windowBg,
+		result.settled,
+		result.toastFg });
+	return result;
+}
+
+[[nodiscard]] QString SentinelSeparationText(
+		const SentinelSeparation &separation) {
+	const auto probe = [](const QString &label, QColor color, int delta) {
+		return u"%1 %2 at %3"_q.arg(label, color.name()).arg(delta);
+	};
+	return u"tones %1 and %2 - minimum separation %3, required at least %4 "
+		u"(counter tolerance %5) - %6, %7, %8"_q
+		.arg(kFirstSentinel.name(), kSecondSentinel.name())
+		.arg(separation.minimum)
+		.arg(kSentinelMinSeparation)
+		.arg(kSentinelTolerance)
+		.arg(
+			probe(u"windowBg"_q, st::windowBg->c, separation.windowBg),
+			probe(
+				u"settled toast blend"_q,
+				separation.blend,
+				separation.settled),
+			probe(u"toastFg"_q, st::toastFg->c, separation.toastFg));
 }
 
 struct ToastFrame {
@@ -206,9 +268,9 @@ struct Fixture {
 // Two tones rather than one, for the reason test_via_window.cpp:65-68
 // gives: with a single tone the window-mapped control's non-blankness
 // would rest on whatever the toast itself managed to paint, which is the
-// thing under measurement. Their lightness spread is 127 against 24, so a
-// window-mapped crop of this region clears the harness's blank threshold
-// on the bands alone.
+// thing under measurement. Their lightness is 160 against 96, a spread of
+// 64 against the harness's kBlankSpreadThreshold of 6, so a window-mapped
+// crop of this region clears the blank threshold on the bands alone.
 void PaintSentinelBands(not_null<Ui::RpWidget*> widget) {
 	const auto raw = widget.get();
 	raw->paintOn([=](QPainter &p) {
@@ -422,6 +484,17 @@ void AppendToastSubtreeCaptureSelfTest(not_null<Runner*> runner) {
 					? QString()
 					: u"Core::App().activePrimaryWindow() is null, or "
 						u"Ui::Toast::Show answered no instance"_q);
+			const auto separation = MeasureSentinelSeparation();
+			Check(
+				separation.minimum >= kSentinelMinSeparation,
+				u"fixture gate: on this palette both sentinel tones "
+				"stay clear of every colour a toast-rooted frame can "
+				"hold - the st::windowBg fill, st::toastBg's settled "
+				"blend over it and st::toastFg ink are all greys or "
+				"beside the grey axis, and the tones are not - so the "
+				"sentinel counter measures the frame and never the "
+				"theme"_q,
+				SentinelSeparationText(separation));
 			const auto toast = state->fixture.toastWidget.data();
 			if (!state->built || !toast) {
 				return;
@@ -518,6 +591,7 @@ void AppendToastSubtreeCaptureSelfTest(not_null<Runner*> runner) {
 			const auto viaImage = QImage(viaPath);
 			const auto subtreeSentinel = SentinelPixels(subtreeImage);
 			const auto viaSentinel = SentinelPixels(viaImage);
+			const auto separation = MeasureSentinelSeparation();
 			Check(
 				subtreeSaved
 					&& viaSaved
@@ -532,13 +606,16 @@ void AppendToastSubtreeCaptureSelfTest(not_null<Runner*> runner) {
 				"corners, where the surface beneath shows through "
 				"unblended"_q.arg(kSentinelTolerance),
 				u"subtree=%1 sentinelPixels=%2 saved=%3; windowMapped=%4 "
-				u"sentinelPixels=%5 saved=%6"_q
+				u"sentinelPixels=%5 saved=%6; minSentinelSeparation=%7 "
+				u"against tolerance %8, so the count is not vacuous"_q
 					.arg(ImageText(subtreePath, subtreeImage))
 					.arg(subtreeSentinel)
 					.arg(subtreeSaved ? 1 : 0)
 					.arg(ImageText(viaPath, viaImage))
 					.arg(viaSentinel)
-					.arg(viaSaved ? 1 : 0));
+					.arg(viaSaved ? 1 : 0)
+					.arg(separation.minimum)
+					.arg(kSentinelTolerance));
 
 			const auto subtreeShown = GrabToastSubtree(toast);
 			const auto viaShown = GrabViaWindow(toast);
