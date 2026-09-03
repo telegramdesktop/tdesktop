@@ -955,7 +955,7 @@ void Session::revealPhrase(
 		Fn<void(std::vector<QString>)> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
-	if (custodyBusy()) {
+	if (custodyBusy() || custody().pendingRotation) {
 		LOG(("Wallet Error: reveal requested while another is in flight."));
 		if (fail) {
 			fail(u"PHRASE_BUSY"_q);
@@ -1359,7 +1359,7 @@ void Session::prepareBackupParts(
 		Fn<void(std::vector<QByteArray>)> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
-	if (custodyBusy()) {
+	if (custodyBusy() || custody().pendingRotation) {
 		LOG(("Wallet Error: backup requested while another is in flight."));
 		if (fail) {
 			fail(u"BACKUP_BUSY"_q);
@@ -1431,7 +1431,7 @@ void Session::disableBackup(
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
-	if (custodyBusy()) {
+	if (custodyBusy() || custody().pendingRotation) {
 		LOG(("Wallet Error: backup disable requested "
 			"while another is in flight."));
 		if (fail) {
@@ -1490,7 +1490,7 @@ void Session::enableBackup(
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
-	if (custodyBusy()) {
+	if (custodyBusy() || custody().pendingRotation) {
 		LOG(("Wallet Error: backup enable requested "
 			"while another is in flight."));
 		if (fail) {
