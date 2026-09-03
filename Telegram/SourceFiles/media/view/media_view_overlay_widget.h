@@ -635,6 +635,7 @@ private:
 	const not_null<QWidget*> _widget;
 	QRect _normalGeometry;
 	bool _wasWindowedMode = false;
+	bool _restoreFromSystemNormal = false;
 	bool _fullscreenInited = false;
 	bool _normalGeometryInited = false;
 	bool _fullscreen = true;
