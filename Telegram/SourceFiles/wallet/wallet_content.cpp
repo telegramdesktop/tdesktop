@@ -3825,6 +3825,12 @@ void RequestPhraseReveal(
 		Fn<void()> unblock,
 		std::optional<QByteArray> parkedKey = std::nullopt,
 		Fn<void(std::vector<QString>)> onWords = nullptr) {
+	auto &wallet = show->session().wallet();
+	if (!parkedKey && passcode && wallet.revealsLocally()) {
+		const auto box = base::take(passcode);
+		password.reset();
+		box->closeBox();
+	}
 	const auto done = crl::guard(warning, [=](std::vector<QString> words) {
 		if (passcode) {
 			passcode->closeBox();
@@ -3863,7 +3869,6 @@ void RequestPhraseReveal(
 		}
 		show->showToast(tr::lng_wallet_phrase_error(tr::now));
 	});
-	auto &wallet = show->session().wallet();
 	if (parkedKey) {
 		wallet.revealParked(*parkedKey, done, fail);
 	} else {
