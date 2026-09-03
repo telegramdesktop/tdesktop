@@ -147,6 +147,7 @@ public:
 	void insertPreparedBlock(RichPage::Block block);
 	void replacePreparedBlock(State::ReplaceTarget target, RichPage::Block block);
 	void insertPreparedBlocks(std::vector<RichPage::Block> blocks);
+	void pasteStructuredClipboardData(const ClipboardData &data);
 	[[nodiscard]] bool hasActiveSelection() const;
 	[[nodiscard]] rpl::producer<bool> hasSelectionValue() const;
 	[[nodiscard]] std::shared_ptr<const RichPage>
@@ -673,7 +674,6 @@ private:
 	[[nodiscard]] bool moveVerticalDownBoundary();
 	void copyCurrentSelectionToClipboard();
 	[[nodiscard]] TextForMimeData currentSelectionTextForClipboard() const;
-	void pasteStructuredClipboardData(const ClipboardData &data);
 	[[nodiscard]] std::optional<TableImportResult> importTableFromMimeData(
 		not_null<const QMimeData*> data) const;
 	void pasteImportedTable(TableImportResult &&imported);
