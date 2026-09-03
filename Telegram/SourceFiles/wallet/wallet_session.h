@@ -137,6 +137,10 @@ struct TransferItem {
 	QString collectibleName;
 	QString collectibleImageUrl;
 	QString provider;
+	// Always a magnitude. The mappings fold a source's signed amount into
+	// this field and `incoming`, because every surface that paints a
+	// transfer prefixes a direction character of its own and would
+	// otherwise render two signs.
 	int64 amountNano = 0;
 	int64 feeNano = 0;
 	QString comment;

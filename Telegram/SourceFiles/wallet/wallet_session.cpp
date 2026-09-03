@@ -507,6 +507,30 @@ void FailShareFetch(
 	return result;
 }
 
+// Every surface that paints a transfer prefixes a direction character of
+// its own, so the amount and the direction are decided together here and
+// never left as two fields a view has to reconcile: the served key-change
+// row arrives as -300000000 nanograms with `incoming` clear, and the row,
+// the details header and its fiat line each sign it a second time. When
+// the two disagree the sign wins, because it is the source's arithmetic
+// about this wallet's balance while the flag only summarizes it, and a
+// row that removed value shown with a plus is the reading a user acts on.
+void SetDirectedAmount(
+		TransferItem &item,
+		int64 nanograms,
+		bool incoming) {
+	const auto smallest = std::numeric_limits<int64>::min();
+	if (nanograms == smallest) {
+		// Negating it is undefined and its magnitude is not an int64, so
+		// the one amount the record cannot hold is stored exactly as it
+		// was sent instead of clamped into an amount nobody sent.
+		LOG(("Wallet Error: transaction amount magnitude does not fit."));
+	}
+	const auto fold = (nanograms < 0) && (nanograms != smallest);
+	item.amountNano = fold ? -nanograms : nanograms;
+	item.incoming = fold ? false : incoming;
+}
+
 [[nodiscard]] std::optional<TransferItem> HistoryItemFromEngine(
 		const engine::ActivityItem &item) {
 	constexpr auto kMaxTimestamp = uint64(std::numeric_limits<TimeId>::max());
@@ -520,13 +544,14 @@ void FailShareFetch(
 	}
 	auto result = TransferItem();
 	result.kind = TransferItem::Kind::Transfer;
-	result.incoming
-		= (item.direction == engine::ActivityDirection::kReceived);
 	if (item.counterparty) {
 		result.counterparty = CanonicalAddress(
 			QString::fromStdString(*item.counterparty));
 	}
-	result.amountNano = *amount;
+	SetDirectedAmount(
+		result,
+		*amount,
+		(item.direction == engine::ActivityDirection::kReceived));
 	result.feeNano = *fee;
 	if (item.comment) {
 		result.comment = QString::fromStdString(*item.comment);
@@ -582,8 +607,7 @@ void FailShareFetch(
 		const MTPWalletTransaction &item) {
 	const auto &data = item.data();
 	auto result = TransferItem();
-	result.incoming = data.is_incoming();
-	result.amountNano = data.vamount().v;
+	SetDirectedAmount(result, data.vamount().v, data.is_incoming());
 	result.feeNano = data.vfee().v;
 	result.date = data.vdate().v;
 	// A failure is a settled outcome and it wins over pending: a transaction
