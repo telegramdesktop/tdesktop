@@ -38,8 +38,8 @@ rem the single source of truth (no environment overrides).
 set "ReleaseCloudVault=tdesktop-release-kv"
 set "ReleaseCloudKeyId=rc-2026a"
 set "ReleaseCloudKeyName=release-2026a"
-set "ReleaseLocalKey=%HomePath%\..\..\DesktopPrivate\modern\release-local.pem"
-set "ReleaseLocalKeyId=rl-2026a"
+set "ReleaseLocalKey=%HomePath%\..\..\DesktopPrivate\modern\release-local-2026b.pem"
+set "ReleaseLocalKeyId=rl-2026b"
 if %BuildUWP% equ 0 (
   if not exist "%ReleaseLocalKey%" (
     echo Release local key not found: %ReleaseLocalKey%
