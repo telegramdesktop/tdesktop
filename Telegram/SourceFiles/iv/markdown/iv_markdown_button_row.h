@@ -55,6 +55,7 @@ struct ButtonRowRuntime {
 	std::vector<HistoryMessageMarkupButton> buttons;
 	std::vector<ClickHandlerPtr> handlers;
 	std::vector<QByteArray> loadingKeys;
+	std::vector<QString> elidedLabels;
 	std::unique_ptr<Ui::RippleAnimation> ripple;
 	QSize rippleSize;
 	int rippleIndex = -1;
@@ -98,6 +99,10 @@ struct RichButtonLoadingCoverage {
 
 [[nodiscard]] const style::icon *RichButtonIcon(
 	HistoryMessageMarkupButton::Type type);
+[[nodiscard]] QString RichButtonTooltip(
+	HistoryMessageMarkupButton::Type type,
+	const QByteArray &data,
+	const QString &elidedLabel);
 
 [[nodiscard]] int ButtonRowMinWidth(
 	int count,
