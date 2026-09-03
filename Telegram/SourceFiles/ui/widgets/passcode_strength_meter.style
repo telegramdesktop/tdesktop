@@ -27,6 +27,13 @@ defaultPasscodeStrengthMeter: PasscodeStrengthMeter {
 	segmentRadius: 2px;
 	labelSkip: 6px;
 	label: FlatLabel(defaultFlatLabel) {
+		// A zero minWidth makes FlatLabel build its Text::String with
+		// minResizeWidth == kQFixedMax, and Text::String::enumerateLines
+		// then lays the advice out at that width instead of the width it
+		// was given, so a sentence wider than the meter reports a single
+		// line and loses its tail. Any small non-zero value restores the
+		// wrap at the width the meter actually has.
+		minWidth: 10px;
 		textFg: windowSubTextFg;
 	}
 	emptyFg: windowBgOver;
