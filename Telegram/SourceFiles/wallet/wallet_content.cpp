@@ -768,6 +768,7 @@ void AddHistoryRow(
 			content.title,
 			st::walletRowTitleLabel),
 		{ 0, 0, major->width() + minor->width() + st::walletRowSkip, 0 });
+	title->setBreakEverywhere(true);
 	auto subtitle = (Ui::FlatLabel*)nullptr;
 	if (!content.subtitle.isEmpty()) {
 		Ui::AddSkip(inner, st::walletRowSkip);
@@ -775,6 +776,7 @@ void AddHistoryRow(
 			inner,
 			content.subtitle,
 			st::walletRowSubtitleLabel));
+		subtitle->setBreakEverywhere(true);
 	}
 	Ui::AddSkip(inner, st::walletRowSkip);
 	inner->add(object_ptr<Ui::FlatLabel>(
