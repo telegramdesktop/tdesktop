@@ -77,7 +77,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_onramp.h"
 #include "wallet/wallet_rates.h"
 #include "wallet/wallet_session.h"
-#include "wallet/wallet_user_addresses.h"
 #include "wallet/wallet_vault.h"
 #include "window/themes/window_theme.h"
 
@@ -341,8 +340,8 @@ private:
 
 // The sheet's address presentation is the friendly form, so a raw address
 // the engine cannot convert is a reading this sheet does not have and
-// builds no row, exactly as an Absent answer builds none. Substituting the
-// raw form would show a different kind of address without saying so.
+// builds no row. Substituting the raw form would show a different kind of
+// address without saying so.
 [[nodiscard]] std::optional<QString> DetailsFriendlyAddress(
 		const QString &raw) {
 	const auto friendly = FormatFriendly(raw, true);
@@ -404,13 +403,13 @@ private:
 }
 
 [[nodiscard]] object_ptr<Ui::FlatLabel> NameValueLabel(
-		not_null<Ui::TableLayout*> table,
+		not_null<Ui::RpWidget*> parent,
 		std::shared_ptr<Ui::Show> show,
 		const QString &name,
 		const QString &address) {
 	auto result = object_ptr<Ui::FlatLabel>(
-		table,
-		rpl::single(Ui::Text::Link(name)),
+		parent,
+		rpl::single(tr::link(name)),
 		st::defaultTableValue);
 	const auto copy = CopyAddressCallback(std::move(show), address);
 	result->setClickHandlerFilter([=](const auto &...) {
@@ -418,22 +417,6 @@ private:
 		return false;
 	});
 	return result;
-}
-
-void InsertAddressTableRow(
-		not_null<Ui::TableLayout*> table,
-		int position,
-		std::shared_ptr<Ui::Show> show,
-		const QString &address) {
-	table->insertRow(
-		position,
-		object_ptr<Ui::FlatLabel>(
-			table,
-			tr::lng_wallet_details_address(),
-			table->st().defaultLabel),
-		AddressValueLabel(table, std::move(show), address),
-		st::giveawayGiftCodeLabelMargin,
-		st::giveawayGiftCodeValueMargin);
 }
 
 enum class RowAvatar {
@@ -761,28 +744,6 @@ void AddHistoryRow(
 		wrap,
 		rpl::single(QString()));
 	button->setClickedCallback(std::move(clicked));
-	const auto title = inner->add(object_ptr<Ui::FlatLabel>(
-		inner,
-		content.title,
-		st::walletRowTitleLabel));
-	auto subtitle = (Ui::FlatLabel*)nullptr;
-	if (!content.subtitle.isEmpty()) {
-		Ui::AddSkip(inner, st::walletRowSkip);
-		subtitle = inner->add(object_ptr<Ui::FlatLabel>(
-			inner,
-			content.subtitle,
-			st::walletRowSubtitleLabel));
-	}
-	Ui::AddSkip(inner, st::walletRowSkip);
-	inner->add(object_ptr<Ui::FlatLabel>(
-		inner,
-		content.date,
-		st::walletRowDateLabel));
-	const auto hasChip = content.itemAmount && (media != nullptr);
-	if (hasChip) {
-		AddHistoryRowChip(inner, button, media, content.collectible);
-	}
-
 	const auto major = Ui::CreateChild<Ui::FlatLabel>(
 		wrap,
 		st::walletRowAmountMajorLabel);
@@ -801,6 +762,30 @@ void AddHistoryRow(
 			content.incoming,
 			content.pending);
 	}
+	const auto title = inner->add(
+		object_ptr<Ui::FlatLabel>(
+			inner,
+			content.title,
+			st::walletRowTitleLabel),
+		{ 0, 0, major->width() + minor->width() + st::walletRowSkip, 0 });
+	auto subtitle = (Ui::FlatLabel*)nullptr;
+	if (!content.subtitle.isEmpty()) {
+		Ui::AddSkip(inner, st::walletRowSkip);
+		subtitle = inner->add(object_ptr<Ui::FlatLabel>(
+			inner,
+			content.subtitle,
+			st::walletRowSubtitleLabel));
+	}
+	Ui::AddSkip(inner, st::walletRowSkip);
+	inner->add(object_ptr<Ui::FlatLabel>(
+		inner,
+		content.date,
+		st::walletRowDateLabel));
+	const auto hasChip = content.itemAmount && (media != nullptr);
+	if (hasChip) {
+		AddHistoryRowChip(inner, button, media, content.collectible);
+	}
+
 	const auto circle = Ui::CreateChild<Ui::RpWidget>(wrap);
 	circle->resize(st::walletRowIconSize, st::walletRowIconSize);
 	circle->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -902,6 +887,14 @@ void AddHistoryRow(
 			.avatar = RowAvatar::Card,
 		};
 	}
+	const auto transfer = (item.kind == Kind::Transfer)
+		|| (item.kind == Kind::PeerTransfer);
+	const auto address = (transfer && !item.counterparty.isEmpty())
+		? FormatFriendly(item.counterparty, true)
+		: QString();
+	const auto domain = !address.isEmpty()
+		? item.counterpartyName.trimmed()
+		: QString();
 	if (item.kind == Kind::PeerTransfer && item.counterpartyPeer) {
 		const auto peer = session->data().peerLoaded(
 			PeerId(item.counterpartyPeer));
@@ -910,6 +903,8 @@ void AddHistoryRow(
 				.title = peer->name(),
 				.subtitle = (pending
 					? tr::lng_wallet_row_pending(tr::now)
+					: !domain.isEmpty()
+					? domain
 					: item.incoming
 					? tr::lng_wallet_row_incoming(tr::now)
 					: tr::lng_wallet_row_outgoing(tr::now)),
@@ -937,7 +932,9 @@ void AddHistoryRow(
 	}
 	const auto contract = (item.kind == Kind::ContractInteraction);
 	const auto collectible = (item.kind == Kind::Collectible);
-	const auto hasCounterparty = !item.counterparty.isEmpty();
+	const auto hasCounterparty = transfer
+		? !address.isEmpty()
+		: !item.counterparty.isEmpty();
 	const auto kindText = contract
 		? tr::lng_wallet_row_smart_contract(tr::now)
 		: collectible
@@ -949,7 +946,11 @@ void AddHistoryRow(
 		: tr::lng_wallet_row_withdrawal(tr::now);
 	return {
 		.title = (hasCounterparty
-			? ShortAddress(item.counterparty)
+			? (!domain.isEmpty()
+				? domain
+				: transfer
+				? ShortAddressForm(address)
+				: ShortAddress(item.counterparty))
 			: contract
 			? tr::lng_wallet_row_contract(tr::now)
 			: kindText),
@@ -1291,32 +1292,36 @@ void AddFeeTableRow(
 void AddPeerCounterpartyRows(
 		not_null<Ui::GenericBox*> box,
 		not_null<Ui::TableLayout*> table,
-		not_null<Main::Session*> session,
+		not_null<PeerData*> peer,
 		const TransferItem &item) {
-	const auto peer = session->data().peerLoaded(
-		PeerId(item.counterpartyPeer));
-	if (!peer) {
-		return;
-	}
-	Ui::AddTableRow(
-		table,
-		(item.incoming
-			? tr::lng_wallet_details_sender()
-			: tr::lng_wallet_details_recipient()),
-		rpl::single(tr::marked(peer->name())));
-	const auto position = table->rowsCount();
+	const auto address = !item.counterparty.isEmpty()
+		? DetailsFriendlyAddress(item.counterparty)
+		: std::nullopt;
+	const auto domain = item.counterpartyName.trimmed();
 	const auto show = box->uiShow();
-	const auto addresses = &session->wallet().userAddresses();
-	const auto userId = peerToUser(peer->id);
-	addresses->resolve({ userId }, crl::guard(table, [=] {
-		const auto answer = addresses->known(userId);
-		if (answer.state != UserAddressState::Known) {
-			return;
-		}
-		if (const auto address = DetailsFriendlyAddress(answer.address)) {
-			InsertAddressTableRow(table, position, show, *address);
-		}
-	}));
+	auto label = (item.incoming
+		? tr::lng_wallet_details_sender()
+		: tr::lng_wallet_details_recipient());
+	if (address && !domain.isEmpty()) {
+		auto value = object_ptr<Ui::VerticalLayout>(table);
+		value->add(object_ptr<Ui::FlatLabel>(
+			value.data(),
+			rpl::single(tr::marked(peer->name())),
+			table->st().defaultValue));
+		value->add(NameValueLabel(value.data(), show, domain, *address));
+		Ui::AddTableRow(table, std::move(label), std::move(value));
+	} else {
+		Ui::AddTableRow(
+			table,
+			std::move(label),
+			rpl::single(tr::marked(peer->name())));
+	}
+	if (address) {
+		Ui::AddTableRow(
+			table,
+			tr::lng_wallet_details_address(),
+			AddressValueLabel(table, show, *address));
+	}
 }
 
 void AddDetailsTable(
@@ -1337,17 +1342,24 @@ void AddDetailsTable(
 		bg->paint(p, wrap->rect());
 	}, wrap->lifetime());
 	const auto table = wrap->entity();
+	const auto peer = (item.kind == TransferItem::Kind::PeerTransfer
+		&& item.counterpartyPeer)
+		? session->data().peerLoaded(PeerId(item.counterpartyPeer))
+		: nullptr;
 	if (item.kind == TransferItem::Kind::KeyChange) {
 		Ui::AddTableRow(
 			table,
 			tr::lng_wallet_details_operation(),
 			tr::lng_wallet_details_key_change(tr::marked));
+	} else if (peer) {
+		AddPeerCounterpartyRows(box, table, peer, item);
 	} else if (!item.counterparty.isEmpty()) {
 		if (const auto address = DetailsFriendlyAddress(item.counterparty)) {
 			auto label = (item.incoming
 				? tr::lng_wallet_details_sender()
 				: tr::lng_wallet_details_recipient());
-			if (item.counterpartyName.isEmpty()) {
+			const auto name = item.counterpartyName.trimmed();
+			if (name.isEmpty()) {
 				Ui::AddTableRow(
 					table,
 					std::move(label),
@@ -1359,7 +1371,7 @@ void AddDetailsTable(
 					NameValueLabel(
 						table,
 						box->uiShow(),
-						item.counterpartyName,
+						name,
 						*address));
 				Ui::AddTableRow(
 					table,
@@ -1367,14 +1379,6 @@ void AddDetailsTable(
 					AddressValueLabel(table, box->uiShow(), *address));
 			}
 		}
-	} else if (item.kind == TransferItem::Kind::PeerTransfer
-		&& item.counterpartyPeer) {
-		// A peer transfer carries no counterparty address at all: the
-		// server sends none for a user counterparty and the mapping
-		// synthesizes nothing, so this sheet names the same user the row
-		// named and asks the per-user address store for the address half,
-		// which may answer that the user has no wallet, or answer late.
-		AddPeerCounterpartyRows(box, table, session, item);
 	}
 	const auto pending
 		= (item.status == TransferItem::Status::Pending);

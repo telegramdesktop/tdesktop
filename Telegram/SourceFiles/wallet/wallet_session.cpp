@@ -639,21 +639,22 @@ void SetDirectedAmount(
 		result.kind = TransferItem::Kind::KeyChange;
 		result.incoming = false;
 	} else {
-		data.vpeer().match([&](const MTPDwalletTransactionPeerUser &data) {
-			// counterparty stays empty on purpose: the server sends no
-			// address for a user counterparty and the client must not
-			// synthesize one. The details sheet builds its sender /
-			// recipient row from the peer instead and takes the address
-			// half from the per-user address store, which answers only for
-			// a user the chain has named.
-			result.kind = TransferItem::Kind::PeerTransfer;
-			result.counterpartyPeer = peerFromUser(data.vuser_id()).value;
-		}, [&](const MTPDwalletTransactionPeerAddress &data) {
+		const auto setCounterparty = [&](const auto &data) {
 			result.counterparty = CanonicalAddress(qs(data.vaddress()));
+			if (const auto domain = data.vdomain()) {
+				result.counterpartyName = qs(*domain);
+			}
 			if (result.counterparty.isEmpty()) {
 				LOG(("Wallet Error: wallet.getTransactions sent an unusable "
 					"counterparty address."));
 			}
+		};
+		data.vpeer().match([&](const MTPDwalletTransactionPeerUser &data) {
+			result.kind = TransferItem::Kind::PeerTransfer;
+			result.counterpartyPeer = peerFromUser(data.vuser_id()).value;
+			setCounterparty(data);
+		}, [&](const MTPDwalletTransactionPeerAddress &data) {
+			setCounterparty(data);
 		}, [](const MTPDwalletTransactionPeerUnsupported &) {
 			// Nothing is written, because the defaults are the row: a
 			// Kind::Transfer with no counterparty renders through
@@ -2376,9 +2377,9 @@ void Session::applyTransactions(
 	const auto &data = result.data();
 	// The peers are stored before anything resolves one, because a row whose
 	// user is missing from Data::Session falls through to the address
-	// presentation and paints a plain Deposit or Withdrawal row. That is
-	// also the legitimate row for two other server inputs, so a dropped
-	// users vector would look exactly like a working client.
+	// and domain presentation. That is also legitimate for an address-only
+	// peer, so a dropped users vector would look exactly like a working
+	// client while losing the Telegram identity.
 	_session->data().processUsers(data.vusers());
 	_session->data().processChats(data.vchats());
 	const auto next = data.vnext_offset();
