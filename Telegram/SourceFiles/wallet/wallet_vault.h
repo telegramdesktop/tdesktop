@@ -32,6 +32,8 @@ enum class VaultKind : quint32 {
 	Open = 2,
 };
 
+inline constexpr auto kFirstReservedVaultKind = quint32(3);
+
 // A QByteArray shares its storage implicitly, so a copy of key material or
 // plaintext would survive any cleanse of the original. This buffer copies on
 // construction, is move-only, and wipes its bytes with OPENSSL_cleanse on

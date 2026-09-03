@@ -73,6 +73,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_collectible_media.h"
 #include "wallet/wallet_collectibles.h"
 #include "wallet/wallet_fiat.h"
+#include "wallet/wallet_key_protection.h"
 #include "wallet/wallet_onramp.h"
 #include "wallet/wallet_rates.h"
 #include "wallet/wallet_session.h"
@@ -3999,16 +4000,39 @@ void WalletPhraseWarningBox(
 	});
 }
 
-// In unlock mode the typed passcode opens the vault's passcode wrap (a
-// passcode that matches the app passcode but fails the unwrap is a wrong
-// passcode); in creation mode it is checked against the app passcode and
-// arms the vault's creation policy for the store that follows.
+// The vault's own verdict on the typed passcode, for the check that must
+// prove key_data and the vault at once without unlocking or arming
+// anything: a header that is not Read means the vault has no passcode wrap
+// to prove, so key_data alone decides. Absent is the install case with a
+// passcode already set; Broken and Unsupported never reach here, the caller
+// refuses before the gate is shown. The derived wrap key dies here.
+[[nodiscard]] bool VaultOpensWithPasscode(
+		Storage::Account &local,
+		VaultRuntime &vault,
+		const QByteArray &passcode) {
+	const auto reading = vault.reading(local);
+	if (reading.state != VaultReading::State::Read) {
+		return true;
+	}
+	const auto wrap = reading.header.committedWrap();
+	if (!wrap || wrap->kind != VaultKind::Passcode) {
+		return true;
+	}
+	const auto wrapKey = DeriveVaultWrapKey(*wrap, passcode);
+	return wrapKey && UnwrapVaultKey(*wrap, *wrapKey).has_value();
+}
+
+} // namespace
+
+// The verdict the typed passcode must pass is the caller's; the three of
+// them are stated with WalletPasscodeCheck in wallet_content.h.
 void WalletPasscodeBox(
 		not_null<Ui::GenericBox*> box,
-		std::shared_ptr<Main::SessionShow> show,
-		std::optional<QByteArray> parkedKey,
-		Fn<void(VaultGrant)> passed,
-		bool creating) {
+		WalletPasscodeBoxArgs args) {
+	struct State {
+		bool reported = false;
+	};
+	const auto state = box->lifetime().make_state<State>();
 	box->setTitle(tr::lng_passcode_check_title());
 	const auto &fieldSt = st::settingLocalPasscodeInputField;
 	const auto wrap = box->addRow(
@@ -4031,13 +4055,19 @@ void WalletPasscodeBox(
 		st::walletPasscodeErrorMargin,
 		style::al_top);
 	error->hide();
-	const auto remember = box->addRow(
-		object_ptr<Ui::Checkbox>(
-			box,
-			tr::lng_wallet_passcode_remember(tr::now),
-			false,
-			st::defaultBoxCheckbox),
-		st::walletPasscodeCheckboxMargin);
+	// Opening the protection chooser must never leave a vault unlocked or
+	// retained behind it, so that check offers no retention and mints no
+	// grant: it answers with the typed passcode alone.
+	const auto retain = (args.check != WalletPasscodeCheck::KeyDataAndVault);
+	const auto remember = retain
+		? box->addRow(
+			object_ptr<Ui::Checkbox>(
+				box,
+				tr::lng_wallet_passcode_remember(tr::now),
+				false,
+				st::defaultBoxCheckbox),
+			st::walletPasscodeCheckboxMargin)
+		: nullptr;
 	QObject::connect(field, &Ui::MaskedInputField::changed, [=] {
 		error->hide();
 	});
@@ -4055,7 +4085,7 @@ void WalletPasscodeBox(
 			showError(tr::lng_flood_error(tr::now));
 			return;
 		}
-		auto &session = show->session();
+		auto &session = args.show->session();
 		auto &vault = session.wallet().vault();
 		auto utf8 = field->text().toUtf8();
 		const auto cleanse = gsl::finally([&] {
@@ -4064,17 +4094,26 @@ void WalletPasscodeBox(
 			}
 		});
 		auto ok = false;
-		if (!creating) {
+		switch (args.check) {
+		case WalletPasscodeCheck::Vault:
 			ok = vault.unlockWithPasscode(session.local(), utf8);
-		} else if (session.domain().local().checkPasscode(utf8)) {
-			auto policy = PrepareVaultPasscodeWrap(utf8);
-			if (!policy) {
-				field->selectAll();
-				showError(tr::lng_wallet_vault_unavailable(tr::now));
-				return;
+			break;
+		case WalletPasscodeCheck::KeyDataAndArm:
+			if (session.domain().local().checkPasscode(utf8)) {
+				auto policy = PrepareVaultPasscodeWrap(utf8);
+				if (!policy) {
+					field->selectAll();
+					showError(tr::lng_wallet_vault_unavailable(tr::now));
+					return;
+				}
+				vault.arm(std::move(*policy));
+				ok = true;
 			}
-			vault.arm(std::move(*policy));
-			ok = true;
+			break;
+		case WalletPasscodeCheck::KeyDataAndVault:
+			ok = session.domain().local().checkPasscode(utf8)
+				&& VaultOpensWithPasscode(session.local(), vault, utf8);
+			break;
 		}
 		if (!ok) {
 			cSetPasscodeBadTries(cPasscodeBadTries() + 1);
@@ -4084,23 +4123,43 @@ void WalletPasscodeBox(
 			return;
 		}
 		cSetPasscodeBadTries(0);
-		vault.setRetention(remember->checked());
-		auto grant = vault.grant();
-		box->closeBox();
-		if (passed) {
-			passed(std::move(grant));
+		auto gate = WalletPasscodeGate();
+		if (retain) {
+			vault.setRetention(remember->checked());
+			gate.grant = vault.grant();
 		} else {
-			show->showBox(Box(
+			gate.passcode = SecureBytes(utf8);
+		}
+		state->reported = true;
+		box->closeBox();
+		if (args.passed) {
+			args.passed(std::move(gate));
+		} else {
+			args.show->showBox(Box(
 				WalletPhraseWarningBox,
-				show,
-				parkedKey,
-				std::move(grant)));
+				args.show,
+				args.parkedKey,
+				std::move(gate.grant)));
 		}
 	};
 	QObject::connect(field, &Ui::MaskedInputField::submitted, submit);
 	box->addButton(tr::lng_passcode_submit(), submit);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	// Cancel, Escape and the layer being replaced all reach closeHook(), so
+	// this one handler tells a caller that must persist nothing about every
+	// dismissal; the flag keeps a successful submit and the close it starts
+	// from reporting twice.
+	box->boxClosing() | rpl::on_next([=] {
+		if (!state->reported) {
+			state->reported = true;
+			if (args.cancelled) {
+				args.cancelled();
+			}
+		}
+	}, box->lifetime());
 }
+
+namespace {
 
 void WalletRevealFlow(
 		std::shared_ptr<Main::SessionShow> show,
@@ -4115,8 +4174,13 @@ void WalletRevealFlow(
 			Box(WalletPhraseWarningBox, show, parkedKey, vault.grant()));
 	};
 	const auto gate = [&](bool creating) {
-		show->showBox(
-			Box(WalletPasscodeBox, show, parkedKey, nullptr, creating));
+		show->showBox(Box(WalletPasscodeBox, WalletPasscodeBoxArgs{
+			.show = show,
+			.parkedKey = parkedKey,
+			.check = creating
+				? WalletPasscodeCheck::KeyDataAndArm
+				: WalletPasscodeCheck::Vault,
+		}));
 	};
 	const auto unavailable = [&] {
 		show->showToast(tr::lng_wallet_vault_unavailable(tr::now));
@@ -4172,12 +4236,13 @@ void RunLocalPasscodeGate(
 		then();
 		return;
 	}
-	show->showBox(Box(
-		WalletPasscodeBox,
-		show,
-		std::nullopt,
-		[then = std::move(then)](VaultGrant) { then(); },
-		(reading.state == State::Absent)));
+	show->showBox(Box(WalletPasscodeBox, WalletPasscodeBoxArgs{
+		.show = show,
+		.check = (reading.state == State::Absent)
+			? WalletPasscodeCheck::KeyDataAndArm
+			: WalletPasscodeCheck::Vault,
+		.passed = [then = std::move(then)](WalletPasscodeGate) { then(); },
+	}));
 }
 
 enum class WalletImportMode {
@@ -7960,6 +8025,20 @@ void FillMenu(
 				std::nullopt));
 		},
 		&st::walletMenuCurrencyIcon);
+	// The menu is rebuilt on every open, so this reading is live: the entry
+	// is absent in both read-only modes and while the mode is still Unknown.
+	const auto custody = show->session().wallet().deviceCustodyState();
+	if (custody.mode == DeviceMode::Full) {
+		addAction(
+			Ui::Text::FixAmpersandInAction(
+				tr::lng_wallet_protection_title(tr::now)),
+			[=] {
+				ShowKeyProtectionBox(
+					show,
+					{ .mode = KeyProtectionMode::Switch });
+			},
+			&st::menuIconLock);
+	}
 	if (show->session().wallet().presence() == Presence::Ready) {
 		addAction(
 			Ui::Text::FixAmpersandInAction(

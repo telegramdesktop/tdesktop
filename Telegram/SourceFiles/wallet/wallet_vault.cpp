@@ -30,7 +30,6 @@ constexpr auto kVaultSaltMinSize = 8;
 constexpr auto kVaultBlobSize = kVaultNonceSize
 	+ kVaultKeySize
 	+ kVaultTagSize;
-constexpr auto kFirstReservedVaultKind = quint32(3);
 constexpr auto kVaultRequireUserPresenceFlag = quint32(1U << 0);
 
 constexpr char kVaultKeyLabel[] = "tdesktop-wallet-vault/key/v1";

@@ -2175,6 +2175,8 @@ PRIVATE
     wallet/wallet_engine.h
     wallet/wallet_fiat.cpp
     wallet/wallet_fiat.h
+    wallet/wallet_key_protection.cpp
+    wallet/wallet_key_protection.h
     wallet/wallet_onramp.cpp
     wallet/wallet_onramp.h
     wallet/wallet_panel.cpp

@@ -477,3 +477,19 @@ walletCurrencyRowNameFg: windowSubTextFg;
 walletCurrencyRowNameSkip: 8px;
 walletCurrencyListSkip: 12px;
 walletCurrencyCheckIcon: icon{{ "player/player_check", windowActiveTextFg }};
+
+walletProtectionAttentionCheckbox: Checkbox(defaultBoxCheckbox) {
+	textFg: attentionButtonFg;
+	textFgActive: attentionButtonFg;
+}
+walletProtectionAboutLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 200px;
+	textFg: windowSubTextFg;
+}
+walletProtectionIntroMargin: margins(22px, 4px, 22px, 4px);
+walletProtectionRowSkip: 12px;
+walletProtectionAboutMargin: margins(34px, 0px, 22px, 0px);
+walletProtectionBindingMargin: margins(34px, 4px, 22px, 0px);
+walletProtectionStrengthMargin: margins(34px, 4px, 22px, 0px);
+walletProtectionCreateFieldMargin: margins(22px, 12px, 22px, 0px);
+walletProtectionMeterMargin: margins(22px, 8px, 22px, 0px);
