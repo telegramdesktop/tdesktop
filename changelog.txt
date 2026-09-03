@@ -1,3 +1,7 @@
+7.2.5 (03.09.26)
+
+- Switch to new autoupdate manifest source.
+
 7.2.4 (01.09.26)
 
 - First update with revoked signing key.
