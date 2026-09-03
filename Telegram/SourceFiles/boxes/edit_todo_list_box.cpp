@@ -74,7 +74,10 @@ public:
 	[[nodiscard]] rpl::producer<int> addedCount() const;
 	[[nodiscard]] rpl::producer<not_null<QWidget*>> scrollToWidget() const;
 	[[nodiscard]] rpl::producer<> backspaceInFront() const;
-	[[nodiscard]] rpl::producer<> tabbed() const;
+	// Fired for a Tab that moves out of the tasks, so the box decides
+	// where it goes - or leaves it alone, for the default order.
+	[[nodiscard]] auto tabbed() const
+		-> rpl::producer<not_null<Ui::InputField::TabbedRequest*>>;
 
 private:
 	class Task {
@@ -173,7 +176,7 @@ private:
 	bool _isValid = false;
 	rpl::event_stream<not_null<QWidget*>> _scrollToWidget;
 	rpl::event_stream<> _backspaceInFront;
-	rpl::event_stream<> _tabbed;
+	rpl::event_stream<not_null<Ui::InputField::TabbedRequest*>> _tabbed;
 	rpl::lifetime _emojiPanelLifetime;
 
 };
@@ -537,7 +540,8 @@ rpl::producer<> Tasks::backspaceInFront() const {
 	return _backspaceInFront.events();
 }
 
-rpl::producer<> Tasks::tabbed() const {
+auto Tasks::tabbed() const
+-> rpl::producer<not_null<Ui::InputField::TabbedRequest*>> {
 	return _tabbed.events();
 }
 
@@ -771,20 +775,26 @@ void Tasks::initTaskField(not_null<Task*> task, TextWithEntities text) {
 	}, field->lifetime());
 	field->tabbed(
 	) | rpl::on_next([=](not_null<Ui::InputField::TabbedRequest*> request) {
+		if (request->defaultOrder) {
+			// Left to the box, which leaves it alone as well.
+			_tabbed.fire_copy(request);
+			return;
+		}
 		const auto index = findField(field);
 		if (request->backward) {
 			const auto locked = _existingLocked ? _existingCount : 0;
 			if (index > locked) {
 				_list[index - 1]->setFocus();
+				request->handled = true;
 			} else {
-				_tabbed.fire({});
+				_tabbed.fire_copy(request);
 			}
 		} else if (index + 1 < _list.size()) {
 			_list[index + 1]->setFocus();
+			request->handled = true;
 		} else {
-			_tabbed.fire({});
+			_tabbed.fire_copy(request);
 		}
-		request->handled = true;
 	}, field->lifetime());
 	base::install_event_filter(field, [=](not_null<QEvent*> event) {
 		if (event->type() != QEvent::KeyPress
@@ -1054,9 +1064,14 @@ object_ptr<Ui::RpWidget> EditTodoListBox::setupContent() {
 				st::boxDividerLabel),
 			st::createPollLimitPadding));
 
+	// Tab walks the title and the tasks in a ring. A request for the
+	// default order is left alone: the settings and the buttons of the
+	// box are Tab stops then, out of reach of the ring.
 	title->tabbed(
 	) | rpl::on_next([=](not_null<Ui::InputField::TabbedRequest*> request) {
-		if (request->backward) {
+		if (request->defaultOrder) {
+			return;
+		} else if (request->backward) {
 			tasks->focusLast();
 		} else {
 			tasks->focusFirst();
@@ -1083,8 +1098,12 @@ object_ptr<Ui::RpWidget> EditTodoListBox::setupContent() {
 		st::createPollCheckboxMargin);
 
 	tasks->tabbed(
-	) | rpl::on_next([=] {
+	) | rpl::on_next([=](not_null<Ui::InputField::TabbedRequest*> request) {
+		if (request->defaultOrder) {
+			return;
+		}
 		title->setFocus();
+		request->handled = true;
 	}, title->lifetime());
 
 	const auto isValidTitle = [=] {
