@@ -9035,4 +9035,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_folder_archive_failed" = "Failed to create archive.";
 "lng_folder_archive_status" = "ZIP archive";
 
+"lng_passcode_strength_very_weak" = "Very weak";
+"lng_passcode_strength_weak" = "Weak";
+"lng_passcode_strength_good" = "Good";
+"lng_passcode_strength_strong" = "Strong";
+"lng_passcode_strength_advice_short" = "Use at least 8 characters.";
+"lng_passcode_strength_advice_word" = "Avoid common words and names.";
+"lng_passcode_strength_advice_leet" = "Swapping letters for lookalike symbols doesn't help.";
+"lng_passcode_strength_advice_sequence" = "Avoid runs like abc or 123.";
+"lng_passcode_strength_advice_repeat" = "Avoid repeated characters.";
+"lng_passcode_strength_advice_keyboard" = "Avoid keyboard patterns.";
+"lng_passcode_strength_advice_date" = "Avoid dates and years.";
+"lng_passcode_strength_advice_variety" = "Make it longer and mix in more kinds of characters.";
+"lng_passcode_strength_advice_fine" = "This passcode is hard to guess.";
+
 // Keys finished

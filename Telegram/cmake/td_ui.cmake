@@ -44,6 +44,7 @@ set(style_files
     ui/controls/labeled_emoji_tabs.style
     ui/widgets/color_editor.style
     ui/widgets/marquee_label.style
+    ui/widgets/passcode_strength_meter.style
     window/window_lock_widgets.style
     boxes/compose_ai_box.style
     boxes/connection_box.style
@@ -666,6 +667,8 @@ PRIVATE
     ui/widgets/middle_click_autoscroll.h
     ui/widgets/multi_select.cpp
     ui/widgets/multi_select.h
+    ui/widgets/passcode_strength_meter.cpp
+    ui/widgets/passcode_strength_meter.h
     ui/widgets/selecting_scroll.cpp
     ui/widgets/selecting_scroll.h
     ui/widgets/sent_code_field.cpp
@@ -692,6 +695,8 @@ PRIVATE
     ui/grouped_layout_geometry.h
     ui/new_badges.cpp
     ui/new_badges.h
+    ui/passcode_strength.cpp
+    ui/passcode_strength.h
     ui/peer/color_sample.cpp
     ui/peer/color_sample.h
     ui/power_saving.cpp
@@ -755,6 +760,7 @@ PRIVATE
     desktop-app::lib_webrtc
     desktop-app::lib_spellcheck
     desktop-app::lib_stripe
+    desktop-app::lib_zxcvbn
     desktop-app::external_kcoreaddons
     desktop-app::external_minizip
     desktop-app::external_webrtc
