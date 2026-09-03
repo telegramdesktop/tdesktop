@@ -295,6 +295,8 @@ public:
 	// Wallet::UserAddresses the wallet.getUserAddresses batch.
 	[[nodiscard]] const std::optional<QString> &gramAddress() const;
 	void setGramAddress(QString address);
+	[[nodiscard]] uint64 gramAddressForceRevision() const;
+	void setGramAddressFromForce(QString address);
 
 	[[nodiscard]] bool hasActiveStories() const;
 	[[nodiscard]] bool hasUnreadStories() const;
@@ -359,6 +361,7 @@ private:
 	QString _phone;
 	QString _privateForwardName;
 	std::optional<QString> _gramAddress;
+	uint64 _gramAddressForceRevision = 0;
 	std::unique_ptr<Ui::BotVerifyDetails> _botVerifyDetails;
 	Data::StarsRating _starsRating;
 
@@ -378,7 +381,10 @@ private:
 
 namespace Data {
 
-void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update);
+void ApplyUserUpdate(
+	not_null<UserData*> user,
+	const MTPDuserFull &update,
+	uint64 gramAddressForceRevision);
 
 [[nodiscard]] StarRefProgram ParseStarRefProgram(
 	const MTPStarRefProgram *program);

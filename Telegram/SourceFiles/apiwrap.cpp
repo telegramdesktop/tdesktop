@@ -1219,6 +1219,8 @@ void ApiWrap::requestFullPeer(not_null<PeerData*> peer) {
 			if (_session->supportMode()) {
 				_session->supportHelper().refreshInfo(user);
 			}
+			const auto gramAddressForceRevision
+				= user->gramAddressForceRevision();
 			return request(MTPusers_GetFullUser(
 				user->inputUser()
 			)).done([=](const MTPusers_UserFull &result) {
@@ -1226,7 +1228,7 @@ void ApiWrap::requestFullPeer(not_null<PeerData*> peer) {
 					_session->data().processUsers(data.vusers());
 					_session->data().processChats(data.vchats());
 				});
-				gotUserFull(user, result);
+				gotUserFull(user, result, gramAddressForceRevision);
 			}).fail(failHandler).send();
 		} else if (const auto chat = peer->asChat()) {
 			return request(MTPmessages_GetFullChat(
@@ -1305,7 +1307,8 @@ void ApiWrap::gotChatFull(
 
 void ApiWrap::gotUserFull(
 		not_null<UserData*> user,
-		const MTPusers_UserFull &result) {
+		const MTPusers_UserFull &result,
+		uint64 gramAddressForceRevision) {
 	result.match([&](const MTPDusers_userFull &data) {
 		data.vfull_user().match([&](const MTPDuserFull &fields) {
 			if (user == _session->user() && !_session->validateSelf(fields.vid().v)) {
@@ -1315,7 +1318,7 @@ void ApiWrap::gotUserFull(
 				});
 				return;
 			}
-			Data::ApplyUserUpdate(user, fields);
+			Data::ApplyUserUpdate(user, fields, gramAddressForceRevision);
 		});
 	});
 	_fullPeerRequests.remove(user);

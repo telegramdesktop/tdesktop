@@ -44,6 +44,22 @@ public:
 	// known(); |done| carries no payload because the store is the answer.
 	void resolve(std::vector<UserId> ids, Fn<void()> done);
 
+	// Explicitly asks Telegram for one eligible user's address, even when
+	// known() already has an answer. The sender must be Ready with positive
+	// balance. Local refusal is synchronous: WALLET_UNAVAILABLE,
+	// WALLET_USER_INVALID, WALLET_USER_INELIGIBLE, WALLET_NOT_READY or
+	// WALLET_BALANCE_EMPTY. Invalid replies fail with WALLET_ADDRESS_INVALID;
+	// RPC failures retain their error type and are terminal for this request.
+	// Only a validated nonempty canonical address reaches |done|, after it
+	// is published through known(). Earlier passive lookups and full-user
+	// requests cannot overwrite it; later full-user requests can update it.
+	// Failure preserves the store and carries no destination.
+	// Destruction retires pending requests without running either callback.
+	void forceResolve(
+		UserId id,
+		Fn<void(QString)> done,
+		Fn<void(const QString &)> fail);
+
 	// Unknown for an id no source has answered for, including one
 	// Data::Session cannot hand back, which is never sent. A chunk already
 	// in flight never overwrites an answer that landed after it was sent.

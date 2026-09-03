@@ -554,7 +554,8 @@ private:
 		const MTPmessages_ChatFull &result);
 	void gotUserFull(
 		not_null<UserData*> user,
-		const MTPusers_UserFull &result);
+		const MTPusers_UserFull &result,
+		uint64 gramAddressForceRevision);
 	void resolveWebPages();
 	void gotWebPages(
 		ChannelData *channel,

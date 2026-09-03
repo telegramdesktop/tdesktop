@@ -249,6 +249,15 @@ void UserData::setGramAddress(QString address) {
 	_gramAddress = std::move(address);
 }
 
+uint64 UserData::gramAddressForceRevision() const {
+	return _gramAddressForceRevision;
+}
+
+void UserData::setGramAddressFromForce(QString address) {
+	++_gramAddressForceRevision;
+	setGramAddress(std::move(address));
+}
+
 bool UserData::hasActiveStories() const {
 	return flags() & Flag::HasActiveStories;
 }
@@ -866,7 +875,10 @@ void UserData::setNote(const TextWithEntities &note) {
 
 namespace Data {
 
-void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
+void ApplyUserUpdate(
+		not_null<UserData*> user,
+		const MTPDuserFull &update,
+		uint64 gramAddressForceRevision) {
 	const auto profilePhoto = update.vprofile_photo()
 		? user->owner().processPhoto(*update.vprofile_photo()).get()
 		: nullptr;
@@ -965,10 +977,12 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	user->setTranslationDisabled(update.is_translations_disabled());
 	user->setPrivateForwardName(
 		update.vprivate_forward_name().value_or_empty());
-	const auto gram = update.vgram_address();
-	user->setGramAddress(gram
-		? Wallet::CanonicalAddress(qs(*gram))
-		: QString());
+	if (user->gramAddressForceRevision() == gramAddressForceRevision) {
+		const auto gram = update.vgram_address();
+		user->setGramAddress(gram
+			? Wallet::CanonicalAddress(qs(*gram))
+			: QString());
+	}
 
 	if (const auto info = user->botInfo.get()) {
 		const auto group = update.vbot_group_admin_rights()

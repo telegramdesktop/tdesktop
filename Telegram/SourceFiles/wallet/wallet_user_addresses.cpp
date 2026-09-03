@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "main/main_session.h"
 #include "wallet/wallet_address.h"
+#include "wallet/wallet_session.h"
 
 namespace Wallet {
 namespace {
@@ -96,6 +97,69 @@ void UserAddresses::resolve(std::vector<UserId> ids, Fn<void()> done) {
 	for (auto &chunk : chunks) {
 		sendChunk(job, std::move(chunk));
 	}
+}
+
+void UserAddresses::forceResolve(
+		UserId id,
+		Fn<void(QString)> done,
+		Fn<void(const QString &)> fail) {
+	const auto refuse = [fail = std::move(fail)](const QString &error) {
+		LOG(("Wallet Error: forced wallet.getUserAddresses failed: %1"
+			).arg(error));
+		if (fail) {
+			fail(error);
+		}
+	};
+	if (_unavailable) {
+		refuse(u"WALLET_UNAVAILABLE"_q);
+		return;
+	}
+	const auto user = id ? _session->data().userLoaded(id) : nullptr;
+	if (!user || (!user->isSelf() && !user->accessHash())) {
+		refuse(u"WALLET_USER_INVALID"_q);
+		return;
+	}
+	if (user->isBot()
+		|| user->isSupport()
+		|| user->isInaccessible()
+		|| user->isRepliesChat()
+		|| user->isVerifyCodes()) {
+		refuse(u"WALLET_USER_INELIGIBLE"_q);
+		return;
+	}
+	auto &wallet = _session->wallet();
+	if (wallet.presence() != Presence::Ready) {
+		refuse(u"WALLET_NOT_READY"_q);
+		return;
+	}
+	if (wallet.balanceNano() <= 0) {
+		refuse(u"WALLET_BALANCE_EMPTY"_q);
+		return;
+	}
+	_api.request(MTPwallet_GetUserAddresses(
+		MTP_flags(MTPwallet_GetUserAddresses::Flag::f_force),
+		MTP_vector<MTPInputUser>(1, user->inputUser())
+	)).done([=, done = std::move(done)](
+			const MTPVector<MTPWalletUserAddress> &result) {
+		const auto &reply = result.v;
+		const auto address = (reply.size() == 1
+			&& UserId(reply.front().data().vuser_id()) == id)
+			? CanonicalAddress(qs(reply.front().data().vaddress()))
+			: QString();
+		if (address.isEmpty()) {
+			refuse(u"WALLET_ADDRESS_INVALID"_q);
+			return;
+		}
+		user->setGramAddressFromForce(address);
+		if (done) {
+			done(address);
+		}
+	}).fail([=](const MTP::Error &error) {
+		if (error.type() == u"WALLET_UNAVAILABLE"_q) {
+			_unavailable = true;
+		}
+		refuse(error.type());
+	}).handleAllErrors().send();
 }
 
 UserAddress UserAddresses::known(UserId id) const {
