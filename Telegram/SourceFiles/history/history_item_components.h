@@ -876,6 +876,14 @@ struct HistoryServicePaymentRefund
 	uint64 amount = 0;
 };
 
+struct HistoryServiceGramTransfer
+: RuntimeComponent<HistoryServiceGramTransfer, HistoryItem> {
+	int64 amount = 0;
+	QString peerAddress;
+	QString transactionId;
+	QString comment;
+};
+
 enum class HistorySelfDestructType {
 	Photo,
 	Video,

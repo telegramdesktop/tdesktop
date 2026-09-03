@@ -121,7 +121,7 @@ std::optional<int64> ParseAmountNano(QString trimmed) {
 FormattedTonAmount FormatTonAmount(int64 amount, TonFormatFlags flags) {
 	auto result = FormattedTonAmount();
 	const auto grams = amount / kOneTon;
-	const auto preciseNanos = std::abs(amount) % kOneTon;
+	const auto preciseNanos = std::abs(amount % kOneTon);
 	auto roundedNanos = preciseNanos;
 	if (flags & TonFormatFlag::Rounded) {
 		if (std::abs(grams) >= 1'000'000 && (roundedNanos % 1'000'000)) {

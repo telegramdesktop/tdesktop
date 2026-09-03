@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/editor/iv_editor_page_blocks.h"
 #include "iv/iv_rich_page.h"
 #include "mtproto/mtproto_config.h"
+#include "ui/controls/ton_common.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_isolated_emoji.h"
 #include "ui/text/text_utilities.h"
@@ -38,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "media/audio/media_audio.h"
 #include "core/application.h"
+#include "wallet/wallet_address.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "core/click_handler_types.h"
@@ -5648,6 +5650,14 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 						item));
 			}
 		});
+	} else if (type == mtpc_messageActionGramTransfer) {
+		const auto &data = action.c_messageActionGramTransfer();
+		UpdateComponents(HistoryServiceGramTransfer::Bit());
+		const auto transfer = Get<HistoryServiceGramTransfer>();
+		transfer->amount = data.vamount().v;
+		transfer->peerAddress = qs(data.vpeer_address());
+		transfer->transactionId = qs(data.vtransaction_id());
+		transfer->comment = qs(data.vcomment().value_or_empty());
 	} else if (type == mtpc_messageActionGroupCall
 		|| type == mtpc_messageActionGroupCallScheduled) {
 		const auto started = (type == mtpc_messageActionGroupCall);
@@ -6196,6 +6206,10 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 
 	auto preparePaymentSent = [&](const MTPDmessageActionPaymentSent &) {
 		return preparePaymentSentText();
+	};
+
+	auto prepareGramTransfer = [&](const MTPDmessageActionGramTransfer &) {
+		return prepareGramTransferText();
 	};
 
 	auto preparePaymentSentMe = [&](const MTPDmessageActionPaymentSentMe &data) {
@@ -7860,7 +7874,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		preparePollDeleteAnswer,
 		PrepareEmptyText<MTPDmessageActionRequestedPeerSentMe>,
 		prepareChangeCommunity,
-		PrepareEmptyText<MTPDmessageActionGramTransfer>,
+		prepareGramTransfer,
 		PrepareErrorText<MTPDmessageActionEmpty>));
 
 	processAction(action);
@@ -8545,6 +8559,67 @@ PreparedServiceText HistoryItem::preparePaymentSentText() {
 		if (payment->msg) {
 			result.links.push_back(payment->lnk);
 		}
+	}
+	return result;
+}
+
+PreparedServiceText HistoryItem::prepareGramTransferText() {
+	auto result = PreparedServiceText();
+	const auto transfer = Get<HistoryServiceGramTransfer>();
+	Assert(transfer != nullptr);
+
+	const auto amount = tr::lng_wallet_send_pill_gram(
+		tr::now,
+		lt_amount,
+		tr::marked(Ui::FormatTonAmount(transfer->amount).full),
+		tr::marked);
+	const auto counterparty = out() ? history()->peer : from();
+	const auto user = history()->owner().userLoaded(
+		peerToUser(counterparty->id));
+	auto name = tr::marked();
+	if (user && !user->shortName().isEmpty()) {
+		name = tr::link(user->shortName(), 1);
+		result.links.push_back(user->createOpenLink());
+	} else if (const auto address = Wallet::ParseAddress(transfer->peerAddress)) {
+		name = tr::marked(Wallet::FormatFriendly(
+			address->raw,
+			address->bounceable,
+			address->testnet));
+	}
+	if (name.empty()) {
+		result.text = (out()
+			? tr::lng_action_gram_transfer_sent_unknown
+			: tr::lng_action_gram_transfer_received_unknown)(
+				tr::now,
+				lt_amount,
+				amount,
+				tr::marked);
+	} else if (out()) {
+		result.text = tr::lng_action_gram_transfer_sent(
+			tr::now,
+			lt_amount,
+			amount,
+			lt_user,
+			name,
+			tr::marked);
+	} else {
+		result.text = tr::lng_action_gram_transfer_received(
+			tr::now,
+			lt_user,
+			name,
+			lt_amount,
+			amount,
+			tr::marked);
+	}
+	const auto comment = TextUtilities::SingleLine(transfer->comment);
+	if (!comment.isEmpty()) {
+		result.text = tr::lng_action_gram_transfer_comment(
+			tr::now,
+			lt_text,
+			result.text,
+			lt_comment,
+			tr::marked(comment),
+			tr::marked);
 	}
 	return result;
 }
