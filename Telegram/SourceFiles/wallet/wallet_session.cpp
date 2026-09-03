@@ -419,6 +419,20 @@ void FailShareFetch(
 	return false;
 }
 
+[[nodiscard]] bool IsProtectedSecretNotFound(const EngineError &error) {
+	if (!error.underlying) {
+		return false;
+	}
+	try {
+		std::rethrow_exception(error.underlying);
+	} catch (const engine::wallet_lifecycle_error
+			::ProtectedSecretHost &hostError) {
+		return hostError.kind == engine::ProtectedSecretHostErrorKind::kNotFound;
+	} catch (...) {
+	}
+	return false;
+}
+
 [[nodiscard]] QString RotationErrorToken(const EngineError &error) {
 	if (!error.underlying) {
 		return u"ROTATION_FAILED"_q;
@@ -999,6 +1013,7 @@ void Session::revealLocally(
 		const CustodyRecord &record,
 		Fn<void(std::vector<QString>)> done,
 		Fn<void(const QString &)> fail) {
+	const auto initiatingPublicKey = record.publicKey;
 	const auto lifecycle = _engine->lifecycle();
 	const auto descriptor = DescriptorFromRecord(record);
 	_engine->run([lifecycle, descriptor] {
@@ -1012,6 +1027,9 @@ void Session::revealLocally(
 		}
 		done(std::move(words));
 	}, [=](EngineError error) {
+		if (IsProtectedSecretNotFound(error)) {
+			removeCustodyRecord(initiatingPublicKey);
+		}
 		LOG(("Wallet Error: local phrase reveal failed: %1"
 			).arg(LifecycleErrorName(error)));
 		fail(IsVaultLocked(error)
