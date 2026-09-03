@@ -145,6 +145,7 @@ namespace {
 }
 
 constexpr auto kRetainedLeafFieldLimit = 50;
+constexpr auto kTooltipDelay = 1000;
 thread_local Widget *PreservingExternalFieldRestore = nullptr;
 using ToolbarFormatAction = Widget::ToolbarFormatAction;
 using ToolbarLinkMode = Widget::ToolbarLinkMode;
@@ -962,6 +963,18 @@ using PreparedMutationKind = State::PreparedMutationKind;
 #else // Qt >= 6.0
 	return e->globalPos();
 #endif // Qt >= 6.0
+}
+
+[[nodiscard]] QString RowButtonTooltip(
+		const Markdown::MarkdownArticleHitTestResult &hit) {
+	if (hit.buttonRow.index < 0) {
+		return QString();
+	} else if (const auto link = hit.state.link) {
+		if (const auto text = link->tooltip(); !text.isEmpty()) {
+			return text;
+		}
+	}
+	return hit.customTooltip;
 }
 
 } // namespace
@@ -5649,6 +5662,33 @@ bool Widget::redirectImeToField() const {
 		&& (hasStructuralSelection() || _field->isHidden());
 }
 
+void Widget::leaveEventHook(QEvent *e) {
+	updateHoverTooltip(QString());
+	Ui::RpWidget::leaveEventHook(e);
+}
+
+void Widget::updateHoverTooltip(const QString &text) {
+	if (_hoverTooltip != text) {
+		_hoverTooltip = text;
+		Ui::Tooltip::Hide();
+	}
+	if (!_hoverTooltip.isEmpty()) {
+		Ui::Tooltip::Show(kTooltipDelay, this);
+	}
+}
+
+QString Widget::tooltipText() const {
+	return _hoverTooltip;
+}
+
+QPoint Widget::tooltipPos() const {
+	return QCursor::pos();
+}
+
+bool Widget::tooltipWindowActive() const {
+	return Ui::AppInFocus() && Ui::InFocusChain(window());
+}
+
 void Widget::mouseMoveEvent(QMouseEvent *e) {
 	const auto articlePoint = e->pos() - articleTopLeft();
 	if (_horizontalScrollDrag == HorizontalScrollDrag::Mouse) {
@@ -5663,9 +5703,16 @@ void Widget::mouseMoveEvent(QMouseEvent *e) {
 	}
 	if (!_articleSelectionDrag.active) {
 		auto cursor = style::cur_default;
+		auto tooltip = QString();
 		const auto controlHit = _article->editControlHitTest(articlePoint);
 		if (controlHit.valid()) {
 			cursor = style::cur_pointer;
+			using Kind = Markdown::MarkdownArticleEditControlHitKind;
+			if (controlHit.kind == Kind::ButtonEdit) {
+				tooltip = RowButtonTooltip(_article->hitTest(
+					articlePoint,
+					Ui::Text::StateRequest::Flag::LookupSymbol));
+			}
 		} else {
 			const auto editHit = _article->editHitTest(articlePoint);
 			if (simpleMediaBlockPathFromHit(editHit)
@@ -5676,8 +5723,15 @@ void Widget::mouseMoveEvent(QMouseEvent *e) {
 				const auto hit = _article->hitTest(
 					articlePoint,
 					Ui::Text::StateRequest::Flag::LookupSymbol);
-				if ((hit.valid() && hit.codeHeaderCopy)
-					|| inlineButtonEditRequestFromArticleHit(hit)) {
+				const auto inlineButton
+					= inlineButtonEditRequestFromArticleHit(hit);
+				tooltip = inlineButton
+					? Markdown::RichButtonTooltip(
+						inlineButton->data.type,
+						inlineButton->data.payload,
+						QString())
+					: RowButtonTooltip(hit);
+				if ((hit.valid() && hit.codeHeaderCopy) || inlineButton) {
 					cursor = style::cur_pointer;
 				} else if (hit.valid()
 					&& hit.direct
@@ -5686,10 +5740,12 @@ void Widget::mouseMoveEvent(QMouseEvent *e) {
 				}
 			}
 		}
+		updateHoverTooltip(tooltip);
 		setCursor(cursor);
 		Ui::RpWidget::mouseMoveEvent(e);
 		return;
 	}
+	updateHoverTooltip(QString());
 	const auto hit = _article->hitTest(
 		articlePoint,
 		Ui::Text::StateRequest::Flag::LookupSymbol);
