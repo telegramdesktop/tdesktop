@@ -26,6 +26,20 @@ namespace Test {
 	not_null<QWidget*> widget,
 	const QRect &logicalRect);
 
+// The harness's one rect formatter: "x,y WxH". Every refusal that quotes a
+// rect prints through it, so two logs name the same rect the same way and
+// stay comparable line by line, exactly as the widget-identity formatter
+// below does for a widget.
+[[nodiscard]] QString RectText(const QRect &rect);
+
+// The harness's one misframing refusal: empty when |logicalRect| is non-empty
+// and lies fully inside |widget|, otherwise the named refusal quoting both
+// rects and the overlap. Every helper that refuses a rect prints through it,
+// so two logs name the same fault the same way.
+[[nodiscard]] QString MisframedDetails(
+	not_null<QWidget*> widget,
+	const QRect &logicalRect);
+
 // The harness's one widget-identity formatter: the typeid name of the live
 // instance plus its "x,y WxH" geometry. Every refusal here prints identities
 // through it, so two logs name the same widget the same way and stay

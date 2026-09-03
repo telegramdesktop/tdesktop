@@ -33,31 +33,6 @@ constexpr auto kWalkedChainHead = 3;
 		: (name + u".png"_q);
 }
 
-[[nodiscard]] QString RectText(const QRect &rect) {
-	return u"%1,%2 %3x%4"_q
-		.arg(rect.x())
-		.arg(rect.y())
-		.arg(rect.width())
-		.arg(rect.height());
-}
-
-[[nodiscard]] QString MisframedDetails(
-		not_null<QWidget*> widget,
-		const QRect &logicalRect) {
-	const auto bounds = widget->rect();
-	if (!logicalRect.isEmpty() && bounds.contains(logicalRect)) {
-		return QString();
-	}
-	const auto inside = bounds.intersected(logicalRect);
-	return u"requested rect is not fully inside the grabbed widget: "
-		u"requested=%1 widget=%2 inside=%3 rows=%4/%5 columns=%6/%7"_q
-		.arg(RectText(logicalRect), RectText(bounds), RectText(inside))
-		.arg(inside.height())
-		.arg(logicalRect.height())
-		.arg(inside.width())
-		.arg(logicalRect.width());
-}
-
 [[nodiscard]] std::vector<QPoint> SamplePoints(const QSize &size) {
 	auto result = std::vector<QPoint>();
 	const auto columns = std::min(size.width(), kCoverageSamples);
@@ -225,6 +200,31 @@ constexpr auto kWalkedChainHead = 3;
 }
 
 } // namespace
+
+QString RectText(const QRect &rect) {
+	return u"%1,%2 %3x%4"_q
+		.arg(rect.x())
+		.arg(rect.y())
+		.arg(rect.width())
+		.arg(rect.height());
+}
+
+QString MisframedDetails(
+		not_null<QWidget*> widget,
+		const QRect &logicalRect) {
+	const auto bounds = widget->rect();
+	if (!logicalRect.isEmpty() && bounds.contains(logicalRect)) {
+		return QString();
+	}
+	const auto inside = bounds.intersected(logicalRect);
+	return u"requested rect is not fully inside the grabbed widget: "
+		u"requested=%1 widget=%2 inside=%3 rows=%4/%5 columns=%6/%7"_q
+		.arg(RectText(logicalRect), RectText(bounds), RectText(inside))
+		.arg(inside.height())
+		.arg(logicalRect.height())
+		.arg(inside.width())
+		.arg(logicalRect.width());
+}
 
 QString WidgetDescription(not_null<QWidget*> widget) {
 	const auto &instance = *widget;

@@ -2003,6 +2003,8 @@ PRIVATE
     test/test_style.h
     test/test_text_reads.cpp
     test/test_text_reads.h
+    test/test_toast_capture.cpp
+    test/test_toast_capture.h
     test/test_transfer.cpp
     test/test_transfer.h
     test/test_via_window.cpp
