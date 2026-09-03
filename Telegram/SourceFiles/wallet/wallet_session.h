@@ -39,6 +39,7 @@ class Onramp;
 class Rates;
 struct ShareFetch;
 class UserAddresses;
+class VaultRuntime;
 
 enum class Presence {
 	Unknown,
@@ -203,6 +204,7 @@ public:
 	[[nodiscard]] rpl::producer<WalletCapabilities> capabilitiesValue() const;
 	[[nodiscard]] QByteArray publicKey() const;
 	[[nodiscard]] bool revealsLocally();
+	[[nodiscard]] VaultRuntime &vault();
 	[[nodiscard]] DeviceCustodyState deviceCustodyState() const;
 	[[nodiscard]] auto deviceCustodyStateValue() const
 		-> rpl::producer<DeviceCustodyState>;

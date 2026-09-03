@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/event_filter.h"
 #include "base/invoke_queued.h"
+#include "base/openssl_help.h"
 #include "base/random.h"
 #include "base/timer.h"
 #include "base/unixtime.h"
@@ -50,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/password_input.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/glare_tooltip.h"
 #include "ui/widgets/labels.h"
@@ -75,6 +77,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_rates.h"
 #include "wallet/wallet_session.h"
 #include "wallet/wallet_user_addresses.h"
+#include "wallet/wallet_vault.h"
 #include "window/themes/window_theme.h"
 
 #include <QtCore/QUrl>
@@ -3801,6 +3804,12 @@ void WalletPhraseBox(
 		tr::lng_wallet_backup_check_about);
 }
 
+[[nodiscard]] QString VaultLockedText(not_null<Main::Session*> session) {
+	return session->domain().local().hasPasscode()
+		? tr::lng_wallet_vault_locked(tr::now)
+		: tr::lng_wallet_vault_no_passcode(tr::now);
+}
+
 void RequestPhraseReveal(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::GenericBox*> warning,
@@ -3823,6 +3832,16 @@ void RequestPhraseReveal(
 	const auto fail = crl::guard(warning, [=](const QString &error) {
 		unblock();
 		if (passcode && passcode->handleCustomCheckError(error)) {
+			return;
+		}
+		if (!onWords) {
+			warning->closeBox();
+		}
+		if (error == u"PHRASE_VAULT_LOCKED"_q) {
+			if (passcode) {
+				passcode->closeBox();
+			}
+			show->showToast(VaultLockedText(&show->session()));
 			return;
 		}
 		if (auto box = PrePasswordErrorBox(
@@ -3915,7 +3934,9 @@ void StartPhraseReveal(
 void WalletPhraseWarningBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
-		std::optional<QByteArray> parkedKey = std::nullopt) {
+		std::optional<QByteArray> parkedKey,
+		VaultGrant grant) {
+	box->lifetime().make_state<VaultGrant>(std::move(grant));
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
@@ -3978,11 +3999,16 @@ void WalletPhraseWarningBox(
 	});
 }
 
+// In unlock mode the typed passcode opens the vault's passcode wrap (a
+// passcode that matches the app passcode but fails the unwrap is a wrong
+// passcode); in creation mode it is checked against the app passcode and
+// arms the vault's creation policy for the store that follows.
 void WalletPasscodeBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
-		std::optional<QByteArray> parkedKey = std::nullopt,
-		Fn<void()> passed = nullptr) {
+		std::optional<QByteArray> parkedKey,
+		Fn<void(VaultGrant)> passed,
+		bool creating) {
 	box->setTitle(tr::lng_passcode_check_title());
 	const auto &fieldSt = st::settingLocalPasscodeInputField;
 	const auto wrap = box->addRow(
@@ -4005,37 +4031,70 @@ void WalletPasscodeBox(
 		st::walletPasscodeErrorMargin,
 		style::al_top);
 	error->hide();
+	const auto remember = box->addRow(
+		object_ptr<Ui::Checkbox>(
+			box,
+			tr::lng_wallet_passcode_remember(tr::now),
+			false,
+			st::defaultBoxCheckbox),
+		st::walletPasscodeCheckboxMargin);
 	QObject::connect(field, &Ui::MaskedInputField::changed, [=] {
 		error->hide();
 	});
 	box->setFocusCallback([=] {
 		field->setFocusFast();
 	});
+	const auto showError = [=](const QString &text) {
+		field->setFocus();
+		field->showError();
+		error->show();
+		error->setText(text);
+	};
 	const auto submit = [=] {
 		if (!passcodeCanTry()) {
-			field->setFocus();
-			field->showError();
-			error->show();
-			error->setText(tr::lng_flood_error(tr::now));
+			showError(tr::lng_flood_error(tr::now));
 			return;
 		}
-		const auto &domain = show->session().domain();
-		if (domain.local().checkPasscode(field->text().toUtf8())) {
-			cSetPasscodeBadTries(0);
-			box->closeBox();
-			if (passed) {
-				passed();
-			} else {
-				show->showBox(Box(WalletPhraseWarningBox, show, parkedKey));
+		auto &session = show->session();
+		auto &vault = session.wallet().vault();
+		auto utf8 = field->text().toUtf8();
+		const auto cleanse = gsl::finally([&] {
+			if (!utf8.isEmpty()) {
+				OPENSSL_cleanse(utf8.data(), utf8.size());
 			}
-		} else {
+		});
+		auto ok = false;
+		if (!creating) {
+			ok = vault.unlockWithPasscode(session.local(), utf8);
+		} else if (session.domain().local().checkPasscode(utf8)) {
+			auto policy = PrepareVaultPasscodeWrap(utf8);
+			if (!policy) {
+				field->selectAll();
+				showError(tr::lng_wallet_vault_unavailable(tr::now));
+				return;
+			}
+			vault.arm(std::move(*policy));
+			ok = true;
+		}
+		if (!ok) {
 			cSetPasscodeBadTries(cPasscodeBadTries() + 1);
 			cSetPasscodeLastTry(crl::now());
 			field->selectAll();
-			field->setFocus();
-			field->showError();
-			error->show();
-			error->setText(tr::lng_passcode_wrong(tr::now));
+			showError(tr::lng_passcode_wrong(tr::now));
+			return;
+		}
+		cSetPasscodeBadTries(0);
+		vault.setRetention(remember->checked());
+		auto grant = vault.grant();
+		box->closeBox();
+		if (passed) {
+			passed(std::move(grant));
+		} else {
+			show->showBox(Box(
+				WalletPhraseWarningBox,
+				show,
+				parkedKey,
+				std::move(grant)));
 		}
 	};
 	QObject::connect(field, &Ui::MaskedInputField::submitted, submit);
@@ -4046,24 +4105,79 @@ void WalletPasscodeBox(
 void WalletRevealFlow(
 		std::shared_ptr<Main::SessionShow> show,
 		std::optional<QByteArray> parkedKey = std::nullopt) {
-	const auto &domain = show->session().domain();
-	if (domain.local().hasLocalPasscode()) {
-		show->showBox(Box(WalletPasscodeBox, show, parkedKey, nullptr));
-	} else {
-		show->showBox(Box(WalletPhraseWarningBox, show, parkedKey));
+	using State = VaultReading::State;
+	auto &session = show->session();
+	auto &vault = session.wallet().vault();
+	auto &local = session.local();
+	const auto reading = vault.reading(local);
+	const auto sheet = [&] {
+		show->showBox(
+			Box(WalletPhraseWarningBox, show, parkedKey, vault.grant()));
+	};
+	const auto gate = [&](bool creating) {
+		show->showBox(
+			Box(WalletPasscodeBox, show, parkedKey, nullptr, creating));
+	};
+	const auto unavailable = [&] {
+		show->showToast(tr::lng_wallet_vault_unavailable(tr::now));
+	};
+	switch (reading.state) {
+	case State::Read: {
+		const auto wrap = reading.header.committedWrap();
+		Assert(wrap != nullptr);
+		if (wrap->kind == VaultKind::Open) {
+			if (vault.unlockOpen(local)) {
+				sheet();
+			} else {
+				unavailable();
+			}
+		} else if (vault.retained()) {
+			sheet();
+		} else {
+			gate(false);
+		}
+	} break;
+	case State::Absent:
+		if (session.domain().local().hasPasscode()) {
+			gate(true);
+		} else {
+			show->showToast(tr::lng_wallet_vault_no_passcode(tr::now));
+		}
+		break;
+	case State::Broken:
+	case State::Unsupported:
+		unavailable();
+		break;
 	}
 }
 
+// The grant the box produces is dropped here, so the guarded operation's
+// protected reads and stores answer the host's typed refusal and surface
+// their ordinary localized failures until the gating task threads the grant
+// through them; a ticked retention box is the one interim path that lets
+// such an operation through.
 void RunLocalPasscodeGate(
 		std::shared_ptr<Main::SessionShow> show,
 		Fn<void()> then) {
-	const auto &domain = show->session().domain();
-	if (domain.local().hasLocalPasscode()) {
-		show->showBox(
-			Box(WalletPasscodeBox, show, std::nullopt, std::move(then)));
-	} else {
-		then();
+	using State = VaultReading::State;
+	auto &session = show->session();
+	const auto reading = session.wallet().vault().reading(session.local());
+	if (reading.state == State::Broken
+		|| reading.state == State::Unsupported) {
+		show->showToast(tr::lng_wallet_vault_unavailable(tr::now));
+		return;
 	}
+	const auto &domain = session.domain();
+	if (!domain.local().hasLocalPasscode()) {
+		then();
+		return;
+	}
+	show->showBox(Box(
+		WalletPasscodeBox,
+		show,
+		std::nullopt,
+		[then = std::move(then)](VaultGrant) { then(); },
+		(reading.state == State::Absent)));
 }
 
 enum class WalletImportMode {
@@ -4094,6 +4208,13 @@ void RequestCustodyRestore(
 			unblock();
 		}
 		if (passcode && passcode->handleCustomCheckError(error)) {
+			return;
+		}
+		if (error == u"PHRASE_VAULT_LOCKED"_q) {
+			if (passcode) {
+				passcode->closeBox();
+			}
+			show->showToast(VaultLockedText(&show->session()));
 			return;
 		}
 		if (auto box = PrePasswordErrorBox(

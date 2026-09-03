@@ -982,7 +982,19 @@ void Application::setScreenIsLocked(bool locked) {
 }
 
 bool Application::screenIsLocked() const {
-	return _screenIsLocked;
+	return _screenIsLocked.current();
+}
+
+rpl::producer<bool> Application::screenIsLockedValue() const {
+	return _screenIsLocked.value();
+}
+
+void Application::notifySystemSleep() {
+	_systemSleep.fire({});
+}
+
+rpl::producer<> Application::systemSleepEvents() const {
+	return _systemSleep.events();
 }
 
 void Application::floatPlayerToggleGifsPaused(bool paused) {

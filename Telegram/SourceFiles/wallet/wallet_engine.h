@@ -24,6 +24,7 @@ class Session;
 namespace Wallet {
 
 class Api;
+class VaultRuntime;
 
 struct EngineError {
 	QString message;
@@ -38,6 +39,8 @@ struct EngineError {
 // itself: HTTP goes through the caller-owned Wallet::Api on the main thread,
 // secrets and the send journal go through Storage::Account on the main
 // thread, and every blocking engine method runs on the worker through run().
+// The protected secrets are sealed under the account's vault, whose unlocked
+// state (VaultRuntime) the Engine owns and the platform host consults.
 // Every Engine method must be called on the main thread.
 class Engine final : public base::has_weak_ptr {
 public:
@@ -64,6 +67,10 @@ public:
 	void startClient(const wallet_engine::WalletClientConfig &config);
 	[[nodiscard]] auto client() const
 		-> std::shared_ptr<wallet_engine::WalletClient>;
+
+	// The account's vault runtime: unlocked and armed on the main thread by
+	// the reveal flow, read on the worker by the platform host.
+	[[nodiscard]] VaultRuntime &vault() const;
 
 	// Runs the blocking client shutdown on the worker and reports on main.
 	// The client stays owned (and returned by client()) until `done` runs.
@@ -150,6 +157,7 @@ private:
 
 	const not_null<Main::Session*> _session;
 	std::shared_ptr<StatuslessHost> _statuslessHost;
+	const std::shared_ptr<VaultRuntime> _vault;
 	std::shared_ptr<PlatformHost> _platformHost;
 	std::shared_ptr<wallet_engine::WalletLifecycle> _lifecycle;
 	std::shared_ptr<wallet_engine::WalletClient> _client;

@@ -312,6 +312,7 @@ walletPhraseWordLabel: FlatLabel(defaultFlatLabel) {
 }
 walletPasscodeFieldMargin: margins(22px, 16px, 22px, 0px);
 walletPasscodeErrorMargin: margins(22px, 8px, 22px, 8px);
+walletPasscodeCheckboxMargin: margins(22px, 12px, 22px, 0px);
 walletReplaceButtonMargin: margins(22px, 12px, 22px, 0px);
 walletReplaceTitleLabel: FlatLabel(boxTitle) {
 	minWidth: 120px;

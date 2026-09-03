@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/serialize_common.h"
 #include "storage/storage_account.h"
 #include "wallet/wallet_api.h"
+#include "wallet/wallet_vault.h"
 
 #include "wallet_engine.hpp"
 
@@ -29,7 +30,6 @@ namespace {
 namespace engine = wallet_engine;
 
 constexpr auto kMaxTrackedEarlyCancels = 64;
-constexpr auto kSecretRequireUserPresenceFlag = quint32(1U << 0);
 
 template <typename Kind>
 struct HostErrorFor;
@@ -82,6 +82,11 @@ template <typename Kind>
 		bytes.constData() + bytes.size());
 }
 
+[[nodiscard]] std::vector<uint8_t> ToByteVector(bytes::const_span data) {
+	const auto begin = reinterpret_cast<const uint8_t*>(data.data());
+	return std::vector<uint8_t>(begin, begin + data.size());
+}
+
 [[nodiscard]] QString SecretStorageKey(
 		const engine::ProtectedSecretRef &reference) {
 	if (!GoodStorageKeyPart(reference.value)) {
@@ -89,7 +94,7 @@ template <typename Kind>
 			engine::ProtectedSecretHostErrorKind::kPolicyViolation,
 			u"invalid secret reference"_q);
 	}
-	return u"secret/"_q + QString::fromStdString(reference.value);
+	return VaultSecretStorageKey(QString::fromStdString(reference.value));
 }
 
 [[nodiscard]] QString JournalStorageKey(const engine::JournalKey &key) {
@@ -127,36 +132,96 @@ template <typename Kind>
 	};
 }
 
-[[nodiscard]] QByteArray SerializeSecretRecord(
-		const engine::ProtectedSecretStore &request) {
-	auto result = Serialize::ByteArrayWriter();
-	result
-		<< quint32(request.require_user_presence
-			? kSecretRequireUserPresenceFlag
-			: 0)
-		<< ToByteArray(request.bytes);
-	return std::move(result).result();
-}
-
-struct SecretRecord {
+struct StoreInput {
+	VaultRuntime::StoreAuthority authority;
+	SecureBytes secret;
 	bool requireUserPresence = false;
-	QByteArray bytes;
 };
 
-[[nodiscard]] std::optional<SecretRecord> DeserializeSecretRecord(
-		const QByteArray &serialized) {
-	auto stream = Serialize::ByteArrayReader(serialized);
-	auto flags = quint32();
-	auto bytes = QByteArray();
-	stream >> flags >> bytes;
-	if (!stream.ok()) {
-		return std::nullopt;
+struct StoreOutcome {
+	bool written = false;
+	bool unavailable = false;
+	bool refused = false;
+	SecureBytes created;
+};
+
+[[nodiscard]] bool WriteSealedRecord(
+		Storage::Account &local,
+		const SecureBytes &vaultKey,
+		const QString &storageKey,
+		const StoreInput &input) {
+	const auto sealed = SealVaultRecord(
+		vaultKey,
+		storageKey,
+		input.requireUserPresence,
+		input.secret.span());
+	if (sealed.isEmpty()) {
+		LOG(("Wallet Error: could not seal the secret record."));
+		return false;
 	}
-	return SecretRecord{
-		.requireUserPresence = ((flags & kSecretRequireUserPresenceFlag)
-			== kSecretRequireUserPresenceFlag),
-		.bytes = bytes,
-	};
+	return local.writeWalletEngineValue(storageKey, sealed);
+}
+
+// The header and the record go together: a record write that fails right
+// after the header write drops the header again, so no vault without a
+// record and no record without a vault survive a failed creation.
+[[nodiscard]] StoreOutcome CreateVaultAndStore(
+		Storage::Account &local,
+		const QString &storageKey,
+		StoreInput &input) {
+	auto &policy = *input.authority.policy;
+	auto vaultKey = SecureBytes(kVaultKeySize);
+	bytes::set_random(vaultKey.span());
+	policy.wrap.generation = 1;
+	policy.wrap.blob = WrapVaultKey(vaultKey, policy.wrap, policy.wrapKey);
+	if (policy.wrap.blob.isEmpty()) {
+		LOG(("Wallet Error: could not wrap the new vault key, kind: %1."
+			).arg(quint32(policy.wrap.kind)));
+		return { .unavailable = true };
+	}
+	auto header = VaultHeader{ .committed = 1 };
+	header.wraps.push_back(policy.wrap);
+	if (!WriteVaultHeader(local, header)) {
+		return { .unavailable = true };
+	} else if (!WriteSealedRecord(local, vaultKey, storageKey, input)) {
+		if (!RemoveVaultHeader(local)) {
+			LOG(("Wallet Error: could not drop the vault header after the "
+				"failed record write."));
+		}
+		return { .unavailable = true };
+	}
+	return { .written = true, .created = std::move(vaultKey) };
+}
+
+// Runs on the main thread inside the marshal so the decision is made under
+// the live header: an existing vault accepts only the unlocked key (a
+// creation policy never applies to it), an absent one only the policy, and
+// a Broken or Unsupported header is never overwritten nor read as absence.
+[[nodiscard]] StoreOutcome StoreUnderVault(
+		Storage::Account &local,
+		const QString &storageKey,
+		StoreInput &input) {
+	using State = VaultReading::State;
+	const auto reading = ReconcileVaultHeader(local);
+	if (reading.state == State::Broken
+		|| reading.state == State::Unsupported) {
+		return { .unavailable = true };
+	} else if (reading.state == State::Read) {
+		if (!input.authority.key) {
+			return { .refused = true };
+		}
+		const auto written = WriteSealedRecord(
+			local,
+			*input.authority.key,
+			storageKey,
+			input);
+		return written
+			? StoreOutcome{ .written = true }
+			: StoreOutcome{ .unavailable = true };
+	} else if (!input.authority.policy) {
+		return { .refused = true };
+	}
+	return CreateVaultAndStore(local, storageKey, input);
 }
 
 // The MTProto toncenter proxy serializes empty JSON maps as arrays: it
@@ -517,19 +582,24 @@ class Engine::PlatformHost final : public engine::WalletPlatformHost {
 public:
 	PlatformHost(
 		base::weak_ptr<Engine> weak,
-		not_null<Main::Session*> session)
+		not_null<Main::Session*> session,
+		std::shared_ptr<VaultRuntime> vault)
 	: _weak(weak)
-	, _session(session) {
+	, _session(session)
+	, _vault(std::move(vault)) {
 	}
 
 	[[nodiscard]] std::vector<uint8_t> read_protected_secret(
 			const engine::ProtectedSecretRead &request) override {
-		// The wallet-passcode gate hooks here once the Wallet::Session
-		// migration lands: authorize request.reason (kSignTransfer,
-		// kSignTonConnectProof, kRevealRecoveryPhrase) with
-		// request.prompt, honoring the stored require-user-presence
-		// flag, before handing out the secret bytes.
 		const auto key = SecretStorageKey(request.secret_ref);
+		// Decided here on the worker, before the marshal: storage() turns
+		// every throw inside it into kUnavailable, never a typed refusal.
+		const auto vaultKey = _vault->keyForRead();
+		if (!vaultKey) {
+			throw HostFailed(
+				engine::ProtectedSecretHostErrorKind::kAuthenticationFailed,
+				u"wallet vault is locked"_q);
+		}
 		const auto value = storage([=](Storage::Account &local) {
 			return local.readWalletEngineValue(key);
 		});
@@ -546,14 +616,19 @@ public:
 			throw HostFailed(
 				engine::ProtectedSecretHostErrorKind::kUnavailable,
 				u"stored secret is unreadable"_q);
+		} else if (!IsVaultRecord(value->bytes)) {
+			LOG(("Wallet Warning: a pre-vault secret record reads as absent."));
+			throw HostFailed(
+				engine::ProtectedSecretHostErrorKind::kNotFound,
+				u"pre-vault secret"_q);
 		}
-		const auto record = DeserializeSecretRecord(value->bytes);
+		const auto record = OpenVaultRecord(*vaultKey, key, value->bytes);
 		if (!record) {
 			throw HostFailed(
 				engine::ProtectedSecretHostErrorKind::kUnavailable,
 				u"stored secret is unreadable"_q);
 		}
-		return ToByteVector(record->bytes);
+		return ToByteVector(record->bytes.span());
 	}
 
 	// Overwrites an existing record even when it is unreadable: an
@@ -562,18 +637,35 @@ public:
 	void store_protected_secret(
 			const engine::ProtectedSecretStore &request) override {
 		const auto key = SecretStorageKey(request.secret_ref);
-		const auto value = SerializeSecretRecord(request);
-		const auto written = storage([=](Storage::Account &local) {
-			return local.writeWalletEngineValue(key, value);
+		// storage() copies its task into the main-thread call, so the
+		// move-only authority and the secret travel behind one pointer.
+		const auto input = std::make_shared<StoreInput>(StoreInput{
+			.authority = _vault->authorityForStore(),
+			.secret = SecureBytes(bytes::make_span(request.bytes)),
+			.requireUserPresence = request.require_user_presence,
 		});
-		if (!written) {
+		if (!input->authority.key && !input->authority.policy) {
+			throw HostFailed(
+				engine::ProtectedSecretHostErrorKind::kAuthenticationFailed,
+				u"wallet vault is locked"_q);
+		}
+		auto outcome = storage([=](Storage::Account &local) {
+			return StoreUnderVault(local, key, *input);
+		});
+		if (!outcome) {
 			throw HostFailed(
 				engine::ProtectedSecretHostErrorKind::kUnavailable,
 				u"wallet engine storage is unavailable"_q);
-		} else if (!*written) {
+		} else if (outcome->refused) {
+			throw HostFailed(
+				engine::ProtectedSecretHostErrorKind::kAuthenticationFailed,
+				u"wallet vault is locked"_q);
+		} else if (outcome->unavailable) {
 			throw HostFailed(
 				engine::ProtectedSecretHostErrorKind::kUnavailable,
-				u"wallet engine storage write failed"_q);
+				u"wallet vault is unavailable"_q);
+		} else if (!outcome->created.empty()) {
+			_vault->adoptCreated(std::move(outcome->created));
 		}
 	}
 
@@ -752,6 +844,7 @@ private:
 
 	const base::weak_ptr<Engine> _weak;
 	const not_null<Main::Session*> _session; // Main thread only.
+	const std::shared_ptr<VaultRuntime> _vault;
 
 	std::mutex _mutex;
 	bool _closed = false;
@@ -770,9 +863,11 @@ struct Engine::Worker {
 Engine::Engine(not_null<Main::Session*> session, not_null<Api*> api)
 : _session(session)
 , _statuslessHost(std::make_shared<StatuslessHost>(base::make_weak(this), api))
+, _vault(std::make_shared<VaultRuntime>())
 , _platformHost(std::make_shared<PlatformHost>(
 	base::make_weak(this),
-	session)) {
+	session,
+	_vault)) {
 }
 
 Engine::~Engine() {
@@ -782,6 +877,7 @@ Engine::~Engine() {
 	// by resolve_pending() on the next launch by the engine's own design.
 	_statuslessHost->close();
 	_platformHost->close();
+	_vault->clear();
 	const auto client = base::take(_client);
 	if (!_worker) {
 		if (client) {
@@ -833,6 +929,10 @@ void Engine::startClient(const engine::WalletClientConfig &config) {
 auto Engine::client() const
 -> std::shared_ptr<wallet_engine::WalletClient> {
 	return _client;
+}
+
+VaultRuntime &Engine::vault() const {
+	return *_vault;
 }
 
 void Engine::stopClient(Fn<void()> done) {

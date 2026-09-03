@@ -8862,6 +8862,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_phrase_password_description" = "Please enter your password to view your recovery phrase.";
 "lng_wallet_phrase_check_about" = "You can view your recovery phrase only if you have:";
 "lng_wallet_phrase_check_wait" = "You will be able to view your recovery phrase in {duration}.";
+"lng_wallet_passcode_remember" = "Don't ask for 15 minutes";
+"lng_wallet_vault_locked" = "The wallet key on this device is locked. Enter your passcode and try again.";
+"lng_wallet_vault_no_passcode" = "Set a local passcode in Settings > Privacy and Security before storing your wallet key on this device.";
+"lng_wallet_vault_unavailable" = "The wallet key stored on this device can't be read.";
 "lng_wallet_replace_password_description" = "Please enter your password to replace your wallet.";
 "lng_wallet_replace_check_about" = "You can replace your wallet only if you have:";
 "lng_wallet_replace_check_wait" = "You will be able to replace your wallet in {duration}.";

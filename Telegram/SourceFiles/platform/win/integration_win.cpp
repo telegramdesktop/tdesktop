@@ -199,6 +199,14 @@ bool WindowsIntegration::processEvent(
 		}
 		break;
 
+	case WM_POWERBROADCAST:
+		if (wParam == PBT_APMSUSPEND
+			|| wParam == PBT_APMRESUMEAUTOMATIC
+			|| wParam == PBT_APMRESUMESUSPEND) {
+			Core::App().notifySystemSleep();
+		}
+		break;
+
 	case WM_SETTINGCHANGE:
 		RefreshTaskbarThemeValue();
 #if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)

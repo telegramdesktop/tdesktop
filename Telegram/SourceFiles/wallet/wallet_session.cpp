@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_phrase_shares.h"
 #include "wallet/wallet_rates.h"
 #include "wallet/wallet_user_addresses.h"
+#include "wallet/wallet_vault.h"
 
 #include "wallet_engine.hpp"
 
@@ -205,6 +206,20 @@ struct ThrowawayRotation {
 	} catch (...) {
 	}
 	return u"unknown"_q;
+}
+
+[[nodiscard]] bool IsVaultLocked(const EngineError &error) {
+	if (!error.underlying) {
+		return false;
+	}
+	try {
+		std::rethrow_exception(error.underlying);
+	} catch (const engine::wallet_lifecycle_error::ProtectedSecretHost &e) {
+		return (e.kind
+			== engine::ProtectedSecretHostErrorKind::kAuthenticationFailed);
+	} catch (...) {
+	}
+	return false;
 }
 
 [[nodiscard]] QString ClientErrorName(std::exception_ptr error) {
@@ -926,6 +941,10 @@ bool Session::revealsLocally() {
 		&& (custody().matching(_publicKey) != nullptr);
 }
 
+VaultRuntime &Session::vault() {
+	return _engine->vault();
+}
+
 bool Session::custodyBusy() const {
 	return _phraseRevealing || _replacing || _backupChanging || _rotating;
 }
@@ -994,7 +1013,9 @@ void Session::revealLocally(
 	}, [=](EngineError error) {
 		LOG(("Wallet Error: local phrase reveal failed: %1"
 			).arg(LifecycleErrorName(error)));
-		fail(u"PHRASE_LOCAL_FAILED"_q);
+		fail(IsVaultLocked(error)
+			? u"PHRASE_VAULT_LOCKED"_q
+			: u"PHRASE_LOCAL_FAILED"_q);
 	});
 }
 
@@ -1157,7 +1178,9 @@ void Session::restoreFromWords(
 	}, [=](EngineError error) {
 		const auto name = LifecycleErrorName(error);
 		LOG(("Wallet Error: import_wallet failed: %1").arg(name));
-		fail((name == u"InvalidRecoveryPhrase"_q)
+		fail(IsVaultLocked(error)
+			? u"PHRASE_VAULT_LOCKED"_q
+			: (name == u"InvalidRecoveryPhrase"_q)
 			? u"PHRASE_INVALID_PHRASE"_q
 			: u"PHRASE_IMPORT_FAILED"_q);
 	});
@@ -1834,6 +1857,8 @@ const CustodyStore &Session::custody() {
 		if (!_custody) {
 			LOG(("Wallet Error: custody store unreadable, treating as empty."));
 			_custody = CustodyStore();
+		} else {
+			DropPreVaultCustody(_session->local(), *_custody);
 		}
 	}
 	return *_custody;
