@@ -1122,9 +1122,15 @@ HistoryWidget::HistoryWidget(
 		if (_creatingBotTopic
 			&& action.history == _creatingBotTopic->owningHistory()
 			&& action.replyTo.topicRootId == _creatingBotTopic->rootId()) {
-			Ui::PostponeCall(_creatingBotTopic, [=] {
+			// Guard 'this' (the call reads _creatingBotTopic) and re-check
+			// the topic: it may be gone or already handled by another call.
+			const auto weak = base::make_weak(_creatingBotTopic);
+			Ui::PostponeCall(this, [=] {
 				using namespace HistoryView;
 				const auto topic = base::take(_creatingBotTopic);
+				if (!topic || topic != weak.get()) {
+					return;
+				}
 				controller->showSection(
 					std::make_shared<ChatMemento>(ChatViewId{
 						.history = topic->owningHistory(),

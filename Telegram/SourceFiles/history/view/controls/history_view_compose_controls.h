@@ -245,7 +245,7 @@ public:
 	[[nodiscard]] rpl::producer<> showScheduledRequests() const;
 	[[nodiscard]] rpl::producer<> suggestPostToggleClicks() const;
 	[[nodiscard]] rpl::producer<> botKeyboardToggleClicks() const;
-	[[nodiscard]] rpl::producer<> scrollToMaxRequests() const;
+	[[nodiscard]] rpl::producer<Api::SendOptions> scrollToMaxRequests() const;
 
 	using MimeDataHook = Fn<bool(
 		not_null<const QMimeData*> data,
@@ -617,6 +617,8 @@ private:
 	const Fn<void(not_null<DocumentData*>)> _unavailableEmojiPasted;
 
 	rpl::event_stream<Api::SendOptions> _sendCustomRequests;
+	rpl::event_stream<Qt::KeyboardModifiers> _fieldSubmits;
+	rpl::event_stream<Api::SendOptions> _scrollToMaxRequests;
 	rpl::event_stream<> _cancelRequests;
 	rpl::event_stream<> _replyCancelledExternally;
 	rpl::event_stream<FileChosen> _fileChosen;
