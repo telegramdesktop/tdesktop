@@ -4081,7 +4081,8 @@ void RequestCustodyRestore(
 		std::shared_ptr<Main::SessionShow> show,
 		std::optional<Core::CloudPasswordResult> password,
 		base::weak_qptr<PasscodeBox> passcode,
-		Fn<void()> action) {
+		Fn<void()> action,
+		Fn<void()> unblock) {
 	const auto done = [=] {
 		if (passcode) {
 			passcode->closeBox();
@@ -4089,6 +4090,9 @@ void RequestCustodyRestore(
 		action();
 	};
 	const auto fail = [=](const QString &error) {
+		if (unblock) {
+			unblock();
+		}
 		if (passcode && passcode->handleCustomCheckError(error)) {
 			return;
 		}
@@ -4112,7 +4116,8 @@ void RequestCustodyRestore(
 
 void StartCustodyRestore(
 		std::shared_ptr<Main::SessionShow> show,
-		Fn<void()> action) {
+		Fn<void()> action,
+		Fn<void()> unblock = nullptr) {
 	const auto session = &show->session();
 	session->api().cloudPassword().reload();
 	const auto lifetime = std::make_shared<rpl::lifetime>();
@@ -4122,7 +4127,12 @@ void StartCustodyRestore(
 	) | rpl::on_next([=](const Core::CloudPasswordState &state) {
 		const auto owned = base::take(*lifetime);
 		if (!state.hasPassword) {
-			RequestCustodyRestore(show, std::nullopt, nullptr, action);
+			RequestCustodyRestore(
+				show,
+				std::nullopt,
+				nullptr,
+				action,
+				unblock);
 			return;
 		}
 		auto fields = PasscodeBox::CloudFields::From(state);
@@ -4133,9 +4143,12 @@ void StartCustodyRestore(
 		fields.customCheckCallback = [=](
 				const Core::CloudPasswordResult &result,
 				base::weak_qptr<PasscodeBox> passcode) {
-			RequestCustodyRestore(show, result, passcode, action);
+			RequestCustodyRestore(show, result, passcode, action, unblock);
 		};
 		show->showBox(Box<PasscodeBox>(session, fields));
+		if (unblock) {
+			unblock();
+		}
 	}, *lifetime);
 }
 
@@ -4939,7 +4952,7 @@ void ShowBackupTopUpAlert(
 	}));
 }
 
-void ShowBackupUpdateFork(
+void OfferBackupUpdate(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::GenericBox*> origin,
 		not_null<bool*> busy) {
@@ -4966,6 +4979,24 @@ void ShowBackupUpdateFork(
 			collect();
 		}
 	}));
+}
+
+void ShowBackupUpdateFork(
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<Ui::GenericBox*> origin,
+		not_null<bool*> busy) {
+	if (show->session().wallet().revealsLocally()) {
+		OfferBackupUpdate(show, origin, busy);
+		return;
+	}
+	*busy = true;
+	const auto weak = base::make_weak(origin);
+	StartCustodyRestore(show, [=] {
+		if (const auto strong = weak.get()) {
+			*busy = false;
+			OfferBackupUpdate(show, strong, busy);
+		}
+	}, crl::guard(origin, [=] { *busy = false; }));
 }
 
 void StartBackupDisable(
