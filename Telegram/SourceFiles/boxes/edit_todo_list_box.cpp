@@ -364,6 +364,7 @@ void Tasks::Task::createRemove() {
 	const auto remove = Ui::CreateChild<Ui::CrossButton>(
 		field.get(),
 		st::createPollOptionRemove);
+	remove->setAccessibleName(tr::lng_box_remove(tr::now));
 	remove->show(anim::type::instant);
 
 	const auto toggle = lifetime.make_state<rpl::variable<bool>>(false);
@@ -434,7 +435,10 @@ bool Tasks::Task::isTooLong() const {
 }
 
 bool Tasks::Task::hasFocus() const {
-	return field()->hasFocus();
+	// The remove button counts: it holds the focus when it is pressed
+	// from the keyboard, and the task removed with it should pass the
+	// focus on the same way.
+	return field()->hasFocus() || (_remove && _remove->hasFocus());
 }
 
 void Tasks::Task::setFocus() const {
@@ -1026,6 +1030,12 @@ object_ptr<Ui::RpWidget> EditTodoListBox::setupContent() {
 	auto result = object_ptr<Ui::VerticalLayout>(this);
 	const auto container = result.data();
 
+	// The box fills itself while it is open - a task row is created for
+	// every task typed - and those rows land at the end of the focus
+	// chain, past the settings below them. Tab follows the box as it is
+	// shown instead: the title, the tasks, the settings under them.
+	container->setVisualTabOrder(true);
+
 	const auto title = setupTitle(container);
 	Ui::AddDivider(container);
 	Ui::AddSkip(container);
@@ -1256,6 +1266,10 @@ void AddTodoListTasksBox::prepare() {
 object_ptr<Ui::RpWidget> AddTodoListTasksBox::setupContent() {
 	auto result = object_ptr<Ui::VerticalLayout>(this);
 	const auto container = result.data();
+
+	// The new tasks are created as they are typed, so Tab follows the
+	// order they are shown in as well.
+	container->setVisualTabOrder(true);
 
 	if (_controller->session().premium()) {
 		_emojiPanel = MakeEmojiPanel(
