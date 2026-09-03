@@ -213,6 +213,7 @@ messageActionPollDeleteAnswer#399674dc answer:PollAnswer = MessageAction;
 messageActionManagedBotCreated#16605e3e bot_id:long = MessageAction;
 messageActionChangeCommunity#5d20bae8 flags:# community_id:flags.0?long = MessageAction;
 messageActionChatJoinedViaCommunity#4a8bfe80 community_id:long = MessageAction;
+messageActionGramTransfer#9329ea33 flags:# amount:long peer_address:string transaction_id:string comment:flags.0?string = MessageAction;
 
 dialog#fc89f7f3 flags:# pinned:flags.2?true unread_mark:flags.3?true view_forum_as_messages:flags.6?true peer:Peer top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int unread_mentions_count:int unread_reactions_count:int unread_poll_votes_count:int notify_settings:PeerNotifySettings pts:flags.0?int draft:flags.1?DraftMessage folder_id:flags.4?int ttl_period:flags.5?int = Dialog;
 dialogFolder#71bd134c flags:# pinned:flags.2?true folder:Folder peer:Peer top_message:int unread_muted_peers_count:int unread_unmuted_peers_count:int unread_muted_messages_count:int unread_unmuted_messages_count:int = Dialog;
@@ -2294,16 +2295,16 @@ onrampQuote#7a8011e9 base_currency:string base_amount:string crypto_currency:str
 
 onrampSession#d1e42e24 provider:string session_id:string url:string expires_date:int = OnrampSession;
 
-walletStateEmpty#9cb9b2ec flags:# provisioning:flags.0?true = WalletState;
+walletStateEmpty#9cb9b2ec flags:# creating:flags.0?true = WalletState;
 walletState#95c5346b flags:# backup_enabled:flags.0?true can_export_phrase:flags.1?true can_enable_backup:flags.2?true address:string public_key:bytes balance:long = WalletState;
 
 walletUserAddress#1ce00108 user_id:long address:string = WalletUserAddress;
 
-walletTransactionPeerUser#f4e99626 user_id:long address:string = WalletTransactionPeer;
-walletTransactionPeerAddress#7d6f4ebd address:string = WalletTransactionPeer;
+walletTransactionPeerUser#d4ea706d flags:# user_id:long address:string domain:flags.0?string = WalletTransactionPeer;
+walletTransactionPeerAddress#62cc1bc flags:# address:string domain:flags.0?string = WalletTransactionPeer;
 walletTransactionPeerUnsupported#728bed5a = WalletTransactionPeer;
 
-walletTransaction#6f9986a1 flags:# incoming:flags.0?true pending:flags.1?true failed:flags.2?true key_change:flags.5?true id:string amount:long fee:long date:int peer:WalletTransactionPeer comment:flags.3?string tx_hash:flags.4?string = WalletTransaction;
+walletTransaction#6f9986a1 flags:# incoming:flags.0?true failed:flags.2?true key_change:flags.5?true id:string amount:long fee:long date:int peer:WalletTransactionPeer comment:flags.3?string tx_hash:flags.4?string = WalletTransaction;
 
 wallet.transactions#4322d5a5 flags:# balance:long transactions:Vector<WalletTransaction> next_offset:flags.0?string chats:Vector<Chat> users:Vector<User> = wallet.Transactions;
 
@@ -3168,7 +3169,7 @@ toncenter.performApiRequest#8d7bdd61 flags:# post:flags.0?true endpoint:string q
 toncenter.getStreamingUrl#cdaf63c7 = toncenter.StreamingUrl;
 
 wallet.getState#ab83b33a = WalletState;
-wallet.getUserAddresses#b7b6174b id:Vector<InputUser> = Vector<WalletUserAddress>;
+wallet.getUserAddresses#1ddd6c11 flags:# force:flags.0?true id:Vector<InputUser> = Vector<WalletUserAddress>;
 wallet.getTransactions#a8830a83 flags:# inbound:flags.0?true outbound:flags.1?true offset:string limit:int = wallet.Transactions;
 wallet.exportSecretPhrase#9077c9ac flags:# password:flags.0?InputCheckPasswordSRP = wallet.SecretPhraseParts;
 wallet.fetchEncryptedSecretPhrasePart#f53925cf token:string public_key:bytes = wallet.EncryptedSecretPhrasePart;
