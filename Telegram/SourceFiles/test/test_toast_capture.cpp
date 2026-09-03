@@ -457,11 +457,13 @@ void AppendToastSubtreeCaptureSelfTest(not_null<Runner*> runner) {
 		int liveCount = 0;
 		int failuresBefore = 0;
 		int failuresAfter = 0;
+		int singleAgainCount = 0;
 		bool built = false;
 		bool liveHoldsToast = false;
 		bool liveResolvedSingle = false;
 		bool midfadeReady = false;
 		bool midfadeSaved = false;
+		bool singleAgainResolvedFixture = false;
 	};
 	// Leaked on purpose, the way the harness's other self-tests leak
 	// theirs: the stages outlive this call. The teardown stage releases
@@ -670,6 +672,98 @@ void AppendToastSubtreeCaptureSelfTest(not_null<Runner*> runner) {
 	});
 
 	runner->add({
+		.name = u"toast-subtree self-test: a second live toast makes the "
+			"resolver refuse, and does not outlive the stage that showed "
+			"it"_q,
+		.run = [=] {
+			const auto toast = state->fixture.toastWidget.data();
+			const auto parent = toast ? toast->parentWidget() : nullptr;
+			if (!state->built || !toast || !parent) {
+				return;
+			}
+			// Shown, read and taken down inside this one turn, the way
+			// test_via_window.cpp:398-518 builds, reads and destroys its
+			// own fixture, so nothing this stage creates reaches the
+			// stages after it. It is infinite for the reason the fixture
+			// is: an infinite toast leaves _hideAt at 0 (toast.cpp:32-34)
+			// and the manager then arms no hide timer for it
+			// (toast_manager.cpp:75-83), so nothing takes it down
+			// implicitly and the drained loop's starving of hideAnimated()
+			// never comes into it. Instance::hide() - _widget->hide();
+			// _widget->deleteLater(); (toast.cpp:116-119) - is the seam,
+			// and its hide is synchronous while the walk reads visibility,
+			// so the count drops in that same statement.
+			const auto second = Ui::Toast::Show(parent, {
+				.text = { kOtherText },
+				.st = &st::defaultToast,
+				.infinite = true,
+			});
+			const auto instance = second.get();
+			const auto secondWidget = instance
+				? instance->widget().get()
+				: nullptr;
+			const auto both = FindLiveToasts();
+			const auto resolved = FindLiveToast();
+			const auto holdsFixture = ranges::contains(both, toast);
+			const auto holdsSecond = secondWidget
+				&& ranges::contains(both, secondWidget);
+			Check(
+				(both.size() == 2)
+					&& holdsFixture
+					&& holdsSecond
+					&& (resolved == nullptr),
+				u"more than one live toast is an ambiguity the resolver "
+				"refuses rather than guesses: with a second toast on "
+				"screen the walk answers both of them and FindLiveToast() "
+				"answers nullptr, so a resolver handing back the first of "
+				"several turns this row red"_q,
+				u"liveToasts=%1 holdsFixture=%2 holdsSecond=%3 resolved=%4 "
+				u"fixture=%5 second=%6"_q
+					.arg(int(both.size()))
+					.arg(holdsFixture ? 1 : 0)
+					.arg(holdsSecond ? 1 : 0)
+					.arg(resolved
+						? WidgetDescription(resolved)
+						: u"<none>"_q)
+					.arg(
+						WidgetDescription(toast),
+						secondWidget
+							? WidgetDescription(secondWidget)
+							: u"<none>"_q));
+			if (instance) {
+				instance->hide();
+			}
+			state->singleAgainCount = int(FindLiveToasts().size());
+			state->singleAgainResolvedFixture = (FindLiveToast() == toast);
+		},
+		.then = [=] {
+			const auto toast = state->fixture.toastWidget.data();
+			if (!state->built || !toast) {
+				return;
+			}
+			const auto live = FindLiveToasts();
+			const auto resolved = FindLiveToast();
+			Check(
+				(state->singleAgainCount == 1)
+					&& state->singleAgainResolvedFixture
+					&& (live.size() == 1)
+					&& (resolved == toast),
+				u"the second toast does not outlive the stage that showed "
+				"it: Instance::hide() took it out of the walk in the same "
+				"statement, and the walk answers the fixture toast alone "
+				"again a runner tick later, which is the single-toast "
+				"fixture every stage after this one reads"_q,
+				u"afterHide liveToasts=%1 resolvedFixture=%2; nextTurn "
+				u"liveToasts=%3 resolvedFixture=%4 fixture=%5"_q
+					.arg(state->singleAgainCount)
+					.arg(state->singleAgainResolvedFixture ? 1 : 0)
+					.arg(int(live.size()))
+					.arg((resolved == toast) ? 1 : 0)
+					.arg(WidgetDescription(toast)));
+		},
+	});
+
+	runner->add({
 		.name = u"toast-subtree self-test: a misframed request is refused "
 			"by name, quoting both rects"_q,
 		.run = [=] {
@@ -758,9 +852,39 @@ void AppendToastSubtreeCaptureSelfTest(not_null<Runner*> runner) {
 			// _widget->deleteLater(); (ui/toast/toast.cpp:116-119) -
 			// rather than hideAnimated(), whose fade-out animation the
 			// harness's drained loop starves.
+			// The zero reading below is taken around that same hide, and
+			// the walk one statement above it is its control: a bare
+			// empty answer at an arbitrary point would be an accident of
+			// ordering, while the same walk answering the fixture toast
+			// alone a statement earlier makes this module's own hide()
+			// what took the count to zero.
+			const auto toast = state->fixture.toastWidget.data();
+			const auto before = FindLiveToasts();
+			const auto beforeResolved = FindLiveToast();
 			if (const auto instance = state->fixture.toast.get()) {
 				instance->hide();
 			}
+			const auto after = FindLiveToasts();
+			const auto afterResolved = FindLiveToast();
+			Check(
+				(before.size() == 1)
+					&& (beforeResolved == toast)
+					&& after.empty()
+					&& (afterResolved == nullptr),
+				u"zero live toasts is the walk's other ambiguity, and the "
+				"resolver refuses that one too: the same walk answers the "
+				"fixture toast alone, this module's own Instance::hide() "
+				"takes it down, and FindLiveToast() then answers nullptr "
+				"for the empty list rather than guessing"_q,
+				u"before=%1 resolvedFixture=%2 after=%3 resolved=%4 "
+				u"fixture=%5"_q
+					.arg(int(before.size()))
+					.arg((beforeResolved == toast) ? 1 : 0)
+					.arg(int(after.size()))
+					.arg(afterResolved
+						? WidgetDescription(afterResolved)
+						: u"<none>"_q)
+					.arg(toast ? WidgetDescription(toast) : u"<none>"_q));
 			state->fixture.sentinel = nullptr;
 			state->fixture.toastWidget = nullptr;
 			Note(u"toast-subtree self-test: fixture released, sentinel=%1 "

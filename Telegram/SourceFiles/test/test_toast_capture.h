@@ -136,7 +136,7 @@ void CheckToastReads(
 	const QString &expected,
 	const QString &what);
 
-// This module measuring itself, in four stages, over a synthetic
+// This module measuring itself, in five stages, over a synthetic
 // sentinel-bearing surface it paints and a real Ui::Toast of its own.
 //
 // The surface is two horizontal bands of two high-contrast tones chosen so
@@ -171,20 +171,29 @@ void CheckToastReads(
 // and independent of the corners - by hiding the surface beneath and
 // showing that no pixel of the subtree frame moved while many pixels of
 // the window-mapped frame did. It also reads the toast's phrase back and
-// shows the same comparison declining a different phrase. Stage 3 refuses
+// shows the same comparison declining a different phrase. Stage 3 shows a
+// second toast beside the fixture and takes it down inside the same turn,
+// where the walk answers two and FindLiveToast() refuses the ambiguity
+// with nullptr; the fixture is shown single again there and a tick later,
+// because every stage after it reads a single live toast. Stage 4 refuses
 // a null, an ancestor that paints the product and a rect larger than the
-// toast, each by name and quoting both rects. Stage 4 is teardown.
+// toast, each by name and quoting both rects. Stage 5 is teardown, and it
+// is where the other refusal is read: the control walk answers the fixture
+// toast alone, this module's own Instance::hide() takes it down, and the
+// same walk then answers an empty list that FindLiveToast() refuses with
+// nullptr.
 //
 // It needs no session, no chats list, no network and no account fixture.
 // The only thing it asks of the process is a primary window to parent the
 // fixture to, and a missing one is reported as a named fixture gate
 // instead of crashing. It appends its own teardown last, and it emits no
 // deliberate failure: every refusal it demonstrates is observed through
-// the pure ReadToastSubtree, ToastSubtreeReady and ToastSubtreeDetails
-// readings, which log nothing, and asserted as a passing Check whose
-// details carry the refusal verbatim. test_text_reads.h:70-78 records that
-// module as the harness's one self-test that emits deliberate failures,
-// and this one does not become a second.
+// the pure FindLiveToasts, FindLiveToast, ReadToastSubtree,
+// ToastSubtreeReady and ToastSubtreeDetails readings, which log nothing,
+// and asserted as a passing Check whose details carry the refusal
+// verbatim. test_text_reads.h:70-78 records that module as the harness's
+// one self-test that emits deliberate failures, and this one does not
+// become a second.
 void AppendToastSubtreeCaptureSelfTest(not_null<Runner*> runner);
 
 } // namespace Test
