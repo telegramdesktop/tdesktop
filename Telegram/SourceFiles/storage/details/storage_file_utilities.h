@@ -27,6 +27,24 @@ void ClearKey(const FileKey &key, const QString &basePath);
 	const QByteArray &passcode,
 	const QByteArray &salt);
 
+struct PasscodeKdf final {
+	quint32 kind = 0;
+	quint32 memory = 0;
+	quint32 time = 0;
+	quint32 parallel = 0;
+
+	[[nodiscard]] bool valid() const;
+};
+
+inline constexpr auto kPasscodeKdfArgon2id = quint32(1);
+inline constexpr auto kPasscodeKdfScrypt = quint32(2);
+
+[[nodiscard]] PasscodeKdf DefaultPasscodeKdf();
+[[nodiscard]] MTP::AuthKeyPtr CreatePasscodeKey(
+	const QByteArray &passcode,
+	const QByteArray &salt,
+	const PasscodeKdf &kdf);
+
 struct FileReadDescriptor final {
 	~FileReadDescriptor();
 

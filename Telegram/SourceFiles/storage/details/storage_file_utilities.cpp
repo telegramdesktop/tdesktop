@@ -14,6 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 
 #include <crl/crl_object_on_thread.h>
+#include <openssl/core_names.h>
+#include <openssl/kdf.h>
+#include <openssl/params.h>
 #include <QtCore/QtEndian>
 #include <QtCore/QSaveFile>
 
@@ -25,6 +28,24 @@ constexpr char TdfMagic[] = { 'T', 'D', 'F', '$' };
 constexpr auto TdfMagicLen = int(sizeof(TdfMagic));
 
 constexpr auto kStrongIterationsCount = 100'000;
+
+// The passcode wrap is derived with a memory-hard KDF instead of PBKDF2, and
+// the parameters below are tuned so that one derivation costs roughly 0.3-0.5
+// seconds and tens of megabytes on a current desktop. Parallelism is fixed at
+// a single lane and a single thread, which is what lets OpenSSL run its
+// single-threaded fill and needs no thread pool enabled in the library
+// context. Every wrap records its family and these three numbers beside its
+// own salt, so raising a cost here only affects wraps written afterwards and
+// never invalidates a file an earlier build wrote.
+constexpr auto kPasscodeArgon2MemoryKiB = quint32(65'536);
+constexpr auto kPasscodeArgon2Time = quint32(16);
+constexpr auto kPasscodeArgon2Lanes = quint32(1);
+constexpr auto kPasscodeScryptN = quint32(131'072);
+constexpr auto kPasscodeScryptR = quint32(8);
+constexpr auto kPasscodeScryptP = quint32(1);
+constexpr auto kPasscodeScryptMaxMem = quint64(192) * 1024 * 1024;
+constexpr auto kPasscodeSaltMinSize = 8;
+constexpr auto kPasscodeArgon2Name = "ARGON2ID";
 
 struct WriteEntry {
 	QString basePath;
@@ -351,6 +372,123 @@ MTP::AuthKeyPtr CreateLegacyLocalKey(
 		key.size(),
 		(uchar*)key.data());
 
+	return std::make_shared<MTP::AuthKey>(key);
+}
+
+bool PasscodeKdf::valid() const {
+	if (!time || !parallel) {
+		return false;
+	} else if (kind == kPasscodeKdfArgon2id) {
+		return (memory >= 8 * parallel);
+	} else if (kind == kPasscodeKdfScrypt) {
+		return (memory >= 2) && !(memory & (memory - 1));
+	}
+	return false;
+}
+
+PasscodeKdf DefaultPasscodeKdf() {
+	static const auto argon2 = [] {
+		const auto algorithm = EVP_KDF_fetch(
+			nullptr,
+			kPasscodeArgon2Name,
+			nullptr);
+		if (!algorithm) {
+			return false;
+		}
+		EVP_KDF_free(algorithm);
+		return true;
+	}();
+	return argon2
+		? PasscodeKdf{
+			.kind = kPasscodeKdfArgon2id,
+			.memory = kPasscodeArgon2MemoryKiB,
+			.time = kPasscodeArgon2Time,
+			.parallel = kPasscodeArgon2Lanes,
+		} : PasscodeKdf{
+			.kind = kPasscodeKdfScrypt,
+			.memory = kPasscodeScryptN,
+			.time = kPasscodeScryptR,
+			.parallel = kPasscodeScryptP,
+		};
+}
+
+MTP::AuthKeyPtr CreatePasscodeKey(
+		const QByteArray &passcode,
+		const QByteArray &salt,
+		const PasscodeKdf &kdf) {
+	if (passcode.isEmpty()
+		|| salt.size() < kPasscodeSaltMinSize
+		|| !kdf.valid()) {
+		return nullptr;
+	}
+	auto key = MTP::AuthKey::Data{ { gsl::byte{} } };
+	const auto to = reinterpret_cast<unsigned char*>(key.data());
+	if (kdf.kind == kPasscodeKdfArgon2id) {
+		const auto algorithm = EVP_KDF_fetch(
+			nullptr,
+			kPasscodeArgon2Name,
+			nullptr);
+		if (!algorithm) {
+			LOG(("App Error: Argon2id is not available."));
+			return nullptr;
+		}
+		const auto algorithmGuard = gsl::finally([&] {
+			EVP_KDF_free(algorithm);
+		});
+		const auto context = EVP_KDF_CTX_new(algorithm);
+		if (!context) {
+			LOG(("App Error: Could not create the Argon2id context."));
+			return nullptr;
+		}
+		const auto contextGuard = gsl::finally([&] {
+			EVP_KDF_CTX_free(context);
+		});
+		auto memory = uint32_t(kdf.memory);
+		auto time = uint32_t(kdf.time);
+		auto lanes = uint32_t(kdf.parallel);
+		auto threads = uint32_t(1);
+		const auto params = std::array{
+			OSSL_PARAM_construct_octet_string(
+				OSSL_KDF_PARAM_PASSWORD,
+				const_cast<char*>(passcode.constData()),
+				size_t(passcode.size())),
+			OSSL_PARAM_construct_octet_string(
+				OSSL_KDF_PARAM_SALT,
+				const_cast<char*>(salt.constData()),
+				size_t(salt.size())),
+			OSSL_PARAM_construct_uint32(
+				OSSL_KDF_PARAM_ARGON2_MEMCOST,
+				&memory),
+			OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ITER, &time),
+			OSSL_PARAM_construct_uint32(
+				OSSL_KDF_PARAM_ARGON2_LANES,
+				&lanes),
+			OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_THREADS, &threads),
+			OSSL_PARAM_construct_end(),
+		};
+		if (EVP_KDF_derive(context, to, key.size(), params.data()) != 1) {
+			LOG(("App Error: Argon2id derivation failed."));
+			return nullptr;
+		}
+	} else if (kdf.kind == kPasscodeKdfScrypt) {
+		if (!EVP_PBE_scrypt(
+			passcode.constData(),
+			size_t(passcode.size()),
+			reinterpret_cast<const unsigned char*>(salt.constData()),
+			size_t(salt.size()),
+			uint64_t(kdf.memory),
+			uint64_t(kdf.time),
+			uint64_t(kdf.parallel),
+			kPasscodeScryptMaxMem,
+			to,
+			key.size())) {
+			LOG(("App Error: Scrypt derivation failed."));
+			return nullptr;
+		}
+	} else {
+		LOG(("App Error: Unknown passcode KDF family."));
+		return nullptr;
+	}
 	return std::make_shared<MTP::AuthKey>(key);
 }
 

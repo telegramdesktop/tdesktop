@@ -40,12 +40,52 @@ namespace {
 
 using namespace Builder;
 
-void SetPasscode(
+[[nodiscard]] Storage::SetPasscodeResult SetPasscode(
 		not_null<Window::SessionController*> controller,
-		const QString &pass) {
+		const QString &pass,
+		Storage::PasscodeVerification verification) {
 	cSetPasscodeBadTries(0);
-	controller->session().domain().local().setPasscode(pass.toUtf8());
-	Core::App().localPasscodeChanged();
+	const auto result = controller->session().domain().local().setPasscode(
+		pass.toUtf8(),
+		verification);
+	if (result == Storage::SetPasscodeResult::Success) {
+		Core::App().localPasscodeChanged();
+	}
+	return result;
+}
+
+// The proof that the old passcode was typed is minted by the Check section
+// and consumed by the Change section and by the Manage disable button, which
+// are different section objects created later by the navigation stack. It
+// travels in the std::any the Info controller keeps for the whole settings
+// stack, the same channel CloudPassword::StepData uses, but only for the one
+// navigation hop that hands it over: the receiving section moves it out of
+// the std::any into a member of its own, and writes it back only when it is
+// itself opening another passcode section. So the proof lives exactly as long
+// as the section holding it - leaving by hand, by Back, by removeFromStack or
+// by the auto-close timer destroys that section and takes the proof with it -
+// instead of trailing the whole settings stack, and a Manage section reached
+// straight from settings search finds nothing and asks for the passcode.
+[[nodiscard]] std::optional<Storage::PasscodeVerification> TakeVerification(
+		std::any *stepData) {
+	if (!stepData || !stepData->has_value()) {
+		return std::nullopt;
+	}
+	const auto my = std::any_cast<Storage::PasscodeVerification>(stepData);
+	if (!my) {
+		return std::nullopt;
+	}
+	auto result = *my;
+	*stepData = std::any();
+	return result;
+}
+
+void WriteVerification(
+		std::any *stepData,
+		const std::optional<Storage::PasscodeVerification> &verification) {
+	if (stepData && verification) {
+		*stepData = *verification;
+	}
 }
 
 } // namespace
@@ -72,6 +112,8 @@ public:
 
 	[[nodiscard]] rpl::producer<QString> title() override;
 
+	void setStepDataReference(std::any &data) override;
+
 protected:
 	void setupContent();
 
@@ -82,6 +124,8 @@ private:
 	rpl::event_stream<> _setInnerFocus;
 	rpl::event_stream<Type> _showOther;
 	rpl::event_stream<> _showBack;
+	std::any *_stepData = nullptr;
+	std::optional<Storage::PasscodeVerification> _verification;
 	bool _systemUnlockWithBiometric = false;
 
 };
@@ -94,6 +138,14 @@ LocalPasscodeEnter::LocalPasscodeEnter(
 
 rpl::producer<QString> LocalPasscodeEnter::title() {
 	return tr::lng_settings_passcode_title();
+}
+
+void LocalPasscodeEnter::setStepDataReference(std::any &data) {
+	// TypedLocalPasscodeEnter builds the content from its constructor, so
+	// this runs after setupContent(). The button handler reads _verification
+	// when it is pressed, which is always later than this call.
+	_stepData = &data;
+	_verification = TakeVerification(_stepData);
 }
 
 void LocalPasscodeEnter::setupContent() {
@@ -207,6 +259,7 @@ void LocalPasscodeEnter::setupContent() {
 				error->show();
 				error->setText(tr::lng_passcode_differ(tr::now));
 			} else {
+				auto verification = Storage::PasscodeVerification();
 				if (isChange) {
 					const auto &domain = controller()->session().domain();
 					if (domain.local().checkPasscode(newText.toUtf8())) {
@@ -217,8 +270,26 @@ void LocalPasscodeEnter::setupContent() {
 						error->setText(tr::lng_passcode_is_same(tr::now));
 						return;
 					}
+					if (!_verification) {
+						_showOther.fire(LocalPasscodeCheckId());
+						return;
+					}
+					verification = *_verification;
 				}
-				SetPasscode(controller(), newText);
+				const auto result = SetPasscode(
+					controller(),
+					newText,
+					verification);
+				if (result == Storage::SetPasscodeResult::NeedsVerification) {
+					_showOther.fire(LocalPasscodeCheckId());
+					return;
+				} else if (result != Storage::SetPasscodeResult::Success) {
+					newPasscode->setFocus();
+					newPasscode->showError();
+					error->show();
+					error->setText(Lang::Hard::SecureSaveError());
+					return;
+				}
 				if (isCreate) {
 					if (Platform::IsWindows() || _systemUnlockWithBiometric) {
 						Core::App().settings().setSystemUnlockEnabled(true);
@@ -238,8 +309,11 @@ void LocalPasscodeEnter::setupContent() {
 				return;
 			}
 			const auto &domain = controller()->session().domain();
-			if (domain.local().checkPasscode(newText.toUtf8())) {
+			const auto verification = domain.local().verifyPasscode(
+				newText.toUtf8());
+			if (verification) {
 				cSetPasscodeBadTries(0);
+				WriteVerification(_stepData, verification);
 				_showOther.fire(LocalPasscodeManageId());
 			} else {
 				cSetPasscodeBadTries(cPasscodeBadTries() + 1);
@@ -575,12 +649,16 @@ public:
 	[[nodiscard]] base::weak_qptr<Ui::RpWidget> createPinnedToBottom(
 		not_null<Ui::RpWidget*> parent) override;
 
+	void setStepDataReference(std::any &data) override;
+
 private:
 	void setupContent();
 
 	rpl::variable<bool> _isBottomFillerShown;
 	rpl::event_stream<> _showBack;
 	QPointer<Ui::RpWidget> _disableButton;
+	std::any *_stepData = nullptr;
+	std::optional<Storage::PasscodeVerification> _verification;
 
 };
 
@@ -593,6 +671,13 @@ LocalPasscodeManage::LocalPasscodeManage(
 
 rpl::producer<QString> LocalPasscodeManage::title() {
 	return tr::lng_settings_passcode_title();
+}
+
+void LocalPasscodeManage::setStepDataReference(std::any &data) {
+	// createPinnedToBottom() runs before this, so the disable button reads
+	// _verification when it is pressed, which is always later than this call.
+	_stepData = &data;
+	_verification = TakeVerification(_stepData);
 }
 
 rpl::producer<std::vector<Type>> LocalPasscodeManage::removeFromStack() {
@@ -612,7 +697,7 @@ void LocalPasscodeManage::setupContent() {
 		[=] { _showBack.fire({}); },
 		[] { return Core::App().lastNonIdleTime(); });
 
-	const SectionBuildMethod buildMethod = [](
+	const SectionBuildMethod buildMethod = [this](
 			not_null<Ui::VerticalLayout*> container,
 			not_null<Window::SessionController*> controller,
 			Fn<void(Type)> showOther,
@@ -623,10 +708,16 @@ void LocalPasscodeManage::setupContent() {
 		const auto isPaused = Window::PausedIn(
 			controller,
 			Window::GifPauseReason::Layer);
+		auto passOther = crl::guard(this, [=, this](Type type) {
+			if (type == LocalPasscodeChange::Id()) {
+				WriteVerification(_stepData, _verification);
+			}
+			showOther(type);
+		});
 		auto builder = SectionBuilder(WidgetContext{
 			.container = container,
 			.controller = controller,
-			.showOther = std::move(showOther),
+			.showOther = std::move(passOther),
 			.isPaused = isPaused,
 			.highlights = highlights,
 		});
@@ -653,11 +744,28 @@ base::weak_qptr<Ui::RpWidget> LocalPasscodeManage::createPinnedToBottom(
 		not_null<Ui::RpWidget*> parent) {
 	const auto weak = base::make_weak(this);
 	auto callback = [=] {
+		// BuildManageContent is registered for settings search, so this
+		// section can be opened without the Check section ever running.
+		if (!_verification) {
+			showOther(LocalPasscodeCheckId());
+			return;
+		}
+		const auto verification = *_verification;
 		controller()->show(
 			Ui::MakeConfirmBox({
 				.text = tr::lng_settings_passcode_disable_sure(),
 				.confirmed = [=](Fn<void()> &&close) {
-					SetPasscode(controller(), QString());
+					const auto result = SetPasscode(
+						controller(),
+						QString(),
+						verification);
+					if (result != Storage::SetPasscodeResult::Success) {
+						close();
+						if (weak) {
+							showOther(LocalPasscodeCheckId());
+						}
+						return;
+					}
 					Core::App().settings().setSystemUnlockEnabled(false);
 					Core::App().saveSettingsDelayed();
 

@@ -401,10 +401,10 @@ bool Domain::removePasscodeIfEmpty() {
 	if (Core::App().passcodeLocked()) {
 		Core::App().unlockPasscode();
 	}
-	if (!_local->hasLocalPasscode()) {
+	if (!_local->hasPasscode()) {
 		return false;
 	}
-	_local->setPasscode(QByteArray());
+	_local->clearPasscodeAfterReset();
 	Core::App().settings().setSystemUnlockEnabled(false);
 	Core::App().saveSettingsDelayed();
 	return true;

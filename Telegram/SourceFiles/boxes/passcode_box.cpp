@@ -178,7 +178,7 @@ PasscodeBox::PasscodeBox(
 , _newPasscode(
 	this,
 	st::defaultInputField,
-	session->domain().local().hasLocalPasscode()
+	session->domain().local().hasPasscode()
 		? tr::lng_passcode_enter_new()
 		: tr::lng_passcode_enter_first())
 , _reenterPasscode(this, st::defaultInputField, tr::lng_passcode_confirm_new())
@@ -252,7 +252,7 @@ rpl::producer<MTPauth_Authorization> PasscodeBox::newAuthorization() const {
 bool PasscodeBox::currentlyHave() const {
 	return _cloudPwd
 		? _cloudFields.hasPassword
-		: _session->domain().local().hasLocalPasscode();
+		: _session->domain().local().hasPasscode();
 }
 
 bool PasscodeBox::onlyCheckCurrent() const {
@@ -637,6 +637,7 @@ void PasscodeBox::save(bool force) {
 
 	QString old = _oldPasscode->text(), pwd = _newPasscode->text(), conf = _reenterPasscode->text();
 	const auto has = currentlyHave();
+	auto verification = std::optional<Storage::PasscodeVerification>();
 	if (!_cloudPwd && (_turningOff || has)) {
 		if (!passcodeCanTry()) {
 			_oldError = tr::lng_flood_error(tr::now);
@@ -646,7 +647,9 @@ void PasscodeBox::save(bool force) {
 			return;
 		}
 
-		if (_session->domain().local().checkPasscode(old.toUtf8())) {
+		verification = _session->domain().local().verifyPasscode(
+			old.toUtf8());
+		if (verification) {
 			cSetPasscodeBadTries(0);
 			if (_turningOff) pwd = conf = QString();
 		} else {
@@ -714,7 +717,17 @@ void PasscodeBox::save(bool force) {
 		closeReplacedBy();
 		const auto weak = base::make_weak(this);
 		cSetPasscodeBadTries(0);
-		_session->domain().local().setPasscode(pwd.toUtf8());
+		const auto result = _session->domain().local().setPasscode(
+			pwd.toUtf8(),
+			verification.value_or(Storage::PasscodeVerification()));
+		if (result == Storage::SetPasscodeResult::NeedsVerification) {
+			badOldPasscode();
+			return;
+		} else if (result == Storage::SetPasscodeResult::Failed) {
+			_oldError = Lang::Hard::SecureSaveError();
+			update();
+			return;
+		}
 		Core::App().localPasscodeChanged();
 		if (weak) {
 			closeBox();

@@ -20,10 +20,42 @@ class Domain;
 
 namespace Storage {
 
+struct PasscodeWrap;
+struct KeyData;
+
 enum class StartResult : uchar {
 	Success,
 	IncorrectPasscode,
 	IncorrectPasscodeLegacy,
+};
+
+enum class SetPasscodeResult : uchar {
+	Success,
+	NeedsVerification,
+	Failed,
+};
+
+// Proof that the passcode currently protecting the local key was typed and
+// accepted. Only Domain::verifyPasscode() can mint one, and a token is
+// honoured only while the nonce it carries is still the one Domain holds.
+// A token is single use: setPasscode() zeroes that nonce on every exit,
+// whether it accepted the token or refused it, and setAppLockEnabled() zeroes
+// it as well, so a copy of the token left behind in a settings navigation
+// step cannot authorize a second change later on. A default-constructed token
+// carries a zero nonce, which never matches an outstanding verification and
+// is therefore accepted only where there is no passcode to prove in the first
+// place.
+class PasscodeVerification final {
+public:
+	PasscodeVerification() = default;
+
+private:
+	friend class Domain;
+
+	explicit PasscodeVerification(quint64 nonce);
+
+	quint64 _nonce = 0;
+
 };
 
 class Domain final {
@@ -39,12 +71,20 @@ public:
 	void startFromScratch();
 
 	[[nodiscard]] bool checkPasscode(const QByteArray &passcode) const;
-	void setPasscode(const QByteArray &passcode);
+	[[nodiscard]] std::optional<PasscodeVerification> verifyPasscode(
+		const QByteArray &passcode);
+	[[nodiscard]] SetPasscodeResult setPasscode(
+		const QByteArray &passcode,
+		PasscodeVerification verification);
+	[[nodiscard]] SetPasscodeResult setAppLockEnabled(bool enabled);
+	void clearPasscodeAfterReset();
 
 	[[nodiscard]] int oldVersion() const;
 	void clearOldVersion();
 
 	[[nodiscard]] rpl::producer<> localPasscodeChanged() const;
+	[[nodiscard]] bool hasPasscode() const;
+	[[nodiscard]] bool appLockEnabled() const;
 	[[nodiscard]] bool hasLocalPasscode() const;
 
 private:
@@ -60,18 +100,29 @@ private:
 		const QByteArray &passcode,
 		std::unique_ptr<Main::Account> account);
 	void generateLocalKey();
-	void encryptLocalKey(const QByteArray &passcode);
+	void installOpenWrap(KeyData &data) const;
+	void dropOpenWrap(KeyData &data) const;
+	void installLegacyWrap(KeyData &data, const QByteArray &passcode) const;
+	[[nodiscard]] MTP::AuthKeyPtr installPasscodeWrap(
+		KeyData &data,
+		const QByteArray &passcode,
+		quint32 generation) const;
+	void migrateFromLegacy(const QByteArray &passcode);
+	[[nodiscard]] QByteArray prepareAccountsInfo() const;
+	[[nodiscard]] bool writeKeyDataChecked(const KeyData &data) const;
+	[[nodiscard]] bool wrapOnDiskOpensLocalKey(
+		const PasscodeWrap &staged,
+		const MTP::AuthKeyPtr &wrapKey) const;
 
 	const not_null<Main::Domain*> _owner;
 	const QString _dataName;
 
 	MTP::AuthKeyPtr _localKey;
-	MTP::AuthKeyPtr _passcodeKey;
-	QByteArray _passcodeKeySalt;
-	QByteArray _passcodeKeyEncrypted;
+	std::unique_ptr<KeyData> _keyData;
+	quint64 _verificationNonce = 0;
 	int _oldVersion = 0;
+	bool _keyDataDirty = false;
 
-	bool _hasLocalPasscode = false;
 	rpl::event_stream<> _passcodeKeyChanged;
 
 };
