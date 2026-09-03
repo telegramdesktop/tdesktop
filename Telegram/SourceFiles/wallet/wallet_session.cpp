@@ -610,16 +610,8 @@ void SetDirectedAmount(
 	SetDirectedAmount(result, data.vamount().v, data.is_incoming());
 	result.feeNano = data.vfee().v;
 	result.date = data.vdate().v;
-	// A failure is a settled outcome and it wins over pending: a transaction
-	// the server has marked failed will never confirm, so telling the reader
-	// to keep waiting for it would be the worst of the readings available.
-	// Both flags at once can only mean the server has not yet dropped the row
-	// from its pending set, which is bookkeeping rather than a state to act
-	// on; the row then shows its fee, which a failed transaction did pay.
 	result.status = data.is_failed()
 		? TransferItem::Status::Failure
-		: data.is_pending()
-		? TransferItem::Status::Pending
 		: TransferItem::Status::Success;
 	if (data.is_key_change()) {
 		// The peer is not read on purpose: a key change names no
@@ -889,7 +881,7 @@ void Session::applyState(const MTPWalletState &state) {
 		reconcileCustody();
 	}, [&](const MTPDwalletStateEmpty &data) {
 		clear();
-		setPresence(data.is_provisioning()
+		setPresence(data.is_creating()
 			? Presence::Provisioning
 			: Presence::Missing);
 	});

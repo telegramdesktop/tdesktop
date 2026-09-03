@@ -2792,6 +2792,7 @@ ServiceAction ParseServiceAction(
 		auto content = ActionChatJoinedViaCommunity();
 		content.communityId = ChannelId(data.vcommunity_id().v);
 		result.content = content;
+	}, [](const MTPDmessageActionGramTransfer &) {
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

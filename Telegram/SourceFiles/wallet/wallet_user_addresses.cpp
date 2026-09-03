@@ -125,6 +125,7 @@ void UserAddresses::sendChunk(
 			return _session->data().userLoaded(id)->inputUser();
 		}));
 	_api.request(MTPwallet_GetUserAddresses(
+		MTP_flags(0),
 		std::move(users)
 	)).done([=](const MTPVector<MTPWalletUserAddress> &result) {
 		applyChunk(ids, result.v);
