@@ -663,6 +663,16 @@ void Options::Option::enableChooseCorrect(
 	}, button->lifetime());
 	_correct.reset(button);
 	_hasCorrect = true;
+
+	// The answer beside the control is its label.
+	const auto field = this->field();
+	rpl::single(rpl::empty) | rpl::then(
+		field->changes()
+	) | rpl::on_next([=] {
+		button->entity()->setAccessibleName(field->getLastText());
+		button->entity()->accessibilityNameChanged();
+	}, button->lifetime());
+
 	if (multiCorrect && checkboxChanged) {
 		button->entity()->checkedChanges(
 		) | rpl::on_next([=](bool) {
