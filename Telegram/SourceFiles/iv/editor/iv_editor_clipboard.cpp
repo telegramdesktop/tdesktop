@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 
 #include <QtCore/QMimeData>
-#include <QtCore/QPointer>
 
 namespace Iv::Editor {
 namespace {
@@ -18,7 +17,6 @@ namespace {
 struct ClipboardStorage {
 	uint64 sessionId = base::RandomValue<uint64>();
 	uint64 serial = 0;
-	QPointer<QMimeData> mimeData;
 	std::optional<ClipboardData> data;
 };
 
@@ -27,10 +25,16 @@ struct ClipboardStorage {
 	return storage;
 }
 
-[[nodiscard]] bool MarkerMatches(const QMimeData *mimeData) {
-	return mimeData
-		&& mimeData->hasFormat(ClipboardMimeType())
-		&& (mimeData->data(ClipboardMimeType()) == "1");
+[[nodiscard]] ClipboardOrigin StoredOrigin(const ClipboardData &data) {
+	return std::visit([](const auto &payload) {
+		return payload.origin;
+	}, data);
+}
+
+[[nodiscard]] QByteArray MarkerPayload(const ClipboardOrigin &origin) {
+	return QByteArray::number(qulonglong(origin.sessionId))
+		+ ':'
+		+ QByteArray::number(qulonglong(origin.serial));
 }
 
 [[nodiscard]] bool OriginMatches(
@@ -44,9 +48,16 @@ struct ClipboardStorage {
 [[nodiscard]] bool StoredDataMatches(
 		const ClipboardData &data,
 		const ClipboardStorage &storage) {
-	return std::visit([&](const auto &payload) {
-		return OriginMatches(payload.origin, storage);
-	}, data);
+	return OriginMatches(StoredOrigin(data), storage);
+}
+
+[[nodiscard]] bool MarkerMatches(
+		const QMimeData *mimeData,
+		const ClipboardData &data) {
+	return mimeData
+		&& mimeData->hasFormat(ClipboardMimeType())
+		&& (mimeData->data(ClipboardMimeType())
+			== MarkerPayload(StoredOrigin(data)));
 }
 
 [[nodiscard]] ClipboardData StampClipboardData(ClipboardData data) {
@@ -69,19 +80,18 @@ std::unique_ptr<QMimeData> MimeDataFromClipboardData(ClipboardData data) {
 	auto &storage = Storage();
 	storage.data = StampClipboardData(std::move(data));
 	auto result = std::make_unique<QMimeData>();
-	result->setData(ClipboardMimeType(), "1");
-	storage.mimeData = result.get();
+	result->setData(
+		ClipboardMimeType(),
+		MarkerPayload(StoredOrigin(*storage.data)));
 	return result;
 }
 
 std::optional<ClipboardData> ClipboardDataFromMimeData(
 		const QMimeData *mimeData) {
 	const auto &storage = Storage();
-	if (!MarkerMatches(mimeData)
-		|| !storage.data
-		|| !storage.mimeData
-		|| (storage.mimeData.data() != mimeData)
-		|| !StoredDataMatches(*storage.data, storage)) {
+	if (!storage.data
+		|| !StoredDataMatches(*storage.data, storage)
+		|| !MarkerMatches(mimeData, *storage.data)) {
 		return std::nullopt;
 	}
 	return storage.data;
