@@ -215,6 +215,36 @@ The debug build runs in portable mode out of `out/Debug/`. Three sibling folders
 - `real_TelegramForcePortable` — the user's real data, preserved so manual use survives. Once it
   exists, NO flow step may ever delete, rename, move, overwrite, or write into it.
 
+Those three folders sit beside the executable because that is where the app looks:
+`CheckPortableVersionFolder()` resolves `cExeDir() + "TelegramForcePortable"` and never the
+process working directory. `test-run --portable-root <dir>` runs the SETUP steps against `<dir>`
+instead of `out/Debug/` **and** launches with `-workdir <dir>/TelegramForcePortable`, so what the
+run writes through its working directory — its `tdata`, `log.txt`, `DebugLogs/`, the crash report,
+every minidump — lands under `<dir>`; the run writes nothing into the three `out/Debug` folders and
+leaves them where they are. The caller supplies `<dir>/test_TelegramForcePortable` itself: an empty
+directory is enough for an account-free campaign, and a campaign that needs the test account copies
+the real golden into the sandbox. `<dir>` must therefore be a repository-ignored `.local/`
+directory (or the ignored build tree), never `work/` or `evidence/`: a copied golden carries
+`2svpassword.txt` and `test_gram_account.txt`, and those trees are committed and pushed.
+
+Wallet custody bounds the flag. A campaign that may rotate the golden wallet key must NOT pass
+`--portable-root`: `Test::RewriteGramAccountWords()` writes the live copy at `cWorkingDir()`, so a
+redirect leaves the new signing half under `<dir>` while `out/Debug/TelegramForcePortable` — the
+folder the next campaign's P0 reconciliation reads — still holds the old key, and a rotation cut
+short before that rewrite (crash, `deadline-killed`, `quiet-killed`) leaves no record outside
+`<dir>`. The marked live copy of a rotating campaign has to stay
+`out/Debug/TelegramForcePortable`; a redirected campaign that rotates anyway keeps its sandbox live
+copy until the rotation is reconciled, never discarding it with the run directory. The flag
+isolates files, not processes: a redirected launch takes a different single-instance identity
+(`Sandbox::start()` hashes `cWorkingDir()` into the local server name) and is explicitly permitted
+to run beside an instance of the same binary, while the kill still matches on the executable path
+across every sandbox — so **Serialize app runs** below applies unchanged, one live instance of
+`EXE` at a time, sandboxed or not. What the flag does **not** isolate on the fixture side:
+`Test::FixtureSecret()` still falls back to `out/Debug/test_TelegramForcePortable/` for
+`2svpassword.txt` and `test_gram_account.txt`, and `RewriteGramAccountWords()` still rewrites the
+golden copy resolved from `cExeDir()` — neither follows the working directory. Without the flag
+nothing changes: the same `-testagent -noupdate` vector and the same `out/Debug` folders.
+
 Fixture secrets ride in the golden folder beside `tdata`: `2svpassword.txt` and
 `test_gram_account.txt` (below). `2svpassword.txt` is the test account's two-step-verification
 (cloud) password, which the server requires on every destructive wallet method
@@ -678,7 +708,11 @@ command, environment, exit-code, log, artifact and control evidence.
   before/after delta, listed in full because `test-run` never clears `completed/` between runs;
   `death_signals` names which of `"breakpad_dump"`, `"crashpad_dump"` and `"exit_code"` fired, and
   is `[]` for a healthy run. `stale_crash_cleared` is an ordered list of `{from, kind, to}`
-  entries whose `kind` is `"report"` or `"dump"`, and is `[]` when nothing was cleared. If the
+  entries whose `kind` is `"report"` or `"dump"`, and is `[]` when nothing was cleared.
+  `--portable-root <dir>` additionally passes `-workdir <dir>/TelegramForcePortable`; the report's
+  `workdir` names that redirected working directory and is `null` when the flag was not used, and
+  `golden_root` names the executable-directory golden the launch can still read whatever `workdir`
+  says. The isolation contract is stated under Test account (portable data) — hard rules. If the
   stale report cannot be moved, `test-run` refuses before launch, prints the helper error on stderr,
   exits non-zero, and emits no JSON. If a dump cannot be moved, `test-run` leaves it in place,
   records `"to": null` (a null destination), and continues to launch. Then read each `SCREENSHOT:`
@@ -717,8 +751,9 @@ deciding the verdict:
    `file:line` (e.g. `vector(1931) : … vector subscript out of range`). Usually enough to localize.
 2. **`<workdir>/tdata/working`** — the crash report the reporter wrote: the `Assertion:` /
    `CrtAssert:` annotations, the failed `file:line`, and `Caught signal …` / minidump id. Plain text;
-   read it directly. `<workdir>` is the launch `-workdir` (in portable test runs,
-   `out/Debug/TelegramForcePortable/`).
+   read it directly. `<workdir>` is the launch `-workdir` (`out/Debug/TelegramForcePortable/` in
+   ordinary portable test runs, `<portable-root>/TelegramForcePortable/` when the run used
+   `--portable-root`).
 3. **`<workdir>/tdata/dumps/`** — the minidump (full stack, needs symbols to read). When the local
    Debug build and its symbols are available, symbolize it now rather than merely recording its
    path. Breakpad writes `*.dmp` at that top level; the macOS

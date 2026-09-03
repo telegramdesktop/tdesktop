@@ -2555,10 +2555,15 @@ def command_test_run(args):
 	dumps_before = set(dumps_dir.glob("*.dmp"))
 	working_before = working.stat().st_mtime_ns if working.is_file() else None
 
+	workdir = (portable / PORTABLE_LIVE) if args.portable_root else None
+	launch = [str(exe), "-testagent", "-noupdate"]
+	if workdir is not None:
+		launch += ["-workdir", str(workdir)]
+
 	launched_at = time.time()
 	with stdout_path.open("wb") as out, stderr_path.open("wb") as err:
 		process = subprocess.Popen(
-			[str(exe), "-testagent", "-noupdate"],
+			launch,
 			stdout=out,
 			stderr=err,
 			env=environment,
@@ -2657,6 +2662,7 @@ def command_test_run(args):
 		"duration_seconds": round(ended_at - launched_at, 1),
 		"exe": str(exe),
 		"exit_code": exit_code,
+		"golden_root": str(portable_root_for(exe, None) / PORTABLE_GOLDEN),
 		"log_path": str(log_path) if log_path.is_file() else None,
 		"markers": parse_test_log(log_text),
 		"outcome": outcome,
@@ -2667,6 +2673,7 @@ def command_test_run(args):
 		"stragglers_killed": stragglers,
 		"test_complete": test_complete,
 		"verdict_hint": verdict_hint,
+		"workdir": str(workdir) if workdir is not None else None,
 	}, indent=2, sort_keys=True))
 
 

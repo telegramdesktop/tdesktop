@@ -1629,6 +1629,36 @@ def write_dump_after_complete_exe(path, dump, tail, windows_tail):
 	))
 
 
+def write_argv_recording_exe(path):
+	# The cmd branch puts the redirection before `echo` on purpose. In
+	# `echo %~1>>"%ARGS%"` a value ending in a digit would be read as a
+	# stream handle, so an argument like `-scale 1` would silently lose
+	# its last character and redirect stdout instead.
+	return write_fake_exe(path, (
+		'ARGS="$TDESKTOP_TEST_EVIDENCE_DIR/argv.txt"\n'
+		'for value in "$@"; do echo "$value" >> "$ARGS"; done\n'
+		'LOG="$TDESKTOP_TEST_EVIDENCE_DIR/test_log.txt"\n'
+		'echo "TEST_COMPLETE" >> "$LOG"\n'
+		"exit 0\n"
+	), (
+		'set "ARGS=%TDESKTOP_TEST_EVIDENCE_DIR%\\argv.txt"\n'
+		':argv\n'
+		'if "%~1"=="" goto argvdone\n'
+		'>>"%ARGS%" echo %~1\n'
+		'shift\n'
+		'goto argv\n'
+		':argvdone\n'
+		'set "LOG=%TDESKTOP_TEST_EVIDENCE_DIR%\\test_log.txt"\n'
+		'echo TEST_COMPLETE>>"%LOG%"\n'
+		"exit /b 0\n"
+	))
+
+
+def read_argv(run_dir):
+	text = (run_dir / "argv.txt").read_text(encoding="utf-8")
+	return [line.strip() for line in text.splitlines() if line.strip()]
+
+
 def make_portable_root(root):
 	debug = root / "out" / "Debug"
 	golden = debug / workspace.PORTABLE_GOLDEN
@@ -2240,6 +2270,50 @@ class MechanicsTest(unittest.TestCase):
 			self.assertEqual(result["markers"]["pass"], ["row painted"])
 			self.assertEqual(result["markers"]["screenshots"], ["/tmp/fake.png"])
 			self.assertFalse(result["crash_report_fresh"])
+
+	def test_test_run_redirects_the_launch_for_a_portable_root(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			sandbox = make_portable_root(root / "sandbox")
+			exe = write_argv_recording_exe(debug / "Telegram")
+
+			isolated_dir = root / "run1"
+			isolated = run_test_run(
+				exe, isolated_dir, portable_root=str(sandbox),
+			)
+			live = sandbox / workspace.PORTABLE_LIVE
+			self.assertTrue(isolated["test_complete"])
+			self.assertEqual(isolated["account"], "fresh-copy")
+			self.assertEqual(
+				read_argv(isolated_dir),
+				["-testagent", "-noupdate", "-workdir", str(live)],
+			)
+			self.assertEqual(isolated["portable_root"], str(sandbox))
+			self.assertEqual(isolated["workdir"], str(live))
+			self.assertEqual(
+				isolated["golden_root"],
+				str(debug / workspace.PORTABLE_GOLDEN),
+			)
+			self.assertTrue((live / workspace.PORTABLE_MARKER).is_file())
+			self.assertFalse((debug / workspace.PORTABLE_LIVE).exists())
+
+			default_dir = root / "run2"
+			default = run_test_run(exe, default_dir)
+			self.assertTrue(default["test_complete"])
+			self.assertEqual(
+				read_argv(default_dir),
+				["-testagent", "-noupdate"],
+			)
+			self.assertEqual(default["portable_root"], str(debug))
+			self.assertIsNone(default["workdir"])
+			self.assertEqual(
+				default["golden_root"],
+				str(debug / workspace.PORTABLE_GOLDEN),
+			)
+			self.assertTrue((
+				debug / workspace.PORTABLE_LIVE / workspace.PORTABLE_MARKER
+			).is_file())
 
 	def test_parse_test_log_lists_skipped_rows_beside_pass_and_fail(self):
 		markers = workspace.parse_test_log("\n".join([
