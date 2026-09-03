@@ -1,3 +1,7 @@
+7.2.3 (01.09.26)
+
+- First update with rotated signing key.
+
 7.2.2 (01.09.26)
 
 - First update of v2 update system.
