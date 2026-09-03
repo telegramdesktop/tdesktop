@@ -3876,6 +3876,10 @@ void ComposeControls::initTabbedSelector() {
 	) | rpl::on_next([=](ChatHelpers::EmojiChosen data) {
 		Ui::InsertEmojiAtCursor(_field->textCursor(), data.emoji);
 	}, wrap->lifetime());
+	_selector->backspaces(
+	) | rpl::on_next([=](not_null<ChatHelpers::BackspaceRequest*> request) {
+		request->erased = ChatHelpers::EraseBeforeCursor(_field);
+	}, wrap->lifetime());
 
 	rpl::merge(
 		_selector->fileChosen(),
