@@ -258,7 +258,9 @@ struct ThrowawayRotation {
 	auto result = std::vector<int>();
 	result.reserve(list.size());
 	for (const auto &dc : list) {
-		if (dc.v <= 0 || ranges::contains(result, dc.v)) {
+		if (dc.v <= 0
+			|| dc.v >= MTP::kDcShift
+			|| ranges::contains(result, dc.v)) {
 			return std::nullopt;
 		}
 		result.push_back(dc.v);
