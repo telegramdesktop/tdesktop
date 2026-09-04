@@ -365,7 +365,7 @@ public:
 private:
 	void ensureLoaded();
 	void requestState();
-	void applyState(const MTPWalletState &state);
+	void applyState(const MTPWalletState &state, bool pushed);
 	void setPresence(Presence presence);
 	void revealLocally(
 		KeyAuthorization auth,
@@ -417,6 +417,7 @@ private:
 	void requestTransactions(bool more);
 	void applyTransactions(const MTPwallet_Transactions &result, bool more);
 	void finishHistoryWaiters();
+	void refreshStaleHistory();
 	void clearHistory();
 	void clearCollectibles();
 	void refreshCollectibles(bool force = false);
@@ -516,6 +517,7 @@ private:
 	bool _historySettled = false;
 	bool _historyUnreachable = false;
 	bool _historyPaged = false;
+	bool _historyStale = false;
 	crl::time _historyRequestedAt = 0;
 	QString _historyNextOffset;
 	std::vector<Fn<void()>> _historyDone;

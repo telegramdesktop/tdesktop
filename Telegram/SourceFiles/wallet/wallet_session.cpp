@@ -935,7 +935,7 @@ void Session::requestState() {
 	_stateRequestId = _stateApi.request(MTPwallet_GetState(
 	)).done([=](const MTPWalletState &result) {
 		_stateRequestId = 0;
-		applyState(result);
+		applyState(result, false);
 	}).fail([=](const MTP::Error &error) {
 		_stateRequestId = 0;
 		if (error.type() == u"WALLET_UNAVAILABLE"_q) {
@@ -949,7 +949,7 @@ void Session::requestState() {
 	}).send();
 }
 
-void Session::applyState(const MTPWalletState &state) {
+void Session::applyState(const MTPWalletState &state, bool pushed) {
 	_stateRefreshedAt = crl::now();
 	_stateFailures = 0;
 	const auto clear = [&] {
@@ -966,6 +966,8 @@ void Session::applyState(const MTPWalletState &state) {
 			setPresence(Presence::AddressUnreadable);
 			return;
 		}
+		const auto wasReady = (_presence.current() == Presence::Ready);
+		const auto keyChanged = (_publicKey != data.vpublic_key().v);
 		_address = parsed->raw;
 		_publicKey = data.vpublic_key().v;
 		_balanceNano = int64(data.vbalance().v);
@@ -975,6 +977,30 @@ void Session::applyState(const MTPWalletState &state) {
 			.canEnableBackup = data.is_can_enable_backup(),
 		};
 		setPresence(Presence::Ready);
+		// A presence that was not Ready has already had its drain and its
+		// first page from setPresence(); the case that write structurally
+		// cannot see is a presence that stayed Ready while the served key
+		// changed. That is a different wallet, so both lanes leave, the
+		// engine status returns to its unknown value and the new wallet's
+		// head page is asked for at once. It runs before reconcileCustody()
+		// because that reconciliation may stop and restart the engine
+		// client, and a restart must find an already-drained collectibles
+		// lane rather than have its first delivery wiped afterwards.
+		// A pushed state on the same wallet is the transfer notification the
+		// server sends as a transfer progresses, so it is news about the
+		// history lane alone and invalidates only that one. The arms are
+		// ordered so that a push which also changed the key takes the first
+		// one and gets exactly one head page from the drain, never a second
+		// one from the marker.
+		if (wasReady && keyChanged) {
+			clearHistory();
+			clearCollectibles();
+			_engineStatus = AccountStatus::NonExisting;
+			refreshHistory();
+		} else if (wasReady && pushed) {
+			_historyStale = true;
+			refreshStaleHistory();
+		}
 		reconcileCustody();
 	}, [&](const MTPDwalletStateEmpty &data) {
 		clear();
@@ -985,7 +1011,7 @@ void Session::applyState(const MTPWalletState &state) {
 }
 
 void Session::applyUpdate(const MTPDupdateWalletState &data) {
-	applyState(data.vstate());
+	applyState(data.vstate(), true);
 }
 
 void Session::setPresence(Presence presence) {
@@ -1664,7 +1690,7 @@ void Session::disableBackup(
 		checked ? password->result : MTP_inputCheckPasswordEmpty()
 	)).done([=, this](const MTPWalletState &result) {
 		clearRotatedSinceBackup();
-		applyState(result);
+		applyState(result, false);
 		done();
 	}).fail([=](const MTP::Error &error) {
 		LOG(("Wallet Error: wallet.disableBackup failed: %1"
@@ -1736,7 +1762,7 @@ void Session::enableBackup(
 		checked ? password->result : MTP_inputCheckPasswordEmpty()
 	)).done([=, this](const MTPWalletState &result) {
 		clearRotatedSinceBackup();
-		applyState(result);
+		applyState(result, false);
 		done();
 	}).fail([=](const MTP::Error &error) {
 		LOG(("Wallet Error: wallet.enableBackup failed: %1"
@@ -2328,7 +2354,7 @@ void Session::finishConfirmedReplace(
 		const MTPWalletState &state,
 		Fn<void()> done,
 		Fn<void(const QString &)> fail) {
-	applyState(state);
+	applyState(state, false);
 	const auto lifecycle = _engine->lifecycle();
 	if (newActive) {
 		auto sameKeyRow = std::optional<CustodyRecord>();
@@ -2605,6 +2631,20 @@ void Session::refreshHistory(Fn<void()> done) {
 	requestTransactions(false);
 }
 
+void Session::refreshStaleHistory() {
+	// _historyPaged is deliberately not consulted — a push is the server
+	// stating that this wallet's history moved, which a poll and a stream
+	// hint are not — and the applied head page clears that term itself.
+	if (!_historyStale
+		|| (_presence.current() != Presence::Ready)
+		|| !pollingRequested()
+		|| collectiblesTab()
+		|| _historyRequestId) {
+		return;
+	}
+	requestTransactions(false);
+}
+
 void Session::setHistory(std::vector<TransferItem> &&list) {
 	_history = std::move(list);
 	_historyUpdates.fire({});
@@ -2613,6 +2653,15 @@ void Session::setHistory(std::vector<TransferItem> &&list) {
 void Session::requestTransactions(bool more) {
 	if (_historyRequestId) {
 		return;
+	}
+	// A head page issued after an invalidation is what the marker asked for,
+	// whoever issued it, so it is spent here at the issue and not at the
+	// success: a failed forced page therefore retries nothing by itself, and
+	// a push landing during the flight re-arms the marker so that flight's
+	// older answer can never satisfy it. A more page never spends it,
+	// because it does not refresh the head.
+	if (!more) {
+		_historyStale = false;
 	}
 	_historyRequestedAt = crl::now();
 	// The inbound and outbound flags stay unset on purpose: the overview
@@ -2627,6 +2676,7 @@ void Session::requestTransactions(bool more) {
 		_historyRequestId = 0;
 		applyTransactions(result, more);
 		finishHistoryWaiters();
+		refreshStaleHistory();
 	}).fail([=](const MTP::Error &error) {
 		_historyRequestId = 0;
 		LOG(("Wallet Error: wallet.getTransactions failed: %1"
@@ -2637,6 +2687,7 @@ void Session::requestTransactions(bool more) {
 		_historySettled = true;
 		updateListsGate();
 		finishHistoryWaiters();
+		refreshStaleHistory();
 	}).handleAllErrors().send();
 }
 
@@ -2700,6 +2751,14 @@ void Session::clearHistory() {
 	_historySettled = false;
 	_historyUnreachable = false;
 	_historyPaged = false;
+	_historyStale = false;
+	// _historySettled and _historyUnreachable, cleared just above, are the
+	// gate's two history terms, so this drain is the only point at which an
+	// emptied list and the gate the previous page settled could be read
+	// together. Recomputing here keeps this lane's own publication from
+	// ever being evaluated against the gate of the wallet whose rows just
+	// left: an open gate over two empty lists is listsConfirmedEmpty().
+	updateListsGate();
 	_historyUpdates.fire({});
 }
 
@@ -2910,6 +2969,7 @@ void Session::debugRestoreNetworkState() {
 void Session::startPolling() {
 	++_pollingCount;
 	updatePollingState();
+	refreshStaleHistory();
 }
 
 void Session::stopPolling() {
@@ -3067,6 +3127,7 @@ void Session::setCollectiblesTab(bool value) {
 		_collectiblesPaged = false;
 	}
 	_collectiblesTab = tab;
+	refreshStaleHistory();
 }
 
 SendState Session::sendState() const {
