@@ -18,6 +18,7 @@ constexpr auto kKillSessionTimeout = 10 * crl::time(1000);
 constexpr auto kRequestTimeout = 30 * crl::time(1000);
 
 const auto kTimeoutErrorMessage = u"TIMEOUT"_q;
+const auto kInvalidWebFileDcError = u"WEBFILE_DC_INVALID"_q;
 const auto kStreamingUrlEndpoint = u"getStreamingUrl"_q;
 
 [[nodiscard]] MTPtoncenter_PerformApiRequest ToncenterRequest(
@@ -51,11 +52,18 @@ mtpRequestId Api::request(
 		const Gram::HttpRequest &request,
 		Fn<void(const QByteArray &)> done,
 		Fn<void(const Gram::ApiError &)> fail) {
+	const auto dcId = shiftedDcId();
+	if (!dcId) {
+		if (fail) {
+			fail(Gram::ApiError{ .message = kInvalidWebFileDcError });
+		}
+		return 0;
+	}
 	++_pendingCount;
 	_killSessionTimer.cancel();
 	const auto id = _api.request(
 		ToncenterRequest(request)
-	).toDC(shiftedDcId()).done([=](
+	).toDC(dcId).done([=](
 			const MTPtoncenter_ApiResponse &result,
 			mtpRequestId requestId) {
 		const auto bytes = result.data().vresponse().data().vdata().v;
@@ -99,11 +107,18 @@ mtpRequestId Api::request(
 mtpRequestId Api::requestStreamingUrl(
 		Fn<void(const QString &url, TimeId expires)> done,
 		Fn<void(const Gram::ApiError &)> fail) {
+	const auto dcId = shiftedDcId();
+	if (!dcId) {
+		if (fail) {
+			fail(Gram::ApiError{ .message = kInvalidWebFileDcError });
+		}
+		return 0;
+	}
 	++_pendingCount;
 	_killSessionTimer.cancel();
 	const auto id = _api.request(
 		MTPtoncenter_GetStreamingUrl()
-	).toDC(shiftedDcId()).done([=](
+	).toDC(dcId).done([=](
 			const MTPtoncenter_StreamingUrl &result,
 			mtpRequestId requestId) {
 		if (!requestAnswered(requestId)) {
@@ -145,9 +160,11 @@ bool Api::hasPendingRequests() const {
 }
 
 MTP::ShiftedDcId Api::shiftedDcId() const {
-	return MTP::ShiftDcId(
-		_session->serverConfig().webFileDcId,
-		MTP::kToncenterDcShift);
+	const auto dcId = _session->serverConfig().webFileDcId;
+	if (dcId <= 0 || dcId >= MTP::kDcShift) {
+		return 0;
+	}
+	return MTP::ShiftDcId(dcId, MTP::kToncenterDcShift);
 }
 
 bool Api::requestAnswered(mtpRequestId requestId) {
@@ -194,7 +211,10 @@ void Api::checkTimeouts() {
 
 void Api::checkIdleSession() {
 	if (_pendingCount <= 0) {
-		_session->mtp().killSession(shiftedDcId());
+		const auto dcId = shiftedDcId();
+		if (dcId) {
+			_session->mtp().killSession(dcId);
+		}
 	}
 }
 
