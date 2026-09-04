@@ -1287,6 +1287,12 @@ void OverlayWidget::updateGeometryToScreen(bool inMove) {
 	if (!screen) {
 		return;
 	}
+	if constexpr (Platform::IsWindows()) {
+		// Qt sets screen rect in showFullScreen(), earlier one makes DWM shift content.
+		if (!_window->isHidden() && !_window->isFullScreen()) {
+			return;
+		}
+	}
 	const auto available = screen->geometry();
 	if (_window->geometry() == available) {
 		return;
