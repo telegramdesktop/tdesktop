@@ -999,6 +999,7 @@ Widget::Widget(
 , _mediaUploadState(std::move(services.mediaUploadState))
 , _cancelMediaUpload(std::move(services.cancelMediaUpload))
 , _addMediaAndGroupWithBlock(std::move(services.addMediaAndGroupWithBlock))
+, _submit(std::move(services.submit))
 , _peer(peer)
 , _state(std::move(state))
 , _showLimitToast(std::move(showLimitToast))
@@ -1107,6 +1108,8 @@ Widget::Widget(
 			&& !searchBlockedByLayer()) {
 			event->accept();
 			toggleSearch();
+			return base::EventFilterResult::Cancel;
+		} else if (handleSubmitShortcut(event)) {
 			return base::EventFilterResult::Cancel;
 		} else if (handleUndoRedoShortcutOverride(event)) {
 			return base::EventFilterResult::Cancel;
@@ -3746,7 +3749,8 @@ bool Widget::eventFilter(QObject *object, QEvent *event) {
 			const auto type = event->type();
 			if (type == QEvent::ShortcutOverride || type == QEvent::KeyPress) {
 				const auto keyEvent = static_cast<QKeyEvent*>(event);
-				if (handleFieldBlockInsertShortcut(keyEvent)
+				if (handleSubmitShortcut(keyEvent)
+					|| handleFieldBlockInsertShortcut(keyEvent)
 					|| handleStructuralBlockInsertShortcut(keyEvent)
 					|| handleBroaderFormatShortcut(keyEvent)) {
 					return true;
@@ -3795,7 +3799,8 @@ bool Widget::eventFilter(QObject *object, QEvent *event) {
 
 bool Widget::eventHook(QEvent *e) {
 	if (e->type() == QEvent::ShortcutOverride) {
-		if (handleFieldBlockInsertShortcut(
+		if (handleSubmitShortcut(static_cast<QKeyEvent*>(e))
+			|| handleFieldBlockInsertShortcut(
 				static_cast<QKeyEvent*>(e))
 			|| handleStructuralBlockInsertShortcut(
 				static_cast<QKeyEvent*>(e))
@@ -3893,6 +3898,8 @@ bool Widget::focusNextPrevChild(bool next) {
 void Widget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape && closeSearch()) {
 		e->accept();
+		return;
+	} else if (handleSubmitShortcut(e)) {
 		return;
 	} else if (handleUndoRedoShortcut(e)) {
 		return;
@@ -8779,6 +8786,29 @@ bool Widget::undoLastInputRule() {
 	auto cursor = _field->textCursor();
 	cursor.insertText(undo.text);
 	_field->setTextCursor(cursor);
+	return true;
+}
+
+bool Widget::handleSubmitShortcut(QKeyEvent *e) {
+	const auto type = e->type();
+	if (type != QEvent::ShortcutOverride && type != QEvent::KeyPress) {
+		return false;
+	}
+	const auto key = e->key();
+	if (key != Qt::Key_Return && key != Qt::Key_Enter) {
+		return false;
+	}
+	const auto modifiers = e->modifiers()
+		& ~(Qt::KeypadModifier | Qt::GroupSwitchModifier);
+	if (modifiers != Qt::ControlModifier
+		|| !_submit
+		|| searchBlockedByLayer()) {
+		return false;
+	}
+	e->accept();
+	if (type == QEvent::KeyPress && !e->isAutoRepeat()) {
+		_submit();
+	}
 	return true;
 }
 

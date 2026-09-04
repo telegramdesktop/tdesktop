@@ -113,6 +113,7 @@ struct WidgetServices {
 	Fn<void(not_null<Widget*>, uint64 /*mediaId*/)> cancelMediaUpload;
 	Fn<void(not_null<Widget*>, State::BlockPath, QPointer<QWidget>)>
 		addMediaAndGroupWithBlock;
+	Fn<void()> submit;
 	rpl::producer<> imeCompositionStarts;
 };
 
@@ -626,6 +627,7 @@ private:
 	void applyStructuralMonospaceAction();
 	void insertCodeBlock();
 	[[nodiscard]] bool handleFieldKey(QKeyEvent *e);
+	[[nodiscard]] bool handleSubmitShortcut(QKeyEvent *e);
 
 	[[nodiscard]] bool handleFieldInputRule(QKeyEvent *e);
 	[[nodiscard]] bool undoLastInputRule();
@@ -1015,6 +1017,7 @@ private:
 	const Fn<void(not_null<Widget*>, uint64)> _cancelMediaUpload;
 	const Fn<void(not_null<Widget*>, State::BlockPath, QPointer<QWidget>)>
 		_addMediaAndGroupWithBlock;
+	const Fn<void()> _submit;
 	const not_null<PeerData*> _peer;
 	const std::shared_ptr<State> _state;
 	const Fn<void(RichMessageLimitError)> _showLimitToast;
