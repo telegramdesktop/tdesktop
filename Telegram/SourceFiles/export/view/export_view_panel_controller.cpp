@@ -133,9 +133,6 @@ void ResolveSettings(not_null<Main::Session*> session, Settings &settings) {
 	} else {
 		settings.forceSubPath = IsDefaultPath(session, settings.path);
 	}
-	if (!settings.onlySinglePeer()) {
-		settings.singlePeerFrom = settings.singlePeerTill = 0;
-	}
 }
 
 PanelController::PanelController(

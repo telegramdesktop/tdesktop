@@ -208,10 +208,13 @@ private:
 	void requestMessagesCount(int localSplitIndex);
 	void checkFirstMessageDate(int localSplitIndex, int count);
 	void messagesCountLoaded(int localSplitIndex, int count);
+	void prepareMessagesStart();
+	void startMessages();
 	void requestMessagesSlice();
 	void requestChatMessages(
 		int splitIndex,
 		int offsetId,
+		int offsetDate,
 		int addOffset,
 		int limit,
 		FnMut<void(MTPmessages_Messages&&)> done);
