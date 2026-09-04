@@ -88,6 +88,8 @@ namespace {
 
 constexpr auto kMaxMessageLength = 4096;
 constexpr auto kMaxDisplayNameLength = 64;
+constexpr auto kStashFilesLimit = 100;
+constexpr auto kStashFilesMemoryLimit = int64(256) * 1024 * 1024;
 
 using Ui::SendFilesWay;
 
@@ -2715,6 +2717,11 @@ void SendFilesBox::stash() {
 
 	Assert(_list.filesToProcess.empty());
 
+	if ((int(_list.files.size()) > kStashFilesLimit)
+		|| (_list.memoryUsage() > kStashFilesMemoryLimit)) {
+		showToast(tr::lng_stash_files_limit(tr::now));
+		return;
+	}
 	const auto way = _sendWay.current();
 	_list.overrideSendImagesAsPhotos = way.sendImagesAsPhotos();
 	_stashed = true;
