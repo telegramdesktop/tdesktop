@@ -555,9 +555,14 @@ jobs:
           printf 'static const char *AlphaPrivateKey = "%s";\n' \
             "$(random_key)" > $TBUILD/DesktopPrivate/alpha_private.h
 
+      # wallet-engine/out/src holds the UniFFI-generated wallet_engine.cpp,
+      # which cmake/external/wallet_engine compiles into the app: it is a
+      # build input, not a leftover, and matches none of the extensions
+      # kept below. The rest of the wallet-engine clone (its Rust target
+      # tree above all) is still pruned.
       - name: Free up some disk space.
         shell: bash
-        run: find $LibrariesPath '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -path '*/nv-codec-headers/*' ')' -type f ')' -o -empty ')' -delete
+        run: find $LibrariesPath '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -path '*/nv-codec-headers/*' -o -path '*/wallet-engine/out/src/*' ')' -type f ')' -o -empty ')' -delete
 
       - name: Save ThirdParty cache.
         if: steps.cache-third-party.outputs.cache-hit != 'true'
@@ -838,8 +843,12 @@ jobs:
           printf 'static const char *AlphaPrivateKey = "%s";\n' \
             "$(random_key)" > DesktopPrivate/alpha_private.h
 
+      # local/src/wallet_engine holds the UniFFI-generated wallet_engine.cpp,
+      # which cmake/external/wallet_engine compiles into the app: it is a
+      # build input, not a leftover, and matches none of the extensions
+      # kept below.
       - name: Free up some disk space.
-        run: find Libraries '(' '(' ! '(' -name '*.a' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -name 'macos_toolchain.json' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -perm +111 ')' -type f ')' -o -empty ')' -delete
+        run: find Libraries '(' '(' ! '(' -name '*.a' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -name 'macos_toolchain.json' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -path '*/src/wallet_engine/*' -o -perm +111 ')' -type f ')' -o -empty ')' -delete
 
       - name: Save Libraries cache.
         if: steps.cache-libs.outputs.cache-hit != 'true'
