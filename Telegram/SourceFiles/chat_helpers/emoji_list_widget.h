@@ -192,6 +192,7 @@ public:
 	int accessibilityChildIndexByIdentity(quintptr identity) const override;
 	void accessibilityChildSetFocus(quintptr identity) override;
 	void accessibilityChildActivate(quintptr identity) override;
+	void accessibilityChildShowMenu(quintptr identity) override;
 
 protected:
 	void visibleTopBottomUpdated(

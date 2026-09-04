@@ -3820,7 +3820,43 @@ QAccessible::State EmojiListWidget::accessibilityChildState(
 			state.focused = true;
 		}
 	}
+	// An emoji with variants opens the picker of its skin tones: a
+	// screen reader hears it as collapsed, and expanded while the picker
+	// is up for it.
+	if (over) {
+		const auto emoji = lookupOverEmoji(&*over);
+		if (emoji && emoji->hasVariants()) {
+			state.expandable = true;
+			const auto picked = std::get_if<OverEmoji>(&_pickerSelected);
+			state.expanded = picked
+				&& (*picked == *over)
+				&& !_picker->isHidden();
+		}
+	}
 	return state;
+}
+
+void EmojiListWidget::accessibilityChildShowMenu(quintptr identity) {
+	// Expand opens the picker of variants for the item, Collapse closes
+	// it - the bridge calls this for either, by the state it sees.
+	crl::on_main(this, [=] {
+		const auto index = accessibilityChildIndexByIdentity(identity);
+		const auto over = accessibleChild(index);
+		if (!over) {
+			return;
+		}
+		const auto picked = std::get_if<OverEmoji>(&_pickerSelected);
+		if (picked && *picked == *over && !_picker->isHidden()) {
+			_picker->hideAnimated();
+			return;
+		}
+		keyboardSelect(*over, false);
+		if (!hasFocus()) {
+			_focusReturn = window()->focusWidget();
+			setFocus();
+		}
+		[[maybe_unused]] const auto opened = openKeyboardPicker();
+	});
 }
 
 bool EmojiListWidget::accessibilityChildSupportsActions(int index) const {
