@@ -10,7 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/controls/jump_down_button.h"
 #include "ui/widgets/elastic_scroll.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/widgets/shadow.h"
+#include "base/event_filter.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -26,8 +29,70 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/toast/toast.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_widgets.h"
 
 namespace HistoryView {
+
+class StashButton final : public Ui::JumpDownButton {
+public:
+	StashButton(
+		QWidget *parent,
+		const style::TwoIconButton &st,
+		const style::icon &arrow,
+		const style::icon &arrowOver);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	const style::TwoIconButton &_st;
+	const style::icon &_arrow;
+	const style::icon &_arrowOver;
+
+};
+
+StashButton::StashButton(
+	QWidget *parent,
+	const style::TwoIconButton &st,
+	const style::icon &arrow,
+	const style::icon &arrowOver)
+: JumpDownButton(parent, st)
+, _st(st)
+, _arrow(arrow)
+, _arrowOver(arrowOver) {
+}
+
+void StashButton::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+
+	const auto active = isOver() || isDown();
+	(active ? _st.iconBelowOver : _st.iconBelow).paint(
+		p,
+		_st.iconPosition,
+		width());
+	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y());
+	(active ? _st.iconAboveOver : _st.iconAbove).paint(
+		p,
+		_st.iconPosition,
+		width());
+
+	(active ? _arrowOver : _arrow).paint(p, _st.iconPosition, width());
+}
+
+namespace {
+
+[[nodiscard]] object_ptr<StashButton> MakeStashButton(
+		not_null<QWidget*> parent,
+		not_null<const Ui::ChatStyle*> st,
+		rpl::lifetime &lifetime) {
+	return object_ptr<StashButton>(
+		parent,
+		st->value(lifetime, st::historyStash),
+		st->value(lifetime, st::historyStashArrow),
+		st->value(lifetime, st::historyStashArrowOver));
+}
+
+} // namespace
 
 CornerButtons::CornerButtons(
 	not_null<Ui::ScrollArea*> parent,
@@ -71,7 +136,8 @@ CornerButtons::CornerButtons(
 		st->value(_stLifetime, st::historyUnreadReactions))
 , _pollVotes(
 		&_column,
-		st->value(_stLifetime, st::historyUnreadPollVotes)) {
+		st->value(_stLifetime, st::historyUnreadPollVotes))
+, _stash(MakeStashButton(&_column, st, _stLifetime)) {
 	// The buttons keep the positions they had as direct children, because the
 	// column has the parent's height and shares its edge. Only they take mouse
 	// input in it - the empty part of the strip is masked out in
@@ -91,12 +157,22 @@ CornerButtons::CornerButtons(
 	_mentions.widget->addClickHandler([=] { mentionsClick(); });
 	_reactions.widget->addClickHandler([=] { reactionsClick(); });
 	_pollVotes.widget->addClickHandler([=] { pollVotesClick(); });
+	_stash.widget->addClickHandler([=] { _stashClicks.fire({}); });
+	const auto stash = _stash.widget.data();
+	base::install_event_filter(stash, [=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::ContextMenu) {
+			showStashMenu();
+			return base::EventFilterResult::Cancel;
+		}
+		return base::EventFilterResult::Continue;
+	});
 
 	_down.widget->setAccessibleName(tr::lng_jump_to_bottom(tr::now));
 	_mentions.widget->setAccessibleName(tr::lng_jump_to_mention(tr::now));
 	_reactions.widget->setAccessibleName(tr::lng_jump_to_reaction(tr::now));
 	_pollVotes.widget->setAccessibleName(
 		tr::lng_jump_to_poll_votes(tr::now));
+	_stash.widget->setAccessibleName(tr::lng_stash_restore(tr::now));
 
 	const auto filterScroll = [&](CornerButton &button) {
 		button.widget->installEventFilter(this);
@@ -105,6 +181,7 @@ CornerButtons::CornerButtons(
 	filterScroll(_mentions);
 	filterScroll(_reactions);
 	filterScroll(_pollVotes);
+	filterScroll(_stash);
 
 	SendMenu::SetupUnreadMentionsMenu(_mentions.widget.data(), [=] {
 		return _delegate->cornerButtonsThread();
@@ -130,7 +207,8 @@ bool CornerButtons::eventFilter(QObject *o, QEvent *e) {
 		&& (o == _down.widget
 			|| o == _mentions.widget
 			|| o == _reactions.widget
-			|| o == _pollVotes.widget)) {
+			|| o == _pollVotes.widget
+			|| o == _stash.widget)) {
 		return _scrollViewportEvent(e);
 	}
 	return QObject::eventFilter(o, e);
@@ -256,6 +334,7 @@ CornerButton &CornerButtons::buttonByType(Type type) {
 	case Type::Mentions: return _mentions;
 	case Type::Reactions: return _reactions;
 	case Type::PollVotes: return _pollVotes;
+	case Type::Stash: return _stash;
 	}
 	Unexpected("Type in CornerButtons::buttonByType.");
 }
@@ -271,6 +350,10 @@ void CornerButtons::showAt(MsgId id) {
 			_delegate->cornerButtonsShowAtPosition(item->position());
 		}
 	}
+}
+
+bool CornerButtons::ignoresVisibility() const {
+	return _delegate->cornerButtonsIgnoreVisibility();
 }
 
 void CornerButtons::updateVisibility(Type type, bool shown) {
@@ -377,6 +460,7 @@ void CornerButtons::updatePositions() {
 	const auto unreadMentionsShown = shown(_mentions);
 	const auto unreadReactionsShown = shown(_reactions);
 	const auto unreadPollVotesShown = shown(_pollVotes);
+	const auto stashShown = shown(_stash);
 	const auto skip = st::historyUnreadThingsSkip;
 	{
 		const auto top = anim::interpolate(
@@ -427,28 +511,56 @@ void CornerButtons::updatePositions() {
 			st::historyToDownPosition.x(),
 			unreadPollVotesShown);
 		const auto shift = anim::interpolate(
-			0,
-			_down.widget->height() + skip,
-			historyDownShown
-		) + anim::interpolate(
-			0,
-			_mentions.widget->height() + skip,
-			unreadMentionsShown
-		) + anim::interpolate(
-			0,
-			_reactions.widget->height() + skip,
-			unreadReactionsShown);
+				0,
+				_down.widget->height() + skip,
+				historyDownShown)
+			+ anim::interpolate(
+				0,
+				_mentions.widget->height() + skip,
+				unreadMentionsShown)
+			+ anim::interpolate(
+				0,
+				_reactions.widget->height() + skip,
+				unreadReactionsShown);
 		const auto top = _parent->height()
 			- _pollVotes.widget->height()
 			- st::historyToDownPosition.y()
 			- shift;
 		_pollVotes.widget->moveToRight(right, top);
 	}
+	{
+		const auto right = anim::interpolate(
+			-_stash.widget->width(),
+			st::historyToDownPosition.x(),
+			stashShown);
+		const auto shift = anim::interpolate(
+				0,
+				_down.widget->height() + skip,
+				historyDownShown)
+			+ anim::interpolate(
+				0,
+				_mentions.widget->height() + skip,
+				unreadMentionsShown)
+			+ anim::interpolate(
+				0,
+				_reactions.widget->height() + skip,
+				unreadReactionsShown)
+			+ anim::interpolate(
+				0,
+				_pollVotes.widget->height() + skip,
+				unreadPollVotesShown);
+		const auto top = _parent->height()
+			- _stash.widget->height()
+			- st::historyToDownPosition.y()
+			- shift;
+		_stash.widget->moveToRight(right, top);
+	}
 
 	checkVisibility(_down);
 	checkVisibility(_mentions);
 	checkVisibility(_reactions);
 	checkVisibility(_pollVotes);
+	checkVisibility(_stash);
 
 	// Leave only the buttons in the column's hit test, so a click on the rest
 	// of the strip goes to the list under it. The attribute alone would not
@@ -466,6 +578,7 @@ void CornerButtons::updatePositions() {
 	addToMask(_mentions);
 	addToMask(_reactions);
 	addToMask(_pollVotes);
+	addToMask(_stash);
 	_column.setAttribute(Qt::WA_TransparentForMouseEvents, mask.isEmpty());
 	if (_columnMask != mask) {
 		_columnMask = mask;
@@ -478,7 +591,40 @@ void CornerButtons::finishAnimations() {
 	_mentions.animation.stop();
 	_reactions.animation.stop();
 	_pollVotes.animation.stop();
+	_stash.animation.stop();
 	updatePositions();
+}
+
+rpl::producer<> CornerButtons::stashClicks() const {
+	return _stashClicks.events();
+}
+
+void CornerButtons::setStashMenuFiller(
+		Fn<void(not_null<Ui::PopupMenu*>)> filler) {
+	_stashMenuFiller = std::move(filler);
+}
+
+void CornerButtons::showStashMenu() {
+	if (!_stashMenuFiller) {
+		return;
+	}
+	_stashMenu = base::make_unique_q<Ui::PopupMenu>(
+		_stash.widget.data(),
+		st::popupMenuWithIcons);
+	_stashMenuFiller(_stashMenu.get());
+	if (_stashMenu->empty()) {
+		_stashMenu = nullptr;
+		return;
+	}
+	const auto shadow = Ui::BoxShadow::ExtendFor(
+		st::popupMenuWithIcons.shadow);
+	_stashMenu->setForcedOrigin(Ui::PanelAnimation::Origin::BottomRight);
+	_stashMenu->popup(
+		_stash.widget->mapToGlobal(
+			st::historyStash.rippleAreaPosition
+				+ QPoint(
+					_stash.widget->width() - shadow.right(),
+					-shadow.bottom())));
 }
 
 Fn<void(bool found)> CornerButtons::doneJumpFrom(
