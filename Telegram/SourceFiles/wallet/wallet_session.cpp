@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_id.h"
 #include "data/data_session.h"
 #include "gram/api/gram_api_emulate.h"
+#include "lang/lang_keys.h"
+#include "main/main_account.h"
 #include "main/main_session.h"
 #include "tde2e/tde2e_api.h"
 #include "ui/widgets/separate_panel.h"
@@ -748,6 +750,63 @@ std::vector<QString> WordlistSuggestions(
 		&& i->startsWith(normalized)) {
 		result.push_back(*i);
 		++i;
+	}
+	return result;
+}
+
+WalletLoss WalletLossOnLogout(not_null<Main::Account*> account) {
+	auto result = WalletLoss();
+	const auto store = ReadCustodyStore(account->local());
+	if (!store) {
+		// Broken, or written by a newer format: what this device holds
+		// cannot be read, and Account::reset() destroys it either way.
+		result.unknown = true;
+		return result;
+	}
+	const auto session = account->maybeSession();
+	const auto served = session
+		? session->wallet().publicKey()
+		: QByteArray();
+	const auto known = !served.isEmpty();
+	const auto backed = known
+		&& session->wallet().capabilities().backupEnabled;
+	for (const auto &record : store->records) {
+		const auto active = known
+			? (record.publicKey == served)
+			: record.active;
+		if (!active) {
+			++result.parked;
+		} else if (!known) {
+			result.unknown = true;
+		} else if (!backed || record.rotatedSinceBackup) {
+			++result.unbacked;
+		}
+	}
+	return result;
+}
+
+QString WalletLossWarning(WalletLoss loss) {
+	auto result = QString();
+	const auto append = [&](const QString &line) {
+		if (!result.isEmpty()) {
+			result += u"\n\n"_q;
+		}
+		result += line;
+	};
+	if (loss.unbacked > 0) {
+		append(tr::lng_sure_logout_wallet_local(
+			tr::now,
+			lt_count,
+			loss.unbacked));
+	}
+	if (loss.parked > 0) {
+		append(tr::lng_sure_logout_wallet_parked(
+			tr::now,
+			lt_count,
+			loss.parked));
+	}
+	if (loss.unknown) {
+		append(tr::lng_sure_logout_wallet_unknown(tr::now));
 	}
 	return result;
 }
@@ -1868,6 +1927,14 @@ auto Session::deviceCustodyStateValue() const
 
 rpl::producer<> Session::custodyUpdates() const {
 	return _custodyUpdates.events();
+}
+
+rpl::producer<> Session::keyProtectionUpdates() const {
+	return _keyProtectionUpdates.events();
+}
+
+void Session::notifyKeyProtectionChanged() {
+	_keyProtectionUpdates.fire({});
 }
 
 const CustodyStore &Session::custody() {

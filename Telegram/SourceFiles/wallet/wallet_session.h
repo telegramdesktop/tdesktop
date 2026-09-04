@@ -25,6 +25,7 @@ struct WalletUpdate;
 } // namespace wallet_engine
 
 namespace Main {
+class Account;
 class Session;
 } // namespace Main
 
@@ -191,6 +192,24 @@ struct SendArgs {
 	const QString &prefix,
 	int limit);
 
+// What logging out of an account would destroy on this device, read from
+// its custody store: `unbacked` counts the served wallet when Telegram
+// holds no backup of it, `parked` counts every record the server no longer
+// serves, and `unknown` says the account's loss cannot be stated as a fact,
+// because the custody store could not be read or the served wallet's state
+// has not reached this client. Two invariants a reviewer must be able to
+// check by reading the bodies: nothing here unlocks a vault or reads a
+// secret, and nothing here writes.
+struct WalletLoss {
+	int unbacked = 0;
+	int parked = 0;
+	bool unknown = false;
+};
+
+[[nodiscard]] WalletLoss WalletLossOnLogout(
+	not_null<Main::Account*> account);
+[[nodiscard]] QString WalletLossWarning(WalletLoss loss);
+
 class Session final {
 public:
 	explicit Session(not_null<Main::Session*> session);
@@ -209,6 +228,15 @@ public:
 	[[nodiscard]] auto deviceCustodyStateValue() const
 		-> rpl::producer<DeviceCustodyState>;
 	[[nodiscard]] rpl::producer<> custodyUpdates() const;
+
+	// Nothing else publishes a change of the vault header: custodyUpdates()
+	// fires only on a settled server state, and switching the wrap touches
+	// neither the custody store nor the app lock. The key protection box
+	// announces a committed wrap change here, so a surface that names the
+	// wrap's kind can follow it.
+	[[nodiscard]] rpl::producer<> keyProtectionUpdates() const;
+	void notifyKeyProtectionChanged();
+
 	[[nodiscard]] std::vector<CustodyRecord> parkedRecords();
 
 	void refreshState();
@@ -414,6 +442,7 @@ private:
 	bool _backupChanging = false;
 	rpl::variable<DeviceCustodyState> _deviceCustody;
 	rpl::event_stream<> _custodyUpdates;
+	rpl::event_stream<> _keyProtectionUpdates;
 	QString _clientRecordId;
 	bool _clientStopping = false;
 	AccountStatus _engineStatus = AccountStatus::NonExisting;

@@ -232,6 +232,9 @@ void WalkVaultRemoval(std::shared_ptr<VaultRemovalWalk> walk) {
 				return;
 			}
 			walk->changed.push_back(live);
+			if (const auto session = live->maybeSession()) {
+				session->wallet().notifyKeyProtectionChanged();
+			}
 			WalkVaultRemoval(walk);
 		};
 		AcquireVaultKey(
@@ -648,6 +651,7 @@ void KeyProtectionBox(
 			const auto next = std::make_shared<VaultPreparedWrap>(
 				std::move(prepared));
 			const auto local = &session.local();
+			const auto wallet = &session.wallet();
 			const auto acquired = [=](std::optional<SecureBytes> key) {
 				if (!key) {
 					refuse();
@@ -665,6 +669,7 @@ void KeyProtectionBox(
 					fail();
 					return;
 				}
+				wallet->notifyKeyProtectionChanged();
 				// The retiring provider is told only once the new wrap is
 				// committed, so no failure above can retire the wrap that
 				// is still the one opening this vault. Only a hardware kind

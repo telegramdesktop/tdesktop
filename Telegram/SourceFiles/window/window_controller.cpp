@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_thread.h"
 #include "settings/settings_common.h"
 #include "wallet/wallet_panel.h"
+#include "wallet/wallet_session.h"
 #include "apiwrap.h" // ApiWrap::acceptTerms.
 #include "styles/style_layers.h"
 
@@ -570,13 +571,40 @@ QPoint Controller::getPointForCallPanelCenter() const {
 }
 
 QString LogoutConfirmationText(Main::Account *account) {
-	const auto warnWallet = account
-		&& account->local().hasWalletWithUnviewedPhrase();
-	return warnWallet
-		? (tr::lng_sure_logout(tr::now)
-			+ u"\n\n"_q
-			+ tr::lng_sure_logout_wallet(tr::now))
-		: tr::lng_sure_logout(tr::now);
+	auto result = tr::lng_sure_logout(tr::now);
+	const auto append = [&](const QString &line) {
+		if (!line.isEmpty()) {
+			result += u"\n\n"_q + line;
+		}
+	};
+	const auto &domain = Core::App().domain();
+	if (account) {
+		if (account->local().hasWalletWithUnviewedPhrase()) {
+			append(tr::lng_sure_logout_wallet(tr::now));
+		}
+		append(Wallet::WalletLossWarning(
+			Wallet::WalletLossOnLogout(account)));
+	} else if (!domain.started()) {
+		append(tr::lng_sure_logout_wallet_unknown(tr::now));
+	} else {
+		auto legacy = false;
+		auto loss = Wallet::WalletLoss();
+		for (const auto &[index, one] : domain.accounts()) {
+			// hasWalletWithUnviewedPhrase() may clear a broken record as
+			// a side effect, so it must run for every account and may not
+			// be short-circuited away.
+			legacy = one->local().hasWalletWithUnviewedPhrase() || legacy;
+			const auto part = Wallet::WalletLossOnLogout(one.get());
+			loss.unbacked += part.unbacked;
+			loss.parked += part.parked;
+			loss.unknown = part.unknown || loss.unknown;
+		}
+		if (legacy) {
+			append(tr::lng_sure_logout_wallet(tr::now));
+		}
+		append(Wallet::WalletLossWarning(loss));
+	}
+	return result;
 }
 
 void Controller::showLogoutConfirmation() {

@@ -2611,6 +2611,26 @@ void WalletReceiveBox(
 		st::walletReceiveAboutMargin,
 		style::al_top);
 
+	// The margin belongs to the slide wrap's own padding, not to the row:
+	// VerticalLayout::moveChildGetSkip() adds a row's top and bottom margin
+	// unconditionally, so a row margin would keep a gap above the Buy button
+	// while the caveat is collapsed.
+	const auto caveat = inner->add(
+		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
+			inner,
+			object_ptr<Ui::FlatLabel>(
+				inner,
+				tr::lng_wallet_receive_caveat(),
+				st::walletReceiveAboutLabel),
+			st::walletReceiveAboutMargin),
+		style::margins(),
+		style::al_top);
+	caveat->toggleOn(session->wallet().deviceCustodyStateValue(
+	) | rpl::map([](const DeviceCustodyState &custody) {
+		return (custody.mode == DeviceMode::ReadOnlyNotRestorable);
+	}));
+	caveat->finishAnimating();
+
 	const auto buy = inner->add(
 		object_ptr<Ui::RoundButton>(
 			inner,
@@ -6064,6 +6084,96 @@ void WalletConflictBox(
 	});
 }
 
+enum class KeyLocation : uchar {
+	Unknown,
+	OnDevice,
+	Unavailable,
+	Restorable,
+	NotRestorable,
+};
+
+// The mode, the committed wrap's kind and the app-lock predicate are read
+// at three different instants from three different owners. Publishing them
+// as one comparable value is what lets distinct_until_changed() drop the
+// re-emission localPasscodeChanged() produces for every unrelated key_data
+// write, before the label producers are rebuilt.
+struct KeyLocationState {
+	KeyLocation location = KeyLocation::Unknown;
+	VaultKind kind = VaultKind::Passcode;
+	bool appLockEnabled = false;
+
+	friend bool operator==(
+		const KeyLocationState &,
+		const KeyLocationState &) = default;
+};
+
+// Metadata only: the vault is never unlocked, no secret is read and
+// nothing is written - ReadVaultHeader() is the read that does not
+// rewrite a dirty header the way ReconcileVaultHeader() does.
+[[nodiscard]] KeyLocationState KeyLocationNow(
+		not_null<Main::Session*> session) {
+	auto result = KeyLocationState();
+	result.appLockEnabled = session->domain().local().appLockEnabled();
+	switch (session->wallet().deviceCustodyState().mode) {
+	case DeviceMode::Unknown:
+		return result;
+	case DeviceMode::ReadOnlyRestorable:
+		result.location = KeyLocation::Restorable;
+		return result;
+	case DeviceMode::ReadOnlyNotRestorable:
+		result.location = KeyLocation::NotRestorable;
+		return result;
+	case DeviceMode::Full:
+		break;
+	}
+	const auto reading = ReadVaultHeader(session->local());
+	const auto wrap = (reading.state == VaultReading::State::Read)
+		? reading.header.committedWrap()
+		: nullptr;
+	if (!wrap) {
+		result.location = KeyLocation::Unavailable;
+		return result;
+	}
+	result.kind = wrap->kind;
+	// ProtectionLabel() answers a whole sentence, not a fragment, for a kind
+	// no provider claims, so such a kind may never reach the device line's
+	// placeholder - it is the currently-unavailable state instead.
+	const auto named = (wrap->kind == VaultKind::Passcode)
+		|| (wrap->kind == VaultKind::Open)
+		|| (ProtectionProviderFor(wrap->kind) != nullptr);
+	result.location = named
+		? KeyLocation::OnDevice
+		: KeyLocation::Unavailable;
+	return result;
+}
+
+[[nodiscard]] rpl::producer<QString> KeyLocationText(
+		not_null<Main::Session*> session) {
+	return rpl::combine(
+		session->wallet().deviceCustodyStateValue(),
+		rpl::single(rpl::empty) | rpl::then(rpl::merge(
+			session->domain().local().localPasscodeChanged(),
+			session->wallet().keyProtectionUpdates()))
+	) | rpl::map([=](const DeviceCustodyState &, auto) {
+		return KeyLocationNow(session);
+	}) | rpl::distinct_until_changed(
+	) | rpl::map([](KeyLocationState state) -> rpl::producer<QString> {
+		switch (state.location) {
+		case KeyLocation::OnDevice:
+			return tr::lng_wallet_keys_location_device(
+				lt_protection,
+				ProtectionLabel(state.kind, state.appLockEnabled));
+		case KeyLocation::Unavailable:
+			return tr::lng_wallet_keys_location_unavailable();
+		case KeyLocation::Restorable:
+			return tr::lng_wallet_keys_location_backup();
+		case KeyLocation::NotRestorable:
+			return tr::lng_wallet_keys_location_absent();
+		}
+		return rpl::single(QString());
+	}) | rpl::flatten_latest();
+}
+
 void AddBackupSection(
 		not_null<Ui::VerticalLayout*> container,
 		std::shared_ptr<Main::SessionShow> show,
@@ -6172,7 +6282,14 @@ void WalletKeysBackupBox(
 			nullptr));
 	});
 	Ui::AddSkip(container);
-	Ui::AddDividerText(container, tr::lng_wallet_keys_phrase_about());
+	Ui::AddDividerText(container, rpl::combine(
+		KeyLocationText(&show->session()),
+		tr::lng_wallet_keys_phrase_about()
+	) | rpl::map([](const QString &location, const QString &about) {
+		return location.isEmpty()
+			? about
+			: (location + u"\n\n"_q + about);
+	}));
 	Ui::AddSkip(container);
 	AddBackupSection(container, show, box);
 	Settings::AddButtonWithIcon(

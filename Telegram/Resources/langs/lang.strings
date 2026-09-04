@@ -1353,6 +1353,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_logout" = "Log out";
 "lng_sure_logout" = "Are you sure you want to log out?";
 "lng_sure_logout_wallet" = "Warning! Your Gram wallet is stored only on this device and you haven't viewed its recovery phrase. If you log out, the wallet will be lost forever.";
+"lng_sure_logout_wallet_local#one" = "Your Gram wallet's keys are stored only on this device and Telegram has no backup of them. Logging out destroys them — only your recovery phrase can restore the wallet.";
+"lng_sure_logout_wallet_local#other" = "{count} of your Gram wallets have their keys stored only on this device, with no Telegram backup. Logging out destroys them — only their recovery phrases can restore them.";
+"lng_sure_logout_wallet_parked#one" = "This device also holds the keys of one other Gram wallet. Logging out destroys them, and that wallet can be restored only if its recovery phrase was written down.";
+"lng_sure_logout_wallet_parked#other" = "This device also holds the keys of {count} other Gram wallets. Logging out destroys them, and those wallets can be restored only if their recovery phrases were written down.";
+"lng_sure_logout_wallet_unknown" = "If this device holds any Gram wallet keys, logging out destroys them. They can be restored only from a Telegram backup or your recovery phrase.";
 
 "lng_settings_need_restart" = "You need to restart for applying some of the new settings. Restart now?";
 "lng_settings_restart_now" = "Restart";
@@ -8759,6 +8764,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_send_button" = "Send";
 "lng_wallet_add_funds" = "Add Funds";
 "lng_wallet_receive_about" = "Use to receive GRAM on The Open Network (TON) only.";
+"lng_wallet_receive_caveat" = "Sending from this device needs your recovery phrase, or the device this wallet was imported on.";
 "lng_wallet_about_instant_title" = "Send Money Instantly";
 "lng_wallet_about_instant_text" = "Send Grams in any chat, just like sharing a photo.";
 "lng_wallet_about_fees_title" = "No Fees";
@@ -8834,6 +8840,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_keys_phrase_section" = "Recovery Phrase";
 "lng_wallet_keys_show_phrase" = "Show Recovery Phrase";
 "lng_wallet_keys_phrase_about" = "You can transfer your wallet to another device by copying your recovery phrase.";
+"lng_wallet_keys_location_device" = "Your wallet keys are on this device, protected by {protection}.";
+"lng_wallet_keys_location_unavailable" = "Your wallet keys are on this device, but their protection can't be used right now.";
+"lng_wallet_keys_location_backup" = "Your wallet keys are backed up with Telegram and will be restored to this device the first time you send or export.";
+"lng_wallet_keys_location_absent" = "Your wallet keys are NOT on this device. You need your recovery phrase to send from here.";
 "lng_wallet_keys_delete" = "Delete Wallet";
 "lng_wallet_phrase_intro_title" = "Recovery Phrase";
 "lng_wallet_phrase_intro_text" = "Your Secret Recovery Phrase is the key to back up your wallet. Keep it secret and secure at all times.";
