@@ -808,7 +808,8 @@ private:
 
 	[[nodiscard]] bool openPhotoExternal(
 		not_null<PhotoData*> photo,
-		Data::FileOrigin origin);
+		Data::FileOrigin origin,
+		HistoryItem *item);
 	void handleDrawToReplyRequest(Data::DrawToReplyRequest request);
 	[[nodiscard]] Data::Thread *resolveDrawToReplyThread(
 		const Data::DrawToReplyRequest &request) const;
