@@ -610,6 +610,23 @@ bool VaultRuntime::unlockOpen(Storage::Account &local) {
 	return true;
 }
 
+quint32 VaultRuntime::clearEpoch() const {
+	auto lock = std::lock_guard(_mutex);
+	return _clearEpoch;
+}
+
+bool VaultRuntime::unlockWith(SecureBytes key, quint32 epoch) {
+	if (key.size() != kVaultKeySize) {
+		return false;
+	}
+	auto lock = std::lock_guard(_mutex);
+	if (epoch != _clearEpoch) {
+		return false;
+	}
+	_key = std::move(key);
+	return true;
+}
+
 void VaultRuntime::arm(VaultPreparedWrap policy) {
 	auto lock = std::lock_guard(_mutex);
 	_policy = std::move(policy);

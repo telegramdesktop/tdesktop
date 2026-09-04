@@ -140,6 +140,17 @@ public:
 		Storage::Account &local,
 		const QByteArray &passcode);
 	[[nodiscard]] bool unlockOpen(Storage::Account &local);
+
+	// A hardware provider's unwrap() answers with the vault key itself,
+	// which the two unlocks above never take: they derive it. This is the
+	// only way to install one that was opened elsewhere. That answer arrives
+	// many main-thread turns after the ask, so a clear trigger can land
+	// inside the provider's prompt; the caller reads the epoch before it
+	// asks and hands it back here, and a key opened before that clear is
+	// refused instead of quietly unlocking a vault the user has just locked.
+	[[nodiscard]] quint32 clearEpoch() const;
+	[[nodiscard]] bool unlockWith(SecureBytes key, quint32 epoch);
+
 	void arm(VaultPreparedWrap policy);
 	[[nodiscard]] VaultGrant grant();
 	void setRetention(bool fifteenMinutes);

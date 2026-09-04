@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_api.h"
 #include "wallet/wallet_custody.h"
 #include "wallet/wallet_stream.h"
+#include "wallet/wallet_unlock.h"
 
 namespace wallet_engine {
 struct ActivityItem;
@@ -106,6 +107,7 @@ enum class SendError {
 	PreviousUnresolved,
 	AlreadySending,
 	SigningUnavailable,
+	Locked,
 	Failed,
 };
 
@@ -252,35 +254,41 @@ public:
 	void applyUpdate(const MTPDupdateWalletState &data);
 
 	void revealPhrase(
+		KeyAuthorization auth,
 		std::optional<Core::CloudPasswordResult> password,
-		Fn<void(std::vector<QString>)> done,
+		Fn<void(std::vector<QString>, bool persisted)> done,
 		Fn<void(const QString &error)> fail);
 	void replaceWithNew(
 		std::optional<Core::CloudPasswordResult> password,
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail);
 	void replaceWithImported(
+		KeyAuthorization auth,
 		std::vector<QString> words,
 		std::optional<Core::CloudPasswordResult> password,
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail);
 	void restoreFromPhrase(
+		KeyAuthorization auth,
 		std::vector<QString> words,
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail);
 	void restoreFromBackup(
+		KeyAuthorization auth,
 		std::optional<Core::CloudPasswordResult> password,
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail);
 	void revealParked(
+		KeyAuthorization auth,
 		const QByteArray &publicKey,
-		Fn<void(std::vector<QString>)> done,
+		Fn<void(std::vector<QString>, bool persisted)> done,
 		Fn<void(const QString &error)> fail);
 	void dropParked(
 		const QByteArray &publicKey,
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail);
 	void prepareBackupParts(
+		KeyAuthorization auth,
 		Fn<void(std::vector<QByteArray>)> done,
 		Fn<void(const QString &error)> fail);
 	void enableBackup(
@@ -293,13 +301,15 @@ public:
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail);
 	[[nodiscard]] bool rotationOffered();
-	void quoteRotationFee(Fn<void(FeeResult)> done);
+	void quoteRotationFee(KeyAuthorization auth, Fn<void(FeeResult)> done);
 	void prepareRotation(
+		KeyAuthorization auth,
 		int64 quotedFeeNano,
 		Fn<void(std::vector<QString>)> done,
 		Fn<void(const QString &error)> fail);
 	void abandonRotation();
 	void submitRotation(
+		KeyAuthorization auth,
 		Fn<void()> confirmed,
 		Fn<void(const QString &error)> fail);
 
@@ -344,7 +354,10 @@ public:
 	void setPanel(std::unique_ptr<Ui::SeparatePanel> panel);
 
 	void estimateFee(const SendArgs &args, Fn<void(FeeResult)> done);
-	void send(SendArgs args, Fn<void(SendError)> done);
+	void send(
+		KeyAuthorization auth,
+		SendArgs args,
+		Fn<void(SendError)> done);
 	[[nodiscard]] SendState sendState() const;
 	[[nodiscard]] rpl::producer<SendState> sendStateValue() const;
 	[[nodiscard]] const std::optional<PendingSendInfo> &pendingSend() const;
@@ -355,25 +368,30 @@ private:
 	void applyState(const MTPWalletState &state);
 	void setPresence(Presence presence);
 	void revealLocally(
+		KeyAuthorization auth,
 		const CustodyRecord &record,
 		Fn<void(std::vector<QString>)> done,
 		Fn<void(const QString &)> fail);
 	void revealFromShares(
+		KeyAuthorization auth,
 		std::optional<Core::CloudPasswordResult> password,
-		Fn<void(std::vector<QString>)> done,
+		Fn<void(std::vector<QString>, bool persisted)> done,
 		Fn<void(const QString &)> fail);
 	void fetchShareParts(
+		KeyAuthorization auth,
 		const QString &token,
 		std::vector<int> dcs,
-		Fn<void(std::vector<QString>)> done,
+		Fn<void(std::vector<QString>, bool persisted)> done,
 		Fn<void(const QString &)> fail);
 	void restoreFromWords(
+		KeyAuthorization auth,
 		std::vector<QString> words,
-		Fn<void(std::vector<QString>)> done,
+		Fn<void(std::vector<QString>, bool persisted)> done,
 		Fn<void(const QString &)> fail);
 	[[nodiscard]] bool custodyBusy() const;
 	[[nodiscard]] const CustodyStore &custody();
 	[[nodiscard]] bool persistCustody(const CustodyRecord &record);
+	void dropCreatedVault();
 	void sendReplaceWallet(
 		const MTPInputWalletReplacement &wallet,
 		std::optional<Core::CloudPasswordResult> password,
@@ -419,6 +437,7 @@ private:
 		const wallet_engine::SendSnapshot &snapshot,
 		bool journalAuthoritative);
 	void storePendingRotation(
+		KeyAuthorization auth,
 		Fn<void()> done,
 		Fn<void(const QString &)> fail);
 	void discardPendingRotation();

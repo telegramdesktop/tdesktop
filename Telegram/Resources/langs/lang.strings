@@ -8943,6 +8943,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_restore_text" = "Enter the recovery phrase of this wallet.";
 "lng_wallet_restore_error" = "This recovery phrase belongs to a different wallet.";
 "lng_wallet_restore_password_description" = "Please enter your password to restore your wallet.";
+"lng_wallet_restore_explain_title" = "Restore Wallet Key";
+"lng_wallet_restore_explain_text" = "The key to this wallet is not on this device yet. Telegram will restore it here from your encrypted backup, and then ask you how it should be protected on this device.";
+"lng_wallet_restore_explain_confirm" = "Continue";
+"lng_wallet_restore_not_saved" = "The recovery phrase was not saved on this device.";
 "lng_wallet_backup_section" = "Encrypted Backup";
 "lng_wallet_backup_disable" = "Disable Backup";
 "lng_wallet_backup_enable" = "Enable Backup";
@@ -8987,6 +8991,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_backup_rotate_reason_busy" = "Another transfer is still in progress.";
 "lng_wallet_backup_rotate_reason_failed" = "The update could not be completed.";
 "lng_wallet_backup_rotate_reason_expired" = "The update expired before it was sent. Please try again.";
+"lng_wallet_backup_rotate_reason_locked" = "The wallet key on this device is locked.";
 "lng_wallet_backup_update_quote_error" = "Couldn't estimate the network fee for a new phrase. You can still disable the backup with your current phrase.";
 "lng_wallet_send_error_insufficient" = "You don't have enough Grams for this transfer.";
 "lng_wallet_send_error_fees" = "You don't have enough Grams to cover the network fee.";

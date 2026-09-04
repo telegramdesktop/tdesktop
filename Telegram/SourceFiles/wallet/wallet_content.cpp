@@ -82,6 +82,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_onramp.h"
 #include "wallet/wallet_rates.h"
 #include "wallet/wallet_session.h"
+#include "wallet/wallet_unlock.h"
+#include "wallet/wallet_user_addresses.h"
 #include "wallet/wallet_vault.h"
 #include "window/themes/window_theme.h"
 
@@ -3056,6 +3058,8 @@ struct SendFlow {
 		return tr::lng_wallet_send_error_in_progress(tr::now);
 	case SendError::SigningUnavailable:
 		return tr::lng_wallet_send_error_signing(tr::now);
+	case SendError::Locked:
+		return tr::lng_wallet_vault_locked(tr::now);
 	case SendError::InvalidRequest:
 	case SendError::Failed:
 		return tr::lng_wallet_send_error_failed(tr::now);
@@ -3130,25 +3134,41 @@ void WalletSendConfirmBox(
 			.comment = text,
 			.bounce = flow.bounce,
 		};
-		wallet->send(args, [=](SendError error) {
-			if (!show->valid()) {
-				return;
-			}
-			if (error != SendError::None) {
-				if (weak.get()) {
-					state->confirmButtonBusy = false;
+		// Signing needs the custody this device already has, so the unlock
+		// carries no install ladder. The confirmation can be gone by the
+		// time the unlock box answers, which is what weak is for here.
+		AcquireVaultUnlock({
+			.show = show,
+			.done = [=](KeyAuthorization auth) {
+				if (!auth.valid()) {
+					if (weak.get()) {
+						state->confirmButtonBusy = false;
+					}
+					return;
 				}
-				show->showToast(SendErrorText(error));
-				return;
-			}
-			show->hideLayer();
-			show->showToast(tr::lng_wallet_sent_toast(
-				tr::now,
-				lt_address,
-				ShortAddressForm(flow.displayForm)));
-			if (const auto &pending = wallet->pendingSend()) {
-				ShowWalletTransactionBox(show, ItemFromPending(*pending));
-			}
+				wallet->send(std::move(auth), args, [=](SendError error) {
+					if (!show->valid()) {
+						return;
+					}
+					if (error != SendError::None) {
+						if (weak.get()) {
+							state->confirmButtonBusy = false;
+						}
+						show->showToast(SendErrorText(error));
+						return;
+					}
+					show->hideLayer();
+					show->showToast(tr::lng_wallet_sent_toast(
+						tr::now,
+						lt_address,
+						ShortAddressForm(flow.displayForm)));
+					if (const auto &pending = wallet->pendingSend()) {
+						ShowWalletTransactionBox(
+							show,
+							ItemFromPending(*pending));
+					}
+				});
+			},
 		});
 	};
 	const auto button = box->addButton(rpl::combine(
@@ -3487,6 +3507,7 @@ void WalletSendBox(
 			case SendError::PreviousUnresolved:
 			case SendError::AlreadySending:
 			case SendError::SigningUnavailable:
+			case SendError::Locked:
 			case SendError::Failed:
 				state->fee = 0;
 				state->previewInsufficient = false;
@@ -3836,15 +3857,41 @@ void WalletPhraseBox(
 		tr::lng_wallet_backup_check_about);
 }
 
-[[nodiscard]] QString VaultLockedText(not_null<Main::Session*> session) {
-	return session->domain().local().hasPasscode()
-		? tr::lng_wallet_vault_locked(tr::now)
-		: tr::lng_wallet_vault_no_passcode(tr::now);
+// ReadOnlyRestorable ends as soon as custody is installed, so an entry that
+// reaches this in that mode is by construction the first key use on this
+// device: it states what the restore is about to do before the cloud
+// password box and the protection chooser appear. Any other mode continues
+// with nothing shown.
+void ShowRestoreExplanation(
+		std::shared_ptr<Main::SessionShow> show,
+		Fn<void()> then,
+		Fn<void()> cancelled) {
+	const auto state = show->session().wallet().deviceCustodyState();
+	if (state.mode != DeviceMode::ReadOnlyRestorable) {
+		then();
+		return;
+	}
+	show->showBox(Ui::MakeConfirmBox({
+		.text = tr::lng_wallet_restore_explain_text(tr::now),
+		.confirmed = [=](Fn<void()> close) {
+			close();
+			then();
+		},
+		.cancelled = [=](Fn<void()> close) {
+			close();
+			if (cancelled) {
+				cancelled();
+			}
+		},
+		.confirmText = tr::lng_wallet_restore_explain_confirm(),
+		.title = tr::lng_wallet_restore_explain_title(),
+	}));
 }
 
 void RequestPhraseReveal(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::GenericBox*> warning,
+		KeyAuthorization auth,
 		std::optional<Core::CloudPasswordResult> password,
 		base::weak_qptr<PasscodeBox> passcode,
 		Fn<void()> unblock,
@@ -3856,7 +3903,9 @@ void RequestPhraseReveal(
 		password.reset();
 		box->closeBox();
 	}
-	const auto done = crl::guard(warning, [=](std::vector<QString> words) {
+	const auto done = crl::guard(warning, [=](
+			std::vector<QString> words,
+			bool persisted) {
 		if (passcode) {
 			passcode->closeBox();
 		}
@@ -3866,9 +3915,21 @@ void RequestPhraseReveal(
 			warning->closeBox();
 			show->showBox(Box(WalletPhraseBox, show, std::move(words)));
 		}
+		if (!persisted) {
+			show->showToast(tr::lng_wallet_restore_not_saved(tr::now));
+		}
 	});
 	const auto fail = crl::guard(warning, [=](const QString &error) {
 		unblock();
+		// A dismissed protection chooser stored nothing and has nothing to
+		// state. The cloud password box goes with it, because the proof it
+		// has already sent cannot be sent a second time.
+		if (error == u"PHRASE_INSTALL_CANCELLED"_q) {
+			if (passcode) {
+				passcode->closeBox();
+			}
+			return;
+		}
 		if (passcode && passcode->handleCustomCheckError(error)) {
 			return;
 		}
@@ -3895,15 +3956,16 @@ void RequestPhraseReveal(
 		show->showToast(tr::lng_wallet_phrase_error(tr::now));
 	});
 	if (parkedKey) {
-		wallet.revealParked(*parkedKey, done, fail);
+		wallet.revealParked(std::move(auth), *parkedKey, done, fail);
 	} else {
-		wallet.revealPhrase(std::move(password), done, fail);
+		wallet.revealPhrase(std::move(auth), std::move(password), done, fail);
 	}
 }
 
 void StartPhraseReveal(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::GenericBox*> warning,
+		KeyAuthorization auth,
 		Fn<void()> unblock,
 		std::optional<QByteArray> parkedKey = std::nullopt,
 		Fn<void(std::vector<QString>)> onWords = nullptr) {
@@ -3912,6 +3974,7 @@ void StartPhraseReveal(
 		RequestPhraseReveal(
 			show,
 			warning,
+			std::move(auth),
 			std::nullopt,
 			nullptr,
 			unblock,
@@ -3923,6 +3986,7 @@ void StartPhraseReveal(
 		RequestPhraseReveal(
 			show,
 			warning,
+			std::move(auth),
 			std::nullopt,
 			nullptr,
 			unblock,
@@ -3930,50 +3994,58 @@ void StartPhraseReveal(
 			onWords);
 		return;
 	}
-	session->api().cloudPassword().reload();
-	session->api().cloudPassword().state(
-	) | rpl::take(
-		1
-	) | rpl::on_next([=](const Core::CloudPasswordState &state) {
-		if (!state.hasPassword) {
-			RequestPhraseReveal(
-				show,
-				warning,
-				std::nullopt,
-				nullptr,
-				unblock,
-				std::nullopt,
-				onWords);
-			return;
-		}
-		auto fields = PasscodeBox::CloudFields::From(state);
-		fields.customTitle = tr::lng_wallet_phrase_password_title();
-		fields.customDescription = tr::lng_wallet_phrase_password_description(
-			tr::now);
-		fields.customSubmitButton = tr::lng_passcode_submit();
-		fields.customCheckCallback = [=](
-				const Core::CloudPasswordResult &result,
-				base::weak_qptr<PasscodeBox> passcode) {
-			RequestPhraseReveal(
-				show,
-				warning,
-				result,
-				passcode,
-				unblock,
-				std::nullopt,
-				onWords);
-		};
-		show->showBox(Box<PasscodeBox>(session, fields));
-		unblock();
-	}, warning->lifetime());
+	// Only this branch restores the key to the device, so it is the only one
+	// the explanation sheet belongs in front of. Both arms are guarded on the
+	// warning box, which the sheet can outlive when the layers are dropped.
+	ShowRestoreExplanation(show, crl::guard(warning, [=] {
+		session->api().cloudPassword().reload();
+		session->api().cloudPassword().state(
+		) | rpl::take(
+			1
+		) | rpl::on_next([=](const Core::CloudPasswordState &state) {
+			if (!state.hasPassword) {
+				RequestPhraseReveal(
+					show,
+					warning,
+					auth,
+					std::nullopt,
+					nullptr,
+					unblock,
+					std::nullopt,
+					onWords);
+				return;
+			}
+			auto fields = PasscodeBox::CloudFields::From(state);
+			fields.customTitle = tr::lng_wallet_phrase_password_title();
+			fields.customDescription
+				= tr::lng_wallet_phrase_password_description(tr::now);
+			fields.customSubmitButton = tr::lng_passcode_submit();
+			fields.customCheckCallback = [=](
+					const Core::CloudPasswordResult &result,
+					base::weak_qptr<PasscodeBox> passcode) {
+				RequestPhraseReveal(
+					show,
+					warning,
+					auth,
+					result,
+					passcode,
+					unblock,
+					std::nullopt,
+					onWords);
+			};
+			show->showBox(Box<PasscodeBox>(session, fields));
+			unblock();
+		}, warning->lifetime());
+	}), crl::guard(warning, [=] { unblock(); }));
 }
 
 void WalletPhraseWarningBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
 		std::optional<QByteArray> parkedKey,
-		VaultGrant grant) {
-	box->lifetime().make_state<VaultGrant>(std::move(grant));
+		KeyAuthorization auth) {
+	const auto authorization = box->lifetime().make_state<KeyAuthorization>(
+		std::move(auth));
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
@@ -4032,7 +4104,12 @@ void WalletPhraseWarningBox(
 			return;
 		}
 		*revealing = true;
-		StartPhraseReveal(show, box, [=] { *revealing = false; }, parkedKey);
+		StartPhraseReveal(
+			show,
+			box,
+			*authorization,
+			[=] { *revealing = false; },
+			parkedKey);
 	});
 }
 
@@ -4247,6 +4324,8 @@ void ConfirmForgottenPasscode(
 void WalletPasscodeBox(
 		not_null<Ui::GenericBox*> box,
 		WalletPasscodeBoxArgs args) {
+	Expects(args.passed != nullptr);
+
 	struct State {
 		bool reported = false;
 	};
@@ -4343,18 +4422,6 @@ void WalletPasscodeBox(
 		case WalletPasscodeCheck::Vault:
 			ok = vault.unlockWithPasscode(session.local(), utf8);
 			break;
-		case WalletPasscodeCheck::KeyDataAndArm:
-			if (session.domain().local().checkPasscode(utf8)) {
-				auto policy = PrepareVaultPasscodeWrap(utf8);
-				if (!policy) {
-					field->selectAll();
-					showError(tr::lng_wallet_vault_unavailable(tr::now));
-					return;
-				}
-				vault.arm(std::move(*policy));
-				ok = true;
-			}
-			break;
 		case WalletPasscodeCheck::KeyDataAndVault:
 			ok = session.domain().local().checkPasscode(utf8)
 				&& VaultOpensWithPasscode(session.local(), vault, utf8);
@@ -4377,15 +4444,7 @@ void WalletPasscodeBox(
 		}
 		state->reported = true;
 		box->closeBox();
-		if (args.passed) {
-			args.passed(std::move(gate));
-		} else {
-			args.show->showBox(Box(
-				WalletPhraseWarningBox,
-				args.show,
-				args.parkedKey,
-				std::move(gate.grant)));
-		}
+		args.passed(std::move(gate));
 	};
 	QObject::connect(field, &Ui::MaskedInputField::submitted, submit);
 	box->addButton(tr::lng_passcode_submit(), submit);
@@ -4406,88 +4465,27 @@ void WalletPasscodeBox(
 
 namespace {
 
+// The unlock is acquired before the warning sheet, so a passcode vault asks
+// for the passcode first and the box order is passcode, warning, phrase; an
+// open one shows warning, phrase. An account with no vault yet answers with
+// the install ladder instead, and the chooser appears at the store.
 void WalletRevealFlow(
 		std::shared_ptr<Main::SessionShow> show,
 		std::optional<QByteArray> parkedKey = std::nullopt) {
-	using State = VaultReading::State;
-	auto &session = show->session();
-	auto &vault = session.wallet().vault();
-	auto &local = session.local();
-	const auto reading = vault.reading(local);
-	const auto sheet = [&] {
-		show->showBox(
-			Box(WalletPhraseWarningBox, show, parkedKey, vault.grant()));
-	};
-	const auto gate = [&](bool creating) {
-		show->showBox(Box(WalletPasscodeBox, WalletPasscodeBoxArgs{
-			.show = show,
-			.parkedKey = parkedKey,
-			.check = creating
-				? WalletPasscodeCheck::KeyDataAndArm
-				: WalletPasscodeCheck::Vault,
-		}));
-	};
-	const auto unavailable = [&] {
-		show->showToast(tr::lng_wallet_vault_unavailable(tr::now));
-	};
-	switch (reading.state) {
-	case State::Read: {
-		const auto wrap = reading.header.committedWrap();
-		Assert(wrap != nullptr);
-		if (wrap->kind == VaultKind::Open) {
-			if (vault.unlockOpen(local)) {
-				sheet();
-			} else {
-				unavailable();
-			}
-		} else if (vault.retained()) {
-			sheet();
-		} else {
-			gate(false);
-		}
-	} break;
-	case State::Absent:
-		if (session.domain().local().hasPasscode()) {
-			gate(true);
-		} else {
-			show->showToast(tr::lng_wallet_vault_no_passcode(tr::now));
-		}
-		break;
-	case State::Broken:
-	case State::Unsupported:
-		unavailable();
-		break;
-	}
-}
-
-// The grant the box produces is dropped here, so the guarded operation's
-// protected reads and stores answer the host's typed refusal and surface
-// their ordinary localized failures until the gating task threads the grant
-// through them; a ticked retention box is the one interim path that lets
-// such an operation through.
-void RunLocalPasscodeGate(
-		std::shared_ptr<Main::SessionShow> show,
-		Fn<void()> then) {
-	using State = VaultReading::State;
-	auto &session = show->session();
-	const auto reading = session.wallet().vault().reading(session.local());
-	if (reading.state == State::Broken
-		|| reading.state == State::Unsupported) {
-		show->showToast(tr::lng_wallet_vault_unavailable(tr::now));
-		return;
-	}
-	const auto &domain = session.domain();
-	if (!domain.local().hasLocalPasscode()) {
-		then();
-		return;
-	}
-	show->showBox(Box(WalletPasscodeBox, WalletPasscodeBoxArgs{
+	AcquireVaultUnlock({
 		.show = show,
-		.check = (reading.state == State::Absent)
-			? WalletPasscodeCheck::KeyDataAndArm
-			: WalletPasscodeCheck::Vault,
-		.passed = [then = std::move(then)](WalletPasscodeGate) { then(); },
-	}));
+		.mayInstall = true,
+		.done = [=](KeyAuthorization auth) {
+			if (!auth.valid()) {
+				return;
+			}
+			show->showBox(Box(
+				WalletPhraseWarningBox,
+				show,
+				parkedKey,
+				std::move(auth)));
+		},
+	});
 }
 
 enum class WalletImportMode {
@@ -4503,6 +4501,7 @@ void WalletImportBox(
 
 void RequestCustodyRestore(
 		std::shared_ptr<Main::SessionShow> show,
+		KeyAuthorization auth,
 		std::optional<Core::CloudPasswordResult> password,
 		base::weak_qptr<PasscodeBox> passcode,
 		Fn<void()> action,
@@ -4516,6 +4515,15 @@ void RequestCustodyRestore(
 	const auto fail = [=](const QString &error) {
 		if (unblock) {
 			unblock();
+		}
+		// A dismissed protection chooser restored nothing and has nothing to
+		// state. The cloud password box goes with it, because the proof it
+		// has already sent cannot be sent a second time.
+		if (error == u"PHRASE_INSTALL_CANCELLED"_q) {
+			if (passcode) {
+				passcode->closeBox();
+			}
+			return;
 		}
 		if (passcode && passcode->handleCustomCheckError(error)) {
 			return;
@@ -4540,47 +4548,61 @@ void RequestCustodyRestore(
 		show->showToast(tr::lng_wallet_phrase_error(tr::now));
 	};
 	show->session().wallet().restoreFromBackup(
+		std::move(auth),
 		std::move(password),
 		done,
 		fail);
 }
 
+// Both restore entries come through here, so the explanation sheet sits at
+// this head: RunKeyRequiringAction's restorable arm and the backup fork's own
+// call are covered by the one placement.
 void StartCustodyRestore(
 		std::shared_ptr<Main::SessionShow> show,
+		KeyAuthorization auth,
 		Fn<void()> action,
 		Fn<void()> unblock = nullptr) {
 	const auto session = &show->session();
-	session->api().cloudPassword().reload();
-	const auto lifetime = std::make_shared<rpl::lifetime>();
-	session->api().cloudPassword().state(
-	) | rpl::take(
-		1
-	) | rpl::on_next([=](const Core::CloudPasswordState &state) {
-		const auto owned = base::take(*lifetime);
-		if (!state.hasPassword) {
-			RequestCustodyRestore(
-				show,
-				std::nullopt,
-				nullptr,
-				action,
-				unblock);
-			return;
-		}
-		auto fields = PasscodeBox::CloudFields::From(state);
-		fields.customTitle = tr::lng_wallet_phrase_password_title();
-		fields.customDescription = tr::lng_wallet_restore_password_description(
-			tr::now);
-		fields.customSubmitButton = tr::lng_passcode_submit();
-		fields.customCheckCallback = [=](
-				const Core::CloudPasswordResult &result,
-				base::weak_qptr<PasscodeBox> passcode) {
-			RequestCustodyRestore(show, result, passcode, action, unblock);
-		};
-		show->showBox(Box<PasscodeBox>(session, fields));
-		if (unblock) {
-			unblock();
-		}
-	}, *lifetime);
+	ShowRestoreExplanation(show, [=] {
+		session->api().cloudPassword().reload();
+		const auto lifetime = std::make_shared<rpl::lifetime>();
+		session->api().cloudPassword().state(
+		) | rpl::take(
+			1
+		) | rpl::on_next([=](const Core::CloudPasswordState &state) {
+			const auto owned = base::take(*lifetime);
+			if (!state.hasPassword) {
+				RequestCustodyRestore(
+					show,
+					auth,
+					std::nullopt,
+					nullptr,
+					action,
+					unblock);
+				return;
+			}
+			auto fields = PasscodeBox::CloudFields::From(state);
+			fields.customTitle = tr::lng_wallet_phrase_password_title();
+			fields.customDescription
+				= tr::lng_wallet_restore_password_description(tr::now);
+			fields.customSubmitButton = tr::lng_passcode_submit();
+			fields.customCheckCallback = [=](
+					const Core::CloudPasswordResult &result,
+					base::weak_qptr<PasscodeBox> passcode) {
+				RequestCustodyRestore(
+					show,
+					auth,
+					result,
+					passcode,
+					action,
+					unblock);
+			};
+			show->showBox(Box<PasscodeBox>(session, fields));
+			if (unblock) {
+				unblock();
+			}
+		}, *lifetime);
+	}, unblock);
 }
 
 enum class KeyActionKind {
@@ -4602,7 +4624,10 @@ void RunKeyRequiringAction(
 		if (kind == KeyActionKind::Reveal) {
 			action();
 		} else {
-			StartCustodyRestore(show, std::move(action));
+			StartCustodyRestore(
+				show,
+				KeyAuthorization{ .install = MakeCustodyInstaller(show) },
+				std::move(action));
 		}
 	} else if (state.mode == DeviceMode::ReadOnlyNotRestorable) {
 		show->showBox(Box(
@@ -4639,6 +4664,15 @@ void RequestWalletReplace(
 	});
 	const auto fail = crl::guard(origin, [=](const QString &error) {
 		unblock();
+		// A dismissed protection chooser imported nothing and has nothing to
+		// state. The cloud password box goes with it, because the proof it
+		// has already sent cannot be sent a second time.
+		if (error == u"REPLACE_INSTALL_CANCELLED"_q) {
+			if (passcode) {
+				passcode->closeBox();
+			}
+			return;
+		}
 		if (passcode && passcode->handleCustomCheckError(error)) {
 			return;
 		}
@@ -4668,6 +4702,7 @@ void RequestWalletReplace(
 	auto &wallet = show->session().wallet();
 	if (imported) {
 		wallet.replaceWithImported(
+			KeyAuthorization{ .install = MakeCustodyInstaller(show) },
 			std::move(*words),
 			std::move(password),
 			done,
@@ -4837,14 +4872,13 @@ void StartBackupEnable(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::GenericBox*> origin,
 		not_null<bool*> busy) {
-	const auto mode = show->session().wallet().deviceCustodyState().mode;
-	const auto hadCustody = (mode == DeviceMode::Full);
-	const auto upload = crl::guard(origin, [=] {
+	const auto upload = crl::guard(origin, [=](KeyAuthorization auth) {
 		if (*busy) {
 			return;
 		}
 		*busy = true;
 		show->session().wallet().prepareBackupParts(
+			std::move(auth),
 			crl::guard(origin, [=](std::vector<QByteArray> parts) {
 				StartBackupRequest(
 					show,
@@ -4854,18 +4888,29 @@ void StartBackupEnable(
 					[=] { *busy = false; },
 					[=] { ShowBackupEnabledToast(show); });
 			}),
-			crl::guard(origin, [=](const QString &) {
+			crl::guard(origin, [=](const QString &error) {
 				*busy = false;
-				show->showToast(tr::lng_wallet_backup_error(tr::now));
+				show->showToast((error == u"BACKUP_VAULT_LOCKED"_q)
+					? VaultLockedText(&show->session())
+					: tr::lng_wallet_backup_error(tr::now));
 			}));
 	});
-	RunKeyRequiringAction(show, [=] {
-		if (hadCustody) {
-			RunLocalPasscodeGate(show, upload);
-		} else {
-			upload();
+	// The restorable and not-restorable arms install custody first and only
+	// then run this, so the acquisition sits after them and every arm reaches
+	// prepareBackupParts with a live grant.
+	RunKeyRequiringAction(show, crl::guard(origin, [=] {
+		if (*busy) {
+			return;
 		}
-	}, KeyActionKind::ResumeAfterRestore);
+		AcquireVaultUnlock({
+			.show = show,
+			.done = [=](KeyAuthorization auth) {
+				if (auth.valid()) {
+					upload(std::move(auth));
+				}
+			},
+		});
+	}), KeyActionKind::ResumeAfterRestore);
 }
 
 void WalletBackupPhraseBox(
@@ -5112,7 +5157,8 @@ void ShowBackupDisableConfirm(
 
 void CollectBackupPhrase(
 		std::shared_ptr<Main::SessionShow> show,
-		not_null<Ui::GenericBox*> origin) {
+		not_null<Ui::GenericBox*> origin,
+		KeyAuthorization auth) {
 	const auto showQuiz = [=](std::vector<QString> words) {
 		const auto quiz = std::make_shared<base::weak_qptr<Ui::GenericBox>>();
 		const auto requesting = std::make_shared<bool>(false);
@@ -5129,9 +5175,13 @@ void CollectBackupPhrase(
 			tr::lng_wallet_backup_phrase_title(),
 			tr::lng_wallet_backup_phrase_text(tr::marked)));
 	};
-	RunLocalPasscodeGate(show, crl::guard(origin, [=] {
-		StartPhraseReveal(show, origin, [] {}, std::nullopt, showPhrase);
-	}));
+	StartPhraseReveal(
+		show,
+		origin,
+		std::move(auth),
+		[] {},
+		std::nullopt,
+		showPhrase);
 }
 
 [[nodiscard]] QString RotationQuoteErrorText(SendError error) {
@@ -5159,6 +5209,8 @@ void CollectBackupPhrase(
 		return tr::lng_wallet_backup_rotate_reason_expired(tr::now);
 	} else if (error == u"ROTATION_ALREADY_SENDING"_q) {
 		return tr::lng_wallet_backup_rotate_reason_busy(tr::now);
+	} else if (error == u"ROTATION_VAULT_LOCKED"_q) {
+		return tr::lng_wallet_backup_rotate_reason_locked(tr::now);
 	} else if (error == u"ROTATION_REFUSED"_q
 		|| error == u"ROTATION_REPLACED"_q
 		|| error == u"ROTATION_FAILED"_q) {
@@ -5197,6 +5249,7 @@ struct RotationState {
 	bool submitted = false;
 	base::weak_qptr<Ui::GenericBox> quiz;
 	Fn<void()> lockQuiz;
+	KeyAuthorization auth;
 };
 
 void SubmitRotation(
@@ -5216,7 +5269,7 @@ void SubmitRotation(
 			quiz->closeBox();
 		}
 	};
-	show->session().wallet().submitRotation([=] {
+	show->session().wallet().submitRotation(state->auth, [=] {
 		closeQuiz();
 		const auto strong = origin.get();
 		if (!strong) {
@@ -5271,8 +5324,10 @@ void ShowRotationPhrase(
 		not_null<Ui::GenericBox*> origin,
 		not_null<bool*> busy,
 		int64 feeNano,
-		std::vector<QString> words) {
+		std::vector<QString> words,
+		KeyAuthorization auth) {
 	const auto state = std::make_shared<RotationState>();
+	state->auth = std::move(auth);
 	const auto wallet = &show->session().wallet();
 	const auto weak = base::make_weak(origin);
 	const auto showQuiz = [=](std::vector<QString> words) {
@@ -5306,26 +5361,31 @@ void StartRotation(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::GenericBox*> origin,
 		not_null<bool*> busy,
-		int64 feeNano) {
-	RunLocalPasscodeGate(show, crl::guard(origin, [=] {
-		if (*busy) {
+		int64 feeNano,
+		KeyAuthorization auth) {
+	if (*busy) {
+		return;
+	}
+	*busy = true;
+	const auto weak = base::make_weak(origin);
+	show->session().wallet().prepareRotation(auth, feeNano, [=](
+			std::vector<QString> words) {
+		const auto strong = weak.get();
+		if (!strong) {
+			show->session().wallet().abandonRotation();
 			return;
 		}
-		*busy = true;
-		const auto weak = base::make_weak(origin);
-		show->session().wallet().prepareRotation(feeNano, [=](
-				std::vector<QString> words) {
-			const auto strong = weak.get();
-			if (!strong) {
-				show->session().wallet().abandonRotation();
-				return;
-			}
-			*busy = false;
-			ShowRotationPhrase(show, strong, busy, feeNano, std::move(words));
-		}, crl::guard(origin, [=](const QString &error) {
-			*busy = false;
-			ShowRotationFailedToast(show, error);
-		}));
+		*busy = false;
+		ShowRotationPhrase(
+			show,
+			strong,
+			busy,
+			feeNano,
+			std::move(words),
+			auth);
+	}, crl::guard(origin, [=](const QString &error) {
+		*busy = false;
+		ShowRotationFailedToast(show, error);
 	}));
 }
 
@@ -5334,7 +5394,8 @@ void ShowBackupUpdateAlert(
 		not_null<Ui::GenericBox*> origin,
 		not_null<bool*> busy,
 		int64 feeNano,
-		Fn<void()> notNow) {
+		Fn<void()> notNow,
+		KeyAuthorization auth) {
 	const auto weak = base::make_weak(origin);
 	const auto rate = show->session().wallet().rates().current();
 	show->showBox(Ui::MakeConfirmBox({
@@ -5344,7 +5405,7 @@ void ShowBackupUpdateAlert(
 		.confirmed = [=](Fn<void()> close) {
 			close();
 			if (const auto strong = weak.get()) {
-				StartRotation(show, strong, busy, feeNano);
+				StartRotation(show, strong, busy, feeNano, auth);
 			}
 		},
 		.cancelled = [=](Fn<void()> close) {
@@ -5386,12 +5447,13 @@ void ShowBackupTopUpAlert(
 void OfferBackupUpdate(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::GenericBox*> origin,
-		not_null<bool*> busy) {
+		not_null<bool*> busy,
+		KeyAuthorization auth) {
 	auto &wallet = show->session().wallet();
 	const auto weak = base::make_weak(origin);
 	const auto collect = [=] {
 		if (const auto strong = weak.get()) {
-			CollectBackupPhrase(show, strong);
+			CollectBackupPhrase(show, strong, auth);
 		}
 	};
 	if (!wallet.rotationOffered()) {
@@ -5399,10 +5461,16 @@ void OfferBackupUpdate(
 		return;
 	}
 	*busy = true;
-	wallet.quoteRotationFee(crl::guard(origin, [=](FeeResult fee) {
+	wallet.quoteRotationFee(auth, crl::guard(origin, [=](FeeResult fee) {
 		*busy = false;
 		if (fee.error == SendError::None) {
-			ShowBackupUpdateAlert(show, origin, busy, fee.feeNano, collect);
+			ShowBackupUpdateAlert(
+				show,
+				origin,
+				busy,
+				fee.feeNano,
+				collect,
+				auth);
 		} else if (fee.error == SendError::InsufficientFees) {
 			ShowBackupTopUpAlert(show, fee.feeNano, collect);
 		} else {
@@ -5412,22 +5480,45 @@ void OfferBackupUpdate(
 	}));
 }
 
+// The Disable press is where this flow acquires its one authorization: the
+// quote, the reveal and the rotation store that follow all run under the
+// same grant, and a vault emptied under them fails typed instead of asking
+// again in the middle of the write-down.
 void ShowBackupUpdateFork(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::GenericBox*> origin,
 		not_null<bool*> busy) {
+	const auto weak = base::make_weak(origin);
+	const auto offer = [=] {
+		AcquireVaultUnlock({
+			.show = show,
+			.done = [=](KeyAuthorization auth) {
+				const auto strong = weak.get();
+				if (!strong) {
+					return;
+				} else if (!auth.valid()) {
+					*busy = false;
+					return;
+				}
+				OfferBackupUpdate(show, strong, busy, std::move(auth));
+			},
+		});
+	};
 	if (show->session().wallet().revealsLocally()) {
-		OfferBackupUpdate(show, origin, busy);
+		offer();
 		return;
 	}
 	*busy = true;
-	const auto weak = base::make_weak(origin);
-	StartCustodyRestore(show, [=] {
-		if (const auto strong = weak.get()) {
-			*busy = false;
-			OfferBackupUpdate(show, strong, busy);
-		}
-	}, crl::guard(origin, [=] { *busy = false; }));
+	StartCustodyRestore(
+		show,
+		KeyAuthorization{ .install = MakeCustodyInstaller(show) },
+		[=] {
+			if (weak) {
+				*busy = false;
+				offer();
+			}
+		},
+		crl::guard(origin, [=] { *busy = false; }));
 }
 
 void StartBackupDisable(
@@ -5802,6 +5893,7 @@ void WalletImportBox(
 		state->importing = true;
 		if (mode == WalletImportMode::Restore) {
 			show->session().wallet().restoreFromPhrase(
+				KeyAuthorization{ .install = MakeCustodyInstaller(show) },
 				std::move(words),
 				crl::guard(box, [=] {
 					if (restored) {
@@ -5818,7 +5910,11 @@ void WalletImportBox(
 				}),
 				crl::guard(box, [=](const QString &error) {
 					state->importing = false;
-					state->error = (error == u"PHRASE_INVALID_PHRASE"_q)
+					// A dismissed protection chooser restored nothing and has
+					// nothing to state, so the form simply stays as it was.
+					state->error = (error == u"PHRASE_INSTALL_CANCELLED"_q)
+						? QString()
+						: (error == u"PHRASE_INVALID_PHRASE"_q)
 						? tr::lng_wallet_import_error(tr::now)
 						: (error == u"PHRASE_KEY_MISMATCH"_q)
 						? tr::lng_wallet_restore_error(tr::now)

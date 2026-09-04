@@ -224,6 +224,14 @@ struct ThrowawayRotation {
 	return false;
 }
 
+[[nodiscard]] bool ReadAuthorized(
+		Session &session,
+		const KeyAuthorization &auth) {
+	return auth.grant
+		&& auth.grant->valid()
+		&& session.vault().unlocked();
+}
+
 [[nodiscard]] QString ClientErrorName(std::exception_ptr error) {
 	if (!error) {
 		return u"unknown"_q;
@@ -1024,8 +1032,9 @@ bool Session::custodyBusy() const {
 }
 
 void Session::revealPhrase(
+		KeyAuthorization auth,
 		std::optional<Core::CloudPasswordResult> password,
-		Fn<void(std::vector<QString>)> done,
+		Fn<void(std::vector<QString>, bool persisted)> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
 	if (custodyBusy() || custody().pendingRotation) {
@@ -1049,10 +1058,12 @@ void Session::revealPhrase(
 	// a reveal owns no network-derived state, and dropping its callback
 	// would either orphan a just-stored engine secret or leave the guard
 	// set for the rest of the session.
-	done = [this, done = std::move(done)](std::vector<QString> words) {
+	done = [this, done = std::move(done)](
+			std::vector<QString> words,
+			bool persisted) {
 		_phraseRevealing = false;
 		if (done) {
-			done(std::move(words));
+			done(std::move(words), persisted);
 		}
 	};
 	fail = [this, fail = std::move(fail)](const QString &error) {
@@ -1062,22 +1073,34 @@ void Session::revealPhrase(
 		}
 	};
 	if (const auto record = custody().matching(_publicKey)) {
-		revealLocally(*record, done, fail);
+		if (!ReadAuthorized(*this, auth)) {
+			fail(u"PHRASE_VAULT_LOCKED"_q);
+			return;
+		}
+		revealLocally(std::move(auth), *record, [=](
+				std::vector<QString> words) {
+			done(std::move(words), true);
+		}, fail);
 	} else {
-		revealFromShares(std::move(password), done, fail);
+		revealFromShares(std::move(auth), std::move(password), done, fail);
 	}
 }
 
 void Session::revealLocally(
+		KeyAuthorization auth,
 		const CustodyRecord &record,
 		Fn<void(std::vector<QString>)> done,
 		Fn<void(const QString &)> fail) {
+	if (!ReadAuthorized(*this, auth)) {
+		fail(u"PHRASE_VAULT_LOCKED"_q);
+		return;
+	}
 	const auto initiatingPublicKey = record.publicKey;
 	const auto lifecycle = _engine->lifecycle();
 	const auto descriptor = DescriptorFromRecord(record);
 	_engine->run([lifecycle, descriptor] {
 		return lifecycle->reveal_recovery_phrase(descriptor);
-	}, [=](engine::RecoveryPhrase phrase) {
+	}, [=, grant = auth.grant](engine::RecoveryPhrase phrase) {
 		auto words = SplitWords(QString::fromStdString(phrase.phrase));
 		if (words.size() < 2) {
 			LOG(("Wallet Error: local phrase reveal produced no words."));
@@ -1085,7 +1108,7 @@ void Session::revealLocally(
 			return;
 		}
 		done(std::move(words));
-	}, [=](EngineError error) {
+	}, [=, grant = auth.grant](EngineError error) {
 		if (IsProtectedSecretNotFound(error)) {
 			removeCustodyRecord(initiatingPublicKey);
 		}
@@ -1098,8 +1121,9 @@ void Session::revealLocally(
 }
 
 void Session::revealFromShares(
+		KeyAuthorization auth,
 		std::optional<Core::CloudPasswordResult> password,
-		Fn<void(std::vector<QString>)> done,
+		Fn<void(std::vector<QString>, bool persisted)> done,
 		Fn<void(const QString &)> fail) {
 	using Flag = MTPwallet_exportSecretPhrase::Flag;
 	const auto checked = password && *password;
@@ -1115,7 +1139,7 @@ void Session::revealFromShares(
 			fail(u"PHRASE_PARTS_INVALID"_q);
 			return;
 		}
-		fetchShareParts(qs(data.vtoken()), *dcs, done, fail);
+		fetchShareParts(auth, qs(data.vtoken()), *dcs, done, fail);
 	}).fail([=](const MTP::Error &error) {
 		LOG(("Wallet Error: wallet.exportSecretPhrase failed: %1"
 			).arg(error.type()));
@@ -1124,9 +1148,10 @@ void Session::revealFromShares(
 }
 
 void Session::fetchShareParts(
+		KeyAuthorization auth,
 		const QString &token,
 		std::vector<int> dcs,
-		Fn<void(std::vector<QString>)> done,
+		Fn<void(std::vector<QString>, bool persisted)> done,
 		Fn<void(const QString &)> fail) {
 	auto keys = TdE2E::TemporaryKeyPair::Generate();
 	if (!keys) {
@@ -1178,6 +1203,7 @@ void Session::fetchShareParts(
 				return;
 			}
 			restoreFromWords(
+				auth,
 				SplitWords(QString::fromUtf8(*seed)),
 				done,
 				base::take(state->fail));
@@ -1205,8 +1231,9 @@ void Session::fetchShareParts(
 }
 
 void Session::restoreFromWords(
+		KeyAuthorization auth,
 		std::vector<QString> words,
-		Fn<void(std::vector<QString>)> done,
+		Fn<void(std::vector<QString>, bool persisted)> done,
 		Fn<void(const QString &)> fail) {
 	if (words.size() < 2) {
 		LOG(("Wallet Error: reconstructed phrase has no words."));
@@ -1215,56 +1242,93 @@ void Session::restoreFromWords(
 	}
 	const auto lifecycle = _engine->lifecycle();
 	const auto expected = _publicKey;
-	auto recoveryWords = std::vector<std::string>();
-	recoveryWords.reserve(words.size());
-	for (const auto &word : words) {
-		recoveryWords.push_back(word.toStdString());
-	}
-	auto request = engine::ImportWalletRequest{
-		.record_id = NewRecordId(),
-		.network = engine::Network::kMainnet,
-		.recovery_words = std::move(recoveryWords),
+	// The resolved install travels into both continuations, which is what
+	// holds the grant across the worker call: the runtime cleanses the key
+	// as soon as the last handle goes, and the store runs on the worker.
+	// Its `created` term is what tells a failure arm whether the header it
+	// has to drop is one this store wrote.
+	const auto store = [=, this](
+			CustodyInstall install,
+			std::vector<QString> phrase) {
+		auto recoveryWords = std::vector<std::string>();
+		recoveryWords.reserve(phrase.size());
+		for (const auto &word : phrase) {
+			recoveryWords.push_back(word.toStdString());
+		}
+		auto request = engine::ImportWalletRequest{
+			.record_id = NewRecordId(),
+			.network = engine::Network::kMainnet,
+			.recovery_words = std::move(recoveryWords),
+		};
+		_engine->run([
+			lifecycle,
+			request = std::move(request),
+			words = std::move(phrase)
+		]() mutable {
+			auto descriptor = lifecycle->import_wallet(request);
+			return Restored{ std::move(descriptor), std::move(words) };
+		}, [=, this](Restored restored) {
+			const auto record = RecordFromDescriptor(restored.descriptor);
+			if (record.publicKey != expected) {
+				LOG(("Wallet Error: restored phrase derives another key."));
+				if (install.created) {
+					dropCreatedVault();
+				}
+				_engine->run([lifecycle, descriptor = restored.descriptor] {
+					lifecycle->delete_wallet(descriptor);
+				}, [=] {
+					fail(u"PHRASE_KEY_MISMATCH"_q);
+				}, [=](EngineError) {
+					LOG(("Wallet Error: delete_wallet after a key mismatch "
+						"failed."));
+					fail(u"PHRASE_KEY_MISMATCH"_q);
+				});
+				return;
+			}
+			const auto persisted = persistCustody(record);
+			if (!persisted) {
+				if (install.created) {
+					dropCreatedVault();
+				}
+				_engine->run([lifecycle, descriptor = restored.descriptor] {
+					lifecycle->delete_wallet(descriptor);
+				}, [] {}, [](EngineError) {});
+			}
+			done(std::move(restored.words), persisted);
+		}, [=, this](EngineError error) {
+			if (install.created) {
+				dropCreatedVault();
+			}
+			const auto name = LifecycleErrorName(error);
+			LOG(("Wallet Error: import_wallet failed: %1").arg(name));
+			fail(IsVaultLocked(error)
+				? u"PHRASE_VAULT_LOCKED"_q
+				: (name == u"InvalidRecoveryPhrase"_q)
+				? u"PHRASE_INVALID_PHRASE"_q
+				: u"PHRASE_IMPORT_FAILED"_q);
+		});
 	};
-	_engine->run([
-		lifecycle,
-		request = std::move(request),
-		words = std::move(words)
-	]() mutable {
-		auto descriptor = lifecycle->import_wallet(request);
-		return Restored{ std::move(descriptor), std::move(words) };
-	}, [=, this](Restored restored) {
-		const auto record = RecordFromDescriptor(restored.descriptor);
-		if (record.publicKey != expected) {
-			LOG(("Wallet Error: restored phrase derives another key."));
-			_engine->run([lifecycle, descriptor = restored.descriptor] {
-				lifecycle->delete_wallet(descriptor);
-			}, [=] {
-				fail(u"PHRASE_KEY_MISMATCH"_q);
-			}, [=](EngineError) {
-				LOG(("Wallet Error: delete_wallet after a key mismatch "
-					"failed."));
-				fail(u"PHRASE_KEY_MISMATCH"_q);
-			});
-			return;
-		}
-		if (!persistCustody(record)) {
-			_engine->run([lifecycle, descriptor = restored.descriptor] {
-				lifecycle->delete_wallet(descriptor);
-			}, [] {}, [](EngineError) {});
-		}
-		done(std::move(restored.words));
-	}, [=](EngineError error) {
-		const auto name = LifecycleErrorName(error);
-		LOG(("Wallet Error: import_wallet failed: %1").arg(name));
-		fail(IsVaultLocked(error)
-			? u"PHRASE_VAULT_LOCKED"_q
-			: (name == u"InvalidRecoveryPhrase"_q)
-			? u"PHRASE_INVALID_PHRASE"_q
-			: u"PHRASE_IMPORT_FAILED"_q);
-	});
+	// The install ladder goes first whenever the flow carries one: a read
+	// grant handed out by an open retention window must never carry a
+	// silent store into a vault whose passcode the user has not just typed.
+	if (const auto install = auth.install) {
+		install([=, words = std::move(words)](
+				CustodyInstall answer) mutable {
+			if (!answer.grant) {
+				done(std::move(words), false);
+			} else {
+				store(std::move(answer), std::move(words));
+			}
+		});
+	} else if (auth.grant && auth.grant->valid()) {
+		store(CustodyInstall{ .grant = auth.grant }, std::move(words));
+	} else {
+		fail(u"PHRASE_VAULT_LOCKED"_q);
+	}
 }
 
 void Session::restoreFromPhrase(
+		KeyAuthorization auth,
 		std::vector<QString> words,
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail) {
@@ -1285,21 +1349,37 @@ void Session::restoreFromPhrase(
 		return;
 	}
 	_phraseRevealing = true;
-	restoreFromWords(std::move(words), [this, done = std::move(done)](
-			std::vector<QString>) {
-		_phraseRevealing = false;
-		if (done) {
-			done();
-		}
-	}, [this, fail = std::move(fail)](const QString &error) {
+	// A store the install ladder was cancelled out of persists nothing, and
+	// this flow has no words of its own to show, so it is a failure here.
+	// The guard is cleared once, by whichever wrapped callback runs, and the
+	// outer fail is called directly: routing through the wrapped one would
+	// clear the guard a second time.
+	auto refused = [this, fail](const QString &error) {
 		_phraseRevealing = false;
 		if (fail) {
 			fail(error);
 		}
-	});
+	};
+	restoreFromWords(
+		std::move(auth),
+		std::move(words),
+		[this, done = std::move(done), fail = std::move(fail)](
+				std::vector<QString>,
+				bool persisted) {
+			_phraseRevealing = false;
+			if (!persisted) {
+				if (fail) {
+					fail(u"PHRASE_INSTALL_CANCELLED"_q);
+				}
+			} else if (done) {
+				done();
+			}
+		},
+		std::move(refused));
 }
 
 void Session::restoreFromBackup(
+		KeyAuthorization auth,
 		std::optional<Core::CloudPasswordResult> password,
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail) {
@@ -1320,23 +1400,37 @@ void Session::restoreFromBackup(
 		return;
 	}
 	_phraseRevealing = true;
-	revealFromShares(std::move(password), [this, done = std::move(done)](
-			std::vector<QString>) {
-		_phraseRevealing = false;
-		if (done) {
-			done();
-		}
-	}, [this, fail = std::move(fail)](const QString &error) {
+	// Same one-terminal-call shape as restoreFromPhrase: the cancelled
+	// install ladder answers persisted == false and this flow states it as
+	// a failure, because a restore that stored nothing restored nothing.
+	auto refused = [this, fail](const QString &error) {
 		_phraseRevealing = false;
 		if (fail) {
 			fail(error);
 		}
-	});
+	};
+	revealFromShares(
+		std::move(auth),
+		std::move(password),
+		[this, done = std::move(done), fail = std::move(fail)](
+				std::vector<QString>,
+				bool persisted) {
+			_phraseRevealing = false;
+			if (!persisted) {
+				if (fail) {
+					fail(u"PHRASE_INSTALL_CANCELLED"_q);
+				}
+			} else if (done) {
+				done();
+			}
+		},
+		std::move(refused));
 }
 
 void Session::revealParked(
+		KeyAuthorization auth,
 		const QByteArray &publicKey,
-		Fn<void(std::vector<QString>)> done,
+		Fn<void(std::vector<QString>, bool persisted)> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
 	if (custodyBusy()) {
@@ -1362,11 +1456,19 @@ void Session::revealParked(
 		}
 		return;
 	}
+	if (!ReadAuthorized(*this, auth)) {
+		if (fail) {
+			fail(u"PHRASE_VAULT_LOCKED"_q);
+		}
+		return;
+	}
 	_phraseRevealing = true;
-	done = [this, done = std::move(done)](std::vector<QString> words) {
+	done = [this, done = std::move(done)](
+			std::vector<QString> words,
+			bool persisted) {
 		_phraseRevealing = false;
 		if (done) {
-			done(std::move(words));
+			done(std::move(words), persisted);
 		}
 	};
 	fail = [this, fail = std::move(fail)](const QString &error) {
@@ -1375,7 +1477,10 @@ void Session::revealParked(
 			fail(error);
 		}
 	};
-	revealLocally(*record, done, fail);
+	revealLocally(std::move(auth), *record, [=](
+			std::vector<QString> words) {
+		done(std::move(words), true);
+	}, fail);
 }
 
 void Session::dropParked(
@@ -1433,6 +1538,7 @@ void Session::dropParked(
 }
 
 void Session::prepareBackupParts(
+		KeyAuthorization auth,
 		Fn<void(std::vector<QByteArray>)> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
@@ -1460,6 +1566,12 @@ void Session::prepareBackupParts(
 		return;
 	}
 	const auto record = *matching;
+	if (!ReadAuthorized(*this, auth)) {
+		if (fail) {
+			fail(u"BACKUP_VAULT_LOCKED"_q);
+		}
+		return;
+	}
 	_backupChanging = true;
 	// Every path below ends in exactly one of these two calls, which is
 	// what clears the guard, so none of them is fenced by _networkGeneration:
@@ -1487,7 +1599,7 @@ void Session::prepareBackupParts(
 			fail(u"BACKUP_HOLDERS_INVALID"_q);
 			return;
 		}
-		revealLocally(record, [=](std::vector<QString> words) {
+		revealLocally(auth, record, [=](std::vector<QString> words) {
 			auto parts = SealBackupParts(*keys, words);
 			if (!parts) {
 				LOG(("Wallet Error: backup parts could not be sealed."));
@@ -1647,7 +1759,9 @@ bool Session::rotationOffered() {
 		&& !_clientStopping;
 }
 
-void Session::quoteRotationFee(Fn<void(FeeResult)> done) {
+void Session::quoteRotationFee(
+		KeyAuthorization auth,
+		Fn<void(FeeResult)> done) {
 	ensureLoaded();
 	if (!rotationOffered()) {
 		if (done) {
@@ -1661,6 +1775,11 @@ void Session::quoteRotationFee(Fn<void(FeeResult)> done) {
 		|| _sendUnresolved) {
 		if (done) {
 			done(FeeResult{ .error = SendError::AlreadySending });
+		}
+		return;
+	} else if (!ReadAuthorized(*this, auth)) {
+		if (done) {
+			done(FeeResult{ .error = SendError::Locked });
 		}
 		return;
 	}
@@ -1683,7 +1802,7 @@ void Session::quoteRotationFee(Fn<void(FeeResult)> done) {
 	] {
 		auto prepared = client->prepare_key_rotation(request);
 		return ThrowawayRotation{ std::move(prepared.signed_boc) };
-	}, [=, this](ThrowawayRotation throwaway) {
+	}, [=, this, grant = auth.grant](ThrowawayRotation throwaway) {
 		if (generation != _networkGeneration) {
 			failed(u"stale generation"_q);
 			return;
@@ -1709,7 +1828,7 @@ void Session::quoteRotationFee(Fn<void(FeeResult)> done) {
 		}, [=](const Gram::ApiError &error) {
 			failed(u"MTP %1: %2"_q.arg(error.code).arg(error.message));
 		});
-	}, [=, this](EngineError error) {
+	}, [=, this, grant = auth.grant](EngineError error) {
 		LOG(("Wallet Error: engine prepare_key_rotation (quote) failed: %1"
 			).arg(error.message));
 		finish(FeeResult{ .error = (generation != _networkGeneration)
@@ -1719,6 +1838,7 @@ void Session::quoteRotationFee(Fn<void(FeeResult)> done) {
 }
 
 void Session::prepareRotation(
+		KeyAuthorization auth,
 		int64 quotedFeeNano,
 		Fn<void(std::vector<QString>)> done,
 		Fn<void(const QString &error)> fail) {
@@ -1772,6 +1892,12 @@ void Session::prepareRotation(
 		}
 		return;
 	}
+	if (!ReadAuthorized(*this, auth)) {
+		if (fail) {
+			fail(u"ROTATION_VAULT_LOCKED"_q);
+		}
+		return;
+	}
 	_rotating = true;
 	fail = [this, fail = std::move(fail)](const QString &error) {
 		_rotating = false;
@@ -1784,7 +1910,7 @@ void Session::prepareRotation(
 		request = RotationRequest(kClientSendValiditySeconds)
 	] {
 		return client->prepare_key_rotation(request);
-	}, [=, this](engine::PreparedKeyRotation prepared) {
+	}, [=, this, grant = auth.grant](engine::PreparedKeyRotation prepared) {
 		auto words = SplitWords(QString::fromStdString(
 			prepared.replacement_recovery_phrase.phrase));
 		if (words.size() < 2) {
@@ -1803,7 +1929,7 @@ void Session::prepareRotation(
 		if (done) {
 			done(std::move(words));
 		}
-	}, [=](EngineError error) {
+	}, [=, grant = auth.grant](EngineError error) {
 		LOG(("Wallet Error: engine prepare_key_rotation failed: %1"
 			).arg(error.message));
 		fail(RotationErrorToken(error));
@@ -1819,6 +1945,7 @@ void Session::abandonRotation() {
 }
 
 void Session::submitRotation(
+		KeyAuthorization auth,
 		Fn<void()> confirmed,
 		Fn<void(const QString &error)> fail) {
 	if (_rotationConfirmed) {
@@ -1865,7 +1992,7 @@ void Session::submitRotation(
 		}
 	};
 	_rotationFailed = std::move(fail);
-	storePendingRotation([=, this] {
+	storePendingRotation(std::move(auth), [=, this] {
 		const auto awaitResolution = [=, this] {
 			_preparedRotation = nullptr;
 			updatePollingState();
@@ -1979,6 +2106,17 @@ bool Session::persistCustody(const CustodyRecord &record) {
 	return true;
 }
 
+// Undoes the vault the store that just failed had created. Only that store
+// carries a created install, and nothing else writes the header while it
+// runs, so the header this drops can only be the one it wrote: no epoch and
+// no ownership check is needed. It runs beside the delete_wallet the same
+// failure fires, not after it, so a delete that fails leaves no vault.
+void Session::dropCreatedVault() {
+	if (!RemoveVaultHeader(_session->local())) {
+		LOG(("Wallet Error: could not drop a just-created vault header."));
+	}
+}
+
 void Session::replaceWithNew(
 		std::optional<Core::CloudPasswordResult> password,
 		Fn<void()> done,
@@ -2030,6 +2168,7 @@ void Session::replaceWithNew(
 }
 
 void Session::replaceWithImported(
+		KeyAuthorization auth,
 		std::vector<QString> words,
 		std::optional<Core::CloudPasswordResult> password,
 		Fn<void()> done,
@@ -2068,61 +2207,99 @@ void Session::replaceWithImported(
 		oldRecord = *record;
 	}
 	const auto lifecycle = _engine->lifecycle();
-	auto recoveryWords = std::vector<std::string>();
-	recoveryWords.reserve(words.size());
-	for (const auto &word : words) {
-		recoveryWords.push_back(word.toStdString());
-	}
-	auto request = engine::ImportWalletRequest{
-		.record_id = NewRecordId(),
-		.network = engine::Network::kMainnet,
-		.recovery_words = std::move(recoveryWords),
-	};
-	_engine->run([lifecycle, request = std::move(request)]() mutable {
-		return lifecycle->import_wallet(request);
-	}, [=, this](engine::WalletDescriptor descriptor) {
-		const auto record = RecordFromDescriptor(descriptor);
-		sendReplaceWallet(
-			MTP_inputWalletImported(MTP_bytes(record.publicKey)),
-			password,
-			[=, this](const MTPWalletState &state) {
-				const auto answered = (state.type() == mtpc_walletState)
-					? state.c_walletState().vpublic_key().v
-					: QByteArray();
-				if (answered != record.publicKey) {
-					LOG(("Wallet Error: wallet.replaceWallet answered "
-						"another key."));
+	// The store authority is resolved the way restoreFromWords resolves it,
+	// and for the same reason the install ladder runs first: a cancelled
+	// chooser has to abort before wallet.replaceWallet is sent, so nothing
+	// on the server can name a key this device never stored.
+	const auto store = [=, this](
+			CustodyInstall install,
+			std::vector<QString> phrase) {
+		auto recoveryWords = std::vector<std::string>();
+		recoveryWords.reserve(phrase.size());
+		for (const auto &word : phrase) {
+			recoveryWords.push_back(word.toStdString());
+		}
+		auto request = engine::ImportWalletRequest{
+			.record_id = NewRecordId(),
+			.network = engine::Network::kMainnet,
+			.recovery_words = std::move(recoveryWords),
+		};
+		_engine->run([lifecycle, request = std::move(request)]() mutable {
+			return lifecycle->import_wallet(request);
+		}, [=, this](engine::WalletDescriptor descriptor) {
+			const auto record = RecordFromDescriptor(descriptor);
+			sendReplaceWallet(
+				MTP_inputWalletImported(MTP_bytes(record.publicKey)),
+				password,
+				[=, this](const MTPWalletState &state) {
+					const auto answered = (state.type() == mtpc_walletState)
+						? state.c_walletState().vpublic_key().v
+						: QByteArray();
+					if (answered != record.publicKey) {
+						LOG(("Wallet Error: wallet.replaceWallet answered "
+							"another key."));
+						if (install.created) {
+							dropCreatedVault();
+						}
+						_engine->run([lifecycle, descriptor] {
+							lifecycle->delete_wallet(descriptor);
+						}, [=] {
+							fail(u"REPLACE_KEY_MISMATCH"_q);
+						}, [=](EngineError) {
+							LOG(("Wallet Error: delete_wallet after a key "
+								"mismatch failed."));
+							fail(u"REPLACE_KEY_MISMATCH"_q);
+						});
+						return;
+					}
+					finishConfirmedReplace(
+						oldRecord,
+						record,
+						state,
+						done,
+						fail);
+				},
+				[=, this](const QString &error) {
+					if (install.created) {
+						dropCreatedVault();
+					}
 					_engine->run([lifecycle, descriptor] {
 						lifecycle->delete_wallet(descriptor);
 					}, [=] {
-						fail(u"REPLACE_KEY_MISMATCH"_q);
+						fail(error);
 					}, [=](EngineError) {
-						LOG(("Wallet Error: delete_wallet after a key "
-							"mismatch failed."));
-						fail(u"REPLACE_KEY_MISMATCH"_q);
+						LOG(("Wallet Error: delete_wallet after a failed "
+							"replace failed."));
+						fail(error);
 					});
-					return;
-				}
-				finishConfirmedReplace(oldRecord, record, state, done, fail);
-			},
-			[=, this](const QString &error) {
-				_engine->run([lifecycle, descriptor] {
-					lifecycle->delete_wallet(descriptor);
-				}, [=] {
-					fail(error);
-				}, [=](EngineError) {
-					LOG(("Wallet Error: delete_wallet after a failed "
-						"replace failed."));
-					fail(error);
 				});
-			});
-	}, [=](EngineError error) {
-		const auto name = LifecycleErrorName(error);
-		LOG(("Wallet Error: import_wallet failed: %1").arg(name));
-		fail((name == u"InvalidRecoveryPhrase"_q)
-			? u"REPLACE_INVALID_PHRASE"_q
-			: u"REPLACE_IMPORT_FAILED"_q);
-	});
+		}, [=, this](EngineError error) {
+			if (install.created) {
+				dropCreatedVault();
+			}
+			const auto name = LifecycleErrorName(error);
+			LOG(("Wallet Error: import_wallet failed: %1").arg(name));
+			fail(IsVaultLocked(error)
+				? u"PHRASE_VAULT_LOCKED"_q
+				: (name == u"InvalidRecoveryPhrase"_q)
+				? u"REPLACE_INVALID_PHRASE"_q
+				: u"REPLACE_IMPORT_FAILED"_q);
+		});
+	};
+	if (const auto install = auth.install) {
+		install([=, words = std::move(words)](
+				CustodyInstall answer) mutable {
+			if (!answer.grant) {
+				fail(u"REPLACE_INSTALL_CANCELLED"_q);
+			} else {
+				store(std::move(answer), std::move(words));
+			}
+		});
+	} else if (auth.grant && auth.grant->valid()) {
+		store(CustodyInstall{ .grant = auth.grant }, std::move(words));
+	} else {
+		fail(u"PHRASE_VAULT_LOCKED"_q);
+	}
 }
 
 void Session::sendReplaceWallet(
@@ -2998,7 +3175,10 @@ void Session::startPreview(
 	});
 }
 
-void Session::send(SendArgs args, Fn<void(SendError)> done) {
+void Session::send(
+		KeyAuthorization auth,
+		SendArgs args,
+		Fn<void(SendError)> done) {
 	ensureLoaded();
 	if (_presence.current() != Presence::Ready) {
 		if (done) {
@@ -3023,6 +3203,12 @@ void Session::send(SendArgs args, Fn<void(SendError)> done) {
 	if (!_engine->client()) {
 		if (done) {
 			done(SendError::SigningUnavailable);
+		}
+		return;
+	}
+	if (!ReadAuthorized(*this, auth)) {
+		if (done) {
+			done(SendError::Locked);
 		}
 		return;
 	}
@@ -3053,12 +3239,12 @@ void Session::send(SendArgs args, Fn<void(SendError)> done) {
 	};
 	_engine->run([client, request = std::move(request)] {
 		return client->send(request);
-	}, [=, this](engine::SendResult) {
+	}, [=, this, grant = auth.grant](engine::SendResult) {
 		if (generation != _networkGeneration) {
 			return;
 		}
 		recordPending();
-	}, [=, this](EngineError error) {
+	}, [=, this, grant = auth.grant](EngineError error) {
 		if (generation != _networkGeneration) {
 			return;
 		}
@@ -3179,12 +3365,21 @@ void Session::applyRotationSnapshot(
 }
 
 void Session::storePendingRotation(
+		KeyAuthorization auth,
 		Fn<void()> done,
 		Fn<void(const QString &)> fail) {
 	const auto active = custody().matching(_publicKey);
 	if (!active) {
 		LOG(("Wallet Error: rotation stored without local custody."));
 		fail(u"ROTATION_NO_CUSTODY"_q);
+		return;
+	}
+	// A store, so the seam requires a live grant and the retention window
+	// alone is never enough; it also carries no install ladder, because the
+	// rotation replaces the secret of a wallet whose vault already exists.
+	if (!auth.grant || !auth.grant->valid()) {
+		LOG(("Wallet Error: rotation stored without an unlocked vault."));
+		fail(u"ROTATION_VAULT_LOCKED"_q);
 		return;
 	}
 	const auto lifecycle = _engine->lifecycle();
@@ -3202,7 +3397,7 @@ void Session::storePendingRotation(
 	};
 	_engine->run([lifecycle, request = std::move(request)]() mutable {
 		return lifecycle->import_wallet(request);
-	}, [=, this](engine::WalletDescriptor descriptor) {
+	}, [=, this, grant = auth.grant](engine::WalletDescriptor descriptor) {
 		const auto record = RecordFromDescriptor(descriptor);
 		const auto rollBack = [=, this](const QString &error) {
 			_engine->run([lifecycle, descriptor] {
@@ -3235,10 +3430,15 @@ void Session::storePendingRotation(
 		}
 		_custody = std::move(store);
 		done();
-	}, [=](EngineError error) {
+	}, [=, grant = auth.grant](EngineError error) {
 		LOG(("Wallet Error: import_wallet for a rotation failed: %1"
 			).arg(LifecycleErrorName(error)));
-		fail(u"ROTATION_STORE_FAILED"_q);
+		// The grant this store ran under can lapse between the confirmation
+		// and the store, and the host then refuses it typed. That arm, not
+		// the seam check above, is what states a vault emptied mid-flow.
+		fail(IsVaultLocked(error)
+			? u"ROTATION_VAULT_LOCKED"_q
+			: u"ROTATION_STORE_FAILED"_q);
 	});
 }
 

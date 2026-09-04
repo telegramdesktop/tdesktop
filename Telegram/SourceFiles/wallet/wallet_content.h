@@ -44,19 +44,15 @@ void ShowTransferLink(
 	not_null<Main::Session*> session);
 
 // Vault: the typed passcode must open the vault's own passcode wrap.
-// KeyDataAndArm: it is checked against key_data and arms the vault's
-// creation policy for the store that follows.
 // KeyDataAndVault: it is checked against key_data and, when the vault is
 // passcode-wrapped, must open that wrap too, while nothing is armed,
 // nothing is unlocked and nothing is retained.
 enum class WalletPasscodeCheck {
 	Vault,
-	KeyDataAndArm,
 	KeyDataAndVault,
 };
 
-// grant is filled for Vault and KeyDataAndArm, passcode only for
-// KeyDataAndVault.
+// grant is filled for Vault, passcode only for KeyDataAndVault.
 struct WalletPasscodeGate {
 	VaultGrant grant;
 	SecureBytes passcode;
@@ -64,7 +60,6 @@ struct WalletPasscodeGate {
 
 struct WalletPasscodeBoxArgs {
 	std::shared_ptr<Main::SessionShow> show;
-	std::optional<QByteArray> parkedKey;
 	WalletPasscodeCheck check = WalletPasscodeCheck::Vault;
 	Fn<void(WalletPasscodeGate)> passed;
 	Fn<void()> cancelled;
