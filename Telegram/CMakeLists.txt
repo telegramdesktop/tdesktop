@@ -695,6 +695,7 @@ PRIVATE
     data/data_cloud_themes.h
     data/data_community.cpp
     data/data_community.h
+    data/data_compose_stash.h
     data/data_document.cpp
     data/data_document.h
     data/data_document_media.cpp
