@@ -1,0 +1,11 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
+"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<node>
+  <interface name="org.freedesktop.login1.Manager">
+    <annotation name="org.telegram.DBus.Service" value="org.freedesktop.login1"/>
+    <annotation name="org.telegram.DBus.ObjectPath" value="/org/freedesktop/login1"/>
+    <signal name="PrepareForSleep">
+      <arg type="b" name="start"/>
+    </signal>
+  </interface>
+</node>
