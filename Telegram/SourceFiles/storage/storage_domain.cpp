@@ -639,6 +639,7 @@ void Domain::startFromScratch() {
 	*_keyData = KeyData();
 	_keyDataDirty = false;
 	_verificationNonce = 0;
+	_localKey = nullptr;
 	startWithSingleAccount(
 		QByteArray(),
 		std::make_unique<Main::Account>(_owner, _dataName, 0));
