@@ -1206,6 +1206,10 @@ base::weak_qptr<Ui::RpWidget> LocalPasscodeManage::createPinnedToBottom(
 			Ui::MakeConfirmBox({
 				.text = std::move(text),
 				.confirmed = [=](Fn<void()> &&close) {
+					if (!weak) {
+						close();
+						return;
+					}
 					const auto result = SetPasscode(
 						controller(),
 						QString(),
