@@ -1286,11 +1286,14 @@ void Session::restoreFromWords(
 			.network = engine::Network::kMainnet,
 			.recovery_words = std::move(recoveryWords),
 		};
+		const auto stores = std::make_shared<EngineSecretStores>();
 		_engine->run([
 			lifecycle,
 			request = std::move(request),
+			stores,
 			words = std::move(phrase)
 		]() mutable {
+			const auto recording = stores->record();
 			auto descriptor = lifecycle->import_wallet(request);
 			return Restored{ std::move(descriptor), std::move(words) };
 		}, [=, this](Restored restored) {
@@ -1324,6 +1327,12 @@ void Session::restoreFromWords(
 				? CustodyOutcome::Installed
 				: CustodyOutcome::WriteFailed);
 		}, [=, this](EngineError error) {
+			// The record goes before the header: a store creates the vault
+			// header only together with the record it seals, so removing
+			// the record first keeps that invariant true at every instant.
+			// An import that failed before its own store recorded nothing,
+			// so this removes nothing on the ordinary refusal.
+			_engine->dropStoredSecrets(*stores);
 			if (install.created) {
 				dropCreatedVault();
 			}
@@ -2170,7 +2179,7 @@ void Session::dropCreatedVault() {
 
 void Session::replaceWithNew(
 		std::optional<Core::CloudPasswordResult> password,
-		Fn<void()> done,
+		Fn<void(CustodyOutcome)> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
 	// A replace and a reveal must never overlap: a shares-restore that
@@ -2193,10 +2202,10 @@ void Session::replaceWithNew(
 		return;
 	}
 	_replacing = true;
-	done = [this, done = std::move(done)] {
+	done = [this, done = std::move(done)](CustodyOutcome outcome) {
 		_replacing = false;
 		if (done) {
-			done();
+			done(outcome);
 		}
 	};
 	fail = [this, fail = std::move(fail)](const QString &error) {
@@ -2222,7 +2231,7 @@ void Session::replaceWithImported(
 		KeyAuthorization auth,
 		std::vector<QString> words,
 		std::optional<Core::CloudPasswordResult> password,
-		Fn<void()> done,
+		Fn<void(CustodyOutcome)> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
 	if (custodyBusy()) {
@@ -2241,10 +2250,10 @@ void Session::replaceWithImported(
 		return;
 	}
 	_replacing = true;
-	done = [this, done = std::move(done)] {
+	done = [this, done = std::move(done)](CustodyOutcome outcome) {
 		_replacing = false;
 		if (done) {
-			done();
+			done(outcome);
 		}
 	};
 	fail = [this, fail = std::move(fail)](const QString &error) {
@@ -2275,7 +2284,13 @@ void Session::replaceWithImported(
 			.network = engine::Network::kMainnet,
 			.recovery_words = std::move(recoveryWords),
 		};
-		_engine->run([lifecycle, request = std::move(request)]() mutable {
+		const auto stores = std::make_shared<EngineSecretStores>();
+		_engine->run([
+			lifecycle,
+			request = std::move(request),
+			stores
+		]() mutable {
+			const auto recording = stores->record();
 			return lifecycle->import_wallet(request);
 		}, [=, this](engine::WalletDescriptor descriptor) {
 			const auto record = RecordFromDescriptor(descriptor);
@@ -2325,6 +2340,7 @@ void Session::replaceWithImported(
 					});
 				});
 		}, [=, this](EngineError error) {
+			_engine->dropStoredSecrets(*stores);
 			if (install.created) {
 				dropCreatedVault();
 			}
@@ -2377,7 +2393,7 @@ void Session::finishConfirmedReplace(
 		std::optional<CustodyRecord> oldRecord,
 		std::optional<CustodyRecord> newActive,
 		const MTPWalletState &state,
-		Fn<void()> done,
+		Fn<void(CustodyOutcome)> done,
 		Fn<void(const QString &)> fail) {
 	applyState(state, false);
 	const auto lifecycle = _engine->lifecycle();
@@ -2394,7 +2410,12 @@ void Session::finishConfirmedReplace(
 			] {
 				lifecycle->delete_wallet(descriptor);
 			}, [] {}, [](EngineError) {});
-			done();
+			// wallet.replaceWallet has already succeeded and applyState() has
+			// already run, so the replacement is real and cannot be taken
+			// back: this answers done, not fail. The delete_wallet above is
+			// local cleanup of a secret nothing points at, not a retraction,
+			// and only the custody install on this device did not happen.
+			done(CustodyOutcome::WriteFailed);
 			return;
 		}
 		if (sameKeyRow) {
@@ -2421,7 +2442,7 @@ void Session::finishConfirmedReplace(
 				"failed."));
 		});
 	}
-	done();
+	done(CustodyOutcome::Installed);
 }
 
 void Session::reconcileCustody() {

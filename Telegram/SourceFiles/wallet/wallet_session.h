@@ -258,15 +258,20 @@ public:
 		std::optional<Core::CloudPasswordResult> password,
 		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
 		Fn<void(const QString &error)> fail);
+	// Both replace shapes share one done at their single caller, so they
+	// carry one callback type. Only an imported replace runs a custody
+	// install, so only it can answer WriteFailed; a create replace has no
+	// custody install to report and always answers Installed, the value
+	// every consumer reads as the success.
 	void replaceWithNew(
 		std::optional<Core::CloudPasswordResult> password,
-		Fn<void()> done,
+		Fn<void(CustodyOutcome)> done,
 		Fn<void(const QString &error)> fail);
 	void replaceWithImported(
 		KeyAuthorization auth,
 		std::vector<QString> words,
 		std::optional<Core::CloudPasswordResult> password,
-		Fn<void()> done,
+		Fn<void(CustodyOutcome)> done,
 		Fn<void(const QString &error)> fail);
 	void restoreFromPhrase(
 		KeyAuthorization auth,
@@ -401,7 +406,7 @@ private:
 		std::optional<CustodyRecord> oldRecord,
 		std::optional<CustodyRecord> newActive,
 		const MTPWalletState &state,
-		Fn<void()> done,
+		Fn<void(CustodyOutcome)> done,
 		Fn<void(const QString &)> fail);
 	void reconcileCustody();
 	void updateDeviceCustodyState();

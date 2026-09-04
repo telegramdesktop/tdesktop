@@ -4288,9 +4288,23 @@ void RequestWalletReplace(
 		Fn<void()> unblock,
 		Fn<void(const QString &text)> showError) {
 	const auto imported = words.has_value();
-	const auto done = crl::guard(origin, [=] {
+	const auto done = crl::guard(origin, [=](CustodyOutcome outcome) {
 		if (passcode) {
 			passcode->closeBox();
+		}
+		// Only an imported replace carries a custody write - replaceWithNew
+		// hands finishConfirmedReplace no new record - so the imported title
+		// is the right one here. The replacement itself stands, so this
+		// states the half that failed instead of a failure, and closes the
+		// import box with the same layer operation rather than racing a hide.
+		if (outcome == CustodyOutcome::WriteFailed) {
+			show->showBox(
+				Ui::MakeInformBox({
+					.text = tr::lng_wallet_imported_not_stored(tr::now),
+					.title = tr::lng_wallet_imported_title(),
+				}),
+				Ui::LayerOption::CloseOther);
+			return;
 		}
 		show->hideLayer();
 		show->showToast({
@@ -5560,10 +5574,15 @@ void WalletImportBox(
 					state->importing = false;
 					// A dismissed protection chooser restored nothing and has
 					// nothing to state, so the form simply stays as it was.
+					// A locked vault is stated on this label, not in the toast
+					// its replace and backup-enable siblings use: unlocking
+					// the vault leaves the typed words ready to resubmit.
 					state->error = (error == u"PHRASE_INSTALL_CANCELLED"_q)
 						? QString()
 						: (error == u"PHRASE_INSTALL_FAILED"_q)
 						? tr::lng_wallet_key_save_error(tr::now)
+						: (error == u"PHRASE_VAULT_LOCKED"_q)
+						? VaultLockedText(&show->session())
 						: (error == u"PHRASE_INVALID_PHRASE"_q)
 						? tr::lng_wallet_import_error(tr::now)
 						: (error == u"PHRASE_KEY_MISMATCH"_q)

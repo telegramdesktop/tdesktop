@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 
 #include <memory>
+#include <vector>
 
 namespace wallet_engine {
 struct WalletClient;
@@ -32,6 +33,56 @@ struct EngineError {
 	// The engine's typed error when one produced this failure. Rethrow it
 	// to dispatch on the generated wallet_engine error taxonomy.
 	std::exception_ptr underlying;
+};
+
+// The protected-secret storage keys one engine call caused this
+// application to write, so a call that fails after its own store can
+// remove exactly what it wrote. The key is REMEMBERED here, never
+// derived: PlatformHost::store_protected_secret computes the account
+// storage key itself before it marshals the write, and the engine's
+// reference format is opaque to this client.
+//
+// Attribution: a store belongs to a call if and only if it is committed
+// on the thread that opened that call's recording, while it is open.
+// Engine::run() runs jobs one at a time on one worker and runQuick()'s
+// contract forbids storage, so no other operation of this Engine can
+// store into an open recording; the binding to the opening thread is
+// what keeps another account's Engine out of it too. A store on any
+// other thread is not recorded, which leaves the record behind exactly
+// as today - the safe direction, because deleting another operation's
+// record is worse than the orphan.
+//
+// Lifetime: the handle is created before the call and owned by that
+// call's continuations, so a successful call simply drops it and no
+// record is ever eligible for a later drop.
+class EngineSecretStores final {
+public:
+	class Recording final {
+	public:
+		explicit Recording(not_null<EngineSecretStores*> stores);
+		Recording(const Recording &other) = delete;
+		Recording &operator=(const Recording &other) = delete;
+		~Recording();
+
+	private:
+		EngineSecretStores *_previous = nullptr;
+
+	};
+
+	// Worker thread, inside the job, around the one engine call whose
+	// stores are being attributed.
+	[[nodiscard]] Recording record();
+
+	// Worker thread. Called by the platform host once a store reached
+	// disk. Does nothing when no recording is open on this thread.
+	static void Remember(const QString &storageKey);
+
+	// Main thread. The keys recorded so far, leaving none behind.
+	[[nodiscard]] std::vector<QString> take();
+
+private:
+	std::vector<QString> _keys;
+
 };
 
 // Owns the wallet-engine host implementations and the single worker thread
@@ -75,6 +126,11 @@ public:
 	// Runs the blocking client shutdown on the worker and reports on main.
 	// The client stays owned (and returned by client()) until `done` runs.
 	void stopClient(Fn<void()> done);
+
+	// Removes the protected-secret records a failed engine call wrote and
+	// forgets them. A call that succeeded never comes here: its handle is
+	// dropped instead.
+	void dropStoredSecrets(EngineSecretStores &stores);
 
 	// Runs a blocking engine call on the worker thread and delivers the
 	// result or the engine error on the main thread. Both callbacks are

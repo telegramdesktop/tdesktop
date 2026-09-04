@@ -31,6 +31,9 @@ namespace engine = wallet_engine;
 
 constexpr auto kMaxTrackedEarlyCancels = 64;
 
+// The open recording of the engine call running on this thread.
+thread_local EngineSecretStores *t_recordingStores = nullptr;
+
 template <typename Kind>
 struct HostErrorFor;
 
@@ -302,6 +305,30 @@ struct StoreOutcome {
 }
 
 } // namespace
+
+EngineSecretStores::Recording::Recording(
+	not_null<EngineSecretStores*> stores)
+: _previous(t_recordingStores) {
+	t_recordingStores = stores;
+}
+
+EngineSecretStores::Recording::~Recording() {
+	t_recordingStores = _previous;
+}
+
+EngineSecretStores::Recording EngineSecretStores::record() {
+	return Recording(this);
+}
+
+void EngineSecretStores::Remember(const QString &storageKey) {
+	if (const auto stores = t_recordingStores) {
+		stores->_keys.push_back(storageKey);
+	}
+}
+
+std::vector<QString> EngineSecretStores::take() {
+	return base::take(_keys);
+}
 
 // Implements the engine's status-less provider callback over the main-thread
 // MTProto proxy transport. execute_statusless() blocks the calling engine
@@ -664,7 +691,9 @@ public:
 			throw HostFailed(
 				engine::ProtectedSecretHostErrorKind::kUnavailable,
 				u"wallet vault is unavailable"_q);
-		} else if (!outcome->created.empty()) {
+		}
+		EngineSecretStores::Remember(key);
+		if (!outcome->created.empty()) {
 			_vault->adoptCreated(
 				std::move(outcome->created),
 				input->authority.epoch);
@@ -952,6 +981,23 @@ void Engine::stopClient(Fn<void()> done) {
 	run([client] {
 		client->shutdown();
 	}, finish, [finish](EngineError) { finish(); });
+}
+
+void Engine::dropStoredSecrets(EngineSecretStores &stores) {
+	auto dropped = 0;
+	for (const auto &key : stores.take()) {
+		if (_session->local().removeWalletEngineValue(key)) {
+			++dropped;
+		}
+	}
+	// removeWalletEngineValue answers false only for a key that is not
+	// in the map, so this counts records that were really there and
+	// never removals that failed: at that API there is no
+	// removal-failed answer, exactly as dropCreatedVault reads its own.
+	if (dropped) {
+		LOG(("Wallet Info: dropped %1 secret record(s) a failed engine "
+			"call stored.").arg(dropped));
+	}
 }
 
 void Engine::Execute(

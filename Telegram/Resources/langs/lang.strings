@@ -8878,6 +8878,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_import_error" = "This recovery phrase could not restore a wallet. Check the words and try again.";
 "lng_wallet_imported_title" = "Wallet Imported";
 "lng_wallet_imported_text" = "Your wallet was restored from your recovery phrase.";
+"lng_wallet_imported_not_stored" = "Your wallet was replaced, but its key couldn't be saved on this device. Restore it from your recovery phrase to send from here.";
 "lng_wallet_import_failed" = "Couldn't import the wallet. Please try again.";
 "lng_wallet_create_error" = "Couldn't create a wallet. Please try again.";
 "lng_wallet_phrase_error" = "Couldn't show the recovery phrase. Please try again.";
