@@ -175,9 +175,7 @@ void SystemMediaControlsManager::syncPlayerStateToControls() {
 		= base::Platform::SystemMediaControls::PlaybackStatus;
 	using namespace Media::Player;
 	const auto mediaPlayer = Media::Player::instance();
-	const auto type = mediaPlayer->current(AudioMsgId::Type::Song)
-		? AudioMsgId::Type::Song
-		: AudioMsgId::Type::Voice;
+	const auto type = mediaPlayer->getActiveType();
 	const auto current = mediaPlayer->current(type);
 	if (!current) {
 		_cachedMediaView.clear();
