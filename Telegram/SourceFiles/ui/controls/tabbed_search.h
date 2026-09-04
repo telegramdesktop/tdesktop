@@ -63,6 +63,7 @@ public:
 	[[nodiscard]] rpl::producer<> escapes() const;
 	// Enter or Down in the field, or a group chosen from the keyboard:
 	// the results are for the keyboard now, with the query they are of.
+	// For a screen reader only: without one the results are not focusable.
 	[[nodiscard]] auto activations() const
 	-> rpl::producer<std::vector<QString>>;
 	[[nodiscard]] rpl::producer<std::vector<QString>> queryValue() const;

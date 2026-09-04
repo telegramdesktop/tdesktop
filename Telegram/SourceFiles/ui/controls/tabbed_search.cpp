@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 
 #include <QtWidgets/QApplication>
+#include <QtWidgets/QTextEdit>
 
 namespace Ui {
 namespace {
@@ -528,12 +529,15 @@ void SearchWithGroups::initField() {
 	// with suggestions; Enter does as well, through activations(). Taken
 	// from the editor itself, before it moves the caret, and unmodified
 	// only: Shift+Down still selects, the other caret keys stay its own.
+	// For a screen reader only: without one the results are not
+	// focusable, and the field keeps its keys.
 	base::install_event_filter(_field->rawTextEdit(), [=](
 			not_null<QEvent*> e) {
 		if (e->type() == QEvent::KeyPress) {
 			const auto key = static_cast<QKeyEvent*>(e.get());
 			if (key->key() == Qt::Key_Down
-				&& !(key->modifiers() & ~Qt::KeypadModifier)) {
+				&& !(key->modifiers() & ~Qt::KeypadModifier)
+				&& ScreenReaderModeActive()) {
 				_downs.fire({});
 				return base::EventFilterResult::Cancel;
 			}
@@ -777,7 +781,9 @@ auto SearchWithGroups::activations() const
 		rpl::merge(
 			_field->submits() | rpl::to_empty,
 			_downs.events()
-		) | rpl::map([=] { return _query.current(); }),
+		) | rpl::filter([] {
+			return ScreenReaderModeActive();
+		}) | rpl::map([=] { return _query.current(); }),
 		_activations.events());
 }
 
