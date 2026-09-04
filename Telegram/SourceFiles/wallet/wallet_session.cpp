@@ -3057,6 +3057,7 @@ void Session::setCollectibles(std::vector<Gram::NftItem> &&list) {
 	_collectibles = std::move(list);
 	if (_collectibles.empty()) {
 		_collectiblesTab = false;
+		refreshStaleHistory();
 	}
 	for (const auto &item : _collectibles) {
 		_collectibleInfo[item.address] = item;
