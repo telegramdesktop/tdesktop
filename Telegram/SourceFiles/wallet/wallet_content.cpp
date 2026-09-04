@@ -4133,6 +4133,21 @@ void WalletImportBox(
 	WalletImportMode mode,
 	Fn<void()> restored = nullptr);
 
+void ShowInvalidSecretWords(
+		std::shared_ptr<Main::SessionShow> show,
+		bool foreign) {
+	auto args = Ui::ConfirmBoxArgs{
+		.confirmText = tr::lng_wallet_import_try_again(),
+		.title = tr::lng_wallet_import_invalid_title(),
+	};
+	if (foreign) {
+		args.text = tr::lng_wallet_import_invalid_scheme(tr::now, tr::rich);
+	} else {
+		args.text = tr::lng_wallet_import_invalid_spelling(tr::now);
+	}
+	show->showBox(Ui::MakeInformBox(std::move(args)));
+}
+
 void RequestCustodyRestore(
 		std::shared_ptr<Main::SessionShow> show,
 		KeyAuthorization auth,
@@ -4353,10 +4368,13 @@ void RequestWalletReplace(
 		}
 		if (!imported) {
 			show->showToast(tr::lng_wallet_create_error(tr::now));
+		} else if (error == u"REPLACE_INVALID_PHRASE"_q
+			|| error == u"REPLACE_FOREIGN_PHRASE"_q) {
+			ShowInvalidSecretWords(
+				show,
+				error == u"REPLACE_FOREIGN_PHRASE"_q);
 		} else if (showError) {
-			showError((error == u"REPLACE_INVALID_PHRASE"_q)
-				? tr::lng_wallet_import_error(tr::now)
-				: tr::lng_wallet_import_failed(tr::now));
+			showError(tr::lng_wallet_import_failed(tr::now));
 		} else {
 			show->showToast(tr::lng_wallet_import_failed(tr::now));
 		}
@@ -5552,6 +5570,12 @@ void WalletImportBox(
 		for (auto i = 0; i != count; ++i) {
 			words.push_back(wordAt(i));
 		}
+		const auto match = DetectPhraseMatch(words);
+		if (match != PhraseMatch::Rotation) {
+			state->error = QString();
+			ShowInvalidSecretWords(show, match == PhraseMatch::Foreign);
+			return;
+		}
 		state->importing = true;
 		if (mode == WalletImportMode::Restore) {
 			show->session().wallet().restoreFromPhrase(
@@ -5572,6 +5596,14 @@ void WalletImportBox(
 				}),
 				crl::guard(box, [=](const QString &error) {
 					state->importing = false;
+					if (error == u"PHRASE_INVALID_PHRASE"_q
+						|| error == u"PHRASE_FOREIGN_PHRASE"_q) {
+						state->error = QString();
+						ShowInvalidSecretWords(
+							show,
+							error == u"PHRASE_FOREIGN_PHRASE"_q);
+						return;
+					}
 					// A dismissed protection chooser restored nothing and has
 					// nothing to state, so the form simply stays as it was.
 					// A locked vault is stated on this label, not in the toast
@@ -5583,8 +5615,6 @@ void WalletImportBox(
 						? tr::lng_wallet_key_save_error(tr::now)
 						: (error == u"PHRASE_VAULT_LOCKED"_q)
 						? VaultLockedText(&show->session())
-						: (error == u"PHRASE_INVALID_PHRASE"_q)
-						? tr::lng_wallet_import_error(tr::now)
 						: (error == u"PHRASE_KEY_MISMATCH"_q)
 						? tr::lng_wallet_restore_error(tr::now)
 						: tr::lng_wallet_import_failed(tr::now);

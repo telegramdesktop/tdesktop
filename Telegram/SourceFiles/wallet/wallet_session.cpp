@@ -765,6 +765,35 @@ std::vector<QString> WordlistSuggestions(
 	return result;
 }
 
+PhraseMatch DetectPhraseMatch(const std::vector<QString> &words) {
+	auto engineWords = std::vector<std::string>();
+	engineWords.reserve(words.size());
+	for (const auto &word : words) {
+		engineWords.push_back(NormalizeWord(word).toStdString());
+	}
+	try {
+		const auto schemes = engine::detect_mnemonic_schemes(engineWords);
+		auto rotation = false;
+		auto foreign = false;
+		for (const auto scheme : schemes) {
+			if (scheme == engine::MnemonicScheme::kRotation) {
+				rotation = true;
+			} else if (scheme == engine::MnemonicScheme::kTon
+				|| scheme == engine::MnemonicScheme::kBip39) {
+				foreign = true;
+			}
+		}
+		if (rotation) {
+			return PhraseMatch::Rotation;
+		} else if (foreign) {
+			return PhraseMatch::Foreign;
+		}
+		return PhraseMatch::None;
+	} catch (...) {
+		return PhraseMatch::Rotation;
+	}
+}
+
 void WalletLoss::add(const WalletLoss &other) {
 	unbacked += other.unbacked;
 	parked += other.parked;
@@ -1443,6 +1472,15 @@ void Session::restoreFromPhrase(
 		LOG(("Wallet Error: restore requested without a settled wallet key."));
 		if (fail) {
 			fail(u"PHRASE_STATE_UNKNOWN"_q);
+		}
+		return;
+	}
+	const auto match = DetectPhraseMatch(words);
+	if (match != PhraseMatch::Rotation) {
+		if (fail) {
+			fail((match == PhraseMatch::Foreign)
+				? u"PHRASE_FOREIGN_PHRASE"_q
+				: u"PHRASE_INVALID_PHRASE"_q);
 		}
 		return;
 	}
@@ -2307,6 +2345,15 @@ void Session::replaceWithImported(
 		LOG(("Wallet Error: replace requested without a settled wallet key."));
 		if (fail) {
 			fail(u"REPLACE_STATE_UNKNOWN"_q);
+		}
+		return;
+	}
+	const auto match = DetectPhraseMatch(words);
+	if (match != PhraseMatch::Rotation) {
+		if (fail) {
+			fail((match == PhraseMatch::Foreign)
+				? u"REPLACE_FOREIGN_PHRASE"_q
+				: u"REPLACE_INVALID_PHRASE"_q);
 		}
 		return;
 	}

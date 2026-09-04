@@ -194,6 +194,14 @@ struct SendArgs {
 	const QString &prefix,
 	int limit);
 
+enum class PhraseMatch {
+	Rotation,
+	Foreign,
+	None,
+};
+
+[[nodiscard]] PhraseMatch DetectPhraseMatch(const std::vector<QString> &words);
+
 // What logging out of an account, or removing its keys after a forgotten
 // passcode, would destroy on this device, read from its custody store:
 // `unbacked` counts the served wallet when Telegram holds no backup of it,
