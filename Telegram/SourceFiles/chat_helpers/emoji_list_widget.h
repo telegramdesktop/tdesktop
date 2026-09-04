@@ -375,6 +375,7 @@ private:
 		const QString &query,
 		const MTPmessages_FoundStickerSets &result);
 	void showSearchResults();
+	void focusPendingResults();
 	void fillCloudSearchResults();
 	void refreshSearchShortcuts();
 	void fillLocalSearchShortcuts(const QString &query);
@@ -598,6 +599,9 @@ private:
 	rpl::event_stream<std::vector<QString>> _searchQueries;
 	std::vector<QString> _nextSearchQuery;
 	std::vector<QString> _searchQuery;
+	// The query the keyboard asked the results of: the first of them
+	// takes the focus once they are shown, see focusPendingResults().
+	std::optional<std::vector<QString>> _pendingResultsFocus;
 	QString _searchQueryText;
 	base::flat_set<EmojiPtr> _searchEmoji;
 	base::flat_set<EmojiPtr> _searchEmojiPrevious;

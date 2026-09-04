@@ -3225,6 +3225,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_emoji_category5" = "Travel & Places";
 "lng_emoji_category6" = "Objects";
 "lng_emoji_category7" = "Symbols & Flags";
+"lng_emoji_categories" = "Categories";
+"lng_emoji_search_groups" = "Search groups";
 "lng_emoji_manage_sets" = "Choose emoji set";
 "lng_emoji_set_ready" = "Downloaded";
 "lng_emoji_set_active" = "Current set";

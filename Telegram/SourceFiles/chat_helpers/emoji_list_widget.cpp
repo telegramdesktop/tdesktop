@@ -763,6 +763,7 @@ EmojiListWidget::EmojiListWidget(
 , _keyPickerTimer([=] { keyPickerTimeout(); })
 , _previewTimer([=] { showPreview(); }) {
 	setMouseTracking(true);
+	setAccessibleName(tr::lng_switch_emoji(tr::now));
 	if (st().bg->c.alpha() > 0) {
 		setAttribute(Qt::WA_OpaquePaintEvent);
 	}
@@ -911,11 +912,30 @@ void EmojiListWidget::setupSearch() {
 		: TabbedSearchType::Emoji;
 	_search = MakeSearch(this, st(), [=](std::vector<QString> &&query) {
 		_nextSearchQuery = std::move(query);
+		if (_pendingResultsFocus && *_pendingResultsFocus != _nextSearchQuery) {
+			// Typed over: the results asked for are not coming any more.
+			_pendingResultsFocus = std::nullopt;
+		}
 		InvokeQueued(this, [=] {
 			applyNextSearchQuery();
 		});
 		_searchQueries.fire_copy(_nextSearchQuery);
 	}, session, type);
+
+	// Enter or Down in the field, or a group chosen from the keyboard: the
+	// first of the results takes the focus once the results of that query
+	// are shown - right away when they are the ones shown already.
+	_search->activations(
+	) | rpl::on_next([=](std::vector<QString> &&query) {
+		_pendingResultsFocus = std::move(query);
+		if (_searchMode && _searchQuery == *_pendingResultsFocus) {
+			focusPendingResults();
+		}
+	}, lifetime());
+	_search->escapes(
+	) | rpl::on_next([=] {
+		_pendingResultsFocus = std::nullopt;
+	}, lifetime());
 }
 
 void EmojiListWidget::setSearchRightReserved(int value) {
@@ -975,6 +995,12 @@ void EmojiListWidget::applyNextSearchQuery() {
 			visibleTopBottomUpdated(getVisibleTop(), getVisibleBottom());
 		}
 		updateSelected();
+		if (searching
+			&& _pendingResultsFocus
+			&& *_pendingResultsFocus == _searchQuery
+			&& accessibilityChildCount() > 0) {
+			focusPendingResults();
+		}
 	};
 	if (_searchQuery.empty()) {
 		cancelSearchRequest();
@@ -1375,6 +1401,15 @@ void EmojiListWidget::searchSetsResultsDone(
 }
 
 void EmojiListWidget::showSearchResults() {
+	// The keyboard keeps its place through a refill of the results - they
+	// come in more than once, the cloud ones after the local - and the
+	// results the keyboard asked for take the focus when they are here.
+	const auto keyboard = hasFocus();
+	const auto selected = std::get_if<OverEmoji>(&_selected);
+	const auto wasIndex = (keyboard && selected)
+		? accessibleIndex(*selected)
+		: -1;
+
 	clearSelection();
 
 	_searchResults.clear();
@@ -1415,6 +1450,21 @@ void EmojiListWidget::showSearchResults() {
 	_recentShownCount = _searchResults.size();
 	update();
 	updateSelected();
+
+	const auto count = accessibilityChildCount();
+	if (_pendingResultsFocus && *_pendingResultsFocus == _searchQuery) {
+		// Served with whatever came, so that nothing waits for results
+		// that will not come.
+		focusPendingResults();
+		return;
+	} else if (!count) {
+		return;
+	} else if (keyboard) {
+		const auto index = std::clamp(std::max(wasIndex, 0), 0, count - 1);
+		if (const auto over = accessibleChild(index)) {
+			keyboardSelect(*over, true);
+		}
+	}
 }
 
 void EmojiListWidget::fillCloudSearchResults() {
@@ -1953,7 +2003,23 @@ object_ptr<TabbedSelector::InnerFooter> EmojiListWidget::createFooter() {
 
 	_footer->setChosen(
 	) | rpl::on_next([=](uint64 setId) {
+		const auto keyboard = _footer->hasFocus();
 		showSet(setId);
+		if (keyboard) {
+			// Chosen from the keyboard: on to the first emoji of the
+			// section, as the mouse would go on to click one.
+			enumerateSections([&](const SectionInfo &info) {
+				if (setId != sectionSetId(info.section)) {
+					return true;
+				} else if (shownCount(info) > 0) {
+					keyboardSelect(
+						{ .section = info.section, .index = 0 },
+						false);
+					setFocus();
+				}
+				return false;
+			});
+		}
 	}, _footer->lifetime());
 
 	return result;
@@ -1975,10 +2041,28 @@ void EmojiListWidget::afterShown() {
 }
 
 void EmojiListWidget::beforeHiding() {
+	_pendingResultsFocus = std::nullopt;
 	if (_search) {
 		_search->returnFocus();
 	}
 	returnFocus();
+}
+
+void EmojiListWidget::focusPendingResults() {
+	// The results of the query the keyboard asked for are the ones shown:
+	// the first of them takes the focus, and the place to give it back to
+	// comes over from the search, which took it on entry, unless the list
+	// has one of its own already.
+	_pendingResultsFocus = std::nullopt;
+	const auto first = accessibleChild(0);
+	if (!first) {
+		return;
+	}
+	if (!_focusReturn) {
+		_focusReturn = _search->takeFocusReturn();
+	}
+	keyboardSelect(*first, false);
+	setFocus();
 }
 
 void EmojiListWidget::returnFocus() {
