@@ -8889,6 +8889,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_vault_locked" = "The wallet key on this device is locked. Enter your passcode and try again.";
 "lng_wallet_vault_no_passcode" = "Set a local passcode in Settings > Privacy and Security before storing your wallet key on this device.";
 "lng_wallet_vault_unavailable" = "The wallet key stored on this device can't be read.";
+"lng_wallet_key_save_error" = "Couldn't save the wallet key on this device. Please try again.";
 "lng_wallet_protection_title" = "Passcode Lock";
 "lng_wallet_protection_about" = "Choose how the key to this wallet is protected on this device.";
 "lng_wallet_protection_removal_about" = "Choose how your wallet key stays protected once the passcode is removed.";

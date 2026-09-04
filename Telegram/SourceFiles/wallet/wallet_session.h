@@ -256,7 +256,7 @@ public:
 	void revealPhrase(
 		KeyAuthorization auth,
 		std::optional<Core::CloudPasswordResult> password,
-		Fn<void(std::vector<QString>, bool persisted)> done,
+		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
 		Fn<void(const QString &error)> fail);
 	void replaceWithNew(
 		std::optional<Core::CloudPasswordResult> password,
@@ -281,7 +281,7 @@ public:
 	void revealParked(
 		KeyAuthorization auth,
 		const QByteArray &publicKey,
-		Fn<void(std::vector<QString>, bool persisted)> done,
+		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
 		Fn<void(const QString &error)> fail);
 	void dropParked(
 		const QByteArray &publicKey,
@@ -375,18 +375,18 @@ private:
 	void revealFromShares(
 		KeyAuthorization auth,
 		std::optional<Core::CloudPasswordResult> password,
-		Fn<void(std::vector<QString>, bool persisted)> done,
+		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
 		Fn<void(const QString &)> fail);
 	void fetchShareParts(
 		KeyAuthorization auth,
 		const QString &token,
 		std::vector<int> dcs,
-		Fn<void(std::vector<QString>, bool persisted)> done,
+		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
 		Fn<void(const QString &)> fail);
 	void restoreFromWords(
 		KeyAuthorization auth,
 		std::vector<QString> words,
-		Fn<void(std::vector<QString>, bool persisted)> done,
+		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
 		Fn<void(const QString &)> fail);
 	[[nodiscard]] bool custodyBusy() const;
 	[[nodiscard]] const CustodyStore &custody();

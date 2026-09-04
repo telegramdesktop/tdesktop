@@ -14,6 +14,10 @@ class Session;
 class SessionShow;
 } // namespace Main
 
+namespace Ui {
+class GenericBox;
+} // namespace Ui
+
 namespace Wallet {
 
 // One live unlock, shared by every engine call of one logical operation.
@@ -27,6 +31,18 @@ using VaultAuthorization = std::shared_ptr<VaultGrant>;
 struct CustodyInstall {
 	VaultAuthorization grant;
 	bool created = false;
+};
+
+// What a store that ran the custody-install ladder actually did. Cancelled
+// is the dismissed protection chooser: it stored nothing and has nothing to
+// state. WriteFailed is a custody write that did not reach disk after a
+// successful import - the same arm deletes the stored secret and drops a
+// header this store created - and it is stated, because nothing the user
+// did caused it.
+enum class CustodyOutcome {
+	Installed,
+	Cancelled,
+	WriteFailed,
 };
 
 // The ladder itself, invoked by the session after the words are in hand and
@@ -59,5 +75,31 @@ void AcquireVaultUnlock(VaultUnlockArgs args);
 	std::shared_ptr<Main::SessionShow> show);
 
 [[nodiscard]] QString VaultLockedText(not_null<Main::Session*> session);
+
+// Vault: the typed passcode must open the vault's own passcode wrap.
+// KeyDataAndVault: it is checked against key_data and, when the vault is
+// passcode-wrapped, must open that wrap too, while nothing is armed,
+// nothing is unlocked and nothing is retained.
+enum class WalletPasscodeCheck {
+	Vault,
+	KeyDataAndVault,
+};
+
+// grant is filled for Vault, passcode only for KeyDataAndVault.
+struct WalletPasscodeGate {
+	VaultGrant grant;
+	SecureBytes passcode;
+};
+
+struct WalletPasscodeBoxArgs {
+	std::shared_ptr<Main::SessionShow> show;
+	WalletPasscodeCheck check = WalletPasscodeCheck::Vault;
+	Fn<void(WalletPasscodeGate)> passed;
+	Fn<void()> cancelled;
+};
+
+void WalletPasscodeBox(
+	not_null<Ui::GenericBox*> box,
+	WalletPasscodeBoxArgs args);
 
 } // namespace Wallet

@@ -27,8 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/passcode_strength_meter.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/passcode_strength.h"
-#include "wallet/wallet_content.h"
 #include "wallet/wallet_session.h"
+#include "wallet/wallet_unlock.h"
 
 #include "styles/style_layers.h"
 #include "styles/style_passcode_strength_meter.h"

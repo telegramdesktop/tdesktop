@@ -1060,7 +1060,7 @@ bool Session::custodyBusy() const {
 void Session::revealPhrase(
 		KeyAuthorization auth,
 		std::optional<Core::CloudPasswordResult> password,
-		Fn<void(std::vector<QString>, bool persisted)> done,
+		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
 	if (custodyBusy() || custody().pendingRotation) {
@@ -1086,10 +1086,10 @@ void Session::revealPhrase(
 	// set for the rest of the session.
 	done = [this, done = std::move(done)](
 			std::vector<QString> words,
-			bool persisted) {
+			CustodyOutcome outcome) {
 		_phraseRevealing = false;
 		if (done) {
-			done(std::move(words), persisted);
+			done(std::move(words), outcome);
 		}
 	};
 	fail = [this, fail = std::move(fail)](const QString &error) {
@@ -1105,7 +1105,7 @@ void Session::revealPhrase(
 		}
 		revealLocally(std::move(auth), *record, [=](
 				std::vector<QString> words) {
-			done(std::move(words), true);
+			done(std::move(words), CustodyOutcome::Installed);
 		}, fail);
 	} else {
 		revealFromShares(std::move(auth), std::move(password), done, fail);
@@ -1149,7 +1149,7 @@ void Session::revealLocally(
 void Session::revealFromShares(
 		KeyAuthorization auth,
 		std::optional<Core::CloudPasswordResult> password,
-		Fn<void(std::vector<QString>, bool persisted)> done,
+		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
 		Fn<void(const QString &)> fail) {
 	using Flag = MTPwallet_exportSecretPhrase::Flag;
 	const auto checked = password && *password;
@@ -1177,7 +1177,7 @@ void Session::fetchShareParts(
 		KeyAuthorization auth,
 		const QString &token,
 		std::vector<int> dcs,
-		Fn<void(std::vector<QString>, bool persisted)> done,
+		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
 		Fn<void(const QString &)> fail) {
 	auto keys = TdE2E::TemporaryKeyPair::Generate();
 	if (!keys) {
@@ -1259,7 +1259,7 @@ void Session::fetchShareParts(
 void Session::restoreFromWords(
 		KeyAuthorization auth,
 		std::vector<QString> words,
-		Fn<void(std::vector<QString>, bool persisted)> done,
+		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
 		Fn<void(const QString &)> fail) {
 	if (words.size() < 2) {
 		LOG(("Wallet Error: reconstructed phrase has no words."));
@@ -1320,7 +1320,9 @@ void Session::restoreFromWords(
 					lifecycle->delete_wallet(descriptor);
 				}, [] {}, [](EngineError) {});
 			}
-			done(std::move(restored.words), persisted);
+			done(std::move(restored.words), persisted
+				? CustodyOutcome::Installed
+				: CustodyOutcome::WriteFailed);
 		}, [=, this](EngineError error) {
 			if (install.created) {
 				dropCreatedVault();
@@ -1341,7 +1343,7 @@ void Session::restoreFromWords(
 		install([=, words = std::move(words)](
 				CustodyInstall answer) mutable {
 			if (!answer.grant) {
-				done(std::move(words), false);
+				done(std::move(words), CustodyOutcome::Cancelled);
 			} else {
 				store(std::move(answer), std::move(words));
 			}
@@ -1379,7 +1381,9 @@ void Session::restoreFromPhrase(
 	// this flow has no words of its own to show, so it is a failure here.
 	// The guard is cleared once, by whichever wrapped callback runs, and the
 	// outer fail is called directly: routing through the wrapped one would
-	// clear the guard a second time.
+	// clear the guard a second time. The two not-installed outcomes are told
+	// apart, because a cancelled chooser states nothing while a custody write
+	// that failed must be stated.
 	auto refused = [this, fail](const QString &error) {
 		_phraseRevealing = false;
 		if (fail) {
@@ -1391,14 +1395,16 @@ void Session::restoreFromPhrase(
 		std::move(words),
 		[this, done = std::move(done), fail = std::move(fail)](
 				std::vector<QString>,
-				bool persisted) {
+				CustodyOutcome outcome) {
 			_phraseRevealing = false;
-			if (!persisted) {
-				if (fail) {
-					fail(u"PHRASE_INSTALL_CANCELLED"_q);
+			if (outcome == CustodyOutcome::Installed) {
+				if (done) {
+					done();
 				}
-			} else if (done) {
-				done();
+			} else if (fail) {
+				fail((outcome == CustodyOutcome::WriteFailed)
+					? u"PHRASE_INSTALL_FAILED"_q
+					: u"PHRASE_INSTALL_CANCELLED"_q);
 			}
 		},
 		std::move(refused));
@@ -1426,9 +1432,11 @@ void Session::restoreFromBackup(
 		return;
 	}
 	_phraseRevealing = true;
-	// Same one-terminal-call shape as restoreFromPhrase: the cancelled
-	// install ladder answers persisted == false and this flow states it as
-	// a failure, because a restore that stored nothing restored nothing.
+	// Same one-terminal-call shape as restoreFromPhrase: an install ladder
+	// that stored nothing makes this flow fail, because a restore that stored
+	// nothing restored nothing. The two not-installed outcomes are told apart,
+	// because a cancelled chooser states nothing while a custody write that
+	// failed must be stated.
 	auto refused = [this, fail](const QString &error) {
 		_phraseRevealing = false;
 		if (fail) {
@@ -1440,14 +1448,16 @@ void Session::restoreFromBackup(
 		std::move(password),
 		[this, done = std::move(done), fail = std::move(fail)](
 				std::vector<QString>,
-				bool persisted) {
+				CustodyOutcome outcome) {
 			_phraseRevealing = false;
-			if (!persisted) {
-				if (fail) {
-					fail(u"PHRASE_INSTALL_CANCELLED"_q);
+			if (outcome == CustodyOutcome::Installed) {
+				if (done) {
+					done();
 				}
-			} else if (done) {
-				done();
+			} else if (fail) {
+				fail((outcome == CustodyOutcome::WriteFailed)
+					? u"PHRASE_INSTALL_FAILED"_q
+					: u"PHRASE_INSTALL_CANCELLED"_q);
 			}
 		},
 		std::move(refused));
@@ -1456,7 +1466,7 @@ void Session::restoreFromBackup(
 void Session::revealParked(
 		KeyAuthorization auth,
 		const QByteArray &publicKey,
-		Fn<void(std::vector<QString>, bool persisted)> done,
+		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
 	if (custodyBusy()) {
@@ -1491,10 +1501,10 @@ void Session::revealParked(
 	_phraseRevealing = true;
 	done = [this, done = std::move(done)](
 			std::vector<QString> words,
-			bool persisted) {
+			CustodyOutcome outcome) {
 		_phraseRevealing = false;
 		if (done) {
-			done(std::move(words), persisted);
+			done(std::move(words), outcome);
 		}
 	};
 	fail = [this, fail = std::move(fail)](const QString &error) {
@@ -1505,7 +1515,7 @@ void Session::revealParked(
 	};
 	revealLocally(std::move(auth), *record, [=](
 			std::vector<QString> words) {
-		done(std::move(words), true);
+		done(std::move(words), CustodyOutcome::Installed);
 	}, fail);
 }
 
@@ -1633,7 +1643,15 @@ void Session::prepareBackupParts(
 				return;
 			}
 			done(std::move(*parts));
-		}, fail);
+		}, [=](const QString &error) {
+			// revealLocally is the phrase flow's helper and refuses in its
+			// own family; a vault cleared between the holder-DC answer and
+			// this read is this flow's refusal, so it leaves in this flow's
+			// token.
+			fail((error == u"PHRASE_VAULT_LOCKED"_q)
+				? u"BACKUP_VAULT_LOCKED"_q
+				: error);
+		});
 	}).fail([=](const MTP::Error &error) {
 		LOG(("Wallet Error: wallet.getBackupHolderDcs failed: %1"
 			).arg(error.type()));
@@ -2138,8 +2156,15 @@ bool Session::persistCustody(const CustodyRecord &record) {
 // no ownership check is needed. It runs beside the delete_wallet the same
 // failure fires, not after it, so a delete that fails leaves no vault.
 void Session::dropCreatedVault() {
-	if (!RemoveVaultHeader(_session->local())) {
-		LOG(("Wallet Error: could not drop a just-created vault header."));
+	// removeWalletEngineValue answers false only for a key that is not in
+	// the map, so this boolean is "there was a header to drop" and never
+	// "the removal failed": at that API there is no removal-failed answer.
+	// An engine failure before its own store - an invalid recovery phrase
+	// is the common one - leaves no header, which is the ordinary case
+	// here and states nothing.
+	if (RemoveVaultHeader(_session->local())) {
+		LOG(("Wallet Info: dropped the vault header a failed store "
+			"created."));
 	}
 }
 
@@ -2306,7 +2331,7 @@ void Session::replaceWithImported(
 			const auto name = LifecycleErrorName(error);
 			LOG(("Wallet Error: import_wallet failed: %1").arg(name));
 			fail(IsVaultLocked(error)
-				? u"PHRASE_VAULT_LOCKED"_q
+				? u"REPLACE_VAULT_LOCKED"_q
 				: (name == u"InvalidRecoveryPhrase"_q)
 				? u"REPLACE_INVALID_PHRASE"_q
 				: u"REPLACE_IMPORT_FAILED"_q);
@@ -2324,7 +2349,7 @@ void Session::replaceWithImported(
 	} else if (auth.grant && auth.grant->valid()) {
 		store(CustodyInstall{ .grant = auth.grant }, std::move(words));
 	} else {
-		fail(u"PHRASE_VAULT_LOCKED"_q);
+		fail(u"REPLACE_VAULT_LOCKED"_q);
 	}
 }
 
