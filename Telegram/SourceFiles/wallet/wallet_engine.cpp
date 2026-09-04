@@ -665,7 +665,9 @@ public:
 				engine::ProtectedSecretHostErrorKind::kUnavailable,
 				u"wallet vault is unavailable"_q);
 		} else if (!outcome->created.empty()) {
-			_vault->adoptCreated(std::move(outcome->created));
+			_vault->adoptCreated(
+				std::move(outcome->created),
+				input->authority.epoch);
 		}
 	}
 

@@ -652,6 +652,7 @@ void VaultRuntime::clear() {
 		_key.reset();
 		_policy.reset();
 		_retainUntil = 0;
+		++_clearEpoch;
 	}
 	_retention.cancel();
 }
@@ -669,13 +670,17 @@ VaultRuntime::StoreAuthority VaultRuntime::authorityForStore() {
 	if (_grants <= 0) {
 		return {};
 	} else if (_key) {
-		return { .key = _key->copy() };
+		return { .key = _key->copy(), .epoch = _clearEpoch };
 	}
-	return { .policy = base::take(_policy) };
+	return { .policy = base::take(_policy), .epoch = _clearEpoch };
 }
 
-void VaultRuntime::adoptCreated(SecureBytes key) {
+void VaultRuntime::adoptCreated(SecureBytes key, quint32 epoch) {
 	auto lock = std::lock_guard(_mutex);
+	if (epoch != _clearEpoch
+		|| (_grants <= 0 && _retainUntil <= crl::now())) {
+		return;
+	}
 	_key = std::move(key);
 }
 

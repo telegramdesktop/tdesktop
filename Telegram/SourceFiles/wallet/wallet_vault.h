@@ -150,10 +150,19 @@ public:
 	struct StoreAuthority {
 		std::optional<SecureBytes> key;
 		std::optional<VaultPreparedWrap> policy;
+		quint32 epoch = 0;
 	};
 	[[nodiscard]] std::optional<SecureBytes> keyForRead();
 	[[nodiscard]] StoreAuthority authorityForStore();
-	void adoptCreated(SecureBytes key);
+
+	// The store that creates the vault writes the header and the record on
+	// the main thread while the worker waits, so a clear trigger or the
+	// last grant's release can land inside that window. The created key is
+	// installed only while the authority's epoch is still current and the
+	// key would still have an owner; otherwise it is dropped and cleansed -
+	// the header is already on disk, so the next reveal unlocks through the
+	// box.
+	void adoptCreated(SecureBytes key, quint32 epoch);
 
 private:
 	friend class VaultGrant;
@@ -163,6 +172,7 @@ private:
 	std::optional<SecureBytes> _key;
 	std::optional<VaultPreparedWrap> _policy;
 	int _grants = 0;
+	quint32 _clearEpoch = 0;
 	crl::time _retainUntil = 0;
 	base::Timer _retention;
 	rpl::lifetime _lifetime;
