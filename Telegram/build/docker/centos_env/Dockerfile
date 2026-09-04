@@ -1043,7 +1043,7 @@ cargo run --manifest-path bindgen/cpp/bindgen/Cargo.toml --locked -- \
 	--library --out-dir $DESTDIR/usr/local/include/wallet_engine \
 	target/x86_64-unknown-linux-gnu/release/libwallet_engine.so
 mv $DESTDIR/usr/local/include/wallet_engine/wallet_engine.cpp $DESTDIR/usr/local/src/wallet_engine/wallet_engine.cpp
-cp target/x86_64-unknown-linux-gnu/release/libwallet_engine.a $DESTDIR/usr/local/lib/libwallet_engine.a
+objcopy --strip-debug target/x86_64-unknown-linux-gnu/release/libwallet_engine.a $DESTDIR/usr/local/lib/libwallet_engine.a
 cd ..
 rm -rf wallet-engine rustup cargo
 EOF
