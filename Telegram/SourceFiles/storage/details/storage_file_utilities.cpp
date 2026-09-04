@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <crl/crl_object_on_thread.h>
 #include <openssl/core_names.h>
 #include <openssl/kdf.h>
+#include <openssl/opensslv.h>
 #include <openssl/params.h>
 #include <QtCore/QtEndian>
 #include <QtCore/QSaveFile>
@@ -45,7 +46,9 @@ constexpr auto kPasscodeScryptR = quint32(8);
 constexpr auto kPasscodeScryptP = quint32(1);
 constexpr auto kPasscodeScryptMaxMem = quint64(192) * 1024 * 1024;
 constexpr auto kPasscodeSaltMinSize = 8;
+#if OPENSSL_VERSION_NUMBER >= 0x30200000L
 constexpr auto kPasscodeArgon2Name = "ARGON2ID";
+#endif // OPENSSL_VERSION_NUMBER >= 0x30200000L
 
 struct WriteEntry {
 	QString basePath;
@@ -387,6 +390,7 @@ bool PasscodeKdf::valid() const {
 }
 
 PasscodeKdf DefaultPasscodeKdf() {
+#if OPENSSL_VERSION_NUMBER >= 0x30200000L
 	static const auto argon2 = [] {
 		const auto algorithm = EVP_KDF_fetch(
 			nullptr,
@@ -398,6 +402,9 @@ PasscodeKdf DefaultPasscodeKdf() {
 		EVP_KDF_free(algorithm);
 		return true;
 	}();
+#else // OPENSSL_VERSION_NUMBER >= 0x30200000L
+	constexpr auto argon2 = false;
+#endif // OPENSSL_VERSION_NUMBER < 0x30200000L
 	return argon2
 		? PasscodeKdf{
 			.kind = kPasscodeKdfArgon2id,
@@ -424,6 +431,7 @@ MTP::AuthKeyPtr CreatePasscodeKey(
 	auto key = MTP::AuthKey::Data{ { gsl::byte{} } };
 	const auto to = reinterpret_cast<unsigned char*>(key.data());
 	if (kdf.kind == kPasscodeKdfArgon2id) {
+#if OPENSSL_VERSION_NUMBER >= 0x30200000L
 		const auto algorithm = EVP_KDF_fetch(
 			nullptr,
 			kPasscodeArgon2Name,
@@ -470,6 +478,10 @@ MTP::AuthKeyPtr CreatePasscodeKey(
 			LOG(("App Error: Argon2id derivation failed."));
 			return nullptr;
 		}
+#else // OPENSSL_VERSION_NUMBER >= 0x30200000L
+		LOG(("App Error: Argon2id is not available."));
+		return nullptr;
+#endif // OPENSSL_VERSION_NUMBER < 0x30200000L
 	} else if (kdf.kind == kPasscodeKdfScrypt) {
 		if (!EVP_PBE_scrypt(
 			passcode.constData(),
