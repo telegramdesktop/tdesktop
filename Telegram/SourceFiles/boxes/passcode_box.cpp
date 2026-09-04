@@ -724,7 +724,11 @@ void PasscodeBox::save(bool force) {
 			badOldPasscode();
 			return;
 		} else if (result == Storage::SetPasscodeResult::Failed) {
-			_oldError = Lang::Hard::SecureSaveError();
+			if (_oldPasscode->isHidden()) {
+				_newError = Lang::Hard::SecureSaveError();
+			} else {
+				_oldError = Lang::Hard::SecureSaveError();
+			}
 			update();
 			return;
 		}
