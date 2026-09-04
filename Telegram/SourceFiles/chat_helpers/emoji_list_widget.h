@@ -201,6 +201,7 @@ protected:
 	void focusInEvent(QFocusEvent *e) override;
 	void focusOutEvent(QFocusEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
+	void keyReleaseEvent(QKeyEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
@@ -415,6 +416,8 @@ private:
 		const OverEmoji &over,
 		int step) const;
 	void activateKeyboardSelected();
+	[[nodiscard]] bool openKeyboardPicker();
+	void keyPickerTimeout();
 	void expandSection(int section);
 	void ensureCellVisible(const OverEmoji &over);
 	void returnFocus();
@@ -649,6 +652,11 @@ private:
 	base::Timer _searchRequestTimer;
 	object_ptr<EmojiColorPicker> _picker;
 	base::Timer _showPickerTimer;
+	// Enter or Space held on an emoji with variants brings up their picker
+	// after the delay of a long press, as the mouse does; let go before
+	// that, it chooses.
+	base::Timer _keyPickerTimer;
+	bool _keyPressPending = false;
 	base::Timer _previewTimer;
 	bool _previewShown = false;
 
