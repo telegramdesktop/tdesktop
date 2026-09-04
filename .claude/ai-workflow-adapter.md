@@ -17,12 +17,14 @@ This file adapts harness mechanics and removes unnecessary text normalization.
   routing, discovered routing, and pending-task consolidation — follow the
   shared workflow's exact helper, commit, and publication contract instead.
   Preserve its single-writer and one-stateful-performer constraints.
-- Every phase leaf and the performer inherit the parent model, as the shared
-  workflow says. Do not pass a model override on the Agent call: its family
-  aliases already resolve to the newest permitted model of that family, so an
-  override can only pin a leaf below the parent. Do not pass a reasoning field
-  either — the Agent tool has none, and effort is inherited unchanged, so every
-  leaf keeps the parent's reasoning level.
+- Classify each assignment with
+  [phase effort](../.agents/shared/phase-effort.md). Where that policy selects
+  `medium`, explicitly pass `model: "opus"` on the Agent call. For work
+  classified as `high` or `xhigh`, omit `model` to inherit the parent model.
+  Classify the whole assignment: a performer or planner does not become
+  `medium` because part of its work is routine. Do not pass a reasoning field
+  — the Agent tool has none, so actual effort remains inherited. The `opus`
+  pin does not set medium reasoning effort.
 - Run every phase leaf as a synchronous foreground Agent call. The call
   returning is the completion signal: validate the required files and
   repository state right there, treating the short reply as notification

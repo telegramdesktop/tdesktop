@@ -33,7 +33,10 @@ every applicable placeholder: `<TASK>`, `<TASK_ID>`, `<WORK_DIR>`,
 - After each phase completes, write `<WORK_DIR>/logs/phase-<phase-name>.result.md` with exact
   `STATUS:`, `ARTIFACTS:`, `TOUCHED:`, `BLOCKER:`, and `NOTES:` fields.
 - Use `fork_turns: "none"` by default. If the phase depends on thread-only context or UI attachments, pass it explicitly or use the smallest positive turn fork needed.
-- Use only fields the current spawn schema exposes; do not invent role, model, or reasoning arguments. Inherit the parent model/reasoning selection, or match it if the host explicitly supports overrides.
+- Before dispatch, select and apply [phase effort](../../../shared/phase-effort.md).
+  Record the choice and scope reason in the prompt, and the applied setting
+  or inheritance fallback in the result's `NOTES:`. Use only fields the
+  current spawn schema exposes; apply the host mapping for those fields.
 - Give each phase a unique lowercase/digit/underscore task name and tell the phase it is a leaf that must not delegate.
 - For Phase 1, Phase 3, Phase 4, and Phase 6, if delegated retries still fail, stop and ask the user rather than rerunning the phase locally.
 - Never use `codex exec`, background shell child processes, or JSONL child-session logging from this skill.
@@ -536,6 +539,9 @@ Read these files:
 
 The implementation is complete. Run the exact pre-review validation selected
 in the assessed plan and fix only task-owned failures that prevent review.
+If assigned medium execution scope, collect any failure output and return
+it to the parent before diagnosis or source repair. The parent assigns that
+follow-up at xhigh or justified high before resuming this checklist.
 
 Steps:
 1. On native Windows, run the recovery contract's exact-path proactive cleanup
@@ -1148,7 +1154,10 @@ workflow script, or the Codex wait ladder.
 Use this pattern conceptually for delegated phases:
 
 1. Write the phase prompt file.
-2. Spawn a fresh leaf subagent with a unique tool-valid task name and `fork_turns: "none"` unless a small recent-turn fork is required.
+2. Spawn a fresh leaf subagent with a unique tool-valid task name and
+   `fork_turns: "none"` unless a small recent-turn fork is required. Pass
+   the selected `reasoning_effort` when supported, per the shared phase
+   effort policy; omit `model` to inherit the parent model.
 3. Require the agent to create the matching progress file early and refresh it sparingly: at natural milestones when possible, otherwise only after a longer quiet stretch such as roughly 5-10 minutes.
 4. Poll for at most 60 seconds at a time. After any mailbox wake, inspect the saved target with `list_agents`; use elapsed five-minute windows rather than poll count for stall checks.
 5. Prefer filesystem mtime checks on the progress file first. If its mtime moved or the heartbeat counter increased, keep waiting; do not treat that as a stall.

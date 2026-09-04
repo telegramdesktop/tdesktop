@@ -5,6 +5,11 @@ own repository setup, commit boundaries, account safety, and host-specific
 drivers. This protocol owns task-derived evidence selection, execution,
 assessment, recovery, and reporting.
 
+Apply [phase effort](phase-effort.md) when assigning this loop's work.
+Running specified checks may use `medium`; evidence design, authoring,
+verdicts, diagnosis, and repairs favor `xhigh`, with `high` only when the
+parent is sure the particular phase contains nothing complex.
+
 ## Vocabulary
 
 - task-runner — the stateful owner of one task and its evidence loop;

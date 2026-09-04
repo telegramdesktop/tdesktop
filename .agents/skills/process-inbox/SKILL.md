@@ -8,6 +8,9 @@ description: Process the local ignored ai-tdesktop inbox into durable, independe
 When running in Grok Build, read `.grok/ai-workflow-adapter.md` completely
 before any other host-specific delegation rule and apply its substitutions.
 
+Before assigning workers, read [phase effort](../../shared/phase-effort.md)
+and apply its scope-based effort selection and host mappings.
+
 Turn the human-written ignored inbox into tracked planning artifacts. Route and
 plan only: do not edit Telegram source, build, test, claim, or implement tasks.
 

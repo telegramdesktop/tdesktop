@@ -20,6 +20,8 @@ after this performer returns.
 
 Read these files completely before phase work:
 
+- [Phase effort](../../shared/phase-effort.md) for effort selection and host
+  mappings before assigning phase workers;
 - `references/pipeline.md` for the authoritative end-to-end runner contract;
 - `references/phase-prompts.md` for exact leaf prompts and retry rules;
 - `.agents/shared/test-loop.md` for the implementation/test state machine;

@@ -218,7 +218,10 @@ prompts, plus the host-specific orchestration rules.
   source edits so queue planning can replace the task.
 - Use `fork_turns: "none"` with explicit paths. Fork the smallest turn window
   only for genuinely unavailable chat-only visual context.
-- Inherit the parent's model and reasoning level. Do not invent tool fields.
+- Select effort using [phase effort](../../../shared/phase-effort.md):
+  `medium` for routine execution, otherwise favor `xhigh`; use `high` only
+  with the parent's concrete justification that the phase has no complexity.
+  Apply the host mapping, including Claude's `opus` pin for `medium` work.
 - Keep implementation units sequential unless the assessed plan proves
   disjoint write sets and capacity makes parallel edits safe.
 - Never duplicate the performer or an implementation unit with uncertain

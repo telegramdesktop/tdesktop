@@ -26,8 +26,9 @@ resumability, and AI publication. This file adapts harness mechanics.
 - Do not use the `workflow` tool to reimplement this pipeline.
 - Do not pass `isolation: worktree`. The shared `workspace.py` helper owns
   every AI and inbox worktree.
-- Omit `model` and any reasoning field so every child inherits this
-  session. Do not invent tool arguments the schema does not expose.
+- The [phase effort](../.agents/shared/phase-effort.md) host fallback applies:
+  omit `model` and any reasoning field so every child inherits this session.
+  Do not invent unsupported arguments or claim prompt text changed effort.
 - Use `subagent_type: "general-purpose"` for inbox, performer, routing,
   consolidation, and phase leaves. Do not restrict `capability_mode`;
   those workers need shell plus writes.
