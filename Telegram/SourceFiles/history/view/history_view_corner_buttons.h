@@ -31,6 +31,8 @@ class Thread;
 
 namespace HistoryView {
 
+class StashButton;
+
 struct CornerButton {
 	template <typename ...Args>
 	CornerButton(Args &&...args) : widget(std::forward<Args>(args)...) {
@@ -143,6 +145,7 @@ private:
 	CornerButton _reactions;
 	CornerButton _pollVotes;
 	CornerButton _stash;
+	const not_null<StashButton*> _stashButton;
 	rpl::event_stream<> _stashClicks;
 	Fn<void(not_null<Ui::PopupMenu*>)> _stashMenuFiller;
 	base::unique_qptr<Ui::PopupMenu> _stashMenu;

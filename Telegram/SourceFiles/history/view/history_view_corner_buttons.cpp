@@ -32,6 +32,37 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_widgets.h"
 
 namespace HistoryView {
+namespace {
+
+constexpr auto kStashDelay = crl::time(150);
+constexpr auto kStashArrowDuration = crl::time(106);
+constexpr auto kStashBounceDuration = crl::time(173);
+constexpr auto kStashDuration = kStashDelay
+	+ kStashArrowDuration
+	+ kStashBounceDuration;
+
+[[nodiscard]] float64 ArrowShift(float64 value) {
+	const auto from = kStashDelay / float64(kStashDuration);
+	const auto till = (kStashDelay + kStashArrowDuration)
+		/ float64(kStashDuration);
+	return (value <= from)
+		? -1.
+		: (value >= till)
+		? 0.
+		: ((value - till) / (till - from));
+}
+
+[[nodiscard]] float64 BubbleSwing(float64 value) {
+	const auto from = (kStashDelay + kStashArrowDuration)
+		/ float64(kStashDuration);
+	if (value <= from) {
+		return 0.;
+	}
+	const auto bounce = (value - from) / (1. - from);
+	return std::sin(2 * M_PI * bounce) * (1. - bounce);
+}
+
+} // namespace
 
 class StashButton final : public Ui::JumpDownButton {
 public:
@@ -41,6 +72,9 @@ public:
 		const style::icon &arrow,
 		const style::icon &arrowOver);
 
+	void setArrowShown(bool shown, float64 buttonVisible);
+	void finishAnimating();
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
@@ -48,6 +82,9 @@ private:
 	const style::TwoIconButton &_st;
 	const style::icon &_arrow;
 	const style::icon &_arrowOver;
+	Ui::Animations::Simple _animation;
+	std::optional<float64> _frozen;
+	bool _arrowShown = false;
 
 };
 
@@ -62,6 +99,35 @@ StashButton::StashButton(
 , _arrowOver(arrowOver) {
 }
 
+void StashButton::setArrowShown(bool shown, float64 buttonVisible) {
+	if (_arrowShown == shown) {
+		return;
+	}
+	_arrowShown = shown;
+	if (!shown) {
+		_frozen = _animation.value(1.);
+		_animation.stop();
+		update();
+		return;
+	}
+	const auto from = (buttonVisible > 0.) ? _frozen.value_or(1.) : 0.;
+	_frozen = std::nullopt;
+	if (from < 1.) {
+		_animation.start(
+			[=] { update(); },
+			from,
+			1.,
+			kStashDuration * (1. - from));
+	}
+	update();
+}
+
+void StashButton::finishAnimating() {
+	_frozen = std::nullopt;
+	_animation.stop();
+	update();
+}
+
 void StashButton::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
@@ -71,12 +137,28 @@ void StashButton::paintEvent(QPaintEvent *e) {
 		_st.iconPosition,
 		width());
 	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y());
+
+	const auto value = _frozen.value_or(_animation.value(1.));
+	const auto swing = BubbleSwing(value) * st::historyStashBubbleTravel;
+	const auto dip = QPoint(0, int(base::SafeRound(swing)));
 	(active ? _st.iconAboveOver : _st.iconAbove).paint(
 		p,
-		_st.iconPosition,
+		_st.iconPosition + dip,
 		width());
 
-	(active ? _arrowOver : _arrow).paint(p, _st.iconPosition, width());
+	const auto shift = ArrowShift(value);
+	if (shift <= -1.) {
+		return;
+	}
+	p.setClipRect(QRect(
+		st::historyStashArrowClipPosition + dip,
+		st::historyStashArrowClipSize));
+	const auto skip
+		= int(base::SafeRound(shift * st::historyStashArrowTravel));
+	(active ? _arrowOver : _arrow).paint(
+		p,
+		_st.iconPosition + dip + QPoint(0, skip),
+		width());
 }
 
 namespace {
@@ -137,7 +219,8 @@ CornerButtons::CornerButtons(
 , _pollVotes(
 		&_column,
 		st->value(_stLifetime, st::historyUnreadPollVotes))
-, _stash(MakeStashButton(&_column, st, _stLifetime)) {
+, _stash(MakeStashButton(&_column, st, _stLifetime))
+, _stashButton(static_cast<StashButton*>(_stash.widget.data())) {
 	// The buttons keep the positions they had as direct children, because the
 	// column has the parent's height and shares its edge. Only they take mouse
 	// input in it - the empty part of the strip is masked out in
@@ -360,6 +443,11 @@ void CornerButtons::updateVisibility(Type type, bool shown) {
 	auto &button = buttonByType(type);
 	if (button.shown != shown) {
 		button.shown = shown;
+		if (type == Type::Stash) {
+			_stashButton->setArrowShown(
+				shown,
+				button.animation.value(shown ? 0. : 1.));
+		}
 		button.animation.start(
 			[=] { updatePositions(); },
 			shown ? 0. : 1.,
@@ -592,6 +680,7 @@ void CornerButtons::finishAnimations() {
 	_reactions.animation.stop();
 	_pollVotes.animation.stop();
 	_stash.animation.stop();
+	_stashButton->finishAnimating();
 	updatePositions();
 }
 
