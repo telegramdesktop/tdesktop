@@ -46,7 +46,6 @@ parts:
       - libheif-dev
       - libjxl-dev
       - liblz4-dev
-      - libssl-dev
       - libxcb-keysyms1-dev
       - libxcb-record0-dev
     cmake-generator: Ninja
@@ -92,6 +91,7 @@ parts:
       - minizip
       - mozjpeg
       - openal
+      - openssl
       - qt
       - rnnoise
       - tde2e
@@ -363,6 +363,24 @@ parts:
       - -DALSOFT_BACKEND_PIPEWIRE=OFF
     prime: [-./*]
 
+  openssl:
+    source: https://github.com/openssl/openssl.git
+    source-depth: 1
+    source-tag: openssl-3.2.1
+    plugin: make
+    build-packages:
+      - perl
+    override-build: |
+      sed -i 's/$cmd $cmdflags -c -o/$cmd $cmdflags -g0 -c -o/' Configurations/unix-Makefile.tmpl
+      ./config \
+        --prefix=/usr \
+        --openssldir=/etc/ssl \
+        --libdir=lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR \
+        no-shared no-tests no-dso
+      make -j"${CRAFT_PARALLEL_BUILD_COUNT}"
+      make DESTDIR="$CRAFT_PART_INSTALL" install_sw
+    prime: [-./*]
+
   nv-codec-headers:
     source: https://github.com/FFmpeg/nv-codec-headers.git
     source-depth: 1
@@ -386,7 +404,6 @@ parts:
       - qtwayland
     plugin: cmake
     build-packages:
-      - libssl-dev
       - libxcb-cursor-dev
       - libxcb-glx0-dev
       - libxcb-icccm4-dev
@@ -417,6 +434,7 @@ parts:
     prime: [-./*]
     after:
       - mozjpeg
+      - openssl
       - patches
 
   rnnoise:
@@ -444,7 +462,6 @@ parts:
     plugin: cmake
     build-packages:
       - gperf
-      - libssl-dev
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -452,6 +469,8 @@ parts:
       - -DCMAKE_INSTALL_LIBDIR=lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
       - -DTD_E2E_ONLY=ON
     prime: [-./*]
+    after:
+      - openssl
 
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
@@ -462,7 +481,6 @@ parts:
       - libopenh264-dev
       - libopus-dev
       - libpipewire-0.3-dev
-      - libssl-dev
       - libvpx-dev
     cmake-generator: Ninja
     cmake-parameters:
@@ -472,3 +490,4 @@ parts:
     after:
       - ffmpeg
       - mozjpeg
+      - openssl
