@@ -1,3 +1,17 @@
+7.2.6 beta (04.09.26)
+
+- Add text tool with fonts, alignment and styles to the image editor.
+- Drop folders and file sets into a chat to send them as one archive.
+- Edit GIFs before sending them with a caption.
+- Rate a finished call with stars right in the call panel.
+- Make custom emoji out of video stickers.
+- Show a tooltip with the link for buttons in rich messages.
+- Show estimated result size in the video editor timeline.
+- Follow the scroll direction in swipe gestures.
+- Fix long sender name hiding the via-bot name in a bubble.
+- Fix GIF playback glitches in shared media and inline results.
+- Fix a crash in the new chat view for bots with topics.
+
 7.2.5 (03.09.26)
 
 - Switch to new autoupdate manifest source.
