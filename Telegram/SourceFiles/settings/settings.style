@@ -195,6 +195,7 @@ settingLocalPasscodeError: FlatLabel(changePhoneError) {
 settingLocalPasscodeDescriptionBottomSkip: 15px;
 settingLocalPasscodeIconPadding: margins(0px, 19px, 0px, 5px);
 settingLocalPasscodeButtonPadding: margins(0px, 19px, 0px, 35px);
+settingLocalPasscodeMeterPadding: margins(0px, 8px, 0px, 0px);
 
 settingsInfoPhotoHeight: 162px;
 settingsInfoPhotoSize: 100px;

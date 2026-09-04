@@ -631,7 +631,7 @@ void BuildSecuritySection(
 	auto passcodeHas = rpl::single(rpl::empty) | rpl::then(
 		session->domain().local().localPasscodeChanged()
 	) | rpl::map([=] {
-		return session->domain().local().hasLocalPasscode();
+		return session->domain().local().hasPasscode();
 	});
 	auto passcodeLabel = rpl::combine(
 		tr::lng_settings_cloud_password_on(),

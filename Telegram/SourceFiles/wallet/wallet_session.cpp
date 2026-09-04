@@ -1937,6 +1937,13 @@ void Session::notifyKeyProtectionChanged() {
 	_keyProtectionUpdates.fire({});
 }
 
+void Session::dropCustodyAfterForgottenPasscode() {
+	vault().clear();
+	_custody = std::nullopt;
+	updateDeviceCustodyState();
+	notifyKeyProtectionChanged();
+}
+
 const CustodyStore &Session::custody() {
 	if (!_custody) {
 		_custody = ReadCustodyStore(_session->local());

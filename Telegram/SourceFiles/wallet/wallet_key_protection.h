@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/weak_ptr.h"
 #include "wallet/wallet_vault.h"
 
 namespace Main {
@@ -142,14 +143,35 @@ struct KeyProtectionResult {
 };
 
 // accounts is Removal-only: the dependent vaults one choice is applied to.
+// They are held weakly because the box asks for the local passcode before it
+// touches any of them, and Main::Domain can free an account while it waits -
+// removeRedundantAccounts() runs whenever a session disappears. Every reader
+// here answers a gone account by skipping it, so the list of raw pointers a
+// caller enumerates can never outlive that caller's frame.
 struct KeyProtectionArgs {
 	KeyProtectionMode mode = KeyProtectionMode::Switch;
-	std::vector<not_null<Main::Account*>> accounts;
+	std::vector<base::weak_ptr<Main::Account>> accounts;
 	Fn<void(KeyProtectionResult)> done;
 };
 
 void ShowKeyProtectionBox(
 	std::shared_ptr<Main::SessionShow> show,
 	KeyProtectionArgs args);
+
+// Which accounts hold a vault whose committed wrap is of that kind. Three
+// invariants a reviewer must be able to check by reading the body: it goes
+// through ReadVaultHeader() alone, so it never writes and never opens a
+// vault; an account whose header does not read - Absent, Broken or
+// Unsupported, which is every reserved and hardware kind in this build - is
+// in neither list; and the returned pointers are valid only for the frame
+// that receives them, because Main::Domain owns the accounts and one can be
+// logged out and dropped. Never keep these vectors in an rpl::variable, a
+// state struct or a lambda that outlives the call - re-enumerate instead.
+struct VaultDependents {
+	std::vector<not_null<Main::Account*>> passcodeWrapped;
+	std::vector<not_null<Main::Account*>> open;
+};
+
+[[nodiscard]] VaultDependents CollectVaultDependents();
 
 } // namespace Wallet

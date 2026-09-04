@@ -807,6 +807,13 @@ SetPasscodeResult Domain::setAppLockEnabled(bool enabled) {
 // lives behind its own name instead of being reachable through setPasscode().
 // The write is still checked, because a removal that only looked like it was
 // written would leave the user facing a passcode nobody remembers.
+// The wallet's forgot-passcode path is the second caller, and its precondition
+// is weaker in one direction and identical in the other: it keeps the account
+// and every store the passcode did not guard, and has destroyed only the ones
+// it did - each dependent vault header and the secrets sealed under it. It
+// runs only while the app lock is off, so once those are gone the passcode
+// again guards nothing that could be asked for, which is what makes the
+// unverified removal safe there too.
 void Domain::clearPasscodeAfterReset() {
 	Expects(_localKey != nullptr);
 

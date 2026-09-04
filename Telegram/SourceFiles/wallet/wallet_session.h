@@ -237,6 +237,15 @@ public:
 	[[nodiscard]] rpl::producer<> keyProtectionUpdates() const;
 	void notifyKeyProtectionChanged();
 
+	// The cached custody store and updateDeviceCustodyState() are private, so
+	// nothing outside this class can make the live session follow a device
+	// whose wallet keys have just been destroyed - and the device mode must
+	// follow that drop. The forgot-passcode path is the only caller, and it
+	// owns the storage side: it has already removed the sealed values, emptied
+	// the custody store and removed the vault header before calling this,
+	// which writes nothing and only makes the session agree with the disk.
+	void dropCustodyAfterForgottenPasscode();
+
 	[[nodiscard]] std::vector<CustodyRecord> parkedRecords();
 
 	void refreshState();

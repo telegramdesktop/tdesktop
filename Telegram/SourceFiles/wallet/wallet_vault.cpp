@@ -948,7 +948,7 @@ std::optional<VaultSecretRecord> OpenVaultRecord(
 	};
 }
 
-VaultTransitionResult TransitionVaultWrap(
+VaultTransitionResult StageVaultWrap(
 		Storage::Account &local,
 		VaultHeader &header,
 		const SecureBytes &vaultKey,
@@ -998,13 +998,49 @@ VaultTransitionResult TransitionVaultWrap(
 		}
 		return Result::VerifyFailed;
 	}
+	header = std::move(staged);
+	return Result::Done;
+}
+
+bool CommitStagedVaultWrap(Storage::Account &local, VaultHeader &header) {
+	const auto generation = header.committed + 1;
+	const auto staged = ranges::find(
+		header.wraps,
+		generation,
+		&VaultWrap::generation);
+	if (header.wraps.size() != 2
+		|| staged == end(header.wraps)
+		|| !header.committedWrap()) {
+		LOG(("Wallet Error: refused to commit a staged vault wrap from a "
+			"header with %1 wrap(s) at the committed generation %2."
+			).arg(int(header.wraps.size())).arg(header.committed));
+		return false;
+	}
 	auto updated = VaultHeader{ .committed = generation };
-	updated.wraps.push_back(std::move(next.wrap));
+	updated.wraps.push_back(*staged);
 	if (!WriteVaultHeader(local, updated)) {
-		return Result::WriteFailed;
+		return false;
 	}
 	header = std::move(updated);
-	return Result::Done;
+	return true;
+}
+
+VaultTransitionResult TransitionVaultWrap(
+		Storage::Account &local,
+		VaultHeader &header,
+		const SecureBytes &vaultKey,
+		VaultPreparedWrap next) {
+	const auto staged = StageVaultWrap(
+		local,
+		header,
+		vaultKey,
+		std::move(next));
+	if (staged != VaultTransitionResult::Done) {
+		return staged;
+	}
+	return CommitStagedVaultWrap(local, header)
+		? VaultTransitionResult::Done
+		: VaultTransitionResult::WriteFailed;
 }
 
 int DropPreVaultCustody(Storage::Account &local, CustodyStore &store) {

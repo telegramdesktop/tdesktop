@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_cloud_password.h"
 #include "apiwrap.h"
+#include "base/debug_log.h"
 #include "base/event_filter.h"
 #include "base/invoke_queued.h"
 #include "base/openssl_help.h"
@@ -16,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/unixtime.h"
 #include "boxes/passcode_box.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "core/credits_amount.h"
 #include "core/file_utilities.h"
 #include "core/ton_explorer_url.h"
@@ -30,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "main/session/session_show.h"
+#include "main/main_account.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "qr/qr_generate.h"
@@ -72,6 +76,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_address.h"
 #include "wallet/wallet_collectible_media.h"
 #include "wallet/wallet_collectibles.h"
+#include "wallet/wallet_custody.h"
 #include "wallet/wallet_fiat.h"
 #include "wallet/wallet_key_protection.h"
 #include "wallet/wallet_onramp.h"
@@ -4053,6 +4058,188 @@ void WalletPhraseWarningBox(
 	return wrapKey && UnwrapVaultKey(*wrap, *wrapKey).has_value();
 }
 
+// The forgot-passcode twin of WalletLossWarning(). The model is shared and
+// correct - both actions destroy the same keys - but the statements are not:
+// the logout renderer's strings say that logging out is what destroys them,
+// and this box has just promised the reader they will not be logged out. So
+// the two renderers say the same facts about the same WalletLoss in their own
+// words, and a change to one belongs in the other.
+[[nodiscard]] QString ForgottenPasscodeLoss(WalletLoss loss) {
+	auto result = QString();
+	const auto append = [&](const QString &line) {
+		if (!result.isEmpty()) {
+			result += u"\n\n"_q;
+		}
+		result += line;
+	};
+	if (loss.unbacked > 0) {
+		append(tr::lng_wallet_passcode_forgot_local(
+			tr::now,
+			lt_count,
+			loss.unbacked));
+	}
+	if (loss.parked > 0) {
+		append(tr::lng_wallet_passcode_forgot_parked(
+			tr::now,
+			lt_count,
+			loss.parked));
+	}
+	if (loss.unknown) {
+		append(tr::lng_wallet_passcode_forgot_unknown(tr::now));
+	}
+	return result;
+}
+
+// What the forgot-passcode confirmation says about every wallet this device
+// would lose. The restorability of one is the model the logout confirmation
+// already states: WalletLossOnLogout() reads the custody store, the served
+// public key and the backup capability, unlocking nothing and writing
+// nothing. An empty loss is two different things - every record is backed, or
+// there is no record at all - so the backup claim is made only against a
+// store that holds records, and an account holding none contributes nothing.
+// A wallet is named only when its account has a live session to name it from
+// - an unauthorized account in Main::Domain::accounts() has none, and
+// inventing a name for it would be a guess about which key is about to go.
+[[nodiscard]] QString ForgottenPasscodeAbout() {
+	auto result = tr::lng_wallet_passcode_forgot_about(tr::now);
+	const auto dependents = CollectVaultDependents();
+	for (const auto &account : dependents.passcodeWrapped) {
+		auto paragraph = ForgottenPasscodeLoss(WalletLossOnLogout(account));
+		if (paragraph.isEmpty()) {
+			const auto store = ReadCustodyStore(account->local());
+			if (!store || store->records.empty()) {
+				continue;
+			}
+			paragraph = tr::lng_wallet_passcode_forgot_backed(tr::now);
+		}
+		const auto session = account->maybeSession();
+		result += u"\n\n"_q
+			+ (session
+				? (session->user()->name() + u": "_q + paragraph)
+				: paragraph);
+	}
+	return result;
+}
+
+// The one function in the product that destroys a wallet vault, and what it
+// destroys is not recoverable from anywhere. The live session's cached key
+// goes first, so nothing can seal a new record under a key that is about to
+// stop existing; then every secret the custody store names, then the store
+// itself, then the header. A store that cannot be read still loses its
+// header - a vault must never survive as a file nothing can open again. The
+// answer is about the cleanup alone: a false says leftovers remain, not that
+// the vault survived, and the caller decides the passcode's fate by looking
+// at the vaults themselves. Only counts reach the log.
+[[nodiscard]] bool DropVaultAndCustody(not_null<Main::Account*> account) {
+	auto &local = account->local();
+	const auto session = account->maybeSession();
+	if (session) {
+		session->wallet().vault().clear();
+	}
+	auto ok = true;
+	const auto store = ReadCustodyStore(local);
+	if (!store) {
+		LOG(("Wallet Error: custody store unreadable while dropping a vault "
+			"after a forgotten passcode."));
+		ok = false;
+	} else {
+		auto removed = 0;
+		const auto forget = [&](const QString &secretRef) {
+			if (secretRef.isEmpty()) {
+				return;
+			} else if (local.removeWalletEngineValue(
+					VaultSecretStorageKey(secretRef))) {
+				++removed;
+			}
+		};
+		for (const auto &record : store->records) {
+			forget(record.secretRef);
+		}
+		if (store->pendingRotation) {
+			forget(store->pendingRotation->secretRef);
+		}
+		const auto emptied = CustodyStore{
+			.lastSeenServerKey = store->lastSeenServerKey,
+		};
+		if (!WriteCustodyStore(local, emptied)) {
+			LOG(("Wallet Error: could not empty the custody store after a "
+				"forgotten passcode, %1 sealed values were removed."
+				).arg(removed));
+			ok = false;
+		}
+	}
+	if (!RemoveVaultHeader(local)) {
+		LOG(("Wallet Error: could not remove the vault header after a "
+			"forgotten passcode."));
+		ok = false;
+	}
+	if (session) {
+		session->wallet().dropCustodyAfterForgottenPasscode();
+	}
+	return ok;
+}
+
+// The accounts come from CollectVaultDependents().passcodeWrapped and from
+// nothing else, re-enumerated here rather than carried over from the
+// confirmation: an Open vault, a hardware kind and a header that does not
+// read are absent from that list by construction, and an account listed
+// while the box was open can have been logged out since.
+//
+// The passcode goes last, and only when every one of those vaults is gone -
+// which is a second enumeration and not the cleanup's answer, because a
+// custody store that could not be emptied is not a header that survived, and
+// treating the two as one verdict would leave a passcode nobody remembers
+// standing over nothing it can open. The mirror order is the one that strands
+// a key: a header that could not be removed would stay sealed under that
+// passcode, and with the passcode already gone there would be no way left to
+// remove the header either. clearPasscodeAfterReset() writes without asking
+// for the passcode, safe here for the reason it is safe after a reset - the
+// entry point requires the app lock to be off, so once these stores are gone
+// the passcode guards nothing that could still be asked for - and its write
+// can still fail, so the state it leaves behind is read back before anything
+// claims it succeeded. No account is logged out.
+void DropForgottenPasscode(std::shared_ptr<Main::SessionShow> show) {
+	auto cleaned = true;
+	const auto dependents = CollectVaultDependents();
+	for (const auto &account : dependents.passcodeWrapped) {
+		if (!DropVaultAndCustody(account)) {
+			cleaned = false;
+		}
+	}
+	if (!CollectVaultDependents().passcodeWrapped.empty()) {
+		show->showToast(tr::lng_wallet_passcode_forgot_failed(tr::now));
+		return;
+	}
+	auto &local = Core::App().domain().local();
+	local.clearPasscodeAfterReset();
+	if (local.hasPasscode()) {
+		show->showToast(tr::lng_wallet_passcode_forgot_kept(tr::now));
+		return;
+	}
+	Core::App().settings().setSystemUnlockEnabled(false);
+	Core::App().saveSettingsDelayed();
+	Core::App().localPasscodeChanged();
+	show->showToast(cleaned
+		? tr::lng_wallet_passcode_forgot_done(tr::now)
+		: tr::lng_wallet_passcode_forgot_leftovers(tr::now));
+}
+
+void ConfirmForgottenPasscode(
+		std::shared_ptr<Main::SessionShow> show,
+		Fn<void()> closeGate) {
+	show->showBox(Ui::MakeConfirmBox({
+		.text = ForgottenPasscodeAbout(),
+		.confirmed = [=](Fn<void()> &&close) {
+			close();
+			DropForgottenPasscode(show);
+			closeGate();
+		},
+		.confirmText = tr::lng_wallet_passcode_forgot_confirm(),
+		.confirmStyle = &st::attentionBoxButton,
+		.title = tr::lng_wallet_passcode_forgot_title(),
+	}));
+}
+
 } // namespace
 
 // The verdict the typed passcode must pass is the caller's; the three of
@@ -4086,6 +4273,33 @@ void WalletPasscodeBox(
 		st::walletPasscodeErrorMargin,
 		style::al_top);
 	error->hide();
+	// The link is bound to the Vault check alone, because that is the one
+	// check meaning "this device holds a key it cannot open without the
+	// passcode". KeyDataAndArm and KeyDataAndVault gate flows the user can
+	// simply cancel, and KeyDataAndVault is the gate the disable and the
+	// change flows open, where dropping a vault from inside the box would
+	// race the caller's continuation. The !appLockEnabled() half is
+	// security and not polish: with the launch lock still on, this link
+	// would be a passcode removal nobody had to prove anything for.
+	const auto forgot = (args.check == WalletPasscodeCheck::Vault
+		&& !args.show->session().domain().local().appLockEnabled())
+		? box->addRow(
+			object_ptr<Ui::LinkButton>(
+				box,
+				tr::lng_wallet_passcode_forgot(tr::now),
+				st::boxLinkButton),
+			st::walletPasscodeForgotMargin)
+		: nullptr;
+	if (forgot) {
+		const auto weak = base::make_weak(box);
+		forgot->setClickedCallback([show = args.show, weak] {
+			ConfirmForgottenPasscode(show, [weak] {
+				if (weak) {
+					weak->closeBox();
+				}
+			});
+		});
+	}
 	// Opening the protection chooser must never leave a vault unlocked or
 	// retained behind it, so that check offers no retention and mints no
 	// grant: it answers with the typed passcode alone.

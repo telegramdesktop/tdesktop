@@ -216,7 +216,18 @@ private:
 // Write A stages the new wrap beside the committed one, the read-back proves
 // it opens the vault key, write B commits it alone at the bumped generation;
 // every intermediate crash state leaves the old wrap working and the next
-// header read drops the staged one by generation.
+// header read drops the staged one by generation. The two halves are public
+// so that a caller changing one passcode across several stores can hold every
+// vault staged while another store's write runs and commit them only once it
+// succeeded; TransitionVaultWrap is exactly their composition.
+[[nodiscard]] VaultTransitionResult StageVaultWrap(
+	Storage::Account &local,
+	VaultHeader &header,
+	const SecureBytes &vaultKey,
+	VaultPreparedWrap next);
+[[nodiscard]] bool CommitStagedVaultWrap(
+	Storage::Account &local,
+	VaultHeader &header);
 [[nodiscard]] VaultTransitionResult TransitionVaultWrap(
 	Storage::Account &local,
 	VaultHeader &header,

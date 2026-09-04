@@ -74,10 +74,13 @@ namespace {
 }
 
 [[nodiscard]] QString RemovalWalletNames(
-		const std::vector<not_null<Main::Account*>> &accounts) {
+		const std::vector<base::weak_ptr<Main::Account>> &accounts) {
 	auto names = QStringList();
-	for (const auto &account : accounts) {
-		if (const auto session = account->maybeSession()) {
+	for (const auto &weak : accounts) {
+		const auto account = weak.get();
+		if (!account) {
+			continue;
+		} else if (const auto session = account->maybeSession()) {
 			names.push_back(session->user()->name());
 		}
 	}
@@ -617,14 +620,10 @@ void KeyProtectionBox(
 		st::walletProtectionAttentionCheckbox);
 	makeClickable(openRow, VaultKind::Open);
 
-	// Held weakly from here on, for the same reason the walk holds them so:
+	// Weak by contract, and for the same reason the walk keeps them so:
 	// Main::Domain owns the accounts and one can be logged out and dropped
 	// between this box opening and its save finishing.
-	auto weakAccounts = std::vector<base::weak_ptr<Main::Account>>();
-	weakAccounts.reserve(args.accounts.size());
-	for (const auto &account : args.accounts) {
-		weakAccounts.push_back(base::make_weak(account));
-	}
+	const auto accounts = args.accounts;
 
 	// Where the three save paths converge: Install arms the prepared wrap as
 	// the account's creation policy, Switch transitions this account's vault
@@ -692,7 +691,7 @@ void KeyProtectionBox(
 			// frame by contract; it cleanses that copy before it answers.
 			WalkVaultRemoval(std::make_shared<VaultRemovalWalk>(
 				VaultRemovalWalk{
-					.accounts = weakAccounts,
+					.accounts = accounts,
 					.passcode = state->passcode.copy(),
 					.prepared = std::move(prepared),
 					.kind = kind,
@@ -923,9 +922,11 @@ void ShowKeyProtectionBox(
 		header = std::move(reading.header);
 	} break;
 	case KeyProtectionMode::Removal:
-		for (const auto &account : args.accounts) {
-			if (ReadVaultHeader(account->local()).state
-				!= VaultReading::State::Read) {
+		for (const auto &weak : args.accounts) {
+			const auto account = weak.get();
+			if (account
+				&& (ReadVaultHeader(account->local()).state
+					!= VaultReading::State::Read)) {
 				show->showToast(tr::lng_wallet_vault_unavailable(tr::now));
 				report({});
 				return;
@@ -955,6 +956,25 @@ void ShowKeyProtectionBox(
 		},
 		.cancelled = [report] { report({}); },
 	}));
+}
+
+VaultDependents CollectVaultDependents() {
+	auto result = VaultDependents();
+	for (const auto &[index, account] : Core::App().domain().accounts()) {
+		const auto reading = ReadVaultHeader(account->local());
+		if (reading.state != VaultReading::State::Read) {
+			continue;
+		}
+		const auto wrap = reading.header.committedWrap();
+		if (!wrap) {
+			continue;
+		} else if (wrap->kind == VaultKind::Passcode) {
+			result.passcodeWrapped.push_back(account.get());
+		} else if (wrap->kind == VaultKind::Open) {
+			result.open.push_back(account.get());
+		}
+	}
+	return result;
 }
 
 } // namespace Wallet
