@@ -47,6 +47,7 @@ class FieldAutocomplete;
 namespace Data {
 struct MessagePosition;
 struct Draft;
+struct ComposeStash;
 class DraftKey;
 class PhotoMedia;
 class GroupCall;
@@ -323,6 +324,13 @@ public:
 	void applyCloudDraft();
 	void applyDraft(
 		FieldHistoryAction fieldHistoryAction = FieldHistoryAction::Clear);
+
+	[[nodiscard]] Data::DraftKey composeStashKey() const;
+	[[nodiscard]] bool canUseComposeStash() const;
+	[[nodiscard]] bool hasStashableContent() const;
+	[[nodiscard]] bool canSendTexts() const;
+	[[nodiscard]] std::unique_ptr<Data::ComposeStash> takeComposeStash();
+	void applyComposeStash(Data::ComposeStash &&stash);
 
 	void saveFieldToHistoryLocalDraft(bool save = true);
 
