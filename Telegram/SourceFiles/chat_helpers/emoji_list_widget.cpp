@@ -740,6 +740,7 @@ EmojiListWidget::EmojiListWidget(
 , _keyPickerTimer([=] { keyPickerTimeout(); })
 , _previewTimer([=] { showPreview(); }) {
 	setMouseTracking(true);
+	setAccessibleName(tr::lng_switch_emoji(tr::now));
 	if (st().bg->c.alpha() > 0) {
 		setAttribute(Qt::WA_OpaquePaintEvent);
 	}
@@ -870,6 +871,15 @@ void EmojiListWidget::setupSearch() {
 		});
 		_searchQueries.fire_copy(_nextSearchQuery);
 	}, session, type);
+
+	// Enter in the field: on to the first of the results.
+	_search->submits(
+	) | rpl::on_next([=] {
+		if (const auto first = accessibleChild(0)) {
+			keyboardSelect(*first, false);
+			setFocus();
+		}
+	}, lifetime());
 }
 
 void EmojiListWidget::setSearchRightReserved(int value) {
@@ -1328,6 +1338,16 @@ void EmojiListWidget::searchSetsResultsDone(
 }
 
 void EmojiListWidget::showSearchResults() {
+	// The keyboard keeps its place through a refill of the results - they
+	// come in more than once, the cloud ones after the local - and a
+	// group chosen from the keyboard lands on the first of them.
+	const auto fromGroups = _search && _search->groupsHaveFocus();
+	const auto keyboard = hasFocus();
+	const auto selected = std::get_if<OverEmoji>(&_selected);
+	const auto wasIndex = (keyboard && selected)
+		? accessibleIndex(*selected)
+		: -1;
+
 	clearSelection();
 
 	_searchResults.clear();
@@ -1368,6 +1388,21 @@ void EmojiListWidget::showSearchResults() {
 	_recentShownCount = _searchResults.size();
 	update();
 	updateSelected();
+
+	const auto count = accessibilityChildCount();
+	if (!count) {
+		return;
+	} else if (fromGroups) {
+		if (const auto first = accessibleChild(0)) {
+			keyboardSelect(*first, false);
+			setFocus();
+		}
+	} else if (keyboard) {
+		const auto index = std::clamp(std::max(wasIndex, 0), 0, count - 1);
+		if (const auto over = accessibleChild(index)) {
+			keyboardSelect(*over, true);
+		}
+	}
 }
 
 void EmojiListWidget::fillCloudSearchResults() {
@@ -1906,7 +1941,23 @@ object_ptr<TabbedSelector::InnerFooter> EmojiListWidget::createFooter() {
 
 	_footer->setChosen(
 	) | rpl::on_next([=](uint64 setId) {
+		const auto keyboard = _footer->hasFocus();
 		showSet(setId);
+		if (keyboard) {
+			// Chosen from the keyboard: on to the first emoji of the
+			// section, as the mouse would go on to click one.
+			enumerateSections([&](const SectionInfo &info) {
+				if (setId != sectionSetId(info.section)) {
+					return true;
+				} else if (shownCount(info) > 0) {
+					keyboardSelect(
+						{ .section = info.section, .index = 0 },
+						false);
+					setFocus();
+				}
+				return false;
+			});
+		}
 	}, _footer->lifetime());
 
 	return result;
