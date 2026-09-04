@@ -435,6 +435,9 @@ TabbedSelector::TabbedSelector(
 		createTabsSlider();
 	}
 	setWidgetToScrollArea();
+	// The tab strip, created last, comes first for Tab, as it is laid
+	// out: the tabs, the list with its search, the footer.
+	setVisualTabOrder(true);
 
 	for (auto &tab : _tabs) {
 		const auto widget = tab.widget();
