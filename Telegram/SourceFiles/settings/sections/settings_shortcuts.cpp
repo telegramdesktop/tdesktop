@@ -115,6 +115,7 @@ struct Labeled {
 		{ C::ComposeAiApplyInPlace, tr::lng_shortcuts_ai_compose_apply() },
 		{ C::ShowRichEditor, tr::lng_shortcuts_rich_editor() },
 		{ C::ToggleWebPagePreview, tr::lng_shortcuts_toggle_link_preview() },
+		{ C::StashMessage, tr::lng_shortcuts_stash_message() },
 		separator,
 		{ C::RecordVoice, tr::lng_shortcuts_record_voice_message() },
 		{ C::RecordRound, tr::lng_shortcuts_record_round_message() },
