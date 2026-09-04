@@ -769,6 +769,7 @@ SetPasscodeResult Domain::setPasscode(
 	}
 	_keyDataDirty = false;
 
+	_verificationNonce = 0;
 	_passcodeKeyChanged.fire({});
 	return SetPasscodeResult::Success;
 }
@@ -796,6 +797,7 @@ SetPasscodeResult Domain::setAppLockEnabled(bool enabled) {
 	*_keyData = std::move(updated);
 	_keyDataDirty = false;
 
+	_verificationNonce = 0;
 	_passcodeKeyChanged.fire({});
 	return SetPasscodeResult::Success;
 }
