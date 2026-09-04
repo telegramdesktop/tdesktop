@@ -778,10 +778,11 @@ void BuildManageContent(SectionBuilder &builder) {
 						}
 						close();
 					},
-					.cancelled = [=] {
+					.cancelled = [=](Fn<void()> &&close) {
 						if (weak) {
 							state->appLockToggles.fire_copy(true);
 						}
+						close();
 					},
 					.confirmText = (
 						tr::lng_settings_passcode_lock_off_open_confirm()),
