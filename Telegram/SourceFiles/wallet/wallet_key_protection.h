@@ -133,13 +133,18 @@ enum class KeyProtectionMode {
 // armed policy's kind and grant scopes the store that consumes it; the policy
 // itself goes into the account's VaultRuntime through arm() and is
 // deliberately not duplicated here. changed lists the accounts a Removal
-// transitioned, in the order they were done.
+// transitioned, in the order they were done, and is weak for the reason
+// KeyProtectionArgs::accounts below is: Main::Domain can free one between
+// the transition that recorded it and the caller that reads this. A freed
+// account leaves a null entry rather than no entry, so size() stays the
+// number of vaults the walk really moved, and a reader that wants the
+// account takes get() and skips null instead of dereferencing.
 struct KeyProtectionResult {
 	bool cancelled = true;
 	bool failed = false;
 	VaultKind kind = VaultKind::Passcode;
 	VaultGrant grant;
-	std::vector<not_null<Main::Account*>> changed;
+	std::vector<base::weak_ptr<Main::Account>> changed;
 };
 
 // accounts is Removal-only: the dependent vaults one choice is applied to.

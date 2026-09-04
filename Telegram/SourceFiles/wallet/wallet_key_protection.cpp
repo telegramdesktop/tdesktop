@@ -153,8 +153,9 @@ void AcquireVaultKey(
 
 // One removal's whole walk, behind a shared_ptr because the key material in
 // it is move-only and every continuation below has to fit in a copyable Fn.
-// The accounts are weak: Main::Domain owns them and one can be logged out and
-// dropped while the box that started the walk is open.
+// Both account lists are weak: Main::Domain owns the accounts and one can be
+// logged out and dropped while the box that started the walk is open, or
+// after the walk has already moved its vault.
 //
 // Every listed vault is transitioned onto a copy of the one prepared wrap
 // rather than onto a freshly prepared one of its own: VaultPreparedWrap is
@@ -162,7 +163,7 @@ void AcquireVaultKey(
 // behind call sites the warning box does not guard.
 struct VaultRemovalWalk {
 	std::vector<base::weak_ptr<Main::Account>> accounts;
-	std::vector<not_null<Main::Account*>> changed;
+	std::vector<base::weak_ptr<Main::Account>> changed;
 	SecureBytes passcode;
 	VaultPreparedWrap prepared;
 	VaultHeader header;
@@ -234,7 +235,7 @@ void WalkVaultRemoval(std::shared_ptr<VaultRemovalWalk> walk) {
 				FinishVaultRemoval(walk, true);
 				return;
 			}
-			walk->changed.push_back(live);
+			walk->changed.push_back(weak);
 			if (const auto session = live->maybeSession()) {
 				session->wallet().notifyKeyProtectionChanged();
 			}
