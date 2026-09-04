@@ -3887,7 +3887,56 @@ QAccessible::State EmojiListWidget::accessibilityChildState(
 			state.focused = true;
 		}
 	}
+	// An emoji with variants opens the picker of its skin tones: a
+	// screen reader hears it as collapsed, and expanded while the picker
+	// is up for it.
+	if (over) {
+		const auto emoji = lookupOverEmoji(&*over);
+		if (emoji && emoji->hasVariants()) {
+			state.expandable = true;
+			const auto picked = std::get_if<OverEmoji>(&_pickerSelected);
+			state.expanded = picked
+				&& (*picked == *over)
+				&& !_picker->isHidden();
+		}
+	}
 	return state;
+}
+
+void EmojiListWidget::accessibilityChildShowMenu(quintptr identity) {
+	// Expand opens the picker of variants for the item, Collapse closes
+	// it - the bridge calls this for either, by the state it sees.
+	crl::on_main(this, [=] {
+		const auto index = accessibilityChildIndexByIdentity(identity);
+		const auto over = accessibleChild(index);
+		if (!over) {
+			return;
+		}
+		const auto picked = std::get_if<OverEmoji>(&_pickerSelected);
+		if (picked && *picked == *over && !_picker->isHidden()) {
+			_picker->hideAnimated();
+			return;
+		}
+		// Checked when the action runs, not when it was queued: the cell
+		// may hold another emoji by now, or the reader may be gone.
+		const auto emoji = lookupOverEmoji(&*over);
+		if (!emoji
+			|| !emoji->hasVariants()
+			|| !Ui::ScreenReaderModeActive()) {
+			return;
+		}
+		keyboardSelect(*over, false);
+		// The place to give the focus back to is captured on entry from
+		// outside only: with the focus in the list or in its picker (a
+		// picker reopened for another emoji) the field is already known.
+		if (!hasFocus() && !_picker->hasFocus()) {
+			_focusReturn = window()->focusWidget();
+		}
+		if (!hasFocus()) {
+			setFocus();
+		}
+		[[maybe_unused]] const auto opened = openKeyboardPicker();
+	});
 }
 
 bool EmojiListWidget::accessibilityChildSupportsActions(int index) const {
