@@ -527,7 +527,7 @@ void Onramp::finishSend(
 
 template <typename Value>
 void Onramp::cancel(Lane<Value> &lane, Method method) {
-	const auto generation = base::take(lane.activeGeneration);
+	[[maybe_unused]] const auto generation = base::take(lane.activeGeneration);
 	const auto id = base::take(lane.id);
 	if (id) {
 		_api.request(id).cancel();

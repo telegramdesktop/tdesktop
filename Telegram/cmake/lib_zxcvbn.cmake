@@ -17,6 +17,16 @@ add_library(desktop-app::lib_zxcvbn ALIAS lib_zxcvbn)
 set(zxcvbn_loc ${third_party_loc}/zxcvbn)
 set(zxcvbn_gen ${CMAKE_CURRENT_BINARY_DIR}/zxcvbn_gen)
 
+# Silence third-party warnings. On MSVC the flags must ride an INTERFACE lib
+# linked after common_options to land last and beat its /W4 /WX.
+if (MSVC)
+    add_library(lib_zxcvbn_warnings_off INTERFACE)
+    target_compile_options(lib_zxcvbn_warnings_off
+    INTERFACE
+        /W0
+        /WX-)
+endif()
+
 # Upstream ships the word lists and the generator, not the generated
 # dictionary, so `dict-src.h` is produced here from the same inputs and in the
 # same order upstream's own makefile uses. The generator is deterministic.
@@ -34,7 +44,7 @@ add_executable(zxcvbn_dictgen ${zxcvbn_loc}/dict-generate.cpp)
 init_target(zxcvbn_dictgen "(codegen)")
 target_compile_features(zxcvbn_dictgen PRIVATE cxx_std_11)
 if (MSVC)
-    target_compile_options(zxcvbn_dictgen PRIVATE /W0 /WX-)
+    target_link_libraries(zxcvbn_dictgen PRIVATE lib_zxcvbn_warnings_off)
 else()
     target_compile_options(zxcvbn_dictgen PRIVATE -w)
 endif()
@@ -78,14 +88,7 @@ if (LINUX)
     target_link_libraries(lib_zxcvbn PUBLIC m)
 endif()
 
-# Silence third-party C warnings. On MSVC the flags must ride an INTERFACE lib
-# linked after common_options to land last and beat its /W4 /WX.
 if (MSVC)
-    add_library(lib_zxcvbn_warnings_off INTERFACE)
-    target_compile_options(lib_zxcvbn_warnings_off
-    INTERFACE
-        /W0
-        /WX-)
     target_link_libraries(lib_zxcvbn PRIVATE lib_zxcvbn_warnings_off)
 else()
     target_compile_options(lib_zxcvbn PRIVATE -w)
