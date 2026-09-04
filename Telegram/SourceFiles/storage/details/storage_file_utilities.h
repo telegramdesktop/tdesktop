@@ -34,10 +34,12 @@ struct PasscodeKdf final {
 	quint32 parallel = 0;
 
 	[[nodiscard]] bool valid() const;
+	[[nodiscard]] bool costWithinLimits() const;
 };
 
 inline constexpr auto kPasscodeKdfArgon2id = quint32(1);
 inline constexpr auto kPasscodeKdfScrypt = quint32(2);
+inline constexpr auto kPasscodeSaltMinSize = 8;
 
 [[nodiscard]] PasscodeKdf DefaultPasscodeKdf();
 [[nodiscard]] MTP::AuthKeyPtr CreatePasscodeKey(

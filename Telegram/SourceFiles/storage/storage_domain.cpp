@@ -45,6 +45,12 @@ namespace {
 
 using namespace details;
 
+enum class ReadKeyDataResult {
+	Success,
+	UnsupportedKdf,
+	Failed,
+};
+
 // A legacy key_data stream holds exactly three blobs, so it is at the end
 // right after infoEncrypted and any bytes past it mean the new layout. The
 // magic word turns "there are extra bytes" into a positive identification.
@@ -55,7 +61,6 @@ using namespace details;
 // those, so raw stream fields would not be covered by its md5.
 constexpr auto kKeyDataMagic = quint32(0x4B443200);
 constexpr auto kKeyDataFormatVersion = quint32(2);
-constexpr auto kWrapSaltMinSize = 8;
 constexpr auto kMaxWrapCount = quint32(2);
 
 [[nodiscard]] QString BaseGlobalPath() {
@@ -102,20 +107,39 @@ constexpr auto kMaxWrapCount = quint32(2);
 	return std::make_shared<MTP::AuthKey>(key);
 }
 
-[[nodiscard]] bool ReadKeyData(QDataStream &stream, KeyData &data) {
+[[nodiscard]] bool WrapOpensLocalKey(
+		const QByteArray &keyEncrypted,
+		const MTP::AuthKeyPtr &wrapKey,
+		const MTP::AuthKeyPtr &localKey) {
+	const auto recovered = UnwrapLocalKey(keyEncrypted, wrapKey);
+	return recovered && recovered->equals(localKey);
+}
+
+[[nodiscard]] ReadKeyDataResult ReadKeyData(
+		QDataStream &stream,
+		KeyData &data,
+		QByteArray &infoEncrypted) {
+	stream >> data.openSalt >> data.openKeyEncrypted >> infoEncrypted;
+	if (!CheckStreamStatus(stream)) {
+		return ReadKeyDataResult::Failed;
+	} else if (data.openSalt.size() != LocalEncryptSaltSize) {
+		LOG(("App Error: bad salt in info file, size: %1"
+			).arg(data.openSalt.size()));
+		return ReadKeyDataResult::Failed;
+	}
 	if (stream.atEnd()) {
 		data.legacy = true;
-		return true;
+		return ReadKeyDataResult::Success;
 	}
 	auto trailer = QByteArray();
 	stream >> trailer;
 	if (!CheckStreamStatus(stream)) {
-		return false;
+		return ReadKeyDataResult::Failed;
 	}
 	QBuffer buffer(&trailer);
 	if (!buffer.open(QIODevice::ReadOnly)) {
 		LOG(("App Error: could not open the key data trailer."));
-		return false;
+		return ReadKeyDataResult::Failed;
 	}
 	QDataStream inner(&buffer);
 	inner.setVersion(QDataStream::Qt_5_1);
@@ -125,17 +149,18 @@ constexpr auto kMaxWrapCount = quint32(2);
 	auto wrapCount = quint32();
 	inner >> magic >> formatVersion >> data.committed >> wrapCount;
 	if (!CheckStreamStatus(inner)) {
-		return false;
+		return ReadKeyDataResult::Failed;
 	} else if (magic != kKeyDataMagic) {
 		LOG(("App Error: bad key data trailer magic."));
-		return false;
+		return ReadKeyDataResult::Failed;
 	} else if (formatVersion > kKeyDataFormatVersion) {
 		LOG(("App Error: too new key data format: %1").arg(formatVersion));
-		return false;
+		return ReadKeyDataResult::Failed;
 	} else if (wrapCount > kMaxWrapCount) {
 		LOG(("App Error: bad key data wrap count: %1").arg(wrapCount));
-		return false;
+		return ReadKeyDataResult::Failed;
 	}
+	auto unsupportedCost = false;
 	data.passcodeWraps.reserve(wrapCount);
 	for (auto i = quint32(); i != wrapCount; ++i) {
 		auto wrap = PasscodeWrap();
@@ -147,25 +172,30 @@ constexpr auto kMaxWrapCount = quint32(2);
 			>> wrap.salt
 			>> wrap.keyEncrypted;
 		if (!CheckStreamStatus(inner)) {
-			return false;
+			return ReadKeyDataResult::Failed;
+		} else if (!wrap.kdf.costWithinLimits()) {
+			unsupportedCost = true;
 		} else if (!wrap.kdf.valid()) {
 			LOG(("App Error: bad key data KDF family: %1").arg(wrap.kdf.kind));
-			return false;
-		} else if (wrap.salt.size() < kWrapSaltMinSize) {
+			return ReadKeyDataResult::Failed;
+		}
+		if (wrap.salt.size() < kPasscodeSaltMinSize) {
 			LOG(("App Error: bad key data wrap salt size: %1"
 				).arg(wrap.salt.size()));
-			return false;
+			return ReadKeyDataResult::Failed;
 		}
 		for (const auto &already : data.passcodeWraps) {
 			if (already.generation == wrap.generation) {
 				LOG(("App Error: duplicate key data wrap generation: %1"
 					).arg(wrap.generation));
-				return false;
+				return ReadKeyDataResult::Failed;
 			}
 		}
 		data.passcodeWraps.push_back(std::move(wrap));
 	}
-	return true;
+	return unsupportedCost
+		? ReadKeyDataResult::UnsupportedKdf
+		: ReadKeyDataResult::Success;
 }
 
 void WriteKeyData(
@@ -280,9 +310,8 @@ void Domain::generateLocalKey() {
 	Expects(_keyData->passcodeWraps.empty());
 
 	auto pass = QByteArray(MTP::AuthKey::kSize, Qt::Uninitialized);
-	auto salt = QByteArray(LocalEncryptSaltSize, Qt::Uninitialized);
 	base::RandomFill(pass.data(), pass.size());
-	base::RandomFill(salt.data(), salt.size());
+	const auto salt = RandomSalt();
 	_localKey = CreateLocalKey(pass, salt);
 
 	installOpenWrap(*_keyData);
@@ -341,8 +370,7 @@ MTP::AuthKeyPtr Domain::installPasscodeWrap(
 		return nullptr;
 	}
 	wrap.keyEncrypted = WrapLocalKey(_localKey, wrapKey);
-	const auto reopened = UnwrapLocalKey(wrap.keyEncrypted, wrapKey);
-	if (!reopened || !reopened->equals(_localKey)) {
+	if (!WrapOpensLocalKey(wrap.keyEncrypted, wrapKey, _localKey)) {
 		LOG(("App Error: a fresh passcode wrap does not open the local key."));
 		return nullptr;
 	}
@@ -391,18 +419,11 @@ Domain::StartModernResult Domain::startModern(
 
 	auto parsed = KeyData();
 	auto infoEncrypted = QByteArray();
-	file.stream
-		>> parsed.openSalt
-		>> parsed.openKeyEncrypted
-		>> infoEncrypted;
-	if (!CheckStreamStatus(file.stream)) {
+	const auto read = ReadKeyData(file.stream, parsed, infoEncrypted);
+	if (read == ReadKeyDataResult::Failed) {
 		return StartModernResult::Failed;
-	} else if (!ReadKeyData(file.stream, parsed)) {
-		return StartModernResult::Failed;
-	} else if (parsed.openSalt.size() != LocalEncryptSaltSize) {
-		LOG(("App Error: bad salt in info file, size: %1"
-			).arg(parsed.openSalt.size()));
-		return StartModernResult::Failed;
+	} else if (read == ReadKeyDataResult::UnsupportedKdf) {
+		return StartModernResult::IncorrectPasscode;
 	}
 	*_keyData = std::move(parsed);
 
@@ -533,13 +554,7 @@ void Domain::writeAccounts() {
 		|| !_keyData->passcodeWraps.empty());
 	Expects(_keyData->passcodeWraps.size() <= 1);
 
-	const auto path = BaseGlobalPath();
-	if (!QDir().exists(path)) {
-		QDir().mkpath(path);
-	}
-
-	FileWriteDescriptor key(ComputeKeyName(_dataName), path);
-	WriteKeyData(key, *_keyData, prepareAccountsInfo());
+	writeKeyData(*_keyData, false);
 	_keyDataDirty = false;
 }
 
@@ -558,6 +573,17 @@ QByteArray Domain::prepareAccountsInfo() const {
 	return PrepareEncrypted(info, _localKey);
 }
 
+bool Domain::writeKeyData(const KeyData &data, bool sync) const {
+	const auto path = BaseGlobalPath();
+	if (!QDir().exists(path)) {
+		QDir().mkpath(path);
+	}
+
+	FileWriteDescriptor key(ComputeKeyName(_dataName), path, sync);
+	WriteKeyData(key, data, prepareAccountsInfo());
+	return key.finish();
+}
+
 // Unlike writeAccounts(), which queues the bytes and always reports success,
 // this one commits them on the storage thread and answers whether they really
 // reached the disk. Every path that changes which secret opens the local key
@@ -572,16 +598,7 @@ bool Domain::writeKeyDataChecked(const KeyData &data) const {
 	Expects(!data.openKeyEncrypted.isEmpty() || !data.passcodeWraps.empty());
 	Expects(data.passcodeWraps.size() <= kMaxWrapCount);
 
-	const auto path = BaseGlobalPath();
-	if (!QDir().exists(path)) {
-		QDir().mkpath(path);
-	}
-	auto written = false;
-	{
-		FileWriteDescriptor key(ComputeKeyName(_dataName), path, true);
-		WriteKeyData(key, data, prepareAccountsInfo());
-		written = key.finish();
-	}
+	const auto written = writeKeyData(data, true);
 	if (!written) {
 		LOG(("App Error: could not write the accounts key file."));
 	}
@@ -608,13 +625,8 @@ bool Domain::wrapOnDiskOpensLocalKey(
 	}
 	auto parsed = KeyData();
 	auto infoEncrypted = QByteArray();
-	file.stream
-		>> parsed.openSalt
-		>> parsed.openKeyEncrypted
-		>> infoEncrypted;
-	if (!CheckStreamStatus(file.stream)
-		|| !ReadKeyData(file.stream, parsed)
-		|| parsed.legacy) {
+	const auto read = ReadKeyData(file.stream, parsed, infoEncrypted);
+	if (read != ReadKeyDataResult::Success || parsed.legacy) {
 		return false;
 	}
 	for (const auto &wrap : parsed.passcodeWraps) {
@@ -629,8 +641,7 @@ bool Domain::wrapOnDiskOpensLocalKey(
 			LOG(("App Error: the staged passcode wrap changed on disk."));
 			return false;
 		}
-		const auto reopened = UnwrapLocalKey(wrap.keyEncrypted, wrapKey);
-		return reopened && reopened->equals(_localKey);
+		return WrapOpensLocalKey(wrap.keyEncrypted, wrapKey, _localKey);
 	}
 	return false;
 }
@@ -673,8 +684,7 @@ bool Domain::checkPasscode(const QByteArray &passcode) const {
 		wrapKey = CreatePasscodeKey(passcode, wrap.salt, wrap.kdf);
 		keyEncrypted = wrap.keyEncrypted;
 	}
-	const auto reopened = UnwrapLocalKey(keyEncrypted, wrapKey);
-	return reopened && reopened->equals(_localKey);
+	return WrapOpensLocalKey(keyEncrypted, wrapKey, _localKey);
 }
 
 std::optional<PasscodeVerification> Domain::verifyPasscode(

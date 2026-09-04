@@ -37,15 +37,22 @@ constexpr auto kStrongIterationsCount = 100'000;
 // single-threaded fill and needs no thread pool enabled in the library
 // context. Every wrap records its family and these three numbers beside its
 // own salt, so raising a cost here only affects wraps written afterwards and
-// never invalidates a file an earlier build wrote.
+// never invalidates a file an earlier build wrote. Independent read ceilings
+// leave a compatibility margin above the shipped costs so later builds can
+// raise the write parameters without making their files unreadable here.
 constexpr auto kPasscodeArgon2MemoryKiB = quint32(65'536);
 constexpr auto kPasscodeArgon2Time = quint32(16);
 constexpr auto kPasscodeArgon2Lanes = quint32(1);
+constexpr auto kPasscodeArgon2MaxMemoryKiB = quint32(262'144);
+constexpr auto kPasscodeArgon2MaxTime = quint32(64);
+constexpr auto kPasscodeArgon2MaxLanes = quint32(16);
+static_assert(kPasscodeArgon2MemoryKiB <= kPasscodeArgon2MaxMemoryKiB);
+static_assert(kPasscodeArgon2Time <= kPasscodeArgon2MaxTime);
+static_assert(kPasscodeArgon2Lanes <= kPasscodeArgon2MaxLanes);
 constexpr auto kPasscodeScryptN = quint32(131'072);
 constexpr auto kPasscodeScryptR = quint32(8);
 constexpr auto kPasscodeScryptP = quint32(1);
 constexpr auto kPasscodeScryptMaxMem = quint64(192) * 1024 * 1024;
-constexpr auto kPasscodeSaltMinSize = 8;
 #if OPENSSL_VERSION_NUMBER >= 0x30200000L
 constexpr auto kPasscodeArgon2Name = "ARGON2ID";
 #endif // OPENSSL_VERSION_NUMBER >= 0x30200000L
@@ -389,6 +396,13 @@ bool PasscodeKdf::valid() const {
 	return false;
 }
 
+bool PasscodeKdf::costWithinLimits() const {
+	return (kind != kPasscodeKdfArgon2id)
+		|| (memory <= kPasscodeArgon2MaxMemoryKiB
+			&& time <= kPasscodeArgon2MaxTime
+			&& parallel <= kPasscodeArgon2MaxLanes);
+}
+
 PasscodeKdf DefaultPasscodeKdf() {
 #if OPENSSL_VERSION_NUMBER >= 0x30200000L
 	static const auto argon2 = [] {
@@ -425,6 +439,7 @@ MTP::AuthKeyPtr CreatePasscodeKey(
 		const PasscodeKdf &kdf) {
 	if (passcode.isEmpty()
 		|| salt.size() < kPasscodeSaltMinSize
+		|| !kdf.costWithinLimits()
 		|| !kdf.valid()) {
 		return nullptr;
 	}

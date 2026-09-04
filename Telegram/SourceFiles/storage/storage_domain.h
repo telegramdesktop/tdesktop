@@ -111,6 +111,7 @@ private:
 		quint32 generation) const;
 	void migrateFromLegacy(const QByteArray &passcode);
 	[[nodiscard]] QByteArray prepareAccountsInfo() const;
+	bool writeKeyData(const KeyData &data, bool sync) const;
 	[[nodiscard]] bool writeKeyDataChecked(const KeyData &data) const;
 	[[nodiscard]] bool wrapOnDiskOpensLocalKey(
 		const PasscodeWrap &staged,
