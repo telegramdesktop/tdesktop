@@ -30,26 +30,36 @@ constexpr auto TdfMagicLen = int(sizeof(TdfMagic));
 
 constexpr auto kStrongIterationsCount = 100'000;
 
-// The passcode wrap is derived with a memory-hard KDF instead of PBKDF2, and
-// the parameters below are tuned so that one derivation costs roughly 0.3-0.5
-// seconds and tens of megabytes on a current desktop. Parallelism is fixed at
-// a single lane and a single thread, which is what lets OpenSSL run its
-// single-threaded fill and needs no thread pool enabled in the library
+// The memory-hard passcode wrap targets at most roughly twice the full
+// legacy 100,000-iteration PBKDF2-HMAC-SHA512 derivation in CreateLocalKey,
+// including its prehash and 256-byte output. Paired measurements use the same
+// machine and time window. Optimized OpenSSL calibration leaves conservative
+// headroom with low-end devices in mind; timings still vary by device and
+// library configuration. Windows x86 is calibrated separately with lower
+// time and scrypt N costs. Keeping Argon2 at 64 MiB instead of 128 MiB leaves
+// more contiguous-allocation headroom in a fragmented 32-bit address space.
+// Parallelism stays at a single lane and a single thread, which lets OpenSSL
+// run its single-threaded fill without a thread pool enabled in the library
 // context. Every wrap records its family and these three numbers beside its
-// own salt, so raising a cost here only affects wraps written afterwards and
-// never invalidates a file an earlier build wrote. Independent read ceilings
+// own salt, so changing defaults only affects wraps written afterwards.
+// Existing wraps use their recorded parameters. Independent read ceilings
 // leave a compatibility margin above the shipped costs so later builds can
 // raise the write parameters without making their files unreadable here.
 constexpr auto kPasscodeArgon2MemoryKiB = quint32(65'536);
-constexpr auto kPasscodeArgon2Time = quint32(16);
 constexpr auto kPasscodeArgon2Lanes = quint32(1);
+#if defined Q_OS_WIN && defined Q_PROCESSOR_X86_32
+constexpr auto kPasscodeArgon2Time = quint32(4);
+constexpr auto kPasscodeScryptN = quint32(65'536);
+#else // Q_OS_WIN && Q_PROCESSOR_X86_32
+constexpr auto kPasscodeArgon2Time = quint32(8);
+constexpr auto kPasscodeScryptN = quint32(131'072);
+#endif // Q_OS_WIN && Q_PROCESSOR_X86_32
 constexpr auto kPasscodeArgon2MaxMemoryKiB = quint32(262'144);
 constexpr auto kPasscodeArgon2MaxTime = quint32(64);
 constexpr auto kPasscodeArgon2MaxLanes = quint32(16);
 static_assert(kPasscodeArgon2MemoryKiB <= kPasscodeArgon2MaxMemoryKiB);
 static_assert(kPasscodeArgon2Time <= kPasscodeArgon2MaxTime);
 static_assert(kPasscodeArgon2Lanes <= kPasscodeArgon2MaxLanes);
-constexpr auto kPasscodeScryptN = quint32(131'072);
 constexpr auto kPasscodeScryptR = quint32(8);
 constexpr auto kPasscodeScryptP = quint32(1);
 constexpr auto kPasscodeScryptMaxMem = quint64(192) * 1024 * 1024;
