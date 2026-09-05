@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unique_qptr.h"
 
+class UserData;
+
 namespace Main {
 class Session;
 class SessionShow;
@@ -37,6 +39,10 @@ void FillMenu(
 void ShowTransferLink(
 	std::shared_ptr<Main::SessionShow> show,
 	const QString &url);
+
+void ShowSendToUser(
+	std::shared_ptr<Main::SessionShow> show,
+	not_null<UserData*> user);
 
 [[nodiscard]] rpl::producer<bool> TransactionsShownValue(
 	not_null<Main::Session*> session);

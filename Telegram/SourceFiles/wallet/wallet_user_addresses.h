@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_peer_id.h"
 #include "mtproto/sender.h"
+#include "rpl/variable.h"
 
 namespace Main {
 class Session;
@@ -27,6 +28,11 @@ struct UserAddress {
 	QString address;
 
 	friend bool operator==(const UserAddress &, const UserAddress &) = default;
+};
+
+struct ForceResolveError {
+	QString type;
+	bool silent = false;
 };
 
 class UserAddresses final {
@@ -49,7 +55,7 @@ public:
 	// balance. Local refusal is synchronous: WALLET_UNAVAILABLE,
 	// WALLET_USER_INVALID, WALLET_USER_INELIGIBLE, WALLET_NOT_READY or
 	// WALLET_BALANCE_EMPTY. Invalid replies fail with WALLET_ADDRESS_INVALID;
-	// RPC failures retain their error type and are terminal for this request.
+	// RPC failures retain their type and silent disposition and are terminal.
 	// Only a validated nonempty canonical address reaches |done|, after it
 	// is published through known(). Earlier passive lookups and full-user
 	// requests cannot overwrite it; later full-user requests can update it.
@@ -58,7 +64,8 @@ public:
 	void forceResolve(
 		UserId id,
 		Fn<void(QString)> done,
-		Fn<void(const QString &)> fail);
+		Fn<void(ForceResolveError)> fail);
+	[[nodiscard]] QString forceResolveError(UserId id) const;
 
 	// Unknown for an id no source has answered for, including one
 	// Data::Session cannot hand back, which is never sent. A chunk already
@@ -69,6 +76,7 @@ public:
 	// account, not an answer about any user, so no id is recorded Absent
 	// because of it and nothing is asked again this session.
 	[[nodiscard]] bool unavailable() const;
+	[[nodiscard]] rpl::producer<bool> unavailableValue() const;
 
 private:
 	struct Job {
@@ -85,7 +93,7 @@ private:
 
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
-	bool _unavailable = false;
+	rpl::variable<bool> _unavailable = false;
 
 };
 

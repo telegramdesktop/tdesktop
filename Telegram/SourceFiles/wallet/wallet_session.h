@@ -246,6 +246,7 @@ public:
 	~Session();
 
 	[[nodiscard]] Presence presence();
+	[[nodiscard]] Presence presenceCurrent() const;
 	[[nodiscard]] rpl::producer<Presence> presenceValue();
 	[[nodiscard]] std::optional<QString> address();
 	[[nodiscard]] QString addressFriendly(bool bounceable = false);
@@ -386,7 +387,17 @@ public:
 	[[nodiscard]] Ui::SeparatePanel *panel() const;
 	void setPanel(std::unique_ptr<Ui::SeparatePanel> panel);
 
-	void estimateFee(const SendArgs &args, Fn<void(FeeResult)> done);
+	// One live send box owns one preview identity until its lifetime ends.
+	// Edits replace only that owner's queued request, preserving its place
+	// behind other owners; cancellation discards its current request without
+	// retiring the owner. Current callbacks can complete synchronously with
+	// a refusal, and never run after the owning lifetime is destroyed.
+	[[nodiscard]] uint64 createPreviewOwner(rpl::lifetime &lifetime);
+	void estimateFee(
+		uint64 owner,
+		const SendArgs &args,
+		Fn<void(FeeResult)> done);
+	void cancelFeeEstimate(uint64 owner);
 	void send(
 		KeyAuthorization auth,
 		SendArgs args,
@@ -459,10 +470,17 @@ private:
 		const wallet_engine::WalletUpdate &update,
 		bool more);
 	void setCollectibles(std::vector<Gram::NftItem> &&list);
-	void startPreview(
-		SendArgs args,
-		Fn<void(FeeResult)> done,
-		bool retried = false);
+	struct PreviewRequest;
+	struct PreviewState;
+	[[nodiscard]] bool previewCurrent(const PreviewRequest &request) const;
+	[[nodiscard]] SendError previewError(const PreviewRequest &request);
+	void startPreview();
+	void finishPreview(uint64 flight, FeeResult result);
+	void cancelPreview();
+	void finishPreviewCancel(uint64 flight);
+	void settlePreview();
+	void retirePreviewOwner(uint64 owner);
+	void retirePreviews(SendError error);
 	void resolvePending();
 	void updateListsGate();
 	[[nodiscard]] bool listsConfirmedEmpty() const;
@@ -559,8 +577,7 @@ private:
 	std::optional<PendingSendInfo> _pending;
 	bool _sendUnresolved = false;
 	bool _previewPending = false;
-	std::optional<SendArgs> _previewNextArgs;
-	Fn<void(FeeResult)> _previewNextDone;
+	std::unique_ptr<PreviewState> _preview;
 
 	struct PreparedRotation;
 	std::unique_ptr<PreparedRotation> _preparedRotation;

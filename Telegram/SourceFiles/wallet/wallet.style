@@ -270,6 +270,39 @@ walletSendMarkSize: 15px;
 walletSendMarkPosition: point(0px, 31px);
 walletSendFiatTop: 29px;
 walletSendBalancePadding: margins(24px, 7px, 24px, 27px);
+walletSendUserAmountField: InputField(defaultInputField) {
+	textMargins: margins(0px, 0px, 0px, 0px);
+	textAlign: align(center);
+	placeholderAlign: align(center);
+	placeholderFg: windowSubTextFg;
+	placeholderFgActive: windowSubTextFg;
+	placeholderFgError: windowSubTextFg;
+	placeholderScale: 0.;
+	placeholderShift: 0px;
+	placeholderFont: font(28px semibold);
+	style: TextStyle(defaultTextStyle) {
+		font: font(28px semibold);
+	}
+	border: 0px;
+	borderActive: 0px;
+	heightMin: boxTitleHeight;
+	widthMin: 0px;
+}
+walletSendUserTickerLabel: FlatLabel(walletDetailsAmountMinorLabel) {
+	textFg: windowSubTextFg;
+}
+walletSendUserBalanceLabel: FlatLabel(walletSendBalanceLabel) {
+	minWidth: 200px;
+	align: align(top);
+}
+walletSendUserErrorLabel: FlatLabel(walletSendErrorLabel) {
+	minWidth: 200px;
+	align: align(top);
+}
+walletSendUserFiatButton: RoundButton(defaultTableSmallButton) {
+	textFg: currencyFg;
+	textFgOver: currencyFg;
+}
 walletCommentField: InputField(walletSendAddressField) {
 	textMargins: margins(0px, 10px, 0px, 2px);
 }

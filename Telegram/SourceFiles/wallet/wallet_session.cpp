@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QUuid>
 
+#include <deque>
 #include <limits>
 
 namespace Wallet {
@@ -46,6 +47,33 @@ struct Session::PreparedRotation {
 	uint32 seqno = 0;
 	uint64 validUntil = 0;
 	int64 quotedFeeNano = 0;
+};
+
+struct Session::PreviewRequest {
+	uint64 owner = 0;
+	uint64 revision = 0;
+	int generation = 0;
+	std::shared_ptr<wallet_engine::WalletClient> client;
+	SendArgs args;
+	Fn<void(FeeResult)> done;
+};
+
+struct Session::PreviewState : base::has_weak_ptr {
+	struct Flight {
+		uint64 id = 0;
+		PreviewRequest request;
+		FeeResult result;
+		bool finished = false;
+		bool cancelIssued = false;
+		bool cancelFinished = false;
+	};
+
+	base::flat_map<uint64, uint64> owners;
+	std::deque<PreviewRequest> queue;
+	std::optional<Flight> active;
+	uint64 lastOwner = 0;
+	uint64 lastFlight = 0;
+	bool dispatching = false;
 };
 
 namespace {
@@ -413,19 +441,6 @@ void FailShareFetch(
 	try {
 		std::rethrow_exception(error.underlying);
 	} catch (const engine::wallet_client_error::SubmissionUnknown &) {
-		return true;
-	} catch (...) {
-	}
-	return false;
-}
-
-[[nodiscard]] bool IsPreviewKilled(const EngineError &error) {
-	if (!error.underlying) {
-		return false;
-	}
-	try {
-		std::rethrow_exception(error.underlying);
-	} catch (const engine::wallet_client_error::StateUnavailable &) {
 		return true;
 	} catch (...) {
 	}
@@ -969,6 +984,10 @@ void Session::ensureLoaded() {
 
 Presence Session::presence() {
 	ensureLoaded();
+	return _presence.current();
+}
+
+Presence Session::presenceCurrent() const {
 	return _presence.current();
 }
 
@@ -2700,6 +2719,7 @@ void Session::syncEngineClient() {
 			_clientRecordId = QString();
 			syncEngineClient();
 		});
+		retirePreviews(SendError::SigningUnavailable);
 		return;
 	} else if (!wanted || _clientStopping) {
 		return;
@@ -2747,10 +2767,9 @@ void Session::clearNetworkState() {
 	_pollTimer.cancel();
 	_stream->stop();
 	_sendUnresolved = false;
-	_previewNextArgs.reset();
-	_previewNextDone = nullptr;
 	_historyDone.clear();
 	updateListsGate();
+	retirePreviews(SendError::Failed);
 }
 
 void Session::requestEngineRefresh() {
@@ -3368,98 +3387,235 @@ const std::optional<PendingSendInfo> &Session::pendingSend() const {
 	return _pending;
 }
 
-void Session::estimateFee(const SendArgs &args, Fn<void(FeeResult)> done) {
-	ensureLoaded();
-	if (_presence.current() != Presence::Ready
-		|| args.amountNano <= 0
-		|| args.destination.isEmpty()) {
-		if (done) {
-			done(FeeResult{ .error = SendError::InvalidRequest });
-		}
-		return;
+uint64 Session::createPreviewOwner(rpl::lifetime &lifetime) {
+	if (!_preview) {
+		_preview = std::make_unique<PreviewState>();
 	}
-	if (!_engine->client()) {
-		if (done) {
-			done(FeeResult{ .error = SendError::SigningUnavailable });
-		}
-		return;
-	}
-	if (_rotating || custody().pendingRotation) {
-		if (done) {
-			done(FeeResult{ .error = SendError::AlreadySending });
-		}
-		return;
-	}
-	if (_previewPending) {
-		_previewNextArgs = args;
-		_previewNextDone = std::move(done);
-		const auto client = _engine->client();
-		_engine->runQuick([client] {
-			client->cancel_send_preview();
-		}, [] {}, [](EngineError) {});
-		return;
-	}
-	startPreview(args, std::move(done));
+	const auto owner = ++_preview->lastOwner;
+	_preview->owners.emplace(owner, 0);
+	lifetime.add(crl::guard(_preview.get(), [=, this] {
+		retirePreviewOwner(owner);
+	}));
+	return owner;
 }
 
-void Session::startPreview(
-		SendArgs args,
-		Fn<void(FeeResult)> done,
-		bool retried) {
-	_previewPending = true;
-	const auto client = _engine->client();
-	const auto generation = _networkGeneration;
-	auto request = engine::SendPreviewRequest{
-		.intent = IntentFromArgs(args),
+void Session::estimateFee(
+		uint64 owner,
+		const SendArgs &args,
+		Fn<void(FeeResult)> done) {
+	ensureLoaded();
+	if (!_preview) {
+		return;
+	}
+	const auto i = _preview->owners.find(owner);
+	if (i == end(_preview->owners)) {
+		return;
+	}
+	auto request = PreviewRequest{
+		.owner = owner,
+		.revision = ++i->second,
+		.generation = _networkGeneration,
+		.client = _engine->client(),
+		.args = args,
+		.done = std::move(done),
 	};
-	_engine->run([client, request = std::move(request)] {
-		return client->preview_send(request);
-	}, [=, this](engine::SendPreview preview) {
-		_previewPending = false;
-		if (_previewNextArgs) {
-			startPreview(
-				*base::take(_previewNextArgs),
-				base::take(_previewNextDone));
-			return;
+	const auto queued = ranges::find(
+		_preview->queue,
+		owner,
+		&PreviewRequest::owner);
+	if (queued != end(_preview->queue)) {
+		*queued = std::move(request);
+	} else {
+		_preview->queue.push_back(std::move(request));
+	}
+	_previewPending = true;
+	if (_preview->active && _preview->active->request.owner == owner) {
+		_preview->active->request.done = nullptr;
+		cancelPreview();
+	}
+	startPreview();
+}
+
+void Session::cancelFeeEstimate(uint64 owner) {
+	if (!_preview) {
+		return;
+	}
+	const auto i = _preview->owners.find(owner);
+	if (i == end(_preview->owners)) {
+		return;
+	}
+	++i->second;
+	const auto queued = ranges::find(
+		_preview->queue,
+		owner,
+		&PreviewRequest::owner);
+	if (queued != end(_preview->queue)) {
+		_preview->queue.erase(queued);
+	}
+	if (_preview->active && _preview->active->request.owner == owner) {
+		_preview->active->request.done = nullptr;
+		cancelPreview();
+	}
+	_previewPending = _preview->active.has_value() || !_preview->queue.empty();
+}
+
+void Session::retirePreviewOwner(uint64 owner) {
+	cancelFeeEstimate(owner);
+	_preview->owners.remove(owner);
+}
+
+bool Session::previewCurrent(const PreviewRequest &request) const {
+	const auto i = _preview->owners.find(request.owner);
+	return i != end(_preview->owners) && i->second == request.revision;
+}
+
+SendError Session::previewError(const PreviewRequest &request) {
+	if (request.generation != _networkGeneration) {
+		return SendError::Failed;
+	} else if (_presence.current() != Presence::Ready
+		|| request.args.amountNano <= 0
+		|| request.args.destination.isEmpty()) {
+		return SendError::InvalidRequest;
+	} else if (_clientStopping
+		|| !request.client
+		|| request.client != _engine->client()) {
+		return SendError::SigningUnavailable;
+	} else if (_rotating || custody().pendingRotation) {
+		return SendError::AlreadySending;
+	}
+	return SendError::None;
+}
+
+void Session::startPreview() {
+	if (_preview->dispatching || _preview->active) {
+		return;
+	}
+	_preview->dispatching = true;
+	const auto weak = base::make_weak(_preview.get());
+	while (!_preview->queue.empty()) {
+		auto next = std::move(_preview->queue.front());
+		_preview->queue.pop_front();
+		_previewPending = !_preview->queue.empty();
+		if (!previewCurrent(next)) {
+			continue;
 		}
-		if (generation != _networkGeneration) {
-			return;
+		const auto error = previewError(next);
+		if (error != SendError::None) {
+			if (const auto done = base::take(next.done)) {
+				done(FeeResult{ .error = error });
+				if (!weak) {
+					return;
+				}
+			}
+			continue;
 		}
-		if (done) {
-			done(FeeResult{
+		const auto flight = ++_preview->lastFlight;
+		const auto client = next.client;
+		auto request = engine::SendPreviewRequest{
+			.intent = IntentFromArgs(next.args),
+		};
+		_preview->active = PreviewState::Flight{
+			.id = flight,
+			.request = std::move(next),
+		};
+		_previewPending = true;
+		_engine->run([client, request = std::move(request)] {
+			return client->preview_send(request);
+		}, [=, this](engine::SendPreview preview) {
+			finishPreview(flight, FeeResult{
 				.feeNano = QString::fromStdString(
 					preview.emulation.wallet_fees_nanograms).toLongLong(),
 			});
-		}
-	}, [=, this](EngineError error) {
-		_previewPending = false;
-		if (_previewNextArgs) {
-			startPreview(
-				*base::take(_previewNextArgs),
-				base::take(_previewNextDone));
-			return;
-		}
-		if (generation != _networkGeneration) {
-			return;
-		}
-		// The engine's cancel_send_preview is momentary: it kills the
-		// currently active preview, so a cancel that outlived its target
-		// kills the latest request. Every legitimate cancellation stashes
-		// a next pair first or bumps the generation, so this failure shape
-		// with an empty stash and a fresh generation is a stale kill.
-		// Retry once.
-		if (!retried
-			&& IsPreviewKilled(error)
-			&& _engine->client()) {
-			startPreview(args, done, true);
-			return;
-		}
-		LOG(("Wallet Error: engine preview_send failed: %1"
-			).arg(error.message));
-		if (done) {
-			done(FeeResult{ .error = SendErrorFrom(error) });
-		}
+		}, [=, this](EngineError error) {
+			LOG(("Wallet Error: engine preview_send failed: %1"
+				).arg(error.message));
+			finishPreview(flight, FeeResult{ .error = SendErrorFrom(error) });
+		});
+		break;
+	}
+	_preview->dispatching = false;
+}
+
+void Session::finishPreview(uint64 flight, FeeResult result) {
+	if (!_preview->active || _preview->active->id != flight) {
+		return;
+	}
+	_preview->active->finished = true;
+	_preview->active->result = result;
+	settlePreview();
+}
+
+void Session::cancelPreview() {
+	if (!_preview->active || _preview->active->cancelIssued) {
+		return;
+	}
+	_preview->active->cancelIssued = true;
+	const auto flight = _preview->active->id;
+	const auto client = _preview->active->request.client;
+	_engine->runQuick([client] {
+		client->cancel_send_preview();
+	}, [=, this] {
+		finishPreviewCancel(flight);
+	}, [=, this](EngineError) {
+		finishPreviewCancel(flight);
 	});
+}
+
+void Session::finishPreviewCancel(uint64 flight) {
+	if (!_preview->active || _preview->active->id != flight) {
+		return;
+	}
+	_preview->active->cancelFinished = true;
+	settlePreview();
+}
+
+void Session::settlePreview() {
+	if (!_preview->active
+		|| !_preview->active->finished
+		|| (_preview->active->cancelIssued
+			&& !_preview->active->cancelFinished)) {
+		return;
+	}
+	auto flight = *base::take(_preview->active);
+	_previewPending = !_preview->queue.empty();
+	const auto weak = base::make_weak(_preview.get());
+	if (flight.request.done && previewCurrent(flight.request)) {
+		const auto error = previewError(flight.request);
+		if (const auto done = base::take(flight.request.done)) {
+			done(error == SendError::None
+				? flight.result
+				: FeeResult{ .error = error });
+			if (!weak) {
+				return;
+			}
+		}
+	}
+	startPreview();
+}
+
+void Session::retirePreviews(SendError error) {
+	if (!_preview) {
+		return;
+	}
+	auto retired = base::take(_preview->queue);
+	if (_preview->active) {
+		auto request = _preview->active->request;
+		request.done = base::take(_preview->active->request.done);
+		retired.push_front(std::move(request));
+		cancelPreview();
+	}
+	_previewPending = _preview->active.has_value();
+	const auto weak = base::make_weak(_preview.get());
+	for (auto &request : retired) {
+		if (previewCurrent(request)) {
+			if (const auto done = base::take(request.done)) {
+				done(FeeResult{ .error = error });
+				if (!weak) {
+					return;
+				}
+			}
+		}
+	}
 }
 
 void Session::send(

@@ -8826,6 +8826,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_details_operation" = "Operation";
 "lng_wallet_details_key_change" = "Wallet key update";
 "lng_wallet_send_title" = "Send Grams";
+"lng_wallet_send_money" = "Money";
+"lng_wallet_send_user_title" = "Send Money to {user}";
+"lng_wallet_send_user_unavailable" = "This user can't receive Grams.";
+"lng_wallet_send_user_load_error" = "The recipient's wallet couldn't be loaded. Please try again.";
 "lng_wallet_send_recipient" = "Recipient";
 "lng_wallet_send_address" = "Address";
 "lng_wallet_send_paste" = "Paste";

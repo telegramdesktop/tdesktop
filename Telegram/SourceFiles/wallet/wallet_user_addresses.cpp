@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "main/main_session.h"
+#include "mtproto/mtproto_response.h"
 #include "wallet/wallet_address.h"
 #include "wallet/wallet_session.h"
 
@@ -76,7 +77,7 @@ UserAddresses::UserAddresses(not_null<Main::Session*> session)
 void UserAddresses::resolve(std::vector<UserId> ids, Fn<void()> done) {
 	const auto job = std::make_shared<Job>();
 	job->done = std::move(done);
-	if (_unavailable) {
+	if (unavailable()) {
 		finish(job);
 		return;
 	}
@@ -102,40 +103,32 @@ void UserAddresses::resolve(std::vector<UserId> ids, Fn<void()> done) {
 void UserAddresses::forceResolve(
 		UserId id,
 		Fn<void(QString)> done,
-		Fn<void(const QString &)> fail) {
-	const auto refuse = [fail = std::move(fail)](const QString &error) {
+		Fn<void(ForceResolveError)> fail) {
+	const auto refuse = [fail = std::move(fail)](ForceResolveError error) {
 		LOG(("Wallet Error: forced wallet.getUserAddresses failed: %1"
-			).arg(error));
+			).arg(error.type));
 		if (fail) {
-			fail(error);
+			fail(std::move(error));
 		}
 	};
-	if (_unavailable) {
-		refuse(u"WALLET_UNAVAILABLE"_q);
-		return;
-	}
-	const auto user = id ? _session->data().userLoaded(id) : nullptr;
-	if (!user || (!user->isSelf() && !user->accessHash())) {
-		refuse(u"WALLET_USER_INVALID"_q);
-		return;
-	}
-	if (user->isBot()
-		|| user->isSupport()
-		|| user->isInaccessible()
-		|| user->isRepliesChat()
-		|| user->isVerifyCodes()) {
-		refuse(u"WALLET_USER_INELIGIBLE"_q);
+	const auto error = forceResolveError(id);
+	if (!error.isEmpty()
+		&& error != u"WALLET_NOT_READY"_q
+		&& error != u"WALLET_BALANCE_EMPTY"_q) {
+		refuse({ .type = error });
 		return;
 	}
 	auto &wallet = _session->wallet();
 	if (wallet.presence() != Presence::Ready) {
-		refuse(u"WALLET_NOT_READY"_q);
+		refuse({ .type = u"WALLET_NOT_READY"_q });
 		return;
 	}
-	if (wallet.balanceNano() <= 0) {
-		refuse(u"WALLET_BALANCE_EMPTY"_q);
+	const auto readyError = forceResolveError(id);
+	if (!readyError.isEmpty()) {
+		refuse({ .type = readyError });
 		return;
 	}
+	const auto user = _session->data().userLoaded(id);
 	_api.request(MTPwallet_GetUserAddresses(
 		MTP_flags(MTPwallet_GetUserAddresses::Flag::f_force),
 		MTP_vector<MTPInputUser>(1, user->inputUser())
@@ -147,7 +140,7 @@ void UserAddresses::forceResolve(
 			? CanonicalAddress(qs(reply.front().data().vaddress()))
 			: QString();
 		if (address.isEmpty()) {
-			refuse(u"WALLET_ADDRESS_INVALID"_q);
+			refuse({ .type = u"WALLET_ADDRESS_INVALID"_q });
 			return;
 		}
 		user->setGramAddressFromForce(address);
@@ -158,8 +151,36 @@ void UserAddresses::forceResolve(
 		if (error.type() == u"WALLET_UNAVAILABLE"_q) {
 			_unavailable = true;
 		}
-		refuse(error.type());
+		refuse({
+			.type = error.type(),
+			.silent = MTP::IgnoreError(error),
+		});
 	}).handleAllErrors().send();
+}
+
+QString UserAddresses::forceResolveError(UserId id) const {
+	if (unavailable()) {
+		return u"WALLET_UNAVAILABLE"_q;
+	}
+	const auto user = id ? _session->data().userLoaded(id) : nullptr;
+	if (!user || (!user->isSelf() && !user->accessHash())) {
+		return u"WALLET_USER_INVALID"_q;
+	}
+	if (user->isBot()
+		|| user->isSupport()
+		|| user->isInaccessible()
+		|| user->isRepliesChat()
+		|| user->isVerifyCodes()) {
+		return u"WALLET_USER_INELIGIBLE"_q;
+	}
+	const auto &wallet = _session->wallet();
+	if (wallet.presenceCurrent() != Presence::Ready) {
+		return u"WALLET_NOT_READY"_q;
+	}
+	if (wallet.balanceNano() <= 0) {
+		return u"WALLET_BALANCE_EMPTY"_q;
+	}
+	return QString();
 }
 
 UserAddress UserAddresses::known(UserId id) const {
@@ -178,7 +199,11 @@ UserAddress UserAddresses::known(UserId id) const {
 }
 
 bool UserAddresses::unavailable() const {
-	return _unavailable;
+	return _unavailable.current();
+}
+
+rpl::producer<bool> UserAddresses::unavailableValue() const {
+	return _unavailable.value();
 }
 
 void UserAddresses::sendChunk(
