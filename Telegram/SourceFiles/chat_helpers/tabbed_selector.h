@@ -223,6 +223,7 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 private:
 	class Tab {
@@ -358,6 +359,7 @@ private:
 	Fn<void(SelectorTab)> _beforeHidingCallback;
 
 	rpl::event_stream<> _showRequests;
+	rpl::event_stream<> _escapes;
 	rpl::event_stream<> _slideFinished;
 
 	rpl::lifetime _swipeLifetime;
@@ -430,6 +432,12 @@ public:
 
 	virtual object_ptr<InnerFooter> createFooter() = 0;
 
+	// Set around afterShown() for a tab switched to from the keyboard,
+	// with a screen reader: the keyboard stays on the tab strip, so the
+	// tab shown must not take the focus into its search.
+	void setKeepsFocusOnShow(bool keeps);
+	[[nodiscard]] bool keepsFocusOnShow() const;
+
 protected:
 	void visibleTopBottomUpdated(
 		int visibleTop,
@@ -466,6 +474,7 @@ private:
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
 	std::optional<int> _minimalHeight;
+	bool _keepsFocusOnShow = false;
 
 	rpl::event_stream<int> _scrollToRequests;
 	rpl::event_stream<bool> _disableScrollRequests;

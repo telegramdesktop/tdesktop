@@ -3227,6 +3227,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_emoji_category7" = "Symbols & Flags";
 "lng_emoji_categories" = "Categories";
 "lng_emoji_search_field" = "Search emoji";
+"lng_stickers_search_field" = "Search stickers";
+"lng_gifs_search_field" = "Search GIFs";
+"lng_stickers_footer_sets" = "Sticker sets";
+"lng_gifs_footer_categories" = "GIF categories";
 "lng_emoji_search_groups" = "Search groups";
 "lng_emoji_manage_sets" = "Choose emoji set";
 "lng_emoji_set_ready" = "Downloaded";
