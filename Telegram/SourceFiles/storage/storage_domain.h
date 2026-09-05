@@ -23,6 +23,59 @@ namespace Storage {
 struct PasscodeWrap;
 struct KeyData;
 
+// The memory-hard step of a passcode check or change, cut out of Domain as a
+// value so that it can run on a worker. It holds copies only - the wrap the
+// typed bytes have to open (the live passcode wrap, the legacy blob, or a
+// fresh wrap for a change; null when there is none), a deep copy of the typed
+// bytes and the derived key - and no pointer into the domain, so it may be
+// moved to any thread. run() derives the key for that wrap wherever it is
+// called. The typed bytes are cleansed by run() the moment a passcode wrap's
+// key exists; on every other leg the destructor cleanses them, because the
+// legacy legs still read them on the main thread while the job lives (the
+// migration installs its first passcode wrap from them). The domain accepts
+// the key back only for a wrap with the same { kdf, salt } this job was made
+// for, comparing instead of re-deriving, and never re-derives from bytes that
+// were already cleansed - such a mismatch is answered as a wrong passcode.
+class PasscodeDerivation final {
+public:
+	PasscodeDerivation(PasscodeDerivation &&other) noexcept;
+	PasscodeDerivation &operator=(PasscodeDerivation &&other) noexcept;
+	~PasscodeDerivation();
+
+	void run();
+	[[nodiscard]] bool empty() const;
+
+private:
+	friend class Domain;
+
+	PasscodeDerivation(
+		std::unique_ptr<PasscodeWrap> wrap,
+		const QByteArray &passcode);
+
+	[[nodiscard]] MTP::AuthKeyPtr keyFor(const PasscodeWrap &wrap);
+	void cleanse();
+
+	std::unique_ptr<PasscodeWrap> _wrap;
+	QByteArray _passcode;
+	MTP::AuthKeyPtr _key;
+	bool _cleansed = false;
+
+};
+
+// Runs job.run() on a worker and hands the job back to done on the main
+// thread. Both callables are moved, never copied, across the two hops, and
+// done is built by the caller with crl::guard on the main thread, so the
+// guard object is created there and the worker only carries it along.
+template <typename Job, typename Done>
+void DeriveOnWorker(Job job, Done done) {
+	crl::async([job = std::move(job), done = std::move(done)]() mutable {
+		job.run();
+		crl::on_main([job = std::move(job), done = std::move(done)]() mutable {
+			done(std::move(job));
+		});
+	});
+}
+
 enum class StartResult : uchar {
 	Success,
 	IncorrectPasscode,
@@ -65,18 +118,26 @@ public:
 	Domain(not_null<Main::Domain*> owner, const QString &dataName);
 	~Domain();
 
-	[[nodiscard]] StartResult start(const QByteArray &passcode);
+	[[nodiscard]] StartResult start(PasscodeDerivation derived);
 	void startAdded(
 		not_null<Main::Account*> account,
 		std::unique_ptr<MTP::Config> config);
 	void writeAccounts();
 	void startFromScratch();
 
+	[[nodiscard]] PasscodeDerivation prepareOpen(
+		const QByteArray &passcode) const;
+	[[nodiscard]] PasscodeDerivation prepareNewWrap(
+		const QByteArray &passcode) const;
 	[[nodiscard]] bool checkPasscode(const QByteArray &passcode) const;
+	[[nodiscard]] bool checkPasscode(PasscodeDerivation derived) const;
 	[[nodiscard]] std::optional<PasscodeVerification> verifyPasscode(
 		const QByteArray &passcode);
 	[[nodiscard]] SetPasscodeResult setPasscode(
 		const QByteArray &passcode,
+		PasscodeVerification verification);
+	[[nodiscard]] SetPasscodeResult setPasscode(
+		PasscodeDerivation derived,
 		PasscodeVerification verification);
 	[[nodiscard]] SetPasscodeResult setAppLockEnabled(bool enabled);
 	void clearPasscodeAfterReset();
@@ -97,7 +158,7 @@ private:
 		Empty,
 	};
 
-	[[nodiscard]] StartModernResult startModern(const QByteArray &passcode);
+	[[nodiscard]] StartModernResult startModern(PasscodeDerivation &derived);
 	void startWithSingleAccount(
 		const QByteArray &passcode,
 		std::unique_ptr<Main::Account> account);
@@ -107,7 +168,7 @@ private:
 	void installLegacyWrap(KeyData &data, const QByteArray &passcode) const;
 	[[nodiscard]] MTP::AuthKeyPtr installPasscodeWrap(
 		KeyData &data,
-		const QByteArray &passcode,
+		PasscodeDerivation &derived,
 		quint32 generation) const;
 	void migrateFromLegacy(const QByteArray &passcode);
 	[[nodiscard]] QByteArray prepareAccountsInfo() const;
@@ -116,6 +177,10 @@ private:
 	[[nodiscard]] bool wrapOnDiskOpensLocalKey(
 		const PasscodeWrap &staged,
 		const MTP::AuthKeyPtr &wrapKey) const;
+	[[nodiscard]] std::unique_ptr<PasscodeWrap> wrapToOpen() const;
+	[[nodiscard]] SetPasscodeResult changePasscode(
+		PasscodeDerivation *derived,
+		PasscodeVerification verification);
 
 	const not_null<Main::Domain*> _owner;
 	const QString _dataName;

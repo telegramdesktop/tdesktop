@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_config.h"
 #include "main/main_domain.h"
 #include "main/main_account.h"
+#include "base/openssl_help.h"
 #include "base/random.h"
 
 namespace Storage {
@@ -77,6 +78,14 @@ constexpr auto kMaxWrapCount = quint32(2);
 	auto result = QByteArray(LocalEncryptSaltSize, Qt::Uninitialized);
 	base::RandomFill(result.data(), result.size());
 	return result;
+}
+
+[[nodiscard]] bool SameWrapKey(const PasscodeWrap &a, const PasscodeWrap &b) {
+	return (a.kdf.kind == b.kdf.kind)
+		&& (a.kdf.memory == b.kdf.memory)
+		&& (a.kdf.time == b.kdf.time)
+		&& (a.kdf.parallel == b.kdf.parallel)
+		&& (a.salt == b.salt);
 }
 
 [[nodiscard]] QByteArray WrapLocalKey(
@@ -239,6 +248,73 @@ PasscodeVerification::PasscodeVerification(quint64 nonce)
 : _nonce(nonce) {
 }
 
+PasscodeDerivation::PasscodeDerivation(
+	std::unique_ptr<PasscodeWrap> wrap,
+	const QByteArray &passcode)
+: _wrap(std::move(wrap))
+, _passcode(passcode.constData(), passcode.size()) {
+}
+
+PasscodeDerivation::PasscodeDerivation(PasscodeDerivation &&other) noexcept
+: _wrap(base::take(other._wrap))
+, _passcode(base::take(other._passcode))
+, _key(base::take(other._key))
+, _cleansed(base::take(other._cleansed)) {
+}
+
+PasscodeDerivation &PasscodeDerivation::operator=(
+		PasscodeDerivation &&other) noexcept {
+	cleanse();
+	_wrap = base::take(other._wrap);
+	_passcode = base::take(other._passcode);
+	_key = base::take(other._key);
+	_cleansed = base::take(other._cleansed);
+	return *this;
+}
+
+PasscodeDerivation::~PasscodeDerivation() {
+	cleanse();
+}
+
+void PasscodeDerivation::run() {
+	if (!_wrap || _passcode.isEmpty()) {
+		return;
+	} else if (_wrap->kdf.kind == 0) {
+		_key = CreateLocalKey(_passcode, _wrap->salt);
+		return;
+	}
+	_key = CreatePasscodeKey(_passcode, _wrap->salt, _wrap->kdf);
+	cleanse();
+}
+
+bool PasscodeDerivation::empty() const {
+	return _passcode.isEmpty();
+}
+
+MTP::AuthKeyPtr PasscodeDerivation::keyFor(const PasscodeWrap &wrap) {
+	const auto matched = _wrap && SameWrapKey(*_wrap, wrap);
+	if (matched && _key) {
+		return _key;
+	} else if (_cleansed) {
+		if (!matched) {
+			LOG(("App Error: the passcode wrap changed under the derivation."));
+		}
+		return nullptr;
+	} else if (wrap.kdf.kind == 0) {
+		return CreateLocalKey(_passcode, wrap.salt);
+	} else if (_passcode.isEmpty()) {
+		return nullptr;
+	}
+	return CreatePasscodeKey(_passcode, wrap.salt, wrap.kdf);
+}
+
+void PasscodeDerivation::cleanse() {
+	if (!_passcode.isEmpty()) {
+		OPENSSL_cleanse(_passcode.data(), _passcode.size());
+	}
+	_cleansed = true;
+}
+
 Domain::Domain(not_null<Main::Domain*> owner, const QString &dataName)
 : _owner(owner)
 , _dataName(dataName)
@@ -247,8 +323,8 @@ Domain::Domain(not_null<Main::Domain*> owner, const QString &dataName)
 
 Domain::~Domain() = default;
 
-StartResult Domain::start(const QByteArray &passcode) {
-	const auto modern = startModern(passcode);
+StartResult Domain::start(PasscodeDerivation derived) {
+	const auto modern = startModern(derived);
 	if (modern == StartModernResult::Success) {
 		if (_keyData->legacy || _keyDataDirty || _oldVersion < AppVersion) {
 			writeAccounts();
@@ -267,10 +343,10 @@ StartResult Domain::start(const QByteArray &passcode) {
 		return StartResult::Success;
 	}
 	auto legacy = std::make_unique<Main::Account>(_owner, _dataName, 0);
-	const auto result = legacy->legacyStart(passcode);
+	const auto result = legacy->legacyStart(derived._passcode);
 	if (result == StartResult::Success) {
 		_oldVersion = legacy->local().oldMapVersion();
-		startWithSingleAccount(passcode, std::move(legacy));
+		startWithSingleAccount(derived._passcode, std::move(legacy));
 	}
 	return result;
 }
@@ -353,17 +429,15 @@ void Domain::installLegacyWrap(
 
 MTP::AuthKeyPtr Domain::installPasscodeWrap(
 		KeyData &data,
-		const QByteArray &passcode,
+		PasscodeDerivation &derived,
 		quint32 generation) const {
 	Expects(_localKey != nullptr);
-	Expects(!passcode.isEmpty());
+	Expects(!derived.empty());
+	Expects(derived._wrap && derived._wrap->keyEncrypted.isEmpty());
 
-	auto wrap = PasscodeWrap{
-		.kdf = DefaultPasscodeKdf(),
-		.generation = generation,
-		.salt = RandomSalt(),
-	};
-	const auto wrapKey = CreatePasscodeKey(passcode, wrap.salt, wrap.kdf);
+	auto wrap = *derived._wrap;
+	wrap.generation = generation;
+	const auto wrapKey = derived.keyFor(wrap);
 	if (!wrapKey) {
 		LOG(("App Error: could not derive the passcode key, family: %1"
 			).arg(wrap.kdf.kind));
@@ -395,9 +469,11 @@ void Domain::migrateFromLegacy(const QByteArray &passcode) {
 		installOpenWrap(*_keyData);
 		_keyData->passcodeWraps.clear();
 		_keyData->committed = 0;
-	} else if (!installPasscodeWrap(*_keyData, passcode, 1)) {
-		return;
 	} else {
+		auto fresh = prepareNewWrap(passcode);
+		if (!installPasscodeWrap(*_keyData, fresh, 1)) {
+			return;
+		}
 		dropOpenWrap(*_keyData);
 		_keyData->committed = 1;
 	}
@@ -408,7 +484,7 @@ void Domain::migrateFromLegacy(const QByteArray &passcode) {
 }
 
 Domain::StartModernResult Domain::startModern(
-		const QByteArray &passcode) {
+		PasscodeDerivation &derived) {
 	const auto name = ComputeKeyName(_dataName);
 
 	FileReadDescriptor file;
@@ -430,8 +506,15 @@ Domain::StartModernResult Domain::startModern(
 	auto wrapKey = MTP::AuthKeyPtr();
 	auto localKeyEncrypted = QByteArray();
 	if (_keyData->legacy) {
-		wrapKey = CreateLocalKey(passcode, _keyData->openSalt);
-		localKeyEncrypted = _keyData->openKeyEncrypted;
+		const auto blob = PasscodeWrap{
+			.salt = _keyData->openSalt,
+			.keyEncrypted = _keyData->openKeyEncrypted,
+		};
+		wrapKey = derived.keyFor(blob);
+		if (!wrapKey) {
+			return StartModernResult::IncorrectPasscode;
+		}
+		localKeyEncrypted = blob.keyEncrypted;
 	} else {
 		// A passcode wrap is live only while its generation equals the
 		// committed one. That drops a staged wrap left above committed by a
@@ -449,7 +532,7 @@ Domain::StartModernResult Domain::startModern(
 		}
 		_keyData->passcodeWraps = std::move(live);
 
-		if (passcode.isEmpty()) {
+		if (derived.empty()) {
 			if (_keyData->openKeyEncrypted.isEmpty()) {
 				LOG(("App Info: the app lock is on, a passcode is needed."));
 				return StartModernResult::IncorrectPasscode;
@@ -461,7 +544,7 @@ Domain::StartModernResult Domain::startModern(
 			return StartModernResult::IncorrectPasscode;
 		} else {
 			const auto &wrap = _keyData->passcodeWraps.front();
-			wrapKey = CreatePasscodeKey(passcode, wrap.salt, wrap.kdf);
+			wrapKey = derived.keyFor(wrap);
 			if (!wrapKey) {
 				LOG(("App Error: passcode KDF family %1 is unavailable."
 					).arg(wrap.kdf.kind));
@@ -486,8 +569,8 @@ Domain::StartModernResult Domain::startModern(
 	_localKey = std::make_shared<MTP::AuthKey>(key);
 
 	if (_keyData->legacy) {
-		_keyData->legacyPasscode = !passcode.isEmpty();
-		migrateFromLegacy(passcode);
+		_keyData->legacyPasscode = !derived.empty();
+		migrateFromLegacy(derived._passcode);
 	}
 
 	if (!DecryptLocal(info, infoEncrypted, _localKey)) {
@@ -632,11 +715,7 @@ bool Domain::wrapOnDiskOpensLocalKey(
 	for (const auto &wrap : parsed.passcodeWraps) {
 		if (wrap.generation != staged.generation) {
 			continue;
-		} else if (wrap.kdf.kind != staged.kdf.kind
-			|| wrap.kdf.memory != staged.kdf.memory
-			|| wrap.kdf.time != staged.kdf.time
-			|| wrap.kdf.parallel != staged.kdf.parallel
-			|| wrap.salt != staged.salt
+		} else if (!SameWrapKey(wrap, staged)
 			|| wrap.keyEncrypted != staged.keyEncrypted) {
 			LOG(("App Error: the staged passcode wrap changed on disk."));
 			return false;
@@ -656,6 +735,35 @@ void Domain::startFromScratch() {
 		std::make_unique<Main::Account>(_owner, _dataName, 0));
 }
 
+std::unique_ptr<PasscodeWrap> Domain::wrapToOpen() const {
+	if (_keyData->legacy || _keyData->legacyPasscode) {
+		return std::make_unique<PasscodeWrap>(PasscodeWrap{
+			.salt = _keyData->openSalt,
+			.keyEncrypted = _keyData->openKeyEncrypted,
+		});
+	} else if (_keyData->passcodeWraps.size() != 1) {
+		return nullptr;
+	}
+	return std::make_unique<PasscodeWrap>(_keyData->passcodeWraps.front());
+}
+
+PasscodeDerivation Domain::prepareOpen(const QByteArray &passcode) const {
+	return PasscodeDerivation(wrapToOpen(), passcode);
+}
+
+PasscodeDerivation Domain::prepareNewWrap(const QByteArray &passcode) const {
+	return PasscodeDerivation(
+		std::make_unique<PasscodeWrap>(PasscodeWrap{
+			.kdf = DefaultPasscodeKdf(),
+			.salt = RandomSalt(),
+		}),
+		passcode);
+}
+
+bool Domain::checkPasscode(const QByteArray &passcode) const {
+	return checkPasscode(prepareOpen(passcode));
+}
+
 // The only decisions this makes before the derivation runs are which wrap the
 // passcode has to open and whether such a wrap exists at all; neither depends
 // on what was typed and so neither tells an attacker anything about it. From
@@ -669,22 +777,15 @@ void Domain::startFromScratch() {
 // left in openKeyEncrypted, so it is checked exactly the way startModern()
 // opens it. That state reports a passcode with the app lock armed, and this
 // leg is what lets the lock it arms be opened by the passcode that armed it.
-bool Domain::checkPasscode(const QByteArray &passcode) const {
+bool Domain::checkPasscode(PasscodeDerivation derived) const {
 	Expects(_localKey != nullptr);
 
-	auto wrapKey = MTP::AuthKeyPtr();
-	auto keyEncrypted = QByteArray();
-	if (_keyData->legacyPasscode) {
-		wrapKey = CreateLocalKey(passcode, _keyData->openSalt);
-		keyEncrypted = _keyData->openKeyEncrypted;
-	} else if (_keyData->passcodeWraps.size() != 1) {
+	const auto wrap = wrapToOpen();
+	if (!wrap) {
 		return false;
-	} else {
-		const auto &wrap = _keyData->passcodeWraps.front();
-		wrapKey = CreatePasscodeKey(passcode, wrap.salt, wrap.kdf);
-		keyEncrypted = wrap.keyEncrypted;
 	}
-	return WrapOpensLocalKey(keyEncrypted, wrapKey, _localKey);
+	const auto key = derived.keyFor(*wrap);
+	return key && WrapOpensLocalKey(wrap->keyEncrypted, key, _localKey);
 }
 
 std::optional<PasscodeVerification> Domain::verifyPasscode(
@@ -698,6 +799,24 @@ std::optional<PasscodeVerification> Domain::verifyPasscode(
 	}
 	_verificationNonce = nonce;
 	return PasscodeVerification(nonce);
+}
+
+SetPasscodeResult Domain::setPasscode(
+		const QByteArray &passcode,
+		PasscodeVerification verification) {
+	if (passcode.isEmpty()) {
+		return changePasscode(nullptr, verification);
+	}
+	auto derived = prepareNewWrap(passcode);
+	return changePasscode(&derived, verification);
+}
+
+SetPasscodeResult Domain::setPasscode(
+		PasscodeDerivation derived,
+		PasscodeVerification verification) {
+	Expects(!derived.empty());
+
+	return changePasscode(&derived, verification);
 }
 
 // A passcode change is staged so that no crash window can leave a file only a
@@ -721,8 +840,8 @@ std::optional<PasscodeVerification> Domain::verifyPasscode(
 // already had straight through. A file still in the legacy shape is refused
 // outright, because its openKeyEncrypted may be the passcode-derived blob and
 // nothing here could honestly relabel that as an open wrap.
-SetPasscodeResult Domain::setPasscode(
-		const QByteArray &passcode,
+SetPasscodeResult Domain::changePasscode(
+		PasscodeDerivation *derived,
 		PasscodeVerification verification) {
 	Expects(_localKey != nullptr);
 
@@ -737,7 +856,7 @@ SetPasscodeResult Domain::setPasscode(
 		return SetPasscodeResult::NeedsVerification;
 	}
 	const auto generation = _keyData->committed + 1;
-	if (passcode.isEmpty()) {
+	if (!derived) {
 		auto updated = *_keyData;
 		updated.passcodeWraps.clear();
 		updated.committed = generation;
@@ -751,7 +870,7 @@ SetPasscodeResult Domain::setPasscode(
 	} else {
 		const auto creating = _keyData->passcodeWraps.empty();
 		auto staged = *_keyData;
-		const auto wrapKey = installPasscodeWrap(staged, passcode, generation);
+		const auto wrapKey = installPasscodeWrap(staged, *derived, generation);
 		if (!wrapKey) {
 			return SetPasscodeResult::Failed;
 		} else if (!writeKeyDataChecked(staged)) {

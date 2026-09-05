@@ -65,17 +65,49 @@ bool Domain::started() const {
 }
 
 Storage::StartResult Domain::start(const QByteArray &passcode) {
+	return startWith(_local->prepareOpen(passcode));
+}
+
+Storage::StartResult Domain::startWith(
+		Storage::PasscodeDerivation derived) {
 	Expects(!started());
 
-	const auto result = _local->start(passcode);
+	const auto openedWithoutPasscode = derived.empty();
+	const auto result = _local->start(std::move(derived));
 	if (result == Storage::StartResult::Success) {
 		activateAfterStarting();
-		Wallet::FinishForgottenPasscodeClear(passcode.isEmpty());
+		Wallet::FinishForgottenPasscodeClear(openedWithoutPasscode);
 		crl::on_main(&Core::App(), [=] { suggestExportIfNeeded(); });
 	} else {
 		Assert(!started());
 	}
 	return result;
+}
+
+bool Domain::tryPasscode(
+		const QByteArray &passcode,
+		Fn<void(bool correct)> done) {
+	if (_passcodeDeriving) {
+		return false;
+	}
+	_passcodeDeriving = true;
+	const auto cold = !started();
+	Storage::DeriveOnWorker(
+		_local->prepareOpen(passcode),
+		crl::guard(this, [=](Storage::PasscodeDerivation &&derived) {
+			_passcodeDeriving = false;
+			if (Core::Quitting()) {
+				return;
+			}
+			const auto correct = (cold == started())
+				? false
+				: cold
+				? (startWith(std::move(derived))
+					== Storage::StartResult::Success)
+				: _local->checkPasscode(std::move(derived));
+			done(correct);
+		}));
+	return true;
 }
 
 void Domain::finish() {

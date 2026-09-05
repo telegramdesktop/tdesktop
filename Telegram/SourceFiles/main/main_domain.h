@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Storage {
 class Domain;
+class PasscodeDerivation;
 enum class StartResult : uchar;
 } // namespace Storage
 
@@ -39,6 +40,24 @@ public:
 
 	[[nodiscard]] bool started() const;
 	[[nodiscard]] Storage::StartResult start(const QByteArray &passcode);
+
+	// One passcode attempt at a time for the whole application: while the
+	// derivation runs on a worker this returns true, and every further call
+	// answers false without starting anything or ever invoking its done.
+	// The verdict is applied here on the main thread - a cold attempt starts
+	// the domain, a warm one only checks the passcode - and done(correct)
+	// runs last. An attempt whose started-ness changed underneath it (the
+	// lock screen's Log out started the domain from scratch, or finish() ran
+	// during shutdown) applies nothing and reports the passcode incorrect.
+	// An attempt answered while the application is quitting applies nothing
+	// and drops its done as well: finish() leaves a cold domain as unstarted
+	// as it found it, so started-ness alone cannot tell a quitting cold
+	// attempt from one that should start every account. An attempt that
+	// outlives the domain is dropped together with its done.
+	[[nodiscard]] bool tryPasscode(
+		const QByteArray &passcode,
+		Fn<void(bool correct)> done);
+
 	void resetWithForgottenPasscode();
 	void finish();
 
@@ -83,6 +102,8 @@ public:
 	[[nodiscard]] int activeForStorage() const;
 
 private:
+	[[nodiscard]] Storage::StartResult startWith(
+		Storage::PasscodeDerivation derived);
 	void activateAfterStarting();
 	void closeAccountWindows(not_null<Main::Account*> account);
 	bool removePasscodeIfEmpty();
@@ -109,6 +130,7 @@ private:
 	int _unreadBadge = 0;
 	bool _unreadBadgeMuted = true;
 	bool _unreadBadgeUpdateScheduled = false;
+	bool _passcodeDeriving = false;
 
 	rpl::variable<int> _lastMaxAccounts;
 
