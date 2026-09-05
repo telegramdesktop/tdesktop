@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "menu/menu_send.h"
 #include "ui/controls/swipe_handler.h"
 #include "ui/controls/tabbed_search.h"
+#include "ui/screen_reader_mode.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -754,7 +755,23 @@ auto TabbedSelector::choosingStickerUpdated() const
 }
 
 rpl::producer<> TabbedSelector::cancelled() const {
-	return hasGifsTab() ? gifs()->cancelRequests() : nullptr;
+	// The emoji list asks to hide as well, once the keyboard is done with
+	// it - an emoji chosen or Escape pressed.
+	auto result = rpl::producer<>();
+	if (hasGifsTab()) {
+		result = gifs()->cancelRequests();
+	}
+	if (hasEmojiTab()) {
+		result = result
+			? rpl::merge(std::move(result), emoji()->hideRequests())
+			: emoji()->hideRequests();
+	}
+	if (hasStickersTab()) {
+		result = result
+			? rpl::merge(std::move(result), stickers()->hideRequests())
+			: stickers()->hideRequests();
+	}
+	return result;
 }
 
 rpl::producer<> TabbedSelector::checkForHide() const {
@@ -1014,7 +1031,11 @@ QImage TabbedSelector::grabForAnimation() {
 	if (_topShadow) {
 		_topShadow->hide();
 	}
-	if (_tabsSlider) {
+	// The slide uses the part below the tab strip only, so the strip is
+	// hidden for the picture merely to be safe - and a strip holding the
+	// focus stays: hidden even for a moment, it would lose the focus
+	// wherever the focus chain leads.
+	if (_tabsSlider && !_tabsSlider->hasFocus()) {
 		_tabsSlider->hide();
 	}
 	Ui::SendPendingMoveResizeEvents(this);
@@ -1075,7 +1096,10 @@ void TabbedSelector::beforeHiding() {
 			_beforeHidingCallback(_currentTabType);
 		}
 	}
-	if (Ui::InFocusChain(this)) {
+	// Also called for a tab switch: the keyboard on the tab strip stays
+	// there, the strip is not going anywhere.
+	const auto onTabs = _tabsSlider && _tabsSlider->hasFocus();
+	if (Ui::InFocusChain(this) && !onTabs) {
 		window()->setFocus();
 	}
 }
@@ -1083,7 +1107,15 @@ void TabbedSelector::beforeHiding() {
 void TabbedSelector::afterShown() {
 	if (!_a_slide.animating()) {
 		showAll();
-		currentTab()->widget()->afterShown();
+		// Switched to from the tab strip with a screen reader: the
+		// keyboard stays there, to go on by Tab when it wants.
+		const auto widget = currentTab()->widget();
+		const auto keeps = Ui::ScreenReaderModeActive()
+			&& _tabsSlider
+			&& _tabsSlider->hasFocus();
+		widget->setKeepsFocusOnShow(keeps);
+		widget->afterShown();
+		widget->setKeepsFocusOnShow(false);
 		if (_afterShownCallback) {
 			_afterShownCallback(_currentTabType);
 		}
@@ -1211,7 +1243,20 @@ void TabbedSelector::showAll() {
 }
 
 void TabbedSelector::hideForSliding() {
-	hideChildren();
+	// Everything but the tab strip and the shadow, which stay: hiding
+	// the strip even for a moment would send the focus on it wherever
+	// the focus chain leads, and it must still be there after the slide.
+	for (const auto child : children()) {
+		if (!child->isWidgetType()) {
+			continue;
+		}
+		const auto widget = static_cast<QWidget*>(child);
+		if (!widget->isWindow()
+			&& widget != _topShadow.data()
+			&& widget != _tabsSlider.data()) {
+			widget->hide();
+		}
+	}
 	if (_topShadow) {
 		_topShadow->show();
 	}
@@ -1505,6 +1550,14 @@ TabbedSelector::Inner::Inner(
 
 rpl::producer<int> TabbedSelector::Inner::scrollToRequests() const {
 	return _scrollToRequests.events();
+}
+
+void TabbedSelector::Inner::setKeepsFocusOnShow(bool keeps) {
+	_keepsFocusOnShow = keeps;
+}
+
+bool TabbedSelector::Inner::keepsFocusOnShow() const {
+	return _keepsFocusOnShow;
 }
 
 rpl::producer<bool> TabbedSelector::Inner::disableScrollRequests() const {
