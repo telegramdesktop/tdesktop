@@ -4383,6 +4383,10 @@ bool HistoryItem::unread(not_null<Data::Thread*> thread) const {
 			} else if (const auto channel = _history->peer->asChannel()) {
 				if (!channel->isMegagroup()) {
 					return false;
+				} else if (channel->isForum()) {
+					if (const auto topic = this->topic()) {
+						return topic->isServerSideUnread(this);
+					}
 				}
 			}
 		}
