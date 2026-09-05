@@ -266,6 +266,7 @@ walletSendCommentField: InputField(walletSendField) {
 	heightMin: 39px;
 }
 walletSendFieldMargin: margins(24px, 12px, 24px, 12px);
+walletSendCommentPrivacyMargin: margins(24px, 0px, 24px, 0px);
 walletSendMarkSize: 15px;
 walletSendMarkPosition: point(0px, 31px);
 walletSendFiatTop: 29px;
@@ -307,6 +308,14 @@ walletCommentField: InputField(walletSendAddressField) {
 	textMargins: margins(0px, 10px, 0px, 2px);
 }
 walletCommentFieldMargin: margins(24px, 8px, 24px, 0px);
+walletCommentPrivacyMargin: margins(24px, 12px, 24px, 0px);
+walletCommentCaptionLabel: FlatLabel(walletSendBalanceLabel) {
+	minWidth: 200px;
+}
+walletCommentErrorLabel: FlatLabel(walletSendErrorLabel) {
+	minWidth: 200px;
+}
+walletCommentCaptionMargin: margins(24px, 8px, 24px, 0px);
 
 walletPhraseTitleLabel: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {

@@ -8835,6 +8835,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_send_paste" = "Paste";
 "lng_wallet_send_invalid_address" = "Invalid address";
 "lng_wallet_send_continue" = "Continue";
+"lng_wallet_send_update_fee" = "Update fee";
+"lng_wallet_send_fee_update_needed" = "Needs update";
+"lng_wallet_send_fee_calculating" = "Calculating…";
 "lng_wallet_send_to_title" = "Send Money to {address}";
 "lng_wallet_send_balance" = "Balance: {amount} Grams";
 "lng_wallet_send_insufficient" = "Insufficient funds";
@@ -8847,7 +8850,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_send_comment_placeholder" = "Comment (optional)";
 "lng_wallet_comment_title" = "Add comment";
 "lng_wallet_comment_placeholder" = "Optional message";
-"lng_wallet_comment_public" = "This comment is written to the public blockchain and will be permanently visible to everyone. Never include private information.";
+"lng_wallet_comment_make_public" = "Make comment public";
+"lng_wallet_comment_limit" = "Maximum {limit} UTF-8 bytes.";
+"lng_wallet_comment_too_long" = "This comment is too long. Use at most {limit} UTF-8 bytes.";
+"lng_wallet_comment_encryption_failed" = "This comment couldn't be encrypted. Try again, make it public, edit it, or remove it.";
+"lng_wallet_comment_public" = "Public comments are written to the blockchain and permanently visible to everyone. Never include private information.";
 "lng_wallet_comment_add" = "Add";
 "lng_wallet_sent_toast" = "🎉 Grams have been sent to {address}.";
 "lng_wallet_keys_title" = "Keys & Backup";

@@ -49,20 +49,42 @@ struct Session::PreparedRotation {
 	int64 quotedFeeNano = 0;
 };
 
+struct PreparedSend {
+	SendArgs args;
+	std::shared_ptr<const wallet_engine::SendIntent> intent;
+	int64 feeNano = 0;
+	uint64 owner = 0;
+	uint64 revision = 0;
+	int generation = 0;
+	std::optional<quint32> privateEpoch;
+	QByteArray sender;
+	std::shared_ptr<wallet_engine::WalletClient> client;
+};
+
 struct Session::PreviewRequest {
 	uint64 owner = 0;
 	uint64 revision = 0;
 	int generation = 0;
+	std::optional<quint32> privateEpoch;
+	QByteArray sender;
 	std::shared_ptr<wallet_engine::WalletClient> client;
+	KeyAuthorization auth;
 	SendArgs args;
 	Fn<void(FeeResult)> done;
 };
 
 struct Session::PreviewState : base::has_weak_ptr {
 	struct Flight {
+		enum class Stage {
+			Encrypting,
+			Previewing,
+		};
+
 		uint64 id = 0;
 		PreviewRequest request;
+		std::shared_ptr<const wallet_engine::SendIntent> intent;
 		FeeResult result;
+		Stage stage = Stage::Encrypting;
 		bool finished = false;
 		bool cancelIssued = false;
 		bool cancelFinished = false;
@@ -429,6 +451,9 @@ void FailShareFetch(
 		return SendError::AlreadySending;
 	} catch (const engine::wallet_client_error::InvalidSendRequest &) {
 		return SendError::InvalidRequest;
+	} catch (const engine::wallet_client_error
+			::EncryptedCommentUnavailable &) {
+		return SendError::CommentEncryptionUnavailable;
 	} catch (...) {
 	}
 	return SendError::Failed;
@@ -489,7 +514,9 @@ void FailShareFetch(
 	return u"ROTATION_FAILED"_q;
 }
 
-[[nodiscard]] engine::SendIntent IntentFromArgs(const SendArgs &args) {
+[[nodiscard]] engine::SendIntent IntentFromArgs(
+		const SendArgs &args,
+		engine::SendMessageBody body) {
 	auto message = engine::SendMessage{
 		.destination = FormatFriendly(
 			args.destination,
@@ -497,11 +524,7 @@ void FailShareFetch(
 		.amount = engine::SendAmount(engine::SendAmount::kExact{
 			.nanograms = QString::number(args.amountNano).toStdString(),
 		}),
-		.body = (args.comment.isEmpty()
-			? engine::SendMessageBody(engine::SendMessageBody::kEmpty{})
-			: engine::SendMessageBody(engine::SendMessageBody::kComment{
-				.text = args.comment.toStdString(),
-			})),
+		.body = std::move(body),
 		.bounce = args.bounce,
 		.state_init = std::nullopt,
 	};
@@ -3387,6 +3410,14 @@ const std::optional<PendingSendInfo> &Session::pendingSend() const {
 	return _pending;
 }
 
+int SendCommentBytes(const QString &text) {
+	return text.toUtf8().size();
+}
+
+bool SendCommentFits(const QString &text) {
+	return SendCommentBytes(text) <= kSendCommentMaxBytes;
+}
+
 uint64 Session::createPreviewOwner(rpl::lifetime &lifetime) {
 	if (!_preview) {
 		_preview = std::make_unique<PreviewState>();
@@ -3400,13 +3431,39 @@ uint64 Session::createPreviewOwner(rpl::lifetime &lifetime) {
 }
 
 void Session::estimateFee(
+		KeyAuthorization auth,
 		uint64 owner,
 		const SendArgs &args,
 		Fn<void(FeeResult)> done) {
-	ensureLoaded();
-	if (!_preview) {
+	if (!_preview || !_preview->owners.contains(owner)) {
 		return;
 	}
+	const auto inputError = !SendCommentFits(args.comment.text)
+		? SendError::CommentTooLong
+		: (args.amountNano <= 0
+			|| FormatFriendly(args.destination, args.bounce).isEmpty())
+		? SendError::InvalidRequest
+		: SendError::None;
+	if (inputError != SendError::None) {
+		cancelFeeEstimate(owner);
+		if (done) {
+			done(FeeResult{ .error = inputError });
+		}
+		return;
+	}
+	const auto isPrivate = !args.comment.text.isEmpty()
+		&& !args.comment.isPublic;
+	const auto privateEpoch = isPrivate
+		? std::make_optional(vault().clearEpoch())
+		: std::nullopt;
+	if (isPrivate && !ReadAuthorized(*this, auth)) {
+		cancelFeeEstimate(owner);
+		if (done) {
+			done(FeeResult{ .error = SendError::Locked });
+		}
+		return;
+	}
+	ensureLoaded();
 	const auto i = _preview->owners.find(owner);
 	if (i == end(_preview->owners)) {
 		return;
@@ -3415,7 +3472,10 @@ void Session::estimateFee(
 		.owner = owner,
 		.revision = ++i->second,
 		.generation = _networkGeneration,
+		.privateEpoch = privateEpoch,
+		.sender = _publicKey,
 		.client = _engine->client(),
+		.auth = isPrivate ? std::move(auth) : KeyAuthorization(),
 		.args = args,
 		.done = std::move(done),
 	};
@@ -3470,9 +3530,15 @@ bool Session::previewCurrent(const PreviewRequest &request) const {
 }
 
 SendError Session::previewError(const PreviewRequest &request) {
-	if (request.generation != _networkGeneration) {
+	if (request.privateEpoch
+		&& (*request.privateEpoch != vault().clearEpoch()
+			|| !ReadAuthorized(*this, request.auth))) {
+		return SendError::Locked;
+	} else if (request.generation != _networkGeneration
+		|| request.sender != _publicKey) {
 		return SendError::Failed;
 	} else if (_presence.current() != Presence::Ready
+		|| request.sender.size() != kCustodyPublicKeySize
 		|| request.args.amountNano <= 0
 		|| request.args.destination.isEmpty()) {
 		return SendError::InvalidRequest;
@@ -3480,8 +3546,12 @@ SendError Session::previewError(const PreviewRequest &request) {
 		|| !request.client
 		|| request.client != _engine->client()) {
 		return SendError::SigningUnavailable;
-	} else if (_rotating || custody().pendingRotation) {
+	} else if (_sendState.current() == SendState::Sending
+		|| _rotating
+		|| custody().pendingRotation) {
 		return SendError::AlreadySending;
+	} else if (_pending || _sendUnresolved) {
+		return SendError::PreviousUnresolved;
 	}
 	return SendError::None;
 }
@@ -3510,30 +3580,76 @@ void Session::startPreview() {
 			continue;
 		}
 		const auto flight = ++_preview->lastFlight;
-		const auto client = next.client;
-		auto request = engine::SendPreviewRequest{
-			.intent = IntentFromArgs(next.args),
-		};
 		_preview->active = PreviewState::Flight{
 			.id = flight,
 			.request = std::move(next),
 		};
 		_previewPending = true;
-		_engine->run([client, request = std::move(request)] {
-			return client->preview_send(request);
-		}, [=, this](engine::SendPreview preview) {
-			finishPreview(flight, FeeResult{
-				.feeNano = QString::fromStdString(
-					preview.emulation.wallet_fees_nanograms).toLongLong(),
+		const auto &request = _preview->active->request;
+		if (request.args.comment.text.isEmpty()) {
+			previewPrepared(flight, engine::SendMessageBody::kEmpty{});
+		} else if (request.args.comment.isPublic) {
+			previewPrepared(flight, engine::SendMessageBody::kComment{
+				.text = request.args.comment.text.toUtf8().toStdString(),
 			});
-		}, [=, this](EngineError error) {
-			LOG(("Wallet Error: engine preview_send failed: %1"
-				).arg(error.message));
-			finishPreview(flight, FeeResult{ .error = SendErrorFrom(error) });
-		});
-		break;
+		} else {
+			const auto client = request.client;
+			auto encrypt = engine::CreateEncryptedCommentRequest{
+				.recipient = FormatFriendly(
+					request.args.destination,
+					request.args.bounce).toStdString(),
+				.comment = request.args.comment.text.toUtf8().toStdString(),
+			};
+			_engine->run([client, encrypt = std::move(encrypt)] {
+				return client->create_encrypted_comment(encrypt);
+			}, [=, this](engine::Boc body) {
+				previewPrepared(flight, engine::SendMessageBody::kRawPayload{
+					.boc = std::move(body),
+				});
+			}, [=, this](EngineError error) {
+				finishPreview(flight, FeeResult{
+					.error = SendErrorFrom(error),
+				});
+			});
+		}
+		if (!weak) {
+			return;
+		} else if (_preview->active) {
+			break;
+		}
 	}
 	_preview->dispatching = false;
+}
+
+void Session::previewPrepared(uint64 flight, engine::SendMessageBody body) {
+	if (!_preview->active || _preview->active->id != flight) {
+		return;
+	}
+	auto &active = *_preview->active;
+	if (!active.request.done || !previewCurrent(active.request)) {
+		finishPreview(flight, FeeResult{ .error = SendError::Failed });
+		return;
+	}
+	const auto error = previewError(active.request);
+	if (error != SendError::None) {
+		finishPreview(flight, FeeResult{ .error = error });
+		return;
+	}
+	active.intent = std::make_shared<const engine::SendIntent>(
+		IntentFromArgs(active.request.args, std::move(body)));
+	active.stage = PreviewState::Flight::Stage::Previewing;
+	const auto client = active.request.client;
+	auto request = engine::SendPreviewRequest{ .intent = *active.intent };
+	_engine->run([client, request = std::move(request)] {
+		return client->preview_send(request);
+	}, [=, this](engine::SendPreview preview) {
+		const auto fee = DecimalInt64(preview.emulation.wallet_fees_nanograms);
+		finishPreview(flight, (fee && *fee >= 0)
+			? FeeResult{ .feeNano = *fee }
+			: FeeResult{ .error = SendError::Failed });
+	}, [=, this](EngineError error) {
+		finishPreview(flight, FeeResult{ .error = SendErrorFrom(error) });
+	});
 }
 
 void Session::finishPreview(uint64 flight, FeeResult result) {
@@ -3546,7 +3662,9 @@ void Session::finishPreview(uint64 flight, FeeResult result) {
 }
 
 void Session::cancelPreview() {
-	if (!_preview->active || _preview->active->cancelIssued) {
+	if (!_preview->active
+		|| _preview->active->stage != PreviewState::Flight::Stage::Previewing
+		|| _preview->active->cancelIssued) {
 		return;
 	}
 	_preview->active->cancelIssued = true;
@@ -3581,10 +3699,28 @@ void Session::settlePreview() {
 	const auto weak = base::make_weak(_preview.get());
 	if (flight.request.done && previewCurrent(flight.request)) {
 		const auto error = previewError(flight.request);
+		if (error != SendError::None) {
+			flight.result = FeeResult{ .error = error };
+		} else if (flight.result.error == SendError::None
+			&& flight.intent
+			&& !flight.cancelIssued) {
+			flight.result.prepared = std::make_shared<const PreparedSend>(
+				PreparedSend{
+					.args = flight.request.args,
+					.intent = std::move(flight.intent),
+					.feeNano = flight.result.feeNano,
+					.owner = flight.request.owner,
+					.revision = flight.request.revision,
+					.generation = flight.request.generation,
+					.privateEpoch = flight.request.privateEpoch,
+					.sender = flight.request.sender,
+					.client = flight.request.client,
+				});
+		} else if (flight.result.error == SendError::None) {
+			flight.result = FeeResult{ .error = SendError::Failed };
+		}
 		if (const auto done = base::take(flight.request.done)) {
-			done(error == SendError::None
-				? flight.result
-				: FeeResult{ .error = error });
+			done(std::move(flight.result));
 			if (!weak) {
 				return;
 			}
@@ -3620,47 +3756,77 @@ void Session::retirePreviews(SendError error) {
 
 void Session::send(
 		KeyAuthorization auth,
-		SendArgs args,
+		std::shared_ptr<const PreparedSend> prepared,
 		Fn<void(SendError)> done) {
-	ensureLoaded();
-	if (_presence.current() != Presence::Ready) {
+	const auto fail = [&](SendError error) {
 		if (done) {
-			done(SendError::Failed);
+			done(error);
 		}
+	};
+	if (!prepared || !prepared->intent || !_preview) {
+		fail(SendError::InvalidRequest);
 		return;
 	}
-	if (args.amountNano <= 0 || args.destination.isEmpty()) {
-		if (done) {
-			done(SendError::InvalidRequest);
-		}
+	const auto owner = _preview->owners.find(prepared->owner);
+	if (owner == end(_preview->owners)
+		|| owner->second != prepared->revision) {
+		fail(SendError::InvalidRequest);
 		return;
 	}
-	if (_sendState.current() != SendState::Idle
+	const auto &args = prepared->args;
+	if (!SendCommentFits(args.comment.text)) {
+		fail(SendError::CommentTooLong);
+		return;
+	} else if (args.amountNano <= 0
+		|| FormatFriendly(args.destination, args.bounce).isEmpty()
+		|| prepared->feeNano < 0) {
+		fail(SendError::InvalidRequest);
+		return;
+	}
+	if (prepared->privateEpoch
+		&& *prepared->privateEpoch != vault().clearEpoch()) {
+		fail(SendError::Locked);
+		return;
+	} else if (_presence.current() != Presence::Ready
+		|| prepared->generation != _networkGeneration
+		|| prepared->sender != _publicKey
+		|| prepared->sender.size() != kCustodyPublicKeySize) {
+		fail(SendError::Failed);
+		return;
+	} else if (_clientStopping
+		|| !prepared->client
+		|| prepared->client != _engine->client()) {
+		fail(SendError::SigningUnavailable);
+		return;
+	} else if (_sendState.current() != SendState::Idle
 		|| _rotating
 		|| custody().pendingRotation) {
-		if (done) {
-			done(SendError::AlreadySending);
-		}
+		fail(SendError::AlreadySending);
+		return;
+	} else if (_pending || _sendUnresolved) {
+		fail(SendError::PreviousUnresolved);
+		return;
+	} else if (!ReadAuthorized(*this, auth)) {
+		fail(SendError::Locked);
 		return;
 	}
-	if (!_engine->client()) {
-		if (done) {
-			done(SendError::SigningUnavailable);
-		}
+	const auto balance = _balanceNano.current();
+	if (args.amountNano > balance) {
+		fail(SendError::InsufficientBalance);
+		return;
+	} else if (prepared->feeNano > balance - args.amountNano) {
+		fail(SendError::InsufficientFees);
 		return;
 	}
-	if (!ReadAuthorized(*this, auth)) {
-		if (done) {
-			done(SendError::Locked);
-		}
-		return;
-	}
-	_sendState = SendState::Sending;
-	const auto client = _engine->client();
-	const auto generation = _networkGeneration;
+	++owner->second;
+	const auto client = prepared->client;
+	const auto generation = prepared->generation;
 	const auto destination = args.destination;
 	const auto amountNano = args.amountNano;
-	const auto comment = args.comment.trimmed();
+	const auto comment = args.comment.isPublic
+		? args.comment.text
+		: QString();
+	const auto weak = base::make_weak(_engine.get());
 	const auto recordPending = [=, this] {
 		_pending = PendingSendInfo{
 			.posted = base::unixtime::now(),
@@ -3669,6 +3835,9 @@ void Session::send(
 			.comment = comment,
 		};
 		_sendState = SendState::Pending;
+		if (!weak) {
+			return;
+		}
 		updatePollingState();
 		requestEngineRefresh();
 		if (done) {
@@ -3678,7 +3847,7 @@ void Session::send(
 	auto request = engine::SendRequest{
 		.operation_id = NewRecordId(),
 		.force = false,
-		.intent = IntentFromArgs(args),
+		.intent = *prepared->intent,
 	};
 	_engine->run([client, request = std::move(request)] {
 		return client->send(request);
@@ -3691,16 +3860,18 @@ void Session::send(
 		if (generation != _networkGeneration) {
 			return;
 		}
-		LOG(("Wallet Error: engine send failed: %1").arg(error.message));
 		if (IsSubmissionUnknown(error)) {
 			recordPending();
 			return;
 		}
+		const auto failed = SendErrorFrom(error);
+		LOG(("Wallet Error: engine send failed (%1).").arg(int(failed)));
 		_sendState = SendState::Idle;
-		if (done) {
-			done(SendErrorFrom(error));
+		if (weak && done) {
+			done(failed);
 		}
 	});
+	_sendState = SendState::Sending;
 }
 
 void Session::resolvePending() {

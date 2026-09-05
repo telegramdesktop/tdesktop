@@ -53,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/glare_tooltip.h"
 #include "ui/widgets/labels.h"
@@ -127,7 +128,6 @@ constexpr auto kIntroTooltipShownPref = "wallet_intro_tooltip_shown"_cs;
 constexpr auto kIntroToastShownPref = "wallet_intro_toast_shown"_cs;
 constexpr auto kIntroToastDuration = 4 * crl::time(1000);
 constexpr auto kWalletIntroGlares = 2;
-constexpr auto kCommentMaxBytes = 960;
 constexpr auto kFeeFiatDecimals = 5;
 constexpr auto kMaxFiatUnits = 999'999'999LL;
 constexpr auto kMaxAmountNano = 999'999'999'999'999'999LL;
@@ -1255,7 +1255,8 @@ void AddDetailsComment(
 void AddFeeTableRow(
 		not_null<Ui::TableLayout*> table,
 		not_null<Main::Session*> session,
-		int64 feeNano,
+		rpl::producer<std::optional<int64>> feeValue,
+		rpl::producer<QString> unavailable,
 		bool alignMarkToDigits = false) {
 	auto helper = Ui::Text::CustomEmojiHelper();
 	auto descriptor = Ui::Text::PaletteDependentEmoji{
@@ -1277,15 +1278,23 @@ void AddFeeTableRow(
 		descriptor.margin = QMargins(0, marginTop, 0, 0);
 	}
 	const auto diamond = helper.paletteDependent(std::move(descriptor));
-	auto value = FiatRateValue(
-		session
-	) | rpl::map([=](FiatRate rate) {
+	auto value = rpl::combine(
+		std::move(feeValue),
+		std::move(unavailable),
+		FiatRateValue(session)
+	) | rpl::map([=](
+			std::optional<int64> feeNano,
+			QString unavailable,
+			FiatRate rate) {
+		if (!feeNano) {
+			return Ui::Text::Colorized(std::move(unavailable));
+		}
 		auto fee = diamond;
 		fee.append(QChar(' '));
-		fee.append(Ui::FormatTonAmount(feeNano).full);
+		fee.append(Ui::FormatTonAmount(*feeNano).full);
 		fee.append(QChar(' '));
 		fee.append(Ui::Text::Colorized(
-			FormatFiat(feeNano, rate, kFeeFiatDecimals, true)));
+			FormatFiat(*feeNano, rate, kFeeFiatDecimals, true)));
 		return fee;
 	});
 	Ui::AddTableRow(
@@ -1293,6 +1302,19 @@ void AddFeeTableRow(
 		tr::lng_wallet_details_fee(),
 		std::move(value),
 		helper.context());
+}
+
+void AddFeeTableRow(
+		not_null<Ui::TableLayout*> table,
+		not_null<Main::Session*> session,
+		int64 feeNano,
+		bool alignMarkToDigits = false) {
+	AddFeeTableRow(
+		table,
+		session,
+		rpl::single(std::make_optional(feeNano)),
+		rpl::single(QString()),
+		alignMarkToDigits);
 }
 
 void AddPeerCounterpartyRows(
@@ -2940,15 +2962,15 @@ void ShowWalletTransactionBox(
 }
 
 [[nodiscard]] int CommentBytes(const QString &text) {
-	return int(text.trimmed().toUtf8().size());
+	return SendCommentBytes(text);
 }
 
 [[nodiscard]] bool CommentFits(const QString &text) {
-	return CommentBytes(text) <= kCommentMaxBytes;
+	return SendCommentFits(text);
 }
 
 void ApplyCommentLimit(not_null<Ui::InputField*> field) {
-	Ui::AddLengthLimitLabel(field, kCommentMaxBytes, {
+	Ui::AddLengthLimitLabel(field, kSendCommentMaxBytes, {
 		.customCharactersCount = [=] {
 			return CommentBytes(field->getLastText());
 		},
@@ -2956,13 +2978,46 @@ void ApplyCommentLimit(not_null<Ui::InputField*> field) {
 	field->setMaxLength(-1);
 }
 
+struct SendQuoteDependencies {
+	QByteArray senderKey;
+	QString destination;
+	SendComment comment;
+	DeviceCustodyState custody;
+	int64 amountNano = 0;
+	int64 balanceNano = 0;
+	bool bounce = false;
+	bool ready = false;
+	bool valid = false;
+
+	friend bool operator==(
+		const SendQuoteDependencies &,
+		const SendQuoteDependencies &) = default;
+};
+
+struct SendQuote {
+	SendArgs args;
+	SendQuoteDependencies dependencies;
+	std::shared_ptr<const PreparedSend> prepared;
+	int64 feeNano = 0;
+	uint64 revision = 0;
+
+	friend bool operator==(const SendQuote &, const SendQuote &) = default;
+};
+
+struct SendDraft {
+	rpl::variable<SendComment> comment;
+	rpl::variable<std::optional<SendQuote>> quote;
+	rpl::variable<bool> preparing = false;
+	KeyAuthorization authorization;
+	std::optional<quint32> privateEpoch;
+};
+
 struct SendFlow {
 	QString destination;
 	bool bounce = true;
 	QString displayForm;
 	int64 amountNano = 0;
-	int64 feeNano = 0;
-	QString comment;
+	std::shared_ptr<SendDraft> draft;
 	std::optional<UserId> userId;
 	QByteArray senderKey;
 };
@@ -2980,7 +3035,7 @@ void ShowSendWordsRecovery(
 	if (const auto link = ParseTransferLink(text)) {
 		address = link->address;
 		amountNano = link->amountNano;
-		comment = link->comment.trimmed();
+		comment = link->comment;
 	}
 	const auto parsed = ParseAddress(address);
 	if (!parsed || parsed->testnet) {
@@ -2990,12 +3045,14 @@ void ShowSendWordsRecovery(
 	if (friendly.isEmpty()) {
 		return std::nullopt;
 	}
+	const auto draft = std::make_shared<SendDraft>();
+	draft->comment = SendComment{ .text = std::move(comment) };
 	return SendFlow{
 		.destination = parsed->raw,
 		.bounce = parsed->bounceable,
 		.displayForm = (parsed->friendly ? address : friendly),
 		.amountNano = amountNano,
-		.comment = (CommentFits(comment) ? comment : QString()),
+		.draft = draft,
 	};
 }
 
@@ -3018,7 +3075,8 @@ void ShowSendWordsRecovery(
 		not_null<Ui::VerticalLayout*> container,
 		const style::InputField &st,
 		rpl::producer<QString> placeholder,
-		const QString &value) {
+		const QString &value,
+		bool preserveWhitespace = false) {
 	const auto field = container->add(
 		object_ptr<Ui::InputField>(
 			container,
@@ -3034,7 +3092,8 @@ void ShowSendWordsRecovery(
 	paste->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
 	paste->setClickedCallback([=] {
 		field->setFocusFast();
-		field->setText(QGuiApplication::clipboard()->text().trimmed());
+		const auto text = QGuiApplication::clipboard()->text();
+		field->setText(preserveWhitespace ? text : text.trimmed());
 	});
 	field->widthValue(
 	) | rpl::on_next([=, &st](int) {
@@ -3048,10 +3107,95 @@ void ShowSendWordsRecovery(
 	return field;
 }
 
+void BindCommentField(
+		not_null<Ui::InputField*> field,
+		const std::shared_ptr<SendDraft> &draft) {
+	field->changes() | rpl::on_next([=] {
+		auto comment = draft->comment.current();
+		comment.text = field->getLastText();
+		draft->comment = std::move(comment);
+	}, field->lifetime());
+	draft->comment.value() | rpl::on_next([=](const SendComment &comment) {
+		if (field->getLastText() != comment.text) {
+			field->setText(comment.text);
+		}
+		if (!CommentFits(comment.text)) {
+			field->showError();
+		}
+	}, field->lifetime());
+}
+
+void AddCommentPrivacy(
+		not_null<Ui::VerticalLayout*> container,
+		const std::shared_ptr<SendDraft> &draft,
+		const style::margins &margin) {
+	const auto checkbox = container->add(
+		object_ptr<Ui::Checkbox>(
+			container,
+			tr::lng_wallet_comment_make_public(),
+			draft->comment.current().isPublic,
+			st::defaultBoxCheckbox),
+		margin);
+	checkbox->setAllowTextLines(0);
+	checkbox->checkedChanges() | rpl::on_next([=](bool checked) {
+		auto comment = draft->comment.current();
+		comment.isPublic = checked;
+		draft->comment = std::move(comment);
+	}, checkbox->lifetime());
+	draft->comment.value() | rpl::on_next([=](const SendComment &comment) {
+		checkbox->setChecked(
+			comment.isPublic,
+			Ui::Checkbox::NotifyAboutChange::DontNotify);
+	}, checkbox->lifetime());
+	container->add(
+		object_ptr<Ui::FlatLabel>(
+			container,
+			tr::lng_wallet_comment_limit(
+				lt_limit,
+				rpl::single(QString::number(kSendCommentMaxBytes))),
+			st::walletCommentCaptionLabel),
+		st::walletCommentCaptionMargin);
+	const auto warning = container->add(
+		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
+			container,
+			object_ptr<Ui::FlatLabel>(
+				container,
+				tr::lng_wallet_comment_public(),
+				st::walletCommentCaptionLabel),
+			st::walletCommentCaptionMargin));
+	warning->toggleOn(draft->comment.value() | rpl::map([](
+			const SendComment &comment) {
+		return comment.isPublic;
+	}));
+	warning->finishAnimating();
+	const auto error = container->add(
+		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
+			container,
+			object_ptr<Ui::FlatLabel>(
+				container,
+				tr::lng_wallet_comment_too_long(
+					lt_limit,
+					rpl::single(QString::number(kSendCommentMaxBytes))),
+				st::walletCommentErrorLabel),
+			st::walletCommentCaptionMargin));
+	error->toggleOn(draft->comment.value() | rpl::map([](
+			const SendComment &comment) {
+		return !CommentFits(comment.text);
+	}));
+	error->finishAnimating();
+}
+
 [[nodiscard]] QString SendErrorText(SendError error) {
 	switch (error) {
 	case SendError::None:
 		return QString();
+	case SendError::CommentTooLong:
+		return tr::lng_wallet_comment_too_long(
+			tr::now,
+			lt_limit,
+			QString::number(kSendCommentMaxBytes));
+	case SendError::CommentEncryptionUnavailable:
+		return tr::lng_wallet_comment_encryption_failed(tr::now);
 	case SendError::InsufficientBalance:
 		return tr::lng_wallet_send_error_insufficient(tr::now);
 	case SendError::InsufficientFees:
@@ -3089,10 +3233,13 @@ void WalletSendConfirmBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
 		SendFlow flow,
-		Fn<void(QString)> commentEdited,
 		Fn<bool()> originValid,
 		Fn<SendError()> checkQuote,
+		Fn<void(Fn<void()>)> prepareFee,
+		Fn<void()> invalidateFee,
+		Fn<void()> closed,
 		Fn<void()> restored) {
+	const auto draft = flow.draft;
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
@@ -3108,9 +3255,7 @@ void WalletSendConfirmBox(
 		FiatRateValue(&show->session()));
 
 	const auto table = box->addRow(
-		object_ptr<Ui::TableLayout>(
-			box,
-			st::walletDetailsTable),
+		object_ptr<Ui::TableLayout>(box, st::walletDetailsTable),
 		st::giveawayGiftCodeTableMargin);
 	Ui::AddTableRow(
 		table,
@@ -3119,7 +3264,17 @@ void WalletSendConfirmBox(
 	AddFeeTableRow(
 		table,
 		&show->session(),
-		flow.feeNano);
+		draft->quote.value() | rpl::map([](
+				const std::optional<SendQuote> &quote) {
+			return quote ? std::make_optional(quote->feeNano) : std::nullopt;
+		}),
+		rpl::combine(
+			draft->preparing.value(),
+			tr::lng_wallet_send_fee_update_needed(),
+			tr::lng_wallet_send_fee_calculating()
+		) | rpl::map([](bool preparing, QString dirty, QString calculating) {
+			return preparing ? calculating : dirty;
+		}));
 	Ui::AddTableRow(
 		table,
 		tr::lng_wallet_details_date(),
@@ -3128,18 +3283,17 @@ void WalletSendConfirmBox(
 
 	const auto field = flow.userId
 		? nullptr
-		: AddCommentField(box, flow.comment).get();
+		: AddCommentField(box, draft->comment.current().text).get();
 	if (field) {
-		field->changes() | rpl::on_next([=] {
-			const auto text = field->getLastText().trimmed();
-			if (CommentFits(text)) {
-				commentEdited(text);
-			}
-		}, field->lifetime());
+		BindCommentField(field, draft);
+		AddCommentPrivacy(
+			box->verticalLayout(),
+			draft,
+			st::walletCommentPrivacyMargin);
 	}
 
 	struct State {
-		rpl::variable<bool> confirmButtonBusy = false;
+		rpl::variable<bool> sending = false;
 		bool closed = false;
 	};
 	const auto state = box->lifetime().make_state<State>();
@@ -3149,6 +3303,7 @@ void WalletSendConfirmBox(
 	const auto weak = base::make_weak(box.get());
 	box->boxClosing() | rpl::on_next([=] {
 		state->closed = true;
+		closed();
 	}, box->lifetime());
 	const auto sessionValid = [=] {
 		return weakSession
@@ -3173,88 +3328,79 @@ void WalletSendConfirmBox(
 			restored();
 		});
 	};
-	const auto rejectStale = [=] {
+	const auto refuse = [=](SendError error) {
+		invalidateFee();
 		if (!weak || state->closed) {
 			return;
 		}
-		state->confirmButtonBusy = false;
-		if (sessionValid()) {
-			show->showToast(flow.userId
-				? tr::lng_wallet_send_user_load_error(tr::now)
-				: SendErrorText(SendError::InvalidRequest));
+		state->sending = false;
+		if (sessionValid() && error != SendError::None) {
+			if (flow.userId && error == SendError::SigningUnavailable) {
+				recover();
+			} else {
+				show->showToast(SendErrorText(error));
+			}
 		}
-		box->closeBox();
-	};
-	const auto readyToSend = [=] {
-		const auto custody = wallet->deviceCustodyState();
-		const auto error = checkQuote();
-		if (flow.userId
-			&& flow.amountNano > 0
-			&& flow.amountNano <= wallet->balanceNano()
-			&& (error == SendError::None
-				|| error == SendError::SigningUnavailable)
-			&& (custody.conflict
-				|| custody.mode == DeviceMode::ReadOnlyRestorable
-				|| custody.mode == DeviceMode::ReadOnlyNotRestorable
-				|| error == SendError::SigningUnavailable)) {
-			state->confirmButtonBusy = false;
-			recover();
-			return false;
-		} else if (error != SendError::None) {
-			state->confirmButtonBusy = false;
-			show->showToast(SendErrorText(error));
-			box->closeBox();
-			return false;
-		}
-		return true;
 	};
 	const auto submit = [=] {
 		if (!confirmationValid()) {
-			rejectStale();
+			refuse(SendError::InvalidRequest);
 			return;
-		} else if (state->confirmButtonBusy.current()) {
+		} else if (state->sending.current() || draft->preparing.current()) {
+			return;
+		} else if (!CommentFits(draft->comment.current().text)) {
+			if (field) {
+				field->showError();
+			}
+			refuse(SendError::CommentTooLong);
+			return;
+		} else if (!draft->quote.current()) {
+			prepareFee(nullptr);
 			return;
 		}
-		const auto text = field ? field->getLastText().trimmed() : QString();
-		if (!CommentFits(text)) {
-			field->showError();
+		const auto error = checkQuote();
+		if (error != SendError::None) {
+			refuse(error);
 			return;
 		}
-		if (!readyToSend()) {
-			return;
-		}
-		state->confirmButtonBusy = true;
-		auto args = SendArgs{
-			.destination = flow.destination,
-			.amountNano = flow.amountNano,
-			.comment = text,
-			.bounce = flow.bounce,
-		};
-		AcquireVaultUnlock({
-			.show = show,
-			.done = crl::guard(session, crl::guard(box, [=](KeyAuthorization auth) {
-				if (!confirmationValid()) {
-					rejectStale();
-					return;
-				} else if (!auth.valid()) {
-					state->confirmButtonBusy = false;
-					return;
-				} else if (!readyToSend()) {
-					return;
-				}
-				wallet->send(std::move(auth), args, [=](SendError error) {
-					if (!sessionValid()) {
+		const auto accepted = *draft->quote.current();
+		const auto privateEpoch = draft->privateEpoch;
+		state->sending = true;
+		const auto authorized = crl::guard(session, crl::guard(box, [=](
+				KeyAuthorization auth) {
+			if (!confirmationValid()) {
+				refuse(SendError::InvalidRequest);
+				return;
+			} else if (!auth.valid()) {
+				refuse(SendError::None);
+				return;
+			} else if (privateEpoch
+				&& (*privateEpoch != wallet->vault().clearEpoch()
+					|| draft->privateEpoch != privateEpoch)) {
+				refuse(SendError::Locked);
+				return;
+			} else if (!draft->quote.current()
+				|| *draft->quote.current() != accepted
+				|| draft->comment.current() != accepted.args.comment) {
+				refuse(SendError::InvalidRequest);
+				return;
+			}
+			const auto error = checkQuote();
+			if (error != SendError::None) {
+				refuse(error);
+				return;
+			}
+			draft->quote = std::nullopt;
+			draft->authorization = {};
+			draft->privateEpoch.reset();
+			wallet->send(
+				std::move(auth),
+				accepted.prepared,
+				crl::guard(session, [=](SendError error) {
+					if (!weak || state->closed || !sessionValid()) {
 						return;
-					}
-					if (error != SendError::None) {
-						if (weak && !state->closed) {
-							state->confirmButtonBusy = false;
-						}
-						if (flow.userId && error == SendError::SigningUnavailable) {
-							recover();
-						} else {
-							show->showToast(SendErrorText(error));
-						}
+					} else if (error != SendError::None) {
+						refuse(error);
 						return;
 					}
 					show->hideLayer();
@@ -3263,21 +3409,35 @@ void WalletSendConfirmBox(
 						lt_address,
 						ShortAddressForm(flow.displayForm)));
 					if (const auto &pending = wallet->pendingSend()) {
-						ShowWalletTransactionBox(
-							show,
-							ItemFromPending(*pending));
+						ShowWalletTransactionBox(show, ItemFromPending(*pending));
 					}
-				});
-			})),
-		});
+				}));
+		}));
+		if (privateEpoch && draft->authorization.valid()) {
+			authorized(draft->authorization);
+		} else {
+			AcquireVaultUnlock({ .show = show, .done = authorized });
+		}
 	};
+	auto busy = rpl::combine(
+		state->sending.value(),
+		draft->preparing.value()
+	) | rpl::map([](bool sending, bool preparing) {
+		return sending || preparing;
+	});
 	const auto button = box->addButton(rpl::combine(
 		tr::lng_wallet_send_amount(
 			lt_amount,
 			rpl::single(Ui::FormatTonAmount(flow.amountNano).full)),
-		state->confirmButtonBusy.value()
-	) | rpl::map([](QString &&text, bool busy) {
-		return busy ? QString() : std::move(text);
+		tr::lng_wallet_send_update_fee(),
+		draft->quote.value(),
+		rpl::duplicate(busy)
+	) | rpl::map([](
+			QString send,
+			QString update,
+			const std::optional<SendQuote> &quote,
+			bool busy) {
+		return busy ? QString() : quote ? send : update;
 	}), submit);
 	{
 		using namespace Info::Statistics;
@@ -3285,9 +3445,12 @@ void WalletSendConfirmBox(
 			button,
 			st::giveawayGiftCodeBoxButton.height / 2);
 		AddChildToWidgetCenter(button.data(), loading);
-		loading->showOn(state->confirmButtonBusy.value());
+		loading->showOn(std::move(busy));
 	}
-
+	if (field) {
+		field->submits() | rpl::on_next(submit, field->lifetime());
+		box->setFocusCallback([=] { field->setFocusFast(); });
+	}
 	AddBoxCloseButton(box);
 }
 
@@ -3486,21 +3649,6 @@ void SetButtonDisabledLook(
 	return field;
 }
 
-struct SendQuoteDependencies {
-	QByteArray senderKey;
-	QString destination;
-	DeviceCustodyState custody;
-	int64 amountNano = 0;
-	int64 balanceNano = 0;
-	bool bounce = false;
-	bool ready = false;
-	bool valid = false;
-
-	friend bool operator==(
-		const SendQuoteDependencies &,
-		const SendQuoteDependencies &) = default;
-};
-
 void WalletSendBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
@@ -3543,8 +3691,8 @@ void WalletSendBox(
 		rpl::variable<bool> invalid = false;
 		rpl::variable<int64> amount = 0;
 		rpl::variable<int64> fee = 0;
-		rpl::variable<bool> previewPending = false;
-		rpl::variable<bool> previewReady = false;
+		std::shared_ptr<SendDraft> draft = std::make_shared<SendDraft>();
+		bool confirmationOpen = false;
 		rpl::variable<bool> previewInsufficient = false;
 		rpl::variable<SendError> previewError = SendError::None;
 		rpl::variable<bool> insufficient = false;
@@ -3558,6 +3706,10 @@ void WalletSendBox(
 		Fn<void()> swapUnit;
 	};
 	const auto state = box->lifetime().make_state<State>();
+	if (initial && !user) {
+		state->draft = initial->draft;
+	}
+	const auto draft = state->draft;
 	const auto previewOwner = wallet->createPreviewOwner(state->previewLifetime);
 	state->loading = user && !initial;
 	state->senderKey = user && !initial ? QByteArray() : wallet->publicKey();
@@ -3601,6 +3753,7 @@ void WalletSendBox(
 		return SendQuoteDependencies{
 			.senderKey = validSession ? wallet->publicKey() : QByteArray(),
 			.destination = state->flow ? state->flow->destination : QString(),
+			.comment = draft->comment.current(),
 			.custody = validSession
 				? wallet->deviceCustodyState()
 				: DeviceCustodyState(),
@@ -3622,8 +3775,10 @@ void WalletSendBox(
 		state->loadDeadline.cancel();
 		++state->previewRevision;
 		state->previewLifetime.destroy();
-		state->previewReady = false;
-		state->previewPending = false;
+		draft->preparing = false;
+		draft->quote = std::nullopt;
+		draft->authorization = {};
+		draft->privateEpoch.reset();
 		state->flow = std::nullopt;
 		state->expanded = false;
 		state->loadError = error.isEmpty() ? u"WALLET_ADDRESS_INVALID"_q : error;
@@ -3638,8 +3793,11 @@ void WalletSendBox(
 		state->loadDeadline.cancel();
 		++state->previewRevision;
 		state->previewLifetime.destroy();
-		state->previewPending = false;
-		state->previewReady = false;
+		draft->preparing = false;
+		draft->quote = std::nullopt;
+		draft->authorization = {};
+		draft->privateEpoch.reset();
+		state->flow.reset();
 	}, box->lifetime());
 
 	const auto entrySeparator = [=] {
@@ -3811,13 +3969,139 @@ void WalletSendBox(
 	}, box->lifetime());
 
 	const auto invalidateFee = [=] {
-		const auto revision = ++state->previewRevision;
-		state->previewPending = true;
-		state->previewReady = false;
+		if (!weak || state->closed || state->terminal) {
+			return;
+		}
+		++state->previewRevision;
+		draft->preparing = false;
+		draft->quote = std::nullopt;
+		draft->authorization = {};
+		draft->privateEpoch.reset();
 		state->previewInsufficient = false;
 		state->previewError = SendError::None;
-		state->fee = 0;
-		return revision;
+		if (weakSession) {
+			wallet->cancelFeeEstimate(previewOwner);
+		}
+	};
+	const auto prepareFee = [=](Fn<void()> ready) {
+		if (!originValid() || draft->preparing.current()) {
+			return;
+		}
+		invalidateFee();
+		const auto dependencies = quoteDependencies();
+		state->previewDependencies = dependencies;
+		const auto revision = state->previewRevision;
+		const auto fail = [=](SendError error) {
+			if (revision != state->previewRevision) {
+				return;
+			}
+			invalidateFee();
+			state->previewError = error;
+			if (sessionValid()
+				&& state->confirmationOpen
+				&& error != SendError::None) {
+				show->showToast(SendErrorText(error));
+			}
+		};
+		if (!CommentFits(dependencies.comment.text)) {
+			fail(SendError::CommentTooLong);
+			return;
+		} else if (!dependencies.ready || dependencies.amountNano <= 0) {
+			fail(SendError::InvalidRequest);
+			return;
+		} else if (dependencies.amountNano > dependencies.balanceNano) {
+			fail(SendError::InsufficientBalance);
+			return;
+		}
+		const auto args = SendArgs{
+			.destination = dependencies.destination,
+			.amountNano = dependencies.amountNano,
+			.comment = dependencies.comment,
+			.bounce = dependencies.bounce,
+		};
+		const auto isPrivate = !args.comment.text.isEmpty()
+			&& !args.comment.isPublic;
+		const auto privateEpoch = isPrivate
+			? std::make_optional(wallet->vault().clearEpoch())
+			: std::nullopt;
+		draft->preparing = true;
+		const auto current = [=] {
+			return originValid()
+				&& revision == state->previewRevision
+				&& dependencies == quoteDependencies();
+		};
+		const auto estimate = crl::guard(session, crl::guard(box, [=](
+				KeyAuthorization auth) {
+			if (!current()) {
+				fail(SendError::InvalidRequest);
+				return;
+			} else if (isPrivate && !auth.valid()) {
+				fail(SendError::None);
+				return;
+			} else if (privateEpoch
+				&& *privateEpoch != wallet->vault().clearEpoch()) {
+				fail(SendError::Locked);
+				return;
+			}
+			draft->authorization = auth;
+			draft->privateEpoch = privateEpoch;
+			wallet->estimateFee(
+				std::move(auth),
+				previewOwner,
+				args,
+				crl::guard(session, crl::guard(box, [=](FeeResult result) {
+					if (!current()) {
+						fail(SendError::InvalidRequest);
+						return;
+					} else if (privateEpoch
+						&& (*privateEpoch != wallet->vault().clearEpoch()
+							|| !draft->authorization.valid()
+							|| !wallet->vault().unlocked())) {
+						fail(SendError::Locked);
+						return;
+					}
+					switch (result.error) {
+					case SendError::None:
+						if (!result.prepared) {
+							fail(SendError::Failed);
+							return;
+						}
+						draft->quote = SendQuote{
+							.args = args,
+							.dependencies = dependencies,
+							.prepared = std::move(result.prepared),
+							.feeNano = result.feeNano,
+							.revision = revision,
+						};
+						draft->preparing = false;
+						if (ready) {
+							ready();
+						}
+						return;
+					case SendError::InsufficientBalance:
+					case SendError::InsufficientFees:
+						fail(result.error);
+						state->previewInsufficient = true;
+						return;
+					case SendError::CommentTooLong:
+					case SendError::CommentEncryptionUnavailable:
+					case SendError::InvalidRequest:
+					case SendError::PreviousUnresolved:
+					case SendError::AlreadySending:
+					case SendError::SigningUnavailable:
+					case SendError::Locked:
+					case SendError::Failed:
+						fail(result.error);
+						return;
+					}
+					Unexpected("Error value in the send box fee estimate.");
+				})));
+		}));
+		if (isPrivate) {
+			AcquireVaultUnlock({ .show = show, .done = estimate });
+		} else {
+			estimate(KeyAuthorization());
+		}
 	};
 	const auto refreshFee = [=] {
 		if (state->closed || state->terminal) {
@@ -3828,65 +4112,28 @@ void WalletSendBox(
 			return;
 		}
 		state->previewDependencies = dependencies;
-		const auto revision = invalidateFee();
-		if (!state->flow || !originValid() || state->amount.current() <= 0) {
-			if (weakSession) {
-				wallet->cancelFeeEstimate(previewOwner);
-			}
-			state->previewPending = false;
-			return;
+		invalidateFee();
+		if (!CommentFits(dependencies.comment.text)) {
+			state->previewError = SendError::CommentTooLong;
+		} else if (dependencies.comment.text.isEmpty()
+			&& !state->confirmationOpen
+			&& dependencies.amountNano > 0) {
+			prepareFee(nullptr);
 		}
-		const auto senderKey = state->senderKey;
-		auto args = SendArgs{
-			.destination = state->flow->destination,
-			.amountNano = state->amount.current(),
-			.bounce = state->flow->bounce,
-		};
-		const auto done = crl::guard(box, [=](FeeResult result) {
-			if (!originValid()
-				|| revision != state->previewRevision
-				|| dependencies != quoteDependencies()
-				|| senderKey != state->senderKey
-				|| !state->flow
-				|| args.destination != state->flow->destination
-				|| args.bounce != state->flow->bounce
-				|| args.amountNano != state->amount.current()) {
-				return;
-			}
-			switch (result.error) {
-			case SendError::None:
-				state->fee = result.feeNano;
-				state->previewReady = true;
-				break;
-			case SendError::InsufficientBalance:
-			case SendError::InsufficientFees:
-				state->previewInsufficient = true;
-				state->previewError = result.error;
-				break;
-			case SendError::InvalidRequest:
-			case SendError::PreviousUnresolved:
-			case SendError::AlreadySending:
-			case SendError::SigningUnavailable:
-			case SendError::Locked:
-			case SendError::Failed:
-				state->previewError = result.error;
-				break;
-			default:
-				Unexpected("Error value in the send box fee estimate.");
-			}
-			state->previewPending = false;
-		});
-		wallet->estimateFee(previewOwner, args, done);
 	};
-	state->amount.value() | rpl::on_next([=] {
-		refreshFee();
-	}, box->lifetime());
+	state->fee = draft->quote.value() | rpl::map([](
+			const std::optional<SendQuote> &quote) {
+		return quote ? quote->feeNano : int64(0);
+	});
+	state->amount.value() | rpl::on_next(refreshFee, box->lifetime());
+	draft->comment.changes() | rpl::on_next(refreshFee, box->lifetime());
 	state->loading.changes() | rpl::on_next(refreshFee, box->lifetime());
 	state->loadError.changes() | rpl::on_next(refreshFee, box->lifetime());
 	if (!user) {
 		wallet->custodyUpdates() | rpl::on_next(refreshFee, box->lifetime());
 		wallet->balanceNanoValue() | rpl::on_next(refreshFee, box->lifetime());
 		wallet->stateKnownValue() | rpl::on_next(refreshFee, box->lifetime());
+		wallet->presenceValue() | rpl::on_next(refreshFee, box->lifetime());
 	}
 	state->insufficient = rpl::combine(
 		state->amount.value(),
@@ -3909,8 +4156,7 @@ void WalletSendBox(
 		state->expanded.value(),
 		wallet->stateKnownValue(),
 		state->previewError.value(),
-		state->previewPending.value(),
-		state->previewReady.value(),
+		draft->preparing.value(),
 		state->loading.value(),
 		state->loadError.value()
 	) | rpl::map([](
@@ -3920,7 +4166,6 @@ void WalletSendBox(
 			bool known,
 			SendError error,
 			bool pending,
-			bool ready,
 			bool loading,
 			const QString &loadError) {
 		return valid
@@ -3928,10 +4173,12 @@ void WalletSendBox(
 			&& (amount > 0)
 			&& !insufficient
 			&& !pending
-			&& ready
 			&& !loading
 			&& loadError.isEmpty()
-			&& (error == SendError::None);
+			&& (error != SendError::CommentTooLong)
+			&& (error != SendError::SigningUnavailable)
+			&& (error != SendError::AlreadySending)
+			&& (error != SendError::PreviousUnresolved);
 	});
 	state->canRecover = rpl::combine(
 		state->amount.value(),
@@ -3939,7 +4186,7 @@ void WalletSendBox(
 		state->expanded.value(),
 		wallet->stateKnownValue(),
 		state->previewError.value(),
-		state->previewPending.value(),
+		draft->preparing.value(),
 		state->loading.value(),
 		state->loadError.value()
 	) | rpl::map([=](
@@ -4075,7 +4322,7 @@ void WalletSendBox(
 			object_ptr<Ui::FlatLabel>(
 				balance,
 				rpl::duplicate(refusalText),
-				user ? st::walletSendUserErrorLabel : st::walletSendErrorLabel)),
+				user ? st::walletSendUserErrorLabel : st::walletCommentErrorLabel)),
 		style::al_justify);
 	refusalWrap->toggleOn(std::move(refusalText) | rpl::map([](
 			const QString &text) {
@@ -4108,16 +4355,14 @@ void WalletSendBox(
 		inner,
 		st::walletSendCommentField,
 		tr::lng_wallet_send_comment_placeholder(),
-		initial ? initial->comment : QString()).get();
+		draft->comment.current().text,
+		true).get();
 	if (commentField) {
 		ApplyCommentLimit(commentField);
+		BindCommentField(commentField, draft);
+		AddCommentPrivacy(inner, draft, st::walletSendCommentPrivacyMargin);
 	}
 
-	const auto setComment = crl::guard(box, [=](QString comment) {
-		if (commentField) {
-			commentField->setText(comment);
-		}
-	});
 	const auto restored = [=] {
 		if (originValid()) {
 			state->previewDependencies.reset();
@@ -4125,28 +4370,12 @@ void WalletSendBox(
 			amountField->setFocusFast();
 		}
 	};
-	const auto submit = [=] {
-		if (!originValid() || !state->flow) {
-			if (user && !state->loading.current()) {
-				failLoading(userError());
-			}
-			return;
-		} else if (state->previewDependencies != quoteDependencies()) {
-			refreshFee();
-			return;
-		} else if (state->canRecover.current()) {
-			ShowSendWordsRecovery(show, originValid, restored);
-			return;
-		} else if (!state->canSend.current()) {
-			amountField->showError();
+	const auto openConfirmation = [=] {
+		if (!originValid() || !state->flow || !draft->quote.current()) {
 			return;
 		}
 		auto next = *state->flow;
 		next.amountNano = state->amount.current();
-		next.feeNano = state->fee.current();
-		next.comment = commentField
-			? commentField->getLastText().trimmed()
-			: QString();
 		next.userId = user ? std::make_optional(userId) : std::nullopt;
 		next.senderKey = state->senderKey;
 		const auto confirmationOriginValid = [=] {
@@ -4157,9 +4386,8 @@ void WalletSendBox(
 				&& (state->flow->bounce == next.bounce)
 				&& (state->senderKey == next.senderKey);
 		};
-		const auto revision = state->previewRevision;
 		const auto checkQuote = [=] {
-			if (!confirmationOriginValid() || state->previewPending.current()) {
+			if (!confirmationOriginValid() || draft->preparing.current()) {
 				return SendError::InvalidRequest;
 			} else if (state->previewError.current() != SendError::None) {
 				return state->previewError.current();
@@ -4167,22 +4395,67 @@ void WalletSendBox(
 				return state->amount.current() > wallet->balanceNano()
 					? SendError::InsufficientBalance
 					: SendError::InsufficientFees;
-			} else if (revision != state->previewRevision
-				|| state->previewDependencies != quoteDependencies()
-				|| !state->previewReady.current()
-				|| state->fee.current() != next.feeNano) {
+			}
+			const auto &quote = draft->quote.current();
+			if (!quote
+				|| !quote->prepared
+				|| quote->revision != state->previewRevision
+				|| quote->dependencies != quoteDependencies()
+				|| quote->args.comment != draft->comment.current()) {
 				return SendError::InvalidRequest;
+			} else if (draft->privateEpoch
+				&& (*draft->privateEpoch != wallet->vault().clearEpoch()
+					|| !draft->authorization.valid()
+					|| !wallet->vault().unlocked())) {
+				return SendError::Locked;
 			}
 			return SendError::None;
 		};
+		state->confirmationOpen = true;
 		box->uiShow()->showBox(Box(
 			WalletSendConfirmBox,
 			show,
 			next,
-			setComment,
 			confirmationOriginValid,
 			checkQuote,
+			prepareFee,
+			invalidateFee,
+			[=] {
+				if (weak && !state->closed) {
+					invalidateFee();
+					state->confirmationOpen = false;
+				}
+			},
 			restored));
+	};
+	const auto submit = [=] {
+		if (!originValid() || !state->flow) {
+			if (user && !state->loading.current()) {
+				failLoading(userError());
+			}
+			return;
+		} else if (state->confirmationOpen || draft->preparing.current()) {
+			return;
+		} else if (!CommentFits(draft->comment.current().text)) {
+			if (commentField) {
+				commentField->showError();
+			}
+			return;
+		} else if (state->canRecover.current()) {
+			ShowSendWordsRecovery(show, originValid, restored);
+			return;
+		} else if (!state->canSend.current()) {
+			amountField->showError();
+			return;
+		}
+		if (state->previewDependencies != quoteDependencies()) {
+			invalidateFee();
+		}
+		if (draft->quote.current()) {
+			openConfirmation();
+		} else {
+			prepareFee(openConfirmation);
+		}
 	};
 	auto buttonText = user
 		? rpl::combine(
@@ -4222,40 +4495,38 @@ void WalletSendBox(
 	}
 
 	state->flow = initial;
+	if (state->flow) {
+		state->flow->draft = draft;
+	}
 	state->expanded = initial.has_value();
 	refreshFee();
 	if (recipientField) {
 		recipientField->changes() | rpl::on_next([=] {
 			const auto text = recipientField->getLastText().trimmed();
-			const auto previous = state->flow;
 			const auto was = state->expanded.current();
 			state->flow = ParseRecipientFlow(text);
 			const auto valid = state->flow.has_value();
 			state->invalid = !text.isEmpty() && !valid;
 			state->expanded = valid;
-			refreshFee();
 			if (valid) {
-				const auto changed = !previous
-					|| (previous->amountNano != state->flow->amountNano)
-					|| (previous->comment != state->flow->comment);
-				if (changed) {
+				const auto comment = state->flow->draft->comment.current();
+				state->flow->draft = draft;
+				if (ParseTransferLink(text)) {
+					draft->comment = comment;
 					const auto amountNano = std::min(
 						state->flow->amountNano,
 						kMaxAmountNano);
 					if (amountNano > 0) {
 						state->entryFiat = false;
-						amountField->setText(
-							Ui::FormatTonAmount(
-								amountNano,
-								Ui::TonFormatFlag::Simple).full);
-					}
-					if (!state->flow->comment.isEmpty()) {
-						commentField->setText(state->flow->comment);
+						amountField->setText(Ui::FormatTonAmount(
+							amountNano,
+							Ui::TonFormatFlag::Simple).full);
 					}
 				}
-				if (!was) {
-					amountField->setFocusFast();
-				}
+			}
+			refreshFee();
+			if (valid && !was) {
+				amountField->setFocusFast();
 			}
 		}, recipientField->lifetime());
 		recipientField->submits() | rpl::on_next([=] {
@@ -4328,6 +4599,7 @@ void WalletSendBox(
 					}
 					flow->userId = userId;
 					flow->senderKey = state->senderKey;
+					flow->draft = draft;
 					state->flow = std::move(flow);
 					state->expanded = true;
 					state->loadDeadline.cancel();

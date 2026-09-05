@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace wallet_engine {
 struct ActivityItem;
 struct NftList;
+struct SendMessageBody;
 struct SendSnapshot;
 struct WalletUpdate;
 } // namespace wallet_engine
@@ -102,6 +103,8 @@ enum class AccountStatus {
 enum class SendError {
 	None,
 	InvalidRequest,
+	CommentTooLong,
+	CommentEncryptionUnavailable,
 	InsufficientBalance,
 	InsufficientFees,
 	PreviousUnresolved,
@@ -161,9 +164,12 @@ struct TransferItem {
 		const TransferItem &) = default;
 };
 
+struct PreparedSend;
+
 struct FeeResult {
 	int64 feeNano = 0;
 	SendError error = SendError::None;
+	std::shared_ptr<const PreparedSend> prepared;
 };
 
 struct PendingSendInfo {
@@ -173,11 +179,25 @@ struct PendingSendInfo {
 	QString comment;
 };
 
+struct SendComment {
+	QString text;
+	bool isPublic = false;
+
+	friend bool operator==(const SendComment &, const SendComment &) = default;
+};
+
+inline constexpr auto kSendCommentMaxBytes = 960;
+
+[[nodiscard]] int SendCommentBytes(const QString &text);
+[[nodiscard]] bool SendCommentFits(const QString &text);
+
 struct SendArgs {
 	QString destination;
 	int64 amountNano = 0;
-	QString comment;
+	SendComment comment;
 	bool bounce = true;
+
+	friend bool operator==(const SendArgs &, const SendArgs &) = default;
 };
 
 [[nodiscard]] std::vector<TransferItem> HistoryFromEngine(
@@ -394,13 +414,14 @@ public:
 	// a refusal, and never run after the owning lifetime is destroyed.
 	[[nodiscard]] uint64 createPreviewOwner(rpl::lifetime &lifetime);
 	void estimateFee(
+		KeyAuthorization auth,
 		uint64 owner,
 		const SendArgs &args,
 		Fn<void(FeeResult)> done);
 	void cancelFeeEstimate(uint64 owner);
 	void send(
 		KeyAuthorization auth,
-		SendArgs args,
+		std::shared_ptr<const PreparedSend> prepared,
 		Fn<void(SendError)> done);
 	[[nodiscard]] SendState sendState() const;
 	[[nodiscard]] rpl::producer<SendState> sendStateValue() const;
@@ -475,6 +496,7 @@ private:
 	[[nodiscard]] bool previewCurrent(const PreviewRequest &request) const;
 	[[nodiscard]] SendError previewError(const PreviewRequest &request);
 	void startPreview();
+	void previewPrepared(uint64 flight, wallet_engine::SendMessageBody body);
 	void finishPreview(uint64 flight, FeeResult result);
 	void cancelPreview();
 	void finishPreviewCancel(uint64 flight);
