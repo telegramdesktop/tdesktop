@@ -272,7 +272,9 @@ void WalkVaultRemoval(std::shared_ptr<VaultRemovalWalk> walk) {
 			if (!live) {
 				WalkVaultRemoval(walk);
 				return;
-			} else if (!key) {
+			}
+			const auto session = live->maybeSession();
+			if (!key || (session && session->wallet().custodyBusy())) {
 				FinishVaultRemoval(walk, true);
 				return;
 			}
@@ -283,14 +285,15 @@ void WalkVaultRemoval(std::shared_ptr<VaultRemovalWalk> walk) {
 				VaultPreparedWrap{
 					.wrap = walk->prepared.wrap,
 					.wrapKey = walk->prepared.wrapKey.copy(),
-				});
+				},
+				session ? &session->wallet().vault() : nullptr);
 			key.reset();
 			if (result != VaultTransitionResult::Done) {
 				FinishVaultRemoval(walk, true);
 				return;
 			}
 			walk->changed.push_back(weak);
-			if (const auto session = live->maybeSession()) {
+			if (session) {
 				session->wallet().notifyKeyProtectionChanged();
 			}
 			WalkVaultRemoval(walk);
@@ -706,7 +709,7 @@ void KeyProtectionBox(
 			const auto local = &session.local();
 			const auto wallet = &session.wallet();
 			const auto acquired = [=](std::optional<SecureBytes> key) {
-				if (!key) {
+				if (!key || wallet->custodyBusy()) {
 					refuse();
 					return;
 				}
@@ -714,11 +717,14 @@ void KeyProtectionBox(
 					*local,
 					*state->header,
 					*key,
-					std::move(*next));
+					std::move(*next),
+					&wallet->vault());
 				key.reset();
 				if (result != VaultTransitionResult::Done) {
-					// The primitive has already put the previous header
-					// back, so the old kind still opens this vault.
+					// A failure leaves the previous wrap committed - the
+					// primitive rewrote the pre-stage header, or left a
+					// staged header the next read rolls back - so the old
+					// kind still opens this vault.
 					fail();
 					return;
 				}

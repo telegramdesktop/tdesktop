@@ -151,11 +151,13 @@ struct StoreOutcome {
 [[nodiscard]] bool WriteSealedRecord(
 		Storage::Account &local,
 		const SecureBytes &vaultKey,
+		quint32 generation,
 		const QString &storageKey,
 		const StoreInput &input) {
 	const auto sealed = SealVaultRecord(
 		vaultKey,
 		storageKey,
+		generation,
 		input.requireUserPresence,
 		input.secret.span());
 	if (sealed.isEmpty()) {
@@ -186,7 +188,12 @@ struct StoreOutcome {
 	header.wraps.push_back(policy.wrap);
 	if (!WriteVaultHeader(local, header)) {
 		return { .unavailable = true };
-	} else if (!WriteSealedRecord(local, vaultKey, storageKey, input)) {
+	} else if (!WriteSealedRecord(
+			local,
+			vaultKey,
+			header.committed,
+			storageKey,
+			input)) {
 		if (!RemoveVaultHeader(local)) {
 			LOG(("Wallet Error: could not drop the vault header after the "
 				"failed record write."));
@@ -200,8 +207,13 @@ struct StoreOutcome {
 // the live header: an existing vault accepts only the unlocked key (a
 // creation policy never applies to it), an absent one only the policy, and
 // a Broken or Unsupported header is never overwritten nor read as absence.
+// The key was copied on the worker, so it is accepted only while the
+// runtime's epoch is still the one it was copied under: a wrap transition
+// that committed in between cleared the runtime and retired that key, and a
+// record sealed under it would open under no wrap the header holds.
 [[nodiscard]] StoreOutcome StoreUnderVault(
 		Storage::Account &local,
+		const VaultRuntime &vault,
 		const QString &storageKey,
 		StoreInput &input) {
 	using State = VaultReading::State;
@@ -210,12 +222,14 @@ struct StoreOutcome {
 		|| reading.state == State::Unsupported) {
 		return { .unavailable = true };
 	} else if (reading.state == State::Read) {
-		if (!input.authority.key) {
+		if (!input.authority.key
+			|| vault.clearEpoch() != input.authority.epoch) {
 			return { .refused = true };
 		}
 		const auto written = WriteSealedRecord(
 			local,
 			*input.authority.key,
+			reading.header.committed,
 			storageKey,
 			input);
 		return written
@@ -676,8 +690,9 @@ public:
 				engine::ProtectedSecretHostErrorKind::kAuthenticationFailed,
 				u"wallet vault is locked"_q);
 		}
+		const auto vault = _vault;
 		auto outcome = storage([=](Storage::Account &local) {
-			return StoreUnderVault(local, key, *input);
+			return StoreUnderVault(local, *vault, key, *input);
 		});
 		if (!outcome) {
 			throw HostFailed(

@@ -24,8 +24,11 @@ const auto kVaultHeaderKey = u"vault/header"_q;
 constexpr auto kVaultHeaderMagic = quint32(0x57564C54);
 constexpr auto kVaultRecordMagic = quint32(0x57565243);
 constexpr auto kVaultFormatVersion = quint32(1);
+constexpr auto kVaultRecordFormatVersion = quint32(2);
+constexpr auto kVaultRecordLegacyFormatVersion = quint32(1);
 constexpr auto kVaultAeadAesGcm = quint32(1);
 constexpr auto kMaxVaultWraps = quint32(2);
+constexpr auto kMaxVaultRecordEntries = quint32(2);
 constexpr auto kVaultSaltMinSize = 8;
 constexpr auto kVaultBlobSize = kVaultNonceSize
 	+ kVaultKeySize
@@ -37,6 +40,7 @@ constexpr char kVaultPasscodeWrapLabel[]
 	= "tdesktop-wallet-vault/passcode-wrap/v1";
 constexpr char kVaultOpenWrapLabel[] = "tdesktop-wallet-vault/open-wrap/v1";
 constexpr char kVaultRecordLabel[] = "tdesktop-wallet-vault/record/v1";
+constexpr char kVaultRecordLabelV2[] = "tdesktop-wallet-vault/record/v2";
 
 template <std::size_t N>
 [[nodiscard]] bytes::const_span Label(const char (&label)[N]) {
@@ -264,6 +268,116 @@ void Cleanse(QByteArray &data) {
 	return QByteArray(kVaultRecordLabel) + storageKey.toUtf8();
 }
 
+struct VaultRecordEntry {
+	quint32 generation = 0;
+	QByteArray nonce;
+	QByteArray sealed;
+};
+
+struct VaultRecordShape {
+	quint32 formatVersion = 0;
+	std::vector<VaultRecordEntry> entries;
+};
+
+[[nodiscard]] QByteArray RecordAssociatedData(
+		const QString &storageKey,
+		quint32 generation) {
+	const auto key = storageKey.toUtf8();
+	auto stream = Serialize::ByteArrayWriter();
+	stream.underlying().writeRawData(
+		kVaultRecordLabelV2,
+		int(sizeof(kVaultRecordLabelV2) - 1));
+	stream.underlying().writeRawData(key.constData(), int(key.size()));
+	stream << generation;
+	return std::move(stream).result();
+}
+
+[[nodiscard]] std::optional<VaultRecordShape> ParseVaultRecord(
+		const QByteArray &serialized) {
+	auto stream = Serialize::ByteArrayReader(serialized);
+	auto result = VaultRecordShape();
+	auto magic = quint32();
+	auto entryCount = quint32(1);
+	stream >> magic >> result.formatVersion;
+	if (!stream.ok() || magic != kVaultRecordMagic) {
+		return std::nullopt;
+	}
+	const auto tagged = (result.formatVersion == kVaultRecordFormatVersion);
+	if (tagged) {
+		stream >> entryCount;
+	} else if (result.formatVersion != kVaultRecordLegacyFormatVersion) {
+		return std::nullopt;
+	}
+	if (!stream.ok() || !entryCount || entryCount > kMaxVaultRecordEntries) {
+		return std::nullopt;
+	}
+	result.entries.reserve(entryCount);
+	for (auto i = quint32(); i != entryCount; ++i) {
+		auto entry = VaultRecordEntry();
+		if (tagged) {
+			stream >> entry.generation;
+		}
+		stream >> entry.nonce >> entry.sealed;
+		const auto duplicate = ranges::contains(
+			result.entries,
+			entry.generation,
+			&VaultRecordEntry::generation);
+		if (!stream.ok()
+			|| entry.nonce.size() != kVaultNonceSize
+			|| duplicate) {
+			return std::nullopt;
+		}
+		result.entries.push_back(std::move(entry));
+	}
+	return result;
+}
+
+[[nodiscard]] QByteArray SerializeVaultRecord(
+		const std::vector<VaultRecordEntry> &entries) {
+	auto stream = Serialize::ByteArrayWriter();
+	stream
+		<< kVaultRecordMagic
+		<< kVaultRecordFormatVersion
+		<< quint32(entries.size());
+	for (const auto &entry : entries) {
+		stream << entry.generation << entry.nonce << entry.sealed;
+	}
+	return std::move(stream).result();
+}
+
+[[nodiscard]] SecureBytes SerializeRecordPlaintext(
+		bool requireUserPresence,
+		bytes::const_span secret) {
+	auto plain = Serialize::ByteArrayWriter(
+		int(2 * sizeof(quint32)) + int(secret.size()));
+	plain
+		<< quint32(requireUserPresence ? kVaultRequireUserPresenceFlag : 0)
+		<< Serialize::bytes(secret);
+	auto serialized = std::move(plain).result();
+	return TakeSecure(serialized);
+}
+
+[[nodiscard]] std::optional<VaultRecordEntry> SealRecordEntry(
+		const SecureBytes &key,
+		quint32 generation,
+		const QString &storageKey,
+		const SecureBytes &plaintext) {
+	auto result = VaultRecordEntry{
+		.generation = generation,
+		.nonce = RandomBytes(kVaultNonceSize),
+	};
+	const auto aad = RecordAssociatedData(storageKey, generation);
+	result.sealed = AesGcmSeal(
+		key.span(),
+		bytes::make_span(result.nonce),
+		plaintext.span(),
+		bytes::make_span(aad));
+	if (result.sealed.isEmpty()) {
+		return std::nullopt;
+	}
+	return result;
+}
+
 [[nodiscard]] bool WrapIsWellFormed(const VaultWrap &wrap, quint32 index) {
 	const auto kind = quint32(wrap.kind);
 	const auto &kdf = wrap.kdf;
@@ -470,6 +584,206 @@ void WriteWrap(Serialize::ByteArrayWriter &stream, const VaultWrap &wrap) {
 		&& !IsVaultRecord(value.bytes);
 	Cleanse(value.bytes);
 	return plain && local.removeWalletEngineValue(key);
+}
+
+[[nodiscard]] std::optional<std::vector<QString>> CustodyRecordKeys(
+		Storage::Account &local) {
+	const auto store = ReadCustodyStore(local);
+	if (!store) {
+		return std::nullopt;
+	}
+	auto result = std::vector<QString>();
+	result.reserve(store->records.size() + 1);
+	const auto add = [&](const QString &secretRef) {
+		if (!secretRef.isEmpty()) {
+			result.push_back(VaultSecretStorageKey(secretRef));
+		}
+	};
+	for (const auto &record : store->records) {
+		add(record.secretRef);
+	}
+	if (store->pendingRotation) {
+		add(store->pendingRotation->secretRef);
+	}
+	ranges::sort(result);
+	result.erase(ranges::unique(result), end(result));
+	return result;
+}
+
+struct OpenedRecord {
+	QString key;
+	VaultSecretRecord record;
+};
+
+[[nodiscard]] bool SameRecord(
+		const std::optional<VaultSecretRecord> &opened,
+		const VaultSecretRecord &expected) {
+	return opened
+		&& (opened->requireUserPresence == expected.requireUserPresence)
+		&& (bytes::compare(opened->bytes.span(), expected.bytes.span()) == 0);
+}
+
+// A custody-named record that fails its tag under the caller's key is the
+// one observable sign that the key is not this vault's: re-keying around it
+// would commit a header whose only wrap opens the new key while the records
+// stay sealed under a key no wrap opens, and every one of them would be lost
+// for good. Refusing costs a blocked protection change instead.
+[[nodiscard]] std::optional<std::vector<OpenedRecord>> OpenCustodyRecords(
+		Storage::Account &local,
+		const std::vector<QString> &keys,
+		const SecureBytes &vaultKey,
+		int &skipped) {
+	using State = Storage::WalletEngineValue::State;
+	auto result = std::vector<OpenedRecord>();
+	result.reserve(keys.size());
+	auto unreadable = 0;
+	auto unopenable = 0;
+	for (const auto &key : keys) {
+		auto value = local.readWalletEngineValue(key);
+		const auto cleanse = gsl::finally([&] {
+			Cleanse(value.bytes);
+		});
+		if (value.state == State::Absent) {
+			++skipped;
+		} else if (value.state == State::Broken) {
+			++unreadable;
+		} else if (!IsVaultRecord(value.bytes)) {
+			++skipped;
+		} else if (auto opened = OpenVaultRecord(
+				vaultKey,
+				key,
+				value.bytes)) {
+			result.push_back({ .key = key, .record = std::move(*opened) });
+		} else {
+			++unopenable;
+		}
+	}
+	if (unreadable || unopenable) {
+		LOG(("Wallet Error: refused a vault wrap transition: %1 of %2 "
+			"custody-named record(s) do not open under the vault key and %3 "
+			"are unreadable."
+			).arg(unopenable).arg(int(keys.size())).arg(unreadable));
+		return std::nullopt;
+	}
+	return result;
+}
+
+[[nodiscard]] VaultTransitionResult WriteDualRecords(
+		Storage::Account &local,
+		const std::vector<OpenedRecord> &opened,
+		const SecureBytes &oldKey,
+		quint32 committed,
+		const SecureBytes &newKey,
+		quint32 staged,
+		int &written) {
+	using Result = VaultTransitionResult;
+	using State = Storage::WalletEngineValue::State;
+	for (const auto &[key, record] : opened) {
+		const auto plaintext = SerializeRecordPlaintext(
+			record.requireUserPresence,
+			record.bytes.span());
+		const auto oldEntry = SealRecordEntry(
+			oldKey,
+			committed,
+			key,
+			plaintext);
+		const auto newEntry = SealRecordEntry(newKey, staged, key, plaintext);
+		if (!oldEntry || !newEntry) {
+			LOG(("Wallet Error: could not seal a custody-named record for the "
+				"vault wrap transition to generation %1.").arg(staged));
+			return Result::WriteFailed;
+		} else if (!local.writeWalletEngineValue(
+				key,
+				SerializeVaultRecord({ *oldEntry, *newEntry }))) {
+			return Result::WriteFailed;
+		}
+		auto value = local.readWalletEngineValue(key);
+		const auto cleanse = gsl::finally([&] {
+			Cleanse(value.bytes);
+		});
+		const auto shape = ParseVaultRecord(value.bytes);
+		const auto verified = (value.state == State::Read)
+			&& shape
+			&& (shape->entries.size() == 2)
+			&& (shape->entries.front().generation == committed)
+			&& (shape->entries.back().generation == staged)
+			&& SameRecord(OpenVaultRecord(oldKey, key, value.bytes), record)
+			&& SameRecord(OpenVaultRecord(newKey, key, value.bytes), record);
+		if (!verified) {
+			LOG(("Wallet Error: a re-sealed custody-named record does not "
+				"read back under both vault keys at generations %1 and %2."
+				).arg(committed).arg(staged));
+			return Result::VerifyFailed;
+		}
+		++written;
+	}
+	return Result::Done;
+}
+
+[[nodiscard]] bool StripRecords(
+		Storage::Account &local,
+		const std::vector<QString> &keys,
+		quint32 committed,
+		int &stripped) {
+	auto result = true;
+	auto stranded = 0;
+	for (const auto &key : keys) {
+		auto value = local.readWalletEngineValue(key);
+		const auto cleanse = gsl::finally([&] {
+			Cleanse(value.bytes);
+		});
+		auto shape = ParseVaultRecord(value.bytes);
+		if (!shape || shape->formatVersion != kVaultRecordFormatVersion) {
+			continue;
+		}
+		auto &entries = shape->entries;
+		const auto outside = ranges::remove_if(entries, [&](
+				const VaultRecordEntry &entry) {
+			return (entry.generation != committed);
+		});
+		if (outside == end(entries)) {
+			continue;
+		} else if (outside == begin(entries)) {
+			++stranded;
+			continue;
+		}
+		entries.erase(outside, end(entries));
+		if (local.writeWalletEngineValue(
+				key,
+				SerializeVaultRecord(entries))) {
+			++stripped;
+		} else {
+			result = false;
+		}
+	}
+	if (stranded) {
+		LOG(("Wallet Error: %1 custody-named vault record(s) carry no entry "
+			"at the committed generation %2 and were left untouched."
+			).arg(stranded).arg(committed));
+	}
+	return result;
+}
+
+[[nodiscard]] bool SettleToCommitted(
+		Storage::Account &local,
+		const VaultHeader &committedOnly) {
+	const auto committed = committedOnly.committed;
+	const auto keys = CustodyRecordKeys(local);
+	auto stripped = 0;
+	if (!keys) {
+		LOG(("Wallet Error: the custody store does not read, leaving the "
+			"vault record entries outside the committed generation %1 in "
+			"place.").arg(committed));
+	} else if (!StripRecords(local, *keys, committed, stripped)) {
+		LOG(("Wallet Error: could not strip every custody-named vault record "
+			"to the committed generation %1, stripped %2."
+			).arg(committed).arg(stripped));
+		return false;
+	} else if (stripped) {
+		LOG(("Wallet Info: stripped %1 custody-named vault record(s) to the "
+			"committed generation %2.").arg(stripped).arg(committed));
+	}
+	return WriteVaultHeader(local, committedOnly);
 }
 
 } // namespace
@@ -735,7 +1049,7 @@ VaultReading ReconcileVaultHeader(Storage::Account &local) {
 	if (result.state == VaultReading::State::Read && result.dirty) {
 		LOG(("Wallet Warning: dropping the staged vault wrap(s) outside the "
 			"committed generation %1.").arg(result.header.committed));
-		if (!WriteVaultHeader(local, result.header)) {
+		if (!SettleToCommitted(local, result.header)) {
 			LOG(("Wallet Error: could not rewrite the reconciled vault "
 				"header."));
 		}
@@ -901,31 +1215,24 @@ bool IsVaultRecord(const QByteArray &serialized) {
 QByteArray SealVaultRecord(
 		const SecureBytes &vaultKey,
 		const QString &storageKey,
+		quint32 generation,
 		bool requireUserPresence,
 		bytes::const_span secret) {
 	if (vaultKey.size() != kVaultKeySize) {
 		return {};
 	}
-	auto plain = Serialize::ByteArrayWriter(
-		int(2 * sizeof(quint32)) + int(secret.size()));
-	plain
-		<< quint32(requireUserPresence ? kVaultRequireUserPresenceFlag : 0)
-		<< Serialize::bytes(secret);
-	auto serialized = std::move(plain).result();
-	const auto plaintext = TakeSecure(serialized);
-	const auto nonce = RandomBytes(kVaultNonceSize);
-	const auto aad = RecordAssociatedData(storageKey);
-	const auto sealed = AesGcmSeal(
-		vaultKey.span(),
-		bytes::make_span(nonce),
-		plaintext.span(),
-		bytes::make_span(aad));
-	if (sealed.isEmpty()) {
+	const auto plaintext = SerializeRecordPlaintext(
+		requireUserPresence,
+		secret);
+	const auto entry = SealRecordEntry(
+		vaultKey,
+		generation,
+		storageKey,
+		plaintext);
+	if (!entry) {
 		return {};
 	}
-	auto stream = Serialize::ByteArrayWriter();
-	stream << kVaultRecordMagic << kVaultFormatVersion << nonce << sealed;
-	return std::move(stream).result();
+	return SerializeVaultRecord({ *entry });
 }
 
 std::optional<VaultSecretRecord> OpenVaultRecord(
@@ -935,24 +1242,25 @@ std::optional<VaultSecretRecord> OpenVaultRecord(
 	if (vaultKey.size() != kVaultKeySize) {
 		return std::nullopt;
 	}
-	auto stream = Serialize::ByteArrayReader(serialized);
-	auto magic = quint32();
-	auto formatVersion = quint32();
-	auto nonce = QByteArray();
-	auto sealed = QByteArray();
-	stream >> magic >> formatVersion >> nonce >> sealed;
-	if (!stream.ok()
-		|| magic != kVaultRecordMagic
-		|| formatVersion > kVaultFormatVersion
-		|| nonce.size() != kVaultNonceSize) {
+	const auto shape = ParseVaultRecord(serialized);
+	if (!shape) {
 		return std::nullopt;
 	}
-	const auto aad = RecordAssociatedData(storageKey);
-	const auto plaintext = AesGcmOpen(
-		vaultKey.span(),
-		bytes::make_span(nonce),
-		bytes::make_span(sealed),
-		bytes::make_span(aad));
+	const auto tagged = (shape->formatVersion == kVaultRecordFormatVersion);
+	auto plaintext = std::optional<SecureBytes>();
+	for (const auto &entry : shape->entries) {
+		const auto aad = tagged
+			? RecordAssociatedData(storageKey, entry.generation)
+			: RecordAssociatedData(storageKey);
+		plaintext = AesGcmOpen(
+			vaultKey.span(),
+			bytes::make_span(entry.nonce),
+			bytes::make_span(entry.sealed),
+			bytes::make_span(aad));
+		if (plaintext) {
+			break;
+		}
+	}
 	if (!plaintext) {
 		return std::nullopt;
 	}
@@ -988,9 +1296,22 @@ VaultTransitionResult StageVaultWrap(
 			"key, kind: %1.").arg(quint32(next.wrap.kind)));
 		return Result::Refused;
 	}
+	const auto keys = CustodyRecordKeys(local);
+	if (!keys) {
+		LOG(("Wallet Error: refused a vault wrap transition: the custody "
+			"store does not read."));
+		return Result::Refused;
+	}
+	auto skipped = 0;
+	const auto opened = OpenCustodyRecords(local, *keys, vaultKey, skipped);
+	if (!opened) {
+		return Result::Refused;
+	}
 	const auto generation = header.committed + 1;
+	auto fresh = SecureBytes(kVaultKeySize);
+	bytes::set_random(fresh.span());
 	next.wrap.generation = generation;
-	next.wrap.blob = WrapVaultKey(vaultKey, next.wrap, next.wrapKey);
+	next.wrap.blob = WrapVaultKey(fresh, next.wrap, next.wrapKey);
 	if (next.wrap.blob.isEmpty()) {
 		LOG(("Wallet Error: could not wrap the vault key for the transition "
 			"to generation %1, kind: %2."
@@ -1013,20 +1334,43 @@ VaultTransitionResult StageVaultWrap(
 		&& (reading.header.committed == header.committed)
 		&& (written != end(parsed.header.wraps))
 		&& SameWrap(*written, next.wrap)
-		&& WrapOpensVaultKey(*written, next.wrapKey, vaultKey);
+		&& WrapOpensVaultKey(*written, next.wrapKey, fresh);
 	if (!verified) {
 		LOG(("Wallet Error: the staged vault wrap at generation %1 does not "
 			"read back, dropping it.").arg(generation));
-		if (!WriteVaultHeader(local, header)) {
+		if (!SettleToCommitted(local, header)) {
 			LOG(("Wallet Error: could not drop the staged vault wrap."));
 		}
 		return Result::VerifyFailed;
 	}
+	auto resealed = 0;
+	const auto dual = WriteDualRecords(
+		local,
+		*opened,
+		vaultKey,
+		header.committed,
+		fresh,
+		generation,
+		resealed);
+	if (dual != Result::Done) {
+		LOG(("Wallet Error: re-sealing the custody-named records for the "
+			"vault wrap at generation %1 stopped after %2 record(s), dropping "
+			"it.").arg(generation).arg(resealed));
+		if (!SettleToCommitted(local, header)) {
+			LOG(("Wallet Error: could not drop the staged vault wrap."));
+		}
+		return dual;
+	}
 	header = std::move(staged);
+	LOG(("Wallet Info: staged vault wrap generation %1, re-sealed %2 "
+		"record(s), skipped %3.").arg(generation).arg(resealed).arg(skipped));
 	return Result::Done;
 }
 
-bool CommitStagedVaultWrap(Storage::Account &local, VaultHeader &header) {
+bool CommitStagedVaultWrap(
+		Storage::Account &local,
+		VaultHeader &header,
+		VaultRuntime *runtime) {
 	const auto generation = header.committed + 1;
 	const auto staged = ranges::find(
 		header.wraps,
@@ -1040,12 +1384,22 @@ bool CommitStagedVaultWrap(Storage::Account &local, VaultHeader &header) {
 			).arg(int(header.wraps.size())).arg(header.committed));
 		return false;
 	}
-	auto updated = VaultHeader{ .committed = generation };
-	updated.wraps.push_back(*staged);
-	if (!WriteVaultHeader(local, updated)) {
+	auto committing = header;
+	committing.committed = generation;
+	if (!WriteVaultHeader(local, committing)) {
 		return false;
 	}
-	header = std::move(updated);
+	if (runtime) {
+		runtime->clear();
+	}
+	auto settled = VaultHeader{ .committed = generation };
+	settled.wraps.push_back(*staged);
+	if (!SettleToCommitted(local, settled)) {
+		LOG(("Wallet Error: the vault wrap transition to generation %1 "
+			"committed but its cleanup did not finish; the next header read "
+			"completes it.").arg(generation));
+	}
+	header = std::move(settled);
 	return true;
 }
 
@@ -1053,7 +1407,8 @@ VaultTransitionResult TransitionVaultWrap(
 		Storage::Account &local,
 		VaultHeader &header,
 		const SecureBytes &vaultKey,
-		VaultPreparedWrap next) {
+		VaultPreparedWrap next,
+		VaultRuntime *runtime) {
 	const auto staged = StageVaultWrap(
 		local,
 		header,
@@ -1062,7 +1417,7 @@ VaultTransitionResult TransitionVaultWrap(
 	if (staged != VaultTransitionResult::Done) {
 		return staged;
 	}
-	return CommitStagedVaultWrap(local, header)
+	return CommitStagedVaultWrap(local, header, runtime)
 		? VaultTransitionResult::Done
 		: VaultTransitionResult::WriteFailed;
 }

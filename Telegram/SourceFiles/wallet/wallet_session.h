@@ -279,6 +279,7 @@ public:
 	[[nodiscard]] auto deviceCustodyStateValue() const
 		-> rpl::producer<DeviceCustodyState>;
 	[[nodiscard]] rpl::producer<> custodyUpdates() const;
+	[[nodiscard]] bool custodyBusy() const;
 
 	// Nothing else publishes a change of the vault header: custodyUpdates()
 	// fires only on a settled server state, and switching the wrap touches
@@ -455,7 +456,6 @@ private:
 		std::vector<QString> words,
 		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
 		Fn<void(const QString &)> fail);
-	[[nodiscard]] bool custodyBusy() const;
 	[[nodiscard]] const CustodyStore &custody();
 	[[nodiscard]] bool persistCustody(const CustodyRecord &record);
 	void dropCreatedVault();

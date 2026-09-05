@@ -224,6 +224,7 @@ private:
 [[nodiscard]] QByteArray SealVaultRecord(
 	const SecureBytes &vaultKey,
 	const QString &storageKey,
+	quint32 generation,
 	bool requireUserPresence,
 	bytes::const_span secret);
 [[nodiscard]] std::optional<VaultSecretRecord> OpenVaultRecord(
@@ -231,13 +232,28 @@ private:
 	const QString &storageKey,
 	const QByteArray &serialized);
 
-// Write A stages the new wrap beside the committed one, the read-back proves
-// it opens the vault key, write B commits it alone at the bumped generation;
-// every intermediate crash state leaves the old wrap working and the next
-// header read drops the staged one by generation. The two halves are public
-// so that a caller changing one passcode across several stores can hold every
-// vault staged while another store's write runs and commit them only once it
-// succeeded; TransitionVaultWrap is exactly their composition.
+// A wrap change mints a fresh vault key and re-seals every custody-named
+// record under it, so the retired wrap stops opening the data and not only
+// the header. The invariant every write boundary keeps: the header on disk
+// holds a wrap at its committed generation, and every custody-named record
+// holds an entry sealed under the key that wrap opens. Hence (i) an entry is
+// written under a key only after a wrap opening that key is on disk - write
+// A stages the new wrap beside the committed one and proves it, then each
+// record gains a second entry under the new key beside its old one; (ii)
+// committed moves only after every record carries an entry at the new
+// generation - write B, which keeps the retiring wrap beside the new one;
+// (iii) an entry outside the committed generation is removed only while
+// committed already points elsewhere - the strip after B; (iv) a wrap leaves
+// the header only after no record depends on it alone - write C, after the
+// strip. A crash anywhere leaves a header with a wrap outside its committed
+// generation, and the next reconciling read strips the records to that
+// generation and rewrites the header alone: a rollback before B, a completion
+// after it. The commit half clears the runtime right after write B, because
+// the key it holds is the one just retired; an account without a session has
+// no runtime and passes nullptr. The two halves are public so that a caller
+// changing one passcode across several stores can hold every vault staged
+// while another store's write runs and commit them only once it succeeded;
+// TransitionVaultWrap is exactly their composition.
 [[nodiscard]] VaultTransitionResult StageVaultWrap(
 	Storage::Account &local,
 	VaultHeader &header,
@@ -245,12 +261,14 @@ private:
 	VaultPreparedWrap next);
 [[nodiscard]] bool CommitStagedVaultWrap(
 	Storage::Account &local,
-	VaultHeader &header);
+	VaultHeader &header,
+	VaultRuntime *runtime);
 [[nodiscard]] VaultTransitionResult TransitionVaultWrap(
 	Storage::Account &local,
 	VaultHeader &header,
 	const SecureBytes &vaultKey,
-	VaultPreparedWrap next);
+	VaultPreparedWrap next,
+	VaultRuntime *runtime);
 
 // Pre-vault plain-layout records are development state: every custody record
 // whose secret value is not a vault record goes together with that value.

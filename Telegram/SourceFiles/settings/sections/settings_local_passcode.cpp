@@ -306,6 +306,10 @@ void ChangeDerivation::run() {
 			|| committed->salt != vault.committed.salt) {
 			return abandon();
 		}
+		const auto session = account->maybeSession();
+		if (session && session->wallet().custodyBusy()) {
+			return abandon();
+		}
 		const auto staged = Wallet::StageVaultWrap(
 			account->local(),
 			header,
@@ -331,11 +335,13 @@ void ChangeDerivation::run() {
 [[nodiscard]] bool CommitStagedVaults(std::vector<StagedVault> &vaults) {
 	auto result = true;
 	for (auto &vault : vaults) {
+		const auto session = vault.account->maybeSession();
 		if (!Wallet::CommitStagedVaultWrap(
 				vault.account->local(),
-				vault.staged)) {
+				vault.staged,
+				session ? &session->wallet().vault() : nullptr)) {
 			result = false;
-		} else if (const auto session = vault.account->maybeSession()) {
+		} else if (session) {
 			session->wallet().notifyKeyProtectionChanged();
 		}
 	}
