@@ -59,6 +59,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/swipe_handler.h"
 #include "ui/inactive_press.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "ui/rect.h"
 #include "ui/screen_reader_mode.h"
 #include "ui/ui_utility.h"
@@ -429,6 +430,10 @@ HistoryInner::HistoryInner(
 		if (!elementAnimationsPaused()) {
 			update();
 		}
+	}, lifetime());
+	PowerSaving::OnValue(PowerSaving::kAnimatedUserpics) | rpl::on_next([=] {
+		_videoUserpics.clear();
+		update();
 	}, lifetime());
 
 	using PlayRequest = ChatHelpers::EmojiInteractionPlayRequest;
@@ -1863,7 +1868,8 @@ int HistoryInner::SelectionViewOffset(
 
 HistoryInner::VideoUserpic *HistoryInner::validateVideoUserpic(
 		not_null<PeerData*> peer) {
-	if (!peer->isPremium()
+	if (PowerSaving::On(PowerSaving::kAnimatedUserpics)
+		|| !peer->isPremium()
 		|| peer->userpicPhotoUnknown()
 		|| !peer->userpicHasVideo()) {
 		_videoUserpics.remove(peer);
