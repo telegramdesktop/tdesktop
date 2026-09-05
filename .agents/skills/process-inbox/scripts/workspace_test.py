@@ -18,6 +18,51 @@ import workspace
 TASK_ID = "2026/07/19/correct-recent-search-peer-actions"
 
 
+class CommitHashArtifactTests(unittest.TestCase):
+	def test_rejects_explicit_commit_references(self):
+		values = (
+			"Commit: abcdef1",
+			"commit hash = `abcdef1234567890abcdef1234567890abcdef1234`",
+			"commit id: 1234567",
+			"Commit SHA-1: abcdef1",
+			"**Revision:** `abcdef1`",
+			'{"revision": "abcdef1"}',
+			json.dumps({"log": '{"revision": "abcdef1"}'}),
+			"SHA-1: abcdef1",
+			"sha: " + "a" * 64,
+			"Task-Base-SHA: none",
+			"Implementation-SHA: none",
+		)
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			path = root / "result.md"
+			for value in values:
+				with self.subTest(value=value):
+					path.write_text(value, encoding="utf-8")
+					with self.assertRaises(workspace.WorkspaceError):
+						workspace.ensure_no_persisted_commit_hashes(root)
+
+	def test_preserves_runtime_values_and_content_digests(self):
+		values = (
+			'{"revision":3,"amount":1430000000}',
+			json.dumps({"log": '{"revision":3,"amount":1430000000}'}),
+			json.dumps({"log": '{"revision":3},{"amount":1430000000}'}),
+			'revision and box generation - {"amount":2460000000',
+			"revision-and-box-generation amount2460000000",
+			"SHA-256 (not a commit reference): " + "a" * 64,
+			"source-content SHA-256: " + "b" * 64,
+			"commit #1234567",
+			"revision3 amount1430000000",
+		)
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			path = root / "raw.log"
+			for value in values:
+				with self.subTest(value=value):
+					path.write_text(value, encoding="utf-8")
+					workspace.ensure_no_persisted_commit_hashes(root)
+
+
 class FrozenDate(datetime.date):
 	@classmethod
 	def today(cls):

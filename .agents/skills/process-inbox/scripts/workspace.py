@@ -33,7 +33,8 @@ MODEL_PATTERN = re.compile(r"[a-z0-9][a-z0-9.-]{0,39}")
 CONSOLIDATION_PENDING = "work/consolidation-pending.md"
 CONSOLIDATION_COMPLETE = "work/consolidation-complete.md"
 COMMIT_HASH_PATTERN = re.compile(
-	r"(?i)\b(?:commit|revision|sha(?:-1)?)\b[^\r\n]{0,32}(?<!#)\b[0-9a-f]{7,64}\b"
+	r"(?i)\b(?:commit(?:[ \t]+(?:hash|id|sha(?:-1)?))?|revision|sha(?:-1)?)\b"
+	r"(?!-[0-9])[ \t:=`\"'\\*()\[\]-]*\b[0-9a-f]{7,64}\b"
 )
 LEGACY_COMMIT_FIELDS = ("Task-Base-SHA:", "Implementation-SHA:")
 PROJECT_ARCHIVE_DIR = "archive"
