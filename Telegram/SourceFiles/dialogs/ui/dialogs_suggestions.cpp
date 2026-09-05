@@ -1410,6 +1410,7 @@ Suggestions::Suggestions(
 Suggestions::~Suggestions() = default;
 
 void Suggestions::setupTabs() {
+	_tabs->setAccessibleName(tr::lng_dlg_filter(tr::now));
 	_tabsScroll->setCustomWheelProcess([=](not_null<QWheelEvent*> e) {
 		const auto pixelDelta = e->pixelDelta();
 		const auto angleDelta = e->angleDelta();
