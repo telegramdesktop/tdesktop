@@ -708,6 +708,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_suggest_animated_emoji" = "Suggest animated emoji";
 "lng_settings_suggest_by_emoji" = "Suggest popular stickers by emoji";
 "lng_settings_loop_stickers" = "Loop animated stickers";
+"lng_settings_large_sticker_preview" = "Large sticker previews";
 "lng_settings_large_emoji" = "Large emoji";
 "lng_settings_send_enter" = "Send with Enter";
 "lng_settings_send_ctrlenter" = "Send with Ctrl+Enter";

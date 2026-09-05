@@ -91,14 +91,20 @@ private:
 	void addStickers();
 	void copyStickersLink();
 	void handleError(Error error);
+	void updateAdaptiveDimensions();
+	void scheduleAdaptiveDimensionsUpdate();
+	void setupAdaptiveDimensionsWatcher(QPointer<QWidget> outer);
 
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const not_null<Main::Session*> _session;
 	const StickerSetIdentifier _set;
 	const Data::StickersType _type;
+	const bool _largePreview = false;
 
 	class Inner;
 	QPointer<Inner> _inner;
 	DocumentId _previewDocumentId = 0;
+	base::Timer _adaptiveDimensionsTimer;
+	QSize _lastAdaptiveBoxSize;
 
 };
