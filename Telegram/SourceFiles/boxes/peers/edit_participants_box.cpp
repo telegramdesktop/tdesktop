@@ -2567,6 +2567,28 @@ void ParticipantsBoxController::recomputeTypeFor(
 	}
 }
 
+QString ParticipantsBoxController::accessibilityName() const {
+	switch (_role) {
+	case Role::Profile:
+	case Role::Members: {
+		if (_role == Role::Profile) {
+			if (const auto channel = _peer->asChannel()) {
+				if (channel->isMegagroup() && !channel->canViewMembers()) {
+					return tr::lng_channel_admins(tr::now);
+				}
+			}
+		}
+		return ((_peer->isChannel() && !_peer->isMegagroup())
+			? tr::lng_profile_subscribers_section(tr::now)
+			: tr::lng_profile_participants_section(tr::now));
+	}
+	case Role::Admins: return tr::lng_channel_admins(tr::now);
+	case Role::Restricted: return tr::lng_exceptions_list_title(tr::now);
+	case Role::Kicked: return tr::lng_removed_list_title(tr::now);
+	}
+	return PeerListController::accessibilityName();
+}
+
 void ParticipantsBoxController::refreshCustomStatus(
 		not_null<PeerListRow*> row) const {
 	const auto participant = row->peer();
