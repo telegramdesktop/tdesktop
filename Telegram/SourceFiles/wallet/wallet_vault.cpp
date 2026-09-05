@@ -531,32 +531,35 @@ const VaultWrap *VaultHeader::committedWrap() const {
 	return (i != end(wraps)) ? &*i : nullptr;
 }
 
-VaultGrant::VaultGrant(std::shared_ptr<VaultRuntime> runtime)
-: _runtime(std::move(runtime)) {
+VaultGrant::VaultGrant(std::shared_ptr<VaultRuntime> runtime, quint32 epoch)
+: _runtime(std::move(runtime))
+, _epoch(epoch) {
 }
 
 VaultGrant::VaultGrant(VaultGrant &&other) noexcept
-: _runtime(base::take(other._runtime)) {
+: _runtime(base::take(other._runtime))
+, _epoch(other._epoch) {
 }
 
 VaultGrant &VaultGrant::operator=(VaultGrant &&other) noexcept {
 	if (this != &other) {
 		if (const auto runtime = base::take(_runtime)) {
-			runtime->release();
+			runtime->release(_epoch);
 		}
 		_runtime = base::take(other._runtime);
+		_epoch = other._epoch;
 	}
 	return *this;
 }
 
 VaultGrant::~VaultGrant() {
 	if (const auto runtime = base::take(_runtime)) {
-		runtime->release();
+		runtime->release(_epoch);
 	}
 }
 
 bool VaultGrant::valid() const {
-	return (_runtime != nullptr);
+	return _runtime && (_runtime->clearEpoch() == _epoch);
 }
 
 VaultRuntime::VaultRuntime()
@@ -638,7 +641,7 @@ VaultGrant VaultRuntime::grant() {
 		return VaultGrant();
 	}
 	++_grants;
-	return VaultGrant(shared_from_this());
+	return VaultGrant(shared_from_this(), _clearEpoch);
 }
 
 void VaultRuntime::setRetention(bool fifteenMinutes) {
@@ -670,6 +673,7 @@ void VaultRuntime::clear() {
 		_policy.reset();
 		_retainUntil = 0;
 		++_clearEpoch;
+		_grants = 0;
 	}
 	_retention.cancel();
 }
@@ -701,8 +705,11 @@ void VaultRuntime::adoptCreated(SecureBytes key, quint32 epoch) {
 	_key = std::move(key);
 }
 
-void VaultRuntime::release() {
+void VaultRuntime::release(quint32 epoch) {
 	auto lock = std::lock_guard(_mutex);
+	if (epoch != _clearEpoch) {
+		return;
+	}
 
 	Expects(_grants > 0);
 

@@ -107,7 +107,13 @@ enum class VaultTransitionResult {
 };
 
 // One user-confirmed logical operation's authorization: releasing the last
-// live grant cleanses the key unless the retention window is open.
+// live grant cleanses the key unless the retention window is open. A grant
+// carries the clear count it was minted under, and a clear retires every
+// earlier grant - valid() is false, it is not counted and its release is a
+// no-op - so a flow's grant is inert after a clear wherever it travels. The
+// runtime's _grants tally therefore means "live grants minted since the last
+// clear", which keeps release()'s last-release cleanse and its exactly-once
+// contract without an assertion that a count zeroed by the clear could trip.
 class VaultGrant final {
 public:
 	VaultGrant() = default;
@@ -119,9 +125,10 @@ public:
 
 private:
 	friend class VaultRuntime;
-	explicit VaultGrant(std::shared_ptr<VaultRuntime> runtime);
+	VaultGrant(std::shared_ptr<VaultRuntime> runtime, quint32 epoch);
 
 	std::shared_ptr<VaultRuntime> _runtime;
+	quint32 _epoch = 0;
 
 };
 
@@ -177,7 +184,7 @@ public:
 
 private:
 	friend class VaultGrant;
-	void release();
+	void release(quint32 epoch);
 
 	mutable std::mutex _mutex;
 	std::optional<SecureBytes> _key;
