@@ -6385,6 +6385,12 @@ void ListWidget::checkAnnounceFirstMessages() {
 }
 
 void ListWidget::announceAccessibilityFocusedChild() {
+	if (resolveAccessibilityFocusedChild()) {
+		announceAccessibilityFocus(_accessibilityFocusedIndex);
+	}
+}
+
+bool ListWidget::resolveAccessibilityFocusedChild() {
 	const auto count = accessibilityChildCount();
 	if (count <= 0) {
 		// One-shot for chats focused before their first messages arrived:
@@ -6398,7 +6404,7 @@ void ListWidget::announceAccessibilityFocusedChild() {
 		// allowlist, while the deferred announcement is a no-op without
 		// an accessibility client and never moves ordinary keyboard focus.
 		_announceFirstMessages = true;
-		return;
+		return false;
 	}
 	_announceFirstMessages = false;
 	if (_accessibilityFocusedItem) {
@@ -6416,8 +6422,7 @@ void ListWidget::announceAccessibilityFocusedChild() {
 		}
 		if (found >= 0 && found < count) {
 			_accessibilityFocusedIndex = found;
-			announceAccessibilityFocus(found);
-			return;
+			return true;
 		}
 		// The cached focused item is no longer in the list (it
 		// was removed or fell out of the loaded slice since we
@@ -6438,29 +6443,30 @@ void ListWidget::announceAccessibilityFocusedChild() {
 	}
 	if (_accessibilityFocusedIndex >= 0
 		&& _accessibilityFocusedIndex < count) {
-		announceAccessibilityFocus(_accessibilityFocusedIndex);
-		return;
+		return true;
 	}
 	const auto barIndex = accessibilityUnreadBarIndex();
 	const auto index = (barIndex >= 0 && barIndex + 1 < count)
 		? (barIndex + 1)
 		: accessibilityNewestIndex(count);
 	const auto elements = accessibleElements();
-	const auto item = accessibilityItemAtIndex(
+	_accessibilityFocusedIndex = index;
+	_accessibilityFocusedItem = accessibilityItemAtIndex(
 		index,
 		elements,
 		barIndex);
-	setAccessibilityFocusedItem(index, item);
+	return true;
 }
 
 void ListWidget::focusInEvent(QFocusEvent *e) {
 	RpWidget::focusInEvent(e);
 
-	InvokeQueued(this, [=] {
-		if (hasFocus()) {
-			announceAccessibilityFocusedChild();
-		}
-	});
+	// Point the accessible focus at the message it belongs on, without
+	// announcing it: taking focus raises a focus event of its own, which the
+	// platform hands to focusChild() - the message resolved here - so
+	// announcing it as well would read it twice. This has to happen before
+	// returning, while that event is still pending.
+	resolveAccessibilityFocusedChild();
 }
 
 bool ListWidget::accessibilityChildSupportsActions(int index) const {
@@ -6559,8 +6565,8 @@ void ListWidget::applyAccessibilityFocus(
 	_accessibilitySelectionAnchor = nullptr;
 	_accessibilityFocusedIndex = index;
 	_accessibilityFocusedItem = item;
-	// Exactly one announcement: directly when the widget already has
-	// focus, via focusInEvent when keyboard focus is being taken.
+	// Exactly one announcement: directly when the widget already has focus,
+	// by the platform itself when keyboard focus is being taken.
 	if (hasFocus()) {
 		if (changed || announceAlways) {
 			announceAccessibilityFocus(index);

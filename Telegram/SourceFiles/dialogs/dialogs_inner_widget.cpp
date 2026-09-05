@@ -6484,11 +6484,9 @@ void InnerWidget::focusInEvent(QFocusEvent *e) {
 			selectSkip(1);
 		}
 	}
-	InvokeQueued(this, [=] {
-		if (hasFocus()) {
-			announceSelectedFocus();
-		}
-	});
+	// The row is only picked here, not announced: taking focus raises a focus
+	// event of its own, which the platform hands to focusChild() - the
+	// selected row - so announcing it here as well would read it twice.
 }
 
 bool InnerWidget::processKeyDispatch(QKeyEvent *e) {
@@ -6664,7 +6662,7 @@ void InnerWidget::accessibilityChildSetFocus(quintptr identity) {
 		// The rows are virtual (no real QWidget), so the screen reader's
 		// SetFocus can't move real keyboard focus to a row. Translate it
 		// into our internal selection, then either grab keyboard focus
-		// (focusInEvent announces the row) or announce it directly.
+		// (taking it announces the row by itself) or announce it directly.
 		if (index < 0 || !selectChildByIndex(index)) {
 			return;
 		}
