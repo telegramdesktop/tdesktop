@@ -137,7 +137,7 @@ void EmojiInteractions::startAutoplay(
 		return;
 	}
 	const auto &list = pack.animationsForEmoji(emoji);
-	if (list.empty()) {
+	if (list.empty() || !item->markEmojiInteractionWatched()) {
 		return;
 	}
 	auto &animations = _autoplay[item];
