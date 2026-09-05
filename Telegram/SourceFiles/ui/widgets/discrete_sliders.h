@@ -53,14 +53,51 @@ public:
 		return _sectionActivated.events();
 	}
 
+	// Fired when the screen reader browse position moves to a section, so
+	// owners of a scrollable slider can bring that section into view.
+	[[nodiscard]] rpl::producer<int> accessibilitySectionBrowsed() const;
+
+	// Whether the arrows switch to the tab they land on right away (the
+	// default - native Windows tab controls do) or only browse, committing
+	// on Enter / Space. Turn it off where a switch is expensive or has side
+	// effects, like the folder tabs: they reload the whole chat list, and a
+	// locked premium folder opens an upsell on activation.
+	void setAccessibilityActivateOnBrowse(bool activate);
+
 	[[nodiscard]] int sectionsCount() const;
 	[[nodiscard]] int lookupSectionLeft(int index) const;
+
+	// Accessibility: a horizontal strip of painted tabs.
+	QAccessible::Role accessibilityRole() override;
+	bool accessibilitySelectionList() const override;
+	Qt::FocusPolicy accessibilityFocusPolicy() override;
+	std::optional<Qt::Orientation> accessibilityOrientation() const override;
+	QAccessible::Role accessibilityChildRole() const override;
+	QAccessible::State accessibilityChildState(int index) const override;
+	int accessibilityChildCount() const override;
+	QString accessibilityChildName(int index) const override;
+	QRect accessibilityChildRect(int index) const override;
+	bool accessibilityChildSupportsActions(int index) const override;
+	quintptr accessibilityChildIdentity(int index) const override;
+	int accessibilityChildIndexByIdentity(quintptr identity) const override;
+	void accessibilityChildSetFocus(quintptr identity) override;
+	void accessibilityChildActivate(quintptr identity) override;
 
 protected:
 	void timerEvent(QTimerEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+	void focusInEvent(QFocusEvent *e) override;
+
+	// Activation coming from accessibility (keyboard or a screen reader
+	// action); subclasses can intercept it (e.g. locked premium folders).
+	virtual void activateSectionByAccessibility(int index);
+
+	// The section the browse position is on, or -1 when it isn't on any -
+	// a context menu opened from the keyboard has no position to look at.
+	[[nodiscard]] int accessibilityBrowsedSection() const;
 
 	int resizeGetHeight(int newWidth) override = 0;
 
@@ -108,12 +145,20 @@ protected:
 	[[nodiscard]] bool paused() const;
 
 private:
+	enum class Announce {
+		No,
+		OnChange,
+		Always,
+	};
+
 	void activateCallback();
 	virtual const style::TextStyle &getLabelStyle() const = 0;
 	virtual int getAnimationDuration() const = 0;
 
 	int getIndexFromPosition(QPoint pos);
 	void setSelectedSection(int index);
+	void setAccessibilitySelected(int index, Announce announce);
+	void browseAndActivate(int index);
 
 	std::vector<Section> _sections;
 	Fn<bool()> _paused;
@@ -122,9 +167,12 @@ private:
 	bool _snapToLabel = false;
 
 	rpl::event_stream<int> _sectionActivated;
+	rpl::event_stream<int> _accessibilitySectionBrowsed;
 
 	int _pressed = -1;
 	int _selected = 0;
+	int _accessibilitySelected = -1;
+	bool _accessibilityActivateOnBrowse = true;
 	Ui::Animations::Simple _a_left;
 	Ui::Animations::Simple _a_width;
 
