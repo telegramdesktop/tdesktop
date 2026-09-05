@@ -244,7 +244,11 @@ Panel::Panel(not_null<GroupCall*> call, ConferencePanelMigration info)
 	result.setAlphaF(kControlsBackgroundOpacity);
 	return result;
 })
-, _hideControlsTimer([=] { toggleWideControls(false); }) {
+, _hideControlsTimer([=] {
+	if (_rtmpFull || fullscreenForScreencastOnly()) {
+		toggleWideControls(false);
+	}
+}) {
 	_viewport->widget()->hide();
 	if (!_viewport->requireARGB32()) {
 		_call->setNotRequireARGB32();
@@ -377,28 +381,48 @@ void Panel::initWindow() {
 		subscribeToPeerChanges();
 	}
 
+	const auto wasFullscreen = std::make_shared<bool>(
+		(window()->windowState() & Qt::WindowFullScreen) != 0);
 	const auto updateFullScreen = [=] {
 		const auto state = window()->windowState();
-		const auto full = (state & Qt::WindowFullScreen)
-			|| (state & Qt::WindowMaximized);
+		const auto fullscreen = ((state & Qt::WindowFullScreen) != 0);
+		const auto maximized = ((state & Qt::WindowMaximized) != 0);
+		const auto full = (fullscreen || maximized);
+		if (!fullscreen) {
+			_screencastOnlyInFullscreen = false;
+		} else if (!*wasFullscreen && fullscreenForScreencast()) {
+			_screencastOnlyInFullscreen = true;
+		}
+		*wasFullscreen = fullscreen;
 		_rtmpFull = _call->rtmp() && full;
 		_fullScreenOrMaximized = full;
+		if (_subtitle && fullscreenForScreencastOnly()) {
+			_subtitle.destroy();
+		}
+		updateControlsGeometry();
+		if (fullscreenForScreencastOnly()) {
+			_hideControlsTimer.callOnce(kHideControlsTimeout);
+			toggleWideControls(true);
+		} else if (!_rtmpFull) {
+			_hideControlsTimer.cancel();
+			toggleWideControls(_viewport->widget()->underMouse());
+		}
 	};
 	base::install_event_filter(window().get(), [=](not_null<QEvent*> e) {
 		const auto type = e->type();
 		if (type == QEvent::Close && handleClose()) {
 			e->ignore();
 			return base::EventFilterResult::Cancel;
-		} else if (_call->rtmp()
-			&& (type == QEvent::KeyPress || type == QEvent::KeyRelease)) {
+		} else if (type == QEvent::KeyPress || type == QEvent::KeyRelease) {
 			const auto key = static_cast<QKeyEvent*>(e.get())->key();
-			if (key == Qt::Key_Space) {
+			if (_call->rtmp() && key == Qt::Key_Space) {
 				_call->pushToTalk(
 					e->type() == QEvent::KeyPress,
 					kSpacePushToTalkDelay);
-			} else if (key == Qt::Key_Escape
-				&& _fullScreenOrMaximized.current()) {
-				toggleFullScreen();
+			} else if ((type == QEvent::KeyPress)
+				&& (key == Qt::Key_Escape)
+				&& window()->isFullScreen()) {
+				toggleFullScreen(false);
 			}
 		} else if (type == QEvent::WindowStateChange) {
 			updateFullScreen();
@@ -412,6 +436,12 @@ void Panel::initWindow() {
 		using Flag = Ui::WindowTitleHitTestFlag;
 		if (!guard) {
 			return (Flag::None | Flag(0));
+		}
+		if (fullscreenForScreencast()
+			&& _viewport->widget()->geometry().contains(widgetPoint)) {
+			return window()->isFullScreen()
+				? (Flag::None | Flag(0))
+				: (Flag::FullScreen | Flag(0));
 		}
 		const auto titleRect = QRect(
 			0,
@@ -431,7 +461,11 @@ void Panel::initWindow() {
 		}
 		const auto shown = _window->topShownLayer();
 		return (!shown || !shown->geometry().contains(widgetPoint))
-			? (Flag::Move | Flag::Menu | Flag::Maximize)
+			? (Flag::Move
+				| Flag::Menu
+				| (fullscreenForScreencast()
+					? Flag::FullScreen
+					: Flag::Maximize))
 			: Flag::None;
 	});
 
@@ -441,7 +475,8 @@ void Panel::initWindow() {
 	}, lifetime());
 
 	_window->maximizeRequests() | rpl::on_next([=](bool maximized) {
-		if (_call->rtmp()) {
+		if (_call->rtmp() || fullscreenForScreencast()) {
+			_screencastOnlyInFullscreen = false;
 			toggleFullScreen(maximized);
 		} else {
 			window()->setWindowState(maximized
@@ -672,6 +707,9 @@ void Panel::toggleFullScreen() {
 }
 
 void Panel::toggleFullScreen(bool fullscreen) {
+	if (!fullscreen) {
+		_screencastOnlyInFullscreen = false;
+	}
 	if (fullscreen) {
 		window()->showFullScreen();
 	} else {
@@ -1024,7 +1062,28 @@ void Panel::setupMembers() {
 	) | rpl::filter([=] {
 		return !_rtmpFull;
 	}) | rpl::on_next([=](bool inside) {
-		toggleWideControls(inside);
+		if (fullscreenForScreencastOnly()) {
+			if (inside) {
+				_hideControlsTimer.callOnce(kHideControlsTimeout);
+				toggleWideControls(true);
+			} else {
+				_hideControlsTimer.cancel();
+				toggleWideControls(false);
+			}
+		} else {
+			_hideControlsTimer.cancel();
+			toggleWideControls(inside);
+		}
+	}, _viewport->lifetime());
+
+	_viewport->rp()->events(
+	) | rpl::filter([=](not_null<QEvent*> e) {
+		return (e->type() == QEvent::MouseMove);
+	}) | rpl::on_next([=] {
+		if (fullscreenForScreencastOnly()) {
+			_hideControlsTimer.callOnce(kHideControlsTimeout);
+			toggleWideControls(true);
+		}
 	}, _viewport->lifetime());
 
 	_members->show();
@@ -1077,6 +1136,7 @@ void Panel::setupMembers() {
 			enlargeVideo();
 		}
 		_viewport->showLarge(large);
+		updateControlsGeometry();
 	}, _callLifetime);
 }
 
@@ -1281,6 +1341,34 @@ void Panel::setupVideo(not_null<Viewport*> viewport) {
 		}
 	}, viewport->lifetime());
 
+	if (viewport == _viewport.get()) {
+		viewport->doubleClicks(
+		) | rpl::on_next([=](const VideoEndpoint &endpoint) {
+			if (endpoint.type != VideoEndpointType::Screen) {
+				return;
+			}
+			if (_call->videoEndpointLarge() != endpoint) {
+				if (_call->videoEndpointPinned()) {
+					_call->pinVideoEndpoint(endpoint);
+				} else {
+					_call->showVideoEndpointLarge(endpoint);
+				}
+			}
+			if (window()->isFullScreen()) {
+				_screencastOnlyInFullscreen = !_screencastOnlyInFullscreen;
+				if (fullscreenForScreencastOnly()) {
+					_hideControlsTimer.callOnce(kHideControlsTimeout);
+				} else {
+					_hideControlsTimer.cancel();
+				}
+				updateControlsGeometry();
+			} else {
+				_screencastOnlyInFullscreen = true;
+				toggleFullScreen(true);
+			}
+		}, viewport->lifetime());
+	}
+
 	viewport->qualityRequests(
 	) | rpl::on_next([=](const VideoQualityRequest &request) {
 		_call->requestVideoQuality(request.endpoint, request.quality);
@@ -1304,7 +1392,8 @@ void Panel::updateWideControlsVisibility() {
 	if (_wideControlsShown == shown) {
 		return;
 	}
-	_viewport->setCursorShown(!_rtmpFull || shown);
+	_viewport->setCursorShown(
+		(!_rtmpFull && !fullscreenForScreencastOnly()) || shown);
 	_wideControlsShown = shown;
 	_wideControlsAnimation.start(
 		[=] { updateButtonsGeometry(); },
@@ -1958,9 +2047,9 @@ void Panel::updateButtonsStyles() {
 			(wide
 				? &st::groupCallMessageActiveSmall
 				: &st::groupCallMessageActive));
-		_message->setText(wide
-			? rpl::single(QString())
-			: tr::lng_group_call_message());
+			_message->setText(wide
+				? rpl::single(QString())
+				: tr::lng_group_call_message());
 	}
 	if (_settings) {
 		_settings->setText(wide
@@ -2213,6 +2302,9 @@ void Panel::trackControl(Ui::RpWidget *widget, rpl::lifetime &lifetime) {
 				}
 			});
 			toggleWideControls(true);
+			if (_rtmpFull || fullscreenForScreencastOnly()) {
+				_hideControlsTimer.cancel();
+			}
 		} else if (type == QEvent::Leave) {
 			*over = false;
 			crl::on_main(widget, [=] {
@@ -2221,6 +2313,9 @@ void Panel::trackControl(Ui::RpWidget *widget, rpl::lifetime &lifetime) {
 				}
 			});
 			toggleWideControls(false);
+			if (_rtmpFull || fullscreenForScreencastOnly()) {
+				_hideControlsTimer.callOnce(kHideControlsTimeout);
+			}
 		}
 	}, lifetime);
 }
@@ -2545,13 +2640,16 @@ void Panel::updateButtonsGeometry() {
 			+ (_settings->width() + skip)
 			+ _hangup->width();
 		const auto membersSkip = st::groupCallNarrowSkip;
-		const auto membersWidth = rtmp
+		const auto screencastOnly = fullscreenForScreencastOnly();
+		const auto membersWidth = (rtmp || screencastOnly)
 			? membersSkip
 			: (st::groupCallNarrowMembersWidth + 2 * membersSkip);
-		auto left = membersSkip + (widget()->width()
-			- membersWidth
-			- membersSkip
-			- fullWidth) / 2;
+		auto left = screencastOnly
+			? (widget()->width() - fullWidth) / 2
+			: membersSkip + (widget()->width()
+				- membersWidth
+				- membersSkip
+				- fullWidth) / 2;
 
 		const auto forMessagesLeft = left
 			- st::groupCallControlsBackMargin.left();
@@ -2762,21 +2860,28 @@ void Panel::updateMembersGeometry() {
 	if (!_members) {
 		return;
 	}
-	_members->setVisible(!_call->rtmp());
+	_members->setVisible(!_call->rtmp() && !fullscreenForScreencastOnly());
 	const auto desiredHeight = _members->desiredHeight();
 	if (mode() == PanelMode::Wide) {
-		const auto skip = _rtmpFull ? 0 : st::groupCallNarrowSkip;
-		const auto membersWidth = st::groupCallNarrowMembersWidth;
-		const auto top = _rtmpFull ? 0 : st::groupCallWideVideoTop;
+		const auto screencastOnly = fullscreenForScreencastOnly();
+		const auto skip = (_rtmpFull || screencastOnly)
+			? 0
+			: st::groupCallNarrowSkip;
+		const auto membersWidth = screencastOnly
+			? 0
+			: st::groupCallNarrowMembersWidth;
+		const auto top = (_rtmpFull || screencastOnly)
+			? 0
+			: st::groupCallWideVideoTop;
 		_members->setGeometry(
 			widget()->width() - skip - membersWidth,
 			top,
 			membersWidth,
 			std::min(desiredHeight, widget()->height() - top - skip));
-		const auto viewportSkip = _call->rtmp()
+		const auto viewportSkip = (_call->rtmp() || screencastOnly)
 			? 0
 			: (skip + membersWidth);
-		_viewport->setGeometry(_rtmpFull, {
+		_viewport->setGeometry(_rtmpFull || screencastOnly, {
 			skip,
 			top,
 			widget()->width() - viewportSkip - 2 * skip,
@@ -2804,6 +2909,17 @@ void Panel::updateMembersGeometry() {
 			membersWidth,
 			std::min(desiredHeight, availableHeight));
 	}
+}
+
+bool Panel::fullscreenForScreencast() const {
+	const auto &endpoint = _call->videoEndpointLarge();
+	return endpoint && (endpoint.type == VideoEndpointType::Screen);
+}
+
+bool Panel::fullscreenForScreencastOnly() const {
+	return _screencastOnlyInFullscreen
+		&& window()->isFullScreen()
+		&& fullscreenForScreencast();
 }
 
 rpl::producer<QString> Panel::titleText() {

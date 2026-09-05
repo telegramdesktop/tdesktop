@@ -1092,6 +1092,7 @@ groupCallScreenShareSmall: CallButton(groupCallSettingsSmall) {
 		rippleAreaPosition: point(8px, 12px);
 	}
 }
+
 groupCallMenuToggleSmall: CallButton(groupCallSettingsSmall) {
 	button: IconButton(groupCallSettingsInner) {
 		icon: icon {{ "calls/calls_more", groupCallIconFg }};
