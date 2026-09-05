@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - python-plugins
-
   workflow_dispatch:
 
 permissions:
@@ -24,16 +23,226 @@ jobs:
         shell: cmd
 
     steps:
-
-      # ------------------------------------------------------------
-      # Prepare build directories
-      # ------------------------------------------------------------
-
       - name: Prepare directories
         run: |
           mkdir %userprofile%\TBuild
           mkdir %userprofile%\TBuild\Libraries
           mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
-
           echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
           echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries\win64>>%GITHUB_ENV%
+
+      - name: Get repository name
+        shell: bash
+        run: |
+          echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> "$GITHUB_ENV"
+
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
+
+      - name: Detect Windows SDK
+        shell: bash
+        run: |
+          DOCPATH="$TBUILD/$REPO_NAME/docs/building-win.md"
+          SDK="$(grep "SDK version" "$DOCPATH" | sed -r 's/.*\*\*(.*)\*\* SDK version.*/\1/')"
+          echo "SDK=$SDK" >> "$GITHUB_ENV"
+          echo "Detected SDK: $SDK"
+
+      - name: Generate cache key
+        shell: bash
+        run: |
+          sha256sum "$TBUILD/$REPO_NAME/$PREPARE_PATH" | awk '{ print $1 }' > CACHE_KEY.txt
+          echo "$SDK" >> CACHE_KEY.txt
+          CACHE_KEY="$(sha256sum CACHE_KEY.txt | awk '{ print $1 }')"
+          echo "CACHE_KEY=$CACHE_KEY" >> "$GITHUB_ENV"
+
+      - name: MSVC x64 environment
+        uses: Eden-CI/msvc-dev-cmd@master
+        with:
+          arch: x64
+          sdk: ${{ env.SDK }}
+          toolset: 14.44
+
+      - name: Configure NuGet
+        run: |
+          nuget sources Disable -Name "Microsoft Visual Studio Offline Packages"
+          nuget sources Add -Source https://api.nuget.org/v3/index.json & exit 0
+
+      - name: ThirdParty cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.TBUILD }}\ThirdParty
+          key: windows-x64-thirdparty-${{ env.CACHE_KEY }}
+          restore-keys: |
+            windows-x64-thirdparty-
+
+      - name: Libraries cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\*
+            !${{ env.LibrariesPath }}\cache_keys
+            !${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\*
+            !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: windows-x64-libs-v2-${{ env.CACHE_KEY }}
+          restore-keys: |
+            windows-x64-libs-v2-
+
+      - name: Qt6 cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: windows-x64-qt6-${{ env.CACHE_KEY }}
+          restore-keys: |
+            windows-x64-qt6-
+
+      - name: Prepare Telegram libraries
+        run: |
+          %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent qt6
+
+      - name: Stage Python plugin runtime
+        run: |
+          if not exist "%TBUILD%\%REPO_NAME%\python_plugins\_tdesktop_host.py" (
+            echo ERROR: python_plugins\_tdesktop_host.py not found
+            exit /b 1
+          )
+
+          if exist "%TBUILD%\%REPO_NAME%\Telegram\python_plugins" (
+            rmdir /s /q "%TBUILD%\%REPO_NAME%\Telegram\python_plugins"
+          )
+
+          xcopy ^
+          "%TBUILD%\%REPO_NAME%\python_plugins" ^
+          "%TBUILD%\%REPO_NAME%\Telegram\python_plugins\" ^
+          /E /I /Y
+
+      - name: Check Telegram API credentials
+        shell: pwsh
+        env:
+          TDESKTOP_API_ID: ${{ secrets.TDESKTOP_API_ID }}
+          TDESKTOP_API_HASH: ${{ secrets.TDESKTOP_API_HASH }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:TDESKTOP_API_ID)) {
+              throw "GitHub secret TDESKTOP_API_ID is not configured."
+          }
+          if ([string]::IsNullOrWhiteSpace($env:TDESKTOP_API_HASH)) {
+              throw "GitHub secret TDESKTOP_API_HASH is not configured."
+          }
+          Write-Host "Telegram API credentials are configured."
+
+      - name: Free disk space
+        shell: bash
+        run: |
+          find "$LibrariesPath" \
+          '(' \
+            '(' \
+              ! '(' \
+                -name '*.lib' \
+                -o -name '*.a' \
+                -o -name '*.exe' \
+                -o -name '*.h' \
+                -o -name '*.hpp' \
+                -o -name '*.inc' \
+                -o -name '*.cmake' \
+                -o -name '*.pc' \
+                -o -path '*/include/*' \
+                -o -path '*/objects-*' \
+                -o -path '*/cache_keys/*' \
+                -o -path '*/patches/*' \
+                -o -path '*/nv-codec-headers/*' \
+              ')' \
+              -type f \
+            ')' \
+            -o -empty \
+          ')' -delete
+
+      - name: Configure Telegram
+        env:
+          TDESKTOP_API_ID: ${{ secrets.TDESKTOP_API_ID }}
+          TDESKTOP_API_HASH: ${{ secrets.TDESKTOP_API_HASH }}
+        run: |
+          cd %TBUILD%\%REPO_NAME%\Telegram
+
+          call configure.bat ^
+          x64 ^
+          qt6 ^
+          -D TDESKTOP_API_ID=%TDESKTOP_API_ID% ^
+          -D TDESKTOP_API_HASH=%TDESKTOP_API_HASH% ^
+          -D CMAKE_CONFIGURATION_TYPES=Release ^
+          -D CMAKE_COMPILE_WARNING_AS_ERROR=OFF ^
+          -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON ^
+          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
+
+      - name: Build Telegram
+        run: |
+          cd %TBUILD%\%REPO_NAME%\Telegram
+          cmake --build ..\out ^
+          --config Release ^
+          --target Telegram ^
+          --parallel
+
+      - name: Prepare artifact
+        run: |
+          set OUT=%TBUILD%\%REPO_NAME%\out\Release
+
+          if not exist "%OUT%\Telegram.exe" (
+            echo ERROR: Telegram.exe was not built.
+            exit /b 1
+          )
+
+          mkdir artifact
+          copy "%OUT%\Telegram.exe" "artifact\Telegram.exe"
+
+          if exist "%OUT%\python_plugins\_tdesktop_host.py" (
+            xcopy "%OUT%\python_plugins" "artifact\python_plugins\" /E /I /Y
+          ) else (
+            xcopy "%TBUILD%\%REPO_NAME%\python_plugins" "artifact\python_plugins\" /E /I /Y
+          )
+
+      - name: Add portable Python
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $Version = "3.13.14"
+          $Url = "https://www.python.org/ftp/python/$Version/python-$Version-embed-amd64.zip"
+          $Zip = Join-Path $env:RUNNER_TEMP "python-embed.zip"
+          $Destination = Join-Path $env:GITHUB_WORKSPACE "artifact\python"
+
+          Write-Host "Downloading portable Python $Version"
+          Invoke-WebRequest -Uri $Url -OutFile $Zip
+          New-Item -ItemType Directory -Force -Path $Destination | Out-Null
+          Expand-Archive -Path $Zip -DestinationPath $Destination -Force
+
+          if (!(Test-Path "$Destination\python.exe")) {
+              throw "Portable python.exe was not extracted."
+          }
+
+      - name: Verify package
+        shell: pwsh
+        run: |
+          $Root = Join-Path $env:GITHUB_WORKSPACE "artifact"
+          $Telegram = Join-Path $Root "Telegram.exe"
+          $Python = Join-Path $Root "python\python.exe"
+          $Host = Join-Path $Root "python_plugins\_tdesktop_host.py"
+          $Plugins = Join-Path $Root "python_plugins\plugins"
+
+          if (!(Test-Path $Telegram)) { throw "Telegram.exe missing." }
+          if (!(Test-Path $Python)) { throw "python\python.exe missing." }
+          if (!(Test-Path $Host)) { throw "python_plugins\_tdesktop_host.py missing." }
+          if (!(Test-Path $Plugins)) { throw "python_plugins\plugins directory missing." }
+
+          Write-Host "Telegram Python package is READY"
+          Get-ChildItem $Root -Recurse | Select-Object FullName
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: Telegram-Python-Windows-x64-Qt6-Release
+          path: artifact\
+          retention-days: 7
+          if-no-files-found: error
