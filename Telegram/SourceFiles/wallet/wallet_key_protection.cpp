@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/openssl_help.h"
 #include "base/weak_ptr.h"
 #include "core/application.h"
+#include "core/core_settings.h"
 #include "data/data_user.h"
 #include "lang/lang_hardcoded.h"
 #include "lang/lang_keys.h"
@@ -149,6 +150,58 @@ void AcquireVaultKey(
 		}
 	});
 	return PrepareVaultPasscodeWrap(utf8);
+}
+
+// The passcode's last dependent going away is what makes it removable, and
+// both halves have to hold at the moment of acting: the launch lock off and
+// no account's vault still carrying a passcode wrap. The enumeration is
+// taken here rather than carried down from when the box opened, because
+// VaultDependents' accounts are valid only for the frame that receives them
+// and an account can gain a passcode-wrapped vault while the box is up.
+//
+// The proof is minted from the bytes the box's own gate already accepted,
+// one statement before it is spent: setPasscode() and setAppLockEnabled()
+// both zero the verification nonce on every exit, so a token minted any
+// earlier than this would already be dead by the time it got here. Nothing
+// between the gate and the transition touches that nonce, and a mint that
+// fails is not a user's attempt at the passcode - the gate accepted these
+// bytes - so no flood counter moves either way.
+void DropPasscodeIfLastDependentGone(const SecureBytes &passcode) {
+	auto &local = Core::App().domain().local();
+	if (!local.hasPasscode()
+		|| local.appLockEnabled()
+		|| !CollectVaultDependents().passcodeWrapped.empty()) {
+		return;
+	}
+	auto utf8 = QByteArray(
+		reinterpret_cast<const char*>(passcode.span().data()),
+		passcode.size());
+	const auto cleanse = gsl::finally([&] {
+		if (!utf8.isEmpty()) {
+			OPENSSL_cleanse(utf8.data(), utf8.size());
+		}
+	});
+	const auto verification = local.verifyPasscode(utf8);
+	if (!verification) {
+		// Both arms leave today's state, and a recoverable one: a passcode
+		// over a vault that no longer needs it, which Settings - Privacy &
+		// Security - Local Passcode - Disable passcode still removes
+		// through its own no-dependent branch. Neither is silent, because
+		// a passcode that survived a removal it was eligible for is the
+		// one outcome a reader of this file needs to be able to see.
+		LOG(("Wallet Error: the passcode the gate accepted no longer "
+			"opens key_data, leaving it installed."));
+		return;
+	}
+	const auto removed = local.setPasscode(QByteArray(), *verification);
+	if (removed != Storage::SetPasscodeResult::Success) {
+		LOG(("Wallet Error: could not remove the passcode after its "
+			"last dependent went."));
+		return;
+	}
+	Core::App().settings().setSystemUnlockEnabled(false);
+	Core::App().saveSettingsDelayed();
+	Core::App().localPasscodeChanged();
 }
 
 // One removal's whole walk, behind a shared_ptr because the key material in
@@ -679,6 +732,13 @@ void KeyProtectionBox(
 				if (old) {
 					old->remove(local, retired, [](ProtectionError) {});
 				}
+				// The vault is on its new kind and the change is announced, so
+				// only now is the passcode asked whether it still has a reason
+				// to exist. Its removal is deliberately outside this outcome:
+				// a passcode that could not be written is not a protection
+				// change that failed, and nothing here rolls the transition
+				// back.
+				DropPasscodeIfLastDependentGone(state->passcode);
 				closeWith({ .cancelled = false, .kind = kind });
 			};
 			AcquireVaultKey(
