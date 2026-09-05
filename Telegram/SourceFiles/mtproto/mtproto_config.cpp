@@ -69,9 +69,7 @@ QByteArray Config::serialize() const {
 		stream.setVersion(QDataStream::Qt_5_1);
 		stream
 			<< qint32(kVersion)
-			<< qint32(_dcOptions.isTestMode()
-				? Environment::Test
-				: Environment::Production)
+			<< qint32(_dcOptions.environment())
 			<< options
 			<< qint32(_fields.chatSizeMax)
 			<< qint32(_fields.megagroupSizeMax)
@@ -126,14 +124,7 @@ std::unique_ptr<Config> Config::FromSerialized(const QByteArray &serialized) {
 	}
 	auto environment = qint32();
 	stream >> environment;
-	switch (environment) {
-	case qint32(Environment::Test):
-		result = std::make_unique<Config>(Environment::Test);
-		break;
-	case qint32(Environment::Production):
-		result = std::make_unique<Config>(Environment::Production);
-		break;
-	}
+	result = std::make_unique<Config>(static_cast<Environment>(environment));
 	if (!(raw = result.get())) {
 		return result;
 	}
