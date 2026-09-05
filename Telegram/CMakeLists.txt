@@ -545,6 +545,8 @@ PRIVATE
     chat_helpers/ttl_media_layer_widget.h
     core/application.cpp
     core/application.h
+    python_plugins/python_bridge.cpp
+    python_plugins/python_bridge.h
     core/proxy_rotation_manager.cpp
     core/proxy_rotation_manager.h
     core/cached_webview_availability.h
@@ -2447,6 +2449,12 @@ else()
 endif()
 
 set_target_properties(Telegram PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_folder})
+
+add_custom_command(TARGET Telegram POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/python_plugins"
+        "$<TARGET_FILE_DIR:Telegram>/python_plugins"
+)
 
 if (MSVC)
     target_link_libraries(Telegram

@@ -94,6 +94,10 @@ struct CloudTheme;
 class DownloadManager;
 } // namespace Data
 
+namespace PythonPlugins {
+class Bridge;
+} // namespace PythonPlugins
+
 namespace Stickers {
 class EmojiImageLoader;
 } // namespace Stickers
@@ -423,6 +427,7 @@ private:
 	const std::unique_ptr<base::BatterySaving> _batterySaving;
 	const std::unique_ptr<Webrtc::Environment> _mediaDevices;
 	const std::unique_ptr<ScreenshotProtection> _screenshotProtection;
+	const std::unique_ptr<PythonPlugins::Bridge> _pythonPlugins;
 
 	const std::unique_ptr<Storage::Databases> _databases;
 	const std::unique_ptr<Ui::Animations::Manager> _animationsManager;

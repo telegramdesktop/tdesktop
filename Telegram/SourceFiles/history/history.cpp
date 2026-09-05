@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history.h"
 
+#include "python_plugins/python_bridge.h"
+
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_item_preview.h"
 #include "history/view/history_view_translate_tracker.h"
@@ -176,6 +178,14 @@ History::History(not_null<Data::Session*> owner, PeerId peerId)
 		}
 	}
 	updateCommunityRegistration();
+	if (const auto bridge = PythonPlugins::Bridge::Instance()) {
+		bridge->rulesChanged(
+		) | rpl::start_with_next([=] {
+			session().changes().historyUpdated(
+				this,
+				Data::HistoryUpdate::Flag::ClientSideMessages);
+		}, _lifetime);
+	}
 }
 
 History::~History() = default;
@@ -655,6 +665,11 @@ not_null<HistoryItem*> History::addNewMessage(
 		localFlags,
 		detachExisting,
 		newMessage);
+	if (newMessage) {
+		if (const auto bridge = PythonPlugins::Bridge::Instance()) {
+			bridge->sendMessageEvent(item);
+		}
+	}
 	if (type == NewMessageType::Existing || item->mainView()) {
 		return item;
 	}
@@ -1799,6 +1814,12 @@ void History::viewReplaced(not_null<const Element*> was, Element *now) {
 
 void History::addItemToBlock(not_null<HistoryItem*> item) {
 	Expects(!item->mainView());
+
+	if (const auto bridge = PythonPlugins::Bridge::Instance()) {
+		if (bridge->shouldHide(item)) {
+			return;
+		}
+	}
 
 	auto block = prepareBlockForAddingItem();
 

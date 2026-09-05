@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "core/shortcuts.h"
 #include "core/sandbox.h"
+#include "python_plugins/python_bridge.h"
 #include "core/local_url_handlers.h"
 #include "core/launcher.h"
 #include "core/proxy_rotation_manager.h"
@@ -164,6 +165,7 @@ Application::Application()
 , _batterySaving(std::make_unique<base::BatterySaving>())
 , _mediaDevices(std::make_unique<Webrtc::Environment>())
 , _screenshotProtection(std::make_unique<ScreenshotProtection>())
+, _pythonPlugins(std::make_unique<PythonPlugins::Bridge>(this))
 , _databases(std::make_unique<Storage::Databases>())
 , _animationsManager(std::make_unique<Ui::Animations::Manager>())
 , _clearEmojiImageLoaderTimer([=] { clearEmojiSourceImages(); })
@@ -304,6 +306,8 @@ Application::~Application() {
 }
 
 void Application::run() {
+	_pythonPlugins->start();
+
 	// Depends on OpenSSL on macOS, so on ThirdParty::start().
 	// Depends on notifications settings.
 	_notifications = std::make_unique<Window::Notifications::System>();
