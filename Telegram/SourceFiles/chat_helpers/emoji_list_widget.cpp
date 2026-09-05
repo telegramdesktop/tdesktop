@@ -1967,7 +1967,9 @@ void EmojiListWidget::afterShown() {
 	const auto steal = (_mode == Mode::EmojiStatus)
 		|| (_mode == Mode::FullReactions)
 		|| (_mode == Mode::UserpicBuilder);
-	if (_search && steal) {
+	if (keepsFocusOnShow()) {
+		return;
+	} else if (_search && steal) {
 		_search->stealFocus();
 	} else if (Ui::ScreenReaderModeActive() && !hasFocus()) {
 		// The panel is opened from the keyboard and has no one to talk

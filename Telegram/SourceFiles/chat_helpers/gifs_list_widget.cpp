@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_toggling_media.h" // Api::ToggleSavedGif
 #include "base/const_string.h"
+#include "base/invoke_queued.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "chat_helpers/stickers_list_footer.h"
 #include "data/data_photo.h"
@@ -24,6 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_config.h"
 #include "core/click_handler_types.h"
 #include "ui/controls/tabbed_search.h"
+#include "ui/screen_reader_mode.h"
+#include "ui/ui_utility.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/input_field.h"
@@ -113,6 +116,7 @@ GifsListWidget::GifsListWidget(
 , _mosaic(st::emojiPanWidth - st::inlineResultsLeft)
 , _previewTimer([=] { showPreview(); }) {
 	setMouseTracking(true);
+	setAccessibleName(tr::lng_switch_gifs(tr::now));
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
 	setupSearch();
@@ -547,15 +551,21 @@ void GifsListWidget::selectInlineResult(
 
 void GifsListWidget::mouseMoveEvent(QMouseEvent *e) {
 	_lastMousePos = e->globalPos();
+	_keyboardSelection = false;
 	updateSelected();
 }
 
 void GifsListWidget::leaveEventHook(QEvent *e) {
-	clearSelection();
+	// A selection made from the keyboard stays where the mouse is not.
+	if (!_keyboardSelection) {
+		clearSelection();
+	}
 }
 
 void GifsListWidget::leaveToChildEvent(QEvent *e, QWidget *child) {
-	clearSelection();
+	if (!_keyboardSelection) {
+		clearSelection();
+	}
 }
 
 void GifsListWidget::enterFromChildEvent(QEvent *e, QWidget *child) {
@@ -564,6 +574,7 @@ void GifsListWidget::enterFromChildEvent(QEvent *e, QWidget *child) {
 }
 
 void GifsListWidget::clearSelection() {
+	_keyboardSelection = false;
 	if (_selected >= 0) {
 		ClickHandler::clearActive(_mosaic.itemAt(_selected));
 		setCursor(style::cur_default);
@@ -818,7 +829,7 @@ Data::FileOrigin GifsListWidget::inlineItemFileOrigin() {
 }
 
 void GifsListWidget::afterShown() {
-	if (_search) {
+	if (_search && !keepsFocusOnShow()) {
 		_search->stealFocus();
 	}
 }
@@ -855,6 +866,15 @@ void GifsListWidget::setupSearch() {
 		refreshIcons();
 		searchForGifs(accumulated);
 	}, session, TabbedSearchType::Emoji);
+
+	// Enter or Down in the field: on to the first of the results.
+	_search->submits(
+	) | rpl::on_next([=] {
+		if (_mosaic.maybeItemAt(0, 0)) {
+			keyboardSelect(Layout::PositionToIndex(0, 0), false);
+			setFocus();
+		}
+	}, lifetime());
 }
 
 int32 GifsListWidget::showInlineRows(bool newResults) {
@@ -862,6 +882,15 @@ int32 GifsListWidget::showInlineRows(bool newResults) {
 	refreshInlineRows(&added);
 	if (newResults) {
 		scrollTo(0);
+		// A section chosen in the footer or a group beside the search
+		// from the keyboard: on to the first of its GIFs, once they are
+		// in.
+		const auto fromFooter = _footer && _footer->hasFocus();
+		const auto fromGroups = _search && _search->groupsHaveFocus();
+		if ((fromFooter || fromGroups) && _mosaic.maybeItemAt(0, 0)) {
+			keyboardSelect(Layout::PositionToIndex(0, 0), false);
+			setFocus();
+		}
 	}
 	return added;
 }
@@ -912,7 +941,284 @@ void GifsListWidget::cancelled() {
 }
 
 rpl::producer<> GifsListWidget::cancelRequests() const {
-	return _cancelled.events();
+	// The keyboard done with the list - a GIF sent or Escape pressed -
+	// hides the panel the same way.
+	return rpl::merge(_cancelled.events(), _hideRequests.events());
+}
+
+int GifsListWidget::accessibleCount() const {
+	auto result = 0;
+	for (auto row = 0, rows = _mosaic.rowsCount(); row != rows; ++row) {
+		for (auto column = 0; _mosaic.maybeItemAt(row, column); ++column) {
+			++result;
+		}
+	}
+	return result;
+}
+
+int GifsListWidget::accessibleIndex(int mosaicIndex) const {
+	if (mosaicIndex < 0 || !_mosaic.maybeItemAt(mosaicIndex)) {
+		return -1;
+	}
+	const auto position = Layout::IndexToPosition(mosaicIndex);
+	auto result = 0;
+	for (auto row = 0; row != position.row; ++row) {
+		for (auto column = 0; _mosaic.maybeItemAt(row, column); ++column) {
+			++result;
+		}
+	}
+	return result + position.column;
+}
+
+int GifsListWidget::mosaicIndexAt(int accessibleIndex) const {
+	if (accessibleIndex < 0) {
+		return -1;
+	}
+	for (auto row = 0, rows = _mosaic.rowsCount(); row != rows; ++row) {
+		for (auto column = 0; _mosaic.maybeItemAt(row, column); ++column) {
+			if (!accessibleIndex--) {
+				return Layout::PositionToIndex(row, column);
+			}
+		}
+	}
+	return -1;
+}
+
+QAccessible::Role GifsListWidget::accessibilityRole() {
+	return QAccessible::List;
+}
+
+Qt::FocusPolicy GifsListWidget::accessibilityFocusPolicy() {
+	return Qt::TabFocus;
+}
+
+int GifsListWidget::accessibilityChildCount() const {
+	return accessibleCount();
+}
+
+QAccessible::Role GifsListWidget::accessibilityChildRole() const {
+	return QAccessible::ListItem;
+}
+
+QString GifsListWidget::accessibilityChildName(int index) const {
+	// A GIF has no text of its own; the app calls one just that.
+	return (mosaicIndexAt(index) >= 0) ? u"GIF"_q : QString();
+}
+
+QRect GifsListWidget::accessibilityChildRect(int index) const {
+	const auto mosaicIndex = mosaicIndexAt(index);
+	return (mosaicIndex >= 0)
+		? myrtlrect(_mosaic.findRect(mosaicIndex))
+		: QRect();
+}
+
+QAccessible::State GifsListWidget::accessibilityChildState(int index) const {
+	auto state = QAccessible::State();
+	if (Ui::ScreenReaderModeActive()) {
+		state.focusable = true;
+		state.selectable = true;
+	}
+	const auto mosaicIndex = mosaicIndexAt(index);
+	if (mosaicIndex >= 0 && mosaicIndex == _selected) {
+		state.active = true;
+		// The item the keyboard is on is the selection of the list - or a
+		// screen reader reports every item as "not selected".
+		state.selected = true;
+		if (hasFocus()) {
+			state.focused = true;
+		}
+	}
+	return state;
+}
+
+bool GifsListWidget::accessibilityChildSupportsActions(int index) const {
+	return accessibilityChildIdentity(index) != 0;
+}
+
+quintptr GifsListWidget::accessibilityChildIdentity(int index) const {
+	// The place in the mosaic names the item; the tag bit keeps it
+	// non-zero.
+	const auto mosaicIndex = mosaicIndexAt(index);
+	return (mosaicIndex >= 0)
+		? ((quintptr(mosaicIndex) << 1) | quintptr(1))
+		: quintptr(0);
+}
+
+int GifsListWidget::accessibilityChildIndexByIdentity(
+		quintptr identity) const {
+	return identity ? accessibleIndex(int(identity >> 1)) : -1;
+}
+
+void GifsListWidget::accessibilityChildSetFocus(quintptr identity) {
+	crl::on_main(this, [=] {
+		const auto mosaicIndex = mosaicIndexAt(
+			accessibilityChildIndexByIdentity(identity));
+		if (mosaicIndex < 0) {
+			return;
+		}
+		keyboardSelect(mosaicIndex, hasFocus());
+		if (!hasFocus()) {
+			setFocus();
+		}
+	});
+}
+
+void GifsListWidget::accessibilityChildActivate(quintptr identity) {
+	crl::on_main(this, [=] {
+		const auto mosaicIndex = mosaicIndexAt(
+			accessibilityChildIndexByIdentity(identity));
+		if (mosaicIndex < 0) {
+			return;
+		}
+		keyboardSelect(mosaicIndex, false);
+		activateKeyboardSelected();
+	});
+}
+
+void GifsListWidget::keyboardSelect(int mosaicIndex, bool announce) {
+	if (!_mosaic.maybeItemAt(mosaicIndex)) {
+		return;
+	}
+	_keyboardSelection = true;
+	if (_selected != mosaicIndex) {
+		if (const auto was = _mosaic.maybeItemAt(_selected)) {
+			was->update();
+		}
+		_selected = mosaicIndex;
+		_mosaic.itemAt(mosaicIndex)->update();
+	}
+	ensureItemVisible(mosaicIndex);
+	if (announce) {
+		const auto index = accessibleIndex(mosaicIndex);
+		if (index >= 0) {
+			accessibilityChildFocused(index);
+		}
+	}
+}
+
+void GifsListWidget::ensureItemVisible(int mosaicIndex) {
+	const auto rect = _mosaic.findRect(mosaicIndex);
+	const auto top = getVisibleTop();
+	const auto bottom = getVisibleBottom();
+	if (bottom <= top || rect.isEmpty()) {
+		return;
+	} else if (rect.y() < top) {
+		scrollTo(rect.y());
+	} else if (rect.y() + rect.height() > bottom) {
+		scrollTo(rect.y() + rect.height() - (bottom - top));
+	}
+}
+
+void GifsListWidget::keyboardMoveBy(int delta) {
+	const auto count = accessibleCount();
+	if (!count) {
+		return;
+	}
+	const auto current = accessibleIndex(_selected);
+	const auto index = (current < 0)
+		? ((delta > 0) ? 0 : count - 1)
+		: std::clamp(current + delta, 0, count - 1);
+	keyboardSelect(mosaicIndexAt(index), true);
+}
+
+void GifsListWidget::keyboardMoveRows(int rows) {
+	if (!_mosaic.maybeItemAt(_selected)) {
+		keyboardMoveBy(rows > 0 ? 1 : -1);
+		return;
+	}
+	// The same column one row up or down, or the last of a shorter row.
+	const auto position = Layout::IndexToPosition(_selected);
+	const auto row = std::clamp(
+		position.row + rows,
+		0,
+		std::max(_mosaic.rowsCount() - 1, 0));
+	auto column = position.column;
+	while (column > 0 && !_mosaic.maybeItemAt(row, column)) {
+		--column;
+	}
+	keyboardSelect(Layout::PositionToIndex(row, column), true);
+}
+
+void GifsListWidget::returnFocus() {
+	// The search took the focus when the panel came up, and gives it
+	// back from wherever in the panel it is now.
+	if (_search && Ui::InFocusChain(this)) {
+		_search->returnFocus(true);
+	}
+}
+
+void GifsListWidget::activateKeyboardSelected() {
+	if (!_mosaic.maybeItemAt(_selected)) {
+		return;
+	}
+	// Sent right away, as with Ctrl held: the keyboard can't see whether
+	// the preview a click waits for has loaded. The focus goes back
+	// before, and the panel is done: hide it, as Escape would.
+	const auto index = _selected;
+	returnFocus();
+	selectInlineResult(index, {}, true);
+	_hideRequests.fire({});
+}
+
+void GifsListWidget::focusInEvent(QFocusEvent *e) {
+	RpWidget::focusInEvent(e);
+	// Land on the GIF last walked to, or the first one there is.
+	const auto mosaicIndex = _mosaic.maybeItemAt(_selected)
+		? _selected
+		: mosaicIndexAt(0);
+	if (mosaicIndex < 0) {
+		return;
+	}
+	keyboardSelect(mosaicIndex, false);
+	InvokeQueued(this, [=] {
+		if (hasFocus() && _selected == mosaicIndex) {
+			const auto index = accessibleIndex(mosaicIndex);
+			if (index >= 0) {
+				accessibilityChildFocused(index);
+			}
+		}
+	});
+}
+
+void GifsListWidget::focusOutEvent(QFocusEvent *e) {
+	RpWidget::focusOutEvent(e);
+	_keyboardSelection = false;
+}
+
+void GifsListWidget::keyPressEvent(QKeyEvent *e) {
+	const auto key = e->key();
+	if (key == Qt::Key_Left || key == Qt::Key_Right) {
+		const auto forward = (key == Qt::Key_Right) != rtl();
+		keyboardMoveBy(forward ? 1 : -1);
+	} else if (key == Qt::Key_Up || key == Qt::Key_Down) {
+		keyboardMoveRows((key == Qt::Key_Down) ? 1 : -1);
+	} else if (key == Qt::Key_PageUp || key == Qt::Key_PageDown) {
+		const auto rowHeight = std::max(
+			_mosaic.rowsCount() ? _mosaic.rowHeightAt(0) : 0,
+			1);
+		const auto rowsOnPage = std::max(
+			(getVisibleBottom() - getVisibleTop()) / rowHeight,
+			1);
+		keyboardMoveRows((key == Qt::Key_PageDown)
+			? rowsOnPage
+			: -rowsOnPage);
+	} else if (key == Qt::Key_Home) {
+		keyboardMoveBy(-accessibleCount());
+	} else if (key == Qt::Key_End) {
+		keyboardMoveBy(accessibleCount());
+	} else if (!e->isAutoRepeat()
+		&& (key == Qt::Key_Space
+			|| key == Qt::Key_Return
+			|| key == Qt::Key_Enter)) {
+		activateKeyboardSelected();
+	} else if (key == Qt::Key_Escape) {
+		returnFocus();
+		_hideRequests.fire({});
+	} else {
+		RpWidget::keyPressEvent(e);
+		return;
+	}
+	e->accept();
 }
 
 void GifsListWidget::sendInlineRequest() {

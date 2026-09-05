@@ -71,7 +71,7 @@ public:
 	void setLoading(bool loading);
 	void stealFocus();
 	[[nodiscard]] bool groupsHaveFocus() const;
-	void returnFocus();
+	void returnFocus(bool force = false);
 
 	[[nodiscard]] static int IconSizeOverride();
 
@@ -142,7 +142,7 @@ public:
 	void setLoading(bool loading);
 	void stealFocus();
 	[[nodiscard]] bool groupsHaveFocus() const;
-	void returnFocus();
+	void returnFocus(bool force = false);
 	void setRightReserved(int value);
 
 private:

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/stickers_list_widget.h"
 
+#include "base/invoke_queued.h"
 #include "base/options.h"
 #include "base/timer_rpl.h"
 #include "core/application.h"
@@ -22,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_lottie.h"
 #include "chat_helpers/stickers_list_footer.h"
 #include "ui/controls/tabbed_search.h"
+#include "ui/screen_reader_mode.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
@@ -251,6 +253,7 @@ StickersListWidget::StickersListWidget(
 	&session(),
 	st::stickersPremiumLock))
 , _searchRequestTimer([=] { sendSearchRequest(); }) {
+	setAccessibleName(tr::lng_switch_stickers(tr::now));
 	setMouseTracking(true);
 	if (st().bg->c.alpha() > 0) {
 		setAttribute(Qt::WA_OpaquePaintEvent);
@@ -345,7 +348,20 @@ object_ptr<TabbedSelector::InnerFooter> StickersListWidget::createFooter() {
 
 	_footer->setChosen(
 	) | rpl::on_next([=](uint64 setId) {
+		const auto keyboard = _footer->hasFocus();
 		showStickerSet(setId);
+		if (keyboard) {
+			// Chosen from the keyboard: on to the first sticker of the
+			// set, as the mouse would go on to click one.
+			const auto &sets = shownSets();
+			for (auto i = 0, count = int(sets.size()); i != count; ++i) {
+				if (sets[i].id == setId && !sets[i].stickers.empty()) {
+					keyboardSelect({ .section = i, .index = 0 }, false);
+					setFocus();
+					break;
+				}
+			}
+		}
 	}, _footer->lifetime());
 
 	_footer->openSettingsRequests(
@@ -752,8 +768,32 @@ void StickersListWidget::cancelSetsSearch() {
 }
 
 void StickersListWidget::showSearchResults() {
+	// The keyboard keeps its place through a refill of the results, and
+	// a group chosen from the keyboard lands on the first of them.
+	const auto fromGroups = _search && _search->groupsHaveFocus();
+	const auto keyboard = hasFocus();
+	const auto selected = std::get_if<OverSticker>(&_selected);
+	const auto wasIndex = (keyboard && selected)
+		? accessibleIndex(*selected)
+		: -1;
+
 	refreshSearchRows();
 	scrollTo(0);
+
+	const auto count = accessibilityChildCount();
+	if (!count) {
+		return;
+	} else if (fromGroups) {
+		if (const auto first = accessibleChild(0)) {
+			keyboardSelect(*first, false);
+			setFocus();
+		}
+	} else if (keyboard) {
+		const auto index = std::clamp(std::max(wasIndex, 0), 0, count - 1);
+		if (const auto over = accessibleChild(index)) {
+			keyboardSelect(*over, true);
+		}
+	}
 }
 
 void StickersListWidget::refreshSearchRows() {
@@ -1342,7 +1382,7 @@ int StickersListWidget::stickersLeft() const {
 	return _rowsLeft;
 }
 
-QRect StickersListWidget::stickerRect(int section, int sel) {
+QRect StickersListWidget::stickerRect(int section, int sel) const {
 	const auto info = sectionInfo(section);
 	if (sel >= shownSets()[section].stickers.size()) {
 		sel -= shownSets()[section].stickers.size();
@@ -2933,6 +2973,7 @@ void StickersListWidget::mouseMoveEvent(QMouseEvent *e) {
 			return;
 		}
 	}
+	_keyboardSelection = false;
 	updateSelected();
 }
 
@@ -2946,11 +2987,16 @@ void StickersListWidget::resizeEvent(QResizeEvent *e) {
 }
 
 void StickersListWidget::leaveEventHook(QEvent *e) {
-	clearSelection();
+	// A selection made from the keyboard stays where the mouse is not.
+	if (!_keyboardSelection) {
+		clearSelection();
+	}
 }
 
 void StickersListWidget::leaveToChildEvent(QEvent *e, QWidget *child) {
-	clearSelection();
+	if (!_keyboardSelection) {
+		clearSelection();
+	}
 }
 
 void StickersListWidget::enterFromChildEvent(QEvent *e, QWidget *child) {
@@ -2961,7 +3007,363 @@ void StickersListWidget::enterFromChildEvent(QEvent *e, QWidget *child) {
 void StickersListWidget::clearSelection() {
 	setPressed(v::null);
 	setSelected(v::null);
+	_keyboardSelection = false;
 	repaintItems();
+}
+
+rpl::producer<> StickersListWidget::hideRequests() const {
+	return _hideRequests.events();
+}
+
+std::optional<StickersListWidget::OverSticker> StickersListWidget::accessibleChild(
+		int index) const {
+	if (index < 0 || _columnCount <= 0) {
+		return std::nullopt;
+	}
+	auto result = std::optional<OverSticker>();
+	enumerateSections([&](const SectionInfo &info) {
+		if (index < info.count) {
+			result = OverSticker{ .section = info.section, .index = index };
+			return false;
+		}
+		index -= info.count;
+		return true;
+	});
+	return result;
+}
+
+int StickersListWidget::accessibleIndex(const OverSticker &over) const {
+	if (_columnCount <= 0) {
+		return -1;
+	}
+	auto result = -1;
+	auto before = 0;
+	enumerateSections([&](const SectionInfo &info) {
+		if (info.section == over.section) {
+			if (over.index >= 0 && over.index < info.count) {
+				result = before + over.index;
+			}
+			return false;
+		}
+		before += info.count;
+		return true;
+	});
+	return result;
+}
+
+QAccessible::Role StickersListWidget::accessibilityRole() {
+	return QAccessible::List;
+}
+
+Qt::FocusPolicy StickersListWidget::accessibilityFocusPolicy() {
+	return Qt::TabFocus;
+}
+
+int StickersListWidget::accessibilityChildCount() const {
+	if (_columnCount <= 0) {
+		return 0;
+	}
+	auto result = 0;
+	enumerateSections([&](const SectionInfo &info) {
+		result += info.count;
+		return true;
+	});
+	return result;
+}
+
+QAccessible::Role StickersListWidget::accessibilityChildRole() const {
+	return QAccessible::ListItem;
+}
+
+QString StickersListWidget::accessibilityChildName(int index) const {
+	// The emoji the sticker stands for: the screen reader names it in
+	// its own words.
+	const auto over = accessibleChild(index);
+	if (!over) {
+		return QString();
+	}
+	const auto &sets = shownSets();
+	const auto document = sets[over->section].stickers[over->index].document;
+	const auto sticker = document->sticker();
+	return sticker ? sticker->alt : QString();
+}
+
+QString StickersListWidget::accessibilityChildDescription(int index) const {
+	// The set the sticker is in, heard on landing in it.
+	const auto over = accessibleChild(index);
+	return over ? shownSets()[over->section].title : QString();
+}
+
+QRect StickersListWidget::accessibilityChildRect(int index) const {
+	const auto over = accessibleChild(index);
+	return over
+		? myrtlrect(stickerRect(over->section, over->index))
+		: QRect();
+}
+
+QAccessible::State StickersListWidget::accessibilityChildState(
+		int index) const {
+	auto state = QAccessible::State();
+	if (Ui::ScreenReaderModeActive()) {
+		state.focusable = true;
+		state.selectable = true;
+	}
+	const auto over = accessibleChild(index);
+	const auto selected = std::get_if<OverSticker>(&_selected);
+	if (over
+		&& selected
+		&& selected->section == over->section
+		&& selected->index == over->index) {
+		state.active = true;
+		// The item the keyboard is on is the selection of the list - or a
+		// screen reader reports every item as "not selected".
+		state.selected = true;
+		if (hasFocus()) {
+			state.focused = true;
+		}
+	}
+	return state;
+}
+
+bool StickersListWidget::accessibilityChildSupportsActions(int index) const {
+	return accessibilityChildIdentity(index) != 0;
+}
+
+quintptr StickersListWidget::accessibilityChildIdentity(int index) const {
+	// The cell itself names the item: its section and its place in it.
+	// The tag bit keeps the token non-zero.
+	const auto over = accessibleChild(index);
+	return over
+		? ((quintptr(over->section + 1) << 24)
+			| (quintptr(over->index + 1) << 1)
+			| quintptr(1))
+		: quintptr(0);
+}
+
+int StickersListWidget::accessibilityChildIndexByIdentity(
+		quintptr identity) const {
+	if (!identity) {
+		return -1;
+	}
+	return accessibleIndex(OverSticker{
+		.section = int(identity >> 24) - 1,
+		.index = int((identity >> 1) & 0x7FFFFF) - 1,
+	});
+}
+
+void StickersListWidget::accessibilityChildSetFocus(quintptr identity) {
+	// UIA invokes the action on a background thread: resolve and touch
+	// the widget on the main one, like the other painted lists do.
+	crl::on_main(this, [=] {
+		const auto index = accessibilityChildIndexByIdentity(identity);
+		const auto over = accessibleChild(index);
+		if (!over) {
+			return;
+		}
+		keyboardSelect(*over, hasFocus());
+		if (!hasFocus()) {
+			_focusReturn = window()->focusWidget();
+			setFocus();
+		}
+	});
+}
+
+void StickersListWidget::accessibilityChildActivate(quintptr identity) {
+	crl::on_main(this, [=] {
+		const auto index = accessibilityChildIndexByIdentity(identity);
+		const auto over = accessibleChild(index);
+		if (!over) {
+			return;
+		}
+		keyboardSelect(*over, false);
+		activateKeyboardSelected();
+	});
+}
+
+void StickersListWidget::keyboardSelect(
+		const OverSticker &over,
+		bool announce) {
+	_keyboardSelection = true;
+	setSelected(over);
+	ensureCellVisible(over);
+	if (announce) {
+		const auto index = accessibleIndex(over);
+		if (index >= 0) {
+			accessibilityChildFocused(index);
+		}
+	}
+}
+
+void StickersListWidget::ensureCellVisible(const OverSticker &over) {
+	const auto rect = stickerRect(over.section, over.index);
+	const auto top = getVisibleTop();
+	const auto bottom = getVisibleBottom();
+	if (bottom <= top) {
+		return;
+	} else if (rect.y() < top) {
+		// Show the header of the set the cell opens.
+		const auto info = sectionInfo(over.section);
+		scrollTo((rect.y() < info.rowsTop + _singleSize.height())
+			? info.top
+			: rect.y());
+	} else if (rect.y() + rect.height() > bottom) {
+		scrollTo(rect.y() + rect.height() - (bottom - top));
+	}
+}
+
+void StickersListWidget::keyboardMoveBy(int delta) {
+	const auto count = accessibilityChildCount();
+	if (!count) {
+		return;
+	}
+	const auto selected = std::get_if<OverSticker>(&_selected);
+	const auto current = selected ? accessibleIndex(*selected) : -1;
+	const auto index = (current < 0)
+		? ((delta > 0) ? 0 : count - 1)
+		: std::clamp(current + delta, 0, count - 1);
+	if (const auto over = accessibleChild(index)) {
+		keyboardSelect(*over, true);
+	}
+}
+
+std::optional<StickersListWidget::OverSticker> StickersListWidget::neighborRow(
+		const OverSticker &over,
+		int step) const {
+	// The same column one row up or down, on into the next set that has
+	// anything to show - its first or its last row.
+	const auto info = sectionInfo(over.section);
+	const auto column = over.index % _columnCount;
+	const auto row = over.index / _columnCount;
+	const auto rows = (info.count + _columnCount - 1) / _columnCount;
+	if (row + step >= 0 && row + step < rows) {
+		const auto index = std::min(
+			(row + step) * _columnCount + column,
+			info.count - 1);
+		return OverSticker{ .section = over.section, .index = index };
+	}
+	const auto sections = int(shownSets().size());
+	auto section = over.section + step;
+	while (section >= 0 && section < sections) {
+		const auto count = sectionInfo(section).count;
+		if (count > 0) {
+			const auto lastRow = (count + _columnCount - 1) / _columnCount - 1;
+			const auto index = std::min(
+				((step > 0) ? 0 : lastRow) * _columnCount + column,
+				count - 1);
+			return OverSticker{ .section = section, .index = index };
+		}
+		section += step;
+	}
+	return std::nullopt;
+}
+
+void StickersListWidget::keyboardMoveRows(int rows) {
+	const auto selected = std::get_if<OverSticker>(&_selected);
+	if (!selected || accessibleIndex(*selected) < 0) {
+		keyboardMoveBy(rows > 0 ? 1 : -1);
+		return;
+	}
+	auto over = *selected;
+	const auto step = (rows > 0) ? 1 : -1;
+	for (auto i = 0; i != std::abs(rows); ++i) {
+		const auto next = neighborRow(over, step);
+		if (!next) {
+			break;
+		}
+		over = *next;
+	}
+	keyboardSelect(over, true);
+}
+
+void StickersListWidget::returnFocus() {
+	const auto was = base::take(_focusReturn);
+	if (was && Ui::InFocusChain(this)) {
+		was->setFocus();
+	} else if (_search && Ui::InFocusChain(this)) {
+		// The search took the focus when the panel came up, and gives it
+		// back from wherever in the panel it is now.
+		_search->returnFocus(true);
+	}
+}
+
+void StickersListWidget::activateKeyboardSelected() {
+	const auto selected = std::get_if<OverSticker>(&_selected);
+	if (!selected || accessibleIndex(*selected) < 0) {
+		return;
+	}
+	const auto over = *selected;
+	const auto &sets = shownSets();
+	const auto document = sets[over.section].stickers[over.index].document;
+	// The focus goes back before the choice is made, and the panel is
+	// done: hide it, as Escape would.
+	returnFocus();
+	_chosen.fire({
+		.document = document,
+		.messageSendingFrom = messageSentAnimationInfo(
+			over.section,
+			over.index,
+			document),
+	});
+	_hideRequests.fire({});
+}
+
+void StickersListWidget::focusInEvent(QFocusEvent *e) {
+	RpWidget::focusInEvent(e);
+	// Land on the sticker last walked to, or the first one there is.
+	const auto selected = std::get_if<OverSticker>(&_selected);
+	auto over = (selected && accessibleIndex(*selected) >= 0)
+		? std::optional<OverSticker>(*selected)
+		: accessibleChild(0);
+	if (!over) {
+		return;
+	}
+	keyboardSelect(*over, false);
+	const auto index = accessibleIndex(*over);
+	InvokeQueued(this, [=] {
+		const auto now = std::get_if<OverSticker>(&_selected);
+		if (hasFocus() && now && accessibleIndex(*now) == index) {
+			accessibilityChildFocused(index);
+		}
+	});
+}
+
+void StickersListWidget::focusOutEvent(QFocusEvent *e) {
+	RpWidget::focusOutEvent(e);
+	_keyboardSelection = false;
+}
+
+void StickersListWidget::keyPressEvent(QKeyEvent *e) {
+	const auto key = e->key();
+	const auto rowHeight = std::max(_singleSize.height(), 1);
+	const auto rowsOnPage = std::max(
+		(getVisibleBottom() - getVisibleTop()) / rowHeight,
+		1);
+	if (key == Qt::Key_Left || key == Qt::Key_Right) {
+		const auto forward = (key == Qt::Key_Right) != rtl();
+		keyboardMoveBy(forward ? 1 : -1);
+	} else if (key == Qt::Key_Up || key == Qt::Key_Down) {
+		keyboardMoveRows((key == Qt::Key_Down) ? 1 : -1);
+	} else if (key == Qt::Key_PageUp || key == Qt::Key_PageDown) {
+		keyboardMoveRows((key == Qt::Key_PageDown)
+			? rowsOnPage
+			: -rowsOnPage);
+	} else if (key == Qt::Key_Home) {
+		keyboardMoveBy(-accessibilityChildCount());
+	} else if (key == Qt::Key_End) {
+		keyboardMoveBy(accessibilityChildCount());
+	} else if (!e->isAutoRepeat()
+		&& (key == Qt::Key_Space
+			|| key == Qt::Key_Return
+			|| key == Qt::Key_Enter)) {
+		activateKeyboardSelected();
+	} else if (key == Qt::Key_Escape) {
+		returnFocus();
+		_hideRequests.fire({});
+	} else {
+		RpWidget::keyPressEvent(e);
+		return;
+	}
+	e->accept();
 }
 
 TabbedSelector::InnerFooter *StickersListWidget::getFooter() const {
@@ -3807,7 +4209,7 @@ void StickersListWidget::showMegagroupSet(ChannelData *megagroup) {
 }
 
 void StickersListWidget::afterShown() {
-	if (_search) {
+	if (_search && !keepsFocusOnShow()) {
 		_search->stealFocus();
 	}
 }
@@ -3828,6 +4230,15 @@ void StickersListWidget::setupSearch() {
 	_search = MakeSearch(this, st(), [=](std::vector<QString> &&query) {
 		applySearchQuery(std::move(query));
 	}, session, type);
+
+	// Enter or Down in the field: on to the first of the results.
+	_search->submits(
+	) | rpl::on_next([=] {
+		if (const auto first = accessibleChild(0)) {
+			keyboardSelect(*first, false);
+			setFocus();
+		}
+	}, lifetime());
 }
 
 void StickersListWidget::applySearchQuery(std::vector<QString> &&query) {

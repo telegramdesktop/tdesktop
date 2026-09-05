@@ -758,9 +758,11 @@ bool SearchWithGroups::groupsHaveFocus() const {
 	return _groups->entity()->hasFocus();
 }
 
-void SearchWithGroups::returnFocus() {
+void SearchWithGroups::returnFocus(bool force) {
 	if (_field && _focusTakenFrom) {
-		if (_field->hasFocus()) {
+		// Forced: the focus went on from the field into the panel, and
+		// the panel is done with it.
+		if (force || _field->hasFocus()) {
 			_focusTakenFrom->setFocus();
 		}
 		_focusTakenFrom = nullptr;
@@ -885,8 +887,8 @@ bool TabbedSearch::groupsHaveFocus() const {
 	return _search.groupsHaveFocus();
 }
 
-void TabbedSearch::returnFocus() {
-	_search.returnFocus();
+void TabbedSearch::returnFocus(bool force) {
+	_search.returnFocus(force);
 }
 
 void TabbedSearch::setRightReserved(int value) {

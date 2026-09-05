@@ -1030,8 +1030,11 @@ QString StickersListFooter::iconTitle(const StickerIcon &icon) const {
 		return icon.megagroup
 			? icon.megagroup->name()
 			: tr::lng_stickers_group_set(tr::now);
-	} else if (icon.set) {
+	} else if (icon.set && !icon.set->title.isEmpty()) {
 		return icon.set->title;
+	} else if (icon.sticker && icon.sticker->sticker()) {
+		// The sections of the GIFs tab stand for an emoji each.
+		return icon.sticker->sticker()->alt;
 	}
 	return QString();
 }
