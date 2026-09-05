@@ -1365,6 +1365,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sure_logout_wallet_local#other" = "{count} of your Gram wallets have their keys stored only on this device, with no Telegram backup. Logging out destroys them — only their recovery phrases can restore them.";
 "lng_sure_logout_wallet_parked#one" = "This device also holds the keys of one other Gram wallet. Logging out destroys them, and that wallet can be restored only if its recovery phrase was written down.";
 "lng_sure_logout_wallet_parked#other" = "This device also holds the keys of {count} other Gram wallets. Logging out destroys them, and those wallets can be restored only if their recovery phrases were written down.";
+"lng_sure_logout_wallet_rotating#one" = "A wallet key change on this device is not confirmed yet. Its replacement key is stored only here and Telegram has no backup of it. Logging out destroys it — if the change goes through, only the replacement recovery phrase can restore the wallet.";
+"lng_sure_logout_wallet_rotating#other" = "{count} wallet key changes on this device are not confirmed yet. Their replacement keys are stored only here and Telegram has no backup of them. Logging out destroys them — if a change goes through, only its replacement recovery phrase can restore that wallet.";
 "lng_sure_logout_wallet_unknown" = "If this device holds any Gram wallet keys, logging out destroys them. They can be restored only from a Telegram backup or your recovery phrase.";
 
 "lng_settings_need_restart" = "You need to restart for applying some of the new settings. Restart now?";
@@ -8924,12 +8926,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_passcode_forgot_confirm" = "Remove keys";
 "lng_wallet_passcode_forgot_done" = "The wallet keys and the passcode were removed from this device.";
 "lng_wallet_passcode_forgot_failed" = "The wallet keys could not be removed. Please try again.";
-"lng_wallet_passcode_forgot_kept" = "The wallet keys were removed, but the passcode could not be. Please try again.";
+"lng_wallet_passcode_forgot_later" = "The wallet keys were removed, but the passcode could not be. Restart Telegram to finish removing it.";
 "lng_wallet_passcode_forgot_leftovers" = "The wallet keys and the passcode were removed from this device. Some leftover wallet data could not be cleaned up.";
 "lng_wallet_passcode_forgot_local#one" = "Your Gram wallet's keys are stored only on this device and Telegram has no backup of them. Removing the keys destroys them — only your recovery phrase can restore the wallet.";
 "lng_wallet_passcode_forgot_local#other" = "{count} of your Gram wallets have their keys stored only on this device, with no Telegram backup. Removing the keys destroys them — only their recovery phrases can restore them.";
 "lng_wallet_passcode_forgot_parked#one" = "This device also holds the keys of one other Gram wallet. Removing the keys destroys them, and that wallet can be restored only if its recovery phrase was written down.";
 "lng_wallet_passcode_forgot_parked#other" = "This device also holds the keys of {count} other Gram wallets. Removing the keys destroys them, and those wallets can be restored only if their recovery phrases were written down.";
+"lng_wallet_passcode_forgot_rotating#one" = "A wallet key change on this device is not confirmed yet. Its replacement key is stored only here and Telegram has no backup of it. Removing the keys destroys it — if the change goes through, only the replacement recovery phrase can restore the wallet.";
+"lng_wallet_passcode_forgot_rotating#other" = "{count} wallet key changes on this device are not confirmed yet. Their replacement keys are stored only here and Telegram has no backup of them. Removing the keys destroys them — if a change goes through, only its replacement recovery phrase can restore that wallet.";
 "lng_wallet_passcode_forgot_unknown" = "If this device holds any Gram wallet keys, removing them destroys them. They can be restored only from a Telegram backup or your recovery phrase.";
 "lng_wallet_replace_password_description" = "Please enter your password to replace your wallet.";
 "lng_wallet_replace_check_about" = "You can replace your wallet only if you have:";

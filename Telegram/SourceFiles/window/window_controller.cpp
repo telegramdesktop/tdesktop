@@ -595,9 +595,7 @@ QString LogoutConfirmationText(Main::Account *account) {
 			// be short-circuited away.
 			legacy = one->local().hasWalletWithUnviewedPhrase() || legacy;
 			const auto part = Wallet::WalletLossOnLogout(one.get());
-			loss.unbacked += part.unbacked;
-			loss.parked += part.parked;
-			loss.unknown = part.unknown || loss.unknown;
+			loss.add(part);
 		}
 		if (legacy) {
 			append(tr::lng_sure_logout_wallet(tr::now));

@@ -36,6 +36,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Wallet {
 namespace {
 
+// The one durable trace the forgot path leaves between destroying the
+// vaults and removing the passcode. It is an app-level preference and not
+// a key_data field, because key_data is the file whose write can fail here
+// and a flag written into it would fail for the same reason and at the
+// same moment; the settings file is a different one, and Local::start()
+// has already read it by the time any domain starts.
+constexpr auto kForgottenPasscodeClearKey = std::string_view(
+	"wallet.forgotten_passcode_clear");
+
 [[nodiscard]] VaultAuthorization Share(VaultGrant grant) {
 	return grant.valid()
 		? std::make_shared<VaultGrant>(std::move(grant))
@@ -150,56 +159,28 @@ void UnlockByKind(
 	return wrapKey && UnwrapVaultKey(*wrap, *wrapKey).has_value();
 }
 
-// The forgot-passcode twin of WalletLossWarning(). The model is shared and
-// correct - both actions destroy the same keys - but the statements are not:
-// the logout renderer's strings say that logging out is what destroys them,
-// and this box has just promised the reader they will not be logged out. So
-// the two renderers say the same facts about the same WalletLoss in their own
-// words, and a change to one belongs in the other.
-[[nodiscard]] QString ForgottenPasscodeLoss(WalletLoss loss) {
-	auto result = QString();
-	const auto append = [&](const QString &line) {
-		if (!result.isEmpty()) {
-			result += u"\n\n"_q;
-		}
-		result += line;
-	};
-	if (loss.unbacked > 0) {
-		append(tr::lng_wallet_passcode_forgot_local(
-			tr::now,
-			lt_count,
-			loss.unbacked));
-	}
-	if (loss.parked > 0) {
-		append(tr::lng_wallet_passcode_forgot_parked(
-			tr::now,
-			lt_count,
-			loss.parked));
-	}
-	if (loss.unknown) {
-		append(tr::lng_wallet_passcode_forgot_unknown(tr::now));
-	}
-	return result;
-}
-
 // What the forgot-passcode confirmation says about every wallet this device
 // would lose. The restorability of one is the model the logout confirmation
 // already states: WalletLossOnLogout() reads the custody store, the served
 // public key and the backup capability, unlocking nothing and writing
 // nothing. An empty loss is two different things - every record is backed, or
 // there is no record at all - so the backup claim is made only against a
-// store that holds records, and an account holding none contributes nothing.
-// A wallet is named only when its account has a live session to name it from
-// - an unauthorized account in Main::Domain::accounts() has none, and
-// inventing a name for it would be a guess about which key is about to go.
+// store that holds records, which is what the model's holdsRecords carries,
+// and an account holding none contributes nothing. That fact travels on the
+// loss instead of being read again, so the store is read exactly once per
+// dependent account and the model, not a second read, is what tells the two
+// empty losses apart. A wallet is named only when its account has a live
+// session to name it from - an unauthorized account in
+// Main::Domain::accounts() has none, and inventing a name for it would be a
+// guess about which key is about to go.
 [[nodiscard]] QString ForgottenPasscodeAbout() {
 	auto result = tr::lng_wallet_passcode_forgot_about(tr::now);
 	const auto dependents = CollectVaultDependents();
 	for (const auto &account : dependents.passcodeWrapped) {
-		auto paragraph = ForgottenPasscodeLoss(WalletLossOnLogout(account));
+		const auto loss = WalletLossOnLogout(account);
+		auto paragraph = ForgottenPasscodeLoss(loss);
 		if (paragraph.isEmpty()) {
-			const auto store = ReadCustodyStore(account->local());
-			if (!store || store->records.empty()) {
+			if (!loss.holdsRecords) {
 				continue;
 			}
 			paragraph = tr::lng_wallet_passcode_forgot_backed(tr::now);
@@ -303,12 +284,28 @@ void DropForgottenPasscode(std::shared_ptr<Main::SessionShow> show) {
 		return;
 	}
 	auto &local = Core::App().domain().local();
+	auto &settings = Core::App().settings();
+	// Every vault this passcode could still be asked for is gone by here, so
+	// its removal is owed from this point on whatever the write does. The flag
+	// is recorded before the write is attempted and is dropped only once
+	// hasPasscode() has answered, so what it covers is a checked write that
+	// did not reach the disk and a crash inside that write. A crash between
+	// the last DropVaultAndCustody() and this line is not covered: the record
+	// sits below the second enumeration so that the surviving-vault refusal
+	// above never writes the flag at all, and that placement is what leaves
+	// the enumeration's own window outside it. saveSettings() rather than the
+	// delayed timer because it queues the bytes now instead of a second from
+	// now; it cannot prove they reached the disk, and a settings write lost as
+	// well leaves exactly today's outcome.
+	settings.writePref<bool>(kForgottenPasscodeClearKey, true);
+	Core::App().saveSettings();
 	local.clearPasscodeAfterReset();
 	if (local.hasPasscode()) {
-		show->showToast(tr::lng_wallet_passcode_forgot_kept(tr::now));
+		show->showToast(tr::lng_wallet_passcode_forgot_later(tr::now));
 		return;
 	}
-	Core::App().settings().setSystemUnlockEnabled(false);
+	settings.clearPref(kForgottenPasscodeClearKey);
+	settings.setSystemUnlockEnabled(false);
 	Core::App().saveSettingsDelayed();
 	Core::App().localPasscodeChanged();
 	show->showToast(cleaned
@@ -460,6 +457,57 @@ QString VaultLockedText(not_null<Main::Session*> session) {
 	return session->domain().local().hasPasscode()
 		? tr::lng_wallet_vault_locked(tr::now)
 		: tr::lng_wallet_vault_no_passcode(tr::now);
+}
+
+void FinishForgottenPasscodeClear(bool openedWithoutPasscode) {
+	auto &settings = Core::App().settings();
+	if (!settings.readPref<bool>(kForgottenPasscodeClearKey, false)) {
+		return;
+	}
+	auto &local = Core::App().domain().local();
+	// The flag says a removal was owed. What authorizes performing it is read
+	// here and is never carried in the flag - and the largest part of it
+	// cannot be read from stored state at all. appLockEnabled() is a
+	// non-emptiness test over a key_data field that nothing in that file
+	// validates, and the file's own integrity check is unkeyed, so
+	// !appLockEnabled() by itself says something about a file anyone holding
+	// the folder can write and not something about this install. What makes
+	// the launch lock's absence a fact is that this process opened the local
+	// key with the empty passcode, which is what openedWithoutPasscode carries
+	// down from Domain::start() and what no planted state can arrange: a start
+	// that had to ask for a typed passcode reports false, and an open wrap
+	// that really does yield this install's local key is one only a holder of
+	// that key could have written. Anything else planted in that field either
+	// does not open under the empty passcode at all - the start returns
+	// IncorrectPasscode, the lock screen appears, and the passcode typed there
+	// is what makes openedWithoutPasscode false - or opens onto something that
+	// is not this install's local key, which fails the start later and starts
+	// it from scratch instead of opening it. Beside it, appLockEnabled()
+	// is still the forgot path's entry condition and the empty list still its
+	// own second enumeration, both asked again at the moment of acting,
+	// because the app lock can have been turned back on and a vault can have
+	// been created since the run that recorded this. Any of them, or a
+	// passcode that is already gone, drops the flag: the state that authorized
+	// the removal no longer exists, and a flag left waiting for it to come
+	// back would be exactly the standing permission this must not be.
+	if (!openedWithoutPasscode
+		|| !local.hasPasscode()
+		|| local.appLockEnabled()
+		|| !CollectVaultDependents().passcodeWrapped.empty()) {
+		settings.clearPref(kForgottenPasscodeClearKey);
+		Core::App().saveSettingsDelayed();
+		return;
+	}
+	local.clearPasscodeAfterReset();
+	if (local.hasPasscode()) {
+		// The write failed again. The flag stays, and the start after this
+		// one tries once more; nothing else in the state has moved.
+		return;
+	}
+	settings.clearPref(kForgottenPasscodeClearKey);
+	settings.setSystemUnlockEnabled(false);
+	Core::App().saveSettingsDelayed();
+	Core::App().localPasscodeChanged();
 }
 
 // The verdict the typed passcode must pass is the caller's; both of them

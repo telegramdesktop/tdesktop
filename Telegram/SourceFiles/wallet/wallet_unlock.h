@@ -76,6 +76,25 @@ void AcquireVaultUnlock(VaultUnlockArgs args);
 
 [[nodiscard]] QString VaultLockedText(not_null<Main::Session*> session);
 
+// The forgot-passcode path's last step, for the run that could not finish
+// it. DropForgottenPasscode() records the removal as owed once every
+// dependent vault is gone and before key_data is written, so a checked
+// write that did not reach the disk - and a crash in the same window - is
+// finished here at the next start instead of leaving a passcode nobody can
+// produce standing over nothing it can open. Called once from
+// Main::Domain::start(), after the accounts are up. It shows nothing,
+// states nothing and logs out nobody, and it destroys no wallet key, vault
+// or custody record: that destruction already happened, and this only
+// finishes the passcode's own removal.
+//
+// openedWithoutPasscode is the fact this start established, and the caller
+// passes what it did rather than what any stored state says: true only
+// when Main::Domain::start() opened the local key with the empty passcode.
+// The launch lock's absence is otherwise read from a key_data field that
+// nothing validates, so this parameter is what makes that absence a fact
+// about this install rather than about a file - see the definition.
+void FinishForgottenPasscodeClear(bool openedWithoutPasscode);
+
 // Vault: the typed passcode must open the vault's own passcode wrap.
 // KeyDataAndVault: it is checked against key_data and, when the vault is
 // passcode-wrapped, must open that wrap too, while nothing is armed,

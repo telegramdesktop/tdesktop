@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "storage/localstorage.h"
 #include "export/export_settings.h"
+#include "wallet/wallet_unlock.h"
 #include "window/notifications_manager.h"
 #include "window/window_controller.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
@@ -69,6 +70,7 @@ Storage::StartResult Domain::start(const QByteArray &passcode) {
 	const auto result = _local->start(passcode);
 	if (result == Storage::StartResult::Success) {
 		activateAfterStarting();
+		Wallet::FinishForgottenPasscodeClear(passcode.isEmpty());
 		crl::on_main(&Core::App(), [=] { suggestExportIfNeeded(); });
 	} else {
 		Assert(!started());

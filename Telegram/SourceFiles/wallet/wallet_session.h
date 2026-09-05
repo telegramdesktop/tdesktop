@@ -194,23 +194,43 @@ struct SendArgs {
 	const QString &prefix,
 	int limit);
 
-// What logging out of an account would destroy on this device, read from
-// its custody store: `unbacked` counts the served wallet when Telegram
-// holds no backup of it, `parked` counts every record the server no longer
-// serves, and `unknown` says the account's loss cannot be stated as a fact,
-// because the custody store could not be read or the served wallet's state
-// has not reached this client. Two invariants a reviewer must be able to
-// check by reading the bodies: nothing here unlocks a vault or reads a
-// secret, and nothing here writes.
+// What logging out of an account, or removing its keys after a forgotten
+// passcode, would destroy on this device, read from its custody store:
+// `unbacked` counts the served wallet when Telegram holds no backup of it,
+// `parked` counts every record the server no longer serves, `rotating` counts
+// a key change this device started and nothing has confirmed - its
+// replacement key is named by no record yet, so a promotion is what would put
+// it under a record, and no backup can cover it before that promotion, which
+// is why it is neither of the first two - and `unknown` says the account's
+// loss cannot be stated as a fact, because the custody store could not be read
+// or the served wallet's state has not reached this client. `holdsRecords` is
+// not a loss: it says whether the store held any record at all, which is what
+// tells an empty loss "every record is backed" apart from "there is nothing
+// here to lose", and carrying it is what lets the forgot confirmation decide
+// that without reading the store a second time. Two invariants a reviewer must
+// be able to check by reading the bodies: nothing here unlocks a vault or
+// reads a secret, and nothing here writes.
+//
+// Two renderers state this model, and they are declared and defined next to
+// each other below for the reason a comment could not enforce: a term given to
+// one and forgotten in the other silently drops a sentence from a
+// confirmation, and the one that would lose it is the irreversible one.
+// add() is the third place a term has to be taught, and it is a member so that
+// the whole-domain confirmation cannot sum the fields by hand again.
 struct WalletLoss {
 	int unbacked = 0;
 	int parked = 0;
+	int rotating = 0;
+	bool holdsRecords = false;
 	bool unknown = false;
+
+	void add(const WalletLoss &other);
 };
 
 [[nodiscard]] WalletLoss WalletLossOnLogout(
 	not_null<Main::Account*> account);
 [[nodiscard]] QString WalletLossWarning(WalletLoss loss);
+[[nodiscard]] QString ForgottenPasscodeLoss(WalletLoss loss);
 
 class Session final {
 public:
