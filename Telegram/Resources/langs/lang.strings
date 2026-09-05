@@ -8608,6 +8608,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sr_bot_verified_badge" = "Verified Bot";
 "lng_sr_profile_menu" = "Profile menu";
 "lng_sr_close_panel" = "Close panel";
+"lng_sr_tabs_position" = "Change tab bar position";
+"lng_sr_tabs_position_top" = "Tab bar at the top";
+"lng_sr_tabs_position_bottom" = "Tab bar at the bottom";
+"lng_sr_tabs_position_left" = "Tab bar on the left";
 
 "lng_ai_compose_title" = "AI Editor";
 "lng_ai_compose_apply" = "Apply";

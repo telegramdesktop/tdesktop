@@ -1306,6 +1306,10 @@ ComposeControls::ComposeControls(
 , _unavailableEmojiPasted(std::move(descriptor.unavailableEmojiPasted))
 , _saveDraftTimer([=] { saveDraft(); })
 , _saveCloudDraftTimer([=] { saveCloudDraft(); }) {
+	// The buttons are created in an order unrelated to where they sit in
+	// the row (the send button first of all), so the Tab chain has to
+	// follow the layout instead of the creation order.
+	_wrap->setVisualTabOrder(true);
 	if (_st.radius > 0) {
 		_backgroundRect.emplace(_st.radius, _st.bg);
 	}
@@ -5557,6 +5561,7 @@ bool ComposeControls::updateSendAsButton(
 	}
 	const auto &st = _st.chooseSendAs;
 	_sendAs = std::make_unique<Ui::SendAsButton>(_wrap.get(), st.button);
+	_sendAs->setAccessibleName(tr::lng_send_as_title(tr::now));
 	if (videoStream) {
 		Ui::SetupSendAsButton(_sendAs.get(), st, videoStream, _show);
 		_videoStreamAdmin = videoStream->creator();
