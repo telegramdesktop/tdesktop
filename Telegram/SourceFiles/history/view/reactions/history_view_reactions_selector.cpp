@@ -1159,7 +1159,10 @@ void Selector::createList() {
 
 	rpl::merge(
 		_list->escapes(),
-		_list->hideRequests()
+		_list->hideRequests(),
+		(_stickers
+			? _stickers->hideRequests()
+			: rpl::never<>())
 	) | rpl::start_to_stream(_escapes, _list->lifetime());
 
 	rpl::merge(

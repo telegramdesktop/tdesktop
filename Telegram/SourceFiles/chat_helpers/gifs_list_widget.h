@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "chat_helpers/tabbed_selector.h"
 #include "base/timer.h"
+#include "base/weak_qptr.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "layout/layout_mosaic.h"
 
@@ -101,6 +102,21 @@ public:
 	void cancelled();
 	rpl::producer<> cancelRequests() const;
 
+	// The GIFs as the items of a list for a screen reader, walked with the
+	// keyboard the same way as the emoji list; Enter or Space sends one.
+	QAccessible::Role accessibilityRole() override;
+	Qt::FocusPolicy accessibilityFocusPolicy() override;
+	int accessibilityChildCount() const override;
+	QAccessible::Role accessibilityChildRole() const override;
+	QString accessibilityChildName(int index) const override;
+	QRect accessibilityChildRect(int index) const override;
+	QAccessible::State accessibilityChildState(int index) const override;
+	bool accessibilityChildSupportsActions(int index) const override;
+	quintptr accessibilityChildIdentity(int index) const override;
+	int accessibilityChildIndexByIdentity(quintptr identity) const override;
+	void accessibilityChildSetFocus(quintptr identity) override;
+	void accessibilityChildActivate(quintptr identity) override;
+
 	base::unique_qptr<Ui::PopupMenu> fillContextMenu(
 		const SendMenu::Details &details) override;
 
@@ -111,6 +127,9 @@ protected:
 		int visibleTop,
 		int visibleBottom) override;
 
+	void focusInEvent(QFocusEvent *e) override;
+	void focusOutEvent(QFocusEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
@@ -152,6 +171,30 @@ private:
 	void inlineResultsDone(const MTPmessages_BotResults &result);
 
 	void updateSelected();
+
+	// The item the keyboard is on, to be found again after a rebuild of
+	// the mosaic: a saved GIF by its document, a searched one by its
+	// result, or by its place in the list when it is gone.
+	struct KeyboardItem {
+		DocumentData *document = nullptr;
+		std::shared_ptr<InlineResult> result;
+		int index = -1;
+	};
+
+	// The list a screen reader sees: the items of the mosaic, row by row.
+	[[nodiscard]] int accessibleCount() const;
+	[[nodiscard]] int accessibleIndex(int mosaicIndex) const;
+	[[nodiscard]] int mosaicIndexAt(int accessibleIndex) const;
+	void keyboardSelect(int mosaicIndex, bool announce);
+	void keyboardMoveBy(int delta);
+	void keyboardMoveRows(int rows);
+	void activateKeyboardSelected();
+	void ensureItemVisible(int mosaicIndex);
+	void returnFocus();
+	void focusFromSearch(int mosaicIndex);
+	void servePendingResultsFocus();
+	[[nodiscard]] KeyboardItem takeKeyboardItem();
+	void childrenChanged(const KeyboardItem &keyboard);
 	void paintInlineItems(Painter &p, QRect clip);
 	void refreshIcons();
 	[[nodiscard]] std::vector<StickerIcon> fillIcons();
@@ -170,7 +213,9 @@ private:
 	void deleteUnusedInlineLayouts();
 
 	int validateExistingInlineRows(const InlineResults &results);
-	void selectInlineResult(
+	// Whether the GIF was chosen: one whose preview a click waits for is
+	// not, but starts loading.
+	bool selectInlineResult(
 		int index,
 		Api::SendOptions options,
 		bool forceSend = false,
@@ -202,6 +247,16 @@ private:
 	Mosaic::Layout::MosaicLayout<LayoutItem> _mosaic;
 
 	int _selected = -1;
+	// The selection was made from the keyboard: the mouse leaving the
+	// list does not clear it.
+	bool _keyboardSelection = false;
+	KeyboardItem _keyboardItem;
+	quint32 _childrenGeneration = 1;
+	base::weak_qptr<QWidget> _focusReturn;
+	// The query whose first result takes the focus once its results are
+	// shown, see servePendingResultsFocus().
+	std::optional<QString> _pendingResultsFocus;
+	rpl::event_stream<> _hideRequests;
 	int _pressed = -1;
 	QPoint _lastMousePos;
 
