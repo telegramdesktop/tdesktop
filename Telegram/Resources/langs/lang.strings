@@ -2665,6 +2665,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_gram_transfer_sent_unknown" = "You sent {amount}";
 "lng_action_gram_transfer_received_unknown" = "You received {amount}";
 "lng_action_gram_transfer_comment" = "{text}: {comment}";
+"lng_action_gram_transfer_received_tag" = "received";
+"lng_action_gram_transfer_sent_tag" = "sent";
+"lng_action_gram_transfer_encrypted_comment" = "Encrypted comment";
 "lng_action_took_screenshot" = "{from} took a screenshot!";
 "lng_action_you_took_screenshot" = "You took a screenshot!";
 "lng_action_bot_allowed_from_domain" = "You allowed this bot to message you when you logged in on {domain}.";

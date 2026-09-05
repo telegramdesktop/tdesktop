@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_message.h"
 #include "history/view/media/history_view_community_added.h"
+#include "history/view/media/history_view_gram_transfer.h"
 #include "history/view/media/history_view_media_common.h"
 #include "history/view/media/history_view_media_generic.h"
 #include "history/view/media/history_view_media_grouped.h"
@@ -1657,6 +1658,8 @@ void Element::refreshMedia(Element *replacing) {
 			}
 		}
 		_media = media->createView(this, replacing);
+	} else if (item->Has<HistoryServiceGramTransfer>()) {
+		_media = CreateGramTransferMedia(this);
 	} else if (item->showSimilarChannels()) {
 		_media = std::make_unique<SimilarChannels>(this);
 	} else if (isOnlyCustomEmoji()
@@ -1832,6 +1835,10 @@ int Element::textHeightFor(int textWidth) const {
 
 auto Element::contextDependentServiceText() -> TextWithLinks {
 	const auto item = data();
+	if (item->Has<HistoryServiceGramTransfer>()) {
+		auto prepared = item->prepareGramTransferText(false);
+		return { std::move(prepared.text), std::move(prepared.links) };
+	}
 	const auto info = item->Get<HistoryServiceTopicInfo>();
 	if (!info) {
 		return {};

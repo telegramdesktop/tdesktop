@@ -878,10 +878,13 @@ struct HistoryServicePaymentRefund
 
 struct HistoryServiceGramTransfer
 : RuntimeComponent<HistoryServiceGramTransfer, HistoryItem> {
+	[[nodiscard]] QString commentText() const;
+
 	int64 amount = 0;
 	QString peerAddress;
 	QString transactionId;
 	QString comment;
+	bool commentEncrypted = false;
 };
 
 enum class HistorySelfDestructType {

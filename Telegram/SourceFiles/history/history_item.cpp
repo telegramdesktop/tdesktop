@@ -82,6 +82,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/payments_non_panel_process.h" // ProcessNonPanelPaymentFormFactory.
 #include "platform/platform_notifications_manager.h"
 #include "spellcheck/spellcheck_highlight_syntax.h"
+
+#include "styles/style_credits.h"
 #include "styles/style_dialogs.h"
 
 namespace {
@@ -5658,6 +5660,7 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 		transfer->peerAddress = qs(data.vpeer_address());
 		transfer->transactionId = qs(data.vtransaction_id());
 		transfer->comment = qs(data.vcomment().value_or_empty());
+		transfer->commentEncrypted = data.is_comment_encrypted();
 	} else if (type == mtpc_messageActionGroupCall
 		|| type == mtpc_messageActionGroupCallScheduled) {
 		const auto started = (type == mtpc_messageActionGroupCall);
@@ -8563,16 +8566,19 @@ PreparedServiceText HistoryItem::preparePaymentSentText() {
 	return result;
 }
 
-PreparedServiceText HistoryItem::prepareGramTransferText() {
+PreparedServiceText HistoryItem::prepareGramTransferText(
+		bool includeComment) {
 	auto result = PreparedServiceText();
 	const auto transfer = Get<HistoryServiceGramTransfer>();
 	Assert(transfer != nullptr);
 
-	const auto amount = tr::lng_wallet_send_pill_gram(
-		tr::now,
-		lt_amount,
-		tr::marked(Ui::FormatTonAmount(transfer->amount).full),
-		tr::marked);
+	const auto amount = Ui::Text::IconEmoji(&st::tonIconEmojiLarge, u"◆"_q)
+		.append(' ')
+		.append(tr::lng_wallet_send_pill_gram(
+			tr::now,
+			lt_amount,
+			tr::marked(Ui::FormatTonAmount(transfer->amount).full),
+			tr::marked));
 	const auto counterparty = out() ? history()->peer : from();
 	const auto user = history()->owner().userLoaded(
 		peerToUser(counterparty->id));
@@ -8611,7 +8617,7 @@ PreparedServiceText HistoryItem::prepareGramTransferText() {
 			amount,
 			tr::marked);
 	}
-	const auto comment = TextUtilities::SingleLine(transfer->comment);
+	const auto comment = includeComment ? transfer->commentText() : QString();
 	if (!comment.isEmpty()) {
 		result.text = tr::lng_action_gram_transfer_comment(
 			tr::now,

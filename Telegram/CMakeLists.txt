@@ -1022,6 +1022,8 @@ PRIVATE
     history/view/media/history_view_gif.h
     history/view/media/history_view_giveaway.cpp
     history/view/media/history_view_giveaway.h
+    history/view/media/history_view_gram_transfer.cpp
+    history/view/media/history_view_gram_transfer.h
     history/view/media/history_view_invoice.cpp
     history/view/media/history_view_invoice.h
     history/view/media/history_view_large_emoji.cpp

@@ -1531,6 +1531,14 @@ TextWithEntities ComposeTodoTasksList(
 	return ComposeTodoTasksList(names.size(), names);
 }
 
+QString HistoryServiceGramTransfer::commentText() const {
+	return comment.isEmpty()
+		? QString()
+		: commentEncrypted
+		? tr::lng_action_gram_transfer_encrypted_comment(tr::now)
+		: TextUtilities::SingleLine(comment);
+}
+
 HistoryDocumentCaptioned::HistoryDocumentCaptioned()
 : caption(st::msgFileMinWidth - rect::m::sum::h(st::msgPadding)) {
 }

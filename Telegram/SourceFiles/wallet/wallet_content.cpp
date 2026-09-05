@@ -134,36 +134,6 @@ constexpr auto kMaxAmountNano = 999'999'999'999'999'999LL;
 constexpr auto kSendUserLoadTimeout = 30 * crl::time(1000);
 constexpr auto kRowAmountPreciseBelowNano = Ui::kNanosInOne / 100;
 
-[[nodiscard]] float64 AlignedMarkTop(
-		const style::font &font,
-		const QImage &image) {
-	Expects(!image.isNull());
-	Expects(image.hasAlphaChannel());
-	const auto rowHasAlpha = [&](int y) {
-		for (auto x = 0; x != image.width(); ++x) {
-			if (qAlpha(image.pixel(x, y))) {
-				return true;
-			}
-		}
-		return false;
-	};
-	auto first = 0;
-	while (first != image.height() && !rowHasAlpha(first)) {
-		++first;
-	}
-	Expects(first != image.height());
-	auto last = image.height() - 1;
-	while (!rowHasAlpha(last)) {
-		--last;
-	}
-	const auto zero = font->metrics().tightBoundingRect(u"0"_q);
-	const auto digitCenter = font->ascent
-		+ (zero.top() + zero.bottom()) / 2.;
-	const auto markCenter = (first + last + 1.)
-		/ (2. * image.devicePixelRatio());
-	return digitCenter - markCenter;
-}
-
 class BalanceInk;
 class Card;
 
@@ -1269,7 +1239,7 @@ void AddFeeTableRow(
 	if (alignMarkToDigits) {
 		const auto &font = table->st().defaultValue.style.font;
 		const auto image = descriptor.factory();
-		const auto alignedTop = AlignedMarkTop(font, image);
+		const auto alignedTop = Ui::Earn::AlignedMarkTop(font, image);
 		const auto emojiY = (font->height - st::emojiSize) / 2;
 		const auto lineShift = Ui::Fixed(font->ascent) - font->fascent;
 		const auto naturalTop = (lineShift + emojiY).toInt()
@@ -7432,7 +7402,7 @@ void BalanceInk::refresh() {
 	_markSettled = Ui::Earn::IconCurrencyColored(
 		st::walletCardMarkSize,
 		SettledBalancePalette().mark);
-	_markTop = AlignedMarkTop(
+	_markTop = Ui::Earn::AlignedMarkTop(
 		st::walletCardBalanceMajorLabel.style.font,
 		_markCard);
 }

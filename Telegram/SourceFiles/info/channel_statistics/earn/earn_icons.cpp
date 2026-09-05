@@ -83,6 +83,36 @@ QImage IconCurrencyColored(
 	return IconCurrencyColored(font->ascent, c);
 }
 
+float64 AlignedMarkTop(
+		const style::font &font,
+		const QImage &image) {
+	Expects(!image.isNull());
+	Expects(image.hasAlphaChannel());
+	const auto rowHasAlpha = [&](int y) {
+		for (auto x = 0; x != image.width(); ++x) {
+			if (qAlpha(image.pixel(x, y))) {
+				return true;
+			}
+		}
+		return false;
+	};
+	auto first = 0;
+	while (first != image.height() && !rowHasAlpha(first)) {
+		++first;
+	}
+	Expects(first != image.height());
+	auto last = image.height() - 1;
+	while (!rowHasAlpha(last)) {
+		--last;
+	}
+	const auto zero = font->metrics().tightBoundingRect(u"0"_q);
+	const auto digitCenter = font->ascent
+		+ (zero.top() + zero.bottom()) / 2.;
+	const auto markCenter = (first + last + 1.)
+		/ (2. * image.devicePixelRatio());
+	return digitCenter - markCenter;
+}
+
 QByteArray CurrencySvgColored(const QColor &c) {
 	return CurrencySvg(c);
 }
