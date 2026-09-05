@@ -82,6 +82,7 @@ constexpr auto kClientRequestTimeoutMs = uint64(15000);
 // emulation round trip (the Wallet::Api deadline plus queueing); the fresh
 // prepare keeps the engine's own send validity.
 constexpr auto kRotationQuoteValiditySeconds = uint64(120);
+constexpr auto kOwnershipProofSignatureSize = 64;
 
 [[nodiscard]] std::optional<int64> DecimalInt64(const std::string &value) {
 	auto ok = false;
@@ -201,6 +202,8 @@ struct ThrowawayRotation {
 		return u"InvalidRecoveryPhrase"_q;
 	} catch (const engine::wallet_lifecycle_error::AddressDerivationFailed &) {
 		return u"AddressDerivationFailed"_q;
+	} catch (const engine::wallet_lifecycle_error::TonConnectSigningFailed &) {
+		return u"TonConnectSigningFailed"_q;
 	} catch (const engine::wallet_lifecycle_error::SecretWalletMismatch &) {
 		return u"SecretWalletMismatch"_q;
 	} catch (const engine::wallet_lifecycle_error::ProtectedSecretHost &) {
@@ -2352,51 +2355,111 @@ void Session::replaceWithImported(
 			return lifecycle->import_wallet(request);
 		}, [=, this](engine::WalletDescriptor descriptor) {
 			const auto record = RecordFromDescriptor(descriptor);
-			sendReplaceWallet(
-				MTP_inputWalletImported(MTP_bytes(record.publicKey)),
-				password,
-				[=, this](const MTPWalletState &state) {
-					const auto answered = (state.type() == mtpc_walletState)
-						? state.c_walletState().vpublic_key().v
-						: QByteArray();
-					if (answered != record.publicKey) {
-						LOG(("Wallet Error: wallet.replaceWallet answered "
-							"another key."));
-						if (install.created) {
-							dropCreatedVault();
-						}
-						_engine->run([lifecycle, descriptor] {
-							lifecycle->delete_wallet(descriptor);
-						}, [=] {
-							fail(u"REPLACE_KEY_MISMATCH"_q);
-						}, [=](EngineError) {
-							LOG(("Wallet Error: delete_wallet after a key "
-								"mismatch failed."));
-							fail(u"REPLACE_KEY_MISMATCH"_q);
-						});
-						return;
-					}
-					finishConfirmedReplace(
-						oldRecord,
-						record,
-						state,
-						done,
-						fail);
-				},
-				[=, this](const QString &error) {
+			const auto abandon = [=, this](const QString &error) {
+				if (install.created) {
+					dropCreatedVault();
+				}
+				_engine->run([lifecycle, descriptor] {
+					lifecycle->delete_wallet(descriptor);
+				}, [=] {
+					fail(error);
+				}, [=](EngineError) {
+					LOG(("Wallet Error: delete_wallet after an abandoned "
+						"import failed."));
+					fail(error);
+				});
+			};
+			const auto applied = [=, this](const MTPWalletState &state) {
+				const auto answered = (state.type() == mtpc_walletState)
+					? state.c_walletState().vpublic_key().v
+					: QByteArray();
+				if (answered != record.publicKey) {
+					LOG(("Wallet Error: wallet.replaceWallet answered "
+						"another key."));
 					if (install.created) {
 						dropCreatedVault();
 					}
 					_engine->run([lifecycle, descriptor] {
 						lifecycle->delete_wallet(descriptor);
 					}, [=] {
-						fail(error);
+						fail(u"REPLACE_KEY_MISMATCH"_q);
 					}, [=](EngineError) {
-						LOG(("Wallet Error: delete_wallet after a failed "
-							"replace failed."));
-						fail(error);
+						LOG(("Wallet Error: delete_wallet after a key "
+							"mismatch failed."));
+						fail(u"REPLACE_KEY_MISMATCH"_q);
 					});
+					return;
+				}
+				finishConfirmedReplace(
+					oldRecord,
+					record,
+					state,
+					done,
+					fail);
+			};
+			const auto send = [=, this](
+					TimeId timestamp,
+					const std::vector<uint8_t> &signature) {
+				sendReplaceWallet(
+					MTP_inputWalletImported(
+						MTP_bytes(record.publicKey),
+						MTP_walletOwnershipProof(
+							MTP_int(timestamp),
+							MTP_bytes(bytes::make_span(signature)))),
+					password,
+					applied,
+					abandon);
+			};
+			const auto sign = [=, this](
+					const MTPDwallet_proofChallenge &challenge) {
+				const auto timestamp = base::unixtime::now();
+				if (timestamp <= 0) {
+					LOG(("Wallet Error: no usable timestamp for the ownership "
+						"proof."));
+					abandon(u"REPLACE_PROOF_FAILED"_q);
+					return;
+				}
+				auto request = engine::TonConnectProofSignRequest{
+					.descriptor = descriptor,
+					.domain = challenge.vdomain().v.toStdString(),
+					.timestamp = uint64_t(timestamp),
+					.payload = challenge.vpayload().v.toStdString(),
+				};
+				_engine->run([lifecycle, request = std::move(request)] {
+					return lifecycle->sign_ton_connect_proof(request);
+				}, [=, grant = install.grant](engine::TonConnectProofSignature proof) {
+					const auto size = int(proof.signature.size());
+					if (size != kOwnershipProofSignatureSize) {
+						LOG(("Wallet Error: the ownership proof signature has "
+							"%1 bytes.").arg(size));
+						abandon(u"REPLACE_PROOF_FAILED"_q);
+						return;
+					}
+					send(timestamp, proof.signature);
+				}, [=, grant = install.grant](EngineError error) {
+					LOG(("Wallet Error: sign_ton_connect_proof failed: %1"
+						).arg(LifecycleErrorName(error)));
+					abandon(IsVaultLocked(error)
+						? u"REPLACE_VAULT_LOCKED"_q
+						: u"REPLACE_PROOF_FAILED"_q);
 				});
+			};
+			// The challenge lives 300 seconds and admits one attempt, so it
+			// is fetched only here - after the install ladder answered and
+			// the engine stored the words - and signed at once. A cancelled
+			// chooser, a refused phrase or a failed import never reaches
+			// this continuation and issues no challenge. A resend of this
+			// request mints a new challenge server-side and only the final
+			// answer is used, so it keeps the ordinary flood policy; the
+			// send that spends the proof does not, see sendReplaceWallet.
+			_stateApi.request(MTPwallet_GetProofChallenge(
+			)).done([=](const MTPwallet_ProofChallenge &result) {
+				sign(result.data());
+			}).fail([=](const MTP::Error &error) {
+				LOG(("Wallet Error: wallet.getProofChallenge failed: %1"
+					).arg(error.type()));
+				abandon(u"REPLACE_PROOF_FAILED"_q);
+			}).handleFloodErrors().send();
 		}, [=, this](EngineError error) {
 			_engine->dropStoredSecrets(*stores);
 			if (install.created) {
@@ -2434,17 +2497,28 @@ void Session::sendReplaceWallet(
 		Fn<void(const QString &)> fail) {
 	using Flag = MTPwallet_replaceWallet::Flag;
 	const auto checked = password && *password;
-	_stateApi.request(MTPwallet_ReplaceWallet(
+	auto request = _stateApi.request(MTPwallet_ReplaceWallet(
 		MTP_flags(checked ? Flag::f_password : Flag(0)),
 		wallet,
-		checked ? password->result : MTP_inputCheckPasswordEmpty()
-	)).done([=](const MTPWalletState &result) {
+		checked ? password->result : MTP_inputCheckPasswordEmpty()));
+	// An imported replacement carries a one-shot ownership proof: the
+	// server admits one attempt per challenge, and the MTP instance's
+	// automatic resend of a request answered with a negative or 500-class
+	// code repeats the identical body, so a resent proof could only be
+	// refused as spent or spend the challenge behind the flow's back. Such
+	// an answer therefore reaches .fail() here and the import is abandoned;
+	// the next press fetches a fresh challenge and signs a fresh proof. A
+	// new wallet carries nothing one-shot and keeps the transport's resend.
+	auto &policy = (wallet.type() == mtpc_inputWalletImported)
+		? request.handleAllErrors()
+		: request.handleFloodErrors();
+	policy.done([=](const MTPWalletState &result) {
 		applied(result);
 	}).fail([=](const MTP::Error &error) {
 		LOG(("Wallet Error: wallet.replaceWallet failed: %1"
 			).arg(error.type()));
 		fail(error.type());
-	}).handleFloodErrors().send();
+	}).send();
 }
 
 void Session::finishConfirmedReplace(
