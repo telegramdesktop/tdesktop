@@ -3996,6 +3996,37 @@ void ListWidget::validateTrippleClickStartTime() {
 }
 
 void ListWidget::contextMenuEvent(QContextMenuEvent *e) {
+	// A keyboard-invoked event carries the center of an empty input method
+	// rect for a position, which may sit nowhere near the focused message -
+	// rebuild the event anchored on it, so everything in showContextMenu
+	// reading the event position (the menu, the reactions selector) lands
+	// on the message.
+	if (e->reason() == QContextMenuEvent::Keyboard
+		&& _accessibilityFocusedItem) {
+		const auto view = viewForItem(_accessibilityFocusedItem);
+		const auto top = view ? itemTop(view) : -1;
+		if (view && top >= 0) {
+			auto rect = QRect(0, top, width(), view->height());
+			const auto visible = QRect(
+				0,
+				_visibleTop,
+				width(),
+				_visibleBottom - _visibleTop);
+			if (rect.intersects(visible)) {
+				rect = rect.intersected(visible);
+			}
+			const auto global = Ui::ContextMenuPosition(this, e, rect);
+			auto adjusted = QContextMenuEvent(
+				QContextMenuEvent::Keyboard,
+				mapFromGlobal(global),
+				global);
+			showContextMenu(&adjusted);
+			if (adjusted.isAccepted()) {
+				e->accept();
+			}
+			return;
+		}
+	}
 	showContextMenu(e);
 }
 
