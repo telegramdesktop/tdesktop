@@ -838,6 +838,57 @@ void TopBarWidget::mousePressEvent(QMouseEvent *e) {
 	}
 }
 
+bool TopBarWidget::event(QEvent *e) {
+	if (e->type() == QEvent::ToolTip) {
+		const auto pos = static_cast<QHelpEvent*>(e)->pos();
+		const auto nametop = st::topBarArrowPadding.top();
+		const auto nameheight = st::msgNameStyle.font->height;
+		const auto nameleft = _leftTaken;
+		const auto namewidth = width()
+			- _rightTaken
+			- nameleft
+			- st::topBarNameRightPadding;
+		const auto nameRect = QRect(
+			nameleft,
+			nametop,
+			namewidth,
+			nameheight);
+		_tooltipText = QString();
+		if (nameRect.contains(pos)) {
+			const auto topic = _activeChat.key.topic();
+			if (topic
+				&& _activeChat.section == Section::Replies) {
+				const auto &topicName = topic->chatListNameText();
+				if (topicName.maxWidth() > namewidth) {
+					_tooltipText = topicName.toString();
+				}
+			} else if (!_title.isEmpty()
+				&& _title.maxWidth() > namewidth) {
+				_tooltipText = _title.toString();
+			}
+		}
+		if (_tooltipText.isEmpty()) {
+			Ui::Tooltip::Hide();
+		} else {
+			Ui::Tooltip::Show(0, this);
+		}
+		return true;
+	}
+	return RpWidget::event(e);
+}
+
+QString TopBarWidget::tooltipText() const {
+	return _tooltipText;
+}
+
+QPoint TopBarWidget::tooltipPos() const {
+	return QCursor::pos();
+}
+
+bool TopBarWidget::tooltipWindowActive() const {
+	return Ui::AppInFocus() && Ui::InFocusChain(window());
+}
+
 void TopBarWidget::infoClicked() {
 	const auto key = _activeChat.key;
 	if (!key) {
