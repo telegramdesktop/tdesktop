@@ -6627,6 +6627,30 @@ QAccessible::Role HistoryInner::accessibilityChildRole() const {
 	return QAccessible::Role::ListItem;
 }
 
+QAccessible::Role HistoryInner::accessibilityChildRoleAt(int index) const {
+	// The unread bar divides the read messages from the unread ones, it
+	// is not a message itself - a separator to a screen reader, which also
+	// keeps it out of the selection and the item count.
+	const auto barIndex = accessibilityUnreadBarIndex();
+	return (barIndex >= 0 && index == barIndex)
+		? QAccessible::Role::Separator
+		: accessibilityChildRole();
+}
+
+Ui::AccessibilitySetPosition HistoryInner::accessibilityChildSetPosition(
+		int index) const {
+	// The unread bar is not one of the messages: it has no position of its
+	// own and does not count, so the messages below it are not shifted.
+	const auto count = accessibilityChildCount();
+	const auto barIndex = accessibilityUnreadBarIndex();
+	if (barIndex < 0) {
+		return { index + 1, count };
+	} else if (index == barIndex) {
+		return {};
+	}
+	return { (index > barIndex) ? index : (index + 1), count - 1 };
+}
+
 QRect HistoryInner::accessibilityChildRect(int index) const {
 	const auto barIndex = accessibilityUnreadBarIndex();
 	if (barIndex >= 0 && index == barIndex) {
