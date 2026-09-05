@@ -1708,6 +1708,15 @@ void Widget::setupMainMenuToggle() {
 			? &st::dialogsMenuToggleUnread
 			: &st::dialogsMenuToggleUnreadMuted;
 		_mainMenu.toggle->setIconOverride(icon, icon);
+		// The unread dot is only painted - surface it to a screen reader
+		// through the button's description.
+		const auto description = state.count
+			? tr::lng_sr_menu_unread_other_accounts(tr::now)
+			: QString();
+		if (_mainMenu.toggle->accessibleDescription() != description) {
+			_mainMenu.toggle->setAccessibleDescription(description);
+			_mainMenu.toggle->accessibilityDescriptionChanged();
+		}
 	}, _mainMenu.toggle->lifetime());
 }
 
