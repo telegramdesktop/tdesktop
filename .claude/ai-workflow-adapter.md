@@ -19,12 +19,15 @@ This file adapts harness mechanics and removes unnecessary text normalization.
   Preserve its single-writer and one-stateful-performer constraints.
 - Classify each assignment with
   [phase effort](../.agents/shared/phase-effort.md). Where that policy selects
-  `medium`, explicitly pass `model: "opus"` on the Agent call. For work
-  classified as `high` or `xhigh`, omit `model` to inherit the parent model.
+  `medium` or justified `high`, explicitly pass `model: "opus"` on the Agent
+  call. The `high` choice requires the parent's concrete reason from the
+  inspected scope that the phase contains nothing complex. For `xhigh`, omit
+  `model` to inherit the parent model; this remains the default for non-routine
+  work.
   Classify the whole assignment: a performer or planner does not become
   `medium` because part of its work is routine. Do not pass a reasoning field
   — the Agent tool has none, so actual effort remains inherited. The `opus`
-  pin does not set medium reasoning effort.
+  pin changes the model, not the reasoning effort.
 - Run every phase leaf as a synchronous foreground Agent call. The call
   returning is the completion signal: validate the required files and
   repository state right there, treating the short reply as notification

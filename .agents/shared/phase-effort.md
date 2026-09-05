@@ -42,11 +42,13 @@ the existing validation/review contract. Likewise, unexpected complexity in a
   Omit `model` to retain the parent model. Use `fork_turns: "none"` or the
   smallest necessary positive turn window; a full-history fork cannot carry
   these overrides. Put required context and exact paths in the prompt.
-- **Claude Code:** For an assignment classified as `medium`, pass
-  `model: "opus"` on the Agent call. For `high`/`xhigh` assignments, omit
-  `model` and inherit the parent model. Do not pass a reasoning field: the
-  Agent tool does not expose one. The `opus` pin is a model choice for these
-  phases, not a claim that their actual reasoning effort became `medium`.
+- **Claude Code:** For an assignment classified as `medium` or justified
+  `high`, pass `model: "opus"` on the Agent call. The `high` choice requires
+  the parent's concrete reason from the inspected scope that the phase
+  contains nothing complex, as above. For `xhigh` assignments, omit `model`
+  and inherit the parent model; this remains the default for non-routine
+  work. Do not pass a reasoning field: the Agent tool does not expose one.
+  The `opus` pin changes the model; actual reasoning effort remains inherited.
 - **Grok Build:** Keep the adapter's inherited model and effort; do not invent
   unsupported effort arguments.
 - **Same-session work or unavailable overrides:** Retain the actual session
