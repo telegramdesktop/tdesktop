@@ -2314,8 +2314,12 @@ wallet.encryptedSecretPhrasePart#18e82537 data:bytes = wallet.EncryptedSecretPhr
 
 wallet.holderDc#f9d612ef dc:int public_key:bytes = wallet.HolderDc;
 
+wallet.proofChallenge#99e41707 payload:string expires:int domain:string = wallet.ProofChallenge;
+
+walletOwnershipProof#60bccb0d timestamp:int signature:bytes = WalletOwnershipProof;
+
 inputWalletNew#63a440dc = InputWalletReplacement;
-inputWalletImported#330c560c public_key:bytes = InputWalletReplacement;
+inputWalletImported#2959057c public_key:bytes proof:WalletOwnershipProof = InputWalletReplacement;
 
 ---functions---
 
@@ -3177,5 +3181,6 @@ wallet.replaceWallet#d8c72eec flags:# wallet:InputWalletReplacement password:fla
 wallet.disableBackup#199e1f1 flags:# password:flags.0?InputCheckPasswordSRP = WalletState;
 wallet.getBackupHolderDcs#d179d494 = Vector<wallet.HolderDc>;
 wallet.enableBackup#81a2b0f3 flags:# parts:Vector<bytes> password:flags.0?InputCheckPasswordSRP = WalletState;
+wallet.getProofChallenge#2025e697 = wallet.ProofChallenge;
 
-// LAYER 231
+// LAYER 230
