@@ -649,6 +649,8 @@ PRIVATE
     data/components/promo_suggestions.h
     data/components/recent_inline_bots.cpp
     data/components/recent_inline_bots.h
+    data/components/recent_money_recipients.cpp
+    data/components/recent_money_recipients.h
     data/components/recent_peers.cpp
     data/components/recent_peers.h
     data/components/recent_shared_media_gifts.cpp

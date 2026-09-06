@@ -83,6 +83,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_context_menu.h"
 #include "history/view/history_view_schedule_box.h"
 #include "iv/editor/iv_editor_session.h"
+#include "wallet/wallet_content.h"
+#include "wallet/wallet_session.h"
+#include "wallet/wallet_user_addresses.h"
 #include "window/window_separate_id.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
@@ -135,6 +138,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h" // st::windowMinWidth
 #include "styles/style_menu_icons.h"
 #include "styles/style_premium.h"
+#include "styles/style_wallet.h"
 
 #include <QAction>
 #include <QtWidgets/QApplication>
@@ -338,6 +342,7 @@ private:
 	void addDeleteContact();
 	void addTTLSubmenu(bool addSeparator);
 	void addSendGift();
+	void addSendMoney();
 	void addCreateTopic();
 	void addViewAsMessages();
 	void addViewAsTopics();
@@ -1695,6 +1700,37 @@ void Filler::addSendGift() {
 	}, &st::menuIconGiftPremium);
 }
 
+void Filler::addSendMoney() {
+	const auto user = _peer->asUser();
+	if (!user) {
+		return;
+	}
+	const auto controller = _controller;
+	const auto session = &controller->session();
+	const auto userId = peerToUser(user->id);
+	const auto weakController = base::make_weak(controller);
+	const auto weakSession = base::make_weak(session);
+	const auto canOffer = [=] {
+		return weakController
+			&& weakSession
+			&& &controller->session() == session
+			&& &user->session() == session
+			&& session->data().userLoaded(userId) == user
+			&& !user->isSelf()
+			&& session->wallet().userAddresses().forceResolveError(
+				userId).isEmpty();
+	};
+	if (!canOffer()) {
+		return;
+	}
+	const auto activated = std::make_shared<bool>(false);
+	_addAction(tr::lng_wallet_profile_send_money(tr::now), [=] {
+		if (canOffer() && !std::exchange(*activated, true)) {
+			Wallet::ShowSendToUser(controller->uiShow(), user);
+		}
+	}, &st::walletMenuIcon);
+}
+
 void Filler::fill() {
 	if (_folder) {
 		fillArchiveActions();
@@ -1957,6 +1993,7 @@ void Filler::fillProfileActions() {
 	addBotToGroup();
 	addNewMembers();
 	addSendGift();
+	addSendMoney();
 	addViewStatistics();
 	addStoryArchive();
 	addManageChat();

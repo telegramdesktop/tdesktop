@@ -16,12 +16,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/unixtime.h"
 #include "boxes/passcode_box.h"
+#include "boxes/peer_list_box.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/credits_amount.h"
 #include "core/file_utilities.h"
 #include "core/ton_explorer_url.h"
 #include "core/ui_integration.h"
+#include "data/components/recent_money_recipients.h"
 #include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -44,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/table_rows.h"
 #include "ui/controls/ton_common.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/effects/unique_gift_message_bubble.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/custom_emoji_helper.h"
 #include "ui/text/format_values.h"
@@ -87,11 +90,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QUrl>
 #include <QtGui/QClipboard>
 #include <QtGui/QGuiApplication>
+#include <QtGui/QPainterPath>
 #include <QtSvg/QSvgRenderer>
 #include <QtWidgets/QTextEdit>
 
 #include <array>
 
+#include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_giveaway.h"
@@ -100,6 +105,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_wallet.h"
 #include "styles/style_widgets.h"
+#include "styles/style_window.h"
 
 namespace Wallet {
 namespace {
@@ -2992,6 +2998,93 @@ struct SendFlow {
 	QByteArray senderKey;
 };
 
+class SendCommentBubble final : public Ui::RpWidget {
+public:
+	SendCommentBubble(
+		QWidget *parent,
+		rpl::producer<SendComment> comment);
+
+protected:
+	int resizeGetHeight(int newWidth) override;
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	void setText(const QString &text);
+
+	Ui::Text::String _text = { 1 };
+	Ui::UniqueGiftMessageBubble::Layout _layout;
+	QPainterPath _path;
+
+};
+
+SendCommentBubble::SendCommentBubble(
+	QWidget *parent,
+	rpl::producer<SendComment> comment)
+: RpWidget(parent) {
+	std::move(comment) | rpl::map([](const SendComment &value) {
+		return value.text;
+	}) | rpl::distinct_until_changed() | rpl::on_next([this](
+			const QString &text) {
+		setText(text);
+	}, lifetime());
+}
+
+int SendCommentBubble::resizeGetHeight(int newWidth) {
+	if (!newWidth) {
+		return 0;
+	}
+	_layout = Ui::UniqueGiftMessageBubble::ResolveLayout(
+		st::walletSendCommentBubble,
+		style::margins(
+			st::walletSendFieldMargin.left(),
+			0,
+			st::walletSendFieldMargin.right(),
+			st::walletSendFieldMargin.bottom()),
+		newWidth,
+		_text);
+	auto mirror = QTransform();
+	mirror.translate(2 * QRectF(_layout.pathBounds).center().x(), 0.);
+	mirror.scale(-1., 1.);
+	_path = mirror.map(Ui::UniqueGiftMessageBubble::Path(
+		st::walletSendCommentBubble,
+		_layout));
+	const auto shift = -st::walletSendCommentBubble.tailSize.width();
+	_layout.body.translate(shift, 0);
+	_layout.text.translate(shift, 0);
+	return _layout.sectionHeight;
+}
+
+void SendCommentBubble::paintEvent(QPaintEvent *e) {
+	auto p = Painter(this);
+	{
+		auto hq = PainterHighQualityEnabler(p);
+		p.setBrush(Qt::NoBrush);
+		p.setPen(QPen(
+			st::walletSendCommentOutline,
+			st::lineWidth,
+			Qt::SolidLine,
+			Qt::RoundCap,
+			Qt::RoundJoin));
+		p.drawPath(_path);
+	}
+	p.setPen(st::walletSendCommentTextFg);
+	_text.draw(p, {
+		.position = _layout.text.topLeft(),
+		.outerWidth = width(),
+		.availableWidth = _layout.text.width(),
+		.align = style::al_topleft,
+		.elisionLines = 0,
+	});
+}
+
+void SendCommentBubble::setText(const QString &text) {
+	_text.setText(st::walletSendCommentTextStyle, text);
+	if (width() > 0) {
+		resizeToWidth(width());
+	}
+	update();
+}
+
 void ShowSendWordsRecovery(
 	std::shared_ptr<Main::SessionShow> show,
 	Fn<bool()> originValid,
@@ -3155,6 +3248,50 @@ void AddCommentPrivacy(
 	error->finishAnimating();
 }
 
+void WalletSendCommentBox(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<SendDraft> draft,
+		Fn<bool()> originValid) {
+	box->setWidth(st::boxWideWidth);
+	box->setTitle(tr::lng_wallet_comment_title());
+	const auto staged = std::make_shared<SendDraft>();
+	staged->comment = draft->comment.current();
+	const auto field = AddCommentField(box, staged->comment.current().text);
+	BindCommentField(field, staged);
+	AddCommentPrivacy(
+		box->verticalLayout(),
+		staged,
+		st::walletCommentPrivacyMargin);
+
+	struct State {
+		bool closed = false;
+	};
+	const auto state = box->lifetime().make_state<State>();
+	const auto weak = base::make_weak(box.get());
+	box->boxClosing() | rpl::on_next([=] {
+		state->closed = true;
+	}, box->lifetime());
+	const auto save = [=] {
+		if (state->closed || !originValid()) {
+			return;
+		} else if (!CommentFits(staged->comment.current().text)) {
+			field->showError();
+			field->setFocusFast();
+			return;
+		}
+		state->closed = true;
+		draft->comment = staged->comment.current();
+		if (const auto alive = weak.get()) {
+			alive->closeBox();
+		}
+	};
+	box->addButton(tr::lng_wallet_comment_add(), save);
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	field->submits() | rpl::on_next(save, field->lifetime());
+	box->setFocusCallback([=] { field->setFocusFast(); });
+	AddBoxCloseButton(box);
+}
+
 [[nodiscard]] QString SendErrorText(SendError error) {
 	switch (error) {
 	case SendError::None:
@@ -3251,16 +3388,12 @@ void WalletSendConfirmBox(
 		rpl::single(tr::marked(
 			langDateTime(base::unixtime::parse(base::unixtime::now())))));
 
-	const auto field = flow.userId
-		? nullptr
-		: AddCommentField(box, draft->comment.current().text).get();
-	if (field) {
-		BindCommentField(field, draft);
-		AddCommentPrivacy(
-			box->verticalLayout(),
-			draft,
-			st::walletCommentPrivacyMargin);
-	}
+	const auto field = AddCommentField(box, draft->comment.current().text);
+	BindCommentField(field, draft);
+	AddCommentPrivacy(
+		box->verticalLayout(),
+		draft,
+		st::walletCommentPrivacyMargin);
 
 	struct State {
 		rpl::variable<bool> sending = false;
@@ -3319,9 +3452,7 @@ void WalletSendConfirmBox(
 		} else if (state->sending.current() || draft->preparing.current()) {
 			return;
 		} else if (!CommentFits(draft->comment.current().text)) {
-			if (field) {
-				field->showError();
-			}
+			field->showError();
 			refuse(SendError::CommentTooLong);
 			return;
 		} else if (!draft->quote.current()) {
@@ -3417,10 +3548,8 @@ void WalletSendConfirmBox(
 		AddChildToWidgetCenter(button.data(), loading);
 		loading->showOn(std::move(busy));
 	}
-	if (field) {
-		field->submits() | rpl::on_next(submit, field->lifetime());
-		box->setFocusCallback([=] { field->setFocusFast(); });
-	}
+	field->submits() | rpl::on_next(submit, field->lifetime());
+	box->setFocusCallback([=] { field->setFocusFast(); });
 	AddBoxCloseButton(box);
 }
 
@@ -3619,6 +3748,271 @@ void SetButtonDisabledLook(
 	return field;
 }
 
+class RecentMoneyRecipientsController final
+	: public PeerListController
+	, public base::has_weak_ptr {
+public:
+	RecentMoneyRecipientsController(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<Main::SessionShow> show);
+
+	void prepare() override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+	Main::Session &session() const override;
+
+	void setContent(not_null<PeerListContent*> content);
+	void clear();
+	[[nodiscard]] rpl::producer<bool> shownValue() const;
+
+private:
+	[[nodiscard]] bool active() const;
+	[[nodiscard]] bool canOffer(not_null<UserData*> user) const;
+	void refresh();
+	void scheduleRefresh();
+	void watchUsers();
+
+	const base::weak_qptr<Ui::GenericBox> _box;
+	const std::shared_ptr<Main::SessionShow> _show;
+	const base::weak_ptr<Main::Session> _session;
+	PeerListContentDelegateSimple _delegate;
+	std::vector<not_null<UserData*>> _users;
+	rpl::lifetime _userLifetime;
+	rpl::variable<bool> _shown = false;
+	bool _closed = false;
+	bool _choosing = false;
+	bool _refreshQueued = false;
+
+};
+
+RecentMoneyRecipientsController::RecentMoneyRecipientsController(
+	not_null<Ui::GenericBox*> box,
+	std::shared_ptr<Main::SessionShow> show)
+: _box(box)
+, _show(std::move(show))
+, _session(&_show->session()) {
+}
+
+void RecentMoneyRecipientsController::setContent(
+		not_null<PeerListContent*> content) {
+	_delegate.setContent(content);
+	setDelegate(&_delegate);
+}
+
+void RecentMoneyRecipientsController::prepare() {
+	_box->boxClosing() | rpl::on_next([=] {
+		_closed = true;
+		_shown = false;
+	}, lifetime());
+	_session->recentMoneyRecipients().updates() | rpl::on_next([=] {
+		refresh();
+	}, lifetime());
+	const auto schedule = [=] { scheduleRefresh(); };
+	const auto &wallet = _session->wallet();
+	wallet.stateKnownValue() | rpl::skip(1) | rpl::on_next(
+		schedule,
+		lifetime());
+	wallet.balanceNanoValue() | rpl::skip(1) | rpl::on_next(
+		schedule,
+		lifetime());
+	_session->wallet().userAddresses().unavailableValue(
+	) | rpl::skip(1) | rpl::on_next(schedule, lifetime());
+	refresh();
+}
+
+bool RecentMoneyRecipientsController::active() const {
+	return _box
+		&& !_closed
+		&& !_choosing
+		&& _session
+		&& _show->valid()
+		&& &_show->session() == _session.get();
+}
+
+bool RecentMoneyRecipientsController::canOffer(
+		not_null<UserData*> user) const {
+	const auto id = peerToUser(user->id);
+	return active()
+		&& &user->session() == _session.get()
+		&& _session->data().userLoaded(id) == user
+		&& !user->isSelf()
+		&& _session->wallet().userAddresses().forceResolveError(id).isEmpty();
+}
+
+void RecentMoneyRecipientsController::watchUsers() {
+	_userLifetime.destroy();
+	for (const auto user : _users) {
+		user->flagsValue() | rpl::skip(1) | rpl::on_next([=] {
+			scheduleRefresh();
+		}, _userLifetime);
+		using Flag = Data::PeerUpdate::Flag;
+		_session->changes().peerUpdates(
+			user,
+			Flag::FullInfo | Flag::SupportInfo | Flag::OnlineStatus
+		) | rpl::on_next([=](const Data::PeerUpdate &update) {
+			if (!active()) {
+				return;
+			}
+			if (update.flags & Flag::OnlineStatus) {
+				if (const auto row = delegate()->peerListFindRow(user->id.value)) {
+					row->refreshStatus();
+					delegate()->peerListUpdateRow(row);
+				}
+			}
+			if (update.flags & (Flag::FullInfo | Flag::SupportInfo)) {
+				scheduleRefresh();
+			}
+		}, _userLifetime);
+	}
+}
+
+void RecentMoneyRecipientsController::refresh() {
+	if (!active()) {
+		_shown = false;
+		return;
+	}
+	const auto &users = _session->recentMoneyRecipients().list();
+	if (_users != users) {
+		_users = users;
+		watchUsers();
+	}
+	auto rows = std::vector<not_null<UserData*>>();
+	rows.reserve(_users.size());
+	for (const auto user : _users) {
+		if (canOffer(user)) {
+			rows.push_back(user);
+		}
+	}
+	const auto count = delegate()->peerListFullRowsCount();
+	auto changed = (count != int(rows.size()));
+	for (auto i = 0; !changed && i != count; ++i) {
+		changed = (delegate()->peerListRowAt(i)->peer() != rows[i]);
+	}
+	if (changed) {
+		while (delegate()->peerListFullRowsCount()) {
+			delegate()->peerListRemoveRow(delegate()->peerListRowAt(0));
+		}
+		for (const auto user : rows) {
+			delegate()->peerListAppendRow(std::make_unique<PeerListRow>(user));
+		}
+		delegate()->peerListRefreshRows();
+	}
+	_shown = !rows.empty();
+}
+
+void RecentMoneyRecipientsController::scheduleRefresh() {
+	if (!active() || _refreshQueued) {
+		return;
+	}
+	_refreshQueued = true;
+	crl::on_main(this, [=] {
+		_refreshQueued = false;
+		refresh();
+	});
+}
+
+void RecentMoneyRecipientsController::rowClicked(
+		not_null<PeerListRow*> row) {
+	if (!active()) {
+		return;
+	}
+	const auto user = row->peer()->asUser();
+	if (!user || !canOffer(user)) {
+		return;
+	}
+	const auto show = _show;
+	const auto box = _box;
+	const auto session = _session;
+	const auto userId = peerToUser(user->id);
+	_choosing = true;
+	_shown = false;
+	box->closeBox();
+	if (session
+		&& show->valid()
+		&& &show->session() == session.get()
+		&& session->data().userLoaded(userId) == user) {
+		ShowSendToUser(show, user);
+	}
+}
+
+Main::Session &RecentMoneyRecipientsController::session() const {
+	return *_session;
+}
+
+void RecentMoneyRecipientsController::clear() {
+	if (!active()) {
+		return;
+	}
+	const auto session = _session;
+	session->recentMoneyRecipients().clear();
+	if (session) {
+		session->local().writeSearchSuggestionsIfNeeded();
+	}
+}
+
+rpl::producer<bool> RecentMoneyRecipientsController::shownValue() const {
+	return _shown.value();
+}
+
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeRecentMoneyRecipientsList(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<Main::SessionShow> show) {
+	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+		box,
+		object_ptr<Ui::VerticalLayout>(box));
+	const auto wrap = result.data();
+	const auto container = wrap->entity();
+	const auto controller = container->lifetime().make_state<
+		RecentMoneyRecipientsController>(box, std::move(show));
+
+	const auto header = container->add(object_ptr<Ui::RpWidget>(container));
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		header,
+		tr::lng_recent_title(),
+		st::windowFilterChatsSectionSubtitle);
+	const auto clear = Ui::CreateChild<Ui::LinkButton>(
+		header,
+		QString(),
+		st::boxLinkButton);
+	tr::lng_recent_clear() | rpl::on_next([=](const QString &text) {
+		clear->setText(text);
+	}, clear->lifetime());
+	clear->setClickedCallback([=] { controller->clear(); });
+	rpl::combine(
+		header->widthValue(),
+		clear->naturalWidthValue(),
+		label->heightValue()
+	) | rpl::on_next([=](int width, int, int) {
+		const auto &padding = st::walletSendRecentHeaderPadding;
+		const auto available = std::max(
+			width - padding.left() - padding.right(),
+			0);
+		clear->resizeToNaturalWidth(available);
+		label->resizeToWidth(std::max(
+			available - clear->width() - st::walletSendFieldMargin.bottom(),
+			0));
+		const auto height = std::max(
+			st::windowFilterChatsSectionSubtitleHeight,
+			std::max(label->height(), clear->height())
+				+ padding.top()
+				+ padding.bottom());
+		header->resize(width, height);
+		label->moveToLeft(padding.left(), (height - label->height()) / 2);
+		clear->moveToRight(padding.right(), (height - clear->height()) / 2);
+	}, header->lifetime());
+	header->paintRequest() | rpl::on_next([=](QRect clip) {
+		QPainter(header).fillRect(clip, st::searchedBarBg);
+	}, header->lifetime());
+
+	controller->setStyleOverrides(&st::peerListSingleRow);
+	const auto content = container->add(
+		object_ptr<PeerListContent>(container, controller));
+	controller->setContent(content);
+	Ui::AddSkip(container, st::walletSendRecentListSkip);
+	wrap->toggleOn(controller->shownValue());
+	wrap->finishAnimating();
+	return result;
+}
+
 void WalletSendBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
@@ -3646,6 +4040,8 @@ void WalletSendBox(
 	struct State {
 		std::optional<SendFlow> flow;
 		std::optional<SendQuoteDependencies> previewDependencies;
+		base::unique_qptr<Ui::PopupMenu> menu;
+		base::weak_qptr<Ui::GenericBox> commentBox;
 		QByteArray senderKey;
 		uint64 previewRevision = 0;
 		uint64 loadRevision = 0;
@@ -3718,6 +4114,56 @@ void WalletSendBox(
 			&& state->loadError.current().isEmpty()
 			&& (!user || (state->flow && userError().isEmpty()));
 	};
+	const auto receive = [=] {
+		if (originValid()) {
+			ShowWalletReceiveBox(session, box->uiShow());
+		}
+	};
+	if (user) {
+		const auto toggle = box->addTopButton(st::boxTitleMenu);
+		toggle->setClickedCallback([=] {
+			if (!originValid() || state->menu) {
+				return;
+			}
+			state->menu = base::make_unique_q<Ui::PopupMenu>(
+				box,
+				st::popupMenuWithIcons);
+			const auto raw = state->menu.get();
+			raw->setDestroyedCallback(crl::guard(toggle, [=] {
+				toggle->setForceRippled(false);
+			}));
+			toggle->setForceRippled(true);
+			raw->addAction(
+				Ui::Text::FixAmpersandInAction(
+					tr::lng_wallet_send_deposit(tr::now)),
+				receive,
+				&st::menuIconAdd);
+			raw->addAction(
+				Ui::Text::FixAmpersandInAction(
+					tr::lng_wallet_comment_title(tr::now)),
+				[=] {
+					if (!originValid()
+						|| state->commentBox
+						|| state->confirmationOpen) {
+						return;
+					}
+					auto editor = Box(WalletSendCommentBox, draft, originValid);
+					const auto raw = editor.data();
+					state->commentBox = base::make_weak(raw);
+					raw->boxClosing() | rpl::on_next([=] {
+						if (weak && state->commentBox.get() == raw) {
+							state->commentBox = nullptr;
+						}
+					}, raw->lifetime());
+					box->uiShow()->showBox(std::move(editor));
+				},
+				&st::menuIconChatBubble);
+			raw->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
+			raw->popup(toggle->mapToGlobal(QPoint(
+				toggle->width(),
+				toggle->height())));
+		});
+	}
 	const auto quoteDependencies = [=] {
 		const auto validSession = sessionValid();
 		return SendQuoteDependencies{
@@ -3804,6 +4250,7 @@ void WalletSendBox(
 				0));
 		errorWrap->toggleOn(state->invalid.value());
 		errorWrap->finishAnimating();
+		recipient->add(MakeRecentMoneyRecipientsList(box, show));
 	}
 
 	const auto wrap = box->addRow(
@@ -3854,6 +4301,19 @@ void WalletSendBox(
 		) | rpl::map([](bool loading, const QString &error) {
 			return !loading && error.isEmpty();
 		}));
+	if (user) {
+		const auto comment = inner->add(
+			object_ptr<Ui::SlideWrap<SendCommentBubble>>(
+				inner,
+				object_ptr<SendCommentBubble>(inner, draft->comment.value())),
+			style::margins(),
+			style::al_justify);
+		comment->toggleOn(draft->comment.value() | rpl::map([](
+				const SendComment &value) {
+			return !value.text.isEmpty();
+		}));
+		comment->finishAnimating();
+	}
 
 	const auto updateAmount = [=] {
 		if (state->settingUnitText) {
@@ -3986,6 +4446,7 @@ void WalletSendBox(
 		const auto args = SendArgs{
 			.destination = dependencies.destination,
 			.amountNano = dependencies.amountNano,
+			.userId = userId,
 			.comment = dependencies.comment,
 			.bounce = dependencies.bounce,
 		};
@@ -4313,11 +4774,7 @@ void WalletSendBox(
 		style::margins(0, user ? st::walletDetailsAmountMinorSkip : 0, 0, 0),
 		user ? style::al_top : style::al_left);
 	deposit->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
-	deposit->setClickedCallback([=] {
-		if (originValid()) {
-			ShowWalletReceiveBox(session, box->uiShow());
-		}
-	});
+	deposit->setClickedCallback(receive);
 	depositWrap->toggleOn(std::move(showInsufficient));
 	depositWrap->finishAnimating();
 
@@ -4341,7 +4798,10 @@ void WalletSendBox(
 		}
 	};
 	const auto openConfirmation = [=] {
-		if (!originValid() || !state->flow || !draft->quote.current()) {
+		if (!originValid()
+			|| !state->flow
+			|| !draft->quote.current()
+			|| state->commentBox) {
 			return;
 		}
 		auto next = *state->flow;
@@ -4404,7 +4864,9 @@ void WalletSendBox(
 				failLoading(userError());
 			}
 			return;
-		} else if (state->confirmationOpen || draft->preparing.current()) {
+		} else if (state->confirmationOpen
+			|| state->commentBox
+			|| draft->preparing.current()) {
 			return;
 		} else if (!CommentFits(draft->comment.current().text)) {
 			if (commentField) {

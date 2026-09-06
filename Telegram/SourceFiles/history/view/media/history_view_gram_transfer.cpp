@@ -128,7 +128,7 @@ private:
 
 [[nodiscard]] QString SignedAmount(int64 value, bool outgoing) {
 	auto amount = Ui::FormatTonAmount(value).full;
-	const auto negativeSign = QLocale::system().negativeSign();
+	const auto negativeSign = QString(QLocale::system().negativeSign());
 	if (value < 0 && amount.startsWith(negativeSign)) {
 		amount.remove(0, negativeSign.size());
 	}

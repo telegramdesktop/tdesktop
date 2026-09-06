@@ -35,6 +35,7 @@ class Changes;
 class GiftAuctions;
 class RecentInlineBots;
 class RecentPeers;
+class RecentMoneyRecipients;
 class RecentSharedMediaGifts;
 class ScheduledMessages;
 class WelcomeMessages;
@@ -150,6 +151,9 @@ public:
 	}
 	[[nodiscard]] Data::RecentPeers &recentPeers() const {
 		return *_recentPeers;
+	}
+	[[nodiscard]] Data::RecentMoneyRecipients &recentMoneyRecipients() const {
+		return *_recentMoneyRecipients;
 	}
 	[[nodiscard]] Data::RecentSharedMediaGifts &recentSharedGifts() const {
 		return *_recentSharedGifts;
@@ -335,6 +339,7 @@ private:
 	const std::unique_ptr<SendAsPeers> _sendAsPeers;
 	const std::unique_ptr<InlineBots::AttachWebView> _attachWebView;
 	const std::unique_ptr<Data::RecentPeers> _recentPeers;
+	const std::unique_ptr<Data::RecentMoneyRecipients> _recentMoneyRecipients;
 	const std::unique_ptr<Data::RecentSharedMediaGifts> _recentSharedGifts;
 	const std::unique_ptr<Data::GiftAuctions> _giftAuctions;
 	const std::unique_ptr<Data::ScheduledMessages> _scheduledMessages;

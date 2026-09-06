@@ -8,8 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_session.h"
 
 #include "base/unixtime.h"
+#include "data/components/recent_money_recipients.h"
 #include "data/data_peer_id.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "gram/api/gram_api_emulate.h"
 #include "lang/lang_keys.h"
 #include "main/main_account.h"
@@ -3874,6 +3876,7 @@ void Session::send(
 	const auto generation = prepared->generation;
 	const auto destination = args.destination;
 	const auto amountNano = args.amountNano;
+	const auto userId = args.userId;
 	const auto comment = args.comment.isPublic
 		? args.comment.text
 		: QString();
@@ -3902,9 +3905,18 @@ void Session::send(
 	};
 	_engine->run([client, request = std::move(request)] {
 		return client->send(request);
-	}, [=, this, grant = auth.grant](engine::SendResult) {
+	}, [=, this, grant = auth.grant](engine::SendResult result) {
 		if (generation != _networkGeneration) {
 			return;
+		}
+		if (result.phase == engine::SendPhase::kSubmitted && userId) {
+			const auto user = _session->data().userLoaded(userId);
+			if (user && !user->isSelf()) {
+				_session->recentMoneyRecipients().bump(user);
+				if (!weak) {
+					return;
+				}
+			}
 		}
 		recordPending();
 	}, [=, this, grant = auth.grant](EngineError error) {

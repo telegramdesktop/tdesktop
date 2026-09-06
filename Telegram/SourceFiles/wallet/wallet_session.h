@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_map.h"
 #include "base/timer.h"
 #include "core/core_cloud_password.h"
+#include "data/data_peer_id.h"
 #include "gram/api/gram_api_nft.h"
 #include "mtproto/sender.h"
 #include "wallet/wallet_address.h"
@@ -194,6 +195,7 @@ inline constexpr auto kSendCommentMaxBytes = 960;
 struct SendArgs {
 	QString destination;
 	int64 amountNano = 0;
+	UserId userId;
 	SendComment comment;
 	bool bounce = true;
 

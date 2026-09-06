@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 using "ui/basic.style";
+using "ui/chat/chat.style";
 using "ui/layers/layers.style";
 using "ui/widgets/widgets.style";
 using "info/channel_statistics/boosts/giveaway/giveaway.style";
@@ -266,7 +267,15 @@ walletSendCommentField: InputField(walletSendField) {
 	heightMin: 39px;
 }
 walletSendFieldMargin: margins(24px, 12px, 24px, 12px);
+walletSendRecentHeaderPadding: margins(24px, 5px, 24px, 5px);
+walletSendRecentListSkip: 12px;
 walletSendCommentPrivacyMargin: margins(24px, 0px, 24px, 0px);
+walletSendCommentBubble: UniqueGiftMessageBubble(chatUniqueMessageBubble) {
+	avatarSize: 0px;
+}
+walletSendCommentTextStyle: semiboldTextStyle;
+walletSendCommentTextFg: windowSubTextFg;
+walletSendCommentOutline: boxDividerFg;
 walletSendMarkSize: 15px;
 walletSendMarkPosition: point(0px, 31px);
 walletSendFiatTop: 29px;
