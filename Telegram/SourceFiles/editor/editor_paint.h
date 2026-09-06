@@ -88,6 +88,8 @@ private:
 	};
 
 	ItemBase::Data itemBaseData() const;
+	ItemBase::Data mediaItemData(QSize mediaSize) const;
+	void addMediaItem(std::shared_ptr<ItemBase> item);
 	void addImageItem(QImage &&image);
 	void applyViewTransform();
 	void bakeTextScales();

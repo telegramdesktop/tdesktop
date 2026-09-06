@@ -35,6 +35,7 @@ namespace {
 constexpr auto kMaxBrush = 25.;
 constexpr auto kMinBrush = 1.;
 constexpr auto kShapeSizeRatio = 2. / 5.;
+constexpr auto kMediaSizeRatio = 1. / 2.;
 
 [[nodiscard]] float64 BrushSize(const Brush &brush) {
 	return kMinBrush + float64(kMaxBrush - kMinBrush) * brush.sizeRatio;
@@ -171,12 +172,9 @@ Paint::Paint(
 
 		controllers->stickersPanelController->stickerChosen(
 		) | rpl::on_next([=](not_null<DocumentData*> document) {
-			disarmShapeTool();
-			const auto item = std::make_shared<ItemSticker>(
+			addMediaItem(std::make_shared<ItemSticker>(
 				document,
-				itemBaseData());
-			_scene->addItem(item);
-			_scene->clearSelection();
+				itemBaseData()));
 		}, lifetime());
 	}
 
@@ -575,12 +573,19 @@ void Paint::addImageItem(QImage &&image) {
 			Qt::KeepAspectRatio,
 			Qt::SmoothTransformation);
 	}
-	disarmShapeTool();
-	const auto item = std::make_shared<ItemImage>(
+	const auto data = mediaItemData(image.size());
+	addMediaItem(std::make_shared<ItemImage>(
 		Ui::PixmapFromImage(std::move(image)),
-		itemBaseData());
+		data));
+}
+
+void Paint::addMediaItem(std::shared_ptr<ItemBase> item) {
+	disarmShapeTool();
 	_scene->addItem(item);
 	_scene->clearSelection();
+	item->setSelected(true);
+	item->setFocus();
+	_view->setFocus();
 }
 
 void Paint::paintImage(QPainter &p, const QPixmap &image) const {
@@ -625,6 +630,24 @@ ItemBase::Data Paint::itemBaseData() const {
 		.rotation = -_transform.angle,
 		.imageSize = _imageSize,
 	};
+}
+
+ItemBase::Data Paint::mediaItemData(QSize mediaSize) const {
+	auto result = itemBaseData();
+	if (mediaSize.isEmpty()) {
+		return result;
+	}
+	const auto scene = _scene->sceneRect().size();
+	const auto aspect = mediaSize.width() / float64(mediaSize.height());
+	const auto width = (aspect > 1.)
+		? std::floor(scene.width() * kMediaSizeRatio)
+		: std::floor(scene.height() * kMediaSizeRatio) * aspect;
+	result.size = int(std::min({
+		width,
+		scene.width(),
+		scene.height() * aspect,
+	}));
+	return result;
 }
 
 void Paint::applyViewTransform() {
