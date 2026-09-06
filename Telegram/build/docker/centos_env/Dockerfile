@@ -1001,6 +1001,33 @@ cd ..
 rm -rf tde2e
 EOF
 
+FROM builder AS tlottie
+RUN <<EOF
+RUST_TOOLCHAIN=1.96.1
+export RUSTUP_HOME=/usr/src/rustup
+export CARGO_HOME=/usr/src/cargo
+wget -O rustup-init.sh https://sh.rustup.rs
+sh rustup-init.sh -y --no-modify-path --profile minimal --default-toolchain $RUST_TOOLCHAIN
+rm rustup-init.sh
+export RUSTUP_TOOLCHAIN=$RUST_TOOLCHAIN
+export PATH=$CARGO_HOME/bin:$PATH
+export DESTDIR=/usr/src/tlottie-cache
+git init tlottie
+cd tlottie
+git remote add origin https://github.com/dkaraush/tlottie.git
+git fetch --depth=1 origin 758c7cb74444f1c3c9923065c40fdb3aad8b7d60
+git reset --hard FETCH_HEAD
+cargo rustc --lib --release --locked \
+	--features c-api --crate-type staticlib \
+	--target x86_64-unknown-linux-gnu \
+	-- --print native-static-libs
+mkdir -p $DESTDIR/usr/local/lib $DESTDIR/usr/local/include/tlottie
+objcopy --strip-debug target/x86_64-unknown-linux-gnu/release/libtlottie.a $DESTDIR/usr/local/lib/libtlottie.a
+cp include/tlottie.h $DESTDIR/usr/local/include/tlottie/tlottie.h
+cd ..
+rm -rf tlottie rustup cargo
+EOF
+
 FROM builder
 COPY --link --from=zlib /usr/src/zlib-cache /
 COPY --link --from=xz /usr/src/xz-cache /
@@ -1043,6 +1070,7 @@ COPY --link --from=breakpad /usr/src/breakpad-cache /
 COPY --link --from=webrtc /usr/src/webrtc-cache /
 COPY --link --from=ada /usr/src/ada-cache /
 COPY --link --from=tde2e /usr/src/tde2e-cache /
+COPY --link --from=tlottie /usr/src/tlottie-cache /
 
 COPY --link --from=patches /usr/src/patches patches
 RUN <<EOF

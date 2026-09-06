@@ -543,6 +543,28 @@ mac:
         git+https://chromium.googlesource.com/external/gyp@master six
 """, 'ThirdParty')
 
+rustToolchain = '1.96.1'
+stage('rust', """
+win:
+    powershell -Command "iwr -OutFile ./rustup-init.exe https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe"
+    SET "RUSTUP_HOME=%THIRDPARTY_DIR%\\rust\\rustup"
+    SET "CARGO_HOME=%THIRDPARTY_DIR%\\rust\\cargo"
+    rustup-init.exe -y --no-modify-path --profile minimal ^
+        --default-toolchain """ + rustToolchain + """ ^
+        --component rust-src ^
+        --target aarch64-pc-windows-msvc
+    del rustup-init.exe
+mac:
+    wget -O rustup-init.sh https://sh.rustup.rs
+    export RUSTUP_HOME=$THIRDPARTY_DIR/rust/rustup
+    export CARGO_HOME=$THIRDPARTY_DIR/rust/cargo
+    sh rustup-init.sh -y --no-modify-path --profile minimal \\
+        --default-toolchain """ + rustToolchain + """ \\
+        --target aarch64-apple-darwin \\
+        --target x86_64-apple-darwin
+    rm rustup-init.sh
+""", 'ThirdParty')
+
 stage('lzma', """
 win:
     git clone https://github.com/desktop-app/lzma.git
@@ -1960,6 +1982,54 @@ mac:
     buildTd Debug
 release:
     buildTd Release
+""")
+
+stage('tlottie', """
+    git clone https://github.com/dkaraush/tlottie.git
+    cd tlottie
+    git checkout 758c7cb744
+win:
+    SET "RUSTUP_HOME=%THIRDPARTY_DIR%\\rust\\rustup"
+    SET "CARGO_HOME=%THIRDPARTY_DIR%\\rust\\cargo"
+    SET RUSTUP_TOOLCHAIN=""" + rustToolchain + """
+    SET "PATH=%CARGO_HOME%\\bin;%PATH%"
+win32:
+    SET "RUST_TARGET=i686-win7-windows-msvc"
+    SET "RUST_BUILD_STD=-Z build-std=std,panic_abort"
+    SET "RUSTC_BOOTSTRAP=1"
+win64:
+    SET "RUST_TARGET=x86_64-win7-windows-msvc"
+    SET "RUST_BUILD_STD=-Z build-std=std,panic_abort"
+    SET "RUSTC_BOOTSTRAP=1"
+winarm:
+    SET "RUST_TARGET=aarch64-pc-windows-msvc"
+    SET "RUST_BUILD_STD="
+win:
+    cargo rustc --lib --release --locked ^
+        --features c-api --crate-type staticlib ^
+        %RUST_BUILD_STD% ^
+        --target %RUST_TARGET% ^
+        --config "target.%RUST_TARGET%.rustflags=['-C','target-feature=+crt-static']" ^
+        -- --print native-static-libs
+    mkdir out\\lib out\\include
+    copy target\\%RUST_TARGET%\\release\\tlottie.lib out\\lib\\tlottie.lib
+    copy include\\tlottie.h out\\include\\tlottie.h
+mac:
+    export RUSTUP_HOME=$THIRDPARTY_DIR/rust/rustup
+    export CARGO_HOME=$THIRDPARTY_DIR/rust/cargo
+    export RUSTUP_TOOLCHAIN=""" + rustToolchain + """
+    export PATH=$CARGO_HOME/bin:$PATH
+    buildOneArch() {
+        cargo rustc --lib --release --locked \\
+            --features c-api --crate-type staticlib \\
+            --target $1 \\
+            -- --print native-static-libs
+    }
+    buildOneArch aarch64-apple-darwin
+    buildOneArch x86_64-apple-darwin
+    mkdir -p $USED_PREFIX/lib $USED_PREFIX/include/tlottie
+    lipo -create target/aarch64-apple-darwin/release/libtlottie.a target/x86_64-apple-darwin/release/libtlottie.a -output $USED_PREFIX/lib/libtlottie.a
+    cp include/tlottie.h $USED_PREFIX/include/tlottie/tlottie.h
 """)
 
 if win:
