@@ -287,15 +287,17 @@ rpl::producer<bool> PhotoEditorContent::shapeToolStates() const {
 	return _paint->shapeToolStates();
 }
 
+rpl::producer<> PhotoEditorContent::paintModeRequests() const {
+	return _paintModeRequests.events();
+}
+
 bool PhotoEditorContent::handleKeyPress(not_null<QKeyEvent*> e) const {
 	return _paint->handleKeyPress(e);
 }
 
 void PhotoEditorContent::setupDragArea() {
 	auto dragEnterFilter = [=](const QMimeData *data) {
-		return (_mode.mode == PhotoEditorMode::Mode::Paint)
-			? Storage::ValidatePhotoEditorMediaDragData(data)
-			: false;
+		return Storage::ValidatePhotoEditorMediaDragData(data);
 	};
 
 	const auto areas = DragArea::SetupDragAreaToContainer(
@@ -308,6 +310,9 @@ void PhotoEditorContent::setupDragArea() {
 		true);
 
 	areas.photo->setDroppedCallback([=](const QMimeData *data) {
+		if (_mode.mode != PhotoEditorMode::Mode::Paint) {
+			_paintModeRequests.fire({});
+		}
 		_paint->handleMimeData(data);
 	});
 }

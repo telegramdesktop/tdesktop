@@ -370,7 +370,9 @@ PhotoEditor::PhotoEditor(
 		_content->applyModifications(_modifications);
 	}, lifetime());
 
-	_controls->paintModeRequests(
+	rpl::merge(
+		_controls->paintModeRequests(),
+		_content->paintModeRequests()
 	) | rpl::on_next([=] {
 		_mode = PhotoEditorMode{
 			.mode = PhotoEditorMode::Mode::Paint,

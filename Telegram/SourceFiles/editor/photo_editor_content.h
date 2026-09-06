@@ -49,6 +49,7 @@ public:
 	[[nodiscard]] rpl::producer<QColor> shapeItemSelections() const;
 	[[nodiscard]] rpl::producer<> shapeItemDeselections() const;
 	[[nodiscard]] rpl::producer<bool> shapeToolStates() const;
+	[[nodiscard]] rpl::producer<> paintModeRequests() const;
 	void applyAspectRatio(float64 ratio);
 	void save(PhotoModifications &modifications);
 
@@ -71,6 +72,7 @@ private:
 	rpl::variable<QRect> _innerRect;
 	rpl::variable<PhotoModifications> _modifications;
 	rpl::event_stream<int> _keyPresses;
+	rpl::event_stream<> _paintModeRequests;
 
 	QRect _imageRect;
 	QTransform _imageMatrix;
