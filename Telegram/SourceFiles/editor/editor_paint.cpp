@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/editor_paint.h"
 
 #include "base/platform/base_platform_haptic.h"
+#include "core/file_utilities.h"
 #include "editor/controllers/controllers.h"
 #include "editor/scene/scene_item_canvas.h"
 #include "editor/scene/scene_item_image.h"
@@ -168,14 +169,22 @@ Paint::Paint(
 		using ShowRequest = StickersPanelController::ShowRequest;
 
 		controllers->stickersPanelController->setShowRequestChanges(
-			controllers->stickersPanelController->stickerChosen(
-			) | rpl::map_to(ShowRequest::HideAnimated));
+			rpl::merge(
+				controllers->stickersPanelController->stickerChosen(
+				) | rpl::map_to(ShowRequest::HideAnimated),
+				controllers->stickersPanelController->photoRequests(
+				) | rpl::map_to(ShowRequest::HideAnimated)));
 
 		controllers->stickersPanelController->stickerChosen(
 		) | rpl::on_next([=](not_null<DocumentData*> document) {
 			addMediaItem(std::make_shared<ItemSticker>(
 				document,
 				itemBaseData()));
+		}, lifetime());
+
+		controllers->stickersPanelController->photoRequests(
+		) | rpl::on_next([=] {
+			choosePhotoFile();
 		}, lifetime());
 	}
 
@@ -560,7 +569,26 @@ bool Paint::canHandleMimeData(const QMimeData *data) const {
 }
 
 void Paint::handleMimeData(const QMimeData *data) {
-	auto media = Storage::ReadPhotoEditorMedia(data);
+	addMedia(Storage::ReadPhotoEditorMedia(data));
+}
+
+void Paint::choosePhotoFile() {
+	const auto callback = [=](FileDialog::OpenResult &&result) {
+		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
+			return;
+		}
+		addMedia(Storage::ReadPhotoEditorMedia(
+			result.paths.isEmpty() ? QString() : result.paths.front(),
+			result.remoteContent));
+	};
+	FileDialog::GetOpenPath(
+		this,
+		tr::lng_choose_image(tr::now),
+		FileDialog::PhotoVideoFilesFilter(),
+		crl::guard(this, callback));
+}
+
+void Paint::addMedia(Storage::PhotoEditorMedia &&media) {
 	const auto &image = media.image;
 	if (!media
 		|| !Ui::ValidateThumbDimensions(image.width(), image.height())) {
@@ -579,6 +607,7 @@ void Paint::addVideoItem(Storage::PhotoEditorMedia &&media) {
 	addMediaItem(std::make_shared<ItemVideo>(
 		std::make_shared<ItemVideo::Source>(ItemVideo::Source{
 			.path = std::move(media.videoPath),
+			.content = std::move(media.videoContent),
 			.thumbnail = std::move(media.image),
 			.duration = media.videoDuration,
 		}),

@@ -102,28 +102,46 @@ bool ValidatePhotoEditorMediaDragData(not_null<const QMimeData*> data) {
 PhotoEditorMedia ReadPhotoEditorMedia(not_null<const QMimeData*> data) {
 	const auto urls = Core::ReadMimeUrls(data);
 	if (urls.size() == 1 && urls.front().isLocalFile()) {
-		const auto path = Platform::File::UrlToLocal(urls.front());
-		const auto information = FileLoadTask::ReadMediaInformation(
-			path,
-			QByteArray(),
-			Core::MimeTypeForFile(QFileInfo(path)).name());
-		if (const auto image = std::get_if<Image>(&information->media)) {
-			return { .image = std::move(image->data) };
-		}
-		using Video = PreparedFileInformation::Video;
-		if (const auto video = std::get_if<Video>(&information->media)) {
-			if (QFileInfo(path).size() > Images::kReadBytesLimit) {
-				return {};
-			}
-			return {
-				.image = std::move(video->thumbnail),
-				.videoPath = path,
-				.videoDuration = video->duration,
-			};
+		auto result = ReadPhotoEditorMedia(
+			Platform::File::UrlToLocal(urls.front()),
+			QByteArray());
+		if (result) {
+			return result;
 		}
 	}
 	if (auto read = Core::ReadMimeImage(data)) {
 		return { .image = std::move(read.image) };
+	}
+	return {};
+}
+
+PhotoEditorMedia ReadPhotoEditorMedia(
+		const QString &path,
+		const QByteArray &content) {
+	if (path.isEmpty() && content.size() > Images::kReadBytesLimit) {
+		return {};
+	}
+	const auto information = FileLoadTask::ReadMediaInformation(
+		path,
+		content,
+		path.isEmpty()
+			? Core::MimeTypeForData(content).name()
+			: Core::MimeTypeForFile(QFileInfo(path)).name());
+	if (const auto image = std::get_if<Image>(&information->media)) {
+		return { .image = std::move(image->data) };
+	}
+	using Video = PreparedFileInformation::Video;
+	if (const auto video = std::get_if<Video>(&information->media)) {
+		if (!path.isEmpty()
+			&& QFileInfo(path).size() > Images::kReadBytesLimit) {
+			return {};
+		}
+		return {
+			.image = std::move(video->thumbnail),
+			.videoPath = path,
+			.videoContent = content,
+			.videoDuration = video->duration,
+		};
 	}
 	return {};
 }

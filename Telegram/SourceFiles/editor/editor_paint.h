@@ -95,8 +95,10 @@ private:
 	ItemBase::Data itemBaseData() const;
 	ItemBase::Data mediaItemData(QSize mediaSize) const;
 	void addMediaItem(std::shared_ptr<ItemBase> item);
+	void addMedia(Storage::PhotoEditorMedia &&media);
 	void addImageItem(QImage &&image);
 	void addVideoItem(Storage::PhotoEditorMedia &&media);
+	void choosePhotoFile();
 	void applyViewTransform();
 	void bakeTextScales();
 
