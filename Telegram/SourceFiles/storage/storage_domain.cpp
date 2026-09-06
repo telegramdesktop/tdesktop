@@ -594,7 +594,21 @@ Domain::StartModernResult Domain::startModern(
 		migrateFromLegacy(derived._passcode);
 	}
 
+	// The empty start cannot tell an open wrap that holds another key from a
+	// broken accounts info: only the passcode can, and while a live passcode
+	// wrap survives asking for it is the honest answer. The candidate key and
+	// its verified-open claim were already published above, so a refusal here
+	// withdraws both, exactly as the earlier refusals leave them, and the file
+	// stays untouched for the typed retry. With no passcode wrap there is no
+	// secret left to ask for, so the scratch recovery keeps that case.
 	if (!DecryptLocal(info, infoEncrypted, _localKey)) {
+		if (derived.empty() && _keyData->passcodeWraps.size() == 1) {
+			LOG(("App Info: the open wrap does not open the accounts info, "
+				"a passcode is needed."));
+			_localKey = nullptr;
+			_keyData->openKeyVerified = false;
+			return StartModernResult::IncorrectPasscode;
+		}
 		LOG(("App Error: could not decrypt info."));
 		return StartModernResult::Failed;
 	}
