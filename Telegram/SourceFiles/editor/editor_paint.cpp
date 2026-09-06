@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/editor_paint.h"
 
 #include "base/platform/base_platform_haptic.h"
-#include "core/mime_type.h"
 #include "editor/controllers/controllers.h"
 #include "editor/scene/scene_item_canvas.h"
 #include "editor/scene/scene_item_image.h"
@@ -556,37 +555,32 @@ rpl::producer<bool> Paint::shapeToolStates() const {
 }
 
 void Paint::handleMimeData(const QMimeData *data) {
-	const auto add = [&](QImage image) {
-		if (image.isNull()) {
-			return;
-		}
-		if (!Ui::ValidateThumbDimensions(image.width(), image.height())) {
-			_controllers->show->showBox(
-				Ui::MakeInformBox(tr::lng_edit_media_invalid_file()));
-			return;
-		}
-
-		const auto item = std::make_shared<ItemImage>(
-			Ui::PixmapFromImage(std::move(image)),
-			itemBaseData());
-		_scene->addItem(item);
-		_scene->clearSelection();
-	};
-
-	using Error = Ui::PreparedList::Error;
-	const auto premium = false; // Don't support > 2GB files here.
-	const auto list = Core::ReadMimeUrls(data);
-	auto result = !list.isEmpty()
-		? Storage::PrepareMediaList(
-			list.mid(0, 1),
-			_imageSize.width() / 2,
-			premium)
-		: Ui::PreparedList(Error::EmptyFile, QString());
-	if (result.error == Error::None) {
-		add(base::take(result.files.front().preview));
-	} else if (auto read = Core::ReadMimeImage(data)) {
-		add(std::move(read.image));
+	auto media = Storage::ReadPhotoEditorMedia(data);
+	const auto &image = media.image;
+	if (!media
+		|| !Ui::ValidateThumbDimensions(image.width(), image.height())) {
+		_controllers->show->showBox(
+			Ui::MakeInformBox(tr::lng_edit_media_invalid_file()));
+		return;
 	}
+	addImageItem(std::move(media.image));
+}
+
+void Paint::addImageItem(QImage &&image) {
+	const auto maxSide = std::max(_imageSize.width(), _imageSize.height());
+	if (image.width() > maxSide || image.height() > maxSide) {
+		image = image.scaled(
+			maxSide,
+			maxSide,
+			Qt::KeepAspectRatio,
+			Qt::SmoothTransformation);
+	}
+	disarmShapeTool();
+	const auto item = std::make_shared<ItemImage>(
+		Ui::PixmapFromImage(std::move(image)),
+		itemBaseData());
+	_scene->addItem(item);
+	_scene->clearSelection();
 }
 
 void Paint::paintImage(QPainter &p, const QPixmap &image) const {

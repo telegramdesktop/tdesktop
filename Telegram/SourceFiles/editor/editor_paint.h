@@ -88,6 +88,7 @@ private:
 	};
 
 	ItemBase::Data itemBaseData() const;
+	void addImageItem(QImage &&image);
 	void applyViewTransform();
 	void bakeTextScales();
 

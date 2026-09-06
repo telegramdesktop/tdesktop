@@ -51,6 +51,16 @@ enum class MimeDataState {
 [[nodiscard]] MimeDataState ComputeMimeDataState(const QMimeData *data);
 [[nodiscard]] bool ValidatePhotoEditorMediaDragData(
 	not_null<const QMimeData*> data);
+
+struct PhotoEditorMedia {
+	QImage image;
+
+	[[nodiscard]] explicit operator bool() const {
+		return !image.isNull();
+	}
+};
+[[nodiscard]] PhotoEditorMedia ReadPhotoEditorMedia(
+	not_null<const QMimeData*> data);
 [[nodiscard]] bool ValidateEditMediaDragData(
 	not_null<const QMimeData*> data,
 	Ui::AlbumType albumType);

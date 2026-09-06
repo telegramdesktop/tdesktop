@@ -99,6 +99,24 @@ bool ValidatePhotoEditorMediaDragData(not_null<const QMimeData*> data) {
 	return false;
 }
 
+PhotoEditorMedia ReadPhotoEditorMedia(not_null<const QMimeData*> data) {
+	const auto urls = Core::ReadMimeUrls(data);
+	if (urls.size() == 1 && urls.front().isLocalFile()) {
+		const auto path = Platform::File::UrlToLocal(urls.front());
+		const auto information = FileLoadTask::ReadMediaInformation(
+			path,
+			QByteArray(),
+			Core::MimeTypeForFile(QFileInfo(path)).name());
+		if (const auto image = std::get_if<Image>(&information->media)) {
+			return { .image = std::move(image->data) };
+		}
+	}
+	if (auto read = Core::ReadMimeImage(data)) {
+		return { .image = std::move(read.image) };
+	}
+	return {};
+}
+
 bool ValidateEditMediaDragData(
 		not_null<const QMimeData*> data,
 		Ui::AlbumType albumType) {
