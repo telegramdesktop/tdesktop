@@ -183,6 +183,8 @@ PRIVATE
     editor/photo_editor_inner_common.h
     editor/scene/scene.cpp
     editor/scene/scene.h
+    editor/scene/scene_item_animated.cpp
+    editor/scene/scene_item_animated.h
     editor/scene/scene_item_base.cpp
     editor/scene/scene_item_base.h
     editor/scene/scene_item_canvas.cpp

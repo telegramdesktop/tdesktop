@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/scene/scene.h"
 
+#include "editor/scene/scene_item_animated.h"
 #include "editor/scene/scene_item_canvas.h"
 #include "editor/scene/scene_item_line.h"
 #include "editor/scene/scene_item_shape.h"
-#include "editor/scene/scene_item_sticker.h"
 #include "editor/scene/scene_item_text.h"
 #include "editor/scene/scene_text_editing.h"
 #include "ui/image/image_prepare.h"
@@ -686,12 +686,13 @@ std::vector<ItemPtr> Scene::items(
 
 bool Scene::hasAnimatedItems() const {
 	for (const auto &item : _items) {
-		if (item->isNormalStatus()
-			&& (item->type() == ItemSticker::Type)) {
-			const auto sticker = static_cast<ItemSticker*>(item.get());
-			if (sticker->animated() && !sticker->content().isEmpty()) {
-				return true;
-			}
+		const auto animated = item->isNormalStatus()
+			? dynamic_cast<ItemAnimated*>(item.get())
+			: nullptr;
+		if (animated
+			&& animated->animated()
+			&& !animated->content().isEmpty()) {
+			return true;
 		}
 	}
 	return false;
@@ -699,8 +700,8 @@ bool Scene::hasAnimatedItems() const {
 
 void Scene::releaseAnimations() {
 	for (const auto &item : _items) {
-		if (item->type() == ItemSticker::Type) {
-			static_cast<ItemSticker*>(item.get())->releasePlayers();
+		if (const auto animated = dynamic_cast<ItemAnimated*>(item.get())) {
+			animated->releasePlayers();
 		}
 	}
 }

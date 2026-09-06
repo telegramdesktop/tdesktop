@@ -24,7 +24,7 @@ namespace {
 ItemSticker::ItemSticker(
 	not_null<DocumentData*> document,
 	ItemBase::Data data)
-: ItemBase(std::move(data))
+: ItemAnimated(std::move(data))
 , _document(document)
 , _mediaView(_document->createMediaView()) {
 	const auto stickerData = document->sticker();
@@ -150,35 +150,11 @@ bool ItemSticker::animated() const {
 	return (_lottie.player != nullptr) || _webm.valid() || _releasedAnimation;
 }
 
-Media::Encode::AnimatedEntity ItemSticker::animatedEntity(
-		const QTransform &sceneToCanvas) const {
+Media::Encode::AnimatedEntity::Kind ItemSticker::entityKind() const {
 	const auto data = _document->sticker();
-	const auto composed = QTransform().scale(flipped() ? -1. : 1., 1.)
-		* sceneTransform()
-		* sceneToCanvas;
-	const auto inner = contentRect();
-	const auto m11 = composed.m11();
-	const auto m12 = composed.m12();
-	const auto m21 = composed.m21();
-	const auto m22 = composed.m22();
-	const auto scale = std::hypot(m11, m12);
-	const auto mirrored = ((m11 * m22 - m12 * m21) < 0);
-	const auto rotation = mirrored
-		? (std::atan2(-m12, m22) * 180. / M_PI)
-		: (std::atan2(m12, m11) * 180. / M_PI);
-	const auto size = inner.size() * scale;
-	const auto center = composed.map(inner.center());
-	return {
-		.kind = ((data && data->isWebm())
-			? Media::Encode::AnimatedEntity::Kind::Webm
-			: Media::Encode::AnimatedEntity::Kind::Lottie),
-		.bytes = content(),
-		.geometry = QRectF(
-			center - QPointF(size.width() / 2., size.height() / 2.),
-			size),
-		.rotation = rotation,
-		.flipped = mirrored,
-	};
+	return (data && data->isWebm())
+		? Media::Encode::AnimatedEntity::Kind::Webm
+		: Media::Encode::AnimatedEntity::Kind::Lottie;
 }
 
 QByteArray ItemSticker::content() const {
@@ -230,51 +206,9 @@ void ItemSticker::paint(
 		_pendingRecreate = false;
 		createPlayer();
 	}
-	const auto rect = contentRect();
-	const auto image = currentFrame();
-	if (!image.isNull()) {
-		const auto ratio = style::DevicePixelRatio();
-		const auto fitted = QSizeF(image.size())
-			.scaled(rect.size(), Qt::KeepAspectRatio);
-		const auto resultRect = QRectF(rect.topLeft(), fitted).translated(
-			(rect.width() - fitted.width()) / 2.,
-			(rect.height() - fitted.height()) / 2.);
-		const auto live = (_lottie.player && _lottie.player->ready())
-			|| (_webm && _webm->started());
-		if (live) {
-			p->save();
-			p->setRenderHint(QPainter::SmoothPixmapTransform);
-			if (_webm.valid() && flipped()) {
-				p->translate(resultRect.center().x(), 0);
-				p->scale(-1., 1.);
-				p->translate(-resultRect.center().x(), 0);
-			}
-			p->drawImage(resultRect, image);
-			p->restore();
-		} else {
-			auto pixelSize = (fitted * ratio).toSize();
-			if (pixelSize.width() > image.width()) {
-				pixelSize = image.size();
-			}
-			const auto mirror = _webm.valid() && flipped();
-			if ((_preview.key != image.cacheKey())
-				|| (_preview.size != pixelSize)
-				|| (_preview.flipped != mirror)) {
-				_preview.image = image.scaled(
-					pixelSize,
-					Qt::IgnoreAspectRatio,
-					Qt::SmoothTransformation);
-				if (mirror) {
-					_preview.image = _preview.image.mirrored(true, false);
-				}
-				_preview.image.setDevicePixelRatio(ratio);
-				_preview.key = image.cacheKey();
-				_preview.size = pixelSize;
-				_preview.flipped = mirror;
-			}
-			p->drawImage(resultRect, _preview.image);
-		}
-	}
+	const auto live = (_lottie.player && _lottie.player->ready())
+		|| (_webm && _webm->started());
+	paintFrame(p, currentFrame(), live, _webm.valid() && flipped());
 	ItemBase::paint(p, option, w);
 }
 
