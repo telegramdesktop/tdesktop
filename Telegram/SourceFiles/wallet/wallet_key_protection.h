@@ -124,7 +124,7 @@ void RegisterProtectionProvider(std::unique_ptr<ProtectionProvider> provider);
 // Install: the account has no vault yet and the box hands back an armed
 // creation policy. Switch: the key is on this device and the box moves one
 // vault from one kind to another. Removal: one choice is applied to every
-// dependent vault the caller lists, as the local passcode goes away.
+// dependent vault the chooser lists, as the local passcode goes away.
 enum class KeyProtectionMode {
 	Install,
 	Switch,
@@ -150,12 +150,12 @@ struct KeyProtectionResult {
 	std::vector<base::weak_ptr<Main::Account>> changed;
 };
 
-// accounts is Removal-only: the dependent vaults one choice is applied to.
-// They are held weakly because the box asks for the local passcode before it
-// touches any of them, and Main::Domain can free an account while it waits -
-// removeRedundantAccounts() runs whenever a session disappears. Every reader
-// here answers a gone account by skipping it, so the list of raw pointers a
-// caller enumerates can never outlive that caller's frame.
+// accounts is Removal-only: the initial seed is validated before the gate,
+// then refreshed after it and after any accepted exposure warning. The
+// displayed chooser freezes that weak list for its walk. Main::Domain can
+// free an account while the gate or chooser waits - removeRedundantAccounts()
+// runs whenever a session disappears. Every reader skips a gone account, so
+// raw pointers from an enumeration never outlive the receiving frame.
 struct KeyProtectionArgs {
 	KeyProtectionMode mode = KeyProtectionMode::Switch;
 	std::vector<base::weak_ptr<Main::Account>> accounts;

@@ -1110,7 +1110,7 @@ void KeyProtectionBox(
 			auto &local = show->session().domain().local();
 			if (local.setAppLockEnabled(false)
 				!= Storage::SetPasscodeResult::Success) {
-				fail();
+				closeWith({ .cancelled = false, .failed = true });
 				return;
 			}
 			Core::App().localPasscodeChanged();
@@ -1238,6 +1238,116 @@ void KeyProtectionBox(
 	}, box->lifetime());
 }
 
+struct RemovalConfirmation {
+	~RemovalConfirmation();
+
+	KeyProtectionArgs args;
+	SecureBytes passcode;
+	bool completed = false;
+};
+
+RemovalConfirmation::~RemovalConfirmation() {
+	passcode.clear();
+	if (!completed) {
+		completed = true;
+		if (auto done = base::take(args.done)) {
+			done({});
+		}
+	}
+}
+
+void ShowRemovalProtectionBox(
+		std::shared_ptr<Main::SessionShow> show,
+		base::weak_ptr<Main::Session> weakSession,
+		KeyProtectionArgs args,
+		SecureBytes passcode) {
+	if (!weakSession || !show->valid()) {
+		passcode.clear();
+		if (auto done = base::take(args.done)) {
+			done({});
+		}
+		return;
+	}
+	const auto warn = [&] {
+		const auto dependents = CollectVaultDependents();
+		args.accounts.clear();
+		args.accounts.reserve(dependents.passcodeWrapped.size());
+		for (const auto &account : dependents.passcodeWrapped) {
+			args.accounts.push_back(base::make_weak(account));
+		}
+		return !dependents.open.empty()
+			&& weakSession->domain().local().appLockEnabled();
+	}();
+	if (!warn) {
+		show->showBox(Box(
+			KeyProtectionBox,
+			show,
+			std::move(args),
+			std::optional<VaultHeader>(),
+			std::move(passcode)));
+		return;
+	}
+	const auto state = std::make_shared<RemovalConfirmation>();
+	state->args = std::move(args);
+	state->passcode = std::move(passcode);
+	show->showBox(Ui::MakeConfirmBox({
+		.text = rpl::combine(
+			tr::lng_settings_passcode_disable_sure(),
+			tr::lng_wallet_protection_open_warning_nolock()
+		) | rpl::map([](const QString &sure, const QString &warning) {
+			return sure + u"\n\n"_q + warning;
+		}),
+		.confirmed = [=](Fn<void()> close) {
+			if (state->completed) {
+				close();
+				return;
+			}
+			state->completed = true;
+			auto args = base::take(state->args);
+			auto passcode = base::take(state->passcode);
+			const auto liveShow = show;
+			const auto liveSession = weakSession;
+			close();
+			if (!liveSession || !liveShow->valid()) {
+				passcode.clear();
+				if (auto done = base::take(args.done)) {
+					done({});
+				}
+				return;
+			}
+			{
+				const auto dependents = CollectVaultDependents();
+				args.accounts.clear();
+				args.accounts.reserve(dependents.passcodeWrapped.size());
+				for (const auto &account : dependents.passcodeWrapped) {
+					args.accounts.push_back(base::make_weak(account));
+				}
+			}
+			liveShow->showBox(Box(
+				KeyProtectionBox,
+				liveShow,
+				std::move(args),
+				std::optional<VaultHeader>(),
+				std::move(passcode)));
+		},
+		.cancelled = [state](Fn<void()> close) {
+			if (state->completed) {
+				close();
+				return;
+			}
+			state->completed = true;
+			state->passcode.clear();
+			auto done = base::take(state->args.done);
+			close();
+			if (done) {
+				done({});
+			}
+		},
+		.confirmText = tr::lng_settings_auto_night_disable(),
+		.confirmStyle = &st::attentionBoxButton,
+	}));
+}
+
 } // namespace
 
 void RegisterProtectionProvider(
@@ -1293,6 +1403,7 @@ void ShowKeyProtectionBox(
 		std::shared_ptr<Main::SessionShow> show,
 		KeyProtectionArgs args) {
 	auto &session = show->session();
+	const auto weakSession = base::make_weak(&session);
 	const auto report = [done = args.done](KeyProtectionResult result) {
 		if (done) {
 			done(std::move(result));
@@ -1334,6 +1445,14 @@ void ShowKeyProtectionBox(
 		break;
 	}
 	auto chooser = [=](SecureBytes passcode) mutable {
+		if (args.mode == KeyProtectionMode::Removal) {
+			ShowRemovalProtectionBox(
+				show,
+				weakSession,
+				std::move(args),
+				std::move(passcode));
+			return;
+		}
 		show->showBox(Box(
 			KeyProtectionBox,
 			show,

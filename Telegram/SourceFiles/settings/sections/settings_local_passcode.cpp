@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/generic_box.h"
+#include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/password_input.h"
 #include "ui/widgets/labels.h"
@@ -50,6 +51,8 @@ namespace Settings {
 namespace {
 
 using namespace Builder;
+
+constexpr auto kDisableReportCharacterTime = crl::time(60);
 
 [[nodiscard]] Storage::SetPasscodeResult SetPasscode(
 		not_null<Window::SessionController*> controller,
@@ -77,6 +80,50 @@ using namespace Builder;
 		Core::App().localPasscodeChanged();
 	}
 	return result;
+}
+
+[[nodiscard]] Storage::SetPasscodeResult RemovePasscode(
+		not_null<Window::SessionController*> controller,
+		Storage::PasscodeVerification verification) {
+	const auto result = SetPasscode(controller, QString(), verification);
+	if (result == Storage::SetPasscodeResult::Success) {
+		Core::App().settings().setSystemUnlockEnabled(false);
+		Core::App().saveSettingsDelayed();
+	}
+	return result;
+}
+
+[[nodiscard]] QString DisableChangedReport(
+		const std::vector<base::weak_ptr<Main::Account>> &changed) {
+	auto names = QStringList();
+	auto unnamed = 0;
+	for (const auto &weak : changed) {
+		const auto account = weak.get();
+		const auto session = account ? account->maybeSession() : nullptr;
+		auto name = session ? session->user()->name().trimmed() : QString();
+		if (name.isEmpty()) {
+			++unnamed;
+		} else {
+			names.push_back(std::move(name));
+		}
+	}
+	if (names.empty()) {
+		return tr::lng_settings_passcode_disable_changed(
+			tr::now,
+			lt_count,
+			unnamed);
+	}
+	auto text = tr::lng_settings_passcode_disable_changed_named(
+		tr::now,
+		lt_accounts,
+		names.join(u", "_q));
+	if (unnamed) {
+		text += u" "_q + tr::lng_settings_passcode_disable_changed_unnamed(
+			tr::now,
+			lt_count,
+			unnamed);
+	}
+	return text;
 }
 
 // The proof that the old passcode was typed is minted by the Check section
@@ -1027,6 +1074,8 @@ public:
 
 private:
 	void setupContent();
+	void showRemoval(Storage::PasscodeVerification verification);
+	void confirmDisable(Storage::PasscodeVerification verification);
 	void disableAfterRemoval(
 		Storage::PasscodeVerification verification,
 		Wallet::KeyProtectionResult result);
@@ -1117,27 +1166,66 @@ void LocalPasscodeManage::setupContent() {
 	Ui::ResizeFitChild(this, content);
 }
 
-// What the removal box answers with, and the only place Disable lets the
-// passcode go. Nothing here touches the app lock: the box's own "keep the
-// passcode for the wallet only" row has already called setAppLockEnabled()
-// and Core::App().localPasscodeChanged() itself, and the section's toggle
-// follows that signal, so it shows a change this object did not make. A walk
-// that failed or was kept leaves the passcode in place, which is what keeps
-// Disable from ever costing a wallet key.
+void LocalPasscodeManage::showRemoval(
+		Storage::PasscodeVerification verification) {
+	// Disable re-protects, it never drops a key: the box asks for the
+	// passcode, warns before losing an Open vault's launch lock and then
+	// names the wallets it will walk onto the chosen kind. Accounts can
+	// disappear at either prompt, so this weak seed is refreshed before
+	// the chooser freezes the list its eventual walk will use.
+	auto accounts = std::vector<base::weak_ptr<Main::Account>>();
+	{
+		const auto dependents = Wallet::CollectVaultDependents();
+		accounts.reserve(dependents.passcodeWrapped.size());
+		for (const auto &account : dependents.passcodeWrapped) {
+			accounts.push_back(base::make_weak(account));
+		}
+	}
+	if (accounts.empty()) {
+		confirmDisable(verification);
+		return;
+	}
+	const auto weak = base::make_weak(this);
+	const auto weakController = base::make_weak(controller());
+	const auto show = Main::MakeSessionShow(
+		controller()->uiShow(),
+		&controller()->session());
+	Wallet::ShowKeyProtectionBox(show, Wallet::KeyProtectionArgs{
+		.mode = Wallet::KeyProtectionMode::Removal,
+		.accounts = std::move(accounts),
+		.done = [=](Wallet::KeyProtectionResult result) {
+			if (weak && weakController) {
+				weak->disableAfterRemoval(verification, std::move(result));
+			}
+		},
+	});
+}
+
+// The removal chooser keeps every key: its Keep row only turns off the
+// launch lock, and its walk changes one committed vault at a time. Failed
+// walks retain the passcode and report the transitions that did complete.
+// A completed walk can remove the passcode only after a fresh scan finds no
+// dependent, including any account added after the chooser froze its list.
 void LocalPasscodeManage::disableAfterRemoval(
 		Storage::PasscodeVerification verification,
 		Wallet::KeyProtectionResult result) {
 	if (result.cancelled) {
 		return;
 	}
-	const auto changed = int(result.changed.size());
+	const auto weak = base::make_weak(this);
+	const auto weakController = base::make_weak(controller());
 	const auto report = [&] {
-		controller()->showToast((changed > 0)
-			? tr::lng_settings_passcode_disable_changed(
-				tr::now,
-				lt_count,
-				changed)
-			: tr::lng_wallet_protection_error(tr::now));
+		if (result.changed.empty()) {
+			weakController->showToast(tr::lng_wallet_protection_error(tr::now));
+			return;
+		}
+		const auto text = DisableChangedReport(result.changed);
+		weakController->showToast(Ui::Toast::Config{
+			.text = tr::marked(text),
+			.maxlines = 0,
+			.duration = Ui::Toast::kDefaultDuration
+				+ crl::time(text.size()) * kDisableReportCharacterTime,
+		});
 	};
 	if (result.failed) {
 		// Each transition is complete by itself, so the wallets the walk
@@ -1146,11 +1234,19 @@ void LocalPasscodeManage::disableAfterRemoval(
 		report();
 		return;
 	} else if (result.kind == Wallet::VaultKind::Passcode) {
-		controller()->showToast(
+		weakController->showToast(
 			tr::lng_settings_passcode_disable_kept(tr::now));
 		return;
 	}
-	const auto set = SetPasscode(controller(), QString(), verification);
+	if (!Wallet::CollectVaultDependents().passcodeWrapped.empty()) {
+		weakController->showToast(
+			tr::lng_settings_passcode_disable_dependent(tr::now));
+		return;
+	}
+	const auto set = RemovePasscode(weakController.get(), verification);
+	if (!weak || !weakController) {
+		return;
+	}
 	if (set != Storage::SetPasscodeResult::Success) {
 		// The vaults have moved and the passcode has not. That is what the
 		// app-lock toggle leaves behind: setAppLockEnabled() zeroes the
@@ -1159,26 +1255,95 @@ void LocalPasscodeManage::disableAfterRemoval(
 		// and ask for the passcode once more, instead of ending silently
 		// on a screen that looks untouched.
 		report();
-		showOther(LocalPasscodeCheckId());
+		if (weak && weakController) {
+			weak->showOther(LocalPasscodeCheckId());
+		}
 		return;
 	}
-	Core::App().settings().setSystemUnlockEnabled(false);
-	Core::App().saveSettingsDelayed();
 	// The fire ends in showBackFromStack(), which deletes the Info widget
 	// this section lives in - object_ptr::destroy() is a plain delete - so
 	// this object is gone the moment it returns. The event stream copies its
 	// data pointer before delivering, which is why the fire itself survives
 	// and only the lines after it need the guard.
-	const auto weak = base::make_weak(this);
 	_showBack.fire({});
-	if (weak) {
-		controller()->hideSpecialLayer();
+	if (weak && weakController) {
+		weakController->hideSpecialLayer();
 	}
+}
+
+void LocalPasscodeManage::confirmDisable(
+		Storage::PasscodeVerification verification) {
+	const auto weak = base::make_weak(this);
+	const auto weakController = base::make_weak(controller());
+	// While the launch lock is on, the passcode is the only thing
+	// covering an open vault's key at rest, so removing it says so -
+	// the wording the app-lock toggle already shows, composed with
+	// today's confirmation instead of given a key of its own.
+	const auto warned = !Wallet::CollectVaultDependents().open.empty()
+		&& controller()->session().domain().local().appLockEnabled();
+	auto text = [&]() -> rpl::producer<QString> {
+		if (!warned) {
+			return tr::lng_settings_passcode_disable_sure();
+		}
+		return rpl::combine(
+			tr::lng_settings_passcode_disable_sure(),
+			tr::lng_wallet_protection_open_warning_nolock()
+		) | rpl::map([](const QString &sure, const QString &warning) {
+			return sure + u"\n\n"_q + warning;
+		});
+	}();
+	controller()->show(Ui::MakeConfirmBox({
+		.text = std::move(text),
+		.confirmed = [=](Fn<void()> close) {
+			if (!weak || !weakController) {
+				close();
+				return;
+			}
+			const auto [needsRemoval, needsWarning] = [&] {
+				const auto dependents = Wallet::CollectVaultDependents();
+				const auto &local = weakController->session().domain().local();
+				return std::pair(
+					!dependents.passcodeWrapped.empty(),
+					!dependents.open.empty() && local.appLockEnabled());
+			}();
+			if (needsRemoval || (needsWarning && !warned)) {
+				close();
+				if (weak && weakController) {
+					if (needsRemoval) {
+						weak->showRemoval(verification);
+					} else {
+						weak->confirmDisable(verification);
+					}
+				}
+				return;
+			}
+			const auto result = RemovePasscode(
+				weakController.get(),
+				verification);
+			if (!weak || !weakController) {
+				close();
+				return;
+			}
+			close();
+			if (!weak || !weakController) {
+				return;
+			}
+			if (result != Storage::SetPasscodeResult::Success) {
+				weak->showOther(LocalPasscodeCheckId());
+				return;
+			}
+			weak.get()->_showBack.fire({});
+			if (weak && weakController) {
+				weakController->hideSpecialLayer();
+			}
+		},
+		.confirmText = tr::lng_settings_auto_night_disable(),
+		.confirmStyle = &st::attentionBoxButton,
+	}));
 }
 
 base::weak_qptr<Ui::RpWidget> LocalPasscodeManage::createPinnedToBottom(
 		not_null<Ui::RpWidget*> parent) {
-	const auto weak = base::make_weak(this);
 	auto callback = [=] {
 		// BuildManageContent is registered for settings search, so this
 		// section can be opened without the Check section ever running.
@@ -1186,87 +1351,7 @@ base::weak_qptr<Ui::RpWidget> LocalPasscodeManage::createPinnedToBottom(
 			showOther(LocalPasscodeCheckId());
 			return;
 		}
-		const auto verification = *_verification;
-		auto dependents = Wallet::CollectVaultDependents();
-		if (!dependents.passcodeWrapped.empty()) {
-			// Disable re-protects, it never drops a key: the box asks for
-			// the passcode itself, names the wallets, warns about the open
-			// kind behind its own row and walks every listed vault onto the
-			// chosen one. The box waits for the passcode before it does any
-			// of that, and an account can be logged out and dropped while it
-			// waits, so this frame's enumeration goes over weakly and the box
-			// skips whatever is gone by the time it acts.
-			auto accounts = std::vector<base::weak_ptr<Main::Account>>();
-			accounts.reserve(dependents.passcodeWrapped.size());
-			for (const auto &account : dependents.passcodeWrapped) {
-				accounts.push_back(base::make_weak(account));
-			}
-			const auto show = Main::MakeSessionShow(
-				controller()->uiShow(),
-				&controller()->session());
-			Wallet::ShowKeyProtectionBox(show, Wallet::KeyProtectionArgs{
-				.mode = Wallet::KeyProtectionMode::Removal,
-				.accounts = std::move(accounts),
-				.done = [=](Wallet::KeyProtectionResult result) {
-					if (weak) {
-						disableAfterRemoval(
-							verification,
-							std::move(result));
-					}
-				},
-			});
-			return;
-		}
-		// While the launch lock is on, the passcode is the only thing
-		// covering an open vault's key at rest, so removing it says so -
-		// the wording the app-lock toggle already shows, composed with
-		// today's confirmation instead of given a key of its own.
-		auto text = [&]() -> rpl::producer<QString> {
-			const auto &local = controller()->session().domain().local();
-			// Warn if removal loses an Open vault's verified launch lock.
-			if (dependents.open.empty() || !local.appLockEnabled()) {
-				return tr::lng_settings_passcode_disable_sure();
-			}
-			return rpl::combine(
-				tr::lng_settings_passcode_disable_sure(),
-				tr::lng_wallet_protection_open_warning_nolock()
-			) | rpl::map([](const QString &sure, const QString &warning) {
-				return sure + u"\n\n"_q + warning;
-			});
-		}();
-		controller()->show(
-			Ui::MakeConfirmBox({
-				.text = std::move(text),
-				.confirmed = [=](Fn<void()> &&close) {
-					if (!weak) {
-						close();
-						return;
-					}
-					const auto result = SetPasscode(
-						controller(),
-						QString(),
-						verification);
-					if (result != Storage::SetPasscodeResult::Success) {
-						close();
-						if (weak) {
-							showOther(LocalPasscodeCheckId());
-						}
-						return;
-					}
-					Core::App().settings().setSystemUnlockEnabled(false);
-					Core::App().saveSettingsDelayed();
-
-					close();
-					if (weak) {
-						_showBack.fire({});
-					}
-					if (weak) {
-						controller()->hideSpecialLayer();
-					}
-				},
-				.confirmText = tr::lng_settings_auto_night_disable(),
-				.confirmStyle = &st::attentionBoxButton,
-			}));
+		showRemoval(*_verification);
 	};
 	auto bottomButton = CloudPassword::CreateBottomDisableButton(
 		parent,

@@ -841,6 +841,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_passcode_lock_off_open_confirm" = "Turn off";
 "lng_settings_passcode_disable_changed#one" = "The protection of {count} wallet was changed. The passcode was kept.";
 "lng_settings_passcode_disable_changed#other" = "The protection of {count} wallets was changed. The passcode was kept.";
+"lng_settings_passcode_disable_changed_named" = "Wallet protection was changed for {accounts}. The passcode was kept.";
+"lng_settings_passcode_disable_changed_unnamed#one" = "Protection was also changed for {count} other wallet whose account name is unavailable.";
+"lng_settings_passcode_disable_changed_unnamed#other" = "Protection was also changed for {count} other wallets whose account names are unavailable.";
+"lng_settings_passcode_disable_dependent" = "The passcode was kept because a wallet still needs it.";
 "lng_settings_passcode_disable_kept" = "The passcode was kept for your wallet. Telegram will no longer ask for it at launch.";
 "lng_settings_use_winhello" = "Unlock with Windows Hello";
 "lng_settings_use_winhello_about" = "You need to enter your passcode once before unlocking Telegram with Windows Hello.";
