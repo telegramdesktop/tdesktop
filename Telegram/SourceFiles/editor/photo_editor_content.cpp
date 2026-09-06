@@ -13,6 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/view/media_view_pip.h"
 #include "storage/storage_media_prepare.h"
 
+#include <QtGui/QClipboard>
+#include <QtGui/QGuiApplication>
+#include <QtGui/QKeyEvent>
 #include <QtGui/QMouseEvent>
 #include <QtGui/QWheelEvent>
 
@@ -291,13 +294,32 @@ rpl::producer<> PhotoEditorContent::paintModeRequests() const {
 	return _paintModeRequests.events();
 }
 
-bool PhotoEditorContent::handleKeyPress(not_null<QKeyEvent*> e) const {
+bool PhotoEditorContent::handleKeyPress(not_null<QKeyEvent*> e) {
+	if (e->matches(QKeySequence::Paste)) {
+		return pasteFromClipboard();
+	}
 	return _paint->handleKeyPress(e);
+}
+
+bool PhotoEditorContent::pasteFromClipboard() {
+	const auto data = QGuiApplication::clipboard()->mimeData();
+	if (!_paint->canHandleMimeData(data)) {
+		return false;
+	}
+	addMimeData(data);
+	return true;
+}
+
+void PhotoEditorContent::addMimeData(not_null<const QMimeData*> data) {
+	if (_mode.mode != PhotoEditorMode::Mode::Paint) {
+		_paintModeRequests.fire({});
+	}
+	_paint->handleMimeData(data);
 }
 
 void PhotoEditorContent::setupDragArea() {
 	auto dragEnterFilter = [=](const QMimeData *data) {
-		return Storage::ValidatePhotoEditorMediaDragData(data);
+		return _paint->canHandleMimeData(data);
 	};
 
 	const auto areas = DragArea::SetupDragAreaToContainer(
@@ -310,10 +332,7 @@ void PhotoEditorContent::setupDragArea() {
 		true);
 
 	areas.photo->setDroppedCallback([=](const QMimeData *data) {
-		if (_mode.mode != PhotoEditorMode::Mode::Paint) {
-			_paintModeRequests.fire({});
-		}
-		_paint->handleMimeData(data);
+		addMimeData(data);
 	});
 }
 

@@ -553,6 +553,12 @@ rpl::producer<bool> Paint::shapeToolStates() const {
 	return _scene->pendingShapeStates();
 }
 
+bool Paint::canHandleMimeData(const QMimeData *data) const {
+	return data
+		&& !_textEditing.current()
+		&& Storage::ValidatePhotoEditorMediaDragData(data);
+}
+
 void Paint::handleMimeData(const QMimeData *data) {
 	auto media = Storage::ReadPhotoEditorMedia(data);
 	const auto &image = media.image;

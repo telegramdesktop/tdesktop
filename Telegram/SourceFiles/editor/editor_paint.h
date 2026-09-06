@@ -70,6 +70,7 @@ public:
 	[[nodiscard]] rpl::producer<> shapeItemDeselections() const;
 	[[nodiscard]] rpl::producer<bool> shapeToolStates() const;
 
+	[[nodiscard]] bool canHandleMimeData(const QMimeData *data) const;
 	void handleMimeData(const QMimeData *data);
 	void paintImage(QPainter &p, const QPixmap &image) const;
 	void resetView();

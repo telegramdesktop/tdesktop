@@ -53,9 +53,11 @@ public:
 	void applyAspectRatio(float64 ratio);
 	void save(PhotoModifications &modifications);
 
-	bool handleKeyPress(not_null<QKeyEvent*> e) const;
+	bool handleKeyPress(not_null<QKeyEvent*> e);
 
 	void setupDragArea();
+	void addMimeData(not_null<const QMimeData*> data);
+	bool pasteFromClipboard();
 
 	[[nodiscard]] rpl::producer<QRect> innerRect() const {
 		return _innerRect.value();
