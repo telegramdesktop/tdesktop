@@ -175,10 +175,12 @@ switch this checkout to a compatible existing local branch and continue the
 same frozen batch. Require a clean source checkout and submodules, no owned or
 disposable task overlay, no exact checkout executable, no source recovery refs
 for work already begun, and verify with `git worktree list --porcelain` that the
-branch is not checked out elsewhere. Prefer a compatible branch appearing for
-the most remaining batch tasks; preserve recorded batch order. Do not create a
-branch or cherry-pick, rebase, or merge. After `git switch`, refresh `queue`,
-rerun `source-lineage` and `source-preflight`, then Start/Retry or resume. If no
+branch is not checked out elsewhere. Apply `source-prepare` (below) to this
+cleanliness gate so stale submodules are updated and registered nested worktrees
+are ignored. Prefer a compatible branch appearing for the most remaining batch
+tasks; preserve recorded batch order. Do not create a branch or cherry-pick,
+rebase, or merge. After `git switch`, refresh `queue`, rerun `source-lineage`,
+`source-prepare` and `source-preflight`, then Start/Retry or resume. If no
 safe compatible local branch exists, stop and ask the human.
 
 ### Mode 1: resume active work, then drain the selected snapshot
@@ -250,10 +252,27 @@ not eligible in this invocation. Do not substitute it when a batch task is
 claimed concurrently, blocked by an external dependency, or otherwise
 unavailable.
 
-Before publishing any new canonical `Start` commit, require a clean Telegram
-source checkout with clean submodules and no unrelated untracked files. The one
-exception is the checkout-owned first replacement whose `carried_from` field
-and source `split.yaml` designate it as the implementation carrier: start it
+After the source-lineage gate passes, prepare the Telegram checkout before
+Start, Retry, or a pre-Phase-1 resume that has no owned source changes:
+
+```bash
+python3 .agents/skills/process-inbox/scripts/workspace.py source-prepare
+```
+
+This automatically initializes or updates stale submodules recursively to the
+recorded gitlink commits, using a non-force checkout. It preserves local and
+staged changes and never follows remote tips. Source cleanliness checks ignore
+verified registered linked worktrees nested inside the checkout or its
+submodules, including their contents; leave those worktrees untouched. Ordinary
+untracked files, tracked changes and unregistered nested repositories still
+block. Preparation refuses a submodule target that would enter a registered
+worktree, including one hidden by ignore rules. AI main and slot cleanliness
+rules remain unchanged. Queue and `source-preflight` stay read-only.
+
+Before publishing any new canonical `Start` commit, require that preparation
+succeeds. The one exception is the checkout-owned first replacement whose
+`carried_from` field and source `split.yaml` designate it as the implementation
+carrier: start it
 with the retained source state intact, and let the helper revalidate the sealed
 worktree before transferring task refs. Do not require a Telegram executable,
 portable account, desktop, Docker daemon, or

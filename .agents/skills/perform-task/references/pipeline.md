@@ -91,8 +91,25 @@ Before planning or editing:
    Require `current_satisfies: true`. A mismatch before Phase 1 returns the
    clean pre-phase routing stop defined below; a mismatch first established
    after Phase 1 follows the task-local Block rule.
-4. Run the scripted preflight report and act on its JSON instead of composing
-   the equivalent shell checks by hand:
+4. For a new run or a pre-Phase-1 resume with no owned source changes, prepare
+   the source checkout after the lineage gate passes:
+
+   ```bash
+   python3 SOURCE_ROOT/.agents/skills/process-inbox/scripts/workspace.py \
+     source-prepare --source-root SOURCE_ROOT
+   ```
+
+   This automatically initializes or updates stale submodules recursively to
+   recorded gitlinks with a non-force checkout, preserving staged and local
+   edits. Source checks ignore only verified registered linked worktrees nested
+   in the checkout or its submodules and leave their contents untouched. Other
+   untracked or tracked changes still block. Preparation refuses a submodule
+   target that would enter a registered worktree, including an ignored one. AI
+   worktrees stay strict. Do not prepare a carried implementation or synchronize
+   modules containing owned implementation or disposable overlay changes on resume.
+
+   Run the read-only scripted preflight report and act on its JSON instead of
+   composing the equivalent shell checks by hand:
 
    ```bash
    python3 SOURCE_ROOT/.agents/skills/process-inbox/scripts/workspace.py \
@@ -108,8 +125,8 @@ Before planning or editing:
    unselected instrument is irrelevant. An unavailable selected platform or
    stage is either replaced by an equally direct instrument or recorded under
    `Unverified:` with its expected exposure; never silently weaken the oracle.
-7. For a new run require a clean tracked Telegram worktree, clean submodules,
-   and no unrelated untracked files, then initialize local recovery state:
+7. For a new run require successful source preparation, then initialize local
+   recovery state (`source-begin` also prepares a fresh baseline):
 
    ```bash
    python3 SOURCE_ROOT/.agents/skills/process-inbox/scripts/workspace.py \
