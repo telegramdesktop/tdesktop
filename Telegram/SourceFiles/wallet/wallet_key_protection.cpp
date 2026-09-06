@@ -39,6 +39,338 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Wallet {
 namespace {
 
+// One dependent vault held between StageVaultWrap() and
+// CommitStagedVaultWrap(): the account it belongs to, the header that now
+// carries both wraps at the unchanged committed generation, and the header
+// that was on disk before the stage, which is what a rollback writes back.
+// Accounts stay weak because the key_data writer and per-vault commit
+// notifications can destroy them synchronously. Resolve each storage access
+// afresh and never use an account after notifying its session.
+struct StagedVault {
+	base::weak_ptr<Main::Account> account;
+	VaultHeader staged;
+	VaultHeader previous;
+};
+
+struct VaultSnapshot {
+	base::weak_ptr<Main::Account> account;
+	VaultWrap committed;
+};
+
+struct DerivedVault {
+	base::weak_ptr<Main::Account> account;
+	VaultWrap committed;
+	SecureBytes vaultKey;
+	VaultPreparedWrap prepared;
+};
+
+// Rewrites the pre-stage header of every vault that was already staged. A
+// write that fails here is still safe: the staged wrap lives outside the
+// committed generation, so the next ReadVaultHeader() drops it and
+// ReconcileVaultHeader() persists that drop, and the old passcode keeps
+// opening the vault either way. Kinds and generations alone are logged.
+void RollbackStagedVaults(const std::vector<StagedVault> &vaults) {
+	for (const auto &vault : vaults) {
+		const auto account = vault.account.get();
+		if (!account) {
+			continue;
+		}
+		if (!WriteVaultHeader(
+				account->local(),
+				vault.previous)) {
+			LOG(("Wallet Error: could not roll a staged vault wrap back "
+				"at the committed generation %1."
+				).arg(vault.previous.committed));
+		}
+	}
+}
+
+// Step zero of the staged passcode change, on the main thread: the committed
+// wrap of every dependent vault, copied before the worker derives against
+// it. A header that does not read, or whose committed wrap is not a passcode
+// one, abandons the change here, where nothing is staged yet.
+[[nodiscard]] auto SnapshotDependentVaults(
+		const std::vector<not_null<Main::Account*>> &accounts)
+-> std::optional<std::vector<VaultSnapshot>> {
+	auto result = std::vector<VaultSnapshot>();
+	result.reserve(accounts.size());
+	for (const auto &account : accounts) {
+		const auto reading = ReadVaultHeader(account->local());
+		const auto committed = reading.header.committedWrap();
+		if (reading.state != VaultReading::State::Read
+			|| !committed
+			|| committed->kind != VaultKind::Passcode) {
+			return std::nullopt;
+		}
+		result.push_back({
+			.account = base::make_weak(account),
+			.committed = *committed,
+		});
+	}
+	return result;
+}
+
+// The dependents were enumerated before the worker hop, and a vault can
+// become passcode-wrapped while the batch derives: a store that finishes
+// under an armed Install policy writes a fresh header from the engine
+// marshal, and the key-protection switch does the same behind its own gate.
+// Such a vault is in neither the batch nor the change, and SetPasscode would
+// move key_data to the new passcode while it stays under the old one, so the
+// apply asks again here, where nothing is staged yet, and abandons on any
+// difference. An account that is gone is ignored, as StageDerivedVaults
+// skips it with its vault.
+[[nodiscard]] bool SameDependents(const std::vector<DerivedVault> &derived) {
+	const auto current = CollectVaultDependents().passcodeWrapped;
+	const auto account = [](const DerivedVault &vault) {
+		return vault.account.get();
+	};
+	const auto live = ranges::count_if(derived, [&](
+			const DerivedVault &vault) {
+		return account(vault) != nullptr;
+	});
+	return (live == int(current.size()))
+		&& ranges::all_of(current, [&](not_null<Main::Account*> dependent) {
+			return ranges::contains(derived, dependent.get(), account);
+		});
+}
+
+// Step one of the staged passcode change, back on the main thread with the
+// batch. Every dependent vault gets the new passcode's wrap written beside
+// its committed one and its records re-sealed under the fresh vault key,
+// beside entries under the old key. Both are proved by read-back while the
+// committed generation does not move: the old passcode opens every vault, and
+// key_data is untouched, so it still opens the launch lock too. A vault
+// whose committed wrap is no longer the one the worker derived against - by
+// generation, kind or salt; every committed change bumps the generation -
+// abandons the change, and so does any write failure: both roll back only
+// this batch's prior stages. The newly changed vault keeps its current header,
+// never the stale snapshot. An account that is gone is skipped with its vault.
+[[nodiscard]] std::optional<std::vector<StagedVault>> StageDerivedVaults(
+		std::vector<DerivedVault> &derived) {
+	auto result = std::vector<StagedVault>();
+	result.reserve(derived.size());
+	const auto abandon = [&]() -> std::optional<std::vector<StagedVault>> {
+		RollbackStagedVaults(result);
+		return std::nullopt;
+	};
+	for (auto &vault : derived) {
+		const auto account = vault.account.get();
+		if (!account) {
+			continue;
+		}
+		auto reading = ReadVaultHeader(account->local());
+		if (reading.state != VaultReading::State::Read) {
+			return abandon();
+		}
+		auto header = std::move(reading.header);
+		const auto previous = header;
+		const auto committed = header.committedWrap();
+		if (!committed
+			|| committed->generation != vault.committed.generation
+			|| committed->kind != vault.committed.kind
+			|| committed->salt != vault.committed.salt) {
+			return abandon();
+		}
+		const auto live = vault.account.get();
+		if (!live) {
+			continue;
+		}
+		const auto session = live->maybeSession();
+		if (session && session->wallet().custodyBusy()) {
+			return abandon();
+		}
+		const auto staged = StageVaultWrap(
+			live->local(),
+			header,
+			vault.vaultKey,
+			std::move(vault.prepared));
+		if (staged != VaultTransitionResult::Done) {
+			return abandon();
+		}
+		result.push_back({
+			.account = vault.account,
+			.staged = std::move(header),
+			.previous = previous,
+		});
+	}
+	return result;
+}
+
+// Step three: the committed generation advances and the old runtime key is
+// cleared, then the old record entries and wrap are stripped best-effort,
+// account by account in staging order. A failure is not a rollback point:
+// key_data already answers to the new passcode, and a vault that did not
+// commit still carries the wrap the old one opens. Report that failure and
+// continue committing the remaining vaults.
+[[nodiscard]] bool CommitStagedVaults(std::vector<StagedVault> &vaults) {
+	auto result = true;
+	for (auto &vault : vaults) {
+		const auto account = vault.account.get();
+		if (!account) {
+			continue;
+		}
+		const auto session = account->maybeSession();
+		if (!CommitStagedVaultWrap(
+				account->local(),
+				vault.staged,
+				session ? &session->wallet().vault() : nullptr)) {
+			result = false;
+		} else if (const auto live = vault.account.get()) {
+			if (const auto session = live->maybeSession()) {
+				session->wallet().notifyKeyProtectionChanged();
+			}
+		}
+	}
+	return result;
+}
+
+} // namespace
+
+// The memory-hard part of the staged change, cut out as one worker job: the
+// key_data wrap for the new passcode and, per dependent vault, the old
+// passcode's wrap key, the vault key it opens and the new passcode's wrap.
+// It holds values only - a weak account pointer that is never dereferenced
+// off the main thread, a copy of the committed wrap it derives against, the
+// two typed passcodes as SecureBytes - and touches no store, so nothing is
+// written before every derivation has answered. run() cleanses both typed
+// passcodes on every exit; the vault keys and wrap keys it produced live in
+// SecureBytes and die with the batch on the main thread, applied or not.
+struct VaultPasscodeChange::Data {
+	Storage::PasscodeDerivation keyData;
+	std::vector<VaultSnapshot> vaults;
+	SecureBytes oldPasscode;
+	SecureBytes newPasscode;
+	std::vector<DerivedVault> derived;
+	bool failed = false;
+};
+
+VaultPasscodeChange::VaultPasscodeChange(std::unique_ptr<Data> data)
+: _data(std::move(data)) {
+}
+
+VaultPasscodeChange::VaultPasscodeChange(
+	VaultPasscodeChange &&other) noexcept = default;
+
+VaultPasscodeChange &VaultPasscodeChange::operator=(
+	VaultPasscodeChange &&other) noexcept = default;
+
+VaultPasscodeChange::~VaultPasscodeChange() = default;
+
+std::optional<VaultPasscodeChange> VaultPasscodeChange::Prepare(
+		const Storage::Domain &local,
+		SecureBytes oldPasscode,
+		const QByteArray &newPasscode) {
+	auto snapshots = SnapshotDependentVaults(
+		CollectVaultDependents().passcodeWrapped);
+	if (!snapshots) {
+		return std::nullopt;
+	}
+	return VaultPasscodeChange(std::make_unique<Data>(Data{
+		.keyData = local.prepareNewWrap(newPasscode),
+		.vaults = std::move(*snapshots),
+		.oldPasscode = std::move(oldPasscode),
+		.newPasscode = SecureBytes(newPasscode),
+	}));
+}
+
+void VaultPasscodeChange::run() {
+	Expects(_data != nullptr);
+
+	auto &data = *_data;
+	auto oldUtf8 = QByteArray(
+		reinterpret_cast<const char*>(data.oldPasscode.span().data()),
+		data.oldPasscode.size());
+	auto newUtf8 = QByteArray(
+		reinterpret_cast<const char*>(data.newPasscode.span().data()),
+		data.newPasscode.size());
+	const auto cleanse = gsl::finally([&] {
+		if (!oldUtf8.isEmpty()) {
+			OPENSSL_cleanse(oldUtf8.data(), oldUtf8.size());
+		}
+		if (!newUtf8.isEmpty()) {
+			OPENSSL_cleanse(newUtf8.data(), newUtf8.size());
+		}
+		data.oldPasscode.clear();
+		data.newPasscode.clear();
+	});
+	data.derived.reserve(data.vaults.size());
+	for (auto &vault : data.vaults) {
+		const auto wrapKey = DeriveVaultWrapKey(
+			vault.committed,
+			oldUtf8);
+		if (!wrapKey) {
+			data.failed = true;
+			return;
+		}
+		auto vaultKey = UnwrapVaultKey(vault.committed, *wrapKey);
+		if (!vaultKey) {
+			data.failed = true;
+			return;
+		}
+		auto prepared = PrepareVaultPasscodeWrap(newUtf8);
+		if (!prepared) {
+			data.failed = true;
+			return;
+		}
+		data.derived.push_back({
+			.account = std::move(vault.account),
+			.committed = std::move(vault.committed),
+			.vaultKey = std::move(*vaultKey),
+			.prepared = std::move(*prepared),
+		});
+	}
+	data.keyData.run();
+}
+
+// Stage every dependent, write key_data, then commit every surviving vault:
+// all derivations precede this synchronous sequence. Before key_data commits,
+// the old passcode opens launch and every dependent; a failed stage or either
+// writer refusal rolls back prior stages. After key_data's checked commit,
+// even before the writer returns, launch takes the new passcode while an
+// uncommitted vault still takes the old one. A failed vault commit is never a
+// rollback point, and later commits must still be attempted. Restart settles
+// each store by its own committed generation; it does not finish this batch.
+//
+// Synchronous does not mean callback-free. Storage::Domain fires
+// _passcodeKeyChanged, exposed as localPasscodeChanged(), inside the writer;
+// its subscribers update passcode labels, lock/minimized controls and wallet
+// metadata while headers are dirty. Settings' SetPasscode also calls
+// Application::localPasscodeChanged(), whose synchronous auto-lock fan-out
+// can tear down UI and clear runtimes.
+// Per-vault notifyKeyProtectionChanged() also runs while later headers remain
+// staged. Current CollectVaultDependents and KeyLocationNow metadata readers
+// use non-writing ReadVaultHeader(), which filters stages only in its copy.
+// A subscriber reaching ReconcileVaultHeader() or VaultRuntime::reading()
+// would persist that removal, strip record entries and write away a stage
+// between these steps.
+// The stack-owned batch and weak accounts survive UI/account destruction
+// across those callbacks without an event-loop hop or retained writer.
+VaultPasscodeChangeResult VaultPasscodeChange::apply(
+		Fn<Storage::SetPasscodeResult(Storage::PasscodeDerivation)> writer) {
+	const auto data = base::take(_data);
+	Expects(data != nullptr);
+
+	using Result = VaultPasscodeChangeResult;
+	auto vaults = (data->failed || !SameDependents(data->derived))
+		? std::nullopt
+		: StageDerivedVaults(data->derived);
+	if (!vaults) {
+		return Result::VaultFailed;
+	}
+	const auto result = writer(std::move(data->keyData));
+	if (result != Storage::SetPasscodeResult::Success) {
+		RollbackStagedVaults(*vaults);
+		return (result == Storage::SetPasscodeResult::NeedsVerification)
+			? Result::NeedsVerification
+			: Result::PasscodeFailed;
+	}
+	return CommitStagedVaults(*vaults)
+		? Result::Done
+		: Result::CommitFailed;
+}
+
+namespace {
+
 // A function-local static, so a provider registered from another translation
 // unit's initializer cannot observe an unconstructed vector.
 [[nodiscard]] std::vector<std::unique_ptr<ProtectionProvider>> &Providers() {
@@ -721,10 +1053,10 @@ void KeyProtectionBox(
 					&wallet->vault());
 				key.reset();
 				if (result != VaultTransitionResult::Done) {
-					// A failure leaves the previous wrap committed - the
-					// primitive rewrote the pre-stage header, or left a
-					// staged header the next read rolls back - so the old
-					// kind still opens this vault.
+					// Failure leaves the old wrap committed. Staging rolls back
+					// records and header best-effort; a failed commit can retain
+					// both wraps in the caller header and on disk. Reconciliation
+					// strips records and wraps outside the committed generation.
 					fail();
 					return;
 				}

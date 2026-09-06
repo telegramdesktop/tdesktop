@@ -254,15 +254,37 @@ private:
 // changing one passcode across several stores can hold every vault staged
 // while another store's write runs and commit them only once it succeeded;
 // TransitionVaultWrap is exactly their composition.
+//
+// Refused writes nothing. Every stage failure leaves the caller header
+// unchanged: WriteFailed means sealing or a checked write failed, VerifyFailed
+// means read-back proof failed. A failure after write A attempts to strip the
+// new record entries and restore the prior header; failed rollback can leave
+// a staged header on disk, with the old committed wrap and records usable.
+// Done installs both wraps in the caller header at the old committed generation
+// after the new wrap and both entries of every re-sealed record are proved.
 [[nodiscard]] VaultTransitionResult StageVaultWrap(
 	Storage::Account &local,
 	VaultHeader &header,
 	const SecureBytes &vaultKey,
 	VaultPreparedWrap next);
+
+// Invalid input or a failed checked write B returns false without changing
+// the caller header or clearing the runtime. After B, committed has advanced
+// while both wraps remain on disk, and the runtime's retired key is cleared.
+// Stripping old record entries and writing C are best-effort: true means B
+// succeeded, even if the next reconciling read must finish that cleanup. The
+// caller header holds only the new wrap at the advanced generation either way.
+// ReadVaultHeader filters other generations in its copy; ReconcileVaultHeader
+// also strips their record entries and persists the settled header.
 [[nodiscard]] bool CommitStagedVaultWrap(
 	Storage::Account &local,
 	VaultHeader &header,
 	VaultRuntime *runtime);
+
+// Composes StageVaultWrap and CommitStagedVaultWrap, forwarding stage failures
+// and reporting a failed commit as WriteFailed. That result does not promise
+// the pre-stage single-wrap caller header: a failed commit retains both wraps
+// at the old committed generation, with the old wrap still opening the records.
 [[nodiscard]] VaultTransitionResult TransitionVaultWrap(
 	Storage::Account &local,
 	VaultHeader &header,

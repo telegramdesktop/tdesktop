@@ -17,6 +17,9 @@ class SessionShow;
 
 namespace Storage {
 class Account;
+class Domain;
+class PasscodeDerivation;
+enum class SetPasscodeResult : uchar;
 } // namespace Storage
 
 namespace Ui {
@@ -178,5 +181,40 @@ struct VaultDependents {
 };
 
 [[nodiscard]] VaultDependents CollectVaultDependents();
+
+enum class VaultPasscodeChangeResult {
+	Done,
+	VaultFailed,
+	NeedsVerification,
+	PasscodeFailed,
+	CommitFailed,
+};
+
+// Prepare snapshots the current dependents on the main thread and owns all
+// typed bytes and key material. Move the job through Storage::DeriveOnWorker
+// for exactly one run(), which touches values only, then apply it once on the
+// main thread. apply consumes the batch and destroys its keys before returning;
+// its synchronous writer is invoked at most once and is never retained.
+class VaultPasscodeChange final {
+public:
+	[[nodiscard]] static std::optional<VaultPasscodeChange> Prepare(
+		const Storage::Domain &local,
+		SecureBytes oldPasscode,
+		const QByteArray &newPasscode);
+	VaultPasscodeChange(VaultPasscodeChange &&other) noexcept;
+	VaultPasscodeChange &operator=(VaultPasscodeChange &&other) noexcept;
+	~VaultPasscodeChange();
+
+	void run();
+	[[nodiscard]] VaultPasscodeChangeResult apply(
+		Fn<Storage::SetPasscodeResult(Storage::PasscodeDerivation)> writer);
+
+private:
+	struct Data;
+	explicit VaultPasscodeChange(std::unique_ptr<Data> data);
+
+	std::unique_ptr<Data> _data;
+
+};
 
 } // namespace Wallet
