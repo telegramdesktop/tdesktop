@@ -245,6 +245,9 @@ public:
 		const QString &filepath,
 		const QByteArray &content,
 		const QString &filemime);
+	[[nodiscard]] static bool IsVideoFile(
+		const QString &filepath,
+		const QString &filemime);
 	static bool FillImageInformation(
 		QImage &&image,
 		bool animated,

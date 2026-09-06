@@ -157,6 +157,10 @@ Media::Encode::AnimatedEntity::Kind ItemSticker::entityKind() const {
 		: Media::Encode::AnimatedEntity::Kind::Lottie;
 }
 
+bool ItemSticker::hasContent() const {
+	return !content().isEmpty();
+}
+
 QByteArray ItemSticker::content() const {
 	const auto &bytes = _mediaView->bytes();
 	if (!bytes.isEmpty()) {

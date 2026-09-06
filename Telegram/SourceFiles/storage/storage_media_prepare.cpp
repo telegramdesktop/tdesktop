@@ -90,9 +90,9 @@ bool ValidatePhotoEditorMediaDragData(not_null<const QMimeData*> data) {
 		if (url.isLocalFile()) {
 			using namespace Core;
 			const auto file = Platform::File::UrlToLocal(url);
-			const auto info = QFileInfo(file);
-			return FileIsImage(file, MimeTypeForFile(info).name())
-				&& QImageReader(file).canRead();
+			const auto mime = MimeTypeForFile(QFileInfo(file)).name();
+			return FileLoadTask::IsVideoFile(file, mime)
+				|| (FileIsImage(file, mime) && QImageReader(file).canRead());
 		}
 	}
 
@@ -109,6 +109,17 @@ PhotoEditorMedia ReadPhotoEditorMedia(not_null<const QMimeData*> data) {
 			Core::MimeTypeForFile(QFileInfo(path)).name());
 		if (const auto image = std::get_if<Image>(&information->media)) {
 			return { .image = std::move(image->data) };
+		}
+		using Video = PreparedFileInformation::Video;
+		if (const auto video = std::get_if<Video>(&information->media)) {
+			if (QFileInfo(path).size() > Images::kReadBytesLimit) {
+				return {};
+			}
+			return {
+				.image = std::move(video->thumbnail),
+				.videoPath = path,
+				.videoDuration = video->duration,
+			};
 		}
 	}
 	if (auto read = Core::ReadMimeImage(data)) {

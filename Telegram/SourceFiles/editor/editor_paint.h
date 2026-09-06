@@ -19,6 +19,10 @@ class QGraphicsItem;
 class QGraphicsView;
 class QKeyEvent;
 
+namespace Storage {
+struct PhotoEditorMedia;
+} // namespace Storage
+
 namespace Editor {
 
 struct Controllers;
@@ -91,6 +95,7 @@ private:
 	ItemBase::Data mediaItemData(QSize mediaSize) const;
 	void addMediaItem(std::shared_ptr<ItemBase> item);
 	void addImageItem(QImage &&image);
+	void addVideoItem(Storage::PhotoEditorMedia &&media);
 	void applyViewTransform();
 	void bakeTextScales();
 

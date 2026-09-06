@@ -10,28 +10,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene_item_animated.h"
 #include "media/clip/media_clip_reader.h"
 
-namespace Data {
-class DocumentMedia;
-} // namespace Data
-namespace Lottie {
-class SinglePlayer;
-} // namespace Lottie
-class DocumentData;
-
 namespace Editor {
 
-class ItemSticker final : public ItemAnimated {
+class ItemVideo final : public ItemAnimated {
 public:
-	enum { Type = ItemBase::Type + 1 };
+	enum { Type = ItemBase::Type + 4 };
 
-	ItemSticker(
-		not_null<DocumentData*> document,
-		ItemBase::Data data);
+	struct Source {
+		QString path;
+		QByteArray content;
+		QImage thumbnail;
+		crl::time duration = 0;
+	};
+
+	ItemVideo(std::shared_ptr<Source> source, ItemBase::Data data);
 	void paint(
 		QPainter *p,
 		const QStyleOptionGraphicsItem *option,
 		QWidget *widget) override;
-	[[nodiscard]] not_null<DocumentData*> sticker() const;
 	[[nodiscard]] bool animated() const override;
 	[[nodiscard]] bool hasContent() const override;
 	[[nodiscard]] QByteArray content() const override;
@@ -47,26 +43,16 @@ protected:
 	std::shared_ptr<ItemBase> duplicate(ItemBase::Data data) const override;
 
 private:
-	const not_null<DocumentData*> _document;
-	const std::shared_ptr<::Data::DocumentMedia> _mediaView;
-
-	void updatePixmap(QImage &&image);
+	void createPlayer();
 	void clipCallback(::Media::Clip::Notification notification);
-	bool createPlayer();
 	[[nodiscard]] QImage currentFrame();
 
-	struct {
-		std::unique_ptr<Lottie::SinglePlayer> player;
-		rpl::lifetime lifetime;
-	} _lottie;
-	::Media::Clip::ReaderPointer _webm;
+	const std::shared_ptr<Source> _source;
+	const QSize _frameSize;
+	::Media::Clip::ReaderPointer _reader;
 	QImage _image;
-
-	crl::time _loopDuration = 0;
 	bool _releasedAnimation = false;
 	bool _pendingRecreate = false;
-
-	rpl::lifetime _loadingLifetime;
 
 };
 

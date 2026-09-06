@@ -689,9 +689,7 @@ bool Scene::hasAnimatedItems() const {
 		const auto animated = item->isNormalStatus()
 			? dynamic_cast<ItemAnimated*>(item.get())
 			: nullptr;
-		if (animated
-			&& animated->animated()
-			&& !animated->content().isEmpty()) {
+		if (animated && animated->animated() && animated->hasContent()) {
 			return true;
 		}
 	}

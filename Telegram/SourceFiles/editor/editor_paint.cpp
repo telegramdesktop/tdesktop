@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene_item_shape.h"
 #include "editor/scene/scene_item_sticker.h"
 #include "editor/scene/scene_item_text.h"
+#include "editor/scene/scene_item_video.h"
 #include "editor/scene/scene.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_single_player.h"
@@ -560,8 +561,22 @@ void Paint::handleMimeData(const QMimeData *data) {
 		_controllers->show->showBox(
 			Ui::MakeInformBox(tr::lng_edit_media_invalid_file()));
 		return;
+	} else if (media.video()) {
+		addVideoItem(std::move(media));
+	} else {
+		addImageItem(std::move(media.image));
 	}
-	addImageItem(std::move(media.image));
+}
+
+void Paint::addVideoItem(Storage::PhotoEditorMedia &&media) {
+	const auto data = mediaItemData(media.image.size());
+	addMediaItem(std::make_shared<ItemVideo>(
+		std::make_shared<ItemVideo::Source>(ItemVideo::Source{
+			.path = std::move(media.videoPath),
+			.thumbnail = std::move(media.image),
+			.duration = media.videoDuration,
+		}),
+		data));
 }
 
 void Paint::addImageItem(QImage &&image) {

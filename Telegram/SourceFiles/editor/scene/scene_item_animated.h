@@ -17,6 +17,7 @@ public:
 	using ItemBase::ItemBase;
 
 	[[nodiscard]] virtual bool animated() const = 0;
+	[[nodiscard]] virtual bool hasContent() const = 0;
 	[[nodiscard]] virtual QByteArray content() const = 0;
 	[[nodiscard]] virtual crl::time loopDuration() const = 0;
 	virtual void releasePlayers() = 0;

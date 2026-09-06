@@ -622,10 +622,9 @@ bool FileLoadTask::CheckForSong(
 	return true;
 }
 
-bool FileLoadTask::CheckForVideo(
+bool FileLoadTask::IsVideoFile(
 		const QString &filepath,
-		const QByteArray &content,
-		std::unique_ptr<Ui::PreparedFileInformation> &result) {
+		const QString &filemime) {
 	static const auto mimes = {
 		u"video/mp4"_q,
 		u"video/quicktime"_q,
@@ -636,7 +635,14 @@ bool FileLoadTask::CheckForVideo(
 		u".m4v"_q,
 		u".webm"_q,
 	};
-	if (!CheckMimeOrExtensions(filepath, result->filemime, mimes, extensions)) {
+	return CheckMimeOrExtensions(filepath, filemime, mimes, extensions);
+}
+
+bool FileLoadTask::CheckForVideo(
+		const QString &filepath,
+		const QByteArray &content,
+		std::unique_ptr<Ui::PreparedFileInformation> &result) {
+	if (!IsVideoFile(filepath, result->filemime)) {
 		return false;
 	}
 

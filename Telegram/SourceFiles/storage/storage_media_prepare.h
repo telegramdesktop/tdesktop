@@ -54,7 +54,12 @@ enum class MimeDataState {
 
 struct PhotoEditorMedia {
 	QImage image;
+	QString videoPath;
+	crl::time videoDuration = 0;
 
+	[[nodiscard]] bool video() const {
+		return !videoPath.isEmpty();
+	}
 	[[nodiscard]] explicit operator bool() const {
 		return !image.isNull();
 	}
