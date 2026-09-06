@@ -82,17 +82,17 @@ void AcquireVaultUnlock(VaultUnlockArgs args);
 // write that did not reach the disk - and a crash in the same window - is
 // finished here at the next start instead of leaving a passcode nobody can
 // produce standing over nothing it can open. Called once from
-// Main::Domain::start(), after the accounts are up. It shows nothing,
+// Main::Domain::startWith(), after the accounts are up. It shows nothing,
 // states nothing and logs out nobody, and it destroys no wallet key, vault
 // or custody record: that destruction already happened, and this only
 // finishes the passcode's own removal.
 //
-// openedWithoutPasscode is the fact this start established, and the caller
-// passes what it did rather than what any stored state says: true only
-// when Main::Domain::start() opened the local key with the empty passcode.
-// The launch lock's absence is otherwise read from a key_data field that
-// nothing validates, so this parameter is what makes that absence a fact
-// about this install rather than about a file - see the definition.
+// openedWithoutPasscode records this process's actual empty-passcode start.
+// The verified app-lock answer separately describes whether the current
+// committed open wrap recovers the local key. Both facts are required:
+// turning the lock off after a typed start cannot satisfy the first one.
+// Completion also rechecks that a passcode remains and no vault depends on
+// it, so the owed flag alone never authorizes removal - see the definition.
 void FinishForgottenPasscodeClear(bool openedWithoutPasscode);
 
 // Vault: the typed passcode must open the vault's own passcode wrap.

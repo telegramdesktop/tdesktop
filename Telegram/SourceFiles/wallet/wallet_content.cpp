@@ -7073,6 +7073,7 @@ struct KeyLocationState {
 [[nodiscard]] KeyLocationState KeyLocationNow(
 		not_null<Main::Session*> session) {
 	auto result = KeyLocationState();
+	// Cached verification labels real protection without secret access here.
 	result.appLockEnabled = session->domain().local().appLockEnabled();
 	switch (session->wallet().deviceCustodyState().mode) {
 	case DeviceMode::Unknown:

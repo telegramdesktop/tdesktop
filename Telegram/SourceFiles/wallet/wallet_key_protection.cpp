@@ -168,6 +168,7 @@ void AcquireVaultKey(
 // bytes - so no flood counter moves either way.
 void DropPasscodeIfLastDependentGone(const SecureBytes &passcode) {
 	auto &local = Core::App().domain().local();
+	// A verified launch lock still needs the passcode after the vault moves.
 	if (!local.hasPasscode()
 		|| local.appLockEnabled()
 		|| !CollectVaultDependents().passcodeWrapped.empty()) {
@@ -660,9 +661,8 @@ void KeyProtectionBox(
 	}
 	makeClickable(passcodeRow, VaultKind::Passcode);
 
-	// The Open wording follows the app lock as it will be once this operation
-	// is done: a Removal is the caller dropping the local passcode, so the
-	// launch prompt is gone by then whatever it says now.
+	// The Open wording uses verified protection after this operation.
+	// Removal drops the passcode, so its wording describes no launch lock.
 	const auto appLockAfter = !removal
 		&& show->session().domain().local().appLockEnabled();
 	const auto openRow = addRow(

@@ -465,31 +465,16 @@ void FinishForgottenPasscodeClear(bool openedWithoutPasscode) {
 		return;
 	}
 	auto &local = Core::App().domain().local();
-	// The flag says a removal was owed. What authorizes performing it is read
-	// here and is never carried in the flag - and the largest part of it
-	// cannot be read from stored state at all. appLockEnabled() is a
-	// non-emptiness test over a key_data field that nothing in that file
-	// validates, and the file's own integrity check is unkeyed, so
-	// !appLockEnabled() by itself says something about a file anyone holding
-	// the folder can write and not something about this install. What makes
-	// the launch lock's absence a fact is that this process opened the local
-	// key with the empty passcode, which is what openedWithoutPasscode carries
-	// down from Domain::start() and what no planted state can arrange: a start
-	// that had to ask for a typed passcode reports false, and an open wrap
-	// that really does yield this install's local key is one only a holder of
-	// that key could have written. Anything else planted in that field either
-	// does not open under the empty passcode at all - the start returns
-	// IncorrectPasscode, the lock screen appears, and the passcode typed there
-	// is what makes openedWithoutPasscode false - or opens onto something that
-	// is not this install's local key, which fails the start later and starts
-	// it from scratch instead of opening it. Beside it, appLockEnabled()
-	// is still the forgot path's entry condition and the empty list still its
-	// own second enumeration, both asked again at the moment of acting,
-	// because the app lock can have been turned back on and a vault can have
-	// been created since the run that recorded this. Any of them, or a
-	// passcode that is already gone, drops the flag: the state that authorized
-	// the removal no longer exists, and a flag left waiting for it to come
-	// back would be exactly the standing permission this must not be.
+	// The flag records an owed removal, never permission to perform it.
+	// !appLockEnabled() means the current committed open wrap was proved
+	// to recover this local key. openedWithoutPasscode is a separate
+	// fact: this process actually started with the empty passcode, captured
+	// by Main::Domain::startWith(). Turning the lock off after a typed start
+	// cannot supply that proof. Recheck verified locking and fresh vault
+	// dependencies because either can have changed since the flag was set.
+	// A failed proof, a missing passcode, a lock turned on or a surviving
+	// dependent clears the flag; keeping it until those conditions change
+	// would make it a standing permission.
 	if (!openedWithoutPasscode
 		|| !local.hasPasscode()
 		|| local.appLockEnabled()
@@ -545,12 +530,11 @@ void WalletPasscodeBox(
 	error->hide();
 	// The link is bound to the Vault check alone, because that is the one
 	// check meaning "this device holds a key it cannot open without the
-	// passcode". KeyDataAndArm and KeyDataAndVault gate flows the user can
-	// simply cancel, and KeyDataAndVault is the gate the disable and the
-	// change flows open, where dropping a vault from inside the box would
-	// race the caller's continuation. The !appLockEnabled() half is
-	// security and not polish: with the launch lock still on, this link
-	// would be a passcode removal nobody had to prove anything for.
+	// passcode". KeyDataAndVault gates disable and change flows the user can
+	// simply cancel, where dropping a vault from inside the box would race
+	// the caller's continuation. Verified app-lock-off proves this local key
+	// can open without a passcode; otherwise the link would offer removal of
+	// a launch-lock passcode nobody had to prove anything for.
 	const auto forgot = (args.check == WalletPasscodeCheck::Vault
 		&& !args.show->session().domain().local().appLockEnabled())
 		? box->addRow(

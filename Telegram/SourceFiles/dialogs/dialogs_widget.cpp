@@ -4457,6 +4457,7 @@ void Widget::updateLockUnlockVisibility(anim::type animated) {
 	const auto widthAnimation = !_widthAnimationCache.isNull();
 	const auto suggestionsAnimation = widthAnimation
 		&& (!_suggestions || !_hidingSuggestions.empty());
+	// Show verified locking; the layout path only reads the cache.
 	const auto hiddenInstant = _showAnimation
 		|| _openedForum
 		|| (widthAnimation && !suggestionsAnimation)

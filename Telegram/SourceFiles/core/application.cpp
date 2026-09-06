@@ -1431,6 +1431,7 @@ bool Application::someSessionExists() const {
 }
 
 void Application::checkAutoLock(crl::time lastNonIdleTime) {
+	// Cached verification stops planted bytes from disarming idle locking.
 	if (!_domain->local().hasLocalPasscode()
 		|| passcodeLocked()
 		|| !someSessionExists()) {
@@ -2045,6 +2046,7 @@ void Application::startShortcuts() {
 			return true;
 		});
 		request->check(Command::Lock) && request->handle([=] {
+			// Keep manual locking available for a verified app lock.
 			if (!passcodeLocked() && _domain->local().hasLocalPasscode()) {
 				maybeLockByPasscode();
 				return true;

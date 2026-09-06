@@ -40,6 +40,7 @@ struct KeyData final {
 	quint32 committed = 0;
 	bool legacy = false;
 	bool legacyPasscode = false;
+	bool openKeyVerified = false;
 };
 
 namespace {
@@ -397,21 +398,25 @@ void Domain::installOpenWrap(KeyData &data) const {
 	Expects(_localKey != nullptr);
 
 	data.openSalt = RandomSalt();
-	data.openKeyEncrypted = WrapLocalKey(
-		_localKey,
-		CreateLocalKey(QByteArray(), data.openSalt));
+	const auto wrapKey = CreateLocalKey(QByteArray(), data.openSalt);
+	data.openKeyEncrypted = WrapLocalKey(_localKey, wrapKey);
+	data.openKeyVerified = WrapOpensLocalKey(
+		data.openKeyEncrypted,
+		wrapKey,
+		_localKey);
 }
 
-// The open wrap is absent exactly while the app lock is on, and that absence
-// is recorded by an empty openKeyEncrypted - never by an empty openSalt. A
-// build of the same AppVersion that predates this format reads only the three
-// legacy blobs: a real-size salt beside an empty wrap makes it fail inside
+// Turning the app lock on drops the open wrap, recording its absence with
+// an empty openKeyEncrypted - never with an empty openSalt. A build of the
+// same AppVersion that predates this format reads only the three legacy
+// blobs: a real-size salt beside an empty wrap makes it fail inside
 // DecryptLocal and ask for a passcode, while an empty salt would make it fail
 // the salt-size check, start from scratch and orphan every account store. So
 // the salt stays 32 real random bytes in both states.
 void Domain::dropOpenWrap(KeyData &data) const {
 	data.openSalt = RandomSalt();
 	data.openKeyEncrypted = QByteArray();
+	data.openKeyVerified = false;
 }
 
 void Domain::installLegacyWrap(
@@ -420,11 +425,12 @@ void Domain::installLegacyWrap(
 	Expects(_localKey != nullptr);
 
 	data.openSalt = RandomSalt();
-	data.openKeyEncrypted = WrapLocalKey(
-		_localKey,
-		CreateLocalKey(passcode, data.openSalt));
+	const auto wrapKey = CreateLocalKey(passcode, data.openSalt);
+	data.openKeyEncrypted = WrapLocalKey(_localKey, wrapKey);
 	data.legacy = true;
 	data.legacyPasscode = !passcode.isEmpty();
+	data.openKeyVerified = passcode.isEmpty()
+		&& WrapOpensLocalKey(data.openKeyEncrypted, wrapKey, _localKey);
 }
 
 MTP::AuthKeyPtr Domain::installPasscodeWrap(
@@ -503,6 +509,19 @@ Domain::StartModernResult Domain::startModern(
 	}
 	*_keyData = std::move(parsed);
 
+	// Probe the stored open wrap independently of the typed passcode result.
+	// PrepareEncrypted adds a 16-byte prefix to the padded length and key.
+	// Only this ciphertext size can hold the fixed-size local key. Bound
+	// this extra decrypt before it allocates, keeping the selected unwrap
+	// and startup results intact. Compare once that unwrap gives a key.
+	constexpr auto kOpenWrapSize = 16
+		+ ((sizeof(uint32) + MTP::AuthKey::kSize + 15) / 16) * 16;
+	auto openKey = (_keyData->openKeyEncrypted.size() == kOpenWrapSize)
+		? UnwrapLocalKey(
+			_keyData->openKeyEncrypted,
+			CreateLocalKey(QByteArray(), _keyData->openSalt))
+		: nullptr;
+
 	auto wrapKey = MTP::AuthKeyPtr();
 	auto localKeyEncrypted = QByteArray();
 	if (_keyData->legacy) {
@@ -567,6 +586,8 @@ Domain::StartModernResult Domain::startModern(
 		return StartModernResult::Failed;
 	}
 	_localKey = std::make_shared<MTP::AuthKey>(key);
+	_keyData->openKeyVerified = openKey && openKey->equals(_localKey);
+	openKey = nullptr;
 
 	if (_keyData->legacy) {
 		_keyData->legacyPasscode = !derived.empty();
@@ -932,20 +953,19 @@ SetPasscodeResult Domain::setAppLockEnabled(bool enabled) {
 	return SetPasscodeResult::Success;
 }
 
-// The last logout runs this after Local::reset() has already destroyed every
-// store the local key protected, so there is nothing left for the old passcode
-// to guard and no way left to ask for it - the account it belonged to is gone.
-// That is why it is the one removal that carries no verification, and why it
-// lives behind its own name instead of being reachable through setPasscode().
-// The write is still checked, because a removal that only looked like it was
-// written would leave the user facing a passcode nobody remembers.
-// The wallet's forgot-passcode path is the second caller, and its precondition
-// is weaker in one direction and identical in the other: it keeps the account
-// and every store the passcode did not guard, and has destroyed only the ones
-// it did - each dependent vault header and the secrets sealed under it. It
-// runs only while the app lock is off, so once those are gone the passcode
-// again guards nothing that could be asked for, which is what makes the
-// unverified removal safe there too.
+// Main::Domain::removePasscodeIfEmpty() calls this after Local::reset() has
+// destroyed every store the local key protected. Nothing remains for the old
+// passcode to guard or to ask for it - the account it belonged to is gone.
+// Wallet's immediate DropForgottenPasscode() keeps the accounts and stores
+// the passcode did not guard, but removes every dependent vault header and
+// its secrets while the app lock is off.
+// Wallet::FinishForgottenPasscodeClear() retries that owed removal after
+// an actual empty-passcode start, rechecking the verified lock state and
+// absence of dependent vaults; it destroys no wallets itself. Each caller
+// establishes that the passcode guards nothing left to ask for, which is
+// why this removal carries no verification and has its own name instead
+// of being reachable through setPasscode(). The write stays checked so
+// failure does not claim a forgotten passcode was removed.
 void Domain::clearPasscodeAfterReset() {
 	Expects(_localKey != nullptr);
 
@@ -984,10 +1004,11 @@ bool Domain::hasPasscode() const {
 }
 
 bool Domain::appLockEnabled() const {
-	return _keyData->legacyPasscode || _keyData->openKeyEncrypted.isEmpty();
+	return _keyData->legacyPasscode || !_keyData->openKeyVerified;
 }
 
 bool Domain::hasLocalPasscode() const {
+	// This historical API means verified app locking, not a wallet passcode.
 	return appLockEnabled();
 }
 

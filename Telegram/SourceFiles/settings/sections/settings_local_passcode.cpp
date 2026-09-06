@@ -935,6 +935,8 @@ void BuildManageContent(SectionBuilder &builder) {
 	// reverts a refused or dismissed toggle needs, and it reaches the row
 	// alone: rpl::variable drops a value equal to the one it already holds,
 	// and a revert is exactly the case where the store never moved.
+	// Both the initial toggle and its committed-change refresh use verified
+	// launch protection, so planted bytes cannot make the row say off.
 	state->appLockOn = rpl::single(
 		local.appLockEnabled()
 	) | rpl::then(local.localPasscodeChanged() | rpl::map([] {
@@ -992,6 +994,8 @@ void BuildManageContent(SectionBuilder &builder) {
 		};
 		lockApp->toggledChanges(
 		) | rpl::filter([=](bool value) {
+			// Compare verified locking so planted bytes cannot suppress
+			// a change the user requested.
 			return value != Core::App().domain().local().appLockEnabled();
 		}) | rpl::on_next([=](bool value) {
 			if (value) {
@@ -1422,6 +1426,7 @@ base::weak_qptr<Ui::RpWidget> LocalPasscodeManage::createPinnedToBottom(
 		// today's confirmation instead of given a key of its own.
 		auto text = [&]() -> rpl::producer<QString> {
 			const auto &local = controller()->session().domain().local();
+			// Warn if removal loses an Open vault's verified launch lock.
 			if (dependents.open.empty() || !local.appLockEnabled()) {
 				return tr::lng_settings_passcode_disable_sure();
 			}
