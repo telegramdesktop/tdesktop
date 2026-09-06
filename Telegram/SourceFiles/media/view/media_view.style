@@ -661,6 +661,10 @@ storiesEmojiPan: EmojiPan(defaultEmojiPan) {
 	categoriesBgOver: storiesComposeBgOver;
 	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", storiesComposeBg }};
 	fadeRight: icon {{ "fade_horizontal", storiesComposeBg }};
+	photoButtonIcon: icon {{
+		"photo_editor/camera-24x24",
+		storiesComposeWhiteText
+	}};
 	menu: storiesPopupMenuWithIcons;
 	menuAttention: storiesMenuWithIconsAttention;
 	expandedSeparator: mediaviewWideMenuSeparator;
