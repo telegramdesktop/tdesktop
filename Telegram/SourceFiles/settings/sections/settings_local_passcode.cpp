@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/auto_lock_box.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "main/session/session_show.h"
@@ -110,6 +111,27 @@ void WriteVerification(
 	if (stepData && verification) {
 		*stepData = *verification;
 	}
+}
+
+[[nodiscard]] rpl::producer<QString> WalletPasscodeDescription() {
+	const auto dependents = Wallet::CollectVaultDependents();
+	if (dependents.passcodeWrapped.empty()) {
+		return tr::lng_passcode_unused_about();
+	}
+	for (const auto &account : dependents.passcodeWrapped) {
+		const auto session = account->maybeSession();
+		if (!session) {
+			continue;
+		}
+		auto name = session->user()->name().trimmed();
+		if (name.isEmpty()) {
+			continue;
+		}
+		return tr::lng_passcode_wallet_about(
+			lt_account,
+			rpl::single(std::move(name)));
+	}
+	return tr::lng_passcode_wallet_about_unnamed();
 }
 
 } // namespace
@@ -232,9 +254,14 @@ void LocalPasscodeEnter::setupContent() {
 		)->setTryMakeSimilarLines(true);
 	};
 
-	addDescription(tr::lng_passcode_about1());
-	Ui::AddSkip(content);
-	addDescription(tr::lng_passcode_about2());
+	if (isCreate
+		|| controller()->session().domain().local().appLockEnabled()) {
+		addDescription(tr::lng_passcode_about1());
+		Ui::AddSkip(content);
+		addDescription(tr::lng_passcode_about2());
+	} else {
+		addDescription(WalletPasscodeDescription());
+	}
 
 	Ui::AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
 
