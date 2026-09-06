@@ -429,7 +429,9 @@ public:
 
 private:
 	void ensureLoaded();
-	void requestState();
+	void requestState(
+		Fn<void(const MTPWalletState &)> done = nullptr,
+		Fn<void()> fail = nullptr);
 	void applyState(const MTPWalletState &state, bool pushed);
 	void setPresence(Presence presence);
 	void revealLocally(
@@ -461,7 +463,11 @@ private:
 		const MTPInputWalletReplacement &wallet,
 		std::optional<Core::CloudPasswordResult> password,
 		Fn<void(const MTPWalletState &)> applied,
-		Fn<void(const QString &)> fail);
+		Fn<void(const MTP::Error &)> fail);
+	void recoverImportedReplace(
+		QByteArray publicKey,
+		Fn<void(const MTPWalletState &)> applied,
+		Fn<void(const QString &)> abandon);
 	void finishConfirmedReplace(
 		std::optional<CustodyRecord> oldRecord,
 		std::optional<CustodyRecord> newActive,

@@ -1062,14 +1062,28 @@ void Session::refreshState() {
 	requestState();
 }
 
-void Session::requestState() {
+void Session::requestState(
+		Fn<void(const MTPWalletState &)> done,
+		Fn<void()> fail) {
+	if (done) {
+		_stateApi.request(base::take(_stateRequestId)).cancel();
+	}
 	_stateRequestedAt = crl::now();
-	_stateRequestId = _stateApi.request(MTPwallet_GetState(
-	)).done([=](const MTPWalletState &result) {
+	auto request = _stateApi.request(MTPwallet_GetState());
+	auto &policy = done ? request.handleAllErrors() : request;
+	_stateRequestId = policy.done([=](const MTPWalletState &result) {
 		_stateRequestId = 0;
-		applyState(result, false);
+		if (done) {
+			done(result);
+		} else {
+			applyState(result, false);
+		}
 	}).fail([=](const MTP::Error &error) {
 		_stateRequestId = 0;
+		if (fail) {
+			fail();
+			return;
+		}
 		if (error.type() == u"WALLET_UNAVAILABLE"_q) {
 			LOG(("Wallet Error: the server has no wallet for this account."));
 			setPresence(Presence::Unavailable);
@@ -2365,7 +2379,9 @@ void Session::replaceWithNew(
 		[=, this](const MTPWalletState &state) {
 			finishConfirmedReplace(oldRecord, std::nullopt, state, done, fail);
 		},
-		fail);
+		[=](const MTP::Error &error) {
+			fail(error.type());
+		});
 }
 
 void Session::replaceWithImported(
@@ -2444,8 +2460,9 @@ void Session::replaceWithImported(
 			return lifecycle->import_wallet(request);
 		}, [=, this](engine::WalletDescriptor descriptor) {
 			const auto record = RecordFromDescriptor(descriptor);
+			const auto created = install.created;
 			const auto abandon = [=, this](const QString &error) {
-				if (install.created) {
+				if (created) {
 					dropCreatedVault();
 				}
 				_engine->run([lifecycle, descriptor] {
@@ -2465,7 +2482,7 @@ void Session::replaceWithImported(
 				if (answered != record.publicKey) {
 					LOG(("Wallet Error: wallet.replaceWallet answered "
 						"another key."));
-					if (install.created) {
+					if (created) {
 						dropCreatedVault();
 					}
 					_engine->run([lifecycle, descriptor] {
@@ -2497,7 +2514,14 @@ void Session::replaceWithImported(
 							MTP_bytes(bytes::make_span(signature)))),
 					password,
 					applied,
-					abandon);
+					[=, this](const MTP::Error &error) {
+						if (!MTP::IsTemporaryError(error)
+							|| MTP::IsFloodError(error)) {
+							abandon(error.type());
+							return;
+						}
+						recoverImportedReplace(record.publicKey, applied, abandon);
+					});
 			};
 			const auto sign = [=, this](
 					const MTPDwallet_proofChallenge &challenge) {
@@ -2583,7 +2607,7 @@ void Session::sendReplaceWallet(
 		const MTPInputWalletReplacement &wallet,
 		std::optional<Core::CloudPasswordResult> password,
 		Fn<void(const MTPWalletState &)> applied,
-		Fn<void(const QString &)> fail) {
+		Fn<void(const MTP::Error &)> fail) {
 	using Flag = MTPwallet_replaceWallet::Flag;
 	const auto checked = password && *password;
 	auto request = _stateApi.request(MTPwallet_ReplaceWallet(
@@ -2595,9 +2619,9 @@ void Session::sendReplaceWallet(
 	// automatic resend of a request answered with a negative or 500-class
 	// code repeats the identical body, so a resent proof could only be
 	// refused as spent or spend the challenge behind the flow's back. Such
-	// an answer therefore reaches .fail() here and the import is abandoned;
-	// the next press fetches a fresh challenge and signs a fresh proof. A
-	// new wallet carries nothing one-shot and keeps the transport's resend.
+	// an answer therefore reaches .fail() here and the import checks the
+	// served state with a read, without repeating the proof. A new wallet
+	// carries nothing one-shot and keeps the transport's resend.
 	auto &policy = (wallet.type() == mtpc_inputWalletImported)
 		? request.handleAllErrors()
 		: request.handleFloodErrors();
@@ -2606,8 +2630,35 @@ void Session::sendReplaceWallet(
 	}).fail([=](const MTP::Error &error) {
 		LOG(("Wallet Error: wallet.replaceWallet failed: %1"
 			).arg(error.type()));
-		fail(error.type());
+		fail(error);
 	}).send();
+}
+
+void Session::recoverImportedReplace(
+		QByteArray publicKey,
+		Fn<void(const MTPWalletState &)> applied,
+		Fn<void(const QString &)> abandon) {
+	const auto unconfirmed = [=] {
+		abandon(u"REPLACE_STATE_UNCONFIRMED"_q);
+	};
+	requestState([=, this](const MTPWalletState &state) {
+		if (state.type() != mtpc_walletState) {
+			unconfirmed();
+			return;
+		}
+		const auto &data = state.c_walletState();
+		if (data.vpublic_key().v.size() != kCustodyPublicKeySize
+			|| !ParseAddress(qs(data.vaddress()))) {
+			unconfirmed();
+			return;
+		}
+		if (data.vpublic_key().v != publicKey) {
+			applyState(state, false);
+			abandon(u"REPLACE_KEY_MISMATCH"_q);
+			return;
+		}
+		applied(state);
+	}, unconfirmed);
 }
 
 void Session::finishConfirmedReplace(

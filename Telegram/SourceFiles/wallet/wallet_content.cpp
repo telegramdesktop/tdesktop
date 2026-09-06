@@ -5264,9 +5264,13 @@ void RequestWalletReplace(
 		// states the half that failed instead of a failure, and closes the
 		// import box with the same layer operation rather than racing a hide.
 		if (outcome == CustodyOutcome::WriteFailed) {
+			const auto held = (show->session().wallet().deviceCustodyState().mode
+				== DeviceMode::Full);
 			show->showBox(
 				Ui::MakeInformBox({
-					.text = tr::lng_wallet_imported_not_stored(tr::now),
+					.text = held
+						? tr::lng_wallet_imported_key_retained(tr::now)
+						: tr::lng_wallet_imported_not_stored(tr::now),
 					.title = tr::lng_wallet_imported_title(),
 				}),
 				Ui::LayerOption::CloseOther);
@@ -5324,10 +5328,15 @@ void RequestWalletReplace(
 			ShowInvalidSecretWords(
 				show,
 				error == u"REPLACE_FOREIGN_PHRASE"_q);
-		} else if (showError) {
-			showError(tr::lng_wallet_import_failed(tr::now));
 		} else {
-			show->showToast(tr::lng_wallet_import_failed(tr::now));
+			const auto text = (error == u"REPLACE_STATE_UNCONFIRMED"_q)
+				? tr::lng_wallet_import_unconfirmed(tr::now)
+				: tr::lng_wallet_import_failed(tr::now);
+			if (showError) {
+				showError(text);
+			} else {
+				show->showToast(text);
+			}
 		}
 	});
 	auto &wallet = show->session().wallet();

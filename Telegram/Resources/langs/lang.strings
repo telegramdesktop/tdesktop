@@ -8899,7 +8899,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_imported_title" = "Wallet Imported";
 "lng_wallet_imported_text" = "Your wallet was restored from your recovery phrase.";
 "lng_wallet_imported_not_stored" = "Your wallet was replaced, but its key couldn't be saved on this device. Restore it from your recovery phrase to send from here.";
+"lng_wallet_imported_key_retained" = "Your wallet was replaced. This device couldn't save a new copy of the key, but the key already saved here is still available.";
 "lng_wallet_import_failed" = "Couldn't import the wallet. Please try again.";
+"lng_wallet_import_unconfirmed" = "Couldn't confirm the wallet import. Please try again.";
 "lng_wallet_create_error" = "Couldn't create a wallet. Please try again.";
 "lng_wallet_phrase_error" = "Couldn't show the recovery phrase. Please try again.";
 "lng_wallet_phrase_password_title" = "Two-step verification";
