@@ -23,7 +23,7 @@ public:
 	RestoreShell(const QString &title, Core::WindowPosition position);
 	~RestoreShell();
 
-	void showUnavailable();
+	void showUnavailable(bool timedOut);
 	void close();
 	void activate();
 	[[nodiscard]] bool isActiveWindow() const;
