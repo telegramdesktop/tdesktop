@@ -114,6 +114,8 @@ Paint::Paint(
 	_viewport->setAutoFillBackground(false);
 	_viewport->setAttribute(Qt::WA_TranslucentBackground, true);
 	_viewport->installEventFilter(this);
+	_view->setAcceptDrops(false);
+	_viewport->setAcceptDrops(false);
 
 	_scene->textEditStates(
 	) | rpl::on_next([=](bool editing) {
