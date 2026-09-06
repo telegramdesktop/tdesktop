@@ -7,6 +7,9 @@
 # zxcvbn-c: the password strength estimator behind
 # SourceFiles/ui/passcode_strength.cpp. The dictionary is compiled in
 # (USE_DICT_FILE stays undefined), so the library performs no file I/O.
+# Besides upstream's six lists it holds the Russian and Ukrainian frequency
+# lists from Resources/zxcvbn, transliterated to Latin at build time by
+# zxcvbn_translit through the same table the estimator applies to a candidate.
 # There is no packaged branch: no distribution ships this library.
 
 add_library(lib_zxcvbn STATIC)
@@ -29,7 +32,9 @@ endif()
 
 # Upstream ships the word lists and the generator, not the generated
 # dictionary, so `dict-src.h` is produced here from the same inputs and in the
-# same order upstream's own makefile uses. The generator is deterministic.
+# same order upstream's own makefile uses, followed by the two transliterated
+# lists. The generator is deterministic and interleaves its inputs by rank, so
+# the input order is part of the result.
 set(zxcvbn_words
     words-eng_wiki.txt
     words-female.txt
@@ -49,14 +54,38 @@ else()
     target_compile_options(zxcvbn_dictgen PRIVATE -w)
 endif()
 
+add_executable(zxcvbn_translit
+    ${src_loc}/_other/zxcvbn_translit.cpp
+    ${src_loc}/ui/passcode_strength_translit.cpp
+)
+init_target(zxcvbn_translit "(codegen)")
+target_include_directories(zxcvbn_translit PRIVATE ${src_loc})
+
+# The generator drops every word with a byte above 0x7F, so the Cyrillic lists
+# are transliterated first, by the table the estimator itself applies.
+set(zxcvbn_translit_words ru_50k.txt uk_50k.txt)
+set(zxcvbn_latin_words)
+foreach (name ${zxcvbn_translit_words})
+    string(REGEX REPLACE "\\.txt$" "-latin.txt" latin_name ${name})
+    add_custom_command(
+        OUTPUT ${zxcvbn_gen}/${latin_name}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${zxcvbn_gen}
+        COMMAND zxcvbn_translit ${res_loc}/zxcvbn/${name} ${zxcvbn_gen}/${latin_name}
+        DEPENDS zxcvbn_translit ${res_loc}/zxcvbn/${name}
+        COMMENT "Transliterating zxcvbn ${name}"
+        VERBATIM
+    )
+    list(APPEND zxcvbn_latin_words ${zxcvbn_gen}/${latin_name})
+endforeach()
+
 # OUTPUT with explicit DEPENDS: the generator runs only when the word lists or
 # the generator itself change, so an ordinary incremental build neither
 # regenerates the dictionary nor relinks Telegram because of it.
 add_custom_command(
     OUTPUT ${zxcvbn_gen}/dict-src.h
     COMMAND ${CMAKE_COMMAND} -E make_directory ${zxcvbn_gen}
-    COMMAND zxcvbn_dictgen -o ${zxcvbn_gen}/dict-src.h ${zxcvbn_words}
-    DEPENDS zxcvbn_dictgen ${zxcvbn_words}
+    COMMAND zxcvbn_dictgen -o ${zxcvbn_gen}/dict-src.h ${zxcvbn_words} ${zxcvbn_latin_words}
+    DEPENDS zxcvbn_dictgen ${zxcvbn_words} ${zxcvbn_latin_words}
     COMMENT "Generating zxcvbn dict-src.h"
     VERBATIM
 )
@@ -83,6 +112,10 @@ PUBLIC
 PRIVATE
     ${zxcvbn_gen}
 )
+
+# PUBLIC: the estimator bounds the candidate at the length the library details
+# and must read this one number, never carry a copy of it.
+target_compile_definitions(lib_zxcvbn PUBLIC ZXCVBN_DETAIL_LEN=100)
 
 if (LINUX)
     target_link_libraries(lib_zxcvbn PUBLIC m)

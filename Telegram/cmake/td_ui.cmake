@@ -697,6 +697,8 @@ PRIVATE
     ui/new_badges.h
     ui/passcode_strength.cpp
     ui/passcode_strength.h
+    ui/passcode_strength_translit.cpp
+    ui/passcode_strength_translit.h
     ui/peer/color_sample.cpp
     ui/peer/color_sample.h
     ui/power_saving.cpp
