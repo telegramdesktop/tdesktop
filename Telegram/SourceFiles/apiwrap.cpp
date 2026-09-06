@@ -2532,6 +2532,7 @@ mtpRequestId ApiWrap::savePreparedDraftToCloud(
 				&& i->second == requestId) {
 				_draftsSaveRequestIds.erase(i);
 				checkQuitPreventFinished();
+				resaveDraftChangedWhileSaving(weak);
 			}
 			if (callbacks && callbacks->done) {
 				callbacks->done();
@@ -2569,6 +2570,23 @@ mtpRequestId ApiWrap::savePreparedDraftToCloud(
 		cloudDraft->saveRequestId = requestId;
 	}
 	return requestId;
+}
+
+void ApiWrap::resaveDraftChangedWhileSaving(
+		base::weak_ptr<Data::Thread> weak) {
+	const auto thread = weak.get();
+	if (!thread || _session->supportMode()) {
+		return;
+	}
+	Core::App().materializeLocalDrafts();
+	const auto history = thread->owningHistory();
+	const auto topicRootId = thread->topicRootId();
+	const auto monoforumPeerId = thread->monoforumPeerId();
+	const auto localDraft = history->localDraft(topicRootId, monoforumPeerId);
+	const auto cloudDraft = history->cloudDraft(topicRootId, monoforumPeerId);
+	if (!Data::DraftsAreEqual(localDraft, cloudDraft)) {
+		saveDraftToCloudDelayed(thread);
+	}
 }
 
 void ApiWrap::saveDraftsToCloud() {

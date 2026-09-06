@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/controls/history_view_compose_ai_button.h"
 #include "history/view/history_view_schedule_box.h"
 #include "core/mime_type.h"
+#include "core/shortcuts.h"
 #include "core/ui_integration.h"
 #include "base/event_filter.h"
 #include "base/call_delayed.h"
@@ -87,6 +88,8 @@ namespace {
 
 constexpr auto kMaxMessageLength = 4096;
 constexpr auto kMaxDisplayNameLength = 64;
+constexpr auto kStashFilesLimit = 100;
+constexpr auto kStashFilesMemoryLimit = int64(256) * 1024 * 1024;
 
 using Ui::SendFilesWay;
 
@@ -887,9 +890,26 @@ void SendFilesBox::prepare() {
 	setCloseByOutsideClick(false);
 
 	boxClosing() | rpl::on_next([=] {
-		if (!_confirmed && !_textTaken && _cancelledCallback) {
+		if (!_confirmed
+			&& !_stashed
+			&& !_textTaken
+			&& _cancelledCallback) {
 			_cancelledCallback();
 		}
+	}, lifetime());
+
+	Shortcuts::Requests(
+	) | rpl::filter([=] {
+		return _stashCallback
+			&& isVisible()
+			&& Ui::AppInFocus()
+			&& window()->isActiveWindow();
+	}) | rpl::on_next([=](not_null<Shortcuts::Request*> request) {
+		using Command = Shortcuts::Command;
+		request->check(Command::StashMessage, 2) && request->handle([=] {
+			stash();
+			return true;
+		});
 	}, lifetime());
 
 	setupDragArea();
@@ -2677,6 +2697,39 @@ void SendFilesBox::send(
 		_confirmedCallback(std::move(bundle), options, _replyTo);
 	}
 	closeBox();
+}
+
+void SendFilesBox::stash() {
+	if (!_stashCallback || (_stashCheck && !_stashCheck())) {
+		return;
+	} else if (_preparing) {
+		_whenReadySend = [=] { stash(); };
+		return;
+	}
+	for (auto &item : _list.files) {
+		item.spoiler = false;
+	}
+	applyBlockChanges();
+
+	Assert(_list.filesToProcess.empty());
+
+	if ((int(_list.files.size()) > kStashFilesLimit)
+		|| (_list.memoryUsage() > kStashFilesMemoryLimit)) {
+		showToast(tr::lng_stash_files_limit(tr::now));
+		return;
+	}
+	_list.overrideSendImagesAsPhotos = _sendWay.current().sendImagesAsPhotos();
+	_stashed = true;
+	_stashCallback(SendFilesStashed{
+		.list = std::move(_list),
+		.caption = _caption->getTextWithTags(),
+		.replyTo = _replyTo,
+	});
+	closeBox();
+}
+
+void SendFilesBox::sendWithOptions(Api::SendOptions options) {
+	send(options, false);
 }
 
 Fn<void(Api::SendOptions)> SendFilesBox::sendCallback() {

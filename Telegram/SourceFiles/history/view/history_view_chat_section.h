@@ -66,6 +66,8 @@ class ForumTopic;
 struct DrawToReplyRequest;
 } // namespace Data
 
+class SendFilesBox;
+
 namespace Support {
 class Autocomplete;
 struct Contact;
@@ -75,6 +77,7 @@ namespace HistoryView {
 
 namespace Controls {
 struct VoiceToSend;
+class StashManager;
 } // namespace Controls
 
 class Element;
@@ -353,6 +356,7 @@ private:
 
 	void setupDragArea();
 	void setupShortcuts();
+	void setupComposeStash();
 
 	void searchRequested();
 	void searchInTopic();
@@ -569,6 +573,8 @@ private:
 	rpl::variable<QString> _botKeyboardPlaceholder;
 	std::unique_ptr<ComposeControls> _composeControls;
 	std::unique_ptr<SuggestOptionsBar> _suggestOptions;
+	std::unique_ptr<Controls::StashManager> _stash;
+	QPointer<SendFilesBox> _sendFilesBox;
 	std::unique_ptr<ComposeSearch> _composeSearch;
 	std::unique_ptr<HistoryView::BottomControls> _bottom;
 	std::unique_ptr<HistoryView::AboutView> _aboutView;

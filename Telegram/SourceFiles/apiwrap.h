@@ -527,6 +527,7 @@ private:
 	void checkQuitPreventFinished();
 
 	void saveDraftsToCloud();
+	void resaveDraftChangedWhileSaving(base::weak_ptr<Data::Thread> weak);
 	mtpRequestId savePreparedDraftToCloud(
 		not_null<Data::Thread*> thread,
 		const Data::Draft &draft,

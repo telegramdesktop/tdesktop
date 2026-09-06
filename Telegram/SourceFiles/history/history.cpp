@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_cloud_themes.h"
+#include "data/data_compose_stash.h"
 #include "data/data_drafts.h"
 #include "data/data_saved_messages.h"
 #include "data/data_saved_sublist.h"
@@ -571,6 +572,40 @@ void History::setForwardDraft(
 				Data::EntryUpdate::Flag::ForwardDraft);
 		}
 	}
+}
+
+Data::ComposeStash *History::composeStash(Data::DraftKey key) const {
+	const auto i = _composeStashes.find(key);
+	return (i != end(_composeStashes)) ? i->second.get() : nullptr;
+}
+
+void History::setComposeStash(
+		Data::DraftKey key,
+		std::unique_ptr<Data::ComposeStash> stash) {
+	if (!key) {
+		return;
+	} else if (stash) {
+		_composeStashes[key] = std::move(stash);
+	} else if (!_composeStashes.remove(key)) {
+		return;
+	}
+	session().changes().historyUpdated(
+		this,
+		Data::HistoryUpdate::Flag::ComposeStash);
+}
+
+std::unique_ptr<Data::ComposeStash> History::takeComposeStash(
+		Data::DraftKey key) {
+	const auto i = _composeStashes.find(key);
+	if (i == end(_composeStashes)) {
+		return nullptr;
+	}
+	auto result = std::move(i->second);
+	_composeStashes.erase(i);
+	session().changes().historyUpdated(
+		this,
+		Data::HistoryUpdate::Flag::ComposeStash);
+	return result;
 }
 
 not_null<HistoryItem*> History::createItem(

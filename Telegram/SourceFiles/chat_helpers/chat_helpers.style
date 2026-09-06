@@ -1240,6 +1240,16 @@ historyUnreadPollVotes: TwoIconButton(historyToDown) {
 	iconAbove: icon {{ "history_unread_poll_vote-40x40", historyToDownFg, point(6px, 6px) }};
 	iconAboveOver: icon {{ "history_unread_poll_vote-40x40", historyToDownFgOver, point(6px, 6px) }};
 }
+historyStash: TwoIconButton(historyToDown) {
+	iconAbove: icon {{ "history_stash_bubble-40x40", historyToDownFg, point(6px, 6px) }};
+	iconAboveOver: icon {{ "history_stash_bubble-40x40", historyToDownFgOver, point(6px, 6px) }};
+}
+historyStashArrow: icon {{ "history_stash_arrow-40x40", historyToDownFg, point(6px, 6px) }};
+historyStashArrowOver: icon {{ "history_stash_arrow-40x40", historyToDownFgOver, point(6px, 6px) }};
+historyStashArrowClipPosition: point(18px, 28px);
+historyStashArrowClipSize: size(16px, 12px);
+historyStashArrowTravel: 12px;
+historyStashBubbleTravel: 4px;
 historyUnreadThingsSkip: 4px;
 
 historyQuoteStyle: QuoteStyle(defaultQuoteStyle) {

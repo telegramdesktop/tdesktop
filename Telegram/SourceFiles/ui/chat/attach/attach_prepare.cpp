@@ -275,6 +275,27 @@ bool PreparedFile::sendsVideoAsGif() const {
 	return video && video->hasAudio && video->modifications.gif;
 }
 
+int64 PreparedFile::memoryUsage() const {
+	using Image = PreparedFileInformation::Image;
+	using Song = PreparedFileInformation::Song;
+	using Video = PreparedFileInformation::Video;
+	auto result = int64(content.size()) + int64(preview.sizeInBytes());
+	if (information) {
+		v::match(information->media, [&](const Image &data) {
+			result += int64(data.data.sizeInBytes()) + int64(data.bytes.size());
+		}, [&](const Song &data) {
+			result += int64(data.cover.sizeInBytes());
+		}, [&](const Video &data) {
+			result += int64(data.thumbnail.sizeInBytes());
+		}, [](v::null_t) {
+		});
+	}
+	if (videoCover) {
+		result += videoCover->memoryUsage();
+	}
+	return result;
+}
+
 bool PreparedFile::hasAnimatedEditScene() const {
 	const auto image = information
 		? std::get_if<PreparedFileInformation::Image>(&information->media)
@@ -353,6 +374,17 @@ void PreparedList::mergeToEnd(PreparedList &&other, bool cutToAlbumSize) {
 		}
 		files.push_back(std::move(file));
 	}
+}
+
+int64 PreparedList::memoryUsage() const {
+	auto result = int64();
+	for (const auto &file : files) {
+		result += file.memoryUsage();
+	}
+	for (const auto &file : filesToProcess) {
+		result += file.memoryUsage();
+	}
+	return result;
 }
 
 bool PreparedList::canBeSentInSlowmode() const {

@@ -757,6 +757,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_shortcuts_ai_compose_apply" = "Apply AI style to text";
 "lng_shortcuts_rich_editor" = "Open article editor";
 "lng_shortcuts_toggle_link_preview" = "Toggle link preview";
+"lng_shortcuts_stash_message" = "Stash or restore message";
 "lng_shortcuts_read_chat" = "Mark chat as read";
 "lng_shortcuts_archive_chat" = "Archive chat";
 "lng_shortcuts_media_fullscreen" = "Toggle video fullscreen";
@@ -5324,6 +5325,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_jump_to_mention" = "Jump to mention";
 "lng_jump_to_reaction" = "Jump to reaction";
 "lng_jump_to_poll_votes" = "Jump to poll votes";
+"lng_stash_restore" = "Restore stashed message";
+"lng_stash_files_limit" = "Too many or too large files to stash.";
 "lng_jump_unread_count#one" = "{count} unread";
 "lng_jump_unread_count#other" = "{count} unread";
 
