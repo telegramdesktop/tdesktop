@@ -248,16 +248,18 @@ private:
 // strip. A crash anywhere leaves a header with a wrap outside its committed
 // generation, and the next reconciling read strips the records to that
 // generation and rewrites the header alone: a rollback before B, a completion
-// after it. The commit half clears the runtime right after write B, because
-// the key it holds is the one just retired; an account without a session has
-// no runtime and passes nullptr. The commit half also reads the raw header
-// back before write B and refuses, writing nothing, unless the disk still
-// carries the staged wrap beside the unchanged committed generation, so the
-// rule holds by the primitive's own check when something reconciled between
-// the halves. The two halves are public so that a caller changing one
-// passcode across several stores can hold every vault staged while another
-// store's write runs and commit them only once it succeeded;
-// TransitionVaultWrap is exactly their composition.
+// after it. While the custody store does not read, the header stays dirty and
+// every read keeps using its committed wrap until it does. The commit half
+// clears the runtime right after write B, because the key it holds is the one
+// just retired; an account without a session has no runtime and passes
+// nullptr. The commit half also reads the raw header back before write B and
+// refuses, writing nothing, unless the disk still carries the staged wrap
+// beside the unchanged committed generation, so the rule holds by the
+// primitive's own check when something reconciled between the halves. The two
+// halves are public so that a caller changing one passcode across several
+// stores can hold every vault staged while another store's write runs and
+// commit them only once it succeeded; TransitionVaultWrap is exactly
+// their composition.
 //
 // Refused writes nothing. Every stage failure leaves the caller header
 // unchanged: WriteFailed means sealing or a checked write failed, VerifyFailed
@@ -272,14 +274,17 @@ private:
 	const SecureBytes &vaultKey,
 	VaultPreparedWrap next);
 
-// Invalid input or a failed checked write B returns false without changing
-// the caller header or clearing the runtime. After B, committed has advanced
-// while both wraps remain on disk, and the runtime's retired key is cleared.
+// Invalid input or a disk header without the same stage and committed
+// generation returns false before write B. A failed checked write B also
+// returns false; these exits leave the caller header and runtime unchanged.
+// After B, committed has advanced while both wraps remain on disk, and the
+// runtime's retired key is cleared.
 // Stripping old record entries and writing C are best-effort: true means B
 // succeeded, even if the next reconciling read must finish that cleanup. The
 // caller header holds only the new wrap at the advanced generation either way.
 // ReadVaultHeader filters other generations in its copy; ReconcileVaultHeader
-// also strips their record entries and persists the settled header.
+// also tries to strip their record entries and persist the settled header,
+// leaving it dirty while custody is unreadable or cleanup fails.
 [[nodiscard]] bool CommitStagedVaultWrap(
 	Storage::Account &local,
 	VaultHeader &header,

@@ -765,8 +765,9 @@ struct OpenedRecord {
 	auto stripped = 0;
 	if (!keys) {
 		LOG(("Wallet Error: the custody store does not read, leaving the "
-			"vault record entries outside the committed generation %1 in "
-			"place.").arg(committed));
+			"vault header dirty and the record entries outside the committed "
+			"generation %1 in place until it does.").arg(committed));
+		return false;
 	} else if (!StripRecords(local, *keys, committed, stripped)) {
 		LOG(("Wallet Error: could not strip every custody-named vault record "
 			"to the committed generation %1, stripped %2."
