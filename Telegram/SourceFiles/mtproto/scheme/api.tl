@@ -2321,6 +2321,10 @@ walletOwnershipProof#60bccb0d timestamp:int signature:bytes = WalletOwnershipPro
 inputWalletNew#63a440dc = InputWalletReplacement;
 inputWalletImported#2959057c public_key:bytes proof:WalletOwnershipProof = InputWalletReplacement;
 
+wallet.sentTransfer#254d3f1a flags:# gasless:flags.0?true transaction_id:string msg_hash:bytes gasless_left:int gasless_reset_at:int = wallet.SentTransfer;
+
+wallet.gaslessInfo#e4981ebc flags:# available:flags.0?true left:int reset_at:int min_amount:long relayer_address:string = wallet.GaslessInfo;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -3175,6 +3179,7 @@ toncenter.getStreamingUrl#cdaf63c7 = toncenter.StreamingUrl;
 wallet.getState#ab83b33a = WalletState;
 wallet.getUserAddresses#1ddd6c11 flags:# force:flags.0?true id:Vector<InputUser> = Vector<WalletUserAddress>;
 wallet.getTransactions#a8830a83 flags:# inbound:flags.0?true outbound:flags.1?true offset:string limit:int = wallet.Transactions;
+wallet.getTransactionsByIDs#811ceab6 id:Vector<string> = wallet.Transactions;
 wallet.exportSecretPhrase#9077c9ac flags:# password:flags.0?InputCheckPasswordSRP = wallet.SecretPhraseParts;
 wallet.fetchEncryptedSecretPhrasePart#f53925cf token:string public_key:bytes = wallet.EncryptedSecretPhrasePart;
 wallet.replaceWallet#d8c72eec flags:# wallet:InputWalletReplacement password:flags.0?InputCheckPasswordSRP = WalletState;
@@ -3182,5 +3187,7 @@ wallet.disableBackup#199e1f1 flags:# password:flags.0?InputCheckPasswordSRP = Wa
 wallet.getBackupHolderDcs#d179d494 = Vector<wallet.HolderDc>;
 wallet.enableBackup#81a2b0f3 flags:# parts:Vector<bytes> password:flags.0?InputCheckPasswordSRP = WalletState;
 wallet.getProofChallenge#2025e697 = wallet.ProofChallenge;
+wallet.sendTransfer#b1cae965 flags:# data_normal:bytes data_gasless:flags.0?bytes = wallet.SentTransfer;
+wallet.getGaslessInfo#4895d98b = wallet.GaslessInfo;
 
 // LAYER 230
