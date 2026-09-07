@@ -280,6 +280,19 @@ inline constexpr auto kTransferMinNanosMax = (int64(1) << 53);
 	int64 amountNano,
 	int64 minNanos);
 
+// One policy read from two sides. A send judges the positive amount the
+// user asked to transfer, so its entry keeps a `> 0` guard of its own; a
+// history row judges a magnitude, because a transfer's sign is only its
+// direction and the stored amount has already been folded to a positive
+// one. Both sides ask the same comparison, and it is stated once, in the
+// magnitude predicate the other two are written in terms of.
+[[nodiscard]] bool TransferMagnitudeBelowMinimum(
+	int64 amountNano,
+	int64 minNanos);
+[[nodiscard]] bool HistoryTransferHidden(
+	const TransferItem &item,
+	int64 minNanos);
+
 struct SendArgs {
 	QString destination;
 	int64 amountNano = 0;
@@ -496,13 +509,19 @@ public:
 	[[nodiscard]] AccountStatus status() const;
 	[[nodiscard]] const std::vector<TransferItem> &history() const;
 	[[nodiscard]] rpl::producer<> historyUpdates() const;
+	[[nodiscard]] int64 transferMinNanos() const;
+	[[nodiscard]] bool historyItemHidden(const TransferItem &item) const;
+	[[nodiscard]] bool historyVisibleEmpty() const;
 	[[nodiscard]] bool listsGated() const;
 	[[nodiscard]] rpl::producer<bool> listsGatedValue() const;
 	[[nodiscard]] rpl::producer<ListsEmptyState> listsEmptyStateValue() const;
 
 	void refreshHistory(Fn<void()> done = nullptr);
 	[[nodiscard]] bool historyHasNext() const;
+	[[nodiscard]] bool historyLoadingMore() const;
+	[[nodiscard]] rpl::producer<bool> historyLoadingMoreValue() const;
 	void loadMoreHistory();
+	void resetHiddenHistoryPages();
 
 	[[nodiscard]] const std::vector<Gram::NftItem> &collectibles() const;
 	[[nodiscard]] rpl::producer<> collectiblesUpdates() const;
@@ -628,6 +647,8 @@ private:
 		bool more,
 		const HistoryRequest &request);
 	void refreshStaleHistory();
+	void applyTransferMinNanos();
+	void continueHiddenHistory(bool progressed);
 	void clearHistory();
 	void clearCollectibles();
 	void refreshCollectibles(bool force = false);
@@ -722,6 +743,7 @@ private:
 	// state whose address the parser refused. All three make the overview
 	// paint the unreachable face instead of the empty one.
 	bool _stateUnreachable = false;
+	int64 _transferMinNanos = kTransferMinNanosDefault;
 	std::vector<TransferItem> _history;
 	rpl::event_stream<> _historyUpdates;
 	bool _historyHasNext = false;
@@ -749,6 +771,7 @@ private:
 	int _pollingCount = 0;
 	int _networkGeneration = 0;
 	std::shared_ptr<HistoryRequest> _historyRequest;
+	int _historyHiddenPages = 0;
 	bool _resolveRequestPending = false;
 	bool _engineRefreshPending = false;
 	bool _historySettled = false;
@@ -791,6 +814,8 @@ private:
 	rpl::lifetime _commentLifetime;
 
 	std::unique_ptr<Ui::SeparatePanel> _panel;
+
+	rpl::lifetime _lifetime;
 
 };
 

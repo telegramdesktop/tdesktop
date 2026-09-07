@@ -65,6 +65,12 @@ struct Session::HistoryRequest {
 	std::optional<TransferWalletIdentity> identity;
 	uint64 identityRevision = 0;
 	int generation = 0;
+	// The cursor this flight spent. The answer is compared against it to
+	// catch a server that hands back the offset it was given, so the value
+	// has to survive the round trip with the request that sent it and not
+	// be re-read from _historyNextOffset, which a landing page may already
+	// have moved.
+	QString offset;
 	mtpRequestId id = 0;
 	std::vector<Fn<void()>> done;
 };
@@ -149,6 +155,22 @@ constexpr auto kShareFetchTimeout = 60 * crl::time(1000);
 constexpr auto kStateFailuresBeforeStated = 2;
 // The largest limit wallet.getTransactions documents.
 constexpr auto kTransactionsPerPage = 50;
+// How many wallet.getTransactions pages in a row may answer with nothing
+// the feed can show before the next one is refused. At the documented page
+// limit that is 1000 transactions per chain. Every `more` request spends
+// from it, whether the reader scrolled for it or the hidden-page
+// continuation volunteered it, so the two pagers share one bound, and only
+// a page carrying a visible row refills it. A head page that shows nothing
+// must not: a transfer push asks for one, so refilling there would restart
+// the whole chain per push on exactly the wallets this feature exists for.
+// What re-arms the bound instead is a key change or a presence transition
+// (both go through clearHistory()), closing the panel, coming back to the
+// transactions tab, a changed threshold, a scroll the reader moved down,
+// and - because a feed with nothing to show has nothing to scroll either -
+// pollTick(), once the history staleness floor has passed with the walk
+// quiet. So nothing the server sends restarts the chain by itself, the
+// walk is paced by this client's clock, and no eligible row is walled off.
+constexpr auto kMaxHiddenPagesInRow = 20;
 constexpr auto kForcedCollectiblesInterval = 10 * crl::time(1000);
 constexpr auto kStreamResyncInterval = 30 * crl::time(1000);
 constexpr auto kClientSendValiditySeconds = uint64(300);
@@ -1288,7 +1310,8 @@ Session::Session(not_null<Main::Session*> session)
 , _stream(std::make_unique<Stream>(&_api, [=](StreamRefresh wanted) {
 	applyStreamRefresh(wanted);
 }))
-, _pollTimer([=] { pollTick(); }) {
+, _pollTimer([=] { pollTick(); })
+, _transferMinNanos(TransferMinNanos(session)) {
 	rpl::merge(
 		_transferWalletIdentityChanges.events(),
 		_custodyUpdates.events()
@@ -1300,6 +1323,9 @@ Session::Session(not_null<Main::Session*> session)
 			retireCommentScopes();
 		}
 	}, _commentLifetime);
+	session->appConfig().refreshed() | rpl::on_next([=, this] {
+		applyTransferMinNanos();
+	}, _lifetime);
 }
 
 Session::~Session() {
@@ -1334,9 +1360,12 @@ void Session::setPanel(std::unique_ptr<Ui::SeparatePanel> panel) {
 		// overview's scroll position, so they end with the panel that
 		// owned them: otherwise the periodic refresh stays refused for
 		// the rest of the session and a transaction or a collectible
-		// received while the panel was closed never appears.
+		// received while the panel was closed never appears. The pages
+		// spent looking for a row the feed can show are such a fact too,
+		// so the next reader to open the panel gets the whole bound.
 		_historyPaged = false;
 		_collectiblesPaged = false;
+		resetHiddenHistoryPages();
 	}
 }
 
@@ -3772,6 +3801,26 @@ void Session::refreshStaleHistory() {
 	requestTransactions(false);
 }
 
+void Session::applyTransferMinNanos() {
+	const auto now = TransferMinNanos(_session);
+	if (_transferMinNanos == now) {
+		return;
+	}
+	_transferMinNanos = now;
+	// The canonical list did not move, so nothing is reloaded and no
+	// identity changes: what moved is which of its rows the feed may show,
+	// which is exactly what an applied page publishes. _historyUpdates is
+	// the one stream every consumer of the projection already rides -
+	// rebuildList, HistoryShownValue and listsEmptyStateValue all merge it -
+	// so the gate itself is not recomputed here: none of its terms moved.
+	// The paging bound is re-armed rather than inherited, because a moved
+	// threshold changes what the reader can see at all: pages that were
+	// spent looking for rows under the old one say nothing about the new.
+	_historyUpdates.fire({});
+	resetHiddenHistoryPages();
+	continueHiddenHistory(!historyVisibleEmpty());
+}
+
 void Session::setHistory(std::vector<TransferItem> &&list) {
 	_history = std::move(list);
 	_historyUpdates.fire({});
@@ -3788,6 +3837,7 @@ void Session::requestTransactions(bool more, Fn<void()> done) {
 		.identity = transferWalletIdentity(),
 		.identityRevision = _walletIdentityRevision,
 		.generation = _networkGeneration,
+		.offset = more ? _historyNextOffset : QString(),
 	});
 	if (done) {
 		request->done.push_back(std::move(done));
@@ -3809,7 +3859,7 @@ void Session::requestTransactions(bool more, Fn<void()> done) {
 	// They stay available for a filter that is actually designed.
 	request->id = _stateApi.request(MTPwallet_GetTransactions(
 		MTP_flags(0),
-		MTP_string(more ? _historyNextOffset : QString()),
+		MTP_string(request->offset),
 		MTP_int(kTransactionsPerPage)
 	)).done([=](const MTPwallet_Transactions &result) {
 		const auto current = (_historyRequest == request)
@@ -3883,6 +3933,18 @@ void Session::applyTransactions(
 	// as an absent one does; the value itself is opaque and never parsed.
 	_historyNextOffset = next ? qs(*next) : QString();
 	_historyHasNext = !_historyNextOffset.isEmpty();
+	if (_historyHasNext && (_historyNextOffset == request.offset)) {
+		// A cursor that comes back byte-identical to the one just spent
+		// is the server making no progress: the next request would read
+		// the same rows and append them a second time, which is a
+		// duplicate-row defect as much as a request loop. It ends the
+		// list exactly as an absent cursor does. A head request sends an
+		// empty offset, which _historyHasNext already excludes, so this
+		// can only ever fire for a `more` page.
+		LOG(("Wallet Error: wallet.getTransactions repeated its offset."));
+		_historyNextOffset = QString();
+		_historyHasNext = false;
+	}
 	_historyRefreshedAt = crl::now();
 	_historyUnreachable = false;
 	// checkLoadMore() pages only the transactions tab, but the answer is a
@@ -3895,6 +3957,9 @@ void Session::applyTransactions(
 		&& !collectiblesTab();
 	_historySettled = true;
 	auto loaded = HistoryFromServer(data.vtransactions().v, request.identity);
+	const auto shown = ranges::any_of(loaded, [&](const TransferItem &i) {
+		return !historyItemHidden(i);
+	});
 	if (more) {
 		if (!loaded.empty()) {
 			auto list = _history;
@@ -3910,7 +3975,19 @@ void Session::applyTransactions(
 	if (weak && historyRequestCurrent(request)) {
 		dropSubmittedIfListed();
 		updateListsGate();
+		continueHiddenHistory(shown);
 	}
+}
+
+void Session::continueHiddenHistory(bool progressed) {
+	if (progressed) {
+		resetHiddenHistoryPages();
+		return;
+	}
+	if ((_panel == nullptr) || collectiblesTab()) {
+		return;
+	}
+	loadMoreHistory();
 }
 
 void Session::clearHistory() {
@@ -3930,6 +4007,7 @@ void Session::clearHistory() {
 	_historyStale = false;
 	_lookup.reset();
 	_submitted.reset();
+	resetHiddenHistoryPages();
 	// _historySettled and _historyUnreachable, cleared just above, are the
 	// gate's two history terms, so this drain is the only point at which an
 	// emptied list and the gate the previous page settled could be read
@@ -3957,6 +4035,27 @@ bool Session::historyHasNext() const {
 	return _historyHasNext;
 }
 
+bool Session::historyLoadingMore() const {
+	// The feed has nothing it can show and the server says more exists, so
+	// the walk that looks for a row worth a line is either running or owed.
+	// An empty _history answers true as well, which is the same statement:
+	// a page that carried a cursor and no row at all is still being looked
+	// past. The two streams below carry every move of either term -
+	// setHistory() fires _historyUpdates, and applyTransactions() ends in
+	// updateListsGate(), which fires _listsStateUpdates even for the head
+	// page that matched what was already loaded and wrote no rows.
+	return _historyHasNext && historyVisibleEmpty();
+}
+
+rpl::producer<bool> Session::historyLoadingMoreValue() const {
+	return rpl::single(rpl::empty) | rpl::then(rpl::merge(
+		historyUpdates(),
+		_listsStateUpdates.events()
+	)) | rpl::map([=, this] {
+		return historyLoadingMore();
+	}) | rpl::distinct_until_changed();
+}
+
 void Session::loadMoreHistory() {
 	ensureLoaded();
 	if (_presence.current() != Presence::Ready
@@ -3964,7 +4063,24 @@ void Session::loadMoreHistory() {
 		|| !_historyHasNext) {
 		return;
 	}
+	// The bound is spent here, where the page is actually asked for, and
+	// not at either pager's own entry: a hidden row adds no height, so the
+	// list can keep believing it is short of content and ask again through
+	// checkLoadMore(), while continueHiddenHistory() asks for the same lane
+	// from the answer side. Counting requests is what makes both finite.
+	if (_historyHiddenPages >= kMaxHiddenPagesInRow) {
+		return;
+	}
+	++_historyHiddenPages;
+	if (_historyHiddenPages == kMaxHiddenPagesInRow) {
+		LOG(("Wallet: transaction paging bound of %1 pages spent."
+			).arg(kMaxHiddenPagesInRow));
+	}
 	requestTransactions(true);
+}
+
+void Session::resetHiddenHistoryPages() {
+	_historyHiddenPages = 0;
 }
 
 void Session::refreshCollectibles(bool force) {
@@ -4084,7 +4200,7 @@ void Session::updateListsGate() {
 
 bool Session::listsConfirmedEmpty() const {
 	return !_listsGated.current()
-		&& _history.empty()
+		&& historyVisibleEmpty()
 		&& !_historyHasNext
 		&& _collectibles.empty();
 }
@@ -4210,8 +4326,27 @@ void Session::pollTick() {
 	// reconnect and backoff. stale() is true for a zero stamp, so the first
 	// tick still requests at once and the lane then settles to one request
 	// per resync interval, plus the unfloored stream hints.
-	if (stale(std::max(_historyRequestedAt, _historyRefreshedAt))) {
+	const auto historyStale = stale(
+		std::max(_historyRequestedAt, _historyRefreshedAt));
+	const auto historyIdle = !_historyRequest;
+	if (historyStale) {
 		refreshHistory();
+	}
+	// A feed whose loaded pages are all hidden gives the reader nothing to
+	// scroll, so there is no gesture it could ask for more with. The walk
+	// that looks for a row it can show is resumed here instead, on the same
+	// floor the head refresh uses, so it is paced by this client's clock and
+	// never by how often a sender pushes. Idleness is read before that
+	// refresh, because the term asks whether a walk is already running: a
+	// head page issued by this very tick is not one, and the answer it
+	// brings starts the walk itself through continueHiddenHistory().
+	if (historyStale
+		&& historyIdle
+		&& (_panel != nullptr)
+		&& !collectiblesTab()
+		&& historyLoadingMore()) {
+		resetHiddenHistoryPages();
+		loadMoreHistory();
 	}
 	refreshCollectibles();
 	if ((_pending || _sendUnresolved || custody().pendingRotation)
@@ -4253,6 +4388,20 @@ AccountStatus Session::status() const {
 
 const std::vector<TransferItem> &Session::history() const {
 	return _history;
+}
+
+int64 Session::transferMinNanos() const {
+	return _transferMinNanos;
+}
+
+bool Session::historyItemHidden(const TransferItem &item) const {
+	return HistoryTransferHidden(item, _transferMinNanos);
+}
+
+bool Session::historyVisibleEmpty() const {
+	return ranges::all_of(_history, [&](const TransferItem &item) {
+		return historyItemHidden(item);
+	});
 }
 
 rpl::producer<> Session::historyUpdates() const {
@@ -4309,6 +4458,7 @@ void Session::setCollectiblesTab(bool value) {
 		_historyPaged = false;
 	} else {
 		_collectiblesPaged = false;
+		resetHiddenHistoryPages();
 	}
 	_collectiblesTab = tab;
 	refreshStaleHistory();
@@ -4367,8 +4517,35 @@ int64 TransferMinNanos(not_null<Main::Session*> session) {
 		float64(kTransferMinNanosDefault)));
 }
 
+bool TransferMagnitudeBelowMinimum(int64 amountNano, int64 minNanos) {
+	// Negating the smallest int64 is undefined and its magnitude does not
+	// fit the type, so the one amount that cannot be measured is answered
+	// from what is known about it instead: its magnitude is 2^63, which is
+	// larger than every minimum an int64 can hold, so it is never below
+	// one whatever this policy is configured with.
+	constexpr auto smallest = std::numeric_limits<int64>::min();
+	if (amountNano == smallest) {
+		return false;
+	}
+	const auto magnitude = (amountNano < 0) ? -amountNano : amountNano;
+	return (magnitude < minNanos);
+}
+
 bool TransferAmountBelowMinimum(int64 amountNano, int64 minNanos) {
-	return (amountNano > 0) && (amountNano < minNanos);
+	return (amountNano > 0)
+		&& TransferMagnitudeBelowMinimum(amountNano, minNanos);
+}
+
+bool HistoryTransferHidden(const TransferItem &item, int64 minNanos) {
+	using Kind = TransferItem::Kind;
+	// Only an ordinary monetary transfer is judged. A key change, a
+	// collectible, a card top-up and a contract interaction are activity
+	// the feed states for reasons of their own, and the amount threshold
+	// says nothing about whether they are worth a row.
+	const auto transfer = (item.kind == Kind::Transfer)
+		|| (item.kind == Kind::PeerTransfer);
+	return transfer
+		&& TransferMagnitudeBelowMinimum(item.amountNano, minNanos);
 }
 
 uint64 Session::createPreviewOwner(rpl::lifetime &lifetime) {

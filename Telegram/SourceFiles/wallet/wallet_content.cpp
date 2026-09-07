@@ -8992,7 +8992,7 @@ Content::~Content() {
 [[nodiscard]] bool HistoryShown(not_null<Main::Session*> session) {
 	const auto wallet = &session->wallet();
 	return !wallet->listsGated()
-		&& (!wallet->history().empty()
+		&& (!wallet->historyVisibleEmpty()
 			|| wallet->pendingSend().has_value()
 			|| wallet->submittedTransaction().has_value());
 }
@@ -9208,6 +9208,9 @@ void Content::setupContent() {
 				});
 			}
 			for (const auto &item : history) {
+				if (wallet->historyItemHidden(item)) {
+					continue;
+				}
 				addItem(item);
 			}
 			Ui::AddSkip(list, st::walletRowsTopSkip);
@@ -9233,8 +9236,24 @@ void Content::setupContent() {
 	collectiblesWrap->toggleOn(wallet->collectiblesTabValue());
 	collectiblesWrap->finishAnimating();
 
+	const auto lastTop = lifetime().make_state<int>(_scroll->scrollTop());
 	_scroll->scrolls(
 	) | rpl::on_next([=] {
+		// A reader who moved the list down is asking for more of it, so
+		// the bound the session spends on hidden transaction pages is
+		// re-armed here, and only for that. Every other way this fires is
+		// a clamp nobody made - a rebuild dipping the list's height, a
+		// resize growing the viewport - and a clamp can only lower the
+		// position, so requiring it to grow rejects all of them. The last
+		// seen position is kept beside the handler and not inside it,
+		// because rpl invokes a copy of the handler on every emission and
+		// a value captured in it would never carry to the next one.
+		const auto top = _scroll->scrollTop();
+		const auto moved = (top > *lastTop);
+		*lastTop = top;
+		if (moved) {
+			wallet->resetHiddenHistoryPages();
+		}
 		_loadMoreCheck.call();
 	}, lifetime());
 
@@ -9630,10 +9649,30 @@ void Content::setupListsLoading() {
 		caption->setVisible(provisioning);
 	}, caption->lifetime());
 
-	_show->session().wallet().listsGatedValue(
-	) | rpl::on_next([=](bool gated) {
-		indicator->setVisible(gated);
-		_listsLoading->setVisible(gated);
+	// The gate is not the only state with nothing to paint. A feed whose
+	// loaded pages are all hidden while the server still offers a cursor is
+	// walking towards a row it can show, and this indicator - the one an
+	// unsettled feed already renders, with its caption bound to
+	// Provisioning and so hidden here - is the only face that says so. It
+	// resolves into rows or into the About face when the cursor exhausts.
+	// A visible row or a pending send makes it a lie, and so does the
+	// Collectibles tab, whose own list this region does not describe.
+	rpl::combine(
+		_show->session().wallet().listsGatedValue(),
+		_show->session().wallet().historyLoadingMoreValue(),
+		_show->session().wallet().collectiblesTabValue(),
+		HistoryShownValue(&_show->session())
+	) | rpl::map([](
+			bool gated,
+			bool loadingMore,
+			bool collectiblesTab,
+			bool historyShown) {
+		return gated
+			|| (loadingMore && !collectiblesTab && !historyShown);
+	}) | rpl::distinct_until_changed(
+	) | rpl::on_next([=](bool shown) {
+		indicator->setVisible(shown);
+		_listsLoading->setVisible(shown);
 		updateRegions();
 	}, lifetime());
 }
