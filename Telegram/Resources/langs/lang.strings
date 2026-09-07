@@ -9027,6 +9027,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_backup_rotate_reason_expired" = "The update expired before it was sent. Please try again.";
 "lng_wallet_backup_rotate_reason_locked" = "The wallet key on this device is locked.";
 "lng_wallet_backup_update_quote_error" = "Couldn't estimate the network fee for a new phrase. You can still disable the backup with your current phrase.";
+"lng_wallet_send_error_too_small" = "The minimum transfer is {amount} Grams.";
 "lng_wallet_send_error_insufficient" = "You don't have enough Grams for this transfer.";
 "lng_wallet_send_error_fees" = "You don't have enough Grams to cover the network fee.";
 "lng_wallet_send_error_unresolved" = "Your previous transfer is not confirmed yet. Please wait for it to complete.";

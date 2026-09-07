@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "gram/api/gram_api_emulate.h"
 #include "lang/lang_keys.h"
 #include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "tde2e/tde2e_api.h"
 #include "ui/widgets/separate_panel.h"
@@ -29,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QUuid>
 
+#include <cmath>
 #include <deque>
 #include <limits>
 
@@ -3471,6 +3473,33 @@ bool SendCommentFits(const QString &text) {
 	return SendCommentBytes(text) <= kSendCommentMaxBytes;
 }
 
+int64 TransferMinNanosFromConfig(float64 configured) {
+	// The value arrives as `jsonNumber value:double`, so it is judged
+	// in the double domain before any cast: NaN, an infinity or an
+	// out-of-range magnitude would otherwise abort or convert with
+	// undefined behaviour. The ceiling is 2^53, the largest integer a
+	// double represents exactly, because `double(kMaxAmountNano)` rounds
+	// up to 1e18 and would let an out-of-range value through. A served
+	// integer above 2^53 is indistinguishable from its nearest
+	// representable neighbour: 2^53 + 1 arrives as 2^53 and is accepted,
+	// and 2^53 + 2 is the first value that falls back to the default.
+	const auto valid = std::isfinite(configured)
+		&& (configured >= 1.)
+		&& (configured <= float64(kTransferMinNanosMax))
+		&& (configured == std::floor(configured));
+	return valid ? int64(configured) : kTransferMinNanosDefault;
+}
+
+int64 TransferMinNanos(not_null<Main::Session*> session) {
+	return TransferMinNanosFromConfig(session->appConfig().get<float64>(
+		u"wallet_transfer_min_nanos"_q,
+		float64(kTransferMinNanosDefault)));
+}
+
+bool TransferAmountBelowMinimum(int64 amountNano, int64 minNanos) {
+	return (amountNano > 0) && (amountNano < minNanos);
+}
+
 uint64 Session::createPreviewOwner(rpl::lifetime &lifetime) {
 	if (!_preview) {
 		_preview = std::make_unique<PreviewState>();
@@ -3496,6 +3525,10 @@ void Session::estimateFee(
 		: (args.amountNano <= 0
 			|| FormatFriendly(args.destination, args.bounce).isEmpty())
 		? SendError::InvalidRequest
+		: TransferAmountBelowMinimum(
+			args.amountNano,
+			TransferMinNanos(_session))
+		? SendError::AmountTooSmall
 		: SendError::None;
 	if (inputError != SendError::None) {
 		cancelFeeEstimate(owner);
@@ -3595,6 +3628,10 @@ SendError Session::previewError(const PreviewRequest &request) {
 		|| request.args.amountNano <= 0
 		|| request.args.destination.isEmpty()) {
 		return SendError::InvalidRequest;
+	} else if (TransferAmountBelowMinimum(
+			request.args.amountNano,
+			TransferMinNanos(_session))) {
+		return SendError::AmountTooSmall;
 	} else if (_clientStopping
 		|| !request.client
 		|| request.client != _engine->client()) {
@@ -3834,6 +3871,11 @@ void Session::send(
 		|| FormatFriendly(args.destination, args.bounce).isEmpty()
 		|| prepared->feeNano < 0) {
 		fail(SendError::InvalidRequest);
+		return;
+	} else if (TransferAmountBelowMinimum(
+			args.amountNano,
+			TransferMinNanos(_session))) {
+		fail(SendError::AmountTooSmall);
 		return;
 	}
 	if (prepared->privateEpoch

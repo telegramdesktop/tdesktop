@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "main/session/session_show.h"
+#include "main/main_app_config.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "qr/qr_generate.h"
@@ -2961,6 +2962,7 @@ struct SendQuoteDependencies {
 	DeviceCustodyState custody;
 	int64 amountNano = 0;
 	int64 balanceNano = 0;
+	int64 minTransferNano = 0;
 	bool bounce = false;
 	bool ready = false;
 	bool valid = false;
@@ -3292,10 +3294,15 @@ void WalletSendCommentBox(
 	AddBoxCloseButton(box);
 }
 
-[[nodiscard]] QString SendErrorText(SendError error) {
+[[nodiscard]] QString SendErrorText(SendError error, int64 minTransferNano) {
 	switch (error) {
 	case SendError::None:
 		return QString();
+	case SendError::AmountTooSmall:
+		return tr::lng_wallet_send_error_too_small(
+			tr::now,
+			lt_amount,
+			Ui::FormatTonAmount(minTransferNano).full);
 	case SendError::CommentTooLong:
 		return tr::lng_wallet_comment_too_long(
 			tr::now,
@@ -3441,7 +3448,8 @@ void WalletSendConfirmBox(
 			if (flow.userId && error == SendError::SigningUnavailable) {
 				recover();
 			} else {
-				show->showToast(SendErrorText(error));
+				show->showToast(
+					SendErrorText(error, TransferMinNanos(session)));
 			}
 		}
 	};
@@ -4057,6 +4065,7 @@ void WalletSendBox(
 		rpl::variable<bool> invalid = false;
 		rpl::variable<int64> amount = 0;
 		rpl::variable<int64> fee = 0;
+		rpl::variable<int64> minTransfer = kTransferMinNanosDefault;
 		std::shared_ptr<SendDraft> draft = std::make_shared<SendDraft>();
 		bool confirmationOpen = false;
 		rpl::variable<bool> previewInsufficient = false;
@@ -4080,6 +4089,7 @@ void WalletSendBox(
 	state->loading = user && !initial;
 	state->senderKey = user && !initial ? QByteArray() : wallet->publicKey();
 	state->rate = FiatRateValue(session);
+	state->minTransfer = TransferMinNanos(session);
 	const auto userId = user ? peerToUser(user->id) : UserId();
 	const auto sessionValid = [=] {
 		return weakSession
@@ -4175,6 +4185,7 @@ void WalletSendBox(
 				: DeviceCustodyState(),
 			.amountNano = state->amount.current(),
 			.balanceNano = validSession ? wallet->balanceNano() : 0,
+			.minTransferNano = state->minTransfer.current(),
 			.bounce = state->flow && state->flow->bounce,
 			.ready = validSession
 				&& wallet->presenceCurrent() == Presence::Ready,
@@ -4430,7 +4441,8 @@ void WalletSendBox(
 			if (sessionValid()
 				&& state->confirmationOpen
 				&& error != SendError::None) {
-				show->showToast(SendErrorText(error));
+				show->showToast(
+					SendErrorText(error, dependencies.minTransferNano));
 			}
 		};
 		if (!CommentFits(dependencies.comment.text)) {
@@ -4438,6 +4450,11 @@ void WalletSendBox(
 			return;
 		} else if (!dependencies.ready || dependencies.amountNano <= 0) {
 			fail(SendError::InvalidRequest);
+			return;
+		} else if (TransferAmountBelowMinimum(
+				dependencies.amountNano,
+				dependencies.minTransferNano)) {
+			fail(SendError::AmountTooSmall);
 			return;
 		} else if (dependencies.amountNano > dependencies.balanceNano) {
 			fail(SendError::InsufficientBalance);
@@ -4514,6 +4531,7 @@ void WalletSendBox(
 						fail(result.error);
 						state->previewInsufficient = true;
 						return;
+					case SendError::AmountTooSmall:
 					case SendError::CommentTooLong:
 					case SendError::CommentEncryptionUnavailable:
 					case SendError::InvalidRequest:
@@ -4546,6 +4564,10 @@ void WalletSendBox(
 		invalidateFee();
 		if (!CommentFits(dependencies.comment.text)) {
 			state->previewError = SendError::CommentTooLong;
+		} else if (TransferAmountBelowMinimum(
+				dependencies.amountNano,
+				dependencies.minTransferNano)) {
+			state->previewError = SendError::AmountTooSmall;
 		} else if (dependencies.comment.text.isEmpty()
 			&& !state->confirmationOpen
 			&& dependencies.amountNano > 0) {
@@ -4560,6 +4582,10 @@ void WalletSendBox(
 	draft->comment.changes() | rpl::on_next(refreshFee, box->lifetime());
 	state->loading.changes() | rpl::on_next(refreshFee, box->lifetime());
 	state->loadError.changes() | rpl::on_next(refreshFee, box->lifetime());
+	session->appConfig().refreshed() | rpl::on_next([=] {
+		state->minTransfer = TransferMinNanos(session);
+	}, box->lifetime());
+	state->minTransfer.changes() | rpl::on_next(refreshFee, box->lifetime());
 	if (!user) {
 		wallet->custodyUpdates() | rpl::on_next(refreshFee, box->lifetime());
 		wallet->balanceNanoValue() | rpl::on_next(refreshFee, box->lifetime());
@@ -4606,6 +4632,7 @@ void WalletSendBox(
 			&& !pending
 			&& !loading
 			&& loadError.isEmpty()
+			&& (error != SendError::AmountTooSmall)
 			&& (error != SendError::CommentTooLong)
 			&& (error != SendError::SigningUnavailable)
 			&& (error != SendError::AlreadySending)
@@ -4699,10 +4726,18 @@ void WalletSendBox(
 	balanceWrap->finishAnimating();
 	auto showInsufficient = rpl::combine(
 		state->insufficient.value(),
+		state->previewError.value(),
 		state->loading.value(),
 		state->loadError.value()
-	) | rpl::map([](bool insufficient, bool loading, const QString &error) {
-		return insufficient && !loading && error.isEmpty();
+	) | rpl::map([](
+			bool insufficient,
+			SendError error,
+			bool loading,
+			const QString &loadError) {
+		return insufficient
+			&& (error != SendError::AmountTooSmall)
+			&& !loading
+			&& loadError.isEmpty();
 	});
 	const auto insufficientWrap = balance->add(
 		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
@@ -4712,10 +4747,10 @@ void WalletSendBox(
 				rpl::combine(
 					state->previewError.value(),
 					tr::lng_wallet_send_insufficient()
-				) | rpl::map([](SendError error, QString generic) {
+				) | rpl::map([=](SendError error, QString generic) {
 					return (error == SendError::InsufficientBalance
 						|| error == SendError::InsufficientFees)
-						? SendErrorText(error)
+						? SendErrorText(error, state->minTransfer.current())
 						: generic;
 				}),
 				user ? st::walletSendUserErrorLabel : st::walletSendErrorLabel)),
@@ -4728,6 +4763,7 @@ void WalletSendBox(
 		state->loading.value(),
 		state->loadError.value(),
 		state->silentFailure.value(),
+		state->minTransfer.value(),
 		rpl::single(rpl::empty) | rpl::then(Lang::Updated())
 	) | rpl::map([](
 			SendError error,
@@ -4735,17 +4771,19 @@ void WalletSendBox(
 			bool loading,
 			QString loadError,
 			bool silent,
+			int64 minTransfer,
 			rpl::empty_value) {
 		if (loading || silent) {
 			return QString();
 		} else if (!loadError.isEmpty()) {
 			return SendUserLoadErrorText(loadError);
-		} else if (insufficient
-			|| error == SendError::InsufficientBalance
-			|| error == SendError::InsufficientFees) {
+		} else if (error != SendError::AmountTooSmall
+			&& (insufficient
+				|| error == SendError::InsufficientBalance
+				|| error == SendError::InsufficientFees)) {
 			return QString();
 		}
-		return SendErrorText(error);
+		return SendErrorText(error, minTransfer);
 	});
 	const auto refusalWrap = balance->add(
 		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
@@ -6286,10 +6324,12 @@ void CollectBackupPhrase(
 		showPhrase);
 }
 
-[[nodiscard]] QString RotationQuoteErrorText(SendError error) {
+[[nodiscard]] QString RotationQuoteErrorText(
+		SendError error,
+		int64 minTransferNano) {
 	return (error == SendError::Failed || error == SendError::InvalidRequest)
 		? tr::lng_wallet_backup_update_quote_error(tr::now)
-		: SendErrorText(error);
+		: SendErrorText(error, minTransferNano);
 }
 
 [[nodiscard]] QString RotationFeeText(
@@ -6576,7 +6616,9 @@ void OfferBackupUpdate(
 		} else if (fee.error == SendError::InsufficientFees) {
 			ShowBackupTopUpAlert(show, fee.feeNano, collect);
 		} else {
-			show->showToast(RotationQuoteErrorText(fee.error));
+			show->showToast(RotationQuoteErrorText(
+				fee.error,
+				TransferMinNanos(&show->session())));
 			collect();
 		}
 	}));

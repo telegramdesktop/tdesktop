@@ -104,6 +104,7 @@ enum class AccountStatus {
 enum class SendError {
 	None,
 	InvalidRequest,
+	AmountTooSmall,
 	CommentTooLong,
 	CommentEncryptionUnavailable,
 	InsufficientBalance,
@@ -191,6 +192,15 @@ inline constexpr auto kSendCommentMaxBytes = 960;
 
 [[nodiscard]] int SendCommentBytes(const QString &text);
 [[nodiscard]] bool SendCommentFits(const QString &text);
+
+inline constexpr auto kTransferMinNanosDefault = int64(100'000'000);
+inline constexpr auto kTransferMinNanosMax = (int64(1) << 53);
+
+[[nodiscard]] int64 TransferMinNanosFromConfig(float64 configured);
+[[nodiscard]] int64 TransferMinNanos(not_null<Main::Session*> session);
+[[nodiscard]] bool TransferAmountBelowMinimum(
+	int64 amountNano,
+	int64 minNanos);
 
 struct SendArgs {
 	QString destination;
