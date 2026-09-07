@@ -1784,7 +1784,8 @@ void Session::revealPhrase(
 		KeyAuthorization auth,
 		std::optional<Core::CloudPasswordResult> password,
 		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
-		Fn<void(const QString &error)> fail) {
+		Fn<void(const QString &error)> fail,
+		Fn<void()> authorized) {
 	ensureLoaded();
 	if (custodyBusy() || custody().pendingRotation) {
 		LOG(("Wallet Error: reveal requested while another is in flight."));
@@ -1832,7 +1833,13 @@ void Session::revealPhrase(
 			done(std::move(words), CustodyOutcome::Installed);
 		}, fail);
 	} else {
-		revealFromShares(std::move(auth), std::move(password), done, fail);
+		revealFromShares(
+			std::move(auth),
+			std::move(password),
+			done,
+			fail,
+			nullptr,
+			std::move(authorized));
 	}
 }
 
@@ -1875,7 +1882,8 @@ void Session::revealFromShares(
 		std::optional<Core::CloudPasswordResult> password,
 		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
 		Fn<void(const QString &)> fail,
-		std::shared_ptr<CommentScope> scope) {
+		std::shared_ptr<CommentScope> scope,
+		Fn<void()> authorized) {
 	if (scope && !commentScopeCurrent(scope)) {
 		fail(u"PHRASE_ORIGIN_EXPIRED"_q);
 		return;
@@ -1908,6 +1916,9 @@ void Session::revealFromShares(
 				"%1 holder(s).").arg(data.vdcs().v.size()));
 			fail(u"PHRASE_PARTS_INVALID"_q);
 			return;
+		}
+		if (authorized) {
+			authorized();
 		}
 		fetchShareParts(auth, qs(data.vtoken()), *dcs, done, fail, scope);
 	}).fail([=, this](const MTP::Error &error) {

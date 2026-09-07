@@ -416,7 +416,8 @@ public:
 		KeyAuthorization auth,
 		std::optional<Core::CloudPasswordResult> password,
 		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
-		Fn<void(const QString &error)> fail);
+		Fn<void(const QString &error)> fail,
+		Fn<void()> authorized = nullptr);
 	// Both replace shapes share one done at their single caller, so they
 	// carry one callback type. Only an imported replace runs a custody
 	// install, so only it can answer WriteFailed; a create replace has no
@@ -570,7 +571,8 @@ private:
 		std::optional<Core::CloudPasswordResult> password,
 		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
 		Fn<void(const QString &)> fail,
-		std::shared_ptr<CommentScope> scope = nullptr);
+		std::shared_ptr<CommentScope> scope = nullptr,
+		Fn<void()> authorized = nullptr);
 	void fetchShareParts(
 		KeyAuthorization auth,
 		const QString &token,

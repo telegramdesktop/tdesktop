@@ -94,6 +94,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QUrl>
 #include <QtGui/QClipboard>
 #include <QtGui/QGuiApplication>
+#include <QtGui/QKeyEvent>
 #include <QtGui/QPainterPath>
 #include <QtSvg/QSvgRenderer>
 #include <QtWidgets/QTextEdit>
@@ -5756,7 +5757,10 @@ void RequestPhraseReveal(
 		base::weak_qptr<PasscodeBox> passcode,
 		Fn<void()> unblock,
 		std::optional<QByteArray> parkedKey = std::nullopt,
-		Fn<void(std::vector<QString>)> onWords = nullptr) {
+		Fn<void(std::vector<QString>)> onWords = nullptr,
+		Fn<void()> onAuthorized = nullptr,
+		Fn<void(std::vector<QString>, CustodyOutcome)> onPrepared = nullptr,
+		Fn<void()> onPromptError = nullptr) {
 	auto &wallet = show->session().wallet();
 	if (!parkedKey && passcode && wallet.revealsLocally()) {
 		const auto box = base::take(passcode);
@@ -5766,6 +5770,10 @@ void RequestPhraseReveal(
 	const auto done = crl::guard(warning, [=](
 			std::vector<QString> words,
 			CustodyOutcome outcome) {
+		if (onPrepared) {
+			onPrepared(std::move(words), outcome);
+			return;
+		}
 		if (passcode) {
 			passcode->closeBox();
 		}
@@ -5780,11 +5788,17 @@ void RequestPhraseReveal(
 		}
 	});
 	const auto fail = crl::guard(warning, [=](const QString &error) {
-		unblock();
 		if (passcode && passcode->handleCustomCheckError(error)) {
+			passcode->showLoading(false);
+			if (onPromptError) {
+				onPromptError();
+			} else {
+				unblock();
+			}
 			return;
 		}
-		if (!onWords) {
+		unblock();
+		if (!onWords && !onPrepared) {
 			warning->closeBox();
 		}
 		if (error == u"PHRASE_VAULT_LOCKED"_q) {
@@ -5806,10 +5820,24 @@ void RequestPhraseReveal(
 		}
 		show->showToast(tr::lng_wallet_phrase_error(tr::now));
 	});
+	auto authorized = Fn<void()>();
+	if (onAuthorized) {
+		authorized = crl::guard(warning, [=] {
+			onAuthorized();
+			if (passcode) {
+				passcode->closeBox();
+			}
+		});
+	}
 	if (parkedKey) {
 		wallet.revealParked(std::move(auth), *parkedKey, done, fail);
 	} else {
-		wallet.revealPhrase(std::move(auth), std::move(password), done, fail);
+		wallet.revealPhrase(
+			std::move(auth),
+			std::move(password),
+			done,
+			fail,
+			std::move(authorized));
 	}
 }
 
@@ -5819,7 +5847,12 @@ void StartPhraseReveal(
 		KeyAuthorization auth,
 		Fn<void()> unblock,
 		std::optional<QByteArray> parkedKey = std::nullopt,
-		Fn<void(std::vector<QString>)> onWords = nullptr) {
+		Fn<void(std::vector<QString>)> onWords = nullptr,
+		Fn<void()> onAuthorized = nullptr,
+		Fn<void(std::vector<QString>, CustodyOutcome)> onPrepared = nullptr,
+		Fn<void()> onPromptError = nullptr,
+		Fn<void()> onPromptClosed = nullptr,
+		Fn<bool()> onPromptSubmit = nullptr) {
 	const auto session = &show->session();
 	if (parkedKey) {
 		RequestPhraseReveal(
@@ -5863,7 +5896,10 @@ void StartPhraseReveal(
 					nullptr,
 					unblock,
 					std::nullopt,
-					onWords);
+					onWords,
+					onAuthorized,
+					onPrepared,
+					onPromptError);
 				return;
 			}
 			auto fields = PasscodeBox::CloudFields::From(state);
@@ -5874,6 +5910,12 @@ void StartPhraseReveal(
 			fields.customCheckCallback = [=](
 					const Core::CloudPasswordResult &result,
 					base::weak_qptr<PasscodeBox> passcode) {
+				if (onPromptSubmit && !onPromptSubmit()) {
+					return;
+				}
+				if (passcode) {
+					passcode->showLoading(true);
+				}
 				RequestPhraseReveal(
 					show,
 					warning,
@@ -5882,10 +5924,20 @@ void StartPhraseReveal(
 					passcode,
 					unblock,
 					std::nullopt,
-					onWords);
+					onWords,
+					onAuthorized,
+					onPrepared,
+					onPromptError);
 			};
-			show->showBox(Box<PasscodeBox>(session, fields));
-			unblock();
+			const auto passcode = show->show(Box<PasscodeBox>(session, fields));
+			if (passcode) {
+				passcode->boxClosing(
+				) | rpl::on_next([=] {
+					if (onPromptClosed) {
+						onPromptClosed();
+					}
+				}, warning->lifetime());
+			}
 		}, warning->lifetime());
 	}), crl::guard(warning, [=] { unblock(); }));
 }
@@ -5895,8 +5947,25 @@ void WalletPhraseWarningBox(
 		std::shared_ptr<Main::SessionShow> show,
 		std::optional<QByteArray> parkedKey,
 		KeyAuthorization auth) {
+	enum class Phase {
+		Idle,
+		Starting,
+		Authorizing,
+		Loading,
+		Ready,
+	};
+	struct State {
+		Phase phase = Phase::Idle;
+		rpl::variable<bool> loading = false;
+		bool armed = false;
+		bool pointerDown = false;
+		bool absorbEnter = false;
+		std::optional<std::vector<QString>> words;
+		CustodyOutcome outcome = CustodyOutcome::Installed;
+	};
 	const auto authorization = box->lifetime().make_state<KeyAuthorization>(
 		std::move(auth));
+	const auto state = box->lifetime().make_state<State>();
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
@@ -5949,19 +6018,170 @@ void WalletPhraseWarningBox(
 	Ui::AddSkip(container);
 
 	AddBoxCloseButton(box);
-	const auto revealing = box->lifetime().make_state<bool>(false);
-	box->addButton(tr::lng_wallet_keys_show_phrase(), [=] {
-		if (*revealing) {
+	const auto idleFromPrompt = [=] {
+		if (state->phase == Phase::Starting
+			|| state->phase == Phase::Authorizing) {
+			state->phase = Phase::Idle;
+			state->loading = false;
+			state->armed = false;
+			state->absorbEnter = false;
+			state->words.reset();
+		}
+	};
+	const auto idleFromFail = [=] {
+		if (state->phase == Phase::Ready) {
 			return;
 		}
-		*revealing = true;
+		state->phase = Phase::Idle;
+		state->loading = false;
+		state->armed = false;
+		state->absorbEnter = false;
+		state->words.reset();
+	};
+	const auto button = box->addButton(
+		rpl::combine(
+			tr::lng_wallet_keys_show_phrase(),
+			state->loading.value()
+		) | rpl::map([](const QString &text, bool loading) {
+			return loading ? QString() : text;
+		}));
+	button->setClickedCallback([=] {
+		if (state->phase == Phase::Authorizing
+			|| state->phase == Phase::Loading
+			|| state->phase == Phase::Starting) {
+			return;
+		} else if (state->phase == Phase::Ready) {
+			if (!state->armed || !state->words) {
+				return;
+			}
+			auto words = *state->words;
+			state->words.reset();
+			box->closeBox();
+			show->showBox(Box(WalletPhraseBox, show, std::move(words)));
+			return;
+		}
+		state->phase = Phase::Starting;
 		StartPhraseReveal(
 			show,
 			box,
 			*authorization,
-			[=] { *revealing = false; },
-			parkedKey);
+			idleFromFail,
+			parkedKey,
+			nullptr,
+			[=] {
+				if (state->phase != Phase::Starting
+					&& state->phase != Phase::Authorizing) {
+					return;
+				}
+				state->phase = Phase::Loading;
+				state->armed = false;
+				state->loading = true;
+			},
+			[=](std::vector<QString> words, CustodyOutcome outcome) {
+				if (state->phase != Phase::Loading) {
+					return;
+				}
+				state->words = std::move(words);
+				state->outcome = outcome;
+				state->phase = Phase::Ready;
+				state->armed = !state->pointerDown;
+				state->absorbEnter = true;
+				state->loading = false;
+				if (const auto strong = button.data()) {
+					strong->clearState();
+				}
+				if (outcome != CustodyOutcome::Installed) {
+					show->showToast(
+						tr::lng_wallet_restore_not_saved(tr::now));
+				}
+			},
+			[=] {
+				if (state->phase == Phase::Authorizing) {
+					state->phase = Phase::Starting;
+				}
+			},
+			idleFromPrompt,
+			[=] {
+				if (state->phase == Phase::Authorizing
+					|| state->phase == Phase::Loading
+					|| state->phase == Phase::Ready) {
+					return false;
+				}
+				state->phase = Phase::Authorizing;
+				return true;
+			});
 	});
+	{
+		using namespace Info::Statistics;
+		const auto loading = InfiniteRadialAnimationWidget(
+			button,
+			st::giveawayGiftCodeBoxButton.height / 2);
+		AddChildToWidgetCenter(button.data(), loading);
+		loading->showOn(state->loading.value());
+	}
+	const auto isRevealKey = [](int key) {
+		return key == Qt::Key_Return
+			|| key == Qt::Key_Enter
+			|| key == Qt::Key_Space;
+	};
+	const auto armAfterRelease = [=] {
+		crl::on_main(box, [=] {
+			if (state->phase == Phase::Ready && !state->pointerDown) {
+				state->armed = true;
+			}
+		});
+	};
+	const auto filterRevealKey = [=](not_null<QEvent*> e) {
+		const auto type = e->type();
+		if (type != QEvent::KeyPress && type != QEvent::KeyRelease) {
+			return base::EventFilterResult::Continue;
+		}
+		const auto keyEvent = static_cast<QKeyEvent*>(e.get());
+		if (!isRevealKey(keyEvent->key())) {
+			return base::EventFilterResult::Continue;
+		}
+		if (type == QEvent::KeyRelease) {
+			state->absorbEnter = false;
+			if (state->phase == Phase::Ready) {
+				armAfterRelease();
+			}
+			return base::EventFilterResult::Continue;
+		}
+		if (state->phase == Phase::Ready
+			&& (state->absorbEnter || keyEvent->isAutoRepeat())) {
+			return base::EventFilterResult::Cancel;
+		}
+		return base::EventFilterResult::Continue;
+	};
+	base::install_event_filter(button.data(), [=](not_null<QEvent*> e) {
+		const auto type = e->type();
+		if (type == QEvent::MouseButtonPress) {
+			state->pointerDown = true;
+			if (state->phase == Phase::Ready) {
+				state->absorbEnter = false;
+				state->armed = true;
+			}
+		} else if (type == QEvent::MouseButtonRelease) {
+			state->pointerDown = false;
+			if (state->phase == Phase::Ready) {
+				armAfterRelease();
+			}
+		}
+		return filterRevealKey(e);
+	});
+	base::install_event_filter(box, [=](not_null<QEvent*> e) {
+		return filterRevealKey(e);
+	});
+	show->session().wallet().transferWalletIdentityChanges(
+	) | rpl::on_next([=] {
+		state->words.reset();
+		state->armed = false;
+		state->absorbEnter = false;
+		if (state->phase != Phase::Idle) {
+			state->phase = Phase::Idle;
+			state->loading = false;
+		}
+	}, box->lifetime());
 }
 
 // The unlock is acquired before the warning sheet, so a passcode vault asks
