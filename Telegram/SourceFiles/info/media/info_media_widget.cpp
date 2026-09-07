@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/search_field_controller.h"
+#include "ui/smooth_scroll.h"
 #include "ui/ui_utility.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
@@ -150,7 +151,7 @@ Widget::Widget(QWidget *parent, not_null<Controller*> controller)
 		scrollTo(request);
 	}, _inner->lifetime());
 
-	scroll()->setCustomWheelProcess([this](not_null<QWheelEvent*> e) {
+	Ui::InstallSmoothScroll(scroll(), [this](not_null<QWheelEvent*> e) {
 		return (e->modifiers() & Qt::ControlModifier)
 			&& _inner->processZoomWheel(e);
 	});

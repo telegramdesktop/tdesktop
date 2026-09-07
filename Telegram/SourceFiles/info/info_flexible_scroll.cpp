@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/animation_value.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/smooth_scroll.h"
 #include "base/event_filter.h"
 #include "base/options.h"
 #include "styles/style_info.h"
@@ -119,6 +120,7 @@ void SetupFlexibleRegularScroll(
 			state->lastApplied = -1;
 		}
 	});
+	Ui::DisableSmoothScroll(scroll);
 	scroll->setCustomWheelProcess([=](not_null<QWheelEvent*> e) {
 		const auto delta = e->angleDelta().y();
 		if (std::abs(delta) != 120 || e->phase() != Qt::NoScrollPhase) {
@@ -214,6 +216,8 @@ void FlexibleScrollHelper::setupScrollAnimation() {
 }
 
 void FlexibleScrollHelper::setupScrollHandling() {
+	Ui::DisableSmoothScroll(_scroll);
+
 	rpl::combine(
 		_pinnedToTop->heightValue(),
 		_inner->heightValue()

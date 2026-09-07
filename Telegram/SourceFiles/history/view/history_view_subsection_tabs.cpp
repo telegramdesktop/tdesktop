@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/dynamic_thumbnails.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text_utilities.h"
+#include "ui/smooth_scroll.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/discrete_sliders.h"
@@ -148,6 +149,7 @@ void SubsectionTabs::setupHorizontal(
 		widget->width(),
 		std::max(toggle->height(), slider->height()));
 
+	Ui::DisableSmoothScroll(scroll);
 	scroll->setCustomWheelProcess([=](not_null<QWheelEvent*> e) {
 		const auto pixelDelta = e->pixelDelta();
 		const auto angleDelta = e->angleDelta();

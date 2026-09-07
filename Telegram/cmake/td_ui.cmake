@@ -675,6 +675,8 @@ PRIVATE
     ui/peer/color_sample.h
     ui/power_saving.cpp
     ui/power_saving.h
+    ui/smooth_scroll.cpp
+    ui/smooth_scroll.h
     ui/vertical_list.cpp
     ui/vertical_list.h
     ui/unread_badge_paint.cpp

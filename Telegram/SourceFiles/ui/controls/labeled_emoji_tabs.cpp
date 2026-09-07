@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/abstract_button.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
+#include "ui/smooth_scroll.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "styles/style_basic.h"
@@ -487,6 +488,7 @@ LabeledEmojiScrollTabs::LabeledEmojiScrollTabs(
 	for (const auto &button : _inner->_buttons) {
 		_dragScroll->add(button);
 	}
+	DisableSmoothScroll(_scroll);
 	_scroll->setCustomWheelProcess([=](not_null<QWheelEvent*> e) {
 		const auto pixelDelta = e->pixelDelta();
 		const auto angleDelta = e->angleDelta();
