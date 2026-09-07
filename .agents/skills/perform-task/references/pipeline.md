@@ -21,6 +21,9 @@ stateful runner. Treat the external `task.md`, its referenced inputs, project
 context, and repository as sufficient unless the request expressly requires
 unavailable exact bytes or content.
 
+Use the shared [project-context policy](../../../shared/project-context.md)
+for selective reading, task-specific context, and optional durable amendments.
+
 Use visual evidence in this order: explicit task facts; supplied inputs;
 adjacent current UI/code/styles and the pre-task baseline; repository history
 and legacy implementations; then the closest established desktop convention
@@ -39,7 +42,6 @@ WORK_DIR = TASK_DIR/work
 LOCAL_DIR = TASK_DIR/.local
 TASK_SPEC = TASK_DIR/task.md plus referenced TASK_DIR/input files
 PROJECT_FILE = AI_SLOT/projects/<project>/project.md, or none
-PREVIOUS_CONTEXT = latest approved project task's work/context.md, or none
 BASE_REF = refs/ai-tasks/TASK_ID/base
 GREEN_REF = refs/ai-tasks/TASK_ID/green
 RUN_REF = refs/ai-tasks/TASK_ID/run
@@ -153,7 +155,7 @@ Use tracked, resumable task artifacts:
 
 ```text
 work/context.md
-work/project.proposed.md       # project tasks only
+work/project-amendment.md      # optional narrow durable change for a project
 work/visual.md                 # layout tasks only
 work/plan.md
 work/split-proposal.md         # only when assessment rejects intrinsic scope
@@ -193,6 +195,10 @@ result artifacts. Resume at the first incomplete validated boundary. Do not
 repeat an approved phase merely because the prior agent session disappeared.
 Treat a compact subagent reply as a notification; the artifact and repository
 state are proof.
+
+Apply the shared policy on resume too: an old full project proposal is not a
+completion requirement or a replacement to promote. Revalidate any useful
+durable fact against the current task and source before proposing an amendment.
 
 At each stable boundary update `work/progress.md` and record the current phase
 locally:
@@ -267,10 +273,10 @@ Run sequentially:
    then `work/plan.md` with exact files, functions, ordered steps, bounded
    phases, owned write sets, adaptive review/evidence plans, the selected
    pre-review validation, and status checkboxes.
-   For project work it also writes `work/project.proposed.md` as a coherent
-   finished-state blueprint; use the Phase 1F prompt when prior task context
-   exists, otherwise Phase 1 with the project file. Do not promote the
-   proposal yet; blocked work must not become project truth.
+   Use the same Phase 1 prompt for standalone, new-project, and follow-up work,
+   with the selected small overview and explicitly relevant references. A
+   useful durable change may warrant `work/project-amendment.md` under the
+   shared policy; its absence does not make the phase incomplete.
    The visual contract derives every dimension from request relationships,
    supplied images, font metrics, style tokens, sibling geometry, or a cited
    desktop analogue, with ordered calculations, tolerances, relationship
@@ -830,9 +836,29 @@ name its paths under `Touched:` when owned source work exists; otherwise use
 `Checkout: source-state-retained` and does not require a test report, because
 each replacement receives its own complete review and evidence campaign.
 
-For approved project work, promote `work/project.proposed.md` to the project's
-`project.md` immediately before final AI publication. For blocked work, retain
-the proposal only as a task artifact.
+For approved project work with a still-useful amendment, apply the shared
+policy immediately before final AI publication:
+
+1. Require a clean canonical AI main worktree. When `origin` exists, fetch it
+   there and fast-forward its `master` to `origin/master`. Read the latest
+   canonical target section and reconcile the proposed fact with it.
+2. Author only the task's narrow edit in its own
+   `AI_SLOT/projects/<project>/project.md`, validated against those fresh
+   canonical facts. Keep unrelated slot text unchanged; the final rebase
+   brings in independent canonical edits. Never copy the fresh whole file
+   into a stale slot and replay those edits as this task's change. Skip a
+   redundant or unsupported amendment. If section changes prevent a safe
+   task-only edit, retain the proposal task-locally and finish without the
+   optional amendment unless the conflict invalidates task correctness. Do not
+   sync, rebase, stash, or copy other files into the dirty task slot.
+3. Use ordinary `finish` below. It commits the task artifacts and optional
+   own-project file before fetching/rebasing the now-clean slot. Its existing
+   rebase handles later independent edits; preserve the final commit and stop
+   on a semantic conflict. Do not broaden its path scope to indexes, other
+   projects, or reference files.
+
+Without an amendment, publish the task normally. Blocked and split-required
+results must leave shared project files unchanged; proposals remain task-local.
 
 Publish final AI state only after the Telegram commit and result are final:
 

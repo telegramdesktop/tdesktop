@@ -34,6 +34,10 @@ approved history, create or move projects, or change the meaning of a request.
 
 ## Inventory and eligibility
 
+Follow the shared [project-context policy](../../../shared/project-context.md)
+for project reads and index edits; the unfinished-state safety inventory below
+remains mandatory.
+
 Refresh canonical AI state, then inventory only unfinished work. Approved tasks
 are terminal history: they never enter a candidate set, and a task becomes
 claimable only once every dependency is approved, so no approved task can depend
@@ -52,7 +56,8 @@ given id as a dependency. An approved task among an unfinished id's dependents
 is corrupt canonical state, not a merge decision; write nothing and return
 `BLOCKED` naming that pair. Read into context only the unfinished tasks' ids,
 statuses, ownership, projects, dependencies, and tracked task-directory
-contents, plus `projects/*/tasks.md` for the projects those tasks belong to.
+contents. Search project indexes for candidate ids and read only matching
+entries needed for navigation or replacement.
 Approved and retired ids enter this pass only as opaque dependency targets,
 never as directory reads or content comparisons; the size of the finished queue
 is at most a count, never an enumeration. A pass whose cost grows with shipped
@@ -76,8 +81,10 @@ has begun it. Inputs are allowed only when every pertinent file can be copied
 and relinked without loss.
 
 Read `task.md` and `state.yaml` completely for every member of each partition
-containing at least two candidates. Read that project's `project.md` and
-`tasks.md`, or the complete standalone candidate set. Inspect dependency and
+containing at least two candidates. Read the project's small overview and only
+candidate-relevant index or reference sections; use headings/search and bounded
+reads for large legacy documents. Keep approved and retired task directories
+opaque under this pass's stricter boundary above. Inspect dependency and
 reverse-dependency state within the unfinished set. A candidate referenced by an
 `in-progress`, `blocked`, claimed, or otherwise non-mergeable unfinished task is
 ineligible; unclaimed `todo` dependents may be rewritten atomically with the
@@ -184,11 +191,12 @@ rewrite all links, and map every old file to the new path in the receipt. If an
 input cannot be preserved, exclude that cluster. Rewrite eligible external
 dependents' dependency lists and prerequisite prose from old ids to the new id.
 
-For a named project, replace the old links with the new link in `tasks.md` and
-make nearby durable narrative coherent. Do not store live status there. Do not
-edit earlier receipts, approved task artifacts, or the discovery-routing marker;
-they are immutable history. Repeat the complete old-to-new mapping in the
-replacement task, each durable alias, and the consolidation receipt.
+For a named project, replace only the relevant old task links with the new link
+in `tasks.md`, preserving unrelated navigation. Keep merge rationale and
+criterion accounting in the replacement and receipt under the shared policy.
+Do not edit earlier receipts, approved task artifacts, or the discovery-routing
+marker; they are immutable history. Repeat the complete old-to-new mapping in
+the replacement task, each durable alias, and the consolidation receipt.
 
 ## Traceability and validation
 

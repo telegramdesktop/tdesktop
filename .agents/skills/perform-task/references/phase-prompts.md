@@ -17,7 +17,7 @@ checklists only for intentional current-session build work, Phase 7, the
 small-task fast path, or when delegation is unavailable from the start at the
 current agent depth. Replace
 every applicable placeholder: `<TASK>`, `<TASK_ID>`, `<WORK_DIR>`,
-`<PROJECT_FILE>`, `<PREVIOUS_CONTEXT>`, `<BUILD>`, `<N>`,
+`<PROJECT_FILE>`, `<BUILD>`, `<N>`,
 `<OWNED_WRITE_SET>`, `<R>`, `<R-1>`, and `<phase-name>`.
 
 ## Orchestration Rules
@@ -125,9 +125,8 @@ Do not restate the full context, plan, diff, or long reasoning in the chat reply
 
 - Phase 1 is complete only when `context.md` exists and is non-empty, `plan.md`
   exists and contains a `## Status` section, and no unintended source edits
-  were made. For a project task, `project.proposed.md` must also exist and be
-  non-empty. For a `Visual: layout` task, `visual.md` must also satisfy the
-  visual design completion check below.
+  were made. A project amendment is optional. For a `Visual: layout` task,
+  `visual.md` must also satisfy the visual design completion check below.
 - Phase 3 is complete only when `plan.md` contains both `Phases:` in the Status section and `Assessed: yes`, records a rejection outcome (`Fast-Path: rejected` or `Approach: rejected`) that sends the performer back to a fresh Phase 1 leaf, or records `Scope: split-required` and has a complete `split-proposal.md` that stops source work for queue rescoping.
 - Phase 4 is complete only when the target phase checkbox changed to checked and the touched-file list matches the owned write set, or the blocker explains any mismatch.
 - Phase 5 is complete only when the build outcome is known and the build checkbox is updated on success.
@@ -154,6 +153,10 @@ planner, and Phase 3 still verifies both artifacts independently. For a
 between the context and plan steps so the leaf writes `visual.md` before
 `plan.md` and the plan consumes the derived contract.
 
+Use this entry point for both new and follow-up work. Follow the shared
+[project-context policy](../../../shared/project-context.md); when delivering
+the prompt, include its resolved source path so the leaf can read it.
+
 Small-task fast path: the performer may run this phase as a same-session
 checklist instead of a leaf, but only when the task spec itself names every
 file to touch and the change is mechanical — roughly two source files or
@@ -168,14 +171,17 @@ You are a context-gathering and planning agent for a large C++ codebase (Telegra
 
 TASK: <TASK>
 
-YOUR JOB: Read AGENTS.md, inspect the codebase, find all files and code relevant to this task, write self-contained implementation context, and then write a detailed implementation plan.
+YOUR JOB: Read AGENTS.md, inspect the relevant code, write task-specific implementation context, and then write a detailed implementation plan.
 
 Steps:
 1. Read AGENTS.md for project conventions and build instructions.
-2. When `<PROJECT_FILE>` is not `none`, read it as the current durable project
-   blueprint and preserve everything still accurate in the proposal.
+2. Read `.agents/shared/project-context.md` in the source checkout. When
+   `<PROJECT_FILE>` is not `none`, use its small shared overview to orient this
+   task; expand only concretely relevant dependencies and references under
+   that policy. Current task requirements and source govern the plan.
 3. Search the codebase for files, classes, functions, and patterns related to the task.
-4. Read all potentially relevant files. Be thorough and prefer reading more rather than less.
+4. Read the relevant source and adjacent behavior needed to resolve the task's
+   requirements and risks. Use targeted lookups for remaining ambiguities.
 5. For each relevant file, note:
    - file path
    - relevant line ranges
@@ -186,22 +192,18 @@ Steps:
 8. Check .style files if the task involves UI.
 9. Check lang.strings if the task involves user-visible text.
 
-Write `<WORK_DIR>/project.proposed.md` only when `<PROJECT_FILE>` is not
-`none`. It is not used by the current task. Describe the project as if this
-task is approved and fully working, so the performer can promote it only after
-approval. Include:
-- Project: What this project does (feature description, goals, scope)
-- Architecture: High-level architectural decisions, which modules are involved, how they interact
-- Key Design Decisions: Important choices made about the approach
-- Relevant Codebase Areas: Which parts of the codebase this project touches, key types and APIs involved
-
-Do not include temporal state like "Current State", "Pending Changes", "Not yet implemented", or "TODO". Describe the project as a complete, coherent whole.
+When `<PROJECT_FILE>` is not `none` and a useful shared fact changes, propose
+`<WORK_DIR>/project-amendment.md` under the shared policy. Do not modify
+`<PROJECT_FILE>` in this phase. No amendment or placeholder is required otherwise.
 
 Always write `<WORK_DIR>/context.md`.
 
-This is the primary task-specific implementation context. All downstream phases should be able to work from this file plus the referenced source files. It must be self-contained. Include:
+This is the primary task-specific implementation context. Give downstream
+phases enough background to work from it and the exact relevant references;
+link to detailed material instead of copying project history. Include the
+following only where relevant:
 - Task Description: The full task restated clearly
-- Relevant Files: Every file path with line ranges and descriptions
+- Relevant Files: Exact file paths with relevant sections or line ranges and descriptions
 - Key Code Patterns: How similar things are done in the codebase, with snippets when useful
 - Data Structures: Relevant types, structs, classes
 - API Methods: Any TL schema methods involved, copied from api.tl when useful
@@ -210,7 +212,8 @@ This is the primary task-specific implementation context. All downstream phases 
 - Build Info: Build command and any special notes
 - Reference Implementations: Similar features that can serve as templates
 
-Be extremely thorough. Another agent with no prior context will rely on this file.
+Resolve load-bearing questions and state remaining assumptions. Another agent
+with no prior context must understand this task's scope and where to look next.
 
 After context.md is written, create a detailed plan in: <WORK_DIR>/plan.md
 
@@ -272,68 +275,6 @@ Number every step. Group steps into phases if there are more than about eight st
 - [ ] Phase 2: <name> (if applicable)
 - [ ] Pre-review validation
 - [ ] Code review
-
-Do not implement code in this phase.
-```
-
-## Phase 1F: Context and plan for an existing project
-
-```text
-You are a context-gathering and planning agent for a follow-up task on an existing project in a large C++ codebase (Telegram Desktop).
-
-NEW TASK: <TASK>
-
-YOUR JOB: Read the existing project state, gather any additional context needed, produce fresh documents for the new task, and then write a detailed implementation plan.
-
-Steps:
-1. Read AGENTS.md for project conventions and build instructions.
-2. Read <PROJECT_FILE>. This is the project-level blueprint describing everything done so far.
-3. Read <PREVIOUS_CONTEXT>. This is the previous task's gathered context.
-4. Understand what has already been implemented by reading the actual source files referenced in the project file and previous context.
-5. Based on the new task description, search the codebase for any additional files, classes, functions, and patterns that are relevant to the new task but not already covered.
-6. Read all newly relevant files thoroughly.
-
-Write two files.
-
-File 1: `<WORK_DIR>/project.proposed.md`
-
-Write a single coherent proposed project document that describes everything,
-including this task's changes, as fully implemented and working. Do not modify
-`<PROJECT_FILE>` during this phase.
-
-It should incorporate:
-- everything from the existing project document that is still accurate and relevant
-- the new task's functionality described as part of the project, not as a pending change
-- any changed design decisions or architectural updates from the new task requirements
-
-It should not contain:
-- temporal state such as "Current State", "Pending Changes", or "TODO"
-- history of how requirements changed between tasks
-- references to "the old approach" versus "the new approach"
-- task-by-task changelog or timeline
-- information that contradicts the new task requirements
-
-File 2: `<WORK_DIR>/context.md`
-
-This is the primary document for the new task. It must be self-contained and should include:
-- Task Description: The new task restated clearly, with enough project background that an implementation agent can understand it without reading other AI task files
-- Relevant Files: Every file path with line ranges relevant to this task
-- Key Code Patterns: How similar things are done in the codebase
-- Data Structures: Relevant types, structs, classes
-- API Methods: Any TL schema methods involved
-- UI Styles: Any relevant style definitions
-- Localization: Any relevant string keys
-- Build Info: Build command and any special notes
-- Reference Implementations: Similar features that can serve as templates
-
-Be extremely thorough. Another agent with no prior context should be able to work from this file alone.
-
-File 3: `<WORK_DIR>/plan.md`
-
-After the two documents are written, create a detailed plan with the same
-structure required by Phase 1: Task, Approach, Files to Modify, Files to
-Create, numbered Implementation Steps grouped into phases when there are more
-than about eight steps, Build Verification, and the Status checkbox section.
 
 Do not implement code in this phase.
 ```

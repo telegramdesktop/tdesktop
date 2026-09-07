@@ -15,7 +15,7 @@ You are a reflection agent. Your job is to examine the difference between what a
 
 If `$ARGUMENTS` is provided, it is a short or full task name from the external
 `ai-tdesktop` workflow. Resolve it with the workspace helper and read that
-task's durable context before judging the correction.
+task's relevant context before judging the correction.
 
 If `$ARGUMENTS` is empty, skip the task context step — just work from the diffs alone.
 
@@ -40,12 +40,17 @@ If either diff is empty, tell the user and stop. Both diffs must be non-empty fo
 
 ### Task context (only if `$ARGUMENTS` is non-empty)
 
-Resolve the task and read its context:
+Resolve the task and select context using the shared
+[project-context policy](../../.agents/shared/project-context.md):
 
 1. Run `python3 .agents/skills/process-inbox/scripts/workspace.py resolve --name "$ARGUMENTS"` (use the host's Python 3 command).
-2. Read the resolved task's `task.md` and `work/context.md` from the returned AI slot worktree.
-3. When `project` is non-null, also read `projects/<project>/project.md`, or
-   `projects/archive/<project>/project.md` when the project has been archived.
+2. Read the resolved task's `task.md` from the returned AI slot worktree, then
+   the sections of `work/context.md` relevant to the actual correction.
+3. When `project` is non-null and the correction needs project background,
+   read its small `projects/<project>/project.md`, or
+   `projects/archive/<project>/project.md` if archived. Expand specific
+   dependency/reference sections only to resolve a concrete ambiguity; do not
+   load the project history or latest task context.
 
 This helps you distinguish between:
 - **Task-specific mistakes** — the agent misunderstood this particular feature's requirements or made a wrong choice within the specific problem. These are NOT documentation-worthy.

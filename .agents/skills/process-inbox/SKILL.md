@@ -52,13 +52,21 @@ inbox. Never force-push shared AI history.
 
 ## Route and plan
 
+Follow the shared [project-context policy](../../shared/project-context.md)
+for discovery, selective expansion, and compact project/index artifacts.
+
 Read these before planning:
 
 - source checkout `AGENTS.md`;
 - `ai_main/AGENTS.md`;
-- existing `<inbox_worktree>/projects/*/project.md`, including
-  `projects/archive/`, and relevant task states from `<inbox_worktree>`;
 - the transaction's `inbox.md` and every file it references.
+
+For each request, start with explicit task/project lineage and relevant task
+metadata from `<inbox_worktree>`. Use project names/titles and targeted search
+matches across live and archived projects to identify candidates, then read
+their small overviews. Inspect relevant task specifications, input sections,
+index entries, or detailed references when needed to resolve a dependency or
+routing ambiguity. Do not load every project's overview or task history.
 
 Some retained task directories have `superseded.yaml` instead of `state.yaml`.
 They are durable aliases created by queue consolidation, not missing or reusable
@@ -272,8 +280,9 @@ the planner.
 
 For a new project, create `projects/<slug>/project.md` with a concise durable
 scope and `projects/<slug>/tasks.md` with task links. For an existing project,
-append every newly assigned task link, including inherited follow-ups. Project
-indexes do not store live status.
+append every newly assigned task link, including inherited follow-ups, with
+only concise optional grouping. Put routing and decision prose in task
+specifications or the receipt, following the shared policy.
 
 Create one tracked Markdown receipt under `receipts/YYYY/MM/DD/`. Include:
 
