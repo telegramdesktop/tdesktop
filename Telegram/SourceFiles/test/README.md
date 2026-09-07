@@ -257,7 +257,7 @@ clicking.
 | Module | Facilities |
 | --- | --- |
 | `test_agent.h` | Runtime gate, startup scale override, sticky named events, scenario start. |
-| `test_runner.h` | Stages, bounded waits, exact-widget actions, prepared capture/inspection, first-class gated skips (`skipReason`), watchdog (`TDESKTOP_TEST_WATCHDOG` in seconds) and termination. |
+| `test_runner.h` | Stages, bounded waits, exact-widget actions, prepared capture/inspection, first-class gated skips (`skipReason`), `onFinish` release hook (and its finish-release self-test), watchdog (`TDESKTOP_TEST_WATCHDOG` in seconds) and termination. |
 | `test_gated_stage.h` | The first-class gated skip's own self-test: a stage whose `skipReason` returns a reason, writing one `TEST_RESULT: N/A:` row and skipping `run`, `until` and `then` without waiting - its never-ready `until` under a one-second timeout is the falsifier - beside a stage whose gate returns an empty string and runs normally in the tick that begins it. |
 | `test_log.h` | Absolute flushed logs, steps, notes, checks whose `details` are printed on the passing verdict as well as the failing one, tolerances, geometry, completion markers, N/A rows for stages that did not apply, and their count. One `LogRaw` call always writes exactly one physical line, whatever it is handed: every character Python's `str.splitlines()` breaks on - U+000A, U+000B, U+000C, U+000D, U+001C, U+001D, U+001E, U+0085, U+2028, U+2029, and so a CRLF pair as its two code points - is written as a visible `\uXXXX` escape, so a record carrying a break stays one row the external readers' line grammar reads whole and cannot mistake for a completion, while text with no separator is passed through byte for byte and the escape adds no trailing whitespace. |
 | `test_log_lines.h` | The one-physical-line guarantee's own self-test: one `LogRaw`-family call driven with each of the eleven separator forms in turn, with one payload mixing them all, with a trailing separator and with a separator-only payload, each read back out of `test_log.txt` by byte offset and asserted to have added exactly one physical line under an independent transcription of `str.splitlines()` - beside a separator-free control that must read one line under any writer, and a last stage whose payload's middle line would be byte-equal to `TEST_COMPLETE` and which asserts no produced line is. |
@@ -379,26 +379,35 @@ failing.
 ## Scenario teardown before quit
 
 A scenario that deliberately leaks its `State` so it outlives a stage owns the
-release of everything that `State` holds into session-owned objects: every
-`rpl::lifetime`, every watcher, and every raw cross-stage pointer. Destroy
-them in a final teardown stage that runs before the runner quits.
+release of everything that `State` holds: every `rpl::lifetime`, every
+watcher, every raw cross-stage pointer, and every `base::Timer`. Register
+that release with `Runner::onFinish`. `finish()` runs those callbacks on
+every path that reaches it — stage timeout, the scenario watchdog,
+skip-to-end, and normal completion — exactly once, after the ticker and
+watchdog are cancelled, before the `kFinishDrainDelay` fuse drain, and
+before `Complete()` / `Core::Quit()`. A callback registered after `finish()`
+has already run executes immediately and is never silently dropped.
 
-Nothing else does it, and skipping it costs a whole run. A leaked `State`
-whose two `rpl::lifetime`s were never released kept observers subscribed to
+A final teardown stage is still useful for work that must happen while the
+session still exists and the runner is still stepping, but it is not the
+release point. The stage is not guaranteed to run: a stage that times out,
+and the scenario watchdog, make `Runner` finish immediately and skip every
+stage after it, while a stage whose assertions `FAIL` does not — that run
+still reaches its teardown. `onFinish` still runs in those abort paths, and
+it also runs when a teardown stage already ran, so the callback must be safe
+to call after teardown.
+
+Skipping the hook costs a whole run. A leaked `State` whose two
+`rpl::lifetime`s were never released kept observers subscribed to
 `Storage::Facade`'s and `Data::Session`'s streams while `~Main::Session` tore
 those streams and their items down. The run reached `TEST_COMPLETE` after a
 clean sweep and then died with `Caught signal 11 (SIGSEGV)`, no assertion line
 anywhere in the run's logs, and a 0-byte minidump because the runner had to
-kill the process. With the teardown stage added, three consecutive runs exited
-0, wrote no crash report and left no minidump.
-
-The stage is not guaranteed to run. A stage that times out, and the scenario
-watchdog, make `Runner` finish immediately and skip every stage after it,
-while a stage whose assertions `FAIL` does not — that run still reaches its
-teardown. After a timeout the same death can follow `TEST_COMPLETE`, so read
-it as this signature rather than as a second product fault, and keep the
-leaked `State`'s session-observing subscriptions no wider than the stages that
-need them.
+kill the process. With the release registered, three consecutive runs exited
+0, wrote no crash report and left no minidump. After a timeout the same death
+can follow `TEST_COMPLETE`, so read it as this signature rather than as a
+second product fault, and keep the leaked `State`'s session-observing
+subscriptions no wider than the stages that need them.
 
 ## Failure diagnosis
 
@@ -419,7 +428,8 @@ need them.
 | Test reaches a real external action | Missing expectation/fuse or mock seam. | Declare the exact blocked launch, mock the transport/payment boundary, and assert zero real calls. |
 | Pixel probe misses only on Retina or at 125/150% | Logical rect indexed into the device-pixel grab, or a 100% literal reused at another interface scale. | Multiply by the image `devicePixelRatio()` once at the sampling boundary; derive expectations from the live scaled tokens. |
 | Geometry oracle fails on plausible-looking rects | Rects from different widgets compared without a shared origin. | Map both through one declared frame (`Ui::MapFrom`, `mapToGlobal`) and log the mapped values in the failure details. |
-| Process dies after `TEST_COMPLETE`, with no assertion line and often a 0-byte dump | Overlay teardown, not the product: a leaked scenario `State` still holds `rpl` subscriptions to session-owned streams while `~Main::Session` destroys them. | Destroy the scenario's lifetimes, release its watchers and null every raw cross-stage pointer in a final teardown stage — and check it ran, because a timed-out stage or the watchdog skips every stage after it. |
+| Process dies after `TEST_COMPLETE`, with no assertion line and often a 0-byte dump | Overlay teardown, not the product: a leaked scenario `State` still holds `rpl` subscriptions to session-owned streams while `~Main::Session` destroys them. | Destroy the scenario's lifetimes, release its watchers and null every raw cross-stage pointer from `Runner::onFinish` — a teardown stage is not enough, because a timed-out stage or the watchdog skips every stage after it. |
+| `Telegram finished, result: 0` then `QObject::~QObject: Timers cannot be stopped from another thread` and a fresh dump | Overlay teardown, not the product: a scenario-owned `base::Timer` in static or leaked `State` was still armed when `QApplication` died. | Cancel the timer (and destroy lifetimes / null cross-stage pointers) from `Runner::onFinish`; do not rely on a teardown stage, which timeout and the watchdog skip. |
 | Media reading frozen at position `0`, with the length equal to the document's declared duration | Undecodable fixture document — often a synthetic upload left on the shared test account — accepted on metadata alone; the app debug log shows `Streaming Error: Error in avformat_open_input`. | Select the fixture with the playability probe: play each candidate and accept only one whose position strictly advances, then reuse that document everywhere. |
 | A premise fails against a row its own fixture had to create, or a check passes without ever reaching its subject | The oracle read the probe's whole history, or bracketed a slice by wall time, so rows from an earlier stage or a slow neighbouring surface answered it. | Record through `Test::Probe`, take `mark()` immediately before the action, and query only `...Since(mark)`; there is no whole-history accessor to fall back to. |
 | A sweep reports a confident `found=0` that no repair ever changes | The enumeration structurally cannot reach the subject, so the zero was guaranteed before the run started and measures nothing. | Count through `Test::DiscriminatingScan` and feed it a known-present control; `report()` refuses to certify a zero the walk cannot tell from absence. |
