@@ -11,6 +11,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 
 
@@ -2861,13 +2862,52 @@ def command_overlay_save(args):
 			"Dirty source paths are outside the overlay inventory: "
 			+ ", ".join(outside)
 		)
-	clear_overlay_submodule_bundle(work)
 	root_paths = groups.get("", [])
 	patch = (
 		run_git_binary(source, "diff", "--binary", "HEAD", "--", *root_paths)
 		if root_paths
 		else b""
 	)
+	submodule_candidates = []
+	for repository_path, paths in groups.items():
+		if not repository_path:
+			continue
+		repository_patch = run_git_binary(
+			source / repository_path, "diff", "--binary", "HEAD", "--", *paths
+		)
+		if not repository_patch.strip():
+			continue
+		name = hashlib.sha256(repository_path.encode("utf-8")).hexdigest()[:16]
+		submodule_candidates.append((repository_path, name, repository_patch))
+	if not patch.strip() and not submodule_candidates:
+		raise WorkspaceError("The overlay diff is empty; nothing to save")
+	with tempfile.TemporaryDirectory() as staging_dir:
+		staging = Path(staging_dir)
+		checks = []
+		if patch.strip():
+			staged = staging / "root.patch"
+			staged.write_bytes(patch)
+			checks.append((source, staged))
+		for repository_path, name, repository_patch in submodule_candidates:
+			staged = staging / f"{name}.patch"
+			staged.write_bytes(repository_patch)
+			checks.append((source / repository_path, staged))
+		for repository, saved_patch in checks:
+			check = subprocess.run(
+				[
+					"git", "-C", str(repository), "apply", "--check",
+					"--reverse", str(saved_patch),
+				],
+				stdout=subprocess.PIPE,
+				stderr=subprocess.PIPE,
+				text=True,
+			)
+			if check.returncode:
+				raise WorkspaceError(
+					"The saved overlay patch does not verify: "
+					+ check.stderr.strip()
+				)
+	clear_overlay_submodule_bundle(work)
 	patch_path = work / OVERLAY_PATCH_FILE
 	if patch.strip():
 		patch_path.write_bytes(patch)
@@ -2875,20 +2915,10 @@ def command_overlay_save(args):
 		patch_path.unlink(missing_ok=True)
 	submodule_entries = []
 	patches_dir = work / OVERLAY_SUBMODULES_DIR
-	for repository_path, paths in groups.items():
-		if not repository_path:
-			continue
-		repository = source / repository_path
-		repository_patch = run_git_binary(
-			repository, "diff", "--binary", "HEAD", "--", *paths
-		)
-		if not repository_patch.strip():
-			continue
+	for repository_path, name, repository_patch in submodule_candidates:
 		patches_dir.mkdir(parents=True, exist_ok=True)
-		name = hashlib.sha256(repository_path.encode("utf-8")).hexdigest()[:16]
 		relative_patch = f"{OVERLAY_SUBMODULES_DIR}/{name}.patch"
-		submodule_patch_path = work / relative_patch
-		submodule_patch_path.write_bytes(repository_patch)
+		(work / relative_patch).write_bytes(repository_patch)
 		submodule_entries.append({
 			"patch": relative_patch,
 			"path": repository_path,
@@ -2901,30 +2931,6 @@ def command_overlay_save(args):
 			}, indent=2, sort_keys=True) + "\n",
 			encoding="utf-8",
 		)
-	if not patch.strip() and not submodule_entries:
-		raise WorkspaceError("The overlay diff is empty; nothing to save")
-	checks = []
-	if patch.strip():
-		checks.append((source, patch_path))
-	checks.extend(
-		(source / entry["path"], work / entry["patch"])
-		for entry in submodule_entries
-	)
-	for repository, saved_patch in checks:
-		check = subprocess.run(
-			[
-				"git", "-C", str(repository), "apply", "--check",
-				"--reverse", str(saved_patch),
-			],
-			stdout=subprocess.PIPE,
-			stderr=subprocess.PIPE,
-			text=True,
-		)
-		if check.returncode:
-			raise WorkspaceError(
-				"The saved overlay patch does not verify: "
-				+ check.stderr.strip()
-			)
 	restored = []
 	if args.restore != "none":
 		ref = source_task_ref(args.task, args.restore)
