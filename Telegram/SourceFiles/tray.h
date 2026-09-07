@@ -39,4 +39,9 @@ private:
 
 };
 
+// The tray icon paints the unread counter, a screen reader reads the
+// tooltip instead - so the tooltip carries the counter too, in the
+// window title's format: "Telegram Desktop (3)".
+[[nodiscard]] QString TrayIconToolTip();
+
 } // namespace Core
