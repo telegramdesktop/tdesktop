@@ -50,6 +50,7 @@ namespace {
 
 constexpr auto kSaveDelay = crl::time(1000);
 constexpr auto kBatchResolveFallback = 10 * crl::time(1000);
+constexpr auto kRestoreStepTimeout = 60 * crl::time(1000);
 constexpr auto kMaxSavedWindows = 64;
 constexpr auto kMaxSavedChats = 64;
 constexpr auto kMaxClosedWindows = 16;
@@ -316,12 +317,14 @@ struct SavedWindows::Step {
 	std::vector<Data::Thread*> slots;
 	std::unique_ptr<RestoreShell> shell;
 	SeparateId createdId = SeparateId(nullptr);
+	base::Timer timeout;
 	int id = 0;
 	int pending = 0;
 	bool created = false;
 	bool dispatching = false;
 	bool dead = false;
 	bool shellClosed = false;
+	bool timedOut = false;
 	rpl::lifetime lifetime;
 };
 
@@ -866,6 +869,13 @@ void SavedWindows::startStep(SavedWindow &&data) {
 		queueFinishStep(stepId);
 		return;
 	}
+	step->timeout.setCallback(crl::guard(this, [=] {
+		if (const auto step = stepById(stepId)) {
+			step->timedOut = true;
+			queueFinishStep(stepId);
+		}
+	}));
+	step->timeout.callOnce(kRestoreStepTimeout);
 	if (step->data.thread.valid()) {
 		resolveSlot(step, 0);
 	}
@@ -1010,7 +1020,7 @@ void SavedWindows::markUnavailable(std::unique_ptr<Step> step) {
 			step->data.position);
 	pushClosed(std::move(step->data), shell.get());
 	const auto raw = shell.get();
-	raw->showUnavailable();
+	raw->showUnavailable(step->timedOut);
 	raw->closeRequests(
 	) | rpl::on_next([=] {
 		crl::on_main(this, [=] {
@@ -1179,10 +1189,10 @@ not_null<SavedWindows::BatchResolve*> SavedWindows::ensureBatchResolve(
 			sendBatchResolve(session);
 		}
 	});
-	// raw->fallback.setCallback(crl::guard(this, [=] {
-	// 	sendBatchResolve(session);
-	// }));
-	// raw->fallback.callOnce(kBatchResolveFallback);
+	raw->fallback.setCallback(crl::guard(this, [=] {
+		sendBatchResolve(session);
+	}));
+	raw->fallback.callOnce(kBatchResolveFallback);
 	session->account().sessionChanges(
 	) | rpl::take(1) | rpl::on_next([=](Main::Session *) {
 		_batches.remove(session);

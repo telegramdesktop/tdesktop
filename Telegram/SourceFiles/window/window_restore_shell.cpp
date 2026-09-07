@@ -68,7 +68,7 @@ void RestoreShell::setupBody() {
 	_loading->start();
 }
 
-void RestoreShell::showUnavailable() {
+void RestoreShell::showUnavailable(bool timedOut) {
 	if (_unavailable) {
 		return;
 	}
@@ -76,7 +76,9 @@ void RestoreShell::showUnavailable() {
 	_loading = nullptr;
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		_content,
-		tr::lng_restore_windows_unavailable(tr::now),
+		(timedOut
+			? tr::lng_restore_windows_timeout(tr::now)
+			: tr::lng_restore_windows_unavailable(tr::now)),
 		st::windowShellUnavailableLabel);
 	_content->sizeValue() | rpl::on_next([=](QSize size) {
 		const auto padding = st::windowShellUnavailablePadding;
