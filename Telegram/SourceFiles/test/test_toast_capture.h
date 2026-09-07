@@ -136,7 +136,7 @@ void CheckToastReads(
 	const QString &expected,
 	const QString &what);
 
-// This module measuring itself, in five stages, over a synthetic
+// This module measuring itself, in seven stages, over a synthetic
 // sentinel-bearing surface it paints and a real Ui::Toast of its own.
 //
 // The surface is two horizontal bands of two high-contrast tones chosen so
@@ -174,14 +174,17 @@ void CheckToastReads(
 // shows the same comparison declining a different phrase. Stage 3 shows a
 // second toast beside the fixture and takes it down inside the same turn,
 // where the walk answers two and FindLiveToast() refuses the ambiguity
-// with nullptr; the fixture is shown single again there and a tick later,
-// because every stage after it reads a single live toast. Stage 4 refuses
-// a null, an ancestor that paints the product and a rect larger than the
-// toast, each by name and quoting both rects. Stage 5 is teardown, and it
-// is where the other refusal is read: the control walk answers the fixture
-// toast alone, this module's own Instance::hide() takes it down, and the
-// same walk then answers an empty list that FindLiveToast() refuses with
-// nullptr.
+// with nullptr; the fixture is shown single again there and a tick later.
+// Stages 4 and 5 show a non-infinite toast with kDefaultDuration, wait on
+// ToastSubtreeReady inside its lifetime, then wait until the product's
+// own hide path has taken it out of the walk - quoting the live count,
+// the texts and the elapsed time - so the fixture is single again before
+// Stage 6 reads. Stage 6 refuses a null, an ancestor that paints the
+// product and a rect larger than the toast, each by name and quoting both
+// rects. Stage 7 is teardown, and it is where the other refusal is read:
+// the control walk answers the fixture toast alone, this module's own
+// Instance::hide() takes it down, and the same walk then answers an empty
+// list that FindLiveToast() refuses with nullptr.
 //
 // It needs no session, no chats list, no network and no account fixture.
 // The only thing it asks of the process is a primary window to parent the

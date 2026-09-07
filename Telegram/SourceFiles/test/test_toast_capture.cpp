@@ -42,6 +42,7 @@ constexpr auto kSentinelMinSeparation = 2 * kSentinelTolerance;
 
 const auto kToastText = u"Harness toast subtree"_q;
 const auto kOtherText = u"Harness toast elsewhere"_q;
+const auto kExpiryText = u"Harness toast expiry"_q;
 const auto kFirstSentinel = QColor(255, 255, 65);
 const auto kSecondSentinel = QColor(192, 0, 192);
 
@@ -454,16 +455,25 @@ void AppendToastSubtreeCaptureSelfTest(not_null<Runner*> runner) {
 	struct State {
 		Fixture fixture;
 		QString midfadeDetails;
+		QPointer<QWidget> expiringWidget;
+		crl::time expiringShownAt = 0;
+		crl::time liveInsideElapsed = 0;
+		QString liveInsideDetails;
 		int liveCount = 0;
 		int failuresBefore = 0;
 		int failuresAfter = 0;
 		int singleAgainCount = 0;
+		int liveInsideCount = 0;
 		bool built = false;
 		bool liveHoldsToast = false;
 		bool liveResolvedSingle = false;
 		bool midfadeReady = false;
 		bool midfadeSaved = false;
 		bool singleAgainResolvedFixture = false;
+		bool expiringShown = false;
+		bool liveInsideReady = false;
+		bool liveInsideHoldsFixture = false;
+		bool liveInsideHoldsExpiring = false;
 	};
 	// Leaked on purpose, the way the harness's other self-tests leak
 	// theirs: the stages outlive this call. The teardown stage releases
@@ -472,6 +482,19 @@ void AppendToastSubtreeCaptureSelfTest(not_null<Runner*> runner) {
 	const auto state = new State();
 	const auto details = [=] {
 		return FixtureDetails(state->fixture);
+	};
+	const auto liveWalkDetails = [=] {
+		const auto all = FindLiveToasts();
+		auto texts = QStringList();
+		for (const auto widget : all) {
+			const auto text = ReadToastText(widget);
+			texts.push_back(text.isEmpty() ? u"<empty>"_q : text);
+		}
+		const auto resolved = FindLiveToast();
+		return u"liveToasts=%1 texts=[%2] resolved=%3"_q
+			.arg(int(all.size()))
+			.arg(texts.join(u"; "_q))
+			.arg(resolved ? WidgetDescription(resolved) : u"<none>"_q);
 	};
 
 	runner->add({
@@ -760,6 +783,148 @@ void AppendToastSubtreeCaptureSelfTest(not_null<Runner*> runner) {
 					.arg(int(live.size()))
 					.arg((resolved == toast) ? 1 : 0)
 					.arg(WidgetDescription(toast)));
+		},
+	});
+
+	runner->add({
+		.name = u"toast-subtree self-test: a default-duration toast is "
+			"live on ToastSubtreeReady inside its lifetime"_q,
+		.run = [=] {
+			const auto toast = state->fixture.toastWidget.data();
+			const auto parent = toast ? toast->parentWidget() : nullptr;
+			if (!state->built || !toast || !parent) {
+				return;
+			}
+			state->expiringShownAt = crl::now();
+			const auto shown = Ui::Toast::Show(parent, {
+				.text = { kExpiryText },
+				.st = &st::defaultToast,
+				.duration = Ui::Toast::kDefaultDuration,
+				.infinite = false,
+			});
+			const auto instance = shown.get();
+			state->expiringWidget = instance
+				? instance->widget().get()
+				: nullptr;
+			state->expiringShown = (state->expiringWidget != nullptr);
+		},
+		.until = [=] {
+			if (!state->built) {
+				return true;
+			}
+			const auto widget = state->expiringWidget.data();
+			return widget && ToastSubtreeReady(widget);
+		},
+		.then = [=] {
+			const auto toast = state->fixture.toastWidget.data();
+			const auto expiring = state->expiringWidget.data();
+			if (!state->built || !toast || !expiring) {
+				return;
+			}
+			const auto all = FindLiveToasts();
+			auto texts = QStringList();
+			for (const auto widget : all) {
+				texts.push_back(ReadToastText(widget));
+			}
+			state->liveInsideCount = int(all.size());
+			state->liveInsideDetails = liveWalkDetails();
+			state->liveInsideReady = ToastSubtreeReady(expiring);
+			state->liveInsideHoldsFixture = ranges::contains(all, toast);
+			state->liveInsideHoldsExpiring = ranges::contains(
+				all,
+				expiring);
+			state->liveInsideElapsed = crl::now() - state->expiringShownAt;
+			Check(
+				state->expiringShown
+					&& state->liveInsideReady
+					&& state->liveInsideHoldsFixture
+					&& state->liveInsideHoldsExpiring
+					&& (state->liveInsideCount == 2)
+					&& texts.contains(kToastText)
+					&& texts.contains(kExpiryText),
+				u"a default-duration toast is live on ToastSubtreeReady "
+				"inside its lifetime: the walk answers the fixture and "
+				"the expiring toast together, so FindLiveToast() is "
+				"nullptr because the count is not one"_q,
+				u"%1 elapsed=%2ms ready=%3"_q
+					.arg(state->liveInsideDetails)
+					.arg(QString::number(state->liveInsideElapsed))
+					.arg(state->liveInsideReady ? 1 : 0));
+		},
+		.timeout = kDefaultStageTimeout,
+		.timeoutDetails = [=] {
+			const auto widget = state->expiringWidget.data();
+			return u"%1 elapsed=%2ms ready=%3 shown=%4"_q
+				.arg(liveWalkDetails())
+				.arg(QString::number(state->expiringShownAt
+					? (crl::now() - state->expiringShownAt)
+					: 0))
+				.arg((widget && ToastSubtreeReady(widget)) ? 1 : 0)
+				.arg(state->expiringShown ? 1 : 0);
+		},
+	});
+
+	runner->add({
+		.name = u"toast-subtree self-test: a default-duration toast is "
+			"gone from the walk after its lifetime"_q,
+		.until = [=] {
+			if (!state->built || !state->expiringShown) {
+				return true;
+			}
+			const auto widget = state->expiringWidget.data();
+			const auto all = FindLiveToasts();
+			return !widget || !ranges::contains(all, widget);
+		},
+		.then = [=] {
+			const auto toast = state->fixture.toastWidget.data();
+			if (!state->built || !toast) {
+				return;
+			}
+			const auto all = FindLiveToasts();
+			const auto resolved = FindLiveToast();
+			const auto expiring = state->expiringWidget.data();
+			const auto elapsed = crl::now() - state->expiringShownAt;
+			auto texts = QStringList();
+			for (const auto widget : all) {
+				texts.push_back(ReadToastText(widget));
+			}
+			const auto holdsFixture = ranges::contains(all, toast);
+			const auto holdsExpiring = expiring
+				&& ranges::contains(all, expiring);
+			Check(
+				state->expiringShown
+					&& state->liveInsideReady
+					&& (state->liveInsideCount == 2)
+					&& state->liveInsideHoldsFixture
+					&& state->liveInsideHoldsExpiring
+					&& (int(all.size()) == 1)
+					&& holdsFixture
+					&& !holdsExpiring
+					&& (resolved == toast)
+					&& texts.contains(kToastText)
+					&& !texts.contains(kExpiryText),
+				u"a non-infinite toast shown with kDefaultDuration is "
+				"live inside its lifetime and gone from the walk after "
+				"it, taken down by the manager hide timer rather than "
+				"by this module's Instance::hide() seam"_q,
+				u"inside %1 elapsed=%2ms; after %3 elapsed=%4ms "
+				u"holdsFixture=%5 holdsExpiring=%6 resolvedFixture=%7"_q
+					.arg(state->liveInsideDetails)
+					.arg(QString::number(state->liveInsideElapsed))
+					.arg(liveWalkDetails())
+					.arg(QString::number(elapsed))
+					.arg(holdsFixture ? 1 : 0)
+					.arg(holdsExpiring ? 1 : 0)
+					.arg((resolved == toast) ? 1 : 0));
+		},
+		.timeout = kDefaultStageTimeout,
+		.timeoutDetails = [=] {
+			return u"%1 elapsed=%2ms shown=%3"_q
+				.arg(liveWalkDetails())
+				.arg(QString::number(state->expiringShownAt
+					? (crl::now() - state->expiringShownAt)
+					: 0))
+				.arg(state->expiringShown ? 1 : 0);
 		},
 	});
 
