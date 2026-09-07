@@ -154,6 +154,15 @@ constexpr auto kStreamResyncInterval = 30 * crl::time(1000);
 constexpr auto kClientSendValiditySeconds = uint64(300);
 constexpr auto kClientResolutionMarginSeconds = uint64(60);
 constexpr auto kClientRequestTimeoutMs = uint64(15000);
+// The largest data_normal wallet.sendTransfer documents, inclusive.
+constexpr auto kTransferDataMaxBytes = 16 * 1024;
+// The lane follows a submitted id for as long as the engine can still
+// see the message accepted (validity plus the resolution margin), one
+// attempt per tick.
+constexpr auto kSubmittedLookupAttempts = int(
+	(kClientSendValiditySeconds + kClientResolutionMarginSeconds)
+	* 1000
+	/ uint64(kPollInterval));
 // The throw-away rotation a quote emulates is a validly signed key-change
 // message that leaves the device, and only its expiration bounds a stray
 // replay of it, so it gets the shortest window that comfortably outlives one
@@ -682,6 +691,29 @@ void FailShareFetch(
 	return false;
 }
 
+// A 4xx answer is the server refusing the method without executing it,
+// the same reading the engine gives its own explicit-rejection status
+// list, so nothing was broadcast and a fresh signature for the next
+// attempt is safe. A 5xx, a negative or a local code (a transport
+// timeout, for one) may have executed the method before the answer was
+// lost, so it stays uncertain and the engine's journal keeps the
+// operation unresolved instead of freeing the slot.
+[[nodiscard]] std::optional<SendError> DefiniteTransferRefusal(
+		const MTP::Error &error) {
+	const auto code = error.code();
+	if (code < 400 || code >= 500) {
+		return std::nullopt;
+	} else if (MTP::IgnoreError(error)) {
+		return SendError::Silent;
+	}
+	const auto &type = error.type();
+	return (type == u"WALLET_TRANSFER_SEND_FAILED"_q)
+		? SendError::Rejected
+		: (type == u"WALLET_TRANSFER_DATA_INVALID"_q)
+		? SendError::DataInvalid
+		: SendError::Failed;
+}
+
 [[nodiscard]] bool IsProtectedSecretNotFound(const EngineError &error) {
 	if (!error.underlying) {
 		return false;
@@ -971,6 +1003,23 @@ void SetDirectedAmount(
 		result.traceId = TransactionHashFromServer(qs(*hash));
 	}
 	return result;
+}
+
+[[nodiscard]] std::optional<TransferReceipt> ReceiptFromServer(
+		const MTPDwallet_sentTransfer &data) {
+	constexpr auto kMessageHashBytes = 32;
+	const auto &hash = data.vmsg_hash().v;
+	if (data.vtransaction_id().v.isEmpty()
+		|| hash.size() != kMessageHashBytes) {
+		return std::nullopt;
+	}
+	return TransferReceipt{
+		.transactionId = qs(data.vtransaction_id()),
+		.messageHash = hash,
+		.gasless = data.is_gasless(),
+		.gaslessLeft = data.vgasless_left().v,
+		.gaslessResetAt = data.vgasless_reset_at().v,
+	};
 }
 
 } // namespace
@@ -1451,12 +1500,13 @@ void Session::applyState(const MTPWalletState &state, bool pushed) {
 		// A presence that was not Ready has already had its drain and its
 		// first page from setPresence(); the case that write structurally
 		// cannot see is a presence that stayed Ready while the served
-		// identity changed. That is a different wallet, so both lanes leave, the
-		// engine status returns to its unknown value and the new wallet's
-		// head page is asked for at once. It runs before reconcileCustody()
-		// because that reconciliation may stop and restart the engine
-		// client, and a restart must find an already-drained collectibles
-		// lane rather than have its first delivery wiped afterwards.
+		// identity changed. That is a different wallet, so both lanes leave
+		// with the transfer submission in flight, the engine status returns
+		// to its unknown value and the new wallet's head page is asked for at
+		// once. It runs before reconcileCustody() because that reconciliation
+		// may stop and restart the engine client, and a restart must find an
+		// already-drained collectibles lane rather than have its first
+		// delivery wiped afterwards.
 		// A pushed state on the same wallet is the transfer notification the
 		// server sends as a transfer progresses, so it is news about the
 		// history lane alone and invalidates only that one. The arms are
@@ -1466,6 +1516,7 @@ void Session::applyState(const MTPWalletState &state, bool pushed) {
 		if (wasReady && identityChanged) {
 			clearHistory();
 			clearCollectibles();
+			_submission.reset();
 			_engineStatus = AccountStatus::NonExisting;
 			refreshHistory();
 		} else if (wasReady && pushed) {
@@ -3580,6 +3631,7 @@ void Session::clearNetworkState() {
 	_collectiblesRequestPending = false;
 	clearCollectibles();
 	_pending.reset();
+	_submission.reset();
 	_sendState = SendState::Idle;
 	_pollingCount = 0;
 	_pollTimer.cancel();
@@ -3642,6 +3694,7 @@ void Session::applyEngineUpdate(const engine::WalletUpdate &update) {
 		// would enqueue a redundant refresh for the update being applied.
 		LOG(("Wallet: pending send resolved."));
 		_pending.reset();
+		_submission.reset();
 		_sendState = SendState::Idle;
 		updatePollingState();
 	}
@@ -3842,6 +3895,7 @@ void Session::applyTransactions(
 		setHistory(std::move(loaded));
 	}
 	if (weak && historyRequestCurrent(request)) {
+		dropSubmittedIfListed();
 		updateListsGate();
 	}
 }
@@ -3851,6 +3905,7 @@ void Session::clearHistory() {
 	if (request) {
 		_stateApi.request(request->id).cancel();
 	}
+	_stateApi.request(base::take(_lookupRequestId)).cancel();
 	_history.clear();
 	_historyHasNext = false;
 	_historyNextOffset = QString();
@@ -3860,6 +3915,8 @@ void Session::clearHistory() {
 	_historyUnreachable = false;
 	_historyPaged = false;
 	_historyStale = false;
+	_lookup.reset();
+	_submitted.reset();
 	// _historySettled and _historyUnreachable, cleared just above, are the
 	// gate's two history terms, so this drain is the only point at which an
 	// emptied list and the gate the previous page settled could be read
@@ -4095,6 +4152,7 @@ void Session::updatePollingState() {
 	const auto wanted = (_pollingCount > 0)
 		|| _pending
 		|| _sendUnresolved
+		|| _lookup
 		|| custody().pendingRotation;
 	if (!wanted) {
 		_pollTimer.cancel();
@@ -4147,6 +4205,7 @@ void Session::pollTick() {
 		&& !_resolveRequestPending) {
 		resolvePending();
 	}
+	lookupSubmittedTransaction();
 }
 
 void Session::applyStreamRefresh(StreamRefresh wanted) {
@@ -4252,6 +4311,16 @@ rpl::producer<SendState> Session::sendStateValue() const {
 
 const std::optional<PendingSendInfo> &Session::pendingSend() const {
 	return _pending;
+}
+
+auto Session::lastTransferReceipt() const
+-> const std::optional<TransferReceipt> & {
+	return _lastReceipt;
+}
+
+auto Session::submittedTransaction() const
+-> const std::optional<TransferItem> & {
+	return _submitted;
 }
 
 int SendCommentBytes(const QString &text) {
@@ -4703,6 +4772,7 @@ void Session::send(
 		return;
 	}
 	++owner->second;
+	const auto operationId = NewRecordId();
 	const auto client = prepared->client;
 	const auto generation = prepared->generation;
 	const auto destination = args.destination;
@@ -4712,7 +4782,7 @@ void Session::send(
 		? args.comment.text
 		: QString();
 	const auto weak = base::make_weak(_engine.get());
-	const auto recordPending = [=, this] {
+	const auto recordPending = [=, this](SendError answer) {
 		_pending = PendingSendInfo{
 			.posted = base::unixtime::now(),
 			.amountNano = amountNano,
@@ -4726,38 +4796,100 @@ void Session::send(
 		updatePollingState();
 		requestEngineRefresh();
 		if (done) {
-			done(SendError::None);
+			done(answer);
 		}
 	};
+	const auto recordUnknown = [=, this] {
+		if (_submission) {
+			_submission->hostAnswered = true;
+		}
+		dropSubmittedLookup();
+		startSubmittedLookup();
+		recordPending(SendError::SubmissionUnknown);
+	};
 	auto request = engine::SendRequest{
-		.operation_id = NewRecordId(),
+		.operation_id = operationId,
 		.force = false,
 		.intent = *prepared->intent,
 	};
-	_engine->run([client, request = std::move(request)] {
+	const auto route = std::make_shared<TransferSubmission>([=, this](
+			QByteArray boc,
+			Fn<void(TransferSubmissionAnswer)> answer) {
+		submitTransfer(
+			operationId,
+			generation,
+			std::move(boc),
+			std::move(answer));
+	});
+	_submission = TransferSubmissionState{
+		.operationId = operationId,
+		.sender = prepared->sender,
+	};
+	_engine->run([client, request = std::move(request), route] {
+		const auto recording = route->record();
 		return client->send(request);
 	}, [=, this, grant = auth.grant](engine::SendResult result) {
 		if (generation != _networkGeneration) {
 			return;
 		}
-		if (result.phase == engine::SendPhase::kSubmitted && userId) {
-			const auto user = _session->data().userLoaded(userId);
-			if (user && !user->isSelf()) {
-				_session->recentMoneyRecipients().bump(user);
-				if (!weak) {
-					return;
+		if (result.operation_id != operationId) {
+			LOG(("Wallet Error: engine send result names another operation."));
+		}
+		switch (result.phase) {
+		case engine::SendPhase::kSubmitted:
+			if (userId) {
+				const auto user = _session->data().userLoaded(userId);
+				if (user && !user->isSelf()) {
+					_session->recentMoneyRecipients().bump(user);
+					if (!weak) {
+						return;
+					}
 				}
 			}
+			dropSubmittedLookup();
+			startSubmittedLookup();
+			_submission.reset();
+			recordPending(SendError::None);
+			return;
+		case engine::SendPhase::kSubmissionUnknown:
+		case engine::SendPhase::kHandedOff:
+		case engine::SendPhase::kIdle:
+		case engine::SendPhase::kValidating:
+		case engine::SendPhase::kAuthorizing:
+		case engine::SendPhase::kPreparing:
+		case engine::SendPhase::kPersisting:
+		case engine::SendPhase::kReadyToSubmit:
+		case engine::SendPhase::kSubmitting:
+			recordUnknown();
+			return;
+		case engine::SendPhase::kFailed:
+		case engine::SendPhase::kCancelled:
+		case engine::SendPhase::kConfirmed:
+		case engine::SendPhase::kReplaced:
+		case engine::SendPhase::kSequenceNumberConsumed:
+		case engine::SendPhase::kExpired:
+		case engine::SendPhase::kSuperseded: {
+			const auto submission = base::take(_submission);
+			const auto refusal = submission
+				? submission->refusal.value_or(SendError::Failed)
+				: SendError::Failed;
+			_sendState = SendState::Idle;
+			LOG(("Wallet Error: engine send ended in phase %1 (%2)."
+				).arg(int(result.phase)).arg(int(refusal)));
+			if (weak && done) {
+				done(refusal);
+			}
+		} return;
 		}
-		recordPending();
 	}, [=, this, grant = auth.grant](EngineError error) {
 		if (generation != _networkGeneration) {
 			return;
 		}
 		if (IsSubmissionUnknown(error)) {
-			recordPending();
+			recordUnknown();
 			return;
 		}
+		_submission.reset();
 		const auto failed = SendErrorFrom(error);
 		LOG(("Wallet Error: engine send failed (%1).").arg(int(failed)));
 		_sendState = SendState::Idle;
@@ -4766,6 +4898,196 @@ void Session::send(
 		}
 	});
 	_sendState = SendState::Sending;
+}
+
+void Session::submitTransfer(
+		std::string operationId,
+		int generation,
+		QByteArray boc,
+		Fn<void(TransferSubmissionAnswer)> done) {
+	if (generation != _networkGeneration
+		|| !_submission
+		|| _submission->operationId != operationId
+		|| _submission->sender != _publicKey) {
+		LOG(("Wallet Error: transfer submission refused for a stale "
+			"operation or wallet."));
+		done({
+			TransferSubmissionOutcome::Rejected,
+			u"WALLET_TRANSFER_STALE"_q,
+		});
+		return;
+	} else if (boc.isEmpty() || boc.size() > kTransferDataMaxBytes) {
+		_submission->refusal = SendError::DataInvalid;
+		LOG(("Wallet Error: transfer data of %1 bytes refused before the "
+			"RPC.").arg(boc.size()));
+		done({
+			TransferSubmissionOutcome::Rejected,
+			u"WALLET_TRANSFER_DATA_INVALID"_q,
+		});
+		return;
+	}
+	// The request id is not remembered on purpose. The broadcast must
+	// reach the server, and the transport's automatic resend of a request
+	// answered with a negative or 500-class code repeats the identical
+	// body: a resent broadcast is at best redundant and at worst refused
+	// for a message the first copy delivered, so every error reaches the
+	// fail arm here instead. The answer must bind however late it lands,
+	// because it is the only source of the receipt, so the host's timeout
+	// never cancels it either; the sender's destructor is the one cancel,
+	// and a request still queued at that moment is recovered by the
+	// engine journal on the next launch.
+	_stateApi.request(MTPwallet_SendTransfer(
+		MTP_flags(0),
+		MTP_bytes(boc),
+		MTPbytes()
+	)).done([=](const MTPwallet_SentTransfer &result) {
+		const auto receipt = ReceiptFromServer(result.data());
+		if (!receipt) {
+			LOG(("Wallet Error: wallet.sentTransfer receipt unusable."));
+			done({
+				TransferSubmissionOutcome::Uncertain,
+				u"WALLET_TRANSFER_RECEIPT_INVALID"_q,
+			});
+			return;
+		}
+		bindTransferReceipt(operationId, generation, *receipt);
+		done({ TransferSubmissionOutcome::Accepted });
+	}).fail([=](const MTP::Error &error) {
+		LOG(("Wallet Error: wallet.sendTransfer failed: %1"
+			).arg(error.type()));
+		const auto refusal = DefiniteTransferRefusal(error);
+		if (!refusal) {
+			done({ TransferSubmissionOutcome::Uncertain, error.type() });
+			return;
+		} else if (_submission
+			&& _submission->operationId == operationId
+			&& generation == _networkGeneration) {
+			_submission->refusal = *refusal;
+		}
+		done({ TransferSubmissionOutcome::Rejected, error.type() });
+	}).handleAllErrors().send();
+}
+
+void Session::bindTransferReceipt(
+		const std::string &operationId,
+		int generation,
+		TransferReceipt receipt) {
+	if (!_submission
+		|| _submission->operationId != operationId
+		|| _submission->sender != _publicKey
+		|| generation != _networkGeneration) {
+		return;
+	}
+	_submission->receipt = receipt;
+	_lastReceipt = std::move(receipt);
+	// A receipt landing after the engine already answered the send as
+	// unknown belongs to that still-unresolved operation, so the lookup
+	// starts for it right here and never for a new operation; a receipt
+	// that lands first waits for the engine's own kSubmitted answer,
+	// which starts the lookup once the operation is recorded as pending.
+	if (_submission->hostAnswered && (_pending || _sendUnresolved)) {
+		startSubmittedLookup();
+	}
+}
+
+void Session::startSubmittedLookup() {
+	if (_lookup
+		|| _submitted
+		|| !_submission
+		|| !_submission->receipt
+		|| _submission->sender != _publicKey) {
+		return;
+	}
+	_lookup = SubmittedLookup{
+		.sender = _submission->sender,
+		.transactionId = _submission->receipt->transactionId,
+	};
+	updatePollingState();
+}
+
+void Session::lookupSubmittedTransaction() {
+	if (!_lookup
+		|| _lookupRequestId
+		|| (_presence.current() != Presence::Ready)) {
+		return;
+	} else if (_lookup->sender != _publicKey
+		|| _lookup->attempts >= kSubmittedLookupAttempts) {
+		LOG(("Wallet: submitted transaction lookup stopped after %1 of %2 "
+			"attempts."
+			).arg(_lookup->attempts).arg(kSubmittedLookupAttempts));
+		_lookup.reset();
+		updatePollingState();
+		return;
+	}
+	++_lookup->attempts;
+	const auto generation = _networkGeneration;
+	const auto transactionId = _lookup->transactionId;
+	const auto identity = transferWalletIdentity();
+	_lookupRequestId = _stateApi.request(MTPwallet_GetTransactionsByIDs(
+		MTP_vector<MTPstring>(1, MTP_string(transactionId))
+	)).done([=](const MTPwallet_Transactions &result) {
+		_lookupRequestId = 0;
+		if (generation != _networkGeneration
+			|| !_lookup
+			|| _lookup->transactionId != transactionId) {
+			return;
+		}
+		applySubmittedLookup(result, identity);
+	}).fail([=](const MTP::Error &error) {
+		_lookupRequestId = 0;
+		LOG(("Wallet Error: wallet.getTransactionsByIDs failed: %1"
+			).arg(error.type()));
+	}).handleAllErrors().send();
+}
+
+void Session::applySubmittedLookup(
+		const MTPwallet_Transactions &result,
+		std::optional<TransferWalletIdentity> identity) {
+	const auto &data = result.data();
+	_session->data().processUsers(data.vusers());
+	_session->data().processChats(data.vchats());
+	// The answer's balance and next_offset are read by neither this lane
+	// nor applyTransactions(): the state lane and the engine refresh are
+	// the balance authority, and a by-id answer is not the paged feed, so
+	// its offset would page a list that nobody renders.
+	auto loaded = HistoryFromServer(data.vtransactions().v, identity);
+	const auto found = ranges::find(
+		loaded,
+		_lookup->transactionId,
+		&TransferItem::id);
+	if (found == end(loaded)) {
+		return;
+	}
+	_lookup.reset();
+	if (!ranges::contains(_history, found->id, &TransferItem::id)) {
+		_submitted = std::move(*found);
+		_historyUpdates.fire({});
+	}
+	updatePollingState();
+}
+
+void Session::dropSubmittedIfListed() {
+	if (_submitted
+		&& ranges::contains(_history, _submitted->id, &TransferItem::id)) {
+		_submitted.reset();
+		_historyUpdates.fire({});
+	}
+}
+
+void Session::dropSubmittedLookup() {
+	// A newly recorded operation supersedes the lane and the projection of
+	// the previous transfer. That transfer has already resolved, because a
+	// send is refused while one is unresolved, so nothing is lost when they
+	// leave; kept, the served row would hide the new pending row and hold
+	// the lane's single slot, so the new id would never be followed. The
+	// resolved transfer's row returns through the head page, exactly as it
+	// does after a restart. clearHistory() drains the same members together
+	// with the list they describe.
+	_stateApi.request(base::take(_lookupRequestId)).cancel();
+	_lookup.reset();
+	if (base::take(_submitted)) {
+		_historyUpdates.fire({});
+	}
 }
 
 void Session::resolvePending() {
@@ -4800,6 +5122,7 @@ void Session::resolvePending() {
 void Session::finishPending() {
 	LOG(("Wallet: pending send resolved."));
 	_pending.reset();
+	_submission.reset();
 	_sendUnresolved = false;
 	_sendState = SendState::Idle;
 	updatePollingState();

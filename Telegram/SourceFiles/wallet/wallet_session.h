@@ -43,6 +43,7 @@ class Onramp;
 class Rates;
 class Session;
 struct ShareFetch;
+struct TransferSubmissionAnswer;
 class UserAddresses;
 class VaultRuntime;
 
@@ -115,6 +116,15 @@ enum class SendError {
 	SigningUnavailable,
 	Locked,
 	Failed,
+	Rejected,
+	DataInvalid,
+	Silent,
+	// The send callback's third outcome beside None and a refusal:
+	// the signed message is journaled and may already be on the
+	// network, so nothing was refused and nothing is known to have
+	// been delivered. The engine's resolver settles it later; a
+	// surface presents it as pending, never as sent, never as failed.
+	SubmissionUnknown,
 };
 
 enum class SendState {
@@ -239,6 +249,14 @@ struct PendingSendInfo {
 	int64 amountNano = 0;
 	QString destination;
 	QString comment;
+};
+
+struct TransferReceipt {
+	QString transactionId;
+	QByteArray messageHash;
+	bool gasless = false;
+	int gaslessLeft = 0;
+	TimeId gaslessResetAt = 0;
 };
 
 struct SendComment {
@@ -530,6 +548,10 @@ public:
 	[[nodiscard]] SendState sendState() const;
 	[[nodiscard]] rpl::producer<SendState> sendStateValue() const;
 	[[nodiscard]] const std::optional<PendingSendInfo> &pendingSend() const;
+	[[nodiscard]] auto lastTransferReceipt() const
+		-> const std::optional<TransferReceipt> &;
+	[[nodiscard]] auto submittedTransaction() const
+		-> const std::optional<TransferItem> &;
 
 private:
 	void ensureLoaded();
@@ -628,6 +650,22 @@ private:
 	void updateListsGate();
 	[[nodiscard]] bool listsConfirmedEmpty() const;
 	void finishPending();
+	void submitTransfer(
+		std::string operationId,
+		int generation,
+		QByteArray boc,
+		Fn<void(TransferSubmissionAnswer)> done);
+	void bindTransferReceipt(
+		const std::string &operationId,
+		int generation,
+		TransferReceipt receipt);
+	void startSubmittedLookup();
+	void lookupSubmittedTransaction();
+	void applySubmittedLookup(
+		const MTPwallet_Transactions &result,
+		std::optional<TransferWalletIdentity> identity);
+	void dropSubmittedIfListed();
+	void dropSubmittedLookup();
 	void applyRotationSnapshot(
 		const wallet_engine::SendSnapshot &snapshot,
 		bool journalAuthoritative);
@@ -721,6 +759,23 @@ private:
 	rpl::variable<SendState> _sendState = SendState::Idle;
 	std::optional<PendingSendInfo> _pending;
 	bool _sendUnresolved = false;
+	struct TransferSubmissionState {
+		std::string operationId;
+		QByteArray sender;
+		std::optional<TransferReceipt> receipt;
+		std::optional<SendError> refusal;
+		bool hostAnswered = false;
+	};
+	struct SubmittedLookup {
+		QByteArray sender;
+		QString transactionId;
+		int attempts = 0;
+	};
+	std::optional<TransferSubmissionState> _submission;
+	std::optional<SubmittedLookup> _lookup;
+	mtpRequestId _lookupRequestId = 0;
+	std::optional<TransferItem> _submitted;
+	std::optional<TransferReceipt> _lastReceipt;
 	bool _previewPending = false;
 	std::unique_ptr<PreviewState> _preview;
 

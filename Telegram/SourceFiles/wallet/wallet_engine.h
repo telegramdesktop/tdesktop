@@ -85,6 +85,72 @@ private:
 
 };
 
+enum class TransferSubmissionOutcome {
+	Accepted,
+	Rejected,
+	Uncertain,
+};
+
+struct TransferSubmissionAnswer {
+	TransferSubmissionOutcome outcome = TransferSubmissionOutcome::Uncertain;
+	QString diagnostic;
+};
+
+// The ordinary send whose one sendBoc submission the status-less host routes
+// through Telegram's wallet.sendTransfer instead of the toncenter proxy. The
+// host decodes the signed BOC out of the engine's request, hands it to the
+// main thread through submit(), and answers the engine with a provider-shaped
+// body (accepted / definitely rejected) or a host error (uncertain), so the
+// engine's journal, phases and resolution stay authoritative.
+//
+// Attribution: a sendBoc belongs to the send whose recording is open on the
+// calling thread. Engine::run() runs jobs one at a time on one worker and
+// runQuick()'s contract forbids network, so no other engine call of this
+// Engine can be routed while a recording is open; the rotation's send_boc
+// opens none and keeps the proxy transport. A recording wraps exactly one
+// client->send call.
+//
+// Lifetime: Current() hands the host a copy of the thread-local, and the
+// host's queued main-thread work holds that reference itself, so a job that
+// times out, throws and drops its own capture cannot leave the queued work
+// dangling.
+class TransferSubmission final
+	: public std::enable_shared_from_this<TransferSubmission> {
+public:
+	using Submit = Fn<void(
+		QByteArray boc,
+		Fn<void(TransferSubmissionAnswer)> done)>;
+
+	explicit TransferSubmission(Submit submit);
+
+	class Recording final {
+	public:
+		explicit Recording(std::shared_ptr<TransferSubmission> submission);
+		Recording(const Recording &other) = delete;
+		Recording &operator=(const Recording &other) = delete;
+		~Recording();
+
+	private:
+		std::shared_ptr<TransferSubmission> _previous;
+
+	};
+
+	// Worker thread, inside the job, around the one client->send call
+	// whose submission is being routed.
+	[[nodiscard]] Recording record();
+
+	// Worker thread. The submission recorded on this thread, empty when no
+	// recording is open.
+	[[nodiscard]] static std::shared_ptr<TransferSubmission> Current();
+
+	// Main thread. Answers through `done` exactly once, on the main thread.
+	void submit(QByteArray boc, Fn<void(TransferSubmissionAnswer)> done);
+
+private:
+	const Submit _submit;
+
+};
+
 // Owns the wallet-engine host implementations and the single worker thread
 // that runs the engine's blocking calls. The engine translates nothing by
 // itself: HTTP goes through the caller-owned Wallet::Api on the main thread,

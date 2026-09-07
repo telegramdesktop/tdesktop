@@ -3705,6 +3705,8 @@ void WalletSendCommentBox(
 [[nodiscard]] QString SendErrorText(SendError error, int64 minTransferNano) {
 	switch (error) {
 	case SendError::None:
+	case SendError::Silent:
+	case SendError::SubmissionUnknown:
 		return QString();
 	case SendError::AmountTooSmall:
 		return tr::lng_wallet_send_error_too_small(
@@ -3733,6 +3735,10 @@ void WalletSendCommentBox(
 	case SendError::InvalidRequest:
 	case SendError::Failed:
 		return tr::lng_wallet_send_error_failed(tr::now);
+	case SendError::Rejected:
+		return tr::lng_wallet_send_error_rejected(tr::now);
+	case SendError::DataInvalid:
+		return tr::lng_wallet_send_error_data_invalid(tr::now);
 	}
 	Unexpected("Error value in SendErrorText.");
 }
@@ -3852,12 +3858,14 @@ void WalletSendConfirmBox(
 			return;
 		}
 		state->sending = false;
-		if (sessionValid() && error != SendError::None) {
+		if (sessionValid()) {
+			const auto text = SendErrorText(
+				error,
+				TransferMinNanos(session));
 			if (flow.userId && error == SendError::SigningUnavailable) {
 				recover();
-			} else {
-				show->showToast(
-					SendErrorText(error, TransferMinNanos(session)));
+			} else if (!text.isEmpty()) {
+				show->showToast(text);
 			}
 		}
 	};
@@ -3916,15 +3924,18 @@ void WalletSendConfirmBox(
 				crl::guard(session, [=](SendError error) {
 					if (!weak || state->closed || !sessionValid()) {
 						return;
-					} else if (error != SendError::None) {
+					} else if (error != SendError::None
+						&& error != SendError::SubmissionUnknown) {
 						refuse(error);
 						return;
 					}
 					show->hideLayer();
-					show->showToast(tr::lng_wallet_sent_toast(
-						tr::now,
-						lt_address,
-						ShortAddressForm(flow.displayForm)));
+					if (error == SendError::None) {
+						show->showToast(tr::lng_wallet_sent_toast(
+							tr::now,
+							lt_address,
+							ShortAddressForm(flow.displayForm)));
+					}
 					if (const auto &pending = wallet->pendingSend()) {
 						ShowWalletTransactionBox(show, ItemFromPending(*pending));
 					}
@@ -4948,6 +4959,10 @@ void WalletSendBox(
 					case SendError::SigningUnavailable:
 					case SendError::Locked:
 					case SendError::Failed:
+					case SendError::Rejected:
+					case SendError::DataInvalid:
+					case SendError::Silent:
+					case SendError::SubmissionUnknown:
 						fail(result.error);
 						return;
 					}
@@ -8757,7 +8772,9 @@ Content::~Content() {
 [[nodiscard]] bool HistoryShown(not_null<Main::Session*> session) {
 	const auto wallet = &session->wallet();
 	return !wallet->listsGated()
-		&& (!wallet->history().empty() || wallet->pendingSend().has_value());
+		&& (!wallet->history().empty()
+			|| wallet->pendingSend().has_value()
+			|| wallet->submittedTransaction().has_value());
 }
 
 [[nodiscard]] rpl::producer<bool> HistoryShownValue(
@@ -8949,25 +8966,29 @@ void Content::setupContent() {
 		list->clear();
 		const auto &history = wallet->history();
 		const auto &pending = wallet->pendingSend();
+		const auto &submitted = wallet->submittedTransaction();
+		const auto addItem = [=](const TransferItem &item) {
+			const auto content = RowContentFromItem(item, &_show->session());
+			AddHistoryRow(list, content, [=] {
+				ShowWalletTransactionBox(_show, item, media);
+			}, media);
+		};
 		if (HistoryShown(&_show->session())) {
 			if (wallet->collectibles().empty()) {
 				Ui::AddSkip(list, st::walletRowsTopSkip);
 				Ui::AddSubsectionTitle(list, tr::lng_wallet_rows_title());
 				Ui::AddSkip(list);
 			}
-			if (pending) {
+			if (submitted) {
+				addItem(*submitted);
+			} else if (pending) {
 				const auto item = ItemFromPending(*pending);
 				AddHistoryRow(list, RowContentFromPending(*pending), [=] {
 					ShowWalletTransactionBox(_show, item);
 				});
 			}
 			for (const auto &item : history) {
-				const auto content = RowContentFromItem(
-					item,
-					&_show->session());
-				AddHistoryRow(list, content, [=] {
-					ShowWalletTransactionBox(_show, item, media);
-				}, media);
+				addItem(item);
 			}
 			Ui::AddSkip(list, st::walletRowsTopSkip);
 		}

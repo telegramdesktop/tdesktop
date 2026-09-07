@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "wallet_engine.hpp"
 
+#include <QtCore/QJsonDocument>
+#include <QtCore/QJsonObject>
 #include <QtCore/QUrl>
 
 #include <array>
@@ -31,8 +33,9 @@ namespace engine = wallet_engine;
 
 constexpr auto kMaxTrackedEarlyCancels = 64;
 
-// The open recording of the engine call running on this thread.
+// The open recordings of the engine call running on this thread.
 thread_local EngineSecretStores *t_recordingStores = nullptr;
+thread_local std::shared_ptr<TransferSubmission> t_transferSubmission;
 
 template <typename Kind>
 struct HostErrorFor;
@@ -88,6 +91,56 @@ template <typename Kind>
 [[nodiscard]] std::vector<uint8_t> ToByteVector(bytes::const_span data) {
 	const auto begin = reinterpret_cast<const uint8_t*>(data.data());
 	return std::vector<uint8_t>(begin, begin + data.size());
+}
+
+[[nodiscard]] bool IsSendBocRequest(const Gram::HttpRequest &gram) {
+	if (!gram.post || gram.endpoint != u"/api/v2/jsonRPC"_q) {
+		return false;
+	}
+	const auto object = QJsonDocument::fromJson(gram.payload).object();
+	const auto method = object.value(u"method"_q);
+	return method.isString() && (method.toString() == u"sendBoc"_q);
+}
+
+[[nodiscard]] QByteArray RoutedSendBoc(const Gram::HttpRequest &gram) {
+	const auto object = QJsonDocument::fromJson(gram.payload).object();
+	const auto boc = object.value(u"params"_q).toObject().value(u"boc"_q);
+	if (!boc.isString()) {
+		return QByteArray();
+	}
+	auto result = QByteArray::fromBase64Encoding(
+		boc.toString().toLatin1(),
+		QByteArray::Base64Encoding | QByteArray::AbortOnBase64DecodingErrors);
+	return result ? std::move(result.decoded) : QByteArray();
+}
+
+[[nodiscard]] std::vector<uint8_t> AcceptedSendBody() {
+	return ToByteVector(QJsonDocument(QJsonObject{
+		{ u"ok"_q, true },
+		{ u"result"_q, QJsonObject{ { u"@type"_q, u"ok"_q } } },
+	}).toJson(QJsonDocument::Compact));
+}
+
+// A definite refusal is answered as a JSON-RPC error OBJECT and never as
+// {"ok":false,...}: the engine's status-less transport intercepts an
+// ok:false body carrying a top-level code, and a scalar top-level error,
+// before its send parser sees them, and reads a code-less one as an
+// ambiguous provider failure - which would turn a definite refusal into
+// SubmissionUnknown. The structured error object passes that interception
+// untouched and the send parser reads it as a rejection, so this is the
+// one shape both layers classify as definite, and it fabricates no HTTP
+// status the proxy never carried.
+[[nodiscard]] std::vector<uint8_t> RejectedSendBody(
+		uint64 requestId,
+		const QString &token) {
+	return ToByteVector(QJsonDocument(QJsonObject{
+		{ u"jsonrpc"_q, u"2.0"_q },
+		{ u"id"_q, QString::number(requestId) },
+		{ u"error"_q, QJsonObject{
+			{ u"code"_q, -32000 },
+			{ u"message"_q, token },
+		} },
+	}).toJson(QJsonDocument::Compact));
 }
 
 [[nodiscard]] QString SecretStorageKey(
@@ -344,6 +397,34 @@ std::vector<QString> EngineSecretStores::take() {
 	return base::take(_keys);
 }
 
+TransferSubmission::Recording::Recording(
+	std::shared_ptr<TransferSubmission> submission)
+: _previous(t_transferSubmission) {
+	t_transferSubmission = std::move(submission);
+}
+
+TransferSubmission::Recording::~Recording() {
+	t_transferSubmission = std::move(_previous);
+}
+
+TransferSubmission::TransferSubmission(Submit submit)
+: _submit(std::move(submit)) {
+}
+
+TransferSubmission::Recording TransferSubmission::record() {
+	return Recording(shared_from_this());
+}
+
+std::shared_ptr<TransferSubmission> TransferSubmission::Current() {
+	return t_transferSubmission;
+}
+
+void TransferSubmission::submit(
+		QByteArray boc,
+		Fn<void(TransferSubmissionAnswer)> done) {
+	_submit(std::move(boc), std::move(done));
+}
+
 // Implements the engine's status-less provider callback over the main-thread
 // MTProto proxy transport. execute_statusless() blocks the calling engine
 // worker until the provider body arrives, the engine-supplied timeout
@@ -422,47 +503,92 @@ public:
 			.payload = ToByteArray(request.body),
 		};
 		const auto normalize = (gram.endpoint == u"/api/v3/nft/items"_q);
-		crl::on_main(_weak, [=, api = _api] {
-			{
-				auto lock = std::lock_guard(pending->mutex);
-				if (pending->done) {
-					return;
-				}
+		const auto submission = TransferSubmission::Current();
+		if (submission && IsSendBocRequest(gram)) {
+			const auto boc = RoutedSendBoc(gram);
+			if (boc.isEmpty()) {
+				Complete(
+					pending,
+					RejectedSendBody(id, u"WALLET_TRANSFER_DATA_INVALID"_q));
+			} else {
+				// The routed submission never sets pending->requestId, so
+				// the timeout below leaves its MTProto request in flight on
+				// purpose: cancelling cannot un-send a broadcast, the late
+				// wallet.sentTransfer is the only source of the receipt and
+				// the session binds it to the still-unresolved operation,
+				// and the engine is already SubmissionUnknown by then and
+				// blocks a replacement, so the late answer is pure gain.
+				crl::on_main(_weak, [=] {
+					{
+						auto lock = std::lock_guard(pending->mutex);
+						if (pending->done) {
+							return;
+						}
+					}
+					submission->submit(boc, [=](
+							TransferSubmissionAnswer answer) {
+						switch (answer.outcome) {
+						case TransferSubmissionOutcome::Accepted:
+							Complete(pending, AcceptedSendBody());
+							break;
+						case TransferSubmissionOutcome::Rejected:
+							Complete(
+								pending,
+								RejectedSendBody(id, answer.diagnostic));
+							break;
+						case TransferSubmissionOutcome::Uncertain:
+							Fail(
+								pending,
+								engine::StatuslessHostErrorKind::kOther,
+								answer.diagnostic);
+							break;
+						}
+					});
+				});
 			}
-			// The MTProto toncenter proxy surfaces a success body or a
-			// parsed error string only: provider status codes, response
-			// headers and request headers never cross it. The status-less
-			// transport is the exact shape for that, so a delivered body
-			// is presented as a body and nothing more. It also means the
-			// bridge cannot classify provider throttling — a 429 and its
-			// Retry-After never reach it — so every failure the proxy does
-			// not mark as a timeout is kOther with a bounded diagnostic.
-			const auto requestId = api->request(gram, [=](
-					const QByteArray &bytes) {
-				Complete(pending, ToByteVector(normalize
-					? NormalizeNftEmptyMaps(bytes)
-					: bytes));
-			}, [=](const Gram::ApiError &error) {
-				const auto kind = Api::IsTimeoutError(error)
-					? engine::StatuslessHostErrorKind::kTimeout
-					: engine::StatuslessHostErrorKind::kOther;
-				Fail(pending, kind, u"MTP %1: %2"_q
-					.arg(error.code)
-					.arg(error.message));
+		} else {
+			crl::on_main(_weak, [=, api = _api] {
+				{
+					auto lock = std::lock_guard(pending->mutex);
+					if (pending->done) {
+						return;
+					}
+				}
+				// The MTProto toncenter proxy surfaces a success body or a
+				// parsed error string only: provider status codes, response
+				// headers and request headers never cross it. The status-less
+				// transport is the exact shape for that, so a delivered body
+				// is presented as a body and nothing more. It also means the
+				// bridge cannot classify provider throttling — a 429 and its
+				// Retry-After never reach it — so every failure the proxy does
+				// not mark as a timeout is kOther with a bounded diagnostic.
+				const auto requestId = api->request(gram, [=](
+						const QByteArray &bytes) {
+					Complete(pending, ToByteVector(normalize
+						? NormalizeNftEmptyMaps(bytes)
+						: bytes));
+				}, [=](const Gram::ApiError &error) {
+					const auto kind = Api::IsTimeoutError(error)
+						? engine::StatuslessHostErrorKind::kTimeout
+						: engine::StatuslessHostErrorKind::kOther;
+					Fail(pending, kind, u"MTP %1: %2"_q
+						.arg(error.code)
+						.arg(error.message));
+				});
+				auto cancel = false;
+				{
+					auto lock = std::lock_guard(pending->mutex);
+					if (pending->done) {
+						cancel = true;
+					} else {
+						pending->requestId = requestId;
+					}
+				}
+				if (cancel) {
+					api->cancelRequest(requestId);
+				}
 			});
-			auto cancel = false;
-			{
-				auto lock = std::lock_guard(pending->mutex);
-				if (pending->done) {
-					cancel = true;
-				} else {
-					pending->requestId = requestId;
-				}
-			}
-			if (cancel) {
-				api->cancelRequest(requestId);
-			}
-		});
+		}
 		auto lock = std::unique_lock(pending->mutex);
 		pending->ready.wait_for(
 			lock,
