@@ -62,6 +62,9 @@ walletCardQrRadius: 10px;
 walletCardQrRight: 42px;
 walletCardQrTop: 72px;
 walletCardQrIcon: icon{{ "menu/qr_code", windowSubTextFg }};
+walletCardInfoSize: walletCardQrSize;
+walletCardInfoRadius: walletCardQrRadius;
+walletCardInfoIcon: icon{{ "menu/info", windowSubTextFg }};
 
 walletSendButton: RoundButton(defaultActiveButton) {
 	height: 40px;

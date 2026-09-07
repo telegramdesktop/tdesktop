@@ -2171,6 +2171,8 @@ PRIVATE
     wallet/wallet_collectible_media.h
     wallet/wallet_collectibles.cpp
     wallet/wallet_collectibles.h
+    wallet/wallet_comment.cpp
+    wallet/wallet_comment.h
     wallet/wallet_content.cpp
     wallet/wallet_content.h
     wallet/wallet_custody.cpp

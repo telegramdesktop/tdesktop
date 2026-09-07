@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/random.h"
 #include "core/core_cloud_password.h"
+#include "mtproto/mtproto_response.h"
 #include "passport/passport_encryption.h"
 
 #include "base/unixtime.h"
@@ -78,7 +79,7 @@ auto CloudPassword::stateCurrent() const
 		: std::nullopt;
 }
 
-auto CloudPassword::resetPassword()
+auto CloudPassword::resetPassword(bool ignoreSilentErrors)
 -> rpl::producer<CloudPassword::ResetRetryDate, QString> {
 	return [=](auto consumer) {
 		_api.request(MTPaccount_ResetPassword(
@@ -100,7 +101,9 @@ auto CloudPassword::resetPassword()
 			});
 			consumer.put_done();
 		}).fail([=](const MTP::Error &error) {
-			consumer.put_error_copy(error.type());
+			consumer.put_error_copy((ignoreSilentErrors && MTP::IgnoreError(error))
+				? QString()
+				: error.type());
 		}).send();
 
 		return rpl::lifetime();

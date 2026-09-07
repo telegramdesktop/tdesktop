@@ -41,6 +41,7 @@ namespace Wallet {
 class Engine;
 class Onramp;
 class Rates;
+class Session;
 struct ShareFetch;
 class UserAddresses;
 class VaultRuntime;
@@ -122,7 +123,27 @@ enum class SendState {
 	Pending,
 };
 
+struct TransferWalletIdentity {
+	QString address;
+	QByteArray publicKey;
+	uint64 revision = 0;
+
+	friend bool operator==(
+		const TransferWalletIdentity &,
+		const TransferWalletIdentity &) = default;
+};
+
 struct TransferItem {
+	enum class Source {
+		Unknown,
+		Server,
+		Engine,
+	};
+	enum class EncryptedFormat {
+		Unavailable,
+		ServerPayload,
+		EngineBodyBoc,
+	};
 	enum class Status {
 		Success,
 		Failure,
@@ -137,6 +158,9 @@ struct TransferItem {
 		KeyChange,
 	};
 
+	Source source = Source::Unknown;
+	QString id;
+	std::optional<TransferWalletIdentity> walletIdentity;
 	Kind kind = Kind::Transfer;
 	bool incoming = false;
 	QString counterparty;
@@ -151,11 +175,12 @@ struct TransferItem {
 	// transfer prefixes a direction character of its own and would
 	// otherwise render two signs.
 	int64 amountNano = 0;
-	int64 feeNano = 0;
+	std::optional<int64> feeNano;
 	QString comment;
 	bool commentEncrypted = false;
+	EncryptedFormat encryptedFormat = EncryptedFormat::Unavailable;
 	QByteArray encryptedPayload;
-	TimeId date = 0;
+	std::optional<TimeId> date;
 	quint64 lt = 0;
 	QByteArray traceId;
 	QByteArray externalHashNorm;
@@ -164,6 +189,41 @@ struct TransferItem {
 	friend bool operator==(
 		const TransferItem &,
 		const TransferItem &) = default;
+};
+
+// The session binds a scope before prompts to one immutable transaction and
+// presentation lifetime. cancel() and Session's scope checks run on main;
+// the worker observes only its atomic retirement flag and the vault epoch.
+// Retirement cancels owned recovery transport, while an import already in
+// flight remains owned through rollback and custody-latch settlement.
+class CommentScope final {
+public:
+	void cancel();
+	[[nodiscard]] bool cancelled() const;
+	[[nodiscard]] rpl::producer<> cancelledChanges() const;
+
+private:
+	friend class Session;
+	struct State;
+	explicit CommentScope(std::shared_ptr<State> state);
+
+	const std::shared_ptr<State> _state;
+	rpl::event_stream<> _cancelledChanges;
+
+};
+
+enum class CommentDecryptError {
+	None,
+	Cancelled,
+	Unavailable,
+	Locked,
+	DecryptionFailed,
+	Failed,
+};
+
+struct CommentDecryptResult {
+	QString text;
+	CommentDecryptError error = CommentDecryptError::None;
 };
 
 struct PreparedSend;
@@ -212,11 +272,15 @@ struct SendArgs {
 	friend bool operator==(const SendArgs &, const SendArgs &) = default;
 };
 
+[[nodiscard]] QByteArray DecodeServerEncryptedComment(const QString &encoded);
+
 [[nodiscard]] std::vector<TransferItem> HistoryFromEngine(
-	const std::vector<wallet_engine::ActivityItem> &items);
+	const std::vector<wallet_engine::ActivityItem> &items,
+	std::optional<TransferWalletIdentity> identity = std::nullopt);
 
 [[nodiscard]] std::vector<TransferItem> HistoryFromServer(
-	const QVector<MTPWalletTransaction> &list);
+	const QVector<MTPWalletTransaction> &list,
+	std::optional<TransferWalletIdentity> identity = std::nullopt);
 
 [[nodiscard]] std::vector<Gram::NftItem> CollectiblesFromEngine(
 	const wallet_engine::NftList &list);
@@ -285,6 +349,11 @@ public:
 	[[nodiscard]] WalletCapabilities capabilities() const;
 	[[nodiscard]] rpl::producer<WalletCapabilities> capabilitiesValue() const;
 	[[nodiscard]] QByteArray publicKey() const;
+	[[nodiscard]] auto transferWalletIdentity() const
+		-> std::optional<TransferWalletIdentity>;
+	[[nodiscard]] bool transferWalletIdentityCurrent(
+		const TransferWalletIdentity &identity) const;
+	[[nodiscard]] rpl::producer<> transferWalletIdentityChanges() const;
 	[[nodiscard]] bool revealsLocally();
 	[[nodiscard]] VaultRuntime &vault();
 	[[nodiscard]] DeviceCustodyState deviceCustodyState() const;
@@ -315,6 +384,16 @@ public:
 	void refreshState();
 	void applyUpdate(const MTPDupdateWalletState &data);
 
+	[[nodiscard]] std::shared_ptr<CommentScope> createCommentScope(
+		TransferItem target,
+		rpl::lifetime &lifetime);
+	[[nodiscard]] bool commentScopeCurrent(
+		const std::shared_ptr<CommentScope> &scope) const;
+	void decryptComment(
+		KeyAuthorization auth,
+		std::shared_ptr<CommentScope> scope,
+		Fn<void(CommentDecryptResult)> done);
+
 	void revealPhrase(
 		KeyAuthorization auth,
 		std::optional<Core::CloudPasswordResult> password,
@@ -344,6 +423,18 @@ public:
 		KeyAuthorization auth,
 		std::optional<Core::CloudPasswordResult> password,
 		Fn<void()> done,
+		Fn<void(const QString &error)> fail);
+	void restoreFromPhrase(
+		KeyAuthorization auth,
+		std::vector<QString> words,
+		std::shared_ptr<CommentScope> scope,
+		Fn<void(KeyAuthorization)> done,
+		Fn<void(const QString &error)> fail);
+	void restoreFromBackup(
+		KeyAuthorization auth,
+		std::optional<Core::CloudPasswordResult> password,
+		std::shared_ptr<CommentScope> scope,
+		Fn<void(KeyAuthorization)> done,
 		Fn<void(const QString &error)> fail);
 	void revealParked(
 		KeyAuthorization auth,
@@ -456,18 +547,25 @@ private:
 		KeyAuthorization auth,
 		std::optional<Core::CloudPasswordResult> password,
 		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
-		Fn<void(const QString &)> fail);
+		Fn<void(const QString &)> fail,
+		std::shared_ptr<CommentScope> scope = nullptr);
 	void fetchShareParts(
 		KeyAuthorization auth,
 		const QString &token,
 		std::vector<int> dcs,
 		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
-		Fn<void(const QString &)> fail);
+		Fn<void(const QString &)> fail,
+		std::shared_ptr<CommentScope> scope = nullptr);
 	void restoreFromWords(
 		KeyAuthorization auth,
 		std::vector<QString> words,
 		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
-		Fn<void(const QString &)> fail);
+		Fn<void(const QString &)> fail,
+		std::shared_ptr<CommentScope> scope = nullptr);
+	[[nodiscard]] bool commentAccessAvailable() const;
+	void validateCommentScopes();
+	void retireCommentScopes(
+		const std::shared_ptr<CommentScope> &except = nullptr);
 	[[nodiscard]] const CustodyStore &custody();
 	[[nodiscard]] bool persistCustody(const CustodyRecord &record);
 	void dropCreatedVault();
@@ -497,9 +595,14 @@ private:
 	void requestEngineRefresh();
 	void applyEngineUpdate(const wallet_engine::WalletUpdate &update);
 	void setHistory(std::vector<TransferItem> &&list);
-	void requestTransactions(bool more);
-	void applyTransactions(const MTPwallet_Transactions &result, bool more);
-	void finishHistoryWaiters();
+	struct HistoryRequest;
+	void requestTransactions(bool more, Fn<void()> done = nullptr);
+	[[nodiscard]] bool historyRequestCurrent(
+		const HistoryRequest &request) const;
+	void applyTransactions(
+		const MTPwallet_Transactions &result,
+		bool more,
+		const HistoryRequest &request);
 	void refreshStaleHistory();
 	void clearHistory();
 	void clearCollectibles();
@@ -552,11 +655,14 @@ private:
 	bool _loaded = false;
 	QString _address;
 	QByteArray _publicKey;
+	uint64 _walletIdentityRevision = 0;
+	rpl::event_stream<> _transferWalletIdentityChanges;
 
 	rpl::variable<int64> _balanceNano = 0;
 	rpl::variable<Presence> _presence = Presence::Unknown;
 	rpl::variable<WalletCapabilities> _capabilities;
 	std::optional<CustodyStore> _custody;
+	bool _custodyReadFailed = false;
 	bool _phraseRevealing = false;
 	bool _replacing = false;
 	bool _backupChanging = false;
@@ -602,7 +708,7 @@ private:
 
 	int _pollingCount = 0;
 	int _networkGeneration = 0;
-	mtpRequestId _historyRequestId = 0;
+	std::shared_ptr<HistoryRequest> _historyRequest;
 	bool _resolveRequestPending = false;
 	bool _engineRefreshPending = false;
 	bool _historySettled = false;
@@ -611,7 +717,6 @@ private:
 	bool _historyStale = false;
 	crl::time _historyRequestedAt = 0;
 	QString _historyNextOffset;
-	std::vector<Fn<void()>> _historyDone;
 
 	rpl::variable<SendState> _sendState = SendState::Idle;
 	std::optional<PendingSendInfo> _pending;
@@ -624,6 +729,9 @@ private:
 	bool _rotating = false;
 	Fn<void()> _rotationConfirmed;
 	Fn<void(const QString &)> _rotationFailed;
+
+	std::vector<std::weak_ptr<CommentScope>> _commentScopes;
+	rpl::lifetime _commentLifetime;
 
 	std::unique_ptr<Ui::SeparatePanel> _panel;
 

@@ -26,6 +26,26 @@ struct MenuCallback;
 
 namespace Wallet {
 
+class CommentScope;
+class CollectibleMedia;
+struct KeyAuthorization;
+struct TransferItem;
+
+void AcquireTransferCommentKey(
+	std::shared_ptr<Main::SessionShow> show,
+	std::shared_ptr<CommentScope> scope,
+	Fn<bool()> current,
+	rpl::lifetime &lifetime,
+	Fn<void(KeyAuthorization)> done);
+
+void ShowTransactionDetails(
+	std::shared_ptr<Main::SessionShow> show,
+	TransferItem item,
+	bool reduced = false,
+	std::shared_ptr<CollectibleMedia> media = nullptr,
+	Fn<bool()> originCurrent = nullptr,
+	rpl::producer<> originInvalidated = nullptr);
+
 [[nodiscard]] base::unique_qptr<Ui::RpWidget> CreateContent(
 	not_null<Ui::RpWidget*> parent,
 	std::shared_ptr<Main::SessionShow> show);

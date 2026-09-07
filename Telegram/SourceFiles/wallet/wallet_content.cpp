@@ -72,12 +72,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "ui/round_rect.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
 #include "wallet/wallet_address.h"
 #include "wallet/wallet_collectible_media.h"
 #include "wallet/wallet_collectibles.h"
+#include "wallet/wallet_comment.h"
 #include "wallet/wallet_custody.h"
 #include "wallet/wallet_fiat.h"
 #include "wallet/wallet_key_protection.h"
@@ -88,6 +90,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_user_addresses.h"
 #include "window/themes/window_theme.h"
 
+#include <QtCore/QLocale>
 #include <QtCore/QUrl>
 #include <QtGui/QClipboard>
 #include <QtGui/QGuiApplication>
@@ -139,10 +142,86 @@ constexpr auto kFeeFiatDecimals = 5;
 constexpr auto kMaxFiatUnits = 999'999'999LL;
 constexpr auto kMaxAmountNano = 999'999'999'999'999'999LL;
 constexpr auto kSendUserLoadTimeout = 30 * crl::time(1000);
+constexpr auto kCommentPasswordStateTimeout = 30 * crl::time(1000);
 constexpr auto kRowAmountPreciseBelowNano = Ui::kNanosInOne / 100;
 
 class BalanceInk;
 class Card;
+
+class CommentKeyContext final
+	: public Main::SessionShow
+	, public std::enable_shared_from_this<CommentKeyContext> {
+public:
+	CommentKeyContext(
+		std::shared_ptr<Main::SessionShow> show,
+		std::shared_ptr<CommentScope> scope,
+		Fn<bool()> current,
+		Fn<void(KeyAuthorization)> done);
+
+	void showOrHideBoxOrLayer(
+		std::variant<
+			v::null_t,
+			object_ptr<Ui::BoxContent>,
+			std::unique_ptr<Ui::LayerWidget>> &&layer,
+		Ui::LayerOptions options,
+		anim::type animated) const override;
+	not_null<QWidget*> toastParent() const override;
+	bool valid() const override;
+	operator bool() const override;
+	Main::Session &session() const override;
+
+	[[nodiscard]] std::shared_ptr<CommentScope> scope() const;
+	[[nodiscard]] CustodyInstaller installer();
+	void acceptClosed();
+	void allowPromptRetry(base::weak_qptr<Ui::BoxContent> box);
+	void cancelOnClose(
+		base::weak_qptr<Ui::BoxContent> box,
+		bool allowSuccessor = false);
+	void closePrompt(base::weak_qptr<Ui::BoxContent> box);
+	void ready(KeyAuthorization auth);
+	void cancel();
+	[[nodiscard]] rpl::lifetime &lifetime();
+
+private:
+	struct Prompt {
+		base::weak_qptr<Ui::BoxContent> box;
+		bool closing = false;
+		bool accepted = false;
+		bool cancelOnClose = false;
+		bool allowSuccessor = true;
+	};
+
+	void promptClosed(const std::shared_ptr<Prompt> &prompt);
+	void finish(KeyAuthorization auth);
+
+	const std::shared_ptr<Main::SessionShow> _show;
+	const base::weak_ptr<Main::Session> _session;
+	const std::shared_ptr<CommentScope> _scope;
+	const Fn<bool()> _current;
+	Fn<void(KeyAuthorization)> _done;
+	mutable std::vector<std::shared_ptr<Prompt>> _prompts;
+	bool _finished = false;
+	rpl::lifetime _lifetime;
+
+};
+
+class EncryptedCommentLabel final : public Ui::FlatLabel {
+public:
+	EncryptedCommentLabel(
+		QWidget *parent,
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<Main::SessionShow> show,
+		TransferItem item,
+		Fn<bool()> originCurrent);
+
+	QString accessibilityName() override;
+
+private:
+	const TextWithEntities _cover;
+	bool _closed = false;
+	TransferComment _comment;
+
+};
 
 class Content final : public Ui::RpWidget {
 public:
@@ -298,6 +377,288 @@ private:
 	int _outerWidth = 0;
 
 };
+
+CommentKeyContext::CommentKeyContext(
+	std::shared_ptr<Main::SessionShow> show,
+	std::shared_ptr<CommentScope> scope,
+	Fn<bool()> current,
+	Fn<void(KeyAuthorization)> done)
+: _show(std::move(show))
+, _session(base::make_weak(&_show->session()))
+, _scope(std::move(scope))
+, _current(std::move(current))
+, _done(std::move(done)) {
+}
+
+void CommentKeyContext::showOrHideBoxOrLayer(
+		std::variant<
+			v::null_t,
+			object_ptr<Ui::BoxContent>,
+			std::unique_ptr<Ui::LayerWidget>> &&layer,
+		Ui::LayerOptions,
+		anim::type animated) const {
+	const auto self = std::const_pointer_cast<CommentKeyContext>(
+		shared_from_this());
+	if (!valid()) {
+		self->cancel();
+		return;
+	}
+	const auto content = std::get_if<object_ptr<Ui::BoxContent>>(&layer);
+	if (!content || !*content) {
+		self->cancel();
+		return;
+	}
+	const auto prompt = std::make_shared<Prompt>();
+	self->acceptClosed();
+	prompt->box = content->data();
+	_prompts.push_back(prompt);
+	const auto weak = std::weak_ptr(self);
+	// Native gates report success either from boxClosing() or immediately
+	// after closeBox() returns. Register before their deferred preparation,
+	// then let the native continuation accept its closed prompts before
+	// deciding whether dismissal was terminal. Cloud gates may also show
+	// their successor before closing, while an uncontinued dismissal retires
+	// the entire comment attempt and closes its remaining owned prompts.
+	const auto closed = [weak, prompt] {
+		prompt->closing = true;
+		if (prompt->cancelOnClose) {
+			if (const auto strong = weak.lock()) {
+				strong->promptClosed(prompt);
+			}
+			return;
+		}
+		crl::on_main([weak, prompt] {
+			if (const auto strong = weak.lock()) {
+				strong->promptClosed(prompt);
+			}
+		});
+	};
+	prompt->box->boxClosing() | rpl::on_next(
+		closed,
+		prompt->box->lifetime());
+	prompt->box->lifetime().add(closed);
+	_show->showOrHideBoxOrLayer(
+		std::move(layer),
+		Ui::LayerOption::KeepOther,
+		animated);
+}
+
+not_null<QWidget*> CommentKeyContext::toastParent() const {
+	return _show->toastParent();
+}
+
+bool CommentKeyContext::valid() const {
+	return !_finished
+		&& _session
+		&& _show->valid()
+		&& _current()
+		&& _session->wallet().commentScopeCurrent(_scope);
+}
+
+CommentKeyContext::operator bool() const {
+	return valid();
+}
+
+Main::Session &CommentKeyContext::session() const {
+	Expects(_session != nullptr);
+
+	return *_session;
+}
+
+std::shared_ptr<CommentScope> CommentKeyContext::scope() const {
+	return _scope;
+}
+
+CustodyInstaller CommentKeyContext::installer() {
+	const auto self = shared_from_this();
+	const auto native = MakeCustodyInstaller(self);
+	return [=](Fn<void(CustodyInstall)> ready) {
+		if (!self->valid()) {
+			ready({});
+			self->cancel();
+			return;
+		}
+		native([=](CustodyInstall result) {
+			self->acceptClosed();
+			const auto installed = result.grant != nullptr;
+			ready(std::move(result));
+			if (!installed) {
+				self->cancel();
+			}
+		});
+	};
+}
+
+void CommentKeyContext::acceptClosed() {
+	for (const auto &prompt : _prompts) {
+		if (prompt->closing) {
+			prompt->accepted = true;
+		}
+	}
+}
+
+void CommentKeyContext::allowPromptRetry(
+		base::weak_qptr<Ui::BoxContent> box) {
+	for (const auto &prompt : _prompts) {
+		if (prompt->box == box) {
+			prompt->accepted = true;
+			return;
+		}
+	}
+}
+
+void CommentKeyContext::cancelOnClose(
+		base::weak_qptr<Ui::BoxContent> box,
+		bool allowSuccessor) {
+	if (!box) {
+		cancel();
+		return;
+	}
+	for (const auto &prompt : _prompts) {
+		if (prompt->box == box) {
+			prompt->cancelOnClose = true;
+			prompt->allowSuccessor = allowSuccessor;
+			if (prompt->closing) {
+				promptClosed(prompt);
+			}
+			return;
+		}
+	}
+}
+
+void CommentKeyContext::closePrompt(base::weak_qptr<Ui::BoxContent> box) {
+	for (const auto &prompt : _prompts) {
+		if (prompt->box == box) {
+			prompt->accepted = true;
+			if (box && !prompt->closing && box->hasDelegate()) {
+				box->closeBox();
+			}
+			return;
+		}
+	}
+}
+
+void CommentKeyContext::ready(KeyAuthorization auth) {
+	if (!valid() || !auth.grant) {
+		cancel();
+		return;
+	}
+	finish(std::move(auth));
+}
+
+void CommentKeyContext::cancel() {
+	finish({});
+}
+
+void CommentKeyContext::finish(KeyAuthorization auth) {
+	if (_finished) {
+		return;
+	}
+	_finished = true;
+	const auto scope = _scope;
+	auto lifetime = base::take(_lifetime);
+	const auto done = base::take(_done);
+	const auto prompts = base::take(_prompts);
+	if (!auth.grant) {
+		scope->cancel();
+	}
+	lifetime.destroy();
+	for (const auto &prompt : ranges::views::reverse(prompts)) {
+		prompt->accepted = true;
+		if (const auto box = prompt->box.get()) {
+			if (!prompt->closing && box->hasDelegate()) {
+				box->closeBox();
+			}
+		}
+	}
+	if (done) {
+		done(std::move(auth));
+	}
+}
+
+rpl::lifetime &CommentKeyContext::lifetime() {
+	return _lifetime;
+}
+
+void CommentKeyContext::promptClosed(const std::shared_ptr<Prompt> &prompt) {
+	if (_finished || prompt->accepted) {
+		return;
+	}
+	auto later = false;
+	for (const auto &other : _prompts) {
+		if (prompt->allowSuccessor
+			&& later
+			&& other->box
+			&& !other->closing) {
+			prompt->accepted = true;
+			return;
+		}
+		later = later || (other == prompt);
+	}
+	cancel();
+}
+
+EncryptedCommentLabel::EncryptedCommentLabel(
+	QWidget *parent,
+	not_null<Ui::GenericBox*> box,
+	std::shared_ptr<Main::SessionShow> show,
+	TransferItem item,
+	Fn<bool()> originCurrent)
+: FlatLabel(parent, st::walletCommentLabel)
+, _cover(TransferCommentCover(item))
+, _comment(&show->session(), std::move(item), [
+		this,
+		originCurrent = std::move(originCurrent)] {
+	return !_closed && (!originCurrent || originCurrent());
+}) {
+	setContextCopyText(QString());
+	setSelectable(false);
+	setMarkedText(_cover);
+	setContextMenuHook([weak = base::make_weak(this)](ContextMenuRequest request) {
+		if (!weak || !weak->_comment.plaintext()) {
+			return;
+		}
+		request.menu->addAction(tr::lng_context_copy_text(tr::now), [weak] {
+			if (weak) {
+				if (const auto &text = weak->_comment.plaintext()) {
+					TextUtilities::SetClipboardText(TextForMimeData::Simple(*text));
+				}
+			}
+		});
+	});
+	setClickHandlerFilter([=](const ClickHandlerPtr &, Qt::MouseButton button) {
+		if (button == Qt::LeftButton && !_comment.plaintext()) {
+			_comment.activate(show);
+		}
+		return false;
+	});
+	setAnimationsPausedCallback([] {
+		return On(PowerSaving::kChatSpoiler)
+			? WhichAnimationsPaused::Spoiler
+			: WhichAnimationsPaused::None;
+	});
+	_comment.changes() | rpl::on_next([=] {
+		if (const auto &text = _comment.plaintext()) {
+			setText(*text);
+			setSelectable(true);
+		} else {
+			setSelectable(false);
+			setContextCopyText(QString());
+			setMarkedText(_cover);
+		}
+	}, lifetime());
+	box->boxClosing() | rpl::on_next([=] {
+		_closed = true;
+		_comment.reset();
+	}, lifetime());
+}
+
+QString EncryptedCommentLabel::accessibilityName() {
+	const auto &text = _comment.plaintext();
+	return text
+		? *text
+		: tr::lng_action_gram_transfer_encrypted_comment(tr::now);
+}
 
 [[nodiscard]] QRect CardQrRect(int cardWidth) {
 	return QRect(
@@ -837,7 +1198,9 @@ void AddHistoryRow(
 		const TransferItem &item,
 		not_null<Main::Session*> session) {
 	using Kind = TransferItem::Kind;
-	const auto date = langDateTime(base::unixtime::parse(item.date));
+	const auto date = item.date
+		? langDateTime(base::unixtime::parse(*item.date))
+		: QString();
 	if (ShowsCollectible(item)) {
 		const auto hasCounterparty = !item.counterparty.isEmpty();
 		const auto kindText = item.incoming
@@ -992,7 +1355,11 @@ void AddDetailsAmountHeader(
 			0,
 			st::walletDetailsAmountBottomSkip),
 		style::al_top);
-	const auto formatted = Ui::FormatTonAmount(item.amountNano);
+	auto formatted = Ui::FormatTonAmount(item.amountNano);
+	const auto negativeSign = QString(QLocale::system().negativeSign());
+	if (item.amountNano < 0 && formatted.wholeString.startsWith(negativeSign)) {
+		formatted.wholeString.remove(0, negativeSign.size());
+	}
 	const auto major = Ui::CreateChild<Ui::FlatLabel>(
 		container,
 		(item.incoming ? QChar('+') : kMinus) + formatted.wholeString,
@@ -1192,14 +1559,11 @@ void AddDetailsCollectibleHeader(
 
 [[nodiscard]] object_ptr<Ui::PaddingWrap<Ui::FlatLabel>> MakeCommentBubble(
 		not_null<QWidget*> parent,
-		rpl::producer<QString> text,
+		object_ptr<Ui::FlatLabel> label,
 		const style::color &bg) {
 	auto result = object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
 		parent,
-		object_ptr<Ui::FlatLabel>(
-			parent,
-			std::move(text),
-			st::walletCommentLabel),
+		std::move(label),
 		st::giveawayGiftCodeValueMargin);
 	const auto raw = result.data();
 	const auto background = raw->lifetime().make_state<Ui::RoundRect>(
@@ -1214,13 +1578,23 @@ void AddDetailsCollectibleHeader(
 
 void AddDetailsComment(
 		not_null<Ui::GenericBox*> box,
-		const TransferItem &item) {
+		std::shared_ptr<Main::SessionShow> show,
+		const TransferItem &item,
+		Fn<bool()> originCurrent) {
 	const auto comment = item.comment.trimmed();
-	if (comment.isEmpty()) {
+	if (!item.commentEncrypted && comment.isEmpty()) {
 		return;
 	}
+	auto label = item.commentEncrypted
+		? object_ptr<Ui::FlatLabel>(object_ptr<EncryptedCommentLabel>(
+			box,
+			box,
+			std::move(show),
+			item,
+			std::move(originCurrent)))
+		: object_ptr<Ui::FlatLabel>(box, comment, st::walletCommentLabel);
 	box->addRow(
-		MakeCommentBubble(box, rpl::single(comment), st::windowBg),
+		MakeCommentBubble(box, std::move(label), st::windowBg),
 		style::margins(
 			st::giveawayGiftCodeTableMargin.left(),
 			0,
@@ -1387,14 +1761,16 @@ void AddDetailsTable(
 	}
 	const auto pending
 		= (item.status == TransferItem::Status::Pending);
-	if (item.feeNano > 0 && !pending) {
-		AddFeeTableRow(table, session, item.feeNano, true);
+	if (item.feeNano && *item.feeNano > 0 && !pending) {
+		AddFeeTableRow(table, session, *item.feeNano, true);
 	}
-	Ui::AddTableRow(
-		table,
-		tr::lng_wallet_details_date(),
-		rpl::single(tr::marked(
-			langDateTime(base::unixtime::parse(item.date)))));
+	if (item.date) {
+		Ui::AddTableRow(
+			table,
+			tr::lng_wallet_details_date(),
+			rpl::single(tr::marked(
+				langDateTime(base::unixtime::parse(*item.date)))));
+	}
 }
 
 void AddBoxCloseButton(not_null<Ui::GenericBox*> box) {
@@ -2856,7 +3232,14 @@ void WalletTransactionBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
 		TransferItem item,
-		std::shared_ptr<CollectibleMedia> media) {
+		bool reduced,
+		std::shared_ptr<CollectibleMedia> media,
+		Fn<bool()> originCurrent,
+		rpl::producer<> originInvalidated) {
+	if (originCurrent && !originCurrent()) {
+		box->closeBox();
+		return;
+	}
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::walletDetailsBox);
 	box->setNoContentMargin(true);
@@ -2875,8 +3258,24 @@ void WalletTransactionBox(
 			st::walletDetailsAmountTopSkip,
 			FiatRateValue(session));
 	}
-	AddDetailsComment(box, item);
+	AddDetailsComment(
+		box,
+		Main::MakeSessionShow(box->uiShow(), session),
+		item,
+		originCurrent);
 	AddDetailsTable(box, session, item);
+	if (reduced) {
+		const auto label = box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				box,
+				tr::lng_wallet_details_reduced(),
+				st::defaultFlatLabel),
+			st::giveawayGiftCodeTableMargin);
+		label->setTextColorOverride(st::windowSubTextFg->c);
+		style::PaletteChanged() | rpl::on_next([=] {
+			label->setTextColorOverride(st::windowSubTextFg->c);
+		}, label->lifetime());
+	}
 
 	AddBoxCloseButton(box);
 	const auto toggle = box->addTopButton(st::boxTitleMenu);
@@ -2915,17 +3314,26 @@ void WalletTransactionBox(
 	});
 
 	box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
+	if (originCurrent) {
+		const auto close = [weak = base::make_weak(box)] {
+			if (weak && weak->hasDelegate()) {
+				weak->closeBox();
+			}
+		};
+		std::move(originInvalidated) | rpl::take(1) | rpl::on_next(
+			close,
+			box->lifetime());
+		if (!originCurrent()) {
+			close();
+		}
+	}
 }
 
 void ShowWalletTransactionBox(
 		std::shared_ptr<Main::SessionShow> show,
 		const TransferItem &item,
 		std::shared_ptr<CollectibleMedia> media = nullptr) {
-	show->showBox(Box(
-		WalletTransactionBox,
-		&show->session(),
-		item,
-		std::move(media)));
+	ShowTransactionDetails(show, item, false, std::move(media));
 
 	const auto local = &show->session().local();
 	if (local->readPref<bool>(kIntroToastShownPref)) {
@@ -5290,7 +5698,12 @@ void WalletPhraseBox(
 void ShowRestoreExplanation(
 		std::shared_ptr<Main::SessionShow> show,
 		Fn<void()> then,
-		Fn<void()> cancelled) {
+		Fn<void()> cancelled,
+		std::shared_ptr<CommentKeyContext> context = nullptr) {
+	if (context && !context->valid()) {
+		context->cancel();
+		return;
+	}
 	const auto state = show->session().wallet().deviceCustodyState();
 	if (state.mode != DeviceMode::ReadOnlyRestorable) {
 		then();
@@ -5300,6 +5713,13 @@ void ShowRestoreExplanation(
 		.text = tr::lng_wallet_restore_explain_text(tr::now),
 		.confirmed = [=](Fn<void()> close) {
 			close();
+			if (context) {
+				context->acceptClosed();
+				if (!context->valid()) {
+					context->cancel();
+					return;
+				}
+			}
 			then();
 		},
 		.cancelled = [=](Fn<void()> close) {
@@ -5561,7 +5981,8 @@ void WalletImportBox(
 	not_null<Ui::GenericBox*> box,
 	std::shared_ptr<Main::SessionShow> show,
 	WalletImportMode mode,
-	Fn<void()> restored = nullptr);
+	Fn<void()> restored,
+	std::shared_ptr<CommentKeyContext> context);
 
 void ShowSendWordsRecovery(
 		std::shared_ptr<Main::SessionShow> show,
@@ -5581,12 +6002,14 @@ void ShowSendWordsRecovery(
 			if (originValid()) {
 				restored();
 			}
-		}));
+		},
+		nullptr));
 }
 
 void ShowInvalidSecretWords(
 		std::shared_ptr<Main::SessionShow> show,
-		bool foreign) {
+		bool foreign,
+		std::shared_ptr<CommentKeyContext> context = nullptr) {
 	auto args = Ui::ConfirmBoxArgs{
 		.confirmText = tr::lng_wallet_import_try_again(),
 		.title = tr::lng_wallet_import_invalid_title(),
@@ -5596,7 +6019,10 @@ void ShowInvalidSecretWords(
 	} else {
 		args.text = tr::lng_wallet_import_invalid_spelling(tr::now);
 	}
-	show->showBox(Ui::MakeInformBox(std::move(args)));
+	const auto box = show->show(Ui::MakeInformBox(std::move(args)));
+	if (context) {
+		context->allowPromptRetry(box);
+	}
 }
 
 void RequestCustodyRestore(
@@ -5605,7 +6031,12 @@ void RequestCustodyRestore(
 		std::optional<Core::CloudPasswordResult> password,
 		base::weak_qptr<PasscodeBox> passcode,
 		Fn<void()> action,
-		Fn<void()> unblock) {
+		Fn<void()> unblock,
+		std::shared_ptr<CommentKeyContext> context = nullptr) {
+	if (context && !context->valid()) {
+		context->cancel();
+		return;
+	}
 	const auto done = [=] {
 		if (passcode) {
 			passcode->closeBox();
@@ -5613,7 +6044,19 @@ void RequestCustodyRestore(
 		action();
 	};
 	const auto fail = [=](const QString &error) {
-		if (unblock) {
+		if (context && (!context->valid()
+			|| error == u"PHRASE_ORIGIN_EXPIRED"_q
+			|| error == u"PHRASE_SILENT_ERROR"_q)) {
+			context->cancel();
+			return;
+		}
+		auto terminal = true;
+		const auto finish = gsl::finally([&] {
+			if (context && terminal) {
+				context->cancel();
+			}
+		});
+		if (!context && unblock) {
 			unblock();
 		}
 		// A dismissed protection chooser restored nothing and has nothing to
@@ -5633,6 +6076,7 @@ void RequestCustodyRestore(
 			return;
 		}
 		if (passcode && passcode->handleCustomCheckError(error)) {
+			terminal = false;
 			return;
 		}
 		if (error == u"PHRASE_VAULT_LOCKED"_q) {
@@ -5645,20 +6089,37 @@ void RequestCustodyRestore(
 		if (auto box = PrePasswordErrorBox(
 				error,
 				&show->session(),
-				PhraseCheckAbout(error))) {
+				PhraseCheckAbout(error),
+				context)) {
 			if (passcode) {
-				passcode->closeBox();
+				if (context) {
+					context->closePrompt(passcode);
+				} else {
+					passcode->closeBox();
+				}
 			}
 			show->showBox(std::move(box));
+			terminal = false;
 			return;
 		}
 		show->showToast(tr::lng_wallet_phrase_error(tr::now));
 	};
-	show->session().wallet().restoreFromBackup(
-		std::move(auth),
-		std::move(password),
-		done,
-		fail);
+	if (context) {
+		show->session().wallet().restoreFromBackup(
+			std::move(auth),
+			std::move(password),
+			context->scope(),
+			[=](KeyAuthorization restored) {
+				context->ready(std::move(restored));
+			},
+			fail);
+	} else {
+		show->session().wallet().restoreFromBackup(
+			std::move(auth),
+			std::move(password),
+			done,
+			fail);
+	}
 }
 
 // Both restore entries come through here, so the explanation sheet sits at
@@ -5668,16 +6129,40 @@ void StartCustodyRestore(
 		std::shared_ptr<Main::SessionShow> show,
 		KeyAuthorization auth,
 		Fn<void()> action,
-		Fn<void()> unblock = nullptr) {
+		Fn<void()> unblock = nullptr,
+		std::shared_ptr<CommentKeyContext> context = nullptr) {
+	if (context && !context->valid()) {
+		context->cancel();
+		return;
+	}
 	const auto session = &show->session();
 	ShowRestoreExplanation(show, [=] {
+		if (context && !context->valid()) {
+			context->cancel();
+			return;
+		}
 		session->api().cloudPassword().reload();
 		const auto lifetime = std::make_shared<rpl::lifetime>();
+		if (context) {
+			context->lifetime().add([=] { lifetime->destroy(); });
+			const auto timeout = lifetime->make_state<base::Timer>([=] {
+				const auto owned = base::take(*lifetime);
+				if (context->valid()) {
+					show->showToast(tr::lng_wallet_phrase_error(tr::now));
+				}
+				context->cancel();
+			});
+			timeout->callOnce(kCommentPasswordStateTimeout);
+		}
 		session->api().cloudPassword().state(
 		) | rpl::take(
 			1
 		) | rpl::on_next([=](const Core::CloudPasswordState &state) {
 			const auto owned = base::take(*lifetime);
+			if (context && !context->valid()) {
+				context->cancel();
+				return;
+			}
 			if (!state.hasPassword) {
 				RequestCustodyRestore(
 					show,
@@ -5685,10 +6170,12 @@ void StartCustodyRestore(
 					std::nullopt,
 					nullptr,
 					action,
-					unblock);
+					unblock,
+					context);
 				return;
 			}
 			auto fields = PasscodeBox::CloudFields::From(state);
+			fields.customShow = context;
 			fields.customTitle = tr::lng_wallet_phrase_password_title();
 			fields.customDescription
 				= tr::lng_wallet_restore_password_description(tr::now);
@@ -5702,14 +6189,17 @@ void StartCustodyRestore(
 					result,
 					passcode,
 					action,
-					unblock);
+					unblock,
+					context);
 			};
-			show->showBox(Box<PasscodeBox>(session, fields));
-			if (unblock) {
+			const auto passcode = show->show(Box<PasscodeBox>(session, fields));
+			if (context) {
+				context->cancelOnClose(passcode, true);
+			} else if (unblock) {
 				unblock();
 			}
 		}, *lifetime);
-	}, unblock);
+	}, context ? Fn<void()>([=] { context->cancel(); }) : unblock, context);
 }
 
 enum class KeyActionKind {
@@ -5721,27 +6211,43 @@ enum class KeyActionKind {
 void RunKeyRequiringAction(
 		std::shared_ptr<Main::SessionShow> show,
 		Fn<void()> action,
-		KeyActionKind kind = KeyActionKind::Plain) {
+		KeyActionKind kind = KeyActionKind::Plain,
+		std::shared_ptr<CommentKeyContext> context = nullptr) {
+	if (context && !context->valid()) {
+		context->cancel();
+		return;
+	}
 	const auto state = show->session().wallet().deviceCustodyState();
-	if (state.mode == DeviceMode::Full) {
-		action();
-	} else if (state.conflict) {
+	if (state.conflict) {
 		show->showToast(tr::lng_wallet_conflict_toast(tr::now));
+		if (context) {
+			context->cancel();
+		}
+	} else if (state.mode == DeviceMode::Full) {
+		action();
 	} else if (state.mode == DeviceMode::ReadOnlyRestorable) {
 		if (kind == KeyActionKind::Reveal) {
 			action();
 		} else {
 			StartCustodyRestore(
 				show,
-				KeyAuthorization{ .install = MakeCustodyInstaller(show) },
-				std::move(action));
+				KeyAuthorization{ .install = context
+					? context->installer()
+					: MakeCustodyInstaller(show) },
+				std::move(action),
+				nullptr,
+				context);
 		}
 	} else if (state.mode == DeviceMode::ReadOnlyNotRestorable) {
 		show->showBox(Box(
 			WalletImportBox,
 			show,
 			WalletImportMode::Restore,
-			(kind == KeyActionKind::ResumeAfterRestore) ? action : nullptr));
+			(kind == KeyActionKind::ResumeAfterRestore) ? action : nullptr,
+			context));
+	} else if (context) {
+		show->showToast(tr::lng_wallet_comment_unavailable(tr::now));
+		context->cancel();
 	}
 }
 
@@ -6866,7 +7372,11 @@ void WalletImportBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
 		WalletImportMode mode,
-		Fn<void()> restored) {
+		Fn<void()> restored,
+		std::shared_ptr<CommentKeyContext> context) {
+	if (context) {
+		context->cancelOnClose(box);
+	}
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
@@ -7025,6 +7535,10 @@ void WalletImportBox(
 		});
 	};
 	const auto submit = [=] {
+		if (context && !context->valid()) {
+			context->cancel();
+			return;
+		}
 		if (state->importing || !formValid()) {
 			return;
 		}
@@ -7037,52 +7551,77 @@ void WalletImportBox(
 		const auto match = DetectPhraseMatch(words);
 		if (match != PhraseMatch::Rotation) {
 			state->error = QString();
-			ShowInvalidSecretWords(show, match == PhraseMatch::Foreign);
+			ShowInvalidSecretWords(show, match == PhraseMatch::Foreign, context);
 			return;
 		}
 		state->importing = true;
 		if (mode == WalletImportMode::Restore) {
-			show->session().wallet().restoreFromPhrase(
-				KeyAuthorization{ .install = MakeCustodyInstaller(show) },
-				std::move(words),
-				crl::guard(box, [=] {
-					if (restored) {
-						box->closeBox();
-						restored();
-					} else {
-						show->hideLayer();
-						show->showToast({
-							.title = tr::lng_wallet_imported_title(tr::now),
-							.text = { tr::lng_wallet_imported_text(tr::now) },
-							.icon = &st::toastCheckIcon,
-						});
-					}
-				}),
-				crl::guard(box, [=](const QString &error) {
-					state->importing = false;
-					if (error == u"PHRASE_INVALID_PHRASE"_q
-						|| error == u"PHRASE_FOREIGN_PHRASE"_q) {
-						state->error = QString();
-						ShowInvalidSecretWords(
-							show,
-							error == u"PHRASE_FOREIGN_PHRASE"_q);
-						return;
-					}
-					// A dismissed protection chooser restored nothing and has
-					// nothing to state, so the form simply stays as it was.
-					// A locked vault is stated on this label, not in the toast
-					// its replace and backup-enable siblings use: unlocking
-					// the vault leaves the typed words ready to resubmit.
-					state->error = (error == u"PHRASE_INSTALL_CANCELLED"_q)
-						? QString()
-						: (error == u"PHRASE_INSTALL_FAILED"_q)
-						? tr::lng_wallet_key_save_error(tr::now)
-						: (error == u"PHRASE_VAULT_LOCKED"_q)
-						? VaultLockedText(&show->session())
-						: (error == u"PHRASE_KEY_MISMATCH"_q)
-						? tr::lng_wallet_restore_error(tr::now)
-						: tr::lng_wallet_import_failed(tr::now);
-				}));
+			const auto done = crl::guard(box, [=] {
+				if (restored) {
+					box->closeBox();
+					restored();
+				} else {
+					show->hideLayer();
+					show->showToast({
+						.title = tr::lng_wallet_imported_title(tr::now),
+						.text = { tr::lng_wallet_imported_text(tr::now) },
+						.icon = &st::toastCheckIcon,
+					});
+				}
+			});
+			const auto fail = crl::guard(box, [=](const QString &error) {
+				if (context && (!context->valid()
+					|| error == u"PHRASE_ORIGIN_EXPIRED"_q
+					|| error == u"PHRASE_SILENT_ERROR"_q
+					|| error == u"PHRASE_INSTALL_CANCELLED"_q)) {
+					context->cancel();
+					return;
+				}
+				state->importing = false;
+				if (error == u"PHRASE_INVALID_PHRASE"_q
+					|| error == u"PHRASE_FOREIGN_PHRASE"_q) {
+					state->error = QString();
+					ShowInvalidSecretWords(
+						show,
+						error == u"PHRASE_FOREIGN_PHRASE"_q,
+						context);
+					return;
+				}
+				// A dismissed protection chooser restored nothing and has
+				// nothing to state, so the form simply stays as it was.
+				// A locked vault is stated on this label, not in the toast
+				// its replace and backup-enable siblings use: unlocking
+				// the vault leaves the typed words ready to resubmit.
+				state->error = (error == u"PHRASE_INSTALL_CANCELLED"_q)
+					? QString()
+					: (error == u"PHRASE_INSTALL_FAILED"_q)
+					? tr::lng_wallet_key_save_error(tr::now)
+					: (error == u"PHRASE_VAULT_LOCKED"_q)
+					? VaultLockedText(&show->session())
+					: (error == u"PHRASE_KEY_MISMATCH"_q)
+					? tr::lng_wallet_restore_error(tr::now)
+					: tr::lng_wallet_import_failed(tr::now);
+				if (context && error != u"PHRASE_KEY_MISMATCH"_q) {
+					show->showToast(state->error.current());
+					context->cancel();
+				}
+			});
+			if (context) {
+				show->session().wallet().restoreFromPhrase(
+					KeyAuthorization{ .install = context->installer() },
+					std::move(words),
+					context->scope(),
+					[=](KeyAuthorization auth) {
+						context->ready(std::move(auth));
+					},
+					fail);
+			} else {
+				show->session().wallet().restoreFromPhrase(
+					KeyAuthorization{ .install = MakeCustodyInstaller(show) },
+					std::move(words),
+					done,
+					fail);
+			}
 		} else {
 			StartWalletReplace(show, box, std::move(words), [=] {
 				state->importing = false;
@@ -7449,8 +7988,12 @@ void WalletReplaceBox(
 	import->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
 	import->setClickedCallback([=] {
 		box->closeBox();
-		show->showBox(
-			Box(WalletImportBox, show, WalletImportMode::Replace, nullptr));
+		show->showBox(Box(
+			WalletImportBox,
+			show,
+			WalletImportMode::Replace,
+			nullptr,
+			nullptr));
 	});
 	Ui::AddSkip(box->verticalLayout());
 }
@@ -7753,6 +8296,7 @@ void WalletKeysBackupBox(
 			WalletImportBox,
 			show,
 			WalletImportMode::Restore,
+			nullptr,
 			nullptr));
 	});
 	Ui::AddSkip(container);
@@ -8903,6 +9447,7 @@ void Content::setupCustodyBar() {
 				WalletImportBox,
 				_show,
 				WalletImportMode::Restore,
+				nullptr,
 				nullptr));
 		}
 	});
@@ -9598,6 +10143,53 @@ void CurrencyListWidget::updateRow(int index) {
 }
 
 } // namespace
+
+void AcquireTransferCommentKey(
+		std::shared_ptr<Main::SessionShow> show,
+		std::shared_ptr<CommentScope> scope,
+		Fn<bool()> current,
+		rpl::lifetime &lifetime,
+		Fn<void(KeyAuthorization)> done) {
+	const auto context = std::make_shared<CommentKeyContext>(
+		std::move(show),
+		std::move(scope),
+		std::move(current),
+		std::move(done));
+	lifetime.add([context] { context->cancel(); });
+	RunKeyRequiringAction(context, [=] {
+		if (!context->valid()) {
+			context->cancel();
+			return;
+		}
+		AcquireVaultUnlock({
+			.show = context,
+			.done = [=](KeyAuthorization auth) {
+				context->ready(std::move(auth));
+			},
+		});
+	}, KeyActionKind::ResumeAfterRestore, context);
+}
+
+void ShowTransactionDetails(
+		std::shared_ptr<Main::SessionShow> show,
+		TransferItem item,
+		bool reduced,
+		std::shared_ptr<CollectibleMedia> media,
+		Fn<bool()> originCurrent,
+		rpl::producer<> originInvalidated) {
+	if (!show || !show->valid()
+		|| (originCurrent && !originCurrent())) {
+		return;
+	}
+	show->showBox(Box(
+		WalletTransactionBox,
+		&show->session(),
+		std::move(item),
+		reduced,
+		std::move(media),
+		std::move(originCurrent),
+		std::move(originInvalidated)));
+}
 
 rpl::producer<bool> TransactionsShownValue(
 		not_null<Main::Session*> session) {

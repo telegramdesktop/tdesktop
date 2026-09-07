@@ -58,6 +58,7 @@ public:
 		rpl::producer<QString> customTitle;
 		std::optional<QString> customDescription;
 		rpl::producer<QString> customSubmitButton;
+		std::shared_ptr<Ui::Show> customShow;
 	};
 	PasscodeBox(
 		QWidget*,
@@ -253,4 +254,5 @@ struct RecoveryEmailValidation {
 [[nodiscard]] object_ptr<Ui::GenericBox> PrePasswordErrorBox(
 	const QString &error,
 	not_null<Main::Session*> session,
-	TextWithEntities &&about);
+	TextWithEntities &&about,
+	std::shared_ptr<Ui::Show> show = nullptr);

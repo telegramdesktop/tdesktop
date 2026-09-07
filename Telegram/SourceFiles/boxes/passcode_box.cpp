@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_cloud_password.h"
 #include "main/main_session.h"
 #include "main/main_domain.h"
+#include "mtproto/mtproto_response.h"
 #include "core/application.h"
 #include "storage/storage_domain.h"
 #include "ui/layers/generic_box.h"
@@ -42,18 +43,35 @@ enum class PasswordErrorType {
 	Later,
 };
 
+template <typename BoxType>
+base::weak_qptr<BoxType> ShowCloudBox(
+		not_null<Ui::BoxContent*> context,
+		std::shared_ptr<Ui::Show> show,
+		object_ptr<BoxType> box,
+		Ui::LayerOptions options = Ui::LayerOption::KeepOther) {
+	return show
+		? show->show(std::move(box), options, anim::type::normal)
+		: context->getDelegate()->show(std::move(box), options);
+}
+
 void SetCloudPassword(
 		not_null<Ui::GenericBox*> box,
-		not_null<Main::Session*> session) {
+		not_null<Main::Session*> session,
+		std::shared_ptr<Ui::Show> show) {
+	if (show && !show->valid()) {
+		return;
+	}
 	session->api().cloudPassword().state(
 	) | rpl::on_next([=] {
+		if (show && !show->valid()) {
+			return;
+		}
 		using namespace Settings;
 		const auto weak = base::make_weak(box);
 		if (CheckEditCloudPassword(session)) {
-			box->getDelegate()->show(
-				EditCloudPasswordBox(session));
+			ShowCloudBox(box, show, EditCloudPasswordBox(session, show));
 		} else {
-			box->getDelegate()->show(CloudPasswordAppOutdatedBox());
+			ShowCloudBox(box, show, CloudPasswordAppOutdatedBox());
 		}
 		if (weak) {
 			weak->closeBox();
@@ -65,7 +83,8 @@ void TransferPasswordError(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
 		TextWithEntities &&about,
-		PasswordErrorType error) {
+		PasswordErrorType error,
+		std::shared_ptr<Ui::Show> show) {
 	box->setTitle(tr::lng_rights_transfer_check());
 	box->setWidth(st::transferCheckWidth);
 
@@ -92,7 +111,7 @@ void TransferPasswordError(
 		box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
 	} else {
 		box->addButton(tr::lng_rights_transfer_set_password(), [=] {
-			SetCloudPassword(box, session);
+			SetCloudPassword(box, session, show);
 		});
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	}
@@ -101,16 +120,29 @@ void TransferPasswordError(
 void StartPendingReset(
 		not_null<Main::Session*> session,
 		not_null<Ui::BoxContent*> context,
-		Fn<void()> close) {
+		Fn<void()> close,
+		std::shared_ptr<Ui::Show> show) {
+	if (show && !show->valid()) {
+		return;
+	}
 	const auto weak = base::make_weak(context.get());
 	auto lifetime = std::make_shared<rpl::lifetime>();
+	if (show) {
+		context->lifetime().add([=] { lifetime->destroy(); });
+	}
 
 	auto finish = [=](const QString &message) mutable {
+		if (show && !show->valid()) {
+			base::take(lifetime)->destroy();
+			return;
+		}
 		if (const auto strong = weak.get()) {
 			if (!message.isEmpty()) {
-				strong->getDelegate()->show(Ui::MakeInformBox(message));
+				ShowCloudBox(strong, show, Ui::MakeInformBox(message));
 			}
-			strong->closeBox();
+			if (weak) {
+				weak->closeBox();
+			}
 		}
 		close();
 		if (lifetime) {
@@ -119,8 +151,12 @@ void StartPendingReset(
 	};
 
 	session->api().cloudPassword().resetPassword(
+		show != nullptr
 	) | rpl::on_next_error_done([=](
 			Api::CloudPassword::ResetRetryDate retryDate) {
+		if (show && !show->valid()) {
+			return;
+		}
 		constexpr auto kMinute = 60;
 		constexpr auto kHour = 3600;
 		constexpr auto kDay = 86400;
@@ -136,14 +172,14 @@ void StartPendingReset(
 			? tr::lng_hours(tr::now, lt_count, hours)
 			: tr::lng_minutes(tr::now, lt_count, minutes);
 		if (const auto strong = weak.get()) {
-			strong->getDelegate()->show(Ui::MakeInformBox(
+			ShowCloudBox(strong, show, Ui::MakeInformBox(
 				tr::lng_cloud_password_reset_later(
 					tr::now,
 					lt_duration,
 					duration)));
 		}
 	}, [=](const QString &error) mutable {
-		finish("Error: " + error);
+		finish((show && error.isEmpty()) ? QString() : ("Error: " + error));
 	}, [=]() mutable {
 		finish({});
 	}, *lifetime);
@@ -454,8 +490,11 @@ void PasscodeBox::recoverPasswordDone(
 	if (weak) {
 		_newPasswordSet.fire_copy(newPasswordBytes);
 		if (weak) {
-			getDelegate()->show(Ui::MakeInformBox(
-				tr::lng_cloud_password_updated()));
+			ShowCloudBox(
+				this,
+				_cloudFields.customShow,
+				Ui::MakeInformBox(
+					tr::lng_cloud_password_updated()));
 			if (weak) {
 				closeBox();
 			}
@@ -476,7 +515,10 @@ void PasscodeBox::setPasswordDone(const QByteArray &newPasswordBytes) {
 			: _oldPasscode->isHidden()
 			? tr::lng_cloud_password_was_set()
 			: tr::lng_cloud_password_updated();
-		getDelegate()->show(Ui::MakeInformBox(std::move(text)));
+		ShowCloudBox(
+			this,
+			_cloudFields.customShow,
+			Ui::MakeInformBox(std::move(text)));
 		if (weak) {
 			closeBox();
 		}
@@ -533,6 +575,10 @@ void PasscodeBox::setPasswordFail(
 		const QByteArray &newPasswordBytes,
 		const QString &email,
 		const MTP::Error &error) {
+	if (_cloudFields.customShow && MTP::IgnoreError(error)) {
+		closeBox();
+		return;
+	}
 	const auto prefix = u"EMAIL_UNCONFIRMED_"_q;
 	if (error.type().startsWith(prefix)) {
 		const auto codeLength = base::StringViewMid(error.type(), prefix.size()).toInt();
@@ -563,6 +609,10 @@ void PasscodeBox::validateEmail(
 			*set = true;
 			setPasswordDone(newPasswordBytes);
 		}).fail([=](const MTP::Error &error) {
+			if (_cloudFields.customShow && MTP::IgnoreError(error)) {
+				closeBox();
+				return;
+			}
 			_setRequest = 0;
 			if (MTP::IsFloodError(error)) {
 				errors->fire(tr::lng_flood_error(tr::now));
@@ -572,7 +622,9 @@ void PasscodeBox::validateEmail(
 				const auto weak = base::make_weak(this);
 				_clearUnconfirmedPassword.fire({});
 				if (const auto strong = weak.get()) {
-					strong->getDelegate()->show(
+					ShowCloudBox(
+						strong,
+						_cloudFields.customShow,
 						Ui::MakeInformBox(
 							Lang::Hard::EmailConfirmationExpired()),
 						Ui::LayerOption::CloseOther);
@@ -590,12 +642,18 @@ void PasscodeBox::validateEmail(
 		)).done([=] {
 			_setRequest = 0;
 			resent->fire(tr::lng_cloud_password_resent(tr::now));
-		}).fail([=] {
+		}).fail([=](const MTP::Error &error) {
+			if (_cloudFields.customShow && MTP::IgnoreError(error)) {
+				closeBox();
+				return;
+			}
 			_setRequest = 0;
 			errors->fire(Lang::Hard::ServerError());
 		}).send();
 	});
-	const auto box = _replacedBy = getDelegate()->show(
+	const auto box = _replacedBy = ShowCloudBox(
+		this,
+		_cloudFields.customShow,
 		Passport::VerifyEmailBox(
 			email,
 			codeLength,
@@ -603,6 +661,9 @@ void PasscodeBox::validateEmail(
 			resend,
 			errors->events(),
 			resent->events()));
+	if (!box) {
+		return;
+	}
 
 	box->setCloseByOutsideClick(false);
 	box->setCloseByEscape(false);
@@ -633,6 +694,9 @@ void PasscodeBox::handleSrpIdInvalid() {
 }
 
 void PasscodeBox::save(bool force) {
+	if (_cloudFields.customShow && !_cloudFields.customShow->valid()) {
+		return;
+	}
 	if (_setRequest) return;
 
 	QString old = _oldPasscode->text(), pwd = _newPasscode->text(), conf = _reenterPasscode->text();
@@ -700,12 +764,15 @@ void PasscodeBox::save(bool force) {
 		}
 		if (!onlyCheck && !_recoverEmail->isHidden() && email.isEmpty() && !force) {
 			_skipEmailWarning = true;
-			_replacedBy = getDelegate()->show(Ui::MakeConfirmBox({
-				.text = { tr::lng_cloud_password_about_recover() },
-				.confirmed = crl::guard(this, [this] { save(true); }),
-				.confirmText = tr::lng_cloud_password_skip_email(),
-				.confirmStyle = &st::attentionBoxButton,
-			}));
+			_replacedBy = ShowCloudBox(
+				this,
+				_cloudFields.customShow,
+				Ui::MakeConfirmBox({
+					.text = { tr::lng_cloud_password_about_recover() },
+					.confirmed = crl::guard(this, [this] { save(true); }),
+					.confirmText = tr::lng_cloud_password_skip_email(),
+					.confirmStyle = &st::attentionBoxButton,
+				}));
 		} else if (onlyCheck) {
 			submitOnlyCheckCloudPassword(old);
 		} else if (_oldPasscode->isHidden()) {
@@ -748,11 +815,14 @@ void PasscodeBox::submitOnlyCheckCloudPassword(const QString &oldPassword) {
 	if (_cloudFields.turningOff && _cloudFields.notEmptyPassport) {
 		Assert(!_cloudFields.customCheckCallback);
 
-		getDelegate()->show(Ui::MakeConfirmBox({
-			.text = tr::lng_cloud_password_passport_losing(),
-			.confirmed = [=](Fn<void()> &&close) { send(); close(); },
-			.confirmText = tr::lng_continue(),
-		}));
+		ShowCloudBox(
+			this,
+			_cloudFields.customShow,
+			Ui::MakeConfirmBox({
+				.text = tr::lng_cloud_password_passport_losing(),
+				.confirmed = [=](Fn<void()> &&close) { send(); close(); },
+				.confirmText = tr::lng_continue(),
+			}));
 	} else {
 		send();
 	}
@@ -789,6 +859,9 @@ void PasscodeBox::checkPasswordHash(CheckPasswordCallback callback) {
 }
 
 void PasscodeBox::passwordChecked() {
+	if (_cloudFields.customShow && !_cloudFields.customShow->valid()) {
+		return;
+	}
 	if (!_cloudFields.mtp.curRequest || !_cloudFields.mtp.curRequest.id || !_checkPasswordCallback) {
 		return serverError();
 	}
@@ -803,14 +876,25 @@ void PasscodeBox::passwordChecked() {
 }
 
 void PasscodeBox::requestPasswordData() {
+	if (_cloudFields.customShow && !_cloudFields.customShow->valid()) {
+		return;
+	}
 	if (!_checkPasswordCallback) {
 		return serverError();
 	}
 
 	_api.request(base::take(_setRequest)).cancel();
-	_setRequest = _api.request(
-		MTPaccount_GetPassword()
-	).done([=](const MTPaccount_Password &result) {
+	auto request = _api.request(MTPaccount_GetPassword());
+	auto &policy = _cloudFields.customShow
+		? request.fail([=](const MTP::Error &error) {
+			if (MTP::IgnoreError(error)) {
+				closeBox();
+			} else {
+				serverError();
+			}
+		})
+		: request;
+	_setRequest = policy.done([=](const MTPaccount_Password &result) {
 		_setRequest = 0;
 		result.match([&](const MTPDaccount_password &data) {
 			_cloudFields.mtp.curRequest = Core::ParseCloudPasswordCheckRequest(data);
@@ -820,11 +904,21 @@ void PasscodeBox::requestPasswordData() {
 }
 
 void PasscodeBox::serverError() {
-	getDelegate()->show(Ui::MakeInformBox(Lang::Hard::ServerError()));
-	closeBox();
+	const auto weak = base::make_weak(this);
+	ShowCloudBox(
+		this,
+		_cloudFields.customShow,
+		Ui::MakeInformBox(Lang::Hard::ServerError()));
+	if (weak) {
+		weak->closeBox();
+	}
 }
 
 bool PasscodeBox::handleCustomCheckError(const MTP::Error &error) {
+	if (_cloudFields.customShow && MTP::IgnoreError(error)) {
+		closeBox();
+		return true;
+	}
 	return handleCustomCheckError(error.type());
 }
 
@@ -904,6 +998,10 @@ void PasscodeBox::setNewCloudPassword(const QString &newPassword) {
 		)).done([=](const MTPauth_Authorization &result) {
 			recoverPasswordDone(newPasswordBytes, result);
 		}).fail([=](const MTP::Error &error) {
+			if (_cloudFields.customShow && MTP::IgnoreError(error)) {
+				closeBox();
+				return;
+			}
 			if (MTP::IsFloodError(error)) {
 				_newError = tr::lng_flood_error(tr::now);
 				update();
@@ -964,6 +1062,10 @@ void PasscodeBox::changeCloudPassword(
 			});
 		}
 	}).fail([=](const MTP::Error &error) {
+		if (_cloudFields.customShow && MTP::IgnoreError(error)) {
+			closeBox();
+			return;
+		}
 		setPasswordFail(error.type());
 	}).handleFloodErrors().send();
 }
@@ -975,11 +1077,14 @@ void PasscodeBox::suggestSecretReset(const QString &newPassword) {
 			resetSecret(check, newPassword, std::move(close));
 		});
 	};
-	getDelegate()->show(Ui::MakeConfirmBox({
-		.text = { Lang::Hard::PassportCorruptedChange() },
-		.confirmed = std::move(resetSecretAndSave),
-		.confirmText = Lang::Hard::PassportCorruptedReset(),
-	}));
+	ShowCloudBox(
+		this,
+		_cloudFields.customShow,
+		Ui::MakeConfirmBox({
+			.text = { Lang::Hard::PassportCorruptedChange() },
+			.confirmed = std::move(resetSecretAndSave),
+			.confirmText = Lang::Hard::PassportCorruptedReset(),
+		}));
 }
 
 void PasscodeBox::resetSecret(
@@ -1091,17 +1196,27 @@ void PasscodeBox::newChanged() {
 }
 
 void PasscodeBox::recoverByEmail() {
+	if (_cloudFields.customShow && !_cloudFields.customShow->valid()) {
+		return;
+	}
 	if (!_cloudFields.hasRecovery) {
 		Assert(_session != nullptr);
 		const auto session = _session;
 		const auto reset = crl::guard(this, [=](Fn<void()> &&close) {
-			StartPendingReset(session, this, std::move(close));
+			StartPendingReset(
+				session,
+				this,
+				std::move(close),
+				_cloudFields.customShow);
 		});
-		getDelegate()->show(Ui::MakeConfirmBox({
-			.text = tr::lng_cloud_password_reset_no_email(tr::now),
-			.confirmed = reset,
-			.confirmText = tr::lng_cloud_password_reset_ok(tr::now),
-		}));
+		ShowCloudBox(
+			this,
+			_cloudFields.customShow,
+			Ui::MakeConfirmBox({
+				.text = tr::lng_cloud_password_reset_no_email(tr::now),
+				.confirmed = reset,
+				.confirmText = tr::lng_cloud_password_reset_ok(tr::now),
+			}));
 	} else if (_pattern.isEmpty()) {
 		_pattern = "-";
 		_api.request(MTPauth_RequestPasswordRecovery(
@@ -1120,17 +1235,26 @@ void PasscodeBox::recoverExpired() {
 }
 
 void PasscodeBox::recover() {
+	if (_cloudFields.customShow && !_cloudFields.customShow->valid()) {
+		return;
+	}
 	if (_pattern == "-" || !_session) {
 		return;
 	}
 
 	const auto weak = base::make_weak(this);
-	const auto box = getDelegate()->show(Box<RecoverBox>(
-		&_api.instance(),
-		_session,
-		_pattern,
-		_cloudFields,
-		[weak] { if (weak) { weak->closeBox(); } }));
+	const auto box = ShowCloudBox(
+		this,
+		_cloudFields.customShow,
+		Box<RecoverBox>(
+			&_api.instance(),
+			_session,
+			_pattern,
+			_cloudFields,
+			[weak] { if (weak) { weak->closeBox(); } }));
+	if (!box || !weak) {
+		return;
+	}
 
 	box->newPasswordSet(
 	) | rpl::start_to_stream(_newPasswordSet, lifetime());
@@ -1187,13 +1311,16 @@ RecoverBox::RecoverBox(
 						closeParent();
 					}
 					c();
-				});
+				}, _cloudFields.customShow);
 			});
-			getDelegate()->show(Ui::MakeConfirmBox({
-				.text = tr::lng_cloud_password_reset_with_email(),
-				.confirmed = reset,
-				.confirmText = tr::lng_cloud_password_reset_ok(),
-			}));
+			ShowCloudBox(
+				this,
+				_cloudFields.customShow,
+				Ui::MakeConfirmBox({
+					.text = tr::lng_cloud_password_reset_with_email(),
+					.confirmed = reset,
+					.confirmText = tr::lng_cloud_password_reset_ok(),
+				}));
 		});
 	}
 }
@@ -1283,6 +1410,9 @@ void RecoverBox::setInnerFocus() {
 }
 
 void RecoverBox::submit() {
+	if (_cloudFields.customShow && !_cloudFields.customShow->valid()) {
+		return;
+	}
 	if (_submitRequest) return;
 
 	QString code = _recoverCode->getLastText().trimmed();
@@ -1293,6 +1423,9 @@ void RecoverBox::submit() {
 	}
 
 	const auto send = crl::guard(this, [=] {
+		if (_cloudFields.customShow && !_cloudFields.customShow->valid()) {
+			return;
+		}
 		if (_cloudFields.turningOff) {
 			// From "Disable cloud password".
 			_submitRequest = _api.request(MTPauth_RecoverPassword(
@@ -1316,11 +1449,14 @@ void RecoverBox::submit() {
 		}
 	});
 	if (_cloudFields.notEmptyPassport) {
-		getDelegate()->show(Ui::MakeConfirmBox({
-			.text = tr::lng_cloud_password_passport_losing(),
-			.confirmed = [=](Fn<void()> &&close) { send(); close(); },
-			.confirmText = tr::lng_continue(),
-		}));
+		ShowCloudBox(
+			this,
+			_cloudFields.customShow,
+			Ui::MakeConfirmBox({
+				.text = tr::lng_cloud_password_passport_losing(),
+				.confirmed = [=](Fn<void()> &&close) { send(); close(); },
+				.confirmText = tr::lng_continue(),
+			}));
 	} else {
 		send();
 	}
@@ -1340,13 +1476,22 @@ void RecoverBox::codeChanged() {
 
 void RecoverBox::proceedToClear() {
 	_submitRequest = 0;
+	const auto weak = base::make_weak(this);
 	_newPasswordSet.fire({});
-	getDelegate()->show(
+	if (!weak) {
+		return;
+	}
+	ShowCloudBox(
+		this,
+		_cloudFields.customShow,
 		Ui::MakeInformBox(tr::lng_cloud_password_removed()),
 		Ui::LayerOption::CloseOther);
 }
 
 void RecoverBox::proceedToChange(const QString &code) {
+	if (_cloudFields.customShow && !_cloudFields.customShow->valid()) {
+		return;
+	}
 	Expects(!_cloudFields.turningOff);
 	_submitRequest = 0;
 
@@ -1376,10 +1521,17 @@ void RecoverBox::proceedToChange(const QString &code) {
 		_newPasswordSet.fire(std::move(password));
 	}, lifetime());
 
-	getDelegate()->show(std::move(box));
+	ShowCloudBox(
+		this,
+		_cloudFields.customShow,
+		std::move(box));
 }
 
 void RecoverBox::checkSubmitFail(const MTP::Error &error) {
+	if (_cloudFields.customShow && MTP::IgnoreError(error)) {
+		closeBox();
+		return;
+	}
 	if (MTP::IsFloodError(error)) {
 		_submitRequest = 0;
 		setError(tr::lng_flood_error(tr::now));
@@ -1390,15 +1542,24 @@ void RecoverBox::checkSubmitFail(const MTP::Error &error) {
 
 	const QString &err = error.type();
 	if (err == u"PASSWORD_EMPTY"_q) {
+		const auto weak = base::make_weak(this);
 		_newPasswordSet.fire(QByteArray());
-		getDelegate()->show(
+		if (!weak) {
+			return;
+		}
+		ShowCloudBox(
+			this,
+			_cloudFields.customShow,
 			Ui::MakeInformBox(tr::lng_cloud_password_removed()),
 			Ui::LayerOption::CloseOther);
 	} else if (err == u"PASSWORD_RECOVERY_NA"_q) {
 		closeBox();
 	} else if (err == u"PASSWORD_RECOVERY_EXPIRED"_q) {
+		const auto weak = base::make_weak(this);
 		_recoveryExpired.fire({});
-		closeBox();
+		if (weak) {
+			weak->closeBox();
+		}
 	} else if (err == u"CODE_INVALID"_q) {
 		setError(tr::lng_signin_wrong_code(tr::now));
 		_recoverCode->selectAll();
@@ -1485,7 +1646,8 @@ RecoveryEmailValidation ConfirmRecoveryEmail(
 [[nodiscard]] object_ptr<Ui::GenericBox> PrePasswordErrorBox(
 		const QString &error,
 		not_null<Main::Session*> session,
-		TextWithEntities &&about) {
+		TextWithEntities &&about,
+		std::shared_ptr<Ui::Show> show) {
 	const auto type = [&] {
 		if (error == u"PASSWORD_MISSING"_q) {
 			return PasswordErrorType::NoPassword;
@@ -1503,5 +1665,6 @@ RecoveryEmailValidation ConfirmRecoveryEmail(
 		TransferPasswordError,
 		session,
 		std::move(about),
-		type);
+		type,
+		std::move(show));
 }

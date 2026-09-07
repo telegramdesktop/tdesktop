@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "wallet/wallet_session.h"
 
+#include "base/openssl_help.h"
 #include "base/unixtime.h"
 #include "data/components/recent_money_recipients.h"
 #include "data/data_peer_id.h"
@@ -17,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
+#include "mtproto/mtproto_response.h"
 #include "tde2e/tde2e_api.h"
 #include "ui/widgets/separate_panel.h"
 #include "wallet/wallet_engine.h"
@@ -30,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QUuid>
 
+#include <atomic>
 #include <cmath>
 #include <deque>
 #include <limits>
@@ -43,6 +46,27 @@ struct ShareFetch {
 	std::vector<MTP::ShiftedDcId> sessions;
 	Fn<void(const QString &)> fail;
 	int pending = 0;
+};
+
+struct CommentScope::State {
+	const Session *session = nullptr;
+	TransferItem target;
+	QByteArray body;
+	QString sender;
+	std::shared_ptr<VaultRuntime> vault;
+	std::optional<CustodyRecord> record;
+	Fn<void()> cancelPending;
+	int generation = 0;
+	quint32 epoch = 0;
+	std::atomic<bool> cancelled = false;
+};
+
+struct Session::HistoryRequest {
+	std::optional<TransferWalletIdentity> identity;
+	uint64 identityRevision = 0;
+	int generation = 0;
+	mtpRequestId id = 0;
+	std::vector<Fn<void()>> done;
 };
 
 struct Session::PreparedRotation {
@@ -149,6 +173,12 @@ constexpr auto kOwnershipProofSignatureSize = 64;
 	auto ok = false;
 	const auto result = QString::fromStdString(value).toULongLong(&ok);
 	return ok ? std::make_optional(result) : std::nullopt;
+}
+
+void FinishHistoryWaiters(std::vector<Fn<void()>> callbacks) {
+	for (const auto &callback : callbacks) {
+		callback();
+	}
 }
 
 [[nodiscard]] bool SameHistory(
@@ -287,6 +317,182 @@ struct ThrowawayRotation {
 	return auth.grant
 		&& auth.grant->valid()
 		&& session.vault().unlocked();
+}
+
+[[nodiscard]] bool SameCommentRecord(
+		const CustodyRecord &a,
+		const CustodyRecord &b) {
+	return a.recordId == b.recordId
+		&& a.address == b.address
+		&& a.publicKey == b.publicKey
+		&& a.network == b.network
+		&& a.secretRef == b.secretRef
+		&& a.active == b.active
+		&& a.rotatedSinceBackup == b.rotatedSinceBackup;
+}
+
+[[nodiscard]] bool ValidCommentPayloadSize(int size) {
+	return size >= 64 && size <= 1024 && ((size - 48) % 16 == 0);
+}
+
+[[nodiscard]] QByteArray ServerCommentBody(const QByteArray &payload) {
+	if (!ValidCommentPayloadSize(payload.size())) {
+		return QByteArray();
+	}
+	const auto cells = 1 + (payload.size() - 35 + 126) / 127;
+	const auto total = payload.size() + 4 + 3 * cells - 1;
+	const auto width = (total > 255) ? 2 : 1;
+	auto result = QByteArray::fromHex("b5ee9c7201");
+	result.reserve(10 + width + total);
+	result.append(char(width));
+	result.append(char(cells));
+	result.append(char(1));
+	result.append(char(0));
+	if (width == 2) {
+		result.append(char(total >> 8));
+	}
+	result.append(char(total));
+	result.append(char(0));
+	for (auto cell = 0, offset = 0; cell != cells; ++cell) {
+		const auto first = (cell == 0);
+		const auto last = (cell + 1 == cells);
+		const auto count = first ? 35 : std::min(127, payload.size() - offset);
+		result.append(char(last ? 0 : 1));
+		result.append(char(2 * (count + (first ? 4 : 0))));
+		if (first) {
+			result.append(QByteArray::fromHex("2167da4b"));
+		}
+		result.append(payload.constData() + offset, count);
+		offset += count;
+		if (!last) {
+			result.append(char(cell + 1));
+		}
+	}
+	return result.toBase64();
+}
+
+[[nodiscard]] bool ValidEncryptedCommentBody(const QByteArray &encoded) {
+	constexpr auto kMaxCells = 1025;
+	constexpr auto kMaxCellBytes = 1028 + 2 * kMaxCells + 2 * (kMaxCells - 1);
+	constexpr auto kMaxBytes = 16 + kMaxCellBytes;
+	if (encoded.isEmpty()
+		|| encoded.size() > 4 * ((kMaxBytes + 2) / 3)
+		|| encoded.size() % 4) {
+		return false;
+	}
+	const auto decoded = QByteArray::fromBase64Encoding(
+		encoded,
+		QByteArray::AbortOnBase64DecodingErrors);
+	if (!decoded || decoded.decoded.toBase64() != encoded) {
+		return false;
+	}
+	const auto &body = decoded.decoded;
+	auto offset = 0;
+	const auto read = [&](int width) {
+		if (offset + width > body.size()) {
+			return -1;
+		}
+		auto value = 0;
+		for (auto i = 0; i != width; ++i) {
+			value = (value << 8) | uchar(body[offset++]);
+		}
+		return value;
+	};
+	if (read(2) != 0xb5ee || read(2) != 0x9c72) {
+		return false;
+	}
+	const auto refs = read(1);
+	const auto offsets = read(1);
+	if ((refs != 1 && refs != 2) || (offsets != 1 && offsets != 2)) {
+		return false;
+	}
+	const auto cells = read(refs);
+	if (cells < 1 || cells > kMaxCells
+		|| refs != ((cells > 255) ? 2 : 1)
+		|| read(refs) != 1
+		|| read(refs) != 0) {
+		return false;
+	}
+	const auto total = read(offsets);
+	if (total < 0 || total > kMaxCellBytes
+		|| offsets != ((total > 255) ? 2 : 1)
+		|| read(refs) != 0
+		|| total != body.size() - offset) {
+		return false;
+	}
+	auto payload = 0;
+	for (auto cell = 0; cell != cells; ++cell) {
+		const auto last = (cell + 1 == cells);
+		if (read(1) != (last ? 0 : 1)) {
+			return false;
+		}
+		const auto bits = read(1);
+		const auto count = bits / 2;
+		if (bits < 0 || bits % 2
+			|| count < ((cell == 0) ? 4 : 1)
+			|| count > body.size() - offset) {
+			return false;
+		}
+		if (cell == 0) {
+			if (read(2) != 0x2167 || read(2) != 0xda4b) {
+				return false;
+			}
+			offset += count - 4;
+			payload += count - 4;
+		} else {
+			offset += count;
+			payload += count;
+		}
+		if (!last && read(refs) != cell + 1) {
+			return false;
+		}
+	}
+	return offset == body.size() && ValidCommentPayloadSize(payload);
+}
+
+[[nodiscard]] KeyAuthorization TrackCommentInstallation(
+		KeyAuthorization auth,
+		const std::shared_ptr<KeyAuthorization> &installed) {
+	installed->grant = auth.grant;
+	if (const auto install = auth.install) {
+		auth.install = [=](Fn<void(CustodyInstall)> ready) {
+			install([=](CustodyInstall result) {
+				installed->grant = result.grant;
+				ready(std::move(result));
+			});
+		};
+	}
+	return auth;
+}
+
+struct DecryptedComment {
+	SecureBytes text;
+	CommentDecryptError error = CommentDecryptError::None;
+};
+
+[[nodiscard]] DecryptedComment DecryptCommentBody(
+		const std::shared_ptr<engine::WalletClient> &client,
+		const engine::DecryptCommentRequest &request) {
+	using Error = CommentDecryptError;
+	try {
+		auto text = client->decrypt_comment(request);
+		const auto wipe = gsl::finally([&] {
+			OPENSSL_cleanse(text.data(), text.size());
+		});
+		return { .text = SecureBytes(bytes::make_span(text)) };
+	} catch (const engine::wallet_client_error::EncryptedCommentUnavailable &) {
+		return { .error = Error::DecryptionFailed };
+	} catch (const engine::wallet_client_error::LocalSigningUnavailable &) {
+		return { .error = Error::Unavailable };
+	} catch (const engine::wallet_client_error::InvalidProtectedSecret &) {
+		return { .error = Error::Unavailable };
+	} catch (const engine::wallet_client_error::SendAlreadyInProgress &) {
+		return { .error = Error::Unavailable };
+	} catch (const engine::wallet_client_error::StateUnavailable &) {
+		return { .error = Error::Cancelled };
+	} catch (...) {
+		return { .error = Error::Failed };
+	}
 }
 
 [[nodiscard]] QString ClientErrorName(std::exception_ptr error) {
@@ -616,7 +822,8 @@ void SetDirectedAmount(
 }
 
 [[nodiscard]] std::optional<TransferItem> HistoryItemFromEngine(
-		const engine::ActivityItem &item) {
+		const engine::ActivityItem &item,
+		const std::optional<TransferWalletIdentity> &identity) {
 	constexpr auto kMaxTimestamp = uint64(std::numeric_limits<TimeId>::max());
 	const auto amount = DecimalInt64(item.amount_nanograms);
 	const auto fee = DecimalInt64(item.transaction_fee_nanograms);
@@ -627,6 +834,9 @@ void SetDirectedAmount(
 		return std::nullopt;
 	}
 	auto result = TransferItem();
+	result.source = TransferItem::Source::Engine;
+	result.id = QString::fromStdString(item.id);
+	result.walletIdentity = identity;
 	result.kind = TransferItem::Kind::Transfer;
 	if (item.counterparty) {
 		result.counterparty = CanonicalAddress(
@@ -637,7 +847,14 @@ void SetDirectedAmount(
 		*amount,
 		(item.direction == engine::ActivityDirection::kReceived));
 	result.feeNano = *fee;
-	if (item.comment) {
+	if (item.encrypted_comment) {
+		result.commentEncrypted = true;
+		result.encryptedPayload = QByteArray::fromStdString(
+			*item.encrypted_comment);
+		if (!result.encryptedPayload.isEmpty()) {
+			result.encryptedFormat = TransferItem::EncryptedFormat::EngineBodyBoc;
+		}
+	} else if (item.comment) {
 		result.comment = QString::fromStdString(*item.comment);
 	}
 	result.date = TimeId(item.timestamp);
@@ -688,9 +905,13 @@ void SetDirectedAmount(
 }
 
 [[nodiscard]] TransferItem HistoryItemFromServer(
-		const MTPWalletTransaction &item) {
+		const MTPWalletTransaction &item,
+		const std::optional<TransferWalletIdentity> &identity) {
 	const auto &data = item.data();
 	auto result = TransferItem();
+	result.source = TransferItem::Source::Server;
+	result.id = qs(data.vid());
+	result.walletIdentity = identity;
 	SetDirectedAmount(result, data.vamount().v, data.is_incoming());
 	result.feeNano = data.vfee().v;
 	result.date = data.vdate().v;
@@ -733,27 +954,59 @@ void SetDirectedAmount(
 			// for, so no lang key is invented for it.
 		});
 	}
+	result.commentEncrypted = data.is_comment_encrypted();
 	if (const auto comment = data.vcomment()) {
-		result.comment = qs(*comment);
+		if (result.commentEncrypted) {
+			result.encryptedPayload = DecodeServerEncryptedComment(
+				qs(*comment));
+			if (!result.encryptedPayload.isEmpty()) {
+				result.encryptedFormat
+					= TransferItem::EncryptedFormat::ServerPayload;
+			}
+		} else {
+			result.comment = qs(*comment);
+		}
 	}
 	if (const auto hash = data.vtx_hash()) {
 		result.traceId = TransactionHashFromServer(qs(*hash));
 	}
-	// id, lt and every collectible / provider / encrypted-comment member are
-	// left at their defaults: the record has no id field, the server sends
-	// nothing for the rest, and lt's only reader is the wallethistory Debug
-	// log line, which prints the honest zero instead of a synthesized time.
 	return result;
 }
 
 } // namespace
 
+QByteArray DecodeServerEncryptedComment(const QString &encoded) {
+	constexpr auto kMinBytes = 64;
+	constexpr auto kMaxBytes = 1024;
+	constexpr auto kEncodedLimit = 4 * ((kMaxBytes + 2) / 3);
+	constexpr auto kHeaderBytes = 48;
+	constexpr auto kBlockBytes = 16;
+	if (encoded.isEmpty()
+		|| encoded.size() > kEncodedLimit
+		|| (encoded.size() % 4)) {
+		return QByteArray();
+	}
+	const auto latin = encoded.toLatin1();
+	auto decoded = QByteArray::fromBase64Encoding(
+		latin,
+		QByteArray::AbortOnBase64DecodingErrors);
+	if (!decoded
+		|| decoded.decoded.size() < kMinBytes
+		|| decoded.decoded.size() > kMaxBytes
+		|| ((decoded.decoded.size() - kHeaderBytes) % kBlockBytes)
+		|| decoded.decoded.toBase64() != latin) {
+		return QByteArray();
+	}
+	return std::move(decoded.decoded);
+}
+
 std::vector<TransferItem> HistoryFromEngine(
-		const std::vector<engine::ActivityItem> &items) {
+		const std::vector<engine::ActivityItem> &items,
+		std::optional<TransferWalletIdentity> identity) {
 	auto result = std::vector<TransferItem>();
 	result.reserve(items.size());
 	for (const auto &item : items) {
-		if (auto mapped = HistoryItemFromEngine(item)) {
+		if (auto mapped = HistoryItemFromEngine(item, identity)) {
 			result.push_back(std::move(*mapped));
 		}
 	}
@@ -761,11 +1014,12 @@ std::vector<TransferItem> HistoryFromEngine(
 }
 
 std::vector<TransferItem> HistoryFromServer(
-		const QVector<MTPWalletTransaction> &list) {
+		const QVector<MTPWalletTransaction> &list,
+		std::optional<TransferWalletIdentity> identity) {
 	auto result = std::vector<TransferItem>();
 	result.reserve(list.size());
 	for (const auto &item : list) {
-		result.push_back(HistoryItemFromServer(item));
+		result.push_back(HistoryItemFromServer(item, identity));
 	}
 	return result;
 }
@@ -951,6 +1205,27 @@ QString ForgottenPasscodeLoss(WalletLoss loss) {
 	return result;
 }
 
+CommentScope::CommentScope(std::shared_ptr<State> state)
+: _state(std::move(state)) {
+}
+
+void CommentScope::cancel() {
+	if (!_state->cancelled.exchange(true)) {
+		if (auto cancel = base::take(_state->cancelPending)) {
+			crl::on_main(std::move(cancel));
+		}
+		_cancelledChanges.fire({});
+	}
+}
+
+bool CommentScope::cancelled() const {
+	return _state->cancelled;
+}
+
+rpl::producer<> CommentScope::cancelledChanges() const {
+	return _cancelledChanges.events();
+}
+
 Session::Session(not_null<Main::Session*> session)
 : _session(session)
 , _api(session)
@@ -963,9 +1238,22 @@ Session::Session(not_null<Main::Session*> session)
 	applyStreamRefresh(wanted);
 }))
 , _pollTimer([=] { pollTick(); }) {
+	rpl::merge(
+		_transferWalletIdentityChanges.events(),
+		_custodyUpdates.events()
+	) | rpl::on_next([=] {
+		validateCommentScopes();
+	}, _commentLifetime);
+	_sendState.changes() | rpl::on_next([=](SendState state) {
+		if (state != SendState::Idle) {
+			retireCommentScopes();
+		}
+	}, _commentLifetime);
 }
 
 Session::~Session() {
+	retireCommentScopes();
+	_commentLifetime.destroy();
 	if (const auto state = _shareFetch.lock()) {
 		FinishShareFetch(_stateApi, _shareFetchTimer, state);
 	}
@@ -1051,6 +1339,30 @@ QByteArray Session::publicKey() const {
 	return _publicKey;
 }
 
+auto Session::transferWalletIdentity() const
+-> std::optional<TransferWalletIdentity> {
+	if (_presence.current() != Presence::Ready
+		|| _address.isEmpty()
+		|| _publicKey.size() != kCustodyPublicKeySize) {
+		return std::nullopt;
+	}
+	return TransferWalletIdentity{
+		.address = _address,
+		.publicKey = _publicKey,
+		.revision = _walletIdentityRevision,
+	};
+}
+
+bool Session::transferWalletIdentityCurrent(
+		const TransferWalletIdentity &identity) const {
+	const auto current = transferWalletIdentity();
+	return current && (*current == identity);
+}
+
+rpl::producer<> Session::transferWalletIdentityChanges() const {
+	return _transferWalletIdentityChanges.events();
+}
+
 void Session::refreshState() {
 	if ((_presence.current() == Presence::Unavailable) || _stateRequestId) {
 		return;
@@ -1103,6 +1415,10 @@ void Session::applyState(const MTPWalletState &state, bool pushed) {
 	_stateRefreshedAt = crl::now();
 	_stateFailures = 0;
 	const auto clear = [&] {
+		if (!_address.isEmpty() || !_publicKey.isEmpty()) {
+			retireCommentScopes();
+			++_walletIdentityRevision;
+		}
 		_address = QString();
 		_publicKey = QByteArray();
 		_balanceNano = 0;
@@ -1117,7 +1433,12 @@ void Session::applyState(const MTPWalletState &state, bool pushed) {
 			return;
 		}
 		const auto wasReady = (_presence.current() == Presence::Ready);
-		const auto keyChanged = (_publicKey != data.vpublic_key().v);
+		const auto identityChanged = (_address != parsed->raw)
+			|| (_publicKey != data.vpublic_key().v);
+		if (identityChanged) {
+			retireCommentScopes();
+			++_walletIdentityRevision;
+		}
 		_address = parsed->raw;
 		_publicKey = data.vpublic_key().v;
 		_balanceNano = int64(data.vbalance().v);
@@ -1129,8 +1450,8 @@ void Session::applyState(const MTPWalletState &state, bool pushed) {
 		setPresence(Presence::Ready);
 		// A presence that was not Ready has already had its drain and its
 		// first page from setPresence(); the case that write structurally
-		// cannot see is a presence that stayed Ready while the served key
-		// changed. That is a different wallet, so both lanes leave, the
+		// cannot see is a presence that stayed Ready while the served
+		// identity changed. That is a different wallet, so both lanes leave, the
 		// engine status returns to its unknown value and the new wallet's
 		// head page is asked for at once. It runs before reconcileCustody()
 		// because that reconciliation may stop and restart the engine
@@ -1139,10 +1460,10 @@ void Session::applyState(const MTPWalletState &state, bool pushed) {
 		// A pushed state on the same wallet is the transfer notification the
 		// server sends as a transfer progresses, so it is news about the
 		// history lane alone and invalidates only that one. The arms are
-		// ordered so that a push which also changed the key takes the first
-		// one and gets exactly one head page from the drain, never a second
+		// ordered so that a push which also changed the identity takes the
+		// first one and gets exactly one head page from the drain, never a second
 		// one from the marker.
-		if (wasReady && keyChanged) {
+		if (wasReady && identityChanged) {
 			clearHistory();
 			clearCollectibles();
 			_engineStatus = AccountStatus::NonExisting;
@@ -1152,6 +1473,9 @@ void Session::applyState(const MTPWalletState &state, bool pushed) {
 			refreshStaleHistory();
 		}
 		reconcileCustody();
+		if (wasReady && identityChanged) {
+			_transferWalletIdentityChanges.fire({});
+		}
 	}, [&](const MTPDwalletStateEmpty &data) {
 		clear();
 		setPresence(data.is_creating()
@@ -1168,6 +1492,10 @@ void Session::setPresence(Presence presence) {
 	if (_presence.current() == presence) {
 		return;
 	}
+	retireCommentScopes();
+	if (_presence.current() == Presence::Ready) {
+		++_walletIdentityRevision;
+	}
 	_presence = presence;
 	// The gate is recomputed before the lanes are drained, because both
 	// drains publish into the same derived faces the gate does: a face
@@ -1178,18 +1506,14 @@ void Session::setPresence(Presence presence) {
 	// `ready`, so it writes the same two values before the drain as after.
 	updateListsGate();
 	if (presence != Presence::Ready) {
-		// clearHistory() cancels the request in flight, so a refreshHistory()
-		// issued while the wallet was Ready would never run its done and its
-		// caller would wait forever. Draining here is exactly what
-		// refreshHistory() itself does for a presence that is not Ready.
 		clearHistory();
-		finishHistoryWaiters();
 		clearCollectibles();
 	}
 	updatePollingState();
 	if (presence == Presence::Ready) {
 		refreshHistory();
 	}
+	_transferWalletIdentityChanges.fire({});
 }
 
 bool Session::revealsLocally() {
@@ -1205,6 +1529,202 @@ VaultRuntime &Session::vault() {
 
 bool Session::custodyBusy() const {
 	return _phraseRevealing || _replacing || _backupChanging || _rotating;
+}
+
+std::shared_ptr<CommentScope> Session::createCommentScope(
+		TransferItem target,
+		rpl::lifetime &lifetime) {
+	if (!target.walletIdentity
+		|| !transferWalletIdentityCurrent(*target.walletIdentity)
+		|| target.id.isEmpty()
+		|| !target.commentEncrypted
+		|| !commentAccessAvailable()
+		|| custodyBusy()) {
+		return nullptr;
+	}
+	const auto sender = CanonicalAddress(target.incoming
+		? target.counterparty
+		: target.walletIdentity->address);
+	if (sender.isEmpty()) {
+		return nullptr;
+	}
+	auto body = QByteArray();
+	if (target.source == TransferItem::Source::Server
+		&& target.encryptedFormat == TransferItem::EncryptedFormat::ServerPayload) {
+		body = ServerCommentBody(target.encryptedPayload);
+	} else if (target.source == TransferItem::Source::Engine
+		&& target.encryptedFormat == TransferItem::EncryptedFormat::EngineBodyBoc) {
+		body = target.encryptedPayload;
+	}
+	if (!ValidEncryptedCommentBody(body)) {
+		return nullptr;
+	}
+	auto state = std::make_shared<CommentScope::State>();
+	state->session = this;
+	state->target = std::move(target);
+	state->body = std::move(body);
+	state->sender = sender;
+	state->vault = vault().shared_from_this();
+	state->generation = _networkGeneration;
+	state->epoch = vault().clearEpoch();
+	if (const auto record = _custody->matching(_publicKey)) {
+		if (!_engine->client() || _clientRecordId != record->recordId) {
+			return nullptr;
+		}
+		state->record = *record;
+	} else if (_engine->client()) {
+		return nullptr;
+	}
+	const auto scope = std::shared_ptr<CommentScope>(new CommentScope(state));
+	if (!commentScopeCurrent(scope)) {
+		return nullptr;
+	}
+	validateCommentScopes();
+	_commentScopes.push_back(scope);
+	lifetime.add([weak = std::weak_ptr(scope)] {
+		if (const auto scope = weak.lock()) {
+			scope->cancel();
+		}
+	});
+	return scope;
+}
+
+bool Session::commentAccessAvailable() const {
+	return _custody.has_value()
+		&& !_custodyReadFailed
+		&& _custody->records.size() <= 1
+		&& !_custody->pendingRotation
+		&& !_clientStopping
+		&& !_pending
+		&& !_sendUnresolved
+		&& _sendState.current() == SendState::Idle
+		&& !ranges::any_of(_custody->records, [&](const CustodyRecord &record) {
+			return record.publicKey != _publicKey;
+		});
+}
+
+bool Session::commentScopeCurrent(
+		const std::shared_ptr<CommentScope> &scope) const {
+	if (!scope || scope->cancelled()) {
+		return false;
+	}
+	const auto &state = *scope->_state;
+	if (state.session != this
+		|| state.generation != _networkGeneration
+		|| state.epoch != state.vault->clearEpoch()
+		|| !transferWalletIdentityCurrent(*state.target.walletIdentity)
+		|| !commentAccessAvailable()) {
+		scope->cancel();
+		return false;
+	}
+	const auto current = _custody->matching(_publicKey);
+	if ((current != nullptr) != state.record.has_value()
+		|| (current && (!SameCommentRecord(*current, *state.record)
+			|| !current->active
+			|| current->recordId.isEmpty()
+			|| current->secretRef.isEmpty()
+			|| current->network != int(engine::Network::kMainnet)
+			|| CanonicalAddress(current->address)
+				!= state.target.walletIdentity->address))) {
+		scope->cancel();
+		return false;
+	}
+	return true;
+}
+
+void Session::validateCommentScopes() {
+	const auto scopes = _commentScopes;
+	for (const auto &weak : scopes) {
+		if (const auto scope = weak.lock()) {
+			if (commentScopeCurrent(scope)) {
+				continue;
+			}
+		}
+		_commentScopes.erase(ranges::remove_if(
+			_commentScopes,
+			[](const std::weak_ptr<CommentScope> &weak) {
+				const auto scope = weak.lock();
+				return !scope || scope->cancelled();
+			}), end(_commentScopes));
+	}
+}
+
+void Session::retireCommentScopes(
+		const std::shared_ptr<CommentScope> &except) {
+	const auto scopes = _commentScopes;
+	for (const auto &weak : scopes) {
+		if (const auto scope = weak.lock()) {
+			if (scope != except) {
+				scope->cancel();
+			}
+		}
+	}
+	validateCommentScopes();
+}
+
+void Session::decryptComment(
+		KeyAuthorization auth,
+		std::shared_ptr<CommentScope> scope,
+		Fn<void(CommentDecryptResult)> done) {
+	using Error = CommentDecryptError;
+	const auto finish = [=, this](CommentDecryptResult result) {
+		if (!commentScopeCurrent(scope)) {
+			result = { .error = Error::Cancelled };
+		}
+		if (done) {
+			done(std::move(result));
+		}
+	};
+	if (!commentScopeCurrent(scope)) {
+		finish({ .error = Error::Cancelled });
+		return;
+	} else if (custodyBusy()
+		|| !scope->_state->record
+		|| !_engine->client()
+		|| _clientRecordId != scope->_state->record->recordId) {
+		finish({ .error = Error::Unavailable });
+		return;
+	} else if (!ReadAuthorized(*this, auth)) {
+		finish({ .error = Error::Locked });
+		return;
+	}
+	const auto state = scope->_state;
+	const auto client = _engine->client();
+	const auto request = engine::DecryptCommentRequest{
+		.sender = state->sender.toStdString(),
+		.body = state->body.toStdString(),
+	};
+	_engine->run([
+		state,
+		client,
+		request,
+		grant = std::move(auth.grant)
+	]() mutable {
+		const auto authorization = base::take(grant);
+		if (state->cancelled || state->epoch != state->vault->clearEpoch()) {
+			return DecryptedComment{ .error = Error::Cancelled };
+		} else if (!authorization->valid() || !state->vault->unlocked()) {
+			return DecryptedComment{ .error = Error::Locked };
+		}
+		auto result = DecryptCommentBody(client, request);
+		if (state->cancelled || state->epoch != state->vault->clearEpoch()) {
+			return DecryptedComment{ .error = Error::Cancelled };
+		}
+		return result;
+	}, [=, this](DecryptedComment result) {
+		if (!commentScopeCurrent(scope) || client != _engine->client()) {
+			finish({ .error = Error::Cancelled });
+		} else if (result.error != Error::None) {
+			finish({ .error = result.error });
+		} else {
+			const auto text = result.text.span();
+			finish({ .text = QString::fromUtf8(
+				reinterpret_cast<const char*>(text.data()),
+				text.size()) });
+		}
+	}, [=](EngineError) {
+		finish({ .error = Error::Failed });
+	});
 }
 
 void Session::revealPhrase(
@@ -1228,6 +1748,7 @@ void Session::revealPhrase(
 		}
 		return;
 	}
+	retireCommentScopes();
 	_phraseRevealing = true;
 	// Every path below ends in exactly one of these two calls, which is
 	// what clears the guard, so none of them is fenced by _networkGeneration:
@@ -1300,13 +1821,33 @@ void Session::revealFromShares(
 		KeyAuthorization auth,
 		std::optional<Core::CloudPasswordResult> password,
 		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
-		Fn<void(const QString &)> fail) {
+		Fn<void(const QString &)> fail,
+		std::shared_ptr<CommentScope> scope) {
+	if (scope && !commentScopeCurrent(scope)) {
+		fail(u"PHRASE_ORIGIN_EXPIRED"_q);
+		return;
+	}
+	if (scope && !_capabilities.current().canExportPhrase) {
+		fail(u"PHRASE_STATE_UNKNOWN"_q);
+		return;
+	}
 	using Flag = MTPwallet_exportSecretPhrase::Flag;
 	const auto checked = password && *password;
-	_stateApi.request(MTPwallet_ExportSecretPhrase(
+	const auto pending = std::make_shared<bool>(true);
+	const auto request = _stateApi.request(MTPwallet_ExportSecretPhrase(
 		MTP_flags(checked ? Flag::f_password : Flag(0)),
 		checked ? password->result : MTP_inputCheckPasswordEmpty()
 	)).done([=, this](const MTPwallet_SecretPhraseParts &result) {
+		if (!base::take(*pending)) {
+			return;
+		}
+		if (scope) {
+			scope->_state->cancelPending = nullptr;
+		}
+		if (scope && !commentScopeCurrent(scope)) {
+			fail(u"PHRASE_ORIGIN_EXPIRED"_q);
+			return;
+		}
 		const auto &data = result.data();
 		const auto dcs = ParseHolderDcs(data);
 		if (!dcs) {
@@ -1315,12 +1856,33 @@ void Session::revealFromShares(
 			fail(u"PHRASE_PARTS_INVALID"_q);
 			return;
 		}
-		fetchShareParts(auth, qs(data.vtoken()), *dcs, done, fail);
-	}).fail([=](const MTP::Error &error) {
+		fetchShareParts(auth, qs(data.vtoken()), *dcs, done, fail, scope);
+	}).fail([=, this](const MTP::Error &error) {
+		if (!base::take(*pending)) {
+			return;
+		}
+		if (scope) {
+			scope->_state->cancelPending = nullptr;
+		}
+		if (scope && !commentScopeCurrent(scope)) {
+			fail(u"PHRASE_ORIGIN_EXPIRED"_q);
+			return;
+		}
 		LOG(("Wallet Error: wallet.exportSecretPhrase failed: %1"
 			).arg(error.type()));
-		fail(error.type());
+		fail((scope && MTP::IgnoreError(error))
+			? u"PHRASE_SILENT_ERROR"_q
+			: error.type());
 	}).handleFloodErrors().send();
+	if (scope) {
+		scope->_state->cancelPending = crl::guard(_engine.get(), [=, this] {
+			if (!base::take(*pending)) {
+				return;
+			}
+			_stateApi.request(request).cancel();
+			fail(u"PHRASE_ORIGIN_EXPIRED"_q);
+		});
+	}
 }
 
 void Session::fetchShareParts(
@@ -1328,7 +1890,12 @@ void Session::fetchShareParts(
 		const QString &token,
 		std::vector<int> dcs,
 		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
-		Fn<void(const QString &)> fail) {
+		Fn<void(const QString &)> fail,
+		std::shared_ptr<CommentScope> scope) {
+	if (scope && !commentScopeCurrent(scope)) {
+		fail(u"PHRASE_ORIGIN_EXPIRED"_q);
+		return;
+	}
 	auto keys = TdE2E::TemporaryKeyPair::Generate();
 	if (!keys) {
 		LOG(("Wallet Error: could not generate an ephemeral key."));
@@ -1341,7 +1908,12 @@ void Session::fetchShareParts(
 		.shares = std::vector<QByteArray>(count),
 		.requests = std::vector<mtpRequestId>(count),
 		.sessions = std::vector<MTP::ShiftedDcId>(count),
-		.fail = fail,
+		.fail = [=](const QString &error) {
+			if (scope) {
+				scope->_state->cancelPending = nullptr;
+			}
+			fail(error);
+		},
 		.pending = count,
 	});
 	const auto publicKey = state->keys.publicKey();
@@ -1356,6 +1928,14 @@ void Session::fetchShareParts(
 				return;
 			}
 			state->requests[i] = 0;
+			if (scope && !commentScopeCurrent(scope)) {
+				FailShareFetch(
+					_stateApi,
+					_shareFetchTimer,
+					state,
+					u"PHRASE_ORIGIN_EXPIRED"_q);
+				return;
+			}
 			if (!OpenSharePart(state, i, result.data().vdata().v)) {
 				FailShareFetch(
 					_stateApi,
@@ -1378,11 +1958,15 @@ void Session::fetchShareParts(
 					u"PHRASE_PART_INVALID"_q);
 				return;
 			}
+			if (scope) {
+				scope->_state->cancelPending = nullptr;
+			}
 			restoreFromWords(
 				auth,
 				SplitWords(QString::fromUtf8(*seed)),
 				done,
-				base::take(state->fail));
+				base::take(state->fail),
+				scope);
 		}).fail([=, this](const MTP::Error &error) {
 			if (!state->fail) {
 				return;
@@ -1390,8 +1974,27 @@ void Session::fetchShareParts(
 			state->requests[i] = 0;
 			LOG(("Wallet Error: wallet.fetchEncryptedSecretPhrasePart "
 				"failed: %1").arg(error.type()));
-			FailShareFetch(_stateApi, _shareFetchTimer, state, error.type());
+			FailShareFetch(
+				_stateApi,
+				_shareFetchTimer,
+				state,
+				(scope && !commentScopeCurrent(scope))
+					? u"PHRASE_ORIGIN_EXPIRED"_q
+					: (scope && MTP::IgnoreError(error))
+					? u"PHRASE_SILENT_ERROR"_q
+					: error.type());
 		}).handleFloodErrors().toDC(state->sessions[i]).send();
+	}
+	if (scope) {
+		scope->_state->cancelPending = crl::guard(_engine.get(), [=, this] {
+			if (state->fail) {
+				FailShareFetch(
+					_stateApi,
+					_shareFetchTimer,
+					state,
+					u"PHRASE_ORIGIN_EXPIRED"_q);
+			}
+		});
 	}
 	_shareFetch = state;
 	_shareFetchTimer.setCallback([this] {
@@ -1410,14 +2013,20 @@ void Session::restoreFromWords(
 		KeyAuthorization auth,
 		std::vector<QString> words,
 		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
-		Fn<void(const QString &)> fail) {
-	if (words.size() < 2) {
+		Fn<void(const QString &)> fail,
+		std::shared_ptr<CommentScope> scope) {
+	if (scope && !commentScopeCurrent(scope)) {
+		fail(u"PHRASE_ORIGIN_EXPIRED"_q);
+		return;
+	} else if (words.size() < 2) {
 		LOG(("Wallet Error: reconstructed phrase has no words."));
 		fail(u"PHRASE_EMPTY"_q);
 		return;
 	}
 	const auto lifecycle = _engine->lifecycle();
-	const auto expected = _publicKey;
+	const auto expected = scope
+		? scope->_state->target.walletIdentity->publicKey
+		: _publicKey;
 	// The resolved install travels into both continuations, which is what
 	// holds the grant across the worker call: the runtime cleanses the key
 	// as soon as the last handle goes, and the store runs on the worker.
@@ -1426,6 +2035,13 @@ void Session::restoreFromWords(
 	const auto store = [=, this](
 			CustodyInstall install,
 			std::vector<QString> phrase) {
+		if (scope && !commentScopeCurrent(scope)) {
+			fail(u"PHRASE_ORIGIN_EXPIRED"_q);
+			return;
+		} else if (!install.grant || !install.grant->valid()) {
+			fail(u"PHRASE_VAULT_LOCKED"_q);
+			return;
+		}
 		auto recoveryWords = std::vector<std::string>();
 		recoveryWords.reserve(phrase.size());
 		for (const auto &word : phrase) {
@@ -1437,45 +2053,76 @@ void Session::restoreFromWords(
 			.recovery_words = std::move(recoveryWords),
 		};
 		const auto stores = std::make_shared<EngineSecretStores>();
+		const auto state = scope ? scope->_state : nullptr;
 		_engine->run([
 			lifecycle,
 			request = std::move(request),
 			stores,
+			state,
+			grant = install.grant,
 			words = std::move(phrase)
-		]() mutable {
+		]() mutable -> std::optional<Restored> {
+			if (state && (state->cancelled
+				|| state->epoch != state->vault->clearEpoch()
+				|| !grant->valid())) {
+				return std::nullopt;
+			}
 			const auto recording = stores->record();
 			auto descriptor = lifecycle->import_wallet(request);
 			return Restored{ std::move(descriptor), std::move(words) };
-		}, [=, this](Restored restored) {
-			const auto record = RecordFromDescriptor(restored.descriptor);
-			if (record.publicKey != expected) {
-				LOG(("Wallet Error: restored phrase derives another key."));
-				if (install.created) {
-					dropCreatedVault();
-				}
-				_engine->run([lifecycle, descriptor = restored.descriptor] {
-					lifecycle->delete_wallet(descriptor);
-				}, [=] {
-					fail(u"PHRASE_KEY_MISMATCH"_q);
-				}, [=](EngineError) {
-					LOG(("Wallet Error: delete_wallet after a key mismatch "
-						"failed."));
-					fail(u"PHRASE_KEY_MISMATCH"_q);
-				});
+		}, [=, this](std::optional<Restored> result) {
+			if (!result) {
+				fail(u"PHRASE_ORIGIN_EXPIRED"_q);
 				return;
 			}
-			const auto persisted = persistCustody(record);
-			if (!persisted) {
-				if (install.created) {
-					dropCreatedVault();
-				}
-				_engine->run([lifecycle, descriptor = restored.descriptor] {
+			auto restored = std::move(*result);
+			const auto descriptor = restored.descriptor;
+			auto record = RecordFromDescriptor(descriptor);
+			const auto rollback = [=, this](Fn<void()> finished) {
+				const auto cleanup = [=, this] {
+					_engine->dropStoredSecrets(*stores);
+					if (install.created) {
+						dropCreatedVault();
+					}
+					finished();
+				};
+				_engine->run([lifecycle, descriptor] {
 					lifecycle->delete_wallet(descriptor);
-				}, [] {}, [](EngineError) {});
+				}, cleanup, [=](EngineError) {
+					cleanup();
+				});
+			};
+			if (record.publicKey != expected
+				|| (scope && (record.network != int(engine::Network::kMainnet)
+					|| CanonicalAddress(record.address)
+						!= scope->_state->target.walletIdentity->address))) {
+				rollback([=] { fail(u"PHRASE_KEY_MISMATCH"_q); });
+				return;
+			} else if (scope && !commentScopeCurrent(scope)) {
+				rollback([=] { fail(u"PHRASE_ORIGIN_EXPIRED"_q); });
+				return;
 			}
-			done(std::move(restored.words), persisted
-				? CustodyOutcome::Installed
-				: CustodyOutcome::WriteFailed);
+			if (scope) {
+				record.active = true;
+				scope->_state->record = record;
+			}
+			if (!persistCustody(record)) {
+				if (scope) {
+					scope->_state->record = std::nullopt;
+				}
+				rollback([=, words = std::move(restored.words)]() mutable {
+					done(std::move(words), CustodyOutcome::WriteFailed);
+				});
+				return;
+			} else if (scope && !commentScopeCurrent(scope)) {
+				const auto current = custody().matching(record.publicKey);
+				if (current && current->recordId == record.recordId) {
+					removeCustodyRecord(record.publicKey);
+				}
+				rollback([=] { fail(u"PHRASE_ORIGIN_EXPIRED"_q); });
+				return;
+			}
+			done(std::move(restored.words), CustodyOutcome::Installed);
 		}, [=, this](EngineError error) {
 			// The record goes before the header: a store creates the vault
 			// header only together with the record it seals, so removing
@@ -1485,6 +2132,10 @@ void Session::restoreFromWords(
 			_engine->dropStoredSecrets(*stores);
 			if (install.created) {
 				dropCreatedVault();
+			}
+			if (scope && !commentScopeCurrent(scope)) {
+				fail(u"PHRASE_ORIGIN_EXPIRED"_q);
+				return;
 			}
 			const auto name = LifecycleErrorName(error);
 			LOG(("Wallet Error: import_wallet failed: %1").arg(name));
@@ -1499,14 +2150,16 @@ void Session::restoreFromWords(
 	// grant handed out by an open retention window must never carry a
 	// silent store into a vault whose passcode the user has not just typed.
 	if (const auto install = auth.install) {
-		install([=, words = std::move(words)](
+		install(crl::guard(_session, [=, words = std::move(words)](
 				CustodyInstall answer) mutable {
-			if (!answer.grant) {
+			if (scope && !commentScopeCurrent(scope)) {
+				fail(u"PHRASE_ORIGIN_EXPIRED"_q);
+			} else if (!answer.grant) {
 				done(std::move(words), CustodyOutcome::Cancelled);
 			} else {
 				store(std::move(answer), std::move(words));
 			}
-		});
+		}));
 	} else if (auth.grant && auth.grant->valid()) {
 		store(CustodyInstall{ .grant = auth.grant }, std::move(words));
 	} else {
@@ -1519,7 +2172,34 @@ void Session::restoreFromPhrase(
 		std::vector<QString> words,
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail) {
-	ensureLoaded();
+	restoreFromPhrase(
+		std::move(auth),
+		std::move(words),
+		nullptr,
+		[done = std::move(done)](KeyAuthorization) {
+			if (done) {
+				done();
+			}
+		},
+		std::move(fail));
+}
+
+void Session::restoreFromPhrase(
+		KeyAuthorization auth,
+		std::vector<QString> words,
+		std::shared_ptr<CommentScope> scope,
+		Fn<void(KeyAuthorization)> done,
+		Fn<void(const QString &error)> fail) {
+	if (scope) {
+		if (!commentScopeCurrent(scope) || scope->_state->record) {
+			if (fail) {
+				fail(u"PHRASE_ORIGIN_EXPIRED"_q);
+			}
+			return;
+		}
+	} else {
+		ensureLoaded();
+	}
 	if (custodyBusy()) {
 		LOG(("Wallet Error: restore requested while another is in flight."));
 		if (fail) {
@@ -1544,6 +2224,9 @@ void Session::restoreFromPhrase(
 		}
 		return;
 	}
+	const auto installed = std::make_shared<KeyAuthorization>();
+	auth = TrackCommentInstallation(std::move(auth), installed);
+	retireCommentScopes(scope);
 	_phraseRevealing = true;
 	// A store the install ladder was cancelled out of persists nothing, and
 	// this flow has no words of its own to show, so it is a failure here.
@@ -1552,8 +2235,9 @@ void Session::restoreFromPhrase(
 	// clear the guard a second time. The two not-installed outcomes are told
 	// apart, because a cancelled chooser states nothing while a custody write
 	// that failed must be stated.
-	auto refused = [this, fail](const QString &error) {
+	auto refused = [this, fail, installed](const QString &error) {
 		_phraseRevealing = false;
+		*installed = KeyAuthorization();
 		if (fail) {
 			fail(error);
 		}
@@ -1561,13 +2245,18 @@ void Session::restoreFromPhrase(
 	restoreFromWords(
 		std::move(auth),
 		std::move(words),
-		[this, done = std::move(done), fail = std::move(fail)](
+		[this, scope, installed, done = std::move(done), fail = std::move(fail)](
 				std::vector<QString>,
 				CustodyOutcome outcome) {
 			_phraseRevealing = false;
-			if (outcome == CustodyOutcome::Installed) {
+			if (scope && !commentScopeCurrent(scope)) {
+				*installed = KeyAuthorization();
+				if (fail) {
+					fail(u"PHRASE_ORIGIN_EXPIRED"_q);
+				}
+			} else if (outcome == CustodyOutcome::Installed) {
 				if (done) {
-					done();
+					done(base::take(*installed));
 				}
 			} else if (fail) {
 				fail((outcome == CustodyOutcome::WriteFailed)
@@ -1575,7 +2264,8 @@ void Session::restoreFromPhrase(
 					: u"PHRASE_INSTALL_CANCELLED"_q);
 			}
 		},
-		std::move(refused));
+		std::move(refused),
+		scope);
 }
 
 void Session::restoreFromBackup(
@@ -1583,7 +2273,34 @@ void Session::restoreFromBackup(
 		std::optional<Core::CloudPasswordResult> password,
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail) {
-	ensureLoaded();
+	restoreFromBackup(
+		std::move(auth),
+		std::move(password),
+		nullptr,
+		[done = std::move(done)](KeyAuthorization) {
+			if (done) {
+				done();
+			}
+		},
+		std::move(fail));
+}
+
+void Session::restoreFromBackup(
+		KeyAuthorization auth,
+		std::optional<Core::CloudPasswordResult> password,
+		std::shared_ptr<CommentScope> scope,
+		Fn<void(KeyAuthorization)> done,
+		Fn<void(const QString &error)> fail) {
+	if (scope) {
+		if (!commentScopeCurrent(scope) || scope->_state->record) {
+			if (fail) {
+				fail(u"PHRASE_ORIGIN_EXPIRED"_q);
+			}
+			return;
+		}
+	} else {
+		ensureLoaded();
+	}
 	if (custodyBusy()) {
 		LOG(("Wallet Error: restore requested while another is in flight."));
 		if (fail) {
@@ -1599,14 +2316,18 @@ void Session::restoreFromBackup(
 		}
 		return;
 	}
+	const auto installed = std::make_shared<KeyAuthorization>();
+	auth = TrackCommentInstallation(std::move(auth), installed);
+	retireCommentScopes(scope);
 	_phraseRevealing = true;
 	// Same one-terminal-call shape as restoreFromPhrase: an install ladder
 	// that stored nothing makes this flow fail, because a restore that stored
 	// nothing restored nothing. The two not-installed outcomes are told apart,
 	// because a cancelled chooser states nothing while a custody write that
 	// failed must be stated.
-	auto refused = [this, fail](const QString &error) {
+	auto refused = [this, fail, installed](const QString &error) {
 		_phraseRevealing = false;
+		*installed = KeyAuthorization();
 		if (fail) {
 			fail(error);
 		}
@@ -1614,13 +2335,18 @@ void Session::restoreFromBackup(
 	revealFromShares(
 		std::move(auth),
 		std::move(password),
-		[this, done = std::move(done), fail = std::move(fail)](
+		[this, scope, installed, done = std::move(done), fail = std::move(fail)](
 				std::vector<QString>,
 				CustodyOutcome outcome) {
 			_phraseRevealing = false;
-			if (outcome == CustodyOutcome::Installed) {
+			if (scope && !commentScopeCurrent(scope)) {
+				*installed = KeyAuthorization();
+				if (fail) {
+					fail(u"PHRASE_ORIGIN_EXPIRED"_q);
+				}
+			} else if (outcome == CustodyOutcome::Installed) {
 				if (done) {
-					done();
+					done(base::take(*installed));
 				}
 			} else if (fail) {
 				fail((outcome == CustodyOutcome::WriteFailed)
@@ -1628,7 +2354,8 @@ void Session::restoreFromBackup(
 					: u"PHRASE_INSTALL_CANCELLED"_q);
 			}
 		},
-		std::move(refused));
+		std::move(refused),
+		scope);
 }
 
 void Session::revealParked(
@@ -1666,6 +2393,7 @@ void Session::revealParked(
 		}
 		return;
 	}
+	retireCommentScopes();
 	_phraseRevealing = true;
 	done = [this, done = std::move(done)](
 			std::vector<QString> words,
@@ -1715,6 +2443,7 @@ void Session::dropParked(
 		}
 		return;
 	}
+	retireCommentScopes();
 	_replacing = true;
 	done = [this, done = std::move(done)] {
 		_replacing = false;
@@ -1776,6 +2505,7 @@ void Session::prepareBackupParts(
 		}
 		return;
 	}
+	retireCommentScopes();
 	_backupChanging = true;
 	// Every path below ends in exactly one of these two calls, which is
 	// what clears the guard, so none of them is fenced by _networkGeneration:
@@ -1856,6 +2586,7 @@ void Session::disableBackup(
 		}
 		return;
 	}
+	retireCommentScopes();
 	_backupChanging = true;
 	done = [this, done = std::move(done)] {
 		_backupChanging = false;
@@ -1922,6 +2653,7 @@ void Session::enableBackup(
 		}
 		return;
 	}
+	retireCommentScopes();
 	_backupChanging = true;
 	done = [this, done = std::move(done)] {
 		_backupChanging = false;
@@ -1995,6 +2727,7 @@ void Session::quoteRotationFee(
 		}
 		return;
 	}
+	retireCommentScopes();
 	_rotating = true;
 	const auto client = _engine->client();
 	const auto generation = _networkGeneration;
@@ -2110,6 +2843,7 @@ void Session::prepareRotation(
 		}
 		return;
 	}
+	retireCommentScopes();
 	_rotating = true;
 	fail = [this, fail = std::move(fail)](const QString &error) {
 		_rotating = false;
@@ -2286,6 +3020,7 @@ void Session::dropCustodyAfterForgottenPasscode() {
 const CustodyStore &Session::custody() {
 	if (!_custody) {
 		_custody = ReadCustodyStore(_session->local());
+		_custodyReadFailed = !_custody.has_value();
 		if (!_custody) {
 			LOG(("Wallet Error: custody store unreadable, treating as empty."));
 			_custody = CustodyStore();
@@ -2313,6 +3048,7 @@ bool Session::persistCustody(const CustodyRecord &record) {
 		LOG(("Wallet Error: custody record write failed."));
 		return false;
 	}
+	_custodyReadFailed = false;
 	_custody = std::move(store);
 	updateDeviceCustodyState();
 	return true;
@@ -2360,6 +3096,7 @@ void Session::replaceWithNew(
 		}
 		return;
 	}
+	retireCommentScopes();
 	_replacing = true;
 	done = [this, done = std::move(done)](CustodyOutcome outcome) {
 		_replacing = false;
@@ -2419,6 +3156,7 @@ void Session::replaceWithImported(
 		}
 		return;
 	}
+	retireCommentScopes();
 	_replacing = true;
 	done = [this, done = std::move(done)](CustodyOutcome outcome) {
 		_replacing = false;
@@ -2791,6 +3529,7 @@ void Session::syncEngineClient() {
 			|| _clientStopping) {
 			return;
 		}
+		retireCommentScopes();
 		_clientStopping = true;
 		_engine->stopClient([this] {
 			_clientStopping = false;
@@ -2829,6 +3568,7 @@ void Session::removeCustodyRecord(const QByteArray &publicKey) {
 }
 
 void Session::clearNetworkState() {
+	retireCommentScopes();
 	++_networkGeneration;
 	_balanceNano = 0;
 	_engineStatus = AccountStatus::NonExisting;
@@ -2845,7 +3585,6 @@ void Session::clearNetworkState() {
 	_pollTimer.cancel();
 	_stream->stop();
 	_sendUnresolved = false;
-	_historyDone.clear();
 	updateListsGate();
 	retirePreviews(SendError::Failed);
 }
@@ -2884,6 +3623,9 @@ void Session::applyEngineUpdate(const engine::WalletUpdate &update) {
 	applyRotationSnapshot(update.snapshot.send, false);
 	const auto &snapshot = update.snapshot;
 	const auto wasUnresolved = _sendUnresolved;
+	if (!TerminalSendPhase(snapshot.send.phase)) {
+		retireCommentScopes();
+	}
 	_sendUnresolved = !TerminalSendPhase(snapshot.send.phase);
 	if (_sendUnresolved && !wasUnresolved) {
 		updatePollingState();
@@ -2947,10 +3689,7 @@ void Session::refreshHistory(Fn<void()> done) {
 		}
 		return;
 	}
-	if (done) {
-		_historyDone.push_back(std::move(done));
-	}
-	requestTransactions(false);
+	requestTransactions(false, std::move(done));
 }
 
 void Session::refreshStaleHistory() {
@@ -2961,7 +3700,7 @@ void Session::refreshStaleHistory() {
 		|| (_presence.current() != Presence::Ready)
 		|| !pollingRequested()
 		|| collectiblesTab()
-		|| _historyRequestId) {
+		|| _historyRequest) {
 		return;
 	}
 	requestTransactions(false);
@@ -2972,10 +3711,22 @@ void Session::setHistory(std::vector<TransferItem> &&list) {
 	_historyUpdates.fire({});
 }
 
-void Session::requestTransactions(bool more) {
-	if (_historyRequestId) {
+void Session::requestTransactions(bool more, Fn<void()> done) {
+	if (_historyRequest) {
+		if (done) {
+			_historyRequest->done.push_back(std::move(done));
+		}
 		return;
 	}
+	const auto request = std::make_shared<HistoryRequest>(HistoryRequest{
+		.identity = transferWalletIdentity(),
+		.identityRevision = _walletIdentityRevision,
+		.generation = _networkGeneration,
+	});
+	if (done) {
+		request->done.push_back(std::move(done));
+	}
+	_historyRequest = request;
 	// A head page issued after an invalidation is what the marker asked for,
 	// whoever issued it, so it is spent here at the issue and not at the
 	// success: a failed forced page therefore retries nothing by itself, and
@@ -2990,32 +3741,62 @@ void Session::requestTransactions(bool more) {
 	// shows one undivided feed and offers no direction filter, so asking the
 	// server for half of the list would invent a UI this task does not add.
 	// They stay available for a filter that is actually designed.
-	_historyRequestId = _stateApi.request(MTPwallet_GetTransactions(
+	request->id = _stateApi.request(MTPwallet_GetTransactions(
 		MTP_flags(0),
 		MTP_string(more ? _historyNextOffset : QString()),
 		MTP_int(kTransactionsPerPage)
 	)).done([=](const MTPwallet_Transactions &result) {
-		_historyRequestId = 0;
-		applyTransactions(result, more);
-		finishHistoryWaiters();
-		refreshStaleHistory();
-	}).fail([=](const MTP::Error &error) {
-		_historyRequestId = 0;
-		LOG(("Wallet Error: wallet.getTransactions failed: %1"
-			).arg(error.type()));
-		if (!more) {
-			_historyUnreachable = true;
+		const auto current = (_historyRequest == request)
+			&& historyRequestCurrent(*request);
+		if (_historyRequest == request) {
+			_historyRequest = nullptr;
 		}
-		_historySettled = true;
-		updateListsGate();
-		finishHistoryWaiters();
-		refreshStaleHistory();
+		const auto weak = base::make_weak(_engine.get());
+		if (current) {
+			applyTransactions(result, more, *request);
+		}
+		FinishHistoryWaiters(base::take(request->done));
+		if (weak && current && historyRequestCurrent(*request)) {
+			refreshStaleHistory();
+		}
+	}).fail([=](const MTP::Error &error) {
+		const auto current = (_historyRequest == request)
+			&& historyRequestCurrent(*request);
+		if (_historyRequest == request) {
+			_historyRequest = nullptr;
+		}
+		const auto weak = base::make_weak(_engine.get());
+		if (current) {
+			LOG(("Wallet Error: wallet.getTransactions failed: %1"
+				).arg(error.type()));
+			if (!more) {
+				_historyUnreachable = true;
+			}
+			_historySettled = true;
+			updateListsGate();
+		}
+		FinishHistoryWaiters(base::take(request->done));
+		if (weak && current && historyRequestCurrent(*request)) {
+			refreshStaleHistory();
+		}
 	}).handleAllErrors().send();
+}
+
+bool Session::historyRequestCurrent(const HistoryRequest &request) const {
+	return request.generation == _networkGeneration
+		&& request.identityRevision == _walletIdentityRevision
+		&& _presence.current() == Presence::Ready
+		&& request.identity == transferWalletIdentity();
 }
 
 void Session::applyTransactions(
 		const MTPwallet_Transactions &result,
-		bool more) {
+		bool more,
+		const HistoryRequest &request) {
+	if (!historyRequestCurrent(request)) {
+		return;
+	}
+	const auto weak = base::make_weak(_engine.get());
 	const auto &data = result.data();
 	// The peers are stored before anything resolves one, because a row whose
 	// user is missing from Data::Session falls through to the address
@@ -3023,7 +3804,13 @@ void Session::applyTransactions(
 	// peer, so a dropped users vector would look exactly like a working
 	// client while losing the Telegram identity.
 	_session->data().processUsers(data.vusers());
+	if (!weak || !historyRequestCurrent(request)) {
+		return;
+	}
 	_session->data().processChats(data.vchats());
+	if (!weak || !historyRequestCurrent(request)) {
+		return;
+	}
 	const auto next = data.vnext_offset();
 	// An empty next_offset is byte-identical to a first-page request, so
 	// paging on it would read the same rows forever. It ends the list exactly
@@ -3040,7 +3827,8 @@ void Session::applyTransactions(
 	_historyPaged = more
 		&& (_panel != nullptr)
 		&& !collectiblesTab();
-	auto loaded = HistoryFromServer(data.vtransactions().v);
+	_historySettled = true;
+	auto loaded = HistoryFromServer(data.vtransactions().v, request.identity);
 	if (more) {
 		if (!loaded.empty()) {
 			auto list = _history;
@@ -3053,18 +3841,16 @@ void Session::applyTransactions(
 	} else if (!SameHistory(_history, loaded)) {
 		setHistory(std::move(loaded));
 	}
-	_historySettled = true;
-	updateListsGate();
-}
-
-void Session::finishHistoryWaiters() {
-	for (const auto &callback : base::take(_historyDone)) {
-		callback();
+	if (weak && historyRequestCurrent(request)) {
+		updateListsGate();
 	}
 }
 
 void Session::clearHistory() {
-	_stateApi.request(base::take(_historyRequestId)).cancel();
+	const auto request = base::take(_historyRequest);
+	if (request) {
+		_stateApi.request(request->id).cancel();
+	}
 	_history.clear();
 	_historyHasNext = false;
 	_historyNextOffset = QString();
@@ -3082,6 +3868,9 @@ void Session::clearHistory() {
 	// left: an open gate over two empty lists is listsConfirmedEmpty().
 	updateListsGate();
 	_historyUpdates.fire({});
+	if (request) {
+		FinishHistoryWaiters(base::take(request->done));
+	}
 }
 
 void Session::clearCollectibles() {
@@ -3101,7 +3890,7 @@ bool Session::historyHasNext() const {
 void Session::loadMoreHistory() {
 	ensureLoaded();
 	if (_presence.current() != Presence::Ready
-		|| _historyRequestId
+		|| _historyRequest
 		|| !_historyHasNext) {
 		return;
 	}

@@ -1532,9 +1532,7 @@ TextWithEntities ComposeTodoTasksList(
 }
 
 QString HistoryServiceGramTransfer::commentText() const {
-	return comment.isEmpty()
-		? QString()
-		: commentEncrypted
+	return commentEncrypted
 		? tr::lng_action_gram_transfer_encrypted_comment(tr::now)
 		: TextUtilities::SingleLine(comment);
 }

@@ -8835,6 +8835,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_details_gram" = "What is Gram?";
 "lng_wallet_details_operation" = "Operation";
 "lng_wallet_details_key_change" = "Wallet key update";
+"lng_wallet_details_reduced" = "Full details for this transaction are unavailable. Only information from the message is shown.";
+"lng_wallet_comment_unavailable" = "This comment can't be decrypted with the wallet information currently available.";
+"lng_wallet_comment_decryption_failed" = "This comment couldn't be decrypted. Please try again.";
 "lng_wallet_send_title" = "Send Grams";
 "lng_wallet_send_money" = "Money";
 "lng_wallet_profile_send_money" = "Send Money";
