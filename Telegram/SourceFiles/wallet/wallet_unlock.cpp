@@ -210,27 +210,20 @@ void UnlockByKind(
 		session->wallet().vault().clear();
 	}
 	auto ok = true;
-	const auto store = ReadCustodyStore(local);
+	auto store = ReadCustodyStore(local);
 	if (!store) {
 		LOG(("Wallet Error: custody store unreadable while dropping a vault "
 			"after a forgotten passcode."));
 		ok = false;
 	} else {
 		auto removed = 0;
-		const auto forget = [&](const QString &secretRef) {
-			if (secretRef.isEmpty()) {
-				return;
-			} else if (local.removeWalletEngineValue(
+		ForEachCustodySecretRef(*store, [&](const QString &secretRef) {
+			if (local.removeWalletEngineValue(
 					VaultSecretStorageKey(secretRef))) {
 				++removed;
 			}
-		};
-		for (const auto &record : store->records) {
-			forget(record.secretRef);
-		}
-		if (store->pendingRotation) {
-			forget(store->pendingRotation->secretRef);
-		}
+			return false;
+		});
 		const auto emptied = CustodyStore{
 			.lastSeenServerKey = store->lastSeenServerKey,
 		};

@@ -250,9 +250,13 @@ private:
 // generation and rewrites the header alone: a rollback before B, a completion
 // after it. The commit half clears the runtime right after write B, because
 // the key it holds is the one just retired; an account without a session has
-// no runtime and passes nullptr. The two halves are public so that a caller
-// changing one passcode across several stores can hold every vault staged
-// while another store's write runs and commit them only once it succeeded;
+// no runtime and passes nullptr. The commit half also reads the raw header
+// back before write B and refuses, writing nothing, unless the disk still
+// carries the staged wrap beside the unchanged committed generation, so the
+// rule holds by the primitive's own check when something reconciled between
+// the halves. The two halves are public so that a caller changing one
+// passcode across several stores can hold every vault staged while another
+// store's write runs and commit them only once it succeeded;
 // TransitionVaultWrap is exactly their composition.
 //
 // Refused writes nothing. Every stage failure leaves the caller header

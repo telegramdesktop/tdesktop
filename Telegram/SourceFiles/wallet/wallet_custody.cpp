@@ -85,6 +85,23 @@ const CustodyRecord *CustodyStore::matching(
 	return (i != end(records)) ? &*i : nullptr;
 }
 
+void ForEachCustodySecretRef(
+		CustodyStore &store,
+		Fn<bool(const QString &secretRef)> drop) {
+	auto &records = store.records;
+	const auto detached = ranges::remove_if(records, [&](
+			const CustodyRecord &record) {
+		return !record.secretRef.isEmpty() && drop(record.secretRef);
+	});
+	records.erase(detached, end(records));
+	auto &pending = store.pendingRotation;
+	if (pending
+		&& !pending->secretRef.isEmpty()
+		&& drop(pending->secretRef)) {
+		pending = std::nullopt;
+	}
+}
+
 std::optional<CustodyStore> ReadCustodyStore(Storage::Account &local) {
 	using State = Storage::WalletEngineValue::State;
 	const auto value = local.readWalletEngineValue(kCustodyStorageKey);

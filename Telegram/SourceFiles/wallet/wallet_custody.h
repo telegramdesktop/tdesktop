@@ -46,4 +46,15 @@ struct CustodyStore {
 	Storage::Account &local,
 	const CustodyStore &store);
 
+// The custody fields that name a secret, in store order: every record's
+// secretRef and then the pending rotation's, each offered once; an empty
+// reference names nothing and is skipped. A callback answering true
+// detaches the entry that carries the reference - the record is erased,
+// the pending rotation is cleared. Every pass that acts on the values the
+// store names walks this one definition, so a field that names a secret
+// is added in exactly one place.
+void ForEachCustodySecretRef(
+	CustodyStore &store,
+	Fn<bool(const QString &secretRef)> drop);
+
 } // namespace Wallet

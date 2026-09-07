@@ -588,23 +588,16 @@ void WriteWrap(Serialize::ByteArrayWriter &stream, const VaultWrap &wrap) {
 
 [[nodiscard]] std::optional<std::vector<QString>> CustodyRecordKeys(
 		Storage::Account &local) {
-	const auto store = ReadCustodyStore(local);
+	auto store = ReadCustodyStore(local);
 	if (!store) {
 		return std::nullopt;
 	}
 	auto result = std::vector<QString>();
 	result.reserve(store->records.size() + 1);
-	const auto add = [&](const QString &secretRef) {
-		if (!secretRef.isEmpty()) {
-			result.push_back(VaultSecretStorageKey(secretRef));
-		}
-	};
-	for (const auto &record : store->records) {
-		add(record.secretRef);
-	}
-	if (store->pendingRotation) {
-		add(store->pendingRotation->secretRef);
-	}
+	ForEachCustodySecretRef(*store, [&](const QString &secretRef) {
+		result.push_back(VaultSecretStorageKey(secretRef));
+		return false;
+	});
 	ranges::sort(result);
 	result.erase(ranges::unique(result), end(result));
 	return result;
@@ -1384,6 +1377,29 @@ bool CommitStagedVaultWrap(
 			).arg(int(header.wraps.size())).arg(header.committed));
 		return false;
 	}
+	// A reconciling read between the two halves rolls the stage back on
+	// disk: every custody-named record is stripped to the committed
+	// generation and the committed wrap is written alone. Committing the
+	// header the caller still holds would then move committed to a
+	// generation no record carries an entry at and drop the only wrap that
+	// opens them, so the disk is read once here and a stage it no longer
+	// carries is refused: nothing is written and the previous wrap stays
+	// committed.
+	const auto parsed = ReadRawVaultHeader(local);
+	const auto reading = DropStagedWraps(parsed);
+	const auto onDisk = ranges::find(
+		parsed.header.wraps,
+		generation,
+		&VaultWrap::generation);
+	if (reading.state != VaultReading::State::Read
+		|| reading.header.committed != header.committed
+		|| onDisk == end(parsed.header.wraps)
+		|| !SameWrap(*onDisk, *staged)) {
+		LOG(("Wallet Error: refused to commit the staged vault wrap at "
+			"generation %1: the disk no longer carries it beside the committed "
+			"generation %2.").arg(generation).arg(header.committed));
+		return false;
+	}
 	auto committing = header;
 	committing.committed = generation;
 	if (!WriteVaultHeader(local, committing)) {
@@ -1423,18 +1439,14 @@ VaultTransitionResult TransitionVaultWrap(
 }
 
 int DropPreVaultCustody(Storage::Account &local, CustodyStore &store) {
-	auto &records = store.records;
-	const auto plain = ranges::remove_if(records, [&](
-			const CustodyRecord &record) {
-		return DropPlainSecret(local, record.secretRef);
-	});
-	auto dropped = int(end(records) - plain);
-	records.erase(plain, end(records));
-	if (store.pendingRotation
-		&& DropPlainSecret(local, store.pendingRotation->secretRef)) {
-		store.pendingRotation = std::nullopt;
+	auto dropped = 0;
+	ForEachCustodySecretRef(store, [&](const QString &secretRef) {
+		if (!DropPlainSecret(local, secretRef)) {
+			return false;
+		}
 		++dropped;
-	}
+		return true;
+	});
 	if (!dropped) {
 		return 0;
 	}
