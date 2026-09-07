@@ -420,7 +420,13 @@ shortfall refuses with a named fixture gate (`fixture gate: golden wallet
 balance short`) and the performer publishes the task-local Block naming the
 address and the amount required, never a driven workaround. Campaigns on the
 golden wallet never reset it and spend only what a leg needs; state the count
-of live legs the run issued.
+of live legs the run issued. A live leg also satisfies the effective
+`wallet_transfer_min_nanos` floor in force for that account, in addition to
+the conservative 0.3 GRAM evidence guidance, which the configured floor does
+not replace. No campaign spends a sub-floor amount to observe how the
+backend answers: the client's own amount refusal is established from
+controlled configuration and local send fixtures, and an at-the-floor
+control may stop at fee preview.
 
 After a confirmed key rotation the scenario calls
 `Test::RewriteGramAccountWords(newWords, addressRaw)` from the stage that
