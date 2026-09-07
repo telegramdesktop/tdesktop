@@ -84,6 +84,13 @@ struct Decoded {
 	return mapped.size() >= kMinimumMappedLength;
 }
 
+[[nodiscard]] bool IsDroppedMarkup(std::string_view word) {
+	return (word == "chffffff")
+		|| (word == "fntahoma")
+		|| (word == "b1")
+		|| (word == "i0");
+}
+
 [[nodiscard]] int Fail(const char *action, const char *path) {
 	std::fprintf(stderr, "zxcvbn_translit: cannot %s %s\n", action, path);
 	return 1;
@@ -100,25 +107,50 @@ int main(int argc, char *argv[]) {
 	if (!input) {
 		return Fail("read", argv[1]);
 	}
-	auto output = std::ofstream(argv[2], std::ios::binary);
+	const auto tmpPath = std::string(argv[2]) + ".tmp";
+	std::remove(tmpPath.c_str());
+	auto output = std::ofstream(tmpPath, std::ios::binary);
 	if (!output) {
 		return Fail("write", argv[2]);
 	}
 	auto line = std::string();
 	auto mapped = std::string();
+	auto written = std::size_t(0);
 	while (std::getline(input, line)) {
 		auto word = std::string_view(line);
 		if (!word.empty() && word.back() == '\r') {
 			word.remove_suffix(1);
 		}
 		word = word.substr(0, word.find_first_of(" \t"));
-		if (!word.empty() && MapWord(word, mapped)) {
+		if (!word.empty()
+			&& MapWord(word, mapped)
+			&& !IsDroppedMarkup(mapped)) {
 			output << mapped << '\n';
+			++written;
 		}
 	}
 	if (input.bad()) {
+		output.close();
+		std::remove(tmpPath.c_str());
 		return Fail("read", argv[1]);
 	}
 	output.close();
-	return output ? 0 : Fail("write", argv[2]);
+	if (!output) {
+		std::remove(tmpPath.c_str());
+		return Fail("write", argv[2]);
+	}
+	if (!written) {
+		std::remove(tmpPath.c_str());
+		std::fprintf(
+			stderr,
+			"zxcvbn_translit: no words mapped from %s\n",
+			argv[1]);
+		return 1;
+	}
+	std::remove(argv[2]);
+	if (std::rename(tmpPath.c_str(), argv[2]) != 0) {
+		std::remove(tmpPath.c_str());
+		return Fail("write", argv[2]);
+	}
+	return 0;
 }

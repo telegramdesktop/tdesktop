@@ -78,6 +78,14 @@ foreach (name ${zxcvbn_translit_words})
     list(APPEND zxcvbn_latin_words ${zxcvbn_gen}/${latin_name})
 endforeach()
 
+set(zxcvbn_dict_inputs ${zxcvbn_words} ${zxcvbn_latin_words})
+list(LENGTH zxcvbn_dict_inputs zxcvbn_dict_input_count)
+# dict-generate.cpp FileInfo InInfo[10]; NumFiles saturates at 9.
+set(zxcvbn_dict_input_ceiling 9)
+if (zxcvbn_dict_input_count GREATER ${zxcvbn_dict_input_ceiling})
+    message(FATAL_ERROR "zxcvbn dictionary generator combines at most ${zxcvbn_dict_input_ceiling} input lists (pinned dict-generate.cpp FileInfo InInfo[10]); this build has ${zxcvbn_dict_input_count}.")
+endif()
+
 # OUTPUT with explicit DEPENDS: the generator runs only when the word lists or
 # the generator itself change, so an ordinary incremental build neither
 # regenerates the dictionary nor relinks Telegram because of it.

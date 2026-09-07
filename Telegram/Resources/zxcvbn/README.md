@@ -85,8 +85,10 @@ disclaimer notice for the content beyond the licence line quoted above.
 
 The lists are used as build-time input only: the word column is kept, each
 word is transliterated to Latin letters by `zxcvbn_translit`, words that are
-still non-ASCII or shorter than two letters are dropped, and the result is
-compiled into the zxcvbn dictionary; the tracked files are unmodified copies.
+still non-ASCII or shorter than two letters are dropped, four OpenSubtitles
+subtitle-markup strings (`chffffff`, `fntahoma`, `b1`, `i0`) are dropped,
+and the result is compiled into the zxcvbn dictionary; the tracked files are
+unmodified copies.
 The count column only orders the words: the generated dictionary keeps a
 word's rank, not its count.
 
