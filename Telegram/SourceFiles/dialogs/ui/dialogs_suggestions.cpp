@@ -65,6 +65,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/dynamic_thumbnails.h"
 #include "ui/painter.h"
 #include "ui/search_field_controller.h"
+#include "ui/smooth_scroll.h"
 #include "ui/unread_badge_paint.h"
 #include "ui/ui_utility.h"
 #include "window/window_separate_id.h"
@@ -1410,6 +1411,7 @@ Suggestions::Suggestions(
 Suggestions::~Suggestions() = default;
 
 void Suggestions::setupTabs() {
+	Ui::DisableSmoothScroll(_tabsScroll.get());
 	_tabsScroll->setCustomWheelProcess([=](not_null<QWheelEvent*> e) {
 		const auto pixelDelta = e->pixelDelta();
 		const auto angleDelta = e->angleDelta();

@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_regex.h"
 #include "ui/ui_utility.h"
 #include "ui/effects/animations.h"
+#include "ui/smooth_scroll.h"
 
 #ifdef Q_OS_MAC
 #include "platform/mac/global_menu_mac.h"
@@ -665,6 +666,8 @@ bool Sandbox::notify(QObject *receiver, QEvent *e) {
 		if (!weak) {
 			return true;
 		}
+	} else if (e->type() == QEvent::Wheel && receiver) {
+		Ui::EnsureSmoothScroll(receiver);
 	}
 	return QApplication::notify(receiver, e);
 }

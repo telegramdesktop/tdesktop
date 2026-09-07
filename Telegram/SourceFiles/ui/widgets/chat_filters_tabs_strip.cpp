@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/filter_icons.h"
 #include "ui/power_saving.h"
+#include "ui/smooth_scroll.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/chat_filters_tabs_slider_reorder.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
@@ -336,6 +337,7 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 			});
 	}
 	wrap->toggle(false, anim::type::instant);
+	DisableSmoothScroll(scroll);
 	scroll->setCustomWheelProcess([=](not_null<QWheelEvent*> e) {
 		const auto pixelDelta = e->pixelDelta();
 		const auto angleDelta = e->angleDelta();
