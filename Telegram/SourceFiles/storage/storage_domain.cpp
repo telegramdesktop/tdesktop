@@ -807,10 +807,6 @@ PasscodeDerivation Domain::prepareNewWrap(const QByteArray &passcode) const {
 		passcode);
 }
 
-bool Domain::checkPasscode(const QByteArray &passcode) const {
-	return checkPasscode(prepareOpen(passcode));
-}
-
 // The only decisions this makes before the derivation runs are which wrap the
 // passcode has to open and whether such a wrap exists at all; neither depends
 // on what was typed and so neither tells an attacker anything about it. From

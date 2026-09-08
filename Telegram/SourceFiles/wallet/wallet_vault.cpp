@@ -945,21 +945,6 @@ VaultReading VaultRuntime::reading(Storage::Account &local) {
 	return ReconcileVaultHeader(local);
 }
 
-bool VaultRuntime::unlockWithPasscode(
-		Storage::Account &local,
-		const QByteArray &passcode) {
-	auto key = OpenCommittedWrap(
-		reading(local),
-		VaultKind::Passcode,
-		passcode);
-	if (!key) {
-		return false;
-	}
-	auto lock = std::lock_guard(_mutex);
-	_key = std::move(*key);
-	return true;
-}
-
 bool VaultRuntime::unlockOpen(Storage::Account &local) {
 	auto key = OpenCommittedWrap(reading(local), VaultKind::Open, {});
 	if (!key) {

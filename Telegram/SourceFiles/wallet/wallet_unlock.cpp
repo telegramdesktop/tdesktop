@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "storage/storage_domain.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/controls/button_busy.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/password_input.h"
@@ -52,10 +53,10 @@ constexpr auto kForgottenPasscodeClearKey = std::string_view(
 }
 
 // The runtime releases a key only through a grant's destructor, while
-// unlockOpen(), unlockWithPasscode() and unlockWith() install one without
-// minting a grant. So every successful unlock here is followed immediately
-// by grant(): the handle that answers is what keeps the key alive, and its
-// last copy going away is what cleanses it.
+// unlockOpen() and unlockWith() install one without minting a grant. So
+// every successful unlock here is followed immediately by grant(): the
+// handle that answers is what keeps the key alive, and its last copy
+// going away is what cleanses it.
 void UnlockByKind(
 		std::shared_ptr<Main::SessionShow> show,
 		VaultReading reading,
@@ -629,23 +630,14 @@ void WalletPasscodeBox(
 		error->show();
 		error->setText(text);
 	};
-	// A derivation in flight disables the field and the Submit button and
-	// dims the button's label. defaultBoxButton paints no disabled state of
-	// its own, so the label is its text colour at half alpha, the box-footer
-	// idiom. The button is transparent to the mouse as well, but Enter in
-	// the field and a key release on a focused button still reach the
-	// handler, so submit itself refuses while busy.
+	// A derivation in flight disables the field as well as the Submit
+	// button. The button stops taking the mouse, but Enter in the field
+	// and a key release on a focused button still reach the handler, so
+	// submit itself refuses while state->busy is set.
 	const auto setBusy = [=](bool busy) {
 		state->busy = busy;
 		field->setDisabled(busy);
-		if (const auto button = state->submit.data()) {
-			button->setDisabled(busy);
-			button->setAttribute(Qt::WA_TransparentForMouseEvents, busy);
-			button->setTextFgOverride(busy
-				? std::make_optional(
-					anim::with_alpha(button->st().textFg->c, 0.5))
-				: std::nullopt);
-		}
+		Ui::SetButtonBusy(state->submit.data(), busy);
 		if (!busy) {
 			field->setFocus();
 		}

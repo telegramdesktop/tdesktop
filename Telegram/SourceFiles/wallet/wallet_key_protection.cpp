@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "storage/storage_domain.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/controls/button_busy.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/fields/password_input.h"
 #include "ui/widgets/buttons.h"
@@ -837,14 +838,7 @@ void WalletPasscodeCreateBox(
 		state->busy = busy;
 		first->setDisabled(busy);
 		second->setDisabled(busy);
-		if (const auto button = state->save.data()) {
-			button->setDisabled(busy);
-			button->setAttribute(Qt::WA_TransparentForMouseEvents, busy);
-			button->setTextFgOverride(busy
-				? std::make_optional(
-					anim::with_alpha(button->st().textFg->c, 0.5))
-				: std::nullopt);
-		}
+		Ui::SetButtonBusy(state->save.data(), busy);
 		if (!busy) {
 			first->setFocus();
 		}
@@ -1017,14 +1011,7 @@ void KeyProtectionBox(
 		for (const auto radio : state->radios) {
 			radio->setDisabled(busy);
 		}
-		if (const auto button = state->save.data()) {
-			button->setDisabled(busy);
-			button->setAttribute(Qt::WA_TransparentForMouseEvents, busy);
-			button->setTextFgOverride(busy
-				? std::make_optional(
-					anim::with_alpha(button->st().textFg->c, 0.5))
-				: std::nullopt);
-		}
+		Ui::SetButtonBusy(state->save.data(), busy);
 	};
 	// Nothing was written, so the box stays open on the user's own choice.
 	const auto refuse = [=] {

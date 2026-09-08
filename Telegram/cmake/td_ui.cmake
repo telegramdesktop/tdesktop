@@ -490,6 +490,8 @@ PRIVATE
     ui/chat/torn_edge.h
     ui/chat/unsupported_notice.cpp
     ui/chat/unsupported_notice.h
+    ui/controls/button_busy.cpp
+    ui/controls/button_busy.h
     ui/controls/button_context_menu.cpp
     ui/controls/button_context_menu.h
     ui/controls/button_labels.cpp

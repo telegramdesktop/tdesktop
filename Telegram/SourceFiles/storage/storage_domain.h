@@ -36,6 +36,11 @@ struct KeyData;
 // the key back only for a wrap with the same { kdf, salt } this job was made
 // for, comparing instead of re-deriving, and never re-derives from bytes that
 // were already cleansed - such a mismatch is answered as a wrong passcode.
+// checkPasscode() takes one of these jobs and nothing else, so a caller
+// holding typed bytes builds it with prepareOpen() and runs it through
+// DeriveOnWorker() instead of paying the derivation on the main thread;
+// the byte-taking verifyPasscode() and setPasscode() forms remain for the
+// legs that still derive where they are called.
 class PasscodeDerivation final {
 public:
 	PasscodeDerivation(PasscodeDerivation &&other) noexcept;
@@ -132,7 +137,6 @@ public:
 		const QByteArray &passcode) const;
 	[[nodiscard]] PasscodeDerivation prepareNewWrap(
 		const QByteArray &passcode) const;
-	[[nodiscard]] bool checkPasscode(const QByteArray &passcode) const;
 	[[nodiscard]] bool checkPasscode(PasscodeDerivation derived) const;
 	[[nodiscard]] std::optional<PasscodeVerification> verifyPasscode(
 		const QByteArray &passcode);
