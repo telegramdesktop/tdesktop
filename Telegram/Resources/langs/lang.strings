@@ -1245,6 +1245,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passcode_check_title" = "Enter Passcode";
 "lng_passcode_change_title" = "Enter Passcode";
 "lng_passcode_unlock_about" = "Unlock Telegram to continue.";
+"lng_passcode_reset_failed_title" = "Passcode not removed";
+"lng_passcode_reset_failed_text" = "Telegram could not save the removal of your local passcode to disk, so the passcode is still set on this device. Make sure Telegram's data folder is writable and has free space, then try again. If Telegram asks for this passcode the next time it starts and you no longer remember it, use Log out on that screen to reset this installation.";
+"lng_passcode_reset_failed_retry" = "Try Again";
+"lng_passcode_reset_done" = "The local passcode was removed.";
 
 "lng_cloud_password_waiting_code" = "Confirmation code sent to {email}...";
 "lng_cloud_password_confirm" = "Confirm recovery email";

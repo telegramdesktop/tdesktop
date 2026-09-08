@@ -159,6 +159,13 @@ void Domain::resetWithForgottenPasscode() {
 	}
 }
 
+bool Domain::finishPasscodeClearAfterReset() {
+	if (!passcodeRemovalAuthorized()) {
+		return false;
+	}
+	return clearPasscodeAfterLastLogout();
+}
+
 void Domain::activateAfterStarting() {
 	Expects(started());
 
@@ -437,11 +444,42 @@ bool Domain::removePasscodeIfEmpty() {
 	}
 	if (!_local->hasPasscode()) {
 		return false;
+	} else if (!clearPasscodeAfterLastLogout()) {
+		reportFailedPasscodeClear();
+		return false;
 	}
+	return true;
+}
+
+bool Domain::passcodeRemovalAuthorized() const {
+	return (_accounts.size() == 1)
+		&& !_active.current()->sessionExists()
+		&& _local->hasPasscode();
+}
+
+bool Domain::clearPasscodeAfterLastLogout() {
+	Expects(passcodeRemovalAuthorized());
+
 	_local->clearPasscodeAfterReset();
+	if (_local->hasPasscode()) {
+		return false;
+	}
 	Core::App().settings().setSystemUnlockEnabled(false);
 	Core::App().saveSettingsDelayed();
 	return true;
+}
+
+void Domain::reportFailedPasscodeClear() {
+	crl::on_main(this, [=] {
+		if (!passcodeRemovalAuthorized()) {
+			return;
+		}
+		if (const auto window = Core::App().activePrimaryWindow()) {
+			window->showPasscodeClearFailed(crl::guard(this, [=] {
+				return finishPasscodeClearAfterReset();
+			}));
+		}
+	});
 }
 
 void Domain::removeRedundantAccounts() {

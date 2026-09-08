@@ -106,7 +106,28 @@ private:
 		Storage::PasscodeDerivation derived);
 	void activateAfterStarting();
 	void closeAccountWindows(not_null<Main::Account*> account);
+
+	// Answers whether a removal ran whose checked write already persisted
+	// the current accounts info - not whether a passcode is gone, which
+	// would make the no-passcode case skip the caller's accounts write.
 	bool removePasscodeIfEmpty();
+
+	// True when a completed last logout has left the passcode guarding
+	// nothing that can still be asked for: one account, its session gone,
+	// and a passcode still installed. The one definition both the logout
+	// call site and the retry read.
+	[[nodiscard]] bool passcodeRemovalAuthorized() const;
+	bool clearPasscodeAfterLastLogout();
+	void reportFailedPasscodeClear();
+
+	// Retries the removal a completed last logout authorized, after its
+	// checked write did not reach the disk. The authorization is re-read
+	// here and never carried over from the failed attempt, so a passcode
+	// already gone, an account signed in again or a second account all
+	// make this do nothing at all. Answers whether this call removed the
+	// passcode, so the caller can say so.
+	[[nodiscard]] bool finishPasscodeClearAfterReset();
+
 	void watchSession(not_null<Account*> account);
 	void scheduleWriteAccounts();
 	void checkForLastProductionConfig(not_null<Main::Account*> account);

@@ -628,6 +628,24 @@ void Controller::showLogoutConfirmation() {
 	}));
 }
 
+void Controller::showPasscodeClearFailed(Fn<bool()> retry) {
+	if (_passcodeClearFailedBox) {
+		return;
+	}
+	_passcodeClearFailedBox = show(Ui::MakeConfirmBox({
+		.text = tr::lng_passcode_reset_failed_text(),
+		.confirmed = [=](Fn<void()> close) {
+			if (retry && retry()) {
+				close();
+				showToast(tr::lng_passcode_reset_done(tr::now));
+			}
+		},
+		.confirmText = tr::lng_passcode_reset_failed_retry(),
+		.cancelText = tr::lng_close(),
+		.title = tr::lng_passcode_reset_failed_title(),
+	}));
+}
+
 Window::Adaptive &Controller::adaptive() const {
 	return *_adaptive;
 }
