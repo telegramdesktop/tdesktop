@@ -1015,7 +1015,7 @@ export DESTDIR=/usr/src/tlottie-cache
 git init tlottie
 cd tlottie
 git remote add origin https://github.com/dkaraush/tlottie.git
-git fetch --depth=1 origin 8ca87fc25a6ae5cbea4237feb5bae37940f37ae4
+git fetch --depth=1 origin 4b940c7942fbde8ee56f10f39a5224a4153bd91e
 git reset --hard FETCH_HEAD
 cargo rustc --lib --release --locked \
 	--features c-api --crate-type staticlib \
