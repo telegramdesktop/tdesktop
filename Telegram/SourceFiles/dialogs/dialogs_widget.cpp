@@ -811,27 +811,19 @@ Widget::Widget(
 }
 
 void Widget::setupSwipeBack() {
-	// The main menu is dragged out from the left side of the window, so it
-	// always waits past the end of the chats filters, at whichever of them
-	// the swipe towards it scrolls to nothing - the first one with the
-	// natural scrolling and the last one without it. Standing anywhere else
-	// in the filters that swipe still has a filter to move to.
-	const auto noNearChatsFilter = [=](bool isNext) {
+	const auto isMainList = [=] {
 		const auto current = controller()->activeChatsFilterCurrent();
 		const auto &chatsFilters = session().data().chatsFilters();
-		if (!chatsFilters.has()) {
-			return !current;
+		if (chatsFilters.has()) {
+			return chatsFilters.defaultId() == current;
 		}
-		return !Window::CheckAndJumpToNearChatsFilter(
-			controller(),
-			isNext,
-			false);
+		return !current;
 	};
 
 	auto update = [=](Ui::Controls::SwipeContextData data) {
 		data.cursorTop -= _inner->y();
 		if (data.translation != 0) {
-			if (data.visualTranslation() < 0
+			if (data.translation < 0
 				&& _inner
 				&& (Core::App().settings().quickDialogAction()
 					!= Ui::QuickDialogAction::Disabled)) {
@@ -870,8 +862,7 @@ void Widget::setupSwipeBack() {
 		if (_childListShown.current()) {
 			return Ui::Controls::SwipeHandlerFinishData();
 		}
-		const auto isRightToLeft = data.fingerDirection() == Qt::RightToLeft;
-		const auto scrollRightToLeft = data.direction == Qt::RightToLeft;
+		const auto isRightToLeft = data.direction == Qt::RightToLeft;
 		const auto action = Core::App().settings().quickDialogAction();
 		const auto isDisabled = action == Ui::QuickDialogAction::Disabled;
 		if (_inner) {
@@ -945,32 +936,26 @@ void Widget::setupSwipeBack() {
 				}
 			});
 		}
-		const auto next = !scrollRightToLeft;
+		if (isRightToLeft && isMainList()) {
+			_swipeBackIconMirrored = true;
+			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
+				_swipeBackIconMirrored = false;
+				_swipeBackData = {};
+				if (isMainList()) {
+					showMainMenu();
+				}
+			});
+		}
 		if (session().data().chatsFilters().has() && isDisabled) {
+			_swipeBackMirrored = !isRightToLeft;
 			using namespace Window;
+			const auto next = !isRightToLeft;
 			if (CheckAndJumpToNearChatsFilter(controller(), next, false)) {
-				_swipeBackMirrored = !scrollRightToLeft;
 				return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
 					_swipeBackData = {};
 					CheckAndJumpToNearChatsFilter(controller(), next, true);
 				});
 			}
-		}
-		// With a quick action other than moving between the chats filters the
-		// swipe never moves between them at all, so the main menu is not
-		// waiting past their end - it is dragged out from any of them.
-		const auto mainMenuHere = [=] {
-			return !isDisabled || noNearChatsFilter(next);
-		};
-		if (isRightToLeft && mainMenuHere()) {
-			_swipeBackIconMirrored = true;
-			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
-				_swipeBackIconMirrored = false;
-				_swipeBackData = {};
-				if (mainMenuHere()) {
-					showMainMenu();
-				}
-			});
 		}
 
 		return Ui::Controls::SwipeHandlerFinishData();
