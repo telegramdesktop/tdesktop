@@ -37,6 +37,8 @@ namespace {
 const auto kSubmitLabel = u"Harness Submit"_q;
 const auto kCancelLabel = u"Harness Cancel"_q;
 const auto kCloseLabel = u"Harness Close"_q;
+const auto kBusyLabel = u"Harness Busy"_q;
+const auto kHiddenLabel = u"Harness Hidden"_q;
 const auto kDecoyLabel = u"Harness Content"_q;
 const auto kUnknownLabel = u"Harness Nowhere"_q;
 
@@ -93,6 +95,10 @@ void SelfTestBoxContent(
 	box->addButton(rpl::single(kSubmitLabel), std::move(submitted));
 	box->addButton(rpl::single(kCancelLabel), nullptr);
 	box->addButton(rpl::single(kCloseLabel), [=] { box->closeBox(); });
+	const auto busy = box->addButton(rpl::single(kBusyLabel), nullptr);
+	busy->setDisabled(true);
+	const auto hidden = box->addButton(rpl::single(kHiddenLabel), nullptr);
+	hidden->hide();
 }
 
 [[nodiscard]] bool BuildFixture(Fixture &fixture, Fn<void()> submitted) {
@@ -147,11 +153,20 @@ BoxShellButtons ReadBoxButtons(QWidget *box, const QString &label) {
 		if (name.compare(label, Qt::CaseInsensitive) != 0) {
 			continue;
 		}
+		result.present = true;
 		// A click on a hidden or a disabled button is exactly the silent
 		// no-op this helper exists to remove, and Test::Click would deliver
 		// it just as happily as any other, so a name that matches an
-		// unusable button is a refusal here and never a match.
+		// unusable button is a refusal here and never a match. present /
+		// disabled / hidden are values recorded from isVisible() /
+		// isDisabled() in this walk, never derived from |match|, which
+		// goes null when the shell dies.
 		if (!visible || !enabled) {
+			if (!visible) {
+				result.hidden = true;
+			} else {
+				result.disabled = true;
+			}
 			if (unusable.isEmpty()) {
 				unusable = u"the shell button labelled \"%1\" under %2 is "
 					"%3, so clicking it would do nothing at all"_q
@@ -180,10 +195,19 @@ bool BoxButtonReady(QWidget *box, const QString &label) {
 	return ReadBoxButtons(box, label).matched();
 }
 
+bool BoxButtonDisabled(QWidget *box, const QString &label) {
+	return ReadBoxButtons(box, label).disabled;
+}
+
+bool BoxButtonHidden(QWidget *box, const QString &label) {
+	return ReadBoxButtons(box, label).hidden;
+}
+
 QString BoxButtonDetails(QWidget *box, const QString &label) {
 	const auto reading = ReadBoxButtons(box, label);
 	const auto text = u"box %1 root=%2 wanted=\"%3\" shellButtons=%4 "
-		"shellRoundButtons=%5 contentRoundButtons=%6 labels=[%7]"_q
+		"shellRoundButtons=%5 contentRoundButtons=%6 labels=[%7] "
+		"present=%8 disabled=%9 hidden=%10"_q
 		.arg(
 			reading.identity,
 			reading.root
@@ -193,7 +217,10 @@ QString BoxButtonDetails(QWidget *box, const QString &label) {
 		.arg(reading.shellButtons)
 		.arg(reading.shellRoundButtons)
 		.arg(reading.contentRoundButtons)
-		.arg(reading.labels.join(u", "_q));
+		.arg(reading.labels.join(u", "_q))
+		.arg(reading.present ? 1 : 0)
+		.arg(reading.disabled ? 1 : 0)
+		.arg(reading.hidden ? 1 : 0);
 	return reading.refusal.isEmpty()
 		? text
 		: u"%1 - %2"_q.arg(text, reading.refusal);
@@ -239,6 +266,7 @@ void AppendBoxButtonClickSelfTest(not_null<Runner*> runner) {
 	struct State {
 		Fixture fixture;
 		BoxShellButtons closedReading;
+		BoxShellButtons busyReading;
 		QString closedMatchText;
 		QString closedRootText;
 		QString closedIdentityBefore;
@@ -253,6 +281,11 @@ void AppendBoxButtonClickSelfTest(not_null<Runner*> runner) {
 		int closedContentRoundButtonsBefore = 0;
 		bool closedMatchedBefore = false;
 		bool closedMatchedSameTurn = true;
+		bool busyPresentBefore = false;
+		bool busyDisabledBefore = false;
+		bool busyHiddenBefore = false;
+		QString busyRefusalBefore;
+		QStringList busyLabelsBefore;
 	};
 	// Leaked on purpose, the way the harness's other self-tests leak theirs:
 	// the stages outlive this call. The teardown stage releases the fixture,
@@ -452,6 +485,105 @@ void AppendBoxButtonClickSelfTest(not_null<Runner*> runner) {
 	});
 
 	runner->add({
+		.name = u"box button self-test: a disabled footer is readable as "
+			"disabled"_q,
+		.run = [=] {
+			if (!state->built) {
+				return;
+			}
+			const auto box = state->fixture.box.get();
+			if (!box) {
+				Check(
+					false,
+					u"the fixture box is still alive to be read as "
+					"disabled"_q,
+					details());
+				return;
+			}
+			const auto busy = ReadBoxButtons(box, kBusyLabel);
+			const auto hidden = ReadBoxButtons(box, kHiddenLabel);
+			const auto submit = ReadBoxButtons(box, kSubmitLabel);
+			const auto busyText = u"present=%1 disabled=%2 hidden=%3 "
+				"matched=%4 match=%5 labels=[%6] refusal=%7"_q
+				.arg(busy.present ? 1 : 0)
+				.arg(busy.disabled ? 1 : 0)
+				.arg(busy.hidden ? 1 : 0)
+				.arg(busy.matched() ? 1 : 0)
+				.arg(busy.match ? 1 : 0)
+				.arg(busy.labels.join(u", "_q), busy.refusal);
+			const auto hiddenText = u"present=%1 disabled=%2 hidden=%3 "
+				"matched=%4 match=%5 labels=[%6] refusal=%7"_q
+				.arg(hidden.present ? 1 : 0)
+				.arg(hidden.disabled ? 1 : 0)
+				.arg(hidden.hidden ? 1 : 0)
+				.arg(hidden.matched() ? 1 : 0)
+				.arg(hidden.match ? 1 : 0)
+				.arg(hidden.labels.join(u", "_q), hidden.refusal);
+			Check(
+				busy.present
+					&& busy.disabled
+					&& !busy.hidden
+					&& !busy.matched()
+					&& (busy.match == nullptr)
+					&& busy.refusal.contains(u"is disabled"_q)
+					&& busy.labels.contains(u"Harness Busy (disabled)"_q),
+				u"a disabled footer button is readable as present and "
+				"disabled through the new answer, and matched() is still "
+				"false"_q,
+				busyText);
+			Check(
+				BoxButtonDisabled(box, kBusyLabel)
+					&& !BoxButtonReady(box, kBusyLabel)
+					&& !BoxButtonHidden(box, kBusyLabel),
+				u"BoxButtonDisabled is true for that disabled footer, "
+				"beside BoxButtonReady still false"_q,
+				busyText);
+			Check(
+				hidden.present
+					&& hidden.hidden
+					&& !hidden.disabled
+					&& !hidden.matched()
+					&& (hidden.match == nullptr)
+					&& hidden.labels.contains(u"Harness Hidden (hidden)"_q)
+					&& BoxButtonHidden(box, kHiddenLabel)
+					&& !BoxButtonDisabled(box, kHiddenLabel),
+				u"a hidden footer button is still distinguished from a "
+				"disabled one"_q,
+				hiddenText);
+			Check(
+				submit.present
+					&& submit.matched()
+					&& !submit.disabled
+					&& !submit.hidden
+					&& BoxButtonReady(box, kSubmitLabel),
+				u"the ready submit footer is still a match, so the "
+				"unusable answer does not rename matched()"_q,
+				BoxButtonDetails(box, kSubmitLabel));
+			Note(u"box button self-test: the FAIL row below is this "
+				"self-test's ClickBoxButton negative control - clicking "
+				"the disabled footer is expected to Fail"_q);
+			const auto before = FailureCount();
+			const auto clicked = ClickBoxButton(box, kBusyLabel);
+			const auto after = FailureCount();
+			Check(
+				!clicked && (after == before + 1),
+				u"ClickBoxButton on that same disabled button still "
+				"produces its named Fail"_q,
+				u"clicked=%1 failures before=%2 after=%3 refusal=%4"_q
+					.arg(clicked ? 1 : 0)
+					.arg(before)
+					.arg(after)
+					.arg(busy.refusal));
+			state->busyReading = busy;
+			state->busyPresentBefore = busy.present;
+			state->busyDisabledBefore = busy.disabled;
+			state->busyHiddenBefore = busy.hidden;
+			state->busyRefusalBefore = busy.refusal;
+			state->busyLabelsBefore = busy.labels;
+		},
+	});
+
+	runner->add({
 		.name = u"box button self-test: a click that closes its own box"_q,
 		.run = [=] {
 			if (!state->built) {
@@ -578,6 +710,40 @@ void AppendBoxButtonClickSelfTest(not_null<Runner*> runner) {
 				"pointer to format"_q,
 				u"match=[%1] root=[%2]"_q
 					.arg(state->closedMatchText, state->closedRootText));
+			Check(
+				state->busyPresentBefore
+					&& state->busyDisabledBefore
+					&& !state->busyHiddenBefore
+					&& state->busyReading.present
+					&& state->busyReading.disabled
+					&& !state->busyReading.hidden
+					&& !state->busyReading.matched()
+					&& (state->busyReading.match == nullptr)
+					&& (state->busyReading.root == nullptr)
+					&& (state->busyReading.refusal
+						== state->busyRefusalBefore)
+					&& (state->busyReading.labels
+						== state->busyLabelsBefore)
+					&& !state->busyRefusalBefore.isEmpty()
+					&& state->busyLabelsBefore.contains(
+						u"Harness Busy (disabled)"_q),
+				u"the retained disabled-button answer is still present "
+				"and disabled after the box that owned it has been "
+				"destroyed, without dereferencing anything"_q,
+				u"present=%1 (before %2) disabled=%3 (before %4) "
+				"hidden=%5 matched=%6 match=%7 root=%8 "
+				"refusalAndLabels=%9"_q
+					.arg(state->busyReading.present ? 1 : 0)
+					.arg(state->busyPresentBefore ? 1 : 0)
+					.arg(state->busyReading.disabled ? 1 : 0)
+					.arg(state->busyDisabledBefore ? 1 : 0)
+					.arg(state->busyReading.hidden ? 1 : 0)
+					.arg(state->busyReading.matched() ? 1 : 0)
+					.arg(state->busyReading.match ? 1 : 0)
+					.arg(state->busyReading.root ? 1 : 0)
+					.arg(u"refusal=%1 labels=[%2]"_q.arg(
+						state->busyReading.refusal,
+						state->busyReading.labels.join(u", "_q))));
 		},
 	});
 

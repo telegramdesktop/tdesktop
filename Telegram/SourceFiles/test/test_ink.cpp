@@ -9,7 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "test/test_ink.h"
 
+#include "test/test_log.h"
+#include "test/test_runner.h"
 #include "ui/color_contrast.h"
+
+#include <QtGui/QPainter>
 
 #include <algorithm>
 #include <cmath>
@@ -89,6 +93,55 @@ namespace {
 	const auto radius = box.height() / 2;
 	const auto inner = box.adjusted(radius, 1, -radius, -1);
 	return (inner.width() >= 8) ? inner : box;
+}
+
+[[nodiscard]] QColor RegionMode(
+		const QImage &image,
+		QRect region,
+		QRect exclude) {
+	auto counts = std::vector<std::pair<QRgb, int>>();
+	const auto clip = region.intersected(image.rect());
+	for (auto y = clip.top(); y <= clip.bottom(); ++y) {
+		for (auto x = clip.left(); x <= clip.right(); ++x) {
+			if (exclude.contains(x, y)) {
+				continue;
+			}
+			const auto value = image.pixel(x, y);
+			auto found = false;
+			for (auto &one : counts) {
+				if (one.first == value) {
+					++one.second;
+					found = true;
+					break;
+				}
+			}
+			if (!found && (counts.size() < 8192)) {
+				counts.push_back({ value, 1 });
+			}
+		}
+	}
+	auto best = QRgb(0);
+	auto bestCount = -1;
+	for (const auto &one : counts) {
+		if (one.second > bestCount) {
+			bestCount = one.second;
+			best = one.first;
+		}
+	}
+	return (bestCount > 0) ? QColor::fromRgb(best) : QColor();
+}
+
+[[nodiscard]] bool SurroundingsAreFill(
+		const QImage &image,
+		QRect clip,
+		QColor fill) {
+	const auto ring = clip.adjusted(-1, -1, 1, 1).intersected(image.rect());
+	if (ring.isEmpty() || (ring == clip)) {
+		return false;
+	}
+	const auto mode = RegionMode(image, ring, clip);
+	return mode.isValid()
+		&& (ChannelDelta(mode, fill) <= kBackgroundSame);
 }
 
 } // namespace
@@ -181,6 +234,11 @@ DerivedBand DeriveBand(
 	if (rows.empty() || (right < left)) {
 		result.reason = u"no row of the recovered box has the pill fill "
 			u"as its own background"_q;
+		return result;
+	}
+	if (SurroundingsAreFill(image, clip, fill)) {
+		result.reason = u"the requested fill is the image's background "
+			u"outside the candidate, so no band can be derived"_q;
 		return result;
 	}
 	result.fillRegion = QRect(
@@ -398,8 +456,119 @@ InkMeasure MeasurePaintedInk(
 			result.scan.ink,
 			result.contrast,
 			result.scan.inkPixels);
+	} else if (!result.derived.ok) {
+		result.report = result.derived.reason;
 	}
 	return result;
+}
+
+void AppendDeriveBandSelfTest(not_null<Runner*> runner) {
+	runner->add({
+		.name = u"derive-band self-test: underivable fill, separable "
+			"control, and no-rows refusal"_q,
+		.run = [] {
+			const auto fill = QColor(0x29, 0xb0, 0x71);
+			const auto surround = QColor(0x17, 0x21, 0x2b);
+			const auto size = QSize(64, 32);
+			const auto candidate = QRect(8, 4, 48, 24);
+			const auto underivableReason = u"the requested fill is the "
+				"image's background outside the candidate, so no band "
+				"can be derived"_q;
+			const auto noRowsReason = u"no row of the recovered box has "
+				"the pill fill as its own background"_q;
+			auto same = QImage(size, QImage::Format_ARGB32_Premultiplied);
+			same.fill(fill);
+			const auto underivable = DeriveBand(same, candidate, fill);
+			const auto measured = MeasurePaintedInk(
+				same,
+				candidate,
+				fill,
+				{ { u"ink"_q, QColor(255, 255, 255) } });
+			auto separable = QImage(
+				size,
+				QImage::Format_ARGB32_Premultiplied);
+			separable.fill(surround);
+			{
+				auto p = QPainter(&separable);
+				p.fillRect(candidate, fill);
+			}
+			const auto derived = DeriveBand(separable, candidate, fill);
+			const auto measuredOk = MeasurePaintedInk(
+				separable,
+				candidate,
+				fill,
+				{ { u"ink"_q, QColor(255, 255, 255) } });
+			auto none = QImage(size, QImage::Format_ARGB32_Premultiplied);
+			none.fill(surround);
+			const auto noRows = DeriveBand(none, candidate, fill);
+			Note(u"derive-band self-test: no window, session, chats list, "
+				"network, account or wallet - three synthetic images"_q);
+			Check(
+				!underivable.ok
+					&& (underivable.reason == underivableReason)
+					&& (underivable.fillRows > 0)
+					&& underivable.rows.empty(),
+				u"a candidate whose fill is the surrounding background "
+				"is refused with the underivable-band reason"_q,
+				u"ok=%1 fillRows=%2 rows=%3 reason=%4"_q
+					.arg(underivable.ok ? 1 : 0)
+					.arg(underivable.fillRows)
+					.arg(int(underivable.rows.size()))
+					.arg(underivable.reason));
+			Check(
+				!measured.derived.ok
+					&& measured.report.contains(underivableReason),
+				u"MeasurePaintedInk carries that reason into its report "
+				"rather than a bare zero"_q,
+				u"report=%1 derivedOk=%2"_q
+					.arg(measured.report)
+					.arg(measured.derived.ok ? 1 : 0));
+			Check(
+				derived.ok
+					&& (derived.reason == u"none"_q)
+					&& !derived.rows.empty()
+					&& !derived.fillRegion.isEmpty()
+					&& !derived.band.isEmpty(),
+				u"a genuinely separable band still derives with its rows "
+				"and region"_q,
+				u"ok=%1 rows=%2 fillRows=%3 fillRegion=%4x%5 band=%6x%7 "
+				"reason=%8"_q
+					.arg(derived.ok ? 1 : 0)
+					.arg(int(derived.rows.size()))
+					.arg(derived.fillRows)
+					.arg(derived.fillRegion.width())
+					.arg(derived.fillRegion.height())
+					.arg(derived.band.width())
+					.arg(derived.band.height())
+					.arg(derived.reason));
+			Check(
+				measuredOk.derived.ok
+					&& measuredOk.report.startsWith(u"fill="_q),
+				u"MeasurePaintedInk on a separable band still writes a "
+				"FormatInkReport line"_q,
+				u"report=%1 derivedOk=%2"_q
+					.arg(measuredOk.report)
+					.arg(measuredOk.derived.ok ? 1 : 0));
+			Check(
+				!noRows.ok
+					&& (noRows.reason == noRowsReason)
+					&& (noRows.reason != underivableReason)
+					&& noRows.rows.empty(),
+				u"an image whose rows exist but none matches the fill "
+				"still produces the existing no-rows refusal"_q,
+				u"ok=%1 fillRows=%2 reason=%3"_q
+					.arg(noRows.ok ? 1 : 0)
+					.arg(noRows.fillRows)
+					.arg(noRows.reason));
+			Check(
+				ChannelDelta(fill, surround) > kBackgroundSame,
+				u"the separable control's surround is farther from the "
+				"fill than kBackgroundSame"_q,
+				u"delta=%1 kBackgroundSame=%2"_q
+					.arg(ChannelDelta(fill, surround))
+					.arg(kBackgroundSame));
+		},
+	});
 }
 
 } // namespace Test

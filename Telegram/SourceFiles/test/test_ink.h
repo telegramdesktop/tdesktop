@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Test {
 
+class Runner;
+
 inline constexpr auto kInkDelta = 45;
 inline constexpr auto kSameTolerance = 40;
 inline constexpr auto kOnLine = 10.;
@@ -73,6 +75,11 @@ struct InkMeasure {
 [[nodiscard]] QString CollisionDump(
 	const std::vector<InkCandidate> &candidates);
 
+// Keeps rows of |box| whose modal background is the literal |fill|. When
+// |box| is strictly inside the image and that fill is also the image's
+// background outside |box|, no band can be separated: |reason| names that
+// case and |ok| stays false, distinct from "no row of the recovered box
+// has the pill fill as its own background".
 [[nodiscard]] DerivedBand DeriveBand(
 	const QImage &image,
 	QRect box,
@@ -97,5 +104,14 @@ struct InkMeasure {
 	QRect box,
 	QColor fill,
 	std::vector<InkCandidate> candidates);
+
+// AppendDeriveBandSelfTest is the underivable-band refusal measuring
+// itself. Three synthetic images, no widget, no window, no session, chats,
+// network, account or wallet: the same fill inside and outside the
+// candidate (new reason, and MeasurePaintedInk.report carries it), a
+// contrasting surround that still derives, and an inside that does not
+// match the fill (existing no-rows reason). It emits no deliberate
+// failure.
+void AppendDeriveBandSelfTest(not_null<Runner*> runner);
 
 } // namespace Test
