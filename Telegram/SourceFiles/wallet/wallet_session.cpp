@@ -218,6 +218,18 @@ void FinishHistoryWaiters(std::vector<Fn<void()>> callbacks) {
 	return (was == now);
 }
 
+[[nodiscard]] base::flat_set<QString> HistoryNamedIds(
+		const std::vector<TransferItem> &list) {
+	auto result = base::flat_set<QString>();
+	result.reserve(list.size());
+	for (const auto &item : list) {
+		if (!item.id.isEmpty()) {
+			result.emplace(item.id);
+		}
+	}
+	return result;
+}
+
 struct MergedHead {
 	std::vector<TransferItem> list;
 	int retained = 0;
@@ -234,13 +246,7 @@ struct MergedHead {
 [[nodiscard]] MergedHead MergedHeadHistory(
 		const std::vector<TransferItem> &was,
 		std::vector<TransferItem> &&head) {
-	auto ids = base::flat_set<QString>();
-	ids.reserve(head.size());
-	for (const auto &item : head) {
-		if (!item.id.isEmpty()) {
-			ids.emplace(item.id);
-		}
-	}
+	const auto ids = HistoryNamedIds(head);
 	auto list = std::move(head);
 	auto retained = std::vector<TransferItem>();
 	retained.reserve(was.size());
@@ -280,6 +286,42 @@ struct MergedHead {
 		.retained = count,
 		.namedLast = namedLast,
 	};
+}
+
+// The identity is the one MergedHeadHistory() uses - the server's
+// transaction id - and here it is the only key that can answer this
+// direction at all: a served row the server left unnamed is added, because
+// TransferItem's defaulted operator== makes two genuinely distinct
+// transfers equal when they share a counterparty, an amount, a fee, a
+// comment and a date and carry neither an id nor a tx_hash, and dropping
+// one would lose a transaction the server is delivering now that no later
+// page offers again at this cursor. The head arm's value test decides the
+// opposite question - whether a row the list already holds is about to be
+// carried forward beside an equal copy the page already contains - where
+// the same equality can only drop a loaded copy the next head page brings
+// back.
+[[nodiscard]] std::vector<TransferItem> UnheldHistory(
+		const std::vector<TransferItem> &was,
+		std::vector<TransferItem> &&page) {
+	const auto ids = HistoryNamedIds(page);
+	auto held = base::flat_set<QString>();
+	held.reserve(ids.size());
+	for (const auto &item : was) {
+		if (!item.id.isEmpty() && ids.contains(item.id)) {
+			held.emplace(item.id);
+		}
+	}
+	if (held.empty()) {
+		return std::move(page);
+	}
+	auto result = std::vector<TransferItem>();
+	result.reserve(page.size());
+	for (auto &item : page) {
+		if (item.id.isEmpty() || !held.contains(item.id)) {
+			result.push_back(std::move(item));
+		}
+	}
+	return result;
 }
 
 [[nodiscard]] bool SameCollectibles(
@@ -4033,12 +4075,13 @@ void Session::applyTransactions(
 		return !historyItemHidden(i);
 	});
 	if (more) {
-		if (!loaded.empty()) {
+		auto fresh = UnheldHistory(_history, std::move(loaded));
+		if (!fresh.empty()) {
 			auto list = _history;
 			list.insert(
 				end(list),
-				std::make_move_iterator(begin(loaded)),
-				std::make_move_iterator(end(loaded)));
+				std::make_move_iterator(begin(fresh)),
+				std::make_move_iterator(end(fresh)));
 			setHistory(std::move(list));
 		}
 	} else {
