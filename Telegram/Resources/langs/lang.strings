@@ -8792,6 +8792,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_about_chain_title" = "Blockchain Verified";
 "lng_wallet_about_chain_text" = "All transactions are recorded and verifiable on a public ledger.";
 "lng_wallet_provisioning" = "Setting up your wallet…";
+"lng_wallet_history_searching" = "Looking for transactions";
 "lng_wallet_unavailable" = "Wallet is not available for this account.";
 "lng_wallet_state_error" = "Couldn't load your wallet. Please try again later.";
 "lng_wallet_how_title" = "How It Works";

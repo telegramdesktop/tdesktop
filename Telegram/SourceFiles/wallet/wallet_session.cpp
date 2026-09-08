@@ -218,6 +218,70 @@ void FinishHistoryWaiters(std::vector<Fn<void()>> callbacks) {
 	return (was == now);
 }
 
+struct MergedHead {
+	std::vector<TransferItem> list;
+	int retained = 0;
+	bool namedLast = false;
+};
+
+// The merged list is the served page in server order, then the rows that page
+// does not name, in the order the list already had, so it is a superset of
+// `was`. How many of those rows were kept and whether the page named the row
+// `was` ends with come back with it, because the caller decides the cursor
+// from the second of those and both fall out of the one scan below: the module
+// keeps a single row-identity rule and the caller reads no answer out of the
+// output vector's layout.
+[[nodiscard]] MergedHead MergedHeadHistory(
+		const std::vector<TransferItem> &was,
+		std::vector<TransferItem> &&head) {
+	auto ids = base::flat_set<QString>();
+	ids.reserve(head.size());
+	for (const auto &item : head) {
+		if (!item.id.isEmpty()) {
+			ids.emplace(item.id);
+		}
+	}
+	auto list = std::move(head);
+	auto retained = std::vector<TransferItem>();
+	retained.reserve(was.size());
+	// A list with no rows has no tail for the page to reach past, so the
+	// coverage question is answered vacuously here and the loop below never
+	// leaves it undecided.
+	auto namedLast = was.empty();
+	for (const auto &item : was) {
+		// The server names every transaction and that name is the only
+		// key this feed has, so a row the head page covers is the head
+		// page's and a row it does not reach is kept exactly where the
+		// reader already has it. A row the server left unnamed cannot be
+		// looked up by name at all, so it is compared by value against
+		// the page instead: carried again, it would otherwise be kept
+		// twice. The page is a whole vector here and grows no rows until
+		// the loop is over, so that lookup never reads a retained row and
+		// two equal unnamed rows the list already held both survive.
+		const auto listed = item.id.isEmpty()
+			? ranges::contains(list, item)
+			: ids.contains(item.id);
+		if (!listed) {
+			retained.push_back(item);
+		}
+		// Only the final iteration's answer survives, and that is the one
+		// the cursor decision asks for: whether the page reached the row
+		// the loaded list ends with. Taking it from the same `listed`
+		// keeps that question on the one identity rule stated above.
+		namedLast = listed;
+	}
+	const auto count = int(retained.size());
+	list.insert(
+		end(list),
+		std::make_move_iterator(begin(retained)),
+		std::make_move_iterator(end(retained)));
+	return {
+		.list = std::move(list),
+		.retained = count,
+		.namedLast = namedLast,
+	};
+}
+
 [[nodiscard]] bool SameCollectibles(
 		const std::vector<Gram::NftItem> &was,
 		const std::vector<Gram::NftItem> &now) {
@@ -3931,6 +3995,8 @@ void Session::applyTransactions(
 	if (!weak || !historyRequestCurrent(request)) {
 		return;
 	}
+	const auto wasNextOffset = _historyNextOffset;
+	const auto wasHasNext = _historyHasNext;
 	const auto next = data.vnext_offset();
 	// An empty next_offset is byte-identical to a first-page request, so
 	// paging on it would read the same rows forever. It ends the list exactly
@@ -3973,8 +4039,37 @@ void Session::applyTransactions(
 				std::make_move_iterator(end(loaded)));
 			setHistory(std::move(list));
 		}
-	} else if (!SameHistory(_history, loaded)) {
-		setHistory(std::move(loaded));
+	} else {
+		const auto served = int(loaded.size());
+		const auto full = (served == kTransactionsPerPage);
+		auto merged = MergedHeadHistory(_history, std::move(loaded));
+		if ((merged.retained > 0)
+			&& full
+			&& (merged.retained == int(_history.size()))) {
+			// A full page naming none of the loaded rows cannot be shown
+			// to touch them: a page's worth of transfers has arrived
+			// since the reader last paged, so keeping both halves would
+			// leave a hole between them that no cursor reaches. The
+			// served window is the truthful list there, which is what a
+			// head page has always been, and its own cursor stands.
+			merged.list.resize(served);
+		} else if (!merged.namedLast) {
+			// The page did not name the row the loaded list ends with, so
+			// it did not reach past that tail and the cursor it carries
+			// points back inside rows the merged list still holds:
+			// spending it would re-read them, the merge would drop them
+			// again as duplicates, and the older pages behind them would
+			// never be reached. The cursor the list already had points
+			// past its whole tail, so that is the one paging must keep,
+			// and an exhausted list stays exhausted for the same reason.
+			// A page that did reach the tail is past every merged row, so
+			// there its own cursor stands.
+			_historyNextOffset = wasNextOffset;
+			_historyHasNext = wasHasNext;
+		}
+		if (!SameHistory(_history, merged.list)) {
+			setHistory(std::move(merged.list));
+		}
 	}
 	if (weak && historyRequestCurrent(request)) {
 		dropSubmittedIfListed();

@@ -9656,25 +9656,31 @@ void Content::setupListsLoading() {
 	indicator->setAttribute(Qt::WA_TransparentForMouseEvents);
 	Info::Statistics::AddChildToWidgetCenter(_listsLoading, indicator);
 
-	const auto caption = Ui::CreateChild<Ui::FlatLabel>(
-		_listsLoading,
-		tr::lng_wallet_provisioning(),
-		st::walletAboutTextLabel);
-	caption->setAttribute(Qt::WA_TransparentForMouseEvents);
-	_listsLoading->sizeValue(
-	) | rpl::on_next([=](QSize size) {
-		caption->resizeToNaturalWidth(size.width());
-		caption->moveToLeft(
-			(size.width() - caption->width()) / 2,
-			((size.height() + side) / 2) + st::walletAboutTitleSkip,
-			size.width());
-	}, caption->lifetime());
+	const auto addCaption = [=](rpl::producer<QString> text) {
+		const auto caption = Ui::CreateChild<Ui::FlatLabel>(
+			_listsLoading,
+			std::move(text),
+			st::walletAboutTextLabel);
+		caption->setAttribute(Qt::WA_TransparentForMouseEvents);
+		_listsLoading->sizeValue(
+		) | rpl::on_next([=](QSize size) {
+			caption->resizeToNaturalWidth(size.width());
+			caption->moveToLeft(
+				(size.width() - caption->width()) / 2,
+				((size.height() + side) / 2) + st::walletAboutTitleSkip,
+				size.width());
+		}, caption->lifetime());
+		return caption;
+	};
+	const auto caption = addCaption(tr::lng_wallet_provisioning());
 	_show->session().wallet().presenceValue(
 	) | rpl::map(
 		rpl::mappers::_1 == Presence::Provisioning
 	) | rpl::on_next([=](bool provisioning) {
 		caption->setVisible(provisioning);
 	}, caption->lifetime());
+	const auto walkingCaption = addCaption(
+		tr::lng_wallet_history_searching());
 
 	// The gate is not the only state with nothing to paint. A feed whose
 	// loaded pages are all hidden while the server still offers a cursor is
@@ -9694,10 +9700,20 @@ void Content::setupListsLoading() {
 			bool loadingMore,
 			bool collectiblesTab,
 			bool historyShown) {
-		return gated
-			|| (loadingMore && !collectiblesTab && !historyShown);
+		// The gate and the walk are the region's two reasons to show, and
+		// only the walk is the one the second caption speaks for, so both
+		// bits leave here together: written by one handler, the caption
+		// can neither outlive the region nor appear without it.
+		// updateListsGate() makes Provisioning - the state the first
+		// caption is bound to - one of the gate's own disjuncts, so the
+		// two captions are mutually exclusive by the same expression.
+		return std::make_pair(
+			gated,
+			!gated && loadingMore && !collectiblesTab && !historyShown);
 	}) | rpl::distinct_until_changed(
-	) | rpl::on_next([=](bool shown) {
+	) | rpl::on_next([=](std::pair<bool, bool> face) {
+		const auto shown = face.first || face.second;
+		walkingCaption->setVisible(face.second);
 		indicator->setVisible(shown);
 		_listsLoading->setVisible(shown);
 		updateRegions();
