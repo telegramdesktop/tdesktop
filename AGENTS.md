@@ -846,3 +846,30 @@ The `Error` template parameter defaults to `rpl::no_error`: `rpl::producer<Type,
 - Pass `rpl::lifetime` to `on_...` methods or store returned lifetime
 - Use `rpl::duplicate(producer)` to reuse a producer multiple times
 - Combined producers automatically unpack tuples in lambdas (works with `rpl::map`, `rpl::filter`, and `rpl::on_next`)
+
+### Per-subscription state
+
+`rpl::on_next` stores the handler by value. Each emission invokes a *copy* of that stored handler, so a nested emit does not re-enter the running callable. Writes a `mutable` lambda makes to its own captures land on the copy and are discarded, so they never become per-subscription state.
+
+```cpp
+// BAD - compiles, runs, and grew is just value > 0 every time:
+events | rpl::on_next([last = 0](int value) mutable {
+    const auto grew = (value > last);
+    last = value;
+    if (grew) {
+        // ...
+    }
+}, lifetime);
+
+// GOOD - state lives beside the handler:
+const auto last = lifetime.make_state<int>(0);
+events | rpl::on_next([=](int value) {
+    const auto grew = (value > *last);
+    *last = value;
+    if (grew) {
+        // ...
+    }
+}, lifetime);
+```
+
+Keep per-subscription state in `lifetime.make_state<T>()`, behind a `shared_ptr`, or on the object that owns the subscription. A `mutable` lambda that is one-shot — `rpl::take(1)`, a self-destroying subscription, a `crl::on_main` or `crl::async` callback, a `done` or `error` callback — is not this trap.
