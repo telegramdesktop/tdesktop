@@ -778,6 +778,7 @@ struct HistoryRowContent {
 	int64 amountNano = 0;
 	bool incoming = false;
 	bool pending = false;
+	bool failed = false;
 	RowAvatar avatar = RowAvatar::Out;
 	PeerData *peer = nullptr;
 	bool itemAmount = false;
@@ -815,7 +816,8 @@ void SetRowAmount(
 		not_null<Ui::FlatLabel*> minor,
 		int64 amountNano,
 		bool incoming,
-		bool pending) {
+		bool pending,
+		bool failed) {
 	const auto amount = CreditsAmount(
 		amountNano / Ui::kNanosInOne,
 		amountNano % Ui::kNanosInOne,
@@ -837,7 +839,7 @@ void SetRowAmount(
 		.margin = st::walletRowIconMargin,
 	}));
 	minor->setMarkedText(std::move(minorText), helper.context());
-	const auto &color = pending
+	const auto &color = (pending || failed)
 		? st::windowSubTextFg
 		: incoming
 		? st::boxTextFgGood
@@ -1103,7 +1105,8 @@ void AddHistoryRow(
 			minor,
 			content.amountNano,
 			content.incoming,
-			content.pending);
+			content.pending,
+			content.failed);
 	}
 	const auto title = inner->add(
 		object_ptr<Ui::FlatLabel>(
@@ -1195,6 +1198,19 @@ void AddHistoryRow(
 		&& !item.collectible.isEmpty();
 }
 
+[[nodiscard]] QString RowStatusSubtitle(TransferItem::Status status) {
+	using Status = TransferItem::Status;
+	switch (status) {
+	case Status::Pending:
+		return tr::lng_wallet_row_pending(tr::now);
+	case Status::Failure:
+		return tr::lng_wallet_row_failed(tr::now);
+	case Status::Success:
+		return QString();
+	}
+	Unexpected("Status in RowStatusSubtitle.");
+}
+
 [[nodiscard]] HistoryRowContent RowContentFromItem(
 		const TransferItem &item,
 		not_null<Main::Session*> session) {
@@ -1221,16 +1237,20 @@ void AddHistoryRow(
 	}
 	const auto pending
 		= (item.status == TransferItem::Status::Pending);
+	const auto failed
+		= (item.status == TransferItem::Status::Failure);
+	const auto statusText = RowStatusSubtitle(item.status);
 	if (item.kind == Kind::CardTopUp) {
 		return {
 			.title = tr::lng_wallet_row_card_topup(tr::now),
-			.subtitle = (pending
-				? tr::lng_wallet_row_pending(tr::now)
+			.subtitle = (!statusText.isEmpty()
+				? statusText
 				: item.provider),
 			.date = date,
 			.amountNano = item.amountNano,
 			.incoming = item.incoming,
 			.pending = pending,
+			.failed = failed,
 			.avatar = RowAvatar::Card,
 		};
 	}
@@ -1248,8 +1268,8 @@ void AddHistoryRow(
 		if (peer) {
 			return {
 				.title = peer->name(),
-				.subtitle = (pending
-					? tr::lng_wallet_row_pending(tr::now)
+				.subtitle = (!statusText.isEmpty()
+					? statusText
 					: !domain.isEmpty()
 					? domain
 					: item.incoming
@@ -1259,6 +1279,7 @@ void AddHistoryRow(
 				.amountNano = item.amountNano,
 				.incoming = item.incoming,
 				.pending = pending,
+				.failed = failed,
 				.avatar = RowAvatar::Peer,
 				.peer = peer,
 			};
@@ -1267,13 +1288,12 @@ void AddHistoryRow(
 	if (item.kind == Kind::KeyChange) {
 		return {
 			.title = tr::lng_wallet_row_key_change(tr::now),
-			.subtitle = (pending
-				? tr::lng_wallet_row_pending(tr::now)
-				: QString()),
+			.subtitle = statusText,
 			.date = date,
 			.amountNano = item.amountNano,
 			.incoming = item.incoming,
 			.pending = pending,
+			.failed = failed,
 			.avatar = RowAvatar::KeyChange,
 		};
 	}
@@ -1301,8 +1321,8 @@ void AddHistoryRow(
 			: contract
 			? tr::lng_wallet_row_contract(tr::now)
 			: kindText),
-		.subtitle = (pending
-			? tr::lng_wallet_row_pending(tr::now)
+		.subtitle = (!statusText.isEmpty()
+			? statusText
 			: hasCounterparty
 			? kindText
 			: QString()),
@@ -1310,6 +1330,7 @@ void AddHistoryRow(
 		.amountNano = item.amountNano,
 		.incoming = item.incoming,
 		.pending = pending,
+		.failed = failed,
 		.avatar = (contract
 			? RowAvatar::Contract
 			: item.incoming
@@ -1381,9 +1402,9 @@ void AddDetailsAmountHeader(
 		container,
 		st::walletDetailsAmountMinorLabel);
 	minor->setMarkedText(std::move(minorText), helper.context());
-	const auto pending
-		= (item.status == TransferItem::Status::Pending);
-	const auto &color = pending
+	const auto subdued = (item.status == TransferItem::Status::Pending)
+		|| (item.status == TransferItem::Status::Failure);
+	const auto &color = subdued
 		? st::windowSubTextFg
 		: item.incoming
 		? st::boxTextFgGood
@@ -1722,6 +1743,12 @@ void AddDetailsTable(
 		bg->paint(p, wrap->rect());
 	}, wrap->lifetime());
 	const auto table = wrap->entity();
+	if (item.status == TransferItem::Status::Failure) {
+		Ui::AddTableRow(
+			table,
+			tr::lng_wallet_details_status(),
+			tr::lng_wallet_details_failed(tr::marked));
+	}
 	const auto peer = (item.kind == TransferItem::Kind::PeerTransfer
 		&& item.counterpartyPeer)
 		? session->data().peerLoaded(PeerId(item.counterpartyPeer))

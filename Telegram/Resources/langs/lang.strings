@@ -8806,6 +8806,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_row_outgoing" = "Outgoing transfer";
 "lng_wallet_row_contract" = "Contract interaction";
 "lng_wallet_row_pending" = "Pending";
+"lng_wallet_row_failed" = "Failed";
 "lng_wallet_row_withdrawal" = "Withdrawal";
 "lng_wallet_row_deposit" = "Deposit";
 "lng_wallet_row_card_topup" = "Card top-up";
@@ -8831,6 +8832,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_details_address" = "Address";
 "lng_wallet_details_fee" = "Fee";
 "lng_wallet_details_date" = "Date";
+"lng_wallet_details_status" = "Status";
+"lng_wallet_details_failed" = "Failed";
 "lng_wallet_details_explorer" = "View in explorer";
 "lng_wallet_details_gram" = "What is Gram?";
 "lng_wallet_details_operation" = "Operation";
