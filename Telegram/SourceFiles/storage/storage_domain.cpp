@@ -825,7 +825,12 @@ bool Domain::checkPasscode(PasscodeDerivation derived) const {
 
 std::optional<PasscodeVerification> Domain::verifyPasscode(
 		const QByteArray &passcode) {
-	if (!checkPasscode(passcode)) {
+	return verifyPasscode(prepareOpen(passcode));
+}
+
+std::optional<PasscodeVerification> Domain::verifyPasscode(
+		PasscodeDerivation derived) {
+	if (!checkPasscode(std::move(derived))) {
 		return std::nullopt;
 	}
 	auto nonce = quint64();
@@ -834,6 +839,10 @@ std::optional<PasscodeVerification> Domain::verifyPasscode(
 	}
 	_verificationNonce = nonce;
 	return PasscodeVerification(nonce);
+}
+
+bool Domain::accepts(PasscodeVerification verification) const {
+	return _verificationNonce && (verification._nonce == _verificationNonce);
 }
 
 SetPasscodeResult Domain::setPasscode(
@@ -885,9 +894,7 @@ SetPasscodeResult Domain::changePasscode(
 	if (_keyData->legacy) {
 		LOG(("App Error: refusing a passcode change before the migration."));
 		return SetPasscodeResult::Failed;
-	} else if (!_keyData->passcodeWraps.empty()
-		&& (!_verificationNonce
-			|| verification._nonce != _verificationNonce)) {
+	} else if (!_keyData->passcodeWraps.empty() && !accepts(verification)) {
 		return SetPasscodeResult::NeedsVerification;
 	}
 	const auto generation = _keyData->committed + 1;
@@ -939,15 +946,25 @@ SetPasscodeResult Domain::changePasscode(
 	return SetPasscodeResult::Success;
 }
 
-SetPasscodeResult Domain::setAppLockEnabled(bool enabled) {
+// Turning the lock off installs an open wrap over a file a passcode still
+// protects - the same weakening of the data at rest a removal is - so it
+// carries the same proof a removal does. Turning it on proves nothing new
+// and only needs a passcode wrap to exist. The gsl::finally still spends the
+// nonce on every exit, whichever way the lock moves, so a token that
+// authorized one change cannot authorize another.
+SetPasscodeResult Domain::setAppLockEnabled(
+		bool enabled,
+		PasscodeVerification verification) {
 	Expects(_localKey != nullptr);
 
 	const auto singleUse = gsl::finally([&] { _verificationNonce = 0; });
 
+	const auto hasWrap = !_keyData->passcodeWraps.empty();
 	if (_keyData->legacy) {
 		LOG(("App Error: refusing an app lock change before the migration."));
 		return SetPasscodeResult::Failed;
-	} else if (enabled && _keyData->passcodeWraps.empty()) {
+	} else if ((enabled && !hasWrap)
+		|| (!enabled && hasWrap && !accepts(verification))) {
 		return SetPasscodeResult::NeedsVerification;
 	}
 	auto updated = *_keyData;

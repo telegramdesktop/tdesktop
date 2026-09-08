@@ -91,15 +91,18 @@ enum class SetPasscodeResult : uchar {
 // Proof that the passcode currently protecting the local key was typed and
 // accepted. Only Domain::verifyPasscode() can mint one, and a token is
 // honoured only while the nonce it carries is still the one Domain holds.
-// A token is single use: setPasscode() zeroes that nonce on every exit,
-// whether it accepted the token or refused it, and setAppLockEnabled() zeroes
-// it as well, so a copy of the token left behind in a settings navigation
-// step cannot authorize a second change later on. Both spend it before they
-// fire the change notification, so a subscriber that calls back into the
-// domain while that notification runs cannot reuse the token either. A default-constructed token
-// carries a zero nonce, which never matches an outstanding verification and
-// is therefore accepted only where there is no passcode to prove in the first
-// place.
+// setPasscode() reads it for every change or removal over an existing
+// passcode, and setAppLockEnabled() reads it when it turns the lock off,
+// because installing an open wrap weakens the data at rest exactly as a
+// removal does. A token is single use: both zero that nonce on every exit,
+// whichever way they move and whether they accepted the token or refused it,
+// so a copy of the token left behind in a settings navigation step cannot
+// authorize a second change later on. Both spend it before they fire the
+// change notification, so a subscriber that calls back into the domain while
+// that notification runs cannot reuse the token either. A default-constructed
+// token carries a zero nonce, which never matches an outstanding verification
+// and is therefore accepted only where there is no passcode to prove in the
+// first place.
 class PasscodeVerification final {
 public:
 	PasscodeVerification() = default;
@@ -133,13 +136,17 @@ public:
 	[[nodiscard]] bool checkPasscode(PasscodeDerivation derived) const;
 	[[nodiscard]] std::optional<PasscodeVerification> verifyPasscode(
 		const QByteArray &passcode);
+	[[nodiscard]] std::optional<PasscodeVerification> verifyPasscode(
+		PasscodeDerivation derived);
 	[[nodiscard]] SetPasscodeResult setPasscode(
 		const QByteArray &passcode,
 		PasscodeVerification verification);
 	[[nodiscard]] SetPasscodeResult setPasscode(
 		PasscodeDerivation derived,
 		PasscodeVerification verification);
-	[[nodiscard]] SetPasscodeResult setAppLockEnabled(bool enabled);
+	[[nodiscard]] SetPasscodeResult setAppLockEnabled(
+		bool enabled,
+		PasscodeVerification verification);
 	void clearPasscodeAfterReset();
 
 	[[nodiscard]] int oldVersion() const;
@@ -178,6 +185,7 @@ private:
 		const PasscodeWrap &staged,
 		const MTP::AuthKeyPtr &wrapKey) const;
 	[[nodiscard]] std::unique_ptr<PasscodeWrap> wrapToOpen() const;
+	[[nodiscard]] bool accepts(PasscodeVerification verification) const;
 	[[nodiscard]] SetPasscodeResult changePasscode(
 		PasscodeDerivation *derived,
 		PasscodeVerification verification);

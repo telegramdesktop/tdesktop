@@ -137,26 +137,79 @@ void UnlockByKind(
 	}
 }
 
-// The vault's own verdict on the typed passcode, for the check that must
-// prove key_data and the vault at once without unlocking or arming
-// anything: a header that is not Read means the vault has no passcode wrap
-// to prove, so key_data alone decides. Absent is the install case with a
-// passcode already set; Broken and Unsupported never reach here, the caller
-// refuses before the gate is shown. The derived wrap key dies here.
-[[nodiscard]] bool VaultOpensWithPasscode(
+// The vault wrap the typed passcode has to open, read on the main thread for
+// the job that derives against it, for either check: a header that is not
+// Read means the vault has no passcode wrap to prove, so the check that must
+// prove key_data and the vault at once lets key_data alone decide. Absent is
+// the install case with a passcode already set; Broken and Unsupported never
+// reach here, the caller refuses before the gate is shown. The derived wrap
+// key dies in the job.
+[[nodiscard]] std::optional<VaultWrap> CommittedPasscodeWrap(
 		Storage::Account &local,
-		VaultRuntime &vault,
-		const QByteArray &passcode) {
+		VaultRuntime &vault) {
 	const auto reading = vault.reading(local);
 	if (reading.state != VaultReading::State::Read) {
-		return true;
+		return std::nullopt;
 	}
 	const auto wrap = reading.header.committedWrap();
 	if (!wrap || wrap->kind != VaultKind::Passcode) {
-		return true;
+		return std::nullopt;
 	}
-	const auto wrapKey = DeriveVaultWrapKey(*wrap, passcode);
-	return wrapKey && UnwrapVaultKey(*wrap, *wrapKey).has_value();
+	return *wrap;
+}
+
+// The memory-hard part of the gate, cut out as one worker job for either
+// check: the vault wrap key the typed passcode must open and the vault key
+// behind it, and for KeyDataAndVault the key_data derivation beside them. It
+// holds values only - a copy of the committed passcode wrap, the typed bytes
+// as SecureBytes, the key_data job - and never dereferences a runtime, a
+// session or the box, so nothing is installed, compared or counted before
+// every derivation has answered. Both legs run whatever the other answered,
+// so a wrong passcode takes the same time a right one does. run() cleanses
+// its own copy of the typed bytes on every exit; the typed bytes themselves
+// survive to the answer only for the KeyDataAndVault hand-off, where the
+// gate carries them to the caller, and are cleared by run() for Vault, where
+// the vault key it opened is what the answer installs. Every key it produced
+// lives in SecureBytes and dies with the job on the main thread, installed
+// or not.
+struct GateDerivation {
+	WalletPasscodeCheck check = WalletPasscodeCheck::Vault;
+	std::optional<Storage::PasscodeDerivation> keyData;
+	std::optional<VaultWrap> vaultWrap;
+	SecureBytes passcode;
+	std::optional<SecureBytes> vaultKey;
+	bool vaultOpens = false;
+
+	void run();
+};
+
+void GateDerivation::run() {
+	auto utf8 = QByteArray(
+		reinterpret_cast<const char*>(passcode.span().data()),
+		passcode.size());
+	const auto cleanse = gsl::finally([&] {
+		if (!utf8.isEmpty()) {
+			OPENSSL_cleanse(utf8.data(), utf8.size());
+		}
+		if (check == WalletPasscodeCheck::Vault) {
+			passcode.clear();
+		}
+	});
+	if (vaultWrap) {
+		auto key = std::optional<SecureBytes>();
+		if (const auto wrapKey = DeriveVaultWrapKey(*vaultWrap, utf8)) {
+			key = UnwrapVaultKey(*vaultWrap, *wrapKey);
+		}
+		vaultOpens = key.has_value();
+		if (check == WalletPasscodeCheck::Vault) {
+			vaultKey = std::move(key);
+		}
+	} else {
+		vaultOpens = (check == WalletPasscodeCheck::KeyDataAndVault);
+	}
+	if (keyData) {
+		keyData->run();
+	}
 }
 
 // What the forgot-passcode confirmation says about every wallet this device
@@ -497,6 +550,8 @@ void WalletPasscodeBox(
 
 	struct State {
 		bool reported = false;
+		bool busy = false;
+		QPointer<Ui::RoundButton> submit;
 	};
 	const auto state = box->lifetime().make_state<State>();
 	box->setTitle(tr::lng_passcode_check_title());
@@ -572,8 +627,31 @@ void WalletPasscodeBox(
 		error->show();
 		error->setText(text);
 	};
+	// A derivation in flight disables the field and the Submit button and
+	// dims the button's label. defaultBoxButton paints no disabled state of
+	// its own, so the label is its text colour at half alpha, the box-footer
+	// idiom. The button is transparent to the mouse as well, but Enter in
+	// the field and a key release on a focused button still reach the
+	// handler, so submit itself refuses while busy.
+	const auto setBusy = [=](bool busy) {
+		state->busy = busy;
+		field->setDisabled(busy);
+		if (const auto button = state->submit.data()) {
+			button->setDisabled(busy);
+			button->setAttribute(Qt::WA_TransparentForMouseEvents, busy);
+			button->setTextFgOverride(busy
+				? std::make_optional(
+					anim::with_alpha(button->st().textFg->c, 0.5))
+				: std::nullopt);
+		}
+		if (!busy) {
+			field->setFocus();
+		}
+	};
 	const auto submit = [=] {
-		if (!passcodeCanTry()) {
+		if (state->busy) {
+			return;
+		} else if (!passcodeCanTry()) {
 			showError(tr::lng_flood_error(tr::now));
 			return;
 		}
@@ -585,37 +663,65 @@ void WalletPasscodeBox(
 				OPENSSL_cleanse(utf8.data(), utf8.size());
 			}
 		});
-		auto ok = false;
-		switch (args.check) {
-		case WalletPasscodeCheck::Vault:
-			ok = vault.unlockWithPasscode(session.local(), utf8);
-			break;
-		case WalletPasscodeCheck::KeyDataAndVault:
-			ok = session.domain().local().checkPasscode(utf8)
-				&& VaultOpensWithPasscode(session.local(), vault, utf8);
-			break;
+		auto job = GateDerivation{
+			.check = args.check,
+			.passcode = SecureBytes(utf8),
+		};
+		job.vaultWrap = CommittedPasscodeWrap(session.local(), vault);
+		if (args.check == WalletPasscodeCheck::KeyDataAndVault) {
+			job.keyData = session.domain().local().prepareOpen(utf8);
 		}
-		if (!ok) {
-			cSetPasscodeBadTries(cPasscodeBadTries() + 1);
-			cSetPasscodeLastTry(crl::now());
-			field->selectAll();
-			showError(tr::lng_passcode_wrong(tr::now));
-			return;
-		}
-		cSetPasscodeBadTries(0);
-		auto gate = WalletPasscodeGate();
-		if (retain) {
-			vault.setRetention(remember->checked());
-			gate.grant = vault.grant();
-		} else {
-			gate.passcode = SecureBytes(utf8);
-		}
-		state->reported = true;
-		box->closeBox();
-		args.passed(std::move(gate));
+		const auto epoch = vault.clearEpoch();
+		setBusy(true);
+		Storage::DeriveOnWorker(std::move(job), crl::guard(box, [=](
+				GateDerivation &&job) {
+			setBusy(false);
+			auto &session = args.show->session();
+			auto &vault = session.wallet().vault();
+			auto ok = false;
+			auto refused = false;
+			switch (args.check) {
+			case WalletPasscodeCheck::Vault:
+				refused = job.vaultKey
+					&& !vault.unlockWith(std::move(*job.vaultKey), epoch);
+				ok = job.vaultKey && !refused;
+				break;
+			case WalletPasscodeCheck::KeyDataAndVault:
+				ok = session.domain().local().checkPasscode(
+					std::move(*job.keyData))
+					&& job.vaultOpens;
+				break;
+			}
+			if (refused) {
+				// The clear epoch moved under the derivation - a screen
+				// lock, a system sleep or a committed wrap change - so the
+				// key is refused exactly as UnlockByKind refuses a late
+				// provider answer. The passcode was not wrong, so no bad
+				// try is counted and the box stays open for another try.
+				showError(tr::lng_wallet_vault_unavailable(tr::now));
+				return;
+			} else if (!ok) {
+				cSetPasscodeBadTries(cPasscodeBadTries() + 1);
+				cSetPasscodeLastTry(crl::now());
+				field->selectAll();
+				showError(tr::lng_passcode_wrong(tr::now));
+				return;
+			}
+			cSetPasscodeBadTries(0);
+			auto gate = WalletPasscodeGate();
+			if (retain) {
+				vault.setRetention(remember->checked());
+				gate.grant = vault.grant();
+			} else {
+				gate.passcode = std::move(job.passcode);
+			}
+			state->reported = true;
+			box->closeBox();
+			args.passed(std::move(gate));
+		}));
 	};
 	QObject::connect(field, &Ui::MaskedInputField::submitted, submit);
-	box->addButton(tr::lng_passcode_submit(), submit);
+	state->submit = box->addButton(tr::lng_passcode_submit(), submit);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	// Cancel, Escape and the layer being replaced all reach closeHook(), so
 	// this one handler tells a caller that must persist nothing about every

@@ -553,7 +553,9 @@ void LocalPasscodeEnter::setupContent() {
 			}));
 	};
 
-	const auto checkAndChange = [=](const QString &newText) {
+	const auto checkAndChange = [=](
+			const QString &newText,
+			Storage::PasscodeVerification verification) {
 		auto utf8 = newText.toUtf8();
 		const auto cleanse = gsl::finally([&] {
 			if (!utf8.isEmpty()) {
@@ -573,12 +575,7 @@ void LocalPasscodeEnter::setupContent() {
 					error->show();
 					error->setText(tr::lng_passcode_is_same(tr::now));
 					return;
-				} else if (!_verification) {
-					setDeriving(false);
-					_showOther.fire(LocalPasscodeCheckId());
-					return;
 				}
-				const auto verification = *_verification;
 				if (!Wallet::CollectVaultDependents().passcodeWrapped.empty()) {
 					changeWithWalletVaults(newText, verification);
 				} else {
@@ -586,6 +583,40 @@ void LocalPasscodeEnter::setupContent() {
 				}
 			}));
 	};
+
+	const auto checkAndOpenManage = [=](const QString &newText) {
+		setDeriving(true);
+		auto utf8 = newText.toUtf8();
+		const auto cleanse = gsl::finally([&] {
+			if (!utf8.isEmpty()) {
+				OPENSSL_cleanse(utf8.data(), utf8.size());
+			}
+		});
+		const auto &local = controller()->session().domain().local();
+		Storage::DeriveOnWorker(
+			local.prepareOpen(utf8),
+			crl::guard(this, [=](Storage::PasscodeDerivation &&derived) {
+				setDeriving(false);
+				const auto &domain = controller()->session().domain();
+				const auto verification = domain.local().verifyPasscode(
+					std::move(derived));
+				if (verification) {
+					cSetPasscodeBadTries(0);
+					WriteVerification(_stepData, verification);
+					_showOther.fire(LocalPasscodeManageId());
+				} else {
+					cSetPasscodeBadTries(cPasscodeBadTries() + 1);
+					cSetPasscodeLastTry(crl::now());
+
+					newPasscode->selectAll();
+					newPasscode->setFocus();
+					newPasscode->showError();
+					error->show();
+					error->setText(tr::lng_passcode_wrong(tr::now));
+				}
+			}));
+	};
+
 	button->setClickedCallback([=] {
 		if (_deriving) {
 			return;
@@ -607,12 +638,14 @@ void LocalPasscodeEnter::setupContent() {
 				reenterPasscode->selectAll();
 				error->show();
 				error->setText(tr::lng_passcode_differ(tr::now));
+			} else if (isChange && !_verification) {
+				_showOther.fire(LocalPasscodeCheckId());
 			} else {
 				setDeriving(true);
 				if (isCreate) {
 					deriveAndSave(newText, {});
 				} else {
-					checkAndChange(newText);
+					checkAndChange(newText, *_verification);
 				}
 			}
 		} else if (isCheck) {
@@ -623,23 +656,7 @@ void LocalPasscodeEnter::setupContent() {
 				error->setText(tr::lng_flood_error(tr::now));
 				return;
 			}
-			const auto &domain = controller()->session().domain();
-			const auto verification = domain.local().verifyPasscode(
-				newText.toUtf8());
-			if (verification) {
-				cSetPasscodeBadTries(0);
-				WriteVerification(_stepData, verification);
-				_showOther.fire(LocalPasscodeManageId());
-			} else {
-				cSetPasscodeBadTries(cPasscodeBadTries() + 1);
-				cSetPasscodeLastTry(crl::now());
-
-				newPasscode->selectAll();
-				newPasscode->setFocus();
-				newPasscode->showError();
-				error->show();
-				error->setText(tr::lng_passcode_wrong(tr::now));
-			}
+			checkAndOpenManage(newText);
 		}
 	});
 
@@ -756,11 +773,14 @@ enum class UnlockType {
 	Companion,
 };
 
-void BuildManageContent(SectionBuilder &builder) {
+void BuildManageContent(
+		SectionBuilder &builder,
+		Fn<std::optional<Storage::PasscodeVerification>()> takeVerification) {
 	const auto controller = builder.controller();
 	if (!controller) {
 		return;
 	}
+	const auto showOther = builder.showOther();
 
 	const auto container = builder.container();
 
@@ -820,14 +840,25 @@ void BuildManageContent(SectionBuilder &builder) {
 		const auto weak = base::make_weak(container);
 
 		// Storage::Domain::setAppLockEnabled() zeroes the verification nonce
-		// in a gsl::finally on every exit, accepted or refused, so moving
-		// this toggle spends the PasscodeVerification the check screen
-		// minted. A change or a disable pressed afterwards then answers
-		// NeedsVerification and routes back to that screen, which is correct
-		// - but it is an outcome those flows have to report, not swallow.
+		// in a gsl::finally on every exit, accepted or refused, whichever
+		// way the lock moves, so any flip of this toggle kills the token the
+		// Check screen minted. The section's copy is therefore taken on
+		// every flip, and a Change or Disable pressed afterwards finds none
+		// and re-authenticates through Check instead of carrying a dead
+		// token into a write that would only answer NeedsVerification.
 		const auto apply = [=](bool enabled) {
+			auto verification = takeVerification
+				? takeVerification()
+				: std::nullopt;
+			if (!enabled && !verification) {
+				state->appLockToggles.fire_copy(true);
+				showOther(LocalPasscodeCheckId());
+				return false;
+			}
 			const auto &domain = Core::App().domain();
-			const auto result = domain.local().setAppLockEnabled(enabled);
+			const auto result = domain.local().setAppLockEnabled(
+				enabled,
+				verification.value_or(Storage::PasscodeVerification()));
 			if (result != Storage::SetPasscodeResult::Success) {
 				state->appLockToggles.fire_copy(!enabled);
 				controller->showToast(Lang::Hard::SecureSaveError());
@@ -1147,7 +1178,9 @@ void LocalPasscodeManage::setupContent() {
 			.isPaused = isPaused,
 			.highlights = highlights,
 		});
-		BuildManageContent(builder);
+		BuildManageContent(builder, [this] {
+			return base::take(_verification);
+		});
 
 		std::move(showFinished) | rpl::on_next([=] {
 			for (const auto &[id, entry] : *highlights) {
@@ -1248,12 +1281,15 @@ void LocalPasscodeManage::disableAfterRemoval(
 		return;
 	}
 	if (set != Storage::SetPasscodeResult::Success) {
-		// The vaults have moved and the passcode has not. That is what the
-		// app-lock toggle leaves behind: setAppLockEnabled() zeroes the
-		// verification nonce on every exit and cannot tell this object,
-		// which is still holding the spent token. So say what did change
-		// and ask for the passcode once more, instead of ending silently
-		// on a screen that looks untouched.
+		// The vaults have moved and the passcode has not: some nonce
+		// consumer ran between Check and this write - a passcode box
+		// minting a token of its own, the removal chooser's Keep row
+		// turning the launch lock off - and none of them can tell this
+		// object, which is still holding the dead token. (The app-lock
+		// toggle no longer leaves that behind; it takes the section's copy
+		// and routes through Check itself.) So say what did change and ask
+		// for the passcode once more, instead of ending silently on a
+		// screen that looks untouched.
 		report();
 		if (weak && weakController) {
 			weak->showOther(LocalPasscodeCheckId());
@@ -1384,7 +1420,7 @@ const auto kMeta = BuildHelper({
 	.title = &tr::lng_settings_passcode_title,
 	.icon = &st::menuIconLock,
 }, [](SectionBuilder &builder) {
-	BuildManageContent(builder);
+	BuildManageContent(builder, nullptr);
 });
 
 } // namespace
