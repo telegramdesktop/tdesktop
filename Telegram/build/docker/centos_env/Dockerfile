@@ -990,7 +990,7 @@ cd ..
 rm -rf tde2e
 EOF
 
-FROM patches AS tlottie
+FROM patches AS tdesktop_rust
 RUN <<EOF
 RUST_TOOLCHAIN=1.96.1
 export RUSTUP_HOME=/usr/src/rustup
@@ -1000,52 +1000,46 @@ sh rustup-init.sh -y --no-modify-path --profile minimal --default-toolchain $RUS
 rm rustup-init.sh
 export RUSTUP_TOOLCHAIN=$RUST_TOOLCHAIN
 export PATH=$CARGO_HOME/bin:$PATH
-export DESTDIR=/usr/src/tlottie-cache
+export DESTDIR=/usr/src/tdesktop_rust-cache
 git init tlottie
 cd tlottie
 git remote add origin https://github.com/dkaraush/tlottie.git
 git fetch --depth=1 origin 31f1b542f88e7b4be9a01e749920d857535fc715
 git reset --hard FETCH_HEAD
 git apply ../patches/tlottie.patch
-cargo rustc --lib --release --locked \
-	--features c-api --crate-type staticlib \
-	--target x86_64-unknown-linux-gnu \
-	-- --print native-static-libs
-mkdir -p $DESTDIR/usr/local/lib $DESTDIR/usr/local/include/tlottie
-objcopy --strip-debug target/x86_64-unknown-linux-gnu/release/libtlottie.a $DESTDIR/usr/local/lib/libtlottie.a
-cp include/tlottie.h $DESTDIR/usr/local/include/tlottie/tlottie.h
 cd ..
-rm -rf tlottie rustup cargo
-EOF
-
-FROM builder AS wallet-engine
-RUN <<EOF
-RUST_TOOLCHAIN=1.96.1
-export RUSTUP_HOME=/usr/src/rustup
-export CARGO_HOME=/usr/src/cargo
-wget -O rustup-init.sh https://sh.rustup.rs
-sh rustup-init.sh -y --no-modify-path --profile minimal --default-toolchain $RUST_TOOLCHAIN
-rm rustup-init.sh
-export RUSTUP_TOOLCHAIN=$RUST_TOOLCHAIN
-export PATH=$CARGO_HOME/bin:$PATH
-export DESTDIR=/usr/src/wallet-engine-cache
 git init wallet-engine
 cd wallet-engine
 git remote add origin https://github.com/i582/wallet-engine.git
 git fetch --depth=1 origin 467942571d2a3b21f3bda468190573082c7aa270
 git reset --hard FETCH_HEAD
-cargo rustc -p wallet-engine --lib --release --locked \
-	--target x86_64-unknown-linux-gnu \
-	--config "profile.release.panic='unwind'" \
-	-- --print native-static-libs
-mkdir -p $DESTDIR/usr/local/lib $DESTDIR/usr/local/include/wallet_engine $DESTDIR/usr/local/src/wallet_engine
-cargo run --manifest-path bindgen/cpp/bindgen/Cargo.toml --locked -- \
-	--library --out-dir $DESTDIR/usr/local/include/wallet_engine \
-	target/x86_64-unknown-linux-gnu/release/libwallet_engine.so
-mv $DESTDIR/usr/local/include/wallet_engine/wallet_engine.cpp $DESTDIR/usr/local/src/wallet_engine/wallet_engine.cpp
-objcopy --strip-debug target/x86_64-unknown-linux-gnu/release/libwallet_engine.a $DESTDIR/usr/local/lib/libwallet_engine.a
 cd ..
-rm -rf wallet-engine rustup cargo
+# One archive for every Rust library. Each staticlib carries its own copy of
+# the Rust standard library, so separate builds define the runtime symbols
+# that must stay global twice and the linker refuses the binary.
+cargo new --lib --vcs none tdesktop_rust
+cd tdesktop_rust
+printf 'pub use ::tlottie;\npub use ::wallet_engine;\n' > src/lib.rs
+cargo add --path ../tlottie --features c-api
+cargo add --path ../wallet-engine
+cargo rustc --lib --release \
+	--crate-type staticlib --crate-type cdylib \
+	--target x86_64-unknown-linux-gnu \
+	--config "profile.release.opt-level='z'" \
+	--config "profile.release.lto='thin'" \
+	--config "profile.release.codegen-units=1" \
+	--config "profile.release.panic='unwind'" \
+	--config "profile.release.package.tlottie.opt-level=3" \
+	-- --print native-static-libs
+mkdir -p $DESTDIR/usr/local/lib $DESTDIR/usr/local/include/tlottie $DESTDIR/usr/local/include/wallet_engine $DESTDIR/usr/local/src/wallet_engine
+objcopy --strip-debug target/x86_64-unknown-linux-gnu/release/libtdesktop_rust.a $DESTDIR/usr/local/lib/libtdesktop_rust.a
+cp ../tlottie/include/tlottie.h $DESTDIR/usr/local/include/tlottie/tlottie.h
+cargo run --manifest-path ../wallet-engine/bindgen/cpp/bindgen/Cargo.toml --locked -- \
+	--library --out-dir $DESTDIR/usr/local/include/wallet_engine \
+	target/x86_64-unknown-linux-gnu/release/libtdesktop_rust.so
+mv $DESTDIR/usr/local/include/wallet_engine/wallet_engine.cpp $DESTDIR/usr/local/src/wallet_engine/wallet_engine.cpp
+cd ..
+rm -rf tlottie wallet-engine tdesktop_rust rustup cargo
 EOF
 
 FROM builder
@@ -1089,8 +1083,7 @@ COPY --link --from=breakpad /usr/src/breakpad-cache /
 COPY --link --from=webrtc /usr/src/webrtc-cache /
 COPY --link --from=ada /usr/src/ada-cache /
 COPY --link --from=tde2e /usr/src/tde2e-cache /
-COPY --link --from=tlottie /usr/src/tlottie-cache /
-COPY --link --from=wallet-engine /usr/src/wallet-engine-cache /
+COPY --link --from=tdesktop_rust /usr/src/tdesktop_rust-cache /
 
 COPY --link --from=patches /usr/src/patches patches
 RUN <<EOF

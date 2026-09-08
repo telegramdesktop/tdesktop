@@ -1985,48 +1985,6 @@ depends:patches/tlottie.patch
     cd tlottie
     git checkout 31f1b542f8
     git apply ../patches/tlottie.patch
-win:
-    SET "RUSTUP_HOME=%THIRDPARTY_DIR%\\rust\\rustup"
-    SET "CARGO_HOME=%THIRDPARTY_DIR%\\rust\\cargo"
-    SET RUSTUP_TOOLCHAIN=""" + rustToolchain + """
-    SET "PATH=%CARGO_HOME%\\bin;%PATH%"
-win32:
-    SET "RUST_TARGET=i686-win7-windows-msvc"
-    SET "RUST_BUILD_STD=-Z build-std=std,panic_abort"
-    SET "RUSTC_BOOTSTRAP=1"
-win64:
-    SET "RUST_TARGET=x86_64-win7-windows-msvc"
-    SET "RUST_BUILD_STD=-Z build-std=std,panic_abort"
-    SET "RUSTC_BOOTSTRAP=1"
-winarm:
-    SET "RUST_TARGET=aarch64-pc-windows-msvc"
-    SET "RUST_BUILD_STD="
-win:
-    cargo rustc --lib --release --locked ^
-        --features c-api --crate-type staticlib ^
-        %RUST_BUILD_STD% ^
-        --target %RUST_TARGET% ^
-        --config "target.%RUST_TARGET%.rustflags=['-C','target-feature=+crt-static']" ^
-        -- --print native-static-libs
-    mkdir out\\lib out\\include
-    copy target\\%RUST_TARGET%\\release\\tlottie.lib out\\lib\\tlottie.lib
-    copy include\\tlottie.h out\\include\\tlottie.h
-mac:
-    export RUSTUP_HOME=$THIRDPARTY_DIR/rust/rustup
-    export CARGO_HOME=$THIRDPARTY_DIR/rust/cargo
-    export RUSTUP_TOOLCHAIN=""" + rustToolchain + """
-    export PATH=$CARGO_HOME/bin:$PATH
-    buildOneArch() {
-        cargo rustc --lib --release --locked \\
-            --features c-api --crate-type staticlib \\
-            --target $1 \\
-            -- --print native-static-libs
-    }
-    buildOneArch aarch64-apple-darwin
-    buildOneArch x86_64-apple-darwin
-    mkdir -p $USED_PREFIX/lib $USED_PREFIX/include/tlottie
-    lipo -create target/aarch64-apple-darwin/release/libtlottie.a target/x86_64-apple-darwin/release/libtlottie.a -output $USED_PREFIX/lib/libtlottie.a
-    cp include/tlottie.h $USED_PREFIX/include/tlottie/tlottie.h
 """)
 
 stage('wallet-engine', """
@@ -2038,6 +1996,18 @@ win_mac:
     git clone https://github.com/i582/wallet-engine.git
     cd wallet-engine
     git checkout 467942571d2a3b21f3bda468190573082c7aa270
+""")
+
+# Every Rust library is built into one archive. A Rust staticlib carries its
+# own copy of the standard library, so building them separately defines the
+# runtime symbols that must stay global twice, which the linker refuses, and
+# duplicates the rest of std in the binary. The umbrella crate is generated
+# here rather than kept in a repository of its own: it is two dependency lines
+# and two re-exports, and the pinned revisions stay visible in the stages
+# above. The profile lives on the command line because a dependency's own
+# [profile] is ignored by cargo; lto and panic cannot be set per package, so
+# they are stated once, while opt-level keeps the level each library asked for.
+stage('tdesktop_rust', """
 win:
     SET "RUSTUP_HOME=%THIRDPARTY_DIR%\\rust\\rustup"
     SET "CARGO_HOME=%THIRDPARTY_DIR%\\rust\\cargo"
@@ -2055,37 +2025,60 @@ winarm:
     SET "RUST_TARGET=aarch64-pc-windows-msvc"
     SET "RUST_BUILD_STD="
 win:
-    cargo rustc -p wallet-engine --lib --release --locked ^
+    cargo new --lib --vcs none tdesktop_rust
+    cd tdesktop_rust
+    echo pub use ::tlottie;> src\\lib.rs
+    echo pub use ::wallet_engine;>> src\\lib.rs
+    cargo add --path ..\\tlottie --features c-api
+    cargo add --path ..\\wallet-engine
+    cargo rustc --lib --release ^
+        --crate-type staticlib --crate-type cdylib ^
         %RUST_BUILD_STD% ^
         --target %RUST_TARGET% ^
+        --config "profile.release.opt-level='z'" ^
+        --config "profile.release.lto='thin'" ^
+        --config "profile.release.codegen-units=1" ^
         --config "profile.release.panic='unwind'" ^
+        --config "profile.release.package.tlottie.opt-level=3" ^
         --config "target.%RUST_TARGET%.rustflags=['-C','target-feature=+crt-static']" ^
         -- --print native-static-libs
-    mkdir out\\lib out\\include out\\src
-    cargo run --manifest-path bindgen\\cpp\\bindgen\\Cargo.toml --locked -- ^
-        --library --out-dir out\\include ^
-        target\\%RUST_TARGET%\\release\\wallet_engine.dll
-    move out\\include\\wallet_engine.cpp out\\src\\wallet_engine.cpp
-    copy target\\%RUST_TARGET%\\release\\wallet_engine.lib out\\lib\\wallet_engine.lib
+    mkdir out\\lib out\\include out\\include\\tlottie out\\include\\wallet_engine out\\src out\\src\\wallet_engine
+    copy target\\%RUST_TARGET%\\release\\tdesktop_rust.lib out\\lib\\tdesktop_rust.lib
+    copy ..\\tlottie\\include\\tlottie.h out\\include\\tlottie\\tlottie.h
+    cargo run --manifest-path ..\\wallet-engine\\bindgen\\cpp\\bindgen\\Cargo.toml --locked -- ^
+        --library --out-dir out\\include\\wallet_engine ^
+        target\\%RUST_TARGET%\\release\\tdesktop_rust.dll
+    move out\\include\\wallet_engine\\wallet_engine.cpp out\\src\\wallet_engine\\wallet_engine.cpp
 mac:
     export RUSTUP_HOME=$THIRDPARTY_DIR/rust/rustup
     export CARGO_HOME=$THIRDPARTY_DIR/rust/cargo
     export RUSTUP_TOOLCHAIN=""" + rustToolchain + """
     export PATH=$CARGO_HOME/bin:$PATH
+    cargo new --lib --vcs none tdesktop_rust
+    cd tdesktop_rust
+    printf 'pub use ::tlottie;\\npub use ::wallet_engine;\\n' > src/lib.rs
+    cargo add --path ../tlottie --features c-api
+    cargo add --path ../wallet-engine
     buildOneArch() {
-        cargo rustc -p wallet-engine --lib --release --locked \\
+        cargo rustc --lib --release \\
+            --crate-type staticlib --crate-type cdylib \\
             --target $1 \\
+            --config "profile.release.opt-level='z'" \\
+            --config "profile.release.lto='thin'" \\
+            --config "profile.release.codegen-units=1" \\
             --config "profile.release.panic='unwind'" \\
+            --config "profile.release.package.tlottie.opt-level=3" \\
             -- --print native-static-libs
     }
     buildOneArch aarch64-apple-darwin
     buildOneArch x86_64-apple-darwin
-    mkdir -p $USED_PREFIX/lib $USED_PREFIX/include/wallet_engine $USED_PREFIX/src/wallet_engine
-    cargo run --manifest-path bindgen/cpp/bindgen/Cargo.toml --locked -- \\
+    mkdir -p $USED_PREFIX/lib $USED_PREFIX/include/tlottie $USED_PREFIX/include/wallet_engine $USED_PREFIX/src/wallet_engine
+    lipo -create target/aarch64-apple-darwin/release/libtdesktop_rust.a target/x86_64-apple-darwin/release/libtdesktop_rust.a -output $USED_PREFIX/lib/libtdesktop_rust.a
+    cp ../tlottie/include/tlottie.h $USED_PREFIX/include/tlottie/tlottie.h
+    cargo run --manifest-path ../wallet-engine/bindgen/cpp/bindgen/Cargo.toml --locked -- \\
         --library --out-dir $USED_PREFIX/include/wallet_engine \\
-        target/aarch64-apple-darwin/release/libwallet_engine.dylib
+        target/aarch64-apple-darwin/release/libtdesktop_rust.dylib
     mv $USED_PREFIX/include/wallet_engine/wallet_engine.cpp $USED_PREFIX/src/wallet_engine/wallet_engine.cpp
-    lipo -create target/aarch64-apple-darwin/release/libwallet_engine.a target/x86_64-apple-darwin/release/libwallet_engine.a -output $USED_PREFIX/lib/libwallet_engine.a
 """)
 
 if win:
