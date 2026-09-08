@@ -95,6 +95,7 @@ parts:
       - qt
       - rnnoise
       - tde2e
+      - tlottie
       - webrtc
 
   pkgs:
@@ -471,6 +472,32 @@ parts:
     prime: [-./*]
     after:
       - openssl
+
+  tlottie:
+    source: https://github.com/dkaraush/tlottie.git
+    source-depth: 1
+    source-commit: 758c7cb74444f1c3c9923065c40fdb3aad8b7d60
+    plugin: nil
+    build-packages:
+      - wget
+    override-build: |
+      RUST_TOOLCHAIN=1.96.1
+      export RUSTUP_HOME="$CRAFT_PART_BUILD/rustup"
+      export CARGO_HOME="$CRAFT_PART_BUILD/cargo"
+      wget -O rustup-init.sh https://sh.rustup.rs
+      sh rustup-init.sh -y --no-modify-path --profile minimal --default-toolchain $RUST_TOOLCHAIN
+      rm rustup-init.sh
+      export RUSTUP_TOOLCHAIN=$RUST_TOOLCHAIN
+      export PATH="$CARGO_HOME/bin:$PATH"
+      cargo rustc --lib --release --locked \
+        --features c-api --crate-type staticlib \
+        -- --print native-static-libs
+      LIBDIR="$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR"
+      INCLUDEDIR="$CRAFT_PART_INSTALL/usr/include/tlottie"
+      mkdir -p "$LIBDIR" "$INCLUDEDIR"
+      objcopy --strip-debug target/release/libtlottie.a "$LIBDIR/libtlottie.a"
+      cp include/tlottie.h "$INCLUDEDIR/tlottie.h"
+    prime: [-./*]
 
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
