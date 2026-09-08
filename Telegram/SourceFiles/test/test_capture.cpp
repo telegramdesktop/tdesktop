@@ -441,6 +441,15 @@ bool CaptureInLayerRoot(not_null<QWidget*> box, const QString &name) {
 	return CaptureMappedRect(root.widget.data(), box, box->rect(), name);
 }
 
+bool CaptureBoxLayer(not_null<QWidget*> box, const QString &name) {
+	const auto root = PaintingLayerRoot(box);
+	if (!root.resolved()) {
+		Fail(u"capture %1"_q.arg(name), root.refusal);
+		return false;
+	}
+	return CaptureWidget(root.widget.data(), name);
+}
+
 WindowMappedCapture ReadViaWindow(QWidget *widget) {
 	if (!widget) {
 		return {

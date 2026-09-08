@@ -125,6 +125,18 @@ bool ClickBoxButton(QWidget *box, const QString &label);
 // answer: without it matched()==false would still read as "the button is
 // not there".
 //
+// The first show uses anim::type::normal so LayerStackWidget hides the
+// shell for the show animation. In that same .run the self-test reads
+// every footer as (hidden), including Busy, and the title label as not
+// visible; after until sees box->isVisible() it re-reads Submit as ready
+// and Busy as disabled on that same box. The hidden-during-animation
+// refusal is observed through ReadBoxButtons, which logs nothing, never
+// through a second announced ClickBoxButton Fail.
+//
+// box_button_shell is saved through CaptureBoxLayer so the frame contains
+// the footer row; a CaptureInLayerRoot before-leg on the same fixture
+// shows the cropped frame is strictly shorter and cannot hold that band.
+//
 // It needs no session, no chats list, no network and no account fixture. The
 // only thing it asks of the process is a primary window to show a layer in,
 // and a missing one is a named fixture gate instead of a crash. It appends

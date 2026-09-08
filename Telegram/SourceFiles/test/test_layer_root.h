@@ -37,8 +37,12 @@ class Runner;
 // captures the box through the Ui::BoxLayerWidget the resolver answers, crops
 // the box's own mapped rect out of that accepted frame to show the root
 // really holds the box's pixels rather than merely being some ancestor that
-// paints, and refuses a null, a stray widget and the window itself by name so
-// the resolver is shown to discriminate instead of answering everything.
+// paints, saves that crop through CaptureInLayerRoot and the whole shell
+// through CaptureBoxLayer so the title band above the mapped box is present
+// only in the shell frame, quotes MisframedDetails on a rect outside the
+// root as a passing Check, and refuses a null, a stray widget and the window
+// itself by name so the resolver is shown to discriminate instead of
+// answering everything.
 //
 // It needs no session, no chats list, no network and no account fixture. The
 // only thing it asks of the process is a primary window to show a layer in,

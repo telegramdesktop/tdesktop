@@ -319,6 +319,38 @@ void AppendPaintingLayerRootSelfTest(not_null<Runner*> runner) {
 				"the box's rect maps inside its Ui::BoxLayerWidget and "
 				"MisframedDetails does not fire"_q,
 				details());
+			Check(
+				CaptureBoxLayer(box, u"layer_root_box_shell"_q),
+				u"CaptureBoxLayer saves the resolved Ui::BoxLayerWidget, "
+				"including the title band CaptureInLayerRoot's crop "
+				"drops"_q,
+				details());
+			const auto titleBand = Crop(
+				image,
+				QRect(0, 0, image.width(), int(mapped.y() * ratio)));
+			Check(
+				(mapped.y() > 0)
+					&& !titleBand.isNull()
+					&& !LooksBlank(titleBand),
+				u"the whole-shell frame holds a non-blank title band "
+				"above the box content's mapped top"_q,
+				u"mapped=%1,%2 %3x%4 titleBand=%5x%6"_q
+					.arg(mapped.x())
+					.arg(mapped.y())
+					.arg(mapped.width())
+					.arg(mapped.height())
+					.arg(titleBand.width())
+					.arg(titleBand.height()));
+			Check(
+				cropped.height() < image.height(),
+				u"the content-cropped frame is strictly shorter than the "
+				"shell, so the title band is new information and not a "
+				"rename"_q,
+				u"cropped=%1x%2 shell=%3x%4"_q
+					.arg(cropped.width())
+					.arg(cropped.height())
+					.arg(image.width())
+					.arg(image.height()));
 		},
 		kDefaultStageTimeout,
 		[=](QWidget*) {
@@ -364,6 +396,26 @@ void AppendPaintingLayerRootSelfTest(not_null<Runner*> runner) {
 				"hop, which is the mechanism that keeps the resolver off a "
 				"Ui::PopupMenu"_q,
 				owner.refusal);
+			const auto live = PaintingLayerRoot(state->fixture.box.get());
+			const auto outside = live.resolved()
+				? QRect(
+					live.widget->width(),
+					live.widget->height(),
+					16,
+					16)
+				: QRect();
+			const auto misframed = live.resolved()
+				? MisframedDetails(live.widget.data(), outside)
+				: QString();
+			Check(
+				live.resolved()
+					&& !misframed.isEmpty()
+					&& misframed.contains(
+						u"requested rect is not fully inside"_q),
+				u"CaptureMappedRect's misframing refusal still fires for "
+				"a rect that maps outside the layer, observed through "
+				"MisframedDetails so this stage logs no failure"_q,
+				misframed);
 		},
 	});
 

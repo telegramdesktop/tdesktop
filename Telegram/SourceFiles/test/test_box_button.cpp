@@ -18,10 +18,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_widgets.h"
 #include "ui/layers/box_content.h"
 #include "ui/layers/generic_box.h"
+#include "ui/effects/animation_value.h"
 #include "ui/layers/layer_widget.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
 #include "ui/abstract_button.h"
 #include "ui/rp_widget.h"
+#include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
 #include "window/window_controller.h"
 
@@ -101,20 +104,36 @@ void SelfTestBoxContent(
 	hidden->hide();
 }
 
-[[nodiscard]] bool BuildFixture(Fixture &fixture, Fn<void()> submitted) {
+[[nodiscard]] Ui::FlatLabel *ShellTitle(QWidget *root) {
+	if (!root) {
+		return nullptr;
+	}
+	for (const auto label : FindAll<Ui::FlatLabel>(root)) {
+		if (label->parentWidget() == root) {
+			return label;
+		}
+	}
+	return nullptr;
+}
+
+[[nodiscard]] bool BuildFixture(
+		Fixture &fixture,
+		Fn<void()> submitted,
+		anim::type animated) {
 	const auto window = Core::App().activePrimaryWindow();
 	if (!window) {
 		return false;
 	}
 	fixture.stray = base::make_unique_q<Ui::RpWidget>(window->widget().get());
-	// anim::type::instant is why this fixture needs no animation wait:
-	// LayerStackWidget takes its instant branch straight to animationDone,
-	// where layer->show() runs, while the normal path hides the layer for
-	// the whole animation. test_layer_root.cpp:96-122 carries the full walk.
+	// anim::type::normal is the product default and the path that hides the
+	// layer in LayerStackWidget::prepareForAnimation until animationDone
+	// shows it again. The first self-test stage takes its hidden reading
+	// in that same turn; until still waits on box->isVisible(). Instant
+	// skips the hide; test_layer_root.cpp carries the full walk.
 	fixture.box = window->show(
 		Box(SelfTestBoxContent, std::move(submitted)),
 		Ui::LayerOption::CloseOther,
-		anim::type::instant);
+		animated);
 	return (fixture.box.get() != nullptr);
 }
 
@@ -286,6 +305,14 @@ void AppendBoxButtonClickSelfTest(not_null<Runner*> runner) {
 		bool busyHiddenBefore = false;
 		QString busyRefusalBefore;
 		QStringList busyLabelsBefore;
+		BoxShellButtons hiddenSubmit;
+		BoxShellButtons hiddenCancel;
+		BoxShellButtons hiddenBusy;
+		bool hiddenBoxVisible = true;
+		bool hiddenRootVisible = true;
+		bool hiddenTitleVisible = true;
+		bool hiddenReady = true;
+		int hiddenTitleCount = 0;
 	};
 	// Leaked on purpose, the way the harness's other self-tests leak theirs:
 	// the stages outlive this call. The teardown stage releases the fixture,
@@ -313,13 +340,80 @@ void AppendBoxButtonClickSelfTest(not_null<Runner*> runner) {
 		.run = [=] {
 			state->built = BuildFixture(
 				state->fixture,
-				[=] { ++state->fired; });
+				[=] { ++state->fired; },
+				anim::type::normal);
 			Check(
 				state->built,
 				u"fixture gate: the self-test fixture was built"_q,
 				state->built
 					? QString()
 					: u"Core::App().activePrimaryWindow() is null"_q);
+			if (!state->built) {
+				return;
+			}
+			const auto box = state->fixture.box.get();
+			if (!box) {
+				Check(
+					false,
+					u"the fixture box exists in the turn it was shown"_q,
+					details());
+				return;
+			}
+			const auto root = PaintingLayerRoot(box);
+			const auto title = ShellTitle(
+				root.resolved() ? root.widget.data() : nullptr);
+			state->hiddenSubmit = ReadBoxButtons(box, kSubmitLabel);
+			state->hiddenCancel = ReadBoxButtons(box, kCancelLabel);
+			state->hiddenBusy = ReadBoxButtons(box, kBusyLabel);
+			state->hiddenBoxVisible = box->isVisible();
+			state->hiddenRootVisible = root.resolved()
+				&& root.widget->isVisible();
+			state->hiddenTitleCount = title ? 1 : 0;
+			state->hiddenTitleVisible = title && title->isVisible();
+			state->hiddenReady = BoxButtonReady(box, kSubmitLabel);
+			const auto hiddenText = u"boxVisible=%1 rootVisible=%2 "
+				"titleCount=%3 titleVisible=%4 ready=%5 "
+				"submit=[%6] cancel=[%7] busy=[%8] refusal=%9"_q
+				.arg(state->hiddenBoxVisible ? 1 : 0)
+				.arg(state->hiddenRootVisible ? 1 : 0)
+				.arg(state->hiddenTitleCount)
+				.arg(state->hiddenTitleVisible ? 1 : 0)
+				.arg(state->hiddenReady ? 1 : 0)
+				.arg(state->hiddenSubmit.labels.join(u", "_q))
+				.arg(state->hiddenCancel.labels.join(u", "_q))
+				.arg(state->hiddenBusy.labels.join(u", "_q))
+				.arg(state->hiddenSubmit.refusal);
+			Check(
+				state->hiddenSubmit.present
+					&& state->hiddenSubmit.hidden
+					&& !state->hiddenSubmit.matched()
+					&& state->hiddenSubmit.labels.contains(
+						u"Harness Submit (hidden)"_q)
+					&& state->hiddenCancel.present
+					&& state->hiddenCancel.hidden
+					&& state->hiddenCancel.labels.contains(
+						u"Harness Cancel (hidden)"_q)
+					&& !state->hiddenBoxVisible
+					&& !state->hiddenRootVisible
+					&& (state->hiddenTitleCount == 1)
+					&& !state->hiddenTitleVisible
+					&& !state->hiddenReady
+					&& state->hiddenSubmit.refusal.contains(u"is hidden"_q),
+				u"in the turn the box was shown with anim::type::normal, "
+				"the whole Ui::BoxLayerWidget is hidden, so ReadBoxButtons "
+				"names every footer (hidden) including the title label, "
+				"BoxButtonReady is false, and ClickBoxButton's refusal "
+				"would name that hide"_q,
+				hiddenText);
+			Check(
+				state->hiddenBusy.present
+					&& state->hiddenBusy.hidden
+					&& !state->hiddenBusy.disabled
+					&& state->hiddenBusy.labels.contains(
+						u"Harness Busy (hidden)"_q),
+				u"the hide is the whole layer, not a product-disabled "
+				"footer: Busy is (hidden) in this turn, not (disabled)"_q,
+				hiddenText);
 		},
 		.until = ready,
 		.then = [=] {
@@ -335,6 +429,44 @@ void AppendBoxButtonClickSelfTest(not_null<Runner*> runner) {
 				return;
 			}
 			const auto root = PaintingLayerRoot(box);
+			const auto title = ShellTitle(
+				root.resolved() ? root.widget.data() : nullptr);
+			const auto submit = ReadBoxButtons(box, kSubmitLabel);
+			const auto busy = ReadBoxButtons(box, kBusyLabel);
+			const auto settledText = u"hiddenLabels=[%1] hiddenReady=%2 "
+				"submit present=%3 matched=%4 hidden=%5 "
+				"busy present=%6 disabled=%7 hidden=%8 "
+				"titleVisible=%9 "_q
+				.arg(state->hiddenSubmit.labels.join(u", "_q))
+				.arg(state->hiddenReady ? 1 : 0)
+				.arg(submit.present ? 1 : 0)
+				.arg(submit.matched() ? 1 : 0)
+				.arg(submit.hidden ? 1 : 0)
+				.arg(busy.present ? 1 : 0)
+				.arg(busy.disabled ? 1 : 0)
+				.arg(busy.hidden ? 1 : 0)
+				.arg((title && title->isVisible()) ? 1 : 0)
+				+ u"boxVisible=%1 labels=[%2]"_q
+				.arg(box->isVisible() ? 1 : 0)
+				.arg(submit.labels.join(u", "_q));
+			Check(
+				state->hiddenSubmit.hidden
+					&& !state->hiddenReady
+					&& submit.present
+					&& submit.matched()
+					&& !submit.hidden
+					&& BoxButtonReady(box, kSubmitLabel)
+					&& busy.present
+					&& busy.disabled
+					&& !busy.hidden
+					&& busy.labels.contains(u"Harness Busy (disabled)"_q)
+					&& title
+					&& title->isVisible()
+					&& box->isVisible(),
+				u"after the layer show animation settles, the same box "
+				"object reads Submit ready and Busy disabled, with the "
+				"title visible"_q,
+				settledText);
 			const auto shell = ShellButtons(root.widget.data());
 			auto reachable = 0;
 			for (const auto button : shell) {
@@ -408,11 +540,96 @@ void AppendBoxButtonClickSelfTest(not_null<Runner*> runner) {
 				after == before,
 				u"a successful click logs no failure of its own"_q,
 				u"failures before=%1 after=%2"_q.arg(before).arg(after));
+			const auto root = PaintingLayerRoot(box);
 			Check(
-				CaptureInLayerRoot(box, u"box_button_shell"_q),
-				u"the clicked shell row is saved as durable evidence "
-				"through the existing layer-root capture"_q,
+				root.resolved(),
+				u"the clicked box still has a painting layer root to "
+				"measure both frames against"_q,
+				root.resolved()
+					? WidgetDescription(root.widget.data())
+					: root.refusal);
+			if (!root.resolved()) {
+				return;
+			}
+			const auto mapped = Ui::MapFrom(
+				root.widget.data(),
+				box,
+				box->rect());
+			Check(
+				CaptureInLayerRoot(box, u"box_button_shell_cropped"_q),
+				u"the content-cropped before-leg still saves the box's "
+				"own rect through CaptureInLayerRoot"_q,
 				details());
+			Check(
+				CaptureBoxLayer(box, u"box_button_shell"_q),
+				u"the clicked shell row is saved as durable evidence "
+				"through CaptureBoxLayer, whose frame is the "
+				"Ui::BoxLayerWidget including the footer row"_q,
+				details());
+			const auto shellImage = GrabWidget(root.widget.data());
+			const auto croppedImage = GrabRect(root.widget.data(), mapped);
+			const auto ratio = shellImage.devicePixelRatio();
+			const auto titleBand = Crop(
+				shellImage,
+				QRect(0, 0, shellImage.width(), int(mapped.y() * ratio)));
+			const auto footerTop = int(
+				(mapped.y() + mapped.height()) * ratio);
+			const auto footerHeight = (footerTop < shellImage.height())
+				? (shellImage.height() - footerTop)
+				: 0;
+			const auto footerBand = Crop(
+				shellImage,
+				QRect(0, footerTop, shellImage.width(), footerHeight));
+			const auto footerInCropped = Crop(
+				croppedImage,
+				QRect(
+					0,
+					croppedImage.height(),
+					croppedImage.width(),
+					footerBand.height()));
+			const auto measureText = u"shell=%1x%2 cropped=%3x%4 "
+				"root=%5x%6 mapped=%7,%8 %9x"_q
+				.arg(shellImage.width())
+				.arg(shellImage.height())
+				.arg(croppedImage.width())
+				.arg(croppedImage.height())
+				.arg(root.widget->width())
+				.arg(root.widget->height())
+				.arg(mapped.x())
+				.arg(mapped.y())
+				.arg(mapped.width())
+				+ u"%1 ratio=%2 titleBand=%3x%4 footerBand=%5x%6 "
+				"footerInCroppedNull=%7"_q
+				.arg(mapped.height())
+				.arg(ratio)
+				.arg(titleBand.width())
+				.arg(titleBand.height())
+				.arg(footerBand.width())
+				.arg(footerBand.height())
+				.arg(footerInCropped.isNull() ? 1 : 0);
+			Check(
+				(shellImage.width()
+					>= int(root.widget->width() * ratio))
+					&& (shellImage.height()
+						>= int(root.widget->height() * ratio))
+					&& (mapped.y() > 0)
+					&& ((mapped.y() + mapped.height())
+						< root.widget->height())
+					&& !titleBand.isNull()
+					&& !LooksBlank(titleBand)
+					&& !footerBand.isNull()
+					&& !LooksBlank(footerBand),
+				u"the whole-shell frame covers the Ui::BoxLayerWidget and "
+				"holds non-blank title and footer bands outside the box "
+				"content's mapped rect"_q,
+				measureText);
+			Check(
+				!croppedImage.isNull()
+					&& (croppedImage.height() < shellImage.height())
+					&& footerInCropped.isNull(),
+				u"the content-cropped before-leg is strictly shorter than "
+				"the shell and cannot contain the footer band"_q,
+				measureText);
 		},
 		.timeoutDetails = details,
 	});

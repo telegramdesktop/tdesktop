@@ -150,11 +150,26 @@ struct PaintingLayerRootResult {
 
 [[nodiscard]] PaintingLayerRootResult PaintingLayerRoot(QWidget *box);
 
-// Saves the box's own rect, grabbed out of the Ui::BoxLayerWidget that paints
-// it. An unresolved root is a logged FAIL carrying the refusal above, never a
-// null the caller has to re-check before CaptureMappedRect, which this
-// composes and which takes not_null<QWidget*>.
+// Saves the box content's own rect, grabbed out of the Ui::BoxLayerWidget
+// that paints it. That crop excludes the shell chrome a "whole box" frame
+// exists to show: Ui::BoxLayerWidget::setTitle creates _title parented to
+// the shell (ui/layers/box_layer_widget.cpp), and addButton re-parents each
+// footer button onto the shell (raw->setParent(this); raw->show();). An
+// unresolved root is a logged FAIL carrying the refusal above, never a null
+// the caller has to re-check before CaptureMappedRect, which this composes
+// and which takes not_null<QWidget*>. A box that maps outside its layer is
+// still that helper's named misframing FAIL.
 bool CaptureInLayerRoot(not_null<QWidget*> box, const QString &name);
+
+// Saves the resolved Ui::BoxLayerWidget itself, via CaptureWidget, so the
+// frame includes _title and the addButton footer row that
+// CaptureInLayerRoot's crop drops. An unresolved root is a logged FAIL
+// carrying PaintingLayerRoot's refusal; visibility, blank, and blank-root
+// refusals are CaptureWidget's. For a box that is still hidden while the
+// layer show animation runs, this fails visibility the same way a grab of
+// that shell would — wait until the layer is shown (BoxButtonReady for a
+// footer, or box->isVisible() for the content) rather than relaxing it.
+bool CaptureBoxLayer(not_null<QWidget*> box, const QString &name);
 
 // The one capture for a widget that paints no opaque background of its own.
 //
