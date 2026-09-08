@@ -257,9 +257,11 @@ private:
 // without a session has no runtime and passes nullptr. The commit half also
 // reads the raw header back before write B and refuses, writing nothing,
 // unless the disk still carries the staged wrap beside the unchanged committed
-// generation, and asks the same records the strip will ask, refusing when one
-// carries no entry at the staged generation, so both halves of the rule hold
-// by the primitive's own checks when something reconciled between the halves.
+// generation, and, while the custody store reads, asks the same records the
+// strip will ask, refusing when one carries no entry at the staged
+// generation - an unreadable store is let through to the settle, whose own
+// refusal keeps the wrap - so both halves of the rule hold by the
+// primitive's own checks when something reconciled between the halves.
 // The two halves are public so that a caller changing one passcode across
 // several stores can hold every vault staged while another store's write runs
 // and commit them only once it succeeded; TransitionVaultWrap is exactly
@@ -279,9 +281,10 @@ private:
 	VaultPreparedWrap next);
 
 // Invalid input, a disk header without the same stage and committed
-// generation, or a custody-named record with no entry at the staged
-// generation returns false before write B. A failed checked write B also
-// returns false; these exits leave the caller header and runtime unchanged.
+// generation, or - while the custody store reads - a custody-named record
+// with no entry at the staged generation returns false before write B. A
+// failed checked write B also returns false; these exits leave the caller
+// header and runtime unchanged.
 // After B, committed has advanced while both wraps remain on disk, and the
 // runtime's retired key is cleared.
 // Stripping old record entries and writing C are best-effort: true means B

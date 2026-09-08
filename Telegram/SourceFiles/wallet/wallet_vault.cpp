@@ -775,7 +775,11 @@ struct OpenedRecord {
 // record but leaves the vault dirty and openable by nothing the product
 // reads. Counting them before committed moves is what keeps write B to the
 // rule the header states - committed moves only after every record carries
-// an entry at the new generation - so that answer is never needed.
+// an entry at the new generation. It does not retire the settle's own
+// refusal, which stays the standing backstop for both paths that reach it:
+// the commit half's fail-open while the custody store does not read, and a
+// dirty header this build did not write, which a reconciling read can hand
+// the settle at any time.
 [[nodiscard]] int CountRecordsWithoutEntry(
 		Storage::Account &local,
 		const std::vector<QString> &keys,
