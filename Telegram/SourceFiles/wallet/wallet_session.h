@@ -252,7 +252,6 @@ struct PendingSendInfo {
 };
 
 struct TransferReceipt {
-	QString transactionId;
 	QByteArray messageHash;
 	bool gasless = false;
 	int gaslessLeft = 0;
@@ -793,7 +792,7 @@ private:
 	};
 	struct SubmittedLookup {
 		QByteArray sender;
-		QString transactionId;
+		QByteArray messageHash;
 		int attempts = 0;
 	};
 	std::optional<TransferSubmissionState> _submission;

@@ -178,9 +178,9 @@ constexpr auto kClientResolutionMarginSeconds = uint64(60);
 constexpr auto kClientRequestTimeoutMs = uint64(15000);
 // The largest data_normal wallet.sendTransfer documents, inclusive.
 constexpr auto kTransferDataMaxBytes = 16 * 1024;
-// The lane follows a submitted id for as long as the engine can still
-// see the message accepted (validity plus the resolution margin), one
-// attempt per tick.
+// The lane follows a submitted message for as long as the engine can
+// still see the message accepted (validity plus the resolution
+// margin), one attempt per tick.
 constexpr auto kSubmittedLookupAttempts = int(
 	(kClientSendValiditySeconds + kClientResolutionMarginSeconds)
 	* 1000
@@ -1031,14 +1031,18 @@ void SetDirectedAmount(
 
 [[nodiscard]] std::optional<TransferReceipt> ReceiptFromServer(
 		const MTPDwallet_sentTransfer &data) {
-	constexpr auto kMessageHashBytes = 32;
+	// The contract names msg_hash a string and fixes no encoding for
+	// it, so the only rule this client may impose is that a receipt
+	// addresses a message at all: the bytes are kept exactly as they
+	// arrived and echoed unchanged into the lookup. Reading them as
+	// text would be a guess, and a guess that refused a token the
+	// server accepts would leave an accepted payment unresolvable and
+	// refuse the next send for the whole resolution window.
 	const auto &hash = data.vmsg_hash().v;
-	if (data.vtransaction_id().v.isEmpty()
-		|| hash.size() != kMessageHashBytes) {
+	if (hash.isEmpty()) {
 		return std::nullopt;
 	}
 	return TransferReceipt{
-		.transactionId = qs(data.vtransaction_id()),
 		.messageHash = hash,
 		.gasless = data.is_gasless(),
 		.gaslessLeft = data.vgasless_left().v,
@@ -5190,7 +5194,7 @@ void Session::startSubmittedLookup() {
 	}
 	_lookup = SubmittedLookup{
 		.sender = _submission->sender,
-		.transactionId = _submission->receipt->transactionId,
+		.messageHash = _submission->receipt->messageHash,
 	};
 	updatePollingState();
 }
@@ -5211,21 +5215,27 @@ void Session::lookupSubmittedTransaction() {
 	}
 	++_lookup->attempts;
 	const auto generation = _networkGeneration;
-	const auto transactionId = _lookup->transactionId;
+	const auto messageHash = _lookup->messageHash;
 	const auto identity = transferWalletIdentity();
-	_lookupRequestId = _stateApi.request(MTPwallet_GetTransactionsByIDs(
-		MTP_vector<MTPstring>(1, MTP_string(transactionId))
+	// The token is the server's own opaque message hash, echoed exactly
+	// as it arrived: MTP_string(const std::string &) copies the bytes
+	// verbatim, so no encoding is imposed on a value whose contract
+	// states none. MTP_string(const QString &) would re-encode through
+	// QString::toUtf8(), which is why the QByteArray overload is deleted;
+	// neither is used here.
+	_lookupRequestId = _stateApi.request(MTPwallet_GetTransactionsByMsgHash(
+		MTP_vector<MTPstring>(1, MTP_string(messageHash.toStdString()))
 	)).done([=](const MTPwallet_Transactions &result) {
 		_lookupRequestId = 0;
 		if (generation != _networkGeneration
 			|| !_lookup
-			|| _lookup->transactionId != transactionId) {
+			|| _lookup->messageHash != messageHash) {
 			return;
 		}
 		applySubmittedLookup(result, identity);
 	}).fail([=](const MTP::Error &error) {
 		_lookupRequestId = 0;
-		LOG(("Wallet Error: wallet.getTransactionsByIDs failed: %1"
+		LOG(("Wallet Error: wallet.getTransactionsByMsgHash failed: %1"
 			).arg(error.type()));
 	}).handleAllErrors().send();
 }
@@ -5238,18 +5248,41 @@ void Session::applySubmittedLookup(
 	_session->data().processChats(data.vchats());
 	// The answer's balance and next_offset are read by neither this lane
 	// nor applyTransactions(): the state lane and the engine refresh are
-	// the balance authority, and a by-id answer is not the paged feed, so
-	// its offset would page a list that nobody renders.
+	// the balance authority, and a by-message answer is not the paged
+	// feed, so its offset would page a list that nobody renders.
 	auto loaded = HistoryFromServer(data.vtransactions().v, identity);
-	const auto found = ranges::find(
-		loaded,
-		_lookup->transactionId,
-		&TransferItem::id);
+	// wallet.transactions echoes neither the requested message hash nor
+	// any per-row link to it, so the attribution is made by the request:
+	// one hash per lookup, and the whole answer belongs to it. Within the
+	// answer only a record this wallet signed as an ordinary transfer can
+	// be the submitted operation - a self-transfer also returns the
+	// incoming half, and HistoryItemFromServer marks every key change
+	// outgoing whatever the server's bit says - and only a record that
+	// names itself, because the identity this lane needs is the server's
+	// own transaction id and an empty string is not one. Two candidates
+	// naming different transactions cannot be told apart, and a message's
+	// records only grow, so no later answer would resolve it: the lane
+	// stops with nothing attached, the head page still brings the real
+	// row in, no payment is declared failed and no second send is freed.
+	const auto candidate = [](const TransferItem &item) {
+		return !item.incoming
+			&& !item.id.isEmpty()
+			&& (item.kind != TransferItem::Kind::KeyChange);
+	};
+	const auto found = ranges::find_if(loaded, candidate);
 	if (found == end(loaded)) {
 		return;
 	}
+	const auto id = found->id;
+	const auto ambiguous = ranges::any_of(loaded, [&](
+			const TransferItem &item) {
+		return candidate(item) && (item.id != id);
+	});
 	_lookup.reset();
-	if (!ranges::contains(_history, found->id, &TransferItem::id)) {
+	if (ambiguous) {
+		LOG(("Wallet Error: wallet.getTransactionsByMsgHash sent several "
+			"transactions for one message."));
+	} else if (!ranges::contains(_history, id, &TransferItem::id)) {
 		_submitted = std::move(*found);
 		_historyUpdates.fire({});
 	}
