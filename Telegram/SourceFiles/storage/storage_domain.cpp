@@ -579,9 +579,21 @@ Domain::StartModernResult Domain::startModern(
 			"maybe bad password..."));
 		return StartModernResult::IncorrectPasscode;
 	}
+	// An authentic envelope that does not hold a local key cannot be told
+	// from an overwritten open field by the empty start alone, so while a
+	// live passcode wrap survives, asking for it beats resetting what that
+	// passcode still opens, and the file stays untouched for the typed
+	// retry. Nothing is published yet here - the candidate key and its
+	// verified-open claim are settled below - so returning is all this
+	// refusal has to do.
 	auto key = Serialize::read<MTP::AuthKey::Data>(keyInnerData.stream);
 	if (keyInnerData.stream.status() != QDataStream::Ok
 		|| !keyInnerData.stream.atEnd()) {
+		if (derived.empty() && _keyData->passcodeWraps.size() == 1) {
+			LOG(("App Info: the open wrap does not hold a local key, "
+				"a passcode is needed."));
+			return StartModernResult::IncorrectPasscode;
+		}
 		LOG(("App Error: could not read pass-protected key from info file"));
 		return StartModernResult::Failed;
 	}
