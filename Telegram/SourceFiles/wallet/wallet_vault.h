@@ -248,17 +248,21 @@ private:
 // strip. A crash anywhere leaves a header with a wrap outside its committed
 // generation, and the next reconciling read strips the records to that
 // generation and rewrites the header alone: a rollback before B, a completion
-// after it. While the custody store does not read, the header stays dirty and
-// every read keeps using its committed wrap until it does. The commit half
-// clears the runtime right after write B, because the key it holds is the one
-// just retired; an account without a session has no runtime and passes
-// nullptr. The commit half also reads the raw header back before write B and
-// refuses, writing nothing, unless the disk still carries the staged wrap
-// beside the unchanged committed generation, so the rule holds by the
-// primitive's own check when something reconciled between the halves. The two
-// halves are public so that a caller changing one passcode across several
-// stores can hold every vault staged while another store's write runs and
-// commit them only once it succeeded; TransitionVaultWrap is exactly
+// after it. While the custody store does not read, or while a custody-named
+// record carries no entry at the committed generation, the header stays dirty
+// and every read keeps using its committed wrap: the wrap such a record still
+// needs stays in the header until a repair, rather than being written away
+// with the record left unopenable. The commit half clears the runtime right
+// after write B, because the key it holds is the one just retired; an account
+// without a session has no runtime and passes nullptr. The commit half also
+// reads the raw header back before write B and refuses, writing nothing,
+// unless the disk still carries the staged wrap beside the unchanged committed
+// generation, and asks the same records the strip will ask, refusing when one
+// carries no entry at the staged generation, so both halves of the rule hold
+// by the primitive's own checks when something reconciled between the halves.
+// The two halves are public so that a caller changing one passcode across
+// several stores can hold every vault staged while another store's write runs
+// and commit them only once it succeeded; TransitionVaultWrap is exactly
 // their composition.
 //
 // Refused writes nothing. Every stage failure leaves the caller header
@@ -274,7 +278,8 @@ private:
 	const SecureBytes &vaultKey,
 	VaultPreparedWrap next);
 
-// Invalid input or a disk header without the same stage and committed
+// Invalid input, a disk header without the same stage and committed
+// generation, or a custody-named record with no entry at the staged
 // generation returns false before write B. A failed checked write B also
 // returns false; these exits leave the caller header and runtime unchanged.
 // After B, committed has advanced while both wraps remain on disk, and the

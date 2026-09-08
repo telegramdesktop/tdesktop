@@ -713,20 +713,37 @@ struct OpenedRecord {
 	return Result::Done;
 }
 
+// The one rule the strip and the commit half's record check both apply: a
+// value that is not a current-format vault record is neither stripped nor
+// counted, so a record the strip leaves untouched is never one the commit
+// refuses over, and a value the strip cannot parse never blocks a
+// transition. Reading it in one place keeps the two answers equal by
+// construction. The bytes are cleansed before the shape is returned; the
+// shape carries entry generations, nonces and ciphertext only.
+[[nodiscard]] std::optional<VaultRecordShape> ReadStrippableRecord(
+		Storage::Account &local,
+		const QString &key) {
+	auto value = local.readWalletEngineValue(key);
+	const auto cleanse = gsl::finally([&] {
+		Cleanse(value.bytes);
+	});
+	auto shape = ParseVaultRecord(value.bytes);
+	if (!shape || shape->formatVersion != kVaultRecordFormatVersion) {
+		return std::nullopt;
+	}
+	return shape;
+}
+
 [[nodiscard]] bool StripRecords(
 		Storage::Account &local,
 		const std::vector<QString> &keys,
 		quint32 committed,
-		int &stripped) {
+		int &stripped,
+		int &stranded) {
 	auto result = true;
-	auto stranded = 0;
 	for (const auto &key : keys) {
-		auto value = local.readWalletEngineValue(key);
-		const auto cleanse = gsl::finally([&] {
-			Cleanse(value.bytes);
-		});
-		auto shape = ParseVaultRecord(value.bytes);
-		if (!shape || shape->formatVersion != kVaultRecordFormatVersion) {
+		auto shape = ReadStrippableRecord(local, key);
+		if (!shape) {
 			continue;
 		}
 		auto &entries = shape->entries;
@@ -749,10 +766,31 @@ struct OpenedRecord {
 			result = false;
 		}
 	}
-	if (stranded) {
-		LOG(("Wallet Error: %1 custody-named vault record(s) carry no entry "
-			"at the committed generation %2 and were left untouched."
-			).arg(stranded).arg(committed));
+	return result;
+}
+
+// The records the strip would strand once committed pointed at the staged
+// generation: the strip leaves such a record untouched and the settle then
+// refuses the header that would drop the wrap it needs, which keeps the
+// record but leaves the vault dirty and openable by nothing the product
+// reads. Counting them before committed moves is what keeps write B to the
+// rule the header states - committed moves only after every record carries
+// an entry at the new generation - so that answer is never needed.
+[[nodiscard]] int CountRecordsWithoutEntry(
+		Storage::Account &local,
+		const std::vector<QString> &keys,
+		quint32 generation) {
+	auto result = 0;
+	for (const auto &key : keys) {
+		const auto shape = ReadStrippableRecord(local, key);
+		if (!shape) {
+			continue;
+		} else if (!ranges::contains(
+				shape->entries,
+				generation,
+				&VaultRecordEntry::generation)) {
+			++result;
+		}
 	}
 	return result;
 }
@@ -763,15 +801,22 @@ struct OpenedRecord {
 	const auto committed = committedOnly.committed;
 	const auto keys = CustodyRecordKeys(local);
 	auto stripped = 0;
+	auto stranded = 0;
 	if (!keys) {
 		LOG(("Wallet Error: the custody store does not read, leaving the "
 			"vault header dirty and the record entries outside the committed "
 			"generation %1 in place until it does.").arg(committed));
 		return false;
-	} else if (!StripRecords(local, *keys, committed, stripped)) {
+	} else if (!StripRecords(local, *keys, committed, stripped, stranded)) {
 		LOG(("Wallet Error: could not strip every custody-named vault record "
 			"to the committed generation %1, stripped %2."
 			).arg(committed).arg(stripped));
+		return false;
+	} else if (stranded) {
+		LOG(("Wallet Error: %1 custody-named vault record(s) carry no entry "
+			"at the committed generation %2, so the wrap(s) outside it stay "
+			"in the header and it stays dirty until a repair."
+			).arg(stranded).arg(committed));
 		return false;
 	} else if (stripped) {
 		LOG(("Wallet Info: stripped %1 custody-named vault record(s) to the "
@@ -1401,6 +1446,31 @@ bool CommitStagedVaultWrap(
 			"generation %2.").arg(generation).arg(header.committed));
 		return false;
 	}
+	// The disk check above proves the header alone. A reconciling read
+	// between the halves whose strip writes landed but whose header write
+	// failed leaves that header intact while the records it stripped carry
+	// an entry at the committed generation only. Committing then moves
+	// committed past their single entry: the settle below refuses to drop
+	// the wrap they still need, so nothing is lost, but the vault is left
+	// dirty and the product's committed-wrap reading opens none of them. So
+	// the records are asked the same question the strip will ask, before
+	// committed moves, and a transition that would strand one fails instead
+	// with the old wrap still committed and every record still opening under
+	// it. An unreadable custody store answers nothing and is let through:
+	// the settle refuses to write any header while the store does not read,
+	// so no wrap is dropped either way, and refusing here instead would fail
+	// a transition the next read completes.
+	const auto keys = CustodyRecordKeys(local);
+	const auto missing = keys
+		? CountRecordsWithoutEntry(local, *keys, generation)
+		: 0;
+	if (missing) {
+		LOG(("Wallet Error: refused to commit the staged vault wrap at "
+			"generation %1: %2 custody-named record(s) carry no entry at it, "
+			"leaving the committed generation %3 in place."
+			).arg(generation).arg(missing).arg(header.committed));
+		return false;
+	}
 	auto committing = header;
 	committing.committed = generation;
 	if (!WriteVaultHeader(local, committing)) {
@@ -1413,8 +1483,9 @@ bool CommitStagedVaultWrap(
 	settled.wraps.push_back(*staged);
 	if (!SettleToCommitted(local, settled)) {
 		LOG(("Wallet Error: the vault wrap transition to generation %1 "
-			"committed but its cleanup did not finish; the next header read "
-			"completes it.").arg(generation));
+			"committed but its cleanup did not finish; the header stays "
+			"dirty and a later read retries it, with the refusal above "
+			"naming why.").arg(generation));
 	}
 	header = std::move(settled);
 	return true;
