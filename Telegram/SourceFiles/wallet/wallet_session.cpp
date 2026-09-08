@@ -75,6 +75,29 @@ struct Session::HistoryRequest {
 	std::vector<Fn<void()>> done;
 };
 
+struct Session::SubmittedTransfer {
+	std::string operationId;
+	TransferWalletIdentity identity;
+	std::weak_ptr<wallet_engine::WalletClient> client;
+	std::unique_ptr<TransferItem> fallback;
+	std::unique_ptr<TransferItem> item;
+	QString canonicalId;
+	QByteArray confirmedHash;
+	std::optional<TransferReceipt> receipt;
+	std::optional<wallet_engine::SendPhase> terminal;
+	int generation = 0;
+	int lookupAttempts = 0;
+	bool lookupStopped = false;
+};
+
+struct Session::SubmittedLookup {
+	std::string operationId;
+	TransferWalletIdentity identity;
+	QByteArray messageHash;
+	int generation = 0;
+	mtpRequestId id = 0;
+};
+
 struct Session::PreparedRotation {
 	std::vector<QString> words;
 	std::string signedBoc;
@@ -1652,6 +1675,19 @@ void Session::applyState(const MTPWalletState &state, bool pushed) {
 		}
 		_address = parsed->raw;
 		_publicKey = data.vpublic_key().v;
+		if (wasReady && identityChanged) {
+			const auto weak = base::make_weak(_engine.get());
+			const auto revision = _walletIdentityRevision;
+			clearHistory();
+			if (!weak || revision != _walletIdentityRevision) {
+				return;
+			}
+			clearCollectibles();
+			if (!weak || revision != _walletIdentityRevision) {
+				return;
+			}
+			_engineStatus = AccountStatus::NonExisting;
+		}
 		_balanceNano = int64(data.vbalance().v);
 		_capabilities = WalletCapabilities{
 			.backupEnabled = data.is_backup_enabled(),
@@ -1676,10 +1712,6 @@ void Session::applyState(const MTPWalletState &state, bool pushed) {
 		// first one and gets exactly one head page from the drain, never a second
 		// one from the marker.
 		if (wasReady && identityChanged) {
-			clearHistory();
-			clearCollectibles();
-			_submission.reset();
-			_engineStatus = AccountStatus::NonExisting;
 			refreshHistory();
 		} else if (wasReady && pushed) {
 			_historyStale = true;
@@ -1708,8 +1740,19 @@ void Session::setPresence(Presence presence) {
 	retireCommentScopes();
 	if (_presence.current() == Presence::Ready) {
 		++_walletIdentityRevision;
+		clearSubmittedTransfers();
 	}
+	const auto weak = base::make_weak(_engine.get());
+	const auto revision = _walletIdentityRevision;
+	const auto current = [=] {
+		return weak
+			&& revision == _walletIdentityRevision
+			&& _presence.current() == presence;
+	};
 	_presence = presence;
+	if (!current()) {
+		return;
+	}
 	// The gate is recomputed before the lanes are drained, because both
 	// drains publish into the same derived faces the gate does: a face
 	// evaluated between them reads emptied lists under the gate this
@@ -1718,15 +1761,29 @@ void Session::setPresence(Presence presence) {
 	// in updateListsGate() that reads the history lane is conjoined with
 	// `ready`, so it writes the same two values before the drain as after.
 	updateListsGate();
+	if (!current()) {
+		return;
+	}
 	if (presence != Presence::Ready) {
 		clearHistory();
+		if (!current()) {
+			return;
+		}
 		clearCollectibles();
+		if (!current()) {
+			return;
+		}
 	}
 	updatePollingState();
+	if (!current()) {
+		return;
+	}
 	if (presence == Presence::Ready) {
 		refreshHistory();
 	}
-	_transferWalletIdentityChanges.fire({});
+	if (current()) {
+		_transferWalletIdentityChanges.fire({});
+	}
 }
 
 bool Session::revealsLocally() {
@@ -3804,23 +3861,44 @@ void Session::removeCustodyRecord(const QByteArray &publicKey) {
 void Session::clearNetworkState() {
 	retireCommentScopes();
 	++_networkGeneration;
-	_balanceNano = 0;
+	++_walletIdentityRevision;
+	const auto weak = base::make_weak(_engine.get());
+	const auto generation = _networkGeneration;
+	const auto revision = _walletIdentityRevision;
+	const auto current = [=] {
+		return weak
+			&& generation == _networkGeneration
+			&& revision == _walletIdentityRevision;
+	};
 	_engineStatus = AccountStatus::NonExisting;
 	_stateApi.request(base::take(_stateRequestId)).cancel();
 	_stateRequestedAt = 0;
 	_stateRefreshedAt = 0;
 	_stateFailures = 0;
-	clearHistory();
 	_collectiblesRequestPending = false;
-	clearCollectibles();
-	_pending.reset();
-	_submission.reset();
-	_sendState = SendState::Idle;
 	_pollingCount = 0;
 	_pollTimer.cancel();
 	_stream->stop();
-	_sendUnresolved = false;
+	clearHistory();
+	if (!current()) {
+		return;
+	}
+	_balanceNano = 0;
+	if (!current()) {
+		return;
+	}
+	clearCollectibles();
+	if (!current()) {
+		return;
+	}
 	updateListsGate();
+	if (!current()) {
+		return;
+	}
+	_transferWalletIdentityChanges.fire({});
+	if (!current()) {
+		return;
+	}
 	retirePreviews(SendError::Failed);
 }
 
@@ -3831,17 +3909,25 @@ void Session::requestEngineRefresh() {
 	_engineRefreshPending = true;
 	const auto client = _engine->client();
 	const auto generation = _networkGeneration;
+	const auto identity = transferWalletIdentity();
+	const auto sendRevision = _sendRevision;
 	_engine->run([client] {
 		return client->refresh();
 	}, [=, this](engine::WalletUpdate update) {
 		_engineRefreshPending = false;
-		if (generation != _networkGeneration || _clientStopping) {
+		if (!identity || !transferOperationCurrent(
+				*identity,
+				generation,
+				client)) {
 			return;
 		}
-		applyEngineUpdate(update);
+		applyEngineUpdate(update, sendRevision);
 	}, [=, this](EngineError error) {
 		_engineRefreshPending = false;
-		if (generation != _networkGeneration || _clientStopping) {
+		if (!identity || !transferOperationCurrent(
+				*identity,
+				generation,
+				client)) {
 			return;
 		}
 		LOG(("Wallet Error: engine refresh failed: %1, "
@@ -3849,38 +3935,33 @@ void Session::requestEngineRefresh() {
 	});
 }
 
-void Session::applyEngineUpdate(const engine::WalletUpdate &update) {
+void Session::applyEngineUpdate(
+		const engine::WalletUpdate &update,
+		uint64 sendRevision) {
 	if (update.outcome != engine::WalletOperationOutcome::kCompleted) {
 		LOG(("Wallet: engine refresh outcome %1, keeping last-good state."
 			).arg(int(update.outcome)));
 		return;
 	}
+	const auto weak = base::make_weak(_engine.get());
+	const auto identity = transferWalletIdentity();
+	const auto generation = _networkGeneration;
+	const auto client = _engine->client();
+	const auto current = [=] {
+		return weak && identity && transferOperationCurrent(
+			*identity,
+			generation,
+			client);
+	};
+	applySendSnapshot(update.snapshot.send, false, sendRevision);
+	if (!current()) {
+		return;
+	}
 	applyRotationSnapshot(update.snapshot.send, false);
+	if (!current()) {
+		return;
+	}
 	const auto &snapshot = update.snapshot;
-	const auto wasUnresolved = _sendUnresolved;
-	if (!TerminalSendPhase(snapshot.send.phase)) {
-		retireCommentScopes();
-	}
-	_sendUnresolved = !TerminalSendPhase(snapshot.send.phase);
-	if (_sendUnresolved && !wasUnresolved) {
-		updatePollingState();
-	}
-	if (_pending
-		&& !_sendUnresolved
-		&& _sendState.current() != SendState::Sending) {
-		// refresh() awaits resolve_pending() before it reads activity, so
-		// the update that carries the confirmed row carries this terminal
-		// phase too. Dropping the local projection right here, instead of
-		// waiting for the poll tick that calls resolvePending(), keeps the
-		// pending row and the confirmed row from being rendered together.
-		// finishPending() is not reused: its trailing requestEngineRefresh()
-		// would enqueue a redundant refresh for the update being applied.
-		LOG(("Wallet: pending send resolved."));
-		_pending.reset();
-		_submission.reset();
-		_sendState = SendState::Idle;
-		updatePollingState();
-	}
 	if (snapshot.account_resource.phase != engine::ResourcePhase::kReady
 		|| !snapshot.account) {
 		return;
@@ -3912,9 +3993,9 @@ void Session::applyEngineUpdate(const engine::WalletUpdate &update) {
 		LOG(("Wallet: engine account status unknown, keeping last-good."));
 		break;
 	}
-	_balanceNano = balance;
 	_engineStatus = mapped;
 	_stateRefreshedAt = crl::now();
+	_balanceNano = balance;
 }
 
 void Session::refreshHistory(Fn<void()> done) {
@@ -3964,6 +4045,7 @@ void Session::applyTransferMinNanos() {
 
 void Session::setHistory(std::vector<TransferItem> &&list) {
 	_history = std::move(list);
+	dropSubmittedIfListed();
 	_historyUpdates.fire({});
 }
 
@@ -4146,9 +4228,13 @@ void Session::applyTransactions(
 		}
 	}
 	if (weak && historyRequestCurrent(request)) {
-		dropSubmittedIfListed();
 		updateListsGate();
-		continueHiddenHistory(shown);
+		if (weak && historyRequestCurrent(request)) {
+			continueHiddenHistory(shown);
+		}
+		if (weak && historyRequestCurrent(request)) {
+			updatePollingState();
+		}
 	}
 }
 
@@ -4168,7 +4254,7 @@ void Session::clearHistory() {
 	if (request) {
 		_stateApi.request(request->id).cancel();
 	}
-	_stateApi.request(base::take(_lookupRequestId)).cancel();
+	clearSubmittedTransfers();
 	_history.clear();
 	_historyHasNext = false;
 	_historyNextOffset = QString();
@@ -4178,8 +4264,6 @@ void Session::clearHistory() {
 	_historyUnreachable = false;
 	_historyPaged = false;
 	_historyStale = false;
-	_lookup.reset();
-	_submitted.reset();
 	resetHiddenHistoryPages();
 	// _historySettled and _historyUnreachable, cleared just above, are the
 	// gate's two history terms, so this drain is the only point at which an
@@ -4187,8 +4271,15 @@ void Session::clearHistory() {
 	// together. Recomputing here keeps this lane's own publication from
 	// ever being evaluated against the gate of the wallet whose rows just
 	// left: an open gate over two empty lists is listsConfirmedEmpty().
+	const auto weak = base::make_weak(_engine.get());
+	const auto sendRevision = _sendRevision;
 	updateListsGate();
-	_historyUpdates.fire({});
+	if (weak && sendRevision == _sendRevision) {
+		_sendState = SendState::Idle;
+	}
+	if (weak && sendRevision == _sendRevision) {
+		_historyUpdates.fire({});
+	}
 	if (request) {
 		FinishHistoryWaiters(base::take(request->done));
 	}
@@ -4358,6 +4449,8 @@ void Session::setCollectibles(std::vector<Gram::NftItem> &&list) {
 }
 
 void Session::updateListsGate() {
+	const auto weak = base::make_weak(_engine.get());
+	const auto revision = _walletIdentityRevision;
 	const auto presence = _presence.current();
 	const auto unknown = (presence == Presence::Unknown);
 	const auto ready = (presence == Presence::Ready);
@@ -4367,12 +4460,15 @@ void Session::updateListsGate() {
 		|| (presence == Presence::AddressUnreadable);
 	_listsGated = (unknown && !_stateUnreachable)
 		|| (presence == Presence::Provisioning)
-		|| (ready && !_historySettled);
-	_listsStateUpdates.fire({});
+		|| (ready && !_historySettled && submittedTransactions().empty());
+	if (weak && revision == _walletIdentityRevision) {
+		_listsStateUpdates.fire({});
+	}
 }
 
 bool Session::listsConfirmedEmpty() const {
 	return !_listsGated.current()
+		&& submittedTransactions().empty()
 		&& historyVisibleEmpty()
 		&& !_historyHasNext
 		&& _collectibles.empty();
@@ -4454,7 +4550,7 @@ void Session::updatePollingState() {
 	const auto wanted = (_pollingCount > 0)
 		|| _pending
 		|| _sendUnresolved
-		|| _lookup
+		|| submittedLookupNeeded()
 		|| custody().pendingRotation;
 	if (!wanted) {
 		_pollTimer.cancel();
@@ -4645,8 +4741,11 @@ rpl::producer<SendState> Session::sendStateValue() const {
 	return _sendState.value();
 }
 
-const std::optional<PendingSendInfo> &Session::pendingSend() const {
-	return _pending;
+std::optional<PendingSendInfo> Session::pendingSend() const {
+	return (_pending
+		&& transferWalletIdentityCurrent(_pending->walletIdentity))
+		? _pending
+		: std::nullopt;
 }
 
 auto Session::lastTransferReceipt() const
@@ -4654,9 +4753,23 @@ auto Session::lastTransferReceipt() const
 	return _lastReceipt;
 }
 
-auto Session::submittedTransaction() const
--> const std::optional<TransferItem> & {
-	return _submitted;
+std::vector<TransferItem> Session::submittedTransactions() const {
+	auto result = std::vector<TransferItem>();
+	for (const auto &entry : _submitted) {
+		if (entry.generation != _networkGeneration
+			|| !transferWalletIdentityCurrent(entry.identity)
+			|| (!entry.canonicalId.isEmpty()
+				&& ranges::contains(
+					_history,
+					entry.canonicalId,
+					&TransferItem::id))) {
+			continue;
+		}
+		if (const auto &item = entry.item ? entry.item : entry.fallback) {
+			result.push_back(*item);
+		}
+	}
+	return result;
 }
 
 int SendCommentBytes(const QString &text) {
@@ -5138,6 +5251,9 @@ void Session::send(
 	const auto operationId = NewRecordId();
 	const auto client = prepared->client;
 	const auto generation = prepared->generation;
+	const auto identity = *transferWalletIdentity();
+	++_sendRevision;
+	_lastReceipt.reset();
 	const auto destination = args.destination;
 	const auto amountNano = args.amountNano;
 	const auto userId = args.userId;
@@ -5145,29 +5261,64 @@ void Session::send(
 		? args.comment.text
 		: QString();
 	const auto weak = base::make_weak(_engine.get());
+	const auto current = [=] {
+		return weak
+			&& transferOperationCurrent(identity, generation, client)
+			&& _submission
+			&& _submission->operationId == operationId;
+	};
 	const auto recordPending = [=, this](SendError answer) {
+		if (!current() || _sendState.current() != SendState::Sending) {
+			return;
+		}
 		_pending = PendingSendInfo{
+			.operationId = operationId,
+			.walletIdentity = identity,
 			.posted = base::unixtime::now(),
 			.amountNano = amountNano,
 			.destination = destination,
 			.comment = comment,
 		};
+		auto fallback = TransferItem();
+		fallback.walletIdentity = identity;
+		fallback.counterparty = destination;
+		fallback.amountNano = amountNano;
+		fallback.comment = comment;
+		fallback.date = _pending->posted;
+		fallback.status = TransferItem::Status::Pending;
+		_submitted.push_back(SubmittedTransfer{
+			.operationId = operationId,
+			.identity = identity,
+			.client = client,
+			.fallback = std::make_unique<TransferItem>(std::move(fallback)),
+			.receipt = _submission->receipt,
+			.generation = generation,
+		});
+		_sendUnresolved = true;
+		_unresolvedOperationId = operationId;
+		dropSubmittedIfListed();
 		_sendState = SendState::Pending;
-		if (!weak) {
+		if (!current()) {
 			return;
 		}
-		updatePollingState();
+		_historyUpdates.fire({});
+		if (!current()) {
+			return;
+		}
+		updateListsGate();
+		if (!current()) {
+			return;
+		}
+		startSubmittedLookup();
+		if (!current()) {
+			return;
+		}
 		requestEngineRefresh();
 		if (done) {
 			done(answer);
 		}
 	};
 	const auto recordUnknown = [=, this] {
-		if (_submission) {
-			_submission->hostAnswered = true;
-		}
-		dropSubmittedLookup();
-		startSubmittedLookup();
 		recordPending(SendError::SubmissionUnknown);
 	};
 	auto request = engine::SendRequest{
@@ -5178,25 +5329,35 @@ void Session::send(
 	const auto route = std::make_shared<TransferSubmission>([=, this](
 			QByteArray boc,
 			Fn<void(TransferSubmissionAnswer)> answer) {
+		if (!weak) {
+			answer({ TransferSubmissionOutcome::Rejected });
+			return;
+		}
 		submitTransfer(
 			operationId,
+			identity,
 			generation,
+			client,
 			std::move(boc),
 			std::move(answer));
 	});
 	_submission = TransferSubmissionState{
 		.operationId = operationId,
-		.sender = prepared->sender,
+		.identity = identity,
+		.client = client,
+		.generation = generation,
 	};
 	_engine->run([client, request = std::move(request), route] {
 		const auto recording = route->record();
 		return client->send(request);
 	}, [=, this, grant = auth.grant](engine::SendResult result) {
-		if (generation != _networkGeneration) {
+		if (!current() || _sendState.current() != SendState::Sending) {
 			return;
 		}
 		if (result.operation_id != operationId) {
 			LOG(("Wallet Error: engine send result names another operation."));
+			recordUnknown();
+			return;
 		}
 		switch (result.phase) {
 		case engine::SendPhase::kSubmitted:
@@ -5204,14 +5365,11 @@ void Session::send(
 				const auto user = _session->data().userLoaded(userId);
 				if (user && !user->isSelf()) {
 					_session->recentMoneyRecipients().bump(user);
-					if (!weak) {
+					if (!current()) {
 						return;
 					}
 				}
 			}
-			dropSubmittedLookup();
-			startSubmittedLookup();
-			_submission.reset();
 			recordPending(SendError::None);
 			return;
 		case engine::SendPhase::kSubmissionUnknown:
@@ -5245,7 +5403,7 @@ void Session::send(
 		} return;
 		}
 	}, [=, this, grant = auth.grant](EngineError error) {
-		if (generation != _networkGeneration) {
+		if (!current() || _sendState.current() != SendState::Sending) {
 			return;
 		}
 		if (IsSubmissionUnknown(error)) {
@@ -5265,13 +5423,17 @@ void Session::send(
 
 void Session::submitTransfer(
 		std::string operationId,
+		TransferWalletIdentity identity,
 		int generation,
+		std::shared_ptr<engine::WalletClient> client,
 		QByteArray boc,
 		Fn<void(TransferSubmissionAnswer)> done) {
-	if (generation != _networkGeneration
+	if (!transferOperationCurrent(identity, generation, client)
 		|| !_submission
 		|| _submission->operationId != operationId
-		|| _submission->sender != _publicKey) {
+		|| _submission->identity != identity
+		|| _submission->generation != generation
+		|| _submission->client.lock() != client) {
 		LOG(("Wallet Error: transfer submission refused for a stale "
 			"operation or wallet."));
 		done({
@@ -5313,7 +5475,12 @@ void Session::submitTransfer(
 			});
 			return;
 		}
-		bindTransferReceipt(operationId, generation, *receipt);
+		bindTransferReceipt(
+			operationId,
+			identity,
+			generation,
+			client,
+			*receipt);
 		done({ TransferSubmissionOutcome::Accepted });
 	}).fail([=](const MTP::Error &error) {
 		LOG(("Wallet Error: wallet.sendTransfer failed: %1"
@@ -5324,7 +5491,7 @@ void Session::submitTransfer(
 			return;
 		} else if (_submission
 			&& _submission->operationId == operationId
-			&& generation == _networkGeneration) {
+			&& transferOperationCurrent(identity, generation, client)) {
 			_submission->refusal = *refusal;
 		}
 		done({ TransferSubmissionOutcome::Rejected, error.type() });
@@ -5333,93 +5500,190 @@ void Session::submitTransfer(
 
 void Session::bindTransferReceipt(
 		const std::string &operationId,
+		const TransferWalletIdentity &identity,
 		int generation,
+		const std::shared_ptr<engine::WalletClient> &client,
 		TransferReceipt receipt) {
-	if (!_submission
-		|| _submission->operationId != operationId
-		|| _submission->sender != _publicKey
-		|| generation != _networkGeneration) {
+	if (generation != _networkGeneration
+		|| !transferWalletIdentityCurrent(identity)
+		|| !client
+		|| receipt.messageHash.isEmpty()) {
 		return;
 	}
-	_submission->receipt = receipt;
-	_lastReceipt = std::move(receipt);
-	// A receipt landing after the engine already answered the send as
-	// unknown belongs to that still-unresolved operation, so the lookup
-	// starts for it right here and never for a new operation; a receipt
-	// that lands first waits for the engine's own kSubmitted answer,
-	// which starts the lookup once the operation is recorded as pending.
-	if (_submission->hostAnswered && (_pending || _sendUnresolved)) {
+	const auto active = _submission
+		&& _submission->operationId == operationId
+		&& _submission->identity == identity
+		&& _submission->generation == generation
+		&& _submission->client.lock() == client
+		&& transferOperationCurrent(identity, generation, client);
+	const auto found = submittedTransfer(operationId);
+	const auto entry = (found && found->client.lock() == client)
+		? found
+		: nullptr;
+	if (!active && !entry) {
+		return;
+	}
+	if ((entry && entry->receipt) || (active && _submission->receipt)) {
+		return;
+	}
+	if (active) {
+		_submission->receipt = receipt;
+		_lastReceipt = receipt;
+	}
+	if (entry && entry->canonicalId.isEmpty()) {
+		entry->receipt = std::move(receipt);
 		startSubmittedLookup();
 	}
 }
 
-void Session::startSubmittedLookup() {
-	if (_lookup
-		|| _submitted
-		|| !_submission
-		|| !_submission->receipt
-		|| _submission->sender != _publicKey) {
-		return;
+bool Session::transferOperationCurrent(
+		const TransferWalletIdentity &identity,
+		int generation,
+		const std::shared_ptr<engine::WalletClient> &client) const {
+	return generation == _networkGeneration
+		&& transferWalletIdentityCurrent(identity)
+		&& client
+		&& client == _engine->client()
+		&& !_clientStopping;
+}
+
+Session::SubmittedTransfer *Session::submittedTransfer(
+		const std::string &operationId) {
+	if (operationId.empty()) {
+		return nullptr;
 	}
-	_lookup = SubmittedLookup{
-		.sender = _submission->sender,
-		.messageHash = _submission->receipt->messageHash,
-	};
+	const auto i = ranges::find(
+		_submitted,
+		operationId,
+		&SubmittedTransfer::operationId);
+	return (i != end(_submitted)
+		&& i->generation == _networkGeneration
+		&& transferWalletIdentityCurrent(i->identity))
+		? &*i
+		: nullptr;
+}
+
+bool Session::submittedLookupNeeded() const {
+	return _lookup || ranges::any_of(_submitted, [&](const auto &entry) {
+		return entry.receipt
+			&& !entry.lookupStopped
+			&& entry.lookupAttempts < kSubmittedLookupAttempts
+			&& entry.canonicalId.isEmpty()
+			&& entry.generation == _networkGeneration
+			&& transferWalletIdentityCurrent(entry.identity);
+	});
+}
+
+bool Session::submittedLookupCurrent(
+		const std::shared_ptr<SubmittedLookup> &request) const {
+	if (_lookup != request
+		|| request->generation != _networkGeneration
+		|| !transferWalletIdentityCurrent(request->identity)) {
+		return false;
+	}
+	const auto i = ranges::find(
+		_submitted,
+		request->operationId,
+		&SubmittedTransfer::operationId);
+	return i != end(_submitted)
+		&& i->identity == request->identity
+		&& i->generation == request->generation
+		&& i->receipt
+		&& i->receipt->messageHash == request->messageHash;
+}
+
+void Session::startSubmittedLookup() {
 	updatePollingState();
 }
 
 void Session::lookupSubmittedTransaction() {
-	if (!_lookup
-		|| _lookupRequestId
-		|| (_presence.current() != Presence::Ready)) {
-		return;
-	} else if (_lookup->sender != _publicKey
-		|| _lookup->attempts >= kSubmittedLookupAttempts) {
-		LOG(("Wallet: submitted transaction lookup stopped after %1 of %2 "
-			"attempts."
-			).arg(_lookup->attempts).arg(kSubmittedLookupAttempts));
-		_lookup.reset();
-		updatePollingState();
+	if (_lookup || _submitted.empty()) {
 		return;
 	}
-	++_lookup->attempts;
-	const auto generation = _networkGeneration;
-	const auto messageHash = _lookup->messageHash;
-	const auto identity = transferWalletIdentity();
-	// The token is the server's own opaque message hash, echoed exactly
-	// as it arrived: MTP_string(const std::string &) copies the bytes
-	// verbatim, so no encoding is imposed on a value whose contract
-	// states none. MTP_string(const QString &) would re-encode through
-	// QString::toUtf8(), which is why the QByteArray overload is deleted;
-	// neither is used here.
-	_lookupRequestId = _stateApi.request(MTPwallet_GetTransactionsByMsgHash(
-		MTP_vector<MTPstring>(1, MTP_string(messageHash.toStdString()))
-	)).done([=](const MTPwallet_Transactions &result) {
-		_lookupRequestId = 0;
-		if (generation != _networkGeneration
-			|| !_lookup
-			|| _lookup->messageHash != messageHash) {
-			return;
+	const auto last = ranges::find(
+		_submitted,
+		_lastLookupOperationId,
+		&SubmittedTransfer::operationId);
+	const auto start = (last == end(_submitted))
+		? size_t(0)
+		: size_t(last - begin(_submitted) + 1);
+	for (auto i = size_t(0); i != _submitted.size(); ++i) {
+		auto &entry = _submitted[(start + i) % _submitted.size()];
+		if (!entry.receipt
+			|| entry.lookupStopped
+			|| !entry.canonicalId.isEmpty()
+			|| entry.lookupAttempts >= kSubmittedLookupAttempts
+			|| entry.generation != _networkGeneration
+			|| !transferWalletIdentityCurrent(entry.identity)) {
+			continue;
 		}
-		applySubmittedLookup(result, identity);
-	}).fail([=](const MTP::Error &error) {
-		_lookupRequestId = 0;
-		LOG(("Wallet Error: wallet.getTransactionsByMsgHash failed: %1"
-			).arg(error.type()));
-	}).handleAllErrors().send();
+		++entry.lookupAttempts;
+		entry.lookupStopped = (entry.lookupAttempts >= kSubmittedLookupAttempts);
+		const auto request = std::make_shared<SubmittedLookup>(SubmittedLookup{
+			.operationId = entry.operationId,
+			.identity = entry.identity,
+			.messageHash = entry.receipt->messageHash,
+			.generation = entry.generation,
+		});
+		_lastLookupOperationId = entry.operationId;
+		_lookup = request;
+		// The token is the server's own opaque message hash, echoed exactly
+		// as it arrived: MTP_string(const std::string &) copies the bytes
+		// verbatim, so no encoding is imposed on a value whose contract
+		// states none. MTP_string(const QString &) would re-encode through
+		// QString::toUtf8(), which is why the QByteArray overload is deleted;
+		// neither is used here.
+		request->id = _stateApi.request(MTPwallet_GetTransactionsByMsgHash(
+			MTP_vector<MTPstring>(
+				1,
+				MTP_string(request->messageHash.toStdString()))
+		)).done([=](const MTPwallet_Transactions &result) {
+			if (_lookup != request) {
+				return;
+			}
+			const auto weak = base::make_weak(_engine.get());
+			if (submittedLookupCurrent(request)) {
+				applySubmittedLookup(result, request);
+			}
+			if (!weak || _lookup != request) {
+				return;
+			}
+			_lookup = nullptr;
+			updatePollingState();
+		}).fail([=](const MTP::Error &error) {
+			if (_lookup != request) {
+				return;
+			}
+			const auto current = submittedLookupCurrent(request);
+			_lookup = nullptr;
+			if (current) {
+				LOG(("Wallet Error: wallet.getTransactionsByMsgHash failed: %1"
+					).arg(error.type()));
+			}
+			updatePollingState();
+		}).handleAllErrors().send();
+		return;
+	}
 }
 
 void Session::applySubmittedLookup(
 		const MTPwallet_Transactions &result,
-		std::optional<TransferWalletIdentity> identity) {
+		const std::shared_ptr<SubmittedLookup> &request) {
+	const auto weak = base::make_weak(_engine.get());
 	const auto &data = result.data();
 	_session->data().processUsers(data.vusers());
+	if (!weak || !submittedLookupCurrent(request)) {
+		return;
+	}
 	_session->data().processChats(data.vchats());
+	if (!weak || !submittedLookupCurrent(request)) {
+		return;
+	}
 	// The answer's balance and next_offset are read by neither this lane
 	// nor applyTransactions(): the state lane and the engine refresh are
 	// the balance authority, and a by-message answer is not the paged
 	// feed, so its offset would page a list that nobody renders.
-	auto loaded = HistoryFromServer(data.vtransactions().v, identity);
+	auto loaded = HistoryFromServer(data.vtransactions().v, request->identity);
 	// wallet.transactions echoes neither the requested message hash nor
 	// any per-row link to it, so the attribution is made by the request:
 	// one hash per lookup, and the whole answer belongs to it. Within the
@@ -5442,44 +5706,109 @@ void Session::applySubmittedLookup(
 	if (found == end(loaded)) {
 		return;
 	}
-	const auto id = found->id;
-	const auto ambiguous = ranges::any_of(loaded, [&](
-			const TransferItem &item) {
-		return candidate(item) && (item.id != id);
-	});
-	_lookup.reset();
-	if (ambiguous) {
-		LOG(("Wallet Error: wallet.getTransactionsByMsgHash sent several "
-			"transactions for one message."));
-	} else if (!ranges::contains(_history, id, &TransferItem::id)) {
-		_submitted = std::move(*found);
-		_historyUpdates.fire({});
+	const auto entry = submittedTransfer(request->operationId);
+	if (!entry) {
+		return;
 	}
-	updatePollingState();
+	entry->lookupStopped = true;
+	const auto id = found->id;
+	const auto ambiguous = ranges::any_of(loaded, [&](const auto &item) {
+		return candidate(item) && item.id != id;
+	});
+	const auto conflict = (!entry->canonicalId.isEmpty()
+		&& entry->canonicalId != id)
+		|| ranges::any_of(_submitted, [&](const auto &other) {
+			return other.operationId != entry->operationId
+				&& other.canonicalId == id;
+		});
+	if (ambiguous || conflict) {
+		LOG(("Wallet Error: wallet.getTransactionsByMsgHash sent "
+			"ambiguous or conflicting transaction identity."));
+		return;
+	}
+	entry->canonicalId = id;
+	entry->item = std::make_unique<TransferItem>(std::move(*found));
+	entry->fallback.reset();
+	entry->confirmedHash.clear();
+	dropSubmittedIfListed();
+	_historyUpdates.fire({});
+	if (!weak
+		|| request->generation != _networkGeneration
+		|| !transferWalletIdentityCurrent(request->identity)) {
+		return;
+	}
+	updateListsGate();
+	if (weak
+		&& request->generation == _networkGeneration
+		&& transferWalletIdentityCurrent(request->identity)) {
+		updatePollingState();
+	}
 }
 
 void Session::dropSubmittedIfListed() {
-	if (_submitted
-		&& ranges::contains(_history, _submitted->id, &TransferItem::id)) {
-		_submitted.reset();
-		_historyUpdates.fire({});
+	for (auto &entry : _submitted) {
+		if (entry.generation != _networkGeneration
+			|| !transferWalletIdentityCurrent(entry.identity)) {
+			continue;
+		}
+		if (entry.canonicalId.isEmpty() && !entry.confirmedHash.isEmpty()) {
+			const auto candidate = [&](const TransferItem &item) {
+				return !item.incoming
+					&& item.kind != TransferItem::Kind::KeyChange
+					&& !item.id.isEmpty()
+					&& item.walletIdentity == entry.identity
+					&& item.traceId == entry.confirmedHash;
+			};
+			const auto found = ranges::find_if(_history, candidate);
+			if (found != end(_history)) {
+				const auto ambiguous = ranges::any_of(
+					_history,
+					[&](const auto &item) {
+						return candidate(item) && item.id != found->id;
+					}) || ranges::any_of(_submitted, [&](const auto &other) {
+						return other.operationId != entry.operationId
+							&& (other.confirmedHash == entry.confirmedHash
+								|| other.canonicalId == found->id);
+					});
+				if (!ambiguous) {
+					entry.canonicalId = found->id;
+				}
+			}
+		}
+		if (entry.canonicalId.isEmpty()
+			|| !ranges::contains(
+				_history,
+				entry.canonicalId,
+				&TransferItem::id)) {
+			continue;
+		}
+		entry.fallback.reset();
+		entry.item.reset();
+		entry.receipt.reset();
+		entry.confirmedHash.clear();
+		entry.lookupStopped = true;
+		if (_lookup && _lookup->operationId == entry.operationId) {
+			dropSubmittedLookup();
+		}
 	}
 }
 
 void Session::dropSubmittedLookup() {
-	// A newly recorded operation supersedes the lane and the projection of
-	// the previous transfer. That transfer has already resolved, because a
-	// send is refused while one is unresolved, so nothing is lost when they
-	// leave; kept, the served row would hide the new pending row and hold
-	// the lane's single slot, so the new id would never be followed. The
-	// resolved transfer's row returns through the head page, exactly as it
-	// does after a restart. clearHistory() drains the same members together
-	// with the list they describe.
-	_stateApi.request(base::take(_lookupRequestId)).cancel();
-	_lookup.reset();
-	if (base::take(_submitted)) {
-		_historyUpdates.fire({});
+	if (const auto request = base::take(_lookup)) {
+		_stateApi.request(request->id).cancel();
 	}
+}
+
+void Session::clearSubmittedTransfers() {
+	dropSubmittedLookup();
+	_submitted.clear();
+	_pending.reset();
+	_submission.reset();
+	_lastReceipt.reset();
+	_lastLookupOperationId.clear();
+	_unresolvedOperationId.clear();
+	_sendUnresolved = false;
+	++_sendRevision;
 }
 
 void Session::resolvePending() {
@@ -5489,21 +5818,37 @@ void Session::resolvePending() {
 	_resolveRequestPending = true;
 	const auto client = _engine->client();
 	const auto generation = _networkGeneration;
+	const auto identity = transferWalletIdentity();
+	const auto sendRevision = _sendRevision;
 	_engine->run([client] {
 		return client->resolve_pending();
 	}, [=, this](engine::SendSnapshot snapshot) {
 		_resolveRequestPending = false;
-		if (generation != _networkGeneration) {
+		const auto weak = base::make_weak(_engine.get());
+		const auto current = [=] {
+			return weak && identity && transferOperationCurrent(
+				*identity,
+				generation,
+				client);
+		};
+		if (!current()) {
 			return;
 		}
-		if (TerminalSendPhase(snapshot.phase)
-			&& _sendState.current() != SendState::Sending) {
-			finishPending();
+		const auto hadPending = bool(_pending);
+		applySendSnapshot(snapshot, true, sendRevision);
+		if (!current()) {
+			return;
 		}
 		applyRotationSnapshot(snapshot, true);
+		if (current() && hadPending && !_pending) {
+			requestEngineRefresh();
+		}
 	}, [=, this](EngineError error) {
 		_resolveRequestPending = false;
-		if (generation != _networkGeneration) {
+		if (!identity || !transferOperationCurrent(
+				*identity,
+				generation,
+				client)) {
 			return;
 		}
 		LOG(("Wallet Error: engine resolve_pending failed: %1, "
@@ -5516,9 +5861,121 @@ void Session::finishPending() {
 	_pending.reset();
 	_submission.reset();
 	_sendUnresolved = false;
+	_unresolvedOperationId.clear();
 	_sendState = SendState::Idle;
+}
+
+void Session::applySendSnapshot(
+		const engine::SendSnapshot &snapshot,
+		bool journalAuthoritative,
+		uint64 sendRevision) {
+	const auto weak = base::make_weak(_engine.get());
+	const auto identity = transferWalletIdentity();
+	const auto generation = _networkGeneration;
+	const auto client = _engine->client();
+	const auto current = [=] {
+		return weak && identity && transferOperationCurrent(
+			*identity,
+			generation,
+			client);
+	};
+	if (!current()) {
+		return;
+	}
+	const auto operationId = snapshot.operation_id.value_or(std::string());
+	const auto found = submittedTransfer(operationId);
+	const auto entry = (found && found->client.lock() == client)
+		? found
+		: nullptr;
+	const auto terminal = snapshot.phase != engine::SendPhase::kIdle
+		&& TerminalSendPhase(snapshot.phase);
+	auto changed = false;
+	if (entry && terminal && !entry->terminal) {
+		entry->terminal = snapshot.phase;
+		changed = true;
+		switch (snapshot.phase) {
+		case engine::SendPhase::kConfirmed:
+		case engine::SendPhase::kSequenceNumberConsumed:
+		case engine::SendPhase::kSuperseded:
+			break;
+		default:
+			if (entry->fallback) {
+				entry->fallback->status = TransferItem::Status::Failure;
+			}
+			break;
+		}
+	}
+	if (entry
+		&& entry->terminal == engine::SendPhase::kConfirmed
+		&& snapshot.phase == engine::SendPhase::kConfirmed
+		&& entry->canonicalId.isEmpty()
+		&& entry->confirmedHash.isEmpty()
+		&& snapshot.resolution
+		&& snapshot.resolution->transaction_hash) {
+		const auto encoded = QByteArray::fromStdString(
+			*snapshot.resolution->transaction_hash);
+		auto decoded = QByteArray::fromBase64Encoding(
+			encoded,
+			QByteArray::AbortOnBase64DecodingErrors);
+		if (decoded
+			&& decoded.decoded.size() == 32
+			&& decoded.decoded.toBase64() == encoded) {
+			entry->confirmedHash = std::move(decoded.decoded);
+			changed = true;
+		}
+	}
+	const auto local = _pending
+		&& _submission
+		&& _pending->operationId == operationId
+		&& _pending->walletIdentity == *identity
+		&& _submission->operationId == operationId
+		&& transferOperationCurrent(
+			_submission->identity,
+			_submission->generation,
+			_submission->client.lock());
+	auto settled = local && terminal;
+	if (!_pending
+		&& !_submission
+		&& _sendState.current() == SendState::Idle
+		&& sendRevision == _sendRevision
+		&& !ranges::contains(
+			_submitted,
+			operationId,
+			&SubmittedTransfer::operationId)) {
+		if (!TerminalSendPhase(snapshot.phase)) {
+			if (!_sendUnresolved
+				|| _unresolvedOperationId.empty()
+				|| _unresolvedOperationId == operationId) {
+				_sendUnresolved = true;
+				_unresolvedOperationId = operationId;
+			}
+		} else if (_sendUnresolved) {
+			settled = (terminal
+				&& !operationId.empty()
+				&& _unresolvedOperationId == operationId)
+				|| journalAuthoritative;
+		}
+	}
+	dropSubmittedIfListed();
+	if (settled) {
+		finishPending();
+	} else if (_sendUnresolved) {
+		retireCommentScopes();
+	}
+	if (!current()) {
+		return;
+	}
+	if (changed) {
+		_historyUpdates.fire({});
+		if (!current()) {
+			return;
+		}
+		updateListsGate();
+		if (!current()) {
+			return;
+		}
+	}
 	updatePollingState();
-	requestEngineRefresh();
 }
 
 void Session::applyRotationSnapshot(

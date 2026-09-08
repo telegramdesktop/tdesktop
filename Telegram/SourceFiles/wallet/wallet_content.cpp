@@ -1344,22 +1344,10 @@ void AddHistoryRow(
 	};
 }
 
-[[nodiscard]] HistoryRowContent RowContentFromPending(
-		const PendingSendInfo &pending) {
-	return {
-		.title = ShortAddress(pending.destination),
-		.subtitle = tr::lng_wallet_row_pending(tr::now),
-		.date = langDateTime(base::unixtime::parse(pending.posted)),
-		.amountNano = pending.amountNano,
-		.incoming = false,
-		.pending = true,
-		.avatar = RowAvatar::Out,
-	};
-}
-
 [[nodiscard]] TransferItem ItemFromPending(
 		const PendingSendInfo &pending) {
 	auto result = TransferItem();
+	result.walletIdentity = pending.walletIdentity;
 	result.incoming = false;
 	result.counterparty = pending.destination;
 	result.amountNano = pending.amountNano;
@@ -3367,7 +3355,27 @@ void ShowWalletTransactionBox(
 		std::shared_ptr<Main::SessionShow> show,
 		const TransferItem &item,
 		std::shared_ptr<CollectibleMedia> media = nullptr) {
-	ShowTransactionDetails(show, item, false, std::move(media));
+	const auto current = [show, identity = item.walletIdentity] {
+		if (!show || !show->valid()) {
+			return false;
+		}
+		return !identity
+			|| show->session().wallet().transferWalletIdentityCurrent(*identity);
+	};
+	if (!current()) {
+		return;
+	}
+	ShowTransactionDetails(
+		show,
+		item,
+		false,
+		std::move(media),
+		current,
+		show->session().wallet().transferWalletIdentityChanges()
+			| rpl::filter([=] { return !current(); }));
+	if (!current()) {
+		return;
+	}
 
 	const auto local = &show->session().local();
 	if (local->readPref<bool>(kIntroToastShownPref)) {
@@ -9026,8 +9034,7 @@ Content::~Content() {
 	const auto wallet = &session->wallet();
 	return !wallet->listsGated()
 		&& (!wallet->historyVisibleEmpty()
-			|| wallet->pendingSend().has_value()
-			|| wallet->submittedTransaction().has_value());
+			|| !wallet->submittedTransactions().empty());
 }
 
 [[nodiscard]] rpl::producer<bool> HistoryShownValue(
@@ -9218,8 +9225,7 @@ void Content::setupContent() {
 	const auto rebuildList = [=] {
 		list->clear();
 		const auto &history = wallet->history();
-		const auto &pending = wallet->pendingSend();
-		const auto &submitted = wallet->submittedTransaction();
+		const auto submitted = wallet->submittedTransactions();
 		const auto addItem = [=](const TransferItem &item) {
 			const auto content = RowContentFromItem(item, &_show->session());
 			AddHistoryRow(list, content, [=] {
@@ -9232,13 +9238,8 @@ void Content::setupContent() {
 				Ui::AddSubsectionTitle(list, tr::lng_wallet_rows_title());
 				Ui::AddSkip(list);
 			}
-			if (submitted) {
-				addItem(*submitted);
-			} else if (pending) {
-				const auto item = ItemFromPending(*pending);
-				AddHistoryRow(list, RowContentFromPending(*pending), [=] {
-					ShowWalletTransactionBox(_show, item);
-				});
+			for (const auto &item : submitted) {
+				addItem(item);
 			}
 			for (const auto &item : history) {
 				if (wallet->historyItemHidden(item)) {

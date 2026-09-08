@@ -24,6 +24,7 @@ struct ActivityItem;
 struct NftList;
 struct SendMessageBody;
 struct SendSnapshot;
+struct WalletClient;
 struct WalletUpdate;
 } // namespace wallet_engine
 
@@ -245,6 +246,8 @@ struct FeeResult {
 };
 
 struct PendingSendInfo {
+	std::string operationId;
+	TransferWalletIdentity walletIdentity;
 	TimeId posted = 0;
 	int64 amountNano = 0;
 	QString destination;
@@ -566,11 +569,10 @@ public:
 		Fn<void(SendError)> done);
 	[[nodiscard]] SendState sendState() const;
 	[[nodiscard]] rpl::producer<SendState> sendStateValue() const;
-	[[nodiscard]] const std::optional<PendingSendInfo> &pendingSend() const;
+	[[nodiscard]] std::optional<PendingSendInfo> pendingSend() const;
 	[[nodiscard]] auto lastTransferReceipt() const
 		-> const std::optional<TransferReceipt> &;
-	[[nodiscard]] auto submittedTransaction() const
-		-> const std::optional<TransferItem> &;
+	[[nodiscard]] std::vector<TransferItem> submittedTransactions() const;
 
 private:
 	void ensureLoaded();
@@ -635,7 +637,9 @@ private:
 	void updatePollingState();
 	void applyStreamRefresh(StreamRefresh wanted);
 	void requestEngineRefresh();
-	void applyEngineUpdate(const wallet_engine::WalletUpdate &update);
+	void applyEngineUpdate(
+		const wallet_engine::WalletUpdate &update,
+		uint64 sendRevision);
 	void setHistory(std::vector<TransferItem> &&list);
 	struct HistoryRequest;
 	void requestTransactions(bool more, Fn<void()> done = nullptr);
@@ -672,22 +676,42 @@ private:
 	void updateListsGate();
 	[[nodiscard]] bool listsConfirmedEmpty() const;
 	void finishPending();
+	void applySendSnapshot(
+		const wallet_engine::SendSnapshot &snapshot,
+		bool journalAuthoritative,
+		uint64 sendRevision);
 	void submitTransfer(
 		std::string operationId,
+		TransferWalletIdentity identity,
 		int generation,
+		std::shared_ptr<wallet_engine::WalletClient> client,
 		QByteArray boc,
 		Fn<void(TransferSubmissionAnswer)> done);
 	void bindTransferReceipt(
 		const std::string &operationId,
+		const TransferWalletIdentity &identity,
 		int generation,
+		const std::shared_ptr<wallet_engine::WalletClient> &client,
 		TransferReceipt receipt);
+	[[nodiscard]] bool transferOperationCurrent(
+		const TransferWalletIdentity &identity,
+		int generation,
+		const std::shared_ptr<wallet_engine::WalletClient> &client) const;
+	struct SubmittedTransfer;
+	struct SubmittedLookup;
+	[[nodiscard]] SubmittedTransfer *submittedTransfer(
+		const std::string &operationId);
+	[[nodiscard]] bool submittedLookupNeeded() const;
+	[[nodiscard]] bool submittedLookupCurrent(
+		const std::shared_ptr<SubmittedLookup> &request) const;
 	void startSubmittedLookup();
 	void lookupSubmittedTransaction();
 	void applySubmittedLookup(
 		const MTPwallet_Transactions &result,
-		std::optional<TransferWalletIdentity> identity);
+		const std::shared_ptr<SubmittedLookup> &request);
 	void dropSubmittedIfListed();
 	void dropSubmittedLookup();
+	void clearSubmittedTransfers();
 	void applyRotationSnapshot(
 		const wallet_engine::SendSnapshot &snapshot,
 		bool journalAuthoritative);
@@ -783,22 +807,20 @@ private:
 	rpl::variable<SendState> _sendState = SendState::Idle;
 	std::optional<PendingSendInfo> _pending;
 	bool _sendUnresolved = false;
+	std::string _unresolvedOperationId;
+	uint64 _sendRevision = 0;
 	struct TransferSubmissionState {
 		std::string operationId;
-		QByteArray sender;
+		TransferWalletIdentity identity;
+		std::weak_ptr<wallet_engine::WalletClient> client;
 		std::optional<TransferReceipt> receipt;
 		std::optional<SendError> refusal;
-		bool hostAnswered = false;
-	};
-	struct SubmittedLookup {
-		QByteArray sender;
-		QByteArray messageHash;
-		int attempts = 0;
+		int generation = 0;
 	};
 	std::optional<TransferSubmissionState> _submission;
-	std::optional<SubmittedLookup> _lookup;
-	mtpRequestId _lookupRequestId = 0;
-	std::optional<TransferItem> _submitted;
+	std::vector<SubmittedTransfer> _submitted;
+	std::shared_ptr<SubmittedLookup> _lookup;
+	std::string _lastLookupOperationId;
 	std::optional<TransferReceipt> _lastReceipt;
 	bool _previewPending = false;
 	std::unique_ptr<PreviewState> _preview;
