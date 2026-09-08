@@ -1008,6 +1008,8 @@ void InnerWidget::fill() {
 					listsContainer,
 					st::defaultTabsSlider)),
 			st::boxRowPadding);
+		slider->entity()->setAccessibleName(
+			tr::lng_channel_earn_history_title(tr::now));
 		slider->toggle(
 			((hasCurrencyTab ? 1 : 0) + (hasCreditsTab ? 1 : 0) > 1),
 			anim::type::instant);
