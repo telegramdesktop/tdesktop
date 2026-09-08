@@ -141,7 +141,14 @@ enum class KeyProtectionMode {
 // the transition that recorded it and the caller that reads this. A freed
 // account leaves a null entry rather than no entry, so size() stays the
 // number of vaults the walk really moved, and a reader that wants the
-// account takes get() and skips null instead of dereferencing.
+// account takes get() and skips null instead of dereferencing. cancelled
+// means the user dismissed the box rather than "nothing happened", so it may
+// come with a non-empty changed: a Removal dismissed while its walk was
+// between accounts reports the ones already moved and still cancels, because
+// the passcode stays and every account the walk did not reach keeps its
+// passcode wrap. Such a result reports kind as the kind those wallets were
+// moved onto, so it says the same thing about them as a completed or a
+// failed answer does.
 struct KeyProtectionResult {
 	bool cancelled = true;
 	bool failed = false;

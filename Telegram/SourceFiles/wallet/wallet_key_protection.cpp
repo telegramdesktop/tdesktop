@@ -979,13 +979,27 @@ void KeyProtectionBox(
 	// flight would start a second write of the same vault. header is the
 	// box's own copy of the Switch header, which TransitionVaultWrap rewrites
 	// in place and which must therefore outlive an asynchronous key
-	// acquisition.
+	// acquisition. walk is the removal walk this box started, kept because
+	// the walk outlives the box by contract while its own answer is dropped
+	// by the guarded done on exactly the dismissal that matters, so the
+	// transitions it had already completed are readable only from here, at
+	// the one moment boxClosing() reports. This field is the walk's first
+	// owner and the only one left once the walk has answered, but the
+	// chained continuations own it for as long as it can still transition,
+	// so it outlives nothing the walk does not, and it closes no cycle back
+	// to the box, so it dies with the box. It exposes nothing new either:
+	// the typed bytes in it are the copy this box already owns in passcode,
+	// FinishVaultRemoval() cleanses those and the prepared wrap key before
+	// it answers, and what stays reachable is the Open wrap's own secret -
+	// key material, but the same bytes every account the walk moved now
+	// carries in its own committed vault header.
 	struct State {
 		SecureBytes passcode;
 		std::optional<VaultHeader> header;
 		KeyProtectionResult result;
 		std::vector<not_null<Ui::Radioenum<VaultKind>*>> radios;
 		QPointer<Ui::RoundButton> save;
+		std::shared_ptr<VaultRemovalWalk> walk;
 		bool busy = false;
 		bool reported = false;
 	};
@@ -1280,7 +1294,7 @@ void KeyProtectionBox(
 			// every dismissal, and the box itself goes with the layer - so a
 			// walk that outlives that answer stops instead of writing under
 			// it. state is read only while the box is alive to hold it.
-			WalkVaultRemoval(std::make_shared<VaultRemovalWalk>(
+			state->walk = std::make_shared<VaultRemovalWalk>(
 				VaultRemovalWalk{
 					.accounts = accounts,
 					.passcode = state->passcode.copy(),
@@ -1288,7 +1302,8 @@ void KeyProtectionBox(
 					.kind = kind,
 					.alive = [=] { return weak && !state->reported; },
 					.done = crl::guard(weak, closeWith),
-				}));
+				});
+			WalkVaultRemoval(state->walk);
 			return;
 		}
 		Unexpected("Mode in KeyProtectionBox.");
@@ -1343,7 +1358,19 @@ void KeyProtectionBox(
 				withPasscode(result.passcode);
 			}
 		};
-		show->showBox(Box(WalletPasscodeCreateBox, show, created));
+		// The create box answers from its own boxClosing(), which a layer
+		// teardown can fire after this box is already gone, and every branch
+		// above reads state, which lives in this box's lifetime. A dropped
+		// answer undoes nothing: the create box has installed the passcode
+		// and turned the launch lock back off, or reported that it could
+		// not, and this box is what would have written a vault under it - so
+		// what stays is a wallet-only passcode over a vault still on the
+		// kind it had, and both halves are reachable again from this chooser
+		// and from Settings - Privacy & Security - Local Passcode.
+		show->showBox(Box(
+			WalletPasscodeCreateBox,
+			show,
+			crl::guard(weak, created)));
 	};
 	// The product's only call site of PrepareVaultOpenWrap(): this box is the
 	// one surface that can put a vault under VaultKind::Open, and it prepares
@@ -1430,11 +1457,23 @@ void KeyProtectionBox(
 	};
 	state->save = box->addButton(tr::lng_settings_save(), save);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	// A dismissal that landed after the removal walk had already moved a
+	// wallet is not "nothing happened", so the report carries those wallets:
+	// cancelled keeps meaning that the user dismissed this box, and a
+	// dismissal with nothing moved stays as silent as every other
+	// cancellation this file produces. The walk's own answer is still
+	// dropped by the guarded done, which is why the list is read here, and
+	// nothing can be added to it after reported is set one statement
+	// earlier - that flag is what the walk's alive() probe answers no from.
 	box->boxClosing() | rpl::on_next([state, done = args.done] {
 		if (state->reported) {
 			return;
 		}
 		state->reported = true;
+		if (state->result.cancelled && state->walk) {
+			state->result.kind = state->walk->kind;
+			state->result.changed = base::take(state->walk->changed);
+		}
 		if (done) {
 			done(std::move(state->result));
 		}

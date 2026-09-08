@@ -1236,15 +1236,17 @@ void LocalPasscodeManage::showRemoval(
 
 // The removal chooser keeps every key: its Keep row only turns off the
 // launch lock, and its walk changes one committed vault at a time. Failed
-// walks retain the passcode and report the transitions that did complete.
+// walks retain the passcode and report the transitions that did complete,
+// and so does a walk the user dismissed midway - its result still cancels,
+// and only the empty-changed guard below tells that case from every other
+// cancellation the chooser produces, all of which carry no account at all:
+// report()'s empty branch is the "nothing was written" error, which a
+// dismissal must never show.
 // A completed walk can remove the passcode only after a fresh scan finds no
 // dependent, including any account added after the chooser froze its list.
 void LocalPasscodeManage::disableAfterRemoval(
 		Storage::PasscodeVerification verification,
 		Wallet::KeyProtectionResult result) {
-	if (result.cancelled) {
-		return;
-	}
 	const auto weak = base::make_weak(this);
 	const auto weakController = base::make_weak(controller());
 	const auto report = [&] {
@@ -1260,6 +1262,12 @@ void LocalPasscodeManage::disableAfterRemoval(
 				+ crl::time(text.size()) * kDisableReportCharacterTime,
 		});
 	};
+	if (result.cancelled) {
+		if (!result.changed.empty()) {
+			report();
+		}
+		return;
+	}
 	if (result.failed) {
 		// Each transition is complete by itself, so the wallets the walk
 		// did move keep their new kind while the passcode stays for the
