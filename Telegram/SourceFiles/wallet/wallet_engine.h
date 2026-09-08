@@ -151,11 +151,13 @@ private:
 
 };
 
-// Owns the wallet-engine host implementations and the single worker thread
-// that runs the engine's blocking calls. The engine translates nothing by
-// itself: HTTP goes through the caller-owned Wallet::Api on the main thread,
+// Owns the wallet-engine host implementations and the workers running
+// blocking engine calls. Local secret reads use their own serial worker so
+// background network requests cannot delay them. The engine translates
+// nothing by itself: HTTP goes through the caller-owned Wallet::Api on the main thread,
 // secrets and the send journal go through Storage::Account on the main
-// thread, and every blocking engine method runs on the worker through run().
+// thread. Network operations and storage writes run through run(); only
+// local read operations may run through runLocal().
 // The protected secrets are sealed under the account's vault, whose unlocked
 // state (VaultRuntime) the Engine owns and the platform host consults.
 // Every Engine method must be called on the main thread.
@@ -169,7 +171,7 @@ public:
 	}
 
 	// The shared lifecycle service, created on first use. Its blocking
-	// methods must be called through run(), never invoked directly.
+	// methods must be called through run() or runLocal(), never directly.
 	[[nodiscard]] auto lifecycle()
 		-> std::shared_ptr<wallet_engine::WalletLifecycle>;
 
@@ -208,7 +210,16 @@ public:
 	// the destructor's queued shutdown would deadlock behind them.
 	template <typename Job, typename Done>
 	void run(Job job, Done done, Fn<void(EngineError)> fail) {
-		enqueue(Package(
+		Enqueue(_worker, Package(
+			base::make_weak(this),
+			std::move(job),
+			std::move(done),
+			std::move(fail)));
+	}
+
+	template <typename Job, typename Done>
+	void runLocal(Job job, Done done, Fn<void(EngineError)> fail) {
+		Enqueue(_localWorker, Package(
 			base::make_weak(this),
 			std::move(job),
 			std::move(done),
@@ -274,8 +285,10 @@ private:
 		};
 	}
 
-	void enqueue(FnMut<void()> task);
-	void workerLoop();
+	static void Enqueue(
+		std::unique_ptr<Worker> &worker,
+		FnMut<void()> task);
+	static void WorkerLoop(not_null<Worker*> worker);
 
 	const not_null<Main::Session*> _session;
 	std::shared_ptr<StatuslessHost> _statuslessHost;
@@ -284,6 +297,7 @@ private:
 	std::shared_ptr<wallet_engine::WalletLifecycle> _lifecycle;
 	std::shared_ptr<wallet_engine::WalletClient> _client;
 	std::unique_ptr<Worker> _worker;
+	std::unique_ptr<Worker> _localWorker;
 
 };
 

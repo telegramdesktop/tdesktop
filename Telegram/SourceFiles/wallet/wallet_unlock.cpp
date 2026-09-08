@@ -73,6 +73,10 @@ void UnlockByKind(
 		show->showToast(tr::lng_wallet_vault_unavailable(tr::now));
 		done(nullptr);
 	};
+	if (!ignoreRetention && vault.retained()) {
+		done(Share(vault.grant()));
+		return;
+	}
 	// This branch cannot run in this build: no provider is registered on any
 	// platform, and ParseVaultHeader maps every kind at or above
 	// kFirstReservedVaultKind to Unsupported, so no hardware wrap is ever
@@ -115,8 +119,6 @@ void UnlockByKind(
 		} else {
 			unavailable();
 		}
-	} else if (!ignoreRetention && vault.retained()) {
-		done(Share(vault.grant()));
 	} else {
 		// A destroyed panel drops the box silently, and a box that was never
 		// shown never emits boxClosing(), so neither passed nor cancelled

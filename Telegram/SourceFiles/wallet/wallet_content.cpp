@@ -219,6 +219,7 @@ public:
 private:
 	const TextWithEntities _cover;
 	bool _closed = false;
+	bool _revealed = false;
 	TransferComment _comment;
 
 };
@@ -638,6 +639,11 @@ EncryptedCommentLabel::EncryptedCommentLabel(
 			: WhichAnimationsPaused::None;
 	});
 	_comment.changes() | rpl::on_next([=] {
+		const auto revealed = _comment.plaintext().has_value();
+		if (revealed == _revealed) {
+			return;
+		}
+		_revealed = revealed;
 		if (const auto &text = _comment.plaintext()) {
 			setText(*text);
 			setSelectable(true);

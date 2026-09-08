@@ -295,6 +295,7 @@ private:
 	if (item.id.isEmpty() || item.counterparty.isEmpty()) {
 		return result;
 	}
+	item.walletIdentity = session->wallet().transferWalletIdentity();
 	const auto &history = session->wallet().history();
 	const Wallet::TransferItem *match = nullptr;
 	for (const auto &entry : history) {

@@ -1050,6 +1050,17 @@ Engine::~Engine() {
 	_statuslessHost->close();
 	_platformHost->close();
 	_vault->clear();
+	if (_localWorker) {
+		{
+			auto lock = std::lock_guard(_localWorker->mutex);
+			_localWorker->queue.clear();
+			_localWorker->stopping = true;
+		}
+		_localWorker->wake.notify_all();
+		if (_localWorker->thread.joinable()) {
+			_localWorker->thread.join();
+		}
+	}
 	const auto client = base::take(_client);
 	if (!_worker) {
 		if (client) {
@@ -1175,34 +1186,38 @@ void Engine::Execute(
 	}
 }
 
-void Engine::enqueue(FnMut<void()> task) {
-	if (!_worker) {
-		_worker = std::make_unique<Worker>();
-		_worker->thread = std::thread([=] { workerLoop(); });
+void Engine::Enqueue(
+		std::unique_ptr<Worker> &worker,
+		FnMut<void()> task) {
+	if (!worker) {
+		worker = std::make_unique<Worker>();
+		worker->thread = std::thread([pointer = worker.get()] {
+			WorkerLoop(pointer);
+		});
 	}
 	{
-		auto lock = std::lock_guard(_worker->mutex);
-		if (_worker->stopping) {
+		auto lock = std::lock_guard(worker->mutex);
+		if (worker->stopping) {
 			return;
 		}
-		_worker->queue.push_back(std::move(task));
+		worker->queue.push_back(std::move(task));
 	}
-	_worker->wake.notify_all();
+	worker->wake.notify_all();
 }
 
-void Engine::workerLoop() {
+void Engine::WorkerLoop(not_null<Worker*> worker) {
 	while (true) {
 		auto task = FnMut<void()>();
 		{
-			auto lock = std::unique_lock(_worker->mutex);
-			_worker->wake.wait(lock, [&] {
-				return _worker->stopping || !_worker->queue.empty();
+			auto lock = std::unique_lock(worker->mutex);
+			worker->wake.wait(lock, [&] {
+				return worker->stopping || !worker->queue.empty();
 			});
-			if (_worker->queue.empty()) {
+			if (worker->queue.empty()) {
 				break;
 			}
-			task = std::move(_worker->queue.front());
-			_worker->queue.pop_front();
+			task = std::move(worker->queue.front());
+			worker->queue.pop_front();
 		}
 		try {
 			task();

@@ -577,7 +577,9 @@ struct DecryptedComment {
 			OPENSSL_cleanse(text.data(), text.size());
 		});
 		return { .text = SecureBytes(bytes::make_span(text)) };
-	} catch (const engine::wallet_client_error::EncryptedCommentUnavailable &) {
+	} catch (const engine::wallet_client_error::EncryptedCommentUnavailable &error) {
+		LOG(("Wallet Error: comment decryption failed: %1"
+			).arg(QString::fromUtf8(error.what())));
 		return { .error = Error::DecryptionFailed };
 	} catch (const engine::wallet_client_error::LocalSigningUnavailable &) {
 		return { .error = Error::Unavailable };
@@ -1844,7 +1846,7 @@ void Session::decryptComment(
 		.sender = state->sender.toStdString(),
 		.body = state->body.toStdString(),
 	};
-	_engine->run([
+	_engine->runLocal([
 		state,
 		client,
 		request,
@@ -1952,7 +1954,7 @@ void Session::revealLocally(
 	const auto initiatingPublicKey = record.publicKey;
 	const auto lifecycle = _engine->lifecycle();
 	const auto descriptor = DescriptorFromRecord(record);
-	_engine->run([lifecycle, descriptor] {
+	_engine->runLocal([lifecycle, descriptor] {
 		return lifecycle->reveal_recovery_phrase(descriptor);
 	}, [=, grant = auth.grant](engine::RecoveryPhrase phrase) {
 		auto words = SplitWords(QString::fromStdString(phrase.phrase));
@@ -3441,7 +3443,7 @@ void Session::replaceWithImported(
 					.timestamp = uint64_t(timestamp),
 					.payload = challenge.vpayload().v.toStdString(),
 				};
-				_engine->run([lifecycle, request = std::move(request)] {
+				_engine->runLocal([lifecycle, request = std::move(request)] {
 					return lifecycle->sign_ton_connect_proof(request);
 				}, [=, grant = install.grant](engine::TonConnectProofSignature proof) {
 					const auto size = int(proof.signature.size());
