@@ -20,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/credits_amount.h"
-#include "core/file_utilities.h"
 #include "core/ton_explorer_url.h"
 #include "core/ui_integration.h"
 #include "data/components/recent_money_recipients.h"
@@ -2669,14 +2668,15 @@ void OnrampRoutesController::hostedSessionLoaded(
 	}
 	const auto &session = *load.value;
 	if (session.provider != _expectedHostedSelection->provider
-		|| session.expiresDate <= base::unixtime::now()
+		|| (session.expiresDate != 0
+			&& session.expiresDate <= base::unixtime::now())
 		|| !IsValidOnrampUrl(session.url)) {
 		failHostedSession();
 		return;
 	}
 	const auto url = session.url;
 	clearHostedExpected();
-	File::OpenUrl(url);
+	UrlClickHandler::Open(url);
 }
 
 void OnrampRoutesController::clearHostedExpected() {
