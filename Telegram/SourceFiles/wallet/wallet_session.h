@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_api.h"
 #include "wallet/wallet_custody.h"
 #include "wallet/wallet_stream.h"
+#include "wallet/wallet_transfer_store.h"
 #include "wallet/wallet_unlock.h"
 
 namespace wallet_engine {
@@ -267,8 +268,6 @@ struct SendComment {
 
 	friend bool operator==(const SendComment &, const SendComment &) = default;
 };
-
-inline constexpr auto kSendCommentMaxBytes = 960;
 
 [[nodiscard]] int SendCommentBytes(const QString &text);
 [[nodiscard]] bool SendCommentFits(const QString &text);
@@ -672,6 +671,8 @@ private:
 	void settlePreview();
 	void retirePreviewOwner(uint64 owner);
 	void retirePreviews(SendError error);
+	[[nodiscard]] bool sendRecoveryNeeded() const;
+	void restoreSubmittedTransfers();
 	void resolvePending();
 	void updateListsGate();
 	[[nodiscard]] bool listsConfirmedEmpty() const;
@@ -699,6 +700,19 @@ private:
 		const std::shared_ptr<wallet_engine::WalletClient> &client) const;
 	struct SubmittedTransfer;
 	struct SubmittedLookup;
+	[[nodiscard]] SubmittedTransferStore &submittedTransferStore();
+	[[nodiscard]] SubmittedTransferRecord *submittedTransferRecord(
+		const std::string &operationId,
+		const TransferWalletIdentity &identity);
+	[[nodiscard]] bool persistSubmittedTransfers();
+	void retireSubmittedTransferRecord(
+		const std::string &operationId,
+		const TransferWalletIdentity &identity);
+	[[nodiscard]] SubmittedTransfer *upsertSubmittedTransfer(
+		const std::string &operationId,
+		const TransferWalletIdentity &identity,
+		int generation,
+		const std::shared_ptr<wallet_engine::WalletClient> &client);
 	[[nodiscard]] SubmittedTransfer *submittedTransfer(
 		const std::string &operationId);
 	[[nodiscard]] bool submittedLookupNeeded() const;
@@ -796,6 +810,7 @@ private:
 	std::shared_ptr<HistoryRequest> _historyRequest;
 	int _historyHiddenPages = 0;
 	bool _resolveRequestPending = false;
+	bool _sendRecoveryReady = false;
 	bool _engineRefreshPending = false;
 	bool _historySettled = false;
 	bool _historyUnreachable = false;
@@ -818,6 +833,8 @@ private:
 		int generation = 0;
 	};
 	std::optional<TransferSubmissionState> _submission;
+	std::optional<SubmittedTransferStore> _submittedTransferStore;
+	bool _submittedTransfersDirty = false;
 	std::vector<SubmittedTransfer> _submitted;
 	std::shared_ptr<SubmittedLookup> _lookup;
 	std::string _lastLookupOperationId;

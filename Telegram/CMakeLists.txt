@@ -2195,6 +2195,8 @@ PRIVATE
     wallet/wallet_session.h
     wallet/wallet_stream.cpp
     wallet/wallet_stream.h
+    wallet/wallet_transfer_store.cpp
+    wallet/wallet_transfer_store.h
     wallet/wallet_unlock.cpp
     wallet/wallet_unlock.h
     wallet/wallet_user_addresses.cpp

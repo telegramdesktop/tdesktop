@@ -948,6 +948,80 @@ void FailShareFetch(
 	}
 }
 
+[[nodiscard]] TransferTerminal StoredTransferTerminal(
+		engine::SendPhase phase) {
+	switch (phase) {
+	case engine::SendPhase::kConfirmed:
+		return TransferTerminal::Confirmed;
+	case engine::SendPhase::kReplaced:
+		return TransferTerminal::Replaced;
+	case engine::SendPhase::kSequenceNumberConsumed:
+		return TransferTerminal::SequenceNumberConsumed;
+	case engine::SendPhase::kExpired:
+		return TransferTerminal::Expired;
+	case engine::SendPhase::kSuperseded:
+		return TransferTerminal::Superseded;
+	case engine::SendPhase::kFailed:
+		return TransferTerminal::Failed;
+	case engine::SendPhase::kCancelled:
+		return TransferTerminal::Cancelled;
+	default:
+		return TransferTerminal::None;
+	}
+}
+
+[[nodiscard]] std::optional<engine::SendPhase> RestoredTransferTerminal(
+		TransferTerminal terminal) {
+	switch (terminal) {
+	case TransferTerminal::Confirmed:
+		return engine::SendPhase::kConfirmed;
+	case TransferTerminal::Replaced:
+		return engine::SendPhase::kReplaced;
+	case TransferTerminal::SequenceNumberConsumed:
+		return engine::SendPhase::kSequenceNumberConsumed;
+	case TransferTerminal::Expired:
+		return engine::SendPhase::kExpired;
+	case TransferTerminal::Superseded:
+		return engine::SendPhase::kSuperseded;
+	case TransferTerminal::Failed:
+		return engine::SendPhase::kFailed;
+	case TransferTerminal::Cancelled:
+		return engine::SendPhase::kCancelled;
+	case TransferTerminal::None:
+		return std::nullopt;
+	}
+	Unexpected("Invalid stored transfer terminal.");
+}
+
+[[nodiscard]] bool FailedTransferTerminal(TransferTerminal terminal) {
+	switch (terminal) {
+	case TransferTerminal::Replaced:
+	case TransferTerminal::Expired:
+	case TransferTerminal::Failed:
+	case TransferTerminal::Cancelled:
+		return true;
+	default:
+		return false;
+	}
+}
+
+[[nodiscard]] SubmittedTransferProjection StoredTransferProjection(
+		const TransferItem &item) {
+	return SubmittedTransferProjection{
+		.id = item.id,
+		.counterparty = item.counterparty,
+		.counterpartyName = item.counterpartyName,
+		.comment = item.commentEncrypted ? QString() : item.comment,
+		.counterpartyPeer = item.counterpartyPeer,
+		.amountNano = item.amountNano,
+		.feeNano = item.feeNano,
+		.date = item.date,
+		.peerTransfer = (item.kind == TransferItem::Kind::PeerTransfer),
+		.failed = (item.status == TransferItem::Status::Failure),
+		.commentEncrypted = item.commentEncrypted,
+	};
+}
+
 [[nodiscard]] std::optional<Gram::NftItem> CollectibleFromEngine(
 		const engine::NftItem &item) {
 	const auto address = CanonicalAddress(
@@ -3218,6 +3292,20 @@ void Session::submitRotation(
 		refuse(u"ROTATION_SIGNING_UNAVAILABLE"_q);
 		return;
 	}
+	const auto identity = transferWalletIdentity();
+	const auto generation = _networkGeneration;
+	if (!identity || !_sendRecoveryReady) {
+		refuse(u"ROTATION_STATE_UNKNOWN"_q);
+		return;
+	} else if (_sendState.current() != SendState::Idle
+		|| _pending
+		|| _sendUnresolved) {
+		refuse(u"ROTATION_ALREADY_SENDING"_q);
+		return;
+	} else if (!persistSubmittedTransfers()) {
+		refuse(u"ROTATION_STORE_FAILED"_q);
+		return;
+	}
 	// abandonRotation() reads a set _rotationConfirmed as "a submit is in
 	// flight", so the latch is armed with a callable whatever was passed.
 	_rotationConfirmed = [confirmed = std::move(confirmed)] {
@@ -3227,6 +3315,22 @@ void Session::submitRotation(
 	};
 	_rotationFailed = std::move(fail);
 	storePendingRotation(std::move(auth), [=, this] {
+		if (!transferOperationCurrent(*identity, generation, client)
+			|| !_sendRecoveryReady) {
+			discardPendingRotation();
+			finishRotation(u"ROTATION_STATE_UNKNOWN"_q);
+			return;
+		} else if (_sendState.current() != SendState::Idle
+			|| _pending
+			|| _sendUnresolved) {
+			discardPendingRotation();
+			finishRotation(u"ROTATION_ALREADY_SENDING"_q);
+			return;
+		} else if (!persistSubmittedTransfers()) {
+			discardPendingRotation();
+			finishRotation(u"ROTATION_STORE_FAILED"_q);
+			return;
+		}
 		const auto awaitResolution = [=, this] {
 			_preparedRotation = nullptr;
 			updatePollingState();
@@ -3813,32 +3917,55 @@ void Session::syncEngineClient() {
 	const auto wanted = identity
 		? custody().matching(identity->publicKey)
 		: nullptr;
-	if (_engine->client()) {
-		if ((wanted && _clientRecordId == wanted->recordId)
-			|| _clientStopping) {
+	auto started = false;
+	if (_clientStopping) {
+		return;
+	} else if (_engine->client()) {
+		if (!wanted || _clientRecordId != wanted->recordId) {
+			_sendRecoveryReady = false;
+			_clientStopping = true;
+			retireCommentScopes();
+			_engine->stopClient([this] {
+				_clientStopping = false;
+				_clientRecordId = QString();
+				syncEngineClient();
+			});
+			retirePreviews(SendError::SigningUnavailable);
 			return;
 		}
-		retireCommentScopes();
-		_clientStopping = true;
-		_engine->stopClient([this] {
-			_clientStopping = false;
-			_clientRecordId = QString();
-			syncEngineClient();
-		});
-		retirePreviews(SendError::SigningUnavailable);
+	} else if (!wanted) {
 		return;
-	} else if (!wanted || _clientStopping) {
+	} else {
+		try {
+			_engine->startClient(ClientConfigFromRecord(*wanted));
+			_clientRecordId = wanted->recordId;
+			_sendRecoveryReady = false;
+			started = true;
+		} catch (...) {
+			LOG(("Wallet Error: engine client start refused: %1"
+				).arg(ClientErrorName(std::current_exception())));
+			return;
+		}
+	}
+	const auto weak = base::make_weak(_engine.get());
+	const auto generation = _networkGeneration;
+	const auto client = _engine->client();
+	const auto current = [=] {
+		return weak && identity && transferOperationCurrent(
+			*identity,
+			generation,
+			client);
+	};
+	restoreSubmittedTransfers();
+	if (!current()) {
 		return;
 	}
-	try {
-		_engine->startClient(ClientConfigFromRecord(*wanted));
-		_clientRecordId = wanted->recordId;
-		if (_presence.current() == Presence::Ready) {
-			requestEngineRefresh();
-		}
-	} catch (...) {
-		LOG(("Wallet Error: engine client start refused: %1"
-			).arg(ClientErrorName(std::current_exception())));
+	if (sendRecoveryNeeded()) {
+		resolvePending();
+		updatePollingState();
+	}
+	if (current() && started && _presence.current() == Presence::Ready) {
+		requestEngineRefresh();
 	}
 }
 
@@ -4550,6 +4677,7 @@ void Session::updatePollingState() {
 	const auto wanted = (_pollingCount > 0)
 		|| _pending
 		|| _sendUnresolved
+		|| sendRecoveryNeeded()
 		|| submittedLookupNeeded()
 		|| custody().pendingRotation;
 	if (!wanted) {
@@ -4618,7 +4746,10 @@ void Session::pollTick() {
 		loadMoreHistory();
 	}
 	refreshCollectibles();
-	if ((_pending || _sendUnresolved || custody().pendingRotation)
+	if ((_pending
+			|| _sendUnresolved
+			|| sendRecoveryNeeded()
+			|| custody().pendingRotation)
 		&& !_resolveRequestPending) {
 		resolvePending();
 	}
@@ -5235,6 +5366,9 @@ void Session::send(
 	} else if (_pending || _sendUnresolved) {
 		fail(SendError::PreviousUnresolved);
 		return;
+	} else if (!_sendRecoveryReady) {
+		fail(SendError::Failed);
+		return;
 	} else if (!ReadAuthorized(*this, auth)) {
 		fail(SendError::Locked);
 		return;
@@ -5247,19 +5381,39 @@ void Session::send(
 		fail(SendError::InsufficientFees);
 		return;
 	}
-	++owner->second;
 	const auto operationId = NewRecordId();
 	const auto client = prepared->client;
 	const auto generation = prepared->generation;
 	const auto identity = *transferWalletIdentity();
+	const auto custodyRecord = custody().matching(identity.publicKey);
+	if (!custodyRecord
+		|| custodyRecord->recordId != _clientRecordId
+		|| CanonicalAddress(custodyRecord->address) != identity.address) {
+		fail(SendError::Failed);
+		return;
+	}
+	submittedTransferStore().records.push_back(SubmittedTransferRecord{
+		.recordId = custodyRecord->recordId,
+		.address = identity.address,
+		.publicKey = identity.publicKey,
+		.operationId = operationId,
+		.destination = CanonicalAddress(args.destination),
+		.comment = args.comment.isPublic ? args.comment.text : QString(),
+		.amountNano = args.amountNano,
+		.posted = base::unixtime::now(),
+		.network = custodyRecord->network,
+	});
+	_submittedTransfersDirty = true;
+	if (!persistSubmittedTransfers()) {
+		retireSubmittedTransferRecord(operationId, identity);
+		LOG(("Wallet Error: transfer preparation could not be stored."));
+		fail(SendError::Failed);
+		return;
+	}
+	++owner->second;
 	++_sendRevision;
 	_lastReceipt.reset();
-	const auto destination = args.destination;
-	const auto amountNano = args.amountNano;
 	const auto userId = args.userId;
-	const auto comment = args.comment.isPublic
-		? args.comment.text
-		: QString();
 	const auto weak = base::make_weak(_engine.get());
 	const auto current = [=] {
 		return weak
@@ -5271,29 +5425,33 @@ void Session::send(
 		if (!current() || _sendState.current() != SendState::Sending) {
 			return;
 		}
+		const auto record = submittedTransferRecord(operationId, identity);
+		if (!record) {
+			return;
+		}
+		if (record->handoff != TransferHandoff::Possible) {
+			record->handoff = TransferHandoff::Possible;
+			_submittedTransfersDirty = true;
+		}
 		_pending = PendingSendInfo{
 			.operationId = operationId,
 			.walletIdentity = identity,
-			.posted = base::unixtime::now(),
-			.amountNano = amountNano,
-			.destination = destination,
-			.comment = comment,
+			.posted = record->posted,
+			.amountNano = record->amountNano,
+			.destination = record->destination,
+			.comment = record->comment,
 		};
-		auto fallback = TransferItem();
-		fallback.walletIdentity = identity;
-		fallback.counterparty = destination;
-		fallback.amountNano = amountNano;
-		fallback.comment = comment;
-		fallback.date = _pending->posted;
-		fallback.status = TransferItem::Status::Pending;
-		_submitted.push_back(SubmittedTransfer{
-			.operationId = operationId,
-			.identity = identity,
-			.client = client,
-			.fallback = std::make_unique<TransferItem>(std::move(fallback)),
-			.receipt = _submission->receipt,
-			.generation = generation,
-		});
+		const auto entry = upsertSubmittedTransfer(
+			operationId,
+			identity,
+			generation,
+			client);
+		if (entry && _submission->receipt) {
+			entry->receipt = _submission->receipt;
+		}
+		if (!persistSubmittedTransfers()) {
+			LOG(("Wallet Error: submitted transfer facts remain dirty."));
+		}
 		_sendUnresolved = true;
 		_unresolvedOperationId = operationId;
 		dropSubmittedIfListed();
@@ -5390,6 +5548,26 @@ void Session::send(
 		case engine::SendPhase::kSequenceNumberConsumed:
 		case engine::SendPhase::kExpired:
 		case engine::SendPhase::kSuperseded: {
+			const auto record = submittedTransferRecord(operationId, identity);
+			if (record && record->handoff == TransferHandoff::Possible) {
+				const auto entry = upsertSubmittedTransfer(
+					operationId,
+					identity,
+					generation,
+					client);
+				if (entry) {
+					entry->terminal = result.phase;
+					if (entry->fallback && FailedTransferTerminal(
+							StoredTransferTerminal(result.phase))) {
+						entry->fallback->status = TransferItem::Status::Failure;
+					}
+				}
+			} else {
+				retireSubmittedTransferRecord(operationId, identity);
+			}
+			if (!persistSubmittedTransfers()) {
+				LOG(("Wallet Error: terminal transfer facts remain dirty."));
+			}
 			const auto submission = base::take(_submission);
 			const auto refusal = submission
 				? submission->refusal.value_or(SendError::Failed)
@@ -5397,6 +5575,9 @@ void Session::send(
 			_sendState = SendState::Idle;
 			LOG(("Wallet Error: engine send ended in phase %1 (%2)."
 				).arg(int(result.phase)).arg(int(refusal)));
+			if (weak) {
+				_historyUpdates.fire({});
+			}
 			if (weak && done) {
 				done(refusal);
 			}
@@ -5409,6 +5590,13 @@ void Session::send(
 		if (IsSubmissionUnknown(error)) {
 			recordUnknown();
 			return;
+		}
+		const auto record = submittedTransferRecord(operationId, identity);
+		if (record && record->handoff == TransferHandoff::Preparation) {
+			retireSubmittedTransferRecord(operationId, identity);
+			if (!persistSubmittedTransfers()) {
+				LOG(("Wallet Error: unused transfer preparation remains dirty."));
+			}
 		}
 		_submission.reset();
 		const auto failed = SendErrorFrom(error);
@@ -5448,6 +5636,31 @@ void Session::submitTransfer(
 		done({
 			TransferSubmissionOutcome::Rejected,
 			u"WALLET_TRANSFER_DATA_INVALID"_q,
+		});
+		return;
+	}
+	const auto record = submittedTransferRecord(operationId, identity);
+	if (!record) {
+		_submission->refusal = SendError::Failed;
+		done({
+			TransferSubmissionOutcome::Rejected,
+			u"WALLET_TRANSFER_STORAGE_FAILED"_q,
+		});
+		return;
+	}
+	const auto was = record->handoff;
+	record->handoff = TransferHandoff::Possible;
+	_submittedTransfersDirty = _submittedTransfersDirty
+		|| (was != TransferHandoff::Possible);
+	if (!persistSubmittedTransfers()) {
+		if (const auto retained = submittedTransferRecord(operationId, identity)) {
+			retained->handoff = was;
+		}
+		_submission->refusal = SendError::Failed;
+		LOG(("Wallet Error: transfer handoff could not be stored."));
+		done({
+			TransferSubmissionOutcome::Rejected,
+			u"WALLET_TRANSFER_STORAGE_FAILED"_q,
 		});
 		return;
 	}
@@ -5526,12 +5739,24 @@ void Session::bindTransferReceipt(
 	if ((entry && entry->receipt) || (active && _submission->receipt)) {
 		return;
 	}
+	if (const auto record = submittedTransferRecord(operationId, identity)) {
+		if (!record->messageHash) {
+			record->messageHash = receipt.messageHash;
+			record->handoff = TransferHandoff::Possible;
+			_submittedTransfersDirty = true;
+		}
+	}
 	if (active) {
 		_submission->receipt = receipt;
 		_lastReceipt = receipt;
 	}
 	if (entry && entry->canonicalId.isEmpty()) {
 		entry->receipt = std::move(receipt);
+	}
+	if (!persistSubmittedTransfers()) {
+		LOG(("Wallet Error: received transfer token remains dirty."));
+	}
+	if (entry && entry->canonicalId.isEmpty()) {
 		startSubmittedLookup();
 	}
 }
@@ -5561,6 +5786,210 @@ Session::SubmittedTransfer *Session::submittedTransfer(
 		&& transferWalletIdentityCurrent(i->identity))
 		? &*i
 		: nullptr;
+}
+
+SubmittedTransferStore &Session::submittedTransferStore() {
+	if (!_submittedTransferStore) {
+		_submittedTransferStore = ReadSubmittedTransferStore(_session->local());
+		if (!_submittedTransferStore) {
+			LOG(("Wallet Error: submitted transfer store unreadable."));
+			_submittedTransferStore = SubmittedTransferStore();
+		}
+	}
+	return *_submittedTransferStore;
+}
+
+SubmittedTransferRecord *Session::submittedTransferRecord(
+		const std::string &operationId,
+		const TransferWalletIdentity &identity) {
+	const auto custodyRecord = custody().matching(identity.publicKey);
+	if (!custodyRecord
+		|| CanonicalAddress(custodyRecord->address) != identity.address) {
+		return nullptr;
+	}
+	auto &records = submittedTransferStore().records;
+	const auto found = ranges::find_if(records, [&](const auto &record) {
+		return record.network == custodyRecord->network
+			&& record.address == identity.address
+			&& record.publicKey == identity.publicKey
+			&& record.operationId == operationId;
+	});
+	return (found != end(records)) ? &*found : nullptr;
+}
+
+bool Session::persistSubmittedTransfers() {
+	auto &store = submittedTransferStore();
+	for (const auto &entry : _submitted) {
+		if (entry.generation != _networkGeneration
+			|| !transferWalletIdentityCurrent(entry.identity)) {
+			continue;
+		}
+		const auto record = submittedTransferRecord(
+			entry.operationId,
+			entry.identity);
+		if (!record) {
+			continue;
+		} else if (!entry.canonicalId.isEmpty() && !entry.item) {
+			retireSubmittedTransferRecord(entry.operationId, entry.identity);
+			continue;
+		}
+		const auto was = *record;
+		if (entry.receipt && !record->messageHash) {
+			record->messageHash = entry.receipt->messageHash;
+		}
+		if (entry.terminal) {
+			record->terminal = StoredTransferTerminal(*entry.terminal);
+		}
+		record->confirmedHash = entry.confirmedHash;
+		record->lookupAttempts = entry.lookupAttempts;
+		record->lookupStopped = entry.lookupStopped;
+		if (entry.item) {
+			record->served = StoredTransferProjection(*entry.item);
+		}
+		_submittedTransfersDirty = _submittedTransfersDirty || (*record != was);
+	}
+	if (!_submittedTransfersDirty) {
+		return true;
+	}
+	auto pruned = store;
+	auto size = SubmittedTransferStoreSize(pruned);
+	if (!size) {
+		return false;
+	}
+	while (pruned.records.size() > kSubmittedTransferMaxRecords
+		|| *size > kSubmittedTransferMaxBytes) {
+		auto oldest = end(pruned.records);
+		for (auto i = begin(pruned.records); i != end(pruned.records); ++i) {
+			const auto live = submittedTransferRecord(
+				i->operationId,
+				TransferWalletIdentity{
+					.address = i->address,
+					.publicKey = i->publicKey,
+				});
+			const auto current = live
+				&& live->recordId == i->recordId
+				&& live->network == i->network
+				&& ((_sendUnresolved
+						&& _unresolvedOperationId == i->operationId)
+					|| (_submission
+						&& _submission->operationId == i->operationId));
+			if (current
+				|| (!i->served && i->terminal == TransferTerminal::None)) {
+				continue;
+			}
+			if (oldest == end(pruned.records) || i->posted < oldest->posted) {
+				oldest = i;
+			}
+		}
+		if (oldest == end(pruned.records)) {
+			return false;
+		}
+		pruned.records.erase(oldest);
+		size = SubmittedTransferStoreSize(pruned);
+		if (!size) {
+			return false;
+		}
+	}
+	if (!WriteSubmittedTransferStore(_session->local(), pruned)) {
+		return false;
+	}
+	store = std::move(pruned);
+	for (auto &entry : _submitted) {
+		if ((entry.terminal || entry.item)
+			&& !submittedTransferRecord(entry.operationId, entry.identity)) {
+			entry.lookupStopped = true;
+		}
+	}
+	_submittedTransfersDirty = false;
+	return true;
+}
+
+void Session::retireSubmittedTransferRecord(
+		const std::string &operationId,
+		const TransferWalletIdentity &identity) {
+	if (const auto record = submittedTransferRecord(operationId, identity)) {
+		auto &records = submittedTransferStore().records;
+		records.erase(begin(records) + (record - records.data()));
+		_submittedTransfersDirty = true;
+	}
+}
+
+Session::SubmittedTransfer *Session::upsertSubmittedTransfer(
+		const std::string &operationId,
+		const TransferWalletIdentity &identity,
+		int generation,
+		const std::shared_ptr<engine::WalletClient> &client) {
+	if (const auto entry = submittedTransfer(operationId)) {
+		return (entry->client.lock() == client) ? entry : nullptr;
+	}
+	const auto record = submittedTransferRecord(operationId, identity);
+	if (!record || record->handoff != TransferHandoff::Possible) {
+		return nullptr;
+	}
+	if (_submitted.size() >= kSubmittedTransferMaxRecords) {
+		_submitted.erase(ranges::remove_if(_submitted, [&](const auto &entry) {
+			return (!entry.fallback && !entry.item)
+				|| ((entry.terminal || entry.item)
+					&& !submittedTransferRecord(
+						entry.operationId,
+						entry.identity));
+		}), end(_submitted));
+	}
+	if (_submitted.size() >= kSubmittedTransferMaxRecords) {
+		return nullptr;
+	}
+	auto fallback = std::make_unique<TransferItem>();
+	fallback->walletIdentity = identity;
+	fallback->counterparty = record->destination;
+	fallback->amountNano = record->amountNano;
+	fallback->comment = record->comment;
+	fallback->date = record->posted;
+	fallback->status = FailedTransferTerminal(record->terminal)
+		? TransferItem::Status::Failure
+		: TransferItem::Status::Pending;
+	auto item = std::unique_ptr<TransferItem>();
+	if (record->served) {
+		const auto &stored = *record->served;
+		item = std::make_unique<TransferItem>();
+		item->source = TransferItem::Source::Server;
+		item->id = stored.id;
+		item->walletIdentity = identity;
+		item->kind = stored.peerTransfer
+			? TransferItem::Kind::PeerTransfer
+			: TransferItem::Kind::Transfer;
+		item->counterparty = stored.counterparty;
+		item->counterpartyName = stored.counterpartyName;
+		item->counterpartyPeer = stored.counterpartyPeer;
+		item->amountNano = stored.amountNano;
+		item->feeNano = stored.feeNano;
+		item->comment = stored.comment;
+		item->commentEncrypted = stored.commentEncrypted;
+		item->date = stored.date;
+		item->status = stored.failed
+			? TransferItem::Status::Failure
+			: TransferItem::Status::Success;
+		fallback.reset();
+	}
+	auto receipt = std::optional<TransferReceipt>();
+	if (record->messageHash) {
+		receipt = TransferReceipt{ .messageHash = *record->messageHash };
+	}
+	const auto canonicalId = item ? item->id : QString();
+	_submitted.push_back(SubmittedTransfer{
+		.operationId = operationId,
+		.identity = identity,
+		.client = (record->recordId == _clientRecordId) ? client : nullptr,
+		.fallback = std::move(fallback),
+		.item = std::move(item),
+		.canonicalId = canonicalId,
+		.confirmedHash = record->confirmedHash,
+		.receipt = std::move(receipt),
+		.terminal = RestoredTransferTerminal(record->terminal),
+		.generation = generation,
+		.lookupAttempts = record->lookupAttempts,
+		.lookupStopped = record->lookupStopped,
+	});
+	return &_submitted.back();
 }
 
 bool Session::submittedLookupNeeded() const {
@@ -5617,6 +6046,9 @@ void Session::lookupSubmittedTransaction() {
 			|| !transferWalletIdentityCurrent(entry.identity)) {
 			continue;
 		}
+		if (!submittedTransferRecord(entry.operationId, entry.identity)) {
+			continue;
+		}
 		++entry.lookupAttempts;
 		entry.lookupStopped = (entry.lookupAttempts >= kSubmittedLookupAttempts);
 		const auto request = std::make_shared<SubmittedLookup>(SubmittedLookup{
@@ -5626,6 +6058,22 @@ void Session::lookupSubmittedTransaction() {
 			.generation = entry.generation,
 		});
 		_lastLookupOperationId = entry.operationId;
+		if (!persistSubmittedTransfers()) {
+			--entry.lookupAttempts;
+			entry.lookupStopped = false;
+			if (const auto record = submittedTransferRecord(
+					entry.operationId,
+					entry.identity)) {
+				record->lookupAttempts = entry.lookupAttempts;
+				record->lookupStopped = entry.lookupStopped;
+			}
+			LOG(("Wallet Error: transfer lookup budget could not be stored."));
+			return;
+		} else if (!submittedTransferRecord(
+				request->operationId,
+				request->identity)) {
+			return;
+		}
 		_lookup = request;
 		// The token is the server's own opaque message hash, echoed exactly
 		// as it arrived: MTP_string(const std::string &) copies the bytes
@@ -5711,6 +6159,7 @@ void Session::applySubmittedLookup(
 		return;
 	}
 	entry->lookupStopped = true;
+	_submittedTransfersDirty = true;
 	const auto id = found->id;
 	const auto ambiguous = ranges::any_of(loaded, [&](const auto &item) {
 		return candidate(item) && item.id != id;
@@ -5724,6 +6173,9 @@ void Session::applySubmittedLookup(
 	if (ambiguous || conflict) {
 		LOG(("Wallet Error: wallet.getTransactionsByMsgHash sent "
 			"ambiguous or conflicting transaction identity."));
+		if (!persistSubmittedTransfers()) {
+			LOG(("Wallet Error: stopped transfer lookup remains dirty."));
+		}
 		return;
 	}
 	entry->canonicalId = id;
@@ -5746,9 +6198,11 @@ void Session::applySubmittedLookup(
 }
 
 void Session::dropSubmittedIfListed() {
+	auto changed = false;
 	for (auto &entry : _submitted) {
 		if (entry.generation != _networkGeneration
-			|| !transferWalletIdentityCurrent(entry.identity)) {
+			|| !transferWalletIdentityCurrent(entry.identity)
+			|| (!entry.fallback && !entry.item)) {
 			continue;
 		}
 		if (entry.canonicalId.isEmpty() && !entry.confirmedHash.isEmpty()) {
@@ -5782,6 +6236,7 @@ void Session::dropSubmittedIfListed() {
 				&TransferItem::id)) {
 			continue;
 		}
+		changed = true;
 		entry.fallback.reset();
 		entry.item.reset();
 		entry.receipt.reset();
@@ -5790,6 +6245,9 @@ void Session::dropSubmittedIfListed() {
 		if (_lookup && _lookup->operationId == entry.operationId) {
 			dropSubmittedLookup();
 		}
+	}
+	if ((changed || _submittedTransfersDirty) && !persistSubmittedTransfers()) {
+		LOG(("Wallet Error: reconciled transfer facts remain dirty."));
 	}
 }
 
@@ -5808,47 +6266,111 @@ void Session::clearSubmittedTransfers() {
 	_lastLookupOperationId.clear();
 	_unresolvedOperationId.clear();
 	_sendUnresolved = false;
+	_sendRecoveryReady = false;
 	++_sendRevision;
 }
 
+bool Session::sendRecoveryNeeded() const {
+	return !_sendRecoveryReady
+		&& !_clientStopping
+		&& _engine->client()
+		&& transferWalletIdentity().has_value();
+}
+
+void Session::restoreSubmittedTransfers() {
+	const auto identity = transferWalletIdentity();
+	const auto generation = _networkGeneration;
+	const auto client = _engine->client();
+	if (!identity || !transferOperationCurrent(*identity, generation, client)) {
+		return;
+	}
+	auto changed = false;
+	for (const auto &record : submittedTransferStore().records) {
+		if (record.handoff != TransferHandoff::Possible
+			|| (_submission && _submission->operationId == record.operationId)
+			|| submittedTransfer(record.operationId)
+			|| submittedTransferRecord(
+				record.operationId,
+				*identity) != &record) {
+			continue;
+		}
+		if (upsertSubmittedTransfer(
+				record.operationId,
+				*identity,
+				generation,
+				client)) {
+			changed = true;
+		}
+	}
+	dropSubmittedIfListed();
+	if (!changed) {
+		return;
+	}
+	const auto weak = base::make_weak(_engine.get());
+	_historyUpdates.fire({});
+	if (weak && transferOperationCurrent(*identity, generation, client)) {
+		updateListsGate();
+	}
+}
+
 void Session::resolvePending() {
-	if (_resolveRequestPending || !_engine->client()) {
+	const auto identity = transferWalletIdentity();
+	const auto client = _engine->client();
+	const auto generation = _networkGeneration;
+	if (_resolveRequestPending
+		|| !identity
+		|| !transferOperationCurrent(*identity, generation, client)) {
 		return;
 	}
 	_resolveRequestPending = true;
-	const auto client = _engine->client();
-	const auto generation = _networkGeneration;
-	const auto identity = transferWalletIdentity();
 	const auto sendRevision = _sendRevision;
 	_engine->run([client] {
 		return client->resolve_pending();
 	}, [=, this](engine::SendSnapshot snapshot) {
-		_resolveRequestPending = false;
 		const auto weak = base::make_weak(_engine.get());
 		const auto current = [=] {
-			return weak && identity && transferOperationCurrent(
+			return weak && transferOperationCurrent(
 				*identity,
 				generation,
 				client);
 		};
 		if (!current()) {
+			_resolveRequestPending = false;
 			return;
 		}
 		const auto hadPending = bool(_pending);
+		restoreSubmittedTransfers();
+		if (!current()) {
+			if (weak) {
+				_resolveRequestPending = false;
+			}
+			return;
+		}
 		applySendSnapshot(snapshot, true, sendRevision);
 		if (!current()) {
+			if (weak) {
+				_resolveRequestPending = false;
+			}
 			return;
 		}
 		applyRotationSnapshot(snapshot, true);
-		if (current() && hadPending && !_pending) {
+		if (!weak) {
+			return;
+		}
+		_resolveRequestPending = false;
+		if (!current()) {
+			return;
+		}
+		if (sendRevision == _sendRevision) {
+			_sendRecoveryReady = true;
+		}
+		if (hadPending && !_pending) {
 			requestEngineRefresh();
 		}
+		updatePollingState();
 	}, [=, this](EngineError error) {
 		_resolveRequestPending = false;
-		if (!identity || !transferOperationCurrent(
-				*identity,
-				generation,
-				client)) {
+		if (!transferOperationCurrent(*identity, generation, client)) {
 			return;
 		}
 		LOG(("Wallet Error: engine resolve_pending failed: %1, "
@@ -5883,13 +6405,51 @@ void Session::applySendSnapshot(
 		return;
 	}
 	const auto operationId = snapshot.operation_id.value_or(std::string());
+	auto changed = false;
+	if (journalAuthoritative
+		&& sendRevision == _sendRevision
+		&& !_submission
+		&& _sendState.current() != SendState::Sending) {
+		const auto record = submittedTransferRecord(operationId, *identity);
+		if (record
+			&& record->recordId == _clientRecordId
+			&& record->handoff == TransferHandoff::Preparation
+			&& snapshot.phase != engine::SendPhase::kIdle) {
+			record->handoff = TransferHandoff::Possible;
+			_submittedTransfersDirty = true;
+			if (upsertSubmittedTransfer(
+					operationId,
+					*identity,
+					generation,
+					client)) {
+				changed = true;
+			}
+		}
+		const auto custodyRecord = custody().matching(identity->publicKey);
+		if (custodyRecord
+			&& custodyRecord->recordId == _clientRecordId
+			&& CanonicalAddress(custodyRecord->address) == identity->address) {
+			auto &records = submittedTransferStore().records;
+			const auto size = records.size();
+			records.erase(ranges::remove_if(records, [&](const auto &record) {
+				return record.recordId == custodyRecord->recordId
+					&& record.network == custodyRecord->network
+					&& record.address == identity->address
+					&& record.publicKey == identity->publicKey
+					&& record.handoff == TransferHandoff::Preparation
+					&& (record.operationId != operationId
+						|| snapshot.phase == engine::SendPhase::kIdle);
+			}), end(records));
+			_submittedTransfersDirty = _submittedTransfersDirty
+				|| records.size() != size;
+		}
+	}
 	const auto found = submittedTransfer(operationId);
 	const auto entry = (found && found->client.lock() == client)
 		? found
 		: nullptr;
 	const auto terminal = snapshot.phase != engine::SendPhase::kIdle
 		&& TerminalSendPhase(snapshot.phase);
-	auto changed = false;
 	if (entry && terminal && !entry->terminal) {
 		entry->terminal = snapshot.phase;
 		changed = true;
@@ -5937,15 +6497,12 @@ void Session::applySendSnapshot(
 	if (!_pending
 		&& !_submission
 		&& _sendState.current() == SendState::Idle
-		&& sendRevision == _sendRevision
-		&& !ranges::contains(
-			_submitted,
-			operationId,
-			&SubmittedTransfer::operationId)) {
+		&& sendRevision == _sendRevision) {
 		if (!TerminalSendPhase(snapshot.phase)) {
-			if (!_sendUnresolved
-				|| _unresolvedOperationId.empty()
-				|| _unresolvedOperationId == operationId) {
+			if (!operationId.empty()
+				&& (!_sendUnresolved
+					|| _unresolvedOperationId.empty()
+					|| _unresolvedOperationId == operationId)) {
 				_sendUnresolved = true;
 				_unresolvedOperationId = operationId;
 			}
@@ -5956,6 +6513,7 @@ void Session::applySendSnapshot(
 				|| journalAuthoritative;
 		}
 	}
+	_submittedTransfersDirty = _submittedTransfersDirty || changed;
 	dropSubmittedIfListed();
 	if (settled) {
 		finishPending();
