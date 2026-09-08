@@ -92,6 +92,47 @@ constexpr auto kAskedKey = std::string_view("windows_state.asked");
 		&& (type != SeparateType::Archive);
 }
 
+[[nodiscard]] SeparateId StepSeparateId(
+		const SavedWindow &data,
+		not_null<Main::Session*> session,
+		Data::Thread *windowThread) {
+	switch (data.type) {
+	case SeparateType::Primary:
+		return SeparateId(not_null(&session->account()));
+	case SeparateType::Archive:
+		return SeparateId(SeparateType::Archive, session);
+	case SeparateType::Chat:
+		return windowThread
+			? SeparateId(SeparateType::Chat, windowThread)
+			: SeparateId(nullptr);
+	case SeparateType::Forum:
+		return (windowThread && windowThread->asForum())
+			? SeparateId(SeparateType::Forum, windowThread)
+			: SeparateId(nullptr);
+	case SeparateType::Community: {
+		const auto channel = windowThread
+			? windowThread->peer()->asChannel()
+			: nullptr;
+		return (channel && channel->communityInfo())
+			? SeparateId(SeparateType::Community, windowThread)
+			: SeparateId(nullptr);
+	}
+	case SeparateType::SavedSublist:
+		return (windowThread && windowThread->asSublist())
+			? SeparateId(SeparateType::SavedSublist, windowThread)
+			: SeparateId(nullptr);
+	case SeparateType::SharedMedia:
+		return (windowThread
+			&& data.sharedMediaType >= 0
+			&& data.sharedMediaType < Storage::kSharedMediaTypeCount)
+			? SeparateId(
+				windowThread,
+				Storage::SharedMediaType(data.sharedMediaType))
+			: SeparateId(nullptr);
+	}
+	Unexpected("Type in Window::StepSeparateId.");
+}
+
 [[nodiscard]] bool SameWindow(const SavedWindow &a, const SavedWindow &b) {
 	return (a.accountIndex == b.accountIndex)
 		&& (a.userPeer == b.userPeer)
@@ -322,6 +363,7 @@ struct SavedWindows::Step {
 	bool dispatching = false;
 	bool dead = false;
 	bool shellClosed = false;
+	bool unlockWaiting = false;
 	rpl::lifetime lifetime;
 };
 
@@ -957,19 +999,49 @@ void SavedWindows::finishStep(not_null<Step*> step) {
 		step.get(),
 		&std::unique_ptr<Step>::get);
 	Assert(i != end(_steps));
+	const auto finishing = !step->dead
+		&& !step->shellClosed
+		&& !Core::Quitting();
+	const auto id = finishing
+		? StepSeparateId(step->data, step->session, step->slots[0])
+		: SeparateId(nullptr);
+	const auto showable = id && SeparateWindowThreadAvailable(id);
+	if (showable && SeparateWindowLocked(id)) {
+		finishStepWhenUnlocked(step);
+		return;
+	}
 	auto owned = std::move(*i);
 	_steps.erase(i);
 	owned->lifetime.destroy();
 	if (!owned->dead && !Core::Quitting()) {
 		if (owned->shellClosed) {
 			pushClosed(std::move(owned->data), owned->shell.get());
-		} else if (NeedsThread(owned->data.type) && !owned->slots[0]) {
+		} else if (!showable) {
 			markUnavailable(std::move(owned));
 		} else {
 			createWindow(*owned);
 		}
 	}
 	checkRestoreFinished();
+}
+
+void SavedWindows::finishStepWhenUnlocked(not_null<Step*> step) {
+	if (step->unlockWaiting) {
+		return;
+	}
+	step->unlockWaiting = true;
+	const auto stepId = step->id;
+	rpl::combine(
+		_app->passcodeLockValue(),
+		step->session->termsLockValue()
+	) | rpl::filter([](bool passcode, bool terms) {
+		return !passcode && !terms;
+	}) | rpl::take(1) | rpl::to_empty | rpl::on_next([=] {
+		if (const auto step = stepById(stepId)) {
+			step->unlockWaiting = false;
+			queueFinishStep(stepId);
+		}
+	}, step->lifetime);
 }
 
 void SavedWindows::abortStep(not_null<Step*> step, bool intoClosed) {
@@ -1339,47 +1411,7 @@ void SavedWindows::createWindow(const Step &step) {
 	const auto &data = step.data;
 	const auto session = step.session;
 	const auto windowThread = step.slots[0];
-	auto id = SeparateId(nullptr);
-	switch (data.type) {
-	case SeparateType::Primary:
-		id = SeparateId(not_null(&session->account()));
-		break;
-	case SeparateType::Archive:
-		id = SeparateId(SeparateType::Archive, session);
-		break;
-	case SeparateType::Chat:
-		if (windowThread) {
-			id = SeparateId(SeparateType::Chat, windowThread);
-		}
-		break;
-	case SeparateType::Forum:
-		if (windowThread && windowThread->asForum()) {
-			id = SeparateId(SeparateType::Forum, windowThread);
-		}
-		break;
-	case SeparateType::Community:
-		if (windowThread) {
-			const auto channel = windowThread->peer()->asChannel();
-			if (channel && channel->communityInfo()) {
-				id = SeparateId(SeparateType::Community, windowThread);
-			}
-		}
-		break;
-	case SeparateType::SavedSublist:
-		if (windowThread && windowThread->asSublist()) {
-			id = SeparateId(SeparateType::SavedSublist, windowThread);
-		}
-		break;
-	case SeparateType::SharedMedia:
-		if (windowThread
-			&& data.sharedMediaType >= 0
-			&& data.sharedMediaType < Storage::kSharedMediaTypeCount) {
-			id = SeparateId(
-				windowThread,
-				Storage::SharedMediaType(data.sharedMediaType));
-		}
-		break;
-	}
+	const auto id = StepSeparateId(data, session, windowThread);
 	if (!id) {
 		return;
 	}
@@ -1430,9 +1462,6 @@ void SavedWindows::createWindow(const Step &step) {
 	}
 	const auto window = _app->ensureSeparateWindowFor(id, showAtMsgId);
 	_restorePosition = std::nullopt;
-	if (!window) {
-		return;
-	}
 	if (step.shell) {
 		const auto widget = window->widget().get();
 		const auto swap = step.shell->countPositionForSave();
@@ -1465,9 +1494,6 @@ void SavedWindows::ensureStepWindow(
 	}
 	const auto window = _app->ensureSeparateWindowFor(id);
 	_restorePosition = std::nullopt;
-	if (!window) {
-		return;
-	}
 	if (existed && validPosition) {
 		window->widget()->applySavedPosition(position);
 	} else if (!existed && position.maximized) {
@@ -1501,7 +1527,7 @@ void SavedWindows::replayChats(
 	const auto count = int(step.data.chats.size());
 	for (auto i = 0; i != count; ++i) {
 		const auto thread = step.slots[1 + i];
-		if (!thread) {
+		if (!thread || !SeparateWindowThreadAvailable(SeparateId(thread))) {
 			continue;
 		}
 		const auto &saved = step.data.chats[i];

@@ -3523,6 +3523,9 @@ base::weak_qptr<Ui::BoxContent> ShowForwardMessagesBox(
 				return false;
 			}
 			if (controller->maybeSession() != &peer->session()) {
+				if (!CanShowSeparateWindow(id)) {
+					return false;
+				}
 				controller = Core::App().ensureSeparateWindowFor(id);
 				if (controller->maybeSession() != &peer->session()) {
 					return false;

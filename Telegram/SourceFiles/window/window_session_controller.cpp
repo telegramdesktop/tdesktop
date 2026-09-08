@@ -848,17 +848,16 @@ void SessionNavigation::showPeerByLinkResolved(
 				if (peer->isUser() && !draft.isEmpty()) {
 					Data::SetChatLinkDraft(peer, { draft });
 				}
-				if (historyInNewWindow) {
-					const auto window
-						= Core::App().ensureSeparateWindowFor(peer);
-					const auto controller = window
-						? window->sessionController()
-						: nullptr;
-					if (controller) {
-						controller->showPeerHistory(peer, params, msgId);
-					} else {
-						showPeerHistory(peer, params, msgId);
-					}
+				const auto id = SeparateId(peer);
+				const auto separate = (historyInNewWindow
+					&& CanShowSeparateWindow(id))
+					? Core::App().ensureSeparateWindowFor(id).get()
+					: nullptr;
+				if (separate) {
+					separate->sessionController()->showPeerHistory(
+						peer,
+						params,
+						msgId);
 				} else {
 					showPeerHistory(peer, params, msgId);
 				}
@@ -2816,13 +2815,6 @@ void SessionController::closeThirdSection() {
 	}
 }
 
-bool SessionController::canShowSeparateWindow(SeparateId id) const {
-	if (const auto thread = id.thread) {
-		return thread->peer()->computeUnavailableReason().isEmpty();
-	}
-	return true;
-}
-
 void SessionController::showPeer(not_null<PeerData*> peer, MsgId msgId) {
 	if (const auto channel = peer->asChannel()) {
 		if (channel->isCommunity()) {
@@ -3104,7 +3096,7 @@ void SessionController::clearChooseReportMessages() const {
 void SessionController::showInNewWindow(
 		SeparateId id,
 		MsgId msgId) {
-	if (!canShowSeparateWindow(id)) {
+	if (!CanShowSeparateWindow(id)) {
 		Assert(id.thread != nullptr);
 		showThread(id.thread, msgId, SectionShow::Way::ClearStack);
 		return;
