@@ -2286,14 +2286,10 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			p.setPen(Qt::NoPen);
 			p.setBrush(context.st->msgServiceBg());
 			p.setOpacity(ratio);
+			const auto scale = 1. + 1. * reachScale;
 			p.translate(center);
-			if (reachScale) {
-				p.scale(-(1. + 1. * reachScale), (1. + 1. * reachScale));
-			} else {
-				p.scale(-1., 1.);
-			}
+			p.scale(mirrored ? scale : -scale, scale);
 			p.translate(-center);
-			// All the next draws are mirrored.
 			p.drawEllipse(rect);
 			context.st->historyFastShareIcon().paintInCenter(p, rect);
 			p.setPen(pen);
