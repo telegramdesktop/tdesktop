@@ -96,6 +96,7 @@ private:
 	ItemBase::Data mediaItemData(QSize mediaSize) const;
 	void addMediaItem(std::shared_ptr<ItemBase> item);
 	void addMedia(Storage::PhotoEditorMedia &&media);
+	void readMediaFile(const QString &path, const QByteArray &content);
 	void addImageItem(QImage &&image);
 	void addVideoItem(Storage::PhotoEditorMedia &&media);
 	void choosePhotoFile();

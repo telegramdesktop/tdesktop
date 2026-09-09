@@ -101,22 +101,6 @@ bool ValidatePhotoEditorMediaDragData(
 	return false;
 }
 
-PhotoEditorMedia ReadPhotoEditorMedia(not_null<const QMimeData*> data) {
-	const auto urls = Core::ReadMimeUrls(data);
-	if (urls.size() == 1 && urls.front().isLocalFile()) {
-		auto result = ReadPhotoEditorMedia(
-			Platform::File::UrlToLocal(urls.front()),
-			QByteArray());
-		if (result) {
-			return result;
-		}
-	}
-	if (auto read = Core::ReadMimeImage(data)) {
-		return { .image = std::move(read.image) };
-	}
-	return {};
-}
-
 PhotoEditorMedia ReadPhotoEditorMedia(
 		const QString &path,
 		const QByteArray &content) {

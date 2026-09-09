@@ -68,8 +68,6 @@ struct PhotoEditorMedia {
 	}
 };
 [[nodiscard]] PhotoEditorMedia ReadPhotoEditorMedia(
-	not_null<const QMimeData*> data);
-[[nodiscard]] PhotoEditorMedia ReadPhotoEditorMedia(
 	const QString &path,
 	const QByteArray &content);
 [[nodiscard]] bool ValidateEditMediaDragData(

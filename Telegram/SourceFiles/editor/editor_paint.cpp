@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/platform/base_platform_haptic.h"
 #include "core/file_utilities.h"
+#include "core/mime_type.h"
 #include "editor/controllers/controllers.h"
 #include "editor/scene/scene_item_canvas.h"
 #include "editor/scene/scene_item_image.h"
@@ -19,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_single_player.h"
+#include "platform/platform_file_utilities.h"
 #include "storage/storage_media_prepare.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/chat/attach/attach_prepare.h"
@@ -570,7 +572,29 @@ bool Paint::canHandleMimeData(const QMimeData *data) const {
 }
 
 void Paint::handleMimeData(const QMimeData *data) {
-	addMedia(Storage::ReadPhotoEditorMedia(data));
+	const auto urls = Core::ReadMimeUrls(data);
+	if (urls.size() == 1 && urls.front().isLocalFile()) {
+		readMediaFile(
+			Platform::File::UrlToLocal(urls.front()),
+			QByteArray());
+	} else if (auto read = Core::ReadMimeImage(data)) {
+		addMedia({ .image = std::move(read.image) });
+	} else {
+		addMedia({});
+	}
+}
+
+void Paint::readMediaFile(const QString &path, const QByteArray &content) {
+	const auto done = crl::guard(this, [=](
+			Storage::PhotoEditorMedia &&media) {
+		addMedia(std::move(media));
+	});
+	crl::async([=] {
+		auto media = Storage::ReadPhotoEditorMedia(path, content);
+		crl::on_main([=, media = std::move(media)]() mutable {
+			done(std::move(media));
+		});
+	});
 }
 
 void Paint::choosePhotoFile() {
@@ -578,9 +602,9 @@ void Paint::choosePhotoFile() {
 		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
 			return;
 		}
-		addMedia(Storage::ReadPhotoEditorMedia(
+		readMediaFile(
 			result.paths.isEmpty() ? QString() : result.paths.front(),
-			result.remoteContent));
+			result.remoteContent);
 	};
 	FileDialog::GetOpenPath(
 		this,
