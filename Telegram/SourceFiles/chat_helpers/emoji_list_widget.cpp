@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
+#include "ui/screen_reader_mode.h"
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
 #include "boxes/share_box.h"
@@ -1696,12 +1697,26 @@ void EmojiListWidget::afterShown() {
 		|| (_mode == Mode::UserpicBuilder);
 	if (_search && steal) {
 		_search->stealFocus();
+	} else if (Ui::ScreenReaderModeActive() && !hasFocus()) {
+		// The panel is opened from the keyboard and has no one to talk
+		// to: take the focus into the list, so the emoji are announced
+		// and walked with the arrows, and remember where it came from.
+		_focusReturn = window()->focusWidget();
+		setFocus();
 	}
 }
 
 void EmojiListWidget::beforeHiding() {
 	if (_search) {
 		_search->returnFocus();
+	}
+	returnFocus();
+}
+
+void EmojiListWidget::returnFocus() {
+	const auto was = base::take(_focusReturn);
+	if (was && hasFocus()) {
+		was->setFocus();
 	}
 }
 
@@ -3401,15 +3416,21 @@ void EmojiListWidget::mouseMoveEvent(QMouseEvent *e) {
 			_picker->clearSelection();
 		}
 	}
+	_keyboardSelection = false;
 	updateSelected();
 }
 
 void EmojiListWidget::leaveEventHook(QEvent *e) {
-	clearSelection();
+	// A selection made from the keyboard stays where the mouse is not.
+	if (!_keyboardSelection) {
+		clearSelection();
+	}
 }
 
 void EmojiListWidget::leaveToChildEvent(QEvent *e, QWidget *child) {
-	clearSelection();
+	if (!_keyboardSelection) {
+		clearSelection();
+	}
 }
 
 void EmojiListWidget::enterFromChildEvent(QEvent *e, QWidget *child) {
@@ -3420,7 +3441,393 @@ void EmojiListWidget::enterFromChildEvent(QEvent *e, QWidget *child) {
 void EmojiListWidget::clearSelection() {
 	setPressed(v::null);
 	setSelected(v::null);
+	_keyboardSelection = false;
 	_lastMousePos = mapToGlobal(QPoint(-10, -10));
+}
+
+rpl::producer<> EmojiListWidget::hideRequests() const {
+	return _hideRequests.events();
+}
+
+int EmojiListWidget::shownCount(const SectionInfo &info) const {
+	return info.collapsed
+		? std::min(info.count, _columnCount * kCollapsedRows)
+		: info.count;
+}
+
+bool EmojiListWidget::isExpandCell(
+		const SectionInfo &info,
+		int index) const {
+	return info.collapsed && (index + 1 == _columnCount * kCollapsedRows);
+}
+
+std::optional<EmojiListWidget::OverEmoji> EmojiListWidget::accessibleChild(
+		int index) const {
+	if (index < 0 || _columnCount <= 0) {
+		return std::nullopt;
+	}
+	auto result = std::optional<OverEmoji>();
+	enumerateSections([&](const SectionInfo &info) {
+		const auto count = shownCount(info);
+		if (index < count) {
+			result = OverEmoji{ .section = info.section, .index = index };
+			return false;
+		}
+		index -= count;
+		return true;
+	});
+	return result;
+}
+
+int EmojiListWidget::accessibleIndex(const OverEmoji &over) const {
+	if (_columnCount <= 0) {
+		return -1;
+	}
+	auto result = -1;
+	auto before = 0;
+	enumerateSections([&](const SectionInfo &info) {
+		if (info.section == over.section) {
+			if (over.index >= 0 && over.index < shownCount(info)) {
+				result = before + over.index;
+			}
+			return false;
+		}
+		before += shownCount(info);
+		return true;
+	});
+	return result;
+}
+
+QString EmojiListWidget::accessibleEmojiText(const OverEmoji &over) const {
+	const auto info = sectionInfo(over.section);
+	if (isExpandCell(info, over.index)) {
+		// The last cell of a collapsed section shows how many more there
+		// are, and opens the section.
+		return u"+%1"_q.arg(info.count - _columnCount * kCollapsedRows + 1);
+	} else if (const auto emoji = lookupOverEmoji(&over)) {
+		// The emoji itself: the screen reader names it in its own words.
+		return emoji->text();
+	} else if (const auto custom = lookupCustomEmoji(&over)) {
+		const auto sticker = custom.document->sticker();
+		return sticker ? sticker->alt : QString();
+	}
+	return QString();
+}
+
+QString EmojiListWidget::sectionTitle(int section) const {
+	if (_searchMode) {
+		return (section > 0) ? searchSetBySection(section).title : QString();
+	} else if (section == int(Section::Recent)) {
+		return tr::lng_recent_stickers(tr::now);
+	} else if (section < _staticCount) {
+		return EmojiCategoryTitle(section)(tr::now);
+	} else if (section - _staticCount < int(_custom.size())) {
+		return _custom[section - _staticCount].title;
+	}
+	return QString();
+}
+
+QAccessible::Role EmojiListWidget::accessibilityRole() {
+	return QAccessible::List;
+}
+
+Qt::FocusPolicy EmojiListWidget::accessibilityFocusPolicy() {
+	return Qt::TabFocus;
+}
+
+int EmojiListWidget::accessibilityChildCount() const {
+	if (_columnCount <= 0) {
+		return 0;
+	}
+	auto result = 0;
+	enumerateSections([&](const SectionInfo &info) {
+		result += shownCount(info);
+		return true;
+	});
+	return result;
+}
+
+QAccessible::Role EmojiListWidget::accessibilityChildRole() const {
+	return QAccessible::ListItem;
+}
+
+QString EmojiListWidget::accessibilityChildName(int index) const {
+	const auto over = accessibleChild(index);
+	return over ? accessibleEmojiText(*over) : QString();
+}
+
+QString EmojiListWidget::accessibilityChildDescription(int index) const {
+	// The section the emoji is in, heard on landing in it.
+	const auto over = accessibleChild(index);
+	return over ? sectionTitle(over->section) : QString();
+}
+
+QRect EmojiListWidget::accessibilityChildRect(int index) const {
+	const auto over = accessibleChild(index);
+	return over ? myrtlrect(emojiRect(over->section, over->index)) : QRect();
+}
+
+QAccessible::State EmojiListWidget::accessibilityChildState(
+		int index) const {
+	auto state = QAccessible::State();
+	if (Ui::ScreenReaderModeActive()) {
+		state.focusable = true;
+		state.selectable = true;
+	}
+	const auto over = accessibleChild(index);
+	const auto selected = std::get_if<OverEmoji>(&_selected);
+	if (over && selected && *selected == *over) {
+		state.active = true;
+		// The item the keyboard is on is the selection of the list - or a
+		// screen reader reports every item as "not selected".
+		state.selected = true;
+		if (hasFocus()) {
+			state.focused = true;
+		}
+	}
+	return state;
+}
+
+bool EmojiListWidget::accessibilityChildSupportsActions(int index) const {
+	return accessibilityChildIdentity(index) != 0;
+}
+
+quintptr EmojiListWidget::accessibilityChildIdentity(int index) const {
+	// The cell itself names the item: its section and its place in it.
+	// The tag bit keeps the token non-zero.
+	const auto over = accessibleChild(index);
+	return over
+		? ((quintptr(over->section + 1) << 24)
+			| (quintptr(over->index + 1) << 1)
+			| quintptr(1))
+		: quintptr(0);
+}
+
+int EmojiListWidget::accessibilityChildIndexByIdentity(
+		quintptr identity) const {
+	if (!identity) {
+		return -1;
+	}
+	return accessibleIndex(OverEmoji{
+		.section = int(identity >> 24) - 1,
+		.index = int((identity >> 1) & 0x7FFFFF) - 1,
+	});
+}
+
+void EmojiListWidget::accessibilityChildSetFocus(quintptr identity) {
+	// UIA invokes the action on a background thread: resolve and touch
+	// the widget on the main one, like the other painted lists do.
+	crl::on_main(this, [=] {
+		const auto index = accessibilityChildIndexByIdentity(identity);
+		const auto over = accessibleChild(index);
+		if (!over) {
+			return;
+		}
+		keyboardSelect(*over, hasFocus());
+		if (!hasFocus()) {
+			_focusReturn = window()->focusWidget();
+			setFocus();
+		}
+	});
+}
+
+void EmojiListWidget::accessibilityChildActivate(quintptr identity) {
+	crl::on_main(this, [=] {
+		const auto index = accessibilityChildIndexByIdentity(identity);
+		const auto over = accessibleChild(index);
+		if (!over) {
+			return;
+		}
+		keyboardSelect(*over, false);
+		activateKeyboardSelected();
+	});
+}
+
+void EmojiListWidget::keyboardSelect(const OverEmoji &over, bool announce) {
+	_keyboardSelection = true;
+	setSelected(over);
+	ensureCellVisible(over);
+	if (announce) {
+		const auto index = accessibleIndex(over);
+		if (index >= 0) {
+			accessibilityChildFocused(index);
+		}
+	}
+}
+
+void EmojiListWidget::ensureCellVisible(const OverEmoji &over) {
+	const auto rect = emojiRect(over.section, over.index);
+	const auto top = getVisibleTop();
+	const auto bottom = getVisibleBottom();
+	if (bottom <= top) {
+		return;
+	} else if (rect.y() < top) {
+		// Show the header of the section the cell opens.
+		const auto info = sectionInfo(over.section);
+		scrollTo((rect.y() < info.rowsTop + _singleSize.height())
+			? info.top
+			: rect.y());
+	} else if (rect.y() + rect.height() > bottom) {
+		scrollTo(rect.y() + rect.height() - (bottom - top));
+	}
+}
+
+void EmojiListWidget::keyboardMoveBy(int delta) {
+	const auto count = accessibilityChildCount();
+	if (!count) {
+		return;
+	}
+	const auto selected = std::get_if<OverEmoji>(&_selected);
+	const auto current = selected ? accessibleIndex(*selected) : -1;
+	const auto index = (current < 0)
+		? ((delta > 0) ? 0 : count - 1)
+		: std::clamp(current + delta, 0, count - 1);
+	if (const auto over = accessibleChild(index)) {
+		keyboardSelect(*over, true);
+	}
+}
+
+std::optional<EmojiListWidget::OverEmoji> EmojiListWidget::neighborRow(
+		const OverEmoji &over,
+		int step) const {
+	// The same column one row up or down, on into the next section
+	// that has anything to show - its first or its last row.
+	const auto info = sectionInfo(over.section);
+	const auto column = over.index % _columnCount;
+	const auto row = over.index / _columnCount;
+	const auto rows = (shownCount(info) + _columnCount - 1) / _columnCount;
+	if (row + step >= 0 && row + step < rows) {
+		const auto index = std::min(
+			(row + step) * _columnCount + column,
+			shownCount(info) - 1);
+		return OverEmoji{ .section = over.section, .index = index };
+	}
+	const auto sections = sectionsCount();
+	auto section = over.section + step;
+	while (section >= 0 && section < sections) {
+		const auto count = shownCount(sectionInfo(section));
+		if (count > 0) {
+			const auto lastRow = (count + _columnCount - 1) / _columnCount - 1;
+			const auto index = std::min(
+				((step > 0) ? 0 : lastRow) * _columnCount + column,
+				count - 1);
+			return OverEmoji{ .section = section, .index = index };
+		}
+		section += step;
+	}
+	return std::nullopt;
+}
+
+void EmojiListWidget::keyboardMoveRows(int rows) {
+	const auto selected = std::get_if<OverEmoji>(&_selected);
+	if (!selected || accessibleIndex(*selected) < 0) {
+		keyboardMoveBy(rows > 0 ? 1 : -1);
+		return;
+	}
+	auto over = *selected;
+	const auto step = (rows > 0) ? 1 : -1;
+	for (auto i = 0; i != std::abs(rows); ++i) {
+		const auto next = neighborRow(over, step);
+		if (!next) {
+			break;
+		}
+		over = *next;
+	}
+	keyboardSelect(over, true);
+}
+
+void EmojiListWidget::expandSection(int section) {
+	if (_searchMode && section > 0) {
+		searchSetBySection(section).expanded = true;
+	} else if (section >= _staticCount) {
+		_custom[section - _staticCount].expanded = true;
+	}
+	resizeToWidth(width());
+	update();
+}
+
+void EmojiListWidget::activateKeyboardSelected() {
+	const auto selected = std::get_if<OverEmoji>(&_selected);
+	if (!selected || accessibleIndex(*selected) < 0) {
+		return;
+	}
+	const auto over = *selected;
+	if (isExpandCell(sectionInfo(over.section), over.index)) {
+		expandSection(over.section);
+		keyboardSelect(over, true);
+		return;
+	}
+	// The field the emoji goes to tells itself apart by the focus, so
+	// the focus goes back before the choice is made - and the panel is
+	// done: hide it, as Escape would.
+	returnFocus();
+	if (const auto emoji = lookupOverEmoji(&over)) {
+		selectEmoji(lookupChosen(emoji, &over));
+	} else if (const auto custom = lookupCustomEmoji(&over)) {
+		selectCustom(lookupChosen(custom, &over));
+	} else {
+		return;
+	}
+	_hideRequests.fire({});
+}
+
+void EmojiListWidget::focusInEvent(QFocusEvent *e) {
+	RpWidget::focusInEvent(e);
+	// Land on the emoji last walked to, or the first one there is.
+	const auto selected = std::get_if<OverEmoji>(&_selected);
+	auto over = (selected && accessibleIndex(*selected) >= 0)
+		? std::optional<OverEmoji>(*selected)
+		: accessibleChild(0);
+	if (!over) {
+		return;
+	}
+	keyboardSelect(*over, false);
+	const auto index = accessibleIndex(*over);
+	InvokeQueued(this, [=] {
+		const auto now = std::get_if<OverEmoji>(&_selected);
+		if (hasFocus() && now && accessibleIndex(*now) == index) {
+			accessibilityChildFocused(index);
+		}
+	});
+}
+
+void EmojiListWidget::focusOutEvent(QFocusEvent *e) {
+	RpWidget::focusOutEvent(e);
+	_keyboardSelection = false;
+}
+
+void EmojiListWidget::keyPressEvent(QKeyEvent *e) {
+	const auto key = e->key();
+	const auto rowHeight = std::max(_singleSize.height(), 1);
+	const auto rowsOnPage = std::max(
+		(getVisibleBottom() - getVisibleTop()) / rowHeight,
+		1);
+	if (key == Qt::Key_Left || key == Qt::Key_Right) {
+		const auto forward = (key == Qt::Key_Right) != rtl();
+		keyboardMoveBy(forward ? 1 : -1);
+	} else if (key == Qt::Key_Up || key == Qt::Key_Down) {
+		keyboardMoveRows((key == Qt::Key_Down) ? 1 : -1);
+	} else if (key == Qt::Key_PageUp || key == Qt::Key_PageDown) {
+		keyboardMoveRows((key == Qt::Key_PageDown)
+			? rowsOnPage
+			: -rowsOnPage);
+	} else if (key == Qt::Key_Home) {
+		keyboardMoveBy(-accessibilityChildCount());
+	} else if (key == Qt::Key_End) {
+		keyboardMoveBy(accessibilityChildCount());
+	} else if (!e->isAutoRepeat()
+		&& (key == Qt::Key_Space
+			|| key == Qt::Key_Return
+			|| key == Qt::Key_Enter)) {
+		activateKeyboardSelected();
+	} else if (key == Qt::Key_Escape) {
+		returnFocus();
+		_hideRequests.fire({});
+	} else {
+		RpWidget::keyPressEvent(e);
+		return;
+	}
+	e->accept();
 }
 
 uint64 EmojiListWidget::currentSet(int yOffset) const {
