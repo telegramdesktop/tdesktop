@@ -266,6 +266,7 @@ public:
 		bool forceFile = false;
 		bool sendLargePhotos = false;
 		std::shared_ptr<Media::Encode::Job> animationJob;
+		bool animationAsGif = true;
 		std::shared_ptr<Ui::PreparedFileArchive> archive;
 		uint64 idOverride = 0;
 		QString displayName;
@@ -340,6 +341,7 @@ private:
 	bool _forceFile = false;
 	bool _sendLargePhotos = false;
 	std::shared_ptr<Media::Encode::Job> _animationJob;
+	bool _animationAsGif = true;
 	std::shared_ptr<Ui::PreparedFileArchive> _archive;
 
 	std::shared_ptr<FilePrepareResult> _result;

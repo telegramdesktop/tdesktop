@@ -2626,7 +2626,9 @@ void SendFilesBox::send(
 				return;
 			}
 		}
-		Storage::ApplyModifications(_list, true);
+		const auto animated = (_limits & SendFilesAllow::Gifs)
+			|| (_limits & SendFilesAllow::Videos);
+		Storage::ApplyModifications(_list, animated);
 		saveSendWaySettings(_wayRemember && _wayRemember->checked());
 		options.invertCaption = _invertCaption;
 		options.price = hasPrice() ? _price.current() : 0;
