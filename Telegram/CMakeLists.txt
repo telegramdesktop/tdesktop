@@ -56,7 +56,7 @@ endif()
 include(cmake/generate_update_keys.cmake)
 generate_update_keys(Telegram ${res_loc}/update)
 
-if (DESKTOP_APP_TEST_APPS OR DESKTOP_APP_SPECIAL_TARGET)
+if (DESKTOP_APP_TEST_APPS OR TDESKTOP_BUILD_UPDATE_TESTS)
     include(cmake/test_update_verify.cmake)
 endif()
 

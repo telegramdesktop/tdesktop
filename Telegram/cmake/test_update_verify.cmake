@@ -4,10 +4,10 @@
 # For license and copyright information please follow this link:
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
-# The focused v2 update verification test is built alongside the Packer
-# for special targets as well as with the development test apps: it runs
-# the exact translation unit that verifies updates in the client and it
-# checks the committed trust files against the pinned root.
+# The focused v2 update verification test runs the exact translation unit
+# that verifies updates in the client and checks the committed trust files
+# against the pinned root. Enable it with the development test apps or with
+# TDESKTOP_BUILD_UPDATE_TESTS for pipelines that need only this check.
 
 add_executable(test_update_verify)
 init_target(test_update_verify "(tests)")
@@ -33,5 +33,3 @@ PRIVATE
 )
 
 set_target_properties(test_update_verify PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-
-add_dependencies(Telegram test_update_verify)
