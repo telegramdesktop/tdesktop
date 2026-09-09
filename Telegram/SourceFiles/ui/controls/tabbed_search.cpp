@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/controls/tabbed_search.h"
 
+#include "base/event_filter.h"
+#include "base/invoke_queued.h"
 #include "base/qt_signal_producer.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/fields/input_field.h"
@@ -14,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/screen_reader_mode.h"
 #include "ui/text/text_custom_emoji.h"
 #include "ui/ui_utility.h"
 #include "styles/style_chat_helpers.h"
@@ -46,6 +49,21 @@ public:
 
 	[[nodiscard]] rpl::producer<int> moveRequests() const;
 
+	// The groups as the items of a list for a screen reader, walked with
+	// the keyboard: Left and Right, Home and End, Enter or Space chooses.
+	QAccessible::Role accessibilityRole() override;
+	Qt::FocusPolicy accessibilityFocusPolicy() override;
+	int accessibilityChildCount() const override;
+	QAccessible::Role accessibilityChildRole() const override;
+	QString accessibilityChildName(int index) const override;
+	QRect accessibilityChildRect(int index) const override;
+	QAccessible::State accessibilityChildState(int index) const override;
+	bool accessibilityChildSupportsActions(int index) const override;
+	quintptr accessibilityChildIdentity(int index) const override;
+	int accessibilityChildIndexByIdentity(quintptr identity) const override;
+	void accessibilityChildSetFocus(quintptr identity) override;
+	void accessibilityChildActivate(quintptr identity) override;
+
 private:
 	struct Button {
 		EmojiGroup group;
@@ -60,8 +78,12 @@ private:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
+	void focusInEvent(QFocusEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 	void fireChosenGroup();
+	void keyboardSelect(int index, bool announce);
+	void chooseFromKeyboard(int index);
 
 	static inline auto FindById(auto &&buttons, QStringView id) {
 		return ranges::find(buttons, id, &Button::iconId);
@@ -77,6 +99,7 @@ private:
 	bool _dragging = false;
 	int _pressed = -1;
 	int _chosen = -1;
+	int _keyboardSelected = -1;
 
 };
 
@@ -95,6 +118,7 @@ GroupsStrip::GroupsStrip(
 : RpWidget(parent)
 , _st(st)
 , _factory(std::move(factory)) {
+	setAccessibleName(tr::lng_emoji_search_groups(tr::now));
 	init(std::move(groups));
 }
 
@@ -273,6 +297,157 @@ void GroupsStrip::fireChosenGroup() {
 	});
 }
 
+QAccessible::Role GroupsStrip::accessibilityRole() {
+	return QAccessible::List;
+}
+
+Qt::FocusPolicy GroupsStrip::accessibilityFocusPolicy() {
+	return Qt::TabFocus;
+}
+
+int GroupsStrip::accessibilityChildCount() const {
+	return int(_buttons.size());
+}
+
+QAccessible::Role GroupsStrip::accessibilityChildRole() const {
+	return QAccessible::ListItem;
+}
+
+QString GroupsStrip::accessibilityChildName(int index) const {
+	return (index >= 0 && index < _buttons.size())
+		? _buttons[index].group.title
+		: QString();
+}
+
+QRect GroupsStrip::accessibilityChildRect(int index) const {
+	return (index >= 0 && index < _buttons.size())
+		? QRect(index * _st.groupWidth, 0, _st.groupWidth, height())
+		: QRect();
+}
+
+QAccessible::State GroupsStrip::accessibilityChildState(int index) const {
+	auto state = QAccessible::State();
+	if (ScreenReaderModeActive()) {
+		state.focusable = true;
+		state.selectable = true;
+	}
+	if (index == _chosen) {
+		state.selected = true;
+	}
+	if (index == _keyboardSelected) {
+		state.active = true;
+		if (hasFocus()) {
+			state.focused = true;
+		}
+	}
+	return state;
+}
+
+bool GroupsStrip::accessibilityChildSupportsActions(int index) const {
+	return accessibilityChildIdentity(index) != 0;
+}
+
+quintptr GroupsStrip::accessibilityChildIdentity(int index) const {
+	// The place in the strip names the group; the tag bit keeps it
+	// non-zero.
+	return (index >= 0 && index < _buttons.size())
+		? ((quintptr(index) << 1) | quintptr(1))
+		: quintptr(0);
+}
+
+int GroupsStrip::accessibilityChildIndexByIdentity(quintptr identity) const {
+	const auto index = int(identity >> 1);
+	return (identity && index < _buttons.size()) ? index : -1;
+}
+
+void GroupsStrip::accessibilityChildSetFocus(quintptr identity) {
+	crl::on_main(this, [=] {
+		const auto index = accessibilityChildIndexByIdentity(identity);
+		if (index < 0) {
+			return;
+		}
+		keyboardSelect(index, hasFocus());
+		if (!hasFocus()) {
+			setFocus();
+		}
+	});
+}
+
+void GroupsStrip::accessibilityChildActivate(quintptr identity) {
+	crl::on_main(this, [=] {
+		chooseFromKeyboard(accessibilityChildIndexByIdentity(identity));
+	});
+}
+
+void GroupsStrip::keyboardSelect(int index, bool announce) {
+	if (index < 0 || index >= _buttons.size()) {
+		return;
+	}
+	_keyboardSelected = index;
+	if (announce) {
+		accessibilityChildFocused(index);
+	}
+}
+
+void GroupsStrip::chooseFromKeyboard(int index) {
+	if (index < 0 || index >= _buttons.size()) {
+		return;
+	}
+	// As a click does.
+	keyboardSelect(index, false);
+	_chosen = index;
+	fireChosenGroup();
+	update();
+}
+
+void GroupsStrip::focusInEvent(QFocusEvent *e) {
+	RpWidget::focusInEvent(e);
+	if (_buttons.empty()) {
+		return;
+	}
+	// Land on the group chosen, or the one last walked to.
+	const auto index = (_chosen >= 0)
+		? _chosen
+		: (_keyboardSelected >= 0 && _keyboardSelected < _buttons.size())
+		? _keyboardSelected
+		: 0;
+	keyboardSelect(index, false);
+	InvokeQueued(this, [=] {
+		if (hasFocus() && _keyboardSelected == index) {
+			accessibilityChildFocused(index);
+		}
+	});
+}
+
+void GroupsStrip::keyPressEvent(QKeyEvent *e) {
+	const auto key = e->key();
+	const auto count = int(_buttons.size());
+	if (!count) {
+		RpWidget::keyPressEvent(e);
+		return;
+	}
+	const auto current = std::clamp(_keyboardSelected, 0, count - 1);
+	if (key == Qt::Key_Left || key == Qt::Key_Right) {
+		const auto forward = (key == Qt::Key_Right) != style::RightToLeft();
+		keyboardSelect(
+			std::clamp(current + (forward ? 1 : -1), 0, count - 1),
+			true);
+	} else if (key == Qt::Key_Home) {
+		keyboardSelect(0, true);
+	} else if (key == Qt::Key_End) {
+		keyboardSelect(count - 1, true);
+	} else if (!e->isAutoRepeat()
+		&& (key == Qt::Key_Space
+			|| key == Qt::Key_Return
+			|| key == Qt::Key_Enter)) {
+		chooseFromKeyboard(current);
+	} else {
+		RpWidget::keyPressEvent(e);
+		return;
+	}
+	e->accept();
+}
+
 } // namespace
 
 const QString &PremiumGroupFakeEmoticon() {
@@ -314,6 +489,18 @@ anim::type SearchWithGroups::animated() const {
 }
 
 void SearchWithGroups::initField() {
+	// Down in the field goes on to the results, as in a search box with
+	// suggestions; Enter does as well, through submits(). The field
+	// leaves the arrows to us, as the search of the chat list does.
+	_field->customUpDown(true);
+	base::install_event_filter(_field, [=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::KeyPress
+			&& static_cast<QKeyEvent*>(e.get())->key() == Qt::Key_Down) {
+			_downs.fire({});
+			return base::EventFilterResult::Cancel;
+		}
+		return base::EventFilterResult::Continue;
+	});
 	_field->changes(
 	) | rpl::on_next([=] {
 		const auto last = FieldQuery(_field);
@@ -500,6 +687,10 @@ void SearchWithGroups::initButtons() {
 		_field->setFocus();
 		scrollGroupsToStart();
 	});
+	// Named for a screen reader, which walks them with Tab.
+	_search->entity()->setAccessibleName(tr::lng_dlg_filter(tr::now));
+	_back->entity()->setAccessibleName(tr::lng_create_group_back(tr::now));
+	_cancel->setAccessibleName(tr::lng_call_box_clear_button(tr::now));
 	_field->focusedChanges(
 	) | rpl::filter(rpl::mappers::_1) | rpl::on_next([=] {
 		scrollGroupsToStart();
@@ -525,6 +716,12 @@ void SearchWithGroups::ensureRounding(int size, float64 ratio) {
 		p.drawRoundedRect(QRect(QPoint(), full), rounded / 2., rounded / 2.);
 	}
 	_rounding.setDevicePixelRatio(ratio);
+}
+
+rpl::producer<> SearchWithGroups::submits() const {
+	return rpl::merge(
+		_field->submits() | rpl::to_empty,
+		_downs.events());
 }
 
 rpl::producer<> SearchWithGroups::escapes() const {
@@ -557,9 +754,15 @@ void SearchWithGroups::stealFocus() {
 	_field->setFocus();
 }
 
-void SearchWithGroups::returnFocus() {
+bool SearchWithGroups::groupsHaveFocus() const {
+	return _groups->entity()->hasFocus();
+}
+
+void SearchWithGroups::returnFocus(bool force) {
 	if (_field && _focusTakenFrom) {
-		if (_field->hasFocus()) {
+		// Forced: the focus went on from the field into the panel, and
+		// the panel is done with it.
+		if (force || _field->hasFocus()) {
 			_focusTakenFrom->setFocus();
 		}
 		_focusTakenFrom = nullptr;
@@ -680,8 +883,12 @@ void TabbedSearch::stealFocus() {
 	_search.stealFocus();
 }
 
-void TabbedSearch::returnFocus() {
-	_search.returnFocus();
+bool TabbedSearch::groupsHaveFocus() const {
+	return _search.groupsHaveFocus();
+}
+
+void TabbedSearch::returnFocus(bool force) {
+	_search.returnFocus(force);
 }
 
 void TabbedSearch::setRightReserved(int value) {
@@ -690,6 +897,10 @@ void TabbedSearch::setRightReserved(int value) {
 	}
 	_rightReserved = value;
 	updateSearchGeometry();
+}
+
+rpl::producer<> TabbedSearch::submits() const {
+	return _search.submits();
 }
 
 rpl::producer<> TabbedSearch::escapes() const {

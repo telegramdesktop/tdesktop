@@ -101,6 +101,21 @@ public:
 	void cancelled();
 	rpl::producer<> cancelRequests() const;
 
+	// The GIFs as the items of a list for a screen reader, walked with the
+	// keyboard the same way as the emoji list; Enter or Space sends one.
+	QAccessible::Role accessibilityRole() override;
+	Qt::FocusPolicy accessibilityFocusPolicy() override;
+	int accessibilityChildCount() const override;
+	QAccessible::Role accessibilityChildRole() const override;
+	QString accessibilityChildName(int index) const override;
+	QRect accessibilityChildRect(int index) const override;
+	QAccessible::State accessibilityChildState(int index) const override;
+	bool accessibilityChildSupportsActions(int index) const override;
+	quintptr accessibilityChildIdentity(int index) const override;
+	int accessibilityChildIndexByIdentity(quintptr identity) const override;
+	void accessibilityChildSetFocus(quintptr identity) override;
+	void accessibilityChildActivate(quintptr identity) override;
+
 	base::unique_qptr<Ui::PopupMenu> fillContextMenu(
 		const SendMenu::Details &details) override;
 
@@ -111,6 +126,9 @@ protected:
 		int visibleTop,
 		int visibleBottom) override;
 
+	void focusInEvent(QFocusEvent *e) override;
+	void focusOutEvent(QFocusEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
@@ -152,6 +170,17 @@ private:
 	void inlineResultsDone(const MTPmessages_BotResults &result);
 
 	void updateSelected();
+
+	// The list a screen reader sees: the items of the mosaic, row by row.
+	[[nodiscard]] int accessibleCount() const;
+	[[nodiscard]] int accessibleIndex(int mosaicIndex) const;
+	[[nodiscard]] int mosaicIndexAt(int accessibleIndex) const;
+	void keyboardSelect(int mosaicIndex, bool announce);
+	void keyboardMoveBy(int delta);
+	void keyboardMoveRows(int rows);
+	void activateKeyboardSelected();
+	void ensureItemVisible(int mosaicIndex);
+	void returnFocus();
 	void paintInlineItems(Painter &p, QRect clip);
 	void refreshIcons();
 	[[nodiscard]] std::vector<StickerIcon> fillIcons();
@@ -202,6 +231,10 @@ private:
 	Mosaic::Layout::MosaicLayout<LayoutItem> _mosaic;
 
 	int _selected = -1;
+	// The selection was made from the keyboard: the mouse leaving the
+	// list does not clear it.
+	bool _keyboardSelection = false;
+	rpl::event_stream<> _hideRequests;
 	int _pressed = -1;
 	QPoint _lastMousePos;
 

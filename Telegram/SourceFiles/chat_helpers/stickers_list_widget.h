@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/round_rect.h"
 #include "base/variant.h"
 #include "base/timer.h"
+#include "base/weak_qptr.h"
 
 class StickerPremiumMark;
 
@@ -140,6 +141,26 @@ public:
 	void applySearchQuery(std::vector<QString> &&query);
 	[[nodiscard]] rpl::producer<int> recentShownCount() const;
 
+	// Fired when the keyboard is done with the list - a sticker chosen or
+	// Escape pressed - so the panel it is in can hide.
+	[[nodiscard]] rpl::producer<> hideRequests() const;
+
+	// The stickers as the items of a list for a screen reader, walked
+	// with the keyboard the same way as the emoji list.
+	QAccessible::Role accessibilityRole() override;
+	Qt::FocusPolicy accessibilityFocusPolicy() override;
+	int accessibilityChildCount() const override;
+	QAccessible::Role accessibilityChildRole() const override;
+	QString accessibilityChildName(int index) const override;
+	QString accessibilityChildDescription(int index) const override;
+	QRect accessibilityChildRect(int index) const override;
+	QAccessible::State accessibilityChildState(int index) const override;
+	bool accessibilityChildSupportsActions(int index) const override;
+	quintptr accessibilityChildIdentity(int index) const override;
+	int accessibilityChildIndexByIdentity(quintptr identity) const override;
+	void accessibilityChildSetFocus(quintptr identity) override;
+	void accessibilityChildActivate(quintptr identity) override;
+
 	~StickersListWidget();
 
 protected:
@@ -147,6 +168,9 @@ protected:
 		int visibleTop,
 		int visibleBottom) override;
 
+	void focusInEvent(QFocusEvent *e) override;
+	void focusOutEvent(QFocusEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
@@ -296,6 +320,19 @@ private:
 
 	void updateSelected();
 	void setSelected(OverState newSelected);
+
+	// The list a screen reader sees: every sticker, set by set.
+	[[nodiscard]] std::optional<OverSticker> accessibleChild(int index) const;
+	[[nodiscard]] int accessibleIndex(const OverSticker &over) const;
+	void keyboardSelect(const OverSticker &over, bool announce);
+	void keyboardMoveBy(int delta);
+	void keyboardMoveRows(int rows);
+	[[nodiscard]] std::optional<OverSticker> neighborRow(
+		const OverSticker &over,
+		int step) const;
+	void activateKeyboardSelected();
+	void ensureCellVisible(const OverSticker &over);
+	void returnFocus();
 	void setPressed(OverState newPressed);
 	[[nodiscard]] std::unique_ptr<Ui::RippleAnimation> createButtonRipple(
 		int section);
@@ -376,7 +413,7 @@ private:
 		AppendSkip skip = AppendSkip::None);
 
 	int stickersLeft() const;
-	QRect stickerRect(int section, int sel);
+	QRect stickerRect(int section, int sel) const;
 
 	void removeRecentSticker(int section, int index);
 	void removeFavedSticker(int section, int index);
@@ -481,6 +518,12 @@ private:
 
 	OverState _selected;
 	OverState _pressed;
+	// The selection was made from the keyboard: the mouse leaving the
+	// list does not clear it, and the widget that had the focus before
+	// the list took it gets it back when the list is done.
+	bool _keyboardSelection = false;
+	base::weak_qptr<QWidget> _focusReturn;
+	rpl::event_stream<> _hideRequests;
 	QPoint _lastMousePosition;
 
 	Ui::RoundRect _trendingAddBgOver, _trendingAddBg, _inactiveButtonBg;
