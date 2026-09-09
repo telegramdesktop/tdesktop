@@ -478,36 +478,40 @@ void VaultKeyAcquisition::run() {
 // contract, and the derivation runs on a worker. The job copies the typed
 // bytes before this returns, so no caller needs them past this frame.
 //
-// The provider branch cannot run in this build: ParseVaultHeader turns every
-// reserved kind into Unsupported and ShowKeyProtectionBox refuses a header
-// that does not read, so no hardware wrap ever reaches here. It is written
-// for 2026/08/31/passcode-touch-id-unlock and
-// 2026/08/31/passcode-windows-hello-unlock, each of which teaches
-// wallet_vault.cpp's reader its own kind in the commit that registers its
-// provider.
+// The error says why no key came: the provider branch forwards the
+// provider's own answer, with Unavailable for a kind no provider is
+// registered for - a header from another platform's tdata - and the worker
+// branch answers AuthenticationFailed, a wrap the typed bytes do not open.
+// Cancelled is the one a caller tells apart: a dismissed system sheet is not
+// a failure to state.
 void AcquireVaultKey(
 		not_null<Storage::Account*> local,
 		const VaultWrap &wrap,
 		const SecureBytes &passcode,
-		Fn<void(std::optional<SecureBytes>)> done) {
+		Fn<void(std::optional<SecureBytes>, ProtectionError)> done) {
 	if (quint32(wrap.kind) >= kFirstReservedVaultKind) {
 		const auto provider = ProtectionProviderFor(wrap.kind);
 		if (!provider) {
-			done(std::nullopt);
+			done(std::nullopt, ProtectionError::Unavailable);
 			return;
 		}
 		provider->unwrap(local, wrap, [done](ProtectionUnwrapResult result) {
 			if (result.error != ProtectionError::None) {
-				done(std::nullopt);
+				done(std::nullopt, result.error);
 			} else {
-				done(std::move(result.key));
+				done(std::move(result.key), ProtectionError::None);
 			}
 		});
 		return;
 	}
 	Storage::DeriveOnWorker(
 		VaultKeyAcquisition{ .wrap = wrap, .passcode = passcode.copy() },
-		[done](VaultKeyAcquisition &&job) { done(std::move(job.key)); });
+		[done](VaultKeyAcquisition &&job) {
+			const auto error = job.key
+				? ProtectionError::None
+				: ProtectionError::AuthenticationFailed;
+			done(std::move(job.key), error);
+		});
 }
 
 // The passcode row's wrap as one worker job: the typed bytes as SecureBytes
@@ -719,7 +723,9 @@ void WalkVaultRemoval(std::shared_ptr<VaultRemovalWalk> walk) {
 		const auto committed = walk->header.committedWrap();
 		Assert(committed != nullptr);
 		const auto retired = *committed;
-		const auto acquired = [=](std::optional<SecureBytes> key) {
+		const auto acquired = [=](
+				std::optional<SecureBytes> key,
+				ProtectionError) {
 			const auto live = weak.get();
 			if (!live) {
 				WalkVaultRemoval(walk);
@@ -1229,8 +1235,16 @@ void KeyProtectionBox(
 				std::move(prepared));
 			const auto local = &session.local();
 			const auto wallet = &session.wallet();
-			const auto acquired = [=](std::optional<SecureBytes> key) {
-				if (!key || wallet->custodyBusy()) {
+			const auto acquired = [=](
+					std::optional<SecureBytes> key,
+					ProtectionError error) {
+				if (error == ProtectionError::Cancelled) {
+					// A dismissed system sheet on the retiring factor changes
+					// nothing and leaves the user in the box on the row they
+					// picked, as a dismissed enroll does below.
+					setBusy(false);
+					return;
+				} else if (!key || wallet->custodyBusy()) {
 					refuse();
 					return;
 				} else if (!WrapStillCommitted(*local, retired)) {
@@ -1259,8 +1273,8 @@ void KeyProtectionBox(
 				// The retiring provider is told only once the new wrap is
 				// committed, so no failure above can retire the wrap that
 				// is still the one opening this vault. Only a hardware kind
-				// has a provider: the registry refuses every kind this
-				// build defines itself.
+				// has a provider: the registry refuses Passcode and Open,
+				// the kinds opened without one.
 				const auto old = ProtectionProviderFor(retired.kind);
 				if (old) {
 					old->remove(local, retired, [](ProtectionError) {});
@@ -1402,16 +1416,10 @@ void KeyProtectionBox(
 	// The registered provider enrolls a wrap, and that wrap is what the outcome
 	// above writes. No vault key is handed in: only the enrolled wrap key is
 	// contractual, because every consumer re-seals the vault key under it and
-	// overwrites the wrap's own blob.
-	//
-	// Nothing here runs in any build this task ships: no provider is
-	// registered on any platform in it. 2026/08/31/passcode-touch-id-unlock
-	// and 2026/08/31/passcode-windows-hello-unlock each register one, and
-	// each of them must teach wallet_vault.cpp's reader its own kind - name
-	// it in WrapIsWellFormed and lift it out of the reserved-kind branch of
-	// ParseVaultHeader - in the same commit that registers it. Otherwise an
-	// Install under that kind writes a header that afterwards reads as
-	// Unsupported.
+	// overwrites the wrap's own blob. A row reaches here only for a provider
+	// that reported available when the box opened - on macOS the Touch ID one
+	// Platform::start() registers; the reader rule a new provider's kind must
+	// follow is with RegisterProtectionProvider in the header.
 	const auto saveHardware = [=](VaultKind kind) {
 		const auto provider = ProtectionProviderFor(kind);
 		if (!provider) {
@@ -1592,6 +1600,10 @@ void ShowRemovalProtectionBox(
 
 } // namespace
 
+rpl::producer<QString> ProtectionProvider::label() const {
+	return title();
+}
+
 void RegisterProtectionProvider(
 		std::unique_ptr<ProtectionProvider> provider) {
 	Expects(provider != nullptr);
@@ -1599,7 +1611,7 @@ void RegisterProtectionProvider(
 	const auto kind = provider->kind();
 	if (quint32(kind) < kFirstReservedVaultKind) {
 		LOG(("Wallet Error: a protection provider claims vault kind %1, "
-			"which this build defines itself.").arg(quint32(kind)));
+			"which this build opens without a provider.").arg(quint32(kind)));
 		return;
 	} else if (ProtectionProviderFor(kind)) {
 		LOG(("Wallet Error: a second protection provider claims vault "
@@ -1624,6 +1636,19 @@ ProtectionProvider *ProtectionProviderFor(VaultKind kind) {
 	return (i != end(list)) ? i->get() : nullptr;
 }
 
+bool ProtectionAvailableNow(VaultKind kind) {
+	const auto provider = ProtectionProviderFor(kind);
+	return provider && AvailableNow(*provider);
+}
+
+rpl::producer<> ProtectionAvailabilityChanges() {
+	auto list = std::vector<rpl::producer<bool>>();
+	for (const auto &provider : Providers()) {
+		list.push_back(provider->available());
+	}
+	return rpl::combine(std::move(list)) | rpl::skip(1) | rpl::to_empty;
+}
+
 rpl::producer<QString> ProtectionLabel(
 		VaultKind kind,
 		bool appLockEnabled) {
@@ -1636,7 +1661,7 @@ rpl::producer<QString> ProtectionLabel(
 			: tr::lng_wallet_protection_label_open_nolock();
 	}
 	if (const auto provider = ProtectionProviderFor(kind)) {
-		return provider->title();
+		return provider->label();
 	}
 	return tr::lng_wallet_vault_unavailable();
 }

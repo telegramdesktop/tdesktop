@@ -378,6 +378,16 @@ struct VaultRecordShape {
 	return result;
 }
 
+[[nodiscard]] bool IsDefinedVaultKind(quint32 kind) {
+	switch (VaultKind(kind)) {
+	case VaultKind::Passcode:
+	case VaultKind::Open:
+	case VaultKind::TouchId:
+		return true;
+	}
+	return false;
+}
+
 [[nodiscard]] bool WrapIsWellFormed(const VaultWrap &wrap, quint32 index) {
 	const auto kind = quint32(wrap.kind);
 	const auto &kdf = wrap.kdf;
@@ -414,6 +424,20 @@ struct VaultRecordShape {
 		} else if (wrap.openSecret.size() != kVaultOpenSecretSize) {
 			LOG(("Wallet Error: bad vault wrap %1 open secret size: %2."
 				).arg(index).arg(wrap.openSecret.size()));
+			return false;
+		}
+	} else if (kind == quint32(VaultKind::TouchId)) {
+		// Only the payload's presence is checked here: its shape belongs to
+		// the provider, so a malformed one reads as Read and the provider
+		// answers Corrupt, which states the vault unavailable and deletes
+		// nothing.
+		if (!kdfEmpty) {
+			LOG(("Wallet Error: a Touch ID vault wrap %1 carries KDF "
+				"parameters.").arg(index));
+			return false;
+		} else if (wrap.openSecret.isEmpty()) {
+			LOG(("Wallet Error: a Touch ID vault wrap %1 carries no "
+				"provider payload.").arg(index));
 			return false;
 		}
 	}
@@ -503,7 +527,7 @@ void WriteWrap(Serialize::ByteArrayWriter &stream, const VaultWrap &wrap) {
 				return { .state = State::Broken };
 			}
 		}
-		if (kind >= kFirstReservedVaultKind) {
+		if (!IsDefinedVaultKind(kind)) {
 			result.state = State::Unsupported;
 		}
 		result.header.wraps.push_back(std::move(wrap));

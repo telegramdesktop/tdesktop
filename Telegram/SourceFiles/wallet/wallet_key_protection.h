@@ -90,6 +90,10 @@ public:
 	[[nodiscard]] virtual rpl::producer<QString> description() const = 0;
 	[[nodiscard]] virtual rpl::producer<QString> binding() const = 0;
 
+	// The noun phrase the key-location line composes after "protected by".
+	// Defaults to title().
+	[[nodiscard]] virtual rpl::producer<QString> label() const;
+
 	virtual void enroll(
 		not_null<Storage::Account*> local,
 		Fn<void(ProtectionEnrollResult)> done) = 0;
@@ -104,18 +108,26 @@ public:
 
 };
 
-// The registry is empty on every platform in this build: nothing registers a
-// provider anywhere. The Touch ID and Windows Hello tasks each register one
-// from their own platform file, and each of them must also define its kind
-// in wallet_vault.cpp's WrapIsWellFormed and lift it out of the
-// reserved-kind branch of ParseVaultHeader in the same commit — otherwise a
-// header written under that kind afterwards reads as Unsupported.
+// macOS registers the Touch ID provider from Platform::start(), before any
+// chooser can open; Windows Hello is still to come. A provider's kind must be
+// defined in wallet_vault.cpp - named in WrapIsWellFormed and in
+// IsDefinedVaultKind, which is what lifts it out of ParseVaultHeader's
+// Unsupported verdict - in the same commit that registers the provider,
+// otherwise a header written under that kind afterwards reads as Unsupported.
 void RegisterProtectionProvider(std::unique_ptr<ProtectionProvider> provider);
 
 [[nodiscard]] auto ProtectionProviders()
 -> const std::vector<std::unique_ptr<ProtectionProvider>> &;
 
 [[nodiscard]] ProtectionProvider *ProtectionProviderFor(VaultKind kind);
+
+// A synchronous read of the registered provider's available(); false for a
+// kind no provider is registered for.
+[[nodiscard]] bool ProtectionAvailableNow(VaultKind kind);
+
+// Fires after any registered provider's availability changes and never emits
+// the initial values; completes at once while the registry is empty.
+[[nodiscard]] rpl::producer<> ProtectionAvailabilityChanges();
 
 [[nodiscard]] rpl::producer<QString> ProtectionLabel(
 	VaultKind kind,
@@ -177,8 +189,8 @@ void ShowKeyProtectionBox(
 // invariants a reviewer must be able to check by reading the body: it goes
 // through ReadVaultHeader() alone, so it never writes and never opens a
 // vault; an account whose header does not read - Absent, Broken or
-// Unsupported, which is every reserved and hardware kind in this build - is
-// in neither list; and the returned pointers are valid only for the frame
+// Unsupported - is in neither list, and neither is one committed to a
+// hardware kind; and the returned pointers are valid only for the frame
 // that receives them, because Main::Domain owns the accounts and one can be
 // logged out and dropped. Never keep these vectors in an rpl::variable, a
 // state struct or a lambda that outlives the call - re-enumerate instead.

@@ -8532,10 +8532,11 @@ struct KeyLocationState {
 	result.kind = wrap->kind;
 	// ProtectionLabel() answers a whole sentence, not a fragment, for a kind
 	// no provider claims, so such a kind may never reach the device line's
-	// placeholder - it is the currently-unavailable state instead.
+	// placeholder - it is the currently-unavailable state instead, and so is
+	// a registered provider that does not report available right now.
 	const auto named = (wrap->kind == VaultKind::Passcode)
 		|| (wrap->kind == VaultKind::Open)
-		|| (ProtectionProviderFor(wrap->kind) != nullptr);
+		|| ProtectionAvailableNow(wrap->kind);
 	result.location = named
 		? KeyLocation::OnDevice
 		: KeyLocation::Unavailable;
@@ -8548,7 +8549,8 @@ struct KeyLocationState {
 		session->wallet().deviceCustodyStateValue(),
 		rpl::single(rpl::empty) | rpl::then(rpl::merge(
 			session->domain().local().localPasscodeChanged(),
-			session->wallet().keyProtectionUpdates()))
+			session->wallet().keyProtectionUpdates(),
+			ProtectionAvailabilityChanges()))
 	) | rpl::map([=](const DeviceCustodyState &, auto) {
 		return KeyLocationNow(session);
 	}) | rpl::distinct_until_changed(

@@ -2116,7 +2116,8 @@ bool Session::revealsLocally() {
 	ensureLoaded();
 	return (_presence.current() == Presence::Ready)
 		&& (_publicKey.size() == kCustodyPublicKeySize)
-		&& (custody().matching(_publicKey) != nullptr);
+		&& (custody().matching(_publicKey) != nullptr)
+		&& !_vaultKeyUnusable;
 }
 
 VaultRuntime &Session::vault() {
@@ -2373,7 +2374,10 @@ void Session::revealPhrase(
 			fail(error);
 		}
 	};
-	if (const auto record = custody().matching(_publicKey)) {
+	const auto record = _vaultKeyUnusable
+		? nullptr
+		: custody().matching(_publicKey);
+	if (record) {
 		if (!ReadAuthorized(*this, auth)) {
 			fail(u"PHRASE_VAULT_LOCKED"_q);
 			return;
@@ -3651,11 +3655,25 @@ rpl::producer<> Session::keyProtectionUpdates() const {
 }
 
 void Session::notifyKeyProtectionChanged() {
+	setVaultKeyUnusable(false);
 	_keyProtectionUpdates.fire({});
+}
+
+bool Session::vaultKeyUnusable() const {
+	return _vaultKeyUnusable;
+}
+
+void Session::setVaultKeyUnusable(bool unusable) {
+	if (_vaultKeyUnusable == unusable) {
+		return;
+	}
+	_vaultKeyUnusable = unusable;
+	updateDeviceCustodyState();
 }
 
 void Session::dropCustodyAfterForgottenPasscode() {
 	vault().clear();
+	_vaultKeyUnusable = false;
 	_custody = std::nullopt;
 	updateDeviceCustodyState();
 	notifyKeyProtectionChanged();
@@ -4151,7 +4169,8 @@ void Session::updateDeviceCustodyState() {
 		[&](const CustodyRecord &record) {
 			return record.publicKey != identity->publicKey;
 		});
-	const auto mode = store.matching(identity->publicKey)
+	const auto mode = (store.matching(identity->publicKey)
+		&& !_vaultKeyUnusable)
 		? DeviceMode::Full
 		: _capabilities.current().canExportPhrase
 		? DeviceMode::ReadOnlyRestorable

@@ -437,11 +437,21 @@ public:
 	// The cached custody store and updateDeviceCustodyState() are private, so
 	// nothing outside this class can make the live session follow a device
 	// whose wallet keys have just been destroyed - and the device mode must
-	// follow that drop. The forgot-passcode path is the only caller, and it
-	// owns the storage side: it has already removed the sealed values, emptied
-	// the custody store and removed the vault header before calling this,
-	// which writes nothing and only makes the session agree with the disk.
+	// follow that drop. DropVaultAndCustody() in wallet_unlock.cpp is the
+	// only caller - the forgot-passcode path and the replacement of a key a
+	// provider confirmed unusable both go through it - and it owns the
+	// storage side: it has already removed the sealed values, emptied the
+	// custody store and removed the vault header before calling this, which
+	// writes nothing and only makes the session agree with the disk.
 	void dropCustodyAfterForgottenPasscode();
+
+	// Per-process: set only by a provider's confirmed Absent answer, it lands
+	// the read-only modes without touching disk - the header, its ciphertext
+	// and the custody record all survive - so a relaunch presents Full again
+	// until the next unwrap says Absent. A successful unwrap, a committed
+	// wrap change and the drop above reset it.
+	[[nodiscard]] bool vaultKeyUnusable() const;
+	void setVaultKeyUnusable(bool unusable);
 
 	[[nodiscard]] std::vector<CustodyRecord> parkedRecords();
 
@@ -808,6 +818,7 @@ private:
 	bool _phraseRevealing = false;
 	bool _replacing = false;
 	bool _backupChanging = false;
+	bool _vaultKeyUnusable = false;
 	rpl::variable<DeviceCustodyState> _deviceCustody;
 	rpl::event_stream<> _custodyUpdates;
 	rpl::event_stream<> _keyProtectionUpdates;

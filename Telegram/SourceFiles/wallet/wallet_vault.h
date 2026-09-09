@@ -25,11 +25,16 @@ inline constexpr auto kVaultSaltSize = 32;
 inline constexpr auto kVaultOpenSecretSize = 32;
 inline constexpr auto kVaultRetention = 15 * 60 * crl::time(1000);
 
-// Kinds from 3 up are reserved for the hardware providers: a header that
-// carries one reads as Unsupported here and is never rewritten.
+// Kinds from kFirstReservedVaultKind up are reserved for the hardware
+// providers. TouchId is the one this build defines: macOS registers its
+// provider from platform/mac/wallet_protection_mac.mm, and the Secure
+// Enclave key blob together with the ECIES-sealed wrap key ride in the
+// wrap's openSecret. A reserved kind this build does not define reads as
+// Unsupported and is never rewritten.
 enum class VaultKind : quint32 {
 	Passcode = 1,
 	Open = 2,
+	TouchId = 3,
 };
 
 inline constexpr auto kFirstReservedVaultKind = quint32(3);

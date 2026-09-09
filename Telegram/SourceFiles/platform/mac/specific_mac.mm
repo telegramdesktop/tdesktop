@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/mac/base_confirm_quit.h"
 #include "base/platform/mac/base_utilities_mac.h"
 #include "base/platform/base_platform_info.h"
+#include "platform/mac/wallet_protection_mac.h"
 
 #include <QtCore/QDirIterator>
 #include <QtGui/QDesktopServices>
@@ -263,6 +264,7 @@ namespace Platform {
 
 void start() {
 	objc_start();
+	RegisterWalletProtectionProvider();
 }
 
 void finish() {

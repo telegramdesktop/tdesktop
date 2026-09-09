@@ -8969,6 +8969,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_protection_label_passcode" = "your local passcode";
 "lng_wallet_protection_label_open_lock" = "only the app passcode, with nothing asked before use";
 "lng_wallet_protection_label_open_nolock" = "nothing — the key is not encrypted";
+"lng_wallet_protection_touchid" = "Unlock with Touch ID";
+"lng_wallet_protection_touchid_about" = "The key is encrypted with a key kept in this Mac's Secure Enclave. Every use asks for Touch ID or your Mac password.";
+"lng_wallet_protection_touchid_binding" = "Bound to this Mac. To use the wallet on another Mac, restore it from Telegram's encrypted backup or with your recovery phrase.";
+"lng_wallet_protection_touchid_label" = "Touch ID";
+"lng_wallet_protection_touchid_reason" = "unlock your wallet key";
+"lng_wallet_protection_hardware_prompt" = "Telegram will ask for {provider} to unlock your wallet key.";
+"lng_wallet_protection_hardware_continue" = "Continue";
+"lng_wallet_protection_hardware_failed" = "{provider} did not confirm it was you. Nothing was changed.";
+"lng_wallet_protection_hardware_unavailable" = "Your wallet key on this device is protected by {provider}, which can't be used right now. Try again later, or restore the wallet from Telegram's encrypted backup or with your recovery phrase to protect it another way.";
+"lng_wallet_protection_hardware_absent" = "Your wallet key on this device was protected by {provider}, but that key can no longer be used on this Mac. Restore the wallet from Telegram's encrypted backup or with your recovery phrase to store the key again.";
 "lng_wallet_passcode_forgot" = "Forgot passcode?";
 "lng_wallet_passcode_forgot_title" = "Forgot your passcode?";
 "lng_wallet_passcode_forgot_about" = "Without the passcode this device cannot open the wallet key it holds. You can remove the key and the passcode and keep using Telegram — you will not be logged out.";
