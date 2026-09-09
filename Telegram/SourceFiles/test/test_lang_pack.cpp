@@ -25,8 +25,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Test {
 namespace {
 
-// Untagged phrase<> keys, all present in the generated table. Three
-// classes are deliberately absent. lng_language_name is the value
+// Untagged phrase<> keys, all present in the generated table. Three of
+// them are taken per self-test run - the two subject keys and the
+// holder's throwaway key - and they are chosen by resolvability alone,
+// never by what the running pack currently holds for them, for the
+// reason ChooseLangKey below states.
+//
+// Three classes are deliberately absent. lng_language_name is the value
 // Instance::name() and nativeName() fall back to
 // (lang_instance.cpp:341-351), so overwriting it would rewrite the very
 // identity a fixture freezes. lng_send_action_choose_sticker and
@@ -35,7 +40,7 @@ namespace {
 // TAGGED phrase is excluded, because ValueParser writes a four-character
 // kTextCommand tag replacer into the stored value (:137-141), which a
 // label read-back would surface as control characters.
-constexpr const char *kDefaultKeyCandidates[] = {
+constexpr const char *kKeyCandidates[] = {
 	"lng_cancel",
 	"lng_continue",
 	"lng_close",
@@ -67,31 +72,46 @@ struct LangKeyChoice {
 }
 
 // Lang::GetKeyIndex answers kKeysCount for a key the generated table does
-// not know, and Instance::getValue is Expects(key < _values.size())
-// (lang_instance.h:90-93), so reading a value for an unresolved index
-// would abort a Debug build. The unknown branch therefore prints what it
-// can read by name alone and never touches getValue.
+// not know, Instance::getValue is Expects(key < _values.size())
+// (lang_instance.h:90-93) and Lang::GetOriginalValue is
+// Expects(key < kKeysCount) (the generated lang_auto.cpp), so reading
+// either for an unresolved index would abort a Debug build. The unknown
+// branch therefore prints what it can read by name alone and touches
+// neither. |original| is printed beside |value| because a reading that
+// says a key is default has to show what default it means.
 [[nodiscard]] QString FormatKeyReading(const QByteArray &key) {
 	const auto &instance = Lang::GetInstance();
 	const auto index = Lang::GetKeyIndex(QLatin1String(key));
 	const auto nonDefault = instance.getNonDefaultValue(key);
 	return (index == Lang::kKeysCount)
-		? u"key=%1 index=unknown nonDefault=\"%2\" value=<n/a>"_q.arg(
-			QString::fromUtf8(key),
-			nonDefault)
-		: u"key=%1 index=%2 nonDefault=\"%3\" value=\"%4\""_q.arg(
-			QString::fromUtf8(key),
-			QString::number(index),
-			nonDefault,
-			instance.getValue(index));
+		? u"key=%1 index=unknown nonDefault=\"%2\" value=<n/a> "
+			"original=<n/a>"_q.arg(
+				QString::fromUtf8(key),
+				nonDefault)
+		: u"key=%1 index=%2 nonDefault=\"%3\" value=\"%4\" "
+			"original=\"%5\""_q.arg(
+				QString::fromUtf8(key),
+				QString::number(index),
+				nonDefault,
+				instance.getValue(index),
+				Lang::GetOriginalValue(index));
+}
+
+[[nodiscard]] QString NameList(const std::vector<QByteArray> &keys) {
+	auto names = QStringList();
+	for (const auto &key : keys) {
+		names.push_back(QString::fromUtf8(key));
+	}
+	return names.isEmpty() ? u"none"_q : names.join(QChar(','));
 }
 
 [[nodiscard]] QString KeyList(const std::vector<LangOverride> &overrides) {
-	auto names = QStringList();
+	auto keys = std::vector<QByteArray>();
+	keys.reserve(overrides.size());
 	for (const auto &entry : overrides) {
-		names.push_back(QString::fromUtf8(entry.key));
+		keys.push_back(entry.key);
 	}
-	return names.isEmpty() ? u"none"_q : names.join(QChar(','));
+	return NameList(keys);
 }
 
 [[nodiscard]] QString FormatComparison(
@@ -187,34 +207,41 @@ void ApplyStrings(
 	instance.applyDifference(Lang::Pack::Current, difference.data());
 }
 
-[[nodiscard]] LangKeyChoice ChooseDefaultLangKey(const QByteArray &besides) {
+// Chosen by RESOLVABILITY alone. Whether a key is currently DEFAULT is
+// deliberately NOT a criterion: on any client that has ever downloaded a
+// cloud language pack, every key the generated table knows already
+// carries an override - fillFromSerialized logs the cached pack's
+// non-default count (lang_instance.cpp:543) and an ordinary account read
+// 10993 of them against kKeysCount = 10948 - so a search for a
+// currently-default key finds none and gates the whole self-test out,
+// and a longer candidate list cannot help because the property is
+// universal over the table. AppendLangPackSelfTest's first stage
+// arranges that precondition through switchToId instead.
+[[nodiscard]] LangKeyChoice ChooseLangKey(
+		const std::vector<QByteArray> &besides) {
 	auto result = LangKeyChoice();
 	auto readings = QStringList();
-	const auto &instance = Lang::GetInstance();
-	for (const auto candidate : kDefaultKeyCandidates) {
+	for (const auto candidate : kKeyCandidates) {
 		const auto key = QByteArray(candidate);
 		readings.push_back(FormatKeyReading(key));
-		if (!result.key.isEmpty() || key == besides) {
+		if (!result.key.isEmpty()
+			|| (ranges::find(besides, key) != end(besides))) {
 			continue;
 		}
 		const auto index = Lang::GetKeyIndex(QLatin1String(key));
-		if ((index != Lang::kKeysCount)
-			&& instance.getNonDefaultValue(key).isEmpty()) {
+		if (index != Lang::kKeysCount) {
 			result.key = key;
 			result.index = index;
 		}
 	}
 	result.readings = readings.join(u"; "_q);
-	const auto besidesName = besides.isEmpty()
-		? u"none"_q
-		: QString::fromUtf8(besides);
 	const auto pack = PackRefusal();
 	result.refusal = !pack.isEmpty()
 		? pack
 		: !result.key.isEmpty()
 		? QString()
-		: u"no candidate language key is default in the running pack "
-			"(besides=%1): %2"_q.arg(besidesName, result.readings);
+		: u"no candidate language key resolves in the generated table "
+			"(besides=%1): %2"_q.arg(NameList(besides), result.readings);
 	return result;
 }
 
@@ -458,10 +485,14 @@ void AppendLangPackSelfTest(
 		not_null<Runner*> runner,
 		LangRestoreFault fault) {
 	struct State {
+		LangKeyChoice keyHolder;
 		LangKeyChoice keyA;
 		LangKeyChoice keyB;
 		QString skipReason;
+		QString beforeReset;
+		QString afterReset;
 		QString defaultA;
+		std::shared_ptr<LangPackFixture> holder;
 		std::shared_ptr<LangPackFixture> preexisting;
 		std::shared_ptr<LangPackFixture> subject;
 		base::unique_qptr<Ui::FlatLabel> labelA;
@@ -471,43 +502,148 @@ void AppendLangPackSelfTest(
 	};
 	// Leaked on purpose, the way this directory's other self-tests leak
 	// theirs: the stages outlive this call. The teardown stage releases
-	// both labels and removes the fixture that is still installed, but a
+	// both labels and removes the two fixtures still installed, but a
 	// timed-out stage and the watchdog skip every stage after them, so
 	// that stage is not the release point (README.md:483-490). Two
 	// distinct Runner::onFinish backstops cover such a run: the module's
 	// single registration unwinds the FIXTURES and captures nothing, so
-	// it cannot reach this State, and the registration just below
-	// releases the LABELS - each one holds a live consumer inside
-	// Lang::Instance::_updated for as long as it exists
+	// it cannot reach this State, and the registration just below does
+	// reach it - it releases the LABELS, each of which holds a live
+	// consumer inside Lang::Instance::_updated for as long as it exists
 	// (lib_ui/ui/widgets/labels.cpp:239-244), which is exactly what
-	// README.md:473-481 makes the scenario own.
+	// README.md:473-481 makes the scenario own, and it takes this
+	// self-test's own three fixtures down by name, so the live cloud pack
+	// the holder froze is restored even on a run that never reaches the
+	// teardown stage.
 	const auto state = new State();
 
 	// finish() runs on every path that reaches it, and also when a
 	// teardown stage already ran (test_runner.h:85-95), so this has to be
 	// safe afterwards: assigning nullptr to an already-null
-	// base::unique_qptr is a no-op.
+	// base::unique_qptr is a no-op, and remove() is idempotent - a no-op
+	// on a fixture already removed and on one that never installed. The
+	// removals are in REVERSE installation order, because remove() FAILs
+	// by name when a fixture is not the top of the module's live stack,
+	// and they follow the label release so no Lang::Updated() they fire
+	// reaches a label. This registration is made at append time and the
+	// module's own on the first install, and finish() runs its callbacks
+	// FIFO (test_runner.cpp:453-456), so the module's unwind runs after
+	// these and finds nothing left to unwind.
 	runner->onFinish([=] {
 		state->labelA = nullptr;
 		state->labelB = nullptr;
+		if (state->subject) {
+			state->subject->remove();
+		}
+		if (state->preexisting) {
+			state->preexisting->remove();
+		}
+		if (state->holder) {
+			state->holder->remove();
+		}
 	});
 
 	// Resolved eagerly, at append time rather than in a stage:
 	// Local::readLangPack() runs inside storage/localstorage.cpp:426, long
 	// before Application::run() reaches Test::Start(), so the pack is
 	// loaded here and every stage's skipReason stays a pure read.
-	state->keyA = ChooseDefaultLangKey(QByteArray());
-	state->keyB = ChooseDefaultLangKey(state->keyA.key);
+	state->keyA = ChooseLangKey({});
+	state->keyB = ChooseLangKey({ state->keyA.key });
+	state->keyHolder = ChooseLangKey({ state->keyA.key, state->keyB.key });
 	state->skipReason = !state->keyA.refusal.isEmpty()
 		? u"fixture gate: %1"_q.arg(state->keyA.refusal)
 		: !state->keyB.refusal.isEmpty()
 		? u"fixture gate: %1"_q.arg(state->keyB.refusal)
+		: !state->keyHolder.refusal.isEmpty()
+		? u"fixture gate: %1"_q.arg(state->keyHolder.refusal)
 		: QString();
 
 	const auto gate = [=] { return state->skipReason; };
+	const auto heldByHolder = u"lang pack self-test holder override"_q;
 	const auto arrangedB = u"lang pack self-test arranged override"_q;
 	const auto installedA = u"lang pack self-test installed value A"_q;
 	const auto installedB = u"lang pack self-test installed value B"_q;
+
+	runner->add({
+		.name = u"lang pack self-test: hold the live pack and reset it so "
+			"both keys are default"_q,
+		.skipReason = gate,
+		.run = [=] {
+			auto &instance = Lang::GetInstance();
+			state->beforeReset = u"%1; %2"_q.arg(
+				FormatKeyReading(state->keyA.key),
+				FormatKeyReading(state->keyB.key));
+
+			// Installed BEFORE the reset below and removed LAST, so the
+			// live pack - identity, serialize() snapshot and every
+			// reading - is frozen inside this fixture and comes back
+			// through the facility's own restore. Its one throwaway
+			// override is what makes the install legal, an empty list
+			// being refused, and it names a third key so neither subject
+			// key carries a reading this fixture took. Always None: an
+			// arm reaching the holder would leave the process's real pack
+			// mutated after the run.
+			auto overrides = std::vector<LangOverride>();
+			overrides.push_back({
+				.key = state->keyHolder.key,
+				.value = heldByHolder,
+			});
+			state->holder = LangPackFixture::Install(
+				runner,
+				std::move(overrides),
+				LangRestoreFault::None);
+			if (!state->holder->installed()) {
+				// Nothing would put the live pack back afterwards, so
+				// the reset is not performed at all and the check below
+				// FAILs on the refusal Install already logged.
+				state->afterReset = u"not reset, holder refused: %1"_q.arg(
+					state->holder->refusal());
+				return;
+			}
+
+			// The identity is read from the instance itself, so this is
+			// the running pack's own id and not a language switch.
+			// reset (lang_instance.cpp:281-305) rewrites every _values[i]
+			// from GetOriginalValue(i), clears _nonDefaultValues, zeroes
+			// _nonDefaultSet and sets _version to 0; on an ordinary id
+			// switchToId fires _idChanges only and never _updated
+			// (:250-261). Every key is default afterwards - the
+			// precondition the four stages below need, which no client
+			// that has downloaded a cloud pack provides on its own.
+			instance.switchToId({
+				.id = instance.id(),
+				.baseId = instance.baseId(),
+				.name = instance.name(),
+				.nativeName = instance.nativeName(),
+			});
+			state->afterReset = u"%1; %2"_q.arg(
+				FormatKeyReading(state->keyA.key),
+				FormatKeyReading(state->keyB.key));
+		},
+		.then = [=] {
+			const auto &instance = Lang::GetInstance();
+			const auto isDefault = [&](const LangKeyChoice &choice) {
+				return instance.getNonDefaultValue(choice.key).isEmpty()
+					&& (instance.getValue(choice.index)
+						== Lang::GetOriginalValue(choice.index));
+			};
+			// The arrangement's own premise, asserted rather than
+			// assumed: if the holder did not install or the reset did
+			// not take, every row after this one would be measuring
+			// something other than a restored previously-default key, so
+			// it fails here and by name instead of silently later.
+			Check(
+				(state->holder->installed()
+					&& isDefault(state->keyA)
+					&& isDefault(state->keyB)),
+				u"lang pack self-test: both keys are default after the "
+				"live pack was held and reset"_q,
+				u"before=[%1] after=[%2] holder=[%3]"_q.arg(
+					state->beforeReset,
+					state->afterReset,
+					FormatKeyReading(state->keyHolder.key)));
+		},
+	});
 
 	runner->add({
 		.name = u"lang pack self-test: arrange a default key and a "
@@ -649,18 +785,28 @@ void AppendLangPackSelfTest(
 			// State alone owns, and releasing the unique_qptrs is what
 			// destroys them. That run is covered by two Runner::onFinish
 			// backstops rather than by this stage - this self-test's own,
-			// registered at append time, releases the LABELS, and the
-			// module's single registration removes every FIXTURE this
-			// stage never reached.
+			// registered at append time, releases the LABELS and takes
+			// this State's own three FIXTURES down in reverse order,
+			// and the module's single registration is the generic
+			// backstop for whatever is still live after that.
 			state->labelA = nullptr;
 			state->labelB = nullptr;
 			if (state->preexisting) {
 				state->preexisting->remove();
 			}
-			Note(u"lang pack self-test: teardown - labels released, %1, "
-				"%2"_q.arg(
+			// The holder is removed LAST for two reasons: it is the
+			// bottom of the module's live stack, and remove() FAILs by
+			// name on an out-of-order removal; and its snapshot is the
+			// one carrying the live cloud pack the first stage's reset
+			// cleared, so this call is what puts that pack back.
+			if (state->holder) {
+				state->holder->remove();
+			}
+			Note(u"lang pack self-test: teardown - labels released, live "
+				"pack restored, %1, %2, %3"_q.arg(
 					FormatKeyReading(state->keyA.key),
-					FormatKeyReading(state->keyB.key)));
+					FormatKeyReading(state->keyB.key),
+					FormatKeyReading(state->keyHolder.key)));
 		},
 	});
 }

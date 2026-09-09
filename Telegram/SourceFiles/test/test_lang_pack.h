@@ -280,35 +280,90 @@ private:
 	not_null<Runner*> runner,
 	std::vector<LangOverride> overrides);
 
-// The facility measuring itself, in four stages ending with its own
-// teardown. It arranges two keys that are default in the running pack -
-// one left default, one given a pre-existing override by a first fixture
-// - binds a parentless Ui::FlatLabel to each through
-// Lang::details::Value(index), installs synthetic values for both through
-// a second fixture, and after the removal proves both halves at once:
-// checkRestored covers the values, including the previously-default key
-// and the preserved pre-existing override, and each label's
-// accessibilityName() read-back against frozen()->value covers the
-// notification, with no further interaction and no re-navigation.
+// The facility measuring itself, in five stages ending with its own
+// teardown.
+//
+// The FIRST stage ARRANGES the precondition the other four need instead
+// of searching the running pack for one. Those four need two keys that
+// are DEFAULT before the subject fixture installs over them, and on a
+// client that has ever downloaded a cloud language pack no such key
+// exists anywhere in the table: fillFromSerialized logs the cached
+// pack's size as its non-default count (lang_instance.cpp:543), and a
+// -testagent run against an ordinary account read "Lang Info: Loaded
+// cached, keys: 10993" against a generated table of kKeysCount = 10948
+// keys - the excess being plural-suffixed forms - so EVERY key the
+// table knows already carries a cloud override. An earlier version of
+// this self-test chose its keys by "is this one still default?" and
+// gated all of its stages out on that reading. Widening the candidate
+// list cannot help, because the property is universal over the table
+// rather than specific to the candidates tried.
+//
+// So the first stage installs an outer HOLDER fixture over one
+// throwaway key, which freezes the live cloud pack - identity,
+// serialize() snapshot and every reading - inside that fixture, and
+// then calls Instance::switchToId with the identity read from the
+// instance itself. switchToId's reset (:281-305) rewrites every
+// _values[i] from GetOriginalValue(i), clears _nonDefaultValues, zeroes
+// _nonDefaultSet and sets _version to 0, and on an ordinary id it fires
+// _idChanges only and never _updated (:250-261), so afterwards both
+// chosen keys are default by construction. That is the arrangement's
+// own premise and it is asserted rather than assumed: one Check prints
+// both keys before and after and FAILs there if the reset did not take,
+// because every row after it would otherwise measure something else.
+// The holder's remove() in the teardown stage puts the real cloud pack
+// back through this facility's own switchToId + fillFromSerialized +
+// notification path, so the arrangement is undone by the same code the
+// self-test exists to measure.
+//
+// Two consequences of that arrangement, stated rather than implied
+// away. The running client reads the compiled-in original values for
+// the window between the reset and the holder's removal, so this
+// self-test is not to be appended around a scenario leg that reads
+// cloud text. And the reset zeroes _version, so a cloud difference
+// arriving inside that window is no longer applied on top of the pack
+// it was computed against: CloudManager::applyLangPackData
+// (lang_cloud_manager.cpp:386) compares version(pack) against
+// from_version and re-requests the pack whenever the local version is
+// behind, which after the reset it is for every non-zero from_version.
+// A full-pack answer (from_version 0) is still applied and written to
+// the portable folder, which is the same disposable exposure the
+// Local::writeLangPack() paragraph above describes and no wider.
+//
+// The four stages after it give the second key a legitimate
+// pre-existing override through another fixture, bind a parentless
+// Ui::FlatLabel to each key through Lang::details::Value(index),
+// install synthetic values for both through the subject fixture, and
+// after the removal prove both halves at once: checkRestored covers the
+// values, including the previously-default key and the preserved
+// pre-existing override, and each label's accessibilityName() read-back
+// against frozen()->value covers the notification, with no further
+// interaction and no re-navigation. The teardown stage then removes
+// what is left in REVERSE installation order - the pre-existing
+// fixture, then the holder - because remove() FAILs by name when a
+// fixture is not the top of the module's live stack.
 //
 // It asks the process for nothing: no primary window, no session, no
 // chats list, no network, no wallet and no fixture secret. Nothing is
 // shown, painted or grabbed - accessibilityName() (labels.h:131-133)
 // returns the parsed text the label owns before any layout - and no
-// screenshot is taken. Its one environment dependency is that some
-// candidate key is default in the running pack, resolved eagerly at
-// append time and reported as a named fixture gate writing
-// TEST_RESULT: N/A rows with every candidate's reading, never a silent
-// pass and never an opaque timeout.
+// screenshot is taken. It depends on nothing about WHAT the running
+// pack holds, because it arranges that itself; the fixture gate that
+// remains covers only the two cases the arrangement cannot create - a
+// #custom / #TEST_X / #TEST_0 pack, which this facility refuses to
+// touch at all, and a candidate key the generated table does not know -
+// and both are resolved eagerly at append time and reported as named
+// fixture gates writing TEST_RESULT: N/A rows with every candidate's
+// reading, never a silent pass and never an opaque timeout.
 //
 // With LangRestoreFault::None it emits no deliberate failure. The other
 // two arms are deliberate falsifications a scenario must never pack:
 // LeaveOneInstalled fails checkRestored on the first key and that key's
 // read-back row, and SuppressNotification fails both read-back rows while
-// checkRestored still passes. Neither arm leaves the process's pack
-// mutated - the first fixture froze the pristine pack, so its teardown
-// restores it - and each falsified step is announced by one Test::Note
-// immediately before it.
+// checkRestored still passes. Neither arm reaches the holder, which is
+// always installed with None, so neither leaves the process's pack
+// mutated - the holder froze the live pack before the reset, so removing
+// it restores that pack - and each falsified step is announced by one
+// Test::Note immediately before it.
 void AppendLangPackSelfTest(
 	not_null<Runner*> runner,
 	LangRestoreFault fault = LangRestoreFault::None);
