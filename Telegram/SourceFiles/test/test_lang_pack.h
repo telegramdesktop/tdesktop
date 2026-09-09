@@ -112,7 +112,9 @@ class Runner;
 // already produces the long-locale fixture a scenario wants. Second,
 // Lang::Instance never SETS the locale: it reads QLocale::system()
 // (lang_instance.cpp:311) only to derive a fallback system language
-// code, and QLocale::setDefault is called nowhere in the tree. The
+// code, and QLocale::setDefault is called nowhere in the code this
+// project compiles (the only calls are in the kcoreaddons submodule's
+// autotests, which Telegram does not build). The
 // locale governs date and number formatting through a different
 // mechanism with a different restore and no relation to Lang::Updated(),
 // so folding it in would give one facility two unrelated symmetries and
@@ -270,9 +272,11 @@ private:
 // pack, an empty |overrides|, a key whose GetKeyIndex answers kKeysCount,
 // and an override whose value is empty.
 //
-// The module registers exactly one Runner::onFinish callback, on the
+// The module registers one Runner::onFinish callback of its own, on the
 // first install of the process, which unwinds the live fixtures in
-// REVERSE order. Runner::finish() runs its callbacks in registration
+// REVERSE order; AppendLangPackSelfTest registers a second one at
+// append time (test_lang_pack.cpp:532) for its own labels and
+// fixtures. Runner::finish() runs its callbacks in registration
 // order (test_runner.cpp:453-456), which is FIFO and therefore the wrong
 // order for nested fixtures, so one registration unwinding LIFO replaces
 // one registration per fixture and needs no recursion in remove().
@@ -291,7 +295,9 @@ private:
 // pack's size as its non-default count (lang_instance.cpp:543), and a
 // -testagent run against an ordinary account read "Lang Info: Loaded
 // cached, keys: 10993" against a generated table of kKeysCount = 10948
-// keys - the excess being plural-suffixed forms - so EVERY key the
+// keys - two counts over different sets, since applyValue writes
+// _nonDefaultValues unconditionally (lang_instance.cpp:731-732) and
+// so counts cloud keys the generated table does not know - so EVERY key the
 // table knows already carries a cloud override. An earlier version of
 // this self-test chose its keys by "is this one still default?" and
 // gated all of its stages out on that reading. Widening the candidate
