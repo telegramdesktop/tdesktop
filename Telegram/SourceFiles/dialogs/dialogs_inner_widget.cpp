@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/dynamic_thumbnails.h"
 #include "ui/vertical_list.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "ui/rect.h"
 #include "ui/screen_reader_mode.h"
 #include "ui/ui_utility.h"
@@ -331,6 +332,11 @@ InnerWidget::InnerWidget(
 	session().downloaderTaskFinished(
 	) | rpl::on_next([=] {
 		invalidateLoadedUserpics();
+		update();
+	}, lifetime());
+
+	PowerSaving::OnValue(PowerSaving::kAnimatedUserpics) | rpl::on_next([=] {
+		_videoUserpics.clear();
 		update();
 	}, lifetime());
 
@@ -1745,7 +1751,8 @@ Ui::VideoUserpic *InnerWidget::validateVideoUserpic(not_null<Row*> row) {
 Ui::VideoUserpic *InnerWidget::validateVideoUserpic(
 		not_null<History*> history) {
 	const auto peer = history->peer;
-	if (!peer->isPremium()
+	if (PowerSaving::On(PowerSaving::kAnimatedUserpics)
+		|| !peer->isPremium()
 		|| peer->userpicPhotoUnknown()
 		|| !peer->userpicHasVideo()
 		|| peer->isSelf()
