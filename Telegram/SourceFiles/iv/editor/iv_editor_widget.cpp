@@ -8969,6 +8969,11 @@ bool Widget::handleFieldKey(QKeyEvent *e) {
 				handled = enterStructuralSelectionFromField(down, false);
 			}
 		}
+		if (!handled && !_field->isHidden() && modifiers == Qt::NoModifier) {
+			handled = moveFieldCursor(
+				down ? QTextCursor::End : QTextCursor::Start,
+				QTextCursor::MoveAnchor);
+		}
 		if (handled) {
 			e->accept();
 		}
