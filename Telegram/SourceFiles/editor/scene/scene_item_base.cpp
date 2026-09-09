@@ -28,7 +28,6 @@ namespace {
 constexpr auto kSnapAngle = 45.;
 
 const auto kDuplicateSequence = QKeySequence("ctrl+d");
-const auto kFlipSequence = QKeySequence("ctrl+s");
 const auto kDeleteSequence = QKeySequence("delete");
 
 constexpr auto kMinSizeRatio = 0.05;
@@ -244,9 +243,8 @@ void ItemBase::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 		kDeleteSequence,
 		[=] { actionDelete(); },
 		&st::mediaMenuIconDelete);
-	add(
-		tr::lng_photo_editor_menu_flip,
-		kFlipSequence,
+	_menu->addAction(
+		tr::lng_photo_editor_menu_flip(tr::now),
 		[=] { actionFlip(); },
 		&st::mediaMenuIconFlip);
 	add(
@@ -320,8 +318,6 @@ void ItemBase::handleActionKey(not_null<QKeyEvent*> e) {
 		performForSelectedItems(&ItemBase::actionDuplicate);
 	} else if (matches(kDeleteSequence)) {
 		performForSelectedItems(&ItemBase::actionDelete);
-	} else if (matches(kFlipSequence)) {
-		performForSelectedItems(&ItemBase::actionFlip);
 	} else {
 		e->ignore();
 	}
