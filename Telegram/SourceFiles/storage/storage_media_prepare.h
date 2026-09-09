@@ -38,6 +38,7 @@ enum class MimeDataState {
 	MediaFilesArchive,
 	//PremiumFile,
 	Image,
+	Media,
 	Folder,
 	FolderArchiveOnly,
 };
@@ -50,7 +51,8 @@ enum class MimeDataState {
 	bool premium);
 [[nodiscard]] MimeDataState ComputeMimeDataState(const QMimeData *data);
 [[nodiscard]] bool ValidatePhotoEditorMediaDragData(
-	not_null<const QMimeData*> data);
+	not_null<const QMimeData*> data,
+	bool withVideo);
 
 struct PhotoEditorMedia {
 	QImage image;

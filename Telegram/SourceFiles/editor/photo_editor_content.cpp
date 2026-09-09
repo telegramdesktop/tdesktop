@@ -33,6 +33,7 @@ PhotoEditorContent::PhotoEditorContent(
 : RpWidget(parent)
 , _photoSize(photo->size())
 , _fixedCrop(data.fixedCrop)
+, _composeAnimated(data.composeAnimated)
 , _paint(base::make_unique_q<Paint>(
 	this,
 	modifications,
@@ -50,7 +51,7 @@ PhotoEditorContent::PhotoEditorContent(
 		result.setDevicePixelRatio(dpr);
 		return result;
 	},
-	data.fixedCrop))
+	data))
 , _crop(base::make_unique_q<Crop>(
 	this,
 	modifications,
@@ -327,7 +328,11 @@ void PhotoEditorContent::setupDragArea() {
 		std::move(dragEnterFilter),
 		nullptr,
 		nullptr,
-		[](const QMimeData *d) { return Storage::MimeDataState::Image; },
+		[=](const QMimeData *data) {
+			return _composeAnimated
+				? Storage::MimeDataState::Media
+				: Storage::MimeDataState::Image;
+		},
 		nullptr,
 		true);
 

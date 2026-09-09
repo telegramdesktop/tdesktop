@@ -80,14 +80,15 @@ Paint::Paint(
 	const QSize &imageSize,
 	std::shared_ptr<Controllers> controllers,
 	Fn<QImage(QRect)> blurSource,
-	bool fixedCrop)
+	const EditorData &data)
 : RpWidget(parent)
 , _controllers(controllers)
 , _scene(EnsureScene(modifications, imageSize))
 , _view(base::make_unique_q<QGraphicsView>(_scene.get(), this))
 , _viewport(_view->viewport())
 , _imageSize(imageSize)
-, _fixedCrop(fixedCrop) {
+, _fixedCrop(data.fixedCrop)
+, _composeAnimated(data.composeAnimated) {
 	Expects(modifications.paint != nullptr);
 
 	_scene->setBlurSource(std::move(blurSource));
@@ -565,7 +566,7 @@ rpl::producer<bool> Paint::shapeToolStates() const {
 bool Paint::canHandleMimeData(const QMimeData *data) const {
 	return data
 		&& !_textEditing.current()
-		&& Storage::ValidatePhotoEditorMediaDragData(data);
+		&& Storage::ValidatePhotoEditorMediaDragData(data, _composeAnimated);
 }
 
 void Paint::handleMimeData(const QMimeData *data) {
@@ -584,13 +585,16 @@ void Paint::choosePhotoFile() {
 	FileDialog::GetOpenPath(
 		this,
 		tr::lng_choose_image(tr::now),
-		FileDialog::PhotoVideoFilesFilter(),
+		(_composeAnimated
+			? FileDialog::PhotoVideoFilesFilter()
+			: FileDialog::ImagesFilter()),
 		crl::guard(this, callback));
 }
 
 void Paint::addMedia(Storage::PhotoEditorMedia &&media) {
 	const auto &image = media.image;
 	if (!media
+		|| (media.video() && !_composeAnimated)
 		|| !Ui::ValidateThumbDimensions(image.width(), image.height())) {
 		_controllers->show->showBox(
 			Ui::MakeInformBox(tr::lng_edit_media_invalid_file()));

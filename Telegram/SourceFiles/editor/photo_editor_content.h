@@ -67,6 +67,7 @@ private:
 
 	const QSize _photoSize;
 	const bool _fixedCrop = false;
+	const bool _composeAnimated = false;
 	const base::unique_qptr<Paint> _paint;
 	const base::unique_qptr<Crop> _crop;
 	const std::shared_ptr<Image> _photo;

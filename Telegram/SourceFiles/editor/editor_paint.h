@@ -37,7 +37,7 @@ public:
 		const QSize &imageSize,
 		std::shared_ptr<Controllers> controllers,
 		Fn<QImage(QRect)> blurSource,
-		bool fixedCrop = false);
+		const EditorData &data);
 	~Paint() override;
 
 	[[nodiscard]] std::shared_ptr<Scene> saveScene() const;
@@ -110,6 +110,7 @@ private:
 	QPointer<QWidget> _viewport;
 	const QSize _imageSize;
 	const bool _fixedCrop = false;
+	const bool _composeAnimated = false;
 	QRect _imageGeometry;
 	QRect _outerGeometry;
 

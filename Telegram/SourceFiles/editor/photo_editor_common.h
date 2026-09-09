@@ -44,6 +44,7 @@ struct EditorData {
 	bool keepAspectRatio = false;
 	bool fixedCrop = false;
 	bool forOtherUser = false;
+	bool composeAnimated = false;
 };
 
 struct PhotoModifications {

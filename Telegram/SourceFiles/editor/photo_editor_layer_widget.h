@@ -36,7 +36,8 @@ void OpenWithPreparedFile(
 	int previewWidth,
 	Fn<void(bool ok)> &&doneCallback,
 	int sideLimit = 0,
-	QSize exactSize = {});
+	QSize exactSize = {},
+	bool composeAnimated = false);
 
 void PrepareProfilePhoto(
 	not_null<QWidget*> parent,

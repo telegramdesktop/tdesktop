@@ -1437,7 +1437,9 @@ void SendFilesBox::pushBlock(int from, int till) {
 			&_list.files[index],
 			st::sendMediaPreviewSize,
 			std::move(done),
-			PhotoSideLimit(true));
+			PhotoSideLimit(true),
+			QSize(),
+			true);
 	};
 	const auto replaceAttachment = [=, show = _show](int index) {
 		applyBlockChanges();

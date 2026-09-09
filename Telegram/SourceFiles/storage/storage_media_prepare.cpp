@@ -77,7 +77,9 @@ void PrepareDetailsInParallel(PreparedList &result, int previewWidth) {
 
 } // namespace
 
-bool ValidatePhotoEditorMediaDragData(not_null<const QMimeData*> data) {
+bool ValidatePhotoEditorMediaDragData(
+		not_null<const QMimeData*> data,
+		bool withVideo) {
 	const auto urls = Core::ReadMimeUrls(data);
 	if (urls.size() > 1) {
 		return false;
@@ -91,7 +93,7 @@ bool ValidatePhotoEditorMediaDragData(not_null<const QMimeData*> data) {
 			using namespace Core;
 			const auto file = Platform::File::UrlToLocal(url);
 			const auto mime = MimeTypeForFile(QFileInfo(file)).name();
-			return FileLoadTask::IsVideoFile(file, mime)
+			return (withVideo && FileLoadTask::IsVideoFile(file, mime))
 				|| (FileIsImage(file, mime) && QImageReader(file).canRead());
 		}
 	}

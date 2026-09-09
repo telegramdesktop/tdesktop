@@ -28,7 +28,8 @@ void OpenWithPreparedFile(
 		int previewWidth,
 		Fn<void(bool ok)> &&doneCallback,
 		int sideLimit,
-		QSize exactSize) {
+		QSize exactSize,
+		bool composeAnimated) {
 	using ImageInfo = Ui::PreparedFileInformation::Image;
 	const auto image = std::get_if<ImageInfo>(&file->information->media);
 	if (!image) {
@@ -67,7 +68,11 @@ void OpenWithPreparedFile(
 		show,
 		fileImage,
 		image->modifications,
-		EditorData{ .exactSize = exactSize, .keepAspectRatio = keepRatio });
+		EditorData{
+			.exactSize = exactSize,
+			.keepAspectRatio = keepRatio,
+			.composeAnimated = composeAnimated,
+		});
 	const auto raw = editor.get();
 	auto layer = std::make_unique<LayerWidget>(parent, std::move(editor));
 	InitEditorLayer(layer.get(), raw, std::move(callback));
