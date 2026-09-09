@@ -1533,6 +1533,25 @@ QByteArray Session::publicKey() const {
 
 auto Session::transferWalletIdentity() const
 -> std::optional<TransferWalletIdentity> {
+	if (_presence.current() == Presence::Unknown && _custody
+		&& !_custodyReadFailed && !_custody->pendingRotation
+		&& _custody->records.size() == 1) {
+		const auto &record = _custody->records.front();
+		const auto address = CanonicalAddress(record.address);
+		if (record.active
+			&& record.network == int(engine::Network::kMainnet)
+			&& record.publicKey.size() == kCustodyPublicKeySize
+			&& record.publicKey == _custody->lastSeenServerKey
+			&& !record.recordId.isEmpty()
+			&& !record.secretRef.isEmpty()
+			&& !address.isEmpty()) {
+			return TransferWalletIdentity{
+				.address = address,
+				.publicKey = record.publicKey,
+				.revision = _walletIdentityRevision,
+			};
+		}
+	}
 	if (_presence.current() != Presence::Ready
 		|| _address.isEmpty()
 		|| _publicKey.size() != kCustodyPublicKeySize) {
@@ -1728,6 +1747,10 @@ bool Session::custodyBusy() const {
 std::shared_ptr<CommentScope> Session::createCommentScope(
 		TransferItem target,
 		rpl::lifetime &lifetime) {
+	const auto &store = custody();
+	if (!target.walletIdentity) {
+		target.walletIdentity = transferWalletIdentity();
+	}
 	if (!target.walletIdentity
 		|| !transferWalletIdentityCurrent(*target.walletIdentity)
 		|| target.id.isEmpty()
@@ -1761,12 +1784,13 @@ std::shared_ptr<CommentScope> Session::createCommentScope(
 	state->vault = vault().shared_from_this();
 	state->generation = _networkGeneration;
 	state->epoch = vault().clearEpoch();
-	if (const auto record = _custody->matching(_publicKey)) {
-		if (!_engine->client() || _clientRecordId != record->recordId) {
-			return nullptr;
-		}
+	if (const auto record = store.matching(state->target.walletIdentity->publicKey)) {
 		state->record = *record;
-	} else if (_engine->client()) {
+	}
+	updateDeviceCustodyState();
+	if (state->record
+		? (!_engine->client() || _clientRecordId != state->record->recordId)
+		: bool(_engine->client())) {
 		return nullptr;
 	}
 	const auto scope = std::shared_ptr<CommentScope>(new CommentScope(state));
@@ -1784,7 +1808,9 @@ std::shared_ptr<CommentScope> Session::createCommentScope(
 }
 
 bool Session::commentAccessAvailable() const {
-	return _custody.has_value()
+	const auto identity = transferWalletIdentity();
+	return identity.has_value()
+		&& _custody.has_value()
 		&& !_custodyReadFailed
 		&& _custody->records.size() <= 1
 		&& !_custody->pendingRotation
@@ -1793,7 +1819,7 @@ bool Session::commentAccessAvailable() const {
 		&& !_sendUnresolved
 		&& _sendState.current() == SendState::Idle
 		&& !ranges::any_of(_custody->records, [&](const CustodyRecord &record) {
-			return record.publicKey != _publicKey;
+			return record.publicKey != identity->publicKey;
 		});
 }
 
@@ -1811,7 +1837,7 @@ bool Session::commentScopeCurrent(
 		scope->cancel();
 		return false;
 	}
-	const auto current = _custody->matching(_publicKey);
+	const auto current = _custody->matching(state.target.walletIdentity->publicKey);
 	if ((current != nullptr) != state.record.has_value()
 		|| (current && (!SameCommentRecord(*current, *state.record)
 			|| !current->active
@@ -3702,17 +3728,17 @@ void Session::reconcileCustody() {
 }
 
 void Session::updateDeviceCustodyState() {
-	if (_presence.current() != Presence::Ready
-		|| _publicKey.size() != kCustodyPublicKeySize) {
+	const auto &store = custody();
+	const auto identity = transferWalletIdentity();
+	if (!identity) {
 		return;
 	}
-	const auto &store = custody();
 	const auto conflict = ranges::any_of(
 		store.records,
 		[&](const CustodyRecord &record) {
-			return record.publicKey != _publicKey;
+			return record.publicKey != identity->publicKey;
 		});
-	const auto mode = store.matching(_publicKey)
+	const auto mode = store.matching(identity->publicKey)
 		? DeviceMode::Full
 		: _capabilities.current().canExportPhrase
 		? DeviceMode::ReadOnlyRestorable
@@ -3726,9 +3752,10 @@ void Session::updateDeviceCustodyState() {
 }
 
 void Session::syncEngineClient() {
-	const auto ready = (_presence.current() == Presence::Ready)
-		&& (_publicKey.size() == kCustodyPublicKeySize);
-	const auto wanted = ready ? custody().matching(_publicKey) : nullptr;
+	const auto identity = transferWalletIdentity();
+	const auto wanted = identity
+		? custody().matching(identity->publicKey)
+		: nullptr;
 	if (_engine->client()) {
 		if ((wanted && _clientRecordId == wanted->recordId)
 			|| _clientStopping) {
@@ -3749,7 +3776,9 @@ void Session::syncEngineClient() {
 	try {
 		_engine->startClient(ClientConfigFromRecord(*wanted));
 		_clientRecordId = wanted->recordId;
-		requestEngineRefresh();
+		if (_presence.current() == Presence::Ready) {
+			requestEngineRefresh();
+		}
 	} catch (...) {
 		LOG(("Wallet Error: engine client start refused: %1"
 			).arg(ClientErrorName(std::current_exception())));
