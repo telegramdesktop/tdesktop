@@ -1307,7 +1307,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_proxy_edit_share_list_button" = "Share Proxy List";
 "lng_proxy_edit_share_list_toast" = "Proxy List copied to clipboard.";
 "lng_proxy_address_label" = "Socket address";
-"lng_proxy_web_host_label" = "Web proxy hostname";
+"lng_proxy_web_server_label" = "Web proxy server";
 "lng_proxy_web_host_ph" = "proxy.example.com";
 "lng_proxy_credentials_optional" = "Credentials (optional)";
 "lng_proxy_credentials" = "Credentials";

@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QThread>
 #include <QtCore/QTimer>
 #include <QtCore/QUrl>
-#include <QtCore/QUrlQuery>
 #include <QtNetwork/QHostAddress>
 #include <QtNetwork/QTcpServer>
 #include <QtNetwork/QTcpSocket>
@@ -1599,20 +1598,17 @@ void Transport::Private::writeHttp(
 }
 
 QByteArray Transport::Private::bridgeControl() const {
-	auto bridge = QUrl(u"https://"_q + _proxy.host);
-	bridge.setPath(u"/"_q);
-	auto query = QUrlQuery();
-	query.addQueryItem(u"bridge"_q, WebProxyBridgeCapability(_proxy));
-	bridge.setQuery(query);
 	return QJsonDocument(QJsonObject{
 		{ u"t"_q, u"bridge"_q },
-		{ u"url"_q, bridge.toString(QUrl::FullyEncoded) },
+		{ u"url"_q, WebProxyBridgeUrl(_proxy) },
 	}).toJson(QJsonDocument::Compact);
 }
 
 QByteArray Transport::Private::page(const QString &nonce) const {
 	const auto origin = QUrl(u"https://"_q + _proxy.host);
-	const auto target = JsonString(origin.toString(QUrl::FullyEncoded));
+	const auto encoded = origin.toString(QUrl::FullyEncoded);
+	const auto target = JsonString(encoded);
+	const auto base = JsonString(encoded + WebProxyBridgePath(_proxy));
 	const auto html = uR"HTML(<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -1624,7 +1620,7 @@ main{width:min(34rem,calc(100% - 4rem));padding:2rem;text-align:center}h1{font-s
 <main><h1>Telegram Web Proxy</h1><p id="state">Connecting to Telegram Desktop…</p><dl class="traffic"><div><dt>Sent through HTTPS</dt><dd><span id="up-total">0 B</span><small id="up-rate">0 B/s</small></dd></div><div><dt>Received through HTTPS</dt><dd><span id="down-total">0 B</span><small id="down-rate">0 B/s</small></dd></div></dl><p>Keep this tab open while using Telegram.</p><p class="note">Counts obfuscated carrier payload after successful requests; HTTPS overhead is not included.</p></main>
 <script nonce="%2">
 (()=>{
-const relayOrigin=%1,state=document.getElementById('state');
+const relayOrigin=%1,relayBase=%3,state=document.getElementById('state');
 const upTotal=document.getElementById('up-total'),downTotal=document.getElementById('down-total'),upRate=document.getElementById('up-rate'),downRate=document.getElementById('down-rate');
 const traffic={up:0,down:0,lastUp:0,lastDown:0,lastAt:performance.now()};
 const formatBytes=value=>{const units=['B','KiB','MiB','GiB','TiB'];let unit=0;while(value>=1024&&unit<units.length-1){value/=1024;unit++}return value.toFixed(unit&&value<100?1:0)+' '+units[unit]};
@@ -1676,7 +1672,7 @@ const openBridge=url=>{if(iframe||localClosed)return;iframe=document.createEleme
  iframe.src=url;document.body.appendChild(iframe)};
 local.onmessage=e=>{if(e.data instanceof ArrayBuffer){if(initialized)port.postMessage(e.data,[e.data]);else pending.push(e.data);return}
  if(typeof e.data!=='string')return;let control=null;try{control=JSON.parse(e.data)}catch(error){return}
- if(!control||typeof control!=='object'||control.t!=='bridge'||typeof control.url!=='string'||!control.url.startsWith(relayOrigin+'/?bridge='))return;openBridge(control.url)};
+ if(!control||typeof control!=='object'||control.t!=='bridge'||typeof control.url!=='string'||!control.url.startsWith(relayBase+'?bridge='))return;openBridge(control.url)};
 port.onmessage=e=>{if(e.data instanceof ArrayBuffer){if(local.readyState===WebSocket.OPEN){if(local.bufferedAmount>localQueueLimit-e.data.byteLength){state.textContent='Telegram Desktop is not consuming proxy data.';local.close();return}try{local.send(e.data)}catch(error){local.close()}}return}
  if(e.data&&e.data.t==='status'){const s=e.data.state;state.textContent=s==='connected'?'Connected. Keep this tab open.':s==='failed'?'The proxy site is unavailable.':'Connecting to the proxy site…';if(local.readyState===WebSocket.OPEN)local.send(JSON.stringify(e.data));return}
  if(e.data&&e.data.t==='traffic'){const up=e.data.up,down=e.data.down;if(Number.isSafeInteger(up)&&up>=0&&Number.isSafeInteger(down)&&down>=0){traffic.up+=up;traffic.down+=down}return}
@@ -1684,7 +1680,7 @@ port.onmessage=e=>{if(e.data instanceof ArrayBuffer){if(local.readyState===WebSo
 addEventListener('pagehide',stopRtc,{once:true});
 addEventListener('pageshow',startRtc);
 })();
-</script>)HTML"_q.arg(target, nonce).toUtf8();
+</script>)HTML"_q.arg(target, nonce, base).toUtf8();
 	return html;
 }
 

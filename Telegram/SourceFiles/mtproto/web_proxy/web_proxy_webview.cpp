@@ -20,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QThread>
 #include <QtCore/QTimer>
 #include <QtCore/QUrl>
-#include <QtCore/QUrlQuery>
 #include <crl/crl_time.h>
 
 namespace MTP::WebProxy {
@@ -56,11 +55,7 @@ static_assert(kMaxMessageBytes >= kMaxFrameMessageBytes);
 [[nodiscard]] QString BridgeUrl(
 		const ProxyData &proxy,
 		const QString &nonce) {
-	auto result = QUrl(u"https://"_q + proxy.host);
-	result.setPath(u"/"_q);
-	auto query = QUrlQuery();
-	query.addQueryItem(u"bridge"_q, WebProxyBridgeCapability(proxy));
-	result.setQuery(query);
+	auto result = QUrl(WebProxyBridgeUrl(proxy));
 	result.setFragment(u"android="_q + nonce);
 	return result.toString(QUrl::FullyEncoded);
 }
@@ -400,7 +395,7 @@ bool WebviewCarrier::validSource(const std::string &sourceUrl) const {
 		|| url.host(QUrl::EncodeUnicode) != _proxy.host
 		|| url.port(443) != 443
 		|| !url.userInfo().isEmpty()
-		|| url.path() != u"/"_q
+		|| url.path() != WebProxyBridgePath(_proxy)
 		|| (!url.query().isEmpty()
 			&& url.query(QUrl::FullyEncoded)
 				!= expected.query(QUrl::FullyEncoded))) {

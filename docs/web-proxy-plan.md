@@ -17,7 +17,7 @@ MTProto session threads
   -> process-wide WebProxy::Transport (one worker thread)
   -> one hidden platform WebView
   -> injected exact-origin TelegramWebProxy bridge
-  -> https://relay.example/?bridge=<derived-capability>#android=<nonce>
+  -> https://relay.example/[base-path/]?bridge=<derived-capability>#android=<nonce>
   -> HTTPS carrier
   -> hosted relay
   -> stock MTProxy
@@ -51,7 +51,8 @@ The initial draft left several architectural choices open. They are now fixed:
    A-label hostname. Scheme, port, path, query, fragment, user info, IP addresses
    (including WHATWG "ends in a number" shorthands such as `127.1` or `0x7f.1`),
    and single-label names are rejected. `port` is fixed to `443`; `password` stores
-   the MTProxy secret. Operators should publish WEB hostnames in ACE (`xn--…`)
+   the MTProxy secret; `user` stores the optional base path slug (§3.1).
+   Operators should publish WEB hostnames in ACE (`xn--…`)
    form: ACE input round-trips unchanged on every platform, while a hand-typed
    Unicode host is mapped by the Qt version the build ships (IDNA2003/nameprep
    on the Qt 5.15 Windows builds, UTS #46 nontransitional on Qt 6), so hosts
@@ -87,15 +88,53 @@ WEB maps those fields as follows:
 |---|---|
 | `host` | canonical lowercase ASCII/IDNA A-label hostname |
 | `port` | fixed value `443` |
-| `user` | empty |
+| `user` | empty, or the canonical base path slug (§3.1) |
 | `password` | existing MTProxy secret syntax |
 
-Validation requires both a valid DNS hostname and a supported MTProxy secret. Plain
-16-byte and `dd` random-padding secrets are accepted; `ee` TLS-emulation secrets are
+Validation requires a non-empty valid DNS hostname, a canonical base path, and a
+supported MTProxy secret. Plain 16-byte and `dd` random-padding secrets are
+accepted; `ee` TLS-emulation secrets are
 rejected because the stock MTProxy would expect an inner TLS-emulation record that
 this raw relay deliberately does not add. Unknown future serialized type codes
 deserialize to `None` instead of reaching
 `Unexpected`, so downgrades skip an unsupported proxy rather than crashing.
+
+### 3.1 Optional base path
+
+A WEB proxy address is a hostname with an optional base path,
+`proxy.example.com` or `proxy.example.com/dobry-cola-super-app`, so a production
+origin can keep serving its own site and route only that prefix to the relay.
+Every WEB endpoint moves under the prefix together; nothing stays at the root:
+
+```text
+no base path:                 base path `dobry-cola-super-app`:
+  GET  /?bridge=…               GET  /dobry-cola-super-app/?bridge=…
+  POST /api/v1/session          POST /dobry-cola-super-app/api/v1/session
+  POST /api/v1/up               POST /dobry-cola-super-app/api/v1/up
+  POST /api/v1/down             POST /dobry-cola-super-app/api/v1/down
+  GET  /api/v1/ws               GET  /dobry-cola-super-app/api/v1/ws
+```
+
+The address is one field everywhere it is entered, displayed, or shared: the
+editor, the confirmation box, the proxy row, and the `server` link parameter all
+carry `host` or `host/path`. The path is one or more `/`-separated ASCII segments,
+each matching `[A-Za-z0-9][A-Za-z0-9_-]*`, at most 128 characters in total, stored
+with no leading or trailing `/`. `%xx` escapes, Unicode and empty segments are
+rejected rather than repaired, so the serialized value and the wire path are the
+same string; `.` is not in the alphabet, so dot segments cannot occur. The host is
+case-insensitive and stored lowercased, while the path is case-sensitive and never
+folded, so `Proxy.Example.COM/My-App` normalizes to `proxy.example.com/My-App`,
+and a pasted `https://` prefix is stripped on save. Only the trailing-slash
+form `/<slug>/` is served; the client never requests `/<slug>` and the relay is not
+expected to redirect it, which would add another observable branch.
+
+The slug is a namespace, not a credential: it isolates the relay from the rest of
+the site and keeps generic scanners away from the carrier endpoints, but the
+bootstrap capability, session bearer, and MTProxy secret remain the authentication.
+A random slug raises the cost of finding the deployment; it does not replace any of
+them. Storing it in the otherwise unused `user` field keeps the serialized proxy
+blob unchanged and makes a client without this feature report the entry as invalid
+instead of silently connecting to the host root.
 
 WEB behaves like MTProxy throughout the existing model:
 
@@ -417,7 +456,7 @@ forever.
 The local parent reads and scrubs its independent one-shot loopback capability,
 connects the local WebSocket, waits for the `bridge` text message, and only then
 creates an iframe (with limited `sandbox` flags and `referrerPolicy` set before
-`src`) for that URL, which must begin with `relayOrigin + '/?bridge='`, and
+`src`) for that URL, which must begin with `relayOrigin + base + '?bridge='`, and
 establishes a `MessageChannel`.
 
 The parent also creates two same-page `RTCPeerConnection`s with an empty ICE-server
@@ -432,21 +471,31 @@ background freezing, intensive timer throttling, and normal automatic discard ri
 but it is not a correctness dependency: manual tab closure, browser or OS
 termination, and urgent discard remain ordinary transport loss.
 
-For a canonical hostname `H` and decoded WEB secret bytes `S`, including the leading
-`dd` byte when present, it computes:
+For a canonical hostname `H`, a canonical base path `P` (empty at the host root),
+and decoded WEB secret bytes `S`, including the leading `dd` byte when present, it
+computes:
 
 ```text
-context = UTF-8("tdesktop-web-proxy-bridge-v1\n" + H)
-bridge = base64url-no-padding(HMAC-SHA256(key=S, message=context))
-bridgeUrl = "https://" + H + "/?bridge=" + bridge
+base     = P is empty ? "/" : "/" + P + "/"
+context  = P is empty
+             ? UTF-8("tdesktop-web-proxy-bridge-v1\n" + H)
+             : UTF-8("tdesktop-web-proxy-bridge-v2\n" + H + "\n" + P)
+bridge   = base64url-no-padding(HMAC-SHA256(key=S, message=context))
+bridgeUrl = "https://" + H + base + "?bridge=" + bridge
 ```
+
+The root derivation is the frozen v1 context, byte for byte. A base path uses its
+own v2 context so a capability minted for one prefix authenticates nothing at
+another prefix or at the root.
 
 Normative vectors:
 
-| Hostname | Decoded secret hex | `bridge` |
-|---|---|---|
-| `proxy.example.com` | `000102030405060708090a0b0c0d0e0f` | `MHLEY5PmW1GWqJkSrlmJpvJUiLhBH_QKy6yKg8a0JPk` |
-| `proxy.example.com` | `dd000102030405060708090a0b0c0d0e0f` | `IpJrt3e7sKtzPyoXy6w-Zj6GGEvsvclN66JzQEfPYLA` |
+| Hostname | Base path | Decoded secret hex | `bridge` |
+|---|---|---|---|
+| `proxy.example.com` | | `000102030405060708090a0b0c0d0e0f` | `MHLEY5PmW1GWqJkSrlmJpvJUiLhBH_QKy6yKg8a0JPk` |
+| `proxy.example.com` | | `dd000102030405060708090a0b0c0d0e0f` | `IpJrt3e7sKtzPyoXy6w-Zj6GGEvsvclN66JzQEfPYLA` |
+| `proxy.example.com` | `dobry-cola-super-app` | `000102030405060708090a0b0c0d0e0f` | `hHz99Xs93EN1j91G9gpNepXwGNNt5YdAFkEVk_LlqdQ` |
+| `proxy.example.com` | `dobry-cola-super-app` | `dd000102030405060708090a0b0c0d0e0f` | `TGUkZaevsavLbHvlNWipnRoYxgzZ51ioWvbxgGT3wHo` |
 
 The derived capability is constructed in memory in tdesktop and is neither stored
 nor shown in proxy settings. On iframe load the parent sends exactly:
@@ -479,11 +528,12 @@ confirmation or row menu can mint a fresh capability and open a new tab.
 
 Proxy settings expose a fourth `WEB` radio option. The editor shows:
 
-- one proxy hostname field;
+- one proxy address field, holding `host` or `host/path`, which also accepts a
+  pasted `https://` prefix and strips it on save;
 - one MTProxy secret field;
 - no socket host/port pair and no username/password controls.
 
-Rows display only the hostname. Inactive WEB rows show `not tested` without creating
+Rows display only that address. Inactive WEB rows show `not tested` without creating
 a checker, WebView, or browser tab. Only the exact active WEB row shows the live
 transport lifecycle. `Open browser` is offered only after the built-in carrier has
 failed. WEB remains unsupported for calls. Because the backend is still MTProxy,
@@ -492,19 +542,20 @@ confirmation) and promotion refresh behavior. Like MTProxy, the WEB hostname is
 what `initConnection` reports as the proxy address; QNetworkAccessManager traffic
 outside MTProto is not routed through the WEB carrier.
 
-WEB links use `webproxy`, a canonical hostname, and the MTProxy secret. Port 443 is
+WEB links use `webproxy`, a canonical address, and the MTProxy secret. Port 443 is
 implicit and is neither accepted from the link nor displayed in its confirmation:
 
 ```text
-https://t.me/webproxy?server=<hostname>&secret=<secret>
-tg://webproxy?server=<hostname>&secret=<secret>
+https://t.me/webproxy?server=<address>&secret=<secret>
+tg://webproxy?server=<address>&secret=<secret>
 ```
 
-The parser also accepts `host` when `server` is absent for compatibility with the
-Android fork. Generated public links always use `server`. Following either link
-shows the hostname and secret with one connect action. It does not check status or
-enable the proxy until that action is invoked. Saved WEB entries can be shared as a
-public link or a direct-scheme QR link.
+`<address>` is the percent-encoded `host` or `host/path`, so a base path travels in
+the same parameter as `proxy.example.com%2Fdobry-cola-super-app`. There is no
+separate path parameter. Following either link shows the address and secret with
+one connect action. It does not check status or enable the proxy until that action
+is invoked. Saved WEB entries can be shared as a public link or a direct-scheme QR
+link.
 
 Application proxy changes configure/deconfigure the web transport before MTP
 sessions restart. WEB follows the MTProxy path in `Session`, `SessionPrivate`, and
@@ -518,7 +569,8 @@ opening a WebView or browser.
 - Local authentication requires the minted fragment capability.
 - The local protocol has no arbitrary destination command. `OPEN` originates only
   from tdesktop and the relay is expected to dial one configured stock MTProxy.
-- The configured value is a canonical DNS hostname; HTTPS and port 443 are fixed.
+- The configured value is a canonical DNS hostname plus an optional canonical base
+  path; HTTPS and port 443 are fixed.
 - The bridge URL contains only the domain-separated derived capability, never the raw
   MTProxy secret.
 - Frame, WebSocket, HTTP-header, local-client-count, receive-window, and
@@ -540,8 +592,9 @@ opening a WebView or browser.
 
 The server must provide all of these before the separate test plan can pass:
 
-1. `https://<hostname>/?bridge=<derived-capability>` implements the exact derivation,
-   ordinary-site fallback, `MessageChannel`, close, and status contracts above.
+1. `https://<hostname>/[<base-path>/]?bridge=<derived-capability>` implements the
+   exact derivation, ordinary-site fallback, `MessageChannel`, close, and status
+   contracts above, with every carrier endpoint under the same prefix.
 2. Its CSP allows framing by random numeric loopback origins. A suitable source is
    `http://127.0.0.1:*`; `X-Frame-Options` must not block the embed.
 3. The bridge accepts the v1 `HELLO` frame, establishes a reliable ordered carrier,

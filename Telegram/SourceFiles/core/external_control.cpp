@@ -257,10 +257,16 @@ void RequestEnableAutomation() {
 	return u"system"_q;
 }
 
+[[nodiscard]] QString ProxyAddress(const MTP::ProxyData &proxy) {
+	return (proxy.type == MTP::ProxyData::Type::Web)
+		? proxy.webAddress()
+		: proxy.host;
+}
+
 [[nodiscard]] QString ProxyLabel(const MTP::ProxyData &proxy) {
 	return ProxyTypeName(proxy.type)
 		+ u" "_q
-		+ proxy.host
+		+ ProxyAddress(proxy)
 		+ u":"_q
 		+ QString::number(proxy.port);
 }
@@ -309,7 +315,7 @@ void ShowUndoToast(const QString &text, Fn<void()> undo) {
 		auto object = QJsonObject();
 		object.insert(u"id"_q, index++);
 		object.insert(u"type"_q, ProxyTypeName(proxy.type));
-		object.insert(u"host"_q, proxy.host);
+		object.insert(u"host"_q, ProxyAddress(proxy));
 		object.insert(u"port"_q, int(proxy.port));
 		object.insert(u"selected"_q, (proxy == selected));
 		list.append(object);
