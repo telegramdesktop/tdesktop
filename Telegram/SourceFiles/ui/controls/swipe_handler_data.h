@@ -20,12 +20,10 @@ struct SwipeContextData final {
 		return !empty();
 	}
 
-	// The system reports the gesture deltas in the scroll direction, so with
-	// the natural scrolling turned off they are the opposite of the finger
-	// movement. The translation sign follows the gesture and tells which of
-	// the two actions was started, while the content should follow the
-	// finger, so this one gives the direction to paint it moving in.
-	[[nodiscard]] int visualTranslation() const {
+	[[nodiscard]] int visualTranslationFor(int64 bareId) const {
+		if (!translation || (msgBareId != bareId)) {
+			return 0;
+		}
 		return inverted ? translation : -translation;
 	}
 

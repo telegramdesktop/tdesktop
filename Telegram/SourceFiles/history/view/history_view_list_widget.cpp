@@ -3238,11 +3238,9 @@ void ListWidget::paintUserpics(
 		// paint the userpic if it intersects the painted rect
 		if (userpicTop + st::msgPhotoSize > clip.top()) {
 			const auto item = view->data();
-			const auto hasTranslation = context.gestureHorizontal.translation
-				&& (context.gestureHorizontal.msgBareId
-					== item->fullId().msg.bare);
-			const auto shift = context.gestureHorizontal.visualTranslation();
-			if (hasTranslation) {
+			const auto shift = context.gestureHorizontal.visualTranslationFor(
+				item->id.bare);
+			if (shift) {
 				p.translate(shift, 0);
 				update(
 					QRect(
@@ -3286,7 +3284,7 @@ void ListWidget::paintUserpics(
 			} else {
 				Unexpected("Corrupt forwarded information in message.");
 			}
-			if (hasTranslation) {
+			if (shift) {
 				p.translate(-shift, 0);
 			}
 		}

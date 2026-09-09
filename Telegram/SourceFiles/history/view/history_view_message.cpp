@@ -1721,10 +1721,9 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 	const auto item = data();
 	const auto media = this->media();
 
-	const auto hasGesture = context.gestureHorizontal.translation
-		&& (context.gestureHorizontal.msgBareId == item->fullId().msg.bare);
-	const auto gestureShift = context.gestureHorizontal.visualTranslation();
-	if (hasGesture) {
+	const auto gestureShift = context.gestureHorizontal.visualTranslationFor(
+		item->id.bare);
+	if (gestureShift) {
 		p.translate(gestureShift, 0);
 	}
 	const auto selectionModeResult = delegate()->elementInSelectionMode(this);
@@ -2228,7 +2227,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			}
 		}
 	}
-	if (hasGesture) {
+	if (gestureShift) {
 		p.translate(-gestureShift, 0);
 		if (context.reactionInfo && context.reactionInfo->effectPaint) {
 			context.reactionInfo->effectOffset += QPoint(gestureShift, 0);
