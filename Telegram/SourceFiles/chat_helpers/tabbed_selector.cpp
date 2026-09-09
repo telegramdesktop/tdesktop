@@ -754,7 +754,18 @@ auto TabbedSelector::choosingStickerUpdated() const
 }
 
 rpl::producer<> TabbedSelector::cancelled() const {
-	return hasGifsTab() ? gifs()->cancelRequests() : nullptr;
+	// The emoji list asks to hide as well, once the keyboard is done with
+	// it - an emoji chosen or Escape pressed.
+	auto result = rpl::producer<>();
+	if (hasGifsTab()) {
+		result = gifs()->cancelRequests();
+	}
+	if (hasEmojiTab()) {
+		result = result
+			? rpl::merge(std::move(result), emoji()->hideRequests())
+			: emoji()->hideRequests();
+	}
+	return result;
 }
 
 rpl::producer<> TabbedSelector::checkForHide() const {

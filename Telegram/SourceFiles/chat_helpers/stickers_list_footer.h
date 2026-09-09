@@ -158,12 +158,31 @@ public:
 
 	[[nodiscard]] static int IconFrameSize();
 
+	// The icons as the items of a list for a screen reader - a category
+	// or a set each, the "all categories" icon as one per category, the
+	// settings button first where there is one - walked with the
+	// keyboard: Left and Right, Home and End, Enter or Space chooses.
+	QAccessible::Role accessibilityRole() override;
+	Qt::FocusPolicy accessibilityFocusPolicy() override;
+	int accessibilityChildCount() const override;
+	QAccessible::Role accessibilityChildRole() const override;
+	QString accessibilityChildName(int index) const override;
+	QRect accessibilityChildRect(int index) const override;
+	QAccessible::State accessibilityChildState(int index) const override;
+	bool accessibilityChildSupportsActions(int index) const override;
+	quintptr accessibilityChildIdentity(int index) const override;
+	int accessibilityChildIndexByIdentity(quintptr identity) const override;
+	void accessibilityChildSetFocus(quintptr identity) override;
+	void accessibilityChildActivate(quintptr identity) override;
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
+	void focusInEvent(QFocusEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 	bool eventHook(QEvent *e) override;
 
 	void processHideFinished() override;
@@ -268,6 +287,20 @@ private:
 		QPainter &p,
 		const ExpandingContext &context) const;
 
+	// The list a screen reader sees: an item is the settings button, an
+	// icon, or one category of the "all categories" icon.
+	struct AccessibleChild {
+		bool settings = false;
+		IconId icon;
+	};
+	[[nodiscard]] std::optional<AccessibleChild> accessibleChild(
+		int index) const;
+	[[nodiscard]] int accessibleIndex(const OverState &over) const;
+	[[nodiscard]] int accessibleActiveIndex() const;
+	[[nodiscard]] QString iconTitle(const StickerIcon &icon) const;
+	void keyboardSelect(int index, bool announce);
+	void activateChild(const AccessibleChild &child);
+
 	void updateEmojiSectionWidth();
 	void updateEmojiWidthCallback();
 
@@ -314,6 +347,8 @@ private:
 	Ui::Animations::Simple _subiconsWidthAnimation;
 	int _subiconsWidth = 0;
 	bool _subiconsExpanded = false;
+	// The item the keyboard is on, an index into the list above.
+	int _keyboardSelected = -1;
 	bool _repaintScheduled = false;
 	bool _forceFirstFrame = false;
 

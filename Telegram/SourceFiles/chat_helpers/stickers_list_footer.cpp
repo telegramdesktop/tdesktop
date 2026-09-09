@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_list_footer.h"
 
 #include "chat_helpers/emoji_keywords.h"
+#include "chat_helpers/emoji_list_widget.h"
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "core/application.h"
@@ -21,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
+#include "lang/lang_hardcoded.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_single_player.h"
 #include "ui/dpr/dpr_icon.h"
@@ -28,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/buttons.h"
 #include "ui/painter.h"
+#include "ui/screen_reader_mode.h"
 #include "ui/rect_part.h"
 #include "styles/style_chat_helpers.h"
 
@@ -315,6 +318,7 @@ StickersListFooter::StickersListFooter(Descriptor &&descriptor)
 , _subselectionBg(st().iconArea / 2, st().categoriesBgOver)
 , _forceFirstFrame(descriptor.forceFirstFrame) {
 	setMouseTracking(true);
+	setAccessibleName(tr::lng_emoji_categories(tr::now));
 
 	_iconsLeft = st().iconSkip
 		+ (_features.stickersSettings ? st().iconWidth : 0);
@@ -950,6 +954,291 @@ bool StickersListFooter::eventHook(QEvent *e) {
 		}
 	}
 	return InnerFooter::eventHook(e);
+}
+
+std::optional<StickersListFooter::AccessibleChild> StickersListFooter::accessibleChild(
+		int index) const {
+	if (index < 0) {
+		return std::nullopt;
+	}
+	if (_features.stickersSettings && !_icons.empty()) {
+		if (!index) {
+			return AccessibleChild{ .settings = true };
+		}
+		--index;
+	}
+	for (auto i = 0, count = int(_icons.size()); i != count; ++i) {
+		const auto all = (_icons[i].setId == AllEmojiSectionSetId());
+		const auto sub = all
+			? (int(EmojiSection::Symbols) - int(EmojiSection::People) + 1)
+			: 1;
+		if (index < sub) {
+			return AccessibleChild{
+				.icon = { .index = i, .subindex = all ? index : 0 },
+			};
+		}
+		index -= sub;
+	}
+	return std::nullopt;
+}
+
+int StickersListFooter::accessibleIndex(const OverState &over) const {
+	const auto count = accessibilityChildCount();
+	for (auto i = 0; i != count; ++i) {
+		const auto child = accessibleChild(i);
+		if (!child) {
+			break;
+		} else if (child->settings) {
+			if (over == OverState(SpecialOver::Settings)) {
+				return i;
+			}
+		} else if (over == OverState(child->icon)) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+int StickersListFooter::accessibleActiveIndex() const {
+	// The icon of the section shown, with its category.
+	if (_iconState.selected < 0 || _iconState.selected >= _icons.size()) {
+		return -1;
+	}
+	const auto all = (_icons[_iconState.selected].setId
+		== AllEmojiSectionSetId());
+	return accessibleIndex(IconId{
+		.index = _iconState.selected,
+		.subindex = all ? std::max(_subiconState.selected, 0) : 0,
+	});
+}
+
+QString StickersListFooter::iconTitle(const StickerIcon &icon) const {
+	if (const auto section = SetIdEmojiSection(icon.setId)) {
+		return (*section == EmojiSection::Recent)
+			? tr::lng_recent_stickers(tr::now)
+			: EmojiCategoryTitle(int(*section))(tr::now);
+	} else if (icon.setId == Data::Stickers::RecentSetId
+		|| icon.setId == Data::Stickers::CloudRecentSetId) {
+		return tr::lng_recent_stickers(tr::now);
+	} else if (icon.setId == Data::Stickers::FavedSetId) {
+		return Lang::Hard::FavedSetTitle();
+	} else if (icon.setId == Data::Stickers::FeaturedSetId) {
+		return tr::lng_stickers_featured_tab(tr::now);
+	} else if (icon.setId == Data::Stickers::CollectibleSetId) {
+		return tr::lng_collectible_emoji(tr::now);
+	} else if (icon.setId == Data::Stickers::MegagroupSetId) {
+		return icon.megagroup
+			? icon.megagroup->name()
+			: tr::lng_stickers_group_set(tr::now);
+	} else if (icon.set) {
+		return icon.set->title;
+	}
+	return QString();
+}
+
+QAccessible::Role StickersListFooter::accessibilityRole() {
+	return QAccessible::List;
+}
+
+Qt::FocusPolicy StickersListFooter::accessibilityFocusPolicy() {
+	return Qt::TabFocus;
+}
+
+int StickersListFooter::accessibilityChildCount() const {
+	if (_icons.empty()) {
+		return 0;
+	}
+	auto result = _features.stickersSettings ? 1 : 0;
+	for (const auto &icon : _icons) {
+		result += (icon.setId == AllEmojiSectionSetId())
+			? (int(EmojiSection::Symbols) - int(EmojiSection::People) + 1)
+			: 1;
+	}
+	return result;
+}
+
+QAccessible::Role StickersListFooter::accessibilityChildRole() const {
+	return QAccessible::ListItem;
+}
+
+QString StickersListFooter::accessibilityChildName(int index) const {
+	const auto child = accessibleChild(index);
+	if (!child) {
+		return QString();
+	} else if (child->settings) {
+		return tr::lng_stickers_you_have(tr::now);
+	}
+	const auto &icon = _icons[child->icon.index];
+	return (icon.setId == AllEmojiSectionSetId())
+		? EmojiCategoryTitle(
+			int(EmojiSection::People) + child->icon.subindex)(tr::now)
+		: iconTitle(icon);
+}
+
+QRect StickersListFooter::accessibilityChildRect(int index) const {
+	const auto child = accessibleChild(index);
+	if (!child) {
+		return QRect();
+	} else if (child->settings) {
+		return myrtlrect(
+			_iconsLeft - _singleWidth,
+			_iconsTop,
+			_singleWidth,
+			st().footer);
+	}
+	const auto info = iconInfo(child->icon.index);
+	const auto all = (_icons[child->icon.index].setId
+		== AllEmojiSectionSetId());
+	if (all && _subiconsExpanded) {
+		const auto sub = subiconInfo(child->icon.subindex);
+		return myrtlrect(
+			info.adjustedLeft + sub.adjustedLeft,
+			_iconsTop,
+			sub.width,
+			st().footer);
+	}
+	return myrtlrect(info.adjustedLeft, _iconsTop, info.width, st().footer);
+}
+
+QAccessible::State StickersListFooter::accessibilityChildState(
+		int index) const {
+	auto state = QAccessible::State();
+	if (Ui::ScreenReaderModeActive()) {
+		state.focusable = true;
+		state.selectable = true;
+	}
+	const auto child = accessibleChild(index);
+	if (child && !child->settings && index == accessibleActiveIndex()) {
+		// The section shown in the list.
+		state.selected = true;
+	}
+	if (index == _keyboardSelected) {
+		state.active = true;
+		if (hasFocus()) {
+			state.focused = true;
+		}
+	}
+	return state;
+}
+
+bool StickersListFooter::accessibilityChildSupportsActions(
+		int index) const {
+	return accessibilityChildIdentity(index) != 0;
+}
+
+quintptr StickersListFooter::accessibilityChildIdentity(int index) const {
+	// The place in the list names the item; the tag bit keeps it non-zero.
+	return (index >= 0 && index < accessibilityChildCount())
+		? ((quintptr(index) << 1) | quintptr(1))
+		: quintptr(0);
+}
+
+int StickersListFooter::accessibilityChildIndexByIdentity(
+		quintptr identity) const {
+	const auto index = int(identity >> 1);
+	return (identity && index < accessibilityChildCount()) ? index : -1;
+}
+
+void StickersListFooter::accessibilityChildSetFocus(quintptr identity) {
+	crl::on_main(this, [=] {
+		const auto index = accessibilityChildIndexByIdentity(identity);
+		if (index < 0) {
+			return;
+		}
+		keyboardSelect(index, hasFocus());
+		if (!hasFocus()) {
+			setFocus();
+		}
+	});
+}
+
+void StickersListFooter::accessibilityChildActivate(quintptr identity) {
+	crl::on_main(this, [=] {
+		const auto index = accessibilityChildIndexByIdentity(identity);
+		if (const auto child = accessibleChild(index)) {
+			keyboardSelect(index, false);
+			activateChild(*child);
+		}
+	});
+}
+
+void StickersListFooter::keyboardSelect(int index, bool announce) {
+	if (index < 0 || index >= accessibilityChildCount()) {
+		return;
+	}
+	_keyboardSelected = index;
+	update();
+	if (announce) {
+		accessibilityChildFocused(index);
+	}
+}
+
+void StickersListFooter::activateChild(const AccessibleChild &child) {
+	if (child.settings) {
+		_openSettingsRequests.fire({});
+		return;
+	}
+	// As a click on the icon does.
+	const auto &icon = _icons[child.icon.index];
+	const auto info = iconInfo(child.icon.index);
+	_iconState.selectionX = anim::value(info.left, info.left);
+	_iconState.selectionWidth = anim::value(info.width, info.width);
+	_setChosen.fire_copy((icon.setId == AllEmojiSectionSetId())
+		? EmojiSectionSetId(
+			EmojiSection(int(EmojiSection::People) + child.icon.subindex))
+		: icon.setId);
+}
+
+void StickersListFooter::focusInEvent(QFocusEvent *e) {
+	RpWidget::focusInEvent(e);
+	// Land on the section shown, or the item last walked to.
+	const auto count = accessibilityChildCount();
+	if (!count) {
+		return;
+	}
+	const auto active = accessibleActiveIndex();
+	const auto index = (active >= 0)
+		? active
+		: (_keyboardSelected >= 0 && _keyboardSelected < count)
+		? _keyboardSelected
+		: 0;
+	keyboardSelect(index, false);
+	InvokeQueued(this, [=] {
+		if (hasFocus() && _keyboardSelected == index) {
+			accessibilityChildFocused(index);
+		}
+	});
+}
+
+void StickersListFooter::keyPressEvent(QKeyEvent *e) {
+	const auto key = e->key();
+	const auto count = accessibilityChildCount();
+	if (!count) {
+		RpWidget::keyPressEvent(e);
+		return;
+	}
+	const auto current = std::clamp(_keyboardSelected, 0, count - 1);
+	if (key == Qt::Key_Left || key == Qt::Key_Right) {
+		const auto forward = (key == Qt::Key_Right) != rtl();
+		keyboardSelect(
+			std::clamp(current + (forward ? 1 : -1), 0, count - 1),
+			true);
+	} else if (key == Qt::Key_Home) {
+		keyboardSelect(0, true);
+	} else if (key == Qt::Key_End) {
+		keyboardSelect(count - 1, true);
+	} else if (!e->isAutoRepeat()
+		&& (key == Qt::Key_Space
+			|| key == Qt::Key_Return
+			|| key == Qt::Key_Enter)) {
+		if (const auto child = accessibleChild(current)) {
+			activateChild(*child);
+		}
+	} else {
+		RpWidget::keyPressEvent(e);
+		return;
+	}
+	e->accept();
 }
 
 void StickersListFooter::scrollByWheelEvent(
