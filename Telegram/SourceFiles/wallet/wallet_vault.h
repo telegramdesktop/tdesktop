@@ -148,14 +148,18 @@ public:
 	// A hardware provider's unwrap() answers with the vault key itself,
 	// which unlockOpen() above never takes: it derives it. This is the
 	// only way to install a key opened or derived elsewhere, and it is
-	// also the route for passcode bytes - the caller derives the wrap key
-	// off the main thread and installs the answer here, instead of paying
-	// the derivation on the calling thread. That answer arrives many
-	// main-thread turns after the ask, so a clear trigger can land inside
-	// the provider's prompt or inside the worker derivation; the caller
-	// reads the epoch before it asks and hands it back here, and a key
-	// opened before that clear is refused instead of quietly unlocking a
-	// vault the user has just locked.
+	// also the route for passcode bytes - the caller derives the wrap
+	// key and unwraps the vault key off the main thread, and installs
+	// that vault key here, instead of paying the derivation on the
+	// calling thread. Only the vault key belongs here: the wrap key
+	// exists to unwrap it, both are kVaultKeySize, and that size is the
+	// only shape checked below, so a caller that hands over the wrap key
+	// is accepted and leaves a vault whose records refuse to open. That
+	// answer arrives many main-thread turns after the ask, so a clear
+	// trigger can land inside the provider's prompt or inside the worker
+	// derivation; the caller reads the epoch before it asks and hands it
+	// back here, and a key opened before that clear is refused instead
+	// of quietly unlocking a vault the user has just locked.
 	[[nodiscard]] quint32 clearEpoch() const;
 	[[nodiscard]] bool unlockWith(SecureBytes key, quint32 epoch);
 
