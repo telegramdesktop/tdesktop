@@ -985,6 +985,16 @@ mediaviewEmojiPan: EmojiPan(storiesEmojiPan) {
 		rippleBg: groupCallMenuBgOver;
 		rippleBgActive: groupCallMenuBgOver;
 	}
+	search: TabbedSearch(storiesEmojiTabbedSearch) {
+		outer: groupCallMenuBg;
+		bg: groupCallMenuBgOver;
+		bgActive: groupCallMenuBgRipple;
+		fadeLeft: icon {{
+			"fade_horizontal-flip_horizontal",
+			groupCallMenuBgOver
+		}};
+		fadeRight: icon {{ "fade_horizontal", groupCallMenuBgOver }};
+	}
 }
 
 storiesReactionsPan: EmojiPan(storiesEmojiPan) {
