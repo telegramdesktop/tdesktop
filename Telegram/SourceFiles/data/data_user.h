@@ -246,6 +246,8 @@ public:
 	[[nodiscard]] const std::vector<QString> &usernames() const;
 	[[nodiscard]] bool isUsernameEditable(QString username) const;
 
+	[[nodiscard]] bool isOldWalletBot() const;
+
 	void setBotVerifyDetails(Ui::BotVerifyDetails details);
 	void setBotVerifyDetailsIcon(DocumentId iconId);
 	[[nodiscard]] Ui::BotVerifyDetails *botVerifyDetails() const {

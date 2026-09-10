@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "storage/storage_account.h"
 #include "storage/storage_user_photos.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "data/business/data_business_common.h"
 #include "data/business/data_business_info.h"
@@ -767,6 +768,19 @@ const std::vector<QString> &UserData::usernames() const {
 
 bool UserData::isUsernameEditable(QString username) const {
 	return _username.isEditable(username);
+}
+
+bool UserData::isOldWalletBot() const {
+	if (!isBot()) {
+		return false;
+	}
+	const auto configured = session().appConfig().oldWalletBotUsername();
+	if (configured.isEmpty()) {
+		return false;
+	}
+	return ranges::any_of(usernames(), [&](const QString &username) {
+		return !username.compare(configured, Qt::CaseInsensitive);
+	});
 }
 
 void UserData::setBotVerifyDetails(Ui::BotVerifyDetails details) {
