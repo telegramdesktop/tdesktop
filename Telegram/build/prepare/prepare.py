@@ -1928,7 +1928,7 @@ release:
 stage('tlottie', """
     git clone https://github.com/dkaraush/tlottie.git
     cd tlottie
-    git checkout 4b940c7942
+    git checkout ea9a681507922a5e0541c228803b35b958a8dd5e
 win:
     SET "RUSTUP_HOME=%THIRDPARTY_DIR%\\rust\\rustup"
     SET "CARGO_HOME=%THIRDPARTY_DIR%\\rust\\cargo"
