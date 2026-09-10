@@ -23,6 +23,7 @@ namespace Editor {
 class ItemCanvas;
 class ItemShape;
 class ItemText;
+class ItemVideo;
 class NumberedItem;
 class TextEditController;
 
@@ -90,6 +91,8 @@ public:
 	[[nodiscard]] rpl::producer<bool> textEditStates() const;
 	[[nodiscard]] rpl::producer<QColor> shapeItemSelections() const;
 	[[nodiscard]] rpl::producer<> shapeItemDeselections() const;
+	[[nodiscard]] auto videoItemSelections() const
+		-> rpl::producer<std::shared_ptr<ItemVideo>>;
 
 	[[nodiscard]] bool hasUndo() const;
 	[[nodiscard]] bool hasRedo() const;
@@ -152,8 +155,10 @@ private:
 	rpl::event_stream<QColor> _shapeItemSelections;
 	rpl::event_stream<> _shapeItemDeselections;
 	rpl::event_stream<bool> _pendingShapeStates;
+	rpl::event_stream<std::shared_ptr<ItemVideo>> _videoItemSelections;
 	ItemText *_selectedTextItem = nullptr;
 	ItemShape *_selectedShapeItem = nullptr;
+	ItemVideo *_selectedVideoItem = nullptr;
 	rpl::lifetime _lifetime;
 
 };

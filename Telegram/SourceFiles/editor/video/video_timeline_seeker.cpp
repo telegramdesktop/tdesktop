@@ -59,6 +59,12 @@ TimelineSeeker::TimelineSeeker(
 	}, _lifetime);
 }
 
+TimelineSeeker::~TimelineSeeker() {
+	if (_dragging) {
+		_player->setSeeking(false);
+	}
+}
+
 void TimelineSeeker::seek(crl::time position) {
 	_pending = position;
 	if (!_timer.isActive()) {

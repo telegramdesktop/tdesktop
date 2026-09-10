@@ -557,6 +557,11 @@ rpl::producer<QColor> Paint::shapeItemSelections() const {
 	return _scene->shapeItemSelections();
 }
 
+auto Paint::videoItemSelections() const
+-> rpl::producer<std::shared_ptr<ItemVideo>> {
+	return _scene->videoItemSelections();
+}
+
 rpl::producer<> Paint::shapeItemDeselections() const {
 	return _scene->shapeItemDeselections();
 }

@@ -27,6 +27,8 @@ namespace Editor {
 
 class EdgeButton;
 class ButtonBar;
+class ItemVideo;
+class VideoItemTimeline;
 struct Controllers;
 struct EditorData;
 
@@ -60,6 +62,7 @@ public:
 
 	void applyMode(const PhotoEditorMode &mode);
 	void setShapeToolActive(bool active);
+	void setVideoItem(std::shared_ptr<ItemVideo> item);
 
 private:
 	void showAnimated(
@@ -67,6 +70,7 @@ private:
 		anim::type animated = anim::type::normal);
 	void showShapesMenu();
 	void updateInputMask();
+	void updateVideoTimelineGeometry();
 
 	int bottomButtonsTop() const;
 
@@ -96,6 +100,7 @@ private:
 	const base::unique_qptr<Ui::AbstractButton> _textButton;
 	const base::unique_qptr<Ui::IconButton> _shapesButton;
 	const base::unique_qptr<EdgeButton> _paintDone;
+	const base::unique_qptr<Ui::FadeWrap<VideoItemTimeline>> _videoTimeline;
 
 	base::unique_qptr<Ui::PopupMenu> _ratioMenu;
 	base::unique_qptr<Ui::PopupMenu> _cornersMenu;

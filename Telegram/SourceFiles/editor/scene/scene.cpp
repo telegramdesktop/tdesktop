@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene_item_line.h"
 #include "editor/scene/scene_item_shape.h"
 #include "editor/scene/scene_item_text.h"
+#include "editor/scene/scene_item_video.h"
 #include "editor/scene/scene_text_editing.h"
 #include "ui/image/image_prepare.h"
 #include "ui/painter.h"
@@ -304,11 +305,14 @@ Scene::Scene(const QRectF &rect)
 			const auto selected = selectedItems();
 			auto *textItem = (ItemText*)(nullptr);
 			auto *shapeItem = (ItemShape*)(nullptr);
+			auto *videoItem = (ItemVideo*)(nullptr);
 			if (selected.size() == 1) {
 				if (selected.front()->type() == ItemText::Type) {
 					textItem = static_cast<ItemText*>(selected.front());
 				} else if (selected.front()->type() == ItemShape::Type) {
 					shapeItem = static_cast<ItemShape*>(selected.front());
+				} else if (selected.front()->type() == ItemVideo::Type) {
+					videoItem = static_cast<ItemVideo*>(selected.front());
 				}
 			}
 			if (textItem != _selectedTextItem) {
@@ -327,6 +331,13 @@ Scene::Scene(const QRectF &rect)
 					_shapeItemDeselections.fire({});
 				}
 			}
+			if (videoItem != _selectedVideoItem) {
+				_selectedVideoItem = videoItem;
+				_videoItemSelections.fire(videoItem
+					? std::static_pointer_cast<ItemVideo>(
+						itemShared(videoItem))
+					: nullptr);
+			}
 		});
 }
 
@@ -344,12 +355,12 @@ void Scene::addItem(ItemPtr item) {
 		return;
 	}
 	item->setNumber(_itemNumber++);
-	if (item->scene() != this) {
-		QGraphicsScene::addItem(item.get());
-	}
 	const auto raw = item.get();
 	_items.push_back(std::move(item));
 	_itemsByPointer.emplace(raw, _items.back());
+	if (raw->scene() != this) {
+		QGraphicsScene::addItem(raw);
+	}
 	_addsItem.fire({});
 }
 
@@ -664,6 +675,11 @@ rpl::producer<> Scene::shapeItemDeselections() const {
 	return _shapeItemDeselections.events();
 }
 
+auto Scene::videoItemSelections() const
+-> rpl::producer<std::shared_ptr<ItemVideo>> {
+	return _videoItemSelections.events();
+}
+
 void Scene::setBlurSource(Fn<QImage(QRect)> source) {
 	_blurSource = std::move(source);
 }
@@ -810,6 +826,11 @@ void Scene::removeIf(Fn<bool(const ItemPtr &)> proj) {
 			// Scene loses ownership of an item.
 			// It seems for some reason this line causes a crash. =(
 			// QGraphicsScene::removeItem(item.get());
+			item->setSelected(false);
+			item->setVisible(false);
+			if (const auto animated = item->asAnimated()) {
+				animated->releasePlayers();
+			}
 		} else {
 			copy.push_back(item);
 		}

@@ -19,6 +19,7 @@ public:
 	TimelineSeeker(
 		not_null<VideoTimeline*> timeline,
 		not_null<SegmentPlayer*> player);
+	~TimelineSeeker();
 
 private:
 	void seek(crl::time position);

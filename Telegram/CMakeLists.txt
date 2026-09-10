@@ -915,6 +915,8 @@ PRIVATE
     editor/video/video_timeline.h
     editor/video/video_timeline_seeker.cpp
     editor/video/video_timeline_seeker.h
+    editor/video_item_timeline.cpp
+    editor/video_item_timeline.h
     export/export_manager.cpp
     export/export_manager.h
     export/view/export_view_content.cpp

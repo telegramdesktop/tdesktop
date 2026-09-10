@@ -54,8 +54,16 @@ ItemVideo::ItemVideo(std::shared_ptr<Source> source, ItemBase::Data data)
 
 ItemVideo::~ItemVideo() = default;
 
+const ItemVideo::Source &ItemVideo::source() const {
+	return *_source;
+}
+
 crl::time ItemVideo::duration() const {
 	return _source->duration;
+}
+
+not_null<SegmentPlayer*> ItemVideo::player() const {
+	return _player.get();
 }
 
 ItemAnimated::Trim ItemVideo::trim() const {

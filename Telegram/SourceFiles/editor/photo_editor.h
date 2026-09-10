@@ -57,6 +57,7 @@ public:
 
 private:
 	void keyPressEvent(QKeyEvent *e) override;
+	void updateColorPickerVisibility(anim::type animated);
 
 	PhotoModifications _modifications;
 
@@ -77,6 +78,8 @@ private:
 	bool _textItemSelected = false;
 	bool _textEditing = false;
 	bool _shapeItemSelected = false;
+	bool _videoItemSelected = false;
+	bool _colorLineShown = false;
 	rpl::event_stream<PhotoModifications> _done;
 	rpl::event_stream<> _cancel;
 

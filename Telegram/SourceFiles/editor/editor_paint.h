@@ -26,6 +26,7 @@ struct PhotoEditorMedia;
 namespace Editor {
 
 struct Controllers;
+class ItemVideo;
 class Scene;
 
 // Paint control.
@@ -69,6 +70,8 @@ public:
 	[[nodiscard]] rpl::producer<QColor> shapeItemSelections() const;
 	[[nodiscard]] rpl::producer<> shapeItemDeselections() const;
 	[[nodiscard]] rpl::producer<bool> shapeToolStates() const;
+	[[nodiscard]] auto videoItemSelections() const
+		-> rpl::producer<std::shared_ptr<ItemVideo>>;
 
 	[[nodiscard]] bool canHandleMimeData(const QMimeData *data) const;
 	void handleMimeData(const QMimeData *data);

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_controls.h"
 
 #include "editor/controllers/controllers.h"
+#include "editor/video_item_timeline.h"
 #include "lang/lang_keys.h"
 #include "ui/effects/round_checkbox.h"
 #include "ui/image/image_prepare.h"
@@ -589,9 +590,18 @@ PhotoEditorControls::PhotoEditorControls(
 	_buttonHeight,
 	st::photoEditorEdgeButtonBg,
 	st::mediaviewTextLinkFg,
-	st::photoEditorRotateButton.ripple)) {
+	st::photoEditorRotateButton.ripple))
+, _videoTimeline(base::make_unique_q<Ui::FadeWrap<VideoItemTimeline>>(
+	this,
+	object_ptr<VideoItemTimeline>(this))) {
 
 	_shapesFilled = shapesFilled;
+	_videoTimeline->hide(anim::type::instant);
+	_videoTimeline->setDuration(st::photoEditorBarAnimationDuration);
+	_paintTopButtons->geometryValue(
+	) | rpl::on_next([=] {
+		updateVideoTimelineGeometry();
+	}, _videoTimeline->lifetime());
 	_shapesButton->setClickedCallback([=] {
 		if (_shapeToolActive) {
 			_shapeRequests.fire({ .action = ShapeRequest::Action::Cancel });
@@ -1158,6 +1168,27 @@ rpl::producer<QPoint> PhotoEditorControls::colorLinePositionValue() const {
 
 rpl::producer<bool> PhotoEditorControls::colorLineShownValue() const {
 	return _paintTopButtons->shownValue();
+}
+
+void PhotoEditorControls::setVideoItem(std::shared_ptr<ItemVideo> item) {
+	const auto shown = (item != nullptr);
+	if (shown) {
+		_videoTimeline->entity()->setItem(std::move(item));
+		updateVideoTimelineGeometry();
+	}
+	_videoTimeline->toggle(shown, anim::type::normal);
+	if (!shown) {
+		_videoTimeline->entity()->setItem(nullptr);
+	}
+}
+
+void PhotoEditorControls::updateVideoTimelineGeometry() {
+	const auto bar = _paintTopButtons->geometry();
+	const auto skip = st::photoEditorTimelineSkip;
+	const auto left = _undoButton->width() + skip;
+	const auto width = bar.width() - left - _redoButton->width() - skip;
+	_videoTimeline->resizeToWidth(std::max(width, 1));
+	_videoTimeline->moveToLeft(bar.x() + left, bar.y());
 }
 
 bool PhotoEditorControls::handleKeyPress(not_null<QKeyEvent*> e) const {

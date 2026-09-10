@@ -316,6 +316,13 @@ PhotoEditor::PhotoEditor(
 		_content->setGeometry(rect() - st::photoEditorContentMargins);
 	}, lifetime());
 
+	_content->videoItemSelections(
+	) | rpl::on_next([=](std::shared_ptr<ItemVideo> item) {
+		_videoItemSelected = (item != nullptr);
+		updateColorPickerVisibility(anim::type::normal);
+		_controls->setVideoItem(std::move(item));
+	}, lifetime());
+
 	_content->innerRect(
 	) | rpl::on_next([=](QRect inner) {
 		if (inner.isEmpty()) {
@@ -336,7 +343,8 @@ PhotoEditor::PhotoEditor(
 
 	_controls->colorLineShownValue(
 	) | rpl::on_next([=](bool shown) {
-		_colorPicker->setVisible(shown);
+		_colorLineShown = shown;
+		updateColorPickerVisibility(anim::type::instant);
 	}, _controls->lifetime());
 
 	_mode.value(
@@ -563,6 +571,16 @@ void PhotoEditor::keyPressEvent(QKeyEvent *e) {
 	if (!_colorPicker->preventHandleKeyPress()) {
 		_content->handleKeyPress(e) || _controls->handleKeyPress(e);
 	}
+}
+
+void PhotoEditor::updateColorPickerVisibility(anim::type animated) {
+	const auto painting
+		= (_mode.current().mode == PhotoEditorMode::Mode::Paint);
+	_colorPicker->setVisible(
+		painting
+			&& _colorLineShown
+			&& !_videoItemSelected,
+		animated);
 }
 
 void PhotoEditor::save() {

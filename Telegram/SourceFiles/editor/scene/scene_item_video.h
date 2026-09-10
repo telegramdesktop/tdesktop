@@ -40,7 +40,9 @@ public:
 	void setStatus(Status status) override;
 	int type() const override;
 
+	[[nodiscard]] const Source &source() const;
 	[[nodiscard]] crl::time duration() const;
+	[[nodiscard]] not_null<SegmentPlayer*> player() const;
 	void setTrim(Trim trim);
 
 protected:
