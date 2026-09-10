@@ -488,6 +488,7 @@ stickersAddCellPlusThickness: 2px;
 stickersAddCellBgRadius: 28px;
 emojiSetAddCellPlusSize: 13px;
 emojiSetAddCellBgRadius: 16px;
+stickersAddPanelSkip: 8px;
 
 stickersEmojiPickerSelectedBg: windowBgActive;
 
