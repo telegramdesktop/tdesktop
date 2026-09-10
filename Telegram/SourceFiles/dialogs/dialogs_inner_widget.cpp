@@ -579,11 +579,6 @@ InnerWidget::InnerWidget(
 		update(next);
 	}, lifetime());
 
-	_controller->activeChatsFilter(
-	) | rpl::on_next([=](FilterId filterId) {
-		switchToFilter(filterId);
-	}, lifetime());
-
 	_controller->window().widget()->globalForceClicks(
 	) | rpl::on_next([=](QPoint globalPosition) {
 		processGlobalForceClick(globalPosition);
@@ -5596,8 +5591,8 @@ void InnerWidget::switchToFilter(FilterId filterId) {
 		const auto skip = found
 			// Don't save a scroll state for very flexible chat filters.
 			&& (filterIt->flags() & (Data::ChatFilter::Flag::NoRead));
-		if (!skip) {
-			restoreChatsFilterScrollState(filterId);
+		if (skip || !restoreChatsFilterScrollState(filterId)) {
+			jumpToTop();
 		}
 	}
 }
@@ -5610,11 +5605,13 @@ void InnerWidget::saveChatsFilterScrollState(FilterId filterId) {
 	_chatsFilterScrollStates[filterId] = -y();
 }
 
-void InnerWidget::restoreChatsFilterScrollState(FilterId filterId) {
+bool InnerWidget::restoreChatsFilterScrollState(FilterId filterId) {
 	const auto it = _chatsFilterScrollStates.find(filterId);
-	if (it != end(_chatsFilterScrollStates)) {
-		_mustScrollTo.fire({ std::max(it->second, 0), -1 });
+	if (it == end(_chatsFilterScrollStates)) {
+		return false;
 	}
+	_mustScrollTo.fire({ std::max(it->second, 0), -1 });
+	return true;
 }
 
 QImage *InnerWidget::cacheChatsFilterTag(

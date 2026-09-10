@@ -212,6 +212,7 @@ dialogsSpeakingDenominator: 8.;
 dialogsImportantBarHeight: 37px;
 
 dialogsWidthDuration: universalDuration;
+dialogsFilterSwipeSlideDuration: 140;
 dialogsTextWidthMin: 150px;
 
 dialogsTextPalette: TextPalette(defaultTextPalette) {
