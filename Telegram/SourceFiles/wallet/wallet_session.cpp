@@ -5775,7 +5775,7 @@ void Session::send(
 			done(answer);
 		}
 	};
-	const auto recordUnknown = [=, this] {
+	const auto recordUnknown = [=] {
 		recordPending(SendError::SubmissionUnknown);
 	};
 	auto request = engine::SendRequest{
