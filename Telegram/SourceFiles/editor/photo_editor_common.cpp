@@ -18,7 +18,6 @@ namespace {
 constexpr auto kAnimatedMaxSide = 854;
 constexpr auto kAnimatedFps = 30.;
 constexpr auto kAnimatedMinDuration = crl::time(1000);
-constexpr auto kAnimatedMaxDuration = crl::time(3000);
 
 } // namespace
 
@@ -200,19 +199,13 @@ Media::Encode::Job ComposeAnimatedJob(
 		}
 		flushRun();
 		job.overlay.push_back(std::move(entity));
-		const auto duration = animated->loopDuration();
-		longest = std::max(
-			longest,
-			duration ? duration : kAnimatedMaxDuration);
+		longest = std::max(longest, animated->loopDuration());
 	}
 	flushRun();
 
 	job.source = Media::Encode::StillSource{
 		.base = bake(image),
-		.duration = std::clamp(
-			longest,
-			kAnimatedMinDuration,
-			kAnimatedMaxDuration),
+		.duration = std::max(longest, kAnimatedMinDuration),
 		.fps = kAnimatedFps,
 	};
 	job.silentLoop = true;
