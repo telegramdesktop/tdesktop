@@ -1979,15 +1979,25 @@ release:
     buildTd Release
 """)
 
+# Neither this stage nor wallet-engine below builds anything any more: they
+# are the sources tdesktop_rust compiles. The CI prune used to strip both
+# down to their headers while their stage keys stayed valid, leaving a cache
+# that skips them and cannot rebuild tdesktop_rust. The version re-clones
+# them once over such a cache. The revisions are named here because the
+# umbrella stage has to see them, see there.
+tlottieRevision = '31f1b542f8'
+walletEngineRevision = '632fffa60d4360b880973ec02bd086922f66a048'
 stage('tlottie', """
+version: 2
 depends:patches/tlottie.patch
     git clone https://github.com/dkaraush/tlottie.git
     cd tlottie
-    git checkout 31f1b542f8
+    git checkout """ + tlottieRevision + """
     git apply ../patches/tlottie.patch
 """)
 
 stage('wallet-engine', """
+version: 2
 win:
     SET "GIT_LFS_SKIP_SMUDGE=1"
 mac:
@@ -1995,7 +2005,7 @@ mac:
 win_mac:
     git clone https://github.com/i582/wallet-engine.git
     cd wallet-engine
-    git checkout 632fffa60d4360b880973ec02bd086922f66a048
+    git checkout """ + walletEngineRevision + """
 """)
 
 # Every Rust library is built into one archive. A Rust staticlib carries its
@@ -2007,13 +2017,16 @@ win_mac:
 # above. The profile lives on the command line because a dependency's own
 # [profile] is ignored by cargo; lto and panic cannot be set per package, so
 # they are stated once, while opt-level keeps the level each library asked for.
+# The commands below never name the pinned revisions, they only point cargo
+# at the two checkouts, so nothing in this stage's key would change when one
+# of them is repinned and a warm cache would keep the previous binding. The
+# revisions ride in the version for that, and the counter in front of them
+# flushes a cache whose generated source the CI prune had already deleted.
+# The tlottie patch rewrites those sources too, so it is a dependency here.
 stage('tdesktop_rust', """
-# The Windows CI prune deleted the generated wallet_engine.cpp from the
-# cached Libraries tree while this stage's key stayed valid, so the stage
-# was skipped and the source never came back. The version rebuilds it once
-# over such a cache.
+version: 2.""" + tlottieRevision + '.' + walletEngineRevision + """
+depends:patches/tlottie.patch
 win:
-version: 2
     SET "RUSTUP_HOME=%THIRDPARTY_DIR%\\rust\\rustup"
     SET "CARGO_HOME=%THIRDPARTY_DIR%\\rust\\cargo"
     SET RUSTUP_TOOLCHAIN=""" + rustToolchain + """
