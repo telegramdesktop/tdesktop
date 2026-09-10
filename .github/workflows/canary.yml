@@ -555,14 +555,16 @@ jobs:
           printf 'static const char *AlphaPrivateKey = "%s";\n' \
             "$(random_key)" > $TBUILD/DesktopPrivate/alpha_private.h
 
-      # wallet-engine/out/src holds the UniFFI-generated wallet_engine.cpp,
-      # which cmake/external/wallet_engine compiles into the app: it is a
-      # build input, not a leftover, and matches none of the extensions
-      # kept below. The rest of the wallet-engine clone (its Rust target
-      # tree above all) is still pruned.
+      # tdesktop_rust/out/src/wallet_engine holds the UniFFI-generated
+      # wallet_engine.cpp, which cmake/external/wallet_engine compiles into
+      # the app: it is a build input, not a leftover, and matches none of
+      # the extensions kept below. The pattern names the generated layout
+      # and not the stage that produces it, the way the macOS job does, so
+      # renaming the stage cannot silently delete it again. The rest of the
+      # Rust tree (the cargo target above all) is still pruned.
       - name: Free up some disk space.
         shell: bash
-        run: find $LibrariesPath '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -path '*/nv-codec-headers/*' -o -path '*/wallet-engine/out/src/*' ')' -type f ')' -o -empty ')' -delete
+        run: find $LibrariesPath '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -path '*/nv-codec-headers/*' -o -path '*/src/wallet_engine/*' ')' -type f ')' -o -empty ')' -delete
 
       - name: Save ThirdParty cache.
         if: steps.cache-third-party.outputs.cache-hit != 'true'

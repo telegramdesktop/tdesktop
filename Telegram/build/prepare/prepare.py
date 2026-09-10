@@ -2008,7 +2008,12 @@ win_mac:
 # [profile] is ignored by cargo; lto and panic cannot be set per package, so
 # they are stated once, while opt-level keeps the level each library asked for.
 stage('tdesktop_rust', """
+# The Windows CI prune deleted the generated wallet_engine.cpp from the
+# cached Libraries tree while this stage's key stayed valid, so the stage
+# was skipped and the source never came back. The version rebuilds it once
+# over such a cache.
 win:
+version: 2
     SET "RUSTUP_HOME=%THIRDPARTY_DIR%\\rust\\rustup"
     SET "CARGO_HOME=%THIRDPARTY_DIR%\\rust\\cargo"
     SET RUSTUP_TOOLCHAIN=""" + rustToolchain + """
