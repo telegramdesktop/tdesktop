@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ffmpeg/ffmpeg_frame_generator.h"
 #include "ffmpeg/ffmpeg_utility.h"
 #include "lottie/lottie_frame_generator.h"
+#include "ui/rect.h"
 
 #include <QtCore/QFileInfo>
 #include <QtCore/QTemporaryFile>
@@ -45,6 +46,7 @@ constexpr auto kAudioBitratePerChannel = 64'000;
 constexpr auto kStaleTempTimeout = 24 * 60 * 60;
 
 constexpr auto kMp3InMp4MinFrequency = 16'000;
+constexpr auto kSkippedFrameSide = 2;
 
 // MAX_FRAME_RATE in openh264, a faster source overshoots by the ratio.
 constexpr auto kRateControlFps = 60.;
@@ -823,7 +825,10 @@ bool SilentAudioWriter::finish(not_null<AVFormatContext*> output) {
 class EntityPlayer final {
 public:
 	explicit EntityPlayer(const AnimatedEntity &entity)
-	: _size(entity.geometry.size().toSize()) {
+	: _size(entity.geometry.size().toSize())
+	, _from(std::max(entity.from, crl::time(0)))
+	, _trimmed(entity.till > _from)
+	, _till(_trimmed ? entity.till : std::numeric_limits<crl::time>::max()) {
 		if (_size.isEmpty() || entity.bytes.isEmpty()) {
 			return;
 		}
@@ -837,34 +842,62 @@ public:
 	}
 
 	[[nodiscard]] QImage frameAt(crl::time position) {
+		const auto skippedSize = Size(kSkippedFrameSide);
 		while (_generator && (_covered <= position)) {
-			auto frame = _generator->renderNext(std::move(_storage), _size);
+			const auto start = _sourcePosition;
+			const auto skip = (start < _from);
+			auto frame = _generator->renderNext(
+				skip ? QImage() : std::move(_storage),
+				skip ? skippedSize : _size);
 			if (frame.image.isNull()) {
-				if (std::exchange(_restarted, true)) {
-					_generator = nullptr;
-					break;
-				}
-				_generator->jumpToStart();
+				restart();
 				continue;
 			}
-			_restarted = false;
-			_storage = std::move(_current);
-			_current = std::move(frame.image);
-			_covered += std::max(frame.duration, crl::time(1));
-			if (frame.last) {
-				_generator->jumpToStart();
+			const auto end = start + std::max(frame.duration, crl::time(1));
+			_sourcePosition = end;
+			if ((end > _from) && (start < _till)) {
+				if (skip) {
+					frame.image = _generator->renderCurrent(
+						std::move(_storage),
+						_size).image;
+				}
+				_shown = true;
+				_storage = std::move(_current);
+				_current = std::move(frame.image);
+				_covered += std::min(end, _till) - std::max(start, _from);
+			} else if (!skip) {
+				_storage = std::move(frame.image);
+			}
+			if (frame.last && _shown && _trimmed && (end < _till)) {
+				_covered += _till - end;
+			}
+			if (frame.last || (end >= _till)) {
+				restart();
 			}
 		}
 		return _current;
 	}
 
 private:
+	void restart() {
+		if (!std::exchange(_shown, false)) {
+			_generator = nullptr;
+			return;
+		}
+		_generator->jumpToStart();
+		_sourcePosition = 0;
+	}
+
 	std::unique_ptr<Ui::FrameGenerator> _generator;
 	QImage _current;
 	QImage _storage;
 	QSize _size;
+	crl::time _from = 0;
+	bool _trimmed = false;
+	crl::time _till = 0;
 	crl::time _covered = 0;
-	bool _restarted = false;
+	crl::time _sourcePosition = 0;
+	bool _shown = false;
 
 };
 

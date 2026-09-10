@@ -19,6 +19,9 @@ struct AnimatedEntity {
 	QRectF geometry;
 	float64 rotation = 0.;
 	bool flipped = false;
+
+	crl::time from = 0;
+	crl::time till = 0;
 };
 
 using Layer = std::variant<QImage, AnimatedEntity>;
