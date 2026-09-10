@@ -211,7 +211,8 @@ videoTimelineStripHeight: 54px;
 videoTimelineLabelHeight: 18px;
 // Wide enough to hold the cover dot without it touching either side.
 videoTimelineLabelSkip: 17px;
-videoTimelineHeight: videoTimelineLabelHeight + videoTimelineLabelSkip + videoTimelineStripHeight;
+videoTimelineTrimStripHeight: 32px;
+videoTimelineTrimLabelSkip: 10px;
 videoTimelineDotSize: 5px;
 videoTimelineDotActiveSize: 9px;
 videoTimelineDotSkip: 2px;

@@ -24,6 +24,12 @@ constexpr auto kDotDuration = crl::time(500);
 // Frames are scaled on paint, so small width drift needs no re-extract.
 constexpr auto kFrameWidthTolerance = 0.25;
 
+[[nodiscard]] QString Stamp(crl::time value) {
+	return Ui::FormatDurationText(int(value / 1000))
+		+ '.'
+		+ QString::number((value % 1000) / 100);
+}
+
 } // namespace
 
 VideoTimeline::VideoTimeline(
@@ -51,6 +57,12 @@ VideoTimeline::VideoTimeline(
 		? std::min(_descriptor.till, limit)
 		: limit;
 	_cover = std::clamp(_descriptor.cover, _from, _till);
+	if (_descriptor.trimOnly) {
+		const auto widest = Stamp(_duration)
+			+ QString::fromUtf8(" – ")
+			+ Stamp(_duration);
+		_labelWidth = st::videoTimelineDurationStyle.font->width(widest);
+	}
 
 	sizeValue(
 	) | rpl::filter([=](QSize size) {
@@ -67,15 +79,30 @@ VideoTimeline::~VideoTimeline() {
 }
 
 int VideoTimeline::resizeGetHeight(int newWidth) {
-	return st::videoTimelineHeight
-		+ st::videoTimelinePlayheadOverflow
+	const auto playhead = st::videoTimelinePlayheadOverflow
 		+ st::videoTimelinePlayheadOutline;
+	if (_descriptor.trimOnly) {
+		return playhead * 2 + st::videoTimelineTrimStripHeight;
+	}
+	return st::videoTimelineLabelHeight
+		+ st::videoTimelineLabelSkip
+		+ st::videoTimelineStripHeight
+		+ playhead;
 }
 
 QRect VideoTimeline::stripRect() const {
+	const auto handle = st::videoTimelineHandleWidth;
+	if (_descriptor.trimOnly) {
+		const auto label = _labelWidth + st::videoTimelineTrimLabelSkip;
+		return QRect(
+			handle,
+			st::videoTimelinePlayheadOverflow
+				+ st::videoTimelinePlayheadOutline,
+			std::max(width() - handle * 2 - label, 1),
+			st::videoTimelineTrimStripHeight);
+	}
 	const auto top = st::videoTimelineLabelHeight
 		+ st::videoTimelineLabelSkip;
-	const auto handle = st::videoTimelineHandleWidth;
 	return QRect(
 		handle,
 		top,
@@ -84,6 +111,9 @@ QRect VideoTimeline::stripRect() const {
 }
 
 QRect VideoTimeline::labelRect() const {
+	if (_descriptor.trimOnly) {
+		return QRect(width() - _labelWidth, 0, _labelWidth, height());
+	}
 	// Full width, so the size lines up with the quality labels below.
 	return QRect(0, 0, width(), st::videoTimelineLabelHeight);
 }
@@ -483,6 +513,9 @@ void VideoTimeline::paintHead(QPainter &p, const QRect &strip) {
 }
 
 void VideoTimeline::paintCoverDot(QPainter &p) {
+	if (_descriptor.trimOnly) {
+		return;
+	}
 	const auto active = _dotActive.value((_grab == Grab::Head) ? 1. : 0.);
 	const auto size = st::videoTimelineDotSize
 		+ (st::videoTimelineDotActiveSize - st::videoTimelineDotSize)
@@ -498,18 +531,18 @@ void VideoTimeline::paintCoverDot(QPainter &p) {
 }
 
 void VideoTimeline::paintDuration(QPainter &p, const QRect &strip) {
-	const auto stamp = [](crl::time value) {
-		return Ui::FormatDurationText(int(value / 1000))
-			+ '.'
-			+ QString::number((value % 1000) / 100);
-	};
 	const auto text = (_till - _from >= _duration)
-		? stamp(_till - _from)
-		: (stamp(_from) + QString::fromUtf8(" – ") + stamp(_till));
+		? Stamp(_till - _from)
+		: (Stamp(_from) + QString::fromUtf8(" – ") + Stamp(_till));
 	const auto label = labelRect();
 	const auto &font = st::videoTimelineDurationStyle.font;
 	const auto width = font->width(text);
 	p.setFont(font);
+	if (_descriptor.trimOnly) {
+		p.setPen(st::videoTimelineDurationFg);
+		p.drawText(label, Qt::AlignVCenter | Qt::AlignRight, text);
+		return;
+	}
 
 	// They must never overlap, so the size goes whole or not at all.
 	const auto sizeWidth = _sizeLabel.isEmpty()

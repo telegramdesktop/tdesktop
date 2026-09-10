@@ -26,6 +26,8 @@ struct VideoTimelineDescriptor {
 	crl::time from = 0;
 	crl::time till = 0;
 	crl::time cover = 0;
+
+	bool trimOnly = false;
 };
 
 class VideoTimeline final
@@ -115,6 +117,7 @@ private:
 	crl::time _playback = -1;
 
 	QString _sizeLabel;
+	int _labelWidth = 0;
 
 	std::vector<QImage> _frames;
 	QSize _framesBox;
