@@ -1410,6 +1410,9 @@ Suggestions::Suggestions(
 Suggestions::~Suggestions() = default;
 
 void Suggestions::setupTabs() {
+	// Switching a tab changes the search scope and can run new searches, so
+	// the arrows only browse these tabs, committing on Enter / Space.
+	_tabs->setAccessibilityActivateOnBrowse(false);
 	_tabsScroll->setCustomWheelProcess([=](not_null<QWheelEvent*> e) {
 		const auto pixelDelta = e->pixelDelta();
 		const auto angleDelta = e->angleDelta();
