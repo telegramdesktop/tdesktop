@@ -596,6 +596,8 @@ public:
 	[[nodiscard]] rpl::producer<GaslessTerms> gaslessTermsValue();
 	void refreshGaslessInfo(bool force = false);
 
+	[[nodiscard]] rpl::producer<bool> existingWaltBalanceValue();
+
 	// One live send box owns one preview identity until its lifetime ends.
 	// Edits replace only that owner's queued request, preserving its place
 	// behind other owners; cancellation discards its current request without
@@ -629,6 +631,7 @@ private:
 	void resetGaslessInfo();
 	void applyGaslessInfo(GaslessInfo info, bool refreshed);
 	void applyGaslessTerms(GaslessTerms terms);
+	void requestExistingWaltBalance();
 	void applyState(const MTPWalletState &state, bool pushed);
 	void setPresence(Presence presence);
 	void revealLocally(
@@ -843,6 +846,9 @@ private:
 	crl::time _gaslessExpiresAt = 0;
 	bool _gaslessRefreshWanted = false;
 	bool _gaslessRefreshing = false;
+	rpl::variable<bool> _existingWaltBalance = false;
+	mtpRequestId _waltBalanceRequestId = 0;
+	bool _waltBalanceRequested = false;
 	std::vector<TransferItem> _history;
 	rpl::event_stream<> _historyUpdates;
 	bool _historyHasNext = false;

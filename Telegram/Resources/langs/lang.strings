@@ -8787,6 +8787,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_card_ticker" = "GRAM";
 "lng_wallet_send_button" = "Send";
 "lng_wallet_add_funds" = "Add Funds";
+"lng_wallet_walt_existing" = "You also have money in Walt";
 "lng_wallet_receive_about" = "Use to receive GRAM on The Open Network (TON) only.";
 "lng_wallet_receive_caveat" = "Sending from this device needs your recovery phrase, or the device this wallet was imported on.";
 "lng_wallet_about_instant_title" = "Send Money Instantly";

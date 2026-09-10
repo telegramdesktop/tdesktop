@@ -74,6 +74,17 @@ walletSendButton: RoundButton(defaultActiveButton) {
 walletSendButtonMargin: margins(12px, 12px, 12px, 0px);
 walletButtonsSkip: 10px;
 walletHeaderBottomSkip: 12px;
+// Left 22px and the vertical 10/8 are settingsButtonNoIcon's own values, so
+// the row stays 38px tall. Right 50px is walletBuyRowPadding's existing
+// allowance for the same st::backButton chevron - SettingsButton::paintText
+// elides at width - padding.left - padding.right, so 22px would let the
+// text run under the arrow. textBgOver must not be windowBgOver: that is
+// exactly the ground Content::setupPinned's _pinnedBackground painter fills.
+walletWaltRow: SettingsButton(settingsButtonNoIcon) {
+	textBgOver: windowBgRipple;
+	ripple: defaultRippleAnimationBgOver;
+	padding: margins(22px, 10px, 50px, 8px);
+}
 
 walletAboutTopSkip: 24px;
 walletAboutPadding: margins(90px, 0px, 54px, 0px);

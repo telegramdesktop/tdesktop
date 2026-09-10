@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/channel_statistics/earn/earn_format.h"
 #include "info/channel_statistics/earn/earn_icons.h"
 #include "info/profile/info_profile_values.h"
+#include "inline_bots/bot_attach_web_view.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "main/session/session_show.h"
@@ -239,6 +240,7 @@ protected:
 private:
 	void setupContent();
 	void setupPinned();
+	void setupWaltOffer();
 	void setupBalance();
 	void setupTabs(rpl::producer<bool> collectiblesShown);
 	void setupStrip();
@@ -2114,6 +2116,25 @@ void AddOnrampCurrency(
 	return OnrampRoutesViewStatus::Empty;
 }
 
+not_null<Ui::IconButton*> AddRowChevron(not_null<Ui::RpWidget*> button) {
+	const auto arrow = Ui::CreateChild<Ui::IconButton>(
+		button,
+		st::backButton);
+	arrow->setIconOverride(
+		&st::settingsPremiumArrow,
+		&st::settingsPremiumArrowOver);
+	arrow->setAttribute(Qt::WA_TransparentForMouseEvents);
+	arrow->show();
+	button->sizeValue(
+	) | rpl::on_next([=](QSize size) {
+		const auto &shift = st::settingsPremiumArrowShift;
+		arrow->moveToRight(
+			-shift.x(),
+			shift.y() + (size.height() - arrow->height()) / 2);
+	}, arrow->lifetime());
+	return arrow;
+}
+
 void AddBuyRow(
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<QString> title,
@@ -2150,13 +2171,7 @@ void AddBuyRow(
 			.background = background,
 		});
 	}
-	const auto arrow = Ui::CreateChild<Ui::IconButton>(
-		button,
-		st::backButton);
-	arrow->setIconOverride(
-		&st::settingsPremiumArrow,
-		&st::settingsPremiumArrowOver);
-	arrow->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto arrow = AddRowChevron(button);
 	const auto loading = Info::Statistics::InfiniteRadialAnimationWidget(
 		button,
 		st::boxLoadingSize,
@@ -2170,9 +2185,6 @@ void AddBuyRow(
 	button->sizeValue(
 	) | rpl::on_next([=](QSize size) {
 		const auto &shift = st::settingsPremiumArrowShift;
-		arrow->moveToRight(
-			-shift.x(),
-			shift.y() + (size.height() - arrow->height()) / 2);
 		loading->moveToRight(
 			-shift.x() + (arrow->width() - loading->width()) / 2,
 			shift.y() + (size.height() - loading->height()) / 2);
@@ -9187,6 +9199,25 @@ enum class EmptyFace {
 	Unreachable,
 };
 
+[[nodiscard]] UserData *OldWalletBot(not_null<Main::Session*> session) {
+	const auto &bots = session->attachWebView().attachBots();
+	const auto i = ranges::find_if(
+		bots,
+		[](const InlineBots::AttachWebViewBot &bot) {
+			return bot.user->isOldWalletBot();
+		});
+	return (i != end(bots)) ? i->user.get() : nullptr;
+}
+
+[[nodiscard]] rpl::producer<UserData*> OldWalletBotValue(
+		not_null<Main::Session*> session) {
+	return rpl::single(rpl::empty) | rpl::then(
+		session->attachWebView().attachBotsUpdates()
+	) | rpl::map([=] {
+		return OldWalletBot(session);
+	}) | rpl::distinct_until_changed();
+}
+
 void Content::setupContent() {
 	_container = _scroll->setOwnedWidget(
 		object_ptr<Ui::RpWidget>(_scroll.data()));
@@ -9446,6 +9477,8 @@ void Content::setupPinned() {
 	_pinnedInner = Ui::CreateChild<Ui::VerticalLayout>(_pinned);
 	_pinnedInner->show();
 
+	setupWaltOffer();
+
 	Ui::AddSkip(_pinnedInner, st::walletCardTopSkip);
 	_cardPlaceholder = _pinnedInner->add(
 		object_ptr<Ui::FixedHeightWidget>(
@@ -9575,6 +9608,39 @@ void Content::setupPinned() {
 	};
 	base::install_event_filter(_pinned, forwardWheel);
 	base::install_event_filter(_cardQr, forwardWheel);
+}
+
+void Content::setupWaltOffer() {
+	const auto session = &_show->session();
+	const auto wrap = _pinnedInner->add(
+		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+			_pinnedInner,
+			Settings::CreateButtonWithIcon(
+				_pinnedInner,
+				tr::lng_wallet_walt_existing(),
+				st::walletWaltRow),
+			style::margins(0, st::walletCardTopSkip, 0, 0)));
+	const auto button = wrap->entity();
+	AddRowChevron(button);
+	button->setClickedCallback([=] {
+		if (const auto bot = OldWalletBot(session)) {
+			session->attachWebView().open({
+				.bot = bot,
+				.parentShow = _show,
+				.source = InlineBots::WebViewSourceMainMenu(),
+			});
+		}
+	});
+	wrap->toggleOn(rpl::combine(
+		session->wallet().existingWaltBalanceValue(),
+		OldWalletBotValue(session)
+	) | rpl::map([](bool exists, UserData *bot) {
+		return exists && (bot != nullptr);
+	}), anim::type::instant);
+	wrap->heightValue(
+	) | rpl::on_next([=] {
+		updateRegions();
+	}, wrap->lifetime());
 }
 
 void Content::setupBalance() {

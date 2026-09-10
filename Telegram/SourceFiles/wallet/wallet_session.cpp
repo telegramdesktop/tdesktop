@@ -1640,10 +1640,16 @@ void Session::setPanel(std::unique_ptr<Ui::SeparatePanel> panel) {
 		// the rest of the session and a transaction or a collectible
 		// received while the panel was closed never appears. The pages
 		// spent looking for a row the feed can show are such a fact too,
-		// so the next reader to open the panel gets the whole bound.
+		// so the next reader to open the panel gets the whole bound. The
+		// Walt answer is one as well, so its request is cancelled and both
+		// its flag and its value go with the panel, leaving the next
+		// opening to ask exactly once on its own.
 		_historyPaged = false;
 		_collectiblesPaged = false;
 		resetHiddenHistoryPages();
+		_stateApi.request(base::take(_waltBalanceRequestId)).cancel();
+		_waltBalanceRequested = false;
+		_existingWaltBalance = false;
 	}
 }
 
@@ -1969,6 +1975,33 @@ void Session::applyGaslessTerms(GaslessTerms terms) {
 		++terms.revision;
 		_gaslessTerms = std::move(terms);
 	}
+}
+
+rpl::producer<bool> Session::existingWaltBalanceValue() {
+	requestExistingWaltBalance();
+	return _existingWaltBalance.value();
+}
+
+void Session::requestExistingWaltBalance() {
+	// One opening of the wallet panel asks once. setPanel() cancels and
+	// clears both of these together when the panel is dropped, so this one
+	// flag is the whole "already asked this opening" state, and a failed or
+	// cancelled request gets exactly one retry - on the next opening.
+	if (_waltBalanceRequested) {
+		return;
+	}
+	_waltBalanceRequested = true;
+	const auto generation = _networkGeneration;
+	_waltBalanceRequestId = _stateApi.request(
+		MTPwallet_GetExistingWaltBalance()
+	).done([=](const MTPBool &result) {
+		_waltBalanceRequestId = 0;
+		if (generation == _networkGeneration) {
+			_existingWaltBalance = mtpIsTrue(result);
+		}
+	}).fail([=] {
+		_waltBalanceRequestId = 0;
+	}).handleAllErrors().send();
 }
 
 void Session::applyState(const MTPWalletState &state, bool pushed) {
