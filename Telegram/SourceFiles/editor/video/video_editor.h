@@ -14,11 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/video/video_editor_common.h"
 #include "ui/rp_widget.h"
 
-namespace Media::Streaming {
-class Instance;
-struct Update;
-} // namespace Media::Streaming
-
 namespace Ui {
 class IconButton;
 class LayerWidget;
@@ -29,6 +24,7 @@ class FlatLabel;
 namespace Editor {
 
 class Crop;
+class SegmentPlayer;
 class VideoTimeline;
 class VideoQualitySlider;
 
@@ -68,8 +64,6 @@ private:
 	void setupSizeEstimate();
 	void refreshSizeEstimate();
 	void refreshQualityLevels();
-	void handleUpdate(Media::Streaming::Update &&update);
-	void restart(crl::time position);
 	void setupTapToPause();
 	void updateBubble();
 	void startCapture();
@@ -78,7 +72,6 @@ private:
 	void refreshCoverPreview();
 	void invalidateCoverPreview();
 	void togglePause();
-	[[nodiscard]] bool held() const;
 	void paintPlayBadge(QPainter &p);
 	void applyGeometry();
 	void paint(QPainter &p);
@@ -101,7 +94,7 @@ private:
 	crl::time _position = 0;
 	bool _gif = false;
 
-	std::unique_ptr<Media::Streaming::Instance> _instance;
+	std::unique_ptr<SegmentPlayer> _player;
 	base::unique_qptr<Crop> _crop;
 	base::unique_qptr<VideoTimeline> _timeline;
 	base::unique_qptr<VideoQualitySlider> _quality;
@@ -122,7 +115,6 @@ private:
 	QRect _frameRect;
 	QTransform _frameMatrix;
 	QRect _innerRect;
-	QImage _lastFrame;
 	bool _dragging = false;
 	bool _userPaused = false;
 	crl::time _bubbleCover = -1;
