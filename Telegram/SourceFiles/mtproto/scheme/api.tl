@@ -3190,5 +3190,6 @@ wallet.enableBackup#81a2b0f3 flags:# parts:Vector<bytes> password:flags.0?InputC
 wallet.getProofChallenge#2025e697 = wallet.ProofChallenge;
 wallet.sendTransfer#b1cae965 flags:# data_normal:bytes data_gasless:flags.0?bytes = wallet.SentTransfer;
 wallet.getGaslessInfo#4895d98b = wallet.GaslessInfo;
+wallet.getExistingWaltBalance#628746e3 = Bool;
 
 // LAYER 230
