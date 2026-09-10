@@ -134,7 +134,9 @@ using ProxyData = MTP::ProxyData;
 			? "&pass=" + qthelp::url_encode(proxy.password) : "")
 		+ (((proxy.type == Type::Mtproto || proxy.type == Type::Web)
 				&& !proxy.password.isEmpty())
-			? "&secret=" + proxy.password : "");
+			? "&secret=" + ((proxy.type == Type::Web)
+				? MTP::EncodeWebProxyLinkSecret(proxy)
+				: proxy.password) : "");
 }
 
 [[nodiscard]] QString ProxyDataToLocalLink(const ProxyData &proxy) {
@@ -347,6 +349,11 @@ void ShareProxy(
 	} else if (type == ProxyData::Type::Mtproto || web) {
 		proxy.password = fields.value(u"secret"_q);
 		proxy.password.replace('+', '-').replace('/', '_');
+		if (web) {
+			proxy.password = MTP::DecodeWebProxyLinkSecret(
+				proxy.password,
+				!proxy.webBasePath().isEmpty());
+		}
 	}
 	return proxy;
 };

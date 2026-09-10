@@ -193,6 +193,15 @@ namespace {
 		QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
 }
 
+// A base path needs a client that understands one, so a link that carries a
+// path encodes its secret as base64url of this marker byte followed by the real
+// secret. A client without path support decodes 17 bytes whose first byte is not
+// the 0xDD of a padded secret, so it reports the link as an unsupported proxy
+// type and asks the user to update, instead of accepting a pathless entry.
+// 0xDD is the one byte that must never be used here: the older parser reads a
+// 17-byte secret starting with it as an ordinary valid one.
+constexpr auto kWebProxyLinkSecretMarker = uchar(0x70);
+
 // The address field accepts a pasted URL, so the scheme is removed before the
 // address is parsed and only the canonical form is stored. `http://` is left in
 // place, and therefore rejected: HTTPS and port 443 are fixed for a WEB proxy.
@@ -333,6 +342,12 @@ QString WebProxyBridgeCapability(const ProxyData &proxy) {
 			== u"Proxy.Example.COM/App/"_q);
 		Assert(StripWebProxyScheme(u"http://proxy.example.com"_q)
 			== u"http://proxy.example.com"_q);
+		const auto plainSecret = u"8561944064fc730cbfa4473562d8ec59"_q;
+		const auto markedSecret = u"cIVhlEBk_HMMv6RHNWLY7Fk"_q;
+		Assert(DecodeWebProxyLinkSecret(markedSecret, true) == plainSecret);
+		Assert(DecodeWebProxyLinkSecret(markedSecret, false) == plainSecret);
+		Assert(DecodeWebProxyLinkSecret(plainSecret, false) == plainSecret);
+		Assert(DecodeWebProxyLinkSecret(plainSecret, true).isEmpty());
 		Assert(NormalizeWebProxyBasePath(u"per%20cent"_q).isEmpty());
 		Assert(NormalizeWebProxyBasePath(u"dot.ted"_q).isEmpty());
 		Assert(NormalizeWebProxyBasePath(u".."_q).isEmpty());
@@ -375,6 +390,43 @@ QString WebProxyBridgeCapability(const ProxyData &proxy) {
 		proxy.host,
 		proxy.webBasePath(),
 		key);
+}
+
+QString EncodeWebProxyLinkSecret(const ProxyData &proxy) {
+	Expects(proxy.type == ProxyData::Type::Web);
+
+	const auto secret = proxy.secretFromMtprotoPassword();
+	if (proxy.webBasePath().isEmpty() || secret.empty()) {
+		return proxy.password;
+	}
+	auto marked = QByteArray(1, char(kWebProxyLinkSecretMarker));
+	marked.append(
+		reinterpret_cast<const char*>(secret.data()),
+		int(secret.size()));
+	return QString::fromLatin1(marked.toBase64(
+		QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
+}
+
+QString DecodeWebProxyLinkSecret(const QString &value, bool hasBasePath) {
+	const auto decoded = QByteArray::fromBase64(
+		value.toLatin1(),
+		QByteArray::Base64UrlEncoding
+			| QByteArray::AbortOnBase64DecodingErrors);
+
+	// A canonical secret is 16 bytes, 17 starting with 0xDD, or 21+ starting
+	// with 0xEE, so a longer value behind this marker is never ambiguous.
+	const auto marked = (decoded.size() >= 17)
+		&& (uchar(decoded[0]) == kWebProxyLinkSecretMarker);
+	if (marked) {
+		return QString::fromLatin1(decoded.mid(1).toHex());
+	}
+
+	// An unmarked secret on a link that carries a base path is rejected rather
+	// than accepted: that is exactly the link a client without path support
+	// would take for a pathless proxy on an empty host, so the marked form is
+	// required once a path is present. A root link keeps the plain secret and
+	// still works in those clients.
+	return hasBasePath ? QString() : value;
 }
 
 QString WebProxyBridgePath(const ProxyData &proxy) {

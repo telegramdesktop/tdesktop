@@ -552,10 +552,14 @@ tg://webproxy?server=<address>&secret=<secret>
 
 `<address>` is the percent-encoded `host` or `host/path`, so a base path travels in
 the same parameter as `proxy.example.com%2Fdobry-cola-super-app`. There is no
-separate path parameter. Following either link shows the address and secret with
-one connect action. It does not check status or enable the proxy until that action
-is invoked. Saved WEB entries can be shared as a public link or a direct-scheme QR
-link.
+separate path parameter. A link that carries a path also encodes its secret as
+unpadded base64url of `0x70` plus the real secret, so a client without path
+support reports an unsupported proxy type and asks the user to update, instead of
+normalizing the address to an empty host and offering to connect to it. A
+root link keeps the plain secret and still works in those clients. Following
+either link shows the address and secret with one connect action. It does not
+check status or enable the proxy until that action is invoked. Saved WEB entries
+can be shared as a public link or a direct-scheme QR link.
 
 Application proxy changes configure/deconfigure the web transport before MTP
 sessions restart. WEB follows the MTProxy path in `Session`, `SessionPrivate`, and
