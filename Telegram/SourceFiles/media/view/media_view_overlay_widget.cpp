@@ -216,16 +216,22 @@ constexpr auto kStorySavePromoDuration = 3 * crl::time(1000);
 
 class PipDelegate final : public Pip::Delegate {
 public:
-	PipDelegate(QWidget *parent, not_null<Main::Session*> session);
+	PipDelegate(
+		QWidget *parent,
+		not_null<Main::Session*> session,
+		not_null<OverlayWidget*> owner);
 
 	void pipSaveGeometry(QByteArray geometry) override;
 	QByteArray pipLoadGeometry() override;
 	float64 pipPlaybackSpeed() override;
 	QWidget *pipParentWidget() override;
+	bool pipCanNavigate(int delta) override;
+	void pipNavigate(int delta) override;
 
 private:
 	QWidget *_parent = nullptr;
 	not_null<Main::Session*> _session;
+	const not_null<OverlayWidget*> _owner;
 
 };
 
@@ -249,9 +255,21 @@ private:
 	};
 }
 
-PipDelegate::PipDelegate(QWidget *parent, not_null<Main::Session*> session)
+PipDelegate::PipDelegate(
+	QWidget *parent,
+	not_null<Main::Session*> session,
+	not_null<OverlayWidget*> owner)
 : _parent(parent)
-, _session(session) {
+, _session(session)
+, _owner(owner) {
+}
+
+bool PipDelegate::pipCanNavigate(int delta) {
+	return _owner->pipCanNavigate(delta);
+}
+
+void PipDelegate::pipNavigate(int delta) {
+	_owner->pipNavigate(delta);
 }
 
 void PipDelegate::pipSaveGeometry(QByteArray geometry) {
@@ -505,7 +523,8 @@ struct OverlayWidget::PipWrap {
 		VideoQuality quality,
 		std::shared_ptr<Streaming::Document> shared,
 		FnMut<void()> closeAndContinue,
-		FnMut<void()> destroy);
+		FnMut<void()> destroy,
+		not_null<OverlayWidget*> owner);
 
 	PipWrap(const PipWrap &other) = delete;
 	PipWrap &operator=(const PipWrap &other) = delete;
@@ -639,8 +658,9 @@ OverlayWidget::PipWrap::PipWrap(
 	VideoQuality quality,
 	std::shared_ptr<Streaming::Document> shared,
 	FnMut<void()> closeAndContinue,
-	FnMut<void()> destroy)
-: delegate(parent, &document->session())
+	FnMut<void()> destroy,
+	not_null<OverlayWidget*> owner)
+: delegate(parent, &document->session(), owner)
 , wrapped(
 	&delegate,
 	document,
@@ -1597,7 +1617,7 @@ void OverlayWidget::documentUpdated(not_null<DocumentData*> document) {
 }
 
 void OverlayWidget::changingMsgId(FullMsgId newId, MsgId oldId) {
-	if (_message && _message->fullId() == newId) {
+	if (_message && _message->fullId() == newId && !isHidden()) {
 		refreshMediaViewer();
 	}
 }
@@ -3947,6 +3967,10 @@ void OverlayWidget::handleSharedMediaUpdate(SharedMediaWithLastSlice &&update) {
 		_sharedMediaDataKey = _sharedMedia->key;
 	}
 	findCurrent();
+	if (isHidden()) {
+		refreshNavVisibility();
+		return;
+	}
 	updateControls();
 	preloadData(0);
 }
@@ -4007,6 +4031,10 @@ void OverlayWidget::handleUserPhotosUpdate(UserPhotosSlice &&update) {
 		_userPhotosData = std::move(update);
 	}
 	findCurrent();
+	if (isHidden()) {
+		refreshNavVisibility();
+		return;
+	}
 	updateControls();
 	preloadData(0);
 }
@@ -4470,7 +4498,7 @@ not_null<QWidget*> OverlayWidget::widget() const {
 }
 
 void OverlayWidget::hide() {
-	clearBeforeHide();
+	clearBeforeHide(_pip != nullptr);
 	applyHideWindowWorkaround();
 	_window->hide();
 	if (Platform::IsWayland()) {
@@ -4513,7 +4541,10 @@ void OverlayWidget::show(OpenRequest request) {
 	const auto contextTopicRootId = request.topicRootId();
 	const auto contextMonoforumPeerId = request.monoforumPeerId();
 	_drawButtonEnabled = request.showDrawButton();
-	if (!request.continueStreaming() && !request.startTime() && !_reShow) {
+	if (!isHidden()
+		&& !request.continueStreaming()
+		&& !request.startTime()
+		&& !_reShow) {
 		if (_message && (_message == contextItem)) {
 			return close();
 		} else if (_user && (_user == contextPeer)) {
@@ -4927,7 +4958,9 @@ void OverlayWidget::updateThemePreviewGeometry() {
 
 void OverlayWidget::displayFinished(anim::activation activation) {
 	updateControls();
-	if (isHidden()) {
+	if (_pipNavigating) {
+		return;
+	} else if (isHidden()) {
 		_helper->beforeShow(_fullscreen);
 		moveToScreen();
 		showAndActivate();
@@ -5777,6 +5810,41 @@ void OverlayWidget::applyVideoQuality(VideoQuality value) {
 	}
 }
 
+bool OverlayWidget::pipCanNavigate(int delta) const {
+	return (delta < 0) ? _leftNavVisible : _rightNavVisible;
+}
+
+void OverlayWidget::pipNavigate(int delta) {
+	if (_pipNavigating) {
+		return;
+	}
+	_pipNavigating = true;
+	InvokeQueued(_widget, [=] {
+		const auto finish = gsl::finally([=] { _pipNavigating = false; });
+		if (!_pip) {
+			return;
+		}
+		const auto generation = _pipGeneration;
+		if (!moveToNext(delta)) {
+			return;
+		} else if (_pipGeneration != generation) {
+			return;
+		}
+		_pip = nullptr;
+		_helper->beforeShow(_fullscreen);
+		moveToScreen();
+		showAndActivate();
+	});
+}
+
+void OverlayWidget::pipDismissed() {
+	const auto pip = base::take(_pip);
+	if (isHidden()) {
+		clearBeforeHide();
+		clearAfterHide();
+	}
+}
+
 void OverlayWidget::switchToPip() {
 	Expects(_streamed != nullptr);
 	Expects(_document != nullptr);
@@ -5796,6 +5864,7 @@ void OverlayWidget::switchToPip() {
 			true));
 	};
 	_showAsPip = true;
+	++_pipGeneration;
 	_pip = std::make_unique<PipWrap>(
 		_window,
 		document,
@@ -5805,26 +5874,27 @@ void OverlayWidget::switchToPip() {
 		_quality,
 		_streamed->instance.shared(),
 		closeAndContinue,
-		[=] { _pip = nullptr; });
+		[=] { pipDismissed(); },
+		this);
 
 	if (const auto raw = _message) {
 		raw->history()->owner().itemRemoved(
 		) | rpl::filter([=](not_null<const HistoryItem*> item) {
 			return (raw == item);
 		}) | rpl::on_next([=] {
-			_pip = nullptr;
+			pipDismissed();
 		}, _pip->lifetime);
 
 		Core::App().passcodeLockChanges(
 		) | rpl::filter(
 			rpl::mappers::_1
 		) | rpl::on_next([=] {
-			_pip = nullptr;
+			pipDismissed();
 		}, _pip->lifetime);
 	}
 
 	if (isHidden()) {
-		clearBeforeHide();
+		clearBeforeHide(true);
 		clearAfterHide();
 	} else {
 		close();
@@ -8812,22 +8882,26 @@ Window::SessionController *OverlayWidget::findWindow(bool switchTo) const {
 }
 
 // #TODO unite and check
-void OverlayWidget::clearBeforeHide() {
+void OverlayWidget::clearBeforeHide(bool keepMediaContext) {
 	checkSingleViewMediaBurn();
-	_message = nullptr;
-	_sharedMedia = nullptr;
-	_sharedMediaData = std::nullopt;
-	_sharedMediaDataKey = std::nullopt;
-	_userPhotos = nullptr;
-	_userPhotosData = std::nullopt;
-	_instantViewMedia = nullptr;
-	_instantViewMediaData = std::nullopt;
-	_collage = nullptr;
-	_collageData = std::nullopt;
+	if (!keepMediaContext) {
+		_message = nullptr;
+		_sharedMedia = nullptr;
+		_sharedMediaData = std::nullopt;
+		_sharedMediaDataKey = std::nullopt;
+		_userPhotos = nullptr;
+		_userPhotosData = std::nullopt;
+		_instantViewMedia = nullptr;
+		_instantViewMediaData = std::nullopt;
+		_collage = nullptr;
+		_collageData = std::nullopt;
+	}
 	clearStreaming();
 	setStoriesPeer(nullptr);
 	_layerBg->hideAll(anim::type::instant);
-	assignMediaPointer(nullptr);
+	if (!keepMediaContext) {
+		assignMediaPointer(nullptr);
+	}
 	_preloadPhotos.clear();
 	_preloadDocuments.clear();
 	if (_menu) {
