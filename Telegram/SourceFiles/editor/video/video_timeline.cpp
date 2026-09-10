@@ -314,7 +314,12 @@ void VideoTimeline::leaveEventHook(QEvent *e) {
 }
 
 void VideoTimeline::applyGrab(QPoint position) {
-	const auto at = timeAt(position.x() - _grabShift);
+	const auto x = position.x() - _grabShift;
+	const auto at = ((_grab == Grab::Left) && (x == xAt(_from)))
+		? _from
+		: ((_grab == Grab::Right) && (x == xAt(_till)))
+		? _till
+		: timeAt(x);
 	const auto minimum = minSelection();
 	switch (_grab) {
 	case Grab::Left: {
