@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/video/video_quality_slider.h"
 #include "editor/video/video_segment_player.h"
 #include "editor/video/video_timeline.h"
+#include "editor/video/video_timeline_seeker.h"
 #include "lang/lang_keys.h"
 #include "media/view/media_view_pip.h"
 #include "ui/effects/ripple_animation.h"
@@ -30,8 +31,6 @@ namespace Editor {
 namespace {
 
 using Media::View::FlipSizeByRotation;
-
-constexpr auto kSeekThrottle = crl::time(120);
 
 constexpr auto kBubbleMinVisible = crl::time(600);
 
@@ -254,41 +253,21 @@ void VideoEditor::setupTimeline() {
 	_from = _timeline->from();
 	_till = _timeline->till();
 	_cover = _timeline->cover();
-	_position = _from;
-
-	struct State {
-		base::Timer timer;
-		crl::time pending = -1;
-	};
-	const auto state = lifetime().make_state<State>();
-	state->timer.setCallback([=] {
-		if (state->pending >= 0) {
-			const auto position = state->pending;
-			state->pending = -1;
-			_player->restart(position);
-		}
-	});
-	const auto seek = [=](crl::time position) {
-		state->pending = position;
-		if (!state->timer.isActive()) {
-			state->timer.callOnce(kSeekThrottle);
-		}
-	};
+	_seeker = std::make_unique<TimelineSeeker>(
+		_timeline.get(),
+		_player.get());
 
 	_timeline->trimChanges(
-	) | rpl::on_next([=](crl::time edge) {
+	) | rpl::on_next([=] {
 		_from = _timeline->from();
 		_till = _timeline->till();
 		_cover = _timeline->cover();
-		_player->setSegment(_from, _till);
 		refreshSizeEstimate();
-		seek(edge);
 	}, _timeline->lifetime());
 
 	_timeline->coverChanges(
 	) | rpl::on_next([=](crl::time cover) {
 		_cover = cover;
-		seek(cover);
 		updateBubble();
 		refreshCoverPreview();
 	}, _timeline->lifetime());
@@ -298,16 +277,6 @@ void VideoEditor::setupTimeline() {
 		_dragging = dragging;
 		if (dragging) {
 			_draggingHead = _timeline->draggingHead();
-			_player->setSeeking(true);
-		} else {
-			state->timer.cancel();
-			const auto latest = (state->pending >= 0)
-				? state->pending
-				: _position;
-			state->pending = -1;
-			const auto resume = std::clamp(latest, _from, _till);
-			_player->setSeeking(false);
-			_player->restart((resume >= _till) ? _from : resume);
 		}
 		if (!dragging && _draggingHead) {
 			_draggingHead = false;
@@ -554,14 +523,6 @@ void VideoEditor::setupControls() {
 }
 
 void VideoEditor::setupStreaming() {
-	_player->positionUpdates(
-	) | rpl::on_next([=](crl::time position) {
-		_position = position;
-		if (!_dragging) {
-			_timeline->setPlaybackPosition(position);
-		}
-	}, lifetime());
-
 	_player->repaints(
 	) | rpl::on_next([=] {
 		update();
@@ -570,7 +531,6 @@ void VideoEditor::setupStreaming() {
 		}
 	}, lifetime());
 
-	_player->setSegment(_from, _till);
 	_player->start();
 }
 

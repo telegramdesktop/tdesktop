@@ -25,6 +25,7 @@ namespace Editor {
 
 class Crop;
 class SegmentPlayer;
+class TimelineSeeker;
 class VideoTimeline;
 class VideoQualitySlider;
 
@@ -91,12 +92,12 @@ private:
 	crl::time _from = 0;
 	crl::time _till = 0;
 	crl::time _cover = 0;
-	crl::time _position = 0;
 	bool _gif = false;
 
 	std::unique_ptr<SegmentPlayer> _player;
 	base::unique_qptr<Crop> _crop;
 	base::unique_qptr<VideoTimeline> _timeline;
+	std::unique_ptr<TimelineSeeker> _seeker;
 	base::unique_qptr<VideoQualitySlider> _quality;
 	base::unique_qptr<Ui::RpWidget> _controls;
 	base::unique_qptr<Ui::RpWidget> _bar;
