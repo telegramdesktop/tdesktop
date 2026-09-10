@@ -275,6 +275,7 @@ private:
 	void playbackResumeOnCall();
 	void playbackPauseMusic();
 	void switchToPip();
+	void pipNavigate(int delta);
 	[[nodiscard]] int topNotchSkip() const;
 	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow();
 
@@ -741,6 +742,7 @@ private:
 	int _streamedCreated = 0;
 	bool _streamedQualityChangeFinished = false;
 	bool _showAsPip = false;
+	int _pipGeneration = 0;
 
 	Qt::Orientations _flip;
 
