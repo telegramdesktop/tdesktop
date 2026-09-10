@@ -84,7 +84,9 @@ enum class TabbedSelectorMode {
 	Full,
 	EmojiOnly,
 	CustomEmojiOnly,
+	CustomEmojiAndGifs,
 	StickersOnly,
+	StickersAndGifs,
 	MediaEditor,
 	EmojiStatus,
 	ChannelStatus,
@@ -284,6 +286,7 @@ private:
 	void createTabsSlider();
 	void fillTabsSliderSections();
 	void updateTabsSliderGeometry();
+	[[nodiscard]] int tabsSliderHeight() const;
 	void switchTab();
 
 	not_null<Tab*> getTab(int index);

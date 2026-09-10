@@ -402,6 +402,14 @@ TabbedSelector::TabbedSelector(
 	} else if (_mode == Mode::StickersOnly || _mode == Mode::ChatIntro) {
 		tabs.reserve(1);
 		tabs.push_back(createTab(SelectorTab::Stickers, 0));
+	} else if (_mode == Mode::StickersAndGifs) {
+		tabs.reserve(2);
+		tabs.push_back(createTab(SelectorTab::Stickers, 0));
+		tabs.push_back(createTab(SelectorTab::Gifs, 1));
+	} else if (_mode == Mode::CustomEmojiAndGifs) {
+		tabs.reserve(2);
+		tabs.push_back(createTab(SelectorTab::Emoji, 0));
+		tabs.push_back(createTab(SelectorTab::Gifs, 1));
 	} else {
 		tabs.reserve(1);
 		tabs.push_back(createTab(SelectorTab::Emoji, 0));
@@ -412,6 +420,7 @@ TabbedSelector::TabbedSelector(
 	? session().settings().selectorTab()
 	: (mediaEditor()
 		|| _mode == Mode::StickersOnly
+		|| _mode == Mode::StickersAndGifs
 		|| _mode == Mode::ChatIntro)
 	? SelectorTab::Stickers
 	: SelectorTab::Emoji)
@@ -642,7 +651,8 @@ TabbedSelector::Tab TabbedSelector::createTab(SelectorTab type, int index) {
 					? EmojiMode::FullReactions
 					: _mode == Mode::RecentReactions
 					? EmojiMode::RecentReactions
-					: _mode == Mode::CustomEmojiOnly
+					: (_mode == Mode::CustomEmojiOnly
+						|| _mode == Mode::CustomEmojiAndGifs)
 					? EmojiMode::CustomOnly
 					: _mode == Mode::PeerTitle
 					? EmojiMode::PeerTitle
@@ -837,7 +847,7 @@ void TabbedSelector::updateScrollGeometry(QSize oldSize) {
 
 void TabbedSelector::updateFooterGeometry() {
 	_footerTop = _dropDown
-		? 0
+		? tabsSliderHeight()
 		: _noFooter
 		? (height() - _roundRadius)
 		: (height() - _st.footer);
@@ -905,6 +915,12 @@ void TabbedSelector::paintBgRoundedPart(QPainter &p) {
 			_dropDown ? _panelRounding.p[3] : QPixmap(),
 		},
 	});
+	if (_dropDown && _tabsSlider) {
+		const auto tabs = QRect(0, 0, width(), _tabsSlider->height());
+		Ui::FillRoundRect(p, tabs, _st.bg, {
+			.p = { _panelRounding.p[0], _panelRounding.p[1], {}, {} },
+		});
+	}
 }
 
 void TabbedSelector::paintContent(QPainter &p) {
@@ -920,10 +936,11 @@ void TabbedSelector::paintContent(QPainter &p) {
 			_footerTop,
 			width(),
 			_noFooter ? _roundRadius : _st.footer);
+		const auto roundedTop = _dropDown && !_tabsSlider;
 		Ui::FillRoundRect(p, footerPart, footerBg, {
 			.p = {
-				_dropDown ? pixmaps.p[0] : QPixmap(),
-				_dropDown ? pixmaps.p[1] : QPixmap(),
+				roundedTop ? pixmaps.p[0] : QPixmap(),
+				roundedTop ? pixmaps.p[1] : QPixmap(),
 				_dropDown ? QPixmap() : pixmaps.p[2],
 				_dropDown ? QPixmap() : pixmaps.p[3],
 			},
@@ -953,11 +970,15 @@ void TabbedSelector::paintContent(QPainter &p) {
 	}
 }
 
+int TabbedSelector::tabsSliderHeight() const {
+	return _tabsSlider ? (_tabsSlider->height() - st::lineWidth) : 0;
+}
+
 int TabbedSelector::marginTop() const {
 	return (_dropDown && !_noFooter)
-		? _st.footer
+		? (tabsSliderHeight() + _st.footer)
 		: _tabsSlider
-		? (_tabsSlider->height() - st::lineWidth)
+		? tabsSliderHeight()
 		: _roundRadius;
 }
 
@@ -1303,7 +1324,7 @@ void TabbedSelector::switchTab() {
 		return;
 	}
 
-	const auto wasSectionIcons = hasSectionIcons();
+	const auto wasSectionIcons = hasSectionIcons() && !_dropDown;
 	const auto wasIndex = indexByType(_currentTabType);
 	currentTab()->saveScrollTop();
 
@@ -1336,11 +1357,12 @@ void TabbedSelector::switchTab() {
 		std::swap(wasCache, nowCache);
 	}
 	_slideAnimation = std::make_unique<SlideAnimation>();
+	const auto slidingTop = _dropDown ? _footerTop : _scroll->y();
 	const auto slidingRect = QRect(
 		0,
-		_scroll->y() * style::DevicePixelRatio(),
+		slidingTop * style::DevicePixelRatio(),
 		width() * style::DevicePixelRatio(),
-		(height() - _scroll->y()) * style::DevicePixelRatio());
+		(height() - slidingTop) * style::DevicePixelRatio());
 	_slideAnimation->setFinalImages(
 		direction,
 		std::move(wasCache),
