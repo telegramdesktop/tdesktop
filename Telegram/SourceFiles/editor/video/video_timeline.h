@@ -89,7 +89,9 @@ private:
 	void moveWindowTo(crl::time center);
 	[[nodiscard]] crl::time timeAt(int x) const;
 	[[nodiscard]] int xAt(crl::time time) const;
-	[[nodiscard]] Grab grabAt(QPoint position) const;
+	[[nodiscard]] Grab grabAt(
+		QPoint position,
+		Qt::KeyboardModifiers modifiers) const;
 
 	void applyGrab(QPoint position);
 	void setCover(crl::time cover, bool notify);

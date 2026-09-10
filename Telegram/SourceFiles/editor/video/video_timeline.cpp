@@ -216,7 +216,12 @@ void VideoTimeline::reloadFrames() {
 	});
 }
 
-VideoTimeline::Grab VideoTimeline::grabAt(QPoint position) const {
+VideoTimeline::Grab VideoTimeline::grabAt(
+		QPoint position,
+		Qt::KeyboardModifiers modifiers) const {
+	if (modifiers & (Qt::ShiftModifier | Qt::AltModifier)) {
+		return Grab::Window;
+	}
 	const auto slop = st::videoTimelineHandleHitSlop;
 	const auto handle = st::videoTimelineHandleWidth;
 	const auto x = position.x();
@@ -232,7 +237,7 @@ VideoTimeline::Grab VideoTimeline::grabAt(QPoint position) const {
 	} else if (x > left && x < right) {
 		return Grab::Head;
 	}
-	return Grab::Window;
+	return Grab::None;
 }
 
 crl::time VideoTimeline::minSelection() const {
@@ -259,11 +264,15 @@ void VideoTimeline::mousePressEvent(QMouseEvent *e) {
 		return;
 	}
 	const auto position = e->pos();
-	_grab = grabAt(position);
-	if (_grab == Grab::Left) {
+	_grab = grabAt(position, e->modifiers());
+	if (_grab == Grab::None) {
+		return;
+	} else if (_grab == Grab::Left) {
 		_grabShift = position.x() - xAt(_from);
 	} else if (_grab == Grab::Right) {
 		_grabShift = position.x() - xAt(_till);
+	} else if (_grab == Grab::Window) {
+		_grabShift = position.x() - (xAt(_from) + xAt(_till)) / 2;
 	} else {
 		_grabShift = 0;
 	}
@@ -282,7 +291,7 @@ void VideoTimeline::mousePressEvent(QMouseEvent *e) {
 
 void VideoTimeline::mouseMoveEvent(QMouseEvent *e) {
 	if (_grab == Grab::None) {
-		updateCursor(grabAt(e->pos()));
+		updateCursor(grabAt(e->pos(), e->modifiers()));
 		return;
 	}
 	applyGrab(e->pos());
@@ -303,7 +312,7 @@ void VideoTimeline::mouseReleaseEvent(QMouseEvent *e) {
 			kDotDuration,
 			anim::easeOutQuint);
 	}
-	updateCursor(grabAt(e->pos()));
+	updateCursor(grabAt(e->pos(), e->modifiers()));
 	_draggingChanges.fire(false);
 }
 
