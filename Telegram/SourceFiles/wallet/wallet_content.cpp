@@ -4396,7 +4396,7 @@ bool RecentMoneyRecipientsController::canOffer(
 
 void RecentMoneyRecipientsController::watchUsers() {
 	_userLifetime.destroy();
-	for (const auto user : _users) {
+	for (const auto &user : _users) {
 		user->flagsValue() | rpl::skip(1) | rpl::on_next([=] {
 			scheduleRefresh();
 		}, _userLifetime);
@@ -4433,7 +4433,7 @@ void RecentMoneyRecipientsController::refresh() {
 	}
 	auto rows = std::vector<not_null<UserData*>>();
 	rows.reserve(_users.size());
-	for (const auto user : _users) {
+	for (const auto &user : _users) {
 		if (canOffer(user)) {
 			rows.push_back(user);
 		}
@@ -4447,7 +4447,7 @@ void RecentMoneyRecipientsController::refresh() {
 		while (delegate()->peerListFullRowsCount()) {
 			delegate()->peerListRemoveRow(delegate()->peerListRowAt(0));
 		}
-		for (const auto user : rows) {
+		for (const auto &user : rows) {
 			delegate()->peerListAppendRow(std::make_unique<PeerListRow>(user));
 		}
 		delegate()->peerListRefreshRows();

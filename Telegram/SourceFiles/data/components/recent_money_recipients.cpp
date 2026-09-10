@@ -89,14 +89,14 @@ QByteArray RecentMoneyRecipients::serialize() const {
 		return {};
 	}
 	auto size = 2 * sizeof(quint32);
-	for (const auto user : _list) {
+	for (const auto &user : _list) {
 		size += Serialize::peerSize(user);
 	}
 	auto stream = Serialize::ByteArrayWriter(size);
 	stream
 		<< quint32(AppVersion)
 		<< quint32(_list.size());
-	for (const auto user : _list) {
+	for (const auto &user : _list) {
 		Serialize::writePeer(stream, user);
 	}
 	return std::move(stream).result();

@@ -1028,7 +1028,7 @@ void KeyProtectionBox(
 	};
 	const auto setBusy = [=](bool busy) {
 		state->busy = busy;
-		for (const auto radio : state->radios) {
+		for (const auto &radio : state->radios) {
 			radio->setDisabled(busy);
 		}
 		Ui::SetButtonBusy(state->save.data(), busy);
