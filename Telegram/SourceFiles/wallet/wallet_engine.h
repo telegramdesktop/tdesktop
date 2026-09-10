@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace wallet_engine {
@@ -96,19 +97,31 @@ struct TransferSubmissionAnswer {
 	QString diagnostic;
 };
 
-// The ordinary send whose one sendBoc submission the status-less host routes
-// through Telegram's wallet.sendTransfer instead of the toncenter proxy. The
-// host decodes the signed BOC out of the engine's request, hands it to the
-// main thread through submit(), and answers the engine with a provider-shaped
-// body (accepted / definitely rejected) or a host error (uncertain), so the
+struct TransferSubmissionData {
+	QByteArray normal;
+	std::optional<QByteArray> gasless;
+};
+
+// The send whose one sendBoc submission the status-less host routes through
+// Telegram's wallet.sendTransfer instead of the toncenter proxy. The host
+// decodes the signed BOC out of the engine's request, pairs it with the
+// relayer alternative the recording carries, hands both to the main thread
+// through submit(), and answers the engine with a provider-shaped body
+// (accepted / definitely rejected) or a host error (uncertain), so the
 // engine's journal, phases and resolution stay authoritative.
 //
-// Attribution: a sendBoc belongs to the send whose recording is open on the
+// A gasless-eligible transfer signs both delivery forms in one engine
+// prepare_transfer() and submits the external one through send_boc(), so the
+// alternative the server may pick instead never travels inside the engine's
+// own request. The recording carries it beside the routed call, which is why
+// only the normal BOC is decoded out of the request here.
+//
+// Attribution: a submission belongs to the send whose recording is open on the
 // calling thread. Engine::run() runs jobs one at a time on one worker and
 // runQuick()'s contract forbids network, so no other engine call of this
 // Engine can be routed while a recording is open; the rotation's send_boc
 // opens none and keeps the proxy transport. A recording wraps exactly one
-// client->send call.
+// client->send or client->send_boc call.
 //
 // Lifetime: Current() hands the host a copy of the thread-local, and the
 // host's queued main-thread work holds that reference itself, so a job that
@@ -118,33 +131,44 @@ class TransferSubmission final
 	: public std::enable_shared_from_this<TransferSubmission> {
 public:
 	using Submit = Fn<void(
-		QByteArray boc,
+		TransferSubmissionData data,
 		Fn<void(TransferSubmissionAnswer)> done)>;
 
 	explicit TransferSubmission(Submit submit);
 
 	class Recording final {
 	public:
-		explicit Recording(std::shared_ptr<TransferSubmission> submission);
+		Recording(
+			std::shared_ptr<TransferSubmission> submission,
+			std::optional<QByteArray> gasless);
 		Recording(const Recording &other) = delete;
 		Recording &operator=(const Recording &other) = delete;
 		~Recording();
 
 	private:
 		std::shared_ptr<TransferSubmission> _previous;
+		std::optional<QByteArray> _previousGasless;
 
 	};
 
-	// Worker thread, inside the job, around the one client->send call
-	// whose submission is being routed.
-	[[nodiscard]] Recording record();
+	// Worker thread, inside the job, around the one send call whose
+	// submission is being routed. `gasless` is the relayer alternative
+	// prepared for the same seqno and validity window, absent for a send
+	// with no fee-free offer.
+	[[nodiscard]] Recording record(
+		std::optional<QByteArray> gasless = std::nullopt);
 
 	// Worker thread. The submission recorded on this thread, empty when no
 	// recording is open.
 	[[nodiscard]] static std::shared_ptr<TransferSubmission> Current();
 
+	// Worker thread. The relayer alternative of the open recording.
+	[[nodiscard]] static std::optional<QByteArray> CurrentGasless();
+
 	// Main thread. Answers through `done` exactly once, on the main thread.
-	void submit(QByteArray boc, Fn<void(TransferSubmissionAnswer)> done);
+	void submit(
+		TransferSubmissionData data,
+		Fn<void(TransferSubmissionAnswer)> done);
 
 private:
 	const Submit _submit;

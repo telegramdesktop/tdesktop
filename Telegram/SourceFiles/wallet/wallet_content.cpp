@@ -3406,7 +3406,8 @@ void ApplyCommentLimit(not_null<Ui::InputField*> field) {
 }
 
 struct SendQuoteDependencies {
-	QByteArray senderKey;
+	std::optional<TransferWalletIdentity> senderIdentity;
+	GaslessTerms gaslessTerms;
 	QString destination;
 	SendComment comment;
 	DeviceCustodyState custody;
@@ -3447,7 +3448,7 @@ struct SendFlow {
 	int64 amountNano = 0;
 	std::shared_ptr<SendDraft> draft;
 	std::optional<UserId> userId;
-	QByteArray senderKey;
+	std::optional<TransferWalletIdentity> senderIdentity;
 };
 
 class SendCommentBubble final : public Ui::RpWidget {
@@ -3781,6 +3782,8 @@ void WalletSendCommentBox(
 		return tr::lng_wallet_send_error_rejected(tr::now);
 	case SendError::DataInvalid:
 		return tr::lng_wallet_send_error_data_invalid(tr::now);
+	case SendError::QuoteExpired:
+		return tr::lng_wallet_send_error_quote_expired(tr::now);
 	}
 	Unexpected("Error value in SendErrorText.");
 }
@@ -3797,6 +3800,53 @@ void WalletSendCommentBox(
 		return tr::lng_wallet_send_user_unavailable(tr::now);
 	}
 	return tr::lng_wallet_send_user_load_error(tr::now);
+}
+
+[[nodiscard]] rpl::producer<TextWithEntities> GaslessOfferText(
+		const GaslessTerms &terms,
+		int64 amountNano,
+		const QString &destination) {
+	const auto &info = terms.info;
+	auto text = rpl::producer<QString>();
+	if (terms.eligible(amountNano, destination)) {
+		text = tr::lng_wallet_send_gasless_eligible();
+	} else if (terms.usable && amountNano < terms.effectiveMinNanos) {
+		text = tr::lng_wallet_send_gasless_minimum(
+			lt_amount,
+			rpl::single(Ui::FormatTonAmount(terms.effectiveMinNanos).full));
+	} else if (terms.fresh && info && !info->left) {
+		text = tr::lng_wallet_send_gasless_exhausted();
+	} else {
+		text = tr::lng_wallet_send_gasless_unavailable();
+	}
+	if (!info || info->left < 0 || info->resetAt < 0) {
+		return std::move(text) | rpl::map([](QString text) {
+			return tr::marked(std::move(text));
+		});
+	}
+	auto remaining = rpl::producer<QString>();
+	if (info->resetAt > 0) {
+		auto reset = rpl::single(rpl::empty) | rpl::then(
+			Lang::Updated()
+		) | rpl::map([resetAt = info->resetAt] {
+			return langDateTime(base::unixtime::parse(resetAt));
+		});
+		remaining = tr::lng_wallet_send_gasless_remaining(
+			lt_count,
+			rpl::single(float64(info->left)),
+			lt_date,
+			std::move(reset));
+	} else {
+		remaining = tr::lng_wallet_send_gasless_remaining_count(
+			lt_count,
+			rpl::single(float64(info->left)));
+	}
+	return rpl::combine(
+		std::move(text),
+		std::move(remaining)
+	) | rpl::map([](QString offer, QString remaining) {
+		return tr::marked(offer + '\n' + remaining);
+	});
 }
 
 void WalletSendConfirmBox(
@@ -3847,6 +3897,26 @@ void WalletSendConfirmBox(
 		}));
 	Ui::AddTableRow(
 		table,
+		tr::lng_wallet_send_gasless_label(),
+		object_ptr<Ui::FlatLabel>(
+			table,
+			rpl::combine(
+				draft->quote.value(),
+				show->session().wallet().gaslessTermsValue()
+			) | rpl::map([
+				amountNano = flow.amountNano,
+				destination = flow.destination
+			](
+					const std::optional<SendQuote> &quote,
+					const GaslessTerms &terms) {
+				return GaslessOfferText(
+					quote ? quote->dependencies.gaslessTerms : terms,
+					amountNano,
+					destination);
+			}) | rpl::flatten_latest(),
+			st::giveawayGiftMessage));
+	Ui::AddTableRow(
+		table,
 		tr::lng_wallet_details_date(),
 		rpl::single(tr::marked(
 			langDateTime(base::unixtime::parse(base::unixtime::now())))));
@@ -3875,7 +3945,8 @@ void WalletSendConfirmBox(
 		return weakSession
 			&& show->valid()
 			&& (&show->session() == session)
-			&& (wallet->publicKey() == flow.senderKey);
+			&& flow.senderIdentity
+			&& wallet->transferWalletIdentityCurrent(*flow.senderIdentity);
 	};
 	const auto confirmationValid = [=] {
 		return weak
@@ -3949,7 +4020,7 @@ void WalletSendConfirmBox(
 			} else if (!draft->quote.current()
 				|| *draft->quote.current() != accepted
 				|| draft->comment.current() != accepted.args.comment) {
-				refuse(SendError::InvalidRequest);
+				refuse(SendError::QuoteExpired);
 				return;
 			}
 			const auto error = checkQuote();
@@ -3971,9 +4042,13 @@ void WalletSendConfirmBox(
 						refuse(error);
 						return;
 					}
+					const auto &receipt = wallet->lastTransferReceipt();
+					const auto sent = receipt && receipt->gasless
+						? tr::lng_wallet_sent_gasless_toast
+						: tr::lng_wallet_sent_toast;
 					show->hideLayer();
 					if (error == SendError::None) {
-						show->showToast(tr::lng_wallet_sent_toast(
+						show->showToast(sent(
 							tr::now,
 							lt_address,
 							ShortAddressForm(flow.displayForm)));
@@ -4511,7 +4586,7 @@ void WalletSendBox(
 		std::optional<SendQuoteDependencies> previewDependencies;
 		base::unique_qptr<Ui::PopupMenu> menu;
 		base::weak_qptr<Ui::GenericBox> commentBox;
-		QByteArray senderKey;
+		std::optional<TransferWalletIdentity> senderIdentity;
 		uint64 previewRevision = 0;
 		uint64 loadRevision = 0;
 		base::Timer loadDeadline;
@@ -4548,7 +4623,9 @@ void WalletSendBox(
 	const auto draft = state->draft;
 	const auto previewOwner = wallet->createPreviewOwner(state->previewLifetime);
 	state->loading = user && !initial;
-	state->senderKey = user && !initial ? QByteArray() : wallet->publicKey();
+	state->senderIdentity = user && !initial
+		? std::nullopt
+		: wallet->transferWalletIdentity();
 	state->rate = FiatRateValue(session);
 	state->minTransfer = TransferMinNanos(session);
 	const auto userId = user ? peerToUser(user->id) : UserId();
@@ -4559,8 +4636,9 @@ void WalletSendBox(
 	};
 	const auto userError = [=] {
 		if (!sessionValid()
-			|| (state->forceIssued
-				&& wallet->publicKey() != state->senderKey)) {
+			|| (state->senderIdentity
+				&& !wallet->transferWalletIdentityCurrent(
+					*state->senderIdentity))) {
 			return u"WALLET_NOT_READY"_q;
 		}
 		const auto error = wallet->userAddresses().forceResolveError(userId);
@@ -4580,7 +4658,8 @@ void WalletSendBox(
 			&& !state->closed
 			&& !state->terminal
 			&& sessionValid()
-			&& (wallet->publicKey() == state->senderKey)
+			&& state->senderIdentity
+			&& wallet->transferWalletIdentityCurrent(*state->senderIdentity)
 			&& !state->loading.current()
 			&& state->loadError.current().isEmpty()
 			&& (!user || (state->flow && userError().isEmpty()));
@@ -4638,7 +4717,12 @@ void WalletSendBox(
 	const auto quoteDependencies = [=] {
 		const auto validSession = sessionValid();
 		return SendQuoteDependencies{
-			.senderKey = validSession ? wallet->publicKey() : QByteArray(),
+			.senderIdentity = validSession
+				? wallet->transferWalletIdentity()
+				: std::nullopt,
+			.gaslessTerms = validSession
+				? wallet->gaslessTerms()
+				: GaslessTerms(),
 			.destination = state->flow ? state->flow->destination : QString(),
 			.comment = draft->comment.current(),
 			.custody = validSession
@@ -4935,9 +5019,11 @@ void WalletSendBox(
 			: std::nullopt;
 		draft->preparing = true;
 		const auto current = [=] {
-			return originValid()
-				&& revision == state->previewRevision
-				&& dependencies == quoteDependencies();
+			if (!originValid() || revision != state->previewRevision) {
+				return false;
+			}
+			const auto now = quoteDependencies();
+			return revision == state->previewRevision && dependencies == now;
 		};
 		const auto estimate = crl::guard(session, crl::guard(box, [=](
 				KeyAuthorization auth) {
@@ -5003,6 +5089,7 @@ void WalletSendBox(
 					case SendError::Failed:
 					case SendError::Rejected:
 					case SendError::DataInvalid:
+					case SendError::QuoteExpired:
 					case SendError::Silent:
 					case SendError::SubmissionUnknown:
 						fail(result.error);
@@ -5051,6 +5138,13 @@ void WalletSendBox(
 		state->minTransfer = TransferMinNanos(session);
 	}, box->lifetime());
 	state->minTransfer.changes() | rpl::on_next(refreshFee, box->lifetime());
+	wallet->gaslessTermsValue() | rpl::on_next(refreshFee, box->lifetime());
+	wallet->transferWalletIdentityChanges() | rpl::on_next([=] {
+		if (!state->senderIdentity && !user && sessionValid()) {
+			state->senderIdentity = wallet->transferWalletIdentity();
+		}
+		refreshFee();
+	}, box->lifetime());
 	if (!user) {
 		wallet->custodyUpdates() | rpl::on_next(refreshFee, box->lifetime());
 		wallet->balanceNanoValue() | rpl::on_next(refreshFee, box->lifetime());
@@ -5310,14 +5404,14 @@ void WalletSendBox(
 		auto next = *state->flow;
 		next.amountNano = state->amount.current();
 		next.userId = user ? std::make_optional(userId) : std::nullopt;
-		next.senderKey = state->senderKey;
+		next.senderIdentity = state->senderIdentity;
 		const auto confirmationOriginValid = [=] {
 			return originValid()
 				&& state->flow
 				&& (state->amount.current() == next.amountNano)
 				&& (state->flow->destination == next.destination)
 				&& (state->flow->bounce == next.bounce)
-				&& (state->senderKey == next.senderKey);
+				&& (state->senderIdentity == next.senderIdentity);
 		};
 		const auto checkQuote = [=] {
 			if (!confirmationOriginValid() || draft->preparing.current()) {
@@ -5329,13 +5423,15 @@ void WalletSendBox(
 					? SendError::InsufficientBalance
 					: SendError::InsufficientFees;
 			}
-			const auto &quote = draft->quote.current();
+			const auto quote = draft->quote.current();
+			const auto dependencies = quoteDependencies();
 			if (!quote
 				|| !quote->prepared
 				|| quote->revision != state->previewRevision
-				|| quote->dependencies != quoteDependencies()
+				|| quote->dependencies != dependencies
+				|| quote != draft->quote.current()
 				|| quote->args.comment != draft->comment.current()) {
-				return SendError::InvalidRequest;
+				return SendError::QuoteExpired;
 			} else if (draft->privateEpoch
 				&& (*draft->privateEpoch != wallet->vault().clearEpoch()
 					|| !draft->authorization.valid()
@@ -5506,7 +5602,11 @@ void WalletSendBox(
 			} else if (state->forceIssued) {
 				return;
 			}
-			state->senderKey = wallet->publicKey();
+			state->senderIdentity = wallet->transferWalletIdentity();
+			if (!state->senderIdentity) {
+				failLoading(u"WALLET_NOT_READY"_q);
+				return;
+			}
 			state->forceIssued = true;
 			const auto revision = state->loadRevision;
 			const auto current = [=] {
@@ -5533,7 +5633,7 @@ void WalletSendBox(
 						return;
 					}
 					flow->userId = userId;
-					flow->senderKey = state->senderKey;
+					flow->senderIdentity = state->senderIdentity;
 					flow->draft = draft;
 					state->flow = std::move(flow);
 					state->expanded = true;
@@ -5590,6 +5690,8 @@ void WalletSendBox(
 			return;
 		}
 		wallet->presenceValue() | rpl::on_next(schedule, box->lifetime());
+		wallet->transferWalletIdentityChanges(
+		) | rpl::on_next(schedule, box->lifetime());
 		wallet->refreshState();
 	}
 }

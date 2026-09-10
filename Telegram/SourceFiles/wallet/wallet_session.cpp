@@ -88,6 +88,7 @@ struct Session::SubmittedTransfer {
 	int generation = 0;
 	int lookupAttempts = 0;
 	bool lookupStopped = false;
+	bool paired = false;
 };
 
 struct Session::SubmittedLookup {
@@ -108,22 +109,24 @@ struct Session::PreparedRotation {
 
 struct PreparedSend {
 	SendArgs args;
+	TransferWalletIdentity identity;
+	GaslessTerms terms;
 	std::shared_ptr<const wallet_engine::SendIntent> intent;
 	int64 feeNano = 0;
 	uint64 owner = 0;
 	uint64 revision = 0;
 	int generation = 0;
 	std::optional<quint32> privateEpoch;
-	QByteArray sender;
 	std::shared_ptr<wallet_engine::WalletClient> client;
 };
 
 struct Session::PreviewRequest {
+	std::optional<TransferWalletIdentity> identity;
+	GaslessTerms terms;
 	uint64 owner = 0;
 	uint64 revision = 0;
 	int generation = 0;
 	std::optional<quint32> privateEpoch;
-	QByteArray sender;
 	std::shared_ptr<wallet_engine::WalletClient> client;
 	KeyAuthorization auth;
 	SendArgs args;
@@ -199,7 +202,9 @@ constexpr auto kStreamResyncInterval = 30 * crl::time(1000);
 constexpr auto kClientSendValiditySeconds = uint64(300);
 constexpr auto kClientResolutionMarginSeconds = uint64(60);
 constexpr auto kClientRequestTimeoutMs = uint64(15000);
-// The largest data_normal wallet.sendTransfer documents, inclusive.
+constexpr auto kGaslessRefreshInterval = crl::time(60 * 1000);
+constexpr auto kGaslessRetryInterval = crl::time(15 * 1000);
+// The largest individual data field wallet.sendTransfer allows, inclusive.
 constexpr auto kTransferDataMaxBytes = 16 * 1024;
 // The lane follows a submitted message for as long as the engine can
 // still see the message accepted (validity plus the resolution
@@ -215,6 +220,46 @@ constexpr auto kSubmittedLookupAttempts = int(
 // prepare keeps the engine's own send validity.
 constexpr auto kRotationQuoteValiditySeconds = uint64(120);
 constexpr auto kOwnershipProofSignatureSize = 64;
+
+[[nodiscard]] int64 MinNanosFromConfig(
+		float64 configured,
+		int64 fallback) {
+	// The value arrives as `jsonNumber value:double`, so it is judged
+	// in the double domain before any cast: NaN, an infinity or an
+	// out-of-range magnitude would otherwise abort or convert with
+	// undefined behaviour. The ceiling is 2^53, the largest integer a
+	// double represents exactly, because `double(kMaxAmountNano)` rounds
+	// up to 1e18 and would let an out-of-range value through. A served
+	// integer above 2^53 is indistinguishable from its nearest
+	// representable neighbour: 2^53 + 1 arrives as 2^53 and is accepted,
+	// and 2^53 + 2 is the first value that falls back to the default.
+	const auto valid = std::isfinite(configured)
+		&& (configured >= 1.)
+		&& (configured <= float64(kTransferMinNanosMax))
+		&& (configured == std::floor(configured));
+	return valid ? int64(configured) : fallback;
+}
+
+[[nodiscard]] int64 GaslessMinNanos(not_null<Main::Session*> session) {
+	const auto configured = session->appConfig().get<float64>(
+		u"wallet_gasless_min_nanos"_q,
+		float64(kGaslessMinNanosDefault));
+	return MinNanosFromConfig(configured, kGaslessMinNanosDefault);
+}
+
+[[nodiscard]] GaslessInfo GaslessInfoFromServer(
+		const MTPDwallet_gaslessInfo &data) {
+	const auto relayer = ParseAddress(qs(data.vrelayer_address()));
+	return GaslessInfo{
+		.relayer = (relayer && !relayer->testnet)
+			? relayer->raw
+			: QString(),
+		.minAmount = int64(data.vmin_amount().v),
+		.resetAt = data.vreset_at().v,
+		.left = data.vleft().v,
+		.available = data.is_available(),
+	};
+}
 
 [[nodiscard]] std::optional<int64> DecimalInt64(const std::string &value) {
 	auto ok = false;
@@ -1520,6 +1565,7 @@ Session::Session(not_null<Main::Session*> session)
 	applyStreamRefresh(wanted);
 }))
 , _pollTimer([=] { pollTick(); })
+, _gaslessTimer([=] { refreshGaslessInfo(); })
 , _transferMinNanos(TransferMinNanos(session)) {
 	rpl::merge(
 		_transferWalletIdentityChanges.events(),
@@ -1532,9 +1578,31 @@ Session::Session(not_null<Main::Session*> session)
 			retireCommentScopes();
 		}
 	}, _commentLifetime);
+	transferWalletIdentityChanges() | rpl::on_next([=] {
+		_lastReceipt.reset();
+		const auto hadSubmission = _submission
+			|| _pending
+			|| (_sendState.current() != SendState::Idle);
+		_submission.reset();
+		_pending.reset();
+		_sendUnresolved = _sendUnresolved || hadSubmission;
+		_sendState = SendState::Idle;
+		resetGaslessInfo();
+		refreshGaslessInfo();
+		if (hadSubmission) {
+			updatePollingState();
+			const auto weak = base::make_weak(_engine.get());
+			syncEngineClient();
+			if (weak) {
+				requestEngineRefresh();
+			}
+		}
+	}, _lifetime);
 	session->appConfig().refreshed() | rpl::on_next([=, this] {
 		applyTransferMinNanos();
+		refreshGaslessInfo();
 	}, _lifetime);
+	resetGaslessInfo();
 }
 
 Session::~Session() {
@@ -1544,6 +1612,7 @@ Session::~Session() {
 		FinishShareFetch(_stateApi, _shareFetchTimer, state);
 	}
 	_panel = nullptr;
+	retireGaslessRequest();
 }
 
 Onramp &Session::onramp() {
@@ -1717,6 +1786,189 @@ void Session::requestState(
 		++_stateFailures;
 		updateListsGate();
 	}).send();
+}
+
+bool GaslessTerms::eligible(int64 amountNano) const {
+	return usable && (amountNano > 0) && (amountNano >= effectiveMinNanos);
+}
+
+// The relayer does not sponsor a transfer back to the wallet that signed it:
+// the server refuses the whole pair, and the mandatory normal variant beside
+// it is not executed instead, so an amount that an ordinary paid send moves
+// would fail as soon as the offer was accepted. The offer therefore stops at
+// the destination, and such a send stays on its authorized normal fee.
+bool GaslessTerms::eligible(
+		int64 amountNano,
+		const QString &destination) const {
+	return eligible(amountNano)
+		&& identity
+		&& !destination.isEmpty()
+		&& (CanonicalAddress(destination) != identity->address);
+}
+
+GaslessTerms Session::gaslessTerms() {
+	refreshGaslessInfo();
+	return _gaslessTerms.current();
+}
+
+rpl::producer<GaslessTerms> Session::gaslessTermsValue() {
+	refreshGaslessInfo();
+	return _gaslessTerms.value();
+}
+
+void Session::refreshGaslessInfo(bool force) {
+	if (_gaslessRefreshing) {
+		return;
+	}
+	_gaslessRefreshing = true;
+	const auto guard = gsl::finally([&] { _gaslessRefreshing = false; });
+	const auto terms = _gaslessTerms.current();
+	const auto identity = transferWalletIdentity();
+	if (terms.identity != identity) {
+		resetGaslessInfo();
+	} else if (terms.transferMinNanos != TransferMinNanos(_session)
+		|| terms.configuredMinNanos != GaslessMinNanos(_session)) {
+		retireGaslessRequest();
+		_gaslessExpiresAt = 0;
+	}
+	applyGaslessTerms(_gaslessTerms.current());
+	_gaslessRefreshWanted = _gaslessRefreshWanted || force;
+	if (!_preview || _preview->owners.empty() || !identity) {
+		retireGaslessRequest();
+		return;
+	}
+	const auto now = crl::now();
+	if (_gaslessRequestId
+		&& (now - _gaslessRequestedAt >= crl::time(kClientRequestTimeoutMs))) {
+		retireGaslessRequest();
+		_gaslessExpiresAt = 0;
+		applyGaslessTerms(_gaslessTerms.current());
+	}
+	if (!_gaslessRequestId
+		&& (!_gaslessTerms.current().fresh || _gaslessRefreshWanted)
+		&& (!_gaslessRequestedAt
+			|| (now - _gaslessRequestedAt >= kGaslessRetryInterval))) {
+		requestGaslessInfo();
+	}
+	if (!_preview || _preview->owners.empty()
+		|| !transferWalletIdentityCurrent(*identity)) {
+		return;
+	}
+	const auto &current = _gaslessTerms.current();
+	auto deadline = _gaslessRequestId
+		? _gaslessRequestedAt + crl::time(kClientRequestTimeoutMs)
+		: (!current.fresh || _gaslessRefreshWanted)
+		? _gaslessRequestedAt + kGaslessRetryInterval
+		: _gaslessExpiresAt;
+	if (current.fresh) {
+		deadline = std::min(deadline, _gaslessExpiresAt);
+		if (current.info->resetAt > 0) {
+			const auto resetIn = crl::time(current.info->resetAt)
+				- crl::time(base::unixtime::now());
+			deadline = std::min(deadline, now + resetIn * 1000);
+		}
+	}
+	_gaslessTimer.callOnce(std::max(crl::time(1), deadline - crl::now()));
+}
+
+void Session::requestGaslessInfo() {
+	const auto identity = transferWalletIdentity();
+	if (_gaslessRequestId
+		|| !_preview
+		|| _preview->owners.empty()
+		|| !identity) {
+		return;
+	}
+	const auto serial = ++_gaslessRequestSerial;
+	const auto generation = _networkGeneration;
+	_gaslessRequestedAt = crl::now();
+	_gaslessRefreshWanted = false;
+	const auto current = [=] {
+		return (serial == _gaslessRequestSerial)
+			&& (generation == _networkGeneration)
+			&& transferWalletIdentityCurrent(*identity)
+			&& _preview
+			&& !_preview->owners.empty();
+	};
+	_gaslessRequestId = _stateApi.request(
+		MTPwallet_GetGaslessInfo()
+	).done([=](const MTPwallet_GaslessInfo &result) {
+		if (!current()) {
+			return;
+		}
+		refreshGaslessInfo();
+		if (!current()) {
+			return;
+		}
+		_gaslessRequestId = 0;
+		applyGaslessInfo(GaslessInfoFromServer(result.data()), true);
+		refreshGaslessInfo();
+	}).fail([=](const MTP::Error &) {
+		if (!current()) {
+			return;
+		}
+		_gaslessRequestId = 0;
+		_gaslessExpiresAt = 0;
+		refreshGaslessInfo();
+	}).handleAllErrors().send();
+}
+
+void Session::retireGaslessRequest() {
+	++_gaslessRequestSerial;
+	_stateApi.request(base::take(_gaslessRequestId)).cancel();
+	_gaslessTimer.cancel();
+	_gaslessRefreshWanted = false;
+}
+
+void Session::resetGaslessInfo() {
+	const auto refreshing = std::exchange(_gaslessRefreshing, true);
+	const auto guard = gsl::finally([&] { _gaslessRefreshing = refreshing; });
+	retireGaslessRequest();
+	_gaslessRequestedAt = 0;
+	_gaslessExpiresAt = 0;
+	applyGaslessTerms(GaslessTerms());
+}
+
+void Session::applyGaslessInfo(GaslessInfo info, bool refreshed) {
+	if (refreshed) {
+		_gaslessExpiresAt = crl::now() + kGaslessRefreshInterval;
+	}
+	auto terms = _gaslessTerms.current();
+	terms.info = std::move(info);
+	applyGaslessTerms(std::move(terms));
+}
+
+void Session::applyGaslessTerms(GaslessTerms terms) {
+	const auto &previous = _gaslessTerms.current();
+	terms.identity = transferWalletIdentity();
+	terms.transferMinNanos = TransferMinNanos(_session);
+	terms.configuredMinNanos = GaslessMinNanos(_session);
+	terms.effectiveMinNanos = std::max(
+		terms.transferMinNanos,
+		terms.configuredMinNanos);
+	const auto &info = terms.info;
+	if (info && (info->minAmount > 0)) {
+		terms.effectiveMinNanos = std::max(
+			terms.effectiveMinNanos,
+			info->minAmount);
+	}
+	const auto now = base::unixtime::now();
+	if ((_gaslessExpiresAt <= crl::now())
+		|| (info && (info->resetAt > 0) && (info->resetAt <= now))) {
+		_gaslessExpiresAt = 0;
+	}
+	terms.fresh = terms.identity && info && (_gaslessExpiresAt > 0);
+	terms.usable = terms.fresh
+		&& info->available
+		&& (info->left > 0)
+		&& (info->resetAt >= 0)
+		&& (info->minAmount > 0)
+		&& !info->relayer.isEmpty();
+	terms.revision = previous.revision;
+	if (terms != previous) {
+		++terms.revision;
+		_gaslessTerms = std::move(terms);
+	}
 }
 
 void Session::applyState(const MTPWalletState &state, bool pushed) {
@@ -3922,6 +4174,12 @@ void Session::syncEngineClient() {
 		return;
 	} else if (_engine->client()) {
 		if (!wanted || _clientRecordId != wanted->recordId) {
+			if (_submission && submissionCurrent(
+					_submission->operationId,
+					_submission->prepared)) {
+				retirePreviews(SendError::SigningUnavailable);
+				return;
+			}
 			_sendRecoveryReady = false;
 			_clientStopping = true;
 			retireCommentScopes();
@@ -4011,6 +4269,7 @@ void Session::clearNetworkState() {
 		return;
 	}
 	_balanceNano = 0;
+	resetGaslessInfo();
 	if (!current()) {
 		return;
 	}
@@ -4030,31 +4289,29 @@ void Session::clearNetworkState() {
 }
 
 void Session::requestEngineRefresh() {
-	if (_engineRefreshPending || !_engine->client()) {
+	const auto identity = transferWalletIdentity();
+	const auto client = _engine->client();
+	const auto generation = _networkGeneration;
+	if (_engineRefreshPending
+		|| !identity
+		|| !transferOperationCurrent(*identity, generation, client)) {
 		return;
 	}
 	_engineRefreshPending = true;
-	const auto client = _engine->client();
-	const auto generation = _networkGeneration;
-	const auto identity = transferWalletIdentity();
 	const auto sendRevision = _sendRevision;
 	_engine->run([client] {
 		return client->refresh();
 	}, [=, this](engine::WalletUpdate update) {
 		_engineRefreshPending = false;
-		if (!identity || !transferOperationCurrent(
-				*identity,
-				generation,
-				client)) {
+		if (!transferOperationCurrent(*identity, generation, client)) {
+			requestEngineRefresh();
 			return;
 		}
 		applyEngineUpdate(update, sendRevision);
 	}, [=, this](EngineError error) {
 		_engineRefreshPending = false;
-		if (!identity || !transferOperationCurrent(
-				*identity,
-				generation,
-				client)) {
+		if (!transferOperationCurrent(*identity, generation, client)) {
+			requestEngineRefresh();
 			return;
 		}
 		LOG(("Wallet Error: engine refresh failed: %1, "
@@ -4912,20 +5169,7 @@ bool SendCommentFits(const QString &text) {
 }
 
 int64 TransferMinNanosFromConfig(float64 configured) {
-	// The value arrives as `jsonNumber value:double`, so it is judged
-	// in the double domain before any cast: NaN, an infinity or an
-	// out-of-range magnitude would otherwise abort or convert with
-	// undefined behaviour. The ceiling is 2^53, the largest integer a
-	// double represents exactly, because `double(kMaxAmountNano)` rounds
-	// up to 1e18 and would let an out-of-range value through. A served
-	// integer above 2^53 is indistinguishable from its nearest
-	// representable neighbour: 2^53 + 1 arrives as 2^53 and is accepted,
-	// and 2^53 + 2 is the first value that falls back to the default.
-	const auto valid = std::isfinite(configured)
-		&& (configured >= 1.)
-		&& (configured <= float64(kTransferMinNanosMax))
-		&& (configured == std::floor(configured));
-	return valid ? int64(configured) : kTransferMinNanosDefault;
+	return MinNanosFromConfig(configured, kTransferMinNanosDefault);
 }
 
 int64 TransferMinNanos(not_null<Main::Session*> session) {
@@ -4974,6 +5218,7 @@ uint64 Session::createPreviewOwner(rpl::lifetime &lifetime) {
 	lifetime.add(crl::guard(_preview.get(), [=, this] {
 		retirePreviewOwner(owner);
 	}));
+	refreshGaslessInfo(true);
 	return owner;
 }
 
@@ -5015,16 +5260,18 @@ void Session::estimateFee(
 		return;
 	}
 	ensureLoaded();
+	const auto terms = gaslessTerms();
 	const auto i = _preview->owners.find(owner);
 	if (i == end(_preview->owners)) {
 		return;
 	}
 	auto request = PreviewRequest{
+		.identity = transferWalletIdentity(),
+		.terms = terms,
 		.owner = owner,
 		.revision = ++i->second,
 		.generation = _networkGeneration,
 		.privateEpoch = privateEpoch,
-		.sender = _publicKey,
 		.client = _engine->client(),
 		.auth = isPrivate ? std::move(auth) : KeyAuthorization(),
 		.args = args,
@@ -5073,6 +5320,9 @@ void Session::cancelFeeEstimate(uint64 owner) {
 void Session::retirePreviewOwner(uint64 owner) {
 	cancelFeeEstimate(owner);
 	_preview->owners.remove(owner);
+	if (_preview->owners.empty()) {
+		retireGaslessRequest();
+	}
 }
 
 bool Session::previewCurrent(const PreviewRequest &request) const {
@@ -5080,16 +5330,33 @@ bool Session::previewCurrent(const PreviewRequest &request) const {
 	return i != end(_preview->owners) && i->second == request.revision;
 }
 
+bool Session::transferClientMatches(
+		const TransferWalletIdentity &identity,
+		const std::shared_ptr<engine::WalletClient> &client) const {
+	if (!client || client != _engine->client() || !_custody) {
+		return false;
+	}
+	const auto record = _custody->matching(identity.publicKey);
+	return record
+		&& record->recordId == _clientRecordId
+		&& record->network == int(engine::Network::kMainnet)
+		&& CanonicalAddress(record->address) == identity.address;
+}
+
 SendError Session::previewError(const PreviewRequest &request) {
-	if (request.privateEpoch
+	const auto terms = gaslessTerms();
+	if (!previewCurrent(request)) {
+		return SendError::QuoteExpired;
+	} else if (request.privateEpoch
 		&& (*request.privateEpoch != vault().clearEpoch()
 			|| !ReadAuthorized(*this, request.auth))) {
 		return SendError::Locked;
 	} else if (request.generation != _networkGeneration
-		|| request.sender != _publicKey) {
+		|| !request.identity
+		|| !transferWalletIdentityCurrent(*request.identity)) {
 		return SendError::Failed;
 	} else if (_presence.current() != Presence::Ready
-		|| request.sender.size() != kCustodyPublicKeySize
+		|| request.identity->publicKey.size() != kCustodyPublicKeySize
 		|| request.args.amountNano <= 0
 		|| request.args.destination.isEmpty()) {
 		return SendError::InvalidRequest;
@@ -5097,9 +5364,10 @@ SendError Session::previewError(const PreviewRequest &request) {
 			request.args.amountNano,
 			TransferMinNanos(_session))) {
 		return SendError::AmountTooSmall;
+	} else if (request.terms != terms || terms.identity != request.identity) {
+		return SendError::QuoteExpired;
 	} else if (_clientStopping
-		|| !request.client
-		|| request.client != _engine->client()) {
+		|| !transferClientMatches(*request.identity, request.client)) {
 		return SendError::SigningUnavailable;
 	} else if (_sendState.current() == SendState::Sending
 		|| _rotating
@@ -5125,7 +5393,11 @@ void Session::startPreview() {
 			continue;
 		}
 		const auto error = previewError(next);
-		if (error != SendError::None) {
+		if (!weak) {
+			return;
+		} else if (!previewCurrent(next)) {
+			continue;
+		} else if (error != SendError::None) {
 			if (const auto done = base::take(next.done)) {
 				done(FeeResult{ .error = error });
 				if (!weak) {
@@ -5254,7 +5526,12 @@ void Session::settlePreview() {
 	const auto weak = base::make_weak(_preview.get());
 	if (flight.request.done && previewCurrent(flight.request)) {
 		const auto error = previewError(flight.request);
-		if (error != SendError::None) {
+		if (!weak) {
+			return;
+		} else if (!previewCurrent(flight.request)) {
+			startPreview();
+			return;
+		} else if (error != SendError::None) {
 			flight.result = FeeResult{ .error = error };
 		} else if (flight.result.error == SendError::None
 			&& flight.intent
@@ -5262,13 +5539,14 @@ void Session::settlePreview() {
 			flight.result.prepared = std::make_shared<const PreparedSend>(
 				PreparedSend{
 					.args = flight.request.args,
+					.identity = *flight.request.identity,
+					.terms = flight.request.terms,
 					.intent = std::move(flight.intent),
 					.feeNano = flight.result.feeNano,
 					.owner = flight.request.owner,
 					.revision = flight.request.revision,
 					.generation = flight.request.generation,
 					.privateEpoch = flight.request.privateEpoch,
-					.sender = flight.request.sender,
 					.client = flight.request.client,
 				});
 		} else if (flight.result.error == SendError::None) {
@@ -5322,10 +5600,11 @@ void Session::send(
 		fail(SendError::InvalidRequest);
 		return;
 	}
+	const auto terms = gaslessTerms();
 	const auto owner = _preview->owners.find(prepared->owner);
 	if (owner == end(_preview->owners)
 		|| owner->second != prepared->revision) {
-		fail(SendError::InvalidRequest);
+		fail(SendError::QuoteExpired);
 		return;
 	}
 	const auto &args = prepared->args;
@@ -5349,13 +5628,15 @@ void Session::send(
 		return;
 	} else if (_presence.current() != Presence::Ready
 		|| prepared->generation != _networkGeneration
-		|| prepared->sender != _publicKey
-		|| prepared->sender.size() != kCustodyPublicKeySize) {
+		|| !transferWalletIdentityCurrent(prepared->identity)) {
 		fail(SendError::Failed);
 		return;
+	} else if (prepared->terms != terms
+		|| terms.identity != prepared->identity) {
+		fail(SendError::QuoteExpired);
+		return;
 	} else if (_clientStopping
-		|| !prepared->client
-		|| prepared->client != _engine->client()) {
+		|| !transferClientMatches(prepared->identity, prepared->client)) {
 		fail(SendError::SigningUnavailable);
 		return;
 	} else if (_sendState.current() != SendState::Idle
@@ -5384,7 +5665,8 @@ void Session::send(
 	const auto operationId = NewRecordId();
 	const auto client = prepared->client;
 	const auto generation = prepared->generation;
-	const auto identity = *transferWalletIdentity();
+	const auto identity = prepared->identity;
+	const auto paired = terms.eligible(args.amountNano, args.destination);
 	const auto custodyRecord = custody().matching(identity.publicKey);
 	if (!custodyRecord
 		|| custodyRecord->recordId != _clientRecordId
@@ -5402,6 +5684,7 @@ void Session::send(
 		.amountNano = args.amountNano,
 		.posted = base::unixtime::now(),
 		.network = custodyRecord->network,
+		.paired = paired,
 	});
 	_submittedTransfersDirty = true;
 	if (!persistSubmittedTransfers()) {
@@ -5415,11 +5698,8 @@ void Session::send(
 	_lastReceipt.reset();
 	const auto userId = args.userId;
 	const auto weak = base::make_weak(_engine.get());
-	const auto current = [=] {
-		return weak
-			&& transferOperationCurrent(identity, generation, client)
-			&& _submission
-			&& _submission->operationId == operationId;
+	const auto current = [=, this] {
+		return weak && submissionCurrent(operationId, prepared);
 	};
 	const auto recordPending = [=, this](SendError answer) {
 		if (!current() || _sendState.current() != SendState::Sending) {
@@ -5472,7 +5752,7 @@ void Session::send(
 			return;
 		}
 		requestEngineRefresh();
-		if (done) {
+		if (current() && done) {
 			done(answer);
 		}
 	};
@@ -5485,7 +5765,7 @@ void Session::send(
 		.intent = *prepared->intent,
 	};
 	const auto route = std::make_shared<TransferSubmission>([=, this](
-			QByteArray boc,
+			TransferSubmissionData data,
 			Fn<void(TransferSubmissionAnswer)> answer) {
 		if (!weak) {
 			answer({ TransferSubmissionOutcome::Rejected });
@@ -5493,26 +5773,57 @@ void Session::send(
 		}
 		submitTransfer(
 			operationId,
-			identity,
-			generation,
-			client,
-			std::move(boc),
+			prepared,
+			std::move(data),
 			std::move(answer));
 	});
 	_submission = TransferSubmissionState{
 		.operationId = operationId,
-		.identity = identity,
-		.client = client,
-		.generation = generation,
+		.prepared = prepared,
+		.paired = paired,
+		.normalFeeAuthorized = true,
 	};
-	_engine->run([client, request = std::move(request), route] {
-		const auto recording = route->record();
-		return client->send(request);
+	_engine->run([client, request = std::move(request), route, paired] {
+		if (!paired) {
+			const auto recording = route->record();
+			return client->send(request);
+		}
+		// A fee-free offer needs both delivery forms of the same transfer.
+		// prepare_transfer() reads the account once, so the pair it signs
+		// covers one sequence number and one validity window and the two
+		// forms stay mutually exclusive; it submits and journals neither.
+		// The external form then goes through the ordinary durable send_boc
+		// workflow, which keeps the journal, phases and resolution exactly
+		// as an ordinary send has them, while the relayer alternative rides
+		// the recording to the routed host so that one wallet.sendTransfer
+		// carries both and the server picks the form it will execute.
+		const auto pair = client->prepare_transfer(
+			engine::PrepareTransferRequest{
+				.operation_id = request.operation_id,
+				.intent = request.intent,
+			});
+		// A Boc crosses the engine boundary as its standard padded Base64
+		// text: send_boc() takes the external form back as it came, while
+		// wallet.sendTransfer carries raw bytes. An undecodable alternative
+		// is recorded empty, which submitTransfer() refuses.
+		auto gasless = QByteArray::fromBase64Encoding(
+			QByteArray::fromStdString(pair.internal_boc),
+			QByteArray::Base64Encoding
+				| QByteArray::AbortOnBase64DecodingErrors);
+		const auto recording = route->record(gasless
+			? std::move(gasless.decoded)
+			: QByteArray());
+		return client->send_boc(engine::SendBocRequest{
+			.operation_id = pair.operation_id,
+			.force = request.force,
+			.signed_boc = pair.external_boc,
+			.seqno = pair.seqno,
+			.valid_until = pair.valid_until,
+		});
 	}, [=, this, grant = auth.grant](engine::SendResult result) {
 		if (!current() || _sendState.current() != SendState::Sending) {
 			return;
-		}
-		if (result.operation_id != operationId) {
+		} else if (result.operation_id != operationId) {
 			LOG(("Wallet Error: engine send result names another operation."));
 			recordUnknown();
 			return;
@@ -5569,12 +5880,22 @@ void Session::send(
 				LOG(("Wallet Error: terminal transfer facts remain dirty."));
 			}
 			const auto submission = base::take(_submission);
+			// A pair refused before its broadcast started names an offer
+			// that expired under the confirmed operation, not the fee the
+			// user authorized for the normal variant.
 			const auto refusal = submission
-				? submission->refusal.value_or(SendError::Failed)
+				? submission->refusal.value_or(
+					(paired && !submission->rpcStarted)
+						? SendError::QuoteExpired
+						: SendError::Failed)
 				: SendError::Failed;
 			_sendState = SendState::Idle;
 			LOG(("Wallet Error: engine send ended in phase %1 (%2)."
 				).arg(int(result.phase)).arg(int(refusal)));
+			if (!weak) {
+				return;
+			}
+			syncEngineClient();
 			if (weak) {
 				_historyUpdates.fire({});
 			}
@@ -5586,8 +5907,7 @@ void Session::send(
 	}, [=, this, grant = auth.grant](EngineError error) {
 		if (!current() || _sendState.current() != SendState::Sending) {
 			return;
-		}
-		if (IsSubmissionUnknown(error)) {
+		} else if (IsSubmissionUnknown(error)) {
 			recordUnknown();
 			return;
 		}
@@ -5598,10 +5918,24 @@ void Session::send(
 				LOG(("Wallet Error: unused transfer preparation remains dirty."));
 			}
 		}
-		_submission.reset();
-		const auto failed = SendErrorFrom(error);
+		const auto submission = base::take(_submission);
+		auto failed = SendErrorFrom(error);
+		if (submission && submission->refusal) {
+			failed = *submission->refusal;
+		} else if (paired
+			&& submission
+			&& !submission->rpcStarted
+			&& (failed == SendError::Failed
+				|| failed == SendError::InvalidRequest
+				|| failed == SendError::DataInvalid)) {
+			failed = SendError::QuoteExpired;
+		}
 		LOG(("Wallet Error: engine send failed (%1).").arg(int(failed)));
 		_sendState = SendState::Idle;
+		if (!weak) {
+			return;
+		}
+		syncEngineClient();
 		if (weak && done) {
 			done(failed);
 		}
@@ -5609,19 +5943,35 @@ void Session::send(
 	_sendState = SendState::Sending;
 }
 
+bool Session::submissionCurrent(
+		const std::string &operationId,
+		const std::shared_ptr<const PreparedSend> &prepared) const {
+	return _submission
+		&& prepared
+		&& (_submission->operationId == operationId)
+		&& (_submission->prepared == prepared)
+		&& transferOperationCurrent(
+			prepared->identity,
+			prepared->generation,
+			prepared->client);
+}
+
 void Session::submitTransfer(
 		std::string operationId,
-		TransferWalletIdentity identity,
-		int generation,
-		std::shared_ptr<engine::WalletClient> client,
-		QByteArray boc,
+		std::shared_ptr<const PreparedSend> prepared,
+		TransferSubmissionData data,
 		Fn<void(TransferSubmissionAnswer)> done) {
-	if (!transferOperationCurrent(identity, generation, client)
-		|| !_submission
-		|| _submission->operationId != operationId
-		|| _submission->identity != identity
-		|| _submission->generation != generation
-		|| _submission->client.lock() != client) {
+	const auto weak = base::make_weak(_engine.get());
+	const auto current = [=, this] {
+		return weak && submissionCurrent(operationId, prepared);
+	};
+	const auto refuse = [=, this](SendError error, const QString &diagnostic) {
+		if (current()) {
+			_submission->refusal = error;
+		}
+		done({ TransferSubmissionOutcome::Rejected, diagnostic });
+	};
+	if (!current()) {
 		LOG(("Wallet Error: transfer submission refused for a stale "
 			"operation or wallet."));
 		done({
@@ -5629,23 +5979,68 @@ void Session::submitTransfer(
 			u"WALLET_TRANSFER_STALE"_q,
 		});
 		return;
-	} else if (boc.isEmpty() || boc.size() > kTransferDataMaxBytes) {
-		_submission->refusal = SendError::DataInvalid;
-		LOG(("Wallet Error: transfer data of %1 bytes refused before the "
-			"RPC.").arg(boc.size()));
+	} else if (_submission->rpcStarted) {
 		done({
-			TransferSubmissionOutcome::Rejected,
-			u"WALLET_TRANSFER_DATA_INVALID"_q,
+			TransferSubmissionOutcome::Uncertain,
+			u"WALLET_TRANSFER_ALREADY_SUBMITTED"_q,
 		});
 		return;
+	} else if (_clientStopping
+		|| !transferClientMatches(prepared->identity, prepared->client)) {
+		refuse(
+			SendError::SigningUnavailable,
+			u"WALLET_TRANSFER_SIGNING_UNAVAILABLE"_q);
+		return;
 	}
+	const auto terms = gaslessTerms();
+	if (!current()) {
+		refuse(SendError::QuoteExpired, u"WALLET_TRANSFER_STALE"_q);
+		return;
+	} else if (_clientStopping
+		|| !transferClientMatches(prepared->identity, prepared->client)) {
+		refuse(
+			SendError::SigningUnavailable,
+			u"WALLET_TRANSFER_SIGNING_UNAVAILABLE"_q);
+		return;
+	}
+	const auto amount = prepared->args.amountNano;
+	if (TransferAmountBelowMinimum(amount, TransferMinNanos(_session))) {
+		refuse(SendError::AmountTooSmall, u"WALLET_TRANSFER_AMOUNT_TOO_SMALL"_q);
+		return;
+	} else if (prepared->terms != terms
+		|| terms.identity != prepared->identity
+		|| _submission->paired != terms.eligible(
+			amount,
+			prepared->args.destination)
+		|| !_submission->normalFeeAuthorized
+		|| _clientStopping) {
+		refuse(SendError::QuoteExpired, u"WALLET_TRANSFER_QUOTE_EXPIRED"_q);
+		return;
+	} else if (data.gasless.has_value() != _submission->paired
+		|| data.normal.isEmpty()
+		|| data.normal.size() > kTransferDataMaxBytes
+		|| (data.gasless
+			&& (data.gasless->isEmpty()
+				|| data.gasless->size() > kTransferDataMaxBytes))) {
+		refuse(
+			_submission->paired
+				? SendError::QuoteExpired
+				: SendError::DataInvalid,
+			u"WALLET_TRANSFER_DATA_INVALID"_q);
+		return;
+	}
+	const auto balance = _balanceNano.current();
+	if (amount > balance) {
+		refuse(SendError::InsufficientBalance, u"WALLET_TRANSFER_BALANCE_LOW"_q);
+		return;
+	} else if (prepared->feeNano > balance - amount) {
+		refuse(SendError::InsufficientFees, u"WALLET_TRANSFER_FEES_LOW"_q);
+		return;
+	}
+	const auto identity = prepared->identity;
 	const auto record = submittedTransferRecord(operationId, identity);
 	if (!record) {
-		_submission->refusal = SendError::Failed;
-		done({
-			TransferSubmissionOutcome::Rejected,
-			u"WALLET_TRANSFER_STORAGE_FAILED"_q,
-		});
+		refuse(SendError::Failed, u"WALLET_TRANSFER_STORAGE_FAILED"_q);
 		return;
 	}
 	const auto was = record->handoff;
@@ -5656,12 +6051,8 @@ void Session::submitTransfer(
 		if (const auto retained = submittedTransferRecord(operationId, identity)) {
 			retained->handoff = was;
 		}
-		_submission->refusal = SendError::Failed;
 		LOG(("Wallet Error: transfer handoff could not be stored."));
-		done({
-			TransferSubmissionOutcome::Rejected,
-			u"WALLET_TRANSFER_STORAGE_FAILED"_q,
-		});
+		refuse(SendError::Failed, u"WALLET_TRANSFER_STORAGE_FAILED"_q);
 		return;
 	}
 	// The request id is not remembered on purpose. The broadcast must
@@ -5674,10 +6065,12 @@ void Session::submitTransfer(
 	// never cancels it either; the sender's destructor is the one cancel,
 	// and a request still queued at that moment is recovered by the
 	// engine journal on the next launch.
+	_submission->rpcStarted = true;
+	using Flag = MTPwallet_SendTransfer::Flag;
 	_stateApi.request(MTPwallet_SendTransfer(
-		MTP_flags(0),
-		MTP_bytes(boc),
-		MTPbytes()
+		MTP_flags(data.gasless ? Flag::f_data_gasless : Flag(0)),
+		MTP_bytes(data.normal),
+		data.gasless ? MTP_bytes(*data.gasless) : MTPbytes()
 	)).done([=](const MTPwallet_SentTransfer &result) {
 		const auto receipt = ReceiptFromServer(result.data());
 		if (!receipt) {
@@ -5688,12 +6081,7 @@ void Session::submitTransfer(
 			});
 			return;
 		}
-		bindTransferReceipt(
-			operationId,
-			identity,
-			generation,
-			client,
-			*receipt);
+		bindTransferReceipt(operationId, prepared, *receipt);
 		done({ TransferSubmissionOutcome::Accepted });
 	}).fail([=](const MTP::Error &error) {
 		LOG(("Wallet Error: wallet.sendTransfer failed: %1"
@@ -5702,9 +6090,7 @@ void Session::submitTransfer(
 		if (!refusal) {
 			done({ TransferSubmissionOutcome::Uncertain, error.type() });
 			return;
-		} else if (_submission
-			&& _submission->operationId == operationId
-			&& transferOperationCurrent(identity, generation, client)) {
+		} else if (current()) {
 			_submission->refusal = *refusal;
 		}
 		done({ TransferSubmissionOutcome::Rejected, error.type() });
@@ -5713,22 +6099,21 @@ void Session::submitTransfer(
 
 void Session::bindTransferReceipt(
 		const std::string &operationId,
-		const TransferWalletIdentity &identity,
-		int generation,
-		const std::shared_ptr<engine::WalletClient> &client,
+		const std::shared_ptr<const PreparedSend> &prepared,
 		TransferReceipt receipt) {
-	if (generation != _networkGeneration
+	const auto weak = base::make_weak(_engine.get());
+	const auto current = [=, this] {
+		return weak && submissionCurrent(operationId, prepared);
+	};
+	const auto identity = prepared->identity;
+	const auto client = prepared->client;
+	if (prepared->generation != _networkGeneration
 		|| !transferWalletIdentityCurrent(identity)
 		|| !client
 		|| receipt.messageHash.isEmpty()) {
 		return;
 	}
-	const auto active = _submission
-		&& _submission->operationId == operationId
-		&& _submission->identity == identity
-		&& _submission->generation == generation
-		&& _submission->client.lock() == client
-		&& transferOperationCurrent(identity, generation, client);
+	const auto active = current();
 	const auto found = submittedTransfer(operationId);
 	const auto entry = (found && found->client.lock() == client)
 		? found
@@ -5750,14 +6135,43 @@ void Session::bindTransferReceipt(
 		_submission->receipt = receipt;
 		_lastReceipt = receipt;
 	}
-	if (entry && entry->canonicalId.isEmpty()) {
-		entry->receipt = std::move(receipt);
+	const auto lookup = entry && entry->canonicalId.isEmpty();
+	if (lookup) {
+		entry->receipt = receipt;
 	}
 	if (!persistSubmittedTransfers()) {
 		LOG(("Wallet Error: received transfer token remains dirty."));
 	}
-	if (entry && entry->canonicalId.isEmpty()) {
+	if (active) {
+		// The receipt states what the server actually charged this transfer
+		// against, so its counters replace the offer the confirmation was
+		// built on before any next quote is read from the terms.
+		const auto refreshing = std::exchange(_gaslessRefreshing, true);
+		const auto guard = gsl::finally([&] {
+			if (weak) {
+				_gaslessRefreshing = refreshing;
+			}
+		});
+		retireGaslessRequest();
+		applyGaslessTerms(_gaslessTerms.current());
+		auto info = _gaslessTerms.current().info.value_or(GaslessInfo());
+		info.left = receipt.gaslessLeft;
+		info.resetAt = receipt.gaslessResetAt;
+		if (info.left < 0
+			|| info.resetAt < 0
+			|| (info.resetAt > 0 && info.resetAt <= base::unixtime::now())) {
+			_gaslessExpiresAt = 0;
+		}
+		applyGaslessInfo(std::move(info), false);
+	}
+	if (!weak) {
+		return;
+	}
+	if (lookup) {
 		startSubmittedLookup();
+	}
+	if (current()) {
+		refreshGaslessInfo(true);
 	}
 }
 
@@ -5988,6 +6402,7 @@ Session::SubmittedTransfer *Session::upsertSubmittedTransfer(
 		.generation = generation,
 		.lookupAttempts = record->lookupAttempts,
 		.lookupStopped = record->lookupStopped,
+		.paired = record->paired,
 	});
 	return &_submitted.back();
 }
@@ -6384,7 +6799,12 @@ void Session::finishPending() {
 	_submission.reset();
 	_sendUnresolved = false;
 	_unresolvedOperationId.clear();
+	const auto weak = base::make_weak(_engine.get());
 	_sendState = SendState::Idle;
+	if (!weak) {
+		return;
+	}
+	syncEngineClient();
 }
 
 void Session::applySendSnapshot(
@@ -6451,9 +6871,19 @@ void Session::applySendSnapshot(
 	const auto terminal = snapshot.phase != engine::SendPhase::kIdle
 		&& TerminalSendPhase(snapshot.phase);
 	if (entry && terminal && !entry->terminal) {
-		entry->terminal = snapshot.phase;
+		// The journal holds the normal delivery form of a paired send, so
+		// the server executing the fee-free alternative instead advances the
+		// sequence number without that exact message ever landing. The
+		// engine reads its own message as replaced; for a send that offered
+		// the alternative this is the ordinary outcome of the offer, and the
+		// receipt's message hash names the transaction that did execute.
+		const auto phase = (entry->paired
+			&& snapshot.phase == engine::SendPhase::kReplaced)
+			? engine::SendPhase::kSequenceNumberConsumed
+			: snapshot.phase;
+		entry->terminal = phase;
 		changed = true;
-		switch (snapshot.phase) {
+		switch (phase) {
 		case engine::SendPhase::kConfirmed:
 		case engine::SendPhase::kSequenceNumberConsumed:
 		case engine::SendPhase::kSuperseded:
@@ -6488,11 +6918,7 @@ void Session::applySendSnapshot(
 		&& _submission
 		&& _pending->operationId == operationId
 		&& _pending->walletIdentity == *identity
-		&& _submission->operationId == operationId
-		&& transferOperationCurrent(
-			_submission->identity,
-			_submission->generation,
-			_submission->client.lock());
+		&& submissionCurrent(operationId, _submission->prepared);
 	auto settled = local && terminal;
 	if (!_pending
 		&& !_submission

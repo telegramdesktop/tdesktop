@@ -1995,7 +1995,7 @@ mac:
 win_mac:
     git clone https://github.com/i582/wallet-engine.git
     cd wallet-engine
-    git checkout 467942571d2a3b21f3bda468190573082c7aa270
+    git checkout 632fffa60d4360b880973ec02bd086922f66a048
 """)
 
 # Every Rust library is built into one archive. A Rust staticlib carries its

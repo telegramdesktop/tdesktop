@@ -36,6 +36,7 @@ constexpr auto kMaxTrackedEarlyCancels = 64;
 // The open recordings of the engine call running on this thread.
 thread_local EngineSecretStores *t_recordingStores = nullptr;
 thread_local std::shared_ptr<TransferSubmission> t_transferSubmission;
+thread_local std::optional<QByteArray> t_transferGasless;
 
 template <typename Kind>
 struct HostErrorFor;
@@ -398,31 +399,40 @@ std::vector<QString> EngineSecretStores::take() {
 }
 
 TransferSubmission::Recording::Recording(
-	std::shared_ptr<TransferSubmission> submission)
-: _previous(t_transferSubmission) {
+	std::shared_ptr<TransferSubmission> submission,
+	std::optional<QByteArray> gasless)
+: _previous(t_transferSubmission)
+, _previousGasless(t_transferGasless) {
 	t_transferSubmission = std::move(submission);
+	t_transferGasless = std::move(gasless);
 }
 
 TransferSubmission::Recording::~Recording() {
 	t_transferSubmission = std::move(_previous);
+	t_transferGasless = std::move(_previousGasless);
 }
 
 TransferSubmission::TransferSubmission(Submit submit)
 : _submit(std::move(submit)) {
 }
 
-TransferSubmission::Recording TransferSubmission::record() {
-	return Recording(shared_from_this());
+TransferSubmission::Recording TransferSubmission::record(
+		std::optional<QByteArray> gasless) {
+	return Recording(shared_from_this(), std::move(gasless));
 }
 
 std::shared_ptr<TransferSubmission> TransferSubmission::Current() {
 	return t_transferSubmission;
 }
 
+std::optional<QByteArray> TransferSubmission::CurrentGasless() {
+	return t_transferGasless;
+}
+
 void TransferSubmission::submit(
-		QByteArray boc,
+		TransferSubmissionData data,
 		Fn<void(TransferSubmissionAnswer)> done) {
-	_submit(std::move(boc), std::move(done));
+	_submit(std::move(data), std::move(done));
 }
 
 // Implements the engine's status-less provider callback over the main-thread
@@ -505,8 +515,15 @@ public:
 		const auto normalize = (gram.endpoint == u"/api/v3/nft/items"_q);
 		const auto submission = TransferSubmission::Current();
 		if (submission && IsSendBocRequest(gram)) {
-			const auto boc = RoutedSendBoc(gram);
-			if (boc.isEmpty()) {
+			// The engine submits only the normal delivery form. Its fee-free
+			// alternative was signed beside it for the same seqno and validity
+			// window and travels with the recording, so both reach the server
+			// in the one wallet.sendTransfer that chooses between them.
+			const auto data = TransferSubmissionData{
+				.normal = RoutedSendBoc(gram),
+				.gasless = TransferSubmission::CurrentGasless(),
+			};
+			if (data.normal.isEmpty()) {
 				Complete(
 					pending,
 					RejectedSendBody(id, u"WALLET_TRANSFER_DATA_INVALID"_q));
@@ -525,7 +542,7 @@ public:
 							return;
 						}
 					}
-					submission->submit(boc, [=](
+					submission->submit(data, [=](
 							TransferSubmissionAnswer answer) {
 						switch (answer.outcome) {
 						case TransferSubmissionOutcome::Accepted:

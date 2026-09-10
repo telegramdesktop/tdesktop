@@ -46,6 +46,7 @@ class Rates;
 class Session;
 struct ShareFetch;
 struct TransferSubmissionAnswer;
+struct TransferSubmissionData;
 class UserAddresses;
 class VaultRuntime;
 
@@ -120,6 +121,7 @@ enum class SendError {
 	Failed,
 	Rejected,
 	DataInvalid,
+	QuoteExpired,
 	Silent,
 	// The send callback's third outcome beside None and a refusal:
 	// the signed message is journaled and may already be on the
@@ -238,6 +240,39 @@ struct CommentDecryptResult {
 	CommentDecryptError error = CommentDecryptError::None;
 };
 
+inline constexpr auto kTransferMinNanosDefault = int64(100'000'000);
+inline constexpr auto kTransferMinNanosMax = (int64(1) << 53);
+
+inline constexpr auto kGaslessMinNanosDefault = int64(100'000'000);
+
+struct GaslessInfo {
+	QString relayer;
+	int64 minAmount = 0;
+	TimeId resetAt = 0;
+	int left = 0;
+	bool available = false;
+
+	friend bool operator==(const GaslessInfo &, const GaslessInfo &) = default;
+};
+
+struct GaslessTerms {
+	std::optional<TransferWalletIdentity> identity;
+	std::optional<GaslessInfo> info;
+	int64 transferMinNanos = kTransferMinNanosDefault;
+	int64 configuredMinNanos = kGaslessMinNanosDefault;
+	int64 effectiveMinNanos = kGaslessMinNanosDefault;
+	uint64 revision = 0;
+	bool fresh = false;
+	bool usable = false;
+
+	[[nodiscard]] bool eligible(int64 amountNano) const;
+	[[nodiscard]] bool eligible(
+		int64 amountNano,
+		const QString &destination) const;
+
+	friend bool operator==(const GaslessTerms &, const GaslessTerms &) = default;
+};
+
 struct PreparedSend;
 
 struct FeeResult {
@@ -271,9 +306,6 @@ struct SendComment {
 
 [[nodiscard]] int SendCommentBytes(const QString &text);
 [[nodiscard]] bool SendCommentFits(const QString &text);
-
-inline constexpr auto kTransferMinNanosDefault = int64(100'000'000);
-inline constexpr auto kTransferMinNanosMax = (int64(1) << 53);
 
 [[nodiscard]] int64 TransferMinNanosFromConfig(float64 configured);
 [[nodiscard]] int64 TransferMinNanos(not_null<Main::Session*> session);
@@ -550,6 +582,10 @@ public:
 	[[nodiscard]] Ui::SeparatePanel *panel() const;
 	void setPanel(std::unique_ptr<Ui::SeparatePanel> panel);
 
+	[[nodiscard]] GaslessTerms gaslessTerms();
+	[[nodiscard]] rpl::producer<GaslessTerms> gaslessTermsValue();
+	void refreshGaslessInfo(bool force = false);
+
 	// One live send box owns one preview identity until its lifetime ends.
 	// Edits replace only that owner's queued request, preserving its place
 	// behind other owners; cancellation discards its current request without
@@ -578,6 +614,11 @@ private:
 	void requestState(
 		Fn<void(const MTPWalletState &)> done = nullptr,
 		Fn<void()> fail = nullptr);
+	void requestGaslessInfo();
+	void retireGaslessRequest();
+	void resetGaslessInfo();
+	void applyGaslessInfo(GaslessInfo info, bool refreshed);
+	void applyGaslessTerms(GaslessTerms terms);
 	void applyState(const MTPWalletState &state, bool pushed);
 	void setPresence(Presence presence);
 	void revealLocally(
@@ -662,6 +703,9 @@ private:
 	struct PreviewRequest;
 	struct PreviewState;
 	[[nodiscard]] bool previewCurrent(const PreviewRequest &request) const;
+	[[nodiscard]] bool transferClientMatches(
+		const TransferWalletIdentity &identity,
+		const std::shared_ptr<wallet_engine::WalletClient> &client) const;
 	[[nodiscard]] SendError previewError(const PreviewRequest &request);
 	void startPreview();
 	void previewPrepared(uint64 flight, wallet_engine::SendMessageBody body);
@@ -681,18 +725,17 @@ private:
 		const wallet_engine::SendSnapshot &snapshot,
 		bool journalAuthoritative,
 		uint64 sendRevision);
+	[[nodiscard]] bool submissionCurrent(
+		const std::string &operationId,
+		const std::shared_ptr<const PreparedSend> &prepared) const;
 	void submitTransfer(
 		std::string operationId,
-		TransferWalletIdentity identity,
-		int generation,
-		std::shared_ptr<wallet_engine::WalletClient> client,
-		QByteArray boc,
+		std::shared_ptr<const PreparedSend> prepared,
+		TransferSubmissionData data,
 		Fn<void(TransferSubmissionAnswer)> done);
 	void bindTransferReceipt(
 		const std::string &operationId,
-		const TransferWalletIdentity &identity,
-		int generation,
-		const std::shared_ptr<wallet_engine::WalletClient> &client,
+		const std::shared_ptr<const PreparedSend> &prepared,
 		TransferReceipt receipt);
 	[[nodiscard]] bool transferOperationCurrent(
 		const TransferWalletIdentity &identity,
@@ -748,6 +791,7 @@ private:
 	const std::unique_ptr<Stream> _stream;
 	base::Timer _pollTimer;
 	base::Timer _shareFetchTimer;
+	base::Timer _gaslessTimer;
 	std::weak_ptr<ShareFetch> _shareFetch;
 
 	bool _loaded = false;
@@ -781,6 +825,13 @@ private:
 	// paint the unreachable face instead of the empty one.
 	bool _stateUnreachable = false;
 	int64 _transferMinNanos = kTransferMinNanosDefault;
+	rpl::variable<GaslessTerms> _gaslessTerms;
+	mtpRequestId _gaslessRequestId = 0;
+	uint64 _gaslessRequestSerial = 0;
+	crl::time _gaslessRequestedAt = 0;
+	crl::time _gaslessExpiresAt = 0;
+	bool _gaslessRefreshWanted = false;
+	bool _gaslessRefreshing = false;
 	std::vector<TransferItem> _history;
 	rpl::event_stream<> _historyUpdates;
 	bool _historyHasNext = false;
@@ -826,11 +877,12 @@ private:
 	uint64 _sendRevision = 0;
 	struct TransferSubmissionState {
 		std::string operationId;
-		TransferWalletIdentity identity;
-		std::weak_ptr<wallet_engine::WalletClient> client;
+		std::shared_ptr<const PreparedSend> prepared;
 		std::optional<TransferReceipt> receipt;
 		std::optional<SendError> refusal;
-		int generation = 0;
+		bool paired = false;
+		bool normalFeeAuthorized = false;
+		bool rpcStarted = false;
 	};
 	std::optional<TransferSubmissionState> _submission;
 	std::optional<SubmittedTransferStore> _submittedTransferStore;

@@ -30,8 +30,9 @@ constexpr auto kReceiptFlag = quint32(1U << 1);
 constexpr auto kConfirmedHashFlag = quint32(1U << 2);
 constexpr auto kServedFlag = quint32(1U << 3);
 constexpr auto kStoppedFlag = quint32(1U << 4);
+constexpr auto kPairedFlag = quint32(1U << 5);
 constexpr auto kRecordFlags = kHandoffFlag | kReceiptFlag
-	| kConfirmedHashFlag | kServedFlag | kStoppedFlag;
+	| kConfirmedHashFlag | kServedFlag | kStoppedFlag | kPairedFlag;
 constexpr auto kDateFlag = quint32(1U << 0);
 constexpr auto kFeeFlag = quint32(1U << 1);
 constexpr auto kPeerFlag = quint32(1U << 2);
@@ -238,6 +239,7 @@ void WriteProjection(
 		: TransferHandoff::Preparation;
 	result.terminal = TransferTerminal(terminal);
 	result.lookupStopped = (flags & kStoppedFlag);
+	result.paired = (flags & kPairedFlag);
 	result.destination = ReadText(stream, kAddressMaxBytes);
 	result.comment = ReadText(stream, kSendCommentMaxBytes);
 	if (flags & kReceiptFlag) {
@@ -275,7 +277,8 @@ void WriteRecord(
 			| (record.messageHash ? kReceiptFlag : 0)
 			| (!record.confirmedHash.isEmpty() ? kConfirmedHashFlag : 0)
 			| (record.served ? kServedFlag : 0)
-			| (record.lookupStopped ? kStoppedFlag : 0))
+			| (record.lookupStopped ? kStoppedFlag : 0)
+			| (record.paired ? kPairedFlag : 0))
 		<< quint32(record.terminal);
 	WriteText(stream, record.destination);
 	WriteText(stream, record.comment);

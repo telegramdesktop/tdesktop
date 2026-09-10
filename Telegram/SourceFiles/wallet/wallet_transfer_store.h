@@ -79,6 +79,10 @@ struct SubmittedTransferRecord {
 	TransferTerminal terminal = TransferTerminal::None;
 	int lookupAttempts = 0;
 	bool lookupStopped = false;
+	// The send offered the server a fee-free alternative of the same
+	// transfer, so the sequence number can be consumed by a message other
+	// than the one the engine journaled.
+	bool paired = false;
 
 	friend bool operator==(
 		const SubmittedTransferRecord &,
