@@ -563,7 +563,7 @@ struct ThrowawayRotation {
 		const auto last = (cell + 1 == cells);
 		const auto count = first
 			? 35
-			: int(std::min(qsizetype(127), payload.size() - offset));
+			: std::min(127, int(payload.size()) - offset);
 		result.append(char(last ? 0 : 1));
 		result.append(char(2 * (count + (first ? 4 : 0))));
 		if (first) {
