@@ -1235,6 +1235,18 @@ void KeyProtectionBox(
 				std::move(prepared));
 			const auto local = &session.local();
 			const auto wallet = &session.wallet();
+			// The enrolled wrap goes back to its provider on every exit that
+			// does not commit it: a hardware enroll has already created a
+			// credential for it that no header will ever name otherwise, and
+			// the next Save enrolls a fresh one. Passcode and Open have no
+			// provider, so for them this is nothing. The transition below
+			// spends only the wrap key and keeps the wrap for this.
+			const auto discardPrepared = [=] {
+				const auto provider = ProtectionProviderFor(next->wrap.kind);
+				if (provider) {
+					provider->remove(local, next->wrap, [](ProtectionError) {});
+				}
+			};
 			const auto acquired = [=](
 					std::optional<SecureBytes> key,
 					ProtectionError error) {
@@ -1242,15 +1254,18 @@ void KeyProtectionBox(
 					// A dismissed system sheet on the retiring factor changes
 					// nothing and leaves the user in the box on the row they
 					// picked, as a dismissed enroll does below.
+					discardPrepared();
 					setBusy(false);
 					return;
 				} else if (!key || wallet->custodyBusy()) {
+					discardPrepared();
 					refuse();
 					return;
 				} else if (!WrapStillCommitted(*local, retired)) {
 					// The vault moved under the hop, so the header this box
 					// holds is stale and a retry against it could only
 					// mismatch again: nothing is written and the box closes.
+					discardPrepared();
 					fail();
 					return;
 				}
@@ -1258,7 +1273,10 @@ void KeyProtectionBox(
 					*local,
 					*state->header,
 					*key,
-					std::move(*next),
+					VaultPreparedWrap{
+						.wrap = next->wrap,
+						.wrapKey = std::move(next->wrapKey),
+					},
 					&wallet->vault());
 				key.reset();
 				if (result != VaultTransitionResult::Done) {
@@ -1266,6 +1284,7 @@ void KeyProtectionBox(
 					// records and header best-effort; a failed commit can retain
 					// both wraps in the caller header and on disk. Reconciliation
 					// strips records and wraps outside the committed generation.
+					discardPrepared();
 					fail();
 					return;
 				}
@@ -1757,6 +1776,26 @@ VaultDependents CollectVaultDependents() {
 			result.passcodeWrapped.push_back(account.get());
 		} else if (wrap->kind == VaultKind::Open) {
 			result.open.push_back(account.get());
+		}
+	}
+	return result;
+}
+
+int CountVaultWrapDependents(const VaultWrap &wrap) {
+	auto result = 0;
+	for (const auto &[index, account] : Core::App().domain().accounts()) {
+		const auto reading = ReadVaultHeader(account->local());
+		if (reading.state == VaultReading::State::Absent) {
+			continue;
+		} else if (reading.state != VaultReading::State::Read) {
+			++result;
+			continue;
+		}
+		const auto committed = reading.header.committedWrap();
+		if (committed
+			&& (committed->kind == wrap.kind)
+			&& (committed->openSecret == wrap.openSecret)) {
+			++result;
 		}
 	}
 	return result;

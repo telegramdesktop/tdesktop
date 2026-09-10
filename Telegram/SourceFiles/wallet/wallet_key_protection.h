@@ -108,12 +108,15 @@ public:
 
 };
 
-// macOS registers the Touch ID provider from Platform::start(), before any
-// chooser can open; Windows Hello is still to come. A provider's kind must be
-// defined in wallet_vault.cpp - named in WrapIsWellFormed and in
-// IsDefinedVaultKind, which is what lifts it out of ParseVaultHeader's
-// Unsupported verdict - in the same commit that registers the provider,
-// otherwise a header written under that kind afterwards reads as Unsupported.
+// macOS registers the Touch ID provider from Platform::start() and Windows
+// the Windows Hello one from WindowsIntegration::init(): its availability
+// check completes asynchronously and needs the main queue, which
+// Platform::start() precedes. Both run before any chooser can open. A
+// provider's kind must be defined in wallet_vault.cpp - named in
+// WrapIsWellFormed and in IsDefinedVaultKind, which is what lifts it out of
+// ParseVaultHeader's Unsupported verdict - in the same commit that registers
+// the provider, otherwise a header written under that kind afterwards reads
+// as Unsupported.
 void RegisterProtectionProvider(std::unique_ptr<ProtectionProvider> provider);
 
 [[nodiscard]] auto ProtectionProviders()
@@ -194,12 +197,27 @@ void ShowKeyProtectionBox(
 // that receives them, because Main::Domain owns the accounts and one can be
 // logged out and dropped. Never keep these vectors in an rpl::variable, a
 // state struct or a lambda that outlives the call - re-enumerate instead.
+//
+// CountVaultWrapDependents walks the same headers through ReadVaultHeader()
+// alone and counts the accounts whose committed wrap is of the given wrap's
+// kind with byte-identical openSecret. It exists for a provider's remove():
+// Removal commits one prepared wrap - one credential - into every dependent
+// account, so a later per-account Switch away from that kind retires a wrap
+// other vaults still open with, and the provider must not delete what they
+// name. Unlike the collector it fails closed: a header this build cannot
+// read - Broken or Unsupported - counts as a dependent, because it may still
+// name the credential and a doubtful read must never delete; only Absent
+// counts nothing. The calling account has already committed away by the
+// time remove() runs, so it is never counted against itself; a wrap that no
+// header commits, an enrolled one the chooser never wrote, counts zero only
+// while every other header reads.
 struct VaultDependents {
 	std::vector<not_null<Main::Account*>> passcodeWrapped;
 	std::vector<not_null<Main::Account*>> open;
 };
 
 [[nodiscard]] VaultDependents CollectVaultDependents();
+[[nodiscard]] int CountVaultWrapDependents(const VaultWrap &wrap);
 
 enum class VaultPasscodeChangeResult {
 	Done,

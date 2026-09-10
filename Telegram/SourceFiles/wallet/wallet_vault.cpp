@@ -211,47 +211,6 @@ void Cleanse(QByteArray &data) {
 	return result;
 }
 
-[[nodiscard]] SecureBytes HkdfSha256(
-		bytes::const_span ikm,
-		bytes::const_span salt,
-		bytes::const_span info,
-		int size) {
-	if (ikm.empty() || size <= 0) {
-		return {};
-	}
-	const auto context = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr);
-	if (!context) {
-		return {};
-	}
-	const auto guard = gsl::finally([&] {
-		EVP_PKEY_CTX_free(context);
-	});
-	auto result = SecureBytes(size);
-	auto length = size_t(size);
-	const auto ok = (EVP_PKEY_derive_init(context) > 0)
-		&& (EVP_PKEY_CTX_set_hkdf_md(context, EVP_sha256()) > 0)
-		&& (salt.empty()
-			|| (EVP_PKEY_CTX_set1_hkdf_salt(
-				context,
-				Unsigned(salt),
-				int(salt.size())) > 0))
-		&& (EVP_PKEY_CTX_set1_hkdf_key(
-			context,
-			Unsigned(ikm),
-			int(ikm.size())) > 0)
-		&& (info.empty()
-			|| (EVP_PKEY_CTX_add1_hkdf_info(
-				context,
-				Unsigned(info),
-				int(info.size())) > 0))
-		&& (EVP_PKEY_derive(context, Unsigned(result.span()), &length) > 0)
-		&& (length == size_t(size));
-	if (!ok) {
-		return {};
-	}
-	return result;
-}
-
 // The wrap's kind and generation travel as associated data so a blob moved
 // between two wraps of one header, or kept from a retired generation, fails
 // its tag instead of opening the vault key under the wrong wrap.
@@ -383,6 +342,7 @@ struct VaultRecordShape {
 	case VaultKind::Passcode:
 	case VaultKind::Open:
 	case VaultKind::TouchId:
+	case VaultKind::WindowsHello:
 		return true;
 	}
 	return false;
@@ -426,17 +386,18 @@ struct VaultRecordShape {
 				).arg(index).arg(wrap.openSecret.size()));
 			return false;
 		}
-	} else if (kind == quint32(VaultKind::TouchId)) {
+	} else if (kind == quint32(VaultKind::TouchId)
+		|| kind == quint32(VaultKind::WindowsHello)) {
 		// Only the payload's presence is checked here: its shape belongs to
 		// the provider, so a malformed one reads as Read and the provider
 		// answers Corrupt, which states the vault unavailable and deletes
 		// nothing.
 		if (!kdfEmpty) {
-			LOG(("Wallet Error: a Touch ID vault wrap %1 carries KDF "
+			LOG(("Wallet Error: a hardware vault wrap %1 carries KDF "
 				"parameters.").arg(index));
 			return false;
 		} else if (wrap.openSecret.isEmpty()) {
-			LOG(("Wallet Error: a Touch ID vault wrap %1 carries no "
+			LOG(("Wallet Error: a hardware vault wrap %1 carries no "
 				"provider payload.").arg(index));
 			return false;
 		}
@@ -854,6 +815,47 @@ struct OpenedRecord {
 }
 
 } // namespace
+
+SecureBytes HkdfSha256(
+		bytes::const_span ikm,
+		bytes::const_span salt,
+		bytes::const_span info,
+		int size) {
+	if (ikm.empty() || size <= 0) {
+		return {};
+	}
+	const auto context = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr);
+	if (!context) {
+		return {};
+	}
+	const auto guard = gsl::finally([&] {
+		EVP_PKEY_CTX_free(context);
+	});
+	auto result = SecureBytes(size);
+	auto length = size_t(size);
+	const auto ok = (EVP_PKEY_derive_init(context) > 0)
+		&& (EVP_PKEY_CTX_set_hkdf_md(context, EVP_sha256()) > 0)
+		&& (salt.empty()
+			|| (EVP_PKEY_CTX_set1_hkdf_salt(
+				context,
+				Unsigned(salt),
+				int(salt.size())) > 0))
+		&& (EVP_PKEY_CTX_set1_hkdf_key(
+			context,
+			Unsigned(ikm),
+			int(ikm.size())) > 0)
+		&& (info.empty()
+			|| (EVP_PKEY_CTX_add1_hkdf_info(
+				context,
+				Unsigned(info),
+				int(info.size())) > 0))
+		&& (EVP_PKEY_derive(context, Unsigned(result.span()), &length) > 0)
+		&& (length == size_t(size));
+	if (!ok) {
+		return {};
+	}
+	return result;
+}
 
 SecureBytes::SecureBytes(int size)
 : _bytes(std::max(size, 0), char(0)) {

@@ -26,15 +26,19 @@ inline constexpr auto kVaultOpenSecretSize = 32;
 inline constexpr auto kVaultRetention = 15 * 60 * crl::time(1000);
 
 // Kinds from kFirstReservedVaultKind up are reserved for the hardware
-// providers. TouchId is the one this build defines: macOS registers its
-// provider from platform/mac/wallet_protection_mac.mm, and the Secure
-// Enclave key blob together with the ECIES-sealed wrap key ride in the
-// wrap's openSecret. A reserved kind this build does not define reads as
-// Unsupported and is never rewritten.
+// providers. TouchId and WindowsHello are the two this build defines. macOS
+// registers the TouchId provider from platform/mac/wallet_protection_mac.mm:
+// the Secure Enclave key blob together with the ECIES-sealed wrap key ride
+// in the wrap's openSecret. Windows registers the WindowsHello provider from
+// platform/win/wallet_protection_win.cpp: the Hello credential id and the
+// signed challenge ride in the wrap's openSecret, and the wrap key is HKDF
+// over the credential's signature. A reserved kind this build does not
+// define reads as Unsupported and is never rewritten.
 enum class VaultKind : quint32 {
 	Passcode = 1,
 	Open = 2,
 	TouchId = 3,
+	WindowsHello = 4,
 };
 
 inline constexpr auto kFirstReservedVaultKind = quint32(3);
@@ -222,6 +226,13 @@ private:
 [[nodiscard]] std::optional<SecureBytes> DeriveVaultWrapKey(
 	const VaultWrap &wrap,
 	const QByteArray &passcode);
+// HKDF-SHA256 over OpenSSL, empty on failure; the vault's own wrap keys and
+// the Windows Hello provider's derive through it.
+[[nodiscard]] SecureBytes HkdfSha256(
+	bytes::const_span ikm,
+	bytes::const_span salt,
+	bytes::const_span info,
+	int size);
 [[nodiscard]] QByteArray WrapVaultKey(
 	const SecureBytes &vaultKey,
 	const VaultWrap &wrap,
