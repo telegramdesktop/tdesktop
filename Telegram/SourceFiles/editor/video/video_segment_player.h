@@ -20,6 +20,7 @@ public:
 	~SegmentPlayer();
 
 	void start();
+	void stop();
 	[[nodiscard]] bool valid() const;
 	[[nodiscard]] bool ready() const;
 

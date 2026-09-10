@@ -69,6 +69,10 @@ void SegmentPlayer::start() {
 	restart(_from);
 }
 
+void SegmentPlayer::stop() {
+	_instance = nullptr;
+}
+
 bool SegmentPlayer::valid() const {
 	return (_instance != nullptr);
 }

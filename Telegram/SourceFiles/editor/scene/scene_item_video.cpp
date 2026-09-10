@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/scene/scene_item_video.h"
 
+#include "editor/video/video_segment_player.h"
 #include "ui/image/image_prepare.h"
 #include "ui/rect.h"
 
@@ -34,6 +35,9 @@ ItemVideo::ItemVideo(std::shared_ptr<Source> source, ItemBase::Data data)
 : ItemAnimated(std::move(data))
 , _source(std::move(source))
 , _frameSize(FrameSizeFor(_source->thumbnail))
+, _player(std::make_unique<SegmentPlayer>(
+	_source->path,
+	_source->content))
 , _image(_source->thumbnail) {
 	if (flipped()) {
 		performFlip();
@@ -41,35 +45,40 @@ ItemVideo::ItemVideo(std::shared_ptr<Source> source, ItemBase::Data data)
 	setAspectRatio(_image.isNull()
 		? 1.
 		: (_image.height() / float64(_image.width())));
-	createPlayer();
+	_player->repaints(
+	) | rpl::on_next([=] {
+		update();
+	}, _lifetime);
+	_player->start();
 }
 
-void ItemVideo::createPlayer() {
-	if (!hasContent()) {
+ItemVideo::~ItemVideo() = default;
+
+crl::time ItemVideo::duration() const {
+	return _source->duration;
+}
+
+ItemAnimated::Trim ItemVideo::trim() const {
+	return _trim;
+}
+
+void ItemVideo::setTrim(Trim trim) {
+	const auto full = duration();
+	if (full > 0) {
+		trim.from = std::clamp(trim.from, crl::time(0), full);
+		trim.till = (trim.till > 0)
+			? std::clamp(trim.till, trim.from, full)
+			: 0;
+	}
+	if (_trim == trim) {
 		return;
 	}
-	const auto callback = [=](::Media::Clip::Notification value) {
-		clipCallback(value);
-	};
-	_reader = _source->path.isEmpty()
-		? ::Media::Clip::MakeReader(_source->content, callback)
-		: ::Media::Clip::MakeReader(_source->path, callback);
-}
-
-void ItemVideo::clipCallback(::Media::Clip::Notification notification) {
-	using namespace ::Media::Clip;
-	if (notification == Notification::Reinit) {
-		if (_reader && _reader->state() == State::Error) {
-			_reader.setBad();
-		} else if (_reader && _reader->ready() && !_reader->started()) {
-			_reader->start({ .frame = _frameSize });
-		}
-	}
-	update();
+	_trim = trim;
+	_player->setSegment(_trim.from, _trim.till);
 }
 
 bool ItemVideo::animated() const {
-	return _reader.valid() || _releasedAnimation;
+	return _player->valid() || _releasedAnimation;
 }
 
 bool ItemVideo::hasContent() const {
@@ -89,7 +98,12 @@ QByteArray ItemVideo::content() const {
 }
 
 crl::time ItemVideo::loopDuration() const {
-	return _source->duration;
+	const auto full = duration();
+	if (full <= 0) {
+		return 0;
+	}
+	const auto till = (_trim.till > _trim.from) ? _trim.till : full;
+	return till - _trim.from;
 }
 
 void ItemVideo::releasePlayers() {
@@ -98,7 +112,7 @@ void ItemVideo::releasePlayers() {
 	}
 	_releasedAnimation = true;
 	_pendingRecreate = true;
-	_reader.reset();
+	_player->stop();
 }
 
 void ItemVideo::setStatus(Status status) {
@@ -116,26 +130,20 @@ Media::Encode::AnimatedEntity::Kind ItemVideo::entityKind() const {
 	return Media::Encode::AnimatedEntity::Kind::Webm;
 }
 
-QImage ItemVideo::currentFrame() {
-	if (_reader && _reader->started()) {
-		auto result = _reader->current({ .frame = _frameSize }, crl::now());
-		if (!result.isNull()) {
-			return result;
-		}
-	}
-	return _image;
-}
-
 void ItemVideo::paint(
 		QPainter *p,
 		const QStyleOptionGraphicsItem *option,
 		QWidget *w) {
 	if (_pendingRecreate && w) {
 		_pendingRecreate = false;
-		createPlayer();
+		_player->start();
 	}
-	const auto live = _reader && _reader->started();
-	paintFrame(p, currentFrame(), live, live && flipped());
+	const auto frame = _player->frame(_frameSize);
+	if (frame.isNull()) {
+		paintFrame(p, _image, false, false);
+	} else {
+		paintFrame(p, frame, true, flipped());
+	}
 	ItemBase::paint(p, option, w);
 }
 
@@ -145,7 +153,9 @@ void ItemVideo::performFlip() {
 }
 
 std::shared_ptr<ItemBase> ItemVideo::duplicate(ItemBase::Data data) const {
-	return std::make_shared<ItemVideo>(_source, std::move(data));
+	auto result = std::make_shared<ItemVideo>(_source, std::move(data));
+	result->setTrim(_trim);
+	return result;
 }
 
 } // namespace Editor

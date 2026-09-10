@@ -8,9 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "editor/scene/scene_item_animated.h"
-#include "media/clip/media_clip_reader.h"
 
 namespace Editor {
+
+class SegmentPlayer;
 
 class ItemVideo final : public ItemAnimated {
 public:
@@ -24,6 +25,8 @@ public:
 	};
 
 	ItemVideo(std::shared_ptr<Source> source, ItemBase::Data data);
+	~ItemVideo();
+
 	void paint(
 		QPainter *p,
 		const QStyleOptionGraphicsItem *option,
@@ -32,9 +35,13 @@ public:
 	[[nodiscard]] bool hasContent() const override;
 	[[nodiscard]] QByteArray content() const override;
 	[[nodiscard]] crl::time loopDuration() const override;
+	[[nodiscard]] Trim trim() const override;
 	void releasePlayers() override;
 	void setStatus(Status status) override;
 	int type() const override;
+
+	[[nodiscard]] crl::time duration() const;
+	void setTrim(Trim trim);
 
 protected:
 	[[nodiscard]] Media::Encode::AnimatedEntity::Kind entityKind()
@@ -43,16 +50,15 @@ protected:
 	std::shared_ptr<ItemBase> duplicate(ItemBase::Data data) const override;
 
 private:
-	void createPlayer();
-	void clipCallback(::Media::Clip::Notification notification);
-	[[nodiscard]] QImage currentFrame();
-
 	const std::shared_ptr<Source> _source;
 	const QSize _frameSize;
-	::Media::Clip::ReaderPointer _reader;
+	const std::unique_ptr<SegmentPlayer> _player;
 	QImage _image;
+	Trim _trim;
 	bool _releasedAnimation = false;
 	bool _pendingRecreate = false;
+
+	rpl::lifetime _lifetime;
 
 };
 
