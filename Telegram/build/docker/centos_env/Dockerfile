@@ -995,6 +995,7 @@ RUN <<EOF
 RUST_TOOLCHAIN=1.96.1
 export RUSTUP_HOME=/usr/src/rustup
 export CARGO_HOME=/usr/src/cargo
+export CARGO_BUILD_JOBS={{ JOBS or "default" }}
 wget -O rustup-init.sh https://sh.rustup.rs
 sh rustup-init.sh -y --no-modify-path --profile minimal --default-toolchain $RUST_TOOLCHAIN
 rm rustup-init.sh
@@ -1025,11 +1026,10 @@ cargo add --path ../wallet-engine
 cargo rustc --lib --release \
 	--crate-type staticlib --crate-type cdylib \
 	--target x86_64-unknown-linux-gnu \
-	--config "profile.release.opt-level='z'" \
-	--config "profile.release.lto='thin'" \
+	--config "profile.release.opt-level={% if MINSIZE %}'z'{% else %}3{% endif %}" \
+	--config "profile.release.lto='{% if LTO %}thin{% else %}off{% endif %}'" \
 	--config "profile.release.codegen-units=1" \
 	--config "profile.release.panic='unwind'" \
-	--config "profile.release.package.tlottie.opt-level=3" \
 	-- --print native-static-libs
 mkdir -p $DESTDIR/usr/local/lib $DESTDIR/usr/local/include/tlottie $DESTDIR/usr/local/include/wallet_engine
 objcopy --strip-debug target/x86_64-unknown-linux-gnu/release/libtdesktop_rust.a $DESTDIR/usr/local/lib/libtdesktop_rust.a
