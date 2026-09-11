@@ -18,6 +18,7 @@ class SessionShow;
 
 namespace Ui {
 class RpWidget;
+class SeparatePanel;
 } // namespace Ui
 
 namespace Ui::Menu {
@@ -47,7 +48,7 @@ void ShowTransactionDetails(
 	rpl::producer<> originInvalidated = nullptr);
 
 [[nodiscard]] base::unique_qptr<Ui::RpWidget> CreateContent(
-	not_null<Ui::RpWidget*> parent,
+	not_null<Ui::SeparatePanel*> panel,
 	std::shared_ptr<Main::SessionShow> show);
 
 void FillMenu(

@@ -47,10 +47,12 @@ walletCardFiatLabel: FlatLabel(defaultFlatLabel) {
 	}
 }
 walletCardFiatTop: 98px;
-walletCardCollapseScale: 0.80;
+walletCardFoldTopScale: 0.80;
+walletCardFoldBottomScale: 0.92;
+walletCardFoldFadePower: 4.0;
+walletTitleFoldScale: 0.95;
 walletBalanceHeaderMajorFont: font(15px semibold);
 walletBalanceHeaderFiatFont: font(12px semibold);
-walletBalanceHeaderSkip: 12px;
 walletBalanceHeaderLineSkip: 2px;
 walletCardNameFont: font(13px semibold);
 walletCardNameBottom: 17px;

@@ -34,7 +34,6 @@ not_null<Ui::SeparatePanel*> ShowWallet(not_null<Main::Session*> session) {
 	const auto panel = owned.get();
 	const auto show = Main::MakeSessionShow(panel->uiShow(), session);
 	panel->setWindowFlag(Qt::WindowStaysOnTopHint, false);
-	panel->setTitle(tr::lng_wallet_title());
 	panel->setInnerSize(st::walletPanelSize);
 	rpl::single(rpl::empty) | rpl::then(
 		style::PaletteChanged()
