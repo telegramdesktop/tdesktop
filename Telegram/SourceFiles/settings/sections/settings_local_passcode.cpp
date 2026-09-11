@@ -830,7 +830,7 @@ void BuildManageContent(
 	const auto lockApp = builder.addButton({
 		.id = u"passcode/lock-app"_q,
 		.title = tr::lng_settings_passcode_lock_app(),
-		.icon = { &st::menuIconLock },
+		.icon = { &st::menuIconPermissions },
 		.toggled = rpl::merge(
 			state->appLockOn.value(),
 			state->appLockToggles.events()),
