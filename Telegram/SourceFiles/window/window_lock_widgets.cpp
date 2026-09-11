@@ -46,6 +46,10 @@ PasscodeAttempt TryPasscode(const QString &passcode) {
 	}
 	const auto utf8 = passcode.toUtf8();
 	auto &domain = Core::App().domain();
+	// Check panic passcode before the regular one (domain must be started).
+	if (domain.started() && domain.local().checkPanicPasscode(utf8)) {
+		return PasscodeAttempt::Panic;
+	}
 	const auto correct = domain.started()
 		? domain.local().checkPasscode(utf8)
 		: (domain.start(utf8) == Storage::StartResult::Success);
@@ -288,6 +292,10 @@ void PasscodeLockWidget::submit() {
 		return;
 	case PasscodeAttempt::Wrong:
 		error();
+		return;
+	case PasscodeAttempt::Panic:
+		// Log out all accounts without showing any confirmation.
+		Core::App().logout();
 		return;
 	case PasscodeAttempt::Correct:
 		break;
