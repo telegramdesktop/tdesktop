@@ -23,6 +23,7 @@ public:
 
 	void setItem(std::shared_ptr<ItemVideo> item);
 	void refreshTrim();
+	void commitPendingEdit();
 
 	[[nodiscard]] rpl::producer<crl::time> lengthChanges() const;
 

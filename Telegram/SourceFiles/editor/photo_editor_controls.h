@@ -69,6 +69,7 @@ public:
 	void setTrimShortestAvailable(bool available);
 	void setTrimShortestActive(bool active, anim::type animated);
 	void refreshTimelines();
+	void commitTimelineEdits();
 	[[nodiscard]] rpl::producer<> trimShortestRequests() const;
 	[[nodiscard]] rpl::producer<crl::time> trimLengthChanges() const;
 

@@ -518,6 +518,7 @@ void VideoEditor::setupControls() {
 		_cancel.fire({});
 	});
 	_confirm->setClickedCallback([=] {
+		_timeline->commitPendingEdit();
 		_done.fire(collect());
 	});
 }
@@ -876,6 +877,7 @@ void VideoEditor::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		_cancel.fire({});
 	} else if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
+		_timeline->commitPendingEdit();
 		_done.fire(collect());
 	}
 }

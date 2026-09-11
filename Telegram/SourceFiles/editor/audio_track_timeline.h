@@ -22,6 +22,7 @@ public:
 
 	void setTrack(std::shared_ptr<AudioTrack> track);
 	void refreshTrim();
+	void commitPendingEdit();
 
 	[[nodiscard]] rpl::producer<crl::time> lengthChanges() const;
 

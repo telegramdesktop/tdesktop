@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/editor_trim_timeline.h"
 
+#include "base/event_filter.h"
+#include "ui/widgets/fields/masked_input_field.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/text/format_values.h"
@@ -15,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QPainterPath>
 #include <QtGui/QtEvents>
+#include <QtWidgets/QApplication>
 
 namespace Editor {
 namespace {
@@ -34,10 +37,82 @@ constexpr auto kHintBgOpacityBoost = 1.6;
 constexpr auto kHintDuration = crl::time(150);
 constexpr auto kScrollToSelectionDuration = crl::time(250);
 
-[[nodiscard]] QString Stamp(crl::time value) {
+constexpr auto kStampPrecision = 3;
+
+[[nodiscard]] QString Stamp(crl::time value, int precision = 1) {
+	const auto digits = QString::number(value % 1000).rightJustified(
+		kStampPrecision,
+		'0');
 	return Ui::FormatDurationText(int(value / 1000))
 		+ '.'
-		+ QString::number((value % 1000) / 100);
+		+ digits.left(precision);
+}
+
+[[nodiscard]] bool IsRangeDash(QChar ch) {
+	return (ch == '-') || (ch == QChar(0x2013)) || (ch == QChar(0x2014));
+}
+
+[[nodiscard]] bool IsStampChar(QChar ch) {
+	return (ch >= '0' && ch <= '9')
+		|| (ch == ':')
+		|| (ch == '.')
+		|| (ch == ',')
+		|| (ch == ' ')
+		|| IsRangeDash(ch);
+}
+
+[[nodiscard]] std::optional<crl::time> ParseStamp(QStringView text) {
+	const auto parts = text.split(':');
+	if (parts.isEmpty() || parts.size() > 3) {
+		return std::nullopt;
+	}
+	auto seconds = crl::time(0);
+	for (auto i = 0; i + 1 < parts.size(); ++i) {
+		auto ok = false;
+		const auto value = parts[i].toInt(&ok);
+		if (!ok || value < 0) {
+			return std::nullopt;
+		}
+		seconds = seconds * 60 + value;
+	}
+	const auto last = parts.back();
+	const auto dot = std::max(last.indexOf('.'), last.indexOf(','));
+	const auto whole = (dot >= 0) ? last.left(dot) : last;
+	const auto fraction = (dot >= 0) ? last.mid(dot + 1) : QStringView();
+	if (whole.isEmpty() && fraction.isEmpty()) {
+		return std::nullopt;
+	}
+	auto ok = true;
+	const auto wholeValue = whole.isEmpty() ? 0 : whole.toInt(&ok);
+	if (!ok || wholeValue < 0) {
+		return std::nullopt;
+	}
+	const auto digits = fraction.left(kStampPrecision);
+	const auto fractionValue = digits.isEmpty() ? 0 : digits.toInt(&ok);
+	if (!ok || fractionValue < 0) {
+		return std::nullopt;
+	}
+	auto milliseconds = crl::time(fractionValue);
+	for (auto i = digits.size(); i < kStampPrecision; ++i) {
+		milliseconds *= 10;
+	}
+	return (seconds * 60 + wholeValue) * 1000 + milliseconds;
+}
+
+[[nodiscard]] QStringList SplitStamps(const QString &text) {
+	auto result = QStringList();
+	auto current = QString();
+	for (const auto ch : text) {
+		if (!ch.isSpace() && !IsRangeDash(ch)) {
+			current.append(ch);
+		} else if (!current.isEmpty()) {
+			result.push_back(base::take(current));
+		}
+	}
+	if (!current.isEmpty()) {
+		result.push_back(current);
+	}
+	return result;
 }
 
 [[nodiscard]] int HandleWidth(int selectionWidth) {
@@ -49,6 +124,51 @@ constexpr auto kScrollToSelectionDuration = crl::time(250);
 	}
 	return compact + int(base::SafeRound(
 		(full - compact) * std::max(selectionWidth, 0) / float64(threshold)));
+}
+
+class DurationInput final : public Ui::MaskedInputField {
+public:
+	DurationInput(QWidget *parent, const QString &value);
+
+protected:
+	void correctValue(
+		const QString &was,
+		int wasCursor,
+		QString &now,
+		int &nowCursor) override;
+
+};
+
+DurationInput::DurationInput(QWidget *parent, const QString &value)
+: MaskedInputField(
+	parent,
+	st::videoTimelineDurationField,
+	rpl::single(QString()),
+	value) {
+}
+
+void DurationInput::correctValue(
+		const QString &was,
+		int wasCursor,
+		QString &now,
+		int &nowCursor) {
+	auto result = QString();
+	result.reserve(now.size());
+	auto cursor = nowCursor;
+	for (auto i = 0; i != now.size(); ++i) {
+		const auto ch = now[i];
+		const auto digit = ch.digitValue();
+		if (digit >= 0) {
+			result.append(QChar('0' + digit));
+		} else if (IsStampChar(ch)) {
+			result.append(ch);
+		} else if (i < nowCursor) {
+			--cursor;
+		}
+	}
+	if (result != now) {
+		setCorrectedText(now, nowCursor, result, cursor);
+	}
 }
 
 } // namespace
@@ -78,15 +198,21 @@ TrimTimeline::TrimTimeline(
 		? std::min(descriptor.till, limit)
 		: limit;
 	_cover = std::clamp(descriptor.cover, _from, _till);
+	const auto &font = st::videoTimelineDurationStyle.font;
+	const auto separator = QString::fromUtf8(" – ");
 	if (_trimOnly) {
-		const auto widest = Stamp(_duration)
-			+ QString::fromUtf8(" – ")
-			+ Stamp(_duration);
-		_labelWidth = st::videoTimelineDurationStyle.font->width(widest);
+		_labelWidth = font->width(
+			Stamp(_duration) + separator + Stamp(_duration));
 	}
+	const auto widest = Stamp(_duration, kStampPrecision)
+		+ separator
+		+ Stamp(_duration, kStampPrecision);
+	_durationFieldWidth = font->width(widest)
+		+ st::videoTimelineDurationFieldSkip;
 
 	sizeValue(
 	) | rpl::on_next([=] {
+		updateDurationFieldGeometry();
 		updateHints();
 	}, lifetime());
 }
@@ -106,7 +232,10 @@ int TrimTimeline::resizeGetHeight(int newWidth) {
 QRect TrimTimeline::stripRect() const {
 	const auto handle = st::videoTimelineHandleWidth;
 	if (_trimOnly) {
-		const auto label = _labelWidth + st::videoTimelineTrimLabelSkip;
+		const auto reserved = _durationField
+			? _durationFieldWidth
+			: _labelWidth;
+		const auto label = reserved + st::videoTimelineTrimLabelSkip;
 		return QRect(
 			handle,
 			st::videoTimelinePlayheadOverflow
@@ -128,6 +257,178 @@ QRect TrimTimeline::labelRect() const {
 		return QRect(width() - _labelWidth, 0, _labelWidth, height());
 	}
 	return QRect(0, 0, width(), st::videoTimelineLabelHeight);
+}
+
+TrimTimeline::DurationLabel TrimTimeline::durationLabel() const {
+	const auto text = (_till - _from >= _duration)
+		? Stamp(_till - _from)
+		: (Stamp(_from) + QString::fromUtf8(" – ") + Stamp(_till));
+	const auto label = labelRect();
+	const auto &font = st::videoTimelineDurationStyle.font;
+	const auto width = font->width(text);
+	const auto top = label.y() + (label.height() - font->height) / 2;
+	if (_trimOnly) {
+		return {
+			.text = text,
+			.rect = QRect(
+				rect::right(label) - width,
+				top,
+				width,
+				font->height),
+		};
+	}
+
+	const auto sizeWidth = _sizeLabel.isEmpty()
+		? 0
+		: font->width(_sizeLabel);
+	const auto skip = st::videoTimelineSizeSkip;
+	const auto sizeShown = sizeWidth
+		&& (width + skip + sizeWidth <= label.width());
+	const auto available = sizeShown
+		? (label.width() - sizeWidth - skip)
+		: label.width();
+	const auto shown = (width <= available)
+		? text
+		: font->elided(text, available);
+	const auto shownWidth = std::min(width, available);
+	const auto strip = stripRect();
+	const auto visibleLeft = std::max(xAt(_from), strip.x());
+	const auto visibleRight = std::min(xAt(_till), rect::right(strip));
+	const auto center = (visibleLeft + visibleRight) / 2;
+	const auto x = std::clamp(
+		center - shownWidth / 2,
+		label.x(),
+		label.x() + std::max(available - shownWidth, 0));
+	return {
+		.text = shown,
+		.rect = QRect(x, top, shownWidth, font->height),
+		.sizeShown = sizeShown,
+	};
+}
+
+QRect TrimTimeline::durationHitRect() const {
+	const auto label = labelRect();
+	if (_trimOnly) {
+		return label;
+	}
+	const auto text = durationLabel().rect;
+	return QRect(text.x(), label.y(), text.width(), label.height());
+}
+
+QRect TrimTimeline::durationFieldRect() const {
+	const auto label = labelRect();
+	const auto &font = st::videoTimelineDurationStyle.font;
+	const auto top = label.y() + (label.height() - font->height) / 2;
+	const auto height = font->height;
+	const auto width = _durationFieldWidth;
+	if (_trimOnly) {
+		return QRect(rect::right(label) - width, top, width, height);
+	}
+	const auto painted = durationLabel();
+	const auto available = painted.sizeShown
+		? (label.width()
+			- font->width(_sizeLabel)
+			- st::videoTimelineSizeSkip)
+		: label.width();
+	const auto center = rect::center(painted.rect).x();
+	const auto x = std::clamp(
+		center - width / 2,
+		label.x(),
+		label.x() + std::max(available - width, 0));
+	return QRect(x, top, width, height);
+}
+
+QString TrimTimeline::durationEditText() const {
+	return Stamp(_from, kStampPrecision)
+		+ QString::fromUtf8(" – ")
+		+ Stamp(_till, kStampPrecision);
+}
+
+void TrimTimeline::updateDurationFieldGeometry() {
+	if (_durationField) {
+		_durationField->setGeometry(durationFieldRect());
+	}
+}
+
+void TrimTimeline::editDuration() {
+	if (_durationField) {
+		return;
+	}
+	_scrollAnimation.stop();
+	_durationFocusReturn = QApplication::focusWidget();
+	_durationField = base::make_unique_q<DurationInput>(
+		this,
+		durationEditText());
+	const auto field = _durationField.get();
+	field->setAlignment(Qt::AlignVCenter
+		| (_trimOnly ? Qt::AlignRight : Qt::AlignHCenter));
+	field->setGeometry(durationFieldRect());
+	field->show();
+	field->selectAll();
+	field->setFocus();
+	base::install_event_filter(field, [=](not_null<QEvent*> e) {
+		const auto type = e->type();
+		if (type == QEvent::KeyPress) {
+			const auto key = static_cast<QKeyEvent*>(e.get())->key();
+			if (key == Qt::Key_Escape) {
+				finishDurationEdit(false, true);
+				return base::EventFilterResult::Cancel;
+			} else if (key == Qt::Key_Return || key == Qt::Key_Enter) {
+				finishDurationEdit(true, true);
+				return base::EventFilterResult::Cancel;
+			}
+		} else if (type == QEvent::FocusOut) {
+			const auto reason = static_cast<QFocusEvent*>(e.get())->reason();
+			if (reason != Qt::PopupFocusReason
+				&& reason != Qt::ActiveWindowFocusReason) {
+				finishDurationEdit(true, false);
+			}
+		}
+		return base::EventFilterResult::Continue;
+	});
+	updateHints();
+	update();
+}
+
+void TrimTimeline::finishDurationEdit(bool apply, bool restoreFocus) {
+	const auto field = _durationField.release();
+	if (!field) {
+		return;
+	}
+	const auto text = field->text();
+	const auto focusReturn = base::take(_durationFocusReturn).data();
+	if (restoreFocus && focusReturn && focusReturn->isVisible()) {
+		focusReturn->setFocus();
+	}
+	field->hide();
+	field->deleteLater();
+	if (apply) {
+		applyDurationText(text);
+	}
+	updateHints();
+	update();
+}
+
+void TrimTimeline::commitPendingEdit() {
+	finishDurationEdit(true, false);
+}
+
+void TrimTimeline::applyDurationText(const QString &text) {
+	const auto parts = SplitStamps(text);
+	if (parts.isEmpty() || parts.size() > 2) {
+		return;
+	}
+	const auto till = ParseStamp(parts.back());
+	const auto from = (parts.size() > 1)
+		? ParseStamp(parts.front())
+		: std::optional<crl::time>(_from);
+	if (!from || !till) {
+		return;
+	}
+	setTrim(std::min(*from, *till), std::max(*from, *till));
+	if (selectionHiddenLeft() || selectionHiddenRight()) {
+		scrollToSelection();
+	}
 }
 
 void TrimTimeline::moveWindowTo(crl::time center) {
@@ -200,6 +501,9 @@ void TrimTimeline::setTrim(crl::time from, crl::time till) {
 	_till = till;
 	setCover(std::clamp(_cover, _from, _till), true);
 	_trimChanges.fire_copy(_from);
+	if (_durationField) {
+		_durationField->setText(durationEditText());
+	}
 	updateHints();
 	update();
 }
@@ -241,6 +545,7 @@ bool TrimTimeline::setVisibleRange(float64 zoom, float64 from) {
 	if (grabMovesSelection()) {
 		applyGrab(_dragPosition);
 	}
+	updateDurationFieldGeometry();
 	updateHints();
 	update();
 	return true;
@@ -396,7 +701,9 @@ bool TrimTimeline::grabMovesSelection() const {
 TrimTimeline::Grab TrimTimeline::grabAt(
 		QPoint position,
 		Qt::KeyboardModifiers modifiers) const {
-	if (modifiers & (Qt::ShiftModifier | Qt::AltModifier)) {
+	if (!_durationField && durationHitRect().contains(position)) {
+		return Grab::Label;
+	} else if (modifiers & (Qt::ShiftModifier | Qt::AltModifier)) {
 		return Grab::Window;
 	}
 	const auto strip = stripRect();
@@ -446,6 +753,8 @@ crl::time TrimTimeline::minSelection() const {
 void TrimTimeline::updateCursor(Grab grab) {
 	setCursor((grab == Grab::None)
 		? style::cur_default
+		: (grab == Grab::Label)
+		? style::cur_text
 		: (grab == Grab::Hint)
 		? style::cur_pointer
 		: (grab != Grab::Scroll)
@@ -457,7 +766,10 @@ void TrimTimeline::updateCursor(Grab grab) {
 
 void TrimTimeline::mousePressEvent(QMouseEvent *e) {
 	const auto position = e->pos();
-	if (_grab != Grab::None) {
+	if (_durationField) {
+		finishDurationEdit(true, true);
+		return;
+	} else if (_grab != Grab::None) {
 		return;
 	} else if (e->button() == Qt::MiddleButton) {
 		if (_zoom <= 1.) {
@@ -486,6 +798,9 @@ void TrimTimeline::mousePressEvent(QMouseEvent *e) {
 		_hintGrabLeft = hintRect(true).contains(position);
 		updateCursor(_grab);
 		return;
+	} else if (_grab == Grab::Label) {
+		updateCursor(_grab);
+		return;
 	} else if (_grab == Grab::Left) {
 		_grabShift = position.x() - xAt(_from);
 	} else if (_grab == Grab::Right) {
@@ -512,7 +827,7 @@ void TrimTimeline::mouseMoveEvent(QMouseEvent *e) {
 		scrollBy(_dragPosition.x() - position.x());
 		_dragPosition = position;
 		return;
-	} else if (_grab == Grab::Hint) {
+	} else if (_grab == Grab::Hint || _grab == Grab::Label) {
 		return;
 	}
 	_dragPosition = position;
@@ -529,6 +844,8 @@ void TrimTimeline::mouseReleaseEvent(QMouseEvent *e) {
 	const auto hintClicked = (_grab == Grab::Hint)
 		&& hintRect(_hintGrabLeft).contains(e->pos())
 		&& (_hintGrabLeft ? _hintLeftShown : _hintRightShown);
+	const auto labelClicked = (_grab == Grab::Label)
+		&& durationHitRect().contains(e->pos());
 	_grab = Grab::None;
 	_grabButton = Qt::NoButton;
 	_grabShift = 0;
@@ -538,6 +855,8 @@ void TrimTimeline::mouseReleaseEvent(QMouseEvent *e) {
 	}
 	if (hintClicked) {
 		scrollToSelection();
+	} else if (labelClicked) {
+		editDuration();
 	}
 	updateCursor(grabAt(e->pos(), e->modifiers()));
 	if (wasSelection) {
@@ -664,7 +983,7 @@ void TrimTimeline::paintEvent(QPaintEvent *e) {
 	p.setClipping(false);
 	paintHead(p, strip);
 	paintHints(p);
-	paintDuration(p, strip);
+	paintDuration(p);
 	paintOverlay(p);
 }
 
@@ -852,49 +1171,21 @@ void TrimTimeline::paintHead(QPainter &p, const QRect &strip) {
 	p.setClipping(false);
 }
 
-void TrimTimeline::paintDuration(QPainter &p, const QRect &strip) {
-	const auto text = (_till - _from >= _duration)
-		? Stamp(_till - _from)
-		: (Stamp(_from) + QString::fromUtf8(" – ") + Stamp(_till));
-	const auto label = labelRect();
-	const auto &font = st::videoTimelineDurationStyle.font;
-	const auto width = font->width(text);
-	p.setFont(font);
-	if (_trimOnly) {
-		p.setPen(st::videoTimelineDurationFg);
-		p.drawText(label, Qt::AlignVCenter | Qt::AlignRight, text);
+void TrimTimeline::paintDuration(QPainter &p) {
+	const auto label = durationLabel();
+	p.setFont(st::videoTimelineDurationStyle.font);
+	if (label.sizeShown) {
+		p.setPen(st::videoTimelineSizeFg);
+		p.drawText(
+			labelRect(),
+			Qt::AlignVCenter | Qt::AlignRight,
+			_sizeLabel);
+	}
+	if (_durationField) {
 		return;
 	}
-
-	const auto sizeWidth = _sizeLabel.isEmpty()
-		? 0
-		: font->width(_sizeLabel);
-	const auto skip = st::videoTimelineSizeSkip;
-	const auto sizeShown = sizeWidth
-		&& (width + skip + sizeWidth <= label.width());
-	if (sizeShown) {
-		p.setPen(st::videoTimelineSizeFg);
-		p.drawText(label, Qt::AlignVCenter | Qt::AlignRight, _sizeLabel);
-	}
-	const auto available = sizeShown
-		? (label.width() - sizeWidth - skip)
-		: label.width();
-	const auto shown = (width <= available)
-		? text
-		: font->elided(text, available);
-	const auto shownWidth = std::min(width, available);
-	const auto visibleLeft = std::max(xAt(_from), strip.x());
-	const auto visibleRight = std::min(xAt(_till), rect::right(strip));
-	const auto center = (visibleLeft + visibleRight) / 2;
-	const auto x = std::clamp(
-		center - shownWidth / 2,
-		label.x(),
-		label.x() + std::max(available - shownWidth, 0));
 	p.setPen(st::videoTimelineDurationFg);
-	p.drawText(
-		QRect(x, label.y(), shownWidth, label.height()),
-		Qt::AlignVCenter | Qt::AlignLeft,
-		shown);
+	p.drawText(label.rect, Qt::AlignVCenter | Qt::AlignLeft, label.text);
 }
 
 } // namespace Editor

@@ -1298,6 +1298,11 @@ void PhotoEditorControls::refreshTimelines() {
 	_audioTimeline->entity()->refreshTrim();
 }
 
+void PhotoEditorControls::commitTimelineEdits() {
+	_videoTimeline->entity()->commitPendingEdit();
+	_audioTimeline->entity()->commitPendingEdit();
+}
+
 rpl::producer<> PhotoEditorControls::trimShortestRequests() const {
 	return _trimShortest->entity()->clicks() | rpl::to_empty;
 }

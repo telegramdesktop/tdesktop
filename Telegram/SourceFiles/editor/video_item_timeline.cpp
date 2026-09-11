@@ -73,6 +73,12 @@ void VideoItemTimeline::refreshTrim() {
 	}
 }
 
+void VideoItemTimeline::commitPendingEdit() {
+	if (_timeline) {
+		_timeline->commitPendingEdit();
+	}
+}
+
 int VideoItemTimeline::resizeGetHeight(int newWidth) {
 	const auto height = st::photoEditorButtonBarHeight;
 	if (_timeline) {

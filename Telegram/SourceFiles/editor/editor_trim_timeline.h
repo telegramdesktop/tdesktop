@@ -7,10 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/unique_qptr.h"
 #include "base/weak_ptr.h"
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 #include "ui/ui_utility.h"
+
+namespace Ui {
+class MaskedInputField;
+} // namespace Ui
 
 namespace Editor {
 
@@ -66,6 +71,7 @@ public:
 
 	void setTrim(crl::time from, crl::time till);
 	void setPlaybackPosition(crl::time position);
+	void commitPendingEdit();
 
 	void setSizeLabel(const QString &text);
 
@@ -108,9 +114,23 @@ private:
 		Window,
 		Scroll,
 		Hint,
+		Label,
+	};
+	struct DurationLabel {
+		QString text;
+		QRect rect;
+		bool sizeShown = false;
 	};
 
 	[[nodiscard]] QRect labelRect() const;
+	[[nodiscard]] DurationLabel durationLabel() const;
+	[[nodiscard]] QRect durationHitRect() const;
+	[[nodiscard]] QRect durationFieldRect() const;
+	[[nodiscard]] QString durationEditText() const;
+	void updateDurationFieldGeometry();
+	void editDuration();
+	void finishDurationEdit(bool apply, bool restoreFocus);
+	void applyDurationText(const QString &text);
 	[[nodiscard]] crl::time minSelection() const;
 	void moveWindowTo(crl::time center);
 	[[nodiscard]] Grab grabAt(
@@ -139,7 +159,7 @@ private:
 	void paintOverview(QPainter &p, const QRect &strip);
 	void paintHints(QPainter &p);
 	void paintHead(QPainter &p, const QRect &strip);
-	void paintDuration(QPainter &p, const QRect &strip);
+	void paintDuration(QPainter &p);
 
 	const crl::time _duration = 0;
 	const crl::time _maxDuration = 0;
@@ -157,6 +177,9 @@ private:
 
 	QString _sizeLabel;
 	int _labelWidth = 0;
+	int _durationFieldWidth = 0;
+	base::unique_qptr<Ui::MaskedInputField> _durationField;
+	QPointer<QWidget> _durationFocusReturn;
 
 	Grab _grab = Grab::None;
 	Qt::MouseButton _grabButton = Qt::NoButton;

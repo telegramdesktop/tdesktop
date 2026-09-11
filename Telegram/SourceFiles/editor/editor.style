@@ -271,6 +271,15 @@ videoTimelineHintArrowHeight: 10px;
 videoTimelineDurationStyle: TextStyle(defaultTextStyle) {
 	font: font(12px semibold);
 }
+videoTimelineDurationFieldSkip: 4px;
+videoTimelineDurationField: InputField(defaultInputField) {
+	textBg: transparent;
+	textFg: videoTimelineDurationFg;
+	textMargins: margins(0px, 0px, 0px, 0px);
+	border: 0px;
+	borderActive: 0px;
+	style: videoTimelineDurationStyle;
+}
 
 videoEditorGifButton: IconButton(photoEditorRotateButton) {
 	icon: icon {{ "photo_editor/gif", photoEditorButtonIconFg }};

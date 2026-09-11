@@ -483,6 +483,7 @@ PhotoEditor::PhotoEditor(
 
 	_controls->doneRequests(
 	) | rpl::on_next([=] {
+		_controls->commitTimelineEdits();
 		const auto mode = _mode.current().mode;
 		if (mode == PhotoEditorMode::Mode::Paint) {
 			_mode = PhotoEditorMode{

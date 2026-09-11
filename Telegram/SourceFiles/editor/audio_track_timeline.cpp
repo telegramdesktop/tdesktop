@@ -50,6 +50,12 @@ void AudioTrackTimeline::refreshTrim() {
 	}
 }
 
+void AudioTrackTimeline::commitPendingEdit() {
+	if (_timeline) {
+		_timeline->commitPendingEdit();
+	}
+}
+
 int AudioTrackTimeline::resizeGetHeight(int newWidth) {
 	const auto height = st::photoEditorButtonBarHeight;
 	if (_timeline) {
