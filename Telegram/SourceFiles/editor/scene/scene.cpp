@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/scene/scene.h"
 
+#include "editor/photo_editor_common.h"
 #include "editor/scene/scene_item_animated.h"
 #include "editor/scene/scene_item_canvas.h"
 #include "editor/scene/scene_item_line.h"
@@ -303,6 +304,9 @@ Scene::Scene(const QRectF &rect)
 		&QGraphicsScene::selectionChanged,
 		[=] {
 			const auto selected = selectedItems();
+			if (!selected.empty()) {
+				setAudioSelected(false);
+			}
 			auto *textItem = (ItemText*)(nullptr);
 			auto *shapeItem = (ItemShape*)(nullptr);
 			auto *videoItem = (ItemVideo*)(nullptr);
@@ -380,6 +384,7 @@ void Scene::removeItem(const ItemPtr &item) {
 }
 
 void Scene::mousePressEvent(QGraphicsSceneMouseEvent *event) {
+	setAudioSelected(false);
 	if (_shapeTool.pending) {
 		if (event->button() == Qt::LeftButton) {
 			event->accept();
@@ -452,6 +457,7 @@ void Scene::setPendingShape(std::optional<PendingShape> pending) {
 		_textEdit->finishEditing(true);
 		clearSelection();
 		clearFocus();
+		setAudioSelected(false);
 	}
 	if (was != now) {
 		_pendingShapeStates.fire_copy(now);
@@ -717,12 +723,62 @@ bool Scene::hasAnimatedItems() const {
 	return false;
 }
 
+bool Scene::hasAnimatedResult() const {
+	return (_audio != nullptr) || hasAnimatedItems();
+}
+
 void Scene::releaseAnimations() {
 	for (const auto &item : _items) {
 		if (const auto animated = item->asAnimated()) {
 			animated->releasePlayers();
 		}
 	}
+}
+
+void Scene::setAudio(std::shared_ptr<AudioTrack> audio) {
+	if (audio && audio->empty()) {
+		audio = nullptr;
+	}
+	if (_audio == audio) {
+		return;
+	}
+	_audio = std::move(audio);
+	if (!_audio) {
+		setAudioSelected(false);
+	}
+	_audioChanges.fire({});
+}
+
+std::shared_ptr<AudioTrack> Scene::audio() const {
+	return _audio;
+}
+
+rpl::producer<> Scene::audioChanges() const {
+	return _audioChanges.events();
+}
+
+void Scene::setAudioSelected(bool selected) {
+	if (selected && !_audio) {
+		return;
+	} else if (_audioSelected == selected) {
+		return;
+	}
+	if (selected) {
+		setPendingShape(std::nullopt);
+		_textEdit->finishEditing(true);
+		clearSelection();
+		clearFocus();
+	}
+	_audioSelected = selected;
+	_audioSelectedChanges.fire_copy(selected);
+}
+
+bool Scene::audioSelected() const {
+	return _audioSelected;
+}
+
+rpl::producer<bool> Scene::audioSelectedChanges() const {
+	return _audioSelectedChanges.events();
 }
 
 std::shared_ptr<float64> Scene::lastZ() const {
@@ -868,6 +924,9 @@ void Scene::save(SaveState state) {
 	for (const auto &item : _items) {
 		item->save(state);
 	}
+	auto &saved = (state == SaveState::Keep) ? _keptAudio : _savedAudio;
+	saved = _audio ? std::make_shared<AudioTrack>(*_audio) : nullptr;
+	setAudioSelected(false);
 	clearSelection();
 	cancelDrawing();
 }
@@ -880,6 +939,11 @@ void Scene::restore(SaveState state) {
 	for (const auto &item : _items) {
 		item->restore(state);
 	}
+	const auto &saved = (state == SaveState::Keep)
+		? _keptAudio
+		: _savedAudio;
+	setAudioSelected(false);
+	setAudio(saved ? std::make_shared<AudioTrack>(*saved) : nullptr);
 	clearSelection();
 	cancelDrawing();
 }

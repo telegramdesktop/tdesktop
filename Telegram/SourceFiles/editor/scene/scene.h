@@ -26,6 +26,7 @@ class ItemText;
 class ItemVideo;
 class NumberedItem;
 class TextEditController;
+struct AudioTrack;
 
 class Scene final : public QGraphicsScene {
 public:
@@ -62,7 +63,15 @@ public:
 	[[nodiscard]] std::vector<ItemPtr> items(
 		Qt::SortOrder order = Qt::DescendingOrder) const;
 	[[nodiscard]] bool hasAnimatedItems() const;
+	[[nodiscard]] bool hasAnimatedResult() const;
 	void releaseAnimations();
+
+	void setAudio(std::shared_ptr<AudioTrack> audio);
+	[[nodiscard]] std::shared_ptr<AudioTrack> audio() const;
+	[[nodiscard]] rpl::producer<> audioChanges() const;
+	void setAudioSelected(bool selected);
+	[[nodiscard]] bool audioSelected() const;
+	[[nodiscard]] rpl::producer<bool> audioSelectedChanges() const;
 	void addItem(ItemPtr item);
 	void removeItem(not_null<QGraphicsItem*> item);
 	void removeItem(const ItemPtr &item);
@@ -156,9 +165,15 @@ private:
 	rpl::event_stream<> _shapeItemDeselections;
 	rpl::event_stream<bool> _pendingShapeStates;
 	rpl::event_stream<std::shared_ptr<ItemVideo>> _videoItemSelections;
+	rpl::event_stream<> _audioChanges;
+	rpl::event_stream<bool> _audioSelectedChanges;
 	ItemText *_selectedTextItem = nullptr;
 	ItemShape *_selectedShapeItem = nullptr;
 	ItemVideo *_selectedVideoItem = nullptr;
+	std::shared_ptr<AudioTrack> _audio;
+	std::shared_ptr<AudioTrack> _keptAudio;
+	std::shared_ptr<AudioTrack> _savedAudio;
+	bool _audioSelected = false;
 	rpl::lifetime _lifetime;
 
 };
