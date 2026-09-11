@@ -3439,6 +3439,7 @@ struct SendFlow {
 	bool bounce = true;
 	QString displayForm;
 	int64 amountNano = 0;
+	std::optional<uint64> expiresAt;
 	std::shared_ptr<SendDraft> draft;
 	std::optional<UserId> userId;
 	std::optional<TransferWalletIdentity> senderIdentity;
@@ -3541,10 +3542,12 @@ void ShowSendWordsRecovery(
 	auto address = text;
 	auto amountNano = int64(0);
 	auto comment = QString();
+	auto expiresAt = std::optional<uint64>();
 	if (const auto link = ParseTransferLink(text)) {
 		address = link->address;
 		amountNano = link->amountNano;
 		comment = link->comment;
+		expiresAt = link->expiresAt;
 	}
 	const auto parsed = ParseAddress(address);
 	if (!parsed || parsed->testnet) {
@@ -3561,6 +3564,7 @@ void ShowSendWordsRecovery(
 		.bounce = parsed->bounceable,
 		.displayForm = (parsed->friendly ? address : friendly),
 		.amountNano = amountNano,
+		.expiresAt = expiresAt,
 		.draft = draft,
 	};
 }
@@ -3777,6 +3781,8 @@ void WalletSendCommentBox(
 		return tr::lng_wallet_send_error_data_invalid(tr::now);
 	case SendError::QuoteExpired:
 		return tr::lng_wallet_send_error_quote_expired(tr::now);
+	case SendError::LinkExpired:
+		return tr::lng_wallet_send_link_expired(tr::now);
 	}
 	Unexpected("Error value in SendErrorText.");
 }
@@ -3979,6 +3985,9 @@ void WalletSendConfirmBox(
 		if (!confirmationValid()) {
 			refuse(SendError::InvalidRequest);
 			return;
+		} else if (TransferLinkExpired(flow.expiresAt)) {
+			refuse(SendError::LinkExpired);
+			return;
 		} else if (state->sending.current() || draft->preparing.current()) {
 			return;
 		} else if (!CommentFits(draft->comment.current().text)) {
@@ -4019,6 +4028,13 @@ void WalletSendConfirmBox(
 			const auto error = checkQuote();
 			if (error != SendError::None) {
 				refuse(error);
+				return;
+			}
+			// The last look at the link's own deadline: the unlock above can
+			// take any amount of time, and what leaves the device after it
+			// must still be a transfer the payment request asked for.
+			if (TransferLinkExpired(flow.expiresAt)) {
+				refuse(SendError::LinkExpired);
 				return;
 			}
 			draft->quote = std::nullopt;
@@ -10741,6 +10757,9 @@ void ShowTransferLink(
 		const QString &url) {
 	const auto flow = ParseRecipientFlow(url);
 	if (!flow) {
+		return;
+	} else if (TransferLinkExpired(flow->expiresAt)) {
+		show->showToast(tr::lng_wallet_send_link_expired(tr::now));
 		return;
 	}
 	RunKeyRequiringAction(show, [=] {

@@ -33,7 +33,10 @@ struct TransferLink {
 	QString address;
 	int64 amountNano = 0;
 	QString comment;
+	std::optional<uint64> expiresAt;
 };
+
+[[nodiscard]] bool TransferLinkExpired(std::optional<uint64> expiresAt);
 
 [[nodiscard]] std::optional<TransferLink> ParseTransferLink(
 	const QString &url);

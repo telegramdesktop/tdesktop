@@ -8857,6 +8857,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_send_address" = "Address";
 "lng_wallet_send_paste" = "Paste";
 "lng_wallet_send_invalid_address" = "Invalid address";
+"lng_wallet_send_link_expired" = "This payment link has expired.";
 "lng_wallet_send_continue" = "Continue";
 "lng_wallet_send_update_fee" = "Update fee";
 "lng_wallet_send_fee_update_needed" = "Needs update";

@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/separate_panel.h"
+#include "wallet/wallet_address.h"
 #include "wallet/wallet_content.h"
 #include "wallet/wallet_session.h"
 #include "window/window_session_controller.h"
@@ -88,6 +89,11 @@ void OpenTransferLink(
 		const QString &url) {
 	if (!TransferLinkValid(url)) {
 		controller->showToast(tr::lng_wallet_send_invalid_address(tr::now));
+		return;
+	}
+	const auto link = ParseTransferLink(url);
+	if (link && TransferLinkExpired(link->expiresAt)) {
+		controller->showToast(tr::lng_wallet_send_link_expired(tr::now));
 		return;
 	}
 	const auto session = &controller->session();

@@ -122,6 +122,7 @@ enum class SendError {
 	Rejected,
 	DataInvalid,
 	QuoteExpired,
+	LinkExpired,
 	Silent,
 	// The send callback's third outcome beside None and a refusal:
 	// the signed message is journaled and may already be on the

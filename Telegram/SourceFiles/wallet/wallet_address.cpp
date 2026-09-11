@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "wallet/wallet_address.h"
 
+#include "base/unixtime.h"
+
 #include "wallet_engine.hpp"
 
 namespace Wallet {
@@ -63,6 +65,11 @@ QString FormatFriendly(
 	}
 }
 
+bool TransferLinkExpired(std::optional<uint64> expiresAt) {
+	const auto now = base::unixtime::now();
+	return expiresAt && (now > 0) && (uint64(now) >= *expiresAt);
+}
+
 std::optional<TransferLink> ParseTransferLink(const QString &url) {
 	try {
 		const auto link = engine::parse_ton_transfer_link(
@@ -90,6 +97,12 @@ std::optional<TransferLink> ParseTransferLink(const QString &url) {
 			engine::TonTransferPayload::kText>(&payload);
 		if (comment) {
 			result.comment = QString::fromStdString(comment->text);
+		}
+		const auto &expiration = link.expiration.get_variant();
+		const auto exact = std::get_if<
+			engine::SendExpiration::kExact>(&expiration);
+		if (exact) {
+			result.expiresAt = exact->unix_timestamp;
 		}
 		return result;
 	} catch (...) {
