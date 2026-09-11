@@ -243,6 +243,7 @@ videoTimelineDotSkip: 2px;
 videoTimelineDotFg: callAnswerBg;
 videoTimelineRadius: 6px;
 videoTimelineHandleWidth: 11px;
+videoTimelineHandleMinWidth: 4px;
 videoTimelineHandleGripWidth: 2px;
 videoTimelineHandleGripHeight: 16px;
 videoTimelineHandleHitSlop: 12px;

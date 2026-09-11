@@ -22,6 +22,8 @@ namespace {
 constexpr auto kZoomStep = 1.2;
 constexpr auto kZoomSnap = 0.001;
 constexpr auto kMinVisibleSpan = crl::time(2000);
+constexpr auto kMinSelection = crl::time(100);
+constexpr auto kCompactHandleSpans = 3;
 constexpr auto kEdgeScrollFrame = crl::time(16);
 constexpr auto kEdgeScrollSpeed = 9.; // Per second per pixel of overshoot.
 constexpr auto kEdgeScrollMaxSpeed = 3.; // Strip widths per second.
@@ -32,6 +34,17 @@ constexpr auto kScrollIndicatorFadeZoom = 0.25;
 	return Ui::FormatDurationText(int(value / 1000))
 		+ '.'
 		+ QString::number((value % 1000) / 100);
+}
+
+[[nodiscard]] int HandleWidth(int selectionWidth) {
+	const auto full = st::videoTimelineHandleWidth;
+	const auto compact = st::videoTimelineHandleMinWidth;
+	const auto threshold = full * kCompactHandleSpans;
+	if (selectionWidth >= threshold) {
+		return full;
+	}
+	return compact + int(base::SafeRound(
+		(full - compact) * std::max(selectionWidth, 0) / float64(threshold)));
 }
 
 } // namespace
@@ -312,15 +325,17 @@ TrimTimeline::Grab TrimTimeline::grabAt(
 	}
 	const auto strip = stripRect();
 	const auto slop = st::videoTimelineHandleHitSlop;
-	const auto handle = st::videoTimelineHandleWidth;
 	const auto x = position.x();
-	const auto stripLeft = strip.x() - handle;
-	const auto stripRight = rect::right(strip) + handle;
+	const auto stripLeft = strip.x() - st::videoTimelineHandleWidth;
+	const auto stripRight = strip.x()
+		+ strip.width()
+		+ st::videoTimelineHandleWidth;
 	if (x < stripLeft - slop || x > stripRight + slop) {
 		return Grab::None;
 	}
 	const auto left = xAt(_from);
 	const auto right = xAt(_till);
+	const auto handle = HandleWidth(right - left);
 	const auto stripEnd = rect::right(strip);
 	const auto leftShown = (left >= strip.x()) && (left <= stripEnd);
 	const auto rightShown = (right >= strip.x()) && (right <= stripEnd);
@@ -342,16 +357,8 @@ TrimTimeline::Grab TrimTimeline::grabAt(
 }
 
 crl::time TrimTimeline::minSelection() const {
-	const auto strip = stripRect();
-	// Keeps the head reachable when a long clip squeezes the window.
-	const auto pixels = st::videoTimelinePlayheadWidth
-		+ st::videoTimelineHandleHitSlop;
-	const auto byPixels = (strip.width() > pixels)
-		? crl::time(base::SafeRound(
-			pixels * visibleSpan() / strip.width()))
-		: _duration;
 	return std::clamp(
-		std::max(_minDuration, byPixels),
+		std::max(_minDuration, kMinSelection),
 		crl::time(0),
 		_maxDuration);
 }
@@ -580,7 +587,7 @@ void TrimTimeline::paintSelection(QPainter &p, const QRect &strip) {
 			st::videoTimelineDimBg);
 	}
 
-	const auto handle = st::videoTimelineHandleWidth;
+	const auto handle = HandleWidth(right - left);
 	const auto border = st::videoTimelineHandleGripWidth;
 	const auto outer = QRectF(
 		left - handle,
