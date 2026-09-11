@@ -49,6 +49,7 @@ public:
 
 	[[nodiscard]] float64 speed() const;
 	void setSpeed(float64 speed);
+	void setVolume(float64 volume);
 	void setWaitForMarkAsShown(bool wait);
 
 	[[nodiscard]] bool playing() const;
@@ -175,8 +176,8 @@ private:
 	// Immutable while File is active.
 	base::has_weak_ptr _sessionGuard;
 
-	// Immutable while File is active except '.speed'.
-	// '.speed' is changed from the main thread.
+	// Immutable while File is active except '.speed' and '.volume'.
+	// '.speed' and '.volume' are changed from the main thread.
 	PlaybackOptions _options;
 
 	// Belongs to the File thread while File is active.

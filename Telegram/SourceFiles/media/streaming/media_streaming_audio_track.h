@@ -33,6 +33,7 @@ public:
 
 	// Called from the main thread.
 	void setSpeed(float64 speed);
+	void setVolume(float64 volume);
 	[[nodiscard]] rpl::producer<> waitingForData() const;
 
 	// Called from the main thread.
