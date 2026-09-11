@@ -25,10 +25,12 @@ class FadeWrap;
 
 namespace Editor {
 
+class AudioTrackTimeline;
 class EdgeButton;
 class ButtonBar;
 class ItemVideo;
 class VideoItemTimeline;
+struct AudioTrack;
 struct Controllers;
 struct EditorData;
 
@@ -63,6 +65,7 @@ public:
 	void applyMode(const PhotoEditorMode &mode);
 	void setShapeToolActive(bool active);
 	void setVideoItem(std::shared_ptr<ItemVideo> item);
+	void setAudioTrack(std::shared_ptr<AudioTrack> track);
 
 private:
 	void showAnimated(
@@ -70,7 +73,8 @@ private:
 		anim::type animated = anim::type::normal);
 	void showShapesMenu();
 	void updateInputMask();
-	void updateVideoTimelineGeometry();
+	void updateTimelinesGeometry();
+	void updateTimelineGeometry(not_null<Ui::RpWidget*> timeline);
 
 	int bottomButtonsTop() const;
 
@@ -101,6 +105,7 @@ private:
 	const base::unique_qptr<Ui::IconButton> _shapesButton;
 	const base::unique_qptr<EdgeButton> _paintDone;
 	const base::unique_qptr<Ui::FadeWrap<VideoItemTimeline>> _videoTimeline;
+	const base::unique_qptr<Ui::FadeWrap<AudioTrackTimeline>> _audioTimeline;
 
 	base::unique_qptr<Ui::PopupMenu> _ratioMenu;
 	base::unique_qptr<Ui::PopupMenu> _cornersMenu;

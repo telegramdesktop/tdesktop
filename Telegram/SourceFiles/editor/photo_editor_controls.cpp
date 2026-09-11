@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/photo_editor_controls.h"
 
+#include "editor/audio_track_timeline.h"
 #include "editor/controllers/controllers.h"
 #include "editor/video_item_timeline.h"
 #include "lang/lang_keys.h"
@@ -593,15 +594,20 @@ PhotoEditorControls::PhotoEditorControls(
 	st::photoEditorRotateButton.ripple))
 , _videoTimeline(base::make_unique_q<Ui::FadeWrap<VideoItemTimeline>>(
 	this,
-	object_ptr<VideoItemTimeline>(this))) {
+	object_ptr<VideoItemTimeline>(this)))
+, _audioTimeline(base::make_unique_q<Ui::FadeWrap<AudioTrackTimeline>>(
+	this,
+	object_ptr<AudioTrackTimeline>(this))) {
 
 	_shapesFilled = shapesFilled;
 	_videoTimeline->hide(anim::type::instant);
 	_videoTimeline->setDuration(st::photoEditorBarAnimationDuration);
+	_audioTimeline->hide(anim::type::instant);
+	_audioTimeline->setDuration(st::photoEditorBarAnimationDuration);
 	_paintTopButtons->geometryValue(
 	) | rpl::on_next([=] {
-		updateVideoTimelineGeometry();
-	}, _videoTimeline->lifetime());
+		updateTimelinesGeometry();
+	}, lifetime());
 	_shapesButton->setClickedCallback([=] {
 		if (_shapeToolActive) {
 			_shapeRequests.fire({ .action = ShapeRequest::Action::Cancel });
@@ -1174,7 +1180,7 @@ void PhotoEditorControls::setVideoItem(std::shared_ptr<ItemVideo> item) {
 	const auto shown = (item != nullptr);
 	if (shown) {
 		_videoTimeline->entity()->setItem(std::move(item));
-		updateVideoTimelineGeometry();
+		updateTimelineGeometry(_videoTimeline.get());
 	}
 	_videoTimeline->toggle(shown, anim::type::normal);
 	if (!shown) {
@@ -1182,13 +1188,28 @@ void PhotoEditorControls::setVideoItem(std::shared_ptr<ItemVideo> item) {
 	}
 }
 
-void PhotoEditorControls::updateVideoTimelineGeometry() {
+void PhotoEditorControls::setAudioTrack(std::shared_ptr<AudioTrack> track) {
+	const auto shown = (track != nullptr);
+	_audioTimeline->entity()->setTrack(std::move(track));
+	if (shown) {
+		updateTimelineGeometry(_audioTimeline.get());
+	}
+	_audioTimeline->toggle(shown, anim::type::normal);
+}
+
+void PhotoEditorControls::updateTimelinesGeometry() {
+	updateTimelineGeometry(_videoTimeline.get());
+	updateTimelineGeometry(_audioTimeline.get());
+}
+
+void PhotoEditorControls::updateTimelineGeometry(
+		not_null<Ui::RpWidget*> timeline) {
 	const auto bar = _paintTopButtons->geometry();
 	const auto skip = st::photoEditorTimelineSkip;
 	const auto left = _undoButton->width() + skip;
 	const auto width = bar.width() - left - _redoButton->width() - skip;
-	_videoTimeline->resizeToWidth(std::max(width, 1));
-	_videoTimeline->moveToLeft(bar.x() + left, bar.y());
+	timeline->resizeToWidth(std::max(width, 1));
+	timeline->moveToLeft(bar.x() + left, bar.y());
 }
 
 bool PhotoEditorControls::handleKeyPress(not_null<QKeyEvent*> e) const {

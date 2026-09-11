@@ -345,6 +345,22 @@ rpl::producer<> PhotoEditorContent::shapeItemDeselections() const {
 	return _paint->shapeItemDeselections();
 }
 
+rpl::producer<> PhotoEditorContent::audioChanges() const {
+	return _paint->audioChanges();
+}
+
+rpl::producer<bool> PhotoEditorContent::audioSelectedChanges() const {
+	return _paint->audioSelectedChanges();
+}
+
+bool PhotoEditorContent::audioSelected() const {
+	return _paint->audioSelected();
+}
+
+std::shared_ptr<AudioTrack> PhotoEditorContent::audio() const {
+	return _paint->audio();
+}
+
 rpl::producer<bool> PhotoEditorContent::shapeToolStates() const {
 	return _paint->shapeToolStates();
 }

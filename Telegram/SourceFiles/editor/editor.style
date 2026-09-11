@@ -216,6 +216,20 @@ photoEditorAudioDiscIcon: icon {{ "photo_editor/widget_music", photoEditorButton
 photoEditorAudioDiscIconOver: icon {{ "photo_editor/widget_music", photoEditorButtonIconFgOver }};
 photoEditorMenuDelete: icon {{ "menu/delete", mediaviewMenuFg }};
 
+photoEditorAudioTimelineBarWidth: 2px;
+photoEditorAudioTimelineBarSkip: 3px;
+photoEditorAudioTimelineBarMin: 1px;
+photoEditorAudioTimelineBarRatio: 0.6;
+photoEditorAudioTimelineBarOpacity: 0.4;
+photoEditorAudioTimelineIcon: 13px;
+photoEditorAudioTimelineIconSkip: 3px;
+photoEditorAudioTimelineDotSkip: 10px;
+photoEditorAudioTimelineDotRadius: 1px;
+photoEditorAudioTimelineTextSkip: 12px;
+photoEditorAudioTimelineFade: 8px;
+photoEditorAudioTimelineAuthorFont: font(12px semibold);
+photoEditorAudioTimelineFont: font(12px);
+
 videoTimelineStripHeight: 54px;
 videoTimelineLabelHeight: 18px;
 // Wide enough to hold the cover dot without it touching either side.

@@ -324,6 +324,17 @@ PhotoEditor::PhotoEditor(
 		_controls->setVideoItem(std::move(item));
 	}, lifetime());
 
+	rpl::merge(
+		_content->audioSelectedChanges(),
+		_content->audioChanges() | rpl::map([=] {
+			return _content->audioSelected();
+		})
+	) | rpl::on_next([=](bool selected) {
+		_audioSelected = selected;
+		updateColorPickerVisibility(anim::type::normal);
+		_controls->setAudioTrack(selected ? _content->audio() : nullptr);
+	}, lifetime());
+
 	_content->innerRect(
 	) | rpl::on_next([=](QRect inner) {
 		if (inner.isEmpty()) {
@@ -580,7 +591,8 @@ void PhotoEditor::updateColorPickerVisibility(anim::type animated) {
 	_colorPicker->setVisible(
 		painting
 			&& _colorLineShown
-			&& !_videoItemSelected,
+			&& !_videoItemSelected
+			&& !_audioSelected,
 		animated);
 }
 

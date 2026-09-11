@@ -880,11 +880,15 @@ PRIVATE
     dialogs/suggestions/suggestion_userpic_setup.cpp
     dialogs/dialogs_widget.cpp
     dialogs/dialogs_widget.h
+    editor/audio_track_timeline.cpp
+    editor/audio_track_timeline.h
     editor/color_picker.cpp
     editor/color_picker.h
     editor/controllers/controllers.h
     editor/controllers/stickers_panel_controller.cpp
     editor/controllers/stickers_panel_controller.h
+    editor/editor_audio_timeline.cpp
+    editor/editor_audio_timeline.h
     editor/editor_paint.cpp
     editor/editor_paint.h
     editor/photo_editor.cpp
