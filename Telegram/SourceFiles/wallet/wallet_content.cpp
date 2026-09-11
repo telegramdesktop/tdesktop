@@ -3146,7 +3146,7 @@ void WalletHowItWorksBox(not_null<Ui::GenericBox*> box) {
 		object_ptr<Ui::FlatLabel>(
 			box,
 			tr::lng_wallet_how_subtitle(),
-			st::walletPhraseTextLabel),
+			st::walletHowSubtitleLabel),
 		st::walletHowSubtitleMargin,
 		style::al_top
 	)->setTryMakeSimilarLines(true);

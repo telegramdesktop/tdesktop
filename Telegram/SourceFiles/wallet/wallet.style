@@ -522,6 +522,9 @@ walletBuyWaltIcon: icon {
 
 walletHowLottieSize: 52px;
 walletHowLottieMargin: margins(24px, 24px, 24px, 12px);
+walletHowSubtitleLabel: FlatLabel(walletPhraseTextLabel) {
+	minWidth: 20px;
+}
 walletHowSubtitleMargin: margins(24px, 8px, 24px, 14px);
 
 walletIntroTooltip: ImportantTooltip(defaultImportantTooltip) {
