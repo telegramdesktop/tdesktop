@@ -35,6 +35,9 @@ struct MusicTrack {
 	// Zero means the end of the music.
 	crl::time till = 0;
 	float64 volume = 1.;
+	// Repeats the part till the result ends, a shorter music
+	// is padded with silence to keep the part length.
+	bool loop = false;
 
 	[[nodiscard]] bool empty() const {
 		return path.isEmpty() && bytes.isEmpty();
