@@ -66,6 +66,11 @@ private:
 
 };
 
+void AddVolumeAction(
+	not_null<Ui::PopupMenu*> menu,
+	float64 volume,
+	Fn<void(float64)> changed);
+
 [[nodiscard]] base::unique_qptr<Ui::PopupMenu> CreateAudioMenu(
 	not_null<QWidget*> parent,
 	std::shared_ptr<AudioTrack> track,

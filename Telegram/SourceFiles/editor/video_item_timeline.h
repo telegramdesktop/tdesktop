@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 #include "ui/rp_widget.h"
 
+namespace Ui {
+class PopupMenu;
+} // namespace Ui
+
 namespace Editor {
 
 class ItemVideo;
@@ -29,10 +33,14 @@ public:
 
 	int resizeGetHeight(int newWidth) override;
 
+protected:
+	void contextMenuEvent(QContextMenuEvent *e) override;
+
 private:
 	std::shared_ptr<ItemVideo> _item;
 	base::unique_qptr<VideoTimeline> _timeline;
 	std::unique_ptr<TimelineSeeker> _seeker;
+	base::unique_qptr<Ui::PopupMenu> _menu;
 	rpl::event_stream<crl::time> _lengthChanges;
 
 	rpl::lifetime _itemLifetime;

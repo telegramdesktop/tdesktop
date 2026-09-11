@@ -192,6 +192,19 @@ rpl::producer<float64> MenuVolumeItem::changes() const {
 	return _changes.events();
 }
 
+void AddVolumeAction(
+		not_null<Ui::PopupMenu*> menu,
+		float64 volume,
+		Fn<void(float64)> changed) {
+	auto item = base::make_unique_q<MenuVolumeItem>(
+		menu->menu(),
+		st::photoEditorAudioVolumeItem,
+		volume);
+	item->changes(
+	) | rpl::on_next(std::move(changed), item->lifetime());
+	menu->addAction(std::move(item));
+}
+
 base::unique_qptr<Ui::PopupMenu> CreateAudioMenu(
 		not_null<QWidget*> parent,
 		std::shared_ptr<AudioTrack> track,
@@ -199,17 +212,11 @@ base::unique_qptr<Ui::PopupMenu> CreateAudioMenu(
 		Fn<void()> remove) {
 	auto result = base::make_unique_q<Ui::PopupMenu>(
 		parent,
-		st::photoEditorAudioMenu);
-	auto volume = base::make_unique_q<MenuVolumeItem>(
-		result->menu(),
-		st::photoEditorAudioVolumeItem,
-		track->volume);
-	volume->changes(
-	) | rpl::on_next([=](float64 value) {
+		st::photoEditorMediaMenu);
+	AddVolumeAction(result.get(), track->volume, [=](float64 value) {
 		track->volume = value;
 		volumeChanged();
-	}, volume->lifetime());
-	result->addAction(std::move(volume));
+	});
 	result->addSeparator();
 	result->addAction(
 		tr::lng_photo_editor_audio_remove(tr::now),

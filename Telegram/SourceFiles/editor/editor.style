@@ -215,7 +215,7 @@ photoEditorAudioDiscRingFg: mediaviewControlFg;
 photoEditorAudioDiscIcon: icon {{ "photo_editor/widget_music", photoEditorButtonIconFg }};
 photoEditorAudioDiscIconOver: icon {{ "photo_editor/widget_music", photoEditorButtonIconFgOver }};
 photoEditorMenuDelete: icon {{ "menu/delete", mediaviewMenuFg }};
-photoEditorAudioMenu: PopupMenu(photoEditorCropRatioMenu) {
+photoEditorMediaMenu: PopupMenu(photoEditorCropRatioMenu) {
 	scrollPadding: margins(0px, 3px, 0px, 8px);
 	menu: Menu(mediaviewMenu) {
 		widthMin: 210px;

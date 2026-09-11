@@ -7,10 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/video_item_timeline.h"
 
+#include "editor/editor_audio_menu.h"
 #include "editor/scene/scene_item_video.h"
 #include "editor/video/video_timeline.h"
 #include "editor/video/video_timeline_seeker.h"
+#include "ui/widgets/popup_menu.h"
 #include "styles/style_editor.h"
+
+#include <QtGui/QContextMenuEvent>
 
 namespace Editor {
 
@@ -77,6 +81,21 @@ void VideoItemTimeline::commitPendingEdit() {
 	if (_timeline) {
 		_timeline->commitPendingEdit();
 	}
+}
+
+void VideoItemTimeline::contextMenuEvent(QContextMenuEvent *e) {
+	if (!_item || !_item->hasAudio()) {
+		return;
+	}
+	_menu = base::make_unique_q<Ui::PopupMenu>(
+		this,
+		st::photoEditorMediaMenu);
+	const auto item = _item;
+	AddVolumeAction(_menu.get(), item->volume(), [=](float64 volume) {
+		item->setVolume(volume);
+	});
+	_menu->popup(e->globalPos());
+	e->accept();
 }
 
 int VideoItemTimeline::resizeGetHeight(int newWidth) {

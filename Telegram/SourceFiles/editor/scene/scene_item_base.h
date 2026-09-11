@@ -124,6 +124,7 @@ protected:
 	void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 	void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
 	void keyPressEvent(QKeyEvent *e) override;
+	virtual void fillContextMenu(not_null<Ui::PopupMenu*> menu);
 
 	using Action = void(ItemBase::*)();
 	void performForSelectedItems(Action action);

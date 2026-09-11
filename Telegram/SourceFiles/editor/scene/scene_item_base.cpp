@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/painter.h"
 #include "styles/style_editor.h"
-#include "styles/style_media_view.h"
 #include "styles/style_menu_icons.h"
 
 #include <QGraphicsScene>
@@ -245,7 +244,11 @@ void ItemBase::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		nullptr,
-		st::mediaviewPopupMenu);
+		st::photoEditorMediaMenu);
+	fillContextMenu(_menu.get());
+	if (!_menu->empty()) {
+		_menu->addSeparator();
+	}
 	add(
 		tr::lng_photo_editor_menu_delete,
 		kDeleteSequence,
@@ -262,6 +265,9 @@ void ItemBase::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 		&st::mediaMenuIconCopy);
 
 	_menu->popup(event->screenPos());
+}
+
+void ItemBase::fillContextMenu(not_null<Ui::PopupMenu*> menu) {
 }
 
 void ItemBase::performForSelectedItems(Action action) {

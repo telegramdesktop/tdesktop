@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/scene/scene_item_video.h"
 
+#include "editor/editor_audio_menu.h"
 #include "editor/video/video_segment_player.h"
 #include "ui/image/image_prepare.h"
 #include "ui/rect.h"
@@ -190,6 +191,14 @@ void ItemVideo::paint(
 		paintFrame(p, frame, true, flipped());
 	}
 	ItemBase::paint(p, option, w);
+}
+
+void ItemVideo::fillContextMenu(not_null<Ui::PopupMenu*> menu) {
+	if (hasAudio()) {
+		AddVolumeAction(menu, _volume, [=](float64 volume) {
+			setVolume(volume);
+		});
+	}
 }
 
 void ItemVideo::performFlip() {
