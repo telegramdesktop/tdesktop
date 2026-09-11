@@ -17,6 +17,7 @@ namespace Editor {
 struct SegmentPlayerOptions {
 	bool keepAlpha = false;
 	bool audio = false;
+	float64 volume = 1.;
 };
 
 class SegmentPlayer final {
@@ -49,6 +50,7 @@ public:
 	void restart(crl::time position);
 	void setPaused(bool paused);
 	void setSeeking(bool seeking);
+	void setVolume(float64 volume);
 
 	[[nodiscard]] QImage frame(QSize size);
 
@@ -77,6 +79,7 @@ private:
 	crl::time _from = 0;
 	crl::time _till = 0;
 	crl::time _position = 0;
+	float64 _volume = 1.;
 	bool _pausedOthers = false;
 	bool _paused = false;
 	bool _seeking = false;

@@ -35,7 +35,8 @@ SegmentPlayer::SegmentPlayer(
 	SegmentPlayerOptions options)
 : _path(std::move(path))
 , _content(std::move(content))
-, _options(options) {
+, _options(options)
+, _volume(options.volume) {
 }
 
 SegmentPlayer::~SegmentPlayer() = default;
@@ -121,6 +122,7 @@ void SegmentPlayer::restart(crl::time position) {
 	auto options = PlaybackOptions();
 	options.mode = _options.audio ? Mode::Audio : Mode::Video;
 	options.position = _position;
+	options.volume = _volume;
 	options.loop = false;
 	if (options.mode != Mode::Video) {
 		pauseOtherPlayback();
@@ -166,6 +168,16 @@ void SegmentPlayer::setSeeking(bool seeking) {
 	}
 	_seeking = seeking;
 	applyHeld();
+}
+
+void SegmentPlayer::setVolume(float64 volume) {
+	if (_volume == volume) {
+		return;
+	}
+	_volume = volume;
+	if (_instance) {
+		_instance->setVolume(volume);
+	}
 }
 
 void SegmentPlayer::handleUpdate(Media::Streaming::Update &&update) {
