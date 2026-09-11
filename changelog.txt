@@ -1,3 +1,7 @@
+7.2.8 (09.09.26)
+
+- Fix some more crashes with bad lottie files.
+
 7.2.7 (07.09.26)
 
 - Fix crashes with invalid lottie files.
