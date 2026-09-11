@@ -995,16 +995,15 @@ SetPasscodeResult Domain::setAppLockEnabled(
 // Main::Domain::removePasscodeIfEmpty() calls this after Local::reset() has
 // destroyed every store the local key protected. Nothing remains for the old
 // passcode to guard or to ask for it - the account it belonged to is gone.
-// Wallet's immediate DropForgottenPasscode() keeps the accounts and stores
-// the passcode did not guard, but removes every dependent vault header and
-// its secrets while the app lock is off.
-// Wallet::FinishForgottenPasscodeClear() retries that owed removal after
-// an actual empty-passcode start, rechecking the verified lock state and
-// absence of dependent vaults; it destroys no wallets itself. Each caller
+// Wallet::DropForgottenPasscode() calls it after every dependent vault
+// header and its secrets are gone, keeping the accounts and stores the
+// passcode did not guard. Wallet::DropUnusedPasscode() calls it whenever
+// the verified lock is off and no vault is passcode-wrapped - after a
+// protection change, after an account removal and at start. Each caller
 // establishes that the passcode guards nothing left to ask for, which is
 // why this removal carries no verification and has its own name instead
 // of being reachable through setPasscode(). The write stays checked so
-// failure does not claim a forgotten passcode was removed.
+// failure does not claim the passcode was removed.
 void Domain::clearPasscodeAfterReset() {
 	Expects(_localKey != nullptr);
 

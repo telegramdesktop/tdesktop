@@ -37,15 +37,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Wallet {
 namespace {
 
-// The one durable trace the forgot path leaves between destroying the
-// vaults and removing the passcode. It is an app-level preference and not
-// a key_data field, because key_data is the file whose write can fail here
-// and a flag written into it would fail for the same reason and at the
-// same moment; the settings file is a different one, and Local::start()
-// has already read it by the time any domain starts.
-constexpr auto kForgottenPasscodeClearKey = std::string_view(
-	"wallet.forgotten_passcode_clear");
-
 [[nodiscard]] VaultAuthorization Share(VaultGrant grant) {
 	return grant.valid()
 		? std::make_shared<VaultGrant>(std::move(grant))
@@ -473,30 +464,22 @@ void DropForgottenPasscode(std::shared_ptr<Main::SessionShow> show) {
 		return;
 	}
 	auto &local = Core::App().domain().local();
-	auto &settings = Core::App().settings();
-	// Every vault this passcode could still be asked for is gone by here, so
-	// its removal is owed from this point on whatever the write does. The flag
-	// is recorded before the write is attempted and is dropped only once
-	// hasPasscode() has answered, so what it covers is a checked write that
-	// did not reach the disk and a crash inside that write. A crash between
-	// the last DropVaultAndCustody() and this line is not covered: the record
-	// sits below the second enumeration so that the surviving-vault refusal
-	// above never writes the flag at all, and that placement is what leaves
-	// the enumeration's own window outside it. saveSettings() rather than the
-	// delayed timer because it queues the bytes now instead of a second from
-	// now; it cannot prove they reached the disk, and a settings write lost as
-	// well leaves exactly today's outcome.
-	settings.writePref<bool>(kForgottenPasscodeClearKey, true);
-	Core::App().saveSettings();
-	local.clearPasscodeAfterReset();
+	// The passcode may already be gone: the last dependent's
+	// DropVaultAndCustody() reaches the notify funnel through
+	// dropCustodyAfterForgottenPasscode(), whose reconciliation drops it.
+	// A dependent without a session fires no notify, so the checked write
+	// below is still this function's own; one that fails is finished by the
+	// next start's reconciliation.
 	if (local.hasPasscode()) {
-		show->showToast(tr::lng_wallet_passcode_forgot_later(tr::now));
-		return;
+		local.clearPasscodeAfterReset();
+		if (local.hasPasscode()) {
+			show->showToast(tr::lng_wallet_passcode_forgot_later(tr::now));
+			return;
+		}
+		Core::App().settings().setSystemUnlockEnabled(false);
+		Core::App().saveSettingsDelayed();
+		Core::App().localPasscodeChanged();
 	}
-	settings.clearPref(kForgottenPasscodeClearKey);
-	settings.setSystemUnlockEnabled(false);
-	Core::App().saveSettingsDelayed();
-	Core::App().localPasscodeChanged();
 	show->showToast(cleaned
 		? tr::lng_wallet_passcode_forgot_done(tr::now)
 		: tr::lng_wallet_passcode_forgot_leftovers(tr::now));
@@ -685,38 +668,20 @@ QString VaultLockedText(not_null<Main::Session*> session) {
 		: tr::lng_wallet_vault_no_passcode(tr::now);
 }
 
-void FinishForgottenPasscodeClear(bool openedWithoutPasscode) {
-	auto &settings = Core::App().settings();
-	if (!settings.readPref<bool>(kForgottenPasscodeClearKey, false)) {
-		return;
-	}
+void DropUnusedPasscode() {
 	auto &local = Core::App().domain().local();
-	// The flag records an owed removal, never permission to perform it.
-	// !appLockEnabled() means the current committed open wrap was proved
-	// to recover this local key. openedWithoutPasscode is a separate
-	// fact: this process actually started with the empty passcode, captured
-	// by Main::Domain::startWith(). Turning the lock off after a typed start
-	// cannot supply that proof. Recheck verified locking and fresh vault
-	// dependencies because either can have changed since the flag was set.
-	// A failed proof, a missing passcode, a lock turned on or a surviving
-	// dependent clears the flag; keeping it until those conditions change
-	// would make it a standing permission.
-	if (!openedWithoutPasscode
-		|| !local.hasPasscode()
+	if (!local.hasPasscode()
 		|| local.appLockEnabled()
 		|| !CollectVaultDependents().passcodeWrapped.empty()) {
-		settings.clearPref(kForgottenPasscodeClearKey);
-		Core::App().saveSettingsDelayed();
 		return;
 	}
 	local.clearPasscodeAfterReset();
 	if (local.hasPasscode()) {
-		// The write failed again. The flag stays, and the start after this
-		// one tries once more; nothing else in the state has moved.
+		LOG(("Wallet Error: could not remove the passcode after its last "
+			"dependent went; the next reconciliation tries again."));
 		return;
 	}
-	settings.clearPref(kForgottenPasscodeClearKey);
-	settings.setSystemUnlockEnabled(false);
+	Core::App().settings().setSystemUnlockEnabled(false);
 	Core::App().saveSettingsDelayed();
 	Core::App().localPasscodeChanged();
 }

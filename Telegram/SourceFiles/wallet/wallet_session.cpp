@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_onramp.h"
 #include "wallet/wallet_phrase_shares.h"
 #include "wallet/wallet_rates.h"
+#include "wallet/wallet_unlock.h"
 #include "wallet/wallet_user_addresses.h"
 #include "wallet/wallet_vault.h"
 
@@ -3697,6 +3698,12 @@ rpl::producer<> Session::keyProtectionUpdates() const {
 void Session::notifyKeyProtectionChanged() {
 	setVaultKeyUnusable(false);
 	_keyProtectionUpdates.fire({});
+	// Every observer of the change has run; now the passcode is asked whether
+	// it still protects anything, and the drop's own Storage signal updates
+	// them again. Under a staged passcode change every dependent stays
+	// Passcode-kind, so this no-ops, and it writes only key_data, never a
+	// vault header, so the staged headers stay untouched.
+	DropUnusedPasscode();
 }
 
 bool Session::vaultKeyUnusable() const {

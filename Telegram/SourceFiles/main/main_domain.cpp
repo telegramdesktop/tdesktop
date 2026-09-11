@@ -72,11 +72,10 @@ Storage::StartResult Domain::startWith(
 		Storage::PasscodeDerivation derived) {
 	Expects(!started());
 
-	const auto openedWithoutPasscode = derived.empty();
 	const auto result = _local->start(std::move(derived));
 	if (result == Storage::StartResult::Success) {
 		activateAfterStarting();
-		Wallet::FinishForgottenPasscodeClear(openedWithoutPasscode);
+		Wallet::DropUnusedPasscode();
 		crl::on_main(&Core::App(), [=] { suggestExportIfNeeded(); });
 	} else {
 		Assert(!started());
@@ -512,6 +511,14 @@ void Domain::removeRedundantAccounts() {
 	if (!removePasscodeIfEmpty() && _accounts.size() != was) {
 		scheduleWriteAccounts();
 		_accountsChanges.fire({});
+	}
+	// An account whose vault was the last passcode-wrapped one may just have
+	// gone - its local().reset() already emptied its header - including one
+	// its own window keeps in the list. The last-logout case keeps its checked
+	// clear and retry route, and passcodeRemovalAuthorized() still answers
+	// true for it while that clear has not landed.
+	if (!passcodeRemovalAuthorized()) {
+		Wallet::DropUnusedPasscode();
 	}
 }
 

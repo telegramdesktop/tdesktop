@@ -76,24 +76,25 @@ void AcquireVaultUnlock(VaultUnlockArgs args);
 
 [[nodiscard]] QString VaultLockedText(not_null<Main::Session*> session);
 
-// The forgot-passcode path's last step, for the run that could not finish
-// it. DropForgottenPasscode() records the removal as owed once every
-// dependent vault is gone and before key_data is written, so a checked
-// write that did not reach the disk - and a crash in the same window - is
-// finished here at the next start instead of leaving a passcode nobody can
-// produce standing over nothing it can open. Called once from
-// Main::Domain::startWith(), after the accounts are up. It shows nothing,
-// states nothing and logs out nobody, and it destroys no wallet key, vault
-// or custody record: that destruction already happened, and this only
-// finishes the passcode's own removal.
-//
-// openedWithoutPasscode records this process's actual empty-passcode start.
-// The verified app-lock answer separately describes whether the current
-// committed open wrap recovers the local key. Both facts are required:
-// turning the lock off after a typed start cannot satisfy the first one.
-// Completion also rechecks that a passcode remains and no vault depends on
-// it, so the owed flag alone never authorizes removal - see the definition.
-void FinishForgottenPasscodeClear(bool openedWithoutPasscode);
+// The one enforcement point of "a passcode exists only while it protects
+// something": drops the passcode when, at the moment of acting,
+// hasPasscode() is true, appLockEnabled() is false and no signed-in
+// account's vault is passcode-wrapped. The removal is
+// Storage::Domain::clearPasscodeAfterReset(), which asks for no proof and
+// is safe exactly because !appLockEnabled() is the verified reading: the
+// committed open wrap was proved to open the local key, so nothing openable
+// is lost. That write is checked; hasPasscode() is read back before the
+// settings and Application::localPasscodeChanged() follow-ups run, and a
+// failed write is simply tried again by the next site. Eligibility is never
+// carried from an earlier frame. Called from exactly three places - the end
+// of Wallet::Session::notifyKeyProtectionChanged(),
+// Main::Domain::removeRedundantAccounts() and Main::Domain::startWith() -
+// and never from a localPasscodeChanged() subscriber: the wallet-only
+// create box turns the lock on with its first write and off with its
+// second, and a subscriber acting on the second would delete the passcode
+// before the chooser wraps the vault under it. Between those writes the
+// lock is on, so this function refuses by itself.
+void DropUnusedPasscode();
 
 // Vault: the typed passcode must open the vault's own passcode wrap.
 // KeyDataAndVault: it is checked against key_data and, when the vault is

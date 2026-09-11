@@ -85,6 +85,13 @@ constexpr auto kDisableReportCharacterTime = crl::time(60);
 [[nodiscard]] Storage::SetPasscodeResult RemovePasscode(
 		not_null<Window::SessionController*> controller,
 		Storage::PasscodeVerification verification) {
+	// The reconciliation that runs on the removal walk's last transition
+	// may already have dropped the passcode; that is the outcome this write
+	// exists to produce, and a redundant checked rewrite of key_data could
+	// only mis-report a disk error over a passcode that is already gone.
+	if (!Core::App().domain().local().hasPasscode()) {
+		return Storage::SetPasscodeResult::Success;
+	}
 	const auto result = SetPasscode(controller, QString(), verification);
 	if (result == Storage::SetPasscodeResult::Success) {
 		Core::App().settings().setSystemUnlockEnabled(false);
@@ -162,9 +169,6 @@ void WriteVerification(
 
 [[nodiscard]] rpl::producer<QString> WalletPasscodeDescription() {
 	const auto dependents = Wallet::CollectVaultDependents();
-	if (dependents.passcodeWrapped.empty()) {
-		return tr::lng_passcode_unused_about();
-	}
 	for (const auto &account : dependents.passcodeWrapped) {
 		const auto session = account->maybeSession();
 		if (!session) {
@@ -835,6 +839,7 @@ void BuildManageContent(
 			state->appLockOn.value(),
 			state->appLockToggles.events()),
 		.keywords = { u"lock"_q, u"launch"_q, u"startup"_q },
+		.shown = state->walletDependent.value(),
 	});
 	if (lockApp) {
 		const auto weak = base::make_weak(container);

@@ -575,74 +575,6 @@ void MintVerificationOnWorker(
 	}));
 }
 
-// The passcode's last dependent going away is what makes it removable, and
-// both halves have to hold at the moment of acting: the launch lock off and
-// no account's vault still carrying a passcode wrap. The enumeration is
-// taken here rather than carried down from when the box opened, because
-// VaultDependents' accounts are valid only for the frame that receives them
-// and an account can gain a passcode-wrapped vault while the box is up. It
-// is taken twice: before the mint, so a passcode that is still needed costs
-// no derivation, and again on the mint's answer, because a vault can become
-// passcode-wrapped while the worker derives too.
-//
-// The proof is minted from the bytes the box's own gate already accepted,
-// with its derivation on the worker, and spent one statement after it
-// answers: setPasscode() and setAppLockEnabled() both zero the verification
-// nonce on every exit, so a token minted any earlier than this would already
-// be dead by the time it got here. Nothing between the gate and the
-// transition touches that nonce, and a mint that fails is not a user's
-// attempt at the passcode - the gate accepted these bytes - so no flood
-// counter moves either way. done answers on every path, from this frame
-// when there is nothing to derive and from the guarded answer otherwise, so
-// a box torn down mid-mint hears nothing and writes nothing.
-void DropPasscodeIfLastDependentGone(
-		not_null<Ui::GenericBox*> box,
-		const SecureBytes &passcode,
-		Fn<void()> done) {
-	const auto eligible = [] {
-		// A verified launch lock still needs the passcode after the vault
-		// moves.
-		const auto &local = Core::App().domain().local();
-		return local.hasPasscode()
-			&& !local.appLockEnabled()
-			&& CollectVaultDependents().passcodeWrapped.empty();
-	};
-	if (!eligible()) {
-		done();
-		return;
-	}
-	MintVerificationOnWorker(box, passcode, [=](
-			std::optional<Storage::PasscodeVerification> verification) {
-		if (!verification) {
-			// Both arms leave today's state, and a recoverable one: a passcode
-			// over a vault that no longer needs it, which Settings - Privacy &
-			// Security - Local Passcode - Disable passcode still removes
-			// through its own no-dependent branch. Neither is silent, because
-			// a passcode that survived a removal it was eligible for is the
-			// one outcome a reader of this file needs to be able to see.
-			LOG(("Wallet Error: the passcode the gate accepted no longer "
-				"opens key_data, leaving it installed."));
-			done();
-			return;
-		} else if (!eligible()) {
-			done();
-			return;
-		}
-		auto &local = Core::App().domain().local();
-		const auto removed = local.setPasscode(QByteArray(), *verification);
-		if (removed != Storage::SetPasscodeResult::Success) {
-			LOG(("Wallet Error: could not remove the passcode after its "
-				"last dependent went."));
-			done();
-			return;
-		}
-		Core::App().settings().setSystemUnlockEnabled(false);
-		Core::App().saveSettingsDelayed();
-		Core::App().localPasscodeChanged();
-		done();
-	});
-}
-
 // One removal's whole walk, behind a shared_ptr because the key material in
 // it is move-only and every continuation below has to fit in a copyable Fn.
 // Both account lists are weak: Main::Domain owns the accounts and one can be
@@ -1304,10 +1236,18 @@ void KeyProtectionBox(
 					discardPrepared();
 					refuse();
 					return;
-				} else if (!WrapStillCommitted(*local, retired)) {
+				} else if (!WrapStillCommitted(*local, retired)
+					|| (next->wrap.kind == VaultKind::Passcode
+						&& !Core::App().domain().local().hasPasscode())) {
 					// The vault moved under the hop, so the header this box
 					// holds is stale and a retry against it could only
 					// mismatch again: nothing is written and the box closes.
+					// The passcode row's wrap is likewise only meaningful while
+					// key_data holds that passcode: another account's
+					// protection change or a logout can have reconciled it
+					// away during the hop, and wrapping this vault under it
+					// would leave one only the forgot path can free. Both are
+					// asked here, on the hop's answer.
 					discardPrepared();
 					fail();
 					return;
@@ -1348,26 +1288,17 @@ void KeyProtectionBox(
 				if (old) {
 					old->remove(local, retired, [](ProtectionError) {});
 				}
-				// The vault is on its new kind and the change is announced, so
-				// only now is the passcode asked whether it still has a reason
-				// to exist. Its removal is deliberately outside this outcome:
-				// a passcode that could not be written is not a protection
-				// change that failed, and nothing here rolls the transition
-				// back. The committed result is stashed before the drop
-				// starts, so a box torn down while the drop's mint derives
-				// still reports the transition rather than a cancellation;
-				// the drop's own answer is guarded by the box and writes
-				// nothing once it is gone.
-				state->result = { .cancelled = false, .kind = kind };
-				DropPasscodeIfLastDependentGone(box, state->passcode, [=] {
-					if (grantKey) {
-						state->result.grant = GrantAfterSwitch(
-							*state->header,
-							*grantKey,
-							wallet->vault());
-					}
-					box->closeBox();
-				});
+				auto outcome = KeyProtectionResult{
+					.cancelled = false,
+					.kind = kind,
+				};
+				if (grantKey) {
+					outcome.grant = GrantAfterSwitch(
+						*state->header,
+						*grantKey,
+						wallet->vault());
+				}
+				closeWith(std::move(outcome));
 			};
 			AcquireVaultKey(
 				local,
