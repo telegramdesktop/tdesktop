@@ -65,6 +65,7 @@ struct EditorData {
 	bool fixedCrop = false;
 	bool forOtherUser = false;
 	bool composeAnimated = false;
+	bool composeSound = false;
 };
 
 struct PhotoModifications {
