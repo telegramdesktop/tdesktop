@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/video/video_timeline_seeker.h"
 
+#include "editor/editor_trim_timeline.h"
 #include "editor/video/video_segment_player.h"
-#include "editor/video/video_timeline.h"
 
 namespace Editor {
 namespace {
@@ -18,7 +18,7 @@ constexpr auto kSeekThrottle = crl::time(120);
 } // namespace
 
 TimelineSeeker::TimelineSeeker(
-	not_null<VideoTimeline*> timeline,
+	not_null<TrimTimeline*> timeline,
 	not_null<SegmentPlayer*> player)
 : _timeline(timeline)
 , _player(player)

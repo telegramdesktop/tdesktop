@@ -1,0 +1,137 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+#pragma once
+
+#include "base/weak_ptr.h"
+#include "ui/rp_widget.h"
+
+namespace Editor {
+
+struct TrimTimelineDescriptor {
+	crl::time duration = 0;
+
+	crl::time maxDuration = 0;
+	crl::time minDuration = 0;
+
+	// A zero |till| means the whole allowed window is selected.
+	crl::time from = 0;
+	crl::time till = 0;
+	crl::time cover = 0;
+
+	bool trimOnly = false;
+};
+
+class TrimTimeline
+	: public Ui::RpWidget
+	, public base::has_weak_ptr {
+public:
+	TrimTimeline(
+		not_null<Ui::RpWidget*> parent,
+		TrimTimelineDescriptor descriptor);
+
+	[[nodiscard]] crl::time from() const {
+		return _from;
+	}
+	[[nodiscard]] crl::time till() const {
+		return _till;
+	}
+	[[nodiscard]] crl::time cover() const {
+		return _cover;
+	}
+	[[nodiscard]] crl::time playbackPosition() const {
+		return _playback;
+	}
+
+	[[nodiscard]] rpl::producer<crl::time> trimChanges() const {
+		return _trimChanges.events();
+	}
+	[[nodiscard]] rpl::producer<crl::time> coverChanges() const {
+		return _coverChanges.events();
+	}
+	[[nodiscard]] rpl::producer<bool> draggingChanges() const {
+		return _draggingChanges.events();
+	}
+
+	void setTrim(crl::time from, crl::time till);
+	void setPlaybackPosition(crl::time position);
+
+	void setSizeLabel(const QString &text);
+
+	[[nodiscard]] bool draggingHead() const;
+
+	[[nodiscard]] int resizeGetHeight(int newWidth) override;
+
+protected:
+	[[nodiscard]] crl::time duration() const {
+		return _duration;
+	}
+	[[nodiscard]] bool trimOnly() const {
+		return _trimOnly;
+	}
+	[[nodiscard]] QRect stripRect() const;
+	[[nodiscard]] crl::time timeAt(int x) const;
+	[[nodiscard]] int xAt(crl::time time) const;
+
+	virtual void paintStrip(QPainter &p, const QRect &strip) = 0;
+	virtual void paintOverlay(QPainter &p);
+	virtual void headGrabChanged(bool grabbed);
+
+	void paintEvent(QPaintEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
+
+private:
+	enum class Grab {
+		None,
+		Left,
+		Right,
+		Head,
+
+		Window,
+	};
+
+	[[nodiscard]] QRect labelRect() const;
+	[[nodiscard]] crl::time minSelection() const;
+	void moveWindowTo(crl::time center);
+	[[nodiscard]] Grab grabAt(
+		QPoint position,
+		Qt::KeyboardModifiers modifiers) const;
+
+	void applyGrab(QPoint position);
+	void setCover(crl::time cover, bool notify);
+	void updateCursor(Grab grab);
+	void paintSelection(QPainter &p, const QRect &strip);
+	void paintHead(QPainter &p, const QRect &strip);
+	void paintDuration(QPainter &p, const QRect &strip);
+
+	const crl::time _duration = 0;
+	const crl::time _maxDuration = 0;
+	const crl::time _minDuration = 0;
+	const bool _trimOnly = false;
+
+	crl::time _from = 0;
+	crl::time _till = 0;
+	crl::time _cover = 0;
+	// Negative means nothing played yet; zero is a real position.
+	crl::time _playback = -1;
+
+	QString _sizeLabel;
+	int _labelWidth = 0;
+
+	Grab _grab = Grab::None;
+	int _grabShift = 0;
+
+	rpl::event_stream<crl::time> _trimChanges;
+	rpl::event_stream<crl::time> _coverChanges;
+	rpl::event_stream<bool> _draggingChanges;
+
+};
+
+} // namespace Editor

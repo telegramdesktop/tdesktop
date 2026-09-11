@@ -180,6 +180,8 @@ PRIVATE
     editor/editor_crop.h
     editor/editor_layer_widget.cpp
     editor/editor_layer_widget.h
+    editor/editor_trim_timeline.cpp
+    editor/editor_trim_timeline.h
     editor/photo_editor_common.cpp
     editor/photo_editor_common.h
     editor/photo_editor_inner_common.h

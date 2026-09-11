@@ -12,12 +12,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Editor {
 
 class SegmentPlayer;
-class VideoTimeline;
+class TrimTimeline;
 
 class TimelineSeeker final {
 public:
 	TimelineSeeker(
-		not_null<VideoTimeline*> timeline,
+		not_null<TrimTimeline*> timeline,
 		not_null<SegmentPlayer*> player);
 	~TimelineSeeker();
 
@@ -25,7 +25,7 @@ private:
 	void seek(crl::time position);
 	void finishDragging();
 
-	const not_null<VideoTimeline*> _timeline;
+	const not_null<TrimTimeline*> _timeline;
 	const not_null<SegmentPlayer*> _player;
 
 	base::Timer _timer;
