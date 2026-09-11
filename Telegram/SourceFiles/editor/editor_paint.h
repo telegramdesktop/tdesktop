@@ -57,6 +57,11 @@ public:
 	void clearSelection();
 	void removeAudio();
 	void setAudioSelected(bool selected);
+	[[nodiscard]] bool canEqualizeDurations() const;
+	void matchDurations(crl::time duration);
+	[[nodiscard]] bool durationsLinked() const;
+	void setDurationsLinked(bool linked);
+	[[nodiscard]] rpl::producer<> durationsLinkChanges() const;
 	[[nodiscard]] std::shared_ptr<AudioTrack> audio() const;
 	[[nodiscard]] bool audioSelected() const;
 	[[nodiscard]] rpl::producer<> audioChanges() const;

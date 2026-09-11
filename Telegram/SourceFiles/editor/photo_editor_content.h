@@ -58,6 +58,11 @@ public:
 	[[nodiscard]] rpl::producer<bool> audioSelectedChanges() const;
 	[[nodiscard]] std::shared_ptr<AudioTrack> audio() const;
 	[[nodiscard]] bool audioSelected() const;
+	[[nodiscard]] bool canEqualizeDurations() const;
+	void matchDurations(crl::time duration);
+	[[nodiscard]] bool durationsLinked() const;
+	void setDurationsLinked(bool linked);
+	[[nodiscard]] rpl::producer<> durationsLinkChanges() const;
 	void applyAspectRatio(float64 ratio);
 	void save(PhotoModifications &modifications);
 

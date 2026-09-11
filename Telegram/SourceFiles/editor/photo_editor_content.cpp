@@ -361,6 +361,26 @@ std::shared_ptr<AudioTrack> PhotoEditorContent::audio() const {
 	return _paint->audio();
 }
 
+bool PhotoEditorContent::canEqualizeDurations() const {
+	return _paint->canEqualizeDurations();
+}
+
+void PhotoEditorContent::matchDurations(crl::time duration) {
+	_paint->matchDurations(duration);
+}
+
+bool PhotoEditorContent::durationsLinked() const {
+	return _paint->durationsLinked();
+}
+
+void PhotoEditorContent::setDurationsLinked(bool linked) {
+	_paint->setDurationsLinked(linked);
+}
+
+rpl::producer<> PhotoEditorContent::durationsLinkChanges() const {
+	return _paint->durationsLinkChanges();
+}
+
 rpl::producer<bool> PhotoEditorContent::shapeToolStates() const {
 	return _paint->shapeToolStates();
 }

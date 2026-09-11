@@ -546,6 +546,26 @@ void Paint::setAudioSelected(bool selected) {
 	_scene->setAudioSelected(selected);
 }
 
+bool Paint::canEqualizeDurations() const {
+	return _scene->canEqualizeDurations();
+}
+
+void Paint::matchDurations(crl::time duration) {
+	_scene->matchDurations(duration);
+}
+
+bool Paint::durationsLinked() const {
+	return _scene->durationsLinked();
+}
+
+void Paint::setDurationsLinked(bool linked) {
+	_scene->setDurationsLinked(linked);
+}
+
+rpl::producer<> Paint::durationsLinkChanges() const {
+	return _scene->durationsLinkChanges();
+}
+
 std::shared_ptr<AudioTrack> Paint::audio() const {
 	return _scene->audio();
 }

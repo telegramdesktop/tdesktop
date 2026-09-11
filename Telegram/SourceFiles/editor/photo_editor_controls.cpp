@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/controllers/controllers.h"
 #include "editor/video_item_timeline.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
 #include "ui/effects/round_checkbox.h"
 #include "ui/image/image_prepare.h"
 #include "ui/qt_object_factory.h"
@@ -20,9 +21,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/menu/menu_multiline_action.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/tooltip.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/ui_utility.h"
 #include "styles/style_editor.h"
 #include "styles/style_media_player.h" // mediaPlayerMenuCheck
 
@@ -472,6 +475,74 @@ ButtonBar::ButtonBar(
 	}, lifetime());
 }
 
+class TrimShortestButton final
+	: public Ui::IconButton
+	, public Ui::AbstractTooltipShower {
+public:
+	explicit TrimShortestButton(QWidget *parent)
+	: IconButton(parent, st::photoEditorRotateButton)
+	, _icon(Lottie::MakeIcon({
+		.path = u":/animations/photo_editor_trim_shortest.tgs"_q,
+		.color = &st::photoEditorButtonIconFg,
+		.sizeOverride = QSize(
+			st::photoEditorTrimShortestIconSize,
+			st::photoEditorTrimShortestIconSize),
+	})) {
+		events(
+		) | rpl::on_next([=](not_null<QEvent*> event) {
+			if (event->type() == QEvent::Enter) {
+				Ui::Tooltip::Show(1000, this);
+			} else if (event->type() == QEvent::Leave) {
+				Ui::Tooltip::Hide();
+			}
+		}, lifetime());
+	}
+
+	void setActive(bool active, anim::type animated) {
+		if (_active == active) {
+			return;
+		}
+		_active = active;
+		const auto last = _icon->framesCount() - 1;
+		const auto repaint = [=] { update(); };
+		if (animated == anim::type::instant) {
+			_icon->jumpTo(active ? last : 0, repaint);
+		} else {
+			_icon->animate(repaint, active ? 0 : last, active ? last : 0);
+		}
+	}
+	QString tooltipText() const override {
+		return tr::lng_photo_editor_trim_shortest(tr::now);
+	}
+	QPoint tooltipPos() const override {
+		return QCursor::pos();
+	}
+	bool tooltipWindowActive() const override {
+		return Ui::AppInFocus() && Ui::InFocusChain(window());
+	}
+
+protected:
+	void paintEvent(QPaintEvent *e) override {
+		auto p = Painter(this);
+		paintRipple(p, st().rippleAreaPosition);
+		const auto last = std::max(_icon->framesCount() - 1, 1);
+		const auto progress = _icon->frameIndex() / float64(last);
+		const auto idle = anim::color(
+			st::photoEditorButtonIconFg,
+			st::photoEditorButtonIconFgOver,
+			iconOverOpacity());
+		_icon->paintInCenter(p, rect(), anim::color(
+			idle,
+			st::photoEditorButtonIconFgActive,
+			progress));
+	}
+
+private:
+	const std::unique_ptr<Lottie::Icon> _icon;
+	bool _active = false;
+
+};
+
 class TextToolButton final : public Ui::AbstractButton {
 public:
 	TextToolButton(not_null<QWidget*> parent)
@@ -597,13 +668,18 @@ PhotoEditorControls::PhotoEditorControls(
 	object_ptr<VideoItemTimeline>(this)))
 , _audioTimeline(base::make_unique_q<Ui::FadeWrap<AudioTrackTimeline>>(
 	this,
-	object_ptr<AudioTrackTimeline>(this))) {
+	object_ptr<AudioTrackTimeline>(this)))
+, _trimShortest(base::make_unique_q<Ui::FadeWrap<Ui::IconButton>>(
+	this,
+	object_ptr<TrimShortestButton>(this))) {
 
 	_shapesFilled = shapesFilled;
 	_videoTimeline->hide(anim::type::instant);
 	_videoTimeline->setDuration(st::photoEditorBarAnimationDuration);
 	_audioTimeline->hide(anim::type::instant);
 	_audioTimeline->setDuration(st::photoEditorBarAnimationDuration);
+	_trimShortest->hide(anim::type::instant);
+	_trimShortest->setDuration(st::photoEditorBarAnimationDuration);
 	_paintTopButtons->geometryValue(
 	) | rpl::on_next([=] {
 		updateTimelinesGeometry();
@@ -1178,6 +1254,8 @@ rpl::producer<bool> PhotoEditorControls::colorLineShownValue() const {
 
 void PhotoEditorControls::setVideoItem(std::shared_ptr<ItemVideo> item) {
 	const auto shown = (item != nullptr);
+	_videoTimelineShown = shown;
+	updateTrimShortest();
 	if (shown) {
 		_videoTimeline->entity()->setItem(std::move(item));
 		updateTimelineGeometry(_videoTimeline.get());
@@ -1190,11 +1268,56 @@ void PhotoEditorControls::setVideoItem(std::shared_ptr<ItemVideo> item) {
 
 void PhotoEditorControls::setAudioTrack(std::shared_ptr<AudioTrack> track) {
 	const auto shown = (track != nullptr);
+	_audioTimelineShown = shown;
+	updateTrimShortest();
 	_audioTimeline->entity()->setTrack(std::move(track));
 	if (shown) {
 		updateTimelineGeometry(_audioTimeline.get());
 	}
 	_audioTimeline->toggle(shown, anim::type::normal);
+}
+
+void PhotoEditorControls::setTrimShortestAvailable(bool available) {
+	if (_trimShortestAvailable == available) {
+		return;
+	}
+	_trimShortestAvailable = available;
+	updateTrimShortest();
+}
+
+void PhotoEditorControls::setTrimShortestActive(
+		bool active,
+		anim::type animated) {
+	const auto button = static_cast<TrimShortestButton*>(
+		_trimShortest->entity());
+	button->setActive(active, animated);
+}
+
+void PhotoEditorControls::refreshTimelines() {
+	_videoTimeline->entity()->refreshTrim();
+	_audioTimeline->entity()->refreshTrim();
+}
+
+rpl::producer<> PhotoEditorControls::trimShortestRequests() const {
+	return _trimShortest->entity()->clicks() | rpl::to_empty;
+}
+
+rpl::producer<crl::time> PhotoEditorControls::trimLengthChanges() const {
+	return rpl::merge(
+		_videoTimeline->entity()->lengthChanges(),
+		_audioTimeline->entity()->lengthChanges());
+}
+
+void PhotoEditorControls::updateTrimShortest() {
+	const auto shown = _trimShortestAvailable
+		&& (_videoTimelineShown || _audioTimelineShown);
+	if (shown == _trimShortest->toggled()) {
+		return;
+	}
+	_trimShortest->toggle(shown, anim::type::normal);
+	if (shown || _videoTimelineShown || _audioTimelineShown) {
+		updateTimelinesGeometry();
+	}
 }
 
 void PhotoEditorControls::updateTimelinesGeometry() {
@@ -1207,9 +1330,19 @@ void PhotoEditorControls::updateTimelineGeometry(
 	const auto bar = _paintTopButtons->geometry();
 	const auto skip = st::photoEditorTimelineSkip;
 	const auto left = _undoButton->width() + skip;
-	const auto width = bar.width() - left - _redoButton->width() - skip;
+	const auto trimShortest = _trimShortest->toggled()
+		? (_trimShortest->width() + skip)
+		: 0;
+	const auto width = bar.width()
+		- left
+		- trimShortest
+		- _redoButton->width()
+		- skip;
 	timeline->resizeToWidth(std::max(width, 1));
 	timeline->moveToLeft(bar.x() + left, bar.y());
+	_trimShortest->moveToLeft(
+		bar.x() + left + std::max(width, 1) + skip,
+		bar.y());
 }
 
 bool PhotoEditorControls::handleKeyPress(not_null<QKeyEvent*> e) const {

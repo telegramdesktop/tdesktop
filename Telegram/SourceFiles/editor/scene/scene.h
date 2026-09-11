@@ -72,6 +72,12 @@ public:
 	void setAudioSelected(bool selected);
 	[[nodiscard]] bool audioSelected() const;
 	[[nodiscard]] rpl::producer<bool> audioSelectedChanges() const;
+	[[nodiscard]] bool canEqualizeDurations() const;
+	void equalizeDurations();
+	void matchDurations(crl::time duration);
+	[[nodiscard]] bool durationsLinked() const;
+	void setDurationsLinked(bool linked);
+	[[nodiscard]] rpl::producer<> durationsLinkChanges() const;
 	void addItem(ItemPtr item);
 	void removeItem(not_null<QGraphicsItem*> item);
 	void removeItem(const ItemPtr &item);
@@ -125,6 +131,7 @@ private:
 
 	void removeIf(Fn<bool(const ItemPtr &)> proj);
 	void capturePlacements();
+	void checkDurationsLink();
 	void commitPlacements();
 	void startShapeDrawing(const QPointF &position);
 	void updateShapeDrawing(
@@ -167,6 +174,7 @@ private:
 	rpl::event_stream<std::shared_ptr<ItemVideo>> _videoItemSelections;
 	rpl::event_stream<> _audioChanges;
 	rpl::event_stream<bool> _audioSelectedChanges;
+	rpl::event_stream<> _durationsLinkChanges;
 	ItemText *_selectedTextItem = nullptr;
 	ItemShape *_selectedShapeItem = nullptr;
 	ItemVideo *_selectedVideoItem = nullptr;
@@ -174,6 +182,9 @@ private:
 	std::shared_ptr<AudioTrack> _keptAudio;
 	std::shared_ptr<AudioTrack> _savedAudio;
 	bool _audioSelected = false;
+	bool _durationsLinked = false;
+	bool _keptDurationsLinked = false;
+	bool _savedDurationsLinked = false;
 	rpl::lifetime _lifetime;
 
 };

@@ -229,6 +229,7 @@ photoEditorAudioTimelineTextSkip: 12px;
 photoEditorAudioTimelineFade: 8px;
 photoEditorAudioTimelineAuthorFont: font(12px semibold);
 photoEditorAudioTimelineFont: font(12px);
+photoEditorTrimShortestIconSize: 24px;
 
 videoTimelineStripHeight: 54px;
 videoTimelineLabelHeight: 18px;

@@ -365,6 +365,9 @@ void Scene::addItem(ItemPtr item) {
 	if (raw->scene() != this) {
 		QGraphicsScene::addItem(raw);
 	}
+	if (raw->type() == ItemVideo::Type) {
+		checkDurationsLink();
+	}
 	_addsItem.fire({});
 }
 
@@ -380,6 +383,9 @@ void Scene::removeItem(not_null<QGraphicsItem*> item) {
 
 void Scene::removeItem(const ItemPtr &item) {
 	item->setStatus(NumberedItem::Status::Removed);
+	if (item->type() == ItemVideo::Type) {
+		checkDurationsLink();
+	}
 	_removesItem.fire({});
 }
 
@@ -747,6 +753,7 @@ void Scene::setAudio(std::shared_ptr<AudioTrack> audio) {
 		setAudioSelected(false);
 	}
 	_audioChanges.fire({});
+	checkDurationsLink();
 }
 
 std::shared_ptr<AudioTrack> Scene::audio() const {
@@ -779,6 +786,87 @@ bool Scene::audioSelected() const {
 
 rpl::producer<bool> Scene::audioSelectedChanges() const {
 	return _audioSelectedChanges.events();
+}
+
+bool Scene::canEqualizeDurations() const {
+	if (!_audio) {
+		return false;
+	}
+	for (const auto &item : _items) {
+		if (item->isNormalStatus() && (item->type() == ItemVideo::Type)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void Scene::equalizeDurations() {
+	auto shortest = _audio ? _audio->length() : crl::time(0);
+	for (const auto &item : _items) {
+		if (item->isNormalStatus() && (item->type() == ItemVideo::Type)) {
+			const auto video = static_cast<ItemVideo*>(item.get());
+			const auto loop = video->loopDuration();
+			if (loop > 0 && (!shortest || loop < shortest)) {
+				shortest = loop;
+			}
+		}
+	}
+	matchDurations(shortest);
+}
+
+void Scene::matchDurations(crl::time duration) {
+	auto videos = std::vector<ItemVideo*>();
+	auto shortest = duration;
+	if (_audio) {
+		shortest = std::min(shortest, _audio->duration - _audio->from);
+	}
+	for (const auto &item : _items) {
+		if (item->isNormalStatus() && (item->type() == ItemVideo::Type)) {
+			const auto video = static_cast<ItemVideo*>(item.get());
+			const auto full = video->duration();
+			if (full > 0) {
+				shortest = std::min(shortest, full - video->trim().from);
+				videos.push_back(video);
+			}
+		}
+	}
+	if (shortest <= 0) {
+		return;
+	}
+	for (const auto video : videos) {
+		const auto from = video->trim().from;
+		video->setTrim({ from, from + shortest });
+	}
+	if (_audio) {
+		_audio->till = _audio->from + shortest;
+	}
+}
+
+bool Scene::durationsLinked() const {
+	return _durationsLinked;
+}
+
+void Scene::setDurationsLinked(bool linked) {
+	if (_durationsLinked == linked) {
+		return;
+	}
+	_durationsLinked = linked;
+	if (linked) {
+		equalizeDurations();
+	}
+}
+
+rpl::producer<> Scene::durationsLinkChanges() const {
+	return _durationsLinkChanges.events();
+}
+
+void Scene::checkDurationsLink() {
+	if (_durationsLinked && !canEqualizeDurations()) {
+		_durationsLinked = false;
+	} else if (_durationsLinked) {
+		equalizeDurations();
+	}
+	_durationsLinkChanges.fire({});
 }
 
 std::shared_ptr<float64> Scene::lastZ() const {
@@ -825,6 +913,9 @@ void Scene::performUndo() {
 			action->revert();
 		}
 		(*it)->setStatus(NumberedItem::Status::Undid);
+		if ((*it)->type() == ItemVideo::Type) {
+			checkDurationsLink();
+		}
 	}
 }
 
@@ -837,6 +928,9 @@ void Scene::performRedo() {
 			action->apply();
 		}
 		(*it)->setStatus(NumberedItem::Status::Normal);
+		if ((*it)->type() == ItemVideo::Type) {
+			checkDurationsLink();
+		}
 	}
 }
 
@@ -926,6 +1020,10 @@ void Scene::save(SaveState state) {
 	}
 	auto &saved = (state == SaveState::Keep) ? _keptAudio : _savedAudio;
 	saved = _audio ? std::make_shared<AudioTrack>(*_audio) : nullptr;
+	auto &savedLinked = (state == SaveState::Keep)
+		? _keptDurationsLinked
+		: _savedDurationsLinked;
+	savedLinked = _durationsLinked;
 	setAudioSelected(false);
 	clearSelection();
 	cancelDrawing();
@@ -944,6 +1042,10 @@ void Scene::restore(SaveState state) {
 		: _savedAudio;
 	setAudioSelected(false);
 	setAudio(saved ? std::make_shared<AudioTrack>(*saved) : nullptr);
+	_durationsLinked = (state == SaveState::Keep)
+		? _keptDurationsLinked
+		: _savedDurationsLinked;
+	checkDurationsLink();
 	clearSelection();
 	cancelDrawing();
 }

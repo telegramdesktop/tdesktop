@@ -54,10 +54,22 @@ void VideoItemTimeline::setItem(std::shared_ptr<ItemVideo> item) {
 	_timeline->trimChanges(
 	) | rpl::on_next([=] {
 		_item->setTrim({ _timeline->from(), _timeline->till() });
+		_lengthChanges.fire(_item->loopDuration());
 	}, _itemLifetime);
 
 	if (width() > 0) {
 		resizeToWidth(width());
+	}
+}
+
+rpl::producer<crl::time> VideoItemTimeline::lengthChanges() const {
+	return _lengthChanges.events();
+}
+
+void VideoItemTimeline::refreshTrim() {
+	if (_timeline) {
+		const auto trim = _item->trim();
+		_timeline->setTrim(trim.from, trim.till);
 	}
 }
 

@@ -23,11 +23,14 @@ public:
 	void setTrack(std::shared_ptr<AudioTrack> track);
 	void refreshTrim();
 
+	[[nodiscard]] rpl::producer<crl::time> lengthChanges() const;
+
 	int resizeGetHeight(int newWidth) override;
 
 private:
 	std::shared_ptr<AudioTrack> _track;
 	base::unique_qptr<AudioTimeline> _timeline;
+	rpl::event_stream<crl::time> _lengthChanges;
 
 };
 

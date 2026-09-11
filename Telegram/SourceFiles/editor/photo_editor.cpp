@@ -322,6 +322,11 @@ PhotoEditor::PhotoEditor(
 		_videoItemSelected = (item != nullptr);
 		updateColorPickerVisibility(anim::type::normal);
 		_controls->setVideoItem(std::move(item));
+		_controls->setTrimShortestAvailable(
+			_content->canEqualizeDurations());
+		_controls->setTrimShortestActive(
+			_content->durationsLinked(),
+			anim::type::instant);
 	}, lifetime());
 
 	rpl::merge(
@@ -333,6 +338,40 @@ PhotoEditor::PhotoEditor(
 		_audioSelected = selected;
 		updateColorPickerVisibility(anim::type::normal);
 		_controls->setAudioTrack(selected ? _content->audio() : nullptr);
+		_controls->setTrimShortestAvailable(
+			_content->canEqualizeDurations());
+		_controls->setTrimShortestActive(
+			_content->durationsLinked(),
+			anim::type::instant);
+	}, lifetime());
+
+	_content->durationsLinkChanges(
+	) | rpl::on_next([=] {
+		_controls->setTrimShortestAvailable(
+			_content->canEqualizeDurations());
+		_controls->setTrimShortestActive(
+			_content->durationsLinked(),
+			anim::type::instant);
+		_controls->refreshTimelines();
+	}, lifetime());
+
+	_controls->trimShortestRequests(
+	) | rpl::on_next([=] {
+		const auto linked = !_content->durationsLinked();
+		_content->setDurationsLinked(linked);
+		_controls->setTrimShortestActive(linked, anim::type::normal);
+		_controls->refreshTimelines();
+	}, lifetime());
+
+	_controls->trimLengthChanges(
+	) | rpl::on_next([=](crl::time length) {
+		if (!_content->durationsLinked() || _matchingDurations) {
+			return;
+		}
+		_matchingDurations = true;
+		_content->matchDurations(length);
+		_controls->refreshTimelines();
+		_matchingDurations = false;
 	}, lifetime());
 
 	_content->innerRect(

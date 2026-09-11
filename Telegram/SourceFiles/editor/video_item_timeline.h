@@ -22,6 +22,9 @@ public:
 	~VideoItemTimeline();
 
 	void setItem(std::shared_ptr<ItemVideo> item);
+	void refreshTrim();
+
+	[[nodiscard]] rpl::producer<crl::time> lengthChanges() const;
 
 	int resizeGetHeight(int newWidth) override;
 
@@ -29,6 +32,7 @@ private:
 	std::shared_ptr<ItemVideo> _item;
 	base::unique_qptr<VideoTimeline> _timeline;
 	std::unique_ptr<TimelineSeeker> _seeker;
+	rpl::event_stream<crl::time> _lengthChanges;
 
 	rpl::lifetime _itemLifetime;
 

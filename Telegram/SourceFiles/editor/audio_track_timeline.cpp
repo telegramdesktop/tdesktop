@@ -28,12 +28,20 @@ void AudioTrackTimeline::setTrack(std::shared_ptr<AudioTrack> track) {
 	} else if (_track != track) {
 		_track = std::move(track);
 		_timeline = base::make_unique_q<AudioTimeline>(this, _track);
+		_timeline->trimChanges(
+		) | rpl::on_next([=] {
+			_lengthChanges.fire(_track->length());
+		}, _timeline->lifetime());
 		_timeline->show();
 		if (width() > 0) {
 			resizeToWidth(width());
 		}
 	}
 	_timeline->setPlaying(true);
+}
+
+rpl::producer<crl::time> AudioTrackTimeline::lengthChanges() const {
+	return _lengthChanges.events();
 }
 
 void AudioTrackTimeline::refreshTrim() {

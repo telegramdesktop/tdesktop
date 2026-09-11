@@ -66,6 +66,11 @@ public:
 	void setShapeToolActive(bool active);
 	void setVideoItem(std::shared_ptr<ItemVideo> item);
 	void setAudioTrack(std::shared_ptr<AudioTrack> track);
+	void setTrimShortestAvailable(bool available);
+	void setTrimShortestActive(bool active, anim::type animated);
+	void refreshTimelines();
+	[[nodiscard]] rpl::producer<> trimShortestRequests() const;
+	[[nodiscard]] rpl::producer<crl::time> trimLengthChanges() const;
 
 private:
 	void showAnimated(
@@ -75,6 +80,7 @@ private:
 	void updateInputMask();
 	void updateTimelinesGeometry();
 	void updateTimelineGeometry(not_null<Ui::RpWidget*> timeline);
+	void updateTrimShortest();
 
 	int bottomButtonsTop() const;
 
@@ -106,6 +112,7 @@ private:
 	const base::unique_qptr<EdgeButton> _paintDone;
 	const base::unique_qptr<Ui::FadeWrap<VideoItemTimeline>> _videoTimeline;
 	const base::unique_qptr<Ui::FadeWrap<AudioTrackTimeline>> _audioTimeline;
+	const base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _trimShortest;
 
 	base::unique_qptr<Ui::PopupMenu> _ratioMenu;
 	base::unique_qptr<Ui::PopupMenu> _cornersMenu;
@@ -117,6 +124,9 @@ private:
 	bool _shapesFilled = false;
 	bool _shapeToolActive = false;
 	bool _keepOriginalRatio = false;
+	bool _trimShortestAvailable = false;
+	bool _videoTimelineShown = false;
+	bool _audioTimelineShown = false;
 
 	Ui::Animations::Simple _toggledBarAnimation;
 
