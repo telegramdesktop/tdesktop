@@ -13,7 +13,7 @@ using "info/channel_statistics/boosts/giveaway/giveaway.style";
 using "settings/settings.style";
 
 walletMenuIcon: icon{{ "menu/wallet-24x24", menuIconColor }};
-walletMenuCurrencyIcon: icon{{ "settings/language", menuIconColor }};
+walletMenuCurrencyIcon: icon{{ "menu/ip_address", menuIconColor }};
 
 walletPanelSize: size(392px, 620px);
 walletCardHeight: 190px;
