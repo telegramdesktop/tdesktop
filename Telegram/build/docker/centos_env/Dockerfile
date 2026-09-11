@@ -1031,13 +1031,12 @@ cargo rustc --lib --release \
 	--config "profile.release.panic='unwind'" \
 	--config "profile.release.package.tlottie.opt-level=3" \
 	-- --print native-static-libs
-mkdir -p $DESTDIR/usr/local/lib $DESTDIR/usr/local/include/tlottie $DESTDIR/usr/local/include/wallet_engine $DESTDIR/usr/local/src/wallet_engine
+mkdir -p $DESTDIR/usr/local/lib $DESTDIR/usr/local/include/tlottie $DESTDIR/usr/local/include/wallet_engine
 objcopy --strip-debug target/x86_64-unknown-linux-gnu/release/libtdesktop_rust.a $DESTDIR/usr/local/lib/libtdesktop_rust.a
 cp ../tlottie/include/tlottie.h $DESTDIR/usr/local/include/tlottie/tlottie.h
 cargo run --manifest-path ../wallet-engine/bindgen/cpp/bindgen/Cargo.toml --locked -- \
 	--library --out-dir $DESTDIR/usr/local/include/wallet_engine \
 	target/x86_64-unknown-linux-gnu/release/libtdesktop_rust.so
-mv $DESTDIR/usr/local/include/wallet_engine/wallet_engine.cpp $DESTDIR/usr/local/src/wallet_engine/wallet_engine.cpp
 cd ..
 rm -rf tlottie wallet-engine tdesktop_rust rustup cargo
 EOF
