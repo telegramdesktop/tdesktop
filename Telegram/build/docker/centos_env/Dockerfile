@@ -1025,18 +1025,17 @@ cargo add --path ../tlottie --features c-api
 cargo add --path ../wallet-engine
 cargo rustc --lib --release \
 	--crate-type staticlib --crate-type cdylib \
-	--target x86_64-unknown-linux-gnu \
 	--config "profile.release.opt-level={% if MINSIZE %}'z'{% else %}3{% endif %}" \
 	--config "profile.release.lto='{% if LTO %}thin{% else %}off{% endif %}'" \
 	--config "profile.release.codegen-units=1" \
 	--config "profile.release.panic='unwind'" \
 	-- --print native-static-libs
 mkdir -p $DESTDIR/usr/local/lib64 $DESTDIR/usr/local/include/tlottie $DESTDIR/usr/local/include/wallet_engine
-objcopy --strip-debug target/x86_64-unknown-linux-gnu/release/libtdesktop_rust.a $DESTDIR/usr/local/lib64/libtdesktop_rust.a
+objcopy --strip-debug target/release/libtdesktop_rust.a $DESTDIR/usr/local/lib64/libtdesktop_rust.a
 cp ../tlottie/include/tlottie.h $DESTDIR/usr/local/include/tlottie/tlottie.h
 cargo run --manifest-path ../wallet-engine/bindgen/cpp/bindgen/Cargo.toml --locked -- \
 	--library --out-dir $DESTDIR/usr/local/include/wallet_engine \
-	target/x86_64-unknown-linux-gnu/release/libtdesktop_rust.so
+	target/release/libtdesktop_rust.so
 cd ..
 rm -rf tlottie wallet-engine tdesktop_rust rustup cargo
 EOF
