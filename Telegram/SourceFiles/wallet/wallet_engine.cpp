@@ -7,10 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "wallet/wallet_engine.h"
 
+#include "core/application.h"
 #include "gram/api/gram_api_request.h"
+#include "main/main_domain.h"
 #include "main/main_session.h"
 #include "storage/serialize_common.h"
 #include "storage/storage_account.h"
+#include "storage/storage_domain.h"
 #include "wallet/wallet_api.h"
 #include "wallet/wallet_vault.h"
 
@@ -268,6 +271,14 @@ struct StoreOutcome {
 // record sealed under the retired key would open under no wrap the header
 // holds, and a vault created under a policy prepared for a passcode the
 // account no longer has would open under no passcode the user can type.
+//
+// A Passcode-kind creation policy is asked once more here, against key_data
+// as it stands at this instant: the chooser only armed the policy, and
+// another account's protection change or a logout can have reconciled the
+// wallet-only passcode away between that arm and this seal. A vault sealed
+// under a passcode key_data no longer holds is one only the forgot path can
+// free, so the store is refused with nothing written - the same arm an
+// absent policy already gets.
 [[nodiscard]] StoreOutcome StoreUnderVault(
 		Storage::Account &local,
 		const VaultRuntime &vault,
@@ -318,7 +329,9 @@ struct StoreOutcome {
 			? StoreOutcome{ .written = true }
 			: StoreOutcome{ .unavailable = true };
 	} else if (!input.authority.policy
-		|| vault.clearEpoch() != input.authority.epoch) {
+		|| vault.clearEpoch() != input.authority.epoch
+		|| (input.authority.policy->wrap.kind == VaultKind::Passcode
+			&& !Core::App().domain().local().hasPasscode())) {
 		return { .refused = true };
 	}
 	return CreateVaultAndStore(local, storageKey, input);

@@ -8965,7 +8965,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_protection_create_about" = "This passcode protects your wallet key on this device. It does not lock Telegram until you turn that on in Settings.";
 "lng_wallet_protection_create_enter" = "Passcode";
 "lng_wallet_protection_create_confirm" = "Re-enter passcode";
-"lng_wallet_protection_create_lock_error" = "The passcode was created, but Telegram will still ask for it at launch. You can turn that off in Settings. The wallet key's protection was not changed.";
+"lng_wallet_protection_create_lock_error" = "The passcode was created, but Telegram will still ask for it at launch. You can try again, or disable the passcode in Settings > Privacy and Security. The wallet key's protection was not changed.";
 "lng_wallet_protection_error" = "The wallet key's protection could not be changed. Please try again.";
 "lng_wallet_protection_touchid" = "Unlock with Touch ID";
 "lng_wallet_protection_touchid_about" = "The key is encrypted with a key kept in this Mac's Secure Enclave. Every use asks for Touch ID or your Mac password.";
