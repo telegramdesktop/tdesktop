@@ -1007,6 +1007,7 @@ void KeyProtectionBox(
 		QPointer<Ui::RoundButton> save;
 		std::shared_ptr<VaultRemovalWalk> walk;
 		bool busy = false;
+		bool passcodeChanged = false;
 		bool reported = false;
 	};
 	const auto state = box->lifetime().make_state<State>();
@@ -1032,6 +1033,9 @@ void KeyProtectionBox(
 			radio->setDisabled(busy);
 		}
 		Ui::SetButtonBusy(state->save.data(), busy);
+		if (!busy && state->passcodeChanged) {
+			crl::on_main(box, [=] { box->closeBox(); });
+		}
 	};
 	// Nothing was written, so the box stays open on the user's own choice.
 	const auto refuse = [=] {
@@ -1047,13 +1051,18 @@ void KeyProtectionBox(
 	// The gate's bytes stop being the app passcode once another window
 	// changes or removes it, and a Passcode row saved with them would wrap
 	// this vault under a passcode the app no longer asks for. An idle box
-	// just closes; a busy one is running its own passcode step, which is
-	// what fired the change. The close is deferred out of the writer.
+	// just closes. A busy one may be waiting on a sub-box, a system prompt
+	// or a worker derivation while another window writes, so the change is
+	// remembered instead: the box closes as soon as it is idle again, and a
+	// Passcode wrap is applied only while nothing changed. The create step
+	// clears it, because its own writes install the bytes it hands back.
+	// The close is deferred out of the writer.
 	show->session().domain().local().localPasscodeChanged(
-	) | rpl::filter([=] {
-		return !state->busy;
-	}) | rpl::on_next([=] {
-		crl::on_main(box, [=] { box->closeBox(); });
+	) | rpl::on_next([=] {
+		state->passcodeChanged = true;
+		if (!state->busy) {
+			crl::on_main(box, [=] { box->closeBox(); });
+		}
 	}, box->lifetime());
 	const auto mode = args.mode;
 	const auto removal = (mode == KeyProtectionMode::Removal);
@@ -1279,6 +1288,10 @@ void KeyProtectionBox(
 					discardPrepared();
 					fail();
 					return;
+				} else if (kind == VaultKind::Passcode
+					&& state->passcodeChanged) {
+					box->closeBox();
+					return;
 				}
 				const auto result = TransitionVaultWrap(
 					*local,
@@ -1379,7 +1392,10 @@ void KeyProtectionBox(
 		}
 		PreparePasscodeWrap(bytes, crl::guard(weak, [=](
 				std::optional<VaultPreparedWrap> prepared) {
-			if (!prepared) {
+			if (state->passcodeChanged) {
+				box->closeBox();
+				return;
+			} else if (!prepared) {
 				refuse();
 				return;
 			}
@@ -1399,6 +1415,7 @@ void KeyProtectionBox(
 			} else if (result.passcode.empty()) {
 				setBusy(false);
 			} else {
+				state->passcodeChanged = false;
 				withPasscode(result.passcode);
 			}
 		};
