@@ -175,10 +175,12 @@ bool WriteManager::writeNow(WriteEntry &&entry) {
 			&& (plain.error() == QFileDevice::NoError);
 		if (!ok) {
 			LOG(("Storage Error: Could not write '%1'.").arg(simple));
+			QFile::remove(simple);
+			return false;
 		}
 		QFile::remove(backup);
 		if (base::Platform::RenameWithOverwrite(simple, safe)) {
-			return ok;
+			return true;
 		}
 		QFile::remove(safe);
 		LOG(("Storage Error: Could not rename '%1' to '%2', removing.").arg(

@@ -1044,6 +1044,17 @@ void KeyProtectionBox(
 		show->showToast(tr::lng_wallet_protection_error(tr::now));
 		closeWith({ .cancelled = false, .failed = true });
 	};
+	// The gate's bytes stop being the app passcode once another window
+	// changes or removes it, and a Passcode row saved with them would wrap
+	// this vault under a passcode the app no longer asks for. An idle box
+	// just closes; a busy one is running its own passcode step, which is
+	// what fired the change. The close is deferred out of the writer.
+	show->session().domain().local().localPasscodeChanged(
+	) | rpl::filter([=] {
+		return !state->busy;
+	}) | rpl::on_next([=] {
+		crl::on_main(box, [=] { box->closeBox(); });
+	}, box->lifetime());
 	const auto mode = args.mode;
 	const auto removal = (mode == KeyProtectionMode::Removal);
 

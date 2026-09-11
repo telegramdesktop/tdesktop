@@ -83,6 +83,9 @@ std::optional<TransferLink> ParseTransferLink(const QString &url) {
 			result.amountNano = amount;
 		}
 		const auto &payload = link.payload.get_variant();
+		if (std::get_if<engine::TonTransferPayload::kBoc>(&payload)) {
+			return std::nullopt;
+		}
 		const auto comment = std::get_if<
 			engine::TonTransferPayload::kText>(&payload);
 		if (comment) {
