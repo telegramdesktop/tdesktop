@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "wallet/wallet_fiat.h"
 
+#include "countries/countries_instance.h"
+#include "data/data_user.h"
 #include "lang/lang_instance.h"
 #include "main/main_session.h"
 #include "platform/platform_specific.h"
@@ -14,6 +16,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "wallet/wallet_rates.h"
 #include "wallet/wallet_session.h"
+
+#include <QtGui/QGuiApplication>
+#include <QtGui/QInputMethod>
 
 #include <cmath>
 
@@ -34,6 +39,32 @@ namespace {
 		(decimals == kFiatCurrencyDecimals) ? rule.exponent : decimals,
 		rule.decimal,
 		rule.thousands);
+}
+
+[[nodiscard]] QString CloudLanguageLocaleId() {
+	const auto &lang = Lang::GetInstance();
+	const auto base = lang.cloudLangCode(Lang::Pack::Base);
+	auto result = base.isEmpty()
+		? lang.cloudLangCode(Lang::Pack::Current)
+		: base;
+	return result.replace(QChar('-'), QChar('_'));
+}
+
+[[nodiscard]] QString CurrencyByCountry(const QString &iso2) {
+	if (iso2.isEmpty()) {
+		return QString();
+	}
+	const auto suffix = QChar('_') + iso2;
+	const auto locales = QLocale::matchingLocales(
+		QLocale::AnyLanguage,
+		QLocale::AnyScript,
+		QLocale::AnyCountry);
+	for (const auto &locale : locales) {
+		if (locale.name().endsWith(suffix)) {
+			return locale.currencySymbol(QLocale::CurrencyIsoCode);
+		}
+	}
+	return QString();
 }
 
 } // namespace
@@ -75,12 +106,7 @@ CurrencyNames LookupCurrencyNames(const QString &currency) {
 	auto result = CurrencyNames{
 		.english = Ui::CurrencyEnglishName(currency),
 	};
-	const auto &lang = Lang::GetInstance();
-	const auto base = lang.cloudLangCode(Lang::Pack::Base);
-	auto languageId = base.isEmpty()
-		? lang.cloudLangCode(Lang::Pack::Current)
-		: base;
-	languageId.replace(QChar('-'), QChar('_'));
+	const auto languageId = CloudLanguageLocaleId();
 	if (languageId.isEmpty()
 		|| languageId == u"en"_q
 		|| languageId.startsWith(u"en_"_q)) {
@@ -94,6 +120,25 @@ CurrencyNames LookupCurrencyNames(const QString &currency) {
 	if (localized != currency && localized != result.english) {
 		result.localized = std::move(localized);
 	}
+	return result;
+}
+
+std::vector<QString> TopCurrencies(not_null<Main::Session*> session) {
+	auto result = std::vector<QString>{ u"USD"_q, u"EUR"_q };
+	const auto add = [&](const QString &code) {
+		if (!code.isEmpty() && !ranges::contains(result, code)) {
+			result.push_back(code);
+		}
+	};
+	const auto byLocale = [](const QLocale &locale) {
+		return locale.currencySymbol(QLocale::CurrencyIsoCode);
+	};
+	add(session->wallet().rates().current().currency);
+	add(byLocale(QLocale(CloudLanguageLocaleId())));
+	add(byLocale(QLocale::system()));
+	add(byLocale(QGuiApplication::inputMethod()->locale()));
+	add(CurrencyByCountry(
+		Countries::Instance().countryISO2ByPhone(session->user()->phone())));
 	return result;
 }
 

@@ -45,6 +45,8 @@ struct CurrencyNames {
 };
 
 [[nodiscard]] CurrencyNames LookupCurrencyNames(const QString &currency);
+[[nodiscard]] std::vector<QString> TopCurrencies(
+	not_null<Main::Session*> session);
 
 [[nodiscard]] int64 FiatMinorUnitNanos(const QString &currency);
 

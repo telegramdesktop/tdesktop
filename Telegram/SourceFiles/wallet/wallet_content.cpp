@@ -10453,8 +10453,21 @@ void CurrencyListWidget::refreshRows() {
 	_activeCode = rates.current().currency;
 	_rows.clear();
 	const auto codes = rates.currencies();
-	_rows.reserve(codes.size());
+	const auto top = TopCurrencies(&_show->session());
+	auto ordered = std::vector<QString>();
+	ordered.reserve(codes.size());
+	for (const auto &code : top) {
+		if (ranges::contains(codes, code)) {
+			ordered.push_back(code);
+		}
+	}
 	for (const auto &code : codes) {
+		if (!ranges::contains(top, code)) {
+			ordered.push_back(code);
+		}
+	}
+	_rows.reserve(ordered.size());
+	for (const auto &code : ordered) {
 		if (_allowedCodes
 			&& !ranges::contains(*_allowedCodes, code.toUpper())) {
 			continue;
@@ -10482,11 +10495,6 @@ void CurrencyListWidget::refreshFiltered() {
 		if (_filter.isEmpty() || rowMatches(row)) {
 			_filtered.push_back(row);
 		}
-	}
-	if (_filter.isEmpty()) {
-		ranges::stable_partition(_filtered, [&](const Row &row) {
-			return (row.code == _activeCode);
-		});
 	}
 	_ripples.clear();
 	_pressed = -1;
