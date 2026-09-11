@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "media/media_video_frames.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "styles/style_editor.h"
 
 namespace Editor {
@@ -51,8 +52,8 @@ VideoTimeline::VideoTimeline(
 }
 
 VideoTimeline::~VideoTimeline() {
-	if (_framesCancel) {
-		_framesCancel->store(true);
+	if (_loading) {
+		_loading->cancel->store(true);
 	}
 }
 
@@ -90,32 +91,43 @@ void VideoTimeline::reloadFrames() {
 		1,
 		kMaxFrames);
 	const auto frameWidth = (strip.width() + count - 1) / count;
-	const auto kept = (int(_frames.size()) == count)
-		&& (_framesBox.height() == height)
-		&& (std::abs(frameWidth - _framesBox.width())
-			<= _framesBox.width() * kFrameWidthTolerance);
-	_frameWidth = frameWidth;
-	if (kept) {
+	const auto from = crl::time(0);
+	const auto span = duration();
+	const auto matches = [&](const FrameSet &set) {
+		return (int(set.frames.size()) == count)
+			&& (set.from == from)
+			&& (set.span == span)
+			&& (set.box.height() == height)
+			&& (std::abs(frameWidth - set.box.width())
+				<= set.box.width() * kFrameWidthTolerance);
+	};
+	if (_loading && matches(*_loading)) {
+		return;
+	} else if (_loading) {
+		_loading->cancel->store(true);
+		_loading = nullptr;
+	}
+	if (matches(_frames)) {
 		return;
 	}
-	if (_framesCancel) {
-		_framesCancel->store(true);
-	}
-	_framesBox = QSize(frameWidth, height);
-	_frames = std::vector<QImage>(count);
+	_loading = std::make_unique<FrameSet>(FrameSet{
+		.frames = std::vector<QImage>(count),
+		.from = from,
+		.span = span,
+		.box = QSize(frameWidth, height),
+		.cancel = std::make_shared<std::atomic<bool>>(false),
+	});
 
 	auto positions = std::vector<crl::time>();
 	positions.reserve(count);
 	for (auto i = 0; i != count; ++i) {
-		positions.push_back(crl::time(
-			base::SafeRound((i + 0.5) * duration() / count)));
+		positions.push_back(from + crl::time(
+			base::SafeRound((i + 0.5) * span / count)));
 	}
-	const auto cancel = std::make_shared<std::atomic<bool>>(false);
-	_framesCancel = cancel;
-
+	const auto cancel = _loading->cancel;
 	const auto path = _path;
 	const auto content = _content;
-	const auto box = _framesBox * style::DevicePixelRatio();
+	const auto box = _loading->box * style::DevicePixelRatio();
 	crl::async([=, weak = base::make_weak(this)] {
 		Media::Video::ExtractFrames(path, content, {
 			.positions = positions,
@@ -127,30 +139,58 @@ void VideoTimeline::reloadFrames() {
 			}
 			frame.setDevicePixelRatio(style::DevicePixelRatio());
 			crl::on_main(weak, [=, frame = std::move(frame)]() mutable {
-				if (cancel->load() || index >= int(_frames.size())) {
+				if (cancel->load()
+					|| !_loading
+					|| index >= int(_loading->frames.size())) {
 					return;
 				}
-				_frames[index] = std::move(frame);
+				_loading->frames[index] = std::move(frame);
 				update();
 			});
 			return true;
+		});
+		crl::on_main(weak, [=] {
+			if (cancel->load() || !_loading) {
+				return;
+			}
+			_frames = std::move(*_loading);
+			_loading = nullptr;
+			update();
 		});
 	});
 }
 
 void VideoTimeline::paintStrip(QPainter &p, const QRect &strip) {
 	p.fillRect(strip, st::videoTimelinePlaceholderBg);
-	if (_frameWidth <= 0) {
+	paintFrames(p, strip, _frames);
+	if (_loading) {
+		paintFrames(p, strip, *_loading);
+	}
+}
+
+void VideoTimeline::paintFrames(
+		QPainter &p,
+		const QRect &strip,
+		const FrameSet &set) {
+	const auto count = int(set.frames.size());
+	if (!count || set.span <= 0) {
 		return;
 	}
-	const auto count = int(_frames.size());
+	const auto stripRight = rect::right(strip);
 	for (auto i = 0; i != count; ++i) {
-		const auto &frame = _frames[i];
+		const auto &frame = set.frames[i];
 		if (frame.isNull()) {
 			continue;
 		}
-		const auto x = strip.x() + i * strip.width() / count;
-		p.drawImage(QRect(x, strip.y(), _frameWidth, strip.height()), frame);
+		const auto left = xAt(set.from + i * set.span / count);
+		const auto right = xAt(set.from + (i + 1) * set.span / count);
+		if (right <= strip.x() || left >= stripRight) {
+			continue;
+		}
+		const auto width = (std::abs(right - left - set.box.width()) <= 1)
+			? set.box.width()
+			: std::max(right - left, 1);
+		p.drawImage(QRect(left, strip.y(), width, strip.height()), frame);
 	}
 }
 

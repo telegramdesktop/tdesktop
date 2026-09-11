@@ -39,20 +39,27 @@ public:
 	[[nodiscard]] QPoint coverDot() const;
 
 private:
+	struct FrameSet {
+		std::vector<QImage> frames;
+		crl::time from = 0;
+		crl::time span = 0;
+		QSize box;
+		std::shared_ptr<std::atomic<bool>> cancel;
+	};
+
 	void paintStrip(QPainter &p, const QRect &strip) override;
 	void paintOverlay(QPainter &p) override;
 	void headGrabChanged(bool grabbed) override;
 
 	void reloadFrames();
+	void paintFrames(QPainter &p, const QRect &strip, const FrameSet &set);
 
 	const QString _path;
 	const QByteArray _content;
 	const QSize _dimensions;
 
-	std::vector<QImage> _frames;
-	QSize _framesBox;
-	int _frameWidth = 0;
-	std::shared_ptr<std::atomic<bool>> _framesCancel;
+	FrameSet _frames;
+	std::unique_ptr<FrameSet> _loading;
 
 	Ui::Animations::Simple _dotActive;
 
