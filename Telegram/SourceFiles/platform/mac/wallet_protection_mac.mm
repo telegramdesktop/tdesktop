@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/serialize_common.h"
 #include "wallet/wallet_key_protection.h"
 #include "wallet/wallet_vault.h"
-#include "settings.h"
 
 #include <Foundation/Foundation.h>
 #include <LocalAuthentication/LocalAuthentication.h>
@@ -173,10 +172,6 @@ void LogError(CFErrorRef error) {
 		error);
 }
 
-[[nodiscard]] bool PortableMarkerPresent() {
-	return QDir(cExeDir() + u"TelegramForcePortable"_q).exists();
-}
-
 [[nodiscard]] bool OwnerAuthenticationPossible() {
 	return rpl::variable<base::SystemUnlockAvailability>(
 		base::SystemUnlockStatus()).current().available;
@@ -219,9 +214,7 @@ void LogError(CFErrorRef error) {
 [[nodiscard]] bool EvaluateAvailability() {
 	@autoreleasepool {
 
-	return !PortableMarkerPresent()
-		&& OwnerAuthenticationPossible()
-		&& EnclaveRoundTrips();
+	return OwnerAuthenticationPossible() && EnclaveRoundTrips();
 
 	}
 }
@@ -458,10 +451,7 @@ Wallet::VaultKind TouchIdProtection::kind() const {
 }
 
 rpl::producer<bool> TouchIdProtection::available() const {
-	// Evaluated once: none of the three facts changes meaningfully within a
-	// process. The portable marker gates only the offer - a marker-present
-	// copy on this Mac still unwraps - so its key-location line reads "can't
-	// be used right now" while a reveal works; that is the owner's rule.
+	// Evaluated once: neither fact changes meaningfully within a process.
 	if (!_available) {
 		_available.emplace(EvaluateAvailability());
 	}

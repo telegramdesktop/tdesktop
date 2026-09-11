@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/win/base_windows_safe_library.h"
 #include "base/platform/win/base_windows_winrt.h"
 #include "base/random.h"
+#include "core/update_channel.h"
 #include "lang/lang_keys.h"
 #include "storage/serialize_common.h"
 #include "wallet/wallet_key_protection.h"
@@ -149,6 +150,10 @@ struct UnwrapOperation {
 	return result;
 }
 
+// The one environment not offered Windows Hello is an unpacked copy of an
+// official release: no uninstaller beside the executable and not a canary
+// build. An installed copy and either canary are offered it whenever the
+// TPM and Hello itself allow.
 [[nodiscard]] bool UninstallerPresent() {
 	static const auto Result = QFile::exists(cExeDir() + u"unins000.exe"_q);
 	return Result;
@@ -354,10 +359,13 @@ void WindowsHelloProtection::prime() {
 					return that.GetResults();
 				}).value_or(false);
 			crl::on_main([this, supported] {
-				_available = _uninstaller && _tpm && supported;
+				_available = (_uninstaller || Core::BuildIsCanary)
+					&& _tpm
+					&& supported;
 				LOG(("Wallet Info: Windows Hello availability: "
-					"uninstaller %1, TPM %2, supported %3."
+					"uninstaller %1, canary %2, TPM %3, supported %4."
 					).arg(_uninstaller ? 1 : 0
+					).arg(Core::BuildIsCanary ? 1 : 0
 					).arg(_tpm ? 1 : 0
 					).arg(supported ? 1 : 0));
 			});
