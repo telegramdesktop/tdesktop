@@ -136,8 +136,6 @@ constexpr auto kCoverTitleScale = 0.05;
 constexpr auto kCardFadePart = 0.45;
 constexpr auto kCardMotionPart = 0.55;
 constexpr auto kIntroTooltipShownPref = "wallet_intro_tooltip_shown"_cs;
-constexpr auto kIntroToastShownPref = "wallet_intro_toast_shown"_cs;
-constexpr auto kIntroToastDuration = 4 * crl::time(1000);
 constexpr auto kWalletIntroGlares = 2;
 constexpr auto kFeeFiatDecimals = 5;
 constexpr auto kMaxFiatUnits = 999'999'999LL;
@@ -3182,10 +3180,6 @@ void WalletHowItWorksBox(not_null<Ui::GenericBox*> box) {
 	box->addButton(tr::lng_wallet_how_button(), [=] { box->closeBox(); });
 }
 
-[[nodiscard]] TextWithEntities WalletIntroText(const QString &text) {
-	return Ui::Text::IconEmoji(&st::walletIntroEmoji).append(text);
-}
-
 void SetupIntroTooltip(
 		not_null<Ui::RpWidget*> parent,
 		not_null<Ui::RpWidget*> card,
@@ -3385,19 +3379,6 @@ void ShowWalletTransactionBox(
 		current,
 		show->session().wallet().transferWalletIdentityChanges()
 			| rpl::filter([=] { return !current(); }));
-	if (!current()) {
-		return;
-	}
-
-	const auto local = &show->session().local();
-	if (local->readPref<bool>(kIntroToastShownPref)) {
-		return;
-	}
-	local->writePref<bool>(kIntroToastShownPref, true);
-	show->showToast({
-		.text = WalletIntroText(tr::lng_wallet_intro_text(tr::now)),
-		.duration = kIntroToastDuration,
-	});
 }
 
 [[nodiscard]] int CommentBytes(const QString &text) {
