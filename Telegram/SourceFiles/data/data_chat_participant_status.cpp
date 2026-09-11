@@ -504,7 +504,9 @@ SendError FileRestrictionError(
 	}
 	switch (file.type) {
 	case Type::Photo:
-		if (compress == true && photos) {
+		if (compress == true && videos && file.hasAudioEditScene()) {
+			return videos;
+		} else if (compress == true && photos) {
 			return photos;
 		} else if (const auto other = file.isSticker() ? stickers : files) {
 			if ((compress == false || photos) && other) {

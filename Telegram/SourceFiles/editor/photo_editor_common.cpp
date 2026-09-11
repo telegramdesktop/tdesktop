@@ -203,10 +203,21 @@ Media::Encode::Job ComposeAnimatedJob(
 	}
 	flushRun();
 
+	auto music = std::vector<Media::Encode::MusicTrack>();
+	if (const auto audio = scene->audio()) {
+		music.push_back({
+			.path = audio->path,
+			.bytes = audio->content,
+			.from = audio->from,
+			.till = (audio->till > audio->from) ? audio->till : 0,
+		});
+		longest = std::max(longest, audio->length());
+	}
 	job.source = Media::Encode::StillSource{
 		.base = bake(image),
 		.duration = std::max(longest, kAnimatedMinDuration),
 		.fps = kAnimatedFps,
+		.music = std::move(music),
 	};
 	job.silentLoop = true;
 	return job;

@@ -509,18 +509,21 @@ bool ApplyModifications(PreparedList &list, bool composeAnimated) {
 		file.path = QString();
 		file.content = QByteArray();
 		const auto &scene = image->modifications.paint;
-		if (composeAnimated && scene && scene->hasAnimatedItems()) {
+		if (composeAnimated && scene && scene->hasAnimatedResult()) {
 			auto job = Editor::ComposeAnimatedJob(
 				image->data,
 				image->modifications);
-			const auto animated = ranges::any_of(
-				job.overlay,
-				[](const Media::Encode::Layer &layer) {
-					const auto entity
-						= std::get_if<Media::Encode::AnimatedEntity>(
-							&layer);
-					return entity && !entity->bytes.isEmpty();
-				});
+			const auto still = std::get_if<Media::Encode::StillSource>(
+				&job.source);
+			const auto animated = (still && !still->music.empty())
+				|| ranges::any_of(
+					job.overlay,
+					[](const Media::Encode::Layer &layer) {
+						const auto entity
+							= std::get_if<Media::Encode::AnimatedEntity>(
+								&layer);
+						return entity && !entity->bytes.isEmpty();
+					});
 			if (animated) {
 				file.animationJob = std::make_shared<Media::Encode::Job>(
 					std::move(job));

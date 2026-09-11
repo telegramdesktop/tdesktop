@@ -95,6 +95,7 @@ struct PreparedFile {
 	[[nodiscard]] bool isGifv() const;
 	[[nodiscard]] bool canUseHighQualityPhoto() const;
 	[[nodiscard]] bool hasAnimatedEditScene() const;
+	[[nodiscard]] bool hasAudioEditScene() const;
 	[[nodiscard]] bool sendsVideoAsGif() const;
 
 	[[nodiscard]] bool canEditVideo() const;

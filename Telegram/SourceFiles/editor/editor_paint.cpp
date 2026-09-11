@@ -431,7 +431,7 @@ void Paint::applyTransform(QRect geometry, int angle, bool flipped) {
 
 std::shared_ptr<Scene> Paint::saveScene() const {
 	_scene->save(SaveState::Save);
-	return _scene->items().empty()
+	return (_scene->items().empty() && !_scene->audio())
 		? nullptr
 		: _scene;
 }
