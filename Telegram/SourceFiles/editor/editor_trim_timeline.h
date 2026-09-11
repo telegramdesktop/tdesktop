@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/weak_ptr.h"
+#include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 #include "ui/ui_utility.h"
 
@@ -106,6 +107,7 @@ private:
 
 		Window,
 		Scroll,
+		Hint,
 	};
 
 	[[nodiscard]] QRect labelRect() const;
@@ -123,11 +125,19 @@ private:
 	bool edgeScrollStep(crl::time now);
 	[[nodiscard]] bool grabClamped(bool forward) const;
 
+	[[nodiscard]] bool selectionHiddenLeft() const;
+	[[nodiscard]] bool selectionHiddenRight() const;
+	[[nodiscard]] QRect hintRect(bool left) const;
+	void updateHints();
+	void scrollToSelection();
+
+	[[nodiscard]] bool grabMovesSelection() const;
 	void applyGrab(QPoint position);
 	void setCover(crl::time cover, bool notify);
 	void updateCursor(Grab grab);
 	void paintSelection(QPainter &p, const QRect &strip);
-	void paintScrollIndicator(QPainter &p, const QRect &strip);
+	void paintOverview(QPainter &p, const QRect &strip);
+	void paintHints(QPainter &p);
 	void paintHead(QPainter &p, const QRect &strip);
 	void paintDuration(QPainter &p, const QRect &strip);
 
@@ -156,6 +166,13 @@ private:
 	crl::time _edgeScrollLast = 0;
 	Ui::Animations::Basic _edgeScrollAnimation;
 	Ui::ScrollDirectionLock _wheelDirectionLock;
+
+	bool _hintLeftShown = false;
+	bool _hintRightShown = false;
+	bool _hintGrabLeft = false;
+	Ui::Animations::Simple _hintLeft;
+	Ui::Animations::Simple _hintRight;
+	Ui::Animations::Simple _scrollAnimation;
 
 	rpl::event_stream<crl::time> _trimChanges;
 	rpl::event_stream<crl::time> _coverChanges;

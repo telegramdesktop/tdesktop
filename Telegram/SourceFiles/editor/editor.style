@@ -259,6 +259,15 @@ videoTimelineSizeSkip: 12px;
 videoTimelineScrollHeight: 2px;
 videoTimelineScrollSkip: 3px;
 videoTimelineScrollMinWidth: 16px;
+videoTimelineOverviewSelectionHeight: 3px;
+videoTimelineOverviewFg: windowBgActive;
+videoTimelineHintSkip: 4px;
+videoTimelineHintWidth: 18px;
+videoTimelineHintHeight: 20px;
+videoTimelineHintRadius: 6px;
+videoTimelineHintStroke: 2px;
+videoTimelineHintArrowWidth: 5px;
+videoTimelineHintArrowHeight: 10px;
 videoTimelineDurationStyle: TextStyle(defaultTextStyle) {
 	font: font(12px semibold);
 }
