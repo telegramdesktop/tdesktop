@@ -143,9 +143,9 @@ void AudioTimeline::paintWaveform(QPainter &p, const QRect &strip) {
 		strip.width() / st::photoEditorAudioTimelineBarSkip,
 		1);
 	const auto spacing = strip.width() / float64(slots);
-	const auto from = 0.;
-	const auto span = float64(duration());
-	const auto barDuration = span / count;
+	const auto from = float64(visibleFrom());
+	const auto span = visibleSpan();
+	const auto barDuration = float64(duration()) / count;
 	const auto barWidth = float64(st::photoEditorAudioTimelineBarWidth);
 	const auto minHeight = float64(st::photoEditorAudioTimelineBarMin);
 	const auto ratio = st::photoEditorAudioTimelineBarRatio;

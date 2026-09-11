@@ -17,8 +17,8 @@ namespace {
 
 constexpr auto kMaxFrames = 24;
 constexpr auto kDotDuration = crl::time(500);
+constexpr auto kReloadDelay = crl::time(150);
 
-// Frames are scaled on paint, so small width drift needs no re-extract.
 constexpr auto kFrameWidthTolerance = 0.25;
 
 [[nodiscard]] TrimTimelineDescriptor TrimDescriptor(
@@ -34,6 +34,19 @@ constexpr auto kFrameWidthTolerance = 0.25;
 	};
 }
 
+void PaintFramePart(
+		QPainter &p,
+		const QImage &frame,
+		const QRect &target,
+		int sourceLeft) {
+	const auto ratio = frame.devicePixelRatio();
+	p.drawImage(target, frame, QRect(
+		int(base::SafeRound(sourceLeft * ratio)),
+		0,
+		int(base::SafeRound(target.width() * ratio)),
+		frame.height()));
+}
+
 } // namespace
 
 VideoTimeline::VideoTimeline(
@@ -42,7 +55,8 @@ VideoTimeline::VideoTimeline(
 : TrimTimeline(parent, TrimDescriptor(descriptor))
 , _path(descriptor.path)
 , _content(descriptor.content)
-, _dimensions(descriptor.dimensions) {
+, _dimensions(descriptor.dimensions)
+, _reloadTimer([=] { reloadFrames(); }) {
 	sizeValue(
 	) | rpl::filter([=](QSize size) {
 		return !size.isEmpty();
@@ -76,6 +90,10 @@ void VideoTimeline::headGrabChanged(bool grabbed) {
 		anim::easeOutQuint);
 }
 
+void VideoTimeline::visibleRangeChanged() {
+	_reloadTimer.callOnce(kReloadDelay);
+}
+
 void VideoTimeline::reloadFrames() {
 	const auto strip = stripRect();
 	const auto height = strip.height();
@@ -91,8 +109,11 @@ void VideoTimeline::reloadFrames() {
 		1,
 		kMaxFrames);
 	const auto frameWidth = (strip.width() + count - 1) / count;
-	const auto from = crl::time(0);
-	const auto span = duration();
+	const auto from = visibleFrom();
+	const auto span = visibleTill() - from;
+	if (span <= 0) {
+		return;
+	}
 	const auto matches = [&](const FrameSet &set) {
 		return (int(set.frames.size()) == count)
 			&& (set.from == from)
@@ -187,10 +208,23 @@ void VideoTimeline::paintFrames(
 		if (right <= strip.x() || left >= stripRight) {
 			continue;
 		}
-		const auto width = (std::abs(right - left - set.box.width()) <= 1)
-			? set.box.width()
-			: std::max(right - left, 1);
-		p.drawImage(QRect(left, strip.y(), width, strip.height()), frame);
+		const auto natural = set.box.width();
+		const auto slot = std::max(right - left, 1);
+		if (slot <= natural) {
+			PaintFramePart(
+				p,
+				frame,
+				QRect(left, strip.y(), slot, strip.height()),
+				(natural - slot) / 2);
+			continue;
+		}
+		for (auto x = left; x < right; x += natural) {
+			PaintFramePart(
+				p,
+				frame,
+				QRect(x, strip.y(), std::min(natural, right - x), strip.height()),
+				0);
+		}
 	}
 }
 
@@ -198,11 +232,15 @@ void VideoTimeline::paintOverlay(QPainter &p) {
 	if (trimOnly()) {
 		return;
 	}
+	const auto strip = stripRect();
+	const auto centre = coverDot();
+	if (centre.x() < strip.x() || centre.x() > rect::right(strip)) {
+		return;
+	}
 	const auto active = _dotActive.value(draggingHead() ? 1. : 0.);
 	const auto size = st::videoTimelineDotSize
 		+ (st::videoTimelineDotActiveSize - st::videoTimelineDotSize)
 			* active;
-	const auto centre = coverDot();
 	p.setPen(Qt::NoPen);
 	p.setBrush(st::videoTimelineDotFg);
 	p.drawEllipse(QRectF(

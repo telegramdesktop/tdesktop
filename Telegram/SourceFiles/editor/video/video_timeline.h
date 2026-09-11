@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/timer.h"
 #include "editor/editor_trim_timeline.h"
 #include "ui/effects/animations.h"
 
@@ -50,6 +51,7 @@ private:
 	void paintStrip(QPainter &p, const QRect &strip) override;
 	void paintOverlay(QPainter &p) override;
 	void headGrabChanged(bool grabbed) override;
+	void visibleRangeChanged() override;
 
 	void reloadFrames();
 	void paintFrames(QPainter &p, const QRect &strip, const FrameSet &set);
@@ -60,6 +62,7 @@ private:
 
 	FrameSet _frames;
 	std::unique_ptr<FrameSet> _loading;
+	base::Timer _reloadTimer;
 
 	Ui::Animations::Simple _dotActive;
 

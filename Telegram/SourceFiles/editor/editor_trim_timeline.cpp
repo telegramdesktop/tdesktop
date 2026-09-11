@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/text/format_values.h"
+#include "ui/ui_utility.h"
 #include "styles/style_editor.h"
 
 #include <QtGui/QPainterPath>
@@ -17,6 +18,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Editor {
 namespace {
+
+constexpr auto kZoomStep = 1.2;
+constexpr auto kZoomSnap = 0.001;
+constexpr auto kMinVisibleSpan = crl::time(2000);
+constexpr auto kEdgeScrollFrame = crl::time(16);
+constexpr auto kEdgeScrollSpeed = 9.; // Per second per pixel of overshoot.
+constexpr auto kEdgeScrollMaxSpeed = 3.; // Strip widths per second.
+constexpr auto kScrollIndicatorOpacity = 0.5;
+constexpr auto kScrollIndicatorFadeZoom = 0.25;
 
 [[nodiscard]] QString Stamp(crl::time value) {
 	return Ui::FormatDurationText(int(value / 1000))
@@ -38,7 +48,8 @@ TrimTimeline::TrimTimeline(
 , _trimOnly(descriptor.trimOnly)
 , _from(0)
 , _till(_maxDuration)
-, _cover(0) {
+, _cover(0)
+, _edgeScrollAnimation([=](crl::time now) { return edgeScrollStep(now); }) {
 	setMouseTracking(true);
 
 	_from = std::clamp(
@@ -113,21 +124,38 @@ void TrimTimeline::moveWindowTo(crl::time center) {
 	_trimChanges.fire_copy(_from);
 }
 
+float64 TrimTimeline::visibleSpan() const {
+	return _duration / _zoom;
+}
+
+crl::time TrimTimeline::visibleFrom() const {
+	return crl::time(base::SafeRound(_visibleFrom));
+}
+
+crl::time TrimTimeline::visibleTill() const {
+	return std::min(
+		crl::time(base::SafeRound(_visibleFrom + visibleSpan())),
+		_duration);
+}
+
 crl::time TrimTimeline::timeAt(int x) const {
 	const auto strip = stripRect();
 	if (strip.width() <= 0) {
 		return 0;
 	}
 	const auto shift = std::clamp(x - strip.x(), 0, strip.width());
-	return crl::time(
-		base::SafeRound(shift * float64(_duration) / strip.width()));
+	return std::clamp(
+		crl::time(base::SafeRound(
+			_visibleFrom + shift * visibleSpan() / strip.width())),
+		crl::time(0),
+		_duration);
 }
 
 int TrimTimeline::xAt(crl::time time) const {
 	const auto strip = stripRect();
 	const auto clamped = std::clamp(time, crl::time(0), _duration);
 	return strip.x() + int(base::SafeRound(
-		clamped * float64(strip.width()) / _duration));
+		(clamped - _visibleFrom) * strip.width() / visibleSpan()));
 }
 
 bool TrimTimeline::draggingHead() const {
@@ -169,26 +197,146 @@ void TrimTimeline::setSizeLabel(const QString &text) {
 	update();
 }
 
+float64 TrimTimeline::maxZoom() const {
+	return std::max(_duration / float64(kMinVisibleSpan), 1.);
+}
+
+bool TrimTimeline::setVisibleRange(float64 zoom, float64 from) {
+	zoom = std::clamp(zoom, 1., maxZoom());
+	if (zoom < 1. + kZoomSnap) {
+		zoom = 1.;
+	}
+	const auto span = _duration / zoom;
+	from = (zoom > 1.) ? std::clamp(from, 0., _duration - span) : 0.;
+	if (_zoom == zoom && _visibleFrom == from) {
+		return false;
+	}
+	_zoom = zoom;
+	_visibleFrom = from;
+	visibleRangeChanged();
+	if (_grab != Grab::None && _grab != Grab::Scroll) {
+		applyGrab(_dragPosition);
+	}
+	update();
+	return true;
+}
+
+void TrimTimeline::zoomBy(float64 factor, int anchorX) {
+	const auto strip = stripRect();
+	if (strip.width() <= 0 || factor <= 0.) {
+		return;
+	}
+	const auto shift = std::clamp(anchorX - strip.x(), 0, strip.width());
+	const auto anchor = _visibleFrom + shift * visibleSpan() / strip.width();
+	const auto zoom = std::clamp(_zoom * factor, 1., maxZoom());
+	const auto span = _duration / zoom;
+	setVisibleRange(zoom, anchor - shift * span / strip.width());
+}
+
+bool TrimTimeline::scrollBy(float64 pixels) {
+	const auto strip = stripRect();
+	if (strip.width() <= 0 || _zoom <= 1.) {
+		return false;
+	}
+	return setVisibleRange(
+		_zoom,
+		_visibleFrom + pixels * visibleSpan() / strip.width());
+}
+
+void TrimTimeline::updateEdgeScroll(QPoint position) {
+	const auto strip = stripRect();
+	const auto x = position.x();
+	const auto right = rect::right(strip);
+	_edgeOvershoot = (x < strip.x())
+		? (x - strip.x())
+		: (x > right)
+		? (x - right)
+		: 0;
+	const auto active = _edgeOvershoot
+		&& (_zoom > 1.)
+		&& (_grab != Grab::None)
+		&& (_grab != Grab::Scroll);
+	if (!active) {
+		_edgeScrollAnimation.stop();
+	} else if (!_edgeScrollAnimation.animating()) {
+		_edgeScrollLast = crl::now();
+		_edgeScrollAnimation.start();
+	}
+}
+
+bool TrimTimeline::edgeScrollStep(crl::time now) {
+	const auto dt = std::min(now - _edgeScrollLast, kEdgeScrollFrame);
+	_edgeScrollLast = now;
+	if (dt <= 0) {
+		return true;
+	}
+	const auto strip = stripRect();
+	const auto seconds = dt / 1000.;
+	const auto limit = std::max(
+		strip.width() * kEdgeScrollMaxSpeed * seconds,
+		1.);
+	const auto pixels = std::clamp(
+		_edgeOvershoot * kEdgeScrollSpeed * seconds,
+		-limit,
+		limit);
+	return !grabClamped(pixels > 0.) && scrollBy(pixels);
+}
+
+bool TrimTimeline::grabClamped(bool forward) const {
+	const auto minimum = minSelection();
+	switch (_grab) {
+	case Grab::Left:
+		return forward ? (_from >= _till - minimum) : (_from <= 0);
+	case Grab::Right:
+		return forward ? (_till >= _duration) : (_till <= _from + minimum);
+	case Grab::Head:
+		return forward ? (_cover >= _till) : (_cover <= _from);
+	case Grab::Window:
+		return forward ? (_till >= _duration) : (_from <= 0);
+	case Grab::None:
+	case Grab::Scroll:
+	case Grab::Hint:
+	case Grab::Label: return true;
+	}
+	return true;
+}
+
+void TrimTimeline::visibleRangeChanged() {
+}
+
 TrimTimeline::Grab TrimTimeline::grabAt(
 		QPoint position,
 		Qt::KeyboardModifiers modifiers) const {
 	if (modifiers & (Qt::ShiftModifier | Qt::AltModifier)) {
 		return Grab::Window;
 	}
+	const auto strip = stripRect();
 	const auto slop = st::videoTimelineHandleHitSlop;
 	const auto handle = st::videoTimelineHandleWidth;
 	const auto x = position.x();
+	const auto stripLeft = strip.x() - handle;
+	const auto stripRight = rect::right(strip) + handle;
+	if (x < stripLeft - slop || x > stripRight + slop) {
+		return Grab::None;
+	}
 	const auto left = xAt(_from);
 	const auto right = xAt(_till);
+	const auto stripEnd = rect::right(strip);
+	const auto leftShown = (left >= strip.x()) && (left <= stripEnd);
+	const auto rightShown = (right >= strip.x()) && (right <= stripEnd);
 
 	const auto span = std::max(right - left, 1);
 	const auto inside = std::min(int(slop), span / 3);
-	if (x >= left - handle - slop && x <= left + inside) {
+	if (leftShown && x >= left - handle - slop && x <= left + inside) {
 		return Grab::Left;
-	} else if (x <= right + handle + slop && x >= right - inside) {
+	} else if (rightShown
+		&& x <= right + handle + slop
+		&& x >= right - inside) {
 		return Grab::Right;
 	} else if (x > left && x < right) {
 		return Grab::Head;
+	} else if (_zoom > 1.) {
+		return Grab::Scroll;
 	}
 	return Grab::None;
 }
@@ -200,7 +348,7 @@ crl::time TrimTimeline::minSelection() const {
 		+ st::videoTimelineHandleHitSlop;
 	const auto byPixels = (strip.width() > pixels)
 		? crl::time(base::SafeRound(
-			pixels * float64(_duration) / strip.width()))
+			pixels * visibleSpan() / strip.width()))
 		: _duration;
 	return std::clamp(
 		std::max(_minDuration, byPixels),
@@ -209,16 +357,38 @@ crl::time TrimTimeline::minSelection() const {
 }
 
 void TrimTimeline::updateCursor(Grab grab) {
-	setCursor((grab == Grab::None) ? style::cur_default : style::cur_sizehor);
+	setCursor((grab == Grab::None)
+		? style::cur_default
+		: (grab != Grab::Scroll)
+		? style::cur_sizehor
+		: (_grab == Grab::Scroll)
+		? Qt::ClosedHandCursor
+		: Qt::OpenHandCursor);
 }
 
 void TrimTimeline::mousePressEvent(QMouseEvent *e) {
-	if (e->button() != Qt::LeftButton) {
+	const auto position = e->pos();
+	if (_grab != Grab::None) {
+		return;
+	} else if (e->button() == Qt::MiddleButton) {
+		if (_zoom <= 1.) {
+			return;
+		}
+		_grab = Grab::Scroll;
+		_grabButton = e->button();
+		_dragPosition = position;
+		updateCursor(_grab);
+		return;
+	} else if (e->button() != Qt::LeftButton) {
 		return;
 	}
-	const auto position = e->pos();
 	_grab = grabAt(position, e->modifiers());
+	_grabButton = e->button();
+	_dragPosition = position;
 	if (_grab == Grab::None) {
+		return;
+	} else if (_grab == Grab::Scroll) {
+		updateCursor(_grab);
 		return;
 	} else if (_grab == Grab::Left) {
 		_grabShift = position.x() - xAt(_from);
@@ -238,25 +408,70 @@ void TrimTimeline::mousePressEvent(QMouseEvent *e) {
 }
 
 void TrimTimeline::mouseMoveEvent(QMouseEvent *e) {
+	const auto position = e->pos();
 	if (_grab == Grab::None) {
-		updateCursor(grabAt(e->pos(), e->modifiers()));
+		updateCursor(grabAt(position, e->modifiers()));
+		return;
+	} else if (_grab == Grab::Scroll) {
+		scrollBy(_dragPosition.x() - position.x());
+		_dragPosition = position;
 		return;
 	}
-	applyGrab(e->pos());
+	_dragPosition = position;
+	applyGrab(position);
+	updateEdgeScroll(position);
 }
 
 void TrimTimeline::mouseReleaseEvent(QMouseEvent *e) {
-	if (_grab == Grab::None) {
+	if (_grab == Grab::None || e->button() != _grabButton) {
 		return;
 	}
 	const auto wasHead = (_grab == Grab::Head);
+	const auto wasScroll = (_grab == Grab::Scroll);
 	_grab = Grab::None;
+	_grabButton = Qt::NoButton;
 	_grabShift = 0;
+	_edgeScrollAnimation.stop();
 	if (wasHead) {
 		headGrabChanged(false);
 	}
 	updateCursor(grabAt(e->pos(), e->modifiers()));
-	_draggingChanges.fire(false);
+	if (!wasScroll) {
+		_draggingChanges.fire(false);
+	}
+}
+
+void TrimTimeline::wheelEvent(QWheelEvent *e) {
+	const auto angle = e->angleDelta();
+	const auto delta = Ui::ScrollDeltaF(e);
+	const auto locked = _wheelDirectionLock.update(e->phase(), delta);
+	const auto horizontal = locked
+		? (*locked == Qt::Horizontal)
+		: (std::abs(angle.x()) > std::abs(angle.y()));
+	if (horizontal || e->modifiers().testFlag(Qt::ShiftModifier)) {
+		scrollBy(-(horizontal ? delta.x() : delta.y()));
+	} else if (angle.y()) {
+		const auto steps = angle.y()
+			/ float64(QWheelEvent::DefaultDeltasPerStep);
+		zoomBy(std::pow(kZoomStep, steps), int(e->position().x()));
+	}
+	e->accept();
+}
+
+bool TrimTimeline::eventHook(QEvent *e) {
+	if (e->type() == QEvent::NativeGesture) {
+		const auto gesture = static_cast<QNativeGestureEvent*>(e);
+		const auto type = gesture->gestureType();
+		if (type == Qt::ZoomNativeGesture) {
+			const auto global = gesture->globalPosition().toPoint();
+			zoomBy(1. + gesture->value(), mapFromGlobal(global).x());
+			return true;
+		} else if (type == Qt::SmartZoomNativeGesture) {
+			setVisibleRange(1., 0.);
+			return true;
+		}
+	}
+	return RpWidget::eventHook(e);
 }
 
 void TrimTimeline::leaveEventHook(QEvent *e) {
@@ -298,7 +513,8 @@ void TrimTimeline::applyGrab(QPoint position) {
 	case Grab::Window: {
 		moveWindowTo(at);
 	} break;
-	case Grab::None: return;
+	case Grab::None:
+	case Grab::Scroll: return;
 	}
 	update();
 }
@@ -336,6 +552,9 @@ void TrimTimeline::paintEvent(QPaintEvent *e) {
 	p.setClipping(false);
 
 	paintSelection(p, strip);
+	p.setClipPath(path);
+	paintScrollIndicator(p, strip);
+	p.setClipping(false);
 	paintHead(p, strip);
 	paintDuration(p, strip);
 	paintOverlay(p);
@@ -345,16 +564,19 @@ void TrimTimeline::paintSelection(QPainter &p, const QRect &strip) {
 	const auto left = xAt(_from);
 	const auto right = xAt(_till);
 	const auto radius = st::videoTimelineRadius;
+	const auto stripLeft = strip.x();
+	const auto stripRight = rect::right(strip);
+	const auto dimLeft = std::clamp(left, stripLeft, stripRight);
+	const auto dimRight = std::clamp(right, stripLeft, stripRight);
 
-	if (left > strip.x()) {
+	if (dimLeft > stripLeft) {
 		p.fillRect(
-			QRect(strip.x(), strip.y(), left - strip.x(), strip.height()),
+			QRect(stripLeft, strip.y(), dimLeft - stripLeft, strip.height()),
 			st::videoTimelineDimBg);
 	}
-	const auto stripRight = rect::right(strip);
-	if (right < stripRight) {
+	if (dimRight < stripRight) {
 		p.fillRect(
-			QRect(right, strip.y(), stripRight - right, strip.height()),
+			QRect(dimRight, strip.y(), stripRight - dimRight, strip.height()),
 			st::videoTimelineDimBg);
 	}
 
@@ -374,6 +596,13 @@ void TrimTimeline::paintSelection(QPainter &p, const QRect &strip) {
 		std::max(right - left, 0),
 		std::max(strip.height() - border * 2, 0)));
 
+	const auto clipLeft = (left >= stripLeft)
+		? (stripLeft - handle)
+		: stripLeft;
+	const auto clipRight = (right <= stripRight)
+		? (stripRight + handle)
+		: stripRight;
+	p.setClipRect(clipLeft, 0, clipRight - clipLeft, height());
 	p.setPen(Qt::NoPen);
 	p.setBrush(st::videoTimelineFg);
 	p.drawPath(frame.subtracted(inner));
@@ -391,6 +620,40 @@ void TrimTimeline::paintSelection(QPainter &p, const QRect &strip) {
 			gripWidth / 2.,
 			gripWidth / 2.);
 	}
+	p.setClipping(false);
+}
+
+void TrimTimeline::paintScrollIndicator(QPainter &p, const QRect &strip) {
+	const auto shown = std::clamp(
+		(_zoom - 1.) / kScrollIndicatorFadeZoom,
+		0.,
+		1.);
+	if (shown <= 0.) {
+		return;
+	}
+	const auto span = visibleSpan();
+	const auto minWidth = std::min(
+		int(st::videoTimelineScrollMinWidth),
+		strip.width());
+	const auto width = std::clamp(
+		strip.width() * span / _duration,
+		float64(minWidth),
+		float64(strip.width()));
+	const auto ratio = _visibleFrom / std::max(_duration - span, 1.);
+	const auto left = strip.x() + (strip.width() - width) * ratio;
+	const auto height = st::videoTimelineScrollHeight;
+	const auto top = strip.y()
+		+ strip.height()
+		- st::videoTimelineScrollSkip
+		- height;
+	auto color = st::videoTimelineFg->c;
+	color.setAlphaF(color.alphaF() * kScrollIndicatorOpacity * shown);
+	p.setPen(Qt::NoPen);
+	p.setBrush(color);
+	p.drawRoundedRect(
+		QRectF(left, top, width, height),
+		height / 2.,
+		height / 2.);
 }
 
 void TrimTimeline::paintHead(QPainter &p, const QRect &strip) {
@@ -408,11 +671,17 @@ void TrimTimeline::paintHead(QPainter &p, const QRect &strip) {
 		strip.height() + overflow * 2);
 	const auto full = head.marginsAdded(
 		{ 1. * outline, 1. * outline, 1. * outline, 1. * outline });
+	p.setClipRect(
+		strip.x() - outline,
+		0,
+		strip.width() + outline * 2,
+		height());
 	p.setPen(Qt::NoPen);
 	p.setBrush(st::videoTimelineDimBg);
 	p.drawRoundedRect(full, width / 2. + outline, width / 2. + outline);
 	p.setBrush(st::videoTimelineFg);
 	p.drawRoundedRect(head, width / 2., width / 2.);
+	p.setClipping(false);
 }
 
 void TrimTimeline::paintDuration(QPainter &p, const QRect &strip) {
@@ -446,7 +715,9 @@ void TrimTimeline::paintDuration(QPainter &p, const QRect &strip) {
 		? text
 		: font->elided(text, available);
 	const auto shownWidth = std::min(width, available);
-	const auto center = (xAt(_from) + xAt(_till)) / 2;
+	const auto visibleLeft = std::max(xAt(_from), strip.x());
+	const auto visibleRight = std::min(xAt(_till), rect::right(strip));
+	const auto center = (visibleLeft + visibleRight) / 2;
 	const auto x = std::clamp(
 		center - shownWidth / 2,
 		label.x(),

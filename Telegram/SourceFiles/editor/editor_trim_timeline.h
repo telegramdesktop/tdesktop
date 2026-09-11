@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/weak_ptr.h"
 #include "ui/rp_widget.h"
+#include "ui/ui_utility.h"
 
 namespace Editor {
 
@@ -46,6 +47,11 @@ public:
 	[[nodiscard]] crl::time playbackPosition() const {
 		return _playback;
 	}
+	[[nodiscard]] float64 zoom() const {
+		return _zoom;
+	}
+	[[nodiscard]] crl::time visibleFrom() const;
+	[[nodiscard]] crl::time visibleTill() const;
 
 	[[nodiscard]] rpl::producer<crl::time> trimChanges() const {
 		return _trimChanges.events();
@@ -76,16 +82,20 @@ protected:
 	[[nodiscard]] QRect stripRect() const;
 	[[nodiscard]] crl::time timeAt(int x) const;
 	[[nodiscard]] int xAt(crl::time time) const;
+	[[nodiscard]] float64 visibleSpan() const;
 
 	virtual void paintStrip(QPainter &p, const QRect &strip) = 0;
 	virtual void paintOverlay(QPainter &p);
 	virtual void headGrabChanged(bool grabbed);
+	virtual void visibleRangeChanged();
 
 	void paintEvent(QPaintEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
+	void wheelEvent(QWheelEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
+	bool eventHook(QEvent *e) override;
 
 private:
 	enum class Grab {
@@ -95,6 +105,7 @@ private:
 		Head,
 
 		Window,
+		Scroll,
 	};
 
 	[[nodiscard]] QRect labelRect() const;
@@ -104,10 +115,19 @@ private:
 		QPoint position,
 		Qt::KeyboardModifiers modifiers) const;
 
+	[[nodiscard]] float64 maxZoom() const;
+	bool setVisibleRange(float64 zoom, float64 from);
+	void zoomBy(float64 factor, int anchorX);
+	bool scrollBy(float64 pixels);
+	void updateEdgeScroll(QPoint position);
+	bool edgeScrollStep(crl::time now);
+	[[nodiscard]] bool grabClamped(bool forward) const;
+
 	void applyGrab(QPoint position);
 	void setCover(crl::time cover, bool notify);
 	void updateCursor(Grab grab);
 	void paintSelection(QPainter &p, const QRect &strip);
+	void paintScrollIndicator(QPainter &p, const QRect &strip);
 	void paintHead(QPainter &p, const QRect &strip);
 	void paintDuration(QPainter &p, const QRect &strip);
 
@@ -122,11 +142,20 @@ private:
 	// Negative means nothing played yet; zero is a real position.
 	crl::time _playback = -1;
 
+	float64 _zoom = 1.;
+	float64 _visibleFrom = 0.;
+
 	QString _sizeLabel;
 	int _labelWidth = 0;
 
 	Grab _grab = Grab::None;
+	Qt::MouseButton _grabButton = Qt::NoButton;
 	int _grabShift = 0;
+	QPoint _dragPosition;
+	int _edgeOvershoot = 0;
+	crl::time _edgeScrollLast = 0;
+	Ui::Animations::Basic _edgeScrollAnimation;
+	Ui::ScrollDirectionLock _wheelDirectionLock;
 
 	rpl::event_stream<crl::time> _trimChanges;
 	rpl::event_stream<crl::time> _coverChanges;

@@ -255,6 +255,9 @@ videoTimelinePlaceholderBg: mediaviewPipPlaybackInactive;
 videoTimelineDurationFg: mediaviewCaptionFg;
 videoTimelineSizeFg: mediaviewCaptionFg;
 videoTimelineSizeSkip: 12px;
+videoTimelineScrollHeight: 2px;
+videoTimelineScrollSkip: 3px;
+videoTimelineScrollMinWidth: 16px;
 videoTimelineDurationStyle: TextStyle(defaultTextStyle) {
 	font: font(12px semibold);
 }
