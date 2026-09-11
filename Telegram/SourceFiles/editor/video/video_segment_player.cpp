@@ -64,8 +64,7 @@ void SegmentPlayer::start() {
 	) | rpl::on_next_error([=](Update &&update) {
 		handleUpdate(std::move(update));
 	}, [=](Error &&) {
-		_instance = nullptr;
-		_repaints.fire({});
+		crl::on_main(base::make_weak(this), [=] { handleError(); });
 	}, _instance->lifetime());
 
 	restart(_from);
@@ -120,7 +119,11 @@ void SegmentPlayer::restart(crl::time position) {
 	keepLastFrame();
 	_position = std::clamp(position, _from, segmentTill());
 	auto options = PlaybackOptions();
-	options.mode = _options.audio ? Mode::Audio : Mode::Video;
+	options.mode = _options.audio
+		? Mode::Audio
+		: (_sound && !_soundFailed)
+		? Mode::Both
+		: Mode::Video;
 	options.position = _position;
 	options.volume = _volume;
 	options.loop = false;
@@ -180,6 +183,17 @@ void SegmentPlayer::setVolume(float64 volume) {
 	}
 }
 
+void SegmentPlayer::setSound(bool sound) {
+	if (_options.audio || (_sound == sound)) {
+		return;
+	}
+	_sound = sound;
+	if (!sound) {
+		_pausedOthers = false;
+	}
+	restart(_position);
+}
+
 void SegmentPlayer::handleUpdate(Media::Streaming::Update &&update) {
 	using namespace Media::Streaming;
 	v::match(update.data, [&](Information &) {
@@ -200,6 +214,15 @@ void SegmentPlayer::handleUpdate(Media::Streaming::Update &&update) {
 	}, [&](Finished) {
 		restart(_from);
 	});
+}
+
+void SegmentPlayer::handleError() {
+	_instance = nullptr;
+	if (_sound && !_soundFailed && !_options.audio) {
+		_soundFailed = true;
+		start();
+	}
+	_repaints.fire({});
 }
 
 void SegmentPlayer::handlePosition(crl::time position) {

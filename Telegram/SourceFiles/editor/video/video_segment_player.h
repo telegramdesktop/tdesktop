@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/weak_ptr.h"
+
 namespace Media::Streaming {
 class Instance;
 struct Update;
@@ -20,7 +22,7 @@ struct SegmentPlayerOptions {
 	float64 volume = 1.;
 };
 
-class SegmentPlayer final {
+class SegmentPlayer final : public base::has_weak_ptr {
 public:
 	SegmentPlayer(
 		QString path,
@@ -51,6 +53,7 @@ public:
 	void setPaused(bool paused);
 	void setSeeking(bool seeking);
 	void setVolume(float64 volume);
+	void setSound(bool sound);
 
 	[[nodiscard]] QImage frame(QSize size);
 
@@ -63,6 +66,7 @@ public:
 
 private:
 	void handleUpdate(Media::Streaming::Update &&update);
+	void handleError();
 	void handlePosition(crl::time position);
 	void pauseOtherPlayback();
 	void applyHeld();
@@ -80,6 +84,8 @@ private:
 	crl::time _till = 0;
 	crl::time _position = 0;
 	float64 _volume = 1.;
+	bool _sound = false;
+	bool _soundFailed = false;
 	bool _pausedOthers = false;
 	bool _paused = false;
 	bool _seeking = false;

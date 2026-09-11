@@ -51,6 +51,7 @@ public:
 	[[nodiscard]] float64 volume() const;
 	void setVolume(float64 volume);
 	[[nodiscard]] bool sounding() const;
+	void setSoundEnabled(bool enabled);
 
 protected:
 	[[nodiscard]] Media::Encode::AnimatedEntity::Kind entityKind()

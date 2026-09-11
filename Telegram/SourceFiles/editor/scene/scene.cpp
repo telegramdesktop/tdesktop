@@ -337,6 +337,7 @@ Scene::Scene(const QRectF &rect)
 			}
 			if (videoItem != _selectedVideoItem) {
 				_selectedVideoItem = videoItem;
+				updateVideoItemsSound();
 				_videoItemSelections.fire(videoItem
 					? std::static_pointer_cast<ItemVideo>(
 						itemShared(videoItem))
@@ -731,6 +732,22 @@ bool Scene::hasAnimatedItems() const {
 
 bool Scene::hasAnimatedResult() const {
 	return (_audio != nullptr) || hasAnimatedItems();
+}
+
+void Scene::updateVideoItemsSound() {
+	const auto apply = [&](bool enabled) {
+		for (const auto &item : _items) {
+			if (item->type() != ItemVideo::Type) {
+				continue;
+			}
+			const auto video = static_cast<ItemVideo*>(item.get());
+			if ((video == _selectedVideoItem) == enabled) {
+				video->setSoundEnabled(enabled);
+			}
+		}
+	};
+	apply(false);
+	apply(true);
 }
 
 bool Scene::hasSoundResult() const {

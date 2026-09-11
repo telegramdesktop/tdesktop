@@ -132,6 +132,7 @@ private:
 
 	void removeIf(Fn<bool(const ItemPtr &)> proj);
 	void capturePlacements();
+	void updateVideoItemsSound();
 	void checkDurationsLink();
 	void commitPlacements();
 	void startShapeDrawing(const QPointF &position);

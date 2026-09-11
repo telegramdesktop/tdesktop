@@ -95,6 +95,11 @@ float64 ItemVideo::volume() const {
 
 void ItemVideo::setVolume(float64 volume) {
 	_volume = std::clamp(volume, 0., 1.);
+	_player->setVolume(_volume);
+}
+
+void ItemVideo::setSoundEnabled(bool enabled) {
+	_player->setSound(enabled && hasAudio());
 }
 
 bool ItemVideo::sounding() const {
