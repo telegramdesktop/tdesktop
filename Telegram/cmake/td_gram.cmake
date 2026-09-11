@@ -21,6 +21,8 @@ PRIVATE
     gram/api/gram_api_request.h
     gram/api/gram_api_stream.cpp
     gram/api/gram_api_stream.h
+    gram/gram_boc.cpp
+    gram/gram_boc.h
     gram/gram_pch.h
 )
 
@@ -40,6 +42,7 @@ init_non_host_target(td_gram_test "(gram)")
 nice_target_sources(td_gram_test ${src_loc}
 PRIVATE
     gram/tests/gram_api_tests.cpp
+    gram/tests/gram_boc_tests.cpp
     gram/tests/gram_emulate_tests.cpp
     gram/tests/gram_nft_tests.cpp
     gram/tests/gram_rates_tests.cpp

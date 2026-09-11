@@ -63,5 +63,6 @@ struct Check {
 [[nodiscard]] std::vector<Check> NftChecks();
 [[nodiscard]] std::vector<Check> StreamChecks();
 [[nodiscard]] std::vector<Check> EmulateChecks();
+[[nodiscard]] std::vector<Check> BocChecks();
 
 } // namespace Gram::Tests

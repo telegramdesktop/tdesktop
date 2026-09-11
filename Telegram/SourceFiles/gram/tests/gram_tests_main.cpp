@@ -24,6 +24,7 @@ namespace {
 	append(NftChecks());
 	append(StreamChecks());
 	append(EmulateChecks());
+	append(BocChecks());
 	return result;
 }
 

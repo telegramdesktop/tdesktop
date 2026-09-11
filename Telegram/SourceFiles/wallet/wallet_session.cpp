@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "gram/api/gram_api_emulate.h"
+#include "gram/gram_boc.h"
 #include "lang/lang_keys.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
@@ -213,11 +214,13 @@ constexpr auto kSubmittedLookupAttempts = int(
 	(kClientSendValiditySeconds + kClientResolutionMarginSeconds)
 	* 1000
 	/ uint64(kPollInterval));
-// The throw-away rotation a quote emulates is a validly signed key-change
-// message that leaves the device, and only its expiration bounds a stray
-// replay of it, so it gets the shortest window that comfortably outlives one
-// emulation round trip (the Wallet::Api deadline plus queueing); the fresh
-// prepare keeps the engine's own send validity.
+// The throw-away rotation a quote emulates leaves the device with random
+// bytes where its signature was, so the contract can never execute what the
+// emulator was shown: the emulation request asks for signature checks to be
+// skipped, so the fee it reports is still the fee of the real rotation. The
+// expiration is the shortest window that comfortably outlives one emulation
+// round trip (the Wallet::Api deadline plus queueing); the fresh prepare
+// keeps the engine's own send validity.
 constexpr auto kRotationQuoteValiditySeconds = uint64(120);
 constexpr auto kOwnershipProofSignatureSize = 64;
 
@@ -436,7 +439,7 @@ struct Restored {
 };
 
 struct ThrowawayRotation {
-	std::string signedBoc;
+	QString signedBoc;
 };
 
 [[nodiscard]] uint64 RotationValidUntil(uint64 seconds) {
@@ -3397,14 +3400,18 @@ void Session::quoteRotationFee(
 		request = RotationRequest(kRotationQuoteValiditySeconds)
 	] {
 		auto prepared = client->prepare_key_rotation(request);
-		return ThrowawayRotation{ std::move(prepared.signed_boc) };
+		return ThrowawayRotation{ Gram::BreakRotationSignature(
+			QString::fromStdString(prepared.signed_boc)) };
 	}, [=, this, grant = auth.grant](ThrowawayRotation throwaway) {
-		if (generation != _networkGeneration) {
+		if (throwaway.signedBoc.isEmpty()) {
+			failed(u"unexpected rotation message shape"_q);
+			return;
+		} else if (generation != _networkGeneration) {
 			failed(u"stale generation"_q);
 			return;
 		}
 		_api.request(Gram::EmulateTraceRequest(
-			QString::fromStdString(throwaway.signedBoc)
+			throwaway.signedBoc
 		), [=, this](const QByteArray &json) {
 			const auto trace = Gram::ParseEmulatedTrace(json);
 			if (generation != _networkGeneration) {
