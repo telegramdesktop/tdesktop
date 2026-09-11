@@ -649,17 +649,27 @@ CustodyInstaller MakeCustodyInstaller(
 				install();
 				return;
 			}
-			UnlockByKind(
-				show,
-				std::move(reading),
-				true,
-				[answer](VaultAuthorization grant) {
+			// A restored or imported key is about to be written, so the user
+			// confirms how it is protected here even over a vault that already
+			// reads: keeping the current kind unlocks it, and another kind
+			// switches the whole vault before the store. The box answers with
+			// the grant either way, so nothing is asked a second time.
+			ShowKeyProtectionBox(show, {
+				.mode = KeyProtectionMode::Switch,
+				.grantForStore = true,
+				.done = [answer](KeyProtectionResult result) {
+					auto grant = (!result.cancelled
+						&& !result.failed
+						&& result.grant.valid())
+						? Share(std::move(result.grant))
+						: nullptr;
 					if (!grant) {
 						answer({});
 					} else {
 						answer({ .grant = std::move(grant) });
 					}
-				});
+				},
+			});
 			return;
 		case State::Broken:
 		case State::Unsupported:

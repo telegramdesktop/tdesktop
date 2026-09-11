@@ -169,6 +169,12 @@ struct KeyProtectionResult {
 struct KeyProtectionArgs {
 	KeyProtectionMode mode = KeyProtectionMode::Switch;
 	std::vector<base::weak_ptr<Main::Account>> accounts;
+	// Switch only, for the custody installer that stores a restored or
+	// imported key right after this box: the result carries a grant for
+	// the vault as the box leaves it, so the store needs no second unlock,
+	// and the switch is not refused for the store's own custody operation,
+	// which is what holds custodyBusy() while this box is open.
+	bool grantForStore = false;
 	Fn<void(KeyProtectionResult)> done;
 };
 

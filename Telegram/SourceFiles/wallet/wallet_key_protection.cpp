@@ -969,6 +969,27 @@ void WalletPasscodeCreateBox(
 	}, box->lifetime());
 }
 
+// The commit clears the runtime, because the key it held is the one the
+// switch retired, and the fresh vault key never leaves the transition. The
+// new committed wrap in the caller header seals that key under the wrap key
+// the chooser prepared, so a copy of that wrap key opens it again here and
+// the store that asked for this switch gets its grant without a second ask.
+[[nodiscard]] VaultGrant GrantAfterSwitch(
+		const VaultHeader &header,
+		const SecureBytes &wrapKey,
+		VaultRuntime &vault) {
+	const auto committed = header.committedWrap();
+	if (!committed) {
+		return VaultGrant();
+	}
+	const auto epoch = vault.clearEpoch();
+	auto key = UnwrapVaultKey(*committed, wrapKey);
+	if (!key || !vault.unlockWith(std::move(*key), epoch)) {
+		return VaultGrant();
+	}
+	return vault.grant();
+}
+
 // header carries the account's committed vault header in Switch and is empty
 // in Install (there is no vault yet) and in Removal (there is one per listed
 // account). passcode is taken by value and moved into the box's own state,
@@ -1065,6 +1086,7 @@ void KeyProtectionBox(
 		}
 	}, box->lifetime());
 	const auto mode = args.mode;
+	const auto grantForStore = args.grantForStore;
 	const auto removal = (mode == KeyProtectionMode::Removal);
 
 	box->setTitle(tr::lng_wallet_protection_title());
@@ -1277,7 +1299,7 @@ void KeyProtectionBox(
 					discardPrepared();
 					setBusy(false);
 					return;
-				} else if (!key || wallet->custodyBusy()) {
+				} else if (!key || (!grantForStore && wallet->custodyBusy())) {
 					discardPrepared();
 					refuse();
 					return;
@@ -1293,6 +1315,9 @@ void KeyProtectionBox(
 					box->closeBox();
 					return;
 				}
+				const auto grantKey = grantForStore
+					? std::make_shared<SecureBytes>(next->wrapKey.copy())
+					: std::shared_ptr<SecureBytes>();
 				const auto result = TransitionVaultWrap(
 					*local,
 					*state->header,
@@ -1334,6 +1359,12 @@ void KeyProtectionBox(
 				// nothing once it is gone.
 				state->result = { .cancelled = false, .kind = kind };
 				DropPasscodeIfLastDependentGone(box, state->passcode, [=] {
+					if (grantKey) {
+						state->result.grant = GrantAfterSwitch(
+							*state->header,
+							*grantKey,
+							wallet->vault());
+					}
 					box->closeBox();
 				});
 			};
@@ -1488,6 +1519,43 @@ void KeyProtectionBox(
 		};
 		provider->enroll(local, crl::guard(weak, enrolled));
 	};
+	// Keeping the kind the vault already carries writes nothing, but a store
+	// waiting on this box still needs the vault open: the committed wrap is
+	// opened once here with what the gate accepted, or by its provider, so
+	// the user confirms the choice and unlocks it in the same step.
+	const auto keepWithGrant = [=](VaultKind kind) {
+		const auto committed = state->header
+			? state->header->committedWrap()
+			: nullptr;
+		if (!committed) {
+			fail();
+			return;
+		}
+		setBusy(true);
+		const auto wrap = *committed;
+		const auto vault = &show->session().wallet().vault();
+		const auto epoch = vault->clearEpoch();
+		AcquireVaultKey(
+			&show->session().local(),
+			wrap,
+			state->passcode,
+			crl::guard(weak, [=](
+					std::optional<SecureBytes> key,
+					ProtectionError error) {
+				if (error == ProtectionError::Cancelled) {
+					setBusy(false);
+				} else if (!key
+					|| !vault->unlockWith(std::move(*key), epoch)) {
+					refuse();
+				} else {
+					closeWith({
+						.cancelled = false,
+						.kind = kind,
+						.grant = vault->grant(),
+					});
+				}
+			}));
+	};
 	const auto save = [=] {
 		if (state->busy) {
 			return;
@@ -1498,7 +1566,11 @@ void KeyProtectionBox(
 		// true. Removal's passcode row is not that case - it keeps the
 		// vault's kind but still has the app lock to turn off.
 		if (mode == KeyProtectionMode::Switch && kind == preselected) {
-			closeWith({ .cancelled = false, .kind = kind });
+			if (grantForStore) {
+				keepWithGrant(kind);
+			} else {
+				closeWith({ .cancelled = false, .kind = kind });
+			}
 			return;
 		}
 		setBusy(true);

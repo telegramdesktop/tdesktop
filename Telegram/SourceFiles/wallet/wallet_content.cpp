@@ -6227,6 +6227,7 @@ void WalletPhraseWarningBox(
 			return;
 		}
 		state->phase = Phase::Starting;
+		state->loading = true;
 		StartPhraseReveal(
 			show,
 			box,
@@ -6245,6 +6246,18 @@ void WalletPhraseWarningBox(
 			},
 			[=](std::vector<QString> words, CustodyOutcome outcome) {
 				if (state->phase != Phase::Loading) {
+					return;
+				}
+				// A stored key always went through the protection chooser,
+				// and its Save is the explicit activation that shows the
+				// words right away: nothing typed into the password box can
+				// carry past it. A store that was cancelled or failed keeps
+				// the words behind a fresh press of this button instead.
+				if (outcome == CustodyOutcome::Installed) {
+					state->phase = Phase::Idle;
+					state->loading = false;
+					box->closeBox();
+					show->showBox(Box(WalletPhraseBox, show, std::move(words)));
 					return;
 				}
 				state->words = std::move(words);
