@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_common.h"
 #include "editor/scene/scene.h"
 #include "editor/scene/scene_item_sticker.h"
+#include "media/audio/media_audio.h"
 #include "platform/platform_file_utilities.h"
 #include "lang/lang_keys.h"
 #include "storage/localimageloader.h"
@@ -58,6 +59,34 @@ QSize PrepareShownDimensions(const QImage &preview, int sideLimit) {
 		: result;
 }
 
+[[nodiscard]] Editor::AudioTrack AudioTrackFromSong(
+		const QString &path,
+		const QByteArray &content,
+		PreparedFileInformation::Song &&song) {
+	if (song.duration <= 0) {
+		return {};
+	}
+	if (!Ui::ValidateThumbDimensions(
+			song.cover.width(),
+			song.cover.height())) {
+		song.cover = QImage();
+	}
+	return {
+		.path = path,
+		.content = content,
+		.title = std::move(song.title),
+		.performer = std::move(song.performer),
+		.cover = std::move(song.cover),
+		.duration = song.duration,
+	};
+}
+
+[[nodiscard]] bool IsAudioFile(const QString &path, const QString &mime) {
+	return mime.startsWith(u"audio/"_q)
+		|| (!path.isEmpty()
+			&& (Core::DetectNameType(path) == Core::NameType::Audio));
+}
+
 void PrepareDetailsInParallel(PreparedList &result, int previewWidth) {
 	Expects(result.files.size() <= Ui::MaxAlbumItems());
 
@@ -79,7 +108,8 @@ void PrepareDetailsInParallel(PreparedList &result, int previewWidth) {
 
 bool ValidatePhotoEditorMediaDragData(
 		not_null<const QMimeData*> data,
-		bool withVideo) {
+		bool composeAnimated,
+		bool composeSound) {
 	const auto urls = Core::ReadMimeUrls(data);
 	if (urls.size() > 1) {
 		return false;
@@ -93,7 +123,8 @@ bool ValidatePhotoEditorMediaDragData(
 			using namespace Core;
 			const auto file = Platform::File::UrlToLocal(url);
 			const auto mime = MimeTypeForFile(QFileInfo(file)).name();
-			return (withVideo && FileLoadTask::IsVideoFile(file, mime))
+			return (composeAnimated && FileLoadTask::IsVideoFile(file, mime))
+				|| (composeSound && IsAudioFile(file, mime))
 				|| (FileIsImage(file, mime) && QImageReader(file).canRead());
 		}
 	}
@@ -107,12 +138,16 @@ PhotoEditorMedia ReadPhotoEditorMedia(
 	if (path.isEmpty() && content.size() > Images::kReadBytesLimit) {
 		return {};
 	}
+	const auto mime = path.isEmpty()
+		? Core::MimeTypeForData(content).name()
+		: Core::MimeTypeForFile(QFileInfo(path)).name();
+	if (IsAudioFile(path, mime)) {
+		return { .audio = ReadPhotoEditorAudio(path, content) };
+	}
 	const auto information = FileLoadTask::ReadMediaInformation(
 		path,
 		content,
-		path.isEmpty()
-			? Core::MimeTypeForData(content).name()
-			: Core::MimeTypeForFile(QFileInfo(path)).name());
+		mime);
 	if (const auto image = std::get_if<Image>(&information->media)) {
 		return { .image = std::move(image->data) };
 	}
@@ -129,7 +164,27 @@ PhotoEditorMedia ReadPhotoEditorMedia(
 			.videoDuration = video->duration,
 		};
 	}
+	using Song = PreparedFileInformation::Song;
+	if (const auto song = std::get_if<Song>(&information->media)) {
+		return {
+			.audio = AudioTrackFromSong(path, content, std::move(*song)),
+		};
+	}
 	return {};
+}
+
+Editor::AudioTrack ReadPhotoEditorAudio(
+		const QString &path,
+		const QByteArray &content) {
+	if (path.isEmpty() && content.isEmpty()) {
+		return {};
+	}
+	using Song = PreparedFileInformation::Song;
+	auto information = Media::Player::PrepareForSending(path, content);
+	const auto song = std::get_if<Song>(&information.media);
+	return song
+		? AudioTrackFromSong(path, content, std::move(*song))
+		: Editor::AudioTrack();
 }
 
 bool ValidateEditMediaDragData(

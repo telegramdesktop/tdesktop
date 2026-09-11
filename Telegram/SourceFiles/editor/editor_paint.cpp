@@ -90,7 +90,8 @@ Paint::Paint(
 , _viewport(_view->viewport())
 , _imageSize(imageSize)
 , _fixedCrop(data.fixedCrop)
-, _composeAnimated(data.composeAnimated) {
+, _composeAnimated(data.composeAnimated)
+, _composeSound(data.composeSound) {
 	Expects(modifications.paint != nullptr);
 
 	_scene->setBlurSource(std::move(blurSource));
@@ -176,6 +177,8 @@ Paint::Paint(
 				controllers->stickersPanelController->stickerChosen(
 				) | rpl::map_to(ShowRequest::HideAnimated),
 				controllers->stickersPanelController->photoRequests(
+				) | rpl::map_to(ShowRequest::HideAnimated),
+				controllers->stickersPanelController->audioRequests(
 				) | rpl::map_to(ShowRequest::HideAnimated)));
 
 		controllers->stickersPanelController->stickerChosen(
@@ -188,6 +191,11 @@ Paint::Paint(
 		controllers->stickersPanelController->photoRequests(
 		) | rpl::on_next([=] {
 			choosePhotoFile();
+		}, lifetime());
+
+		controllers->stickersPanelController->audioRequests(
+		) | rpl::on_next([=] {
+			chooseAudioFile();
 		}, lifetime());
 	}
 
@@ -510,8 +518,17 @@ void Paint::disarmShapeTool() {
 }
 
 bool Paint::handleKeyPress(not_null<QKeyEvent*> e) {
-	if ((e->key() == Qt::Key_Escape) && _scene->hasPendingShape()) {
+	const auto key = e->key();
+	if ((key == Qt::Key_Escape) && _scene->hasPendingShape()) {
 		disarmShapeTool();
+		return true;
+	} else if (!_scene->audioSelected()) {
+		return false;
+	} else if (key == Qt::Key_Escape) {
+		_scene->setAudioSelected(false);
+		return true;
+	} else if ((key == Qt::Key_Delete) || (key == Qt::Key_Backspace)) {
+		removeAudio();
 		return true;
 	}
 	return false;
@@ -519,6 +536,30 @@ bool Paint::handleKeyPress(not_null<QKeyEvent*> e) {
 
 void Paint::clearSelection() {
 	_scene->clearSelection();
+}
+
+void Paint::removeAudio() {
+	_scene->setAudio(nullptr);
+}
+
+void Paint::setAudioSelected(bool selected) {
+	_scene->setAudioSelected(selected);
+}
+
+std::shared_ptr<AudioTrack> Paint::audio() const {
+	return _scene->audio();
+}
+
+bool Paint::audioSelected() const {
+	return _scene->audioSelected();
+}
+
+rpl::producer<> Paint::audioChanges() const {
+	return _scene->audioChanges();
+}
+
+rpl::producer<bool> Paint::audioSelectedChanges() const {
+	return _scene->audioSelectedChanges();
 }
 
 void Paint::applyTextPrefs(const TextPrefs &prefs) {
@@ -573,7 +614,10 @@ rpl::producer<bool> Paint::shapeToolStates() const {
 bool Paint::canHandleMimeData(const QMimeData *data) const {
 	return data
 		&& !_textEditing.current()
-		&& Storage::ValidatePhotoEditorMediaDragData(data, _composeAnimated);
+		&& Storage::ValidatePhotoEditorMediaDragData(
+			data,
+			_composeAnimated,
+			_composeSound);
 }
 
 void Paint::handleMimeData(const QMimeData *data) {
@@ -620,9 +664,52 @@ void Paint::choosePhotoFile() {
 		crl::guard(this, callback));
 }
 
+void Paint::chooseAudioFile() {
+	const auto callback = [=](FileDialog::OpenResult &&result) {
+		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
+			return;
+		}
+		readAudioFile(
+			result.paths.isEmpty() ? QString() : result.paths.front(),
+			result.remoteContent);
+	};
+	FileDialog::GetOpenPath(
+		this,
+		tr::lng_choose_audio(tr::now),
+		FileDialog::AudioFilesFilter(),
+		crl::guard(this, callback));
+}
+
+void Paint::readAudioFile(const QString &path, const QByteArray &content) {
+	const auto done = crl::guard(this, [=](AudioTrack &&track) {
+		addAudio(std::move(track));
+	});
+	crl::async([=] {
+		auto track = Storage::ReadPhotoEditorAudio(path, content);
+		crl::on_main([=, track = std::move(track)]() mutable {
+			done(std::move(track));
+		});
+	});
+}
+
+void Paint::addAudio(AudioTrack &&track) {
+	if (track.empty() || (track.duration <= 0)) {
+		_controllers->show->showBox(
+			Ui::MakeInformBox(tr::lng_edit_media_invalid_file()));
+		return;
+	}
+	disarmShapeTool();
+	_scene->setAudio(std::make_shared<AudioTrack>(std::move(track)));
+	_scene->setAudioSelected(true);
+}
+
 void Paint::addMedia(Storage::PhotoEditorMedia &&media) {
 	const auto &image = media.image;
-	if (!media
+	if (!media.audio.empty() && _composeSound) {
+		addAudio(std::move(media.audio));
+		return;
+	} else if (!media
+		|| !media.audio.empty()
 		|| (media.video() && !_composeAnimated)
 		|| !Ui::ValidateThumbDimensions(image.width(), image.height())) {
 		_controllers->show->showBox(

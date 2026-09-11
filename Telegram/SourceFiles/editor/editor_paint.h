@@ -55,6 +55,12 @@ public:
 	void armShapeTool(ShapeType shape, const Brush &brush, bool fill);
 	void disarmShapeTool();
 	void clearSelection();
+	void removeAudio();
+	void setAudioSelected(bool selected);
+	[[nodiscard]] std::shared_ptr<AudioTrack> audio() const;
+	[[nodiscard]] bool audioSelected() const;
+	[[nodiscard]] rpl::producer<> audioChanges() const;
+	[[nodiscard]] rpl::producer<bool> audioSelectedChanges() const;
 	void applyTextPrefs(const TextPrefs &prefs);
 	void setTextColor(const QColor &color);
 	void setSelectedTextColor(const QColor &color);
@@ -103,6 +109,9 @@ private:
 	void addImageItem(QImage &&image);
 	void addVideoItem(Storage::PhotoEditorMedia &&media);
 	void choosePhotoFile();
+	void chooseAudioFile();
+	void readAudioFile(const QString &path, const QByteArray &content);
+	void addAudio(AudioTrack &&track);
 	void applyViewTransform();
 	void bakeTextScales();
 
@@ -115,6 +124,7 @@ private:
 	const QSize _imageSize;
 	const bool _fixedCrop = false;
 	const bool _composeAnimated = false;
+	const bool _composeSound = false;
 	QRect _imageGeometry;
 	QRect _outerGeometry;
 
