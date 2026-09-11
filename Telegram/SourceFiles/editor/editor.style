@@ -207,6 +207,15 @@ photoEditorCropMinSize: 20px;
 
 photoEditorItemHandleSize: 10px;
 
+photoEditorAudioDiscSize: 48px;
+photoEditorAudioDiscSkip: 12px;
+photoEditorAudioDiscCoverSize: 30px;
+photoEditorAudioDiscRing: 2px;
+photoEditorAudioDiscRingFg: mediaviewControlFg;
+photoEditorAudioDiscIcon: icon {{ "photo_editor/widget_music", photoEditorButtonIconFg }};
+photoEditorAudioDiscIconOver: icon {{ "photo_editor/widget_music", photoEditorButtonIconFgOver }};
+photoEditorMenuDelete: icon {{ "menu/delete", mediaviewMenuFg }};
+
 videoTimelineStripHeight: 54px;
 videoTimelineLabelHeight: 18px;
 // Wide enough to hold the cover dot without it touching either side.

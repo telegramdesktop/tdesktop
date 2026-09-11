@@ -7967,6 +7967,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_photo_editor_shape_arrow" = "Arrow";
 "lng_photo_editor_shape_filled" = "Filled";
 
+"lng_photo_editor_audio_remove" = "Remove Audio";
+
 "lng_voice_speed_slow" = "Slow";
 "lng_voice_speed_normal" = "Normal";
 "lng_voice_speed_medium" = "Medium";

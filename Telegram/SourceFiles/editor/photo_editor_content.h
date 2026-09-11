@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Editor {
 
+class AudioDiscButton;
 class Crop;
 class ItemVideo;
 class Paint;
@@ -67,12 +68,15 @@ public:
 	}
 
 private:
+	void updateAudioDisc();
+	void updateAudioDiscGeometry();
 
 	const QSize _photoSize;
 	const bool _fixedCrop = false;
 	const bool _composeAnimated = false;
 	const base::unique_qptr<Paint> _paint;
 	const base::unique_qptr<Crop> _crop;
+	const base::unique_qptr<AudioDiscButton> _audioDisc;
 	const std::shared_ptr<Image> _photo;
 
 	rpl::variable<QRect> _innerRect;

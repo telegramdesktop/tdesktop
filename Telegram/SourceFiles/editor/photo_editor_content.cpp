@@ -7,11 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/photo_editor_content.h"
 
+#include "editor/editor_audio_disc_button.h"
 #include "editor/editor_crop.h"
 #include "editor/editor_paint.h"
 #include "history/history_drag_area.h"
 #include "media/view/media_view_pip.h"
 #include "storage/storage_media_prepare.h"
+#include "ui/rect.h"
+#include "styles/style_editor.h"
 
 #include <QtGui/QClipboard>
 #include <QtGui/QGuiApplication>
@@ -57,8 +60,31 @@ PhotoEditorContent::PhotoEditorContent(
 	modifications,
 	_photoSize,
 	std::move(data)))
+, _audioDisc(base::make_unique_q<AudioDiscButton>(this))
 , _photo(std::move(photo))
 , _modifications(modifications) {
+	_audioDisc->hide();
+	_audioDisc->setClickedCallback([=] {
+		_paint->setAudioSelected(!_paint->audioSelected());
+	});
+	_audioDisc->removeRequests(
+	) | rpl::on_next([=] {
+		_paint->removeAudio();
+	}, _audioDisc->lifetime());
+	_paint->audioChanges(
+	) | rpl::on_next([=] {
+		updateAudioDisc();
+	}, lifetime());
+	_paint->audioSelectedChanges(
+	) | rpl::on_next([=](bool selected) {
+		_audioDisc->setActive(selected);
+	}, lifetime());
+	rpl::merge(
+		_innerRect.value() | rpl::to_empty,
+		sizeValue() | rpl::to_empty
+	) | rpl::on_next([=] {
+		updateAudioDiscGeometry();
+	}, lifetime());
 
 	rpl::combine(
 		_modifications.value(),
@@ -206,7 +232,34 @@ void PhotoEditorContent::applyMode(const PhotoEditorMode &mode) {
 		_paint->keepResult();
 	}
 	_mode = mode;
+	updateAudioDisc();
 	update();
+}
+
+void PhotoEditorContent::updateAudioDiscGeometry() {
+	const auto inner = _innerRect.current();
+	const auto skip = st::photoEditorAudioDiscSkip;
+	const auto size = _audioDisc->width();
+	const auto right = rect::right(inner);
+	const auto bottom = rect::bottom(inner);
+	if (width() - right >= size + skip) {
+		_audioDisc->moveToLeft(right + skip, bottom - size);
+	} else if (height() - bottom >= size + skip) {
+		_audioDisc->moveToLeft(right - size, bottom + skip);
+	} else {
+		_audioDisc->moveToLeft(right - skip - size, bottom - skip - size);
+	}
+}
+
+void PhotoEditorContent::updateAudioDisc() {
+	const auto audio = _paint->audio();
+	const auto shown = (audio != nullptr)
+		&& (_mode.mode == PhotoEditorMode::Mode::Paint);
+	_audioDisc->setCover(audio ? audio->cover : QImage());
+	_audioDisc->setVisible(shown);
+	if (shown) {
+		_audioDisc->raise();
+	}
 }
 
 void PhotoEditorContent::applyAspectRatio(float64 ratio) {
