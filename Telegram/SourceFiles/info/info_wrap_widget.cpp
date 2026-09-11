@@ -735,6 +735,7 @@ void WrapWidget::finishShowContent() {
 		_topBar->setTitle({
 			.title = _content->title(),
 			.subtitle = _content->subtitle(),
+			.badge = _content->titleBadge(),
 		});
 		_topBar->setStories(_content->titleStories());
 	}

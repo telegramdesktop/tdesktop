@@ -550,31 +550,6 @@ void PreparePasscodeWrap(
 		});
 }
 
-// Mints the proof a key_data write asks for from the bytes a box holds, with
-// the derivation on the worker. The guard sits in front of the mint, not
-// only in front of the consumer: a mint replaces the outstanding nonce, so a
-// box that is gone by the time its derivation answers must not kill the
-// token a settings screen still holds. The typed copy taken here is cleansed
-// before this returns; the derivation carries its own and cleanses it on the
-// worker.
-void MintVerificationOnWorker(
-		not_null<Ui::GenericBox*> box,
-		const SecureBytes &passcode,
-		Fn<void(std::optional<Storage::PasscodeVerification>)> done) {
-	auto utf8 = Utf8Copy(passcode);
-	const auto cleanse = gsl::finally([&] {
-		if (!utf8.isEmpty()) {
-			OPENSSL_cleanse(utf8.data(), utf8.size());
-		}
-	});
-	const auto &local = Core::App().domain().local();
-	Storage::DeriveOnWorker(local.prepareOpen(utf8), crl::guard(box, [done](
-			Storage::PasscodeDerivation &&derived) {
-		auto &local = Core::App().domain().local();
-		done(local.verifyPasscode(std::move(derived)));
-	}));
-}
-
 // One removal's whole walk, behind a shared_ptr because the key material in
 // it is move-only and every continuation below has to fit in a copyable Fn.
 // Both account lists are weak: Main::Domain owns the accounts and one can be
@@ -1687,9 +1662,28 @@ ProtectionProvider *ProtectionProviderFor(VaultKind kind) {
 	return (i != end(list)) ? i->get() : nullptr;
 }
 
+void MintVerificationOnWorker(
+		not_null<QObject*> guard,
+		const SecureBytes &passcode,
+		Fn<void(std::optional<Storage::PasscodeVerification>)> done) {
+	auto utf8 = Utf8Copy(passcode);
+	const auto cleanse = gsl::finally([&] {
+		if (!utf8.isEmpty()) {
+			OPENSSL_cleanse(utf8.data(), utf8.size());
+		}
+	});
+	const auto &local = Core::App().domain().local();
+	Storage::DeriveOnWorker(local.prepareOpen(utf8), crl::guard(guard, [done](
+			Storage::PasscodeDerivation &&derived) {
+		auto &local = Core::App().domain().local();
+		done(local.verifyPasscode(std::move(derived)));
+	}));
+}
+
 void ShowKeyProtectionBox(
 		std::shared_ptr<Main::SessionShow> show,
-		KeyProtectionArgs args) {
+		KeyProtectionArgs args,
+		SecureBytes verified) {
 	auto &session = show->session();
 	const auto weakSession = base::make_weak(&session);
 	const auto report = [done = args.done](KeyProtectionResult result) {
@@ -1752,9 +1746,14 @@ void ShowKeyProtectionBox(
 			std::move(passcode)));
 	};
 	// The passcode comes first in every mode and whatever the vault's
-	// retention window says: no branch here consults vault.retained().
+	// retention window says: no branch here consults vault.retained(). Only
+	// bytes the caller has already put through the same dual check skip
+	// the gate.
 	if (!session.domain().local().hasPasscode()) {
 		chooser(SecureBytes());
+		return;
+	} else if (!verified.empty()) {
+		chooser(std::move(verified));
 		return;
 	}
 	show->showBox(Box(WalletPasscodeBox, WalletPasscodeBoxArgs{

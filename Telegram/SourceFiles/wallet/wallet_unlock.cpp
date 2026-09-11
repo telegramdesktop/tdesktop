@@ -873,4 +873,34 @@ void WalletPasscodeBox(
 	}, box->lifetime());
 }
 
+void CheckWalletPasscode(
+		not_null<Main::Session*> session,
+		const SecureBytes &passcode,
+		Fn<void(WalletPasscodeVerdict)> done) {
+	auto utf8 = QByteArray(
+		reinterpret_cast<const char*>(passcode.span().data()),
+		passcode.size());
+	const auto cleanse = gsl::finally([&] {
+		if (!utf8.isEmpty()) {
+			OPENSSL_cleanse(utf8.data(), utf8.size());
+		}
+	});
+	auto job = GateDerivation{
+		.check = WalletPasscodeCheck::KeyDataAndVault,
+		.passcode = passcode.copy(),
+	};
+	job.vaultWrap = CommittedPasscodeWrap(
+		session->local(),
+		session->wallet().vault());
+	job.keyData = session->domain().local().prepareOpen(utf8);
+	Storage::DeriveOnWorker(std::move(job), crl::guard(session, [=](
+			GateDerivation &&job) {
+		done({
+			.keyData = session->domain().local().checkPasscode(
+				std::move(*job.keyData)),
+			.vault = job.vaultOpens,
+		});
+	}));
+}
+
 } // namespace Wallet

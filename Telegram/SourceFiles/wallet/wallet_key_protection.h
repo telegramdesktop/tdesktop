@@ -19,6 +19,7 @@ namespace Storage {
 class Account;
 class Domain;
 class PasscodeDerivation;
+class PasscodeVerification;
 enum class SetPasscodeResult : uchar;
 } // namespace Storage
 
@@ -183,9 +184,25 @@ struct KeyProtectionArgs {
 	Fn<void(KeyProtectionResult)> done;
 };
 
+// verified are bytes the caller has already proved against key_data and
+// this session's vault (Wallet::CheckWalletPasscode), so the gate is skipped
+// and the chooser opens with them; empty means ask.
 void ShowKeyProtectionBox(
 	std::shared_ptr<Main::SessionShow> show,
-	KeyProtectionArgs args);
+	KeyProtectionArgs args,
+	SecureBytes verified = SecureBytes());
+
+// Mints the proof a key_data write asks for from the bytes the caller holds,
+// with the derivation on the worker. The guard sits in front of the mint, so
+// a caller that is gone by the time its derivation answers mints nothing and
+// is never called back; every caller spends the proof in the same callback
+// that receives it, so no token waits across turns for a later write. The
+// typed copy taken here is cleansed before this returns; the derivation
+// carries its own and cleanses it on the worker.
+void MintVerificationOnWorker(
+	not_null<QObject*> guard,
+	const SecureBytes &passcode,
+	Fn<void(std::optional<Storage::PasscodeVerification>)> done);
 
 // Which accounts hold a vault whose committed wrap is of that kind. Three
 // invariants a reviewer must be able to check by reading the body: it goes

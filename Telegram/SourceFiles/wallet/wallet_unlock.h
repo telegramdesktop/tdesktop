@@ -122,4 +122,20 @@ void WalletPasscodeBox(
 	not_null<Ui::GenericBox*> box,
 	WalletPasscodeBoxArgs args);
 
+// The KeyDataAndVault check of the box above over bytes the caller already
+// holds, with no box: the same worker job runs from its own copy of the
+// bytes, cleansed by the job's destruction at the end of the answer exactly
+// as the box's job is. keyData says whether the bytes still open key_data,
+// vault whether they open this session's committed passcode wrap (true when
+// the vault has none). done runs on the main thread, guarded on the session.
+struct WalletPasscodeVerdict {
+	bool keyData = false;
+	bool vault = false;
+};
+
+void CheckWalletPasscode(
+	not_null<Main::Session*> session,
+	const SecureBytes &passcode,
+	Fn<void(WalletPasscodeVerdict)> done);
+
 } // namespace Wallet

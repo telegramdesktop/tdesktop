@@ -40,6 +40,8 @@ InfoTopBar {
 	titleWithSubtitlePosition: point;
 	subtitle: FlatLabel;
 	subtitlePosition: point;
+	badge: FlatLabel;
+	badgeSkip: pixels;
 	bg: color;
 	mediaCancel: IconButton;
 	mediaActionsSkip: pixels;
@@ -239,6 +241,10 @@ infoTopBar: InfoTopBar {
 		maxHeight: 20px;
 	}
 	subtitlePosition: point(16px, 28px);
+	badge: FlatLabel(defaultFlatLabel) {
+		textFg: windowSubTextFg;
+	}
+	badgeSkip: 8px;
 	bg: windowBg;
 	mediaCancel: infoTopBarMediaCancel;
 	mediaActionsSkip: 4px;
