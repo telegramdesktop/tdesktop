@@ -35,12 +35,7 @@ rpl::producer<QString> Start::title() {
 void Start::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	SetupHeader(
-		content,
-		u"cloud_password/intro"_q,
-		showFinishes(),
-		tr::lng_settings_cloud_password_start_title(),
-		tr::lng_settings_cloud_password_start_about());
+	SetupIntroHeader(content, showFinishes());
 
 	AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
 

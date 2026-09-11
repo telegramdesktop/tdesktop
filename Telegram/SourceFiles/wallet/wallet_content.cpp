@@ -31,13 +31,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/channel_statistics/earn/earn_icons.h"
 #include "info/profile/info_profile_values.h"
 #include "inline_bots/bot_attach_web_view.h"
+#include "lang/lang_hardcoded.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "main/session/session_show.h"
 #include "main/main_app_config.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
+#include "mtproto/mtproto_response.h"
 #include "qr/qr_generate.h"
+#include "settings/cloud_password/settings_cloud_password_common.h"
 #include "settings/settings_common.h"
 #include "storage/storage_account.h"
 #include "storage/storage_domain.h"
@@ -239,6 +242,7 @@ private:
 	void setupContent();
 	void setupPinned();
 	void setupWaltOffer();
+	void setupProtectRow();
 	void setupBalance();
 	void setupTabs(rpl::producer<bool> collectiblesShown);
 	void setupStrip();
@@ -3207,6 +3211,104 @@ void WalletHowItWorksBox(not_null<Ui::GenericBox*> box) {
 	AddBoxCloseButton(box);
 
 	box->addButton(tr::lng_wallet_how_button(), [=] { box->closeBox(); });
+}
+
+void WalletCloudPasswordCreateBox(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<Main::SessionShow> show) {
+	box->setWidth(st::boxWideWidth);
+	box->setStyle(st::giveawayGiftCodeBox);
+	box->setNoContentMargin(true);
+
+	const auto content = box->addRow(
+		object_ptr<Ui::VerticalLayout>(box),
+		st::boxRowPadding);
+	const auto fields = Settings::CloudPassword::SetupPasswordFields(
+		content,
+		Settings::CloudPassword::CreatePasswordDescriptor());
+
+	AddBoxCloseButton(box);
+
+	struct State {
+		rpl::lifetime request;
+		rpl::variable<bool> loading = false;
+	};
+	const auto state = box->lifetime().make_state<State>();
+	const auto submit = [=] {
+		if (state->request) {
+			return;
+		}
+		const auto password = Settings::CloudPassword::ValidatePasswordFields(
+			fields);
+		if (!password) {
+			return;
+		}
+		state->loading = true;
+		state->request = show->session().api().cloudPassword().set(
+			QString(),
+			*password,
+			QString(),
+			false,
+			QString()
+		) | rpl::on_error_done([=](const QString &type) {
+			state->request.destroy();
+			state->loading = false;
+			fields.error->show();
+			fields.error->setText(MTP::IsFloodError(type)
+				? tr::lng_flood_error(tr::now)
+				: Lang::Hard::ServerError());
+		}, [=] {
+			state->request.destroy();
+			box->closeBox();
+			show->showToast({
+				.title = tr::lng_wallet_protect_done_title(tr::now),
+				.text = { tr::lng_wallet_protect_done_text(tr::now) },
+				.icon = &st::toastCheckIcon,
+			});
+		});
+	};
+	const auto button = box->addButton(
+		rpl::combine(
+			tr::lng_settings_cloud_password_password_subtitle(),
+			state->loading.value()
+		) | rpl::map([](const QString &text, bool loading) {
+			return loading ? QString() : text;
+		}),
+		submit);
+	{
+		using namespace Info::Statistics;
+		const auto loading = InfiniteRadialAnimationWidget(
+			button,
+			st::giveawayGiftCodeBoxButton.height / 2);
+		AddChildToWidgetCenter(button.data(), loading);
+		loading->showOn(state->loading.value());
+	}
+
+	Settings::CloudPassword::SubmitPasswordFields(fields, submit);
+	box->setFocusCallback([=] {
+		Settings::CloudPassword::FocusPasswordFields(fields);
+	});
+}
+
+void WalletCloudPasswordIntroBox(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<Main::SessionShow> show) {
+	box->setWidth(st::boxWideWidth);
+	box->setStyle(st::giveawayGiftCodeBox);
+	box->setNoContentMargin(true);
+
+	const auto content = box->addRow(
+		object_ptr<Ui::VerticalLayout>(box),
+		st::boxRowPadding);
+	Settings::CloudPassword::SetupIntroHeader(content, box->showFinishes());
+	Ui::AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
+
+	AddBoxCloseButton(box);
+
+	box->addButton(tr::lng_wallet_protect_set_password(), [=] {
+		box->closeBox();
+		show->showBox(Box(WalletCloudPasswordCreateBox, show));
+	});
 }
 
 void SetupIntroTooltip(
@@ -9184,6 +9286,7 @@ void Content::setupContent() {
 	setupTabs(rpl::duplicate(collectiblesShown));
 	setupStrip();
 	setupListsLoading();
+	setupProtectRow();
 
 	const auto media = std::make_shared<CollectibleMedia>(&_show->session());
 	const auto wrap = column->add(
@@ -9574,6 +9677,45 @@ void Content::setupWaltOffer() {
 	) | rpl::on_next([=] {
 		updateRegions();
 	}, wrap->lifetime());
+}
+
+void Content::setupProtectRow() {
+	const auto session = &_show->session();
+	const auto column = _column->entity();
+	const auto wrap = column->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			column,
+			object_ptr<Ui::VerticalLayout>(column)));
+	const auto inner = wrap->entity();
+	Ui::AddSkip(inner, st::walletProtectRowSkip);
+	const auto button = Settings::AddButtonWithIcon(
+		inner,
+		tr::lng_wallet_protect_account(),
+		st::walletProtectRow,
+		{ .icon = &st::walletProtectRowIcon });
+	AddRowChevron(button);
+	button->setClickedCallback([=] {
+		_show->showBox(Box(WalletCloudPasswordIntroBox, _show));
+	});
+
+	auto &cloud = session->api().cloudPassword();
+	cloud.reload();
+	auto off = rpl::single(false) | rpl::then(cloud.state(
+	) | rpl::map([](const Core::CloudPasswordState &state) {
+		return !state.hasPassword && state.unconfirmedPattern.isEmpty();
+	}));
+	auto nonEmpty = rpl::combine(
+		session->wallet().balanceNanoValue(),
+		HistoryShownValue(session)
+	) | rpl::map([](int64 balance, bool history) {
+		return (balance != 0) || history;
+	});
+	wrap->toggleOn(rpl::combine(
+		std::move(off),
+		std::move(nonEmpty)
+	) | rpl::map([](bool off, bool nonEmpty) {
+		return off && nonEmpty;
+	}) | rpl::distinct_until_changed(), anim::type::instant);
 }
 
 void Content::setupBalance() {

@@ -147,6 +147,16 @@ walletRowAmountMinorSkip: 0px;
 walletRowMarkSize: 15px;
 walletRowIconMargin: margins(5px, 3px, 0px, 0px);
 walletRowsHintHeight: 44px;
+// Text left is walletRowPadding.left, so the row's text lines up with the
+// transaction titles; iconLeft centres the 24px icon on the 46px avatar
+// column at walletRowIconLeft (20 + (46 - 24) / 2). Right 50px is the same
+// chevron allowance walletWaltRow uses for AddRowChevron.
+walletProtectRowSkip: walletRowsTopSkip;
+walletProtectRow: SettingsButton(settingsAttentionButtonWithIcon) {
+	padding: margins(76px, 10px, 50px, 10px);
+	iconLeft: 31px;
+}
+walletProtectRowIcon: icon{{ "menu/info", attentionButtonFg }};
 walletListsLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
 	size: size(56px, 56px);
 	color: windowSubTextFg;
