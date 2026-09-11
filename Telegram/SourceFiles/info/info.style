@@ -1183,7 +1183,7 @@ shortInfoCover: ShortInfoCover {
 	radius: boxRadius;
 	name: FlatLabel(defaultFlatLabel) {
 		textFg: groupCallVideoTextFg;
-		maxHeight: 19px;
+		maxHeight: 24px;
 		style: TextStyle(defaultTextStyle) {
 			font: font(15px semibold);
 		}
