@@ -2695,6 +2695,21 @@ void OnrampRoutesController::failHostedSession() {
 	_show->showToast(tr::lng_wallet_buy_session_error(tr::now));
 }
 
+[[nodiscard]] const style::color *OnrampFallbackIconBg(
+		const QString &provider) {
+	const auto colors = std::array{
+		&st::settingsIconBg1,
+		&st::settingsIconBg5,
+		&st::settingsIconBg6,
+		&st::settingsIconBg8,
+	};
+	auto hash = uint32();
+	for (const auto ch : provider) {
+		hash = hash * 31 + ch.unicode();
+	}
+	return colors[hash % colors.size()];
+}
+
 void RenderOnrampRoutes(
 		not_null<Ui::VerticalLayout*> routeList,
 		OnrampRoutesController &controller,
@@ -2753,8 +2768,8 @@ void RenderOnrampRoutes(
 					routeList,
 					tr::lng_wallet_buy_provider(),
 					std::move(providerText),
-					nullptr,
-					nullptr,
+					&st::walletBuyP2pIcon,
+					OnrampFallbackIconBg(route.selection.provider),
 					controller.routePendingValue(route.selection),
 					std::move(activate));
 				break;
