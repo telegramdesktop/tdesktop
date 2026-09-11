@@ -5874,46 +5874,34 @@ void WalletPhraseBox(
 }
 
 // ReadOnlyRestorable ends as soon as custody is installed, so an entry that
-// reaches this in that mode is by construction the first key use on this
-// device: it states what the restore is about to do before the cloud
-// password box and the protection chooser appear. Any other mode continues
-// with nothing shown.
-void ShowRestoreExplanation(
-		std::shared_ptr<Main::SessionShow> show,
-		Fn<void()> then,
-		Fn<void()> cancelled,
-		std::shared_ptr<CommentKeyContext> context = nullptr) {
-	if (context && !context->valid()) {
-		context->cancel();
-		return;
+// reaches the cloud password box in that mode is by construction the first
+// key use on this device: that box then carries the lock-and-key header
+// explaining what the restore is about to do, while any other mode keeps
+// the plain prompt with the given description.
+[[nodiscard]] bool RestoreIsFirstKeyUse(not_null<Main::Session*> session) {
+	const auto state = session->wallet().deviceCustodyState();
+	return (state.mode == DeviceMode::ReadOnlyRestorable);
+}
+
+[[nodiscard]] PasscodeBox::CloudFields RestorePasswordFields(
+		const Core::CloudPasswordState &state,
+		bool firstKeyUse,
+		const QString &description) {
+	auto result = PasscodeBox::CloudFields::From(state);
+	result.customSubmitButton = tr::lng_passcode_submit();
+	if (firstKeyUse) {
+		result.customHeader = PasscodeBox::CloudFields::CustomHeader{
+			.lottie = u"cloud_password/intro"_q,
+			.lottieSize = st::walletHowLottieSize,
+			.lottieMargin = st::walletHowLottieMargin,
+			.title = tr::lng_settings_cloud_password_check_subtitle(),
+			.description = tr::lng_wallet_restore_explain_text(),
+		};
+	} else {
+		result.customTitle = tr::lng_wallet_phrase_password_title();
+		result.customDescription = description;
 	}
-	const auto state = show->session().wallet().deviceCustodyState();
-	if (state.mode != DeviceMode::ReadOnlyRestorable) {
-		then();
-		return;
-	}
-	show->showBox(Ui::MakeConfirmBox({
-		.text = tr::lng_wallet_restore_explain_text(tr::now),
-		.confirmed = [=](Fn<void()> close) {
-			close();
-			if (context) {
-				context->acceptClosed();
-				if (!context->valid()) {
-					context->cancel();
-					return;
-				}
-			}
-			then();
-		},
-		.cancelled = [=](Fn<void()> close) {
-			close();
-			if (cancelled) {
-				cancelled();
-			}
-		},
-		.confirmText = tr::lng_wallet_restore_explain_confirm(),
-		.title = tr::lng_wallet_restore_explain_title(),
-	}));
+	return result;
 }
 
 void RequestPhraseReveal(
@@ -6045,68 +6033,65 @@ void StartPhraseReveal(
 			onWords);
 		return;
 	}
-	// Only this branch restores the key to the device, so it is the only one
-	// the explanation sheet belongs in front of. Both arms are guarded on the
-	// warning box, which the sheet can outlive when the layers are dropped.
-	ShowRestoreExplanation(show, crl::guard(warning, [=] {
-		session->api().cloudPassword().reload();
-		session->api().cloudPassword().state(
-		) | rpl::take(
-			1
-		) | rpl::on_next([=](const Core::CloudPasswordState &state) {
-			if (!state.hasPassword) {
-				RequestPhraseReveal(
-					show,
-					warning,
-					auth,
-					std::nullopt,
-					nullptr,
-					unblock,
-					std::nullopt,
-					onWords,
-					onAuthorized,
-					onPrepared,
-					onPromptError);
+	// Only this branch restores the key to the device, so only its password
+	// box carries the first-use explanation header.
+	const auto firstKeyUse = RestoreIsFirstKeyUse(session);
+	session->api().cloudPassword().reload();
+	session->api().cloudPassword().state(
+	) | rpl::take(
+		1
+	) | rpl::on_next([=](const Core::CloudPasswordState &state) {
+		if (!state.hasPassword) {
+			RequestPhraseReveal(
+				show,
+				warning,
+				auth,
+				std::nullopt,
+				nullptr,
+				unblock,
+				std::nullopt,
+				onWords,
+				onAuthorized,
+				onPrepared,
+				onPromptError);
+			return;
+		}
+		auto fields = RestorePasswordFields(
+			state,
+			firstKeyUse,
+			tr::lng_wallet_phrase_password_description(tr::now));
+		fields.customCheckCallback = [=](
+				const Core::CloudPasswordResult &result,
+				base::weak_qptr<PasscodeBox> passcode) {
+			if (onPromptSubmit && !onPromptSubmit()) {
 				return;
 			}
-			auto fields = PasscodeBox::CloudFields::From(state);
-			fields.customTitle = tr::lng_wallet_phrase_password_title();
-			fields.customDescription
-				= tr::lng_wallet_phrase_password_description(tr::now);
-			fields.customSubmitButton = tr::lng_passcode_submit();
-			fields.customCheckCallback = [=](
-					const Core::CloudPasswordResult &result,
-					base::weak_qptr<PasscodeBox> passcode) {
-				if (onPromptSubmit && !onPromptSubmit()) {
-					return;
-				}
-				if (passcode) {
-					passcode->showLoading(true);
-				}
-				RequestPhraseReveal(
-					show,
-					warning,
-					auth,
-					result,
-					passcode,
-					unblock,
-					std::nullopt,
-					onWords,
-					onAuthorized,
-					onPrepared,
-					onPromptError);
-			};
-			const auto passcode = show->show(Box<PasscodeBox>(session, fields));
 			if (passcode) {
-				passcode->boxClosing(
-				) | rpl::on_next([=] {
-					if (onPromptClosed) {
-						onPromptClosed();
-					}
-				}, warning->lifetime());
+				passcode->showLoading(true);
 			}
-		}, warning->lifetime());
-	}), crl::guard(warning, [=] { unblock(); }));
+			RequestPhraseReveal(
+				show,
+				warning,
+				auth,
+				result,
+				passcode,
+				unblock,
+				std::nullopt,
+				onWords,
+				onAuthorized,
+				onPrepared,
+				onPromptError);
+		};
+		const auto passcode = show->show(Box<PasscodeBox>(session, fields));
+		if (passcode) {
+			passcode->boxClosing(
+			) | rpl::on_next([=] {
+				if (onPromptClosed) {
+					onPromptClosed();
+				}
+			}, warning->lifetime());
+		}
+	}, warning->lifetime());
 }
 
 void WalletPhraseWarningBox(
@@ -6524,9 +6509,6 @@ void RequestCustodyRestore(
 	}
 }
 
-// Both restore entries come through here, so the explanation sheet sits at
-// this head: RunKeyRequiringAction's restorable arm and the backup fork's own
-// call are covered by the one placement.
 void StartCustodyRestore(
 		std::shared_ptr<Main::SessionShow> show,
 		KeyAuthorization auth,
@@ -6538,70 +6520,64 @@ void StartCustodyRestore(
 		return;
 	}
 	const auto session = &show->session();
-	ShowRestoreExplanation(show, [=] {
+	const auto firstKeyUse = RestoreIsFirstKeyUse(session);
+	session->api().cloudPassword().reload();
+	const auto lifetime = std::make_shared<rpl::lifetime>();
+	if (context) {
+		context->lifetime().add([=] { lifetime->destroy(); });
+		const auto timeout = lifetime->make_state<base::Timer>([=] {
+			const auto owned = base::take(*lifetime);
+			if (context->valid()) {
+				show->showToast(tr::lng_wallet_phrase_error(tr::now));
+			}
+			context->cancel();
+		});
+		timeout->callOnce(kCommentPasswordStateTimeout);
+	}
+	session->api().cloudPassword().state(
+	) | rpl::take(
+		1
+	) | rpl::on_next([=](const Core::CloudPasswordState &state) {
+		const auto owned = base::take(*lifetime);
 		if (context && !context->valid()) {
 			context->cancel();
 			return;
 		}
-		session->api().cloudPassword().reload();
-		const auto lifetime = std::make_shared<rpl::lifetime>();
-		if (context) {
-			context->lifetime().add([=] { lifetime->destroy(); });
-			const auto timeout = lifetime->make_state<base::Timer>([=] {
-				const auto owned = base::take(*lifetime);
-				if (context->valid()) {
-					show->showToast(tr::lng_wallet_phrase_error(tr::now));
-				}
-				context->cancel();
-			});
-			timeout->callOnce(kCommentPasswordStateTimeout);
+		if (!state.hasPassword) {
+			RequestCustodyRestore(
+				show,
+				auth,
+				std::nullopt,
+				nullptr,
+				action,
+				unblock,
+				context);
+			return;
 		}
-		session->api().cloudPassword().state(
-		) | rpl::take(
-			1
-		) | rpl::on_next([=](const Core::CloudPasswordState &state) {
-			const auto owned = base::take(*lifetime);
-			if (context && !context->valid()) {
-				context->cancel();
-				return;
-			}
-			if (!state.hasPassword) {
-				RequestCustodyRestore(
-					show,
-					auth,
-					std::nullopt,
-					nullptr,
-					action,
-					unblock,
-					context);
-				return;
-			}
-			auto fields = PasscodeBox::CloudFields::From(state);
-			fields.customShow = context;
-			fields.customTitle = tr::lng_wallet_phrase_password_title();
-			fields.customDescription
-				= tr::lng_wallet_restore_password_description(tr::now);
-			fields.customSubmitButton = tr::lng_passcode_submit();
-			fields.customCheckCallback = [=](
-					const Core::CloudPasswordResult &result,
-					base::weak_qptr<PasscodeBox> passcode) {
-				RequestCustodyRestore(
-					show,
-					auth,
-					result,
-					passcode,
-					action,
-					unblock,
-					context);
-			};
-			const auto passcode = show->show(Box<PasscodeBox>(session, fields));
-			if (context) {
-				context->cancelOnClose(passcode, true);
-			} else if (unblock) {
-				unblock();
-			}
-		}, *lifetime);
-	}, context ? Fn<void()>([=] { context->cancel(); }) : unblock, context);
+		auto fields = RestorePasswordFields(
+			state,
+			firstKeyUse,
+			tr::lng_wallet_restore_password_description(tr::now));
+		fields.customShow = context;
+		fields.customCheckCallback = [=](
+				const Core::CloudPasswordResult &result,
+				base::weak_qptr<PasscodeBox> passcode) {
+			RequestCustodyRestore(
+				show,
+				auth,
+				result,
+				passcode,
+				action,
+				unblock,
+				context);
+		};
+		const auto passcode = show->show(Box<PasscodeBox>(session, fields));
+		if (context) {
+			context->cancelOnClose(passcode, true);
+		} else if (unblock) {
+			unblock();
+		}
+	}, *lifetime);
 }
 
 enum class KeyActionKind {

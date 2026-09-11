@@ -26,11 +26,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/password_input.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/wrap/vertical_layout.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "lottie/lottie_icon.h"
 #include "passport/passport_encryption.h"
 #include "passport/passport_panel_edit_contact.h"
 #include "settings/sections/settings_privacy_security.h"
+#include "settings/settings_common.h"
+#include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 #include "styles/style_passcode_box.h"
 #include "base/qt/qt_common_adapters.h"
@@ -295,7 +299,51 @@ bool PasscodeBox::onlyCheckCurrent() const {
 	return _turningOff || _cloudFields.customCheckCallback;
 }
 
+void PasscodeBox::setupHeader(CloudFields::CustomHeader &header) {
+	_header.create(this);
+	auto icon = Settings::CreateLottieIcon(
+		_header.data(),
+		{
+			.name = header.lottie,
+			.sizeOverride = { header.lottieSize, header.lottieSize },
+		},
+		header.lottieMargin);
+	_header->add(std::move(icon.widget));
+	_headerAnimate = [animate = std::move(icon.animate)] {
+		animate(anim::repeat::once);
+	};
+	_header->add(
+		object_ptr<Ui::FlatLabel>(
+			_header.data(),
+			std::move(header.title),
+			st::changePhoneTitle),
+		st::changePhoneTitlePadding,
+		style::al_top);
+	_header->add(
+		object_ptr<Ui::FlatLabel>(
+			_header.data(),
+			std::move(header.description),
+			st::changePhoneDescription),
+		style::margins(
+			st::boxPadding.left(),
+			st::changePhoneDescriptionPadding.top(),
+			st::boxPadding.right(),
+			st::passcodeSkip),
+		style::al_top
+	)->setTryMakeSimilarLines(true);
+	_header->resizeToWidth(st::boxWidth);
+	_headerHeight = _header->height();
+}
+
+void PasscodeBox::showFinished() {
+	if (const auto animate = base::take(_headerAnimate)) {
+		animate();
+	}
+}
+
 void PasscodeBox::prepare() {
+	Expects(!_cloudFields.customHeader || onlyCheckCurrent());
+
 	addButton(
 		(_cloudFields.customSubmitButton
 			? std::move(_cloudFields.customSubmitButton)
@@ -305,23 +353,33 @@ void PasscodeBox::prepare() {
 		[=] { save(); });
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
+	const auto header = _cloudFields.customHeader.has_value();
+	if (header) {
+		setupHeader(*_cloudFields.customHeader);
+	}
 	_about.setText(
 		st::passcodeTextStyle,
-		(_cloudFields.customDescription
+		(header
+			? QString()
+			: _cloudFields.customDescription
 			? *_cloudFields.customDescription
 			: _cloudPwd
 			? tr::lng_cloud_password_about(tr::now)
 			: tr::lng_passcode_about(tr::now)));
-	_aboutHeight = _about.countHeight(_textWidth);
+	_aboutHeight = header ? 0 : _about.countHeight(_textWidth);
 	const auto onlyCheck = onlyCheckCurrent();
 	if (onlyCheck) {
 		_oldPasscode->show();
-		setTitle(_cloudFields.customTitle
-			? std::move(_cloudFields.customTitle)
-			: _cloudPwd
-			? tr::lng_cloud_password_remove()
-			: tr::lng_passcode_remove());
-		setDimensions(st::boxWidth, st::passcodePadding.top() + _oldPasscode->height() + st::passcodeTextLine + ((_showRecoverLink && !_hintText.isEmpty()) ? st::passcodeTextLine : 0) + st::passcodeAboutSkip + _aboutHeight + st::passcodePadding.bottom());
+		if (header) {
+			setNoContentMargin(true);
+		} else {
+			setTitle(_cloudFields.customTitle
+				? std::move(_cloudFields.customTitle)
+				: _cloudPwd
+				? tr::lng_cloud_password_remove()
+				: tr::lng_passcode_remove());
+		}
+		setDimensions(st::boxWidth, _headerHeight + st::passcodePadding.top() + _oldPasscode->height() + st::passcodeTextLine + ((_showRecoverLink && !_hintText.isEmpty()) ? st::passcodeTextLine : 0) + (header ? 0 : st::passcodeAboutSkip + _aboutHeight) + st::passcodePadding.bottom());
 	} else {
 		if (currentlyHave()) {
 			_oldPasscode->show();
@@ -453,7 +511,11 @@ void PasscodeBox::resizeEvent(QResizeEvent *e) {
 	const auto has = currentlyHave();
 	int32 w = st::boxWidth - st::boxPadding.left() - st::boxPadding.right();
 	_oldPasscode->resize(w, _oldPasscode->height());
-	_oldPasscode->moveToLeft(st::boxPadding.left(), st::passcodePadding.top());
+	if (_header) {
+		_header->resizeToWidth(width());
+		_header->moveToLeft(0, 0);
+	}
+	_oldPasscode->moveToLeft(st::boxPadding.left(), _headerHeight + st::passcodePadding.top());
 	_newPasscode->resize(w, _newPasscode->height());
 	_newPasscode->moveToLeft(st::boxPadding.left(), _oldPasscode->y() + ((_turningOff || has) ? (_oldPasscode->height() + st::passcodeTextLine + ((_showRecoverLink && !_hintText.isEmpty()) ? st::passcodeTextLine : 0)) : 0));
 	_reenterPasscode->resize(w, _reenterPasscode->height());
