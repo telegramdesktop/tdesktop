@@ -216,16 +216,22 @@ constexpr auto kStorySavePromoDuration = 3 * crl::time(1000);
 
 class PipDelegate final : public Pip::Delegate {
 public:
-	PipDelegate(QWidget *parent, not_null<Main::Session*> session);
+	PipDelegate(
+		QWidget *parent,
+		not_null<Main::Session*> session,
+		not_null<OverlayWidget*> owner);
 
 	void pipSaveGeometry(QByteArray geometry) override;
 	QByteArray pipLoadGeometry() override;
 	float64 pipPlaybackSpeed() override;
 	QWidget *pipParentWidget() override;
+	bool pipCanNavigate(int delta) override;
+	void pipNavigate(int delta) override;
 
 private:
 	QWidget *_parent = nullptr;
 	not_null<Main::Session*> _session;
+	const not_null<OverlayWidget*> _owner;
 
 };
 
@@ -249,9 +255,21 @@ private:
 	};
 }
 
-PipDelegate::PipDelegate(QWidget *parent, not_null<Main::Session*> session)
+PipDelegate::PipDelegate(
+	QWidget *parent,
+	not_null<Main::Session*> session,
+	not_null<OverlayWidget*> owner)
 : _parent(parent)
-, _session(session) {
+, _session(session)
+, _owner(owner) {
+}
+
+bool PipDelegate::pipCanNavigate(int delta) {
+	return _owner->pipCanNavigate(delta);
+}
+
+void PipDelegate::pipNavigate(int delta) {
+	_owner->pipNavigate(delta);
 }
 
 void PipDelegate::pipSaveGeometry(QByteArray geometry) {
@@ -505,7 +523,8 @@ struct OverlayWidget::PipWrap {
 		VideoQuality quality,
 		std::shared_ptr<Streaming::Document> shared,
 		FnMut<void()> closeAndContinue,
-		FnMut<void()> destroy);
+		FnMut<void()> destroy,
+		not_null<OverlayWidget*> owner);
 
 	PipWrap(const PipWrap &other) = delete;
 	PipWrap &operator=(const PipWrap &other) = delete;
@@ -639,8 +658,9 @@ OverlayWidget::PipWrap::PipWrap(
 	VideoQuality quality,
 	std::shared_ptr<Streaming::Document> shared,
 	FnMut<void()> closeAndContinue,
-	FnMut<void()> destroy)
-: delegate(parent, &document->session())
+	FnMut<void()> destroy,
+	not_null<OverlayWidget*> owner)
+: delegate(parent, &document->session(), owner)
 , wrapped(
 	&delegate,
 	document,
@@ -4470,7 +4490,11 @@ not_null<QWidget*> OverlayWidget::widget() const {
 }
 
 void OverlayWidget::hide() {
-	clearBeforeHide();
+	const auto toPip = (_pip != nullptr);
+	if (!toPip) {
+		_preferPip = false;
+	}
+	clearBeforeHide(toPip);
 	applyHideWindowWorkaround();
 	_window->hide();
 	if (Platform::IsWayland()) {
@@ -4927,18 +4951,34 @@ void OverlayWidget::updateThemePreviewGeometry() {
 
 void OverlayWidget::displayFinished(anim::activation activation) {
 	updateControls();
+	if (_pipNavigating) {
+		return;
+	}
+	const auto background = (activation == anim::activation::background);
 	if (isHidden()) {
 		_helper->beforeShow(_fullscreen);
 		moveToScreen();
 		showAndActivate();
-	} else if (activation == anim::activation::background) {
-		return;
-	} else if (isMinimized()) {
-		_helper->beforeShow(_fullscreen);
-		showAndActivate();
-	} else {
-		activate();
+	} else if (!background) {
+		if (isMinimized()) {
+			_helper->beforeShow(_fullscreen);
+			showAndActivate();
+		} else {
+			activate();
+		}
 	}
+	restorePipIfPreferred();
+}
+
+void OverlayWidget::restorePipIfPreferred() {
+	if (!_preferPip || _pip || _pipNavigating) {
+		return;
+	}
+	InvokeQueued(_widget, [=] {
+		if (_preferPip && !_pip && !_pipNavigating && _document && _streamed) {
+			switchToPip();
+		}
+	});
 }
 
 void OverlayWidget::showAndActivate() {
@@ -5777,6 +5817,32 @@ void OverlayWidget::applyVideoQuality(VideoQuality value) {
 	}
 }
 
+bool OverlayWidget::pipCanNavigate(int delta) const {
+	return (delta < 0) ? _leftNavVisible : _rightNavVisible;
+}
+
+void OverlayWidget::pipNavigate(int delta) {
+	if (_pipNavigating) {
+		return;
+	}
+	_pipNavigating = true;
+	InvokeQueued(_widget, [=] {
+		const auto finish = gsl::finally([=] { _pipNavigating = false; });
+		if (!_pip) {
+			return;
+		}
+		const auto generation = _pipGeneration;
+		if (!moveToNext(delta)) {
+			return;
+		} else if (_pipGeneration != generation) {
+			return;
+		}
+		_pip = nullptr;
+		_showAsPip = false;
+		showAndActivate();
+	});
+}
+
 void OverlayWidget::switchToPip() {
 	Expects(_streamed != nullptr);
 	Expects(_document != nullptr);
@@ -5787,6 +5853,7 @@ void OverlayWidget::switchToPip() {
 	const auto monoforumPeerId = _monoforumPeerId;
 	const auto closeAndContinue = [=] {
 		_showAsPip = false;
+		_preferPip = false;
 		show(OpenRequest(
 			findWindow(false),
 			document,
@@ -5796,6 +5863,8 @@ void OverlayWidget::switchToPip() {
 			true));
 	};
 	_showAsPip = true;
+	_preferPip = true;
+	++_pipGeneration;
 	_pip = std::make_unique<PipWrap>(
 		_window,
 		document,
@@ -5805,7 +5874,8 @@ void OverlayWidget::switchToPip() {
 		_quality,
 		_streamed->instance.shared(),
 		closeAndContinue,
-		[=] { _pip = nullptr; });
+		[=] { _pip = nullptr; },
+		this);
 
 	if (const auto raw = _message) {
 		raw->history()->owner().itemRemoved(
@@ -5824,7 +5894,7 @@ void OverlayWidget::switchToPip() {
 	}
 
 	if (isHidden()) {
-		clearBeforeHide();
+		clearBeforeHide(true);
 		clearAfterHide();
 	} else {
 		close();
@@ -8812,22 +8882,26 @@ Window::SessionController *OverlayWidget::findWindow(bool switchTo) const {
 }
 
 // #TODO unite and check
-void OverlayWidget::clearBeforeHide() {
+void OverlayWidget::clearBeforeHide(bool keepMediaContext) {
 	checkSingleViewMediaBurn();
-	_message = nullptr;
-	_sharedMedia = nullptr;
-	_sharedMediaData = std::nullopt;
-	_sharedMediaDataKey = std::nullopt;
-	_userPhotos = nullptr;
-	_userPhotosData = std::nullopt;
-	_instantViewMedia = nullptr;
-	_instantViewMediaData = std::nullopt;
-	_collage = nullptr;
-	_collageData = std::nullopt;
+	if (!keepMediaContext) {
+		_message = nullptr;
+		_sharedMedia = nullptr;
+		_sharedMediaData = std::nullopt;
+		_sharedMediaDataKey = std::nullopt;
+		_userPhotos = nullptr;
+		_userPhotosData = std::nullopt;
+		_instantViewMedia = nullptr;
+		_instantViewMediaData = std::nullopt;
+		_collage = nullptr;
+		_collageData = std::nullopt;
+	}
 	clearStreaming();
 	setStoriesPeer(nullptr);
 	_layerBg->hideAll(anim::type::instant);
-	assignMediaPointer(nullptr);
+	if (!keepMediaContext) {
+		assignMediaPointer(nullptr);
+	}
 	_preloadPhotos.clear();
 	_preloadDocuments.clear();
 	if (_menu) {

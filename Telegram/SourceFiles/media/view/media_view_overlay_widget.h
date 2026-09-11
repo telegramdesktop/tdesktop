@@ -121,6 +121,9 @@ public:
 	[[nodiscard]] bool takeFocusFrom(not_null<QWidget*> window) const;
 	void activate();
 
+	[[nodiscard]] bool pipCanNavigate(int delta) const;
+	void pipNavigate(int delta);
+
 	void show(OpenRequest request);
 
 	void activateControls();
@@ -275,6 +278,7 @@ private:
 	void playbackResumeOnCall();
 	void playbackPauseMusic();
 	void switchToPip();
+	void restorePipIfPreferred();
 	[[nodiscard]] int topNotchSkip() const;
 	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow();
 
@@ -336,7 +340,7 @@ private:
 		crl::time duration = 0);
 	void updateSaveMsg();
 
-	void clearBeforeHide();
+	void clearBeforeHide(bool keepMediaContext = false);
 	void clearAfterHide();
 
 	void assignMediaPointer(DocumentData *document);
@@ -741,6 +745,9 @@ private:
 	int _streamedCreated = 0;
 	bool _streamedQualityChangeFinished = false;
 	bool _showAsPip = false;
+	bool _pipNavigating = false;
+	bool _preferPip = false;
+	int _pipGeneration = 0;
 
 	Qt::Orientations _flip;
 
