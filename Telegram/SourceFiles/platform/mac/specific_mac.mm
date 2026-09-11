@@ -529,6 +529,24 @@ void LaunchMaps(const Data::LocationPoint &point, Fn<void()> fail) {
 	}
 }
 
+QString LocalizedCurrencyName(
+		const QString &currency,
+		const QString &languageId) {
+	@autoreleasepool {
+		NSLocale *locale = [NSLocale localeWithLocaleIdentifier:
+			Q2NSString(languageId)];
+		// An unknown language falls back to the system one, not to English.
+		NSString *language = locale.languageCode;
+		if (!language || ![[NSLocale availableLocaleIdentifiers]
+				containsObject:language]) {
+			return QString();
+		}
+		NSString *name = [locale localizedStringForCurrencyCode:
+			Q2NSString(currency)];
+		return name ? NS2QString(name) : QString();
+	}
+}
+
 } // namespace Platform
 
 void psSendToMenu(bool send, bool silent) {

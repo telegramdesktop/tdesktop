@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/windows_autostart_task.h"
 #include "base/platform/base_platform_info.h"
 #include "base/platform/win/base_windows_co_task_mem.h"
+#include "base/platform/win/base_windows_safe_library.h"
 #include "base/platform/win/base_windows_shlobj_h.h"
 #include "base/platform/win/base_windows_winrt.h"
 #include "base/call_delayed.h"
@@ -710,6 +711,53 @@ void NewVersionLaunched(int oldVersion) {
 
 QImage DefaultApplicationIcon() {
 	return Window::Logo();
+}
+
+QString LocalizedCurrencyName(
+		const QString &currency,
+		const QString &languageId) {
+	// Windows 10 1903+ ships ICU as icu.dll and 1703+ as icuuc.dll, both
+	// exporting the unversioned C API. ucurr_getName() reports
+	// U_USING_DEFAULT_WARNING both when it has no name and answers the ISO
+	// code itself, and when it fell back to the default (system) locale,
+	// which here would mean a name in the wrong language.
+	using GetName = const char16_t*(*)(
+		const char16_t *currency,
+		const char *locale,
+		int nameStyle,
+		int8_t *isChoiceFormat,
+		int32_t *length,
+		int *errorCode);
+	static const auto method = [] {
+		auto result = GetName();
+		for (const auto name : { L"icu.dll", L"icuuc.dll" }) {
+			const auto library = base::Platform::SafeLoadLibrary(name);
+			if (base::Platform::LoadMethod(library, "ucurr_getName", result)) {
+				break;
+			}
+		}
+		return result;
+	}();
+	if (!method) {
+		return QString();
+	}
+	constexpr auto kLongName = 1;
+	constexpr auto kUsingDefaultWarning = -127;
+	const auto code = currency.toUpper();
+	const auto locale = languageId.toUtf8();
+	auto choice = int8_t();
+	auto length = int32_t();
+	auto error = 0;
+	const auto name = method(
+		reinterpret_cast<const char16_t*>(code.utf16()),
+		locale.constData(),
+		kLongName,
+		&choice,
+		&length,
+		&error);
+	return (!name || error > 0 || error == kUsingDefaultWarning || length <= 0)
+		? QString()
+		: QString(reinterpret_cast<const QChar*>(name), length);
 }
 
 void LaunchMaps(const Data::LocationPoint &point, Fn<void()> fail) {

@@ -8896,10 +8896,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_keys_phrase_section" = "Recovery Phrase";
 "lng_wallet_keys_show_phrase" = "Show Recovery Phrase";
 "lng_wallet_keys_phrase_about" = "You can transfer your wallet to another device by copying your recovery phrase.";
-"lng_wallet_keys_location_device" = "Your wallet keys are on this device, protected by {protection}.";
-"lng_wallet_keys_location_unavailable" = "Your wallet keys are on this device, but their protection can't be used right now.";
-"lng_wallet_keys_location_backup" = "Your wallet keys are backed up with Telegram and will be restored to this device the first time you send or export.";
-"lng_wallet_keys_location_absent" = "Your wallet keys are NOT on this device. You need your recovery phrase to send from here.";
 "lng_wallet_keys_delete" = "Delete Wallet";
 "lng_wallet_phrase_intro_title" = "Recovery Phrase";
 "lng_wallet_phrase_intro_text" = "Your Secret Recovery Phrase is the key to back up your wallet. Keep it secret and secure at all times.";
@@ -8968,9 +8964,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_protection_create_confirm" = "Re-enter passcode";
 "lng_wallet_protection_create_lock_error" = "The passcode was created, but Telegram will still ask for it at launch. You can turn that off in Settings. The wallet key's protection was not changed.";
 "lng_wallet_protection_error" = "The wallet key's protection could not be changed. Please try again.";
-"lng_wallet_protection_label_passcode" = "your local passcode";
-"lng_wallet_protection_label_open_lock" = "only the app passcode, with nothing asked before use";
-"lng_wallet_protection_label_open_nolock" = "nothing — the key is not encrypted";
 "lng_wallet_protection_touchid" = "Unlock with Touch ID";
 "lng_wallet_protection_touchid_about" = "The key is encrypted with a key kept in this Mac's Secure Enclave. Every use asks for Touch ID or your Mac password.";
 "lng_wallet_protection_touchid_binding" = "Bound to this Mac. To use the wallet on another Mac, restore it from Telegram's encrypted backup or with your recovery phrase.";

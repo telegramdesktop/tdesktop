@@ -341,8 +341,8 @@ void VaultPasscodeChange::run() {
 // Application::localPasscodeChanged(), whose synchronous auto-lock fan-out
 // can tear down UI and clear runtimes.
 // Per-vault notifyKeyProtectionChanged() also runs while later headers remain
-// staged. Current CollectVaultDependents and KeyLocationNow metadata readers
-// use non-writing ReadVaultHeader(), which filters stages only in its copy.
+// staged. The current CollectVaultDependents metadata reader uses
+// non-writing ReadVaultHeader(), which filters stages only in its copy.
 // A subscriber reaching ReconcileVaultHeader() or VaultRuntime::reading()
 // would persist that removal, strip record entries and write away a stage
 // between these steps.
@@ -1681,36 +1681,6 @@ ProtectionProvider *ProtectionProviderFor(VaultKind kind) {
 			return (provider->kind() == kind);
 		});
 	return (i != end(list)) ? i->get() : nullptr;
-}
-
-bool ProtectionAvailableNow(VaultKind kind) {
-	const auto provider = ProtectionProviderFor(kind);
-	return provider && AvailableNow(*provider);
-}
-
-rpl::producer<> ProtectionAvailabilityChanges() {
-	auto list = std::vector<rpl::producer<bool>>();
-	for (const auto &provider : Providers()) {
-		list.push_back(provider->available());
-	}
-	return rpl::combine(std::move(list)) | rpl::skip(1) | rpl::to_empty;
-}
-
-rpl::producer<QString> ProtectionLabel(
-		VaultKind kind,
-		bool appLockEnabled) {
-	switch (kind) {
-	case VaultKind::Passcode:
-		return tr::lng_wallet_protection_label_passcode();
-	case VaultKind::Open:
-		return appLockEnabled
-			? tr::lng_wallet_protection_label_open_lock()
-			: tr::lng_wallet_protection_label_open_nolock();
-	}
-	if (const auto provider = ProtectionProviderFor(kind)) {
-		return provider->label();
-	}
-	return tr::lng_wallet_vault_unavailable();
 }
 
 void ShowKeyProtectionBox(

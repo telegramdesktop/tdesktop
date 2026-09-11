@@ -8487,99 +8487,6 @@ void WalletConflictBox(
 	});
 }
 
-enum class KeyLocation : uchar {
-	Unknown,
-	OnDevice,
-	Unavailable,
-	Restorable,
-	NotRestorable,
-};
-
-// The mode, the committed wrap's kind and the app-lock predicate are read
-// at three different instants from three different owners. Publishing them
-// as one comparable value is what lets distinct_until_changed() drop the
-// re-emission localPasscodeChanged() produces for every unrelated key_data
-// write, before the label producers are rebuilt.
-struct KeyLocationState {
-	KeyLocation location = KeyLocation::Unknown;
-	VaultKind kind = VaultKind::Passcode;
-	bool appLockEnabled = false;
-
-	friend bool operator==(
-		const KeyLocationState &,
-		const KeyLocationState &) = default;
-};
-
-// Metadata only: the vault is never unlocked, no secret is read and
-// nothing is written - ReadVaultHeader() is the read that does not
-// rewrite a dirty header the way ReconcileVaultHeader() does.
-[[nodiscard]] KeyLocationState KeyLocationNow(
-		not_null<Main::Session*> session) {
-	auto result = KeyLocationState();
-	// Cached verification labels real protection without secret access here.
-	result.appLockEnabled = session->domain().local().appLockEnabled();
-	switch (session->wallet().deviceCustodyState().mode) {
-	case DeviceMode::Unknown:
-		return result;
-	case DeviceMode::ReadOnlyRestorable:
-		result.location = KeyLocation::Restorable;
-		return result;
-	case DeviceMode::ReadOnlyNotRestorable:
-		result.location = KeyLocation::NotRestorable;
-		return result;
-	case DeviceMode::Full:
-		break;
-	}
-	const auto reading = ReadVaultHeader(session->local());
-	const auto wrap = (reading.state == VaultReading::State::Read)
-		? reading.header.committedWrap()
-		: nullptr;
-	if (!wrap) {
-		result.location = KeyLocation::Unavailable;
-		return result;
-	}
-	result.kind = wrap->kind;
-	// ProtectionLabel() answers a whole sentence, not a fragment, for a kind
-	// no provider claims, so such a kind may never reach the device line's
-	// placeholder - it is the currently-unavailable state instead, and so is
-	// a registered provider that does not report available right now.
-	const auto named = (wrap->kind == VaultKind::Passcode)
-		|| (wrap->kind == VaultKind::Open)
-		|| ProtectionAvailableNow(wrap->kind);
-	result.location = named
-		? KeyLocation::OnDevice
-		: KeyLocation::Unavailable;
-	return result;
-}
-
-[[nodiscard]] rpl::producer<QString> KeyLocationText(
-		not_null<Main::Session*> session) {
-	return rpl::combine(
-		session->wallet().deviceCustodyStateValue(),
-		rpl::single(rpl::empty) | rpl::then(rpl::merge(
-			session->domain().local().localPasscodeChanged(),
-			session->wallet().keyProtectionUpdates(),
-			ProtectionAvailabilityChanges()))
-	) | rpl::map([=](const DeviceCustodyState &, auto) {
-		return KeyLocationNow(session);
-	}) | rpl::distinct_until_changed(
-	) | rpl::map([](KeyLocationState state) -> rpl::producer<QString> {
-		switch (state.location) {
-		case KeyLocation::OnDevice:
-			return tr::lng_wallet_keys_location_device(
-				lt_protection,
-				ProtectionLabel(state.kind, state.appLockEnabled));
-		case KeyLocation::Unavailable:
-			return tr::lng_wallet_keys_location_unavailable();
-		case KeyLocation::Restorable:
-			return tr::lng_wallet_keys_location_backup();
-		case KeyLocation::NotRestorable:
-			return tr::lng_wallet_keys_location_absent();
-		}
-		return rpl::single(QString());
-	}) | rpl::flatten_latest();
-}
-
 void AddBackupSection(
 		not_null<Ui::VerticalLayout*> container,
 		std::shared_ptr<Main::SessionShow> show,
@@ -8689,14 +8596,7 @@ void WalletKeysBackupBox(
 			nullptr));
 	});
 	Ui::AddSkip(container);
-	Ui::AddDividerText(container, rpl::combine(
-		KeyLocationText(&show->session()),
-		tr::lng_wallet_keys_phrase_about()
-	) | rpl::map([](const QString &location, const QString &about) {
-		return location.isEmpty()
-			? about
-			: (location + u"\n\n"_q + about);
-	}));
+	Ui::AddDividerText(container, tr::lng_wallet_keys_phrase_about());
 	Ui::AddSkip(container);
 	AddBackupSection(container, show, box);
 	Settings::AddButtonWithIcon(
@@ -10226,6 +10126,7 @@ private:
 	struct Row {
 		QString code;
 		QString name;
+		QStringList words;
 	};
 
 	[[nodiscard]] const std::vector<Row> &current() const;
@@ -10242,7 +10143,7 @@ private:
 	const Fn<void(QString)> _chosen;
 	const std::optional<std::vector<QString>> _allowedCodes;
 	QString _activeCode;
-	QString _filter;
+	QStringList _filter;
 	std::vector<Row> _rows;
 	std::vector<Row> _filtered;
 	std::vector<std::unique_ptr<Ui::RippleAnimation>> _ripples;
@@ -10339,11 +10240,11 @@ CurrencyListWidget::CurrencyListWidget(
 }
 
 void CurrencyListWidget::updateFilter(const QString &query) {
-	const auto filter = query.trimmed();
+	auto filter = TextUtilities::PrepareSearchWords(query);
 	if (_filter == filter) {
 		return;
 	}
-	_filter = filter;
+	_filter = std::move(filter);
 	refreshFiltered();
 	_selected = current().empty() ? -1 : 0;
 	update();
@@ -10540,8 +10441,11 @@ auto CurrencyListWidget::current() const
 }
 
 bool CurrencyListWidget::rowMatches(const Row &row) const {
-	return row.code.startsWith(_filter, Qt::CaseInsensitive)
-		|| row.name.startsWith(_filter, Qt::CaseInsensitive);
+	return ranges::all_of(_filter, [&](const QString &word) {
+		return ranges::any_of(row.words, [&](const QString &name) {
+			return name.startsWith(word);
+		});
+	});
 }
 
 void CurrencyListWidget::refreshRows() {
@@ -10555,8 +10459,18 @@ void CurrencyListWidget::refreshRows() {
 			&& !ranges::contains(*_allowedCodes, code.toUpper())) {
 			continue;
 		}
-		const auto name = Ui::CurrencyName(code);
-		_rows.push_back({ code, (name == code) ? QString() : name });
+		const auto names = LookupCurrencyNames(code);
+		_rows.push_back({
+			.code = code,
+			.name = (names.localized.isEmpty()
+				? names.english
+				: names.localized),
+			.words = TextUtilities::PrepareSearchWords(QStringList{
+				code,
+				names.english,
+				names.localized,
+			}.join(QChar(' '))),
+		});
 	}
 	refreshFiltered();
 }

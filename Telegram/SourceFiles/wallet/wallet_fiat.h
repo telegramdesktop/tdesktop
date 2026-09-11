@@ -39,6 +39,13 @@ struct FiatRate {
 	int decimals = kFiatCurrencyDecimals,
 	bool approximate = false);
 
+struct CurrencyNames {
+	QString english;
+	QString localized;
+};
+
+[[nodiscard]] CurrencyNames LookupCurrencyNames(const QString &currency);
+
 [[nodiscard]] int64 FiatMinorUnitNanos(const QString &currency);
 
 [[nodiscard]] rpl::producer<FiatRate> FiatRateValue(

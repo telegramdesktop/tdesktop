@@ -124,18 +124,6 @@ void RegisterProtectionProvider(std::unique_ptr<ProtectionProvider> provider);
 
 [[nodiscard]] ProtectionProvider *ProtectionProviderFor(VaultKind kind);
 
-// A synchronous read of the registered provider's available(); false for a
-// kind no provider is registered for.
-[[nodiscard]] bool ProtectionAvailableNow(VaultKind kind);
-
-// Fires after any registered provider's availability changes and never emits
-// the initial values; completes at once while the registry is empty.
-[[nodiscard]] rpl::producer<> ProtectionAvailabilityChanges();
-
-[[nodiscard]] rpl::producer<QString> ProtectionLabel(
-	VaultKind kind,
-	bool appLockEnabled);
-
 // Install: the account has no vault yet and the box hands back an armed
 // creation policy. Switch: the key is on this device and the box moves one
 // vault from one kind to another. Removal: one choice is applied to every

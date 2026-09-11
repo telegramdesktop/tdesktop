@@ -53,6 +53,7 @@ struct CurrencyRule {
 [[nodiscard]] CurrencyRule LookupCurrencyRule(const QString &currency);
 [[nodiscard]] bool KnownCurrency(const QString &currency);
 [[nodiscard]] QString CurrencyName(const QString &currency);
+[[nodiscard]] QString CurrencyEnglishName(const QString &currency);
 [[nodiscard]] QString FormatWithSeparators(
 	double amount,
 	int precision,

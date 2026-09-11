@@ -857,6 +857,12 @@ QString ApplicationIconName() {
 	return Result;
 }
 
+QString LocalizedCurrencyName(
+		const QString &currency,
+		const QString &languageId) {
+	return QString();
+}
+
 void LaunchMaps(const Data::LocationPoint &point, Fn<void()> fail) {
 	const auto url = QUrl(
 		u"geo:%1,%2"_q.arg(point.latAsString(), point.lonAsString()));

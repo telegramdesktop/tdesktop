@@ -7,7 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "wallet/wallet_fiat.h"
 
+#include "lang/lang_instance.h"
 #include "main/main_session.h"
+#include "platform/platform_specific.h"
 #include "ui/controls/ton_common.h"
 #include "ui/text/format_values.h"
 #include "wallet/wallet_rates.h"
@@ -65,6 +67,32 @@ QString FormatFiat(
 			result += QChar(' ');
 		}
 		result += name;
+	}
+	return result;
+}
+
+CurrencyNames LookupCurrencyNames(const QString &currency) {
+	auto result = CurrencyNames{
+		.english = Ui::CurrencyEnglishName(currency),
+	};
+	const auto &lang = Lang::GetInstance();
+	const auto base = lang.cloudLangCode(Lang::Pack::Base);
+	auto languageId = base.isEmpty()
+		? lang.cloudLangCode(Lang::Pack::Current)
+		: base;
+	languageId.replace(QChar('-'), QChar('_'));
+	if (languageId.isEmpty()
+		|| languageId == u"en"_q
+		|| languageId.startsWith(u"en_"_q)) {
+		return result;
+	}
+	auto localized = Platform::LocalizedCurrencyName(currency, languageId);
+	if (localized.isEmpty()) {
+		return result;
+	}
+	localized[0] = localized[0].toUpper();
+	if (localized != currency && localized != result.english) {
+		result.localized = std::move(localized);
 	}
 	return result;
 }
