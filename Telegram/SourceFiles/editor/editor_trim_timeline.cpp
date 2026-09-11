@@ -820,6 +820,9 @@ void TrimTimeline::mousePressEvent(QMouseEvent *e) {
 
 void TrimTimeline::mouseMoveEvent(QMouseEvent *e) {
 	const auto position = e->pos();
+	if (_grab != Grab::None && !(e->buttons() & _grabButton)) {
+		releaseGrab();
+	}
 	if (_grab == Grab::None) {
 		updateCursor(grabAt(position, e->modifiers()));
 		return;
@@ -839,13 +842,26 @@ void TrimTimeline::mouseReleaseEvent(QMouseEvent *e) {
 	if (_grab == Grab::None || e->button() != _grabButton) {
 		return;
 	}
-	const auto wasHead = (_grab == Grab::Head);
-	const auto wasSelection = grabMovesSelection();
 	const auto hintClicked = (_grab == Grab::Hint)
 		&& hintRect(_hintGrabLeft).contains(e->pos())
 		&& (_hintGrabLeft ? _hintLeftShown : _hintRightShown);
 	const auto labelClicked = (_grab == Grab::Label)
 		&& durationHitRect().contains(e->pos());
+	releaseGrab();
+	if (hintClicked) {
+		scrollToSelection();
+	} else if (labelClicked) {
+		editDuration();
+	}
+	updateCursor(grabAt(e->pos(), e->modifiers()));
+}
+
+void TrimTimeline::releaseGrab() {
+	if (_grab == Grab::None) {
+		return;
+	}
+	const auto wasHead = (_grab == Grab::Head);
+	const auto wasSelection = grabMovesSelection();
 	_grab = Grab::None;
 	_grabButton = Qt::NoButton;
 	_grabShift = 0;
@@ -853,15 +869,10 @@ void TrimTimeline::mouseReleaseEvent(QMouseEvent *e) {
 	if (wasHead) {
 		headGrabChanged(false);
 	}
-	if (hintClicked) {
-		scrollToSelection();
-	} else if (labelClicked) {
-		editDuration();
-	}
-	updateCursor(grabAt(e->pos(), e->modifiers()));
 	if (wasSelection) {
 		_draggingChanges.fire(false);
 	}
+	update();
 }
 
 void TrimTimeline::wheelEvent(QWheelEvent *e) {
@@ -882,7 +893,10 @@ void TrimTimeline::wheelEvent(QWheelEvent *e) {
 }
 
 bool TrimTimeline::eventHook(QEvent *e) {
-	if (e->type() == QEvent::NativeGesture) {
+	const auto type = e->type();
+	if (type == QEvent::ContextMenu || type == QEvent::Hide) {
+		releaseGrab();
+	} else if (type == QEvent::NativeGesture) {
 		const auto gesture = static_cast<QNativeGestureEvent*>(e);
 		const auto type = gesture->gestureType();
 		if (type == Qt::ZoomNativeGesture) {

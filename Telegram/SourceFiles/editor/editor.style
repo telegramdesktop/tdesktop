@@ -215,6 +215,19 @@ photoEditorAudioDiscRingFg: mediaviewControlFg;
 photoEditorAudioDiscIcon: icon {{ "photo_editor/widget_music", photoEditorButtonIconFg }};
 photoEditorAudioDiscIconOver: icon {{ "photo_editor/widget_music", photoEditorButtonIconFgOver }};
 photoEditorMenuDelete: icon {{ "menu/delete", mediaviewMenuFg }};
+photoEditorAudioMenu: PopupMenu(photoEditorCropRatioMenu) {
+	scrollPadding: margins(0px, 3px, 0px, 8px);
+	menu: Menu(mediaviewMenu) {
+		widthMin: 210px;
+		arrow: photoEditorMenuSubmenuArrow;
+	}
+}
+photoEditorAudioVolumeItem: Menu(mediaviewMenu) {
+	itemBgOver: groupCallMenuBg;
+	arrow: photoEditorMenuSubmenuArrow;
+}
+photoEditorAudioVolumePadding: margins(15px, 6px, 17px, 5px);
+photoEditorAudioVolumeMargin: margins(54px, 0px, 17px, 0px);
 
 photoEditorAudioTimelineBarWidth: 2px;
 photoEditorAudioTimelineBarSkip: 3px;

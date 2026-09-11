@@ -69,9 +69,11 @@ public:
 	void setTrimShortestAvailable(bool available);
 	void setTrimShortestActive(bool active, anim::type animated);
 	void refreshTimelines();
+	void refreshAudioVolume();
 	void commitTimelineEdits();
 	[[nodiscard]] rpl::producer<> trimShortestRequests() const;
 	[[nodiscard]] rpl::producer<crl::time> trimLengthChanges() const;
+	[[nodiscard]] rpl::producer<> audioRemoveRequests() const;
 
 private:
 	void showAnimated(

@@ -7,12 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/unique_qptr.h"
 #include "editor/editor_trim_timeline.h"
 #include "ui/effects/animations.h"
 
 namespace Media::Audio {
 struct Waveform;
 } // namespace Media::Audio
+
+namespace Ui {
+class PopupMenu;
+} // namespace Ui
 
 namespace Editor {
 
@@ -31,9 +36,13 @@ public:
 
 	void setPlaying(bool playing);
 	void refreshTrim();
+	void refreshVolume();
+
+	[[nodiscard]] rpl::producer<> removeRequests() const;
 
 private:
 	void paintStrip(QPainter &p, const QRect &strip) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 	void loadWaveform();
 	void paintWaveform(QPainter &p, const QRect &strip);
@@ -51,6 +60,9 @@ private:
 	std::shared_ptr<std::atomic<bool>> _waveformCancel;
 	int _waveformMax = 0;
 	Ui::Animations::Simple _loadedAnimation;
+
+	base::unique_qptr<Ui::PopupMenu> _menu;
+	rpl::event_stream<> _removeRequests;
 
 };
 

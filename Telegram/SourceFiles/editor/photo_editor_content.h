@@ -56,8 +56,10 @@ public:
 		-> rpl::producer<std::shared_ptr<ItemVideo>>;
 	[[nodiscard]] rpl::producer<> audioChanges() const;
 	[[nodiscard]] rpl::producer<bool> audioSelectedChanges() const;
+	[[nodiscard]] rpl::producer<> audioVolumeChanges() const;
 	[[nodiscard]] std::shared_ptr<AudioTrack> audio() const;
 	[[nodiscard]] bool audioSelected() const;
+	void removeAudio();
 	[[nodiscard]] bool canEqualizeDurations() const;
 	void matchDurations(crl::time duration);
 	[[nodiscard]] bool durationsLinked() const;

@@ -345,6 +345,11 @@ PhotoEditor::PhotoEditor(
 			anim::type::instant);
 	}, lifetime());
 
+	_content->audioVolumeChanges(
+	) | rpl::on_next([=] {
+		_controls->refreshAudioVolume();
+	}, lifetime());
+
 	_content->durationsLinkChanges(
 	) | rpl::on_next([=] {
 		_controls->setTrimShortestAvailable(
@@ -353,6 +358,11 @@ PhotoEditor::PhotoEditor(
 			_content->durationsLinked(),
 			anim::type::instant);
 		_controls->refreshTimelines();
+	}, lifetime());
+
+	_controls->audioRemoveRequests(
+	) | rpl::on_next([=] {
+		_content->removeAudio();
 	}, lifetime());
 
 	_controls->trimShortestRequests(

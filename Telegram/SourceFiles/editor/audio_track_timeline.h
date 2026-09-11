@@ -23,6 +23,9 @@ public:
 	void setTrack(std::shared_ptr<AudioTrack> track);
 	void refreshTrim();
 	void commitPendingEdit();
+	void refreshVolume();
+
+	[[nodiscard]] rpl::producer<> removeRequests() const;
 
 	[[nodiscard]] rpl::producer<crl::time> lengthChanges() const;
 
@@ -31,6 +34,7 @@ public:
 private:
 	std::shared_ptr<AudioTrack> _track;
 	base::unique_qptr<AudioTimeline> _timeline;
+	rpl::event_stream<> _removeRequests;
 	rpl::event_stream<crl::time> _lengthChanges;
 
 };

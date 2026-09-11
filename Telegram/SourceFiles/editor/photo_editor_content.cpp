@@ -255,7 +255,7 @@ void PhotoEditorContent::updateAudioDisc() {
 	const auto audio = _paint->audio();
 	const auto shown = (audio != nullptr)
 		&& (_mode.mode == PhotoEditorMode::Mode::Paint);
-	_audioDisc->setCover(audio ? audio->cover : QImage());
+	_audioDisc->setTrack(audio);
 	_audioDisc->setVisible(shown);
 	if (shown) {
 		_audioDisc->raise();
@@ -353,12 +353,20 @@ rpl::producer<bool> PhotoEditorContent::audioSelectedChanges() const {
 	return _paint->audioSelectedChanges();
 }
 
+rpl::producer<> PhotoEditorContent::audioVolumeChanges() const {
+	return _audioDisc->volumeChanges();
+}
+
 bool PhotoEditorContent::audioSelected() const {
 	return _paint->audioSelected();
 }
 
 std::shared_ptr<AudioTrack> PhotoEditorContent::audio() const {
 	return _paint->audio();
+}
+
+void PhotoEditorContent::removeAudio() {
+	_paint->removeAudio();
 }
 
 bool PhotoEditorContent::canEqualizeDurations() const {

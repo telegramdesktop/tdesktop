@@ -28,6 +28,8 @@ void AudioTrackTimeline::setTrack(std::shared_ptr<AudioTrack> track) {
 	} else if (_track != track) {
 		_track = std::move(track);
 		_timeline = base::make_unique_q<AudioTimeline>(this, _track);
+		_timeline->removeRequests(
+		) | rpl::start_to_stream(_removeRequests, _timeline->lifetime());
 		_timeline->trimChanges(
 		) | rpl::on_next([=] {
 			_lengthChanges.fire(_track->length());
@@ -54,6 +56,16 @@ void AudioTrackTimeline::commitPendingEdit() {
 	if (_timeline) {
 		_timeline->commitPendingEdit();
 	}
+}
+
+void AudioTrackTimeline::refreshVolume() {
+	if (_timeline) {
+		_timeline->refreshVolume();
+	}
+}
+
+rpl::producer<> AudioTrackTimeline::removeRequests() const {
+	return _removeRequests.events();
 }
 
 int AudioTrackTimeline::resizeGetHeight(int newWidth) {

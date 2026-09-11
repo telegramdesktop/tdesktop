@@ -7,7 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/editor_audio_disc_button.h"
 
-#include "lang/lang_keys.h"
+#include "editor/editor_audio_menu.h"
+#include "editor/photo_editor_common.h"
 #include "ui/image/image_prepare.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
@@ -34,13 +35,17 @@ AudioDiscButton::AudioDiscButton(QWidget *parent)
 
 AudioDiscButton::~AudioDiscButton() = default;
 
-void AudioDiscButton::setCover(const QImage &cover) {
-	if (cover.isNull()) {
+void AudioDiscButton::setTrack(std::shared_ptr<AudioTrack> track) {
+	if (_track == track) {
+		return;
+	}
+	_track = std::move(track);
+	if (!_track || _track->cover.isNull()) {
 		_cover = QImage();
 	} else {
 		const auto ratio = style::DevicePixelRatio();
 		const auto side = st::photoEditorAudioDiscCoverSize * ratio;
-		auto scaled = cover.scaled(
+		auto scaled = _track->cover.scaled(
 			side,
 			side,
 			Qt::KeepAspectRatioByExpanding,
@@ -69,6 +74,10 @@ void AudioDiscButton::setActive(bool active) {
 		_spin.stop();
 	}
 	update();
+}
+
+rpl::producer<> AudioDiscButton::volumeChanges() const {
+	return _volumeChanges.events();
 }
 
 rpl::producer<> AudioDiscButton::removeRequests() const {
@@ -117,12 +126,14 @@ void AudioDiscButton::paintEvent(QPaintEvent *e) {
 }
 
 void AudioDiscButton::contextMenuEvent(QContextMenuEvent *e) {
-	_menu = base::make_unique_q<Ui::PopupMenu>(
+	if (!_track) {
+		return;
+	}
+	_menu = CreateAudioMenu(
 		this,
-		st::photoEditorCropRatioMenu);
-	_menu->addAction(tr::lng_photo_editor_audio_remove(tr::now), [=] {
-		_removeRequests.fire({});
-	}, &st::photoEditorMenuDelete);
+		_track,
+		[=] { _volumeChanges.fire({}); },
+		[=] { _removeRequests.fire({}); });
 	_menu->popup(e->globalPos());
 	e->accept();
 }

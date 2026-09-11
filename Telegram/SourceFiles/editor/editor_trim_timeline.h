@@ -153,6 +153,7 @@ private:
 
 	[[nodiscard]] bool grabMovesSelection() const;
 	void applyGrab(QPoint position);
+	void releaseGrab();
 	void setCover(crl::time cover, bool notify);
 	void updateCursor(Grab grab);
 	void paintSelection(QPainter &p, const QRect &strip);

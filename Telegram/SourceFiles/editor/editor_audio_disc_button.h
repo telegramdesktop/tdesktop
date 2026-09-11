@@ -17,14 +17,17 @@ class PopupMenu;
 
 namespace Editor {
 
+struct AudioTrack;
+
 class AudioDiscButton final : public Ui::RippleButton {
 public:
 	explicit AudioDiscButton(QWidget *parent);
 	~AudioDiscButton();
 
-	void setCover(const QImage &cover);
+	void setTrack(std::shared_ptr<AudioTrack> track);
 	void setActive(bool active);
 
+	[[nodiscard]] rpl::producer<> volumeChanges() const;
 	[[nodiscard]] rpl::producer<> removeRequests() const;
 
 protected:
@@ -38,6 +41,7 @@ protected:
 private:
 	[[nodiscard]] float64 angle() const;
 
+	std::shared_ptr<AudioTrack> _track;
 	QImage _cover;
 	Ui::Animations::Basic _spin;
 	crl::time _spinStarted = 0;
@@ -45,6 +49,7 @@ private:
 	bool _active = false;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
+	rpl::event_stream<> _volumeChanges;
 	rpl::event_stream<> _removeRequests;
 
 };

@@ -23,6 +23,7 @@ struct AudioTrack {
 	crl::time from = 0;
 	// Zero means the end of the track.
 	crl::time till = 0;
+	float64 volume = 1.;
 
 	[[nodiscard]] bool empty() const {
 		return path.isEmpty() && content.isEmpty();
