@@ -158,12 +158,33 @@ void Drag(
 	QPoint to,
 	int steps = 8);
 
-// Synthesizes a wheel event at the widget center by default. |angleDelta|
-// uses Qt's native eighths-of-a-degree convention (120 is one wheel step).
-void Wheel(
+// Synthesizes a wheel event at |point| in the named widget's coordinates
+// (the widget centre by default). |angleDelta| uses Qt's native
+// eighths-of-a-degree convention (120 is one wheel step).
+//
+// A stack-built QWheelEvent sent with QApplication::sendEvent is not
+// spontaneous, and Qt 6's QApplication::notify therefore does not climb
+// parentWidget() the way a real wheel does. The helper replays that
+// ladder itself: a fresh event per widget, accepted reset by the
+// constructor, continuing while sendEvent returns false or the event is
+// ignored, stopping at isWindow() or Qt::WA_NoMousePropagation.
+// QAbstractScrollArea::event returns false for Wheel without ignoring,
+// so a delivery to the scroll area itself is recorded in |inert| and is
+// never |delivered|. The viewport is the widget that actually consumes
+// a wheel aimed at a covering child. The helper neither Notes nor Fails;
+// the caller reads the return, as with WindowActivation.
+struct WheelDelivery {
+	bool delivered = false;
+	QString receiver;
+	QString inert;
+	QString refusal;
+};
+
+WheelDelivery Wheel(
 	not_null<QWidget*> widget,
 	QPoint angleDelta,
 	std::optional<QPoint> point = {});
+[[nodiscard]] QString WheelDeliveryDetails(const WheelDelivery &reading);
 
 void PressKey(
 	not_null<QWidget*> widget,

@@ -2011,6 +2011,8 @@ PRIVATE
     test/test_transfer.h
     test/test_via_window.cpp
     test/test_via_window.h
+    test/test_wheel.cpp
+    test/test_wheel.h
     test/test_widgets.cpp
     test/test_widgets.h
     ui/boxes/edit_invite_link_session.cpp

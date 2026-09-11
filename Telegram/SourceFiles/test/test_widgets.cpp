@@ -114,6 +114,21 @@ void InjectActivation(QWindow *window) {
 	QWindowSystemInterface::flushWindowSystemEvents();
 }
 
+[[nodiscard]] QString WheelStopRefusal(
+		const QString &start,
+		const QString &stop,
+		const QString &inert,
+		bool isWindow,
+		bool noMousePropagation) {
+	const auto stopText = u"started at %1; stopped at %2 (window=%3 "
+		u"noMousePropagation=%4)"_q.arg(start, stop).arg(
+			isWindow ? 1 : 0).arg(noMousePropagation ? 1 : 0);
+	return inert.isEmpty()
+		? (u"no widget consumed the wheel: "_q + stopText)
+		: (u"%1 returned the event still accepted without handling it; "_q.arg(
+			inert) + stopText);
+}
+
 [[nodiscard]] QString ActivationWindowIdentity(QWindow *window) {
 	if (!window) {
 		return u"no window"_q;
@@ -311,24 +326,68 @@ void Drag(
 	DeliverPointerLeave(alive);
 }
 
-void Wheel(
+WheelDelivery Wheel(
 		not_null<QWidget*> widget,
 		QPoint angleDelta,
 		std::optional<QPoint> point) {
-	const auto alive = base::make_weak(widget);
-	const auto local = QPointF(point.value_or(widget->rect().center()));
-	const auto global = QPointF(widget->mapToGlobal(local.toPoint()));
-	auto event = QWheelEvent(
-		local,
-		global,
-		QPoint(),
-		angleDelta,
-		Qt::NoButton,
-		Qt::NoModifier,
-		Qt::NoScrollPhase,
-		false,
-		Qt::MouseEventSynthesizedByApplication);
-	DeliverAndSettle(alive, event);
+	auto result = WheelDelivery();
+	const auto start = WidgetDescription(widget);
+	auto current = widget.get();
+	auto local = QPointF(point.value_or(current->rect().center()));
+	const auto global = QPointF(current->mapToGlobal(local.toPoint()));
+	while (current) {
+		const auto alive = base::make_weak(current);
+		auto event = QWheelEvent(
+			local,
+			global,
+			QPoint(),
+			angleDelta,
+			Qt::NoButton,
+			Qt::NoModifier,
+			Qt::NoScrollPhase,
+			false,
+			Qt::MouseEventSynthesizedByApplication);
+		auto handled = false;
+		Settle([&] {
+			if (const auto strong = alive.get()) {
+				handled = QApplication::sendEvent(strong, &event);
+			}
+		});
+		const auto strong = alive.get();
+		if (!strong) {
+			result.refusal = u"the wheel target was destroyed during "
+				u"delivery: started at %1"_q.arg(start);
+			return result;
+		}
+		const auto identity = WidgetDescription(strong);
+		if (handled && event.isAccepted()) {
+			result.delivered = true;
+			result.receiver = identity;
+			return result;
+		}
+		if (!handled && event.isAccepted()) {
+			result.inert = identity;
+		}
+		const auto isWindow = strong->isWindow();
+		const auto noMousePropagation = strong->testAttribute(
+			Qt::WA_NoMousePropagation);
+		if (isWindow || noMousePropagation) {
+			result.refusal = WheelStopRefusal(
+				start,
+				identity,
+				result.inert,
+				isWindow,
+				noMousePropagation);
+			return result;
+		}
+		local = QPointF(strong->mapToParent(local.toPoint()));
+		current = strong->parentWidget();
+	}
+	result.refusal = result.inert.isEmpty()
+		? u"no widget consumed the wheel: started at %1"_q.arg(start)
+		: u"%1 returned the event still accepted without handling it; "
+			u"started at %2"_q.arg(result.inert, start);
+	return result;
 }
 
 void PressKey(
@@ -408,6 +467,16 @@ WindowActivation ClearWindowActive() {
 	result.identity = u"none - the application focus window was cleared"_q;
 	Note(WindowActivationDetails(result));
 	return result;
+}
+
+QString WheelDeliveryDetails(const WheelDelivery &reading) {
+	const auto line = u"wheel: delivered=%1 receiver=%2 inert=%3"_q
+		.arg(reading.delivered ? 1 : 0)
+		.arg(reading.receiver.isEmpty() ? u"none"_q : reading.receiver)
+		.arg(reading.inert.isEmpty() ? u"none"_q : reading.inert);
+	return reading.refusal.isEmpty()
+		? line
+		: (line + u" - %1"_q.arg(reading.refusal));
 }
 
 QString WindowActivationDetails(const WindowActivation &reading) {
