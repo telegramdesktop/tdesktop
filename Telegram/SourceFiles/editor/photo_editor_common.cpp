@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "editor/scene/scene.h"
 #include "editor/scene/scene_item_animated.h"
+#include "editor/scene/scene_item_video.h"
 #include "ui/painter.h"
 #include "ui/userpic_view.h"
 
@@ -186,6 +187,7 @@ Media::Encode::Job ComposeAnimatedJob(
 	};
 
 	auto longest = crl::time(0);
+	auto music = std::vector<Media::Encode::MusicTrack>();
 	for (const auto item : normal) {
 		const auto animated = item->asAnimated();
 		if (!animated || !animated->animated()) {
@@ -198,12 +200,30 @@ Media::Encode::Job ComposeAnimatedJob(
 			continue;
 		}
 		flushRun();
+		const auto video = (item->type() == ItemVideo::Type)
+			? static_cast<ItemVideo*>(item)
+			: nullptr;
+		const auto loop = animated->loopDuration();
+		if (video && (loop > 0)) {
+			entity.till = entity.from + loop;
+		}
 		job.overlay.push_back(std::move(entity));
-		longest = std::max(longest, animated->loopDuration());
+		longest = std::max(longest, loop);
+		if (video && video->sounding()) {
+			const auto &source = video->source();
+			const auto trim = video->trim();
+			music.push_back({
+				.path = source.path,
+				.bytes = source.content,
+				.from = trim.from,
+				.till = trim.from + loop,
+				.volume = video->volume(),
+				.loop = true,
+			});
+		}
 	}
 	flushRun();
 
-	auto music = std::vector<Media::Encode::MusicTrack>();
 	if (const auto audio = scene->audio()) {
 		if (audio->volume > 0.) {
 			music.push_back({

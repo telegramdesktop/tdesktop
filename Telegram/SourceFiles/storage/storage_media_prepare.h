@@ -57,6 +57,7 @@ struct PhotoEditorMedia {
 	QString videoPath;
 	QByteArray videoContent;
 	crl::time videoDuration = 0;
+	bool videoHasAudio = false;
 	Editor::AudioTrack audio;
 
 	[[nodiscard]] bool video() const {

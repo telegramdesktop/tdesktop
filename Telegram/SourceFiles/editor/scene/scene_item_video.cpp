@@ -85,6 +85,22 @@ void ItemVideo::setTrim(Trim trim) {
 	_player->setSegment(_trim.from, _trim.till);
 }
 
+bool ItemVideo::hasAudio() const {
+	return _source->hasAudio;
+}
+
+float64 ItemVideo::volume() const {
+	return _volume;
+}
+
+void ItemVideo::setVolume(float64 volume) {
+	_volume = std::clamp(volume, 0., 1.);
+}
+
+bool ItemVideo::sounding() const {
+	return hasAudio() && (_volume > 0.);
+}
+
 bool ItemVideo::animated() const {
 	return _player->valid() || _releasedAnimation;
 }
@@ -130,6 +146,22 @@ void ItemVideo::setStatus(Status status) {
 	ItemBase::setStatus(status);
 }
 
+void ItemVideo::save(SaveState state) {
+	ItemBase::save(state);
+	auto &saved = (state == SaveState::Keep) ? _kept : _saved;
+	saved = { .trim = _trim, .volume = _volume };
+}
+
+void ItemVideo::restore(SaveState state) {
+	if (!hasState(state)) {
+		return;
+	}
+	ItemBase::restore(state);
+	const auto &saved = (state == SaveState::Keep) ? _kept : _saved;
+	setTrim(saved.trim);
+	setVolume(saved.volume);
+}
+
 int ItemVideo::type() const {
 	return Type;
 }
@@ -163,6 +195,7 @@ void ItemVideo::performFlip() {
 std::shared_ptr<ItemBase> ItemVideo::duplicate(ItemBase::Data data) const {
 	auto result = std::make_shared<ItemVideo>(_source, std::move(data));
 	result->setTrim(_trim);
+	result->setVolume(_volume);
 	return result;
 }
 

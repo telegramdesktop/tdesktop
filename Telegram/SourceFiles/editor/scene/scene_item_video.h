@@ -22,6 +22,7 @@ public:
 		QByteArray content;
 		QImage thumbnail;
 		crl::time duration = 0;
+		bool hasAudio = false;
 	};
 
 	ItemVideo(std::shared_ptr<Source> source, ItemBase::Data data);
@@ -38,12 +39,18 @@ public:
 	[[nodiscard]] Trim trim() const override;
 	void releasePlayers() override;
 	void setStatus(Status status) override;
+	void save(SaveState state) override;
+	void restore(SaveState state) override;
 	int type() const override;
 
 	[[nodiscard]] const Source &source() const;
 	[[nodiscard]] crl::time duration() const;
 	[[nodiscard]] not_null<SegmentPlayer*> player() const;
 	void setTrim(Trim trim);
+	[[nodiscard]] bool hasAudio() const;
+	[[nodiscard]] float64 volume() const;
+	void setVolume(float64 volume);
+	[[nodiscard]] bool sounding() const;
 
 protected:
 	[[nodiscard]] Media::Encode::AnimatedEntity::Kind entityKind()
@@ -52,11 +59,19 @@ protected:
 	std::shared_ptr<ItemBase> duplicate(ItemBase::Data data) const override;
 
 private:
+	struct Saved {
+		Trim trim;
+		float64 volume = 1.;
+	};
+
 	const std::shared_ptr<Source> _source;
 	const QSize _frameSize;
 	const std::unique_ptr<SegmentPlayer> _player;
 	QImage _image;
 	Trim _trim;
+	Saved _saved;
+	Saved _kept;
+	float64 _volume = 1.;
 	bool _releasedAnimation = false;
 	bool _pendingRecreate = false;
 

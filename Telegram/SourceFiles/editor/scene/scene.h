@@ -64,6 +64,7 @@ public:
 		Qt::SortOrder order = Qt::DescendingOrder) const;
 	[[nodiscard]] bool hasAnimatedItems() const;
 	[[nodiscard]] bool hasAnimatedResult() const;
+	[[nodiscard]] bool hasSoundResult() const;
 	void releaseAnimations();
 
 	void setAudio(std::shared_ptr<AudioTrack> audio);

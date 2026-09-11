@@ -733,6 +733,24 @@ bool Scene::hasAnimatedResult() const {
 	return (_audio != nullptr) || hasAnimatedItems();
 }
 
+bool Scene::hasSoundResult() const {
+	if (_audio && (_audio->volume > 0.)) {
+		return true;
+	}
+	for (const auto &item : _items) {
+		if (item->type() != ItemVideo::Type) {
+			continue;
+		}
+		const auto video = static_cast<ItemVideo*>(item.get());
+		if (video->isNormalStatus()
+			&& video->animated()
+			&& video->sounding()) {
+			return true;
+		}
+	}
+	return false;
+}
+
 void Scene::releaseAnimations() {
 	for (const auto &item : _items) {
 		if (const auto animated = item->asAnimated()) {

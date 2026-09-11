@@ -320,7 +320,7 @@ bool PreparedFile::hasAudioEditScene() const {
 		: nullptr;
 	return image
 		&& image->modifications.paint
-		&& (image->modifications.paint->audio() != nullptr);
+		&& image->modifications.paint->hasSoundResult();
 }
 
 AlbumType PreparedFile::albumType(bool sendImagesAsPhotos) const {

@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_common.h"
 #include "editor/scene/scene.h"
 #include "editor/scene/scene_item_sticker.h"
+#include "ffmpeg/ffmpeg_bytes_io_wrap.h"
+#include "ffmpeg/ffmpeg_utility.h"
 #include "media/audio/media_audio.h"
 #include "platform/platform_file_utilities.h"
 #include "lang/lang_keys.h"
@@ -85,6 +87,48 @@ QSize PrepareShownDimensions(const QImage &preview, int sideLimit) {
 	return mime.startsWith(u"audio/"_q)
 		|| (!path.isEmpty()
 			&& (Core::DetectNameType(path) == Core::NameType::Audio));
+}
+
+[[nodiscard]] bool AudioStreamDecodable(
+		const QString &path,
+		const QByteArray &content) {
+	using namespace FFmpeg;
+	auto bytesWrap = ReadBytesWrap{
+		.size = int64(content.size()),
+		.data = reinterpret_cast<const uchar*>(content.constData()),
+	};
+	auto fileWrap = ReadFileWrap();
+	auto input = FormatPointer();
+	if (!content.isEmpty()) {
+		input = MakeFormatPointer(
+			&bytesWrap,
+			&ReadBytesWrap::Read,
+			nullptr,
+			&ReadBytesWrap::Seek);
+	} else {
+		fileWrap.file.setFileName(path);
+		if (!fileWrap.file.open(QIODevice::ReadOnly)) {
+			return false;
+		}
+		input = MakeFormatPointer(
+			&fileWrap,
+			&ReadFileWrap::Read,
+			nullptr,
+			&ReadFileWrap::Seek);
+	}
+	if (!input
+		|| AvErrorWrap(avformat_find_stream_info(input.get(), nullptr))) {
+		return false;
+	}
+	auto decoder = (const AVCodec*)nullptr;
+	const auto index = av_find_best_stream(
+		input.get(),
+		AVMEDIA_TYPE_AUDIO,
+		-1,
+		-1,
+		&decoder,
+		0);
+	return (index >= 0) && (decoder != nullptr);
 }
 
 void PrepareDetailsInParallel(PreparedList &result, int previewWidth) {
@@ -162,6 +206,8 @@ PhotoEditorMedia ReadPhotoEditorMedia(
 			.videoPath = path,
 			.videoContent = content,
 			.videoDuration = video->duration,
+			.videoHasAudio = (video->hasAudio
+				&& AudioStreamDecodable(path, content)),
 		};
 	}
 	using Song = PreparedFileInformation::Song;

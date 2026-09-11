@@ -750,6 +750,7 @@ void Paint::addVideoItem(Storage::PhotoEditorMedia &&media) {
 			.content = std::move(media.videoContent),
 			.thumbnail = std::move(media.image),
 			.duration = media.videoDuration,
+			.hasAudio = media.videoHasAudio && _composeSound,
 		}),
 		data));
 }
