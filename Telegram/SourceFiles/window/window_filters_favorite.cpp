@@ -461,6 +461,8 @@ void FolderFavoriteButton::applyPeer(not_null<PeerData*> peer) {
 		Data::PeerUpdate::Flag::Name
 	) | rpl::on_next([=] {
 		_label.setText(_st.style, peer->name());
+		setAccessibleName(peer->name());
+		accessibilityNameChanged();
 		resizeToWidth(width());
 		update();
 	}, _resolveLifetime);
@@ -469,6 +471,8 @@ void FolderFavoriteButton::applyPeer(not_null<PeerData*> peer) {
 void FolderFavoriteButton::apply(Presentation presentation) {
 	_thumbnail = std::move(presentation.thumbnail);
 	_label.setText(_st.style, presentation.label);
+	// The label is painted, so a screen reader needs it as the name too.
+	setAccessibleName(presentation.label);
 	if (_thumbnail) {
 		_thumbnail->subscribeToUpdates([=] { update(); });
 	}
