@@ -26,10 +26,26 @@ struct AnimatedEntity {
 
 using Layer = std::variant<QImage, AnimatedEntity>;
 
+// The part [from, till) of the file plays from the result position.
+struct MusicTrack {
+	QString path;
+	QByteArray bytes;
+	crl::time position = 0;
+	crl::time from = 0;
+	// Zero means the end of the music.
+	crl::time till = 0;
+	float64 volume = 1.;
+
+	[[nodiscard]] bool empty() const {
+		return path.isEmpty() && bytes.isEmpty();
+	}
+};
+
 struct StillSource {
 	QImage base;
 	crl::time duration = 0;
 	float64 fps = 30.;
+	std::vector<MusicTrack> music;
 };
 
 struct VideoSource {
@@ -63,6 +79,8 @@ struct VideoSource {
 	float64 fpsLimit = 0.;
 
 	crl::time coverPosition = -1;
+
+	std::vector<MusicTrack> music;
 };
 
 struct Job {
