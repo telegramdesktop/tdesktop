@@ -446,11 +446,12 @@ public:
 	// writes nothing and only makes the session agree with the disk.
 	void dropCustodyAfterForgottenPasscode();
 
-	// Per-process: set only by a provider's confirmed Absent answer, it lands
-	// the read-only modes without touching disk - the header, its ciphertext
-	// and the custody record all survive - so a relaunch presents Full again
-	// until the next unwrap says Absent. A successful unwrap, a committed
-	// wrap change and the drop above reset it.
+	// Per-process: set when a hardware wrap cannot be opened in this process,
+	// by a provider's Absent, Unavailable or Corrupt answer or by a kind no
+	// provider claims. It lands the read-only modes without touching disk -
+	// the header, its ciphertext and the custody record all survive - so a
+	// relaunch presents Full again and asks the provider afresh. A successful
+	// unwrap, a committed wrap change and the drop above reset it.
 	[[nodiscard]] bool vaultKeyUnusable() const;
 	void setVaultKeyUnusable(bool unusable);
 

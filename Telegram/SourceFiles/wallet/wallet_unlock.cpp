@@ -143,6 +143,7 @@ void HardwareUnlockBox(
 			return;
 		case ProtectionError::Unavailable:
 		case ProtectionError::Corrupt:
+			session.wallet().setVaultKeyUnusable(true);
 			toast(tr::lng_wallet_protection_hardware_unavailable);
 			report(nullptr);
 			return;
@@ -243,10 +244,12 @@ void UnlockByKind(
 	// the installer's ignoreRetention skips only the retained window above:
 	// the box offers its checkbox on that path too, as the passcode box does.
 	// A kind no provider claims - a header copied to a platform without one -
-	// is the same dead end a Broken header is.
+	// cannot open in this process either, so it flags the session the way a
+	// provider's failed answer does and the restore can replace it.
 	if (quint32(wrap->kind) >= kFirstReservedVaultKind) {
 		const auto provider = ProtectionProviderFor(wrap->kind);
 		if (!provider) {
+			session.wallet().setVaultKeyUnusable(true);
 			unavailable();
 			return;
 		}
@@ -553,9 +556,10 @@ void AcquireVaultUnlock(VaultUnlockArgs args) {
 	auto reading = session.wallet().vault().reading(session.local());
 	switch (reading.state) {
 	case State::Read:
-		// A key a provider confirmed unusable is not asked again: the flow
-		// carries the installer alone, as it does over an absent header, and
-		// the consented restore that reaches it drops and replaces the vault.
+		// A key that could not be opened in this process is not asked again:
+		// the flow carries the installer alone, as it does over an absent
+		// header, and the consented restore that reaches it drops and
+		// replaces the vault. A relaunch asks the provider afresh.
 		if (mayInstall && session.wallet().vaultKeyUnusable()) {
 			answer(KeyAuthorization{
 				.install = MakeCustodyInstaller(show),
@@ -629,11 +633,12 @@ CustodyInstaller MakeCustodyInstaller(
 			install();
 			return;
 		case State::Read:
-			// A provider's confirmed Absent answer only flags the session:
-			// the unusable key's ciphertext and the custody record survive
-			// on disk until this consented replacement - the restore from
-			// backup or phrase that reaches the installer - which is the one
-			// place they are dropped, and the drop is what clears the flag.
+			// A hardware wrap that could not be opened in this process only
+			// flags the session: the unusable key's ciphertext and the
+			// custody record survive on disk until this consented
+			// replacement - the restore from backup or phrase that reaches
+			// the installer - which is the one place they are dropped, and
+			// the drop is what clears the flag.
 			if (session.wallet().vaultKeyUnusable()) {
 				if (!DropVaultAndCustody(&session.account())) {
 					show->showToast(

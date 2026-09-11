@@ -34,8 +34,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 // holds every public input and no private one, and DeriveVaultWrapKey
 // refuses this kind, so nothing derivable from the header opens the vault.
 // Should Windows ever move the provider to a probabilistic scheme, every
-// existing wrap would read Corrupt - currently unavailable, nothing deleted,
-// restore from the backup or the phrase - and never leak a key.
+// existing wrap would read Corrupt - read-only for the session, nothing
+// deleted, restore from the backup or the phrase - and never leak a key.
 
 namespace Platform {
 namespace {

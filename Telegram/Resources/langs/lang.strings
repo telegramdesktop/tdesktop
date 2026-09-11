@@ -8976,7 +8976,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_protection_hardware_prompt" = "Telegram will ask for {provider} to unlock your wallet key.";
 "lng_wallet_protection_hardware_continue" = "Continue";
 "lng_wallet_protection_hardware_failed" = "{provider} did not confirm it was you. Nothing was changed.";
-"lng_wallet_protection_hardware_unavailable" = "Your wallet key on this device is protected by {provider}, which can't be used right now. Try again later, or restore the wallet from Telegram's encrypted backup or with your recovery phrase to protect it another way.";
+"lng_wallet_protection_hardware_unavailable" = "Your wallet key on this device is protected by {provider}, which can't be used right now. Restart Telegram to try again, or restore the wallet from Telegram's encrypted backup or with your recovery phrase to protect it another way.";
 "lng_wallet_protection_hardware_absent" = "Your wallet key on this device was protected by {provider}, but that key can no longer be used on this device. Restore the wallet from Telegram's encrypted backup or with your recovery phrase to store the key again.";
 "lng_wallet_passcode_forgot" = "Forgot passcode?";
 "lng_wallet_passcode_forgot_title" = "Forgot your passcode?";
