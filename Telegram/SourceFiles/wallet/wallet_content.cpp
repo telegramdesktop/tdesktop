@@ -1816,6 +1816,33 @@ void AddBoxCloseButton(not_null<Ui::GenericBox*> box) {
 	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 }
 
+// The wallet's box footers share one "working" appearance: the label goes
+// blank and an infinite spinner appears centred on the button. It stays two
+// halves because they attach at two different moments - the label is a
+// producer handed to addButton, the spinner is a child added once the button
+// exists - so every box keeps its own label choice, its own guards and its
+// own position for the spinner. The size follows the button's own style.
+[[nodiscard]] rpl::producer<QString> BusyFooterLabel(
+		rpl::producer<QString> text,
+		rpl::producer<bool> busy) {
+	return rpl::combine(
+		std::move(text),
+		std::move(busy)
+	) | rpl::map([](const QString &text, bool busy) {
+		return busy ? QString() : text;
+	});
+}
+
+void AddBusyFooterSpinner(
+		not_null<Ui::RoundButton*> button,
+		rpl::producer<bool> shown) {
+	const auto loading = Info::Statistics::InfiniteRadialAnimationWidget(
+		button,
+		button->st().height / 2);
+	Info::Statistics::AddChildToWidgetCenter(button, loading);
+	loading->showOn(std::move(shown));
+}
+
 [[nodiscard]] QImage ReceiveQrCenter(int side, int markSide) {
 	auto result = QImage(side, side, QImage::Format_ARGB32_Premultiplied);
 	result.fill(Qt::white);
@@ -3268,21 +3295,11 @@ void WalletCloudPasswordCreateBox(
 		});
 	};
 	const auto button = box->addButton(
-		rpl::combine(
+		BusyFooterLabel(
 			tr::lng_settings_cloud_password_password_subtitle(),
-			state->loading.value()
-		) | rpl::map([](const QString &text, bool loading) {
-			return loading ? QString() : text;
-		}),
+			state->loading.value()),
 		submit);
-	{
-		using namespace Info::Statistics;
-		const auto loading = InfiniteRadialAnimationWidget(
-			button,
-			st::giveawayGiftCodeBoxButton.height / 2);
-		AddChildToWidgetCenter(button.data(), loading);
-		loading->showOn(state->loading.value());
-	}
+	AddBusyFooterSpinner(button, state->loading.value());
 
 	Settings::CloudPassword::SubmitPasswordFields(fields, submit);
 	box->setFocusCallback([=] {
@@ -4210,28 +4227,23 @@ void WalletSendConfirmBox(
 	) | rpl::map([](bool sending, bool preparing) {
 		return sending || preparing;
 	});
-	const auto button = box->addButton(rpl::combine(
-		tr::lng_wallet_send_amount(
-			lt_amount,
-			rpl::single(Ui::FormatTonAmount(flow.amountNano).full)),
-		tr::lng_wallet_send_update_fee(),
-		draft->quote.value(),
-		rpl::duplicate(busy)
-	) | rpl::map([](
-			QString send,
-			QString update,
-			const std::optional<SendQuote> &quote,
-			bool busy) {
-		return busy ? QString() : quote ? send : update;
-	}), submit);
-	{
-		using namespace Info::Statistics;
-		const auto loading = InfiniteRadialAnimationWidget(
-			button,
-			st::giveawayGiftCodeBoxButton.height / 2);
-		AddChildToWidgetCenter(button.data(), loading);
-		loading->showOn(std::move(busy));
-	}
+	const auto button = box->addButton(
+		BusyFooterLabel(
+			rpl::combine(
+				tr::lng_wallet_send_amount(
+					lt_amount,
+					rpl::single(Ui::FormatTonAmount(flow.amountNano).full)),
+				tr::lng_wallet_send_update_fee(),
+				draft->quote.value()
+			) | rpl::map([](
+					QString send,
+					QString update,
+					const std::optional<SendQuote> &quote) {
+				return quote ? send : update;
+			}),
+			rpl::duplicate(busy)),
+		submit);
+	AddBusyFooterSpinner(button, std::move(busy));
 	field->submits() | rpl::on_next(submit, field->lifetime());
 	box->setFocusCallback([=] { field->setFocusFast(); });
 	AddBoxCloseButton(box);
@@ -5629,18 +5641,19 @@ void WalletSendBox(
 		}
 	};
 	auto buttonText = user
-		? rpl::combine(
-			state->amount.value(),
-			state->loading.value(),
-			tr::lng_wallet_send_button(),
-			tr::lng_wallet_send_amount(
-				lt_amount,
-				state->amount.value() | rpl::map([](int64 amount) {
-					return Ui::FormatTonAmount(amount).full;
-				}))
-		) | rpl::map([](int64 amount, bool loading, QString empty, QString full) {
-			return loading ? QString() : amount > 0 ? full : empty;
-		})
+		? BusyFooterLabel(
+			rpl::combine(
+				state->amount.value(),
+				tr::lng_wallet_send_button(),
+				tr::lng_wallet_send_amount(
+					lt_amount,
+					state->amount.value() | rpl::map([](int64 amount) {
+						return Ui::FormatTonAmount(amount).full;
+					}))
+			) | rpl::map([](int64 amount, QString empty, QString full) {
+				return amount > 0 ? full : empty;
+			}),
+			state->loading.value())
 		: tr::lng_wallet_send_continue();
 	const auto button = box->addButton(std::move(buttonText), submit).data();
 	state->expanded.value() | rpl::on_next([=](bool expanded) {
@@ -5653,12 +5666,7 @@ void WalletSendBox(
 		SetButtonDisabledLook(button, !canSend && !canRecover);
 	}, button->lifetime());
 	if (user) {
-		using namespace Info::Statistics;
-		const auto loading = InfiniteRadialAnimationWidget(
-			button,
-			st::giveawayGiftCodeBoxButton.height / 2);
-		AddChildToWidgetCenter(button, loading);
-		loading->showOn(state->loading.value());
+		AddBusyFooterSpinner(button, state->loading.value());
 	}
 	amountField->submits() | rpl::on_next(submit, amountField->lifetime());
 	if (commentField) {
@@ -6306,13 +6314,9 @@ void WalletPhraseWarningBox(
 		state->absorbEnter = false;
 		state->words.reset();
 	};
-	const auto button = box->addButton(
-		rpl::combine(
-			tr::lng_wallet_keys_show_phrase(),
-			state->loading.value()
-		) | rpl::map([](const QString &text, bool loading) {
-			return loading ? QString() : text;
-		}));
+	const auto button = box->addButton(BusyFooterLabel(
+		tr::lng_wallet_keys_show_phrase(),
+		state->loading.value()));
 	button->setClickedCallback([=] {
 		if (state->phase == Phase::Authorizing
 			|| state->phase == Phase::Loading
@@ -6392,14 +6396,7 @@ void WalletPhraseWarningBox(
 				return true;
 			});
 	});
-	{
-		using namespace Info::Statistics;
-		const auto loading = InfiniteRadialAnimationWidget(
-			button,
-			st::giveawayGiftCodeBoxButton.height / 2);
-		AddChildToWidgetCenter(button.data(), loading);
-		loading->showOn(state->loading.value());
-	}
+	AddBusyFooterSpinner(button, state->loading.value());
 	const auto isRevealKey = [](int key) {
 		return key == Qt::Key_Return
 			|| key == Qt::Key_Enter
@@ -7391,11 +7388,7 @@ void SetBoxBusy(not_null<Ui::GenericBox*> box) {
 	box->clearButtons();
 	const auto button = box->addButton(rpl::single(QString()));
 	SetButtonDisabledLook(button.data(), true);
-	const auto loading = Info::Statistics::InfiniteRadialAnimationWidget(
-		button,
-		st::giveawayGiftCodeBoxButton.height / 2);
-	Info::Statistics::AddChildToWidgetCenter(button.data(), loading);
-	loading->show();
+	AddBusyFooterSpinner(button, rpl::single(true));
 	box->setCloseByOutsideClick(false);
 	box->setCloseByEscape(false);
 }
