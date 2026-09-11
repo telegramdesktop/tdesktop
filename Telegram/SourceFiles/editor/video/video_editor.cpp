@@ -182,7 +182,7 @@ VideoEditor::VideoEditor(
 , _player(std::make_unique<SegmentPlayer>(
 	_path,
 	_content,
-	_data.webmSticker)) {
+	SegmentPlayerOptions{ .keepAlpha = _data.webmSticker })) {
 	_geometry = _initial.geometry;
 	_gif = _initial.gif;
 	_geometry.cropType = _data.editor.cropType;

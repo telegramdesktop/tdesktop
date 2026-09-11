@@ -14,9 +14,17 @@ struct Update;
 
 namespace Editor {
 
+struct SegmentPlayerOptions {
+	bool keepAlpha = false;
+	bool audio = false;
+};
+
 class SegmentPlayer final {
 public:
-	SegmentPlayer(QString path, QByteArray content, bool keepAlpha = false);
+	SegmentPlayer(
+		QString path,
+		QByteArray content,
+		SegmentPlayerOptions options = {});
 	~SegmentPlayer();
 
 	void start();
@@ -53,13 +61,15 @@ public:
 
 private:
 	void handleUpdate(Media::Streaming::Update &&update);
+	void handlePosition(crl::time position);
+	void pauseOtherPlayback();
 	void applyHeld();
 	void keepLastFrame();
 	[[nodiscard]] crl::time segmentTill() const;
 
 	const QString _path;
 	const QByteArray _content;
-	const bool _keepAlpha = false;
+	const SegmentPlayerOptions _options;
 
 	std::unique_ptr<Media::Streaming::Instance> _instance;
 	QImage _lastFrame;
@@ -67,6 +77,7 @@ private:
 	crl::time _from = 0;
 	crl::time _till = 0;
 	crl::time _position = 0;
+	bool _pausedOthers = false;
 	bool _paused = false;
 	bool _seeking = false;
 

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/video/video_segment_player.h"
 
+#include "media/player/media_player_instance.h"
 #include "media/streaming/media_streaming_common.h"
 #include "media/streaming/media_streaming_document.h"
 #include "media/streaming/media_streaming_instance.h"
@@ -31,10 +32,10 @@ namespace {
 SegmentPlayer::SegmentPlayer(
 	QString path,
 	QByteArray content,
-	bool keepAlpha)
+	SegmentPlayerOptions options)
 : _path(std::move(path))
 , _content(std::move(content))
-, _keepAlpha(keepAlpha) {
+, _options(options) {
 }
 
 SegmentPlayer::~SegmentPlayer() = default;
@@ -80,7 +81,7 @@ bool SegmentPlayer::valid() const {
 bool SegmentPlayer::ready() const {
 	return _instance
 		&& _instance->player().ready()
-		&& !_instance->player().videoSize().isEmpty();
+		&& (_options.audio || !_instance->player().videoSize().isEmpty());
 }
 
 crl::time SegmentPlayer::segmentTill() const {
@@ -100,11 +101,11 @@ void SegmentPlayer::setSegment(crl::time from, crl::time till) {
 }
 
 void SegmentPlayer::keepLastFrame() {
-	if (!ready() || _frameSize.isEmpty()) {
+	if (_options.audio || !ready() || _frameSize.isEmpty()) {
 		return;
 	}
 	const auto frame = _instance->frame(
-		FrameRequestFor(_frameSize, _keepAlpha));
+		FrameRequestFor(_frameSize, _options.keepAlpha));
 	if (!frame.isNull()) {
 		_lastFrame = frame.copy();
 	}
@@ -118,15 +119,27 @@ void SegmentPlayer::restart(crl::time position) {
 	keepLastFrame();
 	_position = std::clamp(position, _from, segmentTill());
 	auto options = PlaybackOptions();
-	options.mode = Mode::Video;
+	options.mode = _options.audio ? Mode::Audio : Mode::Video;
 	options.position = _position;
 	options.loop = false;
+	if (options.mode != Mode::Video) {
+		pauseOtherPlayback();
+	}
 	_instance->play(options);
 	if (held()) {
 		_instance->pause();
 	}
 	_positionUpdates.fire_copy(_position);
 	_repaints.fire({});
+}
+
+void SegmentPlayer::pauseOtherPlayback() {
+	if (std::exchange(_pausedOthers, true)) {
+		return;
+	}
+	const auto player = Media::Player::instance();
+	player->pause(AudioMsgId::Type::Voice);
+	player->pause(AudioMsgId::Type::Song);
 }
 
 void SegmentPlayer::applyHeld() {
@@ -161,19 +174,14 @@ void SegmentPlayer::handleUpdate(Media::Streaming::Update &&update) {
 		_repaints.fire({});
 	}, [&](PreloadedVideo) {
 	}, [&](UpdateVideo &data) {
-		_position = data.position;
-		if (held()) {
-			_instance->pause();
-			_repaints.fire({});
-			return;
-		} else if (_position >= segmentTill()) {
-			restart(_from);
-			return;
+		if (!_options.audio) {
+			handlePosition(data.position);
 		}
-		_positionUpdates.fire_copy(_position);
-		_repaints.fire({});
 	}, [&](PreloadedAudio) {
-	}, [&](UpdateAudio) {
+	}, [&](UpdateAudio &data) {
+		if (_options.audio) {
+			handlePosition(data.position);
+		}
 	}, [&](WaitingForData) {
 	}, [&](SpeedEstimate) {
 	}, [&](MutedByOther) {
@@ -182,10 +190,27 @@ void SegmentPlayer::handleUpdate(Media::Streaming::Update &&update) {
 	});
 }
 
+void SegmentPlayer::handlePosition(crl::time position) {
+	_position = position;
+	if (held()) {
+		_instance->pause();
+		_repaints.fire({});
+		return;
+	} else if (_position >= segmentTill()) {
+		restart(_from);
+		return;
+	}
+	_positionUpdates.fire_copy(_position);
+	_repaints.fire({});
+}
+
 QImage SegmentPlayer::frame(QSize size) {
 	_frameSize = size;
-	if (ready()) {
-		auto result = _instance->frame(FrameRequestFor(size, _keepAlpha));
+	if (_options.audio) {
+		return QImage();
+	} else if (ready()) {
+		auto result = _instance->frame(
+			FrameRequestFor(size, _options.keepAlpha));
 		if (!held()) {
 			_instance->markFrameShown();
 		}
