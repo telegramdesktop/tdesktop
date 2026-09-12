@@ -370,9 +370,13 @@ void Crop::mousePressEvent(QMouseEvent *e) {
 	if (_data.fixedCrop && e->button() != Qt::LeftButton) {
 		return;
 	}
+	const auto edge = mouseState(e->pos());
+	if (edge) {
+		_dragChanges.fire(true);
+	}
 	const auto expanding = _expansionAllowed
 		&& e->modifiers().testFlag(Qt::ControlModifier);
-	computeDownState(e->pos(), expanding);
+	computeDownState(e->pos(), edge, expanding);
 	if (_down.edge) {
 		setGridVisible(true, false);
 	}
@@ -382,20 +386,31 @@ void Crop::mouseReleaseEvent(QMouseEvent *e) {
 	if (_data.fixedCrop && e->button() != Qt::LeftButton) {
 		return;
 	}
-	const auto hadEdge = bool(_down.edge);
-	if (hadEdge) {
-		setGridVisible(false, true);
+	finishDrag(true);
+}
+
+void Crop::hideEvent(QHideEvent *e) {
+	finishDrag(false);
+}
+
+void Crop::finishDrag(bool animated) {
+	if (!_down.edge) {
+		return;
 	}
+	setGridVisible(false, animated);
 	clearDownState();
 	const auto was = saveCropRect();
 	convertCropPaintToOriginal();
+	_dragChanges.fire(false);
 	if (saveCropRect() != was) {
 		_changes.fire({});
 	}
 }
 
-void Crop::computeDownState(const QPoint &p, bool expanding) {
-	const auto edge = mouseState(p);
+void Crop::computeDownState(
+		const QPoint &p,
+		Qt::Edges edge,
+		bool expanding) {
 	const auto &crop = _cropPaint;
 	const auto bounds = (expanding && (edge != kEAll))
 		? expansionBounds()

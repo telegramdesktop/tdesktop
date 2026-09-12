@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 
 #include "editor/photo_editor_common.h"
 #include "editor/photo_editor_inner_common.h"
@@ -67,6 +68,7 @@ public:
 	void setDurationsLinked(bool linked);
 	[[nodiscard]] rpl::producer<> durationsLinkChanges() const;
 	void applyAspectRatio(float64 ratio);
+	void setExpansionRoom(bool room);
 	void save(PhotoModifications &modifications);
 
 	bool handleKeyPress(not_null<QKeyEvent*> e);
@@ -81,10 +83,14 @@ public:
 
 private:
 	void updateCanvas();
-	void updateLayout(
+	void updateRoom();
+	[[nodiscard]] QRectF layoutTarget(
 		const PhotoModifications &mods,
 		QSize size,
-		QRect canvas);
+		QRect canvas,
+		bool room) const;
+	void applyLayout(QRectF imageRect);
+	bool layoutAnimationStep(crl::time now);
 	void paintCanvasFill(QPainter &p) const;
 	void updateAudioDisc();
 	void updateAudioDiscGeometry();
@@ -101,13 +107,21 @@ private:
 	rpl::variable<QRect> _innerRect;
 	rpl::variable<PhotoModifications> _modifications;
 	rpl::variable<QRect> _canvas;
+	rpl::variable<bool> _room;
 	rpl::event_stream<int> _keyPresses;
 	rpl::event_stream<> _paintModeRequests;
 
 	QRect _imageRect;
 	QRect _canvasRect;
+	QRectF _imageRectF;
+	QRectF _layoutTarget;
+	Ui::Animations::Basic _layoutAnimation;
+	crl::time _layoutLastFrame = 0;
 	QTransform _imageMatrix;
 	PhotoEditorMode _mode;
+	bool _roomRequested = false;
+	bool _dragging = false;
+	bool _animateLayout = false;
 
 };
 

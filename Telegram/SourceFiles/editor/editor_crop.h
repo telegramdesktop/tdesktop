@@ -35,6 +35,9 @@ public:
 	[[nodiscard]] rpl::producer<> changes() const {
 		return _changes.events();
 	}
+	[[nodiscard]] rpl::producer<bool> dragChanges() const {
+		return _dragChanges.events();
+	}
 	[[nodiscard]] QRect paintRect() const;
 	[[nodiscard]] QPainterPath cropPath() const;
 	[[nodiscard]] style::margins cropMargins() const;
@@ -46,6 +49,7 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
+	void hideEvent(QHideEvent *e) override;
 
 private:
 	struct InfoAtDown {
@@ -74,13 +78,15 @@ private:
 	void setCropPaint(QRectF &&rect);
 	void convertCropPaintToOriginal();
 
-	void computeDownState(const QPoint &p, bool expanding);
+	void computeDownState(const QPoint &p, Qt::Edges edge, bool expanding);
 	void clearDownState();
 	[[nodiscard]] Qt::Edges mouseState(const QPoint &p);
 	void performCrop(const QPoint &pos);
 	void performMove(const QPoint &pos);
+	void finishDrag(bool animated);
 
 	rpl::event_stream<> _changes;
+	rpl::event_stream<bool> _dragChanges;
 
 	const int _pointSize;
 	const float _pointSizeH;

@@ -309,6 +309,13 @@ PhotoEditor::PhotoEditor(
 	_modifications.cropType = data.cropType;
 	_modifications.cropMode = data.cropMode;
 
+	events(
+	) | rpl::on_next([=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::WindowDeactivate) {
+			_content->setExpansionRoom(false);
+		}
+	}, lifetime());
+
 	sizeValue(
 	) | rpl::on_next([=](const QSize &size) {
 		if (size.isEmpty()) {
@@ -630,9 +637,14 @@ PhotoEditor::PhotoEditor(
 }
 
 void PhotoEditor::keyPressEvent(QKeyEvent *e) {
+	_content->setExpansionRoom(e->modifiers().testFlag(Qt::ControlModifier));
 	if (!_colorPicker->preventHandleKeyPress()) {
 		_content->handleKeyPress(e) || _controls->handleKeyPress(e);
 	}
+}
+
+void PhotoEditor::keyReleaseEvent(QKeyEvent *e) {
+	_content->setExpansionRoom(e->modifiers().testFlag(Qt::ControlModifier));
 }
 
 void PhotoEditor::updateColorPickerVisibility(anim::type animated) {

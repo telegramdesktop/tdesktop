@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_drag_area.h"
 #include "media/view/media_view_pip.h"
 #include "storage/storage_media_prepare.h"
+#include "ui/effects/animation_value_f.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "styles/style_editor.h"
@@ -24,6 +25,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWheelEvent>
 
 namespace Editor {
+namespace {
+
+constexpr auto kExpansionRoomRatio = 0.7;
+constexpr auto kLayoutSmoothTau = 60.;
+constexpr auto kLayoutMaxFrameDelta = crl::time(64);
+constexpr auto kLayoutEpsilon = 0.5;
+
+[[nodiscard]] float64 MaxDistance(const QRectF &a, const QRectF &b) {
+	return std::max({
+		std::abs(a.x() - b.x()),
+		std::abs(a.y() - b.y()),
+		std::abs(a.width() - b.width()),
+		std::abs(a.height() - b.height()),
+	});
+}
+
+} // namespace
 
 using Media::View::FlipSizeByRotation;
 using Media::View::RotatedRect;
@@ -67,9 +85,32 @@ PhotoEditorContent::PhotoEditorContent(
 , _modifications(modifications)
 , _canvas(QRect(QPoint(), _photoSize) | modifications.crop) {
 	_crop->setExpansionAllowed(!_fixedCrop);
+	_layoutAnimation.init([=](crl::time now) {
+		return layoutAnimationStep(now);
+	});
+	_crop->events(
+	) | rpl::on_next([=](not_null<QEvent*> e) {
+		const auto type = e->type();
+		if (type == QEvent::MouseMove
+			|| type == QEvent::MouseButtonRelease) {
+			const auto mouse = static_cast<QMouseEvent*>(e.get());
+			setExpansionRoom(
+				mouse->modifiers().testFlag(Qt::ControlModifier));
+		}
+	}, _crop->lifetime());
 	_crop->changes(
 	) | rpl::on_next([=] {
 		updateCanvas();
+	}, lifetime());
+	_crop->dragChanges(
+	) | rpl::on_next([=](bool dragging) {
+		_dragging = dragging;
+		if (dragging && _layoutAnimation.animating()) {
+			_layoutAnimation.stop();
+			applyLayout(_layoutTarget);
+		} else if (!dragging) {
+			updateRoom();
+		}
 	}, lifetime());
 
 	_audioDisc->hide();
@@ -98,15 +139,32 @@ PhotoEditorContent::PhotoEditorContent(
 	rpl::combine(
 		_modifications.value(),
 		sizeValue(),
-		_canvas.value()
+		_canvas.value(),
+		_room.value()
 	) | rpl::on_next([=](
 			const PhotoModifications &mods,
 			const QSize &size,
-			const QRect &canvas) {
+			const QRect &canvas,
+			bool room) {
 		if (size.isEmpty()) {
 			return;
 		}
-		updateLayout(mods, size, canvas);
+		const auto target = layoutTarget(mods, size, canvas, room);
+		const auto animate = _animateLayout
+			&& !_dragging
+			&& !anim::Disabled()
+			&& !_imageRectF.isEmpty()
+			&& (target != _imageRectF);
+		if (!animate) {
+			_layoutAnimation.stop();
+			applyLayout(target);
+			return;
+		}
+		_layoutTarget = target;
+		if (!_layoutAnimation.animating()) {
+			_layoutLastFrame = crl::now();
+			_layoutAnimation.start();
+		}
 	}, lifetime());
 
 	paintRequest(
@@ -119,7 +177,13 @@ PhotoEditorContent::PhotoEditorContent(
 		} else {
 			paintCanvasFill(p);
 			p.setTransform(_imageMatrix);
-			p.drawPixmap(_imageRect, _photo->pix(_imageRect.size()));
+			const auto size = _layoutAnimation.animating()
+				? _layoutTarget.size().toSize()
+				: _imageRect.size();
+			p.setRenderHint(
+				QPainter::SmoothPixmapTransform,
+				(size != _imageRect.size()));
+			p.drawPixmap(_imageRect, _photo->pixSingle(size));
 		}
 	}, lifetime());
 
@@ -168,32 +232,51 @@ PhotoEditorContent::PhotoEditorContent(
 	}
 }
 
-void PhotoEditorContent::updateLayout(
+QRectF PhotoEditorContent::layoutTarget(
 		const PhotoModifications &mods,
 		QSize size,
-		QRect canvas) {
+		QRect canvas,
+		bool room) const {
 	const auto m = _crop->cropMargins();
-	const auto fit = FlipSizeByRotation(size, mods.angle)
+	const auto full = FlipSizeByRotation(size, mods.angle)
 		- QSize(m.left() + m.right(), m.top() + m.bottom());
+	const auto fit = room
+		? (QSizeF(full) * kExpansionRoomRatio)
+		: QSizeF(full);
 	const auto scale = std::min({
 		1.,
-		fit.width() / float64(canvas.width()),
-		fit.height() / float64(canvas.height()),
+		fit.width() / canvas.width(),
+		fit.height() / canvas.height(),
 	});
-	const auto scaled = [&](QSize original) {
-		return QSize(
-			int(base::SafeRound(original.width() * scale)),
-			int(base::SafeRound(original.height() * scale)));
+	const auto canvasSize = QSizeF(canvas.size()) * scale;
+	return QRectF(
+		QPointF(-canvasSize.width() / 2., -canvasSize.height() / 2.)
+			- QPointF(canvas.topLeft()) * scale,
+		QSizeF(_photoSize) * scale);
+}
+
+void PhotoEditorContent::applyLayout(QRectF imageRect) {
+	const auto size = this->size();
+	if (size.isEmpty() || imageRect.isEmpty()) {
+		return;
+	}
+	const auto &mods = _modifications.current();
+	const auto canvas = _canvas.current();
+	const auto scale = imageRect.width() / _photoSize.width();
+	const auto rounded = [](float64 value) {
+		return int(base::SafeRound(value));
 	};
-	const auto canvasSize = scaled(canvas.size());
-	_canvasRect = QRect(
-		QPoint(-canvasSize.width() / 2, -canvasSize.height() / 2),
-		canvasSize);
+	_imageRectF = imageRect;
 	_imageRect = QRect(
-		_canvasRect.topLeft() - QPoint(
-			int(base::SafeRound(canvas.x() * scale)),
-			int(base::SafeRound(canvas.y() * scale))),
-		scaled(_photoSize));
+		QPoint(rounded(imageRect.x()), rounded(imageRect.y())),
+		QSize(rounded(imageRect.width()), rounded(imageRect.height())));
+	_canvasRect = QRect(
+		_imageRect.topLeft() + QPoint(
+			rounded(canvas.x() * scale),
+			rounded(canvas.y() * scale)),
+		QSize(
+			rounded(canvas.width() * scale),
+			rounded(canvas.height() * scale)));
 
 	_imageMatrix.reset();
 	_imageMatrix.translate(size.width() / 2, size.height() / 2);
@@ -208,18 +291,56 @@ void PhotoEditorContent::updateLayout(
 		geometry.topLeft(),
 		mods.angle,
 		mods.flipped,
-		QSizeF(_photoSize) * scale);
+		imageRect.size());
 	_crop->setCornersLevel(mods.cornersLevel);
 	_paint->applyTransform(geometry, mods.angle, mods.flipped);
 
 	_innerRect = _imageMatrix.mapRect(_canvasRect);
+	update();
+}
+
+bool PhotoEditorContent::layoutAnimationStep(crl::time now) {
+	const auto delta = std::clamp(
+		now - _layoutLastFrame,
+		crl::time(0),
+		kLayoutMaxFrameDelta);
+	_layoutLastFrame = now;
+	if (delta <= 0) {
+		return true;
+	}
+	const auto ratio = 1. - std::exp(-float64(delta) / kLayoutSmoothTau);
+	const auto next = anim::interpolatedRectF(
+		_imageRectF,
+		_layoutTarget,
+		ratio);
+	const auto finished = MaxDistance(next, _layoutTarget) < kLayoutEpsilon;
+	applyLayout(finished ? _layoutTarget : next);
+	return !finished;
 }
 
 void PhotoEditorContent::updateCanvas() {
 	const auto image = QRect(QPoint(), _photoSize);
+	_animateLayout = true;
 	_canvas = (_mode.mode == PhotoEditorMode::Mode::Paint)
 		? image
 		: (image | _crop->cropRect());
+	_animateLayout = false;
+}
+
+void PhotoEditorContent::updateRoom() {
+	if (_dragging) {
+		return;
+	}
+	_animateLayout = true;
+	_room = _roomRequested
+		&& !_fixedCrop
+		&& (_mode.mode == PhotoEditorMode::Mode::Transform);
+	_animateLayout = false;
+}
+
+void PhotoEditorContent::setExpansionRoom(bool room) {
+	_roomRequested = room;
+	updateRoom();
 }
 
 void PhotoEditorContent::paintCanvasFill(QPainter &p) const {
@@ -287,6 +408,7 @@ void PhotoEditorContent::applyMode(const PhotoEditorMode &mode) {
 	}
 	_mode = mode;
 	updateCanvas();
+	updateRoom();
 	updateAudioDisc();
 	update();
 }
