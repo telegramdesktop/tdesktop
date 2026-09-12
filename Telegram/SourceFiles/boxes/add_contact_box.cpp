@@ -1579,14 +1579,22 @@ void EditNameBox::prepare() {
 	_last->submits(
 	) | rpl::on_next([=] { submit(); }, _last->lifetime());
 
+	// Tab switches between the two names. A request for the default order
+	// is left alone: the buttons of the box are Tab stops then.
 	using TabbedRequest = Ui::InputField::TabbedRequest;
 	_first->tabbed(
 	) | rpl::on_next([=](not_null<TabbedRequest*> request) {
+		if (request->defaultOrder) {
+			return;
+		}
 		_last->setFocus();
 		request->handled = true;
 	}, _first->lifetime());
 	_last->tabbed(
 	) | rpl::on_next([=](not_null<TabbedRequest*> request) {
+		if (request->defaultOrder) {
+			return;
+		}
 		_first->setFocus();
 		request->handled = true;
 	}, _last->lifetime());
