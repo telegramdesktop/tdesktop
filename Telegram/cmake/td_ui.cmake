@@ -278,6 +278,8 @@ PRIVATE
     media/media_audio_waveform.cpp
     media/media_audio_waveform.h
     media/media_common.h
+    media/media_video_canvas.cpp
+    media/media_video_canvas.h
 
     menu/gift_resale_filter.cpp
     menu/gift_resale_filter.h
