@@ -1087,6 +1087,7 @@ void KeyProtectionBox(
 	}, box->lifetime());
 	const auto mode = args.mode;
 	const auto grantForStore = args.grantForStore;
+	const auto replacesUnusable = args.replacesUnusableVault;
 	const auto removal = (mode == KeyProtectionMode::Removal);
 
 	box->setTitle(tr::lng_wallet_protection_title());
@@ -1261,7 +1262,7 @@ void KeyProtectionBox(
 			// Nothing reaches the disk here: the caller's store writes the
 			// header when it seals its first record under this policy.
 			auto &vault = session.wallet().vault();
-			vault.arm(std::move(prepared));
+			vault.arm(std::move(prepared), replacesUnusable);
 			closeWith({
 				.cancelled = false,
 				.kind = kind,
@@ -1768,9 +1769,12 @@ void ShowKeyProtectionBox(
 	auto header = std::optional<VaultHeader>();
 	switch (args.mode) {
 	case KeyProtectionMode::Install:
-		// Install is asked for an account that has no vault yet; a header
-		// that reads is the caller's contract broken, not a user error.
-		if (ReadVaultHeader(session.local()).state
+		// Install is asked for an account that has no vault yet, or one whose
+		// vault this process cannot open and the caller is replacing; a
+		// header that reads in any other case is the caller's contract
+		// broken, not a user error.
+		if (!args.replacesUnusableVault
+			&& ReadVaultHeader(session.local()).state
 			== VaultReading::State::Read) {
 			LOG(("Wallet Error: key protection asked to install over a vault "
 				"this account already carries."));

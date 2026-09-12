@@ -613,9 +613,10 @@ CustodyInstaller MakeCustodyInstaller(
 		}
 		auto &session = show->session();
 		auto reading = session.wallet().vault().reading(session.local());
-		const auto install = [=] {
+		const auto install = [=](bool replacesUnusable) {
 			ShowKeyProtectionBox(show, {
 				.mode = KeyProtectionMode::Install,
+				.replacesUnusableVault = replacesUnusable,
 				.done = [answer](KeyProtectionResult result) {
 					auto grant = (!result.cancelled && !result.failed)
 						? Share(std::move(result.grant))
@@ -630,23 +631,20 @@ CustodyInstaller MakeCustodyInstaller(
 		};
 		switch (reading.state) {
 		case State::Absent:
-			install();
+			install(false);
 			return;
 		case State::Read:
 			// A hardware wrap that could not be opened in this process only
-			// flags the session: the unusable key's ciphertext and the
-			// custody record survive on disk until this consented
-			// replacement - the restore from backup or phrase that reaches
-			// the installer - which is the one place they are dropped, and
-			// the drop is what clears the flag.
+			// flags the session, and nothing is dropped for the consented
+			// replacement that reaches this installer either: the store
+			// removes that header in the one step that writes the new vault
+			// and puts it back if that write fails, so a cancelled chooser, a
+			// phrase belonging to another wallet and a failed write all leave
+			// the old ciphertext openable on a later run where the factor
+			// works again. The custody write that follows a verified import
+			// is what drops it for good and clears the flag.
 			if (session.wallet().vaultKeyUnusable()) {
-				if (!DropVaultAndCustody(&session.account())) {
-					show->showToast(
-						tr::lng_wallet_passcode_forgot_failed(tr::now));
-					answer({});
-					return;
-				}
-				install();
+				install(true);
 				return;
 			}
 			// A restored or imported key is about to be written, so the user

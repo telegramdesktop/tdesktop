@@ -3735,6 +3735,16 @@ const CustodyStore &Session::custody() {
 
 bool Session::persistCustody(const CustodyRecord &record) {
 	auto store = custody();
+	// The write below is what confirms a replacement of a vault this process
+	// could not open: until it lands, the removed header can still go back
+	// and the values it sealed have to stay. Once it lands they are sealed
+	// under a wrap no header carries any more, so they go with the records
+	// naming them, and the flag they set goes with them.
+	const auto replacing = vault().hasReplaced();
+	const auto sealedUnderReplaced = replacing ? store : CustodyStore();
+	if (replacing) {
+		store = CustodyStore{ .lastSeenServerKey = store.lastSeenServerKey };
+	}
 	store.records.erase(
 		ranges::remove(
 			store.records,
@@ -3749,6 +3759,22 @@ bool Session::persistCustody(const CustodyRecord &record) {
 	if (!WriteCustodyStore(_session->local(), store)) {
 		LOG(("Wallet Error: custody record write failed."));
 		return false;
+	}
+	if (const auto replaced = vault().takeReplaced()) {
+		auto dropped = 0;
+		auto sealed = sealedUnderReplaced;
+		ForEachCustodySecretRef(sealed, [&](const QString &secretRef) {
+			if (_session->local().removeWalletEngineValue(
+					VaultSecretStorageKey(secretRef))) {
+				++dropped;
+			}
+			return true;
+		});
+		if (dropped) {
+			LOG(("Wallet Info: dropped %1 sealed value(s) of the vault the "
+				"restore replaced.").arg(dropped));
+		}
+		setVaultKeyUnusable(false);
 	}
 	_custodyReadFailed = false;
 	_custody = std::move(store);
@@ -3771,6 +3797,19 @@ void Session::dropCreatedVault() {
 	if (RemoveVaultHeader(_session->local())) {
 		LOG(("Wallet Info: dropped the vault header a failed store "
 			"created."));
+	}
+	// A store that replaced a vault this process could not open removed its
+	// header to write the new one in its place. The flow failed, so the old
+	// header goes back and the records it sealed stay openable on a run where
+	// the retired factor works again.
+	if (auto replaced = vault().takeReplaced()) {
+		if (WriteVaultHeader(_session->local(), *replaced)) {
+			LOG(("Wallet Info: restored the vault header the failed "
+				"replacement had removed."));
+		} else {
+			LOG(("Wallet Error: could not restore the vault header after a "
+				"failed replacement."));
+		}
 	}
 }
 

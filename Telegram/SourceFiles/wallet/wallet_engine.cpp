@@ -200,6 +200,7 @@ struct StoreOutcome {
 	bool unavailable = false;
 	bool refused = false;
 	SecureBytes created;
+	std::optional<VaultHeader> replaced;
 };
 
 [[nodiscard]] bool WriteSealedRecord(
@@ -278,6 +279,31 @@ struct StoreOutcome {
 		|| reading.state == State::Unsupported) {
 		return { .unavailable = true };
 	} else if (reading.state == State::Read) {
+		// A vault whose committed wrap this process cannot open is replaced
+		// rather than written into, and the header goes only here: the write
+		// that puts the new vault in its place either follows immediately or
+		// the header goes back, so a flow that never reached this step leaves
+		// the account exactly as it was.
+		if (input.authority.policy) {
+			if (!input.authority.replaces
+				|| vault.clearEpoch() != input.authority.epoch) {
+				return { .refused = true };
+			}
+			auto replaced = reading.header;
+			if (!RemoveVaultHeader(local)) {
+				return { .unavailable = true };
+			}
+			auto outcome = CreateVaultAndStore(local, storageKey, input);
+			if (!outcome.written) {
+				if (!WriteVaultHeader(local, replaced)) {
+					LOG(("Wallet Error: could not restore the vault header "
+						"after a failed replacement."));
+				}
+				return outcome;
+			}
+			outcome.replaced = std::move(replaced);
+			return outcome;
+		}
 		if (!input.authority.key
 			|| vault.clearEpoch() != input.authority.epoch) {
 			return { .refused = true };
@@ -858,6 +884,9 @@ public:
 			_vault->adoptCreated(
 				std::move(outcome->created),
 				input->authority.epoch);
+		}
+		if (outcome->replaced) {
+			_vault->rememberReplaced(std::move(*outcome->replaced));
 		}
 	}
 

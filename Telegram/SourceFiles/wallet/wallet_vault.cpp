@@ -1013,9 +1013,10 @@ bool VaultRuntime::unlockWith(SecureBytes key, quint32 epoch) {
 	return true;
 }
 
-void VaultRuntime::arm(VaultPreparedWrap policy) {
+void VaultRuntime::arm(VaultPreparedWrap policy, bool replacesUnusable) {
 	auto lock = std::lock_guard(_mutex);
 	_policy = std::move(policy);
+	_policyReplaces = replacesUnusable;
 }
 
 VaultGrant VaultRuntime::grant() {
@@ -1054,6 +1055,7 @@ void VaultRuntime::clear() {
 		auto lock = std::lock_guard(_mutex);
 		_key.reset();
 		_policy.reset();
+		_policyReplaces = false;
 		_retainUntil = 0;
 		++_clearEpoch;
 		_grants = 0;
@@ -1076,7 +1078,11 @@ VaultRuntime::StoreAuthority VaultRuntime::authorityForStore() {
 	} else if (_key) {
 		return { .key = _key->copy(), .epoch = _clearEpoch };
 	}
-	return { .policy = base::take(_policy), .epoch = _clearEpoch };
+	return {
+		.policy = base::take(_policy),
+		.epoch = _clearEpoch,
+		.replaces = base::take(_policyReplaces),
+	};
 }
 
 void VaultRuntime::adoptCreated(SecureBytes key, quint32 epoch) {
@@ -1086,6 +1092,21 @@ void VaultRuntime::adoptCreated(SecureBytes key, quint32 epoch) {
 		return;
 	}
 	_key = std::move(key);
+}
+
+void VaultRuntime::rememberReplaced(VaultHeader header) {
+	auto lock = std::lock_guard(_mutex);
+	_replaced = std::move(header);
+}
+
+bool VaultRuntime::hasReplaced() const {
+	auto lock = std::lock_guard(_mutex);
+	return _replaced.has_value();
+}
+
+std::optional<VaultHeader> VaultRuntime::takeReplaced() {
+	auto lock = std::lock_guard(_mutex);
+	return base::take(_replaced);
 }
 
 void VaultRuntime::release(quint32 epoch) {

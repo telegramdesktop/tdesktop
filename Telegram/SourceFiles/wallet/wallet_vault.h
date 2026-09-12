@@ -172,7 +172,7 @@ public:
 	[[nodiscard]] quint32 clearEpoch() const;
 	[[nodiscard]] bool unlockWith(SecureBytes key, quint32 epoch);
 
-	void arm(VaultPreparedWrap policy);
+	void arm(VaultPreparedWrap policy, bool replacesUnusable = false);
 	[[nodiscard]] VaultGrant grant();
 	void setRetention(bool fifteenMinutes);
 	[[nodiscard]] bool retained() const;
@@ -183,6 +183,11 @@ public:
 		std::optional<SecureBytes> key;
 		std::optional<VaultPreparedWrap> policy;
 		quint32 epoch = 0;
+		// The policy was armed to replace a vault whose committed wrap this
+		// process cannot open, so the store creating it is allowed to remove
+		// that header - and only that store, in the one step that writes the
+		// replacement in its place.
+		bool replaces = false;
 	};
 	[[nodiscard]] std::optional<SecureBytes> keyForRead();
 	[[nodiscard]] StoreAuthority authorityForStore();
@@ -196,6 +201,17 @@ public:
 	// box.
 	void adoptCreated(SecureBytes key, quint32 epoch);
 
+	// The header a store removed to create a replacement in its place, kept
+	// until the flow that asked for that replacement confirms it. The records
+	// the removed header sealed are still on disk, so writing it back is what
+	// makes them openable again on a later run where the retired factor
+	// works; the custody write that follows a verified import is what drops
+	// them instead. A clear does not touch it: it is not a live key, it is
+	// the bytes the disk carried a moment ago.
+	void rememberReplaced(VaultHeader header);
+	[[nodiscard]] bool hasReplaced() const;
+	[[nodiscard]] std::optional<VaultHeader> takeReplaced();
+
 private:
 	friend class VaultGrant;
 	void release(quint32 epoch);
@@ -203,6 +219,8 @@ private:
 	mutable std::mutex _mutex;
 	std::optional<SecureBytes> _key;
 	std::optional<VaultPreparedWrap> _policy;
+	std::optional<VaultHeader> _replaced;
+	bool _policyReplaces = false;
 	int _grants = 0;
 	quint32 _clearEpoch = 0;
 	crl::time _retainUntil = 0;

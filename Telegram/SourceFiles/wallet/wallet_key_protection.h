@@ -175,6 +175,11 @@ struct KeyProtectionArgs {
 	// and the switch is not refused for the store's own custody operation,
 	// which is what holds custodyBusy() while this box is open.
 	bool grantForStore = false;
+	// Install only, for the custody installer replacing a vault whose wrap
+	// this process cannot open: the account still carries that header while
+	// this box is open, and the store removes it in the one step that writes
+	// the replacement, so a cancelled box destroys nothing.
+	bool replacesUnusableVault = false;
 	Fn<void(KeyProtectionResult)> done;
 };
 
