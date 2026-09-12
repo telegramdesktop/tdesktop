@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "media/media_video_canvas.h"
 #include "media/media_video_encode.h"
 
 namespace Editor {

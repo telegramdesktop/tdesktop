@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "editor/photo_editor_common.h"
 #include "editor/photo_editor_inner_common.h"
+#include "media/media_video_canvas.h"
 #include "ui/image/image.h"
 
 namespace Editor {
@@ -79,6 +80,12 @@ public:
 	}
 
 private:
+	void updateCanvas();
+	void updateLayout(
+		const PhotoModifications &mods,
+		QSize size,
+		QRect canvas);
+	void paintCanvasFill(QPainter &p) const;
 	void updateAudioDisc();
 	void updateAudioDiscGeometry();
 
@@ -89,13 +96,16 @@ private:
 	const base::unique_qptr<Crop> _crop;
 	const base::unique_qptr<AudioDiscButton> _audioDisc;
 	const std::shared_ptr<Image> _photo;
+	const Media::Encode::CanvasBackground _background;
 
 	rpl::variable<QRect> _innerRect;
 	rpl::variable<PhotoModifications> _modifications;
+	rpl::variable<QRect> _canvas;
 	rpl::event_stream<int> _keyPresses;
 	rpl::event_stream<> _paintModeRequests;
 
 	QRect _imageRect;
+	QRect _canvasRect;
 	QTransform _imageMatrix;
 	PhotoEditorMode _mode;
 

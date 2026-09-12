@@ -26,17 +26,21 @@ public:
 
 	void applyTransform(
 		const QRect &geometry,
+		QPoint imagePosition,
 		int angle,
 		bool flipped,
 		const QSizeF &scaledImageSize);
 	[[nodiscard]] QRect saveCropRect();
+	[[nodiscard]] QRect cropRect() const;
 	[[nodiscard]] rpl::producer<> changes() const {
 		return _changes.events();
 	}
 	[[nodiscard]] QRect paintRect() const;
+	[[nodiscard]] QPainterPath cropPath() const;
 	[[nodiscard]] style::margins cropMargins() const;
 	void setAspectRatio(float64 ratio);
 	void setCornersLevel(RoundedCornersLevel level);
+	void setExpansionAllowed(bool allowed);
 
 protected:
 	void mousePressEvent(QMouseEvent *e) override;
@@ -49,6 +53,7 @@ private:
 		Qt::Edges edge;
 		QPoint point;
 		float64 cropRatio = 0.;
+		QRectF bounds;
 
 		struct Borders {
 			int left = 0;
@@ -61,14 +66,15 @@ private:
 	void paintFrame(QPainter &p);
 	void paintGrid(QPainter &p, float64 opacity);
 	void setGridVisible(bool visible, bool animated);
-	[[nodiscard]] QPainterPath cropPath() const;
 
 	void updateEdges();
+	void updatePainterPath();
 	[[nodiscard]] QPoint pointOfEdge(Qt::Edges e) const;
+	[[nodiscard]] QRectF expansionBounds() const;
 	void setCropPaint(QRectF &&rect);
 	void convertCropPaintToOriginal();
 
-	void computeDownState(const QPoint &p);
+	void computeDownState(const QPoint &p, bool expanding);
 	void clearDownState();
 	[[nodiscard]] Qt::Edges mouseState(const QPoint &p);
 	void performCrop(const QPoint &pos);
@@ -79,7 +85,6 @@ private:
 	const int _pointSize;
 	const float _pointSizeH;
 	const style::margins _innerMargins;
-	const QPoint _offset;
 	const QMarginsF _edgePointMargins;
 	const QSize _imageSize;
 	const EditorData _data;
@@ -105,6 +110,7 @@ private:
 	bool _gridVisible = false;
 
 	bool _keepAspectRatio = false;
+	bool _expansionAllowed = false;
 
 	RoundedCornersLevel _cornersLevel = RoundedCornersLevel::Large;
 

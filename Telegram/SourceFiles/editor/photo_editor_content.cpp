@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_drag_area.h"
 #include "media/view/media_view_pip.h"
 #include "storage/storage_media_prepare.h"
+#include "ui/painter.h"
 #include "ui/rect.h"
 #include "styles/style_editor.h"
 
@@ -62,7 +63,15 @@ PhotoEditorContent::PhotoEditorContent(
 	std::move(data)))
 , _audioDisc(base::make_unique_q<AudioDiscButton>(this))
 , _photo(std::move(photo))
-, _modifications(modifications) {
+, _background(Media::Encode::DominantCanvasBackground(_photo->original()))
+, _modifications(modifications)
+, _canvas(QRect(QPoint(), _photoSize) | modifications.crop) {
+	_crop->setExpansionAllowed(!_fixedCrop);
+	_crop->changes(
+	) | rpl::on_next([=] {
+		updateCanvas();
+	}, lifetime());
+
 	_audioDisc->hide();
 	_audioDisc->setClickedCallback([=] {
 		_paint->setAudioSelected(!_paint->audioSelected());
@@ -88,48 +97,16 @@ PhotoEditorContent::PhotoEditorContent(
 
 	rpl::combine(
 		_modifications.value(),
-		sizeValue()
+		sizeValue(),
+		_canvas.value()
 	) | rpl::on_next([=](
-			const PhotoModifications &mods, const QSize &size) {
+			const PhotoModifications &mods,
+			const QSize &size,
+			const QRect &canvas) {
 		if (size.isEmpty()) {
 			return;
 		}
-		const auto imageSizeF = [&] {
-			const auto rotatedSize
-				= FlipSizeByRotation(size, mods.angle);
-			const auto m = _crop->cropMargins();
-			const auto sizeForCrop = rotatedSize
-				- QSize(m.left() + m.right(), m.top() + m.bottom());
-			const auto originalSize = QSizeF(_photoSize);
-			if ((originalSize.width() > sizeForCrop.width())
-				|| (originalSize.height() > sizeForCrop.height())) {
-				return originalSize.scaled(
-					sizeForCrop,
-					Qt::KeepAspectRatio);
-			}
-			return originalSize;
-		}();
-		const auto imageSize = QSize(imageSizeF.width(), imageSizeF.height());
-		_imageRect = QRect(
-			QPoint(-imageSize.width() / 2, -imageSize.height() / 2),
-			imageSize);
-
-		_imageMatrix.reset();
-		_imageMatrix.translate(size.width() / 2, size.height() / 2);
-		if (mods.flipped) {
-			_imageMatrix.scale(-1, 1);
-		}
-		_imageMatrix.rotate(mods.angle);
-
-		const auto geometry = _imageMatrix.mapRect(_imageRect);
-		_crop->applyTransform(
-			geometry + _crop->cropMargins(),
-			mods.angle,
-			mods.flipped, imageSizeF);
-		_crop->setCornersLevel(mods.cornersLevel);
-		_paint->applyTransform(geometry, mods.angle, mods.flipped);
-
-		_innerRect = geometry;
+		updateLayout(mods, size, canvas);
 	}, lifetime());
 
 	paintRequest(
@@ -140,6 +117,7 @@ PhotoEditorContent::PhotoEditorContent(
 		if (_mode.mode == PhotoEditorMode::Mode::Paint) {
 			_paint->paintImage(p, _photo->pix(_photoSize));
 		} else {
+			paintCanvasFill(p);
 			p.setTransform(_imageMatrix);
 			p.drawPixmap(_imageRect, _photo->pix(_imageRect.size()));
 		}
@@ -190,6 +168,82 @@ PhotoEditorContent::PhotoEditorContent(
 	}
 }
 
+void PhotoEditorContent::updateLayout(
+		const PhotoModifications &mods,
+		QSize size,
+		QRect canvas) {
+	const auto m = _crop->cropMargins();
+	const auto fit = FlipSizeByRotation(size, mods.angle)
+		- QSize(m.left() + m.right(), m.top() + m.bottom());
+	const auto scale = std::min({
+		1.,
+		fit.width() / float64(canvas.width()),
+		fit.height() / float64(canvas.height()),
+	});
+	const auto scaled = [&](QSize original) {
+		return QSize(
+			int(base::SafeRound(original.width() * scale)),
+			int(base::SafeRound(original.height() * scale)));
+	};
+	const auto canvasSize = scaled(canvas.size());
+	_canvasRect = QRect(
+		QPoint(-canvasSize.width() / 2, -canvasSize.height() / 2),
+		canvasSize);
+	_imageRect = QRect(
+		_canvasRect.topLeft() - QPoint(
+			int(base::SafeRound(canvas.x() * scale)),
+			int(base::SafeRound(canvas.y() * scale))),
+		scaled(_photoSize));
+
+	_imageMatrix.reset();
+	_imageMatrix.translate(size.width() / 2, size.height() / 2);
+	if (mods.flipped) {
+		_imageMatrix.scale(-1, 1);
+	}
+	_imageMatrix.rotate(mods.angle);
+
+	const auto geometry = _imageMatrix.mapRect(_imageRect);
+	_crop->applyTransform(
+		rect(),
+		geometry.topLeft(),
+		mods.angle,
+		mods.flipped,
+		QSizeF(_photoSize) * scale);
+	_crop->setCornersLevel(mods.cornersLevel);
+	_paint->applyTransform(geometry, mods.angle, mods.flipped);
+
+	_innerRect = _imageMatrix.mapRect(_canvasRect);
+}
+
+void PhotoEditorContent::updateCanvas() {
+	const auto image = QRect(QPoint(), _photoSize);
+	_canvas = (_mode.mode == PhotoEditorMode::Mode::Paint)
+		? image
+		: (image | _crop->cropRect());
+}
+
+void PhotoEditorContent::paintCanvasFill(QPainter &p) const {
+	if (Rect(_photoSize).contains(_crop->cropRect())) {
+		return;
+	}
+	auto image = QPainterPath();
+	image.addRect(_imageMatrix.mapRect(QRectF(_imageRect)));
+	const auto fill = _crop->cropPath()
+		.translated(_crop->pos())
+		.subtracted(image);
+	if (fill.isEmpty()) {
+		return;
+	}
+	p.save();
+	auto hq = PainterHighQualityEnabler(p);
+	p.setClipPath(fill);
+	Media::Encode::PaintCanvasBackground(
+		p,
+		_crop->paintRect().translated(_crop->pos()),
+		_background);
+	p.restore();
+}
+
 void PhotoEditorContent::applyModifications(
 		PhotoModifications modifications) {
 	_modifications = std::move(modifications);
@@ -232,6 +286,7 @@ void PhotoEditorContent::applyMode(const PhotoEditorMode &mode) {
 		_paint->keepResult();
 	}
 	_mode = mode;
+	updateCanvas();
 	updateAudioDisc();
 	update();
 }

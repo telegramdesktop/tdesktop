@@ -798,8 +798,10 @@ void VideoEditor::applyGeometry() {
 	_frameMatrix.rotate(_geometry.angle);
 
 	const auto geometry = _frameMatrix.mapRect(_frameRect);
+	const auto m = _crop->cropMargins();
 	_crop->applyTransform(
-		geometry + _crop->cropMargins(),
+		geometry + m,
+		QPoint(m.left(), m.top()),
 		_geometry.angle,
 		_geometry.flipped,
 		frameSizeF);
