@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <editor/photo_editor_inner_common.h>
 #include <editor/scene/scene_item_base.h>
+#include "ui/effects/animations.h"
 
 #include <QGraphicsScene>
 
@@ -46,6 +47,7 @@ public:
 	~Scene();
 	void setCanvasRect(const QRectF &rect);
 	[[nodiscard]] QRectF canvasRect() const;
+	void setStickyGuides(std::optional<float64> x, std::optional<float64> y);
 	void applyBrush(const QColor &color, float64 size, Brush::Tool tool);
 	void setBlurSource(Fn<QImage(QRect)> source);
 	void setTextDefaults(
@@ -127,12 +129,25 @@ protected:
 	void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 	void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
 private:
+	class StickyGuidesItem;
 	struct CapturedPlacement {
 		std::shared_ptr<ItemBase> item;
 		ItemBase::Placement placement;
 	};
+	struct StickyGuide {
+		Ui::Animations::Simple animation;
+		float64 position = 0.;
+		bool shown = false;
+	};
 
 	void removeIf(Fn<bool(const ItemPtr &)> proj);
+	void setStickyGuide(
+		Qt::Orientation orientation,
+		std::optional<float64> position);
+	void hideStickyGuides();
+	[[nodiscard]] float64 stickyGuideMargin() const;
+	[[nodiscard]] QRectF stickyGuideRect(Qt::Orientation orientation) const;
+	void paintStickyGuide(QPainter &p, Qt::Orientation orientation) const;
 	void capturePlacements();
 	void updateVideoItemsSound();
 	void checkDurationsLink();
@@ -149,6 +164,7 @@ private:
 
 	const std::shared_ptr<ItemCanvas> _canvas;
 	const std::shared_ptr<float64> _lastZ;
+	const std::unique_ptr<StickyGuidesItem> _stickyGuides;
 	const std::unique_ptr<TextEditController> _textEdit;
 	Fn<QImage(QRect)> _blurSource;
 
@@ -156,6 +172,8 @@ private:
 	std::unordered_map<QGraphicsItem*, ItemPtr> _itemsByPointer;
 	std::vector<CapturedPlacement> _capturedPlacements;
 	QRectF _canvasRect;
+	StickyGuide _stickyGuideX;
+	StickyGuide _stickyGuideY;
 
 	float64 _lastLineZ = 0.;
 	float64 _currentZoom = 1.;

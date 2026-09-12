@@ -206,6 +206,8 @@ photoEditorCropPointSize: 10px;
 photoEditorCropMinSize: 20px;
 
 photoEditorItemHandleSize: 10px;
+photoEditorStickyTrigger: 12px;
+photoEditorStickyLineWidth: 2px;
 
 photoEditorAudioDiscSize: 48px;
 photoEditorAudioDiscSkip: 12px;

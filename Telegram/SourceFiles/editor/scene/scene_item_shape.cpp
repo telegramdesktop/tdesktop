@@ -156,6 +156,14 @@ QRectF ItemShape::shapeRect() const {
 	return result;
 }
 
+QRectF ItemShape::visibleRect() const {
+	const auto bounds = (_shape == ShapeType::Arrow)
+		? (arrowShaftPath().boundingRect()
+			| arrowHeadPath().boundingRect())
+		: shapePath().boundingRect();
+	return bounds + Margins(_strokeWidth / 2.);
+}
+
 float64 ItemShape::direction() const {
 	return flipped() ? -1. : 1.;
 }

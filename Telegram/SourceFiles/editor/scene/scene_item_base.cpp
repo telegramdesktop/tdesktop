@@ -31,9 +31,32 @@ const auto kDeleteSequence = QKeySequence("delete");
 
 constexpr auto kMinSizeRatio = 0.05;
 
+constexpr auto kStickyDuration = crl::time(150);
+constexpr auto kStickyLines = 5;
+
 auto Normalized(float64 angle) {
 	return angle
 		+ ((std::abs(angle) < 360) ? 0 : (-360 * (angle < 0 ? -1 : 1)));
+}
+
+[[nodiscard]] float64 StickyStart(
+		const QRectF &rect,
+		Qt::Orientation orientation) {
+	return (orientation == Qt::Horizontal) ? rect.left() : rect.top();
+}
+
+[[nodiscard]] float64 StickyLength(
+		const QRectF &rect,
+		Qt::Orientation orientation) {
+	return (orientation == Qt::Horizontal) ? rect.width() : rect.height();
+}
+
+[[nodiscard]] float64 StickyLine(
+		const QRectF &canvas,
+		Qt::Orientation orientation,
+		int line) {
+	return StickyStart(canvas, orientation)
+		+ StickyLength(canvas, orientation) * line / (kStickyLines - 1);
 }
 
 } // namespace
@@ -128,6 +151,21 @@ QRectF ItemBase::innerRect() const {
 	return QRectF(-hSize / 2, -vSize / 2, hSize, vSize);
 }
 
+QRectF ItemBase::fittedRect(QSizeF size) const {
+	const auto rect = contentRect();
+	if (size.isEmpty()) {
+		return rect;
+	}
+	const auto fitted = size.scaled(rect.size(), Qt::KeepAspectRatio);
+	return QRectF(rect.topLeft(), fitted).translated(
+		(rect.width() - fitted.width()) / 2.,
+		(rect.height() - fitted.height()) / 2.);
+}
+
+QRectF ItemBase::visibleRect() const {
+	return contentRect();
+}
+
 void ItemBase::paint(
 		QPainter *p,
 		const QStyleOptionGraphicsItem *option,
@@ -186,6 +224,7 @@ void ItemBase::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 			: angle);
 	} else {
 		QGraphicsItem::mouseMoveEvent(event);
+		updateSticky(event->modifiers().testFlag(Qt::ShiftModifier));
 	}
 }
 
@@ -211,6 +250,9 @@ void ItemBase::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 		setCursor(Qt::ClosedHandCursor);
 	} else {
 		QGraphicsItem::mousePressEvent(event);
+		if (event->button() == Qt::LeftButton) {
+			startStickyDrag();
+		}
 	}
 }
 
@@ -218,8 +260,219 @@ void ItemBase::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
 	if ((event->button() == Qt::LeftButton) && isHandling()) {
 		_handle = HandleType::None;
 	} else {
+		if (event->button() == Qt::LeftButton) {
+			finishStickyDrag();
+		}
 		QGraphicsItem::mouseReleaseEvent(event);
 	}
+}
+
+ItemBase::StickyAxis &ItemBase::stickyAxis(Qt::Orientation orientation) {
+	return (orientation == Qt::Horizontal) ? _stickyX : _stickyY;
+}
+
+const ItemBase::StickyAxis &ItemBase::stickyAxis(
+		Qt::Orientation orientation) const {
+	return (orientation == Qt::Horizontal) ? _stickyX : _stickyY;
+}
+
+void ItemBase::startStickyDrag() {
+	resetStickyAxis(Qt::Horizontal);
+	resetStickyAxis(Qt::Vertical);
+	_stickyDrag = { .raw = pos(), .active = true };
+	notifyStickyGuides();
+}
+
+void ItemBase::resetStickyAxis(Qt::Orientation orientation) {
+	auto &axis = stickyAxis(orientation);
+	axis.animation.stop();
+	axis.current = axis.last = Sticky();
+}
+
+void ItemBase::updateSticky(bool enabled) {
+	if (!_stickyDrag.active) {
+		return;
+	}
+	_stickyDrag.raw = pos();
+	_stickyDrag.others.clear();
+	if (const auto s = scene()) {
+		for (const auto item : s->selectedItems()) {
+			if ((item != this)
+				&& (item->flags() & QGraphicsItem::ItemIsMovable)) {
+				_stickyDrag.others.emplace_back(item, item->pos());
+			}
+		}
+	}
+	applyStickyState(enabled);
+}
+
+void ItemBase::applyStickyState(bool enabled) {
+	if (!_stickyDrag.active) {
+		return;
+	}
+	for (const auto orientation : { Qt::Horizontal, Qt::Vertical }) {
+		applySticky(
+			orientation,
+			enabled ? computeSticky(orientation) : Sticky());
+	}
+	applyStickyPosition();
+}
+
+void ItemBase::finishStickyDrag() {
+	if (!_stickyDrag.active) {
+		return;
+	}
+	for (const auto orientation : { Qt::Horizontal, Qt::Vertical }) {
+		stickyAxis(orientation).animation.stop();
+	}
+	applyStickyPosition();
+	_stickyDrag = {};
+	resetStickyAxis(Qt::Horizontal);
+	resetStickyAxis(Qt::Vertical);
+	notifyStickyGuides();
+}
+
+void ItemBase::applySticky(Qt::Orientation orientation, Sticky sticky) {
+	auto &axis = stickyAxis(orientation);
+	if (axis.current == sticky) {
+		return;
+	}
+	const auto to = sticky.valid();
+	const auto continues = !to || (sticky == axis.last);
+	const auto from = continues
+		? axis.animation.value(axis.current.valid() ? 1. : 0.)
+		: 0.;
+	axis.current = sticky;
+	if (to) {
+		axis.last = axis.current;
+	}
+	axis.animation = {};
+	axis.animation.start(
+		[=] { applyStickyPosition(); },
+		from,
+		to ? 1. : 0.,
+		kStickyDuration,
+		anim::easeOutCubic);
+	notifyStickyGuides();
+}
+
+void ItemBase::applyStickyPosition() {
+	if (!_stickyDrag.active) {
+		return;
+	}
+	const auto offset = QPointF(
+		stickyOffset(Qt::Horizontal),
+		stickyOffset(Qt::Vertical));
+	setPos(_stickyDrag.raw + offset);
+	for (const auto &[item, raw] : _stickyDrag.others) {
+		item->setPos(raw + offset);
+	}
+}
+
+void ItemBase::notifyStickyGuides() {
+	if (const auto owner = static_cast<Scene*>(scene())) {
+		owner->setStickyGuides(
+			stickyGuide(Qt::Horizontal),
+			stickyGuide(Qt::Vertical));
+	}
+}
+
+QRectF ItemBase::stickyBounds() const {
+	return mapToScene(visibleRect()).boundingRect().translated(
+		_stickyDrag.raw - pos());
+}
+
+ItemBase::Sticky ItemBase::computeSticky(Qt::Orientation orientation) const {
+	struct Candidate {
+		Sticky sticky;
+		float64 shift = 0.;
+		int priority = 0;
+	};
+	const auto priority = [](const Sticky &sticky) {
+		const auto anchor = (sticky.anchor == StickyAnchor::Center) ? 0 : 1;
+		const auto line = (sticky.line * 2 == kStickyLines - 1)
+			? 0
+			: (sticky.line == 0 || sticky.line == kStickyLines - 1)
+			? 1
+			: 2;
+		return anchor * 3 + line;
+	};
+	auto candidates = std::vector<Candidate>();
+	candidates.reserve(kStickyLines * 3);
+	for (auto line = 0; line != kStickyLines; ++line) {
+		for (const auto anchor : {
+				StickyAnchor::Start,
+				StickyAnchor::Center,
+				StickyAnchor::End }) {
+			const auto sticky = Sticky{ line, anchor };
+			candidates.push_back({
+				.sticky = sticky,
+				.shift = stickyShift(orientation, sticky),
+				.priority = priority(sticky),
+			});
+		}
+	}
+	ranges::sort(candidates, ranges::less(), &Candidate::priority);
+	auto kept = std::vector<float64>();
+	auto result = Sticky();
+	auto best = _scaledStickyTrigger;
+	for (const auto &candidate : candidates) {
+		if (std::abs(candidate.shift) > _scaledStickyTrigger) {
+			continue;
+		}
+		const auto overlaps = ranges::any_of(kept, [&](float64 shift) {
+			return std::abs(shift - candidate.shift)
+				< _scaledStickyTrigger * 2;
+		});
+		if (overlaps) {
+			continue;
+		}
+		kept.push_back(candidate.shift);
+		if (std::abs(candidate.shift) <= best) {
+			best = std::abs(candidate.shift);
+			result = candidate.sticky;
+		}
+	}
+	return result;
+}
+
+float64 ItemBase::stickyShift(
+		Qt::Orientation orientation,
+		Sticky sticky) const {
+	const auto owner = static_cast<Scene*>(scene());
+	if (!owner || !sticky.valid()) {
+		return 0.;
+	}
+	const auto bounds = stickyBounds();
+	const auto start = StickyStart(bounds, orientation);
+	const auto length = StickyLength(bounds, orientation);
+	const auto anchor = (sticky.anchor == StickyAnchor::Start)
+		? start
+		: (sticky.anchor == StickyAnchor::Center)
+		? (start + length / 2.)
+		: (start + length);
+	return StickyLine(owner->canvasRect(), orientation, sticky.line) - anchor;
+}
+
+float64 ItemBase::stickyOffset(Qt::Orientation orientation) const {
+	const auto &axis = stickyAxis(orientation);
+	const auto stuck = axis.current.valid();
+	const auto sticky = stuck ? axis.current : axis.last;
+	if (!sticky.valid()) {
+		return 0.;
+	}
+	const auto progress = axis.animation.value(stuck ? 1. : 0.);
+	return stickyShift(orientation, sticky) * progress;
+}
+
+std::optional<float64> ItemBase::stickyGuide(
+		Qt::Orientation orientation) const {
+	const auto owner = static_cast<Scene*>(scene());
+	const auto sticky = stickyAxis(orientation).current;
+	if (!owner || !sticky.valid()) {
+		return std::nullopt;
+	}
+	return StickyLine(owner->canvasRect(), orientation, sticky.line);
 }
 
 void ItemBase::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
@@ -310,8 +563,25 @@ void ItemBase::raiseToTop() {
 	setZValue((*_lastZ)++);
 }
 
+bool ItemBase::sceneEvent(QEvent *event) {
+	if (event->type() == QEvent::UngrabMouse) {
+		_handle = HandleType::None;
+		finishStickyDrag();
+	}
+	return NumberedItem::sceneEvent(event);
+}
+
+void ItemBase::keyReleaseEvent(QKeyEvent *e) {
+	if (e->key() == Qt::Key_Shift) {
+		applyStickyState(e->modifiers().testFlag(Qt::ShiftModifier));
+	}
+	NumberedItem::keyReleaseEvent(e);
+}
+
 void ItemBase::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Escape) {
+	if (e->key() == Qt::Key_Shift) {
+		applyStickyState(e->modifiers().testFlag(Qt::ShiftModifier));
+	} else if (e->key() == Qt::Key_Escape) {
 		if (const auto s = scene()) {
 			s->clearSelection();
 			s->clearFocus();
@@ -460,6 +730,7 @@ int ItemBase::type() const {
 
 void ItemBase::updateZoom(float64 zoom) {
 	_scaledHandleSize = st::photoEditorItemHandleSize / zoom;
+	_scaledStickyTrigger = st::photoEditorStickyTrigger / zoom;
 	_scaledInnerMargins = QMarginsF(
 		_scaledHandleSize,
 		_scaledHandleSize,
@@ -573,6 +844,9 @@ void ItemBase::restore(SaveState state) {
 	}
 	const auto &saved = (state == SaveState::Keep) ? _keeped : _saved;
 	applyData(saved.data);
+	if (const auto owner = static_cast<Scene*>(scene())) {
+		updateZoom(owner->currentZoom());
+	}
 	setZValue(saved.zValue);
 	setStatus(saved.status);
 }

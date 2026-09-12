@@ -52,6 +52,10 @@ Media::Encode::AnimatedEntity ItemAnimated::animatedEntity(
 	};
 }
 
+QRectF ItemAnimated::visibleRect() const {
+	return fittedRect(_paintedFrameSize);
+}
+
 void ItemAnimated::paintFrame(
 		QPainter *p,
 		const QImage &frame,
@@ -60,13 +64,9 @@ void ItemAnimated::paintFrame(
 	if (frame.isNull()) {
 		return;
 	}
-	const auto rect = contentRect();
+	_paintedFrameSize = frame.size();
 	const auto ratio = style::DevicePixelRatio();
-	const auto fitted = QSizeF(frame.size())
-		.scaled(rect.size(), Qt::KeepAspectRatio);
-	const auto resultRect = QRectF(rect.topLeft(), fitted).translated(
-		(rect.width() - fitted.width()) / 2.,
-		(rect.height() - fitted.height()) / 2.);
+	const auto resultRect = visibleRect();
 	if (live) {
 		p->save();
 		p->setRenderHint(QPainter::SmoothPixmapTransform);
@@ -79,7 +79,7 @@ void ItemAnimated::paintFrame(
 		p->restore();
 		return;
 	}
-	auto pixelSize = (fitted * ratio).toSize();
+	auto pixelSize = (resultRect.size() * ratio).toSize();
 	if (pixelSize.width() > frame.width()) {
 		pixelSize = frame.size();
 	}

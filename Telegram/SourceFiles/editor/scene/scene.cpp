@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene_text_editing.h"
 #include "ui/image/image_prepare.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/rp_widget.h"
 #include "styles/style_editor.h"
 
@@ -159,15 +160,48 @@ bool SkipMouseEvent(not_null<QGraphicsSceneMouseEvent*> event) {
 constexpr auto kShapeDragThreshold = 4.;
 constexpr auto kShapeSnapAngle = 45.;
 constexpr auto kDraftShapeOpacity = 0.5;
+constexpr auto kStickyGuideDuration = crl::time(150);
+constexpr auto kItemsBaseZ = 9000.;
 
 } // namespace
+
+class Scene::StickyGuidesItem final : public QGraphicsItem {
+public:
+	explicit StickyGuidesItem(not_null<Scene*> scene)
+	: _scene(scene) {
+		setAcceptedMouseButtons(Qt::NoButton);
+		setZValue(kItemsBaseZ - 1.);
+	}
+
+	QRectF boundingRect() const override {
+		return _scene->canvasRect() + Margins(_scene->stickyGuideMargin());
+	}
+
+	void paint(
+			QPainter *p,
+			const QStyleOptionGraphicsItem *,
+			QWidget *) override {
+		_scene->paintStickyGuide(*p, Qt::Horizontal);
+		_scene->paintStickyGuide(*p, Qt::Vertical);
+	}
+
+	void updateGeometry() {
+		prepareGeometryChange();
+	}
+
+private:
+	const not_null<Scene*> _scene;
+
+};
 
 Scene::Scene(const QRectF &rect)
 : QGraphicsScene(rect)
 , _canvas(std::make_shared<ItemCanvas>())
-, _lastZ(std::make_shared<float64>(9000.))
+, _lastZ(std::make_shared<float64>(kItemsBaseZ))
+, _stickyGuides(std::make_unique<StickyGuidesItem>(this))
 , _textEdit(std::make_unique<TextEditController>(this)) {
 	QGraphicsScene::addItem(_canvas.get());
+	QGraphicsScene::addItem(_stickyGuides.get());
 
 	_canvas->grabContentRequests(
 	) | rpl::on_next([=](ItemCanvas::Content &&content) {
@@ -248,6 +282,7 @@ Scene::Scene(const QRectF &rect)
 			}
 			const auto canvasVisible = _canvas->isVisible();
 			_canvas->setVisible(false);
+			_stickyGuides->setVisible(false);
 			{
 				auto p = QPainter(&source);
 				render(
@@ -256,6 +291,7 @@ Scene::Scene(const QRectF &rect)
 					QRectF(captureRect),
 					Qt::IgnoreAspectRatio);
 			}
+			_stickyGuides->setVisible(true);
 			_canvas->setVisible(canvasVisible);
 			auto blurred = Images::BlurLargeImage(
 				std::move(source),
@@ -427,12 +463,103 @@ void Scene::setCanvasRect(const QRectF &rect) {
 	if (_canvasRect == rect) {
 		return;
 	}
+	_stickyGuides->updateGeometry();
 	_canvasRect = rect;
 	_canvas->setCanvasRect(canvasRect());
 }
 
 QRectF Scene::canvasRect() const {
 	return _canvasRect.isNull() ? sceneRect() : _canvasRect;
+}
+
+void Scene::setStickyGuides(
+		std::optional<float64> x,
+		std::optional<float64> y) {
+	setStickyGuide(Qt::Horizontal, x);
+	setStickyGuide(Qt::Vertical, y);
+}
+
+void Scene::setStickyGuide(
+		Qt::Orientation orientation,
+		std::optional<float64> position) {
+	auto &guide = (orientation == Qt::Horizontal)
+		? _stickyGuideX
+		: _stickyGuideY;
+	const auto shown = position.has_value();
+	if (!shown && !guide.shown) {
+		return;
+	}
+	const auto was = stickyGuideRect(orientation);
+	if (shown) {
+		guide.position = *position;
+	}
+	if (guide.shown != shown) {
+		guide.shown = shown;
+		guide.animation.start(
+			[=] { _stickyGuides->update(stickyGuideRect(orientation)); },
+			shown ? 0. : 1.,
+			shown ? 1. : 0.,
+			kStickyGuideDuration);
+	}
+	_stickyGuides->update(was);
+	_stickyGuides->update(stickyGuideRect(orientation));
+}
+
+void Scene::hideStickyGuides() {
+	for (const auto guide : { &_stickyGuideX, &_stickyGuideY }) {
+		guide->animation.stop();
+		guide->shown = false;
+	}
+	_stickyGuides->update();
+}
+
+float64 Scene::stickyGuideMargin() const {
+	const auto zoom = (_currentZoom > 0.) ? _currentZoom : 1.;
+	return st::photoEditorStickyLineWidth / zoom;
+}
+
+QRectF Scene::stickyGuideRect(Qt::Orientation orientation) const {
+	const auto &guide = (orientation == Qt::Horizontal)
+		? _stickyGuideX
+		: _stickyGuideY;
+	const auto canvas = canvasRect();
+	const auto margin = stickyGuideMargin();
+	return (orientation == Qt::Horizontal)
+		? QRectF(
+			guide.position - margin,
+			canvas.top(),
+			margin * 2,
+			canvas.height())
+		: QRectF(
+			canvas.left(),
+			guide.position - margin,
+			canvas.width(),
+			margin * 2);
+}
+
+void Scene::paintStickyGuide(
+		QPainter &p,
+		Qt::Orientation orientation) const {
+	const auto &guide = (orientation == Qt::Horizontal)
+		? _stickyGuideX
+		: _stickyGuideY;
+	const auto opacity = guide.animation.value(guide.shown ? 1. : 0.);
+	if (opacity <= 0.) {
+		return;
+	}
+	const auto canvas = canvasRect();
+	auto color = QColor(Qt::white);
+	color.setAlphaF(opacity);
+	p.setPen(QPen(color, stickyGuideMargin()));
+	if (orientation == Qt::Horizontal) {
+		p.drawLine(
+			QPointF(guide.position, canvas.top()),
+			QPointF(guide.position, canvas.bottom()));
+	} else {
+		p.drawLine(
+			QPointF(canvas.left(), guide.position),
+			QPointF(canvas.right(), guide.position));
+	}
 }
 
 void Scene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
@@ -932,6 +1059,7 @@ float64 Scene::currentZoom() const {
 void Scene::updateZoom(float64 zoom) {
 	_currentZoom = zoom;
 	_canvas->updateZoom(zoom);
+	_stickyGuides->updateGeometry();
 	for (const auto &item : items()) {
 		if (item->type() >= ItemBase::Type) {
 			static_cast<ItemBase*>(item.get())->updateZoom(zoom);
@@ -1074,6 +1202,7 @@ void Scene::save(SaveState state) {
 	setAudioSelected(false);
 	clearSelection();
 	cancelDrawing();
+	hideStickyGuides();
 }
 
 void Scene::restore(SaveState state) {
@@ -1112,6 +1241,7 @@ Scene::~Scene() {
 		QGraphicsScene::removeItem(pending.get());
 	}
 	QGraphicsScene::removeItem(_canvas.get());
+	QGraphicsScene::removeItem(_stickyGuides.get());
 	for (const auto &item : items()) {
 		QGraphicsScene::removeItem(item.get());
 	}
