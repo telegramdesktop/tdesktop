@@ -214,6 +214,7 @@ messageActionManagedBotCreated#16605e3e bot_id:long = MessageAction;
 messageActionChangeCommunity#5d20bae8 flags:# community_id:flags.0?long = MessageAction;
 messageActionChatJoinedViaCommunity#4a8bfe80 community_id:long = MessageAction;
 messageActionGramTransfer#9329ea33 flags:# comment_encrypted:flags.1?true amount:long peer_address:string transaction_id:string comment:flags.0?string = MessageAction;
+messageActionWalletTonConnectRequest#afb9be27 flags:# accepted:flags.2?true declined:flags.3?true session_id:long expires:int topic:flags.0?string trace_id:flags.1?string = MessageAction;
 
 dialog#fc89f7f3 flags:# pinned:flags.2?true unread_mark:flags.3?true view_forum_as_messages:flags.6?true peer:Peer top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int unread_mentions_count:int unread_reactions_count:int unread_poll_votes_count:int notify_settings:PeerNotifySettings pts:flags.0?int draft:flags.1?DraftMessage folder_id:flags.4?int ttl_period:flags.5?int = Dialog;
 dialogFolder#71bd134c flags:# pinned:flags.2?true folder:Folder peer:Peer top_message:int unread_muted_peers_count:int unread_unmuted_peers_count:int unread_muted_messages_count:int unread_unmuted_messages_count:int = Dialog;
@@ -485,6 +486,8 @@ updateEditEphemeralMessage#4bbb8f01 message:EphemeralMessage = Update;
 updateEphemeralBotCallbackQuery#7c1079d6 flags:# query_id:long user_id:long peer:flags.0?Peer msg_id:int data:bytes chat_instance:flags.1?long message:EphemeralMessage = Update;
 updateBotStarsSubscription#6c0d8e23 flags:# canceled:flags.0?true payment_failed:flags.1?true restored:flags.2?true user_id:long payload:bytes qts:int = Update;
 updateWalletState#6ac3f2aa state:WalletState = Update;
+updateWalletTonConnectSession#50a38e0e session:TonConnectSession = Update;
+updateWalletTonConnectPendingDisconnect#d1ee8199 session_ids:Vector<long> = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -2325,6 +2328,20 @@ wallet.sentTransfer#70341d66 flags:# gasless:flags.0?true msg_hash:string gasles
 
 wallet.gaslessInfo#e4981ebc flags:# available:flags.0?true left:int reset_at:int min_amount:long relayer_address:string = wallet.GaslessInfo;
 
+tonConnectManifest#d0f263bc url:string name:string icon_url:string = TonConnectManifest;
+
+tonConnectSession#126556c6 flags:# pending:flags.0?true closing:flags.1?true closed:flags.2?true id:long dapp_client_id:string client_id:flags.3?string nonce:bytes manifest:flags.4?TonConnectManifest manifest_error:flags.5?int date:int = TonConnectSession;
+
+wallet.tonConnectChallenge#4bc89693 challenge:bytes event_id:long = wallet.TonConnectChallenge;
+
+tonConnectNextEventId#582464e3 event_id:long = TonConnectNextEventId;
+
+tonConnectRequest#a281cb31 flags:# session_id:long msg_id:long body:bytes expires:int topic:flags.0?string trace_id:flags.1?string = TonConnectRequest;
+
+wallet.tonConnectPending#85c0f124 session:TonConnectSession requests:Vector<TonConnectRequest> = wallet.TonConnectPending;
+
+wallet.tonConnectSessions#e1f6896 sessions:Vector<TonConnectSession> = wallet.TonConnectSessions;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -2365,6 +2382,7 @@ auth.reportMissingCode#cb9deff6 phone_number:string phone_code_hash:string mnc:s
 auth.checkPaidAuth#56e59f9c phone_number:string phone_code_hash:string form_id:long = auth.SentCode;
 auth.initPasskeyLogin#518ad0b7 api_id:int api_hash:string = auth.PasskeyLoginOptions;
 auth.finishPasskeyLogin#9857ad07 flags:# credential:InputPasskeyCredential from_dc_id:flags.0?int from_auth_key_id:flags.0?long = auth.Authorization;
+auth.cancelWebTokenAuthorization#490dada1 web_auth_token:string = Bool;
 auth.initFirebasePnvLogin#777df37a api_id:int api_hash:string = auth.FirebasePnvIntent;
 auth.finishFirebasePnvLogin#2c85094c google_token:string = auth.Authorization;
 auth.firebasePnvSignUp#783f6b56 flags:# no_joined_notifications:flags.0?true first_name:string last_name:string = auth.Authorization;
@@ -3184,12 +3202,21 @@ wallet.getTransactionsByMsgHash#a6bb795d msg_hash:Vector<string> = wallet.Transa
 wallet.exportSecretPhrase#9077c9ac flags:# password:flags.0?InputCheckPasswordSRP = wallet.SecretPhraseParts;
 wallet.fetchEncryptedSecretPhrasePart#f53925cf token:string public_key:bytes = wallet.EncryptedSecretPhrasePart;
 wallet.replaceWallet#d8c72eec flags:# wallet:InputWalletReplacement password:flags.0?InputCheckPasswordSRP = WalletState;
-wallet.disableBackup#199e1f1 flags:# password:flags.0?InputCheckPasswordSRP = WalletState;
+wallet.disableBackup#b0bf0da flags:# password:flags.0?InputCheckPasswordSRP new_public_key:flags.1?bytes proof:flags.2?WalletOwnershipProof = WalletState;
 wallet.getBackupHolderDcs#d179d494 = Vector<wallet.HolderDc>;
 wallet.enableBackup#81a2b0f3 flags:# parts:Vector<bytes> password:flags.0?InputCheckPasswordSRP = WalletState;
 wallet.getProofChallenge#2025e697 = wallet.ProofChallenge;
 wallet.sendTransfer#b1cae965 flags:# data_normal:bytes data_gasless:flags.0?bytes = wallet.SentTransfer;
 wallet.getGaslessInfo#4895d98b = wallet.GaslessInfo;
 wallet.getExistingWaltBalance#628746e3 = Bool;
+wallet.tonConnectCreateSession#cc931046 dapp_client_id:string manifest_url:string = TonConnectSession;
+wallet.tonConnectRegisterKey#338bcf1c session_id:long client_id:string = wallet.TonConnectChallenge;
+wallet.tonConnectSubmitConnectResult#c2c00779 flags:# error:flags.0?true session_id:long challenge_answer:bytes body:bytes trace_id:flags.1?string = Bool;
+wallet.tonConnectGetPending#11aee065 flags:# dapp_client_id:flags.0?string session_id:flags.1?long = wallet.TonConnectPending;
+wallet.tonConnectClaimRequest#d5a9848b flags:# declined:flags.1?true session_id:long msg_id:long app_request_id:long challenge_answer:flags.0?bytes = Bool;
+wallet.tonConnectSubmitResponse#4528f33d flags:# session_id:long msg_id:long body:bytes trace_id:flags.0?string = Bool;
+wallet.tonConnectNextEventId#775d7244 session_id:long = TonConnectNextEventId;
+wallet.tonConnectCloseSession#99c1ca3b session_id:long body:bytes = Bool;
+wallet.tonConnectGetSessions#a7ffb56e = wallet.TonConnectSessions;
 
 // LAYER 230
