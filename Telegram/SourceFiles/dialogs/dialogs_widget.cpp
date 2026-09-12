@@ -2547,7 +2547,7 @@ void Widget::switchToChatsFilter(FilterId id) {
 	const auto slideLeft = (indexOf(id) < indexOf(was));
 	const auto duration = _chatsFilterSwipeSwitch
 		? st::dialogsFilterSwipeSlideDuration
-		: st::slideDuration;
+		: st::dialogsFilterSlideDuration;
 	_chatsFilterSlideCanvas = nullptr;
 	auto wasCache = grabForChatsFilterSlide();
 	_inner->switchToFilter(id);
