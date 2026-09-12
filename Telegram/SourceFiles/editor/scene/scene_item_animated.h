@@ -21,6 +21,7 @@ public:
 	[[nodiscard]] virtual QByteArray content() const = 0;
 	[[nodiscard]] virtual crl::time loopDuration() const = 0;
 	virtual void releasePlayers() = 0;
+	ItemAnimated *asAnimated() override;
 
 	[[nodiscard]] Media::Encode::AnimatedEntity animatedEntity(
 		const QTransform &sceneToCanvas) const;

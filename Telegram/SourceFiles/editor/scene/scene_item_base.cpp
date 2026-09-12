@@ -68,6 +68,14 @@ bool NumberedItem::isRemovedStatus() const {
 	return _status == Status::Removed;
 }
 
+ItemAction *NumberedItem::asAction() {
+	return nullptr;
+}
+
+ItemAnimated *NumberedItem::asAnimated() {
+	return nullptr;
+}
+
 void NumberedItem::save(SaveState state) {
 }
 

@@ -22,9 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtMath>
 
 namespace Editor {
-namespace {
-
-using ItemPtr = std::shared_ptr<NumberedItem>;
 
 class ItemAction : public NumberedItem {
 public:
@@ -32,6 +29,10 @@ public:
 
 	virtual void apply() = 0;
 	virtual void revert() = 0;
+
+	ItemAction *asAction() override {
+		return this;
+	}
 
 	QRectF boundingRect() const override {
 		return QRectF();
@@ -70,6 +71,10 @@ private:
 		NumberedItem::Status status = Status::Normal;
 	} _saved, _keeped;
 };
+
+namespace {
+
+using ItemPtr = std::shared_ptr<NumberedItem>;
 
 class ItemEraser final : public ItemAction {
 public:
@@ -687,7 +692,7 @@ std::vector<ItemPtr> Scene::items(
 bool Scene::hasAnimatedItems() const {
 	for (const auto &item : _items) {
 		const auto animated = item->isNormalStatus()
-			? dynamic_cast<ItemAnimated*>(item.get())
+			? item->asAnimated()
 			: nullptr;
 		if (animated && animated->animated() && animated->hasContent()) {
 			return true;
@@ -698,7 +703,7 @@ bool Scene::hasAnimatedItems() const {
 
 void Scene::releaseAnimations() {
 	for (const auto &item : _items) {
-		if (const auto animated = dynamic_cast<ItemAnimated*>(item.get())) {
+		if (const auto animated = item->asAnimated()) {
 			animated->releasePlayers();
 		}
 	}
@@ -744,7 +749,7 @@ void Scene::performUndo() {
 		return item->isNormalStatus() && item->undoable();
 	});
 	if (it != filtered.end()) {
-		if (const auto action = dynamic_cast<ItemAction*>(it->get())) {
+		if (const auto action = (*it)->asAction()) {
 			action->revert();
 		}
 		(*it)->setStatus(NumberedItem::Status::Undid);
@@ -756,7 +761,7 @@ void Scene::performRedo() {
 
 	const auto it = ranges::find_if(filtered, &NumberedItem::isUndidStatus);
 	if (it != filtered.end()) {
-		if (const auto action = dynamic_cast<ItemAction*>(it->get())) {
+		if (const auto action = (*it)->asAction()) {
 			action->apply();
 		}
 		(*it)->setStatus(NumberedItem::Status::Normal);

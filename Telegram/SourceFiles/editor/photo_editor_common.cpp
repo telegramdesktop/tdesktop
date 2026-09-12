@@ -188,7 +188,7 @@ Media::Encode::Job ComposeAnimatedJob(
 
 	auto longest = crl::time(0);
 	for (const auto item : normal) {
-		const auto animated = dynamic_cast<ItemAnimated*>(item);
+		const auto animated = item->asAnimated();
 		if (!animated || !animated->animated()) {
 			run.push_back(item);
 			continue;

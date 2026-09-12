@@ -13,6 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Editor {
 
+ItemAnimated *ItemAnimated::asAnimated() {
+	return this;
+}
+
 Media::Encode::AnimatedEntity ItemAnimated::animatedEntity(
 		const QTransform &sceneToCanvas) const {
 	const auto composed = QTransform().scale(flipped() ? -1. : 1., 1.)
