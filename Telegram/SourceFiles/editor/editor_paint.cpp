@@ -40,6 +40,7 @@ constexpr auto kMaxBrush = 25.;
 constexpr auto kMinBrush = 1.;
 constexpr auto kShapeSizeRatio = 2. / 5.;
 constexpr auto kMediaSizeRatio = 1. / 2.;
+constexpr auto kImageMaxSizeRatio = 4.;
 
 [[nodiscard]] float64 BrushSize(const Brush &brush) {
 	return kMinBrush + float64(kMaxBrush - kMinBrush) * brush.sizeRatio;
@@ -773,7 +774,8 @@ void Paint::addImageItem(QImage &&image) {
 			Qt::KeepAspectRatio,
 			Qt::SmoothTransformation);
 	}
-	const auto data = mediaItemData(image.size());
+	auto data = mediaItemData(image.size());
+	data.maxSizeRatio = kImageMaxSizeRatio;
 	addMediaItem(std::make_shared<ItemImage>(
 		Ui::PixmapFromImage(std::move(image)),
 		data));

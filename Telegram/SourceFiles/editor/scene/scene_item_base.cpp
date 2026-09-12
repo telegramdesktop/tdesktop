@@ -30,7 +30,6 @@ const auto kDuplicateSequence = QKeySequence("ctrl+d");
 const auto kDeleteSequence = QKeySequence("delete");
 
 constexpr auto kMinSizeRatio = 0.05;
-constexpr auto kMaxSizeRatio = 1.00;
 
 auto Normalized(float64 angle) {
 	return angle
@@ -103,6 +102,7 @@ bool NumberedItem::undoable() const {
 ItemBase::ItemBase(Data data)
 : _lastZ(data.zPtr)
 , _imageSize(data.imageSize)
+, _maxSizeRatio(data.maxSizeRatio)
 , _contentMargins(data.contentMargins)
 , _horizontalSize(data.size) {
 	setFlags(QGraphicsItem::ItemIsMovable
@@ -471,7 +471,7 @@ void ItemBase::updateZoom(float64 zoom) {
 		_imageSize.height());
 	_sizeLimits = {
 		.min = std::max(int(maxSide * kMinSizeRatio), 1),
-		.max = std::max(int(maxSide * kMaxSizeRatio), 1),
+		.max = std::max(int(maxSide * _maxSizeRatio), 1),
 	};
 	_horizontalSize = std::clamp(
 		_horizontalSize,
@@ -515,6 +515,7 @@ ItemBase::Data ItemBase::generateData() const {
 		.flipped = flipped(),
 		.rotation = int(rotation()),
 		.imageSize = _imageSize,
+		.maxSizeRatio = _maxSizeRatio,
 		.contentMargins = _contentMargins,
 	};
 }
