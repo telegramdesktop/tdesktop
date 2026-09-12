@@ -168,7 +168,6 @@ Scene::Scene(const QRectF &rect)
 , _lastZ(std::make_shared<float64>(9000.))
 , _textEdit(std::make_unique<TextEditController>(this)) {
 	QGraphicsScene::addItem(_canvas.get());
-	_canvas->clearPixmap();
 
 	_canvas->grabContentRequests(
 	) | rpl::on_next([=](ItemCanvas::Content &&content) {
@@ -417,10 +416,23 @@ void Scene::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 
 	QGraphicsScene::mousePressEvent(event);
 	capturePlacements();
-	if (SkipMouseEvent(event) || !sceneRect().contains(event->scenePos())) {
+	if (SkipMouseEvent(event)
+		|| !_canvas->drawableRect().contains(event->scenePos())) {
 		return;
 	}
 	_canvas->handleMousePressEvent(event);
+}
+
+void Scene::setCanvasRect(const QRectF &rect) {
+	if (_canvasRect == rect) {
+		return;
+	}
+	_canvasRect = rect;
+	_canvas->setCanvasRect(canvasRect());
+}
+
+QRectF Scene::canvasRect() const {
+	return _canvasRect.isNull() ? sceneRect() : _canvasRect;
 }
 
 void Scene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {

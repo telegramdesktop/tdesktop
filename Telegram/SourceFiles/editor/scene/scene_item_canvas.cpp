@@ -40,17 +40,42 @@ ItemCanvas::ItemCanvas() {
 	setAcceptedMouseButtons({});
 }
 
-void ItemCanvas::clearPixmap() {
+void ItemCanvas::setCanvasRect(const QRectF &rect) {
+	prepareGeometryChange();
+	_canvasRect = rect;
+	releasePixmap();
+	update();
+}
+
+QRectF ItemCanvas::canvasRect() const {
+	return _canvasRect.isNull() ? scene()->sceneRect() : _canvasRect;
+}
+
+QRectF ItemCanvas::drawableRect() const {
+	return (_brushData.tool == Brush::Tool::Blur)
+		? scene()->sceneRect()
+		: canvasRect();
+}
+
+void ItemCanvas::releasePixmap() {
 	_hq = nullptr;
 	_p = nullptr;
+	_pixmap = QPixmap();
+}
 
+void ItemCanvas::preparePixmap() {
+	releasePixmap();
+
+	const auto canvas = canvasRect();
 	_pixmap = QPixmap(
-		(scene()->sceneRect().size() * style::DevicePixelRatio()).toSize());
+		(canvas.size() * style::DevicePixelRatio()).toSize());
 	_pixmap.setDevicePixelRatio(style::DevicePixelRatio());
 	_pixmap.fill(Qt::transparent);
 
 	_p = std::make_unique<Painter>(&_pixmap);
 	_hq = std::make_unique<PainterHighQualityEnabler>(*_p);
+	_p->translate(-canvas.topLeft());
+	_p->setClipRect(drawableRect());
 	_p->setPen(Qt::NoPen);
 	_p->setBrush(_brushData.color);
 }
@@ -59,7 +84,6 @@ void ItemCanvas::applyBrush(const QColor &color, float size, Brush::Tool tool) {
 	_brushData.color = color;
 	_brushData.size = size;
 	_brushData.tool = tool;
-	_p->setBrush(color);
 	const auto width = strokeWidth(1.0);
 	const auto extra = (tool == Brush::Tool::Arrow)
 		? arrowHeadLength()
@@ -69,31 +93,37 @@ void ItemCanvas::applyBrush(const QColor &color, float size, Brush::Tool tool) {
 }
 
 QRectF ItemCanvas::boundingRect() const {
-	return scene()->sceneRect();
+	return canvasRect();
 }
 
 void ItemCanvas::computeContentRect(const QPointF &p) {
 	if (!scene() || !IsValidPoint(p)) {
 		return;
 	}
-	const auto sceneSize = scene()->sceneRect().size();
-	const auto contentLeft = std::max(0., _contentRect.x());
-	const auto contentTop = std::max(0., _contentRect.y());
+	const auto canvas = drawableRect();
+	const auto contentLeft = std::max(canvas.left(), _contentRect.x());
+	const auto contentTop = std::max(canvas.top(), _contentRect.y());
 	const auto contentRight = contentLeft + _contentRect.width();
 	const auto contentBottom = contentTop + _contentRect.height();
 	_contentRect = QRectF(
 		QPointF(
-			std::clamp(p.x() - _brushMargins.left(), 0., contentLeft),
-			std::clamp(p.y() - _brushMargins.top(), 0., contentTop)),
+			std::clamp(
+				p.x() - _brushMargins.left(),
+				canvas.left(),
+				contentLeft),
+			std::clamp(
+				p.y() - _brushMargins.top(),
+				canvas.top(),
+				contentTop)),
 		QPointF(
 			std::clamp(
 				p.x() + _brushMargins.right(),
-				std::min(contentRight, sceneSize.width()),
-				sceneSize.width()),
+				std::min(contentRight, canvas.right()),
+				canvas.right()),
 			std::clamp(
 				p.y() + _brushMargins.bottom(),
-				std::min(contentBottom, sceneSize.height()),
-				sceneSize.height())));
+				std::min(contentBottom, canvas.bottom()),
+				canvas.bottom())));
 }
 
 std::vector<ItemCanvas::StrokePoint> ItemCanvas::smoothStroke(
@@ -356,6 +386,7 @@ void ItemCanvas::handleMousePressEvent(
 		_drawing = false;
 		return;
 	}
+	preparePixmap();
 	_rectToUpdate = QRectF();
 	_contentRect = QRectF();
 	_currentStroke.clear();
@@ -404,11 +435,12 @@ void ItemCanvas::handleMouseReleaseEvent(
 	drawArrowHead();
 	update(_rectToUpdate);
 	if ((_currentStroke.size() >= 2) && _contentRect.isValid()) {
+		const auto local = _contentRect.translated(-canvasRect().topLeft());
 		const auto scaledContentRect = QRectF(
-			_contentRect.x() * style::DevicePixelRatio(),
-			_contentRect.y() * style::DevicePixelRatio(),
-			_contentRect.width() * style::DevicePixelRatio(),
-			_contentRect.height() * style::DevicePixelRatio());
+			local.x() * style::DevicePixelRatio(),
+			local.y() * style::DevicePixelRatio(),
+			local.width() * style::DevicePixelRatio(),
+			local.height() * style::DevicePixelRatio());
 		_grabContentRequests.fire({
 			.pixmap = _pixmap.copy(scaledContentRect.toRect()),
 			.position = _contentRect.topLeft(),
@@ -420,7 +452,7 @@ void ItemCanvas::handleMouseReleaseEvent(
 	_lastRenderedIndex = 0;
 	_lastPointTime = 0;
 	_currentPath = QPainterPath();
-	clearPixmap();
+	releasePixmap();
 	update();
 }
 
@@ -429,18 +461,19 @@ void ItemCanvas::paint(
 		const QStyleOptionGraphicsItem *,
 		QWidget *) {
 	p->fillRect(_rectToUpdate, Qt::transparent);
+	const auto origin = canvasRect().topLeft();
 	if (_brushData.tool == Brush::Tool::Eraser) {
 		p->save();
 		p->setOpacity(st::photoEditorEraserPreviewOpacity);
-		p->drawPixmap(0, 0, _pixmap);
+		p->drawPixmap(origin, _pixmap);
 		p->restore();
 	} else if (_brushData.tool == Brush::Tool::Blur) {
 		p->save();
 		p->setOpacity(st::photoEditorBlurPreviewOpacity);
-		p->drawPixmap(0, 0, _pixmap);
+		p->drawPixmap(origin, _pixmap);
 		p->restore();
 	} else {
-		p->drawPixmap(0, 0, _pixmap);
+		p->drawPixmap(origin, _pixmap);
 	}
 	_rectToUpdate = QRectF();
 }
@@ -469,7 +502,7 @@ void ItemCanvas::cancelDrawing() {
 	_lastPointTime = 0;
 	_currentPath = QPainterPath();
 	_contentRect = QRectF();
-	clearPixmap();
+	releasePixmap();
 	update();
 }
 

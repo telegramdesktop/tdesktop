@@ -44,6 +44,8 @@ public:
 
 	Scene(const QRectF &rect);
 	~Scene();
+	void setCanvasRect(const QRectF &rect);
+	[[nodiscard]] QRectF canvasRect() const;
 	void applyBrush(const QColor &color, float64 size, Brush::Tool tool);
 	void setBlurSource(Fn<QImage(QRect)> source);
 	void setTextDefaults(
@@ -153,6 +155,7 @@ private:
 	std::vector<ItemPtr> _items;
 	std::unordered_map<QGraphicsItem*, ItemPtr> _itemsByPointer;
 	std::vector<CapturedPlacement> _capturedPlacements;
+	QRectF _canvasRect;
 
 	float64 _lastLineZ = 0.;
 	float64 _currentZoom = 1.;

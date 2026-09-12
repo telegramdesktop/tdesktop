@@ -243,7 +243,7 @@ bool Paint::zoomSceneItems(float64 wheelDelta, bool fine) {
 }
 
 bool Paint::zoomSceneItemsByFactor(float64 factor) {
-	const auto center = rect::center(_scene->sceneRect());
+	const auto center = rect::center(_scene->canvasRect());
 	auto applied = false;
 	for (const auto &item : _scene->items()) {
 		const auto raw = item.get();
@@ -411,6 +411,7 @@ void Paint::applyTransform(
 	_canvas = canvas;
 	_outerGeometry = parentWidget() ? parentWidget()->rect() : geometry;
 	_view->setSceneRect((canvas == _scene->sceneRect()) ? QRectF() : canvas);
+	_scene->setCanvasRect(canvas);
 
 	const auto center = (_transform.fitZoom <= 0.)
 		|| _view->viewport()->rect().isEmpty()
@@ -787,6 +788,34 @@ void Paint::addMediaItem(std::shared_ptr<ItemBase> item) {
 	_view->setFocus();
 }
 
+void Paint::setCanvasBackground(
+		const Media::Encode::CanvasBackground &background) {
+	_background = background;
+}
+
+void Paint::setCropRect(QRectF crop) {
+	_cropRect = crop;
+}
+
+void Paint::paintCanvas(QPainter &p) const {
+	const auto image = QRectF(Rect(_imageSize));
+	if (_view->geometry().isEmpty()
+		|| !_background.valid()
+		|| image.contains(_canvas)) {
+		return;
+	}
+	const auto transform = _view->viewportTransform();
+	const auto imageDisplay = transform.mapRect(image).toRect();
+	const auto cropDisplay = transform.mapRect(_cropRect).toAlignedRect();
+	p.save();
+	p.translate(pos());
+	p.setClipRegion(
+		QRegion(rect()) - QRegion(imageDisplay),
+		Qt::IntersectClip);
+	Media::Encode::PaintCanvasBackground(p, cropDisplay, _background);
+	p.restore();
+}
+
 void Paint::paintImage(QPainter &p, const QPixmap &image) const {
 	if (_view->geometry().isEmpty()) {
 		return;
@@ -817,14 +846,13 @@ void Paint::resetView() {
 ItemBase::Data Paint::itemBaseData() const {
 	const auto s = _scene->sceneRect().toRect().size();
 	const auto size = std::min(s.width(), s.height()) / 2;
-	const auto x = s.width() / 2;
-	const auto y = s.height() / 2;
+	const auto center = rect::center(_scene->canvasRect().toRect());
 	return ItemBase::Data{
 		.initialZoom = _transform.zoom,
 		.zPtr = _scene->lastZ(),
 		.size = size,
-		.x = x,
-		.y = y,
+		.x = center.x(),
+		.y = center.y(),
 		.flipped = _transform.flipped,
 		.rotation = -_transform.angle,
 		.imageSize = _imageSize,

@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_common.h"
 #include "editor/photo_editor_inner_common.h"
 #include "editor/scene/scene_item_base.h"
+#include "media/media_video_canvas.h"
 
 class QGraphicsItem;
 class QGraphicsView;
@@ -91,6 +92,10 @@ public:
 
 	[[nodiscard]] bool canHandleMimeData(const QMimeData *data) const;
 	void handleMimeData(const QMimeData *data);
+	void setCanvasBackground(
+		const Media::Encode::CanvasBackground &background);
+	void setCropRect(QRectF crop);
+	void paintCanvas(QPainter &p) const;
 	void paintImage(QPainter &p, const QPixmap &image) const;
 	void resetView();
 
@@ -138,6 +143,8 @@ private:
 	QRect _canvasGeometry;
 	QRect _outerGeometry;
 	QRectF _canvas;
+	QRectF _cropRect;
+	Media::Encode::CanvasBackground _background;
 
 	struct {
 		int angle = 0;

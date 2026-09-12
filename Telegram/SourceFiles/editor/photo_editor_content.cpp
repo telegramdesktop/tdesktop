@@ -85,6 +85,8 @@ PhotoEditorContent::PhotoEditorContent(
 , _modifications(modifications)
 , _canvas(QRect(QPoint(), _photoSize) | modifications.crop) {
 	_crop->setExpansionAllowed(!_fixedCrop);
+	_paint->setCanvasBackground(_background);
+	_paint->setCropRect(QRectF(_crop->cropRect()));
 	_layoutAnimation.init([=](crl::time now) {
 		return layoutAnimationStep(now);
 	});
@@ -173,6 +175,7 @@ PhotoEditorContent::PhotoEditorContent(
 
 		p.fillRect(clip, Qt::transparent);
 		if (_mode.mode == PhotoEditorMode::Mode::Paint) {
+			_paint->paintCanvas(p);
 			_paint->paintImage(p, _photo->pix(_photoSize));
 		} else {
 			paintCanvasFill(p);
@@ -325,11 +328,9 @@ bool PhotoEditorContent::layoutAnimationStep(crl::time now) {
 }
 
 void PhotoEditorContent::updateCanvas() {
-	const auto image = QRect(QPoint(), _photoSize);
+	_paint->setCropRect(QRectF(_crop->cropRect()));
 	_animateLayout = true;
-	_canvas = (_mode.mode == PhotoEditorMode::Mode::Paint)
-		? image
-		: (image | _crop->cropRect());
+	_canvas = QRect(QPoint(), _photoSize) | _crop->cropRect();
 	_animateLayout = false;
 }
 
