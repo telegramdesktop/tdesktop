@@ -1241,13 +1241,15 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		const auto flagsMask = Flag::Broadcast
 			| Flag::Megagroup
 			| Flag::Forbidden
-			| Flag::Monoforum;
+			| Flag::Monoforum
+			| Flag::MonoforumAdmin;
 		const auto flagsSet = (data.is_broadcast() ? Flag::Broadcast : Flag())
 			| (data.is_megagroup() ? Flag::Megagroup : Flag())
 			| (data.is_monoforum() ? Flag::Monoforum : Flag())
 			| Flag::Forbidden;
 		channel->setFlags((channel->flags() & ~flagsMask) | flagsSet);
 
+		savedMessages().applySublistDeleted(channel);
 		if (channel->hasAdminRights()) {
 			channel->setAdminRights(ChatAdminRights());
 		}
