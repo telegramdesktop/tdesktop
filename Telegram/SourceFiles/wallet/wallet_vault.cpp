@@ -10,9 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/openssl_help.h"
 #include "base/random.h"
 #include "core/application.h"
+#include "main/main_domain.h"
 #include "storage/details/storage_file_utilities.h"
 #include "storage/serialize_common.h"
 #include "storage/storage_account.h"
+#include "storage/storage_domain.h"
 #include "wallet/wallet_custody.h"
 
 #include <openssl/kdf.h>
@@ -958,6 +960,19 @@ VaultRuntime::VaultRuntime()
 	}, _lifetime);
 
 	Core::App().systemSleepEvents(
+	) | rpl::on_next([=] {
+		clear();
+	}, _lifetime);
+
+	// A local passcode change retires an armed creation policy just as it
+	// retires an unlocked key: a wrap prepared under the old passcode would
+	// seal the account's first vault under a passcode it no longer has, and
+	// the store creating that vault may already hold the policy on the engine
+	// worker. The bumped clear epoch is what both store branches check, so a
+	// term taken before the change is refused instead of written. This fires
+	// from inside the passcode writer, while vault headers can be dirty, so
+	// nothing here may read one: clear() touches no storage.
+	Core::App().domain().local().localPasscodeChanged(
 	) | rpl::on_next([=] {
 		clear();
 	}, _lifetime);

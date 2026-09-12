@@ -261,10 +261,12 @@ struct StoreOutcome {
 // the live header: an existing vault accepts only the unlocked key (a
 // creation policy never applies to it), an absent one only the policy, and
 // a Broken or Unsupported header is never overwritten nor read as absence.
-// The key was copied on the worker, so it is accepted only while the
-// runtime's epoch is still the one it was copied under: a wrap transition
-// that committed in between cleared the runtime and retired that key, and a
-// record sealed under it would open under no wrap the header holds.
+// Both terms were taken on the worker, so either is accepted only while the
+// runtime's epoch is still the one it was taken under: a wrap transition that
+// committed in between, or a local passcode change, cleared the runtime. A
+// record sealed under the retired key would open under no wrap the header
+// holds, and a vault created under a policy prepared for a passcode the
+// account no longer has would open under no passcode the user can type.
 [[nodiscard]] StoreOutcome StoreUnderVault(
 		Storage::Account &local,
 		const VaultRuntime &vault,
@@ -289,7 +291,8 @@ struct StoreOutcome {
 		return written
 			? StoreOutcome{ .written = true }
 			: StoreOutcome{ .unavailable = true };
-	} else if (!input.authority.policy) {
+	} else if (!input.authority.policy
+		|| vault.clearEpoch() != input.authority.epoch) {
 		return { .refused = true };
 	}
 	return CreateVaultAndStore(local, storageKey, input);
