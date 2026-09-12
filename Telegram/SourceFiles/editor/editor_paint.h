@@ -44,7 +44,12 @@ public:
 	[[nodiscard]] std::shared_ptr<Scene> saveScene() const;
 	void restoreScene();
 
-	void applyTransform(QRect geometry, int angle, bool flipped);
+	void applyTransform(
+		QRect geometry,
+		QRect canvasGeometry,
+		QRectF canvas,
+		int angle,
+		bool flipped);
 	void applyBrush(const Brush &brush);
 	void cancel();
 	void keepResult();
@@ -130,8 +135,9 @@ private:
 	const bool _fixedCrop = false;
 	const bool _composeAnimated = false;
 	const bool _composeSound = false;
-	QRect _imageGeometry;
+	QRect _canvasGeometry;
 	QRect _outerGeometry;
+	QRectF _canvas;
 
 	struct {
 		int angle = 0;

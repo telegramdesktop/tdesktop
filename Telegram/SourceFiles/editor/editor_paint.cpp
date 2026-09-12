@@ -386,28 +386,36 @@ Paint::~Paint() {
 }
 
 void Paint::updateViewGeometry() {
-	if (_imageGeometry.isEmpty()) {
+	if (_canvasGeometry.isEmpty()) {
 		return;
 	}
 	const auto target = (_transform.userZoom - kMinCanvasZoom) > kZoomEpsilon
 		? _outerGeometry
-		: _imageGeometry;
+		: _canvasGeometry;
 	if (geometry() != target) {
 		setGeometry(target);
 	}
 	_view->setGeometry(rect());
 }
 
-void Paint::applyTransform(QRect geometry, int angle, bool flipped) {
-	if (geometry.isEmpty()) {
+void Paint::applyTransform(
+		QRect geometry,
+		QRect canvasGeometry,
+		QRectF canvas,
+		int angle,
+		bool flipped) {
+	if (geometry.isEmpty() || canvasGeometry.isEmpty()) {
 		return;
 	}
-	_imageGeometry = geometry;
+	_canvasGeometry = canvasGeometry;
+	_canvas = canvas;
 	_outerGeometry = parentWidget() ? parentWidget()->rect() : geometry;
+	_view->setSceneRect((canvas == _scene->sceneRect()) ? QRectF() : canvas);
 
 	const auto center = (_transform.fitZoom <= 0.)
 		|| _view->viewport()->rect().isEmpty()
-		? rect::center(_scene->sceneRect())
+		|| (_transform.userZoom == kMinCanvasZoom)
+		? rect::center(canvas)
 		: _view->mapToScene(_view->viewport()->rect().center());
 	const auto size = geometry.size();
 
@@ -800,7 +808,7 @@ void Paint::resetView() {
 	_transform.userZoom = kMinCanvasZoom;
 	updateViewGeometry();
 	applyViewTransform();
-	_view->centerOn(rect::center(_scene->sceneRect()));
+	_view->centerOn(rect::center(_canvas));
 	if (const auto parent = parentWidget()) {
 		parent->update(geometry());
 	}

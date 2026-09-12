@@ -112,7 +112,6 @@ private:
 	rpl::event_stream<> _paintModeRequests;
 
 	QRect _imageRect;
-	QRect _canvasRect;
 	QRectF _imageRectF;
 	QRectF _layoutTarget;
 	Ui::Animations::Basic _layoutAnimation;

@@ -270,7 +270,7 @@ void PhotoEditorContent::applyLayout(QRectF imageRect) {
 	_imageRect = QRect(
 		QPoint(rounded(imageRect.x()), rounded(imageRect.y())),
 		QSize(rounded(imageRect.width()), rounded(imageRect.height())));
-	_canvasRect = QRect(
+	const auto canvasRect = QRect(
 		_imageRect.topLeft() + QPoint(
 			rounded(canvas.x() * scale),
 			rounded(canvas.y() * scale)),
@@ -293,9 +293,15 @@ void PhotoEditorContent::applyLayout(QRectF imageRect) {
 		mods.flipped,
 		imageRect.size());
 	_crop->setCornersLevel(mods.cornersLevel);
-	_paint->applyTransform(geometry, mods.angle, mods.flipped);
+	const auto canvasGeometry = _imageMatrix.mapRect(canvasRect);
+	_paint->applyTransform(
+		geometry,
+		canvasGeometry,
+		QRectF(canvas),
+		mods.angle,
+		mods.flipped);
 
-	_innerRect = _imageMatrix.mapRect(_canvasRect);
+	_innerRect = canvasGeometry;
 	update();
 }
 
