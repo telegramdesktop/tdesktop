@@ -158,6 +158,23 @@ public:
 
 	[[nodiscard]] rpl::producer<> localPasscodeChanged() const;
 	[[nodiscard]] bool hasPasscode() const;
+	// The committed key_data wrap generation: an identity for the passcode
+	// currently protecting the local key, answered without a derivation and
+	// without the typed bytes. Every write that changes which passcode opens
+	// key_data advances it - setPasscode() in both its change and its removal
+	// form, and clearPasscodeAfterReset() - while setAppLockEnabled() leaves
+	// it where it is, because installing or dropping the open wrap does not
+	// change the passcode. It only ever advances while a session exists;
+	// startFromScratch() and migrateFromLegacy() assign it outright instead,
+	// but both run at start or after the last logout, before any vault policy
+	// can be armed. A caller that derived something from the typed bytes reads
+	// this beside them and compares it again before it commits, instead of
+	// asking the presence predicate above, which a change leaves true. 0 means
+	// no passcode wrap has been committed to this file - except in the
+	// retained legacy shape, which reads 0 with a passcode still present,
+	// which is why this is compared beside hasPasscode() and never asked
+	// alone.
+	[[nodiscard]] quint32 passcodeGeneration() const;
 	[[nodiscard]] bool appLockEnabled() const;
 	[[nodiscard]] bool hasLocalPasscode() const;
 

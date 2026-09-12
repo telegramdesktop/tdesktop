@@ -543,9 +543,22 @@ void PasscodeWrapPreparation::run() {
 void PreparePasscodeWrap(
 		const SecureBytes &passcode,
 		Fn<void(std::optional<VaultPreparedWrap>)> done) {
+	// Read before the dispatch, not in the answer: the reading has to be the
+	// key_data these bytes were proved against, so a change that lands while
+	// the derivation runs must leave a stale generation behind and refuse the
+	// seal, not a fresh one that would let it through. A change landing between
+	// the gate that proved these bytes and this read would instead stamp the
+	// new generation onto a wrap derived from the superseded ones; that
+	// ordering is closed by the box's state->passcodeChanged flag, checked in
+	// this call's answer before the wrap is ever armed, so that flag and this
+	// reading are jointly load-bearing.
+	const auto generation = Core::App().domain().local().passcodeGeneration();
 	Storage::DeriveOnWorker(
 		PasscodeWrapPreparation{ .passcode = passcode.copy() },
-		[done](PasscodeWrapPreparation &&job) {
+		[done, generation](PasscodeWrapPreparation &&job) {
+			if (job.prepared) {
+				job.prepared->passcodeGeneration = generation;
+			}
 			done(std::move(job.prepared));
 		});
 }

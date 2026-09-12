@@ -98,9 +98,22 @@ struct VaultReading {
 	bool dirty = false;
 };
 
+// passcodeGeneration is meaningful only for VaultKind::Passcode, and it is not
+// the wrap's own generation above: it is the reading
+// Storage::Domain::passcodeGeneration() gave where this wrap was prepared, on
+// the main thread, from the same key_data the typed bytes had just been proved
+// against. The seal compares it once more before it writes, because nothing
+// disarms a creation policy when the passcode changes. It is never serialized
+// - the header carries VaultWrap alone - so it can only ever be a value this
+// process captured. Only PreparePasscodeWrap() stamps it, because that is the
+// one producer whose wrap is armed as a creation policy; every other producer
+// leaves it 0, Passcode-kind ones included - the staged passcode change's own
+// PrepareVaultPasscodeWrap() and the Switch commit's rebuilt wrap both do, and
+// neither of those reaches the seal.
 struct VaultPreparedWrap {
 	VaultWrap wrap;
 	SecureBytes wrapKey;
+	quint32 passcodeGeneration = 0;
 };
 
 struct VaultSecretRecord {

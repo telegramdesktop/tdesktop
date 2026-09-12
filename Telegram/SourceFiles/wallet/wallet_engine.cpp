@@ -261,6 +261,18 @@ struct StoreOutcome {
 	return { .written = true, .created = std::move(vaultKey) };
 }
 
+// Whether the passcode key_data commits to right now is still the one the
+// chooser derived this wrap key from. Presence is not enough: a change rather
+// than a removal leaves hasPasscode() true while key_data holds other bytes,
+// and the wrap key cannot be recomputed here - the salt is fresh per wrap and
+// the derivation needs the typed passcode - so the generation captured beside
+// the wrap is what the comparison is made on.
+[[nodiscard]] bool PasscodeStillCommitted(const VaultPreparedWrap &policy) {
+	const auto &local = Core::App().domain().local();
+	return local.hasPasscode()
+		&& (local.passcodeGeneration() == policy.passcodeGeneration);
+}
+
 // Runs on the main thread inside the marshal so the decision is made under
 // the live header: an existing vault accepts only the unlocked key (a
 // creation policy never applies to it), an absent one only the policy, and
@@ -279,6 +291,12 @@ struct StoreOutcome {
 // under a passcode key_data no longer holds is one only the forgot path can
 // free, so the store is refused with nothing written - the same arm an
 // absent policy already gets.
+// A change rather than a removal is the same defect with hasPasscode() still
+// true, so what is compared is the generation key_data commits to against the
+// one this wrap key was derived under, captured where the chooser prepared it.
+// The comparison is a counter, not the bytes: a passcode changed away and back
+// reads as different and is refused with nothing written, which the next run of
+// the protection setup undoes.
 [[nodiscard]] StoreOutcome StoreUnderVault(
 		Storage::Account &local,
 		const VaultRuntime &vault,
@@ -331,7 +349,7 @@ struct StoreOutcome {
 	} else if (!input.authority.policy
 		|| vault.clearEpoch() != input.authority.epoch
 		|| (input.authority.policy->wrap.kind == VaultKind::Passcode
-			&& !Core::App().domain().local().hasPasscode())) {
+			&& !PasscodeStillCommitted(*input.authority.policy))) {
 		return { .refused = true };
 	}
 	return CreateVaultAndStore(local, storageKey, input);

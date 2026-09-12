@@ -1041,6 +1041,10 @@ bool Domain::hasPasscode() const {
 	return !_keyData->passcodeWraps.empty() || _keyData->legacyPasscode;
 }
 
+quint32 Domain::passcodeGeneration() const {
+	return _keyData->committed;
+}
+
 bool Domain::appLockEnabled() const {
 	return _keyData->legacyPasscode || !_keyData->openKeyVerified;
 }
