@@ -4606,9 +4606,12 @@ void Widget::updateControlsGeometry() {
 	if (_stories) {
 		const auto inFolderTitle = _openedFolder && _subsectionTopBar;
 		const auto storiesLeft = inFolderTitle
-			? (_subsectionTopBar->titleLeft()
-				- st::dialogsStories.left
-				- st::dialogsStories.photoLeft)
+			? anim::interpolate(
+				(_subsectionTopBar->titleLeft()
+					- st::dialogsStories.left
+					- st::dialogsStories.photoLeft),
+				_narrowWidth,
+				narrowRatio)
 			: (filterLeft + filterWidth);
 		_stories->setLayoutConstraints(
 			{ storiesLeft, filterTop + added },
