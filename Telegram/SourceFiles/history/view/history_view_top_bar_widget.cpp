@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
 #include "ui/unread_badge.h"
+#include "ui/unread_counter_format.h"
 #include "ui/controls/button_context_menu.h"
 #include "ui/ui_utility.h"
 #include "window/window_adaptive.h"
@@ -1806,14 +1807,9 @@ void TopBarWidget::updateUnreadBadge() {
 	const auto key = _activeChat.key;
 	const auto muted = session().data().unreadBadgeMutedIgnoreOne(key);
 	const auto counter = session().data().unreadBadgeIgnoreOne(key);
-	const auto text = [&] {
-		if (!counter) {
-			return QString();
-		}
-		return (counter > 999)
-			? u"..%1"_q.arg(counter % 100, 2, 10, QChar('0'))
-			: QString::number(counter);
-	}();
+	const auto text = counter
+		? FormatUnreadCounterShort(counter)
+		: QString();
 	_unreadBadge->setText(text, !muted);
 }
 

@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/screen_reader_mode.h"
 #include "ui/ui_utility.h"
+#include "ui/unread_counter_format.h"
 #include "apiwrap.h"
 #include "mainwidget.h" // session->content()->windowShown().
 #include "tray.h"
@@ -269,10 +270,7 @@ QIcon CreateIcon(Main::Session *session, bool returnNullIfDefault) {
 }
 
 QImage GenerateCounterLayer(CounterLayerArgs &&args) {
-	const auto count = args.count.value();
-	const auto text = (count < 1000)
-		? QString::number(count)
-		: u"..%1"_q.arg(count % 100, 2, 10, QChar('0'));
+	const auto text = FormatUnreadCounterShort(args.count.value());
 	const auto textSize = text.size();
 
 	struct Dimensions {
