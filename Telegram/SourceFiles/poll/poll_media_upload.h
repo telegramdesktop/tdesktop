@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_poll.h"
+#include "mtproto/sender.h"
 #include "storage/localimageloader.h"
 #include "ui/dynamic_image.h"
 #include "ui/effects/radial_animation.h"
@@ -215,6 +216,7 @@ private:
 	const not_null<Main::Session*> _session;
 	const not_null<PeerData*> _peer;
 	const Fn<void(const QString&)> _showError;
+	MTP::Sender _api;
 	std::unique_ptr<TaskQueue> _prepareQueue;
 	base::flat_map<FullMsgId, UploadContext> _uploads;
 	rpl::lifetime _lifetime;

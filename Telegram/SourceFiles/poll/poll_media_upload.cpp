@@ -445,6 +445,7 @@ PollMediaUploader::PollMediaUploader(Args &&args)
 : _session(args.session)
 , _peer(args.peer)
 , _showError(std::move(args.showError))
+, _api(&_session->mtp())
 , _prepareQueue(std::make_unique<TaskQueue>()) {
 	subscribeToUploader();
 }
@@ -624,7 +625,7 @@ void PollMediaUploader::applyUploaded(
 		MTP_vector<MTPInputDocument>(QVector<MTPInputDocument>()),
 		MTPint(),
 		MTPInputDocument());
-	_session->api().request(MTPmessages_UploadMedia(
+	_api.request(MTPmessages_UploadMedia(
 		MTP_flags(0),
 		MTPstring(),
 		_peer->input(),
@@ -680,7 +681,7 @@ void PollMediaUploader::applyUploadedDocument(
 		MTPInputPhoto(),
 		MTP_int(0),
 		MTP_int(0));
-	_session->api().request(MTPmessages_UploadMedia(
+	_api.request(MTPmessages_UploadMedia(
 		MTP_flags(0),
 		MTPstring(),
 		_peer->input(),
