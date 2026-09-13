@@ -211,6 +211,7 @@ private:
 	bool _hiddenInstant : 1 = false;
 	bool _expandIgnored : 1 = false;
 	bool _expanded : 1 = false;
+	bool _changingFromTop : 1 = false;
 
 	mutable CollapsedGeometry _lastCollapsedGeometry;
 	mutable float64 _lastCollapsedRatio = 0.;
