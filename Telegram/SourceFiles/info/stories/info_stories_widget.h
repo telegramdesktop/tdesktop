@@ -67,6 +67,7 @@ public:
 
 	rpl::producer<bool> desiredBottomShadowVisibility() override;
 
+	void enableBackButton() override;
 	void showFinished() override;
 
 private:
