@@ -2354,6 +2354,7 @@ void Widget::changeOpenedForum(Data::Forum *forum, anim::type animated) {
 	if (_openedForum == forum) {
 		return;
 	}
+	_childListPostponed = false;
 	changeOpenedSubsection([&] {
 		cancelSearch({ .forceFullCancel = true });
 		closeChildList(anim::type::instant);
@@ -3955,10 +3956,13 @@ void Widget::showForum(
 	}
 	const auto nochat = !controller()->mainSectionShown();
 	if (!params.childColumn
-		|| (Core::App().settings().dialogsWidthRatio(nochat) == 0.)
 		|| (_layout != Layout::Main)
 		|| OptionForumHideChatsList.value()) {
 		changeOpenedForum(forum, params.animated);
+		return;
+	} else if (Core::App().settings().dialogsWidthRatio(nochat) == 0.) {
+		changeOpenedForum(forum, params.animated);
+		_childListPostponed = true;
 		return;
 	}
 	cancelSearch({ .forceFullCancel = true });
@@ -4432,6 +4436,16 @@ void Widget::completeHashtag(QString tag) {
 
 void Widget::resizeEvent(QResizeEvent *e) {
 	updateControlsGeometry();
+	if (_childListPostponed) {
+		const auto nochat = !controller()->mainSectionShown();
+		if (Core::App().settings().dialogsWidthRatio(nochat) > 0.) {
+			const auto forum = not_null(_openedForum);
+			changeOpenedForum(nullptr, anim::type::instant);
+			showForum(
+				forum,
+				Window::SectionShow(anim::type::instant).withChildColumn());
+		}
+	}
 }
 
 void Widget::updateLockUnlockVisibility(anim::type animated) {
