@@ -886,12 +886,15 @@ SetPasscodeResult Domain::setPasscode(
 // write of the open wrap with no passcode wrap left.
 //
 // This is the passcode-role mutator and it does not move the app-lock role.
-// The open wrap is dropped only where a first passcode is being created, the
-// one case that has to keep today's "setting a passcode locks the app"
-// behaviour; a passcode change carries whatever open-wrap state the file
-// already had straight through. A file still in the legacy shape is refused
-// outright, because its openKeyEncrypted may be the passcode-derived blob and
-// nothing here could honestly relabel that as an open wrap.
+// The open wrap is dropped only where setPasscode() creates a first passcode,
+// the one case that has to keep the Settings behaviour of "setting a passcode
+// locks the app"; createPasscodeWithoutAppLock() runs the same staged
+// sequence for a first passcode in the wallet-only role and keeps the
+// verified open wrap it already has, and a passcode change carries whatever
+// open-wrap state the file already had straight through. A file still in the
+// legacy shape is refused outright, because its openKeyEncrypted may be the
+// passcode-derived blob and nothing here could honestly relabel that as an
+// open wrap.
 SetPasscodeResult Domain::changePasscode(
 		PasscodeDerivation *derived,
 		PasscodeVerification verification) {
@@ -904,54 +907,83 @@ SetPasscodeResult Domain::changePasscode(
 		return SetPasscodeResult::Failed;
 	} else if (!_keyData->passcodeWraps.empty() && !accepts(verification)) {
 		return SetPasscodeResult::NeedsVerification;
+	} else if (derived) {
+		return installPasscode(*derived, !_keyData->passcodeWraps.empty());
 	}
-	const auto generation = _keyData->committed + 1;
-	if (!derived) {
-		auto updated = *_keyData;
-		updated.passcodeWraps.clear();
-		updated.committed = generation;
-		installOpenWrap(updated);
+	auto updated = *_keyData;
+	updated.passcodeWraps.clear();
+	updated.committed = _keyData->committed + 1;
+	installOpenWrap(updated);
 
-		Assert(!updated.openKeyEncrypted.isEmpty());
-		if (!writeKeyDataChecked(updated)) {
-			return SetPasscodeResult::Failed;
-		}
-		*_keyData = std::move(updated);
-	} else {
-		const auto creating = _keyData->passcodeWraps.empty();
-		auto staged = *_keyData;
-		const auto wrapKey = installPasscodeWrap(staged, *derived, generation);
-		if (!wrapKey) {
-			return SetPasscodeResult::Failed;
-		} else if (!writeKeyDataChecked(staged)) {
-			return SetPasscodeResult::Failed;
-		} else if (!wrapOnDiskOpensLocalKey(
-				staged.passcodeWraps.back(),
-				wrapKey)) {
-			if (!writeKeyDataChecked(*_keyData)) {
-				LOG(("App Error: could not drop the staged passcode wrap."));
-			}
-			return SetPasscodeResult::Failed;
-		}
-		auto updated = *_keyData;
-		updated.passcodeWraps.clear();
-		updated.passcodeWraps.push_back(staged.passcodeWraps.back());
-		updated.committed = generation;
-		if (creating) {
-			dropOpenWrap(updated);
-		}
-
-		Assert(!updated.passcodeWraps.empty());
-		if (!writeKeyDataChecked(updated)) {
-			return SetPasscodeResult::Failed;
-		}
-		*_keyData = std::move(updated);
+	Assert(!updated.openKeyEncrypted.isEmpty());
+	if (!writeKeyDataChecked(updated)) {
+		return SetPasscodeResult::Failed;
 	}
+	*_keyData = std::move(updated);
 	_keyDataDirty = false;
 
 	_verificationNonce = 0;
 	_passcodeKeyChanged.fire({});
 	return SetPasscodeResult::Success;
+}
+
+SetPasscodeResult Domain::installPasscode(
+		PasscodeDerivation &derived,
+		bool keepOpenWrap) {
+	const auto generation = _keyData->committed + 1;
+	auto staged = *_keyData;
+	const auto wrapKey = installPasscodeWrap(staged, derived, generation);
+	if (!wrapKey) {
+		return SetPasscodeResult::Failed;
+	} else if (!writeKeyDataChecked(staged)) {
+		return SetPasscodeResult::Failed;
+	} else if (!wrapOnDiskOpensLocalKey(
+			staged.passcodeWraps.back(),
+			wrapKey)) {
+		if (!writeKeyDataChecked(*_keyData)) {
+			LOG(("App Error: could not drop the staged passcode wrap."));
+		}
+		return SetPasscodeResult::Failed;
+	}
+	auto updated = *_keyData;
+	updated.passcodeWraps.clear();
+	updated.passcodeWraps.push_back(staged.passcodeWraps.back());
+	updated.committed = generation;
+	if (!keepOpenWrap) {
+		dropOpenWrap(updated);
+	}
+
+	Assert(!updated.passcodeWraps.empty());
+	if (!writeKeyDataChecked(updated)) {
+		return SetPasscodeResult::Failed;
+	}
+	*_keyData = std::move(updated);
+	_keyDataDirty = false;
+
+	_verificationNonce = 0;
+	_passcodeKeyChanged.fire({});
+	return SetPasscodeResult::Success;
+}
+
+SetPasscodeResult Domain::createPasscodeWithoutAppLock(
+		PasscodeDerivation derived) {
+	Expects(_localKey != nullptr);
+
+	const auto singleUse = gsl::finally([&] { _verificationNonce = 0; });
+
+	if (_keyData->legacy || _keyData->legacyPasscode) {
+		LOG(("App Error: refusing a passcode without the app lock "
+			"before the migration."));
+		return SetPasscodeResult::Failed;
+	} else if (!_keyData->passcodeWraps.empty()) {
+		return SetPasscodeResult::NeedsVerification;
+	} else if (_keyData->openKeyEncrypted.isEmpty()
+		|| !_keyData->openKeyVerified) {
+		LOG(("App Error: refusing a passcode without the app lock "
+			"over an unverified open wrap."));
+		return SetPasscodeResult::Failed;
+	}
+	return installPasscode(derived, true);
 }
 
 // Turning the lock off installs an open wrap over a file a passcode still
@@ -1039,10 +1071,6 @@ rpl::producer<> Domain::localPasscodeChanged() const {
 
 bool Domain::hasPasscode() const {
 	return !_keyData->passcodeWraps.empty() || _keyData->legacyPasscode;
-}
-
-quint32 Domain::passcodeGeneration() const {
-	return _keyData->committed;
 }
 
 bool Domain::appLockEnabled() const {

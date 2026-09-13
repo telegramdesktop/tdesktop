@@ -176,17 +176,22 @@ struct KeyProtectionArgs {
 	// and the switch is not refused for the store's own custody operation,
 	// which is what holds custodyBusy() while this box is open.
 	bool grantForStore = false;
-	// Install only, for the custody installer replacing a vault whose wrap
+	// Install only, set by the custody installer over a vault whose wrap
 	// this process cannot open: the account still carries that header while
-	// this box is open, and the store removes it in the one step that writes
-	// the replacement, so a cancelled box destroys nothing.
-	bool replacesUnusableVault = false;
+	// this box is open. Once the chosen protection is prepared the box asks
+	// the user to confirm deleting the stored key, and only on that
+	// confirmation calls this, once, before arming. true means the vault was
+	// reset and the box arms the prepared wrap; false means nothing is
+	// armed: the callee has already stated any failure, and the box disposes
+	// the prepared wrap and closes cancelled.
+	Fn<bool()> resetUnusableVault;
 	Fn<void(KeyProtectionResult)> done;
 };
 
-// verified are bytes the caller has already proved against key_data and
-// this session's vault (Wallet::CheckWalletPasscode), so the gate is skipped
-// and the chooser opens with them; empty means ask.
+// verified are bytes the caller has already proved against key_data on the
+// worker, so the gate is skipped and the chooser opens with them; empty
+// means ask. Like the gate's own answer they prove no vault: the chooser
+// opens each vault where its key is needed.
 void ShowKeyProtectionBox(
 	std::shared_ptr<Main::SessionShow> show,
 	KeyProtectionArgs args,

@@ -40,7 +40,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_content.h"
 #include "wallet/wallet_key_protection.h"
 #include "wallet/wallet_session.h"
-#include "wallet/wallet_unlock.h"
 #include "wallet/wallet_vault.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
@@ -686,11 +685,13 @@ void LocalPasscodeEnter::setupContent() {
 	};
 
 	// The write of a change. vaultBytes are what the vault leg of the staged
-	// batch derives from - the retained bytes when they open this session's
-	// vault, the gate's when they do not - and empty when no passcode-wrapped
-	// vault depends on the passcode, where a fresh key_data wrap is written
-	// instead. The key_data proof is always minted from the retained bytes,
-	// in the same callback that spends it.
+	// batch derives from - the retained bytes - and empty when no
+	// passcode-wrapped vault depends on the passcode, where a fresh key_data
+	// wrap is written instead. No vault is opened ahead of this as a gate:
+	// the batch opens every dependent with those bytes on the worker, and its
+	// apply refuses before any write when one did not open. The key_data
+	// proof is always minted from the retained bytes, in the same callback
+	// that spends it, so stale bytes go to Check before the batch is applied.
 	const auto applyChange = [=](
 			const QString &newText,
 			Wallet::SecureBytes vaultBytes) {
@@ -802,31 +803,6 @@ void LocalPasscodeEnter::setupContent() {
 			}));
 	};
 
-	// The retained bytes open key_data but not this session's vault, so the
-	// vault's passcode is asked for through the same gate
-	// ShowKeyProtectionBox() opens for every one of its modes: it checks the
-	// typed bytes against key_data and against the vault wrap, retains
-	// nothing and mints no grant, and what it answers with serves the vault
-	// leg alone. A dismissal writes nothing anywhere and only lifts the busy
-	// state. The box outlives this frame, so both answers are guarded against
-	// the section being gone.
-	const auto changeWithWalletVaults = [=](const QString &newText) {
-		controller()->show(Box(
-			Wallet::WalletPasscodeBox,
-			Wallet::WalletPasscodeBoxArgs{
-				.show = Main::MakeSessionShow(
-					controller()->uiShow(),
-					&controller()->session()),
-				.check = Wallet::WalletPasscodeCheck::KeyDataAndVault,
-				.passed = [=](Wallet::WalletPasscodeGate gate) {
-					if (weak) {
-						applyChange(newText, std::move(gate.passcode));
-					}
-				},
-				.cancelled = crl::guard(this, [=] { setDeriving(false); }),
-			}));
-	};
-
 	const auto deriveAndSave = [=](const QString &newText) {
 		auto utf8 = newText.toUtf8();
 		const auto cleanse = gsl::finally([&] {
@@ -885,23 +861,11 @@ void LocalPasscodeEnter::setupContent() {
 					error->setText(tr::lng_passcode_is_same(tr::now));
 					return;
 				}
-				if (Wallet::CollectVaultDependents().passcodeWrapped.empty()) {
-					applyChange(newText, {});
-					return;
-				}
-				Wallet::CheckWalletPasscode(
-					&controller()->session(),
-					_passcode,
-					crl::guard(this, [=](
-							Wallet::WalletPasscodeVerdict verdict) {
-						if (!verdict.keyData) {
-							forgetAndCheck();
-						} else if (!verdict.vault) {
-							changeWithWalletVaults(newText);
-						} else {
-							applyChange(newText, _passcode.copy());
-						}
-					}));
+				applyChange(
+					newText,
+					Wallet::CollectVaultDependents().passcodeWrapped.empty()
+						? Wallet::SecureBytes()
+						: _passcode.copy());
 			}));
 	};
 
@@ -1350,23 +1314,28 @@ void LocalPasscodeManage::disable() {
 	}
 }
 
-// The retained bytes are checked against key_data and against this session's
-// vault before any walk re-keys the vaults: bytes gone stale go to Check
-// here, not after a removal whose final write could no longer be proved.
-// Bytes that open both skip the removal box's gate; bytes that open key_data
-// alone leave the gate to ask for the vault's passcode, as it does for every
-// other caller.
+// The retained bytes are revalidated against key_data on the worker before
+// the removal chooser takes them as verified and skips its gate: bytes gone
+// stale go to Check here, not after a removal whose final write could no
+// longer be proved. No vault is opened for this; the removal walk opens each
+// dependent vault itself before re-keying it, and a vault the bytes do not
+// open fails the walk there.
 void LocalPasscodeManage::checkVaultAndRemove() {
-	Wallet::CheckWalletPasscode(
-		&controller()->session(),
-		_passcode,
-		crl::guard(this, [=](Wallet::WalletPasscodeVerdict verdict) {
-			if (!verdict.keyData) {
+	auto utf8 = Utf8Copy(_passcode);
+	const auto cleanse = gsl::finally([&] {
+		if (!utf8.isEmpty()) {
+			OPENSSL_cleanse(utf8.data(), utf8.size());
+		}
+	});
+	const auto &local = controller()->session().domain().local();
+	Storage::DeriveOnWorker(
+		local.prepareOpen(utf8),
+		crl::guard(this, [=](Storage::PasscodeDerivation &&derived) {
+			const auto &local = controller()->session().domain().local();
+			if (!local.checkPasscode(std::move(derived))) {
 				forgetAndCheck();
 			} else {
-				showRemoval(verdict.vault
-					? _passcode.copy()
-					: Wallet::SecureBytes());
+				showRemoval(_passcode.copy());
 			}
 		}));
 }

@@ -438,20 +438,23 @@ public:
 	// The cached custody store and updateDeviceCustodyState() are private, so
 	// nothing outside this class can make the live session follow a device
 	// whose wallet keys have just been destroyed - and the device mode must
-	// follow that drop. DropVaultAndCustody() in wallet_unlock.cpp is the
-	// only caller - the forgot-passcode path and the replacement of a key a
-	// provider confirmed unusable both go through it - and it owns the
-	// storage side: it has already removed the sealed values, emptied the
-	// custody store and removed the vault header before calling this, which
-	// writes nothing and only makes the session agree with the disk.
+	// follow that drop. DropVaultAndCustody() in wallet_unlock.cpp, the
+	// forgot-passcode path, is the only caller, and it owns the storage side:
+	// its ResetVaultAndCustody() has already removed the sealed values,
+	// emptied the custody store and removed the vault header before this
+	// runs, which writes nothing and only makes the session agree with the
+	// disk. That path installs nothing afterwards, so the protection change
+	// is announced here at once; a restore over a vault this process cannot
+	// open resets through resetUnusableVault() and announces at its exit.
 	void dropCustodyAfterForgottenPasscode();
 
 	// Per-process: set when a hardware wrap cannot be opened in this process,
 	// by a provider's Absent, Unavailable or Corrupt answer or by a kind no
 	// provider claims. It lands the read-only modes without touching disk -
-	// the header, its ciphertext and the custody record all survive - so a
-	// relaunch presents Full again and asks the provider afresh. A successful
-	// unwrap, a committed wrap change and the drop above reset it.
+	// the header, its ciphertext and the custody record all survive until a
+	// restore's confirmed reset deletes them - so a relaunch before that
+	// presents Full again and asks the provider afresh. A successful unwrap,
+	// a committed wrap change, the drop above and that reset clear it.
 	[[nodiscard]] bool vaultKeyUnusable() const;
 	void setVaultKeyUnusable(bool unusable);
 
@@ -661,6 +664,12 @@ private:
 		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
 		Fn<void(const QString &)> fail,
 		std::shared_ptr<CommentScope> scope = nullptr);
+	// The phrase's anchor public key, derived storage- and network-free on
+	// the engine's local worker; nullopt for a phrase that is not a valid
+	// Rotation mnemonic. done runs on the main thread.
+	void validatePhraseIdentity(
+		const std::vector<QString> &words,
+		Fn<void(std::optional<QByteArray>)> done);
 	[[nodiscard]] bool commentAccessAvailable() const;
 	void validateCommentScopes();
 	void retireCommentScopes(
@@ -668,6 +677,17 @@ private:
 	[[nodiscard]] const CustodyStore &custody();
 	[[nodiscard]] bool persistCustody(const CustodyRecord &record);
 	void dropCreatedVault();
+	[[nodiscard]] CustodyResetResult resetUnusableVault(
+		const QByteArray &expected,
+		const std::shared_ptr<CommentScope> &scope);
+	[[nodiscard]] CustodyInstallRequest resettableInstallRequest(
+		QByteArray expected,
+		std::shared_ptr<CommentScope> scope,
+		std::shared_ptr<bool> crossed,
+		Fn<void(CustodyInstall)> proceed);
+	void settleVaultReset(
+		const std::shared_ptr<bool> &crossed,
+		bool installed);
 	void sendReplaceWallet(
 		const MTPInputWalletReplacement &wallet,
 		std::optional<Core::CloudPasswordResult> password,
@@ -686,6 +706,7 @@ private:
 	void reconcileCustody();
 	void updateDeviceCustodyState();
 	void syncEngineClient();
+	void stopEngineClientForReset(Fn<void()> done);
 	void removeCustodyRecord(const QByteArray &publicKey);
 	void clearNetworkState();
 	void pollTick();

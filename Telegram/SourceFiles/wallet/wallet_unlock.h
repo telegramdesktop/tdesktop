@@ -25,9 +25,10 @@ namespace Wallet {
 // grant for a flow that spans several session calls.
 using VaultAuthorization = std::shared_ptr<VaultGrant>;
 
-// What the deferred install ladder answers with. created is true when the
-// account had no vault and the store that follows is the one creating it,
-// which is what lets a failed store drop the header again.
+// What the install ladder answers a CustodyInstallRequest's ready with.
+// created is true when the account had no vault and the store that follows
+// is the one creating it, which is what lets a failed store drop the header
+// again.
 struct CustodyInstall {
 	VaultAuthorization grant;
 	bool created = false;
@@ -45,10 +46,33 @@ enum class CustodyOutcome {
 	WriteFailed,
 };
 
+enum class CustodyResetResult {
+	Done,
+	Refused,
+	Failed,
+};
+
+// What the session hands the install ladder. ready is answered exactly
+// once, and an empty answer is a cancellation: the session stores nothing.
+// resetUnusableVault is supplied by a restore or an import that may run
+// over a vault this process cannot open (Session::vaultKeyUnusable()), and
+// it is the one authority for destroying that vault: called after the user
+// has confirmed the deletion, it re-resolves the session, re-verifies the
+// target identity, rereads the header and the flag, invalidates the runtime
+// and resets that account's vault together with the custody secrets it
+// names. Done means the vault is gone and the ordinary absent-vault install
+// may arm; Refused means there is nothing to reset any more or the target
+// has moved, and is silent by contract; Failed means required reset work
+// did not reach disk. An installer over a header that reads refuses when
+// the request carries no reset.
+struct CustodyInstallRequest {
+	Fn<void(CustodyInstall)> ready;
+	Fn<CustodyResetResult()> resetUnusableVault;
+};
+
 // The ladder itself, invoked by the session after the words are in hand and
-// immediately before it stores them. An empty answer is a cancellation and
-// the session stores nothing.
-using CustodyInstaller = Fn<void(Fn<void(CustodyInstall)> ready)>;
+// immediately before it stores them.
+using CustodyInstaller = Fn<void(CustodyInstallRequest request)>;
 
 // What every protected-key entry point on Wallet::Session takes. A call that
 // carries neither term fails typed before the engine is reached.
@@ -89,23 +113,27 @@ void AcquireVaultUnlock(VaultUnlockArgs args);
 // carried from an earlier frame. Called from exactly three places - the end
 // of Wallet::Session::notifyKeyProtectionChanged(),
 // Main::Domain::removeRedundantAccounts() and Main::Domain::startWith() -
-// and never from a localPasscodeChanged() subscriber: the wallet-only
-// create box turns the lock on with its first write and off with its
-// second, and a subscriber acting on the second would delete the passcode
-// before the chooser wraps the vault under it. Between those writes the
-// lock is on, so this function refuses by itself.
+// and never from a localPasscodeChanged() subscriber: a wallet-only
+// passcode is created in its role in one step, while the vault that will
+// depend on it is only armed afterwards and sealed later by the engine
+// store, so a subscriber acting on that step's notification would delete
+// the passcode before any vault depends on it. The restore that resets a
+// vault this process cannot open defers this reconciliation to the
+// install's terminal exit for the same reason.
 void DropUnusedPasscode();
 
 // Vault: the typed passcode must open the vault's own passcode wrap.
-// KeyDataAndVault: it is checked against key_data and, when the vault is
-// passcode-wrapped, must open that wrap too, while nothing is armed,
-// nothing is unlocked and nothing is retained.
+// KeyData: the typed bytes are verified against key_data only and answered
+// as scoped SecureBytes, while no vault is opened, no grant is minted,
+// nothing is armed and nothing is retained; whoever takes the bytes opens
+// each vault where its key is actually needed.
 enum class WalletPasscodeCheck {
 	Vault,
-	KeyDataAndVault,
+	KeyData,
 };
 
-// grant is filled for Vault, passcode only for KeyDataAndVault.
+// grant is filled for Vault, on the vault the typed passcode unlocked;
+// passcode for KeyData alone, bytes that prove key_data and no vault.
 struct WalletPasscodeGate {
 	VaultGrant grant;
 	SecureBytes passcode;
@@ -121,21 +149,5 @@ struct WalletPasscodeBoxArgs {
 void WalletPasscodeBox(
 	not_null<Ui::GenericBox*> box,
 	WalletPasscodeBoxArgs args);
-
-// The KeyDataAndVault check of the box above over bytes the caller already
-// holds, with no box: the same worker job runs from its own copy of the
-// bytes, cleansed by the job's destruction at the end of the answer exactly
-// as the box's job is. keyData says whether the bytes still open key_data,
-// vault whether they open this session's committed passcode wrap (true when
-// the vault has none). done runs on the main thread, guarded on the session.
-struct WalletPasscodeVerdict {
-	bool keyData = false;
-	bool vault = false;
-};
-
-void CheckWalletPasscode(
-	not_null<Main::Session*> session,
-	const SecureBytes &passcode,
-	Fn<void(WalletPasscodeVerdict)> done);
 
 } // namespace Wallet

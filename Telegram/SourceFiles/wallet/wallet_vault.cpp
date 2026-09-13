@@ -1013,10 +1013,9 @@ bool VaultRuntime::unlockWith(SecureBytes key, quint32 epoch) {
 	return true;
 }
 
-void VaultRuntime::arm(VaultPreparedWrap policy, bool replacesUnusable) {
+void VaultRuntime::arm(VaultPreparedWrap policy) {
 	auto lock = std::lock_guard(_mutex);
 	_policy = std::move(policy);
-	_policyReplaces = replacesUnusable;
 }
 
 VaultGrant VaultRuntime::grant() {
@@ -1055,7 +1054,6 @@ void VaultRuntime::clear() {
 		auto lock = std::lock_guard(_mutex);
 		_key.reset();
 		_policy.reset();
-		_policyReplaces = false;
 		_retainUntil = 0;
 		++_clearEpoch;
 		_grants = 0;
@@ -1078,11 +1076,7 @@ VaultRuntime::StoreAuthority VaultRuntime::authorityForStore() {
 	} else if (_key) {
 		return { .key = _key->copy(), .epoch = _clearEpoch };
 	}
-	return {
-		.policy = base::take(_policy),
-		.epoch = _clearEpoch,
-		.replaces = base::take(_policyReplaces),
-	};
+	return { .policy = base::take(_policy), .epoch = _clearEpoch };
 }
 
 void VaultRuntime::adoptCreated(SecureBytes key, quint32 epoch) {
@@ -1092,21 +1086,6 @@ void VaultRuntime::adoptCreated(SecureBytes key, quint32 epoch) {
 		return;
 	}
 	_key = std::move(key);
-}
-
-void VaultRuntime::rememberReplaced(VaultHeader header) {
-	auto lock = std::lock_guard(_mutex);
-	_replaced = std::move(header);
-}
-
-bool VaultRuntime::hasReplaced() const {
-	auto lock = std::lock_guard(_mutex);
-	return _replaced.has_value();
-}
-
-std::optional<VaultHeader> VaultRuntime::takeReplaced() {
-	auto lock = std::lock_guard(_mutex);
-	return base::take(_replaced);
 }
 
 void VaultRuntime::release(quint32 epoch) {
@@ -1580,6 +1559,36 @@ int DropPreVaultCustody(Storage::Account &local, CustodyStore &store) {
 			"dropping the pre-vault records."));
 	}
 	return dropped;
+}
+
+bool ResetVaultAndCustody(Storage::Account &local) {
+	auto removed = 0;
+	auto store = ReadCustodyStore(local);
+	if (!store) {
+		LOG(("Wallet Error: custody store unreadable while resetting the "
+			"vault."));
+	} else {
+		ForEachCustodySecretRef(*store, [&](const QString &secretRef) {
+			if (local.removeWalletEngineValue(
+					VaultSecretStorageKey(secretRef))) {
+				++removed;
+			}
+			return false;
+		});
+		const auto emptied = CustodyStore{
+			.lastSeenServerKey = store->lastSeenServerKey,
+		};
+		if (!WriteCustodyStore(local, emptied)) {
+			LOG(("Wallet Error: could not empty the custody store while "
+				"resetting the vault, %1 sealed value(s) were removed and "
+				"the header is kept.").arg(removed));
+			return false;
+		}
+	}
+	const auto headers = RemoveVaultHeader(local) ? 1 : 0;
+	LOG(("Wallet Info: vault reset removed %1 sealed value(s) and %2 "
+		"header(s).").arg(removed).arg(headers));
+	return store.has_value();
 }
 
 } // namespace Wallet

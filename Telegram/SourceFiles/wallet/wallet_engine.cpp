@@ -203,7 +203,6 @@ struct StoreOutcome {
 	bool unavailable = false;
 	bool refused = false;
 	SecureBytes created;
-	std::optional<VaultHeader> replaced;
 };
 
 [[nodiscard]] bool WriteSealedRecord(
@@ -261,22 +260,13 @@ struct StoreOutcome {
 	return { .written = true, .created = std::move(vaultKey) };
 }
 
-// Whether the passcode key_data commits to right now is still the one the
-// chooser derived this wrap key from. Presence is not enough: a change rather
-// than a removal leaves hasPasscode() true while key_data holds other bytes,
-// and the wrap key cannot be recomputed here - the salt is fresh per wrap and
-// the derivation needs the typed passcode - so the generation captured beside
-// the wrap is what the comparison is made on.
-[[nodiscard]] bool PasscodeStillCommitted(const VaultPreparedWrap &policy) {
-	const auto &local = Core::App().domain().local();
-	return local.hasPasscode()
-		&& (local.passcodeGeneration() == policy.passcodeGeneration);
-}
-
 // Runs on the main thread inside the marshal so the decision is made under
-// the live header: an existing vault accepts only the unlocked key (a
-// creation policy never applies to it), an absent one only the policy, and
-// a Broken or Unsupported header is never overwritten nor read as absence.
+// the live header: an existing vault accepts only the unlocked key, an absent
+// one only the policy, and a Broken or Unsupported header is never
+// overwritten nor read as absence. A creation policy never applies to an
+// existing vault, not even to one this process cannot open: the restore over
+// such a vault resets it once the user confirms, before the policy is armed,
+// so that store arrives here over an Absent header like any first store.
 // Both terms were taken on the worker, so either is accepted only while the
 // runtime's epoch is still the one it was taken under: a wrap transition that
 // committed in between, or a local passcode change, cleared the runtime. A
@@ -284,19 +274,17 @@ struct StoreOutcome {
 // holds, and a vault created under a policy prepared for a passcode the
 // account no longer has would open under no passcode the user can type.
 //
-// A Passcode-kind creation policy is asked once more here, against key_data
-// as it stands at this instant: the chooser only armed the policy, and
-// another account's protection change or a logout can have reconciled the
-// wallet-only passcode away between that arm and this seal. A vault sealed
-// under a passcode key_data no longer holds is one only the forgot path can
-// free, so the store is refused with nothing written - the same arm an
-// absent policy already gets.
-// A change rather than a removal is the same defect with hasPasscode() still
-// true, so what is compared is the generation key_data commits to against the
-// one this wrap key was derived under, captured where the chooser prepared it.
-// The comparison is a counter, not the bytes: a passcode changed away and back
-// reads as different and is refused with nothing written, which the next run of
-// the protection setup undoes.
+// A Passcode-kind creation policy is also refused, with nothing written,
+// while key_data holds no passcode at this instant - the same arm an absent
+// policy already gets: a vault sealed under a passcode key_data no longer
+// holds is one only the forgot path can free. Which passcode key_data holds
+// is the epoch's to answer: every live writer of the local passcode -
+// another account's protection change or a logout reconciling the
+// wallet-only passcode away included - fires localPasscodeChanged() from
+// inside the write, and the runtime's clear() on it drops an armed policy
+// and moves the epoch, so a term taken before that write is refused here,
+// a passcode changed away and back included, which the next run of the
+// protection setup undoes.
 [[nodiscard]] StoreOutcome StoreUnderVault(
 		Storage::Account &local,
 		const VaultRuntime &vault,
@@ -308,32 +296,8 @@ struct StoreOutcome {
 		|| reading.state == State::Unsupported) {
 		return { .unavailable = true };
 	} else if (reading.state == State::Read) {
-		// A vault whose committed wrap this process cannot open is replaced
-		// rather than written into, and the header goes only here: the write
-		// that puts the new vault in its place either follows immediately or
-		// the header goes back, so a flow that never reached this step leaves
-		// the account exactly as it was.
-		if (input.authority.policy) {
-			if (!input.authority.replaces
-				|| vault.clearEpoch() != input.authority.epoch) {
-				return { .refused = true };
-			}
-			auto replaced = reading.header;
-			if (!RemoveVaultHeader(local)) {
-				return { .unavailable = true };
-			}
-			auto outcome = CreateVaultAndStore(local, storageKey, input);
-			if (!outcome.written) {
-				if (!WriteVaultHeader(local, replaced)) {
-					LOG(("Wallet Error: could not restore the vault header "
-						"after a failed replacement."));
-				}
-				return outcome;
-			}
-			outcome.replaced = std::move(replaced);
-			return outcome;
-		}
-		if (!input.authority.key
+		if (input.authority.policy
+			|| !input.authority.key
 			|| vault.clearEpoch() != input.authority.epoch) {
 			return { .refused = true };
 		}
@@ -349,7 +313,7 @@ struct StoreOutcome {
 	} else if (!input.authority.policy
 		|| vault.clearEpoch() != input.authority.epoch
 		|| (input.authority.policy->wrap.kind == VaultKind::Passcode
-			&& !PasscodeStillCommitted(*input.authority.policy))) {
+			&& !Core::App().domain().local().hasPasscode())) {
 		return { .refused = true };
 	}
 	return CreateVaultAndStore(local, storageKey, input);
@@ -915,9 +879,6 @@ public:
 			_vault->adoptCreated(
 				std::move(outcome->created),
 				input->authority.epoch);
-		}
-		if (outcome->replaced) {
-			_vault->rememberReplaced(std::move(*outcome->replaced));
 		}
 	}
 

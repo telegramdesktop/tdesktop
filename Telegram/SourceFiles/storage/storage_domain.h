@@ -148,6 +148,19 @@ public:
 	[[nodiscard]] SetPasscodeResult setPasscode(
 		PasscodeDerivation derived,
 		PasscodeVerification verification);
+	// Creates a first passcode in the wallet-only role, keeping the verified
+	// open wrap so the launch lock stays off. It asks for no proof because it
+	// is first-create only and weakens nothing - the local key already opens
+	// without a passcode - and it refuses everything else at the write
+	// boundary, rechecked here after the derivation instead of wherever the
+	// caller started it: an existing passcode wrap answers NeedsVerification,
+	// while retained legacy state and an open wrap that is missing or
+	// unverified answer Failed. Otherwise it is the same staged, proved and
+	// committed sequence setPasscode() runs to create or change a passcode,
+	// one logical operation rather than one physical write, ending in the
+	// same nonce reset and synchronous localPasscodeChanged().
+	[[nodiscard]] SetPasscodeResult createPasscodeWithoutAppLock(
+		PasscodeDerivation derived);
 	[[nodiscard]] SetPasscodeResult setAppLockEnabled(
 		bool enabled,
 		PasscodeVerification verification);
@@ -158,23 +171,6 @@ public:
 
 	[[nodiscard]] rpl::producer<> localPasscodeChanged() const;
 	[[nodiscard]] bool hasPasscode() const;
-	// The committed key_data wrap generation: an identity for the passcode
-	// currently protecting the local key, answered without a derivation and
-	// without the typed bytes. Every write that changes which passcode opens
-	// key_data advances it - setPasscode() in both its change and its removal
-	// form, and clearPasscodeAfterReset() - while setAppLockEnabled() leaves
-	// it where it is, because installing or dropping the open wrap does not
-	// change the passcode. It only ever advances while a session exists;
-	// startFromScratch() and migrateFromLegacy() assign it outright instead,
-	// but both run at start or after the last logout, before any vault policy
-	// can be armed. A caller that derived something from the typed bytes reads
-	// this beside them and compares it again before it commits, instead of
-	// asking the presence predicate above, which a change leaves true. 0 means
-	// no passcode wrap has been committed to this file - except in the
-	// retained legacy shape, which reads 0 with a passcode still present,
-	// which is why this is compared beside hasPasscode() and never asked
-	// alone.
-	[[nodiscard]] quint32 passcodeGeneration() const;
 	[[nodiscard]] bool appLockEnabled() const;
 	[[nodiscard]] bool hasLocalPasscode() const;
 
@@ -210,6 +206,9 @@ private:
 	[[nodiscard]] SetPasscodeResult changePasscode(
 		PasscodeDerivation *derived,
 		PasscodeVerification verification);
+	[[nodiscard]] SetPasscodeResult installPasscode(
+		PasscodeDerivation &derived,
+		bool keepOpenWrap);
 
 	const not_null<Main::Domain*> _owner;
 	const QString _dataName;

@@ -98,22 +98,11 @@ struct VaultReading {
 	bool dirty = false;
 };
 
-// passcodeGeneration is meaningful only for VaultKind::Passcode, and it is not
-// the wrap's own generation above: it is the reading
-// Storage::Domain::passcodeGeneration() gave where this wrap was prepared, on
-// the main thread, from the same key_data the typed bytes had just been proved
-// against. The seal compares it once more before it writes, because nothing
-// disarms a creation policy when the passcode changes. It is never serialized
-// - the header carries VaultWrap alone - so it can only ever be a value this
-// process captured. Only PreparePasscodeWrap() stamps it, because that is the
-// one producer whose wrap is armed as a creation policy; every other producer
-// leaves it 0, Passcode-kind ones included - the staged passcode change's own
-// PrepareVaultPasscodeWrap() and the Switch commit's rebuilt wrap both do, and
-// neither of those reaches the seal.
+// Never serialized - the header carries the VaultWrap alone - and an armed
+// one is retired by VaultRuntime's clear() on localPasscodeChanged().
 struct VaultPreparedWrap {
 	VaultWrap wrap;
 	SecureBytes wrapKey;
-	quint32 passcodeGeneration = 0;
 };
 
 struct VaultSecretRecord {
@@ -185,7 +174,7 @@ public:
 	[[nodiscard]] quint32 clearEpoch() const;
 	[[nodiscard]] bool unlockWith(SecureBytes key, quint32 epoch);
 
-	void arm(VaultPreparedWrap policy, bool replacesUnusable = false);
+	void arm(VaultPreparedWrap policy);
 	[[nodiscard]] VaultGrant grant();
 	void setRetention(bool fifteenMinutes);
 	[[nodiscard]] bool retained() const;
@@ -196,11 +185,6 @@ public:
 		std::optional<SecureBytes> key;
 		std::optional<VaultPreparedWrap> policy;
 		quint32 epoch = 0;
-		// The policy was armed to replace a vault whose committed wrap this
-		// process cannot open, so the store creating it is allowed to remove
-		// that header - and only that store, in the one step that writes the
-		// replacement in its place.
-		bool replaces = false;
 	};
 	[[nodiscard]] std::optional<SecureBytes> keyForRead();
 	[[nodiscard]] StoreAuthority authorityForStore();
@@ -214,17 +198,6 @@ public:
 	// box.
 	void adoptCreated(SecureBytes key, quint32 epoch);
 
-	// The header a store removed to create a replacement in its place, kept
-	// until the flow that asked for that replacement confirms it. The records
-	// the removed header sealed are still on disk, so writing it back is what
-	// makes them openable again on a later run where the retired factor
-	// works; the custody write that follows a verified import is what drops
-	// them instead. A clear does not touch it: it is not a live key, it is
-	// the bytes the disk carried a moment ago.
-	void rememberReplaced(VaultHeader header);
-	[[nodiscard]] bool hasReplaced() const;
-	[[nodiscard]] std::optional<VaultHeader> takeReplaced();
-
 private:
 	friend class VaultGrant;
 	void release(quint32 epoch);
@@ -232,8 +205,6 @@ private:
 	mutable std::mutex _mutex;
 	std::optional<SecureBytes> _key;
 	std::optional<VaultPreparedWrap> _policy;
-	std::optional<VaultHeader> _replaced;
-	bool _policyReplaces = false;
 	int _grants = 0;
 	quint32 _clearEpoch = 0;
 	crl::time _retainUntil = 0;
@@ -365,5 +336,23 @@ private:
 // whose secret value is not a vault record goes together with that value.
 // Returns the count dropped; the store is rewritten when it is not zero.
 int DropPreVaultCustody(Storage::Account &local, CustodyStore &store);
+
+// The one storage-level destruction of a wallet vault, and what it destroys
+// is not recoverable from anywhere: every secret the custody store names,
+// then the store itself, then the header. A store that cannot be read still
+// loses its header - a vault must never survive as a file nothing can open
+// again. A store that was read but could not be written emptied keeps it
+// instead: its records still name the vault, and without the header the
+// device would claim a key it holds nowhere, with nothing left to offer
+// another reset, while the kept header still fails to open and leads back
+// to one. The answer is about the checked custody write and the store's
+// readability alone: a false says leftovers remain, and whether the header
+// survived is for the caller to read. An already absent secret or header is
+// not a failure - removeWalletEngineValue() reports whether a mapping
+// existed, so those reach the log as counts and nothing more. The live
+// runtime is the caller's to clear before, so nothing seals a new record
+// under a key that is about to stop existing, and the session's cached
+// store is the caller's to settle after.
+[[nodiscard]] bool ResetVaultAndCustody(Storage::Account &local);
 
 } // namespace Wallet

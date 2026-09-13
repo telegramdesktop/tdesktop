@@ -8943,6 +8943,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_vault_locked" = "The wallet key on this device is locked. Enter your passcode and try again.";
 "lng_wallet_vault_no_passcode" = "Set a local passcode in Settings > Privacy and Security before storing your wallet key on this device.";
 "lng_wallet_vault_unavailable" = "The wallet key stored on this device can't be read.";
+"lng_wallet_vault_reset_title" = "Delete the stored key?";
+"lng_wallet_vault_reset_about" = "The wallet key currently stored on this device can no longer be opened here. Continuing deletes it from this device, together with any other wallet keys stored with it, and stores the key to this wallet in its place. This can't be undone.";
+"lng_wallet_vault_reset_confirm" = "Delete key";
 "lng_wallet_key_save_error" = "Couldn't save the wallet key on this device. Please try again.";
 "lng_wallet_protection_title" = "Passcode Lock";
 "lng_wallet_protection_about" = "Choose how the key to this wallet is protected on this device.";
@@ -8965,7 +8968,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_protection_create_about" = "This passcode protects your wallet key on this device. It does not lock Telegram until you turn that on in Settings.";
 "lng_wallet_protection_create_enter" = "Passcode";
 "lng_wallet_protection_create_confirm" = "Re-enter passcode";
-"lng_wallet_protection_create_lock_error" = "The passcode was created, but Telegram will still ask for it at launch. You can try again, or disable the passcode in Settings > Privacy and Security. The wallet key's protection was not changed.";
 "lng_wallet_protection_error" = "The wallet key's protection could not be changed. Please try again.";
 "lng_wallet_protection_touchid" = "Unlock with Touch ID";
 "lng_wallet_protection_touchid_about" = "The key is encrypted with a key kept in this Mac's Secure Enclave. Every use asks for Touch ID or your Mac password.";

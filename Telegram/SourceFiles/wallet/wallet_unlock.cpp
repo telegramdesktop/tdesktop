@@ -26,7 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/password_input.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
-#include "wallet/wallet_custody.h"
 #include "wallet/wallet_key_protection.h"
 #include "wallet/wallet_session.h"
 
@@ -272,11 +271,10 @@ void UnlockByKind(
 }
 
 // The vault wrap the typed passcode has to open, read on the main thread for
-// the job that derives against it, for either check: a header that is not
-// Read means the vault has no passcode wrap to prove, so the check that must
-// prove key_data and the vault at once lets key_data alone decide. Absent is
-// the install case with a passcode already set; Broken and Unsupported never
-// reach here, the caller refuses before the gate is shown. The derived wrap
+// the job that derives against it. It serves the Vault check alone, which
+// UnlockByKind shows only over a header committed to a passcode wrap; a
+// header that stopped reading or moved to another kind while the box was
+// open yields no wrap here, so the job opens no vault key. The derived wrap
 // key dies in the job.
 [[nodiscard]] std::optional<VaultWrap> CommittedPasscodeWrap(
 		Storage::Account &local,
@@ -293,26 +291,23 @@ void UnlockByKind(
 }
 
 // The memory-hard part of the gate, cut out as one worker job for either
-// check: the vault wrap key the typed passcode must open and the vault key
-// behind it, and for KeyDataAndVault the key_data derivation beside them. It
-// holds values only - a copy of the committed passcode wrap, the typed bytes
-// as SecureBytes, the key_data job - and never dereferences a runtime, a
+// check: for Vault the vault wrap key the typed passcode must open and the
+// vault key behind it, for KeyData the key_data derivation alone. It holds
+// values only - a copy of the committed passcode wrap, the typed bytes as
+// SecureBytes, the key_data job - and never dereferences a runtime, a
 // session or the box, so nothing is installed, compared or counted before
-// every derivation has answered. Both legs run whatever the other answered,
-// so a wrong passcode takes the same time a right one does. run() cleanses
-// its own copy of the typed bytes on every exit; the typed bytes themselves
-// survive to the answer only for the KeyDataAndVault hand-off, where the
-// gate carries them to the caller, and are cleared by run() for Vault, where
-// the vault key it opened is what the answer installs. Every key it produced
-// lives in SecureBytes and dies with the job on the main thread, installed
-// or not.
+// the derivation has answered. run() cleanses its own copy of the typed
+// bytes on every exit; the typed bytes themselves survive to the answer
+// only for the KeyData hand-off, where the gate carries them to the caller,
+// and are cleared by run() for Vault, where the vault key it opened is what
+// the answer installs. Every key it produced lives in SecureBytes and dies
+// with the job on the main thread, installed or not.
 struct GateDerivation {
 	WalletPasscodeCheck check = WalletPasscodeCheck::Vault;
 	std::optional<Storage::PasscodeDerivation> keyData;
 	std::optional<VaultWrap> vaultWrap;
 	SecureBytes passcode;
 	std::optional<SecureBytes> vaultKey;
-	bool vaultOpens = false;
 
 	void run();
 };
@@ -330,16 +325,9 @@ void GateDerivation::run() {
 		}
 	});
 	if (vaultWrap) {
-		auto key = std::optional<SecureBytes>();
 		if (const auto wrapKey = DeriveVaultWrapKey(*vaultWrap, utf8)) {
-			key = UnwrapVaultKey(*vaultWrap, *wrapKey);
+			vaultKey = UnwrapVaultKey(*vaultWrap, *wrapKey);
 		}
-		vaultOpens = key.has_value();
-		if (check == WalletPasscodeCheck::Vault) {
-			vaultKey = std::move(key);
-		}
-	} else {
-		vaultOpens = (check == WalletPasscodeCheck::KeyDataAndVault);
 	}
 	if (keyData) {
 		keyData->run();
@@ -381,51 +369,21 @@ void GateDerivation::run() {
 	return result;
 }
 
-// The one function in the product that destroys a wallet vault, and what it
-// destroys is not recoverable from anywhere. The live session's cached key
-// goes first, so nothing can seal a new record under a key that is about to
-// stop existing; then every secret the custody store names, then the store
-// itself, then the header. A store that cannot be read still loses its
-// header - a vault must never survive as a file nothing can open again. The
-// answer is about the cleanup alone: a false says leftovers remain, not that
-// the vault survived, and the caller decides the passcode's fate by looking
-// at the vaults themselves. Only counts reach the log.
+// The forgot-passcode path's use of the shared reset. The live session's
+// cached key goes first, so nothing can seal a new record under a key that
+// is about to stop existing; ResetVaultAndCustody() then destroys the vault
+// on disk; and the session is made to agree with the disk at once - this
+// path installs nothing afterwards, so its notify funnel runs right here.
+// The answer is the reset's: a false says leftovers remain, not that the
+// vault survived, and the caller decides the passcode's fate by looking at
+// the vaults themselves.
 [[nodiscard]] bool DropVaultAndCustody(not_null<Main::Account*> account) {
 	auto &local = account->local();
 	const auto session = account->maybeSession();
 	if (session) {
 		session->wallet().vault().clear();
 	}
-	auto ok = true;
-	auto store = ReadCustodyStore(local);
-	if (!store) {
-		LOG(("Wallet Error: custody store unreadable while dropping a vault "
-			"after a forgotten passcode."));
-		ok = false;
-	} else {
-		auto removed = 0;
-		ForEachCustodySecretRef(*store, [&](const QString &secretRef) {
-			if (local.removeWalletEngineValue(
-					VaultSecretStorageKey(secretRef))) {
-				++removed;
-			}
-			return false;
-		});
-		const auto emptied = CustodyStore{
-			.lastSeenServerKey = store->lastSeenServerKey,
-		};
-		if (!WriteCustodyStore(local, emptied)) {
-			LOG(("Wallet Error: could not empty the custody store after a "
-				"forgotten passcode, %1 sealed values were removed."
-				).arg(removed));
-			ok = false;
-		}
-	}
-	if (!RemoveVaultHeader(local)) {
-		LOG(("Wallet Error: could not remove the vault header after a "
-			"forgotten passcode."));
-		ok = false;
-	}
+	const auto ok = ResetVaultAndCustody(local);
 	if (session) {
 		session->wallet().dropCustodyAfterForgottenPasscode();
 	}
@@ -492,6 +450,19 @@ void ConfirmForgottenPasscode(
 		.text = ForgottenPasscodeAbout(),
 		.confirmed = [=](Fn<void()> &&close) {
 			close();
+			// The link was offered only while the verified app lock was off,
+			// which is what lets DropForgottenPasscode() clear the passcode
+			// without asking for it. This confirmation can outlive that
+			// reading - another window may have turned the lock on while it
+			// was open - so the lock is read again at the destructive step,
+			// and a stale confirmation removes nothing and leaves the gate
+			// open for the passcode that now locks the launch.
+			if (Core::App().domain().local().appLockEnabled()) {
+				LOG(("Wallet Warning: a forgotten-passcode reset was "
+					"confirmed after the app lock was enabled; nothing "
+					"removed."));
+				return;
+			}
 			DropForgottenPasscode(show);
 			closeGate();
 		},
@@ -541,8 +512,10 @@ void AcquireVaultUnlock(VaultUnlockArgs args) {
 	case State::Read:
 		// A key that could not be opened in this process is not asked again:
 		// the flow carries the installer alone, as it does over an absent
-		// header, and the consented restore that reaches it drops and
-		// replaces the vault. A relaunch asks the provider afresh.
+		// header, and the consented restore that reaches it resets the vault
+		// only after the user explicitly confirms deleting the stored key; a
+		// cancellation before that leaves the old ciphertext in place. A
+		// relaunch asks the provider afresh.
 		if (mayInstall && session.wallet().vaultKeyUnusable()) {
 			answer(KeyAuthorization{
 				.install = MakeCustodyInstaller(show),
@@ -574,14 +547,15 @@ CustodyInstaller MakeCustodyInstaller(
 		std::shared_ptr<Main::SessionShow> show) {
 	Expects(show != nullptr);
 
-	// Only show and the caller's own callback are captured, so the ladder is
+	// Only show and the caller's own callbacks are captured, so the ladder is
 	// safe to invoke long after the box that acquired it is gone. The header
 	// is re-read here because ShowKeyProtectionBox refuses Install over a
 	// vault that already reads, and because the state may have moved between
 	// the acquisition and the store.
-	return [show](Fn<void(CustodyInstall)> ready) {
+	return [show](CustodyInstallRequest request) {
 		using State = VaultReading::State;
-		const auto answer = [ready](CustodyInstall install) {
+		const auto answer = [ready = std::move(request.ready)](
+				CustodyInstall install) {
 			if (ready) {
 				ready(std::move(install));
 			}
@@ -596,10 +570,10 @@ CustodyInstaller MakeCustodyInstaller(
 		}
 		auto &session = show->session();
 		auto reading = session.wallet().vault().reading(session.local());
-		const auto install = [=](bool replacesUnusable) {
+		const auto install = [=](Fn<bool()> reset) {
 			ShowKeyProtectionBox(show, {
 				.mode = KeyProtectionMode::Install,
-				.replacesUnusableVault = replacesUnusable,
+				.resetUnusableVault = std::move(reset),
 				.done = [answer](KeyProtectionResult result) {
 					auto grant = (!result.cancelled && !result.failed)
 						? Share(std::move(result.grant))
@@ -614,20 +588,46 @@ CustodyInstaller MakeCustodyInstaller(
 		};
 		switch (reading.state) {
 		case State::Absent:
-			install(false);
+			install(nullptr);
 			return;
 		case State::Read:
 			// A hardware wrap that could not be opened in this process only
-			// flags the session, and nothing is dropped for the consented
-			// replacement that reaches this installer either: the store
-			// removes that header in the one step that writes the new vault
-			// and puts it back if that write fails, so a cancelled chooser, a
-			// phrase belonging to another wallet and a failed write all leave
-			// the old ciphertext openable on a later run where the factor
-			// works again. The custody write that follows a verified import
-			// is what drops it for good and clears the flag.
+			// flags the session, and nothing is dropped before the consented
+			// restore or import that reaches this installer confirms it: the
+			// chooser prepares the new protection first and then asks the
+			// user to confirm deleting the stored key, and only on that
+			// confirmation does the session's reset remove the old vault,
+			// after checking again that the target and the flag still hold.
+			// A cancelled chooser, Open warning, provider prompt or
+			// confirmation leaves the old ciphertext openable on a later run
+			// where the factor works again; past the confirmation it is gone
+			// for good, and a failed store afterwards is retried through the
+			// backup or the recovery phrase. Without a reset the request
+			// cannot install here at all.
 			if (session.wallet().vaultKeyUnusable()) {
-				install(true);
+				const auto reset = request.resetUnusableVault;
+				if (!reset) {
+					LOG(("Wallet Error: the custody installer was asked to "
+						"install over a vault this process cannot open, "
+						"without a reset."));
+					answer({});
+					return;
+				}
+				install([=] {
+					switch (reset()) {
+					case CustodyResetResult::Done:
+						return true;
+					case CustodyResetResult::Refused:
+						return false;
+					case CustodyResetResult::Failed:
+						if (show->valid()) {
+							show->showToast(
+								tr::lng_wallet_passcode_forgot_failed(tr::now));
+						}
+						return false;
+					}
+					Unexpected("Reset result in the custody installer.");
+				});
 				return;
 			}
 			// A restored or imported key is about to be written, so the user
@@ -723,7 +723,7 @@ void WalletPasscodeBox(
 	error->hide();
 	// The link is bound to the Vault check alone, because that is the one
 	// check meaning "this device holds a key it cannot open without the
-	// passcode". KeyDataAndVault gates disable and change flows the user can
+	// passcode". KeyData gates the protection chooser, which the user can
 	// simply cancel, where dropping a vault from inside the box would race
 	// the caller's continuation. Verified app-lock-off proves this local key
 	// can open without a passcode; otherwise the link would offer removal of
@@ -750,7 +750,7 @@ void WalletPasscodeBox(
 	// Opening the protection chooser must never leave a vault unlocked or
 	// retained behind it, so that check offers no retention and mints no
 	// grant: it answers with the typed passcode alone.
-	const auto retain = (args.check != WalletPasscodeCheck::KeyDataAndVault);
+	const auto retain = (args.check != WalletPasscodeCheck::KeyData);
 	const auto remember = retain
 		? box->addRow(
 			object_ptr<Ui::Checkbox>(
@@ -803,8 +803,9 @@ void WalletPasscodeBox(
 			.check = args.check,
 			.passcode = SecureBytes(utf8),
 		};
-		job.vaultWrap = CommittedPasscodeWrap(session.local(), vault);
-		if (args.check == WalletPasscodeCheck::KeyDataAndVault) {
+		if (args.check == WalletPasscodeCheck::Vault) {
+			job.vaultWrap = CommittedPasscodeWrap(session.local(), vault);
+		} else {
 			job.keyData = session.domain().local().prepareOpen(utf8);
 		}
 		const auto epoch = vault.clearEpoch();
@@ -822,10 +823,9 @@ void WalletPasscodeBox(
 					&& !vault.unlockWith(std::move(*job.vaultKey), epoch);
 				ok = job.vaultKey && !refused;
 				break;
-			case WalletPasscodeCheck::KeyDataAndVault:
+			case WalletPasscodeCheck::KeyData:
 				ok = session.domain().local().checkPasscode(
-					std::move(*job.keyData))
-					&& job.vaultOpens;
+					std::move(*job.keyData));
 				break;
 			}
 			if (refused) {
@@ -871,36 +871,6 @@ void WalletPasscodeBox(
 			}
 		}
 	}, box->lifetime());
-}
-
-void CheckWalletPasscode(
-		not_null<Main::Session*> session,
-		const SecureBytes &passcode,
-		Fn<void(WalletPasscodeVerdict)> done) {
-	auto utf8 = QByteArray(
-		reinterpret_cast<const char*>(passcode.span().data()),
-		passcode.size());
-	const auto cleanse = gsl::finally([&] {
-		if (!utf8.isEmpty()) {
-			OPENSSL_cleanse(utf8.data(), utf8.size());
-		}
-	});
-	auto job = GateDerivation{
-		.check = WalletPasscodeCheck::KeyDataAndVault,
-		.passcode = passcode.copy(),
-	};
-	job.vaultWrap = CommittedPasscodeWrap(
-		session->local(),
-		session->wallet().vault());
-	job.keyData = session->domain().local().prepareOpen(utf8);
-	Storage::DeriveOnWorker(std::move(job), crl::guard(session, [=](
-			GateDerivation &&job) {
-		done({
-			.keyData = session->domain().local().checkPasscode(
-				std::move(*job.keyData)),
-			.vault = job.vaultOpens,
-		});
-	}));
 }
 
 } // namespace Wallet

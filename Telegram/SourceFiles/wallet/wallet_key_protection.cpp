@@ -540,25 +540,21 @@ void PasscodeWrapPreparation::run() {
 // the typed bytes before this returns, so a caller may pass bytes it does
 // not own past this frame, and cleanses that copy on the worker: the only
 // lasting copy of the typed bytes stays the box's.
+//
+// The wrap is worth sealing only while key_data still holds the passcode
+// these bytes are. A change that lands before the wrap is armed - while the
+// chooser is open, during this derivation, or while the confirmation of an
+// unusable vault's reset holds the wrap - is refused by the chooser's
+// passcodeChanged latch, asked on this call's answer and again on that
+// confirmation. One that lands after the arm reaches VaultRuntime's
+// synchronous clear() on localPasscodeChanged(), which drops the armed
+// policy and moves the epoch the seal compares.
 void PreparePasscodeWrap(
 		const SecureBytes &passcode,
 		Fn<void(std::optional<VaultPreparedWrap>)> done) {
-	// Read before the dispatch, not in the answer: the reading has to be the
-	// key_data these bytes were proved against, so a change that lands while
-	// the derivation runs must leave a stale generation behind and refuse the
-	// seal, not a fresh one that would let it through. A change landing between
-	// the gate that proved these bytes and this read would instead stamp the
-	// new generation onto a wrap derived from the superseded ones; that
-	// ordering is closed by the box's state->passcodeChanged flag, checked in
-	// this call's answer before the wrap is ever armed, so that flag and this
-	// reading are jointly load-bearing.
-	const auto generation = Core::App().domain().local().passcodeGeneration();
 	Storage::DeriveOnWorker(
 		PasscodeWrapPreparation{ .passcode = passcode.copy() },
-		[done, generation](PasscodeWrapPreparation &&job) {
-			if (job.prepared) {
-				job.prepared->passcodeGeneration = generation;
-			}
+		[done](PasscodeWrapPreparation &&job) {
 			done(std::move(job.prepared));
 		});
 }
@@ -692,17 +688,15 @@ void WalkVaultRemoval(std::shared_ptr<VaultRemovalWalk> walk) {
 }
 
 // What the wallet-only passcode create box answers with. An empty passcode
-// and failed == false is the box dismissed without creating anything; failed
-// marks the half-failure below, where the passcode was created but the app
-// lock could not be put back off.
+// is the box closed without creating anything.
 struct WalletPasscodeCreated {
 	SecureBytes passcode;
-	bool failed = false;
 };
 
-// The passcode this box creates is created in the wallet-only role: the app
-// lock is turned straight back off and neither the auto-lock nor the system
-// unlock setting is touched.
+// The passcode this box creates is created straight in the wallet-only role,
+// through Storage::Domain::createPasscodeWithoutAppLock(): the app lock never
+// turns on, and neither the auto-lock nor the system unlock setting is
+// touched.
 void WalletPasscodeCreateBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
@@ -808,25 +802,26 @@ void WalletPasscodeCreateBox(
 		state->typed = SecureBytes(utf8);
 		cSetPasscodeBadTries(0);
 		setBusy(true);
-		// Two derivations, both on the worker. The first is the new
-		// passcode's key_data wrap: setPasscode() accepts it under the
-		// default verification token exactly because the file carries no
-		// passcode wrap yet, and drops the open wrap while it creates a first
-		// passcode, which turns the app lock on. This passcode exists for the
-		// wallet alone, so the lock goes straight back off - and that write
-		// asks for proof, because it weakens a file a passcode now protects.
-		// setPasscode() zeroed the single-use nonce on its way out, so the
-		// proof is the second derivation: minted from the bytes this box
-		// still holds and prepared only once the wrap it is tested against
-		// exists.
+		// One derivation on the worker, the new passcode's key_data wrap, and
+		// one logical write in the wallet-only role:
+		// createPasscodeWithoutAppLock() keeps the verified open wrap, so the
+		// launch lock never turns on and nothing is left half-created. That
+		// entry checks again at the write itself that no passcode exists
+		// yet: a passcode another window created while the derivation ran
+		// is refused with NeedsVerification, and this box closes with nothing
+		// created. That window's write has already set the chooser's
+		// passcodeChanged latch, which turns the empty answer into a close.
 		Storage::DeriveOnWorker(
 			local.prepareNewWrap(utf8),
 			crl::guard(box, [=](Storage::PasscodeDerivation &&derived) {
 				auto &local = show->session().domain().local();
-				const auto set = local.setPasscode(
-					std::move(derived),
-					Storage::PasscodeVerification());
-				if (set != Storage::SetPasscodeResult::Success) {
+				const auto set = local.createPasscodeWithoutAppLock(
+					std::move(derived));
+				if (set == Storage::SetPasscodeResult::NeedsVerification) {
+					state->typed.clear();
+					box->closeBox();
+					return;
+				} else if (set != Storage::SetPasscodeResult::Success) {
 					setBusy(false);
 					state->typed.clear();
 					first->setFocus();
@@ -834,35 +829,10 @@ void WalletPasscodeCreateBox(
 					showError(Lang::Hard::SecureSaveError());
 					return;
 				}
-				// From here a passcode exists, in the app-lock role this box
-				// did not offer, until the lock is back off. That half-failure
-				// is stashed before the second hop, so a dismissal or a
-				// teardown while it derives reports it and the chooser writes
-				// no vault under a passcode that still locks the launch -
-				// never "nothing happened" over an installed passcode.
 				state->finished = true;
-				state->result = { .failed = true };
-				MintVerificationOnWorker(box, state->typed, [=](
-						std::optional<Storage::PasscodeVerification> verification) {
-					auto &local = show->session().domain().local();
-					const auto lock = verification
-						? local.setAppLockEnabled(false, *verification)
-						: Storage::SetPasscodeResult::NeedsVerification;
-					if (lock != Storage::SetPasscodeResult::Success) {
-						setBusy(false);
-						state->typed.clear();
-						showError(tr::lng_wallet_protection_create_lock_error(
-							tr::now));
-						box->clearButtons();
-						box->addButton(tr::lng_box_ok(), [=] {
-							box->closeBox();
-						});
-						return;
-					}
-					Core::App().localPasscodeChanged();
-					state->result = { .passcode = std::move(state->typed) };
-					box->closeBox();
-				});
+				Core::App().localPasscodeChanged();
+				state->result = { .passcode = std::move(state->typed) };
+				box->closeBox();
 			}));
 	};
 	const auto submit = [=] {
@@ -877,7 +847,7 @@ void WalletPasscodeCreateBox(
 	state->save = box->addButton(tr::lng_settings_save(), save);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	// One answer on the way out, whatever closed the box: the created
-	// passcode, the half-failure above, or nothing at all.
+	// passcode or nothing at all.
 	box->boxClosing() | rpl::on_next([=] {
 		if (state->reported) {
 			return;
@@ -947,6 +917,7 @@ void KeyProtectionBox(
 		std::vector<not_null<Ui::Radioenum<VaultKind>*>> radios;
 		QPointer<Ui::RoundButton> save;
 		std::shared_ptr<VaultRemovalWalk> walk;
+		std::optional<VaultPreparedWrap> pendingInstall;
 		bool busy = false;
 		bool passcodeChanged = false;
 		bool reported = false;
@@ -996,7 +967,7 @@ void KeyProtectionBox(
 	// or a worker derivation while another window writes, so the change is
 	// remembered instead: the box closes as soon as it is idle again, and a
 	// Passcode wrap is applied only while nothing changed. The create step
-	// clears it, because its own writes install the bytes it hands back.
+	// clears it, because its own write installs the bytes it hands back.
 	// The close is deferred out of the writer.
 	show->session().domain().local().localPasscodeChanged(
 	) | rpl::on_next([=] {
@@ -1007,7 +978,7 @@ void KeyProtectionBox(
 	}, box->lifetime());
 	const auto mode = args.mode;
 	const auto grantForStore = args.grantForStore;
-	const auto replacesUnusable = args.replacesUnusableVault;
+	const auto resetUnusableVault = args.resetUnusableVault;
 	const auto removal = (mode == KeyProtectionMode::Removal);
 
 	box->setTitle(tr::lng_wallet_protection_title());
@@ -1172,6 +1143,16 @@ void KeyProtectionBox(
 	// between this box opening and its save finishing.
 	const auto accounts = args.accounts;
 
+	const auto discardPendingInstall = [=, local = &show->session().local()] {
+		const auto prepared = base::take(state->pendingInstall);
+		const auto provider = prepared
+			? ProtectionProviderFor(prepared->wrap.kind)
+			: nullptr;
+		if (provider) {
+			provider->remove(local, prepared->wrap, [](ProtectionError) {});
+		}
+	};
+
 	// Where the three save paths converge: Install arms the prepared wrap as
 	// the account's creation policy, Switch transitions this account's vault
 	// onto it and Removal walks the caller's list of them.
@@ -1179,15 +1160,77 @@ void KeyProtectionBox(
 		auto &session = show->session();
 		switch (mode) {
 		case KeyProtectionMode::Install: {
-			// Nothing reaches the disk here: the caller's store writes the
-			// header when it seals its first record under this policy.
-			auto &vault = session.wallet().vault();
-			vault.arm(std::move(prepared), replacesUnusable);
-			closeWith({
-				.cancelled = false,
-				.kind = kind,
-				.grant = vault.grant(),
-			});
+			if (!resetUnusableVault) {
+				// Nothing reaches the disk here: the caller's store writes
+				// the header when it seals its first record under this
+				// policy.
+				auto &vault = session.wallet().vault();
+				vault.arm(std::move(prepared));
+				closeWith({
+					.cancelled = false,
+					.kind = kind,
+					.grant = vault.grant(),
+				});
+				return;
+			}
+			// The account still carries a vault this process cannot open, so
+			// the prepared wrap waits here until the user confirms deleting
+			// the stored key, and only that confirmation resets the vault -
+			// before arm(), because the reset clears the runtime and
+			// VaultRuntime::clear() drops an armed policy. Cancel closes the
+			// chooser instead of returning to it: a passcode the create box
+			// has just made went to withPasscode() without reaching
+			// state->passcode, so a second Save would try to create one over
+			// it. A Passcode wrap is not armed once another window changed
+			// the passcode while the confirmation waited, as withPasscode()
+			// refuses before it gets here. Every exit that arms nothing - a
+			// cancel, that change, a refused or failed reset, a box that has
+			// already answered or is torn down under the confirmation - gives
+			// the prepared wrap back to its provider, as the Switch arm does.
+			state->pendingInstall = std::move(prepared);
+			if (state->reported) {
+				discardPendingInstall();
+				return;
+			}
+			show->showBox(Ui::MakeConfirmBox({
+				.text = tr::lng_wallet_vault_reset_about(tr::now),
+				.confirmed = crl::guard(weak, [=](Fn<void()> close) {
+					close();
+					if (!state->pendingInstall) {
+						return;
+					}
+					const auto stale = (kind == VaultKind::Passcode)
+						&& state->passcodeChanged;
+					const auto reset = !stale && resetUnusableVault();
+					// A reset refused for a comment scope that went stale
+					// cancels that scope, which can destroy this box right
+					// here; its boxClosing() has then given the prepared wrap
+					// back and answered the caller, so nothing is left to do.
+					if (!weak) {
+						return;
+					} else if (!reset) {
+						discardPendingInstall();
+						box->closeBox();
+						return;
+					}
+					auto next = base::take(state->pendingInstall);
+					auto &vault = show->session().wallet().vault();
+					vault.arm(std::move(*next));
+					closeWith({
+						.cancelled = false,
+						.kind = kind,
+						.grant = vault.grant(),
+					});
+				}),
+				.cancelled = crl::guard(weak, [=](Fn<void()> close) {
+					close();
+					discardPendingInstall();
+					box->closeBox();
+				}),
+				.confirmText = tr::lng_wallet_vault_reset_confirm(),
+				.confirmStyle = &st::attentionBoxButton,
+				.title = tr::lng_wallet_vault_reset_title(),
+			}));
 		} return;
 		case KeyProtectionMode::Switch: {
 			Assert(state->header.has_value());
@@ -1359,11 +1402,7 @@ void KeyProtectionBox(
 			return;
 		}
 		const auto created = [=](WalletPasscodeCreated result) {
-			if (result.failed) {
-				// A passcode exists now, but in the app-lock role this box
-				// did not offer, so nothing is written under it here.
-				closeWith({ .cancelled = false, .failed = true });
-			} else if (result.passcode.empty()) {
+			if (result.passcode.empty()) {
 				setBusy(false);
 			} else {
 				state->passcodeChanged = false;
@@ -1373,12 +1412,12 @@ void KeyProtectionBox(
 		// The create box answers from its own boxClosing(), which a layer
 		// teardown can fire after this box is already gone, and every branch
 		// above reads state, which lives in this box's lifetime. A dropped
-		// answer undoes nothing: the create box has installed the passcode
-		// and turned the launch lock back off, or reported that it could
-		// not, and this box is what would have written a vault under it - so
-		// what stays is a wallet-only passcode over a vault still on the
-		// kind it had, and both halves are reachable again from this chooser
-		// and from Settings - Privacy & Security - Local Passcode.
+		// answer undoes nothing: the create box has already installed the
+		// passcode in the wallet-only role, and this box is what would have
+		// written a vault under it - so what stays is a wallet-only passcode
+		// over a vault still on the kind it had, which the next
+		// DropUnusedPasscode() site removes unless something has come to
+		// depend on it.
 		show->showBox(Box(
 			WalletPasscodeCreateBox,
 			show,
@@ -1512,11 +1551,13 @@ void KeyProtectionBox(
 	// dropped by the guarded done, which is why the list is read here, and
 	// nothing can be added to it after reported is set one statement
 	// earlier - that flag is what the walk's alive() probe answers no from.
-	box->boxClosing() | rpl::on_next([state, done = args.done] {
+	box->boxClosing(
+	) | rpl::on_next([state, discardPendingInstall, done = args.done] {
 		if (state->reported) {
 			return;
 		}
 		state->reported = true;
+		discardPendingInstall();
 		if (state->result.cancelled && state->walk) {
 			state->result.kind = state->walk->kind;
 			state->result.changed = base::take(state->walk->changed);
@@ -1708,10 +1749,10 @@ void ShowKeyProtectionBox(
 	switch (args.mode) {
 	case KeyProtectionMode::Install:
 		// Install is asked for an account that has no vault yet, or one whose
-		// vault this process cannot open and the caller is replacing; a
-		// header that reads in any other case is the caller's contract
-		// broken, not a user error.
-		if (!args.replacesUnusableVault
+		// vault this process cannot open and the caller can reset once the
+		// user confirms it; a header that reads in any other case is the
+		// caller's contract broken, not a user error.
+		if (!args.resetUnusableVault
 			&& ReadVaultHeader(session.local()).state
 			== VaultReading::State::Read) {
 			LOG(("Wallet Error: key protection asked to install over a vault "
@@ -1760,8 +1801,8 @@ void ShowKeyProtectionBox(
 	};
 	// The passcode comes first in every mode and whatever the vault's
 	// retention window says: no branch here consults vault.retained(). Only
-	// bytes the caller has already put through the same dual check skip
-	// the gate.
+	// bytes the caller has already proved against key_data on the worker,
+	// the gate's own check, skip the gate.
 	if (!session.domain().local().hasPasscode()) {
 		chooser(SecureBytes());
 		return;
@@ -1771,7 +1812,7 @@ void ShowKeyProtectionBox(
 	}
 	show->showBox(Box(WalletPasscodeBox, WalletPasscodeBoxArgs{
 		.show = show,
-		.check = WalletPasscodeCheck::KeyDataAndVault,
+		.check = WalletPasscodeCheck::KeyData,
 		.passed = [chooser](WalletPasscodeGate gate) mutable {
 			chooser(std::move(gate.passcode));
 		},

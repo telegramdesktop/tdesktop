@@ -666,11 +666,13 @@ struct ThrowawayRotation {
 		const std::shared_ptr<KeyAuthorization> &installed) {
 	installed->grant = auth.grant;
 	if (const auto install = auth.install) {
-		auth.install = [=](Fn<void(CustodyInstall)> ready) {
-			install([=](CustodyInstall result) {
+		auth.install = [=](CustodyInstallRequest request) {
+			request.ready = [=, ready = std::move(request.ready)](
+					CustodyInstall result) {
 				installed->grant = result.grant;
 				ready(std::move(result));
-			});
+			};
+			install(std::move(request));
 		};
 	}
 	return auth;
@@ -2664,6 +2666,31 @@ void Session::fetchShareParts(
 	_shareFetchTimer.callOnce(kShareFetchTimeout);
 }
 
+void Session::validatePhraseIdentity(
+		const std::vector<QString> &words,
+		Fn<void(std::optional<QByteArray>)> done) {
+	auto normalized = QStringList();
+	for (const auto &word : words) {
+		normalized.push_back(NormalizeWord(word));
+	}
+	const auto phrase = normalized.join(QChar(' ')).toStdString();
+	_engine->runLocal([phrase]() -> std::optional<QByteArray> {
+		try {
+			const auto key = engine::rotation_mnemonic_public_key(phrase);
+			if (int(key.size()) != kCustodyPublicKeySize) {
+				return std::nullopt;
+			}
+			return QByteArray(
+				reinterpret_cast<const char*>(key.data()),
+				key.size());
+		} catch (...) {
+			return std::nullopt;
+		}
+	}, done, [done](EngineError) {
+		done(std::nullopt);
+	});
+}
+
 void Session::restoreFromWords(
 		KeyAuthorization auth,
 		std::vector<QString> words,
@@ -2682,6 +2709,17 @@ void Session::restoreFromWords(
 	const auto expected = scope
 		? scope->_state->target.walletIdentity->publicKey
 		: _publicKey;
+	const auto crossed = std::make_shared<bool>(false);
+	done = [this, crossed, done = std::move(done)](
+			std::vector<QString> phrase,
+			CustodyOutcome outcome) {
+		settleVaultReset(crossed, outcome == CustodyOutcome::Installed);
+		done(std::move(phrase), outcome);
+	};
+	fail = [this, crossed, fail = std::move(fail)](const QString &error) {
+		settleVaultReset(crossed, false);
+		fail(error);
+	};
 	// The resolved install travels into both continuations, which is what
 	// holds the grant across the worker call: the runtime cleanses the key
 	// as soon as the last handle goes, and the store runs on the worker.
@@ -2690,7 +2728,8 @@ void Session::restoreFromWords(
 	const auto store = [=, this](
 			CustodyInstall install,
 			std::vector<QString> phrase) {
-		if (scope && !commentScopeCurrent(scope)) {
+		if (scope
+			&& (!commentScopeCurrent(scope) || scope->_state->record)) {
 			fail(u"PHRASE_ORIGIN_EXPIRED"_q);
 			return;
 		} else if (!install.grant || !install.grant->valid()) {
@@ -2801,25 +2840,51 @@ void Session::restoreFromWords(
 				: u"PHRASE_IMPORT_FAILED"_q);
 		});
 	};
-	// The install ladder goes first whenever the flow carries one: a read
-	// grant handed out by an open retention window must never carry a
-	// silent store into a vault whose passcode the user has not just typed.
-	if (const auto install = auth.install) {
-		install(crl::guard(_session, [=, words = std::move(words)](
-				CustodyInstall answer) mutable {
-			if (scope && !commentScopeCurrent(scope)) {
-				fail(u"PHRASE_ORIGIN_EXPIRED"_q);
-			} else if (!answer.grant) {
-				done(std::move(words), CustodyOutcome::Cancelled);
-			} else {
-				store(std::move(answer), std::move(words));
-			}
-		}));
-	} else if (auth.grant && auth.grant->valid()) {
-		store(CustodyInstall{ .grant = auth.grant }, std::move(words));
-	} else {
-		fail(u"PHRASE_VAULT_LOCKED"_q);
-	}
+	const auto continueInstall = [=, this](
+			CustodyInstall answer,
+			std::vector<QString> phrase) {
+		if (scope && !commentScopeCurrent(scope)) {
+			fail(u"PHRASE_ORIGIN_EXPIRED"_q);
+		} else if (!answer.grant) {
+			done(std::move(phrase), CustodyOutcome::Cancelled);
+		} else {
+			store(std::move(answer), std::move(phrase));
+		}
+	};
+	// The phrase's anchor key is derived on the engine worker before the
+	// install ladder opens anything: an invalid phrase, or one belonging
+	// to another wallet, is refused here while the header and the custody
+	// store are still untouched, so no chooser, no store and no replacement
+	// of a vault this process cannot open is ever reached by such a phrase.
+	// The imported descriptor is still checked after the store, because the
+	// engine's import is the authority on what the words derive.
+	validatePhraseIdentity(words, [=, this](
+			std::optional<QByteArray> key) mutable {
+		if (!key) {
+			fail(u"PHRASE_INVALID_PHRASE"_q);
+			return;
+		} else if (*key != expected) {
+			fail(u"PHRASE_KEY_MISMATCH"_q);
+			return;
+		}
+		// The install ladder goes first whenever the flow carries one: a
+		// read grant handed out by an open retention window must never
+		// carry a silent store into a vault whose passcode the user has
+		// not just typed.
+		if (const auto install = auth.install) {
+			install(resettableInstallRequest(
+				expected,
+				scope,
+				crossed,
+				[=, words = std::move(words)](CustodyInstall answer) mutable {
+					continueInstall(std::move(answer), std::move(words));
+				}));
+		} else if (auth.grant && auth.grant->valid()) {
+			store(CustodyInstall{ .grant = auth.grant }, std::move(words));
+		} else {
+			fail(u"PHRASE_VAULT_LOCKED"_q);
+		}
+	});
 }
 
 void Session::restoreFromPhrase(
@@ -2846,7 +2911,13 @@ void Session::restoreFromPhrase(
 		Fn<void(KeyAuthorization)> done,
 		Fn<void(const QString &error)> fail) {
 	if (scope) {
-		if (!commentScopeCurrent(scope) || scope->_state->record) {
+		// A scope over a vault this process cannot open carries that vault's
+		// record, which the confirmed reset drops before the install. The
+		// vault can become usable before the install runs, and then no reset
+		// comes, so restoreFromWords() re-establishes the no-record invariant
+		// before it stores, refusing a scope that still carries a record.
+		if (!commentScopeCurrent(scope)
+			|| (scope->_state->record && !_vaultKeyUnusable)) {
 			if (fail) {
 				fail(u"PHRASE_ORIGIN_EXPIRED"_q);
 			}
@@ -2947,7 +3018,13 @@ void Session::restoreFromBackup(
 		Fn<void(KeyAuthorization)> done,
 		Fn<void(const QString &error)> fail) {
 	if (scope) {
-		if (!commentScopeCurrent(scope) || scope->_state->record) {
+		// A scope over a vault this process cannot open carries that vault's
+		// record, which the confirmed reset drops before the install. The
+		// vault can become usable before the install runs, and then no reset
+		// comes, so restoreFromWords() re-establishes the no-record invariant
+		// before it stores, refusing a scope that still carries a record.
+		if (!commentScopeCurrent(scope)
+			|| (scope->_state->record && !_vaultKeyUnusable)) {
 			if (fail) {
 				fail(u"PHRASE_ORIGIN_EXPIRED"_q);
 			}
@@ -3726,6 +3803,109 @@ void Session::dropCustodyAfterForgottenPasscode() {
 	notifyKeyProtectionChanged();
 }
 
+// Reached from the chooser many turns after the flow began, so everything
+// that decided the reset is read again: the flow still holds the custody
+// latch, its target is still the current wallet or a current comment scope,
+// the header still reads and this process still cannot open it. Any
+// disagreement is Refused, silent by contract - another action recovered or
+// replaced the vault, or the target moved, and nothing is deleted. The
+// cache is mirrored at once instead of at persist time, because any
+// syncEngineClient() in between would otherwise run a client for the
+// deleted secret; the scope is re-stamped to this deliberate clear() and
+// loses the deleted record, so it stays current through the install.
+// Nothing is announced here: the device state and the protection
+// notification, with the unused-passcode drop it ends in, are settled by
+// the flow's terminal exit, once the new vault exists or never will.
+CustodyResetResult Session::resetUnusableVault(
+		const QByteArray &expected,
+		const std::shared_ptr<CommentScope> &scope) {
+	if (!custodyBusy()
+		|| (scope
+			? !commentScopeCurrent(scope)
+			: (_presence.current() != Presence::Ready
+				|| _publicKey != expected))
+		|| (ReadVaultHeader(_session->local()).state
+			!= VaultReading::State::Read)
+		|| !_vaultKeyUnusable) {
+		return CustodyResetResult::Refused;
+	}
+	const auto lastSeenServerKey = custody().lastSeenServerKey;
+	vault().clear();
+	if (scope) {
+		scope->_state->epoch = vault().clearEpoch();
+	}
+	const auto ok = ResetVaultAndCustody(_session->local());
+	_vaultKeyUnusable = false;
+	if (!ok) {
+		_custody = std::nullopt;
+		return CustodyResetResult::Failed;
+	}
+	_custody = CustodyStore{ .lastSeenServerKey = lastSeenServerKey };
+	_custodyReadFailed = false;
+	if (scope) {
+		scope->_state->record = std::nullopt;
+	}
+	return CustodyResetResult::Done;
+}
+
+// The reset boundary an installing flow may cross. Over a vault this process
+// cannot open, the chooser's confirmed reset deletes that vault and mirrors
+// the emptied store into the cache, but announces nothing, because the
+// protection notification ends in DropUnusedPasscode(), which would delete a
+// wallet-only passcode created for the vault the store has not written yet.
+// Any answer but Refused has deleted something, so it marks the boundary
+// crossed, and the installer's answer then waits for the client of the
+// deleted secret to stop before the flow goes on. Every terminal exit of the
+// flow settles a crossed boundary exactly once, after the outcome is known:
+// the device state follows the emptied cache unless a persisted install
+// already made it follow, then the protection change is announced. An exit
+// that did not cross settles nothing.
+CustodyInstallRequest Session::resettableInstallRequest(
+		QByteArray expected,
+		std::shared_ptr<CommentScope> scope,
+		std::shared_ptr<bool> crossed,
+		Fn<void(CustodyInstall)> proceed) {
+	return {
+		.ready = crl::guard(_session, [=, this](
+				CustodyInstall answer) mutable {
+			if (!*crossed) {
+				proceed(std::move(answer));
+				return;
+			}
+			stopEngineClientForReset([
+				proceed = std::move(proceed),
+				answer = std::move(answer)
+			]() mutable {
+				proceed(std::move(answer));
+			});
+		}),
+		.resetUnusableVault = [=, weak = base::make_weak(_session)] {
+			const auto session = weak.get();
+			if (!session) {
+				return CustodyResetResult::Refused;
+			}
+			const auto result = session->wallet().resetUnusableVault(
+				expected,
+				scope);
+			if (result != CustodyResetResult::Refused) {
+				*crossed = true;
+			}
+			return result;
+		},
+	};
+}
+
+void Session::settleVaultReset(
+		const std::shared_ptr<bool> &crossed,
+		bool installed) {
+	if (base::take(*crossed)) {
+		if (!installed) {
+			updateDeviceCustodyState();
+		}
+		notifyKeyProtectionChanged();
+	}
+}
+
 const CustodyStore &Session::custody() {
 	if (!_custody) {
 		_custody = ReadCustodyStore(_session->local());
@@ -3742,16 +3922,6 @@ const CustodyStore &Session::custody() {
 
 bool Session::persistCustody(const CustodyRecord &record) {
 	auto store = custody();
-	// The write below is what confirms a replacement of a vault this process
-	// could not open: until it lands, the removed header can still go back
-	// and the values it sealed have to stay. Once it lands they are sealed
-	// under a wrap no header carries any more, so they go with the records
-	// naming them, and the flag they set goes with them.
-	const auto replacing = vault().hasReplaced();
-	const auto sealedUnderReplaced = replacing ? store : CustodyStore();
-	if (replacing) {
-		store = CustodyStore{ .lastSeenServerKey = store.lastSeenServerKey };
-	}
 	store.records.erase(
 		ranges::remove(
 			store.records,
@@ -3766,22 +3936,6 @@ bool Session::persistCustody(const CustodyRecord &record) {
 	if (!WriteCustodyStore(_session->local(), store)) {
 		LOG(("Wallet Error: custody record write failed."));
 		return false;
-	}
-	if (const auto replaced = vault().takeReplaced()) {
-		auto dropped = 0;
-		auto sealed = sealedUnderReplaced;
-		ForEachCustodySecretRef(sealed, [&](const QString &secretRef) {
-			if (_session->local().removeWalletEngineValue(
-					VaultSecretStorageKey(secretRef))) {
-				++dropped;
-			}
-			return true;
-		});
-		if (dropped) {
-			LOG(("Wallet Info: dropped %1 sealed value(s) of the vault the "
-				"restore replaced.").arg(dropped));
-		}
-		setVaultKeyUnusable(false);
 	}
 	_custodyReadFailed = false;
 	_custody = std::move(store);
@@ -3804,19 +3958,6 @@ void Session::dropCreatedVault() {
 	if (RemoveVaultHeader(_session->local())) {
 		LOG(("Wallet Info: dropped the vault header a failed store "
 			"created."));
-	}
-	// A store that replaced a vault this process could not open removed its
-	// header to write the new one in its place. The flow failed, so the old
-	// header goes back and the records it sealed stay openable on a run where
-	// the retired factor works again.
-	if (auto replaced = vault().takeReplaced()) {
-		if (WriteVaultHeader(_session->local(), *replaced)) {
-			LOG(("Wallet Info: restored the vault header the failed "
-				"replacement had removed."));
-		} else {
-			LOG(("Wallet Error: could not restore the vault header after a "
-				"failed replacement."));
-		}
 	}
 }
 
@@ -3906,13 +4047,17 @@ void Session::replaceWithImported(
 	}
 	retireCommentScopes();
 	_replacing = true;
-	done = [this, done = std::move(done)](CustodyOutcome outcome) {
+	const auto expected = _publicKey;
+	const auto crossed = std::make_shared<bool>(false);
+	done = [this, crossed, done = std::move(done)](CustodyOutcome outcome) {
+		settleVaultReset(crossed, outcome == CustodyOutcome::Installed);
 		_replacing = false;
 		if (done) {
 			done(outcome);
 		}
 	};
-	fail = [this, fail = std::move(fail)](const QString &error) {
+	fail = [this, crossed, fail = std::move(fail)](const QString &error) {
+		settleVaultReset(crossed, false);
 		_replacing = false;
 		if (fail) {
 			fail(error);
@@ -4077,20 +4222,41 @@ void Session::replaceWithImported(
 				: u"REPLACE_IMPORT_FAILED"_q);
 		});
 	};
-	if (const auto install = auth.install) {
-		install([=, words = std::move(words)](
-				CustodyInstall answer) mutable {
-			if (!answer.grant) {
-				fail(u"REPLACE_INSTALL_CANCELLED"_q);
-			} else {
-				store(std::move(answer), std::move(words));
-			}
-		});
-	} else if (auth.grant && auth.grant->valid()) {
-		store(CustodyInstall{ .grant = auth.grant }, std::move(words));
-	} else {
-		fail(u"REPLACE_VAULT_LOCKED"_q);
-	}
+	const auto continueInstall = [=](
+			CustodyInstall answer,
+			std::vector<QString> phrase) {
+		if (!answer.grant) {
+			fail(u"REPLACE_INSTALL_CANCELLED"_q);
+		} else {
+			store(std::move(answer), std::move(phrase));
+		}
+	};
+	// The anchor key is derived on the engine worker before the install
+	// ladder opens anything, as restoreFromWords does, so an invalid phrase
+	// reaches no chooser and no store; the key itself is deliberately not
+	// compared with the current wallet - importing another wallet's phrase
+	// is what this replace is for, and the server's wallet.replaceWallet
+	// answer is what confirms the key it accepted.
+	validatePhraseIdentity(words, [=, this](
+			std::optional<QByteArray> key) mutable {
+		if (!key) {
+			fail(u"REPLACE_INVALID_PHRASE"_q);
+			return;
+		}
+		if (const auto install = auth.install) {
+			install(resettableInstallRequest(
+				expected,
+				nullptr,
+				crossed,
+				[=, words = std::move(words)](CustodyInstall answer) mutable {
+					continueInstall(std::move(answer), std::move(words));
+				}));
+		} else if (auth.grant && auth.grant->valid()) {
+			store(CustodyInstall{ .grant = auth.grant }, std::move(words));
+		} else {
+			fail(u"REPLACE_VAULT_LOCKED"_q);
+		}
+	});
 }
 
 void Session::sendReplaceWallet(
@@ -4330,6 +4496,37 @@ void Session::syncEngineClient() {
 	if (current() && started && _presence.current() == Presence::Ready) {
 		requestEngineRefresh();
 	}
+}
+
+// The client of a secret the confirmed reset deleted must not run into the
+// install, so a flow that crossed the reset stops it here and continues
+// only once it stopped. Unlike syncEngineClient()'s stop this retires no
+// comment scope: every other scope was cancelled when the flow took the
+// custody latch, none can be created while it is held, and the restoring
+// scope is not current while _clientStopping is set, so a retirement would
+// cancel the very scope it meant to keep. The flag still spans one worker
+// round trip, and a scope check inside it - a pushed state reconciling
+// custody, a changed transfer identity - cancels the restoring scope, so
+// that restore ends with PHRASE_ORIGIN_EXPIRED after the reset: a clean
+// failure, retryable through the same restore. A current submission is not
+// interrupted, as syncEngineClient() does not interrupt it, and the persist
+// that follows settles it as usual.
+void Session::stopEngineClientForReset(Fn<void()> done) {
+	if (!_engine->client()
+		|| (_submission && submissionCurrent(
+			_submission->operationId,
+			_submission->prepared))) {
+		done();
+		return;
+	}
+	_sendRecoveryReady = false;
+	_clientStopping = true;
+	_engine->stopClient([=, this] {
+		_clientStopping = false;
+		_clientRecordId = QString();
+		done();
+	});
+	retirePreviews(SendError::SigningUnavailable);
 }
 
 void Session::removeCustodyRecord(const QByteArray &publicKey) {

@@ -491,20 +491,22 @@ std::shared_ptr<CommentScope> CommentKeyContext::scope() const {
 CustodyInstaller CommentKeyContext::installer() {
 	const auto self = shared_from_this();
 	const auto native = MakeCustodyInstaller(self);
-	return [=](Fn<void(CustodyInstall)> ready) {
+	return [=](CustodyInstallRequest request) {
 		if (!self->valid()) {
-			ready({});
+			request.ready({});
 			self->cancel();
 			return;
 		}
-		native([=](CustodyInstall result) {
+		request.ready = [=, ready = std::move(request.ready)](
+				CustodyInstall result) {
 			self->acceptClosed();
 			const auto installed = result.grant != nullptr;
 			ready(std::move(result));
 			if (!installed) {
 				self->cancel();
 			}
-		});
+		};
+		native(std::move(request));
 	};
 }
 
