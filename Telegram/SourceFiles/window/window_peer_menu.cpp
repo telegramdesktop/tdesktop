@@ -1895,6 +1895,12 @@ void Filler::addVideoChat() {
 }
 
 void Filler::fillContextMenuActions() {
+	const auto history = _request.key.history();
+	const auto channel = history ? history->peer->asChannel() : nullptr;
+	if (channel && !channel->amIn() && !history->inChatList()) {
+		addNewWindow(false);
+		return;
+	}
 	addNewWindow();
 	addUngroup();
 	addHidePromotion();
