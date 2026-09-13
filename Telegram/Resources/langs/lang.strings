@@ -2537,6 +2537,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_failed_add_not_mutual" = "Sorry, if a person is no longer part of a group, you need to add each other to your respective contact lists to be able to add them back.\n\nNote that they could still join via the group's invite link as long as they are not in the Removed users list.";
 
 "lng_sure_delete_contact" = "Are you sure you want to delete {contact} from your contact list?";
+"lng_sure_delete_contacts#one" = "Are you sure you want to delete {count} contact from your contact list?";
+"lng_sure_delete_contacts#other" = "Are you sure you want to delete {count} contacts from your contact list?";
 "lng_sure_delete_history" = "Are you sure you want to delete all message history with {contact}?\n\nThis action cannot be undone.";
 "lng_sure_delete_group_history" = "Are you sure you want to delete all messages in \"{group}\"?\n\nThis action cannot be undone.";
 "lng_sure_delete_channel_history" = "Are you sure you want to delete all messages in \"{channel}\"?\n\n**This action cannot be undone.**";
@@ -5901,6 +5903,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_add_contact" = "Create";
 "lng_add_contact_button" = "New contact";
 "lng_contacts_header" = "Contacts";
+"lng_contacts_selected#one" = "{count} contact selected";
+"lng_contacts_selected#other" = "{count} contacts selected";
 "lng_menu_not_contact" = "This number is not on Telegram";
 "lng_contacts_hidden_stories" = "Hidden Stories";
 "lng_contacts_stories_status#one" = "{count} story";
