@@ -191,7 +191,7 @@ struct FilePrepareResult {
 	TaskId taskId = kEmptyTaskId;
 	uint64 id = 0;
 	FileLoadTo to;
-	std::shared_ptr<SendingAlbum> album;
+	std::weak_ptr<SendingAlbum> album;
 	SendMediaType type = SendMediaType::File;
 	QString filepath;
 	QByteArray content;
