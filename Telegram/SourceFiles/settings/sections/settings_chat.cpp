@@ -2470,7 +2470,7 @@ void SetupDefaultThemes(
 			IsSystemAccentColorSupported() && (type != Type(-1)),
 			anim::type::instant);
 	};
-	group->setChangedCallback([=](Type type) {
+	group->setChangedCallback([=, raw = group.get()](Type type) {
 		const auto scheme = ranges::find(
 			kSchemesList,
 			type,
@@ -2478,7 +2478,7 @@ void SetupDefaultThemes(
 		if (scheme != end(kSchemesList)) {
 			apply(*scheme);
 		} else {
-			group->setValue(chosen());
+			raw->setValue(chosen());
 		}
 	});
 	for (const auto &scheme : kSchemesList) {

@@ -144,6 +144,10 @@ void EditInviteLinkBox(
 	const auto expireGroup = std::make_shared<RadiobuttonGroup>(expire);
 	const auto usage = data.usageLimit ? data.usageLimit : kMaxLimit;
 	const auto usageGroup = std::make_shared<RadiobuttonGroup>(usage);
+	box->lifetime().add([=] {
+		expireGroup->setChangedCallback(nullptr);
+		usageGroup->setChangedCallback(nullptr);
+	});
 
 	using Buttons = base::flat_map<int, base::unique_qptr<Radiobutton>>;
 	struct State {

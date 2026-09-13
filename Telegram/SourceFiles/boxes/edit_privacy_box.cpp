@@ -1146,6 +1146,9 @@ void EditMessagesPrivacyBox(
 				showToast();
 			}
 		});
+		box->lifetime().add([=] {
+			group->setChangedCallback(nullptr);
+		});
 
 		Ui::AddSkip(inner);
 		Settings::AddButtonWithIcon(
