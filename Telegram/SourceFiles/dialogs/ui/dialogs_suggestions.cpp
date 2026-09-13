@@ -66,6 +66,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/search_field_controller.h"
 #include "ui/unread_badge_paint.h"
+#include "ui/unread_counter_format.h"
 #include "ui/ui_utility.h"
 #include "window/window_separate_id.h"
 #include "window/window_session_controller.h"
@@ -298,9 +299,7 @@ bool RecentRow::refreshBadge() {
 
 		_badgeString = !_counter
 			? (_unread ? u" "_q : QString())
-			: (_counter < 1000)
-			? QString::number(_counter)
-			: (QString::number(_counter / 1000) + 'K');
+			: FormatUnreadCounterShort(_counter);
 		if (_badgeString.isEmpty()) {
 			_badgeSize = QSize();
 		} else {
@@ -376,9 +375,7 @@ void RecentRow::rightActionPaint(
 	} else if (_badgeString.isEmpty()) {
 		_badgeString = !_counter
 			? u" "_q
-			: (_counter < 1000)
-			? QString::number(_counter)
-			: (QString::number(_counter / 1000) + 'K');
+			: FormatUnreadCounterShort(_counter);
 	}
 	auto st = Ui::UnreadBadgeStyle();
 	st.selected = selected;
