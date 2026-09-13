@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "storage/localstorage.h"
 #include "ui/text/text_utilities.h"
+#include "ui/unread_counter_format.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "platform/mac/global_menu_mac.h"
@@ -303,9 +304,7 @@ void MainWindow::updateDockCounter() {
 
 	const auto string = !counter
 		? QString()
-		: (counter < 1000)
-		? QString("%1").arg(counter)
-		: QString("..%1").arg(counter % 100, 2, 10, QChar('0'));
+		: FormatUnreadCounterShort(counter);
 	_private->setWindowBadge(string);
 }
 

@@ -11,3 +11,5 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 	int unreadCounter,
 	bool hasMentionOrReaction,
 	bool narrow = false);
+
+[[nodiscard]] QString FormatUnreadCounterShort(int unreadCounter);
