@@ -28,6 +28,7 @@ constexpr auto kSnapAngle = 45.;
 
 const auto kDuplicateSequence = QKeySequence("ctrl+d");
 const auto kDeleteSequence = QKeySequence("delete");
+const auto kBackspaceSequence = QKeySequence("backspace");
 
 constexpr auto kMinSizeRatio = 0.05;
 
@@ -600,7 +601,7 @@ void ItemBase::handleActionKey(not_null<QKeyEvent*> e) {
 	};
 	if (matches(kDuplicateSequence)) {
 		performForSelectedItems(&ItemBase::actionDuplicate);
-	} else if (matches(kDeleteSequence)) {
+	} else if (matches(kDeleteSequence) || matches(kBackspaceSequence)) {
 		performForSelectedItems(&ItemBase::actionDelete);
 	} else {
 		e->ignore();
