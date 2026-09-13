@@ -400,8 +400,8 @@ void RequestUrl(
 		base::weak_qptr<Ui::BoxContent> box;
 		AnotherSessionFactory anotherSession = nullptr;
 		QString firstMatchCode;
-		rpl::lifetime boxDeclineLifetime;
-		rpl::lifetime matchCodesBoxDeclineLifetime;
+		bool boxAnswered = false;
+		bool matchCodeSent = false;
 	};
 	const auto bot = request.is_request_write_access()
 		? session->data().processUser(request.vbot()).get()
@@ -551,7 +551,7 @@ void RequestUrl(
 				})).send();
 			};
 			const auto callback = [=](Result result) {
-				state->boxDeclineLifetime.destroy();
+				state->boxAnswered = true;
 				if (result.matchCode.isEmpty()
 					&& !state->firstMatchCode.isEmpty()) {
 					result.matchCode = state->firstMatchCode;
@@ -630,8 +630,10 @@ void RequestUrl(
 		}));
 		if (const auto strong = state->box.get()) {
 			strong->boxClosing() | rpl::on_next([=] {
-				requestDecline();
-			}, state->boxDeclineLifetime);
+				if (!state->boxAnswered) {
+					requestDecline();
+				}
+			}, strong->lifetime());
 		} else {
 			// Closed inside show(), so boxClosing() has already passed.
 			requestDecline();
@@ -652,7 +654,7 @@ void RequestUrl(
 				domain,
 				matchCodes,
 				[=](QString matchCode) {
-					state->matchCodesBoxDeclineLifetime.destroy();
+					state->matchCodeSent = true;
 					resolveSession()->api().request(
 						MTPmessages_CheckUrlAuthMatchCode(
 							MTP_string(url),
@@ -678,8 +680,10 @@ void RequestUrl(
 		Ui::LayerOption::KeepOther);
 	if (const auto strong = matchCodesBox.get()) {
 		strong->boxClosing() | rpl::on_next([=] {
-			requestDecline();
-		}, state->matchCodesBoxDeclineLifetime);
+			if (!state->matchCodeSent) {
+				requestDecline();
+			}
+		}, strong->lifetime());
 	} else {
 		// Closed inside show(), so boxClosing() has already passed.
 		requestDecline();
