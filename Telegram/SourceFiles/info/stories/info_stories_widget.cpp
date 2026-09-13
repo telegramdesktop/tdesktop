@@ -283,6 +283,10 @@ void Widget::setupBottomButton(int wasBottomHeight) {
 	}
 }
 
+void Widget::enableBackButton() {
+	_inner->enableBackButton();
+}
+
 void Widget::showFinished() {
 	_shown = true;
 	if (const auto bottom = _pinnedToBottom.data()) {
