@@ -2483,13 +2483,18 @@ void InnerWidget::suggestRestrictParticipant(
 
 	{
 		const auto lifetime = std::make_shared<rpl::lifetime>();
+		const auto weak = base::make_weak(this);
 		auto handler = [=, this] {
 			participant->session().changes().peerUpdates(
 				_channel,
 				Data::PeerUpdate::Flag::Members
-			) | rpl::on_next([=](const Data::PeerUpdate &update) {
-				_downLoaded = false;
-				preloadMore(Direction::Down);
+			) | rpl::on_next_done([=] {
+				lifetime->destroy();
+				if (const auto strong = weak.get()) {
+					strong->_downLoaded = false;
+					strong->preloadMore(Direction::Down);
+				}
+			}, [=] {
 				lifetime->destroy();
 			}, *lifetime);
 			participant->session().api().chatParticipants().kick(
