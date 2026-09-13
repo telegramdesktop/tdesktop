@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/style/style_core_scale.h"
+
 #include <QtCore/QByteArray>
 #include <QtCore/QJsonObject>
 #include <QtCore/QSize>
@@ -20,6 +22,18 @@ struct ResolvedColors {
 	QColor bodyBg;
 	QColor bottomBg;
 };
+
+// WebKit applies the system scale to CSS pixels by itself,
+// so the shell gets style values without the application scale.
+template <typename T>
+[[nodiscard]] T Unscaled(T value) {
+	const auto factor = 100. / style::Scale();
+	if constexpr (std::is_arithmetic_v<T>) {
+		return T(base::SafeRound(value * factor));
+	} else {
+		return value * factor;
+	}
+}
 
 #if !defined Q_OS_WIN && !defined Q_OS_MAC
 

@@ -49,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonObject>
 #include <QtCore/QJsonArray>
 #include <QtCore/QUrl>
+#include <QtCore/QtMath>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
 #include <QtGui/QWindow>
@@ -779,28 +780,12 @@ void FillNativeSharedPanelMenu(
 	}
 }
 
-[[nodiscard]] QImage RasterizeStyleIcon(const style::icon &icon) {
-	const auto size = icon.size();
-	const auto ratio = style::DevicePixelRatio();
-	auto image = QImage(size * ratio, QImage::Format_ARGB32_Premultiplied);
-	image.setDevicePixelRatio(ratio);
-	image.fill(Qt::transparent);
-	auto painter = Painter(&image);
-	icon.paintInCenter(painter, QRect(QPoint(), size));
-	return image;
-}
-
-[[nodiscard]] QImage RasterizeVerifiedBadge() {
-	const auto size = st::infoVerifiedStar.size() + QSize(0, st::lineWidth);
-	const auto ratio = style::DevicePixelRatio();
-	auto image = QImage(size * ratio, QImage::Format_ARGB32_Premultiplied);
-	image.setDevicePixelRatio(ratio);
-	image.fill(Qt::transparent);
-	auto painter = Painter(&image);
-	const auto width = size.width();
-	st::infoVerifiedStar.paint(painter, st::lineWidth, 0, width);
-	st::infoPeerBadge.verifiedCheck.paint(painter, st::lineWidth, 0, width);
-	return image;
+// WebKit maps CSS pixels to the screen by itself, so rasterize above any
+// screen density (Qt floors it on X11) and let it downscale.
+[[nodiscard]] int ExternalShellAssetRatio() {
+	return std::min(
+		style::DevicePixelRatio() + 1,
+		style::kScaleMax / 100);
 }
 
 [[nodiscard]] QString PngDataUrl(const QImage &image) {
@@ -826,15 +811,41 @@ void FillNativeSharedPanelMenu(
 	return result;
 }
 
-[[nodiscard]] QJsonObject SerializeStyleIconAsset(const style::icon &icon) {
-	return SerializeRasterAsset(RasterizeStyleIcon(icon), icon.size());
+[[nodiscard]] QJsonObject SerializeStyleIconAsset(
+		const style::icon &icon,
+		const style::color &color) {
+	const auto ratio = ExternalShellAssetRatio();
+	const auto image = icon.instance(
+		color->c,
+		ratio * 100,
+		true);
+	return SerializeRasterAsset(image, image.size() / ratio);
 }
 
 [[nodiscard]] QJsonObject SerializeVerifiedBadgeAsset() {
-	const auto size = st::infoVerifiedStar.size() + QSize(0, st::lineWidth);
+	const auto ratio = ExternalShellAssetRatio();
+	const auto scale = ratio * 100;
+	const auto star = st::infoVerifiedStar.instance(
+		st::profileVerifiedCheckBg->c,
+		scale,
+		true);
+	const auto check = st::infoPeerBadge.verifiedCheck.instance(
+		st::profileVerifiedCheckFg->c,
+		scale,
+		true);
+	const auto line = LinuxShell::Unscaled(st::lineWidth) * ratio;
+	auto image = QImage(
+		star.size() + QSize(0, line),
+		QImage::Format_ARGB32_Premultiplied);
+	image.fill(Qt::transparent);
+	{
+		auto p = QPainter(&image);
+		p.drawImage(line, 0, star);
+		p.drawImage(line, 0, check);
+	}
 	return SerializeRasterAsset(
-		RasterizeVerifiedBadge(),
-		size,
+		image,
+		image.size() / ratio,
 		tr::lng_sr_verified_badge(tr::now));
 }
 
@@ -845,7 +856,9 @@ void CollectSharedPanelMenuIcons(
 		if (!item.iconKey.isEmpty()
 			&& item.icon
 			&& !result.contains(item.iconKey)) {
-			result.insert(item.iconKey, SerializeStyleIconAsset(*item.icon));
+			result.insert(
+				item.iconKey,
+				SerializeStyleIconAsset(*item.icon, st::menuIconColor));
 		}
 		if (!item.children.empty()) {
 			CollectSharedPanelMenuIcons(item.children, result);
@@ -1889,7 +1902,10 @@ void Panel::requestExternalShellButtonEmoji(const QString &name) {
 	_delegate->botResolveButtonEmoji({
 		.customEmojiId = state->args.iconCustomEmojiId,
 		.textColor = state->textColor,
-		.size = kExternalShellButtonIconSize,
+		// Custom emoji take a logical size, rasterize them as other assets.
+		.size = qCeil(kExternalShellButtonIconSize
+			* ExternalShellAssetRatio()
+			/ double(style::DevicePixelRatio())),
 		.callback = std::move(send),
 	});
 }
@@ -1918,7 +1934,9 @@ void Panel::sendExternalShellAssets() {
 	sendExternalShellMethod("setAssets", {
 		{ u"icons"_q, icons },
 		{ u"titleMenuIcon"_q,
-			SerializeStyleIconAsset(st::separatePanelMenu.icon) },
+			SerializeStyleIconAsset(
+				st::separatePanelMenu.icon,
+				st::boxTitleCloseFg) },
 		{ u"verifiedBadge"_q, SerializeVerifiedBadgeAsset() },
 		{ u"menuPalette"_q, LinuxShell::MenuPalette() },
 	});
@@ -2162,7 +2180,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 				? Webview::WindowStyle::Frameless
 				: Webview::WindowStyle::Default,
 			.windowMargins = _externalShell
-				? st::botWebViewShellShadowPadding
+				? LinuxShell::Unscaled(st::botWebViewShellShadowPadding)
 				: QMargins(),
 			.initialSize = _externalShell
 				? LinuxShell::WindowSize(st::botWebViewPanelSize)
@@ -2596,7 +2614,9 @@ void Panel::sendContentSafeArea() {
 		: 0;
 	const auto scaled = top * style::DevicePixelRatio();
 	auto report = 0;
-	if (const auto screen = QGuiApplication::primaryScreen()) {
+	if (_externalShell) {
+		report = LinuxShell::Unscaled(top);
+	} else if (const auto screen = QGuiApplication::primaryScreen()) {
 		const auto dpi = screen->logicalDotsPerInch();
 		const auto ratio = screen->devicePixelRatio();
 		const auto basePair = screen->handle()->logicalBaseDpi();
