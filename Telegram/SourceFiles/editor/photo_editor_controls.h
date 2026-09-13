@@ -29,6 +29,7 @@ class AudioTrackTimeline;
 class EdgeButton;
 class ButtonBar;
 class ItemVideo;
+class KeysLegendButton;
 class VideoItemTimeline;
 struct AudioTrack;
 struct Controllers;
@@ -89,6 +90,7 @@ private:
 
 	const QSize _imageSize;
 	const float64 _originalRatio = 0.;
+	const bool _fixedCrop = false;
 	const style::color &_bg;
 	const int _buttonHeight;
 	const base::unique_qptr<ButtonBar> _transformButtons;
@@ -116,6 +118,7 @@ private:
 	const base::unique_qptr<Ui::FadeWrap<VideoItemTimeline>> _videoTimeline;
 	const base::unique_qptr<Ui::FadeWrap<AudioTrackTimeline>> _audioTimeline;
 	const base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _trimShortest;
+	const base::unique_qptr<KeysLegendButton> _keysLegend;
 
 	base::unique_qptr<Ui::PopupMenu> _ratioMenu;
 	base::unique_qptr<Ui::PopupMenu> _cornersMenu;

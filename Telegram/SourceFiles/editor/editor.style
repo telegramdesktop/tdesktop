@@ -209,6 +209,43 @@ photoEditorItemHandleSize: 10px;
 photoEditorStickyTrigger: 12px;
 photoEditorStickyLineWidth: 2px;
 
+photoEditorKeysButton: IconButton(photoEditorRotateButton) {
+	icon: icon {{ "photo_editor/keyboard", photoEditorButtonIconFg }};
+	iconOver: icon {{ "photo_editor/keyboard", photoEditorButtonIconFgOver }};
+}
+photoEditorKeysButtonLeft: 16px;
+photoEditorKeysMenuSkip: 6px;
+photoEditorKeysMenu: PopupMenu(photoEditorCropRatioMenu) {
+	scrollPadding: margins(0px, 4px, 0px, 4px);
+	menu: Menu(mediaviewMenu) {
+		widthMin: 220px;
+		widthMax: 600px;
+		itemPadding: margins(14px, 8px, 14px, 8px);
+		arrow: photoEditorMenuSubmenuArrow;
+	}
+}
+photoEditorKeysTitleStyle: TextStyle(semiboldTextStyle) {
+	font: font(12px semibold);
+}
+photoEditorKeysTitleFg: groupCallMemberNotJoinedStatus;
+photoEditorKeysTitleSkip: 6px;
+photoEditorKeysRowSkip: 6px;
+photoEditorKeysCapStyle: TextStyle(semiboldTextStyle) {
+	font: font(12px semibold);
+}
+photoEditorKeysCapHeight: 20px;
+photoEditorKeysCapMinWidth: 22px;
+photoEditorKeysCapPadding: 6px;
+photoEditorKeysCapRadius: 4px;
+photoEditorKeysCapSkip: 4px;
+photoEditorKeysCapBg: groupCallMenuBgOver;
+photoEditorKeysCapBorder: groupCallMemberNotJoinedStatus;
+photoEditorKeysCapFg: groupCallMembersFg;
+photoEditorKeysTextSkip: 12px;
+photoEditorKeysTextWidth: 360px;
+photoEditorKeysTextMinWidth: 100px;
+photoEditorKeysTextFg: groupCallMembersFg;
+
 photoEditorAudioDiscSize: 48px;
 photoEditorAudioDiscSkip: 12px;
 photoEditorAudioDiscCoverSize: 30px;

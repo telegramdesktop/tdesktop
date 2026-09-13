@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28">
+<g fill="white" transform="translate(3 5.5) scale(0.942857) translate(-2.3333 -5)">
+<path fill-rule="evenodd" d="M6.6667 5h14.6666c2.3933 0 4.3334 1.9401 4.3334 4.3333v9.3334c0 2.3932-1.9401 4.3333-4.3334 4.3333H6.6667c-2.3933 0-4.3334-1.9401-4.3334-4.3333V9.3333C2.3333 6.9401 4.2734 5 6.6667 5zm0 1.6667c-1.4728 0-2.6667 1.1939-2.6667 2.6666v9.3334c0 1.4727 1.1939 2.6666 2.6667 2.6666h14.6666c1.4728 0 2.6667-1.1939 2.6667-2.6666V9.3333c0-1.4727-1.1939-2.6666-2.6667-2.6666H6.6667z"/>
+<rect x="7" y="10" width="2" height="2" rx="0.5"/>
+<rect x="10" y="10" width="2" height="2" rx="0.5"/>
+<rect x="13" y="10" width="2" height="2" rx="0.5"/>
+<rect x="16" y="10" width="2" height="2" rx="0.5"/>
+<rect x="19" y="10" width="2" height="2" rx="0.5"/>
+<rect x="7" y="13" width="2" height="2" rx="0.5"/>
+<rect x="10" y="13" width="2" height="2" rx="0.5"/>
+<rect x="13" y="13" width="2" height="2" rx="0.5"/>
+<rect x="16" y="13" width="2" height="2" rx="0.5"/>
+<rect x="19" y="13" width="2" height="2" rx="0.5"/>
+<rect x="10.3333" y="17.3333" width="7.3334" height="1.6667" rx="0.8333"/>
+</g>
+</svg>

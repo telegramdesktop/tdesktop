@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "editor/audio_track_timeline.h"
 #include "editor/controllers/controllers.h"
+#include "editor/editor_keys_legend.h"
 #include "editor/video_item_timeline.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
@@ -584,6 +585,7 @@ PhotoEditorControls::PhotoEditorControls(
 : RpWidget(parent)
 , _imageSize(imageSize)
 , _originalRatio(data.originalRatio)
+, _fixedCrop(data.fixedCrop)
 , _bg(st::roundedBg)
 , _buttonHeight(st::photoEditorButtonBarHeight)
 , _transformButtons(base::make_unique_q<ButtonBar>(this, _bg))
@@ -671,7 +673,14 @@ PhotoEditorControls::PhotoEditorControls(
 	object_ptr<AudioTrackTimeline>(this)))
 , _trimShortest(base::make_unique_q<Ui::FadeWrap<Ui::IconButton>>(
 	this,
-	object_ptr<TrimShortestButton>(this))) {
+	object_ptr<TrimShortestButton>(this)))
+, _keysLegend(base::make_unique_q<KeysLegendButton>(this, [=] {
+	return KeysLegendContext{
+		.mode = _mode.current().mode,
+		.fixedCrop = _fixedCrop,
+		.timeline = _videoTimelineShown || _audioTimelineShown,
+	};
+})) {
 
 	_shapesFilled = shapesFilled;
 	_videoTimeline->hide(anim::type::instant);
@@ -721,6 +730,10 @@ PhotoEditorControls::PhotoEditorControls(
 		current->moveToLeft(
 			(size.width() - current->width()) / 2,
 			buttonsTop);
+
+		_keysLegend->moveToLeft(st::photoEditorKeysButtonLeft, buttonsTop);
+		_keysLegend->setVisible(
+			current->x() >= _keysLegend->x() + _keysLegend->width());
 
 		if (_about) {
 			const auto &margin = st::photoEditorAboutMargin;
@@ -772,6 +785,8 @@ PhotoEditorControls::PhotoEditorControls(
 		_paintBottomButtons->shownValue() | rpl::to_empty,
 		_paintTopButtons->geometryValue() | rpl::to_empty,
 		_paintTopButtons->shownValue() | rpl::to_empty,
+		_keysLegend->geometryValue() | rpl::to_empty,
+		_keysLegend->shownValue() | rpl::to_empty,
 		std::move(aboutChanges)
 	) | rpl::on_next([=] {
 		updateInputMask();
@@ -1220,6 +1235,7 @@ void PhotoEditorControls::updateInputMask() {
 	add(_transformButtons);
 	add(_paintBottomButtons);
 	add(_paintTopButtons);
+	add(_keysLegend);
 	if (_about && !_about->isHidden()) {
 		const auto geometry = _about->geometry() & visibleRect;
 		if (!geometry.isEmpty()) {
@@ -1359,6 +1375,10 @@ void PhotoEditorControls::updateTimelineGeometry(
 }
 
 bool PhotoEditorControls::handleKeyPress(not_null<QKeyEvent*> e) const {
+	if ((e->key() == Qt::Key_Question) || (e->text() == u"?"_q)) {
+		_keysLegend->toggle();
+		return true;
+	}
 	_keyPresses.fire(std::move(e));
 	return true;
 }

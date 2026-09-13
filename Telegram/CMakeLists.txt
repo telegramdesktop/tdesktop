@@ -889,6 +889,8 @@ PRIVATE
     editor/controllers/stickers_panel_controller.h
     editor/editor_audio_timeline.cpp
     editor/editor_audio_timeline.h
+    editor/editor_keys_legend.cpp
+    editor/editor_keys_legend.h
     editor/editor_paint.cpp
     editor/editor_paint.h
     editor/photo_editor.cpp
