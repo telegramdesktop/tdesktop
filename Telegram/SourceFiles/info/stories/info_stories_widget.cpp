@@ -53,14 +53,15 @@ object_ptr<ContentWidget> Memento::createWidget(
 		QWidget *parent,
 		not_null<Controller*> controller,
 		const QRect &geometry) {
-	auto result = object_ptr<Widget>(parent, controller);
+	auto result = object_ptr<Widget>(parent, controller, _myProfile);
 	result->setInternalState(geometry, this);
 	return result;
 }
 
 Widget::Widget(
 	QWidget *parent,
-	not_null<Controller*> controller)
+	not_null<Controller*> controller,
+	bool myProfile)
 : ContentWidget(parent, controller)
 , _albumId(controller->key().storiesAlbumId())
 , _inner(UseClassicProfileScroll()
@@ -69,14 +70,16 @@ Widget::Widget(
 			this,
 			controller,
 			_albumId.value(),
-			controller->key().storiesAddToAlbumId()),
+			controller->key().storiesAddToAlbumId(),
+			myProfile),
 		_flexibleScroll)
 	: setInnerWidget(
 		object_ptr<InnerWidget>(
 			this,
 			controller,
 			_albumId.value(),
-			controller->key().storiesAddToAlbumId())))
+			controller->key().storiesAddToAlbumId(),
+			myProfile)))
 , _pinnedToTop(_inner->createPinnedToTop(this)) {
 	const auto classic = UseClassicProfileScroll();
 	const auto flexible = _pinnedToTop
@@ -186,6 +189,7 @@ void Widget::setInternalState(
 
 std::shared_ptr<ContentMemento> Widget::doCreateMemento() {
 	auto result = std::make_shared<Memento>(controller());
+	result->setMyProfile(_inner->myProfile());
 	saveState(result.get());
 	return result;
 }
@@ -321,6 +325,13 @@ std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer, int albumId) {
 		std::vector<std::shared_ptr<ContentMemento>>(
 			1,
 			std::make_shared<Memento>(peer, albumId, 0)));
+}
+
+std::shared_ptr<Info::Memento> MakeMyProfile(not_null<PeerData*> peer) {
+	const auto memento = std::make_shared<Memento>(peer, 0, 0);
+	memento->setMyProfile(true);
+	return std::make_shared<Info::Memento>(
+		std::vector<std::shared_ptr<ContentMemento>>(1, memento));
 }
 
 } // namespace Info::Stories
