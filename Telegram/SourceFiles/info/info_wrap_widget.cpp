@@ -552,12 +552,8 @@ void WrapWidget::addTopBarMenuButton() {
 	Expects(_topBar != nullptr);
 	Expects(_content != nullptr);
 
-	{
-		const auto guard = gsl::finally([&] { _topBarMenu = nullptr; });
-		showTopBarMenu(true);
-		if (!_topBarMenu) {
-			return;
-		}
+	if (!topBarMenuHasActions()) {
+		return;
 	}
 
 	_topBarMenuToggle.reset(_topBar->addButton(
@@ -568,7 +564,7 @@ void WrapWidget::addTopBarMenuButton() {
 				: st::infoTopBarMenu))));
 	_topBarMenuToggle->setAccessibleName(tr::lng_sr_profile_menu(tr::now));
 	_topBarMenuToggle->addClickHandler([this] {
-		showTopBarMenu(false);
+		showTopBarMenu();
 	});
 
 	Shortcuts::Requests(
@@ -579,7 +575,7 @@ void WrapWidget::addTopBarMenuButton() {
 
 		request->check(Command::ShowChatMenu, 1) && request->handle([=] {
 			Window::ActivateWindow(_controller->parentController());
-			showTopBarMenu(false);
+			showTopBarMenu();
 			return true;
 		});
 	}, _topBarMenuToggle->lifetime());
@@ -622,7 +618,15 @@ void WrapWidget::addProfileCallsButton() {
 	}
 }
 
-void WrapWidget::showTopBarMenu(bool check) {
+bool WrapWidget::topBarMenuHasActions() const {
+	const auto menu = base::make_unique_q<Ui::PopupMenu>(
+		QWidget::window(),
+		st::popupMenuExpandedSeparator);
+	_content->fillTopBarMenu(Ui::Menu::CreateAddActionCallback(menu));
+	return !menu->empty();
+}
+
+void WrapWidget::showTopBarMenu() {
 	if (_topBarMenu) {
 		_topBarMenu->hideMenu(true);
 		return;
@@ -641,8 +645,6 @@ void WrapWidget::showTopBarMenu(bool check) {
 	_content->fillTopBarMenu(Ui::Menu::CreateAddActionCallback(_topBarMenu));
 	if (_topBarMenu->empty()) {
 		_topBarMenu = nullptr;
-		return;
-	} else if (check) {
 		return;
 	}
 	_topBarMenu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
@@ -868,7 +870,7 @@ void WrapWidget::showFinishedHook() {
 		}();
 		if (!highlightId.isEmpty()
 			&& controller->takeHighlightControlId(highlightId)) {
-			showTopBarMenu(false);
+			showTopBarMenu();
 			if (_topBarMenu) {
 				const auto menu = _topBarMenu->menu();
 				for (const auto &action : menu->actions()) {
