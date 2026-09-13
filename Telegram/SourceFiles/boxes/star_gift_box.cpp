@@ -4700,7 +4700,7 @@ void DefaultGiftHandler(
 			MTP_inputInvoiceStarGiftTransfer(
 				Api::InputSavedStarGiftId(savedId, unique),
 				peer->input()),
-			formReady);
+			crl::guard(&state->guard, formReady));
 	} else if (star && star->resale) {
 		const auto id = star->info.id;
 		if (state->resaleRequestingId == id) {
