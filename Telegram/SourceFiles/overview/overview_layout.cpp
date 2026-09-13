@@ -940,6 +940,7 @@ void Video::itemDataChanged() {
 
 void Video::clearHeavyPart() {
 	_dataMedia = nullptr;
+	_videoCoverMedia = nullptr;
 }
 
 float64 Video::dataProgress() const {

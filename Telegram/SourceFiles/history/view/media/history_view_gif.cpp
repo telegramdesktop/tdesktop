@@ -287,6 +287,9 @@ Gif::~Gif() {
 			_parent->checkHeavyPart();
 		}
 	}
+	if (_videoCoverMedia) {
+		_data->owner().keepAlive(base::take(_videoCoverMedia));
+	}
 	togglePollingStory(false);
 }
 
@@ -2338,6 +2341,7 @@ bool Gif::hasHeavyPart() const {
 void Gif::unloadHeavyPart() {
 	stopAnimation();
 	_dataMedia = nullptr;
+	_videoCoverMedia = nullptr;
 	if (_spoiler) {
 		_spoiler->background = _spoiler->cornerCache = QImage();
 		_spoiler->animation = nullptr;
