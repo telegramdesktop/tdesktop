@@ -371,12 +371,14 @@ void GateDerivation::run() {
 
 // The forgot-passcode path's use of the shared reset. The live session's
 // cached key goes first, so nothing can seal a new record under a key that
-// is about to stop existing; ResetVaultAndCustody() then destroys the vault
-// on disk; and the session is made to agree with the disk at once - this
-// path installs nothing afterwards, so its notify funnel runs right here.
-// The answer is the reset's: a false says leftovers remain, not that the
-// vault survived, and the caller decides the passcode's fate by looking at
-// the vaults themselves.
+// is about to stop existing; ResetVaultAndCustody() then destroys what it
+// can reach of the vault on disk, which is not always the header - a store
+// it could not empty keeps it; and the session is made to agree with the
+// disk at once - this path installs nothing afterwards, so its notify
+// funnel runs right here. The answer is the reset's: a false says
+// leftovers remain without saying whether the header is one of them, so
+// the caller decides the passcode's fate by looking at the vaults
+// themselves.
 [[nodiscard]] bool DropVaultAndCustody(not_null<Main::Account*> account) {
 	auto &local = account->local();
 	const auto session = account->maybeSession();
@@ -397,10 +399,13 @@ void GateDerivation::run() {
 // while the box was open can have been logged out since.
 //
 // The passcode goes last, and only when every one of those vaults is gone -
-// which is a second enumeration and not the cleanup's answer, because a
-// custody store that could not be emptied is not a header that survived, and
-// treating the two as one verdict would leave a passcode nobody remembers
-// standing over nothing it can open. The mirror order is the one that strands
+// which is a second enumeration and not the cleanup's answer, because that
+// answer does not say whether a header survived: a store that could not be
+// read loses its header anyway, while one that was read but could not be
+// written emptied keeps it, and both report false. Re-reading the headers
+// is the only thing that tells those two disks apart, and treating the
+// boolean as the verdict would leave a passcode nobody remembers standing
+// over nothing it can open. The mirror order is the one that strands
 // a key: a header that could not be removed would stay sealed under that
 // passcode, and with the passcode already gone there would be no way left to
 // remove the header either. clearPasscodeAfterReset() writes without asking

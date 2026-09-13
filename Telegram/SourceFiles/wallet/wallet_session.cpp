@@ -3772,8 +3772,10 @@ rpl::producer<> Session::keyProtectionUpdates() const {
 	return _keyProtectionUpdates.events();
 }
 
-void Session::notifyKeyProtectionChanged() {
-	setVaultKeyUnusable(false);
+void Session::notifyKeyProtectionChanged(bool vaultKeyStillUnusable) {
+	if (!vaultKeyStillUnusable) {
+		setVaultKeyUnusable(false);
+	}
 	_keyProtectionUpdates.fire({});
 	// Every observer of the change has run; now the passcode is asked whether
 	// it still protects anything, and the drop's own Storage signal updates
@@ -3815,7 +3817,10 @@ void Session::dropCustodyAfterForgottenPasscode() {
 // loses the deleted record, so it stays current through the install.
 // Nothing is announced here: the device state and the protection
 // notification, with the unused-passcode drop it ends in, are settled by
-// the flow's terminal exit, once the new vault exists or never will.
+// the flow's terminal exit, once the new vault exists or never will. The
+// unusable flag is the one thing this arm settles itself: it survives a
+// failure that kept the header, so the settle can announce without
+// claiming this process can open a key again.
 CustodyResetResult Session::resetUnusableVault(
 		const QByteArray &expected,
 		const std::shared_ptr<CommentScope> &scope) {
@@ -3835,11 +3840,22 @@ CustodyResetResult Session::resetUnusableVault(
 		scope->_state->epoch = vault().clearEpoch();
 	}
 	const auto ok = ResetVaultAndCustody(_session->local());
-	_vaultKeyUnusable = false;
 	if (!ok) {
+		// The answer does not say which failure this was, so the header
+		// does: a store that could not be read lost its header anyway,
+		// while one that was read but could not be written emptied kept
+		// the very header the guard above proved this process cannot
+		// open. Nothing between that guard and here writes a header, so
+		// one that still reads is that header, and the flag stays set
+		// over it - which is what leaves the device read-only and the
+		// retry one confirmation away instead of one failing unlock and
+		// then a confirmation.
+		_vaultKeyUnusable = (ReadVaultHeader(_session->local()).state
+			== VaultReading::State::Read);
 		_custody = std::nullopt;
 		return CustodyResetResult::Failed;
 	}
+	_vaultKeyUnusable = false;
 	_custody = CustodyStore{ .lastSeenServerKey = lastSeenServerKey };
 	_custodyReadFailed = false;
 	if (scope) {
@@ -3902,7 +3918,11 @@ void Session::settleVaultReset(
 		if (!installed) {
 			updateDeviceCustodyState();
 		}
-		notifyKeyProtectionChanged();
+		// A reset that failed over a header it could not remove leaves the
+		// flag set, and the announcement must not undo that: nothing here
+		// made the key openable again. Every other crossed exit reaches
+		// this with the flag already clear, so the argument is a no-op.
+		notifyKeyProtectionChanged(_vaultKeyUnusable);
 	}
 }
 

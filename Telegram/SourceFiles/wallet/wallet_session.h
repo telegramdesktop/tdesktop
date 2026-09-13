@@ -431,20 +431,28 @@ public:
 	// fires only on a settled server state, and switching the wrap touches
 	// neither the custody store nor the app lock. The key protection box
 	// announces a committed wrap change here, so a surface that names the
-	// wrap's kind can follow it.
+	// wrap's kind can follow it. Announcing also clears the per-process
+	// unusable flag below, because every caller but one has just committed a
+	// wrap this process produced, or is the forgot-passcode drop, which only
+	// ever reaches a passcode-wrapped vault - a kind that never sets that
+	// flag - and clears it itself before it announces. vaultKeyStillUnusable
+	// is for the one that has not - a confirmed reset that failed with the
+	// header it could not remove still on disk.
 	[[nodiscard]] rpl::producer<> keyProtectionUpdates() const;
-	void notifyKeyProtectionChanged();
+	void notifyKeyProtectionChanged(bool vaultKeyStillUnusable = false);
 
 	// The cached custody store and updateDeviceCustodyState() are private, so
 	// nothing outside this class can make the live session follow a device
 	// whose wallet keys have just been destroyed - and the device mode must
 	// follow that drop. DropVaultAndCustody() in wallet_unlock.cpp, the
 	// forgot-passcode path, is the only caller, and it owns the storage side:
-	// its ResetVaultAndCustody() has already removed the sealed values,
-	// emptied the custody store and removed the vault header before this
-	// runs, which writes nothing and only makes the session agree with the
-	// disk. That path installs nothing afterwards, so the protection change
-	// is announced here at once; a restore over a vault this process cannot
+	// its ResetVaultAndCustody() has already taken that side as far as it
+	// could get - the sealed values, the emptied store, the header - which
+	// on either failure arm is not all of them and can leave the header
+	// standing, before this runs, which writes nothing and only drops the
+	// cached store so the session agrees with whatever the disk now holds.
+	// That path installs nothing afterwards, so the protection change is
+	// announced here at once; a restore over a vault this process cannot
 	// open resets through resetUnusableVault() and announces at its exit.
 	void dropCustodyAfterForgottenPasscode();
 
@@ -454,7 +462,10 @@ public:
 	// the header, its ciphertext and the custody record all survive until a
 	// restore's confirmed reset deletes them - so a relaunch before that
 	// presents Full again and asks the provider afresh. A successful unwrap,
-	// a committed wrap change, the drop above and that reset clear it.
+	// a committed wrap change, the drop above and a reset that removed the
+	// header clear it; a reset that failed with the header still on disk
+	// leaves it set, because that header is still the one this process
+	// cannot open.
 	[[nodiscard]] bool vaultKeyUnusable() const;
 	void setVaultKeyUnusable(bool unusable);
 
