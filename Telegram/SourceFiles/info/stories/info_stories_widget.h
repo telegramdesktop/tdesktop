@@ -41,14 +41,25 @@ public:
 		return _media;
 	}
 
+	void setMyProfile(bool myProfile) {
+		_myProfile = myProfile;
+	}
+	[[nodiscard]] bool myProfile() const {
+		return _myProfile;
+	}
+
 private:
 	Media::Memento _media;
+	bool _myProfile = false;
 
 };
 
 class Widget final : public ContentWidget {
 public:
-	Widget(QWidget *parent, not_null<Controller*> controller);
+	Widget(
+		QWidget *parent,
+		not_null<Controller*> controller,
+		bool myProfile);
 
 	void setInnerFocus() override;
 	void setIsStackBottom(bool isStackBottom) override;
@@ -94,5 +105,7 @@ private:
 [[nodiscard]] std::shared_ptr<Info::Memento> Make(
 	not_null<PeerData*> peer,
 	int albumId = 0);
+[[nodiscard]] std::shared_ptr<Info::Memento> MakeMyProfile(
+	not_null<PeerData*> peer);
 
 } // namespace Info::Stories
