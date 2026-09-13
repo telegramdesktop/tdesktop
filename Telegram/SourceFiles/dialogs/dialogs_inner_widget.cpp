@@ -3500,6 +3500,15 @@ void InnerWidget::updateDialogRow(
 				}
 				updateRow(top + dialog->top(), dialog->height());
 			}
+			for (auto i = 0, count = communityRowCount(); i != count; ++i) {
+				const auto viewable = communityRowAt(i);
+				if (viewable->key() == row.key) {
+					updateRow(
+						communityRowAbsoluteTop(i),
+						viewable->height());
+					break;
+				}
+			}
 		}
 	} else if (_state == WidgetState::Filtered) {
 		if ((sections & UpdateRowSection::Filtered)
@@ -3914,6 +3923,8 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 				if (const auto folder = _collapsedRows[_collapsedSelected]->folder) {
 					return { folder, FullMsgId() };
 				}
+			} else if (const auto viewable = communityRowAt(_communitySelected)) {
+				return { viewable->key(), FullMsgId() };
 			}
 		} else if (_state == WidgetState::Filtered) {
 			if (base::in_range(_filteredSelected, 0, _filterResults.size())) {
