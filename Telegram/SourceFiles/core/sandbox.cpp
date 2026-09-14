@@ -295,7 +295,7 @@ void Sandbox::setupScreenScale() {
 	logEnv("QT_USE_PHYSICAL_DPI");
 	logEnv("QT_FONT_DPI");
 
-	const auto useRatio = std::clamp(qCeil(ratio), 1, 3);
+	const auto useRatio = std::clamp(int(std::ceil(ratio)), 1, 3);
 	style::SetDevicePixelRatio(useRatio);
 
 	const auto screen = Sandbox::primaryScreen();

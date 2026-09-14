@@ -181,7 +181,7 @@ int main(int argc, char *argv[]) {
 #endif // Q_OS_MAC
 
 	const auto ratio = app.devicePixelRatio();
-	const auto useRatio = std::clamp(qCeil(ratio), 1, 3);
+	const auto useRatio = std::clamp(int(std::ceil(ratio)), 1, 3);
 	style::SetDevicePixelRatio(useRatio);
 
 	const auto screen = App::primaryScreen();

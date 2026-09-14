@@ -494,12 +494,12 @@ void Generator::paintHistoryBackground() {
 	if (tiled) {
 		auto width = background.width();
 		auto height = background.height();
-		auto repeatTimesX = qCeil(_history.width()
+		auto repeatTimesX = int(std::ceil(_history.width()
 			* style::DevicePixelRatio()
-			/ float64(width));
-		auto repeatTimesY = qCeil((_history.height() - fromy)
+			/ float64(width)));
+		auto repeatTimesY = int(std::ceil((_history.height() - fromy)
 			* style::DevicePixelRatio()
-			/ float64(height));
+			/ float64(height)));
 		auto imageForTiled = QImage(
 			width * repeatTimesX,
 			height * repeatTimesY,

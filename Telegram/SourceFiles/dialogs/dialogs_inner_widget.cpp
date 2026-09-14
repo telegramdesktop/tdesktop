@@ -2871,7 +2871,7 @@ bool InnerWidget::updateReorderPinned(QPoint localPosition) {
 			_pinnedShiftAnimation.start();
 		}
 	}
-	_aboveTopShift = qCeil(_pinnedRows[_aboveIndex].yadd.current());
+	_aboveTopShift = int(std::ceil(_pinnedRows[_aboveIndex].yadd.current()));
 	_pinnedRows[_draggingIndex].yadd = anim::value(
 		yaddWas - shiftHeight,
 		localPosition.y() - _dragStart.y());
@@ -2935,7 +2935,8 @@ bool InnerWidget::pinnedShiftAnimationCallback(crl::time now) {
 		if (base::in_range(_aboveIndex, 0, _pinnedRows.size())) {
 			// Always include currently dragged chat in its current and old positions.
 			auto aboveRowBottom = top + (_aboveIndex + 1) * maxHeight;
-			auto aboveTopShift = qCeil(_pinnedRows[_aboveIndex].yadd.current());
+			auto aboveTopShift
+				= int(std::ceil(_pinnedRows[_aboveIndex].yadd.current()));
 			accumulate_max(updateHeight, (aboveRowBottom - updateFrom) + _aboveTopShift);
 			accumulate_max(updateHeight, (aboveRowBottom - updateFrom) + aboveTopShift);
 			_aboveTopShift = aboveTopShift;

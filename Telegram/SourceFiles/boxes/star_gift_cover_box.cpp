@@ -1176,7 +1176,7 @@ QRect UniqueGiftCoverWidget::prepareCraftFrame(
 	gradient.setStops({ { 0., center }, { 1., edge } });
 	p.setPen(Qt::NoPen);
 	if (radius > 0.) {
-		const auto more = qCeil(radius * 2);
+		const auto more = int(std::ceil(radius * 2));
 		p.setCompositionMode(QPainter::CompositionMode_Source);
 		p.fillRect(0, 0, more, more, Qt::transparent);
 		p.fillRect(rect.width() - more, 0, more, more, Qt::transparent);
