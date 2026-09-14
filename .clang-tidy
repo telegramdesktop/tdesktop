@@ -29,7 +29,8 @@ CheckOptions:
     ^::qIsFinite$,std::isfinite,;
     ^::qPopulationCount$,std::popcount,;
     ^::qCountLeadingZeroBits$,std::countl_zero,;
-    ^::qCountTrailingZeroBits$,std::countr_zero,
+    ^::qCountTrailingZeroBits$,std::countr_zero,;
+    ^::qCeil$,int(std::ceil(...)),
 
 # Header findings repeat per translation unit, and submodules are not ours.
 HeaderFilterRegex: ''
