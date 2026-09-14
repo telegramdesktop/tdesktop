@@ -8784,7 +8784,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_menu" = "Wallet";
 "lng_wallet_title" = "Wallet";
 "lng_wallet_card_ticker" = "GRAM";
-"lng_wallet_send_button" = "Send";
 "lng_wallet_add_funds" = "Add Funds";
 "lng_wallet_walt_existing" = "You also have money in Walt";
 "lng_wallet_protect_account" = "Protect your account";
@@ -8857,11 +8856,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_send_user_unavailable" = "This user can't receive Grams.";
 "lng_wallet_send_user_load_error" = "The recipient's wallet couldn't be loaded. Please try again.";
 "lng_wallet_send_recipient" = "Recipient";
-"lng_wallet_send_address" = "Address";
 "lng_wallet_send_paste" = "Paste";
 "lng_wallet_send_invalid_address" = "Invalid address";
 "lng_wallet_send_link_expired" = "This payment link has expired.";
-"lng_wallet_send_continue" = "Continue";
 "lng_wallet_send_update_fee" = "Update fee";
 "lng_wallet_send_fee_update_needed" = "Needs update";
 "lng_wallet_send_fee_calculating" = "Calculating…";
@@ -8875,12 +8872,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_send_gasless_remaining_count#one" = "{count} free transfer left.";
 "lng_wallet_send_gasless_remaining_count#other" = "{count} free transfers left.";
 "lng_wallet_send_error_quote_expired" = "Transfer details changed or couldn't be prepared. Update the fee and review the details before sending.";
-"lng_wallet_send_to_title" = "Send Money to {address}";
 "lng_wallet_send_balance" = "Balance: {amount} Grams";
 "lng_wallet_send_insufficient" = "Insufficient funds";
 "lng_wallet_send_deposit" = "Deposit funds";
 "lng_wallet_send_amount" = "Send {amount} Grams";
-"lng_wallet_send_pill_fiat" = "{amount} {code}";
 "lng_wallet_send_pill_gram" = "{amount} GRAM";
 "lng_wallet_send_address_label" = "Address";
 "lng_wallet_send_amount_label" = "Amount";
@@ -8926,7 +8921,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_import_invalid_spelling" = "Check the spelling and order of your words.";
 "lng_wallet_import_invalid_scheme" = "Only secret words created by a **TWallet-based wallet** can be imported here.";
 "lng_wallet_import_try_again" = "Try Again";
-"lng_wallet_import_error" = "This recovery phrase could not restore a wallet. Check the words and try again.";
 "lng_wallet_imported_title" = "Wallet Imported";
 "lng_wallet_imported_text" = "Your wallet was restored from your recovery phrase.";
 "lng_wallet_imported_not_stored" = "Your wallet was replaced, but its key couldn't be saved on this device. Restore it from your recovery phrase to send from here.";
@@ -8979,7 +8973,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_protection_hello_binding" = "Bound to this computer. To use the wallet on another computer, or after Windows Hello is reset, restore it from Telegram's encrypted backup or with your recovery phrase.";
 "lng_wallet_protection_hello_label" = "Windows Hello";
 "lng_wallet_protection_hardware_prompt" = "Telegram will ask for {provider} to unlock your wallet key.";
-"lng_wallet_protection_hardware_continue" = "Continue";
 "lng_wallet_protection_hardware_failed" = "{provider} did not confirm it was you. Nothing was changed.";
 "lng_wallet_protection_hardware_unavailable" = "Your wallet key on this device is protected by {provider}, which can't be used right now. Restart Telegram to try again, or restore the wallet from Telegram's encrypted backup or with your recovery phrase to protect it another way.";
 "lng_wallet_protection_hardware_absent" = "Your wallet key on this device was protected by {provider}, but that key can no longer be used on this device. Restore the wallet from Telegram's encrypted backup or with your recovery phrase to store the key again.";
@@ -9075,13 +9068,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_buy_button" = "Buy with card or crypto";
 "lng_wallet_buy_pay_with" = "Pay with";
 "lng_wallet_buy_buy_with" = "Buy with";
-"lng_wallet_buy_deposit_with" = "Deposit with";
 "lng_wallet_buy_card" = "Bank Card";
-"lng_wallet_buy_card_about" = "Visa, Mastercard, Apple Pay";
 "lng_wallet_buy_crypto" = "Cryptocurrency";
-"lng_wallet_buy_crypto_about" = "Swap from your existing wallet";
 "lng_wallet_buy_p2p" = "P2P Market";
-"lng_wallet_buy_p2p_about" = "Buy from other users using local payment methods";
 "lng_wallet_buy_provider" = "Payment Provider";
 "lng_wallet_buy_loading" = "Finding available payment options...";
 "lng_wallet_buy_geographic_denied" = "Buying Grams is not available in your region.";
@@ -9090,8 +9079,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_buy_error" = "Payment options couldn't be loaded. Try again.";
 "lng_wallet_buy_session_error" = "Payment page couldn't be opened. Try again.";
 "lng_wallet_buy_retry" = "Retry";
-"lng_wallet_buy_walt" = "Walt";
-"lng_wallet_buy_walt_about" = "Transfer Grams from your Walt";
 
 // Wnd specific
 

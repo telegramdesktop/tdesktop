@@ -170,9 +170,7 @@ void HardwareUnlockBox(
 			answered(epoch, std::move(result));
 		});
 	};
-	state->submit = box->addButton(
-		tr::lng_wallet_protection_hardware_continue(),
-		submit);
+	state->submit = box->addButton(tr::lng_continue(), submit);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	box->boxClosing() | rpl::on_next([=] {
 		if (!state->reported) {

@@ -5646,7 +5646,7 @@ void WalletSendBox(
 		? BusyFooterLabel(
 			rpl::combine(
 				state->amount.value(),
-				tr::lng_wallet_send_button(),
+				tr::lng_send_button(),
 				tr::lng_wallet_send_amount(
 					lt_amount,
 					state->amount.value() | rpl::map([](int64 amount) {
@@ -5656,7 +5656,7 @@ void WalletSendBox(
 				return amount > 0 ? full : empty;
 			}),
 			state->loading.value())
-		: tr::lng_wallet_send_continue();
+		: tr::lng_continue();
 	const auto button = box->addButton(std::move(buttonText), submit).data();
 	state->expanded.value() | rpl::on_next([=](bool expanded) {
 		button->setVisible(user || expanded);
@@ -9572,7 +9572,7 @@ void Content::setupPinned() {
 	const auto addFunds = addPill(tr::lng_wallet_add_funds(), [=] {
 		ShowWalletReceiveBox(&_show->session(), _show);
 	});
-	const auto send = addPill(tr::lng_wallet_send_button(), [=] {
+	const auto send = addPill(tr::lng_send_button(), [=] {
 		const auto show = _show;
 		RunKeyRequiringAction(show, [=] {
 			show->showBox(Box(
