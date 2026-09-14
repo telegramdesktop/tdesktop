@@ -29,7 +29,8 @@ every applicable placeholder: `<TASK>`, `<TASK_ID>`, `<WORK_DIR>`,
 - Phase 7 runs in the current session on native, non-WSL Windows because it depends on the final local diff and touched-file set. Skip it on WSL and keep files LF/no-BOM there.
 - Write each phase prompt to `<WORK_DIR>/logs/phase-<phase-name>.prompt.md` before execution.
 - If you delegate a phase, send the prompt file contents as the initial subagent message.
-- When writing the phase prompt file, append the standard progress file contract and the standard compact reply block below so the subagent knows how to surface progress before the final artifact.
+- When writing the phase prompt file, append the standard compact reply block
+  below. Do not require heartbeat files or periodic progress reports.
 - After each phase completes, write `<WORK_DIR>/logs/phase-<phase-name>.result.md` with exact
   `STATUS:`, `ARTIFACTS:`, `TOUCHED:`, `BLOCKER:`, and `NOTES:` fields.
 - Use `fork_turns: "none"` by default. If the phase depends on thread-only context or UI attachments, pass it explicitly or use the smallest positive turn fork needed.
@@ -38,7 +39,8 @@ every applicable placeholder: `<TASK>`, `<TASK_ID>`, `<WORK_DIR>`,
   or inheritance fallback in the result's `NOTES:`. Use only fields the
   current spawn schema exposes; apply the host mapping for those fields.
 - Give each phase a unique lowercase/digit/underscore task name and tell the phase it is a leaf that must not delegate.
-- For Phase 1, Phase 3, Phase 4, and Phase 6, if delegated retries still fail, stop and ask the user rather than rerunning the phase locally.
+- For Phase 1, Phase 3, Phase 4, and Phase 6, if delegated retries still fail,
+  report a recoverable hard stop to the caller instead of rerunning locally.
 - Never use `codex exec`, background shell child processes, or JSONL child-session logging from this skill.
 
 ### Claude Code: synchronous delegation
@@ -57,7 +59,7 @@ every applicable placeholder: `<TASK>`, `<TASK_ID>`, `<WORK_DIR>`,
 ### Grok Build: blocking spawn, depth one
 
 - Follow `.grok/ai-workflow-adapter.md`. Its substitutions win over the
-  Codex wait ladder and over any prompt that assumes nested delegation.
+  Codex completion contract and over any prompt that assumes nested delegation.
 - When this session is a top-level `/perform-task`, run each leaf as one
   blocking `spawn_subagent` (`background: false`). The call returning is
   the completion signal; validate the artifact checks below on return.
@@ -71,46 +73,29 @@ every applicable placeholder: `<TASK>`, `<TASK_ID>`, `<WORK_DIR>`,
   phase once in a fresh `spawn_subagent` with more specific instructions
   before stopping to ask the user.
 
-### Codex: asynchronous spawn and wait
+### Codex: wait for child completion
 
-- Store the canonical target returned by `spawn_agent`.
-- After the initial general reviewer finishes pass 1, keep its canonical target.
-  When specialists finish, use `followup_task` on that target with the pass-2
-  synthesis prompt instead of spawning a second complete-diff reviewer.
-- Poll with `wait_agent` for at most 60 seconds per call; use elapsed wall-clock windows for stall decisions. Use 30-60 second polls when a phase appears close to landing.
-- `wait_agent` is mailbox-wide and may wake for another agent or user input. A timeout is not failure. After every wake, handle new user input if any, inspect the saved target with `list_agents`, and check the expected artifact and matching progress file.
-- If the expected artifact exists and shows progress, wait again.
-- If the expected artifact is not ready but the progress file mtime moved or its heartbeat counter increased since the previous check, wait again. Prefer mtime checks first and avoid rereading the file unless you need detail. Do not count that as a failed wait.
-- If neither the expected artifact nor progress file moved for a full five-minute blocked-check window, use `send_message` while the target is running or `followup_task` when it is idle, asking it to refresh progress, finish the artifact, and return the compact block.
-- If a second five-minute window after that follow-up still produces no usable artifact or movement, use `interrupt_agent` if needed, confirm the turn stopped, and retry the disposable phase once with a new unique name. There is no close-agent operation.
-
-## Standard Progress File Contract
-
-Append this verbatim to every delegated phase prompt:
-
-```text
-You are a leaf phase worker. Do not spawn or delegate to other agents.
-
-Before deep work, create or update the matching progress file in `<WORK_DIR>/logs/`.
-
-Use `phase-<phase-name>.progress.md` as a concise heartbeat with:
-- `Heartbeat: <N>` on the first line, incremented on each meaningful update
-- Current step
-- Files being read or edited
-- Concrete findings or decisions so far
-- Blocker or next checkpoint
-
-Update it sparingly: preferably at natural milestones, and otherwise only after a longer quiet stretch such as roughly 5-10 minutes.
-Keep it tiny so the parent can usually rely on file mtime or the heartbeat counter instead of rereading the whole file.
-Do not wait until the final artifact to write progress.
-```
+Follow [child completion and recovery](../../../shared/codex-delegation.md)
+for native waits, missing-result detection, and bounded recovery. The
+performer owns that contract; do not make leaf agents read orchestration
+references. Preserve the initial general reviewer's canonical target and use
+`followup_task` for pass-2 synthesis after the specialist reports are accepted.
 
 ## Standard Compact Reply Block
 
 Append this verbatim to every delegated phase prompt:
 
 ```text
-Before replying in chat, write the required artifact(s) to disk.
+You are a leaf phase worker. Do not spawn or delegate to other agents, and
+never commit. Complete the assigned work and await its commands before your
+final reply. If a hard stop prevents that, identify any still-active owned
+commands in the blocker. Do not end with a progress-only reply or promise to
+return later. No heartbeat or periodic progress report is required.
+
+Before your final reply, write the required artifact(s) to disk. If you cannot
+finish, return BLOCKED with the concrete failure and any partial artifacts; do
+not imply that unfinished work succeeded. This leaf status is a report to the
+performer, not authority to publish a task Block.
 
 Reply in 8 lines or fewer using exactly these keys:
 STATUS: <DONE|BLOCKED|APPROVED|NEEDS_CHANGES>
@@ -443,8 +428,7 @@ Rules:
 - Follow the plan precisely.
 - Follow AGENTS.md coding conventions.
 - You are not alone in the codebase. Respect existing changes and do not revert unrelated work.
-- Do not modify AI task files except the Status section in plan.md and the matching
-  `logs/phase-<phase-name>.progress.md` heartbeat required by this prompt.
+- Do not modify AI task files except the Status section in plan.md.
 - When done, update plan.md Status section: change `- [ ] Phase <N>: ...` to `- [x] Phase <N>: ...`
 - Do not work on other phases.
 
@@ -1040,8 +1024,14 @@ When all phases, including pre-review validation, code review, evidence, and Win
 
 ## Error Handling
 
-- If any phase fails or gets stuck, follow the host-specific retry rules above. On Codex, do not close an agent solely because the final artifact is missing while its progress file is still advancing. For Phase 1, Phase 3, Phase 4, and Phase 6, do not rerun locally after delegated retries fail; ask the user instead.
-- If `context.md` or `plan.md` is not written properly by a phase, rerun that phase in a fresh subagent with more specific instructions.
+- If a phase returns incomplete or its runtime reports failure, follow the
+  host-specific completion and recovery rules above. Silence and a missing
+  final artifact do not prove a running agent has failed. For Phase 1, Phase 3,
+  Phase 4, and Phase 6, do not rerun locally after delegated retries fail;
+  report the recoverable hard stop to the caller.
+- If a returned phase left `context.md` or `plan.md` incomplete, use the same
+  bounded phase retry above with more specific instructions, after confirming
+  the original writers stopped.
 - If build errors persist after the build phase's attempts, report the remaining errors to the user.
 - If a review-fix phase introduces new build errors that it cannot resolve, report to the user.
 
@@ -1050,7 +1040,8 @@ When all phases, including pre-review validation, code review, evidence, and Win
 For each phase:
 1. Write the full prompt to `<WORK_DIR>/logs/phase-<phase-name>.prompt.md`
 2. Delegate by sending that prompt text to a fresh subagent, or use it as a same-session checklist only for the designated main-session phases or when delegation was unavailable from the start
-3. For delegated phases, expect a matching `<WORK_DIR>/logs/phase-<phase-name>.progress.md` heartbeat while work is in flight
+3. Wait for delegated completion using the host contract, then validate the
+   returned artifacts and code changes
 4. Save `<WORK_DIR>/logs/phase-<phase-name>.result.md` with `STATUS:`, `ARTIFACTS:`,
    `TOUCHED:`, `BLOCKER:`, and `NOTES:` fields.
 
@@ -1088,7 +1079,7 @@ For review iterations, include the iteration and lens in the file name, for exam
    reply block.
 
 Do not replace this pattern with a shell-launched `grok` process, a
-workflow script, or the Codex wait ladder.
+workflow script, or Codex-specific agent controls.
 
 ## Subagent Pattern (Codex)
 
@@ -1099,11 +1090,10 @@ Use this pattern conceptually for delegated phases:
    `fork_turns: "none"` unless a small recent-turn fork is required. Pass
    the selected `reasoning_effort` when supported, per the shared phase
    effort policy; omit `model` to inherit the parent model.
-3. Require the agent to create the matching progress file early and refresh it sparingly: at natural milestones when possible, otherwise only after a longer quiet stretch such as roughly 5-10 minutes.
-4. Poll for at most 60 seconds at a time. After any mailbox wake, inspect the saved target with `list_agents`; use elapsed five-minute windows rather than poll count for stall checks.
-5. Prefer filesystem mtime checks on the progress file first. If its mtime moved or the heartbeat counter increased, keep waiting; do not treat that as a stall.
-6. After a full blocked-check window with no movement, use `send_message` for a running target or `followup_task` for an idle one. After a second unchanged window, interrupt if needed and retry the disposable phase once with a unique task name.
-7. Validate the expected artifact or code changes with small shell summaries and the completion checks above.
-8. Write the result log from the validated outcome and the compact reply block.
+3. Wait for the child's final result under the shared Codex completion and
+   recovery contract. Keep heartbeat and progress checks out of the parent.
+4. Validate the expected artifacts or code changes after completion with small
+   shell summaries and the completion checks above.
+5. Write the result log from the validated outcome and the compact reply block.
 
 Do not replace this pattern with shell-launched `codex exec`.

@@ -16,10 +16,9 @@ resumability, and AI publication. This file adapts harness mechanics.
   signal. Validate the required files and repository state right there,
   treating the short reply as notification only.
 - Do not use `background: true` plus `get_command_or_subagent_output`,
-  shell `sleep`/`until` polling, the Codex wait ladder, heartbeat-mtime
-  checks, or five-minute stall windows. Those are Codex-only. Leaves still
-  write their progress files (they are cheap resumability evidence), but
-  the parent never polls them.
+  shell `sleep`/`until` polling, or Codex native wait and runtime-status
+  controls. Leaves owe final artifacts and a compact result, with no heartbeat
+  files or periodic progress reports.
 - There is no `wait_agent`, `list_agents`, `send_message`, `followup_task`,
   `interrupt_agent`, or `spawn_agent`. Do not invent them. Do not launch
   `grok`, `claude`, or `codex` from Bash.

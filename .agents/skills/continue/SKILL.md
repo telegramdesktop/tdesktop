@@ -9,7 +9,12 @@ When running in Grok Build, read `.grok/ai-workflow-adapter.md` completely
 before any other host-specific delegation rule and apply its substitutions.
 
 Before assigning workers, read [phase effort](../../shared/phase-effort.md)
-and apply its scope-based effort selection and host mappings.
+and apply its scope-based effort selection and host mappings. On Codex, also
+read [child completion and recovery](../../shared/codex-delegation.md) and
+apply it to every worker below, including inbox, split, routing, and
+consolidation workers. Include that reference in each publication-owning or
+orchestrating child prompt, even when it must not delegate. Only disposable
+phase leaves receive the phase final-reply contract instead.
 
 Act as the checkout-level scheduler. Choose one invocation mode at startup,
 freeze its task batch, and keep looping only through that batch and follow-ups
@@ -234,10 +239,10 @@ Give the worker the source checkout path and instruct it to read and use
 transaction, may use the bounded planner delegation required by that skill,
 must not implement tasks, and must return the receipt and created ids.
 
-Wait in intervals no longer than 60 seconds. A timeout is not failure. Inspect
-the saved target after every wake and validate the receipt plus refreshed
-queue before proceeding. Record as the initial batch exactly the actionable
-task ids routed by that receipt, whether newly created or reused. Never launch
+Wait for the worker to return using the host completion contract, then
+validate the receipt plus refreshed queue before proceeding. Record as the
+initial batch exactly the actionable task ids routed by that receipt, whether
+newly created or reused. Never launch
 a second inbox worker in this invocation. If it cannot publish durable AI
 state, stop with the inbox transaction recoverable.
 
@@ -392,9 +397,10 @@ reaches a global hard stop. You may use the bounded leaf delegation required by
 the skill. Do not select or start another task.
 ```
 
-The performer is stateful. Never duplicate it. Poll at no more than 60-second
-intervals, distinguish progress from completion using its task artifacts, and
-follow up with the same target if it becomes idle before a valid boundary.
+The performer is stateful. Never duplicate it. Wait for its final result using
+the host completion contract. If it stops before a valid boundary, recover
+through its saved target under that contract; do not wait indefinitely for
+another response from an idle or failed turn.
 
 After it returns, require one of:
 

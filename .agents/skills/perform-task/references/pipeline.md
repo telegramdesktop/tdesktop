@@ -170,9 +170,7 @@ work/test.md
 work/test-cap-assessment-*.md  # independent focused-recovery decision at a campaign cap
 work/result.md
 work/owned-paths.txt
-work/progress.md
 work/logs/phase-*.prompt.md
-work/logs/phase-*.progress.md
 work/logs/phase-*.result.md
 work/test-overlay.patch
 evidence/                      # selected durable proof
@@ -190,9 +188,11 @@ Keep complete portable accounts, browser/Computer Use profiles, downloaded
 components, raw run directories, full build output, and temporary files under
 `.local/` or the checkout's existing ignored build tree. Never commit them.
 
-At startup read `phase` plus the existing progress, plan, review, test, and
-result artifacts. Resume at the first incomplete validated boundary. Do not
-repeat an approved phase merely because the prior agent session disappeared.
+At startup read `phase` plus the existing plan, review, test, and result
+artifacts. Legacy progress files may supply recovery hints but are not
+required and never prove completion. Resume at the first incomplete validated
+boundary. Do not repeat an approved phase merely because the prior agent
+session disappeared.
 Treat a compact subagent reply as a notification; the artifact and repository
 state are proof.
 
@@ -200,15 +200,14 @@ Apply the shared policy on resume too: an old full project proposal is not a
 completion requirement or a replacement to promote. Revalidate any useful
 durable fact against the current task and source before proposing an amendment.
 
-At each stable boundary update `work/progress.md` and record the current phase
-locally:
+At each stable boundary record the current phase locally:
 
 ```bash
 python3 SOURCE_ROOT/.agents/skills/process-inbox/scripts/workspace.py \
   checkpoint --source-root SOURCE_ROOT --task TASK_ID --phase PHASE
 ```
 
-Record progress after context, assessed plan, each completed implementation
+Checkpoint after context, assessed plan, each completed implementation
 phase when useful for recovery, the retained implementation commit, review,
 and each material test attempt. Never mark a half-written artifact complete.
 The helper changes only task-scoped files in the slot worktree and publishes no
@@ -257,12 +256,12 @@ leaf as a synchronous foreground call and validate its artifacts when the call
 returns; run independent leaves of one step as parallel calls in a single
 message. On Grok Build, follow `.grok/ai-workflow-adapter.md`: blocking
 `spawn_subagent` leaves from a top-level performer, same-session checklists
-from a `/continue` child, no Codex wait ladder. On Codex, use the
-asynchronous wait ladder from the phase prompts: poll no longer than 60
-seconds, treat a timeout as not-failure, use artifact mtimes and heartbeat
-counters, message the target after five minutes without movement, and
-interrupt and retry that disposable phase once after a second unchanged
-window. On any host, never replace a live stateful performer.
+from a `/continue` child. On Codex, follow
+[child completion and recovery](../../../shared/codex-delegation.md). Keep
+waiting in the performer turn until each child returns or recovery reaches a
+hard stop, then validate the phase artifacts. Never end the turn with a
+progress-only result while children or commands are pending. On any host,
+never replace a live stateful performer.
 
 ## Implementation phases
 
@@ -984,7 +983,8 @@ delays finishing the work actually in hand.
   owned and disposable changes, publish a clean task-local `blocked` boundary
   naming the missing source task and branch evidence, and let `continue` run
   non-dependent batch work. Never perform branch integration inside the task.
-- A disposable phase may be retried once through the wait ladder. Never fresh
+- A stopped disposable phase may be retried once under the host completion
+  and recovery contract, after confirming no old writers remain. Never fresh
   retry the performer within the same attempt. An interruption leaves local
   task state `in-progress`; a later `continue` invocation resumes it. A later
   invocation reopens a published blocked task locally without a `Resume`
