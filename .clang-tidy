@@ -1,0 +1,12 @@
+# Qt helpers where the standard is exact; the list grows one check at a time.
+Checks: '-*,bugprone-unsafe-functions'
+WarningsAsErrors: 'bugprone-unsafe-functions'
+CheckOptions:
+  bugprone-unsafe-functions.CustomFunctions: >
+    ^::qMin$,std::min,;
+    ^::qMax$,std::max,;
+    ^::qAbs$,std::abs,;
+    ^::qBound$,std::clamp,orders arguments as (low, value, high)
+
+# Header findings repeat per translation unit, and submodules are not ours.
+HeaderFilterRegex: ''
