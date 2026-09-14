@@ -31,7 +31,8 @@ CheckOptions:
     ^::qCountLeadingZeroBits$,std::countl_zero,;
     ^::qCountTrailingZeroBits$,std::countr_zero,;
     ^::qCeil$,int(std::ceil(...)),;
-    ^::qFloor$,int(std::floor(...)),
+    ^::qFloor$,int(std::floor(...)),;
+    ^::qRound$,int(base::SafeRound(...)),
 
 # Header findings repeat per translation unit, and submodules are not ours.
 HeaderFilterRegex: ''
