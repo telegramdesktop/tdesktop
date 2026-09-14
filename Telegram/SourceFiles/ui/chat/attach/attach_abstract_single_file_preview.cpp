@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/chat/attach/attach_abstract_single_file_preview.h"
 
-#include "base/timer_rpl.h"
 #include "ui/image/image_prepare.h"
 #include "ui/painter.h"
 #include "ui/text/text_options.h"
@@ -64,9 +63,7 @@ AbstractSingleFilePreview::AbstractSingleFilePreview(
 AbstractSingleFilePreview::~AbstractSingleFilePreview() = default;
 
 rpl::producer<> AbstractSingleFilePreview::editRequests() const {
-	return _editMedia->clicks() | rpl::map([] {
-		return base::timer_once(st::historyAttach.ripple.hideDuration);
-	}) | rpl::flatten_latest();
+	return _editMedia->clicks() | rpl::to_empty;
 }
 
 rpl::producer<> AbstractSingleFilePreview::renameRequests() const {

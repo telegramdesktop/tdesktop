@@ -194,12 +194,6 @@ void AlbumPreview::prepareThumbs(gsl::span<Ui::PreparedFile> items) {
 			this,
 			[=] { update(); },
 			[=](QRect rect) { update(rect); },
-			// Bound to the thumb that owns the button, not to whatever is
-			// under the cursor when the callback runs: editing is delayed by
-			// the ripple hide duration, and keyboard activation has no
-			// cursor over the thumb at all. Bound by pointer and not by
-			// index, because takeOrder() permutes _thumbs in place - so the
-			// slot this one was built in can hold another thumb later.
 			[=] { changeThumbByIndex(orderIndex(*self)); },
 			[=] { deleteThumbByIndex(orderIndex(*self)); }));
 		*self = _thumbs.back().get();
