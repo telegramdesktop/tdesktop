@@ -3687,8 +3687,10 @@ void StickersListWidget::updateSelected() {
 					newSelected = OverGroupAdd{};
 				}
 			} else {
-				const auto rowIndex = qFloor(yOffset / _singleSize.height());
-				const auto columnIndex = qFloor(sx / _singleSize.width());
+				const auto rowIndex
+					= int(std::floor(yOffset / _singleSize.height()));
+				const auto columnIndex
+					= int(std::floor(sx / _singleSize.width()));
 				const auto index = rowIndex * _columnCount + columnIndex;
 				if (index >= 0 && index < set.stickers.size()) {
 					auto overDelete = false;

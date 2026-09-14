@@ -4020,7 +4020,11 @@ void EmojiListWidget::updateSelected() {
 	} else if (p.y() >= info.rowsTop && p.y() < info.rowsBottom) {
 		auto sx = (rtl() ? width() - p.x() : p.x()) - _rowsLeft;
 		if (sx >= 0 && sx < _columnCount * _singleSize.width()) {
-			const auto index = qFloor((p.y() - info.rowsTop) / _singleSize.height()) * _columnCount + qFloor(sx / _singleSize.width());
+			const auto rowIndex = int(std::floor(
+				(p.y() - info.rowsTop) / _singleSize.height()));
+			const auto columnIndex
+				= int(std::floor(sx / _singleSize.width()));
+			const auto index = rowIndex * _columnCount + columnIndex;
 			if (index < info.count) {
 				newSelected = OverEmoji{ .section = section, .index = index };
 			}

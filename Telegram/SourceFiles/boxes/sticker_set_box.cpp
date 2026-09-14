@@ -2076,8 +2076,12 @@ not_null<Lottie::MultiPlayer*> StickerSetBox::Inner::getLottiePlayer() {
 int32 StickerSetBox::Inner::stickerFromGlobalPos(const QPoint &p) const {
 	QPoint l(mapFromGlobal(p));
 	if (rtl()) l.setX(width() - l.x());
-	int32 row = (l.y() >= _padding.top()) ? qFloor((l.y() - _padding.top()) / _singleSize.height()) : -1;
-	int32 col = (l.x() >= _padding.left()) ? qFloor((l.x() - _padding.left()) / _singleSize.width()) : -1;
+	int32 row = (l.y() >= _padding.top())
+		? int(std::floor((l.y() - _padding.top()) / _singleSize.height()))
+		: -1;
+	int32 col = (l.x() >= _padding.left())
+		? int(std::floor((l.x() - _padding.left()) / _singleSize.width()))
+		: -1;
 	if (row >= 0 && col >= 0 && col < _perRow) {
 		int32 result = row * _perRow + col;
 		// _elements, not _pack: premium stickers are skipped from _elements
@@ -2098,7 +2102,8 @@ void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
-	int32 from = qFloor(e->rect().top() / _singleSize.height()), to = qFloor(e->rect().bottom() / _singleSize.height()) + 1;
+	int32 from = int(std::floor(e->rect().top() / _singleSize.height()));
+	int32 to = int(std::floor(e->rect().bottom() / _singleSize.height())) + 1;
 
 	_pathGradient->startFrame(0, width(), width() / 2);
 

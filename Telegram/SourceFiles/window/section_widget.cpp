@@ -498,8 +498,8 @@ void SectionWidget::PaintBackground(
 		const auto bottom = clip.top() + clip.height();
 		const auto w = tiled.width() / float64(style::DevicePixelRatio());
 		const auto h = tiled.height() / float64(style::DevicePixelRatio());
-		const auto sx = qFloor(left / w);
-		const auto sy = qFloor(top / h);
+		const auto sx = int(std::floor(left / w));
+		const auto sy = int(std::floor(top / h));
 		const auto cx = int(std::ceil(right / w));
 		const auto cy = int(std::ceil(bottom / h));
 		for (auto i = sx; i < cx; ++i) {

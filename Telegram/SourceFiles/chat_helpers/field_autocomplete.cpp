@@ -1173,7 +1173,9 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 			}
 		}
 	} else {
-		int32 from = qFloor(e->rect().top() / st::mentionHeight), to = qFloor(e->rect().bottom() / st::mentionHeight) + 1;
+		int32 from = int(std::floor(e->rect().top() / st::mentionHeight));
+		int32 to = int(std::floor(e->rect().bottom() / st::mentionHeight))
+			+ 1;
 		int32 last = !_mrows->empty()
 			? _mrows->size()
 			: !_hrows->empty()

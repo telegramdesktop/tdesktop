@@ -2917,8 +2917,8 @@ void OverlayWidget::zoomOut(std::optional<QPoint> anchor) {
 	auto newZoom = _zoom;
 	const auto full = _fullScreenVideo ? _zoomToScreen : _zoomToDefault;
 	if (newZoom == kZoomToScreenLevel) {
-		if (qFloor(full) >= -kMaxZoomLevel) {
-			newZoom = qFloor(full);
+		if (int(std::floor(full)) >= -kMaxZoomLevel) {
+			newZoom = int(std::floor(full));
 		}
 	} else {
 		if (newZoom > full && (newZoom - 1 < full || (full < -kMaxZoomLevel && newZoom == -kMaxZoomLevel))) {
@@ -2937,7 +2937,7 @@ void OverlayWidget::zoomReset() {
 	auto newZoom = _zoom;
 	const auto full = _fullScreenVideo ? _zoomToScreen : _zoomToDefault;
 	if (_zoom == 0) {
-		if (qFloor(full) == int(std::ceil(full))
+		if (int(std::floor(full)) == int(std::ceil(full))
 			&& qRound(full) >= -kMaxZoomLevel
 			&& qRound(full) <= kMaxZoomLevel) {
 			newZoom = qRound(full);
