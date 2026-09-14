@@ -59,20 +59,6 @@ constexpr auto kDisableReportCharacterTime = crl::time(60);
 constexpr auto kPasscodeSectionTimeout = 60 * crl::time(1000);
 constexpr auto kPasscodeCountdownTick = crl::time(1000);
 
-// One worker job for both legs of a change: the proof derived from the
-// retained bytes and the derivation the write needs - the staged vault batch
-// when passcode-wrapped vaults depend on the passcode, a fresh key_data wrap
-// otherwise - so that the main-thread callback verifies the proof and writes
-// in one statement sequence, with no hop for another window's mint to land
-// in between.
-struct ChangeJob {
-	std::optional<Wallet::VaultPasscodeChange> batch;
-	std::optional<Storage::PasscodeDerivation> fresh;
-	Storage::PasscodeDerivation proof;
-
-	void run();
-};
-
 // The inactivity window of a section holding the passcode bytes, shown as
 // m:ss in its title bar. It filters events on qApp, because a filter on the
 // section alone never sees its children's events, and watched is exactly the
@@ -107,16 +93,6 @@ private:
 	return u"%1:%2"_q
 		.arg(seconds / 60)
 		.arg(seconds % 60, 2, 10, QChar('0'));
-}
-
-void ChangeJob::run() {
-	if (batch) {
-		batch->run();
-	}
-	if (fresh) {
-		fresh->run();
-	}
-	proof.run();
 }
 
 PasscodeCountdown::PasscodeCountdown(
@@ -211,20 +187,6 @@ void LeavePasscodeArea(
 	if (weak && weakController) {
 		weakController->hideSpecialLayer();
 	}
-}
-
-[[nodiscard]] Wallet::VaultPasscodeChangeResult MapChangeResult(
-		Storage::SetPasscodeResult result) {
-	using Result = Wallet::VaultPasscodeChangeResult;
-	switch (result) {
-	case Storage::SetPasscodeResult::Success:
-		return Result::Done;
-	case Storage::SetPasscodeResult::NeedsVerification:
-		return Result::NeedsVerification;
-	case Storage::SetPasscodeResult::Failed:
-		return Result::PasscodeFailed;
-	}
-	Unexpected("SetPasscodeResult in MapChangeResult.");
 }
 
 [[nodiscard]] Storage::SetPasscodeResult SetPasscode(
@@ -684,123 +646,61 @@ void LocalPasscodeEnter::setupContent() {
 		}
 	};
 
-	// The write of a change. vaultBytes are what the vault leg of the staged
-	// batch derives from - the retained bytes - and empty when no
-	// passcode-wrapped vault depends on the passcode, where a fresh key_data
-	// wrap is written instead. No vault is opened ahead of this as a gate:
-	// the batch opens every dependent with those bytes on the worker, and its
-	// apply refuses before any write when one did not open. The key_data
-	// proof is always minted from the retained bytes, in the same callback
-	// that spends it, so stale bytes go to Check before the batch is applied.
-	const auto applyChange = [=](
-			const QString &newText,
-			Wallet::SecureBytes vaultBytes) {
-		const auto controller = weakController.get();
-		if (!weak || !controller) {
-			return;
-		}
+	// The write of a change, from the retained bytes to newText, moving every
+	// passcode-wrapped vault along with key_data. No vault is opened ahead of
+	// this as a gate: the batch opens every dependent with the retained bytes
+	// on the worker, and its apply refuses before any write when one did not
+	// open. Stale retained bytes go to Check before the batch is applied.
+	const auto applyChange = [=](const QString &newText) {
 		auto newUtf8 = newText.toUtf8();
-		auto oldUtf8 = Utf8Copy(_passcode);
 		const auto cleanse = gsl::finally([&] {
 			if (!newUtf8.isEmpty()) {
 				OPENSSL_cleanse(newUtf8.data(), newUtf8.size());
 			}
-			if (!oldUtf8.isEmpty()) {
-				OPENSSL_cleanse(oldUtf8.data(), oldUtf8.size());
-			}
 		});
-		const auto &local = controller->session().domain().local();
-		auto job = ChangeJob{ .proof = local.prepareOpen(oldUtf8) };
-		if (!vaultBytes.empty()) {
-			job.batch = Wallet::VaultPasscodeChange::Prepare(
-				local,
-				std::move(vaultBytes),
-				newUtf8);
-			if (!job.batch) {
+		using Result = Wallet::LocalPasscodeChangeResult;
+		Wallet::ChangeLocalPasscode(this, _passcode, newUtf8, [=](
+				Result result) {
+			const auto controller = weakController.get();
+			if (!weak || !controller) {
+				return;
+			}
+			switch (result) {
+			case Result::VaultFailed:
 				setDeriving(false);
 				if (weak && weakController) {
 					showFieldError(tr::lng_wallet_protection_error(tr::now));
 				}
 				return;
-			}
-		} else {
-			job.fresh = local.prepareNewWrap(newUtf8);
-		}
-		Storage::DeriveOnWorker(
-			std::move(job),
-			crl::guard(this, [=](ChangeJob &&job) {
-				const auto controller = weakController.get();
-				if (!controller) {
-					return;
+			case Result::Stale:
+				forgetAndCheck();
+				return;
+			case Result::PasscodeFailed:
+				setDeriving(false);
+				if (weak && weakController) {
+					showFieldError(Lang::Hard::SecureSaveError());
 				}
-				auto &local = controller->session().domain().local();
-				if (!job.batch) {
-					const auto dependents = Wallet::CollectVaultDependents();
-					if (!dependents.passcodeWrapped.empty()) {
-						setDeriving(false);
-						if (weak && weakController) {
-							showFieldError(
-								tr::lng_wallet_protection_error(tr::now));
-						}
-						return;
-					}
-				}
-				const auto verification = local.verifyPasscode(
-					std::move(job.proof));
-				if (!verification) {
-					forgetAndCheck();
-					return;
-				}
-				const auto result = job.batch
-					? job.batch->apply([&](
-							Storage::PasscodeDerivation keyData) {
-						return SetPasscode(
-							controller,
-							std::move(keyData),
-							*verification);
-					})
-					: MapChangeResult(SetPasscode(
-						controller,
-						std::move(*job.fresh),
-						*verification));
+				return;
+			case Result::CommitFailed:
+				controller->showToast(
+					tr::lng_wallet_protection_error(tr::now));
 				if (!weak || !weakController) {
 					return;
 				}
-				using Result = Wallet::VaultPasscodeChangeResult;
-				switch (result) {
-				case Result::VaultFailed:
-					setDeriving(false);
-					showFieldError(tr::lng_wallet_protection_error(tr::now));
-					return;
-				case Result::NeedsVerification:
-					LOG(("App Error: key_data refused a passcode verification "
-						"minted in the same callback."));
-					forgetAndCheck();
-					return;
-				case Result::PasscodeFailed:
-					setDeriving(false);
-					showFieldError(Lang::Hard::SecureSaveError());
-					return;
-				case Result::CommitFailed:
-					controller->showToast(
-						tr::lng_wallet_protection_error(tr::now));
-					if (!weak || !weakController) {
-						return;
+				[[fallthrough]];
+			case Result::Done: {
+				auto changed = newText.toUtf8();
+				const auto cleanse = gsl::finally([&] {
+					if (!changed.isEmpty()) {
+						OPENSSL_cleanse(changed.data(), changed.size());
 					}
-					[[fallthrough]];
-				case Result::Done: {
-					auto changed = newText.toUtf8();
-					const auto cleanse = gsl::finally([&] {
-						if (!changed.isEmpty()) {
-							OPENSSL_cleanse(changed.data(), changed.size());
-						}
-					});
-					WritePasscode(_stepData, Wallet::SecureBytes(changed));
-					_showBack.fire({});
-					return;
-				}
-				}
-			}));
+				});
+				WritePasscode(_stepData, Wallet::SecureBytes(changed));
+				_showBack.fire({});
+				return;
+			}
+			}
+		});
 	};
 
 	const auto deriveAndSave = [=](const QString &newText) {
@@ -861,11 +761,7 @@ void LocalPasscodeEnter::setupContent() {
 					error->setText(tr::lng_passcode_is_same(tr::now));
 					return;
 				}
-				applyChange(
-					newText,
-					Wallet::CollectVaultDependents().passcodeWrapped.empty()
-						? Wallet::SecureBytes()
-						: _passcode.copy());
+				applyChange(newText);
 			}));
 	};
 
@@ -1721,6 +1617,21 @@ void BuildManageContent(
 		}, lockApp->lifetime());
 	}
 
+	// The wallet note belongs to the lock toggle above it, so it stays under
+	// that toggle and the launch-lock rows open below it. Its section is
+	// closed by a skip only when those rows follow: the disable button brings
+	// its own skip.
+	builder.scope([&] {
+		builder.addSkip();
+		builder.addDividerText(tr::lng_settings_passcode_wallet_about());
+	}, state->walletDependent.value());
+	builder.scope([&] {
+		builder.addSkip();
+	}, rpl::combine(
+		state->walletDependent.value(),
+		state->appLockOn.value(),
+		rpl::mappers::_1 && rpl::mappers::_2));
+
 	builder.scope([&] {
 		auto autolockLabel = state->autoLockBoxClosing.events_starting_with(
 			{}
@@ -1887,10 +1798,6 @@ void BuildManageContent(
 			};
 		});
 	}, state->appLockOn.value());
-
-	builder.scope([&] {
-		builder.addDividerText(tr::lng_settings_passcode_wallet_about());
-	}, state->walletDependent.value());
 
 	builder.add(nullptr, [] {
 		return SearchEntry{

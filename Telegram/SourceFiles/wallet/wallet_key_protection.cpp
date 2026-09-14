@@ -27,12 +27,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/passcode_strength_meter.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/passcode_strength.h"
+#include "ui/text/text_utilities.h"
 #include "wallet/wallet_custody.h"
 #include "wallet/wallet_session.h"
 #include "wallet/wallet_unlock.h"
 
+#include "styles/style_chat.h"
 #include "styles/style_layers.h"
 #include "styles/style_passcode_strength_meter.h"
 #include "styles/style_settings.h"
@@ -375,6 +378,124 @@ VaultPasscodeChangeResult VaultPasscodeChange::apply(
 
 namespace {
 
+// Both legs of a change in one worker job: the proof derived from the current
+// bytes and the derivation the write needs - the staged vault batch when
+// passcode-wrapped vaults depend on the passcode, a fresh key_data wrap
+// otherwise.
+struct LocalPasscodeChangeJob {
+	std::optional<VaultPasscodeChange> batch;
+	std::optional<Storage::PasscodeDerivation> fresh;
+	Storage::PasscodeDerivation proof;
+
+	void run() {
+		if (batch) {
+			batch->run();
+		}
+		if (fresh) {
+			fresh->run();
+		}
+		proof.run();
+	}
+};
+
+} // namespace
+
+void ChangeLocalPasscode(
+		not_null<QObject*> guard,
+		const SecureBytes &current,
+		const QByteArray &updated,
+		Fn<void(LocalPasscodeChangeResult)> done) {
+	using Result = LocalPasscodeChangeResult;
+	const auto &local = Core::App().domain().local();
+	auto utf8 = Utf8Copy(current);
+	const auto cleanse = gsl::finally([&] {
+		if (!utf8.isEmpty()) {
+			OPENSSL_cleanse(utf8.data(), utf8.size());
+		}
+	});
+	auto job = LocalPasscodeChangeJob{ .proof = local.prepareOpen(utf8) };
+	if (!CollectVaultDependents().passcodeWrapped.empty()) {
+		job.batch = VaultPasscodeChange::Prepare(
+			local,
+			current.copy(),
+			updated);
+		if (!job.batch) {
+			done(Result::VaultFailed);
+			return;
+		}
+	} else {
+		job.fresh = local.prepareNewWrap(updated);
+	}
+	const auto weak = QPointer<QObject>(guard.get());
+	Storage::DeriveOnWorker(
+		std::move(job),
+		crl::guard(guard.get(), [=](LocalPasscodeChangeJob &&job) {
+			auto &local = Core::App().domain().local();
+			// A vault that became passcode-wrapped during the derivation is in
+			// no batch, and a fresh key_data wrap would strand it under the
+			// passcode this replaces.
+			if (!job.batch
+				&& !CollectVaultDependents().passcodeWrapped.empty()) {
+				done(Result::VaultFailed);
+				return;
+			}
+			const auto verification = local.verifyPasscode(
+				std::move(job.proof));
+			if (!verification) {
+				done(Result::Stale);
+				return;
+			}
+			const auto write = [&](Storage::PasscodeDerivation keyData) {
+				cSetPasscodeBadTries(0);
+				const auto result = local.setPasscode(
+					std::move(keyData),
+					*verification);
+				if (result == Storage::SetPasscodeResult::Success) {
+					Core::App().localPasscodeChanged();
+				}
+				return result;
+			};
+			const auto result = job.batch
+				? job.batch->apply(write)
+				: [&] {
+					switch (write(std::move(*job.fresh))) {
+					case Storage::SetPasscodeResult::Success:
+						return VaultPasscodeChangeResult::Done;
+					case Storage::SetPasscodeResult::NeedsVerification:
+						return VaultPasscodeChangeResult::NeedsVerification;
+					case Storage::SetPasscodeResult::Failed:
+						return VaultPasscodeChangeResult::PasscodeFailed;
+					}
+					Unexpected("SetPasscodeResult in ChangeLocalPasscode.");
+				}();
+			if (!weak) {
+				return;
+			}
+			switch (result) {
+			case VaultPasscodeChangeResult::Done:
+				done(Result::Done);
+				return;
+			case VaultPasscodeChangeResult::CommitFailed:
+				done(Result::CommitFailed);
+				return;
+			case VaultPasscodeChangeResult::VaultFailed:
+				done(Result::VaultFailed);
+				return;
+			case VaultPasscodeChangeResult::PasscodeFailed:
+				done(Result::PasscodeFailed);
+				return;
+			case VaultPasscodeChangeResult::NeedsVerification:
+				LOG(("App Error: key_data refused a passcode verification "
+					"minted in the same callback."));
+				done(Result::Stale);
+				return;
+			}
+			Unexpected("Result in ChangeLocalPasscode.");
+		}));
+}
+
+namespace {
+
 // A function-local static, so a provider registered from another translation
 // unit's initializer cannot observe an unconstructed vector.
 [[nodiscard]] std::vector<std::unique_ptr<ProtectionProvider>> &Providers() {
@@ -694,6 +815,119 @@ struct WalletPasscodeCreated {
 	SecureBytes passcode;
 };
 
+// What the passcode change box answers with. An empty passcode is the box
+// closed without a change; stale says the bytes it was opened with no longer
+// open key_data, or that a vault still opens with them, so the chooser that
+// holds those bytes has to close as well.
+struct WalletPasscodeChanged {
+	SecureBytes passcode;
+	bool stale = false;
+};
+
+// The fields both passcode boxes share: the passcode with its strength meter,
+// its confirmation and the error line under them. validate() answers the
+// typed passcode, or nothing once it has shown why it cannot be used. Exactly
+// two refusals, an empty passcode and a mismatch: no length rule and no band
+// gates these boxes, the meter only advises.
+struct PasscodeFields {
+	not_null<Ui::PasswordInput*> first;
+	not_null<Ui::PasswordInput*> second;
+	Fn<void(const QString &)> showError;
+	Fn<std::optional<QString>()> validate;
+};
+
+[[nodiscard]] PasscodeFields AddPasscodeFields(
+		not_null<Ui::GenericBox*> box,
+		rpl::producer<QString> enter,
+		rpl::producer<QString> confirm) {
+	const auto &fieldSt = st::settingLocalPasscodeInputField;
+	const auto addField = [&](rpl::producer<QString> placeholder) {
+		const auto wrap = box->addRow(
+			object_ptr<Ui::RpWidget>(box),
+			st::walletProtectionCreateFieldMargin);
+		wrap->resize(wrap->width(), fieldSt.heightMin);
+		const auto field = Ui::CreateChild<Ui::PasswordInput>(
+			wrap,
+			fieldSt,
+			std::move(placeholder));
+		wrap->widthValue(
+		) | rpl::on_next([=](int width) {
+			field->moveToLeft((width - field->width()) / 2, 0);
+		}, wrap->lifetime());
+		return not_null(field);
+	};
+	const auto first = addField(std::move(enter));
+	const auto meter = [&] {
+		auto object = object_ptr<Ui::PasscodeStrengthMeter>(
+			box,
+			st::defaultPasscodeStrengthMeter);
+		object->setNaturalWidth(fieldSt.width);
+		return box->addRow(
+			std::move(object),
+			st::walletProtectionMeterMargin,
+			style::al_top);
+	}();
+	const auto second = addField(std::move(confirm));
+	const auto error = box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			QString(),
+			st::settingLocalPasscodeError),
+		st::walletPasscodeErrorMargin,
+		style::al_top);
+	error->hide();
+	const auto showError = [=](const QString &text) {
+		error->show();
+		error->setText(text);
+	};
+	QObject::connect(first, &Ui::MaskedInputField::changed, [=] {
+		meter->showCandidate(first->text());
+		error->hide();
+	});
+	QObject::connect(second, &Ui::MaskedInputField::changed, [=] {
+		error->hide();
+	});
+	box->setFocusCallback([=] {
+		first->setFocusFast();
+	});
+	const auto validate = [=]() -> std::optional<QString> {
+		const auto typed = first->text();
+		if (typed.isEmpty()) {
+			first->setFocus();
+			first->showError();
+			return std::nullopt;
+		} else if (typed != second->text()) {
+			second->setFocus();
+			second->showError();
+			second->selectAll();
+			showError(tr::lng_passcode_differ(tr::now));
+			return std::nullopt;
+		}
+		return typed;
+	};
+	return {
+		.first = first,
+		.second = second,
+		.showError = showError,
+		.validate = validate,
+	};
+}
+
+// Enter in the first field moves to the confirmation, which saves.
+void SubmitPasscodeFields(const PasscodeFields &fields, Fn<void()> save) {
+	const auto first = fields.first;
+	const auto second = fields.second;
+	const auto submit = [=] {
+		if (second->hasFocus() || first->text().isEmpty()) {
+			save();
+		} else {
+			second->setFocus();
+		}
+	};
+	QObject::connect(first, &Ui::MaskedInputField::submitted, submit);
+	QObject::connect(second, &Ui::MaskedInputField::submitted, submit);
+}
+
 // The passcode this box creates is created straight in the wallet-only role,
 // through Storage::Domain::createPasscodeWithoutAppLock(): the app lock never
 // turns on, and neither the auto-lock nor the system unlock setting is
@@ -720,80 +954,30 @@ void WalletPasscodeCreateBox(
 			st::boxLabel),
 		st::walletProtectionIntroMargin);
 
-	const auto &fieldSt = st::settingLocalPasscodeInputField;
-	const auto addField = [&](rpl::producer<QString> placeholder) {
-		const auto wrap = box->addRow(
-			object_ptr<Ui::RpWidget>(box),
-			st::walletProtectionCreateFieldMargin);
-		wrap->resize(wrap->width(), fieldSt.heightMin);
-		const auto field = Ui::CreateChild<Ui::PasswordInput>(
-			wrap,
-			fieldSt,
-			std::move(placeholder));
-		wrap->widthValue(
-		) | rpl::on_next([=](int width) {
-			field->moveToLeft((width - field->width()) / 2, 0);
-		}, wrap->lifetime());
-		return field;
-	};
-	const auto first = addField(tr::lng_wallet_protection_create_enter());
-	const auto meter = box->addRow(
-		object_ptr<Ui::PasscodeStrengthMeter>(
-			box,
-			st::defaultPasscodeStrengthMeter),
-		st::walletProtectionMeterMargin);
-	const auto second = addField(tr::lng_wallet_protection_create_confirm());
-	const auto error = box->addRow(
-		object_ptr<Ui::FlatLabel>(
-			box,
-			QString(),
-			st::settingLocalPasscodeError),
-		st::walletPasscodeErrorMargin,
-		style::al_top);
-	error->hide();
-	const auto showError = [=](const QString &text) {
-		error->show();
-		error->setText(text);
-	};
+	const auto fields = AddPasscodeFields(
+		box,
+		tr::lng_wallet_protection_create_enter(),
+		tr::lng_wallet_protection_create_confirm());
+	const auto first = fields.first;
 	const auto setBusy = [=](bool busy) {
 		state->busy = busy;
 		first->setDisabled(busy);
-		second->setDisabled(busy);
+		fields.second->setDisabled(busy);
 		Ui::SetButtonBusy(state->save.data(), busy);
 		if (!busy) {
 			first->setFocus();
 		}
 	};
-	QObject::connect(first, &Ui::MaskedInputField::changed, [=] {
-		meter->showCandidate(first->text());
-		error->hide();
-	});
-	QObject::connect(second, &Ui::MaskedInputField::changed, [=] {
-		error->hide();
-	});
-	box->setFocusCallback([=] {
-		first->setFocusFast();
-	});
 
 	const auto save = [=] {
 		if (state->finished || state->busy) {
 			return;
 		}
-		const auto typed = first->text();
-		// Exactly two refusals, an empty passcode and a mismatch: no length
-		// rule and no band gates this box, the meter only advises.
-		if (typed.isEmpty()) {
-			first->setFocus();
-			first->showError();
-			return;
-		} else if (typed != second->text()) {
-			second->setFocus();
-			second->showError();
-			second->selectAll();
-			showError(tr::lng_passcode_differ(tr::now));
+		const auto typed = fields.validate();
+		if (!typed) {
 			return;
 		}
-		auto utf8 = typed.toUtf8();
+		auto utf8 = typed->toUtf8();
 		const auto cleanse = gsl::finally([&] {
 			if (!utf8.isEmpty()) {
 				OPENSSL_cleanse(utf8.data(), utf8.size());
@@ -827,7 +1011,7 @@ void WalletPasscodeCreateBox(
 					state->typed.clear();
 					first->setFocus();
 					first->showError();
-					showError(Lang::Hard::SecureSaveError());
+					fields.showError(Lang::Hard::SecureSaveError());
 					return;
 				}
 				state->finished = true;
@@ -836,15 +1020,7 @@ void WalletPasscodeCreateBox(
 				box->closeBox();
 			}));
 	};
-	const auto submit = [=] {
-		if (second->hasFocus() || first->text().isEmpty()) {
-			save();
-		} else {
-			second->setFocus();
-		}
-	};
-	QObject::connect(first, &Ui::MaskedInputField::submitted, submit);
-	QObject::connect(second, &Ui::MaskedInputField::submitted, submit);
+	SubmitPasscodeFields(fields, save);
 	state->save = box->addButton(tr::lng_settings_save(), save);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	// One answer on the way out, whatever closed the box: the created
@@ -854,6 +1030,116 @@ void WalletPasscodeCreateBox(
 			return;
 		}
 		state->reported = true;
+		if (done) {
+			done(std::move(state->result));
+		}
+	}, box->lifetime());
+}
+
+// Changes the passcode the chooser was opened with. current are the bytes the
+// chooser's gate accepted; a change made elsewhere makes them stale, which an
+// idle box answers by closing and a busy one learns from its own proof.
+void WalletPasscodeChangeBox(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<Main::SessionShow> show,
+		SecureBytes current,
+		Fn<void(WalletPasscodeChanged)> done) {
+	struct State {
+		SecureBytes current;
+		SecureBytes typed;
+		WalletPasscodeChanged result;
+		QPointer<Ui::RoundButton> save;
+		bool busy = false;
+		bool reported = false;
+	};
+	const auto state = box->lifetime().make_state<State>();
+	state->current = std::move(current);
+
+	box->setTitle(tr::lng_wallet_protection_change_title());
+	box->addSkip(st::walletProtectionRowSkip);
+	const auto fields = AddPasscodeFields(
+		box,
+		tr::lng_passcode_enter_new(),
+		tr::lng_passcode_confirm_new());
+	const auto first = fields.first;
+	const auto setBusy = [=](bool busy) {
+		state->busy = busy;
+		first->setDisabled(busy);
+		fields.second->setDisabled(busy);
+		Ui::SetButtonBusy(state->save.data(), busy);
+		if (!busy) {
+			first->setFocus();
+		}
+	};
+	// The box's own write fires this too, while busy.
+	show->session().domain().local().localPasscodeChanged(
+	) | rpl::filter([=] {
+		return !state->busy;
+	}) | rpl::on_next([=] {
+		state->result.stale = true;
+		crl::on_main(box, [=] { box->closeBox(); });
+	}, box->lifetime());
+
+	const auto save = [=] {
+		if (state->busy) {
+			return;
+		}
+		const auto typed = fields.validate();
+		if (!typed) {
+			return;
+		}
+		auto utf8 = typed->toUtf8();
+		const auto cleanse = gsl::finally([&] {
+			if (!utf8.isEmpty()) {
+				OPENSSL_cleanse(utf8.data(), utf8.size());
+			}
+		});
+		if (!bytes::compare(state->current.span(), bytes::make_span(utf8))) {
+			first->setFocus();
+			first->showError();
+			first->selectAll();
+			fields.showError(tr::lng_passcode_is_same(tr::now));
+			return;
+		}
+		state->typed = SecureBytes(utf8);
+		setBusy(true);
+		using Result = LocalPasscodeChangeResult;
+		ChangeLocalPasscode(box, state->current, utf8, [=](Result result) {
+			switch (result) {
+			case Result::Done:
+				state->result = { .passcode = std::move(state->typed) };
+				box->closeBox();
+				return;
+			case Result::CommitFailed:
+				show->showToast(tr::lng_wallet_protection_error(tr::now));
+				[[fallthrough]];
+			case Result::Stale:
+				state->typed.clear();
+				state->result.stale = true;
+				box->closeBox();
+				return;
+			case Result::VaultFailed:
+			case Result::PasscodeFailed:
+				state->typed.clear();
+				setBusy(false);
+				first->showError();
+				fields.showError((result == Result::VaultFailed)
+					? tr::lng_wallet_protection_error(tr::now)
+					: Lang::Hard::SecureSaveError());
+				return;
+			}
+			Unexpected("Result in WalletPasscodeChangeBox.");
+		});
+	};
+	SubmitPasscodeFields(fields, save);
+	state->save = box->addButton(tr::lng_settings_save(), save);
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	box->boxClosing() | rpl::on_next([=] {
+		if (state->reported) {
+			return;
+		}
+		state->reported = true;
+		state->current.clear();
 		if (done) {
 			done(std::move(state->result));
 		}
@@ -1092,26 +1378,60 @@ void KeyProtectionBox(
 			? tr::lng_wallet_protection_passcode_keep_about
 			: tr::lng_wallet_protection_passcode_about)(),
 		st::defaultBoxCheckbox);
-	if (!state->passcode.empty()) {
-		// The band is a local: nothing derived from the typed passcode
-		// reaches a member of anything that outlives the box.
-		const auto band = PasscodeBand(state->passcode);
+	// The band lives in the box's lifetime: nothing derived from the typed
+	// passcode reaches a member of anything that outlives the box. It moves
+	// when the passcode is changed from here.
+	using Band = Ui::PasscodeStrengthBand;
+	const auto band = state->passcode.empty()
+		? nullptr
+		: box->lifetime().make_state<rpl::variable<Band>>(
+			PasscodeBand(state->passcode));
+	if (band) {
 		const auto strength = passcodeRow->add(
 			object_ptr<Ui::FlatLabel>(
 				box,
 				tr::lng_wallet_protection_passcode_current(
 					lt_band,
-					Ui::PasscodeStrengthBandName(band)),
+					band->value(
+					) | rpl::map(
+						Ui::PasscodeStrengthBandName
+					) | rpl::flatten_latest()),
 				st::walletProtectionAboutLabel),
 			st::walletProtectionStrengthMargin);
-		rpl::single(rpl::empty) | rpl::then(
-			style::PaletteChanged()
-		) | rpl::on_next([=] {
+		rpl::combine(
+			band->value(),
+			rpl::single(rpl::empty) | rpl::then(style::PaletteChanged())
+		) | rpl::on_next([=](Band value, rpl::empty_value) {
 			strength->setTextColorOverride(
-				Ui::PasscodeStrengthBandColor(band)->c);
+				Ui::PasscodeStrengthBandColor(value)->c);
 		}, strength->lifetime());
 	}
 	makeClickable(passcodeRow, VaultKind::Passcode);
+	// Only the chooser opened for the vault as it is offers the change, and
+	// only while its passcode row is chosen, because the change saves that
+	// choice: an install or a store waiting on this box holds the vault's
+	// custody, and a removal is about to drop the passcode. The link goes after
+	// the row's click helper, so it stays above it, and slides with the choice.
+	const auto changeLink = (band
+		&& mode == KeyProtectionMode::Switch
+		&& !grantForStore)
+		? passcodeRow->add(object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
+			passcodeRow,
+			object_ptr<Ui::FlatLabel>(
+				passcodeRow,
+				tr::lng_wallet_protection_passcode_change(
+					lt_arrow,
+					rpl::single(Ui::Text::IconEmoji(&st::textMoreIconEmoji)),
+					tr::link),
+				st::walletProtectionAboutLabel),
+			st::walletProtectionChangeMargin))
+		: nullptr;
+	if (changeLink) {
+		changeLink->toggleOn(group->value() | rpl::map([](VaultKind kind) {
+			return (kind == VaultKind::Passcode);
+		}));
+		changeLink->finishAnimating();
+	}
 
 	const auto openRow = addRow(
 		VaultKind::Open,
@@ -1528,6 +1848,48 @@ void KeyProtectionBox(
 			saveHardware(kind);
 		}
 	};
+	if (changeLink) {
+		changeLink->entity()->overrideLinkClickHandler([=] {
+			if (state->busy) {
+				return;
+			}
+			// Busy until the change box answers, so its write reaches the
+			// passcodeChanged latch without closing this box, and the passcode
+			// row stays chosen while the bytes and the header are replaced.
+			setBusy(true);
+			const auto changed = [=](WalletPasscodeChanged result) {
+				if (result.stale) {
+					box->closeBox();
+					return;
+				} else if (result.passcode.empty()) {
+					setBusy(false);
+					return;
+				}
+				// A passcode-wrapped vault was rewrapped by the change, so the
+				// header this box keeps for the switch is read again.
+				auto reading = ReadVaultHeader(show->session().local());
+				if (reading.state != VaultReading::State::Read
+					|| !reading.header.committedWrap()) {
+					box->closeBox();
+					return;
+				}
+				state->header = std::move(reading.header);
+				state->passcode = std::move(result.passcode);
+				*band = PasscodeBand(state->passcode);
+				state->passcodeChanged = false;
+				setBusy(false);
+				// The change saves the choice it was made from: nothing more
+				// is written when the vault already asks for the passcode, and
+				// another kind switches onto the new one.
+				save();
+			};
+			show->showBox(Box(
+				WalletPasscodeChangeBox,
+				show,
+				state->passcode.copy(),
+				crl::guard(weak, changed)));
+		});
+	}
 	state->save = box->addButton(tr::lng_settings_save(), save);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	// A dismissal that landed after the removal walk had already moved a

@@ -13,10 +13,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
 #include "main/session/session_show.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
+#include "settings/settings_common.h"
 #include "storage/storage_account.h"
 #include "storage/storage_domain.h"
 #include "ui/boxes/confirm_box.h"
@@ -29,6 +31,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_key_protection.h"
 #include "wallet/wallet_session.h"
 
+#include "styles/style_boxes.h"
+#include "styles/style_giveaway.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 #include "styles/style_wallet.h"
@@ -702,7 +706,30 @@ void WalletPasscodeBox(
 		QPointer<Ui::RoundButton> submit;
 	};
 	const auto state = box->lifetime().make_state<State>();
-	box->setTitle(tr::lng_passcode_check_title());
+	box->setStyle(st::walletPillBox);
+	box->setNoContentMargin(true);
+	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
+
+	auto icon = Settings::CreateLottieIcon(
+		box->verticalLayout(),
+		{
+			.name = u"local_passcode_enter"_q,
+			.sizeOverride = st::normalBoxLottieSize,
+		},
+		st::walletPasscodeLottieMargin);
+	box->verticalLayout()->add(std::move(icon.widget));
+	box->showFinishes() | rpl::on_next([animate = std::move(icon.animate)] {
+		animate(anim::repeat::once);
+	}, box->lifetime());
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_passcode_check_title(),
+			st::walletPhraseTitleLabel),
+		st::boxRowPadding,
+		style::al_top);
+
+	// The field, the checkbox and the button share the button's side skips.
 	const auto &fieldSt = st::settingLocalPasscodeInputField;
 	const auto wrap = box->addRow(
 		object_ptr<Ui::RpWidget>(box),
@@ -714,7 +741,8 @@ void WalletPasscodeBox(
 		tr::lng_passcode_enter());
 	wrap->widthValue(
 	) | rpl::on_next([=](int width) {
-		field->moveToLeft((width - field->width()) / 2, 0);
+		field->resize(width, field->height());
+		field->moveToLeft(0, 0);
 	}, wrap->lifetime());
 	const auto error = box->addRow(
 		object_ptr<Ui::FlatLabel>(
@@ -734,15 +762,16 @@ void WalletPasscodeBox(
 	const auto forgot = (args.check == WalletPasscodeCheck::Vault
 		&& !args.show->session().domain().local().appLockEnabled())
 		? box->addRow(
-			object_ptr<Ui::LinkButton>(
+			object_ptr<Ui::FlatLabel>(
 				box,
-				tr::lng_wallet_passcode_forgot(tr::now),
-				st::boxLinkButton),
-			st::walletPasscodeForgotMargin)
+				tr::lng_wallet_passcode_forgot(tr::link),
+				st::defaultFlatLabel),
+			st::walletPasscodeForgotMargin,
+			style::al_top)
 		: nullptr;
 	if (forgot) {
 		const auto weak = base::make_weak(box);
-		forgot->setClickedCallback([show = args.show, weak] {
+		forgot->overrideLinkClickHandler([show = args.show, weak] {
 			ConfirmForgottenPasscode(show, [weak] {
 				if (weak) {
 					weak->closeBox();
@@ -861,8 +890,7 @@ void WalletPasscodeBox(
 	};
 	QObject::connect(field, &Ui::MaskedInputField::submitted, submit);
 	state->submit = box->addButton(tr::lng_passcode_submit(), submit);
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-	// Cancel, Escape and the layer being replaced all reach closeHook(), so
+	// Close, Escape and the layer being replaced all reach closeHook(), so
 	// this one handler tells a caller that must persist nothing about every
 	// dismissal; the flag keeps a successful submit and the close it starts
 	// from reporting twice.

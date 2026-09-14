@@ -69,20 +69,19 @@ PasscodeStrengthMeter::PasscodeStrengthMeter(
 			resizeToWidth(width());
 		}
 	}, lifetime());
+	showCandidate(QString());
 }
 
 void PasscodeStrengthMeter::showCandidate(const QString &candidate) {
 	_empty = candidate.isEmpty();
 	_strength = EstimatePasscodeStrength(candidate);
 	_adviceLifetime.destroy();
-	if (_empty) {
-		_label->setText(QString());
-	} else {
-		AdviceText(_strength.advice) | rpl::on_next([=](
-				const QString &text) {
-			_label->setText(text);
-		}, _adviceLifetime);
-	}
+	(_empty
+		? tr::lng_passcode_strength_empty()
+		: AdviceText(_strength.advice)
+	) | rpl::on_next([=](const QString &text) {
+		_label->setText(text);
+	}, _adviceLifetime);
 	update();
 }
 

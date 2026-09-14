@@ -6247,7 +6247,7 @@ void WalletPhraseWarningBox(
 		std::move(auth));
 	const auto state = box->lifetime().make_state<State>();
 	box->setWidth(st::boxWideWidth);
-	box->setStyle(st::walletPhraseWarningBox);
+	box->setStyle(st::walletPillBox);
 	box->setNoContentMargin(true);
 
 	AddPhraseBoxHeader(

@@ -202,7 +202,7 @@ walletReceiveBox: Box(giveawayGiftCodeBox) {
 	buttonPadding: margins(0px, 0px, 0px, 0px);
 	buttonHeight: 0px;
 }
-walletPhraseWarningBox: Box(giveawayGiftCodeBox) {
+walletPillBox: Box(giveawayGiftCodeBox) {
 	button: RoundButton(giveawayGiftCodeBoxButton) {
 		fullRadius: true;
 	}
@@ -395,6 +395,7 @@ walletPhraseNumberLabel: FlatLabel(defaultFlatLabel) {
 walletPhraseWordLabel: FlatLabel(defaultFlatLabel) {
 	style: semiboldTextStyle;
 }
+walletPasscodeLottieMargin: margins(24px, 24px, 24px, 8px);
 walletPasscodeFieldMargin: margins(22px, 16px, 22px, 0px);
 walletPasscodeErrorMargin: margins(22px, 8px, 22px, 8px);
 walletPasscodeCheckboxMargin: margins(22px, 12px, 22px, 0px);
@@ -574,5 +575,6 @@ walletProtectionIntroMargin: margins(22px, 4px, 22px, 4px);
 walletProtectionRowSkip: 12px;
 walletProtectionAboutMargin: margins(34px, 0px, 22px, 0px);
 walletProtectionStrengthMargin: margins(34px, 4px, 22px, 0px);
+walletProtectionChangeMargin: margins(34px, 6px, 22px, 0px);
 walletProtectionCreateFieldMargin: margins(22px, 12px, 22px, 0px);
 walletProtectionMeterMargin: margins(22px, 8px, 22px, 0px);

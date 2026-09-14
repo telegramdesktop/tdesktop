@@ -290,4 +290,31 @@ private:
 
 };
 
+// Done and CommitFailed changed the passcode; CommitFailed also left a vault
+// still opening with the old one until its store settles. Stale: current no
+// longer opens key_data - the passcode was changed or removed elsewhere - and
+// nothing was written. VaultFailed and PasscodeFailed wrote nothing either.
+enum class LocalPasscodeChangeResult {
+	Done,
+	CommitFailed,
+	Stale,
+	VaultFailed,
+	PasscodeFailed,
+};
+
+// Changes the local passcode from current, bytes the caller has proved
+// against key_data, to updated. Every passcode-wrapped vault moves onto the
+// new passcode in one VaultPasscodeChange batch; with none, a fresh key_data
+// wrap is written instead. The key_data proof is derived beside that work on
+// the worker and spent in the same main-thread callback that writes, which
+// keeps the app-lock role the file already has. done is called once on the
+// main thread - synchronously for a batch that cannot be prepared - and not
+// at all once guard is destroyed, including by the synchronous fan-out of the
+// write itself.
+void ChangeLocalPasscode(
+	not_null<QObject*> guard,
+	const SecureBytes &current,
+	const QByteArray &updated,
+	Fn<void(LocalPasscodeChangeResult)> done);
+
 } // namespace Wallet

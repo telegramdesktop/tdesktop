@@ -839,7 +839,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_passcode_disable" = "Disable passcode";
 "lng_settings_passcode_disable_sure" = "Are you sure you want to disable passcode?";
 "lng_settings_passcode_lock_app" = "Lock Telegram with passcode";
-"lng_settings_passcode_wallet_about" = "This passcode also protects your Gram wallet key on this device.";
+"lng_settings_passcode_wallet_about" = "This passcode also protects your wallet key on this device.";
 "lng_settings_passcode_lock_off_wallet" = "Your wallet stays protected by this passcode. Only the launch lock is off.";
 "lng_settings_passcode_lock_off_open_title" = "Turn off the launch lock?";
 "lng_settings_passcode_lock_off_open_confirm" = "Turn off";
@@ -8952,6 +8952,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_protection_passcode" = "Ask for local passcode";
 "lng_wallet_protection_passcode_about" = "Confirm all spending with your Telegram passcode.";
 "lng_wallet_protection_passcode_current" = "Current passcode: {band}";
+"lng_wallet_protection_passcode_change" = "Change passcode {arrow}";
 "lng_wallet_protection_passcode_keep" = "Keep asking for this passcode";
 "lng_wallet_protection_passcode_keep_about" = "Telegram will ask for it only when you spend.";
 "lng_wallet_protection_open" = "Don't ask for passcode";
@@ -8964,6 +8965,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_protection_create_about" = "This passcode protects your wallet key on this device. It does not lock Telegram until you turn that on in Settings.";
 "lng_wallet_protection_create_enter" = "Passcode";
 "lng_wallet_protection_create_confirm" = "Re-enter passcode";
+"lng_wallet_protection_change_title" = "Change Passcode";
 "lng_wallet_protection_error" = "The wallet key's protection could not be changed. Please try again.";
 "lng_wallet_protection_touchid" = "Unlock with Touch ID";
 "lng_wallet_protection_touchid_about" = "Confirm all spending with your fingerprint or Mac password.";
@@ -9169,6 +9171,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passcode_strength_weak" = "Weak";
 "lng_passcode_strength_good" = "Good";
 "lng_passcode_strength_strong" = "Strong";
+"lng_passcode_strength_empty" = "Passcode strength estimate.";
 "lng_passcode_strength_advice_short" = "Use at least 8 characters.";
 "lng_passcode_strength_advice_word" = "Avoid common words and names.";
 "lng_passcode_strength_advice_leet" = "Swapping letters for lookalike symbols doesn't help.";
