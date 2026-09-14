@@ -1798,9 +1798,9 @@ void ComposeControls::setupCommentsShownNewDot() {
 
 void ComposeControls::setToggleCommentsButton(
 		rpl::producer<ToggleCommentsState> state) {
-	if (!state) {
-		delete base::take(_commentsShown);
-	} else {
+	_commentsShownNewDot = nullptr;
+	delete base::take(_commentsShown);
+	if (state) {
 		_commentsShown = Ui::CreateChild<Ui::IconButton>(
 			_wrap.get(),
 			_st.commentsShow);
