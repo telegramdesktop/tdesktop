@@ -435,6 +435,17 @@ struct MergedHead {
 	};
 }
 
+// A record of another wallet, or an unresolved one of the served wallet:
+// what the conflict box lists, what the parked reveal and drop accept, and
+// what raises the device's conflict, so the three cannot disagree.
+[[nodiscard]] bool RecordParked(
+		const CustodyRecord &record,
+		const QString &canonicalAddress,
+		const QByteArray &servedKey) {
+	return (CanonicalAddress(record.address) != canonicalAddress)
+		|| record.unresolved(servedKey);
+}
+
 struct Restored {
 	engine::WalletDescriptor descriptor;
 	std::vector<QString> words;
@@ -2896,13 +2907,21 @@ void Session::restoreFromWords(
 			store(identity, std::move(answer), std::move(phrase));
 		}
 	};
-	// The phrase's signing key is derived on the engine worker and compared
-	// with the served key before the install ladder opens anything: an
-	// invalid phrase, an obsolete phrase of this wallet or one belonging to
-	// another wallet is refused here while the header and the custody store
-	// are still untouched, so no chooser, no store and no replacement of a
-	// vault this process cannot open is ever reached by such a phrase. The
-	// imported descriptor's address is then bound to the target address
+	// The phrase's keys are derived on the engine worker and compared before
+	// the install ladder opens anything: the signing key with the served
+	// key, and the anchor with the anchor of the record this device holds
+	// of the target wallet, when it holds one. An invalid phrase, an
+	// obsolete phrase of this wallet or one belonging to another wallet is
+	// refused here while the header and the custody store are still
+	// untouched, so no chooser, no store and no replacement of a vault this
+	// process cannot open is ever reached by such a phrase. The anchor
+	// check exists because each half of a 24-word phrase is checksummed on
+	// its own: a phrase whose signing half is this wallet's and whose anchor
+	// half is a valid phrase of another wallet derives another address, and
+	// the signing check alone would let it cross the confirmed reset and
+	// fail only at the import, with the vault it replaced already gone.
+	// Without a held record the anchor cannot be checked here. Either way
+	// the imported descriptor's address is bound to the target address
 	// after the store, because the engine's import is the authority on what
 	// the words derive.
 	validatePhraseIdentity(words, [=, this](
@@ -2910,7 +2929,10 @@ void Session::restoreFromWords(
 		if (!identity) {
 			fail(u"PHRASE_INVALID_PHRASE"_q);
 			return;
-		} else if (identity->signing != expectedKey) {
+		}
+		const auto held = custody().forAddress(targetAddress);
+		if (identity->signing != expectedKey
+			|| (held && held->publicKey != identity->anchor)) {
 			fail(u"PHRASE_KEY_MISMATCH"_q);
 			return;
 		}
@@ -3165,7 +3187,7 @@ void Session::revealParked(
 		return;
 	}
 	const auto record = custody().byAnchor(publicKey);
-	if (!record || CanonicalAddress(record->address) == _address) {
+	if (!record || !parked(*record)) {
 		LOG(("Wallet Error: parked reveal requested for a non-parked key."));
 		if (fail) {
 			fail(u"PHRASE_STATE_UNKNOWN"_q);
@@ -3194,9 +3216,27 @@ void Session::revealParked(
 			fail(error);
 		}
 	};
-	revealLocally(std::move(auth), *record, [=](
+	// An unresolved record of the served wallet is parked only until its
+	// phrase is read, and this reveal has to read it anyway: the identity
+	// of the revealed words establishes its signing key under the same
+	// latch, before the words go out, so a record that turns out to sign
+	// with the served key is current by the time the box that listed it
+	// rebuilds, and one that does not is settled as obsolete.
+	const auto unresolved = (CanonicalAddress(record->address) == _address);
+	const auto recordId = record->recordId;
+	revealLocally(std::move(auth), *record, [=, this](
 			std::vector<QString> words) {
-		done(std::move(words), CustodyOutcome::Installed);
+		if (!unresolved) {
+			done(std::move(words), CustodyOutcome::Installed);
+			return;
+		}
+		validatePhraseIdentity(words, [=, this](
+				std::optional<PhraseIdentity> identity) mutable {
+			if (identity) {
+				establishSigningKey(recordId, *identity);
+			}
+			done(std::move(words), CustodyOutcome::Installed);
+		});
 	}, fail);
 }
 
@@ -3221,7 +3261,7 @@ void Session::dropParked(
 		return;
 	}
 	const auto record = custody().byAnchor(publicKey);
-	if (!record || CanonicalAddress(record->address) == _address) {
+	if (!record || !parked(*record)) {
 		LOG(("Wallet Error: drop requested for a non-parked key."));
 		if (fail) {
 			fail(u"PHRASE_STATE_UNKNOWN"_q);
@@ -3809,12 +3849,16 @@ void Session::submitRotation(
 std::vector<CustodyRecord> Session::parkedRecords() {
 	auto result = std::vector<CustodyRecord>();
 	for (const auto &record : custody().records) {
-		if (CanonicalAddress(record.address) != _address) {
+		if (parked(record)) {
 			result.push_back(record);
 		}
 	}
 	ranges::reverse(result);
 	return result;
+}
+
+bool Session::parked(const CustodyRecord &record) const {
+	return RecordParked(record, _address, _publicKey);
 }
 
 DeviceCustodyState Session::deviceCustodyState() const {
@@ -4553,7 +4597,10 @@ void Session::updateDeviceCustodyState() {
 	const auto conflict = ranges::any_of(
 		store.records,
 		[&](const CustodyRecord &record) {
-			return CanonicalAddress(record.address) != identity->address;
+			return RecordParked(
+				record,
+				identity->address,
+				identity->publicKey);
 		});
 	const auto current = store.current(
 		identity->address,
@@ -4675,6 +4722,38 @@ void Session::removeCustodyRecord(const QString &recordId) {
 		end(store.records));
 	if (!WriteCustodyStore(_session->local(), store)) {
 		LOG(("Wallet Error: custody record removal write failed."));
+		return;
+	}
+	_custody = std::move(store);
+	updateDeviceCustodyState();
+}
+
+// The one write that establishes a pre-v4 record's signing key from its
+// own phrase. The anchor the words derive must be the record's: the engine
+// derived the record's address from that anchor at the import, so words
+// that derive another anchor are not this record's phrase, and the record
+// stays unresolved rather than being settled by a foreign identity.
+void Session::establishSigningKey(
+		const QString &recordId,
+		const PhraseIdentity &identity) {
+	auto store = custody();
+	const auto i = ranges::find(
+		store.records,
+		recordId,
+		&CustodyRecord::recordId);
+	if (i == end(store.records) || !i->signingKey.isEmpty()) {
+		return;
+	} else if (i->publicKey != identity.anchor) {
+		LOG(("Wallet Error: revealed phrase does not derive its record's "
+			"anchor, the record stays unresolved."));
+		return;
+	}
+	i->signingKey = identity.signing;
+	i->awaitingServerKey = false;
+	i->active = (CanonicalAddress(i->address) == _address)
+		&& i->signsWith(_publicKey);
+	if (!WriteCustodyStore(_session->local(), store)) {
+		LOG(("Wallet Error: signing key establishment write failed."));
 		return;
 	}
 	_custody = std::move(store);

@@ -35,6 +35,13 @@ struct CustodyRecord {
 
 	[[nodiscard]] bool signsWith(const QByteArray &servedKey) const;
 
+	// A pre-v4 record whose anchor is not the served key: the wallet
+	// rotated, and nothing but the phrase itself says whether this record
+	// holds the current signing key or an obsolete one. Session keeps such
+	// a record reachable through the parked reveal, and the identity of
+	// the revealed words is what establishes its signing key.
+	[[nodiscard]] bool unresolved(const QByteArray &servedKey) const;
+
 	friend bool operator==(
 		const CustodyRecord &,
 		const CustodyRecord &) = default;

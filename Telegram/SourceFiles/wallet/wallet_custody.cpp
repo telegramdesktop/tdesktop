@@ -117,6 +117,10 @@ bool CustodyRecord::signsWith(const QByteArray &servedKey) const {
 		: (signingKey == servedKey || awaitingServerKey);
 }
 
+bool CustodyRecord::unresolved(const QByteArray &servedKey) const {
+	return signingKey.isEmpty() && (publicKey != servedKey);
+}
+
 const CustodyRecord *CustodyStore::byAnchor(
 		const QByteArray &publicKey) const {
 	const auto i = ranges::find(records, publicKey, &CustodyRecord::publicKey);

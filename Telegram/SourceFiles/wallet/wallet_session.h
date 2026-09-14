@@ -731,6 +731,10 @@ private:
 	void syncEngineClient();
 	void stopEngineClientForReset(Fn<void()> done);
 	void removeCustodyRecord(const QString &recordId);
+	[[nodiscard]] bool parked(const CustodyRecord &record) const;
+	void establishSigningKey(
+		const QString &recordId,
+		const PhraseIdentity &identity);
 	void clearNetworkState();
 	void pollTick();
 	void updatePollingState();
