@@ -119,6 +119,7 @@ struct PreparedFile {
 	Type type = Type::File;
 	crl::time ttlSeconds = 0;
 	bool spoiler = false;
+	bool selected = false;
 	bool sendLargePhotos = false;
 	std::shared_ptr<Media::Encode::Job> animationJob;
 	std::shared_ptr<PreparedFileArchive> archive;

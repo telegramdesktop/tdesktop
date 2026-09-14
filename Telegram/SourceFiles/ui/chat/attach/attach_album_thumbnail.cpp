@@ -53,7 +53,11 @@ AlbumThumbnail::AlbumThumbnail(
 , _ttlSeconds(file.ttlSeconds)
 , _isCompressedSticker(Core::IsMimeSticker(file.information->filemime))
 , _repaint(std::move(repaint))
-, _repaintRect(std::move(repaintRect)) {
+, _repaintRect(std::move(repaintRect))
+, _selectCheck(_st.files.selectCheck, _repaint)
+, _selectable(!_isCompressedSticker
+	&& !file.archive
+	&& !file.path.isEmpty()) {
 	Expects(!_fullPreview.isNull());
 
 	moveToLayout(layout);
@@ -164,6 +168,7 @@ AlbumThumbnail::AlbumThumbnail(
 	_deleteMedia->setIconOverride(&_st.files.buttonFileDelete);
 
 	setSpoiler(file.spoiler);
+	setSelected(file.selected, anim::type::instant);
 	setButtonVisible(false);
 }
 
@@ -188,6 +193,18 @@ void AlbumThumbnail::setCaption(const TextWithTags &caption) {
 		kMarkupTextOptions,
 		_captionContext);
 	_repaint();
+}
+
+void AlbumThumbnail::setSelected(bool selected, anim::type animated) {
+	_selectCheck.setChecked(selected, animated);
+}
+
+bool AlbumThumbnail::selected() const {
+	return _selectCheck.checked();
+}
+
+bool AlbumThumbnail::selectable() const {
+	return _selectable;
 }
 
 bool AlbumThumbnail::hasSpoiler() const {
@@ -586,6 +603,12 @@ void AlbumThumbnail::paintFile(
 	const auto textLeft = left + st.thumbSize + st.thumbSkip;
 
 	p.drawPixmap(left, top, _fileThumb);
+	const auto checkSize = _st.files.selectCheck.size;
+	_selectCheck.paint(
+		p,
+		left + st.thumbSize - checkSize,
+		top + st.thumbSize - checkSize,
+		outerWidth);
 	p.setFont(st::semiboldFont);
 	p.setPen(_st.files.nameFg);
 	p.drawTextLeft(
