@@ -1479,6 +1479,11 @@ void HistoryWidget::offerRichPaste(not_null<const QMimeData*> data) {
 	const auto cursor = _field->textCursor();
 	const auto position = cursor.position();
 	const auto anchor = cursor.anchor();
+	const auto from = std::min(position, anchor);
+	const auto till = std::max(position, anchor);
+	const auto textFrom = int(_field->getTextWithTagsPart(0, from).text.size());
+	const auto textTill = int(_field->getTextWithTagsPart(0, till).text.size());
+	const auto tail = cursor.document()->characterCount() - till;
 	crl::on_main(this, [=] {
 		const auto now = _field->getTextWithTags();
 		if (now == was) {
@@ -1495,15 +1500,14 @@ void HistoryWidget::offerRichPaste(not_null<const QMimeData*> data) {
 					if (!unchanged) {
 						return;
 					}
-					const auto &markdown = decision->markdown;
-					const auto from = std::min(position, anchor);
 					_field->setTextWithTags(ChatHelpers::TextWithTagsReplaced(
 						was,
-						from,
-						std::max(position, anchor),
-						markdown));
+						textFrom,
+						textTill,
+						decision->markdown));
 					_field->setCursorPosition(
-						from + int(markdown.text.size()));
+						_field->textCursor().document()->characterCount()
+							- tail);
 					return;
 				}
 				if (unchanged) {
