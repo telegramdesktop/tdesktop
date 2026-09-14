@@ -280,6 +280,9 @@ private:
 
 	void openDialogToAddFileToAlbum();
 	void refreshAllAfterChanges(int fromItem, Fn<void()> perform = nullptr);
+	void unpackArchive(int index);
+	[[nodiscard]] bool hasArchives() const;
+	void unpackArchives();
 	[[nodiscard]] bool setDisplayNameInSingleFilePreview(
 		int fileIndex,
 		const QString &displayName);

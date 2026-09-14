@@ -981,6 +981,68 @@ void SendFilesBox::refreshAllAfterChanges(int fromItem, Fn<void()> perform) {
 	captionResized();
 }
 
+void SendFilesBox::unpackArchive(int index) {
+	if (_preparing || index < 0 || index >= _list.files.size()) {
+		return;
+	}
+	const auto archive = _list.files[index].archive;
+	if (!archive) {
+		return;
+	}
+	const auto paths = archive->folder.isEmpty()
+		? archive->paths
+		: Storage::FolderFilesForSending(archive->folder);
+	auto list = Storage::PrepareMediaList(
+		paths,
+		st::sendMediaPreviewSize,
+		_show->session().premium());
+	if (list.error != Ui::PreparedList::Error::None
+		|| list.files.empty()) {
+		showToast(tr::lng_send_media_invalid_files(tr::now));
+		return;
+	} else if (!checkWith(list, _sendWay.current())) {
+		return;
+	} else if (_limits & SendFilesAllow::OnlyOne) {
+		auto removing = std::move(_list.files[index]);
+		std::swap(_list.files[index], _list.files.back());
+		_list.files.pop_back();
+		const auto ok = _list.canBeSentInSlowmodeWith(list);
+		_list.files.push_back(std::move(removing));
+		std::swap(_list.files[index], _list.files.back());
+		if (!ok) {
+			showToast(tr::lng_slowmode_no_many(tr::now));
+			return;
+		}
+	}
+	refreshAllAfterChanges(index, [&] {
+		_list.files.erase(_list.files.begin() + index);
+		_list.files.insert(
+			_list.files.begin() + index,
+			std::make_move_iterator(list.files.begin()),
+			std::make_move_iterator(list.files.end()));
+	});
+	_list.filesToProcess.insert(
+		_list.filesToProcess.end(),
+		std::make_move_iterator(list.filesToProcess.begin()),
+		std::make_move_iterator(list.filesToProcess.end()));
+	enqueueNextPrepare();
+}
+
+bool SendFilesBox::hasArchives() const {
+	return !_preparing && ranges::any_of(_list.files, [](const auto &file) {
+		return file.archive != nullptr;
+	});
+}
+
+void SendFilesBox::unpackArchives() {
+	for (auto i = int(_list.files.size()); i != 0;) {
+		--i;
+		if (_list.files[i].archive) {
+			unpackArchive(i);
+		}
+	}
+}
+
 bool SendFilesBox::setDisplayNameInSingleFilePreview(
 		int fileIndex,
 		const QString &displayName) {
@@ -1264,7 +1326,7 @@ QImage SendFilesBox::preparePriceTagBg(QSize size) const {
 
 void SendFilesBox::addMenuButton() {
 	const auto details = _sendMenuDetails();
-	if (!hasSendMenu(details)) {
+	if (!hasSendMenu(details) && !hasArchives()) {
 		return;
 	}
 
@@ -1274,6 +1336,12 @@ void SendFilesBox::addMenuButton() {
 		_menu = base::make_unique_q<Ui::PopupMenu>(top, tabbed.menu);
 		_menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
 		const auto position = QCursor::pos();
+		if (hasArchives()) {
+			_menu->addAction(
+				tr::lng_folder_archive_unpack(tr::now),
+				[=] { unpackArchives(); },
+				&st::menuIconUnarchive);
+		}
 		const auto result = SendMenu::FillSendMenu(
 			_menu.get(),
 			_show,
@@ -1281,11 +1349,11 @@ void SendFilesBox::addMenuButton() {
 			_sendMenuCallback,
 			&_st.tabbed.icons,
 			position);
-		if (result != SendMenu::FillMenuResult::Prepared) {
+		if (result == SendMenu::FillMenuResult::Failed || _menu->empty()) {
 			_menu = nullptr;
 			return true;
 		}
-		_menu->popupPrepared();
+		_menu->popup(position);
 		return true;
 	});
 }

@@ -9183,6 +9183,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_folder_archive_failed" = "Failed to create archive.";
 "lng_folder_archive_status" = "ZIP archive";
+"lng_folder_archive_unpack" = "Unpack archive";
 
 "lng_passcode_strength_empty" = "Passcode strength estimate.";
 "lng_passcode_strength_advice_short" = "Use at least 8 characters.";
