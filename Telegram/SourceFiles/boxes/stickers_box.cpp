@@ -1405,7 +1405,7 @@ QRect StickersBox::Inner::relativeButtonRect(
 }
 
 void StickersBox::Inner::paintRow(Painter &p, not_null<Row*> row, int index) {
-	auto xadd = 0, yadd = qRound(row->yadd.current());
+	auto xadd = 0, yadd = int(base::SafeRound(row->yadd.current()));
 	if (xadd || yadd) p.translate(xadd, yadd);
 
 	if (_megagroupSet) {
@@ -1636,7 +1636,7 @@ void StickersBox::Inner::updateRowThumbnail(not_null<Row*> row) {
 		auto top = _itemsTop;
 		for (const auto &entry : _rows) {
 			if (entry.get() == row) {
-				return top + qRound(row->yadd.current());
+				return top + int(base::SafeRound(row->yadd.current()));
 			}
 			top += _rowHeight;
 		}
@@ -1959,7 +1959,7 @@ float64 StickersBox::Inner::aboveShadowOpacity() const {
 
 	auto dx = 0;
 	auto dy = std::abs(_above * _rowHeight
-		+ qRound(_rows[_above]->yadd.current())
+		+ int(base::SafeRound(_rows[_above]->yadd.current()))
 		- _started * _rowHeight);
 	return std::min((dx + dy) * 2. / _rowHeight, 1.);
 }

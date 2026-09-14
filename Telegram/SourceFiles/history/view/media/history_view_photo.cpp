@@ -67,8 +67,8 @@ using Data::PhotoSize;
 	return (scale == 1.)
 		? size
 		: QSize(
-			std::max(qRound(size.width() * scale), 1),
-			std::max(qRound(size.height() * scale), 1));
+			std::max(int(base::SafeRound(size.width() * scale)), 1),
+			std::max(int(base::SafeRound(size.height() * scale)), 1));
 }
 
 [[nodiscard]] QSize HostedInstantViewForcedSize(

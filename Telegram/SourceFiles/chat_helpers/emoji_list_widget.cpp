@@ -3101,7 +3101,7 @@ void EmojiListWidget::showPicker() {
 		}
 		auto xmax = width() - _picker->width();
 		if (rtl()) xCoef = 1. - xCoef;
-		_picker->move(qRound(xmax * xCoef), y);
+		_picker->move(int(base::SafeRound(xmax * xCoef)), y);
 
 		disableScroll(true);
 	};

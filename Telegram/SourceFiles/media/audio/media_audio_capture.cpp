@@ -513,7 +513,7 @@ void Instance::Inner::stop(Fn<void(Result&&)> callback) {
 			float64 coef = 1. / fadeSamples, fadedFrom = 0;
 			for (short *ptr = ((short*)_captured.data()) + capturedSamples, *end = ptr - fadeSamples; ptr != end; ++fadedFrom) {
 				--ptr;
-				*ptr = qRound(fadedFrom * coef * *ptr);
+				*ptr = int(base::SafeRound(fadedFrom * coef * *ptr));
 			}
 			if (capturedSamples % d->srcSamples) {
 				int32 s = _captured.size();
@@ -667,7 +667,10 @@ void Instance::Inner::process() {
 			if (levelindex > skipSamples) {
 				uint16 value = std::abs(int(*ptr));
 				if (levelindex < skipSamples + fadeSamples) {
-					value = qRound(value * float64(levelindex - skipSamples) / fadeSamples);
+					const auto faded = value
+						* float64(levelindex - skipSamples)
+						/ fadeSamples;
+					value = int(base::SafeRound(faded));
 				}
 				if (d->levelMax < value) {
 					d->levelMax = value;
@@ -733,7 +736,7 @@ bool Instance::Inner::processFrame(int32 offset, int32 framesize) {
 			*ptr = 0;
 		}
 		for (; ptr != end; ++ptr, ++fadedFrom) {
-			*ptr = qRound(fadedFrom * coef * *ptr);
+			*ptr = int(base::SafeRound(fadedFrom * coef * *ptr));
 		}
 	}
 

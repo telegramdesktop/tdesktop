@@ -317,13 +317,14 @@ void ReadMetricsTracker::finalize(
 	if (tracked.viewId == 0 || tracked.totalInView < kMinReportThreshold) {
 		return;
 	}
+	const auto scaledHeight = tracked.maxItemHeight * 1000.0;
 	const auto heightRatio = (tracked.maxViewportHeight > 0)
-		? qRound((tracked.maxItemHeight * 1000.0) / tracked.maxViewportHeight)
+		? int(base::SafeRound(scaledHeight / tracked.maxViewportHeight))
 		: 0;
+	const auto scaledSeen = (tracked.seenBottom - tracked.seenTop) * 1000.0;
 	const auto seenRange = (tracked.maxItemHeight > 0)
 		? std::clamp(
-			qRound(((tracked.seenBottom - tracked.seenTop) * 1000.0)
-				/ tracked.maxItemHeight),
+			int(base::SafeRound(scaledSeen / tracked.maxItemHeight)),
 			0,
 			1000)
 		: 0;

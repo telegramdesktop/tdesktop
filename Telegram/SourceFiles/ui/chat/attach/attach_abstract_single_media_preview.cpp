@@ -140,15 +140,15 @@ void AbstractSingleMediaPreview::preparePreview(QImage preview) {
 		_previewWidth = std::max(preview.width(), kMinPreviewWidth);
 	}
 	auto maxthumbh = std::min(
-		qRound(1.5 * _previewWidth),
+		int(base::SafeRound(1.5 * _previewWidth)),
 		st::confirmMaxHeight);
-	_previewHeight = qRound(originalHeight
+	_previewHeight = int(base::SafeRound(originalHeight
 		* float64(_previewWidth)
-		/ originalWidth);
+		/ originalWidth));
 	if (_previewHeight > maxthumbh) {
-		_previewWidth = qRound(_previewWidth
+		_previewWidth = int(base::SafeRound(_previewWidth
 			* float64(maxthumbh)
-			/ _previewHeight);
+			/ _previewHeight));
 		accumulate_max(_previewWidth, kMinPreviewWidth);
 		_previewHeight = maxthumbh;
 	}

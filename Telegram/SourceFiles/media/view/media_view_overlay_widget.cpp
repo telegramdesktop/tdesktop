@@ -2797,11 +2797,11 @@ void OverlayWidget::resizeContentByScreenSize() {
 		const auto use = _fullScreenVideo ? _zoomToScreen : _zoomToDefault;
 		_zoom = kZoomToScreenLevel;
 		if (use >= 0) {
-			_w = qRound(_width * (use + 1));
-			_h = qRound(_height * (use + 1));
+			_w = int(base::SafeRound(_width * (use + 1)));
+			_h = int(base::SafeRound(_height * (use + 1)));
 		} else {
-			_w = qRound(_width / (-use + 1));
-			_h = qRound(_height / (-use + 1));
+			_w = int(base::SafeRound(_width / (-use + 1)));
+			_h = int(base::SafeRound(_height / (-use + 1)));
 		}
 	} else {
 		_zoom = 0;
@@ -2938,9 +2938,9 @@ void OverlayWidget::zoomReset() {
 	const auto full = _fullScreenVideo ? _zoomToScreen : _zoomToDefault;
 	if (_zoom == 0) {
 		if (int(std::floor(full)) == int(std::ceil(full))
-			&& qRound(full) >= -kMaxZoomLevel
-			&& qRound(full) <= kMaxZoomLevel) {
-			newZoom = qRound(full);
+			&& int(base::SafeRound(full)) >= -kMaxZoomLevel
+			&& int(base::SafeRound(full)) <= kMaxZoomLevel) {
+			newZoom = int(base::SafeRound(full));
 		} else {
 			newZoom = kZoomToScreenLevel;
 		}
@@ -2951,11 +2951,11 @@ void OverlayWidget::zoomReset() {
 	_y = _skipTop - (_height / 2);
 	float64 z = (_zoom == kZoomToScreenLevel) ? full : _zoom;
 	if (z >= 0) {
-		_x = qRound(_x * (z + 1));
-		_y = qRound(_y * (z + 1));
+		_x = int(base::SafeRound(_x * (z + 1)));
+		_y = int(base::SafeRound(_y * (z + 1)));
 	} else {
-		_x = qRound(_x / (-z + 1));
-		_y = qRound(_y / (-z + 1));
+		_x = int(base::SafeRound(_x / (-z + 1)));
+		_y = int(base::SafeRound(_y / (-z + 1)));
 	}
 	_x += width() / 2;
 	_y += _availableHeight / 2;
@@ -7613,15 +7613,15 @@ void OverlayWidget::setZoomLevel(
 	_zoom = newZoom;
 	z = (_zoom == kZoomToScreenLevel) ? full : _zoom;
 	if (z > 0) {
-		_w = qRound(_w * (z + 1));
-		_h = qRound(_h * (z + 1));
-		_x = qRound(nx * (z + 1) + anchorX);
-		_y = qRound(ny * (z + 1) + anchorY);
+		_w = int(base::SafeRound(_w * (z + 1)));
+		_h = int(base::SafeRound(_h * (z + 1)));
+		_x = int(base::SafeRound(nx * (z + 1) + anchorX));
+		_y = int(base::SafeRound(ny * (z + 1) + anchorY));
 	} else {
-		_w = qRound(_w / (-z + 1));
-		_h = qRound(_h / (-z + 1));
-		_x = qRound(nx / (-z + 1) + anchorX);
-		_y = qRound(ny / (-z + 1) + anchorY);
+		_w = int(base::SafeRound(_w / (-z + 1)));
+		_h = int(base::SafeRound(_h / (-z + 1)));
+		_x = int(base::SafeRound(nx / (-z + 1) + anchorX));
+		_y = int(base::SafeRound(ny / (-z + 1) + anchorY));
 	}
 	snapXY();
 	if (_opengl) {

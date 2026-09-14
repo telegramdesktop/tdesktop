@@ -678,7 +678,8 @@ void Widget::updateTimeText(const TrackState &state) {
 	_lastDurationMs = (state.length * 1000LL) / frequency;
 
 	if (document->loading()) {
-		_time = QString::number(qRound(document->progress() * 100)) + '%';
+		const auto progress = document->progress() * 100;
+		_time = QString::number(int(base::SafeRound(progress))) + '%';
 		_playbackSlider->setDisabled(true);
 	} else {
 		display = display / frequency;

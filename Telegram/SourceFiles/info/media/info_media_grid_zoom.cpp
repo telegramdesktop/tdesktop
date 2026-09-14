@@ -207,8 +207,8 @@ bool ListZoom::processWheel(not_null<QWheelEvent*> e) {
 	}
 	const auto position = e->position();
 	const auto anchor = QPoint(
-		qRound(position.x()),
-		_list->_visibleTop + qRound(position.y()));
+		int(base::SafeRound(position.x())),
+		_list->_visibleTop + int(base::SafeRound(position.y())));
 	zoomBy((delta > 0) ? 1 : -1, anchor);
 	return true;
 }

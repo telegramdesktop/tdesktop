@@ -115,7 +115,7 @@ const QPixmap &Image::cached(
 QPixmap Image::prepare(int w, int h, const Images::PrepareArgs &args) const {
 	if (_data.isNull()) {
 		if (h <= 0 && height() > 0) {
-			h = qRound(width() * w / float64(height()));
+			h = int(base::SafeRound(width() * w / float64(height())));
 		}
 		return Empty()->prepare(w, h, args);
 	}

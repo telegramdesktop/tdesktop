@@ -244,7 +244,7 @@ void FilledSlider::paintEvent(QPaintEvent *e) {
 	const auto seekRect = getSeekRect();
 	const auto value = getCurrentValue();
 	const auto from = seekRect.x();
-	const auto mid = qRound(from + value * seekRect.width());
+	const auto mid = int(base::SafeRound(from + value * seekRect.width()));
 	const auto end = from + seekRect.width();
 	if (mid > from) {
 		p.setOpacity(masterOpacity);
@@ -374,12 +374,12 @@ void MediaSlider::paintEvent(QPaintEvent *e) {
 		? _st.seekSize.width()
 		: _st.seekSize.height();
 	const auto mid = _alwaysDisplayMarker
-		? qRound(from
+		? int(base::SafeRound(from
 			+ (alwaysSeekSize / 2.)
-			+ value * (length - alwaysSeekSize))
-		: qRound(from + value * length);
+			+ value * (length - alwaysSeekSize)))
+		: int(base::SafeRound(from + value * length));
 	const auto till = horizontal
-		? std::max(mid, qRound(from + receivedTill * length))
+		? std::max(mid, int(base::SafeRound(from + receivedTill * length)))
 		: mid;
 	const auto end = from + length;
 	const auto activeFg = disabled
@@ -510,7 +510,8 @@ void MediaSlider::paintEvent(QPaintEvent *e) {
 		? 0.
 		: (_alwaysDisplayMarker ? 1. : over);
 	if (markerSizeRatio > 0) {
-		const auto position = qRound(markerFrom + value * markerLength)
+		const auto exactPosition = markerFrom + value * markerLength;
+		const auto position = int(base::SafeRound(exactPosition))
 			- (horizontal
 				? (_st.seekSize.width() / 2)
 				: (_st.seekSize.height() / 2));

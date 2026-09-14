@@ -966,9 +966,9 @@ void ReplyKeyboard::resize(int width, int height) {
 			const auto rectw = static_cast<int>(std::floor(x + w)) - rectx;
 			button.rect = QRect(
 				rectx,
-				qRound(y),
+				int(base::SafeRound(y)),
 				rectw,
-				qRound(buttonHeight - _st->buttonSkip()));
+				int(base::SafeRound(buttonHeight - _st->buttonSkip())));
 			if (rtl()) {
 				button.rect.setX(
 					_width - button.rect.x() - button.rect.width());
@@ -1606,7 +1606,8 @@ float64 HistoryDocumentVoice::seekingStart() const {
 }
 
 void HistoryDocumentVoice::setSeekingStart(float64 seekingStart) const {
-	_seekingStart = qRound(seekingStart * kFloatToIntMultiplier);
+	const auto value = seekingStart * kFloatToIntMultiplier;
+	_seekingStart = int(base::SafeRound(value));
 }
 
 float64 HistoryDocumentVoice::seekingCurrent() const {
@@ -1614,5 +1615,6 @@ float64 HistoryDocumentVoice::seekingCurrent() const {
 }
 
 void HistoryDocumentVoice::setSeekingCurrent(float64 seekingCurrent) {
-	_seekingCurrent = qRound(seekingCurrent * kFloatToIntMultiplier);
+	const auto value = seekingCurrent * kFloatToIntMultiplier;
+	_seekingCurrent = int(base::SafeRound(value));
 }

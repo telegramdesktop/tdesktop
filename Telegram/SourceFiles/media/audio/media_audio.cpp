@@ -1070,7 +1070,7 @@ void Mixer::reattachTracks() {
 }
 
 void Mixer::setSongVolume(float64 volume) {
-	_volumeSong.storeRelease(qRound(volume * kVolumeRound));
+	_volumeSong.storeRelease(int(base::SafeRound(volume * kVolumeRound)));
 }
 
 float64 Mixer::getSongVolume() const {
@@ -1078,7 +1078,7 @@ float64 Mixer::getSongVolume() const {
 }
 
 void Mixer::setVideoVolume(float64 volume) {
-	_volumeVideo.storeRelease(qRound(volume * kVolumeRound));
+	_volumeVideo.storeRelease(int(base::SafeRound(volume * kVolumeRound)));
 }
 
 float64 Mixer::getVideoVolume() const {

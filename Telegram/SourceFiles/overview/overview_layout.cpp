@@ -433,14 +433,16 @@ ClickHandlerPtr Photo::makeOpenPhotoHandler() {
 
 void Photo::initDimensions() {
 	_maxw = 2 * st::overviewPhotoMinSize;
-	_minh = _story ? qRound(_maxw * kStoryRatio) : _maxw;
+	_minh = _story ? int(base::SafeRound(_maxw * kStoryRatio)) : _maxw;
 }
 
 int32 Photo::resizeGetHeight(int32 width) {
 	width = std::min(width, _maxw);
 	if (_width != width) {
 		_width = width;
-		_height = _story ? qRound(_width * kStoryRatio) : _width;
+		_height = _story
+			? int(base::SafeRound(_width * kStoryRatio))
+			: _width;
 	}
 	return _height;
 }
@@ -693,14 +695,16 @@ Video::~Video() = default;
 
 void Video::initDimensions() {
 	_maxw = 2 * st::overviewPhotoMinSize;
-	_minh = _story ? qRound(_maxw * kStoryRatio) : _maxw;
+	_minh = _story ? int(base::SafeRound(_maxw * kStoryRatio)) : _maxw;
 }
 
 int32 Video::resizeGetHeight(int32 width) {
 	width = std::min(width, _maxw);
 	if (_width != width) {
 		_width = width;
-		_height = _story ? qRound(_width * kStoryRatio) : _width;
+		_height = _story
+			? int(base::SafeRound(_width * kStoryRatio))
+			: _width;
 	}
 	return _height;
 }

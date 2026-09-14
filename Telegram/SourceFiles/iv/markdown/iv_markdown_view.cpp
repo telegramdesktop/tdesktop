@@ -963,7 +963,8 @@ void MarkdownPreviewRoot::scrollToYAnimated(int top) {
 		if (!_scroll) {
 			return;
 		}
-		const auto animated = qRound(_scrollToAnimation.value(scrollTo));
+		const auto animated
+			= int(base::SafeRound(_scrollToAnimation.value(scrollTo)));
 		const auto animatedDelta = animated - scrollTo;
 		const auto realDelta = _scroll->scrollTop() - scrollTo;
 		if (base::OppositeSigns(realDelta, animatedDelta)) {

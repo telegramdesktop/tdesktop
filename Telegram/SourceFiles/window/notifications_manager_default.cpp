@@ -613,7 +613,7 @@ void Widget::moveByShift() {
 }
 
 QPoint Widget::computePosition(int height) const {
-	auto realShift = qRound(_shift.current());
+	auto realShift = int(base::SafeRound(_shift.current()));
 	if (_direction == Direction::Up) {
 		realShift = -realShift - height;
 	}

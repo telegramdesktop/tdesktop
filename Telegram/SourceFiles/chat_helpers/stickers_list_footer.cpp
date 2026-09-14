@@ -679,9 +679,12 @@ void StickersListFooter::paint(
 void StickersListFooter::paintSelectionBg(
 		QPainter &p,
 		const ExpandingContext &context) const {
-	auto selxrel = _iconsLeft + qRound(_iconState.selectionX.current());
-	auto selx = selxrel - qRound(_iconState.x.current());
-	const auto selw = qRound(_iconState.selectionWidth.current());
+	const auto selectionX
+		= int(base::SafeRound(_iconState.selectionX.current()));
+	auto selxrel = _iconsLeft + selectionX;
+	auto selx = selxrel - int(base::SafeRound(_iconState.x.current()));
+	const auto selw
+		= int(base::SafeRound(_iconState.selectionWidth.current()));
 	if (rtl()) {
 		selx = width() - selx - selw;
 	}
@@ -849,8 +852,10 @@ void StickersListFooter::mousePressEvent(QMouseEvent *e) {
 	} else {
 		_pressed = _selected;
 		_iconsMouseDown = _iconsMousePos;
-		_iconState.draggingStartX = qRound(_iconState.x.current());
-		_subiconState.draggingStartX = qRound(_subiconState.x.current());
+		const auto iconX = int(base::SafeRound(_iconState.x.current()));
+		const auto subiconX = int(base::SafeRound(_subiconState.x.current()));
+		_iconState.draggingStartX = iconX;
+		_subiconState.draggingStartX = subiconX;
 	}
 }
 
@@ -879,7 +884,7 @@ void StickersListFooter::checkDragging(ScrollState &state) {
 				+ state.draggingStartX,
 			0,
 			state.max);
-		if (newX != qRound(state.x.current())) {
+		if (newX != int(base::SafeRound(state.x.current()))) {
 			state.x = anim::value(newX, newX);
 			state.animationStart = 0;
 			state.animation.stop();
@@ -929,7 +934,7 @@ bool StickersListFooter::finishDragging(ScrollState &state) {
 		state.draggingStartX + _iconsMouseDown.x() - _iconsMousePos.x(),
 		0,
 		state.max);
-	if (newX != qRound(state.x.current())) {
+	if (newX != int(base::SafeRound(state.x.current()))) {
 		state.x = anim::value(newX, newX);
 		state.animationStart = 0;
 		state.animation.stop();
@@ -967,7 +972,7 @@ void StickersListFooter::scrollByWheelEvent(
 			? e->pixelDelta().y()
 			: e->angleDelta().y());
 	const auto use = [&](ScrollState &state) {
-		const auto now = qRound(state.x.current());
+		const auto now = int(base::SafeRound(state.x.current()));
 		const auto used = now - delta;
 		const auto next = std::clamp(used, 0, state.max);
 		delta = next - used;

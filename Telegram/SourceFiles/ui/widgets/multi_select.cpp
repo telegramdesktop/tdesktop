@@ -155,7 +155,7 @@ void Item::paint(Painter &p, int outerWidth) {
 		paintOnce(p, _x, _y, outerWidth);
 	} else {
 		for (auto i = _copies.begin(), e = _copies.end(); i != e;) {
-			auto x = qRound(i->x.value(_x));
+			auto x = int(base::SafeRound(i->x.value(_x)));
 			auto y = i->y;
 			auto animating = i->x.animating();
 			if (animating || (y == _y)) {
@@ -1047,7 +1047,7 @@ void MultiSelect::Inner::updateItemsGeometry() {
 }
 
 void MultiSelect::Inner::updateHeightStep() {
-	auto newHeight = qRound(_height.value(_newHeight));
+	auto newHeight = int(base::SafeRound(_height.value(_newHeight)));
 	if (auto heightDelta = newHeight - height()) {
 		resize(width(), newHeight);
 		if (_resizedCallback) {
