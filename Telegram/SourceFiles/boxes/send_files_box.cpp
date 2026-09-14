@@ -1014,6 +1014,16 @@ void SendFilesBox::unpackArchive(int index) {
 			return;
 		}
 	}
+	for (auto i = 0; i != archive->names.size(); ++i) {
+		if (archive->names[i].isEmpty()) {
+			continue;
+		}
+		for (auto &file : list.files) {
+			if (file.path == archive->paths[i]) {
+				file.displayName = archive->names[i];
+			}
+		}
+	}
 	refreshAllAfterChanges(index, [&] {
 		_list.files.erase(_list.files.begin() + index);
 		_list.files.insert(
@@ -1026,6 +1036,50 @@ void SendFilesBox::unpackArchive(int index) {
 		std::make_move_iterator(list.filesToProcess.begin()),
 		std::make_move_iterator(list.filesToProcess.end()));
 	enqueueNextPrepare();
+}
+
+std::vector<int> SendFilesBox::archivableIndices() const {
+	auto result = std::vector<int>();
+	for (auto i = 0, count = int(_list.files.size()); i != count; ++i) {
+		const auto &file = _list.files[i];
+		if (!file.archive && !file.path.isEmpty()) {
+			result.push_back(i);
+		}
+	}
+	return result;
+}
+
+void SendFilesBox::archiveFiles(const std::vector<int> &indices) {
+	if (_preparing || indices.empty()) {
+		return;
+	}
+	auto paths = QStringList();
+	auto names = QStringList();
+	for (const auto index : indices) {
+		const auto &file = _list.files[index];
+		paths.push_back(file.path);
+		names.push_back(file.displayName);
+	}
+	auto list = Ui::PreparedList();
+	list.files.push_back(Storage::PrepareFilesArchive(paths, names));
+	if (!checkWith(list, _sendWay.current())) {
+		return;
+	}
+	refreshAllAfterChanges(indices.front(), [&] {
+		for (const auto index : ranges::views::reverse(indices)) {
+			_list.files.erase(_list.files.begin() + index);
+		}
+		_list.files.insert(
+			_list.files.begin() + indices.front(),
+			std::move(list.files.front()));
+	});
+}
+
+bool SendFilesBox::canArchiveAll() const {
+	const auto count = int(_list.files.size());
+	return !_preparing
+		&& (count > 0)
+		&& (archivableIndices().size() == count);
 }
 
 bool SendFilesBox::hasArchives() const {
@@ -1326,7 +1380,7 @@ QImage SendFilesBox::preparePriceTagBg(QSize size) const {
 
 void SendFilesBox::addMenuButton() {
 	const auto details = _sendMenuDetails();
-	if (!hasSendMenu(details) && !hasArchives()) {
+	if (!hasSendMenu(details) && !canArchiveAll() && !hasArchives()) {
 		return;
 	}
 
@@ -1336,6 +1390,12 @@ void SendFilesBox::addMenuButton() {
 		_menu = base::make_unique_q<Ui::PopupMenu>(top, tabbed.menu);
 		_menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
 		const auto position = QCursor::pos();
+		if (canArchiveAll()) {
+			_menu->addAction(
+				tr::lng_folder_archive_pack(tr::now),
+				[=] { archiveFiles(archivableIndices()); },
+				&st::menuIconArchive);
+		}
 		if (hasArchives()) {
 			_menu->addAction(
 				tr::lng_folder_archive_unpack(tr::now),

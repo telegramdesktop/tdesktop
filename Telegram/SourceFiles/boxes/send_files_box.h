@@ -281,6 +281,9 @@ private:
 	void openDialogToAddFileToAlbum();
 	void refreshAllAfterChanges(int fromItem, Fn<void()> perform = nullptr);
 	void unpackArchive(int index);
+	[[nodiscard]] std::vector<int> archivableIndices() const;
+	void archiveFiles(const std::vector<int> &indices);
+	[[nodiscard]] bool canArchiveAll() const;
 	[[nodiscard]] bool hasArchives() const;
 	void unpackArchives();
 	[[nodiscard]] bool setDisplayNameInSingleFilePreview(

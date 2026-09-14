@@ -273,10 +273,12 @@ void FillEntryDate(const QDateTime &modified, zip_fileinfo *result) {
 }
 
 [[nodiscard]] std::optional<ArchiveEntries> GatherFiles(
-		const QStringList &paths) {
+		const QStringList &paths,
+		const QStringList &names) {
 	auto result = ArchiveEntries();
 	auto counts = base::flat_map<QString, int>();
-	for (const auto &path : paths) {
+	for (auto i = 0; i != paths.size(); ++i) {
+		const auto &path = paths[i];
 		const auto info = QFileInfo(path);
 		if (info.isDir()) {
 			continue;
@@ -286,10 +288,13 @@ void FillEntryDate(const QDateTime &modified, zip_fileinfo *result) {
 			continue;
 		}
 		const auto size = info.size();
+		const auto name = (i < names.size() && !names[i].isEmpty())
+			? names[i]
+			: info.fileName();
 		result.total += size;
 		result.list.push_back({
 			info.absoluteFilePath(),
-			DedupedName(counts, info.fileName()),
+			DedupedName(counts, name),
 			info.lastModified(),
 			size,
 		});
@@ -469,17 +474,24 @@ Ui::PreparedFile PrepareFilesArchive(const QList<QUrl> &urls) {
 			paths.push_back(Platform::File::UrlToLocal(url));
 		}
 	}
+	return PrepareFilesArchive(paths);
+}
+
+Ui::PreparedFile PrepareFilesArchive(
+		const QStringList &paths,
+		const QStringList &names) {
 	const auto parent = CommonParentName(paths);
 	const auto name = parent.isEmpty() ? u"Archive"_q : parent;
 	return ArchiveFile(name + u".zip"_q, {
 		.paths = paths,
+		.names = names,
 	});
 }
 
 std::optional<ArchiveEntries> GatherArchiveEntries(
 		const Ui::PreparedFileArchive &job) {
 	return job.folder.isEmpty()
-		? GatherFiles(job.paths)
+		? GatherFiles(job.paths, job.names)
 		: WalkFolder(job.folder, job.root);
 }
 

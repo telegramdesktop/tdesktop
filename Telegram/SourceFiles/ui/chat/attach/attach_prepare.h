@@ -66,6 +66,7 @@ struct PreparedFileArchive {
 	QString folder;
 	QString root;
 	QStringList paths;
+	QStringList names;
 };
 
 struct PreparedFile {
