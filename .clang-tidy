@@ -30,7 +30,8 @@ CheckOptions:
     ^::qPopulationCount$,std::popcount,;
     ^::qCountLeadingZeroBits$,std::countl_zero,;
     ^::qCountTrailingZeroBits$,std::countr_zero,;
-    ^::qCeil$,int(std::ceil(...)),
+    ^::qCeil$,int(std::ceil(...)),;
+    ^::qFloor$,int(std::floor(...)),
 
 # Header findings repeat per translation unit, and submodules are not ours.
 HeaderFilterRegex: ''
