@@ -94,6 +94,14 @@ std::unique_ptr<MembersState> Memento::membersState() {
 	return std::move(_membersState);
 }
 
+void Memento::setTabsState(std::unique_ptr<TabsState> state) {
+	_tabsState = std::move(state);
+}
+
+std::unique_ptr<TabsState> Memento::tabsState() {
+	return std::move(_tabsState);
+}
+
 Memento::~Memento() = default;
 
 Widget::Widget(
