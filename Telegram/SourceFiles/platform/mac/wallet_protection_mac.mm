@@ -262,7 +262,7 @@ void LogError(CFErrorRef error) {
 // restore and at first use, before any authentication and without UI. The
 // sheet's cancels and refusals are typed, an ECIES tag failure after
 // presence is Corrupt, and everything else - a not-interactive or invalid
-// context included - stays Unavailable, which preserves the header. A
+// context included - stays Unavailable, which preserves the keyring. A
 // foreign Mac's blob is expected to surface as that same corrupted-blob
 // code, its SEP wrap failing its own authentication; that is assumed from
 // one Mac, not established, and a different code lands Unavailable, the
@@ -507,7 +507,7 @@ void TouchIdProtection::remove(
 		not_null<Storage::Account*> local,
 		Wallet::VaultWrap wrap,
 		Fn<void(ProtectionError)> done) {
-	// The enclave key exists only as the header blob the strip has removed.
+	// The enclave key exists only in the retired device wrap's blob.
 	crl::on_main([done = std::move(done)] {
 		done(ProtectionError::None);
 	});

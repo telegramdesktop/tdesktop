@@ -75,6 +75,10 @@ constexpr auto kMaxWrapCount = quint32(2);
 	return "key_" + dataName;
 }
 
+[[nodiscard]] QString ComputeWalletKeyringName(const QString &dataName) {
+	return u"wallet_keyring_"_q + dataName;
+}
+
 [[nodiscard]] QByteArray RandomSalt() {
 	auto result = QByteArray(LocalEncryptSaltSize, Qt::Uninitialized);
 	base::RandomFill(result.data(), result.size());
@@ -772,7 +776,64 @@ bool Domain::wrapOnDiskOpensLocalKey(
 	return false;
 }
 
+WalletEngineValue Domain::readWalletKeyring() const {
+	using State = WalletEngineValue::State;
+	const auto name = ComputeWalletKeyringName(_dataName);
+	const auto path = BaseGlobalPath();
+	const auto base = path + name;
+	if (!QFileInfo::exists(base + 's')
+		&& !QFileInfo::exists(base + '0')
+		&& !QFileInfo::exists(base + '1')) {
+		return { .state = State::Absent };
+	} else if (!_localKey) {
+		return { .state = State::Broken };
+	}
+	FileReadDescriptor file;
+	if (!ReadEncryptedFile(file, name, path, _localKey)) {
+		return { .state = State::Broken };
+	}
+	auto bytes = QByteArray();
+	file.stream >> bytes;
+	if (!CheckStreamStatus(file.stream) || !file.stream.atEnd()) {
+		return { .state = State::Broken };
+	}
+	return { .state = State::Read, .bytes = std::move(bytes) };
+}
+
+bool Domain::writeWalletKeyring(const QByteArray &bytes) const {
+	Expects(_localKey != nullptr);
+
+	const auto path = BaseGlobalPath();
+	if (!QDir().exists(path) && !QDir().mkpath(path)) {
+		return false;
+	}
+	EncryptedDescriptor data(Serialize::bytearraySize(bytes));
+	data.stream << bytes;
+	FileWriteDescriptor file(ComputeWalletKeyringName(_dataName), path, true);
+	file.writeEncrypted(data, _localKey);
+	const auto written = file.finish();
+	if (!written) {
+		LOG(("Wallet Error: could not write the device keyring."));
+	}
+	return written;
+}
+
+bool Domain::removeWalletKeyring() {
+	const auto base = BaseGlobalPath() + ComputeWalletKeyringName(_dataName);
+	auto result = true;
+	for (const auto suffix : { 's', '0', '1' }) {
+		const auto path = base + suffix;
+		if (QFileInfo::exists(path) && !QFile::remove(path)) {
+			result = false;
+		}
+	}
+	return result;
+}
+
 void Domain::startFromScratch() {
+	if (!removeWalletKeyring()) {
+		LOG(("Wallet Error: could not remove the discarded device keyring."));
+	}
 	*_keyData = KeyData();
 	_keyDataDirty = false;
 	_verificationNonce = 0;
@@ -1027,15 +1088,14 @@ SetPasscodeResult Domain::setAppLockEnabled(
 // Main::Domain::removePasscodeIfEmpty() calls this after Local::reset() has
 // destroyed every store the local key protected. Nothing remains for the old
 // passcode to guard or to ask for it - the account it belonged to is gone.
-// Wallet::DropForgottenPasscode() calls it after every dependent vault
-// header and its secrets are gone, keeping the accounts and stores the
-// passcode did not guard. Wallet::DropUnusedPasscode() calls it whenever
-// the verified lock is off and no vault is passcode-wrapped - after a
-// protection change, after an account removal and at start. Each caller
-// establishes that the passcode guards nothing left to ask for, which is
-// why this removal carries no verification and has its own name instead
-// of being reachable through setPasscode(). The write stays checked so
-// failure does not claim the passcode was removed.
+// Wallet's confirmed forgotten-passcode reset calls it after the shared
+// keyring and all signed-in custody records are gone. DropUnusedPasscode()
+// calls it when the verified app lock is off and no live keyring entry uses
+// the Passcode policy, at startup, logout and terminal wallet operations.
+// Each caller establishes that the passcode guards nothing left to ask
+// for, which is why this removal carries no verification and has its own
+// name instead of being reachable through setPasscode(). The write stays
+// checked so failure does not claim the passcode was removed.
 void Domain::clearPasscodeAfterReset() {
 	Expects(_localKey != nullptr);
 

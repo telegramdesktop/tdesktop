@@ -18,11 +18,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
+#include "main/main_domain.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_response.h"
+#include "storage/storage_domain.h"
 #include "tde2e/tde2e_api.h"
 #include "ui/widgets/separate_panel.h"
 #include "wallet/wallet_engine.h"
+#include "wallet/wallet_key_protection.h"
 #include "wallet/wallet_onramp.h"
 #include "wallet/wallet_phrase_shares.h"
 #include "wallet/wallet_rates.h"
@@ -164,6 +167,18 @@ struct Session::PreviewState : base::has_weak_ptr {
 namespace {
 
 namespace engine = wallet_engine;
+
+struct ResetClientCompletion {
+	~ResetClientCompletion();
+
+	Fn<void()> done;
+};
+
+ResetClientCompletion::~ResetClientCompletion() {
+	if (done) {
+		crl::on_main(std::move(done));
+	}
+}
 
 constexpr auto kPollInterval = 5 * crl::time(1000);
 constexpr auto kCollectiblesPollInterval = 60 * crl::time(1000);
@@ -569,6 +584,9 @@ struct ThrowawayRotation {
 	try {
 		std::rethrow_exception(error.underlying);
 	} catch (const engine::wallet_lifecycle_error::ProtectedSecretHost &e) {
+		return (e.kind
+			== engine::ProtectedSecretHostErrorKind::kAuthenticationFailed);
+	} catch (const engine::protected_secret_host_error::Failed &e) {
 		return (e.kind
 			== engine::ProtectedSecretHostErrorKind::kAuthenticationFailed);
 	} catch (...) {
@@ -1624,6 +1642,9 @@ Session::Session(not_null<Main::Session*> session)
 , _pollTimer([=] { pollTick(); })
 , _gaslessTimer([=] { refreshGaslessInfo(); })
 , _transferMinNanos(TransferMinNanos(session)) {
+	vault().protectionChanges() | rpl::on_next([=] {
+		updateDeviceCustodyState(true);
+	}, _lifetime);
 	rpl::merge(
 		_transferWalletIdentityChanges.events(),
 		_custodyUpdates.events()
@@ -2212,15 +2233,16 @@ bool Session::revealsLocally() {
 	return (_presence.current() == Presence::Ready)
 		&& (_publicKey.size() == kCustodyPublicKeySize)
 		&& (currentRecord() != nullptr)
-		&& !_vaultKeyUnusable;
+		&& !vaultKeyUnusable();
 }
 
-VaultRuntime &Session::vault() {
+VaultRuntime &Session::vault() const {
 	return _engine->vault();
 }
 
 bool Session::custodyBusy() const {
-	return _phraseRevealing || _replacing || _backupChanging || _rotating;
+	return _phraseRevealing || _replacing || _backupChanging || _rotating
+		|| _custodyResetting;
 }
 
 std::shared_ptr<CommentScope> Session::createCommentScope(
@@ -2476,7 +2498,7 @@ void Session::revealPhrase(
 			fail(error);
 		}
 	};
-	const auto record = _vaultKeyUnusable
+	const auto record = vaultKeyUnusable()
 		? nullptr
 		: currentRecord();
 	if (record) {
@@ -2765,21 +2787,31 @@ void Session::restoreFromWords(
 		? scope->_state->target.walletIdentity->address
 		: _address;
 	const auto crossed = std::make_shared<bool>(false);
-	done = [this, crossed, done = std::move(done)](
+	const auto weakSession = base::make_weak(_session);
+	done = [weakSession, crossed, done = std::move(done)](
 			std::vector<QString> phrase,
 			CustodyOutcome outcome) {
-		settleVaultReset(crossed, outcome == CustodyOutcome::Installed);
-		done(std::move(phrase), outcome);
+		if (weakSession) {
+			weakSession->wallet().settleVaultReset(
+				crossed,
+				outcome == CustodyOutcome::Installed);
+			if (weakSession) {
+				done(std::move(phrase), outcome);
+			}
+		}
 	};
-	fail = [this, crossed, fail = std::move(fail)](const QString &error) {
-		settleVaultReset(crossed, false);
-		fail(error);
+	fail = [weakSession, crossed, fail = std::move(fail)](
+			const QString &error) {
+		if (weakSession) {
+			weakSession->wallet().settleVaultReset(crossed, false);
+			if (weakSession) {
+				fail(error);
+			}
+		}
 	};
 	// The resolved install travels into both continuations, which is what
 	// holds the grant across the worker call: the runtime cleanses the key
 	// as soon as the last handle goes, and the store runs on the worker.
-	// Its `created` term is what tells a failure arm whether the header it
-	// has to drop is one this store wrote.
 	const auto store = [=, this](
 			PhraseIdentity identity,
 			CustodyInstall install,
@@ -2825,15 +2857,16 @@ void Session::restoreFromWords(
 				fail(u"PHRASE_ORIGIN_EXPIRED"_q);
 				return;
 			}
+			if (scope && !scope->cancelled()
+				&& install.grant && install.grant->valid()) {
+				scope->_state->epoch = vault().clearEpoch();
+			}
 			auto restored = std::move(*result);
 			const auto descriptor = restored.descriptor;
 			auto record = RecordFromDescriptor(descriptor);
 			const auto rollback = [=, this](Fn<void()> finished) {
 				const auto cleanup = [=, this] {
 					_engine->dropStoredSecrets(*stores);
-					if (install.created) {
-						dropCreatedVault();
-					}
 					finished();
 				};
 				_engine->run([lifecycle, descriptor] {
@@ -2873,15 +2906,11 @@ void Session::restoreFromWords(
 			}
 			done(std::move(restored.words), CustodyOutcome::Installed);
 		}, [=, this](EngineError error) {
-			// The record goes before the header: a store creates the vault
-			// header only together with the record it seals, so removing
-			// the record first keeps that invariant true at every instant.
-			// An import that failed before its own store recorded nothing,
-			// so this removes nothing on the ordinary refusal.
+			// Only stores recorded by this import are removed. The shared
+			// ring may already protect other accounts, and its latest factor
+			// stays committed even when this import failed after that write.
+			// A new orphan entry is swept by the next necessary ring write.
 			_engine->dropStoredSecrets(*stores);
-			if (install.created) {
-				dropCreatedVault();
-			}
 			if (scope && !commentScopeCurrent(scope)) {
 				fail(u"PHRASE_ORIGIN_EXPIRED"_q);
 				return;
@@ -2899,6 +2928,12 @@ void Session::restoreFromWords(
 			PhraseIdentity identity,
 			CustodyInstall answer,
 			std::vector<QString> phrase) {
+		if (scope && !scope->cancelled()
+			&& answer.passcodeCreatedFromEpoch
+			&& scope->_state->epoch == *answer.passcodeCreatedFromEpoch
+			&& answer.grant && answer.grant->valid()) {
+			scope->_state->epoch = vault().clearEpoch();
+		}
 		if (scope && !commentScopeCurrent(scope)) {
 			fail(u"PHRASE_ORIGIN_EXPIRED"_q);
 		} else if (!answer.grant) {
@@ -2912,7 +2947,7 @@ void Session::restoreFromWords(
 	// key, and the anchor with the anchor of the record this device holds
 	// of the target wallet, when it holds one. An invalid phrase, an
 	// obsolete phrase of this wallet or one belonging to another wallet is
-	// refused here while the header and the custody store are still
+	// refused here while the keyring and the custody store are still
 	// untouched, so no chooser, no store and no replacement of a vault this
 	// process cannot open is ever reached by such a phrase. The anchor
 	// check exists because each half of a 24-word phrase is checksummed on
@@ -2936,10 +2971,10 @@ void Session::restoreFromWords(
 			fail(u"PHRASE_KEY_MISMATCH"_q);
 			return;
 		}
-		// The install ladder goes first whenever the flow carries one: a
-		// read grant handed out by an open retention window must never
-		// carry a silent store into a vault whose passcode the user has
-		// not just typed.
+		// The installer resolves live policy immediately before storing.
+		// It reuses this flow's valid secured grant or the shared retention
+		// window, while Open and an empty ring still require a choice.
+		// Preparing that choice does not write until the host's first store.
 		if (const auto install = auth.install) {
 			install(resettableInstallRequest(
 				expectedKey,
@@ -2992,7 +3027,7 @@ void Session::restoreFromPhrase(
 		// comes, so restoreFromWords() re-establishes the no-record invariant
 		// before it stores, refusing a scope that still carries a record.
 		if (!commentScopeCurrent(scope)
-			|| (scope->_state->record && !_vaultKeyUnusable)) {
+			|| (scope->_state->record && !vaultKeyUnusable())) {
 			if (fail) {
 				fail(u"PHRASE_ORIGIN_EXPIRED"_q);
 			}
@@ -3099,7 +3134,7 @@ void Session::restoreFromBackup(
 		// comes, so restoreFromWords() re-establishes the no-record invariant
 		// before it stores, refusing a scope that still carries a record.
 		if (!commentScopeCurrent(scope)
-			|| (scope->_state->record && !_vaultKeyUnusable)) {
+			|| (scope->_state->record && !vaultKeyUnusable())) {
 			if (fail) {
 				fail(u"PHRASE_ORIGIN_EXPIRED"_q);
 			}
@@ -3875,144 +3910,215 @@ rpl::producer<> Session::custodyUpdates() const {
 }
 
 rpl::producer<> Session::keyProtectionUpdates() const {
-	return _keyProtectionUpdates.events();
+	return vault().protectionChanges();
 }
 
 void Session::notifyKeyProtectionChanged(bool vaultKeyStillUnusable) {
-	if (!vaultKeyStillUnusable) {
-		setVaultKeyUnusable(false);
-	}
-	_keyProtectionUpdates.fire({});
-	// Every observer of the change has run; now the passcode is asked whether
-	// it still protects anything, and the drop's own Storage signal updates
-	// them again. Under a staged passcode change every dependent stays
-	// Passcode-kind, so this no-ops, and it writes only key_data, never a
-	// vault header, so the staged headers stay untouched.
-	DropUnusedPasscode();
+	vault().notifyProtectionChanged(vaultKeyStillUnusable);
 }
 
 bool Session::vaultKeyUnusable() const {
-	return _vaultKeyUnusable;
+	return vault().unusable();
 }
 
 void Session::setVaultKeyUnusable(bool unusable) {
-	if (_vaultKeyUnusable == unusable) {
+	vault().setUnusable(unusable);
+}
+
+void Session::resetCustodyAfterForgottenPasscode(
+		Fn<void(CustodyResetResult)> done) {
+	const auto weak = base::make_weak(_session);
+	const auto current = [weak] {
+		return weak && !weak->domain().local().appLockEnabled()
+			&& LiveKeyProtection() == VaultKind::Passcode;
+	};
+	if (custodyBusy() || !current()) {
+		done(CustodyResetResult::Refused);
 		return;
 	}
-	_vaultKeyUnusable = unusable;
-	updateDeviceCustodyState();
+	resetDeviceCustody(nullptr, current, [done](CustodyResetResult result) {
+		DropUnusedPasscode();
+		done(result);
+	});
 }
 
-void Session::dropCustodyAfterForgottenPasscode() {
-	vault().clear();
-	_vaultKeyUnusable = false;
-	_custody = std::nullopt;
-	updateDeviceCustodyState();
-	notifyKeyProtectionChanged();
-}
-
-// Reached from the chooser many turns after the flow began, so everything
-// that decided the reset is read again: the flow still holds the custody
-// latch, its target is still the current wallet or a current comment scope,
-// the header still reads and this process still cannot open it. Any
-// disagreement is Refused, silent by contract - another action recovered or
-// replaced the vault, or the target moved, and nothing is deleted. The
-// cache is mirrored at once instead of at persist time, because any
-// syncEngineClient() in between would otherwise run a client for the
-// deleted secret; the scope is re-stamped to this deliberate clear() and
-// loses the deleted record, so it stays current through the install.
-// Nothing is announced here: the device state and the protection
-// notification, with the unused-passcode drop it ends in, are settled by
-// the flow's terminal exit, once the new vault exists or never will. The
-// unusable flag is the one thing this arm settles itself: it survives a
-// failure that kept the header, so the settle can announce without
-// claiming this process can open a key again.
-CustodyResetResult Session::resetUnusableVault(
+// The confirmation belongs to one still-current custody flow, but destroys
+// the device authority. Check that flow before starting and after every
+// client has stopped. A deliberate clear restamps only its surviving scope;
+// any later clear, identity change or cancellation still refuses the install.
+void Session::resetUnusableVault(
 		const QByteArray &expected,
-		const std::shared_ptr<CommentScope> &scope) {
-	if (!custodyBusy()
-		|| (scope
-			? !commentScopeCurrent(scope)
-			: (_presence.current() != Presence::Ready
-				|| _publicKey != expected))
-		|| (ReadVaultHeader(_session->local()).state
-			!= VaultReading::State::Read)
-		|| !_vaultKeyUnusable) {
-		return CustodyResetResult::Refused;
+		const std::shared_ptr<CommentScope> &scope,
+		Fn<void(CustodyResetResult)> done) {
+	const auto weak = base::make_weak(_session);
+	const auto current = [=] {
+		if (!weak || weak->account().maybeSession() != weak.get()) {
+			return false;
+		}
+		const auto &wallet = weak->wallet();
+		return (wallet._phraseRevealing || wallet._replacing
+				|| wallet._backupChanging || wallet._rotating)
+			&& (scope
+				? wallet.commentScopeCurrent(scope)
+				: (wallet._presence.current() == Presence::Ready
+					&& wallet._publicKey == expected))
+			&& wallet.vault().reading().state == KeyringReading::State::Read
+			&& wallet.vaultKeyUnusable();
+	};
+	if (!current()) {
+		done(CustodyResetResult::Refused);
+		return;
 	}
-	const auto lastSeenServerKey = custody().lastSeenServerKey;
-	vault().clear();
-	if (scope) {
-		scope->_state->epoch = vault().clearEpoch();
-	}
-	const auto ok = ResetVaultAndCustody(_session->local());
-	if (!ok) {
-		// The answer does not say which failure this was, so the header
-		// does: a store that could not be read lost its header anyway,
-		// while one that was read but could not be written emptied kept
-		// the very header the guard above proved this process cannot
-		// open. Nothing between that guard and here writes a header, so
-		// one that still reads is that header, and the flag stays set
-		// over it - which is what leaves the device read-only and the
-		// retry one confirmation away instead of one failing unlock and
-		// then a confirmation.
-		_vaultKeyUnusable = (ReadVaultHeader(_session->local()).state
-			== VaultReading::State::Read);
-		_custody = std::nullopt;
-		return CustodyResetResult::Failed;
-	}
-	_vaultKeyUnusable = false;
-	_custody = CustodyStore{ .lastSeenServerKey = lastSeenServerKey };
-	_custodyReadFailed = false;
-	if (scope) {
-		scope->_state->record = std::nullopt;
-	}
-	return CustodyResetResult::Done;
+	resetDeviceCustody(scope, current, std::move(done));
 }
 
-// The reset boundary an installing flow may cross. Over a vault this process
-// cannot open, the chooser's confirmed reset deletes that vault and mirrors
-// the emptied store into the cache, but announces nothing, because the
-// protection notification ends in DropUnusedPasscode(), which would delete a
-// wallet-only passcode created for the vault the store has not written yet.
-// Any answer but Refused has deleted something, so it marks the boundary
-// crossed, and the installer's answer then waits for the client of the
-// deleted secret to stop before the flow goes on. Every terminal exit of the
-// flow settles a crossed boundary exactly once, after the outcome is known:
-// the device state follows the emptied cache unless a persisted install
-// already made it follow, then the protection change is announced. An exit
-// that did not cross settles nothing.
+void Session::resetDeviceCustody(
+		const std::shared_ptr<CommentScope> &scope,
+		Fn<bool()> current,
+		Fn<void(CustodyResetResult)> done) {
+	struct State {
+		std::vector<base::weak_ptr<Main::Session>> sessions;
+		int pending = 0;
+	};
+	const auto state = std::make_shared<State>();
+	const auto domain = base::make_weak(&_session->domain());
+	const auto runtime = vault().shared_from_this();
+	for (const auto &[index, account] : domain->accounts()) {
+		if (const auto session = account->maybeSession()) {
+			const auto &wallet = session->wallet();
+			if (wallet._custodyResetting || wallet._clientStopping
+				|| (&wallet != this && wallet.custodyBusy())) {
+				done(CustodyResetResult::Refused);
+				return;
+			}
+			state->sessions.push_back(base::make_weak(session));
+		}
+	}
+	state->pending = int(state->sessions.size());
+	for (const auto &weak : state->sessions) {
+		weak->wallet()._custodyResetting = true;
+	}
+	runtime->clear();
+	const auto epoch = runtime->clearEpoch();
+	if (scope) {
+		scope->_state->epoch = epoch;
+	}
+	const auto finish = [=] {
+		if (--state->pending) {
+			return;
+		}
+		auto unchanged = bool(domain);
+		auto signedIn = 0;
+		if (domain) {
+			for (const auto &[index, account] : domain->accounts()) {
+				if (const auto session = account->maybeSession()) {
+					++signedIn;
+					unchanged = unchanged && !session->wallet()._engine->client()
+						&& ranges::any_of(state->sessions, [=](const auto &weak) {
+							return weak.get() == session;
+						});
+				}
+			}
+		}
+		auto result = CustodyResetResult::Refused;
+		if (unchanged && signedIn == int(state->sessions.size())
+			&& runtime->clearEpoch() == epoch && current()) {
+			for (const auto &weak : state->sessions) {
+				if (weak) {
+					auto &wallet = weak->wallet();
+					wallet._custody = CustodyStore();
+					wallet._custodyReadFailed = false;
+					wallet._preparedRotation.reset();
+					wallet._submission.reset();
+					wallet._pending.reset();
+					++wallet._sendRevision;
+				}
+			}
+			if (scope) {
+				scope->_state->record.reset();
+			}
+			result = ResetVaultAndCustody(*domain)
+				? CustodyResetResult::Done
+				: CustodyResetResult::Failed;
+			runtime->setUnusable(false);
+		}
+		for (const auto &weak : state->sessions) {
+			if (weak) {
+				weak->wallet()._custodyResetting = false;
+			}
+		}
+		if (result != CustodyResetResult::Refused) {
+			for (const auto &weak : state->sessions) {
+				if (weak) {
+					weak->wallet()._sendState = SendState::Idle;
+				}
+			}
+			runtime->notifyProtectionChanged();
+		} else {
+			for (const auto &weak : state->sessions) {
+				if (weak) {
+					weak->wallet().syncEngineClient();
+				}
+			}
+		}
+		done(result);
+	};
+	for (const auto &weak : state->sessions) {
+		if (!weak) {
+			finish();
+			continue;
+		}
+		auto &wallet = weak->wallet();
+		wallet.retireCommentScopes((&wallet == this) ? scope : nullptr);
+		if (weak) {
+			weak->wallet().stopEngineClientForReset(finish);
+		} else {
+			finish();
+		}
+	}
+}
+
 CustodyInstallRequest Session::resettableInstallRequest(
 		QByteArray expected,
 		std::shared_ptr<CommentScope> scope,
 		std::shared_ptr<bool> crossed,
 		Fn<void(CustodyInstall)> proceed) {
 	return {
-		.ready = crl::guard(_session, [=, this](
-				CustodyInstall answer) mutable {
-			if (!*crossed) {
-				proceed(std::move(answer));
+		.ready = crl::guard(_session, std::move(proceed)),
+		.passcodeCreated = [scope, weak = base::make_weak(_session)](
+				quint32 previousEpoch,
+				quint32 epoch) {
+			if (!weak || weak->account().maybeSession() != weak.get()
+				|| epoch != quint32(previousEpoch + 1)
+				|| weak->wallet().vault().clearEpoch() != epoch) {
+				return false;
+			} else if (!scope) {
+				return true;
+			} else if (scope->cancelled()
+				|| scope->_state->epoch != previousEpoch) {
+				return false;
+			}
+			scope->_state->epoch = epoch;
+			return weak->wallet().commentScopeCurrent(scope);
+		},
+		.resetUnusableVault = [=, weak = base::make_weak(_session)](
+				std::optional<quint32> createdFromEpoch,
+				Fn<void(CustodyResetResult)> done) {
+			if (!weak) {
+				done(CustodyResetResult::Refused);
 				return;
 			}
-			stopEngineClientForReset([
-				proceed = std::move(proceed),
-				answer = std::move(answer)
-			]() mutable {
-				proceed(std::move(answer));
+			if (scope && !scope->cancelled() && createdFromEpoch
+				&& scope->_state->epoch == *createdFromEpoch) {
+				scope->_state->epoch = weak->wallet().vault().clearEpoch();
+			}
+			weak->wallet().resetUnusableVault(expected, scope, [=](
+					CustodyResetResult result) {
+				if (result != CustodyResetResult::Refused) {
+					*crossed = true;
+				}
+				done(result);
 			});
-		}),
-		.resetUnusableVault = [=, weak = base::make_weak(_session)] {
-			const auto session = weak.get();
-			if (!session) {
-				return CustodyResetResult::Refused;
-			}
-			const auto result = session->wallet().resetUnusableVault(
-				expected,
-				scope);
-			if (result != CustodyResetResult::Refused) {
-				*crossed = true;
-			}
-			return result;
 		},
 	};
 }
@@ -4020,16 +4126,14 @@ CustodyInstallRequest Session::resettableInstallRequest(
 void Session::settleVaultReset(
 		const std::shared_ptr<bool> &crossed,
 		bool installed) {
+	const auto runtime = vault().shared_from_this();
 	if (base::take(*crossed)) {
 		if (!installed) {
 			updateDeviceCustodyState();
 		}
-		// A reset that failed over a header it could not remove leaves the
-		// flag set, and the announcement must not undo that: nothing here
-		// made the key openable again. Every other crossed exit reaches
-		// this with the flag already clear, so the argument is a no-op.
-		notifyKeyProtectionChanged(_vaultKeyUnusable);
+		runtime->notifyProtectionChanged(runtime->unusable());
 	}
+	DropUnusedPasscode();
 }
 
 const CustodyStore &Session::custody() {
@@ -4095,24 +4199,6 @@ bool Session::persistCustody(const CustodyRecord &record) {
 	}
 	updateDeviceCustodyState();
 	return true;
-}
-
-// Undoes the vault the store that just failed had created. Only that store
-// carries a created install, and nothing else writes the header while it
-// runs, so the header this drops can only be the one it wrote: no epoch and
-// no ownership check is needed. It runs beside the delete_wallet the same
-// failure fires, not after it, so a delete that fails leaves no vault.
-void Session::dropCreatedVault() {
-	// removeWalletEngineValue answers false only for a key that is not in
-	// the map, so this boolean is "there was a header to drop" and never
-	// "the removal failed": at that API there is no removal-failed answer.
-	// An engine failure before its own store - an invalid recovery phrase
-	// is the common one - leaves no header, which is the ordinary case
-	// here and states nothing.
-	if (RemoveVaultHeader(_session->local())) {
-		LOG(("Wallet Info: dropped the vault header a failed store "
-			"created."));
-	}
 }
 
 void Session::replaceWithNew(
@@ -4200,18 +4286,26 @@ void Session::replaceWithImported(
 	_replacing = true;
 	const auto expected = _publicKey;
 	const auto crossed = std::make_shared<bool>(false);
-	done = [this, crossed, done = std::move(done)](CustodyOutcome outcome) {
-		settleVaultReset(crossed, outcome == CustodyOutcome::Installed);
-		_replacing = false;
-		if (done) {
-			done(outcome);
+	const auto weakSession = base::make_weak(_session);
+	done = [weakSession, crossed, done = std::move(done)](CustodyOutcome outcome) {
+		if (weakSession) {
+			weakSession->wallet()._replacing = false;
+			weakSession->wallet().settleVaultReset(
+				crossed,
+				outcome == CustodyOutcome::Installed);
+			if (weakSession && done) {
+				done(outcome);
+			}
 		}
 	};
-	fail = [this, crossed, fail = std::move(fail)](const QString &error) {
-		settleVaultReset(crossed, false);
-		_replacing = false;
-		if (fail) {
-			fail(error);
+	fail = [weakSession, crossed, fail = std::move(fail)](
+			const QString &error) {
+		if (weakSession) {
+			weakSession->wallet()._replacing = false;
+			weakSession->wallet().settleVaultReset(crossed, false);
+			if (weakSession && fail) {
+				fail(error);
+			}
 		}
 	};
 	const auto oldAddress = _address;
@@ -4246,19 +4340,17 @@ void Session::replaceWithImported(
 			auto record = RecordFromDescriptor(descriptor);
 			record.signingKey = identity.signing;
 			const auto address = CanonicalAddress(record.address);
-			const auto created = install.created;
 			const auto abandon = [=, this](const QString &error) {
-				if (created) {
-					dropCreatedVault();
-				}
+				const auto cleanup = [=, this] {
+					_engine->dropStoredSecrets(*stores);
+					fail(error);
+				};
 				_engine->run([lifecycle, descriptor] {
 					lifecycle->delete_wallet(descriptor);
-				}, [=] {
-					fail(error);
-				}, [=](EngineError) {
+				}, cleanup, [=](EngineError) {
 					LOG(("Wallet Error: delete_wallet after an abandoned "
 						"import failed."));
-					fail(error);
+					cleanup();
 				});
 			};
 			const auto applied = [=, this](const MTPWalletState &state) {
@@ -4268,18 +4360,7 @@ void Session::replaceWithImported(
 				if (!answered || answered->raw != address) {
 					LOG(("Wallet Error: wallet.replaceWallet answered "
 						"another address."));
-					if (created) {
-						dropCreatedVault();
-					}
-					_engine->run([lifecycle, descriptor] {
-						lifecycle->delete_wallet(descriptor);
-					}, [=] {
-						fail(u"REPLACE_KEY_MISMATCH"_q);
-					}, [=](EngineError) {
-						LOG(("Wallet Error: delete_wallet after a key "
-							"mismatch failed."));
-						fail(u"REPLACE_KEY_MISMATCH"_q);
-					});
+					abandon(u"REPLACE_KEY_MISMATCH"_q);
 					return;
 				}
 				finishConfirmedReplace(
@@ -4361,9 +4442,6 @@ void Session::replaceWithImported(
 			}).handleFloodErrors().send();
 		}, [=, this](EngineError error) {
 			_engine->dropStoredSecrets(*stores);
-			if (install.created) {
-				dropCreatedVault();
-			}
 			const auto name = LifecycleErrorName(error);
 			LOG(("Wallet Error: import_wallet failed: %1").arg(name));
 			fail(IsVaultLocked(error)
@@ -4588,8 +4666,11 @@ void Session::reconcileCustody() {
 	}
 }
 
-void Session::updateDeviceCustodyState() {
-	const auto &store = custody();
+void Session::updateDeviceCustodyState(bool cachedOnly) {
+	if (cachedOnly && !_custody) {
+		return;
+	}
+	const auto &store = cachedOnly ? *_custody : custody();
 	const auto identity = transferWalletIdentity();
 	if (!identity) {
 		return;
@@ -4605,17 +4686,23 @@ void Session::updateDeviceCustodyState() {
 	const auto current = store.current(
 		identity->address,
 		identity->publicKey);
-	const auto mode = (current && !_vaultKeyUnusable)
+	const auto mode = (current && !vaultKeyUnusable())
 		? DeviceMode::Full
 		: _capabilities.current().canExportPhrase
 		? DeviceMode::ReadOnlyRestorable
 		: DeviceMode::ReadOnlyNotRestorable;
-	_deviceCustody = DeviceCustodyState{
+	const auto state = DeviceCustodyState{
 		.mode = mode,
 		.conflict = conflict,
 	};
+	if (cachedOnly && _deviceCustody.current() == state) {
+		return;
+	}
+	_deviceCustody = state;
 	_custodyUpdates.fire({});
-	syncEngineClient();
+	if (!cachedOnly) {
+		syncEngineClient();
+	}
 }
 
 void Session::syncEngineClient() {
@@ -4624,7 +4711,7 @@ void Session::syncEngineClient() {
 		? custody().current(identity->address, identity->publicKey)
 		: nullptr;
 	auto started = false;
-	if (_clientStopping) {
+	if (_clientStopping || _custodyResetting) {
 		return;
 	} else if (_engine->client()) {
 		if (!wanted || _clientRecordId != wanted->recordId) {
@@ -4681,35 +4768,29 @@ void Session::syncEngineClient() {
 	}
 }
 
-// The client of a secret the confirmed reset deleted must not run into the
-// install, so a flow that crossed the reset stops it here and continues
-// only once it stopped. Unlike syncEngineClient()'s stop this retires no
-// comment scope: every other scope was cancelled when the flow took the
-// custody latch, none can be created while it is held, and the restoring
-// scope is not current while _clientStopping is set, so a retirement would
-// cancel the very scope it meant to keep. The flag still spans one worker
-// round trip, and a scope check inside it - a pushed state reconciling
-// custody, a changed transfer identity - cancels the restoring scope, so
-// that restore ends with PHRASE_ORIGIN_EXPIRED after the reset: a clean
-// failure, retryable through the same restore. A current submission is not
-// interrupted, as syncEngineClient() does not interrupt it, and the persist
-// that follows settles it as usual.
+// Completion outlives a session which logs out during the stop. Engine
+// shutdown then finishes in its destructor, and the last callback owner
+// posts completion to main after that destructor has returned. This keeps
+// the domain reset moving without allowing deletion ahead of a live client.
 void Session::stopEngineClientForReset(Fn<void()> done) {
-	if (!_engine->client()
-		|| (_submission && submissionCurrent(
-			_submission->operationId,
-			_submission->prepared))) {
-		done();
-		return;
-	}
+	const auto completion = std::make_shared<ResetClientCompletion>();
+	completion->done = std::move(done);
+	const auto weak = base::make_weak(_session);
+	const auto finish = [=] {
+		if (weak) {
+			weak->wallet()._clientStopping = false;
+			weak->wallet()._clientRecordId = QString();
+		}
+		if (auto done = base::take(completion->done)) {
+			done();
+		}
+	};
 	_sendRecoveryReady = false;
 	_clientStopping = true;
-	_engine->stopClient([=, this] {
-		_clientStopping = false;
-		_clientRecordId = QString();
-		done();
-	});
 	retirePreviews(SendError::SigningUnavailable);
+	if (weak) {
+		_engine->stopClient(finish);
+	}
 }
 
 void Session::removeCustodyRecord(const QString &recordId) {

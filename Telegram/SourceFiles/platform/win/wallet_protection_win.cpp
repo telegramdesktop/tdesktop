@@ -31,16 +31,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <tbs.h>
 
 // The wrap key is stored nowhere: it is HKDF-SHA256 over the signature a
-// TPM-resident Windows Hello credential produces for a per-vault random
+// TPM-resident Windows Hello credential produces for a device-wrap random
 // challenge kept in the wrap's payload, salted with the wrap's own random
 // salt. That rests on the Hello key storage provider answering
 // RequestSignAsync with RSASSA-PKCS1-v1_5 over SHA-256 - a deterministic
 // function of the private key and the challenge, measured on a discrete-TPM
-// host rather than promised by the platform's documentation. The header thus
+// host rather than promised by the platform's documentation. The keyring thus
 // holds every public input and no private one, and DeriveVaultWrapKey
-// refuses this kind, so nothing derivable from the header opens the vault.
+// refuses this kind, so nothing derivable from the keyring opens D.
 // Should Windows ever move the provider to a probabilistic scheme, every
-// existing wrap would read Corrupt - read-only for the session, nothing
+// existing wrap would read Corrupt - read-only for every account, nothing
 // deleted, restore from the backup or the phrase - and never leak a key.
 
 namespace Platform {
@@ -304,10 +304,13 @@ void FocusUnownedPrompt(int attemptsLeft = kPromptFocusAttempts) {
 // NotFound alone is Absent: it is what OpenAsync answers once the credential
 // is gone - after a DeleteAsync or a Windows Hello reset - the confirmed
 // typed absence that lands the keyless modes, with nothing deleted here.
-// UserCanceled is the dismissed prompt. Everything else, a Hello lockout
-// (SecurityDeviceLocked) included, is a transient service or access state
-// and stays Unavailable, which preserves the header; a non-Completed async
-// status or a thrown HRESULT lands there too, the fail-safe side.
+// UserCanceled is the dismissed prompt, and a Hello lockout
+// (SecurityDeviceLocked) is answered the same way: Windows refuses the
+// gesture for a while after too many wrong attempts, so the prompt is over
+// for now and the user simply asks again once Hello accepts input, with no
+// mode change and nothing written. Everything else is a service or access
+// failure and stays Unavailable, which preserves the keyring; a non-Completed
+// async status or a thrown HRESULT lands there too, the fail-safe side.
 // AuthenticationFailed is never produced: Hello retries a wrong gesture
 // inside its own UI and reports only the lockout.
 [[nodiscard]] ProtectionError Classify(KeyCredentialStatus status) {
@@ -318,6 +321,9 @@ void FocusUnownedPrompt(int attemptsLeft = kPromptFocusAttempts) {
 		LOG(("Wallet Error: Windows Hello credential not found."));
 		return ProtectionError::Absent;
 	case KeyCredentialStatus::UserCanceled:
+		return ProtectionError::Cancelled;
+	case KeyCredentialStatus::SecurityDeviceLocked:
+		LOG(("Wallet Info: Windows Hello is locked out, prompt dismissed."));
 		return ProtectionError::Cancelled;
 	}
 	LOG(("Wallet Error: Windows Hello operation failed, status %1."
@@ -697,32 +703,18 @@ void WindowsHelloProtection::remove(
 		Wallet::VaultWrap wrap,
 		Fn<void(ProtectionError)> done) {
 	if (const auto payload = ParsePayload(wrap.openSecret)) {
-		const auto dependents = Wallet::CountVaultWrapDependents(wrap);
-		if (dependents > 0) {
-			LOG(("Wallet Info: Windows Hello credential deletion skipped, "
-				"%1 vault header(s) may still depend on it.").arg(dependents));
-		} else {
-			discardCredential(CredentialName(payload->credentialId));
-		}
+		discardCredential(CredentialName(payload->credentialId));
 	}
 	crl::on_main([done = std::move(done)] {
 		done(ProtectionError::None);
 	});
 }
 
-// Fire-and-forget by design: the wrap naming the credential is already
-// stripped when remove() runs, and a failed enroll's credential never had a
-// wrap, so nothing waits on the outcome. A missing credential - a Windows
-// Hello reset - throws NTE_NO_KEY, which Try swallows, or ends with a failed
-// async status, which is only logged. remove() does not reach here while
-// another account's committed header still names the credential: Removal
-// commits one prepared wrap into every dependent vault, so a later Switch
-// away from Hello on one account retires a wrap the others still open with,
-// and deleting its credential would strand them. The count fails closed on
-// a header this build cannot read, so on a Switch that never committed the
-// enrolled wrap a Broken or Unsupported header anywhere in the domain leaves
-// the fresh credential orphaned rather than deleted: an orphan over a
-// stranded vault.
+// Retirement follows the successful replacement or removal of the one
+// device wrap. An abandoned enrollment is also safe to retire because no
+// committed ring names it. Native deletion stays asynchronous: an already
+// missing credential is harmless, and other failures are logged by the
+// existing provider path without changing the stored protection.
 void WindowsHelloProtection::discardCredential(const winrt::hstring &name) {
 	base::WinRT::Try([&] {
 		KeyCredentialManager::DeleteAsync(name).Completed([](

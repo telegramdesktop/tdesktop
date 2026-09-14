@@ -843,11 +843,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_passcode_lock_off_wallet" = "Your wallet stays protected by this passcode. Only the launch lock is off.";
 "lng_settings_passcode_lock_off_open_title" = "Turn off the launch lock?";
 "lng_settings_passcode_lock_off_open_confirm" = "Turn off";
-"lng_settings_passcode_disable_changed#one" = "The protection of {count} wallet was changed. The passcode was kept.";
-"lng_settings_passcode_disable_changed#other" = "The protection of {count} wallets was changed. The passcode was kept.";
-"lng_settings_passcode_disable_changed_named" = "Wallet protection was changed for {accounts}. The passcode was kept.";
-"lng_settings_passcode_disable_changed_unnamed#one" = "Protection was also changed for {count} other wallet whose account name is unavailable.";
-"lng_settings_passcode_disable_changed_unnamed#other" = "Protection was also changed for {count} other wallets whose account names are unavailable.";
 "lng_settings_passcode_disable_dependent" = "The passcode was kept because a wallet still needs it.";
 "lng_settings_passcode_disable_kept" = "The passcode was kept for your wallet. Telegram will no longer ask for it at launch.";
 "lng_settings_use_winhello" = "Unlock with Windows Hello";
@@ -1226,8 +1221,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passcode_about1" = "When a local passcode is set, a lock icon appears at the top of your chat list.";
 "lng_passcode_about2" = "Click it to lock Telegram Desktop.";
 "lng_passcode_about3" = "Note: if you forget your passcode, you'll need to log out of Telegram Desktop and log in again.";
-"lng_passcode_wallet_about" = "This passcode protects the Gram wallet key for {account} on this device.";
-"lng_passcode_wallet_about_unnamed" = "This passcode protects a Gram wallet key on this device.";
+"lng_passcode_wallet_about_unnamed" = "This passcode protects all stored Gram wallet keys on this device.";
 "lng_passcode_differ" = "Passcodes are different";
 "lng_passcode_wrong" = "Wrong passcode";
 "lng_passcode_is_same" = "Passcode was not changed";
@@ -8967,6 +8961,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_protection_create_confirm" = "Re-enter passcode";
 "lng_wallet_protection_change_title" = "Change Passcode";
 "lng_wallet_protection_error" = "The wallet key's protection could not be changed. Please try again.";
+"lng_wallet_protection_passcode_changed_error" = "The passcode was changed, but wallet protection could not be updated. Restore your wallet keys from a backup or recovery phrase.";
 "lng_wallet_protection_touchid" = "Unlock with Touch ID";
 "lng_wallet_protection_touchid_about" = "Confirm all spending with your fingerprint or Mac password.";
 "lng_wallet_protection_touchid_label" = "Touch ID";
@@ -8980,13 +8975,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_protection_hardware_absent" = "Your wallet key on this device was protected by {provider}, but that key can no longer be used on this device. Restore the wallet from Telegram's encrypted backup or with your recovery phrase to store the key again.";
 "lng_wallet_passcode_forgot" = "Forgot passcode?";
 "lng_wallet_passcode_forgot_title" = "Forgot your passcode?";
-"lng_wallet_passcode_forgot_about" = "Without the passcode this device cannot open the wallet key it holds. You can remove the key and the passcode and keep using Telegram — you will not be logged out.";
+"lng_wallet_passcode_forgot_about" = "Without the passcode this device cannot open its stored wallet keys. You can remove all wallet keys on this device and the passcode and keep using Telegram — you will not be logged out.";
 "lng_wallet_passcode_forgot_backed" = "Your wallet can be restored from your Telegram backup.";
 "lng_wallet_passcode_forgot_confirm" = "Remove keys";
 "lng_wallet_passcode_forgot_done" = "The wallet keys and the passcode were removed from this device.";
 "lng_wallet_passcode_forgot_failed" = "The wallet keys could not be removed. Please try again.";
 "lng_wallet_passcode_forgot_later" = "The wallet keys were removed, but the passcode could not be. Restart Telegram to finish removing it.";
-"lng_wallet_passcode_forgot_leftovers" = "The wallet keys and the passcode were removed from this device. Some leftover wallet data could not be cleaned up.";
 "lng_wallet_passcode_forgot_local#one" = "Your Gram wallet's keys are stored only on this device and Telegram has no backup of them. Removing the keys destroys them — only your recovery phrase can restore the wallet.";
 "lng_wallet_passcode_forgot_local#other" = "{count} of your Gram wallets have their keys stored only on this device, with no Telegram backup. Removing the keys destroys them — only their recovery phrases can restore them.";
 "lng_wallet_passcode_forgot_parked#one" = "This device also holds the keys of one other Gram wallet. Removing the keys destroys them, and that wallet can be restored only if its recovery phrase was written down.";

@@ -3917,6 +3917,17 @@ bool Account::removeWalletEngineValue(const QString &key) {
 	return true;
 }
 
+std::vector<QString> Account::walletEngineStorageKeys(
+		const QString &prefix) const {
+	auto result = std::vector<QString>();
+	for (const auto &[key, fileKey] : _walletEngineStoragesMap) {
+		if (key.startsWith(prefix)) {
+			result.push_back(key);
+		}
+	}
+	return result;
+}
+
 bool Account::encrypt(
 		const void *src,
 		void *dst,

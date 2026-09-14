@@ -8,10 +8,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/bytes.h"
+#include "base/flat_map.h"
 #include "base/timer.h"
+#include "base/weak_ptr.h"
 #include "storage/details/storage_file_utilities.h"
 
 #include <mutex>
+
+namespace Main {
+class Account;
+class Domain;
+class Session;
+} // namespace Main
+
+namespace Storage {
+class Domain;
+} // namespace Storage
 
 namespace Wallet {
 
@@ -19,6 +31,7 @@ struct CustodyStore;
 class VaultRuntime;
 
 inline constexpr auto kVaultKeySize = 32;
+inline constexpr auto kVaultKeyIdSize = 16;
 inline constexpr auto kVaultNonceSize = 12;
 inline constexpr auto kVaultTagSize = 16;
 inline constexpr auto kVaultSaltSize = 32;
@@ -33,7 +46,7 @@ inline constexpr auto kVaultRetention = 15 * 60 * crl::time(1000);
 // platform/win/wallet_protection_win.cpp: the Hello credential id and the
 // signed challenge ride in the wrap's openSecret, and the wrap key is HKDF
 // over the credential's signature. A reserved kind this build does not
-// define reads as Unsupported and is never rewritten.
+// define reads as Unsupported.
 enum class VaultKind : quint32 {
 	Passcode = 1,
 	Open = 2,
@@ -71,21 +84,25 @@ private:
 
 struct VaultWrap {
 	VaultKind kind = VaultKind::Passcode;
-	quint32 generation = 0;
 	Storage::details::PasscodeKdf kdf;
 	QByteArray salt;
 	QByteArray openSecret;
 	QByteArray blob;
 };
 
-struct VaultHeader {
-	quint32 committed = 0;
-	std::vector<VaultWrap> wraps;
-
-	[[nodiscard]] const VaultWrap *committedWrap() const;
+struct DeviceKeyringEntry {
+	QByteArray keyId;
+	uint64 accountId = 0;
+	QByteArray nonce;
+	QByteArray sealed;
 };
 
-struct VaultReading {
+struct DeviceKeyring {
+	VaultWrap wrap;
+	std::vector<DeviceKeyringEntry> entries;
+};
+
+struct KeyringReading {
 	enum class State {
 		Absent,
 		Broken,
@@ -94,11 +111,10 @@ struct VaultReading {
 	};
 
 	State state = State::Absent;
-	VaultHeader header;
-	bool dirty = false;
+	DeviceKeyring keyring;
 };
 
-// Never serialized - the header carries the VaultWrap alone - and an armed
+// Never serialized - the keyring carries the VaultWrap alone - and an armed
 // one is retired by VaultRuntime's clear() on localPasscodeChanged().
 struct VaultPreparedWrap {
 	VaultWrap wrap;
@@ -110,21 +126,16 @@ struct VaultSecretRecord {
 	SecureBytes bytes;
 };
 
-enum class VaultTransitionResult {
-	Done,
-	Refused,
-	WriteFailed,
-	VerifyFailed,
+struct DeviceKeyringRotation {
+	DeviceKeyring keyring;
+	SecureBytes key;
 };
 
-// One user-confirmed logical operation's authorization: releasing the last
-// live grant cleanses the key unless the retention window is open. A grant
-// carries the clear count it was minted under, and a clear retires every
-// earlier grant - valid() is false, it is not counted and its release is a
-// no-op - so a flow's grant is inert after a clear wherever it travels. The
-// runtime's _grants tally therefore means "live grants minted since the last
-// clear", which keeps release()'s last-release cleanse and its exactly-once
-// contract without an assertion that a count zeroed by the clear could trip.
+// A grant belongs to one account and one logical operation. Clear removes all
+// grant ids, so old handles stay inert even after a later unlock. An install
+// rotation preserves only its owning id under the new epoch; keeping that
+// handle usable never revives the unrelated grants the rotation retired.
+// Releasing the last live grant cleanses D unless retention is still active.
 class VaultGrant final {
 public:
 	VaultGrant() = default;
@@ -136,91 +147,123 @@ public:
 
 private:
 	friend class VaultRuntime;
-	VaultGrant(std::shared_ptr<VaultRuntime> runtime, quint32 epoch);
+	VaultGrant(std::shared_ptr<VaultRuntime> runtime, uint64 id);
 
 	std::shared_ptr<VaultRuntime> _runtime;
-	quint32 _epoch = 0;
+	uint64 _id = 0;
 
 };
 
-// The unlocked state of one account's vault. The main-thread mutators and
-// the any-thread readers meet under one mutex that is never held across a
-// timer or rpl call; every key copy handed out is a SecureBytes the receiver
-// cleanses.
+// The domain's unlocked D, grants and retention share one mutex. Storage and
+// liveness queries run on main; key and epoch readers may run on any thread.
+// Timer and rpl operations stay outside the mutex. Keys handed to a host
+// operation are move-only SecureBytes; no unwrapped K is retained here.
+// Membership comes from actual record headers, independently of custody
+// metadata and of orphan entries left by a failed record write.
 class VaultRuntime final
 	: public std::enable_shared_from_this<VaultRuntime> {
 public:
-	VaultRuntime();
+	explicit VaultRuntime(Main::Domain &domain);
 	~VaultRuntime();
 
-	[[nodiscard]] VaultReading reading(Storage::Account &local);
-	[[nodiscard]] bool unlockOpen(Storage::Account &local);
+	[[nodiscard]] KeyringReading reading() const;
+	[[nodiscard]] bool unlockOpen();
+	void registerAccount(Main::Session &session);
+	void unregisterAccount(uint64 accountId);
+	void recordStored(
+		uint64 accountId,
+		const QString &storageKey,
+		const QByteArray &keyId);
+	void recordRemoved(uint64 accountId, const QString &storageKey);
+	[[nodiscard]] bool hasLiveEntries() const;
+	[[nodiscard]] bool hasLiveEntries(const DeviceKeyring &keyring) const;
+	[[nodiscard]] DeviceKeyring liveKeyring(DeviceKeyring keyring) const;
 
-	// A hardware provider's unwrap() answers with the vault key itself,
-	// which unlockOpen() above never takes: it derives it. This is the
-	// only way to install a key opened or derived elsewhere, and it is
-	// also the route for passcode bytes - the caller derives the wrap
-	// key and unwraps the vault key off the main thread, and installs
-	// that vault key here, instead of paying the derivation on the
-	// calling thread. Only the vault key belongs here: the wrap key
-	// exists to unwrap it, both are kVaultKeySize, and that size is the
-	// only shape checked below, so a caller that hands over the wrap key
-	// is accepted and leaves a vault whose records refuse to open. That
-	// answer arrives many main-thread turns after the ask, so a clear
-	// trigger can land inside the provider's prompt or inside the worker
-	// derivation; the caller reads the epoch before it asks and hands it
-	// back here, and a key opened before that clear is refused instead
-	// of quietly unlocking a vault the user has just locked.
+	// Async factor acquisition captures the epoch before it starts. The
+	// caller also checks that the current wrap is the one it opened before
+	// handing over D, never its same-sized wrap key. The runtime rejects a
+	// result whose clear happened while the provider or derivation ran.
 	[[nodiscard]] quint32 clearEpoch() const;
+	[[nodiscard]] bool current(uint64 accountId, quint32 epoch) const;
 	[[nodiscard]] bool unlockWith(SecureBytes key, quint32 epoch);
 
-	void arm(VaultPreparedWrap policy);
-	[[nodiscard]] VaultGrant grant();
+	[[nodiscard]] VaultGrant arm(uint64 accountId, VaultPreparedWrap policy);
+	[[nodiscard]] VaultGrant grant(uint64 accountId);
 	void setRetention(bool fifteenMinutes);
 	[[nodiscard]] bool retained() const;
 	[[nodiscard]] bool unlocked() const;
 	void clear();
 
+	[[nodiscard]] bool unusable() const;
+	void setUnusable(bool unusable);
+	[[nodiscard]] rpl::producer<> protectionChanges() const;
+	void notifyProtectionChanged(bool stillUnusable = false);
+
 	struct StoreAuthority {
 		std::optional<SecureBytes> key;
 		std::optional<VaultPreparedWrap> policy;
+		uint64 owner = 0;
 		quint32 epoch = 0;
 	};
-	[[nodiscard]] std::optional<SecureBytes> keyForRead();
-	[[nodiscard]] StoreAuthority authorityForStore();
+	[[nodiscard]] std::optional<SecureBytes> keyForRead(
+		uint64 accountId,
+		quint32 epoch);
+	[[nodiscard]] StoreAuthority authorityForStore(
+		uint64 accountId,
+		quint32 epoch);
 
-	// The store that creates the vault writes the header and the record on
-	// the main thread while the worker waits, so a clear trigger or the
-	// last grant's release can land inside that window. The created key is
-	// installed only while the authority's epoch is still current and the
-	// key would still have an owner; otherwise it is dropped and cleansed -
-	// the header is already on disk, so the next reveal unlocks through the
-	// box.
-	void adoptCreated(SecureBytes key, quint32 epoch);
+	// Called inside the serialized store after the ring commits, including
+	// when the subsequent record write fails. The new D belongs only to
+	// the still-valid installer; all other grants and retention are retired.
+	// A clear that already ended that ownership cannot be undone here.
+	[[nodiscard]] std::optional<quint32> adoptCommitted(
+		SecureBytes key,
+		quint32 epoch,
+		uint64 owner);
 
 private:
 	friend class VaultGrant;
-	void release(quint32 epoch);
+	struct AccountRecords {
+		base::weak_ptr<Main::Account> account;
+		base::flat_map<QString, QByteArray> records;
+	};
+	struct ArmedPolicy {
+		VaultPreparedWrap prepared;
+		base::weak_ptr<Main::Account> account;
+		uint64 accountId = 0;
+		uint64 owner = 0;
+	};
 
+	[[nodiscard]] bool grantValid(uint64 id) const;
+	[[nodiscard]] bool hasGrantLocked(uint64 accountId) const;
+	[[nodiscard]] bool entryLiveLocked(const DeviceKeyringEntry &entry) const;
+	void release(uint64 id);
+	void discard(std::optional<ArmedPolicy> policy);
+
+	const base::weak_ptr<Main::Domain> _domain;
 	mutable std::mutex _mutex;
+	base::flat_map<uint64, AccountRecords> _accounts;
+	base::flat_map<uint64, uint64> _grants;
 	std::optional<SecureBytes> _key;
-	std::optional<VaultPreparedWrap> _policy;
-	int _grants = 0;
+	std::optional<ArmedPolicy> _policy;
+	uint64 _nextGrantId = 0;
 	quint32 _clearEpoch = 0;
 	crl::time _retainUntil = 0;
+	bool _unusable = false;
 	base::Timer _retention;
+	rpl::event_stream<> _protectionChanges;
 	rpl::lifetime _lifetime;
 
 };
 
 [[nodiscard]] QString VaultSecretStorageKey(const QString &secretRef);
 
-[[nodiscard]] VaultReading ReadVaultHeader(Storage::Account &local);
-[[nodiscard]] VaultReading ReconcileVaultHeader(Storage::Account &local);
-[[nodiscard]] bool WriteVaultHeader(
-	Storage::Account &local,
-	const VaultHeader &header);
-[[nodiscard]] bool RemoveVaultHeader(Storage::Account &local);
+[[nodiscard]] KeyringReading ParseDeviceKeyring(const QByteArray &serialized);
+[[nodiscard]] QByteArray SerializeDeviceKeyring(const DeviceKeyring &keyring);
+[[nodiscard]] KeyringReading ReadDeviceKeyring(Storage::Domain &local);
+[[nodiscard]] bool WriteDeviceKeyring(
+	Storage::Domain &local,
+	const DeviceKeyring &keyring);
 
 [[nodiscard]] std::optional<VaultPreparedWrap> PrepareVaultPasscodeWrap(
 	const QByteArray &passcode);
@@ -243,116 +286,44 @@ private:
 	const VaultWrap &wrap,
 	const SecureBytes &wrapKey);
 
+[[nodiscard]] std::optional<DeviceKeyringEntry> SealDeviceKeyringEntry(
+	const SecureBytes &deviceKey,
+	const QByteArray &keyId,
+	uint64 accountId,
+	const SecureBytes &key);
+[[nodiscard]] std::optional<SecureBytes> OpenDeviceKeyringEntry(
+	const SecureBytes &deviceKey,
+	const DeviceKeyringEntry &entry);
+[[nodiscard]] std::optional<DeviceKeyringRotation> RotateDeviceKeyring(
+	const DeviceKeyring &current,
+	const SecureBytes &deviceKey,
+	const VaultPreparedWrap &next);
+
 [[nodiscard]] bool IsVaultRecord(const QByteArray &serialized);
+[[nodiscard]] std::optional<QByteArray> ReadVaultRecordKeyId(
+	const QByteArray &serialized);
 [[nodiscard]] QByteArray SealVaultRecord(
-	const SecureBytes &vaultKey,
+	const SecureBytes &key,
 	const QString &storageKey,
-	quint32 generation,
+	const QByteArray &keyId,
 	bool requireUserPresence,
 	bytes::const_span secret);
 [[nodiscard]] std::optional<VaultSecretRecord> OpenVaultRecord(
-	const SecureBytes &vaultKey,
+	const SecureBytes &key,
 	const QString &storageKey,
+	const QByteArray &keyId,
 	const QByteArray &serialized);
 
-// A wrap change mints a fresh vault key and re-seals every custody-named
-// record under it, so the retired wrap stops opening the data and not only
-// the header. The invariant every write boundary keeps: the header on disk
-// holds a wrap at its committed generation, and every custody-named record
-// holds an entry sealed under the key that wrap opens. Hence (i) an entry is
-// written under a key only after a wrap opening that key is on disk - write
-// A stages the new wrap beside the committed one and proves it, then each
-// record gains a second entry under the new key beside its old one; (ii)
-// committed moves only after every record carries an entry at the new
-// generation - write B, which keeps the retiring wrap beside the new one;
-// (iii) an entry outside the committed generation is removed only while
-// committed already points elsewhere - the strip after B; (iv) a wrap leaves
-// the header only after no record depends on it alone - write C, after the
-// strip. A crash anywhere leaves a header with a wrap outside its committed
-// generation, and the next reconciling read strips the records to that
-// generation and rewrites the header alone: a rollback before B, a completion
-// after it. While the custody store does not read, or while a custody-named
-// record carries no entry at the committed generation, the header stays dirty
-// and every read keeps using its committed wrap: the wrap such a record still
-// needs stays in the header until a repair, rather than being written away
-// with the record left unopenable. The commit half clears the runtime right
-// after write B, because the key it holds is the one just retired; an account
-// without a session has no runtime and passes nullptr. The commit half also
-// reads the raw header back before write B and refuses, writing nothing,
-// unless the disk still carries the staged wrap beside the unchanged committed
-// generation, and, while the custody store reads, asks the same records the
-// strip will ask, refusing when one carries no entry at the staged
-// generation - an unreadable store is let through to the settle, whose own
-// refusal keeps the wrap - so both halves of the rule hold by the
-// primitive's own checks when something reconciled between the halves.
-// The two halves are public so that a caller changing one passcode across
-// several stores can hold every vault staged while another store's write runs
-// and commit them only once it succeeded; TransitionVaultWrap is exactly
-// their composition.
-//
-// Refused writes nothing. Every stage failure leaves the caller header
-// unchanged: WriteFailed means sealing or a checked write failed, VerifyFailed
-// means read-back proof failed. A failure after write A attempts to strip the
-// new record entries and restore the prior header; failed rollback can leave
-// a staged header on disk, with the old committed wrap and records usable.
-// Done installs both wraps in the caller header at the old committed generation
-// after the new wrap and both entries of every re-sealed record are proved.
-[[nodiscard]] VaultTransitionResult StageVaultWrap(
-	Storage::Account &local,
-	VaultHeader &header,
-	const SecureBytes &vaultKey,
-	VaultPreparedWrap next);
-
-// Invalid input, a disk header without the same stage and committed
-// generation, or - while the custody store reads - a custody-named record
-// with no entry at the staged generation returns false before write B. A
-// failed checked write B also returns false; these exits leave the caller
-// header and runtime unchanged.
-// After B, committed has advanced while both wraps remain on disk, and the
-// runtime's retired key is cleared.
-// Stripping old record entries and writing C are best-effort: true means B
-// succeeded, even if the next reconciling read must finish that cleanup. The
-// caller header holds only the new wrap at the advanced generation either way.
-// ReadVaultHeader filters other generations in its copy; ReconcileVaultHeader
-// also tries to strip their record entries and persist the settled header,
-// leaving it dirty while custody is unreadable or cleanup fails.
-[[nodiscard]] bool CommitStagedVaultWrap(
-	Storage::Account &local,
-	VaultHeader &header,
-	VaultRuntime *runtime);
-
-// Composes StageVaultWrap and CommitStagedVaultWrap, forwarding stage failures
-// and reporting a failed commit as WriteFailed. That result does not promise
-// the pre-stage single-wrap caller header: a failed commit retains both wraps
-// at the old committed generation, with the old wrap still opening the records.
-[[nodiscard]] VaultTransitionResult TransitionVaultWrap(
-	Storage::Account &local,
-	VaultHeader &header,
-	const SecureBytes &vaultKey,
-	VaultPreparedWrap next,
-	VaultRuntime *runtime);
-
-// Pre-vault plain-layout records are development state: every custody record
-// whose secret value is not a vault record goes together with that value.
+// Records from previous development formats go together with their custody
+// metadata. The supported keyId record format is the only retained shape.
 // Returns the count dropped; the store is rewritten when it is not zero.
 int DropPreVaultCustody(Storage::Account &local, CustodyStore &store);
 
-// The one storage-level destruction of a wallet vault, and what it destroys
-// is not recoverable from anywhere: every secret the custody store names,
-// then the store itself, then the header. A store that cannot be read still
-// loses its header - a vault must never survive as a file nothing can open
-// again. A store that was read but could not be written emptied keeps it
-// instead: its records still name the vault, and without the header the
-// device would claim a key it holds nowhere, with nothing left to offer
-// another reset, while the kept header still fails to open and leads back
-// to one. The answer is about the checked custody write and the store's
-// readability alone: a false says leftovers remain, and whether the header
-// survived is for the caller to read. An already absent secret or header is
-// not a failure - removeWalletEngineValue() reports whether a mapping
-// existed, so those reach the log as counts and nothing more. The live
-// runtime is the caller's to clear before, so nothing seals a new record
-// under a key that is about to stop existing, and the session's cached
-// store is the caller's to settle after.
-[[nodiscard]] bool ResetVaultAndCustody(Storage::Account &local);
+// The confirmed domain reset removes every signed-in account's actual
+// secret records and custody metadata, then the ring and its credential.
+// The caller invalidates private authority and awaits every client stop
+// before invoking this synchronous storage step. Missing records are inert;
+// false reports a keyring file which could not be removed.
+[[nodiscard]] bool ResetVaultAndCustody(Main::Domain &domain);
 
 } // namespace Wallet

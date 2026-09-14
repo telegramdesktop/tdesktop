@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/auto_lock_box.h"
 #include "core/application.h"
 #include "core/core_settings.h"
-#include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "main/session/session_show.h"
@@ -37,7 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/passcode_strength_meter.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
-#include "wallet/wallet_content.h"
 #include "wallet/wallet_key_protection.h"
 #include "wallet/wallet_session.h"
 #include "wallet/wallet_vault.h"
@@ -55,7 +53,6 @@ namespace {
 
 using namespace Builder;
 
-constexpr auto kDisableReportCharacterTime = crl::time(60);
 constexpr auto kPasscodeSectionTimeout = 60 * crl::time(1000);
 constexpr auto kPasscodeCountdownTick = crl::time(1000);
 
@@ -220,10 +217,6 @@ void LeavePasscodeArea(
 [[nodiscard]] Storage::SetPasscodeResult RemovePasscode(
 		not_null<Window::SessionController*> controller,
 		Storage::PasscodeVerification verification) {
-	// The reconciliation that runs on the removal walk's last transition
-	// may already have dropped the passcode; that is the outcome this write
-	// exists to produce, and a redundant checked rewrite of key_data could
-	// only mis-report a disk error over a passcode that is already gone.
 	if (!Core::App().domain().local().hasPasscode()) {
 		return Storage::SetPasscodeResult::Success;
 	}
@@ -233,39 +226,6 @@ void LeavePasscodeArea(
 		Core::App().saveSettingsDelayed();
 	}
 	return result;
-}
-
-[[nodiscard]] QString DisableChangedReport(
-		const std::vector<base::weak_ptr<Main::Account>> &changed) {
-	auto names = QStringList();
-	auto unnamed = 0;
-	for (const auto &weak : changed) {
-		const auto account = weak.get();
-		const auto session = account ? account->maybeSession() : nullptr;
-		auto name = session ? session->user()->name().trimmed() : QString();
-		if (name.isEmpty()) {
-			++unnamed;
-		} else {
-			names.push_back(std::move(name));
-		}
-	}
-	if (names.empty()) {
-		return tr::lng_settings_passcode_disable_changed(
-			tr::now,
-			lt_count,
-			unnamed);
-	}
-	auto text = tr::lng_settings_passcode_disable_changed_named(
-		tr::now,
-		lt_accounts,
-		names.join(u", "_q));
-	if (unnamed) {
-		text += u" "_q + tr::lng_settings_passcode_disable_changed_unnamed(
-			tr::now,
-			lt_count,
-			unnamed);
-	}
-	return text;
 }
 
 // The passcode bytes the Check section accepted are consumed by the Manage
@@ -313,24 +273,6 @@ void WritePasscode(std::any *stepData, Wallet::SecureBytes bytes) {
 	return QByteArray(
 		reinterpret_cast<const char*>(bytes.span().data()),
 		bytes.size());
-}
-
-[[nodiscard]] rpl::producer<QString> WalletPasscodeDescription() {
-	const auto dependents = Wallet::CollectVaultDependents();
-	for (const auto &account : dependents.passcodeWrapped) {
-		const auto session = account->maybeSession();
-		if (!session) {
-			continue;
-		}
-		auto name = session->user()->name().trimmed();
-		if (name.isEmpty()) {
-			continue;
-		}
-		return tr::lng_passcode_wallet_about(
-			lt_account,
-			rpl::single(std::move(name)));
-	}
-	return tr::lng_passcode_wallet_about_unnamed();
 }
 
 } // namespace
@@ -478,7 +420,7 @@ void LocalPasscodeEnter::setupContent() {
 	const auto isCheck = (enterType() == EnterType::Check);
 	const auto isChange = (enterType() == EnterType::Change);
 	const auto walletDependent = isChange
-		&& !Wallet::CollectVaultDependents().passcodeWrapped.empty();
+		&& (Wallet::LiveKeyProtection() == Wallet::VaultKind::Passcode);
 
 	auto icon = CreateLottieIcon(
 		content,
@@ -536,7 +478,7 @@ void LocalPasscodeEnter::setupContent() {
 		Ui::AddSkip(content);
 		addDescription(tr::lng_passcode_about2());
 	} else {
-		addDescription(WalletPasscodeDescription());
+		addDescription(tr::lng_passcode_wallet_about_unnamed());
 	}
 
 	Ui::AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
@@ -646,11 +588,10 @@ void LocalPasscodeEnter::setupContent() {
 		}
 	};
 
-	// The write of a change, from the retained bytes to newText, moving every
-	// passcode-wrapped vault along with key_data. No vault is opened ahead of
-	// this as a gate: the batch opens every dependent with the retained bytes
-	// on the worker, and its apply refuses before any write when one did not
-	// open. Stale retained bytes go to Check before the batch is applied.
+	// The retained bytes open key_data and the shared Passcode wrap on the
+	// worker. The current live key map is rotated only after those inputs
+	// are revalidated, before either checked write starts. A passcode-only
+	// change under another wallet policy leaves the keyring untouched.
 	const auto applyChange = [=](const QString &newText) {
 		auto newUtf8 = newText.toUtf8();
 		const auto cleanse = gsl::finally([&] {
@@ -683,7 +624,7 @@ void LocalPasscodeEnter::setupContent() {
 				return;
 			case Result::CommitFailed:
 				controller->showToast(
-					tr::lng_wallet_protection_error(tr::now));
+					tr::lng_wallet_protection_passcode_changed_error(tr::now));
 				if (!weak || !weakController) {
 					return;
 				}
@@ -1020,7 +961,7 @@ private:
 	void showRemoval(Wallet::SecureBytes verified);
 	void confirmDisable();
 	void disableAfterRemoval(Wallet::KeyProtectionResult result);
-	void removeVerifiedAndLeave(Fn<void()> beforeFailureToast);
+	void removeVerifiedAndLeave();
 
 	rpl::variable<bool> _isBottomFillerShown;
 	rpl::event_stream<> _showBack;
@@ -1203,20 +1144,17 @@ void LocalPasscodeManage::setupContent() {
 
 void LocalPasscodeManage::disable() {
 	setBusy(true);
-	const auto dependents = Wallet::CollectVaultDependents();
-	if (Wallet::AnyVaultHoldsKey(dependents.passcodeWrapped)) {
+	if (Wallet::LiveKeyProtection() == Wallet::VaultKind::Passcode) {
 		checkVaultAndRemove();
 	} else {
 		confirmDisable();
 	}
 }
 
-// The retained bytes are revalidated against key_data on the worker before
-// the removal chooser takes them as verified and skips its gate: bytes gone
-// stale go to Check here, not after a removal whose final write could no
-// longer be proved. No vault is opened for this; the removal walk opens each
-// dependent vault itself before re-keying it, and a vault the bytes do not
-// open fails the walk there.
+// The retained bytes are revalidated on the worker before the chooser
+// receives them. It opens the shared Passcode wrap only when the chosen
+// policy needs to replace it. The final key_data removal derives and spends
+// a fresh verification after that one keyring write has completed.
 void LocalPasscodeManage::checkVaultAndRemove() {
 	auto utf8 = Utf8Copy(_passcode);
 	const auto cleanse = gsl::finally([&] {
@@ -1238,23 +1176,21 @@ void LocalPasscodeManage::checkVaultAndRemove() {
 }
 
 void LocalPasscodeManage::showRemoval(Wallet::SecureBytes verified) {
-	// Disable re-protects, it never drops a key: the box asks for the
-	// passcode unless verified already carries it, warns before losing an
-	// Open vault's launch lock and then names the wallets it will walk onto
-	// the chosen kind. Accounts can disappear at either prompt, so this weak
-	// seed is refreshed before the chooser freezes the list its eventual
-	// walk will use.
-	auto accounts = std::vector<base::weak_ptr<Main::Account>>();
-	{
-		const auto dependents = Wallet::CollectVaultDependents();
-		accounts.reserve(dependents.passcodeWrapped.size());
-		for (const auto &account : dependents.passcodeWrapped) {
-			accounts.push_back(base::make_weak(account));
-		}
-	}
-	if (accounts.empty()) {
+	if (Wallet::LiveKeyProtection() != Wallet::VaultKind::Passcode) {
 		confirmDisable();
 		return;
+	}
+	auto accounts = std::vector<base::weak_ptr<Main::Account>>();
+	auto &domain = controller()->session().domain();
+	auto &runtime = domain.walletKeyring();
+	const auto live = runtime.liveKeyring(runtime.reading().keyring);
+	for (const auto &[index, account] : domain.accounts()) {
+		const auto session = account->maybeSession();
+		if (session && ranges::any_of(live.entries, [&](const auto &entry) {
+			return entry.accountId == session->uniqueId();
+		})) {
+			accounts.push_back(base::make_weak(account.get()));
+		}
 	}
 	const auto weak = base::make_weak(this);
 	const auto weakController = base::make_weak(controller());
@@ -1272,67 +1208,25 @@ void LocalPasscodeManage::showRemoval(Wallet::SecureBytes verified) {
 	}, std::move(verified));
 }
 
-// The removal chooser keeps every key: its Keep row only turns off the
-// launch lock, and its walk changes one committed vault at a time. Failed
-// walks retain the passcode and report the transitions that did complete,
-// and so does a walk the user dismissed midway - its result still cancels,
-// and only the empty-changed guard below tells that case from every other
-// cancellation the chooser produces, all of which carry no account at all:
-// report()'s empty branch is the "nothing was written" error, which a
-// dismissal must never show.
-// A completed walk can remove the passcode only after a fresh scan finds no
-// dependent, including any account added after the chooser froze its list.
 void LocalPasscodeManage::disableAfterRemoval(
 		Wallet::KeyProtectionResult result) {
-	const auto weakController = base::make_weak(controller());
-	const auto report = [=, changed = result.changed] {
-		if (changed.empty()) {
-			weakController->showToast(tr::lng_wallet_protection_error(tr::now));
-			return;
-		}
-		const auto text = DisableChangedReport(changed);
-		weakController->showToast(Ui::Toast::Config{
-			.text = tr::marked(text),
-			.maxlines = 0,
-			.duration = Ui::Toast::kDefaultDuration
-				+ crl::time(text.size()) * kDisableReportCharacterTime,
-		});
-	};
 	if (result.cancelled) {
-		if (!result.changed.empty()) {
-			report();
-		}
 		setBusy(false);
 		return;
-	}
-	if (result.failed) {
-		// Each transition is complete by itself, so the wallets the walk
-		// did move keep their new kind while the passcode stays for the
-		// ones it did not.
-		report();
+	} else if (result.failed) {
+		controller()->showToast(tr::lng_wallet_protection_error(tr::now));
 		setBusy(false);
 		return;
 	} else if (result.kind == Wallet::VaultKind::Passcode) {
-		weakController->showToast(
+		controller()->showToast(
 			tr::lng_settings_passcode_disable_kept(tr::now));
 		setBusy(false);
 		return;
 	}
-	if (!Wallet::CollectVaultDependents().passcodeWrapped.empty()) {
-		weakController->showToast(
-			tr::lng_settings_passcode_disable_dependent(tr::now));
-		setBusy(false);
-		return;
-	}
-	removeVerifiedAndLeave(report);
+	removeVerifiedAndLeave();
 }
 
-void LocalPasscodeManage::removeVerifiedAndLeave(
-		Fn<void()> beforeFailureToast) {
-	// The reconciliation that runs on a removal walk's last transition, or a
-	// removal made elsewhere while the confirmation was open, may already have
-	// dropped the passcode - RemovePasscode() then answers Success with no
-	// write - and there is nothing left to prove for it.
+void LocalPasscodeManage::removeVerifiedAndLeave() {
 	if (!controller()->session().domain().local().hasPasscode()) {
 		leaveArea();
 		return;
@@ -1340,6 +1234,12 @@ void LocalPasscodeManage::removeVerifiedAndLeave(
 	const auto weak = base::make_weak(this);
 	const auto weakController = base::make_weak(controller());
 	mintVerification([=](Storage::PasscodeVerification verification) {
+		if (Wallet::LiveKeyProtection() == Wallet::VaultKind::Passcode) {
+			weakController->showToast(
+				tr::lng_settings_passcode_disable_dependent(tr::now));
+			setBusy(false);
+			return;
+		}
 		const auto result = RemovePasscode(controller(), verification);
 		if (!weak || !weakController) {
 			return;
@@ -1348,12 +1248,6 @@ void LocalPasscodeManage::removeVerifiedAndLeave(
 			writeRefused();
 			return;
 		} else if (result != Storage::SetPasscodeResult::Success) {
-			// After a removal walk the vaults have moved and the passcode has
-			// not: say what did change before reporting the write that failed,
-			// instead of ending silently on a screen that looks untouched.
-			if (beforeFailureToast) {
-				beforeFailureToast();
-			}
 			weakController->showToast(Lang::Hard::SecureSaveError());
 			setBusy(false);
 			return;
@@ -1370,8 +1264,7 @@ void LocalPasscodeManage::confirmDisable() {
 	// the wording the app-lock toggle already shows, composed with
 	// today's confirmation instead of given a key of its own. A vault
 	// that holds no key has nothing to cover, and nothing is said.
-	const auto warned = Wallet::AnyVaultHoldsKey(
-		Wallet::CollectVaultDependents().open)
+	const auto warned = (Wallet::LiveKeyProtection() == Wallet::VaultKind::Open)
 		&& controller()->session().domain().local().appLockEnabled();
 	auto text = [&]() -> rpl::producer<QString> {
 		if (!warned) {
@@ -1392,12 +1285,11 @@ void LocalPasscodeManage::confirmDisable() {
 				return;
 			}
 			const auto [needsRemoval, needsWarning] = [&] {
-				const auto dependents = Wallet::CollectVaultDependents();
+				const auto policy = Wallet::LiveKeyProtection();
 				const auto &local = weakController->session().domain().local();
 				return std::pair(
-					Wallet::AnyVaultHoldsKey(dependents.passcodeWrapped),
-					(Wallet::AnyVaultHoldsKey(dependents.open)
-						&& local.appLockEnabled()));
+					policy == Wallet::VaultKind::Passcode,
+					policy == Wallet::VaultKind::Open && local.appLockEnabled());
 			}();
 			close();
 			if (!weak || !weakController) {
@@ -1409,10 +1301,7 @@ void LocalPasscodeManage::confirmDisable() {
 				weak->confirmDisable();
 				return;
 			}
-			Wallet::DropKeylessPasscodeVaults();
-			if (weak) {
-				weak->removeVerifiedAndLeave(nullptr);
-			}
+			weak->removeVerifiedAndLeave();
 		},
 		.cancelled = [=](Fn<void()> close) {
 			close();
@@ -1494,7 +1383,7 @@ void BuildManageContent(
 		local.localPasscodeChanged(),
 		controller->session().wallet().keyProtectionUpdates())
 	) | rpl::map([] {
-		return !Wallet::CollectVaultDependents().passcodeWrapped.empty();
+		return (Wallet::LiveKeyProtection() == Wallet::VaultKind::Passcode);
 	});
 
 	builder.addSkip();
@@ -1592,9 +1481,9 @@ void BuildManageContent(
 				lockOn();
 				return;
 			}
-			const auto dependents = Wallet::CollectVaultDependents();
-			if (!Wallet::AnyVaultHoldsKey(dependents.open)) {
-				lockOff(Wallet::AnyVaultHoldsKey(dependents.passcodeWrapped));
+			const auto policy = Wallet::LiveKeyProtection();
+			if (policy != Wallet::VaultKind::Open) {
+				lockOff(policy == Wallet::VaultKind::Passcode);
 				return;
 			}
 			section->setBusy(true);

@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "export/export_settings.h"
 #include "wallet/wallet_unlock.h"
+#include "wallet/wallet_vault.h"
 #include "window/notifications_manager.h"
 #include "window/window_controller.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
@@ -58,7 +59,18 @@ Domain::Domain(const QString &dataName)
 	}, _lifetime);
 }
 
-Domain::~Domain() = default;
+Domain::~Domain() {
+	if (_walletKeyring) {
+		_walletKeyring->clear();
+	}
+}
+
+Wallet::VaultRuntime &Domain::walletKeyring() {
+	if (!_walletKeyring) {
+		_walletKeyring = std::make_shared<Wallet::VaultRuntime>(*this);
+	}
+	return *_walletKeyring;
+}
 
 bool Domain::started() const {
 	return !_accounts.empty();
@@ -110,6 +122,9 @@ bool Domain::tryPasscode(
 }
 
 void Domain::finish() {
+	if (_walletKeyring) {
+		_walletKeyring->clear();
+	}
 	_accountToActivate = -1;
 	_active.reset(nullptr);
 	base::take(_accounts);
@@ -148,6 +163,9 @@ int Domain::activeForStorage() const {
 }
 
 void Domain::resetWithForgottenPasscode() {
+	if (_walletKeyring) {
+		_walletKeyring->clear();
+	}
 	if (_accounts.empty()) {
 		_local->startFromScratch();
 		activateAfterStarting();
@@ -512,11 +530,10 @@ void Domain::removeRedundantAccounts() {
 		scheduleWriteAccounts();
 		_accountsChanges.fire({});
 	}
-	// An account whose vault was the last passcode-wrapped one may just have
-	// gone - its local().reset() already emptied its header - including one
-	// its own window keeps in the list. The last-logout case keeps its checked
-	// clear and retry route, and passcodeRemovalAuthorized() still answers
-	// true for it while that clear has not landed.
+	// Session teardown already removed the logged-out account's live keyring
+	// membership, including when its window keeps the account in the list.
+	// The last-logout case retains its checked clear and retry route, and
+	// passcodeRemovalAuthorized() stays true until that clear has landed.
 	if (!passcodeRemovalAuthorized()) {
 		Wallet::DropUnusedPasscode();
 	}

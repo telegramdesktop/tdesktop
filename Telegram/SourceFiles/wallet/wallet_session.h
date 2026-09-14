@@ -430,52 +430,28 @@ public:
 		const TransferWalletIdentity &identity) const;
 	[[nodiscard]] rpl::producer<> transferWalletIdentityChanges() const;
 	[[nodiscard]] bool revealsLocally();
-	[[nodiscard]] VaultRuntime &vault();
+	[[nodiscard]] VaultRuntime &vault() const;
 	[[nodiscard]] DeviceCustodyState deviceCustodyState() const;
 	[[nodiscard]] auto deviceCustodyStateValue() const
 		-> rpl::producer<DeviceCustodyState>;
 	[[nodiscard]] rpl::producer<> custodyUpdates() const;
 	[[nodiscard]] bool custodyBusy() const;
 
-	// Nothing else publishes a change of the vault header: custodyUpdates()
-	// fires only on a settled server state, and switching the wrap touches
-	// neither the custody store nor the app lock. The key protection box
-	// announces a committed wrap change here, so a surface that names the
-	// wrap's kind can follow it. Announcing also clears the per-process
-	// unusable flag below, because every caller but one has just committed a
-	// wrap this process produced, or is the forgot-passcode drop, which only
-	// ever reaches a passcode-wrapped vault - a kind that never sets that
-	// flag - and clears it itself before it announces. vaultKeyStillUnusable
-	// is for the one that has not - a confirmed reset that failed with the
-	// header it could not remove still on disk.
+	// Protection and unusable state belong to the whole domain. Every session
+	// observes the same event and updates only its already-cached device mode.
+	// Announcing a change neither opens D nor reads or writes custody, and
+	// never reconciles a passcode while an install is only armed. A failed
+	// reset can preserve unusable state when it announces its terminal result.
 	[[nodiscard]] rpl::producer<> keyProtectionUpdates() const;
 	void notifyKeyProtectionChanged(bool vaultKeyStillUnusable = false);
 
-	// The cached custody store and updateDeviceCustodyState() are private, so
-	// nothing outside this class can make the live session follow a device
-	// whose wallet keys have just been destroyed - and the device mode must
-	// follow that drop. DropVaultAndCustody() in wallet_unlock.cpp, the
-	// forgot-passcode path, is the only caller, and it owns the storage side:
-	// its ResetVaultAndCustody() has already taken that side as far as it
-	// could get - the sealed values, the emptied store, the header - which
-	// on either failure arm is not all of them and can leave the header
-	// standing, before this runs, which writes nothing and only drops the
-	// cached store so the session agrees with whatever the disk now holds.
-	// That path installs nothing afterwards, so the protection change is
-	// announced here at once; a restore over a vault this process cannot
-	// open resets through resetUnusableVault() and announces at its exit.
-	void dropCustodyAfterForgottenPasscode();
+	void resetCustodyAfterForgottenPasscode(Fn<void(CustodyResetResult)> done);
 
-	// Per-process: set when a hardware wrap cannot be opened in this process,
-	// by a provider's Absent, Unavailable or Corrupt answer or by a kind no
-	// provider claims. It lands the read-only modes without touching disk -
-	// the header, its ciphertext and the custody record all survive until a
-	// restore's confirmed reset deletes them - so a relaunch before that
-	// presents Full again and asks the provider afresh. A successful unwrap,
-	// a committed wrap change, the drop above and a reset that removed the
-	// header clear it; a reset that failed with the header still on disk
-	// leaves it set, because that header is still the one this process
-	// cannot open.
+	// The shared runtime marks all accounts read-only when the current live
+	// factor is Absent, Unavailable or Corrupt. This state never edits disk;
+	// the existing confirmed reset owns deletion. An authentication failure
+	// or cancellation does not set it, and a stale factor with no live entry
+	// cannot prevent a fresh install from choosing its own protection.
 	[[nodiscard]] bool vaultKeyUnusable() const;
 	void setVaultKeyUnusable(bool unusable);
 
@@ -699,10 +675,14 @@ private:
 	[[nodiscard]] const CustodyStore &custody();
 	[[nodiscard]] const CustodyRecord *currentRecord();
 	[[nodiscard]] bool persistCustody(const CustodyRecord &record);
-	void dropCreatedVault();
-	[[nodiscard]] CustodyResetResult resetUnusableVault(
+	void resetUnusableVault(
 		const QByteArray &expected,
-		const std::shared_ptr<CommentScope> &scope);
+		const std::shared_ptr<CommentScope> &scope,
+		Fn<void(CustodyResetResult)> done);
+	void resetDeviceCustody(
+		const std::shared_ptr<CommentScope> &scope,
+		Fn<bool()> current,
+		Fn<void(CustodyResetResult)> done);
 	[[nodiscard]] CustodyInstallRequest resettableInstallRequest(
 		QByteArray expected,
 		std::shared_ptr<CommentScope> scope,
@@ -727,7 +707,7 @@ private:
 		Fn<void(CustodyOutcome)> done,
 		Fn<void(const QString &)> fail);
 	void reconcileCustody();
-	void updateDeviceCustodyState();
+	void updateDeviceCustodyState(bool cachedOnly = false);
 	void syncEngineClient();
 	void stopEngineClientForReset(Fn<void()> done);
 	void removeCustodyRecord(const QString &recordId);
@@ -868,13 +848,12 @@ private:
 	rpl::variable<WalletCapabilities> _capabilities;
 	std::optional<CustodyStore> _custody;
 	bool _custodyReadFailed = false;
+	bool _custodyResetting = false;
 	bool _phraseRevealing = false;
 	bool _replacing = false;
 	bool _backupChanging = false;
-	bool _vaultKeyUnusable = false;
 	rpl::variable<DeviceCustodyState> _deviceCustody;
 	rpl::event_stream<> _custodyUpdates;
-	rpl::event_stream<> _keyProtectionUpdates;
 	QString _clientRecordId;
 	bool _clientStopping = false;
 	AccountStatus _engineStatus = AccountStatus::NonExisting;

@@ -17,15 +17,8 @@ class SessionShow;
 
 namespace Storage {
 class Account;
-class Domain;
-class PasscodeDerivation;
 class PasscodeVerification;
-enum class SetPasscodeResult : uchar;
 } // namespace Storage
-
-namespace Ui {
-class GenericBox;
-} // namespace Ui
 
 namespace Wallet {
 
@@ -80,7 +73,7 @@ struct ProtectionUnwrapResult {
 // against a key it invents itself.
 //
 // Only enroll(), unwrap() and remove() are new ground - nothing in lib_base
-// holds per-vault key material.
+// holds the device keyring's key material.
 class ProtectionProvider {
 public:
 	virtual ~ProtectionProvider() = default;
@@ -114,8 +107,8 @@ public:
 // Platform::start() precedes. Both run before any chooser can open. A
 // provider's kind must be defined in wallet_vault.cpp - named in
 // WrapIsWellFormed and in IsDefinedVaultKind, which is what lifts it out of
-// ParseVaultHeader's Unsupported verdict - in the same commit that registers
-// the provider, otherwise a header written under that kind afterwards reads
+// ParseDeviceKeyring's Unsupported verdict - in the same commit that registers
+// the provider, otherwise a keyring written under that kind afterwards reads
 // as Unsupported.
 void RegisterProtectionProvider(std::unique_ptr<ProtectionProvider> provider);
 
@@ -124,77 +117,49 @@ void RegisterProtectionProvider(std::unique_ptr<ProtectionProvider> provider);
 
 [[nodiscard]] ProtectionProvider *ProtectionProviderFor(VaultKind kind);
 
-// Install: the account has no vault yet and the box hands back an armed
-// creation policy. Switch: the key is on this device and the box moves one
-// vault from one kind to another. Removal: one choice is applied to every
-// dependent vault the chooser lists, as the local passcode goes away.
+// Install arms the first store's policy when no live secured ring exists.
+// Change applies to the whole device. Removal keeps the Passcode row's
+// wallet-only meaning while the app passcode is being disabled.
 enum class KeyProtectionMode {
 	Install,
-	Switch,
+	Change,
 	Removal,
 };
 
-// Move-only, because VaultGrant is. cancelled = true is the safe default, so
-// a caller that never hears back persists nothing. In Install, kind is the
-// armed policy's kind and grant scopes the store that consumes it; the policy
-// itself goes into the account's VaultRuntime through arm() and is
-// deliberately not duplicated here. changed lists the accounts a Removal
-// transitioned, in the order they were done, and is weak for the reason
-// KeyProtectionArgs::accounts below is: Main::Domain can free one between
-// the transition that recorded it and the caller that reads this. A freed
-// account leaves a null entry rather than no entry, so size() stays the
-// number of vaults the walk really moved, and a reader that wants the
-// account takes get() and skips null instead of dereferencing. cancelled
-// means the user dismissed the box rather than "nothing happened", so it may
-// come with a non-empty changed: a Removal dismissed while its walk was
-// between accounts reports the ones already moved and still cancels, because
-// the passcode stays and every account the walk did not reach keeps its
-// passcode wrap. Such a result reports kind as the kind those wallets were
-// moved onto, so it says the same thing about them as a completed or a
-// failed answer does.
+// Install carries the owner grant for its first store. A passcode created
+// by that chooser may have cleared the caller's epoch before arm(); only
+// that explicit creation's starting epoch is returned for a scoped handoff.
+// An unrelated clear invalidates the grant and cannot use this handoff.
 struct KeyProtectionResult {
 	bool cancelled = true;
 	bool failed = false;
 	VaultKind kind = VaultKind::Passcode;
 	VaultGrant grant;
-	std::vector<base::weak_ptr<Main::Account>> changed;
+	std::optional<quint32> passcodeCreatedFromEpoch;
 };
 
-// accounts is Removal-only: the initial seed is validated before the gate,
-// then refreshed after it and after any accepted exposure warning. The
-// displayed chooser freezes that weak list for its walk. Main::Domain can
-// free an account while the gate or chooser waits - removeRedundantAccounts()
-// runs whenever a session disappears. Every reader skips a gone account, so
-// raw pointers from an enumeration never outlive the receiving frame.
+// The weak account list supplies display names in Removal only.
 struct KeyProtectionArgs {
-	KeyProtectionMode mode = KeyProtectionMode::Switch;
+	KeyProtectionMode mode = KeyProtectionMode::Change;
 	std::vector<base::weak_ptr<Main::Account>> accounts;
-	// Switch only, for the custody installer that stores a restored or
-	// imported key right after this box: the result carries a grant for
-	// the vault as the box leaves it, so the store needs no second unlock,
-	// and the switch is not refused for the store's own custody operation,
-	// which is what holds custodyBusy() while this box is open.
-	bool grantForStore = false;
-	// Install only, set by the custody installer over a vault whose wrap
-	// this process cannot open: the account still carries that header while
-	// this box is open. Once the chosen protection is prepared the box asks
-	// the user to confirm deleting the stored key, and only on that
-	// confirmation calls this, once, before arming. true means the vault was
-	// reset and the box arms the prepared wrap; false means nothing is
-	// armed: the callee has already stated any failure, and the box disposes
-	// the prepared wrap and closes cancelled.
-	Fn<bool()> resetUnusableVault;
+	Fn<bool(quint32 previousEpoch, quint32 epoch)> passcodeCreated;
+	// Called only after confirmation. Completion waits for the whole domain
+	// reset; false closes without arming. The optional epoch identifies this
+	// chooser's deliberate passcode creation, already revalidated by it.
+	Fn<void(std::optional<quint32>, Fn<void(bool)>)> resetUnusableVault;
 	Fn<void(KeyProtectionResult)> done;
 };
 
-// verified are bytes the caller has already proved against key_data on the
-// worker, so the gate is skipped and the chooser opens with them; empty
-// means ask. Like the gate's own answer they prove no vault: the chooser
-// opens each vault where its key is needed.
+// Optional bytes already verified against key_data. Otherwise the chooser
+// acquires them lazily, only for a passcode choice or passcode change.
 void ShowKeyProtectionBox(
 	std::shared_ptr<Main::SessionShow> show,
 	KeyProtectionArgs args,
 	SecureBytes verified = SecureBytes());
+
+[[nodiscard]] bool CurrentVaultWrap(
+	const VaultRuntime &vault,
+	const VaultWrap &wrap);
 
 // Mints the proof a key_data write asks for from the bytes the caller holds,
 // with the derivation on the worker. The guard sits in front of the mint, so
@@ -208,92 +173,13 @@ void MintVerificationOnWorker(
 	const SecureBytes &passcode,
 	Fn<void(std::optional<Storage::PasscodeVerification>)> done);
 
-// Which accounts hold a vault whose committed wrap is of that kind. Three
-// invariants a reviewer must be able to check by reading the body: it goes
-// through ReadVaultHeader() alone, so it never writes and never opens a
-// vault; an account whose header does not read - Absent, Broken or
-// Unsupported - is in neither list, and neither is one committed to a
-// hardware kind; and the returned pointers are valid only for the frame
-// that receives them, because Main::Domain owns the accounts and one can be
-// logged out and dropped. Never keep these vectors in an rpl::variable, a
-// state struct or a lambda that outlives the call - re-enumerate instead.
-//
-// CountVaultWrapDependents walks the same headers through ReadVaultHeader()
-// alone and counts the accounts whose committed wrap is of the given wrap's
-// kind with byte-identical openSecret. It exists for a provider's remove():
-// Removal commits one prepared wrap - one credential - into every dependent
-// account, so a later per-account Switch away from that kind retires a wrap
-// other vaults still open with, and the provider must not delete what they
-// name. Unlike the collector it fails closed: a header this build cannot
-// read - Broken or Unsupported - counts as a dependent, because it may still
-// name the credential and a doubtful read must never delete; only Absent
-// counts nothing. The calling account has already committed away by the
-// time remove() runs, so it is never counted against itself; a wrap that no
-// header commits, an enrolled one the chooser never wrote, counts zero only
-// while every other header reads.
-struct VaultDependents {
-	std::vector<not_null<Main::Account*>> passcodeWrapped;
-	std::vector<not_null<Main::Account*>> open;
-};
+// Only entries named by actual records of signed-in accounts participate.
+// Stale entries and an empty keyring do not keep a passcode dependency alive.
+[[nodiscard]] std::optional<VaultKind> LiveKeyProtection();
 
-[[nodiscard]] VaultDependents CollectVaultDependents();
-[[nodiscard]] int CountVaultWrapDependents(const VaultWrap &wrap);
-
-// Whether the account's custody store names a key: a record or a pending
-// rotation. A committed vault can outlive every key it protects - an install
-// abandoned before its record was kept, or the last record removed - and such
-// a vault guards nothing, so nothing about losing a key is said for it. It
-// fails closed: a store that does not read, and a session whose custody flow
-// is still running between its store and its record, answer true.
-[[nodiscard]] bool VaultHoldsKey(not_null<Main::Account*> account);
-[[nodiscard]] bool AnyVaultHoldsKey(
-	const std::vector<not_null<Main::Account*>> &accounts);
-
-// Removes the header of every passcode-wrapped vault that holds no key, so a
-// passcode removal does not strand one under a passcode that no longer
-// exists: a later install over it would ask for that passcode. Each dropped
-// vault's session is notified once every header is gone.
-void DropKeylessPasscodeVaults();
-
-enum class VaultPasscodeChangeResult {
-	Done,
-	VaultFailed,
-	NeedsVerification,
-	PasscodeFailed,
-	CommitFailed,
-};
-
-// Prepare snapshots the current dependents on the main thread and owns all
-// typed bytes and key material. Move the job through Storage::DeriveOnWorker
-// for exactly one run(), which touches values only, then apply it once on the
-// main thread. apply consumes the batch and destroys its keys before returning;
-// its synchronous writer is invoked at most once and is never retained.
-class VaultPasscodeChange final {
-public:
-	[[nodiscard]] static std::optional<VaultPasscodeChange> Prepare(
-		const Storage::Domain &local,
-		SecureBytes oldPasscode,
-		const QByteArray &newPasscode);
-	VaultPasscodeChange(VaultPasscodeChange &&other) noexcept;
-	VaultPasscodeChange &operator=(VaultPasscodeChange &&other) noexcept;
-	~VaultPasscodeChange();
-
-	void run();
-	[[nodiscard]] VaultPasscodeChangeResult apply(
-		Fn<Storage::SetPasscodeResult(Storage::PasscodeDerivation)> writer);
-
-private:
-	struct Data;
-	explicit VaultPasscodeChange(std::unique_ptr<Data> data);
-
-	std::unique_ptr<Data> _data;
-
-};
-
-// Done and CommitFailed changed the passcode; CommitFailed also left a vault
-// still opening with the old one until its store settles. Stale: current no
-// longer opens key_data - the passcode was changed or removed elsewhere - and
-// nothing was written. VaultFailed and PasscodeFailed wrote nothing either.
+// CommitFailed changed key_data but could not replace the keyring. All old
+// grants remain cleared; the old factor can still open the persisted ring.
+// Other failures leave both stores unchanged.
 enum class LocalPasscodeChangeResult {
 	Done,
 	CommitFailed,
@@ -302,15 +188,11 @@ enum class LocalPasscodeChangeResult {
 	PasscodeFailed,
 };
 
-// Changes the local passcode from current, bytes the caller has proved
-// against key_data, to updated. Every passcode-wrapped vault moves onto the
-// new passcode in one VaultPasscodeChange batch; with none, a fresh key_data
-// wrap is written instead. The key_data proof is derived beside that work on
-// the worker and spent in the same main-thread callback that writes, which
-// keeps the app-lock role the file already has. done is called once on the
-// main thread - synchronously for a batch that cannot be prepared - and not
-// at all once guard is destroyed, including by the synchronous fan-out of the
-// write itself.
+// Derives the checked key_data inputs and, for live Passcode protection,
+// D and its new wrap on the worker. The main-thread commit revalidates the
+// factor and epoch, rotates the current live map, then writes key_data and
+// the ring synchronously. done is skipped if the guard was destroyed, but
+// that cannot interrupt a write pair which already committed key_data.
 void ChangeLocalPasscode(
 	not_null<QObject*> guard,
 	const SecureBytes &current,

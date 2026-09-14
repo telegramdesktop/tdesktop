@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <vector>
 
 namespace wallet_engine {
+struct SendResult;
 struct WalletClient;
 struct WalletClientConfig;
 struct WalletLifecycle;
@@ -182,8 +183,8 @@ private:
 // secrets and the send journal go through Storage::Account on the main
 // thread. Network operations and storage writes run through run(); only
 // local read operations may run through runLocal().
-// The protected secrets are sealed under the account's vault, whose unlocked
-// state (VaultRuntime) the Engine owns and the platform host consults.
+// Each secret has its own K in the domain keyring. Engines borrow the shared
+// VaultRuntime, which owns D, grants and retention for every signed-in account.
 // Every Engine method must be called on the main thread.
 class Engine final : public base::has_weak_ptr {
 public:
@@ -211,8 +212,7 @@ public:
 	[[nodiscard]] auto client() const
 		-> std::shared_ptr<wallet_engine::WalletClient>;
 
-	// The account's vault runtime: unlocked and armed on the main thread by
-	// the reveal flow, read on the worker by the platform host.
+	// The domain's runtime, shared with every other signed-in account.
 	[[nodiscard]] VaultRuntime &vault() const;
 
 	// Runs the blocking client shutdown on the worker and reports on main.
@@ -236,6 +236,9 @@ public:
 	void run(Job job, Done done, Fn<void(EngineError)> fail) {
 		Enqueue(_worker, Package(
 			base::make_weak(this),
+			_vault,
+			_accountId,
+			privateAccess(),
 			std::move(job),
 			std::move(done),
 			std::move(fail)));
@@ -245,6 +248,9 @@ public:
 	void runLocal(Job job, Done done, Fn<void(EngineError)> fail) {
 		Enqueue(_localWorker, Package(
 			base::make_weak(this),
+			_vault,
+			_accountId,
+			privateAccess(),
 			std::move(job),
 			std::move(done),
 			std::move(fail)));
@@ -259,6 +265,9 @@ public:
 	void runQuick(Job job, Done done, Fn<void(EngineError)> fail) {
 		crl::async(Package(
 			base::make_weak(this),
+			_vault,
+			_accountId,
+			privateAccess(),
 			std::move(job),
 			std::move(done),
 			std::move(fail)));
@@ -268,44 +277,94 @@ private:
 	class StatuslessHost;
 	class PlatformHost;
 	struct Worker;
+	struct PrivateAccess {
+		quint32 epoch = 0;
+		bool used = false;
+	};
+
+	[[nodiscard]] std::shared_ptr<PrivateAccess> privateAccess() const;
+	[[nodiscard]] static bool PrivateResultCurrent(
+		const VaultRuntime &vault,
+		uint64 accountId,
+		const PrivateAccess &access);
+	[[nodiscard]] static EngineError PrivateAccessError();
+	static thread_local PrivateAccess *_privateAccess;
 
 	static void Execute(
 		base::weak_ptr<Engine> weak,
+		const std::shared_ptr<PrivateAccess> &access,
 		FnMut<void()> job,
 		Fn<void(EngineError)> fail);
 
+	// A job starts under one clear epoch even while it waits in the queue.
+	// Only a protected host call marks it private, so ordinary refreshes keep
+	// their normal completion behavior. A private result is checked again on
+	// main before delivery; plaintext already produced on the worker cannot
+	// escape through a delayed success callback after lock or rotation.
+	// SendResult reports the completed submission and its already journaled
+	// signed message, not fresh private access. Preserve that fact so a clear
+	// while awaiting the provider cannot turn an accepted send into failure.
+	// This exception never bypasses the protected host's own access checks or
+	// authorizes delivery of a phrase, decrypted comment or prepared signature.
 	template <typename Job, typename Done>
 	[[nodiscard]] static FnMut<void()> Package(
 			base::weak_ptr<Engine> weak,
+			std::shared_ptr<VaultRuntime> vault,
+			uint64 accountId,
+			std::shared_ptr<PrivateAccess> access,
 			Job job,
 			Done done,
 			Fn<void(EngineError)> fail) {
 		auto wrapped = [
 			weak,
+			vault,
+			accountId,
+			access,
+			fail,
 			job = std::move(job),
 			done = std::move(done)
 		]() mutable {
 			if constexpr (std::is_void_v<std::invoke_result_t<Job>>) {
 				job();
-				crl::on_main(weak, [done = std::move(done)] {
-					done();
+				crl::on_main(weak, [
+					vault,
+					accountId,
+					access,
+					fail,
+					done = std::move(done)
+				] {
+					if (PrivateResultCurrent(*vault, accountId, *access)) {
+						done();
+					} else {
+						fail(PrivateAccessError());
+					}
 				});
 			} else {
 				auto result = job();
 				crl::on_main(weak, [
+					vault,
+					accountId,
+					access,
+					fail,
 					done = std::move(done),
 					result = std::move(result)
 				]() mutable {
-					done(std::move(result));
+					if (std::is_same_v<decltype(result), wallet_engine::SendResult>
+						|| PrivateResultCurrent(*vault, accountId, *access)) {
+						done(std::move(result));
+					} else {
+						fail(PrivateAccessError());
+					}
 				});
 			}
 		};
 		return [
 			weak,
+			access,
 			wrapped = std::move(wrapped),
 			fail = std::move(fail)
 		]() mutable {
-			Execute(weak, std::move(wrapped), std::move(fail));
+			Execute(weak, access, std::move(wrapped), std::move(fail));
 		};
 	}
 
@@ -315,6 +374,7 @@ private:
 	static void WorkerLoop(not_null<Worker*> worker);
 
 	const not_null<Main::Session*> _session;
+	const uint64 _accountId;
 	std::shared_ptr<StatuslessHost> _statuslessHost;
 	const std::shared_ptr<VaultRuntime> _vault;
 	std::shared_ptr<PlatformHost> _platformHost;
@@ -322,6 +382,7 @@ private:
 	std::shared_ptr<wallet_engine::WalletClient> _client;
 	std::unique_ptr<Worker> _worker;
 	std::unique_ptr<Worker> _localWorker;
+	rpl::lifetime _lifetime;
 
 };
 

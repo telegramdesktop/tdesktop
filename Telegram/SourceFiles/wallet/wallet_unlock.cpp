@@ -19,13 +19,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
-#include "storage/storage_account.h"
 #include "storage/storage_domain.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/button_busy.h"
 #include "ui/layers/generic_box.h"
-#include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/password_input.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "wallet/wallet_key_protection.h"
@@ -71,7 +70,7 @@ struct HardwareUnlockArgs {
 // later, possibly after this box or the whole panel is gone: such an answer
 // is dropped whole - no toast, no flag, no report - because the close has
 // already reported, and the sheet itself is system-owned and stays up until
-// the user answers it. Nothing on the header's write path runs off the main
+// the user answers it. Nothing on the keyring's write path runs off the main
 // thread: unlockWith() and grant() run inside the marshalled answer.
 void HardwareUnlockBox(
 		not_null<Ui::GenericBox*> box,
@@ -86,6 +85,7 @@ void HardwareUnlockBox(
 	const auto provider = args.provider;
 	const auto done = args.done;
 	const auto weak = base::make_weak(box);
+	const auto weakSession = base::make_weak(&show->session());
 	box->setTitle(provider->title());
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
@@ -118,14 +118,19 @@ void HardwareUnlockBox(
 		Ui::SetButtonBusy(state->submit.data(), busy);
 	};
 	const auto answered = [=](quint32 epoch, ProtectionUnwrapResult result) {
-		if (!show->valid() || !weak || state->reported) {
+		if (!weak || !weakSession || !show->valid() || state->reported) {
 			return;
 		}
 		setBusy(false);
 		auto &session = show->session();
 		auto &vault = session.wallet().vault();
+		if (!vault.current(session.uniqueId(), epoch)
+			|| !CurrentVaultWrap(vault, args.wrap)) {
+			report(nullptr);
+			return;
+		}
 		const auto error = (result.error == ProtectionError::None
-			&& !result.key)
+			&& (!result.key || result.key->size() != kVaultKeySize))
 			? ProtectionError::Corrupt
 			: result.error;
 		switch (error) {
@@ -156,13 +161,17 @@ void HardwareUnlockBox(
 		}
 		session.wallet().setVaultKeyUnusable(false);
 		vault.setRetention(remember->checked());
-		report(Share(vault.grant()));
+		report(Share(vault.grant(session.uniqueId())));
 	};
 	const auto submit = [=] {
-		if (state->busy) {
+		if (state->busy || !weakSession || !show->valid()) {
 			return;
 		}
 		auto &session = show->session();
+		if (!CurrentVaultWrap(session.wallet().vault(), args.wrap)) {
+			report(nullptr);
+			return;
+		}
 		// The provider answers many main-thread turns after the ask, so a
 		// clear trigger can land inside its prompt. The epoch is read here,
 		// before the ask, and the runtime refuses a key that was opened
@@ -211,33 +220,26 @@ void UnlockWithProvider(
 // going away is what cleanses it.
 void UnlockByKind(
 		std::shared_ptr<Main::SessionShow> show,
-		VaultReading reading,
-		bool ignoreRetention,
+		KeyringReading reading,
 		Fn<void(VaultAuthorization)> done) {
 	auto &session = show->session();
 	auto &vault = session.wallet().vault();
-	auto &local = session.local();
-	const auto wrap = reading.header.committedWrap();
-	Assert(wrap != nullptr);
+	const auto wrap = &reading.keyring.wrap;
 	// A wrap that reads but does not open is the same dead end a Broken
-	// header is, so it states the same line; a dismissed prompt states
+	// keyring is, so it states the same line; a dismissed prompt states
 	// nothing, because the user already knows what they answered.
 	const auto unavailable = [show, done] {
 		show->showToast(tr::lng_wallet_vault_unavailable(tr::now));
 		done(nullptr);
 	};
-	if (!ignoreRetention && vault.retained()) {
-		done(Share(vault.grant()));
+	if (vault.retained()) {
+		done(Share(vault.grant(session.uniqueId())));
 		return;
 	}
-	// A hardware kind is opened by the provider that registered it, through
-	// the retention box above its system sheet. One implementation serves two
-	// entries, AcquireVaultUnlock's Read case and MakeCustodyInstaller's, and
-	// the installer's ignoreRetention skips only the retained window above:
-	// the box offers its checkbox on that path too, as the passcode box does.
-	// A kind no provider claims - a header copied to a platform without one -
-	// cannot open in this process either, so it flags the session the way a
-	// provider's failed answer does and the restore can replace it.
+	// The shared retention window is checked before either protected kind.
+	// Provider failures apply to the one live authority, so every account
+	// becomes read-only together. A no-live installer bypasses this path
+	// and never asks a stale factor to authorize its fresh keyring.
 	if (quint32(wrap->kind) >= kFirstReservedVaultKind) {
 		const auto provider = ProtectionProviderFor(wrap->kind);
 		if (!provider) {
@@ -247,8 +249,8 @@ void UnlockByKind(
 		}
 		UnlockWithProvider(show, provider, *wrap, done);
 	} else if (wrap->kind == VaultKind::Open) {
-		if (vault.unlockOpen(local)) {
-			done(Share(vault.grant()));
+		if (vault.unlockOpen()) {
+			done(Share(vault.grant(session.uniqueId())));
 		} else {
 			unavailable();
 		}
@@ -274,22 +276,18 @@ void UnlockByKind(
 
 // The vault wrap the typed passcode has to open, read on the main thread for
 // the job that derives against it. It serves the Vault check alone, which
-// UnlockByKind shows only over a header committed to a passcode wrap; a
-// header that stopped reading or moved to another kind while the box was
+// UnlockByKind shows only over a keyring with a passcode wrap; a
+// keyring that stopped reading or moved to another kind while the box was
 // open yields no wrap here, so the job opens no vault key. The derived wrap
 // key dies in the job.
 [[nodiscard]] std::optional<VaultWrap> CommittedPasscodeWrap(
-		Storage::Account &local,
 		VaultRuntime &vault) {
-	const auto reading = vault.reading(local);
-	if (reading.state != VaultReading::State::Read) {
+	const auto reading = vault.reading();
+	if (reading.state != KeyringReading::State::Read
+		|| reading.keyring.wrap.kind != VaultKind::Passcode) {
 		return std::nullopt;
 	}
-	const auto wrap = reading.header.committedWrap();
-	if (!wrap || wrap->kind != VaultKind::Passcode) {
-		return std::nullopt;
-	}
-	return *wrap;
+	return reading.keyring.wrap;
 }
 
 // The memory-hard part of the gate, cut out as one worker job for either
@@ -336,25 +334,17 @@ void GateDerivation::run() {
 	}
 }
 
-// What the forgot-passcode confirmation says about every wallet this device
-// would lose. The restorability of one is the model the logout confirmation
-// already states: WalletLossOnLogout() reads the custody store, the served
-// public key and the backup capability, unlocking nothing and writing
-// nothing. An empty loss is two different things - every record is backed, or
-// there is no record at all - so the backup claim is made only against a
-// store that holds records, which is what the model's holdsRecords carries,
-// and an account holding none contributes nothing. That fact travels on the
-// loss instead of being read again, so the store is read exactly once per
-// dependent account and the model, not a second read, is what tells the two
-// empty losses apart. A wallet is named only when its account has a live
-// session to name it from - an unauthorized account in
-// Main::Domain::accounts() has none, and inventing a name for it would be a
-// guess about which key is about to go.
+// The shared policy applies to every signed-in wallet. This read-only
+// display uses the existing logout-loss model for names and backup warnings;
+// it does not open factors or decide liveness. A custody store with no
+// records contributes no paragraph, so absence is never a backup claim.
 [[nodiscard]] QString ForgottenPasscodeAbout() {
 	auto result = tr::lng_wallet_passcode_forgot_about(tr::now);
-	const auto dependents = CollectVaultDependents();
-	for (const auto &account : dependents.passcodeWrapped) {
-		const auto loss = WalletLossOnLogout(account);
+	for (const auto &[index, account] : Core::App().domain().accounts()) {
+		if (!account->sessionExists()) {
+			continue;
+		}
+		const auto loss = WalletLossOnLogout(account.get());
 		auto paragraph = ForgottenPasscodeLoss(loss);
 		if (paragraph.isEmpty()) {
 			if (!loss.holdsRecords) {
@@ -371,83 +361,22 @@ void GateDerivation::run() {
 	return result;
 }
 
-// The forgot-passcode path's use of the shared reset. The live session's
-// cached key goes first, so nothing can seal a new record under a key that
-// is about to stop existing; ResetVaultAndCustody() then destroys what it
-// can reach of the vault on disk, which is not always the header - a store
-// it could not empty keeps it; and the session is made to agree with the
-// disk at once - this path installs nothing afterwards, so its notify
-// funnel runs right here. The answer is the reset's: a false says
-// leftovers remain without saying whether the header is one of them, so
-// the caller decides the passcode's fate by looking at the vaults
-// themselves.
-[[nodiscard]] bool DropVaultAndCustody(not_null<Main::Account*> account) {
-	auto &local = account->local();
-	const auto session = account->maybeSession();
-	if (session) {
-		session->wallet().vault().clear();
-	}
-	const auto ok = ResetVaultAndCustody(local);
-	if (session) {
-		session->wallet().dropCustodyAfterForgottenPasscode();
-	}
-	return ok;
-}
-
-// The accounts come from CollectVaultDependents().passcodeWrapped and from
-// nothing else, re-enumerated here rather than carried over from the
-// confirmation: an Open vault, a hardware kind and a header that does not
-// read are absent from that list by construction, and an account listed
-// while the box was open can have been logged out since.
-//
-// The passcode goes last, and only when every one of those vaults is gone -
-// which is a second enumeration and not the cleanup's answer, because that
-// answer does not say whether a header survived: a store that could not be
-// read loses its header anyway, while one that was read but could not be
-// written emptied keeps it, and both report false. Re-reading the headers
-// is the only thing that tells those two disks apart, and treating the
-// boolean as the verdict would leave a passcode nobody remembers standing
-// over nothing it can open. The mirror order is the one that strands
-// a key: a header that could not be removed would stay sealed under that
-// passcode, and with the passcode already gone there would be no way left to
-// remove the header either. clearPasscodeAfterReset() writes without asking
-// for the passcode, safe here for the reason it is safe after a reset - the
-// entry point requires the app lock to be off, so once these stores are gone
-// the passcode guards nothing that could still be asked for - and its write
-// can still fail, so the state it leaves behind is read back before anything
-// claims it succeeded. No account is logged out.
 void DropForgottenPasscode(std::shared_ptr<Main::SessionShow> show) {
-	auto cleaned = true;
-	const auto dependents = CollectVaultDependents();
-	for (const auto &account : dependents.passcodeWrapped) {
-		if (!DropVaultAndCustody(account)) {
-			cleaned = false;
-		}
-	}
-	if (!CollectVaultDependents().passcodeWrapped.empty()) {
-		show->showToast(tr::lng_wallet_passcode_forgot_failed(tr::now));
+	if (!show->valid()) {
 		return;
 	}
-	auto &local = Core::App().domain().local();
-	// The passcode may already be gone: the last dependent's
-	// DropVaultAndCustody() reaches the notify funnel through
-	// dropCustodyAfterForgottenPasscode(), whose reconciliation drops it.
-	// A dependent without a session fires no notify, so the checked write
-	// below is still this function's own; one that fails is finished by the
-	// next start's reconciliation.
-	if (local.hasPasscode()) {
-		local.clearPasscodeAfterReset();
-		if (local.hasPasscode()) {
-			show->showToast(tr::lng_wallet_passcode_forgot_later(tr::now));
+	show->session().wallet().resetCustodyAfterForgottenPasscode([show](
+			CustodyResetResult result) {
+		if (result == CustodyResetResult::Refused || !show->valid()) {
+			return;
+		} else if (result == CustodyResetResult::Failed) {
+			show->showToast(tr::lng_wallet_passcode_forgot_failed(tr::now));
 			return;
 		}
-		Core::App().settings().setSystemUnlockEnabled(false);
-		Core::App().saveSettingsDelayed();
-		Core::App().localPasscodeChanged();
-	}
-	show->showToast(cleaned
-		? tr::lng_wallet_passcode_forgot_done(tr::now)
-		: tr::lng_wallet_passcode_forgot_leftovers(tr::now));
+		show->showToast(Core::App().domain().local().hasPasscode()
+			? tr::lng_wallet_passcode_forgot_later(tr::now)
+			: tr::lng_wallet_passcode_forgot_done(tr::now));
+	});
 }
 
 void ConfirmForgottenPasscode(
@@ -488,7 +417,7 @@ bool KeyAuthorization::valid() const {
 void AcquireVaultUnlock(VaultUnlockArgs args) {
 	Expects(args.show != nullptr);
 
-	using State = VaultReading::State;
+	using State = KeyringReading::State;
 	const auto show = args.show;
 	const auto mayInstall = args.mayInstall;
 	const auto done = std::move(args.done);
@@ -497,39 +426,32 @@ void AcquireVaultUnlock(VaultUnlockArgs args) {
 			done(std::move(result));
 		}
 	};
-	// The installer travels beside the grant for every header state a read
-	// was acquired for, not only for the one that has no vault: a store
-	// resolved through it re-routes by kind at store time, which is what
-	// keeps a passcode vault asked at install even when a retained window
-	// had already handed this flow a prompt-free read grant.
+	if (!show->valid()) {
+		answer({});
+		return;
+	}
+	const auto weakSession = base::make_weak(&show->session());
 	const auto acquired = [=](VaultAuthorization grant) {
-		if (!grant) {
+		if (!weakSession || !show->valid() || !grant) {
 			answer({});
 			return;
 		}
 		auto result = KeyAuthorization{ .grant = std::move(grant) };
 		if (mayInstall) {
-			result.install = MakeCustodyInstaller(show);
+			result.install = MakeCustodyInstaller(show, result.grant);
 		}
 		answer(std::move(result));
 	};
 	auto &session = show->session();
-	auto reading = session.wallet().vault().reading(session.local());
+	auto &vault = session.wallet().vault();
+	auto reading = vault.reading();
+	if (mayInstall && (!vault.hasLiveEntries() || vault.unusable())) {
+		answer(KeyAuthorization{ .install = MakeCustodyInstaller(show) });
+		return;
+	}
 	switch (reading.state) {
 	case State::Read:
-		// A key that could not be opened in this process is not asked again:
-		// the flow carries the installer alone, as it does over an absent
-		// header, and the consented restore that reaches it resets the vault
-		// only after the user explicitly confirms deleting the stored key; a
-		// cancellation before that leaves the old ciphertext in place. A
-		// relaunch asks the provider afresh.
-		if (mayInstall && session.wallet().vaultKeyUnusable()) {
-			answer(KeyAuthorization{
-				.install = MakeCustodyInstaller(show),
-			});
-			return;
-		}
-		UnlockByKind(show, std::move(reading), false, acquired);
+		UnlockByKind(show, std::move(reading), acquired);
 		return;
 	case State::Absent:
 		if (mayInstall) {
@@ -551,121 +473,85 @@ void AcquireVaultUnlock(VaultUnlockArgs args) {
 }
 
 CustodyInstaller MakeCustodyInstaller(
-		std::shared_ptr<Main::SessionShow> show) {
+		std::shared_ptr<Main::SessionShow> show,
+		VaultAuthorization authorization) {
 	Expects(show != nullptr);
 
-	// Only show and the caller's own callbacks are captured, so the ladder is
-	// safe to invoke long after the box that acquired it is gone. The header
-	// is re-read here because ShowKeyProtectionBox refuses Install over a
-	// vault that already reads, and because the state may have moved between
-	// the acquisition and the store.
-	return [show](CustodyInstallRequest request) {
-		using State = VaultReading::State;
-		const auto answer = [ready = std::move(request.ready)](
-				CustodyInstall install) {
-			if (ready) {
+	const auto weakSession = base::make_weak(&show->session());
+	return [show, weakSession, authorization](CustodyInstallRequest request) {
+		struct State {
+			Fn<void(CustodyInstall)> ready;
+			std::optional<CustodyInstall> pending;
+			bool resetting = false;
+		};
+		const auto state = std::make_shared<State>();
+		state->ready = std::move(request.ready);
+		const auto answer = [state](CustodyInstall install) {
+			if (state->resetting) {
+				state->pending = std::move(install);
+			} else if (auto ready = base::take(state->ready)) {
 				ready(std::move(install));
 			}
 		};
-		// Every arm below ends in a box or a toast, and a destroyed panel
-		// drops both silently, so an installer invoked after the wallet
-		// window is gone would never answer and would strand the flow's
-		// latch. Fail closed before anything is read.
-		if (!show->valid()) {
+		if (!weakSession || !show->valid()) {
 			answer({});
 			return;
 		}
-		auto &session = show->session();
-		auto reading = session.wallet().vault().reading(session.local());
-		const auto install = [=](Fn<bool()> reset) {
+		auto &vault = weakSession->wallet().vault();
+		auto reading = vault.reading();
+		const auto live = reading.state == KeyringReading::State::Read
+			&& vault.hasLiveEntries(reading.keyring);
+		const auto install = [=](
+				Fn<void(std::optional<quint32>, Fn<void(bool)>)> reset) {
 			ShowKeyProtectionBox(show, {
 				.mode = KeyProtectionMode::Install,
+				.passcodeCreated = request.passcodeCreated,
 				.resetUnusableVault = std::move(reset),
 				.done = [answer](KeyProtectionResult result) {
-					auto grant = (!result.cancelled && !result.failed)
-						? Share(std::move(result.grant))
-						: nullptr;
-					if (!grant) {
-						answer({});
-					} else {
-						answer({ .grant = std::move(grant), .created = true });
-					}
+					answer({
+						.grant = (!result.cancelled && !result.failed)
+							? Share(std::move(result.grant))
+							: nullptr,
+						.passcodeCreatedFromEpoch = result.passcodeCreatedFromEpoch,
+					});
 				},
 			});
 		};
-		switch (reading.state) {
-		case State::Absent:
+		if (!live) {
 			install(nullptr);
-			return;
-		case State::Read:
-			// A hardware wrap that could not be opened in this process only
-			// flags the session, and nothing is dropped before the consented
-			// restore or import that reaches this installer confirms it: the
-			// chooser prepares the new protection first and then asks the
-			// user to confirm deleting the stored key, and only on that
-			// confirmation does the session's reset remove the old vault,
-			// after checking again that the target and the flag still hold.
-			// A cancelled chooser, Open warning, provider prompt or
-			// confirmation leaves the old ciphertext openable on a later run
-			// where the factor works again; past the confirmation it is gone
-			// for good, and a failed store afterwards is retried through the
-			// backup or the recovery phrase. Without a reset the request
-			// cannot install here at all.
-			if (session.wallet().vaultKeyUnusable()) {
-				const auto reset = request.resetUnusableVault;
-				if (!reset) {
-					LOG(("Wallet Error: the custody installer was asked to "
-						"install over a vault this process cannot open, "
-						"without a reset."));
-					answer({});
-					return;
-				}
-				install([=] {
-					switch (reset()) {
-					case CustodyResetResult::Done:
-						return true;
-					case CustodyResetResult::Refused:
-						return false;
-					case CustodyResetResult::Failed:
-						if (show->valid()) {
-							show->showToast(
-								tr::lng_wallet_passcode_forgot_failed(tr::now));
-						}
-						return false;
-					}
-					Unexpected("Reset result in the custody installer.");
-				});
+		} else if (vault.unusable()) {
+			const auto reset = request.resetUnusableVault;
+			if (!reset) {
+				answer({});
 				return;
 			}
-			// A restored or imported key is about to be written, so the user
-			// confirms how it is protected here even over a vault that already
-			// reads: keeping the current kind unlocks it, and another kind
-			// switches the whole vault before the store. The box answers with
-			// the grant either way, so nothing is asked a second time.
-			ShowKeyProtectionBox(show, {
-				.mode = KeyProtectionMode::Switch,
-				.grantForStore = true,
-				.done = [answer](KeyProtectionResult result) {
-					auto grant = (!result.cancelled
-						&& !result.failed
-						&& result.grant.valid())
-						? Share(std::move(result.grant))
-						: nullptr;
-					if (!grant) {
-						answer({});
-					} else {
-						answer({ .grant = std::move(grant) });
+			install([=](
+					std::optional<quint32> createdFromEpoch,
+					Fn<void(bool)> done) {
+				state->resetting = true;
+				reset(createdFromEpoch, [=](CustodyResetResult result) {
+					if (result == CustodyResetResult::Failed
+						&& weakSession && show->valid()) {
+						show->showToast(
+							tr::lng_wallet_passcode_forgot_failed(tr::now));
 					}
-				},
+					done(result == CustodyResetResult::Done);
+					state->resetting = false;
+					if (auto pending = base::take(state->pending)) {
+						answer(std::move(*pending));
+					}
+				});
 			});
-			return;
-		case State::Broken:
-		case State::Unsupported:
-			show->showToast(tr::lng_wallet_vault_unavailable(tr::now));
-			answer({});
-			return;
+		} else if (reading.keyring.wrap.kind == VaultKind::Open) {
+			install(nullptr);
+		} else if (authorization && authorization->valid()) {
+			answer({ .grant = authorization });
+		} else {
+			UnlockByKind(show, std::move(reading), [answer](
+					VaultAuthorization grant) {
+				answer({ .grant = std::move(grant) });
+			});
 		}
-		Unexpected("Vault reading state in the custody installer.");
 	};
 }
 
@@ -679,7 +565,7 @@ void DropUnusedPasscode() {
 	auto &local = Core::App().domain().local();
 	if (!local.hasPasscode()
 		|| local.appLockEnabled()
-		|| !CollectVaultDependents().passcodeWrapped.empty()) {
+		|| LiveKeyProtection() == VaultKind::Passcode) {
 		return;
 	}
 	local.clearPasscodeAfterReset();
@@ -706,6 +592,7 @@ void WalletPasscodeBox(
 		QPointer<Ui::RoundButton> submit;
 	};
 	const auto state = box->lifetime().make_state<State>();
+	const auto weakSession = base::make_weak(&args.show->session());
 	box->setStyle(st::walletPillBox);
 	box->setNoContentMargin(true);
 	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
@@ -754,10 +641,10 @@ void WalletPasscodeBox(
 	error->hide();
 	// The link is bound to the Vault check alone, because that is the one
 	// check meaning "this device holds a key it cannot open without the
-	// passcode". KeyData gates the protection chooser, which the user can
-	// simply cancel, where dropping a vault from inside the box would race
-	// the caller's continuation. Verified app-lock-off proves this local key
-	// can open without a passcode; otherwise the link would offer removal of
+	// passcode". KeyData verifies a passcode choice or passcode change;
+	// dropping custody from inside that gate would race its continuation.
+	// Verified app-lock-off proves this local key can open without a passcode;
+	// otherwise the link would offer removal of
 	// a launch-lock passcode nobody had to prove anything for.
 	const auto forgot = (args.check == WalletPasscodeCheck::Vault
 		&& !args.show->session().domain().local().appLockEnabled())
@@ -779,9 +666,10 @@ void WalletPasscodeBox(
 			});
 		});
 	}
-	// Opening the protection chooser must never leave a vault unlocked or
-	// retained behind it, so that check offers no retention and mints no
-	// grant: it answers with the typed passcode alone.
+	// A KeyData check proves only the typed bytes, so it offers no retention
+	// and mints no grant. Opening D remains a distinct check against its
+	// own wrap, even when the chooser can use those bytes without another
+	// prompt. Only the Vault check offers device-wide retention.
 	const auto retain = (args.check != WalletPasscodeCheck::KeyData);
 	const auto remember = retain
 		? box->addRow(
@@ -817,7 +705,7 @@ void WalletPasscodeBox(
 		}
 	};
 	const auto submit = [=] {
-		if (state->busy) {
+		if (state->busy || !weakSession || !args.show->valid()) {
 			return;
 		} else if (!passcodeCanTry()) {
 			showError(tr::lng_flood_error(tr::now));
@@ -836,7 +724,7 @@ void WalletPasscodeBox(
 			.passcode = SecureBytes(utf8),
 		};
 		if (args.check == WalletPasscodeCheck::Vault) {
-			job.vaultWrap = CommittedPasscodeWrap(session.local(), vault);
+			job.vaultWrap = CommittedPasscodeWrap(vault);
 		} else {
 			job.keyData = session.domain().local().prepareOpen(utf8);
 		}
@@ -844,20 +732,29 @@ void WalletPasscodeBox(
 		setBusy(true);
 		Storage::DeriveOnWorker(std::move(job), crl::guard(box, [=](
 				GateDerivation &&job) {
+			if (!weakSession || !args.show->valid() || state->reported) {
+				return;
+			}
 			setBusy(false);
 			auto &session = args.show->session();
 			auto &vault = session.wallet().vault();
 			auto ok = false;
-			auto refused = false;
+			auto refused = (vault.clearEpoch() != epoch);
 			switch (args.check) {
 			case WalletPasscodeCheck::Vault:
-				refused = job.vaultKey
-					&& !vault.unlockWith(std::move(*job.vaultKey), epoch);
-				ok = job.vaultKey && !refused;
+				refused = refused
+					|| !vault.current(session.uniqueId(), epoch)
+					|| !job.vaultWrap
+					|| !CurrentVaultWrap(vault, *job.vaultWrap);
+				if (!refused && job.vaultKey) {
+					ok = vault.unlockWith(std::move(*job.vaultKey), epoch);
+					refused = !ok;
+				}
 				break;
 			case WalletPasscodeCheck::KeyData:
-				ok = session.domain().local().checkPasscode(
-					std::move(*job.keyData));
+				ok = !refused && job.keyData
+					&& session.domain().local().checkPasscode(
+						std::move(*job.keyData));
 				break;
 			}
 			if (refused) {
@@ -879,7 +776,7 @@ void WalletPasscodeBox(
 			auto gate = WalletPasscodeGate();
 			if (retain) {
 				vault.setRetention(remember->checked());
-				gate.grant = vault.grant();
+				gate.grant = vault.grant(session.uniqueId());
 			} else {
 				gate.passcode = std::move(job.passcode);
 			}

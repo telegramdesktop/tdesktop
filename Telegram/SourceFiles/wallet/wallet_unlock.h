@@ -25,21 +25,19 @@ namespace Wallet {
 // grant for a flow that spans several session calls.
 using VaultAuthorization = std::shared_ptr<VaultGrant>;
 
-// What the install ladder answers a CustodyInstallRequest's ready with.
-// created is true when the account had no vault and the store that follows
-// is the one creating it, which is what lets a failed store drop the header
-// again.
+// The creation handoff identifies only this install's deliberate key_data
+// change. Its still-valid owner grant proves no later clear intervened.
+// A caller may restamp its unchanged scope from that starting epoch, never
+// revive a cancelled scope or skip its identity and record checks.
 struct CustodyInstall {
 	VaultAuthorization grant;
-	bool created = false;
+	std::optional<quint32> passcodeCreatedFromEpoch;
 };
 
-// What a store that ran the custody-install ladder actually did. Cancelled
-// is the dismissed protection chooser: it stored nothing and has nothing to
-// state. WriteFailed is a custody write that did not reach disk after a
-// successful import - the same arm deletes the stored secret and drops a
-// header this store created - and it is stated, because nothing the user
-// did caused it.
+// A cancelled installer writes nothing. WriteFailed means the imported
+// record could not be kept; cleanup removes only that flow's own secrets.
+// A committed shared keyring survives every install failure, including a
+// failure of the record write that follows its keyring write.
 enum class CustodyOutcome {
 	Installed,
 	Cancelled,
@@ -52,22 +50,15 @@ enum class CustodyResetResult {
 	Failed,
 };
 
-// What the session hands the install ladder. ready is answered exactly
-// once, and an empty answer is a cancellation: the session stores nothing.
-// resetUnusableVault is supplied by a restore or an import that may run
-// over a vault this process cannot open (Session::vaultKeyUnusable()), and
-// it is the one authority for destroying that vault: called after the user
-// has confirmed the deletion, it re-resolves the session, re-verifies the
-// target identity, rereads the header and the flag, invalidates the runtime
-// and resets that account's vault together with the custody secrets it
-// names. Done means the vault is gone and the ordinary absent-vault install
-// may arm; Refused means there is nothing to reset any more or the target
-// has moved, and is silent by contract; Failed means required reset work
-// did not reach disk. An installer over a header that reads refuses when
-// the request carries no reset.
+// A confirmed reset revalidates the initiating flow, clears shared private
+// authority, waits for every signed-in client to stop and removes every
+// account's secrets and custody metadata plus the ring. The ready answer is
+// deferred across that reset even if the chooser closes, so the flow settles
+// and reconciles its passcode only at the true terminal boundary.
 struct CustodyInstallRequest {
 	Fn<void(CustodyInstall)> ready;
-	Fn<CustodyResetResult()> resetUnusableVault;
+	Fn<bool(quint32 previousEpoch, quint32 epoch)> passcodeCreated;
+	Fn<void(std::optional<quint32>, Fn<void(CustodyResetResult)>)> resetUnusableVault;
 };
 
 // The ladder itself, invoked by the session after the words are in hand and
@@ -96,37 +87,22 @@ struct VaultUnlockArgs {
 void AcquireVaultUnlock(VaultUnlockArgs args);
 
 [[nodiscard]] CustodyInstaller MakeCustodyInstaller(
-	std::shared_ptr<Main::SessionShow> show);
+	std::shared_ptr<Main::SessionShow> show,
+	VaultAuthorization authorization = nullptr);
 
 [[nodiscard]] QString VaultLockedText(not_null<Main::Session*> session);
 
-// The one enforcement point of "a passcode exists only while it protects
-// something": drops the passcode when, at the moment of acting,
-// hasPasscode() is true, appLockEnabled() is false and no signed-in
-// account's vault is passcode-wrapped. The removal is
-// Storage::Domain::clearPasscodeAfterReset(), which asks for no proof and
-// is safe exactly because !appLockEnabled() is the verified reading: the
-// committed open wrap was proved to open the local key, so nothing openable
-// is lost. That write is checked; hasPasscode() is read back before the
-// settings and Application::localPasscodeChanged() follow-ups run, and a
-// failed write is simply tried again by the next site. Eligibility is never
-// carried from an earlier frame. Called from exactly three places - the end
-// of Wallet::Session::notifyKeyProtectionChanged(),
-// Main::Domain::removeRedundantAccounts() and Main::Domain::startWith() -
-// and never from a localPasscodeChanged() subscriber: a wallet-only
-// passcode is created in its role in one step, while the vault that will
-// depend on it is only armed afterwards and sealed later by the engine
-// store, so a subscriber acting on that step's notification would delete
-// the passcode before any vault depends on it. The restore that resets a
-// vault this process cannot open defers this reconciliation to the
-// install's terminal exit for the same reason.
+// The app lock and the shared live Passcode policy are the only dependencies.
+// Reconciliation runs at startup, logout and completed protection/install
+// operations. It never runs from localPasscodeChanged: a wallet-only passcode
+// can be created before its chooser arms the first store that will use it.
 void DropUnusedPasscode();
 
 // Vault: the typed passcode must open the vault's own passcode wrap.
 // KeyData: the typed bytes are verified against key_data only and answered
 // as scoped SecureBytes, while no vault is opened, no grant is minted,
 // nothing is armed and nothing is retained; whoever takes the bytes opens
-// each vault where its key is actually needed.
+// D only when the selected operation needs it.
 enum class WalletPasscodeCheck {
 	Vault,
 	KeyData,

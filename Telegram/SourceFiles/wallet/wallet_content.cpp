@@ -497,6 +497,16 @@ CustodyInstaller CommentKeyContext::installer() {
 			self->cancel();
 			return;
 		}
+		request.passcodeCreated = [
+			self,
+			created = std::move(request.passcodeCreated)
+		](quint32 previousEpoch, quint32 epoch) {
+			if (!created || !created(previousEpoch, epoch) || !self->valid()) {
+				return false;
+			}
+			self->acceptClosed();
+			return true;
+		};
 		request.ready = [=, ready = std::move(request.ready)](
 				CustodyInstall result) {
 			self->acceptClosed();
@@ -10879,7 +10889,7 @@ void FillMenu(
 			[=] {
 				ShowKeyProtectionBox(
 					show,
-					{ .mode = KeyProtectionMode::Switch });
+					{ .mode = KeyProtectionMode::Change });
 			},
 			&st::menuIconLock);
 	}

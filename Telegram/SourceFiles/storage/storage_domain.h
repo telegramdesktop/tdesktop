@@ -22,6 +22,7 @@ namespace Storage {
 
 struct PasscodeWrap;
 struct KeyData;
+struct WalletEngineValue;
 
 // The memory-hard step of a passcode check or change, cut out of Domain as a
 // value so that it can run on a worker. It holds copies only - the wrap the
@@ -132,6 +133,10 @@ public:
 		std::unique_ptr<MTP::Config> config);
 	void writeAccounts();
 	void startFromScratch();
+
+	[[nodiscard]] WalletEngineValue readWalletKeyring() const;
+	[[nodiscard]] bool writeWalletKeyring(const QByteArray &bytes) const;
+	[[nodiscard]] bool removeWalletKeyring();
 
 	[[nodiscard]] PasscodeDerivation prepareOpen(
 		const QByteArray &passcode) const;

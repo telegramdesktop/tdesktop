@@ -9,12 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/application.h"
 #include "gram/api/gram_api_request.h"
+#include "main/main_account.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "storage/serialize_common.h"
 #include "storage/storage_account.h"
 #include "storage/storage_domain.h"
 #include "wallet/wallet_api.h"
+#include "wallet/wallet_key_protection.h"
 #include "wallet/wallet_vault.h"
 
 #include "wallet_engine.hpp"
@@ -28,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <deque>
 #include <mutex>
 #include <thread>
+#include <utility>
 
 namespace Wallet {
 namespace {
@@ -193,130 +196,188 @@ template <typename Kind>
 }
 
 struct StoreInput {
-	VaultRuntime::StoreAuthority authority;
 	SecureBytes secret;
+	quint32 epoch = 0;
 	bool requireUserPresence = false;
 };
 
 struct StoreOutcome {
+	std::optional<engine::ProtectedSecretHostErrorKind> error;
+	quint32 epoch = 0;
 	bool written = false;
-	bool unavailable = false;
-	bool refused = false;
-	SecureBytes created;
 };
 
-[[nodiscard]] bool WriteSealedRecord(
+struct ReadOutcome {
+	SecureBytes secret;
+	std::optional<engine::ProtectedSecretHostErrorKind> error;
+	quint32 epoch = 0;
+};
+
+[[nodiscard]] ReadOutcome ReadUnderKeyring(
 		Storage::Account &local,
-		const SecureBytes &vaultKey,
-		quint32 generation,
+		VaultRuntime &vault,
+		uint64 accountId,
+		const QString &storageKey,
+		quint32 epoch) {
+	using Error = engine::ProtectedSecretHostErrorKind;
+	const auto deviceKey = vault.keyForRead(accountId, epoch);
+	if (!deviceKey) {
+		return { .error = vault.unusable()
+			? Error::kUnavailable
+			: Error::kAuthenticationFailed };
+	}
+	const auto value = local.readWalletEngineValue(storageKey);
+	if (value.state == Storage::WalletEngineValue::State::Absent) {
+		return { .error = Error::kNotFound };
+	} else if (value.state != Storage::WalletEngineValue::State::Read) {
+		return { .error = Error::kUnavailable };
+	}
+	const auto keyId = ReadVaultRecordKeyId(value.bytes);
+	if (!keyId) {
+		return { .error = Error::kNotFound };
+	}
+	const auto reading = vault.reading();
+	if (reading.state != KeyringReading::State::Read) {
+		return { .error = Error::kUnavailable };
+	}
+	const auto &entries = reading.keyring.entries;
+	const auto i = ranges::find_if(entries, [&](const auto &entry) {
+		return entry.accountId == accountId && entry.keyId == *keyId;
+	});
+	const auto key = (i != end(entries))
+		? OpenDeviceKeyringEntry(*deviceKey, *i)
+		: std::nullopt;
+	if (!key) {
+		return { .error = Error::kUnavailable };
+	}
+	auto record = OpenVaultRecord(*key, storageKey, *keyId, value.bytes);
+	if (!record) {
+		return { .error = Error::kUnavailable };
+	} else if (!vault.current(accountId, epoch)) {
+		return { .error = Error::kAuthenticationFailed };
+	}
+	return { .secret = std::move(record->bytes), .epoch = epoch };
+}
+
+// All authority and liveness decisions are made in the main-thread storage
+// closure. In particular, a queued store never carries D past a protection
+// change, and a pending install cannot be consumed by another account. The
+// target's old keyId remains live through the ring write; only a successful
+// record replacement removes it from membership. A failed second write leaves
+// the old record usable and the fresh entry harmlessly orphaned.
+[[nodiscard]] StoreOutcome StoreUnderKeyring(
+		Storage::Account &local,
+		Storage::Domain &domain,
+		VaultRuntime &vault,
+		uint64 accountId,
 		const QString &storageKey,
 		const StoreInput &input) {
+	using Error = engine::ProtectedSecretHostErrorKind;
+	auto authority = vault.authorityForStore(accountId, input.epoch);
+	if (!authority.key && !authority.policy) {
+		return { .error = vault.unusable()
+			? Error::kUnavailable
+			: Error::kAuthenticationFailed };
+	}
+	const auto reading = vault.reading();
+	auto keyring = (reading.state == KeyringReading::State::Read)
+		? vault.liveKeyring(reading.keyring)
+		: DeviceKeyring();
+	auto committed = false;
+	const auto finishPolicy = gsl::finally([&] {
+		if (!authority.policy) {
+			return;
+		}
+		if (committed) {
+			if (reading.state == KeyringReading::State::Read) {
+				if (const auto provider = ProtectionProviderFor(
+						reading.keyring.wrap.kind)) {
+					provider->remove(
+						&local,
+						reading.keyring.wrap,
+						[](ProtectionError) {});
+				}
+			}
+			vault.notifyProtectionChanged();
+		} else if (const auto provider = ProtectionProviderFor(
+				authority.policy->wrap.kind)) {
+			provider->remove(
+				&local,
+				authority.policy->wrap,
+				[](ProtectionError) {});
+		}
+	});
+	if (authority.policy) {
+		if ((authority.policy->wrap.kind == VaultKind::Passcode
+				&& !domain.hasPasscode())
+			|| (!keyring.entries.empty()
+				&& keyring.wrap.kind != VaultKind::Open)) {
+			return { .error = Error::kAuthenticationFailed };
+		}
+		if (!keyring.entries.empty() && !authority.key) {
+			if (vault.unlockOpen()) {
+				authority.key = vault.keyForRead(accountId, authority.epoch);
+			}
+			if (!authority.key) {
+				return { .error = Error::kUnavailable };
+			}
+		}
+		const auto previousKey = authority.key
+			? std::move(*authority.key)
+			: SecureBytes();
+		auto rotation = RotateDeviceKeyring(
+			keyring,
+			previousKey,
+			*authority.policy);
+		if (!rotation) {
+			return { .error = Error::kUnavailable };
+		}
+		keyring = std::move(rotation->keyring);
+		authority.key = std::move(rotation->key);
+	} else if (reading.state != KeyringReading::State::Read) {
+		return { .error = Error::kUnavailable };
+	}
+	auto keyId = QByteArray(kVaultKeyIdSize, Qt::Uninitialized);
+	bytes::set_random(bytes::make_detached_span(keyId));
+	auto key = SecureBytes(kVaultKeySize);
+	bytes::set_random(key.span());
+	auto entry = SealDeviceKeyringEntry(
+		*authority.key,
+		keyId,
+		accountId,
+		key);
 	const auto sealed = SealVaultRecord(
-		vaultKey,
+		key,
 		storageKey,
-		generation,
+		keyId,
 		input.requireUserPresence,
 		input.secret.span());
-	if (sealed.isEmpty()) {
-		LOG(("Wallet Error: could not seal the secret record."));
-		return false;
+	if (!entry || sealed.isEmpty()) {
+		return { .error = Error::kUnavailable };
 	}
-	return local.writeWalletEngineValue(storageKey, sealed);
-}
-
-// The header and the record go together: a record write that fails right
-// after the header write drops the header again, so no vault without a
-// record and no record without a vault survive a failed creation.
-[[nodiscard]] StoreOutcome CreateVaultAndStore(
-		Storage::Account &local,
-		const QString &storageKey,
-		StoreInput &input) {
-	auto &policy = *input.authority.policy;
-	auto vaultKey = SecureBytes(kVaultKeySize);
-	bytes::set_random(vaultKey.span());
-	policy.wrap.generation = 1;
-	policy.wrap.blob = WrapVaultKey(vaultKey, policy.wrap, policy.wrapKey);
-	if (policy.wrap.blob.isEmpty()) {
-		LOG(("Wallet Error: could not wrap the new vault key, kind: %1."
-			).arg(quint32(policy.wrap.kind)));
-		return { .unavailable = true };
+	keyring.entries.push_back(std::move(*entry));
+	if (vault.clearEpoch() != authority.epoch) {
+		return { .error = Error::kAuthenticationFailed };
+	} else if (!WriteDeviceKeyring(domain, keyring)) {
+		return { .error = Error::kUnavailable };
 	}
-	auto header = VaultHeader{ .committed = 1 };
-	header.wraps.push_back(policy.wrap);
-	if (!WriteVaultHeader(local, header)) {
-		return { .unavailable = true };
-	} else if (!WriteSealedRecord(
-			local,
-			vaultKey,
-			header.committed,
-			storageKey,
-			input)) {
-		if (!RemoveVaultHeader(local)) {
-			LOG(("Wallet Error: could not drop the vault header after the "
-				"failed record write."));
+	committed = true;
+	auto epoch = authority.epoch;
+	if (authority.policy) {
+		const auto adopted = vault.adoptCommitted(
+			std::move(*authority.key),
+			epoch,
+			authority.owner);
+		if (!adopted) {
+			return { .error = Error::kAuthenticationFailed };
 		}
-		return { .unavailable = true };
+		epoch = *adopted;
 	}
-	return { .written = true, .created = std::move(vaultKey) };
-}
-
-// Runs on the main thread inside the marshal so the decision is made under
-// the live header: an existing vault accepts only the unlocked key, an absent
-// one only the policy, and a Broken or Unsupported header is never
-// overwritten nor read as absence. A creation policy never applies to an
-// existing vault, not even to one this process cannot open: the restore over
-// such a vault resets it once the user confirms, before the policy is armed,
-// so that store arrives here over an Absent header like any first store.
-// Both terms were taken on the worker, so either is accepted only while the
-// runtime's epoch is still the one it was taken under: a wrap transition that
-// committed in between, or a local passcode change, cleared the runtime. A
-// record sealed under the retired key would open under no wrap the header
-// holds, and a vault created under a policy prepared for a passcode the
-// account no longer has would open under no passcode the user can type.
-//
-// A Passcode-kind creation policy is also refused, with nothing written,
-// while key_data holds no passcode at this instant - the same arm an absent
-// policy already gets: a vault sealed under a passcode key_data no longer
-// holds is one only the forgot path can free. Which passcode key_data holds
-// is the epoch's to answer: every live writer of the local passcode -
-// another account's protection change or a logout reconciling the
-// wallet-only passcode away included - fires localPasscodeChanged() from
-// inside the write, and the runtime's clear() on it drops an armed policy
-// and moves the epoch, so a term taken before that write is refused here,
-// a passcode changed away and back included, which the next run of the
-// protection setup undoes.
-[[nodiscard]] StoreOutcome StoreUnderVault(
-		Storage::Account &local,
-		const VaultRuntime &vault,
-		const QString &storageKey,
-		StoreInput &input) {
-	using State = VaultReading::State;
-	const auto reading = ReconcileVaultHeader(local);
-	if (reading.state == State::Broken
-		|| reading.state == State::Unsupported) {
-		return { .unavailable = true };
-	} else if (reading.state == State::Read) {
-		if (input.authority.policy
-			|| !input.authority.key
-			|| vault.clearEpoch() != input.authority.epoch) {
-			return { .refused = true };
-		}
-		const auto written = WriteSealedRecord(
-			local,
-			*input.authority.key,
-			reading.header.committed,
-			storageKey,
-			input);
-		return written
-			? StoreOutcome{ .written = true }
-			: StoreOutcome{ .unavailable = true };
-	} else if (!input.authority.policy
-		|| vault.clearEpoch() != input.authority.epoch
-		|| (input.authority.policy->wrap.kind == VaultKind::Passcode
-			&& !Core::App().domain().local().hasPasscode())) {
-		return { .refused = true };
+	if (!local.writeWalletEngineValue(storageKey, sealed)) {
+		return { .error = Error::kUnavailable, .epoch = epoch };
 	}
-	return CreateVaultAndStore(local, storageKey, input);
+	vault.recordStored(accountId, storageKey, keyId);
+	return { .epoch = epoch, .written = true };
 }
 
 // The MTProto toncenter proxy serializes empty JSON maps as arrays: it
@@ -794,99 +855,83 @@ public:
 		std::shared_ptr<VaultRuntime> vault)
 	: _weak(weak)
 	, _session(session)
+	, _domain(&session->domainLocal())
+	, _accountId(session->uniqueId())
 	, _vault(std::move(vault)) {
 	}
 
 	[[nodiscard]] std::vector<uint8_t> read_protected_secret(
 			const engine::ProtectedSecretRead &request) override {
 		const auto key = SecretStorageKey(request.secret_ref);
-		// Decided here on the worker, before the marshal: storage() turns
-		// every throw inside it into kUnavailable, never a typed refusal.
-		const auto vaultKey = _vault->keyForRead();
-		if (!vaultKey) {
-			throw HostFailed(
-				engine::ProtectedSecretHostErrorKind::kAuthenticationFailed,
-				u"wallet vault is locked"_q);
-		}
-		const auto value = storage([=](Storage::Account &local) {
-			return local.readWalletEngineValue(key);
-		});
-		using State = Storage::WalletEngineValue::State;
-		if (!value) {
-			throw HostFailed(
-				engine::ProtectedSecretHostErrorKind::kUnavailable,
-				u"wallet engine storage is unavailable"_q);
-		} else if (value->state == State::Absent) {
-			throw HostFailed(
-				engine::ProtectedSecretHostErrorKind::kNotFound,
-				u"secret not found"_q);
-		} else if (value->state == State::Broken) {
-			throw HostFailed(
-				engine::ProtectedSecretHostErrorKind::kUnavailable,
-				u"stored secret is unreadable"_q);
-		} else if (!IsVaultRecord(value->bytes)) {
-			LOG(("Wallet Warning: a pre-vault secret record reads as absent."));
-			throw HostFailed(
-				engine::ProtectedSecretHostErrorKind::kNotFound,
-				u"pre-vault secret"_q);
-		}
-		const auto record = OpenVaultRecord(*vaultKey, key, value->bytes);
-		if (!record) {
-			throw HostFailed(
-				engine::ProtectedSecretHostErrorKind::kUnavailable,
-				u"stored secret is unreadable"_q);
-		}
-		return ToByteVector(record->bytes.span());
-	}
-
-	// Overwrites an existing record even when it is unreadable: an
-	// explicit store of a fresh secret is the recovery path for a
-	// Broken record, unlike the journal CAS which refuses to touch one.
-	void store_protected_secret(
-			const engine::ProtectedSecretStore &request) override {
-		const auto key = SecretStorageKey(request.secret_ref);
-		// storage() copies its task into the main-thread call, so the
-		// move-only authority and the secret travel behind one pointer.
-		const auto input = std::make_shared<StoreInput>(StoreInput{
-			.authority = _vault->authorityForStore(),
-			.secret = SecureBytes(bytes::make_span(request.bytes)),
-			.requireUserPresence = request.require_user_presence,
-		});
-		if (!input->authority.key && !input->authority.policy) {
-			throw HostFailed(
-				engine::ProtectedSecretHostErrorKind::kAuthenticationFailed,
-				u"wallet vault is locked"_q);
-		}
+		const auto epoch = privateEpoch();
 		const auto vault = _vault;
+		const auto accountId = _accountId;
 		auto outcome = storage([=](Storage::Account &local) {
-			return StoreUnderVault(local, *vault, key, *input);
+			return ReadUnderKeyring(local, *vault, accountId, key, epoch);
 		});
 		if (!outcome) {
 			throw HostFailed(
 				engine::ProtectedSecretHostErrorKind::kUnavailable,
 				u"wallet engine storage is unavailable"_q);
-		} else if (outcome->refused) {
+		} else if (outcome->error) {
+			throw HostFailed(*outcome->error, u"wallet keyring read refused"_q);
+		} else if (!vault->current(accountId, outcome->epoch)) {
 			throw HostFailed(
 				engine::ProtectedSecretHostErrorKind::kAuthenticationFailed,
-				u"wallet vault is locked"_q);
-		} else if (outcome->unavailable) {
+				u"wallet authorization expired"_q);
+		}
+		return ToByteVector(outcome->secret.span());
+	}
+
+	void store_protected_secret(
+			const engine::ProtectedSecretStore &request) override {
+		const auto key = SecretStorageKey(request.secret_ref);
+		const auto input = std::make_shared<StoreInput>(StoreInput{
+			.secret = SecureBytes(bytes::make_span(request.bytes)),
+			.epoch = privateEpoch(),
+			.requireUserPresence = request.require_user_presence,
+		});
+		const auto vault = _vault;
+		const auto accountId = _accountId;
+		const auto domain = _domain;
+		const auto outcome = storage([=](Storage::Account &local) {
+			return StoreUnderKeyring(
+				local,
+				*domain,
+				*vault,
+				accountId,
+				key,
+				*input);
+		});
+		if (!outcome) {
 			throw HostFailed(
 				engine::ProtectedSecretHostErrorKind::kUnavailable,
-				u"wallet vault is unavailable"_q);
+				u"wallet engine storage is unavailable"_q);
 		}
-		EngineSecretStores::Remember(key);
-		if (!outcome->created.empty()) {
-			_vault->adoptCreated(
-				std::move(outcome->created),
-				input->authority.epoch);
+		if (outcome->written) {
+			EngineSecretStores::Remember(key);
+		}
+		if (outcome->error) {
+			throw HostFailed(*outcome->error, u"wallet keyring store refused"_q);
+		} else if (!vault->current(accountId, outcome->epoch)) {
+			throw HostFailed(
+				engine::ProtectedSecretHostErrorKind::kAuthenticationFailed,
+				u"wallet authorization expired"_q);
+		}
+		if (_privateAccess) {
+			_privateAccess->epoch = outcome->epoch;
 		}
 	}
 
 	void delete_protected_secret(
 			const engine::ProtectedSecretRef &reference) override {
 		const auto key = SecretStorageKey(reference);
+		const auto vault = _vault;
+		const auto accountId = _accountId;
 		const auto removed = storage([=](Storage::Account &local) {
-			return local.removeWalletEngineValue(key);
+			const auto result = local.removeWalletEngineValue(key);
+			vault->recordRemoved(accountId, key);
+			return result;
 		});
 		if (!removed) {
 			throw HostFailed(
@@ -1004,6 +1049,14 @@ public:
 	}
 
 private:
+	[[nodiscard]] quint32 privateEpoch() const {
+		if (_privateAccess) {
+			_privateAccess->used = true;
+			return _privateAccess->epoch;
+		}
+		return _vault->clearEpoch();
+	}
+
 	struct Waiting {
 		std::mutex mutex;
 		std::condition_variable ready;
@@ -1034,7 +1087,9 @@ private:
 				return;
 			}
 			try {
-				state->result = task(session->local());
+				if (session->account().maybeSession() == session.get()) {
+					state->result = task(session->local());
+				}
 			} catch (...) {
 			}
 			state->done = true;
@@ -1057,6 +1112,8 @@ private:
 
 	const base::weak_ptr<Engine> _weak;
 	const not_null<Main::Session*> _session; // Main thread only.
+	const not_null<Storage::Domain*> _domain; // Main thread only.
+	const uint64 _accountId;
 	const std::shared_ptr<VaultRuntime> _vault;
 
 	std::mutex _mutex;
@@ -1075,12 +1132,20 @@ struct Engine::Worker {
 
 Engine::Engine(not_null<Main::Session*> session, not_null<Api*> api)
 : _session(session)
+, _accountId(session->uniqueId())
 , _statuslessHost(std::make_shared<StatuslessHost>(base::make_weak(this), api))
-, _vault(std::make_shared<VaultRuntime>())
+, _vault(session->domain().walletKeyring().shared_from_this())
 , _platformHost(std::make_shared<PlatformHost>(
 	base::make_weak(this),
 	session,
 	_vault)) {
+	_vault->registerAccount(*session);
+	session->account().sessionChanges(
+	) | rpl::filter([](Main::Session *current) {
+		return current == nullptr;
+	}) | rpl::on_next([=] {
+		_vault->unregisterAccount(_accountId);
+	}, _lifetime);
 }
 
 Engine::~Engine() {
@@ -1090,7 +1155,8 @@ Engine::~Engine() {
 	// by resolve_pending() on the next launch by the engine's own design.
 	_statuslessHost->close();
 	_platformHost->close();
-	_vault->clear();
+	_lifetime.destroy();
+	_vault->unregisterAccount(_accountId);
 	if (_localWorker) {
 		{
 			auto lock = std::lock_guard(_localWorker->mutex);
@@ -1182,21 +1248,45 @@ void Engine::dropStoredSecrets(EngineSecretStores &stores) {
 		if (_session->local().removeWalletEngineValue(key)) {
 			++dropped;
 		}
+		_vault->recordRemoved(_accountId, key);
 	}
-	// removeWalletEngineValue answers false only for a key that is not
-	// in the map, so this counts records that were really there and
-	// never removals that failed: at that API there is no
-	// removal-failed answer, exactly as dropCreatedVault reads its own.
 	if (dropped) {
 		LOG(("Wallet Info: dropped %1 secret record(s) a failed engine "
 			"call stored.").arg(dropped));
 	}
 }
 
+thread_local Engine::PrivateAccess *Engine::_privateAccess = nullptr;
+
+std::shared_ptr<Engine::PrivateAccess> Engine::privateAccess() const {
+	return std::make_shared<PrivateAccess>(PrivateAccess{
+		.epoch = _vault->clearEpoch(),
+	});
+}
+
+bool Engine::PrivateResultCurrent(
+		const VaultRuntime &vault,
+		uint64 accountId,
+		const PrivateAccess &access) {
+	return !access.used || vault.current(accountId, access.epoch);
+}
+
+EngineError Engine::PrivateAccessError() {
+	return {
+		.message = u"wallet authorization expired"_q,
+		.underlying = std::make_exception_ptr(HostFailed(
+			engine::ProtectedSecretHostErrorKind::kAuthenticationFailed,
+			u"wallet authorization expired"_q)),
+	};
+}
+
 void Engine::Execute(
 		base::weak_ptr<Engine> weak,
+		const std::shared_ptr<PrivateAccess> &access,
 		FnMut<void()> job,
 		Fn<void(EngineError)> fail) {
+	const auto previous = std::exchange(_privateAccess, access.get());
+	const auto restore = gsl::finally([=] { _privateAccess = previous; });
 	try {
 		job();
 	} catch (const std::exception &e) {

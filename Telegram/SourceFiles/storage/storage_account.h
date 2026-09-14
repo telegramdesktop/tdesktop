@@ -242,6 +242,8 @@ public:
 		const QString &key,
 		const QByteArray &bytes);
 	bool removeWalletEngineValue(const QString &key);
+	[[nodiscard]] std::vector<QString> walletEngineStorageKeys(
+		const QString &prefix) const;
 
 	[[nodiscard]] bool encrypt(
 		const void *src,
