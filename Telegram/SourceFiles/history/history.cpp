@@ -2464,7 +2464,7 @@ void History::setFolderPointer(Data::Folder *folder) {
 	const auto wasKnown = folderKnown();
 	const auto wasInList = inChatList();
 	if (wasInList) {
-		removeFromChatList(0, owner().chatsList(this->folder()));
+		removeFromChatList(0, owner().chatsListFor(this));
 	}
 	const auto was = _folder.value_or(nullptr);
 	_folder = folder;
@@ -2472,7 +2472,7 @@ void History::setFolderPointer(Data::Folder *folder) {
 		was->unregisterOne(this);
 	}
 	if (wasInList) {
-		addToChatList(0, owner().chatsList(folder));
+		addToChatList(0, owner().chatsListFor(this));
 
 		owner().chatsFilters().refreshHistory(this);
 		updateChatListEntry();
