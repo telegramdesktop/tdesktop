@@ -242,7 +242,7 @@ public:
 		int64 key,
 		std::optional<Ui::Controls::SwipeContextData> data);
 	[[nodiscard]] int64 calcSwipeKey(int top);
-	void prepareQuickAction(int64 key, Dialogs::Ui::QuickDialogAction);
+	bool prepareQuickAction(int64 key, Dialogs::Ui::QuickDialogAction);
 	void clearQuickActions();
 
 	Qt::FocusPolicy accessibilityFocusPolicy() override {
