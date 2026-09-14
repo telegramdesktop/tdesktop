@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/passcode_strength_meter.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/passcode_strength.h"
+#include "wallet/wallet_custody.h"
 #include "wallet/wallet_session.h"
 #include "wallet/wallet_unlock.h"
 
@@ -1079,12 +1080,6 @@ void KeyProtectionBox(
 			provider->title(),
 			provider->description(),
 			st::defaultBoxCheckbox);
-		row->add(
-			object_ptr<Ui::FlatLabel>(
-				box,
-				provider->binding(),
-				st::walletProtectionAboutLabel),
-			st::walletProtectionBindingMargin);
 		makeClickable(row, kind);
 	}
 
@@ -1097,14 +1092,7 @@ void KeyProtectionBox(
 			? tr::lng_wallet_protection_passcode_keep_about
 			: tr::lng_wallet_protection_passcode_about)(),
 		st::defaultBoxCheckbox);
-	if (state->passcode.empty()) {
-		passcodeRow->add(
-			object_ptr<Ui::FlatLabel>(
-				box,
-				tr::lng_wallet_protection_passcode_create(),
-				st::walletProtectionAboutLabel),
-			st::walletProtectionStrengthMargin);
-	} else {
+	if (!state->passcode.empty()) {
 		// The band is a local: nothing derived from the typed passcode
 		// reaches a member of anything that outlives the box.
 		const auto band = PasscodeBand(state->passcode);
@@ -1125,16 +1113,10 @@ void KeyProtectionBox(
 	}
 	makeClickable(passcodeRow, VaultKind::Passcode);
 
-	// The Open wording uses verified protection after this operation.
-	// Removal drops the passcode, so its wording describes no launch lock.
-	const auto appLockAfter = !removal
-		&& show->session().domain().local().appLockEnabled();
 	const auto openRow = addRow(
 		VaultKind::Open,
 		tr::lng_wallet_protection_open(),
-		(appLockAfter
-			? tr::lng_wallet_protection_open_about_lock
-			: tr::lng_wallet_protection_open_about_nolock)(),
+		tr::lng_wallet_protection_open_about(),
 		st::walletProtectionAttentionCheckbox);
 	makeClickable(openRow, VaultKind::Open);
 
@@ -1427,6 +1409,11 @@ void KeyProtectionBox(
 	// one surface that can put a vault under VaultKind::Open, and it prepares
 	// that wrap only past the confirmation. Cancel returns to the chooser
 	// with nothing prepared and nothing written.
+	//
+	// The warning uses verified protection after this operation. Removal
+	// drops the passcode, so its wording describes no launch lock.
+	const auto appLockAfter = !removal
+		&& show->session().domain().local().appLockEnabled();
 	const auto saveOpen = [=] {
 		show->showBox(Ui::MakeConfirmBox({
 			.text = (appLockAfter
@@ -1605,7 +1592,7 @@ void ShowRemovalProtectionBox(
 		for (const auto &account : dependents.passcodeWrapped) {
 			args.accounts.push_back(base::make_weak(account));
 		}
-		return !dependents.open.empty()
+		return AnyVaultHoldsKey(dependents.open)
 			&& weakSession->domain().local().appLockEnabled();
 	}();
 	if (!warn) {
@@ -1837,6 +1824,48 @@ VaultDependents CollectVaultDependents() {
 		}
 	}
 	return result;
+}
+
+bool VaultHoldsKey(not_null<Main::Account*> account) {
+	const auto session = account->maybeSession();
+	if (session && session->wallet().custodyBusy()) {
+		return true;
+	}
+	const auto store = ReadCustodyStore(account->local());
+	return !store
+		|| !store->records.empty()
+		|| (store->pendingRotation
+			&& !store->pendingRotation->secretRef.isEmpty());
+}
+
+bool AnyVaultHoldsKey(const std::vector<not_null<Main::Account*>> &accounts) {
+	return ranges::any_of(accounts, [](not_null<Main::Account*> account) {
+		return VaultHoldsKey(account);
+	});
+}
+
+void DropKeylessPasscodeVaults() {
+	auto notify = std::vector<base::weak_ptr<Main::Session>>();
+	for (const auto &account : CollectVaultDependents().passcodeWrapped) {
+		if (VaultHoldsKey(account)) {
+			continue;
+		}
+		const auto session = account->maybeSession();
+		if (session) {
+			session->wallet().vault().clear();
+		}
+		if (RemoveVaultHeader(account->local())) {
+			LOG(("Wallet Info: dropped a passcode vault that holds no key."));
+		}
+		if (session) {
+			notify.push_back(base::make_weak(session));
+		}
+	}
+	for (const auto &weak : notify) {
+		if (const auto session = weak.get()) {
+			session->wallet().notifyKeyProtectionChanged();
+		}
+	}
 }
 
 int CountVaultWrapDependents(const VaultWrap &wrap) {

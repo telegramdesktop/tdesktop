@@ -71,7 +71,7 @@ walletCardInfoIcon: icon{{ "menu/info", windowSubTextFg }};
 walletSendButton: RoundButton(defaultActiveButton) {
 	height: 40px;
 	textTop: 11px;
-	radius: 20px;
+	fullRadius: true;
 }
 walletSendButtonMargin: margins(12px, 12px, 12px, 0px);
 walletButtonsSkip: 10px;
@@ -201,6 +201,11 @@ walletDetailsBox: Box(giveawayGiftCodeBox) {
 walletReceiveBox: Box(giveawayGiftCodeBox) {
 	buttonPadding: margins(0px, 0px, 0px, 0px);
 	buttonHeight: 0px;
+}
+walletPhraseWarningBox: Box(giveawayGiftCodeBox) {
+	button: RoundButton(giveawayGiftCodeBoxButton) {
+		fullRadius: true;
+	}
 }
 walletConflictBox: Box(defaultBox) {
 	buttonPadding: margins(0px, 0px, 0px, 14px);
@@ -361,6 +366,9 @@ walletPhraseTitleLabel: FlatLabel(defaultFlatLabel) {
 walletPhraseTextLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 256px;
 	align: align(top);
+}
+walletPhraseIntroTextLabel: FlatLabel(walletPhraseTextLabel) {
+	textFg: windowSubTextFg;
 }
 walletPhraseTextMargin: margins(24px, 8px, 24px, 8px);
 walletCoverLottieSize: 64px;
@@ -565,7 +573,6 @@ walletProtectionAboutLabel: FlatLabel(defaultFlatLabel) {
 walletProtectionIntroMargin: margins(22px, 4px, 22px, 4px);
 walletProtectionRowSkip: 12px;
 walletProtectionAboutMargin: margins(34px, 0px, 22px, 0px);
-walletProtectionBindingMargin: margins(34px, 4px, 22px, 0px);
 walletProtectionStrengthMargin: margins(34px, 4px, 22px, 0px);
 walletProtectionCreateFieldMargin: margins(22px, 12px, 22px, 0px);
 walletProtectionMeterMargin: margins(22px, 8px, 22px, 0px);

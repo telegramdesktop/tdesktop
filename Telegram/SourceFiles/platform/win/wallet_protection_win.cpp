@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/win/wallet_protection_win.h"
 
+#include "base/call_delayed.h"
 #include "base/platform/win/base_windows_safe_library.h"
 #include "base/platform/win/base_windows_winrt.h"
 #include "base/random.h"
@@ -17,12 +18,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_vault.h"
 #include "settings.h"
 
+#include <QtCore/QDir>
 #include <QtCore/QFile>
+#include <QtWidgets/QApplication>
+#include <QtWidgets/QWidget>
 
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Security.Credentials.h>
 #include <winrt/Windows.Security.Cryptography.h>
 #include <winrt/Windows.Storage.Streams.h>
+#include <winrt/Windows.UI.h>
 #include <tbs.h>
 
 // The wrap key is stored nowhere: it is HKDF-SHA256 over the signature a
@@ -49,6 +54,7 @@ using winrt::Windows::Foundation::IAsyncOperation;
 using AsyncStatus = winrt::Windows::Foundation::AsyncStatus;
 using winrt::Windows::Storage::Streams::IBuffer;
 using winrt::Windows::Security::Cryptography::CryptographicBuffer;
+using winrt::Windows::UI::WindowId;
 
 constexpr auto kPayloadVersion = quint32(1);
 constexpr auto kCredentialIdSize = 16;
@@ -56,8 +62,16 @@ constexpr auto kChallengeSize = 32;
 constexpr char kWrapLabel[] = "tdesktop-wallet-vault/windows-hello-wrap/v1";
 constexpr auto kCredentialPrefix
 	= std::wstring_view(L"TelegramDesktop.WalletVault.");
+constexpr auto kPromptFocusInterval = crl::time(100);
+constexpr auto kPromptFocusAttempts = 50;
 
 TBS_RESULT(WINAPI *GetTpmDeviceInfo)(UINT32, PVOID) = nullptr;
+
+// ABI::Windows::UI::WindowId, as windows.ui.interop.h declares the export.
+struct WindowIdAbi {
+	uint64_t value = 0;
+};
+HRESULT(WINAPI *GetWindowIdFromWindow)(HWND, WindowIdAbi*) = nullptr;
 
 struct Payload {
 	QByteArray credentialId;
@@ -77,6 +91,7 @@ struct Signing {
 struct EnrollOperation {
 	winrt::hstring name;
 	QByteArray challenge;
+	std::optional<WindowId> owner;
 	KeyCredential credential = nullptr;
 	Wallet::VaultWrap wrap;
 	Fn<void(Wallet::ProtectionEnrollResult)> done;
@@ -85,6 +100,7 @@ struct EnrollOperation {
 struct UnwrapOperation {
 	winrt::hstring name;
 	QByteArray challenge;
+	std::optional<WindowId> owner;
 	KeyCredential credential = nullptr;
 	Wallet::VaultWrap wrap;
 	Fn<void(Wallet::ProtectionUnwrapResult)> done;
@@ -117,6 +133,100 @@ struct UnwrapOperation {
 	const auto hex = QString::fromLatin1(credentialId.toHex());
 	return winrt::hstring(
 		std::wstring(kCredentialPrefix) + hex.toStdWString());
+}
+
+// A Windows Hello prompt asked for without an owner window opens behind the
+// app and only flashes in the taskbar. Windows 11 24H2 accepts the owner as a
+// WindowId, so every ask resolves one from the window the user is acting in
+// when the operation starts - later prompts of the same operation keep it,
+// because by then the active window can be the previous prompt. Without the
+// export, or with no active window, the prompts go unowned as before.
+[[nodiscard]] std::optional<WindowId> PromptOwner() {
+	static const auto loaded = [] {
+		const auto library = base::Platform::SafeLoadLibrary(
+			L"Windows.UI.dll");
+		return base::Platform::LoadMethod(
+			library,
+			"GetWindowIdFromWindow",
+			GetWindowIdFromWindow);
+	}();
+	const auto window = QApplication::activeWindow();
+	if (!loaded || !window) {
+		return std::nullopt;
+	}
+	auto id = WindowIdAbi();
+	const auto handle = reinterpret_cast<HWND>(window->winId());
+	if (FAILED(GetWindowIdFromWindow(handle, &id)) || !id.value) {
+		return std::nullopt;
+	}
+	return WindowId{ id.value };
+}
+
+// An unowned prompt is shown by the credential broker, which may not take the
+// foreground from the app the user is in, so it opens behind and flashes in
+// the taskbar. Right after the user acted the app still is the foreground
+// process, which lets it bring the prompt forward itself once the broker has
+// shown it. The window is found by its class name, which is undocumented: a
+// Windows that renames it leaves the prompt where the broker put it.
+void FocusUnownedPrompt(int attemptsLeft = kPromptFocusAttempts) {
+	const auto window = FindWindow(L"Credential Dialog Xaml Host", nullptr);
+	if (window && IsWindowVisible(window)) {
+		if (GetForegroundWindow() == window || SetForegroundWindow(window)) {
+			LOG(("Wallet Info: the Windows Hello prompt is in the "
+				"foreground, attempts left: %1.").arg(attemptsLeft));
+			return;
+		}
+	}
+	if (attemptsLeft > 0) {
+		base::call_delayed(kPromptFocusInterval, [=] {
+			FocusUnownedPrompt(attemptsLeft - 1);
+		});
+	} else {
+		LOG(("Wallet Warning: the Windows Hello prompt was not brought to "
+			"the foreground, found: %1.").arg(window ? 1 : 0));
+	}
+}
+
+// The owned overloads exist from Windows 11 24H2: on an older system the
+// factory or the credential lacks the interface, and the unowned ask runs
+// with the prompt brought forward by its class name instead.
+[[nodiscard]] IAsyncOperation<KeyCredentialRetrievalResult> RequestCreate(
+		const winrt::hstring &name,
+		const std::optional<WindowId> &owner) {
+	const auto option = KeyCredentialCreationOption::ReplaceExisting;
+	if (owner) {
+		auto owned = base::WinRT::Try([&] {
+			return KeyCredentialManager::RequestCreateForWindowAsync(
+				*owner,
+				name,
+				option);
+		});
+		if (owned) {
+			return std::move(*owned);
+		}
+	}
+	auto result = KeyCredentialManager::RequestCreateAsync(name, option);
+	FocusUnownedPrompt();
+	return result;
+}
+
+[[nodiscard]] IAsyncOperation<KeyCredentialOperationResult> RequestSign(
+		const KeyCredential &credential,
+		const IBuffer &data,
+		const std::optional<WindowId> &owner) {
+	if (owner) {
+		if (const auto owned = credential.try_as<IKeyCredentialWithWindow>()) {
+			auto request = base::WinRT::Try([&] {
+				return owned.RequestSignForWindowAsync(*owner, data);
+			});
+			if (request) {
+				return std::move(*request);
+			}
+		}
+	}
+	auto result = credential.RequestSignAsync(data);
+	FocusUnownedPrompt();
+	return result;
 }
 
 [[nodiscard]] QByteArray RandomBytes(int size) {
@@ -153,10 +263,21 @@ struct UnwrapOperation {
 // The one environment not offered Windows Hello is an unpacked copy of an
 // official release: no uninstaller beside the executable and not a canary
 // build. An installed copy and either canary are offered it whenever the
-// TPM and Hello itself allow.
+// TPM and Hello itself allow, and so is a Debug build working from its
+// TelegramForcePortable folder, to debug the flow from the build output.
 [[nodiscard]] bool UninstallerPresent() {
 	static const auto Result = QFile::exists(cExeDir() + u"unins000.exe"_q);
 	return Result;
+}
+
+[[nodiscard]] bool DebugPortable() {
+#ifdef _DEBUG
+	static const auto Result = (QDir(cWorkingDir())
+		== QDir(cExeDir() + u"TelegramForcePortable"_q));
+	return Result;
+#else // _DEBUG
+	return false;
+#endif // _DEBUG
 }
 
 [[nodiscard]] bool ReadTpmPresence() {
@@ -293,7 +414,6 @@ public:
 	[[nodiscard]] rpl::producer<bool> available() const override;
 	[[nodiscard]] rpl::producer<QString> title() const override;
 	[[nodiscard]] rpl::producer<QString> description() const override;
-	[[nodiscard]] rpl::producer<QString> binding() const override;
 	[[nodiscard]] rpl::producer<QString> label() const override;
 
 	void enroll(
@@ -319,6 +439,7 @@ private:
 
 	rpl::variable<bool> _available = false;
 	bool _uninstaller = false;
+	bool _debugPortable = false;
 	bool _tpm = false;
 
 };
@@ -339,16 +460,13 @@ rpl::producer<QString> WindowsHelloProtection::description() const {
 	return tr::lng_wallet_protection_hello_about();
 }
 
-rpl::producer<QString> WindowsHelloProtection::binding() const {
-	return tr::lng_wallet_protection_hello_binding();
-}
-
 rpl::producer<QString> WindowsHelloProtection::label() const {
 	return tr::lng_wallet_protection_hello_label();
 }
 
 void WindowsHelloProtection::prime() {
 	_uninstaller = UninstallerPresent();
+	_debugPortable = DebugPortable();
 	_tpm = TpmPresent();
 	const auto started = base::WinRT::Try([&] {
 		KeyCredentialManager::IsSupportedAsync().Completed([this](
@@ -359,13 +477,17 @@ void WindowsHelloProtection::prime() {
 					return that.GetResults();
 				}).value_or(false);
 			crl::on_main([this, supported] {
-				_available = (_uninstaller || Core::BuildIsCanary)
+				_available = (_uninstaller
+						|| Core::BuildIsCanary
+						|| _debugPortable)
 					&& _tpm
 					&& supported;
 				LOG(("Wallet Info: Windows Hello availability: "
-					"uninstaller %1, canary %2, TPM %3, supported %4."
+					"uninstaller %1, canary %2, debug portable %3, "
+					"TPM %4, supported %5."
 					).arg(_uninstaller ? 1 : 0
 					).arg(Core::BuildIsCanary ? 1 : 0
+					).arg(_debugPortable ? 1 : 0
 					).arg(_tpm ? 1 : 0
 					).arg(supported ? 1 : 0));
 			});
@@ -387,6 +509,7 @@ void WindowsHelloProtection::enroll(
 	auto op = std::make_shared<EnrollOperation>();
 	op->name = CredentialName(credentialId);
 	op->challenge = RandomBytes(kChallengeSize);
+	op->owner = PromptOwner();
 	op->wrap = Wallet::VaultWrap{
 		.kind = Wallet::VaultKind::WindowsHello,
 		.salt = RandomBytes(Wallet::kVaultSaltSize),
@@ -397,10 +520,7 @@ void WindowsHelloProtection::enroll(
 	};
 	op->done = std::move(done);
 	const auto started = base::WinRT::Try([&] {
-		KeyCredentialManager::RequestCreateAsync(
-			op->name,
-			KeyCredentialCreationOption::ReplaceExisting
-		).Completed([op, this](
+		RequestCreate(op->name, op->owner).Completed([op, this](
 				IAsyncOperation<KeyCredentialRetrievalResult> that,
 				AsyncStatus status) {
 			auto retrieval = ReadRetrieval(that, status);
@@ -459,8 +579,10 @@ void WindowsHelloProtection::rejectUnproven(
 void WindowsHelloProtection::signForEnroll(
 		std::shared_ptr<EnrollOperation> op) {
 	const auto started = base::WinRT::Try([&] {
-		op->credential.RequestSignAsync(
-			ToBuffer(op->challenge)
+		RequestSign(
+			op->credential,
+			ToBuffer(op->challenge),
+			op->owner
 		).Completed([op, this](
 				IAsyncOperation<KeyCredentialOperationResult> that,
 				AsyncStatus status) {
@@ -506,6 +628,7 @@ void WindowsHelloProtection::unwrap(
 	auto op = std::make_shared<UnwrapOperation>();
 	op->name = CredentialName(payload->credentialId);
 	op->challenge = std::move(payload->challenge);
+	op->owner = PromptOwner();
 	op->wrap = std::move(wrap);
 	op->done = std::move(done);
 	const auto started = base::WinRT::Try([&] {
@@ -531,8 +654,10 @@ void WindowsHelloProtection::unwrap(
 void WindowsHelloProtection::signForUnwrap(
 		std::shared_ptr<UnwrapOperation> op) {
 	const auto started = base::WinRT::Try([&] {
-		op->credential.RequestSignAsync(
-			ToBuffer(op->challenge)
+		RequestSign(
+			op->credential,
+			ToBuffer(op->challenge),
+			op->owner
 		).Completed([op](
 				IAsyncOperation<KeyCredentialOperationResult> that,
 				AsyncStatus status) {

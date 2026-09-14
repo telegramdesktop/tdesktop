@@ -89,7 +89,6 @@ public:
 	[[nodiscard]] virtual rpl::producer<bool> available() const = 0;
 	[[nodiscard]] virtual rpl::producer<QString> title() const = 0;
 	[[nodiscard]] virtual rpl::producer<QString> description() const = 0;
-	[[nodiscard]] virtual rpl::producer<QString> binding() const = 0;
 
 	// The noun phrase the key-location line composes after "protected by".
 	// Defaults to title().
@@ -239,6 +238,22 @@ struct VaultDependents {
 
 [[nodiscard]] VaultDependents CollectVaultDependents();
 [[nodiscard]] int CountVaultWrapDependents(const VaultWrap &wrap);
+
+// Whether the account's custody store names a key: a record or a pending
+// rotation. A committed vault can outlive every key it protects - an install
+// abandoned before its record was kept, or the last record removed - and such
+// a vault guards nothing, so nothing about losing a key is said for it. It
+// fails closed: a store that does not read, and a session whose custody flow
+// is still running between its store and its record, answer true.
+[[nodiscard]] bool VaultHoldsKey(not_null<Main::Account*> account);
+[[nodiscard]] bool AnyVaultHoldsKey(
+	const std::vector<not_null<Main::Account*>> &accounts);
+
+// Removes the header of every passcode-wrapped vault that holds no key, so a
+// passcode removal does not strand one under a passcode that no longer
+// exists: a later install over it would ask for that passcode. Each dropped
+// vault's session is notified once every header is gone.
+void DropKeylessPasscodeVaults();
 
 enum class VaultPasscodeChangeResult {
 	Done,

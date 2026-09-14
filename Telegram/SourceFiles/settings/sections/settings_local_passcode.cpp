@@ -1307,10 +1307,11 @@ void LocalPasscodeManage::setupContent() {
 
 void LocalPasscodeManage::disable() {
 	setBusy(true);
-	if (Wallet::CollectVaultDependents().passcodeWrapped.empty()) {
-		confirmDisable();
-	} else {
+	const auto dependents = Wallet::CollectVaultDependents();
+	if (Wallet::AnyVaultHoldsKey(dependents.passcodeWrapped)) {
 		checkVaultAndRemove();
+	} else {
+		confirmDisable();
 	}
 }
 
@@ -1471,8 +1472,10 @@ void LocalPasscodeManage::confirmDisable() {
 	// While the launch lock is on, the passcode is the only thing
 	// covering an open vault's key at rest, so removing it says so -
 	// the wording the app-lock toggle already shows, composed with
-	// today's confirmation instead of given a key of its own.
-	const auto warned = !Wallet::CollectVaultDependents().open.empty()
+	// today's confirmation instead of given a key of its own. A vault
+	// that holds no key has nothing to cover, and nothing is said.
+	const auto warned = Wallet::AnyVaultHoldsKey(
+		Wallet::CollectVaultDependents().open)
 		&& controller()->session().domain().local().appLockEnabled();
 	auto text = [&]() -> rpl::producer<QString> {
 		if (!warned) {
@@ -1496,8 +1499,9 @@ void LocalPasscodeManage::confirmDisable() {
 				const auto dependents = Wallet::CollectVaultDependents();
 				const auto &local = weakController->session().domain().local();
 				return std::pair(
-					!dependents.passcodeWrapped.empty(),
-					!dependents.open.empty() && local.appLockEnabled());
+					Wallet::AnyVaultHoldsKey(dependents.passcodeWrapped),
+					(Wallet::AnyVaultHoldsKey(dependents.open)
+						&& local.appLockEnabled()));
 			}();
 			close();
 			if (!weak || !weakController) {
@@ -1509,7 +1513,10 @@ void LocalPasscodeManage::confirmDisable() {
 				weak->confirmDisable();
 				return;
 			}
-			weak->removeVerifiedAndLeave(nullptr);
+			Wallet::DropKeylessPasscodeVaults();
+			if (weak) {
+				weak->removeVerifiedAndLeave(nullptr);
+			}
 		},
 		.cancelled = [=](Fn<void()> close) {
 			close();
@@ -1686,8 +1693,8 @@ void BuildManageContent(
 				return;
 			}
 			const auto dependents = Wallet::CollectVaultDependents();
-			if (dependents.open.empty()) {
-				lockOff(!dependents.passcodeWrapped.empty());
+			if (!Wallet::AnyVaultHoldsKey(dependents.open)) {
+				lockOff(Wallet::AnyVaultHoldsKey(dependents.passcodeWrapped));
 				return;
 			}
 			section->setBusy(true);

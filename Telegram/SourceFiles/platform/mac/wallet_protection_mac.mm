@@ -419,7 +419,6 @@ public:
 	[[nodiscard]] rpl::producer<bool> available() const override;
 	[[nodiscard]] rpl::producer<QString> title() const override;
 	[[nodiscard]] rpl::producer<QString> description() const override;
-	[[nodiscard]] rpl::producer<QString> binding() const override;
 	[[nodiscard]] rpl::producer<QString> label() const override;
 
 	void enroll(
@@ -464,10 +463,6 @@ rpl::producer<QString> TouchIdProtection::title() const {
 
 rpl::producer<QString> TouchIdProtection::description() const {
 	return tr::lng_wallet_protection_touchid_about();
-}
-
-rpl::producer<QString> TouchIdProtection::binding() const {
-	return tr::lng_wallet_protection_touchid_binding();
 }
 
 rpl::producer<QString> TouchIdProtection::label() const {

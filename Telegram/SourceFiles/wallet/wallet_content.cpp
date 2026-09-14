@@ -5851,6 +5851,7 @@ void AddPhraseBoxHeader(
 		const QString &lottieName,
 		rpl::producer<QString> title,
 		rpl::producer<TextWithEntities> text,
+		const style::FlatLabel &textLabel,
 		int lottieSize,
 		const style::margins &lottieMargin,
 		const style::margins &textMargin) {
@@ -5876,7 +5877,7 @@ void AddPhraseBoxHeader(
 		object_ptr<Ui::FlatLabel>(
 			box,
 			std::move(text),
-			st::walletPhraseTextLabel),
+			textLabel),
 		textMargin,
 		style::al_top);
 }
@@ -5940,6 +5941,7 @@ void WalletPhraseBox(
 			lt_count,
 			rpl::single(count * 1.) | tr::to_count(),
 			tr::marked),
+		st::walletPhraseTextLabel,
 		st::walletPhraseGridLottieSize,
 		st::walletPhraseGridLottieMargin,
 		st::walletPhraseGridTextMargin);
@@ -6245,7 +6247,7 @@ void WalletPhraseWarningBox(
 		std::move(auth));
 	const auto state = box->lifetime().make_state<State>();
 	box->setWidth(st::boxWideWidth);
-	box->setStyle(st::giveawayGiftCodeBox);
+	box->setStyle(st::walletPhraseWarningBox);
 	box->setNoContentMargin(true);
 
 	AddPhraseBoxHeader(
@@ -6253,6 +6255,7 @@ void WalletPhraseWarningBox(
 		u"wallet/paper"_q,
 		tr::lng_wallet_phrase_intro_title(),
 		tr::lng_wallet_phrase_intro_text(tr::marked),
+		st::walletPhraseIntroTextLabel,
 		st::walletCoverLottieSize,
 		st::walletCoverLottieMargin,
 		st::walletPhraseTextMargin);
@@ -7081,6 +7084,7 @@ void WalletBackupPhraseBox(
 		u"wallet/paper"_q,
 		std::move(title),
 		std::move(text),
+		st::walletPhraseTextLabel,
 		st::walletPhraseGridLottieSize,
 		st::walletPhraseGridLottieMargin,
 		st::walletPhraseGridTextMargin);
@@ -7187,6 +7191,7 @@ void WalletBackupQuizBox(
 		u"wallet/test"_q,
 		tr::lng_wallet_backup_test_title(),
 		BackupQuizText(state->indices),
+		st::walletPhraseTextLabel,
 		st::walletPhraseGridLottieSize,
 		st::walletPhraseGridLottieMargin,
 		st::walletPhraseGridTextMargin);
