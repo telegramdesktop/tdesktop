@@ -2356,6 +2356,24 @@ bool Session::revealsLocally() {
 		&& !vaultKeyUnusable();
 }
 
+std::optional<BackupDisableApproval> Session::backupDisableApproval() {
+	ensureLoaded();
+	if (_presence.current() != Presence::Ready
+		|| _publicKey.size() != kCustodyPublicKeySize
+		|| vaultKeyUnusable()) {
+		return std::nullopt;
+	}
+	const auto record = currentRecord();
+	if (!record || record->recordId.isEmpty()) {
+		return std::nullopt;
+	}
+	return BackupDisableApproval{
+		.address = _address,
+		.recordId = record->recordId,
+		.networkGeneration = _networkGeneration,
+	};
+}
+
 VaultRuntime &Session::vault() const {
 	return _engine->vault();
 }
@@ -3603,6 +3621,161 @@ void Session::disableBackup(
 	}).handleFloodErrors().send();
 }
 
+void Session::disableBackupWithProof(
+		KeyAuthorization auth,
+		BackupDisableApproval approved,
+		Fn<void()> done,
+		Fn<void(const QString &error)> fail) {
+	ensureLoaded();
+	if (custodyBusy() || custody().pendingRotation) {
+		LOG(("Wallet Error: backup disable requested "
+			"while another is in flight."));
+		if (fail) {
+			fail(u"BACKUP_BUSY"_q);
+		}
+		return;
+	}
+	if (_presence.current() != Presence::Ready
+		|| _publicKey.size() != kCustodyPublicKeySize) {
+		LOG(("Wallet Error: backup disable requested "
+			"without a settled wallet key."));
+		if (fail) {
+			fail(u"BACKUP_STATE_UNKNOWN"_q);
+		}
+		return;
+	}
+	const auto record = vaultKeyUnusable() ? nullptr : currentRecord();
+	const auto proofKey = !record
+		? QByteArray()
+		: record->signingKey.isEmpty()
+		? record->publicKey
+		: record->signingKey;
+	if (proofKey.size() != kCustodyPublicKeySize) {
+		LOG(("Wallet Error: backup disable requested without local custody."));
+		if (fail) {
+			fail(u"BACKUP_NO_CUSTODY"_q);
+		}
+		return;
+	}
+	if (approved.networkGeneration != _networkGeneration
+		|| approved.address != _address
+		|| approved.recordId.isEmpty()
+		|| record->recordId != approved.recordId) {
+		LOG(("Wallet Error: backup disable approved "
+			"for another wallet state."));
+		if (fail) {
+			fail(u"BACKUP_WALLET_CHANGED"_q);
+		}
+		return;
+	}
+	if (!ReadAuthorized(*this, auth)) {
+		if (fail) {
+			fail(u"BACKUP_VAULT_LOCKED"_q);
+		}
+		return;
+	}
+	const auto address = _address;
+	const auto recordId = record->recordId;
+	const auto generation = _networkGeneration;
+	auto descriptor = DescriptorFromRecord(*record);
+	retireCommentScopes();
+	_backupChanging = true;
+	done = [this, done = std::move(done)] {
+		_backupChanging = false;
+		if (done) {
+			done();
+		}
+	};
+	fail = [this, fail = std::move(fail)](const QString &error) {
+		_backupChanging = false;
+		if (fail) {
+			fail(error);
+		}
+	};
+	const auto current = [=, this] {
+		const auto now = vaultKeyUnusable() ? nullptr : currentRecord();
+		return (generation == _networkGeneration)
+			&& (address == _address)
+			&& now
+			&& (now->recordId == recordId);
+	};
+	const auto proofReady = [=, this](OwnershipProof proof) {
+		if (!current()) {
+			fail(u"BACKUP_WALLET_CHANGED"_q);
+			return;
+		}
+		using Flag = MTPwallet_disableBackup::Flag;
+		// The proof is one-shot, so a negative or 500-class answer reaches
+		// .fail() instead of the transport resending the identical body.
+		// Every refusal is settled against the served state: a disable the
+		// scanner already made, or one the server applied before its answer
+		// was lost, is still the outcome the user asked for.
+		_stateApi.request(MTPwallet_DisableBackup(
+			MTP_flags(Flag::f_new_public_key | Flag::f_proof),
+			MTP_inputCheckPasswordEmpty(), // password
+			MTP_bytes(proofKey), // new_public_key
+			MTP_walletOwnershipProof(
+				MTP_int(proof.timestamp),
+				MTP_bytes(bytes::make_span(proof.signature))) // proof
+		)).done([=, this](const MTPWalletState &result) {
+			clearRotatedSinceBackup();
+			applyState(result, false);
+			done();
+		}).fail([=, this](const MTP::Error &error) {
+			LOG(("Wallet Error: wallet.disableBackup with a proof failed: %1"
+				).arg(error.type()));
+			settleRefusedBackupDisable(
+				address,
+				proofKey,
+				error.type(),
+				done,
+				fail);
+		}).handleAllErrors().send();
+	};
+	const auto proofFailed = [=](OwnershipProofError error) {
+		fail(!current()
+			? u"BACKUP_WALLET_CHANGED"_q
+			: (error == OwnershipProofError::VaultLocked)
+			? u"BACKUP_VAULT_LOCKED"_q
+			: u"BACKUP_PROOF_FAILED"_q);
+	};
+	requestOwnershipProof(
+		std::move(descriptor),
+		proofKey,
+		auth.grant,
+		proofReady,
+		proofFailed);
+}
+
+void Session::settleRefusedBackupDisable(
+		QString address,
+		QByteArray proofKey,
+		QString error,
+		Fn<void()> done,
+		Fn<void(const QString &)> fail) {
+	// Success only when the served wallet is disabled under the key whose
+	// phrase the user confirmed: a backup the scanner invalidated for
+	// another key is not this action's outcome. It applies only the served
+	// state, as a poll does, and on success clears the rotation guard
+	// exactly as an accepted disable does; it invents no capability, starts
+	// no rotation and issues no second proof.
+	requestState([=, this](const MTPWalletState &state) {
+		applyState(state, false);
+		const auto disabled = (state.type() == mtpc_walletState)
+			&& !state.c_walletState().is_backup_enabled()
+			&& (state.c_walletState().vpublic_key().v == proofKey)
+			&& (_address == address);
+		if (disabled) {
+			clearRotatedSinceBackup();
+			done();
+		} else {
+			fail(error);
+		}
+	}, [=] {
+		fail(error);
+	});
+}
+
 void Session::enableBackup(
 		std::vector<QByteArray> parts,
 		std::optional<Core::CloudPasswordResult> password,
@@ -4499,7 +4672,7 @@ void Session::replaceWithImported(
 					const std::vector<uint8_t> &signature) {
 				sendReplaceWallet(
 					MTP_inputWalletImported(
-						MTP_bytes(record.publicKey),
+						MTP_bytes(record.signingKey),
 						MTP_walletOwnershipProof(
 							MTP_int(timestamp),
 							MTP_bytes(bytes::make_span(signature)))),
@@ -4514,56 +4687,23 @@ void Session::replaceWithImported(
 						recoverImportedReplace(address, applied, abandon);
 					});
 			};
-			const auto sign = [=, this](
-					const MTPDwallet_proofChallenge &challenge) {
-				const auto timestamp = base::unixtime::now();
-				if (timestamp <= 0) {
-					LOG(("Wallet Error: no usable timestamp for the ownership "
-						"proof."));
-					abandon(u"REPLACE_PROOF_FAILED"_q);
-					return;
-				}
-				auto request = engine::TonConnectProofSignRequest{
-					.descriptor = descriptor,
-					.domain = challenge.vdomain().v.toStdString(),
-					.timestamp = uint64_t(timestamp),
-					.payload = challenge.vpayload().v.toStdString(),
-				};
-				_engine->runLocal([lifecycle, request = std::move(request)] {
-					return lifecycle->sign_ton_connect_proof(request);
-				}, [=, grant = install.grant](engine::TonConnectProofSignature proof) {
-					const auto size = int(proof.signature.size());
-					if (size != kOwnershipProofSignatureSize) {
-						LOG(("Wallet Error: the ownership proof signature has "
-							"%1 bytes.").arg(size));
-						abandon(u"REPLACE_PROOF_FAILED"_q);
-						return;
-					}
-					send(timestamp, proof.signature);
-				}, [=, grant = install.grant](EngineError error) {
-					LOG(("Wallet Error: sign_ton_connect_proof failed: %1"
-						).arg(LifecycleErrorName(error)));
-					abandon(IsVaultLocked(error)
-						? u"REPLACE_VAULT_LOCKED"_q
-						: u"REPLACE_PROOF_FAILED"_q);
-				});
-			};
 			// The challenge lives 300 seconds and admits one attempt, so it
 			// is fetched only here - after the install ladder answered and
 			// the engine stored the words - and signed at once. A cancelled
 			// chooser, a refused phrase or a failed import never reaches
-			// this continuation and issues no challenge. A resend of this
-			// request mints a new challenge server-side and only the final
-			// answer is used, so it keeps the ordinary flood policy; the
-			// send that spends the proof does not, see sendReplaceWallet.
-			_stateApi.request(MTPwallet_GetProofChallenge(
-			)).done([=](const MTPwallet_ProofChallenge &result) {
-				sign(result.data());
-			}).fail([=](const MTP::Error &error) {
-				LOG(("Wallet Error: wallet.getProofChallenge failed: %1"
-					).arg(error.type()));
-				abandon(u"REPLACE_PROOF_FAILED"_q);
-			}).handleFloodErrors().send();
+			// this continuation and issues no challenge.
+			requestOwnershipProof(
+				descriptor,
+				record.signingKey,
+				install.grant,
+				[=](OwnershipProof proof) {
+					send(proof.timestamp, proof.signature);
+				},
+				[=](OwnershipProofError error) {
+					abandon((error == OwnershipProofError::VaultLocked)
+						? u"REPLACE_VAULT_LOCKED"_q
+						: u"REPLACE_PROOF_FAILED"_q);
+				});
 		}, [=, this](EngineError error) {
 			_engine->dropStoredSecrets(*stores);
 			const auto name = LifecycleErrorName(error);
@@ -4618,6 +4758,75 @@ void Session::replaceWithImported(
 			fail(u"REPLACE_VAULT_LOCKED"_q);
 		}
 	});
+}
+
+void Session::requestOwnershipProof(
+		engine::WalletDescriptor descriptor,
+		QByteArray signingKey,
+		VaultAuthorization grant,
+		Fn<void(OwnershipProof)> done,
+		Fn<void(OwnershipProofError)> fail) {
+	const auto lifecycle = _engine->lifecycle();
+	// The challenge lives 300 seconds and admits one attempt, so each caller
+	// asks for it only once nothing but the signature stands between it and
+	// the send, and it is signed at once. A resend of this request mints a
+	// new challenge server-side and only the final answer is used, so it
+	// keeps the ordinary flood policy; the send that spends the proof does
+	// not. The engine signs with the stored phrase's current signing key
+	// and names that key back; a proof under any key but the one the
+	// caller is about to send is dropped here, so a record whose signing
+	// key disagrees with its phrase never reaches the server.
+	_stateApi.request(MTPwallet_GetProofChallenge(
+	)).done([=, this](const MTPwallet_ProofChallenge &result) {
+		const auto &challenge = result.data();
+		const auto timestamp = base::unixtime::now();
+		if (timestamp <= 0) {
+			LOG(("Wallet Error: no usable timestamp for the ownership "
+				"proof."));
+			fail(OwnershipProofError::Failed);
+			return;
+		}
+		auto request = engine::TonConnectProofSignRequest{
+			.descriptor = descriptor,
+			.domain = challenge.vdomain().v.toStdString(),
+			.timestamp = uint64_t(timestamp),
+			.payload = challenge.vpayload().v.toStdString(),
+		};
+		_engine->runLocal([lifecycle, request = std::move(request)] {
+			return lifecycle->sign_ton_connect_proof(request);
+		}, [=, grant = grant](engine::TonConnectProofSignature proof) {
+			const auto size = int(proof.signature.size());
+			if (size != kOwnershipProofSignatureSize) {
+				LOG(("Wallet Error: the ownership proof signature has "
+					"%1 bytes.").arg(size));
+				fail(OwnershipProofError::Failed);
+				return;
+			}
+			const auto signer = QByteArray(
+				reinterpret_cast<const char*>(proof.public_key.data()),
+				proof.public_key.size());
+			if (signer != signingKey) {
+				LOG(("Wallet Error: the ownership proof was signed "
+					"with another key."));
+				fail(OwnershipProofError::Failed);
+				return;
+			}
+			done(OwnershipProof{
+				.timestamp = timestamp,
+				.signature = std::move(proof.signature),
+			});
+		}, [=, grant = grant](EngineError error) {
+			LOG(("Wallet Error: ownership proof signing failed: %1"
+				).arg(LifecycleErrorName(error)));
+			fail(IsVaultLocked(error)
+				? OwnershipProofError::VaultLocked
+				: OwnershipProofError::Failed);
+		});
+	}).fail([=](const MTP::Error &error) {
+		LOG(("Wallet Error: wallet.getProofChallenge failed: %1"
+			).arg(error.type()));
+		fail(OwnershipProofError::Failed);
+	}).handleFloodErrors().send();
 }
 
 void Session::sendReplaceWallet(

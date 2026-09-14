@@ -519,7 +519,7 @@ parts:
   wallet-engine:
     source: https://github.com/i582/wallet-engine.git
     source-depth: 1
-    source-commit: 632fffa60d4360b880973ec02bd086922f66a048
+    source-commit: 12f0b49a1c0fbd6cd575bcadd9c54e5706b0f42e
     plugin: nil
     prime: [-./*]
 

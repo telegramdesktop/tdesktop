@@ -7017,6 +7017,11 @@ enum class BackupChange {
 	Disable,
 };
 
+struct BackupDisableProof {
+	KeyAuthorization auth;
+	BackupDisableApproval approved;
+};
+
 void RequestBackupChange(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::GenericBox*> origin,
@@ -7025,7 +7030,8 @@ void RequestBackupChange(
 		std::optional<Core::CloudPasswordResult> password,
 		base::weak_qptr<PasscodeBox> passcode,
 		Fn<void()> unblock,
-		Fn<void()> done) {
+		Fn<void()> done,
+		std::optional<BackupDisableProof> proof = std::nullopt) {
 	const auto succeeded = crl::guard(origin, [=] {
 		unblock();
 		if (passcode) {
@@ -7036,6 +7042,13 @@ void RequestBackupChange(
 	const auto fail = crl::guard(origin, [=](const QString &error) {
 		unblock();
 		if (passcode && passcode->handleCustomCheckError(error)) {
+			return;
+		}
+		if (error == u"BACKUP_VAULT_LOCKED"_q) {
+			if (passcode) {
+				passcode->closeBox();
+			}
+			show->showToast(VaultLockedText(&show->session()));
 			return;
 		}
 		if (auto box = PrePasswordErrorBox(
@@ -7056,7 +7069,13 @@ void RequestBackupChange(
 			: tr::lng_wallet_backup_error(tr::now));
 	});
 	auto &wallet = show->session().wallet();
-	if (change == BackupChange::Disable) {
+	if (change == BackupChange::Disable && proof) {
+		wallet.disableBackupWithProof(
+			std::move(proof->auth),
+			std::move(proof->approved),
+			succeeded,
+			fail);
+	} else if (change == BackupChange::Disable) {
 		wallet.disableBackup(std::move(password), succeeded, fail);
 	} else {
 		wallet.enableBackup(
@@ -7113,6 +7132,39 @@ void StartBackupRequest(
 		show->showBox(Box<PasscodeBox>(session, fields));
 		unblock();
 	}, origin->lifetime());
+}
+
+// A usable local copy of the served wallet's current key proves ownership,
+// so no cloud password is asked. Without one (the served key moved since the
+// phrase was shown, or the hardware wrap cannot be opened) no proof can be
+// made and the cloud password route stays as before. A locked vault still
+// has usable custody: the session reports it locked and asks no password.
+void RequestBackupDisable(
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<Ui::GenericBox*> origin,
+		BackupDisableProof proof,
+		Fn<void()> unblock,
+		Fn<void()> done) {
+	if (!show->session().wallet().revealsLocally()) {
+		StartBackupRequest(
+			show,
+			origin,
+			BackupChange::Disable,
+			{},
+			std::move(unblock),
+			std::move(done));
+		return;
+	}
+	RequestBackupChange(
+		show,
+		origin,
+		BackupChange::Disable,
+		{},
+		std::nullopt,
+		nullptr,
+		std::move(unblock),
+		std::move(done),
+		std::move(proof));
 }
 
 void ShowBackupEnabledToast(std::shared_ptr<Main::SessionShow> show) {
@@ -7381,6 +7433,11 @@ void CollectBackupPhrase(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::GenericBox*> origin,
 		KeyAuthorization auth) {
+	const auto approved = show->session().wallet().backupDisableApproval();
+	const auto proof = BackupDisableProof{
+		.auth = auth,
+		.approved = approved.value_or(BackupDisableApproval()),
+	};
 	const auto showQuiz = [=](std::vector<QString> words) {
 		const auto quiz = std::make_shared<base::weak_qptr<Ui::GenericBox>>();
 		const auto requesting = std::make_shared<bool>(false);
@@ -7390,11 +7447,10 @@ void CollectBackupPhrase(
 				return;
 			}
 			*requesting = true;
-			StartBackupRequest(
+			RequestBackupDisable(
 				show,
 				strong,
-				BackupChange::Disable,
-				{},
+				proof,
 				[=] { *requesting = false; },
 				[=] {
 					if (const auto strong = quiz->get()) {
@@ -7512,11 +7568,14 @@ void SubmitRotation(
 			return;
 		}
 		*busy = true;
-		StartBackupRequest(
+		const auto approved = show->session().wallet().backupDisableApproval();
+		RequestBackupDisable(
 			show,
 			strong,
-			BackupChange::Disable,
-			{},
+			BackupDisableProof{
+				.auth = state->auth,
+				.approved = approved.value_or(BackupDisableApproval()),
+			},
 			[=] { *busy = false; },
 			[=] { ShowBackupDisabledToast(show); });
 	}, [=](const QString &error) {

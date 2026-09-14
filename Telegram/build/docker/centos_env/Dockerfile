@@ -1012,7 +1012,7 @@ cd ..
 git init wallet-engine
 cd wallet-engine
 git remote add origin https://github.com/i582/wallet-engine.git
-git fetch --depth=1 origin 632fffa60d4360b880973ec02bd086922f66a048
+git fetch --depth=1 origin 12f0b49a1c0fbd6cd575bcadd9c54e5706b0f42e
 git reset --hard FETCH_HEAD
 cd ..
 # One archive for every Rust library. Each staticlib carries its own copy of

@@ -26,6 +26,7 @@ struct NftList;
 struct SendMessageBody;
 struct SendSnapshot;
 struct WalletClient;
+struct WalletDescriptor;
 struct WalletUpdate;
 } // namespace wallet_engine
 
@@ -146,6 +147,12 @@ struct TransferWalletIdentity {
 	friend bool operator==(
 		const TransferWalletIdentity &,
 		const TransferWalletIdentity &) = default;
+};
+
+struct BackupDisableApproval {
+	QString address;
+	QString recordId;
+	int networkGeneration = 0;
 };
 
 struct TransferItem {
@@ -429,6 +436,7 @@ public:
 		const TransferWalletIdentity &identity) const;
 	[[nodiscard]] rpl::producer<> transferWalletIdentityChanges() const;
 	[[nodiscard]] bool revealsLocally();
+	[[nodiscard]] std::optional<BackupDisableApproval> backupDisableApproval();
 	[[nodiscard]] VaultRuntime &vault() const;
 	[[nodiscard]] DeviceCustodyState deviceCustodyState() const;
 	[[nodiscard]] auto deviceCustodyStateValue() const
@@ -534,6 +542,11 @@ public:
 		Fn<void(const QString &error)> fail);
 	void disableBackup(
 		std::optional<Core::CloudPasswordResult> password,
+		Fn<void()> done,
+		Fn<void(const QString &error)> fail);
+	void disableBackupWithProof(
+		KeyAuthorization auth,
+		BackupDisableApproval approved,
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail);
 	[[nodiscard]] bool rotationOffered();
@@ -703,6 +716,26 @@ private:
 		QString canonicalAddress,
 		Fn<void(const MTPWalletState &)> applied,
 		Fn<void(const QString &)> abandon);
+	struct OwnershipProof {
+		TimeId timestamp = 0;
+		std::vector<uint8_t> signature;
+	};
+	enum class OwnershipProofError {
+		Failed,
+		VaultLocked,
+	};
+	void requestOwnershipProof(
+		wallet_engine::WalletDescriptor descriptor,
+		QByteArray signingKey,
+		VaultAuthorization grant,
+		Fn<void(OwnershipProof)> done,
+		Fn<void(OwnershipProofError)> fail);
+	void settleRefusedBackupDisable(
+		QString address,
+		QByteArray proofKey,
+		QString error,
+		Fn<void()> done,
+		Fn<void(const QString &)> fail);
 	void finishConfirmedReplace(
 		QString oldAddress,
 		std::optional<CustodyRecord> newActive,
