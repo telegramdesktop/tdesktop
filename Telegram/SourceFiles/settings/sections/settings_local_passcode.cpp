@@ -1570,8 +1570,12 @@ void BuildManageContent(
 				}
 				Core::App().localPasscodeChanged();
 				if (walletDependent) {
-					controller->showToast(
-						tr::lng_settings_passcode_lock_off_wallet(tr::now));
+					controller->showToast(Ui::Toast::Config{
+						.text = tr::lng_settings_passcode_lock_off_wallet(
+							tr::now,
+							Ui::Text::WithEntities),
+						.duration = 2 * Ui::Toast::kDefaultDuration,
+					});
 				}
 				if (weak) {
 					section->setBusy(false);

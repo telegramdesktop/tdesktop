@@ -5942,9 +5942,9 @@ void WalletPhraseBox(
 			rpl::single(count * 1.) | tr::to_count(),
 			tr::marked),
 		st::walletPhraseTextLabel,
-		st::walletPhraseGridLottieSize,
-		st::walletPhraseGridLottieMargin,
-		st::walletPhraseGridTextMargin);
+		st::walletCoverLottieSize,
+		st::walletPhraseLottieMargin,
+		st::walletPhraseTextMargin);
 
 	AddPhraseGrid(box, words);
 
@@ -6257,7 +6257,7 @@ void WalletPhraseWarningBox(
 		tr::lng_wallet_phrase_intro_text(tr::marked),
 		st::walletPhraseIntroTextLabel,
 		st::walletCoverLottieSize,
-		st::walletCoverLottieMargin,
+		st::walletPhraseLottieMargin,
 		st::walletPhraseTextMargin);
 
 	const auto container = box->verticalLayout();
@@ -7085,9 +7085,9 @@ void WalletBackupPhraseBox(
 		std::move(title),
 		std::move(text),
 		st::walletPhraseTextLabel,
-		st::walletPhraseGridLottieSize,
-		st::walletPhraseGridLottieMargin,
-		st::walletPhraseGridTextMargin);
+		st::walletCoverLottieSize,
+		st::walletPhraseLottieMargin,
+		st::walletPhraseTextMargin);
 
 	AddPhraseGrid(box, words);
 
