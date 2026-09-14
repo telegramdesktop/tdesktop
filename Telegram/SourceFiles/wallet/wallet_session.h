@@ -363,16 +363,25 @@ enum class PhraseMatch {
 
 [[nodiscard]] PhraseMatch DetectPhraseMatch(const std::vector<QString> &words);
 
+struct PhraseIdentity {
+	QByteArray anchor;
+	QByteArray signing;
+};
+
 // What logging out of an account, or removing its keys after a forgotten
 // passcode, would destroy on this device, read from its custody store:
 // `unbacked` counts the served wallet when Telegram holds no backup of it,
-// `parked` counts every record the server no longer serves, `rotating` counts
+// `parked` counts every record of another wallet, `rotating` counts
 // a key change this device started and nothing has confirmed - its
 // replacement key is named by no record yet, so a promotion is what would put
 // it under a record, and no backup can cover it before that promotion, which
 // is why it is neither of the first two - and `unknown` says the account's
 // loss cannot be stated as a fact, because the custody store could not be read
-// or the served wallet's state has not reached this client. `holdsRecords` is
+// or the served wallet's state has not reached this client. A record of the
+// served wallet that holds an obsolete signing key is no loss: the key no
+// longer signs, so nothing it could reveal is current. A pre-v4 record of the
+// served wallet, whose signing key was never established, counts as active,
+// because it may be the only copy of the current phrase. `holdsRecords` is
 // not a loss: it says whether the store held any record at all, which is what
 // tells an empty loss "every record is backed" apart from "there is nothing
 // here to lose", and carrying it is what lets the forgot confirmation decide
@@ -413,6 +422,7 @@ public:
 	[[nodiscard]] QString addressFriendly(bool bounceable = false);
 	[[nodiscard]] WalletCapabilities capabilities() const;
 	[[nodiscard]] rpl::producer<WalletCapabilities> capabilitiesValue() const;
+	// The served wallet's current on-chain signing key, not the anchor.
 	[[nodiscard]] QByteArray publicKey() const;
 	[[nodiscard]] auto transferWalletIdentity() const
 		-> std::optional<TransferWalletIdentity>;
@@ -675,17 +685,19 @@ private:
 		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
 		Fn<void(const QString &)> fail,
 		std::shared_ptr<CommentScope> scope = nullptr);
-	// The phrase's anchor public key, derived storage- and network-free on
-	// the engine's local worker; nullopt for a phrase that is not a valid
-	// Rotation mnemonic. done runs on the main thread.
+	// The phrase's anchor and current signing public keys, both derived
+	// storage- and network-free on the engine's local worker; nullopt for a
+	// phrase that is not a valid Rotation mnemonic. done runs on the main
+	// thread.
 	void validatePhraseIdentity(
 		const std::vector<QString> &words,
-		Fn<void(std::optional<QByteArray>)> done);
+		Fn<void(std::optional<PhraseIdentity>)> done);
 	[[nodiscard]] bool commentAccessAvailable() const;
 	void validateCommentScopes();
 	void retireCommentScopes(
 		const std::shared_ptr<CommentScope> &except = nullptr);
 	[[nodiscard]] const CustodyStore &custody();
+	[[nodiscard]] const CustodyRecord *currentRecord();
 	[[nodiscard]] bool persistCustody(const CustodyRecord &record);
 	void dropCreatedVault();
 	[[nodiscard]] CustodyResetResult resetUnusableVault(
@@ -705,11 +717,11 @@ private:
 		Fn<void(const MTPWalletState &)> applied,
 		Fn<void(const MTP::Error &)> fail);
 	void recoverImportedReplace(
-		QByteArray publicKey,
+		QString canonicalAddress,
 		Fn<void(const MTPWalletState &)> applied,
 		Fn<void(const QString &)> abandon);
 	void finishConfirmedReplace(
-		std::optional<CustodyRecord> oldRecord,
+		QString oldAddress,
 		std::optional<CustodyRecord> newActive,
 		const MTPWalletState &state,
 		Fn<void(CustodyOutcome)> done,
@@ -718,7 +730,7 @@ private:
 	void updateDeviceCustodyState();
 	void syncEngineClient();
 	void stopEngineClientForReset(Fn<void()> done);
-	void removeCustodyRecord(const QByteArray &publicKey);
+	void removeCustodyRecord(const QString &recordId);
 	void clearNetworkState();
 	void pollTick();
 	void updatePollingState();

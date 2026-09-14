@@ -103,6 +103,7 @@ struct Session::SubmittedLookup {
 
 struct Session::PreparedRotation {
 	std::vector<QString> words;
+	QByteArray newPublicKey;
 	std::string signedBoc;
 	uint32 seqno = 0;
 	uint64 validUntil = 0;
@@ -464,6 +465,50 @@ struct ThrowawayRotation {
 	return word.trimmed().toLower();
 }
 
+[[nodiscard]] std::optional<QByteArray> RotationMnemonicKey(
+		const QStringList &words) {
+	try {
+		const auto key = engine::rotation_mnemonic_public_key(
+			words.join(QChar(' ')).toStdString());
+		if (int(key.size()) != kCustodyPublicKeySize) {
+			return std::nullopt;
+		}
+		return QByteArray(
+			reinterpret_cast<const char*>(key.data()),
+			key.size());
+	} catch (...) {
+		return std::nullopt;
+	}
+}
+
+// The engine exports no signing-key function, only
+// rotation_mnemonic_public_key, which returns derive_half_key(anchor).
+// derive_rotation_keys derives both halves of a Rotation mnemonic with that
+// same derive_half_key, independently per half; a 12-word phrase's signing
+// half is its anchor half; and each half of a 24-word phrase is an
+// independently checksummed BIP-39 phrase the engine accepts as a 12-word
+// Rotation mnemonic of its own. So the anchor of words 13-24 taken alone is
+// the 24-word phrase's signing key byte for byte, computed entirely inside
+// the engine, with no cryptography in Telegram. Runs on the engine worker.
+[[nodiscard]] std::optional<PhraseIdentity> DerivePhraseIdentity(
+		const QStringList &normalized) {
+	const auto count = normalized.size();
+	if (count != 12 && count != 24) {
+		return std::nullopt;
+	}
+	const auto anchor = RotationMnemonicKey(normalized);
+	if (!anchor) {
+		return std::nullopt;
+	}
+	const auto signing = (count == 24)
+		? RotationMnemonicKey(normalized.mid(12))
+		: anchor;
+	if (!signing) {
+		return std::nullopt;
+	}
+	return PhraseIdentity{ .anchor = *anchor, .signing = *signing };
+}
+
 [[nodiscard]] const std::vector<QString> &Wordlist() {
 	static const auto result = [] {
 		auto list = std::vector<QString>();
@@ -526,18 +571,6 @@ struct ThrowawayRotation {
 	return auth.grant
 		&& auth.grant->valid()
 		&& session.vault().unlocked();
-}
-
-[[nodiscard]] bool SameCommentRecord(
-		const CustodyRecord &a,
-		const CustodyRecord &b) {
-	return a.recordId == b.recordId
-		&& a.address == b.address
-		&& a.publicKey == b.publicKey
-		&& a.network == b.network
-		&& a.secretRef == b.secretRef
-		&& a.active == b.active
-		&& a.rotatedSinceBackup == b.rotatedSinceBackup;
 }
 
 [[nodiscard]] bool ValidCommentPayloadSize(int size) {
@@ -1445,21 +1478,28 @@ WalletLoss WalletLossOnLogout(not_null<Main::Account*> account) {
 		++result.rotating;
 	}
 	const auto session = account->maybeSession();
-	const auto served = session
-		? session->wallet().publicKey()
-		: QByteArray();
-	const auto known = !served.isEmpty();
+	const auto identity = session
+		? session->wallet().transferWalletIdentity()
+		: std::nullopt;
+	const auto known = session
+		&& session->wallet().presenceCurrent() == Presence::Ready
+		&& identity;
 	const auto backed = known
 		&& session->wallet().capabilities().backupEnabled;
 	for (const auto &record : store->records) {
+		const auto sameWallet = known
+			&& CanonicalAddress(record.address) == identity->address;
 		const auto active = known
-			? (record.publicKey == served)
+			? (sameWallet && record.signsWith(identity->publicKey))
 			: record.active;
-		if (!active) {
+		const auto obsolete = sameWallet
+			&& !active
+			&& !record.signingKey.isEmpty();
+		if (known ? !sameWallet : !active) {
 			++result.parked;
 		} else if (!known) {
 			result.unknown = true;
-		} else if (!backed || record.rotatedSinceBackup) {
+		} else if (!obsolete && (!backed || record.rotatedSinceBackup)) {
 			++result.unbacked;
 		}
 	}
@@ -1718,14 +1758,14 @@ auto Session::transferWalletIdentity() const
 		const auto address = CanonicalAddress(record.address);
 		if (record.active
 			&& record.network == int(engine::Network::kMainnet)
-			&& record.publicKey.size() == kCustodyPublicKeySize
-			&& record.publicKey == _custody->lastSeenServerKey
+			&& _custody->lastSeenServerKey.size() == kCustodyPublicKeySize
+			&& record.signsWith(_custody->lastSeenServerKey)
 			&& !record.recordId.isEmpty()
 			&& !record.secretRef.isEmpty()
 			&& !address.isEmpty()) {
 			return TransferWalletIdentity{
 				.address = address,
-				.publicKey = record.publicKey,
+				.publicKey = _custody->lastSeenServerKey,
 				.revision = _walletIdentityRevision,
 			};
 		}
@@ -2032,15 +2072,16 @@ void Session::applyState(const MTPWalletState &state, bool pushed) {
 			return;
 		}
 		const auto wasReady = (_presence.current() == Presence::Ready);
-		const auto identityChanged = (_address != parsed->raw)
-			|| (_publicKey != data.vpublic_key().v);
+		const auto addressChanged = (_address != parsed->raw);
+		const auto keyChanged = (_publicKey != data.vpublic_key().v);
+		const auto identityChanged = addressChanged || keyChanged;
 		if (identityChanged) {
 			retireCommentScopes();
 			++_walletIdentityRevision;
 		}
 		_address = parsed->raw;
 		_publicKey = data.vpublic_key().v;
-		if (wasReady && identityChanged) {
+		if (wasReady && addressChanged) {
 			const auto weak = base::make_weak(_engine.get());
 			const auto revision = _walletIdentityRevision;
 			clearHistory();
@@ -2063,22 +2104,26 @@ void Session::applyState(const MTPWalletState &state, bool pushed) {
 		// A presence that was not Ready has already had its drain and its
 		// first page from setPresence(); the case that write structurally
 		// cannot see is a presence that stayed Ready while the served
-		// identity changed. That is a different wallet, so both lanes leave
+		// address changed. That is a different wallet, so both lanes leave
 		// with the transfer submission in flight, the engine status returns
 		// to its unknown value and the new wallet's head page is asked for at
 		// once. It runs before reconcileCustody() because that reconciliation
 		// may stop and restart the engine client, and a restart must find an
 		// already-drained collectibles lane rather than have its first
 		// delivery wiped afterwards.
-		// A pushed state on the same wallet is the transfer notification the
-		// server sends as a transfer progresses, so it is news about the
-		// history lane alone and invalidates only that one. The arms are
-		// ordered so that a push which also changed the identity takes the
-		// first one and gets exactly one head page from the drain, never a second
-		// one from the marker.
-		if (wasReady && identityChanged) {
+		// A same-address key change is the same wallet under a rotated key:
+		// its lists and engine status stay, the history lane is marked stale
+		// because the rotation is one new row in it, and reconcileCustody()
+		// settles which record still signs for it. A pushed state on the
+		// same wallet is the transfer notification the server sends as a
+		// transfer progresses, so it too is news about the history lane
+		// alone and invalidates only that one. The arms are ordered so that
+		// a push which also changed the address takes the first one and gets
+		// exactly one head page from the drain, never a second one from the
+		// marker.
+		if (wasReady && addressChanged) {
 			refreshHistory();
-		} else if (wasReady && pushed) {
+		} else if (wasReady && (pushed || keyChanged)) {
 			_historyStale = true;
 			refreshStaleHistory();
 		}
@@ -2155,7 +2200,7 @@ bool Session::revealsLocally() {
 	ensureLoaded();
 	return (_presence.current() == Presence::Ready)
 		&& (_publicKey.size() == kCustodyPublicKeySize)
-		&& (custody().matching(_publicKey) != nullptr)
+		&& (currentRecord() != nullptr)
 		&& !_vaultKeyUnusable;
 }
 
@@ -2207,7 +2252,10 @@ std::shared_ptr<CommentScope> Session::createCommentScope(
 	state->vault = vault().shared_from_this();
 	state->generation = _networkGeneration;
 	state->epoch = vault().clearEpoch();
-	if (const auto record = store.matching(state->target.walletIdentity->publicKey)) {
+	const auto record = store.current(
+		state->target.walletIdentity->address,
+		state->target.walletIdentity->publicKey);
+	if (record) {
 		state->record = *record;
 	}
 	updateDeviceCustodyState();
@@ -2242,7 +2290,9 @@ bool Session::commentAccessAvailable() const {
 		&& !_sendUnresolved
 		&& _sendState.current() == SendState::Idle
 		&& !ranges::any_of(_custody->records, [&](const CustodyRecord &record) {
-			return record.publicKey != identity->publicKey;
+			return &record != _custody->current(
+				identity->address,
+				identity->publicKey);
 		});
 }
 
@@ -2260,9 +2310,11 @@ bool Session::commentScopeCurrent(
 		scope->cancel();
 		return false;
 	}
-	const auto current = _custody->matching(state.target.walletIdentity->publicKey);
+	const auto current = _custody->current(
+		state.target.walletIdentity->address,
+		state.target.walletIdentity->publicKey);
 	if ((current != nullptr) != state.record.has_value()
-		|| (current && (!SameCommentRecord(*current, *state.record)
+		|| (current && (*current != *state.record
 			|| !current->active
 			|| current->recordId.isEmpty()
 			|| current->secretRef.isEmpty()
@@ -2415,7 +2467,7 @@ void Session::revealPhrase(
 	};
 	const auto record = _vaultKeyUnusable
 		? nullptr
-		: custody().matching(_publicKey);
+		: currentRecord();
 	if (record) {
 		if (!ReadAuthorized(*this, auth)) {
 			fail(u"PHRASE_VAULT_LOCKED"_q);
@@ -2445,7 +2497,7 @@ void Session::revealLocally(
 		fail(u"PHRASE_VAULT_LOCKED"_q);
 		return;
 	}
-	const auto initiatingPublicKey = record.publicKey;
+	const auto initiatingRecordId = record.recordId;
 	const auto lifecycle = _engine->lifecycle();
 	const auto descriptor = DescriptorFromRecord(record);
 	_engine->runLocal([lifecycle, descriptor] {
@@ -2460,7 +2512,7 @@ void Session::revealLocally(
 		done(std::move(words));
 	}, [=, grant = auth.grant](EngineError error) {
 		if (IsProtectedSecretNotFound(error)) {
-			removeCustodyRecord(initiatingPublicKey);
+			removeCustodyRecord(initiatingRecordId);
 		}
 		LOG(("Wallet Error: local phrase reveal failed: %1"
 			).arg(LifecycleErrorName(error)));
@@ -2668,24 +2720,13 @@ void Session::fetchShareParts(
 
 void Session::validatePhraseIdentity(
 		const std::vector<QString> &words,
-		Fn<void(std::optional<QByteArray>)> done) {
+		Fn<void(std::optional<PhraseIdentity>)> done) {
 	auto normalized = QStringList();
 	for (const auto &word : words) {
 		normalized.push_back(NormalizeWord(word));
 	}
-	const auto phrase = normalized.join(QChar(' ')).toStdString();
-	_engine->runLocal([phrase]() -> std::optional<QByteArray> {
-		try {
-			const auto key = engine::rotation_mnemonic_public_key(phrase);
-			if (int(key.size()) != kCustodyPublicKeySize) {
-				return std::nullopt;
-			}
-			return QByteArray(
-				reinterpret_cast<const char*>(key.data()),
-				key.size());
-		} catch (...) {
-			return std::nullopt;
-		}
+	_engine->runLocal([normalized] {
+		return DerivePhraseIdentity(normalized);
 	}, done, [done](EngineError) {
 		done(std::nullopt);
 	});
@@ -2706,9 +2747,12 @@ void Session::restoreFromWords(
 		return;
 	}
 	const auto lifecycle = _engine->lifecycle();
-	const auto expected = scope
+	const auto expectedKey = scope
 		? scope->_state->target.walletIdentity->publicKey
 		: _publicKey;
+	const auto targetAddress = scope
+		? scope->_state->target.walletIdentity->address
+		: _address;
 	const auto crossed = std::make_shared<bool>(false);
 	done = [this, crossed, done = std::move(done)](
 			std::vector<QString> phrase,
@@ -2726,6 +2770,7 @@ void Session::restoreFromWords(
 	// Its `created` term is what tells a failure arm whether the header it
 	// has to drop is one this store wrote.
 	const auto store = [=, this](
+			PhraseIdentity identity,
 			CustodyInstall install,
 			std::vector<QString> phrase) {
 		if (scope
@@ -2786,16 +2831,15 @@ void Session::restoreFromWords(
 					cleanup();
 				});
 			};
-			if (record.publicKey != expected
-				|| (scope && (record.network != int(engine::Network::kMainnet)
-					|| CanonicalAddress(record.address)
-						!= scope->_state->target.walletIdentity->address))) {
+			if (record.network != int(engine::Network::kMainnet)
+				|| CanonicalAddress(record.address) != targetAddress) {
 				rollback([=] { fail(u"PHRASE_KEY_MISMATCH"_q); });
 				return;
 			} else if (scope && !commentScopeCurrent(scope)) {
 				rollback([=] { fail(u"PHRASE_ORIGIN_EXPIRED"_q); });
 				return;
 			}
+			record.signingKey = identity.signing;
 			if (scope) {
 				record.active = true;
 				scope->_state->record = record;
@@ -2809,9 +2853,9 @@ void Session::restoreFromWords(
 				});
 				return;
 			} else if (scope && !commentScopeCurrent(scope)) {
-				const auto current = custody().matching(record.publicKey);
-				if (current && current->recordId == record.recordId) {
-					removeCustodyRecord(record.publicKey);
+				const auto stored = custody().byAnchor(record.publicKey);
+				if (stored && stored->recordId == record.recordId) {
+					removeCustodyRecord(record.recordId);
 				}
 				rollback([=] { fail(u"PHRASE_ORIGIN_EXPIRED"_q); });
 				return;
@@ -2841,6 +2885,7 @@ void Session::restoreFromWords(
 		});
 	};
 	const auto continueInstall = [=, this](
+			PhraseIdentity identity,
 			CustodyInstall answer,
 			std::vector<QString> phrase) {
 		if (scope && !commentScopeCurrent(scope)) {
@@ -2848,22 +2893,24 @@ void Session::restoreFromWords(
 		} else if (!answer.grant) {
 			done(std::move(phrase), CustodyOutcome::Cancelled);
 		} else {
-			store(std::move(answer), std::move(phrase));
+			store(identity, std::move(answer), std::move(phrase));
 		}
 	};
-	// The phrase's anchor key is derived on the engine worker before the
-	// install ladder opens anything: an invalid phrase, or one belonging
-	// to another wallet, is refused here while the header and the custody
-	// store are still untouched, so no chooser, no store and no replacement
-	// of a vault this process cannot open is ever reached by such a phrase.
-	// The imported descriptor is still checked after the store, because the
-	// engine's import is the authority on what the words derive.
+	// The phrase's signing key is derived on the engine worker and compared
+	// with the served key before the install ladder opens anything: an
+	// invalid phrase, an obsolete phrase of this wallet or one belonging to
+	// another wallet is refused here while the header and the custody store
+	// are still untouched, so no chooser, no store and no replacement of a
+	// vault this process cannot open is ever reached by such a phrase. The
+	// imported descriptor's address is then bound to the target address
+	// after the store, because the engine's import is the authority on what
+	// the words derive.
 	validatePhraseIdentity(words, [=, this](
-			std::optional<QByteArray> key) mutable {
-		if (!key) {
+			std::optional<PhraseIdentity> identity) mutable {
+		if (!identity) {
 			fail(u"PHRASE_INVALID_PHRASE"_q);
 			return;
-		} else if (*key != expected) {
+		} else if (identity->signing != expectedKey) {
 			fail(u"PHRASE_KEY_MISMATCH"_q);
 			return;
 		}
@@ -2873,14 +2920,20 @@ void Session::restoreFromWords(
 		// not just typed.
 		if (const auto install = auth.install) {
 			install(resettableInstallRequest(
-				expected,
+				expectedKey,
 				scope,
 				crossed,
 				[=, words = std::move(words)](CustodyInstall answer) mutable {
-					continueInstall(std::move(answer), std::move(words));
+					continueInstall(
+						*identity,
+						std::move(answer),
+						std::move(words));
 				}));
 		} else if (auth.grant && auth.grant->valid()) {
-			store(CustodyInstall{ .grant = auth.grant }, std::move(words));
+			store(
+				*identity,
+				CustodyInstall{ .grant = auth.grant },
+				std::move(words));
 		} else {
 			fail(u"PHRASE_VAULT_LOCKED"_q);
 		}
@@ -3111,8 +3164,8 @@ void Session::revealParked(
 		}
 		return;
 	}
-	const auto record = custody().matching(publicKey);
-	if (!record || publicKey == _publicKey) {
+	const auto record = custody().byAnchor(publicKey);
+	if (!record || CanonicalAddress(record->address) == _address) {
 		LOG(("Wallet Error: parked reveal requested for a non-parked key."));
 		if (fail) {
 			fail(u"PHRASE_STATE_UNKNOWN"_q);
@@ -3167,8 +3220,8 @@ void Session::dropParked(
 		}
 		return;
 	}
-	const auto record = custody().matching(publicKey);
-	if (!record || publicKey == _publicKey) {
+	const auto record = custody().byAnchor(publicKey);
+	if (!record || CanonicalAddress(record->address) == _address) {
 		LOG(("Wallet Error: drop requested for a non-parked key."));
 		if (fail) {
 			fail(u"PHRASE_STATE_UNKNOWN"_q);
@@ -3190,10 +3243,11 @@ void Session::dropParked(
 		}
 	};
 	const auto lifecycle = _engine->lifecycle();
+	const auto recordId = record->recordId;
 	_engine->run([lifecycle, descriptor = DescriptorFromRecord(*record)] {
 		lifecycle->delete_wallet(descriptor);
 	}, [=, this] {
-		removeCustodyRecord(publicKey);
+		removeCustodyRecord(recordId);
 		done();
 	}, [=](EngineError error) {
 		LOG(("Wallet Error: parked delete_wallet failed: %1"
@@ -3222,7 +3276,7 @@ void Session::prepareBackupParts(
 		}
 		return;
 	}
-	const auto matching = custody().matching(_publicKey);
+	const auto matching = currentRecord();
 	if (!matching) {
 		LOG(("Wallet Error: backup requested without local custody."));
 		if (fail) {
@@ -3311,7 +3365,7 @@ void Session::disableBackup(
 		}
 		return;
 	}
-	if (!custody().matching(_publicKey)) {
+	if (!currentRecord()) {
 		LOG(("Wallet Error: backup disable requested without local custody."));
 		if (fail) {
 			fail(u"BACKUP_NO_CUSTODY"_q);
@@ -3336,7 +3390,9 @@ void Session::disableBackup(
 	const auto checked = password && *password;
 	_stateApi.request(MTPwallet_DisableBackup(
 		MTP_flags(checked ? Flag::f_password : Flag(0)),
-		checked ? password->result : MTP_inputCheckPasswordEmpty()
+		checked ? password->result : MTP_inputCheckPasswordEmpty(),
+		MTP_bytes(), // new_public_key
+		MTPWalletOwnershipProof() // proof
 	)).done([=, this](const MTPWalletState &result) {
 		clearRotatedSinceBackup();
 		applyState(result, false);
@@ -3371,7 +3427,7 @@ void Session::enableBackup(
 		}
 		return;
 	}
-	if (!custody().matching(_publicKey)) {
+	if (!currentRecord()) {
 		LOG(("Wallet Error: backup enable requested without local custody."));
 		if (fail) {
 			fail(u"BACKUP_NO_CUSTODY"_q);
@@ -3427,7 +3483,7 @@ bool Session::rotationOffered() {
 		|| _publicKey.size() != kCustodyPublicKeySize) {
 		return false;
 	}
-	const auto matching = custody().matching(_publicKey);
+	const auto matching = currentRecord();
 	return (matching != nullptr)
 		&& !matching->rotatedSinceBackup
 		&& !custody().pendingRotation
@@ -3540,7 +3596,7 @@ void Session::prepareRotation(
 		}
 		return;
 	}
-	const auto matching = custody().matching(_publicKey);
+	const auto matching = currentRecord();
 	if (!matching) {
 		LOG(("Wallet Error: rotation requested without local custody."));
 		if (fail) {
@@ -3595,14 +3651,20 @@ void Session::prepareRotation(
 	}, [=, this, grant = auth.grant](engine::PreparedKeyRotation prepared) {
 		auto words = SplitWords(QString::fromStdString(
 			prepared.replacement_recovery_phrase.phrase));
-		if (words.size() < 2) {
-			LOG(("Wallet Error: key rotation prepare produced no words."));
+		auto newPublicKey = QByteArray(
+			reinterpret_cast<const char*>(prepared.new_public_key.data()),
+			prepared.new_public_key.size());
+		if (words.size() < 2
+			|| newPublicKey.size() != kCustodyPublicKeySize) {
+			LOG(("Wallet Error: key rotation prepare produced "
+				"no words or no key."));
 			fail(u"ROTATION_PREPARE_FAILED"_q);
 			return;
 		}
 		_preparedRotation = std::make_unique<PreparedRotation>(
 			PreparedRotation{
 				.words = words,
+				.newPublicKey = std::move(newPublicKey),
 				.signedBoc = std::move(prepared.signed_boc),
 				.seqno = prepared.seqno,
 				.validUntil = prepared.valid_until,
@@ -3747,7 +3809,7 @@ void Session::submitRotation(
 std::vector<CustodyRecord> Session::parkedRecords() {
 	auto result = std::vector<CustodyRecord>();
 	for (const auto &record : custody().records) {
-		if (record.publicKey != _publicKey) {
+		if (CanonicalAddress(record.address) != _address) {
 			result.push_back(record);
 		}
 	}
@@ -3940,8 +4002,19 @@ const CustodyStore &Session::custody() {
 	return *_custody;
 }
 
+const CustodyRecord *Session::currentRecord() {
+	return custody().current(_address, _publicKey);
+}
+
 bool Session::persistCustody(const CustodyRecord &record) {
 	auto store = custody();
+	auto superseded = std::vector<CustodyRecord>();
+	for (const auto &existing : store.records) {
+		if (existing.publicKey == record.publicKey
+			&& existing.secretRef != record.secretRef) {
+			superseded.push_back(existing);
+		}
+	}
 	store.records.erase(
 		ranges::remove(
 			store.records,
@@ -3959,6 +4032,23 @@ bool Session::persistCustody(const CustodyRecord &record) {
 	}
 	_custodyReadFailed = false;
 	_custody = std::move(store);
+	// The superseded secrets go only after the write landed, so a failed
+	// write leaves the old record and its secret exactly as before. The
+	// pending rotation is not a record and its secretRef never equals a
+	// record's, so it is never in this set; the new record's own secret is
+	// kept out by the secretRef comparison; and the restore precheck has
+	// already established that the new record signs with the served key,
+	// so a superseded same-anchor record is at best the same phrase or an
+	// obsolete one, never the sole current custody of the wallet.
+	const auto lifecycle = _engine->lifecycle();
+	for (const auto &each : superseded) {
+		_engine->run([lifecycle, descriptor = DescriptorFromRecord(each)] {
+			lifecycle->delete_wallet(descriptor);
+		}, [] {}, [](EngineError) {
+			LOG(("Wallet Error: delete_wallet of a superseded record "
+				"failed."));
+		});
+	}
 	updateDeviceCustodyState();
 	return true;
 }
@@ -4019,15 +4109,12 @@ void Session::replaceWithNew(
 			fail(error);
 		}
 	};
-	auto oldRecord = std::optional<CustodyRecord>();
-	if (const auto record = custody().matching(_publicKey)) {
-		oldRecord = *record;
-	}
+	const auto oldAddress = _address;
 	sendReplaceWallet(
 		MTP_inputWalletNew(),
 		std::move(password),
 		[=, this](const MTPWalletState &state) {
-			finishConfirmedReplace(oldRecord, std::nullopt, state, done, fail);
+			finishConfirmedReplace(oldAddress, std::nullopt, state, done, fail);
 		},
 		[=](const MTP::Error &error) {
 			fail(error.type());
@@ -4083,16 +4170,14 @@ void Session::replaceWithImported(
 			fail(error);
 		}
 	};
-	auto oldRecord = std::optional<CustodyRecord>();
-	if (const auto record = custody().matching(_publicKey)) {
-		oldRecord = *record;
-	}
+	const auto oldAddress = _address;
 	const auto lifecycle = _engine->lifecycle();
 	// The store authority is resolved the way restoreFromWords resolves it,
 	// and for the same reason the install ladder runs first: a cancelled
 	// chooser has to abort before wallet.replaceWallet is sent, so nothing
 	// on the server can name a key this device never stored.
 	const auto store = [=, this](
+			PhraseIdentity identity,
 			CustodyInstall install,
 			std::vector<QString> phrase) {
 		auto recoveryWords = std::vector<std::string>();
@@ -4114,7 +4199,9 @@ void Session::replaceWithImported(
 			const auto recording = stores->record();
 			return lifecycle->import_wallet(request);
 		}, [=, this](engine::WalletDescriptor descriptor) {
-			const auto record = RecordFromDescriptor(descriptor);
+			auto record = RecordFromDescriptor(descriptor);
+			record.signingKey = identity.signing;
+			const auto address = CanonicalAddress(record.address);
 			const auto created = install.created;
 			const auto abandon = [=, this](const QString &error) {
 				if (created) {
@@ -4132,11 +4219,11 @@ void Session::replaceWithImported(
 			};
 			const auto applied = [=, this](const MTPWalletState &state) {
 				const auto answered = (state.type() == mtpc_walletState)
-					? state.c_walletState().vpublic_key().v
-					: QByteArray();
-				if (answered != record.publicKey) {
+					? ParseAddress(qs(state.c_walletState().vaddress()))
+					: std::optional<ParsedAddress>();
+				if (!answered || answered->raw != address) {
 					LOG(("Wallet Error: wallet.replaceWallet answered "
-						"another key."));
+						"another address."));
 					if (created) {
 						dropCreatedVault();
 					}
@@ -4152,7 +4239,7 @@ void Session::replaceWithImported(
 					return;
 				}
 				finishConfirmedReplace(
-					oldRecord,
+					oldAddress,
 					record,
 					state,
 					done,
@@ -4175,7 +4262,7 @@ void Session::replaceWithImported(
 							abandon(error.type());
 							return;
 						}
-						recoverImportedReplace(record.publicKey, applied, abandon);
+						recoverImportedReplace(address, applied, abandon);
 					});
 			};
 			const auto sign = [=, this](
@@ -4243,23 +4330,25 @@ void Session::replaceWithImported(
 		});
 	};
 	const auto continueInstall = [=](
+			PhraseIdentity identity,
 			CustodyInstall answer,
 			std::vector<QString> phrase) {
 		if (!answer.grant) {
 			fail(u"REPLACE_INSTALL_CANCELLED"_q);
 		} else {
-			store(std::move(answer), std::move(phrase));
+			store(identity, std::move(answer), std::move(phrase));
 		}
 	};
-	// The anchor key is derived on the engine worker before the install
+	// The phrase's keys are derived on the engine worker before the install
 	// ladder opens anything, as restoreFromWords does, so an invalid phrase
-	// reaches no chooser and no store; the key itself is deliberately not
-	// compared with the current wallet - importing another wallet's phrase
-	// is what this replace is for, and the server's wallet.replaceWallet
-	// answer is what confirms the key it accepted.
+	// reaches no chooser and no store; they are deliberately not compared
+	// with the current wallet - importing another wallet's phrase is what
+	// this replace is for. The address the server's wallet.replaceWallet
+	// answer serves is what confirms the wallet it accepted; the key it
+	// serves classifies the record through reconciliation.
 	validatePhraseIdentity(words, [=, this](
-			std::optional<QByteArray> key) mutable {
-		if (!key) {
+			std::optional<PhraseIdentity> identity) mutable {
+		if (!identity) {
 			fail(u"REPLACE_INVALID_PHRASE"_q);
 			return;
 		}
@@ -4269,10 +4358,16 @@ void Session::replaceWithImported(
 				nullptr,
 				crossed,
 				[=, words = std::move(words)](CustodyInstall answer) mutable {
-					continueInstall(std::move(answer), std::move(words));
+					continueInstall(
+						*identity,
+						std::move(answer),
+						std::move(words));
 				}));
 		} else if (auth.grant && auth.grant->valid()) {
-			store(CustodyInstall{ .grant = auth.grant }, std::move(words));
+			store(
+				*identity,
+				CustodyInstall{ .grant = auth.grant },
+				std::move(words));
 		} else {
 			fail(u"REPLACE_VAULT_LOCKED"_q);
 		}
@@ -4311,7 +4406,7 @@ void Session::sendReplaceWallet(
 }
 
 void Session::recoverImportedReplace(
-		QByteArray publicKey,
+		QString canonicalAddress,
 		Fn<void(const MTPWalletState &)> applied,
 		Fn<void(const QString &)> abandon) {
 	const auto unconfirmed = [=] {
@@ -4323,12 +4418,12 @@ void Session::recoverImportedReplace(
 			return;
 		}
 		const auto &data = state.c_walletState();
-		if (data.vpublic_key().v.size() != kCustodyPublicKeySize
-			|| !ParseAddress(qs(data.vaddress()))) {
+		const auto parsed = ParseAddress(qs(data.vaddress()));
+		if (data.vpublic_key().v.size() != kCustodyPublicKeySize || !parsed) {
 			unconfirmed();
 			return;
 		}
-		if (data.vpublic_key().v != publicKey) {
+		if (parsed->raw != canonicalAddress) {
 			applyState(state, false);
 			abandon(u"REPLACE_KEY_MISMATCH"_q);
 			return;
@@ -4338,7 +4433,7 @@ void Session::recoverImportedReplace(
 }
 
 void Session::finishConfirmedReplace(
-		std::optional<CustodyRecord> oldRecord,
+		QString oldAddress,
 		std::optional<CustodyRecord> newActive,
 		const MTPWalletState &state,
 		Fn<void(CustodyOutcome)> done,
@@ -4346,11 +4441,6 @@ void Session::finishConfirmedReplace(
 	applyState(state, false);
 	const auto lifecycle = _engine->lifecycle();
 	if (newActive) {
-		auto sameKeyRow = std::optional<CustodyRecord>();
-		const auto row = custody().matching(newActive->publicKey);
-		if (row && row->recordId != newActive->recordId) {
-			sameKeyRow = *row;
-		}
 		if (!persistCustody(*newActive)) {
 			_engine->run([
 				lifecycle,
@@ -4366,29 +4456,24 @@ void Session::finishConfirmedReplace(
 			done(CustodyOutcome::WriteFailed);
 			return;
 		}
-		if (sameKeyRow) {
+	}
+	if (oldAddress != _address) {
+		const auto records = custody().records;
+		for (const auto &record : records) {
+			if (CanonicalAddress(record.address) != oldAddress) {
+				continue;
+			}
+			removeCustodyRecord(record.recordId);
 			_engine->run([
 				lifecycle,
-				descriptor = DescriptorFromRecord(*sameKeyRow)
+				descriptor = DescriptorFromRecord(record)
 			] {
 				lifecycle->delete_wallet(descriptor);
 			}, [] {}, [](EngineError) {
-				LOG(("Wallet Error: delete_wallet of a superseded record "
+				LOG(("Wallet Error: delete_wallet of the replaced wallet "
 					"failed."));
 			});
 		}
-	}
-	if (oldRecord && (oldRecord->publicKey != _publicKey)) {
-		removeCustodyRecord(oldRecord->publicKey);
-		_engine->run([
-			lifecycle,
-			descriptor = DescriptorFromRecord(*oldRecord)
-		] {
-			lifecycle->delete_wallet(descriptor);
-		}, [] {}, [](EngineError) {
-			LOG(("Wallet Error: delete_wallet of the replaced wallet "
-				"failed."));
-		});
 	}
 	done(CustodyOutcome::Installed);
 }
@@ -4397,16 +4482,42 @@ void Session::reconcileCustody() {
 	if (_publicKey.size() != kCustodyPublicKeySize) {
 		return;
 	}
+	// The served key is this device's own replacement key, so the chain
+	// confirmed the rotation before the journal did and the promotion runs
+	// here. The in-flight send_boc, if any, precedes the queued client stop
+	// on the serial worker, and its later verdict finds no pending and
+	// returns. A third served key never matches: it leaves the pending to
+	// the journal, or to a restore of the current phrase whose client's
+	// empty journal then discards it.
+	const auto &pending = custody().pendingRotation;
+	const auto confirmedByServer = pending
+		&& !pending->newPublicKey.isEmpty()
+		&& pending->newPublicKey == _publicKey
+		&& custody().forAddress(_address) != nullptr;
+	if (confirmedByServer) {
+		promotePendingRotation();
+	}
 	auto store = custody();
+	const auto previousServed = store.lastSeenServerKey;
 	auto changed = false;
 	for (auto &record : store.records) {
-		if (record.publicKey != _publicKey) {
-			if (record.active) {
-				record.active = false;
-				changed = true;
-			}
-		} else if (!record.active) {
-			record.active = true;
+		const auto sameWallet = (CanonicalAddress(record.address) == _address);
+		if (sameWallet
+			&& record.signingKey.isEmpty()
+			&& record.publicKey == _publicKey) {
+			record.signingKey = record.publicKey;
+			changed = true;
+		}
+		if (record.awaitingServerKey
+			&& (!sameWallet
+				|| record.signingKey == _publicKey
+				|| _publicKey != previousServed)) {
+			record.awaitingServerKey = false;
+			changed = true;
+		}
+		const auto active = sameWallet && record.signsWith(_publicKey);
+		if (record.active != active) {
+			record.active = active;
 			changed = true;
 		}
 	}
@@ -4425,8 +4536,11 @@ void Session::reconcileCustody() {
 		}
 	}
 	updateDeviceCustodyState();
-	if (custody().pendingRotation) {
+	if (custody().pendingRotation || custody().anyAwaitingServerKey()) {
 		updatePollingState();
+	}
+	if (confirmedByServer && !custody().pendingRotation) {
+		finishRotation(QString());
 	}
 }
 
@@ -4439,10 +4553,12 @@ void Session::updateDeviceCustodyState() {
 	const auto conflict = ranges::any_of(
 		store.records,
 		[&](const CustodyRecord &record) {
-			return record.publicKey != identity->publicKey;
+			return CanonicalAddress(record.address) != identity->address;
 		});
-	const auto mode = (store.matching(identity->publicKey)
-		&& !_vaultKeyUnusable)
+	const auto current = store.current(
+		identity->address,
+		identity->publicKey);
+	const auto mode = (current && !_vaultKeyUnusable)
 		? DeviceMode::Full
 		: _capabilities.current().canExportPhrase
 		? DeviceMode::ReadOnlyRestorable
@@ -4458,7 +4574,7 @@ void Session::updateDeviceCustodyState() {
 void Session::syncEngineClient() {
 	const auto identity = transferWalletIdentity();
 	const auto wanted = identity
-		? custody().matching(identity->publicKey)
+		? custody().current(identity->address, identity->publicKey)
 		: nullptr;
 	auto started = false;
 	if (_clientStopping) {
@@ -4549,13 +4665,13 @@ void Session::stopEngineClientForReset(Fn<void()> done) {
 	retirePreviews(SendError::SigningUnavailable);
 }
 
-void Session::removeCustodyRecord(const QByteArray &publicKey) {
+void Session::removeCustodyRecord(const QString &recordId) {
 	auto store = custody();
 	store.records.erase(
 		ranges::remove(
 			store.records,
-			publicKey,
-			&CustodyRecord::publicKey),
+			recordId,
+			&CustodyRecord::recordId),
 		end(store.records));
 	if (!WriteCustodyStore(_session->local(), store)) {
 		LOG(("Wallet Error: custody record removal write failed."));
@@ -5258,7 +5374,8 @@ void Session::updatePollingState() {
 		|| _sendUnresolved
 		|| sendRecoveryNeeded()
 		|| submittedLookupNeeded()
-		|| custody().pendingRotation;
+		|| custody().pendingRotation
+		|| custody().anyAwaitingServerKey();
 	if (!wanted) {
 		_pollTimer.cancel();
 	} else if (!_pollTimer.isActive()) {
@@ -5658,11 +5775,12 @@ bool Session::transferClientMatches(
 	if (!client || client != _engine->client() || !_custody) {
 		return false;
 	}
-	const auto record = _custody->matching(identity.publicKey);
+	const auto record = _custody->current(
+		identity.address,
+		identity.publicKey);
 	return record
 		&& record->recordId == _clientRecordId
-		&& record->network == int(engine::Network::kMainnet)
-		&& CanonicalAddress(record->address) == identity.address;
+		&& record->network == int(engine::Network::kMainnet);
 }
 
 SendError Session::previewError(const PreviewRequest &request) {
@@ -5989,10 +6107,10 @@ void Session::send(
 	const auto generation = prepared->generation;
 	const auto identity = prepared->identity;
 	const auto paired = terms.eligible(args.amountNano, args.destination);
-	const auto custodyRecord = custody().matching(identity.publicKey);
-	if (!custodyRecord
-		|| custodyRecord->recordId != _clientRecordId
-		|| CanonicalAddress(custodyRecord->address) != identity.address) {
+	const auto custodyRecord = custody().current(
+		identity.address,
+		identity.publicKey);
+	if (!custodyRecord || custodyRecord->recordId != _clientRecordId) {
 		fail(SendError::Failed);
 		return;
 	}
@@ -6538,9 +6656,10 @@ SubmittedTransferStore &Session::submittedTransferStore() {
 SubmittedTransferRecord *Session::submittedTransferRecord(
 		const std::string &operationId,
 		const TransferWalletIdentity &identity) {
-	const auto custodyRecord = custody().matching(identity.publicKey);
-	if (!custodyRecord
-		|| CanonicalAddress(custodyRecord->address) != identity.address) {
+	const auto custodyRecord = custody().current(
+		identity.address,
+		identity.publicKey);
+	if (!custodyRecord) {
 		return nullptr;
 	}
 	auto &records = submittedTransferStore().records;
@@ -7167,10 +7286,10 @@ void Session::applySendSnapshot(
 				changed = true;
 			}
 		}
-		const auto custodyRecord = custody().matching(identity->publicKey);
-		if (custodyRecord
-			&& custodyRecord->recordId == _clientRecordId
-			&& CanonicalAddress(custodyRecord->address) == identity->address) {
+		const auto custodyRecord = custody().current(
+			identity->address,
+			identity->publicKey);
+		if (custodyRecord && custodyRecord->recordId == _clientRecordId) {
 			auto &records = submittedTransferStore().records;
 			const auto size = records.size();
 			records.erase(ranges::remove_if(records, [&](const auto &record) {
@@ -7354,7 +7473,7 @@ void Session::storePendingRotation(
 		KeyAuthorization auth,
 		Fn<void()> done,
 		Fn<void(const QString &)> fail) {
-	const auto active = custody().matching(_publicKey);
+	const auto active = currentRecord();
 	if (!active) {
 		LOG(("Wallet Error: rotation stored without local custody."));
 		fail(u"ROTATION_NO_CUSTODY"_q);
@@ -7369,7 +7488,7 @@ void Session::storePendingRotation(
 		return;
 	}
 	const auto lifecycle = _engine->lifecycle();
-	const auto expected = _publicKey;
+	const auto expectedAnchor = active->publicKey;
 	const auto address = CanonicalAddress(active->address);
 	auto recoveryWords = std::vector<std::string>();
 	recoveryWords.reserve(_preparedRotation->words.size());
@@ -7396,7 +7515,7 @@ void Session::storePendingRotation(
 				fail(error);
 			});
 		};
-		if (record.publicKey != expected
+		if (record.publicKey != expectedAnchor
 			|| CanonicalAddress(record.address) != address) {
 			LOG(("Wallet Error: prepared rotation phrase derives "
 				"another wallet."));
@@ -7408,6 +7527,7 @@ void Session::storePendingRotation(
 			.recordId = record.recordId,
 			.secretRef = record.secretRef,
 			.operationId = QString::fromStdString(NewRecordId()),
+			.newPublicKey = _preparedRotation->newPublicKey,
 		};
 		if (!WriteCustodyStore(_session->local(), store)) {
 			LOG(("Wallet Error: pending rotation write failed."));
@@ -7436,17 +7556,18 @@ void Session::discardPendingRotation() {
 	}
 	// delete_wallet re-derives the address from the descriptor's anchor key
 	// and refuses a record that disagrees, and the pending shares both with
-	// the active record by the import-time check, so its descriptor is the
-	// active record's identity under the pending's handle.
-	if (const auto active = store.matching(_publicKey)) {
+	// the record of the served wallet by the import-time check, whether or
+	// not that record still signs for it, so its descriptor is that
+	// record's identity under the pending's handle.
+	if (const auto held = store.forAddress(_address)) {
 		const auto lifecycle = _engine->lifecycle();
 		_engine->run([
 			lifecycle,
 			descriptor = DescriptorFromRecord(CustodyRecord{
 				.recordId = pending->recordId,
-				.address = active->address,
-				.publicKey = active->publicKey,
-				.network = active->network,
+				.address = held->address,
+				.publicKey = held->publicKey,
+				.network = held->network,
 				.secretRef = pending->secretRef,
 			})
 		] {
@@ -7473,10 +7594,9 @@ void Session::promotePendingRotation() {
 	if (!pending) {
 		return;
 	}
-	const auto i = ranges::find(
-		store.records,
-		_publicKey,
-		&CustodyRecord::publicKey);
+	const auto i = ranges::find_if(store.records, [&](const auto &record) {
+		return (CanonicalAddress(record.address) == _address);
+	});
 	if (i == end(store.records)) {
 		LOG(("Wallet Error: confirmed rotation has no custody record."));
 		discardPendingRotation();
@@ -7487,11 +7607,19 @@ void Session::promotePendingRotation() {
 	// the pending's removal go down in one write: with two, a crash between
 	// them would leave a promoted record beside a stale pending whose
 	// recordId now IS the live one, and the next start's discard would
-	// delete the live secret.
+	// delete the live secret. The signing key and the awaiting mark go down
+	// in that same write: the mark says the chain already holds the new key
+	// while the server still serves the old one, and reconcileCustody()
+	// clears it once the served key catches up or moves elsewhere. A pre-v4
+	// pending names no key, so it promotes to an unknown signing key and
+	// the record reads obsolete until its phrase is restored.
 	const auto lifecycle = _engine->lifecycle();
 	const auto superseded = DescriptorFromRecord(*i);
 	i->recordId = pending->recordId;
 	i->secretRef = pending->secretRef;
+	i->signingKey = pending->newPublicKey;
+	i->awaitingServerKey = !pending->newPublicKey.isEmpty()
+		&& pending->newPublicKey != _publicKey;
 	i->rotatedSinceBackup = true;
 	if (!WriteCustodyStore(_session->local(), store)) {
 		LOG(("Wallet Error: rotation promotion write failed, "
@@ -7525,10 +7653,9 @@ void Session::finishRotation(const QString &error) {
 
 void Session::clearRotatedSinceBackup() {
 	auto store = custody();
-	const auto i = ranges::find(
-		store.records,
-		_publicKey,
-		&CustodyRecord::publicKey);
+	const auto i = ranges::find_if(store.records, [&](const auto &record) {
+		return (CanonicalAddress(record.address) == _address);
+	});
 	if (i == end(store.records) || !i->rotatedSinceBackup) {
 		return;
 	}

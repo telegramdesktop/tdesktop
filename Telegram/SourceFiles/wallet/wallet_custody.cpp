@@ -9,18 +9,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/serialize_common.h"
 #include "storage/storage_account.h"
+#include "wallet/wallet_address.h"
 
 namespace Wallet {
 namespace {
 
 const auto kCustodyStorageKey = u"custody/records"_q;
-constexpr auto kCustodyFormatVersion = quint32(3);
+constexpr auto kCustodyFormatVersion = quint32(4);
 constexpr auto kActiveFlag = quint32(1U << 0);
 constexpr auto kRotatedSinceBackupFlag = quint32(1U << 1);
+constexpr auto kAwaitingServerKeyFlag = quint32(1U << 2);
 constexpr auto kPendingRotationFlag = quint32(1U << 0);
 
 [[nodiscard]] std::optional<CustodyRecord> ReadRecord(
-		Serialize::ByteArrayReader &stream) {
+		Serialize::ByteArrayReader &stream,
+		quint32 version) {
 	auto result = CustodyRecord();
 	auto network = qint32();
 	auto flags = quint32();
@@ -38,10 +41,22 @@ constexpr auto kPendingRotationFlag = quint32(1U << 0);
 		|| (network != 1 && network != 2)) {
 		return std::nullopt;
 	}
+	if (version >= 4) {
+		stream >> result.signingKey;
+		if (!stream.ok()) {
+			return std::nullopt;
+		}
+	}
+	if (!result.signingKey.isEmpty()
+		&& result.signingKey.size() != kCustodyPublicKeySize) {
+		result.signingKey = QByteArray();
+	}
 	result.network = network;
 	result.active = ((flags & kActiveFlag) == kActiveFlag);
 	result.rotatedSinceBackup = ((flags & kRotatedSinceBackupFlag)
 		== kRotatedSinceBackupFlag);
+	result.awaitingServerKey = ((flags & kAwaitingServerKeyFlag)
+		== kAwaitingServerKeyFlag);
 	return result;
 }
 
@@ -55,11 +70,14 @@ void WriteRecord(
 		<< qint32(record.network)
 		<< record.secretRef
 		<< quint32((record.active ? kActiveFlag : 0)
-			| (record.rotatedSinceBackup ? kRotatedSinceBackupFlag : 0));
+			| (record.rotatedSinceBackup ? kRotatedSinceBackupFlag : 0)
+			| (record.awaitingServerKey ? kAwaitingServerKeyFlag : 0))
+		<< record.signingKey;
 }
 
 [[nodiscard]] std::optional<PendingRotation> ReadPendingRotation(
-		Serialize::ByteArrayReader &stream) {
+		Serialize::ByteArrayReader &stream,
+		quint32 version) {
 	auto result = PendingRotation();
 	stream >> result.recordId >> result.secretRef >> result.operationId;
 	if (!stream.ok()
@@ -68,21 +86,69 @@ void WriteRecord(
 		|| result.operationId.isEmpty()) {
 		return std::nullopt;
 	}
+	if (version >= 4) {
+		stream >> result.newPublicKey;
+		if (!stream.ok()) {
+			return std::nullopt;
+		}
+	}
+	if (!result.newPublicKey.isEmpty()
+		&& result.newPublicKey.size() != kCustodyPublicKeySize) {
+		result.newPublicKey = QByteArray();
+	}
 	return result;
 }
 
 void WritePendingRotation(
 		Serialize::ByteArrayWriter &stream,
 		const PendingRotation &pending) {
-	stream << pending.recordId << pending.secretRef << pending.operationId;
+	stream
+		<< pending.recordId
+		<< pending.secretRef
+		<< pending.operationId
+		<< pending.newPublicKey;
 }
 
 } // namespace
 
-const CustodyRecord *CustodyStore::matching(
+bool CustodyRecord::signsWith(const QByteArray &servedKey) const {
+	return signingKey.isEmpty()
+		? (publicKey == servedKey)
+		: (signingKey == servedKey || awaitingServerKey);
+}
+
+const CustodyRecord *CustodyStore::byAnchor(
 		const QByteArray &publicKey) const {
 	const auto i = ranges::find(records, publicKey, &CustodyRecord::publicKey);
 	return (i != end(records)) ? &*i : nullptr;
+}
+
+const CustodyRecord *CustodyStore::forAddress(
+		const QString &canonicalAddress) const {
+	if (canonicalAddress.isEmpty()) {
+		return nullptr;
+	}
+	const auto i = ranges::find_if(records, [&](const CustodyRecord &record) {
+		return (CanonicalAddress(record.address) == canonicalAddress);
+	});
+	return (i != end(records)) ? &*i : nullptr;
+}
+
+const CustodyRecord *CustodyStore::current(
+		const QString &canonicalAddress,
+		const QByteArray &servedKey) const {
+	if (canonicalAddress.isEmpty()) {
+		return nullptr;
+	}
+	const auto i = ranges::find_if(records, [&](const CustodyRecord &record) {
+		return (CanonicalAddress(record.address) == canonicalAddress)
+			&& record.signsWith(servedKey);
+	});
+	return (i != end(records)) ? &*i : nullptr;
+}
+
+bool CustodyStore::anyAwaitingServerKey() const {
+	return ranges::any_of(records, &CustodyRecord::awaitingServerKey);
 }
 
 void ForEachCustodySecretRef(
@@ -119,7 +185,7 @@ std::optional<CustodyStore> ReadCustodyStore(Storage::Account &local) {
 	}
 	auto result = CustodyStore();
 	for (auto i = quint32(0); i != count; ++i) {
-		auto record = ReadRecord(stream);
+		auto record = ReadRecord(stream, version);
 		if (!record) {
 			return std::nullopt;
 		}
@@ -142,7 +208,7 @@ std::optional<CustodyStore> ReadCustodyStore(Storage::Account &local) {
 			return std::nullopt;
 		}
 		if ((storeFlags & kPendingRotationFlag) == kPendingRotationFlag) {
-			auto pending = ReadPendingRotation(stream);
+			auto pending = ReadPendingRotation(stream, version);
 			if (!pending) {
 				return std::nullopt;
 			}
