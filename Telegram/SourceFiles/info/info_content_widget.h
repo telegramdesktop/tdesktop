@@ -228,6 +228,7 @@ protected:
 
 private:
 	Ui::RpWidget *doSetInnerWidget(object_ptr<Ui::RpWidget> inner);
+	void applyScrollTopRestore();
 	Ui::RpWidget *doSetupFlexibleInnerWidget(
 		object_ptr<Ui::RpWidget> inner,
 		FlexibleScrollData &flexibleScroll,
@@ -255,6 +256,8 @@ private:
 	int _additionalScroll = 0;
 	int _addedHeight = 0;
 	int _maxVisibleHeight = 0;
+	std::optional<int> _scrollTopRestore;
+	bool _applyingScrollTopRestore = false;
 	bool _isStackBottom = false;
 
 	// To paint round edges from content.
