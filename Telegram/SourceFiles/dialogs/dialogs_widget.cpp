@@ -998,7 +998,7 @@ void Widget::chosenRow(const ChosenRow &row) {
 		: nullptr;
 	const auto userpicCommunity = [&]() -> ChannelData* {
 		if (!history
-			|| !row.userpicClick
+			|| !(row.userpicClick || row.communityBadgeClick)
 			|| (row.message.fullId.msg != ShowAtUnreadMsgId)) {
 			return nullptr;
 		}
