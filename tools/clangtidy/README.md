@@ -9,7 +9,8 @@ run-clang-tidy -p out/clang-tidy -j 10 -quiet <files>
 Both runners ship with LLVM, under `share/clang`. Needs clang-tidy 20 or
 newer: an older one ignores `CustomFunctions` without a word.
 
-The commit hook, once per clone, submodules included:
+The commit hook, once per clone, submodules included; its tests run with
+`python3 tools/rules/test_hook.py`:
 
 ```bash
 for repo in . $(git config -f .gitmodules --get-regexp path \
