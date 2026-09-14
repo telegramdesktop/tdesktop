@@ -261,6 +261,8 @@ constexpr auto kPopularAppBotsLimit = 100;
 	if (strong && strong->windowId().hasChatsList()) {
 		strong->showThread(thread);
 		return strong;
+	} else if (!Window::CanShowSeparateWindow(thread)) {
+		return nullptr;
 	}
 	const auto window = Core::App().ensureSeparateWindowFor(thread);
 	return window ? window->sessionController() : nullptr;
