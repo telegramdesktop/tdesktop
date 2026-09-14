@@ -159,6 +159,9 @@ Data::SendError GetErrorForSending(
 			return tr::lng_slowmode_no_many(tr::now);
 		} else if (count > 1) {
 			const auto albumForward = [&] {
+				if (!request.forward || request.forward->empty()) {
+					return false;
+				}
 				const auto first = request.forward->front();
 				if (const auto groupId = first->groupId()) {
 					for (const auto &item : *request.forward) {
