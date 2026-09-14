@@ -225,15 +225,8 @@ if %AlphaVersion% neq 0 (
   )
 )
 
-set "LockDir=%SolutionPath%\.build.lock"
-if exist "%LockDir%\" (
-  echo Another build.bat seems to be running ^(found %LockDir%, remove it if stale^)!
-  exit /b 1
-)
-mkdir "%LockDir%" || exit /b 1
 call :build
 set "ErrorCode=%errorlevel%"
-rmdir "%LockDir%"
 cd "%FullExecPath%"
 exit /b %ErrorCode%
 
