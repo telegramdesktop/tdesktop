@@ -1833,7 +1833,7 @@ void SendFilesBox::pushBlock(int from, int till) {
 		if (!canEditFileData) {
 			return;
 		}
-		const auto allowExtensionEdit = file.path.isEmpty();
+		const auto allowExtensionEdit = file.path.isEmpty() && !file.archive;
 		_show->show(Box(
 			RenameFileBox,
 			file.displayName,
