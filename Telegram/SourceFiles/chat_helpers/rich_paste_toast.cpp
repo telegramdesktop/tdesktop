@@ -70,16 +70,19 @@ TextWithTags TextWithTagsReplaced(
 		+ original.text.mid(till);
 	const auto shift = int(with.text.size()) - (till - from);
 	for (const auto &tag : original.tags) {
-		if (tag.offset + tag.length <= from) {
-			result.tags.push_back(tag);
+		if (tag.offset < from) {
+			const auto end = std::min(tag.offset + tag.length, from);
+			result.tags.push_back({ tag.offset, end - tag.offset, tag.id });
 		}
 	}
 	for (const auto &tag : with.tags) {
 		result.tags.push_back({ from + tag.offset, tag.length, tag.id });
 	}
 	for (const auto &tag : original.tags) {
-		if (tag.offset >= till) {
-			result.tags.push_back({ tag.offset + shift, tag.length, tag.id });
+		const auto end = tag.offset + tag.length;
+		if (end > till) {
+			const auto start = std::max(tag.offset, till);
+			result.tags.push_back({ start + shift, end - start, tag.id });
 		}
 	}
 	return result;
