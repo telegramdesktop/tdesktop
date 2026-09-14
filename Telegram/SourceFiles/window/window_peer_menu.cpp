@@ -2062,6 +2062,7 @@ void Filler::fillArchiveActions() {
 
 		MarkAsReadMenu::AddChatListAction(
 			controller,
+			MarkAsReadMenu::ChatListKind::Archive,
 			[folder = _folder] { return folder->chatsList(); },
 			_addAction);
 	}
