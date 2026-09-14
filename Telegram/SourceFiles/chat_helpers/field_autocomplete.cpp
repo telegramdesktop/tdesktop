@@ -874,7 +874,10 @@ void FieldAutocomplete::setBoundings(QRect boundings) {
 void FieldAutocomplete::recount(bool resetScroll) {
 	int32 h = 0, oldst = _scroll->scrollTop(), st = oldst, maxh = 4.5 * st::mentionHeight;
 	if (!_srows.empty()) {
-		int32 stickersPerRow = qMax(1, int32(_boundings.width() - 2 * st::stickerPanPadding) / int32(st::stickerPanSize.width()));
+		int32 stickersPerRow = std::max(
+			1,
+			int32(_boundings.width() - 2 * st::stickerPanPadding)
+				/ int32(st::stickerPanSize.width()));
 		int32 rows = rowscount(_srows.size(), stickersPerRow);
 		h = st::stickerPanPadding + rows * st::stickerPanSize.height();
 	} else if (!_mrows.empty()) {
@@ -1335,7 +1338,10 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 }
 
 void FieldAutocomplete::Inner::resizeEvent(QResizeEvent *e) {
-	_stickersPerRow = qMax(1, int32(width() - 2 * st::stickerPanPadding) / int32(st::stickerPanSize.width()));
+	_stickersPerRow = std::max(
+		1,
+		int32(width() - 2 * st::stickerPanPadding)
+			/ int32(st::stickerPanSize.width()));
 }
 
 void FieldAutocomplete::Inner::mouseMoveEvent(QMouseEvent *e) {

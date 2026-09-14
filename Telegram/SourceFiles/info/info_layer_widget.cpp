@@ -204,7 +204,7 @@ void LayerWidget::parentResized() {
 	//} else if (_controller->canShowThirdSectionWithoutResize()) {
 	//	takeToThirdSection();
 	} else {
-		auto newWidth = qMin(
+		auto newWidth = std::min(
 			parentWidth - 2 * st::infoMinimalLayerMargin,
 			st::infoDesiredWidth);
 		resizeToWidth(newWidth);

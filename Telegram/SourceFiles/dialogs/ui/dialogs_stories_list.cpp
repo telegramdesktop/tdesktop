@@ -822,7 +822,7 @@ void List::wheelEvent(QWheelEvent *e) {
 			return;
 		}
 	}
-	const auto vertical = qAbs(fullDelta.x()) < qAbs(fullDelta.y());
+	const auto vertical = std::abs(fullDelta.x()) < std::abs(fullDelta.y());
 	if (_scrollingLock == Qt::Orientation() && phase != Qt::NoScrollPhase) {
 		_scrollingLock = vertical ? Qt::Vertical : Qt::Horizontal;
 	}

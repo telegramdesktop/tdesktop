@@ -483,7 +483,7 @@ void StickersListWidget::readVisibleFeatured(
 			|| (i + 1) * rowHeight > visibleBottom) {
 			continue;
 		}
-		int count = qMin(int(set.stickers.size()), _columnCount);
+		int count = std::min(int(set.stickers.size()), _columnCount);
 		int loaded = 0;
 		for (int j = 0; j < count; ++j) {
 			if (!set.stickers[j].document->hasThumbnail()
@@ -610,12 +610,14 @@ int StickersListWidget::countDesiredHeight(int newWidth) {
 		}
 		const auto info = sectionInfo(sets.size() - 1);
 		return info.top
-			+ qMax(info.rowsBottom - info.top, minimalLastHeight);
+			+ std::max(info.rowsBottom - info.top, minimalLastHeight);
 	};
 	const auto minimalLastHeight = (_section == Section::Stickers)
 		? minimalHeight
 		: 0;
-	const auto result = qMax(minimalHeight, countResult(minimalLastHeight));
+	const auto result = std::max(
+		minimalHeight,
+		countResult(minimalLastHeight));
 	return result ? (result + st::stickerPanPadding) : 0;
 }
 

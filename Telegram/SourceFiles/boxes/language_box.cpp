@@ -1493,7 +1493,7 @@ void LanguageBox::prepare() {
 		_1 + _2
 	) | rpl::on_next([=](int height) {
 		accumulate_max(*max, height);
-		setDimensions(st::boxWidth, qMin(*max, st::boxMaxListHeight));
+		setDimensions(st::boxWidth, std::min(*max, st::boxMaxListHeight));
 	}, inner->lifetime());
 	topContainer->heightValue(
 	) | rpl::on_next([=](int height) {

@@ -541,9 +541,9 @@ int BackgroundRow::resizeGetHeight(int newWidth) {
 	auto linkLeft = st::settingsBackgroundThumb + st::settingsThumbSkip;
 	auto linkWidth = newWidth - linkLeft;
 	_chooseFromGallery->resizeToWidth(
-		qMin(linkWidth, _chooseFromGallery->naturalWidth()));
+		std::min(linkWidth, _chooseFromGallery->naturalWidth()));
 	_chooseFromFile->resizeToWidth(
-		qMin(linkWidth, _chooseFromFile->naturalWidth()));
+		std::min(linkWidth, _chooseFromFile->naturalWidth()));
 	_chooseFromGallery->moveToLeft(linkLeft, linkTop, newWidth);
 	linkTop += _chooseFromGallery->height() + st::settingsFromFileTop;
 	_chooseFromFile->moveToLeft(linkLeft, linkTop, newWidth);

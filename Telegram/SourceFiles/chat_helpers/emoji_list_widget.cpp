@@ -1865,7 +1865,7 @@ int EmojiListWidget::countDesiredHeight(int newWidth) {
 	const auto countResult = [this](int minimalLastHeight) {
 		const auto info = sectionInfo(sectionsCount() - 1);
 		return info.top
-			+ qMax(info.rowsBottom - info.top, minimalLastHeight);
+			+ std::max(info.rowsBottom - info.top, minimalLastHeight);
 	};
 	const auto minimalHeight = this->minimalHeight();
 	const auto minimalLastHeight = std::max(
@@ -1873,7 +1873,7 @@ int EmojiListWidget::countDesiredHeight(int newWidth) {
 		0);
 	const auto result = countResult(minimalLastHeight);
 	return result
-		? qMax(minimalHeight, result + padding.bottom())
+		? std::max(minimalHeight, result + padding.bottom())
 		: 0;
 }
 

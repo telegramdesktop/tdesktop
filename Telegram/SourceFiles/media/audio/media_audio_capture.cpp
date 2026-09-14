@@ -66,13 +66,13 @@ bool ErrorHappened(ALCdevice *device) {
 		}
 
 		auto sum = std::accumulate(peaks.cbegin(), peaks.cend(), 0LL);
-		peak = qMax(int32(sum * 1.8 / peaks.size()), 2500);
+		peak = std::max(int32(sum * 1.8 / peaks.size()), 2500);
 
 		waveform.resize(peaks.size());
 		for (int32 i = 0, l = peaks.size(); i != l; ++i) {
-			waveform[i] = char(qMin(
+			waveform[i] = char(std::min(
 				31U,
-				uint32(qMin(peaks.at(i), peak)) * 31 / peak));
+				uint32(std::min(peaks.at(i), peak)) * 31 / peak));
 		}
 	}
 	return waveform;
@@ -244,7 +244,9 @@ struct Instance::Inner::Private {
 	static int ReadData(void *opaque, uint8_t *buf, int buf_size) {
 		auto l = reinterpret_cast<Private*>(opaque);
 
-		int32 nbytes = qMin(l->data.size() - l->dataPos, int32(buf_size));
+		int32 nbytes = std::min(
+			l->data.size() - l->dataPos,
+			qsizetype(buf_size));
 		if (nbytes <= 0) {
 			return AVERROR_EOF;
 		}
@@ -663,7 +665,7 @@ void Instance::Inner::process() {
 		auto levelindex = d->fullSamples + static_cast<int>(s / sizeof(short));
 		for (auto ptr = (const short*)(_captured.constData() + s), end = (const short*)(_captured.constData() + news); ptr < end; ++ptr, ++levelindex) {
 			if (levelindex > skipSamples) {
-				uint16 value = qAbs(int(*ptr));
+				uint16 value = std::abs(int(*ptr));
 				if (levelindex < skipSamples + fadeSamples) {
 					value = qRound(value * float64(levelindex - skipSamples) / fadeSamples);
 				}
@@ -718,9 +720,15 @@ bool Instance::Inner::processFrame(int32 offset, int32 framesize) {
 	auto skipSamples = static_cast<int>(kCaptureSkipDuration * kCaptureFrequency / 1000);
 	auto fadeSamples = static_cast<int>(kCaptureFadeInDuration * kCaptureFrequency / 1000);
 	if (d->fullSamples < skipSamples + fadeSamples) {
-		int32 fadedCnt = qMin(samplesCnt, skipSamples + fadeSamples - d->fullSamples);
+		int32 fadedCnt = std::min(
+			samplesCnt,
+			skipSamples + fadeSamples - d->fullSamples);
 		float64 coef = 1. / fadeSamples, fadedFrom = d->fullSamples - skipSamples;
-		short *ptr = srcSamplesDataChannel, *zeroEnd = ptr + qMin(samplesCnt, qMax(0, skipSamples - d->fullSamples)), *end = ptr + fadedCnt;
+		short *ptr = srcSamplesDataChannel, *zeroEnd = ptr
+			+ std::min(
+				samplesCnt,
+				std::max(0, skipSamples - d->fullSamples)), *end = ptr
+			+ fadedCnt;
 		for (; ptr != zeroEnd; ++ptr, ++fadedFrom) {
 			*ptr = 0;
 		}
@@ -731,7 +739,7 @@ bool Instance::Inner::processFrame(int32 offset, int32 framesize) {
 
 	d->waveform.reserve(d->waveform.size() + (samplesCnt / d->waveformEach) + 1);
 	for (short *ptr = srcSamplesDataChannel, *end = ptr + samplesCnt; ptr != end; ++ptr) {
-		uint16 value = qAbs(int(*ptr));
+		uint16 value = std::abs(int(*ptr));
 		if (d->waveformPeak < value) {
 			d->waveformPeak = value;
 		}

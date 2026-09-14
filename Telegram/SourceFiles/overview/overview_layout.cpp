@@ -437,7 +437,7 @@ void Photo::initDimensions() {
 }
 
 int32 Photo::resizeGetHeight(int32 width) {
-	width = qMin(width, _maxw);
+	width = std::min(width, _maxw);
 	if (_width != width) {
 		_width = width;
 		_height = _story ? qRound(_width * kStoryRatio) : _width;
@@ -697,7 +697,7 @@ void Video::initDimensions() {
 }
 
 int32 Video::resizeGetHeight(int32 width) {
-	width = qMin(width, _maxw);
+	width = std::min(width, _maxw);
 	if (_width != width) {
 		_width = width;
 		_height = _story ? qRound(_width * kStoryRatio) : _width;
@@ -2145,8 +2145,8 @@ Link::Link(
 			th = st::linksPhotoSize;
 		}
 	}
-	_pixw = qMax(tw, 1);
-	_pixh = qMax(th, 1);
+	_pixw = std::max(tw, 1);
+	_pixh = std::max(th, 1);
 
 	if (_page) {
 		_title = _page->title;
@@ -2243,14 +2243,21 @@ void Link::initDimensions() {
 		_minh += st::semiboldFont->height;
 	}
 	if (!_text.isEmpty()) {
-		_minh += qMin(3 * st::normalFont->height, _text.countHeight(_maxw - st::linksPhotoSize - st::linksPhotoPadding));
+		_minh += std::min(
+			3 * st::normalFont->height,
+			_text.countHeight(_maxw
+				- st::linksPhotoSize
+				- st::linksPhotoPadding));
 	}
 	_minh += _links.size() * st::normalFont->height;
-	_minh = qMax(_minh, int32(st::linksPhotoSize)) + st::linksMargin.top() + st::linksMargin.bottom() + st::linksBorder;
+	_minh = std::max(_minh, int32(st::linksPhotoSize))
+		+ st::linksMargin.top()
+		+ st::linksMargin.bottom()
+		+ st::linksBorder;
 }
 
 int32 Link::resizeGetHeight(int32 width) {
-	_width = qMin(width, _maxw);
+	_width = std::min(width, _maxw);
 	int32 w = _width - st::linksPhotoSize - st::linksPhotoPadding;
 	for (const auto &link : _links) {
 		if (const auto handler = std::dynamic_pointer_cast<TextClickHandler>(
@@ -2264,10 +2271,17 @@ int32 Link::resizeGetHeight(int32 width) {
 		_height += st::semiboldFont->height;
 	}
 	if (!_text.isEmpty()) {
-		_height += qMin(3 * st::normalFont->height, _text.countHeight(_width - st::linksPhotoSize - st::linksPhotoPadding));
+		_height += std::min(
+			3 * st::normalFont->height,
+			_text.countHeight(_width
+				- st::linksPhotoSize
+				- st::linksPhotoPadding));
 	}
 	_height += _links.size() * st::normalFont->height;
-	_height = qMax(_height, int32(st::linksPhotoSize)) + st::linksMargin.top() + st::linksMargin.bottom() + st::linksBorder;
+	_height = std::max(_height, int32(st::linksPhotoSize))
+		+ st::linksMargin.top()
+		+ st::linksMargin.bottom()
+		+ st::linksBorder;
 	return _height;
 }
 
@@ -2295,14 +2309,19 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 	p.setPen(st::linksTextFg);
 	p.setFont(st::semiboldFont);
 	if (!_title.isEmpty()) {
-		if (clip.intersects(style::rtlrect(left, top, qMin(w, _titlew), st::semiboldFont->height, _width))) {
+		if (clip.intersects(style::rtlrect(
+				left,
+				top,
+				std::min(w, _titlew),
+				st::semiboldFont->height,
+				_width))) {
 			p.drawTextLeft(left, top, _width, (w < _titlew) ? st::semiboldFont->elided(_title, w) : _title);
 		}
 		top += st::semiboldFont->height;
 	}
 	p.setFont(st::msgFont);
 	if (!_text.isEmpty()) {
-		int32 h = qMin(st::normalFont->height * 3, _text.countHeight(w));
+		int32 h = std::min(st::normalFont->height * 3, _text.countHeight(w));
 		if (clip.intersects(style::rtlrect(left, top, w, h, _width))) {
 			_text.drawLeftElided(p, left, top, w, _width, 3);
 		}
@@ -2312,7 +2331,12 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 	p.setPen(st::windowActiveTextFg);
 	for (const auto &link : _links) {
 		const auto width = link.text.maxWidth();
-		if (clip.intersects(style::rtlrect(left, top, qMin(w, width), st::normalFont->height, _width))) {
+		if (clip.intersects(style::rtlrect(
+				left,
+				top,
+				std::min(w, width),
+				st::normalFont->height,
+				_width))) {
 			link.text.drawLeftElided(p, left, top, w, _width);
 		}
 		top += st::normalFont->height;
@@ -2461,17 +2485,27 @@ TextState Link::getState(
 		top += (st::linksPhotoSize - st::semiboldFont->height - st::normalFont->height) / 2;
 	}
 	if (!_title.isEmpty()) {
-		if (style::rtlrect(left, top, qMin(w, _titlew), st::semiboldFont->height, _width).contains(point)) {
+		if (style::rtlrect(
+				left,
+				top,
+				std::min(w, _titlew),
+				st::semiboldFont->height,
+				_width).contains(point)) {
 			return { parent(), _titlel };
 		}
 		top += st::webPageTitleFont->height;
 	}
 	if (!_text.isEmpty()) {
-		top += qMin(st::normalFont->height * 3, _text.countHeight(w));
+		top += std::min(st::normalFont->height * 3, _text.countHeight(w));
 	}
 	for (const auto &link : _links) {
 		const auto width = link.text.maxWidth();
-		if (style::rtlrect(left, top, qMin(w, width), st::normalFont->height, _width).contains(point)) {
+		if (style::rtlrect(
+				left,
+				top,
+				std::min(w, width),
+				st::normalFont->height,
+				_width).contains(point)) {
 			return { parent(), link.handler };
 		}
 		top += st::normalFont->height;
@@ -2535,7 +2569,7 @@ void Gif::initDimensions() {
 		_maxw = 0;
 	} else {
 		w = w * st::inlineMediaHeight / h;
-		_maxw = qMax(w, int32(st::inlineResultsMinWidth));
+		_maxw = std::max(w, int32(st::inlineResultsMinWidth));
 	}
 	_minh = st::inlineMediaHeight + st::inlineResultsSkip;
 }

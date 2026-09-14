@@ -2566,10 +2566,10 @@ void Account::importOldRecentStickers() {
 			custom->stickers.push_back(doc);
 			++custom->count;
 		}
-		if (qAbs(value) > 1
+		if (std::abs(value) > 1
 			&& (recent.size()
 				< _owner->session().serverConfig().stickersRecentLimit)) {
-			recent.push_back(qMakePair(doc, qAbs(value)));
+			recent.push_back(qMakePair(doc, std::abs(value)));
 		}
 	}
 	if (def->stickers.isEmpty()) {

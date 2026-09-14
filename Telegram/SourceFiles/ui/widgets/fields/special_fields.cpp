@@ -423,7 +423,10 @@ void PhoneInput::correctValue(
 	}
 
 	QString newText;
-	int oldPos(nowCursor), newPos(-1), oldLen(now.length()), digitCount = qMin(digits.size(), kMaxPhoneCodeLength + kMaxPhoneTailLength);
+	int oldPos(nowCursor), newPos(-1), oldLen(now.length()), digitCount
+		= std::min(
+		int(digits.size()),
+		kMaxPhoneCodeLength + kMaxPhoneTailLength);
 
 	bool inPart = !_pattern.isEmpty(), plusFound = false;
 	int curPart = 0, leftInPart = inPart ? _pattern.at(curPart) : 0;

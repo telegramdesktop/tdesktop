@@ -1916,7 +1916,9 @@ bool Document::voiceProgressAnimationCallback(crl::time now) {
 				voice->playback->progressAnimation.stop();
 				voice->playback->progress.finish();
 			} else {
-				voice->playback->progress.update(qMin(dt, 1.), anim::linear);
+				voice->playback->progress.update(
+					std::min(dt, 1.),
+					anim::linear);
 			}
 			repaint();
 			return (dt < 1.);

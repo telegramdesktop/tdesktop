@@ -2670,7 +2670,7 @@ void InnerWidget::checkReorderPinnedStart(QPoint localPosition) {
 		|| (_state != WidgetState::Default)
 		|| _pressedRightButtonData) {
 		return;
-	} else if (qAbs(localPosition.y() - _dragStart.y())
+	} else if (std::abs(localPosition.y() - _dragStart.y())
 		< style::ConvertScale(kStartReorderThreshold)) {
 		return;
 	}
@@ -4272,7 +4272,8 @@ void InnerWidget::onHashtagFilterUpdate(QStringView newFilter) {
 	auto &recent = cRecentSearchHashtags();
 	_hashtagResults.clear();
 	if (!recent.isEmpty()) {
-		_hashtagResults.reserve(qMin(recent.size(), kHashtagResultsLimit));
+		_hashtagResults.reserve(
+			std::min(int(recent.size()), kHashtagResultsLimit));
 		for (const auto &tag : recent) {
 			if (tag.first.startsWith(base::StringViewMid(_hashtagFilter, 1), Qt::CaseInsensitive)
 				&& tag.first.size() + 1 != newFilter.size()) {

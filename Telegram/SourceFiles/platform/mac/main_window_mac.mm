@@ -180,7 +180,9 @@ void MainWindow::Private::setNativeWindow(NSWindow *window, NSView *view) {
 	_nativeView = view;
 	auto inner = [_nativeWindow contentLayoutRect];
 	auto full = [_nativeView frame];
-	_public->_customTitleHeight = qMax(qRound(full.size.height - inner.size.height), 0);
+	_public->_customTitleHeight = std::max(
+		qRound(full.size.height - inner.size.height),
+		0);
 }
 
 void MainWindow::Private::initTouchBar(

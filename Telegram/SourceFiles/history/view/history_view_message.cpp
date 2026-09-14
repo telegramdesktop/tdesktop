@@ -6643,7 +6643,7 @@ int Message::resizeContentGetHeight(int newWidth) {
 			}
 		}
 	}
-	const auto bottomInfoWidth = qMax(
+	const auto bottomInfoWidth = std::max(
 		contentWidth - st::msgPadding.left() - st::msgPadding.right(),
 		1);
 	const auto textWidth = bubble

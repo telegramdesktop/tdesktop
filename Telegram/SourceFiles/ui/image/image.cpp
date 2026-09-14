@@ -140,10 +140,25 @@ QPixmap Image::prepare(int w, int h, const Images::PrepareArgs &args) const {
 		p.fillRect(((outerw - w) / 2) + w, 0, result.width() - (((outerw - w) / 2) + w), result.height(), Qt::black);
 	}
 	if (h < outerh) {
-		p.fillRect(qMax(0, (outerw - w) / 2), 0, qMin(result.width(), w), (outerh - h) / 2, Qt::black);
-		p.fillRect(qMax(0, (outerw - w) / 2), ((outerh - h) / 2) + h, qMin(result.width(), w), result.height() - (((outerh - h) / 2) + h), Qt::black);
+		p.fillRect(
+			std::max(0, (outerw - w) / 2),
+			0,
+			std::min(result.width(), w),
+			(outerh - h) / 2,
+			Qt::black);
+		p.fillRect(
+			std::max(0, (outerw - w) / 2),
+			((outerh - h) / 2) + h,
+			std::min(result.width(), w),
+			result.height() - (((outerh - h) / 2) + h),
+			Qt::black);
 	}
-	p.fillRect(qMax(0, (outerw - w) / 2), qMax(0, (outerh - h) / 2), qMin(result.width(), w), qMin(result.height(), h), Qt::white);
+	p.fillRect(
+		std::max(0, (outerw - w) / 2),
+		std::max(0, (outerh - h) / 2),
+		std::min(result.width(), w),
+		std::min(result.height(), h),
+		Qt::white);
 	p.end();
 
 	result = Round(std::move(result), args.options);

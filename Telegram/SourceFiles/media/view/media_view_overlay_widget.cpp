@@ -1841,7 +1841,7 @@ void OverlayWidget::updateControls() {
 		_nameNav = QRect(
 			st::mediaviewTextLeft,
 			height() - st::mediaviewTextTop,
-			qMin(_fromNameLabel.maxWidth(), width() / 3),
+			std::min(_fromNameLabel.maxWidth(), width() / 3),
 			st::mediaviewFont->height);
 		const auto separatorWidth = st::mediaviewFont->width(Ui::kQBullet);
 		_separatorNav = QRect(
@@ -4907,8 +4907,13 @@ void OverlayWidget::updateThemePreviewGeometry() {
 		auto previewRect = QRect((width() - st::themePreviewSize.width()) / 2, (height() - st::themePreviewSize.height()) / 2, st::themePreviewSize.width(), st::themePreviewSize.height());
 		_themePreviewRect = previewRect.marginsAdded(st::themePreviewMargin);
 		if (_themeApply) {
-			auto right = qMax(width() - _themePreviewRect.x() - _themePreviewRect.width(), 0) + st::themePreviewMargin.right();
-			auto bottom = qMin(height(), _themePreviewRect.y() + _themePreviewRect.height());
+			auto right = std::max(
+				width() - _themePreviewRect.x() - _themePreviewRect.width(),
+				0)
+				+ st::themePreviewMargin.right();
+			auto bottom = std::min(
+				height(),
+				_themePreviewRect.y() + _themePreviewRect.height());
 			_themeApply->moveToRight(right, bottom - st::themePreviewMargin.bottom() + (st::themePreviewMargin.bottom() - _themeApply->height()) / 2);
 			right += _themeApply->width() + st::themePreviewButtonsSkip;
 			_themeCancel->moveToRight(right, _themeApply->y());
@@ -7467,7 +7472,7 @@ void OverlayWidget::handleWheelEvent(not_null<QWheelEvent*> e) {
 			|| (e->source() == Qt::MouseEventSynthesizedBySystem));
 	const auto anchor = zoomAnchor(e->globalPosition());
 	_verticalWheelDelta += angle.y();
-	while (qAbs(_verticalWheelDelta) >= step) {
+	while (std::abs(_verticalWheelDelta) >= step) {
 		if (_verticalWheelDelta < 0) {
 			_verticalWheelDelta += step;
 			if (e->modifiers().testFlag(Qt::ControlModifier)) {

@@ -4536,7 +4536,9 @@ void Widget::updateControlsGeometry() {
 		+ st::dialogsFilterPadding.x();
 	const auto filterRight = st::dialogsFilterSkip
 		+ st::dialogsFilterPadding.x();
-	const auto filterWidth = qMax(ratiow, smallw) - filterLeft - filterRight;
+	const auto filterWidth = std::max(ratiow, smallw)
+		- filterLeft
+		- filterRight;
 	const auto filterAreaHeight = st::topBarHeight;
 	_searchControls->setGeometry(0, filterAreaTop, ratiow, filterAreaHeight);
 	if (_subsectionTopBar) {

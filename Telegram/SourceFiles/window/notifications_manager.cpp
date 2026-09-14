@@ -898,7 +898,9 @@ void System::showNext() {
 					? nextNotify->item.get()
 					: nullptr;
 				if (nextItem
-					&& qAbs(int64(nextItem->date()) - int64(groupedItem->date())) < 2) {
+					&& std::abs(int64(nextItem->date())
+						- int64(groupedItem->date()))
+						< 2) {
 					if (isForwarded
 						&& groupedItem->author() == nextItem->author()) {
 						++forwardedCount;

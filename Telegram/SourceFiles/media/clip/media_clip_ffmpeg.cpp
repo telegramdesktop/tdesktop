@@ -165,7 +165,7 @@ crl::time FFMpegReaderImplementation::frameRealTime() const {
 }
 
 crl::time FFMpegReaderImplementation::framePresentationTime() const {
-	return qMax(_frameTime + _frameTimeCorrection, crl::time(0));
+	return std::max(_frameTime + _frameTimeCorrection, crl::time(0));
 }
 
 crl::time FFMpegReaderImplementation::durationMs() const {
@@ -218,7 +218,12 @@ bool FFMpegReaderImplementation::renderFrame(
 		&& _frame->width == toSize.width()
 		&& _frame->height == toSize.height()
 		&& _frame->linesize[0] > 0) {
-		int32 sbpl = _frame->linesize[0], dbpl = to.bytesPerLine(), bpl = qMin(sbpl, dbpl);
+		int32 sbpl
+			= _frame->linesize[0], dbpl
+			= to.bytesPerLine(), bpl
+			= std::min(
+			sbpl,
+			dbpl);
 		uchar *s = _frame->data[0], *d = to.bits();
 		for (int32 i = 0, l = _frame->height; i < l; ++i) {
 			memcpy(d + i * dbpl, s + i * sbpl, bpl);

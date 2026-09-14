@@ -127,7 +127,7 @@ void ContinuousSlider::wheelEvent(QWheelEvent *e) {
 	} else {
 		deltaX *= -1;
 	}
-	auto delta = (qAbs(deltaX) > qAbs(deltaY)) ? deltaX : deltaY;
+	auto delta = (std::abs(deltaX) > std::abs(deltaY)) ? deltaX : deltaY;
 	auto finalValue = std::clamp(_value + delta * coef, 0., 1.);
 	setValue(finalValue);
 	const auto weak = base::make_weak(this);

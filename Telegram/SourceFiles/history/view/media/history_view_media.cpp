@@ -220,7 +220,7 @@ SelectedQuote Media::selectedQuote(TextSelection selection) const {
 }
 
 QSize Media::countCurrentSize(int newWidth) {
-	return QSize(qMin(newWidth, maxWidth()), minHeight());
+	return QSize(std::min(newWidth, maxWidth()), minHeight());
 }
 
 bool Media::hasPurchasedTag() const {

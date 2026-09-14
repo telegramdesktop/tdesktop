@@ -158,7 +158,7 @@ void Provider::checkPreload(
 		if (!preloadRequired) {
 			auto delta = _slice.distance(_aroundId, id);
 			Assert(delta != std::nullopt);
-			preloadRequired = (qAbs(*delta) >= minIdDelta);
+			preloadRequired = (std::abs(*delta) >= minIdDelta);
 		}
 		if (preloadRequired) {
 			_idsLimit = preloadIdsLimit;

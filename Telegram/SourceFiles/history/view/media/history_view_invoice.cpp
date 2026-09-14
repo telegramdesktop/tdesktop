@@ -34,8 +34,8 @@ TextSelection ClampSelection(TextSelection selection, uint16 length) {
 	return (selection == FullSelection)
 		? selection
 		: TextSelection{
-			qMin(selection.from, length),
-			qMin(selection.to, length),
+			std::min(selection.from, length),
+			std::min(selection.to, length),
 		};
 }
 
@@ -142,7 +142,7 @@ QSize Invoice::countOptimalSize() {
 	// enable any count of lines in game description / message
 	auto descMaxLines = 4096;
 	auto descriptionMinHeight = _descriptionTextLength
-		? qMin(_description.minHeight(), descMaxLines * lineHeight)
+		? std::min(_description.minHeight(), descMaxLines * lineHeight)
 		: 0;
 
 	if (_titleTextLength) {
@@ -351,7 +351,7 @@ TextState Invoice::textState(QPoint point, StateRequest request) const {
 				paintw,
 				width(),
 				titleRequest));
-			result.symbol = qMin(result.symbol, _titleTextLength);
+			result.symbol = std::min(result.symbol, _titleTextLength);
 		} else if (point.y() >= tshift + _titleHeight) {
 			symbolAdd += _titleTextLength;
 		}
@@ -364,7 +364,7 @@ TextState Invoice::textState(QPoint point, StateRequest request) const {
 				paintw,
 				width(),
 				request.forText()));
-			result.symbol = qMin(result.symbol, _descriptionTextLength);
+			result.symbol = std::min(result.symbol, _descriptionTextLength);
 		} else if (point.y() >= tshift + _descriptionHeight) {
 			symbolAdd += _descriptionTextLength;
 		}

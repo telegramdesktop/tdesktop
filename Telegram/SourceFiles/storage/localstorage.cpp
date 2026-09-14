@@ -1397,7 +1397,7 @@ void incrementRecentHashtag(RecentHashtagPack &recent, const QString &tag) {
 	for (; i != e; ++i) {
 		if (i->first == tag) {
 			++i->second;
-			if (qAbs(i->second) > 0x4000) {
+			if (i->second > 0x4000) {
 				for (auto j = recent.begin(); j != e; ++j) {
 					if (j->second > 1) {
 						j->second /= 2;
@@ -1407,7 +1407,7 @@ void incrementRecentHashtag(RecentHashtagPack &recent, const QString &tag) {
 				}
 			}
 			for (; i != recent.begin(); --i) {
-				if (qAbs((i - 1)->second) > qAbs(i->second)) {
+				if ((i - 1)->second > i->second) {
 					break;
 				}
 				qSwap(*i, *(i - 1));

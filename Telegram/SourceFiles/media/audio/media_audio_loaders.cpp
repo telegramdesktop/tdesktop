@@ -351,7 +351,9 @@ void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
 		alSourcei(
 			track->stream.source,
 			AL_SAMPLE_OFFSET,
-			qMax(track->withSpeed.position - track->withSpeed.bufferedPosition, 0LL));
+			std::max(
+				track->withSpeed.position - track->withSpeed.bufferedPosition,
+				0LL));
 		if (!internal::audioCheckError()) {
 			setStoppedState(track, State::StoppedAtError);
 			emitError(type);

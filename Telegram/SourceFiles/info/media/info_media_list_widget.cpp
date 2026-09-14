@@ -2137,7 +2137,7 @@ void ListWidget::leaveEventHook(QEvent *e) {
 
 QPoint ListWidget::clampMousePosition(QPoint position) const {
 	return {
-		std::clamp(position.x(), 0, qMax(0, width() - 1)),
+		std::clamp(position.x(), 0, std::max(0, width() - 1)),
 		std::clamp(position.y(), _visibleTop, _visibleBottom - 1)
 	};
 }
@@ -2241,8 +2241,8 @@ void ListWidget::mouseActionUpdate(const QPoint &globalPosition) {
 				++second;
 			}
 			auto selState = TextSelection {
-				qMin(second, _mouseTextSymbol),
-				qMax(second, _mouseTextSymbol)
+				std::min(second, _mouseTextSymbol),
+				std::max(second, _mouseTextSymbol)
 			};
 			if (_mouseSelectType != TextSelectType::Letters) {
 				selState = _overLayout->adjustSelection(selState, _mouseSelectType);

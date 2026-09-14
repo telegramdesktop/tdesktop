@@ -77,12 +77,29 @@ QImage PrepareFrame(
 				p.fillRect((outerw - framew) / (2 * factor) + (framew / factor), 0, (cache.width() / factor) - ((outerw - framew) / (2 * factor) + (framew / factor)), cache.height() / factor, st::imageBg);
 			}
 			if (frameh < outerh) {
-				p.fillRect(qMax(0, (outerw - framew) / (2 * factor)), 0, qMin(cache.width(), framew) / factor, (outerh - frameh) / (2 * factor), st::imageBg);
-				p.fillRect(qMax(0, (outerw - framew) / (2 * factor)), (outerh - frameh) / (2 * factor) + (frameh / factor), qMin(cache.width(), framew) / factor, (cache.height() / factor) - ((outerh - frameh) / (2 * factor) + (frameh / factor)), st::imageBg);
+				p.fillRect(
+					std::max(0, (outerw - framew) / (2 * factor)),
+					0,
+					std::min(cache.width(), framew) / factor,
+					(outerh - frameh) / (2 * factor),
+					st::imageBg);
+				p.fillRect(
+					std::max(0, (outerw - framew) / (2 * factor)),
+					(outerh - frameh) / (2 * factor) + (frameh / factor),
+					std::min(cache.width(), framew) / factor,
+					(cache.height() / factor)
+						- ((outerh - frameh) / (2 * factor)
+							+ (frameh / factor)),
+					st::imageBg);
 			}
 		}
 		if (hasAlpha && !request.keepAlpha) {
-			p.fillRect(qMax(0, (outerw - framew) / (2 * factor)), qMax(0, (outerh - frameh) / (2 * factor)), qMin(cache.width(), framew) / factor, qMin(cache.height(), frameh) / factor, st::imageBgTransparent);
+			p.fillRect(
+				std::max(0, (outerw - framew) / (2 * factor)),
+				std::max(0, (outerh - frameh) / (2 * factor)),
+				std::min(cache.width(), framew) / factor,
+				std::min(cache.height(), frameh) / factor,
+				st::imageBgTransparent);
 		}
 		const auto position = QPoint((outerw - framew) / (2 * factor), (outerh - frameh) / (2 * factor));
 		if (needResize) {

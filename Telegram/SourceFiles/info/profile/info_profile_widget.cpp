@@ -133,7 +133,7 @@ Widget::Widget(
 		const auto reserve = innerTopReserve();
 		if (request.ymin < 0) {
 			scrollTopRestore(
-				qMin(scrollTopSave(), request.ymax + reserve));
+				std::min(scrollTopSave(), request.ymax + reserve));
 		} else {
 			scrollTo({
 				request.ymin + reserve,

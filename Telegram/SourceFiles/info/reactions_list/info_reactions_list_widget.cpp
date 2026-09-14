@@ -146,7 +146,7 @@ rpl::producer<Ui::ScrollToRequest> InnerWidget::scrollToRequests() const {
 int InnerWidget::desiredHeight() const {
 	auto desired = 0;
 	desired += _list->fullRowsCount() * st::infoMembersList.item.height;
-	return qMax(height(), desired);
+	return std::max(height(), desired);
 }
 
 object_ptr<InnerWidget::ListWidget> InnerWidget::setupList(

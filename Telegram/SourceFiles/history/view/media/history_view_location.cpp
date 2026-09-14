@@ -307,15 +307,23 @@ QSize Location::countOptimalSize() {
 			_parent->minWidthForMedia(),
 			st::minPhotoSize,
 			st::maxMediaSize);
-	auto maxWidth = qMax(tw, minWidth);
-	auto minHeight = qMax(th, st::minPhotoSize);
+	auto maxWidth = std::max(tw, minWidth);
+	auto minHeight = std::max(th, st::minPhotoSize);
 
 	if (_parent->hasBubble()) {
 		if (!_title.isEmpty()) {
-			minHeight += qMin(_title.countHeight(maxWidth - st::msgPadding.left() - st::msgPadding.right()), 2 * st::webPageTitleFont->height);
+			minHeight += std::min(
+				_title.countHeight(maxWidth
+					- st::msgPadding.left()
+					- st::msgPadding.right()),
+				2 * st::webPageTitleFont->height);
 		}
 		if (!_description.isEmpty()) {
-			minHeight += qMin(_description.countHeight(maxWidth - st::msgPadding.left() - st::msgPadding.right()), 3 * st::webPageDescriptionFont->height);
+			minHeight += std::min(
+				_description.countHeight(maxWidth
+					- st::msgPadding.left()
+					- st::msgPadding.right()),
+				3 * st::webPageDescriptionFont->height);
 		}
 		if (!_title.isEmpty() || !_description.isEmpty()) {
 			minHeight += st::mediaInBubbleSkip;
@@ -357,10 +365,18 @@ QSize Location::countCurrentSize(int newWidth) {
 	}
 	if (_parent->hasBubble()) {
 		if (!_title.isEmpty()) {
-			newHeight += qMin(_title.countHeight(newWidth - st::msgPadding.left() - st::msgPadding.right()), st::webPageTitleFont->height * 2);
+			newHeight += std::min(
+				_title.countHeight(newWidth
+					- st::msgPadding.left()
+					- st::msgPadding.right()),
+				st::webPageTitleFont->height * 2);
 		}
 		if (!_description.isEmpty()) {
-			newHeight += qMin(_description.countHeight(newWidth - st::msgPadding.left() - st::msgPadding.right()), st::webPageDescriptionFont->height * 3);
+			newHeight += std::min(
+				_description.countHeight(newWidth
+					- st::msgPadding.left()
+					- st::msgPadding.right()),
+				st::webPageDescriptionFont->height * 3);
 		}
 		if (!_title.isEmpty() || !_description.isEmpty()) {
 			newHeight += st::mediaInBubbleSkip;
@@ -408,14 +424,18 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 		p.setPen(stm->historyTextFg);
 		if (!_title.isEmpty()) {
 			_title.drawLeftElided(p, paintx + st::msgPadding.left(), painty, textw, width(), 2, style::al_left, 0, -1, 0, false, context.selection);
-			painty += qMin(_title.countHeight(textw), 2 * st::webPageTitleFont->height);
+			painty += std::min(
+				_title.countHeight(textw),
+				2 * st::webPageTitleFont->height);
 		}
 		if (!_description.isEmpty()) {
 			if (_live) {
 				p.setPen(stm->msgDateFg);
 			}
 			_description.drawLeftElided(p, paintx + st::msgPadding.left(), painty, textw, width(), 3, style::al_left, 0, -1, 0, false, toDescriptionSelection(context.selection));
-			painty += qMin(_description.countHeight(textw), 3 * st::webPageDescriptionFont->height);
+			painty += std::min(
+				_description.countHeight(textw),
+				3 * st::webPageDescriptionFont->height);
 		}
 	};
 	const auto thumbh = _thumbnailHeight;
@@ -692,7 +712,9 @@ TextState Location::textState(QPoint point, StateRequest request) const {
 		auto textw = width() - st::msgPadding.left() - st::msgPadding.right();
 
 		if (!_title.isEmpty()) {
-			auto titleh = qMin(_title.countHeight(textw), 2 * st::webPageTitleFont->height);
+			auto titleh = std::min(
+				_title.countHeight(textw),
+				2 * st::webPageTitleFont->height);
 			if (point.y() >= painty && point.y() < painty + titleh) {
 				result = TextState(_parent, _title.getStateLeft(
 					point - QPoint(paintx + st::msgPadding.left(), painty),
@@ -706,7 +728,9 @@ TextState Location::textState(QPoint point, StateRequest request) const {
 			painty += titleh;
 		}
 		if (!_description.isEmpty()) {
-			auto descriptionh = qMin(_description.countHeight(textw), 3 * st::webPageDescriptionFont->height);
+			auto descriptionh = std::min(
+				_description.countHeight(textw),
+				3 * st::webPageDescriptionFont->height);
 			if (point.y() >= painty && point.y() < painty + descriptionh) {
 				result = TextState(_parent, _description.getStateLeft(
 					point - QPoint(paintx + st::msgPadding.left(), painty),

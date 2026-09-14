@@ -235,7 +235,7 @@ void Provider::checkPreload(
 				sliceKey(_aroundId),
 				sliceKey(aroundId));
 			Assert(delta != std::nullopt);
-			preloadRequired = (qAbs(*delta) >= minUniversalIdDelta);
+			preloadRequired = (std::abs(*delta) >= minUniversalIdDelta);
 		}
 		if (preloadRequired) {
 			const auto key = EdgeRequestKey{
