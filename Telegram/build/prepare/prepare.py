@@ -528,8 +528,7 @@ win:
     SET "CARGO_HOME=%THIRDPARTY_DIR%\\rust\\cargo"
     rustup-init.exe -y --no-modify-path --profile minimal ^
         --default-toolchain """ + rustToolchain + """ ^
-        --component rust-src ^
-        --target aarch64-pc-windows-msvc
+        --component rust-src
     del rustup-init.exe
 mac:
     wget -O rustup-init.sh https://sh.rustup.rs
