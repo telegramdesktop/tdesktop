@@ -2793,6 +2793,7 @@ ServiceAction ParseServiceAction(
 		content.communityId = ChannelId(data.vcommunity_id().v);
 		result.content = content;
 	}, [](const MTPDmessageActionGramTransfer &) {
+	}, [](const MTPDmessageActionWalletTonConnectRequest &) {
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }
