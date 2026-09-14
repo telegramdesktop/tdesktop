@@ -1862,14 +1862,14 @@ void StickersBox::Inner::updateSelected() {
 		if (_dragStart.y() > local.y() && _dragging > 0) {
 			shift = -floorclamp(_dragStart.y() - local.y() + (_rowHeight / 2), _rowHeight, 0, _dragging - firstSetIndex);
 			for (int32 from = _dragging, to = _dragging + shift; from > to; --from) {
-				qSwap(_rows[from], _rows[from - 1]);
+				std::swap(_rows[from], _rows[from - 1]);
 				_rows[from]->yadd = anim::value(_rows[from]->yadd.current() - _rowHeight, 0);
 				_shiftingStartTimes[from] = now;
 			}
 		} else if (_dragStart.y() < local.y() && _dragging + 1 < _rows.size()) {
 			shift = floorclamp(local.y() - _dragStart.y() + (_rowHeight / 2), _rowHeight, 0, _rows.size() - _dragging - 1);
 			for (int32 from = _dragging, to = _dragging + shift; from < to; ++from) {
-				qSwap(_rows[from], _rows[from + 1]);
+				std::swap(_rows[from], _rows[from + 1]);
 				_rows[from]->yadd = anim::value(_rows[from]->yadd.current() + _rowHeight, 0);
 				_shiftingStartTimes[from] = now;
 			}

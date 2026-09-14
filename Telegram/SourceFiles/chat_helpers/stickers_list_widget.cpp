@@ -1618,7 +1618,7 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 		0,
 		_columnCount);
 	if (rtl()) {
-		qSwap(fromColumn, toColumn);
+		std::swap(fromColumn, toColumn);
 		fromColumn = _columnCount - fromColumn;
 		toColumn = _columnCount - toColumn;
 	}

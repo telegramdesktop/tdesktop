@@ -1038,7 +1038,8 @@ void Account::writeSessionSettings(Main::SessionSettings *stored) {
 		const auto &stickers = _owner->session().data().stickers();
 		recentStickers.reserve(stickers.getRecentPack().size());
 		for (const auto &pair : std::as_const(stickers.getRecentPack())) {
-			recentStickers.push_back(qMakePair(pair.first->id, pair.second));
+			recentStickers.push_back(
+				std::make_pair(pair.first->id, pair.second));
 		}
 	}
 
@@ -2569,7 +2570,7 @@ void Account::importOldRecentStickers() {
 		if (std::abs(value) > 1
 			&& (recent.size()
 				< _owner->session().serverConfig().stickersRecentLimit)) {
-			recent.push_back(qMakePair(doc, std::abs(value)));
+			recent.push_back(std::make_pair(doc, std::abs(value)));
 		}
 	}
 	if (def->stickers.isEmpty()) {
@@ -2847,14 +2848,14 @@ void Account::readRecentHashtagsAndBots() {
 		write.reserve(writeCount);
 		for (uint32 i = 0; i < writeCount; ++i) {
 			hashtags.stream >> tag >> count;
-			write.push_back(qMakePair(tag.trimmed(), count));
+			write.push_back(std::make_pair(tag.trimmed(), count));
 		}
 	}
 	if (searchCount) {
 		search.reserve(searchCount);
 		for (uint32 i = 0; i < searchCount; ++i) {
 			hashtags.stream >> tag >> count;
-			search.push_back(qMakePair(tag.trimmed(), count));
+			search.push_back(std::make_pair(tag.trimmed(), count));
 		}
 	}
 	cSetRecentWriteHashtags(write);
