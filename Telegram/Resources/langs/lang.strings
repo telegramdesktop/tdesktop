@@ -8905,8 +8905,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_phrase_warn_steal" = "If someone has your Recovery Phrase they **can steal your funds**.";
 "lng_wallet_phrase_warn_support" = "**Telegram Support** will never ask you for your Recovery Phrase.";
 "lng_wallet_phrase_title" = "Your Recovery Phrase";
-"lng_wallet_phrase_text#one" = "Write down this {count} word and store it safely. If you lose it, you lose access to your Wallet.";
-"lng_wallet_phrase_text#other" = "Write down these {count} words in order and store them safely. If you lose them, you lose access to your Wallet.";
+"lng_wallet_phrase_text#one" = "Write down this {count} word and store it safely. Keep it secret and secure at all times.";
+"lng_wallet_phrase_text#other" = "Write down these {count} words in order and store them safely. Keep them secret and secure at all times.";
 "lng_wallet_delete_title" = "Delete Wallet?";
 "lng_wallet_delete_text" = "You'll lose access to your funds unless you've saved your recovery phrase.";
 "lng_wallet_delete_confirm" = "Delete Anyway";

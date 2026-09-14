@@ -5879,7 +5879,8 @@ void AddPhraseBoxHeader(
 			std::move(text),
 			textLabel),
 		textMargin,
-		style::al_top);
+		style::al_top
+	)->setTryMakeSimilarLines(true);
 }
 
 void AddPhraseGrid(
@@ -6225,8 +6226,7 @@ void StartPhraseReveal(
 void WalletPhraseWarningBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
-		std::optional<QByteArray> parkedKey,
-		KeyAuthorization auth) {
+		std::optional<QByteArray> parkedKey) {
 	enum class Phase {
 		Idle,
 		Starting,
@@ -6243,8 +6243,6 @@ void WalletPhraseWarningBox(
 		std::optional<std::vector<QString>> words;
 		CustodyOutcome outcome = CustodyOutcome::Installed;
 	};
-	const auto authorization = box->lifetime().make_state<KeyAuthorization>(
-		std::move(auth));
 	const auto state = box->lifetime().make_state<State>();
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::walletPillBox);
@@ -6339,67 +6337,92 @@ void WalletPhraseWarningBox(
 		}
 		state->phase = Phase::Starting;
 		state->loading = true;
-		StartPhraseReveal(
-			show,
-			box,
-			*authorization,
-			idleFromFail,
-			parkedKey,
-			nullptr,
-			[=] {
-				if (state->phase != Phase::Starting
-					&& state->phase != Phase::Authorizing) {
-					return;
-				}
-				state->phase = Phase::Loading;
-				state->armed = false;
-				state->loading = true;
-			},
-			[=](std::vector<QString> words, CustodyOutcome outcome) {
-				if (state->phase != Phase::Loading) {
-					return;
-				}
-				// A stored key always went through the protection chooser,
-				// and its Save is the explicit activation that shows the
-				// words right away: nothing typed into the password box can
-				// carry past it. A store that was cancelled or failed keeps
-				// the words behind a fresh press of this button instead.
-				if (outcome == CustodyOutcome::Installed) {
-					state->phase = Phase::Idle;
+		const auto start = [=](KeyAuthorization auth) {
+			StartPhraseReveal(
+				show,
+				box,
+				std::move(auth),
+				idleFromFail,
+				parkedKey,
+				nullptr,
+				[=] {
+					if (state->phase != Phase::Starting
+						&& state->phase != Phase::Authorizing) {
+						return;
+					}
+					state->phase = Phase::Loading;
+					state->armed = false;
+					state->loading = true;
+				},
+				[=](std::vector<QString> words, CustodyOutcome outcome) {
+					if (state->phase != Phase::Loading) {
+						return;
+					}
+					// A stored key always went through the protection
+					// chooser, and its Save is the explicit activation that
+					// shows the words right away: nothing typed into the
+					// password box can carry past it. A store that was
+					// cancelled or failed keeps the words behind a fresh
+					// press of this button instead.
+					if (outcome == CustodyOutcome::Installed) {
+						state->phase = Phase::Idle;
+						state->loading = false;
+						box->closeBox();
+						show->showBox(
+							Box(WalletPhraseBox, show, std::move(words)));
+						return;
+					}
+					state->words = std::move(words);
+					state->outcome = outcome;
+					state->phase = Phase::Ready;
+					state->armed = !state->pointerDown;
+					state->absorbEnter = true;
 					state->loading = false;
-					box->closeBox();
-					show->showBox(Box(WalletPhraseBox, show, std::move(words)));
+					if (const auto strong = button.data()) {
+						strong->clearState();
+					}
+					if (outcome != CustodyOutcome::Installed) {
+						show->showToast(
+							tr::lng_wallet_restore_not_saved(tr::now));
+					}
+				},
+				[=] {
+					if (state->phase == Phase::Authorizing) {
+						state->phase = Phase::Starting;
+					}
+				},
+				idleFromPrompt,
+				[=] {
+					if (state->phase == Phase::Authorizing
+						|| state->phase == Phase::Loading
+						|| state->phase == Phase::Ready) {
+						return false;
+					}
+					state->phase = Phase::Authorizing;
+					return true;
+				});
+		};
+		// A key restored from Telegram's backup is stored through the install
+		// ladder, whose chooser asks for the vault itself, so that path
+		// carries no read grant and asks nothing before the cloud password
+		// box. A key held on this device is read right after its unlock,
+		// whose submit is the explicit activation, as the chooser's Save is.
+		if (!parkedKey && !show->session().wallet().revealsLocally()) {
+			start(KeyAuthorization{ .install = MakeCustodyInstaller(show) });
+			return;
+		}
+		AcquireVaultUnlock({
+			.show = show,
+			.done = crl::guard(box, [=](KeyAuthorization auth) {
+				if (state->phase != Phase::Starting) {
+					return;
+				} else if (!auth.valid()) {
+					idleFromPrompt();
 					return;
 				}
-				state->words = std::move(words);
-				state->outcome = outcome;
-				state->phase = Phase::Ready;
-				state->armed = !state->pointerDown;
-				state->absorbEnter = true;
-				state->loading = false;
-				if (const auto strong = button.data()) {
-					strong->clearState();
-				}
-				if (outcome != CustodyOutcome::Installed) {
-					show->showToast(
-						tr::lng_wallet_restore_not_saved(tr::now));
-				}
-			},
-			[=] {
-				if (state->phase == Phase::Authorizing) {
-					state->phase = Phase::Starting;
-				}
-			},
-			idleFromPrompt,
-			[=] {
-				if (state->phase == Phase::Authorizing
-					|| state->phase == Phase::Loading
-					|| state->phase == Phase::Ready) {
-					return false;
-				}
-				state->phase = Phase::Authorizing;
-				return true;
-			});
+				start(std::move(auth));
+			}),
+		});
 	});
 	AddBusyFooterSpinner(button, state->loading.value());
 	const auto isRevealKey = [](int key) {
@@ -6467,27 +6490,15 @@ void WalletPhraseWarningBox(
 	}, box->lifetime());
 }
 
-// The unlock is acquired before the warning sheet, so a passcode vault asks
-// for the passcode first and the box order is passcode, warning, phrase; an
-// open one shows warning, phrase. An account with no vault yet answers with
-// the install ladder instead, and the chooser appears at the store.
+// The warning sheet comes first and its Show press acquires what the reveal
+// needs: the vault unlock for a key held on this device, so the box order
+// is warning, passcode, phrase, or warning, phrase for an open or retained
+// vault; the cloud password box and the install ladder for a key restored
+// from Telegram's backup, with the chooser at the store.
 void WalletRevealFlow(
 		std::shared_ptr<Main::SessionShow> show,
 		std::optional<QByteArray> parkedKey = std::nullopt) {
-	AcquireVaultUnlock({
-		.show = show,
-		.mayInstall = true,
-		.done = [=](KeyAuthorization auth) {
-			if (!auth.valid()) {
-				return;
-			}
-			show->showBox(Box(
-				WalletPhraseWarningBox,
-				show,
-				parkedKey,
-				std::move(auth)));
-		},
-	});
+	show->showBox(Box(WalletPhraseWarningBox, show, parkedKey));
 }
 
 enum class WalletImportMode {
