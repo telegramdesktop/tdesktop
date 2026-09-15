@@ -891,6 +891,10 @@ PRIVATE
     editor/editor_audio_timeline.h
     editor/editor_keys_legend.cpp
     editor/editor_keys_legend.h
+    editor/editor_message_render.cpp
+    editor/editor_message_render.h
+    editor/editor_message_source.cpp
+    editor/editor_message_source.h
     editor/editor_paint.cpp
     editor/editor_paint.h
     editor/photo_editor.cpp
@@ -901,6 +905,8 @@ PRIVATE
     editor/photo_editor_controls.h
     editor/photo_editor_layer_widget.cpp
     editor/photo_editor_layer_widget.h
+    editor/scene/scene_item_message.cpp
+    editor/scene/scene_item_message.h
     editor/scene/scene_item_sticker.cpp
     editor/scene/scene_item_sticker.h
     editor/scene/scene_item_video.cpp

@@ -8,24 +8,34 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/editor_paint.h"
 
 #include "base/platform/base_platform_haptic.h"
+#include "chat_helpers/compose/compose_show.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
+#include "data/data_peer.h"
+#include "data/data_session.h"
 #include "editor/controllers/controllers.h"
+#include "editor/editor_message_render.h"
+#include "editor/editor_message_source.h"
 #include "editor/scene/scene_item_canvas.h"
 #include "editor/scene/scene_item_image.h"
+#include "editor/scene/scene_item_message.h"
 #include "editor/scene/scene_item_shape.h"
 #include "editor/scene/scene_item_sticker.h"
 #include "editor/scene/scene_item_text.h"
 #include "editor/scene/scene_item_video.h"
 #include "editor/scene/scene.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_single_player.h"
+#include "main/main_session.h"
 #include "platform/platform_file_utilities.h"
 #include "storage/storage_media_prepare.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/rect.h"
 #include "ui/ui_utility.h"
+#include "styles/style_editor.h"
 
 #include <QGraphicsView>
 #include <QNativeGestureEvent>
@@ -41,6 +51,14 @@ constexpr auto kMinBrush = 1.;
 constexpr auto kShapeSizeRatio = 2. / 5.;
 constexpr auto kMediaSizeRatio = 1. / 2.;
 constexpr auto kImageMaxSizeRatio = 4.;
+
+constexpr auto kMessageMaxWidthRatio = 0.88;
+constexpr auto kMessageMaxHeightRatio = 0.7;
+constexpr auto kMessagesCascadeRatio = 1. / 20.;
+
+[[nodiscard]] bool IsForwardMimeData(not_null<const QMimeData*> data) {
+	return data->hasFormat(u"application/x-td-forward"_q);
+}
 
 [[nodiscard]] float64 BrushSize(const Brush &brush) {
 	return kMinBrush + float64(kMaxBrush - kMinBrush) * brush.sizeRatio;
@@ -642,15 +660,24 @@ rpl::producer<bool> Paint::shapeToolStates() const {
 }
 
 bool Paint::canHandleMimeData(const QMimeData *data) const {
-	return data
-		&& !_textEditing.current()
-		&& Storage::ValidatePhotoEditorMediaDragData(
-			data,
-			_composeAnimated,
-			_composeSound);
+	if (!data || _textEditing.current()) {
+		return false;
+	} else if (session() && IsForwardMimeData(data)) {
+		return true;
+	}
+	return Storage::ValidatePhotoEditorMediaDragData(
+		data,
+		_composeAnimated,
+		_composeSound);
 }
 
 void Paint::handleMimeData(const QMimeData *data) {
+	if (IsForwardMimeData(data)) {
+		if (const auto session = Paint::session()) {
+			addMessages(session->data().takeMimeForwardIds());
+		}
+		return;
+	}
 	const auto urls = Core::ReadMimeUrls(data);
 	if (urls.size() == 1 && urls.front().isLocalFile()) {
 		readMediaFile(
@@ -661,6 +688,55 @@ void Paint::handleMimeData(const QMimeData *data) {
 	} else {
 		addMedia({});
 	}
+}
+
+Main::Session *Paint::session() const {
+	const auto &show = _controllers->sessionShow;
+	return show ? &show->session() : nullptr;
+}
+
+void Paint::addMessages(const MessageIdsList &ids) {
+	const auto session = Paint::session();
+	if (!session) {
+		return;
+	}
+	auto added = base::flat_set<not_null<HistoryItem*>>();
+	auto forbidden = (HistoryItem*)nullptr;
+	auto index = 0;
+	for (const auto &id : ids) {
+		const auto item = session->data().message(id);
+		if (!item) {
+			continue;
+		}
+		const auto render = MessageToRender(item);
+		if (!added.emplace(render).second) {
+			continue;
+		} else if (!CanRenderMessage(render)) {
+			forbidden = render;
+			continue;
+		}
+		addMessageItem(std::make_shared<MessageSource>(render), index++);
+	}
+	if (forbidden) {
+		_controllers->show->showBox(Ui::MakeInformBox(
+			forbidden->history()->peer->isBroadcast()
+				? tr::lng_error_noforwards_channel()
+				: tr::lng_error_noforwards_group()));
+	}
+}
+
+void Paint::addMessageItem(std::shared_ptr<MessageSource> source, int index) {
+	auto renderer = std::make_unique<MessageRenderer>(source);
+	auto data = messageItemData(renderer->size());
+	const auto scene = _scene->sceneRect().size();
+	const auto shift = int(std::min(scene.width(), scene.height())
+		* kMessagesCascadeRatio) * index;
+	data.x += shift;
+	data.y += shift;
+	addMediaItem(std::make_shared<ItemMessage>(
+		std::move(source),
+		std::move(renderer),
+		std::move(data)));
 }
 
 void Paint::readMediaFile(const QString &path, const QByteArray &content) {
@@ -859,6 +935,25 @@ ItemBase::Data Paint::itemBaseData() const {
 		.rotation = -_transform.angle,
 		.imageSize = _imageSize,
 	};
+}
+
+ItemBase::Data Paint::messageItemData(QSize bubbleSize) const {
+	auto result = itemBaseData();
+	if (bubbleSize.isEmpty()) {
+		return result;
+	}
+	const auto scene = _scene->sceneRect().size();
+	const auto scale = scene.width()
+		/ float64(st::photoEditorMessageReferenceWidth);
+	const auto width = bubbleSize.width() * scale;
+	const auto height = bubbleSize.height() * scale;
+	const auto fit = std::min({
+		1.,
+		scene.width() * kMessageMaxWidthRatio / width,
+		scene.height() * kMessageMaxHeightRatio / height,
+	});
+	result.size = std::max(int(std::ceil(width * fit)), 1);
+	return result;
 }
 
 ItemBase::Data Paint::mediaItemData(QSize mediaSize) const {

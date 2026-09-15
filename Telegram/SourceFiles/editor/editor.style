@@ -379,3 +379,5 @@ videoEditorPlayBadgeBg: mediaviewCaptionBg;
 videoEditorAbout: FlatLabel(photoEditorAbout) {
 }
 videoEditorAboutMargin: margins(10px, 10px, 10px, 0px);
+
+photoEditorMessageReferenceWidth: 600px;

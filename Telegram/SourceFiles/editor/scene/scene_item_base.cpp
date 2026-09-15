@@ -508,10 +508,12 @@ void ItemBase::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 		kDeleteSequence,
 		[=] { actionDelete(); },
 		&st::mediaMenuIconDelete);
-	_menu->addAction(
-		tr::lng_photo_editor_menu_flip(tr::now),
-		[=] { actionFlip(); },
-		&st::mediaMenuIconFlip);
+	if (flippable()) {
+		_menu->addAction(
+			tr::lng_photo_editor_menu_flip(tr::now),
+			[=] { actionFlip(); },
+			&st::mediaMenuIconFlip);
+	}
 	add(
 		tr::lng_photo_editor_menu_duplicate,
 		kDuplicateSequence,
@@ -534,8 +536,14 @@ void ItemBase::performForSelectedItems(Action action) {
 	}
 }
 
+bool ItemBase::flippable() const {
+	return true;
+}
+
 void ItemBase::actionFlip() {
-	setFlip(!flipped());
+	if (flippable()) {
+		setFlip(!flipped());
+	}
 }
 
 void ItemBase::actionDelete() {

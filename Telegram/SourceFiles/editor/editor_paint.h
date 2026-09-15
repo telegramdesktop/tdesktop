@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
+#include "data/data_types.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 
@@ -20,6 +21,10 @@ class QGraphicsItem;
 class QGraphicsView;
 class QKeyEvent;
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Storage {
 struct PhotoEditorMedia;
 } // namespace Storage
@@ -28,6 +33,7 @@ namespace Editor {
 
 struct Controllers;
 class ItemVideo;
+class MessageSource;
 class Scene;
 
 // Paint control.
@@ -116,9 +122,13 @@ private:
 		bool undid = false;
 	};
 
+	[[nodiscard]] Main::Session *session() const;
 	ItemBase::Data itemBaseData() const;
 	ItemBase::Data mediaItemData(QSize mediaSize) const;
+	ItemBase::Data messageItemData(QSize bubbleSize) const;
 	void addMediaItem(std::shared_ptr<ItemBase> item);
+	void addMessages(const MessageIdsList &ids);
+	void addMessageItem(std::shared_ptr<MessageSource> source, int index = 0);
 	void addMedia(Storage::PhotoEditorMedia &&media);
 	void readMediaFile(const QString &path, const QByteArray &content);
 	void addImageItem(QImage &&image);

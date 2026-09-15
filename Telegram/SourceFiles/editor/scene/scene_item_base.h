@@ -132,6 +132,7 @@ protected:
 
 	using Action = void(ItemBase::*)();
 	void performForSelectedItems(Action action);
+	[[nodiscard]] virtual bool flippable() const;
 	virtual void actionFlip();
 	void actionDelete();
 	void actionDuplicate();

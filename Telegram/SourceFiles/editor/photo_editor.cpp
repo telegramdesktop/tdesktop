@@ -278,11 +278,12 @@ PhotoEditor::PhotoEditor(
 	sessionShow
 		? std::make_unique<StickersPanelController>(
 			this,
-			std::move(sessionShow),
+			sessionShow,
 			data.composeSound)
 		: nullptr,
 	std::make_unique<UndoController>(),
-	show))
+	show,
+	sessionShow))
 , _content(base::make_unique_q<PhotoEditorContent>(
 	this,
 	photo,
