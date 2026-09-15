@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "editor/editor_link_pill.h"
+
 class HistoryItem;
 struct WebPageData;
 
@@ -15,18 +17,6 @@ class Session;
 } // namespace Main
 
 namespace Editor {
-
-struct LinkPreview {
-	QString url;
-	QString name;
-	bool captionAbove = true;
-	bool largePhoto = false;
-	bool dark = false;
-
-	friend inline bool operator==(
-		const LinkPreview &,
-		const LinkPreview &) = default;
-};
 
 [[nodiscard]] bool CanRenderMessage(not_null<HistoryItem*> item);
 [[nodiscard]] not_null<HistoryItem*> MessageToRender(

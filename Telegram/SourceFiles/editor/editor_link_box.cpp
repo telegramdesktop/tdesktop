@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_web_page.h"
+#include "editor/editor_link_pill.h"
 #include "editor/editor_message_render.h"
 #include "history/history_item.h"
 #include "history/view/controls/history_view_webpage_processor.h"
@@ -37,8 +38,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_calls.h"
 #include "styles/style_editor.h"
 #include "styles/style_layers.h"
-
-#include <QtGui/QPainter>
 
 namespace Editor {
 namespace {
@@ -210,6 +209,7 @@ public:
 	explicit PreviewWidget(QWidget *parent);
 
 	void setSource(std::shared_ptr<MessageSource> source, bool dark);
+	void setPill(const LinkPreview &link);
 	[[nodiscard]] rpl::producer<> themeToggles() const;
 
 private:
@@ -232,6 +232,8 @@ private:
 	std::array<std::unique_ptr<Ui::ChatTheme>, 2> _backgrounds;
 	std::shared_ptr<MessageSource> _source;
 	std::unique_ptr<MessageRenderer> _renderer;
+	std::optional<LinkPreview> _pillLink;
+	std::optional<LinkPill> _pill;
 	QImage _image;
 	QSize _size;
 	QImage _from;
@@ -251,6 +253,13 @@ PreviewWidget::PreviewWidget(QWidget *parent)
 	_theme->hide();
 	_theme->setClickedCallback([=] { _themeToggles.fire({}); });
 	widthValue() | rpl::on_next([=] {
+		if (_pillLink) {
+			_pill.emplace(
+				*_pillLink,
+				LinkPill::DensityFor(innerWidth()),
+				innerWidth());
+			_size = _pill->size().toSize();
+		}
 		applyHeight();
 	}, lifetime());
 }
@@ -264,7 +273,7 @@ int PreviewWidget::innerWidth() const {
 }
 
 bool PreviewWidget::hasContent() const {
-	return !_size.isEmpty() && !_image.isNull();
+	return !_size.isEmpty() && (!_image.isNull() || _pill.has_value());
 }
 
 void PreviewWidget::setSource(
@@ -274,6 +283,8 @@ void PreviewWidget::setSource(
 		beginTransition(_renderer && (_dark != dark), dark);
 	}
 	_dark = dark;
+	_pill.reset();
+	_pillLink.reset();
 	_source = std::move(source);
 	_renderer = std::make_unique<MessageRenderer>(_source);
 	_renderer->setDark(dark);
@@ -281,6 +292,22 @@ void PreviewWidget::setSource(
 	_theme->setDark(dark);
 	_theme->show();
 	refresh();
+}
+
+void PreviewWidget::setPill(const LinkPreview &link) {
+	if (hasContent()) {
+		beginTransition(false, _dark);
+	}
+	_dark = link.dark;
+	_source = nullptr;
+	_renderer = nullptr;
+	_image = QImage();
+	_pillLink = link;
+	_pill.emplace(link, LinkPill::DensityFor(innerWidth()), innerWidth());
+	_size = _pill->size().toSize();
+	_theme->hide();
+	applyHeight();
+	update();
 }
 
 void PreviewWidget::beginTransition(bool radial, bool dark) {
@@ -397,8 +424,11 @@ void PreviewWidget::paintContent(QPainter &p) {
 	const auto origin = QPointF(
 		(width() - size.width()) / 2.,
 		st::photoEditorLinkPreviewPadding);
-	p.setRenderHint(QPainter::SmoothPixmapTransform);
-	p.drawImage(QRectF(origin, size), _image);
+	if (_pill) {
+		_pill->paint(p, origin, scale);
+	} else {
+		p.drawImage(QRectF(origin, size), _image);
+	}
 }
 
 void PreviewWidget::paintFrame(QPainter &p) {
@@ -480,6 +510,7 @@ object_ptr<Ui::BoxContent> LinkBox(LinkBoxArgs &&args) {
 			rpl::variable<bool> captionAbove = true;
 			rpl::variable<bool> largePhoto = false;
 			rpl::variable<bool> video = false;
+			rpl::variable<bool> withoutPreview = false;
 			rpl::variable<bool> dark = false;
 			rpl::variable<bool> customName = false;
 		};
@@ -491,6 +522,7 @@ object_ptr<Ui::BoxContent> LinkBox(LinkBoxArgs &&args) {
 		if (editing) {
 			state->captionAbove = editing->captionAbove;
 			state->largePhoto = editing->largePhoto;
+			state->withoutPreview = !editing->preview;
 			state->customName = !editing->name.isEmpty();
 		}
 
@@ -551,6 +583,12 @@ object_ptr<Ui::BoxContent> LinkBox(LinkBoxArgs &&args) {
 					? tr::lng_link_enlarge_video(tr::now)
 					: tr::lng_link_enlarge_photo(tr::now));
 		}));
+		const auto previewRow = addRow(
+			tr::lng_shortcuts_toggle_link_preview());
+		previewRow->entity()->toggleOn(
+			state->withoutPreview.value() | rpl::map([](bool without) {
+				return !without;
+			}));
 		const auto customize = addRow(
 			tr::lng_photo_editor_link_customize());
 		customize->entity()->toggleOn(state->customName.value());
@@ -574,6 +612,7 @@ object_ptr<Ui::BoxContent> LinkBox(LinkBoxArgs &&args) {
 					: QString()),
 				.captionAbove = state->captionAbove.current(),
 				.largePhoto = state->largePhoto.current(),
+				.preview = !state->withoutPreview.current(),
 				.dark = state->dark.current(),
 			};
 		};
@@ -590,10 +629,16 @@ object_ptr<Ui::BoxContent> LinkBox(LinkBoxArgs &&args) {
 					return result;
 				}
 			}
-			result.message = std::make_shared<MessageSource>(
-				session,
-				currentLink(),
-				resolved->webpage);
+			auto link = currentLink();
+			const auto webpage = link.preview ? resolved->webpage : nullptr;
+			if (webpage) {
+				result.message = std::make_shared<MessageSource>(
+					session,
+					std::move(link),
+					webpage);
+			} else {
+				result.pill = std::move(link);
+			}
 			return result;
 		};
 		const auto refreshPreview = [=] {
@@ -605,12 +650,15 @@ object_ptr<Ui::BoxContent> LinkBox(LinkBoxArgs &&args) {
 				: nullptr;
 			if (result.message) {
 				preview->entity()->setSource(result.message, result.dark);
+			} else if (result.pill) {
+				preview->entity()->setPill(*result.pill);
 			}
-			const auto shown = (result.message != nullptr);
+			const auto shown = result.message || result.pill;
 			preview->toggle(shown, anim::type::normal);
 			options->toggle(shown, anim::type::normal);
 			above->toggle(bubble, anim::type::normal);
 			photo->toggle(bubble && HasPhoto(webpage), anim::type::normal);
+			previewRow->toggle(webpage != nullptr, anim::type::normal);
 			customize->toggle(!message, anim::type::normal);
 			nameWrap->toggle(
 				!message && state->customName.current(),
@@ -625,6 +673,11 @@ object_ptr<Ui::BoxContent> LinkBox(LinkBoxArgs &&args) {
 			state->largePhoto = !state->largePhoto.current();
 			refreshPreview();
 		});
+		previewRow->entity()->toggledChanges(
+		) | rpl::on_next([=](bool shown) {
+			state->withoutPreview = !shown;
+			refreshPreview();
+		}, previewRow->lifetime());
 		preview->entity()->themeToggles(
 		) | rpl::on_next([=] {
 			state->dark = !state->dark.current();
@@ -684,11 +737,8 @@ object_ptr<Ui::BoxContent> LinkBox(LinkBoxArgs &&args) {
 				return;
 			}
 			auto result = makeResult();
-			if (!result.message) {
-				result.message = std::make_shared<MessageSource>(
-					session,
-					currentLink(),
-					nullptr);
+			if (!result.message && !result.pill) {
+				result.pill = currentLink();
 			}
 			const auto done = args.done;
 			box->closeBox();

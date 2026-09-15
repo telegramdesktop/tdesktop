@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/editor_message_source.h"
 #include "editor/scene/scene_item_canvas.h"
 #include "editor/scene/scene_item_image.h"
+#include "editor/scene/scene_item_link.h"
 #include "editor/scene/scene_item_message.h"
 #include "editor/scene/scene_item_shape.h"
 #include "editor/scene/scene_item_sticker.h"
@@ -777,19 +778,38 @@ void Paint::addMessageItem(
 	addMediaItem(item);
 }
 
+void Paint::addLinkItem(LinkPreview link, std::optional<QPointF> position) {
+	auto data = itemBaseData();
+	data.size = std::max(
+		int(std::ceil(ItemLink::MakePill(link, _imageSize).size().width())),
+		1);
+	if (position) {
+		data.x = int(position->x());
+		data.y = int(position->y());
+	}
+	const auto item = std::make_shared<ItemLink>(std::move(link), data);
+	item->setEditCallback(crl::guard(this, [=](not_null<ItemLink*> item) {
+		chooseLink(item->link().url, item);
+	}));
+	addMediaItem(item);
+}
+
 void Paint::chooseLink(const QString &url, ItemBase *editing) {
 	const auto &show = _controllers->sessionShow;
 	if (!show) {
 		return;
 	}
 	auto link = std::optional<LinkPreview>();
-	if (editing && editing->type() == ItemMessage::Type) {
+	if (!editing) {
+	} else if (editing->type() == ItemMessage::Type) {
 		const auto item = static_cast<ItemMessage*>(editing);
 		link = item->source()->link();
 		if (link) {
 			link->dark = item->dark().value_or(
 				Window::Theme::IsNightMode());
 		}
+	} else if (editing->type() == ItemLink::Type) {
+		link = static_cast<ItemLink*>(editing)->link();
 	}
 	const auto weak = editing
 		? std::weak_ptr(_scene->itemShared(editing))
@@ -811,13 +831,26 @@ void Paint::applyLinkResult(
 	const auto raw = (strong && strong->isNormalStatus())
 		? strong.get()
 		: nullptr;
-	if (raw && raw->type() == ItemMessage::Type) {
+	if (raw && result.message && raw->type() == ItemMessage::Type) {
 		const auto item = static_cast<ItemMessage*>(raw);
 		item->setSource(std::move(result.message));
 		item->setDark(result.dark);
 		return;
+	} else if (raw && result.pill && raw->type() == ItemLink::Type) {
+		static_cast<ItemLink*>(raw)->setLink(std::move(*result.pill));
+		return;
 	}
-	addMessageItem(std::move(result.message), 0, result.dark);
+	const auto position = raw
+		? std::make_optional(raw->scenePos())
+		: std::nullopt;
+	if (raw) {
+		_scene->removeItem(strong);
+	}
+	if (result.message) {
+		addMessageItem(std::move(result.message), 0, result.dark, position);
+	} else if (result.pill) {
+		addLinkItem(std::move(*result.pill), position);
+	}
 }
 
 void Paint::readMediaFile(const QString &path, const QByteArray &content) {

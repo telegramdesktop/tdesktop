@@ -21,6 +21,7 @@ namespace Editor {
 
 struct LinkBoxResult {
 	std::shared_ptr<MessageSource> message;
+	std::optional<LinkPreview> pill;
 	bool dark = false;
 };
 

@@ -34,6 +34,7 @@ namespace Editor {
 struct Controllers;
 class ItemVideo;
 struct LinkBoxResult;
+struct LinkPreview;
 class MessageSource;
 class Scene;
 
@@ -133,6 +134,9 @@ private:
 		std::shared_ptr<MessageSource> source,
 		int index = 0,
 		std::optional<bool> dark = std::nullopt,
+		std::optional<QPointF> position = std::nullopt);
+	void addLinkItem(
+		LinkPreview link,
 		std::optional<QPointF> position = std::nullopt);
 	void chooseLink(const QString &url, ItemBase *editing = nullptr);
 	void applyLinkResult(
