@@ -486,6 +486,8 @@ updateEditEphemeralMessage#4bbb8f01 message:EphemeralMessage = Update;
 updateEphemeralBotCallbackQuery#7c1079d6 flags:# query_id:long user_id:long peer:flags.0?Peer msg_id:int data:bytes chat_instance:flags.1?long message:EphemeralMessage = Update;
 updateBotStarsSubscription#6c0d8e23 flags:# canceled:flags.0?true payment_failed:flags.1?true restored:flags.2?true user_id:long payload:bytes qts:int = Update;
 updateWalletState#6ac3f2aa state:WalletState = Update;
+updateSentWalletTransaction#b1434d4a flags:# gasless:flags.0?true msg_hash:string transaction:flags.1?WalletTransaction = Update;
+updateWalletGaslessInfo#a8ae1cac flags:# available:flags.0?true left:int reset_at:int min_amount:long relayer_address:string = Update;
 updateWalletTonConnectSession#50a38e0e session:TonConnectSession = Update;
 updateWalletTonConnectPendingDisconnect#d1ee8199 session_ids:Vector<long> = Update;
 
@@ -2323,10 +2325,6 @@ walletOwnershipProof#60bccb0d timestamp:int signature:bytes = WalletOwnershipPro
 inputWalletNew#63a440dc = InputWalletReplacement;
 inputWalletImported#2959057c public_key:bytes proof:WalletOwnershipProof = InputWalletReplacement;
 
-wallet.sentTransfer#70341d66 flags:# gasless:flags.0?true msg_hash:string gasless_left:int gasless_reset_at:int = wallet.SentTransfer;
-
-wallet.gaslessInfo#e4981ebc flags:# available:flags.0?true left:int reset_at:int min_amount:long relayer_address:string = wallet.GaslessInfo;
-
 tonConnectManifest#d0f263bc url:string name:string icon_url:string = TonConnectManifest;
 
 tonConnectSession#126556c6 flags:# pending:flags.0?true closing:flags.1?true closed:flags.2?true id:long dapp_client_id:string client_id:flags.3?string nonce:bytes manifest:flags.4?TonConnectManifest manifest_error:flags.5?int date:int = TonConnectSession;
@@ -3205,8 +3203,8 @@ wallet.disableBackup#b0bf0da flags:# password:flags.0?InputCheckPasswordSRP new_
 wallet.getBackupHolderDcs#d179d494 = Vector<wallet.HolderDc>;
 wallet.enableBackup#81a2b0f3 flags:# parts:Vector<bytes> password:flags.0?InputCheckPasswordSRP = WalletState;
 wallet.getProofChallenge#2025e697 = wallet.ProofChallenge;
-wallet.sendTransfer#b1cae965 flags:# data_normal:bytes data_gasless:flags.0?bytes = wallet.SentTransfer;
-wallet.getGaslessInfo#4895d98b = wallet.GaslessInfo;
+wallet.sendTransfer#d37d8fdb flags:# data_normal:bytes data_gasless:flags.0?bytes random_id:long = Updates;
+wallet.getGaslessInfo#742df0a1 = Updates;
 wallet.getExistingWaltBalance#628746e3 = Bool;
 wallet.tonConnectCreateSession#cc931046 dapp_client_id:string manifest_url:string = TonConnectSession;
 wallet.tonConnectRegisterKey#338bcf1c session_id:long client_id:string = wallet.TonConnectChallenge;
