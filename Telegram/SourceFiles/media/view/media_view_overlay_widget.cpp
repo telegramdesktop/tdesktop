@@ -7002,7 +7002,7 @@ void OverlayWidget::paintSpeedBoostContent(
 	p.setPen(Qt::NoPen);
 	for (auto i = 0; i < 2; ++i) {
 		const auto phase = _speedBoostPhase + i * 0.17;
-		const auto pulse = std::sin(phase * M_PI) / 2. + 1.;
+		const auto pulse = std::sin(phase * M_PI) / 2. + 0.5;
 		const auto alpha = opacity * (0.2 + 0.75 * pulse);
 		p.setBrush(anim::with_alpha(st::mediaviewSaveMsgFg->c, alpha));
 		const auto ax = arrowsX + i * arrowStep;
