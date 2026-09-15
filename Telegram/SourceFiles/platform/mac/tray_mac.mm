@@ -375,6 +375,8 @@ void Tray::createIcon() {
 			_nativeIcon->deactivateButton();
 			_showFromTrayRequests.fire({});
 		}, _lifetime);
+		_nativeIcon->aboutToShowRequests(
+		) | rpl::start_to_stream(_aboutToShowRequests, _lifetime);
 	}
 	updateIcon();
 }
@@ -468,9 +470,7 @@ bool Tray::hasTrayMessageSupport() const {
 }
 
 rpl::producer<> Tray::aboutToShowRequests() const {
-	return _nativeIcon
-		? _nativeIcon->aboutToShowRequests()
-		: rpl::never<>();
+	return _aboutToShowRequests.events();
 }
 
 rpl::producer<> Tray::showFromTrayRequests() const {
