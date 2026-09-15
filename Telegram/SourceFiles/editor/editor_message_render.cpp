@@ -8,14 +8,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/editor_message_render.h"
 
 #include "data/data_cloud_file.h"
+#include "data/data_document.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "editor/editor_message_source.h"
-#include "history/history.h"
+#include "editor/editor_message_video.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_element.h"
+#include "history/view/media/history_view_media.h"
 #include "main/main_session.h"
+#include "ui/cached_round_corners.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/effects/path_shift_gradient.h"
@@ -280,6 +283,49 @@ void MessageRenderer::layout() {
 QSize MessageRenderer::size() {
 	layout();
 	return _bounds.size();
+}
+
+QRect MessageRenderer::mediaRect() {
+	layout();
+	return _bounds.isEmpty()
+		? QRect()
+		: elementMediaRect().translated(-_bounds.topLeft());
+}
+
+QRect MessageRenderer::elementMediaRect() const {
+	const auto media = _element ? _element->media() : nullptr;
+	return media
+		? media->contentRectForReactions().translated(
+			_element->mediaTopLeft())
+		: QRect();
+}
+
+QImage MessageRenderer::videoMask(int ratio) {
+	Expects(ratio > 0);
+
+	layout();
+	const auto video = _source->video();
+	const auto rect = elementMediaRect();
+	if (!video || rect.isEmpty()) {
+		return QImage();
+	}
+	auto mask = QImage(
+		rect.size() * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	mask.fill(Qt::transparent);
+	auto p = QPainter(&mask);
+	auto hq = PainterHighQualityEnabler(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(Qt::white);
+	if (video->document()->isVideoMessage()) {
+		p.drawEllipse(mask.rect());
+	} else {
+		p.drawPath(HolePath(
+			mask.rect(),
+			_element->media()->adjustedBubbleRounding(),
+			ratio));
+	}
+	return mask;
 }
 
 QImage MessageRenderer::render(int ratio) {

@@ -897,6 +897,8 @@ PRIVATE
     editor/editor_message_render.h
     editor/editor_message_source.cpp
     editor/editor_message_source.h
+    editor/editor_message_video.cpp
+    editor/editor_message_video.h
     editor/editor_paint.cpp
     editor/editor_paint.h
     editor/photo_editor.cpp

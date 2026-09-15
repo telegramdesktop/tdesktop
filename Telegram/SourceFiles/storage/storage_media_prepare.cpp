@@ -219,6 +219,18 @@ PhotoEditorMedia ReadPhotoEditorMedia(
 	return {};
 }
 
+void ReadPhotoEditorMediaAsync(
+		const QString &path,
+		const QByteArray &content,
+		Fn<void(PhotoEditorMedia&&)> done) {
+	crl::async([=] {
+		auto media = ReadPhotoEditorMedia(path, content);
+		crl::on_main([=, media = std::move(media)]() mutable {
+			done(std::move(media));
+		});
+	});
+}
+
 Editor::AudioTrack ReadPhotoEditorAudio(
 		const QString &path,
 		const QByteArray &content) {

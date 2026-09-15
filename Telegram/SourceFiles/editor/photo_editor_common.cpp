@@ -249,20 +249,18 @@ Media::Encode::Job ComposeAnimatedJob(
 		if (clip && (loop > 0)) {
 			entity.till = entity.from + loop;
 		}
-		job.overlay.push_back(std::move(entity));
-		longest = std::max(longest, loop);
 		if (clip && clip->sounding()) {
-			const auto &source = clip->source();
 			const auto trim = clip->trim();
 			music.push_back({
-				.path = source->path,
-				.bytes = source->content,
+				.bytes = entity.bytes,
 				.from = trim.from,
 				.till = trim.from + loop,
 				.volume = clip->volume(),
 				.loop = true,
 			});
 		}
+		job.overlay.push_back(std::move(entity));
+		longest = std::max(longest, loop);
 	}
 	flushRun();
 

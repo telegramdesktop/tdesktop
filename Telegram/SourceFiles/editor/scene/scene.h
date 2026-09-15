@@ -86,6 +86,7 @@ public:
 	void addItem(ItemPtr item);
 	void removeItem(not_null<QGraphicsItem*> item);
 	void removeItem(const ItemPtr &item);
+	void videoClipChanged(not_null<NumberedItem*> item);
 	[[nodiscard]] rpl::producer<> addsItem() const;
 	[[nodiscard]] rpl::producer<> removesItem() const;
 

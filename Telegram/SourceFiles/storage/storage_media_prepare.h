@@ -70,6 +70,10 @@ struct PhotoEditorMedia {
 [[nodiscard]] PhotoEditorMedia ReadPhotoEditorMedia(
 	const QString &path,
 	const QByteArray &content);
+void ReadPhotoEditorMediaAsync(
+	const QString &path,
+	const QByteArray &content,
+	Fn<void(PhotoEditorMedia&&)> done);
 [[nodiscard]] Editor::AudioTrack ReadPhotoEditorAudio(
 	const QString &path,
 	const QByteArray &content);

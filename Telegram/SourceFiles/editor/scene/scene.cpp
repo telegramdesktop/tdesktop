@@ -433,6 +433,13 @@ void Scene::removeItem(const ItemPtr &item) {
 	_removesItem.fire({});
 }
 
+void Scene::videoClipChanged(not_null<NumberedItem*> item) {
+	checkDurationsLink();
+	if (item->isSelected()) {
+		refreshVideoClipSelection();
+	}
+}
+
 void Scene::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 	setAudioSelected(false);
 	if (_shapeTool.pending) {

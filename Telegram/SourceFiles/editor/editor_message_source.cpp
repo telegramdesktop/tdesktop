@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_web_page.h"
+#include "editor/editor_message_video.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_fake_items.h"
@@ -98,6 +99,9 @@ not_null<HistoryItem*> MessageToRender(not_null<HistoryItem*> item) {
 MessageSource::MessageSource(not_null<HistoryItem*> item)
 : _session(&item->history()->session())
 , _item(item) {
+	if (MessageVideo::Find(item)) {
+		_video = std::make_unique<MessageVideo>(item);
+	}
 	watchRemoval();
 }
 
@@ -145,6 +149,10 @@ const std::optional<LinkPreview> &MessageSource::link() const {
 
 WebPageData *MessageSource::webpage() const {
 	return _webpage;
+}
+
+MessageVideo *MessageSource::video() const {
+	return _video.get();
 }
 
 rpl::producer<> MessageSource::removed() const {

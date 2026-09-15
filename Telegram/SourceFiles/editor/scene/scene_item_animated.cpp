@@ -26,7 +26,7 @@ Media::Encode::AnimatedEntity ItemAnimated::animatedEntity(
 	const auto composed = QTransform().scale(flipped() ? -1. : 1., 1.)
 		* sceneTransform()
 		* sceneToCanvas;
-	const auto inner = contentRect();
+	const auto inner = entityRect();
 	const auto m11 = composed.m11();
 	const auto m12 = composed.m12();
 	const auto m21 = composed.m21();
@@ -50,6 +50,10 @@ Media::Encode::AnimatedEntity ItemAnimated::animatedEntity(
 		.from = segment.from,
 		.till = segment.till,
 	};
+}
+
+QRectF ItemAnimated::entityRect() const {
+	return contentRect();
 }
 
 QRectF ItemAnimated::visibleRect() const {

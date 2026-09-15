@@ -18,6 +18,8 @@ class Session;
 
 namespace Editor {
 
+class MessageVideo;
+
 [[nodiscard]] bool CanRenderMessage(not_null<HistoryItem*> item);
 [[nodiscard]] not_null<HistoryItem*> MessageToRender(
 	not_null<HistoryItem*> item);
@@ -35,6 +37,7 @@ public:
 	[[nodiscard]] HistoryItem *item() const;
 	[[nodiscard]] const std::optional<LinkPreview> &link() const;
 	[[nodiscard]] WebPageData *webpage() const;
+	[[nodiscard]] MessageVideo *video() const;
 	[[nodiscard]] rpl::producer<> removed() const;
 
 private:
@@ -44,6 +47,7 @@ private:
 	const std::optional<LinkPreview> _link;
 	WebPageData *_webpage = nullptr;
 	HistoryItem *_item = nullptr;
+	std::unique_ptr<MessageVideo> _video;
 	bool _owned = false;
 	rpl::event_stream<> _removed;
 	rpl::lifetime _lifetime;

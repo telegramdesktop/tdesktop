@@ -769,7 +769,11 @@ void Paint::addMessageItem(
 		std::move(source),
 		std::move(renderer),
 		std::move(data),
-		dark);
+		dark,
+		MessageVideoOptions{
+			.play = _composeAnimated,
+			.sound = _composeSound,
+		});
 	item->setEditCallback(crl::guard(this, [=](
 			not_null<ItemMessage*> item) {
 		const auto &link = item->source()->link();
@@ -854,16 +858,10 @@ void Paint::applyLinkResult(
 }
 
 void Paint::readMediaFile(const QString &path, const QByteArray &content) {
-	const auto done = crl::guard(this, [=](
+	Storage::ReadPhotoEditorMediaAsync(path, content, crl::guard(this, [=](
 			Storage::PhotoEditorMedia &&media) {
 		addMedia(std::move(media));
-	});
-	crl::async([=] {
-		auto media = Storage::ReadPhotoEditorMedia(path, content);
-		crl::on_main([=, media = std::move(media)]() mutable {
-			done(std::move(media));
-		});
-	});
+	}));
 }
 
 void Paint::choosePhotoFile() {

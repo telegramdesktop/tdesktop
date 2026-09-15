@@ -35,6 +35,8 @@ public:
 
 	[[nodiscard]] bool ready() const;
 	[[nodiscard]] QSize size();
+	[[nodiscard]] QRect mediaRect();
+	[[nodiscard]] QImage videoMask(int ratio);
 	[[nodiscard]] QImage render(int ratio);
 
 private:
@@ -44,6 +46,7 @@ private:
 	void layout();
 	void repaint();
 	[[nodiscard]] QImage renderFull(int ratio);
+	[[nodiscard]] QRect elementMediaRect() const;
 	void paintUserpic(Painter &p, int width, int height);
 
 	rpl::lifetime _lifetime;

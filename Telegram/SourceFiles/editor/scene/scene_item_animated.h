@@ -24,12 +24,13 @@ public:
 	virtual void releasePlayers() = 0;
 	ItemAnimated *asAnimated() override;
 
-	[[nodiscard]] Media::Encode::AnimatedEntity animatedEntity(
+	[[nodiscard]] virtual Media::Encode::AnimatedEntity animatedEntity(
 		const QTransform &sceneToCanvas) const;
 
 protected:
 	[[nodiscard]] virtual Media::Encode::AnimatedEntity::Kind entityKind()
 		const = 0;
+	[[nodiscard]] virtual QRectF entityRect() const;
 	[[nodiscard]] QRectF visibleRect() const override;
 
 	void paintFrame(
