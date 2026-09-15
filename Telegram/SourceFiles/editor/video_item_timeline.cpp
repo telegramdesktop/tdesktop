@@ -44,6 +44,7 @@ void VideoItemTimeline::setClip(std::shared_ptr<VideoClip> clip) {
 			.path = source->path,
 			.content = source->content,
 			.dimensions = source->thumbnail.size(),
+			.cache = _clip->timelineFrames(),
 			.duration = _clip->duration(),
 			.from = trim.from,
 			.till = trim.till,

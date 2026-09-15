@@ -16,6 +16,7 @@ namespace Editor {
 namespace {
 
 constexpr auto kMaxFrames = 24;
+constexpr auto kMaxCachedFrameSets = 8;
 constexpr auto kDotDuration = crl::time(500);
 constexpr auto kReloadDelay = crl::time(150);
 
@@ -49,6 +50,27 @@ void PaintFramePart(
 
 } // namespace
 
+const VideoTimelineFrames *VideoTimelineFramesCache::find(
+		Fn<bool(const VideoTimelineFrames &set)> matches) const {
+	for (const auto &set : ranges::views::reverse(_sets)) {
+		if (matches(set)) {
+			return &set;
+		}
+	}
+	return nullptr;
+}
+
+void VideoTimelineFramesCache::add(VideoTimelineFrames set) {
+	_sets.push_back(std::move(set));
+	if (_sets.size() > kMaxCachedFrameSets) {
+		_sets.erase(_sets.begin());
+	}
+}
+
+int VideoTimelineFramesCache::size() const {
+	return int(_sets.size());
+}
+
 VideoTimeline::VideoTimeline(
 	not_null<Ui::RpWidget*> parent,
 	VideoTimelineDescriptor descriptor)
@@ -56,6 +78,7 @@ VideoTimeline::VideoTimeline(
 , _path(descriptor.path)
 , _content(descriptor.content)
 , _dimensions(descriptor.dimensions)
+, _cache(descriptor.cache)
 , _reloadTimer([=] { reloadFrames(); }) {
 	sizeValue(
 	) | rpl::filter([=](QSize size) {
@@ -114,7 +137,7 @@ void VideoTimeline::reloadFrames() {
 	if (span <= 0) {
 		return;
 	}
-	const auto matches = [&](const FrameSet &set) {
+	const auto matches = [&](const VideoTimelineFrames &set) {
 		return (int(set.frames.size()) == count)
 			&& (set.from == from)
 			&& (set.span == span)
@@ -122,7 +145,7 @@ void VideoTimeline::reloadFrames() {
 			&& (std::abs(frameWidth - set.box.width())
 				<= set.box.width() * kFrameWidthTolerance);
 	};
-	if (_loading && matches(*_loading)) {
+	if (_loading && matches(_loading->set)) {
 		return;
 	} else if (_loading) {
 		_loading->cancel->store(true);
@@ -131,11 +154,19 @@ void VideoTimeline::reloadFrames() {
 	if (matches(_frames)) {
 		return;
 	}
-	_loading = std::make_unique<FrameSet>(FrameSet{
-		.frames = std::vector<QImage>(count),
-		.from = from,
-		.span = span,
-		.box = QSize(frameWidth, height),
+	const auto cached = _cache ? _cache->find(matches) : nullptr;
+	if (cached) {
+		_frames = *cached;
+		update();
+		return;
+	}
+	_loading = std::make_unique<Loading>(Loading{
+		.set = {
+			.frames = std::vector<QImage>(count),
+			.from = from,
+			.span = span,
+			.box = QSize(frameWidth, height),
+		},
 		.cancel = std::make_shared<std::atomic<bool>>(false),
 	});
 
@@ -148,7 +179,7 @@ void VideoTimeline::reloadFrames() {
 	const auto cancel = _loading->cancel;
 	const auto path = _path;
 	const auto content = _content;
-	const auto box = _loading->box * style::DevicePixelRatio();
+	const auto box = _loading->set.box * style::DevicePixelRatio();
 	crl::async([=, weak = base::make_weak(this)] {
 		Media::Video::ExtractFrames(path, content, {
 			.positions = positions,
@@ -162,10 +193,10 @@ void VideoTimeline::reloadFrames() {
 			crl::on_main(weak, [=, frame = std::move(frame)]() mutable {
 				if (cancel->load()
 					|| !_loading
-					|| index >= int(_loading->frames.size())) {
+					|| index >= int(_loading->set.frames.size())) {
 					return;
 				}
-				_loading->frames[index] = std::move(frame);
+				_loading->set.frames[index] = std::move(frame);
 				update();
 			});
 			return true;
@@ -174,8 +205,11 @@ void VideoTimeline::reloadFrames() {
 			if (cancel->load() || !_loading) {
 				return;
 			}
-			_frames = std::move(*_loading);
+			_frames = std::move(_loading->set);
 			_loading = nullptr;
+			if (_cache) {
+				_cache->add(_frames);
+			}
 			update();
 		});
 	});
@@ -185,14 +219,14 @@ void VideoTimeline::paintStrip(QPainter &p, const QRect &strip) {
 	p.fillRect(strip, st::videoTimelinePlaceholderBg);
 	paintFrames(p, strip, _frames);
 	if (_loading) {
-		paintFrames(p, strip, *_loading);
+		paintFrames(p, strip, _loading->set);
 	}
 }
 
 void VideoTimeline::paintFrames(
 		QPainter &p,
 		const QRect &strip,
-		const FrameSet &set) {
+		const VideoTimelineFrames &set) {
 	const auto count = int(set.frames.size());
 	if (!count || set.span <= 0) {
 		return;

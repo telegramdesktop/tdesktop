@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Editor {
 
 class SegmentPlayer;
+class VideoTimelineFramesCache;
 
 struct VideoClipSource {
 	QString path;
@@ -34,6 +35,8 @@ public:
 	[[nodiscard]] const std::shared_ptr<VideoClipSource> &source() const;
 	[[nodiscard]] crl::time duration() const;
 	[[nodiscard]] not_null<SegmentPlayer*> player() const;
+	[[nodiscard]] auto timelineFrames()
+		-> const std::shared_ptr<VideoTimelineFramesCache> &;
 	[[nodiscard]] VideoTrim trim() const;
 	void setTrim(VideoTrim trim);
 	[[nodiscard]] crl::time loopDuration() const;
@@ -55,6 +58,7 @@ public:
 private:
 	const std::shared_ptr<VideoClipSource> _source;
 	const std::unique_ptr<SegmentPlayer> _player;
+	std::shared_ptr<VideoTimelineFramesCache> _timelineFrames;
 	VideoTrim _trim;
 	float64 _volume = 1.;
 	bool _released = false;

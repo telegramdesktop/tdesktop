@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/video/video_clip.h"
 
 #include "editor/video/video_segment_player.h"
+#include "editor/video/video_timeline.h"
 #include "ui/image/image_prepare.h"
 
 namespace Editor {
@@ -36,6 +37,14 @@ crl::time VideoClip::duration() const {
 
 not_null<SegmentPlayer*> VideoClip::player() const {
 	return _player.get();
+}
+
+auto VideoClip::timelineFrames()
+-> const std::shared_ptr<VideoTimelineFramesCache> & {
+	if (!_timelineFrames) {
+		_timelineFrames = std::make_shared<VideoTimelineFramesCache>();
+	}
+	return _timelineFrames;
 }
 
 VideoTrim VideoClip::trim() const {

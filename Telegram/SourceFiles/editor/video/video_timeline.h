@@ -13,10 +13,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Editor {
 
+struct VideoTimelineFrames {
+	std::vector<QImage> frames;
+	crl::time from = 0;
+	crl::time span = 0;
+	QSize box;
+};
+
+class VideoTimelineFramesCache final {
+public:
+	[[nodiscard]] const VideoTimelineFrames *find(
+		Fn<bool(const VideoTimelineFrames &set)> matches) const;
+	void add(VideoTimelineFrames set);
+	[[nodiscard]] int size() const;
+
+private:
+	std::vector<VideoTimelineFrames> _sets;
+
+};
+
 struct VideoTimelineDescriptor {
 	QString path;
 	QByteArray content;
 	QSize dimensions;
+	std::shared_ptr<VideoTimelineFramesCache> cache;
 	crl::time duration = 0;
 
 	crl::time maxDuration = 0;
@@ -40,11 +60,8 @@ public:
 	[[nodiscard]] QPoint coverDot() const;
 
 private:
-	struct FrameSet {
-		std::vector<QImage> frames;
-		crl::time from = 0;
-		crl::time span = 0;
-		QSize box;
+	struct Loading {
+		VideoTimelineFrames set;
 		std::shared_ptr<std::atomic<bool>> cancel;
 	};
 
@@ -54,14 +71,18 @@ private:
 	void visibleRangeChanged() override;
 
 	void reloadFrames();
-	void paintFrames(QPainter &p, const QRect &strip, const FrameSet &set);
+	void paintFrames(
+		QPainter &p,
+		const QRect &strip,
+		const VideoTimelineFrames &set);
 
 	const QString _path;
 	const QByteArray _content;
 	const QSize _dimensions;
+	const std::shared_ptr<VideoTimelineFramesCache> _cache;
 
-	FrameSet _frames;
-	std::unique_ptr<FrameSet> _loading;
+	VideoTimelineFrames _frames;
+	std::unique_ptr<Loading> _loading;
 	base::Timer _reloadTimer;
 
 	Ui::Animations::Simple _dotActive;
