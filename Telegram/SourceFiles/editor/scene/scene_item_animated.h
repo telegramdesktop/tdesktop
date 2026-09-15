@@ -16,18 +16,11 @@ class ItemAnimated : public ItemBase {
 public:
 	using ItemBase::ItemBase;
 
-	struct Trim {
-		crl::time from = 0;
-		crl::time till = 0;
-
-		friend inline bool operator==(const Trim &, const Trim &) = default;
-	};
-
 	[[nodiscard]] virtual bool animated() const = 0;
 	[[nodiscard]] virtual bool hasContent() const = 0;
 	[[nodiscard]] virtual QByteArray content() const = 0;
 	[[nodiscard]] virtual crl::time loopDuration() const = 0;
-	[[nodiscard]] virtual Trim trim() const;
+	[[nodiscard]] virtual VideoTrim trim() const;
 	virtual void releasePlayers() = 0;
 	ItemAnimated *asAnimated() override;
 

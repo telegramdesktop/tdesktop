@@ -24,9 +24,9 @@ namespace Editor {
 class ItemCanvas;
 class ItemShape;
 class ItemText;
-class ItemVideo;
 class NumberedItem;
 class TextEditController;
+class VideoClip;
 struct AudioTrack;
 
 class Scene final : public QGraphicsScene {
@@ -111,8 +111,8 @@ public:
 	[[nodiscard]] rpl::producer<bool> textEditStates() const;
 	[[nodiscard]] rpl::producer<QColor> shapeItemSelections() const;
 	[[nodiscard]] rpl::producer<> shapeItemDeselections() const;
-	[[nodiscard]] auto videoItemSelections() const
-		-> rpl::producer<std::shared_ptr<ItemVideo>>;
+	[[nodiscard]] auto videoClipSelections() const
+		-> rpl::producer<std::shared_ptr<VideoClip>>;
 
 	[[nodiscard]] bool hasUndo() const;
 	[[nodiscard]] bool hasRedo() const;
@@ -149,7 +149,8 @@ private:
 	[[nodiscard]] QRectF stickyGuideRect(Qt::Orientation orientation) const;
 	void paintStickyGuide(QPainter &p, Qt::Orientation orientation) const;
 	void capturePlacements();
-	void updateVideoItemsSound();
+	void refreshVideoClipSelection();
+	void updateVideoClipsSound();
 	void checkDurationsLink();
 	void commitPlacements();
 	void startShapeDrawing(const QPointF &position);
@@ -194,13 +195,13 @@ private:
 	rpl::event_stream<QColor> _shapeItemSelections;
 	rpl::event_stream<> _shapeItemDeselections;
 	rpl::event_stream<bool> _pendingShapeStates;
-	rpl::event_stream<std::shared_ptr<ItemVideo>> _videoItemSelections;
+	rpl::event_stream<std::shared_ptr<VideoClip>> _videoClipSelections;
 	rpl::event_stream<> _audioChanges;
 	rpl::event_stream<bool> _audioSelectedChanges;
 	rpl::event_stream<> _durationsLinkChanges;
 	ItemText *_selectedTextItem = nullptr;
 	ItemShape *_selectedShapeItem = nullptr;
-	ItemVideo *_selectedVideoItem = nullptr;
+	VideoClip *_selectedVideoClip = nullptr;
 	std::shared_ptr<AudioTrack> _audio;
 	std::shared_ptr<AudioTrack> _keptAudio;
 	std::shared_ptr<AudioTrack> _savedAudio;

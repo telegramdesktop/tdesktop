@@ -19,7 +19,7 @@ namespace Editor {
 
 class AudioDiscButton;
 class Crop;
-class ItemVideo;
+class VideoClip;
 class Paint;
 struct Controllers;
 
@@ -54,8 +54,8 @@ public:
 	[[nodiscard]] rpl::producer<> shapeItemDeselections() const;
 	[[nodiscard]] rpl::producer<bool> shapeToolStates() const;
 	[[nodiscard]] rpl::producer<> paintModeRequests() const;
-	[[nodiscard]] auto videoItemSelections() const
-		-> rpl::producer<std::shared_ptr<ItemVideo>>;
+	[[nodiscard]] auto videoClipSelections() const
+		-> rpl::producer<std::shared_ptr<VideoClip>>;
 	[[nodiscard]] rpl::producer<> audioChanges() const;
 	[[nodiscard]] rpl::producer<bool> audioSelectedChanges() const;
 	[[nodiscard]] rpl::producer<> audioVolumeChanges() const;

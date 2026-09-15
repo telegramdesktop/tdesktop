@@ -25,6 +25,7 @@ namespace Editor {
 
 class ItemAction;
 class ItemAnimated;
+class VideoClip;
 
 class NumberedItem : public QGraphicsItem {
 public:
@@ -52,6 +53,7 @@ public:
 
 	[[nodiscard]] virtual ItemAction *asAction();
 	[[nodiscard]] virtual ItemAnimated *asAnimated();
+	[[nodiscard]] virtual VideoClip *videoClip();
 
 	virtual void save(SaveState state);
 	virtual void restore(SaveState state);

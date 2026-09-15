@@ -81,7 +81,7 @@ private:
 	bool _textItemSelected = false;
 	bool _textEditing = false;
 	bool _shapeItemSelected = false;
-	bool _videoItemSelected = false;
+	bool _videoClipSelected = false;
 	bool _audioSelected = false;
 	bool _matchingDurations = false;
 	bool _colorLineShown = false;

@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "editor/scene/scene.h"
 #include "editor/scene/scene_item_animated.h"
-#include "editor/scene/scene_item_video.h"
+#include "editor/video/video_clip.h"
 #include "ui/painter.h"
 #include "ui/userpic_view.h"
 
@@ -244,24 +244,22 @@ Media::Encode::Job ComposeAnimatedJob(
 			continue;
 		}
 		flushRun();
-		const auto video = (item->type() == ItemVideo::Type)
-			? static_cast<ItemVideo*>(item)
-			: nullptr;
+		const auto clip = item->videoClip();
 		const auto loop = animated->loopDuration();
-		if (video && (loop > 0)) {
+		if (clip && (loop > 0)) {
 			entity.till = entity.from + loop;
 		}
 		job.overlay.push_back(std::move(entity));
 		longest = std::max(longest, loop);
-		if (video && video->sounding()) {
-			const auto &source = video->source();
-			const auto trim = video->trim();
+		if (clip && clip->sounding()) {
+			const auto &source = clip->source();
+			const auto trim = clip->trim();
 			music.push_back({
-				.path = source.path,
-				.bytes = source.content,
+				.path = source->path,
+				.bytes = source->content,
 				.from = trim.from,
 				.till = trim.from + loop,
-				.volume = video->volume(),
+				.volume = clip->volume(),
 				.loop = true,
 			});
 		}

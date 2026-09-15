@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/video_item_timeline.h"
 
 #include "editor/editor_audio_menu.h"
-#include "editor/scene/scene_item_video.h"
+#include "editor/video/video_clip.h"
 #include "editor/video/video_timeline.h"
 #include "editor/video/video_timeline_seeker.h"
 #include "ui/widgets/popup_menu.h"
@@ -24,27 +24,27 @@ VideoItemTimeline::VideoItemTimeline(not_null<QWidget*> parent)
 
 VideoItemTimeline::~VideoItemTimeline() = default;
 
-void VideoItemTimeline::setItem(std::shared_ptr<ItemVideo> item) {
-	if (_item == item) {
+void VideoItemTimeline::setClip(std::shared_ptr<VideoClip> clip) {
+	if (_clip == clip) {
 		return;
 	}
-	_itemLifetime.destroy();
+	_clipLifetime.destroy();
 	_menu = nullptr;
 	_seeker = nullptr;
 	_timeline = nullptr;
-	_item = std::move(item);
-	if (!_item) {
+	_clip = std::move(clip);
+	if (!_clip) {
 		return;
 	}
-	const auto &source = _item->source();
-	const auto trim = _item->trim();
+	const auto &source = _clip->source();
+	const auto trim = _clip->trim();
 	_timeline = base::make_unique_q<VideoTimeline>(
 		this,
 		VideoTimelineDescriptor{
-			.path = source.path,
-			.content = source.content,
-			.dimensions = source.thumbnail.size(),
-			.duration = _item->duration(),
+			.path = source->path,
+			.content = source->content,
+			.dimensions = source->thumbnail.size(),
+			.duration = _clip->duration(),
 			.from = trim.from,
 			.till = trim.till,
 			.trimOnly = true,
@@ -52,14 +52,14 @@ void VideoItemTimeline::setItem(std::shared_ptr<ItemVideo> item) {
 	_timeline->show();
 	_seeker = std::make_unique<TimelineSeeker>(
 		_timeline.get(),
-		_item->player());
-	_item->setTrim({ _timeline->from(), _timeline->till() });
+		_clip->player());
+	_clip->setTrim({ _timeline->from(), _timeline->till() });
 
 	_timeline->trimChanges(
 	) | rpl::on_next([=] {
-		_item->setTrim({ _timeline->from(), _timeline->till() });
-		_lengthChanges.fire(_item->loopDuration());
-	}, _itemLifetime);
+		_clip->setTrim({ _timeline->from(), _timeline->till() });
+		_lengthChanges.fire(_clip->loopDuration());
+	}, _clipLifetime);
 
 	if (width() > 0) {
 		resizeToWidth(width());
@@ -72,7 +72,7 @@ rpl::producer<crl::time> VideoItemTimeline::lengthChanges() const {
 
 void VideoItemTimeline::refreshTrim() {
 	if (_timeline) {
-		const auto trim = _item->trim();
+		const auto trim = _clip->trim();
 		_timeline->setTrim(trim.from, trim.till);
 	}
 }
@@ -84,15 +84,15 @@ void VideoItemTimeline::commitPendingEdit() {
 }
 
 void VideoItemTimeline::contextMenuEvent(QContextMenuEvent *e) {
-	if (!_item || !_item->hasAudio()) {
+	if (!_clip || !_clip->hasAudio()) {
 		return;
 	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		this,
 		st::photoEditorMediaMenu);
-	const auto item = _item;
-	AddVolumeAction(_menu.get(), item->volume(), [=](float64 volume) {
-		item->setVolume(volume);
+	const auto clip = _clip;
+	AddVolumeAction(_menu.get(), clip->volume(), [=](float64 volume) {
+		clip->setVolume(volume);
 	});
 	_menu->popup(e->globalPos());
 	e->accept();

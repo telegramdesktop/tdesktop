@@ -337,11 +337,11 @@ PhotoEditor::PhotoEditor(
 		_content->setGeometry(rect() - st::photoEditorContentMargins);
 	}, lifetime());
 
-	_content->videoItemSelections(
-	) | rpl::on_next([=](std::shared_ptr<ItemVideo> item) {
-		_videoItemSelected = (item != nullptr);
+	_content->videoClipSelections(
+	) | rpl::on_next([=](std::shared_ptr<VideoClip> clip) {
+		_videoClipSelected = (clip != nullptr);
 		updateColorPickerVisibility(anim::type::normal);
-		_controls->setVideoItem(std::move(item));
+		_controls->setVideoClip(std::move(clip));
 		_controls->setTrimShortestAvailable(
 			_content->canEqualizeDurations());
 		_controls->setTrimShortestActive(
@@ -666,7 +666,7 @@ void PhotoEditor::updateColorPickerVisibility(anim::type animated) {
 	_colorPicker->setVisible(
 		painting
 			&& _colorLineShown
-			&& !_videoItemSelected
+			&& !_videoClipSelected
 			&& !_audioSelected,
 		animated);
 }

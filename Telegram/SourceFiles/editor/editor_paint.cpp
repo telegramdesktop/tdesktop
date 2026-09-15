@@ -670,9 +670,9 @@ rpl::producer<QColor> Paint::shapeItemSelections() const {
 	return _scene->shapeItemSelections();
 }
 
-auto Paint::videoItemSelections() const
--> rpl::producer<std::shared_ptr<ItemVideo>> {
-	return _scene->videoItemSelections();
+auto Paint::videoClipSelections() const
+-> rpl::producer<std::shared_ptr<VideoClip>> {
+	return _scene->videoClipSelections();
 }
 
 rpl::producer<> Paint::shapeItemDeselections() const {
@@ -945,7 +945,7 @@ void Paint::addMedia(Storage::PhotoEditorMedia &&media) {
 void Paint::addVideoItem(Storage::PhotoEditorMedia &&media) {
 	const auto data = mediaItemData(media.image.size());
 	addMediaItem(std::make_shared<ItemVideo>(
-		std::make_shared<ItemVideo::Source>(ItemVideo::Source{
+		std::make_shared<VideoClipSource>(VideoClipSource{
 			.path = std::move(media.videoPath),
 			.content = std::move(media.videoContent),
 			.thumbnail = std::move(media.image),

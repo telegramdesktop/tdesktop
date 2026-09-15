@@ -13,8 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene_item_line.h"
 #include "editor/scene/scene_item_shape.h"
 #include "editor/scene/scene_item_text.h"
-#include "editor/scene/scene_item_video.h"
 #include "editor/scene/scene_text_editing.h"
+#include "editor/video/video_clip.h"
 #include "ui/image/image_prepare.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
@@ -344,14 +344,11 @@ Scene::Scene(const QRectF &rect)
 			}
 			auto *textItem = (ItemText*)(nullptr);
 			auto *shapeItem = (ItemShape*)(nullptr);
-			auto *videoItem = (ItemVideo*)(nullptr);
 			if (selected.size() == 1) {
 				if (selected.front()->type() == ItemText::Type) {
 					textItem = static_cast<ItemText*>(selected.front());
 				} else if (selected.front()->type() == ItemShape::Type) {
 					shapeItem = static_cast<ItemShape*>(selected.front());
-				} else if (selected.front()->type() == ItemVideo::Type) {
-					videoItem = static_cast<ItemVideo*>(selected.front());
 				}
 			}
 			if (textItem != _selectedTextItem) {
@@ -370,15 +367,26 @@ Scene::Scene(const QRectF &rect)
 					_shapeItemDeselections.fire({});
 				}
 			}
-			if (videoItem != _selectedVideoItem) {
-				_selectedVideoItem = videoItem;
-				updateVideoItemsSound();
-				_videoItemSelections.fire(videoItem
-					? std::static_pointer_cast<ItemVideo>(
-						itemShared(videoItem))
-					: nullptr);
-			}
+			refreshVideoClipSelection();
 		});
+}
+
+void Scene::refreshVideoClipSelection() {
+	const auto selected = selectedItems();
+	auto clip = std::shared_ptr<VideoClip>();
+	if (selected.size() == 1) {
+		if (const auto item = itemShared(selected.front())) {
+			if (const auto raw = item->videoClip()) {
+				clip = std::shared_ptr<VideoClip>(item, raw);
+			}
+		}
+	}
+	if (clip.get() == _selectedVideoClip) {
+		return;
+	}
+	_selectedVideoClip = clip.get();
+	updateVideoClipsSound();
+	_videoClipSelections.fire(std::move(clip));
 }
 
 void Scene::cancelDrawing() {
@@ -401,7 +409,7 @@ void Scene::addItem(ItemPtr item) {
 	if (raw->scene() != this) {
 		QGraphicsScene::addItem(raw);
 	}
-	if (raw->type() == ItemVideo::Type) {
+	if (raw->videoClip()) {
 		checkDurationsLink();
 	}
 	_addsItem.fire({});
@@ -419,7 +427,7 @@ void Scene::removeItem(not_null<QGraphicsItem*> item) {
 
 void Scene::removeItem(const ItemPtr &item) {
 	item->setStatus(NumberedItem::Status::Removed);
-	if (item->type() == ItemVideo::Type) {
+	if (item->videoClip()) {
 		checkDurationsLink();
 	}
 	_removesItem.fire({});
@@ -827,9 +835,9 @@ rpl::producer<> Scene::shapeItemDeselections() const {
 	return _shapeItemDeselections.events();
 }
 
-auto Scene::videoItemSelections() const
--> rpl::producer<std::shared_ptr<ItemVideo>> {
-	return _videoItemSelections.events();
+auto Scene::videoClipSelections() const
+-> rpl::producer<std::shared_ptr<VideoClip>> {
+	return _videoClipSelections.events();
 }
 
 void Scene::setBlurSource(Fn<QImage(QRect)> source) {
@@ -873,15 +881,12 @@ bool Scene::hasAnimatedResult() const {
 	return (_audio != nullptr) || hasAnimatedItems();
 }
 
-void Scene::updateVideoItemsSound() {
+void Scene::updateVideoClipsSound() {
 	const auto apply = [&](bool enabled) {
 		for (const auto &item : _items) {
-			if (item->type() != ItemVideo::Type) {
-				continue;
-			}
-			const auto video = static_cast<ItemVideo*>(item.get());
-			if ((video == _selectedVideoItem) == enabled) {
-				video->setSoundEnabled(enabled);
+			const auto clip = item->videoClip();
+			if (clip && ((clip == _selectedVideoClip) == enabled)) {
+				clip->setSoundEnabled(enabled);
 			}
 		}
 	};
@@ -894,13 +899,11 @@ bool Scene::hasSoundResult() const {
 		return true;
 	}
 	for (const auto &item : _items) {
-		if (item->type() != ItemVideo::Type) {
-			continue;
-		}
-		const auto video = static_cast<ItemVideo*>(item.get());
-		if (video->isNormalStatus()
-			&& video->animated()
-			&& video->sounding()) {
+		const auto clip = item->videoClip();
+		if (clip
+			&& item->isNormalStatus()
+			&& clip->animated()
+			&& clip->sounding()) {
 			return true;
 		}
 	}
@@ -967,7 +970,7 @@ bool Scene::canEqualizeDurations() const {
 		return false;
 	}
 	for (const auto &item : _items) {
-		if (item->isNormalStatus() && (item->type() == ItemVideo::Type)) {
+		if (item->isNormalStatus() && item->videoClip()) {
 			return true;
 		}
 	}
@@ -977,9 +980,11 @@ bool Scene::canEqualizeDurations() const {
 void Scene::equalizeDurations() {
 	auto shortest = _audio ? _audio->length() : crl::time(0);
 	for (const auto &item : _items) {
-		if (item->isNormalStatus() && (item->type() == ItemVideo::Type)) {
-			const auto video = static_cast<ItemVideo*>(item.get());
-			const auto loop = video->loopDuration();
+		const auto clip = item->isNormalStatus()
+			? item->videoClip()
+			: nullptr;
+		if (clip) {
+			const auto loop = clip->loopDuration();
 			if (loop > 0 && (!shortest || loop < shortest)) {
 				shortest = loop;
 			}
@@ -989,27 +994,27 @@ void Scene::equalizeDurations() {
 }
 
 void Scene::matchDurations(crl::time duration) {
-	auto videos = std::vector<ItemVideo*>();
+	auto clips = std::vector<VideoClip*>();
 	auto shortest = duration;
 	if (_audio) {
 		shortest = std::min(shortest, _audio->duration - _audio->from);
 	}
 	for (const auto &item : _items) {
-		if (item->isNormalStatus() && (item->type() == ItemVideo::Type)) {
-			const auto video = static_cast<ItemVideo*>(item.get());
-			const auto full = video->duration();
-			if (full > 0) {
-				shortest = std::min(shortest, full - video->trim().from);
-				videos.push_back(video);
-			}
+		const auto clip = item->isNormalStatus()
+			? item->videoClip()
+			: nullptr;
+		const auto full = clip ? clip->duration() : crl::time(0);
+		if (full > 0) {
+			shortest = std::min(shortest, full - clip->trim().from);
+			clips.push_back(clip);
 		}
 	}
 	if (shortest <= 0) {
 		return;
 	}
-	for (const auto video : videos) {
-		const auto from = video->trim().from;
-		video->setTrim({ from, from + shortest });
+	for (const auto clip : clips) {
+		const auto from = clip->trim().from;
+		clip->setTrim({ from, from + shortest });
 	}
 	if (_audio) {
 		_audio->till = _audio->from + shortest;
@@ -1088,7 +1093,7 @@ void Scene::performUndo() {
 			action->revert();
 		}
 		(*it)->setStatus(NumberedItem::Status::Undid);
-		if ((*it)->type() == ItemVideo::Type) {
+		if ((*it)->videoClip()) {
 			checkDurationsLink();
 		}
 	}
@@ -1103,7 +1108,7 @@ void Scene::performRedo() {
 			action->apply();
 		}
 		(*it)->setStatus(NumberedItem::Status::Normal);
-		if ((*it)->type() == ItemVideo::Type) {
+		if ((*it)->videoClip()) {
 			checkDurationsLink();
 		}
 	}

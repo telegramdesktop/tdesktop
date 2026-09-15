@@ -16,8 +16,8 @@ class PopupMenu;
 
 namespace Editor {
 
-class ItemVideo;
 class TimelineSeeker;
+class VideoClip;
 class VideoTimeline;
 
 class VideoItemTimeline final : public Ui::RpWidget {
@@ -25,7 +25,7 @@ public:
 	explicit VideoItemTimeline(not_null<QWidget*> parent);
 	~VideoItemTimeline();
 
-	void setItem(std::shared_ptr<ItemVideo> item);
+	void setClip(std::shared_ptr<VideoClip> clip);
 	void refreshTrim();
 	void commitPendingEdit();
 
@@ -37,13 +37,13 @@ protected:
 	void contextMenuEvent(QContextMenuEvent *e) override;
 
 private:
-	std::shared_ptr<ItemVideo> _item;
+	std::shared_ptr<VideoClip> _clip;
 	base::unique_qptr<VideoTimeline> _timeline;
 	std::unique_ptr<TimelineSeeker> _seeker;
 	base::unique_qptr<Ui::PopupMenu> _menu;
 	rpl::event_stream<crl::time> _lengthChanges;
 
-	rpl::lifetime _itemLifetime;
+	rpl::lifetime _clipLifetime;
 
 };
 

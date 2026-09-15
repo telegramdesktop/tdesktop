@@ -98,6 +98,10 @@ ItemAnimated *NumberedItem::asAnimated() {
 	return nullptr;
 }
 
+VideoClip *NumberedItem::videoClip() {
+	return nullptr;
+}
+
 void NumberedItem::save(SaveState state) {
 }
 

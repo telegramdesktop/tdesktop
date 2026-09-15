@@ -17,7 +17,7 @@ ItemAnimated *ItemAnimated::asAnimated() {
 	return this;
 }
 
-ItemAnimated::Trim ItemAnimated::trim() const {
+VideoTrim ItemAnimated::trim() const {
 	return {};
 }
 

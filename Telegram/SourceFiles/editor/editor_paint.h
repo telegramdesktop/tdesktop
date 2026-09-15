@@ -32,11 +32,11 @@ struct PhotoEditorMedia;
 namespace Editor {
 
 struct Controllers;
-class ItemVideo;
 struct LinkBoxResult;
 struct LinkPreview;
 class MessageSource;
 class Scene;
+class VideoClip;
 
 // Paint control.
 class Paint final : public Ui::RpWidget {
@@ -95,8 +95,8 @@ public:
 	[[nodiscard]] rpl::producer<QColor> shapeItemSelections() const;
 	[[nodiscard]] rpl::producer<> shapeItemDeselections() const;
 	[[nodiscard]] rpl::producer<bool> shapeToolStates() const;
-	[[nodiscard]] auto videoItemSelections() const
-		-> rpl::producer<std::shared_ptr<ItemVideo>>;
+	[[nodiscard]] auto videoClipSelections() const
+		-> rpl::producer<std::shared_ptr<VideoClip>>;
 
 	[[nodiscard]] bool canHandleMimeData(const QMimeData *data) const;
 	void handleMimeData(const QMimeData *data);

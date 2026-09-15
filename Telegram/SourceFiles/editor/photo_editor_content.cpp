@@ -520,9 +520,9 @@ rpl::producer<QColor> PhotoEditorContent::shapeItemSelections() const {
 	return _paint->shapeItemSelections();
 }
 
-auto PhotoEditorContent::videoItemSelections() const
--> rpl::producer<std::shared_ptr<ItemVideo>> {
-	return _paint->videoItemSelections();
+auto PhotoEditorContent::videoClipSelections() const
+-> rpl::producer<std::shared_ptr<VideoClip>> {
+	return _paint->videoClipSelections();
 }
 
 rpl::producer<> PhotoEditorContent::shapeItemDeselections() const {

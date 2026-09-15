@@ -1268,17 +1268,17 @@ rpl::producer<bool> PhotoEditorControls::colorLineShownValue() const {
 	return _paintTopButtons->shownValue();
 }
 
-void PhotoEditorControls::setVideoItem(std::shared_ptr<ItemVideo> item) {
-	const auto shown = (item != nullptr);
+void PhotoEditorControls::setVideoClip(std::shared_ptr<VideoClip> clip) {
+	const auto shown = (clip != nullptr);
 	_videoTimelineShown = shown;
 	updateTrimShortest();
 	if (shown) {
-		_videoTimeline->entity()->setItem(std::move(item));
+		_videoTimeline->entity()->setClip(std::move(clip));
 		updateTimelineGeometry(_videoTimeline.get());
 	}
 	_videoTimeline->toggle(shown, anim::type::normal);
 	if (!shown) {
-		_videoTimeline->entity()->setItem(nullptr);
+		_videoTimeline->entity()->setClip(nullptr);
 	}
 }
 

@@ -28,7 +28,7 @@ namespace Editor {
 class AudioTrackTimeline;
 class EdgeButton;
 class ButtonBar;
-class ItemVideo;
+class VideoClip;
 class KeysLegendButton;
 class VideoItemTimeline;
 struct AudioTrack;
@@ -65,7 +65,7 @@ public:
 
 	void applyMode(const PhotoEditorMode &mode);
 	void setShapeToolActive(bool active);
-	void setVideoItem(std::shared_ptr<ItemVideo> item);
+	void setVideoClip(std::shared_ptr<VideoClip> clip);
 	void setAudioTrack(std::shared_ptr<AudioTrack> track);
 	void setTrimShortestAvailable(bool available);
 	void setTrimShortestActive(bool active, anim::type animated);

@@ -913,6 +913,8 @@ PRIVATE
     editor/scene/scene_item_sticker.h
     editor/scene/scene_item_video.cpp
     editor/scene/scene_item_video.h
+    editor/video/video_clip.cpp
+    editor/video/video_clip.h
     editor/video/video_editor.cpp
     editor/video/video_editor.h
     editor/video/video_editor_common.cpp
