@@ -14,11 +14,21 @@ struct AnimatedEntity {
 		Lottie,
 		Webm,
 	};
+
+	// Frames show through the hole cut by mask in the picture at geometry.
+	struct Cutout {
+		QImage picture;
+		QImage mask;
+		QRect hole;
+		QRect frames;
+	};
+
 	Kind kind = Kind::Lottie;
 	QByteArray bytes;
 	QRectF geometry;
 	float64 rotation = 0.;
 	bool flipped = false;
+	std::optional<Cutout> cutout;
 
 	crl::time from = 0;
 	crl::time till = 0;
@@ -168,5 +178,12 @@ struct TranscodeResult {
 	crl::time duration);
 
 void ClearStaleTempFiles();
+
+[[nodiscard]] QString TempFileTemplate(const QString &extension);
+
+[[nodiscard]] const QImage &ComposeCutout(
+	const AnimatedEntity::Cutout &cutout,
+	const QImage &frame,
+	QImage &composite);
 
 } // namespace Media::Encode

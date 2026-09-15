@@ -68,19 +68,8 @@ constexpr auto kSilentAudioFillMargin = crl::time(1000);
 	return QDir::tempPath() + u"/tdtranscode"_q;
 }
 
-[[nodiscard]] QString TempFileTemplate(const QString &extension) {
-	const auto directory = TempDirectory();
-	QDir().mkpath(directory);
-	QFile::setPermissions(
-		directory,
-		QFileDevice::ReadUser
-			| QFileDevice::WriteUser
-			| QFileDevice::ExeUser);
-	return directory + u"/XXXXXX."_q + extension;
-}
-
 [[nodiscard]] QString TempFileTemplate() {
-	return TempFileTemplate(u"mp4"_q);
+	return Media::Encode::TempFileTemplate(u"mp4"_q);
 }
 
 [[nodiscard]] int EvenDown(int value) {
@@ -1306,10 +1295,16 @@ bool SilentAudioWriter::finish(not_null<AVFormatContext*> output) {
 	return EncodeAndWrite(_encoder.get(), _stream, output, nullptr);
 }
 
+[[nodiscard]] QSize EntityFrameSize(const AnimatedEntity &entity) {
+	return entity.cutout
+		? entity.cutout->frames.size()
+		: entity.geometry.size().toSize();
+}
+
 class EntityPlayer final {
 public:
 	explicit EntityPlayer(const AnimatedEntity &entity)
-	: _size(entity.geometry.size().toSize())
+	: _size(EntityFrameSize(entity))
 	, _from(std::max(entity.from, crl::time(0)))
 	, _trimmed(entity.till > _from)
 	, _till(_trimmed ? entity.till : std::numeric_limits<crl::time>::max()) {
@@ -1456,6 +1451,7 @@ private:
 			? std::make_unique<EntityPlayer>(*entity)
 			: nullptr);
 	}
+	auto composites = std::vector<QImage>(overlay.size());
 
 	auto encodeFrame = MakeFramePointer();
 	if (!encodeFrame) {
@@ -1492,7 +1488,8 @@ private:
 					const auto &entity = std::get<AnimatedEntity>(
 						overlay[index]);
 					const auto frame = player->frameAt(position);
-					if (frame.isNull()) {
+					const auto &cutout = entity.cutout;
+					if (frame.isNull() && !cutout) {
 						continue;
 					}
 					p.save();
@@ -1505,7 +1502,15 @@ private:
 						p.scale(-1., 1.);
 					}
 					p.translate(-center);
-					p.drawImage(entity.geometry, frame);
+					if (cutout && frame.isNull()) {
+						p.drawImage(entity.geometry, cutout->picture);
+					} else if (cutout) {
+						p.drawImage(
+							entity.geometry,
+							ComposeCutout(*cutout, frame, composites[index]));
+					} else {
+						p.drawImage(entity.geometry, frame);
+					}
 					p.restore();
 				} else {
 					p.drawImage(0, 0, std::get<QImage>(overlay[index]));
@@ -2098,7 +2103,8 @@ struct TranscodeAttempt {
 		}
 	}
 
-	auto temp = QTemporaryFile(TempFileTemplate(webm ? u"webm"_q : u"mp4"_q));
+	auto temp = QTemporaryFile(
+		Media::Encode::TempFileTemplate(webm ? u"webm"_q : u"mp4"_q));
 	if (!temp.open()) {
 		return {};
 	}
@@ -2664,6 +2670,40 @@ crl::time TranscodedDuration(
 		? std::min(source.till, duration)
 		: duration;
 	return std::max(till - from, crl::time(0));
+}
+
+QString TempFileTemplate(const QString &extension) {
+	const auto directory = TempDirectory();
+	QDir().mkpath(directory);
+	QFile::setPermissions(
+		directory,
+		QFileDevice::ReadUser
+			| QFileDevice::WriteUser
+			| QFileDevice::ExeUser);
+	return directory + u"/XXXXXX."_q + extension;
+}
+
+// Frame goes under the cut hole; picture alpha trims it to bubble shape.
+const QImage &ComposeCutout(
+		const AnimatedEntity::Cutout &cutout,
+		const QImage &frame,
+		QImage &composite) {
+	if (composite.isNull()) {
+		composite = cutout.picture.copy();
+		composite.setDevicePixelRatio(1.);
+	}
+	auto p = QPainter(&composite);
+	p.setClipRect(cutout.hole);
+	p.setRenderHint(QPainter::SmoothPixmapTransform);
+	p.setCompositionMode(QPainter::CompositionMode_Source);
+	p.drawImage(cutout.hole, cutout.picture, cutout.hole);
+	p.setCompositionMode(QPainter::CompositionMode_DestinationOut);
+	p.drawImage(cutout.hole, cutout.mask);
+	p.setCompositionMode(QPainter::CompositionMode_DestinationOver);
+	p.drawImage(cutout.frames, frame);
+	p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+	p.drawImage(cutout.hole, cutout.picture, cutout.hole);
+	return composite;
 }
 
 Result Run(Job &&job, Fn<bool(float64)> progress) {
