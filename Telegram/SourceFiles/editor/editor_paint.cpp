@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/rect.h"
 #include "ui/ui_utility.h"
+#include "window/themes/window_theme.h"
 #include "styles/style_editor.h"
 
 #include <QGraphicsView>
@@ -750,18 +751,24 @@ void Paint::addMessages(const MessageIdsList &ids) {
 	}
 }
 
-void Paint::addMessageItem(std::shared_ptr<MessageSource> source, int index) {
+void Paint::addMessageItem(
+		std::shared_ptr<MessageSource> source,
+		int index,
+		std::optional<bool> dark,
+		std::optional<QPointF> position) {
 	auto renderer = std::make_unique<MessageRenderer>(source);
+	renderer->setDark(dark);
 	auto data = messageItemData(renderer->size());
 	const auto scene = _scene->sceneRect().size();
 	const auto shift = int(std::min(scene.width(), scene.height())
 		* kMessagesCascadeRatio) * index;
-	data.x += shift;
-	data.y += shift;
+	data.x = position ? int(position->x()) : (data.x + shift);
+	data.y = position ? int(position->y()) : (data.y + shift);
 	const auto item = std::make_shared<ItemMessage>(
 		std::move(source),
 		std::move(renderer),
-		std::move(data));
+		std::move(data),
+		dark);
 	item->setEditCallback(crl::guard(this, [=](
 			not_null<ItemMessage*> item) {
 		const auto &link = item->source()->link();
@@ -770,30 +777,47 @@ void Paint::addMessageItem(std::shared_ptr<MessageSource> source, int index) {
 	addMediaItem(item);
 }
 
-void Paint::chooseLink(const QString &url, ItemMessage *editing) {
+void Paint::chooseLink(const QString &url, ItemBase *editing) {
 	const auto &show = _controllers->sessionShow;
 	if (!show) {
 		return;
 	}
+	auto link = std::optional<LinkPreview>();
+	if (editing && editing->type() == ItemMessage::Type) {
+		const auto item = static_cast<ItemMessage*>(editing);
+		link = item->source()->link();
+		if (link) {
+			link->dark = item->dark().value_or(
+				Window::Theme::IsNightMode());
+		}
+	}
 	const auto weak = editing
 		? std::weak_ptr(_scene->itemShared(editing))
 		: std::weak_ptr<NumberedItem>();
-	auto done = crl::guard(this, [=](std::shared_ptr<MessageSource> source) {
-		if (!editing) {
-			addMessageItem(std::move(source));
-			return;
-		}
-		const auto strong = weak.lock();
-		if (strong && strong->isNormalStatus() && strong.get() == editing) {
-			editing->setSource(std::move(source));
-		}
-	});
 	_controllers->layerShow->showBox(LinkBox({
 		.show = show,
 		.url = url,
-		.editing = editing ? editing->source()->link() : std::nullopt,
-		.done = std::move(done),
+		.editing = link,
+		.done = crl::guard(this, [=](LinkBoxResult &&result) {
+			applyLinkResult(std::move(result), weak);
+		}),
 	}));
+}
+
+void Paint::applyLinkResult(
+		LinkBoxResult &&result,
+		std::weak_ptr<NumberedItem> editing) {
+	const auto strong = editing.lock();
+	const auto raw = (strong && strong->isNormalStatus())
+		? strong.get()
+		: nullptr;
+	if (raw && raw->type() == ItemMessage::Type) {
+		const auto item = static_cast<ItemMessage*>(raw);
+		item->setSource(std::move(result.message));
+		item->setDark(result.dark);
+		return;
+	}
+	addMessageItem(std::move(result.message), 0, result.dark);
 }
 
 void Paint::readMediaFile(const QString &path, const QByteArray &content) {

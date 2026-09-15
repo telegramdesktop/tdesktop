@@ -32,8 +32,8 @@ struct PhotoEditorMedia;
 namespace Editor {
 
 struct Controllers;
-class ItemMessage;
 class ItemVideo;
+struct LinkBoxResult;
 class MessageSource;
 class Scene;
 
@@ -129,8 +129,15 @@ private:
 	ItemBase::Data messageItemData(QSize bubbleSize) const;
 	void addMediaItem(std::shared_ptr<ItemBase> item);
 	void addMessages(const MessageIdsList &ids);
-	void addMessageItem(std::shared_ptr<MessageSource> source, int index = 0);
-	void chooseLink(const QString &url, ItemMessage *editing = nullptr);
+	void addMessageItem(
+		std::shared_ptr<MessageSource> source,
+		int index = 0,
+		std::optional<bool> dark = std::nullopt,
+		std::optional<QPointF> position = std::nullopt);
+	void chooseLink(const QString &url, ItemBase *editing = nullptr);
+	void applyLinkResult(
+		LinkBoxResult &&result,
+		std::weak_ptr<NumberedItem> editing);
 	void addMedia(Storage::PhotoEditorMedia &&media);
 	void readMediaFile(const QString &path, const QByteArray &content);
 	void addImageItem(QImage &&image);

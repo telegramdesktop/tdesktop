@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "window/themes/window_theme.h"
+#include "window/themes/window_themes_embedded.h"
 #include "styles/style_chat.h"
 
 namespace Editor {
@@ -71,6 +72,67 @@ namespace {
 		right = std::max(right, x);
 	}
 	return QRect(left, top, right - left + 1, bottom - top + 1);
+}
+
+[[nodiscard]] std::unique_ptr<Ui::ChatTheme> MakeChatTheme(
+		std::optional<bool> dark,
+		rpl::lifetime &lifetime) {
+	if (!dark) {
+		return Window::Theme::DefaultChatThemeOn(lifetime);
+	}
+	return std::make_unique<Ui::ChatTheme>(Ui::ChatThemeDescriptor{
+		.preparePalette = Window::Theme::PreparePaletteCallback(
+			*dark,
+			std::nullopt),
+		.basedOnDark = *dark,
+	});
+}
+
+[[nodiscard]] float64 CornerRadius(
+		Ui::BubbleCornerRounding corner,
+		int ratio) {
+	using Corner = Ui::BubbleCornerRounding;
+	using Radius = Ui::CachedCornerRadius;
+	return (corner == Corner::Small)
+		? Ui::CachedCornerRadiusValue(Radius::BubbleSmall) * ratio
+		: (corner == Corner::Large)
+		? Ui::CachedCornerRadiusValue(Radius::BubbleLarge) * ratio
+		: 0.;
+}
+
+[[nodiscard]] QPainterPath HolePath(
+		QRect rect,
+		Ui::BubbleRounding rounding,
+		int ratio) {
+	const auto topLeft = CornerRadius(rounding.topLeft, ratio);
+	const auto topRight = CornerRadius(rounding.topRight, ratio);
+	const auto bottomLeft = CornerRadius(rounding.bottomLeft, ratio);
+	const auto bottomRight = CornerRadius(rounding.bottomRight, ratio);
+	const auto left = float64(rect.x());
+	const auto top = float64(rect.y());
+	const auto right = float64(rect.x() + rect.width());
+	const auto bottom = float64(rect.y() + rect.height());
+	const auto corner = [](float64 x, float64 y, float64 radius) {
+		return QRectF(x, y, 2 * radius, 2 * radius);
+	};
+	auto result = QPainterPath();
+	result.moveTo(left + topLeft, top);
+	result.lineTo(right - topRight, top);
+	result.arcTo(corner(right - 2 * topRight, top, topRight), 90, -90);
+	result.lineTo(right, bottom - bottomRight);
+	result.arcTo(
+		corner(
+			right - 2 * bottomRight,
+			bottom - 2 * bottomRight,
+			bottomRight),
+		0,
+		-90);
+	result.lineTo(left + bottomLeft, bottom);
+	result.arcTo(corner(left, bottom - 2 * bottomLeft, bottomLeft), 270, -90);
+	result.lineTo(left, top + topLeft);
+	result.arcTo(corner(left, top, topLeft), 180, -90);
+	result.closeSubpath();
+	return result;
 }
 
 } // namespace
@@ -169,12 +231,19 @@ void MessageRenderer::setRepaintCallback(Fn<void()> callback) {
 	_repaint = std::move(callback);
 }
 
-bool MessageRenderer::ready() const {
-	return (_element != nullptr);
+void MessageRenderer::setDark(std::optional<bool> dark) {
+	if (_dark == dark) {
+		return;
+	}
+	_dark = dark;
+	_theme = MakeChatTheme(dark, _lifetime);
+	_style->apply(_theme.get());
+	_layoutDirty = true;
+	repaint();
 }
 
-not_null<Ui::ChatTheme*> MessageRenderer::theme() const {
-	return _theme.get();
+bool MessageRenderer::ready() const {
+	return (_element != nullptr);
 }
 
 void MessageRenderer::createView() {

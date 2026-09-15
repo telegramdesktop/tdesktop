@@ -18,15 +18,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/view/controls/history_view_webpage_processor.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
 #include "main/main_session.h"
+#include "ui/abstract_button.h"
+#include "ui/chat/chat_theme.h"
+#include "ui/effects/animations.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/rp_widget.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/section_widget.h"
+#include "window/themes/window_theme.h"
+#include "window/themes/window_themes_embedded.h"
 #include "styles/style_calls.h"
 #include "styles/style_editor.h"
 #include "styles/style_layers.h"
@@ -141,79 +148,290 @@ void LinkResolver::finish(Resolved result) {
 	++_generation;
 }
 
+constexpr auto kToDarkDuration = crl::time(450);
+constexpr auto kToLightDuration = crl::time(320);
+
+class ThemeButton final : public Ui::AbstractButton {
+public:
+	ThemeButton(QWidget *parent, bool dark);
+
+	void setDark(bool dark);
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+
+	std::unique_ptr<Lottie::Icon> _icon;
+	bool _dark = false;
+
+};
+
+ThemeButton::ThemeButton(QWidget *parent, bool dark)
+: AbstractButton(parent)
+, _icon(Lottie::MakeIcon({
+	.name = u"sun_outline"_q,
+	.color = &st::groupCallMembersFg,
+	.sizeOverride = Size(st::photoEditorLinkThemeIconSize),
+}))
+, _dark(dark) {
+	setObjectName(u"photoEditorLinkThemeToggle"_q);
+	resize(st::photoEditorLinkThemeSize, st::photoEditorLinkThemeSize);
+	if (_icon->valid() && _dark) {
+		_icon->jumpTo(_icon->framesCount() - 1, [=] { update(); });
+	}
+}
+
+void ThemeButton::setDark(bool dark) {
+	if (_dark == dark) {
+		return;
+	}
+	_dark = dark;
+	if (_icon->valid()) {
+		_icon->animate(
+			[=] { update(); },
+			_icon->frameIndex(),
+			dark ? (_icon->framesCount() - 1) : 0);
+	}
+	update();
+}
+
+void ThemeButton::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+	auto hq = PainterHighQualityEnabler(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::photoEditorLinkThemeBg);
+	p.drawEllipse(rect());
+	if (_icon->valid()) {
+		_icon->paintInCenter(p, rect());
+	}
+}
+
 class PreviewWidget final : public Ui::RpWidget {
 public:
 	explicit PreviewWidget(QWidget *parent);
 
-	void setSource(std::shared_ptr<MessageSource> source);
+	void setSource(std::shared_ptr<MessageSource> source, bool dark);
+	[[nodiscard]] rpl::producer<> themeToggles() const;
 
 private:
 	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void paintFrame(QPainter &p);
+	void paintContent(QPainter &p);
+	[[nodiscard]] QImage snapshot();
+	void beginTransition(bool radial, bool dark);
+	void scheduleRefresh();
 	void refresh();
-	void updateHeight();
+	[[nodiscard]] not_null<Ui::ChatTheme*> background(bool dark);
+	[[nodiscard]] float64 contentScale() const;
+	[[nodiscard]] int targetHeight() const;
+	void applyHeight();
+	[[nodiscard]] int innerWidth() const;
+	[[nodiscard]] bool hasContent() const;
 
+	const not_null<ThemeButton*> _theme;
+	std::array<std::unique_ptr<Ui::ChatTheme>, 2> _backgrounds;
 	std::shared_ptr<MessageSource> _source;
 	std::unique_ptr<MessageRenderer> _renderer;
 	QImage _image;
 	QSize _size;
+	QImage _from;
+	Ui::Animations::Simple _progress;
+	rpl::event_stream<> _themeToggles;
+	int _heightFrom = 0;
+	int _heightTo = 0;
+	bool _radial = false;
+	bool _dark = false;
+	bool _refreshScheduled = false;
 
 };
 
-PreviewWidget::PreviewWidget(QWidget *parent) : RpWidget(parent) {
+PreviewWidget::PreviewWidget(QWidget *parent)
+: RpWidget(parent)
+, _theme(Ui::CreateChild<ThemeButton>(this, false)) {
+	_theme->hide();
+	_theme->setClickedCallback([=] { _themeToggles.fire({}); });
 	widthValue() | rpl::on_next([=] {
-		updateHeight();
+		applyHeight();
 	}, lifetime());
 }
 
-void PreviewWidget::setSource(std::shared_ptr<MessageSource> source) {
+rpl::producer<> PreviewWidget::themeToggles() const {
+	return _themeToggles.events();
+}
+
+int PreviewWidget::innerWidth() const {
+	return std::max(width() - 2 * st::photoEditorLinkPreviewPadding, 1);
+}
+
+bool PreviewWidget::hasContent() const {
+	return !_size.isEmpty() && !_image.isNull();
+}
+
+void PreviewWidget::setSource(
+		std::shared_ptr<MessageSource> source,
+		bool dark) {
+	if (hasContent()) {
+		beginTransition(_renderer && (_dark != dark), dark);
+	}
+	_dark = dark;
 	_source = std::move(source);
 	_renderer = std::make_unique<MessageRenderer>(_source);
-	_renderer->setRepaintCallback([=] { refresh(); });
+	_renderer->setDark(dark);
+	_renderer->setRepaintCallback([=] { scheduleRefresh(); });
+	_theme->setDark(dark);
+	_theme->show();
 	refresh();
 }
 
+void PreviewWidget::beginTransition(bool radial, bool dark) {
+	_from = snapshot();
+	_heightFrom = height();
+	_radial = radial;
+	_progress = {};
+	_progress.start(
+		[=] { applyHeight(); update(); },
+		0.,
+		1.,
+		(!radial
+			? st::slideWrapDuration
+			: dark
+			? kToDarkDuration
+			: kToLightDuration),
+		(!radial
+			? anim::linear
+			: dark
+			? anim::easeOutQuint
+			: anim::easeInCubic));
+}
+
+QImage PreviewWidget::snapshot() {
+	const auto ratio = style::DevicePixelRatio();
+	auto result = QImage(size() * ratio, QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(ratio);
+	result.fill(Qt::transparent);
+	auto p = QPainter(&result);
+	paintFrame(p);
+	return result;
+}
+
+void PreviewWidget::scheduleRefresh() {
+	if (_refreshScheduled) {
+		return;
+	}
+	_refreshScheduled = true;
+	crl::on_main(this, [=] {
+		_refreshScheduled = false;
+		refresh();
+	});
+}
+
 void PreviewWidget::refresh() {
+	if (!_renderer) {
+		return;
+	}
 	_image = _renderer->render(style::DevicePixelRatio());
 	_size = _renderer->size();
-	updateHeight();
+	applyHeight();
 	update();
 }
 
-void PreviewWidget::updateHeight() {
-	if (_size.isEmpty() || !width()) {
-		resize(width(), 0);
-		return;
+not_null<Ui::ChatTheme*> PreviewWidget::background(bool dark) {
+	auto &theme = _backgrounds[dark ? 1 : 0];
+	if (!theme) {
+		theme = std::make_unique<Ui::ChatTheme>();
+		theme->setBackground(Window::Theme::PrepareDefaultBackground(dark));
+		theme->repaintBackgroundRequests(
+		) | rpl::on_next([=] { update(); }, lifetime());
 	}
-	const auto padding = st::photoEditorLinkPreviewPadding;
-	const auto scale = std::min({
-		1.,
-		(width() - 2 * padding) / float64(_size.width()),
-		st::photoEditorLinkPreviewMaxHeight / float64(_size.height()),
-	});
-	resize(width(), int(std::ceil(_size.height() * scale)) + 2 * padding);
+	return theme.get();
 }
 
-void PreviewWidget::paintEvent(QPaintEvent *e) {
-	if (_image.isNull() || _size.isEmpty() || !_renderer) {
+float64 PreviewWidget::contentScale() const {
+	return std::min({
+		1.,
+		innerWidth() / float64(_size.width()),
+		st::photoEditorLinkPreviewMaxHeight / float64(_size.height()),
+	});
+}
+
+int PreviewWidget::targetHeight() const {
+	if (_size.isEmpty() || !width()) {
+		return 0;
+	}
+	const auto padding = st::photoEditorLinkPreviewPadding;
+	return int(std::ceil(_size.height() * contentScale())) + 2 * padding;
+}
+
+void PreviewWidget::applyHeight() {
+	_heightTo = targetHeight();
+	const auto animated = _progress.animating();
+	const auto progress = animated ? _progress.value(1.) : 1.;
+	const auto shown = animated
+		? anim::interpolate(_heightFrom, _heightTo, progress)
+		: _heightTo;
+	if (height() != shown) {
+		resize(width(), shown);
+	}
+	if (!animated && !_from.isNull()) {
+		_from = QImage();
+	}
+}
+
+void PreviewWidget::resizeEvent(QResizeEvent *e) {
+	const auto skip = st::photoEditorLinkThemeSkip;
+	_theme->moveToRight(skip, skip, width());
+}
+
+void PreviewWidget::paintContent(QPainter &p) {
+	auto hq = PainterHighQualityEnabler(p);
+	Window::SectionWidget::PaintBackground(
+		p,
+		background(_dark),
+		QSize(width(), height() * 3),
+		rect());
+	if (!hasContent()) {
 		return;
 	}
-	auto p = QPainter(this);
-	auto hq = PainterHighQualityEnabler(p);
+	const auto scale = contentScale();
+	const auto size = QSizeF(_size) * scale;
+	const auto origin = QPointF(
+		(width() - size.width()) / 2.,
+		st::photoEditorLinkPreviewPadding);
+	p.setRenderHint(QPainter::SmoothPixmapTransform);
+	p.drawImage(QRectF(origin, size), _image);
+}
+
+void PreviewWidget::paintFrame(QPainter &p) {
 	auto clip = QPainterPath();
 	clip.addRoundedRect(rect(), st::boxRadius, st::boxRadius);
 	p.setClipPath(clip);
-	Window::SectionWidget::PaintBackground(
-		p,
-		_renderer->theme(),
-		QSize(width(), height() * 3),
-		rect());
-	const auto padding = st::photoEditorLinkPreviewPadding;
-	const auto scale = (height() - 2 * padding) / float64(_size.height());
-	const auto size = QSizeF(_size) * scale;
-	p.setRenderHint(QPainter::SmoothPixmapTransform);
-	p.drawImage(
-		QRectF(QPointF((width() - size.width()) / 2., padding), size),
-		_image);
+	paintContent(p);
+	if (!_progress.animating() || _from.isNull()) {
+		return;
+	}
+	const auto progress = _progress.value(1.);
+	auto hq = PainterHighQualityEnabler(p);
+	if (_radial) {
+		const auto full = std::hypot(width(), height());
+		const auto radius = full * (_dark ? (1. - progress) : progress);
+		const auto center = QPointF(rect::center(_theme->geometry()));
+		auto circle = QPainterPath();
+		circle.addEllipse(center, radius, radius);
+		p.setClipPath(_dark
+			? clip.intersected(circle)
+			: clip.subtracted(circle));
+	} else {
+		p.setOpacity(1. - progress);
+	}
+	p.drawImage(0, 0, _from);
+}
+
+void PreviewWidget::paintEvent(QPaintEvent *e) {
+	if (!hasContent() && _from.isNull()) {
+		return;
+	}
+	auto p = QPainter(this);
+	paintFrame(p);
 }
 
 [[nodiscard]] QString StripDoubledPrefix(const QString &text) {
@@ -262,10 +480,14 @@ object_ptr<Ui::BoxContent> LinkBox(LinkBoxArgs &&args) {
 			rpl::variable<bool> captionAbove = true;
 			rpl::variable<bool> largePhoto = false;
 			rpl::variable<bool> video = false;
+			rpl::variable<bool> dark = false;
 			rpl::variable<bool> customName = false;
 		};
 		const auto state = box->lifetime().make_state<State>(session);
 		const auto &editing = args.editing;
+		state->dark = editing
+			? editing->dark
+			: Window::Theme::IsNightMode();
 		if (editing) {
 			state->captionAbove = editing->captionAbove;
 			state->largePhoto = editing->largePhoto;
@@ -302,37 +524,36 @@ object_ptr<Ui::BoxContent> LinkBox(LinkBoxArgs &&args) {
 				object_ptr<Ui::VerticalLayout>(box)));
 		options->hide(anim::type::instant);
 		const auto optionsInner = options->entity();
-		const auto above = optionsInner->add(object_ptr<Ui::SettingsButton>(
-			optionsInner,
+		const auto addRow = [&](rpl::producer<QString> text) {
+			return optionsInner->add(
+				object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+					optionsInner,
+					object_ptr<Ui::SettingsButton>(
+						optionsInner,
+						std::move(text),
+						st::groupCallSettingsButton)));
+		};
+		const auto above = addRow(
 			state->captionAbove.value() | rpl::map([](bool above) {
 				return above
 					? tr::lng_link_move_up(tr::now)
 					: tr::lng_link_move_down(tr::now);
-			}),
-			st::groupCallSettingsButton));
-		const auto photo = optionsInner->add(
-			object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
-				optionsInner,
-				object_ptr<Ui::SettingsButton>(
-					optionsInner,
-					state->largePhoto.value() | rpl::map([=](bool large) {
-						const auto video = state->resolved
-							&& HasVideo(state->resolved->webpage);
-						return large
-							? (video
-								? tr::lng_link_shrink_video(tr::now)
-								: tr::lng_link_shrink_photo(tr::now))
-							: (video
-								? tr::lng_link_enlarge_video(tr::now)
-								: tr::lng_link_enlarge_photo(tr::now));
-					}),
-					st::groupCallSettingsButton)));
-		const auto customize = optionsInner->add(
-			object_ptr<Ui::SettingsButton>(
-				optionsInner,
-				tr::lng_photo_editor_link_customize(),
-				st::groupCallSettingsButton));
-		customize->toggleOn(state->customName.value());
+			}));
+		const auto photo = addRow(rpl::combine(
+			state->largePhoto.value(),
+			state->video.value()
+		) | rpl::map([](bool large, bool video) {
+			return large
+				? (video
+					? tr::lng_link_shrink_video(tr::now)
+					: tr::lng_link_shrink_photo(tr::now))
+				: (video
+					? tr::lng_link_enlarge_video(tr::now)
+					: tr::lng_link_enlarge_photo(tr::now));
+		}));
+		const auto customize = addRow(
+			tr::lng_photo_editor_link_customize());
+		customize->entity()->toggleOn(state->customName.value());
 		const auto nameWrap = optionsInner->add(
 			object_ptr<Ui::SlideWrap<Ui::InputField>>(
 				optionsInner,
@@ -353,38 +574,50 @@ object_ptr<Ui::BoxContent> LinkBox(LinkBoxArgs &&args) {
 					: QString()),
 				.captionAbove = state->captionAbove.current(),
 				.largePhoto = state->largePhoto.current(),
+				.dark = state->dark.current(),
 			};
 		};
-		const auto makeSource = [=]() -> std::shared_ptr<MessageSource> {
+		const auto makeResult = [=] {
+			auto result = LinkBoxResult{ .dark = state->dark.current() };
 			const auto &resolved = state->resolved;
 			if (!resolved) {
-				return nullptr;
+				return result;
 			} else if (resolved->messageId) {
 				const auto item = session->data().message(
 					resolved->messageId);
-				return (item && CanRenderMessage(item))
-					? std::make_shared<MessageSource>(item)
-					: nullptr;
+				if (item && CanRenderMessage(item)) {
+					result.message = std::make_shared<MessageSource>(item);
+					return result;
+				}
 			}
-			return std::make_shared<MessageSource>(
+			result.message = std::make_shared<MessageSource>(
 				session,
 				currentLink(),
 				resolved->webpage);
+			return result;
 		};
 		const auto refreshPreview = [=] {
-			const auto source = makeSource();
-			const auto message = source && !source->link();
-			const auto webpage = source ? source->webpage() : nullptr;
-			if (source) {
-				preview->entity()->setSource(source);
+			const auto result = makeResult();
+			const auto message = result.message && !result.message->link();
+			const auto bubble = result.message && !message;
+			const auto webpage = state->resolved
+				? state->resolved->webpage
+				: nullptr;
+			if (result.message) {
+				preview->entity()->setSource(result.message, result.dark);
 			}
-			preview->toggle(source != nullptr, anim::type::normal);
-			options->toggle(source && !message, anim::type::normal);
-			above->setVisible(webpage != nullptr);
-			photo->toggle(HasPhoto(webpage), anim::type::normal);
+			const auto shown = (result.message != nullptr);
+			preview->toggle(shown, anim::type::normal);
+			options->toggle(shown, anim::type::normal);
+			above->toggle(bubble, anim::type::normal);
+			photo->toggle(bubble && HasPhoto(webpage), anim::type::normal);
+			customize->toggle(!message, anim::type::normal);
+			nameWrap->toggle(
+				!message && state->customName.current(),
+				anim::type::normal);
 		};
 
-		above->setClickedCallback([=] {
+		above->entity()->setClickedCallback([=] {
 			state->captionAbove = !state->captionAbove.current();
 			refreshPreview();
 		});
@@ -392,10 +625,14 @@ object_ptr<Ui::BoxContent> LinkBox(LinkBoxArgs &&args) {
 			state->largePhoto = !state->largePhoto.current();
 			refreshPreview();
 		});
-		customize->toggledChanges(
+		preview->entity()->themeToggles(
+		) | rpl::on_next([=] {
+			state->dark = !state->dark.current();
+			refreshPreview();
+		}, preview->lifetime());
+		customize->entity()->toggledChanges(
 		) | rpl::on_next([=](bool enabled) {
 			state->customName = enabled;
-			nameWrap->toggle(enabled, anim::type::normal);
 			if (enabled) {
 				name->setFocusFast();
 			}
@@ -446,16 +683,16 @@ object_ptr<Ui::BoxContent> LinkBox(LinkBoxArgs &&args) {
 			if (!state->valid.current() || state->loading.current()) {
 				return;
 			}
-			auto source = makeSource();
-			if (!source) {
-				source = std::make_shared<MessageSource>(
+			auto result = makeResult();
+			if (!result.message) {
+				result.message = std::make_shared<MessageSource>(
 					session,
 					currentLink(),
 					nullptr);
 			}
 			const auto done = args.done;
 			box->closeBox();
-			done(std::move(source));
+			done(std::move(result));
 		};
 		const auto button = box->addButton(
 			(editing

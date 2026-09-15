@@ -21,6 +21,7 @@ struct LinkPreview {
 	QString name;
 	bool captionAbove = true;
 	bool largePhoto = false;
+	bool dark = false;
 
 	friend inline bool operator==(
 		const LinkPreview &,

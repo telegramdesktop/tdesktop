@@ -31,9 +31,9 @@ public:
 	~MessageRenderer();
 
 	void setRepaintCallback(Fn<void()> callback);
+	void setDark(std::optional<bool> dark);
 
 	[[nodiscard]] bool ready() const;
-	[[nodiscard]] not_null<Ui::ChatTheme*> theme() const;
 	[[nodiscard]] QSize size();
 	[[nodiscard]] QImage render(int ratio);
 
@@ -48,7 +48,7 @@ private:
 
 	rpl::lifetime _lifetime;
 	const std::shared_ptr<MessageSource> _source;
-	const std::unique_ptr<Ui::ChatTheme> _theme;
+	std::unique_ptr<Ui::ChatTheme> _theme;
 	const std::unique_ptr<Ui::ChatStyle> _style;
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
 	const std::unique_ptr<Delegate> _delegate;
@@ -57,6 +57,7 @@ private:
 	Ui::PeerUserpicView _userpic;
 	QImage _base;
 	QRect _bounds;
+	std::optional<bool> _dark;
 	int _width = 0;
 	bool _layoutDirty = true;
 	bool _recreate = false;

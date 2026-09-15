@@ -384,3 +384,7 @@ photoEditorMessageReferenceWidth: 600px;
 photoEditorLinkPreviewMargin: margins(24px, 12px, 24px, 6px);
 photoEditorLinkPreviewMaxHeight: 320px;
 photoEditorLinkPreviewPadding: 12px;
+photoEditorLinkThemeSize: 36px;
+photoEditorLinkThemeIconSize: 28px;
+photoEditorLinkThemeSkip: 6px;
+photoEditorLinkThemeBg: mediaviewCaptionBg;

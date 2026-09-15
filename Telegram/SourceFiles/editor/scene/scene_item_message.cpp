@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/editor_message_source.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/popup_menu.h"
+#include "window/themes/window_theme.h"
 #include "styles/style_menu_icons.h"
 
 #include <QtCore/QCoreApplication>
@@ -34,16 +35,19 @@ constexpr auto kMaxRatio = 8;
 ItemMessage::ItemMessage(
 	std::shared_ptr<MessageSource> source,
 	std::unique_ptr<MessageRenderer> renderer,
-	ItemBase::Data data)
+	ItemBase::Data data,
+	std::optional<bool> dark)
 : ItemBase(std::move(data))
 , _source(std::move(source))
-, _renderer(std::move(renderer)) {
+, _renderer(std::move(renderer))
+, _dark(dark) {
 	attachRenderer();
 }
 
 ItemMessage::~ItemMessage() = default;
 
 void ItemMessage::attachRenderer() {
+	_renderer->setDark(_dark);
 	_renderer->setRepaintCallback([=] { scheduleRefresh(); });
 	_image = _renderer->render(1);
 	_ratio = _image.isNull() ? 0 : 1;
@@ -141,6 +145,20 @@ void ItemMessage::setSource(std::shared_ptr<MessageSource> source) {
 	update();
 }
 
+std::optional<bool> ItemMessage::dark() const {
+	return _dark;
+}
+
+void ItemMessage::setDark(std::optional<bool> dark) {
+	if (_dark == dark) {
+		return;
+	}
+	_dark = dark;
+	_ratio = 0;
+	_renderer->setDark(dark);
+	refresh();
+}
+
 void ItemMessage::setEditCallback(EditCallback callback) {
 	_edit = std::move(callback);
 }
@@ -158,13 +176,19 @@ bool ItemMessage::flippable() const {
 }
 
 void ItemMessage::fillContextMenu(not_null<Ui::PopupMenu*> menu) {
-	if (!editable()) {
-		return;
-	}
+	const auto dark = _dark.value_or(Window::Theme::IsNightMode());
 	menu->addAction(
-		tr::lng_menu_formatting_link_edit(tr::now),
-		[=] { _edit(this); },
-		&st::mediaMenuIconEdit);
+		(dark
+			? tr::lng_settings_theme_day(tr::now)
+			: tr::lng_settings_theme_night(tr::now)),
+		[=] { setDark(!dark); },
+		&st::mediaMenuIconNightMode);
+	if (editable()) {
+		menu->addAction(
+			tr::lng_menu_formatting_link_edit(tr::now),
+			[=] { _edit(this); },
+			&st::mediaMenuIconEdit);
+	}
 }
 
 void ItemMessage::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) {
@@ -179,7 +203,8 @@ std::shared_ptr<ItemBase> ItemMessage::duplicate(ItemBase::Data data) const {
 	auto result = std::make_shared<ItemMessage>(
 		_source,
 		std::make_unique<MessageRenderer>(_source),
-		std::move(data));
+		std::move(data),
+		_dark);
 	result->_edit = _edit;
 	return result;
 }

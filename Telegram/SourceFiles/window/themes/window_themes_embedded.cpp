@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/serialize_common.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "data/data_wall_paper.h"
+#include "ui/chat/chat_theme.h"
 #include "ui/style/style_palette_colorizer.h"
 #include "window/themes/window_theme.h"
 
@@ -368,6 +370,38 @@ Fn<void(style::palette&)> PreparePaletteCallback(
 Fn<void(style::palette&)> PrepareCurrentPaletteCallback() {
 	return [=, data = style::main_palette::save()](style::palette &palette) {
 		palette.load(data);
+	};
+}
+
+Ui::ChatThemeBackground PrepareDefaultBackground(bool dark) {
+	if (!dark) {
+		const auto paper = Data::DefaultWallPaper();
+		return Ui::PrepareBackgroundImage({
+			.path = u":/gui/art/background.tgv"_q,
+			.gzipSvg = true,
+			.colors = paper.backgroundColors(),
+			.isPattern = true,
+			.patternOpacity = paper.patternOpacity(),
+			.generateGradient = true,
+			.gradientRotation = paper.gradientRotation(),
+		});
+	}
+	auto instance = Instance();
+	const auto loaded = LoadFromFile(
+		kNightBaseFile.utf16(),
+		&instance,
+		nullptr,
+		nullptr,
+		style::colorizer());
+	Assert(loaded);
+	auto prepared = Ui::PreprocessBackgroundImage(
+		std::move(instance.background));
+	prepared.setDevicePixelRatio(style::DevicePixelRatio());
+	return {
+		.prepared = prepared,
+		.preparedForTiled = Ui::PrepareImageForTiled(prepared),
+		.colorForFill = Ui::CalculateImageMonoColor(prepared),
+		.tile = instance.tiled,
 	};
 }
 

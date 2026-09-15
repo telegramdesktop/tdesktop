@@ -19,11 +19,16 @@ class BoxContent;
 
 namespace Editor {
 
+struct LinkBoxResult {
+	std::shared_ptr<MessageSource> message;
+	bool dark = false;
+};
+
 struct LinkBoxArgs {
 	std::shared_ptr<ChatHelpers::Show> show;
 	QString url;
 	std::optional<LinkPreview> editing;
-	Fn<void(std::shared_ptr<MessageSource>)> done;
+	Fn<void(LinkBoxResult)> done;
 };
 
 [[nodiscard]] object_ptr<Ui::BoxContent> LinkBox(LinkBoxArgs &&args);

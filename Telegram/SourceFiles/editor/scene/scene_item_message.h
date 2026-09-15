@@ -24,7 +24,8 @@ public:
 	ItemMessage(
 		std::shared_ptr<MessageSource> source,
 		std::unique_ptr<MessageRenderer> renderer,
-		ItemBase::Data data);
+		ItemBase::Data data,
+		std::optional<bool> dark = std::nullopt);
 	~ItemMessage();
 
 	void paint(
@@ -35,6 +36,8 @@ public:
 
 	[[nodiscard]] const std::shared_ptr<MessageSource> &source() const;
 	void setSource(std::shared_ptr<MessageSource> source);
+	[[nodiscard]] std::optional<bool> dark() const;
+	void setDark(std::optional<bool> dark);
 	void setEditCallback(EditCallback callback);
 	void save(SaveState state) override;
 
@@ -59,6 +62,7 @@ private:
 	EditCallback _edit;
 	QImage _image;
 	QSize _size;
+	std::optional<bool> _dark;
 	int _ratio = 0;
 	bool _refreshScheduled = false;
 
