@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
+#include "ui/ui_utility.h"
 #include "ui/rect.h"
 #include "ui/unread_badge_paint.h"
 #include "styles/style_boxes.h"
@@ -1343,15 +1344,10 @@ void StickersBox::Inner::paintEvent(QPaintEvent *e) {
 
 		const auto yFrom = clip.y() - _itemsTop;
 		const auto yTo = clip.y() + clip.height() - _itemsTop;
-		const auto from = floorclamp(
+		const auto [from, to] = Ui::RowsInRange(
 			yFrom - _rowHeight,
-			_rowHeight,
-			0,
-			_rows.size());
-		const auto to = ceilclamp(
 			yTo + _rowHeight,
 			_rowHeight,
-			0,
 			_rows.size());
 		p.translate(0, from * _rowHeight);
 		for (auto i = from; i < to; ++i) {
@@ -1944,9 +1940,8 @@ void StickersBox::Inner::updateSelected() {
 		const auto now = crl::now();
 		const auto firstSetIndex = _rows.front()->isRecentSet() ? 1 : 0;
 		if (_dragStart.y() > local.y() && _dragging > 0) {
-			shift = -floorclamp(
-				_dragStart.y() - local.y() + (_rowHeight / 2),
-				_rowHeight,
+			shift = -std::clamp(
+				(_dragStart.y() - local.y() + (_rowHeight / 2)) / _rowHeight,
 				0,
 				_dragging - firstSetIndex);
 			const auto to = _dragging + shift;
@@ -1958,11 +1953,10 @@ void StickersBox::Inner::updateSelected() {
 			}
 		} else if (_dragStart.y() < local.y()
 			&& _dragging + 1 < _rows.size()) {
-			shift = floorclamp(
-				local.y() - _dragStart.y() + (_rowHeight / 2),
-				_rowHeight,
+			shift = std::clamp(
+				(local.y() - _dragStart.y() + (_rowHeight / 2)) / _rowHeight,
 				0,
-				_rows.size() - _dragging - 1);
+				int(_rows.size()) - _dragging - 1);
 			const auto to = _dragging + shift;
 			for (auto from = _dragging; from < to; ++from) {
 				std::swap(_rows[from], _rows[from + 1]);
@@ -2003,11 +1997,10 @@ void StickersBox::Inner::updateSelected() {
 		auto actionSel = -1;
 		auto inDragArea = false;
 		if (in && !_rows.empty()) {
-			const auto selectedIndex = floorclamp(
-				local.y() - _itemsTop,
-				_rowHeight,
+			const auto selectedIndex = std::clamp(
+				(local.y() - _itemsTop) / _rowHeight,
 				0,
-				_rows.size() - 1);
+				int(_rows.size()) - 1);
 			selected = selectedIndex;
 			local.setY(local.y() - _itemsTop - selectedIndex * _rowHeight);
 			const auto row = _rows[selectedIndex].get();
@@ -2860,15 +2853,10 @@ void StickersBox::Inner::checkLoadMore() {
 void StickersBox::Inner::readVisibleSets() {
 	const auto itemsVisibleTop = _visibleTop - _itemsTop;
 	const auto itemsVisibleBottom = _visibleBottom - _itemsTop;
-	const auto rowFrom = floorclamp(
+	const auto [rowFrom, rowTo] = Ui::RowsInRange(
 		itemsVisibleTop,
-		_rowHeight,
-		0,
-		_rows.size());
-	const auto rowTo = ceilclamp(
 		itemsVisibleBottom,
 		_rowHeight,
-		0,
 		_rows.size());
 	for (auto i = rowFrom; i < rowTo; ++i) {
 		const auto row = _rows[i].get();

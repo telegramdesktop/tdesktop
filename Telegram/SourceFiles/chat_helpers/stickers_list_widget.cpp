@@ -408,15 +408,10 @@ void StickersListWidget::checkVisibleFeatured(
 	}
 
 	const auto rowHeight = featuredRowHeight();
-	const auto destroyAbove = floorclamp(
+	const auto [destroyAbove, destroyBelow] = Ui::RowsInRange(
 		visibleTop - visibleHeight,
-		rowHeight,
-		0,
-		_officialSets.size());
-	const auto destroyBelow = ceilclamp(
 		visibleBottom + visibleHeight,
 		rowHeight,
-		0,
 		_officialSets.size());
 	for (auto i = 0; i != destroyAbove; ++i) {
 		clearHeavyIn(_officialSets[i]);
@@ -464,15 +459,10 @@ void StickersListWidget::readVisibleFeatured(
 		int visibleTop,
 		int visibleBottom) {
 	const auto rowHeight = featuredRowHeight();
-	const auto rowFrom = floorclamp(
+	const auto [rowFrom, rowTo] = Ui::RowsInRange(
 		visibleTop,
-		rowHeight,
-		0,
-		_featuredSetsCount);
-	const auto rowTo = ceilclamp(
 		visibleBottom,
 		rowHeight,
-		0,
 		_featuredSetsCount);
 	for (auto i = rowFrom; i < rowTo; ++i) {
 		const auto &set = _officialSets[i];
@@ -1607,15 +1597,10 @@ void StickersListWidget::paintSearchShortcutIcon(
 }
 
 void StickersListWidget::paintStickers(Painter &p, QRect clip) {
-	auto fromColumn = floorclamp(
+	auto [fromColumn, toColumn] = Ui::RowsInRange(
 		clip.x() - stickersLeft(),
-		_singleSize.width(),
-		0,
-		_columnCount);
-	auto toColumn = ceilclamp(
 		clip.x() + clip.width() - stickersLeft(),
 		_singleSize.width(),
-		0,
 		_columnCount);
 	if (rtl()) {
 		std::swap(fromColumn, toColumn);
@@ -1884,15 +1869,10 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 			paintMegagroupEmptySet(p, info.rowsTop, buttonSelected);
 			return true;
 		}
-		const auto fromRow = floorclamp(
+		const auto [fromRow, toRow] = Ui::RowsInRange(
 			clip.y() - info.rowsTop,
-			_singleSize.height(),
-			0,
-			info.rowsCount);
-		const auto toRow = ceilclamp(
 			clip.y() + clip.height() - info.rowsTop,
 			_singleSize.height(),
-			0,
 			info.rowsCount);
 		for (auto i = fromRow; i < toRow; ++i) {
 			for (auto j = fromColumn; j < toColumn; ++j) {

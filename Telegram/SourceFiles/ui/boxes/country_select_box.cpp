@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/painter.h"
 #include "ui/screen_reader_mode.h"
+#include "ui/ui_utility.h"
 #include "styles/style_country_select_box.h"
 #include "styles/style_intro.h"
 #include "styles/style_layers.h"
@@ -366,8 +367,11 @@ void CountrySelectBox::Inner::paintEvent(QPaintEvent *e) {
 	if (r.intersects(QRect(0, 0, width(), st::countriesSkip))) {
 		p.fillRect(r.intersected(QRect(0, 0, width(), st::countriesSkip)), st::countryRowBg);
 	}
-	int32 from = std::clamp((r.y() - st::countriesSkip) / _rowHeight, 0, l);
-	int32 to = std::clamp((r.y() + r.height() - st::countriesSkip + _rowHeight - 1) / _rowHeight, 0, l);
+	const auto [from, to] = RowsInRange(
+		r.y() - st::countriesSkip,
+		r.y() + r.height() - st::countriesSkip,
+		_rowHeight,
+		l);
 	for (int32 i = from; i < to; ++i) {
 		auto selected = (i == (_pressed >= 0 ? _pressed : _selected));
 		auto y = st::countriesSkip + i * _rowHeight;

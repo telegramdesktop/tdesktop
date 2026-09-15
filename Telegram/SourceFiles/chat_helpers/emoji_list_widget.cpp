@@ -2370,15 +2370,10 @@ void EmojiListWidget::paint(
 
 	_paintAsPremium = session().premium();
 
-	auto fromColumn = floorclamp(
+	auto [fromColumn, toColumn] = Ui::RowsInRange(
 		clip.x() - _rowsLeft,
-		_singleSize.width(),
-		0,
-		_columnCount);
-	auto toColumn = ceilclamp(
 		clip.x() + clip.width() - _rowsLeft,
 		_singleSize.width(),
-		0,
 		_columnCount);
 	if (rtl()) {
 		std::swap(fromColumn, toColumn);
@@ -2501,15 +2496,10 @@ void EmojiListWidget::paint(
 		}
 		if (clip.top() + clip.height() > info.rowsTop) {
 			ensureLoaded(info.section);
-			auto fromRow = floorclamp(
+			const auto [fromRow, toRow] = Ui::RowsInRange(
 				clip.y() - info.rowsTop,
-				_singleSize.height(),
-				0,
-				info.rowsCount);
-			auto toRow = ceilclamp(
 				clip.y() + clip.height() - info.rowsTop,
 				_singleSize.height(),
-				0,
 				info.rowsCount);
 			for (auto i = fromRow; i < toRow; ++i) {
 				for (auto j = fromColumn; j < toColumn; ++j) {

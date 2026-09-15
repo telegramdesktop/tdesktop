@@ -1145,25 +1145,15 @@ void FieldAutocomplete::Inner::paintStickers(Painter &p, QRect clip) {
 	const auto padding = st::stickerPanPadding;
 	const auto &single = st::stickerPanSize;
 	const auto rows = rowscount(_srows->size(), _stickersPerRow);
-	const auto fromRow = floorclamp(
+	const auto [fromRow, tillRow] = Ui::RowsInRange(
 		clip.y() - padding,
-		single.height(),
-		0,
-		rows);
-	const auto tillRow = ceilclamp(
 		clip.y() + clip.height() - padding,
 		single.height(),
-		0,
 		rows);
-	const auto fromColumn = floorclamp(
+	const auto [fromColumn, tillColumn] = Ui::RowsInRange(
 		clip.x() - padding,
-		single.width(),
-		0,
-		_stickersPerRow);
-	const auto tillColumn = ceilclamp(
 		clip.x() + clip.width() - padding,
 		single.width(),
-		0,
 		_stickersPerRow);
 	for (auto row = fromRow; row != tillRow; ++row) {
 		for (auto column = fromColumn; column != tillColumn; ++column) {

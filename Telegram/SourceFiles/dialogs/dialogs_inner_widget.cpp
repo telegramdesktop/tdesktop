@@ -1397,8 +1397,11 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		}
 		if (!_hashtagResults.empty()) {
 			const auto skip = hashtagsOffset();
-			auto from = floorclamp(r.y() - skip, st::mentionHeight, 0, _hashtagResults.size());
-			auto to = ceilclamp(r.y() + r.height() - skip, st::mentionHeight, 0, _hashtagResults.size());
+			auto [from, to] = Ui::RowsInRange(
+				r.y() - skip,
+				r.y() + r.height() - skip,
+				st::mentionHeight,
+				_hashtagResults.size());
 			p.translate(0, from * st::mentionHeight);
 			if (from < _hashtagResults.size()) {
 				const auto htagleft = st::defaultDialogRow.padding.left();
@@ -1472,8 +1475,11 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			p.translate(0, st::searchedBarHeight);
 
 			auto skip = peerSearchOffset();
-			auto from = floorclamp(r.y() - skip, st::dialogsRowHeight, 0, _peerSearchResults.size());
-			auto to = ceilclamp(r.y() + r.height() - skip, st::dialogsRowHeight, 0, _peerSearchResults.size());
+			auto [from, to] = Ui::RowsInRange(
+				r.y() - skip,
+				r.y() + r.height() - skip,
+				st::dialogsRowHeight,
+				_peerSearchResults.size());
 			p.translate(0, from * st::dialogsRowHeight);
 			if (from < _peerSearchResults.size()) {
 				const auto activePeer = activeEntry.key.peer();
@@ -1560,8 +1566,11 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				p.translate(0, st::searchedBarHeight);
 			}
 			auto skip = previewOffset();
-			auto from = floorclamp(r.y() - skip, _st->height, 0, _previewResults.size());
-			auto to = ceilclamp(r.y() + r.height() - skip, _st->height, 0, _previewResults.size());
+			auto [from, to] = Ui::RowsInRange(
+				r.y() - skip,
+				r.y() + r.height() - skip,
+				_st->height,
+				_previewResults.size());
 			p.translate(0, from * _st->height);
 			if (from < _previewResults.size()) {
 				const auto searchLowerText = (_searchHashOrCashtag == HashOrCashtag::None)
@@ -1644,8 +1653,11 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			p.translate(0, st::searchedBarHeight);
 
 			auto skip = searchedOffset();
-			auto from = floorclamp(r.y() - skip, _st->height, 0, _searchResults.size());
-			auto to = ceilclamp(r.y() + r.height() - skip, _st->height, 0, _searchResults.size());
+			auto [from, to] = Ui::RowsInRange(
+				r.y() - skip,
+				r.y() + r.height() - skip,
+				_st->height,
+				_searchResults.size());
 			p.translate(0, from * _st->height);
 			if (from < _searchResults.size()) {
 				for (; from < to; ++from) {
