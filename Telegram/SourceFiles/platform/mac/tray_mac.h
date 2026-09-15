@@ -64,6 +64,7 @@ private:
 	base::unique_qptr<QMenu> _menu;
 
 	rpl::event_stream<> _showFromTrayRequests;
+	rpl::event_stream<> _aboutToShowRequests;
 
 	rpl::lifetime _actionsLifetime;
 	rpl::lifetime _lifetime;
