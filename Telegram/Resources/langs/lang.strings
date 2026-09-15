@@ -8916,8 +8916,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_import_button" = "Import";
 "lng_wallet_import_paste_error" = "The pasted text must contain 12 or 24 words.";
 "lng_wallet_import_invalid_title" = "Invalid secret words";
-"lng_wallet_import_invalid_spelling" = "Check the spelling and order of your words.";
-"lng_wallet_import_invalid_scheme" = "Only secret words created by a **TWallet-based wallet** can be imported here.";
+"lng_wallet_import_invalid_spelling" = "Check the word order.";
+"lng_wallet_import_invalid_scheme" = "Only a recovery phrase created in Telegram can be imported here.";
 "lng_wallet_import_try_again" = "Try Again";
 "lng_wallet_imported_title" = "Wallet Imported";
 "lng_wallet_imported_text" = "Your wallet was restored from your recovery phrase.";

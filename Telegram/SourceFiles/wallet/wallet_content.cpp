@@ -6661,7 +6661,9 @@ void ShowInvalidSecretWords(
 		.title = tr::lng_wallet_import_invalid_title(),
 	};
 	if (foreign) {
-		args.text = tr::lng_wallet_import_invalid_scheme(tr::now, tr::rich);
+		args.text = tr::lng_wallet_import_invalid_spelling(tr::now)
+			+ u"\n\n"_q
+			+ tr::lng_wallet_import_invalid_scheme(tr::now);
 	} else {
 		args.text = tr::lng_wallet_import_invalid_spelling(tr::now);
 	}
