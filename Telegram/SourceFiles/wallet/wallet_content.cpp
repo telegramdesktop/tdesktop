@@ -10223,9 +10223,18 @@ void Content::setupStrip() {
 		PaintBottomRoundedPlate(p, _strip->rect(), st::windowBgOver);
 	}, _strip->lifetime());
 
+	const auto wallet = &_show->session().wallet();
+	auto minAmount = rpl::single(rpl::empty) | rpl::then(
+		wallet->historyUpdates()
+	) | rpl::map([=] {
+		return wallet->transferMinNanos();
+	}) | rpl::distinct_until_changed(
+	) | rpl::map([](int64 nanos) {
+		return Ui::FormatTonAmount(nanos).full;
+	});
 	const auto hint = Ui::CreateChild<Ui::FlatLabel>(
 		_strip,
-		tr::lng_wallet_rows_hint(),
+		tr::lng_wallet_rows_hidden_below(lt_amount, std::move(minAmount)),
 		st::defaultSubTextLabel);
 	hint->setAttribute(Qt::WA_TransparentForMouseEvents);
 	hint->show();

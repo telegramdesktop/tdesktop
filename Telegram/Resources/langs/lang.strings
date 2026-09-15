@@ -8834,7 +8834,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_chip_username" = "Collectible username";
 "lng_wallet_chip_number" = "Anonymous Number";
 "lng_wallet_chip_nft" = "Collectible";
-"lng_wallet_rows_hint" = "Tap on a transaction to view details.";
+"lng_wallet_rows_hidden_below" = "Transactions under {amount} Grams are hidden.";
 "lng_wallet_details_title" = "Transaction";
 "lng_wallet_details_sender" = "Sender";
 "lng_wallet_details_recipient" = "Recipient";
