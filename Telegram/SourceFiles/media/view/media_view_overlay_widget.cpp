@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
+#include "core/core_screenshot_protection.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "core/ui_integration.h"
@@ -925,10 +926,15 @@ OverlayWidget::OverlayWidget()
 
 	// Toggling between windowed and fullscreen changes the window flags,
 	// and that is a path where Qt recreates the native window, dropping
-	// everything set on the old one. Reapply on every handle change.
-	_window->winIdValue(
-	) | rpl::on_next([=] {
-		Platform::SetWindowScreenshotProtection(_window, _screenshotProtected);
+	// everything set on the old one. Reapply on every handle change,
+	// and after the app-wide protection is applied to all windows.
+	rpl::combine(
+		_window->winIdValue(),
+		Core::App().screenshotProtection().activeValue()
+	) | rpl::on_next([=](WId, bool active) {
+		Platform::SetWindowScreenshotProtection(
+			_window,
+			_screenshotProtected || active);
 	}, lifetime());
 
 	_window->screenValue(
@@ -6083,7 +6089,10 @@ bool OverlayWidget::contentNeedsScreenshotProtection() const {
 
 void OverlayWidget::refreshScreenshotProtection() {
 	_screenshotProtected = contentNeedsScreenshotProtection();
-	Platform::SetWindowScreenshotProtection(_window, _screenshotProtected);
+	Platform::SetWindowScreenshotProtection(
+		_window,
+		(_screenshotProtected
+			|| Core::App().screenshotProtection().active()));
 }
 
 void OverlayWidget::refreshSystemMediaControls() {
