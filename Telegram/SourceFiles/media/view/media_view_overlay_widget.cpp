@@ -5607,6 +5607,9 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 			_pip = nullptr;
 		}
 	}
+	if (_speedBoostActive) {
+		options.speed = _speedBoostSpeed;
+	}
 	_streamed->instance.play(options);
 	if (_streamingStartPaused) {
 		_streamed->instance.pause();
