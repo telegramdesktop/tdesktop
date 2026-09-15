@@ -325,6 +325,7 @@ QSize Photo::countCurrentSize(int newWidth) {
 	const auto showEnlarge = (_parent->media() != this)
 		&& _parent->data()->media()
 		&& !_parent->data()->isSponsored()
+		&& (_parent->context() != Context::MediaEditor)
 		&& _parent->data()->media()->webpage()
 		&& _parent->data()->media()->webpage()->suggestEnlargePhoto()
 		&& (newWidth >= enlargeOuter)
@@ -1203,8 +1204,7 @@ bool Photo::needsBubble() const {
 	}
 	const auto item = _parent->data();
 	return !item->isService()
-		&& (item->repliesAreComments()
-			|| item->externalReply()
+		&& (_parent->hasCommentsButton()
 			|| item->viaBot()
 			|| !item->emptyText()
 			|| _parent->displayReply()

@@ -2102,8 +2102,7 @@ bool Gif::needsBubble() const {
 		return false;
 	}
 	const auto item = _parent->data();
-	return item->repliesAreComments()
-		|| item->externalReply()
+	return _parent->hasCommentsButton()
 		|| item->viaBot()
 		|| !item->emptyText()
 		|| _parent->displayReply()

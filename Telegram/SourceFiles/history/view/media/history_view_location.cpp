@@ -809,8 +809,7 @@ bool Location::needsBubble() const {
 		return true;
 	}
 	const auto item = _parent->data();
-	return item->repliesAreComments()
-		|| item->externalReply()
+	return _parent->hasCommentsButton()
 		|| item->viaBot()
 		|| _parent->displayReply()
 		|| _parent->displayForwardedFrom()

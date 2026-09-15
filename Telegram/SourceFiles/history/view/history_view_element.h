@@ -79,6 +79,7 @@ enum class Context : char {
 	ScheduledTopic,
 	ChatPreview,
 	WelcomeMessages,
+	MediaEditor,
 };
 
 enum class OnlyEmojiAndSpaces : char {
@@ -458,6 +459,7 @@ public:
 	[[nodiscard]] not_null<HistoryItem*> data() const;
 	[[nodiscard]] not_null<History*> history() const;
 	[[nodiscard]] Media *media() const;
+	[[nodiscard]] bool hasCommentsButton() const;
 	[[nodiscard]] Context context() const;
 	void refreshDataId();
 
