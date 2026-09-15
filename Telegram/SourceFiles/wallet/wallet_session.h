@@ -294,8 +294,6 @@ struct PendingSendInfo {
 struct TransferReceipt {
 	QByteArray messageHash;
 	bool gasless = false;
-	int gaslessLeft = 0;
-	TimeId gaslessResetAt = 0;
 };
 
 struct SendComment {
@@ -459,6 +457,8 @@ public:
 
 	void refreshState();
 	void applyUpdate(const MTPDupdateWalletState &data);
+	void applyUpdate(const MTPDupdateSentWalletTransaction &data);
+	void applyUpdate(const MTPDupdateWalletGaslessInfo &data);
 
 	[[nodiscard]] std::shared_ptr<CommentScope> createCommentScope(
 		TransferItem target,
@@ -622,6 +622,8 @@ public:
 	[[nodiscard]] auto lastTransferReceipt() const
 		-> const std::optional<TransferReceipt> &;
 	[[nodiscard]] std::vector<TransferItem> submittedTransactions() const;
+	[[nodiscard]] std::optional<TransferItem> submittedTransaction(
+		const std::string &operationId) const;
 
 private:
 	void ensureLoaded();
@@ -776,10 +778,16 @@ private:
 		std::shared_ptr<const PreparedSend> prepared,
 		TransferSubmissionData data,
 		Fn<void(TransferSubmissionAnswer)> done);
-	void bindTransferReceipt(
+	[[nodiscard]] bool bindTransferReceipt(
 		const std::string &operationId,
 		const std::shared_ptr<const PreparedSend> &prepared,
-		TransferReceipt receipt);
+		const MTPDupdateSentWalletTransaction &data);
+	[[nodiscard]] bool applySubmittedUpdate(
+		const std::string &operationId,
+		const MTPDupdateSentWalletTransaction &data);
+	[[nodiscard]] bool adoptSubmittedTransaction(
+		const std::string &operationId,
+		TransferItem item);
 	[[nodiscard]] bool transferOperationCurrent(
 		const TransferWalletIdentity &identity,
 		int generation,

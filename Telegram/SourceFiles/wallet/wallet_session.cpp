@@ -7,7 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "wallet/wallet_session.h"
 
+#include "apiwrap.h"
 #include "base/openssl_help.h"
+#include "base/random.h"
 #include "base/unixtime.h"
 #include "data/components/recent_money_recipients.h"
 #include "data/data_peer_id.h"
@@ -268,7 +270,7 @@ constexpr auto kOwnershipProofSignatureSize = 64;
 }
 
 [[nodiscard]] GaslessInfo GaslessInfoFromServer(
-		const MTPDwallet_gaslessInfo &data) {
+		const MTPDupdateWalletGaslessInfo &data) {
 	const auto relayer = ParseAddress(qs(data.vrelayer_address()));
 	return GaslessInfo{
 		.relayer = (relayer && !relayer->testnet)
@@ -1348,7 +1350,7 @@ void SetDirectedAmount(
 }
 
 [[nodiscard]] std::optional<TransferReceipt> ReceiptFromServer(
-		const MTPDwallet_sentTransfer &data) {
+		const MTPDupdateSentWalletTransaction &data) {
 	// The contract names msg_hash a string and fixes no encoding for
 	// it, so the only rule this client may impose is that a receipt
 	// addresses a message at all: the bytes are kept exactly as they
@@ -1363,9 +1365,42 @@ void SetDirectedAmount(
 	return TransferReceipt{
 		.messageHash = hash,
 		.gasless = data.is_gasless(),
-		.gaslessLeft = data.vgasless_left().v,
-		.gaslessResetAt = data.vgasless_reset_at().v,
 	};
+}
+
+[[nodiscard]] const MTPDupdateSentWalletTransaction *SentUpdateFromServer(
+		const MTPUpdates &updates) {
+	auto result = static_cast<const MTPUpdate*>(nullptr);
+	auto conflicting = false;
+	const auto inspect = [&](const MTPUpdate &update) {
+		if (update.type() != mtpc_updateSentWalletTransaction || conflicting) {
+			return;
+		} else if (!result) {
+			result = &update;
+			return;
+		}
+		auto previous = mtpBuffer();
+		auto next = mtpBuffer();
+		result->write(previous);
+		update.write(next);
+		conflicting = (previous != next);
+	};
+	const auto inspectVector = [&](const MTPVector<MTPUpdate> &list) {
+		for (const auto &update : list.v) {
+			inspect(update);
+		}
+	};
+	updates.match([&](const MTPDupdates &data) {
+		inspectVector(data.vupdates());
+	}, [&](const MTPDupdatesCombined &data) {
+		inspectVector(data.vupdates());
+	}, [&](const MTPDupdateShort &data) {
+		inspect(data.vupdate());
+	}, [](const auto &) {
+	});
+	return (result && !conflicting)
+		? &result->c_updateSentWalletTransaction()
+		: nullptr;
 }
 
 } // namespace
@@ -1891,12 +1926,17 @@ bool GaslessTerms::eligible(
 }
 
 GaslessTerms Session::gaslessTerms() {
+	const auto weak = base::make_weak(_engine.get());
 	refreshGaslessInfo();
-	return _gaslessTerms.current();
+	return weak ? _gaslessTerms.current() : GaslessTerms();
 }
 
 rpl::producer<GaslessTerms> Session::gaslessTermsValue() {
+	const auto weak = base::make_weak(_engine.get());
 	refreshGaslessInfo();
+	if (!weak) {
+		return rpl::single(GaslessTerms());
+	}
 	return _gaslessTerms.value();
 }
 
@@ -1904,18 +1944,29 @@ void Session::refreshGaslessInfo(bool force) {
 	if (_gaslessRefreshing) {
 		return;
 	}
+	const auto weak = base::make_weak(_engine.get());
 	_gaslessRefreshing = true;
-	const auto guard = gsl::finally([&] { _gaslessRefreshing = false; });
+	const auto guard = gsl::finally([=, this] {
+		if (weak) {
+			_gaslessRefreshing = false;
+		}
+	});
 	const auto terms = _gaslessTerms.current();
 	const auto identity = transferWalletIdentity();
 	if (terms.identity != identity) {
 		resetGaslessInfo();
+		if (!weak) {
+			return;
+		}
 	} else if (terms.transferMinNanos != TransferMinNanos(_session)
 		|| terms.configuredMinNanos != GaslessMinNanos(_session)) {
 		retireGaslessRequest();
 		_gaslessExpiresAt = 0;
 	}
 	applyGaslessTerms(_gaslessTerms.current());
+	if (!weak) {
+		return;
+	}
 	_gaslessRefreshWanted = _gaslessRefreshWanted || force;
 	if (!_preview || _preview->owners.empty() || !identity) {
 		retireGaslessRequest();
@@ -1927,6 +1978,9 @@ void Session::refreshGaslessInfo(bool force) {
 		retireGaslessRequest();
 		_gaslessExpiresAt = 0;
 		applyGaslessTerms(_gaslessTerms.current());
+		if (!weak) {
+			return;
+		}
 	}
 	if (!_gaslessRequestId
 		&& (!_gaslessTerms.current().fresh || _gaslessRefreshWanted)
@@ -1934,7 +1988,7 @@ void Session::refreshGaslessInfo(bool force) {
 			|| (now - _gaslessRequestedAt >= kGaslessRetryInterval))) {
 		requestGaslessInfo();
 	}
-	if (!_preview || _preview->owners.empty()
+	if (!weak || !_preview || _preview->owners.empty()
 		|| !transferWalletIdentityCurrent(*identity)) {
 		return;
 	}
@@ -1965,28 +2019,33 @@ void Session::requestGaslessInfo() {
 	}
 	const auto serial = ++_gaslessRequestSerial;
 	const auto generation = _networkGeneration;
+	const auto weak = base::make_weak(_engine.get());
+	const auto weakSession = base::make_weak(_session);
 	_gaslessRequestedAt = crl::now();
 	_gaslessRefreshWanted = false;
-	const auto current = [=] {
-		return (serial == _gaslessRequestSerial)
-			&& (generation == _networkGeneration)
+	const auto ownsRequest = [=, this] {
+		return weak
+			&& (serial == _gaslessRequestSerial)
+			&& (generation == _networkGeneration);
+	};
+	const auto current = [=, this] {
+		return ownsRequest()
 			&& transferWalletIdentityCurrent(*identity)
 			&& _preview
 			&& !_preview->owners.empty();
 	};
 	_gaslessRequestId = _stateApi.request(
 		MTPwallet_GetGaslessInfo()
-	).done([=](const MTPwallet_GaslessInfo &result) {
-		if (!current()) {
-			return;
+	).done([=, this](const MTPUpdates &result) {
+		if (ownsRequest()) {
+			_gaslessRequestId = 0;
 		}
-		refreshGaslessInfo();
-		if (!current()) {
-			return;
+		if (weakSession) {
+			weakSession->api().applyUpdates(result);
 		}
-		_gaslessRequestId = 0;
-		applyGaslessInfo(GaslessInfoFromServer(result.data()), true);
-		refreshGaslessInfo();
+		if (weak) {
+			refreshGaslessInfo();
+		}
 	}).fail([=](const MTP::Error &) {
 		if (!current()) {
 			return;
@@ -2005,8 +2064,13 @@ void Session::retireGaslessRequest() {
 }
 
 void Session::resetGaslessInfo() {
+	const auto weak = base::make_weak(_engine.get());
 	const auto refreshing = std::exchange(_gaslessRefreshing, true);
-	const auto guard = gsl::finally([&] { _gaslessRefreshing = refreshing; });
+	const auto guard = gsl::finally([=, this] {
+		if (weak) {
+			_gaslessRefreshing = refreshing;
+		}
+	});
 	retireGaslessRequest();
 	_gaslessRequestedAt = 0;
 	_gaslessExpiresAt = 0;
@@ -2173,6 +2237,49 @@ void Session::applyState(const MTPWalletState &state, bool pushed) {
 
 void Session::applyUpdate(const MTPDupdateWalletState &data) {
 	applyState(data.vstate(), true);
+}
+
+void Session::applyUpdate(const MTPDupdateSentWalletTransaction &data) {
+	const auto &hash = data.vmsg_hash().v;
+	if (hash.isEmpty()) {
+		return;
+	}
+	auto operationId = std::string();
+	auto ambiguous = false;
+	const auto match = [&](const std::string &id) {
+		if (operationId.empty()) {
+			operationId = id;
+		} else if (operationId != id) {
+			ambiguous = true;
+		}
+	};
+	for (const auto &entry : _submitted) {
+		if (entry.generation == _networkGeneration
+			&& transferWalletIdentityCurrent(entry.identity)
+			&& entry.receipt
+			&& entry.receipt->messageHash == hash) {
+			match(entry.operationId);
+		}
+	}
+	if (_submission
+		&& submissionCurrent(_submission->operationId, _submission->prepared)
+		&& _submission->receipt
+		&& _submission->receipt->messageHash == hash) {
+		match(_submission->operationId);
+	}
+	if (!operationId.empty() && !ambiguous) {
+		if (!applySubmittedUpdate(operationId, data)) {
+			LOG(("Wallet Error: conflicting pushed transfer receipt."));
+		}
+	}
+}
+
+void Session::applyUpdate(const MTPDupdateWalletGaslessInfo &data) {
+	const auto weak = base::make_weak(_engine.get());
+	applyGaslessInfo(GaslessInfoFromServer(data), true);
+	if (weak) {
+		refreshGaslessInfo();
+	}
 }
 
 void Session::setPresence(Presence presence) {
@@ -5763,6 +5870,29 @@ std::vector<TransferItem> Session::submittedTransactions() const {
 	return result;
 }
 
+std::optional<TransferItem> Session::submittedTransaction(
+		const std::string &operationId) const {
+	const auto entry = ranges::find(
+		_submitted,
+		operationId,
+		&SubmittedTransfer::operationId);
+	if (entry == end(_submitted)
+		|| entry->generation != _networkGeneration
+		|| !transferWalletIdentityCurrent(entry->identity)) {
+		return std::nullopt;
+	}
+	if (!entry->canonicalId.isEmpty()) {
+		const auto item = ranges::find(
+			_history,
+			entry->canonicalId,
+			&TransferItem::id);
+		if (item != end(_history)) {
+			return *item;
+		}
+	}
+	return entry->item ? std::make_optional(*entry->item) : std::nullopt;
+}
+
 int SendCommentBytes(const QString &text) {
 	return text.toUtf8().size();
 }
@@ -6297,6 +6427,19 @@ void Session::send(
 		fail(SendError::Failed);
 		return;
 	}
+	const auto stored = submittedTransferRecord(operationId, identity);
+	if (!stored) {
+		fail(SendError::Failed);
+		return;
+	}
+	const auto pending = PendingSendInfo{
+		.operationId = operationId,
+		.walletIdentity = identity,
+		.posted = stored->posted,
+		.amountNano = stored->amountNano,
+		.destination = stored->destination,
+		.comment = stored->comment,
+	};
 	++owner->second;
 	++_sendRevision;
 	_lastReceipt.reset();
@@ -6310,27 +6453,27 @@ void Session::send(
 			return;
 		}
 		const auto record = submittedTransferRecord(operationId, identity);
-		if (!record) {
+		const auto held = submittedTransfer(operationId);
+		if (!record
+			&& (!held
+				|| held->client.lock() != client
+				|| held->canonicalId.isEmpty())) {
 			return;
 		}
-		if (record->handoff != TransferHandoff::Possible) {
+		if (record && record->handoff != TransferHandoff::Possible) {
 			record->handoff = TransferHandoff::Possible;
 			_submittedTransfersDirty = true;
 		}
-		_pending = PendingSendInfo{
-			.operationId = operationId,
-			.walletIdentity = identity,
-			.posted = record->posted,
-			.amountNano = record->amountNano,
-			.destination = record->destination,
-			.comment = record->comment,
-		};
-		const auto entry = upsertSubmittedTransfer(
+		_pending = pending;
+		const auto entry = held ? held : upsertSubmittedTransfer(
 			operationId,
 			identity,
 			generation,
 			client);
-		if (entry && _submission->receipt) {
+		if (entry
+			&& !entry->receipt
+			&& entry->canonicalId.isEmpty()
+			&& _submission->receipt) {
 			entry->receipt = _submission->receipt;
 		}
 		if (!persistSubmittedTransfers()) {
@@ -6670,23 +6813,38 @@ void Session::submitTransfer(
 	// and a request still queued at that moment is recovered by the
 	// engine journal on the next launch.
 	_submission->rpcStarted = true;
+	const auto weakSession = base::make_weak(_session);
+	auto randomId = base::RandomValue<uint64>();
+	while (!randomId) {
+		randomId = base::RandomValue<uint64>();
+	}
 	using Flag = MTPwallet_SendTransfer::Flag;
 	_stateApi.request(MTPwallet_SendTransfer(
 		MTP_flags(data.gasless ? Flag::f_data_gasless : Flag(0)),
 		MTP_bytes(data.normal),
-		data.gasless ? MTP_bytes(*data.gasless) : MTPbytes()
-	)).done([=](const MTPwallet_SentTransfer &result) {
-		const auto receipt = ReceiptFromServer(result.data());
-		if (!receipt) {
-			LOG(("Wallet Error: wallet.sentTransfer receipt unusable."));
-			done({
+		data.gasless ? MTP_bytes(*data.gasless) : MTPbytes(),
+		MTP_long(randomId)
+	)).done([=, this](const MTPUpdates &result) {
+		const auto account = weakSession;
+		const auto finish = done;
+		const auto sent = SentUpdateFromServer(result);
+		const auto receipt = sent ? ReceiptFromServer(*sent) : std::nullopt;
+		auto accepted = receipt.has_value();
+		if (accepted && weak) {
+			accepted = bindTransferReceipt(operationId, prepared, *sent);
+		}
+		if (account) {
+			account->api().applyUpdates(result);
+		}
+		if (!accepted) {
+			LOG(("Wallet Error: wallet.sendTransfer receipt unusable."));
+			finish({
 				TransferSubmissionOutcome::Uncertain,
 				u"WALLET_TRANSFER_RECEIPT_INVALID"_q,
 			});
 			return;
 		}
-		bindTransferReceipt(operationId, prepared, *receipt);
-		done({ TransferSubmissionOutcome::Accepted });
+		finish({ TransferSubmissionOutcome::Accepted });
 	}).fail([=](const MTP::Error &error) {
 		LOG(("Wallet Error: wallet.sendTransfer failed: %1"
 			).arg(error.type()));
@@ -6701,82 +6859,122 @@ void Session::submitTransfer(
 	}).handleAllErrors().send();
 }
 
-void Session::bindTransferReceipt(
+bool Session::bindTransferReceipt(
 		const std::string &operationId,
 		const std::shared_ptr<const PreparedSend> &prepared,
-		TransferReceipt receipt) {
+		const MTPDupdateSentWalletTransaction &data) {
+	if (!prepared || !transferOperationCurrent(
+			prepared->identity,
+			prepared->generation,
+			prepared->client)) {
+		return true;
+	}
+	const auto entry = submittedTransfer(operationId);
+	if (!submissionCurrent(operationId, prepared)
+		&& (!entry || entry->client.lock() != prepared->client)) {
+		return true;
+	}
+	return applySubmittedUpdate(operationId, data);
+}
+
+bool Session::applySubmittedUpdate(
+		const std::string &operationId,
+		const MTPDupdateSentWalletTransaction &data) {
+	const auto receipt = ReceiptFromServer(data);
+	if (!receipt) {
+		return false;
+	}
 	const auto weak = base::make_weak(_engine.get());
-	const auto current = [=, this] {
-		return weak && submissionCurrent(operationId, prepared);
-	};
-	const auto identity = prepared->identity;
-	const auto client = prepared->client;
-	if (prepared->generation != _networkGeneration
-		|| !transferWalletIdentityCurrent(identity)
-		|| !client
-		|| receipt.messageHash.isEmpty()) {
-		return;
+	const auto identity = transferWalletIdentity();
+	const auto generation = _networkGeneration;
+	if (!identity) {
+		return false;
 	}
-	const auto active = current();
-	const auto found = submittedTransfer(operationId);
-	const auto entry = (found && found->client.lock() == client)
-		? found
-		: nullptr;
-	if (!active && !entry) {
-		return;
-	}
-	if ((entry && entry->receipt) || (active && _submission->receipt)) {
-		return;
-	}
-	if (const auto record = submittedTransferRecord(operationId, identity)) {
-		if (!record->messageHash) {
-			record->messageHash = receipt.messageHash;
-			record->handoff = TransferHandoff::Possible;
-			_submittedTransfersDirty = true;
+	auto changed = false;
+	{
+		const auto active = _submission
+			&& submissionCurrent(operationId, _submission->prepared);
+		auto entry = submittedTransfer(operationId);
+		const auto record = submittedTransferRecord(operationId, *identity);
+		const auto conflicts = [&](const QByteArray &hash) {
+			return !hash.isEmpty() && hash != receipt->messageHash;
+		};
+		if ((active && entry
+				&& entry->client.lock() != _submission->prepared->client)
+			|| (record && record->handoff != TransferHandoff::Possible)
+			|| (entry && entry->receipt
+				&& conflicts(entry->receipt->messageHash))
+			|| (active && _submission->receipt
+				&& conflicts(_submission->receipt->messageHash))
+			|| (record && record->messageHash
+				&& conflicts(*record->messageHash))) {
+			return false;
 		}
-	}
-	if (active) {
-		_submission->receipt = receipt;
-		_lastReceipt = receipt;
-	}
-	const auto lookup = entry && entry->canonicalId.isEmpty();
-	if (lookup) {
-		entry->receipt = receipt;
+		if (ranges::any_of(_submitted, [&](const auto &other) {
+				return other.operationId != operationId
+					&& other.generation == generation
+					&& other.identity == *identity
+					&& other.receipt
+					&& other.receipt->messageHash == receipt->messageHash;
+			})) {
+			return false;
+		}
+		if (!entry && active) {
+			entry = upsertSubmittedTransfer(
+				operationId,
+				*identity,
+				generation,
+				_submission->prepared->client);
+			changed = (entry != nullptr);
+		}
+		if (!entry) {
+			return false;
+		}
+		if (active
+			&& (!_submission->receipt
+				|| _submission->receipt->messageHash.isEmpty())) {
+			_submission->receipt = receipt;
+			_lastReceipt = receipt;
+			changed = true;
+		}
+		if (record && (!record->messageHash || record->messageHash->isEmpty())) {
+			record->messageHash = receipt->messageHash;
+			_submittedTransfersDirty = true;
+			changed = true;
+		}
+		if ((!entry->receipt || entry->receipt->messageHash.isEmpty())
+			&& (entry->canonicalId.isEmpty() || entry->item)) {
+			entry->receipt = receipt;
+			changed = true;
+		}
+		if (const auto transaction = data.vtransaction()) {
+			changed = !entry->lookupStopped || changed;
+			entry->lookupStopped = true;
+			changed = adoptSubmittedTransaction(
+				operationId,
+				HistoryItemFromServer(*transaction, identity)) || changed;
+		}
 	}
 	if (!persistSubmittedTransfers()) {
-		LOG(("Wallet Error: received transfer token remains dirty."));
+		LOG(("Wallet Error: received transfer facts remain dirty."));
 	}
-	if (active) {
-		// The receipt states what the server actually charged this transfer
-		// against, so its counters replace the offer the confirmation was
-		// built on before any next quote is read from the terms.
-		const auto refreshing = std::exchange(_gaslessRefreshing, true);
-		const auto guard = gsl::finally([&] {
-			if (weak) {
-				_gaslessRefreshing = refreshing;
-			}
-		});
-		retireGaslessRequest();
-		applyGaslessTerms(_gaslessTerms.current());
-		auto info = _gaslessTerms.current().info.value_or(GaslessInfo());
-		info.left = receipt.gaslessLeft;
-		info.resetAt = receipt.gaslessResetAt;
-		if (info.left < 0
-			|| info.resetAt < 0
-			|| (info.resetAt > 0 && info.resetAt <= base::unixtime::now())) {
-			_gaslessExpiresAt = 0;
-		}
-		applyGaslessInfo(std::move(info), false);
+	dropSubmittedIfListed();
+	if (!changed) {
+		return true;
 	}
-	if (!weak) {
-		return;
+	_historyUpdates.fire({});
+	if (!weak
+		|| generation != _networkGeneration
+		|| !transferWalletIdentityCurrent(*identity)) {
+		return true;
 	}
-	if (lookup) {
+	updateListsGate();
+	if (weak
+		&& generation == _networkGeneration
+		&& transferWalletIdentityCurrent(*identity)) {
 		startSubmittedLookup();
 	}
-	if (current()) {
-		refreshGaslessInfo(true);
-	}
+	return true;
 }
 
 bool Session::transferOperationCurrent(
@@ -6947,11 +7145,16 @@ Session::SubmittedTransfer *Session::upsertSubmittedTransfer(
 	}
 	if (_submitted.size() >= kSubmittedTransferMaxRecords) {
 		_submitted.erase(ranges::remove_if(_submitted, [&](const auto &entry) {
-			return (!entry.fallback && !entry.item)
-				|| ((entry.terminal || entry.item)
-					&& !submittedTransferRecord(
-						entry.operationId,
-						entry.identity));
+			const auto active = (_submission
+					&& _submission->operationId == entry.operationId)
+				|| (_sendUnresolved
+					&& _unresolvedOperationId == entry.operationId);
+			return !active
+				&& ((!entry.fallback && !entry.item)
+					|| ((entry.terminal || entry.item)
+						&& !submittedTransferRecord(
+							entry.operationId,
+							entry.identity)));
 		}), end(_submitted));
 	}
 	if (_submitted.size() >= kSubmittedTransferMaxRecords) {
@@ -7037,6 +7240,7 @@ bool Session::submittedLookupCurrent(
 	return i != end(_submitted)
 		&& i->identity == request->identity
 		&& i->generation == request->generation
+		&& i->canonicalId.isEmpty()
 		&& i->receipt
 		&& i->receipt->messageHash == request->messageHash;
 }
@@ -7174,35 +7378,28 @@ void Session::applySubmittedLookup(
 	if (found == end(loaded)) {
 		return;
 	}
-	const auto entry = submittedTransfer(request->operationId);
-	if (!entry) {
-		return;
-	}
-	entry->lookupStopped = true;
-	_submittedTransfersDirty = true;
 	const auto id = found->id;
 	const auto ambiguous = ranges::any_of(loaded, [&](const auto &item) {
 		return candidate(item) && item.id != id;
 	});
-	const auto conflict = (!entry->canonicalId.isEmpty()
-		&& entry->canonicalId != id)
-		|| ranges::any_of(_submitted, [&](const auto &other) {
-			return other.operationId != entry->operationId
-				&& other.canonicalId == id;
-		});
-	if (ambiguous || conflict) {
+	if (ambiguous) {
+		if (const auto entry = submittedTransfer(request->operationId)) {
+			entry->lookupStopped = true;
+		}
 		LOG(("Wallet Error: wallet.getTransactionsByMsgHash sent "
-			"ambiguous or conflicting transaction identity."));
+			"ambiguous transaction identity."));
 		if (!persistSubmittedTransfers()) {
 			LOG(("Wallet Error: stopped transfer lookup remains dirty."));
 		}
 		return;
 	}
-	entry->canonicalId = id;
-	entry->item = std::make_unique<TransferItem>(std::move(*found));
-	entry->fallback.reset();
-	entry->confirmedHash.clear();
+	const auto changed = adoptSubmittedTransaction(
+		request->operationId,
+		std::move(*found));
 	dropSubmittedIfListed();
+	if (!changed) {
+		return;
+	}
 	_historyUpdates.fire({});
 	if (!weak
 		|| request->generation != _networkGeneration
@@ -7215,6 +7412,46 @@ void Session::applySubmittedLookup(
 		&& transferWalletIdentityCurrent(request->identity)) {
 		updatePollingState();
 	}
+}
+
+bool Session::adoptSubmittedTransaction(
+		const std::string &operationId,
+		TransferItem item) {
+	const auto entry = submittedTransfer(operationId);
+	if (!entry || item.walletIdentity != entry->identity) {
+		return false;
+	}
+	auto changed = !entry->lookupStopped;
+	entry->lookupStopped = true;
+	if (_lookup
+		&& _lookup->operationId == operationId
+		&& _lookup->identity == entry->identity
+		&& _lookup->generation == entry->generation) {
+		dropSubmittedLookup();
+		changed = true;
+	}
+	const auto conflict = item.id.isEmpty()
+		|| (!entry->canonicalId.isEmpty() && entry->canonicalId != item.id)
+		|| ranges::any_of(_submitted, [&](const auto &other) {
+			return other.operationId != operationId
+				&& other.generation == entry->generation
+				&& other.identity == entry->identity
+				&& other.canonicalId == item.id;
+		});
+	if (conflict) {
+		LOG(("Wallet Error: sent transfer has unusable or conflicting "
+			"transaction identity."));
+	} else if (entry->canonicalId.isEmpty()) {
+		entry->canonicalId = item.id;
+		entry->item = std::make_unique<TransferItem>(std::move(item));
+		entry->fallback.reset();
+		entry->confirmedHash.clear();
+		changed = true;
+	}
+	if (!persistSubmittedTransfers()) {
+		LOG(("Wallet Error: canonical transfer facts remain dirty."));
+	}
+	return changed;
 }
 
 void Session::dropSubmittedIfListed() {

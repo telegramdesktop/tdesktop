@@ -4318,19 +4318,34 @@ void WalletSendConfirmBox(
 						refuse(error);
 						return;
 					}
-					const auto &receipt = wallet->lastTransferReceipt();
+					const auto pending = wallet->pendingSend();
+					auto item = pending
+						? wallet->submittedTransaction(pending->operationId)
+						: std::nullopt;
+					if (!item && pending) {
+						item = ItemFromPending(*pending);
+					}
+					const auto receipt = wallet->lastTransferReceipt();
 					const auto sent = receipt && receipt->gasless
 						? tr::lng_wallet_sent_gasless_toast
 						: tr::lng_wallet_sent_toast;
-					show->hideLayer();
-					if (error == SendError::None) {
-						show->showToast(sent(
+					const auto toast = (error == SendError::None)
+						? sent(
 							tr::now,
 							lt_address,
-							ShortAddressForm(flow.displayForm)));
+							ShortAddressForm(flow.displayForm))
+						: QString();
+					const auto target = show;
+					const auto valid = sessionValid;
+					target->hideLayer();
+					if (!valid()) {
+						return;
 					}
-					if (const auto &pending = wallet->pendingSend()) {
-						ShowWalletTransactionBox(show, ItemFromPending(*pending));
+					if (!toast.isEmpty()) {
+						target->showToast(toast);
+					}
+					if (valid() && item) {
+						ShowWalletTransactionBox(target, *item);
 					}
 				}));
 		}));

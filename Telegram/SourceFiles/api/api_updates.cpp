@@ -2890,6 +2890,16 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		_session->wallet().applyUpdate(data);
 	} break;
 
+	case mtpc_updateSentWalletTransaction: {
+		const auto &data = update.c_updateSentWalletTransaction();
+		_session->wallet().applyUpdate(data);
+	} break;
+
+	case mtpc_updateWalletGaslessInfo: {
+		const auto &data = update.c_updateWalletGaslessInfo();
+		_session->wallet().applyUpdate(data);
+	} break;
+
 	case mtpc_updatePaidReactionPrivacy: {
 		const auto &data = update.c_updatePaidReactionPrivacy();
 		_session->api().globalPrivacy().updatePaidReactionShownPeer(

@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QUrl>
 
 #include <array>
+#include <chrono>
 #include <condition_variable>
 #include <deque>
 #include <mutex>
@@ -38,6 +39,7 @@ namespace {
 namespace engine = wallet_engine;
 
 constexpr auto kMaxTrackedEarlyCancels = 64;
+constexpr auto kRoutedSendTimeout = std::chrono::milliseconds(40000);
 
 // The open recordings of the engine call running on this thread.
 thread_local EngineSecretStores *t_recordingStores = nullptr;
@@ -522,7 +524,7 @@ void TransferSubmission::submit(
 
 // Implements the engine's status-less provider callback over the main-thread
 // MTProto proxy transport. execute_statusless() blocks the calling engine
-// worker until the provider body arrives, the engine-supplied timeout
+// worker until the provider body arrives, the applicable request timeout
 // expires, the request is cancelled, or the Engine closes. It hands the
 // engine the body and nothing else: the proxy carries no status code, no
 // response headers and no final URL, so the bridge asserts none of them.
@@ -599,7 +601,8 @@ public:
 		};
 		const auto normalize = (gram.endpoint == u"/api/v3/nft/items"_q);
 		const auto submission = TransferSubmission::Current();
-		if (submission && IsSendBocRequest(gram)) {
+		const auto routedSend = submission && IsSendBocRequest(gram);
+		if (routedSend) {
 			// The engine submits only the normal delivery form. Its fee-free
 			// alternative was signed beside it for the same seqno and validity
 			// window and travels with the recording, so both reach the server
@@ -616,10 +619,12 @@ public:
 				// The routed submission never sets pending->requestId, so
 				// the timeout below leaves its MTProto request in flight on
 				// purpose: cancelling cannot un-send a broadcast, the late
-				// wallet.sentTransfer is the only source of the receipt and
-				// the session binds it to the still-unresolved operation,
-				// and the engine is already SubmissionUnknown by then and
-				// blocks a replacement, so the late answer is pure gain.
+				// Updates answer carries updateSentWalletTransaction, which
+				// the session binds to the still-unresolved operation. The
+				// routed wait allows the server's 30-second hold plus a
+				// 10-second transport margin. After that, the engine is
+				// SubmissionUnknown and blocks a replacement, so an even
+				// later answer can still settle the operation's receipt.
 				crl::on_main(_weak, [=] {
 					{
 						auto lock = std::lock_guard(pending->mutex);
@@ -694,7 +699,9 @@ public:
 		auto lock = std::unique_lock(pending->mutex);
 		pending->ready.wait_for(
 			lock,
-			std::chrono::milliseconds(request.timeout_ms),
+			routedSend
+				? kRoutedSendTimeout
+				: std::chrono::milliseconds(request.timeout_ms),
 			[&] { return pending->done; });
 		if (!pending->done) {
 			pending->done = true;
