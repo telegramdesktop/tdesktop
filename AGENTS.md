@@ -46,12 +46,21 @@ done | sort
 - Browsing is read-only. Listing, summarizing, comparing, or recommending tasks
   never edits `state.yaml`, publishes a lifecycle commit, or starts
   implementation, no matter how small the task looks.
-- Acting on tasks goes through the workflow skills instead of by hand:
-  `perform-task <slug or full id>` starts or resumes and performs exactly one
-  known task, `continue` processes the inbox and drains eligible shared work,
-  and new requests are written to the ignored `../ai-tdesktop/inbox/inbox.md`
-  and routed by `process-inbox`. Source commits owned by a task use the
-  three-line form described under `## Commits`.
+- Acting on an existing queue task goes through the workflow skills instead of
+  by hand: `perform-task <slug or full id>` starts or resumes and performs
+  exactly one known task, and `continue` drains eligible shared work. Source
+  commits owned by a task use the three-line form described under `## Commits`.
+- A request the user makes in conversation is ordinary work: do it directly in
+  this checkout. Do not write it to the ignored `../ai-tdesktop/inbox/inbox.md`,
+  and do not run `process-inbox` or `continue` over it, unless the user asks for
+  that. The queue's planning, review and evidence campaign costs hours, so
+  spending it on a request the user expected you to just do is a real error, not
+  thoroughness.
+- You may *offer* the queue when the work genuinely earns it: a large or
+  ambiguous change, one whose correctness needs a real testing campaign, or one
+  that is safety-, security- or data-safety-critical. Make the offer in one
+  line, say why, and route it only after the user approves. Absent approval,
+  implement it directly and say what you skipped.
 - Never guess between similarly named tasks. Report the matching full ids and
   let the user choose.
 
