@@ -30,6 +30,14 @@ static_assert(kDisplaySkipped != kTimeUnknown);
 
 using ::Media::ValidFrameSize;
 
+[[nodiscard]] crl::time WorldTimeDelay(crl::time trackDelay, float64 speed) {
+	if (trackDelay <= 0 || speed <= 0. || speed == 1.) {
+		return trackDelay;
+	}
+	const auto adjusted = base::SafeRound(trackDelay / speed);
+	return (adjusted < 1.) ? crl::time(1) : crl::time(adjusted);
+}
+
 [[nodiscard]] QImage ConvertToARGB32(
 		FrameFormat format,
 		const FrameYUV &data) {
@@ -320,7 +328,10 @@ void VideoTrackObject::readFrames() {
 auto VideoTrackObject::readEnoughFrames(crl::time trackTime)
 -> ReadEnoughState {
 	const auto dropStaleFrames = !_options.waitForMarkAsShown;
-	const auto state = _shared->prepareState(trackTime, dropStaleFrames);
+	const auto state = _shared->prepareState(
+		trackTime,
+		_options.speed,
+		dropStaleFrames);
 	return v::match(state, [&](Shared::PrepareFrame frame)
 	-> ReadEnoughState {
 		while (true) {
@@ -877,6 +888,7 @@ not_null<const VideoTrack::Frame*> VideoTrack::Shared::getFrame(
 
 auto VideoTrack::Shared::prepareState(
 	crl::time trackTime,
+	float64 playbackSpeed,
 	bool dropStaleFrames)
 -> PrepareState {
 	const auto prepareNext = [&](int index) -> PrepareState {
@@ -906,7 +918,9 @@ auto VideoTrack::Shared::prepareState(
 			Assert(frame->position >= trackTime);
 			Assert(frame->position - trackTime + 1 > 0);
 
-			return PrepareNextCheck(frame->position - trackTime + 1);
+			return PrepareNextCheck(WorldTimeDelay(
+				frame->position - trackTime + 1,
+				playbackSpeed));
 		}
 	};
 	const auto finishPrepare = [&](int index) -> PrepareState {
@@ -983,7 +997,8 @@ auto VideoTrack::Shared::presentFrame(
 			|| IsStale(frame, time.trackTime)) {
 			return { kTimeUnknown, kTimeUnknown };
 		}
-		return { kTimeUnknown, (frame->position - time.trackTime + 1) };
+		const auto delay = frame->position - time.trackTime + 1;
+		return { kTimeUnknown, WorldTimeDelay(delay, playbackSpeed) };
 	};
 
 	switch (counter()) {
