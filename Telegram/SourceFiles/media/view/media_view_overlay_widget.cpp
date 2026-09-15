@@ -156,6 +156,16 @@ using RecognitionCacheMap = base::flat_map<RecognitionId, RecognitionResult>;
 	return cache.get();
 }
 
+[[nodiscard]] int LayoutIndependentKey(not_null<QKeyEvent*> e) {
+	if constexpr (Platform::IsWindows()) {
+		const auto native = int(e->nativeVirtualKey());
+		if (native >= Qt::Key_A && native <= Qt::Key_Z) {
+			return native;
+		}
+	}
+	return e->key();
+}
+
 [[nodiscard]] bool InstantViewMediaItemMatches(
 		const HistoryMessageMediaForInstantView::Item &item,
 		PhotoData *photo,
@@ -7292,7 +7302,7 @@ void OverlayWidget::handleKeyPress(not_null<QKeyEvent*> e) {
 	}
 	_processingKeyPress = true;
 	const auto guard = gsl::finally([&] { _processingKeyPress = false; });
-	const auto key = e->key();
+	const auto key = LayoutIndependentKey(e);
 	const auto modifiers = e->modifiers();
 	const auto ctrl = modifiers.testFlag(Qt::ControlModifier);
 	if (_stories) {
@@ -8714,7 +8724,7 @@ bool OverlayWidget::filterApplicationEvent(
 	const auto type = e->type();
 	if (type == QEvent::ShortcutOverride) {
 		const auto event = static_cast<QKeyEvent*>(e.get());
-		const auto key = event->key();
+		const auto key = LayoutIndependentKey(event);
 		const auto ctrl = event->modifiers().testFlag(Qt::ControlModifier);
 		if (key == Qt::Key_F && ctrl && _streamed) {
 			playbackToggleFullScreen();
