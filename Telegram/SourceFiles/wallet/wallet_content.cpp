@@ -3092,7 +3092,8 @@ void WalletReceiveBox(
 			tr::lng_wallet_receive_about(),
 			st::walletReceiveAboutLabel),
 		st::walletReceiveAboutMargin,
-		style::al_top);
+		style::al_top
+	)->setTryMakeSimilarLines(true);
 
 	// The margin belongs to the slide wrap's own padding, not to the row:
 	// VerticalLayout::moveChildGetSkip() adds a row's top and bottom margin
@@ -3108,6 +3109,7 @@ void WalletReceiveBox(
 			st::walletReceiveAboutMargin),
 		style::margins(),
 		style::al_top);
+	caveat->entity()->setTryMakeSimilarLines(true);
 	caveat->toggleOn(session->wallet().deviceCustodyStateValue(
 	) | rpl::map([](const DeviceCustodyState &custody) {
 		return (custody.mode == DeviceMode::ReadOnlyNotRestorable);

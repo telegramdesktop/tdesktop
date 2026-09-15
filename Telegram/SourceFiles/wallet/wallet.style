@@ -502,6 +502,7 @@ walletReceiveAddressLineSkip: -2px;
 walletReceiveHintFont: font(13px);
 walletReceiveHintTopSkip: 4px;
 walletReceiveAboutLabel: FlatLabel(walletPhraseTextLabel) {
+	minWidth: 20px;
 	textFg: activeButtonFg;
 }
 walletReceiveAboutMargin: margins(24px, 12px, 24px, 0px);
