@@ -8,10 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_content.h"
 
 #include "api/api_cloud_password.h"
+#include "api/api_common.h"
 #include "apiwrap.h"
 #include "base/debug_log.h"
 #include "base/event_filter.h"
 #include "base/invoke_queued.h"
+#include "base/qthelp_url.h"
 #include "base/random.h"
 #include "base/timer.h"
 #include "base/unixtime.h"
@@ -20,12 +22,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/credits_amount.h"
+#include "core/local_url_handlers.h"
 #include "core/ton_explorer_url.h"
 #include "core/ui_integration.h"
 #include "data/components/recent_money_recipients.h"
 #include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "history/history.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
 #include "info/channel_statistics/earn/earn_format.h"
 #include "info/channel_statistics/earn/earn_icons.h"
@@ -39,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_response.h"
+#include "mtproto/sender.h"
 #include "qr/qr_generate.h"
 #include "settings/cloud_password/settings_cloud_password_common.h"
 #include "settings/settings_common.h"
@@ -2014,6 +2019,11 @@ struct OnrampMethodMapping {
 	OnrampRoutePresentation presentation = OnrampRoutePresentation::Generic;
 };
 
+struct OldWalletAppLink {
+	QString appname;
+	QString startapp;
+};
+
 class OnrampRoutesController final {
 public:
 	OnrampRoutesController(
@@ -2049,7 +2059,10 @@ private:
 	void hostedSessionLoaded(const Onramp::HostedSessionState &load);
 	void clearHostedExpected();
 	void failHostedSession();
+	void openOldWalletApp(const OldWalletAppLink &link, const QString &url);
 
+	const not_null<Main::Session*> _session;
+	MTP::Sender _api;
 	Rates *_rates = nullptr;
 	Onramp *_onramp = nullptr;
 	const QString _address;
@@ -2112,6 +2125,58 @@ constexpr auto kOnrampMethodMappings = std::array{
 	return parsed.isValid()
 		&& parsed.scheme() == u"https"_q
 		&& !parsed.host().isEmpty();
+}
+
+[[nodiscard]] std::optional<OldWalletAppLink> ParseOldWalletAppLink(
+		not_null<Main::Session*> session,
+		const QString &url) {
+	const auto configured = session->appConfig().oldWalletBotUsername();
+	if (configured.isEmpty()) {
+		return {};
+	}
+	const auto prefix = u"tg://resolve?"_q;
+	const auto local = Core::TryConvertUrlToLocal(url);
+	if (!local.startsWith(prefix, Qt::CaseInsensitive)) {
+		return {};
+	}
+	const auto params = qthelp::url_parse_params(
+		local.mid(prefix.size()),
+		qthelp::UrlParamNameTransform::ToLower);
+	if (params.value(u"domain"_q).compare(configured, Qt::CaseInsensitive)) {
+		return {};
+	}
+	const auto appname = params.value(u"appname"_q);
+	if (appname.isEmpty() && !params.contains(u"startapp"_q)) {
+		return {};
+	}
+	return OldWalletAppLink{
+		.appname = appname,
+		.startapp = params.value(u"startapp"_q),
+	};
+}
+
+void OpenOldWalletApp(
+		not_null<UserData*> bot,
+		std::shared_ptr<Ui::Show> show,
+		const OldWalletAppLink &link) {
+	auto source = link.appname.isEmpty()
+		? InlineBots::WebViewSource(InlineBots::WebViewSourceLinkBotProfile{
+			.token = link.startapp,
+		})
+		: InlineBots::WebViewSource(InlineBots::WebViewSourceLinkApp{
+			.appname = link.appname,
+			.token = link.startapp,
+		});
+	bot->session().attachWebView().open({
+		.bot = bot,
+		.parentShow = std::move(show),
+		.context = {
+			.action = ::Api::SendAction(bot->owner().history(bot)),
+			.maySkipConfirmation = true,
+		},
+		.button = { .startCommand = link.startapp },
+		.source = std::move(source),
+	});
 }
 
 void AddOnrampCurrency(
@@ -2287,7 +2352,9 @@ OnrampRoutesController::OnrampRoutesController(
 		not_null<Main::Session*> session,
 		QString address,
 		std::shared_ptr<Ui::Show> show)
-: _rates(&session->wallet().rates())
+: _session(session)
+, _api(&session->mtp())
+, _rates(&session->wallet().rates())
 , _onramp(&session->wallet().onramp())
 , _address(std::move(address))
 , _show(std::move(show)) {
@@ -2737,7 +2804,45 @@ void OnrampRoutesController::hostedSessionLoaded(
 	}
 	const auto url = session.url;
 	clearHostedExpected();
+	if (const auto link = ParseOldWalletAppLink(_session, url)) {
+		openOldWalletApp(*link, url);
+		return;
+	}
 	UrlClickHandler::Open(url);
+}
+
+void OnrampRoutesController::openOldWalletApp(
+		const OldWalletAppLink &link,
+		const QString &url) {
+	const auto username = _session->appConfig().oldWalletBotUsername();
+	const auto show = _show;
+	const auto byUsername = _session->data().peerByUsername(username);
+	if (const auto bot = byUsername ? byUsername->asUser() : nullptr) {
+		if (bot->isOldWalletBot()) {
+			OpenOldWalletApp(bot, show, link);
+			return;
+		}
+	}
+	_api.request(MTPcontacts_ResolveUsername(
+		MTP_flags(0),
+		MTP_string(username),
+		MTP_string()
+	)).done([=](const MTPcontacts_ResolvedPeer &result) {
+		const auto &data = result.data();
+		_session->data().processUsers(data.vusers());
+		_session->data().processChats(data.vchats());
+		const auto peerId = peerFromMTP(data.vpeer());
+		const auto bot = peerId
+			? _session->data().peer(peerId)->asUser()
+			: nullptr;
+		if (bot && bot->isOldWalletBot()) {
+			OpenOldWalletApp(bot, show, link);
+		} else {
+			UrlClickHandler::Open(url);
+		}
+	}).fail([=] {
+		UrlClickHandler::Open(url);
+	}).send();
 }
 
 void OnrampRoutesController::clearHostedExpected() {

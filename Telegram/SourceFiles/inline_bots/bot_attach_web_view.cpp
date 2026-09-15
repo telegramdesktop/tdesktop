@@ -1118,9 +1118,10 @@ void WebViewInstance::resolveApp(
 }
 
 void WebViewInstance::confirmOpen(Fn<void()> done, bool forceConfirmation) {
-	if (!forceConfirmation
-		&& (_bot->isVerified()
-			|| _session->local().isPeerTrustedOpenWebView(_bot->id))) {
+	if (_bot->isOldWalletBot()
+		|| (!forceConfirmation
+			&& (_bot->isVerified()
+				|| _session->local().isPeerTrustedOpenWebView(_bot->id)))) {
 		done();
 		return;
 	}
@@ -1155,9 +1156,10 @@ void WebViewInstance::confirmAppOpen(
 		bool writeAccess,
 		Fn<void(bool allowWrite)> done,
 		bool forceConfirmation) {
-	if (!forceConfirmation
-		&& (_bot->isVerified()
-			|| _session->local().isPeerTrustedOpenWebView(_bot->id))) {
+	if (_bot->isOldWalletBot()
+		|| (!forceConfirmation
+			&& (_bot->isVerified()
+				|| _session->local().isPeerTrustedOpenWebView(_bot->id)))) {
 		done(writeAccess);
 		return;
 	}
@@ -2715,13 +2717,18 @@ void AttachWebView::requestAddToMenu(
 			*i = *parsed;
 		}
 		const auto types = parsed->types;
+		const auto addedCallback = [=](bool added) {
+			const auto result = added
+				? AddToMenuResult::Added
+				: AddToMenuResult::Cancelled;
+			finish(result, types);
+		};
 		if (parsed->inactive) {
-			confirmAddToMenu(*parsed, [=](bool added) {
-				const auto result = added
-					? AddToMenuResult::Added
-					: AddToMenuResult::Cancelled;
-				finish(result, types);
-			});
+			if (bot->isOldWalletBot()) {
+				toggleInMenu(bot, ToggledState::Added, addedCallback);
+			} else {
+				confirmAddToMenu(*parsed, addedCallback);
+			}
 		} else {
 			requestBots();
 			finish(AddToMenuResult::AlreadyInMenu, types);
@@ -2795,7 +2802,9 @@ void AttachWebView::acceptMainMenuDisclaimer(
 	} else if (i->inactive) {
 		requestAddToMenu(bot, std::move(done));
 		return;
-	} else if (!i->disclaimerRequired || disclaimerAccepted(*i)) {
+	} else if (!i->disclaimerRequired
+		|| bot->isOldWalletBot()
+		|| disclaimerAccepted(*i)) {
 		done(AddToMenuResult::AlreadyInMenu, i->types);
 		return;
 	}
