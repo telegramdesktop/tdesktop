@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_generic.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_element.h"
-#include "history/view/history_view_service_message.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
@@ -179,7 +178,6 @@ private:
 	std::unique_ptr<Wallet::TransferComment> _comment;
 	std::optional<Wallet::TransferWalletIdentity> _commentIdentity;
 	Ui::Text::String _text;
-	QRect _bubble;
 	QRect _textRect;
 	bool _revealed = false;
 	bool _retired = false;
@@ -394,6 +392,10 @@ private:
 	return groups;
 }
 
+[[nodiscard]] int GramTransferCardWidth(int outerWidth) {
+	return std::max(outerWidth - 2 * st::chatUniqueGiftBorder, 0);
+}
+
 GramTransferCardPart::GramTransferCardPart(GramTransferOrigin origin)
 : _origin(std::move(origin))
 , _infoLink(std::make_shared<LambdaClickHandler>([
@@ -447,7 +449,7 @@ int GramTransferCardPart::resolveLayout(int outerWidth) {
 	const auto border = st::chatUniqueGiftBorder;
 	const auto inset = st::walletCardContentLeft;
 	const auto gap = st::walletCardContentSkip;
-	const auto cardWidth = std::max(outerWidth - 2 * border, 0);
+	const auto cardWidth = GramTransferCardWidth(outerWidth);
 	const auto available = std::max(cardWidth - 2 * inset, 1);
 	const auto &badgeFont = st::msgServiceGiftBoxBadgeFont;
 	const auto badgePadding = st::chatUniqueGiftBadgePadding;
@@ -561,8 +563,6 @@ void GramTransferCardPart::draw(
 	clip.addRoundedRect(outer, radius, radius);
 	p.setClipPath(clip, Qt::IntersectClip);
 	p.setPen(Qt::NoPen);
-	p.setBrush(context.st->msgServiceBg());
-	p.drawRoundedRect(outer, radius, radius);
 	p.setBrush(st::activeButtonBg);
 	p.drawRoundedRect(
 		_layout.card,
@@ -779,28 +779,18 @@ QSize GramTransferCommentPart::countCurrentSize(int newWidth) {
 
 int GramTransferCommentPart::resolveLayout(int outerWidth) {
 	if (_text.isEmpty()) {
-		_bubble = _textRect = QRect();
+		_textRect = QRect();
 		return 0;
 	}
-	const auto gap = st::walletCardContentSkip;
-	const auto padding = QMargins(
-		st::msgServicePadding.left(),
-		gap,
-		st::msgServicePadding.right(),
-		gap);
-	const auto available = std::max(
-		outerWidth - padding.left() - padding.right(),
-		1);
-	const auto textWidth = std::min(_text.maxWidth(), available);
-	const auto textHeight = _text.countHeight(textWidth);
-	const auto bubbleWidth = textWidth + padding.left() + padding.right();
-	_bubble = QRect(
-		(outerWidth - bubbleWidth) / 2,
-		gap,
-		bubbleWidth,
-		textHeight + padding.top() + padding.bottom());
-	_textRect = _bubble.marginsRemoved(padding);
-	return gap + _bubble.height();
+	const auto skip = st::walletCardContentSkip;
+	const auto limit = std::max(GramTransferCardWidth(outerWidth), 1);
+	const auto size = Ui::Text::CountOptimalTextSize(_text, 0, limit);
+	_textRect = QRect(
+		(outerWidth - size.width()) / 2,
+		skip,
+		size.width(),
+		size.height());
+	return skip + size.height() + skip + st::chatUniqueGiftBorder;
 }
 
 void GramTransferCommentPart::draw(
@@ -808,10 +798,9 @@ void GramTransferCommentPart::draw(
 		not_null<const MediaGeneric*> owner,
 		const PaintContext &context,
 		int outerWidth) const {
-	if (_bubble.isEmpty()) {
+	if (_textRect.isEmpty()) {
 		return;
 	}
-	ServiceMessagePainter::PaintBubble(p, context.st, _bubble);
 	p.setPen(context.st->msgServiceFg());
 	_text.draw(p, {
 		.position = _textRect.topLeft(),
@@ -912,12 +901,6 @@ std::unique_ptr<Media> CreateGramTransferMedia(not_null<Element*> parent) {
 		},
 		MediaGenericDescriptor{
 			.maxWidth = st::chatUniqueGiftMaxWidth,
-			.paintBgFactory = [] {
-				return [](
-						Painter &,
-						const PaintContext &,
-						not_null<const MediaGeneric*>) {};
-			},
 			.service = true,
 			.hideServiceText = false,
 		});
