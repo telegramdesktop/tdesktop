@@ -381,3 +381,6 @@ videoEditorAbout: FlatLabel(photoEditorAbout) {
 videoEditorAboutMargin: margins(10px, 10px, 10px, 0px);
 
 photoEditorMessageReferenceWidth: 600px;
+photoEditorLinkPreviewMargin: margins(24px, 12px, 24px, 6px);
+photoEditorLinkPreviewMaxHeight: 320px;
+photoEditorLinkPreviewPadding: 12px;

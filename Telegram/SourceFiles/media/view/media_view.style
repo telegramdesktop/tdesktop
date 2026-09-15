@@ -669,6 +669,7 @@ storiesEmojiPan: EmojiPan(defaultEmojiPan) {
 		"photo_editor/widget_music",
 		storiesComposeWhiteText
 	}};
+	linkButtonIcon: icon {{ "limits/links", storiesComposeWhiteText }};
 	menu: storiesPopupMenuWithIcons;
 	menuAttention: storiesMenuWithIconsAttention;
 	expandedSeparator: mediaviewWideMenuSeparator;

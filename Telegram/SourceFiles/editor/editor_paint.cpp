@@ -8,12 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/editor_paint.h"
 
 #include "base/platform/base_platform_haptic.h"
+#include "base/qthelp_url.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "editor/controllers/controllers.h"
+#include "editor/editor_link_box.h"
 #include "editor/editor_message_render.h"
 #include "editor/editor_message_source.h"
 #include "editor/scene/scene_item_canvas.h"
@@ -58,6 +60,19 @@ constexpr auto kMessagesCascadeRatio = 1. / 20.;
 
 [[nodiscard]] bool IsForwardMimeData(not_null<const QMimeData*> data) {
 	return data->hasFormat(u"application/x-td-forward"_q);
+}
+
+[[nodiscard]] QString MimeLinkUrl(not_null<const QMimeData*> data) {
+	const auto urls = Core::ReadMimeUrls(data);
+	const auto text = (urls.size() == 1 && !urls.front().isLocalFile())
+		? urls.front().toString()
+		: urls.isEmpty()
+		? Core::ReadMimeText(data).trimmed()
+		: QString();
+	if (text.isEmpty() || text.contains('\n') || text.contains(' ')) {
+		return QString();
+	}
+	return qthelp::validate_url(text);
 }
 
 [[nodiscard]] float64 BrushSize(const Brush &brush) {
@@ -198,6 +213,8 @@ Paint::Paint(
 				controllers->stickersPanelController->photoRequests(
 				) | rpl::map_to(ShowRequest::HideAnimated),
 				controllers->stickersPanelController->audioRequests(
+				) | rpl::map_to(ShowRequest::HideAnimated),
+				controllers->stickersPanelController->linkRequests(
 				) | rpl::map_to(ShowRequest::HideAnimated)));
 
 		controllers->stickersPanelController->stickerChosen(
@@ -215,6 +232,11 @@ Paint::Paint(
 		controllers->stickersPanelController->audioRequests(
 		) | rpl::on_next([=] {
 			chooseAudioFile();
+		}, lifetime());
+
+		controllers->stickersPanelController->linkRequests(
+		) | rpl::on_next([=] {
+			chooseLink(QString());
 		}, lifetime());
 	}
 
@@ -662,7 +684,8 @@ rpl::producer<bool> Paint::shapeToolStates() const {
 bool Paint::canHandleMimeData(const QMimeData *data) const {
 	if (!data || _textEditing.current()) {
 		return false;
-	} else if (session() && IsForwardMimeData(data)) {
+	} else if (session()
+		&& (IsForwardMimeData(data) || !MimeLinkUrl(data).isEmpty())) {
 		return true;
 	}
 	return Storage::ValidatePhotoEditorMediaDragData(
@@ -685,6 +708,8 @@ void Paint::handleMimeData(const QMimeData *data) {
 			QByteArray());
 	} else if (auto read = Core::ReadMimeImage(data)) {
 		addMedia({ .image = std::move(read.image) });
+	} else if (const auto url = MimeLinkUrl(data); !url.isEmpty()) {
+		chooseLink(url);
 	} else {
 		addMedia({});
 	}
@@ -733,10 +758,42 @@ void Paint::addMessageItem(std::shared_ptr<MessageSource> source, int index) {
 		* kMessagesCascadeRatio) * index;
 	data.x += shift;
 	data.y += shift;
-	addMediaItem(std::make_shared<ItemMessage>(
+	const auto item = std::make_shared<ItemMessage>(
 		std::move(source),
 		std::move(renderer),
-		std::move(data)));
+		std::move(data));
+	item->setEditCallback(crl::guard(this, [=](
+			not_null<ItemMessage*> item) {
+		const auto &link = item->source()->link();
+		chooseLink(link ? link->url : QString(), item);
+	}));
+	addMediaItem(item);
+}
+
+void Paint::chooseLink(const QString &url, ItemMessage *editing) {
+	const auto &show = _controllers->sessionShow;
+	if (!show) {
+		return;
+	}
+	const auto weak = editing
+		? std::weak_ptr(_scene->itemShared(editing))
+		: std::weak_ptr<NumberedItem>();
+	auto done = crl::guard(this, [=](std::shared_ptr<MessageSource> source) {
+		if (!editing) {
+			addMessageItem(std::move(source));
+			return;
+		}
+		const auto strong = weak.lock();
+		if (strong && strong->isNormalStatus() && strong.get() == editing) {
+			editing->setSource(std::move(source));
+		}
+	});
+	_controllers->layerShow->showBox(LinkBox({
+		.show = show,
+		.url = url,
+		.editing = editing ? editing->source()->link() : std::nullopt,
+		.done = std::move(done),
+	}));
 }
 
 void Paint::readMediaFile(const QString &path, const QByteArray &content) {

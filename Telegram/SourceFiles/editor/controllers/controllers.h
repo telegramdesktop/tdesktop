@@ -22,10 +22,12 @@ struct Controllers final {
 		std::unique_ptr<StickersPanelController> stickersPanelController,
 		std::unique_ptr<UndoController> undoController,
 		std::shared_ptr<Ui::Show> show,
+		std::shared_ptr<Ui::Show> layerShow,
 		std::shared_ptr<ChatHelpers::Show> sessionShow)
 	: stickersPanelController(std::move(stickersPanelController))
 	, undoController(std::move(undoController))
 	, show(std::move(show))
+	, layerShow(std::move(layerShow))
 	, sessionShow(std::move(sessionShow)) {
 	}
 	~Controllers() {
@@ -34,6 +36,7 @@ struct Controllers final {
 	const std::unique_ptr<StickersPanelController> stickersPanelController;
 	const std::unique_ptr<UndoController> undoController;
 	const std::shared_ptr<Ui::Show> show;
+	const std::shared_ptr<Ui::Show> layerShow;
 	const std::shared_ptr<ChatHelpers::Show> sessionShow;
 };
 

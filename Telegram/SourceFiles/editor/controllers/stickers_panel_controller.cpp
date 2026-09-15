@@ -25,6 +25,7 @@ namespace {
 		.openStickerSets = false,
 		.photoButton = true,
 		.audioButton = withAudio,
+		.linkButton = true,
 	};
 }
 
@@ -69,6 +70,10 @@ rpl::producer<> StickersPanelController::photoRequests() const {
 
 rpl::producer<> StickersPanelController::audioRequests() const {
 	return _stickersPanel->selector()->audioRequests();
+}
+
+rpl::producer<> StickersPanelController::linkRequests() const {
+	return _stickersPanel->selector()->linkRequests();
 }
 
 rpl::producer<bool> StickersPanelController::panelShown() const {

@@ -891,6 +891,8 @@ PRIVATE
     editor/editor_audio_timeline.h
     editor/editor_keys_legend.cpp
     editor/editor_keys_legend.h
+    editor/editor_link_box.cpp
+    editor/editor_link_box.h
     editor/editor_message_render.cpp
     editor/editor_message_render.h
     editor/editor_message_source.cpp

@@ -32,6 +32,7 @@ struct PhotoEditorMedia;
 namespace Editor {
 
 struct Controllers;
+class ItemMessage;
 class ItemVideo;
 class MessageSource;
 class Scene;
@@ -129,6 +130,7 @@ private:
 	void addMediaItem(std::shared_ptr<ItemBase> item);
 	void addMessages(const MessageIdsList &ids);
 	void addMessageItem(std::shared_ptr<MessageSource> source, int index = 0);
+	void chooseLink(const QString &url, ItemMessage *editing = nullptr);
 	void addMedia(Storage::PhotoEditorMedia &&media);
 	void readMediaFile(const QString &path, const QByteArray &content);
 	void addImageItem(QImage &&image);

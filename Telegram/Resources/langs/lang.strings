@@ -7990,7 +7990,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_photo_editor_keys_canvas" = "Canvas";
 "lng_photo_editor_keys_canvas_zoom" = "Zoom canvas at cursor";
 "lng_photo_editor_keys_canvas_pan" = "Pan zoomed canvas";
-"lng_photo_editor_keys_canvas_paste" = "Paste image, sticker or file";
+"lng_photo_editor_keys_canvas_paste" = "Paste image, sticker, file or link";
 "lng_photo_editor_keys_canvas_undo" = "Undo";
 "lng_photo_editor_keys_canvas_redo" = "Redo";
 "lng_photo_editor_keys_shapes" = "Shapes";
@@ -8008,6 +8008,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_photo_editor_keys_timeline_zoom" = "Zoom timeline";
 "lng_photo_editor_keys_timeline_scroll" = "Scroll timeline";
 "lng_photo_editor_keys_timeline_window" = "Move trimmed range";
+
+"lng_photo_editor_link_customize" = "Customize Link Text";
 
 "lng_voice_speed_slow" = "Slow";
 "lng_voice_speed_normal" = "Normal";

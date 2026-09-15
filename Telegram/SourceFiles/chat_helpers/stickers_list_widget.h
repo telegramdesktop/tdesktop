@@ -106,6 +106,7 @@ public:
 	rpl::producer<FileChosen> chosen() const;
 	[[nodiscard]] rpl::producer<> photoRequests() const;
 	[[nodiscard]] rpl::producer<> audioRequests() const;
+	[[nodiscard]] rpl::producer<> linkRequests() const;
 	rpl::producer<> scrollUpdated() const;
 	rpl::producer<TabbedSelector::Action> choosingUpdated() const;
 
@@ -327,6 +328,7 @@ private:
 		enum class Kind {
 			Photo,
 			Audio,
+			Link,
 		};
 		Kind kind = Kind::Photo;
 		QString text;
@@ -569,6 +571,7 @@ private:
 	rpl::event_stream<FileChosen> _chosen;
 	rpl::event_stream<> _photoRequests;
 	rpl::event_stream<> _audioRequests;
+	rpl::event_stream<> _linkRequests;
 	rpl::event_stream<> _scrollUpdated;
 	rpl::event_stream<TabbedSelector::Action> _choosingUpdated;
 

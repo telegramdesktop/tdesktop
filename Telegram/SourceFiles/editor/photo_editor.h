@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <array>
 
 namespace Ui {
+class LayerManager;
 class LayerWidget;
 class Show;
 } // namespace Ui
@@ -62,6 +63,7 @@ private:
 
 	PhotoModifications _modifications;
 
+	const std::unique_ptr<Ui::LayerManager> _layers;
 	const std::shared_ptr<Controllers> _controllers;
 
 	base::unique_qptr<PhotoEditorContent> _content;

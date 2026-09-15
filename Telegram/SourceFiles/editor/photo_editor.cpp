@@ -15,7 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_controls.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
+#include "ui/layers/layer_manager.h"
 #include "ui/layers/layer_widget.h"
+#include "styles/style_calls.h"
 #include "styles/style_editor.h"
 
 namespace Editor {
@@ -24,6 +26,14 @@ namespace {
 constexpr auto kPrecision = 100000;
 constexpr auto kBrushesVersion = -2;
 constexpr auto kDefaultBrushSizeRatio = 0.9;
+
+[[nodiscard]] std::unique_ptr<Ui::LayerManager> MakeLayers(
+		not_null<Ui::RpWidget*> parent) {
+	auto result = std::make_unique<Ui::LayerManager>(parent);
+	result->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
+	result->setHideByBackgroundClick(true);
+	return result;
+}
 
 [[nodiscard]] int ToolIndex(Brush::Tool tool) {
 	switch (tool) {
@@ -274,6 +284,7 @@ PhotoEditor::PhotoEditor(
 	EditorData data)
 : RpWidget(parent)
 , _modifications(std::move(modifications))
+, _layers(MakeLayers(this))
 , _controllers(std::make_shared<Controllers>(
 	sessionShow
 		? std::make_unique<StickersPanelController>(
@@ -283,6 +294,7 @@ PhotoEditor::PhotoEditor(
 		: nullptr,
 	std::make_unique<UndoController>(),
 	show,
+	_layers->uiShow(),
 	sessionShow))
 , _content(base::make_unique_q<PhotoEditorContent>(
 	this,

@@ -38,6 +38,7 @@ public:
 	-> rpl::producer<not_null<DocumentData*>>;
 	[[nodiscard]] rpl::producer<> photoRequests() const;
 	[[nodiscard]] rpl::producer<> audioRequests() const;
+	[[nodiscard]] rpl::producer<> linkRequests() const;
 	[[nodiscard]] rpl::producer<bool> panelShown() const;
 
 	void setShowRequestChanges(rpl::producer<ShowRequest> &&showRequest);

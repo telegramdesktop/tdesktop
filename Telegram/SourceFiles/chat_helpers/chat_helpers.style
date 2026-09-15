@@ -155,6 +155,7 @@ EmojiPan {
 	searchBackTextTop: pixels;
 	photoButtonIcon: icon;
 	audioButtonIcon: icon;
+	linkButtonIcon: icon;
 	colorAll: IconButton;
 	colorAllLabel: FlatLabel;
 	removeSet: IconButton;
@@ -834,6 +835,7 @@ defaultEmojiPan: EmojiPan {
 	searchBackTextTop: 10px;
 	photoButtonIcon: icon {{ "photo_editor/camera-24x24", windowFg }};
 	audioButtonIcon: icon {{ "photo_editor/widget_music", windowFg }};
+	linkButtonIcon: icon {{ "limits/links", windowFg }};
 	colorAll: emojiPanColorAll;
 	colorAllLabel: emojiPanColorAllLabel;
 	removeSet: stickerPanRemoveSet;
