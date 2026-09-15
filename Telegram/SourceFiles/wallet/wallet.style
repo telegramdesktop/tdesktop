@@ -463,6 +463,16 @@ walletBackupQuizField: InputField(walletImportField) {
 }
 walletBackupQuizFieldsTopSkip: 12px;
 walletBackupQuizFieldsBottomSkip: 8px;
+walletBackupUpdateCheckboxMargin: margins(24px, 0px, 24px, 8px);
+walletBackupNoteMargin: margins(0px, 4px, 0px, 8px);
+walletBackupNotePadding: margins(12px, 10px, 12px, 10px);
+walletBackupNoteRadius: 10px;
+walletBackupNoteBg: windowBgOver;
+walletBackupNoteLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 200px;
+	align: align(center);
+	textFg: windowSubTextFg;
+}
 
 walletCollectiblePreviewTitle: FlatLabel(walletPhraseTitleLabel) {
 	palette: walletCollectibleTitlePalette;

@@ -7298,41 +7298,6 @@ void ShowBackupDisabledToast(std::shared_ptr<Main::SessionShow> show) {
 	});
 }
 
-void ShowBackupDisableConfirm(
-		std::shared_ptr<Main::SessionShow> show,
-		base::weak_qptr<Ui::GenericBox> quiz,
-		std::shared_ptr<bool> requesting) {
-	const auto request = [=] {
-		const auto strong = quiz.get();
-		if (!strong || *requesting) {
-			return;
-		}
-		*requesting = true;
-		StartBackupRequest(
-			show,
-			strong,
-			BackupChange::Disable,
-			{},
-			[=] { *requesting = false; },
-			[=] {
-				if (quiz) {
-					quiz->closeBox();
-				}
-				ShowBackupDisabledToast(show);
-			});
-	};
-	show->showBox(Ui::MakeConfirmBox({
-		.text = tr::lng_wallet_backup_final_text(tr::now),
-		.confirmed = [=](Fn<void()> close) {
-			close();
-			request();
-		},
-		.confirmText = tr::lng_wallet_backup_disable_confirm(),
-		.confirmStyle = &st::attentionBoxButton,
-		.title = tr::lng_wallet_backup_disable_title(),
-	}));
-}
-
 void CollectBackupPhrase(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::GenericBox*> origin,
@@ -7341,7 +7306,23 @@ void CollectBackupPhrase(
 		const auto quiz = std::make_shared<base::weak_qptr<Ui::GenericBox>>();
 		const auto requesting = std::make_shared<bool>(false);
 		*quiz = show->show(Box(WalletBackupQuizBox, show, words, [=] {
-			ShowBackupDisableConfirm(show, *quiz, requesting);
+			const auto strong = quiz->get();
+			if (!strong || *requesting) {
+				return;
+			}
+			*requesting = true;
+			StartBackupRequest(
+				show,
+				strong,
+				BackupChange::Disable,
+				{},
+				[=] { *requesting = false; },
+				[=] {
+					if (const auto strong = quiz->get()) {
+						strong->closeBox();
+					}
+					ShowBackupDisabledToast(show);
+				});
 		}, nullptr));
 	};
 	const auto showPhrase = [=](std::vector<QString> words) {
@@ -7465,41 +7446,10 @@ void SubmitRotation(
 	});
 }
 
-void ShowRotationConfirm(
-		std::shared_ptr<Main::SessionShow> show,
-		base::weak_qptr<Ui::GenericBox> origin,
-		not_null<bool*> busy,
-		std::shared_ptr<RotationState> state,
-		int64 feeNano) {
-	if (state->submitted) {
-		return;
-	}
-	show->showBox(Ui::MakeConfirmBox({
-		.text = tr::lng_wallet_backup_rotate_final_text(
-			tr::now,
-			lt_amount,
-			Ui::FormatTonAmount(feeNano).full),
-		.confirmed = [=](Fn<void()> close) {
-			close();
-			SubmitRotation(show, origin, busy, state);
-		},
-		.cancelled = [=](Fn<void()> close) {
-			close();
-			if (const auto quiz = state->quiz.get()) {
-				quiz->closeBox();
-			}
-		},
-		.confirmText = tr::lng_wallet_backup_disable_confirm(),
-		.confirmStyle = &st::attentionBoxButton,
-		.title = tr::lng_wallet_backup_disable_title(),
-	}));
-}
-
 void ShowRotationPhrase(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::GenericBox*> origin,
 		not_null<bool*> busy,
-		int64 feeNano,
 		std::vector<QString> words,
 		KeyAuthorization auth) {
 	const auto state = std::make_shared<RotationState>();
@@ -7508,7 +7458,7 @@ void ShowRotationPhrase(
 	const auto weak = base::make_weak(origin);
 	const auto showQuiz = [=](std::vector<QString> words) {
 		const auto quiz = show->show(Box(WalletBackupQuizBox, show, words, [=] {
-			ShowRotationConfirm(show, weak, busy, state, feeNano);
+			SubmitRotation(show, weak, busy, state);
 		}, [=](Fn<void()> lock) {
 			state->lockQuiz = std::move(lock);
 		}));
@@ -7556,7 +7506,6 @@ void StartRotation(
 			show,
 			strong,
 			busy,
-			feeNano,
 			std::move(words),
 			auth);
 	}, crl::guard(origin, [=](const QString &error) {
@@ -7565,40 +7514,10 @@ void StartRotation(
 	}));
 }
 
-void ShowBackupUpdateAlert(
-		std::shared_ptr<Main::SessionShow> show,
-		not_null<Ui::GenericBox*> origin,
-		not_null<bool*> busy,
-		int64 feeNano,
-		Fn<void()> notNow,
-		KeyAuthorization auth) {
-	const auto weak = base::make_weak(origin);
-	const auto rate = show->session().wallet().rates().current();
-	show->showBox(Ui::MakeConfirmBox({
-		.text = tr::lng_wallet_backup_update_text(tr::now)
-			+ u"\n\n"_q
-			+ RotationFeeText(tr::lng_wallet_backup_update_fee, feeNano, rate),
-		.confirmed = [=](Fn<void()> close) {
-			close();
-			if (const auto strong = weak.get()) {
-				StartRotation(show, strong, busy, feeNano, auth);
-			}
-		},
-		.cancelled = [=](Fn<void()> close) {
-			close();
-			notNow();
-		},
-		.confirmText = tr::lng_wallet_backup_update_confirm(),
-		.cancelText = tr::lng_wallet_backup_update_later(),
-		.title = tr::lng_wallet_backup_update_title(),
-		.strictCancel = true,
-	}));
-}
-
 void ShowBackupTopUpAlert(
 		std::shared_ptr<Main::SessionShow> show,
 		int64 feeNano,
-		Fn<void()> notNow) {
+		Fn<void()> topUp) {
 	const auto rate = show->session().wallet().rates().current();
 	show->showBox(Ui::MakeConfirmBox({
 		.text = RotationFeeText(
@@ -7607,67 +7526,309 @@ void ShowBackupTopUpAlert(
 			rate),
 		.confirmed = [=](Fn<void()> close) {
 			close();
+			topUp();
 			ShowWalletReceiveBox(&show->session(), show);
-		},
-		.cancelled = [=](Fn<void()> close) {
-			close();
-			notNow();
 		},
 		.confirmText = tr::lng_wallet_backup_topup_confirm(),
 		.cancelText = tr::lng_wallet_backup_update_later(),
 		.title = tr::lng_wallet_backup_topup_title(),
-		.strictCancel = true,
 	}));
 }
 
-void OfferBackupUpdate(
+struct RotationQuote {
+	int64 feeNano = 0;
+	SendError error = SendError::None;
+
+	friend inline bool operator==(
+		const RotationQuote &,
+		const RotationQuote &) = default;
+};
+
+struct BackupDisableState {
+	KeyAuthorization auth;
+	rpl::variable<std::optional<RotationQuote>> quote;
+	rpl::variable<bool> loading = false;
+	Fn<void()> onQuoted;
+	bool rotate = false;
+	bool started = false;
+};
+
+[[nodiscard]] bool RotationQuoteUsable(
+		const std::optional<RotationQuote> &quote) {
+	return quote
+		&& (quote->error == SendError::None
+			|| quote->error == SendError::InsufficientFees);
+}
+
+// What a phrase update does, then its network fee: estimating while the
+// quote is out, the fee once it answers, or the top-up that fee needs when
+// the balance does not cover it.
+[[nodiscard]] rpl::producer<TextWithEntities> BackupUpdateNoteText(
+		not_null<Main::Session*> session,
+		rpl::producer<std::optional<RotationQuote>> quote) {
+	return rpl::combine(
+		std::move(quote),
+		FiatRateValue(session)
+	) | rpl::map([](
+			const std::optional<RotationQuote> &quote,
+			const FiatRate &rate) {
+		auto result = tr::lng_wallet_backup_update_text(tr::now, tr::marked);
+		auto fee = TextWithEntities();
+		if (!quote) {
+			fee = tr::lng_wallet_backup_update_fee_pending(
+				tr::now,
+				lt_amount,
+				tr::italic(tr::lng_wallet_backup_update_estimating(tr::now)),
+				tr::marked);
+		} else if (quote->error == SendError::None) {
+			fee = tr::marked(RotationFeeText(
+				tr::lng_wallet_backup_update_fee,
+				quote->feeNano,
+				rate));
+		} else if (quote->error == SendError::InsufficientFees) {
+			fee = tr::marked(RotationFeeText(
+				tr::lng_wallet_backup_topup_text,
+				quote->feeNano,
+				rate));
+		}
+		if (!fee.empty()) {
+			result.append(u"\n\n"_q).append(std::move(fee));
+		}
+		return result;
+	});
+}
+
+void AddBackupUpdateNote(
+		not_null<Ui::GenericBox*> box,
+		rpl::producer<TextWithEntities> text,
+		rpl::producer<bool> shown) {
+	const auto wrap = box->addRow(
+		object_ptr<Ui::SlideWrap<Ui::PaddingWrap<Ui::FlatLabel>>>(
+			box,
+			object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
+				box,
+				object_ptr<Ui::FlatLabel>(
+					box,
+					std::move(text),
+					st::walletBackupNoteLabel),
+				st::walletBackupNotePadding),
+			st::walletBackupNoteMargin),
+		st::boxRowPadding);
+	// The plate is the note's own padding wrap: the slide wrap keeps one
+	// more around it for the outer margins, and entity() would unwrap all
+	// the way down to the label.
+	const auto plate = wrap->wrapped()->wrapped();
+	plate->paintRequest() | rpl::on_next([=] {
+		auto p = QPainter(plate);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::walletBackupNoteBg);
+		p.drawRoundedRect(
+			plate->rect(),
+			st::walletBackupNoteRadius,
+			st::walletBackupNoteRadius);
+	}, plate->lifetime());
+	wrap->toggleOn(std::move(shown));
+	wrap->finishAnimating();
+}
+
+// One confirmation for the whole disable: its checkbox decides whether the
+// key is rotated on the way, and the fee for that is quoted in the
+// background from the moment the box shows. Disable is not pressable while
+// a checked update still waits for its quote. An unchecked press waits for
+// a quote still out, because the reveal refuses to run beside it, and then
+// goes to the write-down of the current or the new words.
+void WalletBackupDisableBox(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<Main::SessionShow> show,
+		base::weak_qptr<Ui::GenericBox> origin,
+		not_null<bool*> busy,
+		std::shared_ptr<BackupDisableState> state,
+		bool updateOffered) {
+	const auto session = &show->session();
+	box->setTitle(tr::lng_wallet_backup_disable_title());
+	const auto padding = st::boxPadding;
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_wallet_backup_disable_text(),
+			st::boxLabel),
+		QMargins(padding.left(), 0, padding.right(), padding.bottom()));
+	auto update = (Ui::Checkbox*)nullptr;
+	if (updateOffered) {
+		update = box->addRow(
+			object_ptr<Ui::Checkbox>(
+				box,
+				tr::lng_wallet_backup_update_check(tr::now),
+				false,
+				st::defaultBoxCheckbox),
+			st::walletBackupUpdateCheckboxMargin);
+		AddBackupUpdateNote(
+			box,
+			BackupUpdateNoteText(session, state->quote.value()),
+			update->checkedValue());
+		// A quote that failed leaves no update to offer.
+		state->quote.value(
+		) | rpl::on_next([=](const std::optional<RotationQuote> &quote) {
+			if (!quote || RotationQuoteUsable(quote)) {
+				return;
+			}
+			update->setChecked(false);
+			update->setDisabled(true);
+			show->showToast(RotationQuoteErrorText(
+				quote->error,
+				TransferMinNanos(session)));
+		}, box->lifetime());
+	}
+	// The continuation a press leaves for a quote still out must not own
+	// the state that stores it, or a quote that never answers - the engine
+	// drops its callbacks at logout - would leak the state and its grant.
+	const auto weakState = std::weak_ptr(state);
+	const auto proceed = [=] {
+		const auto locked = weakState.lock();
+		if (!locked) {
+			return;
+		}
+		const auto quote = locked->quote.current();
+		Expects(quote.has_value());
+
+		locked->loading = false;
+		if (update && RotationQuoteUsable(quote)) {
+			update->setDisabled(false);
+		}
+		if (locked->started) {
+			return;
+		}
+		const auto strong = origin.get();
+		if (!locked->rotate) {
+			locked->started = true;
+			box->closeBox();
+			if (strong) {
+				CollectBackupPhrase(show, strong, locked->auth);
+			}
+		} else if (quote->error == SendError::None) {
+			locked->started = true;
+			box->closeBox();
+			if (strong) {
+				StartRotation(
+					show,
+					strong,
+					busy,
+					quote->feeNano,
+					locked->auth);
+			}
+		} else if (quote->error == SendError::InsufficientFees) {
+			ShowBackupTopUpAlert(
+				show,
+				quote->feeNano,
+				crl::guard(box, [=] { box->closeBox(); }));
+		}
+		// Any other quote failure has already unchecked the update and
+		// explained itself, so a press that asked for the update stops here.
+	};
+	const auto estimating = [=] {
+		return update && update->checked() && !state->quote.current();
+	};
+	const auto submit = [=] {
+		if (state->started || state->loading.current() || estimating()) {
+			return;
+		}
+		state->rotate = update && update->checked();
+		if (state->quote.current()) {
+			proceed();
+			return;
+		}
+		state->loading = true;
+		if (update) {
+			update->setDisabled(true);
+		}
+		state->onQuoted = crl::guard(box, proceed);
+	};
+	const auto button = box->addButton(
+		BusyFooterLabel(
+			tr::lng_wallet_backup_disable_confirm(),
+			state->loading.value()),
+		submit,
+		st::attentionBoxButton);
+	AddBusyFooterSpinner(button, state->loading.value());
+	if (update) {
+		rpl::combine(
+			update->checkedValue(),
+			state->quote.value()
+		) | rpl::on_next([=](
+				bool checked,
+				const std::optional<RotationQuote> &quote) {
+			if (const auto raw = button.data()) {
+				SetButtonDisabledLook(raw, checked && !quote);
+			}
+		}, box->lifetime());
+	}
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	box->events(
+	) | rpl::on_next([=](not_null<QEvent*> e) {
+		if (e->type() != QEvent::KeyPress) {
+			return;
+		}
+		const auto k = static_cast<QKeyEvent*>(e.get());
+		if (k->key() == Qt::Key_Enter || k->key() == Qt::Key_Return) {
+			submit();
+		}
+	}, box->lifetime());
+}
+
+void ShowBackupDisableBox(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::GenericBox*> origin,
 		not_null<bool*> busy,
 		KeyAuthorization auth) {
 	auto &wallet = show->session().wallet();
-	const auto weak = base::make_weak(origin);
-	const auto collect = [=] {
-		if (const auto strong = weak.get()) {
-			CollectBackupPhrase(show, strong, auth);
-		}
-	};
-	if (!wallet.rotationOffered()) {
-		collect();
-		return;
+	const auto state = std::make_shared<BackupDisableState>();
+	state->auth = std::move(auth);
+	const auto updateOffered = wallet.rotationOffered();
+	if (updateOffered) {
+		// The quote runs while the box is up, so the fee is most likely
+		// known by the time the update checkbox is looked at, and lands in
+		// its note the moment the quote answers otherwise. It holds the keys
+		// box busy until then: a quote still out refuses every other custody
+		// action, a fresh quote beside it first of all, so a confirmation
+		// cancelled and reopened over it would only ever see failures.
+		*busy = true;
+		wallet.quoteRotationFee(state->auth, crl::guard(origin, [=](
+				FeeResult fee) {
+			*busy = false;
+			state->quote = std::make_optional(RotationQuote{
+				.feeNano = fee.feeNano,
+				.error = fee.error,
+			});
+			if (const auto onQuoted = base::take(state->onQuoted)) {
+				onQuoted();
+			}
+		}));
+	} else {
+		state->quote = std::make_optional(RotationQuote{
+			.error = SendError::SigningUnavailable,
+		});
 	}
-	*busy = true;
-	wallet.quoteRotationFee(auth, crl::guard(origin, [=](FeeResult fee) {
-		*busy = false;
-		if (fee.error == SendError::None) {
-			ShowBackupUpdateAlert(
-				show,
-				origin,
-				busy,
-				fee.feeNano,
-				collect,
-				auth);
-		} else if (fee.error == SendError::InsufficientFees) {
-			ShowBackupTopUpAlert(show, fee.feeNano, collect);
-		} else {
-			show->showToast(RotationQuoteErrorText(
-				fee.error,
-				TransferMinNanos(&show->session())));
-			collect();
-		}
-	}));
+	show->showBox(Box(
+		WalletBackupDisableBox,
+		show,
+		base::make_weak(origin),
+		busy,
+		state,
+		updateOffered));
 }
 
 // The Disable press is where this flow acquires its one authorization: the
 // quote, the reveal and the rotation store that follow all run under the
 // same grant, and a vault emptied under them fails typed instead of asking
-// again in the middle of the write-down.
-void ShowBackupUpdateFork(
+// again in the middle of the write-down. The confirmation comes after it,
+// because the quote it starts needs that grant.
+void StartBackupDisable(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::GenericBox*> origin,
 		not_null<bool*> busy) {
 	const auto weak = base::make_weak(origin);
-	const auto offer = [=] {
+	const auto confirm = [=] {
 		AcquireVaultUnlock({
 			.show = show,
 			.done = [=](KeyAuthorization auth) {
@@ -7678,12 +7839,12 @@ void ShowBackupUpdateFork(
 					*busy = false;
 					return;
 				}
-				OfferBackupUpdate(show, strong, busy, std::move(auth));
+				ShowBackupDisableBox(show, strong, busy, std::move(auth));
 			},
 		});
 	};
 	if (show->session().wallet().revealsLocally()) {
-		offer();
+		confirm();
 		return;
 	}
 	*busy = true;
@@ -7693,29 +7854,10 @@ void ShowBackupUpdateFork(
 		[=] {
 			if (weak) {
 				*busy = false;
-				offer();
+				confirm();
 			}
 		},
 		crl::guard(origin, [=] { *busy = false; }));
-}
-
-void StartBackupDisable(
-		std::shared_ptr<Main::SessionShow> show,
-		not_null<Ui::GenericBox*> origin,
-		not_null<bool*> busy) {
-	const auto weak = base::make_weak(origin);
-	show->showBox(Ui::MakeConfirmBox({
-		.text = tr::lng_wallet_backup_disable_text(tr::now),
-		.confirmed = [=](Fn<void()> close) {
-			close();
-			if (const auto strong = weak.get()) {
-				ShowBackupUpdateFork(show, strong, busy);
-			}
-		},
-		.confirmText = tr::lng_wallet_backup_disable_confirm(),
-		.confirmStyle = &st::attentionBoxButton,
-		.title = tr::lng_wallet_backup_disable_title(),
-	}));
 }
 
 [[nodiscard]] QStringList SplitPhraseWords(const QString &text) {

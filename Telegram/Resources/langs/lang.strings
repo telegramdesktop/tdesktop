@@ -8788,7 +8788,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_protect_set_password" = "Set Additional Password";
 "lng_wallet_protect_done_title" = "Password set";
 "lng_wallet_protect_done_text" = "Your account is now protected.";
-"lng_wallet_receive_about" = "Use to receive GRAM on The Open Network (TON) only.";
+"lng_wallet_receive_about" = "Share your address or QR code to receive GRAM.";
 "lng_wallet_receive_caveat" = "Sending from this device needs your recovery phrase, or the device this wallet was imported on.";
 "lng_wallet_about_instant_title" = "Send Money Instantly";
 "lng_wallet_about_instant_text" = "Send Grams in any chat, just like sharing a photo.";
@@ -9011,12 +9011,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_backup_about_off" = "Telegram will store an encrypted backup of your keys, split across several datacenters. No Telegram employee will be able to access them.";
 "lng_wallet_backup_about_unavailable" = "Encrypted backup is not available for wallets imported from a recovery phrase.";
 "lng_wallet_backup_disable_title" = "Disable Backup?";
-"lng_wallet_backup_disable_text" = "If you disable backup, you may lose access to your funds.\n\nThe only way to recover your wallet will be to manually enter your recovery phrase.";
+"lng_wallet_backup_disable_text" = "The only way to recover your funds will be to manually enter your recovery phrase.";
 "lng_wallet_backup_disable_confirm" = "Disable";
-"lng_wallet_backup_update_title" = "Update Secret Phrase?";
+"lng_wallet_backup_update_check" = "Update Secret Phrase";
 "lng_wallet_backup_update_text" = "You'll get a new phrase to write down. Address and balance stay the same.";
 "lng_wallet_backup_update_later" = "Not now";
-"lng_wallet_backup_update_confirm" = "Update";
 "lng_wallet_backup_phrase_title" = "Your Secret Phrase";
 "lng_wallet_backup_phrase_text" = "Whoever has access to this phrase controls your wallet. Write it down and keep it secret. If you lose it, you will lose your funds.";
 "lng_wallet_backup_sure_title" = "Sure done?";
@@ -9024,7 +9023,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_backup_sure_ok" = "OK, sorry";
 "lng_wallet_backup_test_title" = "Test Time";
 "lng_wallet_backup_test_text" = "Make sure you wrote your recovery phrase down correctly. Enter words {index1}, {index2} and {index3}.";
-"lng_wallet_backup_final_text" = "Telegram will delete its encrypted backup of your keys. This can't be undone.";
 "lng_wallet_backup_disabled_title" = "Backup Disabled";
 "lng_wallet_backup_disabled_text" = "Your recovery phrase is now the only way to restore your wallet.";
 "lng_wallet_backup_enabled_title" = "Backup Enabled";
@@ -9035,12 +9033,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_backup_unavailable_error" = "Encrypted backup is not available for this wallet.";
 "lng_wallet_backup_error" = "Couldn't change the backup settings. Please try again.";
 "lng_wallet_backup_update_fee" = "Network fee: {amount} GRAM ({fiat}).";
+"lng_wallet_backup_update_fee_pending" = "Network fee: {amount}";
+"lng_wallet_backup_update_estimating" = "Estimating...";
 "lng_wallet_backup_topup_title" = "Not enough Gram";
 "lng_wallet_backup_topup_text" = "You need {amount} GRAM ({fiat}) to update your recovery phrase.";
 "lng_wallet_backup_topup_confirm" = "Top up";
 "lng_wallet_backup_new_phrase_title" = "New Secret Phrase";
 "lng_wallet_backup_new_phrase_text" = "A new recovery phrase for your wallet has been generated. Write it down and keep it secret.";
-"lng_wallet_backup_rotate_final_text" = "Your wallet key will be updated for a network fee of {amount} GRAM, and Telegram will delete its encrypted backup of your keys. This can't be undone.";
 "lng_wallet_backup_rotate_failed_title" = "Action Failed";
 "lng_wallet_backup_rotate_failed_text" = "{reason} Your recovery phrase was not changed — keep using your current one. The new words you wrote down are not in use.";
 "lng_wallet_backup_rotate_reason_fees" = "Insufficient Gram balance.";
