@@ -20,6 +20,7 @@ namespace Editor {
 
 class MessageVideo;
 
+[[nodiscard]] bool MessageForbidsRender(not_null<HistoryItem*> item);
 [[nodiscard]] bool CanRenderMessage(not_null<HistoryItem*> item);
 [[nodiscard]] not_null<HistoryItem*> MessageToRender(
 	not_null<HistoryItem*> item);

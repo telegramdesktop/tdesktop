@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unixtime.h"
 #include "data/data_groups.h"
+#include "data/data_media_types.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_web_page.h"
@@ -85,10 +86,19 @@ namespace {
 
 } // namespace
 
+bool MessageForbidsRender(not_null<HistoryItem*> item) {
+	return item->isSponsored()
+		|| item->forbidsSaving()
+		|| !item->history()->peer->allowsForwarding();
+}
+
 bool CanRenderMessage(not_null<HistoryItem*> item) {
-	return !item->isSponsored()
-		&& !item->forbidsSaving()
-		&& item->history()->peer->allowsForwarding();
+	const auto media = item->media();
+	return !MessageForbidsRender(item)
+		&& !item->isEphemeral()
+		&& !item->showSimilarChannels()
+		&& !item->isLegacyMessage()
+		&& !dynamic_cast<const Data::MediaDice*>(media);
 }
 
 not_null<HistoryItem*> MessageToRender(not_null<HistoryItem*> item) {

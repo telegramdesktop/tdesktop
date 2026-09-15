@@ -627,6 +627,11 @@ object_ptr<Ui::BoxContent> LinkBox(LinkBoxArgs &&args) {
 				if (item && CanRenderMessage(item)) {
 					result.message = std::make_shared<MessageSource>(item);
 					return result;
+				} else if (item && !MessageForbidsRender(item)) {
+					auto link = currentLink();
+					link.preview = false;
+					result.pill = std::move(link);
+					return result;
 				}
 			}
 			auto link = currentLink();

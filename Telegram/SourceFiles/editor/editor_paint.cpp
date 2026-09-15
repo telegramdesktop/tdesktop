@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/editor_paint.h"
 
+#include "apiwrap.h"
 #include "base/platform/base_platform_haptic.h"
 #include "base/qthelp_url.h"
 #include "chat_helpers/compose/compose_show.h"
@@ -738,8 +739,18 @@ void Paint::addMessages(const MessageIdsList &ids) {
 		const auto render = MessageToRender(item);
 		if (!added.emplace(render).second) {
 			continue;
-		} else if (!CanRenderMessage(render)) {
+		} else if (MessageForbidsRender(render)) {
 			forbidden = render;
+			continue;
+		} else if (!CanRenderMessage(render)) {
+			if (render->hasDirectLink()) {
+				addLinkItem({
+					.url = session->api().exportDirectMessageLink(
+						render,
+						false),
+					.preview = false,
+				});
+			}
 			continue;
 		}
 		addMessageItem(std::make_shared<MessageSource>(render), index++);
