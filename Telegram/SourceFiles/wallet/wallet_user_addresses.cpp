@@ -131,7 +131,8 @@ void UserAddresses::forceResolve(
 	const auto user = _session->data().userLoaded(id);
 	_api.request(MTPwallet_GetUserAddresses(
 		MTP_flags(MTPwallet_GetUserAddresses::Flag::f_force),
-		MTP_vector<MTPInputUser>(1, user->inputUser())
+		MTP_vector<MTPInputUser>(1, user->inputUser()),
+		MTP_vector<MTPstring>()
 	)).done([=, done = std::move(done)](
 			const MTPVector<MTPWalletUserAddress> &result) {
 		const auto &reply = result.v;
@@ -215,7 +216,8 @@ void UserAddresses::sendChunk(
 		}));
 	_api.request(MTPwallet_GetUserAddresses(
 		MTP_flags(0),
-		std::move(users)
+		std::move(users),
+		MTP_vector<MTPstring>()
 	)).done([=](const MTPVector<MTPWalletUserAddress> &result) {
 		applyChunk(ids, result.v);
 		finishChunk(job);

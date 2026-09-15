@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "core/application.h"
 #include "wallet/wallet_address.h"
+#include "wallet/wallet_fiat.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "core/click_handler_types.h"
@@ -8573,13 +8574,27 @@ PreparedServiceText HistoryItem::prepareGramTransferText(
 	const auto transfer = Get<HistoryServiceGramTransfer>();
 	Assert(transfer != nullptr);
 
-	const auto amount = Ui::Text::IconEmoji(&st::tonIconEmojiLarge, u"◆"_q)
-		.append(' ')
-		.append(tr::lng_wallet_send_pill_gram(
+	auto amount = tr::lng_action_gram_transfer_amount(
+		tr::now,
+		lt_count,
+		transfer->amount / float64(Ui::kNanosInOne),
+		lt_amount,
+		tr::marked(Ui::FormatTonAmount(transfer->amount).full),
+		tr::marked);
+	const auto usdPerGram = history()->session().appConfig().get<float64>(
+		u"ton_usd_rate"_q,
+		0.);
+	if (usdPerGram > 0.) {
+		amount = tr::lng_action_gram_transfer_amount_fiat(
 			tr::now,
 			lt_amount,
-			tr::marked(Ui::FormatTonAmount(transfer->amount).full),
-			tr::marked));
+			amount,
+			lt_fiat,
+			tr::marked(Wallet::FormatFiat(
+				transfer->amount,
+				Wallet::FiatRate{ u"USD"_q, usdPerGram })),
+			tr::marked);
+	}
 	const auto counterparty = out() ? history()->peer : from();
 	const auto user = history()->owner().userLoaded(
 		peerToUser(counterparty->id));

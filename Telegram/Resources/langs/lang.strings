@@ -2672,6 +2672,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_gram_transfer_received" = "{user} sent you {amount}";
 "lng_action_gram_transfer_sent_unknown" = "You sent {amount}";
 "lng_action_gram_transfer_received_unknown" = "You received {amount}";
+"lng_action_gram_transfer_amount#one" = "{amount} Gram";
+"lng_action_gram_transfer_amount#other" = "{amount} Grams";
+"lng_action_gram_transfer_amount_fiat" = "{amount} ({fiat})";
 "lng_action_gram_transfer_comment" = "{text}: {comment}";
 "lng_action_gram_transfer_received_tag" = "received";
 "lng_action_gram_transfer_sent_tag" = "sent";
@@ -9007,8 +9010,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_backup_section" = "Encrypted Backup";
 "lng_wallet_backup_disable" = "Disable Backup";
 "lng_wallet_backup_enable" = "Enable Backup";
-"lng_wallet_backup_about_on" = "Telegram stores an encrypted backup of your keys, split across several datacenters. No Telegram employee can access them.";
-"lng_wallet_backup_about_off" = "Telegram will store an encrypted backup of your keys, split across several datacenters. No Telegram employee will be able to access them.";
+"lng_wallet_backup_about_on" = "Your encrypted key backup is split into three parts and stored across three continents.\n\nIt can only be reassembled on your devices, so no one — not even Telegram — can access your key.";
+"lng_wallet_backup_about_off" = "Your encrypted key backup will be split into three parts and stored across three continents.\n\nIt can only be reassembled on your devices, so no one — not even Telegram — can access your key.";
 "lng_wallet_backup_about_unavailable" = "Encrypted backup is not available for wallets imported from a recovery phrase.";
 "lng_wallet_backup_disable_title" = "Disable Backup?";
 "lng_wallet_backup_disable_text" = "The only way to recover your funds will be to manually enter your recovery phrase.";

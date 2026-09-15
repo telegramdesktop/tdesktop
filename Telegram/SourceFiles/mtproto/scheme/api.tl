@@ -2161,7 +2161,6 @@ inputPasskeyResponseRegister#3e63935c client_data:DataJSON attestation_data:byte
 inputPasskeyResponseLogin#c31fc14a client_data:DataJSON authenticator_data:bytes signature:bytes user_handle:string = InputPasskeyResponse;
 
 inputPasskeyCredentialPublicKey#3c27b78f id:string raw_id:string response:InputPasskeyResponse = InputPasskeyCredential;
-inputPasskeyCredentialFirebasePNV#5b1ccb28 pnv_token:string = InputPasskeyCredential;
 
 starGiftBackground#aff56398 center_color:int edge_color:int text_color:int = StarGiftBackground;
 
@@ -2301,13 +2300,13 @@ onrampSession#d1e42e24 provider:string session_id:string url:string expires_date
 walletStateEmpty#9cb9b2ec flags:# creating:flags.0?true = WalletState;
 walletState#95c5346b flags:# backup_enabled:flags.0?true can_export_phrase:flags.1?true can_enable_backup:flags.2?true address:string public_key:bytes balance:long = WalletState;
 
-walletUserAddress#1ce00108 user_id:long address:string = WalletUserAddress;
+walletUserAddress#a1b895e5 user_id:long address:string public_key:bytes = WalletUserAddress;
 
 walletTransactionPeerUser#d4ea706d flags:# user_id:long address:string domain:flags.0?string = WalletTransactionPeer;
 walletTransactionPeerAddress#62cc1bc flags:# address:string domain:flags.0?string = WalletTransactionPeer;
 walletTransactionPeerUnsupported#728bed5a = WalletTransactionPeer;
 
-walletTransaction#6f9986a1 flags:# incoming:flags.0?true failed:flags.2?true key_change:flags.5?true comment_encrypted:flags.6?true id:string amount:long fee:long date:int peer:WalletTransactionPeer comment:flags.3?string tx_hash:flags.4?string = WalletTransaction;
+walletTransaction#6f9986a1 flags:# incoming:flags.0?true gasless:flags.1?true failed:flags.2?true key_change:flags.5?true comment_encrypted:flags.6?true id:string amount:long fee:long date:int peer:WalletTransactionPeer comment:flags.3?string tx_hash:flags.4?string = WalletTransaction;
 
 wallet.transactions#4322d5a5 flags:# balance:long transactions:Vector<WalletTransaction> next_offset:flags.0?string chats:Vector<Chat> users:Vector<User> = wallet.Transactions;
 
@@ -3195,7 +3194,7 @@ toncenter.performApiRequest#8d7bdd61 flags:# post:flags.0?true endpoint:string q
 toncenter.getStreamingUrl#cdaf63c7 = toncenter.StreamingUrl;
 
 wallet.getState#ab83b33a = WalletState;
-wallet.getUserAddresses#1ddd6c11 flags:# force:flags.0?true id:Vector<InputUser> = Vector<WalletUserAddress>;
+wallet.getUserAddresses#5a270f7 flags:# force:flags.0?true id:Vector<InputUser> addresses:Vector<string> = Vector<WalletUserAddress>;
 wallet.getTransactions#a8830a83 flags:# inbound:flags.0?true outbound:flags.1?true offset:string limit:int = wallet.Transactions;
 wallet.getTransactionsByIDs#811ceab6 id:Vector<string> = wallet.Transactions;
 wallet.getTransactionsByMsgHash#a6bb795d msg_hash:Vector<string> = wallet.Transactions;

@@ -6150,6 +6150,11 @@ void WalletPhraseBox(
 	return result;
 }
 
+// The backup export is sent without a password first, even when the account
+// has one, because the server decides whether this export needs it. Only
+// its PASSWORD_MISSING answer goes to onPasswordMissing, which asks for the
+// cloud password and repeats the request with it; that repeat carries its
+// password box here, so its password errors go back to that box.
 void RequestPhraseReveal(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::GenericBox*> warning,
@@ -6161,7 +6166,8 @@ void RequestPhraseReveal(
 		Fn<void(std::vector<QString>)> onWords = nullptr,
 		Fn<void()> onAuthorized = nullptr,
 		Fn<void(std::vector<QString>, CustodyOutcome)> onPrepared = nullptr,
-		Fn<void()> onPromptError = nullptr) {
+		Fn<void()> onPromptError = nullptr,
+		Fn<void()> onPasswordMissing = nullptr) {
 	auto &wallet = show->session().wallet();
 	if (!parkedKey && passcode && wallet.revealsLocally()) {
 		const auto box = base::take(passcode);
@@ -6198,6 +6204,10 @@ void RequestPhraseReveal(
 			}
 			return;
 		}
+		if (onPasswordMissing && error == u"PASSWORD_MISSING"_q) {
+			onPasswordMissing();
+			return;
+		}
 		unblock();
 		if (!onWords && !onPrepared) {
 			warning->closeBox();
@@ -6218,6 +6228,9 @@ void RequestPhraseReveal(
 			}
 			show->showBox(std::move(box));
 			return;
+		}
+		if (passcode) {
+			passcode->closeBox();
 		}
 		show->showToast(tr::lng_wallet_phrase_error(tr::now));
 	});
@@ -6255,7 +6268,11 @@ void StartPhraseReveal(
 		Fn<void()> onPromptClosed = nullptr,
 		Fn<bool()> onPromptSubmit = nullptr) {
 	const auto session = &show->session();
-	if (parkedKey) {
+	// A parked key or a key held on this device goes straight to the words:
+	// neither asks the server, so neither can be asked for a password, and
+	// neither reports the backup's answer or hands its words over prepared,
+	// because only a key restored from Telegram's backup is stored.
+	if (parkedKey || session->wallet().revealsLocally()) {
 		RequestPhraseReveal(
 			show,
 			warning,
@@ -6267,77 +6284,76 @@ void StartPhraseReveal(
 			onWords);
 		return;
 	}
-	if (session->wallet().revealsLocally()) {
-		RequestPhraseReveal(
-			show,
-			warning,
-			std::move(auth),
-			std::nullopt,
-			nullptr,
-			unblock,
-			std::nullopt,
-			onWords);
-		return;
-	}
 	// Only this branch restores the key to the device, so only its password
 	// box carries the first-use explanation header.
 	const auto firstKeyUse = RestoreIsFirstKeyUse(session);
-	session->api().cloudPassword().reload();
-	session->api().cloudPassword().state(
-	) | rpl::take(
-		1
-	) | rpl::on_next([=](const Core::CloudPasswordState &state) {
-		if (!state.hasPassword) {
-			RequestPhraseReveal(
-				show,
-				warning,
-				auth,
-				std::nullopt,
-				nullptr,
-				unblock,
-				std::nullopt,
-				onWords,
-				onAuthorized,
-				onPrepared,
-				onPromptError);
-			return;
-		}
-		auto fields = RestorePasswordFields(
-			state,
-			firstKeyUse,
-			tr::lng_wallet_phrase_password_description(tr::now));
-		fields.customCheckCallback = [=](
-				const Core::CloudPasswordResult &result,
-				base::weak_qptr<PasscodeBox> passcode) {
-			if (onPromptSubmit && !onPromptSubmit()) {
+	const auto askPassword = crl::guard(warning, [=] {
+		session->api().cloudPassword().reload();
+		session->api().cloudPassword().state(
+		) | rpl::take(
+			1
+		) | rpl::on_next([=](const Core::CloudPasswordState &state) {
+			if (!state.hasPassword) {
+				// The server asked for a password this account does not
+				// have, so a repeat without one would only be refused again.
+				unblock();
+				if (!onWords && !onPrepared) {
+					warning->closeBox();
+				}
+				show->showToast(tr::lng_wallet_phrase_error(tr::now));
 				return;
 			}
-			if (passcode) {
-				passcode->showLoading(true);
-			}
-			RequestPhraseReveal(
-				show,
-				warning,
-				auth,
-				result,
-				passcode,
-				unblock,
-				std::nullopt,
-				onWords,
-				onAuthorized,
-				onPrepared,
-				onPromptError);
-		};
-		const auto passcode = show->show(Box<PasscodeBox>(session, fields));
-		if (passcode) {
-			passcode->boxClosing(
-			) | rpl::on_next([=] {
-				if (onPromptClosed) {
-					onPromptClosed();
+			auto fields = RestorePasswordFields(
+				state,
+				firstKeyUse,
+				tr::lng_wallet_phrase_password_description(tr::now));
+			fields.customCheckCallback = [=](
+					const Core::CloudPasswordResult &result,
+					base::weak_qptr<PasscodeBox> passcode) {
+				if (onPromptSubmit && !onPromptSubmit()) {
+					return;
 				}
-			}, warning->lifetime());
-		}
-	}, warning->lifetime());
+				if (passcode) {
+					passcode->showLoading(true);
+				}
+				RequestPhraseReveal(
+					show,
+					warning,
+					auth,
+					result,
+					passcode,
+					unblock,
+					std::nullopt,
+					onWords,
+					onAuthorized,
+					onPrepared,
+					onPromptError);
+			};
+			const auto passcode = show->show(
+				Box<PasscodeBox>(session, fields));
+			if (passcode) {
+				passcode->boxClosing(
+				) | rpl::on_next([=] {
+					if (onPromptClosed) {
+						onPromptClosed();
+					}
+				}, warning->lifetime());
+			}
+		}, warning->lifetime());
+	});
+	RequestPhraseReveal(
+		show,
+		warning,
+		std::move(auth),
+		std::nullopt,
+		nullptr,
+		unblock,
+		std::nullopt,
+		onWords,
+		onAuthorized,
+		onPrepared,
+		onPromptError,
+		askPassword);
 }
 
 void WalletPhraseWarningBox(
@@ -6521,8 +6537,9 @@ void WalletPhraseWarningBox(
 		};
 		// A key restored from Telegram's backup is stored through the install
 		// ladder, whose chooser asks for the vault itself, so that path
-		// carries no read grant and asks nothing before the cloud password
-		// box. A key held on this device is read right after its unlock,
+		// carries no read grant and asks nothing before the backup is
+		// fetched: the cloud password box comes only when the server asks
+		// for it. A key held on this device is read right after its unlock,
 		// whose submit is the explicit activation, as the chooser's Save is.
 		if (!parkedKey && !show->session().wallet().revealsLocally()) {
 			start(KeyAuthorization{ .install = MakeCustodyInstaller(show) });
@@ -6610,8 +6627,9 @@ void WalletPhraseWarningBox(
 // The warning sheet comes first and its Show press acquires what the reveal
 // needs: the vault unlock for a key held on this device, so the box order
 // is warning, passcode, phrase, or warning, phrase for an open or retained
-// vault; the cloud password box and the install ladder for a key restored
-// from Telegram's backup, with the chooser at the store.
+// vault; the install ladder for a key restored from Telegram's backup, with
+// the cloud password box before it when the server asks for one, and the
+// chooser at the store.
 void WalletRevealFlow(
 		std::shared_ptr<Main::SessionShow> show,
 		std::optional<QByteArray> parkedKey = std::nullopt) {
@@ -6680,7 +6698,8 @@ void RequestCustodyRestore(
 		base::weak_qptr<PasscodeBox> passcode,
 		Fn<void()> action,
 		Fn<void()> unblock,
-		std::shared_ptr<CommentKeyContext> context = nullptr) {
+		std::shared_ptr<CommentKeyContext> context = nullptr,
+		Fn<void()> onPasswordMissing = nullptr) {
 	if (context && !context->valid()) {
 		context->cancel();
 		return;
@@ -6696,6 +6715,10 @@ void RequestCustodyRestore(
 			|| error == u"PHRASE_ORIGIN_EXPIRED"_q
 			|| error == u"PHRASE_SILENT_ERROR"_q)) {
 			context->cancel();
+			return;
+		}
+		if (onPasswordMissing && error == u"PASSWORD_MISSING"_q) {
+			onPasswordMissing();
 			return;
 		}
 		auto terminal = true;
@@ -6752,8 +6775,9 @@ void RequestCustodyRestore(
 		}
 		show->showToast(tr::lng_wallet_phrase_error(tr::now));
 	};
+	auto &wallet = show->session().wallet();
 	if (context) {
-		show->session().wallet().restoreFromBackup(
+		wallet.restoreFromBackup(
 			std::move(auth),
 			std::move(password),
 			context->scope(),
@@ -6762,7 +6786,7 @@ void RequestCustodyRestore(
 			},
 			fail);
 	} else {
-		show->session().wallet().restoreFromBackup(
+		wallet.restoreFromBackup(
 			std::move(auth),
 			std::move(password),
 			done,
@@ -6770,6 +6794,10 @@ void RequestCustodyRestore(
 	}
 }
 
+// The restore is requested without a password first, even when the account
+// has one, because the server decides whether this backup needs it. Only
+// its PASSWORD_MISSING answer loads the cloud password state, asks for the
+// password and repeats the restore with it.
 void StartCustodyRestore(
 		std::shared_ptr<Main::SessionShow> show,
 		KeyAuthorization auth,
@@ -6782,63 +6810,79 @@ void StartCustodyRestore(
 	}
 	const auto session = &show->session();
 	const auto firstKeyUse = RestoreIsFirstKeyUse(session);
-	session->api().cloudPassword().reload();
-	const auto lifetime = std::make_shared<rpl::lifetime>();
-	if (context) {
-		context->lifetime().add([=] { lifetime->destroy(); });
-		const auto timeout = lifetime->make_state<base::Timer>([=] {
-			const auto owned = base::take(*lifetime);
-			if (context->valid()) {
-				show->showToast(tr::lng_wallet_phrase_error(tr::now));
-			}
-			context->cancel();
-		});
-		timeout->callOnce(kCommentPasswordStateTimeout);
-	}
-	session->api().cloudPassword().state(
-	) | rpl::take(
-		1
-	) | rpl::on_next([=](const Core::CloudPasswordState &state) {
-		const auto owned = base::take(*lifetime);
+	const auto askPassword = [=] {
 		if (context && !context->valid()) {
 			context->cancel();
 			return;
 		}
-		if (!state.hasPassword) {
-			RequestCustodyRestore(
-				show,
-				auth,
-				std::nullopt,
-				nullptr,
-				action,
-				unblock,
-				context);
-			return;
-		}
-		auto fields = RestorePasswordFields(
-			state,
-			firstKeyUse,
-			tr::lng_wallet_restore_password_description(tr::now));
-		fields.customShow = context;
-		fields.customCheckCallback = [=](
-				const Core::CloudPasswordResult &result,
-				base::weak_qptr<PasscodeBox> passcode) {
-			RequestCustodyRestore(
-				show,
-				auth,
-				result,
-				passcode,
-				action,
-				unblock,
-				context);
-		};
-		const auto passcode = show->show(Box<PasscodeBox>(session, fields));
+		session->api().cloudPassword().reload();
+		const auto lifetime = std::make_shared<rpl::lifetime>();
 		if (context) {
-			context->cancelOnClose(passcode, true);
-		} else if (unblock) {
-			unblock();
+			context->lifetime().add([=] { lifetime->destroy(); });
+			const auto timeout = lifetime->make_state<base::Timer>([=] {
+				const auto owned = base::take(*lifetime);
+				if (context->valid()) {
+					show->showToast(tr::lng_wallet_phrase_error(tr::now));
+				}
+				context->cancel();
+			});
+			timeout->callOnce(kCommentPasswordStateTimeout);
 		}
-	}, *lifetime);
+		session->api().cloudPassword().state(
+		) | rpl::take(
+			1
+		) | rpl::on_next([=](const Core::CloudPasswordState &state) {
+			const auto owned = base::take(*lifetime);
+			if (context && !context->valid()) {
+				context->cancel();
+				return;
+			}
+			if (!state.hasPassword) {
+				// The server asked for a password this account does not
+				// have, so a repeat without one would only be refused again.
+				show->showToast(tr::lng_wallet_phrase_error(tr::now));
+				if (context) {
+					context->cancel();
+				} else if (unblock) {
+					unblock();
+				}
+				return;
+			}
+			auto fields = RestorePasswordFields(
+				state,
+				firstKeyUse,
+				tr::lng_wallet_restore_password_description(tr::now));
+			fields.customShow = context;
+			fields.customCheckCallback = [=](
+					const Core::CloudPasswordResult &result,
+					base::weak_qptr<PasscodeBox> passcode) {
+				RequestCustodyRestore(
+					show,
+					auth,
+					result,
+					passcode,
+					action,
+					unblock,
+					context);
+			};
+			const auto passcode = show->show(
+				Box<PasscodeBox>(session, fields));
+			if (context) {
+				context->cancelOnClose(passcode, true);
+			} else if (unblock) {
+				unblock();
+			}
+		}, *lifetime);
+	};
+	RequestCustodyRestore(
+		show,
+		std::move(auth),
+		std::nullopt,
+		nullptr,
+		action,
+		unblock,
+		context,
+		askPassword);
 }
 
 enum class KeyActionKind {

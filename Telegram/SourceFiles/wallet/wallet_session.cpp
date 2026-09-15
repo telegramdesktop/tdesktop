@@ -2570,6 +2570,10 @@ void Session::revealFromShares(
 		fail(u"PHRASE_STATE_UNKNOWN"_q);
 		return;
 	}
+	// Sent without a password first even when the account has one: the
+	// server decides whether this export needs it, and answers
+	// PASSWORD_MISSING when it does, which the caller turns into a repeat
+	// that carries the password.
 	using Flag = MTPwallet_exportSecretPhrase::Flag;
 	const auto checked = password && *password;
 	const auto pending = std::make_shared<bool>(true);
