@@ -223,6 +223,7 @@ constexpr auto kClientSendValiditySeconds = uint64(300);
 constexpr auto kClientResolutionMarginSeconds = uint64(60);
 constexpr auto kClientRequestTimeoutMs = uint64(15000);
 constexpr auto kGaslessRefreshInterval = crl::time(60 * 1000);
+constexpr auto kGaslessRefreshAhead = crl::time(10 * 1000);
 constexpr auto kGaslessRetryInterval = crl::time(15 * 1000);
 // The largest individual data field wallet.sendTransfer allows, inclusive.
 constexpr auto kTransferDataMaxBytes = 16 * 1024;
@@ -1134,6 +1135,7 @@ void FailShareFetch(
 		.peerTransfer = (item.kind == TransferItem::Kind::PeerTransfer),
 		.failed = (item.status == TransferItem::Status::Failure),
 		.commentEncrypted = item.commentEncrypted,
+		.gasless = item.gasless,
 	};
 }
 
@@ -1290,6 +1292,7 @@ void SetDirectedAmount(
 	result.walletIdentity = identity;
 	SetDirectedAmount(result, data.vamount().v, data.is_incoming());
 	result.feeNano = data.vfee().v;
+	result.gasless = data.is_gasless();
 	result.date = data.vdate().v;
 	result.status = data.is_failed()
 		? TransferItem::Status::Failure
@@ -1982,8 +1985,18 @@ void Session::refreshGaslessInfo(bool force) {
 			return;
 		}
 	}
+	// Every prepared transfer is bound to the exact terms it was estimated
+	// with, so letting the info lapse and then fetching it again would flip
+	// the terms to stale and back once a minute and throw away every
+	// prepared transfer with them, even when the server answers with the
+	// same info. The info is fetched ahead of its expiry instead, and an
+	// unchanged answer then leaves the terms, and the transfers, as they are.
+	const auto expiring = _gaslessTerms.current().fresh
+		&& (now >= _gaslessExpiresAt - kGaslessRefreshAhead);
 	if (!_gaslessRequestId
-		&& (!_gaslessTerms.current().fresh || _gaslessRefreshWanted)
+		&& (!_gaslessTerms.current().fresh
+			|| expiring
+			|| _gaslessRefreshWanted)
 		&& (!_gaslessRequestedAt
 			|| (now - _gaslessRequestedAt >= kGaslessRetryInterval))) {
 		requestGaslessInfo();
@@ -1995,9 +2008,9 @@ void Session::refreshGaslessInfo(bool force) {
 	const auto &current = _gaslessTerms.current();
 	auto deadline = _gaslessRequestId
 		? _gaslessRequestedAt + crl::time(kClientRequestTimeoutMs)
-		: (!current.fresh || _gaslessRefreshWanted)
+		: (!current.fresh || expiring || _gaslessRefreshWanted)
 		? _gaslessRequestedAt + kGaslessRetryInterval
-		: _gaslessExpiresAt;
+		: (_gaslessExpiresAt - kGaslessRefreshAhead);
 	if (current.fresh) {
 		deadline = std::min(deadline, _gaslessExpiresAt);
 		if (current.info->resetAt > 0) {
@@ -7184,6 +7197,7 @@ Session::SubmittedTransfer *Session::upsertSubmittedTransfer(
 		item->counterpartyPeer = stored.counterpartyPeer;
 		item->amountNano = stored.amountNano;
 		item->feeNano = stored.feeNano;
+		item->gasless = stored.gasless;
 		item->comment = stored.comment;
 		item->commentEncrypted = stored.commentEncrypted;
 		item->date = stored.date;

@@ -38,8 +38,9 @@ constexpr auto kFeeFlag = quint32(1U << 1);
 constexpr auto kPeerFlag = quint32(1U << 2);
 constexpr auto kFailedFlag = quint32(1U << 3);
 constexpr auto kPrivateFlag = quint32(1U << 4);
+constexpr auto kGaslessFlag = quint32(1U << 5);
 constexpr auto kProjectionFlags = kDateFlag | kFeeFlag
-	| kPeerFlag | kFailedFlag | kPrivateFlag;
+	| kPeerFlag | kFailedFlag | kPrivateFlag | kGaslessFlag;
 
 [[nodiscard]] QByteArray ReadBytes(
 		Serialize::ByteArrayReader &stream,
@@ -190,6 +191,7 @@ void WriteText(Serialize::ByteArrayWriter &stream, const QString &text) {
 	result.peerTransfer = (flags & kPeerFlag);
 	result.failed = (flags & kFailedFlag);
 	result.commentEncrypted = (flags & kPrivateFlag);
+	result.gasless = (flags & kGaslessFlag);
 	return result;
 }
 
@@ -200,7 +202,8 @@ void WriteProjection(
 		| (item.feeNano ? kFeeFlag : 0)
 		| (item.peerTransfer ? kPeerFlag : 0)
 		| (item.failed ? kFailedFlag : 0)
-		| (item.commentEncrypted ? kPrivateFlag : 0));
+		| (item.commentEncrypted ? kPrivateFlag : 0)
+		| (item.gasless ? kGaslessFlag : 0));
 	WriteText(stream, item.id);
 	WriteText(stream, item.counterparty);
 	WriteText(stream, item.counterpartyName);

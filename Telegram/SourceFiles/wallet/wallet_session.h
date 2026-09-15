@@ -191,6 +191,7 @@ struct TransferItem {
 	// otherwise render two signs.
 	int64 amountNano = 0;
 	std::optional<int64> feeNano;
+	bool gasless = false;
 	QString comment;
 	bool commentEncrypted = false;
 	EncryptedFormat encryptedFormat = EncryptedFormat::Unavailable;

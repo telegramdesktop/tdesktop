@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_address.h"
 #include "wallet/wallet_comment.h"
 #include "wallet/wallet_content.h"
+#include "wallet/wallet_panel.h"
 #include "window/window_session_controller.h"
 
 #include <QtCore/QLocale>
@@ -432,7 +433,12 @@ void GramTransferCardPart::showDetails(const ClickContext &context) {
 		[weak = base::make_weak(this), origin] {
 			return weak && CurrentGramTransfer(origin);
 		},
-		rpl::merge(GramTransferInvalidations(origin), _destroyed.events()));
+		rpl::merge(GramTransferInvalidations(origin), _destroyed.events()),
+		[session = origin.session] {
+			if (const auto strong = session.get()) {
+				Wallet::ShowWallet(strong);
+			}
+		});
 }
 
 QSize GramTransferCardPart::countOptimalSize() {

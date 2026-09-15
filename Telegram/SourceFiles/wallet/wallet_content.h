@@ -45,7 +45,8 @@ void ShowTransactionDetails(
 	bool reduced = false,
 	std::shared_ptr<CollectibleMedia> media = nullptr,
 	Fn<bool()> originCurrent = nullptr,
-	rpl::producer<> originInvalidated = nullptr);
+	rpl::producer<> originInvalidated = nullptr,
+	Fn<void()> openWallet = nullptr);
 
 [[nodiscard]] base::unique_qptr<Ui::RpWidget> CreateContent(
 	not_null<Ui::SeparatePanel*> panel,

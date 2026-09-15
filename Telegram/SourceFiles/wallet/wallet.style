@@ -370,6 +370,7 @@ walletPhraseTextLabel: FlatLabel(defaultFlatLabel) {
 walletPhraseIntroTextLabel: FlatLabel(walletPhraseTextLabel) {
 	textFg: windowSubTextFg;
 }
+walletPhraseTitlePadding: margins(24px, 13px, 24px, 0px);
 walletPhraseTextMargin: margins(24px, 8px, 24px, 8px);
 walletCoverLottieSize: 64px;
 walletCoverLottieMargin: margins(24px, 48px, 24px, 10px);

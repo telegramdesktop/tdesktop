@@ -56,6 +56,7 @@ struct SubmittedTransferProjection {
 	bool peerTransfer = false;
 	bool failed = false;
 	bool commentEncrypted = false;
+	bool gasless = false;
 
 	friend bool operator==(
 		const SubmittedTransferProjection &,
