@@ -18,12 +18,15 @@ publication, and its task boundary.
   to read this contract and stay in its turn until its assigned boundary or a
   reported hard stop. A final progress-only reply stops that turn; it does
   not arrange continuation when a child finishes.
-- While a child owns the next step, wait for its result with `wait_agent`.
-  Request a 30-minute wait when the current tool and higher-priority
-  instructions allow it; otherwise use the longest permitted wait. Native
-  completion results arrive automatically. Do not end the parent turn to
-  wait for them, and do not build shell, sleep, transcript, or app-task
-  monitors around native subagents.
+- While a child owns the next step, call `wait_agent` with
+  `timeout_ms: 1800000` (30 minutes), or the time remaining until the next
+  runtime check below. This is an interruptible maximum: child completion
+  and new user input wake the parent immediately. Do not shorten the wait
+  to send periodic commentary or replace it with a 60-second polling loop.
+  If the tool or higher-priority instructions impose a shorter maximum, use
+  the longest permitted wait and renew it silently. Do not end the parent
+  turn to wait for completion, and do not build shell, sleep, transcript, or
+  app-task monitors around native subagents.
 - The mailbox is shared: process each completion or failure for its saved
   target once, handle user input, and continue waiting for outstanding
   assignments. Another agent's message is not this child's completion.
@@ -31,8 +34,9 @@ publication, and its task boundary.
 - Ordinary wakes and short timeouts only renew the wait. Do not list agents,
   read phase files, check mtimes, request progress, or narrate unchanged
   status on each wake. Workers owe no heartbeat, progress file, or periodic
-  report. Preserve existing recovery artifacts without maintaining them as
-  liveness signals.
+  report. Keep the parent quiet until there is a meaningful result, a required
+  action, or a user question; silence alone needs no update. Preserve existing
+  recovery artifacts without maintaining them as liveness signals.
 - After a child returns, validate its required artifacts and repository state
   once. A compact final reply is a notification, not proof of success. Start
   the next dependent phase or performer only after that validation. Retain
