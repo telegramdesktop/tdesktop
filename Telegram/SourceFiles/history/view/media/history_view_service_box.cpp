@@ -95,13 +95,17 @@ ServiceBox::ServiceBox(
 				+ st::giftBoxReleasedByMargin.bottom()
 				+ st::msgServiceGiftBoxTitlePadding.bottom()))
 		+ _subtitle.countHeight(_maxWidth)
-		+ (!_content->button()
+		+ ((!_content->button()
+			|| (parent->context() == Context::MediaEditor))
 			? 0
 			: (_content->buttonSkip() + st::msgServiceGiftBoxButtonHeight))
 		+ st::msgServiceGiftBoxButtonMargins.bottom()))
 , _innerSize(_size - QSize(0, st::msgServiceGiftBoxTopSkip)) {
 	InitElementTextPart(_parent, _subtitle);
-	if (auto text = _content->button()) {
+	auto text = (_parent->context() == Context::MediaEditor)
+		? rpl::producer<QString>()
+		: _content->button();
+	if (text) {
 		_button.repaint = [=] { repaint(); };
 		std::move(text) | rpl::on_next([=](QString value) {
 			_button.text.setText(st::semiboldTextStyle, value);
@@ -186,7 +190,7 @@ void ServiceBox::draw(Painter &p, const PaintContext &context) const {
 	p.setBrush(context.st->msgServiceBg());
 
 	const auto radius = st::msgServiceGiftBoxRadius;
-	if (_parent->data()->inlineReplyKeyboard()) {
+	if (_parent->inlineReplyKeyboard()) {
 		const auto r = Rect(_innerSize);
 		const auto half = r.height() / 2;
 		p.setClipRect(r - QMargins(0, 0, 0, half));

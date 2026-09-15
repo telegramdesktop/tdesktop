@@ -466,6 +466,9 @@ void Reply::update(
 		text,
 		_multiline ? Ui::ItemTextDefaultOptions() : Ui::DialogTextOptions(),
 		helper.context());
+	if (view->context() == Context::MediaEditor) {
+		_text.setSpoilerRevealed(true, anim::type::instant);
+	}
 
 	updateName(view, data);
 
@@ -979,7 +982,9 @@ void Reply::paint(
 							.outer = to.size(),
 						});
 					p.drawPixmap(to.x(), to.y(), preview);
-					if (_spoiler) {
+					const auto mediaEditor = (view->context()
+						== Context::MediaEditor);
+					if (_spoiler && !mediaEditor) {
 						view->clearCustomEmojiRepaint();
 						FillPreviewSpoiler(
 							p,

@@ -21,6 +21,7 @@ class UserData;
 struct HistoryMessageReply;
 struct PreparedServiceText;
 struct HistoryMessageReplyMarkup;
+class ReplyKeyboard;
 
 namespace Data {
 class Thread;
@@ -460,6 +461,7 @@ public:
 	[[nodiscard]] not_null<History*> history() const;
 	[[nodiscard]] Media *media() const;
 	[[nodiscard]] bool hasCommentsButton() const;
+	[[nodiscard]] ReplyKeyboard *inlineReplyKeyboard() const;
 	[[nodiscard]] Context context() const;
 	void refreshDataId();
 

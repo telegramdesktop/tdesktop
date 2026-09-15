@@ -444,7 +444,10 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 
 	ensureMediaCreated();
 	validateImageCache(rthumb.size(), rounding);
-	const auto paintPrevious = _live && !_live->previous.isNull();
+	const auto mediaEditor = (_parent->context() == Context::MediaEditor);
+	const auto paintPrevious = !mediaEditor
+		&& _live
+		&& !_live->previous.isNull();
 	auto opacity = _imageCache.isNull() ? 0. : 1.;
 	if (paintPrevious) {
 		opacity = _live->crossfade.value(opacity);
@@ -554,7 +557,12 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 	painty += thumbh;
 	if (_live) {
 		painth -= thumbh;
-		paintLiveRemaining(p, context, { paintx, painty, paintw, painth });
+		if (!mediaEditor) {
+			paintLiveRemaining(
+				p,
+				context,
+				{ paintx, painty, paintw, painth });
+		}
 	}
 	paintText();
 	if (!_live && !hasText && _parent->media() == this) {

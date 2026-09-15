@@ -490,7 +490,7 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 		history()->owner().registerHeavyViewPart(_parent);
 	}
 
-	if (tagged) {
+	if (tagged && (_parent->context() != Context::MediaEditor)) {
 		tagged->drawSpoilerTag(p, fullRect, context, [&] {
 			return generateSpoilerTagBackground(fullRect);
 		});

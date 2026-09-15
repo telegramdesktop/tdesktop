@@ -1508,6 +1508,12 @@ bool Element::hidesBottomInfo() const {
 			&& context() == Context::MediaEditor);
 }
 
+ReplyKeyboard *Element::inlineReplyKeyboard() const {
+	return (_context == Context::MediaEditor)
+		? nullptr
+		: _data->inlineReplyKeyboard();
+}
+
 bool Element::hasCommentsButton() const {
 	return (_context != Context::MediaEditor)
 		&& (_data->repliesAreComments() || _data->externalReply());

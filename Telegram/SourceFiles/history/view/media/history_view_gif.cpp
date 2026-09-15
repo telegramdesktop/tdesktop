@@ -714,6 +714,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		: nullptr;
 
 	if (displayLoading
+		&& !mediaEditor
 		&& (!streamedForWaiting
 			|| item->isSending()
 			|| _data->uploading()
@@ -1123,7 +1124,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			paintTranscribe(p, usex, fullBottom, false, context);
 		}
 	}
-	if (_drawTtl) {
+	if (_drawTtl && !mediaEditor) {
 		_drawTtl(p, rthumb, context);
 	}
 }
@@ -1781,6 +1782,7 @@ void Gif::drawGrouped(
 		not_null<QPixmap*> cache) const {
 	ensureDataMediaCreated();
 	const auto item = _parent->data();
+	const auto mediaEditor = (_parent->context() == Context::MediaEditor);
 	const auto loaded = dataLoaded();
 	const auto displayLoading = item->isSending()
 		|| item->hasFailed()
@@ -1790,7 +1792,7 @@ void Gif::drawGrouped(
 	_smallGroupPart = !fullFeaturedGrouped(sides);
 	const auto cornerDownload = !_smallGroupPart && downloadInCorner();
 
-	const auto revealed = revealedProgress();
+	const auto revealed = mediaEditor ? 1. : revealedProgress();
 	const auto fullHiddenBySpoiler = (revealed == 0.);
 	if (revealed < 1.) {
 		validateSpoilerImageCache(geometry.size(), rounding);
@@ -1821,6 +1823,7 @@ void Gif::drawGrouped(
 		: nullptr;
 
 	if (displayLoading
+		&& !mediaEditor
 		&& (!streamedForWaiting
 			|| item->isSending()
 			|| _data->uploading()
@@ -1897,6 +1900,7 @@ void Gif::drawGrouped(
 	}
 
 	const auto paintInCenter = !_sensitiveSpoiler
+		&& !mediaEditor
 		&& (radial
 			|| (!streamingMode
 				&& ((!loaded && !_data->loading()) || !autoplay)));
@@ -1981,7 +1985,7 @@ void Gif::drawGrouped(
 		}
 		p.setOpacity(1.);
 	}
-	if (!_smallGroupPart) {
+	if (!_smallGroupPart && !mediaEditor) {
 		drawCornerStatus(p, context, geometry.topLeft());
 	}
 }
@@ -2724,6 +2728,7 @@ void Gif::ensureTranscribeButton() const {
 		&& (!media || !media->ttlSeconds())
 		&& !_parent->data()->isScheduled()
 		&& !_parent->data()->isAdminLogEntry()
+		&& (_parent->context() != Context::MediaEditor)
 		&& (_data->session().premium()
 			|| _data->session().api().transcribes().trialsSupport())) {
 		if (!_transcribe) {
