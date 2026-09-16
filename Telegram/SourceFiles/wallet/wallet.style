@@ -87,6 +87,19 @@ walletIslandRow: SettingsButton(settingsButtonNoIcon) {
 	textBgOver: transparent;
 	padding: margins(22px, 10px, 50px, 8px);
 }
+// The Gram Earnings entry carries its sentence in a FlatLabel, so its width
+// limit is a WRAP width, not walletIslandRow's conservative 50px elision
+// allowance: AddRowChevron's st::backButton is 40px wide, inset 5px by
+// settingsPremiumArrowShift and centring a 16px icon, so the chevron's icon
+// box begins 33px from the row's right edge. minWidth is the wrap
+// measurement's own floor - a zero one makes Ui::Text::String measure every
+// string as one line, which walletBuyRowSubtitle below explains in full.
+walletIslandRowLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 80px;
+	style: boxTextStyle;
+	textFg: windowBoldFg;
+}
+walletIslandLabelRightSkip: 33px;
 walletInfoIslandShadow: BoxShadow {
 	blurRadius: 3px;
 	offset: point(0px, 1px);

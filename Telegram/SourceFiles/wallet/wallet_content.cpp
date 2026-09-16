@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/local_url_handlers.h"
 #include "core/ton_explorer_url.h"
 #include "core/ui_integration.h"
+#include "data/components/credits.h"
 #include "data/components/recent_money_recipients.h"
 #include "data/data_changes.h"
 #include "data/data_session.h"
@@ -48,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "qr/qr_generate.h"
 #include "settings/cloud_password/settings_cloud_password_common.h"
+#include "settings/sections/settings_credits.h"
 #include "settings/settings_common.h"
 #include "storage/storage_account.h"
 #include "storage/storage_domain.h"
@@ -100,6 +102,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_unlock.h"
 #include "wallet/wallet_user_addresses.h"
 #include "window/themes/window_theme.h"
+#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 
 #include <QtCore/QLocale>
 #include <QtCore/QUrl>
@@ -258,6 +262,7 @@ private:
 	void setupPinned();
 	void setupInfoIsland();
 	void setupWaltEntry(not_null<InfoIsland*> island);
+	void setupEarningsEntry(not_null<InfoIsland*> island);
 	void setupProtectRow();
 	void setupBalance();
 	void setupTabs(rpl::producer<bool> collectiblesShown);
@@ -1901,13 +1906,9 @@ void ShowNetworkFeesAbout(
 	}));
 }
 
-void AddFeeTableRow(
-		not_null<Ui::TableLayout*> table,
-		std::shared_ptr<Ui::Show> show,
-		not_null<Main::Session*> session,
-		const TransferItem &item) {
-	const auto &font = table->st().defaultValue.style.font;
-	auto helper = Ui::Text::CustomEmojiHelper();
+[[nodiscard]] TextWithEntities GramMark(
+		Ui::Text::CustomEmojiHelper &helper,
+		const style::font &font) {
 	auto descriptor = Ui::Text::PaletteDependentEmoji{
 		.factory = [=] {
 			return Ui::Earn::IconCurrencyColored(
@@ -1923,7 +1924,17 @@ void AddFeeTableRow(
 		+ Ui::Emoji::GetCustomSkipNormal();
 	const auto marginTop = int(base::SafeRound(alignedTop - naturalTop));
 	descriptor.margin = QMargins(0, marginTop, 0, 0);
-	const auto diamond = helper.paletteDependent(std::move(descriptor));
+	return helper.paletteDependent(std::move(descriptor));
+}
+
+void AddFeeTableRow(
+		not_null<Ui::TableLayout*> table,
+		std::shared_ptr<Ui::Show> show,
+		not_null<Main::Session*> session,
+		const TransferItem &item) {
+	const auto &font = table->st().defaultValue.style.font;
+	auto helper = Ui::Text::CustomEmojiHelper();
+	const auto diamond = GramMark(helper, font);
 	const auto feeNano = item.feeNano.value_or(0);
 	auto value = rpl::producer<TextWithEntities>();
 	if (item.gasless) {
@@ -10602,6 +10613,7 @@ void Content::setupInfoIsland() {
 			style::margins(0, st::walletCardTopSkip, 0, 0)));
 	setupCustodyEntry(island);
 	setupWaltEntry(island);
+	setupEarningsEntry(island);
 	wrap->toggleOn(island->anyShownValue(), anim::type::normal);
 }
 
@@ -10628,6 +10640,69 @@ void Content::setupWaltEntry(not_null<InfoIsland*> island) {
 		OldWalletBotValue(session)
 	) | rpl::map([](bool exists, UserData *bot) {
 		return exists && (bot != nullptr);
+	}), anim::type::normal);
+}
+
+void Content::setupEarningsEntry(not_null<InfoIsland*> island) {
+	const auto session = &_show->session();
+	const auto wrap = island->add(
+		object_ptr<InfoIslandEntry>(island, nullptr, st::walletIslandRow));
+	const auto button = wrap->entity();
+	AddRowChevron(button);
+
+	auto helper = Ui::Text::CustomEmojiHelper();
+	const auto mark = GramMark(helper, st::walletIslandRowLabel.style.font);
+	auto text = tr::lng_wallet_earnings_existing(
+		lt_amount,
+		session->credits().tonBalanceValue(
+		) | rpl::map([=](CreditsAmount value) {
+			auto result = mark;
+			result.append(QChar(' '));
+			result.append(Ui::Text::Colorized(
+				Lang::FormatCreditsAmountToShort(value).string));
+			return result;
+		}),
+		tr::marked);
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		button,
+		std::move(text),
+		st::walletIslandRowLabel,
+		st::defaultPopupMenu,
+		helper.context());
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto updateLabelGeometry = [=] {
+		const auto &padding = st::walletIslandRow.padding;
+		const auto available = button->width()
+			- padding.left()
+			- st::walletIslandLabelRightSkip;
+		if (available <= 0) {
+			return;
+		}
+		label->resizeToWidth(available);
+		button->setMinimalHeight(label->height()
+			+ padding.top()
+			+ padding.bottom());
+		label->moveToLeft(
+			padding.left(),
+			(button->height() - label->height()) / 2,
+			button->width());
+	};
+	button->widthValue(
+	) | rpl::on_next(updateLabelGeometry, button->lifetime());
+	label->heightValue(
+	) | rpl::on_next(updateLabelGeometry, label->lifetime());
+
+	button->setClickedCallback([=] {
+		if (const auto window = session->tryResolveWindow()) {
+			window->showSettings(Settings::CurrencyId());
+			window->window().activate();
+		}
+	});
+
+	session->credits().tonLoad();
+	wrap->toggleOn(session->credits().tonBalanceValue(
+	) | rpl::map([](CreditsAmount value) {
+		return !value.empty();
 	}), anim::type::normal);
 }
 

@@ -8787,6 +8787,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_card_ticker" = "GRAM";
 "lng_wallet_add_funds" = "Add Funds";
 "lng_wallet_walt_existing" = "You also have money in Walt";
+"lng_wallet_earnings_existing" = "You also have {amount} in Gram Earnings";
 "lng_wallet_protect_account" = "Protect your account";
 "lng_wallet_protect_set_password" = "Set Additional Password";
 "lng_wallet_protect_done_title" = "Password set";
