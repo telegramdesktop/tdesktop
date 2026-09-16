@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 enum class SendMediaType;
 class MessageLinksParser;
 struct InlineBotQuery;
+class SendFilesBox;
 
 namespace MTP {
 class Error;
@@ -34,6 +35,7 @@ class ForumTopic;
 class PhotoMedia;
 struct DrawToReplyRequest;
 struct SendError;
+struct ComposeStash;
 } // namespace Data
 
 namespace SendMenu {
@@ -135,6 +137,7 @@ class PhotoEditSpoilerManager;
 class ComposeAiButton;
 class ComposeTooltipManager;
 class RichDraftPreview;
+class StashManager;
 using AiTooltipManager = ComposeTooltipManager;
 struct VoiceToSend;
 } // namespace HistoryView::Controls
@@ -620,6 +623,11 @@ private:
 	}
 
 	void setupShortcuts();
+	void setupComposeStash();
+	[[nodiscard]] bool canUseComposeStash() const;
+	[[nodiscard]] bool hasStashableContent() const;
+	[[nodiscard]] std::unique_ptr<Data::ComposeStash> takeComposeStash();
+	void applyComposeStash(Data::ComposeStash &&stash);
 	void setupGiftToChannelButton();
 	void setupDirectMessageButton();
 
@@ -980,6 +988,8 @@ private:
 	object_ptr<InlineBots::Layout::Widget> _inlineResults = { nullptr };
 	std::unique_ptr<TabbedPanel> _tabbedPanel;
 	std::unique_ptr<Ui::DropdownMenu> _attachBotsMenu;
+	std::unique_ptr<HistoryView::Controls::StashManager> _stash;
+	QPointer<SendFilesBox> _sendFilesBox;
 
 	DragArea::Areas _attachDragAreas;
 

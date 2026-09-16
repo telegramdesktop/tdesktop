@@ -42,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/notify/data_notify_settings.h"
 #include "data/data_birthday.h"
 #include "data/data_changes.h"
+#include "data/data_compose_stash.h"
 #include "data/data_drafts.h"
 #include "data/data_group_call.h"
 #include "data/data_messages.h"
@@ -2645,6 +2646,100 @@ void ComposeControls::migrateFieldToRichEditor() {
 	} else {
 		clearRichDraft();
 	}
+}
+
+Data::DraftKey ComposeControls::composeStashKey() const {
+	return draftKey(DraftType::Normal);
+}
+
+bool ComposeControls::canUseComposeStash() const {
+	return _history
+		&& composeStashKey()
+		&& !isEditingMessage()
+		&& !_writeRestriction.current()
+		&& !_voiceRecordBar->isActive();
+}
+
+bool ComposeControls::hasStashableContent() const {
+	return _history
+		&& (!_field->empty()
+			|| replyingToMessage().replying()
+			|| readyToForward()
+			|| shouldShowRichDraftPreview()
+			|| (_currentSuggest && _currentSuggest().exists));
+}
+
+bool ComposeControls::canSendTexts() const {
+	return _canSendTexts.current();
+}
+
+std::unique_ptr<Data::ComposeStash> ComposeControls::takeComposeStash() {
+	Expects(_history != nullptr);
+
+	if (!hasStashableContent()) {
+		return nullptr;
+	}
+	auto result = std::make_unique<Data::ComposeStash>();
+	const auto rich = shouldShowRichDraftPreview() ? cloudDraft() : nullptr;
+	if (rich) {
+		result->draft = *rich;
+		result->draft.saveRequestId = 0;
+		clearRichDraft();
+		cancelReplyMessage();
+	} else {
+		result->draft = Data::Draft(
+			_field,
+			replyingToMessage(),
+			_currentSuggest ? _currentSuggest() : SuggestOptions(),
+			_preview ? _preview->draft() : Data::WebPageDraft());
+		clear();
+	}
+	saveDraftWithTextNow();
+	saveCloudDraft();
+	result->forward = _history->forwardDraft(_topicRootId, _monoforumPeerId);
+	if (!result->forward.ids.empty()) {
+		cancelForward();
+	}
+	return result;
+}
+
+void ComposeControls::applyComposeStash(Data::ComposeStash &&stash) {
+	Expects(_history != nullptr);
+
+	const auto key = composeStashKey();
+	if (stash.draft.hasRichMessage()) {
+		_history->clearDraft(key);
+		const auto cloud = _history->createCloudDraft(
+			_topicRootId,
+			_monoforumPeerId,
+			&stash.draft);
+		applyDraft();
+		const auto thread = _history->threadFor(
+			_topicRootId,
+			_monoforumPeerId);
+		if (cloud && thread) {
+			session().api().saveDraftToCloud(not_null{ thread }, *cloud);
+		}
+	} else {
+		const auto reply = stash.draft.reply;
+		_history->setDraft(
+			key,
+			std::make_unique<Data::Draft>(std::move(stash.draft)));
+		applyDraft();
+		if (!_canSendTexts.current() && reply.replying()) {
+			replyToMessage(reply);
+		}
+		saveDraftWithTextNow();
+		saveCloudDraft();
+	}
+	if (!stash.forward.ids.empty()) {
+		_history->setForwardDraft(
+			_topicRootId,
+			_monoforumPeerId,
+			std::move(stash.forward));
+		updateForwarding();
+	}
+	focus();
 }
 
 void ComposeControls::migrateScheduledFieldToRichEditor() {

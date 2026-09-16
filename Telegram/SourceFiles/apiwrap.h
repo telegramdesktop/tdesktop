@@ -706,9 +706,13 @@ private:
 	};
 	base::flat_map<NotifySettingsKey, mtpRequestId> _notifySettingRequests;
 
+	struct DraftSaveState {
+		mtpRequestId requestId = 0;
+		bool changedWhileSaving = false;
+	};
 	base::flat_map<
 		base::weak_ptr<Data::Thread>,
-		mtpRequestId> _draftsSaveRequestIds;
+		DraftSaveState> _draftSaves;
 	base::Timer _draftsSaveTimer;
 
 	base::flat_set<mtpRequestId> _stickerSetDisenableRequests;
