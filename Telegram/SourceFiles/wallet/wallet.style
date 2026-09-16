@@ -80,12 +80,17 @@ walletHeaderBottomSkip: 12px;
 // the row stays 38px tall. Right 50px is walletBuyRowPadding's existing
 // allowance for the same st::backButton chevron - SettingsButton::paintText
 // elides at width - padding.left - padding.right, so 22px would let the
-// text run under the arrow. textBgOver must not be windowBgOver: that is
-// exactly the ground Content::setupPinned's _pinnedBackground painter fills.
-walletWaltRow: SettingsButton(settingsButtonNoIcon) {
-	textBgOver: windowBgRipple;
-	ripple: defaultRippleAnimationBgOver;
+// text run under the arrow. Both backgrounds are transparent because the
+// island paints the pill behind every entry.
+walletIslandRow: SettingsButton(settingsButtonNoIcon) {
+	textBg: transparent;
+	textBgOver: transparent;
 	padding: margins(22px, 10px, 50px, 8px);
+}
+walletInfoIslandShadow: BoxShadow {
+	blurRadius: 3px;
+	offset: point(0px, 1px);
+	opacity: 0.09;
 }
 
 walletAboutTopSkip: 24px;
@@ -150,7 +155,7 @@ walletRowsHintHeight: 44px;
 // Text left is walletRowPadding.left, so the row's text lines up with the
 // transaction titles; iconLeft centres the 24px icon on the 46px avatar
 // column at walletRowIconLeft (20 + (46 - 24) / 2). Right 50px is the same
-// chevron allowance walletWaltRow uses for AddRowChevron.
+// chevron allowance walletIslandRow uses for AddRowChevron.
 walletProtectRowSkip: walletRowsTopSkip;
 walletProtectRow: SettingsButton(settingsAttentionButtonWithIcon) {
 	padding: margins(76px, 10px, 50px, 10px);
@@ -463,11 +468,11 @@ walletImportPaste: RoundButton(defaultTableSmallButton) {
 }
 walletImportPasteTop: 5px;
 
-walletInfoBarHeight: 36px;
 walletInfoBarLabel: FlatLabel(defaultFlatLabel) {
 	style: semiboldTextStyle;
 	textFg: windowActiveTextFg;
 	minWidth: 80px;
+	align: align(center);
 }
 walletInfoBarLabelSkip: 12px;
 

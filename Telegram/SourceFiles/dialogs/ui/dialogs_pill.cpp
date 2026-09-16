@@ -7,11 +7,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/ui/dialogs_pill.h"
 
+#include "ui/widgets/shadow.h"
 #include "ui/painter.h"
 #include "styles/style_basic.h"
 
-
 namespace Dialogs {
+
+void PaintPillBackground(
+		QPainter &p,
+		const Ui::BoxShadow &shadow,
+		const QRect &pill,
+		int radius) {
+	shadow.paint(p, pill, radius);
+	{
+		auto hq = PainterHighQualityEnabler(p);
+		p.setBrush(st::dialogsBg);
+		p.setPen(Qt::NoPen);
+		p.drawRoundedRect(pill, radius, radius);
+	}
+	PaintPillOutline(p, pill, radius);
+}
 
 void PaintPillOutline(QPainter &p, const QRect &pill, int radius) {
 	if (pill.isEmpty()) {

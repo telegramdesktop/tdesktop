@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "dialogs/ui/dialogs_pill.h"
 #include "history/history.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
 #include "info/channel_statistics/earn/earn_format.h"
@@ -56,6 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/ton_common.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/unique_gift_message_bubble.h"
+#include "ui/image/image_prepare.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/custom_emoji_helper.h"
 #include "ui/text/format_values.h"
@@ -157,6 +159,8 @@ constexpr auto kRowAmountPreciseBelowNano = Ui::kNanosInOne / 100;
 class BalanceInk;
 class Card;
 struct CardFold;
+class InfoIsland;
+class InfoIslandEntry;
 
 class KeyContext final
 	: public Main::SessionShow
@@ -252,13 +256,14 @@ protected:
 private:
 	void setupContent();
 	void setupPinned();
-	void setupWaltOffer();
+	void setupInfoIsland();
+	void setupWaltEntry(not_null<InfoIsland*> island);
 	void setupProtectRow();
 	void setupBalance();
 	void setupTabs(rpl::producer<bool> collectiblesShown);
 	void setupStrip();
 	void setupListsLoading();
-	void setupCustodyBar();
+	void setupCustodyEntry(not_null<InfoIsland*> island);
 	void paintTitle(QPainter &p, float64 fold);
 	void updateRegions();
 	void updatePinned();
@@ -266,7 +271,6 @@ private:
 	void checkLoadMore();
 	[[nodiscard]] int pinnedMax() const;
 	[[nodiscard]] int pinnedMin() const;
-	[[nodiscard]] int barHeight() const;
 	[[nodiscard]] QRect cardRest() const;
 	[[nodiscard]] float64 foldProgress() const;
 	[[nodiscard]] const CardFold &cardFold() const;
@@ -292,9 +296,7 @@ private:
 	Ui::PlainShadow *_stripShadow = nullptr;
 	Ui::RpWidget *_strip = nullptr;
 	Ui::RpWidget *_listsLoading = nullptr;
-	Ui::SlideWrap<Ui::AbstractButton> *_custodyBar = nullptr;
 	Ui::FlatLabel *_custodyBarLabel = nullptr;
-	Ui::PlainShadow *_custodyBarShadow = nullptr;
 	Ui::FixedHeightWidget *_cardPlaceholder = nullptr;
 	Card *_card = nullptr;
 	Ui::AbstractButton *_cardQr = nullptr;
@@ -302,7 +304,6 @@ private:
 	int _reserve = 0;
 	int _paintedHeight = -1;
 	int _paintedMin = -1;
-	int _paintedBar = -1;
 	bool _tabsShown = false;
 	bool _stripShown = false;
 
@@ -325,10 +326,7 @@ struct CardFold {
 // a widget-local painter, so it reconciles with p.translate(-x(), -y())
 // before applying `transform` and draws into `rest`; paintedQuad() and
 // paintedQrQuad() return Content coordinates for the same reason.
-[[nodiscard]] CardFold ComputeCardFold(
-	QRect cardRest,
-	int pinnedTop,
-	float64 fold);
+[[nodiscard]] CardFold ComputeCardFold(QRect cardRest, float64 fold);
 
 class Card final : public Ui::RpWidget {
 public:
@@ -407,6 +405,230 @@ private:
 	int _outerWidth = 0;
 
 };
+
+class InfoIslandEntry final : public Ui::SettingsButton {
+public:
+	InfoIslandEntry(
+		QWidget *parent,
+		rpl::producer<QString> text,
+		const style::SettingsButton &st);
+	InfoIslandEntry(
+		QWidget *parent,
+		std::nullptr_t,
+		const style::SettingsButton &st);
+
+	void setRounding(RectParts corners, int radius);
+	void setMinimalHeight(int height);
+
+protected:
+	int resizeGetHeight(int newWidth) override;
+	QImage prepareRippleMask() const override;
+
+private:
+	RectParts _corners;
+	int _radius = 0;
+	int _minimalHeight = 0;
+
+};
+
+class InfoIsland final : public Ui::VerticalLayout {
+public:
+	explicit InfoIsland(QWidget *parent);
+
+	not_null<Ui::SlideWrap<InfoIslandEntry>*> add(
+		object_ptr<InfoIslandEntry> entry);
+	[[nodiscard]] rpl::producer<bool> anyShownValue() const;
+
+protected:
+	int resizeGetHeight(int newWidth) override;
+
+private:
+	void refreshRounding();
+	void paintPill(QPainter &p);
+	[[nodiscard]] QRect pillRect() const;
+	[[nodiscard]] int cornerRadius(QRect pill) const;
+
+	std::vector<Ui::SlideWrap<InfoIslandEntry>*> _entries;
+	Ui::MultiSlideTracker _tracker;
+	Ui::BoxShadow _shadow;
+	QMargins _extend;
+
+};
+
+InfoIslandEntry::InfoIslandEntry(
+	QWidget *parent,
+	rpl::producer<QString> text,
+	const style::SettingsButton &st)
+: Ui::SettingsButton(parent, std::move(text), st) {
+}
+
+InfoIslandEntry::InfoIslandEntry(
+	QWidget *parent,
+	std::nullptr_t,
+	const style::SettingsButton &st)
+: Ui::SettingsButton(parent, nullptr, st) {
+}
+
+void InfoIslandEntry::setRounding(RectParts corners, int radius) {
+	if (_corners == corners && _radius == radius) {
+		return;
+	}
+	_corners = corners;
+	_radius = radius;
+	finishAnimating();
+	update();
+}
+
+void InfoIslandEntry::setMinimalHeight(int height) {
+	if (_minimalHeight == height) {
+		return;
+	}
+	_minimalHeight = height;
+	resizeToWidth(width());
+}
+
+int InfoIslandEntry::resizeGetHeight(int newWidth) {
+	return std::max(
+		Ui::SettingsButton::resizeGetHeight(newWidth),
+		_minimalHeight);
+}
+
+QImage InfoIslandEntry::prepareRippleMask() const {
+	if (_radius <= 0 || !_corners) {
+		return Ui::RippleAnimation::RectMask(size());
+	}
+	// The filled RoundRectMask overload starts from a fully opaque mask and
+	// only cuts out the corners it is handed, so a null one stays square.
+	// Images::CornersMaskRef holds bare pointers into the array it is built
+	// from, which is why that array must outlive the call reading them.
+	const auto masks = Images::CornersMask(_radius);
+	auto corners = Images::CornersMaskRef();
+	const auto fill = [&](RectPart corner, int index) {
+		if (_corners & corner) {
+			corners.p[index] = &masks[index];
+		}
+	};
+	fill(RectPart::TopLeft, Images::kTopLeft);
+	fill(RectPart::TopRight, Images::kTopRight);
+	fill(RectPart::BottomLeft, Images::kBottomLeft);
+	fill(RectPart::BottomRight, Images::kBottomRight);
+	return Ui::RippleAnimation::RoundRectMask(size(), corners);
+}
+
+InfoIsland::InfoIsland(QWidget *parent)
+: Ui::VerticalLayout(parent)
+, _shadow(st::walletInfoIslandShadow)
+, _extend(_shadow.extend()) {
+	Ui::AddSkip(this, _extend.top());
+	Ui::AddSkip(this, _extend.bottom());
+	paintOn([=](QPainter &p) {
+		paintPill(p);
+	});
+}
+
+not_null<Ui::SlideWrap<InfoIslandEntry>*> InfoIsland::add(
+		object_ptr<InfoIslandEntry> entry) {
+	// The row margins are vertically zero on purpose: VerticalLayout counts
+	// a row margin even for a zero-height child, so any non-zero one would
+	// leak height from a hidden entry and grow the island where it must
+	// contribute nothing at all.
+	const auto wrap = insert(
+		count() - 1,
+		object_ptr<Ui::SlideWrap<InfoIslandEntry>>(this, std::move(entry)),
+		style::margins(
+			st::walletCardMargin.left(),
+			0,
+			st::walletCardMargin.right(),
+			0));
+	_entries.push_back(wrap);
+	_tracker.track(wrap);
+
+	// VerticalLayout registers its own heightValue handler inside insert,
+	// so that one runs first and has already repositioned the rows and
+	// resized the island by the time this one does, which is what makes
+	// the wrap's height and y current here. heightValue also emits once
+	// on subscription, and refreshing the rounding is idempotent.
+	wrap->heightValue(
+	) | rpl::on_next([=] {
+		refreshRounding();
+	}, wrap->lifetime());
+
+	return wrap;
+}
+
+rpl::producer<bool> InfoIsland::anyShownValue() const {
+	return _tracker.atLeastOneShownValue();
+}
+
+int InfoIsland::resizeGetHeight(int newWidth) {
+	const auto result = Ui::VerticalLayout::resizeGetHeight(newWidth);
+	refreshRounding();
+	return result;
+}
+
+void InfoIsland::refreshRounding() {
+	auto visible = std::vector<not_null<InfoIslandEntry*>>();
+	visible.reserve(_entries.size());
+	for (const auto &wrap : _entries) {
+		if (wrap->height() > 0) {
+			visible.push_back(wrap->entity());
+		}
+	}
+	const auto shown = int(visible.size());
+	const auto radius = cornerRadius(pillRect());
+	for (auto i = 0; i != shown; ++i) {
+		const auto first = !i;
+		const auto last = (i == shown - 1);
+		visible[i]->setRounding((first && last)
+			? RectParts(RectPart::AllCorners)
+			: first
+			? (RectPart::TopLeft | RectPart::TopRight)
+			: last
+			? (RectPart::BottomLeft | RectPart::BottomRight)
+			: RectParts(), radius);
+	}
+	update();
+}
+
+QRect InfoIsland::pillRect() const {
+	const auto &margin = st::walletCardMargin;
+	return QRect(
+		margin.left(),
+		_extend.top(),
+		width() - margin.left() - margin.right(),
+		height() - _extend.top() - _extend.bottom());
+}
+
+int InfoIsland::cornerRadius(QRect pill) const {
+	return std::min({
+		st::walletCardRadius,
+		pill.width() / 2,
+		pill.height() / 2,
+	});
+}
+
+void InfoIsland::paintPill(QPainter &p) {
+	const auto pill = pillRect();
+	if (pill.isEmpty()) {
+		return;
+	}
+	Dialogs::PaintPillBackground(p, _shadow, pill, cornerRadius(pill));
+	auto first = true;
+	for (const auto &wrap : _entries) {
+		if (wrap->height() <= 0) {
+			continue;
+		} else if (first) {
+			first = false;
+			continue;
+		}
+		p.fillRect(
+			pill.x(),
+			wrap->y(),
+			pill.width(),
+			st::lineWidth,
+			st::shadowFg);
+	}
+}
 
 KeyContext::KeyContext(
 	std::shared_ptr<Main::SessionShow> show,
@@ -9873,11 +10095,11 @@ void Card::paintContent(Painter &p) {
 	}
 }
 
-CardFold ComputeCardFold(QRect cardRest, int pinnedTop, float64 fold) {
+CardFold ComputeCardFold(QRect cardRest, float64 fold) {
 	auto result = CardFold();
 	result.rest = cardRest;
 	result.fold = fold;
-	result.topY = cardRest.top() + (pinnedTop - cardRest.top()) * fold;
+	result.topY = cardRest.top() - cardRest.top() * fold;
 	result.bottomY = result.topY + cardRest.height() * (1. - fold);
 	result.opacity = 1. - std::pow(fold, st::walletCardFoldFadePower);
 	if (result.bottomY - result.topY < kCardFoldMinHeight) {
@@ -10248,8 +10470,6 @@ void Content::setupContent() {
 				: _ink->markRect(cardRest());
 		}, _pinned->heightValue() | rpl::to_empty);
 	}
-
-	setupCustodyBar();
 }
 
 void Content::setupPinned() {
@@ -10263,7 +10483,7 @@ void Content::setupPinned() {
 	_pinnedInner = Ui::CreateChild<Ui::VerticalLayout>(_pinned);
 	_pinnedInner->show();
 
-	setupWaltOffer();
+	setupInfoIsland();
 
 	Ui::AddSkip(_pinnedInner, st::walletCardTopSkip);
 	_cardPlaceholder = _pinnedInner->add(
@@ -10372,16 +10592,26 @@ void Content::setupPinned() {
 	base::install_event_filter(_cardQr, forwardWheel);
 }
 
-void Content::setupWaltOffer() {
-	const auto session = &_show->session();
+void Content::setupInfoIsland() {
+	auto owned = object_ptr<InfoIsland>(_pinnedInner);
+	const auto island = owned.data();
 	const auto wrap = _pinnedInner->add(
-		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+		object_ptr<Ui::SlideWrap<InfoIsland>>(
 			_pinnedInner,
-			Settings::CreateButtonWithIcon(
-				_pinnedInner,
-				tr::lng_wallet_walt_existing(),
-				st::walletWaltRow),
+			std::move(owned),
 			style::margins(0, st::walletCardTopSkip, 0, 0)));
+	setupCustodyEntry(island);
+	setupWaltEntry(island);
+	wrap->toggleOn(island->anyShownValue(), anim::type::normal);
+}
+
+void Content::setupWaltEntry(not_null<InfoIsland*> island) {
+	const auto session = &_show->session();
+	const auto wrap = island->add(
+		object_ptr<InfoIslandEntry>(
+			island,
+			tr::lng_wallet_walt_existing(),
+			st::walletIslandRow));
 	const auto button = wrap->entity();
 	AddRowChevron(button);
 	button->setClickedCallback([=] {
@@ -10398,11 +10628,7 @@ void Content::setupWaltOffer() {
 		OldWalletBotValue(session)
 	) | rpl::map([](bool exists, UserData *bot) {
 		return exists && (bot != nullptr);
-	}), anim::type::instant);
-	wrap->heightValue(
-	) | rpl::on_next([=] {
-		updateRegions();
-	}, wrap->lifetime());
+	}), anim::type::normal);
 }
 
 void Content::setupProtectRow() {
@@ -10453,16 +10679,14 @@ void Content::setupBalance() {
 	_pinnedBalance->raise();
 	_pinnedBalance->paintRequest(
 	) | rpl::on_next([=](QRect clip) {
-		const auto content = clip.translated(0, barHeight());
 		const auto fold = cardFold();
 		const auto ink = _ink->boundingRect(fold);
-		if (!content.intersects(ink)) {
+		if (!clip.intersects(ink)) {
 			return;
 		}
 		auto p = QPainter(_pinnedBalance);
 		auto hq = PainterHighQualityEnabler(p);
-		p.translate(0, -barHeight());
-		_ink->paint(p, fold, cardOutline(), content);
+		_ink->paint(p, fold, cardOutline(), clip);
 	}, _pinnedBalance->lifetime());
 
 	_titleBalance.reset(Ui::CreateChild<Ui::RpWidget>(window()));
@@ -10745,22 +10969,12 @@ void Content::setupListsLoading() {
 	}, lifetime());
 }
 
-void Content::setupCustodyBar() {
-	_custodyBar = Ui::CreateChild<Ui::SlideWrap<Ui::AbstractButton>>(
-		this,
-		object_ptr<Ui::AbstractButton>(this));
-	_custodyBar->hide(anim::type::instant);
-	_custodyBarShadow = Ui::CreateChild<Ui::PlainShadow>(this);
-	_custodyBarShadow->hide();
+void Content::setupCustodyEntry(not_null<InfoIsland*> island) {
+	const auto wrap = island->add(
+		object_ptr<InfoIslandEntry>(island, nullptr, st::walletIslandRow));
+	wrap->toggle(false, anim::type::instant);
 
-	const auto button = _custodyBar->entity();
-	button->resize(0, st::walletInfoBarHeight);
-	button->setAttribute(Qt::WA_OpaquePaintEvent);
-	button->paintRequest(
-	) | rpl::on_next([=](QRect clip) {
-		QPainter(button).fillRect(clip, st::windowBgOver);
-	}, button->lifetime());
-
+	const auto button = wrap->entity();
 	_custodyBarLabel = Ui::CreateChild<Ui::FlatLabel>(
 		button,
 		st::walletInfoBarLabel);
@@ -10773,6 +10987,10 @@ void Content::setupCustodyBar() {
 		}
 		_custodyBarLabel->resizeToWidth(
 			std::min(_custodyBarLabel->textMaxWidth(), available));
+		const auto &padding = st::walletIslandRow.padding;
+		button->setMinimalHeight(_custodyBarLabel->height()
+			+ padding.top()
+			+ padding.bottom());
 		_custodyBarLabel->moveToLeft(
 			(button->width() - _custodyBarLabel->width()) / 2,
 			(button->height() - _custodyBarLabel->height()) / 2,
@@ -10822,31 +11040,8 @@ void Content::setupCustodyBar() {
 				: tr::lng_wallet_readonly_bar(tr::now));
 			updateLabelGeometry();
 		}
-		_custodyBar->toggle(bar != Bar::None, anim::type::normal);
+		wrap->toggle(bar != Bar::None, anim::type::normal);
 	}, lifetime());
-
-	_custodyBarShadow->showOn(rpl::combine(
-		_custodyBar->shownValue(),
-		_custodyBar->heightValue(),
-		rpl::mappers::_1 && rpl::mappers::_2 > 0
-	) | rpl::filter([=](bool shown) {
-		return (shown == _custodyBarShadow->isHidden());
-	}));
-	_custodyBar->geometryValue(
-	) | rpl::on_next([=](QRect geometry) {
-		_custodyBarShadow->setGeometry(
-			geometry.x(),
-			geometry.y() + geometry.height(),
-			geometry.width(),
-			st::lineWidth);
-	}, _custodyBar->lifetime());
-	_custodyBar->heightValue(
-	) | rpl::on_next([=] {
-		updateRegions();
-	}, _custodyBar->lifetime());
-
-	_custodyBar->raise();
-	_custodyBarShadow->raise();
 }
 
 int Content::pinnedMax() const {
@@ -10857,14 +11052,10 @@ int Content::pinnedMin() const {
 	return _tabsShown ? st::walletTabsSlider.height : 0;
 }
 
-int Content::barHeight() const {
-	return _custodyBar ? _custodyBar->height() : 0;
-}
-
 QRect Content::cardRest() const {
 	return QRect(
 		_cardPlaceholder->x(),
-		barHeight() + _cardPlaceholder->y(),
+		_cardPlaceholder->y(),
 		_cardPlaceholder->width(),
 		st::walletCardHeight);
 }
@@ -10888,31 +11079,22 @@ void Content::updateRegions() {
 	if (_pinnedInner->widthNoMargins() != width()) {
 		_pinnedInner->resizeToWidth(width());
 	}
-	if (_custodyBar) {
-		_custodyBar->resizeToWidth(width());
-		_custodyBar->moveToLeft(0, 0);
-	}
-	const auto bar = barHeight();
 	const auto max = pinnedMax();
 	const auto min = pinnedMin();
 	const auto stripHeight = _stripShown
 		? (st::walletRowsHintHeight + st::lineWidth)
 		: 0;
-	const auto open = height() - bar - max - stripHeight;
+	const auto open = height() - max - stripHeight;
 	_reserve = (_column->entity()->height() > open) ? (max - min) : 0;
 	_column->setPadding({ 0, _reserve, 0, 0 });
-	const auto scrollTop = bar + max - _reserve;
+	const auto scrollTop = max - _reserve;
 	_scroll->setGeometry(
 		0,
 		scrollTop,
 		width(),
 		std::max(0, height() - scrollTop - stripHeight));
 	if (_listsLoading && !_listsLoading->isHidden()) {
-		_listsLoading->setGeometry(
-			0,
-			bar + max,
-			width(),
-			height() - bar - max);
+		_listsLoading->setGeometry(0, max, width(), height() - max);
 	}
 
 	const auto body = Ui::MapFrom(window(), this, rect());
@@ -10936,7 +11118,7 @@ void Content::updateRegions() {
 			st::lineWidth);
 		_strip->setGeometry(0, stripTop, width(), st::walletRowsHintHeight);
 	}
-	_headerShadow->setGeometry(0, bar, width(), st::lineWidth);
+	_headerShadow->setGeometry(0, 0, width(), st::lineWidth);
 	updateVisibleArea();
 }
 
@@ -10949,18 +11131,17 @@ void Content::updatePinned() {
 	if (!width() || !height()) {
 		return;
 	}
-	const auto bar = barHeight();
 	const auto max = pinnedMax();
 	const auto min = pinnedMin();
 	const auto top = std::clamp(_scroll->scrollTop(), 0, _reserve);
 	const auto height = max - top;
 	_pinnedInner->moveToLeft(0, height - max, width());
-	_pinned->setGeometry(0, bar, width(), height);
-	_pinnedBackground->setGeometry(0, bar, width(), height);
+	_pinned->setGeometry(0, 0, width(), height);
+	_pinnedBackground->setGeometry(0, 0, width(), height);
 	const auto rest = cardRest();
-	const auto fold = ComputeCardFold(rest, bar, foldProgress());
+	const auto fold = ComputeCardFold(rest, foldProgress());
 	const auto cardWidget = QRect(
-		QPoint(rest.left(), bar),
+		QPoint(rest.left(), 0),
 		rest.bottomRight());
 	_card->setGeometry(cardWidget);
 	_card->setFold(fold);
@@ -10974,40 +11155,33 @@ void Content::updatePinned() {
 		_cardQr->clearMask();
 	}
 	_cardQr->setVisible(fold.valid && fold.opacity > 0.);
-	_scroll->setVerticalBarTopSkip(bar + height - min);
-	_tabsShadow->setGeometry(0, bar + height, width(), st::lineWidth);
+	_scroll->setVerticalBarTopSkip(height - min);
+	_tabsShadow->setGeometry(0, height, width(), st::lineWidth);
 	_headerShadow->setVisible(height == min);
 	_pinnedBalance->setGeometry(_pinned->rect());
 
-	// Both siblings start at Content y = bar, so a Content rect reaches
-	// them translated by -bar, the opposite of the conversion each ink
-	// handler makes on its clip. The card's dirty area is its whole
-	// widget rect, which contains every folded quad, and the ink's is the
-	// union of the rects it was and is painted into.
+	// The card's dirty area is its whole widget rect, which contains
+	// every folded quad, and the ink's is the union of the rects it was
+	// and is painted into.
 	const auto inkPainted = _ink->boundingRect(fold);
 	const auto inkDirty = _paintedInk.united(inkPainted);
 	_paintedInk = inkPainted;
 	update(cardWidget);
 	update(inkDirty);
-	_pinnedBackground->update(cardWidget.translated(0, -bar));
-	_pinnedBalance->update(cardWidget.translated(0, -bar));
-	_pinnedBalance->update(inkDirty.translated(0, -bar));
-	if (_paintedHeight == height
-		&& _paintedMin == min
-		&& _paintedBar == bar) {
+	_pinnedBackground->update(cardWidget);
+	_pinnedBalance->update(cardWidget);
+	_pinnedBalance->update(inkDirty);
+	if (_paintedHeight == height && _paintedMin == min) {
 		return;
 	}
 	_paintedHeight = height;
 	_paintedMin = min;
-	_paintedBar = bar;
 	_pinnedBackground->update();
 	// Reaching here means the pinned height changed, and with it the
-	// scrolled distance the fold progress is computed from, or the
-	// custody bar changed height, which moves the card's rest top and
-	// every anchor derived from it. The band overlay carries the fading
-	// title and the end of the balance's travel, and it is at most the
-	// title bar's height tall, so it is repainted whole rather than
-	// tracked rect by rect.
+	// scrolled distance the fold progress is computed from. The band
+	// overlay carries the fading title and the end of the balance's
+	// travel, and it is at most the title bar's height tall, so it is
+	// repainted whole rather than tracked rect by rect.
 	_titleBalance->update();
 }
 
