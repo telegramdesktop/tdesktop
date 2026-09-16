@@ -684,16 +684,7 @@ void ItemText::paint(
 		const QStyleOptionGraphicsItem *option,
 		QWidget *w) {
 	if (!_pixmap.isNull()) {
-		const auto rect = contentRect();
-		const auto pixmapSize = QSizeF(
-			_pixmap.size() / style::DevicePixelRatio()
-		).scaled(rect.size(), Qt::KeepAspectRatio);
-		const auto resultRect = QRectF(
-			rect.topLeft(),
-			pixmapSize
-		).translated(
-			(rect.width() - pixmapSize.width()) / 2.,
-			(rect.height() - pixmapSize.height()) / 2.);
+		const auto resultRect = visibleRect();
 		p->save();
 		p->setRenderHint(QPainter::SmoothPixmapTransform);
 		if (flipped()) {
@@ -706,6 +697,10 @@ void ItemText::paint(
 		p->restore();
 	}
 	ItemBase::paint(p, option, w);
+}
+
+QRectF ItemText::visibleRect() const {
+	return fittedRect(_pixmap.size() / style::DevicePixelRatio());
 }
 
 int ItemText::type() const {

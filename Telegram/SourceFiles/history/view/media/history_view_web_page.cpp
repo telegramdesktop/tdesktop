@@ -415,8 +415,9 @@ QSize WebPage::countOptimalSize() {
 		|| (sponsored && !sponsored->hasMedia && _data->photo));
 
 	// Detect _openButtonWidth before counting paddings.
+	const auto mediaEditor = (_parent->context() == Context::MediaEditor);
 	_openButton = Ui::Text::String();
-	if (HasButton(_data)) {
+	if (!mediaEditor && HasButton(_data)) {
 		const auto context = Core::TextContext({
 			.session = &_data->session(),
 			.customEmojiLoopLimit = 1,
@@ -426,7 +427,9 @@ QSize WebPage::countOptimalSize() {
 			PageToPhrase(_data),
 			kMarkupTextOptions,
 			context);
-	} else if (sponsored && !sponsored->buttonText.isEmpty()) {
+	} else if (!mediaEditor
+		&& sponsored
+		&& !sponsored->buttonText.isEmpty()) {
 		auto phrase = TextWithEntities{ tr::upper(sponsored->buttonText) };
 		if (!sponsored->isLinkInternal) {
 			phrase.append(st::historyExternalLinkIcon);
@@ -739,7 +742,9 @@ QSize WebPage::countOptimalSize() {
 		accumulate_max(maxWidth, maxMediaWidth);
 		minHeight += _attach->minHeight() - rect::m::sum::v(bubble);
 	}
-	if (_data->type == WebPageType::Video && _data->duration) {
+	if (_data->type == WebPageType::Video
+		&& _data->duration
+		&& !mediaEditor) {
 		_duration = Ui::FormatDurationText(_data->duration);
 		_durationWidth = st::msgDateFont->width(_duration);
 	}
@@ -1053,7 +1058,9 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 				*backgroundEmojiCache,
 				backgroundEmojiData->firstGiftFrame);
 		}
-	} else if (factcheck && factcheck->expandable) {
+	} else if (factcheck
+		&& factcheck->expandable
+		&& (_parent->context() != Context::MediaEditor)) {
 		const auto &icon = factcheck->expanded ? _st.collapse : _st.expand;
 		const auto &position = factcheck->expanded
 			? _st.collapsePosition
@@ -1336,7 +1343,8 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 			&& _collage.empty()
 			&& _data->photo
 			&& !_data->document) {
-			if (_attach->isReadyForOpen()) {
+			if (_attach->isReadyForOpen()
+				&& (_parent->context() != Context::MediaEditor)) {
 				if (_data->siteName == u"YouTube"_q) {
 					st->youtubeIcon().paint(
 						p,
@@ -1431,7 +1439,9 @@ WebPage::FactcheckData *WebPage::factcheckData() const {
 }
 
 WebPage::HintData *WebPage::hintData() const {
-	if (const auto sponsored = sponsoredData()) {
+	if (_parent->context() == Context::MediaEditor) {
+		return nullptr;
+	} else if (const auto sponsored = sponsoredData()) {
 		return sponsored->hint.link ? &sponsored->hint : nullptr;
 	} else if (const auto factcheck = factcheckData()) {
 		return factcheck->hint.link ? &factcheck->hint : nullptr;

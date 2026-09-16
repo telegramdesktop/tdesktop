@@ -1503,7 +1503,20 @@ bool Element::isTopicRootReply() const {
 }
 
 bool Element::hidesBottomInfo() const {
-	return data()->isWelcomeTemplate();
+	return data()->isWelcomeTemplate()
+		|| (data()->isFakeHistoryItem()
+			&& context() == Context::MediaEditor);
+}
+
+ReplyKeyboard *Element::inlineReplyKeyboard() const {
+	return (_context == Context::MediaEditor)
+		? nullptr
+		: _data->inlineReplyKeyboard();
+}
+
+bool Element::hasCommentsButton() const {
+	return (_context != Context::MediaEditor)
+		&& (_data->repliesAreComments() || _data->externalReply());
 }
 
 int Element::skipBlockWidth() const {
@@ -2858,7 +2871,8 @@ void Element::setupReactions(Element *replacing) {
 void Element::refreshReactions() {
 	using namespace Reactions;
 	auto reactionsData = InlineListDataFromMessage(this);
-	if (reactionsData.reactions.empty()) {
+	if (reactionsData.reactions.empty()
+		|| context() == Context::MediaEditor) {
 		setReactions(nullptr);
 		return;
 	}

@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "editor/scene/scene_item_animated.h"
-#include "media/clip/media_clip_reader.h"
+#include "editor/video/video_clip.h"
 
 namespace Editor {
 
@@ -16,14 +16,9 @@ class ItemVideo final : public ItemAnimated {
 public:
 	enum { Type = ItemBase::Type + 4 };
 
-	struct Source {
-		QString path;
-		QByteArray content;
-		QImage thumbnail;
-		crl::time duration = 0;
-	};
+	ItemVideo(std::shared_ptr<VideoClipSource> source, ItemBase::Data data);
+	~ItemVideo();
 
-	ItemVideo(std::shared_ptr<Source> source, ItemBase::Data data);
 	void paint(
 		QPainter *p,
 		const QStyleOptionGraphicsItem *option,
@@ -32,27 +27,27 @@ public:
 	[[nodiscard]] bool hasContent() const override;
 	[[nodiscard]] QByteArray content() const override;
 	[[nodiscard]] crl::time loopDuration() const override;
+	[[nodiscard]] VideoTrim trim() const override;
 	void releasePlayers() override;
 	void setStatus(Status status) override;
+	void save(SaveState state) override;
+	void restore(SaveState state) override;
 	int type() const override;
+	[[nodiscard]] VideoClip *videoClip() override;
 
 protected:
 	[[nodiscard]] Media::Encode::AnimatedEntity::Kind entityKind()
 		const override;
+	void fillContextMenu(not_null<Ui::PopupMenu*> menu) override;
 	void performFlip() override;
 	std::shared_ptr<ItemBase> duplicate(ItemBase::Data data) const override;
 
 private:
-	void createPlayer();
-	void clipCallback(::Media::Clip::Notification notification);
-	[[nodiscard]] QImage currentFrame();
-
-	const std::shared_ptr<Source> _source;
+	const std::unique_ptr<VideoClip> _clip;
 	const QSize _frameSize;
-	::Media::Clip::ReaderPointer _reader;
 	QImage _image;
-	bool _releasedAnimation = false;
-	bool _pendingRecreate = false;
+	VideoClip::State _saved;
+	VideoClip::State _kept;
 
 };
 

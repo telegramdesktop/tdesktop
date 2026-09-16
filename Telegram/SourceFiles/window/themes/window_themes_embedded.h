@@ -11,6 +11,10 @@ namespace style {
 struct colorizer;
 } // namespace style
 
+namespace Ui {
+struct ChatThemeBackground;
+} // namespace Ui
+
 namespace Window {
 namespace Theme {
 
@@ -64,6 +68,9 @@ void Colorize(
 	bool dark,
 	std::optional<QColor> accent);
 [[nodiscard]] Fn<void(style::palette&)> PrepareCurrentPaletteCallback();
+
+// Chat background paired with the PreparePaletteCallback palette.
+[[nodiscard]] Ui::ChatThemeBackground PrepareDefaultBackground(bool dark);
 
 } // namespace Theme
 } // namespace Window

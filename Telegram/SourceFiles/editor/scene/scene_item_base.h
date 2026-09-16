@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unique_qptr.h"
 #include "editor/photo_editor_inner_common.h"
+#include "ui/effects/animations.h"
 
 #include <QGraphicsItem>
 
@@ -21,6 +22,10 @@ class PopupMenu;
 } // namespace Ui
 
 namespace Editor {
+
+class ItemAction;
+class ItemAnimated;
+class VideoClip;
 
 class NumberedItem : public QGraphicsItem {
 public:
@@ -46,6 +51,10 @@ public:
 	void setUndoable(bool undoable);
 	[[nodiscard]] bool undoable() const;
 
+	[[nodiscard]] virtual ItemAction *asAction();
+	[[nodiscard]] virtual ItemAnimated *asAnimated();
+	[[nodiscard]] virtual VideoClip *videoClip();
+
 	virtual void save(SaveState state);
 	virtual void restore(SaveState state);
 	virtual bool hasState(SaveState state) const;
@@ -68,6 +77,7 @@ public:
 		bool flipped = false;
 		int rotation = 0;
 		QSize imageSize;
+		float64 maxSizeRatio = 1.;
 		bool contentMargins = true;
 	};
 
@@ -118,9 +128,13 @@ protected:
 	void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 	void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
 	void keyPressEvent(QKeyEvent *e) override;
+	void keyReleaseEvent(QKeyEvent *e) override;
+	bool sceneEvent(QEvent *event) override;
+	virtual void fillContextMenu(not_null<Ui::PopupMenu*> menu);
 
 	using Action = void(ItemBase::*)();
 	void performForSelectedItems(Action action);
+	[[nodiscard]] virtual bool flippable() const;
 	virtual void actionFlip();
 	void actionDelete();
 	void actionDuplicate();
@@ -128,6 +142,8 @@ protected:
 
 	QRectF contentRect() const;
 	QRectF innerRect() const;
+	[[nodiscard]] QRectF fittedRect(QSizeF size) const;
+	[[nodiscard]] virtual QRectF visibleRect() const;
 	float64 size() const;
 	float64 horizontalSize() const;
 	float64 verticalSize() const;
@@ -148,6 +164,33 @@ protected:
 	virtual void performFlip();
 	virtual std::shared_ptr<ItemBase> duplicate(Data data) const = 0;
 private:
+	enum class StickyAnchor {
+		Start,
+		Center,
+		End,
+	};
+	struct Sticky {
+		int line = -1;
+		StickyAnchor anchor = StickyAnchor::Start;
+
+		[[nodiscard]] bool valid() const {
+			return line >= 0;
+		}
+		friend inline bool operator==(
+			const Sticky &,
+			const Sticky &) = default;
+	};
+	struct StickyAxis {
+		Sticky current;
+		Sticky last;
+		Ui::Animations::Simple animation;
+	};
+	struct StickyDrag {
+		std::vector<std::pair<QGraphicsItem*, QPointF>> others;
+		QPointF raw;
+		bool active = false;
+	};
+
 	HandleType handleType(const QPointF &pos) const;
 	QRectF rightHandleRect() const;
 	QRectF leftHandleRect() const;
@@ -156,11 +199,32 @@ private:
 	void updatePens(QPen pen);
 	void handleActionKey(not_null<QKeyEvent*> e);
 
+	[[nodiscard]] StickyAxis &stickyAxis(Qt::Orientation orientation);
+	[[nodiscard]] const StickyAxis &stickyAxis(
+		Qt::Orientation orientation) const;
+	void startStickyDrag();
+	void updateSticky(bool enabled);
+	void applyStickyState(bool enabled);
+	void finishStickyDrag();
+	void resetStickyAxis(Qt::Orientation orientation);
+	void applySticky(Qt::Orientation orientation, Sticky sticky);
+	void applyStickyPosition();
+	void notifyStickyGuides();
+	[[nodiscard]] QRectF stickyBounds() const;
+	[[nodiscard]] Sticky computeSticky(Qt::Orientation orientation) const;
+	[[nodiscard]] float64 stickyShift(
+		Qt::Orientation orientation,
+		Sticky sticky) const;
+	[[nodiscard]] float64 stickyOffset(Qt::Orientation orientation) const;
+	[[nodiscard]] std::optional<float64> stickyGuide(
+		Qt::Orientation orientation) const;
+
 	Data generateData() const;
 	void applyData(const Data &data);
 
 	const std::shared_ptr<float64> _lastZ;
 	const QSize _imageSize;
+	const float64 _maxSizeRatio;
 	const bool _contentMargins;
 
 	struct {
@@ -183,7 +247,11 @@ private:
 		int max = 0;
 	} _sizeLimits;
 	float64 _scaledHandleSize = 1.0;
+	float64 _scaledStickyTrigger = 0.;
 	QMarginsF _scaledInnerMargins;
+	StickyAxis _stickyX;
+	StickyAxis _stickyY;
+	StickyDrag _stickyDrag;
 
 	float64 _horizontalSize = 0;
 	float64 _verticalSize = 0;

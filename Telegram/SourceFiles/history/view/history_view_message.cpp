@@ -779,7 +779,7 @@ bool Message::prepareRichPageTextRect(QRect &trect) const {
 	if (_reactions && !reactionsInBubble) {
 		g.setHeight(g.height() - st::mediaInBubbleSkip - _reactions->height());
 	}
-	if (const auto keyboard = item->inlineReplyKeyboard()) {
+	if (const auto keyboard = inlineReplyKeyboard()) {
 		g.setHeight(
 			g.height()
 			- st::msgBotKbButton.margin
@@ -1164,7 +1164,6 @@ void Message::applyGroupAdminChanges(
 }
 
 void Message::animateReaction(Ui::ReactionFlyAnimationArgs &&args) {
-	const auto item = data();
 	const auto media = this->media();
 
 	auto g = countGeometry();
@@ -1188,7 +1187,7 @@ void Message::animateReaction(Ui::ReactionFlyAnimationArgs &&args) {
 		return;
 	}
 
-	const auto keyboard = item->inlineReplyKeyboard();
+	const auto keyboard = inlineReplyKeyboard();
 	auto keyboardHeight = 0;
 	if (keyboard) {
 		keyboardHeight = keyboard->naturalHeight();
@@ -1226,7 +1225,6 @@ QRect Message::effectIconGeometry() const {
 	if (hidesBottomInfo()) {
 		return {};
 	}
-	const auto item = data();
 	const auto media = this->media();
 
 	auto g = countGeometry();
@@ -1236,7 +1234,7 @@ QRect Message::effectIconGeometry() const {
 	const auto bubble = drawBubble();
 	const auto reactionsInBubble = _reactions && embedReactionsInBubble();
 	const auto mediaDisplayed = media && media->isDisplayed();
-	const auto keyboard = item->inlineReplyKeyboard();
+	const auto keyboard = inlineReplyKeyboard();
 	auto keyboardHeight = 0;
 	if (keyboard) {
 		keyboardHeight = keyboard->naturalHeight();
@@ -1614,10 +1612,11 @@ QSize Message::performCountOptimalSize() {
 	}
 	// if we have a text bubble we can resize it to fit the keyboard
 	// but if we have only media we don't do that
-	if (markup && markup->inlineKeyboard && hasVisibleText()) {
-		accumulate_max(maxWidth, markup->inlineKeyboard->naturalWidth());
+	const auto keyboard = inlineReplyKeyboard();
+	if (keyboard && hasVisibleText()) {
+		accumulate_max(maxWidth, keyboard->naturalWidth());
 		if (bubble) {
-			const auto kbw = markup->inlineKeyboard->naturalWidth();
+			const auto kbw = keyboard->naturalWidth();
 			if (kbw > int(_nonTextMaxWidth)) {
 				_nonTextMaxWidth = std::min(kbw, kMaxWidth);
 			}
@@ -1735,7 +1734,8 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		p.translate(selectionTranslation, 0);
 	}
 
-	if (item->hasUnrequestedFactcheck()) {
+	if (item->hasUnrequestedFactcheck()
+		&& (Message::context() != Context::MediaEditor)) {
 		item->history()->session().factchecks().requestFor(item);
 	}
 
@@ -1784,7 +1784,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		const auto reactionsHeight = st::mediaInBubbleSkip + _reactions->height();
 		gForIntervals.setHeight(gForIntervals.height() - reactionsHeight);
 	}
-	const auto keyboard = item->inlineReplyKeyboard();
+	const auto keyboard = inlineReplyKeyboard();
 	if (keyboard) {
 		const auto keyboardHeight = st::msgBotKbButton.margin + keyboard->naturalHeight();
 		gForIntervals.setHeight(gForIntervals.height() - keyboardHeight);
@@ -1797,7 +1797,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 	const auto customHighlight = mediaDisplayed && media->customHighlight();
 	if (!mediaSelectionIntervals.empty() || customHighlight) {
 		auto localMediaBottom = gForIntervals.top() + gForIntervals.height();
-		if (data()->repliesAreComments() || data()->externalReply()) {
+		if (hasCommentsButton()) {
 			localMediaBottom -= st::historyCommentsButtonHeight;
 		}
 		if (_viewButton) {
@@ -2186,6 +2186,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			media->paintBubbleFireworks(p, g, context.now);
 		}
 	} else if (media && media->isDisplayed()) {
+		_lastMediaPosition = g.topLeft();
 		p.translate(g.topLeft());
 		media->draw(p, context.translated(
 			-g.topLeft()
@@ -2372,7 +2373,7 @@ void Message::paintCommentsButton(
 		Painter &p,
 		QRect &g,
 		const PaintContext &context) const {
-	if (!data()->repliesAreComments() && !data()->externalReply()) {
+	if (!hasCommentsButton()) {
 		return;
 	}
 	if (!_comments) {
@@ -2915,7 +2916,8 @@ void Message::paintForwardedInfo(
 		}
 		p.setTextPalette(stm->textPalette);
 
-		if (!forwarded->psaType.isEmpty()) {
+		if (!forwarded->psaType.isEmpty()
+			&& (Message::context() != Context::MediaEditor)) {
 			const auto entry = Get<PsaTooltipState>();
 			Assert(entry != nullptr);
 			const auto shown = entry->buttonVisibleAnimation.value(
@@ -3064,7 +3066,9 @@ void Message::paintText(
 	};
 
 	const auto appearing = Get<TextAppearing>();
-	const auto appearingClip = appearing && appearing->use;
+	const auto appearingClip = appearing
+		&& appearing->use
+		&& (Message::context() != Context::MediaEditor);
 	auto linePostprocess = std::optional<Ui::Text::LinePostprocess>();
 	if (appearingClip) {
 		const auto shown = appearing->shownLine;
@@ -3240,7 +3244,6 @@ PointState Message::pointState(QPoint point) const {
 	}
 
 	const auto media = this->media();
-	const auto item = data();
 	const auto reactionsInBubble = _reactions && embedReactionsInBubble();
 	if (drawBubble()) {
 		if (!g.contains(point)) {
@@ -3255,7 +3258,7 @@ PointState Message::pointState(QPoint point) const {
 			auto mediaOnBottom = (mediaDisplayed && media->isBubbleBottom()) || check || (entry/* && entry->isBubbleBottom()*/);
 			auto mediaOnTop = (mediaDisplayed && media->isBubbleTop()) || (entry && entry->isBubbleTop());
 
-			if (item->repliesAreComments() || item->externalReply()) {
+			if (hasCommentsButton()) {
 				g.setHeight(g.height() - st::historyCommentsButtonHeight);
 			}
 
@@ -3847,15 +3850,15 @@ bool Message::hasFromPhoto() const {
 	case Context::History:
 	case Context::ChatPreview:
 	case Context::TTLViewer:
+	case Context::MediaEditor:
 	case Context::Pinned:
 	case Context::Replies:
 	case Context::SavedSublist:
 	case Context::ScheduledTopic: {
 		const auto item = data();
-		if (item->isPostHidingAuthor()) {
-			return false;
-		} else if (item->isPost()) {
-			return true;
+		if (item->isPost()) {
+			return (context() == Context::MediaEditor)
+				|| !item->isPostHidingAuthor();
 		} else if (item->isEmpty()
 			|| item->isFakeAboutView()
 			|| isCommentsRootView()) {
@@ -3934,7 +3937,7 @@ TextState Message::textState(
 		}
 	}
 
-	const auto keyboard = item->inlineReplyKeyboard();
+	const auto keyboard = inlineReplyKeyboard();
 	auto keyboardHeight = 0;
 	if (keyboard) {
 		keyboardHeight = keyboard->naturalHeight();
@@ -4847,7 +4850,7 @@ void Message::updatePressed(QPoint point) {
 		g.setHeight(g.height() - reactionsHeight);
 	}
 
-	const auto keyboard = item->inlineReplyKeyboard();
+	const auto keyboard = inlineReplyKeyboard();
 	if (keyboard) {
 		auto keyboardHeight = st::msgBotKbButton.margin + keyboard->naturalHeight();
 		g.setHeight(g.height() - keyboardHeight);
@@ -5295,7 +5298,7 @@ Reactions::ButtonParameters Message::reactionButtonParameters(
 	result.pointer = position;
 	const auto onTheLeft = hasRightLayout();
 
-	const auto keyboard = data()->inlineReplyKeyboard();
+	const auto keyboard = inlineReplyKeyboard();
 	const auto keyboardHeight = keyboard
 		? (st::msgBotKbButton.margin + keyboard->naturalHeight())
 		: 0;
@@ -5654,6 +5657,10 @@ int Message::viewButtonHeight() const {
 }
 
 void Message::updateViewButtonExistence() {
+	if (context() == Context::MediaEditor) {
+		_viewButton = nullptr;
+		return;
+	}
 	const auto item = data();
 	const auto make = [=](auto &&from) {
 		return std::make_unique<ViewButton>(
@@ -5756,6 +5763,7 @@ bool Message::hasFromName() const {
 	case Context::History:
 	case Context::ChatPreview:
 	case Context::TTLViewer:
+	case Context::MediaEditor:
 	case Context::Pinned:
 	case Context::Replies:
 	case Context::SavedSublist:
@@ -5929,7 +5937,7 @@ int Message::minWidthForMedia() const {
 		accumulate_max(result, added + st::semiboldFont->width(
 			tr::lng_replies_view_original(tr::now)));
 	}
-	if (const auto keyboard = data()->inlineReplyKeyboard()) {
+	if (const auto keyboard = inlineReplyKeyboard()) {
 		accumulate_max(result, keyboard->naturalWidth());
 	}
 	return result;
@@ -5973,7 +5981,9 @@ bool Message::displayRightActionComments() const {
 }
 
 std::optional<QSize> Message::rightActionSize() const {
-	if (displayRightActionComments()) {
+	if (context() == Context::MediaEditor) {
+		return std::nullopt;
+	} else if (displayRightActionComments()) {
 		const auto views = data()->Get<HistoryMessageViews>();
 		Assert(views != nullptr);
 		return (views->repliesSmall.textWidth > 0)
@@ -6526,7 +6536,7 @@ Ui::BubbleRounding Message::countMessageRounding() const {
 	const auto smallBottom = isBubbleAttachedToNext();
 	const auto media = smallBottom ? nullptr : this->media();
 	const auto item = data();
-	const auto keyboard = item->inlineReplyKeyboard();
+	const auto keyboard = inlineReplyKeyboard();
 	const auto skipTail = smallBottom
 		|| (media && media->skipBubbleTail())
 		|| (keyboard != nullptr)
@@ -6552,7 +6562,7 @@ Ui::BubbleRounding Message::countMessageRounding() const {
 
 Ui::BubbleRounding Message::countBubbleRounding(
 		Ui::BubbleRounding messageRounding) const {
-	if ([[maybe_unused]] const auto _ = data()->inlineReplyKeyboard()) {
+	if ([[maybe_unused]] const auto _ = inlineReplyKeyboard()) {
 		messageRounding.bottomLeft
 			= messageRounding.bottomRight
 			= Ui::BubbleCornerRounding::Small;
@@ -6798,7 +6808,7 @@ int Message::resizeContentGetHeight(int newWidth) {
 			newHeight += (bottomInfoHeight - st::msgDateFont->height);
 		}
 
-		if (item->repliesAreComments() || item->externalReply()) {
+		if (hasCommentsButton()) {
 			newHeight += st::historyCommentsButtonHeight;
 		} else if (_comments) {
 			_comments = nullptr;
@@ -6821,7 +6831,7 @@ int Message::resizeContentGetHeight(int newWidth) {
 		}
 	}
 
-	if (const auto keyboard = item->inlineReplyKeyboard()) {
+	if (const auto keyboard = inlineReplyKeyboard()) {
 		const auto keyboardHeight = st::msgBotKbButton.margin + keyboard->naturalHeight();
 		newHeight += keyboardHeight;
 		keyboard->resize(contentWidth, keyboardHeight - st::msgBotKbButton.margin);
@@ -7226,6 +7236,7 @@ const HistoryMessageEdited *Message::displayedEditBadge() const {
 
 void Message::ensureSummarizeButton() const {
 	if (data()->canBeSummarized()
+		&& (context() != Context::MediaEditor)
 		/*&& item->originalText().text.size() >= kSummarizeThreshold*/) {
 		if (!_summarize) {
 			_summarize

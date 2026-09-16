@@ -854,11 +854,13 @@ auto Poll::Footer::computeLayout(int innerWidth) const -> Layout {
 		? 0
 		: st::historyPollTotalVotesSkip;
 
-	const auto timerText = closeTimerText();
+	const auto mediaEditor
+		= (_owner->_parent->context() == Context::MediaEditor);
+	const auto timerText = mediaEditor ? QString() : closeTimerText();
 	const auto hasTimer = !timerText.isEmpty();
 	const auto lineHeight = st::msgDateFont->height;
 
-	if (result.compact) {
+	if (result.compact || mediaEditor) {
 		result.kind = Layout::Kind::PassiveLabel;
 		if (hasTimer) {
 			if (timerFooterMultiline(innerWidth)) {
@@ -2240,7 +2242,7 @@ QSize Poll::countOptimalSize() {
 }
 
 bool Poll::showVotes() const {
-	if (_adminShowResults) {
+	if (_adminShowResults || (_parent->context() == Context::MediaEditor)) {
 		return true;
 	}
 	if (_flags & PollData::Flag::HideResultsUntilClose) {
@@ -2360,7 +2362,8 @@ bool Poll::inlineFooter() const {
 }
 
 bool Poll::canAddOption() const {
-	return (_flags & PollData::Flag::OpenAnswers)
+	return (_parent->context() != Context::MediaEditor)
+		&& (_flags & PollData::Flag::OpenAnswers)
 		&& !(_flags & PollData::Flag::Closed)
 		&& !_parent->data()->Has<HistoryMessageForwarded>()
 		&& (int(_poll->answers.size())
@@ -3549,7 +3552,7 @@ void Poll::Header::paintShowSolution(
 		const PaintContext &context) const {
 	const auto shown = _solutionButtonAnimation.value(
 		_solutionButtonVisible ? 1. : 0.);
-	if (!shown) {
+	if (!shown || (_owner->_parent->context() == Context::MediaEditor)) {
 		return;
 	}
 	if (!_showSolutionLink) {

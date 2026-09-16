@@ -49,6 +49,7 @@ protected:
 	void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
 	void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 	void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
+	[[nodiscard]] QRectF visibleRect() const override;
 private:
 	struct ArrowPoints {
 		QPointF start;

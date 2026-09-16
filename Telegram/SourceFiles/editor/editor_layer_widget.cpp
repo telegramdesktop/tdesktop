@@ -208,7 +208,25 @@ void LayerWidget::parentResized() {
 }
 
 void LayerWidget::keyPressEvent(QKeyEvent *e) {
+	forwardKeyEvent(e);
+}
+
+void LayerWidget::keyReleaseEvent(QKeyEvent *e) {
+	forwardKeyEvent(e);
+}
+
+void LayerWidget::forwardKeyEvent(not_null<QKeyEvent*> e) {
+	// Qt bubbles a key event ignored by the content back to its parent.
+	if (_forwardingKeyEvent) {
+		_keyEventIgnored = true;
+		e->accept();
+		return;
+	}
+	_forwardingKeyEvent = true;
+	_keyEventIgnored = false;
 	QGuiApplication::sendEvent(_content.get(), e);
+	_forwardingKeyEvent = false;
+	e->setAccepted(!_keyEventIgnored);
 }
 
 int LayerWidget::resizeGetHeight(int newWidth) {

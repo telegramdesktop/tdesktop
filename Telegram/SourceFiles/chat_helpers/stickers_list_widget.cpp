@@ -240,9 +240,8 @@ StickersListWidget::StickersListWidget(
 , _megagroupSetAbout(st::columnMinimalWidthThird
 	- st::emojiScroll.width
 	- st().headerLeft)
-, _photoButtonBg(st::stickersPhotoButtonRadius, st().overBg)
-, _photoButtonText(tr::lng_attach_photo(tr::now).toUpper())
-, _photoButtonTextWidth(st::stickersPhotoButtonFont->width(_photoButtonText))
+, _mediaButtonBg(st::stickersPhotoButtonRadius, st().overBg)
+, _mediaButtons(MakeMediaButtons(_features, st()))
 , _addText(tr::lng_stickers_featured_add(tr::now))
 , _addWidth(st::stickersTrendingAdd.style.font->width(_addText))
 , _installedText(tr::lng_stickers_featured_installed(tr::now))
@@ -322,6 +321,14 @@ rpl::producer<FileChosen> StickersListWidget::chosen() const {
 
 rpl::producer<> StickersListWidget::photoRequests() const {
 	return _photoRequests.events();
+}
+
+rpl::producer<> StickersListWidget::audioRequests() const {
+	return _audioRequests.events();
+}
+
+rpl::producer<> StickersListWidget::linkRequests() const {
+	return _linkRequests.events();
 }
 
 rpl::producer<> StickersListWidget::scrollUpdated() const {
@@ -499,7 +506,7 @@ template <typename Callback>
 bool StickersListWidget::enumerateSections(Callback callback) const {
 	auto info = SectionInfo();
 	info.top = _search ? _search->height() : 0;
-	info.top += photoRowHeight() + searchShortcutsHeight();
+	info.top += mediaButtonsRowHeight() + searchShortcutsHeight();
 	const auto &sets = shownSets();
 	for (auto i = 0; i != sets.size(); ++i) {
 		auto &set = sets[i];
@@ -968,69 +975,135 @@ void StickersListWidget::startSearchSwapAnimation(
 }
 
 int StickersListWidget::searchShortcutsTop() const {
-	return (_search ? _search->height() : 0) + photoRowHeight();
+	return (_search ? _search->height() : 0) + mediaButtonsRowHeight();
 }
 
-int StickersListWidget::photoRowHeight() const {
-	if (!_features.photoButton || _isMasks || _section == Section::Search) {
+std::vector<StickersListWidget::MediaButton>
+StickersListWidget::MakeMediaButtons(
+		const ComposeFeatures &features,
+		const style::EmojiPan &st) {
+	auto result = std::vector<MediaButton>();
+	const auto add = [&](
+			MediaButton::Kind kind,
+			const QString &text,
+			const style::icon *icon) {
+		auto button = MediaButton{
+			.kind = kind,
+			.text = text.toUpper(),
+			.icon = icon,
+		};
+		button.textWidth = st::stickersPhotoButtonFont->width(button.text);
+		result.push_back(std::move(button));
+	};
+	if (features.linkButton) {
+		add(
+			MediaButton::Kind::Link,
+			tr::lng_link_header_short(tr::now),
+			&st.linkButtonIcon);
+	}
+	if (features.photoButton) {
+		add(
+			MediaButton::Kind::Photo,
+			tr::lng_attach_photo(tr::now),
+			&st.photoButtonIcon);
+	}
+	if (features.audioButton) {
+		add(
+			MediaButton::Kind::Audio,
+			tr::lng_attach_audio(tr::now),
+			&st.audioButtonIcon);
+	}
+	return result;
+}
+
+int StickersListWidget::mediaButtonsRowHeight() const {
+	if (_mediaButtons.empty() || _isMasks || _section == Section::Search) {
 		return 0;
 	}
 	const auto &padding = st::stickersPhotoRowPadding;
 	return padding.top() + st::stickersPhotoButtonHeight + padding.bottom();
 }
 
-QRect StickersListWidget::photoButtonRect() const {
+int StickersListWidget::mediaButtonWidth(const MediaButton &button) const {
 	const auto &padding = st::stickersPhotoButtonPadding;
-	const auto &icon = st().photoButtonIcon;
-	const auto buttonWidth = padding.left()
-		+ icon.width()
+	return padding.left()
+		+ button.icon->width()
 		+ st::stickersPhotoButtonIconSkip
-		+ _photoButtonTextWidth
+		+ button.textWidth
 		+ padding.right();
+}
+
+QRect StickersListWidget::mediaButtonRect(int index) const {
+	Expects(index >= 0 && index < int(_mediaButtons.size()));
+
+	const auto skip = st::stickersPhotoButtonSkip;
+	auto full = -skip;
+	for (const auto &button : _mediaButtons) {
+		full += mediaButtonWidth(button) + skip;
+	}
+	auto left = (width() - full) / 2;
+	for (auto i = 0; i != index; ++i) {
+		left += mediaButtonWidth(_mediaButtons[i]) + skip;
+	}
 	const auto top = (_search ? _search->height() : 0)
 		+ st::stickersPhotoRowPadding.top();
 	return QRect(
-		(width() - buttonWidth) / 2,
+		left,
 		top,
-		buttonWidth,
+		mediaButtonWidth(_mediaButtons[index]),
 		st::stickersPhotoButtonHeight);
 }
 
-void StickersListWidget::paintPhotoButton(Painter &p, QRect clip) {
-	if (!photoRowHeight()) {
-		return;
+int StickersListWidget::mediaButtonIndexAt(QPoint point) const {
+	if (!mediaButtonsRowHeight()) {
+		return -1;
 	}
-	const auto rect = photoButtonRect();
-	if (!rect.intersects(clip)) {
-		return;
-	}
-	_photoButtonBg.paint(p, myrtlrect(rect));
-	if (_photoButtonRipple) {
-		_photoButtonRipple->paint(p, myrtlrect(rect).x(), rect.y(), width());
-		if (_photoButtonRipple->empty()) {
-			_photoButtonRipple.reset();
+	for (auto i = 0; i != int(_mediaButtons.size()); ++i) {
+		if (myrtlrect(mediaButtonRect(i)).contains(point)) {
+			return i;
 		}
 	}
-	const auto &padding = st::stickersPhotoButtonPadding;
-	const auto &icon = st().photoButtonIcon;
-	icon.paint(
-		p,
-		rect.x() + padding.left(),
-		rect.y() + (rect.height() - icon.height()) / 2,
-		width());
-	const auto &font = st::stickersPhotoButtonFont;
-	const auto textLeft = rect.x()
-		+ padding.left()
-		+ icon.width()
-		+ st::stickersPhotoButtonIconSkip;
-	p.setFont(font);
-	p.setPen(st().textFg);
-	p.drawTextLeft(
-		textLeft,
-		rect.y() + (rect.height() - font->height) / 2,
-		width(),
-		_photoButtonText,
-		_photoButtonTextWidth);
+	return -1;
+}
+
+void StickersListWidget::paintMediaButtons(Painter &p, QRect clip) {
+	if (!mediaButtonsRowHeight()) {
+		return;
+	}
+	for (auto i = 0; i != int(_mediaButtons.size()); ++i) {
+		auto &button = _mediaButtons[i];
+		const auto rect = mediaButtonRect(i);
+		if (!rect.intersects(clip)) {
+			continue;
+		}
+		_mediaButtonBg.paint(p, myrtlrect(rect));
+		if (button.ripple) {
+			button.ripple->paint(p, myrtlrect(rect).x(), rect.y(), width());
+			if (button.ripple->empty()) {
+				button.ripple.reset();
+			}
+		}
+		const auto &padding = st::stickersPhotoButtonPadding;
+		const auto &icon = *button.icon;
+		icon.paint(
+			p,
+			rect.x() + padding.left(),
+			rect.y() + (rect.height() - icon.height()) / 2,
+			width());
+		const auto &font = st::stickersPhotoButtonFont;
+		const auto textLeft = rect.x()
+			+ padding.left()
+			+ icon.width()
+			+ st::stickersPhotoButtonIconSkip;
+		p.setFont(font);
+		p.setPen(st().textFg);
+		p.drawTextLeft(
+			textLeft,
+			rect.y() + (rect.height() - font->height) / 2,
+			width(),
+			button.text,
+			button.textWidth);
+	}
 }
 
 int StickersListWidget::searchShortcutsHeight() const {
@@ -1611,7 +1684,7 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 	_paintAsPremium = session().premium();
 	_pathGradient->startFrame(0, width(), width() / 2);
 	paintSearchShortcuts(p, clip);
-	paintPhotoButton(p, clip);
+	paintMediaButtons(p, clip);
 
 	auto &sets = shownSets();
 	const auto selectedSticker = std::get_if<OverSticker>(&_selected);
@@ -2464,9 +2537,11 @@ void StickersListWidget::setPressed(OverState newPressed) {
 		if (_megagroupSetButtonRipple) {
 			_megagroupSetButtonRipple->lastStop();
 		}
-	} else if (std::get_if<OverPhotoButton>(&_pressed)) {
-		if (_photoButtonRipple) {
-			_photoButtonRipple->lastStop();
+	} else if (const auto media = std::get_if<OverMediaButton>(&_pressed)) {
+		if (media->index >= 0 && media->index < int(_mediaButtons.size())) {
+			if (const auto &ripple = _mediaButtons[media->index].ripple) {
+				ripple->lastStop();
+			}
 		}
 	}
 	_pressed = newPressed;
@@ -2501,18 +2576,23 @@ void StickersListWidget::setPressed(OverState newPressed) {
 		}
 		_megagroupSetButtonRipple->add(mapFromGlobal(QCursor::pos())
 			- myrtlrect(megagroupSetButtonRectFinal()).topLeft());
-	} else if (std::get_if<OverPhotoButton>(&_pressed)) {
-		if (!_photoButtonRipple) {
+	} else if (const auto media = std::get_if<OverMediaButton>(&_pressed)) {
+		const auto index = media->index;
+		if (index < 0 || index >= int(_mediaButtons.size())) {
+			return;
+		}
+		auto &button = _mediaButtons[index];
+		if (!button.ripple) {
 			auto mask = Ui::RippleAnimation::RoundRectMask(
-				photoButtonRect().size(),
+				mediaButtonRect(index).size(),
 				st::stickersPhotoButtonRadius);
-			_photoButtonRipple = std::make_unique<Ui::RippleAnimation>(
+			button.ripple = std::make_unique<Ui::RippleAnimation>(
 				st().searchPackRipple,
 				std::move(mask),
-				[this] { rtlupdate(photoButtonRect()); });
+				[this, index] { rtlupdate(mediaButtonRect(index)); });
 		}
-		_photoButtonRipple->add(mapFromGlobal(QCursor::pos())
-			- myrtlrect(photoButtonRect()).topLeft());
+		button.ripple->add(mapFromGlobal(QCursor::pos())
+			- myrtlrect(mediaButtonRect(index)).topLeft());
 	}
 }
 
@@ -2847,8 +2927,19 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 		if (std::get_if<OverSearchBack>(&pressed)) {
 			backToSearchResults();
 			return;
-		} else if (std::get_if<OverPhotoButton>(&pressed)) {
-			_photoRequests.fire({});
+		} else if (const auto media = std::get_if<OverMediaButton>(
+				&pressed)) {
+			const auto index = media->index;
+			if (index >= 0 && index < int(_mediaButtons.size())) {
+				const auto kind = _mediaButtons[index].kind;
+				if (kind == MediaButton::Kind::Photo) {
+					_photoRequests.fire({});
+				} else if (kind == MediaButton::Kind::Audio) {
+					_audioRequests.fire({});
+				} else if (kind == MediaButton::Kind::Link) {
+					_linkRequests.fire({});
+				}
+			}
 			return;
 		} else if (auto shortcut = std::get_if<OverSearchShortcut>(&pressed)) {
 			toggleSearchShortcut(shortcut->index);
@@ -3627,8 +3718,8 @@ void StickersListWidget::updateSelected() {
 		}
 		setSelected(newSelected);
 		return;
-	} else if (photoRowHeight() && myrtlrect(photoButtonRect()).contains(p)) {
-		setSelected(OverPhotoButton{});
+	} else if (const auto media = mediaButtonIndexAt(p); media >= 0) {
+		setSelected(OverMediaButton{ media });
 		return;
 	}
 	const auto &sets = shownSets();
@@ -3743,8 +3834,12 @@ void StickersListWidget::setSelected(OverState newSelected) {
 				rtlupdate(searchBackRect());
 			} else if (std::get_if<OverGroupAdd>(&_selected)) {
 				rtlupdate(megagroupSetButtonRectFinal());
-			} else if (std::get_if<OverPhotoButton>(&_selected)) {
-				rtlupdate(photoButtonRect());
+			} else if (const auto media = std::get_if<OverMediaButton>(
+					&_selected)) {
+				if (media->index >= 0
+					&& media->index < int(_mediaButtons.size())) {
+					rtlupdate(mediaButtonRect(media->index));
+				}
 			}
 		};
 		updateSelected();

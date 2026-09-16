@@ -29,7 +29,9 @@ public:
 
 	void moveLine(const QPoint &position);
 	void setCanvasRect(const QRect &rect);
-	void setVisible(bool visible);
+	void setVisible(
+		bool visible,
+		anim::type animated = anim::type::instant);
 	void setColor(const QColor &color);
 	void setToolSelectionVisible(bool visible);
 	bool preventHandleKeyPress() const;
@@ -42,6 +44,10 @@ private:
 	void rebuildPalette();
 	void updateToolButtonsGeometry();
 	void updateToolSelection(bool animated);
+	void setRowVisible(bool visible);
+	[[nodiscard]] QRect rowRect() const;
+	[[nodiscard]] QImage grabRow() const;
+	void startRowFade(bool shown);
 	void setTool(Brush::Tool tool);
 	void storeCurrentBrush();
 	void updateColorButtonColor(const QColor &color, bool animated);
@@ -73,6 +79,9 @@ private:
 	const base::unique_qptr<Ui::RpWidget> _sizeControl;
 	const base::unique_qptr<Ui::RpWidget> _toolSelection;
 	std::vector<base::unique_qptr<Ui::AbstractButton>> _toolButtons;
+	const base::unique_qptr<Ui::RpWidget> _rowFade;
+	QImage _rowFadeImage;
+	bool _rowFadeShown = false;
 
 	struct {
 		int y = 0;
@@ -96,6 +105,7 @@ private:
 	Ui::Animations::Simple _sizeControlPositionAnimation;
 	Ui::Animations::Simple _colorButtonAnimation;
 	Ui::Animations::Simple _toolSelectionAnimation;
+	Ui::Animations::Simple _rowFadeAnimation;
 
 	rpl::event_stream<Brush> _saveBrushRequests;
 	rpl::event_stream<> _toolClicks;

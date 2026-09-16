@@ -14,19 +14,51 @@ struct AnimatedEntity {
 		Lottie,
 		Webm,
 	};
+
+	// Frames show through the hole cut by mask in the picture at geometry.
+	struct Cutout {
+		QImage picture;
+		QImage mask;
+		QRect hole;
+		QRect frames;
+	};
+
 	Kind kind = Kind::Lottie;
 	QByteArray bytes;
 	QRectF geometry;
 	float64 rotation = 0.;
 	bool flipped = false;
+	std::optional<Cutout> cutout;
+
+	crl::time from = 0;
+	crl::time till = 0;
 };
 
 using Layer = std::variant<QImage, AnimatedEntity>;
+
+// The part [from, till) of the file plays from the result position.
+struct MusicTrack {
+	QString path;
+	QByteArray bytes;
+	crl::time position = 0;
+	crl::time from = 0;
+	// Zero means the end of the music.
+	crl::time till = 0;
+	float64 volume = 1.;
+	// Repeats the part till the result ends, a shorter music
+	// is padded with silence to keep the part length.
+	bool loop = false;
+
+	[[nodiscard]] bool empty() const {
+		return path.isEmpty() && bytes.isEmpty();
+	}
+};
 
 struct StillSource {
 	QImage base;
 	crl::time duration = 0;
 	float64 fps = 30.;
+	std::vector<MusicTrack> music;
 };
 
 struct VideoSource {
@@ -60,6 +92,8 @@ struct VideoSource {
 	float64 fpsLimit = 0.;
 
 	crl::time coverPosition = -1;
+
+	std::vector<MusicTrack> music;
 };
 
 struct Job {
@@ -144,5 +178,12 @@ struct TranscodeResult {
 	crl::time duration);
 
 void ClearStaleTempFiles();
+
+[[nodiscard]] QString TempFileTemplate(const QString &extension);
+
+[[nodiscard]] const QImage &ComposeCutout(
+	const AnimatedEntity::Cutout &cutout,
+	const QImage &frame,
+	QImage &composite);
 
 } // namespace Media::Encode
