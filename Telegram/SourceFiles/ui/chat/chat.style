@@ -779,8 +779,8 @@ msgServiceGiftThemeStickerSize: 64px;
 msgServiceGiftThemeStickerPadding: margins(18px, 18px, 18px, 18px);
 msgServiceCommunityAddedPhoto: 66px; // About 2/3 of msgServicePhotoWidth.
 
-unsupportedNoticePadding: margins(12px, 7px, 12px, 7px);
-unsupportedNoticeBadgeSize: 44px;
+unsupportedNoticePadding: margins(0px, 7px, 12px, 7px);
+unsupportedNoticeBadgeSize: 36px;
 unsupportedNoticeBadgeSkip: 10px;
 unsupportedNoticeButtonHeight: 30px;
 unsupportedNoticeButtonPadding: margins(12px, 0px, 12px, 0px);

@@ -32,9 +32,13 @@ namespace {
 	result.setFillRule(Qt::WindingFill);
 	result.addEllipse(QRectF(badge));
 	auto tail = QPolygonF();
-	tail << point(115., 1.) << point(137.5, 1.22) << point(160., 1.);
+	tail << point(125., 1.) << point(137.5, 1.33) << point(150., 1.);
 	result.addPolygon(tail);
 	return result;
+}
+
+[[nodiscard]] int BadgeSkip(int cardHeight) {
+	return std::max((cardHeight - st::unsupportedNoticeBadgeSize) / 2, 0);
 }
 
 } // namespace
@@ -60,24 +64,35 @@ void UnsupportedNoticeCard::setTexts(
 int UnsupportedNoticeCard::resizeGetHeight(int availableWidth) {
 	_width = std::min(availableWidth, st::unsupportedNoticeMaxWidth);
 	const auto &padding = st::unsupportedNoticePadding;
-	_columnWidth = std::max(
-		(_width
-			- padding.left()
-			- st::unsupportedNoticeBadgeSize
-			- st::unsupportedNoticeBadgeSkip
-			- padding.right()
-			- _buttonSize.width()
-			- padding.right()),
-		0);
 	const auto lineHeight = st::msgFont->height;
+	const auto heightForLines = [&](int lines) {
+		return padding.top()
+			+ st::msgServiceFont->height
+			+ lines * lineHeight
+			+ padding.bottom();
+	};
+	const auto columnForHeight = [&](int height) {
+		return std::max(
+			(_width
+				- BadgeSkip(height)
+				- st::unsupportedNoticeBadgeSize
+				- st::unsupportedNoticeBadgeSkip
+				- padding.right()
+				- _buttonSize.width()
+				- padding.right()),
+			0);
+	};
+	_textLines = 1;
+	_height = heightForLines(1);
+	_columnWidth = columnForHeight(_height);
 	const auto textHeight = (_columnWidth > 0)
 		? _text.countHeight(_columnWidth)
 		: lineHeight;
-	_textLines = std::clamp(textHeight / lineHeight, 1, 2);
-	_height = padding.top()
-		+ st::msgServiceFont->height
-		+ _textLines * lineHeight
-		+ padding.bottom();
+	if (textHeight > lineHeight) {
+		_textLines = 2;
+		_height = heightForLines(2);
+		_columnWidth = columnForHeight(_height);
+	}
 	return _height;
 }
 
@@ -96,9 +111,10 @@ void UnsupportedNoticeCard::paint(
 
 	const auto &padding = st::unsupportedNoticePadding;
 	const auto badgeSize = st::unsupportedNoticeBadgeSize;
+	const auto badgeSkip = BadgeSkip(cardRect.height());
 	const auto badge = QRect(
-		cardRect.x() + padding.left(),
-		cardRect.y() + (cardRect.height() - badgeSize) / 2,
+		cardRect.x() + badgeSkip,
+		cardRect.y() + badgeSkip,
 		badgeSize,
 		badgeSize);
 	p.drawPath(BadgePath(badge));
@@ -109,7 +125,7 @@ void UnsupportedNoticeCard::paint(
 
 	if (_columnWidth > 0) {
 		const auto left = cardRect.x()
-			+ padding.left()
+			+ badgeSkip
 			+ badgeSize
 			+ st::unsupportedNoticeBadgeSkip;
 		const auto top = cardRect.y() + padding.top();
