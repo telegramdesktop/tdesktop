@@ -97,7 +97,7 @@ namespace {
 
 [[nodiscard]] mtpBuffer IncompatibleBoolBuffer() {
 	auto buffer = mtpBuffer();
-	MTP_boolTrue().write(buffer);
+	MTPBool(MTP_boolTrue()).write(buffer);
 	return buffer;
 }
 
