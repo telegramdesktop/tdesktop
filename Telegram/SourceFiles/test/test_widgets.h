@@ -96,8 +96,7 @@ void PublishLiveAction(
 // at a matching internal unwind INSIDE the sent event's own signal
 // emission — both unlike real top-level input.
 //
-// Guarantee: when a helper returns, postponed text fix-ups (for example
-// Ui::CreateTonAmountInput's FixTonAmountInput rewrite) have run AND
+// Guarantee: when a helper returns, postponed text fix-ups have run AND
 // their own change handling has run, so both the widget's document and
 // the field's cached text state (InputField::getLastText) show the
 // product's rewritten text. The drain covers Ui::PostponeCall only:

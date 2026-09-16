@@ -4132,16 +4132,26 @@ void WalletSendCommentBox(
 	return tr::lng_wallet_send_unavailable(tr::now, lt_error, error);
 }
 
+// A button that cannot be pressed yet keeps the background its own style
+// gives it and fades its label halfway into that background, which is how the
+// rest of the app shows a disabled button. The colors come from the button's
+// own style, so an attention or light button fades into its own background
+// instead of an active button's.
 void SetButtonDisabledLook(
 		not_null<Ui::RoundButton*> button,
 		bool disabled) {
-	button->setBrushOverride(disabled
-		? std::optional(st::windowSubTextFg)
-		: std::nullopt);
+	if (disabled) {
+		button->clearState();
+	}
+	const auto &buttonStyle = button->st();
+	button->setDisabled(disabled);
 	button->setAttribute(Qt::WA_TransparentForMouseEvents, disabled);
+	button->setTextFgOverride(disabled
+		? anim::color(buttonStyle.textBg, buttonStyle.textFg, 0.5)
+		: std::optional<QColor>());
 }
 
-[[nodiscard]] not_null<Ui::InputField*> AddAmountField(
+[[nodiscard]] not_null<Ui::TonAmountInput*> AddAmountField(
 		not_null<Ui::VerticalLayout*> container,
 		const style::InputField &st,
 		rpl::producer<QString> placeholder,
@@ -4163,34 +4173,54 @@ void SetButtonDisabledLook(
 				st::walletSendFieldMargin.right(),
 				st::walletSendFieldMargin.bottom())
 			: st::walletSendFieldMargin);
-	const auto field = Ui::CreateTonAmountInput(
+	auto zeroText = rpl::duplicate(placeholder);
+	const auto field = Ui::CreateChild<Ui::TonAmountInput>(
 		wrap,
+		st,
 		std::move(placeholder),
 		value,
 		std::move(fractionDigits),
-		&st,
 		std::move(separator));
-	auto helper = Ui::Text::CustomEmojiHelper();
-	auto diamond = helper.paletteDependent({
-		.factory = [=] {
-			return Ui::Earn::IconCurrencyColored(
-				centered ? st::walletDetailsMarkSize : st::walletSendMarkSize,
-				st::windowActiveTextFg->c);
-		},
-	});
-	const auto icon = Ui::CreateChild<Ui::FlatLabel>(
-		centered ? wrap : field.get(),
-		rpl::single(std::move(diamond)),
-		centered ? st::walletSendUserTickerLabel : st::defaultFlatLabel,
-		st::defaultPopupMenu,
-		helper.context());
 	if (centered) {
+		// The mark is painted directly instead of riding inside a label: a
+		// custom emoji sits where its line puts it, while here it has to sit
+		// on the optical center of a digit, which AlignedMarkTop computes.
+		const auto mark = Ui::CreateChild<Ui::RpWidget>(wrap);
+		const auto image = mark->lifetime().make_state<QImage>();
+		const auto refreshMark = [=] {
+			*image = Ui::Earn::IconCurrencyColored(
+				st::walletDetailsMarkSize,
+				st::windowActiveTextFg->c);
+			mark->resize(
+				image->size() / image->devicePixelRatio());
+			mark->update();
+		};
+		refreshMark();
+		style::PaletteChanged(
+		) | rpl::on_next(refreshMark, mark->lifetime());
+		mark->paintRequest() | rpl::on_next([=] {
+			QPainter(mark).drawImage(0, 0, *image);
+		}, mark->lifetime());
+		mark->setAttribute(Qt::WA_TransparentForMouseEvents);
+		// The field paints no placeholder of its own: a centered placeholder
+		// and a centered caret occupy the same pixels. The zero is a part of
+		// the row instead, with the caret-wide empty field right after it.
+		field->setPlaceholderHidden(true);
+		const auto zero = Ui::CreateChild<Ui::FlatLabel>(
+			wrap,
+			std::move(zeroText),
+			st::walletSendUserAmountLabel);
+		zero->setAttribute(Qt::WA_TransparentForMouseEvents);
+		const auto catcher = Ui::CreateChild<Ui::AbstractButton>(wrap);
+		catcher->setClickedCallback([=] { field->setFocusFast(); });
+		catcher->lower();
 		const auto fiatIcon = Ui::CreateChild<Ui::FlatLabel>(
 			wrap,
 			rpl::duplicate(currency) | rpl::map([](const QString &code) {
 				return Ui::CurrencyName(code);
 			}),
-			st::walletSendUserTickerLabel);
+			st::walletSendUserAmountLabel);
+		fiatIcon->setAttribute(Qt::WA_TransparentForMouseEvents);
 		const auto ticker = Ui::CreateChild<Ui::FlatLabel>(
 			wrap,
 			rpl::combine(
@@ -4201,6 +4231,7 @@ void SetButtonDisabledLook(
 				return fiat ? code : gram;
 			}),
 			st::walletSendUserTickerLabel);
+		ticker->setAttribute(Qt::WA_TransparentForMouseEvents);
 		const auto pill = Ui::CreateChild<Ui::RoundButton>(
 			wrap,
 			std::move(fiat) | rpl::map([](QString text) {
@@ -4212,55 +4243,105 @@ void SetButtonDisabledLook(
 		std::move(equivalentShown) | rpl::on_next([=](bool shown) {
 			pill->setVisible(shown);
 		}, pill->lifetime());
-		const auto relayout = [=] {
+		const auto layout = [=] {
 			const auto width = wrap->width();
-			const auto margins = field->fullTextMargins();
-			const auto fieldHeight = st.style.font->height
-				+ margins.top()
-				+ margins.bottom();
+			const auto fieldHeight = st.style.font->height;
 			const auto band = std::max(st.heightMin, fieldHeight);
-			const auto prefix = icon->isHidden()
-				? fiatIcon
-				: icon;
-			const auto prefixWidth = icon->isHidden()
-				? prefix->naturalWidth()
-				: st::walletDetailsMarkSize;
-			const auto tickerWidth = ticker->naturalWidth();
-			const auto gap = st::walletDetailsAmountMinorSkip;
-			const auto available = std::max(
-				width - prefixWidth - tickerWidth - 2 * gap,
-				0);
+			const auto fieldTop = (band - fieldHeight) / 2;
+			// A line edit centers its text in its own height and draws it
+			// from its font ascent, so this is where the digits stand.
+			const auto baseline = fieldTop + st.style.font->ascent;
+			const auto labelTop = [&](not_null<Ui::FlatLabel*> label) {
+				return baseline
+					- label->st().style.font->ascent
+					- label->st().margin.top();
+			};
 			const auto text = field->getLastText();
-			const auto natural = st.style.font->width(
-				text.isEmpty() ? u"0"_q : text)
-				+ margins.left()
-				+ margins.right()
-				+ field->rawTextEdit()->cursorWidth();
-			const auto fieldWidth = std::min(natural, available);
-			const auto groupWidth = prefixWidth + fieldWidth + tickerWidth
-				+ 2 * gap;
+			const auto empty = text.isEmpty();
+			zero->setVisible(empty);
+			const auto fiat = !fiatIcon->isHidden();
+			const auto prefixWidth = fiat
+				? fiatIcon->naturalWidth()
+				: mark->width();
+			const auto tickerWidth = ticker->naturalWidth();
+			const auto zeroWidth = empty ? zero->naturalWidth() : 0;
+			const auto gap = st::walletDetailsAmountMinorSkip;
+			// The field knows the width its value needs and insets its text
+			// from both edges, so it is moved back by one inset to put the
+			// digits where the row wants them, and what the row sees of it
+			// is that width without the two insets.
+			const auto inset = field->textLeft();
+			const auto available = std::max(
+				width - prefixWidth - tickerWidth - zeroWidth - 2 * gap,
+				2 * inset);
+			const auto fieldWidth = std::min(
+				field->naturalWidth(),
+				available);
+			// What the row gives the field is what its digits span; the
+			// rest of its width is the slack a line edit needs around them,
+			// and it stays under the gap before the ticker.
+			const auto shownWidth = std::min(
+				field->textWidth(),
+				std::max(fieldWidth - 2 * inset, 0));
+			const auto groupWidth = prefixWidth + gap + zeroWidth + shownWidth
+				+ gap + tickerWidth;
 			const auto left = (width - groupWidth) / 2;
-			prefix->resizeToWidth(prefixWidth);
-			prefix->moveToLeft(left, (band - prefix->height()) / 2, width);
+			if (fiat) {
+				fiatIcon->resizeToWidth(prefixWidth);
+				fiatIcon->moveToLeft(left, labelTop(fiatIcon), width);
+			} else {
+				// The mark is a peer of the ticker beside it, so it sits on
+				// the optical center of that smaller text, not of the digits.
+				mark->moveToLeft(
+					left,
+					(baseline
+						- ticker->st().style.font->ascent
+						+ int(base::SafeRound(Ui::Earn::AlignedMarkTop(
+							ticker->st().style.font,
+							*image)))),
+					width);
+			}
+			const auto textLeft = left + prefixWidth + gap + zeroWidth;
+			zero->resizeToWidth(zeroWidth);
+			zero->moveToLeft(left + prefixWidth + gap, labelTop(zero), width);
 			field->resize(fieldWidth, fieldHeight);
-			field->moveToLeft(
-				left + prefixWidth + gap,
-				(band - fieldHeight) / 2,
-				width);
+			field->moveToLeft(textLeft - inset, fieldTop, width);
 			ticker->resizeToWidth(tickerWidth);
 			ticker->moveToLeft(
-				left + prefixWidth + gap + fieldWidth + gap,
-				(band - ticker->height()) / 2,
+				textLeft + shownWidth + gap,
+				labelTop(ticker),
 				width);
 			pill->resize(std::min(pill->naturalWidth(), width), pill->height());
 			pill->moveToLeft(
 				(width - pill->width()) / 2,
 				band + st::walletSendFieldMargin.top(),
 				width);
+			catcher->setGeometry(0, 0, width, band);
 			wrap->resize(width, pill->y() + pill->height());
 		};
+		// Showing the zero and resizing the labels makes them republish their
+		// natural width, which arrives back here. Without this the nested pass
+		// would lay the row out correctly and the outer one would then finish
+		// with the values it captured before the text was corrected.
+		struct LayoutState {
+			bool running = false;
+			bool again = false;
+		};
+		const auto layoutState = wrap->lifetime().make_state<LayoutState>();
+		const auto relayout = [=] {
+			if (layoutState->running) {
+				layoutState->again = true;
+				return;
+			}
+			layoutState->running = true;
+			do {
+				layoutState->again = false;
+				layout();
+			} while (layoutState->again);
+			layoutState->running = false;
+		};
 		std::move(entryFiat) | rpl::on_next([=](bool fiat) {
-			icon->setVisible(!fiat);
+			mark->setVisible(!fiat);
 			fiatIcon->setVisible(fiat);
 			relayout();
 		}, wrap->lifetime());
@@ -4268,23 +4349,38 @@ void SetButtonDisabledLook(
 			wrap->widthValue(),
 			fiatIcon->naturalWidthValue(),
 			ticker->naturalWidthValue(),
+			zero->naturalWidthValue(),
 			pill->naturalWidthValue()
 		) | rpl::on_next(relayout, wrap->lifetime());
 		field->changes() | rpl::on_next(relayout, wrap->lifetime());
 		return field;
 	}
+	auto helper = Ui::Text::CustomEmojiHelper();
+	auto diamond = helper.paletteDependent({
+		.factory = [=] {
+			return Ui::Earn::IconCurrencyColored(
+				st::walletSendMarkSize,
+				st::windowActiveTextFg->c);
+		},
+	});
+	const auto icon = Ui::CreateChild<Ui::FlatLabel>(
+		field,
+		rpl::single(std::move(diamond)),
+		st::defaultFlatLabel,
+		st::defaultPopupMenu,
+		helper.context());
 	const auto fiatIcon = Ui::CreateChild<Ui::FlatLabel>(
-		field.get(),
+		field,
 		std::move(currency) | rpl::map([](const QString &code) {
 			return Ui::CurrencyName(code);
 		}),
 		st::walletSendFiatLabel);
 	const auto fiatLabel = Ui::CreateChild<Ui::FlatLabel>(
-		field.get(),
+		field,
 		std::move(fiat),
 		st::walletSendFiatLabel);
 	fiatLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
-	const auto swapButton = Ui::CreateChild<Ui::AbstractButton>(field.get());
+	const auto swapButton = Ui::CreateChild<Ui::AbstractButton>(field);
 	swapButton->setPointerCursor(true);
 	swapButton->setClickedCallback(std::move(swap));
 	fiatLabel->geometryValue(
@@ -4303,7 +4399,7 @@ void SetButtonDisabledLook(
 			+ prefixWidth
 			+ st::walletSendFiatLabelSkip
 			- field->st().textMargins.left();
-		field->setAdditionalMargins({
+		field->setExtraMargins({
 			(fiat && overflow > 0) ? overflow : 0,
 			0,
 			fiatWidth + st::walletSendFiatLabelSkip,
@@ -4321,7 +4417,7 @@ void SetButtonDisabledLook(
 		icon->move(st::walletSendMarkPosition);
 		fiatIcon->move(st::walletSendMarkPosition.x(), st::walletSendFiatTop);
 		field->move(0, 0);
-		field->resize(width, field->height());
+		field->resize(width, st.heightMin);
 		wrap->resize(width, field->height());
 	}, wrap->lifetime());
 	return field;
@@ -5579,6 +5675,35 @@ void WalletSendBox(
 	depositWrap->toggleOn(std::move(showInsufficient));
 	depositWrap->finishAnimating();
 
+	// This row swaps between a balance, a fee, an error and the deposit
+	// button, and some of those swaps are instant while others slide, so
+	// between two of them the row would have nothing in it and the whole box
+	// would shrink and grow back. It keeps the height of one line whatever
+	// it currently shows, which also spares the box the jump it made when
+	// the rate and the balance arrived after it was already on screen.
+	const auto reserve = balance->add(object_ptr<Ui::RpWidget>(balance));
+	reserve->resize(reserve->width(), 0);
+	const auto lineHeight = (user
+		? st::walletSendUserBalanceLabel
+		: st::walletSendBalanceLabel).style.font->height;
+	const auto errorHeight = (user
+		? st::walletSendUserErrorLabel
+		: st::walletSendErrorLabel).style.font->height;
+	// The tallest this row goes: the balance and the fee together, or the
+	// insufficient-funds line with the deposit button under it.
+	const auto reserved = std::max(
+		2 * lineHeight,
+		errorHeight
+			+ (user ? st::walletDetailsAmountMinorSkip : 0)
+			+ st::defaultTableSmallButton.height);
+	balance->heightValue() | rpl::on_next([=](int height) {
+		const auto others = height - reserve->height();
+		const auto add = std::max(reserved - others, 0);
+		if (reserve->height() != add) {
+			reserve->resize(reserve->width(), add);
+		}
+	}, reserve->lifetime());
+
 	const auto commentField = user ? nullptr : AddSendField(
 		inner,
 		st::walletSendCommentField,
@@ -5930,7 +6055,11 @@ void WalletSendBox(
 	}
 
 	box->setFocusCallback([=] {
-		(user || initial ? amountField.get() : recipientField)->setFocusFast();
+		if (user || initial) {
+			amountField->setFocusFast();
+		} else {
+			recipientField->setFocusFast();
+		}
 	});
 	wrap->toggleOn(state->expanded.value() | rpl::map([=](bool expanded) {
 		return user || expanded;
@@ -10157,11 +10286,7 @@ void Content::setupPinned() {
 	) | rpl::on_next([=](Presence presence) {
 		const auto ready = (presence == Presence::Ready);
 		for (const auto button : { addFunds, send }) {
-			button->setDisabled(!ready);
-			button->setAttribute(Qt::WA_TransparentForMouseEvents, !ready);
-			button->setTextFgOverride(ready
-				? std::optional<QColor>()
-				: anim::color(st::activeButtonBg, st::activeButtonFg, 0.5));
+			SetButtonDisabledLook(button, !ready);
 		}
 	}, buttons->lifetime());
 
